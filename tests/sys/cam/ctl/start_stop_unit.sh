@@ -40,7 +40,7 @@ eject_head()
 {
 	atf_set "descr" "START STOP UNIT can eject a CDROM device"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_start sg_readcap
+	atf_set "require.progs" "sg_start sg_readcap ctladm"
 }
 eject_body()
 {
@@ -68,7 +68,7 @@ load_head()
 {
 	atf_set "descr" "START STOP UNIT can load a CDROM device"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_start sg_readcap
+	atf_set "require.progs" "sg_start sg_readcap ctladm"
 }
 load_body()
 {
@@ -97,7 +97,7 @@ start_head()
 {
 	atf_set "descr" "START STOP UNIT can start a device"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_start sg_readcap
+	atf_set "require.progs" "sg_start sg_readcap ctladm"
 }
 start_body()
 {
@@ -123,7 +123,7 @@ stop_head()
 {
 	atf_set "descr" "START STOP UNIT can stop a device"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_start sg_readcap
+	atf_set "require.progs" "sg_start sg_readcap ctladm"
 }
 stop_body()
 {

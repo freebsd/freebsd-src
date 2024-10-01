@@ -6,6 +6,8 @@ PACKAGE=	tests
 
 ${PACKAGE}FILES= \
      err.D_PDESC_ZERO.notreturn.d  \
+     tst.argtest.ksh  \
+     tst.argtest.ksh.out  \
      tst.basic.d  \
      tst.functionentry.d  \
      tst.functionreturnvalue.d  \

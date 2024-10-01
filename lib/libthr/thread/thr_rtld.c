@@ -39,8 +39,7 @@
 #include "rtld_lock.h"
 #include "thr_private.h"
 
-#undef errno
-extern int errno;
+extern int __libsys_errno;
 
 static int	_thr_rtld_clr_flag(int);
 static void	*_thr_rtld_lock_create(void);
@@ -96,14 +95,14 @@ _thr_rtld_lock_destroy(void *lock)
 	if (curthread != _thr_initial)		\
 		errsave = curthread->error;	\
 	else					\
-		errsave = errno;		\
+		errsave = __libsys_errno;	\
 }
 
 #define RESTORE_ERRNO()	{ 			\
 	if (curthread != _thr_initial)  	\
 		curthread->error = errsave;	\
 	else					\
-		errno = errsave;		\
+		__libsys_errno = errsave;	\
 }
 
 static void

@@ -485,6 +485,31 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 }
 #endif
 
+/*
+ * Convert Linux stat flags to BSD flags.  Return value indicates successful
+ * conversion (no unknown flags).
+ */
+static bool
+linux_to_bsd_stat_flags(int linux_flags, int *out_flags)
+{
+	int flags, unsupported;
+
+	unsupported = linux_flags & ~(LINUX_AT_SYMLINK_NOFOLLOW |
+	    LINUX_AT_EMPTY_PATH | LINUX_AT_NO_AUTOMOUNT);
+	if (unsupported != 0) {
+		*out_flags = unsupported;
+		return (false);
+	}
+
+	flags = 0;
+	if (linux_flags & LINUX_AT_SYMLINK_NOFOLLOW)
+		flags |= AT_SYMLINK_NOFOLLOW;
+	if (linux_flags & LINUX_AT_EMPTY_PATH)
+		flags |= AT_EMPTY_PATH;
+	*out_flags = flags;
+	return (true);
+}
+
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 static int
@@ -561,21 +586,16 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 int
 linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 {
-	int error, dfd, flag, unsupported;
+	int error, dfd, flags;
 	struct stat buf;
 
-	unsupported = args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
-	if (unsupported != 0) {
-		linux_msg(td, "fstatat64 unsupported flag 0x%x", unsupported);
+	if (!linux_to_bsd_stat_flags(args->flag, &flags)) {
+		linux_msg(td, "fstatat64 unsupported flags 0x%x", flags);
 		return (EINVAL);
 	}
-	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
-	    AT_SYMLINK_NOFOLLOW : 0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
-	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	error = linux_kern_statat(td, flags, dfd, args->pathname,
 	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = stat64_copyout(&buf, args->statbuf);
@@ -588,22 +608,16 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 int
 linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 {
-	int error, dfd, flag, unsupported;
+	int error, dfd, flags;
 	struct stat buf;
 
-	unsupported = args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
-	if (unsupported != 0) {
-		linux_msg(td, "fstatat unsupported flag 0x%x", unsupported);
+	if (!linux_to_bsd_stat_flags(args->flag, &flags)) {
+		linux_msg(td, "fstatat unsupported flags 0x%x", flags);
 		return (EINVAL);
 	}
 
-	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
-	    AT_SYMLINK_NOFOLLOW : 0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
-	    AT_EMPTY_PATH : 0;
-
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	error = linux_kern_statat(td, flags, dfd, args->pathname,
 	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = newstat_copyout(&buf, args->statbuf);
@@ -688,20 +702,13 @@ statx_copyout(struct stat *buf, void *ubuf)
 int
 linux_statx(struct thread *td, struct linux_statx_args *args)
 {
-	int error, dirfd, flags, unsupported;
+	int error, dirfd, flags;
 	struct stat buf;
 
-	unsupported = args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW |
-	    LINUX_AT_EMPTY_PATH | LINUX_AT_NO_AUTOMOUNT);
-	if (unsupported != 0) {
-		linux_msg(td, "statx unsupported flags 0x%x", unsupported);
+	if (!linux_to_bsd_stat_flags(args->flags, &flags)) {
+		linux_msg(td, "statx unsupported flags 0x%x", flags);
 		return (EINVAL);
 	}
-
-	flags = (args->flags & LINUX_AT_SYMLINK_NOFOLLOW) ?
-	    AT_SYMLINK_NOFOLLOW : 0;
-	flags |= (args->flags & LINUX_AT_EMPTY_PATH) ?
-	    AT_EMPTY_PATH : 0;
 
 	dirfd = (args->dirfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dirfd;
 	error = linux_kern_statat(td, flags, dirfd, args->pathname,

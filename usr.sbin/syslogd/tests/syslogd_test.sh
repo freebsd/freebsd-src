@@ -22,7 +22,13 @@ readonly SYSLOGD_LOCAL_PRIVSOCKET="${PWD}/logpriv.sock"
 # Start a private syslogd instance.
 syslogd_start()
 {
-    syslogd \
+    local jail
+
+    if [ "$1" = "-j" ]; then
+        jail="jexec $2"
+        shift 2
+    fi
+    $jail syslogd \
         -b ":${SYSLOGD_UDP_PORT}" \
         -C \
         -d \
@@ -288,6 +294,31 @@ pipe_action_cleanup()
     syslogd_stop
 }
 
+atf_test_case "jail_noinet" "cleanup"
+jail_noinet_head()
+{
+    atf_set descr "syslogd -ss can be run in a jail without INET support"
+    atf_set require.user root
+}
+jail_noinet_body()
+{
+    local logfile
+
+    atf_check jail -c name=syslogd_noinet persist
+
+    logfile="${PWD}/jail_noinet.log"
+    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start -j syslogd_noinet -ss
+
+    syslogd_log -p user.debug -t "test" -h "${SYSLOGD_LOCAL_SOCKET}" \
+        "hello, world"
+    atf_check -s exit:0 -o match:"test: hello, world" cat "${logfile}"
+}
+jail_noinet_cleanup()
+{
+    jail -r syslogd_noinet
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case "basic"
@@ -296,4 +327,5 @@ atf_init_test_cases()
     atf_add_test_case "host_filter"
     atf_add_test_case "prop_filter"
     atf_add_test_case "pipe_action"
+    atf_add_test_case "jail_noinet"
 }

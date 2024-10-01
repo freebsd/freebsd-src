@@ -41,15 +41,9 @@
 
 #include <sys/atomic_common.h>
 
-#if __ARM_ARCH >= 7
 #define isb()  __asm __volatile("isb" : : : "memory")
 #define dsb()  __asm __volatile("dsb" : : : "memory")
 #define dmb()  __asm __volatile("dmb" : : : "memory")
-#else
-#define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
-#define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
-#define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
-#endif
 
 #define mb()   dmb()
 #define wmb()  dmb()

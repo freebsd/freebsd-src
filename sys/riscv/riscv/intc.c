@@ -181,7 +181,7 @@ intc_attach(device_t dev)
 	if (pic == NULL)
 		return (ENXIO);
 
-	return (intr_pic_claim_root(sc->dev, xref, intc_intr, sc));
+	return (intr_pic_claim_root(sc->dev, xref, intc_intr, sc, INTR_ROOT_IRQ));
 }
 
 static void
@@ -241,7 +241,7 @@ intc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 #ifdef SMP
 static void
-intc_init_secondary(device_t dev)
+intc_init_secondary(device_t dev, uint32_t rootnum)
 {
 	struct intc_softc *sc;
 	struct intr_irqsrc *isrc;

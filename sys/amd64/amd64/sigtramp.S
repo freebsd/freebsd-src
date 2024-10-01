@@ -68,7 +68,7 @@ ENTRY(__vdso_sigcode)
  *
  * LLVM libunwind from stable/13 cannot parse register numbers higher
  * than 32.  Disable %rflags, %fs.base, and %gs.base annotations.
- */	
+ */
 	.cfi_offset	%fs,  SIGF_UC + UC_FS
 	.cfi_offset	%gs,  SIGF_UC + UC_GS
 	.cfi_offset	%es,  SIGF_UC + UC_ES

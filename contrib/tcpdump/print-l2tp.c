@@ -25,9 +25,7 @@
 
 /* specification: RFC 2661 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

@@ -355,16 +355,18 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
+static bool pmap_lpa_enabled __read_mostly = false;
 pt_entry_t pmap_sh_attr __read_mostly = ATTR_SH(ATTR_SH_IS);
 
 #if PAGE_SIZE == PAGE_SIZE_4K
 #define	L1_BLOCKS_SUPPORTED	1
 #else
-/* TODO: Make this dynamic when we support FEAT_LPA2 (TCR_EL1.DS == 1) */
-#define	L1_BLOCKS_SUPPORTED	0
+#define	L1_BLOCKS_SUPPORTED	(pmap_lpa_enabled)
 #endif
 
 #define	PMAP_ASSERT_L1_BLOCKS_SUPPORTED	MPASS(L1_BLOCKS_SUPPORTED)
+
+static bool pmap_l1_supported __read_mostly = false;
 
 /*
  * This ASID allocator uses a bit vector ("asid_set") to remember which ASIDs
@@ -1306,10 +1308,17 @@ pmap_bootstrap(vm_size_t kernlen)
 {
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa;
+	uint64_t tcr;
+
+	tcr = READ_SPECIALREG(tcr_el1);
 
 	/* Verify that the ASID is set through TTBR0. */
-	KASSERT((READ_SPECIALREG(tcr_el1) & TCR_A1) == 0,
-	    ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+	KASSERT((tcr & TCR_A1) == 0, ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+
+	if ((tcr & TCR_DS) != 0)
+		pmap_lpa_enabled = true;
+
+	pmap_l1_supported = L1_BLOCKS_SUPPORTED;
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = pagetable_l0_ttbr1;
@@ -1680,6 +1689,9 @@ static SYSCTL_NODE(_vm_pmap, OID_AUTO, l1, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 static COUNTER_U64_DEFINE_EARLY(pmap_l1_demotions);
 SYSCTL_COUNTER_U64(_vm_pmap_l1, OID_AUTO, demotions, CTLFLAG_RD,
     &pmap_l1_demotions, "L1 (1GB/64GB) page demotions");
+
+SYSCTL_BOOL(_vm_pmap_l1, OID_AUTO, supported, CTLFLAG_RD, &pmap_l1_supported,
+    0, "L1 blocks are supported");
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2c, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "L2C (32MB/1GB) page mapping counters");

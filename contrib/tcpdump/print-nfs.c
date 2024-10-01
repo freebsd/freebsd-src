@@ -21,9 +21,7 @@
 
 /* \summary: Network File System (NFS) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -198,7 +196,7 @@ static const struct tok sunrpc_str[] = {
 };
 
 static void
-print_nfsaddr(netdissect_options *ndo,
+nfsaddr_print(netdissect_options *ndo,
               const u_char *bp, const char *s, const char *d)
 {
 	const struct ip *ip;
@@ -349,7 +347,7 @@ nfsreply_print(netdissect_options *ndo,
 		snprintf(dstid, sizeof(dstid), "%u",
 		    GET_BE_U_4(rp->rm_xid));
 	}
-	print_nfsaddr(ndo, bp2, srcid, dstid);
+	nfsaddr_print(ndo, bp2, srcid, dstid);
 
 	nfsreply_noaddr_print(ndo, bp, length, bp2);
 }
@@ -434,6 +432,11 @@ parsereq(netdissect_options *ndo,
 	if (length < 2 * sizeof(*dp))
 		goto trunc;
 	len = GET_BE_U_4(dp + 1);
+	if (len > length) {
+		ND_PRINT(" [credentials length %u > %u]", len, length);
+		nd_print_invalid(ndo);
+		return NULL;
+	}
 	rounded_len = roundup2(len, 4);
 	ND_TCHECK_LEN(dp + 2, rounded_len);
 	if (2 * sizeof(*dp) + rounded_len <= length) {
@@ -453,6 +456,11 @@ parsereq(netdissect_options *ndo,
 		if (length < 2 * sizeof(*dp))
 			goto trunc;
 		len = GET_BE_U_4(dp + 1);
+		if (len > length) {
+			ND_PRINT(" [verifier length %u > %u]", len, length);
+			nd_print_invalid(ndo);
+			return NULL;
+		}
 		rounded_len = roundup2(len, 4);
 		ND_TCHECK_LEN(dp + 2, rounded_len);
 		if (2 * sizeof(*dp) + rounded_len < length) {
@@ -896,15 +904,17 @@ nfs_printfh(netdissect_options *ndo,
 		if (spacep)
 			*spacep = '\0';
 
-		ND_PRINT(" fh %s/", temp);
+		ND_PRINT(" fh ");
+		fn_print_str(ndo, (const u_char *)temp);
+		ND_PRINT("/");
 	} else {
 		ND_PRINT(" fh %u,%u/",
 			     fsid.Fsid_dev.Major, fsid.Fsid_dev.Minor);
 	}
 
-	if(fsid.Fsid_dev.Minor == 257)
+	if(fsid.Fsid_dev.Minor == UINT_MAX && fsid.Fsid_dev.Major == UINT_MAX)
 		/* Print the undecoded handle */
-		ND_PRINT("%s", fsid.Opaque_Handle);
+		fn_print_str(ndo, (const u_char *)fsid.Opaque_Handle);
 	else
 		ND_PRINT("%u", ino);
 }
@@ -970,8 +980,7 @@ xid_map_enter(netdissect_options *ndo,
 				 sizeof(ip->ip_src));
 		UNALIGNED_MEMCPY(&xmep->server, ip->ip_dst,
 				 sizeof(ip->ip_dst));
-	}
-	else if (ip6) {
+	} else if (ip6) {
 		xmep->ipver = 6;
 		UNALIGNED_MEMCPY(&xmep->client, ip6->ip6_src,
 				 sizeof(ip6->ip6_src));
@@ -1559,7 +1568,7 @@ interp_reply(netdissect_options *ndo,
 		if (dp == NULL)
 			goto trunc;
 		if (v3) {
-			if (parsewccres(ndo, dp, ndo->ndo_vflag, &nfserr) == 0)
+			if (parsewccres(ndo, dp, ndo->ndo_vflag, &nfserr) == NULL)
 				goto trunc;
 		} else {
 			if (parseattrstat(ndo, dp, !ndo->ndo_qflag, 0, &nfserr) == 0)

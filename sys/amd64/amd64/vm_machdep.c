@@ -606,7 +606,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 
-	/* 
+	/*
 	 * Do any extra cleaning that needs to be done.
 	 * The thread may have optional components
 	 * that are not present in a fresh thread.

@@ -421,7 +421,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_BA			3	/* 9.6.4 Block Ack */
 #define	IEEE80211_ACTION_CAT_PUBLIC		4	/* 9.6.7 Public */
 #define	IEEE80211_ACTION_CAT_RADIO_MEASUREMENT	5	/* 9.6.6 Radio Measurement */
-#define	IEEE80211_ACTION_CAT_FAST_BBS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
+#define	IEEE80211_ACTION_CAT_FAST_BSS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
 #define	IEEE80211_ACTION_CAT_HT			7	/* 9.6.11 HT */
 #define	IEEE80211_ACTION_CAT_SA_QUERY		8	/* 9.6.9 SA Query */
 #define	IEEE80211_ACTION_CAT_PROTECTED_DUAL_OF_PUBLIC_ACTION 9 /* 9.6.10 Protected Dual of Public Action */
@@ -1017,6 +1017,8 @@ struct ieee80211_ie_vht_txpwrenv {
 
 /*
  * Management information element payloads.
+ *
+ * 802.11-2016 Table 9-77 (Element IDs).
  */
 
 enum {
@@ -1058,6 +1060,7 @@ enum {
 	IEEE80211_ELEMID_COEX_2040	= 72,
 	IEEE80211_ELEMID_INTOL_CHN_REPORT	= 73,
 	IEEE80211_ELEMID_OVERLAP_BSS_SCAN_PARAM = 74,
+	IEEE80211_ELEMID_MMIC		= 76,
 	IEEE80211_ELEMID_TSF_REQ	= 91,
 	IEEE80211_ELEMID_TSF_RESP	= 92,
 	IEEE80211_ELEMID_WNM_SLEEP_MODE	= 93,

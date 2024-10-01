@@ -54,4 +54,6 @@ if not core.isMenuSkipped() then
 else
 	-- Load kernel/modules before we go
 	config.loadelf()
+	-- Load platform entropy if possible
+	core.loadEntropy()
 end

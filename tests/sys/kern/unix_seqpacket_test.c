@@ -1197,8 +1197,7 @@ ATF_TC_BODY(random_eor_and_waitall, tc)
 	size_t off;
 	int fd[2], eor;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/279354");
+	atf_tc_skip("https://bugs.freebsd.org/279354");
 
 	arc4random_buf(params.seed, sizeof(params.seed));
 	printf("Using seed:");
@@ -1210,7 +1209,7 @@ ATF_TC_BODY(random_eor_and_waitall, tc)
 	for (u_int i = 0; i < RANDOM_TESTSIZE / (u_int )sizeof(long); i++)
 		((long *)params.sendbuf)[i] = nrand48(&params.seed[0]);
 
-	ATF_REQUIRE(sysctlbyname("net.local.stream.recvspace",
+	ATF_REQUIRE(sysctlbyname("net.local.seqpacket.recvspace",
 	    &params.recvspace, &(size_t){sizeof(u_long)}, NULL, 0) != -1);
 	ATF_REQUIRE((recvbuf =
 	    malloc(RANDOM_RECVSIZE * params.recvspace)) != NULL);

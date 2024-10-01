@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 21, 2019
+.Dd March 8, 2022
 .Dt SKEIN 3
 .Os
 .Sh NAME
@@ -31,6 +31,8 @@
 .Nm SKEIN256_Update ,
 .Nm SKEIN256_Final ,
 .Nm SKEIN256_End ,
+.Nm SKEIN256_Fd ,
+.Nm SKEIN256_FdChunk ,
 .Nm SKEIN256_File ,
 .Nm SKEIN256_FileChunk ,
 .Nm SKEIN256_Data ,
@@ -38,6 +40,8 @@
 .Nm SKEIN512_Update ,
 .Nm SKEIN512_Final ,
 .Nm SKEIN512_End ,
+.Nm SKEIN512_Fd ,
+.Nm SKEIN512_FdChunk ,
 .Nm SKEIN512_File ,
 .Nm SKEIN512_FileChunk ,
 .Nm SKEIN512_Data ,
@@ -45,6 +49,8 @@
 .Nm SKEIN1024_Update ,
 .Nm SKEIN1024_Final ,
 .Nm SKEIN1024_End ,
+.Nm SKEIN1024_Fd ,
+.Nm SKEIN1024_FdChunk ,
 .Nm SKEIN1024_File ,
 .Nm SKEIN1024_FileChunk ,
 .Nm SKEIN1024_Data
@@ -63,6 +69,10 @@
 .Ft "char *"
 .Fn SKEIN256_End "SKEIN256_CTX *context" "char *buf"
 .Ft "char *"
+.Fn SKEIN256_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SKEIN256_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SKEIN256_File "const char *filename" "char *buf"
 .Ft "char *"
 .Fn SKEIN256_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
@@ -77,6 +87,10 @@
 .Ft "char *"
 .Fn SKEIN512_End "SKEIN512_CTX *context" "char *buf"
 .Ft "char *"
+.Fn SKEIN512_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SKEIN512_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SKEIN512_File "const char *filename" "char *buf"
 .Ft "char *"
 .Fn SKEIN512_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
@@ -90,6 +104,10 @@
 .Fn SKEIN1024_Final "unsigned char digest[128]" "SKEIN1024_CTX *context"
 .Ft "char *"
 .Fn SKEIN1024_End "SKEIN1024_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SKEIN1024_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SKEIN1024_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SKEIN1024_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -159,6 +177,19 @@ to the end of file.
 calculates the digest of a chunk of data in memory, and uses
 .Fn SKEIN256_End
 to return the result.
+.Pp
+The
+.Fn SKEIN256_Fd
+and
+.Fn SKEIN256_FdChunk
+functions are identical to their
+.Fn SKEIN256_File
+and
+.Fn SKEIN256_FileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn SKEIN256_End ,

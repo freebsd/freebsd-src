@@ -172,6 +172,7 @@ static void ixgbe_add_media_types(if_ctx_t);
 static void ixgbe_update_stats_counters(struct ixgbe_softc *);
 static void ixgbe_config_link(if_ctx_t);
 static void ixgbe_get_slot_info(struct ixgbe_softc *);
+static void ixgbe_fw_mode_timer(void *);
 static void ixgbe_check_wol_support(struct ixgbe_softc *);
 static void ixgbe_enable_rx_drop(struct ixgbe_softc *);
 static void ixgbe_disable_rx_drop(struct ixgbe_softc *);
@@ -879,6 +880,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	struct ixgbe_hw *hw;
 	int             error = 0;
 	u32             ctrl_ext;
+	size_t i;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
 
@@ -928,8 +930,11 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 		goto err_pci;
 	}
 
-	if (hw->mbx.ops.init_params)
-		hw->mbx.ops.init_params(hw);
+	/* 82598 Does not support SR-IOV, initialize everything else */
+	if (hw->mac.type >= ixgbe_mac_82599_vf) {
+		for (i = 0; i < sc->num_vfs; i++)
+			hw->mbx.ops[i].init_params(hw);
+	}
 
 	hw->allow_unsupported_sfp = allow_unsupported_sfp;
 
@@ -1136,6 +1141,17 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 
 	/* Add sysctls */
 	ixgbe_add_device_sysctls(ctx);
+
+	/* Init recovery mode timer and state variable */
+	if (sc->feat_en & IXGBE_FEATURE_RECOVERY_MODE) {
+		sc->recovery_mode = 0;
+
+		/* Set up the timer callout */
+		callout_init(&sc->fw_mode_timer, true);
+
+		/* Start the task */
+		callout_reset(&sc->fw_mode_timer, hz, ixgbe_fw_mode_timer, sc);
+	}
 
 	return (0);
 err:
@@ -1635,10 +1651,10 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, txr, 0,
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, 0,
 		    ixgbe_sysctl_tdh_handler, "IU", "Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, txr, 0,
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, 0,
 		    ixgbe_sysctl_tdt_handler, "IU", "Transmit Descriptor Tail");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 		    CTLFLAG_RD, &txr->tso_tx, "TSO");
@@ -1655,7 +1671,7 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
-		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    CTLTYPE_UINT | CTLFLAG_RW,
 		    &sc->rx_queues[i], 0,
 		    ixgbe_sysctl_interrupt_rate_handler, "IU",
 		    "Interrupt Rate");
@@ -1663,10 +1679,10 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 		    CTLFLAG_RD, &(sc->rx_queues[i].irqs),
 		    "irqs on this queue");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, rxr, 0,
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, 0,
 		    ixgbe_sysctl_rdh_handler, "IU", "Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, rxr, 0,
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, 0,
 		    ixgbe_sysctl_rdt_handler, "IU", "Receive Descriptor Tail");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 		    CTLFLAG_RD, &rxr->rx_packets, "Queue Packets Received");
@@ -1795,6 +1811,10 @@ ixgbe_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
 	if (!txr)
 		return (0);
 
+
+	if (atomic_load_acq_int(&txr->sc->recovery_mode))
+		return (EPERM);
+
 	val = IXGBE_READ_REG(&txr->sc->hw, IXGBE_TDH(txr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -1817,6 +1837,9 @@ ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 
 	if (!txr)
 		return (0);
+
+	if (atomic_load_acq_int(&txr->sc->recovery_mode))
+		return (EPERM);
 
 	val = IXGBE_READ_REG(&txr->sc->hw, IXGBE_TDT(txr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
@@ -1841,6 +1864,9 @@ ixgbe_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
 	if (!rxr)
 		return (0);
 
+	if (atomic_load_acq_int(&rxr->sc->recovery_mode))
+		return (EPERM);
+
 	val = IXGBE_READ_REG(&rxr->sc->hw, IXGBE_RDH(rxr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
@@ -1863,6 +1889,9 @@ ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 
 	if (!rxr)
 		return (0);
+
+	if (atomic_load_acq_int(&rxr->sc->recovery_mode))
+		return (EPERM);
 
 	val = IXGBE_READ_REG(&rxr->sc->hw, IXGBE_RDT(rxr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
@@ -2154,6 +2183,7 @@ ixgbe_perform_aim(struct ixgbe_softc *sc, struct ix_rx_queue *que)
 {
 	uint32_t newitr = 0;
 	struct rx_ring *rxr = &que->rxr;
+	/* FIXME struct tx_ring *txr = ... ->txr; */
 
 	/*
 	 * Do Adaptive Interrupt Moderation:
@@ -2169,12 +2199,18 @@ ixgbe_perform_aim(struct ixgbe_softc *sc, struct ix_rx_queue *que)
 	que->eitr_setting = 0;
 	/* Idle, do nothing */
 	if (rxr->bytes == 0) {
+		/* FIXME && txr->bytes == 0 */
 		return;
 	}
 
-	if ((rxr->bytes) && (rxr->packets)) {
-		newitr = (rxr->bytes / rxr->packets);
-	}
+	if ((rxr->bytes) && (rxr->packets))
+		newitr = rxr->bytes / rxr->packets;
+	/* FIXME for transmit accounting
+	 * if ((txr->bytes) && (txr->packets))
+	 * 	newitr = txr->bytes/txr->packets;
+	 * if ((rxr->bytes) && (rxr->packets))
+	 * 	newitr = max(newitr, (rxr->bytes / rxr->packets));
+	 */
 
 	newitr += 24; /* account for hardware frame, crc */
 	/* set an upper boundary */
@@ -2197,6 +2233,8 @@ ixgbe_perform_aim(struct ixgbe_softc *sc, struct ix_rx_queue *que)
 	que->eitr_setting = newitr;
 
 	/* Reset state */
+	/* FIXME txr->bytes = 0; */
+	/* FIXME txr->packets = 0; */
 	rxr->bytes = 0;
 	rxr->packets = 0;
 
@@ -2654,6 +2692,9 @@ ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 	int                error;
 	unsigned int       reg, usec, rate;
 
+	if (atomic_load_acq_int(&que->sc->recovery_mode))
+		return (EPERM);
+
 	reg = IXGBE_READ_REG(&que->sc->hw, IXGBE_EITR(que->msix));
 	usec = ((reg & 0x0FF8) >> 3);
 	if (usec > 0)
@@ -2693,12 +2734,12 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 
 	/* Sysctls for all devices */
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fc",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW,
 	    sc, 0, ixgbe_sysctl_flowcntl, "I",
 	    IXGBE_SYSCTL_DESC_SET_FC);
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "advertise_speed",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW,
 	    sc, 0, ixgbe_sysctl_advertise, "I",
 	    IXGBE_SYSCTL_DESC_ADV_SPEED);
 
@@ -2707,35 +2748,35 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	    &sc->enable_aim, 0, "Interrupt Moderation");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    ixgbe_sysctl_print_fw_version, "A", "Prints FW/NVM Versions");
 
 #ifdef IXGBE_DEBUG
 	/* testing sysctls (for all devices) */
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "power_state",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_INT | CTLFLAG_RW,
 	    sc, 0, ixgbe_sysctl_power_state,
 	    "I", "PCI Power State");
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "print_rss_config",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    ixgbe_sysctl_print_rss_config, "A", "Prints RSS Configuration");
 #endif
 	/* for X550 series devices */
 	if (hw->mac.type >= ixgbe_mac_X550)
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "dmac",
-		    CTLTYPE_U16 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    CTLTYPE_U16 | CTLFLAG_RW,
 		    sc, 0, ixgbe_sysctl_dmac,
 		    "I", "DMA Coalesce");
 
 	/* for WoL-capable devices */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T) {
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "wol_enable",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    ixgbe_sysctl_wol_enable, "I", "Enable/Disable Wake on LAN");
 
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "wufc",
-		    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    CTLTYPE_U32 | CTLFLAG_RW,
 		    sc, 0, ixgbe_sysctl_wufc,
 		    "I", "Enable/Disable Wake Up Filters");
 	}
@@ -2750,20 +2791,20 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 		phy_list = SYSCTL_CHILDREN(phy_node);
 
 		SYSCTL_ADD_PROC(ctx_list, phy_list, OID_AUTO, "temp",
-		    CTLTYPE_U16 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		    CTLTYPE_U16 | CTLFLAG_RD,
 		    sc, 0, ixgbe_sysctl_phy_temp,
 		    "I", "Current External PHY Temperature (Celsius)");
 
 		SYSCTL_ADD_PROC(ctx_list, phy_list, OID_AUTO,
 		    "overtemp_occurred",
-		    CTLTYPE_U16 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+		    CTLTYPE_U16 | CTLFLAG_RD, sc, 0,
 		    ixgbe_sysctl_phy_overtemp_occurred, "I",
 		    "External PHY High Temperature Event Occurred");
 	}
 
 	if (sc->feat_cap & IXGBE_FEATURE_EEE) {
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "eee_state",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    ixgbe_sysctl_eee_state, "I", "EEE Power Save State");
 	}
 } /* ixgbe_add_device_sysctls */
@@ -2826,6 +2867,8 @@ ixgbe_if_detach(if_ctx_t ctx)
 	ctrl_ext = IXGBE_READ_REG(&sc->hw, IXGBE_CTRL_EXT);
 	ctrl_ext &= ~IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_CTRL_EXT, ctrl_ext);
+
+	callout_drain(&sc->fw_mode_timer);
 
 	ixgbe_free_pci_resources(ctx);
 	free(sc->mta, M_IXGBE);
@@ -3494,6 +3537,34 @@ ixgbe_if_timer(if_ctx_t ctx, uint16_t qid)
 } /* ixgbe_if_timer */
 
 /************************************************************************
+ * ixgbe_fw_mode_timer - FW mode timer routine
+ ************************************************************************/
+static void
+ixgbe_fw_mode_timer(void *arg)
+{
+	struct ixgbe_softc *sc = arg;
+	struct ixgbe_hw *hw = &sc->hw;
+
+	if (ixgbe_fw_recovery_mode(hw)) {
+		if (atomic_cmpset_acq_int(&sc->recovery_mode, 0, 1)) {
+			/* Firmware error detected, entering recovery mode */
+			device_printf(sc->dev, "Firmware recovery mode detected. Limiting"
+			    " functionality. Refer to the Intel(R) Ethernet Adapters"
+			    " and Devices User Guide for details on firmware recovery"
+			    " mode.\n");
+
+			if (hw->adapter_stopped == FALSE)
+				ixgbe_if_stop(sc->ctx);
+		}
+	} else
+		atomic_cmpset_acq_int(&sc->recovery_mode, 1, 0);
+
+
+	callout_reset(&sc->fw_mode_timer, hz,
+	    ixgbe_fw_mode_timer, sc);
+} /* ixgbe_fw_mode_timer */
+
+/************************************************************************
  * ixgbe_sfp_probe
  *
  *   Determine if a port had optics inserted.
@@ -3944,7 +4015,7 @@ ixgbe_intr(void *arg)
 	}
 
 	/* Check for fan failure */
-	if ((hw->device_id == IXGBE_DEV_ID_82598AT) &&
+	if ((sc->feat_en & IXGBE_FEATURE_FAN_FAIL) &&
 	    (eicr & IXGBE_EICR_GPI_SDP1)) {
 		device_printf(sc->dev,
 		    "\nCRITICAL: FAN FAILURE!! REPLACE IMMEDIATELY!!\n");
@@ -4138,6 +4209,9 @@ ixgbe_sysctl_advertise(SYSCTL_HANDLER_ARGS)
 	int            error, advertise;
 
 	sc = (struct ixgbe_softc *)arg1;
+	if (atomic_load_acq_int(&sc->recovery_mode))
+		return (EPERM);
+
 	advertise = sc->advertise;
 
 	error = sysctl_handle_int(oidp, &advertise, 0, req);
@@ -4489,6 +4563,9 @@ ixgbe_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS)
 	int             error = 0, reta_size;
 	u32             reg;
 
+	if (atomic_load_acq_int(&sc->recovery_mode))
+		return (EPERM);
+
 	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
 	if (!buf) {
 		device_printf(dev, "Could not allocate sbuf for output.\n");
@@ -4544,6 +4621,9 @@ ixgbe_sysctl_phy_temp(SYSCTL_HANDLER_ARGS)
 	struct ixgbe_hw *hw = &sc->hw;
 	u16             reg;
 
+	if (atomic_load_acq_int(&sc->recovery_mode))
+		return (EPERM);
+
 	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_10G_T) {
 		device_printf(iflib_get_dev(sc->ctx),
 		    "Device has no supported external thermal sensor.\n");
@@ -4575,6 +4655,9 @@ ixgbe_sysctl_phy_overtemp_occurred(SYSCTL_HANDLER_ARGS)
 	struct ixgbe_softc  *sc = (struct ixgbe_softc *)arg1;
 	struct ixgbe_hw *hw = &sc->hw;
 	u16             reg;
+
+	if (atomic_load_acq_int(&sc->recovery_mode))
+		return (EPERM);
 
 	if (hw->device_id != IXGBE_DEV_ID_X550EM_X_10G_T) {
 		device_printf(iflib_get_dev(sc->ctx),
@@ -4612,6 +4695,9 @@ ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS)
 	if_t           ifp = iflib_get_ifp(sc->ctx);
 	int            curr_eee, new_eee, error = 0;
 	s32            retval;
+
+	if (atomic_load_acq_int(&sc->recovery_mode))
+		return (EPERM);
 
 	curr_eee = new_eee = !!(sc->feat_en & IXGBE_FEATURE_EEE);
 
@@ -4677,15 +4763,20 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 			sc->feat_cap |= IXGBE_FEATURE_BYPASS;
 		break;
 	case ixgbe_mac_X550:
+		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_TEMP_SENSOR;
 		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_FDIR;
 		break;
 	case ixgbe_mac_X550EM_x:
+		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_FDIR;
+		if (sc->hw.device_id == IXGBE_DEV_ID_X550EM_X_KR)
+			sc->feat_cap |= IXGBE_FEATURE_EEE;
 		break;
 	case ixgbe_mac_X550EM_a:
+		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
 		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_FDIR;
 		sc->feat_cap &= ~IXGBE_FEATURE_LEGACY_IRQ;
@@ -4721,6 +4812,9 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 	/* Thermal Sensor */
 	if (sc->feat_cap & IXGBE_FEATURE_TEMP_SENSOR)
 		sc->feat_en |= IXGBE_FEATURE_TEMP_SENSOR;
+	/* Recovery mode */
+	if (sc->feat_cap & IXGBE_FEATURE_RECOVERY_MODE)
+		sc->feat_en |= IXGBE_FEATURE_RECOVERY_MODE;
 
 	/* Enabled via global sysctl... */
 	/* Flow Director */
@@ -4772,14 +4866,42 @@ static void
 ixgbe_sbuf_fw_version(struct ixgbe_hw *hw, struct sbuf *buf)
 {
 	struct ixgbe_nvm_version nvm_ver = {0};
-	uint16_t phyfw = 0;
-	int status;
 	const char *space = "";
 
+	ixgbe_get_nvm_version(hw, &nvm_ver); /* NVM version */
 	ixgbe_get_oem_prod_version(hw, &nvm_ver); /* OEM's NVM version */
-	ixgbe_get_orom_version(hw, &nvm_ver); /* Option ROM */
 	ixgbe_get_etk_id(hw, &nvm_ver); /* eTrack identifies a build in Intel's SCM */
-	status = ixgbe_get_phy_firmware_version(hw, &phyfw);
+	ixgbe_get_orom_version(hw, &nvm_ver); /* Option ROM */
+
+	/* FW version */
+	if ((nvm_ver.phy_fw_maj == 0x0 &&
+	    nvm_ver.phy_fw_min == 0x0 &&
+	    nvm_ver.phy_fw_id == 0x0) ||
+		(nvm_ver.phy_fw_maj == 0xF &&
+	    nvm_ver.phy_fw_min == 0xFF &&
+	    nvm_ver.phy_fw_id == 0xF)) {
+		/* If major, minor and id numbers are set to 0,
+		 * reading FW version is unsupported. If major number
+		 * is set to 0xF, minor is set to 0xFF and id is set
+		 * to 0xF, this means that number read is invalid. */
+	} else
+		sbuf_printf(buf, "fw %d.%d.%d ",
+		    nvm_ver.phy_fw_maj, nvm_ver.phy_fw_min, nvm_ver.phy_fw_id);
+
+	/* NVM version */
+	if ((nvm_ver.nvm_major == 0x0 &&
+	    nvm_ver.nvm_minor == 0x0 &&
+	    nvm_ver.nvm_id == 0x0) ||
+		(nvm_ver.nvm_major == 0xF &&
+	    nvm_ver.nvm_minor == 0xFF &&
+	    nvm_ver.nvm_id == 0xF)) {
+		/* If major, minor and id numbers are set to 0,
+		 * reading NVM version is unsupported. If major number
+		 * is set to 0xF, minor is set to 0xFF and id is set
+		 * to 0xF, this means that number read is invalid. */
+	} else
+		sbuf_printf(buf, "nvm %x.%02x.%x ",
+		    nvm_ver.nvm_major, nvm_ver.nvm_minor, nvm_ver.nvm_id);
 
 	if (nvm_ver.oem_valid) {
 		sbuf_printf(buf, "NVM OEM V%d.%d R%d", nvm_ver.oem_major,
@@ -4794,13 +4916,9 @@ ixgbe_sbuf_fw_version(struct ixgbe_hw *hw, struct sbuf *buf)
 	}
 
 	if (nvm_ver.etk_id != ((NVM_VER_INVALID << NVM_ETK_SHIFT) |
-	    NVM_VER_INVALID)) {
+	    NVM_VER_INVALID | 0xFFFFFFFF)) {
 		sbuf_printf(buf, "%seTrack 0x%08x", space, nvm_ver.etk_id);
-		space = " ";
 	}
-
-	if (phyfw != 0 && status == IXGBE_SUCCESS)
-		sbuf_printf(buf, "%sPHY FW V%d", space, phyfw);
 } /* ixgbe_sbuf_fw_version */
 
 /************************************************************************

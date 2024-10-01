@@ -14215,10 +14215,8 @@ bbr_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 	case TCP_BBR_ALGORITHM:
 	case TCP_BBR_TSLIMITS:
 	case TCP_BBR_IWINTSO:
-	case TCP_BBR_RECFORCE:
 	case TCP_BBR_STARTUP_PG:
 	case TCP_BBR_DRAIN_PG:
-	case TCP_BBR_RWND_IS_APP:
 	case TCP_BBR_PROBE_RTT_INT:
 	case TCP_BBR_PROBE_RTT_GAIN:
 	case TCP_BBR_PROBE_RTT_LEN:

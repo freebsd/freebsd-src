@@ -362,7 +362,7 @@ s32 e1000_read_invm_version(struct e1000_hw *hw,
 					     E1000_INVM_RECORD_SIZE_IN_BYTES);
 	u32 buffer[E1000_INVM_SIZE];
 	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
-	u16 version = 0;
+	u16 nvm_version = 0;
 
 	DEBUGFUNC("e1000_read_invm_version");
 
@@ -379,14 +379,14 @@ s32 e1000_read_invm_version(struct e1000_hw *hw,
 
 		/* Check if we have first version location used */
 		if ((i == 1) && ((*record & E1000_INVM_VER_FIELD_ONE) == 0)) {
-			version = 0;
+			nvm_version = 0;
 			status = E1000_SUCCESS;
 			break;
 		}
 		/* Check if we have second version location used */
 		else if ((i == 1) &&
 			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
-			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			nvm_version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
 			status = E1000_SUCCESS;
 			break;
 		}
@@ -397,7 +397,7 @@ s32 e1000_read_invm_version(struct e1000_hw *hw,
 		else if ((((*record & E1000_INVM_VER_FIELD_ONE) == 0) &&
 			 ((*record & 0x3) == 0)) || (((*record & 0x3) != 0) &&
 			 (i != 1))) {
-			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
+			nvm_version = (*next_record & E1000_INVM_VER_FIELD_TWO)
 				  >> 13;
 			status = E1000_SUCCESS;
 			break;
@@ -408,16 +408,16 @@ s32 e1000_read_invm_version(struct e1000_hw *hw,
 		 */
 		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
 			 ((*record & 0x3) == 0)) {
-			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			nvm_version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
 			status = E1000_SUCCESS;
 			break;
 		}
 	}
 
 	if (status == E1000_SUCCESS) {
-		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
+		invm_ver->invm_major = (nvm_version & E1000_INVM_MAJOR_MASK)
 					>> E1000_INVM_MAJOR_SHIFT;
-		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
+		invm_ver->invm_minor = nvm_version & E1000_INVM_MINOR_MASK;
 	}
 	/* Read Image Type */
 	for (i = 1; i < invm_blocks; i++) {

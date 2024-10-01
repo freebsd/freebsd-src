@@ -32,7 +32,7 @@
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdfklmnopstuvw Op Ar val
+.Op Fl bcdfklmnopstuvwy Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -279,6 +279,10 @@ space.
 .It Fl w Op Ar val
 Select or set the
 .Va swapuse
+resource limit.
+.It Fl y Op Ar val
+Select or set the
+.Va pipebuf
 resource limit.
 .El
 .Pp

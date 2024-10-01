@@ -8,6 +8,9 @@
  */
 
 #include <linux/etherdevice.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 #include "mt7615.h"
 #include "mac.h"
 #include "eeprom.h"
@@ -92,9 +95,11 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
+#if defined(__linux__)
 	ret = mt7615_thermal_init(dev);
 	if (ret)
 		return ret;
+#endif
 
 	ieee80211_queue_work(mt76_hw(dev), &dev->mcu_work);
 	mt7615_init_txpower(dev, &dev->mphy.sband_2g.sband);

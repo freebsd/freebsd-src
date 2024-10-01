@@ -80,6 +80,12 @@ void	vfp_restore_state(void);
 void	vfp_save_state(struct thread *, struct pcb *);
 void	vfp_save_state_savectx(struct pcb *);
 void	vfp_save_state_switch(struct thread *);
+void	vfp_to_sve_sync(struct thread *);
+void	sve_to_vfp_sync(struct thread *);
+
+size_t	sve_max_buf_size(void);
+size_t	sve_buf_size(struct thread *);
+bool	sve_restore_state(struct thread *);
 
 struct fpu_kern_ctx;
 

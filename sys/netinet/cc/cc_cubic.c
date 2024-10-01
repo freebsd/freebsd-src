@@ -288,31 +288,26 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 				usecs_since_epoch = INT_MAX;
 				cubic_data->t_epoch = ticks - INT_MAX;
 			}
+
+			W_est = tf_cwnd(ccv);
+
 			/*
 			 * The mean RTT is used to best reflect the equations in
-			 * the I-D. Using min_rtt in the tf_cwnd calculation
-			 * causes W_est to grow much faster than it should if the
-			 * RTT is dominated by network buffering rather than
-			 * propagation delay.
+			 * the I-D.
 			 */
-			W_est = tf_cwnd(usecs_since_epoch, cubic_data->mean_rtt_usecs,
-				       cubic_data->W_max, CCV(ccv, t_maxseg));
-
 			W_cubic = cubic_cwnd(usecs_since_epoch +
 					     cubic_data->mean_rtt_usecs,
 					     cubic_data->W_max,
 					     CCV(ccv, t_maxseg),
 					     cubic_data->K);
 
-			ccv->flags &= ~CCF_ABC_SENTAWND;
-
 			if (W_cubic < W_est) {
 				/*
 				 * TCP-friendly region, follow tf
 				 * cwnd growth.
 				 */
-				if (CCV(ccv, snd_cwnd) < W_est)
-					CCV(ccv, snd_cwnd) = ulmin(W_est, INT_MAX);
+				CCV(ccv, snd_cwnd) = ulmin(W_est, INT_MAX);
+				cubic_data->flags |= CUBICFLAG_IN_TF;
 			} else if (CCV(ccv, snd_cwnd) < W_cubic) {
 				/*
 				 * Concave or convex region, follow CUBIC
@@ -320,6 +315,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 				 * Only update snd_cwnd, if it doesn't shrink.
 				 */
 				CCV(ccv, snd_cwnd) = ulmin(W_cubic, INT_MAX);
+				cubic_data->flags &= ~CUBICFLAG_IN_TF;
 			}
 
 			/*
@@ -644,19 +640,23 @@ cubic_ssthresh_update(struct cc_var *ccv, uint32_t maxseg)
 	cubic_data->undo_W_max = cubic_data->W_max;
 	cubic_data->W_max = cwnd;
 
-	/*
-	 * On the first congestion event, set ssthresh to cwnd * 0.5
-	 * and reduce W_max to cwnd * beta. This aligns the cubic concave
-	 * region appropriately. On subsequent congestion events, set
-	 * ssthresh to cwnd * beta.
-	 */
-	if ((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) {
+	if (cubic_data->flags & CUBICFLAG_IN_TF) {
+		/* If in the TCP friendly region, follow what newreno does */
+		ssthresh = newreno_cc_cwnd_on_multiplicative_decrease(ccv, maxseg);
+
+	} else if ((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) {
+		/*
+		 * On the first congestion event, set ssthresh to cwnd * 0.5
+		 * and reduce W_max to cwnd * beta. This aligns the cubic
+		 * concave region appropriately.
+		 */
 		ssthresh = cwnd >> 1;
-		cubic_data->W_max = ((uint64_t)cwnd *
-		    CUBIC_BETA) >> CUBIC_SHIFT;
+		cubic_data->W_max = ((uint64_t)cwnd * CUBIC_BETA) >> CUBIC_SHIFT;
 	} else {
-		ssthresh = ((uint64_t)cwnd *
-		    CUBIC_BETA) >> CUBIC_SHIFT;
+		/*
+		 * On subsequent congestion events, set ssthresh to cwnd * beta.
+		 */
+		ssthresh = ((uint64_t)cwnd * CUBIC_BETA) >> CUBIC_SHIFT;
 	}
 	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * maxseg);
 }

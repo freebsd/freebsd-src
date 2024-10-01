@@ -789,7 +789,7 @@ ng_btsocket_l2cap_process_l2ca_cfg_req_rsp(struct ng_mesg *msg,
 	if (op->result == NG_L2CAP_SUCCESS) {
 		/*
 		 * XXX FIXME Actually set flush and link timeout.
-		 * Set QoS here if required. Resolve conficts (flush_timo). 
+		 * Set QoS here if required. Resolve conflicts (flush_timo). 
 		 * Save incoming MTU (peer's outgoing MTU) and outgoing flow 
 		 * spec.
 		 */
@@ -991,7 +991,7 @@ ng_btsocket_l2cap_process_l2ca_cfg_ind(struct ng_mesg *msg,
 
 	/*
 	 * XXX FIXME Actually set flush and link timeout. Set QoS here if
-	 * required. Resolve conficts (flush_timo). Note outgoing MTU (peer's 
+	 * required. Resolve conflicts (flush_timo). Note outgoing MTU (peer's 
 	 * incoming MTU) and incoming flow spec.
 	 */
 

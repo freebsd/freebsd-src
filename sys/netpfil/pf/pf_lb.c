@@ -71,6 +71,7 @@ static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
     uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **,
     struct pf_udp_mapping **);
+static bool		 pf_islinklocal(const sa_family_t, const struct pf_addr *);
 
 #define mix(a,b,c) \
 	do {					\
@@ -263,7 +264,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		}
 	}
 
-	if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
+	if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn))
 		goto failed;
 
 	if (proto == IPPROTO_ICMP) {
@@ -384,7 +385,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			 * pick a different source address since we're out
 			 * of free port choices for the current one.
 			 */
-			if (pf_map_addr(af, r, saddr, naddr, NULL, &init_addr, sn))
+			if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn))
 				return (1);
 			break;
 		case PF_POOL_NONE:
@@ -399,6 +400,14 @@ failed:
 	uma_zfree(V_pf_udp_mapping_z, *udp_mapping);
 	*udp_mapping = NULL;
 	return (1);					/* none available */
+}
+
+static bool
+pf_islinklocal(const sa_family_t af, const struct pf_addr *addr)
+{
+	if (af == AF_INET6 && IN6_IS_ADDR_LINKLOCAL(&addr->v6))
+		return (true);
+	return (false);
 }
 
 static int
@@ -439,47 +448,11 @@ pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 
 u_short
 pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
-    struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr,
-    struct pf_ksrc_node **sn)
+    struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr)
 {
 	u_short			 reason = PFRES_MATCH;
 	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
-	struct pf_srchash	*sh = NULL;
-
-	/* Try to find a src_node if none was given and this
-	   is a sticky-address rule. */
-	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
-	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
-		*sn = pf_find_src_node(saddr, r, af, &sh, false);
-
-	/* If a src_node was found or explicitly given and it has a non-zero
-	   route address, use this address. A zeroed address is found if the
-	   src node was created just a moment ago in pf_create_state and it
-	   needs to be filled in with routing decision calculated here. */
-	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
-		/* If the supplied address is the same as the current one we've
-		 * been asked before, so tell the caller that there's no other
-		 * address to be had. */
-		if (PF_AEQ(naddr, &(*sn)->raddr, af)) {
-			reason = PFRES_MAPFAILED;
-			goto done;
-		}
-
-		PF_ACPY(naddr, &(*sn)->raddr, af);
-		if (nkif)
-			*nkif = (*sn)->rkif;
-		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
-			printf("pf_map_addr: src tracking maps ");
-			pf_print_host(saddr, 0, af);
-			printf(" to ");
-			pf_print_host(naddr, 0, af);
-			if (nkif)
-				printf("@%s", (*nkif)->pfik_name);
-			printf("\n");
-		}
-		goto done;
-	}
 
 	mtx_lock(&rpool->mtx);
 	/* Find the route using chosen algorithm. Store the found route
@@ -585,11 +558,11 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (!pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af))
+			    &rpool->tblidx, &rpool->counter, af, NULL))
 				goto get_addr;
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			if (!pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af))
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal))
 				goto get_addr;
 		} else if (pf_match_addr(0, raddr, rmask, &rpool->counter, af))
 			goto get_addr;
@@ -602,7 +575,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af)) {
+			    &rpool->tblidx, &rpool->counter, af, NULL)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
@@ -612,7 +585,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af)) {
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
@@ -637,6 +610,68 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	if (nkif)
 		*nkif = rpool->cur->kif;
 
+done_pool_mtx:
+	mtx_unlock(&rpool->mtx);
+
+	if (reason) {
+		counter_u64_add(V_pf_status.counters[reason], 1);
+	}
+
+	return (reason);
+}
+
+u_short
+pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
+    struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr,
+    struct pf_ksrc_node **sn)
+{
+	u_short			 reason = 0;
+	struct pf_kpool		*rpool = &r->rpool;
+	struct pf_srchash	*sh = NULL;
+
+	/* Try to find a src_node if none was given and this
+	   is a sticky-address rule. */
+	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
+	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+		*sn = pf_find_src_node(saddr, r, af, &sh, false);
+
+	/* If a src_node was found or explicitly given and it has a non-zero
+	   route address, use this address. A zeroed address is found if the
+	   src node was created just a moment ago in pf_create_state and it
+	   needs to be filled in with routing decision calculated here. */
+	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+		/* If the supplied address is the same as the current one we've
+		 * been asked before, so tell the caller that there's no other
+		 * address to be had. */
+		if (PF_AEQ(naddr, &(*sn)->raddr, af)) {
+			reason = PFRES_MAPFAILED;
+			goto done;
+		}
+
+		PF_ACPY(naddr, &(*sn)->raddr, af);
+		if (nkif)
+			*nkif = (*sn)->rkif;
+		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
+			printf("pf_map_addr: src tracking maps ");
+			pf_print_host(saddr, 0, af);
+			printf(" to ");
+			pf_print_host(naddr, 0, af);
+			if (nkif)
+				printf("@%s", (*nkif)->pfik_name);
+			printf("\n");
+		}
+		goto done;
+	}
+
+	/*
+	 * Source node has not been found. Find a new address and store it
+	 * in variables given by the caller.
+	 */
+	if (pf_map_addr(af, r, saddr, naddr, nkif, init_addr) != 0) {
+		/* pf_map_addr() sets reason counters on its own */
+		goto done;
+	}
+
 	if (*sn != NULL) {
 		PF_ACPY(&(*sn)->raddr, naddr, af);
 		if (nkif)
@@ -651,9 +686,6 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			printf("@%s", (*nkif)->pfik_name);
 		printf("\n");
 	}
-
-done_pool_mtx:
-	mtx_unlock(&rpool->mtx);
 
 done:
 	if (reason) {
@@ -832,7 +864,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		int tries;
 		uint16_t cut, low, high, nport;
 
-		reason = pf_map_addr(pd->af, r, saddr, naddr, NULL, NULL, sn);
+		reason = pf_map_addr_sn(pd->af, r, saddr, naddr, NULL, NULL, sn);
 		if (reason != 0)
 			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)

@@ -231,6 +231,9 @@ void newreno_cc_post_recovery(struct cc_var *);
 void newreno_cc_after_idle(struct cc_var *);
 void newreno_cc_cong_signal(struct cc_var *, ccsignal_t);
 void newreno_cc_ack_received(struct cc_var *, ccsignal_t);
+u_int newreno_cc_cwnd_on_multiplicative_decrease(struct cc_var *ccv, uint32_t mss);
+u_int newreno_cc_cwnd_in_cong_avoid(struct cc_var *ccv);
+u_int newreno_cc_cwnd_in_slow_start(struct cc_var *ccv);
 
 /* Called to temporarily keep an algo from going away during change */
 void cc_refer(struct cc_algo *algo);

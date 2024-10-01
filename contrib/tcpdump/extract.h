@@ -261,7 +261,7 @@ EXTRACT_IPV4_TO_HOST_ORDER(const void *p)
  * quantities the hard way - fetch the bytes one at a time and
  * assemble them.
  *
- * XXX - ARM is a special case.  ARMv1 through ARMv5 didn't suppory
+ * XXX - ARM is a special case.  ARMv1 through ARMv5 didn't support
  * unaligned loads; ARMv6 and later support it *but* have a bit in
  * the system control register that the OS can set and that causes
  * unaligned loads to fault rather than succeeding.

@@ -110,6 +110,10 @@ void	nvmft_populate_active_nslist(struct nvmft_port *np, uint32_t nsid,
 void	nvmft_dispatch_command(struct nvmft_qpair *qp,
     struct nvmf_capsule *nc, bool admin);
 void	nvmft_terminate_commands(struct nvmft_controller *ctrlr);
+void	nvmft_abort_datamove(union ctl_io *io);
+void	nvmft_handle_datamove(union ctl_io *io);
+void	nvmft_drain_task(struct task *task);
+void	nvmft_enqueue_task(struct task *task);
 
 /* nvmft_controller.c */
 void	nvmft_controller_error(struct nvmft_controller *ctrlr,
@@ -138,6 +142,7 @@ struct nvmft_qpair *nvmft_qpair_init(enum nvmf_trtype trtype,
 void	nvmft_qpair_shutdown(struct nvmft_qpair *qp);
 void	nvmft_qpair_destroy(struct nvmft_qpair *qp);
 struct nvmft_controller *nvmft_qpair_ctrlr(struct nvmft_qpair *qp);
+void	nvmft_qpair_datamove(struct nvmft_qpair *qp, union ctl_io *io);
 uint16_t nvmft_qpair_id(struct nvmft_qpair *qp);
 const char *nvmft_qpair_name(struct nvmft_qpair *qp);
 void	nvmft_command_completed(struct nvmft_qpair *qp,

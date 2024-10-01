@@ -230,7 +230,8 @@ ti_aintc_pic_attach(struct ti_aintc_softc *sc)
 	if (pic == NULL)
 		return (ENXIO);
 
-	return (intr_pic_claim_root(sc->sc_dev, xref, ti_aintc_intr, sc));
+	return (intr_pic_claim_root(sc->sc_dev, xref, ti_aintc_intr, sc,
+	    INTR_ROOT_IRQ));
 }
 
 static int

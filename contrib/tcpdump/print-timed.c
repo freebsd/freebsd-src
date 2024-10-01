@@ -23,9 +23,7 @@
 
 /* specification: https://docs.freebsd.org/44doc/smm/12.timed/paper.pdf */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

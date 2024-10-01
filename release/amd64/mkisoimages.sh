@@ -64,7 +64,12 @@ if [ "$1" = "-b" ]; then
 	espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 	# ESP file size in KB.
 	espsize="2048"
-	make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
+	if [ -f "${BASEBITSDIR}/boot/loader_ia32.efi" ]; then
+		make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi bootx64 \
+		    ${BASEBITSDIR}/boot/loader_ia32.efi bootia32
+	else
+		make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
+	fi
 	bootable="$bootable -o bootimage=i386;${espfilename} -o no-emul-boot -o platformid=efi"
 
 	shift

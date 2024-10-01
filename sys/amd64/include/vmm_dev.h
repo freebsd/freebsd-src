@@ -301,7 +301,7 @@ enum {
 	IOCNUM_UNMAP_PPTDEV_MMIO = 46,
 
 	/* statistics */
-	IOCNUM_VM_STATS = 50, 
+	IOCNUM_VM_STATS = 50,
 	IOCNUM_VM_STAT_DESC = 51,
 
 	/* kernel device state */

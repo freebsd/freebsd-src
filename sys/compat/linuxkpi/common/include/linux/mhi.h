@@ -75,6 +75,8 @@ struct mhi_controller {
 	void				*regs;
 	int				*irq;
 	const char			*fw_image;
+	const u8			*fw_data;
+	size_t				fw_sz;
 
 	bool				fbc_download;
 	size_t				rddm_size;

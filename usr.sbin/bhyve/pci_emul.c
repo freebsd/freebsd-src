@@ -1160,7 +1160,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pci_set_cfgdata8(pdi, PCIR_INTLINE, 255);
 	pci_set_cfgdata8(pdi, PCIR_INTPIN, 0);
 
-	if (!get_config_bool_default("pci.enable_bars", !bootrom_boot()))
+	if (get_config_bool_default("pci.enable_bars", !bootrom_boot()))
 		pci_set_cfgdata8(pdi, PCIR_COMMAND, PCIM_CMD_BUSMASTEREN);
 
 	err = (*pde->pe_init)(pdi, fi->fi_config);

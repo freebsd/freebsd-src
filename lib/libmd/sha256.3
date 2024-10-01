@@ -8,7 +8,7 @@
 .\"
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\"
-.Dd July 20, 2018
+.Dd March 8, 2022
 .Dt SHA256 3
 .Os
 .Sh NAME
@@ -16,6 +16,8 @@
 .Nm SHA224_Update ,
 .Nm SHA224_Final ,
 .Nm SHA224_End ,
+.Nm SHA224_Fd ,
+.Nm SHA224_FdChunk ,
 .Nm SHA224_File ,
 .Nm SHA224_FileChunk ,
 .Nm SHA224_Data ,
@@ -23,6 +25,8 @@
 .Nm SHA256_Update ,
 .Nm SHA256_Final ,
 .Nm SHA256_End ,
+.Nm SHA256_Fd ,
+.Nm SHA256_FdChunk ,
 .Nm SHA256_File ,
 .Nm SHA256_FileChunk ,
 .Nm SHA256_Data
@@ -41,6 +45,10 @@
 .Ft "char *"
 .Fn SHA224_End "SHA224_CTX *context" "char *buf"
 .Ft "char *"
+.Fn SHA224_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA224_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SHA224_File "const char *filename" "char *buf"
 .Ft "char *"
 .Fn SHA224_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
@@ -55,6 +63,10 @@
 .Fn SHA256_Final "unsigned char digest[32]" "SHA256_CTX *context"
 .Ft "char *"
 .Fn SHA256_End "SHA256_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA256_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA256_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA256_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -124,6 +136,19 @@ to the end of file.
 calculates the digest of a chunk of data in memory, and uses
 .Fn SHA256_End
 to return the result.
+.Pp
+The
+.Fn SHA256_Fd
+and
+.Fn SHA256_FdChunk
+functions are identical to their
+.Fn SHA256_File
+and
+.Fn SHA256_FileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn SHA256_End ,

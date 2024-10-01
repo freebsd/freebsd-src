@@ -78,10 +78,10 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	}
 
 	if (i) {
-		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
+		m = min_t(unsigned long, order_base_2(i), m);
 
 		if (order)
-			*order = ilog2(roundup_pow_of_two(i) >> m);
+			*order = order_base_2(i) - m;
 
 		*ncont = DIV_ROUND_UP(i, (1 << m));
 	} else {

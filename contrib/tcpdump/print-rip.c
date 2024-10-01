@@ -23,9 +23,7 @@
 
 /* specification: RFC 1058, RFC 2453, RFC 4822 */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -55,16 +53,25 @@ struct rip {
 #define	RIPCMD_RESPONSE		2	/* responding to request */
 #define	RIPCMD_TRACEON		3	/* turn tracing on */
 #define	RIPCMD_TRACEOFF		4	/* turn it off */
-#define	RIPCMD_POLL		5	/* want info from everybody */
-#define	RIPCMD_POLLENTRY	6	/* poll for entry */
+/* 5 is reserved */
+#define RIPCMD_TRIGREQ		6
+#define RIPCMD_TRIGRESP		7
+#define RIPCMD_TRIGACK		8
+#define RIPCMD_UPDREQ		9
+#define RIPCMD_UPDRESP		10
+#define RIPCMD_UPDACK		11
 
 static const struct tok rip_cmd_values[] = {
     { RIPCMD_REQUEST,	        "Request" },
     { RIPCMD_RESPONSE,	        "Response" },
     { RIPCMD_TRACEON,	        "Trace on" },
     { RIPCMD_TRACEOFF,	        "Trace off" },
-    { RIPCMD_POLL,	        "Poll" },
-    { RIPCMD_POLLENTRY,	        "Poll Entry" },
+    { RIPCMD_TRIGREQ,	        "Triggered Request" },
+    { RIPCMD_TRIGRESP,	        "Triggered Response" },
+    { RIPCMD_TRIGACK,	        "Triggered Acknowledgement" },
+    { RIPCMD_UPDREQ,	        "Update Request" },
+    { RIPCMD_UPDRESP,	        "Update Response" },
+    { RIPCMD_UPDACK,	        "Update Acknowledge" },
     { 0, NULL}
 };
 
@@ -317,22 +324,6 @@ rip_print(netdissect_options *ndo,
 		 (ndo->ndo_vflag >= 1) ? "\n\t" : "",
 		 vers);
 
-	if (vers == 0) {
-		/*
-		 * RFC 1058.
-		 *
-		 * XXX - RFC 1058 says
-		 *
-		 * 0  Datagrams whose version number is zero are to be ignored.
-		 *    These are from a previous version of the protocol, whose
-		 *    packet format was machine-specific.
-		 *
-		 * so perhaps we should just dump the packet, in hex.
-		 */
-		print_unknown_data(ndo, (const uint8_t *)&rp->rip_cmd, "\n\t", length);
-		return;
-	}
-
 	/* dump version and lets see if we know the commands name*/
 	cmd = GET_U_1(rp->rip_cmd);
 	ND_PRINT(", %s, length: %u",
@@ -398,13 +389,16 @@ rip_print(netdissect_options *ndo,
 		}
 		break;
 
+	case RIPCMD_TRACEON:
 	case RIPCMD_TRACEOFF:
-	case RIPCMD_POLL:
-	case RIPCMD_POLLENTRY:
+	case RIPCMD_TRIGREQ:
+	case RIPCMD_TRIGRESP:
+	case RIPCMD_TRIGACK:
+	case RIPCMD_UPDREQ:
+	case RIPCMD_UPDRESP:
+	case RIPCMD_UPDACK:
 		break;
 
-	case RIPCMD_TRACEON:
-		/* fall through */
 	default:
 		if (ndo->ndo_vflag <= 1) {
 			if (!print_unknown_data(ndo, (const uint8_t *)rp, "\n\t", length))

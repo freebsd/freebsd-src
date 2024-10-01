@@ -1880,7 +1880,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	snprintf(udev->ugen_name, sizeof(udev->ugen_name),
 	    USB_GENERIC_NAME "%u.%u", device_get_unit(bus->bdev),
 	    device_index);
-	LIST_INIT(&udev->pd_list);
+	SLIST_INIT(&udev->pd_list);
 
 	/* Create the control endpoint device */
 	udev->ctrl_dev = usb_make_dev(udev, NULL, 0, 0,
@@ -2190,7 +2190,7 @@ usb_destroy_dev(struct usb_fs_privdata *pd)
 	delist_dev(pd->cdev);
 
 	USB_BUS_LOCK(bus);
-	LIST_INSERT_HEAD(&bus->pd_cleanup_list, pd, pd_next);
+	SLIST_INSERT_HEAD(&bus->pd_cleanup_list, pd, pd_next);
 	/* get cleanup going */
 	usb_proc_msignal(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->cleanup_msg[0], &bus->cleanup_msg[1]);
@@ -2207,7 +2207,7 @@ usb_cdev_create(struct usb_device *udev)
 	int inmode, outmode, inmask, outmask, mode;
 	uint8_t ep;
 
-	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("stale cdev entries"));
+	KASSERT(SLIST_FIRST(&udev->pd_list) == NULL, ("stale cdev entries"));
 
 	DPRINTFN(2, "Creating device nodes\n");
 
@@ -2254,7 +2254,7 @@ usb_cdev_create(struct usb_device *udev)
 		    mode, UID_ROOT, GID_OPERATOR, 0600);
 
 		if (pd != NULL)
-			LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
+			SLIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
 	}
 }
 
@@ -2265,10 +2265,10 @@ usb_cdev_free(struct usb_device *udev)
 
 	DPRINTFN(2, "Freeing device nodes\n");
 
-	while ((pd = LIST_FIRST(&udev->pd_list)) != NULL) {
+	while ((pd = SLIST_FIRST(&udev->pd_list)) != NULL) {
 		KASSERT(pd->cdev->si_drv1 == pd, ("privdata corrupt"));
 
-		LIST_REMOVE(pd, pd_next);
+		SLIST_REMOVE(&udev->pd_list, pd, usb_fs_privdata, pd_next);
 
 		usb_destroy_dev(pd);
 	}
@@ -2358,7 +2358,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 
 	mtx_destroy(&udev->device_mtx);
 #if USB_HAVE_UGEN
-	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("leaked cdev entries"));
+	KASSERT(SLIST_FIRST(&udev->pd_list) == NULL, ("leaked cdev entries"));
 #endif
 
 	/* Uninitialise device */

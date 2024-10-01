@@ -29,6 +29,7 @@
 #include <linux/kernel.h>	/* pr_debug */
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
+#include <linux/netdevice.h>
 
 struct device;
 
@@ -41,6 +42,7 @@ struct page_pool_params {
 	uint32_t			offset;
 	int				nid;		/* NUMA */
 	enum dma_data_direction		dma_dir;
+	struct napi_struct		*napi;
 };
 
 struct page_pool {

@@ -76,7 +76,7 @@
 #undef RMD160_ASM
 #endif
 
-char *RMD160_version="RIPEMD160 part of SSLeay 0.9.0b 11-Oct-1998";
+static char *RMD160_version="RIPEMD160 part of SSLeay 0.9.0b 11-Oct-1998";
 
 #ifdef RMD160_ASM
 void ripemd160_block_x86(RIPEMD160_CTX *c, const u_int32_t *p,int num);
@@ -226,7 +226,7 @@ void RIPEMD160_Update(RIPEMD160_CTX *c, const void *in, size_t len)
 		}
 	}
 
-void RIPEMD160_Transform(RIPEMD160_CTX *c, unsigned char *b)
+static void RIPEMD160_Transform(RIPEMD160_CTX *c, unsigned char *b)
 	{
 	u_int32_t p[16];
 #if BYTE_ORDER != LITTLE_ENDIAN
@@ -540,10 +540,4 @@ __weak_reference(_libmd_RIPEMD160_Init, RIPEMD160_Init);
 __weak_reference(_libmd_RIPEMD160_Update, RIPEMD160_Update);
 #undef RIPEMD160_Final
 __weak_reference(_libmd_RIPEMD160_Final, RIPEMD160_Final);
-#undef RIPEMD160_Transform
-__weak_reference(_libmd_RIPEMD160_Transform, RIPEMD160_Transform);
-#undef RMD160_version
-__weak_reference(_libmd_RMD160_version, RMD160_version);
-#undef ripemd160_block
-__weak_reference(_libmd_ripemd160_block, ripemd160_block);
 #endif

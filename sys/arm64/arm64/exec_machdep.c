@@ -463,9 +463,10 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 #define	PSR_13_MASK	0xfffffffful
 	struct arm64_reg_context ctx;
 	struct trapframe *tf = td->td_frame;
+	struct pcb *pcb;
 	uint64_t spsr;
 	vm_offset_t addr;
-	int error;
+	int error, seen_types;
 	bool done;
 
 	spsr = mcp->mc_gpregs.gp_spsr;
@@ -511,7 +512,11 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	/* Read any register contexts we find */
 	if (mcp->mc_ptr != 0) {
 		addr = mcp->mc_ptr;
+		pcb = td->td_pcb;
 
+#define	CTX_TYPE_FLAG_SVE	(1 << 0)
+
+		seen_types = 0;
 		done = false;
 		do {
 			if (!__is_aligned(addr,
@@ -523,6 +528,38 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 				return (error);
 
 			switch (ctx.ctx_id) {
+#ifdef VFP
+			case ARM64_CTX_SVE: {
+				struct sve_context sve_ctx;
+				size_t buf_size;
+
+				if ((seen_types & CTX_TYPE_FLAG_SVE) != 0)
+					return (EINVAL);
+				seen_types |= CTX_TYPE_FLAG_SVE;
+
+				if (pcb->pcb_svesaved == NULL)
+					return (EINVAL);
+
+				/* XXX: Check pcb_svesaved is valid */
+
+				buf_size = sve_buf_size(td);
+				/* Check the size is valid */
+				if (ctx.ctx_size !=
+				    (sizeof(sve_ctx) + buf_size))
+					return (EINVAL);
+
+				memset(pcb->pcb_svesaved, 0,
+				    sve_max_buf_size());
+
+				/* Copy the SVE registers from userspace */
+				if (copyin((void *)(addr + sizeof(sve_ctx)),
+				    pcb->pcb_svesaved, buf_size) != 0)
+					return (EINVAL);
+
+				pcb->pcb_fpflags |= PCB_FP_SVEVALID;
+				break;
+			}
+#endif
 			case ARM64_CTX_END:
 				done = true;
 				break;
@@ -532,6 +569,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 
 			addr += ctx.ctx_size;
 		} while (!done);
+
+#undef CTX_TYPE_FLAG_SVE
 	}
 
 	return (0);
@@ -592,7 +631,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		    sizeof(mcp->mc_fpregs.fp_q));
 		curpcb->pcb_fpustate.vfp_fpcr = mcp->mc_fpregs.fp_cr;
 		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
-		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
+		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_STARTED;
 	}
 #endif
 }
@@ -606,9 +645,18 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 
+	/* Stop an interrupt from causing the sve state to be dropped */
+	td->td_sa.code = -1;
 	error = set_mcontext(td, &uc.uc_mcontext);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Sync the VFP and SVE registers. To be backwards compatible we
+	 * use the VFP registers to restore the lower bits of the SVE
+	 * register it aliases.
+	 */
+	vfp_to_sve_sync(td);
 
 	/* Restore signal mask. */
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
@@ -635,9 +683,47 @@ sendsig_ctx_end(struct thread *td, vm_offset_t *addrp)
 	return (true);
 }
 
+static bool
+sendsig_ctx_sve(struct thread *td, vm_offset_t *addrp)
+{
+	struct sve_context ctx;
+	struct pcb *pcb;
+	size_t buf_size;
+	vm_offset_t ctx_addr;
+
+	pcb = td->td_pcb;
+	/* Do nothing if sve hasn't started */
+	if (pcb->pcb_svesaved == NULL)
+		return (true);
+
+	MPASS(pcb->pcb_svesaved != NULL);
+
+	buf_size = sve_buf_size(td);
+
+	/* Address for the full context */
+	*addrp -= sizeof(ctx) + buf_size;
+	ctx_addr = *addrp;
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.sve_ctx.ctx_id = ARM64_CTX_SVE;
+	ctx.sve_ctx.ctx_size = sizeof(ctx) + buf_size;
+	ctx.sve_vector_len = pcb->pcb_sve_len;
+	ctx.sve_flags = 0;
+
+	/* Copy out the header and data */
+	if (copyout(&ctx, (void *)ctx_addr, sizeof(ctx)) != 0)
+		return (false);
+	if (copyout(pcb->pcb_svesaved, (void *)(ctx_addr + sizeof(ctx)),
+	    buf_size) != 0)
+		return (false);
+
+	return (true);
+}
+
 typedef bool(*ctx_func)(struct thread *, vm_offset_t *);
 static const ctx_func ctx_funcs[] = {
 	sendsig_ctx_end,	/* Must be first to end the linked list */
+	sendsig_ctx_sve,
 	NULL,
 };
 

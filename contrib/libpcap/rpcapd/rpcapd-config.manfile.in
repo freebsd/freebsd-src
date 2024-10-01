@@ -22,11 +22,13 @@
 rpcapd-config \- rpcapd configuration file format
 .SH DESCRIPTION
 An
-.B rpcapd
+.I rpcapd
 configuration file allows parameters to be set for
 .BR rpcapd (@MAN_ADMIN_COMMANDS@).
 .LP
-A # introduces a comment that runs to the end of the line.  Blank lines,
+A
+.B #
+introduces a comment that runs to the end of the line.  Blank lines,
 and lines with only a comment, are ignored.  Leading and trailing white
 space on a line are also ignored.
 .LP
@@ -34,7 +36,9 @@ Lines that set a parameter are of the form
 .IP
 \fIparameter\fB=\fIvalue\fR
 .LP
-Whitespace preceding or following the = is ignored.
+Whitespace preceding or following the
+.B =
+is ignored.
 .LP
 The
 .IR parameter s
@@ -72,7 +76,7 @@ or
 .BR NO .
 .B YES
 means that null authentication is permitted;
-.B No
+.B NO
 means that it is not permitted.
 .SH SEE ALSO
 .BR rpcapd (@MAN_ADMIN_COMMANDS@)

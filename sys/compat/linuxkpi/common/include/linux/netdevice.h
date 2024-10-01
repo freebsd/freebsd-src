@@ -75,6 +75,10 @@ struct wireless_dev;		/* net/cfg80211.h */
 
 #define	NET_NAME_UNKNOWN	0
 
+enum net_addr_assign_type {
+	NET_ADDR_RANDOM,
+};
+
 enum netdev_tx {
 	NETDEV_TX_OK		= 0,
 };
@@ -93,6 +97,10 @@ struct netdev_hw_addr_list {
 enum net_device_reg_state {
 	NETREG_DUMMY		= 1,
 	NETREG_REGISTERED,
+};
+
+enum tc_setup_type {
+	TC_SETUP_MAX_DUMMY,
 };
 
 struct net_device_ops {
@@ -122,6 +130,7 @@ struct net_device {
 		unsigned long		tx_errors;
 		unsigned long		tx_packets;
 	} stats;
+	enum net_addr_assign_type	addr_assign_type;
 	enum net_device_reg_state	reg_state;
 	const struct ethtool_ops	*ethtool_ops;
 	const struct net_device_ops	*netdev_ops;

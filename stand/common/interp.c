@@ -190,7 +190,9 @@ interp_builtin_cmd(int argc, char *argv[])
 
 	cmd = interp_lookup_cmd(argv[0]);
 	if (cmd != NULL && cmd->c_fn) {
+		TSENTER2(argv[0]);
 		result = cmd->c_fn(argc, argv);
+		TSEXIT();
 	} else {
 		command_errmsg = "unknown command";
 	}

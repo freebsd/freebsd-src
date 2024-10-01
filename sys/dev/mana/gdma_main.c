@@ -221,7 +221,7 @@ mana_gd_alloc_memory(struct gdma_context *gc, unsigned int length,
 	if (!gc || !gmi)
 		return EINVAL;
 
-	if (length < PAGE_SIZE || (length != roundup_pow_of_two(length)))
+	if (length < PAGE_SIZE || !powerof2(length))
 		return EINVAL;
 
 	err = bus_dma_tag_create(bus_get_dma_tag(gc->dev),	/* parent */

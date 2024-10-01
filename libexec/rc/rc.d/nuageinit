@@ -18,8 +18,8 @@ nuageinit_start()
 {
 	local citype
 	# detect cloud init provider
-	# according to the specification of the config drive
-	# it either formatted in vfat or iso9660 and labeled
+	# according to the specification, the config drive
+	# is either formatted in vfat or iso9660 and labeled
 	# config-2
 	for f in iso9660 msdosfs; do
 		drive="/dev/$f/[cC][oO][nN][fF][iI][gG]-2"
@@ -39,7 +39,7 @@ nuageinit_start()
 		err 1 "Impossible to find a cloud init provider"
 	fi
 	mkdir -p /media/nuageinit
-	fs=$(fstyp $drive)
+	fs=$(fstyp $drive 2> /dev/null)
 	mount -t $fs $drive /media/nuageinit
 	# according to the specification, the content is either
 	# in the openstack or ec2 directory

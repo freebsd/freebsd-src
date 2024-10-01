@@ -2631,7 +2631,8 @@ softdep_mount(struct vnode *devvp,
 
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
-		printf("Failed to start journal: %d\n", error);
+		printf("%s: failed to start journal: %d\n",
+		    mp->mnt_stat.f_mntonname, error);
 		softdep_unmount(mp);
 		return (error);
 	}
@@ -2641,10 +2642,18 @@ softdep_mount(struct vnode *devvp,
 	ACQUIRE_LOCK(ump);
 	ump->softdep_flags |= FLUSH_STARTING;
 	FREE_LOCK(ump);
-	kproc_kthread_add(&softdep_flush, mp, &bufdaemonproc,
+	error = kproc_kthread_add(&softdep_flush, mp, &bufdaemonproc,
 	    &ump->softdep_flushtd, 0, 0, "softdepflush", "%s worker",
 	    mp->mnt_stat.f_mntonname);
 	ACQUIRE_LOCK(ump);
+	if (error != 0) {
+		printf("%s: failed to start softdepflush thread: %d\n",
+		    mp->mnt_stat.f_mntonname, error);
+		ump->softdep_flags &= ~FLUSH_STARTING;
+		FREE_LOCK(ump);
+		softdep_unmount(mp);
+		return (error);
+	}
 	while ((ump->softdep_flags & FLUSH_STARTING) != 0) {
 		msleep(&ump->softdep_flushtd, LOCK_PTR(ump), PVM, "sdstart",
 		    hz / 2);

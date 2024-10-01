@@ -355,8 +355,7 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 		/* set up for CS4227 usage */
 		ixgbe_setup_mux_ctl(hw);
 		ixgbe_check_cs4227(hw);
-		/* Fallthrough */
-
+		return ixgbe_identify_sfp_module_X550em(hw);
 	case IXGBE_DEV_ID_X550EM_A_SFP_N:
 		return ixgbe_identify_sfp_module_X550em(hw);
 		break;
@@ -750,7 +749,7 @@ static s32 ixgbe_setup_fw_link(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_fc_autoneg_fw _ Set up flow control for FW-controlled PHYs
+ * ixgbe_fc_autoneg_fw - Set up flow control for FW-controlled PHYs
  * @hw: pointer to hardware structure
  *
  * Called at init time to set up flow control.
@@ -799,14 +798,8 @@ s32 ixgbe_init_ops_X550EM_a(struct ixgbe_hw *hw)
 	/* Start with generic X550EM init */
 	ret_val = ixgbe_init_ops_X550EM(hw);
 
-	if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII ||
-	    hw->device_id == IXGBE_DEV_ID_X550EM_A_SGMII_L) {
-		mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550;
-		mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550;
-	} else {
-		mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550a;
-		mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550a;
-	}
+	mac->ops.read_iosf_sb_reg = ixgbe_read_iosf_sb_reg_x550;
+	mac->ops.write_iosf_sb_reg = ixgbe_write_iosf_sb_reg_x550;
 	mac->ops.acquire_swfw_sync = ixgbe_acquire_swfw_sync_X550a;
 	mac->ops.release_swfw_sync = ixgbe_release_swfw_sync_X550a;
 
@@ -1285,72 +1278,6 @@ s32 ixgbe_put_phy_token(struct ixgbe_hw *hw)
 
 	DEBUGOUT("Put PHY Token host interface command failed");
 	return IXGBE_ERR_FW_RESP_INVALID;
-}
-
-/**
- * ixgbe_write_iosf_sb_reg_x550a - Writes a value to specified register
- * of the IOSF device
- * @hw: pointer to hardware structure
- * @reg_addr: 32 bit PHY register to write
- * @device_type: 3 bit device type
- * @data: Data to write to the register
- **/
-s32 ixgbe_write_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
-				  u32 device_type, u32 data)
-{
-	struct ixgbe_hic_internal_phy_req write_cmd;
-	s32 status;
-	UNREFERENCED_1PARAMETER(device_type);
-
-	memset(&write_cmd, 0, sizeof(write_cmd));
-	write_cmd.hdr.cmd = FW_INT_PHY_REQ_CMD;
-	write_cmd.hdr.buf_len = FW_INT_PHY_REQ_LEN;
-	write_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
-	write_cmd.port_number = hw->bus.lan_id;
-	write_cmd.command_type = FW_INT_PHY_REQ_WRITE;
-	write_cmd.address = IXGBE_CPU_TO_BE16(reg_addr);
-	write_cmd.write_data = IXGBE_CPU_TO_BE32(data);
-
-	status = ixgbe_host_interface_command(hw, (u32 *)&write_cmd,
-					      sizeof(write_cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, false);
-
-	return status;
-}
-
-/**
- * ixgbe_read_iosf_sb_reg_x550a - Reads specified register of the IOSF device
- * @hw: pointer to hardware structure
- * @reg_addr: 32 bit PHY register to write
- * @device_type: 3 bit device type
- * @data: Pointer to read data from the register
- **/
-s32 ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
-				 u32 device_type, u32 *data)
-{
-	union {
-		struct ixgbe_hic_internal_phy_req cmd;
-		struct ixgbe_hic_internal_phy_resp rsp;
-	} hic;
-	s32 status;
-	UNREFERENCED_1PARAMETER(device_type);
-
-	memset(&hic, 0, sizeof(hic));
-	hic.cmd.hdr.cmd = FW_INT_PHY_REQ_CMD;
-	hic.cmd.hdr.buf_len = FW_INT_PHY_REQ_LEN;
-	hic.cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
-	hic.cmd.port_number = hw->bus.lan_id;
-	hic.cmd.command_type = FW_INT_PHY_REQ_READ;
-	hic.cmd.address = IXGBE_CPU_TO_BE16(reg_addr);
-
-	status = ixgbe_host_interface_command(hw, (u32 *)&hic.cmd,
-					      sizeof(hic.cmd),
-					      IXGBE_HI_COMMAND_TIMEOUT, true);
-
-	/* Extract the register value from the response. */
-	*data = IXGBE_BE32_TO_CPU(hic.rsp.read_data);
-
-	return status;
 }
 
 /**
@@ -1876,7 +1803,7 @@ void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_get_link_capabilities_x550em - Determines link capabilities
+ * ixgbe_get_link_capabilities_X550em - Determines link capabilities
  * @hw: pointer to hardware structure
  * @speed: pointer to link speed
  * @autoneg: true when autoneg or autotry is enabled
@@ -1941,7 +1868,9 @@ s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 					break;
 				}
 			}
-			/* fall through */
+			*speed = IXGBE_LINK_SPEED_10GB_FULL |
+				 IXGBE_LINK_SPEED_1GB_FULL;
+			break;
 		default:
 			*speed = IXGBE_LINK_SPEED_10GB_FULL |
 				 IXGBE_LINK_SPEED_1GB_FULL;
@@ -3236,7 +3165,7 @@ out:
 }
 
 /**
- * ixgbe_write_ee_hostif_X550 - Write EEPROM word using hostif
+ * ixgbe_write_ee_hostif_data_X550 - Write EEPROM word using hostif
  * @hw: pointer to hardware structure
  * @offset: offset of  word in the EEPROM to write
  * @data: word write to the EEPROM
@@ -3661,7 +3590,9 @@ u64 ixgbe_get_supported_physical_layer_X550em(struct ixgbe_hw *hw)
 				break;
 			}
 		}
-		/* fall through */
+		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR |
+				 IXGBE_PHYSICAL_LAYER_1000BASE_KX;
+		break;
 	case ixgbe_phy_x550em_xfi:
 		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KR |
 				 IXGBE_PHYSICAL_LAYER_1000BASE_KX;
@@ -3704,7 +3635,7 @@ u64 ixgbe_get_supported_physical_layer_X550em(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_get_bus_info_x550em - Set PCI bus info
+ * ixgbe_get_bus_info_X550em - Set PCI bus info
  * @hw: pointer to hardware structure
  *
  * Sets bus link width and speed to unknown because X550em is
@@ -3769,7 +3700,7 @@ void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_enter_lplu_x550em - Transition to low power states
+ * ixgbe_enter_lplu_t_x550em - Transition to low power states
  * @hw: pointer to hardware structure
  *
  * Configures Low Power Link Up on transition to low power states
@@ -3877,7 +3808,7 @@ s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_get_lcd_x550em - Determine lowest common denominator
+ * ixgbe_get_lcd_t_x550em - Determine lowest common denominator
  * @hw: pointer to hardware structure
  * @lcd_speed: pointer to lowest common link speed
  *
@@ -4311,35 +4242,38 @@ static s32 ixgbe_acquire_swfw_sync_X550a(struct ixgbe_hw *hw, u32 mask)
 
 	DEBUGFUNC("ixgbe_acquire_swfw_sync_X550a");
 
-	while (--retries) {
-		status = IXGBE_SUCCESS;
-		if (hmask)
-			status = ixgbe_acquire_swfw_sync_X540(hw, hmask);
-		if (status) {
-			DEBUGOUT1("Could not acquire SWFW semaphore, Status = %d\n",
-				  status);
-			return status;
-		}
-		if (!(mask & IXGBE_GSSR_TOKEN_SM))
-			return IXGBE_SUCCESS;
+	status = IXGBE_SUCCESS;
+	if (hmask)
+		status = ixgbe_acquire_swfw_sync_X540(hw, hmask);
 
+	if (status) {
+		DEBUGOUT1("Could not acquire SWFW semaphore, Status = %d\n", status);
+		return status;
+	}
+
+	if (!(mask & IXGBE_GSSR_TOKEN_SM))
+		return IXGBE_SUCCESS;
+
+	while (--retries) {
 		status = ixgbe_get_phy_token(hw);
-		if (status == IXGBE_ERR_TOKEN_RETRY)
-			DEBUGOUT1("Could not acquire PHY token, Status = %d\n",
-				  status);
 
 		if (status == IXGBE_SUCCESS)
 			return IXGBE_SUCCESS;
 
-		if (hmask)
-			ixgbe_release_swfw_sync_X540(hw, hmask);
-
 		if (status != IXGBE_ERR_TOKEN_RETRY) {
-			DEBUGOUT1("Unable to retry acquiring the PHY token, Status = %d\n",
-				  status);
+			DEBUGOUT1("Retry acquiring the PHY token failed, Status = %d\n", status);
+			if (hmask)
+				ixgbe_release_swfw_sync_X540(hw, hmask);
 			return status;
 		}
+
+		if (status == IXGBE_ERR_TOKEN_RETRY)
+			DEBUGOUT1("Could not acquire PHY token, Status = %d\n",
+				  status);
 	}
+
+	if (hmask)
+		ixgbe_release_swfw_sync_X540(hw, hmask);
 
 	DEBUGOUT1("Semaphore acquisition retries failed!: PHY ID = 0x%08X\n",
 		  hw->phy.id);

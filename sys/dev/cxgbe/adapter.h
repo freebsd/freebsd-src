@@ -1394,6 +1394,7 @@ void cxgbe_media_status(if_t, struct ifmediareq *);
 void t4_os_cim_err(struct adapter *);
 int suspend_adapter(struct adapter *);
 int resume_adapter(struct adapter *);
+int toe_capability(struct vi_info *, bool);
 
 #ifdef KERN_TLS
 /* t6_kern_tls.c */

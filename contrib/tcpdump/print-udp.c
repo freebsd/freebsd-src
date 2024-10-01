@@ -21,9 +21,7 @@
 
 /* \summary: UDP printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -479,8 +477,7 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 
 		case PT_AODV:
 			udpipaddr_print(ndo, ip, sport, dport);
-			aodv_print(ndo, cp, length,
-			    ip6 != NULL);
+			aodv_print(ndo, cp, length, IP_V(ip) == 6);
 			break;
 
 		case PT_RADIUS:
@@ -572,8 +569,7 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 				} else
 					ND_PRINT("[udp sum ok] ");
 			}
-		}
-		else if (IP_V(ip) == 6) {
+		} else if (IP_V(ip) == 6) {
 			/* for IPv6, UDP checksum is mandatory */
 			if (ND_TTEST_LEN(cp, length)) {
 				sum = udp6_cksum(ndo, ip6, up, length + sizeof(struct udphdr));
@@ -593,40 +589,63 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 		if (IS_SRC_OR_DST_PORT(NAMESERVER_PORT))
 			/* over_tcp: FALSE, is_mdns: FALSE */
 			domain_print(ndo, cp, length, FALSE, FALSE);
-		else if (IS_SRC_OR_DST_PORT(MULTICASTDNS_PORT))
-			/* over_tcp: FALSE, is_mdns: TRUE */
-			domain_print(ndo, cp, length, FALSE, TRUE);
-		else if (IS_SRC_OR_DST_PORT(TIMED_PORT))
-			timed_print(ndo, (const u_char *)cp);
+		else if (IS_SRC_OR_DST_PORT(BOOTPC_PORT) ||
+			 IS_SRC_OR_DST_PORT(BOOTPS_PORT))
+			bootp_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(TFTP_PORT))
 			tftp_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(BOOTPC_PORT) || IS_SRC_OR_DST_PORT(BOOTPS_PORT))
-			bootp_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(RIP_PORT))
-			rip_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(AODV_PORT))
-			aodv_print(ndo, cp, length,
-			    ip6 != NULL);
-		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT))
-			 isakmp_print(ndo, cp, length, bp2);
-		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT_NATT))
-			 isakmp_rfc3948_print(ndo, cp, length, bp2, IP_V(ip), fragmented, ttl_hl);
-		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT_USER1) || IS_SRC_OR_DST_PORT(ISAKMP_PORT_USER2))
-			isakmp_print(ndo, cp, length, bp2);
-		else if (IS_SRC_OR_DST_PORT(SNMP_PORT) || IS_SRC_OR_DST_PORT(SNMPTRAP_PORT))
-			snmp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(KERBEROS_PORT))
+			krb_print(ndo, (const u_char *)cp);
 		else if (IS_SRC_OR_DST_PORT(NTP_PORT))
 			ntp_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(KERBEROS_PORT) || IS_SRC_OR_DST_PORT(KERBEROS_SEC_PORT))
-			krb_print(ndo, (const u_char *)cp);
-		else if (IS_SRC_OR_DST_PORT(L2TP_PORT))
-			l2tp_print(ndo, cp, length);
 #ifdef ENABLE_SMB
 		else if (IS_SRC_OR_DST_PORT(NETBIOS_NS_PORT))
 			nbt_udp137_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(NETBIOS_DGRAM_PORT))
 			nbt_udp138_print(ndo, cp, length);
 #endif
+		else if (IS_SRC_OR_DST_PORT(SNMP_PORT) ||
+			 IS_SRC_OR_DST_PORT(SNMPTRAP_PORT))
+			snmp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(PTP_EVENT_PORT) ||
+			 IS_SRC_OR_DST_PORT(PTP_GENERAL_PORT))
+			ptp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(CISCO_AUTORP_PORT))
+			cisco_autorp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT))
+			 isakmp_print(ndo, cp, length, bp2);
+		else if (IS_SRC_OR_DST_PORT(SYSLOG_PORT))
+			syslog_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(RIP_PORT))
+			rip_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(RIPNG_PORT))
+			ripng_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(TIMED_PORT))
+			timed_print(ndo, (const u_char *)cp);
+		else if (IS_SRC_OR_DST_PORT(DHCP6_SERV_PORT) ||
+			 IS_SRC_OR_DST_PORT(DHCP6_CLI_PORT))
+			dhcp6_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(LDP_PORT))
+			ldp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(AODV_PORT))
+			aodv_print(ndo, cp, length, IP_V(ip) == 6);
+		else if (IS_SRC_OR_DST_PORT(OLSR_PORT))
+			olsr_print(ndo, cp, length, IP_V(ip) == 6);
+		else if (IS_SRC_OR_DST_PORT(LMP_PORT))
+			lmp_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(KERBEROS_SEC_PORT))
+			krb_print(ndo, (const u_char *)cp);
+		else if (IS_SRC_OR_DST_PORT(LWRES_PORT))
+			lwres_print(ndo, cp, length);
+		else if (IS_SRC_OR_DST_PORT(MULTICASTDNS_PORT))
+			/* over_tcp: FALSE, is_mdns: TRUE */
+			domain_print(ndo, cp, length, FALSE, TRUE);
+		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT_NATT))
+			 isakmp_rfc3948_print(ndo, cp, length, bp2, IP_V(ip), fragmented, ttl_hl);
+		else if (IS_SRC_OR_DST_PORT(ISAKMP_PORT_USER1) || IS_SRC_OR_DST_PORT(ISAKMP_PORT_USER2))
+			isakmp_print(ndo, cp, length, bp2);
+		else if (IS_SRC_OR_DST_PORT(L2TP_PORT))
+			l2tp_print(ndo, cp, length);
 		else if (dport == VAT_PORT)
 			vat_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(ZEPHYR_SRV_PORT) || IS_SRC_OR_DST_PORT(ZEPHYR_CLT_PORT))
@@ -639,10 +658,6 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 			 (dport >= RX_PORT_LOW && dport <= RX_PORT_HIGH))
 			rx_print(ndo, cp, length, sport, dport,
 				 (const u_char *) ip);
-		else if (IS_SRC_OR_DST_PORT(RIPNG_PORT))
-			ripng_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(DHCP6_SERV_PORT) || IS_SRC_OR_DST_PORT(DHCP6_CLI_PORT))
-			dhcp6_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(AHCP_PORT))
 			ahcp_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(BABEL_PORT) || IS_SRC_OR_DST_PORT(BABEL_PORT_OLD))
@@ -654,8 +669,6 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 		 */
 		else if (dport == WB_PORT)
 			wb_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(CISCO_AUTORP_PORT))
-			cisco_autorp_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(RADIUS_PORT) ||
 			 IS_SRC_OR_DST_PORT(RADIUS_NEW_PORT) ||
 			 IS_SRC_OR_DST_PORT(RADIUS_ACCOUNTING_PORT) ||
@@ -665,24 +678,13 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 			radius_print(ndo, cp, length);
 		else if (dport == HSRP_PORT)
 			hsrp_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(LWRES_PORT))
-			lwres_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(LDP_PORT))
-			ldp_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(OLSR_PORT))
-			olsr_print(ndo, cp, length,
-					(IP_V(ip) == 6) ? 1 : 0);
 		else if (IS_SRC_OR_DST_PORT(MPLS_LSP_PING_PORT))
 			lspping_print(ndo, cp, length);
-		else if (sport == BCM_LI_PORT)
-			bcm_li_print(ndo, cp, length);
 		else if (dport == BFD_CONTROL_PORT ||
 			 dport == BFD_MULTIHOP_PORT ||
 			 dport == BFD_LAG_PORT ||
 			 dport == BFD_ECHO_PORT )
 			bfd_print(ndo, cp, length, dport);
-		else if (IS_SRC_OR_DST_PORT(LMP_PORT))
-			lmp_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(VQP_PORT))
 			vqp_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(SFLOW_PORT))
@@ -695,8 +697,6 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 			lwapp_data_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(SIP_PORT))
 			sip_print(ndo, cp, length);
-		else if (IS_SRC_OR_DST_PORT(SYSLOG_PORT))
-			syslog_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(OTV_PORT))
 			otv_print(ndo, cp, length);
 		else if (IS_SRC_OR_DST_PORT(VXLAN_PORT))
@@ -717,11 +717,10 @@ udp_print(netdissect_options *ndo, const u_char *bp, u_int length,
 			if (ndo->ndo_vflag)
 				ND_PRINT("kip ");
 			llap_print(ndo, cp, length);
-		} else if (IS_SRC_OR_DST_PORT(PTP_EVENT_PORT) ||
-			IS_SRC_OR_DST_PORT(PTP_GENERAL_PORT)) {
-			ptp_print(ndo, cp, length);
 		} else if (IS_SRC_OR_DST_PORT(SOMEIP_PORT))
 			someip_print(ndo, cp, length);
+		else if (sport == BCM_LI_PORT)
+			bcm_li_print(ndo, cp, length);
 		else {
 			if (ulen > length && !fragmented)
 				ND_PRINT("UDP, bad length %u > %u",

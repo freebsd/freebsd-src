@@ -10,7 +10,7 @@ PACKAGE=	runtime
 SHLIB_MAJOR=	5
 LIB=		crypt
 
-.PATH:		${SRCTOP}/lib/libmd ${SRCTOP}/sys/crypto/sha2
+.PATH:		${SRCTOP}/sys/kern ${SRCTOP}/sys/crypto/sha2
 SRCS=		crypt.c misc.c \
 		crypt-md5.c md5c.c \
 		crypt-nthash.c md4c.c \

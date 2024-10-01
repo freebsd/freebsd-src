@@ -1824,7 +1824,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * then the residual physical memory is mapped with 2MB pages.  Later,
 	 * if pmap_mapdev{_attr}() uses the direct map for non-write-back
 	 * memory, pmap_change_attr() will demote any 2MB or 1GB page mappings
-	 * that are partially used. 
+	 * that are partially used.
 	 */
 	pd_p = (pd_entry_t *)DMPDphys;
 	for (i = NPDEPG * ndm1g, j = 0; i < NPDEPG * ndmpdp; i++, j++) {
@@ -2226,7 +2226,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	 * entering all existing kernel mappings into level 5 table.
 	 */
 	v_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M | pg_g;
+	    X86_PG_RW | X86_PG_A | X86_PG_M;
 
 	/*
 	 * Add pml5 entry for 1:1 trampoline mapping after LA57 is turned on.
@@ -2245,7 +2245,11 @@ pmap_bootstrap_la57(void *arg __unused)
 	*(u_long *)(v_code + 2 + (la57_trampoline_gdt_desc - la57_trampoline)) =
 	    la57_trampoline_gdt - la57_trampoline + VM_PAGE_TO_PHYS(m_code);
 	la57_tramp = (void (*)(uint64_t))VM_PAGE_TO_PHYS(m_code);
-	invlpg((vm_offset_t)la57_tramp);
+	pmap_invalidate_all(kernel_pmap);
+	if (bootverbose) {
+		printf("entering LA57 trampoline at %#lx\n",
+		    (vm_offset_t)la57_tramp);
+	}
 	la57_tramp(KPML5phys);
 
 	/*
@@ -2259,6 +2263,10 @@ pmap_bootstrap_la57(void *arg __unused)
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
+	lidt(&r_idt);
+
+	if (bootverbose)
+		printf("LA57 trampoline returned, CR4 %#lx\n", rcr4());
 
 	/*
 	 * Now unmap the trampoline, and free the pages.
@@ -2271,7 +2279,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	vm_page_free(m_pd);
 	vm_page_free(m_pt);
 
-	/* 
+	/*
 	 * Recursively map PML5 to itself in order to get PTmap and
 	 * PDmap.
 	 */
@@ -2502,7 +2510,7 @@ pmap_init(void)
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
-	 */ 
+	 */
 	PMAP_LOCK(kernel_pmap);
 	for (i = 0; i < nkpt; i++) {
 		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
@@ -3453,12 +3461,12 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	cpuid = PCPU_GET(cpuid);
 	other_cpus = all_cpus;
 	CPU_CLR(cpuid, &other_cpus);
-	if (pmap == kernel_pmap || pmap_type_guest(pmap)) 
+	if (pmap == kernel_pmap || pmap_type_guest(pmap))
 		active = all_cpus;
 	else {
 		active = pmap->pm_active;
 	}
-	if (CPU_OVERLAP(&active, &other_cpus)) { 
+	if (CPU_OVERLAP(&active, &other_cpus)) {
 		act.store = cpuid;
 		act.invalidate = active;
 		act.va = va;
@@ -4218,7 +4226,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 
 	pmap_pt_page_count_adj(pmap, -1);
 
-	/* 
+	/*
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
@@ -4367,15 +4375,13 @@ pmap_pinit_pml5(vm_page_t pml5pg)
 	 * entering all existing kernel mappings into level 5 table.
 	 */
 	pm_pml5[pmap_pml5e_index(UPT_MAX_ADDRESS)] = KPML4phys | X86_PG_V |
-	    X86_PG_RW | X86_PG_A | X86_PG_M | pg_g |
-	    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, false);
+	    X86_PG_RW | X86_PG_A | X86_PG_M;
 
-	/* 
+	/*
 	 * Install self-referential address mapping entry.
 	 */
 	pm_pml5[PML5PML5I] = VM_PAGE_TO_PHYS(pml5pg) |
-	    X86_PG_RW | X86_PG_V | X86_PG_M | X86_PG_A |
-	    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, false);
+	    X86_PG_RW | X86_PG_V | X86_PG_M | X86_PG_A;
 }
 
 static void
@@ -4404,8 +4410,7 @@ pmap_pinit_pml5_pti(vm_page_t pml5pgu)
 	 */
 	pm_pml5u[pmap_pml5e_index(UPT_MAX_ADDRESS)] =
 	    pmap_kextract((vm_offset_t)pti_pml4) |
-	    X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M | pg_g |
-	    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, false);
+	    X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
 }
 
 /* Allocate a page table page and do related bookkeeping */
@@ -5174,7 +5179,7 @@ pmap_growkernel(vm_offset_t addr)
 			end = (end + NBPDR) & ~PDRMASK;
 			if (end - 1 >= vm_map_max(kernel_map)) {
 				end = vm_map_max(kernel_map);
-				break;                       
+				break;
 			}
 			continue;
 		}
@@ -5191,7 +5196,7 @@ pmap_growkernel(vm_offset_t addr)
 		end = (end + NBPDR) & ~PDRMASK;
 		if (end - 1 >= vm_map_max(kernel_map)) {
 			end = vm_map_max(kernel_map);
-			break;                       
+			break;
 		}
 	}
 
@@ -6141,7 +6146,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
 	 * set.  Thus, there is no danger of a race with another
 	 * processor changing the setting of PG_A and/or PG_M between
-	 * the read above and the store below. 
+	 * the read above and the store below.
 	 */
 	if (workaround_erratum383)
 		pmap_update_pde(pmap, va, pde, newpde);
@@ -6271,7 +6276,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, 
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp)
 {
 	struct md_page *pvh;
@@ -6884,7 +6889,7 @@ pmap_pde_ept_executable(pmap_t pmap, pd_entry_t pde)
  * single page table page (PTP) to a single 2MB page mapping.  For promotion
  * to occur, two conditions must be met: (1) the 4KB page mappings must map
  * aligned, contiguous physical memory and (2) the 4KB page mappings must have
- * identical characteristics. 
+ * identical characteristics.
  */
 static bool
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
@@ -7232,7 +7237,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		goto out;
 	}
 	if (psind == 1) {
-		/* Assert the required virtual and physical alignment. */ 
+		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & PDRMASK) == 0, ("pmap_enter: va unaligned"));
 		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
 		rv = pmap_enter_pde(pmap, va, newpte | PG_PS, flags, m, &lock);
@@ -7928,7 +7933,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * Map using 2MB pages.  Since "ptepa" is 2M aligned and
 		 * "size" is a multiple of 2M, adding the PAT setting to "pa"
 		 * will not affect the termination of this loop.
-		 */ 
+		 */
 		PMAP_LOCK(pmap);
 		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, true);
 		    pa < ptepa + size; pa += NBPDR) {
@@ -8163,7 +8168,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
-			
+
 		if (srcptepaddr & PG_PS) {
 			/*
 			 * We can only virtual copy whole superpages.
@@ -8241,7 +8246,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				pmap_abort_ptp(dst_pmap, addr, dstmpte);
 				goto out;
 			}
-			/* Have we copied all of the valid mappings? */ 
+			/* Have we copied all of the valid mappings? */
 			if (dstmpte->ref_count >= srcmpte->ref_count)
 				break;
 		}

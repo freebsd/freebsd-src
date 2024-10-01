@@ -202,6 +202,10 @@
 #define IXGBE_FLA_X550EM_x	IXGBE_FLA
 #define IXGBE_FLA_X550EM_a	0x15F68
 #define IXGBE_FLA_BY_MAC(_hw)	IXGBE_BY_MAC((_hw), FLA)
+#define IXGBE_FLA_FL_SIZE_SHIFT_X540	17
+#define IXGBE_FLA_FL_SIZE_SHIFT_X550	12
+#define IXGBE_FLA_FL_SIZE_MASK_X540	(0x7 << IXGBE_FLA_FL_SIZE_SHIFT_X540)
+#define IXGBE_FLA_FL_SIZE_MASK_X550	(0x7 << IXGBE_FLA_FL_SIZE_SHIFT_X550)
 
 #define IXGBE_EEMNGCTL	0x10110
 #define IXGBE_EEMNGDATA	0x10114
@@ -284,6 +288,41 @@
 #define IXGBE_I2C_CLK_OE_N_EN_BY_MAC(_hw) IXGBE_BY_MAC((_hw), I2C_CLK_OE_N_EN)
 #define IXGBE_I2C_CLOCK_STRETCHING_TIMEOUT	500
 
+/* NVM component version fields */
+#define NVM_VERSZ_LONG	64
+#define NVM_VERSZ_SHORT	32
+#define NVM_VER_LONG \
+	"DS_%x.%x NVM_%x.%02x.%x PHY_%x.%02x.%x OEM_%04x EtkId_%x OR_%x.%x.%x\n"
+#define NVM_VER_SHORT1	"%02x.%02x %x %x.%x.%x\n"
+#define NVM_VER_SHORT2	"%02x.%02x.%x %x.%02x.%x %x %x.%x.%x\n"
+
+#define NVM_EEP_MAJOR_MASK	0xF000
+#define NVM_EEP_MINOR_MASK	0xFF0
+#define NVM_EEP_ID_MASK		0xF
+#define NVM_EEP_MAJ_SHIFT	12
+#define NVM_EEP_MIN_SHIFT	4
+
+#define NVM_EEP_OFFSET_82598	0x2A
+#define NVM_EEP_OFFSET_X540	0x18
+#define NVM_EEP_X550_MINOR_MASK	0xFF
+#define NVM_EEP_PHY_OFF_X540	0x19
+#define NVM_PHY_MAJOR_MASK	0xF000
+#define NVM_PHY_MINOR_MASK	0xFF0
+#define NVM_PHY_ID_MASK		0xF
+#define NVM_PHY_MAJ_SHIFT	12
+#define NVM_PHY_MIN_SHIFT	4
+
+#define NVM_DS_OFFSET		0x29
+#define NVM_DS_MAJOR_MASK	0xF000
+#define NVM_DS_MINOR_MASK	0xF
+#define NVM_DS_SHIFT		12
+
+#define NVM_OEM_OFFSET		0x2A
+
+#define NVM_PHYVEND_MAJOR_MASK	0xFF00
+#define NVM_PHYVEND_MINOR_MASK	0xFF
+#define NVM_PHYVEND_SHIFT	8
+
 #define IXGBE_I2C_THERMAL_SENSOR_ADDR	0xF8
 #define IXGBE_EMC_INTERNAL_DATA		0x00
 #define IXGBE_EMC_INTERNAL_THERM_LIMIT	0x20
@@ -344,6 +383,16 @@ struct ixgbe_nvm_version {
 	u16 or_build;
 	u8  or_patch;
 
+	u8  phy_fw_maj;
+	u16 phy_fw_min;
+	u8  phy_fw_id;
+
+	u8  devstart_major;
+	u8  devstart_minor;
+	u16 oem_specific;
+
+	u8  phy_vend_maj;
+	u8  phy_vend_min;
 };
 
 /* Interrupt Registers */
@@ -483,8 +532,14 @@ struct ixgbe_nvm_version {
 #define IXGBE_PFMAILBOX(_i)	(0x04B00 + (4 * (_i))) /* 64 total */
 /* 64 Mailboxes, 16 DW each */
 #define IXGBE_PFMBMEM(_i)	(0x13000 + (64 * (_i)))
+#define IXGBE_PFMBICR_INDEX(_i)	((_i) >> 4)
+#define IXGBE_PFMBICR_SHIFT(_i)	((_i) % 16)
 #define IXGBE_PFMBICR(_i)	(0x00710 + (4 * (_i))) /* 4 total */
 #define IXGBE_PFMBIMR(_i)	(0x00720 + (4 * (_i))) /* 4 total */
+#define IXGBE_PFVFLRE(_i)	((((_i) & 1) ? 0x001C0 : 0x00600))
+#define IXGBE_PFVFLREC(_i)	(0x00700 + ((_i) * 4))
+#define IXGBE_PFVFLRE_INDEX(_i)	((_i) >> 5)
+#define IXGBE_PFVFLRE_SHIFT(_i)	((_i) % 32)
 #define IXGBE_VFRE(_i)		(0x051E0 + ((_i) * 4))
 #define IXGBE_VFTE(_i)		(0x08110 + ((_i) * 4))
 #define IXGBE_VMECM(_i)		(0x08790 + ((_i) * 4))
@@ -1437,6 +1492,7 @@ struct ixgbe_dmac_config {
 #define IXGBE_BARCTRL_FLSIZE		0x0700
 #define IXGBE_BARCTRL_FLSIZE_SHIFT	8
 #define IXGBE_BARCTRL_CSRSIZE		0x2000
+#define IXGBE_BARCTRL_CSRSIZE_SHIFT	13
 
 /* RSCCTL Bit Masks */
 #define IXGBE_RSCCTL_RSCEN	0x01
@@ -1482,7 +1538,7 @@ struct ixgbe_dmac_config {
 #define IXGBE_PSRTYPE_RQPL_SHIFT	29
 
 /* CTRL Bit Masks */
-#define IXGBE_CTRL_GIO_DIS	0x00000004 /* Global IO Master Disable bit */
+#define IXGBE_CTRL_GIO_DIS	0x00000004 /* Global IO Primary Disable bit */
 #define IXGBE_CTRL_LNK_RST	0x00000008 /* Link Reset. Resets everything. */
 #define IXGBE_CTRL_RST		0x04000000 /* Reset (SW) */
 #define IXGBE_CTRL_RST_MASK	(IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST)
@@ -1696,6 +1752,7 @@ struct ixgbe_dmac_config {
 #define TN1010_PHY_ID	0x00A19410
 #define TNX_FW_REV	0xB
 #define X540_PHY_ID	0x01540200
+#define X550_PHY_ID	0x01540220
 #define X550_PHY_ID2	0x01540223
 #define X550_PHY_ID3	0x01540221
 #define X557_PHY_ID	0x01540240
@@ -1832,7 +1889,7 @@ enum {
 /* VFRE bitmask */
 #define IXGBE_VFRE_ENABLE_ALL	0xFFFFFFFF
 
-#define IXGBE_VF_INIT_TIMEOUT	200 /* Number of retries to clear RSTI */
+#define IXGBE_VF_INIT_TIMEOUT	10000 /* Number of retries to clear RSTI */
 
 /* RDHMPN and TDHMPN bitmasks */
 #define IXGBE_RDHMPN_RDICADDR		0x007FF800
@@ -2129,7 +2186,7 @@ enum {
 /* STATUS Bit Masks */
 #define IXGBE_STATUS_LAN_ID		0x0000000C /* LAN ID */
 #define IXGBE_STATUS_LAN_ID_SHIFT	2 /* LAN ID Shift*/
-#define IXGBE_STATUS_GIO		0x00080000 /* GIO Master Ena Status */
+#define IXGBE_STATUS_GIO		0x00080000 /* GIO Primary Ena Status */
 
 #define IXGBE_STATUS_LAN_ID_0	0x00000000 /* LAN ID 0 */
 #define IXGBE_STATUS_LAN_ID_1	0x00000004 /* LAN ID 1 */
@@ -2539,8 +2596,8 @@ enum {
 #define IXGBE_PCIDEVCTRL2_4_8s		0xd
 #define IXGBE_PCIDEVCTRL2_17_34s	0xe
 
-/* Number of 100 microseconds we wait for PCI Express master disable */
-#define IXGBE_PCI_MASTER_DISABLE_TIMEOUT	800
+/* Number of 100 microseconds we wait for PCI Express primary disable */
+#define IXGBE_PCI_PRIMARY_DISABLE_TIMEOUT	800
 
 /* Check whether address is multicast. This is little-endian specific check.*/
 #define IXGBE_IS_MULTICAST(Address) \
@@ -2898,11 +2955,6 @@ enum {
 #define IXGBE_RX_DESC_SPECIAL_PRI_SHIFT	0x000D /* Priority in upper 3 of 16 */
 #define IXGBE_TX_DESC_SPECIAL_PRI_SHIFT	IXGBE_RX_DESC_SPECIAL_PRI_SHIFT
 
-/* SR-IOV specific macros */
-#define IXGBE_MBVFICR_INDEX(vf_number)	(vf_number >> 4)
-#define IXGBE_MBVFICR(_i)		(0x00710 + ((_i) * 4))
-#define IXGBE_VFLRE(_i)			(((_i & 1) ? 0x001C0 : 0x00600))
-#define IXGBE_VFLREC(_i)		 (0x00700 + ((_i) * 4))
 /* Translated register #defines */
 #define IXGBE_PVFCTRL(P)	(0x00300 + (4 * (P)))
 #define IXGBE_PVFSTATUS(P)	(0x00008 + (0 * (P)))
@@ -3103,6 +3155,7 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_SHADOW_RAM_DUMP_LEN		0
 #define FW_DEFAULT_CHECKSUM		0xFF /* checksum always 0xFF */
 #define FW_NVM_DATA_OFFSET		3
+#define FW_ANVM_DATA_OFFSET		3
 #define FW_MAX_READ_BUFFER_SIZE		1024
 #define FW_DISABLE_RXEN_CMD		0xDE
 #define FW_DISABLE_RXEN_LEN		0x1
@@ -3173,6 +3226,8 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_PHY_INFO_SPEED_MASK		0xFFFu
 #define FW_PHY_INFO_ID_HI_MASK		0xFFFF0000u
 #define FW_PHY_INFO_ID_LO_MASK		0x0000FFFFu
+
+#define IXGBE_SR_IMMEDIATE_VALUES_PTR	0x4E
 
 /* Host Interface Command Structures */
 
@@ -3409,6 +3464,7 @@ struct ixgbe_adv_tx_context_desc {
 #define IXGBE_ADVTXD_POPTS_RSV		0x00002000 /* POPTS Reserved */
 #define IXGBE_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 #define IXGBE_ADVTXD_MACLEN_SHIFT	9  /* Adv ctxt desc mac len shift */
+#define IXGBE_ADVTXD_MACLEN_MASK	(0x7F << IXGBE_ADVTXD_MACLEN_SHIFT) /* Adv ctxt desc mac len mask */
 #define IXGBE_ADVTXD_VLAN_SHIFT		16  /* Adv ctxt vlan tag shift */
 #define IXGBE_ADVTXD_TUCMD_IPV4		0x00000400 /* IP Packet Type: 1=IPv4 */
 #define IXGBE_ADVTXD_TUCMD_IPV6		0x00000000 /* IP Packet Type: 0=IPv6 */
@@ -3477,6 +3533,8 @@ typedef u64 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_1000BASE_SX	0x04000
 #define IXGBE_PHYSICAL_LAYER_10BASE_T		0x08000
 #define IXGBE_PHYSICAL_LAYER_2500BASE_KX	0x10000
+#define IXGBE_PHYSICAL_LAYER_2500BASE_T		0x20000
+#define IXGBE_PHYSICAL_LAYER_5000BASE_T		0x40000
 
 /* Flow Control Data Sheet defined values
  * Calculation and defines taken from 802.1bb Annex O
@@ -4023,6 +4081,7 @@ struct ixgbe_mac_operations {
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
+	s32 (*toggle_txdctl)(struct ixgbe_hw *hw, u32 vf_index);
 	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
 	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 
@@ -4176,35 +4235,6 @@ struct ixgbe_phy_info {
 
 #include "ixgbe_mbx.h"
 
-struct ixgbe_mbx_operations {
-	void (*init_params)(struct ixgbe_hw *hw);
-	s32  (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32  (*write)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32  (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32  (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32  (*check_for_msg)(struct ixgbe_hw *, u16);
-	s32  (*check_for_ack)(struct ixgbe_hw *, u16);
-	s32  (*check_for_rst)(struct ixgbe_hw *, u16);
-};
-
-struct ixgbe_mbx_stats {
-	u32 msgs_tx;
-	u32 msgs_rx;
-
-	u32 acks;
-	u32 reqs;
-	u32 rsts;
-};
-
-struct ixgbe_mbx_info {
-	struct ixgbe_mbx_operations ops;
-	struct ixgbe_mbx_stats stats;
-	u32 timeout;
-	u32 usec_delay;
-	u32 v2p_mailbox;
-	u16 size;
-};
-
 struct ixgbe_hw {
 	u8 IOMEM *hw_addr;
 	void *back;
@@ -4228,6 +4258,7 @@ struct ixgbe_hw {
 	bool allow_unsupported_sfp;
 	bool wol_enabled;
 	bool need_crosstalk_fix;
+	u32 fw_rst_cnt;
 };
 
 #define ixgbe_call_func(hw, func, params, error) \
@@ -4247,7 +4278,7 @@ struct ixgbe_hw {
 #define IXGBE_ERR_ADAPTER_STOPPED		-9
 #define IXGBE_ERR_INVALID_MAC_ADDR		-10
 #define IXGBE_ERR_DEVICE_NOT_SUPPORTED		-11
-#define IXGBE_ERR_MASTER_REQUESTS_PENDING	-12
+#define IXGBE_ERR_PRIMARY_REQUESTS_PENDING	-12
 #define IXGBE_ERR_INVALID_LINK_SETTINGS		-13
 #define IXGBE_ERR_AUTONEG_NOT_COMPLETE		-14
 #define IXGBE_ERR_RESET_FAILED			-15
@@ -4275,6 +4306,9 @@ struct ixgbe_hw {
 #define IXGBE_ERR_FDIR_CMD_INCOMPLETE		-38
 #define IXGBE_ERR_FW_RESP_INVALID		-39
 #define IXGBE_ERR_TOKEN_RETRY			-40
+#define IXGBE_ERR_MBX				-41
+#define IXGBE_ERR_MBX_NOMSG			-42
+#define IXGBE_ERR_TIMEOUT			-43
 
 #define IXGBE_NOT_IMPLEMENTED			0x7FFFFFFF
 

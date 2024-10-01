@@ -61,9 +61,6 @@
 
 #include "platform_if.h"
 
-#ifdef SOC_BCM2835
-static platform_devmap_init_t bcm2835_devmap_init;
-#endif
 #ifdef SOC_BCM2836
 static platform_devmap_init_t bcm2836_devmap_init;
 #endif
@@ -91,20 +88,6 @@ bcm2835_late_init(platform_t plat)
 	}
 }
 
-#ifdef SOC_BCM2835
-/*
- * Set up static device mappings.
- * All on-chip peripherals exist in a 16MB range starting at 0x20000000.
- * Map the entire range using 1MB section mappings.
- */
-static int
-bcm2835_devmap_init(platform_t plat)
-{
-
-	devmap_add_entry(0x20000000, 0x01000000);
-	return (0);
-}
-#endif
 
 #ifdef SOC_BCM2836
 static int
@@ -122,17 +105,6 @@ bcm2835_cpu_reset(platform_t plat)
 	bcmwd_watchdog_reset();
 }
 
-#ifdef SOC_BCM2835
-static platform_method_t bcm2835_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
-	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
-	PLATFORMMETHOD(platform_cpu_reset,	bcm2835_cpu_reset),
-
-	PLATFORMMETHOD_END,
-};
-FDT_PLATFORM_DEF2(bcm2835, bcm2835_legacy, "bcm2835 (legacy)", 0, "raspberrypi,model-b", 100);
-FDT_PLATFORM_DEF2(bcm2835, bcm2835, "bcm2835", 0, "brcm,bcm2835", 100);
-#endif
 
 #if defined(SOC_BCM2836) || defined(SOC_BRCM_BCM2837)
 static platform_method_t bcm2836_methods[] = {

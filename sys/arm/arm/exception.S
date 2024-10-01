@@ -48,6 +48,8 @@
 
 #include "assym.inc"
 
+#include <sys/intr.h>
+
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
@@ -270,13 +272,9 @@ ASENTRY_NP(undefined_entry)
 	mov	r0, sp			/* exception exit routine. pass frame */
 
 	ldr	r2, [sp, #(TF_PC)]	/* load pc */
-#if __ARM_ARCH >= 7
 	tst	r4, #(PSR_T)		/* test if PSR_T */
 	subne	r2, r2, #(THUMB_INSN_SIZE)
 	subeq	r2, r2, #(INSN_SIZE)
-#else
-	sub	r2, r2, #(INSN_SIZE)	/* fix pc */
-#endif
 	str	r2, [sp, #TF_PC]	/* store pc */
 
 #ifdef KDTRACE_HOOKS
@@ -312,7 +310,8 @@ ASENTRY_NP(irq_entry)
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit	/* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */
-	b	_C_LABEL(intr_irq_handler)/* trapframe to the handler. */
+	mov	r1, #INTR_ROOT_IRQ	/* trapframe and PIC root to the handler. */
+	b	_C_LABEL(intr_irq_handler)
 END(irq_entry)
 
 /*

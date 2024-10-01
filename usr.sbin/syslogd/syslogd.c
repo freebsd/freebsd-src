@@ -548,6 +548,14 @@ addsock(const char *name, const char *serv, mode_t mode)
 	if (serv == NULL)
 		serv = "syslog";
 	error = getaddrinfo(name, serv, &hints, &res0);
+	if (error == EAI_NONAME && name == NULL && SecureMode > 1) {
+		/*
+		 * If we're in secure mode, we won't open inet sockets anyway.
+		 * This failure can arise legitimately when running in a jail
+		 * without networking.
+		 */
+		return;
+	}
 	if (error) {
 		asprintf(&msgbuf, "getaddrinfo failed for %s%s: %s",
 		    name == NULL ? "" : name, serv,

@@ -170,9 +170,10 @@ reset_vm_el2_regs(void *vcpu)
 	 * and floating point functionality to EL2.
 	 */
 	if (in_vhe())
-		el2ctx->cptr_el2 = CPACR_FPEN_TRAP_NONE;
+		el2ctx->cptr_el2 = CPTR_E2H_TRAP_ALL | CPTR_E2H_FPEN;
 	else
-		el2ctx->cptr_el2 = CPTR_RES1;
+		el2ctx->cptr_el2 = CPTR_TRAP_ALL & ~CPTR_TFP;
+	el2ctx->cptr_el2 &= ~CPTR_TCPAC;
 	/*
 	 * Disable interrupts in the guest. The guest OS will re-enable
 	 * them.

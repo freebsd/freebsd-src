@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifer: BSD-2-Clause
+.\"
 .\" Copyright © 2023 The FreeBSD Foundation
 .\"
 .\" This documentation was written by Ed Maste <emaste@freebsd.org>, and
@@ -41,6 +44,7 @@ or per-process basis, some are optionally enabled or disabled at compile time,
 and some are inherent to the implementation and have no controls.
 .Pp
 The following vulnerability mitigations are covered in this document:
+.Pp
 .Bl -bullet -compact
 .It
 Address Space Layout Randomization (ASLR)
@@ -59,9 +63,11 @@ Stack Overflow Protection
 .It
 Supervisor Mode Memory Protection
 .It
-Hardware Vulnerability Mitigation Controls
-.It
 Capsicum
+.It
+Firmware and Microcode
+.It
+Architectural Vulnerability Mitigations
 .El
 .Pp
 Please note that the effectiveness and availability of these mitigations may
@@ -332,18 +338,14 @@ kernel.
 .Pp
 These features are automatically used by the kernel.
 There is no user-facing configuration.
-.Ss Hardware vulnerability controls
-See
-.Xr security 7
-for more information.
 .\"
 .Ss Capsicum
 Capsicum is a lightweight OS capability and sandbox framework.
 See
 .Xr capsicum 4
 for more information.
-.Pp
 .Sh HARDWARE VULNERABILITY MITIGATIONS
+.Ss Firmware and Microcode
 Recent years have seen an unending stream of new hardware vulnerabilities,
 notably CPU ones generally caused by detectable microarchitectural side-effects
 of speculative execution which leak private data from some other thread or
@@ -351,18 +353,36 @@ process or sometimes even internal CPU state that is normally inaccessible.
 Hardware vendors usually address these vulnerabilities as they are discovered by
 releasing microcode updates, which may then be bundled into platform firmware
 updates
-.Pq historically called BIOS updates for PCs .
+.Pq historically called BIOS updates for PCs
+or packages to be updated by the operating system at boot time.
+.Pp
+Platform firmware updates, if available from the manufacturer,
+are the best defense as they provide coverage during early boot.
+Install them with
+.Pa sysutils/flashrom
+from the
+.Fx
+Ports Collection.
+.Pp
+If platform firmware updates are no longer available,
+packaged microcode is available for installation at
+.Pa sysutils/cpu-microcode
+and can be loaded at runtime using
+.Xr loader.conf 5 ,
+see the package message for more details.
 .Pp
 The best defense overall against hardware vulnerabilities is to timely apply
-these updates when available and to disable the affected hardware's problematic
-functionalities when possible (e.g., CPU Simultaneous Multi-Threading).
+these updates when available, as early as possible in the boot process,
+and to disable the affected hardware's problematic functionalities when possible
+(e.g., CPU Simultaneous Multi-Threading).
 Software mitigations are only partial substitutes for these, but they can be
 helpful on out-of-support hardware or as complements for just-discovered
 vulnerabilities not yet addressed by vendors.
 Some software mitigations depend on hardware capabilities provided by a
 microcode update.
-.Pp
-FreeBSD's usual policy is to apply by default all OS-level mitigations that do
+.Ss Architectural Vulnerability Mitigations
+.Fx Ap s
+usual policy is to apply by default all OS-level mitigations that do
 not require recompilation, except those the particular hardware it is running on
 is known not to be vulnerable to
 .Pq which sometimes requires firmware updates ,
@@ -451,6 +471,10 @@ should be considered when configuring and deploying them in a
 .Fx
 system.
 .Pp
+Additional mitigation knobs are listed in the
+.Sx KNOBS AND TWEAKS
+section of
+.Xr security 7 .
 .Sh SEE ALSO
 .Xr elfctl 1 ,
 .Xr proccontrol 1 ,

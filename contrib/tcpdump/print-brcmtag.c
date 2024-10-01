@@ -21,15 +21,12 @@
 
 /* \summary: Broadcom Ethernet switches tag (4 bytes) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
 #define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
-#include "ethertype.h"
 #include "addrtoname.h"
 #include "extract.h"
 

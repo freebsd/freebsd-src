@@ -96,9 +96,12 @@ iommu_gas_alloc_entry(struct iommu_domain *domain, u_int flags)
 
 	res = uma_zalloc(iommu_map_entry_zone, ((flags & IOMMU_PGF_WAITOK) !=
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
-	if (res != NULL && domain != NULL) {
-		res->domain = domain;
-		atomic_add_int(&domain->entries_cnt, 1);
+	if (res != NULL) {
+		SLIST_INIT(&res->pgtbl_free);
+		if (domain != NULL) {
+			res->domain = domain;
+			atomic_add_int(&domain->entries_cnt, 1);
+		}
 	}
 	return (res);
 }
@@ -107,7 +110,12 @@ void
 iommu_gas_free_entry(struct iommu_map_entry *entry)
 {
 	struct iommu_domain *domain;
+	int n __unused;
 
+	n = vm_page_free_pages_toq(&entry->pgtbl_free, false);
+#if defined(__i386__) || defined(__amd64__)
+	atomic_subtract_int(&iommu_tbl_pagecnt, n);
+#endif
 	domain = entry->domain;
 	if (domain != NULL)
 		atomic_subtract_int(&domain->entries_cnt, 1);
@@ -826,8 +834,7 @@ iommu_gas_map(struct iommu_domain *domain,
 	entry->flags |= eflags;
 	IOMMU_DOMAIN_UNLOCK(domain);
 
-	error = domain->ops->map(domain, entry->start,
-	    entry->end - entry->start, ma, eflags,
+	error = domain->ops->map(domain, entry, ma, eflags,
 	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, true,
@@ -868,9 +875,9 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	if (entry->end == entry->start)
 		return (0);
 
-	error = domain->ops->map(domain, entry->start,
-	    entry->end - entry->start, ma + OFF_TO_IDX(start - entry->start),
-	    eflags, ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
+	error = domain->ops->map(domain, entry,
+	    ma + OFF_TO_IDX(start - entry->start), eflags,
+	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, false,
 		    (flags & IOMMU_MF_CANWAIT) != 0);
@@ -979,8 +986,7 @@ iommu_unmap_msi(struct iommu_ctx *ctx)
 	if (entry == NULL)
 		return;
 
-	domain->ops->unmap(domain, entry->start, entry->end -
-	    entry->start, IOMMU_PGF_WAITOK);
+	domain->ops->unmap(domain, entry, IOMMU_PGF_WAITOK);
 
 	iommu_gas_free_space(entry);
 

@@ -869,7 +869,6 @@ static int stop_lld(struct adapter *);
 static inline int restart_adapter(struct adapter *);
 static int restart_lld(struct adapter *);
 #ifdef TCP_OFFLOAD
-static int toe_capability(struct vi_info *, bool);
 static int deactivate_all_uld(struct adapter *);
 static void stop_all_uld(struct adapter *);
 static void restart_all_uld(struct adapter *);
@@ -2091,6 +2090,13 @@ stop_lld(struct adapter *sc)
 			TXQ_UNLOCK(wrq);
 			quiesce_wrq(wrq);
 		}
+
+		if (pi->flags & HAS_TRACEQ) {
+			pi->flags &= ~HAS_TRACEQ;
+			sc->traceq = -1;
+			sc->tracer_valid = 0;
+			sc->tracer_enabled = 0;
+		}
 	}
 	if (sc->flags & FULL_INIT_DONE) {
 		/* Firmware event queue */
@@ -2405,6 +2411,15 @@ restart_lld(struct adapter *sc)
 					CH_ERR(vi, "failed to re-initialize "
 					    "interface: %d\n", rc);
 					goto done;
+				}
+				if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
+					sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
+					t4_write_reg(sc, is_t4(sc) ?
+					    A_MPS_TRC_RSS_CONTROL :
+					    A_MPS_T5_TRC_RSS_CONTROL,
+					    V_RSSCONTROL(pi->tx_chan) |
+					    V_QUEUENUMBER(sc->traceq));
+					pi->flags |= HAS_TRACEQ;
 				}
 
 				ifp = vi->ifp;
@@ -12370,7 +12385,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 }
 
 #ifdef TCP_OFFLOAD
-static int
+int
 toe_capability(struct vi_info *vi, bool enable)
 {
 	int rc;
@@ -12436,6 +12451,7 @@ toe_capability(struct vi_info *vi, bool enable)
 
 		if (isset(&sc->offload_map, pi->port_id)) {
 			/* TOE is enabled on another VI of this port. */
+			MPASS(pi->uld_vis > 0);
 			pi->uld_vis++;
 			return (0);
 		}
@@ -12461,17 +12477,17 @@ toe_capability(struct vi_info *vi, bool enable)
 		if (!uld_active(sc, ULD_ISCSI))
 			(void) t4_activate_uld(sc, ULD_ISCSI);
 
-		pi->uld_vis++;
-		setbit(&sc->offload_map, pi->port_id);
+		if (pi->uld_vis++ == 0)
+			setbit(&sc->offload_map, pi->port_id);
 	} else {
-		pi->uld_vis--;
-
-		if (!isset(&sc->offload_map, pi->port_id) || pi->uld_vis > 0)
+		if ((if_getcapenable(vi->ifp) & IFCAP_TOE) == 0) {
+			/* TOE is already disabled. */
 			return (0);
-
-		KASSERT(uld_active(sc, ULD_TOM),
-		    ("%s: TOM never initialized?", __func__));
-		clrbit(&sc->offload_map, pi->port_id);
+		}
+		MPASS(isset(&sc->offload_map, pi->port_id));
+		MPASS(pi->uld_vis > 0);
+		if (--pi->uld_vis == 0)
+			clrbit(&sc->offload_map, pi->port_id);
 	}
 
 	return (0);

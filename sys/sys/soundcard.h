@@ -1400,8 +1400,9 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 	int i, l=(len); if (l>6)l=6;\
 	_SEQ_NEEDBUF(8);\
 	_seqbuf[_seqbufptr] = EV_SYSEX;\
-	for(i=0;i<l;i++)_seqbuf[_seqbufptr+i+1] = (buf)[i];\
-	for(i=l;i<6;i++)_seqbuf[_seqbufptr+i+1] = 0xff;\
+	_seqbuf[_seqbufptr+1] = (dev);\
+	for(i=0;i<l;i++)_seqbuf[_seqbufptr+i+2] = (buf)[i];\
+	for(i=l;i<6;i++)_seqbuf[_seqbufptr+i+2] = 0xff;\
 	_SEQ_ADVBUF(8);}
 
 #define SEQ_CHN_PRESSURE(dev, chn, pressure) \

@@ -71,8 +71,6 @@
 #include <dev/random/fortuna.h>
 
 /* Defined in FS&K */
-#define	RANDOM_FORTUNA_NPOOLS 32		/* The number of accumulation pools */
-#define	RANDOM_FORTUNA_DEFPOOLSIZE 64		/* The default pool size/length for a (re)seed */
 #define	RANDOM_FORTUNA_MAX_READ (1 << 20)	/* Max bytes from AES before rekeying */
 #define	RANDOM_FORTUNA_BLOCKS_PER_KEY (1 << 16)	/* Max blocks from AES before rekeying */
 CTASSERT(RANDOM_FORTUNA_BLOCKS_PER_KEY * RANDOM_BLOCKSIZE ==

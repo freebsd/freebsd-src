@@ -62,7 +62,7 @@ mptramp_start:
 
 	/* Enable protected mode */
 	movl	$CR0_PE, %eax
-	mov	%eax, %cr0 
+	mov	%eax, %cr0
 
 	/*
 	 * Now execute a far jump to turn on protected mode.  This
@@ -207,7 +207,7 @@ bootcode:
 	 * are interpreted slightly differently.
 	 * %ds:  +A, +W, -E, DPL=0, +P, +D, +G
 	 * %ss:  +A, +W, -E, DPL=0, +P, +B, +G
-	 * Accessed, Writeable, Expand up, Present, 32 bit, 4GB 
+	 * Accessed, Writeable, Expand up, Present, 32 bit, 4GB
 	 * For %ds, +D means 'default operand size is 32 bit'.
 	 * For %ss, +B means the stack register is %esp rather than %sp.
 	 */
@@ -237,7 +237,7 @@ mptramp_nx:
 	/*
 	 * The pseudo descriptor for lgdt to use.
 	 */
-lgdt_desc:	
+lgdt_desc:
 	.word	gdtend-gdt		/* Length */
 	.long	gdt-mptramp_start	/* Offset plus %ds << 4 */
 

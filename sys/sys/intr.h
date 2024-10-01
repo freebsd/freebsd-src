@@ -33,10 +33,15 @@
 #error Need INTRNG for this file
 #endif
 
+#ifndef LOCORE
 #include <sys/systm.h>
+#endif
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
+#define INTR_ROOT_IRQ	0
+
+#ifndef LOCORE
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI = 0,
 	INTR_MAP_DATA_FDT,
@@ -110,12 +115,13 @@ u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
 struct intr_pic *intr_pic_register(device_t, intptr_t);
 int intr_pic_deregister(device_t, intptr_t);
-int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *);
+int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *,
+    uint32_t);
 int intr_pic_add_handler(device_t, struct intr_pic *,
     intr_child_irq_filter_t *, void *, uintptr_t, uintptr_t);
 bool intr_is_per_cpu(struct resource *);
 
-extern device_t intr_irq_root_dev;
+device_t intr_irq_root_device(uint32_t);
 
 /* Intr interface for BUS. */
 
@@ -163,4 +169,8 @@ void intr_ipi_send(cpuset_t cpus, u_int ipi);
 void intr_ipi_dispatch(u_int ipi);
 #endif
 
+/* Main interrupt handler called from asm on most archs except riscv. */
+void intr_irq_handler(struct trapframe *tf, uint32_t rootnum);
+
+#endif	/* !LOCORE */
 #endif	/* _SYS_INTR_H */

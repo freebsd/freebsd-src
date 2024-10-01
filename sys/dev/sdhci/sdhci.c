@@ -1149,6 +1149,9 @@ no_tuning:
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, node_name, CTLFLAG_RW, 0, "slot specific node");
 
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev), SYSCTL_CHILDREN(node_oid),
+	    OID_AUTO, "quirks", CTLFLAG_RD, &slot->quirks, 0, "Slot quirks");
+
 	node_oid = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(node_oid), OID_AUTO, "debug", CTLFLAG_RW, 0,
 	    "Debugging node");

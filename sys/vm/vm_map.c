@@ -2117,9 +2117,24 @@ vm_map_find_aligned(vm_map_t map, vm_offset_t *addr, vm_size_t length,
  */
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	    vm_offset_t *addr,	/* IN/OUT */
-	    vm_size_t length, vm_offset_t max_addr, int find_space,
-	    vm_prot_t prot, vm_prot_t max, int cow)
+    vm_offset_t *addr,	/* IN/OUT */
+    vm_size_t length, vm_offset_t max_addr, int find_space,
+    vm_prot_t prot, vm_prot_t max, int cow)
+{
+	int rv;
+
+	vm_map_lock(map);
+	rv = vm_map_find_locked(map, object, offset, addr, length, max_addr,
+	    find_space, prot, max, cow);
+	vm_map_unlock(map);
+	return (rv);
+}
+
+int
+vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr,	/* IN/OUT */
+    vm_size_t length, vm_offset_t max_addr, int find_space,
+    vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_offset_t alignment, curr_min_addr, min_addr;
 	int gap, pidx, rv, try;
@@ -2127,7 +2142,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 	KASSERT((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 ||
 	    object == NULL,
-	    ("vm_map_find: non-NULL backing object for stack"));
+	    ("non-NULL backing object for stack"));
 	MPASS((cow & MAP_REMAP) == 0 || (find_space == VMFS_NO_SPACE &&
 	    (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0));
 	if (find_space == VMFS_OPTIMAL_SPACE && (object == NULL ||
@@ -2150,7 +2165,6 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    (map->flags & MAP_ASLR_IGNSTART) != 0)
 		curr_min_addr = min_addr = vm_map_min(map);
 	try = 0;
-	vm_map_lock(map);
 	if (cluster) {
 		curr_min_addr = map->anon_loc;
 		if (curr_min_addr == 0)
@@ -2235,8 +2249,7 @@ again:
 					MPASS(try == 1);
 					goto again;
 				}
-				rv = KERN_NO_SPACE;
-				goto done;
+				return (KERN_NO_SPACE);
 			}
 		}
 
@@ -2250,16 +2263,14 @@ again:
 				try = 0;
 				goto again;
 			}
-			goto done;
+			return (rv);
 		}
 	} else if ((cow & MAP_REMAP) != 0) {
-		if (!vm_map_range_valid(map, *addr, *addr + length)) {
-			rv = KERN_INVALID_ADDRESS;
-			goto done;
-		}
+		if (!vm_map_range_valid(map, *addr, *addr + length))
+			return (KERN_INVALID_ADDRESS);
 		rv = vm_map_delete(map, *addr, *addr + length);
 		if (rv != KERN_SUCCESS)
-			goto done;
+			return (rv);
 	}
 	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
@@ -2277,8 +2288,6 @@ again:
 	if (update_anon && rv == KERN_SUCCESS && (map->anon_loc == 0 ||
 	    *addr < map->anon_loc))
 		map->anon_loc = *addr;
-done:
-	vm_map_unlock(map);
 	return (rv);
 }
 

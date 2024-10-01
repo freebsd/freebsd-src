@@ -390,15 +390,11 @@ ovpn_rele_so(struct ovpn_softc *sc)
 
 	has_peers = ovpn_has_peers(sc);
 
-	/* Only remove the tunnel function if we're releasing the socket for
-	 * the last peer. */
-	if (! has_peers)
-		(void)udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
-
-	sorele(sc->so);
-
-	if (! has_peers)
-		sc->so = NULL;
+	if (! has_peers) {
+		MPASS(sc->peercount == 0);
+	} else {
+		MPASS(sc->peercount > 0);
+	}
 }
 
 static void
@@ -515,6 +511,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	int fd;
 	uint32_t peerid;
 	int ret = 0;
+	bool setcb = false;
 
 	if (nvl == NULL)
 		return (EINVAL);
@@ -628,26 +625,26 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	if (sc->so != NULL && so != sc->so)
 		goto error_locked;
 
-	if (sc->so == NULL)
+	if (sc->so == NULL) {
 		sc->so = so;
+		/*
+		 * Maintain one extra ref so the socket doesn't go away until
+		 * we're destroying the ifp.
+		 */
+		soref(sc->so);
+		setcb = true;
+	}
 
 	/* Insert the peer into the list. */
 	RB_INSERT(ovpn_kpeers, &sc->peers, peer);
 	sc->peercount++;
-	soref(sc->so);
-
-	ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
-	if (ret == EBUSY) {
-		/* Fine, another peer already set the input function. */
-		ret = 0;
-	}
-	if (ret != 0) {
-		RB_REMOVE(ovpn_kpeers, &sc->peers, peer);
-		sc->peercount--;
-		goto error_locked;
-	}
 
 	OVPN_WUNLOCK(sc);
+
+	if (setcb) {
+		ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
+		MPASS(ret == 0);
+	}
 
 	goto done;
 
@@ -2493,11 +2490,20 @@ static void
 ovpn_clone_destroy_cb(struct epoch_context *ctx)
 {
 	struct ovpn_softc *sc;
+	int ret __diagused;
 
 	sc = __containerof(ctx, struct ovpn_softc, epoch_ctx);
 
 	MPASS(sc->peercount == 0);
 	MPASS(RB_EMPTY(&sc->peers));
+
+	if (sc->so != NULL) {
+		CURVNET_SET(sc->ifp->if_vnet);
+		ret = udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
+		MPASS(ret == 0);
+		sorele(sc->so);
+		CURVNET_RESTORE();
+	}
 
 	COUNTER_ARRAY_FREE(sc->counters, OVPN_COUNTER_SIZE);
 
@@ -2594,3 +2600,4 @@ static moduledata_t ovpn_mod = {
 
 DECLARE_MODULE(if_ovpn, ovpn_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_ovpn, 1);
+MODULE_DEPEND(if_ovpn, crypto, 1, 1, 1);

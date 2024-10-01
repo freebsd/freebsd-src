@@ -583,7 +583,7 @@ emulate_mov(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		/*
 		 * MOV from AX/EAX/RAX to seg:moffset
 		 * A3:		mov moffs16, AX
-		 * A3:		mov moffs32, EAX 
+		 * A3:		mov moffs32, EAX
 		 * REX.W + A3:	mov moffs64, RAX
 		 */
 		error = vie_read_register(vcpu, VM_REG_GUEST_RAX, &val);
@@ -1118,7 +1118,7 @@ emulate_or(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 		error = vie_read_register(vcpu, reg, &val1);
 		if (error)
 			break;
-		
+
 		/* get the second operand */
 		error = memread(vcpu, gpa, &val2, size, arg);
 		if (error)
@@ -1468,7 +1468,7 @@ emulate_sub(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 	case 0x2B:
 		/*
 		 * SUB r/m from r and store the result in r
-		 * 
+		 *
 		 * 2B/r            SUB r16, r/m16
 		 * 2B/r            SUB r32, r/m32
 		 * REX.W + 2B/r    SUB r64, r/m64
@@ -1912,7 +1912,7 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 		if (SEG_DESC_UNUSABLE(desc->access))
 			return (-1);
 
-		/* 
+		/*
 		 * The processor generates a #NP exception when a segment
 		 * register is loaded with a selector that points to a
 		 * descriptor that is not present. If this was the case then

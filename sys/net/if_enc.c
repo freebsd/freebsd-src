@@ -96,7 +96,7 @@ static int	enc_output(struct ifnet *, struct mbuf *,
     const struct sockaddr *, struct route *);
 static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
-static int	enc_add_hhooks(struct enc_softc *);
+static void	enc_add_hhooks(struct enc_softc *);
 static void	enc_remove_hhooks(struct enc_softc *);
 
 static const char encname[] = "enc";
@@ -315,13 +315,12 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 	return (0);
 }
 
-static int
+static void
 enc_add_hhooks(struct enc_softc *sc)
 {
 	struct hookinfo hki;
-	int error;
+	int error __diagused;
 
-	error = EPFNOSUPPORT;
 	hki.hook_func = enc_hhook;
 	hki.hook_helper = NULL;
 	hki.hook_udata = sc;
@@ -330,28 +329,23 @@ enc_add_hhooks(struct enc_softc *sc)
 	hki.hook_type = HHOOK_TYPE_IPSEC_IN;
 	error = hhook_add_hook(V_ipsec_hhh_in[HHOOK_IPSEC_INET],
 	    &hki, HHOOK_WAITOK);
-	if (error != 0)
-		return (error);
+	MPASS(error == 0);
 	hki.hook_type = HHOOK_TYPE_IPSEC_OUT;
 	error = hhook_add_hook(V_ipsec_hhh_out[HHOOK_IPSEC_INET],
 	    &hki, HHOOK_WAITOK);
-	if (error != 0)
-		return (error);
+	MPASS(error == 0);
 #endif
 #ifdef INET6
 	hki.hook_id = AF_INET6;
 	hki.hook_type = HHOOK_TYPE_IPSEC_IN;
 	error = hhook_add_hook(V_ipsec_hhh_in[HHOOK_IPSEC_INET6],
 	    &hki, HHOOK_WAITOK);
-	if (error != 0)
-		return (error);
+	MPASS(error == 0);
 	hki.hook_type = HHOOK_TYPE_IPSEC_OUT;
 	error = hhook_add_hook(V_ipsec_hhh_out[HHOOK_IPSEC_INET6],
 	    &hki, HHOOK_WAITOK);
-	if (error != 0)
-		return (error);
+	MPASS(error == 0);
 #endif
-	return (error);
 }
 
 static void
@@ -394,8 +388,7 @@ vnet_enc_init_proto(void *unused __unused)
 {
 	KASSERT(V_enc_sc != NULL, ("%s: V_enc_sc is %p\n", __func__, V_enc_sc));
 
-	if (enc_add_hhooks(V_enc_sc) != 0)
-		enc_clone_destroy(V_enc_sc->sc_ifp);
+	enc_add_hhooks(V_enc_sc);
 }
 VNET_SYSINIT(vnet_enc_init_proto, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_enc_init_proto, NULL);

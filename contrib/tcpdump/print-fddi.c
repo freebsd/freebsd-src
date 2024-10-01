@@ -21,9 +21,7 @@
 
 /* \summary: Fiber Distributed Data Interface (FDDI) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -240,8 +238,7 @@ extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 			fdst[i] = fddi_bit_swap[fddip->fddi_dhost[i]];
 		for (i = 0; i < 6; ++i)
 			fsrc[i] = fddi_bit_swap[fddip->fddi_shost[i]];
-	}
-	else {
+	} else {
 		memcpy(fdst, (const char *)fddip->fddi_dhost, 6);
 		memcpy(fsrc, (const char *)fddip->fddi_shost, 6);
 	}

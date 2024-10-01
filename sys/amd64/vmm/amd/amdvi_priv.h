@@ -211,8 +211,8 @@ struct amdvi_ctrl {
 		uint64_t limit:40;
 		uint16_t :12;
 	} excl;
-	/* 
-	 * Revision 2 only. 
+	/*
+	 * Revision 2 only.
 	 */
 	uint64_t ex_feature;
 	struct {
@@ -253,8 +253,8 @@ CTASSERT(offsetof(struct amdvi_ctrl, pad2)== 0x2028);
 CTASSERT(offsetof(struct amdvi_ctrl, pad3)== 0x2040);
 
 #define AMDVI_MMIO_V1_SIZE	(4 * PAGE_SIZE)	/* v1 size */
-/* 
- * AMF IOMMU v2 size including event counters 
+/*
+ * AMF IOMMU v2 size including event counters
  */
 #define AMDVI_MMIO_V2_SIZE	(8 * PAGE_SIZE)
 

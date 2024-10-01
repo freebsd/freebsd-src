@@ -139,7 +139,7 @@ static void nfsrv_dumpaclient(struct nfsclient *clp,
     struct nfsd_dumpclients *dumpp);
 static void nfsrv_freeopenowner(struct nfsstate *stp, int cansleep,
     NFSPROC_T *p);
-static int nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep,
+static void nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep,
     NFSPROC_T *p);
 static void nfsrv_freelockowner(struct nfsstate *stp, vnode_t vp, int cansleep,
     NFSPROC_T *p);
@@ -1566,7 +1566,7 @@ nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
 	while (nstp != LIST_END(&stp->ls_open)) {
 		tstp = nstp;
 		nstp = LIST_NEXT(nstp, ls_list);
-		(void) nfsrv_freeopen(tstp, NULL, cansleep, p);
+		nfsrv_freeopen(tstp, NULL, cansleep, p);
 	}
 	if (stp->ls_op)
 		nfsrvd_derefcache(stp->ls_op);
@@ -1581,12 +1581,11 @@ nfsrv_freeopenowner(struct nfsstate *stp, int cansleep, NFSPROC_T *p)
  * are no other opens on the file.
  * Returns 1 if it free'd the nfslockfile, 0 otherwise.
  */
-static int
+static void
 nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 {
 	struct nfsstate *nstp, *tstp;
 	struct nfslockfile *lfp;
-	int ret;
 
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
@@ -1595,35 +1594,46 @@ nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 	lfp = stp->ls_lfp;
 	/*
 	 * Now, free all lockowners associated with this open.
+	 * Note that, if vp != NULL, nfsrv_freelockowner() will
+	 * not call nfsrv_freeallnfslocks(), so it needs to be called, below.
 	 */
 	LIST_FOREACH_SAFE(tstp, &stp->ls_open, ls_list, nstp)
 		nfsrv_freelockowner(tstp, vp, cansleep, p);
+
+	if (vp != NULL) {
+		KASSERT(cansleep != 0, ("nfsrv_freeopen: cansleep == 0"));
+		mtx_assert(NFSSTATEMUTEXPTR, MA_OWNED);
+		/*
+		 * Only called with vp != NULL for Close when
+		 * vfs.nfsd.enable_locallocks != 0.
+		 * Lock the lfp so that it will not go away and do the
+		 * nfsrv_freeallnfslocks() call that was not done by
+		 * nfsrv_freelockowner().
+		 */
+		nfsrv_locklf(lfp);
+		NFSUNLOCKSTATE();
+		NFSVOPUNLOCK(vp);
+		nfsrv_freeallnfslocks(stp, vp, cansleep, p);
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSLOCKSTATE();
+		nfsrv_unlocklf(lfp);
+	}
 
 	/*
 	 * The nfslockfile is freed here if there are no locks
 	 * associated with the open.
 	 * If there are locks associated with the open, the
 	 * nfslockfile structure can be freed via nfsrv_freelockowner().
-	 * Acquire the state mutex to avoid races with calls to
-	 * nfsrv_getlockfile().
 	 */
-	if (cansleep != 0)
-		NFSLOCKSTATE();
 	if (lfp != NULL && LIST_EMPTY(&lfp->lf_open) &&
 	    LIST_EMPTY(&lfp->lf_deleg) && LIST_EMPTY(&lfp->lf_lock) &&
 	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
 	    lfp->lf_usecount == 0 &&
-	    (cansleep != 0 || nfsv4_testlock(&lfp->lf_locallock_lck) == 0)) {
+	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
 		nfsrv_freenfslockfile(lfp);
-		ret = 1;
-	} else
-		ret = 0;
-	if (cansleep != 0)
-		NFSUNLOCKSTATE();
 	free(stp, M_NFSDSTATE);
 	NFSD_VNET(nfsstatsv1_p)->srvopens--;
 	nfsrv_openpluslock--;
-	return (ret);
 }
 
 /*
@@ -1636,7 +1646,8 @@ nfsrv_freelockowner(struct nfsstate *stp, vnode_t vp, int cansleep,
 
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
-	nfsrv_freeallnfslocks(stp, vp, cansleep, p);
+	if (vp == NULL)
+		nfsrv_freeallnfslocks(stp, vp, cansleep, p);
 	if (stp->ls_op)
 		nfsrvd_derefcache(stp->ls_op);
 	free(stp, M_NFSDSTATE);
@@ -3431,7 +3442,6 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 {
 	struct nfsstate *stp;
 	struct nfsclient *clp;
-	struct nfslockfile *lfp;
 	u_int32_t bits;
 	int error = 0, gotstate = 0, len = 0;
 	u_char *clidp = NULL;
@@ -3526,9 +3536,7 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 			NFSBCOPY(clp->lc_id, clidp, len);
 			gotstate = 1;
 		}
-		NFSUNLOCKSTATE();
 	} else if (new_stp->ls_flags & NFSLCK_CLOSE) {
-		lfp = stp->ls_lfp;
 		if (retwriteaccessp != NULL) {
 			if ((stp->ls_flags & NFSLCK_WRITEACCESS) != 0)
 				*retwriteaccessp = 1;
@@ -3536,20 +3544,10 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 				*retwriteaccessp = 0;
 		}
 		if (nfsrv_dolocallocks != 0 && !LIST_EMPTY(&stp->ls_open)) {
-			/* Get the lf lock */
-			nfsrv_locklf(lfp);
-			NFSUNLOCKSTATE();
 			ASSERT_VOP_ELOCKED(vp, "nfsrv_openupdate");
-			NFSVOPUNLOCK(vp);
-			if (nfsrv_freeopen(stp, vp, 1, p) == 0) {
-				NFSLOCKSTATE();
-				nfsrv_unlocklf(lfp);
-				NFSUNLOCKSTATE();
-			}
-			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+			nfsrv_freeopen(stp, vp, 1, p);
 		} else {
-			(void) nfsrv_freeopen(stp, NULL, 0, p);
-			NFSUNLOCKSTATE();
+			nfsrv_freeopen(stp, NULL, 0, p);
 		}
 	} else {
 		/*
@@ -3567,8 +3565,8 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 		if ((nd->nd_flag & ND_NFSV41) != 0 &&
 		    stp->ls_stateid.seqid == 0)
 			stp->ls_stateid.seqid = 1;
-		NFSUNLOCKSTATE();
 	}
+	NFSUNLOCKSTATE();
 
 	/*
 	 * If the client just confirmed its first open, write a timestamp

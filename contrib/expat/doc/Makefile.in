@@ -22,9 +22,10 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2022 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2024 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017      Stephen Groat <stephen@groat.us>
 # Copyright (c) 2017      Joe Orton <jorton@redhat.com>
+# Copyright (c) 2024      Tomas Korbar <tkorbar@redhat.com>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -285,6 +286,7 @@ RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SIZEOF_VOID_P = @SIZEOF_VOID_P@
 SO_MAJOR = @SO_MAJOR@
 SO_MINOR = @SO_MINOR@
 SO_PATCH = @SO_PATCH@
@@ -298,7 +300,6 @@ ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
-ac_cv_sizeof_void_p = @ac_cv_sizeof_void_p@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -345,7 +346,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-@WITH_DOCBOOK_TRUE@dist_man_MANS = xmlwf.1
+@WITH_MANPAGE_TRUE@dist_man_MANS = xmlwf.1
+@WITH_PREBUILT_MANPAGE_FALSE@CLEANFILES = xmlwf.1
 EXTRA_DIST = \
     ok.min.css \
     reference.html \
@@ -439,7 +441,7 @@ ctags CTAGS:
 
 cscope cscopelist:
 
-@WITH_DOCBOOK_TRUE@dist-hook:
+@WITH_DISTRIBUTABLE_MANPAGE_TRUE@dist-hook:
 distdir: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) distdir-am
 
@@ -505,6 +507,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -515,7 +518,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool clean-local mostlyclean-am
+clean-am: clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
 	-rm -f Makefile
@@ -584,38 +587,31 @@ uninstall-man: uninstall-man1
 .MAKE: install-am install-strip
 
 .PHONY: all all-am check check-am clean clean-generic clean-libtool \
-	clean-local cscopelist-am ctags-am dist-hook distclean \
-	distclean-generic distclean-libtool distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-man1 install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags-am uninstall \
-	uninstall-am uninstall-man uninstall-man1
+	cscopelist-am ctags-am dist-hook distclean distclean-generic \
+	distclean-libtool distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-man1 install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-generic mostlyclean-libtool pdf pdf-am \
+	ps ps-am tags-am uninstall uninstall-am uninstall-man \
+	uninstall-man1
 
 .PRECIOUS: Makefile
 
 
 .PHONY: dist-hook  # not inside conditional to avoid automake warning
 
-@WITH_DOCBOOK_TRUE@xmlwf.1: xmlwf.xml
-@WITH_DOCBOOK_TRUE@	-rm -f $@
-@WITH_DOCBOOK_TRUE@	$(DOCBOOK_TO_MAN) $<
-@WITH_DOCBOOK_TRUE@	test -f $@ || mv XMLWF.1 $@
-@WITH_DOCBOOK_FALSE@dist-hook:
-@WITH_DOCBOOK_FALSE@	@echo 'ERROR: Configure with --with-docbook for "make dist".' 1>&2
-@WITH_DOCBOOK_FALSE@	@false
+@WITH_MANPAGE_TRUE@xmlwf.1: xmlwf.xml
+@WITH_MANPAGE_TRUE@	-rm -f $@
+@WITH_MANPAGE_TRUE@	test "x$(DOCBOOK_TO_MAN)" != x && $(DOCBOOK_TO_MAN) $<
+@WITH_MANPAGE_TRUE@	test -f $@ || mv XMLWF.1 $@
 
-# https://www.gnu.org/software/automake/manual/automake.html#What-Gets-Cleaned
-.PHONY: clean-local
-clean-local: clean-local-check
-
-.PHONY: clean-local-check
-clean-local-check:
-	$(RM) xmlwf.1
+@WITH_DISTRIBUTABLE_MANPAGE_FALSE@dist-hook:
+@WITH_DISTRIBUTABLE_MANPAGE_FALSE@	@echo 'ERROR: Configure with --with-docbook for "make dist".' 1>&2
+@WITH_DISTRIBUTABLE_MANPAGE_FALSE@	@false
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

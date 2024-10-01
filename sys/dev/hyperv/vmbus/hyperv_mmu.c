@@ -241,7 +241,6 @@ do_ex_hypercall:
 	critical_exit();
 	return;
 native:
-	sched_unpin();
 	critical_exit();
 	return smp_targeted_tlb_shootdown_native(pmap, addr1,
 	    addr2, curcpu_cb, op);

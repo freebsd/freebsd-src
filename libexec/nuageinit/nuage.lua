@@ -1,15 +1,25 @@
+---
 -- SPDX-License-Identifier: BSD-2-Clause
 --
 -- Copyright(c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
 
-local pu = require("posix.unistd")
+local unistd = require("posix.unistd")
+local sys_stat = require("posix.sys.stat")
+local lfs = require("lfs")
 
-local function warnmsg(str)
-	io.stderr:write(str.."\n")
+local function warnmsg(str, prepend)
+	if not str then
+		return
+	end
+	local tag = ""
+	if prepend ~= false then
+		tag = "nuageinit: "
+	end
+	io.stderr:write(tag .. str .. "\n")
 end
 
-local function errmsg(str)
-	io.stderr:write(str.."\n")
+local function errmsg(str, prepend)
+	warnmsg(str, prepend)
 	os.exit(1)
 end
 
@@ -28,15 +38,17 @@ local function mkdir_p(path)
 	if lfs.attributes(path, "mode") ~= nil then
 		return true
 	end
-	local r,err = mkdir_p(dirname(path))
+	local r, err = mkdir_p(dirname(path))
 	if not r then
-		return nil,err.." (creating "..path..")"
+		return nil, err .. " (creating " .. path .. ")"
 	end
 	return lfs.mkdir(path)
 end
 
 local function sethostname(hostname)
-	if hostname == nil then return end
+	if hostname == nil then
+		return
+	end
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	if not root then
 		root = ""
@@ -44,12 +56,12 @@ local function sethostname(hostname)
 	local hostnamepath = root .. "/etc/rc.conf.d/hostname"
 
 	mkdir_p(dirname(hostnamepath))
-	local f,err = io.open(hostnamepath, "w")
+	local f, err = io.open(hostnamepath, "w")
 	if not f then
-		warnmsg("Impossible to open "..hostnamepath .. ":" ..err)
+		warnmsg("Impossible to open " .. hostnamepath .. ":" .. err)
 		return
 	end
-	f:write("hostname=\""..hostname.."\"\n")
+	f:write('hostname="' .. hostname .. '"\n')
 	f:close()
 end
 
@@ -62,7 +74,7 @@ local function splitlist(list)
 	elseif type(list) == "table" then
 		ret = list
 	else
-		warnmsg("Invalid type ".. type(list) ..", expecting table or string")
+		warnmsg("Invalid type " .. type(list) .. ", expecting table or string")
 	end
 	return ret
 end
@@ -77,7 +89,7 @@ local function adduser(pwd)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " usershow " ..pwd.name .. " -7 2>/dev/null")
+	local f = io.popen(cmd .. " usershow " .. pwd.name .. " -7 2> /dev/null")
 	local pwdstr = f:read("*a")
 	f:close()
 	if pwdstr:len() ~= 0 then
@@ -89,10 +101,10 @@ local function adduser(pwd)
 	if not pwd.homedir then
 		pwd.homedir = "/home/" .. pwd.name
 	end
-	local extraargs=""
+	local extraargs = ""
 	if pwd.groups then
 		local list = splitlist(pwd.groups)
-		extraargs = " -G ".. table.concat(list, ',')
+		extraargs = " -G " .. table.concat(list, ",")
 	end
 	-- pw will automatically create a group named after the username
 	-- do not add a -g option in this case
@@ -108,23 +120,23 @@ local function adduser(pwd)
 	local precmd = ""
 	local postcmd = ""
 	if pwd.passwd then
-		precmd = "echo "..pwd.passwd .. "| "
-		postcmd = " -H 0 "
+		precmd = "echo '" .. pwd.passwd .. "' | "
+		postcmd = " -H 0"
 	elseif pwd.plain_text_passwd then
-		precmd = "echo "..pwd.plain_text_passwd .. "| "
-		postcmd = " -h 0 "
+		precmd = "echo '" .. pwd.plain_text_passwd .. "' | "
+		postcmd = " -h 0"
 	end
 	cmd = precmd .. "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	cmd = cmd .. "useradd -n ".. pwd.name .. " -M 0755 -w none "
-	cmd = cmd .. extraargs .. " -c '".. pwd.gecos
-	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s "..pwd.shell .. postcmd
+	cmd = cmd .. "useradd -n " .. pwd.name .. " -M 0755 -w none "
+	cmd = cmd .. extraargs .. " -c '" .. pwd.gecos
+	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s " .. pwd.shell .. postcmd
 
 	local r = os.execute(cmd)
 	if not r then
-		warnmsg("nuageinit: fail to add user "..pwd.name);
+		warnmsg("fail to add user " .. pwd.name)
 		warnmsg(cmd)
 		return nil
 	end
@@ -149,7 +161,7 @@ local function addgroup(grp)
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	local f = io.popen(cmd .. " groupshow " ..grp.name .. " 2>/dev/null")
+	local f = io.popen(cmd .. " groupshow " .. grp.name .. " 2> /dev/null")
 	local grpstr = f:read("*a")
 	f:close()
 	if grpstr:len() ~= 0 then
@@ -158,16 +170,16 @@ local function addgroup(grp)
 	local extraargs = ""
 	if grp.members then
 		local list = splitlist(grp.members)
-		extraargs = " -M " .. table.concat(list, ',')
+		extraargs = " -M " .. table.concat(list, ",")
 	end
 	cmd = "pw "
 	if root then
 		cmd = cmd .. "-R " .. root .. " "
 	end
-	cmd = cmd .. "groupadd -n ".. grp.name .. extraargs
+	cmd = cmd .. "groupadd -n " .. grp.name .. extraargs
 	local r = os.execute(cmd)
 	if not r then
-		warnmsg("nuageinit: fail to add group ".. grp.name);
+		warnmsg("fail to add group " .. grp.name)
 		warnmsg(cmd)
 		return false
 	end
@@ -196,30 +208,30 @@ local function addsshkey(homedir, key)
 
 	local f = io.open(ak_path, "a")
 	if not f then
-		warnmsg("nuageinit: impossible to open "..ak_path)
+		warnmsg("impossible to open " .. ak_path)
 		return
 	end
 	f:write(key .. "\n")
 	f:close()
 	if chownak then
-		os.execute("chmod 0600 " .. ak_path)
-		pu.chown(ak_path, dirattrs.uid, dirattrs.gid)
+		sys_stat.chmod(ak_path, 384)
+		unistd.chown(ak_path, dirattrs.uid, dirattrs.gid)
 	end
 	if chowndotssh then
-		os.execute("chmod 0700 " .. dotssh_path)
-		pu.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
+		sys_stat.chmod(dotssh_path, 448)
+		unistd.chown(dotssh_path, dirattrs.uid, dirattrs.gid)
 	end
 end
 
 local n = {
 	warn = warnmsg,
 	err = errmsg,
+	dirname = dirname,
+	mkdir_p = mkdir_p,
 	sethostname = sethostname,
 	adduser = adduser,
 	addgroup = addgroup,
-	addsshkey = addsshkey,
-	dirname = dirname,
-	mkdir_p = mkdir_p,
+	addsshkey = addsshkey
 }
 
 return n

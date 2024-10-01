@@ -426,11 +426,13 @@
  */
 #define	PRIV_VM86_INTCALL	550	/* Allow invoking vm86 int handlers. */
 
+#define	PRIV_PIPEBUF		560	/* Allow to allocate reserved pipebuf
+					   space */
+
 /*
  * Set of reserved privilege values, which will be allocated to code as
  * needed, in order to avoid renumbering later privileges due to insertion.
  */
-#define	_PRIV_RESERVED0		560
 #define	_PRIV_RESERVED1		561
 #define	_PRIV_RESERVED2		562
 #define	_PRIV_RESERVED3		563
@@ -513,6 +515,7 @@
  */
 #define	PRIV_KMEM_READ		680	/* Open mem/kmem for reading. */
 #define	PRIV_KMEM_WRITE		681	/* Open mem/kmem for writing. */
+#define	PRIV_PROC_MEM_WRITE	682	/* Open /proc/<pid>/mem for writing. */
 
 /*
  * Kernel debugger privileges.

@@ -10,6 +10,9 @@
 #include <linux/devcoredump.h>
 #include <linux/etherdevice.h>
 #include <linux/timekeeping.h>
+#if defined(__FreeBSD__)
+#include <linux/delay.h>
+#endif
 #include "mt7615.h"
 #include "../trace.h"
 #include "../dma.h"
@@ -1575,9 +1578,17 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	mt7615_txwi_free(dev, txwi);
 }
 
+#if defined(__linux__)
 static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
+#elif defined(__FreeBSD__)
+static void mt7615_mac_tx_free(struct mt7615_dev *dev, u8 *data, int len)
+#endif
 {
+#if defined(__linux__)
 	struct mt76_connac_tx_free *free = data;
+#elif defined(__FreeBSD__)
+	struct mt76_connac_tx_free *free = (void *)data;
+#endif
 	void *tx_token = data + sizeof(*free);
 	void *end = data + len;
 	u8 i, count;

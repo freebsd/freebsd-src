@@ -1,7 +1,15 @@
 # options that impact our dependencies
-DIRDEPS_OPTIONS = LOADER_LUA
+DIRDEPS_OPTIONS = FDT FORTH LOADER_LUA
+
+DIRDEPS.FDT.yes += \
+	stand/fdt \
+	stand/efi/fdt \
+
+DIRDEPS.FORTH.yes += \
+	stand/ficl \
 
 DIRDEPS.LOADER_LUA.yes += \
 	stand/liblua \
+	stand/lua \
 
 .include <dirdeps-options.mk>

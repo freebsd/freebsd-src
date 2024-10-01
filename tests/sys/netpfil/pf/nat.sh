@@ -250,9 +250,61 @@ nested_anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat6_nolinklocal" "cleanup"
+nat6_nolinklocal_head()
+{
+	atf_set descr 'Ensure we do not use link-local addresses'
+	atf_set require.user root
+}
+
+nat6_nolinklocal_body()
+{
+	pft_init
+
+	epair_nat=$(vnet_mkepair)
+	epair_echo=$(vnet_mkepair)
+
+	vnet_mkjail nat ${epair_nat}b ${epair_echo}a
+	vnet_mkjail echo ${epair_echo}b
+
+	ifconfig ${epair_nat}a inet6 2001:db8::2/64 no_dad up
+	route add -6 -net 2001:db8:1::/64 2001:db8::1
+
+	jexec nat ifconfig ${epair_nat}b inet6 2001:db8::1/64 no_dad up
+	jexec nat ifconfig ${epair_echo}a inet6 2001:db8:1::1/64 no_dad up
+	jexec nat sysctl net.inet6.ip6.forwarding=1
+
+	jexec echo ifconfig ${epair_echo}b inet6 2001:db8:1::2/64 no_dad up
+	# Ensure we can't reply to link-local pings
+	jexec echo pfctl -e
+	pft_set_rules echo \
+	    "pass" \
+	    "block in inet6 proto icmp6 from fe80::/10 to any icmp6-type echoreq"
+
+	jexec nat pfctl -e
+	pft_set_rules nat \
+	    "nat pass on ${epair_echo}a inet6 from 2001:db8::/64 to any -> (${epair_echo}a)" \
+	    "pass"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -6 -c 1 2001:db8::1
+	for i in `seq 0 10`
+	do
+		atf_check -s exit:0 -o ignore \
+		    ping -6 -c 1 2001:db8:1::2
+	done
+}
+
+nat6_nolinklocal_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "exhaust"
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "endpoint_independent"
+	atf_add_test_case "nat6_nolinklocal"
 }

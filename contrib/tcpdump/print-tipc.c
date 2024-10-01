@@ -27,14 +27,11 @@
  *     https://web.archive.org/web/20161025110514/http://tipc.sourceforge.net/doc/tipc_message_formats.html
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
 #include "netdissect.h"
-#include "ethertype.h"
 #include "extract.h"
 
 
@@ -327,8 +324,7 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 	w0 = GET_BE_U_4(ap->w0);
 	user = TIPC_USER(w0);
 
-	switch (user)
-	{
+	switch (user) {
 		case TIPC_USER_LOW_IMPORTANCE:
 		case TIPC_USER_MEDIUM_IMPORTANCE:
 		case TIPC_USER_HIGH_IMPORTANCE:

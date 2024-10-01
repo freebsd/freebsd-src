@@ -264,7 +264,18 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	errno = EINTR;
 
 	// Get the line.
-	while (line == NULL && (len == -1 || errno == EINTR))
+	//
+	// XXX: Why have a macro here? Because macOS needs to be special. Honestly,
+	// it's starting to feel special like Windows at this point. Anyway, the
+	// second SIGWINCH signal of multiple will  return a valid line length on
+	// macOS, so we need to allow for that on macOS. However, FreeBSD's editline
+	// is different and will mess up the terminal if we do it that way.
+	//
+	// There is one limitation with this, however: Ctrl+D won't work on macOS.
+	// But it's because of macOS that this problem exists, and I can't really do
+	// anything about it. So macOS should fix their broken editline; once they
+	// do, I'll fix Ctrl+D on macOS.
+	while (BC_HISTORY_INVALID_LINE(line, len))
 	{
 		line = el_gets(h->el, &len);
 		bc_history_use_prompt = false;

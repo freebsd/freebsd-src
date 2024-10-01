@@ -32,7 +32,7 @@
 .Nm
 .Cm create
 .Op Fl v
-.Op Fl o Cm ro | wo | rw
+.Oo Fl o option Oc ...
 .Op Fl s Ar sectorsize
 .Op Fl t Ar timeout
 .Op Fl u Ar unit
@@ -48,7 +48,7 @@
 .Nm
 .Cm rescue
 .Op Fl v
-.Op Fl o Cm ro | wo | rw
+.Oo Fl o option Oc ...
 .Fl u Ar unit
 .Ar path
 .Sh DESCRIPTION
@@ -92,13 +92,21 @@ Available options:
 Forcibly destroy
 .Nm ggate
 provider (cancels all pending requests).
-.It Fl o Cm ro | wo | rw
-Specify permissions to use when opening the file or device: read-only
-.Pq Cm ro ,
+.It Fl o Ar option
+Specify permissions and options to use when opening the file or device.
+.Bl -tag -width indent
+.It Cm ro
+read-only
+.It Cm wo
 write-only
-.Pq Cm wo ,
-or read-write
-.Pq Cm rw .
+.It Cm rw
+read-write
+.It Cm direct
+open with
+.Dv O_DIRECT
+option on the file
+.El
+.Pp
 Default is
 .Cm rw .
 .It Fl s Ar sectorsize

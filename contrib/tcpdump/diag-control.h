@@ -60,11 +60,6 @@
     DIAG_DO_PRAGMA(clang diagnostic ignored "-Wassign-enum")
   #define DIAG_ON_ASSIGN_ENUM \
     DIAG_DO_PRAGMA(clang diagnostic pop)
-
-  #define DIAG_OFF_CAST_QUAL
-  #define DIAG_ON_CAST_QUAL
-  #define DIAG_OFF_DEPRECATION
-  #define DIAG_ON_DEPRECATION
 /*
  * The current clang compilers also define __GNUC__ and __GNUC_MINOR__
  * thus we need to test the clang case before the GCC one
@@ -124,10 +119,21 @@
     #define DIAG_ON_C11_EXTENSIONS \
       DIAG_DO_PRAGMA(clang diagnostic pop)
   #endif
+
+  /*
+   * When Clang correctly detects an old-style function prototype after
+   * preprocessing, the warning can be irrelevant to this source tree because
+   * the prototype comes from a system header macro.
+   */
+  #if ND_IS_AT_LEAST_CLANG_VERSION(5,0)
+    #define DIAG_OFF_STRICT_PROTOTYPES \
+      DIAG_DO_PRAGMA(clang diagnostic push) \
+      DIAG_DO_PRAGMA(clang diagnostic ignored "-Wstrict-prototypes")
+    #define DIAG_ON_STRICT_PROTOTYPES \
+      DIAG_DO_PRAGMA(clang diagnostic pop)
+  #endif
 #elif ND_IS_AT_LEAST_GNUC_VERSION(4,2)
   /* GCC apparently doesn't complain about ORing enums together. */
-  #define DIAG_OFF_ASSIGN_ENUM
-  #define DIAG_ON_ASSIGN_ENUM
 
   /*
    * It does, however, complain about casting away constness in
@@ -138,6 +144,22 @@
     DIAG_DO_PRAGMA(GCC diagnostic ignored "-Wcast-qual")
   #define DIAG_ON_CAST_QUAL \
     DIAG_DO_PRAGMA(GCC diagnostic pop)
+
+  #if ND_IS_AT_LEAST_GNUC_VERSION(4,5)
+    /*
+     * GCC warns about unused return values if a function is marked as
+     * "warn about ignoring this function's return value".
+     *
+     * Clang appears to let you ignore a result without a warning by
+     * casting the function result to void, so we don't appear to
+     * need this for Clang.
+     */
+    #define DIAG_OFF_WARN_UNUSED_RESULT \
+      DIAG_DO_PRAGMA(GCC diagnostic push) \
+      DIAG_DO_PRAGMA(GCC diagnostic ignored "-Wunused-result")
+    #define DIAG_ON_WARN_UNUSED_RESULT \
+      DIAG_DO_PRAGMA(GCC diagnostic pop)
+  #endif
 
   /*
    * Suppress deprecation warnings.
@@ -150,21 +172,10 @@
   /*
    * GCC supports -Wc99-c11-compat since version 5.1.0, but the warning does
    * not trigger for now, so let's just leave it be.
+   *
+   * GCC does not currently generate any -Wstrict-prototypes warnings that
+   * would need silencing as is done for Clang above.
    */
-#else
-  #define DIAG_OFF_ASSIGN_ENUM
-  #define DIAG_ON_ASSIGN_ENUM
-  #define DIAG_OFF_CAST_QUAL
-  #define DIAG_ON_CAST_QUAL
-  #define DIAG_OFF_DEPRECATION
-  #define DIAG_ON_DEPRECATION
-#endif
-
-#ifndef DIAG_OFF_C11_EXTENSIONS
-#define DIAG_OFF_C11_EXTENSIONS
-#endif
-#ifndef DIAG_ON_C11_EXTENSIONS
-#define DIAG_ON_C11_EXTENSIONS
 #endif
 
 /*
@@ -179,8 +190,46 @@
    * So please remember to use this very carefully.
    */
   #define ND_UNREACHABLE __builtin_unreachable();
-#else
-  #define ND_UNREACHABLE
+#endif
+
+#ifndef DIAG_OFF_ASSIGN_ENUM
+#define DIAG_OFF_ASSIGN_ENUM
+#endif
+#ifndef DIAG_ON_ASSIGN_ENUM
+#define DIAG_ON_ASSIGN_ENUM
+#endif
+#ifndef DIAG_OFF_CAST_QUAL
+#define DIAG_OFF_CAST_QUAL
+#endif
+#ifndef DIAG_ON_CAST_QUAL
+#define DIAG_ON_CAST_QUAL
+#endif
+#ifndef DIAG_OFF_WARN_UNUSED_RESULT
+#define DIAG_OFF_WARN_UNUSED_RESULT
+#endif
+#ifndef DIAG_ON_WARN_UNUSED_RESULT
+#define DIAG_ON_WARN_UNUSED_RESULT
+#endif
+#ifndef DIAG_OFF_DEPRECATION
+#define DIAG_OFF_DEPRECATION
+#endif
+#ifndef DIAG_ON_DEPRECATION
+#define DIAG_ON_DEPRECATION
+#endif
+#ifndef DIAG_OFF_C11_EXTENSIONS
+#define DIAG_OFF_C11_EXTENSIONS
+#endif
+#ifndef DIAG_ON_C11_EXTENSIONS
+#define DIAG_ON_C11_EXTENSIONS
+#endif
+#ifndef DIAG_OFF_STRICT_PROTOTYPES
+#define DIAG_OFF_STRICT_PROTOTYPES
+#endif
+#ifndef DIAG_ON_STRICT_PROTOTYPES
+#define DIAG_ON_STRICT_PROTOTYPES
+#endif
+#ifndef ND_UNREACHABLE
+#define ND_UNREACHABLE
 #endif
 
 #endif /* _diag_control_h */
