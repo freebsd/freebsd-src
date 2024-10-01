@@ -88,7 +88,11 @@ static struct timeout_task intrbalance_task;
 static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
-static TAILQ_HEAD(pics_head, pic) pics;
+struct pic_entr {
+	TAILQ_ENTRY(pic_entr) pics;
+	x86pic_t pic;
+};
+static TAILQ_HEAD(pics_head, pic_entr) pics = TAILQ_HEAD_INITIALIZER(pics);
 u_int num_io_irqs;
 
 #if defined(SMP) && !defined(EARLY_AP_STARTUP)
@@ -127,10 +131,10 @@ static void	intrcnt_register(struct intsrc *is);
 static int
 intr_pic_registered(x86pic_t pic)
 {
-	struct pic *p;
+	struct pic_entr *p;
 
 	TAILQ_FOREACH(p, &pics, pics) {
-		if (p == pic)
+		if (p->pic == pic)
 			return (1);
 	}
 	return (0);
@@ -168,6 +172,9 @@ intr_create_pic(const char *name, u_int unit, driver_t *driver)
 void
 intr_register_pic(x86pic_t pic)
 {
+	struct pic_entr *entr = malloc(sizeof(*entr), M_INTR, M_WAITOK);
+
+	entr->pic = pic;
 
 	mtx_lock(&intrpic_lock);
 	if (__predict_false(intr_pic_registered(pic)))
@@ -179,7 +186,7 @@ intr_register_pic(x86pic_t pic)
 		    ("ERROR: %s: called with already registered PIC",
 		    __func__);
 	else
-		TAILQ_INSERT_TAIL(&pics, pic, pics);
+		TAILQ_INSERT_TAIL(&pics, entr, pics);
 	mtx_unlock(&intrpic_lock);
 }
 
@@ -190,7 +197,7 @@ intr_register_pic(x86pic_t pic)
 static void
 intr_init_sources(void *arg)
 {
-	struct pic *pic;
+	struct pic_entr *pic;
 
 	MPASS(num_io_irqs > 0);
 
@@ -230,7 +237,7 @@ intr_init_sources(void *arg)
 	 * PICs shouldn't change.
 	 */
 	TAILQ_FOREACH(pic, &pics, pics)
-		PIC_REGISTER_SOURCES(pic);
+		PIC_REGISTER_SOURCES(pic->pic);
 }
 SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
     NULL);
@@ -407,25 +414,25 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 void
 intr_resume(bool suspend_cancelled)
 {
-	struct pic *pic;
+	struct pic_entr *pic;
 
 #ifndef DEV_ATPIC
 	atpic_reset();
 #endif
 	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH(pic, &pics, pics)
-		PIC_RESUME(pic, suspend_cancelled);
+		PIC_RESUME(pic->pic, suspend_cancelled);
 	mtx_unlock(&intrpic_lock);
 }
 
 void
 intr_suspend(void)
 {
-	struct pic *pic;
+	struct pic_entr *pic;
 
 	mtx_lock(&intrpic_lock);
 	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics)
-		PIC_SUSPEND(pic);
+		PIC_SUSPEND(pic->pic);
 	mtx_unlock(&intrpic_lock);
 }
 
@@ -519,7 +526,6 @@ static void
 intr_init(void *dummy __unused)
 {
 
-	TAILQ_INIT(&pics);
 	mtx_init(&intrpic_lock, "intrpic", NULL, MTX_DEF);
 	sx_init(&intrsrc_lock, "intrsrc");
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
