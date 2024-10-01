@@ -73,6 +73,10 @@ struct ucred {
 	uid_t	cr_uid;			/* effective user id */
 	uid_t	cr_ruid;		/* real user id */
 	uid_t	cr_svuid;		/* saved user id */
+	/*
+	 * XXXOC: On the next ABI change, please move 'cr_ngroups' out of the
+	 * copied area (crcopy() already copes with this change).
+	 */
 	int	cr_ngroups;		/* number of groups */
 	gid_t	cr_rgid;		/* real group id */
 	gid_t	cr_svgid;		/* saved group id */
@@ -80,7 +84,7 @@ struct ucred {
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
 	struct loginclass	*cr_loginclass; /* login class */
-	void 		*cr_pspare2[2];	/* general use 2 */
+	void		*cr_pspare2[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
 	gid_t	*cr_groups;		/* groups */
