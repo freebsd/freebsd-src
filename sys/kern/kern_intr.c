@@ -66,6 +66,8 @@
 #include <ddb/db_sym.h>
 #endif
 
+#include "intr_event_if.h"
+
 /*
  * Describe an interrupt thread.  There is one of these per interrupt event.
  */
@@ -276,23 +278,23 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_initv_(struct intr_event *ie, void (*pre_ithread)(void *),
-    void (*post_ithread)(void *), void (*post_filter)(void *),
-    int (*assign_cpu)(void *, int), u_int irq, int flags,
+intr_event_initv_(struct intr_event *ie, device_t pic, u_int irq, int flags,
     const char *fmt, __va_list ap)
 {
 
 	MPASS(ie != NULL);
 	MPASS(!intr_event_is_valid_(ie));
 
+	MPASS(pic != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, intr_event_pre_ithread) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, intr_event_post_ithread) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, intr_event_post_filter) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, intr_event_assign_cpu) != NULL);
+
 	/* The only valid flag during creation is IE_SOFT. */
 	if ((flags & ~IE_SOFT) != 0)
 		return (EINVAL);
-	ie->ie_source = ie;
-	ie->ie_pre_ithread = pre_ithread;
-	ie->ie_post_ithread = post_ithread;
-	ie->ie_post_filter = post_filter;
-	ie->ie_assign_cpu = assign_cpu;
+	ie->ie_pic = pic;
 	ie->ie_flags = flags;
 	ie->ie_irq = irq;
 	ie->ie_cpu = NOCPU;
@@ -309,21 +311,75 @@ intr_event_initv_(struct intr_event *ie, void (*pre_ithread)(void *),
 }
 
 int
-intr_event_init_(struct intr_event *ie, void (*pre_ithread)(void *),
-    void (*post_ithread)(void *), void (*post_filter)(void *),
-    int (*assign_cpu)(void *, int), u_int irq, int flags,
+intr_event_init_(struct intr_event *ie, device_t pic, u_int irq, int flags,
     const char *fmt, ...)
 {
 	va_list ap;
 	int res;
 
 	va_start(ap, fmt);
-	res = intr_event_initv_(ie, pre_ithread, post_ithread, post_filter,
-	    assign_cpu, irq, flags, fmt, ap);
+	res = intr_event_initv_(ie, pic, irq, flags, fmt, ap);
 	va_end(ap);
 
 	return (res);
 }
+
+struct	intr_event_compat {
+	struct	intr_event	ie;
+	void			(*ie_pre_ithread)(void *);
+	void			(*ie_post_ithread)(void *);
+	void			(*ie_post_filter)(void *);
+	int			(*ie_assign_cpu)(void *, int);
+	void			*ie_source;
+};
+
+static void
+event_compat_pre_ithread(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_pre_ithread;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static void
+event_compat_post_ithread(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_post_ithread;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static void
+event_compat_post_filter(device_t pic, interrupt_t *intr)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	void (*func)(void *) = compat->ie_post_filter;
+
+	if (func != NULL)
+		func(compat->ie_source);
+}
+static int
+event_compat_assign_cpu(device_t pic, interrupt_t *intr, u_int cpu)
+{
+	struct intr_event_compat *compat = (struct intr_event_compat *)intr;
+	int (*func)(void *, int) = compat->ie_assign_cpu;
+
+	return (func != NULL ? func(compat->ie_source, cpu) : EOPNOTSUPP);
+}
+
+static device_method_t event_compat_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	event_compat_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	event_compat_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	event_compat_post_filter),
+	DEVMETHOD(intr_event_assign_cpu,	event_compat_assign_cpu),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN("event_compat", event_compat_class, event_compat_methods,
+    0);
 
 int
 intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
@@ -331,14 +387,25 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
 {
+	static device_t handler = NULL;
+
 	struct intr_event *ie;
+	struct intr_event_compat *compat;
 	va_list ap;
 	int res;
 
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
+	if (__predict_false(handler == NULL)) {
+		handler = bus_generic_add_child(root_bus, BUS_PASS_ORDER_FIRST,
+		    "event-compat", 0);
+		device_set_driver(handler, &event_compat_class);
+	}
+
+	compat = malloc(sizeof(struct intr_event_compat), M_ITHREAD,
+	    M_WAITOK | M_ZERO);
+	ie = &compat->ie;
+
 	va_start(ap, fmt);
-	res = intr_event_initv_(ie, pre_ithread, post_ithread, post_filter,
-	    assign_cpu, irq, flags, fmt, ap);
+	res = intr_event_initv_(ie, handler, irq, flags, fmt, ap);
 	va_end(ap);
 
 	if (res != 0) {
@@ -346,7 +413,11 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 		return (res);
 	}
 
-	ie->ie_source = source;
+	compat->ie_pre_ithread = pre_ithread;
+	compat->ie_post_ithread = post_ithread;
+	compat->ie_post_filter = post_filter;
+	compat->ie_assign_cpu = assign_cpu;
+	compat->ie_source = source;
 
 	if (event != NULL)
 		*event = ie;
@@ -369,9 +440,6 @@ _intr_event_bind(struct intr_event *ie, int cpu, bool bindirq, bool bindithread)
 	if (cpu != NOCPU && CPU_ABSENT(cpu))
 		return (EINVAL);
 
-	if (ie->ie_assign_cpu == NULL)
-		return (EOPNOTSUPP);
-
 	error = priv_check(curthread, PRIV_SCHED_CPUSET_INTR);
 	if (error)
 		return (error);
@@ -392,7 +460,8 @@ _intr_event_bind(struct intr_event *ie, int cpu, bool bindirq, bool bindithread)
 			mtx_unlock(&ie->ie_lock);
 	}
 	if (bindirq)
-		error = ie->ie_assign_cpu(ie->ie_source, cpu);
+		error = INTR_EVENT_ASSIGN_CPU(ie->ie_pic, (interrupt_t *)ie,
+		    cpu);
 	if (error) {
 		if (bindithread) {
 			mtx_lock(&ie->ie_lock);
@@ -1299,8 +1368,7 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * Now that all the handlers have had a chance to run, reenable
 	 * the interrupt source.
 	 */
-	if (ie->ie_post_ithread != NULL)
-		ie->ie_post_ithread(ie->ie_source);
+	INTR_EVENT_POST_ITHREAD(ie->ie_pic, (interrupt_t *)ie);
 }
 
 /*
@@ -1503,13 +1571,10 @@ intr_event_handle_(struct intr_event *ie, struct trapframe *frame)
 
 	td->td_intr_frame = oldframe;
 
-	if (thread) {
-		if (ie->ie_pre_ithread != NULL)
-			ie->ie_pre_ithread(ie->ie_source);
-	} else {
-		if (ie->ie_post_filter != NULL)
-			ie->ie_post_filter(ie->ie_source);
-	}
+	if (thread)
+		INTR_EVENT_PRE_ITHREAD(ie->ie_pic, (interrupt_t *)ie);
+	else
+		INTR_EVENT_POST_FILTER(ie->ie_pic, (interrupt_t *)ie);
 
 	/* Schedule the ithread if needed. */
 	if (thread) {
