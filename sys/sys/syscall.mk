@@ -1,5 +1,9 @@
+#
 # FreeBSD system call object files.
+#
 # DO NOT EDIT-- this file is automatically @generated.
+#
+
 MIASM =  \
 	syscall.o \
 	exit.o \

@@ -1,6 +1,7 @@
 /*
  * FreeBSD system call symbols.
- *  DO NOT EDIT-- this file is automatically @generated.
+ *
+ * DO NOT EDIT-- this file is automatically @generated.
  */
 FBSDprivate_1.0 {
 	_syscall;
