@@ -888,7 +888,8 @@ kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups)
 		ngrp = *ngrpp;
 	}
 	newcred = crget();
-	crextend(newcred, ngrp);
+	if (ngrp != 0)
+		crextend(newcred, ngrp);
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
 
@@ -2226,6 +2227,13 @@ crcopy(struct ucred *dest, struct ucred *src)
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
+	/*
+	 * Avoids an assertion in crsetgroups() -> crextend().  Ideally,
+	 * 'cr_ngroups' should be moved out of 'struct ucred''s bcopied area,
+	 * but this would break the ABI, so is deferred until there is a real
+	 * need to change the ABI.
+	 */
+	dest->cr_ngroups = 0;
 	dest->cr_flags = src->cr_flags;
 	crsetgroups(dest, src->cr_ngroups, src->cr_groups);
 	uihold(dest->cr_uidinfo);
@@ -2350,45 +2358,48 @@ crcopysafe(struct proc *p, struct ucred *cr)
 }
 
 /*
- * Extend the passed in credential to hold n items.
+ * Extend the passed-in credentials to hold n groups.
+ *
+ * Must not be called after groups have been set.
  */
 void
 crextend(struct ucred *cr, int n)
 {
-	int cnt;
+	size_t nbytes;
 
 	MPASS2(cr->cr_ref == 1, "'cr_ref' must be 1 (referenced, unshared)");
+	MPASS2(cr->cr_ngroups == 0, "groups on 'cr' already set!");
+	groups_check_positive_len(n);
+	groups_check_max_len(n);
 
-	/* Truncate? */
 	if (n <= cr->cr_agroups)
 		return;
 
-	/*
-	 * We extend by 2 each time since we're using a power of two
-	 * allocator until we need enough groups to fill a page.
-	 * Once we're allocating multiple pages, only allocate as many
-	 * as we actually need.  The case of processes needing a
-	 * non-power of two number of pages seems more likely than
-	 * a real world process that adds thousands of groups one at a
-	 * time.
-	 */
-	if ( n < PAGE_SIZE / sizeof(gid_t) ) {
-		if (cr->cr_agroups == 0)
-			cnt = MAX(1, MINALLOCSIZE / sizeof(gid_t));
-		else
-			cnt = cr->cr_agroups * 2;
+	nbytes = n * sizeof(gid_t);
+	if (nbytes < n)
+		panic("Too many groups (memory size overflow)! "
+		    "Computation of 'kern.ngroups' should have prevented this, "
+		    "please fix it. In the meantime, reduce 'kern.ngroups'.");
 
-		while (cnt < n)
-			cnt *= 2;
+	/*
+	 * We allocate a power of 2 larger than 'nbytes', except when that
+	 * exceeds PAGE_SIZE, in which case we allocate the right multiple of
+	 * pages.  We assume PAGE_SIZE is a power of 2 (the call to roundup2()
+	 * below) but do not need to for sizeof(gid_t).
+	 */
+	if (nbytes < PAGE_SIZE) {
+		if (!powerof2(nbytes))
+			/* fls*() return a bit index starting at 1. */
+			nbytes = 1 << flsl(nbytes);
 	} else
-		cnt = roundup2(n, PAGE_SIZE / sizeof(gid_t));
+		nbytes = roundup2(nbytes, PAGE_SIZE);
 
 	/* Free the old array. */
 	if (cr->cr_groups != cr->cr_smallgroups)
 		free(cr->cr_groups, M_CRED);
 
-	cr->cr_groups = malloc(cnt * sizeof(gid_t), M_CRED, M_WAITOK | M_ZERO);
-	cr->cr_agroups = cnt;
+	cr->cr_groups = malloc(nbytes, M_CRED, M_WAITOK | M_ZERO);
+	cr->cr_agroups = nbytes / sizeof(gid_t);
 }
 
 /*
