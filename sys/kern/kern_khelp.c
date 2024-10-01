@@ -254,7 +254,7 @@ khelp_get_id(char *hname)
 }
 
 int
-khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
+khelp_add_hhook(const struct hookinfo *hki, uint32_t flags)
 {
 	int error;
 
@@ -268,7 +268,7 @@ khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
 }
 
 int
-khelp_remove_hhook(struct hookinfo *hki)
+khelp_remove_hhook(const struct hookinfo *hki)
 {
 	int error;
 
