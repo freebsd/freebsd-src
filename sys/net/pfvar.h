@@ -2581,6 +2581,7 @@ int			 pf_ioctl_begin_addrs(uint32_t *);
 int			 pf_ioctl_add_addr(struct pfioc_pooladdr *);
 int			 pf_ioctl_get_addrs(struct pfioc_pooladdr *);
 int			 pf_ioctl_get_addr(struct pfioc_pooladdr *);
+int			 pf_ioctl_get_rulesets(struct pfioc_ruleset *);
 
 void			 pf_krule_free(struct pf_krule *);
 void			 pf_krule_clear_counters(struct pf_krule *);

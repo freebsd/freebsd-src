@@ -2914,5 +2914,51 @@ pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 			continue;
 	}
 
-	return (0);
+	return (e.error);
 }
+
+#define _OUT(_field)	offsetof(struct pfioc_ruleset, _field)
+static const struct snl_attr_parser ap_ruleset[] = {
+	{ .type = PF_RS_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_ruleset[] = {};
+SNL_DECLARE_PARSER(ruleset_parser, struct genlmsghdr, fp_ruleset, ap_ruleset);
+#undef _OUT
+
+int
+pfctl_get_rulesets(struct pfctl_handle *h, const char *path, uint32_t *nr)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct pfioc_ruleset rs = {};
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_RULESETS);
+
+	snl_add_msg_attr_string(&nw, PF_RS_PATH, path);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &ruleset_parser, &rs))
+			continue;
+	}
+
+	*nr = rs.nr;
+
+	return (e.error);
+}
+

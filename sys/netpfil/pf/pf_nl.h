@@ -58,6 +58,7 @@ enum {
 	PFNL_CMD_ADD_ADDR = 20,
 	PFNL_CMD_GET_ADDRS = 21,
 	PFNL_CMD_GET_ADDR = 22,
+	PFNL_CMD_GET_RULESETS = 23,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -378,6 +379,12 @@ enum pf_add_addr_types_t {
 	PF_AA_AF		= 7, /* u8 */
 	PF_AA_ANCHOR		= 8, /* string */
 	PF_AA_ADDR		= 9, /* nested, pf_pooladdr */
+};
+
+enum pf_get_rulesets_types_t {
+	PF_RS_UNSPEC,
+	PF_RS_PATH		= 1, /* string */
+	PF_RS_NR		= 2, /* u32 */
 };
 
 #ifdef _KERNEL
