@@ -35,7 +35,7 @@ basic_head()
 {
 	atf_set "descr" "READ BUFFER can retrieve data previously written by WRITE BUFFER"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_read_buffer sg_write_buffer
+	atf_set "require.progs" "sg_read_buffer sg_write_buffer ctladm"
 }
 basic_body()
 {
@@ -66,7 +66,7 @@ desc_head()
 {
 	atf_set "descr" "READ BUFFER can retrieve the buffer size via the DESCRIPTOR mode"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_read_buffer
+	atf_set "require.progs" "sg_read_buffer ctladm"
 }
 desc_body()
 {
@@ -84,7 +84,7 @@ length_head()
 {
 	atf_set "descr" "READ BUFFER can limit its length with the LENGTH field"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_read_buffer sg_write_buffer
+	atf_set "require.progs" "sg_read_buffer sg_write_buffer ctladm"
 }
 length_body()
 {
@@ -113,7 +113,7 @@ offset_head()
 {
 	atf_set "descr" "READ BUFFER accepts the BUFFER OFFSET field"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_read_buffer sg_write_buffer
+	atf_set "require.progs" "sg_read_buffer sg_write_buffer ctladm"
 }
 offset_body()
 {
@@ -142,7 +142,7 @@ uninitialized_head()
 {
 	atf_set "descr" "READ BUFFER buffers are zero-initialized"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_read_buffer
+	atf_set "require.progs" "sg_read_buffer ctladm"
 }
 uninitialized_body()
 {
