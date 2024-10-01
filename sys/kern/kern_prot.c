@@ -815,6 +815,15 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	gid_t *groups;
 	int gidsetsize, error;
 
+	/*
+	 * Sanity check size now to avoid passing too big a value to copyin(),
+	 * even if kern_setgroups() will do it again.
+	 *
+	 * Ideally, the 'gidsetsize' argument should have been a 'u_int' (and it
+	 * was, in this implementation, for a long time), but POSIX standardized
+	 * getgroups() to take an 'int' and it would be quite entrapping to have
+	 * setgroups() differ.
+	 */
 	gidsetsize = uap->gidsetsize;
 	if (gidsetsize > ngroups_max + 1 || gidsetsize < 0)
 		return (EINVAL);
@@ -843,13 +852,16 @@ gidp_cmp(const void *p1, const void *p2)
 }
 
 int
-kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
+kern_setgroups(struct thread *td, int ngrp, gid_t *groups)
 {
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	MPASS(ngrp <= ngroups_max + 1);
+	/* Sanity check size. */
+	if (ngrp < 0 || ngrp > ngroups_max + 1)
+		return (EINVAL);
+
 	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);

@@ -98,7 +98,7 @@ void	 audit_arg_rgid(gid_t rgid);
 void	 audit_arg_ruid(uid_t ruid);
 void	 audit_arg_sgid(gid_t sgid);
 void	 audit_arg_suid(uid_t suid);
-void	 audit_arg_groupset(gid_t *gidset, u_int gidset_size);
+void	 audit_arg_groupset(gid_t *gidset, int gidset_size);
 void	 audit_arg_login(char *login);
 void	 audit_arg_ctlname(int *name, int namelen);
 void	 audit_arg_mask(int mask);
