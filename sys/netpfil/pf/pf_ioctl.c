@@ -2665,6 +2665,37 @@ pf_ioctl_get_addr(struct pfioc_pooladdr *pp)
 	return (0);
 }
 
+int
+pf_ioctl_get_rulesets(struct pfioc_ruleset *pr)
+{
+	struct pf_kruleset	*ruleset;
+	struct pf_kanchor	*anchor;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	pr->path[sizeof(pr->path) - 1] = 0;
+
+	PF_RULES_RLOCK();
+	if ((ruleset = pf_find_kruleset(pr->path)) == NULL) {
+		PF_RULES_RUNLOCK();
+		return (ENOENT);
+	}
+	pr->nr = 0;
+	if (ruleset->anchor == NULL) {
+		/* XXX kludge for pf_main_ruleset */
+		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
+			if (anchor->parent == NULL)
+				pr->nr++;
+	} else {
+		RB_FOREACH(anchor, pf_kanchor_node,
+		    &ruleset->anchor->children)
+			pr->nr++;
+	}
+	PF_RULES_RUNLOCK();
+
+	return (0);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -4474,29 +4505,10 @@ DIOCCHANGEADDR_error:
 
 	case DIOCGETRULESETS: {
 		struct pfioc_ruleset	*pr = (struct pfioc_ruleset *)addr;
-		struct pf_kruleset	*ruleset;
-		struct pf_kanchor	*anchor;
 
 		pr->path[sizeof(pr->path) - 1] = 0;
 
-		PF_RULES_RLOCK();
-		if ((ruleset = pf_find_kruleset(pr->path)) == NULL) {
-			PF_RULES_RUNLOCK();
-			error = ENOENT;
-			break;
-		}
-		pr->nr = 0;
-		if (ruleset->anchor == NULL) {
-			/* XXX kludge for pf_main_ruleset */
-			RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
-				if (anchor->parent == NULL)
-					pr->nr++;
-		} else {
-			RB_FOREACH(anchor, pf_kanchor_node,
-			    &ruleset->anchor->children)
-				pr->nr++;
-		}
-		PF_RULES_RUNLOCK();
+		error = pf_ioctl_get_rulesets(pr);
 		break;
 	}
 
