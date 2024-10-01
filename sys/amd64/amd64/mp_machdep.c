@@ -102,16 +102,15 @@ void *bootpcpu;
 
 extern u_int mptramp_la57;
 extern u_int mptramp_nx;
-smp_targeted_tlb_shootdown_t smp_targeted_tlb_shootdown = &smp_targeted_tlb_shootdown_native;
+smp_targeted_tlb_shootdown_t smp_targeted_tlb_shootdown =
+    &smp_targeted_tlb_shootdown_native;
+
 /*
  * Local data and functions.
  */
 
 static int start_ap(int apic_id, vm_paddr_t boot_address);
 
-void
-smp_targeted_tlb_shootdown_native(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
-    smp_invl_cb_t curcpu_cb, enum invl_op_codes op);
 /*
  * Initialize the IPI handlers and start up the AP's.
  */
@@ -586,8 +585,8 @@ invl_scoreboard_slot(u_int cpu)
  * completion.
  */
 void
-smp_targeted_tlb_shootdown_native(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2,
-    smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
+smp_targeted_tlb_shootdown_native(pmap_t pmap, vm_offset_t addr1,
+    vm_offset_t addr2, smp_invl_cb_t curcpu_cb, enum invl_op_codes op)
 {
 	cpuset_t mask;
 	uint32_t generation, *p_cpudone;
