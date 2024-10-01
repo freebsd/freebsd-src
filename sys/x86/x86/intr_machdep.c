@@ -74,8 +74,6 @@
 
 #include <vm/vm.h>
 
-typedef void (*mask_fn)(void *);
-
 static int intrcnt_index;
 static struct intsrc **interrupt_sources;
 #ifdef SMP
@@ -106,6 +104,8 @@ static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 
 static int	intr_assign_cpu(void *arg, int cpu);
 static void	intr_disable_src(void *arg);
+static void	intr_enable_source(void *arg);
+static void	intr_eoi_source(void *arg);
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(x86pic_t pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -251,9 +251,8 @@ intr_register_source(unsigned int vector, struct intsrc *isrc)
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
 	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
-	    intr_disable_src, (mask_fn)isrc->is_pic->pic_enable_source,
-	    (mask_fn)isrc->is_pic->pic_eoi_source, intr_assign_cpu, "irq%d:",
-	    vector);
+	    intr_disable_src, intr_enable_source, intr_eoi_source,
+	    intr_assign_cpu, "irq%d:", vector);
 	if (error)
 		return (error);
 	sx_xlock(&intrsrc_lock);
@@ -357,6 +356,22 @@ intr_disable_src(void *arg)
 
 	isrc = arg;
 	PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_EOI);
+}
+
+static void
+intr_enable_source(void *arg)
+{
+	struct intsrc *isrc = arg;
+
+	PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
+}
+
+static void
+intr_eoi_source(void *arg)
+{
+	struct intsrc *isrc = arg;
+
+	PIC_EOI_SOURCE(isrc->is_pic, isrc);
 }
 
 void
