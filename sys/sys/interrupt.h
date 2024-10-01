@@ -117,12 +117,9 @@ struct intr_event {
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
+	interrupt_t	*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
+	device_t	ie_pic;
 	int		ie_flags;
 	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
@@ -182,6 +179,9 @@ int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_create_device(struct intr_event **event, device_t pic,
+	    interrupt_t *source, u_int irq, int flags, const char *fmt, ...)
+	    __printflike(6, 7) __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, u_int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
