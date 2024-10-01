@@ -1533,13 +1533,19 @@ write_line("syshdr", string.format([[/*
 
 ]], generated_tag))
 
-write_line("sysmk", string.format([[# FreeBSD system call object files.
+write_line("sysmk", string.format([[
+#
+# FreeBSD system call object files.
+#
 # DO NOT EDIT-- this file is automatically %s.
+#
+
 MIASM = ]], generated_tag))
 
 write_line("libsysmap", string.format([[/*
  * FreeBSD system call symbols.
- *  DO NOT EDIT-- this file is automatically %s.
+ *
+ * DO NOT EDIT-- this file is automatically %s.
  */
 FBSDprivate_1.0 {
 ]], generated_tag))
@@ -1549,7 +1555,7 @@ write_line("libsys_h", string.format([[/*
  *
  * Do not use directly, include <libsys.h> instead.
  *
- *  DO NOT EDIT-- this file is automatically %s.
+ * DO NOT EDIT-- this file is automatically %s.
  */
 #ifndef __LIBSYS_H_
 #define __LIBSYS_H_
@@ -1568,8 +1574,9 @@ write_line("libsys_h", string.format([[/*
 write_line("systrace", string.format([[/*
  * System call argument to DTrace register array converstion.
  *
- * DO NOT EDIT-- this file is automatically %s.
  * This file is part of the DTrace syscall provider.
+ *
+ * DO NOT EDIT-- this file is automatically %s.
  */
 
 static void
