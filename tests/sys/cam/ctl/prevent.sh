@@ -36,7 +36,7 @@ allow_head()
 {
 	atf_set "descr" "SCSI PREVENT ALLOW MEDIUM REMOVAL will prevent a CD from being ejected"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_prevent sg_start
+	atf_set "require.progs" "sg_prevent sg_start ctladm"
 }
 allow_body()
 {
@@ -63,7 +63,7 @@ allow_idempotent_head()
 {
 	atf_set "descr" "SCSI PREVENT ALLOW MEDIUM REMOVAL is idempotent when run from the same initiator"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_prevent sg_start
+	atf_set "require.progs" "sg_prevent sg_start ctladm"
 }
 allow_idempotent_body()
 {
@@ -89,7 +89,7 @@ nonremovable_head()
 {
 	atf_set "descr" "SCSI PREVENT ALLOW MEDIUM REMOVAL may not be used on non-removable media"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_prevent
+	atf_set "require.progs" "sg_prevent ctladm"
 }
 nonremovable_body()
 {
@@ -108,7 +108,7 @@ prevent_head()
 {
 	atf_set "descr" "SCSI PREVENT ALLOW MEDIUM REMOVAL will prevent a CD from being ejected"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_prevent sg_start
+	atf_set "require.progs" "sg_prevent sg_start ctladm"
 }
 prevent_body()
 {
@@ -130,7 +130,7 @@ prevent_idempotent_head()
 {
 	atf_set "descr" "SCSI PREVENT ALLOW MEDIUM REMOVAL is idempotent when run from the same initiator"
 	atf_set "require.user" "root"
-	atf_set "require.progs" sg_prevent sg_start
+	atf_set "require.progs" "sg_prevent sg_start ctladm"
 }
 prevent_idempotent_body()
 {
