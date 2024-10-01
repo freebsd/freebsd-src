@@ -3,7 +3,7 @@
  *
  * Do not use directly, include <libsys.h> instead.
  *
- *  DO NOT EDIT-- this file is automatically @generated.
+ * DO NOT EDIT-- this file is automatically @generated.
  */
 #ifndef __LIBSYS_H_
 #define __LIBSYS_H_
