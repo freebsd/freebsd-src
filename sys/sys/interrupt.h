@@ -117,12 +117,8 @@ struct intr_event {
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
+	device_t	ie_pic;
 	int		ie_flags;
 	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
@@ -195,6 +191,7 @@ int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);
+interrupt_t *intr_handler_interrupt(void *cookie);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, int mode, const void *mask);
 void	_intr_drain(int irq);  /* LinuxKPI only. */
