@@ -472,5 +472,5 @@ static device_method_t openpic_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(openpic, openpic_class, openpic_methods,
-    sizeof(struct openpic_softc));
+PUBLIC_DEFINE_CLASSN(openpic, openpic_class, openpic_methods,
+    sizeof(struct openpic_softc), pic_base_class);
