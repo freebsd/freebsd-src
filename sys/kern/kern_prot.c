@@ -2488,6 +2488,24 @@ crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups)
 }
 
 /*
+ * Same as crsetgroups() but accepts an empty groups array.
+ *
+ * This function ensures that an effective GID is always present in credentials.
+ * An empty array is treated as a one-size one holding the passed effective GID
+ * fallback.
+ */
+void
+crsetgroups_fallback(struct ucred *cr, int ngrp, const gid_t *groups,
+    const gid_t fallback)
+{
+	if (ngrp == 0)
+		/* Shortcut. */
+		crsetgroups_internal(cr, 1, &fallback);
+	else
+		crsetgroups(cr, ngrp, groups);
+}
+
+/*
  * Get login name, if available.
  */
 #ifndef _SYS_SYSPROTO_H_
