@@ -353,6 +353,12 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 #endif
 }
 
+static device_method_t pic_base_methods[] = {
+	DEVMETHOD_END
+};
+
+PUBLIC_DEFINE_CLASSN(pic_base, pic_base_class, pic_base_methods, 0);
+
 u_int
 powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
     u_int atpic)
