@@ -293,7 +293,7 @@ done:
 static void
 uart_tcp_listener(int fd, enum ev_type type __unused, void *arg)
 {
-	const static char tcp_error_msg[] = "Socket already connected\n";
+	static const char tcp_error_msg[] = "Socket already connected\n";
 	struct uart_socket_softc *socket_softc = (struct uart_socket_softc *)
 	    arg;
 	struct uart_softc *sc = socket_softc->softc;
@@ -473,7 +473,7 @@ uart_tcp_backend(struct uart_softc *sc, const char *path,
 	 * Set the connection softc structure, which includes both the softc
 	 * and the drain function provided by the frontend.
 	 */
-	if ((socket_softc = calloc(sizeof(struct uart_socket_softc), 1)) ==
+	if ((socket_softc = calloc(1, sizeof(struct uart_socket_softc))) ==
 	    NULL)
 		goto clean;
 
