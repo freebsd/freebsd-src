@@ -87,7 +87,7 @@ static device_method_t  hrowpic_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(hrowpic, hrowpic_driver, hrowpic_methods,
-    sizeof(struct hrowpic_softc));
+    sizeof(struct hrowpic_softc), pic_hw_class);
 
 DRIVER_MODULE(hrowpic, macio, hrowpic_driver, 0, 0);
 
