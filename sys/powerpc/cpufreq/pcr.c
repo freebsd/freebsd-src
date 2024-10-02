@@ -62,14 +62,11 @@ static device_method_t pcr_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	pcr_get),
 	DEVMETHOD(cpufreq_drv_type,	pcr_type),
 	DEVMETHOD(cpufreq_drv_settings,	pcr_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t pcr_driver = {
-	"pcr",
-	pcr_methods,
-	sizeof(struct pcr_softc)
-};
+PRIVATE_DEFINE_CLASSN(pcr, pcr_driver, pcr_methods, sizeof(struct pcr_softc));
 
 DRIVER_MODULE(pcr, cpu, pcr_driver, 0, 0);
 

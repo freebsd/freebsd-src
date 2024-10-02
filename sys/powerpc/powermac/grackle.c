@@ -305,13 +305,10 @@ static device_method_t grackle_hb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         grackle_hb_probe),
 	DEVMETHOD(device_attach,        grackle_hb_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t grackle_hb_driver = {
-	"grackle_hb",
-	grackle_hb_methods,
-	1,
-};
+PRIVATE_DEFINE_CLASSN(grackle_hb, grackle_hb_driver, grackle_hb_methods, 1);
 
 DRIVER_MODULE(grackle_hb, pci, grackle_hb_driver, 0, 0);

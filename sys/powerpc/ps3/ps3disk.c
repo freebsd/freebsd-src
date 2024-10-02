@@ -700,13 +700,11 @@ static device_method_t ps3disk_methods[] = {
 	DEVMETHOD(device_probe,		ps3disk_probe),
 	DEVMETHOD(device_attach,	ps3disk_attach),
 	DEVMETHOD(device_detach,	ps3disk_detach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t ps3disk_driver = {
-	"ps3disk",
-	ps3disk_methods,
-	sizeof(struct ps3disk_softc),
-};
+PRIVATE_DEFINE_CLASSN(ps3disk, ps3disk_driver, ps3disk_methods,
+    sizeof(struct ps3disk_softc));
 
 DRIVER_MODULE(ps3disk, ps3bus, ps3disk_driver, 0, 0);

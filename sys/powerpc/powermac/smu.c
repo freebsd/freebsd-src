@@ -201,14 +201,10 @@ static device_method_t  smu_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t smu_driver = {
-	"smu",
-	smu_methods,
-	sizeof(struct smu_softc)
-};
+PRIVATE_DEFINE_CLASSN(smu, smu_driver, smu_methods, sizeof(struct smu_softc));
 
 DRIVER_MODULE(smu, ofwbus, smu_driver, 0, 0);
 static MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
@@ -618,14 +614,11 @@ static device_method_t  doorbell_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		doorbell_probe),
 	DEVMETHOD(device_attach,	doorbell_attach),
-	{ 0, 0 },
+
+	DEVMETHOD_END
 };
 
-static driver_t doorbell_driver = {
-	"smudoorbell",
-	doorbell_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(smudoorbell, doorbell_driver, doorbell_methods, 0);
 
 EARLY_DRIVER_MODULE(smudoorbell, macgpio, doorbell_driver, 0, 0,
     BUS_PASS_SUPPORTDEV);
@@ -1397,7 +1390,8 @@ static device_method_t smuiic_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,     smuiic_get_node),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 struct smuiic_softc {
@@ -1406,11 +1400,8 @@ struct smuiic_softc {
 	int		sc_busno;
 };
 
-static driver_t smuiic_driver = {
-	"iichb",
-	smuiic_methods,
-	sizeof(struct smuiic_softc)
-};
+PRIVATE_DEFINE_CLASSN(iichb, smuiic_driver, smuiic_methods,
+    sizeof(struct smuiic_softc));
 
 DRIVER_MODULE(smuiic, smu, smuiic_driver, 0, 0);
 
