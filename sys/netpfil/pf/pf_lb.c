@@ -158,32 +158,32 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP].ptr;
+			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR].ptr;
+			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != pd->af)
-			r = r->skip[PF_SKIP_AF].ptr;
+			r = r->skip[PF_SKIP_AF];
 		else if (r->proto && r->proto != pd->proto)
-			r = r->skip[PF_SKIP_PROTO].ptr;
+			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&src->addr, saddr, pd->af,
 		    src->neg, kif, M_GETFIB(m)))
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
-			    PF_SKIP_DST_ADDR].ptr;
+			    PF_SKIP_DST_ADDR];
 		else if (src->port_op && !pf_match_port(src->port_op,
 		    src->port[0], src->port[1], sport))
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
-			    PF_SKIP_DST_PORT].ptr;
+			    PF_SKIP_DST_PORT];
 		else if (dst != NULL &&
 		    PF_MISMATCHAW(&dst->addr, daddr, pd->af, dst->neg, NULL,
 		    M_GETFIB(m)))
-			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+			r = r->skip[PF_SKIP_DST_ADDR];
 		else if (xdst != NULL && PF_MISMATCHAW(xdst, daddr, pd->af,
 		    0, NULL, M_GETFIB(m)))
 			r = TAILQ_NEXT(r, entries);
 		else if (dst != NULL && dst->port_op &&
 		    !pf_match_port(dst->port_op, dst->port[0],
 		    dst->port[1], dport))
-			r = r->skip[PF_SKIP_DST_PORT].ptr;
+			r = r->skip[PF_SKIP_DST_PORT];
 		else if (r->match_tag && !pf_match_tag(m, r, &tag,
 		    pd->pf_mtag ? pd->pf_mtag->tag : 0))
 			r = TAILQ_NEXT(r, entries);

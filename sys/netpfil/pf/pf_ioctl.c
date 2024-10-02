@@ -1551,8 +1551,8 @@ pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 	bcopy(&in->addr, &out->addr, sizeof(struct pf_addr));
 	bcopy(&in->raddr, &out->raddr, sizeof(struct pf_addr));
 
-	if (in->rule.ptr != NULL)
-		out->rule.nr = in->rule.ptr->nr;
+	if (in->rule != NULL)
+		out->rule.nr = in->rule->nr;
 
 	for (int i = 0; i < 2; i++) {
 		out->bytes[i] = counter_u64_fetch(in->bytes[i]);
@@ -2355,7 +2355,7 @@ relock_DIOCKILLSTATES:
 			continue;
 
 		if (psk->psk_label[0] &&
-		    ! pf_label_match(s->rule.ptr, psk->psk_label))
+		    ! pf_label_match(s->rule, psk->psk_label))
 			continue;
 
 		if (psk->psk_ifname[0] && strcmp(psk->psk_ifname,
@@ -5613,18 +5613,18 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 	pf_state_peer_hton(&st->src, &sp->pfs_1301.src);
 	pf_state_peer_hton(&st->dst, &sp->pfs_1301.dst);
 
-	if (st->rule.ptr == NULL)
+	if (st->rule == NULL)
 		sp->pfs_1301.rule = htonl(-1);
 	else
-		sp->pfs_1301.rule = htonl(st->rule.ptr->nr);
-	if (st->anchor.ptr == NULL)
+		sp->pfs_1301.rule = htonl(st->rule->nr);
+	if (st->anchor == NULL)
 		sp->pfs_1301.anchor = htonl(-1);
 	else
-		sp->pfs_1301.anchor = htonl(st->anchor.ptr->nr);
-	if (st->nat_rule.ptr == NULL)
+		sp->pfs_1301.anchor = htonl(st->anchor->nr);
+	if (st->nat_rule == NULL)
 		sp->pfs_1301.nat_rule = htonl(-1);
 	else
-		sp->pfs_1301.nat_rule = htonl(st->nat_rule.ptr->nr);
+		sp->pfs_1301.nat_rule = htonl(st->nat_rule->nr);
 
 	pf_state_counter_hton(st->packets[0], sp->pfs_1301.packets[0]);
 	pf_state_counter_hton(st->packets[1], sp->pfs_1301.packets[1]);
@@ -5679,18 +5679,18 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	pf_state_peer_hton(&st->src, &sp->src);
 	pf_state_peer_hton(&st->dst, &sp->dst);
 
-	if (st->rule.ptr == NULL)
+	if (st->rule == NULL)
 		sp->rule = htonl(-1);
 	else
-		sp->rule = htonl(st->rule.ptr->nr);
-	if (st->anchor.ptr == NULL)
+		sp->rule = htonl(st->rule->nr);
+	if (st->anchor == NULL)
 		sp->anchor = htonl(-1);
 	else
-		sp->anchor = htonl(st->anchor.ptr->nr);
-	if (st->nat_rule.ptr == NULL)
+		sp->anchor = htonl(st->anchor->nr);
+	if (st->nat_rule == NULL)
 		sp->nat_rule = htonl(-1);
 	else
-		sp->nat_rule = htonl(st->nat_rule.ptr->nr);
+		sp->nat_rule = htonl(st->nat_rule->nr);
 
 	sp->packets[0] = st->packets[0];
 	sp->packets[1] = st->packets[1];

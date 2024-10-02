@@ -641,7 +641,7 @@ copy_flow_data(struct pflow_flow *flow1, struct pflow_flow *flow2,
 	    htonl(st->expire);
 	flow1->tcp_flags = flow2->tcp_flags = 0;
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
@@ -678,7 +678,7 @@ copy_flow_ipfix_4_data(struct pflow_ipfix_flow4 *flow1,
 	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
@@ -717,7 +717,7 @@ copy_flow_ipfix_6_data(struct pflow_ipfix_flow6 *flow1,
 	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
