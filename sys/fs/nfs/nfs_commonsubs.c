@@ -4051,8 +4051,9 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 			 */
 			cr = crget();
 			cr->cr_uid = cr->cr_ruid = cr->cr_svuid = nidp->nid_uid;
-			crsetgroups(cr, nidp->nid_ngroup, grps);
-			cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+			crsetgroups_fallback(cr, nidp->nid_ngroup, grps,
+			    NFSD_VNET(nfsrv_defaultgid));
+			cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 			cr->cr_prison = curthread->td_ucred->cr_prison;
 			prison_hold(cr->cr_prison);
 #ifdef MAC
