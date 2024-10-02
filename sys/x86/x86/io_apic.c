@@ -93,6 +93,7 @@ struct ioapic_intsrc {
 };
 
 struct ioapic {
+	pic_base_softc_t pic_base_softc;
 	x86pics_t io_pic;
 	u_int io_id:8;			/* logical ID */
 	u_int io_apic_id:8;		/* Id as enumerated by MADT */
@@ -106,8 +107,12 @@ struct ioapic {
 	device_t pci_dev;		/* matched pci device, if found */
 	struct resource *pci_wnd;	/* BAR 0, should be same or alias to
 					   io_paddr */
-	struct ioapic_intsrc io_pins[0];
+	struct ioapic_intsrc io_pins[];
 };
+_Static_assert(offsetof(struct ioapic, pic_base_softc) == 0,
+    ".pic_base_softc misaligned from struct ioapic!");
+_Static_assert(offsetof(struct ioapic, io_pic) == 0,
+    ".io_pic misaligned from struct ioapic!");
 
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
