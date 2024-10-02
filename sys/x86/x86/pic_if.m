@@ -30,6 +30,8 @@ HEADER {
 
 	DECLARE_CLASS(pic_base_class);
 
+	typedef struct { } pic_base_softc_t;
+
 	/* Flags for pic_disable_intr() */
 	enum eoi_flag {
 		PIC_EOI,
