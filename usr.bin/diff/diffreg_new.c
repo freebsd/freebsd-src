@@ -253,6 +253,8 @@ diffreg_new(char *file1, char *file2, int flags, int capsicum)
 		goto done;
 	}
 
+	if (color)
+		diff_output_set_colors(color, del_code, add_code);
 	if (diff_format == D_NORMAL) {
 		rc = diff_output_plain(NULL, stdout, &info, result, false);
 	} else if (diff_format == D_EDIT) {
