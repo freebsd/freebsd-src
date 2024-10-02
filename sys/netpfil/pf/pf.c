@@ -5131,7 +5131,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		}
 		if (nr->natpass)
 			r = NULL;
-		pd->nat_rule = nr;
 	}
 
 	while (r != NULL) {
@@ -7900,7 +7899,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r_rt != PF_DUPTO) {
-			if (s && pd->nat_rule != NULL)
+			if (s && s->nat_rule.ptr != NULL)
 				PACKET_UNDO_NAT(m0, pd,
 				    (ip->ip_hl << 2) + (ip_off & IP_OFFMASK),
 				    s);
@@ -8113,7 +8112,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	else {
 		in6_ifstat_inc(ifp, ifs6_in_toobig);
 		if (r_rt != PF_DUPTO) {
-			if (s && pd->nat_rule != NULL)
+			if (s && s->nat_rule.ptr != NULL)
 				PACKET_UNDO_NAT(m0, pd,
 				    ((caddr_t)ip6 - m0->m_data) +
 				    sizeof(struct ip6_hdr), s);
@@ -8771,7 +8770,7 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
     struct pfi_kkif *kif, struct pf_kstate *s,
     struct pf_krule *r, struct pf_krule *a)
 {
-	struct pf_krule		*tr, *nr;
+	struct pf_krule		*tr;
 	int			 dir = pd->dir;
 	int			 dirndx;
 
@@ -8823,10 +8822,12 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
 				pf_counter_u64_add_protected(&ri->r->bytes[dirndx], pd->tot_len);
 			}
 		}
+
 		tr = r;
-		nr = (s != NULL) ? s->nat_rule.ptr : pd->nat_rule;
-		if (nr != NULL && r == &V_pf_default_rule)
-			tr = nr;
+		if (s != NULL && s->nat_rule.ptr != NULL &&
+		    r == &V_pf_default_rule)
+			tr = s->nat_rule.ptr;
+
 		if (tr->src.addr.type == PF_ADDR_TABLE)
 			pfr_update_stats(tr->src.addr.p.tbl,
 			    (s == NULL) ? pd->src :

@@ -1602,7 +1602,6 @@ struct pf_pdesc {
 		char any[0];
 	} hdr;
 
-	struct pf_krule	*nat_rule;	/* nat/rdr rule applied to packet */
 	struct pf_addr	*src;		/* src address */
 	struct pf_addr	*dst;		/* dst address */
 	u_int16_t *sport;
