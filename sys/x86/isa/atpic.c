@@ -162,7 +162,7 @@ static device_method_t atpic_methods[] = {
 	X86PIC_END
 };
 
-PRIVATE_DEFINE_CLASSN("atpic", atpic_driver, atpic_methods, 0);
+PRIVATE_DEFINE_CLASSN("atpic", atpic_driver, atpic_methods, 0, pic_base_class);
 
 static struct atpic atpics[] = {
 	ATPIC(IO_ICU1, 0),

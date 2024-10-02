@@ -493,7 +493,7 @@ static device_method_t lapic_methods[] = {
 	X86PIC_END
 };
 
-PRIVATE_DEFINE_CLASSN("lapic", lapic_class, lapic_methods, 0);
+PRIVATE_DEFINE_CLASSN("lapic", lapic_class, lapic_methods, 0, pic_bass_class);
 
 static uint32_t
 lvt_mode_impl(struct lapic *la, struct lvt *lvt, u_int pin, uint32_t value)

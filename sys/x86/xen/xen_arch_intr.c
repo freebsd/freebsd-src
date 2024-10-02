@@ -258,7 +258,8 @@ static device_method_t xen_intr_methods[] = {
 	X86PIC_END
 };
 
-PRIVATE_DEFINE_CLASSN("xen_intr", xen_arch_intr_class, xen_intr_methods, 0);
+PRIVATE_DEFINE_CLASSN("xen_intr", xen_arch_intr_class, xen_intr_methods, 0,
+    pic_base_class);
 
 static device_t xen_intr_pic;
 
