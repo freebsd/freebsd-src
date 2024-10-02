@@ -131,11 +131,8 @@ static device_method_t  llan_methods[] = {
         DEVMETHOD_END
 };
 
-static driver_t llan_driver = {
-        "llan",
-        llan_methods,
-        sizeof(struct llan_softc)
-};
+PRIVATE_DEFINE_CLASSN(llan, llan_driver, llan_methods,
+    sizeof(struct llan_softc));
 
 DRIVER_MODULE(llan, vdevice, llan_driver, 0, 0);
 

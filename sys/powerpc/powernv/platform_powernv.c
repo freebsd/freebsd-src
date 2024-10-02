@@ -99,7 +99,8 @@ static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_node_numa_domain,	powernv_node_numa_domain),
 
 	PLATFORMMETHOD(platform_reset,		powernv_reset),
-	{ 0, 0 }
+
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t powernv_platform = {

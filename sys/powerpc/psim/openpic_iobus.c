@@ -77,14 +77,12 @@ static device_method_t  openpic_iobus_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t openpic_iobus_driver = {
-	"openpic",
-	openpic_iobus_methods,
-	sizeof(struct openpic_softc)
-};
+PRIVATE_DEFINE_CLASSN(openpic, openpic_iobus_driver, openpic_iobus_methods,
+    sizeof(struct openpic_softc));
 
 DRIVER_MODULE(openpic, iobus, openpic_iobus_driver, 0, 0);
 

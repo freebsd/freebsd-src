@@ -529,7 +529,7 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 struct openpic_cpcht_softc {
@@ -538,11 +538,8 @@ struct openpic_cpcht_softc {
 	struct mtx sc_ht_mtx;
 };
 
-static driver_t openpic_cpcht_driver = {
-	"htpic",
-	openpic_cpcht_methods,
-	sizeof(struct openpic_cpcht_softc),
-};
+PRIVATE_DEFINE_CLASSN(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
+    sizeof(struct openpic_cpcht_softc));
 
 EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
     BUS_PASS_INTERRUPT);
