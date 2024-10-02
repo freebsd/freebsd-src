@@ -398,8 +398,17 @@ acpi_cmbat_get_bix(void *arg)
 	        sc->bix.rev != ACPI_BIX_REV_1)
 		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_1);
 	} else if (ACPI_PKG_VALID_EQ(res, 20)) {/* ACPI 4.0 _BIX */
-	    if (sc->bix.rev != ACPI_BIX_REV_0)
-		ACPI_BIX_REV_MISMATCH_ERR(sc->bix.rev, ACPI_BIX_REV_0);
+	    /*
+	     * Some models claim to be rev.1, but have a _BIX with only 20
+	     * members. Be lenient and treat this as a valid rev.0 _BIX.
+	     */
+	    if (sc->bix.rev != ACPI_BIX_REV_0) {
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "_BIX containing too few objects for revision %u. "
+		    "Treating as revision %u instead.\n",
+		    sc->bix.rev, ACPI_BIX_REV_0);
+		sc->bix.rev = ACPI_BIX_REV_0;
+            }
 	} else if (ACPI_PKG_VALID(res, 22)) {
 	    /* _BIX with 22 or more members. */
 	    if (ACPI_BIX_REV_MIN_CHECK(sc->bix.rev, ACPI_BIX_REV_1 + 1)) {
