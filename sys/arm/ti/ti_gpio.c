@@ -1117,4 +1117,4 @@ static device_method_t ti_gpio_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(gpio, ti_gpio_driver, ti_gpio_methods,
-    sizeof(struct ti_gpio_softc));
+    sizeof(struct ti_gpio_softc), pic_base_class);

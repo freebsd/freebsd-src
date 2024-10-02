@@ -442,7 +442,7 @@ static device_method_t bcm_intc_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(intc, bcm_intc_driver, bcm_intc_methods,
-    sizeof(struct bcm_intc_softc));
+    sizeof(struct bcm_intc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
