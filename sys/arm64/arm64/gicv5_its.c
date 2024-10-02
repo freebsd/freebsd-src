@@ -337,8 +337,8 @@ static device_method_t gicv5_its_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gic, gicv5_its_driver, gicv5_its_methods,
-    sizeof(struct gicv5_its_softc));
+PRIVATE_DEFINE_CLASSN("gic", gicv5_its_driver, gicv5_its_methods,
+    sizeof(struct gicv5_its_softc), pic_base_class);
 
 static void
 its_write_cr0(struct gicv5_its_softc *sc, bool en)
@@ -1167,7 +1167,7 @@ static device_method_t gicv5_its_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(its, gicv5_its_fdt_driver, gicv5_its_fdt_methods,
+PRIVATE_DEFINE_CLASSN("its", gicv5_its_fdt_driver, gicv5_its_fdt_methods,
     sizeof(struct gicv5_its_softc), gicv5_its_driver);
 
 EARLY_DRIVER_MODULE(itsv5_fdt, gic, gicv5_its_fdt_driver, 0, 0,
