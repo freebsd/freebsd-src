@@ -18,7 +18,6 @@ DIRDEPS = \
 	gnu/usr.bin/binutils/libopcodes \
 	gnu/usr.bin/binutils/objdump \
 	gnu/usr.bin/dialog \
-	gnu/usr.bin/diff3 \
 	gnu/usr.bin/gdb/doc \
 	gnu/usr.bin/gdb/gdb \
 	gnu/usr.bin/gdb/gdbserver \
