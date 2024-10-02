@@ -189,9 +189,9 @@ struct xive_cpu {
 };
 
 PRIVATE_DEFINE_CLASSN(xive, xive_driver, xive_methods,
-    sizeof(struct xive_softc));
+    sizeof(struct xive_softc), pic_hw_class);
 
-PRIVATE_DEFINE_CLASSN(xivevc, xics_driver, xics_methods, 0);
+PRIVATE_DEFINE_CLASSN(xivevc, xics_driver, xics_methods, 0, pic_hw_class);
 
 EARLY_DRIVER_MODULE(xive, ofwbus, xive_driver, 0, 0, BUS_PASS_INTERRUPT - 1);
 EARLY_DRIVER_MODULE(xivevc, ofwbus, xics_driver, 0, 0, BUS_PASS_INTERRUPT);

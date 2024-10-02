@@ -129,9 +129,9 @@ struct xicp_softc {
 };
 
 PRIVATE_DEFINE_CLASSN(xicp, xicp_driver, xicp_methods,
-    sizeof(struct xicp_softc));
+    sizeof(struct xicp_softc), pic_hw_class);
 
-PRIVATE_DEFINE_CLASSN(xics, xics_driver, xics_methods, 0);
+PRIVATE_DEFINE_CLASSN(xics, xics_driver, xics_methods, 0, pic_hw_class);
 
 #ifdef POWERNV
 /* We can only pass physical addresses into OPAL.  Kernel stacks are in the KVA,
