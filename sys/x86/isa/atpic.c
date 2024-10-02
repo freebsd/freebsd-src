@@ -105,12 +105,15 @@ inthand_t
 	}
 
 struct atpic {
+	pic_base_softc_t	pic_base_softc;
 	x86pics_t	at_pic;
 	int	at_ioaddr;
 	int	at_irqbase;
 	uint8_t	at_intbase;
 	uint8_t	at_imen;
 };
+_Static_assert(offsetof(struct atpic, pic_base_softc) == 0,
+    ".pic_base_softc misaligned from structure!");
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
