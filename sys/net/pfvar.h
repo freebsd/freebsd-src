@@ -761,18 +761,13 @@ struct pf_keth_rule {
 	uint32_t		ridentifier;
 };
 
-union pf_krule_ptr {
-	struct pf_krule		*ptr;
-	u_int32_t		 nr;
-};
-
 RB_HEAD(pf_krule_global, pf_krule);
 RB_PROTOTYPE(pf_krule_global, pf_krule, entry_global, pf_krule_compare);
 
 struct pf_krule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
-	union pf_krule_ptr	 skip[PF_SKIP_COUNT];
+	struct pf_krule		*skip[PF_SKIP_COUNT];
 	char			 label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
 	uint32_t		 ridentifier;
 	char			 ifname[IFNAMSIZ];
@@ -889,7 +884,7 @@ struct pf_ksrc_node {
 	struct pf_addr		 addr;
 	struct pf_addr		 raddr;
 	struct pf_krule_slist	 match_rules;
-	union pf_krule_ptr	 rule;
+	struct pf_krule		*rule;
 	struct pfi_kkif		*rkif;
 	counter_u64_t		 bytes[2];
 	counter_u64_t		 packets[2];
@@ -1089,9 +1084,9 @@ struct pf_kstate {
 	struct pf_state_peer	 src;
 	struct pf_state_peer	 dst;
 	struct pf_krule_slist	 match_rules;
-	union pf_krule_ptr	 rule;
-	union pf_krule_ptr	 anchor;
-	union pf_krule_ptr	 nat_rule;
+	struct pf_krule		*rule;
+	struct pf_krule		*anchor;
+	struct pf_krule		*nat_rule;
 	struct pf_addr		 rt_addr;
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
 	struct pf_udp_mapping	*udp_mapping;

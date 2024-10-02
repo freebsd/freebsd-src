@@ -1079,21 +1079,21 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP].ptr;
+			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR].ptr;
+			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != AF_INET)
-			r = r->skip[PF_SKIP_AF].ptr;
+			r = r->skip[PF_SKIP_AF];
 		else if (r->proto && r->proto != h->ip_p)
-			r = r->skip[PF_SKIP_PROTO].ptr;
+			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr,
 		    (struct pf_addr *)&h->ip_src.s_addr, AF_INET,
 		    r->src.neg, kif, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
+			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (PF_MISMATCHAW(&r->dst.addr,
 		    (struct pf_addr *)&h->ip_dst.s_addr, AF_INET,
 		    r->dst.neg, NULL, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+			r = r->skip[PF_SKIP_DST_ADDR];
 		else if (r->match_tag && !pf_match_tag(m, r, &tag,
 		    pd->pf_mtag ? pd->pf_mtag->tag : 0))
 			r = TAILQ_NEXT(r, entries);
@@ -1242,23 +1242,23 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP].ptr;
+			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR].ptr;
+			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != AF_INET6)
-			r = r->skip[PF_SKIP_AF].ptr;
+			r = r->skip[PF_SKIP_AF];
 #if 0 /* header chain! */
 		else if (r->proto && r->proto != h->ip6_nxt)
-			r = r->skip[PF_SKIP_PROTO].ptr;
+			r = r->skip[PF_SKIP_PROTO];
 #endif
 		else if (PF_MISMATCHAW(&r->src.addr,
 		    (struct pf_addr *)&h->ip6_src, AF_INET6,
 		    r->src.neg, kif, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
+			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (PF_MISMATCHAW(&r->dst.addr,
 		    (struct pf_addr *)&h->ip6_dst, AF_INET6,
 		    r->dst.neg, NULL, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+			r = r->skip[PF_SKIP_DST_ADDR];
 		else
 			break;
 	}
@@ -1406,25 +1406,25 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP].ptr;
+			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR].ptr;
+			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != af)
-			r = r->skip[PF_SKIP_AF].ptr;
+			r = r->skip[PF_SKIP_AF];
 		else if (r->proto && r->proto != pd->proto)
-			r = r->skip[PF_SKIP_PROTO].ptr;
+			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
 		    r->src.neg, kif, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
+			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 			    r->src.port[0], r->src.port[1], th->th_sport))
-			r = r->skip[PF_SKIP_SRC_PORT].ptr;
+			r = r->skip[PF_SKIP_SRC_PORT];
 		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af,
 		    r->dst.neg, NULL, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+			r = r->skip[PF_SKIP_DST_ADDR];
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
 			    r->dst.port[0], r->dst.port[1], th->th_dport))
-			r = r->skip[PF_SKIP_DST_PORT].ptr;
+			r = r->skip[PF_SKIP_DST_PORT];
 		else if (r->os_fingerprint != PF_OSFP_ANY && !pf_osfp_match(
 			    pf_osfp_fingerprint(pd, m, off, th),
 			    r->os_fingerprint))
@@ -1855,7 +1855,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 * packet got delayed in transit for much longer than
 		 * this packet.
 		 */
-		if ((ts_fudge = state->rule.ptr->timeout[PFTM_TS_DIFF]) == 0)
+		if ((ts_fudge = state->rule->timeout[PFTM_TS_DIFF]) == 0)
 			ts_fudge = V_pf_default_rule.timeout[PFTM_TS_DIFF];
 
 		/* Calculate max ticks since the last timestamp */
@@ -2212,25 +2212,25 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP].ptr;
+			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != dir)
-			r = r->skip[PF_SKIP_DIR].ptr;
+			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != af)
-			r = r->skip[PF_SKIP_AF].ptr;
+			r = r->skip[PF_SKIP_AF];
 		else if (r->proto && r->proto != pd->proto)
-			r = r->skip[PF_SKIP_PROTO].ptr;
+			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
 		    r->src.neg, kif, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
+			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 			    r->src.port[0], r->src.port[1], sh->src_port))
-			r = r->skip[PF_SKIP_SRC_PORT].ptr;
+			r = r->skip[PF_SKIP_SRC_PORT];
 		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af,
 		    r->dst.neg, NULL, M_GETFIB(m)))
-			r = r->skip[PF_SKIP_DST_ADDR].ptr;
+			r = r->skip[PF_SKIP_DST_ADDR];
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
 			    r->dst.port[0], r->dst.port[1], sh->dest_port))
-			r = r->skip[PF_SKIP_DST_PORT].ptr;
+			r = r->skip[PF_SKIP_DST_PORT];
 		else {
 			rm = r;
 			break;
