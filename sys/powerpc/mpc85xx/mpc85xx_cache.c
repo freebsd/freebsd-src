@@ -147,11 +147,8 @@ static device_method_t mpc85xx_cache_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mpc85xx_cache_driver = {
-	"cache",
-	mpc85xx_cache_methods,
-	sizeof(struct mpc85xx_cache_softc),
-};
+PRIVATE_DEFINE_CLASSN(cache, mpc85xx_cache_driver, mpc85xx_cache_methods,
+    sizeof(struct mpc85xx_cache_softc));
 
 EARLY_DRIVER_MODULE(mpc85xx_cache, simplebus, mpc85xx_cache_driver, NULL, NULL,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

@@ -143,11 +143,8 @@ struct ps3bus_softc {
 	int rcount;
 };
 
-static driver_t ps3bus_driver = {
-	"ps3bus",
-	ps3bus_methods,
-	sizeof(struct ps3bus_softc)
-};
+PRIVATE_DEFINE_CLASSN(ps3bus, ps3bus_driver, ps3bus_methods,
+    sizeof(struct ps3bus_softc));
 
 DRIVER_MODULE(ps3bus, nexus, ps3bus_driver, 0, 0);
 

@@ -98,6 +98,7 @@ static device_method_t ata_kauai_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,		ata_kauai_setmode),
+
 	DEVMETHOD_END
 };
 
@@ -113,11 +114,8 @@ struct ata_kauai_softc {
 	uint32_t pioconf[2];
 };
 
-static driver_t ata_kauai_driver = {
-	"ata",
-	ata_kauai_methods,
-	sizeof(struct ata_kauai_softc),
-};
+PRIVATE_DEFINE_CLASSN(ata, ata_kauai_driver, ata_kauai_methods,
+    sizeof(struct ata_kauai_softc));
 
 DRIVER_MODULE(ata, pci, ata_kauai_driver, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
