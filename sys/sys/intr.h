@@ -46,7 +46,10 @@ typedef struct intr_irqsrc interrupt_t;
 #include <sys/_cpuset.h>
 #include <sys/_types_interrupt.h>
 #include <sys/_types.h>
+#include <sys/kobj.h>
 #include <sys/param.h>
+
+DECLARE_CLASS(pic_base_class);
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
