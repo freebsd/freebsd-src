@@ -1032,6 +1032,7 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pcib, jh7110_pcie_driver, jh7110_pcie_methods,
-    sizeof(struct jh7110_pcie_softc), ofw_pcib_driver);
+PRIVATE_DEFINE_CLASSN(pcib, jh7110_pcie_driver, jh7110_pcie_methods,
+    sizeof(struct jh7110_pcie_softc), pic_base_class, ofw_pcib_driver);
+
 DRIVER_MODULE(jh7110_pcie, simplebus, jh7110_pcie_driver, NULL, NULL);
