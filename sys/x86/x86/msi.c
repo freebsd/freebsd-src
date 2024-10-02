@@ -154,7 +154,8 @@ static device_method_t msi_methods[] = {
 	X86PIC_END
 };
 
-PRIVATE_DEFINE_CLASSN("msi", msi_class, msi_methods, 0, pic_base_class);
+PRIVATE_DEFINE_CLASSN("msi", msi_class, msi_methods, sizeof(pic_base_softc_t),
+    pic_base_class);
 
 static device_t msi_pic;
 
