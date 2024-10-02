@@ -1078,13 +1078,18 @@ send:
 				sbsndptr_adv(&so->so_snd, mb, len);
 			m->m_len += len;
 		} else {
+			int32_t old_len;
+
 			if (SEQ_LT(tp->snd_nxt, tp->snd_max))
 				msb = NULL;
 			else
 				msb = &so->so_snd;
+			old_len = len;
 			m->m_next = tcp_m_copym(mb, moff,
 			    &len, if_hw_tsomaxsegcount,
 			    if_hw_tsomaxsegsize, msb, hw_tls);
+			if (old_len != len)
+				flags &= ~TH_FIN;
 			if (len <= (tp->t_maxseg - optlen)) {
 				/*
 				 * Must have ran out of mbufs for the copy
