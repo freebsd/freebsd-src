@@ -177,7 +177,8 @@ static device_method_t gicv5_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(gic, gicv5_driver, gicv5_methods, sizeof(struct gicv5_softc));
+PUBLIC_DEFINE_CLASSN("gic", gicv5_driver, gicv5_methods,
+    sizeof(struct gicv5_softc), pic_base_class);
 
 static int
 gicv5_wait_for_op(struct gicv5_irs *irs, bus_size_t reg, uint32_t mask,
