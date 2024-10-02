@@ -54,9 +54,11 @@
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
+
 #include <machine/clock.h>
 #include <machine/interrupt.h>
 #include <machine/smp.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -441,6 +443,13 @@ intr_assign_cpu(void *arg, int cpu)
 	return (EOPNOTSUPP);
 #endif
 }
+
+static device_method_t pic_base_methods[] = {
+	DEVMETHOD_END
+};
+
+PUBLIC_DEFINE_CLASSN(pic_base, pic_base_class, pic_base_methods,
+    sizeof(pic_base_softc_t));
 
 static void
 intrcnt_setname(const char *name, int index)
