@@ -552,7 +552,8 @@ static device_method_t aplic_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(aplic, aplic_driver, aplic_methods, sizeof(struct aplic_softc));
+PRIVATE_DEFINE_CLASSN(aplic, aplic_driver, aplic_methods,
+    sizeof(struct aplic_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aplic, simplebus, aplic_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
