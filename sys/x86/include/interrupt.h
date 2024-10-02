@@ -30,6 +30,8 @@
 
 #ifdef _KERNEL
 
+#define INTR_EVENT_SOURCE_POINTERS
+
 /* FreeBSD standard interrupt controller interface */
 
 typedef struct intsrc interrupt_t;

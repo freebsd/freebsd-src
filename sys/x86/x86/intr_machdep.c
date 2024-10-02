@@ -103,10 +103,10 @@ int nintrcnt;
 
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 
-static int	intr_assign_cpu(void *arg, int cpu);
-static void	intr_disable_src(void *arg);
-static void	intr_enable_source(void *arg);
-static void	intr_eoi_source(void *arg);
+static intr_event_assign_cpu_t		intr_assign_cpu;
+static intr_event_pre_ithread_t		intr_disable_src;
+static intr_event_post_ithread_t	intr_enable_source;
+static intr_event_post_filter_t		intr_eoi_source;
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(x86pic_t pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -264,9 +264,8 @@ intr_register_source(u_int vector, struct intsrc *isrc)
 	    num_io_irqs));
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-	error = intr_event_create(&isrc->is_event, isrc, 0, vector,
-	    intr_disable_src, intr_enable_source, intr_eoi_source,
-	    intr_assign_cpu, "irq%d:", vector);
+	error = intr_event_create_device(&isrc->is_event, isrc->is_pic, isrc,
+	    vector, 0, "irq%d:", vector);
 	if (error)
 		return (error);
 	sx_xlock(&intrsrc_lock);
@@ -342,26 +341,22 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-intr_disable_src(void *arg)
+intr_disable_src(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc;
 
-	isrc = arg;
 	PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
-intr_enable_source(void *arg)
+intr_enable_source(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc = arg;
 
 	PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
-intr_eoi_source(void *arg)
+intr_eoi_source(device_t pic, interrupt_t *isrc)
 {
-	struct intsrc *isrc = arg;
 
 	PIC_EOI_SOURCE(isrc->is_pic, isrc);
 }
@@ -437,17 +432,15 @@ intr_suspend(void)
 }
 
 static int
-intr_assign_cpu(void *arg, int cpu)
+intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 {
 #ifdef SMP
-	struct intsrc *isrc;
 	int error;
 
 	MPASS(mp_ncpus == 1 || smp_started);
 
 	/* Nothing to do if there is only a single CPU. */
 	if (mp_ncpus > 1 && cpu != NOCPU) {
-		isrc = arg;
 		sx_xlock(&intrsrc_lock);
 		error = PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
 		if (error == 0)
@@ -462,6 +455,11 @@ intr_assign_cpu(void *arg, int cpu)
 }
 
 static device_method_t pic_base_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	intr_disable_src),
+	DEVMETHOD(intr_event_post_ithread,	intr_enable_source),
+	DEVMETHOD(intr_event_post_filter,	intr_eoi_source),
+	DEVMETHOD(intr_event_assign_cpu,	intr_assign_cpu),
+
 	DEVMETHOD_END
 };
 
