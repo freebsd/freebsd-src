@@ -675,6 +675,12 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 #endif
 }
 
+static device_method_t pic_base_methods[] = {
+	DEVMETHOD_END
+};
+
+PUBLIC_DEFINE_CLASSN(pic_base, pic_base_class, pic_base_methods, 0);
+
 /*
  *  Create interrupt event for interrupt source.
  */
