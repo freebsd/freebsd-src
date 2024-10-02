@@ -38,7 +38,10 @@ typedef struct intsrc interrupt_t;
 
 #include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
+#include <sys/kobj.h>
 #include <sys/types.h>
+
+DECLARE_CLASS(pic_base_class);
 
 /*
  * Values used in determining the allocation of IRQ values among
