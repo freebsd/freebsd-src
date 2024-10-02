@@ -4214,7 +4214,7 @@ tos	: STRING			{
 		| NUMBER			{
 			$$ = $1;
 			if ($$ < 0 || $$ > 255) {
-				yyerror("illegal tos value %s", $1);
+				yyerror("illegal tos value %lu", $1);
 				YYERROR;
 			}
 		}
