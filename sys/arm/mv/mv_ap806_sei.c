@@ -495,11 +495,8 @@ static device_method_t mv_ap806_sei_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_ap806_sei_driver = {
-	"mv_ap806_sei",
-	mv_ap806_sei_methods,
-	sizeof(struct mv_ap806_sei_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_ap806_sei, mv_ap806_sei_driver, mv_ap806_sei_methods,
+    sizeof(struct mv_ap806_sei_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_ap806_sei, simplebus, mv_ap806_sei_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

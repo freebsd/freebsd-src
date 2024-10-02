@@ -292,14 +292,12 @@ static device_method_t ti_aintc_methods[] = {
 	DEVMETHOD(pic_post_filter,	ti_aintc_post_filter),
 	DEVMETHOD(pic_post_ithread,	ti_aintc_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	ti_aintc_pre_ithread),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t ti_aintc_driver = {
-	"ti_aintc",
-	ti_aintc_methods,
-	sizeof(struct ti_aintc_softc),
-};
+PRIVATE_DEFINE_CLASSN(ti_aintc, ti_aintc_driver, ti_aintc_methods,
+    sizeof(struct ti_aintc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(ti_aintc, simplebus, ti_aintc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

@@ -1076,11 +1076,8 @@ static device_method_t ti_gpio_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node, ti_gpio_get_node),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-driver_t ti_gpio_driver = {
-	"gpio",
-	ti_gpio_methods,
-	sizeof(struct ti_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, ti_gpio_driver, ti_gpio_methods,
+    sizeof(struct ti_gpio_softc), pic_base_class);

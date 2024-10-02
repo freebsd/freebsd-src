@@ -194,11 +194,8 @@ static device_method_t mv_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_gpio_driver = {
-	"gpio",
-	mv_gpio_methods,
-	sizeof(struct mv_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, mv_gpio_driver, mv_gpio_methods,
+    sizeof(struct mv_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

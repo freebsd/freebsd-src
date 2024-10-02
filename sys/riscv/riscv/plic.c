@@ -531,11 +531,8 @@ static device_method_t plic_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t plic_driver = {
-	"plic",
-	plic_methods,
-	sizeof(struct plic_softc),
-};
+PRIVATE_DEFINE_CLASSN(plic, plic_driver, plic_methods,
+    sizeof(struct plic_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(plic, simplebus, plic_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

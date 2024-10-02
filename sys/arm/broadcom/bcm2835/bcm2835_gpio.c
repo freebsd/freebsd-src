@@ -1355,11 +1355,8 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_gpio_driver = {
-	"gpio",
-	bcm_gpio_methods,
-	sizeof(struct bcm_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, bcm_gpio_driver, bcm_gpio_methods,
+    sizeof(struct bcm_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(bcm_gpio, simplebus, bcm_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

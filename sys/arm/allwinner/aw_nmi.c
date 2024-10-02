@@ -403,14 +403,11 @@ static device_method_t aw_nmi_methods[] = {
 	DEVMETHOD(pic_post_ithread,	aw_nmi_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	aw_nmi_pre_ithread),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t aw_nmi_driver = {
-	"aw_nmi",
-	aw_nmi_methods,
-	sizeof(struct aw_nmi_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_nmi, aw_nmi_driver, aw_nmi_methods,
+    sizeof(struct aw_nmi_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
