@@ -30,6 +30,10 @@
 
 #ifdef _KERNEL
 
+#include <sys/kobj.h>
+
+DECLARE_CLASS(pic_base_class);
+
 /*
  * Values used in determining the allocation of IRQ values among
  * different types of I/O interrupts.  These values are used as
