@@ -64,9 +64,9 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
 static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
-			    int, struct pfi_kkif *,
-			    struct pf_addr *, u_int16_t, struct pf_addr *,
-			    uint16_t, int, struct pf_kanchor_stackframe *);
+			    struct pfi_kkif *, struct pf_addr *, u_int16_t,
+			    struct pf_addr *, uint16_t, int,
+			    struct pf_kanchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
     uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **,
@@ -131,7 +131,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 }
 
 static struct pf_krule *
-pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
+pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
     struct pfi_kkif *kif, struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
     struct pf_kanchor_stackframe *anchor_stack)
@@ -189,7 +189,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			r = TAILQ_NEXT(r, entries);
 		else if (r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
 		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd, m,
-		    off, &pd->hdr.tcp), r->os_fingerprint)))
+		    &pd->hdr.tcp), r->os_fingerprint)))
 			r = TAILQ_NEXT(r, entries);
 		else {
 			if (r->tag)
@@ -717,17 +717,17 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	*rp = NULL;
 
 	if (pd->dir == PF_OUT) {
-		r = pf_match_translation(pd, m, off, kif, saddr,
+		r = pf_match_translation(pd, m, kif, saddr,
 		    sport, daddr, dport, PF_RULESET_BINAT, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m, off, kif,
+			r = pf_match_translation(pd, m, kif,
 			    saddr, sport, daddr, dport, PF_RULESET_NAT,
 			    anchor_stack);
 	} else {
-		r = pf_match_translation(pd, m, off, kif, saddr,
+		r = pf_match_translation(pd, m, kif, saddr,
 		    sport, daddr, dport, PF_RULESET_RDR, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m, off, kif,
+			r = pf_match_translation(pd, m, kif,
 			    saddr, sport, daddr, dport, PF_RULESET_BINAT,
 			    anchor_stack);
 	}
@@ -742,7 +742,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		return (PFRES_MAX);
 	}
 
-	*skp = pf_state_key_setup(pd, m, off, saddr, daddr, sport, dport);
+	*skp = pf_state_key_setup(pd, m, saddr, daddr, sport, dport);
 	if (*skp == NULL)
 		return (PFRES_MEMORY);
 	*nkp = pf_state_key_clone(*skp);

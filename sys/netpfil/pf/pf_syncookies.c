@@ -119,7 +119,7 @@ void		pf_syncookie_rotate(void *);
 void		pf_syncookie_newkey(void);
 uint32_t	pf_syncookie_mac(struct pf_pdesc *, union pf_syncookie,
 		    uint32_t);
-uint32_t	pf_syncookie_generate(struct mbuf *m, int off, struct pf_pdesc *,
+uint32_t	pf_syncookie_generate(struct mbuf *m, struct pf_pdesc *,
 		    uint16_t);
 
 void
@@ -290,13 +290,13 @@ pf_synflood_check(struct pf_pdesc *pd)
 }
 
 void
-pf_syncookie_send(struct mbuf *m, int off, struct pf_pdesc *pd)
+pf_syncookie_send(struct mbuf *m, struct pf_pdesc *pd)
 {
 	uint16_t	mss;
 	uint32_t	iss;
 
-	mss = max(V_tcp_mssdflt, pf_get_mss(m, off, pd->hdr.tcp.th_off, pd->af));
-	iss = pf_syncookie_generate(m, off, pd, mss);
+	mss = max(V_tcp_mssdflt, pf_get_mss(m, pd));
+	iss = pf_syncookie_generate(m, pd, mss);
 	pf_send_tcp(NULL, pd->af, pd->dst, pd->src, *pd->dport, *pd->sport,
 	    iss, ntohl(pd->hdr.tcp.th_seq) + 1, TH_SYN|TH_ACK, 0, mss,
 	    0, true, 0, 0, pd->act.rtableid);
@@ -457,8 +457,7 @@ pf_syncookie_mac(struct pf_pdesc *pd, union pf_syncookie cookie, uint32_t seq)
 }
 
 uint32_t
-pf_syncookie_generate(struct mbuf *m, int off, struct pf_pdesc *pd,
-    uint16_t mss)
+pf_syncookie_generate(struct mbuf *m, struct pf_pdesc *pd, uint16_t mss)
 {
 	uint8_t			 i, wscale;
 	uint32_t		 iss, hash;
@@ -475,7 +474,7 @@ pf_syncookie_generate(struct mbuf *m, int off, struct pf_pdesc *pd,
 	cookie.flags.mss_idx = i;
 
 	/* map WSCALE */
-	wscale = pf_get_wscale(m, off, pd->hdr.tcp.th_off, pd->af);
+	wscale = pf_get_wscale(m, pd);
 	for (i = nitems(pf_syncookie_wstab) - 1;
 	    pf_syncookie_wstab[i] > wscale && i > 0; i--)
 		/* nada */;
