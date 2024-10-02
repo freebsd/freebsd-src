@@ -8640,6 +8640,10 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 
 	pd->af = af;
 	pd->dir = dir;
+	pd->sidx = (dir == PF_IN) ? 0 : 1;
+	pd->didx = (dir == PF_IN) ? 1 : 0;
+	*off = 0;
+	*hdrlen = 0;
 
 	TAILQ_INIT(&pd->sctp_multihome_jobs);
 	if (default_actions != NULL)
@@ -8680,13 +8684,9 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 		pd->src = (struct pf_addr *)&h->ip_src;
 		pd->dst = (struct pf_addr *)&h->ip_dst;
-		pd->sport = pd->dport = NULL;
 		pd->ip_sum = &h->ip_sum;
 		pd->proto_sum = NULL;
 		pd->virtual_proto = pd->proto = h->ip_p;
-		pd->dir = dir;
-		pd->sidx = (dir == PF_IN) ? 0 : 1;
-		pd->didx = (dir == PF_IN) ? 1 : 0;
 		pd->tos = h->ip_tos;
 		pd->ttl = h->ip_ttl;
 		pd->tot_len = ntohs(h->ip_len);
@@ -8729,12 +8729,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		h = mtod(m, struct ip6_hdr *);
 		pd->src = (struct pf_addr *)&h->ip6_src;
 		pd->dst = (struct pf_addr *)&h->ip6_dst;
-		pd->sport = pd->dport = NULL;
 		pd->ip_sum = NULL;
 		pd->proto_sum = NULL;
-		pd->dir = dir;
-		pd->sidx = (dir == PF_IN) ? 0 : 1;
-		pd->didx = (dir == PF_IN) ? 1 : 0;
 		pd->tos = IPV6_DSCP(h);
 		pd->ttl = h->ip6_hlim;
 		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
