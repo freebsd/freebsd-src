@@ -111,12 +111,17 @@ inthand_t
 	}
 
 struct atpic {
+	pic_base_softc_t	pic_base_softc;
 	x86pics_t	at_pic;
 	int	at_ioaddr;
 	int	at_irqbase;
 	uint8_t	at_intbase;
 	uint8_t	at_imen;
 };
+_Static_assert(offsetof(struct atpic, pic_base_softc) == 0,
+    ".pic_base_softc misaligned from structure!");
+_Static_assert(offsetof(struct atpic, at_pic) == 0,
+    ".at_pic misaligned from structure!");
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
@@ -173,7 +178,7 @@ const x86pic_func_t atpic_funcs = {
 };
 
 #ifdef DEV_ISA
-PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0 /* no softc */);
+PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
 #endif /* DEV_ISA */
 
 static struct atpic atpics[] = {
