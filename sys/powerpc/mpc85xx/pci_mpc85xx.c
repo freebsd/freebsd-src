@@ -947,11 +947,8 @@ static device_method_t fsl_msi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t fsl_msi_driver = {
-	"fsl_msi",
-	fsl_msi_methods,
-	sizeof(struct fsl_msi_softc)
-};
+PRIVATE_DEFINE_CLASSN(fsl_msi, fsl_msi_driver, fsl_msi_methods,
+    sizeof(struct fsl_msi_softc));
 
 EARLY_DRIVER_MODULE(fsl_msi, simplebus, fsl_msi_driver, 0, 0,
     BUS_PASS_INTERRUPT + 1);

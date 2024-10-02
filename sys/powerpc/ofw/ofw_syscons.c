@@ -1032,14 +1032,12 @@ static device_method_t ofwfb_sc_methods[] = {
   	DEVMETHOD(device_identify,	ofwfb_scidentify),
 	DEVMETHOD(device_probe,		ofwfb_scprobe),
 	DEVMETHOD(device_attach,	ofwfb_scattach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t ofwfb_sc_driver = {
-	SC_DRIVER_NAME,
-	ofwfb_sc_methods,
-	sizeof(sc_softc_t),
-};
+PRIVATE_DEFINE_CLASSN(SC_DRIVER_NAME, ofwfb_sc_driver, ofwfb_sc_methods,
+    sizeof(sc_softc_t));
 
 DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, 0, 0);
 
