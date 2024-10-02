@@ -112,6 +112,7 @@ static int		unp_rights;	/* (g) File descriptors in flight. */
 static struct unp_head	unp_shead;	/* (l) List of stream sockets. */
 static struct unp_head	unp_dhead;	/* (l) List of datagram sockets. */
 static struct unp_head	unp_sphead;	/* (l) List of seqpacket sockets. */
+static struct mtx_pool	*unp_vp_mtxpool;
 
 struct unp_defer {
 	SLIST_ENTRY(unp_defer) ud_link;
@@ -679,7 +680,7 @@ uipc_close(struct socket *so)
 
 	vplock = NULL;
 	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 		mtx_lock(vplock);
 	}
 	UNP_PCB_LOCK(unp);
@@ -748,7 +749,7 @@ uipc_detach(struct socket *so)
 	UNP_PCB_UNLOCK_ASSERT(unp);
  restart:
 	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 		mtx_lock(vplock);
 	}
 	UNP_PCB_LOCK(unp);
@@ -1953,7 +1954,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
 
-	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp2);
 	if (unp2 == NULL) {
@@ -2561,6 +2562,7 @@ unp_init(void *arg __unused)
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
 	UNP_DEFERRED_LOCK_INIT();
+	unp_vp_mtxpool = mtx_pool_create("unp vp mtxpool", 32, MTX_DEF);
 }
 SYSINIT(unp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, unp_init, NULL);
 
@@ -3441,7 +3443,7 @@ vfs_unp_reclaim(struct vnode *vp)
 	    ("vfs_unp_reclaim: vp->v_type != VSOCK"));
 
 	active = 0;
-	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp);
 	if (unp == NULL)
