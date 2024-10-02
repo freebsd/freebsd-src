@@ -1287,8 +1287,7 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 #endif /* INET6 */
 
 int
-pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
-    int off, struct pf_pdesc *pd)
+pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct tcphdr	*th = &pd->hdr.tcp;
@@ -1327,7 +1326,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 			    r->dst.port[0], r->dst.port[1], th->th_dport))
 			r = r->skip[PF_SKIP_DST_PORT];
 		else if (r->os_fingerprint != PF_OSFP_ANY && !pf_osfp_match(
-			    pf_osfp_fingerprint(pd, m, off, th),
+			    pf_osfp_fingerprint(pd, m, th),
 			    r->os_fingerprint))
 			r = TAILQ_NEXT(r, entries);
 		else {
@@ -1400,7 +1399,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 
 	/* copy back packet headers if we sanitized */
 	if (rewrite)
-		m_copyback(m, off, sizeof(*th), (caddr_t)th);
+		m_copyback(m, pd->off, sizeof(*th), (caddr_t)th);
 
 	return (PF_PASS);
 
@@ -1412,7 +1411,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 }
 
 int
-pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
+pf_normalize_tcp_init(struct mbuf *m, struct pf_pdesc *pd,
     struct tcphdr *th, struct pf_state_peer *src, struct pf_state_peer *dst)
 {
 	u_int32_t tsval, tsecr;
@@ -1451,7 +1450,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 		return (0);
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) && src->scrub &&
-	    pf_pull_hdr(m, off, hdr, th->th_off << 2, NULL, NULL, pd->af)) {
+	    pf_pull_hdr(m, pd->off, hdr, th->th_off << 2, NULL, NULL, pd->af)) {
 		/* Diddle with TCP options */
 		int hlen;
 		opt = hdr + sizeof(struct tcphdr);
@@ -1502,7 +1501,7 @@ pf_normalize_tcp_cleanup(struct pf_kstate *state)
 	/* Someday... flush the TCP segment reassembly descriptors. */
 }
 int
-pf_normalize_sctp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
+pf_normalize_sctp_init(struct mbuf *m, struct pf_pdesc *pd,
 	    struct pf_state_peer *src, struct pf_state_peer *dst)
 {
 	src->scrub = uma_zalloc(V_pf_state_scrub_z, M_ZERO | M_NOWAIT);
@@ -1521,7 +1520,7 @@ pf_normalize_sctp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 int
-pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
+pf_normalize_tcp_stateful(struct mbuf *m, struct pf_pdesc *pd,
     u_short *reason, struct tcphdr *th, struct pf_kstate *state,
     struct pf_state_peer *src, struct pf_state_peer *dst, int *writeback)
 {
@@ -1570,7 +1569,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) &&
 	    ((src->scrub && (src->scrub->pfss_flags & PFSS_TIMESTAMP)) ||
 	    (dst->scrub && (dst->scrub->pfss_flags & PFSS_TIMESTAMP))) &&
-	    pf_pull_hdr(m, off, hdr, th->th_off << 2, NULL, NULL, pd->af)) {
+	    pf_pull_hdr(m, pd->off, hdr, th->th_off << 2, NULL, NULL, pd->af)) {
 		/* Diddle with TCP options */
 		int hlen;
 		opt = hdr + sizeof(struct tcphdr);
@@ -1644,7 +1643,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		if (copyback) {
 			/* Copyback the options, caller copys back header */
 			*writeback = 1;
-			m_copyback(m, off + sizeof(struct tcphdr),
+			m_copyback(m, pd->off + sizeof(struct tcphdr),
 			    (th->th_off << 2) - sizeof(struct tcphdr), hdr +
 			    sizeof(struct tcphdr));
 		}
@@ -1916,7 +1915,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 int
-pf_normalize_mss(struct mbuf *m, int off, struct pf_pdesc *pd)
+pf_normalize_mss(struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct tcphdr	*th = &pd->hdr.tcp;
 	u_int16_t	*mss;
@@ -1929,7 +1928,7 @@ pf_normalize_mss(struct mbuf *m, int off, struct pf_pdesc *pd)
 	thoff = th->th_off << 2;
 	cnt = thoff - sizeof(struct tcphdr);
 
-	if (cnt > 0 && !pf_pull_hdr(m, off + sizeof(*th), opts, cnt,
+	if (cnt > 0 && !pf_pull_hdr(m, pd->off + sizeof(*th), opts, cnt,
 	    NULL, NULL, pd->af))
 		return (0);
 
@@ -1956,9 +1955,9 @@ pf_normalize_mss(struct mbuf *m, int off, struct pf_pdesc *pd)
 				    mss, htons(pd->act.max_mss),
 				    PF_ALGNMNT(startoff),
 				    0);
-				m_copyback(m, off + sizeof(*th),
+				m_copyback(m, pd->off + sizeof(*th),
 				    thoff - sizeof(*th), opts);
-				m_copyback(m, off, sizeof(*th), (caddr_t)th);
+				m_copyback(m, pd->off, sizeof(*th), (caddr_t)th);
 			}
 			break;
 		default:
@@ -2095,8 +2094,8 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 int
-pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
-    int off, struct pf_pdesc *pd)
+pf_normalize_sctp(struct pfi_kkif *kif, struct mbuf *m,
+    struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct sctphdr	*sh = &pd->hdr.sctp;
@@ -2114,7 +2113,7 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
-		else if (r->direction && r->direction != dir)
+		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
 		else if (r->af && r->af != af)
 			r = r->skip[PF_SKIP_AF];
@@ -2145,13 +2144,13 @@ pf_normalize_sctp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 			return (PF_PASS);
 
 		pf_counter_u64_critical_enter();
-		pf_counter_u64_add_protected(&r->packets[dir == PF_OUT], 1);
-		pf_counter_u64_add_protected(&r->bytes[dir == PF_OUT], pd->tot_len);
+		pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
+		pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 		pf_counter_u64_critical_exit();
 	}
 
 	/* Verify we're a multiple of 4 bytes long */
-	if ((pd->tot_len - off - sizeof(struct sctphdr)) % 4)
+	if ((pd->tot_len - pd->off - sizeof(struct sctphdr)) % 4)
 		goto sctp_drop;
 
 	/* INIT chunk needs to be the only chunk */

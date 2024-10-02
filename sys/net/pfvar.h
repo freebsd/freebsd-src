@@ -1604,7 +1604,9 @@ struct pf_pdesc {
 	struct pf_mtag	*pf_mtag;
 	struct pf_rule_actions	act;
 
-	u_int32_t	 p_len;		/* total length of payload */
+	u_int32_t	 off;		/* protocol header offset */
+	u_int32_t	 hdrlen;	/* protocol header length */
+	u_int32_t	 p_len;		/* total length of protocol payload */
 	u_int32_t	 badopts;	/* v4 options or v6 routing headers */
 
 	u_int16_t	*ip_sum;
@@ -2398,18 +2400,16 @@ int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
-int	pf_normalize_tcp(struct pfi_kkif *, struct mbuf *, int, int,
-	    struct pf_pdesc *);
+int	pf_normalize_tcp(struct pfi_kkif *, struct mbuf *, struct pf_pdesc *);
 void	pf_normalize_tcp_cleanup(struct pf_kstate *);
-int	pf_normalize_tcp_init(struct mbuf *, int, struct pf_pdesc *,
+int	pf_normalize_tcp_init(struct mbuf *, struct pf_pdesc *,
 	    struct tcphdr *, struct pf_state_peer *, struct pf_state_peer *);
-int	pf_normalize_tcp_stateful(struct mbuf *, int, struct pf_pdesc *,
+int	pf_normalize_tcp_stateful(struct mbuf *, struct pf_pdesc *,
 	    u_short *, struct tcphdr *, struct pf_kstate *,
 	    struct pf_state_peer *, struct pf_state_peer *, int *);
-int	pf_normalize_sctp_init(struct mbuf *, int, struct pf_pdesc *,
+int	pf_normalize_sctp_init(struct mbuf *, struct pf_pdesc *,
 	    struct pf_state_peer *, struct pf_state_peer *);
-int	pf_normalize_sctp(int, struct pfi_kkif *, struct mbuf *, int,
-	    int, struct pf_pdesc *);
+int	pf_normalize_sctp(struct pfi_kkif *, struct mbuf *, struct pf_pdesc *);
 u_int32_t
 	pf_state_expires(const struct pf_kstate *);
 void	pf_purge_expired_fragments(void);
@@ -2488,8 +2488,8 @@ int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
 int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
 		    sa_family_t);
 
-u_int16_t	 pf_get_mss(struct mbuf *, int, u_int16_t, sa_family_t);
-u_int8_t	 pf_get_wscale(struct mbuf *, int, u_int16_t, sa_family_t);
+u_int16_t	 pf_get_mss(struct mbuf *, struct pf_pdesc *);
+u_int8_t	 pf_get_wscale(struct mbuf *, struct pf_pdesc *);
 struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,
 		    const struct pf_addr *, const struct pf_addr *,
 		    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
@@ -2506,7 +2506,7 @@ void			 pf_syncookies_cleanup(void);
 int			 pf_get_syncookies(struct pfioc_nv *);
 int			 pf_set_syncookies(struct pfioc_nv *);
 int			 pf_synflood_check(struct pf_pdesc *);
-void			 pf_syncookie_send(struct mbuf *m, int off,
+void			 pf_syncookie_send(struct mbuf *m,
 			    struct pf_pdesc *);
 bool			 pf_syncookie_check(struct pf_pdesc *);
 u_int8_t		 pf_syncookie_validate(struct pf_pdesc *);
@@ -2591,7 +2591,7 @@ void			 pf_addr_copyout(struct pf_addr_wrap *);
 int	pf_osfp_add(struct pf_osfp_ioctl *);
 #ifdef _KERNEL
 struct pf_osfp_enlist *
-	pf_osfp_fingerprint(struct pf_pdesc *, struct mbuf *, int,
+	pf_osfp_fingerprint(struct pf_pdesc *, struct mbuf *,
 	    const struct tcphdr *);
 #endif /* _KERNEL */
 void	pf_osfp_flush(void);
@@ -2631,13 +2631,12 @@ u_short			 pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    struct pf_krule **,
 			    struct pf_udp_mapping **udp_mapping);
 
-struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct mbuf *, int,
+struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct mbuf *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t, u_int16_t);
 struct pf_state_key	*pf_state_key_clone(const struct pf_state_key *);
 void			 pf_rule_to_actions(struct pf_krule *,
 			    struct pf_rule_actions *);
-int			 pf_normalize_mss(struct mbuf *m, int off,
-			    struct pf_pdesc *pd);
+int			 pf_normalize_mss(struct mbuf *m, struct pf_pdesc *pd);
 #if defined(INET) || defined(INET6)
 void	pf_scrub(struct mbuf *, struct pf_pdesc *);
 #endif
