@@ -537,7 +537,7 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	cr = client->cl_cred = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
 	cr->cr_rgid = cr->cr_svgid = uc->gid;
-	crsetgroups(cr, uc->gidlen, uc->gidlist);
+	crsetgroups_fallback(cr, uc->gidlen, uc->gidlist, uc->gid);
 	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);
 	*crp = crhold(cr);

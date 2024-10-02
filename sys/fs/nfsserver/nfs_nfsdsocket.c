@@ -1422,13 +1422,11 @@ static struct ucred *
 nfsrv_createrootcred(void)
 {
 	struct ucred *cr;
-	gid_t grp;
 
 	cr = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = UID_ROOT;
-	grp = GID_WHEEL;
-	crsetgroups(cr, 1, &grp);
-	cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+	crsetgroups_fallback(cr, 0, NULL, GID_WHEEL);
+	cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);
 #ifdef MAC

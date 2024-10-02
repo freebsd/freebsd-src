@@ -75,6 +75,7 @@ NFSD_VNET_DEFINE(struct nfsstatsv1 *, nfsstatsv1_p);
 
 NFSD_VNET_DECLARE(struct nfssockreq, nfsrv_nfsuserdsock);
 NFSD_VNET_DECLARE(nfsuserd_state, nfsrv_nfsuserd);
+NFSD_VNET_DECLARE(gid_t, nfsrv_defaultgid);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -258,7 +259,8 @@ newnfs_copycred(struct nfscred *nfscr, struct ucred *cr)
 	KASSERT(nfscr->nfsc_ngroups >= 0,
 	    ("newnfs_copycred: negative nfsc_ngroups"));
 	cr->cr_uid = nfscr->nfsc_uid;
-	crsetgroups(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups);
+	crsetgroups_fallback(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups,
+	    NFSD_VNET(nfsrv_defaultgid));
 }
 
 /*
