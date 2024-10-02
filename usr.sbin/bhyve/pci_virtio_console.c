@@ -572,6 +572,9 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 	struct iovec iov;
 	int n;
 
+	if (len > SIZE_T_MAX - sizeof(struct pci_vtcon_control))
+		return;
+
 	vq = pci_vtcon_port_to_vq(&sc->vsc_control_port, true);
 
 	if (!vq_has_descs(vq))
@@ -580,11 +583,11 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 	n = vq_getchain(vq, &iov, 1, &req);
 	assert(n == 1);
 
-	if (iov.iov_len < sizeof(struct pci_vtcon_control))
+	if (iov.iov_len < sizeof(struct pci_vtcon_control) + len)
 		goto out;
 
 	memcpy(iov.iov_base, ctrl, sizeof(struct pci_vtcon_control));
-	if (payload != NULL && len > 0)
+	if (len > 0)
 		memcpy((uint8_t *)iov.iov_base +
 		    sizeof(struct pci_vtcon_control), payload, len);
 
