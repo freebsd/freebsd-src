@@ -28,6 +28,8 @@ INTERFACE pic;
 HEADER {
 	#include <machine/interrupt.h>
 
+	DECLARE_CLASS(pic_base_class);
+
 	/* Flags for pic_disable_source() */
 	enum {
 		PIC_EOI,
