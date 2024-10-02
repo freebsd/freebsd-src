@@ -437,11 +437,8 @@ static device_method_t mv_ap806_gicp_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_ap806_gicp_driver = {
-	"mv_ap806_gicp",
-	mv_ap806_gicp_methods,
-	sizeof(struct mv_ap806_gicp_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_ap806_gicp, mv_ap806_gicp_driver,
+    mv_ap806_gicp_methods, sizeof(struct mv_ap806_gicp_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_ap806_gicp, simplebus, mv_ap806_gicp_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
