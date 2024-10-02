@@ -162,7 +162,7 @@ struct ucred	*crcowget(struct ucred *cr);
 void	crcowfree(struct thread *td);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	cru2xt(struct thread *td, struct xucred *xcr);
-void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
+void	crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups);
 
 /*
  * Returns whether gid designates a primary group in cred.
