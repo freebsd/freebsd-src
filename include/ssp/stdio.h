@@ -50,7 +50,9 @@ __ssp_redirect(size_t, fread, (void *__restrict __buf, size_t __len,
     size_t __nmemb, FILE *__restrict __fp), (__buf, __len, __nmemb, __fp));
 __ssp_redirect(size_t, fread_unlocked, (void *__restrict __buf, size_t __len,
     size_t __nmemb, FILE *__restrict __fp), (__buf, __len, __nmemb, __fp));
+#if __EXT1_VISIBLE
 __ssp_redirect(char *, gets_s, (char *__buf, rsize_t __len), (__buf, __len));
+#endif /* __EXT1_VISIBLE */
 __ssp_redirect_raw(char *, tmpnam, tmpnam, (char *__buf), (__buf), 1,
     __ssp_bos, L_tmpnam);
 #endif
