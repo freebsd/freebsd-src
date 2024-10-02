@@ -8854,8 +8854,12 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	struct pfi_kkif		*kif;
 	u_short			 action, reason = 0;
 	struct mbuf		*m = *m0;
+#ifdef INET
 	struct ip		*h = NULL;
+#endif
+#ifdef INET6
 	struct ip6_hdr		*h6 = NULL;
+#endif
 	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
@@ -9210,10 +9214,14 @@ done:
 			else
 				pd.pf_mtag->qid = pd.act.qid;
 			/* Add hints for ecn. */
+#ifdef INET
 			if (af == AF_INET)
 				pd.pf_mtag->hdr = h;
-			else
+#endif
+#ifdef INET6
+			if (af == AF_INET6)
 				pd.pf_mtag->hdr = h6;
+#endif
 		}
 	}
 #endif /* ALTQ */
