@@ -30,11 +30,17 @@
 
 #ifdef _KERNEL
 
+#include <sys/kobj.h>
+
 /* FreeBSD standard interrupt controller interface */
 
 typedef struct intsrc interrupt_t;
 
+DECLARE_CLASS(pic_base_class);
+
 /* FreeBSD standard interrupt controller interface */
+
+typedef struct { } pic_base_softc_t;
 
 /*
  * Values used in determining the allocation of IRQ values among

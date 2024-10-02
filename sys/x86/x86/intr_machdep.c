@@ -435,6 +435,12 @@ intr_assign_cpu(void *arg, int cpu)
 #endif
 }
 
+static device_method_t pic_base_funcs[] = {
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS(pic_base, pic_base_funcs, sizeof(pic_base_softc_t));
+
 static void
 intrcnt_setname(const char *name, int index)
 {

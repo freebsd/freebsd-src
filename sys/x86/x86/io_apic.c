@@ -77,6 +77,7 @@ static MALLOC_DEFINE(M_IOAPIC, "io_apic", "I/O APIC structures");
  */
 
 struct ioapic_intsrc {
+	pic_base_softc_t pic_base_softc;
 	struct intsrc io_intsrc;
 	int io_irq;
 	u_int io_intpin:8;
@@ -1025,7 +1026,8 @@ static device_method_t ioapic_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
+DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods,
+    sizeof(pic_base_softc_t));
 
 DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, 0, 0);
 
@@ -1116,7 +1118,7 @@ static device_method_t apic_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
+DEFINE_CLASS_0(apic, apic_driver, apic_methods, sizeof(pic_base_softc_t));
 
 DRIVER_MODULE(apic, nexus, apic_driver, 0, 0);
 
