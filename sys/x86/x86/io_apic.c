@@ -148,7 +148,8 @@ static device_method_t ioapic_template[] = {
 	X86PIC_END
 };
 
-PRIVATE_DEFINE_CLASSN("io_apic", io_apic_class, ioapic_template, 0);
+PRIVATE_DEFINE_CLASSN("io_apic", io_apic_class, ioapic_template, 0,
+    pic_base_class);
 
 static u_int next_ioapic_base;
 static u_int next_id;

@@ -28,6 +28,8 @@ INTERFACE pic;
 HEADER {
 	#include <machine/intr_machdep.h>
 
+	DECLARE_CLASS(pic_base_class);
+
 	/* Flags for pic_disable_intr() */
 	enum eoi_flag {
 		PIC_EOI,
