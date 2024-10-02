@@ -217,7 +217,7 @@ setup_router_server_ipv4()
 	jexec server route add -net ${net_tester} ${net_server_host_router}
 	inetd_conf=$(mktemp)
 	echo "discard stream tcp nowait root internal" > $inetd_conf
-	jexec server inetd $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
 # Create a bare router jail.
@@ -271,7 +271,7 @@ setup_router_server_ipv6()
 	jexec server route add -6 ${net_tester} ${net_server_host_router}
 	inetd_conf=$(mktemp)
 	echo "discard stream tcp6 nowait root internal" > $inetd_conf
-	jexec server inetd $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
 # Ping the dummy static NDP target.
