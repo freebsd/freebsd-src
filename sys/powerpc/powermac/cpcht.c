@@ -534,7 +534,7 @@ struct openpic_cpcht_softc {
 	struct mtx sc_ht_mtx;
 };
 
-DEFINE_CLASS_1(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
+PRIVATE_DEFINE_CLASSN(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
     sizeof(struct openpic_cpcht_softc), openpic_class);
 
 EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
