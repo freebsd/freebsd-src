@@ -164,7 +164,7 @@ static const device_method_t atpic_methods[] = {
 #endif /* DEV_ISA */
 
 #ifdef DEV_ISA
-PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0 /* no softc */);
+PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
 #endif /* DEV_ISA */
 
 static struct atpic atpics[] = {
