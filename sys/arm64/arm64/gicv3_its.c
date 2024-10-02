@@ -385,7 +385,7 @@ static device_method_t gicv3_its_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(gic, gicv3_its_driver, gicv3_its_methods,
-    sizeof(struct gicv3_its_softc));
+    sizeof(struct gicv3_its_softc), pic_base_class);
 
 static void
 gicv3_its_cmdq_init(struct gicv3_its_softc *sc)

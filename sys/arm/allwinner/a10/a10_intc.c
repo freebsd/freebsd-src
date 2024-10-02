@@ -378,7 +378,7 @@ static device_method_t a10_aintc_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(aintc, a10_aintc_driver, a10_aintc_methods,
-    sizeof(struct a10_aintc_softc));
+    sizeof(struct a10_aintc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_FIRST);

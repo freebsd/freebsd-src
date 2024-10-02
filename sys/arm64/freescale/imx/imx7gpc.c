@@ -231,7 +231,7 @@ static device_method_t imx7gpc_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(imx7gpc, imx7gpc_driver, imx7gpc_methods,
-    sizeof(struct imx7gpc_softc));
+    sizeof(struct imx7gpc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(imx7gpc, ofwbus, imx7gpc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
