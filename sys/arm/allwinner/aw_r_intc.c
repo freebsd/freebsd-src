@@ -190,6 +190,8 @@ aw_r_intc_gicp_map_intr(device_t dev, struct intr_map_data *data,
 
 	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
 	(*isrcp)->isrc_dev = sc->dev;
+	if ((*isrcp)->isrc_event != NULL)
+		(*isrcp)->isrc_event->ie_pic = sc->dev;
 	return(ret);
 }
 

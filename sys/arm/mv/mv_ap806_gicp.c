@@ -371,6 +371,8 @@ mv_ap806_gicp_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 			goto fail;
 
 		srcs[i]->isrc_dev = dev;
+		if (srcs[i]->isrc_event != NULL)
+			srcs[i]->isrc_event->ie_pic = dev;
 	}
 
 	return (0);

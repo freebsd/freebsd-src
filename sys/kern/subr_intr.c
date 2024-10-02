@@ -605,9 +605,8 @@ iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
  *  Interrupt source pre_ithread method for MI interrupt framework.
  */
 static void
-intr_isrc_pre_ithread(void *arg)
+intr_isrc_pre_ithread(device_t pic, interrupt_t *isrc)
 {
-	struct intr_irqsrc *isrc = arg;
 
 	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
 }
@@ -616,9 +615,8 @@ intr_isrc_pre_ithread(void *arg)
  *  Interrupt source post_ithread method for MI interrupt framework.
  */
 static void
-intr_isrc_post_ithread(void *arg)
+intr_isrc_post_ithread(device_t pic, interrupt_t *isrc)
 {
-	struct intr_irqsrc *isrc = arg;
 
 	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
 }
@@ -627,9 +625,8 @@ intr_isrc_post_ithread(void *arg)
  *  Interrupt source post_filter method for MI interrupt framework.
  */
 static void
-intr_isrc_post_filter(void *arg)
+intr_isrc_post_filter(device_t pic, interrupt_t *isrc)
 {
-	struct intr_irqsrc *isrc = arg;
 
 	PIC_POST_FILTER(isrc->isrc_dev, isrc);
 }
@@ -638,10 +635,9 @@ intr_isrc_post_filter(void *arg)
  *  Interrupt source assign_cpu method for MI interrupt framework.
  */
 static int
-intr_isrc_assign_cpu(void *arg, int cpu)
+intr_isrc_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 {
 #ifdef SMP
-	struct intr_irqsrc *isrc = arg;
 	int error;
 
 	mtx_lock(&isrc_table_lock);
@@ -675,6 +671,11 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 }
 
 static device_method_t pic_base_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	intr_isrc_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	intr_isrc_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	intr_isrc_post_filter),
+	DEVMETHOD(intr_event_assign_cpu,	intr_isrc_assign_cpu),
+
 	DEVMETHOD_END
 };
 
@@ -689,9 +690,8 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	struct intr_event *ie;
 	int error;
 
-	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
-	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
-	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
+	error = intr_event_create_device(&ie, isrc->isrc_dev, isrc,
+	    isrc->isrc_irq, 0, "%s:", isrc->isrc_name);
 	if (error)
 		return (error);
 
