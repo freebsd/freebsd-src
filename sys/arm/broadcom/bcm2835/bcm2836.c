@@ -742,11 +742,8 @@ static device_method_t bcm_lintc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_lintc_driver = {
-	"lintc",
-	bcm_lintc_methods,
-	sizeof(struct bcm_lintc_softc),
-};
+PRIVATE_DEFINE_CLASSN(lintc, bcm_lintc_driver, bcm_lintc_methods,
+    sizeof(struct bcm_lintc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(lintc, simplebus, bcm_lintc_driver, 0, 0,
     BUS_PASS_INTERRUPT);
