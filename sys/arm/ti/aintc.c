@@ -297,7 +297,7 @@ static device_method_t ti_aintc_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(ti_aintc, ti_aintc_driver, ti_aintc_methods,
-    sizeof(struct ti_aintc_softc));
+    sizeof(struct ti_aintc_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(ti_aintc, simplebus, ti_aintc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

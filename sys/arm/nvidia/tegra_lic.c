@@ -281,7 +281,7 @@ static device_method_t tegra_lic_methods[] = {
 };
 
 PRIVATE_DEFINE_CLASSN(lic, tegra_lic_driver, tegra_lic_methods,
-    sizeof(struct tegra_lic_sc));
+    sizeof(struct tegra_lic_sc), pic_base_class);
 
 EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, NULL, NULL,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);
