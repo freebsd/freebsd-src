@@ -2073,11 +2073,6 @@ OLD_FILES+=usr/tests/usr.bin/dc/inout
 OLD_DIRS+=usr/tests/usr.bin/dc
 .endif
 
-.if ${MK_GNU_DIFF} == no
-OLD_FILES+=usr/bin/diff3
-OLD_FILES+=usr/share/man/man1/diff3.1.gz
-.endif
-
 .if ${MK_GOOGLETEST} == no
 OLD_FILES+=usr/include/private/gmock/gmock-actions.h
 OLD_FILES+=usr/include/private/gmock/gmock-cardinalities.h
