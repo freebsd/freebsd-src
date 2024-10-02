@@ -173,7 +173,7 @@ const x86pic_func_t atpic_funcs = {
 };
 
 #ifdef DEV_ISA
-PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0 /* no softc */);
+PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
 #endif /* DEV_ISA */
 
 static struct atpic atpics[] = {
