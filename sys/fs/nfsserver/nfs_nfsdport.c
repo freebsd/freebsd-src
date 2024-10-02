@@ -3293,7 +3293,11 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 		     NFSVNO_EXPORTANON(exp) ||
 		     (nd->nd_flag & ND_AUTHNONE) != 0) {
 			nd->nd_cred->cr_uid = credanon->cr_uid;
-			nd->nd_cred->cr_gid = credanon->cr_gid;
+			/*
+			 * 'credanon' is already a 'struct ucred' that was built
+			 * internally with calls to crsetgroups_fallback(), so
+			 * we don't need a fallback here.
+			 */
 			crsetgroups(nd->nd_cred, credanon->cr_ngroups,
 			    credanon->cr_groups);
 		} else if ((nd->nd_flag & ND_GSS) == 0) {
