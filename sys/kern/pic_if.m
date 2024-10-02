@@ -34,6 +34,10 @@
 
 INTERFACE pic;
 
+HEADER {
+	DECLARE_CLASS(pic_base_class);
+};
+
 CODE {
 	static int
 	dflt_pic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
