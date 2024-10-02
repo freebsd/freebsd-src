@@ -885,6 +885,7 @@ static device_method_t tegra_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gpio, tegra_gpio_driver, tegra_gpio_methods,
-    sizeof(struct tegra_gpio_softc));
+PRIVATE_DEFINE_CLASSN(gpio, tegra_gpio_driver, tegra_gpio_methods,
+    sizeof(struct tegra_gpio_softc), pic_base_class);
+
 EARLY_DRIVER_MODULE(tegra_gpio, simplebus, tegra_gpio_driver, NULL, NULL, 70);

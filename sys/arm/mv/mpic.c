@@ -384,14 +384,12 @@ static device_method_t mv_mpic_methods[] = {
 	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
 	DEVMETHOD(pic_ipi_send,		mpic_ipi_send),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mv_mpic_driver = {
-	"mpic",
-	mv_mpic_methods,
-	sizeof(struct mv_mpic_softc),
-};
+PRIVATE_DEFINE_CLASSN(mpic, mv_mpic_driver, mv_mpic_methods,
+    sizeof(struct mv_mpic_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mpic, simplebus, mv_mpic_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
