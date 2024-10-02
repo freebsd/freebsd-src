@@ -39,6 +39,11 @@ typedef struct intsrc interrupt_t;
 /* FreeBSD standard interrupt controller interface */
 
 #include <sys/_cpuset.h>
+#include <sys/kobj.h>
+
+DECLARE_CLASS(pic_base_class);
+
+typedef struct { } pic_base_softc_t;
 
 /*
  * Values used in determining the allocation of IRQ values among
