@@ -8697,21 +8697,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		if (h->ip_hl > 5)	/* has options */
 			pd->badopts++;
 
-		if (h->ip_off & htons(IP_MF | IP_OFFMASK)) {
-			/*
-			 * handle fragments that aren't reassembled by
-			 * normalization
-			 */
+		if (h->ip_off & htons(IP_MF | IP_OFFMASK))
 			pd->virtual_proto = PF_VPROTO_FRAGMENT;
-			if (kif == NULL || r == NULL)   /* pflog */
-				*action = PF_DROP;
-			else
-				*action = pf_test_rule(r, s, kif, m, *off,
-				    pd, a, ruleset, inp, *hdrlen);
-			if (*action != PF_PASS)
-				REASON_SET(reason, PFRES_FRAG);
-			return (-1);
-		}
 
 		break;
 	}
@@ -8798,21 +8785,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
-		if (fragoff != 0) {
-			/*
-			 * handle fragments that aren't reassembled by
-			 * normalization
-			 */
+		if (fragoff != 0)
 			pd->virtual_proto = PF_VPROTO_FRAGMENT;
-			if (kif == NULL || r == NULL) /* pflog */
-				*action = PF_DROP;
-			else
-				*action = pf_test_rule(r, s, kif, m, *off,
-				    pd, a, ruleset, NULL /* XXX TODO */, *hdrlen);
-			if (*action != PF_PASS)
-				REASON_SET(reason, PFRES_FRAG);
-			return (-1);
-		}
 
 		break;
 	}
@@ -8821,7 +8795,20 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		panic("pf_setup_pdesc called with illegal af %u", af);
 	}
 
-	switch (pd->proto) {
+	switch (pd->virtual_proto) {
+	case PF_VPROTO_FRAGMENT:
+		/*
+		 * handle fragments that aren't reassembled by
+		 * normalization
+		 */
+		if (kif == NULL || r == NULL) /* pflog */
+			*action = PF_DROP;
+		else
+			*action = pf_test_rule(r, s, kif, m, *off, pd, a,
+			    ruleset, inp, *hdrlen);
+		if (*action != PF_PASS)
+			REASON_SET(reason, PFRES_FRAG);
+		return (-1);
 	case IPPROTO_TCP: {
 		struct tcphdr *th = &pd->hdr.tcp;
 
