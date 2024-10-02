@@ -498,7 +498,7 @@ pf_syncookie_generate(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 struct mbuf *
-pf_syncookie_recreate_syn(int off, struct pf_pdesc *pd)
+pf_syncookie_recreate_syn(struct pf_pdesc *pd)
 {
 	uint8_t			 wscale;
 	uint16_t		 mss;
