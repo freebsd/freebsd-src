@@ -8633,10 +8633,8 @@ pf_init_pdesc(struct pf_pdesc *pd, struct mbuf *m)
 
 static int
 pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
-    u_short *action, u_short *reason, struct pfi_kkif *kif, struct pf_krule **a,
-    struct pf_krule **r, struct pf_kstate **s, struct pf_kruleset **ruleset,
-    int *off, int *hdrlen, struct inpcb *inp,
-    struct pf_rule_actions *default_actions)
+    u_short *action, u_short *reason, struct pfi_kkif *kif, int *off,
+    int *hdrlen, struct pf_rule_actions *default_actions)
 {
 	struct mbuf *m = *m0;
 
@@ -8796,19 +8794,6 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	}
 
 	switch (pd->virtual_proto) {
-	case PF_VPROTO_FRAGMENT:
-		/*
-		 * handle fragments that aren't reassembled by
-		 * normalization
-		 */
-		if (kif == NULL || r == NULL) /* pflog */
-			*action = PF_DROP;
-		else
-			*action = pf_test_rule(r, s, kif, m, *off, pd, a,
-			    ruleset, inp, *hdrlen);
-		if (*action != PF_PASS)
-			REASON_SET(reason, PFRES_FRAG);
-		return (-1);
 	case IPPROTO_TCP: {
 		struct tcphdr *th = &pd->hdr.tcp;
 
@@ -9094,8 +9079,8 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		return (PF_PASS);
 	}
 
-	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason, kif, &a, &r,
-		&s, &ruleset, &off, &hdrlen, inp, default_actions) == -1) {
+	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason,
+		kif, &off, &hdrlen, default_actions) == -1) {
 		if (action != PF_PASS)
 			pd.act.log |= PF_LOG_FORCE;
 		goto done;
@@ -9125,7 +9110,21 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			m_tag_delete(m, mtag);
 	}
 
-	switch (pd.proto) {
+	switch (pd.virtual_proto) {
+	case PF_VPROTO_FRAGMENT:
+		/*
+		 * handle fragments that aren't reassembled by
+		 * normalization
+		 */
+		if (kif == NULL || r == NULL) /* pflog */
+			action = PF_DROP;
+		else
+			action = pf_test_rule(&r, &s, kif, m, off, &pd, &a,
+			    &ruleset, inp, hdrlen);
+		if (action != PF_PASS)
+			REASON_SET(&reason, PFRES_FRAG);
+		break;
+
 	case IPPROTO_TCP: {
 		/* Respond to SYN with a syncookie. */
 		if ((pd.hdr.tcp.th_flags & (TH_SYN|TH_ACK|TH_RST)) == TH_SYN &&
@@ -9154,7 +9153,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			    pd.dir == PF_IN) {
 				struct mbuf *msyn;
 
-				msyn = pf_syncookie_recreate_syn(off, &pd);
+				msyn = pf_syncookie_recreate_syn(&pd);
 				if (msyn == NULL) {
 					action = PF_DROP;
 					break;

@@ -2510,8 +2510,7 @@ void			 pf_syncookie_send(struct mbuf *m, int off,
 			    struct pf_pdesc *);
 bool			 pf_syncookie_check(struct pf_pdesc *);
 u_int8_t		 pf_syncookie_validate(struct pf_pdesc *);
-struct mbuf *		 pf_syncookie_recreate_syn(int,
-			    struct pf_pdesc *);
+struct mbuf *		 pf_syncookie_recreate_syn(struct pf_pdesc *);
 
 VNET_DECLARE(struct pf_kstatus, pf_status);
 #define	V_pf_status	VNET(pf_status)
