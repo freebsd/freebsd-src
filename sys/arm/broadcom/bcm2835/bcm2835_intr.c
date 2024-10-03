@@ -428,15 +428,19 @@ bcm_intc_attach(device_t dev)
 }
 
 static device_method_t bcm_intc_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_intc_probe),
 	DEVMETHOD(device_attach,	bcm_intc_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	bcm_intc_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	bcm_intc_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	bcm_intc_pre_ithread),
+
+	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	bcm_intc_disable_intr),
 	DEVMETHOD(pic_enable_intr,	bcm_intc_enable_intr),
 	DEVMETHOD(pic_map_intr,		bcm_intc_map_intr),
-	DEVMETHOD(pic_post_filter,	bcm_intc_post_filter),
-	DEVMETHOD(pic_post_ithread,	bcm_intc_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	bcm_intc_pre_ithread),
 
 	DEVMETHOD_END
 };

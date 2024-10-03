@@ -1594,6 +1594,11 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(pcib_request_feature,		pcib_request_feature_allow),
 
 #ifdef TEGRA_PCIB_MSI_ENABLE
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	tegra_pcib_msi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	tegra_pcib_msi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	tegra_pcib_msi_pre_ithread),
+
 	/* MSI/MSI-X */
 	DEVMETHOD(msi_alloc_msi,		tegra_pcib_msi_alloc_msi),
 	DEVMETHOD(msi_release_msi,		tegra_pcib_msi_release_msi),
@@ -1604,9 +1609,6 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(pic_enable_intr,		tegra_pcib_msi_enable_intr),
 	DEVMETHOD(pic_setup_intr,		tegra_pcib_msi_setup_intr),
 	DEVMETHOD(pic_teardown_intr,		tegra_pcib_msi_teardown_intr),
-	DEVMETHOD(pic_post_filter,		tegra_pcib_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,		tegra_pcib_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,		tegra_pcib_msi_pre_ithread),
 #endif
 
 	/* OFW bus interface */
