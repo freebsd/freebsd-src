@@ -122,7 +122,7 @@ imx7gpc_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx7gpc_softc *sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -130,7 +130,7 @@ imx7gpc_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx7gpc_softc *sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -138,7 +138,7 @@ imx7gpc_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx7gpc_softc *sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 #ifdef SMP
@@ -212,6 +212,11 @@ static device_method_t imx7gpc_methods[] = {
 	DEVMETHOD(device_probe,		imx7gpc_probe),
 	DEVMETHOD(device_attach,	imx7gpc_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	imx7gpc_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	imx7gpc_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	imx7gpc_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	imx7gpc_activate_intr),
 	DEVMETHOD(pic_disable_intr,	imx7gpc_disable_intr),
@@ -220,9 +225,6 @@ static device_method_t imx7gpc_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	imx7gpc_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	imx7gpc_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	imx7gpc_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	imx7gpc_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	imx7gpc_post_ithread),
-	DEVMETHOD(pic_post_filter,	imx7gpc_post_filter),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	imx7gpc_bind_intr),
 #endif

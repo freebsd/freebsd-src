@@ -374,15 +374,19 @@ mpic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static device_method_t mv_mpic_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		mv_mpic_probe),
 	DEVMETHOD(device_attach,	mv_mpic_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mpic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mpic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mpic_pre_ithread),
+
+	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mpic_map_intr),
-	DEVMETHOD(pic_post_filter,	mpic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
 	DEVMETHOD(pic_ipi_send,		mpic_ipi_send),
 
 	DEVMETHOD_END
