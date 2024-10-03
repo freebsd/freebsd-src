@@ -415,14 +415,16 @@ static device_method_t qoriq_gpio_pic_methods[] = {
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	qoriq_gpio_pic_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	qoriq_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	qoriq_gpio_pic_post_filter),
+
 	DEVMETHOD(pic_disable_intr,	qoriq_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	qoriq_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		qoriq_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	qoriq_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	qoriq_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	qoriq_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	qoriq_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	qoriq_gpio_pic_pre_ithread),
 
 	DEVMETHOD_END
 };
