@@ -761,6 +761,11 @@ static device_method_t xlnx_pcib_fdt_methods[] = {
 	DEVMETHOD(pcib_release_msi,	xlnx_pcib_release_msi),
 	DEVMETHOD(pcib_map_msi,		xlnx_pcib_map_msi),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	xlnx_pcib_msi_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	xlnx_pcib_msi_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	xlnx_pcib_msi_post_filter),
+
 	/* MSI interface */
 	DEVMETHOD(msi_alloc_msi,		xlnx_pcib_msi_alloc_msi),
 	DEVMETHOD(msi_release_msi,		xlnx_pcib_msi_release_msi),
@@ -771,9 +776,6 @@ static device_method_t xlnx_pcib_fdt_methods[] = {
 	DEVMETHOD(pic_enable_intr,		xlnx_pcib_msi_enable_intr),
 	DEVMETHOD(pic_setup_intr,		xlnx_pcib_msi_setup_intr),
 	DEVMETHOD(pic_teardown_intr,		xlnx_pcib_msi_teardown_intr),
-	DEVMETHOD(pic_post_filter,		xlnx_pcib_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,		xlnx_pcib_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,		xlnx_pcib_msi_pre_ithread),
 
 	/* End */
 	DEVMETHOD_END

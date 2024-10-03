@@ -916,6 +916,11 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_attach,	imx51_gpio_attach),
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	gpio_pic_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	gpio_pic_post_filter),
+
 #ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
@@ -923,9 +928,6 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(pic_map_intr,		gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gpio_pic_pre_ithread),
 #endif
 
 	/* OFW methods */
