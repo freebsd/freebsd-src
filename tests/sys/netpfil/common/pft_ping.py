@@ -103,7 +103,7 @@ def send_icmp_ping(send_params):
         ip6 = prepare_ipv6(send_params)
         icmp = sp.ICMPv6EchoRequest(data=sp.raw(build_payload(send_length)))
         if send_frag_length:
-            for packet in sp.fragment(ip6 / icmp, fragsize=send_frag_length):
+            for packet in sp.fragment6(ip6 / icmp, fragSize=send_frag_length):
                 packets.append(ether / packet)
         else:
             packets.append(ether / ip6 / icmp)
@@ -141,6 +141,39 @@ def send_tcp_syn(send_params):
     sp.sendp(req, iface=send_params['sendif'], verbose=False)
 
 
+def send_udp(send_params):
+    LOGGER.debug(f'Sending UDP ping')
+    packets = []
+    send_length = send_params['length']
+    send_frag_length = send_params['frag_length']
+    ether = sp.Ether()
+    if ':' in send_params['dst_address']:
+        ip6 = prepare_ipv6(send_params)
+        udp = sp.UDP(
+            sport=send_params.get('sport'), dport=send_params.get('dport'),
+        )
+        raw = sp.Raw(load=build_payload(send_length))
+        if send_frag_length:
+            for packet in sp.fragment6(ip6 / udp / raw, fragSize=send_frag_length):
+                packets.append(ether / packet)
+        else:
+            packets.append(ether / ip6 / udp / raw)
+    else:
+        ip = prepare_ipv4(send_params)
+        udp = sp.UDP(
+            sport=send_params.get('sport'), dport=send_params.get('dport'),
+        )
+        raw = sp.Raw(load=build_payload(send_length))
+        if send_frag_length:
+            for packet in sp.fragment(ip / udp / raw, fragsize=send_frag_length):
+                packets.append(ether / packet)
+        else:
+            packets.append(ether / ip / udp / raw)
+
+    for packet in packets:
+        sp.sendp(packet, iface=send_params['sendif'], verbose=False)
+
+
 def send_ping(ping_type, send_params):
     if ping_type == 'icmp':
         send_icmp_ping(send_params)
@@ -149,8 +182,10 @@ def send_ping(ping_type, send_params):
         ping_type == 'tcp3way'
     ):
         send_tcp_syn(send_params)
+    elif ping_type == 'udp':
+        send_udp(send_params)
     else:
-        raise Exception('Unspported ping type')
+        raise Exception('Unsupported ping type')
 
 
 def check_ipv4(expect_params, packet):
@@ -345,6 +380,30 @@ def check_tcp(expect_params, packet):
     return True
 
 
+def check_udp(expect_params, packet):
+    expect_length = expect_params['length']
+    udp = packet.getlayer(sp.UDP)
+    if not udp:
+        LOGGER.debug('Packet is not UDP!')
+        return False
+    raw = packet.getlayer(sp.Raw)
+    if not raw:
+        LOGGER.debug('Packet contains no payload!')
+        return False
+    if raw.load != build_payload(expect_length):
+        LOGGER.debug(f'Payload magic does not match len {len(raw.load)} vs {expect_length}!')
+        return False
+    orig_chksum = udp.chksum
+    udp.chksum = None
+    newpacket = sp.Ether(sp.raw(packet[sp.Ether]))
+    new_chksum = newpacket[sp.UDP].chksum
+    if new_chksum and orig_chksum != new_chksum:
+        LOGGER.debug(f'Wrong UDP checksum {orig_chksum}, expected {new_chksum}!')
+        return False
+
+    return True
+
+
 def check_tcp_syn_request_4(expect_params, packet):
     if not check_ipv4(expect_params, packet):
         return False
@@ -389,6 +448,14 @@ def check_tcp_3way_4(args, packet):
         return True
 
     return False
+
+
+def check_udp_request_4(expect_params, packet):
+    if not check_ipv4(expect_params, packet):
+        return False
+    if not check_udp(expect_params, packet):
+        return False
+    return True
 
 
 def check_tcp_syn_request_6(expect_params, packet):
@@ -437,6 +504,13 @@ def check_tcp_3way_6(args, packet):
     return False
 
 
+def check_udp_request_6(expect_params, packet):
+    if not check_ipv6(expect_params, packet):
+        return False
+    if not check_udp(expect_params, packet):
+        return False
+    return True
+
 def check_tcp_syn_request(args, packet):
     expect_params = args['expect_params']
     src_address = expect_params.get('src_address')
@@ -481,6 +555,21 @@ def check_tcp_3way(args, packet):
         return check_tcp_3way_4(args, packet)
 
 
+def check_udp_request(args, packet):
+    expect_params = args['expect_params']
+    src_address = expect_params.get('src_address')
+    dst_address = expect_params.get('dst_address')
+    if not (src_address or dst_address):
+        raise Exception('Source or destination address must be given to match the tcp syn request!')
+    if (
+            (src_address and ':' in src_address) or
+            (dst_address and ':' in dst_address)
+    ):
+        return check_udp_request_6(expect_params, packet)
+    else:
+        return check_udp_request_4(expect_params, packet)
+
+
 def setup_sniffer(
         recvif, ping_type, sniff_type, expect_params, defrag, send_params,
 ):
@@ -494,8 +583,10 @@ def setup_sniffer(
         checkfn = check_tcp_syn_reply
     elif ping_type == 'tcp3way' and sniff_type == 'reply':
         checkfn = check_tcp_3way
+    elif ping_type == 'udp' and sniff_type == 'request':
+        checkfn = check_udp_request
     else:
-        raise Exception('Unspported ping or sniff type')
+        raise Exception('Unspported ping and sniff type combination')
 
     return Sniffer(
         {'send_params': send_params, 'expect_params': expect_params},
@@ -513,7 +604,7 @@ def parse_args():
     parser.add_argument('--to', required=True,
         help='The destination IP address for the ping request')
     parser.add_argument('--ping-type',
-        choices=('icmp', 'tcpsyn', 'tcp3way'),
+        choices=('icmp', 'tcpsyn', 'tcp3way', 'udp'),
         help='Type of ping: ICMP (default) or TCP SYN or 3-way TCP handshake',
         default='icmp')
     parser.add_argument('--fromaddr',
@@ -612,7 +703,13 @@ def main():
     sniffers = []
 
     if send_params['frag_length']:
-        defrag = True
+        if (
+            (send_params['src_address'] and ':' in send_params['src_address']) or
+            (send_params['dst_address'] and ':' in send_params['dst_address'])
+        ):
+            defrag = 'IPv6'
+        else:
+            defrag = 'IPv4'
     else:
         defrag = False
 

@@ -8460,6 +8460,13 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 	return (0);
 }
 
+static void
+pf_init_pdesc(struct pf_pdesc *pd, struct mbuf *m)
+{
+	memset(pd, 0, sizeof(*pd));
+	pd->pf_mtag = pf_find_mtag(m);
+}
+
 static int
 pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
     u_short *action, u_short *reason, struct pfi_kkif *kif, struct pf_krule **a,
@@ -8469,20 +8476,17 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 {
 	struct mbuf *m = *m0;
 
-	memset(pd, 0, sizeof(*pd));
+	pd->af = af;
 	pd->dir = dir;
 
 	TAILQ_INIT(&pd->sctp_multihome_jobs);
 	if (default_actions != NULL)
 		memcpy(&pd->act, default_actions, sizeof(pd->act));
-	pd->pf_mtag = pf_find_mtag(m);
 
 	if (pd->pf_mtag && pd->pf_mtag->dnpipe) {
 		pd->act.dnpipe = pd->pf_mtag->dnpipe;
 		pd->act.flags = pd->pf_mtag->dnflags;
 	}
-
-	pd->af = af;
 
 	switch (af) {
 #ifdef INET
@@ -8918,30 +8922,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			return (PF_DROP);
 	}
 
-	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason, kif, &a, &r,
-		&s, &ruleset, &off, &hdrlen, inp, default_actions) == -1) {
-		if (action != PF_PASS)
-			pd.act.log |= PF_LOG_FORCE;
-		goto done;
-	}
-	m = *m0;
-
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		h = mtod(m, struct ip *);
-		ttl = h->ip_ttl;
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		h6 = mtod(m, struct ip6_hdr *);
-		ttl = h6->ip6_hlim;
-		break;
-#endif
-	default:
-		panic("Unknown af %d", af);
-	}
+	pf_init_pdesc(&pd, m);
 
 	if (pd.pf_mtag != NULL && (pd.pf_mtag->flags & PF_MTAG_FLAG_ROUTE_TO)) {
 		pd.pf_mtag->flags &= ~PF_MTAG_FLAG_ROUTE_TO;
@@ -8972,6 +8953,31 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		PF_RULES_RUNLOCK();
 
 		return (PF_PASS);
+	}
+
+	if (pf_setup_pdesc(af, dir, &pd, m0, &action, &reason, kif, &a, &r,
+		&s, &ruleset, &off, &hdrlen, inp, default_actions) == -1) {
+		if (action != PF_PASS)
+			pd.act.log |= PF_LOG_FORCE;
+		goto done;
+	}
+	m = *m0;
+
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		h = mtod(m, struct ip *);
+		ttl = h->ip_ttl;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		h6 = mtod(m, struct ip6_hdr *);
+		ttl = h6->ip6_hlim;
+		break;
+#endif
+	default:
+		panic("Unknown af %d", af);
 	}
 
 	if (__predict_false(ip_divert_ptr != NULL) &&

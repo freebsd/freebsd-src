@@ -56,13 +56,18 @@ class Sniffer(threading.Thread):
 
 	def run(self):
 		self.packets = []
-		if self._defrag:
-			# With fragment reassembly we can't stop the sniffer after catching
-			# the good packets, as those have not been reassembled. We must
-			#  wait for sniffer to finish and check returned packets instead.
+		# With fragment reassembly we can't stop the sniffer after catching
+		# the good packets, as those have not been reassembled. We must
+		#  wait for sniffer to finish and check returned packets instead.
+		if self._defrag == 'IPv4':
 			self.packets = sp.sniff(session=sp.IPSession, iface=self._recvif,
 				timeout=self._timeout, started_callback=self._startedCb)
 			for p in self.packets:
+				self._checkPacket(p)
+		elif self._defrag == 'IPv6':
+			self.packets = sp.sniff(session=sp.DefaultSession, iface=self._recvif,
+				timeout=self._timeout, started_callback=self._startedCb)
+			for p in sp.defragment6(self.packets):
 				self._checkPacket(p)
 		else:
 			self.packets = sp.sniff(iface=self._recvif,
