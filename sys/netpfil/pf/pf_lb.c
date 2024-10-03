@@ -63,7 +63,7 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
+static struct pf_krule	*pf_match_translation(struct pf_pdesc *,
 			    struct pf_addr *, u_int16_t,
 			    struct pf_addr *, uint16_t, int,
 			    struct pf_kanchor_stackframe *);
@@ -131,7 +131,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 }
 
 static struct pf_krule *
-pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
+pf_match_translation(struct pf_pdesc *pd,
     struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
     struct pf_kanchor_stackframe *anchor_stack)
@@ -166,7 +166,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&src->addr, saddr, pd->af,
-		    src->neg, pd->kif, M_GETFIB(m)))
+		    src->neg, pd->kif, M_GETFIB(pd->m)))
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
 			    PF_SKIP_DST_ADDR];
 		else if (src->port_op && !pf_match_port(src->port_op,
@@ -175,20 +175,20 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
 			    PF_SKIP_DST_PORT];
 		else if (dst != NULL &&
 		    PF_MISMATCHAW(&dst->addr, daddr, pd->af, dst->neg, NULL,
-		    M_GETFIB(m)))
+		    M_GETFIB(pd->m)))
 			r = r->skip[PF_SKIP_DST_ADDR];
 		else if (xdst != NULL && PF_MISMATCHAW(xdst, daddr, pd->af,
-		    0, NULL, M_GETFIB(m)))
+		    0, NULL, M_GETFIB(pd->m)))
 			r = TAILQ_NEXT(r, entries);
 		else if (dst != NULL && dst->port_op &&
 		    !pf_match_port(dst->port_op, dst->port[0],
 		    dst->port[1], dport))
 			r = r->skip[PF_SKIP_DST_PORT];
-		else if (r->match_tag && !pf_match_tag(m, r, &tag,
+		else if (r->match_tag && !pf_match_tag(pd->m, r, &tag,
 		    pd->pf_mtag ? pd->pf_mtag->tag : 0))
 			r = TAILQ_NEXT(r, entries);
 		else if (r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
-		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd, m,
+		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd,
 		    &pd->hdr.tcp), r->os_fingerprint)))
 			r = TAILQ_NEXT(r, entries);
 		else {
@@ -213,10 +213,10 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
 			    rs_num, &r, NULL, NULL);
 	}
 
-	if (tag > 0 && pf_tag_packet(m, pd, tag))
+	if (tag > 0 && pf_tag_packet(pd, tag))
 		return (NULL);
 	if (rtableid >= 0)
-		M_SETFIB(m, rtableid);
+		M_SETFIB(pd->m, rtableid);
 
 	return (rm);
 }
@@ -696,7 +696,7 @@ done:
 }
 
 u_short
-pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
+pf_get_translation(struct pf_pdesc *pd, int off,
     struct pf_ksrc_node **sn, struct pf_state_key **skp,
     struct pf_state_key **nkp, struct pf_addr *saddr, struct pf_addr *daddr,
     uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack,
@@ -716,17 +716,17 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	*rp = NULL;
 
 	if (pd->dir == PF_OUT) {
-		r = pf_match_translation(pd, m, saddr,
+		r = pf_match_translation(pd, saddr,
 		    sport, daddr, dport, PF_RULESET_BINAT, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m,
+			r = pf_match_translation(pd,
 			    saddr, sport, daddr, dport, PF_RULESET_NAT,
 			    anchor_stack);
 	} else {
-		r = pf_match_translation(pd, m, saddr,
+		r = pf_match_translation(pd, saddr,
 		    sport, daddr, dport, PF_RULESET_RDR, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m,
+			r = pf_match_translation(pd,
 			    saddr, sport, daddr, dport, PF_RULESET_BINAT,
 			    anchor_stack);
 	}
@@ -741,7 +741,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		return (PFRES_MAX);
 	}
 
-	*skp = pf_state_key_setup(pd, m, saddr, daddr, sport, dport);
+	*skp = pf_state_key_setup(pd, saddr, daddr, sport, dport);
 	if (*skp == NULL)
 		return (PFRES_MEMORY);
 	*nkp = pf_state_key_clone(*skp);

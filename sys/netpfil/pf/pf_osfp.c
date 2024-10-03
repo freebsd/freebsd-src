@@ -67,8 +67,7 @@ static struct pf_os_fingerprint	*pf_osfp_validate(void);
  * Returns the list of possible OSes.
  */
 struct pf_osfp_enlist *
-pf_osfp_fingerprint(struct pf_pdesc *pd, struct mbuf *m,
-    const struct tcphdr *tcp)
+pf_osfp_fingerprint(struct pf_pdesc *pd, const struct tcphdr *tcp)
 {
 	struct ip	*ip = NULL;
 	struct ip6_hdr	*ip6 = NULL;
@@ -79,14 +78,14 @@ pf_osfp_fingerprint(struct pf_pdesc *pd, struct mbuf *m,
 
 	switch (pd->af) {
 	case AF_INET:
-		ip = mtod(m, struct ip *);
+		ip = mtod(pd->m, struct ip *);
 		ip6 = (struct ip6_hdr *)NULL;
 		break;
 	case AF_INET6:
-		ip6 = mtod(m, struct ip6_hdr *);
+		ip6 = mtod(pd->m, struct ip6_hdr *);
 		break;
 	}
-	if (!pf_pull_hdr(m, pd->off, hdr, tcp->th_off << 2, NULL, NULL,
+	if (!pf_pull_hdr(pd->m, pd->off, hdr, tcp->th_off << 2, NULL, NULL,
 	    pd->af)) return (NULL);
 
 	return (pf_osfp_fingerprint_hdr(ip, ip6, (struct tcphdr *)hdr));
