@@ -1052,7 +1052,8 @@ static device_method_t ioapic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ioapic_pci_probe),
 	DEVMETHOD(device_attach,	ioapic_pci_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
@@ -1158,7 +1159,8 @@ static device_method_t apic_methods[] = {
 	DEVMETHOD(device_identify,	apic_identify),
 	DEVMETHOD(device_probe,		apic_probe),
 	DEVMETHOD(device_attach,	apic_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
