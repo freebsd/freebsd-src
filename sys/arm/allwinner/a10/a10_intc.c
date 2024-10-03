@@ -366,13 +366,15 @@ static device_method_t a10_aintc_methods[] = {
 	DEVMETHOD(device_probe,		a10_aintc_probe),
 	DEVMETHOD(device_attach,	a10_aintc_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	a10_intr_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	a10_intr_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	a10_intr_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	a10_intr_disable_intr),
 	DEVMETHOD(pic_enable_intr,	a10_intr_enable_intr),
 	DEVMETHOD(pic_map_intr,		a10_intr_map_intr),
-	DEVMETHOD(pic_post_filter,	a10_intr_post_filter),
-	DEVMETHOD(pic_post_ithread,	a10_intr_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	a10_intr_pre_ithread),
 
 	DEVMETHOD_END
 };
