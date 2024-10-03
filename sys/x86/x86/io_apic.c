@@ -133,11 +133,13 @@ static void	ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 static const device_method_t ioapic_template[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	ioapic_eoi_source),
+	DEVMETHOD(intr_event_post_ithread,	ioapic_enable_source),
+	DEVMETHOD(intr_event_pre_ithread,	ioapic_disable_source),
+
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_register_sources,	ioapic_register_sources),
-	X86PIC_FUNC(pic_enable_source,		ioapic_enable_source),
-	X86PIC_FUNC(pic_disable_source,		ioapic_disable_source),
-	X86PIC_FUNC(pic_eoi_source,		ioapic_eoi_source),
 	X86PIC_FUNC(pic_enable_intr,		ioapic_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		ioapic_disable_intr),
 	X86PIC_FUNC(pic_source_pending,		ioapic_source_pending),

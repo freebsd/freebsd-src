@@ -518,7 +518,7 @@ attimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		sc->period = first;
 	}
 	if (!sc->intr_en) {
-		PIC_ENABLE_SOURCE(i8254_intsrc->is_pic, i8254_intsrc);
+		INTR_EVENT_POST_ITHREAD(i8254_intsrc->is_pic, i8254_intsrc);
 		sc->intr_en = 1;
 	}
 	set_i8254_freq(sc->mode, sc->period);

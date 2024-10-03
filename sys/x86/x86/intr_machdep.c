@@ -105,9 +105,11 @@ int nintrcnt;
 static MALLOC_DEFINE(M_INTR, "intr", "Interrupt Sources");
 
 static intr_event_assign_cpu_t		intr_assign_cpu;
+#if defined(WITNESS) || defined(INVARIANTS)
 static intr_event_pre_ithread_t		intr_disable_src;
 static intr_event_post_ithread_t	intr_enable_source;
 static intr_event_post_filter_t		intr_eoi_source;
+#endif
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(x86pic_t pic);
 static void	intrcnt_setname(const char *name, int index);
@@ -322,7 +324,7 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
 			PIC_ENABLE_INTR(isrc->is_pic, isrc);
-			PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
+			INTR_EVENT_POST_ITHREAD(isrc->is_pic, isrc);
 		}
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -356,26 +358,28 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	return (PIC_CONFIG_INTR(isrc->is_pic, isrc, trig, pol));
 }
 
+#if defined(WITNESS) || defined(INVARIANTS)
 static void
 intr_disable_src(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
 
 static void
 intr_enable_source(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_ENABLE_SOURCE(isrc->is_pic, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
 
 static void
 intr_eoi_source(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_EOI_SOURCE(isrc->is_pic, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
+#endif
 
 void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
@@ -409,7 +413,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * stray count, and log the condition.
 	 */
 	if (intr_event_handle_(ie, frame) != 0) {
-		PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
+		INTR_EVENT_PRE_ITHREAD(isrc->is_pic, isrc);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -455,7 +459,7 @@ intr_enable_src(u_int irq)
 	struct intsrc *is;
 
 	is = interrupt_sources[irq];
-	PIC_ENABLE_SOURCE(is->is_pic, is);
+	INTR_EVENT_POST_ITHREAD(is->is_pic, is);
 }
 
 static int
@@ -482,9 +486,11 @@ intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 }
 
 static device_method_t pic_base_methods[] = {
+#if defined(WITNESS) || defined(INVARIANTS) || defined(DDB)
 	DEVMETHOD(intr_event_post_filter,	intr_eoi_source),
 	DEVMETHOD(intr_event_post_ithread,	intr_enable_source),
 	DEVMETHOD(intr_event_pre_ithread,	intr_disable_src),
+#endif
 	DEVMETHOD(intr_event_assign_cpu,	intr_assign_cpu),
 
 	DEVMETHOD_END
