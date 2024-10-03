@@ -222,6 +222,11 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(device_attach,	omap4_wugen_attach),
 	DEVMETHOD(device_detach,	omap4_wugen_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	omap4_wugen_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	omap4_wugen_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	omap4_wugen_post_filter),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	omap4_wugen_activate_intr),
 	DEVMETHOD(pic_disable_intr,	omap4_wugen_disable_intr),
@@ -230,9 +235,6 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	omap4_wugen_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	omap4_wugen_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	omap4_wugen_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	omap4_wugen_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	omap4_wugen_post_ithread),
-	DEVMETHOD(pic_post_filter,	omap4_wugen_post_filter),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	omap4_wugen_bind_intr),
 #endif
