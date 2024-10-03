@@ -145,21 +145,6 @@ METHOD int teardown_intr {
 	struct intr_map_data	*data;
 } DEFAULT null_pic_teardown_intr;
 
-METHOD void post_filter {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void post_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
-METHOD void pre_ithread {
-	device_t		dev;
-	struct intr_irqsrc	*isrc;
-};
-
 METHOD void init_secondary {
 	device_t	dev;
 	uint32_t	rootnum;

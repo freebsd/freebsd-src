@@ -477,15 +477,17 @@ static device_method_t mv_ap806_sei_methods[] = {
 	DEVMETHOD(device_attach,	mv_ap806_sei_attach),
 	DEVMETHOD(device_detach,	mv_ap806_sei_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mv_ap806_sei_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mv_ap806_sei_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mv_ap806_sei_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mv_ap806_sei_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mv_ap806_sei_enable_intr),
 	DEVMETHOD(pic_map_intr,		mv_ap806_sei_map_intr),
 	DEVMETHOD(pic_setup_intr,	mv_ap806_sei_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mv_ap806_sei_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_ap806_sei_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_ap806_sei_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_ap806_sei_pre_ithread),
 
 	/* MSI interface */
 	DEVMETHOD(msi_alloc_msi,	mv_ap806_sei_alloc_msi),
