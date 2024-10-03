@@ -553,6 +553,48 @@ dummynet_nat_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "dummynet_fragmented" "cleanup"
+dummynet_fragmented_head()
+{
+	atf_set descr 'Test dummynet on NATed fragmented traffic'
+	atf_set require.user root
+}
+
+dummynet_fragmented_body()
+{
+	pft_init
+	dummynet_init
+
+	# No test for IPv6. IPv6 fragment reassembly can't be disabled.
+	setup_router_dummy_ipv4
+
+	jexec router dnctl pipe 1 config delay 1
+
+	pft_set_rules router \
+		"set reassemble no" \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  on ${epair_tester}b inet  proto udp dnpipe (1, 1)" \
+		"pass out on ${epair_server}a inet  proto udp" \
+
+	ping_dummy_check_request exit:0 --ping-type=udp --send-length=10000 --send-frag-length=1280
+
+	rules=$(mktemp) || exit 1
+	jexec router pfctl -qvsr > $rules
+
+	# Count that fragmented packets have hit the rule only once and that
+	# they have not created states. There is no stateful firewall support
+	# for fragmented packets.
+	grep -A2 'pass in on epair0b inet proto udp all keep state dnpipe(1, 1)' $rules |
+		grep -qE 'Packets: 8\s+Bytes: 10168\s+States: 0\s+' ||
+		atf_fail "Fragmented packets not counted correctly"
+}
+
+dummynet_fragmented_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
@@ -566,4 +608,5 @@ atf_init_test_cases()
 	atf_add_test_case "reassemble_slowpath"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "dummynet_nat"
+	atf_add_test_case "dummynet_fragmented"
 }
