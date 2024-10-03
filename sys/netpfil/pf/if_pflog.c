@@ -213,14 +213,14 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-pflog_packet(struct mbuf *m, uint8_t action, u_int8_t reason,
+pflog_packet(uint8_t action, u_int8_t reason,
     struct pf_krule *rm, struct pf_krule *am,
     struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
 
-	if (m == NULL || rm == NULL || pd == NULL)
+	if (rm == NULL || pd == NULL)
 		return (1);
 
 	ifn = V_pflogifs[rm->logif];
@@ -251,7 +251,7 @@ pflog_packet(struct mbuf *m, uint8_t action, u_int8_t reason,
 	 * These conditions are very very rare, however.
 	 */
 	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
-		pd->lookup.done = pf_socket_lookup(pd, m);
+		pd->lookup.done = pf_socket_lookup(pd);
 	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
 	else
@@ -265,15 +265,15 @@ pflog_packet(struct mbuf *m, uint8_t action, u_int8_t reason,
 	if (pd->af == AF_INET && pd->dir == PF_OUT) {
 		struct ip *ip;
 
-		ip = mtod(m, struct ip *);
+		ip = mtod(pd->m, struct ip *);
 		ip->ip_sum = 0;
-		ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+		ip->ip_sum = in_cksum(pd->m, ip->ip_hl << 2);
 	}
 #endif /* INET */
 
 	if_inc_counter(ifn, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(ifn, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-	bpf_mtap2(ifn->if_bpf, &hdr, PFLOG_HDRLEN, m);
+	if_inc_counter(ifn, IFCOUNTER_OBYTES, pd->m->m_pkthdr.len);
+	bpf_mtap2(ifn->if_bpf, &hdr, PFLOG_HDRLEN, pd->m);
 
 	return (0);
 }
