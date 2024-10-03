@@ -2696,6 +2696,47 @@ pf_ioctl_get_rulesets(struct pfioc_ruleset *pr)
 	return (0);
 }
 
+int
+pf_ioctl_get_ruleset(struct pfioc_ruleset *pr)
+{
+	struct pf_kruleset	*ruleset;
+	struct pf_kanchor	*anchor;
+	u_int32_t		 nr = 0;
+	int			 error = 0;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	PF_RULES_RLOCK();
+	if ((ruleset = pf_find_kruleset(pr->path)) == NULL) {
+		PF_RULES_RUNLOCK();
+		return (ENOENT);
+	}
+
+	pr->name[0] = 0;
+	if (ruleset->anchor == NULL) {
+		/* XXX kludge for pf_main_ruleset */
+		RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
+			if (anchor->parent == NULL && nr++ == pr->nr) {
+				strlcpy(pr->name, anchor->name,
+				    sizeof(pr->name));
+				break;
+			}
+	} else {
+		RB_FOREACH(anchor, pf_kanchor_node,
+		    &ruleset->anchor->children)
+			if (nr++ == pr->nr) {
+				strlcpy(pr->name, anchor->name,
+				    sizeof(pr->name));
+				break;
+			}
+	}
+	if (!pr->name[0])
+		error = EBUSY;
+	PF_RULES_RUNLOCK();
+
+	return (error);
+}
+
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
@@ -4514,39 +4555,10 @@ DIOCCHANGEADDR_error:
 
 	case DIOCGETRULESET: {
 		struct pfioc_ruleset	*pr = (struct pfioc_ruleset *)addr;
-		struct pf_kruleset	*ruleset;
-		struct pf_kanchor	*anchor;
-		u_int32_t		 nr = 0;
 
 		pr->path[sizeof(pr->path) - 1] = 0;
 
-		PF_RULES_RLOCK();
-		if ((ruleset = pf_find_kruleset(pr->path)) == NULL) {
-			PF_RULES_RUNLOCK();
-			error = ENOENT;
-			break;
-		}
-		pr->name[0] = 0;
-		if (ruleset->anchor == NULL) {
-			/* XXX kludge for pf_main_ruleset */
-			RB_FOREACH(anchor, pf_kanchor_global, &V_pf_anchors)
-				if (anchor->parent == NULL && nr++ == pr->nr) {
-					strlcpy(pr->name, anchor->name,
-					    sizeof(pr->name));
-					break;
-				}
-		} else {
-			RB_FOREACH(anchor, pf_kanchor_node,
-			    &ruleset->anchor->children)
-				if (nr++ == pr->nr) {
-					strlcpy(pr->name, anchor->name,
-					    sizeof(pr->name));
-					break;
-				}
-		}
-		if (!pr->name[0])
-			error = EBUSY;
-		PF_RULES_RUNLOCK();
+		error = pf_ioctl_get_ruleset(pr);
 		break;
 	}
 

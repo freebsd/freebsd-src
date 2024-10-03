@@ -1638,6 +1638,7 @@ pf_handle_get_addr(struct nlmsghdr *hdr, struct nl_pstate *npt)
 #define _OUT(_field)	offsetof(struct pfioc_ruleset, _field)
 static const struct nlattr_parser nla_p_ruleset[] = {
 	{ .type = PF_RS_PATH, .off = _OUT(path), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_RS_NR, .off = _OUT(nr), .cb = nlattr_get_uint32 },
 };
 static const struct nlfield_parser nlf_p_ruleset[] = {
 };
@@ -1669,6 +1670,40 @@ pf_handle_get_rulesets(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->reserved = 0;
 
 	nlattr_add_u32(nw, PF_RS_NR, attrs.nr);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
+static int
+pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_ruleset attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &ruleset_parser, npt, &attrs);
+	if (error)
+		return (error);
+
+	error = pf_ioctl_get_ruleset(&attrs);
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_GET_RULESET;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_string(nw, PF_RS_NAME, attrs.name);
 
 	if (!nlmsg_end(nw)) {
 		nlmsg_abort(nw);
@@ -1854,6 +1889,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_GET_RULESETS,
 		.cmd_name = "GET_RULESETS",
 		.cmd_cb = pf_handle_get_rulesets,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_RULESET,
+		.cmd_name = "GET_RULESET",
+		.cmd_cb = pf_handle_get_ruleset,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
