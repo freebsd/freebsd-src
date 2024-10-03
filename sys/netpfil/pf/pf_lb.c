@@ -64,7 +64,7 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
 static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
-			    struct pfi_kkif *, struct pf_addr *, u_int16_t,
+			    struct pf_addr *, u_int16_t,
 			    struct pf_addr *, uint16_t, int,
 			    struct pf_kanchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
@@ -132,7 +132,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 
 static struct pf_krule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
-    struct pfi_kkif *kif, struct pf_addr *saddr, u_int16_t sport,
+    struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
     struct pf_kanchor_stackframe *anchor_stack)
 {
@@ -157,7 +157,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
 		}
 
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
@@ -166,7 +166,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&src->addr, saddr, pd->af,
-		    src->neg, kif, M_GETFIB(m)))
+		    src->neg, pd->kif, M_GETFIB(m)))
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
 			    PF_SKIP_DST_ADDR];
 		else if (src->port_op && !pf_match_port(src->port_op,
@@ -697,9 +697,8 @@ done:
 
 u_short
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
-    struct pfi_kkif *kif, struct pf_ksrc_node **sn,
-    struct pf_state_key **skp, struct pf_state_key **nkp,
-    struct pf_addr *saddr, struct pf_addr *daddr,
+    struct pf_ksrc_node **sn, struct pf_state_key **skp,
+    struct pf_state_key **nkp, struct pf_addr *saddr, struct pf_addr *daddr,
     uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack,
     struct pf_krule **rp,
     struct pf_udp_mapping **udp_mapping)
@@ -717,17 +716,17 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	*rp = NULL;
 
 	if (pd->dir == PF_OUT) {
-		r = pf_match_translation(pd, m, kif, saddr,
+		r = pf_match_translation(pd, m, saddr,
 		    sport, daddr, dport, PF_RULESET_BINAT, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m, kif,
+			r = pf_match_translation(pd, m,
 			    saddr, sport, daddr, dport, PF_RULESET_NAT,
 			    anchor_stack);
 	} else {
-		r = pf_match_translation(pd, m, kif, saddr,
+		r = pf_match_translation(pd, m, saddr,
 		    sport, daddr, dport, PF_RULESET_RDR, anchor_stack);
 		if (r == NULL)
-			r = pf_match_translation(pd, m, kif,
+			r = pf_match_translation(pd, m,
 			    saddr, sport, daddr, dport, PF_RULESET_BINAT,
 			    anchor_stack);
 	}

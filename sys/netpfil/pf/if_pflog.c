@@ -213,14 +213,14 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-pflog_packet(struct pfi_kkif *kif, struct mbuf *m,
-    uint8_t action, u_int8_t reason, struct pf_krule *rm, struct pf_krule *am,
+pflog_packet(struct mbuf *m, uint8_t action, u_int8_t reason,
+    struct pf_krule *rm, struct pf_krule *am,
     struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
 
-	if (kif == NULL || m == NULL || rm == NULL || pd == NULL)
+	if (m == NULL || rm == NULL || pd == NULL)
 		return (1);
 
 	ifn = V_pflogifs[rm->logif];
@@ -232,7 +232,7 @@ pflog_packet(struct pfi_kkif *kif, struct mbuf *m,
 	hdr.af = pd->af;
 	hdr.action = action;
 	hdr.reason = reason;
-	memcpy(hdr.ifname, kif->pfik_name, sizeof(hdr.ifname));
+	memcpy(hdr.ifname, pd->kif->pfik_name, sizeof(hdr.ifname));
 
 	if (am == NULL) {
 		hdr.rulenr = htonl(rm->nr);
