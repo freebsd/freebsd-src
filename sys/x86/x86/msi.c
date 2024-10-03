@@ -137,10 +137,12 @@ static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
 
 static const device_method_t msi_methods[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	msi_eoi_source),
+	DEVMETHOD(intr_event_post_ithread,	msi_enable_source),
+	DEVMETHOD(intr_event_pre_ithread,	msi_eoi_source),
+
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_enable_source,		msi_enable_source),
-	X86PIC_FUNC(pic_disable_source,		msi_eoi_source),
-	X86PIC_FUNC(pic_eoi_source,		msi_eoi_source),
 	X86PIC_FUNC(pic_enable_intr,		msi_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		msi_disable_intr),
 	X86PIC_FUNC(pic_source_pending,		msi_source_pending),
