@@ -59,6 +59,7 @@ enum {
 	PFNL_CMD_GET_ADDRS = 21,
 	PFNL_CMD_GET_ADDR = 22,
 	PFNL_CMD_GET_RULESETS = 23,
+	PFNL_CMD_GET_RULESET = 24,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -385,6 +386,7 @@ enum pf_get_rulesets_types_t {
 	PF_RS_UNSPEC,
 	PF_RS_PATH		= 1, /* string */
 	PF_RS_NR		= 2, /* u32 */
+	PF_RS_NAME		= 3, /* string */
 };
 
 #ifdef _KERNEL
