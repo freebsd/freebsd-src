@@ -1047,7 +1047,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 
 #ifdef INET
 int
-pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
+pf_normalize_ip(struct mbuf **m0, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
@@ -1078,7 +1078,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	scrub_compat = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
@@ -1088,7 +1088,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr,
 		    (struct pf_addr *)&h->ip_src.s_addr, AF_INET,
-		    r->src.neg, kif, M_GETFIB(m)))
+		    r->src.neg, pd->kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (PF_MISMATCHAW(&r->dst.addr,
 		    (struct pf_addr *)&h->ip_dst.s_addr, AF_INET,
@@ -1201,7 +1201,7 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 	REASON_SET(reason, PFRES_FRAG);
  drop:
 	if (r != NULL && r->log)
-		PFLOG_PACKET(kif, m, PF_DROP, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(m, PF_DROP, *reason, r, NULL, NULL, pd, 1);
 
 	return (PF_DROP);
 }
@@ -1209,8 +1209,8 @@ pf_normalize_ip(struct mbuf **m0, struct pfi_kkif *kif, u_short *reason,
 
 #ifdef INET6
 int
-pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
-    int off, u_short *reason, struct pf_pdesc *pd)
+pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
+    struct pf_pdesc *pd)
 {
 	struct mbuf		*m;
 	struct pf_krule		*r;
@@ -1233,7 +1233,7 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 	scrub_compat = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
@@ -1243,7 +1243,7 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr,
 		    (struct pf_addr *)&pd->src, AF_INET6,
-		    r->src.neg, kif, M_GETFIB(m)))
+		    r->src.neg, pd->kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (PF_MISMATCHAW(&r->dst.addr,
 		    (struct pf_addr *)&pd->dst, AF_INET6,
@@ -1287,7 +1287,7 @@ pf_normalize_ip6(struct mbuf **m0, struct pfi_kkif *kif,
 #endif /* INET6 */
 
 int
-pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, struct pf_pdesc *pd)
+pf_normalize_tcp(struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct tcphdr	*th = &pd->hdr.tcp;
@@ -1305,7 +1305,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, struct pf_pdesc *pd)
 	srs = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
@@ -1314,7 +1314,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, struct pf_pdesc *pd)
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
-		    r->src.neg, kif, M_GETFIB(m)))
+		    r->src.neg, pd->kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 			    r->src.port[0], r->src.port[1], th->th_sport))
@@ -1406,7 +1406,7 @@ pf_normalize_tcp(struct pfi_kkif *kif, struct mbuf *m, struct pf_pdesc *pd)
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, m, PF_DROP, reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(m, PF_DROP, reason, r, NULL, NULL, pd, 1);
 	return (PF_DROP);
 }
 
@@ -1969,16 +1969,15 @@ pf_normalize_mss(struct mbuf *m, struct pf_pdesc *pd)
 }
 
 int
-pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
-    struct pfi_kkif *kif)
+pf_scan_sctp(struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct sctp_chunkhdr ch = { };
 	int chunk_off = sizeof(struct sctphdr);
 	int chunk_start;
 	int ret;
 
-	while (off + chunk_off < pd->tot_len) {
-		if (!pf_pull_hdr(m, off + chunk_off, &ch, sizeof(ch), NULL,
+	while (pd->off + chunk_off < pd->tot_len) {
+		if (!pf_pull_hdr(m, pd->off + chunk_off, &ch, sizeof(ch), NULL,
 		    NULL, pd->af))
 			return (PF_DROP);
 
@@ -1994,7 +1993,7 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 		case SCTP_INITIATION_ACK: {
 			struct sctp_init_chunk init;
 
-			if (!pf_pull_hdr(m, off + chunk_start, &init,
+			if (!pf_pull_hdr(m, pd->off + chunk_start, &init,
 			    sizeof(init), NULL, NULL, pd->af))
 				return (PF_DROP);
 
@@ -2026,8 +2025,8 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 			else
 				pd->sctp_flags |= PFDESC_SCTP_INIT_ACK;
 
-			ret = pf_multihome_scan_init(m, off + chunk_start,
-			    ntohs(init.ch.chunk_length), pd, kif);
+			ret = pf_multihome_scan_init(m, pd->off + chunk_start,
+			    ntohs(init.ch.chunk_length), pd);
 			if (ret != PF_PASS)
 				return (ret);
 
@@ -2061,8 +2060,8 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 		case SCTP_ASCONF:
 			pd->sctp_flags |= PFDESC_SCTP_ASCONF;
 
-			ret = pf_multihome_scan_asconf(m, off + chunk_start,
-			    ntohs(ch.chunk_length), pd, kif);
+			ret = pf_multihome_scan_asconf(m, pd->off + chunk_start,
+			    ntohs(ch.chunk_length), pd);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -2073,7 +2072,7 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 	}
 
 	/* Validate chunk lengths vs. packet length. */
-	if (off + chunk_off != pd->tot_len)
+	if (pd->off + chunk_off != pd->tot_len)
 		return (PF_DROP);
 
 	/*
@@ -2094,8 +2093,7 @@ pf_scan_sctp(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 int
-pf_normalize_sctp(struct pfi_kkif *kif, struct mbuf *m,
-    struct pf_pdesc *pd)
+pf_normalize_sctp(struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
 	struct sctphdr	*sh = &pd->hdr.sctp;
@@ -2111,7 +2109,7 @@ pf_normalize_sctp(struct pfi_kkif *kif, struct mbuf *m,
 	srs = (r != NULL);
 	while (r != NULL) {
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP];
 		else if (r->direction && r->direction != pd->dir)
 			r = r->skip[PF_SKIP_DIR];
@@ -2120,7 +2118,7 @@ pf_normalize_sctp(struct pfi_kkif *kif, struct mbuf *m,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO];
 		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
-		    r->src.neg, kif, M_GETFIB(m)))
+		    r->src.neg, pd->kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR];
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 			    r->src.port[0], r->src.port[1], sh->src_port))
@@ -2163,7 +2161,7 @@ pf_normalize_sctp(struct pfi_kkif *kif, struct mbuf *m,
 sctp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(kif, m, PF_DROP, reason, r, NULL, NULL, pd,
+		PFLOG_PACKET(m, PF_DROP, reason, r, NULL, NULL, pd,
 		    1);
 
 	return (PF_DROP);
