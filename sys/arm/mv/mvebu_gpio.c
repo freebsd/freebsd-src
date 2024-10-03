@@ -839,15 +839,17 @@ static device_method_t mvebu_gpio_methods[] = {
 	DEVMETHOD(device_attach,	mvebu_gpio_attach),
 	DEVMETHOD(device_detach,	mvebu_gpio_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	mvebu_gpio_pic_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	mvebu_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	mvebu_gpio_pic_post_filter),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mvebu_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mvebu_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mvebu_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	mvebu_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mvebu_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mvebu_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mvebu_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mvebu_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		mvebu_gpio_get_bus),
