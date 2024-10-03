@@ -294,9 +294,9 @@ static pic_disable_intr_t gicv5_its_disable_intr;
 static pic_enable_intr_t gicv5_its_enable_intr;
 static pic_map_intr_t gicv5_its_map_intr;
 static pic_setup_intr_t gicv5_its_setup_intr;
-static pic_post_filter_t gicv5_its_post_filter;
-static pic_post_ithread_t gicv5_its_post_ithread;
-static pic_pre_ithread_t gicv5_its_pre_ithread;
+static intr_event_post_filter_t gicv5_its_post_filter;
+static intr_event_post_ithread_t gicv5_its_post_ithread;
+static intr_event_pre_ithread_t gicv5_its_pre_ithread;
 static pic_bind_intr_t gicv5_its_bind_intr;
 
 static msi_alloc_msi_t gicv5_its_alloc_msi;
@@ -310,14 +310,16 @@ static msi_iommu_deinit_t gicv5_iommu_deinit;
 #endif
 
 static device_method_t gicv5_its_methods[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gicv5_its_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gicv5_its_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gicv5_its_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gicv5_its_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gicv5_its_enable_intr),
 	DEVMETHOD(pic_map_intr,		gicv5_its_map_intr),
 	DEVMETHOD(pic_setup_intr,	gicv5_its_setup_intr),
-	DEVMETHOD(pic_post_filter,	gicv5_its_post_filter),
-	DEVMETHOD(pic_post_ithread,	gicv5_its_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gicv5_its_pre_ithread),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	gicv5_its_bind_intr),
 #endif

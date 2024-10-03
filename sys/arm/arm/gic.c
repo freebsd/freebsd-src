@@ -1243,15 +1243,17 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(bus_read_ivar,	arm_gic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	arm_gic_write_ivar),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	arm_gic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	arm_gic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	arm_gic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	arm_gic_enable_intr),
 	DEVMETHOD(pic_map_intr,		arm_gic_map_intr),
 	DEVMETHOD(pic_setup_intr,	arm_gic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	arm_gic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	arm_gic_post_filter),
-	DEVMETHOD(pic_post_ithread,	arm_gic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	arm_gic_pre_ithread),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	arm_gic_bind_intr),
 	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),

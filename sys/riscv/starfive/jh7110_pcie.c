@@ -1015,12 +1015,14 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD(msi_release_msix,	jh7110_pcie_msi_release_msix),
 	DEVMETHOD(msi_map_msi,		jh7110_pcie_msi_map_msi),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	jh7110_pcie_msi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	jh7110_pcie_msi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	jh7110_pcie_msi_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_enable_intr,	jh7110_pcie_msi_enable_intr),
 	DEVMETHOD(pic_disable_intr,	jh7110_pcie_msi_disable_intr),
-	DEVMETHOD(pic_post_filter,	jh7110_pcie_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,	jh7110_pcie_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	jh7110_pcie_msi_pre_ithread),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),

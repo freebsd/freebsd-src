@@ -514,9 +514,12 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	unsigned int irq;
 	va_list ap;
 
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_post_filter) != NULL);
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_post_ithread) != NULL);
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)dev, pic_pre_ithread) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD_NODEF((kobj_t)dev, intr_event_post_filter)
+	    != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD_NODEF((kobj_t)dev, intr_event_post_ithread)
+	    != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD_NODEF((kobj_t)dev, intr_event_pre_ithread)
+	    != NULL);
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
@@ -630,36 +633,6 @@ iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
 #endif
 
 /*
- *  Interrupt source pre_ithread method for MI interrupt framework.
- */
-static void
-intr_isrc_pre_ithread(device_t pic, interrupt_t *isrc)
-{
-
-	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
-}
-
-/*
- *  Interrupt source post_ithread method for MI interrupt framework.
- */
-static void
-intr_isrc_post_ithread(device_t pic, interrupt_t *isrc)
-{
-
-	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
-}
-
-/*
- *  Interrupt source post_filter method for MI interrupt framework.
- */
-static void
-intr_isrc_post_filter(device_t pic, interrupt_t *isrc)
-{
-
-	PIC_POST_FILTER(isrc->isrc_dev, isrc);
-}
-
-/*
  *  Interrupt source assign_cpu method for MI interrupt framework.
  */
 static int
@@ -700,9 +673,6 @@ intr_isrc_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 
 static device_method_t pic_base_methods[] = {
 	/* Interrupt event interface (core/shared portion) */
-	DEVMETHOD(intr_event_post_filter,	intr_isrc_post_filter),
-	DEVMETHOD(intr_event_post_ithread,	intr_isrc_post_ithread),
-	DEVMETHOD(intr_event_pre_ithread,	intr_isrc_pre_ithread),
 	DEVMETHOD(intr_event_assign_cpu,	intr_isrc_assign_cpu),
 
 	DEVMETHOD_END
