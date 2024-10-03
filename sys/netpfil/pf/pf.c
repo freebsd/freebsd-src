@@ -569,8 +569,6 @@ pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
 			return (-1);
 		break;
 #endif /* INET6 */
-	default:
-		panic("%s: unknown address family %u", __func__, af);
 	}
 	return (0);
 }
@@ -708,8 +706,6 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 		h = murmur3_32_hash32((uint32_t *)&addr->v6,
 		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
 		break;
-	default:
-		panic("%s: unknown address family %u", __func__, af);
 	}
 
 	return (h & V_pf_srchashmask);
@@ -2024,8 +2020,6 @@ pf_isforlocal(struct mbuf *m, int af)
 		return (! (ia->ia6_flags & IN6_IFF_NOTREADY));
 	}
 #endif
-	default:
-		panic("Unsupported af %d", af);
 	}
 
 	return (false);
@@ -2187,11 +2181,6 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 		}
 		break;
 #endif /* INET6 */
-	default:
-		*icmp_dir = PF_IN;
-		*virtual_type = type;
-		*virtual_id = 0;
-		break;
 	}
 	HTONS(*virtual_type);
 	return (0);  /* These types match to their own state */
@@ -3378,8 +3367,6 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		len = sizeof(struct ip6_hdr) + tlen;
 		break;
 #endif /* INET6 */
-	default:
-		panic("%s: unsupported af %d", __func__, af);
 	}
 
 	m = m_gethdr(M_NOWAIT, MT_DATA);
@@ -3743,18 +3730,20 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	struct pf_mtag *pf_mtag;
 
 	/* ICMP packet rate limitation. */
+	switch (af) {
 #ifdef INET6
-	if (af == AF_INET6) {
+	case AF_INET6:
 		if (icmp6_ratelimit(NULL, type, code))
 			return;
-	}
+		break;
 #endif
 #ifdef INET
-	if (af == AF_INET) {
+	case AF_INET:
 		if (badport_bandlim(pf_icmp_to_bandlim(type)) != 0)
 			return;
-	}
+		break;
 #endif
+	}
 
 	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
 	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
@@ -4352,9 +4341,6 @@ pf_socket_lookup(struct pf_pdesc *pd, struct mbuf *m)
 		}
 		break;
 #endif /* INET6 */
-
-	default:
-		return (-1);
 	}
 	INP_RLOCK_ASSERT(inp);
 	pd->lookup.uid = inp->inp_cred->cr_uid;
@@ -4501,12 +4487,15 @@ pf_tcp_iss(struct pf_pdesc *pd)
 
 	MD5Update(&ctx, (char *)&pd->hdr.tcp.th_sport, sizeof(u_short));
 	MD5Update(&ctx, (char *)&pd->hdr.tcp.th_dport, sizeof(u_short));
-	if (pd->af == AF_INET6) {
+	switch (pd->af) {
+	case AF_INET6:
 		MD5Update(&ctx, (char *)&pd->src->v6, sizeof(struct in6_addr));
 		MD5Update(&ctx, (char *)&pd->dst->v6, sizeof(struct in6_addr));
-	} else {
+		break;
+	case AF_INET:
 		MD5Update(&ctx, (char *)&pd->src->v4, sizeof(struct in_addr));
 		MD5Update(&ctx, (char *)&pd->dst->v4, sizeof(struct in_addr));
+		break;
 	}
 	MD5Final((u_char *)digest, &ctx);
 	V_pf_tcp_iss_off += 4096;
@@ -8174,8 +8163,6 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			sum = in6_cksum(m, p, off, len);
 			break;
 #endif /* INET6 */
-		default:
-			return (1);
 		}
 	}
 	if (sum) {
@@ -8273,9 +8260,6 @@ pf_pdesc_to_dnflow(const struct pf_pdesc *pd, const struct pf_krule *r,
 		dnflow->f_id.src_ip6 = pd->src->v6;
 		dnflow->f_id.dst_ip6 = pd->dst->v6;
 		break;
-	default:
-		panic("Invalid AF");
-		break;
 	}
 
 	return (true);
@@ -8370,12 +8354,16 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 
 			MPASS(sa != NULL);
 
-			if (pd->af == AF_INET)
+			switch (pd->af) {
+			case AF_INET:
 				memcpy(&pd->pf_mtag->dst, sa,
 				    sizeof(struct sockaddr_in));
-			else
+				break;
+			case AF_INET6:
 				memcpy(&pd->pf_mtag->dst, sa,
 				    sizeof(struct sockaddr_in6));
+				break;
+			}
 		}
 
 		if (s != NULL && s->nat_rule != NULL &&
@@ -9408,8 +9396,6 @@ done:
 				pf_route6(m0, r, kif->pfik_ifp, s, &pd, inp);
 				break;
 #endif
-			default:
-				panic("Unknown af %d", af);
 			}
 			goto out;
 		}
