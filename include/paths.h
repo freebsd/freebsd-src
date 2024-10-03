@@ -89,6 +89,7 @@
 #define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
+#define	_PATH_TUNEFS	"/sbin/tunefs"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
 #define	_PATH_UFSSUSPEND	"/dev/ufssuspend"
 #define	_PATH_VI	"/usr/bin/vi"
@@ -138,6 +139,8 @@ __END_DECLS
 #define	_PATH_REBOOT	"/rescue/reboot"
 #undef	_PATH_RM
 #define	_PATH_RM	"/rescue/rm"
+#undef	_PATH_TUNEFS
+#define	_PATH_TUNEFS	"/rescue/tunefs"
 #undef	_PATH_VI
 #define	_PATH_VI	"/rescue/vi"
 #undef	_PATH_WALL
