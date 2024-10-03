@@ -2203,7 +2203,8 @@ pf_scrub(struct mbuf *m, struct pf_pdesc *pd)
 #endif
 	/* Enforce tos */
 	if (pd->act.flags & PFSTATE_SETTOS) {
-		if (pd->af == AF_INET) {
+		switch (pd->af) {
+		case AF_INET: {
 			u_int16_t	ov, nv;
 
 			ov = *(u_int16_t *)h;
@@ -2211,10 +2212,13 @@ pf_scrub(struct mbuf *m, struct pf_pdesc *pd)
 			nv = *(u_int16_t *)h;
 
 			h->ip_sum = pf_cksum_fixup(h->ip_sum, ov, nv, 0);
+			break;
+		}
 #ifdef INET6
-		} else if (pd->af == AF_INET6) {
+		case AF_INET6:
 			h6->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
 			h6->ip6_flow |= htonl((pd->act.set_tos | IPV6_ECN(h6)) << 20);
+			break;
 #endif
 		}
 	}
