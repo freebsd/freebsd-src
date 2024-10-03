@@ -83,19 +83,25 @@ typeset SPARE_NOP=${DISK4}.nop
 typeset OTHER_DISKS="${DISK1} ${DISK2}"
 typeset OTHER_NOPS=${OTHER_DISKS//~(E)([[:space:]]+|$)/.nop\1}
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
+set -A MY_FAILURES "FAULTED" "REMOVED"
 ensure_zfsd_running
 log_must create_gnops $OTHER_DISKS $SPARE_DISK
-for keyword in "${MY_KEYWORDS[@]}" ; do
-	log_must create_gnop $REMOVAL_DISK $PHYSPATH
-	log_must create_pool $TESTPOOL $keyword $REMOVAL_NOP $OTHER_NOPS spare $SPARE_NOP
-	log_must $ZPOOL set autoreplace=on $TESTPOOL
+for failure in "${MY_FAILURES[@]}" ; do
+	for keyword in "${MY_KEYWORDS[@]}" ; do
+		log_must create_gnop $REMOVAL_DISK $PHYSPATH
+		log_must create_pool $TESTPOOL $keyword $REMOVAL_NOP $OTHER_NOPS spare $SPARE_NOP
+		log_must $ZPOOL set autoreplace=on $TESTPOOL
 
-	log_must destroy_gnop $REMOVAL_DISK
-	log_must wait_for_pool_removal 20
-	log_must create_gnop $NEW_DISK $PHYSPATH
-	verify_assertion
-	destroy_pool "$TESTPOOL"
-	log_must destroy_gnop $NEW_DISK
+		if [ $failure = "FAULTED" ]; then
+			log_must zinject -d $REMOVAL_NOP -A fault $TESTPOOL
+		fi
+		log_must destroy_gnop $REMOVAL_DISK
+		log_must wait_for_pool_removal 20
+		log_must create_gnop $NEW_DISK $PHYSPATH
+		verify_assertion
+		destroy_pool "$TESTPOOL"
+		log_must destroy_gnop $NEW_DISK
+	done
 done
 
 log_pass

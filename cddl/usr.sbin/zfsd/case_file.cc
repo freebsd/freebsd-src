@@ -288,7 +288,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		return (/*consumed*/false);
 	}
 
-	if (VdevState() > VDEV_STATE_CANT_OPEN) {
+	if (VdevState() > VDEV_STATE_FAULTED) {
 		/*
 		 * For now, newly discovered devices only help for
 		 * devices that are missing.  In the future, we might
