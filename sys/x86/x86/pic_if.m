@@ -65,21 +65,6 @@ METHOD void register_sources {
 	device_t	pic;
 } DEFAULT null_pic_generic;
 
-METHOD void enable_source {
-	device_t	pic;
-	struct intsrc	*isrc;
-};
-
-METHOD void disable_source {
-	device_t	pic;
-	struct intsrc	*isrc;
-};
-
-METHOD void eoi_source {
-	device_t	pic;
-	struct intsrc	*isrc;
-};
-
 METHOD void enable_intr {
 	device_t	pic;
 	struct intsrc	*isrc;
