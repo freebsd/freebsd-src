@@ -40,19 +40,6 @@ int	priv_open_log(void);
 int	priv_move_log(void);
 pcap_t *pcap_open_live_fd(int fd, int snaplen, char *ebuf);
 
-/* XXX TODO: Investigate a permanent solution, rather than defining these two
-   structures here. */
-struct pcap_timeval {
-	bpf_u_int32 tv_sec;	/* seconds */
-	bpf_u_int32 tv_usec;	/* microseconds */
-};
-
-struct pcap_sf_pkthdr {
-	struct pcap_timeval ts;	/* time stamp */
-	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length of this packet (off wire) */
-};
-
 void set_pcap_filter(void);
 /* File descriptor send/recv */
 void send_fd(int, int);
