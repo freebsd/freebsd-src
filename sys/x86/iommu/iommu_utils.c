@@ -350,8 +350,8 @@ iommu_qi_seq_processed(struct iommu_unit *unit,
 
 	x86c = IOMMU2X86C(unit);
 	gen = x86c->inv_waitd_gen;
-	return (pseq->gen < gen ||
-	    (pseq->gen == gen && pseq->seq <= x86c->inv_waitd_seq_hw));
+	return (pseq->gen < gen || (pseq->gen == gen && pseq->seq <=
+	    atomic_load_64(&x86c->inv_waitd_seq_hw)));
 }
 
 void
