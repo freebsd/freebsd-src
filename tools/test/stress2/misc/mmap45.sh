@@ -1,42 +1,34 @@
 #!/bin/sh
 
 #
-# SPDX-License-Identifier: BSD-2-Clause
-#
 # Copyright (c) 2024 Peter Holm <pho@FreeBSD.org>
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
 #
 
 # Demonstrate issue described in:
 # [Bug 276002] nfscl: data corruption using both copy_file_range and mmap'd I/O
+
+# Issue seen:
+# 
+# 8994c8994
+# < 0431020    10  11  12  13  14  15  16  17  18  19  1a  1b  1c  1d  1e  1f
+# ---
+# > 0431020    10  11  ee  13  14  15  16  17  18  19  1a  1b  1c  1d  1e  1f
+# 256 -rw-------  1 root wheel 262144 Feb 28 19:44 file
+# 256 -rw-------  1 root wheel 262144 Feb 28 19:43 file.orig
+# 19:44:34, elapsed 0 days, 00:13.59
+# Failed with exit code 2 after 13 loops.
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
 set -u
 prog=$(basename "$0" .sh)
 log=/tmp/$prog.log
+serial=/tmp/$prog.serial
 grep -q $mntpoint /etc/exports ||
     { echo "$mntpoint missing from /etc/exports"; exit 0; }
+rpcinfo 2>/dev/null | grep -q mountd || exit 0
 
 cat > /tmp/$prog.c <<EOF
 #include <sys/mman.h>
@@ -139,35 +131,11 @@ s2(void *arg __unused)
 	return (0);
 }
 
-static void *
-tr(void *arg __unused)
-{
-	int i, s;
-	char buf[1024];
-
-	memset(buf, 0x5a, sizeof(buf));
-	while (go == 1) {
-		pthread_mutex_lock(&write_mutex);
-		if (lseek(fd, arc4random() % siz, SEEK_END) == -1)
-			err(1, "lseek() END");
-		s = sizeof(buf);
-		for (i = 0; i < 50; i++) {
-			if (write(fd, buf, s) != s)
-				warn("write()");
-		}
-		if (ftruncate(fd, siz) == -1)
-			err(1, "truncate()");
-		pthread_mutex_unlock(&write_mutex);
-		usleep(arc4random() % 400);
-	}
-	return (0);
-}
-
 int
 main(int argc, char *argv[])
 {
 	struct stat st;
-	pthread_t tp[6];
+	pthread_t tp[10];
 	int e, i;
 
 	if (argc != 2) {
@@ -187,15 +155,23 @@ main(int argc, char *argv[])
 	pthread_mutex_init(&write_mutex, NULL);
 	if ((e = pthread_create(&tp[0], NULL, memwrite, NULL)) != 0)
 		errc(1, e, "pthread_create");
-	if ((e = pthread_create(&tp[1], NULL, memread, NULL)) != 0)
+	if ((e = pthread_create(&tp[1], NULL, memwrite, NULL)) != 0)
 		errc(1, e, "pthread_create");
-	if ((e = pthread_create(&tp[2], NULL, wr, NULL)) != 0)
+	if ((e = pthread_create(&tp[2], NULL, memread, NULL)) != 0)
 		errc(1, e, "pthread_create");
-	if ((e = pthread_create(&tp[3], NULL, s1, NULL)) != 0)
+	if ((e = pthread_create(&tp[3], NULL, memread, NULL)) != 0)
 		errc(1, e, "pthread_create");
-	if ((e = pthread_create(&tp[4], NULL, s2, NULL)) != 0)
+	if ((e = pthread_create(&tp[4], NULL, wr, NULL)) != 0)
 		errc(1, e, "pthread_create");
-	if ((e = pthread_create(&tp[5], NULL, tr, NULL)) != 0)
+	if ((e = pthread_create(&tp[5], NULL, wr, NULL)) != 0)
+		errc(1, e, "pthread_create");
+	if ((e = pthread_create(&tp[6], NULL, wr, NULL)) != 0)
+		errc(1, e, "pthread_create");
+	if ((e = pthread_create(&tp[7], NULL, wr, NULL)) != 0)
+		errc(1, e, "pthread_create");
+	if ((e = pthread_create(&tp[8], NULL, s1, NULL)) != 0)
+		errc(1, e, "pthread_create");
+	if ((e = pthread_create(&tp[9], NULL, s2, NULL)) != 0)
 		errc(1, e, "pthread_create");
 
 	sleep(60);
@@ -209,7 +185,7 @@ main(int argc, char *argv[])
 EOF
 mycc -o /tmp/$prog -Wall -Wextra -O0 /tmp/$prog.c -lpthread || exit 1
 
-mycc -o /tmp/serial -Wall -Wextra -O2 ../tools/serial.c || exit 1
+mycc -o $serial -Wall -Wextra -O2 ../tools/serial.c || exit 1
 mount | grep -q "on $mntpoint " && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart && mdconfig -d -u $mdstart
 mdconfig -s 5g -u $mdstart
@@ -223,13 +199,12 @@ mount -t nfs -o retrycnt=3 127.0.0.1:$mntpoint $mp2 || exit 1
 sleep .2
 
 here=`pwd`
-mount | grep $mntpoint
 cd $mp2
 $here/../testcases/swap/swap -t 5m -i 20 > /dev/null &
 sleep 2
 
 size=262144
-/tmp/serial file $size
+$serial file $size
 cp file file.orig
 
 s=0
@@ -251,5 +226,5 @@ cd $here
 umount $mp2
 umount $mntpoint
 mdconfig -d -u $mdstart
-rm -f /tmp/serial /tmp/$prog /tmp/$prog.c $log
+rm -f $serial /tmp/$prog /tmp/$prog.c $log
 exit $s
