@@ -3653,8 +3653,6 @@ parsecred(char *namelist, struct expcred *cr)
 			ngroups = NGROUPS_MAX + 1;
 		}
 
-		if (ngroups > NGROUPS_MAX)
-			ngroups = NGROUPS_MAX;
 		if (ngroups > SMALLNGROUPS)
 			cr->cr_groups = malloc(ngroups * sizeof(gid_t));
 		cr->cr_ngroups = ngroups;
@@ -3688,7 +3686,7 @@ parsecred(char *namelist, struct expcred *cr)
 		} else {
 			group = name_ul;
 		}
-		if (cr->cr_ngroups == NGROUPS_MAX) {
+		if (cr->cr_ngroups == NGROUPS_MAX + 1) {
 			syslog(LOG_ERR, "too many groups");
 			break;
 		}
