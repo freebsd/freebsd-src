@@ -408,7 +408,7 @@ mv_cp110_icu_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -418,7 +418,7 @@ mv_cp110_icu_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -428,7 +428,7 @@ mv_cp110_icu_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 static device_method_t mv_cp110_icu_methods[] = {
@@ -436,6 +436,11 @@ static device_method_t mv_cp110_icu_methods[] = {
 	DEVMETHOD(device_probe,		mv_cp110_icu_probe),
 	DEVMETHOD(device_attach,	mv_cp110_icu_attach),
 	DEVMETHOD(device_detach,	mv_cp110_icu_detach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	mv_cp110_icu_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	mv_cp110_icu_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	mv_cp110_icu_post_filter),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	mv_cp110_icu_activate_intr),
@@ -445,9 +450,6 @@ static device_method_t mv_cp110_icu_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	mv_cp110_icu_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	mv_cp110_icu_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mv_cp110_icu_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_cp110_icu_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_cp110_icu_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_cp110_icu_pre_ithread),
 
 	DEVMETHOD_END
 };

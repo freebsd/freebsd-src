@@ -245,7 +245,7 @@ aw_r_intc_gicp_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -255,7 +255,7 @@ aw_r_intc_gicp_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -265,7 +265,7 @@ aw_r_intc_gicp_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 static device_method_t aw_r_intc_gicp_methods[] = {
@@ -273,6 +273,11 @@ static device_method_t aw_r_intc_gicp_methods[] = {
 	DEVMETHOD(device_probe,		aw_r_intc_gicp_probe),
 	DEVMETHOD(device_attach,	aw_r_intc_gicp_attach),
 	DEVMETHOD(device_detach,	aw_r_intc_gicp_detach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	aw_r_intc_gicp_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	aw_r_intc_gicp_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	aw_r_intc_gicp_post_filter),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	aw_r_intc_gicp_activate_intr),
@@ -282,9 +287,6 @@ static device_method_t aw_r_intc_gicp_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	aw_r_intc_gicp_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	aw_r_intc_gicp_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	aw_r_intc_gicp_teardown_intr),
-	DEVMETHOD(pic_post_filter,	aw_r_intc_gicp_post_filter),
-	DEVMETHOD(pic_post_ithread,	aw_r_intc_gicp_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	aw_r_intc_gicp_pre_ithread),
 
 	DEVMETHOD_END
 };
