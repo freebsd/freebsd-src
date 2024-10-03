@@ -1257,18 +1257,180 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 
 	printf(END_COMMENT);
 }
+
 static void acpi_handle_tpm2(ACPI_TABLE_HEADER *sdp)
 {
 	ACPI_TABLE_TPM2 *tpm2;
-	
+
 	printf (BEGIN_COMMENT);
 	acpi_print_sdt(sdp);
 	tpm2 = (ACPI_TABLE_TPM2 *) sdp;
 	printf ("\t\tControlArea=%jx\n", tpm2->ControlAddress);
-	printf ("\t\tStartMethod=%x\n", tpm2->StartMethod);	
+	printf ("\t\tStartMethod=%x\n", tpm2->StartMethod);
 	printf (END_COMMENT);
 }
-	
+
+static int spcr_xlate_baud(uint8_t r)
+{
+	static int rates[] = { 9600, 19200, -1, 57600, 115200 };
+	_Static_assert(nitems(rates) == 7 - 3 + 1, "rates array size incorrect");
+
+	if (r == 0)
+		return (0);
+
+	if (r < 3 || r > 7)
+		return (-1);
+
+	return (rates[r - 3]);
+}
+
+static const char *spcr_interface_type(int ift)
+{
+	static const char *if_names[] = {
+		[0x00] = "Fully 16550-compatible",
+		[0x01] = "16550 subset compatible with DBGP Revision 1",
+		[0x02] = "MAX311xE SPI UART",
+		[0x03] = "Arm PL011 UART",
+		[0x04] = "MSM8x60 (e.g. 8960)",
+		[0x05] = "Nvidia 16550",
+		[0x06] = "TI OMAP",
+		[0x07] = "Reserved (Do Not Use)",
+		[0x08] = "APM88xxxx",
+		[0x09] = "MSM8974",
+		[0x0a] = "SAM5250",
+		[0x0b] = "Intel USIF",
+		[0x0c] = "i.MX 6",
+		[0x0d] = "(deprecated) Arm SBSA (2.x only) Generic UART supporting only 32-bit accesses",
+		[0x0e] = "Arm SBSA Generic UART",
+		[0x0f] = "Arm DCC",
+		[0x10] = "BCM2835",
+		[0x11] = "SDM845 with clock rate of 1.8432 MHz",
+		[0x12] = "16550-compatible with parameters defined in Generic Address Structure",
+		[0x13] = "SDM845 with clock rate of 7.372 MHz",
+		[0x14] = "Intel LPSS",
+		[0x15] = "RISC-V SBI console (any supported SBI mechanism)",
+	};
+
+	if (ift >= (int)nitems(if_names) || if_names[ift] == NULL)
+		return ("Reserved");
+	return (if_names[ift]);
+}
+
+static const char *spcr_interrupt_type(int ift)
+{
+	static char buf[100];
+
+#define APPEND(b,s) \
+	if ((ift & (b)) != 0) { \
+		if (strlen(buf) > 0) \
+			strlcat(buf, ",", sizeof(buf)); \
+		strlcat(buf, s, sizeof(buf)); \
+	}
+
+	*buf = '\0';
+	APPEND(0x01, "PC/AT IRQ");
+	APPEND(0x02, "I/O APIC");
+	APPEND(0x04, "I/O SAPIC");
+	APPEND(0x08, "ARMH GIC");
+	APPEND(0x10, "RISC-V PLIC/APLIC");
+
+#undef APPEND
+
+	return (buf);
+}
+
+static const char *spcr_terminal_type(int type)
+{
+	static const char *term_names[] = {
+		[0] = "VT100",
+		[1] = "Extended VT100",
+		[2] = "VT-UTF8",
+		[3] = "ANSI",
+	};
+
+	if (type >= (int)nitems(term_names) || term_names[type] == NULL)
+		return ("Reserved");
+	return (term_names[type]);
+}
+
+/*
+ * Serial Port Console Redirection version 3 and 4 are too new to have proper
+ * definitions in ACPI headers, so provide them.
+ */
+#pragma pack(1)
+struct SPCR_3
+{
+	ACPI_TABLE_SPCR spcr2;
+	UINT32		UARTClockFrequency;
+};
+
+struct SPCR_4
+{
+	struct SPCR_3	spcr3;
+	UINT32		PreciseBaudRate;
+	UINT16		NamespaceStringLength;
+	UINT16		NamespaceStringOffset;
+};
+#pragma pack()
+
+static void acpi_handle_spcr(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_SPCR *spcr;
+
+	printf (BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+
+	/* Rev 1 and 2 are the same size */
+	spcr = (ACPI_TABLE_SPCR *) sdp;
+	printf ("\tInterfaceType=%d (%s)\n", spcr->InterfaceType,
+	    spcr_interface_type(spcr->InterfaceType));
+	printf ("\tSerialPort=");
+	acpi_print_gas(&spcr->SerialPort);
+	printf ("\n\tInterruptType=%#x (%s)\n", spcr->InterruptType,
+	    spcr_interrupt_type(spcr->InterruptType));
+	printf ("\tPcInterrupt=%d (%s)\n", spcr->PcInterrupt,
+	    (spcr->InterruptType & 0x1) ? "Valid" : "Invalid");
+	printf ("\tInterrupt=%d\n", spcr->Interrupt);
+	printf ("\tBaudRate=%d (%d)\n", spcr_xlate_baud(spcr->BaudRate), spcr->BaudRate);
+	printf ("\tParity=%d\n", spcr->Parity);
+	printf ("\tStopBits=%d\n", spcr->StopBits);
+	printf ("\tFlowControl=%d\n", spcr->FlowControl);
+	printf ("\tTerminalType=%d (%s)\n", spcr->TerminalType,
+	    spcr_terminal_type(spcr->TerminalType));
+	printf ("\tPciDeviceId=%#04x\n", spcr->PciDeviceId);
+	printf ("\tPciVendorId=%#04x\n", spcr->PciVendorId);
+	printf ("\tPciBus=%d\n", spcr->PciBus);
+	printf ("\tPciDevice=%d\n", spcr->PciDevice);
+	printf ("\tPciFunction=%d\n", spcr->PciFunction);
+	printf ("\tPciFlags=%d\n", spcr->PciFlags);
+	printf ("\tPciSegment=%d\n", spcr->PciSegment);
+
+	/* Rev 3 added UARTClockFrequency */
+	if (sdp->Revision >= 3) {
+		struct SPCR_3 *spcr3 = (struct SPCR_3 *)sdp;
+
+		printf("\tUARTClockFrequency=%jd",
+		    (uintmax_t)spcr3->UARTClockFrequency);
+	}
+
+	/* Rev 4 added PreciseBaudRate and Namespace* */
+	if (sdp->Revision >= 4) {
+		struct SPCR_4 *spcr4 = (struct SPCR_4 *)sdp;
+
+		printf("\tPreciseBaudRate=%jd",
+		    (uintmax_t)spcr4->PreciseBaudRate);
+		if (spcr4->NamespaceStringLength > 0 &&
+		    spcr4->NamespaceStringOffset >= sizeof(*spcr4) &&
+		    sdp->Length >= spcr4->NamespaceStringOffset +
+		        spcr4->NamespaceStringLength) {
+			printf ("\tNamespaceString='%s'\n",
+			    (char *)sdp + spcr4->NamespaceStringOffset);
+		}
+	}
+
+	printf (END_COMMENT);
+}
+
 static const char *
 devscope_type2str(int type)
 {
@@ -2468,6 +2630,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			acpi_handle_lpit(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_TPM2, 4))
 			acpi_handle_tpm2(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_SPCR, 4))
+			acpi_handle_spcr(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);
