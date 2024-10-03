@@ -966,15 +966,17 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_config_32,	rk_gpio_pin_config_32),
 	DEVMETHOD(gpio_map_gpios,	rk_gpio_map_gpios),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	rk_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	rk_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	rk_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_map_intr,		rk_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	rk_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	rk_pic_teardown_intr),
 	DEVMETHOD(pic_disable_intr,	rk_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	rk_pic_enable_intr),
-	DEVMETHOD(pic_post_filter,	rk_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	rk_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	rk_pic_pre_ithread),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	rk_gpio_get_node),
