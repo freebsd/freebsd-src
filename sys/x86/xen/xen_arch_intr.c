@@ -247,10 +247,12 @@ xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
  * PIC interface for all event channel port types except physical IRQs.
  */
 static const device_method_t xen_intr_methods[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	xen_intr_pic_eoi_source),
+	DEVMETHOD(intr_event_post_ithread,	xen_intr_pic_enable_source),
+	DEVMETHOD(intr_event_pre_ithread,	xen_intr_pic_disable_source),
+
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_enable_source,		xen_intr_pic_enable_source),
-	X86PIC_FUNC(pic_disable_source,		xen_intr_pic_disable_source),
-	X86PIC_FUNC(pic_eoi_source,		xen_intr_pic_eoi_source),
 	X86PIC_FUNC(pic_enable_intr,		xen_intr_pic_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		xen_intr_pic_disable_intr),
 	X86PIC_FUNC(pic_source_pending,		xen_intr_pic_source_pending),
