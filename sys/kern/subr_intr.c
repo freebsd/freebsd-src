@@ -625,6 +625,7 @@ iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
 }
 #endif
 
+#if defined(WITNESS) || defined(INVARIANTS)
 /*
  *  Interrupt source pre_ithread method for MI interrupt framework.
  */
@@ -632,7 +633,7 @@ static void
 intr_isrc_pre_ithread(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
 
 /*
@@ -642,7 +643,7 @@ static void
 intr_isrc_post_ithread(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
 
 /*
@@ -652,8 +653,9 @@ static void
 intr_isrc_post_filter(device_t pic, interrupt_t *isrc)
 {
 
-	PIC_POST_FILTER(isrc->isrc_dev, isrc);
+	device_printf(pic, "%s() called due to missing handler!", __func__);
 }
+#endif
 
 /*
  *  Interrupt source assign_cpu method for MI interrupt framework.
@@ -695,9 +697,11 @@ intr_isrc_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 }
 
 static device_method_t pic_base_methods[] = {
+#if defined(WITNESS) || defined(INVARIANTS)
 	DEVMETHOD(intr_event_post_filter,	intr_isrc_post_filter),
 	DEVMETHOD(intr_event_post_ithread,	intr_isrc_post_ithread),
 	DEVMETHOD(intr_event_pre_ithread,	intr_isrc_pre_ithread),
+#endif
 	DEVMETHOD(intr_event_assign_cpu,	intr_isrc_assign_cpu),
 
 	DEVMETHOD_END
