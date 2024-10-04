@@ -2000,7 +2000,7 @@ PKG_EXT=	pkg
 .endif
 
 .if !defined(PKG_VERSION_FROM) && make(real-update-packages)
-.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
+.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI}/latest)
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
 # Determine the name of the branch base on the version
