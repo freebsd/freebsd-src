@@ -78,6 +78,7 @@ static struct hdspe_clock_source hdspe_clock_source_table_aio[] = {
 
 static struct hdspe_channel chan_map_aio[] = {
 	{ HDSPE_CHAN_AIO_LINE,    "line" },
+	{ HDSPE_CHAN_AIO_EXT,      "ext" },
 	{ HDSPE_CHAN_AIO_PHONE,  "phone" },
 	{ HDSPE_CHAN_AIO_AES,      "aes" },
 	{ HDSPE_CHAN_AIO_SPDIF, "s/pdif" },
