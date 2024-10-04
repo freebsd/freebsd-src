@@ -129,12 +129,7 @@ SYM_MAPS+=	${LIBSYS_SRCTOP}/${LIBC_ARCH}/Symbol.sys.map
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
-.else
-NOTE_GNU_STACK=''
-.endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 FEATURE_NOTE='\#include <sys/elf_common.h>\nGNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)\n'
 .else
