@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 1, 2024
+.Dd September 28, 2024
 .Dt SND_HDSP 4
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ driver supports the following audio devices:
 .Pp
 .Bl -bullet -compact
 .It
-RME HDSP 9632
+RME HDSP 9632 (optional AO4S-192 and AIS-192 extension boards)
 .It
 RME HDSP 9652
 .El
@@ -86,7 +86,7 @@ For resulting channel numbers consult the following table:
 .Bl -column "Sound Card" "Single Speed" "Double Speed" "Quad Speed"
 .Sy "Sound Card" Ta Sy "Single Speed" Ta Sy "Double Speed" Ta Sy "Quad Speed"
 .It "" Ta "Play | Rec" Ta "Play | Rec" Ta "Play | Rec"
-.It HDSP 9632 Ta " 12  |  12" Ta "  8  |   8" Ta "  4  |   4"
+.It HDSP 9632 Ta " 16  |  16" Ta " 12  |  12" Ta "  8  |   8"
 .It HDSP 9652 Ta " 26  |  26" Ta " 14  |  14" Ta "  -  |   -"
 .El
 .Sh SYSCTL TUNABLES
