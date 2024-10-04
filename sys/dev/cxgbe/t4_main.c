@@ -1990,18 +1990,23 @@ restart_adapter(struct adapter *sc)
 static inline void
 set_adapter_hwstatus(struct adapter *sc, const bool usable)
 {
-	mtx_lock(&sc->reg_lock);
 	if (usable) {
 		/* Must be marked reusable by the designated thread. */
+		ASSERT_SYNCHRONIZED_OP(sc);
 		MPASS(sc->reset_thread == curthread);
+		mtx_lock(&sc->reg_lock);
 		atomic_clear_int(&sc->error_flags, HW_OFF_LIMITS);
+		mtx_unlock(&sc->reg_lock);
 	} else {
 		/* Mark the adapter totally off limits. */
+		begin_synchronized_op(sc, NULL, SLEEP_OK, "t4hwsts");
+		mtx_lock(&sc->reg_lock);
 		atomic_set_int(&sc->error_flags, HW_OFF_LIMITS);
+		mtx_unlock(&sc->reg_lock);
 		sc->flags &= ~(FW_OK | MASTER_PF);
 		sc->reset_thread = NULL;
+		end_synchronized_op(sc, 0);
 	}
-	mtx_unlock(&sc->reg_lock);
 }
 
 static int
