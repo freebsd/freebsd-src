@@ -107,7 +107,7 @@ hdsp_port_slot_map(uint32_t ports, uint32_t speed)
 			slot_map |= (0x03 << 8);  /* 2 channels SPDIF. */
 		if (ports & HDSP_CHAN_9632_LINE)
 			slot_map |= (0x03 << 10); /* 2 channels line. */
-		if (ports & HDSP_CHAN_9632_EXT_BOARD)
+		if (ports & HDSP_CHAN_9632_EXT)
 			slot_map |= (0x0f << 12); /* 4 channels extension. */
 	} else if ((ports & HDSP_CHAN_9652_ALL) && (speed <= 96000)) {
 		/* Map HDSP 9652 ports to slot bitmap, no quad speed. */

@@ -74,6 +74,7 @@ static struct hdsp_channel chan_map_9632[] = {
 	{ HDSP_CHAN_9632_ADAT,    "adat" },
 	{ HDSP_CHAN_9632_SPDIF, "s/pdif" },
 	{ HDSP_CHAN_9632_LINE,    "line" },
+	{ HDSP_CHAN_9632_EXT,      "ext" },
 	{ 0,                        NULL },
 };
 

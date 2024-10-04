@@ -130,10 +130,11 @@
 #define	HDSP_CHAN_9632_ADAT		(1 << 0)
 #define	HDSP_CHAN_9632_SPDIF		(1 << 1)
 #define	HDSP_CHAN_9632_LINE		(1 << 2)
+#define	HDSP_CHAN_9632_EXT		(1 << 3) /* Extension boards */
 #define	HDSP_CHAN_9632_ALL		(HDSP_CHAN_9632_ADAT | \
 					HDSP_CHAN_9632_SPDIF | \
-					HDSP_CHAN_9632_LINE)
-#define	HDSP_CHAN_9632_EXT_BOARD	(1 << 3)
+					HDSP_CHAN_9632_LINE | \
+					HDSP_CHAN_9632_EXT)
 
 #define	HDSP_CHAN_9652_ADAT1		(1 << 5)
 #define	HDSP_CHAN_9652_ADAT2		(1 << 6)
