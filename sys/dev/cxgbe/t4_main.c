@@ -6324,20 +6324,13 @@ int
 begin_synchronized_op(struct adapter *sc, struct vi_info *vi, int flags,
     char *wmesg)
 {
-	int rc, pri;
+	int rc;
 
 #ifdef WITNESS
 	/* the caller thinks it's ok to sleep, but is it really? */
 	if (flags & SLEEP_OK)
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "begin_synchronized_op");
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 #endif
-
-	if (INTR_OK)
-		pri = PCATCH;
-	else
-		pri = 0;
-
 	ADAPTER_LOCK(sc);
 	for (;;) {
 
@@ -6356,7 +6349,8 @@ begin_synchronized_op(struct adapter *sc, struct vi_info *vi, int flags,
 			goto done;
 		}
 
-		if (mtx_sleep(&sc->flags, &sc->sc_lock, pri, wmesg, 0)) {
+		if (mtx_sleep(&sc->flags, &sc->sc_lock,
+		    flags & INTR_OK ? PCATCH : 0, wmesg, 0)) {
 			rc = EINTR;
 			goto done;
 		}
