@@ -2031,8 +2031,8 @@ PKGMAKEARGS+=	PKG_VERSION=${PKG_VERSION} \
 packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-packages
 
-update-packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
+update-packages: stage-packages .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} create-packages real-update-packages
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
@@ -2044,8 +2044,7 @@ package-pkg: .PHONY
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
-real-update-packages: stage-packages .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} create-packages
+real-update-packages: .PHONY
 .if defined(PKG_VERSION_FROM_DIR)
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
