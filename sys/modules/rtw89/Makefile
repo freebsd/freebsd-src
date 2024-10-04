@@ -7,17 +7,22 @@ WITH_CONFIG_PM=	0
 KMOD=	if_rtw89
 
 SRCS=	core.c
-SRCS+=	pci.c
-SRCS+=	chan.c mac80211.c mac.c phy.c fw.c
+SRCS+=	pci.c pci_be.c
+SRCS+=	chan.c mac80211.c mac.c mac_be.c phy.c phy_be.c fw.c
+SRCS+=	acpi.c cam.c efuse.c efuse_be.c regd.c sar.c coex.c ps.c ser.c
+SRCS+=	util.c
 SRCS+=	rtw8852a.c rtw8852a_rfk.c rtw8852a_rfk_table.c rtw8852a_table.c
 SRCS+=	rtw8852ae.c
 SRCS+=	rtw8852c.c rtw8852c_rfk.c rtw8852c_rfk_table.c rtw8852c_table.c
 SRCS+=	rtw8852ce.c
 SRCS+=	rtw8851b.c rtw8851b_rfk.c rtw8851b_rfk_table.c rtw8851b_table.c
 SRCS+=	rtw8851be.c
+SRCS+=	rtw8852b_common.c
 SRCS+=	rtw8852b.c rtw8852b_rfk.c rtw8852b_rfk_table.c rtw8852b_table.c
 SRCS+=	rtw8852be.c
-SRCS+=	acpi.c cam.c efuse.c regd.c sar.c coex.c ps.c ser.c
+#SRCS+=	rtw8852bt_rfk.c rtw8852bt_rfk_table.c
+SRCS+=	rtw8922a.c rtw8922a_rfk.c
+SRCS+=	rtw8922ae.c
 
 # CONFIG_RTW89_DEBUG (always on for now)
 SRCS+=	debug.c
