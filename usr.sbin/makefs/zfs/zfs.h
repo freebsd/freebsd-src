@@ -73,7 +73,7 @@ typedef struct {
 	 */
 	char		filebuf[MAXBLOCKSIZE] __aligned(alignof(uint64_t));
 
-	bool		nowarn;
+	bool		nowarn;		/* ignored */
 
 	/* Pool parameters. */
 	const char	*poolname;
