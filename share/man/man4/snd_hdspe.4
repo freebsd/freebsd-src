@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 9, 2024
+.Dd September 28, 2024
 .Dt SND_HDSPE 4
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@ driver supports the following audio devices:
 .Pp
 .Bl -bullet -compact
 .It
-RME HDSPe AIO
+RME HDSPe AIO (optional AO4S-192 and AI4S-192 extension boards)
 .It
 RME HDSPe RayDAT
 .El
@@ -84,7 +84,7 @@ For resulting channel numbers consult the following table:
 .Bl -column "HDSPe RayDAT" "Single Speed" "Double Speed" "Quad Speed"
 .Sy "Sound Card" Ta Sy "Single Speed" Ta Sy "Double Speed" Ta Sy "Quad Speed"
 .It "" Ta "Play | Rec" Ta "Play | Rec" Ta "Play | Rec"
-.It HDSPe AIO Ta " 16  |  14" Ta " 12  |  10" Ta " 10  |   8"
+.It HDSPe AIO Ta " 20  |  18" Ta " 16  |  14" Ta " 14  |  12"
 .It HDSPe RayDAT Ta " 36  |  36" Ta " 20  |  20" Ta " 12  |  12"
 .El
 .Sh SYSCTL TUNABLES
