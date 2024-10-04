@@ -855,6 +855,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 					if (ep->refcount_alloc != 0)
 						return (USB_ERR_IN_USE);
 				}
+				ep++;
 			}
 		}
 
