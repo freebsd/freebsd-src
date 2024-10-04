@@ -1190,6 +1190,33 @@ ATF_TC_BODY(accounting, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(mmap_prot);
+ATF_TC_BODY(mmap_prot, tc)
+{
+	void *p;
+	int fd, pagesize;
+
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
+
+	gen_test_path();
+	fd = shm_open(test_path, O_RDONLY | O_CREAT, 0644);
+	ATF_REQUIRE(fd >= 0);
+
+	p = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+	ATF_REQUIRE(p != MAP_FAILED);
+	ATF_REQUIRE(munmap(p, pagesize) == 0);
+	p = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	ATF_REQUIRE_ERRNO(EACCES, p == MAP_FAILED);
+	p = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	ATF_REQUIRE(p != MAP_FAILED);
+	ATF_REQUIRE(munmap(p, pagesize) == 0);
+
+	ATF_REQUIRE_MSG(shm_unlink(test_path) == 0,
+	    "shm_unlink failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(close(fd) == 0,
+	    "close failed; errno=%d", errno);
+}
+
 static int
 shm_open_large(int psind, int policy, size_t sz)
 {
@@ -1920,7 +1947,6 @@ ATF_TC_BODY(largepage_reopen, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, remap_object);
 	ATF_TP_ADD_TC(tp, rename_from_anon);
 	ATF_TP_ADD_TC(tp, rename_bad_path_pointer);
@@ -1954,6 +1980,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fallocate);
 	ATF_TP_ADD_TC(tp, fspacectl);
 	ATF_TP_ADD_TC(tp, accounting);
+	ATF_TP_ADD_TC(tp, mmap_prot);
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
