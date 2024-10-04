@@ -4,9 +4,10 @@
 
 # PROVIDE: mail
 # REQUIRE: LOGIN FILESYSTEMS
-#	we make mail start late, so that things like .forward's are not
-#	processed until the system is fully operational
 # KEYWORD: shutdown
+#
+# We make mail start late, so that things like .forward's are not processed
+# until the system is fully operational.
 
 # XXX - Get together with sendmail mantainer to figure out how to
 #	better handle SENDMAIL_ENABLE and 3rd party MTAs.
