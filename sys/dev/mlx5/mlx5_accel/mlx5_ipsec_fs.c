@@ -388,14 +388,19 @@ setup_pkt_transport_reformat(struct mlx5_accel_esp_xfrm_attrs *attrs,
 	__be32 spi;
 	void *hdr;
 
-	if (attrs->family == AF_INET)
+	if (attrs->family == AF_INET) {
 		if (attrs->encap)
 			reformat_params->type = MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_UDPV4;
 		else
 			reformat_params->type = MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV4;
-	else
-		reformat_params->type =
-			MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+	} else {
+		if (attrs->encap)
+			reformat_params->type =
+			    MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_UDPV6;
+		else
+			reformat_params->type =
+			    MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_OVER_IPV6;
+	}
 
 	if (attrs->encap)
 		bfflen += sizeof(*udphdr);

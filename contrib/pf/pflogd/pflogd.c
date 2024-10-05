@@ -74,6 +74,17 @@ char errbuf[PCAP_ERRBUF_SIZE];
 int log_debug = 0;
 unsigned int delay = FLUSH_DELAY;
 
+struct pcap_timeval {
+	bpf_u_int32 tv_sec;	/* seconds */
+	bpf_u_int32 tv_usec;	/* microseconds */
+};
+
+struct pcap_sf_pkthdr {
+	struct pcap_timeval ts;	/* time stamp */
+	bpf_u_int32 caplen;	/* length of portion present */
+	bpf_u_int32 len;	/* length of this packet (off wire) */
+};
+
 char *copy_argv(char * const *);
 void  dump_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 void  dump_packet_nobuf(u_char *, const struct pcap_pkthdr *, const u_char *);

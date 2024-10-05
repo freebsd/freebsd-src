@@ -521,7 +521,6 @@ hda_codec_command(struct hda_codec_inst *hci, uint32_t cmd_data)
 		payload = cmd_data & 0xffff;
 	}
 
-	assert(cad == hci->cad);
 	assert(hci);
 
 	hops = hci->hops;
@@ -530,7 +529,10 @@ hda_codec_command(struct hda_codec_inst *hci, uint32_t cmd_data)
 	sc = (struct hda_codec_softc *)hci->priv;
 	assert(sc);
 
-	assert(nid < sc->no_nodes);
+	if (cad != hci->cad || nid >= sc->no_nodes) {
+		DPRINTF("Invalid command data");
+		return (-1);
+	}
 
 	if (!hops->response) {
 		DPRINTF("The controller ops does not implement \
@@ -540,7 +542,8 @@ hda_codec_command(struct hda_codec_inst *hci, uint32_t cmd_data)
 
 	switch (verb) {
 	case HDA_CMD_VERB_GET_PARAMETER:
-		res = sc->get_parameters[nid][payload];
+		if (payload < HDA_CODEC_PARAMS_COUNT)
+			res = sc->get_parameters[nid][payload];
 		break;
 	case HDA_CMD_VERB_GET_CONN_LIST_ENTRY:
 		res = sc->conn_list[nid][0];

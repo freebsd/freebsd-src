@@ -115,15 +115,16 @@ static void	igc_update_stats_counters(struct igc_adapter *);
 static void	igc_add_hw_stats(struct igc_adapter *adapter);
 static int	igc_if_set_promisc(if_ctx_t ctx, int flags);
 static void	igc_setup_vlan_hw_support(if_ctx_t ctx);
+static void	igc_fw_version(struct igc_adapter *);
+static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
+static void	igc_print_fw_version(struct igc_adapter *);
+static int	igc_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS);
 static int	igc_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	igc_print_nvm_info(struct igc_adapter *);
 static int	igc_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	igc_get_rs(SYSCTL_HANDLER_ARGS);
 static void	igc_print_debug_info(struct igc_adapter *);
 static int 	igc_is_valid_ether_addr(u8 *);
-static int	igc_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
-static void	igc_add_int_delay_sysctl(struct igc_adapter *, const char *,
-		    const char *, struct igc_int_delay_info *, int, int);
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_adapter *);
 static void	igc_release_hw_control(struct igc_adapter *);
@@ -211,12 +212,6 @@ static driver_t igc_if_driver = {
  *  Tunable default values.
  *********************************************************************/
 
-#define IGC_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
-#define IGC_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
-
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
-
 /* Allow common code without TSO */
 #ifndef CSUM_TSO
 #define CSUM_TSO	0
@@ -228,22 +223,6 @@ static SYSCTL_NODE(_hw, OID_AUTO, igc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 static int igc_disable_crc_stripping = 0;
 SYSCTL_INT(_hw_igc, OID_AUTO, disable_crc_stripping, CTLFLAG_RDTUN,
     &igc_disable_crc_stripping, 0, "Disable CRC Stripping");
-
-static int igc_tx_int_delay_dflt = IGC_TICKS_TO_USECS(IGC_TIDV_VAL);
-static int igc_rx_int_delay_dflt = IGC_TICKS_TO_USECS(IGC_RDTR_VAL);
-SYSCTL_INT(_hw_igc, OID_AUTO, tx_int_delay, CTLFLAG_RDTUN, &igc_tx_int_delay_dflt,
-    0, "Default transmit interrupt delay in usecs");
-SYSCTL_INT(_hw_igc, OID_AUTO, rx_int_delay, CTLFLAG_RDTUN, &igc_rx_int_delay_dflt,
-    0, "Default receive interrupt delay in usecs");
-
-static int igc_tx_abs_int_delay_dflt = IGC_TICKS_TO_USECS(IGC_TADV_VAL);
-static int igc_rx_abs_int_delay_dflt = IGC_TICKS_TO_USECS(IGC_RADV_VAL);
-SYSCTL_INT(_hw_igc, OID_AUTO, tx_abs_int_delay, CTLFLAG_RDTUN,
-    &igc_tx_abs_int_delay_dflt, 0,
-    "Default transmit interrupt delay limit in usecs");
-SYSCTL_INT(_hw_igc, OID_AUTO, rx_abs_int_delay, CTLFLAG_RDTUN,
-    &igc_rx_abs_int_delay_dflt, 0,
-    "Default receive interrupt delay limit in usecs");
 
 static int igc_smart_pwr_down = false;
 SYSCTL_INT(_hw_igc, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &igc_smart_pwr_down,
@@ -467,6 +446,12 @@ igc_if_attach_pre(if_ctx_t ctx)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "fw_version", CTLTYPE_STRING | CTLFLAG_RD,
+	    adapter, 0, igc_sysctl_print_fw_version, "A",
+	    "Prints FW/NVM Versions");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, igc_sysctl_debug_info, "I", "Debug Information");
 
@@ -535,29 +520,6 @@ igc_if_attach_pre(if_ctx_t ctx)
 
 	igc_setup_msix(ctx);
 	igc_get_bus_info(hw);
-
-	/* Set up some sysctls for the tunable interrupt delays */
-	igc_add_int_delay_sysctl(adapter, "rx_int_delay",
-	    "receive interrupt delay in usecs", &adapter->rx_int_delay,
-	    IGC_REGISTER(hw, IGC_RDTR), igc_rx_int_delay_dflt);
-	igc_add_int_delay_sysctl(adapter, "tx_int_delay",
-	    "transmit interrupt delay in usecs", &adapter->tx_int_delay,
-	    IGC_REGISTER(hw, IGC_TIDV), igc_tx_int_delay_dflt);
-	igc_add_int_delay_sysctl(adapter, "rx_abs_int_delay",
-	    "receive interrupt delay limit in usecs",
-	    &adapter->rx_abs_int_delay,
-	    IGC_REGISTER(hw, IGC_RADV),
-	    igc_rx_abs_int_delay_dflt);
-	igc_add_int_delay_sysctl(adapter, "tx_abs_int_delay",
-	    "transmit interrupt delay limit in usecs",
-	    &adapter->tx_abs_int_delay,
-	    IGC_REGISTER(hw, IGC_TADV),
-	    igc_tx_abs_int_delay_dflt);
-	igc_add_int_delay_sysctl(adapter, "itr",
-	    "interrupt delay limit in usecs/4",
-	    &adapter->tx_itr,
-	    IGC_REGISTER(hw, IGC_ITR),
-	    DEFAULT_ITR);
 
 	hw->mac.autoneg = DO_AUTO_NEG;
 	hw->phy.autoneg_wait_to_complete = false;
@@ -633,6 +595,11 @@ igc_if_attach_pre(if_ctx_t ctx)
 		error = EIO;
 		goto err_late;
 	}
+
+	/* Save the EEPROM/NVM versions */
+	igc_fw_version(adapter);
+
+	igc_print_fw_version(adapter);
 
 	/*
 	 * Get Wake-on-Lan and Management info for later use
@@ -2015,12 +1982,6 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 	if (!igc_disable_crc_stripping)
 		rctl |= IGC_RCTL_SECRC;
 
-	/*
-	 * Set the interrupt throttling rate. Value is calculated
-	 * as DEFAULT_ITR = 1/(MAX_INTS_PER_SEC * 256ns)
-	 */
-	IGC_WRITE_REG(hw, IGC_ITR, DEFAULT_ITR);
-
 	rxcsum = IGC_READ_REG(hw, IGC_RXCSUM);
 	if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
 		rxcsum |= IGC_RXCSUM_CRCOFL;
@@ -2666,6 +2627,95 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 			"Rx Desc Min Thresh Count");
 }
 
+static void
+igc_fw_version(struct igc_adapter *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	struct igc_fw_version *fw_ver = &sc->fw_ver;
+
+	*fw_ver = (struct igc_fw_version){0};
+
+	igc_get_fw_version(hw, fw_ver);
+}
+
+static void
+igc_sbuf_fw_version(struct igc_fw_version *fw_ver, struct sbuf *buf)
+{
+	const char *space = "";
+
+	if (fw_ver->eep_major || fw_ver->eep_minor || fw_ver->eep_build) {
+		sbuf_printf(buf, "EEPROM V%d.%d-%d", fw_ver->eep_major,
+			    fw_ver->eep_minor, fw_ver->eep_build);
+		space = " ";
+	}
+
+	if (fw_ver->invm_major || fw_ver->invm_minor || fw_ver->invm_img_type) {
+		sbuf_printf(buf, "%sNVM V%d.%d imgtype%d",
+			    space, fw_ver->invm_major, fw_ver->invm_minor,
+			    fw_ver->invm_img_type);
+		space = " ";
+	}
+
+	if (fw_ver->or_valid) {
+		sbuf_printf(buf, "%sOption ROM V%d-b%d-p%d",
+			    space, fw_ver->or_major, fw_ver->or_build,
+			    fw_ver->or_patch);
+		space = " ";
+	}
+
+	if (fw_ver->etrack_id)
+		sbuf_printf(buf, "%seTrack 0x%08x", space, fw_ver->etrack_id);
+}
+
+static void
+igc_print_fw_version(struct igc_adapter *sc )
+{
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_auto();
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return;
+	}
+
+	igc_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	else if (sbuf_len(buf))
+		device_printf(dev, "%s\n", sbuf_data(buf));
+
+	sbuf_delete(buf);
+}
+
+static int
+igc_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS)
+{
+	struct igc_adapter *sc = (struct igc_adapter *)arg1;
+	device_t dev = sc->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	igc_sbuf_fw_version(&sc->fw_ver, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
+	sbuf_delete(buf);
+
+	return (0);
+}
+
 /**********************************************************************
  *
  *  This routine provides a way to dump out the adapter eeprom,
@@ -2715,61 +2765,6 @@ igc_print_nvm_info(struct igc_adapter *adapter)
 		printf("%04x ", eeprom_data);
 	}
 	printf("\n");
-}
-
-static int
-igc_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
-{
-	struct igc_int_delay_info *info;
-	struct igc_adapter *adapter;
-	u32 regval;
-	int error, usecs, ticks;
-
-	info = (struct igc_int_delay_info *) arg1;
-	usecs = info->value;
-	error = sysctl_handle_int(oidp, &usecs, 0, req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (usecs < 0 || usecs > IGC_TICKS_TO_USECS(65535))
-		return (EINVAL);
-	info->value = usecs;
-	ticks = IGC_USECS_TO_TICKS(usecs);
-	if (info->offset == IGC_ITR)	/* units are 256ns here */
-		ticks *= 4;
-
-	adapter = info->adapter;
-
-	regval = IGC_READ_OFFSET(&adapter->hw, info->offset);
-	regval = (regval & ~0xffff) | (ticks & 0xffff);
-	/* Handle a few special cases. */
-	switch (info->offset) {
-	case IGC_RDTR:
-		break;
-	case IGC_TIDV:
-		if (ticks == 0) {
-			adapter->txd_cmd &= ~IGC_TXD_CMD_IDE;
-			/* Don't write 0 into the TIDV register. */
-			regval++;
-		} else
-			adapter->txd_cmd |= IGC_TXD_CMD_IDE;
-		break;
-	}
-	IGC_WRITE_OFFSET(&adapter->hw, info->offset, regval);
-	return (0);
-}
-
-static void
-igc_add_int_delay_sysctl(struct igc_adapter *adapter, const char *name,
-	const char *description, struct igc_int_delay_info *info,
-	int offset, int value)
-{
-	info->adapter = adapter;
-	info->offset = offset;
-	info->value = value;
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(adapter->dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, name, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    info, 0, igc_sysctl_int_delay, "I", description);
 }
 
 /*

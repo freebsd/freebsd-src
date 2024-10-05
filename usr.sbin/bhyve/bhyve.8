@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 26, 2024
+.Dd August 21, 2024
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -620,6 +620,13 @@ the
 process.
 .It Ar /dev/xxx
 Use the host TTY device for serial port I/O.
+.It Ar tcp=ip:port
+Use the TCP server for serial port I/O.
+Configuring this option will start a TCP server that waits for connections.
+Only one connection is allowed at any time. Other connection try to connect
+to TCP server will be disconnected immediately. Note that this feature
+allows unprivileged users to access the guest console, so ensure that
+access is appropriately restricted.
 .El
 .Ss TPM device backends
 .Bl -bullet
@@ -1118,7 +1125,8 @@ cd:/images/install.iso \\
 .Ed
 .Pp
 Run a UEFI virtual machine with a display resolution of 800 by 600 pixels
-that can be accessed via VNC at: 0.0.0.0:5900.
+that can be accessed via VNC at: 0.0.0.0:5900 or via serial console over
+TCP at: 127.0.0.1:1234 (unsafe if you expose serial console without protection).
 .Bd -literal -offset indent
 bhyve -c 2 -m 4G -w -H \\
   -s 0,hostbridge \\
@@ -1127,13 +1135,14 @@ bhyve -c 2 -m 4G -w -H \\
   -s 5,virtio-net,tap0 \\
   -s 29,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \\
   -s 30,xhci,tablet \\
-  -s 31,lpc -l com1,stdio \\
+  -s 31,lpc -l com1,tcp=127.0.0.1:1234 \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
    uefivm
 .Ed
 .Pp
 Run a UEFI virtual machine with a VNC display that is bound to all IPv6
-addresses on port 5900.
+addresses on port 5900 and a serial I/O port bound to TCP port 1234 of
+loopback address (unsafe if you expose serial console without protection).
 .Bd -literal -offset indent
 bhyve -c 2 -m 4G -w -H \\
   -s 0,hostbridge \\
@@ -1141,7 +1150,7 @@ bhyve -c 2 -m 4G -w -H \\
   -s 5,virtio-net,tap0 \\
   -s 29,fbuf,tcp=[::]:5900,w=800,h=600 \\
   -s 30,xhci,tablet \\
-  -s 31,lpc -l com1,stdio \\
+  -s 31,lpc -l com1,tcp=[::1]:1234 \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
    uefivm
 .Ed

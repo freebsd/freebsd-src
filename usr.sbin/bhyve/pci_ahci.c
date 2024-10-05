@@ -781,7 +781,7 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	assert(err == 0);
 }
 
-static inline void
+static inline unsigned int
 read_prdt(struct ahci_port *p, int slot, uint8_t *cfis, void *buf,
     unsigned int size)
 {
@@ -808,6 +808,7 @@ read_prdt(struct ahci_port *p, int slot, uint8_t *cfis, void *buf,
 		to += sublen;
 		prdt++;
 	}
+	return (size - len);
 }
 
 static void
@@ -820,6 +821,7 @@ ahci_handle_dsm_trim(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done
 	uint32_t len, elen;
 	int err, first, ncq;
 	uint8_t buf[512];
+	unsigned int written;
 
 	first = (done == 0);
 	if (cfis[2] == ATA_DATA_SET_MANAGEMENT) {
@@ -831,9 +833,12 @@ ahci_handle_dsm_trim(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done
 		len *= 512;
 		ncq = 1;
 	}
-	read_prdt(p, slot, cfis, buf, sizeof(buf));
+	written = read_prdt(p, slot, cfis, buf, sizeof(buf));
+	memset(buf + written, 0, sizeof(buf) - written);
 
 next:
+	if (done >= sizeof(buf) - 8)
+		return;
 	entry = &buf[done];
 	elba = ((uint64_t)entry[5] << 40) |
 		((uint64_t)entry[4] << 32) |

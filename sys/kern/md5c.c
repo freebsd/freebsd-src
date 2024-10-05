@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: RSA-MD
+ *
  * MD5C.C - RSA Data Security, Inc., MD5 message-digest algorithm
  *
  * Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
@@ -24,10 +26,6 @@
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
- */
-
-/*
- * This file should be kept in sync with src/lib/libmd/md5c.c
  */
 
 #include <sys/types.h>
@@ -220,7 +218,7 @@ MD5Final(unsigned char digest[static MD5_DIGEST_LENGTH], MD5_CTX *context)
 	Encode (digest, context->state, MD5_DIGEST_LENGTH);
 
 	/* Zeroize sensitive information. */
-	memset (context, 0, sizeof (*context));
+	explicit_bzero (context, sizeof (*context));
 }
 
 /* MD5 basic transformation. Transforms state based on block. */
@@ -328,3 +326,16 @@ MD5Transform(uint32_t state[4], const unsigned char block[64])
 	/* Zeroize sensitive information. */
 	memset ((void *)x, 0, sizeof (x));
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MD5Init
+__weak_reference(_libmd_MD5Init, MD5Init);
+#undef MD5Update
+__weak_reference(_libmd_MD5Update, MD5Update);
+#undef MD5Final
+__weak_reference(_libmd_MD5Final, MD5Final);
+#endif

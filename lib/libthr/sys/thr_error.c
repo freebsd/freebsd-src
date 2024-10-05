@@ -39,8 +39,7 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-#undef errno
-extern	int	errno;
+extern int __libsys_errno;
 
 __weak_reference(__error_threaded, __error);
 int *
@@ -53,5 +52,5 @@ __error_threaded(void)
 		if (curthread != NULL && curthread != _thr_initial)
 			return (&curthread->error);
 	}
-	return (&errno);
+	return (&__libsys_errno);
 }

@@ -746,6 +746,7 @@ main(int argc, char **argv)
         if (argc < 0)
                 exit(1);
 
+	xo_set_version(ISCSICTL_XO_VERSION);
 	xo_open_container("iscsictl");
 
 	while ((ch = getopt(argc, argv, "AMRLac:d:e:i:n:p:rt:u:s:vw:")) != -1) {

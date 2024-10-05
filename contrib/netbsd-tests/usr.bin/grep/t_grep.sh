@@ -81,7 +81,7 @@ recurse_symlink_body()
 
 	atf_check -o file:"$(atf_get_srcdir)/d_recurse_symlink.out" \
 	    -e file:"$(atf_get_srcdir)/d_recurse_symlink.err" \
-	    grep -r string test
+	    grep -rS string test
 }
 
 atf_test_case word_regexps

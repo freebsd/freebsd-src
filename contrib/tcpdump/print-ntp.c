@@ -32,13 +32,9 @@
  * RFC 5905 - NTPv4
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
-
-#include <time.h>
 
 #include "netdissect.h"
 #include "addrtoname.h"

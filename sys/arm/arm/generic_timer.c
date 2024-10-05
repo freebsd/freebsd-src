@@ -187,6 +187,7 @@ get_freq(void)
 	return (get_el0(cntfrq));
 }
 
+#ifdef FDT
 static uint64_t
 get_cntxct_a64_unstable(bool physical)
 {
@@ -208,6 +209,7 @@ get_cntxct_a64_unstable(bool physical)
 
 	return (val);
 }
+#endif
 
 static uint64_t
 get_cntxct(bool physical)

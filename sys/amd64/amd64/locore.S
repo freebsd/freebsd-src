@@ -91,11 +91,15 @@ ENTRY(btext)
 
 /* la57_trampoline(%rdi pml5) */
 ENTRY(la57_trampoline)
-	movq	%rsp,%r11
-	movq	%rbx,%r10
+	movq	%rsp,lst(%rip)
+	movq	%rbx,lst+8(%rip)
+	movq	%rbp,lst+0x10(%rip)
+	movq	%cr4,%rax
+	orq	$CR4_LA57,%rax
+	movq	%rax,lst+0x18(%rip)
 	leaq	la57_trampoline_end(%rip),%rsp
 
-	movq	%cr0,%rdx
+	movq	%cr0,%rbp
 	lgdtq	la57_trampoline_gdt_desc(%rip)
 
 	pushq	$(2<<3)
@@ -109,29 +113,48 @@ ENTRY(la57_trampoline)
 l1:	movl	$(3<<3),%eax
 	movl	%eax,%ss
 
-	movl	%edx,%eax
+	movl	%cr4,%eax
+	andl	$~(CR4_PGE | CR4_PCIDE),%eax
+	movl	%eax,%cr4
+
+	movl	%ebp,%eax
 	andl	$~CR0_PG,%eax
 	movl	%eax,%cr0
+
+	movl	$MSR_EFER,%ecx
+	rdmsr
+	andl	$~EFER_LME,%eax
+	wrmsr
 
 	movl	%cr4,%eax
 	orl	$CR4_LA57,%eax
 	movl	%eax,%cr4
 
 	movl	%edi,%cr3
-	movl	%edx,%cr0
 
-	pushl	$(1<<3)
+	rdmsr
+	orl	$EFER_LME,%eax
+	wrmsr
+
+	movl	%ebp,%cr0
+	jmp	1f
+
+1:	pushl	$(1<<3)
 	pushl	%ebx
 	lretl
 	.code64
 
-l2:	movq	%r11,%rsp
-	movq	%r10,%rbx
+l2:	movq	lst(%rip),%rsp
+	movq	lst+8(%rip),%rbx
+	movq	lst+0x10(%rip),%rbp
+	movq	lst+0x18(%rip),%rax
+	movq	%rax,%cr4
 	retq
 	.p2align 4,0
+lst:	.quad	0,0,0,0
 ENTRY(la57_trampoline_gdt_desc)
 	.word	la57_trampoline_end - la57_trampoline_gdt
-	.long	0		/* filled by pmap_bootstrap_la57 */
+	.long	0, 0		/* filled by pmap_bootstrap_la57 */
 	.p2align 4,0
 ENTRY(la57_trampoline_gdt)
 	.long	0x00000000	/* null desc */

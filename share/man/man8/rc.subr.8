@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 18, 2024
+.Dd September 22, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -134,7 +134,7 @@ The
 .Ar action
 argument
 may be one of the following:
-.Bl -tag -width ".Cm remove"
+.Bl -tag -width "remove"
 .It Cm add
 .Ar file
 is now being backed up by or possibly re-entered into this backup mechanism.
@@ -487,7 +487,7 @@ scripts to be implemented in a small amount of shell code.
 .Ar argument
 is searched for in the list of supported commands, which may be one
 of:
-.Bl -tag -width ".Cm restart" -offset indent
+.Bl -tag -width "restart" -offset indent
 .It Cm start
 Start the service.
 This should check that the service is to be started as specified by
@@ -523,7 +523,7 @@ If
 or
 .Va procname
 is set, also support:
-.Bl -tag -width ".Cm restart" -offset indent
+.Bl -tag -width "status" -offset indent
 .It Cm poll
 Wait for the command to exit.
 .It Cm status
@@ -535,7 +535,7 @@ Other supported commands are listed in the optional variable
 .Pp
 .Ar argument
 may have one of the following prefixes which alters its operation:
-.Bl -tag -width ".Li force" -offset indent
+.Bl -tag -width "force" -offset indent
 .It Li fast
 Skip the check for an existing running process,
 and sets
@@ -579,7 +579,7 @@ but only certain small classes of them.
 .Ic run_rc_command
 uses the following shell variables to control its behaviour.
 Unless otherwise stated, these are optional.
-.Bl -tag -width ".Va procname" -offset indent
+.Bl -tag -width "procname" -offset indent
 .It Va name
 The name of this script.
 This is not optional.
@@ -876,17 +876,16 @@ if
 .Ar argument Ns Va _cmd
 is not defined, then a default method is provided by
 .Ic run_rc_command :
-.Bl -tag -width ".Sy Argument" -offset indent
-.It Sy Argument
-.Sy Default method
-.It Cm start
+.Bl -column "Argument" "Default Method" -offset indent
+.It Sy Argument Ta Sy Default method
+.It Cm start Ta
 If
 .Va command
 is not running and
 .Ic checkyesno Va rcvar
 succeeds, start
 .Va command .
-.It Cm stop
+.It Cm stop Ta
 Determine the PIDs of
 .Va command
 with
@@ -898,7 +897,7 @@ or
 those PIDs, and run
 .Ic wait_for_pids
 on those PIDs.
-.It Cm reload
+.It Cm reload Ta
 Similar to
 .Cm stop ,
 except that it uses
@@ -915,21 +914,21 @@ It can be enabled via
 if appropriate:
 .Pp
 .Dl "extra_commands=reload"
-.It Cm restart
+.It Cm restart Ta
 Runs the
 .Cm stop
 method, then the
 .Cm start
 method.
-.It Cm status
+.It Cm status Ta
 Show the PID of
 .Va command ,
 or some other script specific status operation.
-.It Cm poll
+.It Cm poll Ta
 Wait for
 .Va command
 to exit.
-.It Cm rcvar
+.It Cm rcvar Ta
 Display which
 .Xr rc.conf 5
 variable is used (if any).
@@ -945,7 +944,7 @@ The following variables are available to the methods
 as well as after
 .Ic run_rc_command
 has completed:
-.Bl -tag -width ".Va rc_service" -offset indent
+.Bl -tag -width "rc_service" -offset indent
 .It Va rc_arg
 Argument provided to
 .Ic run_rc_command ,
@@ -1173,7 +1172,7 @@ and then
 .Ar message .
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /etc/rc.subr" -compact
+.Bl -tag -width "/etc/rc.subr" -compact
 .It Pa /etc/rc.subr
 The
 .Nm

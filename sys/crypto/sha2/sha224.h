@@ -73,10 +73,6 @@ __BEGIN_DECLS
 #define SHA224_Data		_libmd_SHA224_Data
 #endif
 
-#ifndef SHA224_version
-#define SHA224_version		_libmd_SHA224_version
-#endif
-
 void	SHA224_Init(SHA224_CTX *);
 void	SHA224_Update(SHA224_CTX *, const void *, size_t);
 void	SHA224_Final(unsigned char [__min_size(SHA224_DIGEST_LENGTH)],

@@ -1,0 +1,44 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024, Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.Dd September 6, 2024
+.Dt FREEBSD.KENV 3lua
+.Os
+.Sh NAME
+.Nm freebsd.kenv
+.Nd Lua binding to
+.Fx 's
+Linker functions
+.Sh SYNOPSIS
+.Bd -literal
+local kenv = require('freebsd.kenv')
+.Ed
+.Pp
+.Bl -tag -width XXXX -compact
+.It Dv table = kenv.get()
+.It Dv value = kenv.get(key)
+.El
+.Sh DESCRIPTION
+The
+.Nm
+module is a binding to the
+.Xr kenv 2
+function.
+.Pp
+List of functions:
+.Bl -tag -width XXXX
+.It Dv table = freebsd.kenv.get()
+Dump the kernel environnement into a key/value
+.Fa table .
+.It Dv value = freebsd.kenv.get(key)
+Return the
+.Fa value
+associated to the
+.Fa key ,
+if it exists, or
+.Va nil
+otherwise.
+.Sh SEE ALSO
+.Xr kenv 2

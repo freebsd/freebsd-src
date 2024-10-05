@@ -1105,7 +1105,7 @@ percent(const char *name, long pctv, int *over)
 {
 	char fmt[64];
 
-	snprintf(fmt, sizeof(fmt), " {:%s/%%%ulld/%%lld}", name,
+	snprintf(fmt, sizeof(fmt), " {:%s/%%%uld/%%ld}", name,
 	    (*over && pctv <= 9) ? 1 : 2);
 	xo_emit(fmt, pctv);
 	if (*over && pctv <= 9)

@@ -40,7 +40,6 @@
 #define	kfpu_allowed()		1
 #define	kfpu_initialize(tsk)	do {} while (0)
 
-
 #define	kfpu_begin() {					\
 	if (__predict_false(!is_fpu_kern_thread(0)))		\
 		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);\

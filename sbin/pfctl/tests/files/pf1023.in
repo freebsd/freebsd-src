@@ -1,0 +1,3 @@
+match log(matches) inet proto tcp
+match log(matches) inet from 192.0.2.0/24
+pass

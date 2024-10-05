@@ -20,9 +20,7 @@
  * RFC 5880 for version 1, and RFC 5881
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -313,8 +311,7 @@ bfd_print(netdissect_options *ndo, const u_char *pptr,
 
                 /* BFDv0 */
             case 0:
-                if (ndo->ndo_vflag < 1)
-                {
+                if (ndo->ndo_vflag < 1) {
                     ND_PRINT("BFDv0, Control, Flags: [%s], length: %u",
                            bittok2str(bfd_v0_flag_values, "none", flags),
                            len);
@@ -351,8 +348,7 @@ bfd_print(netdissect_options *ndo, const u_char *pptr,
 
                 /* BFDv1 */
             case 1:
-                if (ndo->ndo_vflag < 1)
-                {
+                if (ndo->ndo_vflag < 1) {
                     ND_PRINT("BFDv1, %s, State %s, Flags: [%s], length: %u",
                            tok2str(bfd_port_values, "unknown (%u)", port),
                            tok2str(bfd_v1_state_values, "unknown (%u)", (flags & 0xc0) >> 6),

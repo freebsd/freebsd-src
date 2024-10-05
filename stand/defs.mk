@@ -40,7 +40,14 @@ WARNS?=		1
 BOOTSRC=	${SRCTOP}/stand
 EFISRC=		${BOOTSRC}/efi
 EFIINC=		${EFISRC}/include
+# For amd64, there's a bit of mixed bag. Some of the tree (i386, lib*32) is
+# built 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
+# and activate it when DO32 is explicitly defined to be 1.
+.if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
+EFIINCMD=	${EFIINC}/i386
+.else
 EFIINCMD=	${EFIINC}/${MACHINE}
+.endif
 FDTSRC=		${BOOTSRC}/fdt
 FICLSRC=	${BOOTSRC}/ficl
 LDRSRC=		${BOOTSRC}/common
@@ -64,7 +71,7 @@ BINDIR?=	/boot
 # LUAPATH is where we search for and install lua scripts.
 LUAPATH?=	/boot/lua
 FLUASRC?=	${SRCTOP}/libexec/flua
-FLUALIB?=	${SRCTOP}/lib/flua
+FLUALIB?=	${SRCTOP}/libexec/flua
 
 LIBSA=		${BOOTOBJ}/libsa/libsa.a
 .if ${MACHINE} == "i386"
@@ -130,9 +137,6 @@ CFLAGS+=	-m32 -mcpu=powerpc -mbig-endian
 CFLAGS+=	-m32 -mcpu=powerpc -mlittle-endian
 .endif
 
-# For amd64, there's a bit of mixed bag. Some of the tree (i386, lib*32) is
-# build 32-bit and some 64-bit (lib*, efi). Centralize all the 32-bit magic here
-# and activate it when DO32 is explicitly defined to be 1.
 .if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
 CFLAGS+=	-m32
 # LD_FLAGS is passed directly to ${LD}, not via ${CC}:

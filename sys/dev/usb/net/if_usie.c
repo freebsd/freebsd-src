@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -1190,7 +1192,7 @@ usie_if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	switch (dst->sa_family) {
 #ifdef INET6
-	case AF_INET6;
+	case AF_INET6:
 	/* fall though */
 #endif
 	case AF_INET:

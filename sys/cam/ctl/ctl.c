@@ -4630,7 +4630,7 @@ fail:
 	ctl_tpc_lun_init(lun);
 	if (lun->flags & CTL_LUN_REMOVABLE) {
 		lun->prevent = malloc((CTL_MAX_INITIATORS + 31) / 32 * 4,
-		    M_CTL, M_WAITOK);
+		    M_CTL, M_WAITOK | M_ZERO);
 	}
 
 	/*
@@ -5586,7 +5586,7 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 	} else {
 		if (lun->write_buffer == NULL) {
 			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
-			    M_CTL, M_WAITOK);
+			    M_CTL, M_WAITOK | M_ZERO);
 		}
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 	}
@@ -5625,21 +5625,24 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
+	if (lun->write_buffer == NULL) {
+		lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
+			    M_CTL, M_WAITOK | M_ZERO);
+	}
+
 	/*
-	 * If we've got a kernel request that hasn't been malloced yet,
-	 * malloc it and tell the caller the data buffer is here.
+	 * If this kernel request hasn't started yet, initialize the data
+	 * buffer to the correct region of the LUN's write buffer.  Note that
+	 * this doesn't set CTL_FLAG_ALLOCATED since this points into a
+	 * persistent buffer belonging to the LUN rather than a buffer
+	 * dedicated to this request.
 	 */
-	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
-		if (lun->write_buffer == NULL) {
-			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
-			    M_CTL, M_WAITOK);
-		}
+	if (ctsio->kern_data_ptr == NULL) {
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
 		ctsio->kern_rel_offset = 0;
 		ctsio->kern_sg_entries = 0;
-		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 		ctsio->be_move_done = ctl_config_move_done;
 		ctl_datamove((union ctl_io *)ctsio);
 
@@ -7453,34 +7456,26 @@ ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
 		break;
 	case RSO_OPTIONS_OC:
 		if (ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) {
-			ctl_set_invalid_field(/*ctsio*/ ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 2,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 2);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
+			goto invalid_options;
 		}
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	case RSO_OPTIONS_OC_SA:
 		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0 ||
 		    service_action >= 32) {
-			ctl_set_invalid_field(/*ctsio*/ ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 2,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 2);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
+			goto invalid_options;
 		}
-		/* FALLTHROUGH */
+		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
+		break;
 	case RSO_OPTIONS_OC_ASA:
+		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) != 0 &&
+		    service_action >= 32) {
+			goto invalid_options;
+		}
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	default:
+invalid_options:
 		ctl_set_invalid_field(/*ctsio*/ ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -8273,6 +8268,18 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 	}
 
 	param_len = scsi_4btoul(cdb->length);
+
+	/* validate the parameter length */
+	if (param_len != 24) {
+		ctl_set_invalid_field(ctsio,
+				/*sks_valid*/ 1,
+				/*command*/ 1,
+				/*field*/ 5,
+				/*bit_valid*/ 1,
+				/*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
 
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
 		ctsio->kern_data_ptr = malloc(param_len, M_CTL, M_WAITOK);

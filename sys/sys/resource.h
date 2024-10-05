@@ -114,8 +114,9 @@ struct __wrusage {
 #define	RLIMIT_SWAP	12		/* swap used */
 #define	RLIMIT_KQUEUES	13		/* kqueues allocated */
 #define	RLIMIT_UMTXP	14		/* process-shared umtx */
+#define	RLIMIT_PIPEBUF	15		/* pipes/fifos buffers */
 
-#define	RLIM_NLIMITS	15		/* number of resource limits */
+#define	RLIM_NLIMITS	16		/* number of resource limits */
 
 #define	RLIM_INFINITY	((rlim_t)(((__uint64_t)1 << 63) - 1))
 #define	RLIM_SAVED_MAX	RLIM_INFINITY
@@ -126,7 +127,7 @@ struct __wrusage {
  */
 
 #ifdef _RLIMIT_IDENT
-static const char *rlimit_ident[RLIM_NLIMITS] = {
+static const char *rlimit_ident[] = {
 	"cpu",
 	"fsize",
 	"data",
@@ -142,6 +143,7 @@ static const char *rlimit_ident[RLIM_NLIMITS] = {
 	"swap",
 	"kqueues",
 	"umtx",
+	"pipebuf",
 };
 #endif
 
@@ -169,6 +171,9 @@ struct loadavg {
 #define	CP_IDLE		4
 #define	CPUSTATES	5
 
+/* getrlimitusage flags */
+#define	GETRLIMITUSAGE_EUID	0x0001
+
 #endif	/* __BSD_VISIBLE */
 
 #ifdef _KERNEL
@@ -185,6 +190,9 @@ int	getrlimit(int, struct rlimit *);
 int	getrusage(int, struct rusage *);
 int	setpriority(int, int, int);
 int	setrlimit(int, const struct rlimit *);
+#if __BSD_VISIBLE
+int	getrlimitusage(unsigned which, int flags, rlim_t *res);
+#endif
 __END_DECLS
 
 #endif	/* _KERNEL */

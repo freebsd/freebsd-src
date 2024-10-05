@@ -83,6 +83,7 @@
 #define CUBICFLAG_RTO_EVENT		0x00000008	/* RTO experienced */
 #define CUBICFLAG_HYSTART_ENABLED	0x00000010	/* Hystart++ is enabled */
 #define CUBICFLAG_HYSTART_IN_CSS	0x00000020	/* We are in Hystart++ CSS */
+#define CUBICFLAG_IN_TF			0x00000040	/* We are in TCP friendly region */
 
 /* Kernel only bits */
 #ifdef _KERNEL
@@ -286,22 +287,13 @@ reno_cwnd(int usecs_since_epoch, int rtt_usecs, unsigned long wmax,
 }
 
 /*
- * Compute an approximation of the "TCP friendly" cwnd some number of usecs
- * after a congestion event that is designed to yield the same average cwnd as
- * NewReno while using CUBIC's beta of 0.7. RTT should be the average RTT
- * estimate for the path measured over the previous congestion epoch and wmax is
- * the value of cwnd at the last congestion event.
+ * Compute the "TCP friendly" cwnd by newreno in congestion avoidance state.
  */
 static __inline unsigned long
-tf_cwnd(int usecs_since_epoch, int rtt_usecs, unsigned long wmax,
-    uint32_t smss)
+tf_cwnd(struct cc_var *ccv)
 {
-
-	/* Equation 4 of I-D. */
-	return (((wmax * CUBIC_BETA) +
-	    (((THREE_X_PT3 * (unsigned long)usecs_since_epoch *
-	    (unsigned long)smss) << CUBIC_SHIFT) / (TWO_SUB_PT3 * rtt_usecs)))
-	    >> CUBIC_SHIFT);
+	/* newreno is "TCP friendly" */
+	return newreno_cc_cwnd_in_cong_avoid(ccv);
 }
 
 #endif /* _NETINET_CC_CUBIC_H_ */

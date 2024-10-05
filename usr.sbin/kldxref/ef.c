@@ -364,11 +364,6 @@ ef_parse_dynamic(elf_file_t ef, const GElf_Phdr *phdyn)
 		error = EFTYPE;
 		goto out;
 	}
-	if (rel_off == 0 && rela_off == 0) {
-		warnx("%s: no ELF relocation table found\n", ef->ef_name);
-		error = EFTYPE;
-		goto out;
-	}
 
 	nsym = 0;
 	for (i = 0; i < nshdr; i++) {

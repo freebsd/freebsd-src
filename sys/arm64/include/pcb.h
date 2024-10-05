@@ -59,17 +59,19 @@ struct pcb {
 	u_int		pcb_flags;
 #define	PCB_SINGLE_STEP_SHIFT	0
 #define	PCB_SINGLE_STEP		(1 << PCB_SINGLE_STEP_SHIFT)
-	uint32_t	pcb_pad1;
+	u_int		pcb_sve_len;	/* The SVE vector length */
 
 	struct vfpstate	*pcb_fpusaved;
 	int		pcb_fpflags;
 #define	PCB_FP_STARTED	0x00000001
+#define	PCB_FP_SVEVALID	0x00000002
 #define	PCB_FP_KERN	0x40000000
 #define	PCB_FP_NOSAVE	0x80000000
 /* The bits passed to userspace in get_fpcontext */
-#define	PCB_FP_USERMASK	(PCB_FP_STARTED)
+#define	PCB_FP_USERMASK	(PCB_FP_STARTED | PCB_FP_SVEVALID)
 	u_int		pcb_vfpcpu;	/* Last cpu this thread ran VFP code */
-	uint64_t	pcb_reserved[5];
+	void		*pcb_svesaved;
+	uint64_t	pcb_reserved[4];
 
 	/*
 	 * The userspace VFP state. The pcb_fpusaved pointer will point to

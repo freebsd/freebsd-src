@@ -1078,7 +1078,9 @@ tmpfs_rename(struct vop_rename_args *v)
 		}
 
 		if (fnode->tn_type == VDIR && tnode->tn_type == VDIR) {
-			if (tnode->tn_size > 0) {
+			if (tnode->tn_size != 0 &&
+			    ((tcnp->cn_flags & IGNOREWHITEOUT) == 0 ||
+			    tnode->tn_size > tnode->tn_dir.tn_wht_size)) {
 				error = ENOTEMPTY;
 				goto out_locked;
 			}
@@ -1239,6 +1241,16 @@ tmpfs_rename(struct vop_rename_args *v)
 		tde = tmpfs_dir_lookup(tdnode, tnode, tcnp);
 		tmpfs_dir_detach(tdvp, tde);
 
+		/*
+		 * If we are overwriting a directory, per the ENOTEMPTY check
+		 * above it must either be empty or contain only whiteout
+		 * entries.  In the latter case (which can only happen if
+		 * IGNOREWHITEOUT was passed in tcnp->cn_flags), clear the
+		 * whiteout entries to avoid leaking memory.
+		 */
+		if (tnode->tn_type == VDIR && tnode->tn_size > 0)
+			tmpfs_dir_clear_whiteouts(tvp);
+
 		/* Update node's ctime because of possible hardlinks. */
 		tnode->tn_status |= TMPFS_NODE_CHANGED;
 		tmpfs_update(tvp);
@@ -1309,6 +1321,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
 	struct vnode *vp = v->a_vp;
+	struct componentname *cnp = v->a_cnp;
 
 	int error;
 	struct tmpfs_dirent *de;
@@ -1320,12 +1333,16 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_DIR(vp);
 
-	/* Directories with more than two entries ('.' and '..') cannot be
-	 * removed. */
-	 if (node->tn_size > 0) {
-		 error = ENOTEMPTY;
-		 goto out;
-	 }
+	/*
+	 * Directories with more than two non-whiteout entries ('.' and '..')
+	 * cannot be removed.
+	 */
+	if (node->tn_size != 0 &&
+	    ((cnp->cn_flags & IGNOREWHITEOUT) == 0 ||
+	    node->tn_size > node->tn_dir.tn_wht_size)) {
+		error = ENOTEMPTY;
+		goto out;
+	}
 
 	if ((dnode->tn_flags & APPEND)
 	    || (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
@@ -1334,15 +1351,15 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	}
 
 	/* This invariant holds only if we are not trying to remove "..".
-	  * We checked for that above so this is safe now. */
+	 * We checked for that above so this is safe now. */
 	MPASS(node->tn_dir.tn_parent == dnode);
 
 	/* Get the directory entry associated with node (vp).  This was
 	 * filled by tmpfs_lookup while looking up the entry. */
-	de = tmpfs_dir_lookup(dnode, node, v->a_cnp);
+	de = tmpfs_dir_lookup(dnode, node, cnp);
 	MPASS(TMPFS_DIRENT_MATCHES(de,
-	    v->a_cnp->cn_nameptr,
-	    v->a_cnp->cn_namelen));
+	    cnp->cn_nameptr,
+	    cnp->cn_namelen));
 
 	/* Check flags to see if we are allowed to remove the directory. */
 	if ((dnode->tn_flags & APPEND) != 0 ||
@@ -1353,8 +1370,19 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* Detach the directory entry from the directory (dnode). */
 	tmpfs_dir_detach(dvp, de);
-	if (v->a_cnp->cn_flags & DOWHITEOUT)
-		tmpfs_dir_whiteout_add(dvp, v->a_cnp);
+
+	/*
+	 * If we are removing a directory, per the ENOTEMPTY check above it
+	 * must either be empty or contain only whiteout entries.  In the
+	 * latter case (which can only happen if IGNOREWHITEOUT was passed
+	 * in cnp->cn_flags), clear the whiteout entries to avoid leaking
+	 * memory.
+	 */
+	if (node->tn_size > 0)
+		tmpfs_dir_clear_whiteouts(vp);
+
+	if (cnp->cn_flags & DOWHITEOUT)
+		tmpfs_dir_whiteout_add(dvp, cnp);
 
 	/* No vnode should be allocated for this entry from this point */
 	TMPFS_NODE_LOCK(node);
@@ -2071,7 +2099,7 @@ static off_t
 tmpfs_seek_data_locked(vm_object_t obj, off_t noff)
 {
 	vm_page_t m;
-	vm_pindex_t p, p_m, p_swp;
+	vm_pindex_t p, p_swp;
 
 	p = OFF_TO_IDX(noff);
 	m = vm_page_find_least(obj, p);
@@ -2080,15 +2108,24 @@ tmpfs_seek_data_locked(vm_object_t obj, off_t noff)
 	 * Microoptimize the most common case for SEEK_DATA, where
 	 * there is no hole and the page is resident.
 	 */
-	if (m != NULL && vm_page_any_valid(m) && m->pindex == p)
+	if (m != NULL && m->pindex == p && vm_page_any_valid(m))
 		return (noff);
 
 	p_swp = swap_pager_find_least(obj, p);
 	if (p_swp == p)
 		return (noff);
 
-	p_m = m == NULL ? obj->size : m->pindex;
-	return (IDX_TO_OFF(MIN(p_m, p_swp)));
+	/*
+	 * Find the first resident page after p, before p_swp.
+	 */
+	while (m != NULL && m->pindex < p_swp) {
+		if (vm_page_any_valid(m))
+			return (IDX_TO_OFF(m->pindex));
+		m = TAILQ_NEXT(m, listq);
+	}
+	if (p_swp == OBJ_MAX_SIZE)
+		p_swp = obj->size;
+	return (IDX_TO_OFF(p_swp));
 }
 
 static off_t

@@ -310,8 +310,8 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			for (i = 0; i < Ln_ENTRIES; i++) {
 				for (j = 0; j < Ln_ENTRIES; j++) {
 					tmpbuffer[j] = (pa + i * L2_SIZE +
-					    j * PAGE_SIZE) | ATTR_DEFAULT |
-					    L3_PAGE;
+					    j * PAGE_SIZE) | ATTR_AF |
+					    pmap_sh_attr | L3_PAGE;
 				}
 				error = blk_write(di, (char *)&tmpbuffer, 0,
 				    PAGE_SIZE);
@@ -330,7 +330,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 			/* Generate fake l3 entries based upon the l1 entry */
 			for (i = 0; i < Ln_ENTRIES; i++) {
 				tmpbuffer[i] = (pa + i * PAGE_SIZE) |
-				    ATTR_DEFAULT | L3_PAGE;
+				    ATTR_AF | pmap_sh_attr | L3_PAGE;
 			}
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)

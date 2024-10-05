@@ -185,7 +185,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	struct efi_map_header *efihdr;
 	bool do_vmap;
 
-#if defined(__amd64__) || defined(__aarch64__)
+#if defined(__amd64__) || defined(__aarch64__) || defined(__i386__)
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
@@ -339,7 +339,16 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	vm_offset_t size;
 	char *rootdevname;
 	int howto;
+#ifdef __i386__
+	/*
+	 * The 32-bit UEFI loader is used to
+	 * boot the 64-bit kernel on machines
+	 * that support it.
+	 */
+	bool is64 = true;
+#else
 	bool is64 = sizeof(long) == 8;
+#endif
 #if defined(LOADER_FDT_SUPPORT)
 	vm_offset_t dtbp;
 	int dtb_size;
@@ -439,7 +448,13 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
 #endif
 #ifdef EFI
+#ifndef __i386__
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
+#endif
+#if defined(__amd64__) || defined(__i386__)
+	file_addmetadata(kfp, MODINFOMD_EFI_ARCH, sizeof(MACHINE_ARCH),
+	    MACHINE_ARCH);
+#endif
 #endif
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);

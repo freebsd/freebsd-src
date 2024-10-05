@@ -46,6 +46,9 @@ struct arm64_guard_page_args {
 	__size_t	len;
 };
 
+#define	ARM64_GET_SVE_VL	0x200
+/* Reserved ARM64_SET_SVE_VL	0x201 */
+
 #ifndef _KERNEL
 
 __BEGIN_DECLS

@@ -1,10 +1,15 @@
 .include <src.lua.mk>
 
+SUBDIR+=	libfreebsd
+SUBDIR+=	libhash
+SUBDIR+=	libjail
+SUBDIR+=	libucl
+
 LUASRC?=	${SRCTOP}/contrib/lua/src
 .PATH: ${LUASRC}
 
 PROG=	flua
-WARNS?=	2
+WARNS?=	3
 MAN=	# No manpage; this is internal.
 
 CWARNFLAGS.gcc+=	-Wno-format-nonliteral
@@ -30,11 +35,5 @@ CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
 LIBADD+=	edit
 LDFLAGS+=	-Wl,-E
 .endif
-
-UCLSRC?=	${SRCTOP}/contrib/libucl
-.PATH: ${UCLSRC}/lua
-SRCS+=	lua_ucl.c
-CFLAGS+=	-I${UCLSRC}/include -I${UCLSRC}/src -I${UCLSRC}/uthash
-LIBADD+=	ucl
 
 .include <bsd.prog.mk>

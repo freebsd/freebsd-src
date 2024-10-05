@@ -229,7 +229,7 @@ syncache_free(struct syncache *sc)
 {
 
 	if (sc->sc_ipopts)
-		(void) m_free(sc->sc_ipopts);
+		(void)m_free(sc->sc_ipopts);
 	if (sc->sc_cred)
 		crfree(sc->sc_cred);
 #ifdef MAC
@@ -527,10 +527,16 @@ syncache_timer(void *xsch)
 		}
 
 		NET_EPOCH_ENTER(et);
-		syncache_respond(sc, NULL, TH_SYN|TH_ACK);
+		if (syncache_respond(sc, NULL, TH_SYN|TH_ACK) == 0) {
+			syncache_timeout(sc, sch, 0);
+			TCPSTAT_INC(tcps_sndacks);
+			TCPSTAT_INC(tcps_sndtotal);
+			TCPSTAT_INC(tcps_sc_retransmitted);
+		} else {
+			syncache_drop(sc, sch);
+			TCPSTAT_INC(tcps_sc_dropped);
+		}
 		NET_EPOCH_EXIT(et);
-		TCPSTAT_INC(tcps_sc_retransmitted);
-		syncache_timeout(sc, sch, 0);
 	}
 	if (!TAILQ_EMPTY(&(sch)->sch_bucket))
 		callout_reset(&(sch)->sch_timer, (sch)->sch_nextc - tick,
@@ -688,7 +694,13 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m,
 				    "sending challenge ACK\n",
 				    s, __func__,
 				    th->th_seq, sc->sc_irs + 1, sc->sc_wnd);
-			syncache_respond(sc, m, TH_ACK);
+			if (syncache_respond(sc, m, TH_ACK) == 0) {
+				TCPSTAT_INC(tcps_sndacks);
+				TCPSTAT_INC(tcps_sndtotal);
+			} else {
+				syncache_drop(sc, sch);
+				TCPSTAT_INC(tcps_sc_dropped);
+			}
 		}
 	} else {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
@@ -1360,10 +1372,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	int autoflowlabel = 0;
 #endif
 #ifdef MAC
-	struct label *maclabel;
+	struct label *maclabel = NULL;
 #endif
 	struct syncache scs;
-	struct ucred *cred;
 	uint64_t tfo_response_cookie;
 	unsigned int *tfo_pending = NULL;
 	int tfo_cookie_valid = 0;
@@ -1380,7 +1391,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	KASSERT(SOLISTENING(so), ("%s: %p not listening", __func__, so));
 	tp = sototcpcb(so);
-	cred = V_tcp_syncache.see_other ? NULL : crhold(so->so_cred);
 
 #ifdef INET6
 	if (inc->inc_flags & INC_ISIPV6) {
@@ -1510,7 +1520,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			 * forget it and use the new one we've been given.
 			 */
 			if (sc->sc_ipopts)
-				(void) m_free(sc->sc_ipopts);
+				(void)m_free(sc->sc_ipopts);
 			sc->sc_ipopts = ipopts;
 		}
 		/*
@@ -1526,7 +1536,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (sc->sc_flags & SCF_ECN_MASK) {
 			sc->sc_flags &= ~SCF_ECN_MASK;
-			sc->sc_flags = tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
+			sc->sc_flags |= tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 		}
 #ifdef MAC
 		/*
@@ -1549,56 +1559,54 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
 			TCPSTAT_INC(tcps_sndtotal);
+		} else {
+			syncache_drop(sc, sch);
+			TCPSTAT_INC(tcps_sc_dropped);
 		}
 		SCH_UNLOCK(sch);
 		goto donenoprobe;
 	}
 
-	if (tfo_cookie_valid) {
-		bzero(&scs, sizeof(scs));
-		sc = &scs;
-		goto skip_alloc;
-	}
-
+	KASSERT(sc == NULL, ("sc(%p) != NULL", sc));
 	/*
 	 * Skip allocating a syncache entry if we are just going to discard
 	 * it later.
 	 */
-	if (!locked) {
+	if (!locked || tfo_cookie_valid) {
 		bzero(&scs, sizeof(scs));
 		sc = &scs;
-	} else
-		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		/*
-		 * The zone allocator couldn't provide more entries.
-		 * Treat this as if the cache was full; drop the oldest
-		 * entry and insert the new one.
-		 */
-		TCPSTAT_INC(tcps_sc_zonefail);
-		if ((sc = TAILQ_LAST(&sch->sch_bucket, sch_head)) != NULL) {
-			sch->sch_last_overflow = time_uptime;
-			syncache_drop(sc, sch);
-			syncache_pause(inc);
-		}
+	} else {
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
-			if (V_tcp_syncookies) {
-				bzero(&scs, sizeof(scs));
-				sc = &scs;
-			} else {
-				KASSERT(locked,
-				    ("%s: bucket unexpectedly unlocked",
-				    __func__));
-				SCH_UNLOCK(sch);
-				if (ipopts)
-					(void) m_free(ipopts);
-				goto done;
+			/*
+			 * The zone allocator couldn't provide more entries.
+			 * Treat this as if the cache was full; drop the oldest
+			 * entry and insert the new one.
+			 */
+			TCPSTAT_INC(tcps_sc_zonefail);
+			sc = TAILQ_LAST(&sch->sch_bucket, sch_head);
+			if (sc != NULL) {
+				sch->sch_last_overflow = time_uptime;
+				syncache_drop(sc, sch);
+				syncache_pause(inc);
+			}
+			sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
+			if (sc == NULL) {
+				if (V_tcp_syncookies) {
+					bzero(&scs, sizeof(scs));
+					sc = &scs;
+				} else {
+					KASSERT(locked,
+					    ("%s: bucket unexpectedly unlocked",
+					    __func__));
+					SCH_UNLOCK(sch);
+					goto done;
+				}
 			}
 		}
 	}
 
-skip_alloc:
+	KASSERT(sc != NULL, ("sc == NULL"));
 	if (!tfo_cookie_valid && tfo_response_cookie_valid)
 		sc->sc_tfo_cookie = &tfo_response_cookie;
 
@@ -1608,9 +1616,21 @@ skip_alloc:
 #ifdef MAC
 	sc->sc_label = maclabel;
 #endif
-	sc->sc_cred = cred;
+	/*
+	 * sc_cred is only used in syncache_pcblist() to list TCP endpoints in
+	 * TCPS_SYN_RECEIVED state when V_tcp_syncache.see_other is false.
+	 * Therefore, store the credentials and take a reference count only
+	 * when needed:
+	 * - sc is allocated from the zone and not using the on stack instance.
+	 * - the sysctl variable net.inet.tcp.syncache.see_other is false.
+	 * The reference count is decremented when a zone allocated sc is
+	 * freed in syncache_free().
+	 */
+	if (sc != &scs && !V_tcp_syncache.see_other)
+		sc->sc_cred = crhold(so->so_cred);
+	else
+		sc->sc_cred = NULL;
 	sc->sc_port = port;
-	cred = NULL;
 	sc->sc_ipopts = ipopts;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 	sc->sc_ip_tos = ip_tos;
@@ -1746,12 +1766,13 @@ donenoprobe:
 		tcp_fastopen_decrement_counter(tfo_pending);
 
 tfo_expanded:
-	if (cred != NULL)
-		crfree(cred);
+	if (sc == NULL || sc == &scs) {
 #ifdef MAC
-	if (sc == &scs)
 		mac_syncache_destroy(&maclabel);
 #endif
+		if (ipopts)
+			(void)m_free(ipopts);
+	}
 	return (rv);
 }
 

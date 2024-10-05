@@ -36,7 +36,7 @@
 #
 # This script needs to be run by "gawk" (GNU awk).  "nawk" will work, but
 # dump will get a recursion error if you process LARGE mibs.  While it would
-# by farily easy to rewrite this not to use recursion (and also easy to
+# by fairly easy to rewrite this not to use recursion (and also easy to
 # eliminate use of gsub and functions to use classic "awk"), you have to
 # order the structure declarations in defined-first order for the compiler
 # not to barf; too bad tsort doesn't take arguments.

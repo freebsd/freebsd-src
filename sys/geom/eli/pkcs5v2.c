@@ -51,13 +51,22 @@ void
 pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
     size_t saltsize, const char *passphrase, u_int iterations)
 {
+
+	pkcs5v2_genkey_raw(key, keylen, salt, saltsize, passphrase,
+	    strlen(passphrase), iterations);
+}
+
+void
+pkcs5v2_genkey_raw(uint8_t *key, unsigned keylen, const uint8_t *salt,
+    size_t saltsize, const uint8_t *passphrase, size_t passlen,
+    u_int iterations)
+{
 	uint8_t md[SHA512_MDLEN], saltcount[saltsize + sizeof(uint32_t)];
 	uint8_t *counter, *keyp;
-	u_int i, bsize, passlen;
+	u_int i, bsize;
 	uint32_t count;
 	struct hmac_ctx startpoint, ctx;
 
-	passlen = strlen(passphrase);
 	bzero(key, keylen);
 	bcopy(salt, saltcount, saltsize);
 	counter = saltcount + saltsize;

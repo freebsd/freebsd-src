@@ -30,9 +30,7 @@
 __RCSID("$NetBSD: print-tcp.c,v 1.8 2007/07/24 11:53:48 drochner Exp $");
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -127,7 +125,7 @@ static const struct tok tcp_option_values[] = {
         { TCPOPT_TIMESTAMP, "TS" },
         { TCPOPT_CC, "cc" },
         { TCPOPT_CCNEW, "ccnew" },
-        { TCPOPT_CCECHO, "" },
+        { TCPOPT_CCECHO, "ccecho" },
         { TCPOPT_SIGNATURE, "md5" },
         { TCPOPT_SCPS, "scps" },
         { TCPOPT_UTO, "uto" },
@@ -738,7 +736,12 @@ tcp_print(netdissect_options *ndo,
                 return;
         }
 
-        if (IS_SRC_OR_DST_PORT(TELNET_PORT)) {
+        if (IS_SRC_OR_DST_PORT(FTP_PORT)) {
+                ND_PRINT(": ");
+                ftp_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(SSH_PORT)) {
+                ssh_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(TELNET_PORT)) {
                 telnet_print(ndo, bp, length);
         } else if (IS_SRC_OR_DST_PORT(SMTP_PORT)) {
                 ND_PRINT(": ");
@@ -746,42 +749,45 @@ tcp_print(netdissect_options *ndo,
         } else if (IS_SRC_OR_DST_PORT(WHOIS_PORT)) {
                 ND_PRINT(": ");
                 whois_print(ndo, bp, length);
-        } else if (IS_SRC_OR_DST_PORT(BGP_PORT))
-                bgp_print(ndo, bp, length);
-        else if (IS_SRC_OR_DST_PORT(PPTP_PORT))
-                pptp_print(ndo, bp);
-        else if (IS_SRC_OR_DST_PORT(REDIS_PORT))
-                resp_print(ndo, bp, length);
-        else if (IS_SRC_OR_DST_PORT(SSH_PORT))
-                ssh_print(ndo, bp, length);
-#ifdef ENABLE_SMB
-        else if (IS_SRC_OR_DST_PORT(NETBIOS_SSN_PORT))
-                nbt_tcp_print(ndo, bp, length);
-        else if (IS_SRC_OR_DST_PORT(SMB_PORT))
-                smb_tcp_print(ndo, bp, length);
-#endif
-        else if (IS_SRC_OR_DST_PORT(BEEP_PORT))
-                beep_print(ndo, bp, length);
-        else if (IS_SRC_OR_DST_PORT(OPENFLOW_PORT_OLD) || IS_SRC_OR_DST_PORT(OPENFLOW_PORT_IANA))
-                openflow_print(ndo, bp, length);
-        else if (IS_SRC_OR_DST_PORT(FTP_PORT)) {
-                ND_PRINT(": ");
-                ftp_print(ndo, bp, length);
-        } else if (IS_SRC_OR_DST_PORT(HTTP_PORT) || IS_SRC_OR_DST_PORT(HTTP_PORT_ALT)) {
-                ND_PRINT(": ");
-                http_print(ndo, bp, length);
-        } else if (IS_SRC_OR_DST_PORT(RTSP_PORT) || IS_SRC_OR_DST_PORT(RTSP_PORT_ALT)) {
-                ND_PRINT(": ");
-                rtsp_print(ndo, bp, length);
         } else if (IS_SRC_OR_DST_PORT(NAMESERVER_PORT)) {
                 /* over_tcp: TRUE, is_mdns: FALSE */
                 domain_print(ndo, bp, length, TRUE, FALSE);
-        } else if (IS_SRC_OR_DST_PORT(MSDP_PORT)) {
-                msdp_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(HTTP_PORT)) {
+                ND_PRINT(": ");
+                http_print(ndo, bp, length);
+#ifdef ENABLE_SMB
+        } else if (IS_SRC_OR_DST_PORT(NETBIOS_SSN_PORT)) {
+                nbt_tcp_print(ndo, bp, length);
+#endif
+        } else if (IS_SRC_OR_DST_PORT(BGP_PORT)) {
+                bgp_print(ndo, bp, length);
         } else if (IS_SRC_OR_DST_PORT(RPKI_RTR_PORT)) {
                 rpki_rtr_print(ndo, bp, length);
+#ifdef ENABLE_SMB
+        } else if (IS_SRC_OR_DST_PORT(SMB_PORT)) {
+                smb_tcp_print(ndo, bp, length);
+#endif
+        } else if (IS_SRC_OR_DST_PORT(RTSP_PORT)) {
+                ND_PRINT(": ");
+                rtsp_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(MSDP_PORT)) {
+                msdp_print(ndo, bp, length);
         } else if (IS_SRC_OR_DST_PORT(LDP_PORT)) {
                 ldp_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(PPTP_PORT))
+                pptp_print(ndo, bp);
+        else if (IS_SRC_OR_DST_PORT(REDIS_PORT))
+                resp_print(ndo, bp, length);
+        else if (IS_SRC_OR_DST_PORT(BEEP_PORT))
+                beep_print(ndo, bp, length);
+        else if (IS_SRC_OR_DST_PORT(OPENFLOW_PORT_OLD) || IS_SRC_OR_DST_PORT(OPENFLOW_PORT_IANA)) {
+                openflow_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(HTTP_PORT_ALT)) {
+                ND_PRINT(": ");
+                http_print(ndo, bp, length);
+        } else if (IS_SRC_OR_DST_PORT(RTSP_PORT_ALT)) {
+                ND_PRINT(": ");
+                rtsp_print(ndo, bp, length);
         } else if ((IS_SRC_OR_DST_PORT(NFS_PORT)) &&
                  length >= 4 && ND_TTEST_4(bp)) {
                 /*

@@ -30,6 +30,7 @@
 #endif
 #include <sys/types.h>
 #include <setjmp.h>
+#include <time.h>
 #include "status-exit-codes.h"
 #include "funcattrs.h" /* for PRINTFLIKE_FUNCPTR() */
 #include "diag-control.h" /* for ND_UNREACHABLE */
@@ -58,9 +59,16 @@ typedef signed char nd_int8_t[1];
 
 /*
  * "unsigned char" so that sign extension isn't done on the
- * individual bytes while they're being assembled.
+ * individual bytes while they're being assembled.  Use
+ * GET_S_BE_n() and GET_S_LE_n() macros to extract the value
+ * as a signed integer.
  */
+typedef unsigned char nd_int16_t[2];
+typedef unsigned char nd_int24_t[3];
 typedef unsigned char nd_int32_t[4];
+typedef unsigned char nd_int40_t[5];
+typedef unsigned char nd_int48_t[6];
+typedef unsigned char nd_int56_t[7];
 typedef unsigned char nd_int64_t[8];
 
 #define	FMAXINT	(4294967296.0)	/* floating point rep. of MAXINT */
@@ -268,19 +276,10 @@ extern void nd_change_snaplen(netdissect_options *, const u_char *, const u_int)
 extern void nd_pop_packet_info(netdissect_options *);
 extern void nd_pop_all_packet_info(netdissect_options *);
 
-static inline NORETURN void
-nd_trunc_longjmp(netdissect_options *ndo)
-{
-	longjmp(ndo->ndo_early_end, ND_TRUNCATED);
-#ifdef _AIX
-	/*
-	 * In AIX <setjmp.h> decorates longjmp() with "#pragma leaves", which tells
-	 * XL C that the function is noreturn, but GCC remains unaware of that and
-	 * yields a "'noreturn' function does return" warning.
-	 */
-	ND_UNREACHABLE
-#endif /* _AIX */
-}
+/*
+ * Report a packet truncation with a longjmp().
+ */
+NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
 
 #define PT_VAT		1	/* Visual Audio Tool */
 #define PT_WB		2	/* distributed White Board */
@@ -386,35 +385,47 @@ nd_trunc_longjmp(netdissect_options *ndo)
 /*
  * Number of bytes between two pointers.
  */
-#define ND_BYTES_BETWEEN(p1, p2) ((u_int)(((const uint8_t *)(p1)) - (const uint8_t *)(p2)))
+#define ND_BYTES_BETWEEN(p1, p2) ((const u_char *)(p1) >= (const u_char *)(p2) ? 0 : ((u_int)(((const u_char *)(p2)) - (const u_char *)(p1))))
 
 /*
  * Number of bytes remaining in the captured data, starting at the
  * byte pointed to by the argument.
  */
-#define ND_BYTES_AVAILABLE_AFTER(p) ND_BYTES_BETWEEN(ndo->ndo_snapend, (p))
+#define ND_BYTES_AVAILABLE_AFTER(p) ((const u_char *)(p) < ndo->ndo_packetp ? 0 : ND_BYTES_BETWEEN((p), ndo->ndo_snapend))
 
-/* Check length < minimum for invalid packet with a custom message, format %u */
-#define ND_LCHECKMSG_U(length, minimum, what) \
-if ((length) < (minimum)) { \
-ND_PRINT(" [%s %u < %u]", (what), (length), (minimum)); \
+/*
+ * Check (expression_1 operator expression_2) for invalid packet with
+ * a custom message, format %u
+ */
+#define ND_ICHECKMSG_U(message, expression_1, operator, expression_2) \
+if ((expression_1) operator (expression_2)) { \
+ND_PRINT(" [%s %u %s %u]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
 }
 
-/* Check length < minimum for invalid packet with #length message, format %u */
-#define ND_LCHECK_U(length, minimum) \
-ND_LCHECKMSG_U((length), (minimum), (#length))
+/*
+ * Check (expression_1 operator expression_2) for invalid packet with
+ * "expression_1" message, format %u
+ */
+#define ND_ICHECK_U(expression_1, operator, expression_2) \
+ND_ICHECKMSG_U((#expression_1), (expression_1), operator, (expression_2))
 
-/* Check length < minimum for invalid packet with a custom message, format %zu */
-#define ND_LCHECKMSG_ZU(length, minimum, what) \
-if ((length) < (minimum)) { \
-ND_PRINT(" [%s %u < %zu]", (what), (length), (minimum)); \
+/*
+ * Check (expression_1 operator expression_2) for invalid packet with
+ * a custom message, format %zu
+ */
+#define ND_ICHECKMSG_ZU(message, expression_1, operator, expression_2) \
+if ((expression_1) operator (expression_2)) { \
+ND_PRINT(" [%s %u %s %zu]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
 }
 
-/* Check length < minimum for invalid packet with #length message, format %zu */
-#define ND_LCHECK_ZU(length, minimum) \
-ND_LCHECKMSG_ZU((length), (minimum), (#length))
+/*
+ * Check (expression_1 operator expression_2) for invalid packet with
+ * "expression_1" message, format %zu
+ */
+#define ND_ICHECK_ZU(expression_1, operator, expression_2) \
+ND_ICHECKMSG_ZU((#expression_1), (expression_1), operator, (expression_2))
 
 #define ND_PRINT(...) (ndo->ndo_printf)(ndo, __VA_ARGS__)
 #define ND_DEFAULTPRINT(ap, length) (*ndo->ndo_default_print)(ndo, ap, length)
@@ -430,6 +441,7 @@ extern void fn_print_char(netdissect_options *, u_char);
 extern void fn_print_str(netdissect_options *, const u_char *);
 extern u_int nd_printztn(netdissect_options *, const u_char *, u_int, const u_char *);
 extern int nd_printn(netdissect_options *, const u_char *, u_int, const u_char *);
+extern void nd_printjn(netdissect_options *, const u_char *, u_int);
 extern void nd_printjnp(netdissect_options *, const u_char *, u_int);
 
 /*
@@ -645,7 +657,7 @@ extern void igmp_print(netdissect_options *, const u_char *, u_int);
 extern void igrp_print(netdissect_options *, const u_char *, u_int);
 extern void ip6_print(netdissect_options *, const u_char *, u_int);
 extern void ipN_print(netdissect_options *, const u_char *, u_int);
-extern void ip_print(netdissect_options *, const u_char *, u_int);
+extern void ip_print(netdissect_options *, const u_char *, const u_int);
 extern void ipcomp_print(netdissect_options *, const u_char *);
 extern void ipx_netbios_print(netdissect_options *, const u_char *, u_int);
 extern void ipx_print(netdissect_options *, const u_char *, u_int);
@@ -754,7 +766,6 @@ extern void zmtp1_datagram_print(netdissect_options *, const u_char *, const u_i
 extern void someip_print(netdissect_options *, const u_char *, const u_int);
 
 /* checksum routines */
-extern void init_checksum(void);
 extern uint16_t verify_crc10_cksum(uint16_t, const u_char *, int);
 extern uint16_t create_osi_cksum(const uint8_t *, int, int);
 

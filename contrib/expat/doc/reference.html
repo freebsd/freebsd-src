@@ -52,7 +52,7 @@
   <div>
     <h1>
       The Expat XML Parser
-      <small>Release 2.6.0</small>
+      <small>Release 2.6.3</small>
     </h1>
   </div>
 <div class="content">
@@ -319,7 +319,7 @@ directions in the next section. Otherwise if you have Microsoft's
 Developer Studio installed,
 you can use CMake to generate a <code>.sln</code> file, e.g.
 <code>
-cmake -G"Visual Studio 15 2017" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
+cmake -G"Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 </code>, and build Expat using <code>msbuild /m expat.sln</code> after.</p>
 
 <p>Alternatively, you may download the Win32 binary package that
@@ -356,10 +356,7 @@ library and header would get installed in
 <h3>Configuring Expat Using the Pre-Processor</h3>
 
 <p>Expat's feature set can be configured using a small number of
-pre-processor definitions.  The definition of this symbols does not
-affect the set of entry points for Expat, only the behavior of the API
-and the definition of character types in the case of
-<code>XML_UNICODE_WCHAR_T</code>.  The symbols are:</p>
+pre-processor definitions.  The symbols are:</p>
 
 <dl class="cpp-symbols">
 <dt><a name="XML_GE">XML_GE</a></dt>
@@ -1138,7 +1135,9 @@ containing part (or perhaps all) of the document. The number of bytes of s
 that are part of the document is indicated by <code>len</code>. This means
 that <code>s</code> doesn't have to be null-terminated. It also means that
 if <code>len</code> is larger than the number of bytes in the block of
-memory that <code>s</code> points at, then a memory fault is likely. The
+memory that <code>s</code> points at, then a memory fault is likely.
+Negative values for <code>len</code> are rejected since Expat 2.2.1.
+The
 <code>isFinal</code> parameter informs the parser that this is the last
 piece of the document. Frequently, the last piece is empty (i.e.
 <code>len</code> is zero.)
@@ -1186,11 +1185,17 @@ XML_ParseBuffer(XML_Parser p,
                 int isFinal);
 </pre>
 <div class="fcndef">
+<p>
 This is just like <code><a href= "#XML_Parse" >XML_Parse</a></code>,
 except in this case Expat provides the buffer.  By obtaining the
 buffer from Expat with the <code><a href= "#XML_GetBuffer"
 >XML_GetBuffer</a></code> function, the application can avoid double
 copying of the input.
+</p>
+
+<p>
+Negative values for <code>len</code> are rejected since Expat 2.6.3.
+</p>
 </div>
 
 <h4 id="XML_GetBuffer">XML_GetBuffer</h4>

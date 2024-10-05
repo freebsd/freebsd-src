@@ -30,6 +30,22 @@
 
 #include "diff_internal.h"
 
+static bool color;
+static const char *del_code = "31";
+static const char *add_code = "32";
+
+void
+diff_output_set_colors(bool _color,
+		       const char *_del_code,
+		       const char *_add_code)
+{
+	color = _color;
+	if (_del_code)
+		del_code = _del_code;
+	if (_add_code)
+		add_code = _add_code;
+}
+
 static int
 get_atom_byte(int *ch, struct diff_atom *atom, off_t off)
 {
@@ -66,10 +82,23 @@ diff_output_lines(struct diff_output_info *outinfo, FILE *dest,
 	off_t outoff = 0, *offp;
 	uint8_t *typep;
 	int rc;
+	bool colored;
 
 	if (outinfo && outinfo->line_offsets.len > 0) {
 		unsigned int idx = outinfo->line_offsets.len - 1;
 		outoff = outinfo->line_offsets.head[idx];
+	}
+
+	if (color) {
+		colored = true;
+		if (*prefix == '-' || *prefix == '<')
+			printf("\033[%sm", del_code);
+		else if (*prefix == '+' || *prefix == '>')
+			printf("\033[%sm", add_code);
+		else
+			colored = false;
+	} else {
+		colored = false;
 	}
 
 	foreach_diff_atom(atom, start_atom, count) {
@@ -80,14 +109,16 @@ diff_output_lines(struct diff_output_info *outinfo, FILE *dest,
 		size_t n;
 
 		n = strlcpy(buf, prefix, sizeof(buf));
-		if (n >= DIFF_OUTPUT_BUF_SIZE) /* leave room for '\n' */
-			return ENOBUFS;
+		if (n >= DIFF_OUTPUT_BUF_SIZE) { /* leave room for '\n' */
+			rc = ENOBUFS;
+			goto out;
+		}
 		nbuf += n;
 
 		if (len) {
 			rc = get_atom_byte(&ch, atom, len - 1);
 			if (rc)
-				return rc;
+				goto out;
 			if (ch == '\n')
 				len--;
 		}
@@ -95,11 +126,13 @@ diff_output_lines(struct diff_output_info *outinfo, FILE *dest,
 		for (i = 0; i < len; i++) {
 			rc = get_atom_byte(&ch, atom, i);
 			if (rc)
-				return rc;
+				goto out;
 			if (nbuf >= DIFF_OUTPUT_BUF_SIZE) {
 				wlen = fwrite(buf, 1, nbuf, dest);
-				if (wlen != nbuf)
-					return errno;
+				if (wlen != nbuf) {
+					rc = errno;
+					goto out;
+				}
 				outlen += wlen;
 				nbuf = 0;
 			}
@@ -107,25 +140,35 @@ diff_output_lines(struct diff_output_info *outinfo, FILE *dest,
 		}
 		buf[nbuf++] = '\n';
 		wlen = fwrite(buf, 1, nbuf, dest);
-		if (wlen != nbuf)
-			return errno;
+		if (wlen != nbuf) {
+			rc = errno;
+			goto out;
+		}
 		outlen += wlen;
 		if (outinfo) {
 			ARRAYLIST_ADD(offp, outinfo->line_offsets);
-			if (offp == NULL)
-				return ENOMEM;
+			if (offp == NULL) {
+				rc = ENOMEM;
+				goto out;
+			}
 			outoff += outlen;
 			*offp = outoff;
 			ARRAYLIST_ADD(typep, outinfo->line_types);
-			if (typep == NULL)
-				return ENOMEM;
+			if (typep == NULL) {
+				rc = ENOMEM;
+				goto out;
+			}
 			*typep = *prefix == ' ' ? DIFF_LINE_CONTEXT :
 			    *prefix == '-' ? DIFF_LINE_MINUS :
 			    *prefix == '+' ? DIFF_LINE_PLUS : DIFF_LINE_NONE;
 		}
 	}
 
-	return DIFF_RC_OK;
+	rc = DIFF_RC_OK;
+out:
+	if (colored)
+		printf("\033[m");
+	return rc;
 }
 
 int

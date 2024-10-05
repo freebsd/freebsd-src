@@ -292,6 +292,122 @@ urpf_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "received_on" "cleanup"
+received_on_head()
+{
+	atf_set descr 'Test received-on filtering'
+	atf_set require.user root
+}
+
+received_on_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	epair_route=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_one}b ${epair_two}b ${epair_route}a
+	vnet_mkjail srv ${epair_route}b
+
+	ifconfig ${epair_one}a 192.0.2.2/24 up
+	ifconfig ${epair_two}a 198.51.100.2/24 up
+	route add 203.0.113.2 192.0.2.1
+	route add 203.0.113.3 198.51.100.1
+
+	jexec alcatraz ifconfig ${epair_one}b 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair_two}b 198.51.100.1/24 up
+	jexec alcatraz ifconfig ${epair_route}a 203.0.113.1/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+
+	jexec srv ifconfig ${epair_route}b 203.0.113.2/24 up
+	jexec srv ifconfig ${epair_route}b inet alias 203.0.113.3/24 up
+	jexec srv route add default 203.0.113.1
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.2
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.3
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block in" \
+	    "pass received-on ${epair_one}b"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 198.51.100.1
+
+	# And ensure we can check the received-on interface after routing
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.2
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 203.0.113.3
+
+	# Now try this with a group instead
+	jexec alcatraz ifconfig ${epair_one}b group test
+	pft_set_rules alcatraz \
+	    "block in" \
+	    "pass received-on test"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 198.51.100.1
+
+	# And ensure we can check the received-on interface after routing
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.2
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 203.0.113.3
+}
+
+received_on_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "optimize_any" "cleanup"
+optimize_any_head()
+{
+	atf_set descr 'Test known optimizer bug'
+	atf_set require.user root
+}
+
+optimize_any_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in inet from { any, 192.0.2.3 }"
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+}
+
+optimize_any_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "enable_disable"
@@ -300,4 +416,6 @@ atf_init_test_cases()
 	atf_add_test_case "noalias"
 	atf_add_test_case "nested_inline"
 	atf_add_test_case "urpf"
+	atf_add_test_case "received_on"
+	atf_add_test_case "optimize_any"
 }

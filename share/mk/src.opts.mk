@@ -116,6 +116,7 @@ __DEFAULT_YES_OPTIONS = \
     IPFW \
     ISCSI \
     JAIL \
+    JEMALLOC_LG_VADDR_WIDE \
     KDUMP \
     KVM \
     LDNS \
@@ -132,6 +133,7 @@ __DEFAULT_YES_OPTIONS = \
     LOADER_OFW \
     LOADER_PXEBOOT \
     LOADER_UBOOT \
+    LOADER_IA32 \
     LOCALES \
     LOCATE \
     LPR \
@@ -187,6 +189,7 @@ __DEFAULT_YES_OPTIONS = \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
+    ZFS_TESTS \
     LOADER_ZFS \
     ZONEINFO
 
@@ -329,6 +332,10 @@ BROKEN_OPTIONS+=LOADER_KBOOT
 .if (${__T:Marm*} == "" && ${__T:Mpowerpc*} == "") || ${__T} == "powerpc64le"
 BROKEN_OPTIONS+=LOADER_UBOOT
 .endif
+# The 32-bit UEFI loader is only for amd64
+.if ${__T} != "amd64"
+BROKEN_OPTIONS+=LOADER_IA32
+.endif
 # GELI and Lua in loader currently cause boot failures on powerpc.
 # Further debugging is required -- probably they are just broken on big
 # endian systems generically (they jump to null pointers or try to read
@@ -444,6 +451,11 @@ MK_OFED_EXTRA:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
+MK_ZFS_TESTS:= no
+.endif
+
+.if ${MK_ZFS} == "no"
+MK_ZFS_TESTS:=	no
 .endif
 
 .if ${MK_TESTS_SUPPORT} == "no"

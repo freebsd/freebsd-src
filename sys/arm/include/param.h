@@ -55,11 +55,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#if __ARM_ARCH >= 7
 #define	MACHINE_ARCH	"armv7"
-#else
-#define	MACHINE_ARCH	"armv6"
-#endif
 #endif
 
 #ifdef SMP

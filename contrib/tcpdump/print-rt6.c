@@ -21,9 +21,7 @@
 
 /* \summary: IPv6 routing header printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -66,7 +64,7 @@ rt6_print(netdissect_options *ndo, const u_char *bp, const u_char *bp2 _U_)
 		}
 
 		if (len % 2 == 1) {
-			ND_PRINT(" (invalid length %u)", len);
+			ND_PRINT(" [length %u]", len);
 			goto invalid;
 		}
 		len >>= 1;

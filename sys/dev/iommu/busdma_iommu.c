@@ -278,11 +278,7 @@ iommu_get_dev_ctx(device_t dev)
 	if (!unit->dma_enabled)
 		return (NULL);
 
-#if defined(__amd64__) || defined(__i386__)
-	dmar_quirks_pre_use(unit);
-	dmar_instantiate_rmrr_ctxs(unit);
-#endif
-
+	iommu_unit_pre_instantiate_ctx(unit);
 	return (iommu_instantiate_ctx(unit, dev, false));
 }
 
@@ -967,6 +963,10 @@ iommu_init_busdma(struct iommu_unit *unit)
 	error = TUNABLE_INT_FETCH("hw.iommu.dma", &unit->dma_enabled);
 	if (error == 0) /* compatibility */
 		TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
+	SYSCTL_ADD_INT(&unit->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(unit->dev)),
+	    OID_AUTO, "dma", CTLFLAG_RD, &unit->dma_enabled, 0,
+	    "DMA ops enabled");
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, iommu_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("iommu", M_WAITOK,

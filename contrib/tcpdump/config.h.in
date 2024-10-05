@@ -3,6 +3,9 @@
 /* Define to 1 if arpa/inet.h declares `ether_ntohost' */
 #undef ARPA_INET_H_DECLARES_ETHER_NTOHOST
 
+/* define if you want to build the instrument functions code */
+#undef ENABLE_INSTRUMENT_FUNCTIONS
+
 /* define if you want to build the possibly-buggy SMB printer */
 #undef ENABLE_SMB
 
@@ -39,9 +42,6 @@
 /* Define to 1 if you have the `EVP_DecryptInit_ex' function. */
 #undef HAVE_EVP_DECRYPTINIT_EX
 
-/* Define to 1 if you have the <fcntl.h> header file. */
-#undef HAVE_FCNTL_H
-
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -60,26 +60,17 @@
 /* Define to 1 if you have the `cap-ng' library (-lcap-ng). */
 #undef HAVE_LIBCAP_NG
 
-/* Define to 1 if you have the `crypto' library (-lcrypto). */
+/* Define to 1 if you have a usable `crypto' library (-lcrypto). */
 #undef HAVE_LIBCRYPTO
 
 /* Define to 1 if you have the `rpc' library (-lrpc). */
 #undef HAVE_LIBRPC
 
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
-
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
-/* Define to 1 if printf(3) does not support the z length modifier. */
-#undef HAVE_NO_PRINTF_Z
-
 /* Define to 1 if you have the `openat' function. */
 #undef HAVE_OPENAT
-
-/* Define to 1 if you have the <openssl/evp.h> header file. */
-#undef HAVE_OPENSSL_EVP_H
 
 /* define if the OS provides AF_INET6 and struct in6_addr */
 #undef HAVE_OS_IPV6_SUPPORT
@@ -174,6 +165,9 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
@@ -243,10 +237,15 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* The size of `time_t', as computed by sizeof. */
+#undef SIZEOF_TIME_T
+
 /* The size of `void *', as computed by sizeof. */
 #undef SIZEOF_VOID_P
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
 /* Define to 1 if sys/ethernet.h declares `ether_ntohost' */
