@@ -114,6 +114,8 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 		    KVME_FLAG_GROWS_DOWN ? "true" : "false");
 		xo_emit("{en:wired/%s}", kve->kve_flags &
 		    KVME_FLAG_USER_WIRED ? "true" : "false");
+		xo_emit("{en:sysvshm/%s}", kve->kve_flags &
+		    KVME_FLAG_SYSVSHM ? "true" : "false");
 		xo_close_container("kve_flags");
 		switch (kve->kve_type) {
 		case KVME_TYPE_NONE:
@@ -164,6 +166,10 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 		}
 		xo_emit("{d:kve_type/%-2s} ", str);
 		xo_emit("{e:kve_type/%s}", lstr);
+		if ((kve->kve_flags & KVME_FLAG_SYSVSHM) != 0)
+			xo_emit(" {:sysvipc:/sysvshm(%ju:%u)/%ju:%u}",
+			    (uintmax_t)kve->kve_vn_fileid,
+			    kve->kve_vn_fsid_freebsd11);
 		xo_emit("{:kve_path/%-s/%s}\n", kve->kve_path);
 		xo_close_instance("vm");
 	}
