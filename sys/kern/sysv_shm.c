@@ -133,6 +133,8 @@ static int shmunload(void);
 #ifndef SYSVSHM
 static void shmexit_myhook(struct vmspace *vm);
 static void shmfork_myhook(struct proc *p1, struct proc *p2);
+static void shmobjinfo_myhook(vm_object_t obj, key_t *key,
+    unsigned short *seq);
 #endif
 static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
 static void shm_remove(struct shmid_kernel *, int);
@@ -856,6 +858,29 @@ shmexit_myhook(struct vmspace *vm)
 	}
 }
 
+#ifdef SYSVSHM
+void
+shmobjinfo(vm_object_t obj, key_t *key, unsigned short *seq)
+#else
+static void
+shmobjinfo_myhook(vm_object_t obj, key_t *key, unsigned short *seq)
+#endif
+{
+	int i;
+
+	*key = 0;	/* For statically compiled-in sysv_shm.c */
+	*seq = 0;
+	SYSVSHM_LOCK();
+	for (i = 0; i < shmalloced; i++) {
+		if (shmsegs[i].object == obj) {
+			*key = shmsegs[i].u.shm_perm.key;
+			*seq = shmsegs[i].u.shm_perm.seq;
+			break;
+		}
+	}
+	SYSVSHM_UNLOCK();
+}
+
 static void
 shmrealloc(void)
 {
@@ -962,6 +987,7 @@ shminit(void)
 #ifndef SYSVSHM
 	shmexit_hook = &shmexit_myhook;
 	shmfork_hook = &shmfork_myhook;
+	shmobjinfo_hook = &shmobjinfo_myhook;
 #endif
 
 	/* Set current prisons according to their allow.sysvipc. */
@@ -1029,6 +1055,7 @@ shmunload(void)
 #ifndef SYSVSHM
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
+	shmobjinfo_hook = NULL;
 #endif
 	sx_destroy(&sysvshmsx);
 	return (0);
