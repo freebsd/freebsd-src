@@ -64,11 +64,8 @@ class print_hooks : public drivers::run_tests::base_hooks {
     bool _parallel;
 
 public:
-    /// The amount of positive test results found so far.
-    unsigned long good_count;
-
-    /// The amount of negative test results found so far.
-    unsigned long bad_count;
+    /// The amount of test results per type.
+    std::map<enum model::test_result_type, unsigned long> type_count;
 
     /// Constructor for the hooks.
     ///
@@ -76,10 +73,10 @@ public:
     /// \param parallel_ True if we are executing more than one test at once.
     print_hooks(cmdline::ui* ui_, const bool parallel_) :
         _ui(ui_),
-        _parallel(parallel_),
-        good_count(0),
-        bad_count(0)
+        _parallel(parallel_)
     {
+        for (const auto& pair : model::test_result_types)
+            type_count[pair.first] = 0;
     }
 
     /// Called when the processing of a test case begins.
@@ -116,10 +113,8 @@ public:
         }
         _ui->out(F("%s  [%s]") % cli::format_result(result) %
             cli::format_delta(duration));
-        if (result.good())
-            good_count++;
-        else
-            bad_count++;
+
+        type_count[result.type()]++;
     }
 };
 
@@ -159,8 +154,21 @@ cmd_test::run(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline,
         kyuafile_path(cmdline), build_root_path(cmdline), results.second,
         parse_filters(cmdline.arguments()), user_config, hooks);
 
+    unsigned long total = 0;
+    unsigned long good = 0;
+    unsigned long bad = 0;
+    for (const auto& pair : model::test_result_types) {
+        const auto& type = pair.second;
+        const auto count = hooks.type_count[type.id];
+        total += count;
+        if (type.is_run && type.is_good)
+            good += count;
+        if (!type.is_good)
+            bad += count;
+    }
+
     int exit_code;
-    if (hooks.good_count > 0 || hooks.bad_count > 0) {
+    if (total > 0) {
         ui->out("");
         if (!results.first.empty()) {
             ui->out(F("Results file id is %s") % results.first);
@@ -168,10 +176,20 @@ cmd_test::run(cmdline::ui* ui, const cmdline::parsed_cmdline& cmdline,
         ui->out(F("Results saved to %s") % results.second);
         ui->out("");
 
-        ui->out(F("%s/%s passed (%s failed)") % hooks.good_count %
-                (hooks.good_count + hooks.bad_count) % hooks.bad_count);
+        ui->out(F("%s/%s passed (") % good % total, false);
+        const auto& types = model::test_result_types;
+        for (auto it = types.begin(); it != types.end(); it++) {
+            const auto& type = it->second;
+            if (!type.is_run || !type.is_good) {
+                if (it != types.begin())
+                    ui->out(", ", false);
+                ui->out(F("%s %s") % hooks.type_count[type.id] % type.name,
+                    false);
+            }
+        }
+        ui->out(")");
 
-        exit_code = (hooks.bad_count == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+        exit_code = (bad == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
     } else {
         // TODO(jmmv): Delete created empty file; it's useless!
         if (!results.first.empty()) {
