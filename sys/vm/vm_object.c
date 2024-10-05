@@ -67,6 +67,7 @@
 #include <sys/systm.h>
 #include <sys/blockcount.h>
 #include <sys/cpuset.h>
+#include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -77,6 +78,7 @@
 #include <sys/pctrie.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/shm.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/resourcevar.h>
@@ -2506,6 +2508,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	vm_page_t m;
 	u_long sp;
 	int count, error;
+	key_t key;
+	unsigned short seq;
 	bool want_path;
 
 	if (req->oldptr == NULL) {
@@ -2553,6 +2557,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
+		kvo->kvo_flags = 0;
 		if (!swap_only) {
 			TAILQ_FOREACH(m, &obj->memq, listq) {
 				/*
@@ -2590,6 +2595,12 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			kvo->kvo_swapped = sp > UINT32_MAX ? UINT32_MAX : sp;
 		}
 		VM_OBJECT_RUNLOCK(obj);
+		if ((obj->flags & OBJ_SYSVSHM) != 0) {
+			kvo->kvo_flags |= KVMO_FLAG_SYSVSHM;
+			shmobjinfo(obj, &key, &seq);
+			kvo->kvo_vn_fileid = key;
+			kvo->kvo_vn_fsid_freebsd11 = seq;
+		}
 		if (vp != NULL) {
 			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
