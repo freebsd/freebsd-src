@@ -579,6 +579,8 @@ struct kinfo_vmentry {
 #define	kve_vn_fsid	kve_type_spec._kve_vn_fsid
 #define	kve_obj		kve_type_spec._kve_obj
 
+#define	KVMO_FLAG_SYSVSHM	0x0001
+
 /*
  * The "vm.objects" sysctl provides a list of all VM objects in the system
  * via an array of these entries.
@@ -602,7 +604,8 @@ struct kinfo_vmobject {
 	uint64_t kvo_me;			/* Uniq handle for anon obj */
 	uint64_t _kvo_qspare[6];
 	uint32_t kvo_swapped;			/* Number of swapped pages */
-	uint32_t _kvo_ispare[7];
+	uint32_t kvo_flags;
+	uint32_t _kvo_ispare[6];
 	char	kvo_path[PATH_MAX];		/* Pathname, if any. */
 };
 #define	kvo_vn_fsid	kvo_type_spec._kvo_vn_fsid
