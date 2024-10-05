@@ -149,6 +149,7 @@ struct shm_info {
 #ifdef _KERNEL
 struct proc;
 struct vmspace;
+struct vm_object;
 
 extern struct shminfo	shminfo;
 
@@ -158,6 +159,7 @@ extern struct shminfo	shminfo;
 
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
+void	shmobjinfo(struct vm_object *obj, key_t *key, unsigned short *seq);
 int	kern_get_shmsegs(struct thread *td, struct shmid_kernel **res,
 	    size_t *sz);
 
