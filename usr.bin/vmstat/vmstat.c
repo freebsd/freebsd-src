@@ -1539,6 +1539,9 @@ display_object(struct kinfo_vmobject *kvo)
 		break;
 	}
 	xo_emit("{:type/%-2s} ", str);
+	if ((kvo->kvo_flags & KVMO_FLAG_SYSVSHM) != 0)
+		xo_emit("{:sysvshm/sysvshm(%ju:%u)} ",
+		    (uintmax_t)kvo->kvo_vn_fileid, kvo->kvo_vn_fsid_freebsd11);
 	xo_emit("{:path/%-s}\n", kvo->kvo_path);
 	xo_close_instance("object");
 }
