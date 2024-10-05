@@ -170,7 +170,6 @@ EVENTHANDLER_LIST_DEFINE(device_detach);
 EVENTHANDLER_LIST_DEFINE(device_nomatch);
 EVENTHANDLER_LIST_DEFINE(dev_lookup);
 
-static void devctl2_init(void);
 static bool device_frozen;
 
 #define DRIVERNAME(d)	((d)? d->name : "no driver")
@@ -393,7 +392,8 @@ device_sysctl_fini(device_t dev)
 	dev->sysctl_tree = NULL;
 }
 
-static struct device_list bus_data_devices;
+static struct device_list bus_data_devices =
+    TAILQ_HEAD_INITIALIZER(bus_data_devices);
 static int bus_data_generation = 1;
 
 static kobj_method_t null_methods[] = {
@@ -5199,7 +5199,6 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 {
 	switch (what) {
 	case MOD_LOAD:
-		TAILQ_INIT(&bus_data_devices);
 		kobj_class_compile((kobj_class_t) &root_driver);
 		root_bus = make_device(NULL, "root", 0);
 		root_bus->desc = "System root bus";
@@ -5207,7 +5206,6 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 		root_bus->driver = &root_driver;
 		root_bus->state = DS_ATTACHED;
 		root_devclass = devclass_find_internal("root", NULL, FALSE);
-		devctl2_init();
 		return (0);
 
 	case MOD_SHUTDOWN:
@@ -5225,7 +5223,7 @@ static moduledata_t root_bus_mod = {
 	root_bus_module_handler,
 	NULL
 };
-DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_INTR, SI_ORDER_FIRST);
 
 /**
  * @brief Automatically configure devices
@@ -6036,11 +6034,12 @@ static struct cdevsw devctl2_cdevsw = {
 };
 
 static void
-devctl2_init(void)
+devctl2_init(void *unused)
 {
 	make_dev_credf(MAKEDEV_ETERNAL, &devctl2_cdevsw, 0, NULL,
 	    UID_ROOT, GID_WHEEL, 0644, "devctl2");
 }
+SYSINIT(devctl2_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, devctl2_init, NULL);
 
 /*
  * For maintaining device 'at' location info to avoid recomputing it
