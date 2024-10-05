@@ -203,6 +203,7 @@ struct vm_object {
 					   mapping flag */
 #define	OBJ_PAGERPRIV1	0x00004000	/* Pager private */
 #define	OBJ_PAGERPRIV2	0x00008000	/* Pager private */
+#define	OBJ_SYSVSHM	0x00010000	/* SysV SHM */
 
 /*
  * Helpers to perform conversion between vm_object page indexes and offsets.
