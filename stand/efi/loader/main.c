@@ -728,14 +728,195 @@ setenv_int(const char *key, int val)
 	setenv(key, buf, 1);
 }
 
+static void *
+acpi_map_sdt(vm_offset_t addr)
+{
+	/* PA == VA */
+	return ((void *)addr);
+}
+
+static int
+acpi_checksum(void *p, size_t length)
+{
+	uint8_t *bp;
+	uint8_t sum;
+
+	bp = p;
+	sum = 0;
+	while (length--)
+		sum += *bp++;
+
+	return (sum);
+}
+
+static void *
+acpi_find_table(uint8_t *sig)
+{
+	int entries, i, addr_size;
+	ACPI_TABLE_HEADER *sdp;
+	ACPI_TABLE_RSDT *rsdt;
+	ACPI_TABLE_XSDT *xsdt;
+	vm_offset_t addr;
+
+	if (rsdp == NULL)
+		return (NULL);
+
+	rsdt = (ACPI_TABLE_RSDT *)(uintptr_t)rsdp->RsdtPhysicalAddress;
+	xsdt = (ACPI_TABLE_XSDT *)(uintptr_t)rsdp->XsdtPhysicalAddress;
+	if (rsdp->Revision < 2) {
+		sdp = (ACPI_TABLE_HEADER *)rsdt;
+		addr_size = sizeof(uint32_t);
+	} else {
+		sdp = (ACPI_TABLE_HEADER *)xsdt;
+		addr_size = sizeof(uint64_t);
+	}
+	entries = (sdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
+	for (i = 0; i < entries; i++) {
+		if (addr_size == 4)
+			addr = le32toh(rsdt->TableOffsetEntry[i]);
+		else
+			addr = le64toh(xsdt->TableOffsetEntry[i]);
+		if (addr == 0)
+			continue;
+		sdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
+		if (acpi_checksum(sdp, sdp->Length)) {
+			printf("RSDT entry %d (sig %.4s) is corrupt", i,
+			    sdp->Signature);
+			continue;
+		}
+		if (memcmp(sig, sdp->Signature, 4) == 0)
+			return (sdp);
+	}
+	return (NULL);
+}
+
+static const char *
+acpi_uart_type(UINT8 t)
+{
+	static const char *types[] = {
+		[0] = "ns8250",		/* Full 16550 */
+		[1] = "ns8250",		/* DBGP Rev 1 16550 subset */
+		[3] = "pl011",		/* Arm PL011 */
+		[5] = "ns8250",		/* Nvidia 16550 */
+		[0x12] = "ns8250",	/* 16550 defined in SerialPort */
+	};
+
+	if (t >= nitems(types))
+		return (NULL);
+	return (types[t]);
+}
+
+static int
+acpi_uart_baud(UINT8 b)
+{
+	static int baud[] = { 0, -1, -1, 9600, 19200, -1, 57600, 115200 };
+
+	if (b > 7)
+		return (-1);
+	return (baud[b]);
+}
+
+static int
+acpi_uart_regionwidth(UINT8 rw)
+{
+	if (rw == 0)
+		return (1);
+	if (rw > 4)
+		return (-1);
+	return (1 << (rw - 1));
+}
+
+static const char *
+acpi_uart_parity(UINT8 p)
+{
+	/* Some of these SPCR entires get this wrong, hard wire none */
+	return ("none");
+}
+
 /*
- * Parse ConOut (the list of consoles active) and see if we can find a
- * serial port and/or a video port. It would be nice to also walk the
- * ACPI name space to map the UID for the serial port to a port. The
- * latter is especially hard. Also check for ConIn as well. This will
- * be enough to determine if we have serial, and if we don't, we default
- * to video. If there's a dual-console situation with ConIn, this will
- * currently fail.
+ * See if we can find a SPCR ACPI table in the static tables. If so, then it
+ * describes the serial console that's been redirected to, so we know that at
+ * least there's a serial console. this is most important for embedded systems
+ * that don't have traidtional PC serial ports.
+ *
+ * All the two letter variables in this function correspond to their usage in
+ * the uart(4) console string. We use io == -1 to select between I/O ports and
+ * memory mapped addresses. Set both hw.uart.console and hw.uart.consol.extra
+ * to communicate settings from SPCR to the kernel.
+ */
+static int
+check_acpi_spcr(void)
+{
+	ACPI_TABLE_SPCR *spcr;
+	int br, db, io, rs, rw, sb, xo, pv, pd;
+	uintmax_t mm;
+	const char *dt, *pa;
+	char *val = NULL;
+
+	spcr = acpi_find_table(ACPI_SIG_SPCR);
+	if (spcr == NULL)
+		return (0);
+	dt = acpi_uart_type(spcr->InterfaceType);
+	if (dt == NULL)	{ 	/* Kernel can't use unknown types */
+		printf("UART Type %d not known\n", spcr->InterfaceType);
+		return (0);
+	}
+
+	/* I/O vs Memory mapped vs PCI device */
+	io = -1;
+	pv = spcr->PciVendorId;
+	pd = spcr->PciDeviceId;
+	if (pv == 0xffff && pd == 0xffff) {
+		if (spcr->SerialPort.SpaceId == 1)
+			io = spcr->SerialPort.Address;
+		else {
+			mm = spcr->SerialPort.Address;
+			rs = ffs(spcr->SerialPort.BitWidth) - 4;
+			rw = acpi_uart_regionwidth(spcr->SerialPort.AccessWidth);
+		}
+	} else {
+		/* XXX todo: bus:device:function + flags and segment */
+	}
+
+	/* Uart settings */
+	pa = acpi_uart_parity(spcr->Parity);
+	sb = spcr->StopBits;
+	db = 8;
+
+	/*
+	 * Note: We don't support SPCR Rev3 or Rev4 so use Rev2 values, if we
+	 * did we wouldn't have to do this weird dances with baud or xtal rates.
+	 * Rev 3 and 4 are too new to have seen any deployment, and aren't in
+	 * the system's actblX.h files yet. This will fail for newer high-speed
+	 * consoles until acpica catches up with Microsoft's new definitions.
+	 */
+	xo = 0;
+	br = acpi_uart_baud(spcr->BaudRate);
+
+	if (io != -1) {
+		asprintf(&val, "db:%d,dt:%s,io:%#x,pa:%s,br:%d,xo=%d",
+		    db, dt, io, pa, br, xo);
+	} else if (pv != 0xffff && pd != 0xffff) {
+		asprintf(&val, "db:%d,dt:%s,pv:%#x,pd:%#x,pa:%s,br:%d,xo=%d",
+		    db, dt, pv, pd, pa, br, xo);
+	} else {
+		asprintf(&val, "db:%d,dt:%s,mm:%#jx,rs:%d,rw:%d,pa:%s,br:%d,xo=%d",
+		    db, dt, mm, rs, rw, pa, br, xo);
+	}
+	env_setenv("hw.uart.console", EV_VOLATILE, val, NULL, NULL);
+	free(val);
+
+	return (RB_SERIAL);
+}
+
+
+/*
+ * Parse ConOut (the list of consoles active) and see if we can find a serial
+ * port and/or a video port. It would be nice to also walk the ACPI DSDT to map
+ * the UID for the serial port to a port since there's no standard mapping. Also
+ * check for ConIn as well. This will be enough to determine if we have serial,
+ * and if we don't, we default to video. If there's a dual-console situation
+ * with only ConIn defined, this will currently fail.
  */
 int
 parse_uefi_con_out(void)
@@ -749,7 +930,12 @@ parse_uefi_con_out(void)
 	UART_DEVICE_PATH  *uart;
 	bool pci_pending;
 
-	how = 0;
+	/*
+	 * A SPCR in the ACPI fixed tables documents a serial port used for the
+	 * console. It may mirror a video console, or may be stand alone. If it
+	 * is present, we return RB_SERIAL and will use it for the kernel.
+	 */
+	how = check_acpi_spcr();
 	sz = sizeof(buf);
 	rv = efi_global_getenv("ConOut", buf, &sz);
 	if (rv != EFI_SUCCESS)
@@ -758,13 +944,13 @@ parse_uefi_con_out(void)
 		rv = efi_global_getenv("ConIn", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/*
-		 * If we don't have any ConOut default to both. If we have GOP
-		 * make video primary, otherwise just make serial primary. In
-		 * either case, try to use both the 'efi' console which will use
-		 * the GOP, if present and serial. If there's an EFI BIOS that
-		 * omits this, but has a serial port redirect, we'll
-		 * unavioidably get doubled characters (but we'll be right in
-		 * all the other more common cases).
+		 * If we don't have any Con* variable use both. If we have GOP
+		 * make video primary, otherwise set serial primary. In either
+		 * case, try to use both the 'efi' console which will use the
+		 * GOP, if present and serial. If there's an EFI BIOS that omits
+		 * this, but has a serial port redirect, we'll unavioidably get
+		 * doubled characters, but we'll be right in all the other more
+		 * common cases.
 		 */
 		if (efi_has_gop())
 			how |= RB_MULTIPLE;
