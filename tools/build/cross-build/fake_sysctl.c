@@ -53,6 +53,7 @@ __freebsd_sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
 			errx(EX_USAGE, "kern.vm_guest is read-only");
 		strlcpy(oldp, "none", *oldlenp);
 		*oldlenp = strlen("none");
+		return (0);
 	}
 	errx(EX_USAGE, "fatal: unknown sysctl %s\n", name);
 }

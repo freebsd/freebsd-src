@@ -9,7 +9,7 @@ autogen definitions options;
 // file name.
 prog-name	= "ntp.conf";
 file-path	= "/etc/ntp.conf";
-prog-title	= "Network Time Protocol (NTP) daemon configuration file format";
+prog-title	= "Network Time Protocol daemon (ntpd) configuration format";
 
 /* explain: Additional information whenever the usage routine is invoked */
 explain = <<- _END_EXPLAIN

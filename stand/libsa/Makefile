@@ -164,6 +164,10 @@ CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 .PATH: ${SYSDIR}/libkern
 SRCS+=  explicit_bzero.c crc32_libkern.c
 
+# Bits from GELI reused for some random seeding cases
+.PATH: ${SYSDIR}/geom/eli
+SRCS+=	g_eli_hmac.c pkcs5v2.c
+
 # Maybe GELI
 .if ${MK_LOADER_GELI} == "yes"
 .include "${SASRC}/geli/Makefile.inc"
@@ -185,8 +189,8 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .PATH: ${SYSDIR}/crypto/sha2
 SRCS+=		sha256c.c sha512c.c
 
-# md5 from libmd
-.PATH: ${SRCTOP}/lib/libmd
+# md5 from the kernel
+.PATH: ${SYSDIR}/kern
 SRCS+=		md5c.c
 
 .if ${DO32:U0} == 0

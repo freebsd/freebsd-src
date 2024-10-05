@@ -869,7 +869,6 @@ static int stop_lld(struct adapter *);
 static inline int restart_adapter(struct adapter *);
 static int restart_lld(struct adapter *);
 #ifdef TCP_OFFLOAD
-static int toe_capability(struct vi_info *, bool);
 static int deactivate_all_uld(struct adapter *);
 static void stop_all_uld(struct adapter *);
 static void restart_all_uld(struct adapter *);
@@ -1920,6 +1919,9 @@ t4_detach_common(device_t dev)
 static inline int
 stop_adapter(struct adapter *sc)
 {
+	struct port_info *pi;
+	int i;
+
 	if (atomic_testandset_int(&sc->error_flags, ilog2(ADAP_STOPPED))) {
 		CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x, EALREADY\n",
 			 __func__, curthread, sc->flags, sc->error_flags);
@@ -1927,7 +1929,24 @@ stop_adapter(struct adapter *sc)
 	}
 	CH_ALERT(sc, "%s from %p, flags 0x%08x,0x%08x\n", __func__, curthread,
 		 sc->flags, sc->error_flags);
-	return (t4_shutdown_adapter(sc));
+	t4_shutdown_adapter(sc);
+	for_each_port(sc, i) {
+		pi = sc->port[i];
+		PORT_LOCK(pi);
+		if (pi->up_vis > 0 && pi->link_cfg.link_ok) {
+			/*
+			 * t4_shutdown_adapter has already shut down all the
+			 * PHYs but it also disables interrupts and DMA so there
+			 * won't be a link interrupt.  Update the state manually
+			 * if the link was up previously and inform the kernel.
+			 */
+			pi->link_cfg.link_ok = false;
+			t4_os_link_changed(pi);
+		}
+		PORT_UNLOCK(pi);
+	}
+
+	return (0);
 }
 
 static inline int
@@ -2020,20 +2039,6 @@ stop_lld(struct adapter *sc)
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		pi->vxlan_tcam_entry = false;
-
-		PORT_LOCK(pi);
-		if (pi->up_vis > 0) {
-			/*
-			 * t4_shutdown_adapter has already shut down all the
-			 * PHYs but it also disables interrupts and DMA so there
-			 * won't be a link interrupt.  So we update the state
-			 * manually and inform the kernel.
-			 */
-			pi->link_cfg.link_ok = false;
-			t4_os_link_changed(pi);
-		}
-		PORT_UNLOCK(pi);
-
 		for_each_vi(pi, j, vi) {
 			vi->xact_addr_filt = -1;
 			mtx_lock(&vi->tick_mtx);
@@ -2084,6 +2089,13 @@ stop_lld(struct adapter *sc)
 			wrq->eq.flags &= ~EQ_HW_ALLOCATED;
 			TXQ_UNLOCK(wrq);
 			quiesce_wrq(wrq);
+		}
+
+		if (pi->flags & HAS_TRACEQ) {
+			pi->flags &= ~HAS_TRACEQ;
+			sc->traceq = -1;
+			sc->tracer_valid = 0;
+			sc->tracer_enabled = 0;
 		}
 	}
 	if (sc->flags & FULL_INIT_DONE) {
@@ -2399,6 +2411,15 @@ restart_lld(struct adapter *sc)
 					CH_ERR(vi, "failed to re-initialize "
 					    "interface: %d\n", rc);
 					goto done;
+				}
+				if (sc->traceq < 0 && IS_MAIN_VI(vi)) {
+					sc->traceq = sc->sge.rxq[vi->first_rxq].iq.abs_id;
+					t4_write_reg(sc, is_t4(sc) ?
+					    A_MPS_TRC_RSS_CONTROL :
+					    A_MPS_T5_TRC_RSS_CONTROL,
+					    V_RSSCONTROL(pi->tx_chan) |
+					    V_QUEUENUMBER(sc->traceq));
+					pi->flags |= HAS_TRACEQ;
 				}
 
 				ifp = vi->ifp;
@@ -12364,7 +12385,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 }
 
 #ifdef TCP_OFFLOAD
-static int
+int
 toe_capability(struct vi_info *vi, bool enable)
 {
 	int rc;
@@ -12430,6 +12451,7 @@ toe_capability(struct vi_info *vi, bool enable)
 
 		if (isset(&sc->offload_map, pi->port_id)) {
 			/* TOE is enabled on another VI of this port. */
+			MPASS(pi->uld_vis > 0);
 			pi->uld_vis++;
 			return (0);
 		}
@@ -12455,17 +12477,17 @@ toe_capability(struct vi_info *vi, bool enable)
 		if (!uld_active(sc, ULD_ISCSI))
 			(void) t4_activate_uld(sc, ULD_ISCSI);
 
-		pi->uld_vis++;
-		setbit(&sc->offload_map, pi->port_id);
+		if (pi->uld_vis++ == 0)
+			setbit(&sc->offload_map, pi->port_id);
 	} else {
-		pi->uld_vis--;
-
-		if (!isset(&sc->offload_map, pi->port_id) || pi->uld_vis > 0)
+		if ((if_getcapenable(vi->ifp) & IFCAP_TOE) == 0) {
+			/* TOE is already disabled. */
 			return (0);
-
-		KASSERT(uld_active(sc, ULD_TOM),
-		    ("%s: TOM never initialized?", __func__));
-		clrbit(&sc->offload_map, pi->port_id);
+		}
+		MPASS(isset(&sc->offload_map, pi->port_id));
+		MPASS(pi->uld_vis > 0);
+		if (--pi->uld_vis == 0)
+			clrbit(&sc->offload_map, pi->port_id);
 	}
 
 	return (0);

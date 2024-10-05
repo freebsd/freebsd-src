@@ -22,7 +22,8 @@ ACFLAGS+=	-DLOCORE
 CFLAGS+=	-DSTRIP_FBSDID
 CFLAGS+=	-fno-omit-frame-pointer
 CFLAGS+=	-I${.CURDIR:H}/common \
-		-I${SRCTOP}/lib/libc/include
+		-I${SRCTOP}/lib/libc/include \
+		-I${SRCTOP}/lib/libsys \
 
 CFLAGS_CRTS=	-DSHARED ${PICFLAG}
 

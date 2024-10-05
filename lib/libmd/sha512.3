@@ -8,7 +8,7 @@
 .\"
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\"
-.Dd February 3, 2023
+.Dd February 12, 2023
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -16,6 +16,8 @@
 .Nm SHA512_Update ,
 .Nm SHA512_Final ,
 .Nm SHA512_End ,
+.Nm SHA512_Fd ,
+.Nm SHA512_FdChunk ,
 .Nm SHA512_File ,
 .Nm SHA512_FileChunk ,
 .Nm SHA512_Data ,
@@ -23,6 +25,8 @@
 .Nm SHA384_Update ,
 .Nm SHA384_Final ,
 .Nm SHA384_End ,
+.Nm SHA384_Fd ,
+.Nm SHA384_FdChunk ,
 .Nm SHA384_File ,
 .Nm SHA384_FileChunk ,
 .Nm SHA384_Data ,
@@ -37,6 +41,8 @@
 .Nm SHA512_256_Update ,
 .Nm SHA512_256_Final ,
 .Nm SHA512_256_End ,
+.Nm SHA512_256_Fd ,
+.Nm SHA512_256_FdChunk ,
 .Nm SHA512_256_File ,
 .Nm SHA512_256_FileChunk ,
 .Nm SHA512_256_Data
@@ -55,6 +61,10 @@
 .Ft "char *"
 .Fn SHA512_End "SHA512_CTX *context" "char *buf"
 .Ft "char *"
+.Fn SHA512_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA512_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SHA512_File "const char *filename" "char *buf"
 .Ft "char *"
 .Fn SHA512_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
@@ -69,6 +79,10 @@
 .Fn SHA384_Final "unsigned char digest[48]" "SHA384_CTX *context"
 .Ft "char *"
 .Fn SHA384_End "SHA384_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA384_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA384_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA384_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -98,6 +112,10 @@
 .Fn SHA512_256_Final "unsigned char digest[32]" "SHA512_CTX *context"
 .Ft "char *"
 .Fn SHA512_256_End "SHA512_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA512_256_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA512_256_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA512_256_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -167,6 +185,19 @@ to the end of file.
 calculates the digest of a chunk of data in memory, and uses
 .Fn SHA512_End
 to return the result.
+.Pp
+The
+.Fn SHA512_Fd
+and
+.Fn SHA512_FdChunk
+functions are identical to their
+.Fn SHA512_File
+and
+.Fn SHA512_FileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn SHA512_End ,

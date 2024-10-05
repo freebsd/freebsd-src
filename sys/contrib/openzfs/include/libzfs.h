@@ -300,9 +300,13 @@ _LIBZFS_H int zpool_trim(zpool_handle_t *, pool_trim_func_t, nvlist_t *,
 
 _LIBZFS_H int zpool_clear(zpool_handle_t *, const char *, nvlist_t *);
 _LIBZFS_H int zpool_reguid(zpool_handle_t *);
+_LIBZFS_H int zpool_set_guid(zpool_handle_t *, const uint64_t *);
 _LIBZFS_H int zpool_reopen_one(zpool_handle_t *, void *);
 
 _LIBZFS_H int zpool_sync_one(zpool_handle_t *, void *);
+
+_LIBZFS_H int zpool_ddt_prune(zpool_handle_t *, zpool_ddt_prune_unit_t,
+    uint64_t);
 
 _LIBZFS_H int zpool_vdev_online(zpool_handle_t *, const char *, int,
     vdev_state_t *);

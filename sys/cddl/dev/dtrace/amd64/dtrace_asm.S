@@ -56,9 +56,6 @@
 	swapgs;					\
 1:	addq	$TF_RIP,%rsp;
 
-.globl dtrace_invop_callsite
-.type dtrace_invop_callsite,@function
-
 	ENTRY(dtrace_invop_start)
 
 	/*
@@ -78,7 +75,6 @@
 	movq	%rsp, %rdx
 
 	call	dtrace_invop
-dtrace_invop_callsite:
 	addq	$16, %rsp
 
 	cmpl	$DTRACE_INVOP_PUSHL_EBP, %eax

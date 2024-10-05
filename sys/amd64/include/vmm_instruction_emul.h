@@ -112,7 +112,7 @@ void vie_init(struct vie *vie, const char *inst_bytes, int inst_length);
  * 'gla' is the guest linear address provided by the hardware assist
  * that caused the nested page table fault. It is used to verify that
  * the software instruction decoding is in agreement with the hardware.
- * 
+ *
  * Some hardware assists do not provide the 'gla' to the hypervisor.
  * To skip the 'gla' verification for this or any other reason pass
  * in VIE_INVALID_GLA instead.

@@ -239,6 +239,15 @@ Read subsequent text from file
 and return to the current file after
 .Ar filename
 is successfully processed.
+.\" -------- INCLUDEOPTIONS --------
+.Pp
+.It .Ic includeoptions Ar filename
+Specifies a file containing a list of additional options
+specific to that kernel configuration file.
+This is useful for build environments that need to add
+custom options and is often used in conjunction with the
+.Ic makeoption
+directive.
 .\" -------- MACHINE --------
 .Pp
 .It Ic machine Ar arch Op Ar cpuarch

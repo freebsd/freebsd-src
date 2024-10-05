@@ -55,6 +55,8 @@
 #define UNITS_2		1
 #define UNITS_SI	2
 
+#define DU_XO_VERSION "1"
+
 static SLIST_HEAD(ignhead, ignentry) ignores;
 struct ignentry {
 	char			*mask;
@@ -259,6 +261,8 @@ main(int argc, char *argv[])
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err(1, "fts_open");
 
+
+	xo_set_version(DU_XO_VERSION);
 	xo_open_container("disk-usage-information");
 	xo_open_list("paths");
 	while (errno = 0, (p = fts_read(fts)) != NULL) {

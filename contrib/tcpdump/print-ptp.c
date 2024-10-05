@@ -17,9 +17,7 @@
 
 /* specification: https://standards.ieee.org/findstds/standard/1588-2008.html*/
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 #include "netdissect.h"
@@ -158,7 +156,7 @@
  *    | Requesting Port Identity      |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
- *  Signalling Message (msg type=0xC)
+ *  Signaling Message (msg type=0xC)
  *     0                   1                   2                   3
  *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *                                    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -185,7 +183,7 @@
 #define M_DELAY_RESP            0x9
 #define M_PDELAY_RESP_FOLLOW_UP 0xA
 #define M_ANNOUNCE              0xB
-#define M_SIGNALLING            0xC
+#define M_SIGNALING             0xC
 #define M_MANAGEMENT            0xD
 
 static const struct tok ptp_msg_type[] = {
@@ -197,7 +195,7 @@ static const struct tok ptp_msg_type[] = {
     { M_DELAY_RESP, "delay resp msg"},
     { M_PDELAY_RESP_FOLLOW_UP, "pdelay resp fup msg"},
     { M_ANNOUNCE, "announce msg"},
-    { M_SIGNALLING, "signalling msg"},
+    { M_SIGNALING, "signaling msg"},
     { M_MANAGEMENT, "management msg"},
     { 0, NULL}
 };
@@ -231,8 +229,9 @@ static const struct tok ptp_control_field[] = {
 #define PTP_HDR_LEN         0x22
 
 /* mask based on the first byte */
-#define PTP_VERS_MASK       0xFF
-#define PTP_V1_COMPAT       0x10
+#define PTP_MAJOR_VERS_MASK 0x0F
+#define PTP_MINOR_VERS_MASK 0xF0
+#define PTP_MAJOR_SDO_ID_MASK   0xF0
 #define PTP_MSG_TYPE_MASK   0x0F
 
 /*mask based 2byte */
@@ -358,15 +357,15 @@ ptp_print_2(netdissect_options *ndo, const u_char *bp, u_int length)
 {
     u_int len = length;
     uint16_t msg_len, flags, port_id, seq_id;
-    uint8_t foct, domain_no, msg_type, v1_compat, rsvd1, lm_int, control;
+    uint8_t foct, domain_no, msg_type, major_sdo_id, rsvd1, lm_int, control;
     uint64_t ns_corr;
     uint16_t sns_corr;
     uint32_t rsvd2;
     uint64_t clk_id;
 
     foct = GET_U_1(bp);
-    v1_compat = foct & PTP_V1_COMPAT;
-    ND_PRINT(", v1 compat : %s", v1_compat?"yes":"no");
+    major_sdo_id = (foct & PTP_MAJOR_SDO_ID_MASK) >> 4;
+    ND_PRINT(", majorSdoId : 0x%x", major_sdo_id);
     msg_type = foct & PTP_MSG_TYPE_MASK;
     ND_PRINT(", msg type : %s", tok2str(ptp_msg_type, "Reserved", msg_type));
 
@@ -433,7 +432,7 @@ ptp_print_2(netdissect_options *ndo, const u_char *bp, u_int length)
         case M_ANNOUNCE:
             ptp_print_announce_msg(ndo, bp, &len);
             break;
-        case M_SIGNALLING:
+        case M_SIGNALING:
             ptp_print_port_id(ndo, bp, &len);
             break;
         case M_MANAGEMENT:
@@ -449,13 +448,25 @@ ptp_print_2(netdissect_options *ndo, const u_char *bp, u_int length)
 void
 ptp_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-    u_int vers;
+    u_int major_vers;
+    u_int minor_vers;
 
+    /* In 1588-2019, a minorVersionPTP field has been created in the common PTP
+     * message header, from a previously reserved field. Implementations
+     * compatible to the 2019 edition shall indicate a versionPTP field value
+     * of 2 and minorVersionPTP field value of 1, indicating that this is PTP
+     * version 2.1.
+     */
     ndo->ndo_protocol = "ptp";
-    ND_LCHECK_U(length, PTP_HDR_LEN);
-    vers = GET_BE_U_2(bp) & PTP_VERS_MASK;
-    ND_PRINT("PTPv%u",vers);
-    switch(vers) {
+    ND_ICHECK_U(length, <, PTP_HDR_LEN);
+    major_vers = GET_BE_U_2(bp) & PTP_MAJOR_VERS_MASK;
+    minor_vers = (GET_BE_U_2(bp) & PTP_MINOR_VERS_MASK) >> 4;
+    if (minor_vers)
+	    ND_PRINT("PTPv%u.%u", major_vers, minor_vers);
+    else
+	    ND_PRINT("PTPv%u", major_vers);
+
+    switch(major_vers) {
         case PTP_VER_1:
             ptp_print_1(ndo);
             break;

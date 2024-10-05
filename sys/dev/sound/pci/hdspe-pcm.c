@@ -114,10 +114,8 @@ hdspe_port_first_row(uint32_t ports)
 	uint32_t ends;
 
 	/* Restrict ports to one set with contiguous slots. */
-	if (ports & HDSPE_CHAN_AIO_LINE)
-		ports = HDSPE_CHAN_AIO_LINE;	/* Gap in the AIO slots here. */
-	else if (ports & HDSPE_CHAN_AIO_ALL)
-		ports &= HDSPE_CHAN_AIO_ALL;	/* Rest of the AIO slots. */
+	if (ports & HDSPE_CHAN_AIO_ALL)
+		ports &= HDSPE_CHAN_AIO_ALL;	/* All AIO slots. */
 	else if (ports & HDSPE_CHAN_RAY_ALL)
 		ports &= HDSPE_CHAN_RAY_ALL;	/* All RayDAT slots. */
 
@@ -136,6 +134,8 @@ hdspe_channel_count(uint32_t ports, uint32_t adat_width)
 		/* AIO ports. */
 		if (ports & HDSPE_CHAN_AIO_LINE)
 			count += 2;
+		if (ports & HDSPE_CHAN_AIO_EXT)
+			count += 4;
 		if (ports & HDSPE_CHAN_AIO_PHONE)
 			count += 2;
 		if (ports & HDSPE_CHAN_AIO_AES)
@@ -189,6 +189,8 @@ hdspe_port_slot_offset(uint32_t port, unsigned int adat_width)
 	/* AIO ports */
 	case HDSPE_CHAN_AIO_LINE:
 		return (0);
+	case HDSPE_CHAN_AIO_EXT:
+		return (2);
 	case HDSPE_CHAN_AIO_PHONE:
 		return (6);
 	case HDSPE_CHAN_AIO_AES:

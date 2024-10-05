@@ -1,0 +1,3 @@
+match log (matches) inet proto tcp all
+match log (matches) inet from 192.0.2.0/24 to any
+pass all flags S/SA keep state

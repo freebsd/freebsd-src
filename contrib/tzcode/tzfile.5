@@ -74,7 +74,7 @@ described in the file is associated with the time period
 starting with the same-indexed transition time
 and continuing up to but not including the next transition time.
 (The last time type is present only for consistency checking with the
-POSIX.1-2017-style TZ string described below.)
+proleptic TZ string described below.)
 These values serve as indices into the next field.
 .It Va tzh_typecnt
 .Vt ttinfo
@@ -167,12 +167,12 @@ must also be set.
 The standard/wall and UT/local indicators were designed for
 transforming a TZif file's transition times into transitions appropriate
 for another time zone specified via
-a POSIX.1-2017-style TZ string that lacks rules.
+a proleptic TZ string that lacks rules.
 For example, when TZ="EET\*-2EEST" and there is no TZif file "EET\*-2EEST",
 the idea was to adapt the transition times from a TZif file with the
 well-known name "posixrules" that is present only for this purpose and
 is a copy of the file "Europe/Brussels", a file with a different UT offset.
-POSIX does not specify this obsolete transformational behavior,
+POSIX does not specify the details of this obsolete transformational behavior,
 the default rules are installation-dependent, and no implementation
 is known to support this feature for timestamps past 2037,
 so users desiring (say) Greek time should instead specify
@@ -197,12 +197,12 @@ identical in format except that
 eight bytes are used for each transition time or leap second time.
 (Leap second counts remain four bytes.)
 After the second header and data comes a newline-enclosed string
-in the style of the contents of a POSIX.1-2017 TZ environment variable,
+in the style of the contents of a proleptic TZ,
 for use in handling instants
 after the last transition time stored in the file
 or for all instants if the file has no transitions.
 The TZ string is empty (i.e., nothing between the newlines)
-if there is no POSIX.1-2017-style representation for such instants.
+if there is no proleptic representation for such instants.
 If nonempty, the TZ string must agree with the local time
 type after the last transition time if present in the eight-byte data;
 for example, given the string
@@ -215,13 +215,14 @@ Also, if there is at least one transition, time type 0 is associated
 with the time period from the indefinite past up to but not including
 the earliest transition time.
 .Ss Version 3 format
-For version-3-format timezone files, the TZ string may
-use two minor extensions to the POSIX.1-2017 TZ format, as described in
-.Xr newtzset 3 .
-First, the hours part of its transition times may be signed and range from
-\-167 through 167 instead of the POSIX-required unsigned values
+For version-3-format timezone files, a TZ string (see
+.Xr newtzset 3 )
+may use the following POSIX.1-2024 extensions to POSIX.1-2017:
+First, as in TZ="<\*-02>2<\*-01>,M3.5.0/\*-1,M10.5.0/0",
+the hours part of its transition times may be signed and range from
+\-167 through 167 instead of being limited to unsigned values
 from 0 through 24.
-Second, DST is in effect all year if it starts
+Second, as in TZ="XXX3EDT4,0/0,J365/23", DST is in effect all year if it starts
 January 1 at 00:00 and ends December 31 at 24:00 plus the difference
 between daylight saving and standard time.
 .Ss Version 4 format
@@ -336,7 +337,8 @@ version 2+ data even if the reader's native timestamps have only
 .It
 Some readers designed for version 2 might mishandle
 timestamps after a version 3 or higher file's last transition, because
-they cannot parse extensions to POSIX.1-2017 in the TZ-like string.
+they cannot parse the POSIX.1-2024 extensions to POSIX.1-2017
+in the proleptic TZ string.
 As a partial workaround, a writer can output more transitions
 than necessary, so that only far-future timestamps are
 mishandled by version 2 readers.
@@ -367,6 +369,18 @@ Some readers ignore the footer, and instead predict future
 timestamps from the time type of the last transition.
 As a partial workaround, a writer can output more transitions
 than necessary.
+.It
+Some stripped-down readers ignore everything but the footer,
+and use its proleptic TZ string to calculate all timestamps.
+Although this approach often works for current and future timestamps,
+it obviously has problems with past timestamps,
+and even for current timestamps it can fail for settings like
+TZ="Africa/Casablanca".  This corresponds to a TZif file
+containing explicit transitions through the year 2087,
+followed by a footer containing the TZ string
+.Dq <+01>\*-1 ,
+which should be used only for timestamps after the last
+explicit transition.
 .It
 Some readers do not use time type 0 for timestamps before
 the first transition, in that they infer a time type using a

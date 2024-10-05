@@ -56,6 +56,10 @@ static int zstd_cutoff_level = ZIO_ZSTD_LEVEL_3;
 static unsigned int zstd_abort_size = (128 * 1024);
 #endif
 
+#ifdef IN_BASE
+int zfs_zstd_decompress_buf(void *, void *, size_t, size_t, int);
+#endif
+
 static kstat_t *zstd_ksp = NULL;
 
 typedef struct zstd_stats {
@@ -436,7 +440,7 @@ zstd_enum_to_level(enum zio_zstd_levels level, int16_t *zstd_level)
 }
 
 #ifndef IN_LIBSA
-size_t
+static size_t
 zfs_zstd_compress_wrap(void *s_start, void *d_start, size_t s_len, size_t d_len,
     int level)
 {
@@ -469,7 +473,7 @@ zfs_zstd_compress_wrap(void *s_start, void *d_start, size_t s_len, size_t d_len,
 	if (zstd_earlyabort_pass > 0 && zstd_level >= zstd_cutoff_level &&
 	    s_len >= actual_abort_size) {
 		int pass_len = 1;
-		pass_len = lz4_compress_zfs(s_start, d_start, s_len, d_len, 0);
+		pass_len = zfs_lz4_compress(s_start, d_start, s_len, d_len, 0);
 		if (pass_len < d_len) {
 			ZSTDSTAT_BUMP(zstd_stat_lz4pass_allowed);
 			goto keep_trying;
@@ -495,8 +499,8 @@ keep_trying:
 }
 
 /* Compress block using zstd */
-size_t
-zfs_zstd_compress(void *s_start, void *d_start, size_t s_len, size_t d_len,
+static size_t
+zfs_zstd_compress_impl(void *s_start, void *d_start, size_t s_len, size_t d_len,
     int level)
 {
 	size_t c_len;
@@ -599,11 +603,74 @@ zfs_zstd_compress(void *s_start, void *d_start, size_t s_len, size_t d_len,
 
 	return (c_len + sizeof (*hdr));
 }
+
+static size_t
+zfs_zstd_compress_buf(void *s_start, void *d_start, size_t s_len, size_t d_len,
+    int level)
+{
+	int16_t zstd_level;
+	if (zstd_enum_to_level(level, &zstd_level)) {
+		ZSTDSTAT_BUMP(zstd_stat_com_inval);
+		return (s_len);
+	}
+	/*
+	 * A zstd early abort heuristic.
+	 *
+	 * - Zeroth, if this is <= zstd-3, or < zstd_abort_size (currently
+	 *   128k), don't try any of this, just go.
+	 *   (because experimentally that was a reasonable cutoff for a perf win
+	 *   with tiny ratio change)
+	 * - First, we try LZ4 compression, and if it doesn't early abort, we
+	 *   jump directly to whatever compression level we intended to try.
+	 * - Second, we try zstd-1 - if that errors out (usually, but not
+	 *   exclusively, if it would overflow), we give up early.
+	 *
+	 *   If it works, instead we go on and compress anyway.
+	 *
+	 * Why two passes? LZ4 alone gets you a lot of the way, but on highly
+	 * compressible data, it was losing up to 8.5% of the compressed
+	 * savings versus no early abort, and all the zstd-fast levels are
+	 * worse indications on their own than LZ4, and don't improve the LZ4
+	 * pass noticably if stacked like this.
+	 */
+	size_t actual_abort_size = zstd_abort_size;
+	if (zstd_earlyabort_pass > 0 && zstd_level >= zstd_cutoff_level &&
+	    s_len >= actual_abort_size) {
+		int pass_len = 1;
+		abd_t sabd, dabd;
+		abd_get_from_buf_struct(&sabd, s_start, s_len);
+		abd_get_from_buf_struct(&dabd, d_start, d_len);
+		pass_len = zfs_lz4_compress(&sabd, &dabd, s_len, d_len, 0);
+		abd_free(&dabd);
+		abd_free(&sabd);
+		if (pass_len < d_len) {
+			ZSTDSTAT_BUMP(zstd_stat_lz4pass_allowed);
+			goto keep_trying;
+		}
+		ZSTDSTAT_BUMP(zstd_stat_lz4pass_rejected);
+
+		pass_len = zfs_zstd_compress_impl(s_start, d_start, s_len,
+		    d_len, ZIO_ZSTD_LEVEL_1);
+		if (pass_len == s_len || pass_len <= 0 || pass_len > d_len) {
+			ZSTDSTAT_BUMP(zstd_stat_zstdpass_rejected);
+			return (s_len);
+		}
+		ZSTDSTAT_BUMP(zstd_stat_zstdpass_allowed);
+	} else {
+		ZSTDSTAT_BUMP(zstd_stat_passignored);
+		if (s_len < actual_abort_size) {
+			ZSTDSTAT_BUMP(zstd_stat_passignored_size);
+		}
+	}
+keep_trying:
+	return (zfs_zstd_compress_impl(s_start, d_start, s_len, d_len, level));
+
+}
 #endif
 
 /* Decompress block using zstd and return its stored level */
-int
-zfs_zstd_decompress_level(void *s_start, void *d_start, size_t s_len,
+static int
+zfs_zstd_decompress_level_buf(void *s_start, void *d_start, size_t s_len,
     size_t d_len, uint8_t *level)
 {
 	ZSTD_DCtx *dctx;
@@ -678,16 +745,31 @@ zfs_zstd_decompress_level(void *s_start, void *d_start, size_t s_len,
 }
 
 /* Decompress datablock using zstd */
+#ifdef IN_BASE
 int
-zfs_zstd_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len,
-    int level __maybe_unused)
+zfs_zstd_decompress_buf(void *s_start, void *d_start, size_t s_len,
+    size_t d_len, int level __maybe_unused)
 {
 
-	return (zfs_zstd_decompress_level(s_start, d_start, s_len, d_len,
+	return (zfs_zstd_decompress_level_buf(s_start, d_start, s_len, d_len,
 	    NULL));
 }
+#else
+static int
+zfs_zstd_decompress_buf(void *s_start, void *d_start, size_t s_len,
+    size_t d_len, int level __maybe_unused)
+{
+
+	return (zfs_zstd_decompress_level_buf(s_start, d_start, s_len, d_len,
+	    NULL));
+}
+#endif
 
 #ifndef IN_LIBSA
+ZFS_COMPRESS_WRAP_DECL(zfs_zstd_compress)
+ZFS_DECOMPRESS_WRAP_DECL(zfs_zstd_decompress)
+ZFS_DECOMPRESS_LEVEL_WRAP_DECL(zfs_zstd_decompress_level)
+
 /* Allocator for zstd compression context using mempool_allocator */
 static void *
 zstd_alloc(void *opaque __maybe_unused, size_t size)
@@ -704,8 +786,8 @@ zstd_alloc(void *opaque __maybe_unused, size_t size)
 
 	return ((void*)z + (sizeof (struct zstd_kmem)));
 }
-#endif
 
+#endif
 /*
  * Allocator for zstd decompression context using mempool_allocator with
  * fallback to reserved memory if allocation fails

@@ -46,8 +46,8 @@ ifn_start()
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
 	if ! noafif $ifn; then
-		afexists inet && ipv4_up ${ifn} && cfg=0
 		afexists inet6 && ipv6_up ${ifn} && cfg=0
+		afexists inet && ipv4_up ${ifn} && cfg=0
 	fi
 	childif_create ${ifn} && cfg=0
 
@@ -67,8 +67,8 @@ ifn_stop()
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
 	if ! noafif $ifn; then
-		afexists inet6 && ipv6_down ${ifn} && cfg=0
 		afexists inet && ipv4_down ${ifn} && cfg=0
+		afexists inet6 && ipv6_down ${ifn} && cfg=0
 	fi
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0

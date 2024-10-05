@@ -74,8 +74,6 @@
 #include <ddb/db_sym.h>
 #endif
 
-void intr_irq_handler(struct trapframe *tf);
-
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 /* Called from exception.S */
@@ -319,7 +317,7 @@ do_trap_supervisor(struct trapframe *frame)
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
-		intr_irq_handler(frame);
+		intr_irq_handler(frame, INTR_ROOT_IRQ);
 		return;
 	}
 
@@ -400,7 +398,7 @@ do_trap_user(struct trapframe *frame)
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
-		intr_irq_handler(frame);
+		intr_irq_handler(frame, INTR_ROOT_IRQ);
 		return;
 	}
 	intr_enable();

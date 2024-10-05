@@ -32,7 +32,7 @@ local core = require("core")
 local screen = {}
 
 -- Module exports
-screen.default_x = 0
+screen.default_x = 1
 screen.default_y = 25
 
 function screen.clear()

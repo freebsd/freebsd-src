@@ -21,9 +21,7 @@
 
 /* \summary: Protocol Independent Multicast (PIM) printer */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 
@@ -599,8 +597,7 @@ pimv2_addr_print(netdissect_options *ndo,
 		if (af == AF_INET) {
 			if (!silent)
 				ND_PRINT("%s", GET_IPADDR_STRING(bp));
-		}
-		else if (af == AF_INET6) {
+		} else if (af == AF_INET6) {
 			if (!silent)
 				ND_PRINT("%s", GET_IP6ADDR_STRING(bp));
 		}
@@ -616,8 +613,7 @@ pimv2_addr_print(netdissect_options *ndo,
 				if (GET_U_1(bp + 1) != 32)
 					ND_PRINT("/%u", GET_U_1(bp + 1));
 			}
-		}
-		else if (af == AF_INET6) {
+		} else if (af == AF_INET6) {
 			if (!silent) {
 				ND_PRINT("%s", GET_IP6ADDR_STRING(bp + 2));
 				if (GET_U_1(bp + 1) != 128)

@@ -22,7 +22,7 @@
 #                      \___/_/\_\ .__/ \__,_|\__|
 #                               |_| XML parser
 #
-# Copyright (c) 2017-2022 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2017-2024 Sebastian Pipping <sebastian@pipping.org>
 # Copyright (c) 2017      Tomasz Kłoczko <kloczek@fedoraproject.org>
 # Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
 # Licensed under the MIT license:
@@ -176,8 +176,8 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(docdir)" \
 	"$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
-libexpat_la_DEPENDENCIES = libexpatinternal.la
-am_libexpat_la_OBJECTS =
+libexpat_la_LIBADD =
+am_libexpat_la_OBJECTS = xmlparse.lo xmltok.lo xmlrole.lo
 libexpat_la_OBJECTS = $(am_libexpat_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -186,9 +186,13 @@ am__v_lt_1 =
 libexpat_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(libexpat_la_LDFLAGS) $(LDFLAGS) -o $@
-libexpatinternal_la_LIBADD =
-am_libexpatinternal_la_OBJECTS = xmlparse.lo xmltok.lo xmlrole.lo
-libexpatinternal_la_OBJECTS = $(am_libexpatinternal_la_OBJECTS)
+libtestpat_la_LIBADD =
+am__libtestpat_la_SOURCES_DIST = xmlparse.c xmltok.c xmlrole.c
+am__objects_1 = libtestpat_la-xmlparse.lo libtestpat_la-xmltok.lo \
+	libtestpat_la-xmlrole.lo
+@WITH_TESTS_TRUE@am_libtestpat_la_OBJECTS = $(am__objects_1)
+libtestpat_la_OBJECTS = $(am_libtestpat_la_OBJECTS)
+@WITH_TESTS_TRUE@am_libtestpat_la_rpath =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -204,8 +208,10 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/conftools/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/xmlparse.Plo ./$(DEPDIR)/xmlrole.Plo \
-	./$(DEPDIR)/xmltok.Plo
+am__depfiles_remade = ./$(DEPDIR)/libtestpat_la-xmlparse.Plo \
+	./$(DEPDIR)/libtestpat_la-xmlrole.Plo \
+	./$(DEPDIR)/libtestpat_la-xmltok.Plo ./$(DEPDIR)/xmlparse.Plo \
+	./$(DEPDIR)/xmlrole.Plo ./$(DEPDIR)/xmltok.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -225,8 +231,9 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libexpat_la_SOURCES) $(libexpatinternal_la_SOURCES)
-DIST_SOURCES = $(libexpat_la_SOURCES) $(libexpatinternal_la_SOURCES)
+SOURCES = $(libexpat_la_SOURCES) $(libtestpat_la_SOURCES)
+DIST_SOURCES = $(libexpat_la_SOURCES) \
+	$(am__libtestpat_la_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -344,6 +351,7 @@ RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SIZEOF_VOID_P = @SIZEOF_VOID_P@
 SO_MAJOR = @SO_MAJOR@
 SO_MINOR = @SO_MINOR@
 SO_PATCH = @SO_PATCH@
@@ -357,7 +365,6 @@ ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
-ac_cv_sizeof_void_p = @ac_cv_sizeof_void_p@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -410,24 +417,20 @@ include_HEADERS = \
     expat_external.h
 
 lib_LTLIBRARIES = libexpat.la
-noinst_LTLIBRARIES = libexpatinternal.la
+@WITH_TESTS_TRUE@noinst_LTLIBRARIES = libtestpat.la
 libexpat_la_LDFLAGS = \
     @AM_LDFLAGS@ \
     @LIBM@ \
     -no-undefined \
     -version-info @LIBCURRENT@:@LIBREVISION@:@LIBAGE@
 
-libexpat_la_SOURCES = 
-
-# This layer of indirection allows
-# the test suite to access internal symbols
-# despite compiling with -fvisibility=hidden
-libexpatinternal_la_SOURCES = \
+libexpat_la_SOURCES = \
     xmlparse.c \
     xmltok.c \
     xmlrole.c
 
-libexpat_la_LIBADD = libexpatinternal.la
+@WITH_TESTS_TRUE@libtestpat_la_CPPFLAGS = -DXML_TESTING
+@WITH_TESTS_TRUE@libtestpat_la_SOURCES = $(libexpat_la_SOURCES)
 doc_DATA = \
     ../AUTHORS \
     ../Changes
@@ -534,8 +537,8 @@ clean-noinstLTLIBRARIES:
 libexpat.la: $(libexpat_la_OBJECTS) $(libexpat_la_DEPENDENCIES) $(EXTRA_libexpat_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libexpat_la_LINK) -rpath $(libdir) $(libexpat_la_OBJECTS) $(libexpat_la_LIBADD) $(LIBS)
 
-libexpatinternal.la: $(libexpatinternal_la_OBJECTS) $(libexpatinternal_la_DEPENDENCIES) $(EXTRA_libexpatinternal_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(LINK)  $(libexpatinternal_la_OBJECTS) $(libexpatinternal_la_LIBADD) $(LIBS)
+libtestpat.la: $(libtestpat_la_OBJECTS) $(libtestpat_la_DEPENDENCIES) $(EXTRA_libtestpat_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(LINK) $(am_libtestpat_la_rpath) $(libtestpat_la_OBJECTS) $(libtestpat_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -543,6 +546,9 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmlparse.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmlrole.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtestpat_la-xmltok.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlparse.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmlrole.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/xmltok.Plo@am__quote@ # am--include-marker
@@ -573,6 +579,27 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+libtestpat_la-xmlparse.lo: xmlparse.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libtestpat_la-xmlparse.lo -MD -MP -MF $(DEPDIR)/libtestpat_la-xmlparse.Tpo -c -o libtestpat_la-xmlparse.lo `test -f 'xmlparse.c' || echo '$(srcdir)/'`xmlparse.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libtestpat_la-xmlparse.Tpo $(DEPDIR)/libtestpat_la-xmlparse.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='xmlparse.c' object='libtestpat_la-xmlparse.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libtestpat_la-xmlparse.lo `test -f 'xmlparse.c' || echo '$(srcdir)/'`xmlparse.c
+
+libtestpat_la-xmltok.lo: xmltok.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libtestpat_la-xmltok.lo -MD -MP -MF $(DEPDIR)/libtestpat_la-xmltok.Tpo -c -o libtestpat_la-xmltok.lo `test -f 'xmltok.c' || echo '$(srcdir)/'`xmltok.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libtestpat_la-xmltok.Tpo $(DEPDIR)/libtestpat_la-xmltok.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='xmltok.c' object='libtestpat_la-xmltok.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libtestpat_la-xmltok.lo `test -f 'xmltok.c' || echo '$(srcdir)/'`xmltok.c
+
+libtestpat_la-xmlrole.lo: xmlrole.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libtestpat_la-xmlrole.lo -MD -MP -MF $(DEPDIR)/libtestpat_la-xmlrole.Tpo -c -o libtestpat_la-xmlrole.lo `test -f 'xmlrole.c' || echo '$(srcdir)/'`xmlrole.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libtestpat_la-xmlrole.Tpo $(DEPDIR)/libtestpat_la-xmlrole.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='xmlrole.c' object='libtestpat_la-xmlrole.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libtestpat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libtestpat_la-xmlrole.lo `test -f 'xmlrole.c' || echo '$(srcdir)/'`xmlrole.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -749,7 +776,10 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	clean-noinstLTLIBRARIES mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/xmlparse.Plo
+		-rm -f ./$(DEPDIR)/libtestpat_la-xmlparse.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xmlrole.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xmltok.Plo
+	-rm -f ./$(DEPDIR)/xmlparse.Plo
 	-rm -f ./$(DEPDIR)/xmlrole.Plo
 	-rm -f ./$(DEPDIR)/xmltok.Plo
 	-rm -f Makefile
@@ -798,7 +828,10 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/xmlparse.Plo
+		-rm -f ./$(DEPDIR)/libtestpat_la-xmlparse.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xmlrole.Plo
+	-rm -f ./$(DEPDIR)/libtestpat_la-xmltok.Plo
+	-rm -f ./$(DEPDIR)/xmlparse.Plo
 	-rm -f ./$(DEPDIR)/xmlrole.Plo
 	-rm -f ./$(DEPDIR)/xmltok.Plo
 	-rm -f Makefile

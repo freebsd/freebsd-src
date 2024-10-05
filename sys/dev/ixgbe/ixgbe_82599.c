@@ -324,6 +324,7 @@ s32 ixgbe_init_ops_82599(struct ixgbe_hw *hw)
 	struct ixgbe_phy_info *phy = &hw->phy;
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
 	s32 ret_val;
+	u16 i;
 
 	DEBUGFUNC("ixgbe_init_ops_82599");
 
@@ -385,7 +386,8 @@ s32 ixgbe_init_ops_82599(struct ixgbe_hw *hw)
 	mac->arc_subsystem_valid = !!(IXGBE_READ_REG(hw, IXGBE_FWSM_BY_MAC(hw))
 				      & IXGBE_FWSM_MODE_MASK);
 
-	hw->mbx.ops.init_params = ixgbe_init_mbx_params_pf;
+	for (i = 0; i < 64; i++)
+		hw->mbx.ops[i].init_params = ixgbe_init_mbx_params_pf;
 
 	/* EEPROM */
 	eeprom->ops.read = ixgbe_read_eeprom_82599;
@@ -1535,7 +1537,7 @@ u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
 }
 
 /**
- * ixgbe_atr_add_signature_filter_82599 - Adds a signature hash filter
+ * ixgbe_fdir_add_signature_filter_82599 - Adds a signature hash filter
  * @hw: pointer to hardware structure
  * @input: unique input dword
  * @common: compressed common input dword
@@ -1757,7 +1759,9 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 	case 0x0000:
 		/* mask VLAN ID */
 		fdirm |= IXGBE_FDIRM_VLANID;
-		/* FALLTHROUGH */
+		/* mask VLAN priority */
+		fdirm |= IXGBE_FDIRM_VLANP;
+		break;
 	case 0x0FFF:
 		/* mask VLAN priority */
 		fdirm |= IXGBE_FDIRM_VLANP;
@@ -2047,7 +2051,9 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 			DEBUGOUT(" Error on src/dst port\n");
 			return IXGBE_ERR_CONFIG;
 		}
-		/* FALLTHROUGH */
+		input_mask->formatted.flow_type = IXGBE_ATR_L4TYPE_IPV6_MASK |
+						  IXGBE_ATR_L4TYPE_MASK;
+		break;
 	case IXGBE_ATR_FLOW_TYPE_TCPV4:
 	case IXGBE_ATR_FLOW_TYPE_TUNNELED_TCPV4:
 	case IXGBE_ATR_FLOW_TYPE_UDPV4:

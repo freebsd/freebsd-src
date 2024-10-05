@@ -150,11 +150,6 @@ SUBDIR_DEPEND_libpcap= ofed
 .endif
 SUBDIR_DEPEND_nss_tacplus= libtacplus
 
-.if !defined(COMPAT_LIBCOMPAT)
-SUBDIR+=	flua
-SUBDIR_DEPEND_flua=	libjail
-.endif
-
 # NB: keep these sorted by MK_* knobs
 
 SUBDIR.${MK_BEARSSL}+=	libbearssl libsecureboot

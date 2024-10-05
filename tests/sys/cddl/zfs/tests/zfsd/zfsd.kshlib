@@ -52,7 +52,7 @@ function wait_for_pool_dev_state_change
 function wait_for_pool_removal
 {
 	typeset -i timeout=$1
-	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK "REMOVED|UNAVAIL"
+	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK "REMOVED|UNAVAIL|FAULTED"
 }
 
 function wait_until_scrubbed

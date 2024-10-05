@@ -217,6 +217,7 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 	p_names = clknode_get_parent_names(clk);
 
 	best_diff = 0;
+	best_parent = -1;
 
 	for (p_idx = 0; p_idx != clknode_get_parents_num(clk); p_idx++) {
 		p_clk = clknode_find_by_name(p_names[p_idx]);
@@ -242,6 +243,10 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 	*stop = 1;
 	if (best_diff == INT64_MAX)
 		return (ERANGE);
+
+	/* If we didn't find a new best_parent just return */
+	if (best_parent == -1)
+		return (0);
 
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;

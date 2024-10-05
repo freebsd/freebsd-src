@@ -72,10 +72,6 @@ __BEGIN_DECLS
 #define SHA384_Data		_libmd_SHA384_Data
 #endif
 
-#ifndef SHA384_version
-#define SHA384_version		_libmd_SHA384_version
-#endif
-
 void	SHA384_Init(SHA384_CTX *);
 void	SHA384_Update(SHA384_CTX *, const void *, size_t);
 void	SHA384_Final(unsigned char [__min_size(SHA384_DIGEST_LENGTH)],

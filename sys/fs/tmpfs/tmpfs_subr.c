@@ -646,6 +646,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, __enum_uint8(vtype) 
 		nnode->tn_dir.tn_parent = (parent == NULL) ? nnode : parent;
 		nnode->tn_dir.tn_readdir_lastn = 0;
 		nnode->tn_dir.tn_readdir_lastp = NULL;
+		nnode->tn_dir.tn_wht_size = 0;
 		nnode->tn_links++;
 		TMPFS_NODE_LOCK(nnode->tn_dir.tn_parent);
 		nnode->tn_dir.tn_parent->tn_links++;
@@ -1831,13 +1832,16 @@ int
 tmpfs_dir_whiteout_add(struct vnode *dvp, struct componentname *cnp)
 {
 	struct tmpfs_dirent *de;
+	struct tmpfs_node *dnode;
 	int error;
 
 	error = tmpfs_alloc_dirent(VFS_TO_TMPFS(dvp->v_mount), NULL,
 	    cnp->cn_nameptr, cnp->cn_namelen, &de);
 	if (error != 0)
 		return (error);
+	dnode = VP_TO_TMPFS_DIR(dvp);
 	tmpfs_dir_attach(dvp, de);
+	dnode->tn_dir.tn_wht_size += sizeof(*de);
 	return (0);
 }
 
@@ -1845,11 +1849,41 @@ void
 tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
 {
 	struct tmpfs_dirent *de;
+	struct tmpfs_node *dnode;
 
-	de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(dvp), NULL, cnp);
+	dnode = VP_TO_TMPFS_DIR(dvp);
+	de = tmpfs_dir_lookup(dnode, NULL, cnp);
 	MPASS(de != NULL && de->td_node == NULL);
+	MPASS(dnode->tn_dir.tn_wht_size >= sizeof(*de));
+	dnode->tn_dir.tn_wht_size -= sizeof(*de);
 	tmpfs_dir_detach(dvp, de);
 	tmpfs_free_dirent(VFS_TO_TMPFS(dvp->v_mount), de);
+}
+
+/*
+ * Frees any dirents still associated with the directory represented
+ * by dvp in preparation for the removal of the directory.  This is
+ * required when removing a directory which contains only whiteout
+ * entries.
+ */
+void
+tmpfs_dir_clear_whiteouts(struct vnode *dvp)
+{
+	struct tmpfs_dir_cursor dc;
+	struct tmpfs_dirent *de;
+	struct tmpfs_node *dnode;
+
+	dnode = VP_TO_TMPFS_DIR(dvp);
+
+	while ((de = tmpfs_dir_first(dnode, &dc)) != NULL) {
+		KASSERT(de->td_node == NULL, ("%s: non-whiteout dirent %p",
+		    __func__, de));
+		dnode->tn_dir.tn_wht_size -= sizeof(*de);
+		tmpfs_dir_detach(dvp, de);
+		tmpfs_free_dirent(VFS_TO_TMPFS(dvp->v_mount), de);
+	}
+	MPASS(dnode->tn_size == 0);
+	MPASS(dnode->tn_dir.tn_wht_size == 0);
 }
 
 /*

@@ -20,7 +20,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "12 March 2023"
+.TH TCPDUMP 1  "26 March 2024"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -32,7 +32,6 @@ tcpdump \- dump traffic on a network
 .B \-B
 .I buffer_size
 ]
-.br
 .ti +8
 [
 .B \-c
@@ -408,7 +407,7 @@ which should include a time format as defined by
 .BR strftime (3).
 If no time format is specified, each new file will overwrite the previous.
 Whenever a generated filename is not unique, tcpdump will overwrite the
-pre-existing data; providing a time specification that is coarser than the
+preexisting data; providing a time specification that is coarser than the
 capture period is therefore not advised.
 .IP
 If used in conjunction with the
@@ -625,7 +624,7 @@ instead of ``nic.ddn.mil''.
 .TP
 .B \-\-number
 .PD
-Print an optional packet number at the beginning of the line.
+Print a packet number at the beginning of the line.
 .TP
 .B \-O
 .PD 0
@@ -1105,8 +1104,7 @@ gives a brief description and examples of most of the formats.
 .sp 1.5
 .B
 ..
-.HD
-Timestamps
+.SS Timestamps
 .LP
 By default, all output lines are preceded by a timestamp.
 The timestamp
@@ -1126,8 +1124,16 @@ packet from the network and the time when an interrupt was delivered to
 the kernel to get it to read the packet and a delay between the time
 when the kernel serviced the `new packet' interrupt and the time when it
 applied a time stamp to the packet.
-.HD
-Link Level Headers
+.SS Interface
+.LP
+When the \fIany\fP interface is selected on capture or when a link-type
+\fILINUX_SLL2\fP capture file is read the
+interface name is printed after the timestamp. This is followed by the packet
+type with \fIIn\fP and \fIOut\fP denoting a packet destined for this host or
+originating from this host respectively. Other possible values are \fIB\fP
+for broadcast packets, \fIM\fP for multicast packets, and \fIP\fP for packets
+destined for other hosts.
+.SS Link Level Headers
 .LP
 If the '-e' option is given, the link level header is printed out.
 On Ethernets, the source and destination addresses, protocol,
@@ -1191,8 +1197,7 @@ data and 6 bytes of compressed header:
 \fBO ctcp * A+6 S+49 I+6 3 (6)\fP
 .fi
 .RE
-.HD
-ARP/RARP Packets
+.SS ARP/RARP Packets
 .LP
 ARP/RARP output shows the type of request and its arguments.
 The
@@ -1235,8 +1240,7 @@ CSAM RTSG 0806  64: arp reply csam is-at CSAM\fR
 For the first packet this says the Ethernet source address is RTSG, the
 destination is the Ethernet broadcast address, the type field
 contained hex 0806 (type ETHER_ARP) and the total length was 64 bytes.
-.HD
-IPv4 Packets
+.SS IPv4 Packets
 .LP
 If the link-layer header is not being printed, for IPv4 packets,
 \fBIP\fP is printed after the time stamp.
@@ -1263,7 +1267,8 @@ part of a fragmented datagram or not.
 and \fBDF\fP is reported if F is set.  If neither are set, \fB.\fP is
 reported.
 \fIproto\fP is the protocol ID field.
-\fIlength\fP is the total length field.
+\fIlength\fP is the total length field; if the packet is a presumed TSO
+(TCP Segmentation Offload) send, [was 0, presumed TSO] is reported.
 \fIoptions\fP are the IP options, if any.
 .LP
 Next, for TCP and UDP packets, the source and destination IP addresses
@@ -1279,8 +1284,7 @@ protocol header.  Fragmentation information will be printed only with
 the
 .B \-v
 flag, in the IP header information, as described above.
-.HD
-TCP Packets
+.SS TCP Packets
 .LP
 \fI(N.B.:The following description assumes familiarity with
 the TCP protocol described in RFC 793.
@@ -1387,8 +1391,7 @@ If the header
 length indicates options are present but the IP datagram length is not
 long enough for the options to actually be there, \fItcpdump\fP reports
 it as ``[\fIbad hdr length\fP]''.
-.HD
-.B Capturing TCP packets with particular flag combinations (SYN-ACK, URG-ACK, etc.)
+.SS Particular TCP Flag Combinations (SYN-ACK, URG-ACK, etc.)
 .PP
 There are 8 bits in the control bits section of the TCP header:
 .IP
@@ -1506,7 +1509,7 @@ We can use this expression as the filter for \fItcpdump\fP in order
 to watch packets which have only SYN set:
 .RS
 .B
-tcpdump -i xl0 tcp[13] == 2
+tcpdump -i xl0 'tcp[13] == 2'
 .RE
 .PP
 The expression says "let the 13th octet of a TCP datagram have
@@ -1590,9 +1593,7 @@ This can be demonstrated as:
 Note that you should use single quotes or a backslash
 in the expression to hide the AND ('&') special character
 from the shell.
-.HD
-.B
-UDP Packets
+.SS UDP Packets
 .LP
 UDP format is illustrated by this rwho packet:
 .RS
@@ -1611,8 +1612,7 @@ Some UDP services are recognized (from the source or destination
 port number) and the higher level protocol information printed.
 In particular, Domain Name service requests (RFC 1034/1035) and Sun
 RPC calls (RFC 1050) to NFS.
-.HD
-TCP or UDP Name Server Requests
+.SS TCP or UDP Name Server Requests
 .LP
 \fI(N.B.:The following description assumes familiarity with
 the Domain Service protocol described in RFC 1035.
@@ -1658,8 +1658,7 @@ is the appropriate count.
 If any of the response bits are set (AA, RA or rcode) or any of the
 `must be zero' bits are set in bytes two and three, `[b2&3=\fIx\fP]'
 is printed, where \fIx\fP is the hex value of header bytes two and three.
-.HD
-TCP or UDP Name Server Responses
+.SS TCP or UDP Name Server Responses
 .LP
 Name server responses are formatted as
 .RS
@@ -1682,7 +1681,7 @@ The op (Query) and response code
 (NoError) were omitted, as was the class (C_IN) of the A record.
 .LP
 In the second example, \fIhelios\fP responds to query 2 with a
-response code of non-existent domain (NXDomain) with no answers,
+response code of nonexistent domain (NXDomain) with no answers,
 one name server and no authority records.
 The `*' indicates that
 the \fIauthoritative answer\fP bit was set.
@@ -1694,8 +1693,7 @@ RA, \fInot\fP set) and `|' (truncated message, TC, set).
 If the
 `question' section doesn't contain exactly one entry, `[\fIn\fPq]'
 is printed.
-.HD
-SMB/CIFS decoding
+.SS SMB/CIFS Decoding
 .LP
 \fItcpdump\fP now includes fairly extensive SMB/CIFS/NBT decoding for data
 on UDP/137, UDP/138 and TCP/139.
@@ -1712,8 +1710,7 @@ For information on SMB packet formats and what all the fields mean see
 \%https://download.samba.org/pub/samba/specs/ and other online resources.
 The SMB patches were written by Andrew Tridgell
 (tridge@samba.org).
-.HD
-NFS Requests and Replies
+.SS NFS Requests and Replies
 .LP
 Sun NFS (Network File System) requests and replies are printed as:
 .RS
@@ -1795,8 +1792,7 @@ Instead,
 replies using the transaction ID.
 If a reply does not closely follow the
 corresponding request, it might not be parsable.
-.HD
-AFS Requests and Replies
+.SS AFS Requests and Replies
 .LP
 Transarc AFS (Andrew File System) requests and replies are printed
 as:
@@ -1860,8 +1856,7 @@ If a reply does not closely
 follow the
 corresponding request, it might not be parsable.
 
-.HD
-KIP AppleTalk (DDP in UDP)
+.SS KIP AppleTalk (DDP in UDP)
 .LP
 AppleTalk DDP packets encapsulated in UDP datagrams are de-encapsulated
 and dumped as DDP packets (i.e., all the UDP header information is
@@ -1925,7 +1920,8 @@ Other protocols just dump
 the protocol name (or number if no name is registered for the
 protocol) and packet size.
 
-\fBNBP packets\fP are formatted like the following examples:
+.SS NBP Packets
+NBP packets are formatted like the following examples:
 .RS
 .nf
 .sp .5
@@ -1945,7 +1941,8 @@ The third line is
 another reply to the same request saying host techpit has laserwriter
 "techpit" registered on port 186.
 
-\fBATP packet\fP formatting is demonstrated by the following example:
+.SS ATP Packets
+ATP packet formatting is demonstrated by the following example:
 .RS
 .nf
 .sp .5
@@ -2043,24 +2040,6 @@ in the tcpdump source tree root.
 .LP
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.
-.LP
-On Linux systems with 2.0[.x] kernels:
-.IP
-packets on the loopback device will be seen twice;
-.IP
-packet filtering cannot be done in the kernel, so that all packets must
-be copied from the kernel in order to be filtered in user mode;
-.IP
-all of a packet, not just the part that's within the snapshot length,
-will be copied from the kernel (the 2.0[.x] packet capture mechanism, if
-asked to copy only part of a packet to userspace, will not report the
-true length of the packet; this would cause most IP packets to get an
-error from
-.BR tcpdump );
-.IP
-capturing on some PPP devices won't work correctly.
-.LP
-We recommend that you upgrade to a 2.2 or later kernel.
 .LP
 Some attempt should be made to reassemble IP fragments or, at least
 to compute the right length for the higher level protocol.

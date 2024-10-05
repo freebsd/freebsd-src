@@ -702,9 +702,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	pf_state_peer_ntoh(&sp->pfs_1301.src, &st->src);
 	pf_state_peer_ntoh(&sp->pfs_1301.dst, &st->dst);
 
-	st->rule.ptr = r;
-	st->nat_rule.ptr = NULL;
-	st->anchor.ptr = NULL;
+	st->rule = r;
+	st->nat_rule = NULL;
+	st->anchor = NULL;
 
 	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
@@ -1974,7 +1974,7 @@ pfsync_insert_state(struct pf_kstate *st)
 	if (st->state_flags & PFSTATE_NOSYNC)
 		return;
 
-	if ((st->rule.ptr->rule_flag & PFRULE_NOSYNC) ||
+	if ((st->rule->rule_flag & PFRULE_NOSYNC) ||
 	    st->key[PF_SK_WIRE]->proto == IPPROTO_PFSYNC) {
 		st->state_flags |= PFSTATE_NOSYNC;
 		return;

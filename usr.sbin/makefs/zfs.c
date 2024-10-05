@@ -92,7 +92,7 @@ zfs_prep_opts(fsinfo_t *fsopts)
 		{ '\0', "ashift", &zfs->ashift, OPT_INT32,
 		  MINBLOCKSHIFT, MAXBLOCKSHIFT, "ZFS pool ashift" },
 		{ '\0', "nowarn", &zfs->nowarn, OPT_BOOL,
-		  0, 0, "Suppress warning about experimental ZFS support" },
+		  0, 0, "Provided for backwards compatibility, ignored" },
 		{ .name = NULL }
 	};
 
@@ -778,12 +778,6 @@ zfs_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	srandom(1729);
 
 	zfs_check_opts(fsopts);
-
-	if (!zfs->nowarn) {
-		fprintf(stderr,
-		    "ZFS support is currently considered experimental. "
-		    "Do not use it for anything critical.\n");
-	}
 
 	dirfd = open(dir, O_DIRECTORY | O_RDONLY);
 	if (dirfd < 0)

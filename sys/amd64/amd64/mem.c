@@ -191,7 +191,7 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
-int 
+int
 memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
@@ -221,7 +221,7 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 				       M_MEMDESC, M_WAITOK);
 			error = mem_range_attr_get(md, &nd);
 			if (!error)
-				error = copyout(md, mo->mo_desc, 
+				error = copyout(md, mo->mo_desc,
 					nd * sizeof(struct mem_range_desc));
 			free(md, M_MEMDESC);
 		}
@@ -229,7 +229,7 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 			nd = mem_range_softc.mr_ndesc;
 		mo->mo_arg[0] = nd;
 		break;
-		
+
 	case MEMRANGE_SET:
 		md = (struct mem_range_desc *)malloc(sizeof(struct mem_range_desc),
 						    M_MEMDESC, M_WAITOK);

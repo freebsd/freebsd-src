@@ -238,6 +238,7 @@ contrib/openzfs/module/zcommon/zfs_fletcher_superscalar.c		optional zfs compile-
 contrib/openzfs/module/zcommon/zfs_fletcher_superscalar4.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_namecheck.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_prop.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zcommon/zfs_valstr.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zpool_prop.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zprop_common.c		optional zfs compile-with "${ZFS_C}"
 
@@ -270,6 +271,7 @@ contrib/openzfs/module/zfs/dbuf.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dbuf_stats.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dataset_kstats.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/ddt.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/ddt_log.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/ddt_stats.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/ddt_zap.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/dmu.c		optional zfs compile-with "${ZFS_C}"
@@ -1731,6 +1733,7 @@ dev/gve/gve_sysctl.c		optional gve
 dev/gve/gve_tx.c		optional gve
 dev/gve/gve_utils.c		optional gve
 dev/goldfish/goldfish_rtc.c	optional goldfish_rtc fdt
+dev/gpio/acpi_gpiobus.c		optional acpi gpio
 dev/gpio/dwgpio/dwgpio.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_bus.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_if.m	optional gpio dwgpio fdt
@@ -5293,9 +5296,9 @@ xen/xenbus/xenbusb.c		optional xenhvm
 xen/xenbus/xenbusb_front.c	optional xenhvm
 xen/xenbus/xenbusb_back.c	optional xenhvm
 xen/xenmem/xenmem_if.m		optional xenhvm
-xdr/xdr.c			optional xdr | krpc | nfslockd | nfscl | nfsd
-xdr/xdr_array.c			optional xdr | krpc | nfslockd | nfscl | nfsd
-xdr/xdr_mbuf.c			optional xdr | krpc | nfslockd | nfscl | nfsd
-xdr/xdr_mem.c			optional xdr | krpc | nfslockd | nfscl | nfsd
-xdr/xdr_reference.c		optional xdr | krpc | nfslockd | nfscl | nfsd
-xdr/xdr_sizeof.c		optional xdr | krpc | nfslockd | nfscl | nfsd
+xdr/xdr.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+xdr/xdr_array.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+xdr/xdr_mbuf.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+xdr/xdr_mem.c			optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+xdr/xdr_reference.c		optional xdr | krpc | nfslockd | nfscl | nfsd | zfs
+xdr/xdr_sizeof.c		optional xdr | krpc | nfslockd | nfscl | nfsd | zfs

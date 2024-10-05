@@ -7,6 +7,7 @@ DIRDEPS = \
 	lib/libexecinfo \
 	lib/libz \
 	lib/msun \
+	usr.bin/clang/llvm-min-tblgen.host \
 	usr.bin/clang/llvm-tblgen.host \
 
 

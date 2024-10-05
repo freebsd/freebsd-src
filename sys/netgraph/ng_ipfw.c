@@ -291,7 +291,7 @@ ng_ipfw_input(struct mbuf **m0, struct ip_fw_args *fwa, bool tee)
 	 * Node must be loaded and corresponding hook must be present.
 	 */
 	if (fw_node == NULL || 
-	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
+	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info & IPFW_INFO_MASK)) == NULL)
 		return (ESRCH);		/* no hook associated with this rule */
 
 	/*

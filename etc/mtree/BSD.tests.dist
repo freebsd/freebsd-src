@@ -427,6 +427,8 @@
         ..
         libkvm
         ..
+        libmd
+        ..
         libmp
         ..
         libnv
@@ -790,6 +792,10 @@
         common
         ..
         compat32
+        ..
+        cam
+            ctl
+            ..
         ..
         devrandom
         ..

@@ -40,7 +40,6 @@
 #define	LOCORE_MAP_MB	64
 #endif
 
-#if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
 /*
  * HYP support is in bintuils >= 2.21 and gcc >= 4.9 defines __ARM_ARCH_7VE__
@@ -48,7 +47,6 @@
  */
 .arch_extension virt
 #endif
-#endif /* __ARM_ARCH >= 7 */
 
 /* A small statically-allocated stack used only during initarm() and AP startup. */
 #define	INIT_ARM_STACK_SIZE	2048
@@ -59,7 +57,6 @@
 	.globl kernbase
 	.set kernbase,KERNVIRTADDR
 
-#if __ARM_ARCH >= 7
 #define	HANDLE_HYP							\
 	/* Leave HYP mode */						;\
 	mrs	r0, cpsr						;\
@@ -86,9 +83,6 @@
 	adr	r1, hypmode_enabled					;\
 	str	r0, [r1]						;\
 2:
-#else
-#define	HANDLE_HYP
-#endif /* __ARM_ARCH >= 7 */
 
 /*
  * On entry for FreeBSD boot ABI:

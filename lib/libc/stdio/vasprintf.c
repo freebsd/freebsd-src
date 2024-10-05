@@ -34,9 +34,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include "xlocale_private.h"
 #include "local.h"
 
@@ -44,6 +44,7 @@ int
 vasprintf_l(char **str, locale_t locale, const char *fmt, __va_list ap)
 {
 	FILE f = FAKE_FILE;
+	int serrno = errno;
 	int ret;
 	FIX_LOCALE(locale);
 
@@ -55,7 +56,7 @@ vasprintf_l(char **str, locale_t locale, const char *fmt, __va_list ap)
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
-	ret = __vfprintf(&f, locale, fmt, ap);
+	ret = __vfprintf(&f, locale, serrno, fmt, ap);
 	if (ret < 0) {
 		free(f._bf._base);
 		*str = NULL;

@@ -355,6 +355,14 @@ struct ctl_lun {
 	uint8_t				pr_res_type;
 	int				prevent_count;
 	uint32_t			*prevent;
+
+	/*
+	 * The READ_BUFFER and WRITE_BUFFER commands permit access to a logical
+	 * data buffer associated with a LUN.  Accesses to the data buffer do
+	 * not affect data stored on the storage medium.  To support this,
+	 * allocate a buffer on first use that persists until the LUN is
+	 * destroyed.
+	 */
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
@@ -418,6 +426,7 @@ struct ctl_softc {
 
 #ifdef _KERNEL
 
+extern struct ctl_softc *control_softc;
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 extern const struct ctl_nvme_cmd_entry nvme_admin_cmd_table[256];
 extern const struct ctl_nvme_cmd_entry nvme_nvm_cmd_table[256];

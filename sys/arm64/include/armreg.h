@@ -411,7 +411,7 @@
 #define	DAIF_I			(1 << 1)
 #define	DAIF_F			(1 << 0)
 #define	DAIF_ALL		(DAIF_D | DAIF_A | DAIF_I | DAIF_F)
-#define	DAIF_INTR		(DAIF_I)	/* All exceptions that pass */
+#define	DAIF_INTR		(DAIF_I | DAIF_F)	/* All exceptions that pass */
 						/* through the intr framework */
 
 /* DBGBCR<n>_EL1 - Debug Breakpoint Control Registers */
@@ -1583,6 +1583,7 @@
 #define	ID_AA64ZFR0_SVEver_VAL(x)	((x) & ID_AA64ZFR0_SVEver_MASK
 #define	ID_AA64ZFR0_SVEver_SVE1		(UL(0x0) << ID_AA64ZFR0_SVEver_SHIFT)
 #define	ID_AA64ZFR0_SVEver_SVE2		(UL(0x1) << ID_AA64ZFR0_SVEver_SHIFT)
+#define	ID_AA64ZFR0_SVEver_SVE2P1	(UL(0x2) << ID_AA64ZFR0_SVEver_SHIFT)
 #define	ID_AA64ZFR0_AES_SHIFT		4
 #define	ID_AA64ZFR0_AES_MASK		(UL(0xf) << ID_AA64ZFR0_AES_SHIFT)
 #define	ID_AA64ZFR0_AES_VAL(x)		((x) & ID_AA64ZFR0_AES_MASK
@@ -2401,7 +2402,7 @@
 #define	PSR_D		0x00000200UL
 #define	PSR_DAIF	(PSR_D | PSR_A | PSR_I | PSR_F)
 /* The default DAIF mask. These bits are valid in spsr_el1 and daif */
-#define	PSR_DAIF_DEFAULT (PSR_F)
+#define	PSR_DAIF_DEFAULT (0)
 #define	PSR_BTYPE	0x00000c00UL
 #define	PSR_SSBS	0x00001000UL
 #define	PSR_ALLINT	0x00002000UL
@@ -2444,6 +2445,8 @@
 #define	TCR_EL1_CRm			0
 #define	TCR_EL1_op2			2
 /* Bits 63:59 are reserved */
+#define	TCR_DS_SHIFT		59
+#define	TCR_DS			(UL(1) << TCR_DS_SHIFT)
 #define	TCR_TCMA1_SHIFT		58
 #define	TCR_TCMA1		(UL(1) << TCR_TCMA1_SHIFT)
 #define	TCR_TCMA0_SHIFT		57
@@ -2541,14 +2544,6 @@
 #define	TCR_T0SZ(x)		((x) << TCR_T0SZ_SHIFT)
 #define	TCR_TxSZ(x)		(TCR_T1SZ(x) | TCR_T0SZ(x))
 
-#define	TCR_CACHE_ATTRS	((TCR_IRGN0_WBWA | TCR_IRGN1_WBWA) |\
-				(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA))
-#ifdef SMP
-#define	TCR_SMP_ATTRS	(TCR_SH0_IS | TCR_SH1_IS)
-#else
-#define	TCR_SMP_ATTRS	0
-#endif
-
 /* TCR_EL12 */
 #define	TCR_EL12_REG			MRS_REG_ALT_NAME(TCR_EL12)
 #define	TCR_EL12_op0			3
@@ -2613,6 +2608,13 @@
 #define	VBAR_EL12_op2			0
 
 /* ZCR_EL1 - SVE Control Register */
+#define	ZCR_EL1			MRS_REG(ZCR_EL1)
+#define	ZCR_EL1_REG		MRS_REG_ALT_NAME(ZCR_EL1_REG)
+#define	ZCR_EL1_REG_op0		3
+#define	ZCR_EL1_REG_op1		0
+#define	ZCR_EL1_REG_CRn		1
+#define	ZCR_EL1_REG_CRm		2
+#define	ZCR_EL1_REG_op2		0
 #define	ZCR_LEN_SHIFT		0
 #define	ZCR_LEN_MASK		(0xf << ZCR_LEN_SHIFT)
 #define	ZCR_LEN_BYTES(x)	((((x) & ZCR_LEN_MASK) + 1) * 16)

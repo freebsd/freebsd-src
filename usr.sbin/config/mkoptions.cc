@@ -38,6 +38,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include "config.h"
 #include "y.tab.h"
@@ -71,7 +72,9 @@ options(void)
 	}	
 
 	if (maxusers == 0) {
-		/* fprintf(stderr, "maxusers not specified; will auto-size\n"); */
+		if (verbose)
+			fprintf(stderr,
+			    "maxusers not specified; will auto-size\n");
 	} else if (maxusers < users.u_min) {
 		fprintf(stderr, "minimum of %d maxusers assumed\n",
 		    users.u_min);
@@ -363,8 +366,15 @@ read_option_file(const char *fname, int flags)
 	char genopt[MAXPATHLEN];
 
 	fp = fopen(fname, "r");
-	if (fp == NULL)
+	if (fp == NULL) {
+		if (verbose) {
+			getcwd(genopt, sizeof(genopt));
+			fprintf(stderr, "Unable to open options file: %s\n",
+			    fname);
+			fprintf(stderr, "CWD: %s\n", genopt);
+		}
 		return (0);
+	}
 	while (!(wd = get_word(fp)).eof()) {
 		if (wd.eol())
 			continue;
@@ -417,6 +427,7 @@ static void
 read_options(void)
 {
 	char fname[MAXPATHLEN];
+	struct files_name *nl, *tnl;
 
 	SLIST_INIT(&otab);
 	read_option_file("../../conf/options", 0);
@@ -425,6 +436,12 @@ read_options(void)
 	if (!read_option_file(fname, 0)) {
 		(void)snprintf(fname, sizeof fname, "options.%s", machinename);
 		read_option_file(fname, 0);
+	}
+	for (nl = STAILQ_FIRST(&optfntab); nl != NULL; nl = tnl) {
+		read_option_file(nl->f_name, 0);
+		tnl = STAILQ_NEXT(nl, f_next);
+		free(nl->f_name);
+		free(nl);
 	}
 	read_option_file("../../conf/options-compat", OL_ALIAS);
 }

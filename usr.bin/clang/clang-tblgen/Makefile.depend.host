@@ -3,7 +3,6 @@
 DIRDEPS = \
 	lib/clang/libclangminimal \
 	lib/clang/libllvmminimal \
-	lib/ncurses/tinfo \
 
 
 .include <dirdeps.mk>

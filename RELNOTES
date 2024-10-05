@@ -10,6 +10,35 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+000000000000:
+	RSA host keys for SSH are deprecated and will no longer be generated
+	by default in FreeBSD 16.
+
+0aabcd75dbc2:
+	EC2 AMIs no longer generate RSA host keys by default for SSH.  RSA
+	host key generation can be re-enabled by setting sshd_rsa_enable="YES"
+	in /etc/rc.conf if it is necessary to support very old SSH clients.
+
+a1da7dc1cdad:
+	The SO_SPLICE socket option was added.  It allows TCP connections to
+	be spliced together, enabling proxy-like functionality without the
+	need to copy data in and out of user memory.
+
+e962b37bf0ff:
+	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
+	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
+	This is incompatible with some boot ROMs, particularly outdated builds
+	of edk2-bhyve.  To restore the old behavior, add
+	"pci.enable_bars='true'" to your bhyve configuration.
+
+	Note in particular that the uefi-edk2-bhyve package has been renamed
+	to edk2-bhyve.
+
+43caa2e805c2:
+	amd64 bhyve(8)'s "lpc.bootrom" and "lpc.bootvars" options are
+	deprecated.  Use the top-level "bootrom" and "bootvars" options
+	instead.
+
 822ca3276345:
 	byacc was updated to 20240109.
 

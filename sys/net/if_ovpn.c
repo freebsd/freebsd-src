@@ -379,7 +379,7 @@ ovpn_has_peers(struct ovpn_softc *sc)
 }
 
 static void
-ovpn_rele_so(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
+ovpn_rele_so(struct ovpn_softc *sc)
 {
 	bool has_peers;
 
@@ -390,15 +390,11 @@ ovpn_rele_so(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 
 	has_peers = ovpn_has_peers(sc);
 
-	/* Only remove the tunnel function if we're releasing the socket for
-	 * the last peer. */
-	if (! has_peers)
-		(void)udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
-
-	sorele(sc->so);
-
-	if (! has_peers)
-		sc->so = NULL;
+	if (! has_peers) {
+		MPASS(sc->peercount == 0);
+	} else {
+		MPASS(sc->peercount > 0);
+	}
 }
 
 static void
@@ -489,7 +485,7 @@ ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 		ovpn_free_kkey_dir(peer->keys[i].decrypt);
 	}
 
-	ovpn_rele_so(sc, peer);
+	ovpn_rele_so(sc);
 
 	callout_stop(&peer->ping_send);
 	callout_stop(&peer->ping_rcv);
@@ -515,6 +511,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	int fd;
 	uint32_t peerid;
 	int ret = 0;
+	bool setcb = false;
 
 	if (nvl == NULL)
 		return (EINVAL);
@@ -628,26 +625,26 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	if (sc->so != NULL && so != sc->so)
 		goto error_locked;
 
-	if (sc->so == NULL)
+	if (sc->so == NULL) {
 		sc->so = so;
+		/*
+		 * Maintain one extra ref so the socket doesn't go away until
+		 * we're destroying the ifp.
+		 */
+		soref(sc->so);
+		setcb = true;
+	}
 
 	/* Insert the peer into the list. */
 	RB_INSERT(ovpn_kpeers, &sc->peers, peer);
 	sc->peercount++;
-	soref(sc->so);
-
-	ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
-	if (ret == EBUSY) {
-		/* Fine, another peer already set the input function. */
-		ret = 0;
-	}
-	if (ret != 0) {
-		RB_REMOVE(ovpn_kpeers, &sc->peers, peer);
-		sc->peercount--;
-		goto error_locked;
-	}
 
 	OVPN_WUNLOCK(sc);
+
+	if (setcb) {
+		ret = udp_set_kernel_tunneling(sc->so, ovpn_udp_input, NULL, sc);
+		MPASS(ret == 0);
+	}
 
 	goto done;
 
@@ -2115,6 +2112,12 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	sc = ifp->if_softc;
 
+	m = m_unshare(m, M_NOWAIT);
+	if (m == NULL) {
+		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
+		return (ENOBUFS);
+	}
+
 	OVPN_RLOCK(sc);
 
 	SDT_PROBE1(if_ovpn, tx, transmit, start, m);
@@ -2232,6 +2235,12 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	OVPN_RLOCK_TRACKER;
 
 	M_ASSERTPKTHDR(m);
+
+	m = m_unshare(m, M_NOWAIT);
+	if (m == NULL) {
+		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		return (true);
+	}
 
 	OVPN_COUNTER_ADD(sc, transport_bytes_received, m->m_pkthdr.len - off);
 
@@ -2481,11 +2490,20 @@ static void
 ovpn_clone_destroy_cb(struct epoch_context *ctx)
 {
 	struct ovpn_softc *sc;
+	int ret __diagused;
 
 	sc = __containerof(ctx, struct ovpn_softc, epoch_ctx);
 
 	MPASS(sc->peercount == 0);
 	MPASS(RB_EMPTY(&sc->peers));
+
+	if (sc->so != NULL) {
+		CURVNET_SET(sc->ifp->if_vnet);
+		ret = udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
+		MPASS(ret == 0);
+		sorele(sc->so);
+		CURVNET_RESTORE();
+	}
 
 	COUNTER_ARRAY_FREE(sc->counters, OVPN_COUNTER_SIZE);
 
@@ -2582,3 +2600,4 @@ static moduledata_t ovpn_mod = {
 
 DECLARE_MODULE(if_ovpn, ovpn_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_ovpn, 1);
+MODULE_DEPEND(if_ovpn, crypto, 1, 1, 1);

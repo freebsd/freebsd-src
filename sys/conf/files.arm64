@@ -117,7 +117,7 @@ dev/iommu/busdma_iommu.c			optional iommu
 dev/iommu/iommu_gas.c				optional iommu
 
 arm64/vmm/vmm.c					optional vmm
-arm64/vmm/vmm_dev.c				optional vmm
+arm64/vmm/vmm_dev_machdep.c			optional vmm
 arm64/vmm/vmm_instruction_emul.c		optional vmm
 arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
@@ -590,6 +590,8 @@ arm64/cavium/thunder_pcie_pem_fdt.c		optional soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_common.c		optional soc_cavm_thunderx pci
 
 # i.MX8 Clock support
+arm64/freescale/imx/imx_ccm.c			optional fdt soc_freescale_imx8
+arm64/freescale/imx/imx8mp_ccm.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx8mq_ccm.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_gate.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_mux.c		optional fdt soc_freescale_imx8
@@ -599,10 +601,10 @@ arm64/freescale/imx/clk/imx_clk_frac_pll.c	optional fdt soc_freescale_imx8
 
 # iMX drivers
 arm/freescale/imx/imx_gpio.c			optional gpio soc_freescale_imx8 fdt
-arm/freescale/imx/imx_i2c.c			optional fsliic
+arm/freescale/imx/imx_i2c.c			optional fdt fsliic
 arm/freescale/imx/imx_machdep.c			optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx7gpc.c			optional fdt soc_freescale_imx8
-dev/ffec/if_ffec.c				optional ffec
+dev/ffec/if_ffec.c				optional fdt ffec
 
 # Marvell
 arm/mv/a37x0_gpio.c				optional a37x0_gpio gpio fdt

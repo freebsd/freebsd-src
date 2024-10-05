@@ -219,7 +219,7 @@ mount /dev/md$mdstart $mntpoint
 mp2=${mntpoint}2
 mkdir -p $mp2
 mount | grep -q "on $mp2 " && umount -f $mp2
-mount -t nfs 127.0.0.1:$mntpoint $mp2; s=$?
+mount -t nfs -o retrycnt=3 127.0.0.1:$mntpoint $mp2 || exit 1
 sleep .2
 
 here=`pwd`

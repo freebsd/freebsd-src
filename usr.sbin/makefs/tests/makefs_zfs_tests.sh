@@ -28,7 +28,7 @@
 # SUCH DAMAGE.
 #
 
-MAKEFS="makefs -t zfs -o nowarn=true"
+MAKEFS="makefs -t zfs"
 ZFS_POOL_NAME="makefstest$$"
 TEST_ZFS_POOL_NAME="$TMPDIR/poolname"
 
