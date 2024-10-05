@@ -44,7 +44,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
