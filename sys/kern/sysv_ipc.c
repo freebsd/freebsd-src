@@ -36,7 +36,6 @@
  * $NetBSD: sysv_ipc.c,v 1.9 1995/06/02 19:04:22 mycroft Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
