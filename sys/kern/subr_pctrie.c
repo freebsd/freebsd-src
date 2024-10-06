@@ -304,7 +304,8 @@ pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
 		if (pctrie_isleaf(node)) {
 			if (node == PCTRIE_NULL) {
 				if (parent == NULL)
-					ptree->pt_root = pctrie_toleaf(val);
+					pctrie_root_store(ptree,
+					    pctrie_toleaf(val), PCTRIE_LOCKED);
 				else
 					pctrie_addnode(parent, index,
 					    pctrie_toleaf(val), PCTRIE_LOCKED);
@@ -1242,7 +1243,8 @@ pctrie_replace(struct pctrie *ptree, uint64_t *newval)
 		if (pctrie_isleaf(node)) {
 			if ((m = pctrie_toval(node)) != NULL && *m == index) {
 				if (parent == NULL)
-					ptree->pt_root = leaf;
+					pctrie_root_store(ptree,
+					    leaf, PCTRIE_LOCKED);
 				else
 					pctrie_node_store(
 					    &parent->pn_child[slot], leaf,
