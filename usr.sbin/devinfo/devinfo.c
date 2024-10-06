@@ -83,24 +83,28 @@ void
 print_resource(struct devinfo_res *res)
 {
 	struct devinfo_rman	*rman;
-	int			hexmode;
+	int hexmode;
+	rman_res_t end;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
+	end = res->dr_start + res->dr_size - 1;
 
-	// Don't use xo modifier to prepend '0x' because
-	// it gets omitted when address is zero.
-	if (hexmode)
-		xo_emit("0x{d:start/%llx}", res->dr_start);
-	else
-		xo_emit("{d:start/%u}", res->dr_start);
+	xo_open_instance(rman->dm_desc);
 
-	if (res->dr_size > 1) {
-		if (hexmode)
-			xo_emit("{D:-}0x{d:end/%llx}", res->dr_start + res->dr_size - 1);
-		else
-			xo_emit("{D:-}{d:end/%u}", res->dr_start + res->dr_size - 1);
+	if (hexmode) {
+		xo_emit("{:start/0x%llx}", res->dr_start);
+		if (res->dr_size > 1)
+			xo_emit("{D:-}{d:end/0x%llx}", end);
+		xo_emit("{e:end/0x%llx}", end);
 	}
+	else {
+		xo_emit("{:start/%u}", res->dr_start);
+		if (res->dr_size > 1)
+			xo_emit("{D:-}{d:end/%u}", end);
+		xo_emit("{e:end/%u}", end);
+	}
+	xo_close_instance(rman->dm_desc);
 }
 
 /*
@@ -146,11 +150,14 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* there are, print header */
 		print_indent(indent);
 		xo_emit("{d:%s}:\n", rman->dm_desc);
+		xo_open_list(rman->dm_desc);
 
 		/* print resources */
 		ia->indent = indent + 4;
 		devinfo_foreach_rman_resource(rman,
 		    print_device_matching_resource, ia);
+
+		xo_close_list(rman->dm_desc);
 	}
 	ia->indent = indent;
 	return(0);
@@ -255,15 +262,36 @@ int
 print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
-	
-	xo_emit("{P:    }");
-	print_resource(res);
+	struct devinfo_rman *rman;
+	int hexmode;
+
 	dev = devinfo_handle_to_device(res->dr_device);
-	if ((dev != NULL) && (dev->dd_name[0] != 0)) {
-		xo_emit("{:device/ (%s)}", dev->dd_name);
-	} else {
-		xo_emit("{D: ----}");
+	rman = devinfo_handle_to_rman(res->dr_rman);
+	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
+
+	char s[32];
+
+	if (hexmode) {
+		if (res->dr_size > 1)
+			snprintf(s, 32, "0x%lx-0x%lx",
+				res->dr_start, res->dr_start + res->dr_size - 1);
+		else
+			snprintf(s, 32, "0x%lx", res->dr_start);
 	}
+	else {
+		if (res->dr_size > 1)
+			snprintf(s, 32, "%u-%u", (unsigned int) res->dr_start,
+				(unsigned int) (res->dr_start + res->dr_size - 1));
+		else
+			snprintf(s, 32, "%u", (unsigned int) res->dr_start);
+	}
+
+	xo_emit("{P:    }");
+
+	if ((dev != NULL) && (dev->dd_name[0] != 0))
+		xo_emit("{ea:%s/%s}{d:%s} ({d:%s})", s, dev->dd_name, s, dev->dd_name);
+	else
+		xo_emit("{ea:%s/----}{d:%s} ----", s, s);
 	xo_emit("\n");
 	return(0);
 }
@@ -274,8 +302,10 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 int
 print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
-	xo_emit("{:description/%s}:\n", rman->dm_desc);
+	xo_emit("{d:%s}:\n", rman->dm_desc);
+	xo_open_container(rman->dm_desc);
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
+	xo_close_container(rman->dm_desc);
 	return(0);
 }
 
