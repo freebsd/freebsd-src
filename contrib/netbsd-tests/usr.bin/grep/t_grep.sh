@@ -422,6 +422,12 @@ color_body()
 
 	atf_check -o file:"$(atf_get_srcdir)/d_color_c.out" \
 	    grep --color=always -f grepfile "$(atf_get_srcdir)/d_color_b.in"
+	# Begin FreeBSD
+	MAX_MATCHES=32
+	for _ in $(seq $((MAX_MATCHES + 1))); do printf "foobar"; done > grepfile
+	atf_check -o file:"$(atf_get_srcdir)/d_color_d.out" \
+	    grep --color=always foo grepfile
+	# End FreeBSD
 }
 
 atf_test_case f_file_empty
