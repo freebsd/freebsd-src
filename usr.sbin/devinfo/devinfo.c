@@ -114,14 +114,14 @@ print_resource(struct devinfo_res *res)
 	struct devinfo_rman	*rman;
 	int hexmode;
 	rman_res_t end;
-    char* safe_desc;
+	char* safe_desc;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
 	end = res->dr_start + res->dr_size - 1;
 
-    safe_desc = (char*) malloc(sizeof(rman->dm_desc));
-    strcpy(safe_desc, rman->dm_desc);
+	safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+	strcpy(safe_desc, rman->dm_desc);
 	xml_safe_string(safe_desc);
 
 	xo_open_instance(safe_desc);
@@ -185,7 +185,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* there are, print header */
 
 		safe_desc = (char*) malloc(sizeof(rman->dm_desc));
-    	strcpy(safe_desc, rman->dm_desc);
+		strcpy(safe_desc, rman->dm_desc);
 		xml_safe_string(safe_desc);
 
 		print_indent(indent);
@@ -195,7 +195,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* print resources */
 		ia->indent = indent + 4;
 		devinfo_foreach_rman_resource(rman,
-		    print_device_matching_resource, ia);
+			print_device_matching_resource, ia);
 
 		xo_close_list(safe_desc);
 	}
