@@ -283,7 +283,7 @@ struct vnode;
  *	The object must be locked or thread private.
  */
 static __inline void
-vm_object_set_flag(vm_object_t object, u_short bits)
+vm_object_set_flag(vm_object_t object, u_int bits)
 {
 
 	object->flags |= bits;
