@@ -338,6 +338,24 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 	return(0);
 }
 
+static void
+print_device_path_entry(struct devinfo_dev *dev, const char* devname) {
+	xo_open_container(devname);
+	if (open_tag_index >= MAX_OPEN_TAGS) {
+		printf("Path is too deep.");
+		exit(EXIT_FAILURE);
+	}
+	open_tags[open_tag_index++] = dev;
+	xo_emit("{P: }");
+	xo_emit("{d:%s }", devname);
+	print_device_props(dev);
+	if (vflag)
+		xo_emit("\n");
+}
+
+/*
+ * Recurse until we find the right dev. On the way up we print path.
+ */
 static int
 print_device_path(struct devinfo_dev *dev, void *xname)
 {
@@ -345,33 +363,14 @@ print_device_path(struct devinfo_dev *dev, void *xname)
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
-		xo_open_container(name);
-		if (open_tag_index >= MAX_OPEN_TAGS) {
-			xo_error("Path is too deep.");
-			exit(EXIT_FAILURE);
-		}
-		open_tags[open_tag_index++] = dev;
-		xo_emit("{d:%s }", name);
-		print_device_props(dev);
-		if (vflag)
-			xo_emit("\n");
+		print_device_path_entry(dev, name);
 		return (1);
 	}
 
 	rv = devinfo_foreach_device_child(dev, print_device_path, xname);
 	if (rv == 1) {
 		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
-		xo_open_container(devname);
-		if (open_tag_index >= MAX_OPEN_TAGS) {
-			printf("Path is too deep.");
-			exit(EXIT_FAILURE);
-		}
-		open_tags[open_tag_index++] = dev;
-		xo_emit("{P: }");
-		xo_emit("{d:%s }", devname);
-		print_device_props(dev);
-		if (vflag)
-			xo_emit("\n");
+		print_device_path_entry(dev, devname);
 	}
 	return (rv);
 }
