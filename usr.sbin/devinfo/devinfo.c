@@ -448,10 +448,14 @@ main(int argc, char *argv[])
 		xo_errx(1, "can't find root device");
 
 	if (path) {
+		xo_open_container("device-path");
 		print_path(root, path);
+		xo_close_container("device-path");
 	} else if (uflag) {
 		/* print resource usage? */
+		xo_open_container("device-resources");
 		devinfo_foreach_rman(print_rman, NULL);
+		xo_close_container("device-resources");
 	} else {
 		/* print device hierarchy */
 		xo_open_container("device-information");
