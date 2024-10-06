@@ -316,7 +316,7 @@ sesled(int argc, char **argv, bool setfault)
 	}
 	globfree(&g);
 	if (ndisks == 0 && all == false) {
-		xo_errx(EXIT_FAILURE, "Count not find the SES id of device '%s'",
+		xo_errx(EXIT_FAILURE, "Could not find the SES id of device '%s'",
 		    disk);
 	}
 
