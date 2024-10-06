@@ -1459,7 +1459,7 @@ omap4_prcm_new_pass(device_t dev)
 	unsigned int freq;
 
 	if (sc->attach_done ||
-	  bus_current_pass < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
+	  bus_get_pass() < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
 		bus_generic_new_pass(dev);
 		return;
 	}

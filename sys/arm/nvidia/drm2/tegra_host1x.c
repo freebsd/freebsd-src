@@ -448,7 +448,7 @@ host1x_new_pass(device_t dev)
 	 * but some of our FDT resources are not ready until BUS_PASS_DEFAULT
 	 */
 	sc = device_get_softc(dev);
-	if (sc->attach_done || bus_current_pass < BUS_PASS_DEFAULT) {
+	if (sc->attach_done || bus_get_pass() < BUS_PASS_DEFAULT) {
 		bus_generic_new_pass(dev);
 		return;
 	}

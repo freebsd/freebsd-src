@@ -818,9 +818,7 @@ void	bus_data_generation_update(void);
 #define BUS_LOCATOR_UEFI	"UEFI"
 #define BUS_LOCATOR_OFW		"OFW"
 
-extern int bus_current_pass;
-
-void	bus_set_pass(int pass);
+int	bus_get_pass(void);
 
 /**
  * Routines to lock / unlock the newbus lock.

@@ -437,7 +437,7 @@ bus_topo_unlock(void)
  */
 
 static driver_list_t passes = TAILQ_HEAD_INITIALIZER(passes);
-int bus_current_pass = BUS_PASS_ROOT;
+static int bus_current_pass = BUS_PASS_ROOT;
 
 /**
  * @internal
@@ -475,13 +475,27 @@ driver_register_pass(struct driverlink *new)
 }
 
 /**
+ * @brief Retrieve the current bus pass
+ *
+ * Retrieves the current bus pass level.  Call the BUS_NEW_PASS()
+ * method on the root bus to kick off a new device tree scan for each
+ * new pass level that has at least one driver.
+ */
+int
+bus_get_pass(void)
+{
+
+	return (bus_current_pass);
+}
+
+/**
  * @brief Raise the current bus pass
  *
  * Raise the current bus pass level to @p pass.  Call the BUS_NEW_PASS()
  * method on the root bus to kick off a new device tree scan for each
  * new pass level that has at least one driver.
  */
-void
+static void
 bus_set_pass(int pass)
 {
 	struct driverlink *dl;
