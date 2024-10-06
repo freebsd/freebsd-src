@@ -339,7 +339,7 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 }
 
 static int
-pr_path(struct devinfo_dev *dev, void *xname)
+print_device_path(struct devinfo_dev *dev, void *xname)
 {
 	const char *name = xname;
 	int rv;
@@ -358,7 +358,7 @@ pr_path(struct devinfo_dev *dev, void *xname)
 		return (1);
 	}
 
-	rv = devinfo_foreach_device_child(dev, pr_path, xname);
+	rv = devinfo_foreach_device_child(dev, print_device_path, xname);
 	if (rv == 1) {
 		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 		xo_open_container(devname);
@@ -380,7 +380,7 @@ static void
 print_path(struct devinfo_dev *root, char *path)
 {
 	open_tag_index = 0;
-	if (devinfo_foreach_device_child(root, pr_path, (void *)path) == 0)
+	if (devinfo_foreach_device_child(root, print_device_path, (void *)path) == 0)
 		xo_errx(1, "%s: Not found", path);
 	if (!vflag)
 		xo_emit("\n");
