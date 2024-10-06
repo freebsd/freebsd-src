@@ -398,7 +398,7 @@ usage(void)
 "usage: devinfo [-rv]\n"
 "       devinfo -u\n"
 "       devinfo -p dev [-v]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 int
@@ -410,7 +410,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0) {
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 
