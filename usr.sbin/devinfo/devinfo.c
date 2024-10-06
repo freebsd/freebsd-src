@@ -289,12 +289,11 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 	struct devinfo_dev	*dev;
 	struct devinfo_rman *rman;
 	int hexmode;
+	char s[32];
 
 	dev = devinfo_handle_to_device(res->dr_device);
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
-
-	char s[32];
 
 	if (hexmode) {
 		if (res->dr_size > 1)
