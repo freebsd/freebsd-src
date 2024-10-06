@@ -1,0 +1,150 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Ed Maste <emaste@FreeBSD.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 6, 2024
+.Dt MEMBARRIER 2
+.Os
+.Sh NAME
+.Nm membarrier
+.Nd memory barrier
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/membarrier.h
+.Ft int
+.Fn membarrier "int cmd" "unsigned flags" "int cpu_id"
+.Sh DESCRIPTION
+The
+.Nm
+system call provides a memory barrier, ensuring ordering between memory
+accesses performed by different threads or processes within the same address
+space.
+.Pp
+The following values for
+.Fa cmd
+may be specified:
+.Bl -tag -width Dv
+.It Dv MEMBARRIER_CMD_QUERY
+Query supported commands.
+A bitmask of commands supported by the kernel is returned.
+.It Dv MEMBARRIER_CMD_GLOBAL
+Issue a memory barrier for all threads from all processes.
+.It Dv MEMBARRIER_CMD_SHARED
+This is an alias for
+.Dv MEMBARRIER_CMD_GLOBAL .
+.It Dv MEMBARRIER_CMD_GLOBAL_EXPEDITED
+Execute a memory barrier on all running threads of all processes registered
+with
+.Dv MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED
+.It Dv MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED
+Register the process to receive
+.Dv MEMBARRIER_CMD_GLOBAL_EXPEDITED
+memory barriers.
+.It Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED
+Execute a memory barrier on each running thread belonging to the same process
+as the thread calling
+.Nm .
+.It Dv MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED
+Register the process to receive
+.Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED
+memory barriers.
+.It Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
+In addition to the guarantees provided by
+.Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED
+it also executes machine-specific serialization instructions, which
+ensures that all possible speculative and out-of-order activities on the target
+CPU are fenced.
+.It Dv MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE
+Register the process to receive
+.Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
+memory barriers.
+.El
+.Pp
+The following
+.Fa cmd
+values are defined for source compatibility but are not yet supported:
+.Pp
+.Bl -tag -width Dv -compact
+.It Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ
+.It Dv MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ
+.El
+.Pp
+The
+.Fa flags
+argument must be 0.
+The
+.Fa cpu_id
+argument is ignored.
+.Sh RETURN VALUES
+If the
+.Dv cmd
+is MEMBARRIER_CMD_QUERY
+a bitmask of supported commands is returned.
+Otherwise, on success,
+.Nm
+returns 0.
+On error, -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Nm
+may fail with the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa cmd
+does not specify a valid command.
+.It Bq Er EINVAL
+.Fa flags
+is not 0.
+.It Bq Er EPERM
+An attempt was made to use
+.Dv MEMBARRIER_CMD_GLOBAL_EXPEDITED ,
+.Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED ,
+or
+.Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
+by a process that did not previously register use with the corresponding
+.Dv MEMBARRIER_CMD_REGISTER_*
+.Fa cmd .
+.El
+.\" .Sh SEE ALSO
+.Sh STANDARDS
+The
+.Nm
+system call originated in Linux.
+This implementation aims to be source-compatible with the Linux implementation.
+Certain
+.Fa cmd
+and
+.Fa flags
+values are currently not supported by
+.Fx .
+.Sh HISTORY
+The
+.Nm
+function was introduced in
+.Fx 14.1 .
