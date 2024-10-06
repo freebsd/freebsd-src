@@ -77,6 +77,22 @@ print_indent(int n)
 	xo_emit(s);
 }
 
+/*
+ * Takes a list of key-value pairs in the form
+ * "key1=val1 key2=val2 ..." and prints them according
+ * to xo formatting.
+ */
+static void
+print_kvlist(char* s)
+{
+	char *copy = strdup(s);
+	char *kv;
+	while ((kv = strsep(&copy, " ")) != NULL) {
+		char* k = strsep(&kv, "=");
+		xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, kv, k, kv);
+	}
+	free(copy);
+}
 
 static void
 xml_safe_string(char s[])
@@ -88,7 +104,6 @@ xml_safe_string(char s[])
 		}
 	}
 }
-
 
 /*
  * Print a resource.
@@ -186,23 +201,6 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 	}
 	ia->indent = indent;
 	return(0);
-}
-
-/*
- * Takes a list of key-value pairs in the form
- * "key1=val1 key2=val2 ..." and prints them according
- * to xo formatting.
- */
-static void
-print_kvlist(char* s)
-{
-	char *copy = strdup(s);
-	char *kv;
-	while ((kv = strsep(&copy, " ")) != NULL) {
-		char* k = strsep(&kv, "=");
-		xo_emit("{ea:%s/%s} {d:%s}={d:%s}", k, kv, k, kv);
-	}
-	free(copy);
 }
 
 static void
