@@ -5859,6 +5859,10 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
+		if (device_get_parent(dev) == NULL) {
+			error = EINVAL;
+			break;
+		}
 		error = BUS_RESET_CHILD(device_get_parent(dev), dev,
 		    req->dr_flags);
 		break;
