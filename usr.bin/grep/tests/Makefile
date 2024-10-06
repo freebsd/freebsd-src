@@ -12,6 +12,7 @@ ${PACKAGE}FILES+=		d_color_a.out
 ${PACKAGE}FILES+=		d_color_b.in
 ${PACKAGE}FILES+=		d_color_b.out
 ${PACKAGE}FILES+=		d_color_c.out
+${PACKAGE}FILES+=		d_color_d.out
 ${PACKAGE}FILES+=		d_context2_a.out
 ${PACKAGE}FILES+=		d_context2_b.out
 ${PACKAGE}FILES+=		d_context2_c.out
