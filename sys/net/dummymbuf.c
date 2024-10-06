@@ -106,7 +106,7 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_dummymbuf, OID_AUTO, rules,
     CTLTYPE_STRING | CTLFLAG_MPSAFE | CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(dmb_rules), RULES_MAXLEN, dmb_sysctl_handle_rules, "A",
-    "{inet | inet6 | ethernet} {in | out} <ifname> <opname>[<opargs>]; ...;");
+    "{inet|inet6|ethernet} {in|out} <ifname> <opname>[ <opargs>]; ...;");
 
 /*
  * Statistics
@@ -148,10 +148,10 @@ VNET_DEFINE_STATIC(pfil_hook_t,		dmb_pfil_ethernet_hook);
 
 #define FEEDBACK_PFIL(pfil_type, pfil_flags, ifp, rule, msg)		\
 	printf("dummymbuf: %s %b %s: %s: %.*s\n",			\
-	    (pfil_type == PFIL_TYPE_IP4 ?	"PFIL_TYPE_IP4" :	\
-	     pfil_type == PFIL_TYPE_IP6 ?	"PFIL_TYPE_IP6" :	\
-	     pfil_type == PFIL_TYPE_ETHERNET ?	"PFIL_TYPE_ETHERNET" :	\
-						"PFIL_TYPE_UNKNOWN"),	\
+	    ((pfil_type) == PFIL_TYPE_IP4 ?	 "PFIL_TYPE_IP4" :	\
+	     (pfil_type) == PFIL_TYPE_IP6 ?	 "PFIL_TYPE_IP6" :	\
+	     (pfil_type) == PFIL_TYPE_ETHERNET ? "PFIL_TYPE_ETHERNET" :	\
+						 "PFIL_TYPE_UNKNOWN"),	\
 	    (pfil_flags), "\20\21PFIL_IN\22PFIL_OUT",			\
 	    (ifp)->if_xname,						\
 	    (msg),							\
@@ -211,7 +211,7 @@ bad:
 static bool
 read_rule(const char **cur, struct rule *rule, bool *eof)
 {
-	// {inet | inet6 | ethernet} {in | out} <ifname> <opname>[ <opargs>];
+	/* {inet|inet6|ethernet} {in|out} <ifname> <opname>[ <opargs>]; */
 
 	rule->syntax_begin = NULL;
 	rule->syntax_len = 0;
@@ -219,18 +219,18 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	if (*cur == NULL)
 		return (false);
 
-	// syntax_begin
+	/* syntax_begin */
 	while (**cur == ' ')
 		(*cur)++;
 	rule->syntax_begin = *cur;
 
-	// syntax_len
+	/* syntax_len */
 	char *delim = strchr(*cur, ';');
 	if (delim == NULL)
 		return (false);
 	rule->syntax_len = (int)(delim - *cur + 1);
 
-	// pfil_type
+	/* pfil_type */
 	if (strstr(*cur, "inet6") == *cur) {
 		rule->pfil_type = PFIL_TYPE_IP6;
 		*cur += strlen("inet6");
@@ -246,7 +246,7 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// pfil_dir
+	/* pfil_dir */
 	if (strstr(*cur, "in") == *cur) {
 		rule->pfil_dir = PFIL_IN;
 		*cur += strlen("in");
@@ -259,7 +259,7 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// ifname
+	/* ifname */
 	char *sp = strchr(*cur, ' ');
 	if (sp == NULL || sp > delim)
 		return (false);
@@ -272,7 +272,7 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// opname
+	/* opname */
 	if (strstr(*cur, "pull-head") == *cur) {
 		rule->op = dmb_m_pull_head;
 		*cur += strlen("pull-head");
@@ -282,12 +282,12 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// opargs
+	/* opargs */
 	if (*cur > delim)
 		return (false);
 	rule->opargs = *cur;
 
-	// the next rule & eof
+	/* the next rule & eof */
 	*cur = delim + 1;
 	while (**cur == ' ')
 		(*cur)++;
