@@ -76,6 +76,19 @@ print_indent(int n)
 	xo_emit(s);
 }
 
+
+static void
+xml_safe_string(char s[])
+{
+	int i;
+	for (i=0; s[i] != '\0'; i++) {
+		if (s[i] == ' ' || s[i] == '/') {
+			s[i] = '-';
+		}
+	}
+}
+
+
 /*
  * Print a resource.
  */
@@ -85,12 +98,17 @@ print_resource(struct devinfo_res *res)
 	struct devinfo_rman	*rman;
 	int hexmode;
 	rman_res_t end;
+    char* safe_desc;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
 	end = res->dr_start + res->dr_size - 1;
 
-	xo_open_instance(rman->dm_desc);
+    safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+    strcpy(safe_desc, rman->dm_desc);
+	xml_safe_string(safe_desc);
+
+	xo_open_instance(safe_desc);
 
 	if (hexmode) {
 		xo_emit("{:start/0x%llx}", res->dr_start);
@@ -104,7 +122,7 @@ print_resource(struct devinfo_res *res)
 			xo_emit("{D:-}{d:end/%u}", end);
 		xo_emit("{e:end/%u}", end);
 	}
-	xo_close_instance(rman->dm_desc);
+	xo_close_instance(safe_desc);
 }
 
 /*
@@ -138,7 +156,8 @@ int
 print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 {
 	struct indent_arg	*ia = (struct indent_arg *)arg;
-	int			indent;
+	int	indent;
+	char* safe_desc;
 
 	indent = ia->indent;
 
@@ -148,16 +167,21 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 	    print_device_matching_resource, ia) != 0) {
 
 		/* there are, print header */
+
+		safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+    	strcpy(safe_desc, rman->dm_desc);
+		xml_safe_string(safe_desc);
+
 		print_indent(indent);
 		xo_emit("{d:%s}:\n", rman->dm_desc);
-		xo_open_list(rman->dm_desc);
+		xo_open_list(safe_desc);
 
 		/* print resources */
 		ia->indent = indent + 4;
 		devinfo_foreach_rman_resource(rman,
 		    print_device_matching_resource, ia);
 
-		xo_close_list(rman->dm_desc);
+		xo_close_list(safe_desc);
 	}
 	ia->indent = indent;
 	return(0);
@@ -303,10 +327,16 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 int
 print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
+	char* safe_desc;
+
+	safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+	strcpy(safe_desc, rman->dm_desc);
+	xml_safe_string(safe_desc);
+
 	xo_emit("{d:%s}:\n", rman->dm_desc);
-	xo_open_container(rman->dm_desc);
+	xo_open_container(safe_desc);
 	devinfo_foreach_rman_resource(rman, print_rman_resource, 0);
-	xo_close_container(rman->dm_desc);
+	xo_close_container(safe_desc);
 	return(0);
 }
 
