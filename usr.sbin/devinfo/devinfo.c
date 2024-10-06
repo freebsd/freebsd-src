@@ -348,7 +348,7 @@ pr_path(struct devinfo_dev *dev, void *xname)
 
 	if (strcmp(dev->dd_name, name) == 0) {
 		xo_open_container(name);
-		if (open_tag_index > MAX_OPEN_TAGS) {
+		if (open_tag_index >= MAX_OPEN_TAGS) {
 			printf("Path is too deep.");
 			exit(EXIT_FAILURE);
 		}
@@ -364,7 +364,7 @@ pr_path(struct devinfo_dev *dev, void *xname)
 	if (rv == 1) {
 		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 		xo_open_container(devname);
-		if (open_tag_index > MAX_OPEN_TAGS) {
+		if (open_tag_index >= MAX_OPEN_TAGS) {
 			printf("Path is too deep.");
 			exit(EXIT_FAILURE);
 		}
