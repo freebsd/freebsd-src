@@ -50,7 +50,7 @@ enum membarrier_cmd {
 
 	/*
 	 * RSEQ constants are defined for source compatibility but are
-	 * not yes supported, MEMBARRIER_CMD_QUERY does not return
+	 * not yet supported, MEMBARRIER_CMD_QUERY does not return
 	 * them in the mask.
 	 */
 	MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ =		0x00000080,
