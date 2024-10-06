@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)fgets.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd April 2, 2022
+.Dd December 6, 2024
 .Dt FGETS 3
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .In stdio.h
 .Ft char *
 .Fn fgets "char * restrict str" "int size" "FILE * restrict stream"
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
 .Ft char *
 .Fn gets_s "char *str" "rsize_t size"
 .Sh DESCRIPTION
