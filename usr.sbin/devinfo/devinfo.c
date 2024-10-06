@@ -70,7 +70,7 @@ print_indent(int n)
 		return;
 	if (n > 256) {
 		xo_error("indentation too deep.");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	char s[256];
 	sprintf(s, "{P:%*s}", n, " ");
