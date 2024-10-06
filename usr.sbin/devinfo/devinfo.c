@@ -42,10 +42,11 @@
 #include <libxo/xo.h>
 #include "devinfo.h"
 
+#define MAX_OPEN_TAGS 32
 
 static int	rflag;
 static int	vflag;
-static struct devinfo_dev *open_tags[256];
+static struct devinfo_dev *open_tags[MAX_OPEN_TAGS];
 static int open_tag_index;
 
 static void	print_resource(struct devinfo_res *);
@@ -347,6 +348,10 @@ pr_path(struct devinfo_dev *dev, void *xname)
 
 	if (strcmp(dev->dd_name, name) == 0) {
 		xo_open_container(name);
+		if (open_tag_index > MAX_OPEN_TAGS) {
+			printf("Path is too deep.");
+			exit(EXIT_FAILURE);
+		}
 		open_tags[open_tag_index++] = dev;
 		xo_emit("{d:%s }", name);
 		print_device_props(dev);
@@ -359,6 +364,10 @@ pr_path(struct devinfo_dev *dev, void *xname)
 	if (rv == 1) {
 		const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 		xo_open_container(devname);
+		if (open_tag_index > MAX_OPEN_TAGS) {
+			printf("Path is too deep.");
+			exit(EXIT_FAILURE);
+		}
 		open_tags[open_tag_index++] = dev;
 		xo_emit("{P: }");
 		xo_emit("{d:%s }", devname);
