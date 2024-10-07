@@ -111,7 +111,7 @@ print_resource(struct devinfo_res *res)
 	struct devinfo_rman	*rman;
 	bool hexmode;
 	rman_res_t end;
-	char* safe_desc;
+	char *safe_desc;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
@@ -170,7 +170,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 {
 	struct indent_arg	*ia = (struct indent_arg *)arg;
 	int	indent;
-	char* safe_desc;
+	char *safe_desc;
 
 	indent = ia->indent;
 
