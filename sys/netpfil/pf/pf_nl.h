@@ -263,6 +263,7 @@ enum pf_rule_type_t {
 	PF_RT_RCV_IFNAME	= 73, /* string */
 	PF_RT_MAX_SRC_CONN	= 74, /* u32 */
 	PF_RT_RPOOL_NAT		= 75, /* nested, pf_rpool_type_t */
+	PF_RT_NAF		= 76, /* u8 */
 };
 
 enum pf_addrule_type_t {

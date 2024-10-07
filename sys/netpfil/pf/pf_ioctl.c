@@ -611,6 +611,7 @@ pf_free_rule(struct pf_krule *rule)
 		pfi_kkif_unref(rule->rcv_kif);
 	pf_kanchor_remove(rule);
 	pf_empty_kpool(&rule->rdr.list);
+	pf_empty_kpool(&rule->nat.list);
 
 	pf_krule_free(rule);
 }

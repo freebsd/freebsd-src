@@ -4559,6 +4559,7 @@ netpfil/pf/pf_table.c		optional pf inet
 netpfil/pf/pflow.c		optional pflow pf inet
 netpfil/pf/pfsync_nv.c		optional pfsync pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
+netpfil/pf/inet_nat64.c		optional pf inet
 netsmb/smb_conn.c		optional netsmb
 netsmb/smb_crypt.c		optional netsmb
 netsmb/smb_dev.c		optional netsmb

@@ -864,6 +864,7 @@ struct pf_krule {
 	u_int8_t		 flush;
 	u_int8_t		 prio;
 	u_int8_t		 set_prio[2];
+	sa_family_t		 naf;
 
 	struct {
 		struct pf_addr		addr;
@@ -985,6 +986,10 @@ struct pf_state_key {
 	LIST_ENTRY(pf_state_key) entry;
 	TAILQ_HEAD(, pf_kstate)	 states[2];
 };
+
+#define PF_REVERSED_KEY(key, family)				\
+	((key[PF_SK_WIRE]->af != key[PF_SK_STACK]->af) &&	\
+	    (key[PF_SK_WIRE]->af != (family)))
 
 /* Keep synced with struct pf_kstate. */
 struct pf_state_cmp {
@@ -1630,6 +1635,7 @@ struct pf_pdesc {
 #define PF_VPROTO_FRAGMENT	256
 	int		 extoff;
 	sa_family_t	 af;
+	sa_family_t	 naf;
 	u_int8_t	 proto;
 	u_int8_t	 tos;
 	u_int8_t	 ttl;
@@ -2429,6 +2435,9 @@ int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *,
 	    int);
 int	pf_socket_lookup(struct pf_pdesc *);
 struct pf_state_key *pf_alloc_state_key(int);
+int	pf_translate(struct pf_pdesc *, struct pf_addr *, u_int16_t,
+	    struct pf_addr *, u_int16_t, u_int16_t, int);
+int	pf_translate_af(struct pf_pdesc *);
 void	pfr_initialize(void);
 void	pfr_cleanup(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
@@ -2642,18 +2651,23 @@ int			 pf_step_out_of_keth_anchor(struct pf_keth_anchor_stackframe *,
 
 u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
-			    struct pfi_kkif **nkif, struct pf_addr *);
+			    struct pfi_kkif **nkif, struct pf_addr *,
+			    struct pf_kpool *);
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_ksrc_node **, struct pf_srchash **);
+			    struct pf_ksrc_node **, struct pf_srchash **,
+			    struct pf_kpool *);
+int			 pf_get_transaddr_af(struct pf_krule *,
+			    struct pf_pdesc *);
 u_short			 pf_get_translation(struct pf_pdesc *,
 			    int, struct pf_state_key **, struct pf_state_key **,
 			    struct pf_kanchor_stackframe *, struct pf_krule **,
 			    struct pf_udp_mapping **udp_mapping);
 
-struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *,
-			    u_int16_t, u_int16_t);
+int			 pf_state_key_setup(struct pf_pdesc *,
+			    u_int16_t, u_int16_t,
+			    struct pf_state_key **sk, struct pf_state_key **nk);
 struct pf_state_key	*pf_state_key_clone(const struct pf_state_key *);
 void			 pf_rule_to_actions(struct pf_krule *,
 			    struct pf_rule_actions *);
@@ -2665,6 +2679,17 @@ void	pf_scrub(struct pf_pdesc *);
 struct pfi_kkif		*pf_kkif_create(int);
 void			 pf_kkif_free(struct pfi_kkif *);
 void			 pf_kkif_zero(struct pfi_kkif *);
+
+
+/* NAT64 functions. */
+int	  inet_nat64(int, const void *, void *, const void *, u_int8_t);
+int	  inet_nat64_inet(const void *, void *, const void *, u_int8_t);
+int	  inet_nat64_inet6(const void *, void *, const void *, u_int8_t);
+
+int	  inet_nat46(int, const void *, void *, const void *, u_int8_t);
+int	  inet_nat46_inet(const void *, void *, const void *, u_int8_t);
+int	  inet_nat46_inet6(const void *, void *, const void *, u_int8_t);
+
 #endif /* _KERNEL */
 
 #endif /* _NET_PFVAR_H_ */
