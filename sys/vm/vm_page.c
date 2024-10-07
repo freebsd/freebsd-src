@@ -1972,7 +1972,7 @@ _vm_domain_allocate(struct vm_domain *vmd, int req_class, int npages)
 	 * Attempt to reserve the pages.  Fail if we're below the limit.
 	 */
 	limit += npages;
-	old = vmd->vmd_free_count;
+	old = atomic_load_int(&vmd->vmd_free_count);
 	do {
 		if (old < limit)
 			return (0);
@@ -4054,7 +4054,7 @@ vm_page_wire_mapped(vm_page_t m)
 {
 	u_int old;
 
-	old = m->ref_count;
+	old = atomic_load_int(&m->ref_count);
 	do {
 		KASSERT(old > 0,
 		    ("vm_page_wire_mapped: wiring unreferenced page %p", m));
@@ -4088,7 +4088,7 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 	 * Use a release store when updating the reference count to
 	 * synchronize with vm_page_free_prep().
 	 */
-	old = m->ref_count;
+	old = atomic_load_int(&m->ref_count);
 	do {
 		KASSERT(VPRC_WIRE_COUNT(old) > 0,
 		    ("vm_page_unwire: wire count underflow for page %p", m));
@@ -4383,7 +4383,7 @@ vm_page_try_blocked_op(vm_page_t m, void (*op)(vm_page_t))
 	    ("vm_page_try_blocked_op: page %p is not busy", m));
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	old = m->ref_count;
+	old = atomic_load_int(&m->ref_count);
 	do {
 		KASSERT(old != 0,
 		    ("vm_page_try_blocked_op: page %p has no references", m));
