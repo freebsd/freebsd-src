@@ -4117,23 +4117,31 @@ integer:
 			goto integer;
 
 		case SO_SNDBUF:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_sbsnd_hiwat :
 			    so->so_snd.sb_hiwat;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_RCVBUF:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_sbrcv_hiwat :
 			    so->so_rcv.sb_hiwat;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_SNDLOWAT:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_sbsnd_lowat :
 			    so->so_snd.sb_lowat;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_RCVLOWAT:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_sbrcv_lowat :
 			    so->so_rcv.sb_lowat;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_SNDTIMEO:
@@ -4190,15 +4198,21 @@ integer:
 			break;
 
 		case SO_LISTENQLIMIT:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_qlimit : 0;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_LISTENQLEN:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_qlen : 0;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_LISTENINCQLEN:
+			SOCK_LOCK(so);
 			optval = SOLISTENING(so) ? so->sol_incqlen : 0;
+			SOCK_UNLOCK(so);
 			goto integer;
 
 		case SO_TS_CLOCK:
