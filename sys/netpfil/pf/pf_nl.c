@@ -733,6 +733,7 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_RCV_IFNAME, .off = _OUT(rcv_ifname), .arg = (void *)IFNAMSIZ, .cb = nlattr_get_chara },
 	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(max_src_conn), .cb = nlattr_get_uint32 },
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(nat), .arg = &pool_parser, .cb = nlattr_get_nested },
+	{ .type = PF_RT_NAF, .off = _OUT(naf), .cb = nlattr_get_uint8 },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -960,6 +961,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u8(nw, PF_RT_KEEP_STATE, rule->keep_state);
 
 	nlattr_add_u8(nw, PF_RT_AF, rule->af);
+	nlattr_add_u8(nw, PF_RT_NAF, rule->naf);
 	nlattr_add_u8(nw, PF_RT_PROTO, rule->proto);
 	nlattr_add_u8(nw, PF_RT_TYPE, rule->type);
 	nlattr_add_u8(nw, PF_RT_CODE, rule->code);
