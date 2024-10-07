@@ -51,7 +51,7 @@ static struct commands {
 	const char *usage;
 	int (*cmd)(int argc, char **argv);
 } cmds[] = {
-	{ "monitor", "monitor <family> <multicast group>", monitor_mcast },
+	{ "monitor", "monitor <family> [multicast group]", monitor_mcast },
 	{ "list", "list", list_families },
 };
 
@@ -205,13 +205,13 @@ monitor_mcast(int argc __unused, char **argv)
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		err(EXIT_FAILURE, "snl_init()");
 
-	if (argc != 2) {
+	if (argc < 1 || argc > 2) {
 		usage();
 		return (EXIT_FAILURE);
 	}
 	if (!snl_get_genl_family_info(&ss, argv[0], &attrs))
 		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
-	if (strcmp(argv[1], "all") == 0)
+	if (argc == 1)
 		all = true;
 	for (uint32_t i = 0; i < attrs.mcast_groups.num_groups; i++) {
 		if (all || strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
