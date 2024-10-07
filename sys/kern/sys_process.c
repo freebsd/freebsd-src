@@ -36,6 +36,7 @@
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/reg.h>
 #include <sys/syscallsubr.h>
@@ -505,7 +506,8 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		pve->pve_start = entry->start;
 		pve->pve_end = entry->end - 1;
 		pve->pve_offset = entry->offset;
-		pve->pve_prot = entry->protection;
+		pve->pve_prot = entry->protection |
+		    PROT_MAX(entry->max_protection);
 
 		/* Backing object's path needed? */
 		if (pve->pve_pathlen == 0)
