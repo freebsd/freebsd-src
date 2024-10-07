@@ -4090,10 +4090,13 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 	 */
 	old = atomic_load_int(&m->ref_count);
 	do {
+		u_int count;
+
 		KASSERT(VPRC_WIRE_COUNT(old) > 0,
 		    ("vm_page_unwire: wire count underflow for page %p", m));
 
-		if (old > VPRC_OBJREF + 1) {
+		count = old & ~VPRC_BLOCKED;
+		if (count > VPRC_OBJREF + 1) {
 			/*
 			 * The page has at least one other wiring reference.  An
 			 * earlier iteration of this loop may have called
@@ -4102,7 +4105,7 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 			 */
 			if ((vm_page_astate_load(m).flags & PGA_DEQUEUE) == 0)
 				vm_page_aflag_set(m, PGA_DEQUEUE);
-		} else if (old == VPRC_OBJREF + 1) {
+		} else if (count == VPRC_OBJREF + 1) {
 			/*
 			 * This is the last wiring.  Clear PGA_DEQUEUE and
 			 * update the page's queue state to reflect the
@@ -4111,7 +4114,7 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 			 * clear leftover queue state.
 			 */
 			vm_page_release_toq(m, nqueue, noreuse);
-		} else if (old == 1) {
+		} else if (count == 1) {
 			vm_page_aflag_clear(m, PGA_DEQUEUE);
 		}
 	} while (!atomic_fcmpset_rel_int(&m->ref_count, &old, old - 1));
@@ -4387,6 +4390,8 @@ vm_page_try_blocked_op(vm_page_t m, void (*op)(vm_page_t))
 	do {
 		KASSERT(old != 0,
 		    ("vm_page_try_blocked_op: page %p has no references", m));
+		KASSERT((old & VPRC_BLOCKED) == 0,
+		    ("vm_page_try_blocked_op: page %p blocks wirings", m));
 		if (VPRC_WIRE_COUNT(old) != 0)
 			return (false);
 	} while (!atomic_fcmpset_int(&m->ref_count, &old, old | VPRC_BLOCKED));
