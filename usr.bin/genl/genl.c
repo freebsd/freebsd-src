@@ -197,6 +197,7 @@ monitor_mcast(int argc __unused, char **argv)
 	struct _getfamily_attrs attrs;
 	struct pollfd pfd;
 	bool found = false;
+	bool all = false;
 	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
 
 	parser = parser_fallback;
@@ -210,8 +211,10 @@ monitor_mcast(int argc __unused, char **argv)
 	}
 	if (!snl_get_genl_family_info(&ss, argv[0], &attrs))
 		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
+	if (strcmp(argv[1], "all") == 0)
+		all = true;
 	for (uint32_t i = 0; i < attrs.mcast_groups.num_groups; i++) {
-		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+		if (all || strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
 		    argv[1]) == 0) {
 			found = true;
 			if (setsockopt(ss.fd, SOL_NETLINK,
@@ -221,7 +224,8 @@ monitor_mcast(int argc __unused, char **argv)
 			    == -1)
 				err(EXIT_FAILURE, "Cannot subscribe to command "
 				    "notify");
-			break;
+			if (!all)
+				break;
 		}
 	}
 	if (!found)
