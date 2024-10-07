@@ -55,6 +55,7 @@ struct intsmb_softc {
 	int			cfg_irq9;
 	int			sb8xx;
 	int			poll;
+	int			type;
 	struct mtx		lock;
 };
 
@@ -135,28 +136,44 @@ sb8xx_attach(device_t dev)
 	struct resource		*res;
 	uint32_t		devid;
 	uint8_t			revid;
-	uint16_t		addr;
+	uint32_t		addr;
 	int			rid;
 	int			rc;
 	bool			enabled;
 
 	sc = device_get_softc(dev);
+	devid = pci_get_devid(dev);
+	revid = pci_get_revid(dev);
+
+	/*
+	 * Comment from Linux i2c-piix4.c:
+	 *
+	 * cd6h/cd7h port I/O accesses can be disabled on AMD processors
+	 * w/ SMBus PCI revision ID 0x51 or greater. MMIO is supported on
+	 * the same processors and is the recommended access method.
+	 */
+	if (devid == AMDCZ_SMBUS_DEVID && revid >= AMDCZ51_SMBUS_REVID) {
+		sc->type = SYS_RES_MEMORY;
+		addr = AMDFCH41_MMIO_ADDR + AMDFCH41_MMIO_PM_OFF;
+	} else {
+		sc->type = SYS_RES_IOPORT;
+		addr = AMDSB_PMIO_INDEX;
+	}
+
 	rid = 0;
-	rc = bus_set_resource(dev, SYS_RES_IOPORT, rid, AMDSB_PMIO_INDEX,
+	rc = bus_set_resource(dev, sc->type, rid, addr,
 	    AMDSB_PMIO_WIDTH);
 	if (rc != 0) {
 		device_printf(dev, "bus_set_resource for PM IO failed\n");
 		return (ENXIO);
 	}
-	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+	res = bus_alloc_resource_any(dev, sc->type, &rid,
 	    RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "bus_alloc_resource for PM IO failed\n");
 		return (ENXIO);
 	}
 
-	devid = pci_get_devid(dev);
-	revid = pci_get_revid(dev);
 	if (devid == AMDSB_SMBUS_DEVID ||
 	    (devid == AMDFCH_SMBUS_DEVID && revid < AMDFCH41_SMBUS_REVID) ||
 	    (devid == AMDCZ_SMBUS_DEVID  && revid < AMDCZ49_SMBUS_REVID)) {
@@ -165,6 +182,10 @@ sb8xx_attach(device_t dev)
 		addr |= amd_pmio_read(res, AMDSB8_PM_SMBUS_EN);
 		enabled = (addr & AMDSB8_SMBUS_EN) != 0;
 		addr &= AMDSB8_SMBUS_ADDR_MASK;
+	} else if (devid == AMDCZ_SMBUS_DEVID && revid >= AMDCZ51_SMBUS_REVID) {
+		addr = bus_read_1(res, AMDFCH41_PM_DECODE_EN0);
+		enabled = (addr & AMDFCH41_SMBUS_EN) != 0;
+		addr = AMDFCH41_MMIO_ADDR + AMDFCH41_MMIO_SMBUS_OFF;
 	} else {
 		addr = amd_pmio_read(res, AMDFCH41_PM_DECODE_EN0);
 		enabled = (addr & AMDFCH41_SMBUS_EN) != 0;
@@ -172,8 +193,8 @@ sb8xx_attach(device_t dev)
 		addr <<= 8;
 	}
 
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
-	bus_delete_resource(dev, SYS_RES_IOPORT, rid);
+	bus_release_resource(dev, sc->type, rid, res);
+	bus_delete_resource(dev, sc->type, rid);
 
 	if (!enabled) {
 		device_printf(dev, "SB8xx/SB9xx/FCH SMBus not enabled\n");
@@ -181,13 +202,13 @@ sb8xx_attach(device_t dev)
 	}
 
 	sc->io_rid = 0;
-	rc = bus_set_resource(dev, SYS_RES_IOPORT, sc->io_rid, addr,
+	rc = bus_set_resource(dev, sc->type, sc->io_rid, addr,
 	    AMDSB_SMBIO_WIDTH);
 	if (rc != 0) {
 		device_printf(dev, "bus_set_resource for SMBus IO failed\n");
 		return (ENXIO);
 	}
-	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
+	sc->io_res = bus_alloc_resource_any(dev, sc->type, &sc->io_rid,
 	    RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "Could not allocate I/O space\n");
@@ -208,7 +229,7 @@ intsmb_release_resources(device_t dev)
 	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	if (sc->io_res)
-		bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid,
+		bus_release_resource(dev, sc->type, sc->io_rid,
 		    sc->io_res);
 	mtx_destroy(&sc->lock);
 }
@@ -226,6 +247,7 @@ intsmb_attach(device_t dev)
 	mtx_init(&sc->lock, device_get_nameunit(dev), "intsmb", MTX_DEF);
 
 	sc->cfg_irq9 = 0;
+	sc->type = SYS_RES_IOPORT;
 	switch (pci_get_devid(dev)) {
 #ifndef NO_CHANGE_PCICONF
 	case 0x71138086:	/* Intel 82371AB */
@@ -254,7 +276,7 @@ intsmb_attach(device_t dev)
 	}
 
 	sc->io_rid = PCI_BASE_ADDR_SMB;
-	sc->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->io_rid,
+	sc->io_res = bus_alloc_resource_any(dev, sc->type, &sc->io_rid,
 	    RF_ACTIVE);
 	if (sc->io_res == NULL) {
 		device_printf(dev, "Could not allocate I/O space\n");
