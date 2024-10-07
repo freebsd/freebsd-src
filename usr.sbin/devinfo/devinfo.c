@@ -343,8 +343,8 @@ print_device_path_entry(struct devinfo_dev *dev, const char* devname) {
 		exit(EXIT_FAILURE);
 	}
 	open_tags[open_tag_index++] = dev;
-	xo_emit("{P: }");
 	xo_emit("{d:%s }", devname);
+	xo_emit("{P: }");
 	print_device_props(dev);
 	if (vflag)
 		xo_emit("\n");
