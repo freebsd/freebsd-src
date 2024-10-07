@@ -582,6 +582,7 @@ struct kinfo_vmentry {
 #define	kve_obj		kve_type_spec._kve_obj
 
 #define	KVMO_FLAG_SYSVSHM	0x0001
+#define	KVMO_FLAG_POSIXSHM	0x0002
 
 /*
  * The "vm.objects" sysctl provides a list of all VM objects in the system
