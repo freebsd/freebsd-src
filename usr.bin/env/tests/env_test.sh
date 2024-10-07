@@ -89,6 +89,25 @@ altpath_body()
 		  env -P "${PWD}" magic_words
 }
 
+atf_test_case equal
+equal_head()
+{
+	atf_set "descr" "Command name contains equal sign"
+}
+equal_body()
+{
+	echo "echo ${magic_words}" >"magic=words"
+	chmod 0755 "magic=words"
+	atf_check -o match:"^${PWD}/magic=words$" \
+		  env "${PWD}/magic=words"
+	atf_check -o match:"^magic=words$" \
+		  env -P "${PATH}:${PWD}" "magic=words"
+	atf_check -o inline:"${magic_words}\n" \
+		  env command "${PWD}/magic=words"
+	atf_check -o inline:"${magic_words}\n" \
+		  env PATH="${PATH}:${PWD}" command "magic=words"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -97,4 +116,5 @@ atf_init_test_cases()
 	atf_add_test_case true
 	atf_add_test_case false
 	atf_add_test_case altpath
+	atf_add_test_case equal
 }
