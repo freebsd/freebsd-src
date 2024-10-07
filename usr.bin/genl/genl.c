@@ -247,13 +247,13 @@ monitor_mcast(int argc __unused, char **argv)
 		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
 	if (argc == 1)
 		all = true;
-	for (uint32_t i = 0; i < attrs.mcast_groups.num_groups; i++) {
+	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
 		if (all || strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
 		    argv[1]) == 0) {
 			found = true;
 			if (setsockopt(ss.fd, SOL_NETLINK,
 			    NETLINK_ADD_MEMBERSHIP,
-			    (void *)&attrs.mcast_groups.groups[i]->mcast_grp_id,
+			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
 			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
 			    == -1)
 				err(EXIT_FAILURE, "Cannot subscribe to command "
