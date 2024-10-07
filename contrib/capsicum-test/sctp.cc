@@ -61,6 +61,9 @@ static int SctpClient(int port, unsigned char byte) {
 
 TEST(Sctp, Socket) {
   int sock = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
+  if (sock == -1 && errno == EPROTONOSUPPORT) {
+    GTEST_SKIP() << "socket(..., IPPROTO_SCTP) -> EPROTONOSUPPORT";
+  }
   EXPECT_OK(sock);
   if (sock < 0) return;
 
