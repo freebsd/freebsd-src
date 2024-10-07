@@ -40,10 +40,12 @@
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_snl.h>
 #include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_sysevent.h>
 
 static int monitor_mcast(int argc, char **argv);
 static int list_families(int argc, char **argv);
 static void parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr);
+static void parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr);
 static void parser_fallback(struct snl_state *ss, struct nlmsghdr *hdr);
 
 static struct commands {
@@ -60,7 +62,24 @@ static struct mcast_parsers {
 	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
 } mcast_parsers [] = {
 	{ "nlctrl", parser_nlctrl_notify },
+	{ "nlsysevent", parser_nlsysevent },
 };
+
+struct nlevent {
+	const char *name;
+	const char *subsystem;
+	const char *type;
+	const char *data;
+};
+#define _OUT(_field) offsetof(struct nlevent, _field)
+static struct snl_attr_parser ap_nlevent_get[] = {
+	{ .type = NLSE_ATTR_SYSTEM, .off = _OUT(name), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_SUBSYSTEM, .off = _OUT(subsystem), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_TYPE, .off = _OUT(type), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_DATA, .off = _OUT(data), .cb = snl_attr_get_string },
+};
+#undef _OUT
+SNL_DECLARE_GENL_PARSER(nlevent_get_parser, ap_nlevent_get);
 
 struct genl_ctrl_op {
 	uint32_t id;
@@ -184,6 +203,20 @@ parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr)
 }
 
 void
+parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr)
+{
+	struct nlevent ne = {};
+	if (snl_parse_nlmsg(ss, hdr, &nlevent_get_parser, &ne)) {
+		printf("system=%s subsystem=%s type=%s", ne.name, ne.subsystem, ne.type);
+		if (ne.data) {
+			printf(" %s", ne.data);
+			if (ne.data[strlen(ne.data) -1] != '\n')
+				printf("\n");
+		}
+	}
+}
+
+void
 parser_fallback(struct snl_state *ss __unused, struct nlmsghdr *hdr __unused)
 {
 	printf("New unknown message\n");
@@ -209,6 +242,7 @@ monitor_mcast(int argc __unused, char **argv)
 		usage();
 		return (EXIT_FAILURE);
 	}
+
 	if (!snl_get_genl_family_info(&ss, argv[0], &attrs))
 		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
 	if (argc == 1)
