@@ -330,8 +330,7 @@ static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_kstate **, int, u_int16_t, u_int16_t,
 			    struct pf_krule_slist *, struct pf_udp_mapping *);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
-			    struct pf_state_key_cmp *, int, struct pf_addr *,
-			    int, struct pf_addr *, int);
+			    struct pf_state_key_cmp *, int);
 static int		 pf_tcp_track_full(struct pf_kstate **,
 			    struct pf_pdesc *, u_short *, int *);
 static int		 pf_tcp_track_sloppy(struct pf_kstate **,
@@ -1562,9 +1561,10 @@ pf_state_key_ctor(void *mem, int size, void *arg, int flags)
 
 static int
 pf_state_key_addr_setup(struct pf_pdesc *pd,
-    struct pf_state_key_cmp *key, int sidx, struct pf_addr *saddr,
-    int didx, struct pf_addr *daddr, int multi)
+    struct pf_state_key_cmp *key, int multi)
 {
+	struct pf_addr *saddr = pd->src;
+	struct pf_addr *daddr = pd->dst;
 #ifdef INET6
 	struct nd_neighbor_solicit nd;
 	struct pf_addr *target;
@@ -1590,28 +1590,28 @@ pf_state_key_addr_setup(struct pf_pdesc *pd,
 		target = (struct pf_addr *)&nd.nd_ns_target;
 		saddr = target;
 		if (IN6_IS_ADDR_MULTICAST(&pd->dst->v6)) {
-			key->addr[didx].addr32[0] = 0;
-			key->addr[didx].addr32[1] = 0;
-			key->addr[didx].addr32[2] = 0;
-			key->addr[didx].addr32[3] = 0;
+			key->addr[pd->didx].addr32[0] = 0;
+			key->addr[pd->didx].addr32[1] = 0;
+			key->addr[pd->didx].addr32[2] = 0;
+			key->addr[pd->didx].addr32[3] = 0;
 			daddr = NULL; /* overwritten */
 		}
 		break;
 	default:
 		if (multi == PF_ICMP_MULTI_LINK) {
-			key->addr[sidx].addr32[0] = IPV6_ADDR_INT32_MLL;
-			key->addr[sidx].addr32[1] = 0;
-			key->addr[sidx].addr32[2] = 0;
-			key->addr[sidx].addr32[3] = IPV6_ADDR_INT32_ONE;
+			key->addr[pd->sidx].addr32[0] = IPV6_ADDR_INT32_MLL;
+			key->addr[pd->sidx].addr32[1] = 0;
+			key->addr[pd->sidx].addr32[2] = 0;
+			key->addr[pd->sidx].addr32[3] = IPV6_ADDR_INT32_ONE;
 			saddr = NULL; /* overwritten */
 		}
 	}
 copy:
 #endif
 	if (saddr)
-		PF_ACPY(&key->addr[sidx], saddr, pd->af);
+		PF_ACPY(&key->addr[pd->sidx], saddr, pd->af);
 	if (daddr)
-		PF_ACPY(&key->addr[didx], daddr, pd->af);
+		PF_ACPY(&key->addr[pd->didx], daddr, pd->af);
 
 	return (0);
 }
@@ -1628,7 +1628,7 @@ pf_state_key_setup(struct pf_pdesc *pd,
 		return (NULL);
 
 	if (pf_state_key_addr_setup(pd, (struct pf_state_key_cmp *)sk,
-	    pd->sidx, pd->src, pd->didx, pd->dst, 0)) {
+	    0)) {
 		uma_zfree(V_pf_state_key_z, sk);
 		return (NULL);
 	}
@@ -6818,8 +6818,7 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 		key->port[pd->sidx] = type;
 		key->port[pd->didx] = icmpid;
 	}
-	if (pf_state_key_addr_setup(pd, key, pd->sidx, pd->src,
-	    pd->didx, pd->dst, multi))
+	if (pf_state_key_addr_setup(pd, key, multi))
 		return (PF_DROP);
 
 	STATE_LOOKUP(key, *state, pd);
