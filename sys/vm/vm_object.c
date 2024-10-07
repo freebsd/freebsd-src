@@ -2601,6 +2601,11 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			kvo->kvo_vn_fileid = key;
 			kvo->kvo_vn_fsid_freebsd11 = seq;
 		}
+		if ((obj->flags & OBJ_POSIXSHM) != 0) {
+			kvo->kvo_flags |= KVMO_FLAG_POSIXSHM;
+			shm_get_path(obj, kvo->kvo_path,
+			    sizeof(kvo->kvo_path));
+		}
 		if (vp != NULL) {
 			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
