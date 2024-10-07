@@ -246,6 +246,7 @@ MAN+=	abort2.2 \
 	listen.2 \
 	lseek.2 \
 	madvise.2 \
+	membarrier.2 \
 	mincore.2 \
 	minherit.2 \
 	mkdir.2 \
