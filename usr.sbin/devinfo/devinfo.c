@@ -83,7 +83,7 @@ print_indent(int n)
  * to xo formatting.
  */
 static void
-print_kvlist(char* s)
+print_kvlist(char *s)
 {
 	char *copy = strdup(s);
 	char *kv;
