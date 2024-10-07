@@ -223,6 +223,7 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	while (**cur == ' ')
 		(*cur)++;
 	rule->syntax_begin = *cur;
+	rule->syntax_len = strlen(rule->syntax_begin);
 
 	/* syntax_len */
 	char *delim = strchr(*cur, ';');
