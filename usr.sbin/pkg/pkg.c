@@ -854,7 +854,11 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 	goto cleanup;
 
 fetchfail:
-	warnx("Error fetching %s: %s", url, fetchLastErrString);
+	for (int j = 0; bootstrap_names[j] != NULL; j++) {
+		warnx("Attempted to fetch %s/Latest/%s", packagesite,
+		    bootstrap_names[j]);
+	}
+	warnx("Error: %s", fetchLastErrString);
 	if (fetchLastErrCode == FETCH_RESOLV) {
 		fprintf(stderr, "Address resolution failed for %s.\n", packagesite);
 		fprintf(stderr, "Consider changing PACKAGESITE.\n");
