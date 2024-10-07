@@ -90,6 +90,7 @@ struct vmmeter __read_mostly vm_cnt = {
 	.v_rforkpages = EARLY_COUNTER,
 	.v_kthreadpages = EARLY_COUNTER,
 	.v_wire_count = EARLY_COUNTER,
+	.v_nofree_count = EARLY_COUNTER,
 };
 
 u_long __exclusive_cache_line vm_user_wire_count;
@@ -386,6 +387,7 @@ VM_STATS_UINT(v_free_target, "Pages desired free");
 VM_STATS_UINT(v_free_min, "Minimum low-free-pages threshold");
 VM_STATS_PROC(v_free_count, "Free pages", vm_free_count);
 VM_STATS_PROC(v_wire_count, "Wired pages", vm_wire_count);
+VM_STATS_PROC(v_nofree_count, "Permanently allocated pages", vm_nofree_count);
 VM_STATS_PROC(v_active_count, "Active pages", vm_active_count);
 VM_STATS_UINT(v_inactive_target, "Desired inactive pages");
 VM_STATS_PROC(v_inactive_count, "Inactive pages", vm_inactive_count);
