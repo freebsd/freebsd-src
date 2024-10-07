@@ -91,11 +91,7 @@ struct fingerprint {
 	STAILQ_ENTRY(fingerprint) next;
 };
 
-static const char *bootstrap_names []  = {
-	"pkg.pkg",
-	"pkg.txz",
-	NULL
-};
+static const char *bootstrap_name = "pkg.pkg";
 
 STAILQ_HEAD(fingerprint_list, fingerprint);
 
@@ -851,7 +847,6 @@ bootstrap_pkg(bool force, const char *fetchOpts, struct repository *repo)
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
 	char pkgstatic[MAXPATHLEN];
-	const char *bootstrap_name;
 
 	fd_sig = -1;
 	ret = -1;
@@ -865,18 +860,12 @@ bootstrap_pkg(bool force, const char *fetchOpts, struct repository *repo)
 	if (strncmp(URL_SCHEME_PREFIX, packagesite,
 	    strlen(URL_SCHEME_PREFIX)) == 0)
 		packagesite += strlen(URL_SCHEME_PREFIX);
-	for (int j = 0; bootstrap_names[j] != NULL; j++) {
-		bootstrap_name = bootstrap_names[j];
 
-		snprintf(url, MAXPATHLEN, "%s/Latest/%s", packagesite, bootstrap_name);
-		snprintf(tmppkg, MAXPATHLEN, "%s/%s.XXXXXX",
-		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
-		    bootstrap_name);
-		if ((fd_pkg = fetch_to_fd(repo, url, tmppkg, fetchOpts)) != -1)
-			break;
-		bootstrap_name = NULL;
-	}
-	if (bootstrap_name == NULL)
+	snprintf(url, MAXPATHLEN, "%s/Latest/%s", packagesite, bootstrap_name);
+	snprintf(tmppkg, MAXPATHLEN, "%s/%s.XXXXXX",
+	    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+	    bootstrap_name);
+	if ((fd_pkg = fetch_to_fd(repo, url, tmppkg, fetchOpts)) == -1)
 		goto fetchfail;
 
 	if (repo->signature_type == SIGNATURE_FINGERPRINT) {
@@ -918,11 +907,7 @@ bootstrap_pkg(bool force, const char *fetchOpts, struct repository *repo)
 	goto cleanup;
 
 fetchfail:
-	for (int j = 0; bootstrap_names[j] != NULL; j++) {
-		warnx("Attempted to fetch %s/Latest/%s", repo->url,
-		    bootstrap_names[j]);
-	}
-	warnx("Error: %s", fetchLastErrString);
+	warnx("Error fetching %s: %s", url, fetchLastErrString);
 	if (fetchLastErrCode == FETCH_RESOLV) {
 		fprintf(stderr, "Address resolution failed for %s.\n", packagesite);
 	} else {
