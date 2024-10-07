@@ -285,7 +285,7 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 	struct devinfo_dev	*dev;
 	struct devinfo_rman *rman;
 	bool hexmode;
-	char s[32];
+	char *s;
 
 	dev = devinfo_handle_to_device(res->dr_device);
 	rman = devinfo_handle_to_rman(res->dr_rman);
@@ -293,17 +293,17 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 
 	if (hexmode) {
 		if (res->dr_size > 1)
-			snprintf(s, sizeof(s), "0x%lx-0x%lx",
-			    res->dr_start, res->dr_start + res->dr_size - 1);
+			asprintf(&s, "0x%lx-0x%lx", res->dr_start,
+			    res->dr_start + res->dr_size - 1);
 		else
-			snprintf(s, sizeof(s), "0x%lx", res->dr_start);
+			asprintf(&s, "0x%lx", res->dr_start);
 	}
 	else {
 		if (res->dr_size > 1)
-			snprintf(s, sizeof(s), "%u-%u", (unsigned int) res->dr_start,
+			asprintf(&s, "%u-%u", (unsigned int) res->dr_start,
 			    (unsigned int) (res->dr_start + res->dr_size - 1));
 		else
-			snprintf(s, sizeof(s), "%u", (unsigned int) res->dr_start);
+			asprintf(&s, "%u", (unsigned int) res->dr_start);
 	}
 
 	xo_emit("{P:    }");
