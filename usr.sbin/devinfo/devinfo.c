@@ -43,11 +43,8 @@
 #include <libxo/xo.h>
 #include "devinfo.h"
 
-#define MAX_OPEN_TAGS 32
-
 static int	rflag;
 static int	vflag;
-static struct devinfo_dev *open_tags[MAX_OPEN_TAGS];
 static int open_tag_index;
 
 static void	print_resource(struct devinfo_res *);
@@ -336,13 +333,10 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 }
 
 static void
-print_device_path_entry(struct devinfo_dev *dev, const char* devname) {
+print_device_path_entry(struct devinfo_dev *dev, const char* devname)
+{
 	xo_open_container(devname);
-	if (open_tag_index >= MAX_OPEN_TAGS) {
-		printf("Path is too deep.");
-		exit(EXIT_FAILURE);
-	}
-	open_tags[open_tag_index++] = dev;
+	open_tag_index++;
 	xo_emit("{d:%s }", devname);
 	xo_emit("{P: }");
 	print_device_props(dev);
@@ -383,7 +377,8 @@ print_path(struct devinfo_dev *root, char *path)
 		xo_emit("\n");
 
 	while (open_tag_index > 0) {
-		xo_close_container(open_tags[--open_tag_index]->dd_name);
+		xo_close_container_d();
+		open_tag_index--;
 	}
 }
 
@@ -442,6 +437,7 @@ main(int argc, char *argv[])
 		xo_errx(1, "can't find root device");
 
 	if (path) {
+		xo_set_flags(NULL, XOF_DTRT);
 		xo_open_container("device-path");
 		print_path(root, path);
 		xo_close_container("device-path");
