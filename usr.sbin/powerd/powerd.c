@@ -29,17 +29,26 @@
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
+#include <netlink/netlink.h>
+#include <netlink/netlink_generic.h>
+#include <netlink/netlink_snl.h>
+#include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_sysevent.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,7 +97,8 @@ static int	read_freqs(int *numfreqs, int **freqs, int **power,
 		    int minfreq, int maxfreq);
 static int	set_freq(int freq);
 static void	acline_init(void);
-static void	acline_read(void);
+static void	acline_read(int rfds);
+static bool	netlink_init(void);
 static int	devd_init(void);
 static void	devd_close(void);
 static void	handle_sigs(int sig);
@@ -117,6 +127,7 @@ typedef enum {
 #ifdef USE_APM
 	ac_apm,
 #endif
+	ac_acpi_netlink,
 } acline_mode_t;
 static acline_mode_t acline_mode;
 static acline_mode_t acline_mode_user = ac_none;
@@ -124,6 +135,8 @@ static acline_mode_t acline_mode_user = ac_none;
 static int	apm_fd = -1;
 #endif
 static int	devd_pipe = -1;
+static bool	try_netlink = true;
+static struct snl_state ss;
 
 #define DEVD_RETRY_INTERVAL 60 /* seconds */
 static struct timeval tried_devd;
@@ -325,9 +338,48 @@ acline_init(void)
 	}
 }
 
+struct nlevent {
+	const char *name;
+	const char *subsystem;
+	const char *type;
+	const char *data;
+};
+#define	_OUT(_field)	offsetof(struct nlevent, _field)
+static struct snl_attr_parser ap_nlevent_get[] = {
+	{ .type = NLSE_ATTR_SYSTEM, .off = _OUT(name), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_SUBSYSTEM, .off = _OUT(subsystem), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_TYPE, .off = _OUT(type), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_DATA, .off = _OUT(data), .cb = snl_attr_get_string },
+};
+#undef _OUT
+
+SNL_DECLARE_GENL_PARSER(nlevent_get_parser, ap_nlevent_get);
+
 static void
-acline_read(void)
+acline_read(int rfds)
 {
+	if (acline_mode == ac_acpi_netlink) {
+		struct nlmsghdr *hdr;
+		struct nlevent ne;
+		char *ptr;
+		int notify;
+
+		if (rfds == 0)
+			return;
+		hdr = snl_read_message(&ss);
+		if (hdr != NULL && hdr->nlmsg_type != NLMSG_ERROR) {
+			memset(&ne, 0, sizeof(ne));
+			if (!snl_parse_nlmsg(&ss, hdr, &nlevent_get_parser, &ne))
+				return;
+			if (strcmp(ne.subsystem, "ACAD") != 0)
+				return;
+			if ((ptr = strstr(ne.data, "notify=")) != NULL &&
+			    sscanf(ptr, "notify=%x", &notify) == 1)
+				acline_status = (notify ? SRC_AC : SRC_BATTERY);
+		}
+		return;
+
+	}
 	if (acline_mode == ac_acpi_devd) {
 		char buf[DEVCTL_MAXBUF], *ptr;
 		ssize_t rlen;
@@ -383,10 +435,20 @@ acline_read(void)
 #else
 	if (acline_mode == ac_sysctl &&
 	    (acline_mode_user == ac_none ||
-	     acline_mode_user == ac_acpi_devd)) {
+	     acline_mode_user == ac_acpi_devd ||
+	     acline_mode_user == ac_acpi_netlink)) {
 #endif
 		struct timeval now;
 
+		if (acline_mode_user != ac_acpi_devd && try_netlink) {
+			try_netlink = false; /* only try once */
+			if (netlink_init()) {
+				if (vflag)
+					warnx("using netlink for AC line status");
+				acline_mode = ac_acpi_netlink;
+			}
+			return;
+		}
 		gettimeofday(&now, NULL);
 		if (now.tv_sec > tried_devd.tv_sec + DEVD_RETRY_INTERVAL) {
 			if (devd_init() >= 0) {
@@ -397,6 +459,38 @@ acline_read(void)
 			tried_devd = now;
 		}
 	}
+}
+
+bool
+netlink_init(void)
+{
+	struct _getfamily_attrs attrs;
+
+	if (modfind("nlsysevent") < 0)
+		kldload("nlsysevent");
+	if (modfind("nlsysevent") < 0)
+		return (false);
+
+	if (!snl_init(&ss, NETLINK_GENERIC))
+		return (false);
+
+	if (!snl_get_genl_family_info(&ss, "nlsysevent", &attrs))
+		return (false);
+
+	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
+		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+		    "ACPI") == 0) {
+			if (setsockopt(ss.fd, SOL_NETLINK,
+			    NETLINK_ADD_MEMBERSHIP,
+			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
+			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
+			    == -1) {
+				warnx("Cannot subscribe to \"ACPI\"");
+				return (false);
+			}
+		}
+	}
+	return (true);
 }
 
 static int
@@ -460,6 +554,8 @@ parse_acline_mode(char *arg, int ch)
 	else if (strcmp(arg, "apm") == 0)
 		acline_mode_user = ac_apm;
 #endif
+	else if (strcmp(arg, "netlink") == 0)
+		acline_mode_user = ac_acpi_netlink;
 	else
 		errx(1, "bad option: -%c %s", (char)ch, optarg);
 }
@@ -485,7 +581,7 @@ main(int argc, char * argv[])
 {
 	struct timeval timeout;
 	fd_set fdset;
-	int nfds;
+	int nfds, rfds;
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
 	int freq, curfreq, initfreq, *freqs, i, j, *mwatts, numfreqs, load;
@@ -638,7 +734,7 @@ main(int argc, char * argv[])
 	 * If we are in adaptive mode and the current frequency is outside the
 	 * user-defined range, adjust it to be within the user-defined range.
 	 */
-	acline_read();
+	acline_read(0);
 	if (acline_status > SRC_UNKNOWN)
 		errx(1, "invalid AC line status %d", acline_status);
 	if ((acline_status == SRC_AC &&
@@ -683,6 +779,9 @@ main(int argc, char * argv[])
 		if (devd_pipe >= 0) {
 			FD_SET(devd_pipe, &fdset);
 			nfds = devd_pipe + 1;
+		} else if (acline_mode == ac_acpi_netlink) {
+			FD_SET(ss.fd, &fdset);
+			nfds = ss.fd + 1;
 		} else {
 			nfds = 0;
 		}
@@ -694,7 +793,7 @@ main(int argc, char * argv[])
 			to = poll_ival * 4;
 		timeout.tv_sec = to / 1000000;
 		timeout.tv_usec = to % 1000000;
-		select(nfds, &fdset, NULL, &fdset, &timeout);
+		rfds = select(nfds, &fdset, NULL, &fdset, &timeout);
 
 		/* If the user requested we quit, print some statistics. */
 		if (exit_requested) {
@@ -706,7 +805,7 @@ main(int argc, char * argv[])
 		}
 
 		/* Read the current AC status and record the mode. */
-		acline_read();
+		acline_read(rfds);
 		switch (acline_status) {
 		case SRC_AC:
 			mode = mode_ac;
