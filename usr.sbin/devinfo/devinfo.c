@@ -244,7 +244,7 @@ int
 print_device(struct devinfo_dev *dev, void *arg)
 {
 	struct indent_arg	ia;
-	int	indent;
+	int	indent, ret;
 
 	const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 	bool printit = (vflag || (dev->dd_name[0] != 0
@@ -267,7 +267,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 		}
 	}
 
-	int ret = (devinfo_foreach_device_child(dev, print_device,
+	ret = (devinfo_foreach_device_child(dev, print_device,
 	    (void *)((char *)arg + 2)));
 
 	if (printit) {
