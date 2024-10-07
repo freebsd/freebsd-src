@@ -135,6 +135,29 @@ intr_pic_registered(x86pic_t pic)
 }
 
 /*
+ * Create a new PIC device.  This is a helper function meant to handle setup
+ * steps used by many PIC devices.  This can then passed to intr_register_pic()
+ * for use as an interrupt source.
+ */
+device_t
+intr_create_pic(const char *name, u_int unit, driver_t *driver)
+{
+	device_t pic;
+	int error;
+
+	pic = bus_generic_add_child(root_bus, BUS_PASS_ORDER_FIRST, name, unit);
+	if (pic == NULL)
+		panic("%s: failed to create PIC device \"%s%u\"", __func__,
+		    name, unit);
+	error = device_set_driver(pic, driver);
+	if (error != 0)
+		panic("%s: failed to set PIC driver for %s%u error=%d",
+		    __func__, name, unit, error);
+
+	return (pic);
+}
+
+/*
  * Register a new interrupt controller (PIC).  This is to support suspend
  * and resume where we suspend/resume controllers rather than individual
  * sources.  This also allows controllers with no active sources (such as
