@@ -152,6 +152,7 @@ int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
+device_t	intr_create_pic(const char *name, u_int unit, driver_t *driver);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(u_int vector, struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
