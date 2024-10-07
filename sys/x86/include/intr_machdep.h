@@ -185,6 +185,8 @@ int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
+device_t	intr_create_pic(const char *name, u_int unit,
+		    struct kobj_class *driver /* driver_t * */);
 void	intr_register_pic(x86pic_t pic);
 int	intr_register_source(u_int vector, struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
