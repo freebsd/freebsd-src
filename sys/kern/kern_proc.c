@@ -2722,6 +2722,11 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 				kve->kve_vn_fileid = key;
 				kve->kve_vn_fsid_freebsd11 = seq;
 			}
+			if ((lobj->flags & OBJ_POSIXSHM) != 0) {
+				kve->kve_flags |= KVME_FLAG_POSIXSHM;
+				shm_get_path(lobj, kve->kve_path,
+				    sizeof(kve->kve_path));
+			}
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
