@@ -170,6 +170,8 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit(" {:sysvipc:/sysvshm(%ju:%u)/%ju:%u}",
 			    (uintmax_t)kve->kve_vn_fileid,
 			    kve->kve_vn_fsid_freebsd11);
+		if ((kve->kve_flags & KVME_FLAG_POSIXSHM) != 0)
+			xo_emit(" {:posixshm:/posixshm@/posixshm}");
 		xo_emit("{:kve_path/%-s/%s}\n", kve->kve_path);
 		xo_close_instance("vm");
 	}
