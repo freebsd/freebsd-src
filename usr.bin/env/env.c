@@ -215,6 +215,8 @@ main(int argc, char **argv)
 	}
 	for (ep = environ; *ep; ep++)
 		(void)printf("%s%c", *ep, term);
+	if (fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(0);
 }
 

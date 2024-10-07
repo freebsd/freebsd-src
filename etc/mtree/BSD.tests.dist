@@ -1029,6 +1029,8 @@
         ..
         du
         ..
+        env
+        ..
         file2c
         ..
         file
