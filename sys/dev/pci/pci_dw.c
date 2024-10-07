@@ -55,10 +55,10 @@
 #include "pcib_if.h"
 #include "pci_dw_if.h"
 
-#ifdef DEBUG
-#define	debugf(fmt, args...) do { printf(fmt,##args); } while (0)
+#if 0
+#define	dprintf(fmt, args...) do { printf(fmt,##args); } while (0)
 #else
-#define	debugf(fmt, args...)
+#define	dprintf(fmt, args...)
 #endif
 
 #define	DBI_WR1(sc, reg, val)	pci_dw_dbi_wr1((sc)->dev, reg, val)
@@ -92,7 +92,7 @@ pci_dw_dbi_read(device_t dev, u_int reg, int width)
 
 	sc = device_get_softc(dev);
 	MPASS(sc->dbi_res != NULL);
-
+	dprintf("%s: reg: 0x%04X, width: %d\n", __func__, reg, width);
 	switch (width) {
 	case 4:
 		return (bus_read_4(sc->dbi_res, reg));
@@ -113,6 +113,8 @@ pci_dw_dbi_write(device_t dev, u_int reg, uint32_t val, int width)
 
 	sc = device_get_softc(dev);
 	MPASS(sc->dbi_res != NULL);
+	dprintf("%s: reg: 0x%04X, val: 0x%08X, width: %d\n", __func__,
+	    reg, val, width);
 
 	switch (width) {
 	case 4:
@@ -162,7 +164,7 @@ pci_dw_check_dev(struct pci_dw_softc *sc, u_int bus, u_int slot, u_int func,
 		return (true);
 	}
 
-	/* we have only 1 device with 1 function root port */
+	/* we have only 1 device with 1 function on root port */
 	if (slot > 0 || func > 0)
 		return (false);
 	return (true);
@@ -434,9 +436,14 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 
 	nmem = 0;
 	for (i = 0; i < nranges; i++) {
-		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
-		    OFW_PCI_PHYS_HI_SPACE_MEM32)
+		switch (ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
+		case OFW_PCI_PHYS_HI_SPACE_MEM32:
+		case OFW_PCI_PHYS_HI_SPACE_MEM64:
 			++nmem;
+			break;
+		default:
+			break;
+		}
 	}
 
 	sc->mem_ranges = malloc(nmem * sizeof(*sc->mem_ranges), M_DEVBUF,
@@ -445,8 +452,9 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 
 	nmem = 0;
 	for (i = 0; i < nranges; i++) {
-		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
-		    OFW_PCI_PHYS_HI_SPACE_IO) {
+		switch (ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
+
+		case OFW_PCI_PHYS_HI_SPACE_IO:
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
@@ -462,9 +470,10 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 				    "trimming window size to 4GB\n");
 				sc->io_range.size = UINT32_MAX;
 			}
-		}
-		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
-		    OFW_PCI_PHYS_HI_SPACE_MEM32) {
+			break;
+
+		case OFW_PCI_PHYS_HI_SPACE_MEM32:
+		case OFW_PCI_PHYS_HI_SPACE_MEM64:
 			MPASS(nmem < sc->num_mem_ranges);
 			sc->mem_ranges[nmem] = ranges[i];
 			if (sc->mem_ranges[nmem].size > UINT32_MAX) {
@@ -475,6 +484,13 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 				sc->mem_ranges[nmem].size = UINT32_MAX;
 			}
 			++nmem;
+			break;
+
+		default:
+			device_printf(sc->dev,
+				    "%s: Unsupported range type (0x%X)\n",
+				    __func__, ranges[i].pci_hi &
+				    OFW_PCI_PHYS_HI_SPACEMASK);
 		}
 	}
 
@@ -703,6 +719,7 @@ pci_dw_init(device_t dev)
 	struct pci_dw_softc *sc;
 	int rv, rid;
 	bool unroll_mode;
+	u_int32_t br[2];
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -710,11 +727,30 @@ pci_dw_init(device_t dev)
 
 	mtx_init(&sc->mtx, "pci_dw_mtx", NULL, MTX_DEF);
 
-	/* XXXn Should not be this configurable ? */
-	sc->bus_start = 0;
-	sc->bus_end = 255;
-	sc->root_bus = 0;
-	sc->sub_bus = 1;
+	if (OF_hasprop(sc->node, "bus-range")) {
+		rv = OF_getencprop(sc->node, "bus-range", br, sizeof(br));
+		if (rv < 0) {
+			device_printf(dev,
+			    "Cannot read 'bus-range' property: %d\n", rv);
+			rv = ENXIO;
+			goto out;
+		}
+		if (rv != 8) {
+			device_printf(dev,
+			    "Malformed 'bus-range' property: %d\n", rv);
+			rv = ENXIO;
+			goto out;
+		}
+		sc->bus_start = br[0];
+		sc->bus_end = br[1];
+	} else {
+		sc->bus_start = 0;
+		sc->bus_end = 255;
+	}
+	sc->root_bus = sc->bus_start;
+	sc->sub_bus = sc->bus_start + 1;
+	dprintf("%s: bus range[%d..%d], root bus %d, sub bus: %d\n", __func__,
+	    sc->bus_end, sc->bus_start, sc->root_bus, sc->sub_bus);
 
 	/* Read FDT properties */
 	if (!sc->coherent)
@@ -724,6 +760,8 @@ pci_dw_init(device_t dev)
 	    sizeof(sc->num_lanes));
 	if (rv != sizeof(sc->num_lanes))
 		sc->num_lanes = 1;
+	dprintf("%s: num lanes: %d\n", __func__, sc->num_lanes);
+
 	if (sc->num_lanes != 1 && sc->num_lanes != 2 &&
 	    sc->num_lanes != 4 && sc->num_lanes != 8) {
 		device_printf(dev,
@@ -769,7 +807,6 @@ pci_dw_init(device_t dev)
 	    &sc->dmat);
 	if (rv != 0)
 		goto out;
-
 	rv = ofw_pcib_init(dev);
 	if (rv != 0)
 		goto out;
@@ -777,6 +814,9 @@ pci_dw_init(device_t dev)
 	    sc->ofw_pci.sc_nrange);
 	if (rv != 0)
 		goto out;
+
+	dprintf("%s: version: 0x%08X, version type:0x%08X\n", __func__,
+	    DBI_RD4(sc, DW_MISC_VERSION), DBI_RD4(sc, DW_MISC_VERSION_TYPE));
 
 	unroll_mode = pci_dw_detect_atu_unroll(sc);
 	if (bootverbose)
@@ -786,6 +826,7 @@ pci_dw_init(device_t dev)
 		rid = 0;
 		rv = ofw_bus_find_string_index(sc->node, "reg-names", "atu", &rid);
 		if (rv == 0) {
+			dprintf("%s: Have 'atu' regs\n", __func__);
 			sc->iatu_ur_res = bus_alloc_resource_any(dev,
 			    SYS_RES_MEMORY, &rid, RF_ACTIVE);
 			if (sc->iatu_ur_res == NULL) {
@@ -798,6 +839,7 @@ pci_dw_init(device_t dev)
 			sc->iatu_ur_offset = 0;
 			sc->iatu_ur_size = rman_get_size(sc->iatu_ur_res);
 		} else if (rv == ENOENT) {
+			dprintf("%s: Using 'dbi' regs for atu\n", __func__);
 			sc->iatu_ur_res = sc->dbi_res;
 			sc->iatu_ur_offset = DW_DEFAULT_IATU_UR_DBI_OFFSET;
 			sc->iatu_ur_size = DW_DEFAULT_IATU_UR_DBI_SIZE;
