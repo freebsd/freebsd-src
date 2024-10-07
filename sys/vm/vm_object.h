@@ -172,6 +172,7 @@ struct vm_object {
 				void *data_ptr;
 				uintptr_t data_val;
 			};
+			void *phys_priv;
 		} phys;
 	} un_pager;
 	struct ucred *cred;
@@ -202,6 +203,7 @@ struct vm_object {
 #define	OBJ_PAGERPRIV1	0x00004000	/* Pager private */
 #define	OBJ_PAGERPRIV2	0x00008000	/* Pager private */
 #define	OBJ_SYSVSHM	0x00010000	/* SysV SHM */
+#define	OBJ_POSIXSHM	0x00020000	/* Posix SHM */
 
 /*
  * Helpers to perform conversion between vm_object page indexes and offsets.

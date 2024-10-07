@@ -945,15 +945,20 @@ shm_alloc(struct ucred *ucred, mode_t mode, bool largepage)
 	shmfd->shm_gid = ucred->cr_gid;
 	shmfd->shm_mode = mode;
 	if (largepage) {
-		shmfd->shm_object = phys_pager_allocate(NULL,
+		obj = shmfd->shm_object = phys_pager_allocate(NULL,
 		    &shm_largepage_phys_ops, NULL, shmfd->shm_size,
 		    VM_PROT_DEFAULT, 0, ucred);
+		VM_OBJECT_WLOCK(shmfd->shm_object);
+		obj->un_pager.phys.phys_priv = shmfd;
+		vm_object_set_flag(obj, OBJ_POSIXSHM);
+		VM_OBJECT_WUNLOCK(shmfd->shm_object);
 		shmfd->shm_lp_alloc_policy = SHM_LARGEPAGE_ALLOC_DEFAULT;
 	} else {
 		obj = vm_pager_allocate(shmfd_pager_type, NULL,
 		    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 		VM_OBJECT_WLOCK(obj);
 		obj->un_pager.swp.swp_priv = shmfd;
+		vm_object_set_flag(obj, OBJ_POSIXSHM);
 		VM_OBJECT_WUNLOCK(obj);
 		shmfd->shm_object = obj;
 	}
@@ -993,11 +998,12 @@ shm_drop(struct shmfd *shmfd)
 		rangelock_destroy(&shmfd->shm_rl);
 		mtx_destroy(&shmfd->shm_mtx);
 		obj = shmfd->shm_object;
-		if (!shm_largepage(shmfd)) {
-			VM_OBJECT_WLOCK(obj);
+		VM_OBJECT_WLOCK(obj);
+		if (shm_largepage(shmfd))
+			obj->un_pager.phys.phys_priv = NULL;
+		else
 			obj->un_pager.swp.swp_priv = NULL;
-			VM_OBJECT_WUNLOCK(obj);
-		}
+		VM_OBJECT_WUNLOCK(obj);
 		vm_object_deallocate(obj);
 		free(shmfd, M_SHMFD);
 	}
