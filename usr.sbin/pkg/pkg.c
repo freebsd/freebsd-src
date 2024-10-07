@@ -895,7 +895,7 @@ static const char args_bootstrap_message[] =
 
 static const char args_add_message[] =
 "Too many arguments\n"
-"Usage: pkg add [-f] [-y] {pkg.txz}\n";
+"Usage: pkg add [-f] [-y] {pkg.pkg}\n";
 
 static int
 pkg_query_yes_no(void)
@@ -1167,7 +1167,7 @@ main(int argc, char *argv[])
 
 		if (add_pkg) {
 			if (pkgarg == NULL) {
-				fprintf(stderr, "Path to pkg.txz required\n");
+				fprintf(stderr, "Path to pkg.pkg required\n");
 				exit(EXIT_FAILURE);
 			}
 			if (access(pkgarg, R_OK) == -1) {
