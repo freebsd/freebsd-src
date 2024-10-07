@@ -192,7 +192,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		/* print resources */
 		ia->indent = indent + 4;
 		devinfo_foreach_rman_resource(rman,
-			print_device_matching_resource, ia);
+		    print_device_matching_resource, ia);
 
 		xo_close_list(safe_desc);
 	}
@@ -248,7 +248,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 
 	const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
 	bool printit = (vflag || (dev->dd_name[0] != 0
-		&& dev->dd_state >= DS_ATTACHED));
+	    && dev->dd_state >= DS_ATTACHED));
 
 	if (printit) {
 		indent = (int)(intptr_t)arg;
@@ -294,14 +294,14 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 	if (hexmode) {
 		if (res->dr_size > 1)
 			snprintf(s, 32, "0x%lx-0x%lx",
-				res->dr_start, res->dr_start + res->dr_size - 1);
+			    res->dr_start, res->dr_start + res->dr_size - 1);
 		else
 			snprintf(s, 32, "0x%lx", res->dr_start);
 	}
 	else {
 		if (res->dr_size > 1)
 			snprintf(s, 32, "%u-%u", (unsigned int) res->dr_start,
-				(unsigned int) (res->dr_start + res->dr_size - 1));
+			    (unsigned int) (res->dr_start + res->dr_size - 1));
 		else
 			snprintf(s, 32, "%u", (unsigned int) res->dr_start);
 	}
@@ -376,7 +376,8 @@ static void
 print_path(struct devinfo_dev *root, char *path)
 {
 	open_tag_index = 0;
-	if (devinfo_foreach_device_child(root, print_device_path, (void *)path) == 0)
+	if (devinfo_foreach_device_child(root, print_device_path,
+	    (void *)path) == 0)
 		xo_errx(1, "%s: Not found", path);
 	if (!vflag)
 		xo_emit("\n");
@@ -408,7 +409,6 @@ main(int argc, char *argv[])
 	if (argc < 0) {
 		exit(EXIT_FAILURE);
 	}
-
 
 	uflag = 0;
 	while ((c = getopt(argc, argv, "p:ruv")) != -1) {
