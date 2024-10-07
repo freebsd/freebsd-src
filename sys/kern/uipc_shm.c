@@ -2208,3 +2208,34 @@ sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
 	    uap->shmflags, NULL, uap->name));
 }
+
+int
+shm_get_path(struct vm_object *obj, char *path, size_t sz)
+{
+	struct shmfd *shmfd;
+	int error;
+
+	error = 0;
+	shmfd = NULL;
+	sx_slock(&shm_dict_lock);
+	VM_OBJECT_RLOCK(obj);
+	if ((obj->flags & OBJ_POSIXSHM) == 0) {
+		error = EINVAL;
+	} else {
+		if (obj->type == shmfd_pager_type)
+			shmfd = obj->un_pager.swp.swp_priv;
+		else if (obj->type == OBJT_PHYS)
+			shmfd = obj->un_pager.phys.phys_priv;
+		if (shmfd == NULL) {
+			error = ENXIO;
+		} else {
+			strlcpy(path, shmfd->shm_path == NULL ? "anon" :
+			    shmfd->shm_path, sz);
+		}
+	}
+	if (error != 0)
+		path[0] = '\0';
+	VM_OBJECT_RUNLOCK(obj);
+	sx_sunlock(&shm_dict_lock);
+	return (error);
+}
