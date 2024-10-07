@@ -59,10 +59,9 @@ typedef unsigned long cap_ioctl_t;
 // Too many links
 #define E_TOO_MANY_LINKS EMLINK
 
-// TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on accept.
-// FreeBSD does not generate a capability from accept(cap_fd,...).
-// https://bugs.freebsd.org/201052
-// #define CAP_FROM_ACCEPT
+// As of commit 85b0f9de11c3 ("capsicum: propagate rights on accept(2)")
+// FreeBSD generates a capability from accept(cap_fd,...).
+#define CAP_FROM_ACCEPT
 // TODO(FreeBSD): uncomment if/when FreeBSD propagates rights on sctp_peeloff.
 // FreeBSD does not generate a capability from sctp_peeloff(cap_fd,...).
 // https://bugs.freebsd.org/201052
