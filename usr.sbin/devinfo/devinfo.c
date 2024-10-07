@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <libxo/xo.h>
 #include "devinfo.h"
 
@@ -112,7 +113,7 @@ void
 print_resource(struct devinfo_res *res)
 {
 	struct devinfo_rman	*rman;
-	int hexmode;
+	bool hexmode;
 	rman_res_t end;
 	char* safe_desc;
 
