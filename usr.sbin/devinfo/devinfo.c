@@ -251,7 +251,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 	int	indent;
 
 	const char* devname = dev->dd_name[0] ? dev->dd_name : "unknown";
-	int printit = (vflag || (dev->dd_name[0] != 0
+	bool printit = (vflag || (dev->dd_name[0] != 0
 		&& dev->dd_state >= DS_ATTACHED));
 
 	if (printit) {
@@ -288,7 +288,7 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
 	struct devinfo_rman *rman;
-	int hexmode;
+	bool hexmode;
 	char s[32];
 
 	dev = devinfo_handle_to_device(res->dr_device);
