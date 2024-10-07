@@ -95,7 +95,7 @@ print_kvlist(char* s)
 }
 
 static void
-xml_safe_string(char s[])
+xml_safe_string(char *s)
 {
 	int i;
 	for (i=0; s[i] != '\0'; i++) {
