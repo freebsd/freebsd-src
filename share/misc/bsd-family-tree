@@ -456,14 +456,17 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |       |      |    |      |        |                    |
  |     |   FreeBSD    |      |  NetBSD   |        |                    |
  |     |     13.3     |      |   9.4     |        |                    |
- |     |              |      |           |        |                    |
- |     |              |      *--NetBSD   |        |                    |
- |     |              |      |   10.0    |        |                    |
- |     |              |      |           |        |                    |
- |     |              |      |           |    OpenBSD 7.5              |
- |     |              |      |         NetBSD     |                    |
- |  FreeBSD           |      |          8.3       |                    |
- |   14.1             |      |                    |                    |
+ |     |      |       |      |           |        |                    |
+ |     |      |       |      *--NetBSD   |        |                    |
+ |     |      |       |      |   10.0    |        |                    |
+ |     |      |       |      |           |        |                    |
+ |     |      |       |      |           |    OpenBSD 7.5              |
+ |     |      |       |      |         NetBSD     |                    |
+ |     |      |       |      |          8.3       |                    |
+ |  FreeBSD   |       |      |                    |                    |
+ |   14.1     |       |      |                    |                    |
+ |         FreeBSD    |      |                    |                    |
+ |           13.4     |      |                OpenBSD 7.6              |
  |                    |      |                    |                    |
 FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -899,6 +902,8 @@ OpenBSD 7.5             2024-04-05 [OBD]
 NetBSD 9.4		2024-04-20 [NBD]
 NetBSD 8.3		2024-05-04 [NBD]
 FreeBSD 14.1		2024-06-04 [FBD]
+FreeBSD 13.4		2024-09-17 [FBD]
+OpenBSD 7.6             2024-10-08 [OBD]
 
 Bibliography
 ------------------------
