@@ -2594,6 +2594,7 @@ vm_page_alloc_nofree_domain(int domain, int req)
 	}
 	m = &nqp->ma[nqp->offs++];
 	vm_domain_free_unlock(vmd);
+	VM_CNT_ADD(v_nofree_count, 1);
 
 	return (m);
 }
