@@ -181,7 +181,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 
 		/* there are, print header */
 
-		safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+		safe_desc = (char*) malloc(strlen(rman->dm_desc));
 		strcpy(safe_desc, rman->dm_desc);
 		xml_safe_string(safe_desc);
 
@@ -324,7 +324,7 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 {
 	char* safe_desc;
 
-	safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+	safe_desc = (char*) malloc(strlen(rman->dm_desc));
 	strcpy(safe_desc, rman->dm_desc);
 	xml_safe_string(safe_desc);
 
