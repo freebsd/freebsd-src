@@ -117,7 +117,7 @@ print_resource(struct devinfo_res *res)
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
 	end = res->dr_start + res->dr_size - 1;
 
-	safe_desc = (char*) malloc(sizeof(rman->dm_desc));
+	safe_desc = (char*) malloc(strlen(rman->dm_desc));
 	strcpy(safe_desc, rman->dm_desc);
 	xml_safe_string(safe_desc);
 
