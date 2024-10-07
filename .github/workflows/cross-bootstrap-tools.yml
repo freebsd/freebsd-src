@@ -2,9 +2,13 @@ name: Cross-build Kernel
 
 on:
   push:
-    branches: [ main, 'stable/14', 'stable/13' ]
+    branches: 
+      - main
+      - 'stable/14'
+      - 'stable/13'
   pull_request:
-    branches: [ main ]
+    branches: 
+      - main
   workflow_dispatch:
 
 permissions:
@@ -17,22 +21,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target_arch: [ amd64, aarch64 ]
-        os: [ ubuntu-22.04, ubuntu-24.04, macos-latest ]
+        target_arch:
+          - amd64
+          - aarch64
+        os: 
+          - ubuntu-24.04
+          - macos-latest
         include:
-          # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
-          - os: ubuntu-22.04
-            compiler: clang-14
-            cross-bindir: /usr/lib/llvm-14/bin
-            pkgs: bmake libarchive-dev clang-14 lld-14
           - os: ubuntu-24.04
             compiler: clang-18
-            cross-bindir: /usr/lib/llvm-18/bin
-            pkgs: bmake libarchive-dev clang-18 lld-18
+            pkgs: libarchive-dev clang-18 lld-18
+            llvm-bindir: /usr/lib/llvm-18/bin
+            llvm-ld: /usr/lib/llvm-18/bin/ld.lld
+            # the Ubuntu packaged bmake causes build errors
+            bmake: ./tools/build/make.py
           - os: macos-latest
             compiler: clang-18
-            cross-bindir: /opt/homebrew/opt/llvm@18/bin
-            pkgs: bmake libarchive llvm@18
+            # llvm@19 causes build error
+            pkgs: bmake libarchive llvm@18 lld
+            llvm-bindir: /opt/homebrew/opt/llvm@18/bin
+            llvm-ld: /opt/homebrew/opt/lld/bin/ld.lld
+            bmake: bmake
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
@@ -51,17 +60,35 @@ jobs:
           brew install ${{ matrix.pkgs }} || true
       - name: create environment
         run: |
-          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
-          if [ -n "${{ matrix.cross-bindir }}" ]; then
-            echo "EXTRA_BUILD_ARGS=--cross-bindir=${{ matrix.cross-bindir }}" >> $GITHUB_ENV
-          fi
+          echo "CC=${{ matrix.llvm-bindir }}/clang" >> $GITHUB_ENV
+          echo "CXX=${{ matrix.llvm-bindir }}/clang++" >> $GITHUB_ENV
+          echo "CPP=${{ matrix.llvm-bindir }}/clang-cpp" >> $GITHUB_ENV
+
+          echo "XCC=${{ matrix.llvm-bindir }}/clang" >> $GITHUB_ENV
+          echo "XCXX=${{ matrix.llvm-bindir }}/clang++" >> $GITHUB_ENV
+          echo "XCPP=${{ matrix.llvm-bindir }}/clang-cpp" >> $GITHUB_ENV
+          echo "XLD=${{ matrix.llvm-ld }}" >> $GITHUB_ENV
+
           mkdir -p ../build
           echo "MAKEOBJDIRPREFIX=${PWD%/*}/build" >> $GITHUB_ENV
-          # heh, works on Linux/BSD/macOS ...
           echo "NPROC=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 1`" >> $GITHUB_ENV
-      - name: bootstrap bmake
-        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} -n
+
+      - name: show environment
+        run: |
+          echo Running on $(uname -a)
+          echo "CWD = $PWD"
+          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+          echo "Using bmake as ${{ matrix.bmake }}"
+          echo Using CC=${CC}
+          echo Using LD=${LD}
+          echo Using XCC=${XCC}
+          echo Using XLD=${XLD}
+          echo Using MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}
+          echo Using NPROC=${NPROC}
+          echo Using EXTRA_MAKE_ARGS=${EXTRA_MAKE_ARGS}
+
       - name: make kernel-toolchain
-        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} kernel-toolchain -s -j$NPROC -DWITH_DISK_IMAGE_TOOLS_BOOTSTRAP
+        run: ${{ matrix.bmake }} TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} -s -j$NPROC kernel-toolchain -DWITH_DISK_IMAGE_TOOLS_BOOTSTRAP
+
       - name: make buildkernel
-        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} KERNCONF=GENERIC NO_MODULES=yes buildkernel -s -j$NPROC $EXTRA_MAKE_ARGS
+        run: ${{ matrix.bmake }} TARGET=${{ matrix.target }} TARGET_ARCH=${{ matrix.target_arch }} -s -j$NPROC buildkernel KERNCONF=GENERIC NO_MODULES=yes
