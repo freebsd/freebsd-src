@@ -1497,7 +1497,7 @@ vfs_domount_update(
 			bcopy(bufp, &export, len);
 			grps = NULL;
 			if (export.ex_ngroups > 0) {
-				if (export.ex_ngroups <= NGROUPS_MAX) {
+				if (export.ex_ngroups <= ngroups_max + 1) {
 					grps = malloc(export.ex_ngroups *
 					    sizeof(gid_t), M_TEMP, M_WAITOK);
 					export_error = copyin(export.ex_groups,
