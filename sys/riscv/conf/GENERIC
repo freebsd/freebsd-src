@@ -90,6 +90,9 @@ device		syscon
 device		syscon_power
 device		riscv_syscon
 
+# CPU frequency control
+device		cpufreq
+
 # Bus drivers
 device		pci
 
