@@ -83,6 +83,8 @@ altpath_body()
 {
 	echo "echo ${magic_words}" >magic_words
 	chmod 0755 magic_words
+	atf_check -s exit:125 -e match:"must specify command" \
+		  env -P "${PWD}"
 	atf_check -s exit:127 -e match:"No such file" \
 		  env magic_words
 	atf_check -o inline:"${magic_words}\n" \
@@ -100,12 +102,32 @@ equal_body()
 	chmod 0755 "magic=words"
 	atf_check -o match:"^${PWD}/magic=words$" \
 		  env "${PWD}/magic=words"
-	atf_check -o match:"^magic=words$" \
+	atf_check -s exit:125 -e match:"must specify command" \
 		  env -P "${PATH}:${PWD}" "magic=words"
 	atf_check -o inline:"${magic_words}\n" \
 		  env command "${PWD}/magic=words"
 	atf_check -o inline:"${magic_words}\n" \
 		  env PATH="${PATH}:${PWD}" command "magic=words"
+}
+
+atf_test_case chdir
+chdir_head()
+{
+	atf_set "descr" "Change working directory"
+}
+chdir_body()
+{
+	local subdir="dir.$$"
+	atf_check -o inline:"${PWD}\n" \
+		  env pwd
+	atf_check -s exit:125 -e match:"must specify command" \
+		  env -C "${subdir}"
+	atf_check -s exit:125 \
+		  -e match:"cannot change directory to '${subdir}':" \
+		  env -C "${subdir}" pwd
+	atf_check mkdir "${subdir}"
+	atf_check -o inline:"${PWD}/${subdir}\n" \
+		  env -C "${subdir}" pwd
 }
 
 atf_init_test_cases()
@@ -117,4 +139,5 @@ atf_init_test_cases()
 	atf_add_test_case false
 	atf_add_test_case altpath
 	atf_add_test_case equal
+	atf_add_test_case chdir
 }
