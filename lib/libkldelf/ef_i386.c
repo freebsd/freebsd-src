@@ -1,12 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 John Baldwin <jhb@FreeBSD.org>
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory (Department of Computer Science and
- * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
- * DARPA SSITH research programme.
+ * Copyright (c) 2003 Jake Burkholder.
+ * Copyright 1996-1998 John D. Polstra.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +33,7 @@
 #include <errno.h>
 #include <gelf.h>
 
-#include "ef.h"
+#include "kldelf.h"
 
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
@@ -44,7 +41,7 @@
  * that is to be relocated, and has been copied to *dest
  */
 static int
-ef_mips_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+ef_i386_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
@@ -75,34 +72,21 @@ ef_mips_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
-	if (reltype == ELF_T_REL) {
-		if (elf_class(ef) == ELFCLASS64) {
-			if (elf_encoding(ef) == ELFDATA2LSB)
-				addend = le64dec(where);
-			else
-				addend = be64dec(where);
-		} else {
-			if (elf_encoding(ef) == ELFDATA2LSB)
-				addend = le32dec(where);
-			else
-				addend = be32dec(where);
-		}
-	}
+	if (reltype == ELF_T_REL)
+		addend = le32dec(where);
 
 	switch (rtype) {
-	case R_MIPS_64:		/* S + A */
-		addr = EF_SYMADDR(ef, symidx) + addend;
-		if (elf_encoding(ef) == ELFDATA2LSB)
-			le64enc(where, addr);
-		else
-			be64enc(where, addr);
+	case R_386_RELATIVE:	/* B + A */
+		addr = relbase + addend;
+		le32enc(where, addr);
 		break;
-	case R_MIPS_32:		/* S + A */
+	case R_386_32:	/* S + A - P */
 		addr = EF_SYMADDR(ef, symidx) + addend;
-		if (elf_encoding(ef) == ELFDATA2LSB)
-			le32enc(where, addr);
-		else
-			be32enc(where, addr);
+		le32enc(where, addr);
+		break;
+	case R_386_GLOB_DAT:	/* S */
+		addr = EF_SYMADDR(ef, symidx);
+		le32enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
@@ -110,7 +94,4 @@ ef_mips_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	return (0);
 }
 
-ELF_RELOC(ELFCLASS32, ELFDATA2LSB, EM_MIPS, ef_mips_reloc);
-ELF_RELOC(ELFCLASS32, ELFDATA2MSB, EM_MIPS, ef_mips_reloc);
-ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_MIPS, ef_mips_reloc);
-ELF_RELOC(ELFCLASS64, ELFDATA2MSB, EM_MIPS, ef_mips_reloc);
+ELF_RELOC(ELFCLASS32, ELFDATA2LSB, EM_386, ef_i386_reloc);
