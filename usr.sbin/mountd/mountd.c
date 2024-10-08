@@ -3634,7 +3634,6 @@ parsecred(char *namelist, struct expcred *cr)
 	 */
 	names = namelist;
 	name = strsep_quote(&names, ":");
-	/* Bug?  name could be NULL here */
 	name_ul = strtoul(name, &end, 10);
 	if (*end != '\0' || end == name)
 		pw = getpwnam(name);
