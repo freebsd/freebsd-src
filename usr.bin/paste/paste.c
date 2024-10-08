@@ -85,14 +85,14 @@ main(int argc, char *argv[])
 			arg = optarg;
 			len = mbsrtowcs(NULL, &arg, 0, NULL);
 			if (len == (size_t)-1)
-				err(1, "delimiters");
+				err(EXIT_FAILURE, "delimiters");
 			warg = malloc((len + 1) * sizeof(*warg));
 			if (warg == NULL)
-				err(1, NULL);
+				err(EXIT_FAILURE, NULL);
 			arg = optarg;
 			len = mbsrtowcs(warg, &arg, len + 1, NULL);
 			if (len == (size_t)-1)
-				err(1, "delimiters");
+				err(EXIT_FAILURE, "delimiters");
 			delimcnt = tr(delim = warg);
 			break;
 		case 's':
@@ -249,7 +249,7 @@ tr(wchar_t *arg)
 			*arg = ch;
 
 	if (!cnt)
-		errx(1, "no delimiters specified");
+		errx(EXIT_FAILURE, "no delimiters specified");
 	return(cnt);
 }
 
@@ -257,5 +257,5 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: paste [-s] [-d delimiters] file ...\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
