@@ -945,24 +945,20 @@ shm_alloc(struct ucred *ucred, mode_t mode, bool largepage)
 	shmfd->shm_gid = ucred->cr_gid;
 	shmfd->shm_mode = mode;
 	if (largepage) {
-		obj = shmfd->shm_object = phys_pager_allocate(NULL,
-		    &shm_largepage_phys_ops, NULL, shmfd->shm_size,
-		    VM_PROT_DEFAULT, 0, ucred);
-		VM_OBJECT_WLOCK(shmfd->shm_object);
+		obj = phys_pager_allocate(NULL, &shm_largepage_phys_ops,
+		    NULL, shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 		obj->un_pager.phys.phys_priv = shmfd;
-		vm_object_set_flag(obj, OBJ_POSIXSHM);
-		VM_OBJECT_WUNLOCK(shmfd->shm_object);
 		shmfd->shm_lp_alloc_policy = SHM_LARGEPAGE_ALLOC_DEFAULT;
 	} else {
 		obj = vm_pager_allocate(shmfd_pager_type, NULL,
 		    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
-		VM_OBJECT_WLOCK(obj);
 		obj->un_pager.swp.swp_priv = shmfd;
-		vm_object_set_flag(obj, OBJ_POSIXSHM);
-		VM_OBJECT_WUNLOCK(obj);
-		shmfd->shm_object = obj;
 	}
-	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
+	KASSERT(obj != NULL, ("shm_create: vm_pager_allocate"));
+	VM_OBJECT_WLOCK(obj);
+	vm_object_set_flag(obj, OBJ_POSIXSHM);
+	VM_OBJECT_WUNLOCK(obj);
+	shmfd->shm_object = obj;
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
