@@ -176,8 +176,10 @@ nvme_sysctl_num_cmds(SYSCTL_HANDLER_ARGS)
 
 	num_cmds = ctrlr->adminq.num_cmds;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num_cmds += ctrlr->ioq[i].num_cmds;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num_cmds += ctrlr->ioq[i].num_cmds;
+	}
 
 	return (sysctl_handle_64(oidp, &num_cmds, 0, req));
 }
@@ -191,8 +193,10 @@ nvme_sysctl_num_intr_handler_calls(SYSCTL_HANDLER_ARGS)
 
 	num_intr_handler_calls = ctrlr->adminq.num_intr_handler_calls;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num_intr_handler_calls += ctrlr->ioq[i].num_intr_handler_calls;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num_intr_handler_calls += ctrlr->ioq[i].num_intr_handler_calls;
+	}
 
 	return (sysctl_handle_64(oidp, &num_intr_handler_calls, 0, req));
 }
@@ -206,8 +210,10 @@ nvme_sysctl_num_retries(SYSCTL_HANDLER_ARGS)
 
 	num_retries = ctrlr->adminq.num_retries;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num_retries += ctrlr->ioq[i].num_retries;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num_retries += ctrlr->ioq[i].num_retries;
+	}
 
 	return (sysctl_handle_64(oidp, &num_retries, 0, req));
 }
@@ -221,8 +227,10 @@ nvme_sysctl_num_failures(SYSCTL_HANDLER_ARGS)
 
 	num_failures = ctrlr->adminq.num_failures;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num_failures += ctrlr->ioq[i].num_failures;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num_failures += ctrlr->ioq[i].num_failures;
+	}
 
 	return (sysctl_handle_64(oidp, &num_failures, 0, req));
 }
@@ -236,8 +244,10 @@ nvme_sysctl_num_ignored(SYSCTL_HANDLER_ARGS)
 
 	num_ignored = ctrlr->adminq.num_ignored;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num_ignored += ctrlr->ioq[i].num_ignored;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num_ignored += ctrlr->ioq[i].num_ignored;
+	}
 
 	return (sysctl_handle_64(oidp, &num_ignored, 0, req));
 }
@@ -251,8 +261,10 @@ nvme_sysctl_num_recovery_nolock(SYSCTL_HANDLER_ARGS)
 
 	num = ctrlr->adminq.num_recovery_nolock;
 
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		num += ctrlr->ioq[i].num_recovery_nolock;
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			num += ctrlr->ioq[i].num_recovery_nolock;
+	}
 
 	return (sysctl_handle_64(oidp, &num, 0, req));
 }
@@ -271,8 +283,10 @@ nvme_sysctl_reset_stats(SYSCTL_HANDLER_ARGS)
 	if (val != 0) {
 		nvme_qpair_reset_stats(&ctrlr->adminq);
 
-		for (i = 0; i < ctrlr->num_io_queues; i++)
-			nvme_qpair_reset_stats(&ctrlr->ioq[i]);
+		if (ctrlr->ioq != NULL) {
+			for (i = 0; i < ctrlr->num_io_queues; i++)
+				nvme_qpair_reset_stats(&ctrlr->ioq[i]);
+		}
 	}
 
 	return (0);
@@ -413,12 +427,19 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 
 	nvme_sysctl_initialize_queue(&ctrlr->adminq, ctrlr_ctx, que_tree);
 
-	for (i = 0; i < ctrlr->num_io_queues; i++) {
-		snprintf(queue_name, QUEUE_NAME_LENGTH, "ioq%d", i);
-		que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    queue_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IO Queue");
-		nvme_sysctl_initialize_queue(&ctrlr->ioq[i], ctrlr_ctx,
-		    que_tree);
+	/*
+	 * Make sure that we've constructed the I/O queues before setting up the
+	 * sysctls. Failed controllers won't allocate it, but we want the rest
+	 * of the sysctls to diagnose things.
+	 */
+	if (ctrlr->ioq != NULL) {
+		for (i = 0; i < ctrlr->num_io_queues; i++) {
+			snprintf(queue_name, QUEUE_NAME_LENGTH, "ioq%d", i);
+			que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO,
+			    queue_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IO Queue");
+			nvme_sysctl_initialize_queue(&ctrlr->ioq[i], ctrlr_ctx,
+			    que_tree);
+		}
 	}
 
 	SYSCTL_ADD_COUNTER_U64(ctrlr_ctx, ctrlr_list, OID_AUTO, "alignment_splits",
