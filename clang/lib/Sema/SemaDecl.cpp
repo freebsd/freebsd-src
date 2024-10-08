@@ -9732,8 +9732,9 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     // the function decl is created above).
     // FIXME: We need a better way to separate C++ standard and clang modules.
     bool ImplicitInlineCXX20 = !getLangOpts().CPlusPlusModules ||
+                               NewFD->isConstexpr() || NewFD->isConsteval() ||
                                !NewFD->getOwningModule() ||
-                               NewFD->isFromExplicitGlobalModule() ||
+                               NewFD->isFromGlobalModule() ||
                                NewFD->getOwningModule()->isHeaderLikeModule();
     bool isInline = D.getDeclSpec().isInlineSpecified();
     bool isVirtual = D.getDeclSpec().isVirtualSpecified();
