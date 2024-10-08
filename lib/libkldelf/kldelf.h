@@ -32,8 +32,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _EF_H_
-#define _EF_H_
+#ifndef _KLDELF_H_
+#define _KLDELF_H_
 
 #include <sys/linker_set.h>
 #include <stdbool.h>
@@ -312,4 +312,4 @@ int	elf_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 
 __END_DECLS
 
-#endif /* _EF_H_*/
+#endif /* _KLDELF_H_*/
