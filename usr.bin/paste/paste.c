@@ -33,6 +33,9 @@
  */
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/queue.h>
 
 #include <err.h>
@@ -74,6 +77,9 @@ main(int argc, char *argv[])
 	wchar_t *warg;
 	const char *arg;
 	size_t len;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	STAILQ_INIT(&lh);
 	setlocale(LC_CTYPE, "");
@@ -130,6 +136,17 @@ main(int argc, char *argv[])
 
 		STAILQ_INSERT_TAIL(&lh, lp, entries);
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	if (cap_enter() < 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	cap_rights_init(&rights, CAP_READ);
+	STAILQ_FOREACH(lp, &lh, entries) {
+		if (lp->fp && (cap_rights_limit(fileno(lp->fp), &rights) < 0))
+			err(EXIT_FAILURE, "unable to limit rights for %s", lp->name);
+	}
+#endif
 
 	rval = seq ? sequential() : parallel();
 
