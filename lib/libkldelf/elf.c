@@ -686,3 +686,9 @@ elf_reloc(struct elf_file *efile, const void *reldata, Elf_Type reltype,
 	return (efile->ef_reloc(efile, reldata, reltype, relbase, dataoff, len,
 	    dest));
 }
+
+int
+elf_lookup_symbol(struct elf_file *efile, const char *name, GElf_Sym **sym)
+{
+	return (EF_LOOKUP_SYMBOL(efile, name, sym));
+}
