@@ -1,12 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018 John Baldwin <jhb@FreeBSD.org>
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory (Department of Computer Science and
- * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
- * DARPA SSITH research programme.
+ * Copyright (c) 2005 Peter Grehan.
+ * Copyright 1996-1998 John D. Polstra.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +33,7 @@
 #include <errno.h>
 #include <gelf.h>
 
-#include "kldelf.h"
+#include "ef.h"
 
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
@@ -44,7 +41,7 @@
  * that is to be relocated, and has been copied to *dest
  */
 static int
-ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+ef_ppc_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
@@ -68,13 +65,26 @@ ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 		return (0);
 
 	switch (rtype) {
-	case R_RISCV_64:	/* S + A */
-		addr = EF_SYMADDR(ef, symidx) + addend;
-		le64enc(where, addr);
-		break;
-	case R_RISCV_RELATIVE:	/* B + A */
+	case R_PPC_RELATIVE: /* word32|doubleword64 B + A */
 		addr = relbase + addend;
-		le64enc(where, addr);
+		if (elf_class(ef) == ELFCLASS64) {
+			if (elf_encoding(ef) == ELFDATA2LSB)
+				le64enc(where, addr);
+			else
+				be64enc(where, addr);
+		} else
+			be32enc(where, addr);
+		break;
+	case R_PPC_ADDR32:	/* word32 S + A */
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		be32enc(where, addr);
+		break;
+	case R_PPC64_ADDR64:	/* doubleword64 S + A */
+		addr = EF_SYMADDR(ef, symidx) + addend;
+		if (elf_encoding(ef) == ELFDATA2LSB)
+			le64enc(where, addr);
+		else
+			be64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
@@ -82,4 +92,6 @@ ef_riscv_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	return (0);
 }
 
-ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_RISCV, ef_riscv_reloc);
+ELF_RELOC(ELFCLASS32, ELFDATA2MSB, EM_PPC, ef_ppc_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_PPC64, ef_ppc_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2MSB, EM_PPC64, ef_ppc_reloc);

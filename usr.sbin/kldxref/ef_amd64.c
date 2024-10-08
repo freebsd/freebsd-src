@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2005 Peter Grehan.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2003 Jake Burkholder.
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -31,7 +33,7 @@
 #include <errno.h>
 #include <gelf.h>
 
-#include "kldelf.h"
+#include "ef.h"
 
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
@@ -39,15 +41,23 @@
  * that is to be relocated, and has been copied to *dest
  */
 static int
-ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+ef_amd64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
 	GElf_Addr addr, addend;
 	GElf_Size rtype, symidx;
+	const GElf_Rel *rel;
 	const GElf_Rela *rela;
 
 	switch (reltype) {
+	case ELF_T_REL:
+		rel = (const GElf_Rel *)reldata;
+		where = (char *)dest + (relbase + rel->r_offset - dataoff);
+		addend = 0;
+		rtype = GELF_R_TYPE(rel->r_info);
+		symidx = GELF_R_SYM(rel->r_info);
+		break;
 	case ELF_T_RELA:
 		rela = (const GElf_Rela *)reldata;
 		where = (char *)dest + (relbase + rela->r_offset - dataoff);
@@ -62,20 +72,42 @@ ef_aarch64_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	if (where < (char *)dest || where >= (char *)dest + len)
 		return (0);
 
+	if (reltype == ELF_T_REL) {
+		/* Addend is 32 bit on 32 bit relocs */
+		switch (rtype) {
+		case R_X86_64_PC32:
+		case R_X86_64_32S:
+			addend = le32dec(where);
+			break;
+		default:
+			addend = le64dec(where);
+			break;
+		}
+	}
+
 	switch (rtype) {
-	case R_AARCH64_RELATIVE:
-		addr = relbase + addend;
+	case R_X86_64_NONE:	/* none */
+		break;
+	case R_X86_64_64:	/* S + A */
+		addr = EF_SYMADDR(ef, symidx) + addend;
 		le64enc(where, addr);
 		break;
-	case R_AARCH64_ABS64:
+	case R_X86_64_32S:	/* S + A sign extend */
 		addr = EF_SYMADDR(ef, symidx) + addend;
+		le32enc(where, addr);
+		break;
+	case R_X86_64_GLOB_DAT:	/* S */
+		addr = EF_SYMADDR(ef, symidx);
+		le64enc(where, addr);
+		break;
+	case R_X86_64_RELATIVE:	/* B + A */
+		addr = relbase + addend;
 		le64enc(where, addr);
 		break;
 	default:
 		warnx("unhandled relocation type %d", (int)rtype);
-		break;
 	}
 	return (0);
 }
 
-ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_AARCH64, ef_aarch64_reloc);
+ELF_RELOC(ELFCLASS64, ELFDATA2LSB, EM_X86_64, ef_amd64_reloc);

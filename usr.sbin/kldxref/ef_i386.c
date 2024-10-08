@@ -4,7 +4,6 @@
  * Copyright (c) 2003 Jake Burkholder.
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
- * Copyright (c) 2023 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +33,7 @@
 #include <errno.h>
 #include <gelf.h>
 
-#include "kldelf.h"
+#include "ef.h"
 
 /*
  * Apply relocations to the values obtained from the file. `relbase' is the
@@ -42,7 +41,7 @@
  * that is to be relocated, and has been copied to *dest
  */
 static int
-ef_arm_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
+ef_i386_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
     GElf_Addr relbase, GElf_Addr dataoff, size_t len, void *dest)
 {
 	char *where;
@@ -77,12 +76,16 @@ ef_arm_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 		addend = le32dec(where);
 
 	switch (rtype) {
-	case R_ARM_ABS32:	/* S + A */
+	case R_386_RELATIVE:	/* B + A */
+		addr = relbase + addend;
+		le32enc(where, addr);
+		break;
+	case R_386_32:	/* S + A - P */
 		addr = EF_SYMADDR(ef, symidx) + addend;
 		le32enc(where, addr);
 		break;
-	case R_ARM_RELATIVE:	/* B + A */
-		addr = relbase + addend;
+	case R_386_GLOB_DAT:	/* S */
+		addr = EF_SYMADDR(ef, symidx);
 		le32enc(where, addr);
 		break;
 	default:
@@ -91,4 +94,4 @@ ef_arm_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
 	return (0);
 }
 
-ELF_RELOC(ELFCLASS32, ELFDATA2LSB, EM_ARM, ef_arm_reloc);
+ELF_RELOC(ELFCLASS32, ELFDATA2LSB, EM_386, ef_i386_reloc);

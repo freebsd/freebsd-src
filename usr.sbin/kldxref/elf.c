@@ -44,7 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "kldelf.h"
+#include "ef.h"
 
 SET_DECLARE(elf_reloc, struct elf_reloc_data);
 
