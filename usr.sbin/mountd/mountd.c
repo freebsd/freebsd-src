@@ -3616,21 +3616,14 @@ parsecred(char *namelist, struct expcred *cr)
 	char *name;
 	char *names;
 	struct passwd *pw;
-	struct group *gr;
 	gid_t groups[NGROUPS_MAX + 1];
 	int ngroups;
 	unsigned long name_ul;
 	char *end = NULL;
 
 	/*
-	 * Set up the unprivileged user.
-	 */
-	cr->cr_groups = cr->cr_smallgrps;
-	cr->cr_uid = UID_NOBODY;
-	cr->cr_groups[0] = nogroup();
-	cr->cr_ngroups = 1;
-	/*
-	 * Get the user's password table entry.
+	 * Parse the user and if possible get its password table entry.
+	 * 'cr_uid' is filled when exiting this block.
 	 */
 	names = namelist;
 	name = strsep_quote(&names, ":");
@@ -3639,13 +3632,25 @@ parsecred(char *namelist, struct expcred *cr)
 		pw = getpwnam(name);
 	else
 		pw = getpwuid((uid_t)name_ul);
+	if (pw != NULL) {
+		cr->cr_uid = pw->pw_uid;
+	} else if (*end != '\0' || end == name) {
+		syslog(LOG_ERR, "unknown user: %s", name);
+		cr->cr_uid = UID_NOBODY;
+		goto nogroup;
+	} else {
+		cr->cr_uid = name_ul;
+	}
+
 	/*
-	 * Credentials specified as those of a user.
+	 * Credentials specified as those of a user (i.e., use its associated
+	 * groups as specified in the password database).
 	 */
 	if (names == NULL) {
 		if (pw == NULL) {
-			syslog(LOG_ERR, "unknown user: %s", name);
-			return;
+			syslog(LOG_ERR, "no passwd entry for user: %s, "
+			    "can't determine groups", name);
+			goto nogroup;
 		}
 		cr->cr_uid = pw->pw_uid;
 		ngroups = NGROUPS_MAX + 1;
@@ -3660,20 +3665,14 @@ parsecred(char *namelist, struct expcred *cr)
 		memcpy(cr->cr_groups, groups, ngroups * sizeof(gid_t));
 		return;
 	}
+
 	/*
-	 * Explicit credential specified as a colon separated list:
+	 * Explicit credentials specified as a colon separated list:
 	 *	uid:gid:gid:...
 	 */
-	if (pw != NULL) {
-		cr->cr_uid = pw->pw_uid;
-	} else if (*end != '\0' || end == name) {
-		syslog(LOG_ERR, "unknown user: %s", name);
-		return;
-	} else {
-		cr->cr_uid = name_ul;
-	}
 	cr->cr_ngroups = 0;
 	while (names != NULL && *names != '\0') {
+		const struct group *gr;
 		gid_t group;
 
 		name = strsep_quote(&names, ":");
@@ -3693,14 +3692,16 @@ parsecred(char *namelist, struct expcred *cr)
 		}
 		groups[cr->cr_ngroups++] = group;
 	}
-	if (cr->cr_ngroups == 0) {
-		/* cr->cr_groups[0] filled at start with nogroup(). */
-		cr->cr_ngroups = 1;
-		return;
-	}
+	if (cr->cr_ngroups == 0)
+		goto nogroup;
 	if (cr->cr_ngroups > SMALLNGROUPS)
 		cr->cr_groups = malloc(cr->cr_ngroups * sizeof(gid_t));
 	memcpy(cr->cr_groups, groups, cr->cr_ngroups * sizeof(gid_t));
+	return;
+
+nogroup:
+	cr->cr_ngroups = 1;
+	cr->cr_groups[0] = nogroup();
 }
 
 #define	STRSIZ	(MNTNAMLEN+MNTPATHLEN+50)
