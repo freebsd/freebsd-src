@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\"	$NetBSD: vmem.9,v 1.15 2013/01/29 22:02:17 wiz Exp $
 .\"
 .\" Copyright (c)2006 YAMAMOTO Takashi,
@@ -74,7 +77,7 @@ other than virtual memory.
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_create
 creates a new vmem arena.
-.Bl -tag -width qcache_max
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa name
 The string to describe the vmem.
 .It Fa base
@@ -117,7 +120,7 @@ wait flag.
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_xalloc
 allocates a resource from the arena.
-.Bl -tag -width nocross
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa vm
 The arena which we allocate from.
 .It Fa size
@@ -159,7 +162,7 @@ A bitwise OR of an allocation strategy and a
 .Xr malloc 9
 wait flag.
 The allocation strategy is one of:
-.Bl -tag -width indent
+.Bl -tag -width "M_FIRSTFIT"
 .It Dv M_FIRSTFIT
 Prefer allocation performance.
 .It Dv M_BESTFIT
@@ -182,7 +185,7 @@ overwrites it with the start address of the allocated span.
 frees resource allocated by
 .Fn vmem_xalloc
 to the arena.
-.Bl -tag -width addr
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa vm
 The arena which we free to.
 .It Fa addr
@@ -203,7 +206,7 @@ argument used for
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_alloc
 allocates a resource from the arena.
-.Bl -tag -width flags
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa vm
 The arena which we allocate from.
 .It Fa size
@@ -228,7 +231,7 @@ overwrites it with the start address of the allocated span.
 frees resource allocated by
 .Fn vmem_alloc
 to the arena.
-.Bl -tag -width addr
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa vm
 The arena which we free to.
 .It Fa addr
@@ -249,7 +252,7 @@ argument used for
 .\" ------------------------------------------------------------
 .Fn vmem_destroy
 destroys a vmem arena.
-.Bl -tag -width vm
+.Bl -tag -offset indent -width "qcache_max"
 .It Fa vm
 The vmem arena being destroyed.
 The caller should ensure that no one will use it anymore.
