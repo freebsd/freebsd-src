@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/queue.h>
 
 #include <err.h>
 #include <errno.h>
@@ -106,43 +107,43 @@ main(int argc, char *argv[])
 }
 
 typedef struct _list {
-	struct _list *next;
+	STAILQ_ENTRY(_list) entries;
 	FILE *fp;
 	int cnt;
 	char *name;
 } LIST;
 
+static STAILQ_HEAD(head, _list) lh;
+
 static int
 parallel(char **argv)
 {
+	struct head lh;
 	LIST *lp;
 	int cnt;
 	wint_t ich;
 	wchar_t ch;
 	char *p;
-	LIST *head, *tmp;
 	int opencnt, output;
 
-	for (cnt = 0, head = tmp = NULL; (p = *argv); ++argv, ++cnt) {
+	STAILQ_INIT(&lh);
+
+	for (cnt = 0; (p = *argv); ++argv, ++cnt) {
 		if ((lp = malloc(sizeof(LIST))) == NULL)
 			err(1, NULL);
 		if (p[0] == '-' && !p[1])
 			lp->fp = stdin;
 		else if (!(lp->fp = fopen(p, "r")))
 			err(1, "%s", p);
-		lp->next = NULL;
 		lp->cnt = cnt;
 		lp->name = p;
-		if (!head)
-			head = tmp = lp;
-		else {
-			tmp->next = lp;
-			tmp = lp;
-		}
+
+		STAILQ_INSERT_TAIL(&lh, lp, entries);
 	}
 
 	for (opencnt = cnt; opencnt;) {
-		for (output = 0, lp = head; lp; lp = lp->next) {
+		output = 0;
+		STAILQ_FOREACH(lp, &lh, entries) {
 			if (!lp->fp) {
 				if (output && lp->cnt &&
 				    (ch = delim[(lp->cnt - 1) % delimcnt]))
