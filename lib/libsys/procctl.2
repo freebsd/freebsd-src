@@ -755,6 +755,10 @@ No processes matched the requested
 .Fa idtype
 and
 .Fa id .
+.It Bq Er ESRCH
+No descendant processes can be found matching criteria specified in the
+.Dv PROC_REAP_KILL
+request.
 .It Bq Er EINVAL
 An invalid operation or flag was passed in
 .Fa data
