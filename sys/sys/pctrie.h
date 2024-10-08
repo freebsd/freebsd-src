@@ -239,6 +239,24 @@ name##_PCTRIE_RECLAIM_CALLBACK(struct pctrie *ptree,			\
 		freefn(ptree, freenode);				\
 }									\
 									\
+static __inline __unused int						\
+name##_PCTRIE_ITER_INSERT(struct pctrie_iter *it, struct type *ptr)	\
+{									\
+	struct pctrie_node *parent;					\
+	void *parentp;							\
+	uint64_t *val = name##_PCTRIE_PTR2VAL(ptr);			\
+									\
+	parentp = pctrie_iter_insert_lookup(it, val);			\
+	if (parentp == NULL)						\
+		return (0);						\
+	parent = allocfn(it->ptree);					\
+	if (__predict_false(parent == NULL))				\
+		return (ENOMEM);					\
+	pctrie_insert_node(parentp, parent, val);			\
+	it->path[it->top++] = parent;					\
+	return (0);							\
+}									\
+									\
 static __inline __unused struct type *					\
 name##_PCTRIE_ITER_LOOKUP(struct pctrie_iter *it, uint64_t index)	\
 {									\
@@ -369,6 +387,8 @@ uint64_t	*pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index);
 uint64_t	*pctrie_iter_stride(struct pctrie_iter *it, int stride);
 uint64_t	*pctrie_iter_next(struct pctrie_iter *it);
 uint64_t	*pctrie_iter_prev(struct pctrie_iter *it);
+void		*pctrie_iter_insert_lookup(struct pctrie_iter *it,
+		    uint64_t *val);
 uint64_t	*pctrie_lookup_ge(struct pctrie *ptree, uint64_t key);
 uint64_t	*pctrie_subtree_lookup_gt(struct pctrie_node *node,
 		    uint64_t key);
