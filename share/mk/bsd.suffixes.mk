@@ -10,6 +10,7 @@
 .c.o:
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
+	${TBLEXTRACT_CMD}
 
 .c.bco:
 	${CC} -emit-llvm ${IR_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}

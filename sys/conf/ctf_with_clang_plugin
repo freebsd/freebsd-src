@@ -12,17 +12,13 @@ KERNEL_CFLAGS="-target aarch64-unknown-freebsd15.0 --sysroot=/usr/obj/usr/src/ar
 -I/usr/src/sys/compat/linuxkpi/common/include -I/usr/src/sys/compat/linuxkpi/dymmy/include \
 -include /usr/obj/usr/src/arm64.aarch64/sys/GENERIC/opt_global.h -nostdinc"
 
-CTFCONVERT="/usr/bin/ctfconvert"
-CTFFLAGS="-L VERSION -g"  
-
 case "$1" in
   *.c|*.h)
     echo "Running Clang plugin on $1..."
     ${CLANG_PLUGIN_CMD} ${KERNEL_CFLAGS} "$1"
-
+    
     if [ $? -ne 0 ]; then
       echo "Error running Clang plugin on $1"
-      exit 1
     fi
     ;;
   *.o)
@@ -32,10 +28,3 @@ case "$1" in
     echo "Skipping Clang plugin for non-C/C header file $1..."
     ;;
 esac
-
-if [ $? -eq 0 ]; then
-  ${CTFCONVERT} ${CTFFLAGS} "$2"
-else
-  echo "Error running Clang plugin"
-  exit 1
-fi
