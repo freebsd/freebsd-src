@@ -99,10 +99,8 @@ main(int argc, char *argv[])
 		delim = tab;
 	}
 
-	if (seq)
-		rval = sequential(argv);
-	else
-		rval = parallel(argv);
+	rval = seq ? sequential(argv) : parallel(argv);
+
 	exit(rval);
 }
 
@@ -118,7 +116,6 @@ static STAILQ_HEAD(head, _list) lh;
 static int
 parallel(char **argv)
 {
-	struct head lh;
 	LIST *lp;
 	int cnt;
 	wint_t ich;
@@ -244,7 +241,8 @@ tr(wchar_t *arg)
 			default:
 				*arg = ch;
 				break;
-		} else
+			}
+		else
 			*arg = ch;
 
 	if (!cnt)
