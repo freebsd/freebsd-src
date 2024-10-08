@@ -109,7 +109,6 @@ static struct elf_file_ops ef_obj_file_ops = {
 	.seg_read_string	= ef_obj_seg_read_string,
 	.symaddr		= ef_obj_symaddr,
 	.lookup_set		= ef_obj_lookup_set,
-	.lookup_symbol		= ef_obj_lookup_symbol,
 };
 
 static GElf_Off
