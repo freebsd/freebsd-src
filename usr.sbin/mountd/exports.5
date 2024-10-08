@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 16, 2024
+.Dd October 08, 2024
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -170,8 +170,23 @@ The user string may be quoted, or use backslash escaping.
 The colon separated list is used to specify the precise credential
 to be used for remote access by root.
 The elements of the list may be either names or numbers.
-Note that user: should be used to distinguish a credential containing
-no groups from a complete credential for that user.
+Note that
+.Cm user:
+should be used to specify a credential containing no groups, in which case the
+established credential will use
+.Ql nogroup ,
+else 65533
+.Pq Dv GID_NOGROUP ,
+as the fallback group
+.Pq a credential object must have at least one group internally .
+Using just
+.Cm user
+.Pq without colon at end
+falls into the
+.Sm off
+.Fl maproot Li = Sy user
+.Sm on
+case described above.
 The group names may be quoted, or use backslash escaping.
 .Pp
 .Sm off
