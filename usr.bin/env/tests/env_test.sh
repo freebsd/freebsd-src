@@ -130,6 +130,22 @@ chdir_body()
 		  env -C "${subdir}" pwd
 }
 
+atf_test_case stdout
+stdout_head()
+{
+	atf_set descr "Failure to write to stdout"
+}
+stdout_body()
+{
+	(
+		trap "" PIPE
+		env 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"1\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -140,4 +156,5 @@ atf_init_test_cases()
 	atf_add_test_case altpath
 	atf_add_test_case equal
 	atf_add_test_case chdir
+	atf_add_test_case stdout
 }
