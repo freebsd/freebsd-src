@@ -45,11 +45,22 @@
 #include <unistd.h>
 #include <wchar.h>
 
+typedef struct _list {
+	STAILQ_ENTRY(_list) entries;
+	FILE *fp;
+	int cnt;
+	int err;
+	char *name;
+} LIST;
+
+STAILQ_HEAD(head, _list) static lh;
+
 static wchar_t *delim;
 static int delimcnt;
+static int filecnt;
 
-static int parallel(char **);
-static int sequential(char **);
+static int parallel(void);
+static int sequential(void);
 static int tr(wchar_t *);
 static void usage(void) __dead2;
 
@@ -58,11 +69,13 @@ static wchar_t tab[] = L"\t";
 int
 main(int argc, char *argv[])
 {
-	int ch, rval, seq;
+	LIST *lp;
+	int ch, failed, rval, seq;
 	wchar_t *warg;
 	const char *arg;
 	size_t len;
 
+	STAILQ_INIT(&lh);
 	setlocale(LC_CTYPE, "");
 
 	seq = 0;
@@ -99,46 +112,39 @@ main(int argc, char *argv[])
 		delim = tab;
 	}
 
-	rval = seq ? sequential(argv) : parallel(argv);
-
-	exit(rval);
-}
-
-typedef struct _list {
-	STAILQ_ENTRY(_list) entries;
-	FILE *fp;
-	int cnt;
-	char *name;
-} LIST;
-
-STAILQ_HEAD(head, _list) static lh;
-
-static int
-parallel(char **argv)
-{
-	LIST *lp;
-	int cnt;
-	wint_t ich;
-	wchar_t ch;
-	char *p;
-	int opencnt, output;
-
-	STAILQ_INIT(&lh);
-
-	for (cnt = 0; (p = *argv); ++argv, ++cnt) {
+	for (filecnt = 0; *argv; ++argv, ++filecnt) {
+		failed = 0;
 		if ((lp = malloc(sizeof(LIST))) == NULL)
-			err(1, NULL);
-		if (p[0] == '-' && !p[1])
+			err(EXIT_FAILURE, NULL);
+		if ((*argv)[0] == '-' && !(*argv)[1])
 			lp->fp = stdin;
-		else if (!(lp->fp = fopen(p, "r")))
-			err(1, "%s", p);
-		lp->cnt = cnt;
-		lp->name = p;
+		else if (!(lp->fp = fopen(*argv, "r"))) {
+			if (!seq)
+				err(EXIT_FAILURE, "%s", *argv);
+			else
+				failed = errno;
+		}
+		lp->cnt = filecnt;
+		lp->err = failed;
+		lp->name = *argv;
 
 		STAILQ_INSERT_TAIL(&lh, lp, entries);
 	}
 
-	for (opencnt = cnt; opencnt;) {
+	rval = seq ? sequential() : parallel();
+
+	exit(rval);
+}
+
+static int
+parallel(void)
+{
+	LIST *lp;
+	wint_t ich;
+	wchar_t ch;
+	int opencnt, output;
+
+	for (opencnt = filecnt; opencnt;) {
 		output = 0;
 		STAILQ_FOREACH(lp, &lh, entries) {
 			if (!lp->fp) {
@@ -162,7 +168,7 @@ parallel(char **argv)
 			 */
 			if (!output) {
 				output = 1;
-				for (cnt = 0; cnt < lp->cnt; ++cnt)
+				for (int cnt = 0; cnt < lp->cnt; ++cnt)
 					if ((ch = delim[cnt % delimcnt]))
 						putwchar(ch);
 			} else if ((ch = delim[(lp->cnt - 1) % delimcnt]))
@@ -181,24 +187,21 @@ parallel(char **argv)
 }
 
 static int
-sequential(char **argv)
+sequential(void)
 {
-	FILE *fp;
+	LIST *lp;
 	int cnt, failed, needdelim;
 	wint_t ch;
-	char *p;
 
 	failed = 0;
-	for (; (p = *argv); ++argv) {
-		if (p[0] == '-' && !p[1])
-			fp = stdin;
-		else if (!(fp = fopen(p, "r"))) {
-			warn("%s", p);
-			failed = 1;
+	STAILQ_FOREACH(lp, &lh, entries) {
+		cnt = needdelim = 0;
+		if (lp->err) {
+			errno = failed = lp->err;
+			warn("%s", lp->name);
 			continue;
 		}
-		cnt = needdelim = 0;
-		while ((ch = getwc(fp)) != WEOF) {
+		while ((ch = getwc(lp->fp)) != WEOF) {
 			if (needdelim) {
 				needdelim = 0;
 				if (delim[cnt] != '\0')
@@ -213,11 +216,11 @@ sequential(char **argv)
 		}
 		if (needdelim)
 			putwchar('\n');
-		if (fp != stdin)
-			(void)fclose(fp);
+		if (lp->fp != stdin)
+			(void)fclose(lp->fp);
 	}
 
-	return (failed != 0);
+	return (failed != EXIT_SUCCESS);
 }
 
 static int
