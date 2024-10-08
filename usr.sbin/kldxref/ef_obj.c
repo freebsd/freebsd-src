@@ -43,7 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "kldelf.h"
+#include "ef.h"
 
 typedef struct {
 	GElf_Addr	addr;
