@@ -273,6 +273,8 @@ static int	xdr_mlist(XDR *, caddr_t);
 static void	terminate(int);
 static void	cp_cred(struct expcred *, struct expcred *);
 
+static gid_t	nogroup();
+
 #define	EXPHASH(f)	(fnv_32_buf((f), sizeof(fsid_t), 0) % exphashsize)
 static struct exportlisthead *exphead = NULL;
 static struct exportlisthead *oldexphead = NULL;
@@ -1577,7 +1579,7 @@ get_exportlist_one(int passno)
 		anon.cr_groups = anon.cr_smallgrps;
 		anon.cr_uid = UID_NOBODY;
 		anon.cr_ngroups = 1;
-		anon.cr_groups[0] = GID_NOGROUP;
+		anon.cr_groups[0] = nogroup();
 		exflags = MNT_EXPORTED;
 		got_nondir = 0;
 		opt_flags = 0;
@@ -3582,7 +3584,7 @@ parsecred(char *namelist, struct expcred *cr)
 	 */
 	cr->cr_groups = cr->cr_smallgrps;
 	cr->cr_uid = UID_NOBODY;
-	cr->cr_groups[0] = GID_NOGROUP;
+	cr->cr_groups[0] = nogroup();
 	cr->cr_ngroups = 1;
 	/*
 	 * Get the user's password table entry.
@@ -3650,6 +3652,11 @@ parsecred(char *namelist, struct expcred *cr)
 			break;
 		}
 		groups[cr->cr_ngroups++] = group;
+	}
+	if (cr->cr_ngroups == 0) {
+		/* cr->cr_groups[0] filled at start with nogroup(). */
+		cr->cr_ngroups = 1;
+		return;
 	}
 	if (cr->cr_ngroups > SMALLNGROUPS)
 		cr->cr_groups = malloc(cr->cr_ngroups * sizeof(gid_t));
@@ -3988,4 +3995,20 @@ cp_cred(struct expcred *outcr, struct expcred *incr)
 		outcr->cr_groups = outcr->cr_smallgrps;
 	memcpy(outcr->cr_groups, incr->cr_groups, incr->cr_ngroups *
 	    sizeof(gid_t));
+}
+
+static gid_t
+nogroup()
+{
+	static gid_t nogroup = 0;	/* 0 means unset. */
+
+	if (nogroup == 0) {
+		const struct group *gr = getgrnam("nogroup");
+
+		if (gr != NULL && gr->gr_gid != 0)
+			nogroup = gr->gr_gid;
+		else
+			nogroup = GID_NOGROUP;
+	}
+	return (nogroup);
 }
