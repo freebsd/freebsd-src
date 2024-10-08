@@ -41,7 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ef.h"
+#include "kldelf.h"
 
 #define	MAXSEGS 16
 struct ef_file {

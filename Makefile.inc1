@@ -2509,8 +2509,12 @@ ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 _bt_libelf_depend=${_bt}-lib/libelf
 .endif
 
+_libkldelf=	lib/libkldelf
+${_bt}-lib/libkldelf: ${_bt_libelf_depend}
+_bt_libkldelf_depend=${_bt}-lib/libkldelf
+
 _kldxref=	usr.sbin/kldxref
-${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend}
+${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend} ${_bt_libkldelf_depend}
 
 # flua is required to regenerate syscall files.  It first appeared during the
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
@@ -2773,6 +2777,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_cat} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
+    ${_libkldelf} \
     ${_kldxref} \
     lib/libopenbsd \
     usr.bin/mandoc \
@@ -3216,7 +3221,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libfigpar \
 		${_lib_libgssapi} \
 		lib/libjail \
-		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
+		lib/libkiconv lib/libkldelf lib/libkvm \
+		lib/liblzma lib/libmd lib/libnv \
 		lib/libzstd \
 		${_lib_casper} \
 		lib/ncurses/tinfo \
@@ -3251,6 +3257,7 @@ _prebuild_libs+= lib/libregex
 .endif
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
+lib/libkldelf__L: lib/libelf__L
 lib/libkvm__L: lib/libelf__L
 
 .if ${MK_RADIUS_SUPPORT} != "no"

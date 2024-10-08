@@ -27,6 +27,7 @@ _PRIVATELIBS=	\
 		gtest_main \
 		heimipcc \
 		heimipcs \
+		kldelf \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -312,6 +313,7 @@ _DP_bsnmp=	crypto
 .endif
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
+_DP_kldelf=	elf
 _DP_kvm=	elf
 _DP_casper=	nv
 _DP_cap_dns=	nv
