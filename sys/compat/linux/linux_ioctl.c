@@ -421,6 +421,8 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 		lios->c_iflag |= LINUX_IXOFF;
 	if (bios->c_iflag & IMAXBEL)
 		lios->c_iflag |= LINUX_IMAXBEL;
+	if (bios->c_iflag & IUTF8)
+		lios->c_iflag |= LINUX_IUTF8;
 
 	lios->c_oflag = 0;
 	if (bios->c_oflag & OPOST)
@@ -538,6 +540,8 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 		bios->c_iflag |= IXOFF;
 	if (lios->c_iflag & LINUX_IMAXBEL)
 		bios->c_iflag |= IMAXBEL;
+	if (lios->c_iflag & LINUX_IUTF8)
+		bios->c_iflag |= IUTF8;
 
 	bios->c_oflag = 0;
 	if (lios->c_oflag & LINUX_OPOST)
