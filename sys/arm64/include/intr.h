@@ -28,6 +28,8 @@
 #define	_MACHINE_INTR_H_
 
 #ifndef LOCORE
+#include <sys/intr.h>
+
 static inline void
 arm_irq_memory_barrier(uintptr_t irq)
 {

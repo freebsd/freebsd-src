@@ -38,8 +38,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#include <machine/intr.h>
-
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
