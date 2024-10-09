@@ -750,8 +750,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * physical pages.
 	 */
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		if (vm_phys_avail_size(i) != 0)
-			vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
+		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
 
 	/*
 	 * Initialize the physical memory allocator.
