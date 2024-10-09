@@ -51,7 +51,6 @@
 #include <sys/conf.h>
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
-#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -73,6 +72,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
