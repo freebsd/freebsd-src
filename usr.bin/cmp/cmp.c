@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <nl_types.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +67,6 @@ volatile sig_atomic_t info;
 static void
 siginfo(int signo)
 {
-
 	info = signo;
 }
 #endif
@@ -244,7 +244,7 @@ main(int argc, char *argv[])
 	else {
 		if (zflag && sb1.st_size != sb2.st_size) {
 			if (!sflag)
-				(void) printf("%s %s differ: size\n",
+				(void)printf("%s %s differ: size\n",
 				    file1, file2);
 			exit(DIFF_EXIT);
 		}

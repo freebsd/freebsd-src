@@ -31,12 +31,12 @@ special_head() {
 special_body() {
 	echo 0123456789abcdef > a
 	echo 0123456789abcdeg > b
-	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp a -"
-	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp - a"
-	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp a -"
-	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp - a"
+	atf_check -s exit:0 -o empty -e empty cmp a - <a
+	atf_check -s exit:0 -o empty -e empty cmp - a <a
+	atf_check -s exit:1 -o not-empty -e empty cmp a - <b
+	atf_check -s exit:1 -o not-empty -e empty cmp - a <b
 
-	atf_check -s exit:0 -o empty -e empty -x "cmp a a <&-"
+	atf_check -s exit:0 -o empty -e empty cmp a a <&-
 }
 
 atf_test_case symlink
@@ -112,9 +112,9 @@ limit_body()
 
 	# Test special, too.  The implementation for link is effectively
 	# identical.
-	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 4 b -"
-	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 3 b -"
-	atf_check -s exit:1 -o ignore -x "cat a | cmp -sn 5 b -"
+	atf_check -s exit:0 -e empty cmp -sn 4 b - <a
+	atf_check -s exit:0 -e empty cmp -sn 3 b - <a
+	atf_check -s exit:1 -o ignore cmp -sn 5 b - <a
 }
 
 atf_test_case bflag
