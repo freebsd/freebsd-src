@@ -44,6 +44,8 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
+#include <sys/intr.h>
+
 void arm_irq_memory_barrier(uintptr_t);
 #endif /* !LOCORE */
 

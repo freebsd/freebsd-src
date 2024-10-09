@@ -33,8 +33,6 @@
 #error Need INTRNG for this file
 #endif
 
-#include <machine/intr.h>
-
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
