@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)regular.c	8.3 (Berkeley) 4/2/94";
 #include <err.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -56,7 +57,7 @@ static void segv_handler(int);
 
 #define ROUNDPAGE(i) ((i) & ~pagemask)
 
-void
+int
 c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     int fd2, const char *file2, off_t skip2, off_t len2, off_t limit)
 {
@@ -68,15 +69,19 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	size_t pagesize;
 	int dfound;
 
-	if (skip1 > len1)
+	if (skip1 > len1) {
 		eofmsg(file1);
+		return (DIFF_EXIT);
+	}
 	len1 -= skip1;
-	if (skip2 > len2)
+	if (skip2 > len2) {
 		eofmsg(file2);
+		return (DIFF_EXIT);
+	}
 	len2 -= skip2;
 
 	if (sflag && len1 != len2)
-		exit(DIFF_EXIT);
+		return (DIFF_EXIT);
 
 	pagesize = getpagesize();
 	pagemask = (off_t)pagesize - 1;
@@ -88,14 +93,12 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 		length = MIN(length, limit);
 
 	if ((m1 = remmap(NULL, fd1, off1)) == NULL) {
-		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
-		return;
+		return (c_special(fd1, file1, skip1, fd2, file2, skip2, limit));
 	}
 
 	if ((m2 = remmap(NULL, fd2, off2)) == NULL) {
 		munmap(m1, MMAP_CHUNK);
-		c_special(fd1, file1, skip1, fd2, file2, skip2, limit);
-		return;
+		return (c_special(fd1, file1, skip1, fd2, file2, skip2, limit));
 	}
 
 	if (caph_rights_limit(fd1, cap_rights_init(&rights, CAP_MMAP_R)) < 0)
@@ -126,21 +129,21 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 		}
 #endif
 		if ((ch = *p1) != *p2) {
+			dfound = 1;
 			if (xflag) {
-				dfound = 1;
 				(void)printf("%08llx %02x %02x\n",
 				    (long long)byte - 1, ch, *p2);
 			} else if (lflag) {
-				dfound = 1;
 				if (bflag)
 					(void)printf("%6lld %3o %c %3o %c\n",
 					    (long long)byte, ch, ch, *p2, *p2);
 				else
 					(void)printf("%6lld %3o %3o\n",
 					    (long long)byte, ch, *p2);
-			} else
+			} else {
 				diffmsg(file1, file2, byte, line, ch, *p2);
-				/* NOTREACHED */
+				return (DIFF_EXIT);
+			}
 		}
 		if (ch == '\n')
 			++line;
@@ -167,10 +170,11 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	if (sigaction(SIGSEGV, &oact, NULL))
 		err(ERR_EXIT, "sigaction()");
 
-	if (len1 != len2)
-		eofmsg (len1 > len2 ? file2 : file1);
-	if (dfound)
-		exit(DIFF_EXIT);
+	if (len1 != len2) {
+		eofmsg(len1 > len2 ? file2 : file1);
+		return (DIFF_EXIT);
+	}
+	return (dfound ? DIFF_EXIT : 0);
 }
 
 static u_char *
