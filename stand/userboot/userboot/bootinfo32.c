@@ -108,9 +108,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
-    kfp = file_findfile(NULL, "elf kernel");
-    if (kfp == NULL)
-      kfp = file_findfile(NULL, "elf32 kernel");
+    kfp = file_findfile(NULL, md_kerntype);
     if (kfp == NULL)
 	panic("can't find kernel file");
     kernend = 0;	/* fill it in later */

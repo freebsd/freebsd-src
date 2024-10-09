@@ -146,9 +146,7 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 #endif
 
     kernend = 0;
-    kfp = file_findfile(NULL, kern64 ? "elf64 kernel" : "elf32 kernel");
-    if (kfp == NULL)
-	kfp = file_findfile(NULL, "elf kernel");
+    kfp = file_findfile(NULL, md_kerntype);
     if (kfp == NULL)
 	panic("can't find kernel file");
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
