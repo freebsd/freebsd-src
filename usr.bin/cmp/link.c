@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -42,7 +43,8 @@ c_link(const char *file1, off_t skip1, const char *file2, off_t skip2,
 {
 	char buf1[PATH_MAX], *p1;
 	char buf2[PATH_MAX], *p2;
-	int dfound, len1, len2;
+	ssize_t len1, len2;
+	int dfound;
 	off_t byte;
 	u_char ch;
 
