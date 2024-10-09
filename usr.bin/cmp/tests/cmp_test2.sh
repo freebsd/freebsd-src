@@ -133,6 +133,35 @@ bflag_body()
 	    cmp -bl a b
 }
 
+# Helper for stdout test case
+atf_check_stdout()
+{
+	(
+		trap "" PIPE
+		cmp "$@" 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"2\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
+atf_test_case stdout
+stdout_head()
+{
+	atf_set descr "Failure to write to stdout"
+}
+stdout_body()
+{
+	echo a >a
+	echo b >b
+	atf_check_stdout a b
+	atf_check_stdout - b <a
+	atf_check_stdout a - <b
+	ln -s a alnk
+	ln -s b blnk
+	atf_check_stdout -h alnk blnk
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
@@ -141,4 +170,5 @@ atf_init_test_cases()
 	atf_add_test_case skipsuff
 	atf_add_test_case limit
 	atf_add_test_case bflag
+	atf_add_test_case stdout
 }
