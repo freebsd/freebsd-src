@@ -60,7 +60,7 @@ This is an alias for
 .It Dv MEMBARRIER_CMD_GLOBAL_EXPEDITED
 Execute a memory barrier on all running threads of all processes registered
 with
-.Dv MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED
+.Dv MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED .
 .It Dv MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED
 Register the process to receive
 .Dv MEMBARRIER_CMD_GLOBAL_EXPEDITED
@@ -102,8 +102,9 @@ The
 argument is ignored.
 .Sh RETURN VALUES
 If the
-.Dv cmd
-is MEMBARRIER_CMD_QUERY
+.Fa cmd
+is
+.Dv MEMBARRIER_CMD_QUERY
 a bitmask of supported commands is returned.
 Otherwise, on success,
 .Nm
