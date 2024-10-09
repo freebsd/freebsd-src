@@ -458,10 +458,18 @@ vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end)
 {
 	vm_paddr_t paddr;
 
-	KASSERT((start & PAGE_MASK) == 0,
-	    ("vm_phys_define_seg: start is not page aligned"));
-	KASSERT((end & PAGE_MASK) == 0,
-	    ("vm_phys_define_seg: end is not page aligned"));
+	if ((start & PAGE_MASK) != 0)
+		panic("%s: start (%jx) is not page aligned", __func__,
+		    (uintmax_t)start);
+	if ((end & PAGE_MASK) != 0)
+		panic("%s: end (%jx) is not page aligned", __func__,
+		    (uintmax_t)end);
+	if (start > end)
+		panic("%s: start (%jx) > end (%jx)!", __func__,
+		    (uintmax_t)start, (uintmax_t)end);
+
+	if (start == end)
+		return;
 
 	/*
 	 * Split the physical memory segment if it spans two or more free
