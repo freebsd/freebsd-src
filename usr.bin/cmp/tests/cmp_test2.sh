@@ -31,12 +31,12 @@ special_head() {
 special_body() {
 	echo 0123456789abcdef > a
 	echo 0123456789abcdeg > b
-	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp a -"
-	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp - a"
-	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp a -"
-	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp - a"
+	atf_check -s exit:0 -o empty -e empty cmp a - <a
+	atf_check -s exit:0 -o empty -e empty cmp - a <a
+	atf_check -s exit:1 -o not-empty -e empty cmp a - <b
+	atf_check -s exit:1 -o not-empty -e empty cmp - a <b
 
-	atf_check -s exit:0 -o empty -e empty -x "cmp a a <&-"
+	atf_check -s exit:0 -o empty -e empty cmp a a <&-
 }
 
 atf_test_case symlink
@@ -112,9 +112,9 @@ limit_body()
 
 	# Test special, too.  The implementation for link is effectively
 	# identical.
-	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 4 b -"
-	atf_check -s exit:0 -e empty -x "cat a | cmp -sn 3 b -"
-	atf_check -s exit:1 -o ignore -x "cat a | cmp -sn 5 b -"
+	atf_check -s exit:0 -e empty cmp -sn 4 b - <a
+	atf_check -s exit:0 -e empty cmp -sn 3 b - <a
+	atf_check -s exit:1 -o ignore cmp -sn 5 b - <a
 }
 
 atf_test_case bflag
@@ -133,6 +133,35 @@ bflag_body()
 	    cmp -bl a b
 }
 
+# Helper for stdout test case
+atf_check_stdout()
+{
+	(
+		trap "" PIPE
+		cmp "$@" 2>stderr
+		echo $? >result
+	) | true
+	atf_check -o inline:"2\n" cat result
+	atf_check -o match:"stdout" cat stderr
+}
+
+atf_test_case stdout
+stdout_head()
+{
+	atf_set descr "Failure to write to stdout"
+}
+stdout_body()
+{
+	echo a >a
+	echo b >b
+	atf_check_stdout a b
+	atf_check_stdout - b <a
+	atf_check_stdout a - <b
+	ln -s a alnk
+	ln -s b blnk
+	atf_check_stdout -h alnk blnk
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
@@ -141,4 +170,5 @@ atf_init_test_cases()
 	atf_add_test_case skipsuff
 	atf_add_test_case limit
 	atf_add_test_case bflag
+	atf_add_test_case stdout
 }
