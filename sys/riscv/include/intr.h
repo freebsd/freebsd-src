@@ -35,6 +35,8 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#include <sys/intr.h>
+
 #ifndef	NIRQ
 #define	NIRQ			1024
 #endif
