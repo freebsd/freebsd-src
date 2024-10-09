@@ -38,7 +38,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -66,6 +65,7 @@
 #include <machine/md_var.h>
 
 #include <machine/resource.h>
+#include <machine/intr.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
