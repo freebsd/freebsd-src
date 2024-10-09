@@ -553,11 +553,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sca = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
 	sca->ifp = if_alloc(IFT_ETHER);
 	sca->num_queues = epair_tasks.tasks;
-	if (sca->ifp == NULL) {
-		free(sca, M_EPAIR);
-		ifc_free_unit(ifc, unit);
-		return (ENOSPC);
-	}
 	sca->queues = mallocarray(sca->num_queues, sizeof(struct epair_queue),
 	    M_EPAIR, M_WAITOK);
 	for (int i = 0; i < sca->num_queues; i++) {
@@ -573,13 +568,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	scb = malloc(sizeof(struct epair_softc), M_EPAIR, M_WAITOK | M_ZERO);
 	scb->ifp = if_alloc(IFT_ETHER);
 	scb->num_queues = epair_tasks.tasks;
-	if (scb->ifp == NULL) {
-		free(scb, M_EPAIR);
-		if_free(sca->ifp);
-		free(sca, M_EPAIR);
-		ifc_free_unit(ifc, unit);
-		return (ENOSPC);
-	}
 	scb->queues = mallocarray(scb->num_queues, sizeof(struct epair_queue),
 	    M_EPAIR, M_WAITOK);
 	for (int i = 0; i < scb->num_queues; i++) {
