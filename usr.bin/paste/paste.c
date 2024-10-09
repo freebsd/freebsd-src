@@ -56,7 +56,7 @@ typedef struct _list {
 	char *name;
 } LIST;
 
-STAILQ_HEAD(head, _list) static lh;
+static STAILQ_HEAD(head, _list) lh;
 
 static wchar_t *delim;
 static int delimcnt;
