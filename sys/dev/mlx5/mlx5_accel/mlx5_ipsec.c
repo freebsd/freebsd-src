@@ -328,7 +328,9 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
     struct mlx5e_ipsec_sa_entry **privp, struct mlx5e_ipsec_priv_bothdir *pb,
     struct ifnet *ifpo)
 {
+#ifdef IPSEC_OFFLOAD
 	struct rm_priotracker tracker;
+#endif
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
 	struct mlx5e_priv *priv = if_getsoftc(ifp);
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -342,9 +344,13 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
 	if (if_gettype(ifpo) == IFT_L2VLAN)
 		VLAN_TAG(ifpo, &vid);
 
+#ifdef IPSEC_OFFLOAD
 	ipsec_sahtree_rlock(&tracker);
+#endif
 	err = mlx5e_xfrm_validate_state(mdev, sav);
+#ifdef IPSEC_OFFLOAD
 	ipsec_sahtree_runlock(&tracker);
+#endif
 	if (err)
 		return err;
 
@@ -359,14 +365,20 @@ mlx5e_if_sa_newkey_onedir(struct ifnet *ifp, void *sav, int dir, u_int drv_spi,
 	sa_entry->ipsec = ipsec;
 	sa_entry->vid = vid;
 
+#ifdef IPSEC_OFFLOAD
 	ipsec_sahtree_rlock(&tracker);
+#endif
 	err = mlx5e_xfrm_validate_state(mdev, sav);
 	if (err != 0) {
+#ifdef IPSEC_OFFLOAD
 		ipsec_sahtree_runlock(&tracker);
+#endif
 		goto err_xfrm;
 	}
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry->attrs, dir);
+#ifdef IPSEC_OFFLOAD
 	ipsec_sahtree_runlock(&tracker);
+#endif
 
 	err = mlx5e_ipsec_create_dwork(sa_entry, pb);
 	if (err)
