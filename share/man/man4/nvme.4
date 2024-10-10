@@ -156,6 +156,15 @@ to NOPS 4.
 For more details, please refer to the Autonomous Power State
 Transition section in the NVM Express Base Specification.
 .Pp
+In addition to manually overriding APST table, it is possible to
+specify only the maximum total latency (i.e., enter + exit) in
+milliseconds to generate transition data automatically.
+In this case, the controller will be instructed to sequentially
+switch through all NOPS, excluding those with higher latency:
+.Bd -literal -offset indent
+hw.nvme.apst_max_latency
+.Ed
+.Pp
 The
 .Xr nvd 4
 driver is used to provide a disk driver to the system by default.
