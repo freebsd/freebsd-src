@@ -403,18 +403,26 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 {
 	struct vm_phys_seg *seg;
 
-	KASSERT(vm_phys_nsegs < VM_PHYSSEG_MAX,
-	    ("vm_phys_create_seg: increase VM_PHYSSEG_MAX"));
-	KASSERT(domain >= 0 && domain < vm_ndomains,
-	    ("vm_phys_create_seg: invalid domain provided"));
+	if (!(0 <= domain && domain < vm_ndomains))
+		panic("%s: Invalid domain %d ('vm_ndomains' is %d)",
+		    __func__, domain, vm_ndomains);
+	if (vm_phys_nsegs >= VM_PHYSSEG_MAX)
+		panic("Not enough storage for physical segments, "
+		    "increase VM_PHYSSEG_MAX");
+
 	seg = &vm_phys_segs[vm_phys_nsegs++];
-	while (seg > vm_phys_segs && (seg - 1)->start >= end) {
+	while (seg > vm_phys_segs && seg[-1].start >= end) {
 		*seg = *(seg - 1);
 		seg--;
 	}
 	seg->start = start;
 	seg->end = end;
 	seg->domain = domain;
+	if (seg != vm_phys_segs && seg[-1].end > start)
+		panic("Overlapping physical segments: Current [%#jx,%#jx) "
+		    "at index %zu, previous [%#jx,%#jx)",
+		    (uintmax_t)start, (uintmax_t)end, seg - vm_phys_segs,
+		    (uintmax_t)seg[-1].start, (uintmax_t)seg[-1].end);
 }
 
 static void
