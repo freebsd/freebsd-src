@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "crypt.h"
 
@@ -246,9 +247,9 @@ crypt_sha512(const char *key, const char *salt, char *buffer)
 	 * the SHA512 implementation as well. */
 	SHA512_Init(&ctx);
 	SHA512_Final(alt_result, &ctx);
-	memset(temp_result, '\0', sizeof(temp_result));
-	memset(p_bytes, '\0', key_len);
-	memset(s_bytes, '\0', salt_len);
+	explicit_bzero(temp_result, sizeof(temp_result));
+	explicit_bzero(p_bytes, key_len);
+	explicit_bzero(s_bytes, salt_len);
 
 	return (0);
 }
