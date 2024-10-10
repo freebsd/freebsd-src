@@ -74,6 +74,29 @@ Historically,
 was the preferred way before the deprecation of
 .Sy \&Li .
 .El
+.Ss HARDWARE Section
+Driver manuals in section four should have a
+.Sx HARDWARE
+section with a subsection for the type of hardware supported.
+This enables clean generation of Hardware Release Notes.
+.Pp
+Supported subsections are as follows:
+.Pp
+.Bl -tag -offset indent -compact
+.It Sx Disk Controllers
+.It Sx Ethernet Interfaces
+.It Sx FDDI Interfaces
+.It Sx Wireless Network Interfaces
+.It Sx Miscellaneous Networks
+.It Sx Serial Interfaces
+.It Sx Sound Devices
+.It Sx Cameras and Video Capture Devices
+.It Sx Sound Devices
+.It Sx IEEE 1394 (Firewire) Devices
+.It Sx Bluetooth Devices
+.It Sx Cryptographic Accelerators
+.It Sx Miscellaneous
+.El
 .Ss EXAMPLES Section
 .Bl -dash -width ""
 .It
