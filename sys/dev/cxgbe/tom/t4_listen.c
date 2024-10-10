@@ -72,9 +72,9 @@
 #include "tom/t4_tom.h"
 
 /* stid services */
-static int alloc_stid(struct adapter *, struct listen_ctx *, int);
+static int alloc_stid(struct adapter *, bool, void *);
 static struct listen_ctx *lookup_stid(struct adapter *, int);
-static void free_stid(struct adapter *, struct listen_ctx *);
+static void free_stid(struct adapter *, int , bool);
 
 /* lctx services */
 static struct listen_ctx *alloc_lctx(struct adapter *, struct inpcb *,
@@ -103,10 +103,14 @@ alloc_stid_tab(struct adapter *sc)
 	    M_ZERO | M_NOWAIT);
 	if (t->stid_tab == NULL)
 		return (ENOMEM);
+	t->stid_bitmap = bit_alloc(t->nstids, M_CXGBE, M_NOWAIT);
+	if (t->stid_bitmap == NULL) {
+		free(t->stid_tab, M_CXGBE);
+		t->stid_tab = NULL;
+		return (ENOMEM);
+	}
 	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
 	t->stids_in_use = 0;
-	TAILQ_INIT(&t->stids);
-	t->nstids_free_head = t->nstids;
 
 	return (0);
 }
@@ -123,6 +127,8 @@ free_stid_tab(struct adapter *sc)
 		mtx_destroy(&t->stid_lock);
 	free(t->stid_tab, M_CXGBE);
 	t->stid_tab = NULL;
+	free(t->stid_bitmap, M_CXGBE);
+	t->stid_bitmap = NULL;
 }
 
 void
@@ -194,74 +200,94 @@ restart_stid_tab(struct adapter *sc)
 }
 
 static int
-alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
+alloc_stid(struct adapter *sc, bool isipv6, void *ctx)
 {
 	struct tid_info *t = &sc->tids;
-	u_int stid, n, f, mask;
-	struct stid_region *sr = &lctx->stid_region;
-
-	/*
-	 * An IPv6 server needs 2 naturally aligned stids (1 stid = 4 cells) in
-	 * the TCAM.  The start of the stid region is properly aligned (the chip
-	 * requires each region to be 128-cell aligned).
-	 */
-	n = isipv6 ? 2 : 1;
-	mask = n - 1;
-	KASSERT((t->stid_base & mask) == 0 && (t->nstids & mask) == 0,
-	    ("%s: stid region (%u, %u) not properly aligned.  n = %u",
-	    __func__, t->stid_base, t->nstids, n));
+	const u_int n = isipv6 ? 2 : 1;
+	int stid, pair_stid;
+	u_int i;
+	ssize_t val;
 
 	mtx_lock(&t->stid_lock);
+	MPASS(t->stids_in_use <= t->nstids);
 	if (n > t->nstids - t->stids_in_use || t->stid_tab_stopped) {
 		mtx_unlock(&t->stid_lock);
 		return (-1);
 	}
 
-	if (t->nstids_free_head >= n) {
+	stid = -1;
+	if (isipv6) {
 		/*
-		 * This allocation will definitely succeed because the region
-		 * starts at a good alignment and we just checked we have enough
-		 * stids free.
+		 * An IPv6 server needs 2 naturally aligned stids (1 stid = 4
+		 * cells) in the TCAM.  We know that the start of the stid
+		 * region is properly aligned already (the chip requires each
+		 * region to be 128-cell aligned).
 		 */
-		f = t->nstids_free_head & mask;
-		t->nstids_free_head -= n + f;
-		stid = t->nstids_free_head;
-		TAILQ_INSERT_HEAD(&t->stids, sr, link);
-	} else {
-		struct stid_region *s;
-
-		stid = t->nstids_free_head;
-		TAILQ_FOREACH(s, &t->stids, link) {
-			stid += s->used + s->free;
-			f = stid & mask;
-			if (s->free >= n + f) {
-				stid -= n + f;
-				s->free -= n + f;
-				TAILQ_INSERT_AFTER(&t->stids, s, sr, link);
-				goto allocated;
+		for (i = 0; i + 1 < t->nstids; i = roundup2(val + 1, 2)) {
+			bit_ffc_area_at(t->stid_bitmap, i, t->nstids, 2, &val);
+			if (val == -1)
+				break;
+			if ((val & 1) == 0) {
+				stid = val;
+				break;
 			}
 		}
-
-		if (__predict_false(stid != t->nstids)) {
-			panic("%s: stids TAILQ (%p) corrupt."
-			    "  At %d instead of %d at the end of the queue.",
-			    __func__, &t->stids, stid, t->nstids);
+	} else {
+		/*
+		 * An IPv4 server needs one stid without any alignment
+		 * requirements.  But we try extra hard to find an available
+		 * stid adjacent to a used stid so that free "stid-pairs" are
+		 * left intact for IPv6.
+		 */
+		bit_ffc_at(t->stid_bitmap, 0, t->nstids, &val);
+		while (val != -1) {
+			if (stid == -1) {
+				/*
+				 * First usable stid.  Look no further if it's
+				 * an ideal fit.
+				 */
+				stid = val;
+				if (val & 1 || bit_test(t->stid_bitmap, val + 1))
+					break;
+			} else {
+				/*
+				 * We have an unused stid already but are now
+				 * looking for in-use stids because we'd prefer
+				 * to grab an unused stid adjacent to one that's
+				 * in use.
+				 *
+				 * Odd stids pair with the previous stid and
+				 * even ones pair with the next stid.
+				 */
+				pair_stid = val & 1 ? val - 1 : val + 1;
+				if (bit_test(t->stid_bitmap, pair_stid) == 0) {
+					stid = pair_stid;
+					break;
+				}
+			}
+			val = roundup2(val + 1, 2);
+			if (val >= t->nstids)
+				break;
+			bit_ffs_at(t->stid_bitmap, val, t->nstids, &val);
 		}
-
-		mtx_unlock(&t->stid_lock);
-		return (-1);
 	}
 
-allocated:
-	sr->used = n;
-	sr->free = f;
-	t->stids_in_use += n;
-	t->stid_tab[stid] = lctx;
+	if (stid >= 0) {
+		MPASS(stid + n - 1 < t->nstids);
+		MPASS(bit_ntest(t->stid_bitmap, stid, stid + n - 1, 0));
+		bit_nset(t->stid_bitmap, stid, stid + n - 1);
+		t->stids_in_use += n;
+		t->stid_tab[stid] = ctx;
+#ifdef INVARIANTS
+		if (n == 2) {
+			MPASS((stid & 1) == 0);
+			t->stid_tab[stid + 1] = NULL;
+		}
+#endif
+		stid += t->stid_base;
+	}
 	mtx_unlock(&t->stid_lock);
-
-	KASSERT(((stid + t->stid_base) & mask) == 0,
-	    ("%s: EDOOFUS.", __func__));
-	return (stid + t->stid_base);
+	return (stid);
 }
 
 static struct listen_ctx *
@@ -273,25 +299,28 @@ lookup_stid(struct adapter *sc, int stid)
 }
 
 static void
-free_stid(struct adapter *sc, struct listen_ctx *lctx)
+free_stid(struct adapter *sc, int stid, bool isipv6)
 {
 	struct tid_info *t = &sc->tids;
-	struct stid_region *sr = &lctx->stid_region;
-	struct stid_region *s;
-
-	KASSERT(sr->used > 0, ("%s: nonsense free (%d)", __func__, sr->used));
+	const u_int n = isipv6 ? 2 : 1;
 
 	mtx_lock(&t->stid_lock);
-	s = TAILQ_PREV(sr, stid_head, link);
-	if (s != NULL)
-		s->free += sr->used + sr->free;
-	else
-		t->nstids_free_head += sr->used + sr->free;
-	KASSERT(t->stids_in_use >= sr->used,
-	    ("%s: stids_in_use (%u) < stids being freed (%u)", __func__,
-	    t->stids_in_use, sr->used));
-	t->stids_in_use -= sr->used;
-	TAILQ_REMOVE(&t->stids, sr, link);
+	MPASS(stid >= t->stid_base);
+	stid -= t->stid_base;
+	MPASS(stid + n - 1 < t->nstids);
+	MPASS(t->stids_in_use <= t->nstids);
+	MPASS(t->stids_in_use >= n);
+	MPASS(t->stid_tab[stid] != NULL);
+#ifdef INVARIANTS
+	if (n == 2) {
+		MPASS((stid & 1) == 0);
+		MPASS(t->stid_tab[stid + 1] == NULL);
+	}
+#endif
+	MPASS(bit_ntest(t->stid_bitmap, stid, stid + n - 1, 1));
+	bit_nclear(t->stid_bitmap, stid, stid + n - 1);
+	t->stid_tab[stid] = NULL;
+	t->stids_in_use -= n;
 	mtx_unlock(&t->stid_lock);
 }
 
@@ -306,13 +335,14 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	if (lctx == NULL)
 		return (NULL);
 
-	lctx->stid = alloc_stid(sc, lctx, inp->inp_vflag & INP_IPV6);
+	lctx->isipv6 = inp->inp_vflag & INP_IPV6;
+	lctx->stid = alloc_stid(sc, lctx->isipv6, lctx);
 	if (lctx->stid < 0) {
 		free(lctx, M_CXGBE);
 		return (NULL);
 	}
 
-	if (inp->inp_vflag & INP_IPV6 &&
+	if (lctx->isipv6 &&
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
 		lctx->ce = t4_get_clip_entry(sc, &inp->in6p_laddr, true);
 		if (lctx->ce == NULL) {
@@ -348,7 +378,7 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 
 	if (lctx->ce)
 		t4_release_clip_entry(sc, lctx->ce);
-	free_stid(sc, lctx);
+	free_stid(sc, lctx->stid, lctx->isipv6);
 	free(lctx, M_CXGBE);
 
 	return (in_pcbrele_wlocked(inp));
