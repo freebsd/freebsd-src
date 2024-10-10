@@ -1508,7 +1508,7 @@ void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart,
 	    tcp_seq rcv_lastend);
 void	 tcp_clean_dsack_blocks(struct tcpcb *tp);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
-void	 tcp_sack_adjust(struct tcpcb *tp);
+int	 tcp_sack_adjust(struct tcpcb *tp);
 struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
 void	 tcp_do_prr_ack(struct tcpcb *, struct tcphdr *, struct tcpopt *,
 	    sackstatus_t, u_int *);
