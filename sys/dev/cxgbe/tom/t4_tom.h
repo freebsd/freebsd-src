@@ -294,8 +294,8 @@ struct listen_ctx {
 	LIST_ENTRY(listen_ctx) link;	/* listen hash linkage */
 	volatile int refcount;
 	int stid;
-	struct stid_region stid_region;
 	int flags;
+	bool isipv6;
 	struct inpcb *inp;		/* listening socket's inp */
 	struct vnet *vnet;
 	struct sge_wrq *ctrlq;
