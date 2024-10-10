@@ -2723,9 +2723,7 @@ enter_recovery:
 						    tp->snd_nxt - tp->snd_una);
 					}
 					if (tcp_is_sack_recovery(tp, &to)) {
-						TCPSTAT_INC(
-						    tcps_sack_recovery_episode);
-						tp->snd_recover = tp->snd_nxt;
+						TCPSTAT_INC(tcps_sack_recovery_episode);
 						tp->snd_cwnd = maxseg;
 						(void) tcp_output(tp);
 						if (SEQ_GT(th->th_ack, tp->snd_una))
@@ -2768,8 +2766,12 @@ enter_recovery:
 					    __func__));
 					if (tp->t_dupacks == 1)
 						tp->snd_limited = 0;
-					tp->snd_cwnd =
-					    (tp->snd_nxt - tp->snd_una) +
+					if ((tp->snd_nxt == tp->snd_max) &&
+					    (tp->t_rxtshift == 0))
+						tp->snd_cwnd =
+						    SEQ_SUB(tp->snd_nxt,
+							    tp->snd_una);
+					tp->snd_cwnd +=
 					    (tp->t_dupacks - tp->snd_limited) *
 					    maxseg;
 					/*
@@ -2815,7 +2817,9 @@ enter_recovery:
 			 * counted as dupacks here.
 			 */
 			if (tcp_is_sack_recovery(tp, &to) &&
-			    (sack_changed != SACK_NOCHANGE)) {
+			    (((tp->t_rxtshift == 0) && (sack_changed != SACK_NOCHANGE)) ||
+			     ((tp->t_rxtshift > 0) && (sack_changed == SACK_NEWLOSS))) &&
+			    (tp->snd_nxt == tp->snd_max)) {
 				tp->t_dupacks++;
 				/* limit overhead by setting maxseg last */
 				if (!IN_FASTRECOVERY(tp->t_flags) &&

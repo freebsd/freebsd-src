@@ -897,8 +897,8 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 		if (tp->t_flags & TF_SENTFIN)
 			highdata--;
 		highdata = SEQ_MIN(highdata, tp->snd_recover);
-		if (th->th_ack != highdata) {
-			tp->snd_fack = th->th_ack;
+		if (SEQ_LT(th->th_ack, highdata)) {
+			tp->snd_fack = SEQ_MAX(th->th_ack, tp->snd_fack);
 			(void)tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack,
 			    highdata - maxseg), highdata, NULL);
 		}
@@ -991,35 +991,47 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
  * After a timeout, the SACK list may be rebuilt.  This SACK information
  * should be used to avoid retransmitting SACKed data.  This function
  * traverses the SACK list to see if snd_nxt should be moved forward.
+ * In addition, cwnd will be inflated by the sacked bytes traversed when
+ * moving snd_nxt forward. This prevents a traffic burst after the final
+ * full ACK, and also keeps ACKs coming back.
  */
-void
+int
 tcp_sack_adjust(struct tcpcb *tp)
 {
+	int sacked = 0;
 	struct sackhole *p, *cur = TAILQ_FIRST(&tp->snd_holes);
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
-	if (cur == NULL)
-		return; /* No holes */
-	if (SEQ_GEQ(tp->snd_nxt, tp->snd_fack))
-		return; /* We're already beyond any SACKed blocks */
-	/*-
+	if (cur == NULL) {
+		/* No holes */
+		return (0);
+	}
+	if (SEQ_GEQ(tp->snd_nxt, tp->snd_fack)) {
+		/* We're already beyond any SACKed blocks */
+		return (tp->sackhint.sacked_bytes);
+	}
+	/*
 	 * Two cases for which we want to advance snd_nxt:
 	 * i) snd_nxt lies between end of one hole and beginning of another
 	 * ii) snd_nxt lies between end of last hole and snd_fack
 	 */
 	while ((p = TAILQ_NEXT(cur, scblink)) != NULL) {
-		if (SEQ_LT(tp->snd_nxt, cur->end))
-			return;
-		if (SEQ_GEQ(tp->snd_nxt, p->start))
+		if (SEQ_LT(tp->snd_nxt, cur->end)) {
+			return (sacked);
+		}
+		sacked += p->start - cur->end;
+		if (SEQ_GEQ(tp->snd_nxt, p->start)) {
 			cur = p;
-		else {
+		} else {
 			tp->snd_nxt = p->start;
-			return;
+			return (sacked);
 		}
 	}
-	if (SEQ_LT(tp->snd_nxt, cur->end))
-		return;
+	if (SEQ_LT(tp->snd_nxt, cur->end)) {
+		return (sacked);
+	}
 	tp->snd_nxt = tp->snd_fack;
+	return (tp->sackhint.sacked_bytes);
 }
 
 /*
