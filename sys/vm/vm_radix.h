@@ -60,13 +60,23 @@ PCTRIE_DEFINE_SMR(VM_RADIX, vm_page, pindex, vm_radix_node_alloc,
     vm_radix_node_free, vm_radix_smr);
 
 /*
- * Inserts the key-value pair into the trie.
+ * Inserts the key-value pair into the trie, starting search from root.
  * Panics if the key already exists.
  */
 static __inline int
 vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 {
 	return (VM_RADIX_PCTRIE_INSERT(&rtree->rt_trie, page));
+}
+
+/*
+ * Inserts the key-value pair into the trie, starting search from iterator.
+ * Panics if the key already exists.
+ */
+static __inline int
+vm_radix_iter_insert(struct pctrie_iter *pages, vm_page_t page)
+{
+	return (VM_RADIX_PCTRIE_ITER_INSERT(pages, page));
 }
 
 /*
@@ -186,6 +196,15 @@ static __inline vm_page_t
 vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
 	return (VM_RADIX_PCTRIE_REMOVE_LOOKUP(&rtree->rt_trie, index));
+}
+
+/*
+ * Remove the current page from the trie.
+ */
+static __inline void
+vm_radix_iter_remove(struct pctrie_iter *pages)
+{
+	VM_RADIX_PCTRIE_ITER_REMOVE(pages);
 }
  
 /*
