@@ -93,7 +93,7 @@ int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
 int	 pfctl_load_reassembly(struct pfctl *, u_int32_t);
 int	 pfctl_load_syncookies(struct pfctl *, u_int8_t);
 int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
-	    char *);
+	    char *, int);
 void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
 int	 pfctl_show_eth_rules(int, char *, int, enum pfctl_show, char *, int, int);
@@ -956,7 +956,7 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 
 int
 pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
-    u_int32_t ticket, int r_action, char *anchorname)
+    u_int32_t ticket, int r_action, char *anchorname, int which)
 {
 	struct pfioc_pooladdr pp;
 	struct pf_pooladdr *pa;
@@ -964,14 +964,14 @@ pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
 	int ret;
 
 	memset(&pp, 0, sizeof(pp));
-	if ((ret = pfctl_get_addrs(pfh, ticket, nr, r_action, anchorname, &mpnr)) != 0) {
+	if ((ret = pfctl_get_addrs(pfh, ticket, nr, r_action, anchorname, &mpnr, which)) != 0) {
 		warnc(ret, "DIOCGETADDRS");
 		return (-1);
 	}
 
 	TAILQ_INIT(&pool->list);
 	for (pnr = 0; pnr < mpnr; ++pnr) {
-		if ((ret = pfctl_get_addr(pfh, ticket, nr, r_action, anchorname, pnr, &pp)) != 0) {
+		if ((ret = pfctl_get_addr(pfh, ticket, nr, r_action, anchorname, pnr, &pp, which)) != 0) {
 			warnc(ret, "DIOCGETADDR");
 			return (-1);
 		}
@@ -1303,7 +1303,11 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 
 		if (pfctl_get_pool(dev, &rule.rpool,
-		    nr, ri.ticket, PF_SCRUB, path) != 0)
+		    nr, ri.ticket, PF_SCRUB, path, PF_RDR) != 0)
+			goto error;
+
+		if (pfctl_get_pool(dev, &rule.nat,
+		    nr, ri.ticket, PF_SCRUB, path, PF_NAT) != 0)
 			goto error;
 
 		switch (format) {
@@ -1334,7 +1338,11 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 
 		if (pfctl_get_pool(dev, &rule.rpool,
-		    nr, ri.ticket, PF_PASS, path) != 0)
+		    nr, ri.ticket, PF_PASS, path, PF_RDR) != 0)
+			goto error;
+
+		if (pfctl_get_pool(dev, &rule.nat,
+		    nr, ri.ticket, PF_PASS, path, PF_NAT) != 0)
 			goto error;
 
 		switch (format) {
@@ -1491,7 +1499,10 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth,
 				return (-1);
 			}
 			if (pfctl_get_pool(dev, &rule.rpool, nr,
-			    ri.ticket, nattype[i], path) != 0)
+			    ri.ticket, nattype[i], path, PF_RDR) != 0)
+				return (-1);
+			if (pfctl_get_pool(dev, &rule.nat, nr,
+			    ri.ticket, nattype[i], path, PF_NAT) != 0)
 				return (-1);
 
 			if (dotitle) {
@@ -1691,11 +1702,6 @@ pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af, int which
 {
 	struct pf_pooladdr *pa;
 	int ret;
-
-	if ((pf->opts & PF_OPT_NOACTION) == 0) {
-		if ((ret = pfctl_begin_addrs(pf->h, &pf->paddr.ticket)) != 0)
-			errc(1, ret, "DIOCBEGINADDRS");
-	}
 
 	pf->paddr.af = af;
 	TAILQ_FOREACH(pa, &p->list, entries) {
@@ -2045,7 +2051,15 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 
 	was_present = false;
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
+		if ((pf->opts & PF_OPT_NOACTION) == 0) {
+			if ((error = pfctl_begin_addrs(pf->h,
+			    &pf->paddr.ticket)) != 0)
+				errc(1, error, "DIOCBEGINADDRS");
+		}
+
 		if (pfctl_add_pool(pf, &r->rpool, r->af, PF_RDR))
+			return (1);
+		if (pfctl_add_pool(pf, &r->nat, r->naf ? r->naf : r->af, PF_NAT))
 			return (1);
 		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);
