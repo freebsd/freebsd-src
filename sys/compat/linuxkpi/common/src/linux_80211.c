@@ -6074,8 +6074,12 @@ void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	if (!withoutpkts && ltxq_empty)
 		goto out;
 
-	/* Make sure we do not double-schedule. */
-	if (ltxq->txq_entry.tqe_next != NULL)
+	/*
+	 * Make sure we do not double-schedule. We do this by checking tqe_prev,
+	 * the previous entry in our tailq. tqe_prev is always valid if this entry
+	 * is queued, tqe_next may be NULL if this is the only element in the list.
+	 */
+	if (ltxq->txq_entry.tqe_prev != NULL)
 		goto out;
 
 	lhw = HW_TO_LHW(hw);
