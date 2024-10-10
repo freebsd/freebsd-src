@@ -239,7 +239,7 @@ sctp_free_vrf(struct sctp_vrf *vrf)
 	}
 }
 
-void
+static void
 sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 {
 	if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&sctp_ifnp->refcount)) {
