@@ -99,6 +99,7 @@ loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
 lwhsu [label="Li-Wen Hsu\nlwhsu@FreeBSD.org\n2021/08/01"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+mhorne [label="Mitchell Horne\nmhorne@FreeBSD.org\n2024/07/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2021/07/13"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
@@ -113,6 +114,7 @@ ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2017/09/18"]
 
 "0mp" -> debdrup
 "0mp" -> fernape
+"0mp" -> mhorne
 
 allanjude -> debdrup
 
