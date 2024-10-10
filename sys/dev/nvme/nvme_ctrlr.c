@@ -888,6 +888,50 @@ nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 }
 
 static void
+nvme_ctrlr_configure_apst(struct nvme_controller *ctrlr)
+{
+	struct nvme_completion_poll_status status;
+	uint64_t *data;
+	int bytes_read, data_size, i;
+	bool enable;
+
+	if (TUNABLE_BOOL_FETCH("hw.nvme.apst_enable", &enable) == 0 ||
+	    ctrlr->cdata.apsta == 0)
+		return;
+
+	data_size = 32 * sizeof(*data);
+	if ((data = malloc(data_size, M_NVME, M_WAITOK | M_ZERO)) == NULL)
+		goto fail;
+
+	if (getenv_array("hw.nvme.apst_data", data, data_size,
+	    &bytes_read, sizeof(*data), GETENV_UNSIGNED) != 0) {
+		for (i = 0; i < bytes_read / sizeof(*data); ++i)
+			data[i] = htole64(data[i]);
+	} else if (enable) {
+		status.done = 0;
+		nvme_ctrlr_cmd_get_feature(ctrlr,
+		    NVME_FEAT_AUTONOMOUS_POWER_STATE_TRANSITION, 0,
+		    data, data_size, nvme_completion_poll_cb, &status);
+
+		nvme_completion_poll(&status);
+		if (nvme_completion_is_error(&status.cpl))
+			goto fail;
+	}
+
+	status.done = 0;
+	nvme_ctrlr_cmd_set_feature(ctrlr,
+	    NVME_FEAT_AUTONOMOUS_POWER_STATE_TRANSITION, enable, 0, 0, 0, 0,
+	    data, data_size, nvme_completion_poll_cb, &status);
+
+	nvme_completion_poll(&status);
+	free(data, M_NVME);
+	if (!nvme_completion_is_error(&status.cpl))
+		return;
+fail:
+	nvme_printf(ctrlr, "failed to configure APST\n");
+}
+
+static void
 nvme_ctrlr_hmb_free(struct nvme_controller *ctrlr)
 {
 	struct nvme_hmb_chunk *hmbc;
@@ -1139,6 +1183,7 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 
 	nvme_ctrlr_configure_aer(ctrlr);
 	nvme_ctrlr_configure_int_coalescing(ctrlr);
+	nvme_ctrlr_configure_apst(ctrlr);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_io_qpair_enable(&ctrlr->ioq[i]);
