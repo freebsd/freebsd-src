@@ -444,10 +444,7 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 	case CC_RTO:
 		tp->t_dupacks = 0;
 		tp->t_bytes_acked = 0;
-		if ((tp->t_rxtshift > 1) ||
-		    !((tp->t_flags & TF_SACK_PERMIT) &&
-		      (!TAILQ_EMPTY(&tp->snd_holes))))
-			EXIT_RECOVERY(tp->t_flags);
+		EXIT_RECOVERY(tp->t_flags);
 		if (tp->t_flags2 & TF2_ECN_PERMIT)
 			tp->t_flags2 |= TF2_ECN_SND_CWR;
 		break;
@@ -2747,7 +2744,6 @@ enter_recovery:
 					}
 					if (tcp_is_sack_recovery(tp, &to)) {
 						TCPSTAT_INC(tcps_sack_recovery_episode);
-						tp->snd_recover = tp->snd_nxt;
 						tp->snd_cwnd = maxseg;
 						(void) tcp_output(tp);
 						if (SEQ_GT(th->th_ack, tp->snd_una)) {
@@ -2790,8 +2786,12 @@ enter_recovery:
 					    __func__));
 					if (tp->t_dupacks == 1)
 						tp->snd_limited = 0;
-					tp->snd_cwnd =
-					    (tp->snd_nxt - tp->snd_una) +
+					if ((tp->snd_nxt == tp->snd_max) &&
+					    (tp->t_rxtshift == 0))
+						tp->snd_cwnd =
+						    SEQ_SUB(tp->snd_nxt,
+							    tp->snd_una);
+					tp->snd_cwnd +=
 					    (tp->t_dupacks - tp->snd_limited) *
 					    maxseg;
 					/*
@@ -2840,7 +2840,9 @@ enter_recovery:
 			 * counted as dupacks here.
 			 */
 			if (tcp_is_sack_recovery(tp, &to) &&
-			    (sack_changed != SACK_NOCHANGE)) {
+			    (((tp->t_rxtshift == 0) && (sack_changed != SACK_NOCHANGE)) ||
+			     ((tp->t_rxtshift > 0) && (sack_changed == SACK_NEWLOSS))) &&
+			    (tp->snd_nxt == tp->snd_max)) {
 				tp->t_dupacks++;
 				/* limit overhead by setting maxseg last */
 				if (!IN_FASTRECOVERY(tp->t_flags) &&

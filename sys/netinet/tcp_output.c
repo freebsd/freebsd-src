@@ -259,6 +259,7 @@ tcp_default_output(struct tcpcb *tp)
 		}
 	}
 again:
+	sendwin = 0;
 	/*
 	 * If we've recently taken a timeout, snd_max will be greater than
 	 * snd_nxt.  There may be SACK information that allows us to avoid
@@ -266,12 +267,12 @@ again:
 	 */
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
 	    SEQ_LT(tp->snd_nxt, tp->snd_max))
-		tcp_sack_adjust(tp);
+		sendwin = tcp_sack_adjust(tp);
 	sendalot = 0;
 	tso = 0;
 	mtu = 0;
 	off = tp->snd_nxt - tp->snd_una;
-	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
+	sendwin = min(tp->snd_wnd, tp->snd_cwnd + sendwin);
 
 	flags = tcp_outflags[tp->t_state];
 	/*
@@ -288,7 +289,8 @@ again:
 	sack_bytes_rxmt = 0;
 	len = 0;
 	p = NULL;
-	if ((tp->t_flags & TF_SACK_PERMIT) && IN_FASTRECOVERY(tp->t_flags) &&
+	if ((tp->t_flags & TF_SACK_PERMIT) &&
+	    (IN_FASTRECOVERY(tp->t_flags) || SEQ_LT(tp->snd_nxt, tp->snd_max)) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		uint32_t cwin;
 
@@ -387,7 +389,7 @@ after_sack_rexmit:
 	 * in which case len is already set.
 	 */
 	if (sack_rxmit == 0) {
-		if (sack_bytes_rxmt == 0) {
+		if ((sack_bytes_rxmt == 0) || SEQ_LT(tp->snd_nxt, tp->snd_max)) {
 			len = ((int32_t)min(sbavail(&so->so_snd), sendwin) -
 			    off);
 		} else {
@@ -1636,11 +1638,16 @@ timer:
 			tp->snd_max = tp->snd_nxt + xlen;
 	}
 	if ((error == 0) &&
-	    (TCPS_HAVEESTABLISHED(tp->t_state) &&
-	     (tp->t_flags & TF_SACK_PERMIT) &&
-	     tp->rcv_numsacks > 0)) {
-		    /* Clean up any DSACK's sent */
-		    tcp_clean_dsack_blocks(tp);
+	    (tp->rcv_numsacks > 0) &&
+	    TCPS_HAVEESTABLISHED(tp->t_state) &&
+	    (tp->t_flags & TF_SACK_PERMIT)) {
+		/* Clean up any DSACK's sent */
+		tcp_clean_dsack_blocks(tp);
+	}
+	if ((error == 0) &&
+	    sack_rxmit &&
+	    SEQ_LT(tp->snd_nxt, SEQ_MIN(p->rxmit, p->end))) {
+		tp->snd_nxt = SEQ_MIN(p->rxmit, p->end);
 	}
 	if (error) {
 		/*

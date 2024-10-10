@@ -1006,7 +1006,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th, u_int *maxsegp)
 			highdata--;
 		highdata = SEQ_MIN(highdata, tp->snd_recover);
 		if (SEQ_LT(th->th_ack, highdata)) {
-			tp->snd_fack = th->th_ack;
+			tp->snd_fack = SEQ_MAX(th->th_ack, tp->snd_fack);
 			if ((temp = tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack,
 			    highdata - maxseg), highdata, NULL)) != NULL) {
 				tp->sackhint.hole_bytes +=
@@ -1076,41 +1076,47 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
  * After a timeout, the SACK list may be rebuilt.  This SACK information
  * should be used to avoid retransmitting SACKed data.  This function
  * traverses the SACK list to see if snd_nxt should be moved forward.
+ * In addition, cwnd will be inflated by the sacked bytes traversed when
+ * moving snd_nxt forward. This prevents a traffic burst after the final
+ * full ACK, and also keeps ACKs coming back.
  */
-void
+int
 tcp_sack_adjust(struct tcpcb *tp)
 {
+	int sacked = 0;
 	struct sackhole *p, *cur = TAILQ_FIRST(&tp->snd_holes);
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if (cur == NULL) {
 		/* No holes */
-		return;
+		return (0);
 	}
 	if (SEQ_GEQ(tp->snd_nxt, tp->snd_fack)) {
 		/* We're already beyond any SACKed blocks */
-		return;
+		return (tp->sackhint.sacked_bytes);
 	}
-	/*-
+	/*
 	 * Two cases for which we want to advance snd_nxt:
 	 * i) snd_nxt lies between end of one hole and beginning of another
 	 * ii) snd_nxt lies between end of last hole and snd_fack
 	 */
 	while ((p = TAILQ_NEXT(cur, scblink)) != NULL) {
 		if (SEQ_LT(tp->snd_nxt, cur->end)) {
-			return;
+			return (sacked);
 		}
+		sacked += p->start - cur->end;
 		if (SEQ_GEQ(tp->snd_nxt, p->start)) {
 			cur = p;
 		} else {
 			tp->snd_nxt = p->start;
-			return;
+			return (sacked);
 		}
 	}
 	if (SEQ_LT(tp->snd_nxt, cur->end)) {
-		return;
+		return (sacked);
 	}
 	tp->snd_nxt = tp->snd_fack;
+	return (tp->sackhint.sacked_bytes);
 }
 
 /*
