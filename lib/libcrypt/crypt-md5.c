@@ -33,6 +33,7 @@
 #include <md5.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "crypt.h"
@@ -85,7 +86,7 @@ crypt_md5(const char *pw, const char *salt, char *buffer)
 		    (u_int)(pl > MD5_SIZE ? MD5_SIZE : pl));
 
 	/* Don't leave anything around in vm they could use. */
-	memset(final, 0, sizeof(final));
+	explicit_bzero(final, sizeof(final));
 
 	/* Then something really weird... */
 	for (i = strlen(pw); i; i >>= 1)
@@ -141,7 +142,7 @@ crypt_md5(const char *pw, const char *salt, char *buffer)
 	*buffer = '\0';
 
 	/* Don't leave anything around in vm they could use. */
-	memset(final, 0, sizeof(final));
+	explicit_bzero(final, sizeof(final));
 
 	return (0);
 }
