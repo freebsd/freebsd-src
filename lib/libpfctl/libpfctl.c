@@ -1285,6 +1285,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_u8(nw, PF_RT_PRIO, r->prio);
 	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO, r->set_prio[0]);
 	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO_REPLY, r->set_prio[1]);
+	snl_add_msg_attr_u8(nw, PF_RT_NAF, r->naf);
 
 	snl_add_msg_attr_ip6(nw, PF_RT_DIVERT_ADDRESS, &r->divert.addr.v6);
 	snl_add_msg_attr_u16(nw, PF_RT_DIVERT_PORT, r->divert.port);
@@ -1662,6 +1663,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_RCV_IFNAME, .off = _OUT(r.rcv_ifname), .arg = (void*)IFNAMSIZ, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(r.max_src_conn), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
 };
 static struct snl_field_parser fp_getrule[] = {};
 #undef _OUT
@@ -2770,7 +2772,7 @@ pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
 }
 
 int
-pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which __unused)
+pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which)
 {
 	struct snl_writer nw;
 	struct snl_errmsg_data e = {};
@@ -2794,6 +2796,7 @@ pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int whic
 	snl_add_msg_attr_u8(&nw, PF_AA_AF, pa->af);
 	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, pa->anchor);
 	snl_add_msg_attr_pool_addr(&nw, PF_AA_ADDR, &pa->addr);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
 
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
 		return (ENXIO);
@@ -2817,7 +2820,7 @@ SNL_DECLARE_PARSER(get_addrs_parser, struct genlmsghdr, fp_get_addrs, ap_get_add
 
 int
 pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
-    uint8_t r_action, const char *anchor, uint32_t *nr)
+    uint8_t r_action, const char *anchor, uint32_t *nr, int which)
 {
 	struct snl_writer nw;
 	struct snl_errmsg_data e = {};
@@ -2836,6 +2839,7 @@ pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 	snl_add_msg_attr_u32(&nw, PF_AA_R_NUM, r_num);
 	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, r_action);
 	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, anchor);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
 
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
 		return (ENXIO);
@@ -2879,7 +2883,8 @@ SNL_DECLARE_PARSER(get_addr_parser, struct genlmsghdr, fp_get_addr, ap_get_addr)
 
 int
 pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
-    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa)
+    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa,
+    int which)
 {
 	struct snl_writer nw;
 	struct snl_errmsg_data e = {};
@@ -2899,6 +2904,7 @@ pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, r_action);
 	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, anchor);
 	snl_add_msg_attr_u32(&nw, PF_AA_NR, nr);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
 
 	if ((hdr = snl_finalize_msg(&nw)) == NULL)
 		return (ENXIO);
@@ -3023,6 +3029,7 @@ static struct snl_attr_parser ap_srcnode[] = {
 	{ .type = PF_SN_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
 };
 static struct snl_field_parser fp_srcnode[] = {};
 #undef _OUT

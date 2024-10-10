@@ -1796,6 +1796,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			nlattr_add_u32(nw, PF_SN_STATES, n->states);
 			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
 			nlattr_add_u8(nw, PF_SN_AF, n->af);
+			nlattr_add_u8(nw, PF_SN_NAF, n->naf);
 			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
 
 			nlattr_add_u64(nw, PF_SN_CREATION, secs - n->creation);

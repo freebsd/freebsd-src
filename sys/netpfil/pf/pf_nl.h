@@ -419,6 +419,7 @@ enum pf_srcnodes_types_t {
 	PF_SN_CREATION		= 12, /* u64 */
 	PF_SN_EXPIRE		= 13, /* u64 */
 	PF_SN_CONNECTION_RATE	= 14, /* nested, pf_threshold */
+	PF_SN_NAF		= 15, /* u8 */
 };
 
 #ifdef _KERNEL

@@ -901,6 +901,7 @@ struct pf_ksrc_node {
 	u_int32_t		 creation;
 	u_int32_t		 expire;
 	sa_family_t		 af;
+	sa_family_t		 naf;
 	u_int8_t		 ruletype;
 	struct mtx		*lock;
 };
