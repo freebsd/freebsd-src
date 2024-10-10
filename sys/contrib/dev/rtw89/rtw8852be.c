@@ -82,6 +82,9 @@ static struct pci_driver rtw89_8852be_driver = {
 	.probe		= rtw89_pci_probe,
 	.remove		= rtw89_pci_remove,
 	.driver.pm	= &rtw89_pm_ops,
+#if defined(__FreeBSD__)
+	.bsddriver.name	= KBUILD_MODNAME,
+#endif
 };
 module_pci_driver(rtw89_8852be_driver);
 
