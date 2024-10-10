@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitstring.h>
+#include <sys/conf.h>
 #include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
@@ -2614,9 +2615,11 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
+	struct cdev *cdev;
+	struct cdevsw *csw;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
-	int error;
+	int error, ref;
 	key_t key;
 	unsigned short seq;
 	bool guard, super;
@@ -2714,6 +2717,19 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
+			if (obj->type == OBJT_DEVICE ||
+			    obj->type == OBJT_MGTDEVICE) {
+				cdev = obj->un_pager.devp.dev;
+				if (cdev != NULL) {
+					csw = dev_refthread(cdev, &ref);
+					if (csw != NULL) {
+						strlcpy(kve->kve_path,
+						    cdev->si_name, sizeof(
+						    kve->kve_path));
+						dev_relthread(cdev, ref);
+					}
+				}
+			}
 			VM_OBJECT_RUNLOCK(obj);
 			if ((lobj->flags & OBJ_SYSVSHM) != 0) {
 				kve->kve_flags |= KVME_FLAG_SYSVSHM;
