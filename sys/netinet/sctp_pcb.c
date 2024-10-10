@@ -378,13 +378,13 @@ out:
 /*-
  * Add an ifa to an ifn.
  * Register the interface as necessary.
- * NOTE: ADDR write lock MUST be held.
  */
 static void
 sctp_add_ifa_to_ifn(struct sctp_ifn *sctp_ifnp, struct sctp_ifa *sctp_ifap)
 {
 	int ifa_af;
 
+	SCTP_IPI_ADDR_WLOCK_ASSERT();
 	LIST_INSERT_HEAD(&sctp_ifnp->ifalist, sctp_ifap, next_ifa);
 	sctp_ifap->ifn_p = sctp_ifnp;
 	atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
@@ -415,11 +415,11 @@ sctp_add_ifa_to_ifn(struct sctp_ifn *sctp_ifnp, struct sctp_ifa *sctp_ifap)
  * Remove an ifa from its ifn.
  * If no more addresses exist, remove the ifn too. Otherwise, re-register
  * the interface based on the remaining address families left.
- * NOTE: ADDR write lock MUST be held.
  */
 static void
 sctp_remove_ifa_from_ifn(struct sctp_ifa *sctp_ifap)
 {
+	SCTP_IPI_ADDR_WLOCK_ASSERT();
 	LIST_REMOVE(sctp_ifap, next_ifa);
 	if (sctp_ifap->ifn_p) {
 		/* update address counts */
