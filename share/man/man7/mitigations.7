@@ -154,7 +154,7 @@ proccontrol
 .Ss Position Independent Executable (PIE)
 PIE binaries are executable files that do not have a fixed load address.
 They can be loaded at an arbitrary memory address by the
-.Xr rtld
+.Xr rtld 1
 run-time linker.
 With ASLR they are loaded at a random address on each execution.
 .\"
@@ -185,17 +185,19 @@ Allow 64-bit processes to map pages simultaneously writable and executable.
 .\"
 .Ss PROT_MAX
 .Dv PROT_MAX
-is a FreeBSD-specific extension to
+is a
+.Fx Ns
+-specific extension to
 .Xr mmap 2 .
 .Dv PROT_MAX
 provides the ability to set the maximum protection of a region allocated by
-.Xr mmap
+.Xr mmap 2
 and later altered by
-.Xr mprotect .
+.Xr mprotect 2 .
 For example, memory allocated originally with an mmap prot argument of
 PROT_MAX(PROT_READ | PROT_WRITE) | PROT_READ
 may be made writable by a future
-.Xr mprotect
+.Xr mprotect 2
 call, but may not be made executable.
 .\"
 .Ss Relocation Read-Only (RELRO)
@@ -290,11 +292,11 @@ When enabled,
 enables extra bounds checking in various functions that accept buffers to be
 written into.
 These functions currently have extra bounds checking support:
-.Bl -column -offset indent "snprintf" "memmove" "strncpy" "vsnprintf" "readlink"
-.It bcopy    Ta bzero    Ta fgets     Ta getcwd    Ta gets
-.It memcpy   Ta memmove  Ta memset    Ta read      Ta readlink
-.It snprintf Ta sprintf  Ta stpcpy    Ta stpncpy   Ta strcat
-.It strcpy   Ta strncat  Ta strncpy   Ta vsnprintf Ta vsprintf
+.Bl -column -offset indent "snprintf()" "memmove()" "strncpy()" "vsnprintf()" "readlink()"
+.It Fn bcopy Ta Fn bzero Ta Fn fgets Ta Fn getcwd Ta Fn gets
+.It Fn memcpy Ta Fn memmove Ta Fn memset Ta Fn read Ta Fn readlink
+.It Fn snprintf Ta Fn sprintf Ta Fn stpcpy Ta Fn stpncpy Ta Fn strcat
+.It Fn strcpy Ta Fn strncat Ta Fn strncpy Ta Fn vsnprintf Ta Fn vsprintf
 .El
 .Pp
 .Dq FORTIFY_SOURCE
