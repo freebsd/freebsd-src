@@ -386,6 +386,28 @@ struct pfctl_syncookies {
 	uint32_t			halfopen_states;
 };
 
+struct pfctl_threshold {
+	uint32_t		limit;
+	uint32_t		seconds;
+	uint32_t		count;
+	uint32_t		last;
+};
+
+struct pfctl_src_node {
+	struct pf_addr		addr;
+	struct pf_addr		raddr;
+	int			rule;
+	uint64_t		bytes[2];
+	uint64_t		packets[2];
+	uint32_t		states;
+	uint32_t		conn;
+	sa_family_t		af;
+	uint8_t			ruletype;
+	uint64_t		creation;
+	uint64_t		expire;
+	struct pfctl_threshold	conn_rate;
+};
+
 #define	PF_DEVICE	"/dev/pf"
 
 struct pfctl_handle;
@@ -506,5 +528,7 @@ int	pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 	    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa);
 int	pfctl_get_rulesets(struct pfctl_handle *h, const char *path, uint32_t *nr);
 int	pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct pfioc_ruleset *rs);
+typedef int (*pfctl_get_srcnode_fn)(struct pfctl_src_node*, void *);
+int	pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg);
 
 #endif

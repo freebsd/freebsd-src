@@ -58,6 +58,7 @@
 #include <errno.h>
 #include <err.h>
 #include <ifaddrs.h>
+#include <inttypes.h>
 #include <unistd.h>
 
 #include "pfctl_parser.h"
@@ -648,10 +649,10 @@ print_running(struct pfctl_status *status)
 }
 
 void
-print_src_node(struct pf_src_node *sn, int opts)
+print_src_node(struct pfctl_src_node *sn, int opts)
 {
 	struct pf_addr_wrap aw;
-	int min, sec;
+	uint64_t min, sec;
 
 	memset(&aw, 0, sizeof(aw));
 	if (sn->af == AF_INET)
@@ -672,36 +673,32 @@ print_src_node(struct pf_src_node *sn, int opts)
 		sn->creation /= 60;
 		min = sn->creation % 60;
 		sn->creation /= 60;
-		printf("   age %.2u:%.2u:%.2u", sn->creation, min, sec);
+		printf("   age %.2" PRIu64 ":%.2" PRIu64 ":%.2" PRIu64,
+		    sn->creation, min, sec);
 		if (sn->states == 0) {
 			sec = sn->expire % 60;
 			sn->expire /= 60;
 			min = sn->expire % 60;
 			sn->expire /= 60;
-			printf(", expires in %.2u:%.2u:%.2u",
+			printf(", expires in %.2" PRIu64 ":%.2" PRIu64 ":%.2" PRIu64,
 			    sn->expire, min, sec);
 		}
-		printf(", %llu pkts, %llu bytes",
-#ifdef __FreeBSD__
-		    (unsigned long long)(sn->packets[0] + sn->packets[1]),
-		    (unsigned long long)(sn->bytes[0] + sn->bytes[1]));
-#else
+		printf(", %" PRIu64 " pkts, %" PRIu64 " bytes",
 		    sn->packets[0] + sn->packets[1],
 		    sn->bytes[0] + sn->bytes[1]);
-#endif
 		switch (sn->ruletype) {
 		case PF_NAT:
-			if (sn->rule.nr != -1)
-				printf(", nat rule %u", sn->rule.nr);
+			if (sn->rule != -1)
+				printf(", nat rule %u", sn->rule);
 			break;
 		case PF_RDR:
-			if (sn->rule.nr != -1)
-				printf(", rdr rule %u", sn->rule.nr);
+			if (sn->rule != -1)
+				printf(", rdr rule %u", sn->rule);
 			break;
 		case PF_PASS:
 		case PF_MATCH:
-			if (sn->rule.nr != -1)
-				printf(", filter rule %u", sn->rule.nr);
+			if (sn->rule != -1)
+				printf(", filter rule %u", sn->rule);
 			break;
 		}
 		printf("\n");
