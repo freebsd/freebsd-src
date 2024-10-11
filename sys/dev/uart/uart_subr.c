@@ -185,6 +185,7 @@ out:
  *	mm = Memory mapped I/O address
  *	pa = Parity
  *	rs = Register shift
+ *	rw = Register width
  *	sb = Stopbits
  *	xo = Device clock (xtal oscillator)
  *
