@@ -157,7 +157,7 @@ SDT_PROBE_DEFINE2(pf, purge, state, rowcount, "int", "size_t");
 
 /* state tables */
 VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[4]);
-VNET_DEFINE(struct pf_kpalist,		 pf_pabuf);
+VNET_DEFINE(struct pf_kpalist,		 pf_pabuf[2]);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altq_ifs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_inactive);
@@ -332,8 +332,7 @@ static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    struct pf_kruleset **, struct inpcb *);
 static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_krule *, struct pf_pdesc *,
-			    struct pf_state_key *, struct pf_state_key *,
-			    u_int16_t, u_int16_t, int *,
+			    struct pf_state_key *, struct pf_state_key *, int *,
 			    struct pf_kstate **, int, u_int16_t, u_int16_t,
 			    struct pf_krule_slist *, struct pf_udp_mapping *);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
@@ -1027,7 +1026,7 @@ pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_srchash **sh,
 	u_short			 reason = 0;
 
 	KASSERT((rule->rule_flag & PFRULE_SRCTRACK ||
-	    rule->rpool.opts & PF_POOL_STICKYADDR),
+	    rule->rdr.opts & PF_POOL_STICKYADDR),
 	    ("%s for non-tracking rule %p", __func__, rule));
 
 	/*
@@ -1242,7 +1241,8 @@ pf_initialize(void)
 	TAILQ_INIT(&V_pf_altqs[1]);
 	TAILQ_INIT(&V_pf_altqs[2]);
 	TAILQ_INIT(&V_pf_altqs[3]);
-	TAILQ_INIT(&V_pf_pabuf);
+	TAILQ_INIT(&V_pf_pabuf[0]);
+	TAILQ_INIT(&V_pf_pabuf[1]);
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altq_ifs_active = &V_pf_altqs[1];
 	V_pf_altqs_inactive = &V_pf_altqs[2];
@@ -4979,6 +4979,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		sport = dport = 0;
 		break;
 	}
+	pd->osport = sport;
+	pd->odport = dport;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
@@ -5327,7 +5329,7 @@ nextrule:
 	    (pd->flags & PFDESC_TCP_NORM)))) {
 		int action;
 		action = pf_create_state(r, nr, a, pd, nk, sk,
-		    sport, dport, &rewrite, sm, tag, bproto_sum, bip_sum,
+		    &rewrite, sm, tag, bproto_sum, bip_sum,
 		    &match_rules, udp_mapping);
 		if (action != PF_PASS) {
 			pf_udp_mapping_release(udp_mapping);
@@ -5382,9 +5384,9 @@ cleanup:
 static int
 pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_pdesc *pd, struct pf_state_key *nk, struct pf_state_key *sk,
-    u_int16_t sport, u_int16_t dport, int *rewrite, struct pf_kstate **sm,
-    int tag, u_int16_t bproto_sum, u_int16_t bip_sum,
-    struct pf_krule_slist *match_rules, struct pf_udp_mapping *udp_mapping)
+    int *rewrite, struct pf_kstate **sm, int tag, u_int16_t bproto_sum,
+    u_int16_t bip_sum, struct pf_krule_slist *match_rules,
+    struct pf_udp_mapping *udp_mapping)
 {
 	struct pf_kstate	*s = NULL;
 	struct pf_ksrc_node	*sn = NULL;
@@ -5405,14 +5407,14 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	}
 	/* src node for filter rule */
 	if ((r->rule_flag & PFRULE_SRCTRACK ||
-	    r->rpool.opts & PF_POOL_STICKYADDR) &&
+	    r->rdr.opts & PF_POOL_STICKYADDR) &&
 	    (sn_reason = pf_insert_src_node(&sn, &snh, r, pd->src, pd->af,
 	    &pd->act.rt_addr, pd->act.rt_kif)) != 0) {
 		REASON_SET(&reason, sn_reason);
 		goto csfailed;
 	}
 	/* src node for translation rule */
-	if (nr != NULL && (nr->rpool.opts & PF_POOL_STICKYADDR) &&
+	if (nr != NULL && (nr->rdr.opts & PF_POOL_STICKYADDR) &&
 	    (sn_reason = pf_insert_src_node(&nsn, &nsnh, nr, &sk->addr[pd->sidx],
 	    pd->af, &nk->addr[1], NULL)) != 0 ) {
 		REASON_SET(&reason, sn_reason);
@@ -5535,7 +5537,9 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (nr == NULL) {
 		KASSERT((sk == NULL && nk == NULL), ("%s: nr %p sk %p, nk %p",
 		    __func__, nr, sk, nk));
-		sk = pf_state_key_setup(pd, pd->src, pd->dst, sport, dport);
+		MPASS(pd->sport == NULL || (pd->osport == *pd->sport));
+		MPASS(pd->dport == NULL || (pd->odport == *pd->dport));
+		sk = pf_state_key_setup(pd, pd->src, pd->dst, pd->osport, pd->odport);
 		if (sk == NULL)
 			goto csfailed;
 		nk = sk;

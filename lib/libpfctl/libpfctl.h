@@ -174,7 +174,12 @@ struct pfctl_rule {
 	char			 overload_tblname[PF_TABLE_NAME_SIZE];
 
 	TAILQ_ENTRY(pfctl_rule)	 entries;
-	struct pfctl_pool	 rpool;
+	struct pfctl_pool	 nat;
+	union {
+		/* Alias old and new names. */
+		struct pfctl_pool	 rpool;
+		struct pfctl_pool	 rdr;
+	};
 
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
@@ -521,7 +526,7 @@ int	pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *second
 int	pfctl_set_limit(struct pfctl_handle *h, const int index, const uint limit);
 int	pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit);
 int	pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket);
-int	pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa);
+int	pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which);
 int	pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
 	    uint8_t r_action, const char *anchor, uint32_t *nr);
 int	pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,

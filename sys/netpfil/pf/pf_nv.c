@@ -563,7 +563,7 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 	if (! nvlist_exists_nvlist(nvl, "rpool"))
 		ERROUT(EINVAL);
 	PFNV_CHK(pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"),
-	    &rule->rpool));
+	    &rule->rdr));
 
 	PFNV_CHK(pf_nvuint32(nvl, "os_fingerprint", &rule->os_fingerprint));
 
@@ -721,7 +721,7 @@ pf_krule_to_nvrule(struct pf_krule *rule)
 	nvlist_add_string(nvl, "match_tagname", rule->match_tagname);
 	nvlist_add_string(nvl, "overload_tblname", rule->overload_tblname);
 
-	tmp = pf_pool_to_nvpool(&rule->rpool);
+	tmp = pf_pool_to_nvpool(&rule->rdr);
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "rpool", tmp);

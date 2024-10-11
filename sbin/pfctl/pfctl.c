@@ -1687,7 +1687,7 @@ pfctl_show_creators(int opts)
 
 /* callbacks for rule/nat/rdr/addr */
 int
-pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af)
+pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af, int which)
 {
 	struct pf_pooladdr *pa;
 	int ret;
@@ -1701,7 +1701,7 @@ pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af)
 	TAILQ_FOREACH(pa, &p->list, entries) {
 		memcpy(&pf->paddr.addr, pa, sizeof(struct pf_pooladdr));
 		if ((pf->opts & PF_OPT_NOACTION) == 0) {
-			if ((ret = pfctl_add_addr(pf->h, &pf->paddr)) != 0)
+			if ((ret = pfctl_add_addr(pf->h, &pf->paddr, which)) != 0)
 				errc(1, ret, "DIOCADDADDR");
 		}
 	}
@@ -2045,7 +2045,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 
 	was_present = false;
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
-		if (pfctl_add_pool(pf, &r->rpool, r->af))
+		if (pfctl_add_pool(pf, &r->rpool, r->af, PF_RDR))
 			return (1);
 		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);
