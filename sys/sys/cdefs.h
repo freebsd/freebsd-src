@@ -719,9 +719,11 @@
 #define __nosanitizeaddress	__attribute__((no_sanitize("address")))
 #define __nosanitizememory	__attribute__((no_sanitize("memory")))
 #endif
+#define __nosanitizecoverage	__attribute__((no_sanitize("coverage")))
 #define __nosanitizethread	__attribute__((no_sanitize("thread")))
 #else
 #define __nosanitizeaddress
+#define __nosanitizecoverage
 #define __nosanitizememory
 #define __nosanitizethread
 #endif
