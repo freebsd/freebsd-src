@@ -1,0 +1,1 @@
+INPUT(-l@@LIB@@@@STATICLIB_SUFFIX@@ -lmd)
