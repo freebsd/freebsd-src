@@ -15,6 +15,22 @@
 .Fl f Ar configfile
 .Op Fl itv
 .Op Ar disk
+.Sh DEPRECATION NOTICE
+.Nm
+is deprecated and is not available in
+.Fx 15.0
+or later.
+Use
+.Xr gpart 8
+instead
+.Po
+with the
+.Cm MBR
+partitioning scheme
+.Pc ,
+or install the
+.Pa freebsd-fdisk
+port or package.
 .Sh PROLOGUE
 In order for the BIOS to boot the kernel,
 certain conventions must be adhered to.
