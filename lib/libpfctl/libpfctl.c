@@ -731,7 +731,7 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	strlcpy(rule->overload_tblname, nvlist_get_string(nvl, "overload_tblname"),
 	    PF_TABLE_NAME_SIZE);
 
-	pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"), &rule->rpool);
+	pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"), &rule->rdr);
 
 	rule->evaluations = nvlist_get_number(nvl, "evaluations");
 	pf_nvuint_64_array(nvl, "packets", 2, rule->packets, NULL);
@@ -1226,7 +1226,8 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_string(nw, PF_RT_TAGNAME, r->tagname);
 	snl_add_msg_attr_string(nw, PF_RT_MATCH_TAGNAME, r->match_tagname);
 	snl_add_msg_attr_string(nw, PF_RT_OVERLOAD_TBLNAME, r->overload_tblname);
-	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL, &r->rpool);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RDR, &r->rdr);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_NAT, &r->nat);
 	snl_add_msg_attr_u32(nw, PF_RT_OS_FINGERPRINT, r->os_fingerprint);
 	snl_add_msg_attr_u32(nw, PF_RT_RTABLEID, r->rtableid);
 	snl_add_msg_attr_timeouts(nw, PF_RT_TIMEOUT, r->timeout);
@@ -1596,7 +1597,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_TAGNAME, .off = _OUT(r.tagname), .arg = (void *)PF_TAG_NAME_SIZE, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_MATCH_TAGNAME, .off = _OUT(r.match_tagname), .arg = (void *)PF_TAG_NAME_SIZE, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_OVERLOAD_TBLNAME, .off = _OUT(r.overload_tblname), .arg = (void *)PF_TABLE_NAME_SIZE, .cb = snl_attr_copy_string },
-	{ .type = PF_RT_RPOOL, .off = _OUT(r.rpool), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_RPOOL_RDR, .off = _OUT(r.rdr), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_OS_FINGERPRINT, .off = _OUT(r.os_fingerprint), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_RTABLEID, .off = _OUT(r.rtableid), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_TIMEOUT, .off = _OUT(r.timeout), .arg = &timeout_parser, .cb = snl_attr_get_nested_timeouts },
@@ -1660,6 +1661,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_ANCHOR_CALL, .off = _OUT(anchor_call), .arg = (void*)MAXPATHLEN, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_RCV_IFNAME, .off = _OUT(r.rcv_ifname), .arg = (void*)IFNAMSIZ, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(r.max_src_conn), .cb = snl_attr_get_uint32 },
+	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
 };
 static struct snl_field_parser fp_getrule[] = {};
 #undef _OUT
@@ -2771,7 +2773,7 @@ pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
 }
 
 int
-pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa)
+pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which __unused)
 {
 	struct snl_writer nw;
 	struct snl_errmsg_data e = {};

@@ -785,7 +785,8 @@ struct pf_krule {
 	char			 overload_tblname[PF_TABLE_NAME_SIZE];
 
 	TAILQ_ENTRY(pf_krule)	 entries;
-	struct pf_kpool		 rpool;
+	struct pf_kpool		 nat;
+	struct pf_kpool		 rdr;
 
 	struct pf_counter_u64	 evaluations;
 	struct pf_counter_u64	 packets[2];
@@ -1604,8 +1605,10 @@ struct pf_pdesc {
 
 	struct pf_addr	*src;		/* src address */
 	struct pf_addr	*dst;		/* dst address */
-	u_int16_t *sport;
-	u_int16_t *dport;
+	u_int16_t	*sport;
+	u_int16_t	*dport;
+	u_int16_t	 osport;
+	u_int16_t	 odport;
 	struct pf_mtag	*pf_mtag;
 	struct pf_rule_actions	act;
 
@@ -2192,7 +2195,7 @@ VNET_DECLARE(struct unrhdr64, pf_stateid);
 TAILQ_HEAD(pf_altqqueue, pf_altq);
 VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[4]);
 #define	V_pf_altqs			 VNET(pf_altqs)
-VNET_DECLARE(struct pf_kpalist,		 pf_pabuf);
+VNET_DECLARE(struct pf_kpalist,		 pf_pabuf[2]);
 #define	V_pf_pabuf			 VNET(pf_pabuf)
 
 VNET_DECLARE(u_int32_t,			 ticket_altqs_active);
@@ -2527,6 +2530,20 @@ VNET_DECLARE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
+struct pf_nl_pooladdr {
+	u_int32_t		 action;
+	u_int32_t		 ticket;
+	u_int32_t		 nr;
+	u_int32_t		 r_num;
+	u_int8_t		 r_action;
+	u_int8_t		 r_last;
+	u_int8_t		 af;
+	char			 anchor[MAXPATHLEN];
+	struct pf_pooladdr	 addr;
+	/* Above this is identical to pfioc_pooladdr */
+	int			 which;
+};
+
 VNET_DECLARE(struct pf_kanchor_global,		 pf_anchors);
 #define	V_pf_anchors				 VNET(pf_anchors)
 VNET_DECLARE(struct pf_kanchor,			 pf_main_anchor);
@@ -2579,9 +2596,9 @@ int			 pf_ioctl_set_timeout(int, int, int *);
 int			 pf_ioctl_get_limit(int, unsigned int *);
 int			 pf_ioctl_set_limit(int, unsigned int, unsigned int *);
 int			 pf_ioctl_begin_addrs(uint32_t *);
-int			 pf_ioctl_add_addr(struct pfioc_pooladdr *);
-int			 pf_ioctl_get_addrs(struct pfioc_pooladdr *);
-int			 pf_ioctl_get_addr(struct pfioc_pooladdr *);
+int			 pf_ioctl_add_addr(struct pf_nl_pooladdr *);
+int			 pf_ioctl_get_addrs(struct pf_nl_pooladdr *);
+int			 pf_ioctl_get_addr(struct pf_nl_pooladdr *);
 int			 pf_ioctl_get_rulesets(struct pfioc_ruleset *);
 int			 pf_ioctl_get_ruleset(struct pfioc_ruleset *);
 

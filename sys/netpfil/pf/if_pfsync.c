@@ -582,7 +582,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			 * give up, as we can't be sure that we will pick the
 			 * same one as the pfsync peer did.
 			 */
-			rpool_first = TAILQ_FIRST(&(r->rpool.list));
+			rpool_first = TAILQ_FIRST(&(r->rdr.list));
 			if ((rpool_first == NULL) ||
 			    (TAILQ_NEXT(rpool_first, entries) != NULL)) {
 				DPFPRINTF(PF_DEBUG_MISC,
