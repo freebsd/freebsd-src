@@ -316,6 +316,10 @@ igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd->read.cmd_type_len |= htole32(IGC_ADVTXD_DCMD_EOP | txd_flags);
 	pi->ipi_new_pidx = i;
 
+	/* Sent data accounting for AIM */
+	txr->tx_bytes += pi->ipi_len;
+	++txr->tx_packets;
+
 	return (0);
 }
 
