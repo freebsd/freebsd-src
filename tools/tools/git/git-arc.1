@@ -59,8 +59,11 @@ The
 utility creates and manages
 .Fx
 Phabricator reviews based on git commits.
+It requires the
+.Pa devel/arcanist
+port or package.
 .Pp
-Git
+.Nm
 assumes a one-to-one relationship between git commits and
 Differential Revisions, and the Differential Revision title must match
 the summary line of the corresponding commit.
@@ -79,13 +82,13 @@ Before processing commit(s) display list of commits to be processed
 and wait for confirmation.
 .It Fl r Ar reviewer
 Add one or more reviewers, separated by commas, to revision(s) being created.
-Argument(s) must be existing Phabricator user or group.
+Each argument must be an existing Phabricator user or group.
 .It Fl s Ar subscriber
 Add one or more subscribers, separated by commas, to revision(s) being created.
 Each argument must be an existing Phabricator user or group.
 .It Fl p Ar parent
 Specify the parent of the first commit in the list.
-This is useful when adding more commits on top of the already existing
+This is useful when adding more commits on top of an already existing
 stack in Phabricator.
 .El
 .It Cm list
