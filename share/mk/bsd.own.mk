@@ -154,6 +154,7 @@ __<bsd.own.mk>__:
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+TBLEXTRACT_CMD= /sys/conf/ctf_with_clang_plugin ${.IMPSRC}
 .else
 CTFCONVERT_CMD=
 .endif 
