@@ -26,9 +26,16 @@
 #ifndef _ABD_OS_H
 #define	_ABD_OS_H
 
+#ifdef _KERNEL
+#include <sys/vm.h>
+#include <vm/vm_page.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct abd;
 
 struct abd_scatter {
 	uint_t		abd_offset;
@@ -37,7 +44,15 @@ struct abd_scatter {
 
 struct abd_linear {
 	void		*abd_buf;
+#if defined(_KERNEL)
+	struct sf_buf 	*sf; /* for LINEAR_PAGE FreeBSD */
+#endif
 };
+
+#ifdef _KERNEL
+__attribute__((malloc))
+struct abd *abd_alloc_from_pages(vm_page_t *, unsigned long, uint64_t);
+#endif
 
 #ifdef __cplusplus
 }

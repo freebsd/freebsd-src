@@ -917,14 +917,24 @@ zeroes (the NUL byte).
 When a zero-filled block is detected, it is stored as
 a hole and not compressed using the indicated compression algorithm.
 .Pp
-Any block being compressed must be no larger than 7/8 of its original size
-after compression, otherwise the compression will not be considered worthwhile
-and the block saved uncompressed.
-Note that when the logical block is less than
-8 times the disk sector size this effectively reduces the necessary compression
-ratio; for example, 8 KiB blocks on disks with 4 KiB disk sectors must compress
-to 1/2
-or less of their original size.
+All blocks are allocated as a whole number of sectors
+.Pq chunks of 2^ Ns Sy ashift No bytes , e.g . Sy 512B No or Sy 4KB .
+Compression may result in a non-sector-aligned size, which will be rounded up
+to a whole number of sectors.
+If compression saves less than one whole sector,
+the block will be stored uncompressed.
+Therefore, blocks whose logical size is a small number of sectors will
+experience less compression
+(e.g. for
+.Sy recordsize Ns = Ns Sy 16K
+with
+.Sy 4K
+sectors, which have 4 sectors per block,
+compression needs to save at least 25% to actually save space on disk).
+.Pp
+There is
+.Sy 12.5%
+default compression threshold in addition to sector rounding.
 .It Xo
 .Sy context Ns = Ns Sy none Ns | Ns
 .Ar SELinux-User : Ns Ar SELinux-Role : Ns Ar SELinux-Type : Ns Ar Sensitivity-Level
@@ -1038,6 +1048,48 @@ See the
 .Sx Deduplication
 section of
 .Xr zfsconcepts 7 .
+.It Xo
+.Sy direct Ns = Ns Sy disabled Ns | Ns Sy standard Ns | Ns Sy always
+.Xc
+Controls the behavior of Direct I/O requests
+.Pq e.g. Dv O_DIRECT .
+The
+.Sy standard
+behavior for Direct I/O requests is to bypass the ARC when possible.
+These requests will not be cached and performance will be limited by the
+raw speed of the underlying disks
+.Pq Dv this is the default .
+.Sy always
+causes every properly aligned read or write to be treated as a direct request.
+.Sy disabled
+causes the O_DIRECT flag to be silently ignored and all direct requests will
+be handled by the ARC.
+This is the default behavior for OpenZFS 2.2 and prior releases.
+.Pp
+Bypassing the ARC requires that a direct request be correctly aligned.
+For write requests the starting offset and size of the request must be
+.Sy recordsize Ns
+-aligned, if not then the unaligned portion of the request will be silently
+redirected through the ARC.
+For read requests there is no
+.Sy recordsize
+alignment restriction on either the starting offset or size.
+All direct requests must use a page-aligned memory buffer and the request
+size must be a multiple of the page size or an error is returned.
+.Pp
+Concurrently mixing buffered and direct requests to overlapping regions of
+a file can decrease performance.
+However, the resulting file will always be coherent.
+For example, a direct read after a buffered write will return the data
+from the buffered write.
+Furthermore, if an application uses
+.Xr mmap 2
+based file access then in order to maintain coherency all direct requests
+are converted to buffered requests while the file is mapped.
+Currently Direct I/O is not supported with zvols.
+If dedup is enabled on a dataset, Direct I/O writes will not check for
+deduplication.
+Deduplication and Direct I/O writes are currently incompatible.
 .It Xo
 .Sy dnodesize Ns = Ns Sy legacy Ns | Ns Sy auto Ns | Ns Sy 1k Ns | Ns
 .Sy 2k Ns | Ns Sy 4k Ns | Ns Sy 8k Ns | Ns Sy 16k
@@ -1475,10 +1527,21 @@ and less than or equal to
 If the
 .Sy large_blocks
 feature is enabled on the pool, the size may be up to
-.Ar 1 MiB .
+.Ar 16 MiB .
 See
 .Xr zpool-features 7
 for details on ZFS feature flags.
+.Pp
+However, blocks larger than
+.Ar 1 MiB
+can have an impact on i/o latency (e.g. tying up a spinning disk for
+~300ms), and also potentially on the memory allocator.
+.Pp
+Note that maximum size is still limited by default to
+.Ar 1 MiB
+on x86_32, see
+.Sy zfs_max_recordsize
+module parameter.
 .Pp
 Changing the file system's
 .Sy recordsize
@@ -1785,11 +1848,11 @@ Controls whether the volume snapshot devices under
 are hidden or visible.
 The default value is
 .Sy hidden .
-.It Sy snapdir Ns = Ns Sy hidden Ns | Ns Sy visible
+.It Sy snapdir Ns = Ns Sy disabled Ns | Ns Sy hidden Ns | Ns Sy visible
 Controls whether the
 .Pa .zfs
-directory is hidden or visible in the root of the file system as discussed in
-the
+directory is disabled, hidden or visible in the root of the file system as
+discussed in the
 .Sx Snapshots
 section of
 .Xr zfsconcepts 7 .
@@ -1919,14 +1982,13 @@ enabled for virus scanning to occur.
 The default value is
 .Sy off .
 This property is not used by OpenZFS.
-.It Sy xattr Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Sy sa
+.It Sy xattr Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Sy dir Ns | Ns Sy sa
 Controls whether extended attributes are enabled for this file system.
 Two styles of extended attributes are supported: either directory-based
 or system-attribute-based.
 .Pp
-The default value of
-.Sy on
-enables directory-based extended attributes.
+Directory-based extended attributes can be enabled by setting the value to
+.Sy dir .
 This style of extended attribute imposes no practical limit
 on either the size or number of attributes which can be set on a file.
 Although under Linux the
@@ -1939,7 +2001,10 @@ This is the most compatible
 style of extended attribute and is supported by all ZFS implementations.
 .Pp
 System-attribute-based xattrs can be enabled by setting the value to
-.Sy sa .
+.Sy sa
+(default and equal to
+.Sy on
+) .
 The key advantage of this type of xattr is improved performance.
 Storing extended attributes as system attributes
 significantly decreases the amount of disk I/O required.

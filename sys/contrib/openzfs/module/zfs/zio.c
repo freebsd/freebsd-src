@@ -26,6 +26,7 @@
  * Copyright (c) 2019, 2023, 2024, Klara Inc.
  * Copyright (c) 2019, Allan Jude
  * Copyright (c) 2021, Datto, Inc.
+ * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
  */
 
 #include <sys/sysmacros.h>
@@ -803,6 +804,12 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait,
 	pio->io_reexecute |= zio->io_reexecute;
 	ASSERT3U(*countp, >, 0);
 
+	if (zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR) {
+		ASSERT3U(*errorp, ==, EIO);
+		ASSERT3U(pio->io_child_type, ==, ZIO_CHILD_LOGICAL);
+		pio->io_flags |= ZIO_FLAG_DIO_CHKSUM_ERR;
+	}
+
 	(*countp)--;
 
 	if (*countp == 0 && pio->io_stall == countp) {
@@ -1282,20 +1289,14 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
     zio_flag_t flags, const zbookmark_phys_t *zb)
 {
 	zio_t *zio;
+	enum zio_stage pipeline = zp->zp_direct_write == B_TRUE ?
+	    ZIO_DIRECT_WRITE_PIPELINE : (flags & ZIO_FLAG_DDT_CHILD) ?
+	    ZIO_DDT_CHILD_WRITE_PIPELINE : ZIO_WRITE_PIPELINE;
 
-	ASSERT(zp->zp_checksum >= ZIO_CHECKSUM_OFF &&
-	    zp->zp_checksum < ZIO_CHECKSUM_FUNCTIONS &&
-	    zp->zp_compress >= ZIO_COMPRESS_OFF &&
-	    zp->zp_compress < ZIO_COMPRESS_FUNCTIONS &&
-	    DMU_OT_IS_VALID(zp->zp_type) &&
-	    zp->zp_level < 32 &&
-	    zp->zp_copies > 0 &&
-	    zp->zp_copies <= spa_max_replication(spa));
 
 	zio = zio_create(pio, spa, txg, bp, data, lsize, psize, done, private,
 	    ZIO_TYPE_WRITE, priority, flags, NULL, 0, zb,
-	    ZIO_STAGE_OPEN, (flags & ZIO_FLAG_DDT_CHILD) ?
-	    ZIO_DDT_CHILD_WRITE_PIPELINE : ZIO_WRITE_PIPELINE);
+	    ZIO_STAGE_OPEN, pipeline);
 
 	zio->io_ready = ready;
 	zio->io_children_ready = children_ready;
@@ -1572,6 +1573,19 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 		 */
 		pipeline |= ZIO_STAGE_CHECKSUM_VERIFY;
 		pio->io_pipeline &= ~ZIO_STAGE_CHECKSUM_VERIFY;
+	} else if (type == ZIO_TYPE_WRITE &&
+	    pio->io_prop.zp_direct_write == B_TRUE) {
+		/*
+		 * By default we only will verify checksums for Direct I/O
+		 * writes for Linux. FreeBSD is able to place user pages under
+		 * write protection before issuing them to the ZIO pipeline.
+		 *
+		 * Checksum validation errors will only be reported through
+		 * the top-level VDEV, which is set by this child ZIO.
+		 */
+		ASSERT3P(bp, !=, NULL);
+		ASSERT3U(pio->io_child_type, ==, ZIO_CHILD_LOGICAL);
+		pipeline |= ZIO_STAGE_DIO_CHECKSUM_VERIFY;
 	}
 
 	if (vd->vdev_ops->vdev_op_leaf) {
@@ -1689,6 +1703,26 @@ zio_roundup_alloc_size(spa_t *spa, uint64_t size)
 	if (size > spa->spa_min_alloc)
 		return (roundup(size, spa->spa_gcd_alloc));
 	return (spa->spa_min_alloc);
+}
+
+size_t
+zio_get_compression_max_size(enum zio_compress compress, uint64_t gcd_alloc,
+    uint64_t min_alloc, size_t s_len)
+{
+	size_t d_len;
+
+	/* minimum 12.5% must be saved (legacy value, may be changed later) */
+	d_len = s_len - (s_len >> 3);
+
+	/* ZLE can't use exactly d_len bytes, it needs more, so ignore it */
+	if (compress == ZIO_COMPRESS_ZLE)
+		return (d_len);
+
+	d_len = d_len - d_len % gcd_alloc;
+
+	if (d_len < min_alloc)
+		return (BPE_PAYLOAD_SIZE);
+	return (d_len);
 }
 
 /*
@@ -1872,7 +1906,10 @@ zio_write_compress(zio_t *zio)
 			psize = lsize;
 		else
 			psize = zio_compress_data(compress, zio->io_abd, &cabd,
-			    lsize, zp->zp_complevel);
+			    lsize,
+			    zio_get_compression_max_size(compress,
+			    spa->spa_gcd_alloc, spa->spa_min_alloc, lsize),
+			    zp->zp_complevel);
 		if (psize == 0) {
 			compress = ZIO_COMPRESS_OFF;
 		} else if (psize >= lsize) {
@@ -2553,7 +2590,7 @@ zio_suspend(spa_t *spa, zio_t *zio, zio_suspend_reason_t reason)
 
 	if (reason != ZIO_SUSPEND_MMP) {
 		cmn_err(CE_WARN, "Pool '%s' has encountered an uncorrectable "
-		    "I/O failure and has been suspended.\n", spa_name(spa));
+		    "I/O failure and has been suspended.", spa_name(spa));
 	}
 
 	(void) zfs_ereport_post(FM_EREPORT_ZFS_IO_FAILURE, spa, NULL,
@@ -2589,6 +2626,10 @@ zio_resume(spa_t *spa)
 	 * Reexecute all previously suspended i/o.
 	 */
 	mutex_enter(&spa->spa_suspend_lock);
+	if (spa->spa_suspended != ZIO_SUSPEND_NONE)
+		cmn_err(CE_WARN, "Pool '%s' was suspended and is being "
+		    "resumed. Failed I/O will be retried.",
+		    spa_name(spa));
 	spa->spa_suspended = ZIO_SUSPEND_NONE;
 	cv_broadcast(&spa->spa_suspend_cv);
 	pio = spa->spa_suspend_zio_root;
@@ -3100,6 +3141,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 		zp.zp_nopwrite = B_FALSE;
 		zp.zp_encrypt = gio->io_prop.zp_encrypt;
 		zp.zp_byteorder = gio->io_prop.zp_byteorder;
+		zp.zp_direct_write = B_FALSE;
 		memset(zp.zp_salt, 0, ZIO_DATA_SALT_LEN);
 		memset(zp.zp_iv, 0, ZIO_DATA_IV_LEN);
 		memset(zp.zp_mac, 0, ZIO_DATA_MAC_LEN);
@@ -3573,6 +3615,13 @@ zio_ddt_write(zio_t *zio)
 	ASSERT(BP_GET_CHECKSUM(bp) == zp->zp_checksum);
 	ASSERT(BP_IS_HOLE(bp) || zio->io_bp_override);
 	ASSERT(!(zio->io_bp_override && (zio->io_flags & ZIO_FLAG_RAW)));
+	/*
+	 * Deduplication will not take place for Direct I/O writes. The
+	 * ddt_tree will be emptied in syncing context. Direct I/O writes take
+	 * place in the open-context. Direct I/O write can not attempt to
+	 * modify the ddt_tree while issuing out a write.
+	 */
+	ASSERT3B(zio->io_prop.zp_direct_write, ==, B_FALSE);
 
 	ddt_enter(ddt);
 	dde = ddt_lookup(ddt, bp);
@@ -4157,8 +4206,8 @@ zio_alloc_zil(spa_t *spa, objset_t *os, uint64_t txg, blkptr_t *new_bp,
 	 * some parallelism.
 	 */
 	int flags = METASLAB_ZIL;
-	int allocator = (uint_t)cityhash4(0, 0, 0,
-	    os->os_dsl_dataset->ds_object) % spa->spa_alloc_count;
+	int allocator = (uint_t)cityhash1(os->os_dsl_dataset->ds_object)
+	    % spa->spa_alloc_count;
 	error = metaslab_alloc(spa, spa_log_class(spa), size, new_bp, 1,
 	    txg, NULL, flags, &io_alloc_list, NULL, allocator);
 	*slog = (error == 0);
@@ -4505,6 +4554,19 @@ zio_vdev_io_assess(zio_t *zio)
 		zio->io_vsd = NULL;
 	}
 
+	/*
+	 * If a Direct I/O write checksum verify error has occurred then this
+	 * I/O should not attempt to be issued again. Instead the EIO will
+	 * be returned.
+	 */
+	if (zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR) {
+		ASSERT3U(zio->io_child_type, ==, ZIO_CHILD_LOGICAL);
+		ASSERT3U(zio->io_error, ==, EIO);
+		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
+		return (zio);
+	}
+
+
 	if (zio_injection_enabled && zio->io_error == 0)
 		zio->io_error = zio_handle_fault_injection(zio, EIO);
 
@@ -4817,6 +4879,49 @@ zio_checksum_verify(zio_t *zio)
 
 	return (zio);
 }
+
+static zio_t *
+zio_dio_checksum_verify(zio_t *zio)
+{
+	zio_t *pio = zio_unique_parent(zio);
+	int error;
+
+	ASSERT3P(zio->io_vd, !=, NULL);
+	ASSERT3P(zio->io_bp, !=, NULL);
+	ASSERT3U(zio->io_child_type, ==, ZIO_CHILD_VDEV);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
+	ASSERT3B(pio->io_prop.zp_direct_write, ==, B_TRUE);
+	ASSERT3U(pio->io_child_type, ==, ZIO_CHILD_LOGICAL);
+
+	if (zfs_vdev_direct_write_verify == 0 || zio->io_error != 0)
+		goto out;
+
+	if ((error = zio_checksum_error(zio, NULL)) != 0) {
+		zio->io_error = error;
+		if (error == ECKSUM) {
+			mutex_enter(&zio->io_vd->vdev_stat_lock);
+			zio->io_vd->vdev_stat.vs_dio_verify_errors++;
+			mutex_exit(&zio->io_vd->vdev_stat_lock);
+			zio->io_error = SET_ERROR(EIO);
+			zio->io_flags |= ZIO_FLAG_DIO_CHKSUM_ERR;
+
+			/*
+			 * The EIO error must be propagated up to the logical
+			 * parent ZIO in zio_notify_parent() so it can be
+			 * returned to dmu_write_abd().
+			 */
+			zio->io_flags &= ~ZIO_FLAG_DONT_PROPAGATE;
+
+			(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY,
+			    zio->io_spa, zio->io_vd, &zio->io_bookmark,
+			    zio, 0);
+		}
+	}
+
+out:
+	return (zio);
+}
+
 
 /*
  * Called by RAID-Z to ensure we don't compute the checksum twice.
@@ -5148,7 +5253,8 @@ zio_done(zio_t *zio)
 		 * device is currently unavailable.
 		 */
 		if (zio->io_error != ECKSUM && zio->io_vd != NULL &&
-		    !vdev_is_dead(zio->io_vd)) {
+		    !vdev_is_dead(zio->io_vd) &&
+		    !(zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR)) {
 			int ret = zfs_ereport_post(FM_EREPORT_ZFS_IO,
 			    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
 			if (ret != EALREADY) {
@@ -5163,6 +5269,7 @@ zio_done(zio_t *zio)
 
 		if ((zio->io_error == EIO || !(zio->io_flags &
 		    (ZIO_FLAG_SPECULATIVE | ZIO_FLAG_DONT_PROPAGATE))) &&
+		    !(zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR) &&
 		    zio == zio->io_logical) {
 			/*
 			 * For logical I/O requests, tell the SPA to log the
@@ -5184,7 +5291,8 @@ zio_done(zio_t *zio)
 		ASSERT(zio->io_child_type == ZIO_CHILD_LOGICAL);
 
 		if (IO_IS_ALLOCATING(zio) &&
-		    !(zio->io_flags & ZIO_FLAG_CANFAIL)) {
+		    !(zio->io_flags & ZIO_FLAG_CANFAIL) &&
+		    !(zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR)) {
 			if (zio->io_error != ENOSPC)
 				zio->io_reexecute |= ZIO_REEXECUTE_NOW;
 			else
@@ -5234,6 +5342,14 @@ zio_done(zio_t *zio)
 		zio->io_reexecute &= ~ZIO_REEXECUTE_SUSPEND;
 
 	if (zio->io_reexecute) {
+		/*
+		 * A Direct I/O write that has a checksum verify error should
+		 * not attempt to reexecute. Instead, EAGAIN should just be
+		 * propagated back up so the write can be attempt to be issued
+		 * through the ARC.
+		 */
+		ASSERT(!(zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR));
+
 		/*
 		 * This is a logical I/O that wants to reexecute.
 		 *
@@ -5394,6 +5510,7 @@ static zio_pipe_stage_t *zio_pipeline[] = {
 	zio_vdev_io_done,
 	zio_vdev_io_assess,
 	zio_checksum_verify,
+	zio_dio_checksum_verify,
 	zio_done
 };
 

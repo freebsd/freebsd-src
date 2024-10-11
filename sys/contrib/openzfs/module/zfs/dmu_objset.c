@@ -66,6 +66,7 @@
 #include "zfs_namecheck.h"
 #include <sys/vdev_impl.h>
 #include <sys/arc.h>
+#include <cityhash.h>
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed
@@ -351,6 +352,20 @@ smallblk_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+direct_changed_cb(void *arg, uint64_t newval)
+{
+	objset_t *os = arg;
+
+	/*
+	 * Inheritance and range checking should have been done by now.
+	 */
+	ASSERT(newval == ZFS_DIRECT_DISABLED || newval == ZFS_DIRECT_STANDARD ||
+	    newval == ZFS_DIRECT_ALWAYS);
+
+	os->os_direct = newval;
+}
+
+static void
 logbias_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
@@ -390,27 +405,13 @@ dmu_objset_byteswap(void *buf, size_t size)
 }
 
 /*
- * The hash is a CRC-based hash of the objset_t pointer and the object number.
+ * Runs cityhash on the objset_t pointer and the object number.
  */
 static uint64_t
 dnode_hash(const objset_t *os, uint64_t obj)
 {
 	uintptr_t osv = (uintptr_t)os;
-	uint64_t crc = -1ULL;
-
-	ASSERT(zfs_crc64_table[128] == ZFS_CRC64_POLY);
-	/*
-	 * The lower 11 bits of the pointer don't have much entropy, because
-	 * the objset_t is more than 1KB long and so likely aligned to 2KB.
-	 */
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (osv >> 11)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 0)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 8)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 16)) & 0xFF];
-
-	crc ^= (osv>>14) ^ (obj>>24);
-
-	return (crc);
+	return (cityhash2((uint64_t)osv, obj));
 }
 
 static unsigned int
@@ -632,6 +633,11 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 				    zfs_prop_to_name(
 				    ZFS_PROP_SPECIAL_SMALL_BLOCKS),
 				    smallblk_changed_cb, os);
+			}
+			if (err == 0) {
+				err = dsl_prop_register(ds,
+				    zfs_prop_to_name(ZFS_PROP_DIRECT),
+				    direct_changed_cb, os);
 			}
 		}
 		if (err != 0) {
@@ -2615,35 +2621,39 @@ dmu_snapshot_list_next(objset_t *os, int namelen, char *name,
 {
 	dsl_dataset_t *ds = os->os_dsl_dataset;
 	zap_cursor_t cursor;
-	zap_attribute_t attr;
+	zap_attribute_t *attr;
 
 	ASSERT(dsl_pool_config_held(dmu_objset_pool(os)));
 
 	if (dsl_dataset_phys(ds)->ds_snapnames_zapobj == 0)
 		return (SET_ERROR(ENOENT));
 
+	attr = zap_attribute_alloc();
 	zap_cursor_init_serialized(&cursor,
 	    ds->ds_dir->dd_pool->dp_meta_objset,
 	    dsl_dataset_phys(ds)->ds_snapnames_zapobj, *offp);
 
-	if (zap_cursor_retrieve(&cursor, &attr) != 0) {
+	if (zap_cursor_retrieve(&cursor, attr) != 0) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENOENT));
 	}
 
-	if (strlen(attr.za_name) + 1 > namelen) {
+	if (strlen(attr->za_name) + 1 > namelen) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENAMETOOLONG));
 	}
 
-	(void) strlcpy(name, attr.za_name, namelen);
+	(void) strlcpy(name, attr->za_name, namelen);
 	if (idp)
-		*idp = attr.za_first_integer;
+		*idp = attr->za_first_integer;
 	if (case_conflict)
-		*case_conflict = attr.za_normalization_conflict;
+		*case_conflict = attr->za_normalization_conflict;
 	zap_cursor_advance(&cursor);
 	*offp = zap_cursor_serialize(&cursor);
 	zap_cursor_fini(&cursor);
+	zap_attribute_free(attr);
 
 	return (0);
 }
@@ -2660,33 +2670,37 @@ dmu_dir_list_next(objset_t *os, int namelen, char *name,
 {
 	dsl_dir_t *dd = os->os_dsl_dataset->ds_dir;
 	zap_cursor_t cursor;
-	zap_attribute_t attr;
+	zap_attribute_t *attr;
 
 	/* there is no next dir on a snapshot! */
 	if (os->os_dsl_dataset->ds_object !=
 	    dsl_dir_phys(dd)->dd_head_dataset_obj)
 		return (SET_ERROR(ENOENT));
 
+	attr = zap_attribute_alloc();
 	zap_cursor_init_serialized(&cursor,
 	    dd->dd_pool->dp_meta_objset,
 	    dsl_dir_phys(dd)->dd_child_dir_zapobj, *offp);
 
-	if (zap_cursor_retrieve(&cursor, &attr) != 0) {
+	if (zap_cursor_retrieve(&cursor, attr) != 0) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENOENT));
 	}
 
-	if (strlen(attr.za_name) + 1 > namelen) {
+	if (strlen(attr->za_name) + 1 > namelen) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENAMETOOLONG));
 	}
 
-	(void) strlcpy(name, attr.za_name, namelen);
+	(void) strlcpy(name, attr->za_name, namelen);
 	if (idp)
-		*idp = attr.za_first_integer;
+		*idp = attr->za_first_integer;
 	zap_cursor_advance(&cursor);
 	*offp = zap_cursor_serialize(&cursor);
 	zap_cursor_fini(&cursor);
+	zap_attribute_free(attr);
 
 	return (0);
 }
@@ -2734,7 +2748,7 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 	}
 
 	thisobj = dsl_dir_phys(dd)->dd_head_dataset_obj;
-	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	attr = zap_attribute_alloc();
 
 	/*
 	 * Iterate over all children.
@@ -2795,7 +2809,7 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 		}
 	}
 
-	kmem_free(attr, sizeof (zap_attribute_t));
+	zap_attribute_free(attr);
 
 	if (err != 0) {
 		dsl_dir_rele(dd, FTAG);
@@ -2969,7 +2983,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 	}
 
 	thisobj = dsl_dir_phys(dd)->dd_head_dataset_obj;
-	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	attr = zap_attribute_alloc();
 
 	/*
 	 * Iterate over all children.
@@ -2997,7 +3011,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 		if (err != 0) {
 			dsl_dir_rele(dd, FTAG);
 			dsl_pool_config_exit(dp, FTAG);
-			kmem_free(attr, sizeof (zap_attribute_t));
+			zap_attribute_free(attr);
 			return (err);
 		}
 	}
@@ -3035,7 +3049,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 	}
 
 	dsl_dir_rele(dd, FTAG);
-	kmem_free(attr, sizeof (zap_attribute_t));
+	zap_attribute_free(attr);
 	dsl_pool_config_exit(dp, FTAG);
 
 	if (err != 0)

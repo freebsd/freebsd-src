@@ -16,7 +16,9 @@
 .\" own identifying information:
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\"
-.Dd June 27, 2024
+.\" Copyright (c) 2024, Klara, Inc.
+.\"
+.Dd October 2, 2024
 .Dt ZFS 4
 .Os
 .
@@ -291,6 +293,14 @@ Default dnode block size as a power of 2.
 .It Sy zfs_default_ibs Ns = Ns Sy 17 Po 128 KiB Pc Pq int
 Default dnode indirect block size as a power of 2.
 .
+.It Sy zfs_dio_enabled Ns = Ns Sy 0 Ns | Ns 1 Pq int
+Enable Direct I/O.
+If this setting is 0, then all I/O requests will be directed through the ARC
+acting as though the dataset property
+.Sy direct
+was set to
+.Sy disabled .
+.
 .It Sy zfs_history_output_max Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq u64
 When attempting to log an output nvlist of an ioctl in the on-disk history,
 the output will not be stored if it is larger than this size (in bytes).
@@ -415,6 +425,26 @@ top-level vdevs.
 May be increased up to
 .Sy ASHIFT_MAX Po 16 Pc ,
 but this may negatively impact pool space efficiency.
+.
+.It Sy zfs_vdev_direct_write_verify Ns = Ns Sy Linux 1 | FreeBSD 0 Pq uint
+If non-zero, then a Direct I/O write's checksum will be verified every
+time the write is issued and before it is commited to the block pointer.
+In the event the checksum is not valid then the I/O operation will return EIO.
+This module parameter can be used to detect if the
+contents of the users buffer have changed in the process of doing a Direct I/O
+write.
+It can also help to identify if reported checksum errors are tied to Direct I/O
+writes.
+Each verify error causes a
+.Sy dio_verify
+zevent.
+Direct Write I/O checkum verify errors can be seen with
+.Nm zpool Cm status Fl d .
+The default value for this is 1 on Linux, but is 0 for
+.Fx
+because user pages can be placed under write protection in
+.Fx
+before the Direct I/O write is issued.
 .
 .It Sy zfs_vdev_min_auto_ashift Ns = Ns Sy ASHIFT_MIN Po 9 Pc Pq uint
 Minimum ashift used when creating new top-level vdevs.
@@ -586,7 +616,11 @@ However, this is limited by
 .
 .It Sy zap_micro_max_size Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq int
 Maximum micro ZAP size.
-A micro ZAP is upgraded to a fat ZAP, once it grows beyond the specified size.
+A "micro" ZAP is upgraded to a "fat" ZAP once it grows beyond the specified
+size.
+Sizes higher than 128KiB will be clamped to 128KiB unless the
+.Sy large_microzap
+feature is enabled.
 .
 .It Sy zap_shrink_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
 If set, adjacent empty ZAP blocks will be collapsed, reducing disk space.
@@ -1093,6 +1127,9 @@ This will smoothly handle between ten times and a tenth of this number.
 .Pp
 .Sy zfs_delay_scale No \(mu Sy zfs_dirty_data_max Em must No be smaller than Sy 2^64 .
 .
+.It Sy zfs_dio_write_verify_events_per_second Ns = Ns Sy 20 Ns /s Pq uint
+Rate limit Direct I/O write verify events to this many per second.
+.
 .It Sy zfs_disable_ivset_guid_check Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Disables requirement for IVset GUIDs to be present and match when doing a raw
 receive of encrypted datasets.
@@ -1539,6 +1576,15 @@ which have the
 .Em no_root_squash
 option set.
 .
+.It Sy zfs_snapshot_no_setuid Ns = Ns Sy 0 Ns | Ns 1 Pq int
+Whether to disable
+.Em setuid/setgid
+support for snapshot mounts triggered by access to the
+.Sy .zfs/snapshot
+directory by setting the
+.Em nosuid
+mount option.
+.
 .It Sy zfs_flags Ns = Ns Sy 0 Pq int
 Set additional debugging flags.
 The following flags may be bitwise-ored together:
@@ -1718,6 +1764,11 @@ Therefore, we formerly forbade creating blocks larger than 1M.
 Larger blocks could be created by changing it,
 and pools with larger blocks can always be imported and used,
 regardless of this setting.
+.Pp
+Note that it is still limited by default to
+.Ar 1 MiB
+on x86_32, because Linux's
+3/1 memory split doesn't leave much room for 16M chunks.
 .
 .It Sy zfs_allow_redacted_dataset_mount Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Allow datasets received with redacted send/receive to be mounted.
@@ -1960,6 +2011,13 @@ Ignore the
 .Sy resilver_defer
 feature, causing an operation that would start a resilver to
 immediately restart the one in progress.
+.
+.It Sy zfs_resilver_defer_percent Ns = Ns Sy 10 Ns % Pq uint
+If the ongoing resilver progress is below this threshold, a new resilver will
+restart from scratch instead of being deferred after the current one finishes,
+even if the
+.Sy resilver_defer
+feature is enabled.
 .
 .It Sy zfs_resilver_min_time_ms Ns = Ns Sy 3000 Ns ms Po 3 s Pc Pq uint
 Resilvers are processed by the sync thread.

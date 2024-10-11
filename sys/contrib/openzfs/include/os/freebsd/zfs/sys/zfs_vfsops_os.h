@@ -76,13 +76,14 @@ struct zfsvfs {
 	list_t		z_all_znodes;	/* all vnodes in the fs */
 	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
 	struct zfsctl_root	*z_ctldir;	/* .zfs directory pointer */
-	boolean_t	z_show_ctldir;	/* expose .zfs in the root dir */
+	uint_t		z_show_ctldir;	/* how to expose .zfs in the root dir */
 	boolean_t	z_issnap;	/* true if this is a snapshot */
 	boolean_t	z_use_fuids;	/* version allows fuids */
 	boolean_t	z_replay;	/* set during ZIL replay */
 	boolean_t	z_use_sa;	/* version allow system attributes */
 	boolean_t	z_xattr_sa;	/* allow xattrs to be stores as SA */
 	boolean_t	z_use_namecache; /* make use of FreeBSD name cache */
+	boolean_t	z_longname;	/* Dataset supports long names */
 	uint8_t		z_xattr;	/* xattr type in use */
 	uint64_t	z_version;	/* ZPL version */
 	uint64_t	z_shares_dir;	/* hidden shares dir */
