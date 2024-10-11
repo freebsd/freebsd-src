@@ -40,6 +40,9 @@
 #ifndef _ICE_LIB_H_
 #define _ICE_LIB_H_
 
+/* include kernel options first */
+#include "ice_opts.h"
+
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
