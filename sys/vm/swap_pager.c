@@ -1910,6 +1910,8 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_SWAP) != 0,
 	    ("%s: Object not swappable", __func__));
+	KASSERT((object->flags & OBJ_DEAD) == 0,
+	    ("%s: Object already dead", __func__));
 	KASSERT((sp->sw_flags & SW_CLOSING) != 0,
 	    ("%s: Device not blocking further allocations", __func__));
 
@@ -1917,15 +1919,6 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 	swp_pager_init_freerange(&range);
 	sb = swblk_iter_init(&blks, object, 0);
 	while (sb != NULL) {
-		if ((object->flags & OBJ_DEAD) != 0) {
-			/*
-			 * Make sure that pending writes finish before
-			 * returning.
-			 */
-			vm_object_pip_wait(object, "swpoff");
-			swp_pager_meta_free_all(object);
-			break;
-		}
 		sb_empty = true;
 		for (i = 0; i < SWAP_META_PAGES; i++) {
 			/* Skip an invalid block. */
@@ -1983,8 +1976,21 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 		}
 		if (i < SWAP_META_PAGES) {
 			/*
-			 * With the object lock released and regained, the
-			 * swapblk could have been freed, so reset the pages
+			 * The object lock has been released and regained.
+			 * Perhaps the object is now dead.
+			 */
+			if ((object->flags & OBJ_DEAD) != 0) {
+				/*
+				 * Make sure that pending writes finish before
+				 * returning.
+				 */
+				vm_object_pip_wait(object, "swpoff");
+				swp_pager_meta_free_all(object);
+				break;
+			}
+
+			/*
+			 * The swapblk could have been freed, so reset the pages
 			 * iterator and search again for the first swblk at or
 			 * after blks.index.
 			 */
