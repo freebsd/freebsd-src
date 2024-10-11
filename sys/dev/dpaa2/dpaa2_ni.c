@@ -138,8 +138,9 @@ MALLOC_DEFINE(M_DPAA2_TXB, "dpaa2_txb", "DPAA2 DMA-mapped buffer (Tx)");
 #define DPNI_IRQ_LINK_CHANGED	1 /* Link state changed */
 #define DPNI_IRQ_EP_CHANGED	2 /* DPAA2 endpoint dis/connected */
 
-/* Default maximum frame length. */
-#define DPAA2_ETH_MFL		(ETHER_MAX_LEN - ETHER_CRC_LEN)
+/* Default maximum RX frame length w/o CRC. */
+#define	DPAA2_ETH_MFL		(ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN - \
+    ETHER_CRC_LEN)
 
 /* Minimally supported version of the DPNI API. */
 #define DPNI_VER_MAJOR		7
@@ -2561,8 +2562,10 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 		DPNI_UNLOCK(sc);
 
 		/* Update maximum frame length. */
-		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd,
-		    mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+		mtu += ETHER_HDR_LEN;
+		if (if_getcapenable(ifp) & IFCAP_VLAN_MTU)
+			mtu += ETHER_VLAN_ENCAP_LEN;
+		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd, mtu);
 		if (error) {
 			device_printf(dev, "%s: failed to update maximum frame "
 			    "length: error=%d\n", __func__, error);
