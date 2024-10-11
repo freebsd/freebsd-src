@@ -717,7 +717,7 @@ spa_keystore_dsl_key_hold_dd(spa_t *spa, dsl_dir_t *dd, const void *tag,
 		avl_insert(&spa->spa_keystore.sk_dsl_keys, dck_io, where);
 		*dck_out = dck_io;
 	} else {
-		dsl_crypto_key_free(dck_io);
+		dsl_crypto_key_rele(dck_io, tag);
 		*dck_out = dck_ks;
 	}
 
@@ -1497,7 +1497,7 @@ spa_keystore_change_key_sync_impl(uint64_t rddobj, uint64_t ddobj,
 	}
 
 	zc = kmem_alloc(sizeof (zap_cursor_t), KM_SLEEP);
-	za = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	za = zap_attribute_alloc();
 
 	/* Recurse into all child dsl dirs. */
 	for (zap_cursor_init(zc, dp->dp_meta_objset,
@@ -1529,7 +1529,7 @@ spa_keystore_change_key_sync_impl(uint64_t rddobj, uint64_t ddobj,
 	}
 	zap_cursor_fini(zc);
 
-	kmem_free(za, sizeof (zap_attribute_t));
+	zap_attribute_free(za);
 	kmem_free(zc, sizeof (zap_cursor_t));
 
 	dsl_dir_rele(dd, FTAG);

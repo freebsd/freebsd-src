@@ -158,6 +158,8 @@ extern "C" {
 #define	ZFS_DIRENT_OBJ(de) BF64_GET(de, 0, 48)
 
 extern int zfs_obj_to_path(objset_t *osp, uint64_t obj, char *buf, int len);
+extern int zfs_obj_to_pobj(objset_t *osp, sa_handle_t *hdl,
+    sa_attr_type_t *sa_table, uint64_t *pobjp, int *is_xattrdir);
 extern int zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value);
 
 #ifdef _KERNEL
@@ -308,7 +310,7 @@ extern void zfs_log_rename_whiteout(zilog_t *zilog, dmu_tx_t *tx,
     const char *dname, znode_t *szp, znode_t *wzp);
 extern void zfs_log_write(zilog_t *zilog, dmu_tx_t *tx, int txtype,
     znode_t *zp, offset_t off, ssize_t len, boolean_t commit,
-    zil_callback_t callback, void *callback_data);
+    boolean_t o_direct, zil_callback_t callback, void *callback_data);
 extern void zfs_log_truncate(zilog_t *zilog, dmu_tx_t *tx, int txtype,
     znode_t *zp, uint64_t off, uint64_t len);
 extern void zfs_log_setattr(zilog_t *zilog, dmu_tx_t *tx, int txtype,

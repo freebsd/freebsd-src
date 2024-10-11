@@ -29,6 +29,7 @@
  * Copyright (c) 2019, 2023, Klara Inc.
  * Copyright (c) 2019, Allan Jude
  * Copyright (c) 2020, The FreeBSD Foundation [1]
+ * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
  *
  * [1] Portions of this software were developed by Allan Jude
  *     under sponsorship from the FreeBSD Foundation.
@@ -1786,9 +1787,13 @@ arc_hdr_authenticate(arc_buf_hdr_t *hdr, spa_t *spa, uint64_t dsobj)
 	    !HDR_COMPRESSION_ENABLED(hdr)) {
 		abd = NULL;
 		csize = zio_compress_data(HDR_GET_COMPRESS(hdr),
-		    hdr->b_l1hdr.b_pabd, &abd, lsize, hdr->b_complevel);
+		    hdr->b_l1hdr.b_pabd, &abd, lsize, MIN(lsize, psize),
+		    hdr->b_complevel);
+		if (csize >= lsize || csize > psize) {
+			ret = SET_ERROR(EIO);
+			return (ret);
+		}
 		ASSERT3P(abd, !=, NULL);
-		ASSERT3U(csize, <=, psize);
 		abd_zero_off(abd, csize, psize - csize);
 		free_abd = B_TRUE;
 	}
@@ -4246,7 +4251,7 @@ arc_mf(uint64_t x, uint64_t multiplier, uint64_t divisor)
 static uint64_t
 arc_evict(void)
 {
-	uint64_t asize, bytes, total_evicted = 0;
+	uint64_t bytes, total_evicted = 0;
 	int64_t e, mrud, mrum, mfud, mfum, w;
 	static uint64_t ogrd, ogrm, ogfd, ogfm;
 	static uint64_t gsrd, gsrm, gsfd, gsfm;
@@ -4283,8 +4288,9 @@ arc_evict(void)
 	arc_pd = arc_evict_adj(arc_pd, gsrd + gsfd, grd, gfd, 100);
 	arc_pm = arc_evict_adj(arc_pm, gsrm + gsfm, grm, gfm, 100);
 
-	asize = aggsum_value(&arc_sums.arcstat_size);
-	int64_t wt = t - (asize - arc_c);
+	uint64_t asize = aggsum_value(&arc_sums.arcstat_size);
+	uint64_t ac = arc_c;
+	int64_t wt = t - (asize - ac);
 
 	/*
 	 * Try to reduce pinned dnodes if more than 3/4 of wanted metadata
@@ -4312,7 +4318,7 @@ arc_evict(void)
 
 	/* Evict MRU metadata. */
 	w = wt * (int64_t)(arc_meta * arc_pm >> 48) >> 16;
-	e = MIN((int64_t)(asize - arc_c), (int64_t)(mrum - w));
+	e = MIN((int64_t)(asize - ac), (int64_t)(mrum - w));
 	bytes = arc_evict_impl(arc_mru, ARC_BUFC_METADATA, e);
 	total_evicted += bytes;
 	mrum -= bytes;
@@ -4320,7 +4326,7 @@ arc_evict(void)
 
 	/* Evict MFU metadata. */
 	w = wt * (int64_t)(arc_meta >> 16) >> 16;
-	e = MIN((int64_t)(asize - arc_c), (int64_t)(m - w));
+	e = MIN((int64_t)(asize - ac), (int64_t)(m - bytes - w));
 	bytes = arc_evict_impl(arc_mfu, ARC_BUFC_METADATA, e);
 	total_evicted += bytes;
 	mfum -= bytes;
@@ -4329,14 +4335,14 @@ arc_evict(void)
 	/* Evict MRU data. */
 	wt -= m - total_evicted;
 	w = wt * (int64_t)(arc_pd >> 16) >> 16;
-	e = MIN((int64_t)(asize - arc_c), (int64_t)(mrud - w));
+	e = MIN((int64_t)(asize - ac), (int64_t)(mrud - w));
 	bytes = arc_evict_impl(arc_mru, ARC_BUFC_DATA, e);
 	total_evicted += bytes;
 	mrud -= bytes;
 	asize -= bytes;
 
 	/* Evict MFU data. */
-	e = asize - arc_c;
+	e = asize - ac;
 	bytes = arc_evict_impl(arc_mfu, ARC_BUFC_DATA, e);
 	mfud -= bytes;
 	total_evicted += bytes;
@@ -5961,7 +5967,7 @@ top:
 			ARCSTAT_CONDSTAT(!(*arc_flags & ARC_FLAG_PREFETCH),
 			    demand, prefetch, !HDR_ISTYPE_METADATA(hdr), data,
 			    metadata, misses);
-			zfs_racct_read(size, 1);
+			zfs_racct_read(spa, size, 1, 0);
 		}
 
 		/* Check if the spa even has l2 configured */
@@ -9029,8 +9035,8 @@ l2arc_apply_transforms(spa_t *spa, arc_buf_hdr_t *hdr, uint64_t asize,
 	if (compress != ZIO_COMPRESS_OFF && !HDR_COMPRESSION_ENABLED(hdr)) {
 		cabd = abd_alloc_for_io(MAX(size, asize), ismd);
 		uint64_t csize = zio_compress_data(compress, to_write, &cabd,
-		    size, hdr->b_complevel);
-		if (csize > psize) {
+		    size, MIN(size, psize), hdr->b_complevel);
+		if (csize >= size || csize > psize) {
 			/*
 			 * We can't re-compress the block into the original
 			 * psize.  Even if it fits into asize, it does not
@@ -10521,9 +10527,12 @@ l2arc_log_blk_commit(l2arc_dev_t *dev, zio_t *pio, l2arc_write_callback_t *cb)
 	 */
 	list_insert_tail(&cb->l2wcb_abd_list, abd_buf);
 
-	/* try to compress the buffer */
+	/* try to compress the buffer, at least one sector to save */
 	psize = zio_compress_data(ZIO_COMPRESS_LZ4,
-	    abd_buf->abd, &abd, sizeof (*lb), 0);
+	    abd_buf->abd, &abd, sizeof (*lb),
+	    zio_get_compression_max_size(ZIO_COMPRESS_LZ4,
+	    dev->l2ad_vdev->vdev_ashift,
+	    dev->l2ad_vdev->vdev_ashift, sizeof (*lb)), 0);
 
 	/* a log block is never entirely zero */
 	ASSERT(psize != 0);

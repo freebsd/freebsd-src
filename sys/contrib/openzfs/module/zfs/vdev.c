@@ -118,6 +118,11 @@ static unsigned int zfs_slow_io_events_per_second = 20;
 static unsigned int zfs_deadman_events_per_second = 1;
 
 /*
+ * Rate limit direct write IO verify failures to this many per scond.
+ */
+static unsigned int zfs_dio_write_verify_events_per_second = 20;
+
+/*
  * Rate limit checksum events after this many checksum errors per second.
  */
 static unsigned int zfs_checksum_events_per_second = 20;
@@ -152,6 +157,17 @@ int zfs_nocacheflush = 0;
  */
 uint_t zfs_vdev_max_auto_ashift = 14;
 uint_t zfs_vdev_min_auto_ashift = ASHIFT_MIN;
+
+/*
+ * VDEV checksum verification for Direct I/O writes. This is neccessary for
+ * Linux, because anonymous pages can not be placed under write protection
+ * during Direct I/O writes.
+ */
+#if !defined(__FreeBSD__)
+uint_t zfs_vdev_direct_write_verify = 1;
+#else
+uint_t zfs_vdev_direct_write_verify = 0;
+#endif
 
 void
 vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
@@ -673,6 +689,8 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	    1);
 	zfs_ratelimit_init(&vd->vdev_deadman_rl, &zfs_deadman_events_per_second,
 	    1);
+	zfs_ratelimit_init(&vd->vdev_dio_verify_rl,
+	    &zfs_dio_write_verify_events_per_second, 1);
 	zfs_ratelimit_init(&vd->vdev_checksum_rl,
 	    &zfs_checksum_events_per_second, 1);
 
@@ -1182,6 +1200,7 @@ vdev_free(vdev_t *vd)
 
 	zfs_ratelimit_fini(&vd->vdev_delay_rl);
 	zfs_ratelimit_fini(&vd->vdev_deadman_rl);
+	zfs_ratelimit_fini(&vd->vdev_dio_verify_rl);
 	zfs_ratelimit_fini(&vd->vdev_checksum_rl);
 
 	if (vd == spa->spa_root_vdev)
@@ -3130,9 +3149,9 @@ vdev_dtl_should_excise(vdev_t *vd, boolean_t rebuild_done)
  * Reassess DTLs after a config change or scrub completion. If txg == 0 no
  * write operations will be issued to the pool.
  */
-void
-vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
-    boolean_t scrub_done, boolean_t rebuild_done)
+static void
+vdev_dtl_reassess_impl(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
+    boolean_t scrub_done, boolean_t rebuild_done, boolean_t faulting)
 {
 	spa_t *spa = vd->vdev_spa;
 	avl_tree_t reftree;
@@ -3141,8 +3160,8 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
 
 	for (int c = 0; c < vd->vdev_children; c++)
-		vdev_dtl_reassess(vd->vdev_child[c], txg,
-		    scrub_txg, scrub_done, rebuild_done);
+		vdev_dtl_reassess_impl(vd->vdev_child[c], txg,
+		    scrub_txg, scrub_done, rebuild_done, faulting);
 
 	if (vd == spa->spa_root_vdev || !vdev_is_concrete(vd) || vd->vdev_aux)
 		return;
@@ -3236,11 +3255,21 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 		if (scrub_done)
 			range_tree_vacate(vd->vdev_dtl[DTL_SCRUB], NULL, NULL);
 		range_tree_vacate(vd->vdev_dtl[DTL_OUTAGE], NULL, NULL);
-		if (!vdev_readable(vd))
+
+		/*
+		 * For the faulting case, treat members of a replacing vdev
+		 * as if they are not available. It's more likely than not that
+		 * a vdev in a replacing vdev could encounter read errors so
+		 * treat it as not being able to contribute.
+		 */
+		if (!vdev_readable(vd) ||
+		    (faulting && vd->vdev_parent != NULL &&
+		    vd->vdev_parent->vdev_ops == &vdev_replacing_ops)) {
 			range_tree_add(vd->vdev_dtl[DTL_OUTAGE], 0, -1ULL);
-		else
+		} else {
 			range_tree_walk(vd->vdev_dtl[DTL_MISSING],
 			    range_tree_add, vd->vdev_dtl[DTL_OUTAGE]);
+		}
 
 		/*
 		 * If the vdev was resilvering or rebuilding and no longer
@@ -3300,6 +3329,14 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 	if (vd->vdev_top->vdev_ops == &vdev_raidz_ops) {
 		raidz_dtl_reassessed(vd);
 	}
+}
+
+void
+vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
+    boolean_t scrub_done, boolean_t rebuild_done)
+{
+	return (vdev_dtl_reassess_impl(vd, txg, scrub_txg, scrub_done,
+	    rebuild_done, B_FALSE));
 }
 
 /*
@@ -3529,7 +3566,11 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 }
 
 /*
- * Determine whether the specified vdev can be offlined/detached/removed
+ * Determine whether the specified vdev can be
+ * - offlined
+ * - detached
+ * - removed
+ * - faulted
  * without losing data.
  */
 boolean_t
@@ -3539,6 +3580,7 @@ vdev_dtl_required(vdev_t *vd)
 	vdev_t *tvd = vd->vdev_top;
 	uint8_t cant_read = vd->vdev_cant_read;
 	boolean_t required;
+	boolean_t faulting = vd->vdev_state == VDEV_STATE_FAULTED;
 
 	ASSERT(spa_config_held(spa, SCL_STATE_ALL, RW_WRITER) == SCL_STATE_ALL);
 
@@ -3551,10 +3593,10 @@ vdev_dtl_required(vdev_t *vd)
 	 * If not, we can safely offline/detach/remove the device.
 	 */
 	vd->vdev_cant_read = B_TRUE;
-	vdev_dtl_reassess(tvd, 0, 0, B_FALSE, B_FALSE);
+	vdev_dtl_reassess_impl(tvd, 0, 0, B_FALSE, B_FALSE, faulting);
 	required = !vdev_dtl_empty(tvd, DTL_OUTAGE);
 	vd->vdev_cant_read = cant_read;
-	vdev_dtl_reassess(tvd, 0, 0, B_FALSE, B_FALSE);
+	vdev_dtl_reassess_impl(tvd, 0, 0, B_FALSE, B_FALSE, faulting);
 
 	if (!required && zio_injection_enabled) {
 		required = !!zio_handle_device_injection(vd, NULL,
@@ -4475,6 +4517,7 @@ vdev_clear(spa_t *spa, vdev_t *vd)
 	vd->vdev_stat.vs_read_errors = 0;
 	vd->vdev_stat.vs_write_errors = 0;
 	vd->vdev_stat.vs_checksum_errors = 0;
+	vd->vdev_stat.vs_dio_verify_errors = 0;
 	vd->vdev_stat.vs_slow_ios = 0;
 
 	for (int c = 0; c < vd->vdev_children; c++)
@@ -6432,33 +6475,33 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 		 * Get all properties from the MOS vdev property object.
 		 */
 		zap_cursor_t zc;
-		zap_attribute_t za;
+		zap_attribute_t *za = zap_attribute_alloc();
 		for (zap_cursor_init(&zc, mos, objid);
-		    (err = zap_cursor_retrieve(&zc, &za)) == 0;
+		    (err = zap_cursor_retrieve(&zc, za)) == 0;
 		    zap_cursor_advance(&zc)) {
 			intval = 0;
 			strval = NULL;
 			zprop_source_t src = ZPROP_SRC_DEFAULT;
-			propname = za.za_name;
+			propname = za->za_name;
 
-			switch (za.za_integer_length) {
+			switch (za->za_integer_length) {
 			case 8:
 				/* We do not allow integer user properties */
 				/* This is likely an internal value */
 				break;
 			case 1:
 				/* string property */
-				strval = kmem_alloc(za.za_num_integers,
+				strval = kmem_alloc(za->za_num_integers,
 				    KM_SLEEP);
-				err = zap_lookup(mos, objid, za.za_name, 1,
-				    za.za_num_integers, strval);
+				err = zap_lookup(mos, objid, za->za_name, 1,
+				    za->za_num_integers, strval);
 				if (err) {
-					kmem_free(strval, za.za_num_integers);
+					kmem_free(strval, za->za_num_integers);
 					break;
 				}
 				vdev_prop_add_list(outnvl, propname, strval, 0,
 				    src);
-				kmem_free(strval, za.za_num_integers);
+				kmem_free(strval, za->za_num_integers);
 				break;
 
 			default:
@@ -6466,6 +6509,7 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 			}
 		}
 		zap_cursor_fini(&zc);
+		zap_attribute_free(za);
 	}
 
 	mutex_exit(&spa->spa_props_lock);
@@ -6503,7 +6547,14 @@ ZFS_MODULE_PARAM(zfs, zfs_, slow_io_events_per_second, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, deadman_events_per_second, UINT, ZMOD_RW,
 	"Rate limit hung IO (deadman) events to this many per second");
 
+ZFS_MODULE_PARAM(zfs, zfs_, dio_write_verify_events_per_second, UINT, ZMOD_RW,
+	"Rate Direct I/O write verify events to this many per second");
+
 /* BEGIN CSTYLED */
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, direct_write_verify, UINT, ZMOD_RW,
+	"Direct I/O writes will perform for checksum verification before "
+	"commiting write");
+
 ZFS_MODULE_PARAM(zfs, zfs_, checksum_events_per_second, UINT, ZMOD_RW,
 	"Rate limit checksum events to this many checksum errors per second "
 	"(do not set below ZED threshold).");

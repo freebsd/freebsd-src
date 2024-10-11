@@ -38,6 +38,8 @@
 #define	zfs_kmap_local(page)   kmap_atomic(page)
 #define	zfs_kunmap_local(addr) kunmap_atomic(addr)
 #endif
+#define	zfs_kmap(page)		kmap(page)
+#define	zfs_kunmap(page)	kunmap(page)
 
 /* 5.0 API change - no more 'type' argument for access_ok() */
 #ifdef HAVE_ACCESS_OK_TYPE

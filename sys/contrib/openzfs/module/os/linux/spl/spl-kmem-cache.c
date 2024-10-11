@@ -23,7 +23,6 @@
 
 #define	SPL_KMEM_CACHE_IMPLEMENTING
 
-#include <linux/percpu_compat.h>
 #include <sys/kmem.h>
 #include <sys/kmem_cache.h>
 #include <sys/taskq.h>
@@ -728,8 +727,7 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	skc->skc_obj_emergency = 0;
 	skc->skc_obj_emergency_max = 0;
 
-	rc = percpu_counter_init_common(&skc->skc_linux_alloc, 0,
-	    GFP_KERNEL);
+	rc = percpu_counter_init(&skc->skc_linux_alloc, 0, GFP_KERNEL);
 	if (rc != 0) {
 		kfree(skc);
 		return (NULL);
@@ -788,25 +786,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 		if (skc->skc_flags & KMC_RECLAIMABLE)
 			slabflags |= SLAB_RECLAIM_ACCOUNT;
 
-#if defined(SLAB_USERCOPY)
-		/*
-		 * Required for PAX-enabled kernels if the slab is to be
-		 * used for copying between user and kernel space.
-		 */
-		slabflags |= SLAB_USERCOPY;
-#endif
-
-#if defined(HAVE_KMEM_CACHE_CREATE_USERCOPY)
-		/*
-		 * Newer grsec patchset uses kmem_cache_create_usercopy()
-		 * instead of SLAB_USERCOPY flag
-		 */
 		skc->skc_linux_cache = kmem_cache_create_usercopy(
 		    skc->skc_name, size, align, slabflags, 0, size, NULL);
-#else
-		skc->skc_linux_cache = kmem_cache_create(
-		    skc->skc_name, size, align, slabflags, NULL);
-#endif
 		if (skc->skc_linux_cache == NULL)
 			goto out;
 	}
@@ -1024,7 +1005,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 	 * then return so the local magazine can be rechecked for new objects.
 	 */
 	if (test_bit(KMC_BIT_REAPING, &skc->skc_flags)) {
-		rc = spl_wait_on_bit(&skc->skc_flags, KMC_BIT_REAPING,
+		rc = wait_on_bit(&skc->skc_flags, KMC_BIT_REAPING,
 		    TASK_UNINTERRUPTIBLE);
 		return (rc ? rc : -EAGAIN);
 	}

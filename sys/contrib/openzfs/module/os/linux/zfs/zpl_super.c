@@ -29,6 +29,7 @@
 #include <sys/zfs_vnops.h>
 #include <sys/zfs_ctldir.h>
 #include <sys/zpl.h>
+#include <linux/iversion.h>
 
 
 static struct inode *
@@ -54,7 +55,6 @@ zpl_inode_destroy(struct inode *ip)
  * inode has changed.  We use it to ensure the znode system attributes
  * are always strictly update to date with respect to the inode.
  */
-#ifdef HAVE_DIRTY_INODE_WITH_FLAGS
 static void
 zpl_dirty_inode(struct inode *ip, int flags)
 {
@@ -64,17 +64,6 @@ zpl_dirty_inode(struct inode *ip, int flags)
 	zfs_dirty_inode(ip, flags);
 	spl_fstrans_unmark(cookie);
 }
-#else
-static void
-zpl_dirty_inode(struct inode *ip)
-{
-	fstrans_cookie_t cookie;
-
-	cookie = spl_fstrans_mark();
-	zfs_dirty_inode(ip, 0);
-	spl_fstrans_unmark(cookie);
-}
-#endif /* HAVE_DIRTY_INODE_WITH_FLAGS */
 
 /*
  * When ->drop_inode() is called its return value indicates if the

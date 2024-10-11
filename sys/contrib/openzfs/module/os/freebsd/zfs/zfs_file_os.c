@@ -285,6 +285,32 @@ zfs_file_fsync(zfs_file_t *fp, int flags)
 	return (zfs_vop_fsync(fp->f_vnode));
 }
 
+/*
+ * deallocate - zero and/or deallocate file storage
+ *
+ * fp - file pointer
+ * offset - offset to start zeroing or deallocating
+ * len - length to zero or deallocate
+ */
+int
+zfs_file_deallocate(zfs_file_t *fp, loff_t offset, loff_t len)
+{
+	int rc;
+#if __FreeBSD_version >= 1400029
+	struct thread *td;
+
+	td = curthread;
+	rc = fo_fspacectl(fp, SPACECTL_DEALLOC, &offset, &len, 0,
+	    td->td_ucred, td);
+#else
+	(void) fp, (void) offset, (void) len;
+	rc = EOPNOTSUPP;
+#endif
+	if (rc)
+		return (SET_ERROR(rc));
+	return (0);
+}
+
 zfs_file_t *
 zfs_file_get(int fd)
 {

@@ -102,10 +102,14 @@ tags = ['functional', 'compression']
 tests = ['devices_001_pos', 'devices_002_neg', 'devices_003_pos']
 tags = ['functional', 'devices']
 
+[tests/functional/direct:Linux]
+tests = ['dio_write_verify']
+tags = ['functional', 'direct']
+
 [tests/functional/events:Linux]
 tests = ['events_001_pos', 'events_002_pos', 'zed_rc_filter', 'zed_fd_spill',
     'zed_cksum_reported', 'zed_cksum_config', 'zed_io_config',
-    'zed_slow_io', 'zed_slow_io_many_vdevs']
+    'zed_slow_io', 'zed_slow_io_many_vdevs', 'zed_diagnose_multiple']
 tags = ['functional', 'events']
 
 [tests/functional/fadvise:Linux]
@@ -121,7 +125,8 @@ tests = ['auto_offline_001_pos', 'auto_online_001_pos', 'auto_online_002_pos',
     'auto_replace_001_pos', 'auto_replace_002_pos', 'auto_spare_001_pos',
     'auto_spare_002_pos', 'auto_spare_multiple', 'auto_spare_ashift',
     'auto_spare_shared', 'decrypt_fault', 'decompress_fault',
-    'scrub_after_resilver', 'suspend_resume_single', 'zpool_status_-s']
+    'fault_limits', 'scrub_after_resilver', 'suspend_resume_single',
+    'zpool_status_-s']
 tags = ['functional', 'fault']
 
 [tests/functional/features/large_dnode:Linux]
@@ -137,6 +142,10 @@ tests = ['largest_pool_001_pos']
 pre =
 post =
 tags = ['functional', 'largest_pool']
+
+[tests/functional/longname:Linux]
+tests = ['longname_001_pos', 'longname_002_pos', 'longname_003_pos']
+tags = ['functional', 'longname']
 
 [tests/functional/mmap:Linux]
 tests = ['mmap_libaio_001_pos', 'mmap_sync_001_pos']
@@ -182,7 +191,7 @@ tests = ['renameat2_noreplace', 'renameat2_exchange', 'renameat2_whiteout']
 tags = ['functional', 'renameat2']
 
 [tests/functional/rsend:Linux]
-tests = ['send_realloc_dnode_size', 'send_encrypted_files']
+tests = ['send_realloc_dnode_size', 'send_encrypted_files', 'send-c_longname']
 tags = ['functional', 'rsend']
 
 [tests/functional/simd:Linux]

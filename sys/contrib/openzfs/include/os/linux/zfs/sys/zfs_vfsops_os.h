@@ -110,7 +110,7 @@ struct zfsvfs {
 	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
 	arc_prune_t	*z_arc_prune;	/* called by ARC to prune caches */
 	struct inode	*z_ctldir;	/* .zfs directory inode */
-	boolean_t	z_show_ctldir;	/* expose .zfs in the root dir */
+	uint_t		z_show_ctldir;	/* how to expose .zfs in the root dir */
 	boolean_t	z_issnap;	/* true if this is a snapshot */
 	boolean_t	z_use_fuids;	/* version allows fuids */
 	boolean_t	z_replay;	/* set during ZIL replay */
@@ -118,6 +118,7 @@ struct zfsvfs {
 	boolean_t	z_xattr_sa;	/* allow xattrs to be stores as SA */
 	boolean_t	z_draining;	/* is true when drain is active */
 	boolean_t	z_drain_cancel; /* signal the unlinked drain to stop */
+	boolean_t	z_longname;	/* Dataset supports long names */
 	uint64_t	z_version;	/* ZPL version */
 	uint64_t	z_shares_dir;	/* hidden shares dir */
 	dataset_kstats_t	z_kstat;	/* fs kstats */

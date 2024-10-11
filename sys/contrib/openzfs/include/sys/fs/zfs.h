@@ -30,6 +30,7 @@
  * Portions Copyright 2010 Robert Milkowski
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #ifndef	_SYS_FS_ZFS_H
@@ -81,6 +82,7 @@ typedef enum dmu_objset_type {
  * All of these include the terminating NUL byte.
  */
 #define	ZAP_MAXNAMELEN 256
+#define	ZAP_MAXNAMELEN_NEW 1024
 #define	ZAP_MAXVALUELEN (1024 * 8)
 #define	ZAP_OLDMAXVALUELEN 1024
 #define	ZFS_MAX_DATASET_NAME_LEN 256
@@ -193,6 +195,8 @@ typedef enum {
 	ZFS_PROP_SNAPSHOTS_CHANGED,
 	ZFS_PROP_PREFETCH,
 	ZFS_PROP_VOLTHREADING,
+	ZFS_PROP_DIRECT,
+	ZFS_PROP_LONGNAME,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -533,6 +537,12 @@ typedef enum {
 	ZFS_VOLMODE_NONE = 3
 } zfs_volmode_t;
 
+typedef enum {
+	ZFS_DIRECT_DISABLED = 0,
+	ZFS_DIRECT_STANDARD,
+	ZFS_DIRECT_ALWAYS
+} zfs_direct_t;
+
 typedef enum zfs_keystatus {
 	ZFS_KEYSTATUS_NONE = 0,
 	ZFS_KEYSTATUS_UNAVAILABLE,
@@ -789,6 +799,9 @@ typedef struct zpool_load_policy {
 
 /* Number of slow IOs */
 #define	ZPOOL_CONFIG_VDEV_SLOW_IOS		"vdev_slow_ios"
+
+/* Number of Direct I/O write verify errors */
+#define	ZPOOL_CONFIG_VDEV_DIO_VERIFY_ERRORS	"vdev_dio_verify_errors"
 
 /* vdev enclosure sysfs path */
 #define	ZPOOL_CONFIG_VDEV_ENC_SYSFS_PATH	"vdev_enc_sysfs_path"
@@ -1262,6 +1275,7 @@ typedef struct vdev_stat {
 	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
 	uint64_t	vs_noalloc;		/* allocations halted?	*/
 	uint64_t	vs_pspace;		/* physical capacity */
+	uint64_t	vs_dio_verify_errors;	/* DIO write verify errors */
 } vdev_stat_t;
 
 #define	VDEV_STAT_VALID(field, uint64_t_field_count) \
@@ -1618,6 +1632,7 @@ typedef enum {
 	ZFS_ERR_CRYPTO_NOTSUP,
 	ZFS_ERR_RAIDZ_EXPAND_IN_PROGRESS,
 	ZFS_ERR_ASHIFT_MISMATCH,
+	ZFS_ERR_STREAM_LARGE_MICROZAP,
 } zfs_errno_t;
 
 /*
