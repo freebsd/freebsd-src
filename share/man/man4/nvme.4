@@ -136,6 +136,25 @@ hw.nvme.apst_enable=1
 .Ed
 .Pp
 The default vendor-provided settings, if any, will be applied.
+To override this, set the following tunable:
+.Bd -literal -offset indent
+hw.nvme.apst_data
+.Ed
+.Pp
+The value may contain up to 32 entries, one for each allowable power
+state.
+Each entry is calculated as
+.Ql ITPT << 8 | ITPS << 3
+, where ITPT is the Idle Time Prior to Transition (in milliseconds)
+and ITPS is the Idle Transition Power State (i.e., the target state
+to switch to from the current one).
+For example, the string "0x6418 0x6418 0x6418 0x3E820" instructs the
+controller to enter Non-Operational Power State (NOPS) 3 from states
+0–2 after 100 ms of inactivity.
+After an additional 1000 ms of inactivity, the device will transition
+to NOPS 4.
+For more details, please refer to the Autonomous Power State
+Transition section in the NVM Express Base Specification.
 .Pp
 The
 .Xr nvd 4

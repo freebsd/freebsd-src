@@ -893,6 +893,8 @@ nvme_ctrlr_configure_apst(struct nvme_controller *ctrlr)
 	struct nvme_completion_poll_status status;
 	uint64_t *data;
 	size_t data_size;
+	int bytes_read, i;
+	char *env_data;
 	bool enable;
 
 	if (TUNABLE_BOOL_FETCH("hw.nvme.apst_enable", &enable) == 0 ||
@@ -903,7 +905,15 @@ nvme_ctrlr_configure_apst(struct nvme_controller *ctrlr)
 	if ((data = malloc(data_size, M_NVME, M_WAITOK | M_ZERO)) == NULL)
 		goto fail;
 
-	if (enable) {
+	env_data = "hw.nvme.apst_data";
+
+	if (testenv(env_data) != 0) {
+		if (getenv_array(env_data, data, data_size, &bytes_read,
+		    sizeof(*data), GETENV_UNSIGNED) == 0)
+			goto fail;
+		for (i = 0; i < bytes_read / sizeof(*data); ++i)
+			data[i] = htole64(data[i]);
+	} else if (enable) {
 		status.done = 0;
 		nvme_ctrlr_cmd_get_feature(ctrlr,
 		    NVME_FEAT_AUTONOMOUS_POWER_STATE_TRANSITION, 0,
