@@ -279,6 +279,8 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			break;
 		case UART_TAG_XO:
 			di->bas.rclk = uart_parse_long(&spec);
+			if (di->bas.rclk == 0)
+				di->bas.rclk_guess = 1;
 			break;
 		default:
 			goto inval;
