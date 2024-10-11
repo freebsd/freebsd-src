@@ -122,7 +122,7 @@ menu.boot_environments = {
 				if is_default then
 					name_color = color.escapefg(color.GREEN)
 				else
-					name_color = color.escapefg(color.BLUE)
+					name_color = color.escapefg(color.CYAN)
 				end
 				bootenv_name = bootenv_name .. name_color ..
 				    choice .. color.resetfg()
@@ -342,7 +342,7 @@ menu.welcome = {
 					name_color = color.escapefg(color.GREEN)
 					kernel_name = "default/"
 				else
-					name_color = color.escapefg(color.BLUE)
+					name_color = color.escapefg(color.CYAN)
 				end
 				kernel_name = kernel_name .. name_color ..
 				    choice .. color.resetfg()
