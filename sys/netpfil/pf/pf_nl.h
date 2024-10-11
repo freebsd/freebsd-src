@@ -60,6 +60,7 @@ enum {
 	PFNL_CMD_GET_ADDR = 22,
 	PFNL_CMD_GET_RULESETS = 23,
 	PFNL_CMD_GET_RULESET = 24,
+	PFNL_CMD_GET_SRCNODES = 25,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -387,6 +388,32 @@ enum pf_get_rulesets_types_t {
 	PF_RS_PATH		= 1, /* string */
 	PF_RS_NR		= 2, /* u32 */
 	PF_RS_NAME		= 3, /* string */
+};
+
+enum pf_threshold_types_t {
+	PF_TH_UNSPEC,
+	PF_TH_LIMIT		= 1, /* u32 */
+	PF_TH_SECONDS		= 2, /* u32 */
+	PF_TH_COUNT		= 3, /* u32 */
+	PF_TH_LAST		= 4, /* u32 */
+};
+
+enum pf_srcnodes_types_t {
+	PF_SN_UNSPEC,
+	PF_SN_ADDR		= 1, /* nested, pf_addr */
+	PF_SN_RADDR		= 2, /* nested, pf_addr */
+	PF_SN_RULE_NR		= 3, /* u32 */
+	PF_SN_BYTES_IN		= 4, /* u64 */
+	PF_SN_BYTES_OUT		= 5, /* u64 */
+	PF_SN_PACKETS_IN	= 6, /* u64 */
+	PF_SN_PACKETS_OUT	= 7, /* u64 */
+	PF_SN_STATES		= 8, /* u32 */
+	PF_SN_CONNECTIONS	= 9, /* u32 */
+	PF_SN_AF		= 10, /* u8 */
+	PF_SN_RULE_TYPE		= 11, /* u8 */
+	PF_SN_CREATION		= 12, /* u64 */
+	PF_SN_EXPIRE		= 13, /* u64 */
+	PF_SN_CONNECTION_RATE	= 14, /* nested, pf_threshold */
 };
 
 #ifdef _KERNEL

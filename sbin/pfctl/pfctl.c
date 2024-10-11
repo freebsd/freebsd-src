@@ -1519,49 +1519,29 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth,
 	return (0);
 }
 
+static int
+pfctl_print_src_node(struct pfctl_src_node *sn, void *arg)
+{
+	int *opts = (int *)arg;
+
+	if (*opts & PF_OPT_SHOWALL) {
+		pfctl_print_title("SOURCE TRACKING NODES:");
+		*opts &= ~PF_OPT_SHOWALL;
+	}
+
+	print_src_node(sn, *opts);
+
+	return (0);
+}
+
 int
 pfctl_show_src_nodes(int dev, int opts)
 {
-	struct pfioc_src_nodes psn;
-	struct pf_src_node *p;
-	char *inbuf = NULL, *newinbuf = NULL;
-	unsigned int len = 0;
-	int i;
+	int error;
 
-	memset(&psn, 0, sizeof(psn));
-	for (;;) {
-		psn.psn_len = len;
-		if (len) {
-			newinbuf = realloc(inbuf, len);
-			if (newinbuf == NULL)
-				err(1, "realloc");
-			psn.psn_buf = inbuf = newinbuf;
-		}
-		if (ioctl(dev, DIOCGETSRCNODES, &psn) < 0) {
-			warn("DIOCGETSRCNODES");
-			free(inbuf);
-			return (-1);
-		}
-		if (psn.psn_len + sizeof(struct pfioc_src_nodes) < len)
-			break;
-		if (len == 0 && psn.psn_len == 0)
-			goto done;
-		if (len == 0 && psn.psn_len != 0)
-			len = psn.psn_len;
-		if (psn.psn_len == 0)
-			goto done;	/* no src_nodes */
-		len *= 2;
-	}
-	p = psn.psn_src_nodes;
-	if (psn.psn_len > 0 && (opts & PF_OPT_SHOWALL))
-		pfctl_print_title("SOURCE TRACKING NODES:");
-	for (i = 0; i < psn.psn_len; i += sizeof(*p)) {
-		print_src_node(p, opts);
-		p++;
-	}
-done:
-	free(inbuf);
-	return (0);
+	error = pfctl_get_srcnodes(pfh, pfctl_print_src_node, &opts);
+
+	return (error);
 }
 
 struct pfctl_show_state_arg {

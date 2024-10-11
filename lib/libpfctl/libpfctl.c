@@ -2998,3 +2998,71 @@ pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct 
 	return (e.error);
 }
 
+#define	_OUT(_field)	offsetof(struct pfctl_threshold, _field)
+static const struct snl_attr_parser ap_pfctl_threshold[] = {
+	{ .type = PF_TH_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_SECONDS, .off = _OUT(seconds), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_COUNT, .off = _OUT(count), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_LAST, .off = _OUT(last), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(pfctl_threshold_parser, ap_pfctl_threshold);
+#undef _OUT
+
+#define	_OUT(_field)	offsetof(struct pfctl_src_node, _field)
+static struct snl_attr_parser ap_srcnode[] = {
+	{ .type = PF_SN_ADDR, .off = _OUT(addr), .cb = snl_attr_get_in6_addr },
+	{ .type = PF_SN_RADDR, .off = _OUT(raddr), .cb = snl_attr_get_in6_addr },
+	{ .type = PF_SN_RULE_NR, .off = _OUT(rule), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_BYTES_IN, .off = _OUT(bytes[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_BYTES_OUT, .off = _OUT(bytes[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_PACKETS_IN, .off = _OUT(packets[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_PACKETS_OUT, .off = _OUT(packets[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_STATES, .off = _OUT(states), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_CONNECTIONS, .off = _OUT(conn), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_AF, .off = _OUT(af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_RULE_TYPE, .off = _OUT(ruletype), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
+};
+static struct snl_field_parser fp_srcnode[] = {};
+#undef _OUT
+SNL_DECLARE_PARSER(srcnode_parser, struct genlmsghdr, fp_srcnode, ap_srcnode);
+
+int
+pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg)
+{
+	struct snl_writer nw;
+	struct pfctl_src_node sn;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+	int ret;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_SRCNODES);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (!snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (!snl_parse_nlmsg(&h->ss, hdr, &srcnode_parser, &sn))
+			continue;
+
+		ret = fn(&sn, arg);
+		if (ret != 0)
+			return (ret);
+	}
+
+	return (e.error);
+}

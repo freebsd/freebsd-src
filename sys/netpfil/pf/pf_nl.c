@@ -1713,6 +1713,77 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+static bool
+nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype, struct pf_threshold *t)
+{
+	int off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add_u32(nw, PF_TH_LIMIT, t->limit);
+	nlattr_add_u32(nw, PF_TH_SECONDS, t->seconds);
+	nlattr_add_u32(nw, PF_TH_COUNT, t->count);
+	nlattr_add_u32(nw, PF_TH_LAST, t->last);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct nl_writer	*nw = npt->nw;
+	struct genlmsghdr	*ghdr_new;
+	struct pf_ksrc_node	*n;
+	struct pf_srchash	*sh;
+	int			 i;
+
+	hdr->nlmsg_flags |= NLM_F_MULTI;
+
+	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
+	    i++, sh++) {
+		/* Avoid locking empty rows. */
+		if (LIST_EMPTY(&sh->nodes))
+			continue;
+
+		PF_HASHROW_LOCK(sh);
+		LIST_FOREACH(n, &sh->nodes, entry) {
+			if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+				nlmsg_abort(nw);
+				return (ENOMEM);
+			}
+
+			ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+			ghdr_new->cmd = PFNL_CMD_GET_SRCNODES;
+			ghdr_new->version = 0;
+			ghdr_new->reserved = 0;
+
+			nlattr_add_in6_addr(nw, PF_SN_ADDR, &n->addr.v6);
+			nlattr_add_in6_addr(nw, PF_SN_RADDR, &n->raddr.v6);
+			nlattr_add_u32(nw, PF_SN_RULE_NR, n->rule->nr);
+			nlattr_add_u64(nw, PF_SN_BYTES_IN, counter_u64_fetch(n->bytes[0]));
+			nlattr_add_u64(nw, PF_SN_BYTES_OUT, counter_u64_fetch(n->bytes[1]));
+			nlattr_add_u64(nw, PF_SN_PACKETS_IN, counter_u64_fetch(n->packets[0]));
+			nlattr_add_u64(nw, PF_SN_PACKETS_OUT, counter_u64_fetch(n->packets[1]));
+			nlattr_add_u32(nw, PF_SN_STATES, n->states);
+			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
+			nlattr_add_u8(nw, PF_SN_AF, n->af);
+			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
+			nlattr_add_u64(nw, PF_SN_CREATION, n->creation);
+			nlattr_add_u64(nw, PF_SN_EXPIRE, n->expire);
+			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE, &n->conn_rate);
+
+			if (!nlmsg_end(nw)) {
+				PF_HASHROW_UNLOCK(sh);
+				nlmsg_abort(nw);
+				return (ENOMEM);
+			}
+		}
+		PF_HASHROW_UNLOCK(sh);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1896,6 +1967,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_num = PFNL_CMD_GET_RULESET,
 		.cmd_name = "GET_RULESET",
 		.cmd_cb = pf_handle_get_ruleset,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_SRCNODES,
+		.cmd_name = "GET_SRCNODES",
+		.cmd_cb = pf_handle_get_srcnodes,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
