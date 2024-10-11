@@ -222,7 +222,7 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 	int error;
 	bool found;
 
-	/* Look for the SPCR table. */
+	/* Look for the DBG2 table. */
 	dbg2_physaddr = acpi_find_table(ACPI_SIG_DBG2);
 	if (dbg2_physaddr == 0)
 		return (ENXIO);
