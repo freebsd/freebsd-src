@@ -187,7 +187,7 @@ ns8250_drain(struct uart_bas *bas, int what)
 		while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
 			DELAY(delay);
 		if (limit == 0) {
-			/* printf("ns8250: transmitter appears stuck... "); */
+			/* printf("uart: ns8250: transmitter appears stuck... "); */
 			return (EIO);
 		}
 	}
@@ -215,7 +215,7 @@ ns8250_drain(struct uart_bas *bas, int what)
 			DELAY(delay << 2);
 		}
 		if (limit == 0) {
-			/* printf("ns8250: receiver appears broken... "); */
+			/* printf("uart: ns8250: receiver appears broken... "); */
 			return (EIO);
 		}
 	}
@@ -255,7 +255,7 @@ ns8250_flush(struct uart_bas *bas, int what)
 	if ((lsr & LSR_RXRDY) && (what & UART_FLUSH_RECEIVER))
 		drain |= UART_DRAIN_RECEIVER;
 	if (drain != 0) {
-		printf("ns8250: UART FCR is broken\n");
+		printf("uart: ns8250: UART FCR is broken\n");
 		ns8250_drain(bas, drain);
 	}
 }
