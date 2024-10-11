@@ -1,9 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * All rights reserved.
- * Copyright (c) 2021 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2021-2024 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -125,6 +125,8 @@ static int	igc_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	igc_get_rs(SYSCTL_HANDLER_ARGS);
 static void	igc_print_debug_info(struct igc_adapter *);
 static int 	igc_is_valid_ether_addr(u8 *);
+static void	igc_neweitr(struct igc_adapter *, struct igc_rx_queue *,
+    struct tx_ring *, struct rx_ring *);
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_adapter *);
 static void	igc_release_hw_control(struct igc_adapter *);
@@ -239,9 +241,18 @@ SYSCTL_INT(_hw_igc, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &igc_eee_setting, 0,
     "Enable Energy Efficient Ethernet");
 
 /*
+ * AIM: Adaptive Interrupt Moderation
+ * which means that the interrupt rate is varied over time based on the
+ * traffic for that interrupt vector
+ */
+static int igc_enable_aim = 1;
+SYSCTL_INT(_hw_igc, OID_AUTO, enable_aim, CTLFLAG_RWTUN, &igc_enable_aim,
+    0, "Enable adaptive interrupt moderation (1=normal, 2=lowlatency)");
+
+/*
 ** Tuneable Interrupt rate
 */
-static int igc_max_interrupt_rate = 20000;
+static int igc_max_interrupt_rate = IGC_INTS_DEFAULT;
 SYSCTL_INT(_hw_igc, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igc_max_interrupt_rate, 0, "Maximum interrupts per second");
 
@@ -443,6 +454,13 @@ igc_if_attach_pre(if_ctx_t ctx)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "nvm", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, igc_sysctl_nvm_info, "I", "NVM Information");
+
+	adapter->enable_aim = igc_enable_aim;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "enable_aim", CTLFLAG_RW,
+	    &adapter->enable_aim, 0,
+	    "Interrupt Moderation (1=normal, 2=lowlatency)");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -816,6 +834,142 @@ igc_if_init(if_ctx_t ctx)
 	igc_set_eee_i225(&adapter->hw, true, true, true);
 }
 
+enum eitr_latency_target {
+	eitr_latency_disabled = 0,
+	eitr_latency_lowest = 1,
+	eitr_latency_low = 2,
+	eitr_latency_bulk = 3
+};
+/*********************************************************************
+ *
+ *  Helper to calculate next EITR value for AIM
+ *
+ *********************************************************************/
+static void
+igc_neweitr(struct igc_adapter *sc, struct igc_rx_queue *que,
+    struct tx_ring *txr, struct rx_ring *rxr)
+{
+	struct igc_hw *hw = &sc->hw;
+	u32 neweitr;
+	u32 bytes;
+	u32 bytes_packets;
+	u32 packets;
+	u8 nextlatency;
+
+	/* Idle, do nothing */
+	if ((txr->tx_bytes == 0) && (rxr->rx_bytes == 0))
+		return;
+
+	neweitr = 0;
+
+	if (sc->enable_aim) {
+		nextlatency = rxr->rx_nextlatency;
+
+		/* Use half default (4K) ITR if sub-gig */
+		if (sc->link_speed != 1000) {
+			neweitr = IGC_INTS_4K;
+			goto igc_set_next_eitr;
+		}
+		/* Want at least enough packet buffer for two frames to AIM */
+		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
+			neweitr = igc_max_interrupt_rate;
+			sc->enable_aim = 0;
+			goto igc_set_next_eitr;
+		}
+
+		/* Get the largest values from the associated tx and rx ring */
+		if (txr->tx_bytes && txr->tx_packets) {
+			bytes = txr->tx_bytes;
+			bytes_packets = txr->tx_bytes/txr->tx_packets;
+			packets = txr->tx_packets;
+		}
+		if (rxr->rx_bytes && rxr->rx_packets) {
+			bytes = max(bytes, rxr->rx_bytes);
+			bytes_packets = max(bytes_packets, rxr->rx_bytes/rxr->rx_packets);
+			packets = max(packets, rxr->rx_packets);
+		}
+
+		/* Latency state machine */
+		switch (nextlatency) {
+		case eitr_latency_disabled: /* Bootstrapping */
+			nextlatency = eitr_latency_low;
+			break;
+		case eitr_latency_lowest: /* 70k ints/s */
+			/* TSO and jumbo frames */
+			if (bytes_packets > 8000)
+				nextlatency = eitr_latency_bulk;
+			else if ((packets < 5) && (bytes > 512))
+				nextlatency = eitr_latency_low;
+			break;
+		case eitr_latency_low: /* 20k ints/s */
+			if (bytes > 10000) {
+				/* Handle TSO */
+				if (bytes_packets > 8000)
+					nextlatency = eitr_latency_bulk;
+				else if ((packets < 10) || (bytes_packets > 1200))
+					nextlatency = eitr_latency_bulk;
+				else if (packets > 35)
+					nextlatency = eitr_latency_lowest;
+			} else if (bytes_packets > 2000) {
+				nextlatency = eitr_latency_bulk;
+			} else if (packets < 3 && bytes < 512) {
+				nextlatency = eitr_latency_lowest;
+			}
+			break;
+		case eitr_latency_bulk: /* 4k ints/s */
+			if (bytes > 25000) {
+				if (packets > 35)
+					nextlatency = eitr_latency_low;
+			} else if (bytes < 1500)
+				nextlatency = eitr_latency_low;
+			break;
+		default:
+			nextlatency = eitr_latency_low;
+			device_printf(sc->dev, "Unexpected neweitr transition %d\n",
+			    nextlatency);
+			break;
+		}
+
+		/* Trim itr_latency_lowest for default AIM setting */
+		if (sc->enable_aim == 1 && nextlatency == eitr_latency_lowest)
+			nextlatency = eitr_latency_low;
+
+		/* Request new latency */
+		rxr->rx_nextlatency = nextlatency;
+	} else {
+		/* We may have toggled to AIM disabled */
+		nextlatency = eitr_latency_disabled;
+		rxr->rx_nextlatency = nextlatency;
+	}
+
+	/* ITR state machine */
+	switch(nextlatency) {
+	case eitr_latency_lowest:
+		neweitr = IGC_INTS_70K;
+		break;
+	case eitr_latency_low:
+		neweitr = IGC_INTS_20K;
+		break;
+	case eitr_latency_bulk:
+		neweitr = IGC_INTS_4K;
+		break;
+	case eitr_latency_disabled:
+	default:
+		neweitr = igc_max_interrupt_rate;
+		break;
+	}
+
+igc_set_next_eitr:
+	neweitr = IGC_INTS_TO_EITR(neweitr);
+
+	neweitr |= IGC_EITR_CNT_IGNR;
+
+	if (neweitr != que->eitr_setting) {
+		que->eitr_setting = neweitr;
+		IGC_WRITE_REG(hw, IGC_EITR(que->msix), que->eitr_setting);
+	}
+}
+
 /*********************************************************************
  *
  *  Fast Legacy/MSI Combined Interrupt Service routine
@@ -825,10 +979,14 @@ int
 igc_intr(void *arg)
 {
 	struct igc_adapter *adapter = arg;
+	struct igc_hw *hw = &adapter->hw;
+	struct igc_rx_queue *que = &adapter->rx_queues[0];
+	struct tx_ring *txr = &adapter->tx_queues[0].txr;
+	struct rx_ring *rxr = &que->rxr;
 	if_ctx_t ctx = adapter->ctx;
 	u32 reg_icr;
 
-	reg_icr = IGC_READ_REG(&adapter->hw, IGC_ICR);
+	reg_icr = IGC_READ_REG(hw, IGC_ICR);
 
 	/* Hot eject? */
 	if (reg_icr == 0xffffffff)
@@ -855,6 +1013,14 @@ igc_intr(void *arg)
 
 	if (reg_icr & IGC_ICR_RXO)
 		adapter->rx_overruns++;
+
+	igc_neweitr(adapter, que, txr, rxr);
+
+	/* Reset state */
+	txr->tx_bytes = 0;
+	txr->tx_packets = 0;
+	rxr->rx_bytes = 0;
+	rxr->rx_packets = 0;
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -888,8 +1054,19 @@ static int
 igc_msix_que(void *arg)
 {
 	struct igc_rx_queue *que = arg;
+	struct igc_adapter *sc = que->adapter;
+	struct tx_ring *txr = &sc->tx_queues[que->msix].txr;
+	struct rx_ring *rxr = &que->rxr;
 
 	++que->irqs;
+
+	igc_neweitr(sc, que, txr, rxr);
+
+	/* Reset state */
+	txr->tx_bytes = 0;
+	txr->tx_packets = 0;
+	rxr->rx_bytes = 0;
+	rxr->rx_packets = 0;
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1395,7 +1572,7 @@ igc_configure_queues(struct igc_adapter *adapter)
 
 	/* Set the starting interrupt rate */
 	if (igc_max_interrupt_rate > 0)
-		newitr = (4000000 / igc_max_interrupt_rate) & 0x7FFC;
+		newitr = IGC_INTS_TO_EITR(igc_max_interrupt_rate);
 
 	newitr |= IGC_EITR_CNT_IGNR;
 
@@ -1607,6 +1784,9 @@ igc_reset(if_ctx_t ctx)
 
 	/* Setup DMA Coalescing */
 	igc_init_dmac(adapter, pba);
+
+	/* Save the final PBA off if it needs to be used elsewhere i.e. AIM */
+	adapter->pba = pba;
 
 	IGC_WRITE_REG(hw, IGC_VET, ETHERTYPE_VLAN);
 	igc_get_phy_info(hw);
@@ -2380,6 +2560,40 @@ igc_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
+/* Per queue holdoff interrupt rate handler */
+static int
+igc_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct igc_rx_queue *rque;
+	struct igc_tx_queue *tque;
+	struct igc_hw *hw;
+	int error;
+	u32 reg, usec, rate;
+
+	bool tx = oidp->oid_arg2;
+
+	if (tx) {
+		tque = oidp->oid_arg1;
+		hw = &tque->adapter->hw;
+		reg = IGC_READ_REG(hw, IGC_EITR(tque->me));
+	} else {
+		rque = oidp->oid_arg1;
+		hw = &rque->adapter->hw;
+		reg = IGC_READ_REG(hw, IGC_EITR(rque->msix));
+	}
+
+	usec = (reg & IGC_QVECTOR_MASK);
+	if (usec > 0)
+		rate = IGC_INTS_TO_EITR(usec);
+	else
+		rate = 0;
+
+	error = sysctl_handle_int(oidp, &rate, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
 /*
  * Add sysctl variables, one per statistic, to the system.
  */
@@ -2436,6 +2650,10 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+		    CTLTYPE_UINT | CTLFLAG_RD, tx_que,
+		    true, igc_sysctl_interrupt_rate_handler, "IU",
+		    "Interrupt Rate");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
 		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
 		    IGC_TDH(txr->me), igc_sysctl_reg_handler, "IU",
@@ -2456,6 +2674,10 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "RX Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+		    CTLTYPE_UINT | CTLFLAG_RD, rx_que,
+			false, igc_sysctl_interrupt_rate_handler, "IU",
+			"Interrupt Rate");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
 		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter,
 		    IGC_RDH(rxr->me), igc_sysctl_reg_handler, "IU",
