@@ -4618,7 +4618,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
 /*
  * Performs a break-before-make update of an ATTR_CONTIGUOUS mapping.
  */
-static void
+static void __nosanitizecoverage
 pmap_update_strided(pmap_t pmap, pd_entry_t *ptep, pd_entry_t *ptep_end,
     pd_entry_t newpte, vm_offset_t va, vm_offset_t stride, vm_size_t size)
 {
