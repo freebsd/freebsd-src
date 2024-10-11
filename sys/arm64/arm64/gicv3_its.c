@@ -586,11 +586,20 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			its_tbl_size = l1_esize * l1_nidents;
 			its_tbl_size = roundup2(its_tbl_size, page_size);
 			break;
-		case GITS_BASER_TYPE_VP:
 		case GITS_BASER_TYPE_PP: /* Undocumented? */
 		case GITS_BASER_TYPE_IC:
 			its_tbl_size = page_size;
 			break;
+		case GITS_BASER_TYPE_VP:
+			/*
+			 * If GITS_TYPER.SVPET != 0, the pending table is
+			 * shared amongst the redistibutors and ther other
+			 * ITSes. Requiring sharing across the ITSes when none
+			 * of the redistributors have GICR_VPROPBASER.Valid==1
+			 * isn't specified in the architecture, but that's how
+			 * the GIC-700 behaves. We don't handle vPE tables at
+			 * all yet, so just skip this base register.
+			 */
 		default:
 			if (bootverbose)
 				device_printf(dev, "Unhandled table type %lx\n",
