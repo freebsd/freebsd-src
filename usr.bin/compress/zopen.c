@@ -623,7 +623,8 @@ getcode(struct s_zstate *zs)
 	}
 
 	/* High order bits. */
-	gcode |= (*bp & rmask[bits]) << r_off;
+	if (bits > 0)
+		gcode |= (*bp & rmask[bits]) << r_off;
 	roffset += n_bits;
 
 	return (gcode);
