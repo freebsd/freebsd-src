@@ -145,6 +145,13 @@ device_t root_pic;
 
 #ifdef SMP
 static void *ipi_cookie;
+
+#define	DISABLE_SLOW_IPI_SUPPORT	true
+#ifndef	DISABLE_SLOW_IPI_SUPPORT
+static device_t ipi_pic;
+#endif
+#else
+#define	DISABLE_SLOW_IPI_SUPPORT	true
 #endif
 
 static int powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t
@@ -186,6 +193,57 @@ intr_init_sources(void *arg __unused)
  * This needs to happen before SI_SUB_CPU
  */
 SYSINIT(intr_init_sources, SI_SUB_KLD, SI_ORDER_ANY, intr_init_sources, NULL);
+
+#ifndef	DISABLE_SLOW_IPI_SUPPORT
+static void
+powerpc_ipi_eoi(device_t pic, interrupt_t *i)
+{
+
+	/* see 0c50edff52f2, skip for IPIs */
+}
+
+static void
+powerpc_ipi_post_ithread(device_t pic, interrupt_t *i)
+{
+
+	PIC_UNMASK(root_pic, i->intline, i->priv);
+}
+
+static void
+powerpc_ipi_pre_ithread(device_t pic, interrupt_t *i)
+{
+
+	PIC_MASK(root_pic, i->intline, i->priv);
+	PIC_EOI(root_pic, i->intline, i->priv);
+}
+
+static device_method_t pic_ipi_funcs[] = {
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	powerpc_ipi_eoi),
+	DEVMETHOD(intr_event_post_ithread,	powerpc_ipi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	powerpc_ipi_pre_ithread),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN("pic_ipi", pic_ipi_class, pic_ipi_funcs, 0);
+
+static void
+smp_pic_init(void *dummy __unused)
+{
+	int error;
+
+	ipi_pic = bus_generic_add_child(root_bus, BUS_PASS_ORDER_FIRST, "ipi",
+	    0);
+	if (ipi_pic == NULL)
+		panic("%s: failed to create IPI device \"ipi0\"", __func__);
+	error = device_set_driver(ipi_pic, &pic_ipi_class);
+	if (error != 0)
+		panic("%s: failed to set IPI driver for ipi0 error=%d",
+		    __func__, error);
+}
+SYSINIT(smp_pic_init, SI_SUB_DRIVERS, SI_ORDER_ANY, smp_pic_init, NULL);
+#endif
 
 #ifdef SMP
 static void
