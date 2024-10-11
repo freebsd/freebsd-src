@@ -359,10 +359,6 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 {
 	u_char ier;
 
-	if (bas->rclk == 0)
-		bas->rclk = DEFAULT_RCLK;
-	ns8250_param(bas, baudrate, databits, stopbits, parity);
-
 	/* Disable all interrupt sources. */
 	/*
 	 * We use 0xe0 instead of 0xf0 as the mask because the XScale PXA
@@ -372,6 +368,10 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	ier = uart_getreg(bas, REG_IER) & 0xe0;
 	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
+
+	if (bas->rclk == 0)
+		bas->rclk = DEFAULT_RCLK;
+	ns8250_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Disable the FIFO (if present). */
 	uart_setreg(bas, REG_FCR, 0);
