@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <err.h>
 #include <errno.h>
 #include <netdb.h>
 
@@ -43,12 +42,12 @@ nl_init_socket(struct snl_state *ss)
 	if (modfind("netlink") == -1 && errno == ENOENT) {
 		/* Try to load */
 		if (kldload("netlink") == -1)
-			err(1, "netlink is not loaded and load attempt failed");
+			xo_err(1, "netlink is not loaded and load attempt failed");
 		if (snl_init(ss, NETLINK_ROUTE))
 			return;
 	}
 
-	err(1, "unable to open netlink socket");
+	xo_err(1, "unable to open netlink socket");
 }
 
 static bool
