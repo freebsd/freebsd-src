@@ -1057,8 +1057,6 @@ static void
 dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 {
 	struct iommu_domain *iodom;
-	struct iommu_map_entry *entry;
-	struct iommu_ctx *ctx;
 
 	iodom = DOM2IODOM(domain);
 
@@ -1068,27 +1066,11 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
 	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
 	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
-	if (!LIST_EMPTY(&iodom->contexts)) {
-		db_printf("  Contexts:\n");
-		LIST_FOREACH(ctx, &iodom->contexts, link)
-			iommu_db_print_ctx(ctx);
-	}
-	if (!show_mappings)
-		return;
-	db_printf("    mapped:\n");
-	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
-		iommu_db_print_domain_entry(entry);
-		if (db_pager_quit)
-			break;
-	}
-	if (db_pager_quit)
-		return;
-	db_printf("    unloading:\n");
-	TAILQ_FOREACH(entry, &domain->iodom.unload_entries, dmamap_link) {
-		iommu_db_print_domain_entry(entry);
-		if (db_pager_quit)
-			break;
-	}
+
+	iommu_db_domain_print_contexts(iodom);
+
+	if (show_mappings)
+		iommu_db_domain_print_mappings(iodom);
 }
 
 DB_SHOW_COMMAND_FLAGS(dmar_domain, db_dmar_print_domain, CS_OWN)

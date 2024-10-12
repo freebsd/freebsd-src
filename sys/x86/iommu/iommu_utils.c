@@ -796,4 +796,39 @@ iommu_db_print_ctx(struct iommu_ctx *ctx)
 	    pci_get_function(ctx->tag->owner), ctx->refs,
 	    ctx->flags, ctx->loads, ctx->unloads);
 }
+
+void
+iommu_db_domain_print_contexts(struct iommu_domain *iodom)
+{
+	struct iommu_ctx *ctx;
+
+	if (LIST_EMPTY(&iodom->contexts))
+		return;
+
+	db_printf("  Contexts:\n");
+	LIST_FOREACH(ctx, &iodom->contexts, link)
+		iommu_db_print_ctx(ctx);
+}
+
+void
+iommu_db_domain_print_mappings(struct iommu_domain *iodom)
+{
+	struct iommu_map_entry *entry;
+
+	db_printf("    mapped:\n");
+	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
+		iommu_db_print_domain_entry(entry);
+		if (db_pager_quit)
+			break;
+	}
+	if (db_pager_quit)
+		return;
+	db_printf("    unloading:\n");
+	TAILQ_FOREACH(entry, &iodom->unload_entries, dmamap_link) {
+		iommu_db_print_domain_entry(entry);
+		if (db_pager_quit)
+			break;
+	}
+}
+
 #endif
