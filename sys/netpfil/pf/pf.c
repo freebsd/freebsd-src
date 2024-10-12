@@ -8708,11 +8708,15 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
+		/* Update pointers into the packet. */
+		h = mtod(pd->m, struct ip6_hdr *);
+		pd->src = (struct pf_addr *)&h->ip6_src;
+		pd->dst = (struct pf_addr *)&h->ip6_dst;
+
 		/*
 		 * Reassembly may have changed the next protocol from fragment
 		 * to something else, so update.
 		 */
-		h = mtod(pd->m, struct ip6_hdr *);
 		pd->virtual_proto = pd->proto = h->ip6_nxt;
 		pd->off = 0;
 
