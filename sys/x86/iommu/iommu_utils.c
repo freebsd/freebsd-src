@@ -758,6 +758,19 @@ pglvl_page_size(int total_pglvl, int lvl)
 	return (pg_sz[rlvl]);
 }
 
+void
+iommu_device_set_iommu_prop(device_t dev, device_t iommu)
+{
+	device_t iommu_dev;
+	int error;
+
+	bus_topo_lock();
+	error = device_get_prop(dev, DEV_PROP_NAME_IOMMU, (void **)&iommu_dev);
+	if (error == ENOENT)
+		device_set_prop(dev, DEV_PROP_NAME_IOMMU, iommu, NULL, NULL);
+	bus_topo_unlock();
+}
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
