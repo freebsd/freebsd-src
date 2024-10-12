@@ -75,10 +75,10 @@ acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 #endif
 	switch (gpio_res->IoRestriction) {
 	case ACPI_IO_RESTRICT_INPUT:
-		flags = GPIO_PIN_INPUT;
+		flags |= GPIO_PIN_INPUT;
 		break;
 	case ACPI_IO_RESTRICT_OUTPUT:
-		flags = GPIO_PIN_OUTPUT;
+		flags |= GPIO_PIN_OUTPUT;
 		break;
 	}
 
