@@ -55,7 +55,6 @@
 #include <arpa/inet.h>
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <netdb.h>
 #include <nlist.h>
@@ -169,7 +168,8 @@ main(int argc, char *argv[])
 
 			xo_close_list("arp-cache");
 			xo_close_container("arp");
-			xo_finish();
+			if (xo_finish() < 0)
+				xo_err(1, "stdout");
 		} else {
 			if (argc != 1)
 				usage();
@@ -206,7 +206,7 @@ main(int argc, char *argv[])
 	if (ifnameindex != NULL)
 		if_freenameindex(ifnameindex);
 
-	return (rtn);
+	exit(rtn);
 }
 
 /*
@@ -446,7 +446,8 @@ get(char *host)
 
 	xo_close_list("arp-cache");
 	xo_close_container("arp");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	return (found == 0);
 }
@@ -723,7 +724,7 @@ nuke_entries(uint32_t ifindex, struct in_addr addr)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 	    "usage: arp [-n] [-i interface] hostname",
 	    "       arp [-n] [-i interface] -a",
 	    "       arp -d hostname [pub]",
