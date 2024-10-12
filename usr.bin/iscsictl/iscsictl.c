@@ -709,20 +709,20 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: iscsictl -A -p portal -t target "
+	xo_error("usage: iscsictl -A -p portal -t target "
 	    "[-u user -s secret] [-w timeout] [-e on | off]\n");
-	fprintf(stderr, "       iscsictl -A -d discovery-host "
+	xo_error("       iscsictl -A -d discovery-host "
 	    "[-u user -s secret] [-e on | off]\n");
-	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
-	fprintf(stderr, "       iscsictl -A -n nickname [-c path]\n");
-	fprintf(stderr, "       iscsictl -M -i session-id [-p portal] "
+	xo_error("       iscsictl -A -a [-c path]\n");
+	xo_error("       iscsictl -A -n nickname [-c path]\n");
+	xo_error("       iscsictl -M -i session-id [-p portal] "
 	    "[-t target] [-u user] [-s secret] [-e on | off]\n");
-	fprintf(stderr, "       iscsictl -M -i session-id -n nickname "
+	xo_error("       iscsictl -M -i session-id -n nickname "
 	    "[-c path]\n");
-	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
-	fprintf(stderr, "       iscsictl -R -a\n");
-	fprintf(stderr, "       iscsictl -R -n nickname [-c path]\n");
-	fprintf(stderr, "       iscsictl -L [-v] [-w timeout]\n");
+	xo_error("       iscsictl -R [-p portal] [-t target]\n");
+	xo_error("       iscsictl -R -a\n");
+	xo_error("       iscsictl -R -n nickname [-c path]\n");
+	xo_error("       iscsictl -L [-v] [-w timeout]\n");
 	exit(1);
 }
 
@@ -743,8 +743,8 @@ main(int argc, char **argv)
 	struct target *targ;
 
 	argc = xo_parse_args(argc, argv);
-        if (argc < 0)
-                exit(1);
+	if (argc < 0)
+		exit(1);
 
 	xo_set_version(ISCSICTL_XO_VERSION);
 	xo_open_container("iscsictl");
@@ -1052,10 +1052,11 @@ main(int argc, char **argv)
 		xo_err(1, "close");
 
 	xo_close_container("iscsictl");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	if (failed != 0)
-		return (1);
+		exit(1);
 
-	return (0);
+	exit(0);
 }
