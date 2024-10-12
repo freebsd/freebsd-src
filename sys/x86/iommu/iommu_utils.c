@@ -34,6 +34,7 @@
 #else
 #include "opt_apic.h"
 #endif
+#include "opt_ddb.h"
 
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -756,3 +757,43 @@ pglvl_page_size(int total_pglvl, int lvl)
 	KASSERT(rlvl < nitems(pg_sz), ("sizeof pg_sz lvl %d", lvl));
 	return (pg_sz[rlvl]);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
+
+void
+iommu_db_print_domain_entry(const struct iommu_map_entry *entry)
+{
+	struct iommu_map_entry *l, *r;
+
+	db_printf(
+	    "    start %jx end %jx first %jx last %jx free_down %jx flags %x ",
+	    entry->start, entry->end, entry->first, entry->last,
+	    entry->free_down, entry->flags);
+	db_printf("left ");
+	l = RB_LEFT(entry, rb_entry);
+	if (l == NULL)
+		db_printf("NULL ");
+	else
+		db_printf("%jx ", l->start);
+	db_printf("right ");
+	r = RB_RIGHT(entry, rb_entry);
+	if (r == NULL)
+		db_printf("NULL");
+	else
+		db_printf("%jx", r->start);
+	db_printf("\n");
+}
+
+void
+iommu_db_print_ctx(struct iommu_ctx *ctx)
+{
+	db_printf(
+	    "    @%p pci%d:%d:%d refs %d flags %#x loads %lu unloads %lu\n",
+	    ctx, pci_get_bus(ctx->tag->owner),
+	    pci_get_slot(ctx->tag->owner),
+	    pci_get_function(ctx->tag->owner), ctx->refs,
+	    ctx->flags, ctx->loads, ctx->unloads);
+}
+#endif

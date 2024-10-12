@@ -1054,47 +1054,11 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 #include <ddb/db_lex.h>
 
 static void
-dmar_print_domain_entry(const struct iommu_map_entry *entry)
-{
-	struct iommu_map_entry *l, *r;
-
-	db_printf(
-	    "    start %jx end %jx first %jx last %jx free_down %jx flags %x ",
-	    entry->start, entry->end, entry->first, entry->last,
-	    entry->free_down, entry->flags);
-	db_printf("left ");
-	l = RB_LEFT(entry, rb_entry);
-	if (l == NULL)
-		db_printf("NULL ");
-	else
-		db_printf("%jx ", l->start);
-	db_printf("right ");
-	r = RB_RIGHT(entry, rb_entry);
-	if (r == NULL)
-		db_printf("NULL");
-	else
-		db_printf("%jx", r->start);
-	db_printf("\n");
-}
-
-static void
-dmar_print_ctx(struct dmar_ctx *ctx)
-{
-
-	db_printf(
-	    "    @%p pci%d:%d:%d refs %d flags %x loads %lu unloads %lu\n",
-	    ctx, pci_get_bus(ctx->context.tag->owner),
-	    pci_get_slot(ctx->context.tag->owner),
-	    pci_get_function(ctx->context.tag->owner), ctx->refs,
-	    ctx->context.flags, ctx->context.loads, ctx->context.unloads);
-}
-
-static void
 dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 {
 	struct iommu_domain *iodom;
 	struct iommu_map_entry *entry;
-	struct dmar_ctx *ctx;
+	struct iommu_ctx *ctx;
 
 	iodom = DOM2IODOM(domain);
 
@@ -1104,16 +1068,16 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
 	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
 	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
-	if (!LIST_EMPTY(&domain->contexts)) {
+	if (!LIST_EMPTY(&iodom->contexts)) {
 		db_printf("  Contexts:\n");
-		LIST_FOREACH(ctx, &domain->contexts, link)
-			dmar_print_ctx(ctx);
+		LIST_FOREACH(ctx, &iodom->contexts, link)
+			iommu_db_print_ctx(ctx);
 	}
 	if (!show_mappings)
 		return;
 	db_printf("    mapped:\n");
 	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
-		dmar_print_domain_entry(entry);
+		iommu_db_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
 	}
@@ -1121,7 +1085,7 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 		return;
 	db_printf("    unloading:\n");
 	TAILQ_FOREACH(entry, &domain->iodom.unload_entries, dmamap_link) {
-		dmar_print_domain_entry(entry);
+		iommu_db_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
 	}
@@ -1131,7 +1095,7 @@ DB_SHOW_COMMAND_FLAGS(dmar_domain, db_dmar_print_domain, CS_OWN)
 {
 	struct dmar_unit *unit;
 	struct dmar_domain *domain;
-	struct dmar_ctx *ctx;
+	struct iommu_ctx *ctx;
 	bool show_mappings, valid;
 	int pci_domain, bus, device, function, i, t;
 	db_expr_t radix;
@@ -1179,13 +1143,12 @@ DB_SHOW_COMMAND_FLAGS(dmar_domain, db_dmar_print_domain, CS_OWN)
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
 		LIST_FOREACH(domain, &unit->domains, link) {
-			LIST_FOREACH(ctx, &domain->contexts, link) {
+			LIST_FOREACH(ctx, &domain->iodom.contexts, link) {
 				if (pci_domain == unit->segment && 
-				    bus == pci_get_bus(ctx->context.tag->owner) &&
-				    device ==
-				    pci_get_slot(ctx->context.tag->owner) &&
-				    function ==
-				    pci_get_function(ctx->context.tag->owner)) {
+				    bus == pci_get_bus(ctx->tag->owner) &&
+				    device == pci_get_slot(ctx->tag->owner) &&
+				    function == pci_get_function(ctx->tag->
+				    owner)) {
 					dmar_print_domain(domain,
 					    show_mappings);
 					goto out;

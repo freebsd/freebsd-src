@@ -121,11 +121,14 @@ struct iommu_domain {
 	iommu_gaddr_t msi_base;		/* (d) Arch-specific */
 	vm_paddr_t msi_phys;		/* (d) Arch-specific */
 	u_int flags;			/* (u) */
+	LIST_HEAD(, iommu_ctx) contexts;/* (u) */
 };
 
 struct iommu_ctx {
 	struct iommu_domain *domain;	/* (c) */
 	struct bus_dma_tag_iommu *tag;	/* (c) Root tag */
+	LIST_ENTRY(iommu_ctx) link;	/* (u) Member in the domain list */
+	u_int refs;			/* (u) References from tags */
 	u_long loads;			/* atomic updates, for stat only */
 	u_long unloads;			/* same */
 	u_int flags;			/* (u) */
