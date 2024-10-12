@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 #include "opt_bus.h"
 #include "opt_ddb.h"
+#include "opt_iommu.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -59,6 +60,8 @@
 
 #include <vm/uma.h>
 #include <vm/vm.h>
+
+#include <dev/iommu/iommu.h>
 
 #include <ddb/ddb.h>
 
@@ -261,6 +264,7 @@ enum {
 	DEVICE_SYSCTL_LOCATION,
 	DEVICE_SYSCTL_PNPINFO,
 	DEVICE_SYSCTL_PARENT,
+	DEVICE_SYSCTL_IOMMU,
 };
 
 static int
@@ -268,7 +272,10 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	device_t dev = (device_t)arg1;
+	device_t iommu;
 	int error;
+	uint16_t rid;
+	const char *c;
 
 	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
 	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
@@ -288,6 +295,22 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		break;
 	case DEVICE_SYSCTL_PARENT:
 		sbuf_cat(&sb, dev->parent ? dev->parent->nameunit : "");
+		break;
+	case DEVICE_SYSCTL_IOMMU:
+		iommu = NULL;
+		error = device_get_prop(dev, DEV_PROP_NAME_IOMMU,
+		    (void **)&iommu);
+		c = "";
+		if (error == 0 && iommu != NULL) {
+			sbuf_printf(&sb, "unit=%s", device_get_nameunit(iommu));
+			c = " ";
+		}
+		rid = 0;
+#ifdef IOMMU
+		iommu_get_requester(dev, &rid);
+#endif
+		if (rid != 0)
+			sbuf_printf(&sb, "%srid=%#x", c, rid);
 		break;
 	default:
 		error = EINVAL;
@@ -338,6 +361,11 @@ device_sysctl_init(device_t dev)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
+	SYSCTL_ADD_PROC(&dev->sysctl_ctx, SYSCTL_CHILDREN(dev->sysctl_tree),
+	    OID_AUTO, "%iommu",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    dev, DEVICE_SYSCTL_IOMMU, device_sysctl_handler, "A",
+	    "iommu unit handling the device requests");
 	if (bus_get_domain(dev, &domain) == 0)
 		SYSCTL_ADD_INT(&dev->sysctl_ctx,
 		    SYSCTL_CHILDREN(dev->sysctl_tree), OID_AUTO, "%domain",
