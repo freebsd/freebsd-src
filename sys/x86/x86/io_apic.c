@@ -1081,6 +1081,22 @@ ioapic_get_rid(u_int apic_id, uint16_t *ridp)
 	return (0);
 }
 
+device_t
+ioapic_get_dev(u_int apic_id)
+{
+	struct ioapic *io;
+
+	mtx_lock_spin(&icu_lock);
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		if (io->io_hw_apic_id == apic_id)
+			break;
+	}
+	mtx_unlock_spin(&icu_lock);
+	if (io != NULL)
+		return (io->pci_dev);
+	return (NULL);
+}
+
 /*
  * A new-bus driver to consume the memory resources associated with
  * the APICs in the system.  On some systems ACPI or PnPBIOS system
