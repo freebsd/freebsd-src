@@ -46,7 +46,6 @@
 #include <sys/mount.h>
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -657,7 +656,8 @@ main(int argc, char *argv[])
 
 	if (nkept == 0) {
 		printheader();
-		xo_finish();
+		if (xo_finish() < 0)
+			xo_err(1, "stdout");
 		exit(1);
 	}
 
@@ -742,7 +742,8 @@ main(int argc, char *argv[])
 	}
 	xo_close_list("process");
 	xo_close_container("process-information");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	free_list(&gidlist);
 	free_list(&jidlist);
@@ -812,14 +813,14 @@ addelem_jid(struct listinfo *inf, const char *elem)
 	int tempid;
 
 	if (*elem == '\0') {
-		warnx("Invalid (zero-length) jail id");
+		xo_warnx("Invalid (zero-length) jail id");
 		optfatal = 1;
 		return (0);		/* Do not add this value. */
 	}
 
 	tempid = jail_getid(elem);
 	if (tempid < 0) {
-		warnx("Invalid %s: %s", inf->lname, elem);
+		xo_warnx("Invalid %s: %s", inf->lname, elem);
 		optfatal = 1;
 		return (0);
 	}
@@ -1480,7 +1481,7 @@ usage(void)
 {
 #define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
-	(void)xo_error("%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n",
 	    "usage: ps [--libxo] " SINGLE_OPTS " [-O fmt | -o fmt]",
 	    "          [-G gid[,gid...]] [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",

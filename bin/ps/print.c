@@ -40,7 +40,6 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
-#include <err.h>
 #include <grp.h>
 #include <jail.h>
 #include <langinfo.h>
