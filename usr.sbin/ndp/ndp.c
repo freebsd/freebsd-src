@@ -103,7 +103,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <paths.h>
-#include <err.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -350,7 +349,8 @@ main(int argc, char **argv)
 		break;
 	}
 	xo_close_container("ndp");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	return (ret);
 }
@@ -921,16 +921,16 @@ ndp_ether_aton(char *a, u_char *n)
 static void
 usage(void)
 {
-	printf("usage: ndp [-nt] hostname\n");
-	printf("       ndp [-nt] -a | -c | -p | -r | -H | -P | -R\n");
-	printf("       ndp [-nt] -A wait\n");
-	printf("       ndp [-nt] -d hostname\n");
-	printf("       ndp [-nt] -f filename\n");
-	printf("       ndp [-nt] -i interface [flags...]\n");
+	xo_error("usage: ndp [-nt] hostname\n");
+	xo_error("       ndp [-nt] -a | -c | -p | -r | -H | -P | -R\n");
+	xo_error("       ndp [-nt] -A wait\n");
+	xo_error("       ndp [-nt] -d hostname\n");
+	xo_error("       ndp [-nt] -f filename\n");
+	xo_error("       ndp [-nt] -i interface [flags...]\n");
 #ifdef SIOCSDEFIFACE_IN6
-	printf("       ndp [-nt] -I [interface|delete]\n");
+	xo_error("       ndp [-nt] -I [interface|delete]\n");
 #endif
-	printf("       ndp [-nt] -s nodename etheraddr [temp] [proxy]\n");
+	xo_error("       ndp [-nt] -s nodename etheraddr [temp] [proxy]\n");
 	exit(1);
 }
 
