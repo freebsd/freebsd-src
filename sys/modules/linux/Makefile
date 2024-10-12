@@ -33,6 +33,7 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	linux_uid16.c \
 	linux_vdso.c \
 	linux_xattr.c \
+	opt_compat.h \
 	opt_inet.h \
 	opt_inet6.h \
 	opt_ktrace.h \
@@ -41,6 +42,7 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	bus_if.h \
 	device_if.h \
 	vnode_if.h
+
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 VDSODEPS=linux_vdso_gettc_x86.inc
