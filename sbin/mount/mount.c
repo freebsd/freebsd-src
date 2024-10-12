@@ -36,7 +36,7 @@
 #include <sys/wait.h>
 
 #include <ctype.h>
-#include <err.h>
+
 #include <errno.h>
 #include <fstab.h>
 #include <paths.h>
@@ -56,7 +56,8 @@
 
 #define EXIT(a) {			\
 	xo_close_container("mount");	\
-	xo_finish();			\
+	if (xo_finish() < 0)			\
+		xo_err(EXIT_FAILURE, "stdout");	\
 	exit(a);			\
 	}
 
@@ -142,7 +143,7 @@ exec_mountprog(const char *name, const char *execname, char *const argv[])
 	switch (pid = fork()) {
 	case -1:				/* Error. */
 		xo_warn("fork");
-		EXIT(1);
+		EXIT(EXIT_FAILURE);
 	case 0:					/* Child. */
 		/* Go find an executable. */
 		execvP(execname, _PATH_SYSPATH, argv);
@@ -152,7 +153,7 @@ exec_mountprog(const char *name, const char *execname, char *const argv[])
 				xo_warnx("in path: %s", _PATH_SYSPATH);
 			}
 		}
-		EXIT(1);
+		EXIT(EXIT_FAILURE);
 	default:				/* Parent. */
 		if (waitpid(pid, &status, 0) < 0) {
 			xo_warn("waitpid");
@@ -217,7 +218,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		exit(EXIT_FAILURE);
 	xo_open_container("mount");
 
 	while ((ch = getopt(argc, argv, "adF:fLlno:prt:uvw")) != -1)
@@ -289,7 +290,7 @@ main(int argc, char *argv[])
 	if ((init_flags & MNT_UPDATE) && (ro == 0))
 		options = catopt(options, "noro");
 
-	rval = 0;
+	rval = EXIT_SUCCESS;
 	switch (argc) {
 	case 0:
 		if ((mntsize = getmntinfo(&mntbuf,
@@ -320,7 +321,7 @@ main(int argc, char *argv[])
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
 				    fs->fs_mntops) && !failok)
-					rval = 1;
+					rval = EXIT_FAILURE;
 			}
 		} else if (fstab_style) {
 			xo_open_list("fstab");
@@ -441,7 +442,7 @@ main(int argc, char *argv[])
 	 * If the mount was successfully, and done by root, tell mountd the
 	 * good news.
 	 */
-	if (rval == 0 && getuid() == 0)
+	if (rval == EXIT_SUCCESS && getuid() == 0)
 		restart_mountd();
 
 	EXIT(rval);
@@ -884,7 +885,7 @@ usage(void)
 "usage: mount [-adflpruvw] [-F fstab] [-o options] [-t ufs | external_type]",
 "       mount [-dfpruvw] special | node",
 "       mount [-dfpruvw] [-o options] [-t ufs | external_type] special node");
-	EXIT(1);
+	EXIT(EXIT_FAILURE);
 }
 
 void
