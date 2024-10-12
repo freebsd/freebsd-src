@@ -571,7 +571,7 @@ uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int
 
 	error = UART_PROBE(sc);
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
-	return ((error) ? error : BUS_PROBE_DEFAULT);
+	return ((error) ? error : 0);
 }
 
 int
