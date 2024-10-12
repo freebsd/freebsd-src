@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 /*
- * Pseudo-nulmodem driver
+ * Pseudo-nullmodem driver
  * Mighty handy for use with serial console in Vmware
  */
 
@@ -95,9 +95,37 @@ struct nmdmsoftc {
 	struct nmdmpart	ns_part1;
 	struct nmdmpart	ns_part2;
 	struct mtx	ns_mtx;
+	TAILQ_ENTRY(nmdmsoftc)	ns_list;
 };
 
 static int nmdm_count = 0;
+
+static TAILQ_HEAD(, nmdmsoftc) nmdmsoftc_list = TAILQ_HEAD_INITIALIZER(nmdmsoftc_list);
+static struct mtx nmdmsoftc_lock;
+MTX_SYSINIT(nmdmsoftc_lock, &nmdmsoftc_lock, "nmdmsoftc list", MTX_DEF);
+
+static void
+nmdm_destroy(struct tty *tp)
+{
+	struct nmdmpart *np;
+	struct nmdmpart *onp;
+	struct tty *otp;
+
+	np = tty_softc(tp);
+
+	/* Shut down self. tty_rel_gone() schedules a deferred free callback. */
+	tty_rel_gone(tp);
+
+	/* Shut down second (other) part. */
+	onp = np->np_other;
+	if (onp == NULL)
+		return;
+
+	tty_lock(tp);
+	otp = onp->np_tty;
+
+	tty_rel_gone(otp);
+}
 
 static void
 nmdm_close(struct tty *tp)
@@ -114,17 +142,10 @@ nmdm_close(struct tty *tp)
 	if (tty_opened(otp))
 		return;
 
-	/* Shut down self. */
-	tty_rel_gone(tp);
-
-	/* Shut down second part. */
-	tty_lock(tp);
-	onp = np->np_other;
-	if (onp == NULL)
-		return;
-	otp = onp->np_tty;
-	tty_rel_gone(otp);
-	tty_lock(tp);
+	mtx_lock(&nmdmsoftc_lock);
+	nmdm_destroy(tp);
+	tty_lock(otp);
+	mtx_unlock(&nmdmsoftc_lock);
 }
 
 static void
@@ -148,6 +169,11 @@ nmdm_free(void *softc)
 		return;
 	}
 	mtx_destroy(&ns->ns_mtx);
+
+	mtx_lock(&nmdmsoftc_lock);
+	TAILQ_REMOVE(&nmdmsoftc_list, ns, ns_list);
+	mtx_unlock(&nmdmsoftc_lock);
+
 	free(ns, M_NMDM);
 	atomic_subtract_int(&nmdm_count, 1);
 }
@@ -223,6 +249,11 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 		*dev = ns->ns_part2.np_tty->t_dev;
 
 	*end = endc;
+
+	mtx_lock(&nmdmsoftc_lock);
+	TAILQ_INSERT_TAIL(&nmdmsoftc_list, ns, ns_list);
+	mtx_unlock(&nmdmsoftc_lock);
+
 	atomic_add_int(&nmdm_count, 1);
 }
 
@@ -416,6 +447,30 @@ nmdm_outwakeup(struct tty *tp)
 	taskqueue_enqueue(taskqueue_swi, &np->np_task);
 }
 
+static int
+nmdm_unload(void *data)
+{
+	struct nmdmsoftc *ns;
+	sbintime_t start_time = sbinuptime();
+	sbintime_t timeout = SBT_1S * 5; // Try to force unload for 5 seconds
+
+	mtx_lock(&nmdmsoftc_lock);
+	TAILQ_FOREACH(ns, &nmdmsoftc_list, ns_list) {
+		tty_lock(ns->ns_part1.np_tty);
+		nmdm_destroy(ns->ns_part1.np_tty);
+	}
+	mtx_unlock(&nmdmsoftc_lock);
+
+	while (atomic_load_acq_int(&nmdm_count) > 0) {
+		if (sbinuptime() - start_time >= timeout) {
+			return (EBUSY);
+		}
+		pause_sbt("nmdm_unload", mstosbt(50), mstosbt(10), 0);
+	}
+
+	return (0);
+}
+
 /*
  * Module handling
  */
@@ -424,8 +479,8 @@ nmdm_modevent(module_t mod, int type, void *data)
 {
 	static eventhandler_tag tag;
 
-        switch(type) {
-        case MOD_LOAD: 
+	switch(type) {
+	case MOD_LOAD:
 		tag = EVENTHANDLER_REGISTER(dev_clone, nmdm_clone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
@@ -434,10 +489,17 @@ nmdm_modevent(module_t mod, int type, void *data)
 	case MOD_SHUTDOWN:
 		break;
 
-	case MOD_UNLOAD:
-		if (nmdm_count != 0)
+	case MOD_QUIESCE:
+		if (atomic_load_acq_int(&nmdm_count) != 0)
 			return (EBUSY);
+		break;
+
+	case MOD_UNLOAD:
+		if (nmdm_unload(data) != 0)
+			return (EBUSY);
+
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+		mtx_destroy(&nmdmsoftc_lock);
 		break;
 
 	default:
