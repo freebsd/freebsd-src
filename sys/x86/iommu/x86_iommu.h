@@ -196,5 +196,7 @@ iommu_gaddr_t pglvl_page_size(int total_pglvl, int lvl);
 
 void iommu_db_print_domain_entry(const struct iommu_map_entry *entry);
 void iommu_db_print_ctx(struct iommu_ctx *ctx);
+void iommu_db_domain_print_contexts(struct iommu_domain *iodom);
+void iommu_db_domain_print_mappings(struct iommu_domain *iodom);
 
 #endif
