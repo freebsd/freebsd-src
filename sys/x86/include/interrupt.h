@@ -32,7 +32,6 @@
 
 #include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
-#include <sys/queue.h>
 #include <sys/types.h>
 
 /* FreeBSD standard interrupt controller interface */
