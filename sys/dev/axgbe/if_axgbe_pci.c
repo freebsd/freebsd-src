@@ -2363,11 +2363,11 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 	axgbe_printf(1, "%s: MAC_PFR 0x%x drv_flags 0x%x if_flags 0x%x\n",
 	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), if_getdrvflags(ifp),
-	    if_getflags(ifp));
+	    flags);
 
-	if (if_getflags(ifp) & IFF_PPROMISC) {
+	if (flags & IFF_PROMISC) {
 
-		axgbe_printf(1, "User requested to enter promisc mode\n");
+		axgbe_printf(1, "Requested to enter promisc mode\n");
 
 		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 1) {
 			axgbe_printf(1, "Already in promisc mode\n");
@@ -2376,10 +2376,11 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 		axgbe_printf(1, "Entering promisc mode\n");
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 1);
+		/* Disable VLAN filtering */
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
 	} else {
 
-		axgbe_printf(1, "User requested to leave promisc mode\n");
+		axgbe_printf(1, "Requested to leave promisc mode\n");
 
 		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 0) {
 			axgbe_printf(1, "Already not in promisc mode\n");
@@ -2388,6 +2389,7 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 		axgbe_printf(1, "Leaving promisc mode\n");
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 0);
+		/* Enable VLAN filtering */
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
 	}
 

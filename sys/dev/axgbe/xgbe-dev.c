@@ -970,7 +970,7 @@ xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int pr_mode, am_mode;
 
-	pr_mode = ((if_getflags(pdata->netdev) & IFF_PPROMISC) != 0);
+	pr_mode = ((if_getflags(pdata->netdev) & IFF_PROMISC) != 0);
 	am_mode = ((if_getflags(pdata->netdev) & IFF_ALLMULTI) != 0);
 
 	xgbe_set_promiscuous_mode(pdata, pr_mode);
