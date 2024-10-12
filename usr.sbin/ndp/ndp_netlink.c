@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <paths.h>
-#include <err.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -42,7 +41,6 @@
 #include <netlink/netlink_snl_route_compat.h>
 #include <netlink/netlink_snl_route_parsers.h>
 
-#include <libxo/xo.h>
 #include "ndp.h"
 
 #define RTF_ANNOUNCE	RTF_PROTO2
@@ -56,12 +54,12 @@ nl_init_socket(struct snl_state *ss)
 	if (modfind("netlink") == -1 && errno == ENOENT) {
 		/* Try to load */
 		if (kldload("netlink") == -1)
-			err(1, "netlink is not loaded and load attempt failed");
+			xo_err(1, "netlink is not loaded and load attempt failed");
 		if (snl_init(ss, NETLINK_ROUTE))
 			return;
 	}
 
-	err(1, "unable to open netlink socket");
+	xo_err(1, "unable to open netlink socket");
 }
 
 static bool
