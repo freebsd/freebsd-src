@@ -62,7 +62,6 @@
 #include <netinet/ip_mroute.h>
 #undef _NETSTAT_
 
-#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

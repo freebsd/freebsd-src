@@ -46,7 +46,6 @@
 #endif
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #ifdef JAIL
 #include <jail.h>
@@ -61,6 +60,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include "netstat.h"
 #include "nl_defs.h"
@@ -258,14 +258,14 @@ main(int argc, char *argv[])
 #ifdef INET
 			af = AF_INET;
 #else
-			errx(1, "IPv4 support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "IPv4 support is not compiled in");
 #endif
 			break;
 		case '6':
 #ifdef INET6
 			af = AF_INET6;
 #else
-			errx(1, "IPv6 support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "IPv6 support is not compiled in");
 #endif
 			break;
 		case 'A':
@@ -293,7 +293,7 @@ main(int argc, char *argv[])
 			fib = strtol(optarg, &endptr, 0);
 			if (*endptr != '\0' ||
 			    (fib == 0 && (errno == EINVAL || errno == ERANGE)))
-				xo_errx(1, "%s: invalid fib", optarg);
+				xo_errx(EX_DATAERR, "%s: invalid fib", optarg);
 			break;
 		case 'f':
 			if (strcmp(optarg, "inet") == 0)
@@ -317,7 +317,7 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "link") == 0)
 				af = AF_LINK;
 			else {
-				xo_errx(1, "%s: unknown address family",
+				xo_errx(EX_DATAERR, "%s: unknown address family",
 				    optarg);
 			}
 			break;
@@ -345,7 +345,7 @@ main(int argc, char *argv[])
 				usage();
 			jail_name = optarg;
 #else
-			errx(1, "Jail support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "Jail support is not compiled in");
 #endif
 			break;
 		case 'L':
@@ -374,7 +374,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				xo_errx(1, "%s: unknown or uninstrumented "
+				xo_errx(EX_DATAERR, "%s: unknown or uninstrumented "
 				    "protocol", optarg);
 			}
 			pflag = 1;
@@ -448,9 +448,9 @@ main(int argc, char *argv[])
 	if (jail_name != NULL) {
 		jid = jail_getid(jail_name);
 		if (jid == -1)
-			errx(1, "Jail not found");
+			xo_errx(EX_UNAVAILABLE, "Jail not found");
 		if (jail_attach(jid) != 0)
-			errx(1, "Cannot attach to jail");
+			xo_errx(EX_UNAVAILABLE, "Cannot attach to jail");
 	}
 #endif
 
@@ -461,20 +461,21 @@ main(int argc, char *argv[])
 	live = (nlistf == NULL && memf == NULL);
 	if (!live) {
 		if (setgid(getgid()) != 0)
-			xo_err(-1, "setgid");
+			xo_err(EX_OSERR, "setgid");
 		/* Load all necessary kvm symbols */
 		kresolve_list(nl);
 	}
 
 	if (xflag && Tflag)
-		xo_errx(1, "-x and -T are incompatible, pick one.");
+		xo_errx(EX_USAGE, "-x and -T are incompatible, pick one.");
 
 	if (Bflag) {
 		if (!live)
 			usage();
 		bpf_stats(interface);
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (mflag) {
 		if (!live) {
@@ -482,8 +483,9 @@ main(int argc, char *argv[])
 				mbpr(kvmd, nl[N_SFSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (Qflag) {
 		if (!live) {
@@ -491,8 +493,9 @@ main(int argc, char *argv[])
 				netisr_stats();
 		} else
 			netisr_stats();
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 #if 0
 	/*
@@ -513,8 +516,9 @@ main(int argc, char *argv[])
 		xo_set_version(NETSTAT_XO_VERSION);
 		intpr(NULL, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (rflag) {
 		xo_open_container("statistics");
@@ -527,24 +531,27 @@ main(int argc, char *argv[])
 		} else
 			routepr(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (oflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		nhops_print(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (Oflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		nhgrp_print(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 
@@ -568,8 +575,9 @@ main(int argc, char *argv[])
 #endif
 		}
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 	if (tp) {
@@ -579,8 +587,9 @@ main(int argc, char *argv[])
 		if (!first)
 			xo_close_list("socket");
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 	xo_open_container("statistics");
@@ -611,8 +620,9 @@ main(int argc, char *argv[])
 	if (!first)
 		xo_close_list("socket");
 	xo_close_container("statistics");
-	xo_finish();
-	exit(0);
+	if (xo_finish() < 0)
+		xo_err(EX_IOERR, "stdout");
+	exit(EX_OK);
 }
 
 static int
@@ -732,7 +742,7 @@ kvmd_init(void)
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (setgid(getgid()) != 0)
-		xo_err(-1, "setgid");
+		xo_err(EX_OSERR, "setgid");
 
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);
@@ -757,10 +767,10 @@ kresolve_list(struct nlist *_nl)
 
 	if (kvm_nlist(kvmd, _nl) < 0) {
 		if (nlistf)
-			xo_errx(1, "%s: kvm_nlist: %s", nlistf,
+			xo_errx(EX_UNAVAILABLE, "%s: kvm_nlist: %s", nlistf,
 			    kvm_geterr(kvmd));
 		else
-			xo_errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+			xo_errx(EX_UNAVAILABLE, "kvm_nlist: %s", kvm_geterr(kvmd));
 	}
 
 	return (0);
@@ -774,10 +784,10 @@ kset_dpcpu(u_int cpuid)
 {
 
 	if ((kvmd == NULL) && (kvmd_init() != 0))
-		xo_errx(-1, "%s: kvm is not available", __func__);
+		xo_errx(EX_UNAVAILABLE, "%s: kvm is not available", __func__);
 
 	if (kvm_dpcpu_setcpu(kvmd, cpuid) < 0)
-		xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
+		xo_errx(EX_UNAVAILABLE, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
 		    cpuid, kvm_geterr(kvmd)); 
 	return;
 }
@@ -834,7 +844,7 @@ kread_counters(u_long addr, void *buf, size_t size)
 
 	n = size / sizeof(uint64_t);
 	if ((counters = malloc(n * sizeof(u_long))) == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (kread(addr, counters, n * sizeof(u_long)) < 0) {
 		free(counters);
 		return (-1);
@@ -914,7 +924,7 @@ name2protox(const char *name)
 static void
 usage(void)
 {
-	(void)xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-j jail] [-46AaCcLnRSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat [-j jail] -i | -I interface [-46abdhnW] [-f address_family]\n"
@@ -933,6 +943,5 @@ usage(void)
 "       netstat [-j jail] -g [-46W] [-f address_family] [-M core] [-N system]",
 "       netstat [-j jail] -gs [-46s] [-f address_family] [-M core] [-N system]",
 "       netstat [-j jail] -Q");
-	xo_finish();
-	exit(1);
+	exit(EX_USAGE);
 }

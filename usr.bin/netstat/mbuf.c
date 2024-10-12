@@ -43,7 +43,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
 #include <kvm.h>
 #include <memstat.h>
 #include <stdint.h>

@@ -57,7 +57,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
@@ -124,14 +123,14 @@ routepr(int fibnum, int af)
 	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
 	if (fibnum < 0 || fibnum > numfibs - 1)
-		errx(EX_USAGE, "%d: invalid fib", fibnum);
+		xo_errx(EX_USAGE, "%d: invalid fib", fibnum);
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
 	 * directly we should do rt_expire --> expire_time conversion.
 	 */
 	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
-		err(EX_OSERR, "clock_gettime() failed");
+		xo_err(EX_OSERR, "clock_gettime() failed");
 
 	xo_open_container("route-information");
 	xo_emit("{T:Routing tables}");
@@ -259,12 +258,12 @@ p_rtable_sysctl(int fibnum, int af)
 	mib[5] = 0;
 	mib[6] = fibnum;
 	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
-		err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
 		    fibnum);
 	if ((buf = malloc(needed)) == NULL)
-		errx(2, "malloc(%lu)", (unsigned long)needed);
+		xo_errx(EX_OSERR, "malloc(%lu)", (unsigned long)needed);
 	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
-		err(1, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
 	lim  = buf + needed;
 	xo_open_container("route-table");
 	xo_open_list("rt-family");

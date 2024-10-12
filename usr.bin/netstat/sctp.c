@@ -44,7 +44,6 @@
 #include <netinet/sctp_constants.h>
 #include <arpa/inet.h>
 
-#include <err.h>
 #include <errno.h>
 #include <libutil.h>
 #include <netdb.h>
