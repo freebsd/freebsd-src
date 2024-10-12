@@ -26,11 +26,16 @@
 INTERFACE pic;
 
 HEADER {
+	#include <sys/queue.h>
+
 	#include <machine/intr_machdep.h>
 
 	DECLARE_CLASS(pic_base_class);
 
-	typedef struct { } pic_base_softc_t;
+	typedef struct pic_entr {
+		TAILQ_ENTRY(pic_entr) pics_next;
+		device_t pic;
+	} pic_base_softc_t;
 
 	/* Flags for pic_disable_intr() */
 	enum eoi_flag {
