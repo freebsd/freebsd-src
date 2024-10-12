@@ -49,7 +49,6 @@
 
 #include <ctype.h>
 #include <devstat.h>
-#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <kvm.h>
@@ -338,8 +337,9 @@ retry_nlist:
 			xo_error("undefined symbols:\n", buf);
 		} else
 			xo_warnx("kvm_nlist: %s", kvm_geterr(kd));
-		xo_finish();
-		exit(1);
+		if (xo_finish() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
+		exit(EXIT_FAILURE);
 	}
 nlist_ok:
 	if (kd && Pflag)
@@ -386,8 +386,9 @@ nlist_ok:
 	if (todo & VMSTAT)
 		dovmstat(interval, reps);
 	xo_close_container("vmstat");
-	xo_finish();
-	exit(0);
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
+	exit(EXIT_SUCCESS);
 }
 
 static int
@@ -796,7 +797,8 @@ dovmstat(unsigned int interval, int reps)
 		else
 			cpustats();
 		xo_emit("\n");
-		xo_flush();
+		if (xo_flush() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
 		if (reps >= 0 && --reps <= 0)
 			break;
 		osum = sum;
@@ -1192,7 +1194,7 @@ read_intrcnts(unsigned long **intrcnts)
 	if (kd != NULL) {
 		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
 		if ((*intrcnts = malloc(intrcntlen)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if (namelist[X_NINTRCNT].n_type == 0)
 			kread(X_INTRCNT, *intrcnts, intrcntlen);
 		else {
@@ -1203,7 +1205,7 @@ read_intrcnts(unsigned long **intrcnts)
 		for (*intrcnts = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
 			*intrcnts = reallocf(*intrcnts, intrcntlen);
 			if (*intrcnts == NULL)
-				err(1, "reallocf()");
+				xo_err(1, "reallocf()");
 			if (mysysctl("hw.intrcnt", *intrcnts, &intrcntlen) == 0)
 				break;
 		}
@@ -1311,7 +1313,8 @@ dointr(unsigned int interval, int reps)
 
 		print_intrcnts(intrcnts, old_intrcnts, intrnames, nintr,
 		    istrnamlen, period_ms);
-		xo_flush();
+		if (xo_flush() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
 
 		free(old_intrcnts);
 		old_intrcnts = intrcnts;
@@ -1616,6 +1619,7 @@ usage(void)
 	xo_error("%s%s",
 	    "usage: vmstat [-afHhimoPsz] [-M core [-N system]] [-c count] [-n devs]\n",
 	    "              [-p type,if,pass] [-w wait] [disks] [wait [count]]\n");
-	xo_finish();
-	exit(1);
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
+	exit(EXIT_FAILURE);
 }
