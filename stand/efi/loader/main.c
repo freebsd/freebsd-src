@@ -884,14 +884,24 @@ check_acpi_spcr(void)
 	db = 8;
 
 	/*
-	 * Note: We don't support SPCR Rev3 or Rev4 so use Rev2 values, if we
-	 * did we wouldn't have to do this weird dances with baud or xtal rates.
-	 * Rev 3 and 4 are too new to have seen any deployment, and aren't in
-	 * the system's actblX.h files yet. This will fail for newer high-speed
-	 * consoles until acpica catches up with Microsoft's new definitions.
+	 * UartClkFreq is 3 and newer. We always use it then (it's only valid if
+	 * it isn't 0, but if it is 0, we want to use 0 to have the kernel
+	 * guess).
 	 */
-	xo = 0;
-	br = acpi_uart_baud(spcr->BaudRate);
+	if (spcr->Header.Revision <= 2)
+		xo = 0;
+	else
+		xo = spcr->UartClkFreq;
+
+	/*
+	 * PreciseBaudrate, when non-zero, is to be preferred. It's only valid,
+	 * though, for rev 4 and newer. So when it's 0 or the version is too
+	 * old, we do the old-style table lookup. Otherwise we believe it.
+	 */
+	if (spcr->Header.Revision <= 3 || spcr->PreciseBaudrate == 0)
+		br = acpi_uart_baud(spcr->BaudRate);
+	else
+		br = spcr->PreciseBaudrate;
 
 	if (io != -1) {
 		asprintf(&val, "db:%d,dt:%s,io:%#x,pa:%s,br:%d,xo=%d",
