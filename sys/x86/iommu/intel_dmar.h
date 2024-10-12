@@ -65,7 +65,6 @@ struct dmar_domain {
 	u_int refs;			/* (u) Refs, including ctx */
 	struct dmar_unit *dmar;		/* (c) */
 	LIST_ENTRY(dmar_domain) link;	/* (u) Member in the dmar list */
-	LIST_HEAD(, dmar_ctx) contexts;	/* (u) */
 	vm_object_t pgtbl_obj;		/* (c) Page table pages */
 	u_int batch_no;
 };
@@ -73,8 +72,6 @@ struct dmar_domain {
 struct dmar_ctx {
 	struct iommu_ctx context;
 	uint64_t last_fault_rec[2];	/* Last fault reported */
-	LIST_ENTRY(dmar_ctx) link;	/* (u) Member in the domain list */
-	u_int refs;			/* (u) References from tags */
 };
 
 #define	DMAR_DOMAIN_PGLOCK(dom)		VM_OBJECT_WLOCK((dom)->pgtbl_obj)

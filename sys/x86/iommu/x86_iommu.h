@@ -194,4 +194,7 @@ vm_pindex_t pglvl_pgtbl_get_pindex(int pglvl, iommu_gaddr_t base, int lvl);
 vm_pindex_t pglvl_max_pages(int pglvl);
 iommu_gaddr_t pglvl_page_size(int total_pglvl, int lvl);
 
+void iommu_db_print_domain_entry(const struct iommu_map_entry *entry);
+void iommu_db_print_ctx(struct iommu_ctx *ctx);
+
 #endif
