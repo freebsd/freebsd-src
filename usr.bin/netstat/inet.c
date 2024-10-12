@@ -63,7 +63,6 @@
 #include <netinet/udp_var.h>
 
 #include <arpa/inet.h>
-#include <err.h>
 #include <errno.h>
 #include <libutil.h>
 #include <netdb.h>

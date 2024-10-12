@@ -40,12 +40,12 @@
 #include <net/netisr.h>
 #include <net/netisr_internal.h>
 
-#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sysexits.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "nl_defs.h"
@@ -112,7 +112,7 @@ netisr_load_kvm_string(uintptr_t addr, char *dest, u_int limit)
 
 	for (i = 0; i < limit; i++) {
 		if (kread(addr + i, &dest[i], sizeof(dest[i])) != 0)
-			xo_errx(-1, "%s: kread()", __func__);
+			xo_errx(EX_OSERR, "%s: kread()", __func__);
 		if (dest[i] == '\0')
 			break;
 	}
@@ -167,9 +167,9 @@ netisr_load_sysctl_uint(const char *name, u_int *p)
 
 	retlen = sizeof(u_int);
 	if (sysctlbyname(name, p, &retlen, NULL, 0) < 0)
-		xo_err(-1, "%s", name);
+		xo_err(EX_OSERR, "%s", name);
 	if (retlen != sizeof(u_int))
-		xo_errx(-1, "%s: invalid len %ju", name, (uintmax_t)retlen);
+		xo_errx(EX_DATAERR, "%s: invalid len %ju", name, (uintmax_t)retlen);
 }
 
 static void
@@ -179,7 +179,7 @@ netisr_load_sysctl_string(const char *name, char *p, size_t len)
 
 	retlen = len;
 	if (sysctlbyname(name, p, &retlen, NULL, 0) < 0)
-		xo_err(-1, "%s", name);
+		xo_err(EX_OSERR, "%s", name);
 	p[len - 1] = '\0';
 }
 
@@ -212,13 +212,13 @@ netisr_load_kvm_proto(void)
 	 */
 	kread(nl[N_NETISR_MAXPROT].n_value, &maxprot, sizeof(u_int));
 	if (maxprot != NETISR_MAXPROT)
-		xo_errx(-1, "%s: NETISR_MAXPROT mismatch", __func__);
+		xo_errx(EX_DATAERR, "%s: NETISR_MAXPROT mismatch", __func__);
 	len = maxprot * sizeof(*np_array);
 	np_array = malloc(len);
 	if (np_array == NULL)
-		xo_err(-1, "%s: malloc", __func__);
+		xo_err(EX_OSERR, "%s: malloc", __func__);
 	if (kread(nl[N_NETISR_PROTO].n_value, np_array, len) != 0)
-		xo_errx(-1, "%s: kread(_netisr_proto)", __func__);
+		xo_errx(EX_DATAERR, "%s: kread(_netisr_proto)", __func__);
 
 	/*
 	 * Size and allocate memory to hold only live protocols.
@@ -231,7 +231,7 @@ netisr_load_kvm_proto(void)
 	}
 	proto_array = calloc(protocount, sizeof(*proto_array));
 	if (proto_array == NULL)
-		err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	protocount = 0;
 	for (i = 0; i < maxprot; i++) {
 		npp = &np_array[i];
@@ -263,21 +263,21 @@ netisr_load_sysctl_proto(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.proto", NULL, &len, NULL, 0) < 0)
-		xo_err(-1, "net.isr.proto: query len");
+		xo_err(EX_OSERR, "net.isr.proto: query len");
 	if (len % sizeof(*proto_array) != 0)
-		xo_errx(-1, "net.isr.proto: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.proto: invalid len");
 	proto_array = malloc(len);
 	if (proto_array == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (sysctlbyname("net.isr.proto", proto_array, &len, NULL, 0) < 0)
-		xo_err(-1, "net.isr.proto: query data");
+		xo_err(EX_OSERR, "net.isr.proto: query data");
 	if (len % sizeof(*proto_array) != 0)
-		xo_errx(-1, "net.isr.proto: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.proto: invalid len");
 	proto_array_len = len / sizeof(*proto_array);
 	if (proto_array_len < 1)
-		xo_errx(-1, "net.isr.proto: no data");
+		xo_errx(EX_DATAERR, "net.isr.proto: no data");
 	if (proto_array[0].snp_version != sizeof(proto_array[0]))
-		xo_errx(-1, "net.isr.proto: invalid version");
+		xo_errx(EX_DATAERR, "net.isr.proto: invalid version");
 }
 
 static void
@@ -293,22 +293,22 @@ netisr_load_kvm_workstream(void)
 	len = numthreads * sizeof(*nws_array);
 	nws_array = malloc(len);
 	if (nws_array == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (kread(nl[N_NWS_ARRAY].n_value, nws_array, len) != 0)
-		xo_errx(-1, "%s: kread(_nws_array)", __func__);
+		xo_errx(EX_OSERR, "%s: kread(_nws_array)", __func__);
 	workstream_array = calloc(numthreads, sizeof(*workstream_array));
 	if (workstream_array == NULL)
-		xo_err(-1, "calloc");
+		xo_err(EX_OSERR, "calloc");
 	workstream_array_len = numthreads;
 	work_array = calloc(numthreads * proto_array_len, sizeof(*work_array));
 	if (work_array == NULL)
-		xo_err(-1, "calloc");
+		xo_err(EX_OSERR, "calloc");
 	counter = 0;
 	for (wsid = 0; wsid < numthreads; wsid++) {
 		cpuid = nws_array[wsid];
 		kset_dpcpu(cpuid);
 		if (kread(nl[N_NWS].n_value, &nws, sizeof(nws)) != 0)
-			xo_errx(-1, "%s: kread(nw)", __func__);
+			xo_errx(EX_OSERR, "%s: kread(nw)", __func__);
 		snwsp = &workstream_array[wsid];
 		snwsp->snws_version = sizeof(*snwsp);
 		snwsp->snws_wsid = cpuid;
@@ -348,22 +348,22 @@ netisr_load_sysctl_workstream(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.workstream", NULL, &len, NULL, 0) < 0)
-		xo_err(-1, "net.isr.workstream: query len");
+		xo_err(EX_OSERR, "net.isr.workstream: query len");
 	if (len % sizeof(*workstream_array) != 0)
-		xo_errx(-1, "net.isr.workstream: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.workstream: invalid len");
 	workstream_array = malloc(len);
 	if (workstream_array == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (sysctlbyname("net.isr.workstream", workstream_array, &len, NULL,
 	    0) < 0)
-		xo_err(-1, "net.isr.workstream: query data");
+		xo_err(EX_OSERR, "net.isr.workstream: query data");
 	if (len % sizeof(*workstream_array) != 0)
-		xo_errx(-1, "net.isr.workstream: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.workstream: invalid len");
 	workstream_array_len = len / sizeof(*workstream_array);
 	if (workstream_array_len < 1)
-		xo_errx(-1, "net.isr.workstream: no data");
+		xo_errx(EX_DATAERR, "net.isr.workstream: no data");
 	if (workstream_array[0].snws_version != sizeof(workstream_array[0]))
-		xo_errx(-1, "net.isr.workstream: invalid version");
+		xo_errx(EX_DATAERR, "net.isr.workstream: invalid version");
 }
 
 static void
@@ -372,21 +372,21 @@ netisr_load_sysctl_work(void)
 	size_t len;
 
 	if (sysctlbyname("net.isr.work", NULL, &len, NULL, 0) < 0)
-		xo_err(-1, "net.isr.work: query len");
+		xo_err(EX_OSERR, "net.isr.work: query len");
 	if (len % sizeof(*work_array) != 0)
-		xo_errx(-1, "net.isr.work: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.work: invalid len");
 	work_array = malloc(len);
 	if (work_array == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (sysctlbyname("net.isr.work", work_array, &len, NULL, 0) < 0)
-		xo_err(-1, "net.isr.work: query data");
+		xo_err(EX_OSERR, "net.isr.work: query data");
 	if (len % sizeof(*work_array) != 0)
-		xo_errx(-1, "net.isr.work: invalid len");
+		xo_errx(EX_DATAERR, "net.isr.work: invalid len");
 	work_array_len = len / sizeof(*work_array);
 	if (work_array_len < 1)
-		xo_errx(-1, "net.isr.work: no data");
+		xo_errx(EX_DATAERR, "net.isr.work: no data");
 	if (work_array[0].snw_version != sizeof(work_array[0]))
-		xo_errx(-1, "net.isr.work: invalid version");
+		xo_errx(EX_DATAERR, "net.isr.work: invalid version");
 }
 
 static void

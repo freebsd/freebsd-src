@@ -39,7 +39,6 @@
 #include <net/bpfdesc.h>
 #include <arpa/inet.h>
 
-#include <err.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -50,7 +50,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
@@ -100,7 +99,7 @@ prepare_ifmap(size_t *pifmap_size)
 	 * since we need #ifindex -> if_xname match
 	 */
 	if (getifaddrs(&ifap) != 0)
-		err(EX_OSERR, "getifaddrs");
+		xo_err(EX_OSERR, "getifaddrs");
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 
@@ -114,7 +113,7 @@ prepare_ifmap(size_t *pifmap_size)
 			size = roundup2(ifindex + 1, 32) *
 			    sizeof(struct ifmap_entry);
 			if ((ifmap = realloc(ifmap, size)) == NULL)
-				errx(2, "realloc(%d) failed", size);
+				xo_errx(EX_OSERR, "realloc(%d) failed", size);
 			memset(&ifmap[ifmap_size], 0,
 			    size - ifmap_size *
 			    sizeof(struct ifmap_entry));
