@@ -37,7 +37,6 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -98,26 +97,26 @@ static const int nbcmds = nitems(cmds);
 static const char *uflag;
 
 static void
-usage(FILE *out, const char *subcmd)
+usage(const char *subcmd)
 {
 	int i;
 
 	if (subcmd == NULL) {
-		fprintf(out, "Usage: %s [-u /dev/ses<N>] <command> [options]\n",
+		xo_error("usage: %s [-u /dev/ses<N>] <command> [options]\n",
 		    getprogname());
-		fprintf(out, "Commands supported:\n");
+		xo_error("Commands supported:\n");
 	}
 	for (i = 0; i < nbcmds; i++) {
 		if (subcmd != NULL) {
 			if (strcmp(subcmd, cmds[i].name) == 0) {
-				fprintf(out, "Usage: %s %s [-u /dev/ses<N>] "
+				xo_error("usage: %s %s [-u /dev/ses<N>] "
 				    "%s\n\t%s\n", getprogname(), subcmd,
 				    cmds[i].param, cmds[i].desc);
 				break;
 			}
 			continue;
 		}
-		fprintf(out, "    %-12s%s\n\t\t%s\n\n", cmds[i].name,
+		xo_error("    %-12s%s\n\t\t%s\n\n", cmds[i].name,
 		    cmds[i].param, cmds[i].desc);
 	}
 
@@ -189,7 +188,7 @@ sesled(int argc, char **argv, bool setfault)
 	onoff = false;
 
 	if (argc != 3) {
-		usage(stderr, (setfault ? "fault" : "locate"));
+		usage(setfault ? "fault" : "locate");
 	}
 
 	disk = argv[1];
@@ -200,7 +199,7 @@ sesled(int argc, char **argv, bool setfault)
 		if (endptr != NULL && *endptr == '*') {
 			xo_warnx("Must specifying a SES device (-u) to use a SES "
 			    "id# to identify a disk");
-			usage(stderr, (setfault ? "fault" : "locate"));
+			usage(setfault ? "fault" : "locate");
 		}
 		isses = true;
 	}
@@ -210,7 +209,7 @@ sesled(int argc, char **argv, bool setfault)
 	} else if (strcmp(argv[2], "off") == 0) {
 		onoff = false;
 	} else {
-		usage(stderr, (setfault ? "fault" : "locate"));
+		usage(setfault ? "fault" : "locate");
 	}
 
 	if (strcmp(disk, "all") == 0) {
@@ -422,7 +421,7 @@ objmap(int argc, char **argv __unused)
 	char str[32];
 
 	if (argc != 1) {
-		usage(stderr, "map");
+		usage("map");
 	}
 
 	memset(&e_desc, 0, sizeof(e_desc));
@@ -542,7 +541,8 @@ objmap(int argc, char **argv __unused)
 	free(e_desc.elm_desc_str);
 	xo_close_list("enclosures");
 	xo_close_container("sesutil");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
 
 	return (EXIT_SUCCESS);
 }
@@ -587,7 +587,7 @@ fetch_device_details(char *devnames, char **model, char **serial, off_t *size)
 	comma = (int)strcspn(devnames, ",");
 	asprintf(&tmp, "/dev/%.*s", comma, devnames);
 	if (tmp == NULL)
-		err(1, "asprintf");
+		xo_err(EXIT_FAILURE, "asprintf");
 	fd = open(tmp, O_RDONLY);
 	free(tmp);
 	if (fd < 0) {
@@ -729,7 +729,7 @@ show(int argc, char **argv __unused)
 	char str[32];
 
 	if (argc != 1) {
-		usage(stderr, "map");
+		usage("map");
 	}
 
 	first_ses = true;
@@ -871,7 +871,8 @@ show(int argc, char **argv __unused)
 	free(e_desc.elm_desc_str);
 	xo_close_list("enclosures");
 	xo_close_container("sesutil");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
 
 	return (EXIT_SUCCESS);
 }
@@ -886,7 +887,7 @@ encstatus(int argc, char **argv __unused)
 
 	status = 0;
 	if (argc != 1) {
-		usage(stderr, "status");
+		usage("status");
 	}
 
 	/* Get the list of ses devices */
@@ -963,7 +964,8 @@ encstatus(int argc, char **argv __unused)
 
 	xo_close_list("enclosures");
 	xo_close_container("sesutil");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
 
 	if (status == 1) {
 		return (EXIT_SUCCESS);
@@ -980,7 +982,7 @@ main(int argc, char **argv)
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		exit(EXIT_FAILURE);
 
 	uflag = "/dev/ses[0-9]*";
 	while ((ch = getopt_long(argc, argv, "u:", NULL, NULL)) != -1) {
@@ -990,15 +992,15 @@ main(int argc, char **argv)
 			break;
 		case '?':
 		default:
-			usage(stderr, NULL);
+			usage(NULL);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1) {
-		warnx("Missing command");
-		usage(stderr, NULL);
+		xo_warnx("Missing command");
+		usage(NULL);
 	}
 
 	for (i = 0; i < nbcmds; i++) {
@@ -1009,8 +1011,8 @@ main(int argc, char **argv)
 	}
 
 	if (cmd == NULL) {
-		warnx("unknown command %s", argv[0]);
-		usage(stderr, NULL);
+		xo_warnx("unknown command %s", argv[0]);
+		usage(NULL);
 	}
 
 	return (cmd->exec(argc, argv));
