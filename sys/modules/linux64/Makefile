@@ -28,14 +28,17 @@ SRCS=	linux_dummy_machdep.c \
 	linux_vdso.c \
 	linux_timer.c \
 	linux_xattr.c \
-	opt_ktrace.h \
+	opt_compat.h \
 	opt_inet6.h \
+	opt_ktrace.h \
 	opt_posix.h \
+	opt_usb.h \
 	bus_if.h \
 	device_if.h \
 	vnode_if.h \
 	linux_support.S \
 	linux_vdso_inc.S
+
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 .endif
