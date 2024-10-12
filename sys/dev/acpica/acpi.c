@@ -3903,13 +3903,22 @@ acpi_invoke_wake_eventhandler(void *context)
 UINT32
 acpi_event_power_button_sleep(void *context)
 {
+#if defined(__amd64__) || defined(__i386__)
     struct acpi_softc	*sc = (struct acpi_softc *)context;
+#else
+    (void)context;
+#endif
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+#if defined(__amd64__) || defined(__i386__)
     if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
 	acpi_invoke_sleep_eventhandler, &sc->acpi_power_button_sx)))
 	return_VALUE (ACPI_INTERRUPT_NOT_HANDLED);
+#else
+    shutdown_nice(RB_POWEROFF);
+#endif
+
     return_VALUE (ACPI_INTERRUPT_HANDLED);
 }
 
