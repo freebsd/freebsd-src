@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * Copyright (c) 2021 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2021-2024 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -270,7 +270,7 @@ struct rx_ring {
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
 
-        /* Next requested ITR latency */
+        /* Next requested EITR latency */
         u8			rx_nextlatency;
 };
 
