@@ -88,10 +88,6 @@ static struct timeout_task intrbalance_task;
 static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
-struct pic_entr {
-	TAILQ_ENTRY(pic_entr) pics;
-	x86pic_t pic;
-};
 static TAILQ_HEAD(pics_head, pic_entr) pics = TAILQ_HEAD_INITIALIZER(pics);
 u_int num_io_irqs;
 
