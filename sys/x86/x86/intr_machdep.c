@@ -88,7 +88,7 @@ static struct timeout_task intrbalance_task;
 static struct sx intrsrc_lock;
 static struct mtx intrpic_lock;
 static struct mtx intrcnt_lock;
-static TAILQ_HEAD(pics_head, pic_entr) pics = TAILQ_HEAD_INITIALIZER(pics);
+static pic_base_softc_t pics = { NULL, NULL };
 u_int num_io_irqs;
 
 #if defined(SMP) && !defined(EARLY_AP_STARTUP)
@@ -117,7 +117,7 @@ static void	intrcnt_register(struct intsrc *is);
 /*
  * SYSINIT levels for SI_SUB_INTR:
  *
- * SI_ORDER_FIRST: Initialize locks and pics TAILQ, xen_hvm_cpu_init
+ * SI_ORDER_FIRST: Initialize locks and pics list, xen_hvm_cpu_init
  * SI_ORDER_SECOND: Xen PICs
  * SI_ORDER_THIRD: Add I/O APIC PICs, alloc MSI and Xen IRQ ranges
  * SI_ORDER_FOURTH: Add 8259A PICs
@@ -129,11 +129,13 @@ static void	intrcnt_register(struct intsrc *is);
 static int
 intr_pic_registered(x86pic_t pic)
 {
-	struct pic_entr *p;
+	device_t p = pics.next;
 
-	TAILQ_FOREACH(p, &pics, pics) {
-		if (p->pic == pic)
+/*	TAILQ_FOREACH(p, &pics, pics) { */
+	while (p) {
+		if (p == pic)
 			return (1);
+		p = ((pic_base_softc_t *)device_get_softc(p))->next;
 	}
 	return (0);
 }
@@ -170,9 +172,6 @@ intr_create_pic(const char *name, u_int unit, driver_t *driver)
 void
 intr_register_pic(x86pic_t pic)
 {
-	struct pic_entr *entr = malloc(sizeof(*entr), M_INTR, M_WAITOK);
-
-	entr->pic = pic;
 
 	mtx_lock(&intrpic_lock);
 	if (__predict_false(intr_pic_registered(pic)))
@@ -183,8 +182,17 @@ intr_register_pic(x86pic_t pic)
 #endif
 		    ("ERROR: %s: called with already registered PIC",
 		    __func__);
-	else
-		TAILQ_INSERT_TAIL(&pics, entr, pics);
+	else {
+		device_t p = pics.prev;
+		pic_base_softc_t *softc = device_get_softc(pic);
+		softc->next = NULL;
+		softc->prev = p;
+		if (p != NULL)
+			((pic_base_softc_t *)device_get_softc(p))->next = pic;
+		else
+			pics.next = pic;
+		pics.prev = pic;
+	}
 	mtx_unlock(&intrpic_lock);
 }
 
@@ -195,7 +203,7 @@ intr_register_pic(x86pic_t pic)
 static void
 intr_init_sources(void *arg)
 {
-	struct pic_entr *pic;
+	device_t pic = pics.next;
 
 	MPASS(num_io_irqs > 0);
 
@@ -234,8 +242,10 @@ intr_init_sources(void *arg)
 	 * single-threaded at this point in startup so the list of
 	 * PICs shouldn't change.
 	 */
-	TAILQ_FOREACH(pic, &pics, pics)
-		PIC_REGISTER_SOURCES(pic->pic);
+	while (pic) {
+		PIC_REGISTER_SOURCES(pic);
+		pic = ((pic_base_softc_t *)device_get_softc(pic))->next;
+	}
 }
 SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
     NULL);
@@ -427,25 +437,29 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 void
 intr_resume(bool suspend_cancelled)
 {
-	struct pic_entr *pic;
+	device_t pic = pics.next;
 
 #ifndef DEV_ATPIC
 	atpic_reset();
 #endif
 	mtx_lock(&intrpic_lock);
-	TAILQ_FOREACH(pic, &pics, pics)
-		PIC_RESUME(pic->pic, suspend_cancelled);
+	while (pic) {
+		PIC_RESUME(pic, suspend_cancelled);
+		pic = ((pic_base_softc_t *)device_get_softc(pic))->next;
+	}
 	mtx_unlock(&intrpic_lock);
 }
 
 void
 intr_suspend(void)
 {
-	struct pic_entr *pic;
+	device_t pic = pics.prev;
 
 	mtx_lock(&intrpic_lock);
-	TAILQ_FOREACH_REVERSE(pic, &pics, pics_head, pics)
-		PIC_SUSPEND(pic->pic);
+	while (pic) {
+		PIC_SUSPEND(pic);
+		pic = ((pic_base_softc_t *)device_get_softc(pic))->prev;
+	}
 	mtx_unlock(&intrpic_lock);
 }
 
