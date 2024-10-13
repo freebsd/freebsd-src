@@ -1127,7 +1127,7 @@ mps_get_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 {
 	MPI2_DEFAULT_REPLY *reply;
 	MPI2_IOC_FACTS_REQUEST request;
-	int error, req_sz, reply_sz;
+	int error, req_sz, reply_sz, retry = 0;
 
 	MPS_FUNCTRACE(sc);
 	mps_dprint(sc, MPS_INIT, "%s entered\n", __func__);
@@ -1136,10 +1136,21 @@ mps_get_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	reply_sz = sizeof(MPI2_IOC_FACTS_REPLY);
 	reply = (MPI2_DEFAULT_REPLY *)facts;
 
+	/*
+	 * Retry sending the initialization sequence. Sometimes, especially with
+	 * older firmware, the initialization process fails. Retrying allows the
+	 * error to clear in the firmware.
+	 */
 	bzero(&request, req_sz);
 	request.Function = MPI2_FUNCTION_IOC_FACTS;
-	error = mps_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
-	mps_dprint(sc, MPS_INIT, "%s exit error= %d\n", __func__, error);
+	while (retry < 5) {
+		error = mps_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
+		if (error == 0)
+			break;
+		mps_dprint(sc, MPS_FAULT, "%s failed retry %d\n", __func__, retry);
+		DELAY(1000);
+                retry++;
+	}
 
 	return (error);
 }
@@ -1149,7 +1160,7 @@ mps_send_iocinit(struct mps_softc *sc)
 {
 	MPI2_IOC_INIT_REQUEST	init;
 	MPI2_DEFAULT_REPLY	reply;
-	int req_sz, reply_sz, error;
+	int req_sz, reply_sz, error, retry = 0;
 	struct timeval now;
 	uint64_t time_in_msec;
 
@@ -1193,10 +1204,21 @@ mps_send_iocinit(struct mps_softc *sc)
 	time_in_msec = (now.tv_sec * 1000 + now.tv_usec/1000);
 	init.TimeStamp.High = htole32((time_in_msec >> 32) & 0xFFFFFFFF);
 	init.TimeStamp.Low = htole32(time_in_msec & 0xFFFFFFFF);
-
-	error = mps_request_sync(sc, &init, &reply, req_sz, reply_sz, 5);
-	if ((reply.IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
-		error = ENXIO;
+	/*
+	 * Retry sending the initialization sequence. Sometimes, especially with
+	 * older firmware, the initialization process fails. Retrying allows the
+	 * error to clear in the firmware.
+	 */
+	while (retry < 5) {
+		error = mps_request_sync(sc, &init, &reply, req_sz, reply_sz, 5);
+		if ((reply.IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
+			error = ENXIO;
+                if (error == 0)
+                        break;
+                mps_dprint(sc, MPS_FAULT, "%s failed retry %d\n", __func__, retry);
+		DELAY(1000);
+                retry++;
+        }
 
 	mps_dprint(sc, MPS_INIT, "IOCInit status= 0x%x\n", reply.IOCStatus);
 	mps_dprint(sc, MPS_INIT, "%s exit\n", __func__);
