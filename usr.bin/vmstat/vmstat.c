@@ -1567,7 +1567,7 @@ doobjstat(void)
 		return;
 	}
 	xo_emit("{T:RES/%5s} {T:ACT/%5s} {T:INACT/%5s} {T:REF/%3s} {T:SHD/%3s} "
-	    "{T:CM/%3s} {T:TP/%2s} {T:PATH/%s}\n");
+	    "{T:CM/%2s} {T:TP/%3s} {T:PATH/%s}\n");
 	xo_open_list("object");
 	for (i = 0; i < cnt; i++)
 		display_object(&kvo[i]);
