@@ -866,7 +866,7 @@ igc_neweitr(struct igc_adapter *sc, struct igc_rx_queue *que,
 		nextlatency = rxr->rx_nextlatency;
 
 		/* Use half default (4K) ITR if sub-gig */
-		if (sc->link_speed != 1000) {
+		if (sc->link_speed < 1000) {
 			neweitr = IGC_INTS_4K;
 			goto igc_set_next_eitr;
 		}
