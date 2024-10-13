@@ -1307,6 +1307,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 		 goto out;
 	 }
 
+	/* Check flags to see if we are allowed to remove the directory. */
 	if ((dnode->tn_flags & APPEND)
 	    || (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
@@ -1323,13 +1324,6 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	MPASS(TMPFS_DIRENT_MATCHES(de,
 	    v->a_cnp->cn_nameptr,
 	    v->a_cnp->cn_namelen));
-
-	/* Check flags to see if we are allowed to remove the directory. */
-	if ((dnode->tn_flags & APPEND) != 0 ||
-	    (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) != 0) {
-		error = EPERM;
-		goto out;
-	}
 
 	/* Detach the directory entry from the directory (dnode). */
 	tmpfs_dir_detach(dvp, de);
