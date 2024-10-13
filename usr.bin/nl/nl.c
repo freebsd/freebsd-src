@@ -49,6 +49,8 @@ __COPYRIGHT(
 #include <unistd.h>
 #include <wchar.h>
 
+#include <capsicum_helpers.h>
+
 typedef enum {
 	number_all,		/* number all lines */
 	number_nonempty,	/* number non-empty lines */
@@ -250,6 +252,11 @@ main(int argc, char *argv[])
 		usage();
 		/* NOTREACHED */
 	}
+
+	/* Limit standard descriptors and enter capability mode */
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	/* Generate the delimiter sequence */
 	memcpy(delim, delim1, delim1len);
