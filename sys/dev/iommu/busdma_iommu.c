@@ -126,6 +126,12 @@ iommu_get_requester(device_t dev, uint16_t *rid)
 	pci_class = devclass_find("pci");
 	l = requester = dev;
 
+	pci = device_get_parent(dev);
+	if (pci == NULL || device_get_devclass(pci) != pci_class) {
+		*rid = 0;	/* XXXKIB: Could be ACPI HID */
+		return (requester);
+	}
+
 	*rid = pci_get_rid(dev);
 
 	/*
