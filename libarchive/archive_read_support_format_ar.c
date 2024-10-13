@@ -103,7 +103,7 @@ archive_read_support_format_ar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_ar");
 
-	ar = (struct ar *)calloc(1, sizeof(*ar));
+	ar = calloc(1, sizeof(*ar));
 	if (ar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate ar data");
@@ -368,7 +368,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 			return (ARCHIVE_FATAL);
 		}
 		/* Store it in the entry. */
-		p = (char *)malloc(bsd_name_length + 1);
+		p = malloc(bsd_name_length + 1);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate fname buffer");

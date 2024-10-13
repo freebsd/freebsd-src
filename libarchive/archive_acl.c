@@ -56,7 +56,7 @@ static int	archive_acl_add_entry_len_l(struct archive_acl *acl,
 		    int type, int permset, int tag, int id, const char *name,
 		    size_t len, struct archive_string_conv *sc);
 static int	archive_acl_text_want_type(struct archive_acl *acl, int flags);
-static ssize_t	archive_acl_text_len(struct archive_acl *acl, int want_type,
+static size_t	archive_acl_text_len(struct archive_acl *acl, int want_type,
 		    int flags, int wide, struct archive *a,
 		    struct archive_string_conv *sc);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
@@ -346,7 +346,7 @@ acl_new_entry(struct archive_acl *acl,
 	}
 
 	/* Add a new entry to the end of the list. */
-	ap = (struct archive_acl_entry *)calloc(1, sizeof(*ap));
+	ap = calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	if (aq == NULL)
@@ -528,14 +528,14 @@ archive_acl_text_want_type(struct archive_acl *acl, int flags)
 /*
  * Calculate ACL text string length
  */
-static ssize_t
+static size_t
 archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
     int wide, struct archive *a, struct archive_string_conv *sc) {
 	struct archive_acl_entry *ap;
 	const char *name;
 	const wchar_t *wname;
 	int count, idlen, tmp, r;
-	ssize_t length;
+	size_t length;
 	size_t len;
 
 	count = 0;
@@ -664,7 +664,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive *a)
 {
 	int count;
-	ssize_t length;
+	size_t length;
 	size_t len;
 	const wchar_t *wname;
 	const wchar_t *prefix;
@@ -693,7 +693,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = L'\n';
 
 	/* Now, allocate the string and actually populate it. */
-	wp = ws = (wchar_t *)malloc(length * sizeof(wchar_t));
+	wp = ws = malloc(length * sizeof(*wp));
 	if (wp == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");
@@ -755,7 +755,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 
 	len = wcslen(ws);
 
-	if ((ssize_t)len > (length - 1))
+	if (len > length - 1)
 		__archive_errx(1, "Buffer overrun");
 
 	if (text_len != NULL)
@@ -897,7 +897,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive_string_conv *sc)
 {
 	int count;
-	ssize_t length;
+	size_t length;
 	size_t len;
 	const char *name;
 	const char *prefix;
@@ -926,7 +926,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = '\n';
 
 	/* Now, allocate the string and actually populate it. */
-	p = s = (char *)malloc(length * sizeof(char));
+	p = s = malloc(length * sizeof(*p));
 	if (p == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");
@@ -990,7 +990,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 
 	len = strlen(s);
 
-	if ((ssize_t)len > (length - 1))
+	if (len > length - 1)
 		__archive_errx(1, "Buffer overrun");
 
 	if (text_len != NULL)

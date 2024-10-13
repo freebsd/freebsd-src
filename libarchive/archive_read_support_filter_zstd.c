@@ -175,8 +175,8 @@ zstd_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_ZSTD;
 	self->name = "zstd";
 
-	state = (struct private_data *)calloc(1, sizeof(*state));
-	out_block = (unsigned char *)malloc(out_block_size);
+	state = calloc(1, sizeof(*state));
+	out_block = malloc(out_block_size);
 	dstream = ZSTD_createDStream();
 
 	if (state == NULL || out_block == NULL || dstream == NULL) {

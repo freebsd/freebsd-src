@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdtar_test
@@ -32,6 +35,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_H_upper.c
     test_option_L_upper.c
     test_option_O_upper.c
+    test_option_P.c
     test_option_T_upper.c
     test_option_U_upper.c
     test_option_X_upper.c

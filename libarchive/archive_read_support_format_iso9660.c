@@ -463,7 +463,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_iso9660");
 
-	iso9660 = (struct iso9660 *)calloc(1, sizeof(*iso9660));
+	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate iso9660 data");
@@ -1905,7 +1905,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
-	file = (struct file_info *)calloc(1, sizeof(*file));
+	file = calloc(1, sizeof(*file));
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for file entry");

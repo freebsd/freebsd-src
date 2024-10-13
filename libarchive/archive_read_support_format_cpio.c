@@ -228,7 +228,7 @@ archive_read_support_format_cpio(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_cpio");
 
-	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
+	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
@@ -1088,7 +1088,7 @@ record_hardlink(struct archive_read *a,
 		}
 	}
 
-	le = (struct links_entry *)malloc(sizeof(struct links_entry));
+	le = malloc(sizeof(struct links_entry));
 	if (le == NULL) {
 		archive_set_error(&a->archive,
 		    ENOMEM, "Out of memory adding file to list");

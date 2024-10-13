@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.7.6])
-m4_define([LIBARCHIVE_VERSION_N],[3007006])
+m4_define([LIBARCHIVE_VERSION_S],[3.7.7])
+m4_define([LIBARCHIVE_VERSION_N],[3007007])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -107,6 +107,11 @@ case "$host_os" in
   *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO -D__MINGW_USE_VC2005_COMPAT ;;
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
+
+dnl Linking on Haiku needs libbsd because of readpassphrase
+case "$host_os" in
+  haiku*) LIBS="-lbsd $LIBS" ;;
+esac
 
 # Checks for programs.
 AC_PROG_CC
@@ -367,6 +372,7 @@ AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
 AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h sys/sysmacros.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h sys/xattr.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
+AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
 AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
@@ -923,9 +929,7 @@ if test "x$enable_xattr" != "xno"; then
 			  listxattr \
 			  setxattr,
 	  [ac_cv_archive_xattr_darwin=yes],
-	  [ac_cv_archive_xattr_darwin=no],
-	  [#include <sys/xattr.h>
-])
+	  [ac_cv_archive_xattr_darwin=no])
 	]
       )
     elif test "x$ac_cv_header_sys_extattr_h" = "xyes" \
@@ -941,10 +945,7 @@ if test "x$enable_xattr" != "xno"; then
 			  extattr_set_fd \
 			  extattr_set_link,
 	  [ac_cv_archive_xattr_freebsd=yes],
-	  [ac_cv_archive_xattr_freebsd=no],
-	  [#include <sys/types.h>
-#include <sys/extattr.h>
-])
+	  [ac_cv_archive_xattr_freebsd=no])
 	  ]
 	)
     elif test "x$ac_cv_header_sys_xattr_h" = "xyes" \
@@ -960,17 +961,7 @@ if test "x$enable_xattr" != "xno"; then
 			  llistxattr \
 			  lsetxattr,
 	  [ac_cv_archive_xattr_linux=yes],
-	  [ac_cv_archive_xattr_linux=no],
-	  [#if HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#if HAVE_SYS_XATTR_H
-#include <sys/xattr.h>
-#endif
-#if HAVE_ATTR_XATTR_H
-#include <attr/xatr.h>
-#endif
-])
+	  [ac_cv_archive_xattr_linux=no])
 	]
       )
     elif test "x$ac_cv_header_sys_ea_h" = "xyes"; then
@@ -985,9 +976,7 @@ if test "x$enable_xattr" != "xno"; then
 			  llistea \
 			  lsetea,
 	  [ac_cv_archive_xattr_aix=yes],
-	  [ac_cv_archive_xattr_aix=no],
-	  [#include <sys/ea.h>
-])
+	  [ac_cv_archive_xattr_aix=no])
 	  ]
 	)
     fi
@@ -1056,7 +1045,7 @@ if test "x$enable_acl" != "xno"; then
 			  richacl_get_file \
 			  richacl_set_fd \
 			  richacl_set_file,
-	  [ac_cv_archive_acl_librichacl=yes], [ac_cv_archive_acl_librichacl=no],	  [#include <sys/richacl.h>])])
+	  [ac_cv_archive_acl_librichacl=yes], [ac_cv_archive_acl_librichacl=no])])
     fi
 
     if test "x$ac_cv_func_acl" = "xyes" \
@@ -1098,14 +1087,7 @@ if test "x$enable_acl" != "xno"; then
 			  acl_set_file \
 			  acl_set_qualifier \
 			  acl_set_tag_type,
-	  [ac_cv_posix_acl_funcs=yes], [ac_cv_posix_acl_funcs=no],
-	  [#if HAVE_SYS_TYPES_H
-	   #include <sys/types.h>
-	   #endif
-	   #if HAVE_SYS_ACL_H
-	   #include <sys/acl.h>
-	   #endif
-	  ])
+	  [ac_cv_posix_acl_funcs=yes], [ac_cv_posix_acl_funcs=no])
 	])
 
 	AC_CHECK_FUNCS(acl_get_perm)
@@ -1132,14 +1114,11 @@ if test "x$enable_acl" != "xno"; then
 			    acl_is_trivial_np \
 			    acl_set_entry_type_np \
 			    acl_set_fd_np \
-			    acl_set_link_np,,,
-	      [#include <sys/types.h>
-	       #include <sys/acl.h>])
+			    acl_set_link_np)
 
 	    AC_CHECK_FUNCS(mbr_uid_to_uuid \
 			   mbr_uuid_to_id \
-			   mbr_gid_to_uuid,,,
-	      [#include <membership.h>])
+			   mbr_gid_to_uuid)
 
 	    AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_TYPE_NFS4, ACL_USER,
 	      ACL_SYNCHRONIZE], [], [],

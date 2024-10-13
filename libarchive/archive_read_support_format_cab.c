@@ -356,7 +356,7 @@ archive_read_support_format_cab(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_cab");
 
-	cab = (struct cab *)calloc(1, sizeof(*cab));
+	cab = calloc(1, sizeof(*cab));
 	if (cab == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate CAB data");
@@ -717,7 +717,7 @@ cab_read_header(struct archive_read *a)
 	/*
 	 * Read CFFOLDER.
 	 */
-	hd->folder_array = (struct cffolder *)calloc(
+	hd->folder_array = calloc(
 	    hd->folder_count, sizeof(struct cffolder));
 	if (hd->folder_array == NULL)
 		goto nomem;
@@ -780,7 +780,7 @@ cab_read_header(struct archive_read *a)
 		cab->cab_offset += skip;
 	}
 	/* Allocate memory for CFDATA */
-	hd->file_array = (struct cffile *)calloc(
+	hd->file_array = calloc(
 	    hd->file_count, sizeof(struct cffile));
 	if (hd->file_array == NULL)
 		goto nomem;
@@ -1412,7 +1412,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 	if (cab->uncompressed_buffer == NULL) {
 		cab->uncompressed_buffer_size = 0x8000;
 		cab->uncompressed_buffer
-		    = (unsigned char *)malloc(cab->uncompressed_buffer_size);
+		    = malloc(cab->uncompressed_buffer_size);
 		if (cab->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for CAB reader");
@@ -1641,7 +1641,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 	if (cab->uncompressed_buffer == NULL) {
 		cab->uncompressed_buffer_size = 0x8000;
 		cab->uncompressed_buffer
-		    = (unsigned char *)malloc(cab->uncompressed_buffer_size);
+		    = malloc(cab->uncompressed_buffer_size);
 		if (cab->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for CAB reader");

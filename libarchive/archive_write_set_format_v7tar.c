@@ -160,7 +160,7 @@ archive_write_set_format_v7tar(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
-	v7tar = (struct v7tar *)calloc(1, sizeof(*v7tar));
+	v7tar = calloc(1, sizeof(*v7tar));
 	if (v7tar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate v7tar data");

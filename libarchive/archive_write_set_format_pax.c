@@ -138,7 +138,7 @@ archive_write_set_format_pax(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	pax = (struct pax *)calloc(1, sizeof(*pax));
+	pax = calloc(1, sizeof(*pax));
 	if (pax == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate pax data");
@@ -1944,7 +1944,7 @@ url_encode(const char *in)
 		}
 	}
 
-	out = (char *)malloc(out_len + 1);
+	out = malloc(out_len + 1);
 	if (out == NULL)
 		return (NULL);
 
@@ -1982,7 +1982,7 @@ base64_encode(const char *s, size_t len)
 	char *d, *out;
 
 	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = (char *)malloc((len * 4 + 2) / 3 + 1);
+	out = malloc((len * 4 + 2) / 3 + 1);
 	if (out == NULL)
 		return (NULL);
 	d = out;
@@ -2037,7 +2037,7 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 {
 	struct sparse_block *sb;
 
-	sb = (struct sparse_block *)malloc(sizeof(*sb));
+	sb = malloc(sizeof(*sb));
 	if (sb == NULL)
 		return (ARCHIVE_FATAL);
 	sb->next = NULL;

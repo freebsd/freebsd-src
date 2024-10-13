@@ -138,10 +138,8 @@ IF "%1"=="deplibs" (
     SET SKIP_TEST_SPARSE=1
     mingw32-make test VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
-    ECHO "Skipping tests on this platform"
-    EXIT /b 0
-    REM CD build_ci\cmake
-    REM cmake --build . --target RUN_TESTS --config Release || EXIT /b 1
+    CD build_ci\cmake
+    cmake --build . --target RUN_TESTS --config Release || EXIT /b 1
   )
 ) ELSE IF "%1%"=="install" (
   IF "%BE%"=="mingw-gcc" (

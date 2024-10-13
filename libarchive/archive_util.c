@@ -651,8 +651,7 @@ archive_utility_string_sort_helper(char **strings, unsigned int n)
 		if (strcmp(strings[i], pivot) < 0)
 		{
 			lesser_count++;
-			tmp = (char **)realloc(lesser,
-				lesser_count * sizeof(char *));
+			tmp = realloc(lesser, lesser_count * sizeof(*tmp));
 			if (!tmp) {
 				free(greater);
 				free(lesser);
@@ -664,8 +663,7 @@ archive_utility_string_sort_helper(char **strings, unsigned int n)
 		else
 		{
 			greater_count++;
-			tmp = (char **)realloc(greater,
-				greater_count * sizeof(char *));
+			tmp = realloc(greater, greater_count * sizeof(*tmp));
 			if (!tmp) {
 				free(greater);
 				free(lesser);

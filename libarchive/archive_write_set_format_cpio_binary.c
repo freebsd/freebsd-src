@@ -185,7 +185,7 @@ archive_write_set_format_cpio_binary(struct archive *_a, int format)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
+	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);

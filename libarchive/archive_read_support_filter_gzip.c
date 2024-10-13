@@ -123,6 +123,8 @@ archive_read_support_filter_gzip(struct archive *_a)
  * number of bytes in header.  If pbits is non-NULL, it receives a
  * count of bits verified, suitable for use by bidder.
  */
+#define MAX_FILENAME_LENGTH (1024 * 1024L)
+#define MAX_COMMENT_LENGTH (1024 * 1024L)
 static ssize_t
 peek_at_header(struct archive_read_filter *filter, int *pbits,
 #ifdef HAVE_ZLIB_H
@@ -180,9 +182,13 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 #endif
 		do {
 			++len;
-			if (avail < len)
+			if (avail < len) {
+				if (avail > MAX_FILENAME_LENGTH) {
+					return (0);
+				}
 				p = __archive_read_filter_ahead(filter,
 				    len, &avail);
+			}
 			if (p == NULL)
 				return (0);
 		} while (p[len - 1] != 0);
@@ -200,9 +206,13 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 	if (header_flags & 16) {
 		do {
 			++len;
-			if (avail < len)
+			if (avail < len) {
+				if (avail > MAX_COMMENT_LENGTH) {
+					return (0);
+				}
 				p = __archive_read_filter_ahead(filter,
 				    len, &avail);
+			}
 			if (p == NULL)
 				return (0);
 		} while (p[len - 1] != 0);
@@ -307,8 +317,8 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_GZIP;
 	self->name = "gzip";
 
-	state = (struct private_data *)calloc(1, sizeof(*state));
-	out_block = (unsigned char *)malloc(out_block_size);
+	state = calloc(1, sizeof(*state));
+	out_block = malloc(out_block_size);
 	if (state == NULL || out_block == NULL) {
 		free(out_block);
 		free(state);

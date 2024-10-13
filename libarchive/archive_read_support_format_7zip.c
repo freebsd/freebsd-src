@@ -767,29 +767,27 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 
 	if (zip_entry->attr & supported_attrs) {
 		char *fflags_text, *ptr;
-		/* allocate for "rdonly,hidden,system," */
-		fflags_text = malloc(22 * sizeof(char));
+		/* allocate for ",rdonly,hidden,system" */
+		fflags_text = malloc(22 * sizeof(*fflags_text));
 		if (fflags_text != NULL) {
 			ptr = fflags_text; 
-			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) { 
- 			strcpy(ptr, "rdonly,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) { 
- 			strcpy(ptr, "hidden,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) { 
- 			strcpy(ptr, "system,"); 
- 			ptr = ptr + 7; 
- 		} 
- 		if (ptr > fflags_text) { 
- 			/* Delete trailing comma */ 
- 			*(ptr - 1) = '\0'; 
- 			archive_entry_copy_fflags_text(entry, 
-				fflags_text); 
- 		} 
- 		free(fflags_text); 
+			if (zip_entry->attr & FILE_ATTRIBUTE_READONLY) {
+				strcpy(ptr, ",rdonly");
+				ptr = ptr + 7;
+			}
+			if (zip_entry->attr & FILE_ATTRIBUTE_HIDDEN) {
+				strcpy(ptr, ",hidden");
+				ptr = ptr + 7;
+			}
+			if (zip_entry->attr & FILE_ATTRIBUTE_SYSTEM) {
+				strcpy(ptr, ",system");
+				ptr = ptr + 7;
+			}
+			if (ptr > fflags_text) {
+				archive_entry_copy_fflags_text(entry,
+				    fflags_text + 1);
+			}
+			free(fflags_text);
 		}
 	}
 
@@ -835,9 +833,20 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			zip_entry->mode |= AE_IFREG;
 			archive_entry_set_mode(entry, zip_entry->mode);
 		} else {
+			struct archive_string_conv* utf8_conv;
+
 			symname[symsize] = '\0';
-			archive_entry_copy_symlink(entry,
-			    (const char *)symname);
+
+			/* Symbolic links are embedded as UTF-8 strings */
+			utf8_conv = archive_string_conversion_from_charset(&a->archive,
+			    "UTF-8", 1);
+			if (utf8_conv == NULL) {
+				free(symname);
+				return ARCHIVE_FATAL;
+			}
+
+			archive_entry_copy_symlink_l(entry, (const char*)symname, symsize,
+			    utf8_conv);
 		}
 		free(symname);
 		archive_entry_set_size(entry, 0);

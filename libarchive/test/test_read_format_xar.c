@@ -620,7 +620,7 @@ has the corresponding timestamps unset.
   archive_write_set_format_xar(a);
   archive_write_add_filter_none(a);
   size_t used, buffsize = 1500;
-  char *buff = (char*) malloc(buffsize);
+  char *buff = malloc(buffsize);
   archive_write_open_memory(a, buff, buffsize, &used);
 
   struct archive_entry *ae = archive_entry_new();
@@ -827,7 +827,7 @@ static void verifyB(unsigned char *d, size_t s) {
 	assertA(0 == archive_read_next_header(a, &entry));
 	buf_size = (size_t) archive_entry_size(entry);
 	assertA(buf_size == 12);
-	buf = (unsigned char*) malloc(buf_size);
+	buf = malloc(buf_size);
 	assertA(NULL != buf);
 	assertA(buf_size == (size_t) archive_read_data(a, buf, buf_size));
 	free(buf);
@@ -836,7 +836,7 @@ static void verifyB(unsigned char *d, size_t s) {
 	assertA(0 == archive_read_next_header(a, &entry));
 	buf_size = (size_t) archive_entry_size(entry);
 	assertA(buf_size == 12);
-	buf = (unsigned char*) malloc(buf_size);
+	buf = malloc(buf_size);
 	assertA(NULL != buf);
 	assertA(buf_size == (size_t) archive_read_data(a, buf, buf_size));
 	free(buf);

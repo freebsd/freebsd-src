@@ -183,7 +183,7 @@ archive_write_set_format_ustar(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
-	ustar = (struct ustar *)calloc(1, sizeof(*ustar));
+	ustar = calloc(1, sizeof(*ustar));
 	if (ustar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate ustar data");

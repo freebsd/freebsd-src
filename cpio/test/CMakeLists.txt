@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 ############################################
 #
 # How to build bsdcpio_test
@@ -14,6 +17,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_basic.c
     test_cmdline.c
     test_extract_cpio_Z.c
+    test_extract_cpio_absolute_paths.c
     test_extract_cpio_bz2.c
     test_extract_cpio_grz.c
     test_extract_cpio_gz.c

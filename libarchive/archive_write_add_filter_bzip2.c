@@ -177,8 +177,7 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 				bs -= bs % bpb;
 		}
 		data->compressed_buffer_size = bs;
-		data->compressed
-		    = (char *)malloc(data->compressed_buffer_size);
+		data->compressed = malloc(data->compressed_buffer_size);
 		if (data->compressed == NULL) {
 			archive_set_error(f->archive, ENOMEM,
 			    "Can't allocate data for compression buffer");

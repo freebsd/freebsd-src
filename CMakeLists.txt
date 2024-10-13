@@ -881,6 +881,14 @@ IF(NOT OPENSSL_FOUND)
   ENDIF(LIBMD_FOUND)
 ENDIF(NOT OPENSSL_FOUND)
 
+# libbsd for readpassphrase on Haiku
+IF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
+  MESSAGE(STATUS "Adding libbsd for Haiku")
+  SET(CMAKE_REQUIRED_LIBRARIES "bsd")
+  FIND_LIBRARY(LIBBSD_LIBRARY NAMES bsd)
+  LIST(APPEND ADDITIONAL_LIBS ${LIBBSD_LIBRARY})
+ENDIF("${CMAKE_SYSTEM_NAME}" MATCHES "Haiku")
+
 #
 # How to prove that CRYPTO functions, which have several names on various
 # platforms, just see if archive_digest.c can compile and link against

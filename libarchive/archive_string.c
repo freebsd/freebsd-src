@@ -313,7 +313,7 @@ archive_string_ensure(struct archive_string *as, size_t s)
 	if (new_length < s)
 		new_length = s;
 	/* Now we can reallocate the buffer. */
-	p = (char *)realloc(as->s, new_length);
+	p = realloc(as->s, new_length);
 	if (p == NULL) {
 		/* On failure, wipe the string and return NULL. */
 		archive_string_free(as);

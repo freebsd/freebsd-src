@@ -160,9 +160,9 @@ __LA_NORETURN void	__archive_errx(int retvalue, const char *msg);
 void	__archive_ensure_cloexec_flag(int fd);
 int	__archive_mktemp(const char *tmpdir);
 #if defined(_WIN32) && !defined(__CYGWIN__)
-int	__archive_mkstemp(wchar_t *template);
+int	__archive_mkstemp(wchar_t *templates);
 #else
-int	__archive_mkstemp(char *template);
+int	__archive_mkstemp(char *templates);
 #endif
 
 int	__archive_clean(struct archive *);

@@ -365,6 +365,7 @@ libarchive_test_SOURCES= \
 	$(test_utils_SOURCES) \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test.h \
+	libarchive/test/test_7zip_filename_encoding.c \
 	libarchive/test/test_acl_nfs4.c \
 	libarchive/test/test_acl_pax.c \
 	libarchive/test/test_acl_platform_nfs4.c \
@@ -450,6 +451,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_file_nonexistent.c \
 	libarchive/test/test_read_filter_compress.c \
 	libarchive/test/test_read_filter_grzip.c \
+	libarchive/test/test_read_filter_gzip_recursive.c \
 	libarchive/test/test_read_filter_lrzip.c \
 	libarchive/test/test_read_filter_lzop.c \
 	libarchive/test/test_read_filter_lzop_multiple_parts.c \
@@ -509,6 +511,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_mtree_crash747.c \
 	libarchive/test/test_read_format_pax_bz2.c \
 	libarchive/test/test_read_format_rar.c \
+	libarchive/test/test_read_format_rar_encryption.c \
 	libarchive/test/test_read_format_rar_encryption_data.c \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
@@ -582,6 +585,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_disk_no_hfs_compression.c \
 	libarchive/test/test_write_disk_perms.c \
 	libarchive/test/test_write_disk_secure.c \
+	libarchive/test/test_write_disk_secure_noabsolutepaths.c \
 	libarchive/test/test_write_disk_secure744.c \
 	libarchive/test/test_write_disk_secure745.c \
 	libarchive/test/test_write_disk_secure746.c \
@@ -756,6 +760,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_rar_multivolume_uncompressed_files.part09.rar.uu \
 	libarchive/test/test_rar_multivolume_uncompressed_files.part10.rar.uu \
 	libarchive/test/test_read_filter_grzip.tar.grz.uu \
+	libarchive/test/test_read_filter_gzip_recursive.gz.uu \
 	libarchive/test/test_read_filter_lrzip.tar.lrz.uu \
 	libarchive/test/test_read_filter_lzop.tar.lzo.uu \
 	libarchive/test/test_read_filter_lzop_multiple_parts.tar.lzo.uu \
@@ -885,6 +890,14 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_rar_subblock.rar.uu \
 	libarchive/test/test_read_format_rar_unicode.rar.uu \
 	libarchive/test/test_read_format_rar_windows.rar.uu \
+	libarchive/test/test_read_format_rar4_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar4_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar4_solid_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar4_solid_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar5_encrypted_filenames.rar.uu \
+	libarchive/test/test_read_format_rar5_solid_encrypted.rar.uu \
+	libarchive/test/test_read_format_rar5_solid_encrypted_filenames.rar.uu \
 	libarchive/test/test_read_format_rar5_arm.rar.uu \
 	libarchive/test/test_read_format_rar5_blake2.rar.uu \
 	libarchive/test/test_read_format_rar5_compressed.rar.uu \
@@ -1116,6 +1129,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_H_upper.c \
 	tar/test/test_option_L_upper.c \
 	tar/test/test_option_O_upper.c \
+	tar/test/test_option_P.c \
 	tar/test/test_option_T_upper.c \
 	tar/test/test_option_U_upper.c \
 	tar/test/test_option_X_upper.c \
@@ -1266,6 +1280,7 @@ bsdcpio_test_SOURCES= \
 	cpio/test/test_basic.c \
 	cpio/test/test_cmdline.c \
 	cpio/test/test_extract_cpio_Z.c \
+	cpio/test/test_extract_cpio_absolute_paths.c \
 	cpio/test/test_extract_cpio_bz2.c \
 	cpio/test/test_extract_cpio_grz.c \
 	cpio/test/test_extract_cpio_gz.c \

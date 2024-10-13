@@ -9,6 +9,7 @@ IF(ENABLE_TEST)
     ../../test_utils/test_main.c
     read_open_memory.c
     test.h
+    test_7zip_filename_encoding.c
     test_acl_nfs4.c
     test_acl_pax.c
     test_acl_platform_nfs4.c
@@ -94,6 +95,7 @@ IF(ENABLE_TEST)
     test_read_file_nonexistent.c
     test_read_filter_compress.c
     test_read_filter_grzip.c
+    test_read_filter_gzip_recursive.c
     test_read_filter_lrzip.c
     test_read_filter_lzop.c
     test_read_filter_lzop_multiple_parts.c
@@ -153,6 +155,7 @@ IF(ENABLE_TEST)
     test_read_format_mtree_crash747.c
     test_read_format_pax_bz2.c
     test_read_format_rar.c
+    test_read_format_rar_encryption.c
     test_read_format_rar_encryption_data.c
     test_read_format_rar_encryption_header.c
     test_read_format_rar_encryption_partially.c
@@ -226,6 +229,7 @@ IF(ENABLE_TEST)
     test_write_disk_no_hfs_compression.c
     test_write_disk_perms.c
     test_write_disk_secure.c
+    test_write_disk_secure_noabsolutepaths.c
     test_write_disk_secure744.c
     test_write_disk_secure745.c
     test_write_disk_secure746.c

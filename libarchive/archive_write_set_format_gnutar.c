@@ -174,7 +174,7 @@ archive_write_set_format_gnutar(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct gnutar *gnutar;
 
-	gnutar = (struct gnutar *)calloc(1, sizeof(*gnutar));
+	gnutar = calloc(1, sizeof(*gnutar));
 	if (gnutar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate gnutar data");

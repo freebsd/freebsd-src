@@ -1751,8 +1751,7 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for xz decompression");
@@ -1862,8 +1861,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 
 	if(!zip->uncompressed_buffer) {
 		zip->uncompressed_buffer_size = 256 * 1024;
-		zip->uncompressed_buffer =
-			(uint8_t*) malloc(zip->uncompressed_buffer_size);
+		zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -2167,8 +2165,7 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 	if(zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -2291,8 +2288,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for bzip2 decompression");
@@ -2434,8 +2430,7 @@ zipx_zstd_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = ZSTD_DStreamOutSize();
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 			"No memory for Zstd decompression");
@@ -2574,7 +2569,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->uncompressed_buffer == NULL) {
 		zip->uncompressed_buffer_size = 256 * 1024;
 		zip->uncompressed_buffer
-		    = (unsigned char *)malloc(zip->uncompressed_buffer_size);
+		    = malloc(zip->uncompressed_buffer_size);
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for ZIP decompression");
@@ -3600,7 +3595,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
@@ -4392,7 +4387,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip_seekable");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
