@@ -115,6 +115,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_HOSTB17H_M30H_ROOT	0x1480	/* Also M70H, F19H M00H/M20H */
 #define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630
 #define	DEVICEID_AMD_HOSTB19H_M10H_ROOT	0x14a4
+#define	DEVICEID_AMD_HOSTB19H_M40H_ROOT	0x14b5
 #define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8
 #define	DEVICEID_AMD_HOSTB19H_M70H_ROOT	0x14e8
 
@@ -142,6 +143,7 @@ static const struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M30H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB17H_M60H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB19H_M10H_ROOT, false },
+	{ VENDORID_AMD, DEVICEID_AMD_HOSTB19H_M40H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB19H_M60H_ROOT, false },
 	{ VENDORID_AMD,	DEVICEID_AMD_HOSTB19H_M70H_ROOT, false },
 };
@@ -875,6 +877,7 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 		maxreg = 12;
 		_Static_assert((int)NUM_CCDS >= 12, "");
 		break;
+	case 0x40 ... 0x4f: /* Zen3+ Ryzen "Rembrandt" */
 	case 0x60 ... 0x6f: /* Zen4 Ryzen "Raphael" */
 	case 0x70 ... 0x7f: /* Zen4 Ryzen "Phoenix" */
 		sc->sc_temp_base = AMDTEMP_ZEN4_CCD_TMP_BASE;
