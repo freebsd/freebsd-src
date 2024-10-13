@@ -31,9 +31,11 @@
 #ifndef _DEV_IOMMU_IOMMU_H_
 #define _DEV_IOMMU_IOMMU_H_
 
+#include <sys/_task.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <dev/iommu/iommu_types.h>
+#include <dev/pci/pcireg.h>
 
 struct bus_dma_tag_common;
 struct iommu_map_entry;
