@@ -2936,6 +2936,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 	KASSERT(btx->fq->chan == ch, ("%s: unexpected channel", __func__));
 #endif /* INVARIANTS */
 
+	BPF_MTAP(sc->ifp, m);
+
 	error = bus_dmamap_load_mbuf_sg(buf->dmat, buf->dmap, m, segs, &nsegs,
 	    BUS_DMA_NOWAIT);
 	if (__predict_false(error != 0)) {
