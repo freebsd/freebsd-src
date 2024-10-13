@@ -37,6 +37,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	freebsd-current mailing list so that a special-case dependency can be
 	added, if necessary.
 
+20240715:
+	We now lean more heavily on ACPI enumeration for some traditional
+	devices. uart has moved from isa to acpi so the hints act as wiring
+	instead of device enumeration. Hints for parallel port, floppy, etc
+	have been removed.  Before upgrading, grep your dmesg for lines like:
+		uart1: non-PNP ISA device will be removed from GENERIC in FreeBSD 15.
+	to see if you need to start including hints for the device on isa
+	in your loader.conf or device.hints file. APU1 (but not APU2) boards
+	are known to be affected, but there may be others.
+
 20240712:
 	Support for armv6 has been disconnected and is being removed.
 
