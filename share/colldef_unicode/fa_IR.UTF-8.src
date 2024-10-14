@@ -139,7 +139,7 @@ collating-symbol <X0C8E>
 collating-symbol <X0C98>
 collating-symbol <X0D90>
 collating-symbol <X0D98>
-collating-symbol <X0DFA>
+collating-symbol <X0DF8>
 collating-symbol <X0E00>
 collating-symbol <X1000>
 collating-symbol <X1300>
@@ -465,7 +465,7 @@ order_start forward;forward;forward;forward
 <X0C98>
 <X0D90>
 <X0D98>
-<X0DFA>
+<X0DF8>
 <X0E00>
 <X1000>
 <X1300>
@@ -924,7 +924,7 @@ order_start forward;forward;forward;forward
 <ARABIC-INDIC_FOURTH_ROOT> "<X0C98><X3A00>";<X05>;"<X05><XC0>";<ARABIC-INDIC_FOURTH_ROOT>
 <DOLLAR_SIGN> <X0D90>;<X05>;<X05>;<DOLLAR_SIGN>
 <AFGHANI_SIGN> <X0D98>;<X05>;<X05>;<AFGHANI_SIGN>
-<RIAL_SIGN> <X0DFA>;<X05>;<X05>;<RIAL_SIGN>
+<RIAL_SIGN> <X0DF8>;<X05>;<X05>;<RIAL_SIGN>
 <zero> <X1300>;<X05>;<X05>;<zero>
 <ARABIC-INDIC_DIGIT_ZERO> <X1300>;<X05>;<X05>;<ARABIC-INDIC_DIGIT_ZERO>
 <EXTENDED_ARABIC-INDIC_DIGIT_ZERO> <X1300>;<X05>;<X05>;<EXTENDED_ARABIC-INDIC_DIGIT_ZERO>
