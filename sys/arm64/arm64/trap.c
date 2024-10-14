@@ -375,7 +375,6 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 bad_far:
 			if (td->td_intr_nesting_level == 0 &&
 			    pcb->pcb_onfault != 0) {
-				frame->tf_x[0] = error;
 				frame->tf_elr = pcb->pcb_onfault;
 				return;
 			}
