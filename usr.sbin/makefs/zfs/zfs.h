@@ -55,6 +55,7 @@ _Static_assert(MINBLOCKSIZE == SPA_MINBLOCKSIZE, "");
 
 /* All data was written in this transaction group. */
 #define	TXG			4
+#define	TXG_SIZE		4
 
 typedef struct zfs_dsl_dataset zfs_dsl_dataset_t;
 typedef struct zfs_dsl_dir zfs_dsl_dir_t;
@@ -82,6 +83,7 @@ typedef struct {
 	int		ashift;		/* vdev block size */
 	uint64_t	mssize;		/* metaslab size */
 	STAILQ_HEAD(, dataset_desc) datasetdescs; /* non-root dataset descrs  */
+	bool		verify_txgs;	/* verify data upon import */
 
 	/* Pool state. */
 	uint64_t	poolguid;	/* pool and root vdev GUID */
