@@ -98,7 +98,6 @@ struct _device;
 /* Interrupt source definition. */
 struct intr_irqsrc {
 	struct intr_event	isrc_event;
-	struct _device		*isrc_dev;	/* where isrc is mapped */
 	unsigned int		isrc_flags;
 	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
