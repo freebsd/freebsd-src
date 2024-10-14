@@ -42,29 +42,27 @@
 /*********************************************************************
  *  Local Function prototypes
  *********************************************************************/
-static int igb_isc_txd_encap(void *arg, if_pkt_info_t pi);
-static void igb_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
-static int igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
+static int igb_isc_txd_encap(void *, if_pkt_info_t);
+static void igb_isc_txd_flush(void *, uint16_t, qidx_t);
+static int igb_isc_txd_credits_update(void *, uint16_t, bool);
 
-static void igb_isc_rxd_refill(void *arg, if_rxd_update_t iru);
+static void igb_isc_rxd_refill(void *, if_rxd_update_t);
 
-static void igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
-    qidx_t pidx);
-static int igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
-    qidx_t budget);
+static void igb_isc_rxd_flush(void *, uint16_t, uint8_t, qidx_t);
+static int igb_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
 
 static int igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-static int igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
-static int igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
+static int igb_tx_ctx_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
+static int igb_tso_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
 
-static void igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype);
-static int igb_determine_rsstype(uint16_t pkt_info);
+static void igb_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
+static int igb_determine_rsstype(uint16_t);
 
-extern void igb_if_enable_intr(if_ctx_t ctx);
-extern int em_intr(void *arg);
+extern void igb_if_enable_intr(if_ctx_t);
+extern int em_intr(void *);
 
 struct if_txrx igb_txrx = {
 	.ift_txd_encap = igb_isc_txd_encap,
