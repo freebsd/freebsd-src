@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.170 2024/06/24 02:21:00 sjg Exp $
+# $Id: dirdeps.mk,v 1.171 2024/09/30 21:21:25 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -887,16 +887,13 @@ _m := ${.MAKE.DEPENDFILE_PREFERENCE:T:S;${TARGET_SPEC}$;${d:E};:C;${MACHINE}((,.
 .if !empty(_m)
 # M_dep_qual_fixes isn't geared to Makefile.depend
 _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes.${d:E}:U${M_dep_qual_fixes}:ts:}}
-.if ${_debug_search}
-.info Looking for ${_qm}
-.endif
 # set this "just in case"
 # we can skip :tA since we computed the path above
 DEP_RELDIR := ${_m:H:S,^${SRCTOP}/,,}
 # and reset this
 DIRDEPS =
-.if ${_debug_reldir} && ${_qm} != ${_m}
-.info loading ${_m:S,${SRCTOP}/,,} for ${_dr}
+.if ${_debug_search} || ${_debug_reldir}
+.info Loading ${_m:S,${SRCTOP}/,,} for ${_dr}
 .endif
 .include <${_m}>
 .else
