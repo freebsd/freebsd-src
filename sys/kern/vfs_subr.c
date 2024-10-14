@@ -2616,17 +2616,25 @@ static int
 v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
     daddr_t startlbn, daddr_t endlbn)
 {
+	struct bufv *bv;
 	struct buf *bp, *nbp;
-	bool anyfreed;
+	uint8_t anyfreed;
+	bool clean;
 
 	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range_locked");
 	ASSERT_BO_LOCKED(bo);
 
+	anyfreed = 1;
+	clean = true;
 	do {
-		anyfreed = false;
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
-				continue;
+		bv = clean ? &bo->bo_clean : &bo->bo_dirty;
+		bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, startlbn);
+		if (bp == NULL || bp->b_lblkno >= endlbn ||
+		    bp->b_lblkno < startlbn)
+			continue;
+		TAILQ_FOREACH_FROM_SAFE(bp, &bv->bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno >= endlbn)
+				break;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
 			    BO_LOCKPTR(bo)) == ENOLCK) {
@@ -2638,39 +2646,17 @@ v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 			bp->b_flags |= B_INVAL | B_RELBUF;
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
-			anyfreed = true;
+			anyfreed = 2;
 
 			BO_LOCK(bo);
 			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+			    (((nbp->b_xflags &
+			    (clean ? BX_VNCLEAN : BX_VNDIRTY)) == 0) ||
 			    nbp->b_vp != vp ||
-			    (nbp->b_flags & B_DELWRI) != 0))
+			    (nbp->b_flags & B_DELWRI) == (clean? B_DELWRI: 0)))
 				return (EAGAIN);
 		}
-
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK) {
-				BO_LOCK(bo);
-				return (EAGAIN);
-			}
-			bremfree(bp);
-			bp->b_flags |= B_INVAL | B_RELBUF;
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = true;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI) == 0))
-				return (EAGAIN);
-		}
-	} while (anyfreed);
+	} while (clean = !clean, anyfreed-- > 0);
 	return (0);
 }
 
