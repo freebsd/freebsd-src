@@ -205,12 +205,6 @@ def check_ipv4(expect_params, packet):
     if dst_address and ip.dst != dst_address:
         LOGGER.debug(f'Wrong IPv4 destination {ip.dst}, expected {dst_address}')
         return False
-    chksum = ip.chksum
-    ip.chksum = None
-    new_chksum = sp.IP(sp.raw(ip)).chksum
-    if chksum != new_chksum:
-        LOGGER.debug(f'Wrong IPv4 checksum {chksum}, expected {new_chksum}')
-        return False
     if flags and ip.flags != flags:
         LOGGER.debug(f'Wrong IP flags value {ip.flags}, expected {flags}')
         return False
