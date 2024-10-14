@@ -271,6 +271,9 @@ SYSCTL_INT(_hw_ciss, OID_AUTO, expose_hidden_physical, CTLFLAG_RWTUN,
 
 static unsigned int ciss_nop_message_heartbeat = 0;
 TUNABLE_INT("hw.ciss.nop_message_heartbeat", &ciss_nop_message_heartbeat);
+SYSCTL_INT(_hw_ciss, OID_AUTO, nop_message_heartbeat, CTLFLAG_RWTUN,
+	   &ciss_nop_message_heartbeat, 0,
+	   "nop heartbeat messages");
 
 /*
  * This tunable can force a particular transport to be used:
