@@ -81,6 +81,7 @@
 
 #if defined(__FreeBSD__)
 #include <sys/selinfo.h>
+#include <vm/vm.h>
 
 #define likely(x)	__builtin_expect((long)!!(x), 1L)
 #define unlikely(x)	__builtin_expect((long)!!(x), 0L)
@@ -1727,10 +1728,30 @@ extern int netmap_generic_txqdisc;
 #define NM_IS_NATIVE(ifp)	(NM_NA_VALID(ifp) && NA(ifp)->nm_dtor == netmap_hw_dtor)
 
 #if defined(__FreeBSD__)
+extern int netmap_port_numa_affinity;
 
-/* Assigns the device IOMMU domain to an allocator.
- * Returns -ENOMEM in case the domain is different */
-#define nm_iommu_group_id(dev) (-1)
+static inline int
+nm_iommu_group_id(struct netmap_adapter *na)
+{
+	return (-1);
+}
+
+static inline int
+nm_numa_domain(struct netmap_adapter *na)
+{
+	int domain;
+
+	/*
+	 * If the system has only one NUMA domain, don't bother distinguishing
+	 * between IF_NODOM and domain 0.
+	 */
+	if (vm_ndomains == 1 || netmap_port_numa_affinity == 0)
+		return (-1);
+	domain = if_getnumadomain(na->ifp);
+	if (domain == IF_NODOM)
+		domain = -1;
+	return (domain);
+}
 
 /* Callback invoked by the dma machinery after a successful dmamap_load */
 static void netmap_dmamap_cb(__unused void *arg,

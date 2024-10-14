@@ -25,7 +25,7 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
-.Dd March 6, 2022
+.Dd October 10, 2024
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -938,6 +938,16 @@ switches that can be created. This tunable can be specified
 at loader time.
 .It Va dev.netmap.ptnet_vnet_hdr: 1
 Allow ptnet devices to use virtio-net headers
+.It Va dev.netmap.port_numa_affinity: 0
+On
+.Xr numa 4
+systems, allocate memory for netmap ports from the local NUMA domain when
+possible.
+This can improve performance by reducing the number of remote memory accesses.
+However, when forwarding packets between ports attached to different NUMA
+domains, this will prevent zero-copy forwarding optimizations and thus may hurt
+performance.
+Note that this setting must be specified as a loader tunable at boot time.
 .El
 .Sh SYSTEM CALLS
 .Nm
