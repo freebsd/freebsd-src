@@ -10,6 +10,8 @@ GENDIRDEPS_FILTER+= \
 	Nlib/libgcc_s \
 	Nstand/libsa/* \
 	Nstand/libsa32/* \
+	Nusr.bin/awk.host \
+	Nusr.bin/xinstall.host \
 	Ntargets/pseudo/stage* \
 	Ntools/*
 
