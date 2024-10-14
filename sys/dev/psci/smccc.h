@@ -91,6 +91,38 @@ int arm_smccc_smc(register_t, register_t, register_t, register_t, register_t,
 int arm_smccc_hvc(register_t, register_t, register_t, register_t, register_t,
     register_t, register_t, register_t, struct arm_smccc_res *res);
 
+#define	arm_smccc_invoke_1(func, a0, res)				\
+    func(a0,  0,  0,  0,  0,  0,  0,  0, res)
+#define	arm_smccc_invoke_2(func, a0, a1, res)				\
+    func(a0, a1,  0,  0,  0,  0,  0,  0, res)
+#define	arm_smccc_invoke_3(func, a0, a1, a2, res)			\
+    func(a0, a1, a2,  0,  0,  0,  0,  0, res)
+#define	arm_smccc_invoke_4(func, a0, a1, a2, a3, res)			\
+    func(a0, a1, a2, a3,  0,  0,  0,  0, res)
+#define	arm_smccc_invoke_5(func, a0, a1, a2, a3, a4, res)		\
+    func(a0, a1, a2, a3, a4,  0,  0,  0, res)
+#define	arm_smccc_invoke_6(func, a0, a1, a2, a3, a4, a5, res)		\
+    func(a0, a1, a2, a3, a4, a5,  0,  0, res)
+#define	arm_smccc_invoke_7(func, a0, a1, a2, a3, a4, a5, a6, res)	\
+    func(a0, a1, a2, a3, a4, a5, a6,  0, res)
+#define	arm_smccc_invoke_8(func, a0, a1, a2, a3, a4, a5, a6, a7, res)	\
+    func(a0, a1, a2, a3, a4, a5, a6, a7, res)
+
+#define	_arm_smccc_invoke_macro(_1, _2, _3, _4, _5, _6, _7, _8, NAME, ...) \
+    NAME
+#define	_arm_smccc_invoke(func, a0, ...)				\
+    _arm_smccc_invoke_macro(__VA_ARGS__, arm_smccc_invoke_8,		\
+      arm_smccc_invoke_7, arm_smccc_invoke_6, arm_smccc_invoke_5,	\
+      arm_smccc_invoke_4, arm_smccc_invoke_3, arm_smccc_invoke_2,	\
+      arm_smccc_invoke_1)(func, a0, __VA_ARGS__)
+
+#define	arm_smccc_invoke_hvc(a0, ...)					\
+    _arm_smccc_invoke(arm_smccc_hvc, a0, __VA_ARGS__)
+#define	arm_smccc_invoke_smc(a0, ...)					\
+    _arm_smccc_invoke(arm_smccc_smc, a0, __VA_ARGS__)
+#define	arm_smccc_invoke(a0, ...)					\
+    _arm_smccc_invoke(psci_callfn, a0, __VA_ARGS__)
+
 struct arm_smccc_1_2_regs {
 	register_t a0;
 	register_t a1;
