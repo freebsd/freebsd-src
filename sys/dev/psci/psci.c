@@ -71,6 +71,7 @@
 
 struct psci_softc {
 	device_t        dev;
+	device_t	smccc_dev;
 
 	uint32_t	psci_version;
 	uint32_t	psci_fnids[PSCI_FN_MAX];
@@ -341,11 +342,16 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 	if (psci_init(dev, default_version))
 		return (ENXIO);
 
+	psci_softc = sc;
+
 #ifdef __aarch64__
 	smccc_init();
-#endif
+	sc->smccc_dev = device_add_child(dev, "smccc", DEVICE_UNIT_ANY);
+	if (sc->smccc_dev == NULL)
+		device_printf(dev, "Unable to add SMCCC device\n");
 
-	psci_softc = sc;
+	bus_generic_attach(dev);
+#endif
 
 	return (0);
 }
