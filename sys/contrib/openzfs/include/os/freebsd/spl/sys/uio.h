@@ -35,6 +35,7 @@
 #include <sys/_uio.h>
 #include <sys/debug.h>
 #include <sys/sysmacros.h>
+#define PAGESIZE PAGE_SIZE
 
 /*
  * uio_extflg: extended flags
