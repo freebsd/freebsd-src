@@ -559,8 +559,14 @@ uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int
 		    uart_cpu_eqres(&sc->sc_bas, &sysdev->bas)) {
 			/* XXX check if ops matches class. */
 			sc->sc_sysdev = sysdev;
-			sysdev->bas.rclk = sc->sc_bas.rclk;
-		}
+			if (sysdev->bas.rclk != 0) {
+				/* Let the boot sequence control */
+				sc->sc_bas.rclk = sysdev->bas.rclk;
+			} else {
+				/* Boot didn't set it, use use class */
+				sysdev->bas.rclk = sc->sc_bas.rclk;
+			}
+                }
 	}
 
 	error = UART_PROBE(sc);
