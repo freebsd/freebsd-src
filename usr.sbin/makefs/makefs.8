@@ -532,6 +532,9 @@ By default,
 allocates large (up to 512MB) metaslabs with the expectation that
 the image will be auto-expanded upon first use.
 This option allows the default heuristic to be overridden.
+.It verify-txgs
+Prompt OpenZFS to verify pool metadata during import.
+This is disabled by default as it may significantly increase import times.
 .It poolname
 The name of the ZFS pool.
 This option must be specified.
