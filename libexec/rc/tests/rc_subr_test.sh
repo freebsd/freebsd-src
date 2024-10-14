@@ -35,6 +35,10 @@ oomprotect_all_head()
 
 oomprotect_all_body()
 {
+	if [ "$(sysctl -n security.jail.jailed)" != 0 ]; then
+		atf_skip "protect(1) cannot be used in a jail"
+	fi
+
 	__name="$(atf_get ident)"
 	__pidfile="$(mktemp -t "${__name}.pid")"
 	__childpidfile="$(mktemp -t "${__name}.childpid")"
@@ -72,6 +76,10 @@ oomprotect_yes_head()
 
 oomprotect_yes_body()
 {
+	if [ "$(sysctl -n security.jail.jailed)" != 0 ]; then
+		atf_skip "protect(1) cannot be used in a jail"
+	fi
+
 	__name="$(atf_get ident)"
 	__pidfile="$(mktemp -t "${__name}.pid")"
 	__script=$(mktemp -t "${__name}.script")
