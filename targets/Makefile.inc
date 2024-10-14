@@ -34,7 +34,7 @@ PKG_METHOD = no
 .endif
 .endif
 
-.if ${PKG_METHOD:Mno*} != ""
+.if ${PKG_METHOD:Nno*} != ""
 all: ${PKG_METHOD}
 
 # set this to "no" for manual control
