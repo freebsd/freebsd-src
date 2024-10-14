@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20241013:
+	The ciss driver was updated to cope better with hotplug events that
+	caused it to panic before, and to support more than 48 drives attached
+	to the card. These changes were made w/o benefit of hardware for testing
+	and ciss(4) users should be on the lookout for regressions.
+
 20240729:
 	The build now defaults to WITHOUT_CLEAN - i.e., no automatic clean
 	is performed at the beginning of buildworld or buildkernel.  The
