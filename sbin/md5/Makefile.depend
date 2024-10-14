@@ -7,6 +7,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcapsicum \
 	lib/libcasper/libcasper \
+	lib/libcasper/services/cap_fileargs \
 	lib/libcompiler_rt \
 	lib/libmd \
 

@@ -8,7 +8,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/ncurses/tinfo \
-	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>

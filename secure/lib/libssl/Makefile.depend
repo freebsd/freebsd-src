@@ -7,7 +7,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	secure/lib/libcrypto \
-	secure/lib/libcrypto/openssl.amd64 \
 
 
 .include <dirdeps.mk>

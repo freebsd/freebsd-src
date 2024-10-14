@@ -5,7 +5,6 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libcompiler_rt \
-	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>

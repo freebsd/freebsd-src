@@ -2,10 +2,12 @@
 
 DIRDEPS = \
 	include \
+	include/ssp \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libsys \
 
 
 .include <dirdeps.mk>
