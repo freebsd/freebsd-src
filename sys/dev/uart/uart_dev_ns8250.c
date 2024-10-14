@@ -126,11 +126,11 @@ ns8250_clrint(struct uart_bas *bas)
 	}
 }
 
-static int
-ns8250_delay(struct uart_bas *bas)
+static uint32_t
+ns8250_get_divisor(struct uart_bas *bas)
 {
-	int divisor;
-	u_char lcr;
+	uint32_t divisor;
+	uint8_t lcr;
 
 	lcr = uart_getreg(bas, REG_LCR);
 	uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
@@ -139,6 +139,16 @@ ns8250_delay(struct uart_bas *bas)
 	uart_barrier(bas);
 	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
+
+	return (divisor);
+}
+
+static int
+ns8250_delay(struct uart_bas *bas)
+{
+	int divisor;
+
+	divisor = ns8250_get_divisor(bas);
 
 	/* 1/10th the time to transmit 1 character (estimate). */
 	if (divisor <= 134)
@@ -187,7 +197,7 @@ ns8250_drain(struct uart_bas *bas, int what)
 		while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
 			DELAY(delay);
 		if (limit == 0) {
-			/* printf("ns8250: transmitter appears stuck... "); */
+			/* printf("uart: ns8250: transmitter appears stuck... "); */
 			return (EIO);
 		}
 	}
@@ -215,7 +225,7 @@ ns8250_drain(struct uart_bas *bas, int what)
 			DELAY(delay << 2);
 		}
 		if (limit == 0) {
-			/* printf("ns8250: receiver appears broken... "); */
+			/* printf("uart: ns8250: receiver appears broken... "); */
 			return (EIO);
 		}
 	}
@@ -255,7 +265,7 @@ ns8250_flush(struct uart_bas *bas, int what)
 	if ((lsr & LSR_RXRDY) && (what & UART_FLUSH_RECEIVER))
 		drain |= UART_DRAIN_RECEIVER;
 	if (drain != 0) {
-		printf("ns8250: UART FCR is broken\n");
+		printf("uart: ns8250: UART FCR is broken\n");
 		ns8250_drain(bas, drain);
 	}
 }
@@ -284,8 +294,8 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		lcr |= LCR_STOPB;
 	lcr |= parity << 3;
 
-	/* Set baudrate. */
-	if (baudrate > 0) {
+	/* Set baudrate if we know a rclk and both are not 0. */
+	if (baudrate > 0 && bas->rclk > 0) {
 		divisor = ns8250_divisor(bas->rclk, baudrate);
 		if (divisor == 0)
 			return (EINVAL);
@@ -349,10 +359,6 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 {
 	u_char ier;
 
-	if (bas->rclk == 0)
-		bas->rclk = DEFAULT_RCLK;
-	ns8250_param(bas, baudrate, databits, stopbits, parity);
-
 	/* Disable all interrupt sources. */
 	/*
 	 * We use 0xe0 instead of 0xf0 as the mask because the XScale PXA
@@ -362,6 +368,30 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	ier = uart_getreg(bas, REG_IER) & 0xe0;
 	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
+
+	/*
+	 * Loader tells us to infer the rclk when it sets xo to 0 in
+	 * hw.uart.console. We know the baudrate was set by the firmware, so
+	 * calculate rclk from baudrate and the divisor register.  If 'div' is
+	 * actually 0, the resulting 0 value will have us fall back to other
+	 * rclk methods.
+	 */
+	if (bas->rclk_guess && bas->rclk == 0 && baudrate != 0) {
+		uint32_t div;
+
+		div = ns8250_get_divisor(bas);
+		bas->rclk = baudrate * div * 16;
+	}
+
+	/*
+	 * Pick a default because we just don't know. This likely needs future
+	 * refinement, but that's hard outside of consoles to know what to use.
+	 * But defer as long as possible if there's no defined baud rate.
+	 */
+	if (bas->rclk == 0 && baudrate != 0)
+		bas->rclk = DEFAULT_RCLK;
+
+	ns8250_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Disable the FIFO (if present). */
 	uart_setreg(bas, REG_FCR, 0);
@@ -727,14 +757,7 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		uart_barrier(bas);
 		break;
 	case UART_IOCTL_BAUD:
-		lcr = uart_getreg(bas, REG_LCR);
-		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
-		uart_barrier(bas);
-		divisor = uart_getreg(bas, REG_DLL) |
-		    (uart_getreg(bas, REG_DLH) << 8);
-		uart_barrier(bas);
-		uart_setreg(bas, REG_LCR, lcr);
-		uart_barrier(bas);
+		divisor = ns8250_get_divisor(bas);
 		baudrate = (divisor > 0) ? bas->rclk / divisor / 16 : 0;
 		if (baudrate > 0)
 			*(int*)data = baudrate;

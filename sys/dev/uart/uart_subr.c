@@ -201,13 +201,6 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	int error;
 
 	/*
-	 * All uart_class references are weak. Make sure the default
-	 * device class has been compiled-in.
-	 */
-	if (class == NULL)
-		return (ENXIO);
-
-	/*
 	 * Check the environment variables "hw.uart.console" and
 	 * "hw.uart.dbgport". These variables, when present, specify
 	 * which UART port is to be used as serial console or debug
@@ -279,6 +272,8 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			break;
 		case UART_TAG_XO:
 			di->bas.rclk = uart_parse_long(&spec);
+			if (di->bas.rclk == 0)
+				di->bas.rclk_guess = 1;
 			break;
 		default:
 			goto inval;
@@ -297,6 +292,13 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	if (addr == ~0U)
 		goto inval;
 	freeenv(cp);
+
+	/*
+	 * All uart_class references are weak. Make sure the default
+	 * device class has been compiled-in.
+	 */
+	if (class == NULL)
+		return (ENXIO);
 
 	/*
 	 * Accept only the well-known baudrates. Any invalid baudrate

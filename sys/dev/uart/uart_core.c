@@ -559,13 +559,19 @@ uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int
 		    uart_cpu_eqres(&sc->sc_bas, &sysdev->bas)) {
 			/* XXX check if ops matches class. */
 			sc->sc_sysdev = sysdev;
-			sysdev->bas.rclk = sc->sc_bas.rclk;
-		}
+			if (sysdev->bas.rclk != 0) {
+				/* Let the boot sequence control */
+				sc->sc_bas.rclk = sysdev->bas.rclk;
+			} else {
+				/* Boot didn't set it, use use class */
+				sysdev->bas.rclk = sc->sc_bas.rclk;
+			}
+                }
 	}
 
 	error = UART_PROBE(sc);
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
-	return ((error) ? error : BUS_PROBE_DEFAULT);
+	return ((error) ? error : 0);
 }
 
 int
@@ -745,6 +751,11 @@ uart_bus_attach(device_t dev)
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    "rx_overruns", CTLFLAG_RD, &sc->sc_rxoverruns, 0,
 		    "Receive overruns");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rclk", CTLFLAG_RD, &sc->sc_bas.rclk, 0,
+	    "Baud clock for device");
 
 	return (0);
 
