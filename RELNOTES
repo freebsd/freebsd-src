@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+ddfc6f84f242:
+	Update unicode to 16.0.0 and CLDR to 45.0.0.
+
 b22be3bbb2de:
 	Basic Cloudinit images no longer generate RSA host keys by default for
 	SSH.
