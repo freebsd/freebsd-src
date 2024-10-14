@@ -2,6 +2,7 @@
 
 DIRDEPS = \
 	include \
+	include/arpa \
 	include/gssapi \
 	include/rpc \
 	include/xlocale \
