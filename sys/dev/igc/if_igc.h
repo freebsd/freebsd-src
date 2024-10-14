@@ -206,10 +206,10 @@
 				 CSUM_IP_SCTP | CSUM_IP6_UDP | CSUM_IP6_TCP | \
 				 CSUM_IP6_SCTP)	/* Offload bits in mbuf flag */
 
-struct igc_adapter;
+struct igc_softc;
 
 struct igc_int_delay_info {
-	struct igc_adapter *adapter;	/* Back-pointer to the adapter struct */
+	struct igc_softc *sc;	/* Back-pointer to the softc struct */
 	int offset;			/* Register offset to read/write */
 	int value;			/* Current value in usecs */
 };
@@ -218,9 +218,9 @@ struct igc_int_delay_info {
  * The transmit ring, one per tx queue
  */
 struct tx_ring {
-        struct igc_adapter	*adapter;
+	struct igc_softc	*sc;
 	struct igc_tx_desc	*tx_base;
-	uint64_t                tx_paddr;
+	uint64_t		tx_paddr;
 	qidx_t			*tx_rsq;
 	uint8_t			me;
 	qidx_t			tx_rs_cidx;
@@ -253,7 +253,7 @@ struct tx_ring {
  * The Receive ring, one per rx queue
  */
 struct rx_ring {
-        struct igc_adapter      *adapter;
+        struct igc_softc        *sc;
         struct igc_rx_queue     *que;
         u32                     me;
         u32                     payload;
@@ -275,15 +275,15 @@ struct rx_ring {
 };
 
 struct igc_tx_queue {
-	struct igc_adapter      *adapter;
-        u32                     msix;
-	u32			eims;		/* This queue's EIMS bit */
-	u32                     me;
-	struct tx_ring          txr;
+	struct igc_softc      *sc;
+	u32                   msix;
+	u32                   eims;		/* This queue's EIMS bit */
+	u32                   me;
+	struct tx_ring        txr;
 };
 
 struct igc_rx_queue {
-	struct igc_adapter     *adapter;
+	struct igc_softc       *sc;
 	u32                    me;
 	u32                    msix;
 	u32                    eims;
@@ -293,8 +293,8 @@ struct igc_rx_queue {
 	struct if_irq          que_irq;
 };
 
-/* Our adapter structure */
-struct igc_adapter {
+/* Our softc structure */
+struct igc_softc {
 	struct ifnet 	*ifp;
 	struct igc_hw	hw;
 
@@ -373,7 +373,7 @@ struct igc_adapter {
 	u16		vf_ifp;
 };
 
-void igc_dump_rs(struct igc_adapter *);
+void igc_dump_rs(struct igc_softc *);
 
 #define IGC_RSSRK_SIZE	4
 #define IGC_RSSRK_VAL(key, i)		(key[(i) * IGC_RSSRK_SIZE] | \
