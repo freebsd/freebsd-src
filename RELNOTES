@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b22be3bbb2de:
+	Basic Cloudinit images no longer generate RSA host keys by default for
+	SSH.
+
 000000000000:
 	RSA host keys for SSH are deprecated and will no longer be generated
 	by default in FreeBSD 16.
