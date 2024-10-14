@@ -121,7 +121,7 @@ static struct wsp_tuning {
 };
 
 static void
-wsp_runing_rangecheck(struct wsp_tuning *ptun)
+wsp_running_rangecheck(struct wsp_tuning *ptun)
 {
 	WSP_CLAMP(ptun->scale_factor, 1, 63);
 	WSP_CLAMP(ptun->z_factor, 1, 63);
@@ -959,7 +959,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int slot = 0;
 #endif
 
-	wsp_runing_rangecheck(&tun);
+	wsp_running_rangecheck(&tun);
 
 	if (sc->dz_count == 0)
 		sc->dz_count = WSP_DZ_MAX_COUNT;
