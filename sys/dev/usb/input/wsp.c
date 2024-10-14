@@ -111,7 +111,7 @@ static struct wsp_tuning {
 	.pressure_touch_threshold = 50,
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
-	.scr_hor_threshold = 20,
+	.scr_hor_threshold = 50,
 	.max_finger_area = 1900,
 	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
