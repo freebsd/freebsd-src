@@ -2491,6 +2491,10 @@ igc_update_stats_counters(struct igc_adapter *adapter)
 	adapter->stats.roc += IGC_READ_REG(&adapter->hw, IGC_ROC);
 	adapter->stats.rjc += IGC_READ_REG(&adapter->hw, IGC_RJC);
 
+	adapter->stats.mgprc += IGC_READ_REG(&adapter->hw, IGC_MGTPRC);
+	adapter->stats.mgpdc += IGC_READ_REG(&adapter->hw, IGC_MGTPDC);
+	adapter->stats.mgptc += IGC_READ_REG(&adapter->hw, IGC_MGTPTC);
+
 	adapter->stats.tor += IGC_READ_REG(&adapter->hw, IGC_TORH);
 	adapter->stats.tot += IGC_READ_REG(&adapter->hw, IGC_TOTH);
 
@@ -2731,6 +2735,9 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "missed_packets",
 			CTLFLAG_RD, &adapter->stats.mpc,
 			"Missed Packets");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_length_errors",
+			CTLFLAG_RD, &adapter->stats.rlec,
+			"Receive Length Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
 			CTLFLAG_RD, &adapter->stats.rnbc,
 			"Receive No Buffers");
@@ -2767,6 +2774,18 @@ igc_add_hw_stats(struct igc_adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
 			CTLFLAG_RD, &adapter->stats.xofftxc,
 			"XOFF Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "unsupported_fc_recvd",
+			CTLFLAG_RD, &adapter->stats.fcruc,
+			"Unsupported Flow Control Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_recvd",
+			CTLFLAG_RD, &adapter->stats.mgprc,
+			"Management Packets Received");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_drop",
+			CTLFLAG_RD, &adapter->stats.mgpdc,
+			"Management Packets Dropped");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_txd",
+			CTLFLAG_RD, &adapter->stats.mgptc,
+			"Management Packets Transmitted");
 
 	/* Packet Reception Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
