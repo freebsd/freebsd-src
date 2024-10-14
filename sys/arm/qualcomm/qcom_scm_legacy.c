@@ -73,8 +73,8 @@ qcom_scm_legacy_mp_set_cold_boot_address(vm_offset_t mp_entry_func)
 	    | QCOM_SCM_FLAG_COLDBOOT_CPU3;
 	uint32_t scm_arg2 = pmap_kextract((vm_offset_t)mp_entry_func);
 
-	ret = arm_smccc_smc(scm_arg0, (uint32_t) &context_id, scm_arg1,
-	    scm_arg2, 0, 0, 0, 0, &res);
+	ret = arm_smccc_invoke_smc(scm_arg0, (uint32_t) &context_id, scm_arg1,
+	    scm_arg2, &res);
 
 	if (ret == 0 && res.a0 == 0)
 		return (0);

@@ -106,7 +106,7 @@ scmi_smc_xfer_msg(device_t dev, struct scmi_msg *msg)
 	if (ret != 0)
 		return (ret);
 
-	arm_smccc_smc(sc->smc_id, 0, 0, 0, 0, 0, 0, 0, NULL);
+	arm_smccc_invoke_smc(sc->smc_id, NULL);
 
 	return (0);
 }

@@ -81,7 +81,7 @@ smccc_arch_features(uint32_t smccc_func_id)
 	if (smccc_version == SMCCC_VERSION_1_0)
 		return (PSCI_RETVAL_NOT_SUPPORTED);
 
-	return (psci_call(SMCCC_ARCH_FEATURES, smccc_func_id, 0, 0));
+	return (arm_smccc_invoke(SMCCC_ARCH_FEATURES, smccc_func_id, NULL));
 }
 
 /*
@@ -95,7 +95,7 @@ smccc_arch_workaround_1(void)
 	MPASS(smccc_version != 0);
 	KASSERT(smccc_version != SMCCC_VERSION_1_0,
 	    ("SMCCC arch workaround 1 called with an invalid SMCCC interface"));
-	return (psci_call(SMCCC_ARCH_WORKAROUND_1, 0, 0, 0));
+	return (arm_smccc_invoke(SMCCC_ARCH_WORKAROUND_1, NULL));
 }
 
 int
@@ -105,5 +105,5 @@ smccc_arch_workaround_2(int enable)
 	MPASS(smccc_version != 0);
 	KASSERT(smccc_version != SMCCC_VERSION_1_0,
 	    ("SMCCC arch workaround 2 called with an invalid SMCCC interface"));
-	return (psci_call(SMCCC_ARCH_WORKAROUND_2, enable, 0, 0));
+	return (arm_smccc_invoke(SMCCC_ARCH_WORKAROUND_2, enable, NULL));
 }
