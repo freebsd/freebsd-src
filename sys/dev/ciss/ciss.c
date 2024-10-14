@@ -253,6 +253,13 @@ SYSCTL_INT(_hw_ciss, OID_AUTO, base_transfer_speed, CTLFLAG_RDTUN,
 	   "force a specific base transfer_speed");
 
 /*
+ * This tunable can be set to make the driver be more verbose
+ */
+static int ciss_verbose = 0;
+SYSCTL_INT(_hw_ciss, OID_AUTO, verbose, CTLFLAG_RWTUN, &ciss_verbose, 0,
+	   "enable verbose messages");
+
+/*
  * This tunable can be set at boot time and controls whether physical devices
  * that are marked hidden by the firmware should be exposed anyways.
  */
@@ -914,7 +921,7 @@ ciss_setup_msix(struct ciss_softc *sc)
     }
 
     sc->ciss_msi = val;
-    if (bootverbose)
+    if (bootverbose || ciss_verbose)
 	ciss_printf(sc, "Using %d MSIX interrupt%s\n", val,
 	    (val != 1) ? "s" : "");
 
@@ -1132,7 +1139,7 @@ ciss_init_requests(struct ciss_softc *sc)
 
     debug_called(1);
 
-    if (bootverbose)
+    if (bootverbose || ciss_verbose)
 	ciss_printf(sc, "using %d of %d available commands\n",
 		    sc->ciss_max_requests, sc->ciss_cfg->max_outstanding_commands);
 
@@ -1264,12 +1271,21 @@ ciss_identify_adapter(struct ciss_softc *sc)
     if (sc->ciss_cfg->max_physical_supported == 0) 
 	sc->ciss_cfg->max_physical_supported = CISS_MAX_PHYSICAL;
     /* print information */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "  %d logical drive%s configured\n",
 		    sc->ciss_id->configured_logical_drives,
 		    (sc->ciss_id->configured_logical_drives == 1) ? "" : "s");
 	ciss_printf(sc, "  firmware %4.4s\n", sc->ciss_id->running_firmware_revision);
 	ciss_printf(sc, "  %d SCSI channels\n", sc->ciss_id->scsi_chip_count);
+
+	if (ciss_verbose > 1) {
+	  ciss_printf(sc, "  %d FC channels\n", sc->ciss_id->fibre_chip_count);
+	  ciss_printf(sc, "  %d enclosures\n", sc->ciss_id->bEnclosureCount);
+	  ciss_printf(sc, "  %d expanders\n", sc->ciss_id->bExpanderCount);
+	  ciss_printf(sc, "  maximum blocks: %d\n", sc->ciss_id->maximum_blocks);
+	  ciss_printf(sc, "  controller clock: %d\n", sc->ciss_id->controller_clock);
+	  ciss_printf(sc, "  %d MB controller memory\n", sc->ciss_id->total_controller_mem_mb);
+	}
 
 	ciss_printf(sc, "  signature '%.4s'\n", sc->ciss_cfg->signature);
 	ciss_printf(sc, "  valence %d\n", sc->ciss_cfg->valence);
@@ -1436,7 +1452,7 @@ ciss_init_logical(struct ciss_softc *sc)
     /*
      * Save logical drive information.
      */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "%d logical drive%s\n",
 	    ndrives, (ndrives > 1 || ndrives == 0) ? "s" : "");
     }
@@ -1511,7 +1527,7 @@ ciss_init_physical(struct ciss_softc *sc)
 
     nphys = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
 
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "%d physical device%s\n",
 	    nphys, (nphys > 1 || nphys == 0) ? "s" : "");
     }
@@ -1779,7 +1795,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     /*
      * Print the drive's basic characteristics.
      */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "logical drive (b%dt%d): %s, %dMB ",
 		    CISS_LUN_TO_BUS(ld->cl_address.logical.lun),
 		    CISS_LUN_TO_TARGET(ld->cl_address.logical.lun),
