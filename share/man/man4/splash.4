@@ -304,10 +304,17 @@ and
 .Pa warp_saver
 modules were written by
 .An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+.Pa splash
+png support for
+.Xr vt 4
+was written by
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .
 .Sh CAVEATS
 The screen saver works with
 .Xr syscons 4
 only.
+.Pp
+For vt splash screen, only RGBA png are supported.
 .Sh BUGS
 If you load a screen saver while another screen saver has already
 been loaded, the first screen saver will not be automatically unloaded
