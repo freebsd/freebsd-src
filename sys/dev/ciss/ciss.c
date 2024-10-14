@@ -283,6 +283,9 @@ SYSCTL_INT(_hw_ciss, OID_AUTO, nop_message_heartbeat, CTLFLAG_RWTUN,
  */
 static int ciss_force_transport = 0;
 TUNABLE_INT("hw.ciss.force_transport", &ciss_force_transport);
+SYSCTL_INT(_hw_ciss, OID_AUTO, force_transport, CTLFLAG_RDTUN,
+	   &ciss_force_transport, 0,
+	   "use default (0), force simple (1) or force performant (2) transport");
 
 /*
  * This tunable can force a particular interrupt delivery method to be used:
