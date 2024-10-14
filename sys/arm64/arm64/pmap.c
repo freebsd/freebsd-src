@@ -9178,12 +9178,23 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 			if (pmap_klookup(far, NULL))
 				rv = KERN_SUCCESS;
 		} else {
-			PMAP_LOCK(pmap);
+			bool owned;
+
+			/*
+			 * In the EFIRT driver we lock the pmap before
+			 * calling into the runtime service. As the lock
+			 * is already owned by the current thread skip
+			 * locking it again.
+			 */
+			owned = PMAP_OWNED(pmap);
+			if (!owned)
+				PMAP_LOCK(pmap);
 			/* Ask the MMU to check the address. */
 			intr = intr_disable();
 			par = arm64_address_translate_s1e0r(far);
 			intr_restore(intr);
-			PMAP_UNLOCK(pmap);
+			if (!owned)
+				PMAP_UNLOCK(pmap);
 
 			/*
 			 * If the translation was successful, then we can
