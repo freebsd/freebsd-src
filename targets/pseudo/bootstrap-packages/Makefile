@@ -13,7 +13,8 @@ all: packages
 PACKAGES?= ${.CURDIR:H:H}/packages
 
 packages: package-makefile.list
-	@${.CURDIR}/bootstrap-packages.sh PACKAGES=${PACKAGES} ${.ALLSRC}
+	@${.CURDIR}/bootstrap-packages.sh ${BOOTSTRAP_PACKAGES_FLAGS} \
+	PACKAGES=${PACKAGES} ${.ALLSRC}
 
 package-makefile.list:
 	@(cd ${SRCTOP} && \
