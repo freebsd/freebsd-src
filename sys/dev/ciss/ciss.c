@@ -2299,13 +2299,14 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 
     /*
      * We don't consider data under/overrun an error for the Report
-     * Logical/Physical LUNs commands.
+     * Logical/Physical LUNs, INQUIRY & RECEIVE_DIAGNOSTIC commands.
      */
     if ((cc->header.host_tag & CISS_HDR_HOST_TAG_ERROR) &&
 	((ce->command_status == CISS_CMD_STATUS_DATA_OVERRUN) ||
 	 (ce->command_status == CISS_CMD_STATUS_DATA_UNDERRUN)) &&
 	((cc->cdb.cdb[0] == CISS_OPCODE_REPORT_LOGICAL_LUNS) ||
 	 (cc->cdb.cdb[0] == CISS_OPCODE_REPORT_PHYSICAL_LUNS) ||
+	 (cc->cdb.cdb[0] == RECEIVE_DIAGNOSTIC) ||
 	 (cc->cdb.cdb[0] == INQUIRY))) {
 	cc->header.host_tag &= ~CISS_HDR_HOST_TAG_ERROR;
 	debug(2, "ignoring irrelevant under/overrun error");
