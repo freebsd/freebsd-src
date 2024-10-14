@@ -217,7 +217,7 @@ recycle it at any moment, making this sysctl less useful than it sounds.
 .It Dv kern.ipc.umtx_max_robust
 The maximal number of robust mutexes allowed for one thread.
 The kernel will not unlock more mutexes than specified, see
-.Xr _umtx_op
+.Xr _umtx_op 2
 for more details.
 The default value is large enough for most useful applications.
 .It Dv debug.umtx.robust_faults_verbose
