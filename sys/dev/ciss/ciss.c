@@ -2360,10 +2360,13 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 		*scsi_status = -1;
 	    }
 	}
-	if (bootverbose && ce->command_status != CISS_CMD_STATUS_DATA_UNDERRUN)
-	    ciss_printf(cr->cr_sc, "command status 0x%x (%s) scsi status 0x%x\n",
+	if ((bootverbose || ciss_verbose > 3 || (ciss_verbose > 2 && ce->scsi_status != 0)) &&
+	    (ce->command_status != CISS_CMD_STATUS_DATA_UNDERRUN)) {
+	    ciss_printf(cr->cr_sc, "command status 0x%x (%s) scsi status 0x%x (opcode 0x%02x)\n",
 			ce->command_status, ciss_name_command_status(ce->command_status),
-			ce->scsi_status);
+			ce->scsi_status,
+			cc->cdb.cdb[0]);
+        }
 	if (ce->command_status == CISS_CMD_STATUS_INVALID_COMMAND) {
 	    ciss_printf(cr->cr_sc, "invalid command, offense size %d at %d, value 0x%x, function %s\n",
 			ce->additional_error_info.invalid_command.offense_size,
