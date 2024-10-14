@@ -752,6 +752,11 @@ uart_bus_attach(device_t dev)
 		    "rx_overruns", CTLFLAG_RD, &sc->sc_rxoverruns, 0,
 		    "Receive overruns");
 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "rclk", CTLFLAG_RD, &sc->sc_bas.rclk, 0,
+	    "Baud clock for device");
+
 	return (0);
 
  fail:
