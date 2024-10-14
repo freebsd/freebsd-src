@@ -42,7 +42,7 @@ supports several optional
 .Xr ioctl 2
 calls for configuration, and
 responds to a single operational
-.Xr ioctl
+.Xr ioctl 2
 call,
 .Dv WDIOCPATPAT .
 It takes a single argument which represents a timeout value specified as a
@@ -84,7 +84,7 @@ The watchdog might
 still be armed!
 .Pp
 The optional configuration
-.Xr ioctl
+.Xr ioctl 2
 commands are listed here, along with the type of the parameter used.
 Examples of their use can be found in
 .Xr watchdogd 8 .
@@ -127,7 +127,7 @@ printf(9)
 .Sh RETURN VALUES
 The
 .Dv WDIOCPATPAT
-.Xr ioctl
+.Xr ioctl 2
 returns zero on success and non-zero on failure.
 .Bl -tag -width Er
 .It Bq Er EOPNOTSUPP
@@ -141,7 +141,7 @@ Invalid flag combination passed.
 .El
 .Pp
 The configuration
-.Xr ioctl
+.Xr ioctl 2
 operations return zero on success and non-zero on failure.
 .Sh EXAMPLES
 .Bd -literal -offset indent

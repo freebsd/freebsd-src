@@ -154,7 +154,7 @@ proccontrol
 .Ss Position Independent Executable (PIE)
 PIE binaries are executable files that do not have a fixed load address.
 They can be loaded at an arbitrary memory address by the
-.Xr rtld
+.Xr rtld 1
 run-time linker.
 With ASLR they are loaded at a random address on each execution.
 .\"
@@ -189,13 +189,13 @@ is a FreeBSD-specific extension to
 .Xr mmap 2 .
 .Dv PROT_MAX
 provides the ability to set the maximum protection of a region allocated by
-.Xr mmap
+.Xr mmap 2
 and later altered by
-.Xr mprotect .
+.Xr mprotect 2 .
 For example, memory allocated originally with an mmap prot argument of
 PROT_MAX(PROT_READ | PROT_WRITE) | PROT_READ
 may be made writable by a future
-.Xr mprotect
+.Xr mprotect 2
 call, but may not be made executable.
 .\"
 .Ss Relocation Read-Only (RELRO)
