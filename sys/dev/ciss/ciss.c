@@ -245,7 +245,15 @@ static struct cdevsw ciss_cdevsw = {
 SYSCTL_NODE(_hw, OID_AUTO, ciss, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CISS sysctl tunables");
 
 /*
- * This tunable can be used to force a specific value for transfer speed.
+ * This tunable can be used to force a specific initiator id
+ */
+static int ciss_initiator_id = CAM_TARGET_WILDCARD;
+SYSCTL_INT(_hw_ciss, OID_AUTO, initiator_id, CTLFLAG_RDTUN,
+	   &ciss_initiator_id, 0,
+	   "force a specific initiator id");
+
+/*
+ * This tunable can be used to force a specific initiator id
  */
 static int ciss_base_transfer_speed = 132 * 1024;
 SYSCTL_INT(_hw_ciss, OID_AUTO, base_transfer_speed, CTLFLAG_RDTUN,
@@ -3073,7 +3081,10 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->hba_misc = 0;
 	cpi->max_target = MAX(sc->ciss_max_physical_target, sc->ciss_cfg->max_logical_supported);
 	cpi->max_lun = 0;		/* 'logical drive' channel only */
-	cpi->initiator_id = sc->ciss_cfg->max_logical_supported;
+	if (ciss_initiator_id != CAM_TARGET_WILDCARD)
+		cpi->initiator_id = ciss_initiator_id;
+	else
+		cpi->initiator_id = sc->ciss_cfg->max_logical_supported;
 	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 	strlcpy(cpi->hba_vid, "CISS", HBA_IDLEN);
 	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
