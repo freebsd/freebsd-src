@@ -295,6 +295,9 @@ SYSCTL_INT(_hw_ciss, OID_AUTO, force_transport, CTLFLAG_RDTUN,
  */
 static int ciss_force_interrupt = 0;
 TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
+SYSCTL_INT(_hw_ciss, OID_AUTO, force_interrupt, CTLFLAG_RDTUN,
+	   &ciss_force_interrupt, 0,
+	   "use default (0), force INTx (1) or force MSIx(2) interrupts");
 
 /************************************************************************
  * CISS adapters amazingly don't have a defined programming interface
