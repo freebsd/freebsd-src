@@ -283,7 +283,7 @@ xen_arch_intr_alloc(void)
 		SLIST_REMOVE_HEAD(&avail_list, free);
 		mtx_unlock(&xen_intr_x86_lock);
 
-		KASSERT(isrc->xi_arch.intsrc.is_pic == X86PIC_PTR(xen_intr_pic),
+		KASSERT(isrc->xi_arch.intsrc.is_event.ie_pic == X86PIC_PTR(xen_intr_pic),
 		    ("interrupt not owned by Xen code?"));
 
 		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
