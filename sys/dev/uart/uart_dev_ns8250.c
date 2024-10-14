@@ -294,8 +294,8 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		lcr |= LCR_STOPB;
 	lcr |= parity << 3;
 
-	/* Set baudrate. */
-	if (baudrate > 0) {
+	/* Set baudrate if we know a rclk and both are not 0. */
+	if (baudrate > 0 && bas->rclk > 0) {
 		divisor = ns8250_divisor(bas->rclk, baudrate);
 		if (divisor == 0)
 			return (EINVAL);
@@ -369,8 +369,28 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
 
-	if (bas->rclk == 0)
+	/*
+	 * Loader tells us to infer the rclk when it sets xo to 0 in
+	 * hw.uart.console. We know the baudrate was set by the firmware, so
+	 * calculate rclk from baudrate and the divisor register.  If 'div' is
+	 * actually 0, the resulting 0 value will have us fall back to other
+	 * rclk methods.
+	 */
+	if (bas->rclk_guess && bas->rclk == 0 && baudrate != 0) {
+		uint32_t div;
+
+		div = ns8250_get_divisor(bas);
+		bas->rclk = baudrate * div * 16;
+	}
+
+	/*
+	 * Pick a default because we just don't know. This likely needs future
+	 * refinement, but that's hard outside of consoles to know what to use.
+	 * But defer as long as possible if there's no defined baud rate.
+	 */
+	if (bas->rclk == 0 && baudrate != 0)
 		bas->rclk = DEFAULT_RCLK;
+
 	ns8250_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Disable the FIFO (if present). */
