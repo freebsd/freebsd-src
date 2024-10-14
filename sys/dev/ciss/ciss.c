@@ -242,6 +242,16 @@ static struct cdevsw ciss_cdevsw = {
 	.d_name =	"ciss",
 };
 
+SYSCTL_NODE(_hw, OID_AUTO, ciss, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CISS sysctl tunables");
+
+/*
+ * This tunable can be used to force a specific value for transfer speed.
+ */
+static int ciss_base_transfer_speed = 132 * 1024;
+SYSCTL_INT(_hw_ciss, OID_AUTO, base_transfer_speed, CTLFLAG_RDTUN,
+	   &ciss_base_transfer_speed, 0,
+	   "force a specific base transfer_speed");
+
 /*
  * This tunable can be set at boot time and controls whether physical devices
  * that are marked hidden by the firmware should be exposed anyways.
@@ -3029,7 +3039,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
-	cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
+	cpi->base_transfer_speed = ciss_base_transfer_speed;
 	cpi->transport = XPORT_SPI;
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
