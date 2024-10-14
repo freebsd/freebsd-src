@@ -141,6 +141,7 @@ static int	igc_msix_link(void *);
 static void	igc_handle_link(void *context);
 
 static int	igc_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	igc_sysctl_dmac(SYSCTL_HANDLER_ARGS);
 static int	igc_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 static int	igc_get_regs(SYSCTL_HANDLER_ARGS);
@@ -489,6 +490,12 @@ igc_if_attach_pre(if_ctx_t ctx)
 	    OID_AUTO, "rs_dump",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
 	    igc_get_rs, "I", "Dump RS indexes");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "dmac",
+	    CTLTYPE_INT | CTLFLAG_RW, adapter, 0,
+	    igc_sysctl_dmac, "I", "DMA Coalesce");
 
 	/* Determine hardware and mac info */
 	igc_identify_hardware(ctx);
@@ -3027,6 +3034,55 @@ igc_set_flowcntl(SYSCTL_HANDLER_ARGS)
 
 	adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
 	igc_force_mac_fc(&adapter->hw);
+	return (error);
+}
+
+/*
+ * Manage DMA Coalesce:
+ * Control values:
+ * 	0/1 - off/on
+ *	Legal timer values are:
+ *	250,500,1000-10000 in thousands
+ */
+static int
+igc_sysctl_dmac(SYSCTL_HANDLER_ARGS)
+{
+	struct igc_adapter *sc = (struct igc_adapter *) arg1;
+	int error;
+
+	error = sysctl_handle_int(oidp, &sc->dmac, 0, req);
+
+	if ((error) || (req->newptr == NULL))
+		return (error);
+
+	switch (sc->dmac) {
+		case 0:
+			/* Disabling */
+			break;
+		case 1: /* Just enable and use default */
+			sc->dmac = 1000;
+			break;
+		case 250:
+		case 500:
+		case 1000:
+		case 2000:
+		case 3000:
+		case 4000:
+		case 5000:
+		case 6000:
+		case 7000:
+		case 8000:
+		case 9000:
+		case 10000:
+			/* Legal values - allow */
+			break;
+		default:
+			/* Do nothing, illegal value */
+			sc->dmac = 0;
+			return (EINVAL);
+	}
+	/* Reinit the interface */
+	igc_if_init(sc->ctx);
 	return (error);
 }
 
