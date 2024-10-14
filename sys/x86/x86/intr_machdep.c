@@ -265,7 +265,6 @@ intr_register_source(unsigned int vector, struct intsrc *isrc, device_t pic)
 	KASSERT(intr_pic_registered(pic), ("unregistered PIC"));
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
-	isrc->is_pic = pic;
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] == NULL)
 		error = intr_event_init_(&isrc->is_event, pic, vector, 0,
@@ -296,7 +295,7 @@ intr_disable_all(void)
 		is = interrupt_sources[v];
 		if (is == NULL)
 			continue;
-		PIC_DISABLE_INTR(is->is_pic, is, PIC_EOI);
+		PIC_DISABLE_INTR(is->is_event.ie_pic, is, PIC_EOI);
 	}
 }
 
@@ -324,8 +323,8 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 		isrc->is_handlers++;
 		if (isrc->is_handlers == 1) {
 			isrc->is_domain = domain;
-			PIC_ENABLE_INTR(isrc->is_pic, isrc);
-			INTR_EVENT_POST_ITHREAD(isrc->is_pic, isrc);
+			PIC_ENABLE_INTR(isrc->is_event.ie_pic, isrc);
+			INTR_EVENT_POST_ITHREAD(isrc->is_event.ie_pic, isrc);
 		}
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -344,7 +343,8 @@ intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler)
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0)
-			PIC_DISABLE_INTR(isrc->is_pic, isrc, PIC_NO_EOI);
+			PIC_DISABLE_INTR(isrc->is_event.ie_pic, isrc,
+			    PIC_NO_EOI);
 		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -356,7 +356,7 @@ intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 
-	return (PIC_CONFIG_INTR(isrc->is_pic, isrc, trig, pol));
+	return (PIC_CONFIG_INTR(isrc->is_event.ie_pic, isrc, trig, pol));
 }
 
 #if defined(WITNESS) || defined(INVARIANTS)
@@ -414,7 +414,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * stray count, and log the condition.
 	 */
 	if (intr_event_handle_(ie, frame) != 0) {
-		INTR_EVENT_PRE_ITHREAD(isrc->is_pic, isrc);
+		INTR_EVENT_PRE_ITHREAD(isrc->is_event.ie_pic, isrc);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -460,7 +460,7 @@ intr_enable_src(u_int irq)
 	struct intsrc *is;
 
 	is = interrupt_sources[irq];
-	INTR_EVENT_POST_ITHREAD(is->is_pic, is);
+	INTR_EVENT_POST_ITHREAD(is->is_event.ie_pic, is);
 }
 
 static int
@@ -474,7 +474,7 @@ intr_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 	/* Nothing to do if there is only a single CPU. */
 	if (mp_ncpus > 1 && cpu != NOCPU) {
 		sx_xlock(&intrsrc_lock);
-		error = PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]);
+		error = PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu_apic_ids[cpu]);
 		if (error == 0)
 			isrc->is_cpu = cpu;
 		sx_xunlock(&intrsrc_lock);
@@ -618,7 +618,7 @@ intr_reprogram(void)
 		is = interrupt_sources[v];
 		if (is == NULL)
 			continue;
-		PIC_REPROGRAM_PIN(is->is_pic, is);
+		PIC_REPROGRAM_PIN(is->is_event.ie_pic, is);
 	}
 	sx_xunlock(&intrsrc_lock);
 }
@@ -835,7 +835,7 @@ intr_balance(void *dummy __unused, int pending __unused)
 		cpu = current_cpu[isrc->is_domain];
 		intr_next_cpu(isrc->is_domain);
 		if (isrc->is_cpu != cpu &&
-		    PIC_ASSIGN_CPU(isrc->is_pic, isrc, cpu_apic_ids[cpu]) == 0)
+		    PIC_ASSIGN_CPU(isrc->is_event.ie_pic, isrc, cpu_apic_ids[cpu]) == 0)
 			isrc->is_cpu = cpu;
 	}
 	sx_xunlock(&intrsrc_lock);

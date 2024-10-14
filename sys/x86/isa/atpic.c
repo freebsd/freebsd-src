@@ -200,7 +200,7 @@ static __inline void
 _atpic_eoi_master(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic),
+	KASSERT(isrc->is_event.ie_pic == X86PIC_PTR(atpics[MASTER].at_pic),
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
@@ -215,7 +215,7 @@ static __inline void
 _atpic_eoi_slave(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_pic == X86PIC_PTR(atpics[SLAVE].at_pic),
+	KASSERT(isrc->is_event.ie_pic == X86PIC_PTR(atpics[SLAVE].at_pic),
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
@@ -256,7 +256,7 @@ atpic_register_sources(x86pic_t pic)
 	/* Loop through all interrupt sources and add them. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID) {
-			ai->at_intsrc.is_pic = atpics[i / 8].at_pic;
+			ai->at_intsrc.is_event.ie_pic = atpics[i / 8].at_pic;
 			continue;
 		}
 		intr_register_source(i, &ai->at_intsrc, atpics[i / 8].at_pic);
@@ -267,7 +267,7 @@ static void
 atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
+	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
 
 	spinlock_enter();
 	if (ap->at_imen & IMEN_MASK(ai)) {
@@ -281,7 +281,7 @@ static void
 atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
+	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
 
 	spinlock_enter();
 	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
@@ -295,7 +295,7 @@ atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	 * still be hot in the cache.
 	 */
 	if (eoi == PIC_EOI) {
-		if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic))
+		if (isrc->is_event.ie_pic == X86PIC_PTR(atpics[MASTER].at_pic))
 			_atpic_eoi_master(isrc);
 		else
 			_atpic_eoi_slave(isrc);
@@ -315,7 +315,7 @@ static void
 atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 {
 	/* Reference the above comment (atpic_disable_source()) */
-	if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic)) {
+	if (isrc->is_event.ie_pic == X86PIC_PTR(atpics[MASTER].at_pic)) {
 #ifndef AUTO_EOI_1
 		spinlock_enter();
 		_atpic_eoi_master(isrc);
@@ -339,7 +339,7 @@ static int
 atpic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
+	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
 
 	return (inb(ap->at_ioaddr) & IMEN_MASK(ai));
 }
@@ -359,7 +359,7 @@ atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_pic);
+	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
 	const u_int vector = ap->at_irqbase + ai->at_irq;
 
 	/* Map conforming values to edge/hi and sanity check the values. */
@@ -474,7 +474,7 @@ atpic_startup(void)
 	i8259_init(&atpics[MASTER], 0);
 	i8259_init(&atpics[SLAVE], 1);
 	isrc = &atintrs[ICU_SLAVEID].at_intsrc;
-	atpic_enable_source(isrc->is_pic, isrc);
+	atpic_enable_source(isrc->is_event.ie_pic, isrc);
 
 	/* Install low-level interrupt handlers for all of our IRQs. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
@@ -482,7 +482,7 @@ atpic_startup(void)
 			continue;
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
-		setidt(X86PIC_PIC(atpic, ai->at_intsrc.is_pic)->at_intbase +
+		setidt(X86PIC_PIC(atpic, ai->at_intsrc.is_event.ie_pic)->at_intbase +
 		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
 		    SEL_KPL, GSEL_ATPIC);
 	}
@@ -563,7 +563,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		 * Read the ISR register to see if IRQ 7/15 is really
 		 * pending.  Reset read register back to IRR when done.
 		 */
-		port = X86PIC_PIC(atpic, isrc->is_pic)->at_ioaddr;
+		port = X86PIC_PIC(atpic, isrc->is_event.ie_pic)->at_ioaddr;
 		spinlock_enter();
 		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
 		isr = inb(port);
