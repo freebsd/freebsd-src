@@ -515,7 +515,6 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	va_list ap;
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
-	isrc->isrc_dev = dev;
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
 
@@ -682,7 +681,7 @@ intr_isrc_assign_cpu(device_t pic, interrupt_t *isrc, u_int cpu)
 	 * informed if the call is successful.
 	 */
 	if (irq_assign_cpu) {
-		error = PIC_BIND_INTR(isrc->isrc_dev, isrc);
+		error = PIC_BIND_INTR(isrc->isrc_event.ie_pic, isrc);
 		if (error) {
 			CPU_ZERO(&isrc->isrc_cpu);
 			mtx_unlock(&isrc_table_lock);
@@ -1021,7 +1020,7 @@ intr_activate_irq(device_t dev, struct resource *res)
 	}
 	intr_map_set_isrc(res_id, isrc);
 	rman_set_virtual(res, data);
-	return (PIC_ACTIVATE_INTR(isrc->isrc_dev, isrc, res, data));
+	return (PIC_ACTIVATE_INTR(isrc->isrc_event.ie_pic, isrc, res, data));
 }
 
 int
@@ -1042,7 +1041,7 @@ intr_deactivate_irq(device_t dev, struct resource *res)
 		    res_id);
 
 	data = rman_get_virtual(res);
-	error = PIC_DEACTIVATE_INTR(isrc->isrc_dev, isrc, res, data);
+	error = PIC_DEACTIVATE_INTR(isrc->isrc_event.ie_pic, isrc, res, data);
 	intr_map_set_isrc(res_id, NULL);
 	rman_set_virtual(res, NULL);
 	free(data, M_INTRNG);
@@ -1104,11 +1103,11 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 		return (error);
 
 	mtx_lock(&isrc_table_lock);
-	error = PIC_SETUP_INTR(isrc->isrc_dev, isrc, res, data);
+	error = PIC_SETUP_INTR(isrc->isrc_event.ie_pic, isrc, res, data);
 	if (error == 0) {
 		isrc->isrc_handlers++;
 		if (isrc->isrc_handlers == 1)
-			PIC_ENABLE_INTR(isrc->isrc_dev, isrc);
+			PIC_ENABLE_INTR(isrc->isrc_event.ie_pic, isrc);
 	}
 	mtx_unlock(&isrc_table_lock);
 	if (error != 0) {
@@ -1161,8 +1160,8 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		mtx_lock(&isrc_table_lock);
 		isrc->isrc_handlers--;
 		if (isrc->isrc_handlers == 0)
-			PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
+			PIC_DISABLE_INTR(isrc->isrc_event.ie_pic, isrc);
+		PIC_TEARDOWN_INTR(isrc->isrc_event.ie_pic, isrc, res, data);
 		intrcnt_updatename(isrc);
 		mtx_unlock(&isrc_table_lock);
 	}
@@ -1286,7 +1285,7 @@ intr_irq_shuffle(void *arg __unused)
 		 * for bound ISRC. The best thing we can do is to clear
 		 * isrc_cpu so inconsistency with ie_cpu will be detectable.
 		 */
-		if (PIC_BIND_INTR(isrc->isrc_dev, isrc) != 0)
+		if (PIC_BIND_INTR(isrc->isrc_event.ie_pic, isrc) != 0)
 			CPU_ZERO(&isrc->isrc_cpu);
 	}
 	mtx_unlock(&isrc_table_lock);
