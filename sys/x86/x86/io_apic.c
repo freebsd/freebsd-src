@@ -272,7 +272,7 @@ static void
 ioapic_enable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
+	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
 	uint32_t flags;
 
 	mtx_lock_spin(&icu_lock);
@@ -291,7 +291,7 @@ static void
 ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
+	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
 	uint32_t flags;
 
 	mtx_lock_spin(&icu_lock);
@@ -310,7 +310,7 @@ ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
 static void
 ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
-	struct ioapic *io = device_get_softc(isrc->is_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 
 	_ioapic_eoi_source(io, (struct ioapic_intsrc *)isrc, 0);
 }
@@ -436,7 +436,7 @@ static void
 ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = device_get_softc(isrc->is_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 
 	mtx_lock_spin(&icu_lock);
 	_ioapic_program_intpin(io, intpin);
@@ -447,7 +447,7 @@ static int
 ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
+	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
 	u_int old_vector, new_vector;
 	u_int old_id;
 
@@ -542,7 +542,7 @@ static void
 ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
+	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
 	uint32_t flags;
 	u_int vector;
 
@@ -587,7 +587,7 @@ ioapic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
+	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
 	int changed;
 
 	KASSERT(!(trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM),
@@ -720,7 +720,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	bzero(io->io_pins, sizeof(struct ioapic_intsrc) * numintr);
 	mtx_lock_spin(&icu_lock);
 	/* stash for intr_register_pic() and intr_register_source() calls */
-	io->io_pins->io_intsrc.is_pic = io_pic;
+	io->io_pins->io_intsrc.is_event.ie_pic = io_pic;
 	for (i = 0, intpin = io->io_pins; i < numintr; i++, intpin++) {
 		intpin->io_intpin = i;
 		intpin->io_irq = intbase + i;
@@ -944,7 +944,7 @@ ioapic_register(ioapic_drv_t io)
 	int i;
 
 	apic = io->io_addr;
-	intr_register_pic(io->io_pins->io_intsrc.is_pic);
+	intr_register_pic(io->io_pins->io_intsrc.is_event.ie_pic);
 	mtx_lock_spin(&icu_lock);
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
@@ -969,7 +969,7 @@ ioapic_register_sources(x86pic_t pic)
 {
 	struct ioapic_intsrc *pin;
 	struct ioapic *io = X86PIC_PIC(ioapic, pic);
-	device_t io_pic = io->io_pins->io_intsrc.is_pic;
+	device_t io_pic = io->io_pins->io_intsrc.is_event.ie_pic;
 	int i;
 
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
