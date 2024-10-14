@@ -396,7 +396,7 @@ API.
 .Pp
 .Fn osd_get
 only acquires an
-.Xr rmlock
+.Xr rmlock 9
 in read mode, therefore making it safe to use in the majority of contexts within
 the kernel including most fast paths.
 .Sh RETURN VALUES
