@@ -494,7 +494,7 @@ i8254_get_timecount(struct timecounter *tc)
 	    ((count < 20 || (!(flags & PSL_I) &&
 	    count < i8254_max_count / 2u)) &&
 	    i8254_pending != NULL &&
-	    i8254_pending(i8254_intsrc->is_pic, i8254_intsrc))))) {
+	    i8254_pending(i8254_intsrc->is_event.ie_pic, i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += i8254_max_count;
 	}
@@ -518,7 +518,7 @@ attimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		sc->period = first;
 	}
 	if (!sc->intr_en) {
-		INTR_EVENT_POST_ITHREAD(i8254_intsrc->is_pic, i8254_intsrc);
+		INTR_EVENT_POST_ITHREAD(i8254_intsrc->is_event.ie_pic, i8254_intsrc);
 		sc->intr_en = 1;
 	}
 	set_i8254_freq(sc->mode, sc->period);
@@ -574,7 +574,7 @@ attimer_attach(device_t dev)
 		device_printf(dev,"Warning: Couldn't map I/O.\n");
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
-		i8254_pending = KOBJOPLOOKUP((kobj_t)(i8254_intsrc->is_pic), pic_source_pending);
+		i8254_pending = KOBJOPLOOKUP((kobj_t)(i8254_intsrc->is_event.ie_pic), pic_source_pending);
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "timecounter", &i8254_timecounter);
 	set_i8254_freq(MODE_STOP, 0);
@@ -609,7 +609,7 @@ attimer_attach(device_t dev)
 			return (0);
 		}
 		i8254_intsrc->is_handlers--;
-		PIC_ENABLE_INTR(i8254_intsrc->is_pic, i8254_intsrc);
+		PIC_ENABLE_INTR(i8254_intsrc->is_event.ie_pic, i8254_intsrc);
 		sc->et.et_name = "i8254";
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
 		if (!i8254_timecounter)
