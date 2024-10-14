@@ -105,7 +105,7 @@ zynqmp_call_smc(uint32_t id, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 	args[0] = id | PM_SIP_SVC;
 	args[1] = ((uint64_t)a1 << 32) | a0;
 	args[2] = ((uint64_t)a3 << 32) | a2;
-	arm_smccc_smc(args[0], args[1], args[2], 0, 0, 0, 0, 0, &res);
+	arm_smccc_invoke_smc(args[0], args[1], args[2], &res);
 	if (payload != NULL) {
 		payload[0] = res.a0 & 0xFFFFFFFF;
 		payload[1] = res.a0 >> 32;
