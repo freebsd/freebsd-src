@@ -4207,8 +4207,20 @@ ciss_notify_thread(void *arg)
 
 	cr = ciss_dequeue_notify(sc);
 
-	if (cr == NULL)
-		panic("cr null");
+	if (cr == NULL) {
+		/*
+		 * We get a NULL message sometimes when unplugging/replugging
+		 * stuff But this indicates a bug, since we only wake this thread
+		 * when we (a) set the THREAD_SHUT flag, or (b) we have enqueued
+		 * something. Since it's reported around errors, it may be a
+		 * locking bug related to ciss_flags being modified in multiple
+		 * threads some without ciss_mtx held. Or there's some other
+		 * way we either fail to sleep or corrupt the ciss_flags.
+		 */
+		ciss_printf(sc, "Driver bug: NULL notify event received\n");
+		continue;
+	}
+
 	cn = (struct ciss_notify *)cr->cr_data;
 
 	switch (cn->class) {
