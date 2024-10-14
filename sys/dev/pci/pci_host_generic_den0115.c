@@ -124,8 +124,7 @@ pci_host_acpi_smccc_has_feature(uint32_t pci_func_id)
 {
 	struct arm_smccc_res result;
 
-	if (psci_callfn(SMCCC_PCI_FEATURES, pci_func_id, 0, 0, 0, 0, 0, 0,
-	    &result) < 0) {
+	if (arm_smccc_invoke(SMCCC_PCI_FEATURES, pci_func_id, &result) < 0) {
 		return (false);
 	}
 
@@ -137,7 +136,7 @@ pci_host_acpi_smccc_pci_version(uint32_t *versionp)
 {
 	struct arm_smccc_res result;
 
-	if (psci_callfn(SMCCC_PCI_VERSION, 0, 0, 0, 0, 0, 0, 0, &result) < 0) {
+	if (arm_smccc_invoke(SMCCC_PCI_VERSION, &result) < 0) {
 		return (false);
 	}
 
@@ -185,8 +184,8 @@ pci_host_acpi_smccc_attach(device_t dev)
 		return (error);
 
 	if (pci_host_acpi_smccc_has_feature(SMCCC_PCI_GET_SEG_INFO) &&
-	    psci_callfn(SMCCC_PCI_GET_SEG_INFO, sc->base.ecam, 0, 0, 0, 0, 0,
-	     0, &result) == SMCCC_RET_SUCCESS) {
+	    arm_smccc_invoke(SMCCC_PCI_GET_SEG_INFO, sc->base.ecam,
+	    &result) == SMCCC_RET_SUCCESS) {
 		start = SMCCC_PCI_SEG_START(result.a1);
 		end = SMCCC_PCI_SEG_END(result.a1);
 
@@ -215,8 +214,7 @@ pci_host_acpi_smccc_read_config(device_t dev, u_int bus, u_int slot,
 		return (~0U);
 
 	addr = (sc->base.ecam << 16) | (bus << 8) | (slot << 3) | (func << 0);
-	if (psci_callfn(SMCCC_PCI_READ, addr, reg, bytes, 0, 0, 0, 0,
-	    &result) < 0) {
+	if (arm_smccc_invoke(SMCCC_PCI_READ, addr, reg, bytes, &result) < 0) {
 		return (~0U);
 	}
 
@@ -240,7 +238,7 @@ pci_host_acpi_smccc_write_config(device_t dev, u_int bus, u_int slot,
 		return;
 
 	addr = (sc->base.ecam << 16) | (bus << 8) | (slot << 3) | (func << 0);
-	psci_callfn(SMCCC_PCI_WRITE, addr, reg, bytes, val, 0, 0, 0, &result);
+	arm_smccc_invoke(SMCCC_PCI_WRITE, addr, reg, bytes, val, &result);
 }
 
 static device_method_t generic_pcie_acpi_smccc_methods[] = {
