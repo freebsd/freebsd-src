@@ -8,7 +8,7 @@
 #
 
 CLDRVERSION=	45.0
-UCDVERSION=	16.0.0
+UCDVERSION=	15.0.0
 
 .if ${.CURDIR} == ${.OBJDIR}
 .error Do make obj first.
