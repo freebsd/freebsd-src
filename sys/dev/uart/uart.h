@@ -45,6 +45,7 @@ struct uart_bas {
 	u_int	regshft;
 	u_int	regiowidth;
 	u_int	busy_detect;
+	u_int	rclk_guess;/* if rclk == 0, use baud + divisor to compute rclk */
 };
 
 #define	uart_regofs(bas, reg)		((reg) << (bas)->regshft)

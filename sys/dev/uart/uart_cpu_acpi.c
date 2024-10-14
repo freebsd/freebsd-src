@@ -189,6 +189,14 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		    (int)spcr->BaudRate);
 		goto out;
 	}
+	/*
+	 * If no rclk is set, then we will assume the BIOS has configured the
+	 * hardware at the stated baudrate, so we can use it to guess the rclk
+	 * relatively accurately, so make a note for later.
+	 */
+	if (di->bas.rclk == 0)
+		di->bas.rclk_guess = 1;
+
 	if (spcr->PciVendorId != PCIV_INVALID &&
 	    spcr->PciDeviceId != PCIV_INVALID) {
 		di->pci_info.vendor = spcr->PciVendorId;
