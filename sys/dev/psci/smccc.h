@@ -32,6 +32,7 @@
 #ifndef	_PSCI_SMCCC_H_
 #define	_PSCI_SMCCC_H_
 
+#define	SMCCC_MAKE_VERSION(maj, min)	((maj) << 16 | (min))
 #define	SMCCC_VERSION_MAJOR(ver)	(((ver) >> 16) & 0x7fff)
 #define	SMCCC_VERSION_MINOR(ver)	((ver) & 0xffff)
 
