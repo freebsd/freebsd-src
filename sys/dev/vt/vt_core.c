@@ -1677,7 +1677,6 @@ vtterm_splash(struct vt_device *vd)
 		} else {
 			if (si->si_depth != 4)
 				return;
-			printf("SPLASH: width: %d height: %d depth: %d\n", si->si_width, si->si_height, si->si_depth);
 			image = (uintptr_t)si + sizeof(struct splash_info);
 			image = roundup2(image, 8);
 			top = (vd->vd_height - si->si_height) / 2;
