@@ -72,49 +72,49 @@ static const pci_vendor_info_t igc_vendor_info_array[] =
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
-static void	*igc_register(device_t dev);
-static int	igc_if_attach_pre(if_ctx_t ctx);
-static int	igc_if_attach_post(if_ctx_t ctx);
-static int	igc_if_detach(if_ctx_t ctx);
-static int	igc_if_shutdown(if_ctx_t ctx);
-static int	igc_if_suspend(if_ctx_t ctx);
-static int	igc_if_resume(if_ctx_t ctx);
+static void	*igc_register(device_t);
+static int	igc_if_attach_pre(if_ctx_t);
+static int	igc_if_attach_post(if_ctx_t);
+static int	igc_if_detach(if_ctx_t);
+static int	igc_if_shutdown(if_ctx_t);
+static int	igc_if_suspend(if_ctx_t);
+static int	igc_if_resume(if_ctx_t);
 
-static int	igc_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets);
-static int	igc_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs, int nrxqsets);
-static void	igc_if_queues_free(if_ctx_t ctx);
+static int	igc_if_tx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
+static int	igc_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
+static void	igc_if_queues_free(if_ctx_t);
 
 static uint64_t	igc_if_get_counter(if_ctx_t, ift_counter);
-static void	igc_if_init(if_ctx_t ctx);
-static void	igc_if_stop(if_ctx_t ctx);
+static void	igc_if_init(if_ctx_t);
+static void	igc_if_stop(if_ctx_t);
 static void	igc_if_media_status(if_ctx_t, struct ifmediareq *);
-static int	igc_if_media_change(if_ctx_t ctx);
-static int	igc_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
-static void	igc_if_timer(if_ctx_t ctx, uint16_t qid);
-static void	igc_if_watchdog_reset(if_ctx_t ctx);
-static bool	igc_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
+static int	igc_if_media_change(if_ctx_t);
+static int	igc_if_mtu_set(if_ctx_t, uint32_t);
+static void	igc_if_timer(if_ctx_t, uint16_t);
+static void	igc_if_watchdog_reset(if_ctx_t);
+static bool	igc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
-static void	igc_identify_hardware(if_ctx_t ctx);
-static int	igc_allocate_pci_resources(if_ctx_t ctx);
-static void	igc_free_pci_resources(if_ctx_t ctx);
-static void	igc_reset(if_ctx_t ctx);
-static int	igc_setup_interface(if_ctx_t ctx);
-static int	igc_setup_msix(if_ctx_t ctx);
+static void	igc_identify_hardware(if_ctx_t);
+static int	igc_allocate_pci_resources(if_ctx_t);
+static void	igc_free_pci_resources(if_ctx_t);
+static void	igc_reset(if_ctx_t);
+static int	igc_setup_interface(if_ctx_t);
+static int	igc_setup_msix(if_ctx_t);
 
-static void	igc_initialize_transmit_unit(if_ctx_t ctx);
-static void	igc_initialize_receive_unit(if_ctx_t ctx);
+static void	igc_initialize_transmit_unit(if_ctx_t);
+static void	igc_initialize_receive_unit(if_ctx_t);
 
-static void	igc_if_intr_enable(if_ctx_t ctx);
-static void	igc_if_intr_disable(if_ctx_t ctx);
-static int	igc_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
-static int	igc_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
-static void	igc_if_multi_set(if_ctx_t ctx);
-static void	igc_if_update_admin_status(if_ctx_t ctx);
-static void	igc_if_debug(if_ctx_t ctx);
+static void	igc_if_intr_enable(if_ctx_t);
+static void	igc_if_intr_disable(if_ctx_t);
+static int	igc_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
+static int	igc_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
+static void	igc_if_multi_set(if_ctx_t);
+static void	igc_if_update_admin_status(if_ctx_t);
+static void	igc_if_debug(if_ctx_t);
 static void	igc_update_stats_counters(struct igc_softc *);
-static void	igc_add_hw_stats(struct igc_softc *sc);
-static int	igc_if_set_promisc(if_ctx_t ctx, int flags);
-static void	igc_setup_vlan_hw_support(if_ctx_t ctx);
+static void	igc_add_hw_stats(struct igc_softc *);
+static int	igc_if_set_promisc(if_ctx_t, int);
+static void	igc_setup_vlan_hw_support(if_ctx_t);
 static void	igc_fw_version(struct igc_softc *);
 static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
 static void	igc_print_fw_version(struct igc_softc *);
@@ -130,10 +130,10 @@ static void	igc_neweitr(struct igc_softc *, struct igc_rx_queue *,
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_softc *);
 static void	igc_release_hw_control(struct igc_softc *);
-static void	igc_get_wakeup(if_ctx_t ctx);
-static void	igc_enable_wakeup(if_ctx_t ctx);
+static void	igc_get_wakeup(if_ctx_t);
+static void	igc_enable_wakeup(if_ctx_t);
 
-int		igc_intr(void *arg);
+int		igc_intr(void *);
 
 /* MSI-X handlers */
 static int	igc_if_msix_intr_assign(if_ctx_t, int);
@@ -146,7 +146,7 @@ static int	igc_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 static int	igc_get_regs(SYSCTL_HANDLER_ARGS);
 
-static void	igc_configure_queues(struct igc_softc *sc);
+static void	igc_configure_queues(struct igc_softc *);
 
 
 /*********************************************************************
