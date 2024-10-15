@@ -124,6 +124,7 @@ static struct g_part_scheme g_part_ebr_scheme = {
 	sizeof(struct g_part_ebr_table),
 	.gps_entrysz = sizeof(struct g_part_ebr_entry),
 	.gps_minent = 1,
+	.gps_defent = 1,
 	.gps_maxent = INT_MAX,
 };
 G_PART_SCHEME_DECLARE(g_part_ebr);
