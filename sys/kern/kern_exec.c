@@ -354,7 +354,16 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	    exec_args_get_begin_envv(args) - args->begin_argv);
 	AUDIT_ARG_ENVV(exec_args_get_begin_envv(args), args->envc,
 	    args->endp - exec_args_get_begin_envv(args));
-
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_ARGS)) {
+		ktrdata(KTR_ARGS, args->begin_argv,
+		    exec_args_get_begin_envv(args) - args->begin_argv);
+        }
+	if (KTRPOINT(td, KTR_ENVS)) {
+		ktrdata(KTR_ENVS, exec_args_get_begin_envv(args),
+		    args->endp - exec_args_get_begin_envv(args));
+        }
+#endif
 	/* Must have at least one argument. */
 	if (args->argc == 0) {
 		exec_free_args(args);
