@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20241014: move divapp to netpfil/common/
+OLD_FILES+=usr/tests/sys/netpfil/pf/divapp
+
 # 20240930: libmd bumped to version 7
 OLD_LIBS+=lib/libmd.so.6
 
