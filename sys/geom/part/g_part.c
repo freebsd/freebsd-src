@@ -1006,7 +1006,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	table->gpt_gp = gp;
 	table->gpt_scheme = gpp->gpp_scheme;
 	table->gpt_entries = (gpp->gpp_parms & G_PART_PARM_ENTRIES) ?
-	    gpp->gpp_entries : scheme->gps_minent;
+	    gpp->gpp_entries : scheme->gps_defent;
 	LIST_INIT(&table->gpt_entry);
 	if (null == NULL) {
 		cp = g_new_consumer(gp);

@@ -118,8 +118,9 @@ const char *g_part_alias_name(enum g_part_alias);
 struct g_part_scheme {
 	KOBJ_CLASS_FIELDS;
 	size_t		gps_entrysz;
-	int		gps_minent;
-	int		gps_maxent;
+	int		gps_minent;		/* Minimum number of entries possible */
+	int		gps_defent;		/* Default number of entries to create */
+	int		gps_maxent;		/* Maximum number of entries possible */
 	int		gps_bootcodesz;
 	TAILQ_ENTRY(g_part_scheme) scheme_list;
 };
