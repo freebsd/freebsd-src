@@ -113,4 +113,4 @@ PORTBRANCH="main"
 
 ## If WITH_CLOUDWARE is set to a non-empty value, this is a list of providers
 ## to create disk images.
-#CLOUDWARE="EC2 GCE OCI VAGRANT-VIRTUALBOX VAGRANT-VMWARE"
+#CLOUDWARE="EC2 GCE ORACLE VAGRANT-VIRTUALBOX VAGRANT-VMWARE"
