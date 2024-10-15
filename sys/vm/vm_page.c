@@ -1774,7 +1774,7 @@ vm_page_relookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	m = vm_radix_lookup_unlocked(&object->rtree, pindex);
+	m = vm_page_lookup_unlocked(object, pindex);
 	KASSERT(m != NULL && (vm_page_busied(m) || vm_page_wired(m)) &&
 	    m->object == object && m->pindex == pindex,
 	    ("vm_page_relookup: Invalid page %p", m));
@@ -4795,53 +4795,33 @@ out:
 }
 
 /*
- * Locklessly attempt to acquire a page given a (object, pindex) tuple
- * and an optional previous page to avoid the radix lookup.  The resulting
- * page will be validated against the identity tuple and busied or wired
- * as requested.  A NULL *mp return guarantees that the page was not in
- * radix at the time of the call but callers must perform higher level
- * synchronization or retry the operation under a lock if they require
- * an atomic answer.  This is the only lock free validation routine,
- * other routines can depend on the resulting page state.
+ * Attempt to validate a page, locklessly acquiring it if necessary, given a
+ * (object, pindex) tuple and either an invalided page or NULL.  The resulting
+ * page will be validated against the identity tuple, and busied or wired as
+ * requested.  A NULL page returned guarantees that the page was not in radix at
+ * the time of the call but callers must perform higher level synchronization or
+ * retry the operation under a lock if they require an atomic answer.  This is
+ * the only lock free validation routine, other routines can depend on the
+ * resulting page state.
  *
- * The return value indicates whether the operation failed due to caller
- * flags.  The return is tri-state with mp:
- *
- * (true, *mp != NULL) - The operation was successful.
- * (true, *mp == NULL) - The page was not found in tree.
- * (false, *mp == NULL) - WAITFAIL or NOWAIT prevented acquisition.
+ * The return value PAGE_NOT_ACQUIRED indicates that the operation failed due to
+ * caller flags.
  */
-static bool
-vm_page_acquire_unlocked(vm_object_t object, vm_pindex_t pindex,
-    vm_page_t prev, vm_page_t *mp, int allocflags)
+#define PAGE_NOT_ACQUIRED ((vm_page_t)1)
+static vm_page_t
+vm_page_acquire_unlocked(vm_object_t object, vm_pindex_t pindex, vm_page_t m,
+    int allocflags)
 {
-	vm_page_t m;
-
-	vm_page_grab_check(allocflags);
-	MPASS(prev == NULL || vm_page_busied(prev) || vm_page_wired(prev));
-
-	*mp = NULL;
-	for (;;) {
-		/*
-		 * We may see a false NULL here because the previous page
-		 * has been removed or just inserted and the list is loaded
-		 * without barriers.  Switch to radix to verify.
-		 */
-		if (prev == NULL || (m = TAILQ_NEXT(prev, listq)) == NULL ||
-		    QMD_IS_TRASHED(m) || m->pindex != pindex ||
-		    atomic_load_ptr(&m->object) != object) {
-			prev = NULL;
-			/*
-			 * This guarantees the result is instantaneously
-			 * correct.
-			 */
-			m = vm_radix_lookup_unlocked(&object->rtree, pindex);
-		}
-		if (m == NULL)
-			return (true);
+	if (m == NULL)
+		m = vm_page_lookup_unlocked(object, pindex);
+	for (; m != NULL; m = vm_page_lookup_unlocked(object, pindex)) {
 		if (vm_page_trybusy(m, allocflags)) {
-			if (m->object == object && m->pindex == pindex)
+			if (m->object == object && m->pindex == pindex) {
+				if ((allocflags & VM_ALLOC_WIRED) != 0)
+					vm_page_wire(m);
+				vm_page_grab_release(m, allocflags);
 				break;
+			}
 			/* relookup. */
 			vm_page_busy_release(m);
 			cpu_spinwait();
@@ -4849,13 +4829,9 @@ vm_page_acquire_unlocked(vm_object_t object, vm_pindex_t pindex,
 		}
 		if (!vm_page_grab_sleep(object, m, pindex, "pgnslp",
 		    allocflags, false))
-			return (false);
+			return (PAGE_NOT_ACQUIRED);
 	}
-	if ((allocflags & VM_ALLOC_WIRED) != 0)
-		vm_page_wire(m);
-	vm_page_grab_release(m, allocflags);
-	*mp = m;
-	return (true);
+	return (m);
 }
 
 /*
@@ -4868,8 +4844,8 @@ vm_page_grab_unlocked(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	vm_page_t m;
 
 	vm_page_grab_check(allocflags);
-
-	if (!vm_page_acquire_unlocked(object, pindex, NULL, &m, allocflags))
+	m = vm_page_acquire_unlocked(object, pindex, NULL, allocflags);
+	if (m == PAGE_NOT_ACQUIRED)
 		return (NULL);
 	if (m != NULL)
 		return (m);
@@ -5028,13 +5004,16 @@ vm_page_grab_valid_unlocked(vm_page_t *mp, vm_object_t object,
 	 * before we can inspect the valid field and return a wired page.
 	 */
 	flags = allocflags & ~(VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
-	if (!vm_page_acquire_unlocked(object, pindex, NULL, mp, flags))
+	vm_page_grab_check(flags);
+	m = vm_page_acquire_unlocked(object, pindex, NULL, flags);
+	if (m == PAGE_NOT_ACQUIRED)
 		return (VM_PAGER_FAIL);
-	if ((m = *mp) != NULL) {
+	if (m != NULL) {
 		if (vm_page_all_valid(m)) {
 			if ((allocflags & VM_ALLOC_WIRED) != 0)
 				vm_page_wire(m);
 			vm_page_grab_release(m, allocflags);
+			*mp = m;
 			return (VM_PAGER_OK);
 		}
 		vm_page_busy_release(m);
@@ -5141,7 +5120,7 @@ int
 vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
     int allocflags, vm_page_t *ma, int count)
 {
-	vm_page_t m, pred;
+	vm_page_t m;
 	int flags;
 	int i;
 
@@ -5154,9 +5133,24 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 	 * set it valid if necessary.
 	 */
 	flags = allocflags & ~VM_ALLOC_NOBUSY;
-	pred = NULL;
+	vm_page_grab_check(flags);
+	m = NULL;
 	for (i = 0; i < count; i++, pindex++) {
-		if (!vm_page_acquire_unlocked(object, pindex, pred, &m, flags))
+		/*
+		 * We may see a false NULL here because the previous page has
+		 * been removed or just inserted and the list is loaded without
+		 * barriers.  Switch to radix to verify.
+		 */
+		if (m == NULL || QMD_IS_TRASHED(m) || m->pindex != pindex ||
+		    atomic_load_ptr(&m->object) != object) {
+			/*
+			 * This guarantees the result is instantaneously
+			 * correct.
+			 */
+			m = NULL;
+		}
+		m = vm_page_acquire_unlocked(object, pindex, m, flags);
+		if (m == PAGE_NOT_ACQUIRED)
 			return (i);
 		if (m == NULL)
 			break;
@@ -5167,7 +5161,8 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 		}
 		/* m will still be wired or busy according to flags. */
 		vm_page_grab_release(m, allocflags);
-		pred = ma[i] = m;
+		ma[i] = m;
+		m = TAILQ_NEXT(m, listq);
 	}
 	if (i == count || (allocflags & VM_ALLOC_NOCREAT) != 0)
 		return (i);
