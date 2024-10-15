@@ -70,15 +70,19 @@
 
 #define ENA_REGS_ADMIN_INTR_MASK 1
 
+#define ENA_MAX_BACKOFF_DELAY_EXP 16U
+
 #define ENA_MIN_ADMIN_POLL_US 100
 
 #define ENA_MAX_ADMIN_POLL_US 5000
 
 /* PHC definitions */
-#define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 20
+#define ENA_PHC_DEFAULT_EXPIRE_TIMEOUT_USEC 10
 #define ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC 1000
-#define ENA_PHC_TIMESTAMP_ERROR 0xFFFFFFFFFFFFFFFF
+#define ENA_PHC_MAX_ERROR_BOUND 0xFFFFFFFF
 #define ENA_PHC_REQ_ID_OFFSET 0xDEAD
+#define ENA_PHC_ERROR_FLAGS (ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP | \
+			     ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND)
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -111,7 +115,7 @@ static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
 				       struct ena_common_mem_addr *ena_addr,
 				       dma_addr_t addr)
 {
-	if ((addr & GENMASK_ULL(ena_dev->dma_addr_bits - 1, 0)) != addr) {
+	if (unlikely((addr & GENMASK_ULL(ena_dev->dma_addr_bits - 1, 0)) != addr)) {
 		ena_trc_err(ena_dev, "DMA address has more bits that the device supports\n");
 		return ENA_COM_INVAL;
 	}
@@ -131,7 +135,7 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *admin_queue)
 	ENA_MEM_ALLOC_COHERENT(admin_queue->q_dmadev, size, sq->entries, sq->dma_addr,
 			       sq->mem_handle);
 
-	if (!sq->entries) {
+	if (unlikely(!sq->entries)) {
 		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
@@ -154,7 +158,7 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *admin_queue)
 	ENA_MEM_ALLOC_COHERENT(admin_queue->q_dmadev, size, cq->entries, cq->dma_addr,
 			       cq->mem_handle);
 
-	if (!cq->entries)  {
+	if (unlikely(!cq->entries))  {
 		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
@@ -179,7 +183,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 			aenq->dma_addr,
 			aenq->mem_handle);
 
-	if (!aenq->entries) {
+	if (unlikely(!aenq->entries)) {
 		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
@@ -213,6 +217,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 static void comp_ctxt_release(struct ena_com_admin_queue *queue,
 				     struct ena_comp_ctx *comp_ctx)
 {
+	comp_ctx->user_cqe = NULL;
 	comp_ctx->occupied = false;
 	ATOMIC32_DEC(&queue->outstanding_cmds);
 }
@@ -264,7 +269,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 
 	/* In case of queue FULL */
 	cnt = (u16)ATOMIC32_READ(&admin_queue->outstanding_cmds);
-	if (cnt >= admin_queue->q_depth) {
+	if (unlikely(cnt >= admin_queue->q_depth)) {
 		ena_trc_dbg(admin_queue->ena_dev, "Admin queue is full.\n");
 		admin_queue->stats.out_of_space++;
 		return ERR_PTR(ENA_COM_NO_SPACE);
@@ -388,7 +393,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 					       io_sq->desc_addr.mem_handle);
 		}
 
-		if (!io_sq->desc_addr.virt_addr) {
+		if (unlikely(!io_sq->desc_addr.virt_addr)) {
 			ena_trc_err(ena_dev, "Memory allocation failed\n");
 			return ENA_COM_NO_MEM;
 		}
@@ -413,7 +418,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		if (!io_sq->bounce_buf_ctrl.base_buffer)
 			io_sq->bounce_buf_ctrl.base_buffer = ENA_MEM_ALLOC(ena_dev->dmadev, size);
 
-		if (!io_sq->bounce_buf_ctrl.base_buffer) {
+		if (unlikely(!io_sq->bounce_buf_ctrl.base_buffer)) {
 			ena_trc_err(ena_dev, "Bounce buffer memory allocation failed\n");
 			return ENA_COM_NO_MEM;
 		}
@@ -478,7 +483,7 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 					       ENA_CDESC_RING_SIZE_ALIGNMENT);
 	}
 
-	if (!io_cq->cdesc_addr.virt_addr) {
+	if (unlikely(!io_cq->cdesc_addr.virt_addr)) {
 		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
@@ -505,6 +510,9 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 		admin_queue->running_state = false;
 		return;
 	}
+
+	if (!comp_ctx->occupied)
+		return;
 
 	comp_ctx->status = ENA_CMD_COMPLETED;
 	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
@@ -581,8 +589,9 @@ static int ena_com_comp_status_to_errno(struct ena_com_admin_queue *admin_queue,
 
 static void ena_delay_exponential_backoff_us(u32 exp, u32 delay_us)
 {
+	exp = ENA_MIN32(ENA_MAX_BACKOFF_DELAY_EXP, exp);
 	delay_us = ENA_MAX32(ENA_MIN_ADMIN_POLL_US, delay_us);
-	delay_us = ENA_MIN32(delay_us * (1U << exp), ENA_MAX_ADMIN_POLL_US);
+	delay_us = ENA_MIN32(ENA_MAX_ADMIN_POLL_US, delay_us * (1U << exp));
 	ENA_USLEEP(delay_us);
 }
 
@@ -604,7 +613,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 		if (comp_ctx->status != ENA_CMD_SUBMITTED)
 			break;
 
-		if (ENA_TIME_EXPIRE(timeout)) {
+		if (unlikely(ENA_TIME_EXPIRE(timeout))) {
 			ena_trc_err(admin_queue->ena_dev,
 				    "Wait for completion (polling) timeout\n");
 			/* ENA didn't have any completion */
@@ -803,7 +812,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			llq_default_cfg->llq_ring_entry_size_value;
 
 	rc = ena_com_set_llq(ena_dev);
-	if (rc)
+	if (unlikely(rc))
 		ena_trc_err(ena_dev, "Cannot set LLQ configuration: %d\n", rc);
 
 	return rc;
@@ -830,6 +839,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
+			admin_queue->is_missing_admin_interrupt = true;
 			ena_trc_err(admin_queue->ena_dev,
 				    "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
 				    comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
@@ -850,7 +860,18 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 			ret = ENA_COM_TIMER_EXPIRED;
 			goto err;
 		}
+	} else if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
+		ena_trc_err(admin_queue->ena_dev, "Command was aborted\n");
+		ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
+		admin_queue->stats.aborted_cmd++;
+		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
+		ret = ENA_COM_NO_DEVICE;
+		goto err;
 	}
+
+	ENA_WARN(comp_ctx->status != ENA_CMD_COMPLETED,
+		 admin_queue->ena_dev, "Invalid comp status %d\n",
+		 comp_ctx->status);
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
 err:
@@ -909,7 +930,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 		goto err;
 	}
 
-	if (read_resp->reg_off != offset) {
+	if (unlikely(read_resp->reg_off != offset)) {
 		ena_trc_err(ena_dev, "Read failure: wrong offset provided\n");
 		ret = ENA_MMIO_READ_TIMEOUT;
 	} else {
@@ -1033,7 +1054,7 @@ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
 			exp_state)
 			return 0;
 
-		if (ENA_TIME_EXPIRE(timeout_stamp))
+		if (unlikely(ENA_TIME_EXPIRE(timeout_stamp)))
 			return ENA_COM_TIMER_EXPIRED;
 
 		ena_delay_exponential_backoff_us(exp++, ena_dev->ena_min_poll_delay_us);
@@ -1494,7 +1515,7 @@ int ena_com_get_io_handlers(struct ena_com_dev *ena_dev, u16 qid,
 			    struct ena_com_io_sq **io_sq,
 			    struct ena_com_io_cq **io_cq)
 {
-	if (qid >= ENA_TOTAL_NUM_QUEUES) {
+	if (unlikely(qid >= ENA_TOTAL_NUM_QUEUES)) {
 		ena_trc_err(ena_dev, "Invalid queue number %d but the max is %d\n",
 			    qid, ENA_TOTAL_NUM_QUEUES);
 		return ENA_COM_INVAL;
@@ -1602,7 +1623,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 	int ret;
 
 	ret = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_AENQ_CONFIG, 0);
-	if (ret) {
+	if (unlikely(ret)) {
 		ena_trc_info(ena_dev, "Can't get aenq configuration\n");
 		return ret;
 	}
@@ -1649,7 +1670,7 @@ int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 
 	ena_trc_dbg(ena_dev, "ENA dma width: %d\n", width);
 
-	if ((width < 32) || width > ENA_MAX_PHYS_ADDR_SIZE_BITS) {
+	if (unlikely((width < 32) || width > ENA_MAX_PHYS_ADDR_SIZE_BITS)) {
 		ena_trc_err(ena_dev, "DMA width illegal value: %d\n", width);
 		return ENA_COM_INVAL;
 	}
@@ -1811,16 +1832,21 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 	struct ena_admin_set_feat_cmd set_feat_cmd;
 	int ret = 0;
 
-	/* Get device PHC default configuration */
-	ret = ena_com_get_feature(ena_dev, &get_feat_resp, ENA_ADMIN_PHC_CONFIG, 0);
+	/* Get default device PHC configuration */
+	ret = ena_com_get_feature(ena_dev,
+				  &get_feat_resp,
+				  ENA_ADMIN_PHC_CONFIG,
+				  ENA_ADMIN_PHC_FEATURE_VERSION_0);
 	if (unlikely(ret)) {
 		ena_trc_err(ena_dev, "Failed to get PHC feature configuration, error: %d\n", ret);
 		return ret;
 	}
 
-	/* Suporting only readless PHC retrieval */
-	if (get_feat_resp.u.phc.type != ENA_ADMIN_PHC_TYPE_READLESS) {
-		ena_trc_err(ena_dev, "Unsupprted PHC type, error: %d\n", ENA_COM_UNSUPPORTED);
+	/* Supporting only PHC V0 (readless mode with error bound) */
+	if (get_feat_resp.u.phc.version != ENA_ADMIN_PHC_FEATURE_VERSION_0) {
+		ena_trc_err(ena_dev, "Unsupprted PHC version (0x%X), error: %d\n",
+			    get_feat_resp.u.phc.version,
+			    ENA_COM_UNSUPPORTED);
 		return ENA_COM_UNSUPPORTED;
 	}
 
@@ -1837,11 +1863,11 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 				   get_feat_resp.u.phc.block_timeout_usec :
 				   ENA_PHC_DEFAULT_BLOCK_TIMEOUT_USEC;
 
-	/* Sanity check - expire timeout must not be above skip timeout */
+	/* Sanity check - expire timeout must not exceed block timeout */
 	if (phc->expire_timeout_usec > phc->block_timeout_usec)
 		phc->expire_timeout_usec = phc->block_timeout_usec;
 
-	/* Prepare PHC feature command with PHC output address */
+	/* Prepare PHC config feature command */
 	memset(&set_feat_cmd, 0x0, sizeof(set_feat_cmd));
 	set_feat_cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	set_feat_cmd.feat_common.feature_id = ENA_ADMIN_PHC_CONFIG;
@@ -1873,12 +1899,15 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev)
 void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_phc_info *phc = &ena_dev->phc;
-
-	phc->active = false;
+	unsigned long flags = 0;
 
 	/* In case PHC is not supported by the device, silently exiting */
 	if (!phc->virt_addr)
 		return;
+
+	ENA_SPINLOCK_LOCK(phc->lock, flags);
+	phc->active = false;
+	ENA_SPINLOCK_UNLOCK(phc->lock, flags);
 
 	ENA_MEM_FREE_COHERENT(ena_dev->dmadev,
 			      sizeof(*phc->virt_addr),
@@ -1890,15 +1919,14 @@ void ena_com_phc_destroy(struct ena_com_dev *ena_dev)
 	ENA_SPINLOCK_DESTROY(phc->lock);
 }
 
-int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp)
 {
 	volatile struct ena_admin_phc_resp *read_resp = ena_dev->phc.virt_addr;
+	const ena_time_high_res_t zero_system_time = ENA_TIME_INIT_HIGH_RES();
 	struct ena_com_phc_info *phc = &ena_dev->phc;
-	ena_time_high_res_t initial_time = ENA_TIME_INIT_HIGH_RES();
-	static ena_time_high_res_t start_time;
-	unsigned long flags = 0;
 	ena_time_high_res_t expire_time;
 	ena_time_high_res_t block_time;
+	unsigned long flags = 0;
 	int ret = ENA_COM_OK;
 
 	if (!phc->active) {
@@ -1909,9 +1937,10 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 	ENA_SPINLOCK_LOCK(phc->lock, flags);
 
 	/* Check if PHC is in blocked state */
-	if (unlikely(ENA_TIME_COMPARE_HIGH_RES(start_time, initial_time))) {
+	if (unlikely(ENA_TIME_COMPARE_HIGH_RES(phc->system_time, zero_system_time))) {
 		/* Check if blocking time expired */
-		block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
+		block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time,
+							     phc->block_timeout_usec);
 		if (!ENA_TIME_EXPIRE_HIGH_RES(block_time)) {
 			/* PHC is still in blocked state, skip PHC request */
 			phc->stats.phc_skp++;
@@ -1919,9 +1948,9 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 			goto skip;
 		}
 
-		/* PHC is in active state, update statistics according to req_id and timestamp */
+		/* PHC is in active state, update statistics according to req_id and error_flags */
 		if ((READ_ONCE16(read_resp->req_id) != phc->req_id) ||
-		    (read_resp->timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
+		    (read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
 			/* Device didn't update req_id during blocking time or timestamp is invalid,
 			 * this indicates on a device error
 			 */
@@ -1933,9 +1962,9 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 	}
 
 	/* Setting relative timeouts */
-	start_time = ENA_GET_SYSTEM_TIME_HIGH_RES();
-	block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->block_timeout_usec);
-	expire_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(start_time, phc->expire_timeout_usec);
+	phc->system_time = ENA_GET_SYSTEM_TIME_HIGH_RES();
+	block_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time, phc->block_timeout_usec);
+	expire_time = ENA_GET_SYSTEM_TIMEOUT_HIGH_RES(phc->system_time, phc->expire_timeout_usec);
 
 	/* We expect the device to return this req_id once the new PHC timestamp is updated */
 	phc->req_id++;
@@ -1952,35 +1981,45 @@ int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp)
 	while (1) {
 		if (unlikely(ENA_TIME_EXPIRE_HIGH_RES(expire_time))) {
 			/* Gave up waiting for updated req_id, PHC enters into blocked state until
-			 * passing blocking time
+			 * passing blocking time, during this time any get PHC timestamp or
+			 * error bound requests will fail with device busy error
 			 */
+			phc->error_bound = ENA_PHC_MAX_ERROR_BOUND;
 			ret = ENA_COM_DEVICE_BUSY;
 			break;
 		}
 
 		/* Check if req_id was updated by the device */
 		if (READ_ONCE16(read_resp->req_id) != phc->req_id) {
-			/* req_id was not updated by the device, check again on next loop */
+			/* req_id was not updated by the device yet, check again on next loop */
 			continue;
 		}
 
-		/* req_id was updated which indicates that PHC timestamp was updated too */
-		*timestamp = read_resp->timestamp;
-
-		/* PHC timestamp validty check */
-		if (unlikely(*timestamp == ENA_PHC_TIMESTAMP_ERROR)) {
-			/* Retrieved invalid PHC timestamp, PHC enters into blocked state until
-			 * passing blocking time
+		/* req_id was updated by the device which indicates that PHC timestamp, error_bound
+		 * and error_flags are updated too, checking errors before retrieving timestamp and
+		 * error_bound values
+		 */
+		if (unlikely(read_resp->error_flags & ENA_PHC_ERROR_FLAGS)) {
+			/* Retrieved timestamp or error bound errors, PHC enters into blocked state
+			 * until passing blocking time, during this time any get PHC timestamp or
+			 * error bound requests will fail with device busy error
 			 */
+			phc->error_bound = ENA_PHC_MAX_ERROR_BOUND;
 			ret = ENA_COM_DEVICE_BUSY;
 			break;
 		}
 
-		/* Retrieved valid PHC timestamp */
+		/* PHC timestamp value is returned to the caller */
+		*timestamp = read_resp->timestamp;
+
+		/* Error bound value is cached for future retrieval by caller */
+		phc->error_bound = read_resp->error_bound;
+
+		/* Update statistic on valid PHC timestamp retrieval */
 		phc->stats.phc_cnt++;
 
 		/* This indicates PHC state is active */
-		start_time = initial_time;
+		phc->system_time = zero_system_time;
 		break;
 	}
 
@@ -1988,6 +2027,24 @@ skip:
 	ENA_SPINLOCK_UNLOCK(phc->lock, flags);
 
 	return ret;
+}
+
+int ena_com_phc_get_error_bound(struct ena_com_dev *ena_dev, u32 *error_bound)
+{
+	struct ena_com_phc_info *phc = &ena_dev->phc;
+	u32 local_error_bound = phc->error_bound;
+
+	if (!phc->active) {
+		ena_trc_err(ena_dev, "PHC feature is not active in the device\n");
+		return ENA_COM_UNSUPPORTED;
+	}
+
+	if (local_error_bound == ENA_PHC_MAX_ERROR_BOUND)
+		return ENA_COM_DEVICE_BUSY;
+
+	*error_bound = local_error_bound;
+
+	return ENA_COM_OK;
 }
 
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
@@ -2083,15 +2140,15 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	ENA_SPINLOCK_INIT(admin_queue->q_lock);
 
 	ret = ena_com_init_comp_ctxt(admin_queue);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	ret = ena_com_admin_init_sq(admin_queue);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	ret = ena_com_admin_init_cq(admin_queue);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	admin_queue->sq.db_addr = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
@@ -2124,11 +2181,12 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	ENA_REG_WRITE32(ena_dev->bus, aq_caps, ena_dev->reg_bar + ENA_REGS_AQ_CAPS_OFF);
 	ENA_REG_WRITE32(ena_dev->bus, acq_caps, ena_dev->reg_bar + ENA_REGS_ACQ_CAPS_OFF);
 	ret = ena_com_admin_init_aenq(ena_dev, aenq_handlers);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	admin_queue->ena_dev = ena_dev;
 	admin_queue->running_state = true;
+	admin_queue->is_missing_admin_interrupt = false;
 
 	return 0;
 error:
@@ -2144,7 +2202,7 @@ int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
 	struct ena_com_io_cq *io_cq;
 	int ret;
 
-	if (ctx->qid >= ENA_TOTAL_NUM_QUEUES) {
+	if (unlikely(ctx->qid >= ENA_TOTAL_NUM_QUEUES)) {
 		ena_trc_err(ena_dev, "Qid (%d) is bigger than max num of queues (%d)\n",
 			    ctx->qid, ENA_TOTAL_NUM_QUEUES);
 		return ENA_COM_INVAL;
@@ -2175,18 +2233,18 @@ int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
 			ENA_MIN32(ena_dev->tx_max_header_size, SZ_256);
 
 	ret = ena_com_init_io_sq(ena_dev, ctx, io_sq);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 	ret = ena_com_init_io_cq(ena_dev, ctx, io_cq);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	ret = ena_com_create_io_cq(ena_dev, io_cq);
-	if (ret)
+	if (unlikely(ret))
 		goto error;
 
 	ret = ena_com_create_io_sq(ena_dev, io_sq, io_cq->idx);
-	if (ret)
+	if (unlikely(ret))
 		goto destroy_io_cq;
 
 	return 0;
@@ -2203,7 +2261,7 @@ void ena_com_destroy_io_queue(struct ena_com_dev *ena_dev, u16 qid)
 	struct ena_com_io_sq *io_sq;
 	struct ena_com_io_cq *io_cq;
 
-	if (qid >= ENA_TOTAL_NUM_QUEUES) {
+	if (unlikely(qid >= ENA_TOTAL_NUM_QUEUES)) {
 		ena_trc_err(ena_dev, "Qid (%d) is bigger than max num of queues (%d)\n",
 			    qid, ENA_TOTAL_NUM_QUEUES);
 		return;
@@ -2345,7 +2403,8 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	else
 		return rc;
 
-	rc = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_LLQ, 0);
+	rc = ena_com_get_feature(ena_dev, &get_resp,
+				 ENA_ADMIN_LLQ, ENA_ADMIN_LLQ_FEATURE_VERSION_1);
 	if (!rc)
 		memcpy(&get_feat_ctx->llq, &get_resp.u.llq,
 		       sizeof(get_resp.u.llq));
@@ -2400,8 +2459,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 	/* Go over all the events */
 	while ((READ_ONCE8(aenq_common->flags) &
 		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
-		/* Make sure the phase bit (ownership) is as expected before
-		 * reading the rest of the descriptor.
+		/* Make sure the device finished writing the rest of the descriptor
+		 * before reading it.
 		 */
 		dma_rmb();
 
@@ -2443,6 +2502,45 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 				ena_dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
 	mmiowb();
 }
+
+bool ena_com_aenq_has_keep_alive(struct ena_com_dev *ena_dev)
+{
+	struct ena_admin_aenq_common_desc *aenq_common;
+	struct ena_com_aenq *aenq = &ena_dev->aenq;
+	struct ena_admin_aenq_entry *aenq_e;
+	u8 phase = aenq->phase;
+	u16 masked_head;
+
+	masked_head = aenq->head & (aenq->q_depth - 1);
+	aenq_e = &aenq->entries[masked_head]; /* Get first entry */
+	aenq_common = &aenq_e->aenq_common_desc;
+
+	/* Go over all the events */
+	while ((READ_ONCE8(aenq_common->flags) &
+		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
+		/* Make sure the device finished writing the rest of the descriptor
+		 * before reading it.
+		 */
+		dma_rmb();
+
+		if (aenq_common->group == ENA_ADMIN_KEEP_ALIVE)
+			return true;
+
+		/* Get next event entry */
+		masked_head++;
+
+		if (unlikely(masked_head == aenq->q_depth)) {
+			masked_head = 0;
+			phase = !phase;
+		}
+
+		aenq_e = &aenq->entries[masked_head];
+		aenq_common = &aenq_e->aenq_common_desc;
+	}
+
+	return false;
+}
+
 #ifdef ENA_EXTENDED_STATS
 /*
  * Sets the function Idx and Queue Idx to be used for
@@ -2468,6 +2566,7 @@ int ena_com_extended_stats_set_func_queue(struct ena_com_dev *ena_dev,
 int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 		      enum ena_regs_reset_reason_types reset_reason)
 {
+	u32 reset_reason_msb, reset_reason_lsb;
 	u32 stat, timeout, cap, reset_val;
 	int rc;
 
@@ -2494,8 +2593,28 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 
 	/* start reset */
 	reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
-	reset_val |= (reset_reason << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
-			ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+
+	/* For backward compatibility, device will interpret
+	 * bits 24-27 as MSB, bits 28-31 as LSB
+	 */
+	reset_reason_lsb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_LSB_MASK,
+					 ENA_RESET_REASON_LSB_OFFSET);
+
+	reset_reason_msb = ENA_FIELD_GET(reset_reason, ENA_RESET_REASON_MSB_MASK,
+					 ENA_RESET_REASON_MSB_OFFSET);
+
+	reset_val |= reset_reason_lsb << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT;
+
+	if (ena_com_get_cap(ena_dev, ENA_ADMIN_EXTENDED_RESET_REASONS))
+		reset_val |= reset_reason_msb << ENA_REGS_DEV_CTL_RESET_REASON_EXT_SHIFT;
+	else if (reset_reason_msb) {
+		/* In case the device does not support intended
+		 * extended reset reason fallback to generic
+		 */
+		reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
+		reset_val |= (ENA_REGS_RESET_GENERIC << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
+			      ENA_REGS_DEV_CTL_RESET_REASON_MASK;
+	}
 	ENA_REG_WRITE32(ena_dev->bus, reset_val, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 
 	/* Write again the MMIO read request address */
@@ -2503,7 +2622,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 
 	rc = wait_for_reset_state(ena_dev, timeout,
 				  ENA_REGS_DEV_STS_RESET_IN_PROGRESS_MASK);
-	if (rc != 0) {
+	if (unlikely(rc)) {
 		ena_trc_err(ena_dev, "Reset indication didn't turn on\n");
 		return rc;
 	}
@@ -2511,7 +2630,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	/* reset done */
 	ENA_REG_WRITE32(ena_dev->bus, 0, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 	rc = wait_for_reset_state(ena_dev, timeout, 0);
-	if (rc != 0) {
+	if (unlikely(rc)) {
 		ena_trc_err(ena_dev, "Reset indication didn't turn off\n");
 		return rc;
 	}
@@ -2614,7 +2733,7 @@ int ena_com_get_dev_extended_stats(struct ena_com_dev *ena_dev, char *buff,
 
 	ret = ena_get_dev_stats(ena_dev, &ctx,
 				ENA_ADMIN_GET_STATS_TYPE_EXTENDED);
-	if (ret < 0)
+	if (unlikely(ret < 0))
 		goto free_ext_stats_mem;
 
 	ret = snprintf(buff, len, "%s", (char *)virt_addr);
@@ -3222,7 +3341,7 @@ int ena_com_allocate_customer_metrics_buffer(struct ena_com_dev *ena_dev)
 			       customer_metrics->buffer_virt_addr,
 			       customer_metrics->buffer_dma_addr,
 			       customer_metrics->buffer_dma_handle);
-	if (!customer_metrics->buffer_virt_addr)
+	if (unlikely(!customer_metrics->buffer_virt_addr))
 		return ENA_COM_NO_MEM;
 
 	return 0;
@@ -3416,7 +3535,7 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_config_llq_info(ena_dev, llq_features, llq_default_cfg);
-	if (rc)
+	if (unlikely(rc))
 		return rc;
 
 	ena_dev->tx_max_header_size = llq_info->desc_list_entry_size -
