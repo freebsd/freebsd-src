@@ -13,7 +13,7 @@ MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 .src.LC_CTYPE:
 	localedef ${LOCALEDEF_ENDIAN} -D -U -c -w ${MAPLOC}/widths.txt \
 	-f ${MAPLOC}/map.${.IMPSRC:T:R:E} \
-	-i ${.IMPSRC} ${.OBJDIR}/${.IMPSRC:T:R}  || true
+	-i ${.IMPSRC} ${.OBJDIR}/${.IMPSRC:T:R}
 
 LOCALES+=	C.UTF-8
 .if ${MK_LOCALES} != no
@@ -254,7 +254,7 @@ SYMPAIRS+=	be_BY.CP1131.src ru_RU.KOI8-R.src
 ${t:S/src$/LC_CTYPE/}: $s
 	localedef ${LOCALEDEF_ENDIAN} -D -U -c -w ${MAPLOC}/widths.txt \
 	-f ${MAPLOC}/map.${.TARGET:T:R:C/^.*\.//} \
-	-i ${.ALLSRC} ${.OBJDIR}/${.TARGET:T:R}  || true
+	-i ${.ALLSRC} ${.OBJDIR}/${.TARGET:T:R}
 .endfor
 
 .include <bsd.prog.mk>
