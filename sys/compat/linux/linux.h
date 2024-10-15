@@ -350,7 +350,9 @@ struct l_statx {
 #define	LINUX_ST_RELATIME		0x1000	/* No native analogue */
 #define	LINUX_ST_NOSYMFOLLOW		0x2000
 
+#ifndef lower_32_bits
 #define	lower_32_bits(n)	((uint32_t)((n) & 0xffffffff))
+#endif
 
 #ifdef KTRACE
 #define	linux_ktrsigset(s, l)	\
