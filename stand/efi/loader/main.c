@@ -767,9 +767,9 @@ parse_uefi_con_out(void)
 		 * all the other more common cases).
 		 */
 		if (efi_has_gop())
-			how = RB_MULTIPLE;
+			how |= RB_MULTIPLE;
 		else
-			how = RB_MULTIPLE | RB_SERIAL;
+			how |= RB_MULTIPLE | RB_SERIAL;
 		setenv("console", "efi,comconsole", 1);
 		goto out;
 	}
