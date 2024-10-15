@@ -154,7 +154,8 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	g_part_gpt_methods,
 	sizeof(struct g_part_gpt_table),
 	.gps_entrysz = sizeof(struct g_part_gpt_entry),
-	.gps_minent = 128,
+	.gps_minent = 1,
+	.gps_defent = 128,
 	.gps_maxent = 4096,
 	.gps_bootcodesz = MBRSIZE,
 };
