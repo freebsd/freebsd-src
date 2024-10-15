@@ -110,6 +110,11 @@ UINT16 boot_current;
  */
 EFI_LOADED_IMAGE *boot_img;
 
+/*
+ * RSDP base table.
+ */
+ACPI_TABLE_RSDP *rsdp;
+
 static bool
 has_keyboard(void)
 {
@@ -915,7 +920,6 @@ ptov(uintptr_t x)
 static void
 acpi_detect(void)
 {
-	ACPI_TABLE_RSDP *rsdp;
 	char buf[24];
 	int revision;
 
