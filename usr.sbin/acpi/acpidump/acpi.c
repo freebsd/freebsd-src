@@ -2631,13 +2631,13 @@ sdt_load_devmem(void)
 		acpi_print_rsd_ptr(rp);
 	if (rp->Revision < 2) {
 		rsdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(rp->RsdtPhysicalAddress);
-		if (memcmp(rsdp->Signature, "RSDT", 4) != 0 ||
+		if (memcmp(rsdp->Signature, "RSDT", ACPI_NAMESEG_SIZE) != 0 ||
 		    acpi_checksum(rsdp, rsdp->Length) != 0)
 			errx(1, "RSDT is corrupted");
 		addr_size = sizeof(uint32_t);
 	} else {
 		rsdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(rp->XsdtPhysicalAddress);
-		if (memcmp(rsdp->Signature, "XSDT", 4) != 0 ||
+		if (memcmp(rsdp->Signature, "XSDT", ACPI_NAMESEG_SIZE) != 0 ||
 		    acpi_checksum(rsdp, rsdp->Length) != 0)
 			errx(1, "XSDT is corrupted");
 		addr_size = sizeof(uint64_t);
