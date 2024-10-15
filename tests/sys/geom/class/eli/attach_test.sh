@@ -50,7 +50,7 @@ attach_multiple_fails_body()
 	geli_test_setup
 
 	sectors=1000
-	attach_md md -t malloc -s `expr $sectors + 1`
+	md=$(attach_md -t malloc -s `expr $sectors + 1`)
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
 
 	atf_check geli init -B none -P -K keyfile ${md}
