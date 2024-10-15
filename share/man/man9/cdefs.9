@@ -85,8 +85,12 @@ linkage.
 .It Sy __weak_symbol Ta Declare the symbol to be a weak symbol
 .It Sy __dead2 Ta Function will not return
 .It Sy __pure2 Ta Function has no side effects
-.It Sy __unused Ta To Variable may be unused (usually arguments), so do not warn about it
+.It Sy __unused Ta To Variable may be unused (usually arguments), so do not
+warn about it
 .It Sy __used Ta Function really is used, so emit it even if it appears unused.
+.It Sy __deprecated Ta Function interface has been deprecated, and clients
+should migrate to a new interface.
+A warning will be issued for clients of this interface.
 .It Sy __packed Ta \&Do not have space between structure elements for natural alignment.
 Used when communicating with external protocols.
 .It Sy __aligned(x) Ta Specify in bytes the minimum alignment for the specified field, structure or variable
