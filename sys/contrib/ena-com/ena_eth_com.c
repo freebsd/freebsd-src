@@ -102,7 +102,8 @@ static int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
 	wmb();
 
 	/* The line is completed. Copy it to dev */
-	ENA_MEMCPY_TO_DEVICE_64(io_sq->desc_addr.pbuf_dev_addr + dst_offset,
+	ENA_MEMCPY_TO_DEVICE_64(io_sq->bus,
+				io_sq->desc_addr.pbuf_dev_addr + dst_offset,
 				bounce_buffer,
 				llq_info->desc_list_entry_size);
 
@@ -237,11 +238,8 @@ static int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 	return ENA_COM_OK;
 }
 
-static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
+static int ena_com_sq_update_reqular_queue_tail(struct ena_com_io_sq *io_sq)
 {
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
-		return ena_com_sq_update_llq_tail(io_sq);
-
 	io_sq->tail++;
 
 	/* Switch phase bit in case of wrap around */
@@ -249,6 +247,14 @@ static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
 		io_sq->phase ^= 1;
 
 	return ENA_COM_OK;
+}
+
+static int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
+{
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		return ena_com_sq_update_llq_tail(io_sq);
+
+	return ena_com_sq_update_reqular_queue_tail(io_sq);
 }
 
 static struct ena_eth_io_rx_cdesc_base *
@@ -264,6 +270,7 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 				    u16 *first_cdesc_idx,
 				    u16 *num_descs)
 {
+	struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
 	u16 count = io_cq->cur_rx_pkt_cdesc_count, head_masked;
 	struct ena_eth_io_rx_cdesc_base *cdesc;
 	u32 last = 0;
@@ -279,13 +286,21 @@ static int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 		ena_com_cq_inc_head(io_cq);
 		if (unlikely((status & ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK) >>
 		    ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT && count != 0)) {
-			struct ena_com_dev *dev = ena_com_io_cq_to_ena_dev(io_cq);
-
 			ena_trc_err(dev,
 				    "First bit is on in descriptor #%d on q_id: %d, req_id: %u\n",
 				    count, io_cq->qid, cdesc->req_id);
 			return ENA_COM_FAULT;
 		}
+
+		if (unlikely((status & (ENA_ETH_IO_RX_CDESC_BASE_MBZ7_MASK |
+					ENA_ETH_IO_RX_CDESC_BASE_MBZ17_MASK)) &&
+			      ena_com_get_cap(dev, ENA_ADMIN_CDESC_MBZ))) {
+			ena_trc_err(dev,
+				    "Corrupted RX descriptor #%d on q_id: %d, req_id: %u\n",
+				    count, io_cq->qid, cdesc->req_id);
+			return ENA_COM_FAULT;
+		}
+
 		count++;
 		last = (status & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
 			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
@@ -473,7 +488,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	/* If the caller doesn't want to send packets */
 	if (unlikely(!num_bufs && !header_len)) {
 		rc = ena_com_close_bounce_buffer(io_sq);
-		if (rc)
+		if (unlikely(rc))
 			ena_trc_err(ena_com_io_sq_to_ena_dev(io_sq),
 				    "Failed to write buffers to LLQ\n");
 		*nb_hw_desc = io_sq->tail - start_tail;
@@ -658,9 +673,8 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	if (unlikely(!ena_com_sq_have_enough_space(io_sq, 1)))
 		return ENA_COM_NO_SPACE;
 
-	desc = get_sq_desc(io_sq);
-	if (unlikely(!desc))
-		return ENA_COM_FAULT;
+	/* virt_addr allocation success is checked before calling this function */
+	desc = get_sq_desc_regular_queue(io_sq);
 
 	memset(desc, 0x0, sizeof(struct ena_eth_io_rx_desc));
 
@@ -681,7 +695,7 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	desc->buff_addr_hi =
 		((ena_buf->paddr & GENMASK_ULL(io_sq->dma_addr_bits - 1, 32)) >> 32);
 
-	return ena_com_sq_update_tail(io_sq);
+	return ena_com_sq_update_reqular_queue_tail(io_sq);
 }
 
 bool ena_com_cq_empty(struct ena_com_io_cq *io_cq)

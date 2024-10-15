@@ -51,6 +51,14 @@
 #define ADMIN_CQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_acq_entry))
 #define ADMIN_AENQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_aenq_entry))
 
+/* Macros used to extract LSB/MSB from the
+ * enums defining the reset reasons
+ */
+#define ENA_RESET_REASON_LSB_OFFSET			    0
+#define ENA_RESET_REASON_LSB_MASK			    0xf
+#define ENA_RESET_REASON_MSB_OFFSET			    4
+#define ENA_RESET_REASON_MSB_MASK			    0xf0
+
 #define ENA_CUSTOMER_METRICS_BUFFER_SIZE 512
 
 /*****************************************************************************/
@@ -257,6 +265,8 @@ struct ena_com_admin_queue {
 	 */
 	bool running_state;
 
+	bool is_missing_admin_interrupt;
+
 	/* Count the number of outstanding admin commands */
 	ena_atomic32_t outstanding_cmds;
 
@@ -294,6 +304,9 @@ struct ena_com_phc_info {
 	/* PHC shared memory - virtual address */
 	struct ena_admin_phc_resp *virt_addr;
 
+	/* System time of last PHC request */
+	ena_time_high_res_t system_time;
+
 	/* Spin lock to ensure a single outstanding PHC read */
 	ena_spinlock_t lock;
 
@@ -313,17 +326,20 @@ struct ena_com_phc_info {
 	 */
 	u32 block_timeout_usec;
 
+	/* PHC shared memory - physical address */
+	dma_addr_t phys_addr;
+
+	/* PHC shared memory handle */
+	ena_mem_handle_t mem_handle;
+
+	/* Cached error bound per timestamp sample */
+	u32 error_bound;
+
 	/* Request id sent to the device */
 	u16 req_id;
 
 	/* True if PHC is active in the device */
 	bool active;
-
-	/* PHC shared memory - memory handle */
-	ena_mem_handle_t mem_handle;
-
-	/* PHC shared memory - physical address */
-	dma_addr_t phys_addr;
 };
 
 struct ena_rss {
@@ -488,12 +504,19 @@ int ena_com_phc_config(struct ena_com_dev *ena_dev);
  */
 void ena_com_phc_destroy(struct ena_com_dev *ena_dev);
 
-/* ena_com_phc_get - Retrieve PHC timestamp
+/* ena_com_phc_get_timestamp - Retrieve PHC timestamp
  * @ena_dev: ENA communication layer struct
- * @timestamp: Retrieve PHC timestamp
+ * @timestamp: Retrieved PHC timestamp
  * @return - 0 on success, negative value on failure
  */
-int ena_com_phc_get(struct ena_com_dev *ena_dev, u64 *timestamp);
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp);
+
+/* ena_com_phc_get_error_bound - Retrieve cached PHC error bound
+ * @ena_dev: ENA communication layer struct
+ * @error_bound: Cached PHC error bound
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_phc_get_error_bound(struct ena_com_dev *ena_dev, u32 *error_bound);
 
 /* ena_com_set_mmio_read_mode - Enable/disable the indirect mmio reg read mechanism
  * @ena_dev: ENA communication layer struct
@@ -643,6 +666,16 @@ void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev);
  * aenq handler.
  */
 void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data);
+
+/* ena_com_aenq_has_keep_alive - Retrieve if there is a keep alive notification in the aenq
+ * @ena_dev: ENA communication layer struct
+ *
+ * This method goes over the async event notification queue and returns if there
+ * is a keep alive notification.
+ *
+ * @return - true if there is a keep alive notification in the aenq or false otherwise
+ */
+bool ena_com_aenq_has_keep_alive(struct ena_com_dev *ena_dev);
 
 /* ena_com_abort_admin_commands - Abort all the outstanding admin commands.
  * @ena_dev: ENA communication layer struct
@@ -1095,6 +1128,16 @@ unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_config);
+
+/* ena_com_get_missing_admin_interrupt - Return if there is a missing admin interrupt
+ * @ena_dev: ENA communication layer struct
+ *
+ * @return - true if there is a missing admin interrupt or false otherwise
+ */
+static inline bool ena_com_get_missing_admin_interrupt(struct ena_com_dev *ena_dev)
+{
+	return ena_dev->admin_queue.is_missing_admin_interrupt;
+}
 
 /* ena_com_io_sq_to_ena_dev - Extract ena_com_dev using contained field io_sq.
  * @io_sq: IO submit queue struct
