@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 10, 2024
+.Dd November 1, 2024
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -142,6 +142,14 @@ context switches
 trace
 .Xr sysctl 3
 requests
+.It Cm a
+trace
+.Xr execve 2
+arguments
+.It Cm e
+trace
+.Xr execve 2
+environment variables
 .It Cm +
 trace the default set of trace points -
 .Cm c , i , n , s , t , u , y
