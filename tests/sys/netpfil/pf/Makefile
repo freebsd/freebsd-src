@@ -1,7 +1,6 @@
 PACKAGE=	tests
 
 TESTSDIR=       ${TESTSBASE}/sys/netpfil/pf
-BINDIR=		${TESTSDIR}
 TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	altq \
@@ -61,8 +60,6 @@ ATF_TESTS_PYTEST+=	sctp.py
 # Allow tests to run in parallel in their own jails
 TEST_METADATA+= execenv="jail"
 TEST_METADATA+= execenv_jail_params="vnet allow.raw_sockets"
-
-PROGS=	divapp
 
 ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			CVE-2019-5598.py \
