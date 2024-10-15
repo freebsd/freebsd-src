@@ -426,6 +426,10 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    CTLFLAG_RD, &ctrlr->cap_hi, 0,
 	    "Hi 32-bits of capacities for the drive");
 
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "fail_on_reset",
+	    CTLFLAG_RD, &ctrlr->fail_on_reset, 0,
+	    "Pretend the next reset fails and fail the controller");
+
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Admin Queue");
 

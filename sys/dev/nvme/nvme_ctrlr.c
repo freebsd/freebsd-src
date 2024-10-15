@@ -1152,7 +1152,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
-	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
+	if (nvme_ctrlr_hw_reset(ctrlr) != 0 || ctrlr->fail_on_reset != 0) {
 		nvme_ctrlr_fail(ctrlr, true);
 		config_intrhook_disestablish(&ctrlr->config_hook);
 		return;
