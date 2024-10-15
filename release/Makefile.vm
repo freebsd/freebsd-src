@@ -26,7 +26,7 @@ CLOUDWARE_TYPES?= AZURE \
 		BASIC-CLOUDINIT \
 		EC2 \
 		GCE \
-		OCI \
+		ORACLE \
 		VAGRANT
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
@@ -46,9 +46,9 @@ EC2-SMALL_DESC=	Amazon EC2 small image
 GCE_FORMAT=	raw
 GCE_FSLIST?=	ufs zfs
 GCE_DESC=	Google Compute Engine image
-OCI_FORMAT=	qcow2
-OCI_FSLIST?=	ufs
-OCI_DESC=	Oracle Cloud Infrastructure image
+ORACLE_FORMAT=	qcow2
+ORACLE_FSLIST?=	ufs
+ORACLE_DESC=	Oracle Cloud Infrastructure image
 OPENSTACK_FORMAT=qcow2
 OPENSTACK_FSLIST?=	ufs
 OPENSTACK_DESC=	OpenStack platform image
