@@ -231,6 +231,24 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	__uart_setreg(bas, UART_IFLS, FIFO_IFLS_BITS);
 
 	__uart_setreg(bas, UART_CR, ctrl);
+
+	/*
+	 * Loader tells us to infer the rclk when it sets xo to 0 in
+	 * hw.uart.console. The APCI SPCR code does likewise. We know the
+	 * baudrate was set by the firmware, so calculate rclk from baudrate and
+	 * the divisor register.  If 'div' is actually 0, the resulting 0 value
+	 * will have us fall back to other rclk methods. This method should be
+	 * good to 5% or better because the error in baud rates needs to be
+	 * below this for devices to communicate.
+	 */
+	if (bas->rclk == 0 && baudrate > 0 && bas->rclk_guess) {
+		uint32_t div;
+
+		div = ((__uart_getreg(bas, UART_IBRD) & IBRD_BDIVINT) << 6) |
+		    (__uart_getreg(bas, UART_FBRD) & FBRD_BDIVFRAC);
+		bas->rclk = (div * baudrate) / 4;
+	}
+
 }
 
 static void
