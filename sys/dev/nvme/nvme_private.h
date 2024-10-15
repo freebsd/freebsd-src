@@ -299,6 +299,7 @@ struct nvme_controller {
 
 	uint32_t			is_resetting;
 	uint32_t			notification_sent;
+	u_int				fail_on_reset;
 
 	bool				is_failed;
 	bool				is_failed_admin;
