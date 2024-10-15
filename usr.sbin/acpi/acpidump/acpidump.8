@@ -40,6 +40,7 @@
 .Op Fl h
 .Op Fl o Ar dsdt_output
 .Op Fl t
+.Op Fl T Ar table_name
 .Op Fl v
 .Sh DESCRIPTION
 The
@@ -175,6 +176,9 @@ Concatenate the DSDT and the SSDT's into single image and disassemble the image 
 and print the results to stdout.
 .It Fl t
 Dump the contents of the various fixed tables listed above.
+.It Fl T ar table_name
+Dump the contents of the specific table.
+All ACPI tables are exactly 4 characters long.
 .It Fl h
 Displays usage and exit.
 .It Fl s

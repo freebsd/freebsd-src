@@ -87,7 +87,7 @@ static void	acpi_print_facs(ACPI_TABLE_FACS *facs);
 static void	acpi_print_dsdt(ACPI_TABLE_HEADER *dsdp);
 static ACPI_TABLE_HEADER *acpi_map_sdt(vm_offset_t pa);
 static void	acpi_print_rsd_ptr(ACPI_TABLE_RSDP *rp);
-static void	acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp);
+static void	acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp, const char *elm);
 static void	acpi_walk_subtables(ACPI_TABLE_HEADER *table, void *first,
 		    void (*action)(ACPI_SUBTABLE_HEADER *));
 static void	acpi_walk_nfit(ACPI_TABLE_HEADER *table, void *first,
@@ -275,7 +275,7 @@ acpi_handle_fadt(ACPI_TABLE_HEADER *sdp)
 	if (addr != 0) {
 		facs = (ACPI_TABLE_FACS *)acpi_map_sdt(addr);
 
-		if (memcmp(facs->Signature, ACPI_SIG_FACS, 4) != 0 ||
+		if (memcmp(facs->Signature, ACPI_SIG_FACS, ACPI_NAMESEG_SIZE) != 0 ||
 		    facs->Length < 64)
 			errx(1, "FACS is corrupt");
 		acpi_print_facs(facs);
@@ -2589,7 +2589,7 @@ acpi_report_sdp(ACPI_TABLE_HEADER *sdp)
 }
 
 static void
-acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
+acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp, const char *tbl)
 {
 	ACPI_TABLE_HEADER *sdp;
 	ACPI_TABLE_RSDT *rsdt;
@@ -2597,7 +2597,14 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 	vm_offset_t addr;
 	int entries, i;
 
-	acpi_print_rsdt(rsdp);
+	if (tbl == NULL) {
+		acpi_print_rsdt(rsdp);
+	} else {
+		if (memcmp(tbl, rsdp->Signature, ACPI_NAMESEG_SIZE) == 0) {
+			acpi_print_rsdt(rsdp);
+			return;
+		}
+	}
 	rsdt = (ACPI_TABLE_RSDT *)rsdp;
 	xsdt = (ACPI_TABLE_XSDT *)rsdp;
 	entries = (rsdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
@@ -2614,6 +2621,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			    sdp->Signature);
 			continue;
 		}
+		if (tbl != NULL && memcmp(sdp->Signature, tbl, ACPI_NAMESEG_SIZE) != 0)
+			continue;
 		acpi_report_sdp(sdp);
 	}
 }
@@ -2802,9 +2811,9 @@ aml_disassemble_separate(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 }
 
 void
-sdt_print_all(ACPI_TABLE_HEADER *rsdp)
+sdt_print_all(ACPI_TABLE_HEADER *rsdp, const char *tbl)
 {
-	acpi_handle_rsdt(rsdp);
+	acpi_handle_rsdt(rsdp, tbl);
 }
 
 /* Fetch a table matching the given signature via the RSDT. */

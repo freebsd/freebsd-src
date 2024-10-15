@@ -45,7 +45,7 @@ usage(const char *progname)
 {
 
 	fprintf(stderr, "usage: %s [-d] [-t] [-h] [-v] [-f dsdt_input] "
-			"[-o dsdt_output]\n", progname);
+			"[-o dsdt_output] [-T table_name]\n", progname);
 	fprintf(stderr, "To send ASL:\n\t%s -dt | gzip -c9 > foo.asl.gz\n",
 	    progname);
 	exit(1);
@@ -58,6 +58,7 @@ main(int argc, char *argv[])
 	int	c;
 	char	*progname;
 	char	*dsdt_input_file, *dsdt_output_file;
+	char	*tbl = NULL;
 
 	dsdt_input_file = dsdt_output_file = NULL;
 	progname = argv[0];
@@ -65,10 +66,17 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage(progname);
 
-	while ((c = getopt(argc, argv, "dhtvsf:o:")) != -1) {
+	while ((c = getopt(argc, argv, "df:ho:tT:vs")) != -1) {
 		switch (c) {
 		case 'd':
 			dflag = 1;
+			break;
+		case 'T':
+			tbl = optarg;
+			if (strlen(tbl) != 4) {
+				warnx("Illegal table name %s", tbl);
+				usage(progname);
+			}
 			break;
 		case 't':
 			tflag = 1;
@@ -113,10 +121,10 @@ main(int argc, char *argv[])
 	}
 
 	/* Display misc. SDT tables (only available when using /dev/mem) */
-	if (tflag) {
+	if (tflag || tbl != NULL) {
 		if (vflag)
 			warnx("printing various SDT tables");
-		sdt_print_all(rsdt);
+		sdt_print_all(rsdt, tbl);
 	}
 
 	/* Translate RSDT to DSDT pointer */
