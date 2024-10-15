@@ -167,28 +167,46 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 	if (error != 0)
 		goto out;
 
-	switch (spcr->BaudRate) {
-	case 0:
-		/* Special value; means "keep current value unchanged". */
-		di->baudrate = 0;
-		break;
-	case 3:
-		di->baudrate = 9600;
-		break;
-	case 4:
-		di->baudrate = 19200;
-		break;
-	case 6:
-		di->baudrate = 57600;
-		break;
-	case 7:
-		di->baudrate = 115200;
-		break;
-	default:
-		printf("SPCR has reserved BaudRate value: %d!\n",
-		    (int)spcr->BaudRate);
-		goto out;
+	/*
+	 * SPCR Rev 4 and newer allow a precise baudrate to be passed in for
+	 * things like 1.5M or 2.0M. If we have that, then use that value,
+	 * otherwise try to decode the older enumeration.
+	 */
+	if (spcr->Header.Revision >= 4 && spcr->PreciseBaudrate != 0) {
+		di->baudrate = spcr->PreciseBaudrate;
+	} else {
+		switch (spcr->BaudRate) {
+		case 0:
+			/* Special value; means "keep current value unchanged". */
+			di->baudrate = 0;
+			break;
+		case 3:
+			di->baudrate = 9600;
+			break;
+		case 4:
+			di->baudrate = 19200;
+			break;
+		case 6:
+			di->baudrate = 57600;
+			break;
+		case 7:
+			di->baudrate = 115200;
+			break;
+		default:
+			printf("SPCR has reserved BaudRate value: %d!\n",
+			    (int)spcr->BaudRate);
+			goto out;
+		}
 	}
+
+	/*
+	 * Rev 3 and newer can specify a rclk, use it if it's there. It's
+	 * defined to be 0 when it's not known, and we've initialized rclk to 0
+	 * in uart_cpu_acpi_init_devinfo, so we don't have to test for it.
+	 */
+	if (spcr->Header.Revision >= 3)
+		di->bas.rclk = spcr->UartClkFreq;
+
 	/*
 	 * If no rclk is set, then we will assume the BIOS has configured the
 	 * hardware at the stated baudrate, so we can use it to guess the rclk
