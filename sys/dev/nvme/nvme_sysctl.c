@@ -333,6 +333,10 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	    CTLFLAG_RD, &qpair->num_recovery_nolock,
 	    "Number of times that we failed to lock recovery in the ISR");
 
+	SYSCTL_ADD_UINT(ctrlr_ctx, que_list, OID_AUTO, "recovery",
+	    CTLFLAG_RW, &qpair->recovery_state, 0,
+	    "Current recovery state of the queue");
+
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
 	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    qpair, 0, nvme_sysctl_dump_debug, "IU", "Dump debug data");
