@@ -265,13 +265,11 @@ ENTRY(savectx)
 	mrs	x6, tpidr_el0
 	stp	x5, x6, [x0, #PCB_SP]
 
-	/* Store the VFP registers */
 #ifdef VFP
-	mov	x28, lr
-	bl	vfp_save_state_savectx
-	mov	lr, x28
-#endif
-
+	/* Store the VFP registers */
+	b	vfp_save_state_savectx
+#else
 	ret
+#endif
 END(savectx)
 
