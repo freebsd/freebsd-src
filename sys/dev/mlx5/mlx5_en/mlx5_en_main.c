@@ -4518,13 +4518,25 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if_setcapabilitiesbit(ifp, IFCAP_TSO | IFCAP_VLAN_HWTSO, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS | IFCAP_HWRXTSTMP, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_MEXTPG, 0);
-	if_setcapabilitiesbit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
+#ifdef KERN_TLS
+	if (MLX5_CAP_GEN(mdev, tls_tx) != 0 &&
+	    MLX5_CAP_GEN(mdev, log_max_dek) != 0)
+		if_setcapabilitiesbit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
+	if (MLX5_CAP_GEN(mdev, tls_rx) != 0 &&
+	    MLX5_CAP_GEN(mdev, log_max_dek) != 0 &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+	    ft_field_support.outer_ip_version) != 0)
+		if_setcapabilities2bit(ifp, IFCAP2_BIT(IFCAP2_RXTLS4) |
+		    IFCAP2_BIT(IFCAP2_RXTLS6), 0);
+#endif
 #ifdef RATELIMIT
-	if_setcapabilitiesbit(ifp, IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT, 0);
+	if (MLX5_CAP_GEN(mdev, qos) &&
+	    MLX5_CAP_QOS(mdev, packet_pacing))
+		if_setcapabilitiesbit(ifp, IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT,
+		    0);
 #endif
 	if_setcapabilitiesbit(ifp, IFCAP_VXLAN_HWCSUM | IFCAP_VXLAN_HWTSO, 0);
-	if_setcapabilities2bit(ifp, IFCAP2_BIT(IFCAP2_RXTLS4) |
-	    IFCAP2_BIT(IFCAP2_RXTLS6), 0);
+
 	if_setsndtagallocfn(ifp, mlx5e_snd_tag_alloc);
 #ifdef RATELIMIT
 	if_setratelimitqueryfn(ifp, mlx5e_ratelimit_query);
