@@ -96,8 +96,8 @@
 #define	DEFDATALEN	56		/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
-#define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
-#define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
+#define	MAXIPLEN	((int)sizeof(struct ip) + MAX_IPOPTLEN)
+#define	MAXPAYLOAD	(IP_MAXPACKET - MAXIPLEN - ICMP_MINLEN)
 #define	MAXWAIT		10000		/* max ms to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
@@ -458,11 +458,10 @@ ping(int argc, char *const *argv)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
 			datalen = (int)ltmp;
-			if (uid != 0 && datalen > DEFDATALEN) {
-				errno = EPERM;
-				err(EX_NOPERM,
+			if (datalen > MAXPAYLOAD) {
+				errx(EX_USAGE,
 				    "packet size too large: %d > %u",
-				    datalen, DEFDATALEN);
+				    datalen, MAXPAYLOAD);
 			}
 			break;
 		case 'T':		/* multicast TTL */
