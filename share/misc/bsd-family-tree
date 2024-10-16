@@ -465,6 +465,8 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |       |      |          8.3       |                    |
  |  FreeBSD   |       |      |                    |                    |
  |   14.1     |       |      |                    |                    |
+ |            |     macOS    |                    |                    |
+ |            |      15      |                    |                    |
  |         FreeBSD    |      |                    |                    |
  |           13.4     |      |                OpenBSD 7.6              |
  |                    |      |                    |                    |
@@ -898,12 +900,13 @@ OpenBSD 7.4		2023-10-16 [OBD]
 FreeBSD 14.0		2023-11-20 [FBD]
 FreeBSD 13.3		2024-03-05 [FBD]
 NetBSD 10.0		2024-03-28 [NBD]
-OpenBSD 7.5             2024-04-05 [OBD]
+OpenBSD 7.5		2024-04-05 [OBD]
 NetBSD 9.4		2024-04-20 [NBD]
 NetBSD 8.3		2024-05-04 [NBD]
 FreeBSD 14.1		2024-06-04 [FBD]
+macOS 15		2024-09-16 [APL]
 FreeBSD 13.4		2024-09-17 [FBD]
-OpenBSD 7.6             2024-10-08 [OBD]
+OpenBSD 7.6		2024-10-08 [OBD]
 
 Bibliography
 ------------------------
