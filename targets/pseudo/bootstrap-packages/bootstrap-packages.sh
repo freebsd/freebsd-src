@@ -118,13 +118,17 @@ end_options() {
 EOF
 }
 
+no_plus() {
+    case "$1" in
+    *+*) echo "$1" | sed 's,+,\\\\+,g';;
+    *) echo "$1";;
+    esac
+}
+
 find_opt() {
     mf=$1
-    sub=$2
+    sub="`no_plus $2`"
     shift 2
-    case "$sub" in
-    *+*) sub=`echo "$sub" | sed 's,+,\\\\+,g'`;;
-    esac
     egrep "$@" "^[^#].*[[:space:]]$sub([[:space:]]|\$)" $mf |
     tr '{' '\n' |
     sed -n 's,^MK_\([^}]*\).*,\1,p' |
@@ -142,8 +146,9 @@ sort -t= -k2 "$@" | sed 's,/Makefile:PACKAGE=, ,' |
 	bname=${reldir##*/}
 	# check parent does not have it commented out
 	# otherwise we should ignore it.
+	# if the parent makefile does not exist, we will skip it.
 	pmf=$SRCTOP/$dname/Makefile
-	egrep -q "^[^#].*[[:space:]]$bname([[:space:]]|\$)" $pmf || continue
+	egrep -q "^[^#].*[[:space:]]`no_plus $bname`([[:space:]]|\$)" $pmf 2> /dev/null || continue
 	: reldir=$reldir
 	case "$reldir" in
 	*lib/*) sub=${reldir#*lib/};;
