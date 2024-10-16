@@ -3036,6 +3036,7 @@ device_attach(device_t dev)
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
+		BUS_CHILD_DETACHED(dev->parent, dev);
 		if (!(dev->flags & DF_FIXEDCLASS))
 			devclass_delete_device(dev->devclass, dev);
 		(void)device_set_driver(dev, NULL);
