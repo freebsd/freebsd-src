@@ -113,7 +113,7 @@ def generate_ip_options(opts):
         options = sc.IPOption_SSRR(length=3, routers=routers_zero)
     elif opts == "unk":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
-        options = sc.IPOption(b"\x9f")
+        options = b"\x9f"
     elif opts == "unk-40":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
         options = sc.IPOption(b"\x9f" * 40)
