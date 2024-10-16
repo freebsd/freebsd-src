@@ -1522,11 +1522,14 @@ device_delete_child(device_t dev, device_t child)
 
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
-	/* detach parent before deleting children, if any */
+	/*
+	 * Detach child.  Ideally this cleans up any grandchild
+	 * devices.
+	 */
 	if ((error = device_detach(child)) != 0)
 		return (error);
 
-	/* remove children second */
+	/* Delete any grandchildren left after detach. */
 	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);
 		if (error)
