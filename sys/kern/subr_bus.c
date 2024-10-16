@@ -1662,13 +1662,13 @@ device_probe_child(device_t dev, device_t child)
 			result = DEVICE_PROBE(child);
 
 			/*
-			 * If the driver returns SUCCESS, there can be
-			 * no higher match for this device.
+			 * If probe returns 0, this is the driver that wins this
+			 * device.
 			 */
 			if (result == 0) {
 				best = dl;
 				pri = 0;
-				break;
+				goto exact_match;	/* C doesn't have break 2 */
 			}
 
 			/* Reset flags and devclass before the next probe. */
@@ -1712,12 +1712,6 @@ device_probe_child(device_t dev, device_t child)
 				continue;
 			}
 		}
-		/*
-		 * If we have an unambiguous match in this devclass,
-		 * don't look in the parent.
-		 */
-		if (best && pri == 0)
-			break;
 	}
 
 	if (best == NULL)
@@ -1725,35 +1719,34 @@ device_probe_child(device_t dev, device_t child)
 
 	/*
 	 * If we found a driver, change state and initialise the devclass.
+	 * Set the winning driver, devclass, and flags.
 	 */
-	if (pri < 0) {
-		/* Set the winning driver, devclass, and flags. */
-		result = device_set_driver(child, best->driver);
-		if (result != 0)
-			return (result);
-		if (!child->devclass) {
-			result = device_set_devclass(child, best->driver->name);
-			if (result != 0) {
-				(void)device_set_driver(child, NULL);
-				return (result);
-			}
-		}
-		resource_int_value(best->driver->name, child->unit,
-		    "flags", &child->devflags);
-
-		/*
-		 * A bit bogus. Call the probe method again to make sure
-		 * that we have the right description.
-		 */
-		result = DEVICE_PROBE(child);
-		if (result > 0) {
-			if (!hasclass)
-				(void)device_set_devclass(child, NULL);
+	result = device_set_driver(child, best->driver);
+	if (result != 0)
+		return (result);
+	if (!child->devclass) {
+		result = device_set_devclass(child, best->driver->name);
+		if (result != 0) {
 			(void)device_set_driver(child, NULL);
 			return (result);
 		}
 	}
+	resource_int_value(best->driver->name, child->unit,
+	    "flags", &child->devflags);
 
+	/*
+	 * A bit bogus. Call the probe method again to make sure that we have
+	 * the right description for the device.
+	 */
+	result = DEVICE_PROBE(child);
+	if (result > 0) {
+		if (!hasclass)
+			(void)device_set_devclass(child, NULL);
+		(void)device_set_driver(child, NULL);
+		return (result);
+	}
+
+exact_match:
 	child->state = DS_ALIVE;
 	bus_data_generation_update();
 	return (0);
