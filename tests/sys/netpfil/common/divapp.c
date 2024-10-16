@@ -83,8 +83,8 @@ recv_pkt(struct context *c)
 	s = select(c->fd + 1, &readfds, 0, 0, &timeout);
 	if (s == -1)
 		errx(EX_IOERR, "recv_pkt: select() errors.");
-	if (s != 1) // timeout
-		return -1;
+	if (s != 1) /* timeout */
+		return (-1);
 
 	c->pkt_n = recvfrom(c->fd, c->pkt, sizeof(c->pkt), 0,
 	    (struct sockaddr *) &c->sin, &c->sin_len);
@@ -98,14 +98,11 @@ static void
 send_pkt(struct context *c)
 {
 	ssize_t n;
-	char errstr[32];
 
 	n = sendto(c->fd, c->pkt, c->pkt_n, 0,
 	    (struct sockaddr *) &c->sin, c->sin_len);
-	if (n == -1) {
-		strerror_r(errno, errstr, sizeof(errstr));
-		errx(EX_IOERR, "send_pkt: sendto() errors: %d %s.", errno, errstr);
-	}
+	if (n == -1)
+		err(EX_IOERR, "send_pkt: sendto() errors");
 	if (n != c->pkt_n)
 		errx(EX_IOERR, "send_pkt: sendto() sent %zd of %zd bytes.",
 		    n, c->pkt_n);
@@ -145,5 +142,5 @@ main(int argc, char *argv[])
 	if (npkt != 1)
 		errx(EXIT_FAILURE, "%d: npkt=%d.", c.divert_port, npkt);
 
-	return EXIT_SUCCESS;
+	return (EXIT_SUCCESS);
 }
