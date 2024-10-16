@@ -2597,6 +2597,7 @@ device_attach(device_t dev)
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
+		BUS_CHILD_DETACHED(dev->parent, dev);
 		if (disable_failed_devs) {
 			/*
 			 * When the user has asked to disable failed devices, we
