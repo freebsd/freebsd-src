@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 15, 2024
+.Dd September 15, 2023
 .Dt PING 8
 .Os
 .Sh NAME
@@ -312,6 +312,7 @@ with the 8 bytes of
 ICMP
 header data.
 .Pp
+For IPv4, only the super-user may specify values more than default.
 This option cannot be used with ping sweeps.
 .Pp
 For IPv6, you may need to specify
