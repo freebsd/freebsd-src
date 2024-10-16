@@ -4,9 +4,9 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
-	lib/clang/libclang.amd64 \
-	lib/clang/liblldb.amd64 \
-	lib/clang/libllvm.amd64 \
+	lib/clang/libclang \
+	lib/clang/liblldb \
+	lib/clang/libllvm \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \
