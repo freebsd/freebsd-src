@@ -998,13 +998,13 @@ If the
 .Dq nvmecontrol identify -n 1 nvme2
 command ended with
 .Pp
-.Bl -verbatim
+.Bd -literal
 LBA Format #00: Data Size:   512  Metadata Size:     0  Performance: Good
 LBA Format #01: Data Size:   512  Metadata Size:     8  Performance: Good
 LBA Format #02: Data Size:  4096  Metadata Size:     0  Performance: Good
 LBA Format #03: Data Size:  4096  Metadata Size:     8  Performance: Good
 LBA Format #04: Data Size:  4096  Metadata Size:    64  Performance: Good
-.El
+.Ed
 .Pp
 then this would give a 4k data format for at least namespace 1, with no
 metadata.
