@@ -3405,9 +3405,6 @@ bus_generic_detach(device_t dev)
 	device_t child;
 	int error;
 
-	if (dev->state != DS_ATTACHED)
-		return (EBUSY);
-
 	/*
 	 * Detach children in the reverse order.
 	 * See bus_generic_suspend for details.
