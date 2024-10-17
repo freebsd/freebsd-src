@@ -35,9 +35,6 @@
 
 #include "loader_efi.h"
 
-#define	M(x)	((x) * 1024 * 1024)
-#define	G(x)	(1ULL * (x) * 1024 * 1024 * 1024)
-
 #if defined(__amd64__)
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
@@ -181,12 +178,7 @@ out:
 #define	EFI_STAGING_SIZE	DEFAULT_EFI_STAGING_SIZE
 #endif
 
-#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__riscv) || defined(__i386__)
 #define	EFI_STAGING_2M_ALIGN	1
-#else
-#define	EFI_STAGING_2M_ALIGN	0
-#endif
 
 #if defined(__amd64__) || defined(__i386__)
 #define	EFI_STAGING_SLOP	M(8)
