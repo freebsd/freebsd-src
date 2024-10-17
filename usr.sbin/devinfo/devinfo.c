@@ -154,12 +154,19 @@ print_dev(struct devinfo_dev *dev)
 {
 
 	printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
-	if (vflag && *dev->dd_desc)
-		printf(" <%s>", dev->dd_desc);
-	if (vflag && *dev->dd_pnpinfo)
-		printf(" pnpinfo %s", dev->dd_pnpinfo);
-	if (vflag && *dev->dd_location)
-		printf(" at %s", dev->dd_location);
+
+	if (vflag) {
+		if (*dev->dd_desc) {
+			printf(" <%s>", dev->dd_desc);
+		}
+		if (*dev->dd_pnpinfo) {
+			printf(" pnpinfo %s", dev->dd_pnpinfo);
+		}
+		if (*dev->dd_location) {
+			printf(" at %s", dev->dd_location);
+		}
+	}
+
 	if (!(dev->dd_flags & DF_ENABLED))
 		printf(" (disabled)");
 	else if (dev->dd_flags & DF_SUSPENDED)
