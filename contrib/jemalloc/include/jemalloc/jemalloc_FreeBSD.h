@@ -157,6 +157,7 @@ extern int __isthreaded;
 #define	pthread_cond_wait	_pthread_cond_wait
 #define	pthread_cond_timedwait	_pthread_cond_timedwait
 #define	pthread_cond_signal	_pthread_cond_signal
+#define	pthread_getname_np	_pthread_getname_np
 
 #ifdef JEMALLOC_C_
 /*
