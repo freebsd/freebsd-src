@@ -16,11 +16,13 @@ SCRIPTS=auto \
 	netconfig \
 	netconfig_ipv4 \
 	netconfig_ipv6 \
+	repair \
 	rootpass \
 	script \
 	services \
 	time \
 	umount \
+	upgrade \
 	wlanconfig \
 	zfsboot
 

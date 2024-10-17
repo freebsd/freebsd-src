@@ -8,6 +8,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 : ${BSDDIALOG_HELP=2}
 : ${BSDDIALOG_EXTRA=3}
 : ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_RIGHT1=9}
+: ${BSDDIALOG_RIGHT2=10}
 : ${BSDDIALOG_ERROR=255}
 
 kbdcontrol -d >/dev/null 2>&1
@@ -60,7 +62,8 @@ if [ -f /etc/installerconfig ]; then
 	exit 
 fi
 
-bsddialog --backtitle "${OSNAME} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" --yesno "Welcome to ${OSNAME}! Would you like to begin an installation or use the live system?" 0 0
+bsddialog --backtitle "${OSNAME} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live System" \
+	--right1-button "Repair" --right2-button "Upgrade" --yesno "Welcome to ${OSNAME}! Would you like to begin an installation or use the live system?" 0 0
 
 case $? in
 $BSDDIALOG_OK)	# Install
@@ -102,6 +105,16 @@ $BSDDIALOG_OK)	# Install
 	fi
 	;;
 $BSDDIALOG_CANCEL)	# Live System
+	bsddialog --backtitle "$OSNAME Installer" --title 'Bootstrap pkg' \
+		--yesno 'Would you like to bootstrap pkg?' 0 0
+	if [ $? -eq $BSDDIALOG_OK ]; then
+		BSDINSTALL_CONFIGCURRENT=1 bsdinstall netconfig
+		mount -o size=700M -t tmpfs tmpfs /usr/local/
+		TMPDIR=/usr/local pkg bootstrap -fy
+		echo "PKG_DBDIR = \"/usr/local/db/pkg\";" >> /usr/local/etc/pkg.conf
+		echo "PKG_CACHEDIR = \"/usr/local/cache/pkg\";" >> /usr/local/etc/pkg.conf
+		TMPDIR=/usr/local pkg update
+	fi
 	exit 0
 	;;
 $BSDDIALOG_EXTRA)	# Shell
@@ -109,6 +122,12 @@ $BSDDIALOG_EXTRA)	# Shell
 	echo "When finished, type 'exit' to return to the installer."
 	/bin/sh
 	. "$0"
+	;;
+$BSDDIALOG_RIGHT1)
+	bsdinstall repair
+	;;
+$BSDDIALOG_RIGHT2)
+	bsdinstall upgrade
 	;;
 esac
 
