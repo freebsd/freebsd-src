@@ -209,9 +209,27 @@ int
 print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
+	struct devinfo_rman	*rman;
+	rman_res_t		end;
+	bool			hexmode;
 	
+	rman = devinfo_handle_to_rman(res->dr_rman);
+	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
+	end = res->dr_start + res->dr_size - 1;
+
 	printf("    ");
-	print_resource(res);
+
+	if (hexmode) {
+		printf("0x%jx", res->dr_start);
+		if (res->dr_size > 1)
+			printf("-0x%jx", end);
+	}
+	else {
+		printf("%ju", res->dr_start);
+		if (res->dr_size > 1)
+			printf("-%ju", end);
+	}
+
 	dev = devinfo_handle_to_device(res->dr_device);
 	if ((dev != NULL) && (dev->dd_name[0] != 0)) {
 		printf(" (%s)", dev->dd_name);
