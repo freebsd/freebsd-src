@@ -38,6 +38,42 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_SC,
 };
 
+#if defined(__FreeBSD__)
+static const char *iwl_device_family_str[] = {
+	[IWL_DEVICE_FAMILY_UNDEFINED] =	"undefined",
+	[IWL_DEVICE_FAMILY_1000] =	"1000",
+	[IWL_DEVICE_FAMILY_100] =	"100",
+	[IWL_DEVICE_FAMILY_2000] =	"2000",
+	[IWL_DEVICE_FAMILY_2030] =	"2030",
+	[IWL_DEVICE_FAMILY_105] =	"105",
+	[IWL_DEVICE_FAMILY_135] =	"135",
+	[IWL_DEVICE_FAMILY_5000] =	"5000",
+	[IWL_DEVICE_FAMILY_5150] =	"5150",
+	[IWL_DEVICE_FAMILY_6000] =	"6000",
+	[IWL_DEVICE_FAMILY_6000i] =	"6000i",
+	[IWL_DEVICE_FAMILY_6005] =	"6005",
+	[IWL_DEVICE_FAMILY_6030] =	"6030",
+	[IWL_DEVICE_FAMILY_6050] =	"6050",
+	[IWL_DEVICE_FAMILY_6150] =	"6150",
+	[IWL_DEVICE_FAMILY_7000] =	"7000",
+	[IWL_DEVICE_FAMILY_8000] =	"8000",
+	[IWL_DEVICE_FAMILY_9000] =	"9000",
+	[IWL_DEVICE_FAMILY_22000] =	"22000",
+	[IWL_DEVICE_FAMILY_AX210] =	"AX210",
+	[IWL_DEVICE_FAMILY_BZ] =	"BZ",
+	[IWL_DEVICE_FAMILY_SC] =	"SC",
+};
+
+static inline const char *
+iwl_device_family_name(enum iwl_device_family devive_family)
+{
+	if (devive_family < 0 ||
+	    devive_family >= ARRAY_SIZE(iwl_device_family_str))
+		return "unknown";
+	return (iwl_device_family_str[devive_family]);
+}
+#endif
+
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default

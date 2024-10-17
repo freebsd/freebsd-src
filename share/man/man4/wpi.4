@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2004-2007
 .\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
 .\"	Benjamin Close <Benjamin.Close@clearchain.com>. All rights reserved.
@@ -26,12 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 31, 2016
+.Dd October 17, 2024
 .Dt WPI 4
 .Os
 .Sh NAME
 .Nm wpi
-.Nd "Intel 3945ABG Wireless LAN IEEE 802.11 driver"
+.Nd Intel PRO/Wireless 3945ABG IEEE 802.11a/b/g network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -48,16 +51,13 @@ kernel configuration file:
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-if_wpi_load="YES"
-.Ed
+.Pp
+.Dl if_wpi_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the
-.Tn Intel
-3945ABG Wireless network adapter.
-The driver supports
+driver supports running the
+Intel PRO/Wireless 3945ABG network adapter in
 .Cm station ,
 .Cm adhoc ,
 .Cm adhoc-demo ,
@@ -65,6 +65,11 @@ The driver supports
 and
 .Cm monitor
 mode operation.
+This driver requires the wpifw firmware module
+and can be configured at runtime with
+.Xr ifconfig 8
+or at boot in
+.Xr rc.conf 5 .
 Only one virtual interface may be configured at any time.
 .Pp
 The
@@ -81,17 +86,13 @@ The
 .Nm
 driver offloads both encryption and decryption of data frames to the
 hardware for the CCMP cipher.
-.Pp
-This driver requires the firmware built with the
-.Nm wpifw 4
-module to work.
-.Pp
+.Sh HARDWARE
 The
 .Nm
-driver can be configured at runtime with
-.Xr ifconfig 8 .
+driver provides support for the
+Intel PRO/Wireless 3945ABG Mini PCIe network adapter.
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/intel_wpi.LICENSE" -compact
+.Bl -tag -width "/usr/share/doc/legal/intel_wpi.LICENSE" -compact
 .It Pa /usr/share/doc/legal/intel_wpi.LICENSE
 .Nm
 firmware license
@@ -104,7 +105,7 @@ ifconfig wlan0 create wlandev wpi0 inet 192.168.0.20 \e
 .Ed
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
 .Dl "ifconfig wlan0 create wlandev wpi0 ssid my_net up"
 .Pp
@@ -122,7 +123,7 @@ ifconfig wlan0 create wlandev wpi0 wlanmode adhoc ssid my_net \e
 .Ed
 .Pp
 Join/create an 802.11b IBSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev wpi0 wlanmode adhoc
 ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
@@ -141,9 +142,7 @@ ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify the
-.Xr wpifw 4
-firmware module is installed.
+Verify the wpifw firmware module is installed.
 .It "wpi%d: %s: timeout waiting for adapter to initialize, error %d"
 The onboard microcontroller failed to initialize in time.
 This should not happen.
@@ -189,7 +188,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
-.Xr wpifw 4 ,
+.Xr networking 7 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
@@ -207,10 +206,11 @@ ported
 to
 .Fx .
 .Sh CAVEATS
-Hostap mode is not directly supported by the device;
+.Cm Hostap
+mode is not directly supported by the device;
 it is implemented through IBSS mode (as a result, DFS/passive
 channels are not available in this mode).
 .Pp
-Powersave may be unstable on some networks (results in
-occasional 'wpi%d: device timeout' messages); you can try
-to disable it to improve device stability.
+Powersave may be unstable on some networks
+.Po results in occasional Sy 'wpi%d: device timeout' No messages Pc ;
+you can try to disable it to improve device stability.
