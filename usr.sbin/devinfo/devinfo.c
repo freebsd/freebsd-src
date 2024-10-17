@@ -182,8 +182,10 @@ print_device(struct devinfo_dev *dev, void *arg)
 {
 	struct indent_arg	ia;
 	int			indent;
+	bool		printit = vflag || (dev->dd_name[0] != 0
+				   && dev->dd_state >= DS_ATTACHED);
 
-	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
+	if (printit) {
 		indent = (int)(intptr_t)arg;
 		print_indent(indent);
 		print_dev(dev);
