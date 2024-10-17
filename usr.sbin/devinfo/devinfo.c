@@ -255,6 +255,17 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 	return(0);
 }
 
+static void
+print_device_path_entry(struct devinfo_dev *dev)
+{
+	const char *devname = dev->dd_name[0] ? dev->dd_name : "unknown";
+
+	printf("%s", devname);
+	print_device_props(dev);
+	if (vflag)
+		printf("\n");
+}
+
 static int
 print_device_path(struct devinfo_dev *dev, void *xname)
 {
@@ -262,20 +273,14 @@ print_device_path(struct devinfo_dev *dev, void *xname)
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
-		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
-		print_device_props(dev);
-		if (vflag)
-			printf("\n");
+		print_device_path_entry(dev);
 		return (1);
 	}
 
 	rv = devinfo_foreach_device_child(dev, print_device_path, xname);
 	if (rv == 1) {
 		printf(" ");
-		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
-		print_device_props(dev);
-		if (vflag)
-			printf("\n");
+		print_device_path_entry(dev);
 	}
 	return (rv);
 }
