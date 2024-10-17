@@ -31,7 +31,7 @@
  * Print information about system device configuration.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -43,6 +43,7 @@
 
 static bool	rflag;
 static bool	vflag;
+static char	buffer[1024];
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
@@ -56,6 +57,18 @@ struct indent_arg
 	int	indent;
 	void	*arg;
 };
+
+
+static void
+print_indent(int n)
+{
+	if (n < 1)
+		return;
+	n = MIN((size_t)n, sizeof(buffer) - 1);
+	memset(buffer, ' ', n);
+	buffer[n] = '\0';
+	printf("%s", buffer);
+}
 
 /*
  * Print a resource.
@@ -86,14 +99,12 @@ print_device_matching_resource(struct devinfo_res *res, void *arg)
 {
 	struct indent_arg	*ia = (struct indent_arg *)arg;
 	struct devinfo_dev	*dev = (struct devinfo_dev *)ia->arg;
-	int			i;
 
 	if (devinfo_handle_to_device(res->dr_device) == dev) {
 		/* in 'detect' mode, found a match */
 		if (ia->indent == 0)
 			return(1);
-		for (i = 0; i < ia->indent; i++)
-			printf(" ");
+		print_indent(ia->indent);
 		print_resource(res);
 		printf("\n");
 	}
@@ -107,7 +118,7 @@ int
 print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 {
 	struct indent_arg	*ia = (struct indent_arg *)arg;
-	int			indent, i;
+	int			indent;
 
 	indent = ia->indent;
 
@@ -117,8 +128,7 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 	    print_device_matching_resource, ia) != 0) {
 
 		/* there are, print header */
-		for (i = 0; i < indent; i++)
-			printf(" ");
+		print_indent(indent);
 		printf("%s:\n", rman->dm_desc);
 
 		/* print resources */
@@ -155,12 +165,11 @@ static int
 print_device(struct devinfo_dev *dev, void *arg)
 {
 	struct indent_arg	ia;
-	int			i, indent;
+	int			indent;
 
 	if (vflag || (dev->dd_name[0] != 0 && dev->dd_state >= DS_ATTACHED)) {
 		indent = (int)(intptr_t)arg;
-		for (i = 0; i < indent; i++)
-			printf(" ");
+		print_indent(indent);
 		print_dev(dev);
 		printf("\n");
 		if (rflag) {
