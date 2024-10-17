@@ -968,7 +968,7 @@ ffec_get_hwaddr(struct ffec_softc *sc, uint8_t *hwaddr)
 
 	if (bootverbose) {
 		device_printf(sc->dev,
-		    "MAC address %02x:%02x:%02x:%02x:%02x:%02x:\n",
+		    "MAC address %02x:%02x:%02x:%02x:%02x:%02x\n",
 		    hwaddr[0], hwaddr[1], hwaddr[2], 
 		    hwaddr[3], hwaddr[4], hwaddr[5]);
 	}
