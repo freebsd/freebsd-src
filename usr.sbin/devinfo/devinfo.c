@@ -51,6 +51,7 @@ static int	print_device_rman_resources(struct devinfo_rman *, void *);
 static int	print_device(struct devinfo_dev *, void *);
 static int	print_rman_resource(struct devinfo_res *, void *);
 static int	print_rman(struct devinfo_rman *, void *);
+static int	print_device_path(struct devinfo_dev *, void *);
 
 struct indent_arg
 {
@@ -263,7 +264,7 @@ print_rman(struct devinfo_rman *rman, void *arg __unused)
 }
 
 static int
-print_path(struct devinfo_dev *dev, void *xname)
+print_device_path(struct devinfo_dev *dev, void *xname)
 {
 	const char *name = xname;
 	int rv;
@@ -275,7 +276,7 @@ print_path(struct devinfo_dev *dev, void *xname)
 		return (1);
 	}
 
-	rv = devinfo_foreach_device_child(dev, print_path, xname);
+	rv = devinfo_foreach_device_child(dev, print_device_path, xname);
 	if (rv == 1) {
 		printf(" ");
 		print_dev(dev);
@@ -335,7 +336,7 @@ main(int argc, char *argv[])
 		errx(1, "can't find root device");
 
 	if (path) {
-		if (devinfo_foreach_device_child(root, print_path, (void *)path) == 0)
+		if (devinfo_foreach_device_child(root, print_device_path, (void *)path) == 0)
 			errx(1, "%s: Not found", path);
 		if (!vflag)
 			printf("\n");
