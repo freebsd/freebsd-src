@@ -639,7 +639,7 @@ dump_rtsock(struct sockaddr_in6 *addr, int cflag)
 		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
 	}
 	xo_open_list("neighbor-cache");
-again:;
+again:
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
