@@ -214,8 +214,8 @@ print_rman_resource(struct devinfo_res *res, void *arg __unused)
 {
 	struct devinfo_dev	*dev;
 	struct devinfo_rman *rman;
-	rman_res_t end;
-	bool hexmode;
+	rman_res_t		end;
+	bool			hexmode;
 
 	dev = devinfo_handle_to_device(res->dr_device);
 	rman = devinfo_handle_to_rman(res->dr_rman);
