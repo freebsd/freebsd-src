@@ -38,10 +38,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include "devinfo.h"
 
-static int	rflag;
-static int	vflag;
+static bool	rflag;
+static bool	vflag;
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
@@ -63,7 +64,7 @@ void
 print_resource(struct devinfo_res *res)
 {
 	struct devinfo_rman	*rman;
-	int			hexmode;
+	bool			hexmode;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
 	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
@@ -242,23 +243,24 @@ int
 main(int argc, char *argv[]) 
 {
 	struct devinfo_dev	*root;
-	int			c, uflag, rv;
+	int			c, rv;
+	bool			uflag;
 	char			*path = NULL;
 
-	uflag = 0;
+	uflag = false;
 	while ((c = getopt(argc, argv, "p:ruv")) != -1) {
 		switch(c) {
 		case 'p':
 			path = optarg;
 			break;
 		case 'r':
-			rflag++;
+			rflag = true;
 			break;
 		case 'u':
-			uflag++;
+			uflag = true;
 			break;
 		case 'v':
-			vflag++;
+			vflag = true;
 			break;
 		default:
 			usage();
