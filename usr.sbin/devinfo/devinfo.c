@@ -60,7 +60,7 @@ static int	print_rman_resource(struct devinfo_res *, void *);
 static int	print_rman(struct devinfo_rman *, void *);
 static int	print_device_path(struct devinfo_dev *, void *);
 static void	print_path(struct devinfo_dev *, char *);
-static void usage(void);
+static void	usage(void);
 
 struct indent_arg
 {
