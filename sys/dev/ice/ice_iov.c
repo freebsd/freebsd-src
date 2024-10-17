@@ -117,6 +117,10 @@ ice_iov_attach(struct ice_softc *sc)
 	    IOV_SCHEMA_HASDEFAULT, ICE_DEFAULT_VF_QUEUES);
 	pci_iov_schema_add_uint16(vf_schema, "mirror-src-vsi",
 	    IOV_SCHEMA_HASDEFAULT, ICE_INVALID_MIRROR_VSI);
+	pci_iov_schema_add_uint16(vf_schema, "max-vlan-allowed",
+	    IOV_SCHEMA_HASDEFAULT, ICE_DEFAULT_VF_VLAN_LIMIT);
+	pci_iov_schema_add_uint16(vf_schema, "max-mac-filters",
+	    IOV_SCHEMA_HASDEFAULT, ICE_DEFAULT_VF_FILTER_LIMIT);
 
 	error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (error != 0) {
@@ -359,6 +363,9 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		vf->vf_flags |= VF_FLAG_PROMISC_CAP;
 
 	vsi->mirror_src_vsi = nvlist_get_number(params, "mirror-src-vsi");
+
+	vf->vlan_limit = nvlist_get_number(params, "max-vlan-allowed");
+	vf->mac_filter_limit = nvlist_get_number(params, "max-mac-filters");
 
 	vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
@@ -735,9 +742,16 @@ ice_vc_add_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_ether_addr_list *addr_list;
 	struct ice_hw *hw = &sc->hw;
+	u16 added_addr_cnt = 0;
 	int error = 0;
 
 	addr_list = (struct virtchnl_ether_addr_list *)msg_buf;
+
+	if (addr_list->num_elements >
+	    (vf->mac_filter_limit - vf->mac_filter_cnt)) {
+		v_status = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		goto done;
+	}
 
 	for (int i = 0; i < addr_list->num_elements; i++) {
 		u8 *addr = addr_list->list[i].addr;
@@ -767,9 +781,14 @@ ice_vc_add_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			    "%s: VF-%d: Error adding MAC addr for VSI %d\n",
 			    __func__, vf->vf_num, vf->vsi->idx);
 			v_status = VIRTCHNL_STATUS_ERR_PARAM;
-			goto done;
+			continue;
 		}
+		/* Don't count VF's MAC against its MAC filter limit */
+		if (memcmp(addr, vf->mac, ETHER_ADDR_LEN))
+			added_addr_cnt++;
 	}
+
+	vf->mac_filter_cnt += added_addr_cnt;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ADD_ETH_ADDR,
@@ -791,6 +810,7 @@ ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_ether_addr_list *addr_list;
 	struct ice_hw *hw = &sc->hw;
+	u16 deleted_addr_cnt = 0;
 	int error = 0;
 
 	addr_list = (struct virtchnl_ether_addr_list *)msg_buf;
@@ -802,11 +822,18 @@ ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			    "%s: VF-%d: Error removing MAC addr for VSI %d\n",
 			    __func__, vf->vf_num, vf->vsi->idx);
 			v_status = VIRTCHNL_STATUS_ERR_PARAM;
-			goto done;
+			continue;
 		}
+		/* Don't count VF's MAC against its MAC filter limit */
+		if (memcmp(addr_list->list[i].addr, vf->mac, ETHER_ADDR_LEN))
+			deleted_addr_cnt++;
 	}
 
-done:
+	if (deleted_addr_cnt >= vf->mac_filter_cnt)
+		vf->mac_filter_cnt = 0;
+	else
+		vf->mac_filter_cnt -= deleted_addr_cnt;
+
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_DEL_ETH_ADDR,
 	    v_status, NULL, 0, NULL);
 }
@@ -838,6 +865,11 @@ ice_vc_add_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
+	if (vlan_list->num_elements > (vf->vlan_limit - vf->vlan_cnt)) {
+		v_status = VIRTCHNL_STATUS_ERR_NO_MEMORY;
+		goto done;
+	}
+
 	status = ice_add_vlan_hw_filters(vsi, vlan_list->vlan_id,
 					vlan_list->num_elements);
 	if (status) {
@@ -848,6 +880,8 @@ ice_vc_add_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		v_status = ice_iov_err_to_virt_err(status);
 		goto done;
 	}
+
+	vf->vlan_cnt += vlan_list->num_elements;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ADD_VLAN,
@@ -891,6 +925,11 @@ ice_vc_del_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		v_status = ice_iov_err_to_virt_err(status);
 		goto done;
 	}
+
+	if (vlan_list->num_elements >= vf->vlan_cnt)
+		vf->vlan_cnt = 0;
+	else
+		vf->vlan_cnt -= vlan_list->num_elements;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_DEL_VLAN,
