@@ -109,6 +109,11 @@
 
 #define MOD_ALIGN(l)	roundup(l, align)
 
+const char md_modtype[] = MODTYPE;
+const char md_kerntype[] = KERNTYPE;
+const char md_modtype_obj[] = MODTYPE_OBJ;
+const char md_kerntype_mb[] = KERNTYPE_MB;
+
 vm_offset_t
 md_copymodules(vm_offset_t addr, bool kern64)
 {

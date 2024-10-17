@@ -102,6 +102,8 @@
 #include <vbe.h>
 #endif
 
+#include "modinfo.h"
+
 /* VGA text mode does use bold font. */
 #if !defined(VGA_8X16_FONT)
 #define	VGA_8X16_FONT		"/boot/fonts/8x16b.fnt"
@@ -2982,9 +2984,7 @@ build_font_module(vm_offset_t addr)
 
 	fi.fi_checksum = -checksum;
 
-	fp = file_findfile(NULL, "elf kernel");
-	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL)
 		panic("can't find kernel file");
 
@@ -3026,9 +3026,7 @@ build_splash_module(vm_offset_t addr)
 		return (addr);
 	}
 
-	fp = file_findfile(NULL, "elf kernel");
-	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL)
 		panic("can't find kernel file");
 

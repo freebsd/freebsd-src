@@ -257,7 +257,6 @@ static void
 nvdimm_e820_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
-	caddr_t kmdp;
 
 	if (resource_disabled(driver->name, 0))
 		return;
@@ -265,10 +264,7 @@ nvdimm_e820_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, driver->name, -1) != NULL)
 		return;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	smapbase = (const void *)preload_search_info(kmdp,
+	smapbase = (const void *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 
 	/* Only supports BIOS SMAP for now. */

@@ -44,7 +44,20 @@
  */
 
 vm_offset_t preload_addr_relocate = 0;
-caddr_t preload_metadata;
+caddr_t preload_metadata, preload_kmdp;
+
+const char preload_modtype[] = MODTYPE;
+const char preload_kerntype[] = KERNTYPE;
+const char preload_modtype_obj[] = MODTYPE_OBJ;
+
+void
+preload_initkmdp(bool fatal)
+{
+	preload_kmdp = preload_search_by_type(preload_kerntype);
+
+	if (preload_kmdp == NULL && fatal)
+		panic("unable to find kernel metadata");
+}
 
 /*
  * Search for the preloaded module (name)
