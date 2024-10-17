@@ -45,14 +45,17 @@
 static bool	rflag;
 static bool	vflag;
 
+static void	print_indent(int);
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
 static int	print_device_rman_resources(struct devinfo_rman *, void *);
+static void	print_dev(struct devinfo_dev *);
 static int	print_device(struct devinfo_dev *, void *);
 static int	print_rman_resource(struct devinfo_res *, void *);
 static int	print_rman(struct devinfo_rman *, void *);
 static int	print_device_path(struct devinfo_dev *, void *);
 static void	print_path(struct devinfo_dev *, char *);
+static void	usage(void);
 
 struct indent_arg
 {
