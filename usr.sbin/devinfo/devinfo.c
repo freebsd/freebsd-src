@@ -49,7 +49,7 @@ static void	print_indent(int);
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);
 static int	print_device_rman_resources(struct devinfo_rman *, void *);
-static void	print_dev(struct devinfo_dev *);
+static void	print_device_props(struct devinfo_dev *);
 static int	print_device(struct devinfo_dev *, void *);
 static int	print_rman_resource(struct devinfo_res *, void *);
 static int	print_rman(struct devinfo_rman *, void *);
@@ -156,11 +156,8 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 }
 
 static void
-print_dev(struct devinfo_dev *dev)
+print_device_props(struct devinfo_dev *dev)
 {
-
-	printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
-
 	if (vflag) {
 		if (*dev->dd_desc) {
 			printf(" <%s>", dev->dd_desc);
@@ -179,7 +176,6 @@ print_dev(struct devinfo_dev *dev)
 		printf(" (suspended)");
 }
 
-
 /*
  * Print information about a device.
  */
@@ -194,7 +190,8 @@ print_device(struct devinfo_dev *dev, void *arg)
 	if (printit) {
 		indent = (int)(intptr_t)arg;
 		print_indent(indent);
-		print_dev(dev);
+		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+		print_device_props(dev);
 		printf("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
@@ -274,7 +271,8 @@ print_device_path(struct devinfo_dev *dev, void *xname)
 	int rv;
 
 	if (strcmp(dev->dd_name, name) == 0) {
-		print_dev(dev);
+		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+		print_device_props(dev);
 		if (vflag)
 			printf("\n");
 		return (1);
@@ -283,7 +281,8 @@ print_device_path(struct devinfo_dev *dev, void *xname)
 	rv = devinfo_foreach_device_child(dev, print_device_path, xname);
 	if (rv == 1) {
 		printf(" ");
-		print_dev(dev);
+		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+		print_device_props(dev);
 		if (vflag)
 			printf("\n");
 	}
