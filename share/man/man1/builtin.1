@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 1999 Sheldon Hearn
 .\"
@@ -153,14 +155,14 @@ If a command specified to the shell contains a slash
 the shell will not execute a builtin command, even if the last component
 of the specified command matches the name of a builtin command.
 Thus, while specifying
-.Dq Li echo
+.Ql echo
 causes a builtin command to be executed under shells that support the
 .Nm echo
 builtin command,
 specifying
-.Dq Li /bin/echo
+.Ql Pa /bin/echo
 or
-.Dq Li ./echo
+.Ql Pa ./echo
 does not.
 .Pp
 While some builtin commands may exist in more than one shell, their
@@ -181,17 +183,16 @@ manual page, at least, calls some of these commands
 .Dq built-in commands
 and some of them
 .Dq reserved words .
-Users of other shells may need to consult an
-.Xr info 1
-page or other sources of documentation.
+Users of other shells may need to consult
+other forms of documentation included with the shell.
 .Pp
 Commands marked
-.Dq Li No**
+.Ql No**
 under
 .Em External
 do exist externally,
 but are implemented as scripts using a builtin command of the same name.
-.Bl -column ".Ic uncomplete" ".Em External" ".Xr csh 1" ".Xr sh 1" -offset indent
+.Bl -column "uncomplete" "External" "csh(1)" "sh(1)" -offset indent
 .It Em Command Ta Em External Ta Xr csh 1 Ta Xr sh 1
 .It Ic \&! Ta \&No Ta \&No Ta Yes
 .It Ic % Ta \&No Ta Yes Ta \&No
@@ -307,7 +308,6 @@ but are implemented as scripts using a builtin command of the same name.
 .Xr csh 1 ,
 .Xr echo 1 ,
 .Xr false 1 ,
-.Xr info 1 ,
 .Xr kill 1 ,
 .Xr login 1 ,
 .Xr nice 1 ,
