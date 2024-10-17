@@ -85,6 +85,11 @@ struct ice_vf {
 	u16 vf_num;
 	struct virtchnl_version_info version;
 
+	u16 mac_filter_limit;
+	u16 mac_filter_cnt;
+	u16 vlan_limit;
+	u16 vlan_cnt;
+
 	u16 num_irq_vectors;
 	u16 *vf_imap;
 	struct ice_irq_vector *tx_irqvs;
@@ -100,6 +105,9 @@ struct ice_vf {
 
 #define ICE_VIRTCHNL_VALID_PROMISC_FLAGS	(FLAG_VF_UNICAST_PROMISC | \
 						 FLAG_VF_MULTICAST_PROMISC)
+
+#define ICE_DEFAULT_VF_VLAN_LIMIT			64
+#define ICE_DEFAULT_VF_FILTER_LIMIT			16
 
 int ice_iov_attach(struct ice_softc *sc);
 int ice_iov_detach(struct ice_softc *sc);
