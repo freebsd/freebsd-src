@@ -74,7 +74,7 @@ ftp_body()
 
 	# Create a dummy file to download
 	echo 'foo' > remote.txt
-	echo 'get remote.txt local.txt' | ftp -a 198.51.100.2
+	echo -e 'epsv\nget remote.txt local.txt' | ftp -a 198.51.100.2
 
 	# Compare the downloaded file to the original
 	if ! diff -q local.txt remote.txt;
