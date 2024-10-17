@@ -924,6 +924,14 @@ device_location_cache_t *dev_wired_cache_init(void);
 void dev_wired_cache_fini(device_location_cache_t *dcp);
 bool dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
 
+#define	DEV_PROP_NAME_IOMMU	"iommu-unit"
+typedef void (*device_prop_dtr_t)(device_t dev, const char *name, void *val,
+    void *dtr_ctx);
+int device_set_prop(device_t dev, const char *name, void *val,
+    device_prop_dtr_t dtr, void *dtr_ctx);
+int device_get_prop(device_t dev, const char *name, void **valp);
+int device_clear_prop(device_t dev, const char *name);
+void device_clear_prop_alldev(const char *name);
 
 /**
  * Shorthand macros, taking resource argument

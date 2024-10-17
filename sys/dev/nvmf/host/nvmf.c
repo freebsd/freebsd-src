@@ -972,12 +972,21 @@ nvmf_passthrough_cmd(struct nvmf_softc *sc, struct nvme_pt_command *pt,
 	cmd.cdw14 = pt->cmd.cdw14;
 	cmd.cdw15 = pt->cmd.cdw15;
 
+	sx_slock(&sc->connection_lock);
+	if (sc->admin == NULL || sc->detaching) {
+		device_printf(sc->dev,
+		    "failed to send passthrough command\n");
+		error = ECONNABORTED;
+		sx_sunlock(&sc->connection_lock);
+		goto error;
+	}
 	if (admin)
 		qp = sc->admin;
 	else
 		qp = nvmf_select_io_queue(sc);
 	nvmf_status_init(&status);
 	req = nvmf_allocate_request(qp, &cmd, nvmf_complete, &status, M_WAITOK);
+	sx_sunlock(&sc->connection_lock);
 	if (req == NULL) {
 		device_printf(sc->dev, "failed to send passthrough command\n");
 		error = ECONNABORTED;

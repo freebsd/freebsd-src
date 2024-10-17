@@ -188,6 +188,7 @@ int iommu_alloc_irq(struct iommu_unit *unit, int idx);
 void iommu_release_intr(struct iommu_unit *unit, int idx);
 
 void iommu_device_tag_init(struct iommu_ctx *ctx, device_t dev);
+void iommu_device_set_iommu_prop(device_t dev, device_t iommu);
 
 int pglvl_pgtbl_pte_off(int pglvl, iommu_gaddr_t base, int lvl);
 vm_pindex_t pglvl_pgtbl_get_pindex(int pglvl, iommu_gaddr_t base, int lvl);
