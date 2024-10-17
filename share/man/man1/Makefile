@@ -55,6 +55,7 @@ MLINKS=	builtin.1 alias.1 \
 	builtin.1 if.1 \
 	builtin.1 jobid.1 \
 	builtin.1 jobs.1 \
+	builtin.1 keybinds.1 \
 	builtin.1 limit.1 \
 	builtin.1 log.1 \
 	builtin.1 logout.1 \
