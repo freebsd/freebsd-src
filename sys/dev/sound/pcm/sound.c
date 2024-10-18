@@ -568,6 +568,10 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->pvchanformat = 0;
 	d->rvchanrate = 0;
 	d->rvchanformat = 0;
+	d->p_unr = new_unrhdr(0, INT_MAX, NULL);
+	d->vp_unr = new_unrhdr(0, INT_MAX, NULL);
+	d->r_unr = new_unrhdr(0, INT_MAX, NULL);
+	d->vr_unr = new_unrhdr(0, INT_MAX, NULL);
 
 	CHN_INIT(d, channels.pcm);
 	CHN_INIT(d, channels.pcm.busy);
@@ -653,6 +657,14 @@ pcm_unregister(device_t dev)
 	cv_destroy(&d->cv);
 	PCM_UNLOCK(d);
 	snd_mtxfree(d->lock);
+	if (d->p_unr != NULL)
+		delete_unrhdr(d->p_unr);
+	if (d->vp_unr != NULL)
+		delete_unrhdr(d->vp_unr);
+	if (d->r_unr != NULL)
+		delete_unrhdr(d->r_unr);
+	if (d->vr_unr != NULL)
+		delete_unrhdr(d->vr_unr);
 
 	if (snd_unit == device_get_unit(dev)) {
 		snd_unit = pcm_best_unit(-1);
