@@ -1280,12 +1280,12 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "interrupts %d, ", c->interrupts);
+		sbuf_printf(s, "\tinterrupts %d, ", c->interrupts);
 
 		if (c->direction == PCMDIR_REC)	{
 			sbuf_printf(s,
 			    "overruns %d, feed %u, hfree %d, "
-			    "sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+			    "sfree %d\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getfree(c->bufhard),
 				sndbuf_getfree(c->bufsoft),
@@ -1298,7 +1298,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		} else {
 			sbuf_printf(s,
 			    "underruns %d, feed %u, ready %d "
-			    "[b:%d/%d/%d|bs:%d/%d/%d]",
+			    "\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getready(c->bufsoft),
 				sndbuf_getsize(c->bufhard),
@@ -1310,14 +1310,14 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "channel flags=0x%b", c->flags, CHN_F_BITS);
+		sbuf_printf(s, "\tchannel flags=0x%b", c->flags, CHN_F_BITS);
 		sbuf_printf(s, "\n\t");
 
 		if (c->parentchannel != NULL) {
-			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
 			    c->parentchannel->name : "userland");
 		} else {
-			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
 			    "hardware" : "userland");
 		}
 		sbuf_printf(s, " -> ");
