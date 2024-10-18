@@ -62,11 +62,7 @@ feeder_register_root(void *p)
 	KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
 
 	SLIST_INIT(&feedertab);
-	fte = malloc(sizeof(*fte), M_FEEDER, M_NOWAIT | M_ZERO);
-	if (fte == NULL) {
-		printf("can't allocate memory for root feeder: %s\n", fc->name);
-		return;
-	}
+	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 	fte->feederclass = fc;
 	fte->desc = NULL;
 	fte->idx = feedercnt;
@@ -92,13 +88,7 @@ feeder_register(void *p)
 	 */
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
-		fte = malloc(sizeof(*fte), M_FEEDER, M_NOWAIT | M_ZERO);
-		if (fte == NULL) {
-			printf("can't allocate memory for feeder '%s', "
-			    "%x -> %x\n",
-			    fc->name, fc->desc[i].in, fc->desc[i].out);
-			return;
-		}
+		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
 		fte->idx = feedercnt;
