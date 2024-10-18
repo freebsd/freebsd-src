@@ -1165,7 +1165,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char *dirs, buf[CHN_NAMELEN];
-	int i, direction, *pnum, max, type, unit;
+	int i, direction, type, unit;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
@@ -1174,30 +1174,22 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	case PCMDIR_PLAY:
 		dirs = "play";
 		direction = PCMDIR_PLAY;
-		pnum = &d->playcount;
 		type = SND_DEV_DSPHW_PLAY;
-		max = SND_MAXHWCHAN;
 		break;
 	case PCMDIR_PLAY_VIRTUAL:
 		dirs = "virtual_play";
 		direction = PCMDIR_PLAY;
-		pnum = &d->pvchancount;
 		type = SND_DEV_DSPHW_VPLAY;
-		max = SND_MAXVCHANS;
 		break;
 	case PCMDIR_REC:
 		dirs = "record";
 		direction = PCMDIR_REC;
-		pnum = &d->reccount;
 		type = SND_DEV_DSPHW_REC;
-		max = SND_MAXHWCHAN;
 		break;
 	case PCMDIR_REC_VIRTUAL:
 		dirs = "virtual_record";
 		direction = PCMDIR_REC;
-		pnum = &d->rvchancount;
 		type = SND_DEV_DSPHW_VREC;
-		max = SND_MAXVCHANS;
 		break;
 	default:
 		device_printf(d->dev,
@@ -1206,23 +1198,11 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		return (NULL);
 	}
 
-	if (*pnum >= max) {
-		device_printf(d->dev, "%s(): cannot allocate more channels "
-		    "(max=%d)\n", __func__, max);
-		return (NULL);
-	}
-
 	unit = 0;
 	CHN_FOREACH(c, d, channels.pcm) {
 		if (c->type != type)
 			continue;
 		unit++;
-		if (unit >= max) {
-			device_printf(d->dev, "%s(): cannot allocate more "
-			    "channels for type=%d (max=%d)\n",
-			    __func__, type, max);
-			return (NULL);
-		}
 	}
 
 	PCM_UNLOCK(d);
