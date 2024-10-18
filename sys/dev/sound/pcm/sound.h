@@ -248,9 +248,6 @@ SYSCTL_DECL(_hw_snd);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     pid_t pid, char *comm);
 
-void pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
-int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
-
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsigned int maxbufsz);
 int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
