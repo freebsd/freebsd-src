@@ -1182,7 +1182,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct pcm_channel *c;
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
-	char *dirs, buf[CHN_NAMELEN];
+	char buf[CHN_NAMELEN];
 	int i, direction, type;
 
 	PCM_BUSYASSERT(d);
@@ -1190,22 +1190,18 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 
 	switch (dir) {
 	case PCMDIR_PLAY:
-		dirs = "play";
 		direction = PCMDIR_PLAY;
 		type = SND_DEV_DSPHW_PLAY;
 		break;
 	case PCMDIR_PLAY_VIRTUAL:
-		dirs = "virtual_play";
 		direction = PCMDIR_PLAY;
 		type = SND_DEV_DSPHW_VPLAY;
 		break;
 	case PCMDIR_REC:
-		dirs = "record";
 		direction = PCMDIR_REC;
 		type = SND_DEV_DSPHW_REC;
 		break;
 	case PCMDIR_REC_VIRTUAL:
-		dirs = "virtual_record";
 		direction = PCMDIR_REC;
 		type = SND_DEV_DSPHW_VREC;
 		break;
@@ -1239,9 +1235,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	c->dev = d->dev;
 	c->trigger = PCMTRIG_STOP;
 
-	snprintf(c->name, sizeof(c->name), "%s:%s:%s",
-	    device_get_nameunit(c->dev), dirs,
-	    dsp_unit2name(buf, sizeof(buf), c));
+	strlcpy(c->name, dsp_unit2name(buf, sizeof(buf), c), sizeof(c->name));
 
 	c->matrix = *feeder_matrix_id_map(SND_CHN_MATRIX_1_0);
 	c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;

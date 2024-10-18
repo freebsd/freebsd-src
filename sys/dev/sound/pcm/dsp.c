@@ -170,17 +170,17 @@ static const struct {
 	char *sep;
 	char *alias;
 } dsp_cdevs[] = {
-	{ SND_DEV_DSP,         "dsp",    ".", NULL },
-	{ SND_DEV_DSPHW_PLAY,  "dsp",   ".p", NULL },
-	{ SND_DEV_DSPHW_VPLAY, "dsp",  ".vp", NULL },
-	{ SND_DEV_DSPHW_REC,   "dsp",   ".r", NULL },
-	{ SND_DEV_DSPHW_VREC,  "dsp",  ".vr", NULL },
+	{ SND_DEV_DSP,         "dsp",	".",			NULL },
+	{ SND_DEV_DSPHW_PLAY,  "dsp",   ".play.",		NULL },
+	{ SND_DEV_DSPHW_VPLAY, "dsp",	".virtual_play.",	NULL },
+	{ SND_DEV_DSPHW_REC,   "dsp",   ".record.",		NULL },
+	{ SND_DEV_DSPHW_VREC,  "dsp",	".virtual_record.",	NULL },
 	/* Low priority, OSSv4 aliases. */
-	{ SND_DEV_DSP,      "dsp_ac3",   ".", "dsp" },
-	{ SND_DEV_DSP,     "dsp_mmap",   ".", "dsp" },
-	{ SND_DEV_DSP,  "dsp_multich",   ".", "dsp" },
-	{ SND_DEV_DSP, "dsp_spdifout",   ".", "dsp" },
-	{ SND_DEV_DSP,  "dsp_spdifin",   ".", "dsp" },
+	{ SND_DEV_DSP,      "dsp_ac3",   ".",			"dsp" },
+	{ SND_DEV_DSP,     "dsp_mmap",   ".",			"dsp" },
+	{ SND_DEV_DSP,  "dsp_multich",   ".",			"dsp" },
+	{ SND_DEV_DSP, "dsp_spdifout",   ".",			"dsp" },
+	{ SND_DEV_DSP,  "dsp_spdifin",   ".",			"dsp" },
 };
 
 static void
