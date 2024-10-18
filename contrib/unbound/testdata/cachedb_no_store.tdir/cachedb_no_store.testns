@@ -1,9 +1,0 @@
-ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
-REPLY QR AA NOERROR
-SECTION QUESTION
-txt1.example.com. IN TXT
-SECTION ANSWER
-txt1.example.com. IN TXT "example text message"
-ENTRY_END
