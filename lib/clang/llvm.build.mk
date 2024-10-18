@@ -109,6 +109,14 @@ CFLAGS+=	-fdata-sections
 LDFLAGS+=	-Wl,-dead_strip
 .else
 LDFLAGS+=	-Wl,--gc-sections
+# XXX: --gc-sections strips the ELF brand note and on RISC-V the OS/ABI ends up
+# as NONE, so for statically-linked binaries, i.e. lacking an interpreter,
+# get_brandinfo finds nothing and (f)execve fails with ENOEXEC. Work around
+# this by manually setting the OS/ABI field via the emulation.
+.if ${MACHINE_ARCH:Mriscv64*} != "" && ${NO_SHARED:Uno:tl} != "no" && \
+    (${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING))
+LDFLAGS+=	-Wl,-m,elf64lriscv_fbsd
+.endif
 .endif
 
 CXXSTD?=	c++17
