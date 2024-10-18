@@ -355,6 +355,7 @@ struct mrs_field {
 	uint64_t	mask;
 	bool		sign;
 	u_int		type;
+	u_int		width;
 	u_int		shift;
 };
 
@@ -365,6 +366,7 @@ struct mrs_field {
 		.sign = (_sign),					\
 		.type = ((_fbsd_type) << MRS_TYPE_FBSD_SHIFT) |		\
 		    ((_lnx_type) << MRS_TYPE_LNX_SHIFT),		\
+		.width = _register ## _ ## _name ## _WIDTH,		\
 		.shift = _register ## _ ## _name ## _SHIFT,		\
 		.mask = _register ## _ ## _name ## _MASK,		\
 		.values = (_values),					\
@@ -2138,7 +2140,8 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 			fields = user_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
 				mask = update_lower_register(mask, val,
-				    fields[j].shift, 4, fields[j].sign);
+				    fields[j].shift, fields[j].width,
+				    fields[j].sign);
 			}
 			*valp = mask;
 			return (true);
@@ -2150,7 +2153,7 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 
 static uint64_t
 update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
-    u_int shift, bool sign)
+    u_int width, u_int shift, bool sign)
 {
 	switch (type & MRS_TYPE_MASK) {
 	case MRS_EXACT:
@@ -2158,7 +2161,7 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 		user_reg |= (uint64_t)MRS_EXACT_FIELD(type) << shift;
 		break;
 	case MRS_LOWER:
-		user_reg = update_lower_register(user_reg, value, shift, 4,
+		user_reg = update_lower_register(user_reg, value, shift, width,
 		    sign);
 		break;
 	default:
@@ -2206,16 +2209,16 @@ update_special_regs(u_int cpu)
 			/* Update the FreeBSD userspace ID register view */
 			user_reg = update_special_reg_field(user_reg,
 			    fields[j].type >> MRS_TYPE_FBSD_SHIFT, value,
-			    fields[j].shift, fields[j].sign);
+			    fields[j].width, fields[j].shift, fields[j].sign);
 
 			/* Update the Linux userspace ID register view */
 			l_user_reg = update_special_reg_field(l_user_reg,
 			    fields[j].type >> MRS_TYPE_LNX_SHIFT, value,
-			    fields[j].shift, fields[j].sign);
+			    fields[j].width, fields[j].shift, fields[j].sign);
 
 			/* Update the kernel ID register view */
 			kern_reg = update_lower_register(kern_reg, value,
-			    fields[j].shift, 4, fields[j].sign);
+			    fields[j].shift, fields[j].width, fields[j].sign);
 		}
 
 		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
@@ -2510,7 +2513,7 @@ print_id_fields(struct sbuf *sb, uint64_t reg, const void *arg)
 			sbuf_printf(sb, "%sUnknown %s(%x)", SEP_STR,
 			    fields[i].name, field);
 
-		reg &= ~(0xful << fields[i].shift);
+		reg &= ~(((1ul << fields[i].width) - 1) << fields[i].shift);
 	}
 
 	if (reg != 0)
