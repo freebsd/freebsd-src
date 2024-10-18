@@ -202,10 +202,11 @@ struct dns_msg* dns_cache_lookup(struct module_env* env,
  * @param qclass: which class to look in.
  * @param region: where to store new dp info.
  * @param dp: delegation point to fill missing entries.
+ * @param flags: rrset flags, or 0.
  * @return false on alloc failure.
  */
 int cache_fill_missing(struct module_env* env, uint16_t qclass, 
-	struct regional* region, struct delegpt* dp);
+	struct regional* region, struct delegpt* dp, uint32_t flags);
 
 /**
  * Utility, create new, unpacked data structure for cache response.

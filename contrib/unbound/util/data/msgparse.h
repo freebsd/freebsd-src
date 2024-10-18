@@ -89,6 +89,8 @@ extern time_t MIN_NEG_TTL;
 extern int SERVE_EXPIRED;
 /** Time to serve records after expiration */
 extern time_t SERVE_EXPIRED_TTL;
+/** Reset serve expired TTL after failed update attempt */
+extern time_t SERVE_EXPIRED_TTL_RESET;
 /** TTL to use for expired records */
 extern time_t SERVE_EXPIRED_REPLY_TTL;
 /** Negative cache time (for entries without any RRs.) */

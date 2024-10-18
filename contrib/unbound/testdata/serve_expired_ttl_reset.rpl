@@ -1,0 +1,102 @@
+; config options go here.
+server:
+    serve-expired: yes
+    serve-expired-ttl: 1
+    serve-expired-ttl-reset: yes
+    serve-expired-reply-ttl: 123
+    ede: yes
+    ede-serve-expired: yes
+forward-zone: name: "." forward-addr: 216.0.0.1
+CONFIG_END
+SCENARIO_BEGIN Serve expired ttl with reset on forwarder with a timeout on upstream query
+; Scenario overview:
+; - Send query
+; - Get reply
+; - Wait for it to expire (+ serve-expired-ttl)
+; - Send query again
+; - Upstream timeouts
+; - Error response from iterator SERVFAIL, resets expired-ttl on cache
+; - Check we are getting the SERVFAIL response
+; - Query again
+; - Check we are getting the expired answer
+; - Upstream still timeouts
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; Upstream reply
+STEP 2 REPLY
+ENTRY_BEGIN
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 10 IN A 0.0.0.0
+ENTRY_END
+
+STEP 3 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RA RD NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 10 IN A 0.0.0.0
+ENTRY_END
+
+; Expire the record (+ serve-expired-ttl)
+STEP 4 TIME_PASSES ELAPSE 12
+
+STEP 5 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; But the pending query times out!
+; outbound-msg-retry times timeout.
+STEP 6 TIMEOUT
+STEP 7 TIMEOUT
+STEP 8 TIMEOUT
+STEP 9 TIMEOUT
+STEP 10 TIMEOUT
+
+; Returns servfail
+; but error response from iterator resets the expired ttl
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RA RD SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; Query again
+STEP 12 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; Check that we get the expired answer
+STEP 13 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl ede=3
+REPLY QR RA RD DO NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. 123 IN A 0.0.0.0
+ENTRY_END
+
+; But the pending query times out!
+; Only one because RTT reached the limit.
+STEP 16 TIMEOUT
+
+SCENARIO_END

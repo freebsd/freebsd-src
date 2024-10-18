@@ -57,7 +57,7 @@ struct rbtree_type;
 #define MAX_TARGET_COUNT	64
 /** max number of upstream queries for a query and its subqueries, it is
  * never reset. */
-#define MAX_GLOBAL_QUOTA	128
+extern int MAX_GLOBAL_QUOTA;
 /** max number of target lookups per qstate, per delegation point */
 #define MAX_DP_TARGET_COUNT	16
 /** max number of nxdomains allowed for target lookups for a query and

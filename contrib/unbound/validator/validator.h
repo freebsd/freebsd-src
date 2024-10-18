@@ -159,7 +159,7 @@ struct val_qstate {
 	 * The query restart count
 	 */
 	int restart_count;
-	/** The blacklist saved for chainoftrust elements */
+	/** The blacklist saved for chain of trust elements */
 	struct sock_list* chain_blacklist;
 
 	/**
