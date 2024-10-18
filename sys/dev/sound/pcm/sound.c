@@ -188,74 +188,6 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
     sizeof(int), sysctl_hw_snd_default_unit, "I",
     "default sound device");
 
-void
-pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
-{
-	PCM_BUSYASSERT(d);
-	PCM_LOCKASSERT(d);
-	KASSERT(ch != NULL && (ch->direction == PCMDIR_PLAY ||
-	    ch->direction == PCMDIR_REC), ("Invalid pcm channel"));
-
-	CHN_INSERT_SORT_ASCEND(d, ch, channels.pcm);
-
-	switch (ch->type) {
-	case SND_DEV_DSPHW_PLAY:
-		d->playcount++;
-		break;
-	case SND_DEV_DSPHW_VPLAY:
-		d->pvchancount++;
-		break;
-	case SND_DEV_DSPHW_REC:
-		d->reccount++;
-		break;
-	case SND_DEV_DSPHW_VREC:
-		d->rvchancount++;
-		break;
-	default:
-		__assert_unreachable();
-	}
-}
-
-int
-pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch)
-{
-	struct pcm_channel *tmp;
-
-	PCM_BUSYASSERT(d);
-	PCM_LOCKASSERT(d);
-
-	tmp = NULL;
-
-	CHN_FOREACH(tmp, d, channels.pcm) {
-		if (tmp == ch)
-			break;
-	}
-
-	if (tmp != ch)
-		return (EINVAL);
-
-	CHN_REMOVE(d, ch, channels.pcm);
-
-	switch (ch->type) {
-	case SND_DEV_DSPHW_PLAY:
-		d->playcount--;
-		break;
-	case SND_DEV_DSPHW_VPLAY:
-		d->pvchancount--;
-		break;
-	case SND_DEV_DSPHW_REC:
-		d->reccount--;
-		break;
-	case SND_DEV_DSPHW_VREC:
-		d->rvchancount--;
-		break;
-	default:
-		__assert_unreachable();
-	}
-
-	return (0);
-}
-
 int
 pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 {
@@ -272,8 +204,6 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		PCM_UNLOCK(d);
 		return (ENODEV);
 	}
-
-	pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
 
 	return (0);
@@ -283,7 +213,6 @@ static void
 pcm_killchans(struct snddev_info *d)
 {
 	struct pcm_channel *ch;
-	int error;
 	bool found;
 
 	PCM_BUSYASSERT(d);
@@ -316,12 +245,7 @@ pcm_killchans(struct snddev_info *d)
 			pause_sbt("pcmkillchans", SBT_1MS * 5, 0, 0);
 			continue;
 		}
-
-		PCM_LOCK(d);
-		error = pcm_chn_remove(d, ch);
-		PCM_UNLOCK(d);
-		if (error == 0)
-			chn_kill(ch);
+		chn_kill(ch);
 	} while (!CHN_EMPTY(d, channels.pcm));
 }
 
