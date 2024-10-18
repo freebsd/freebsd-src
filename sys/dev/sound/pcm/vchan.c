@@ -674,8 +674,11 @@ vchan_create(struct pcm_channel *parent)
 	struct pcm_channel *ch;
 	struct pcmchan_caps *parent_caps;
 	uint32_t vchanfmt, vchanspd;
-	int ret, direction, r, save;
+	int ret, direction, r;
+	bool save;
 
+	ret = 0;
+	save = false;
 	d = parent->parentsnddev;
 
 	PCM_BUSYASSERT(d);
@@ -687,8 +690,6 @@ vchan_create(struct pcm_channel *parent)
 	if (!(parent->direction == PCMDIR_PLAY ||
 	    parent->direction == PCMDIR_REC))
 		return (EINVAL);
-
-	d = parent->parentsnddev;
 
 	CHN_UNLOCK(parent);
 	PCM_LOCK(d);
@@ -728,14 +729,13 @@ vchan_create(struct pcm_channel *parent)
 
 	parent->flags |= CHN_F_HAS_VCHAN;
 
-	ret = 0;
 	parent_caps = chn_getcaps(parent);
-	if (parent_caps == NULL)
+	if (parent_caps == NULL) {
 		ret = EINVAL;
+		goto fail;
+	}
 
-	save = 0;
-
-	if (ret == 0 && vchanfmt == 0) {
+	if (vchanfmt == 0) {
 		const char *vfmt;
 
 		CHN_UNLOCK(parent);
@@ -752,10 +752,10 @@ vchan_create(struct pcm_channel *parent)
 		}
 		if (vchanfmt == 0)
 			vchanfmt = VCHAN_DEFAULT_FORMAT;
-		save = 1;
+		save = true;
 	}
 
-	if (ret == 0 && vchanspd == 0) {
+	if (vchanspd == 0) {
 		/*
 		 * This is very sad. Few soundcards advertised as being
 		 * able to do (insanely) higher/lower speed, but in
@@ -773,26 +773,25 @@ vchan_create(struct pcm_channel *parent)
 			RANGE(vchanspd, parent_caps->minspeed,
 			    parent_caps->maxspeed);
 		}
-		save = 1;
+		save = true;
 	}
 
-	if (ret == 0) {
-		/*
-		 * Limit the speed between feeder_rate_min <-> feeder_rate_max.
-		 */
-		RANGE(vchanspd, feeder_rate_min, feeder_rate_max);
+	/*
+	 * Limit the speed between feeder_rate_min <-> feeder_rate_max.
+	 */
+	RANGE(vchanspd, feeder_rate_min, feeder_rate_max);
 
-		if (feeder_rate_round) {
-			RANGE(vchanspd, parent_caps->minspeed,
-			    parent_caps->maxspeed);
-			vchanspd = CHANNEL_SETSPEED(parent->methods,
-			    parent->devinfo, vchanspd);
-		}
-
-		ret = chn_reset(parent, vchanfmt, vchanspd);
+	if (feeder_rate_round) {
+		RANGE(vchanspd, parent_caps->minspeed,
+		    parent_caps->maxspeed);
+		vchanspd = CHANNEL_SETSPEED(parent->methods,
+		    parent->devinfo, vchanspd);
 	}
 
-	if (ret == 0 && save) {
+	if ((ret = chn_reset(parent, vchanfmt, vchanspd)) != 0)
+		goto fail;
+
+	if (save) {
 		/*
 		 * Save new value.
 		 */
@@ -809,23 +808,24 @@ vchan_create(struct pcm_channel *parent)
 	 * If the parent channel supports digital format,
 	 * enable passthrough mode.
 	 */
-	if (ret == 0 && snd_fmtvalid(AFMT_PASSTHROUGH, parent_caps->fmtlist)) {
+	if (snd_fmtvalid(AFMT_PASSTHROUGH, parent_caps->fmtlist)) {
 		parent->flags &= ~CHN_F_VCHAN_DYNAMIC;
 		parent->flags |= CHN_F_VCHAN_PASSTHROUGH;
 	}
 
-	if (ret != 0) {
-		CHN_REMOVE(parent, ch, children);
-		parent->flags &= ~CHN_F_HAS_VCHAN;
-		CHN_UNLOCK(parent);
-		PCM_LOCK(d);
-		if (pcm_chn_remove(d, ch) == 0) {
-			PCM_UNLOCK(d);
-			chn_kill(ch);
-		} else
-			PCM_UNLOCK(d);
-		CHN_LOCK(parent);
-	}
+	return (ret);
+
+fail:
+	CHN_REMOVE(parent, ch, children);
+	parent->flags &= ~CHN_F_HAS_VCHAN;
+	CHN_UNLOCK(parent);
+	PCM_LOCK(d);
+	if (pcm_chn_remove(d, ch) == 0) {
+		PCM_UNLOCK(d);
+		chn_kill(ch);
+	} else
+		PCM_UNLOCK(d);
+	CHN_LOCK(parent);
 
 	return (ret);
 }
