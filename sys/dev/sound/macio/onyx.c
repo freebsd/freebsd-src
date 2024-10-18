@@ -197,7 +197,6 @@ onyx_probe(device_t dev)
 	if (strcmp(name, "codec") == 0) {
 		if (iicbus_get_addr(dev) != PCM3052_IICADDR)
 			return (ENXIO);
-	} else if (strcmp(name, "codec") == 0) {
 		compat = ofw_bus_get_compat(dev);
 		if (compat == NULL || strcmp(compat, "pcm3052") != 0)
 			return (ENXIO);
