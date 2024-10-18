@@ -1157,6 +1157,24 @@ chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd)
 	return r;
 }
 
+static struct unrhdr *
+chn_getunr(struct snddev_info *d, int type)
+{
+	switch (type) {
+	case SND_DEV_DSPHW_PLAY:
+		return (d->p_unr);
+	case SND_DEV_DSPHW_VPLAY:
+		return (d->vp_unr);
+	case SND_DEV_DSPHW_REC:
+		return (d->r_unr);
+	case SND_DEV_DSPHW_VREC:
+		return (d->vr_unr);
+	default:
+		__assert_unreachable();
+	}
+
+}
+
 struct pcm_channel *
 chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
     int dir, void *devinfo)
@@ -1165,7 +1183,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char *dirs, buf[CHN_NAMELEN];
-	int i, direction, type, unit;
+	int i, direction, type;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
@@ -1198,13 +1216,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		return (NULL);
 	}
 
-	unit = 0;
-	CHN_FOREACH(c, d, channels.pcm) {
-		if (c->type != type)
-			continue;
-		unit++;
-	}
-
 	PCM_UNLOCK(d);
 	b = NULL;
 	bs = NULL;
@@ -1216,7 +1227,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	CHN_INIT(c, children.busy);
 	c->direction = direction;
 	c->type = type;
-	c->unit = unit;
+	c->unit = alloc_unr(chn_getunr(d, c->type));
 	c->format = SND_FORMAT(AFMT_U8, 1, 0);
 	c->speed = DSP_DEFAULT_SPEED;
 	c->pid = -1;
@@ -1304,6 +1315,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	return (c);
 
 fail:
+	free_unr(chn_getunr(d, c->type), c->unit);
 	feeder_remove(c);
 	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
@@ -1335,6 +1347,7 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
+	free_unr(chn_getunr(c->parentsnddev, c->type), c->unit);
 	feeder_remove(c);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
