@@ -368,29 +368,40 @@
 #define	CTR_TminLine_MASK	(UL(0x3f) << CTR_TminLine_SHIFT)
 #define	CTR_TminLine_VAL(reg)	((reg) & CTR_TminLine_MASK)
 #define	CTR_DIC_SHIFT		29
+#define	CTR_DIC_WIDTH		1
 #define	CTR_DIC_MASK		(0x1 << CTR_DIC_SHIFT)
 #define	CTR_DIC_VAL(reg)	((reg) & CTR_DIC_MASK)
+#define	 CTR_DIC_NONE		(0x0 << CTR_DIC_SHIFT)
+#define	 CTR_DIC_IMPL		(0x1 << CTR_DIC_SHIFT)
 #define	CTR_IDC_SHIFT		28
+#define	CTR_IDC_WIDTH		1
 #define	CTR_IDC_MASK		(0x1 << CTR_IDC_SHIFT)
 #define	CTR_IDC_VAL(reg)	((reg) & CTR_IDC_MASK)
+#define	 CTR_IDC_NONE		(0x0 << CTR_IDC_SHIFT)
+#define	 CTR_IDC_IMPL		(0x1 << CTR_IDC_SHIFT)
 #define	CTR_CWG_SHIFT		24
+#define	CTR_CWG_WIDTH		4
 #define	CTR_CWG_MASK		(0xf << CTR_CWG_SHIFT)
 #define	CTR_CWG_VAL(reg)	((reg) & CTR_CWG_MASK)
 #define	CTR_CWG_SIZE(reg)	(4 << (CTR_CWG_VAL(reg) >> CTR_CWG_SHIFT))
 #define	CTR_ERG_SHIFT		20
+#define	CTR_ERG_WIDTH		4
 #define	CTR_ERG_MASK		(0xf << CTR_ERG_SHIFT)
 #define	CTR_ERG_VAL(reg)	((reg) & CTR_ERG_MASK)
 #define	CTR_ERG_SIZE(reg)	(4 << (CTR_ERG_VAL(reg) >> CTR_ERG_SHIFT))
 #define	CTR_DLINE_SHIFT		16
+#define	CTR_DLINE_WIDTH		4
 #define	CTR_DLINE_MASK		(0xf << CTR_DLINE_SHIFT)
 #define	CTR_DLINE_VAL(reg)	((reg) & CTR_DLINE_MASK)
 #define	CTR_DLINE_SIZE(reg)	(4 << (CTR_DLINE_VAL(reg) >> CTR_DLINE_SHIFT))
 #define	CTR_L1IP_SHIFT		14
+#define	CTR_L1IP_WIDTH		2
 #define	CTR_L1IP_MASK		(0x3 << CTR_L1IP_SHIFT)
 #define	CTR_L1IP_VAL(reg)	((reg) & CTR_L1IP_MASK)
 #define	 CTR_L1IP_VIPT		(2 << CTR_L1IP_SHIFT)
 #define	 CTR_L1IP_PIPT		(3 << CTR_L1IP_SHIFT)
 #define	CTR_ILINE_SHIFT		0
+#define	CTR_ILINE_WIDTH		4
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
 #define	CTR_ILINE_VAL(reg)	((reg) & CTR_ILINE_MASK)
 #define	CTR_ILINE_SIZE(reg)	(4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))

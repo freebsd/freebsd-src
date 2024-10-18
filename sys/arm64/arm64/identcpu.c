@@ -337,6 +337,28 @@ struct mrs_field_value {
 	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "15 "_desc "s"), \
 	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "16 "_desc "s")
 
+/*
+ * Used for printing I/D cache line sizes & CWG/ERG, as 0 is a special case
+ * in some cases the decoded string needs to be passed in.
+ */
+#define	MRS_FIELD_VALUE_CACHE(_reg, _field, _0desc, _desc)		\
+	MRS_FIELD_VALUE(0ul << _reg ## _ ## _field ## _SHIFT, _0desc), \
+	MRS_FIELD_VALUE(1ul << _reg ## _ ## _field ## _SHIFT, "8 "   _desc), \
+	MRS_FIELD_VALUE(2ul << _reg ## _ ## _field ## _SHIFT, "16 "  _desc), \
+	MRS_FIELD_VALUE(3ul << _reg ## _ ## _field ## _SHIFT, "32 "  _desc), \
+	MRS_FIELD_VALUE(4ul << _reg ## _ ## _field ## _SHIFT, "64 "  _desc), \
+	MRS_FIELD_VALUE(5ul << _reg ## _ ## _field ## _SHIFT, "128 " _desc), \
+	MRS_FIELD_VALUE(6ul << _reg ## _ ## _field ## _SHIFT, "256 " _desc), \
+	MRS_FIELD_VALUE(7ul << _reg ## _ ## _field ## _SHIFT, "512 " _desc), \
+	MRS_FIELD_VALUE(8ul << _reg ## _ ## _field ## _SHIFT, "1k "  _desc), \
+	MRS_FIELD_VALUE(9ul << _reg ## _ ## _field ## _SHIFT, "2k "  _desc), \
+	MRS_FIELD_VALUE(10ul<< _reg ## _ ## _field ## _SHIFT, "4k "  _desc), \
+	MRS_FIELD_VALUE(11ul<< _reg ## _ ## _field ## _SHIFT, "8k "  _desc), \
+	MRS_FIELD_VALUE(12ul<< _reg ## _ ## _field ## _SHIFT, "16k " _desc), \
+	MRS_FIELD_VALUE(13ul<< _reg ## _ ## _field ## _SHIFT, "32k " _desc), \
+	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "64k " _desc), \
+	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "128k "_desc)
+
 #define	MRS_FIELD_VALUE_END	{ .desc = NULL }
 
 struct mrs_field_hwcap {
@@ -393,6 +415,62 @@ struct mrs_field {
 
 #define	MRS_FIELD_END	{ .type = MRS_INVALID, }
 
+/* CTR_EL0 */
+static const struct mrs_field_value ctr_dic[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(CTR, DIC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_idc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(CTR, IDC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_cwg[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, CWG, "Unknown CWG",
+	    "byte CWG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_erg[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, ERG, "Unknown ERG",
+	    "byte ERG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_dline[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, DLINE, "4 byte D-cacheline",
+	    "byte D-cacheline"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_l1ip[] = {
+	MRS_FIELD_VALUE(CTR_L1IP_VIPT, "VIPT I-cache"),
+	MRS_FIELD_VALUE(CTR_L1IP_PIPT, "PIPT I-cache"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_iline[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, ILINE, "4 byte I-cacheline",
+	    "byte I-cacheline"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field ctr_fields[] = {
+	/* Bit 31 is RES1 */
+	MRS_FIELD_RES1(1, 31),
+	MRS_FIELD(CTR, DIC, false, MRS_LOWER, MRS_USERSPACE, ctr_dic),
+	MRS_FIELD(CTR, IDC, false, MRS_LOWER, MRS_USERSPACE, ctr_idc),
+	MRS_FIELD(CTR, CWG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_cwg),
+	MRS_FIELD(CTR, ERG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_erg),
+	MRS_FIELD(CTR, DLINE, false, MRS_LOWER, MRS_USERSPACE, ctr_dline),
+	/* If the ICache types are different report the safe option */
+	MRS_FIELD(CTR, L1IP, false, MRS_EXACT_IF_DIFFERENT |
+	    MRS_SAFE(CTR_L1IP_VIPT >> CTR_L1IP_SHIFT), MRS_USERSPACE,
+	    ctr_l1ip),
+	MRS_FIELD(CTR, ILINE, false, MRS_LOWER, MRS_USERSPACE, ctr_iline),
+	MRS_FIELD_END,
+};
 
 /* ID_AA64AFR0_EL1 */
 static const struct mrs_field id_aa64afr0_fields[] = {
@@ -2498,40 +2576,6 @@ parse_cpu_features_hwcap32(void)
 #endif /* COMPAT_FREEBSD32 */
 
 static void
-print_ctr_fields(struct sbuf *sb, uint64_t reg, const void *arg __unused)
-{
-
-	sbuf_printf(sb, "%u byte D-cacheline,", CTR_DLINE_SIZE(reg));
-	sbuf_printf(sb, "%u byte I-cacheline,", CTR_ILINE_SIZE(reg));
-	reg &= ~(CTR_DLINE_MASK | CTR_ILINE_MASK);
-
-	switch(CTR_L1IP_VAL(reg)) {
-	case CTR_L1IP_VIPT:
-		sbuf_printf(sb, "VIPT");
-		break;
-	case CTR_L1IP_PIPT:
-		sbuf_printf(sb, "PIPT");
-		break;
-	}
-	sbuf_printf(sb, " ICache,");
-	reg &= ~CTR_L1IP_MASK;
-
-	sbuf_printf(sb, "%d byte ERG,", CTR_ERG_SIZE(reg));
-	sbuf_printf(sb, "%d byte CWG", CTR_CWG_SIZE(reg));
-	reg &= ~(CTR_ERG_MASK | CTR_CWG_MASK);
-
-	if (CTR_IDC_VAL(reg) != 0)
-		sbuf_printf(sb, ",IDC");
-	if (CTR_DIC_VAL(reg) != 0)
-		sbuf_printf(sb, ",DIC");
-	reg &= ~(CTR_IDC_MASK | CTR_DIC_MASK);
-	reg &= ~CTR_RES1;
-
-	if (reg != 0)
-		sbuf_printf(sb, ",%lx", reg);
-}
-
-static void
 print_register(struct sbuf *sb, const char *reg_name, uint64_t reg,
     void (*print_fields)(struct sbuf *, uint64_t, const void *),
     const void *arg)
@@ -2754,10 +2798,8 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
     (prev_desc == NULL || desc->_reg != prev_desc->_reg)
 
 	/* Cache Type Register */
-	if (SHOULD_PRINT_REG(ctr)) {
-		print_register(sb, "Cache Type",
-		    desc->ctr, print_ctr_fields, NULL);
-	}
+	if (SHOULD_PRINT_REG(ctr))
+		print_id_register(sb, "Cache Type", desc->ctr, ctr_fields);
 
 	/* AArch64 Instruction Set Attribute Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64isar0))
