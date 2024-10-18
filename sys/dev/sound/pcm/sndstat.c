@@ -150,10 +150,7 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	pf = malloc(sizeof(*pf), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	if (sbuf_new(&pf->sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		free(pf, M_DEVBUF);
-		return (ENOMEM);
-	}
+	sbuf_new(&pf->sbuf, NULL, 4096, SBUF_AUTOEXTEND);
 
 	pf->fflags = flags;
 	TAILQ_INIT(&pf->userdev_list);
