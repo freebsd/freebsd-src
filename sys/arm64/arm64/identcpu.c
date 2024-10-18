@@ -2441,12 +2441,6 @@ print_ctr_fields(struct sbuf *sb, uint64_t reg, const void *arg __unused)
 	reg &= ~(CTR_DLINE_MASK | CTR_ILINE_MASK);
 
 	switch(CTR_L1IP_VAL(reg)) {
-	case CTR_L1IP_VPIPT:
-		sbuf_printf(sb, "VPIPT");
-		break;
-	case CTR_L1IP_AIVIVT:
-		sbuf_printf(sb, "AIVIVT");
-		break;
 	case CTR_L1IP_VIPT:
 		sbuf_printf(sb, "VIPT");
 		break;
@@ -2816,9 +2810,6 @@ identify_cache(uint64_t ctr)
 	/* Identify the L1 cache type */
 	switch (CTR_L1IP_VAL(ctr)) {
 	case CTR_L1IP_PIPT:
-		break;
-	case CTR_L1IP_VPIPT:
-		icache_vmid = true;
 		break;
 	default:
 	case CTR_L1IP_VIPT:
