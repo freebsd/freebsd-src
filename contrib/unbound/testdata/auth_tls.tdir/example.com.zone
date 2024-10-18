@@ -1,0 +1,4 @@
+example.com.		240	IN	SOA	ns.nlnetlabs.nl. hostmaster.nlnetlabs.nl. 2024082400 28800 7200 604800 240
+example.com. NS ns.example.com.
+ns.example.com. IN A 192.0.2.1
+www.example.com. A 1.2.3.4

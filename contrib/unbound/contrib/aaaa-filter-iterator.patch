@@ -236,7 +236,7 @@ index 54006940..768fe202 100644
 +		/* see if the failure did get (parent-lame) info */
 +		if(!cache_fill_missing(super->env,
 +			super_iq->qchase.qclass, super->region,
-+			super_iq->dp))
++			super_iq->dp, 0))
 +		log_err("ASN-AAAA-filter: out of memory adding missing");
 +		dpns->resolved = 1; /* mark as failed */
 +	}

@@ -238,10 +238,12 @@ then
 	echo "Got the same first cookie in the response while the second secret is active"
 	exit 1
 fi
-if ! grep -q "COOKIE: $second_cookie" $outfile
+if ! grep -q "COOKIE: .* (good)$" $outfile
 then
+	# dig can generate a different cookie value here than previous cookies.
+	# but make sure the output contains a valid cookie
 	cat $outfile
-	echo "Did not get the same second cookie in the response"
+	echo "Did not get a valid cookie in the response"
 	exit 1
 fi
 

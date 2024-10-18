@@ -38,7 +38,7 @@ RANGE_BEGIN 0 20
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 30 100
+RANGE_BEGIN 40 100
 	ADDRESS 1.2.3.4
 	ENTRY_BEGIN
 		MATCH opcode qtype qname

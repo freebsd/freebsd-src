@@ -1,0 +1,109 @@
+# #-- doq_downstream.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE doqclient)
+
+# test query from local-data, immediate like from cache
+echo "> query www.example.net."
+$PRE/doqclient -s 127.0.0.1 -p $UNBOUND_PORT www.example.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www.example.net" outfile | grep "1.2.3.4"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+echo "OK"
+
+# test query that is resolved
+echo "> query www.example.com."
+$PRE/doqclient -s 127.0.0.1 -p $UNBOUND_PORT www.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www.example.com" outfile | grep "10.20.30.40"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+echo "OK"
+
+# Perform the lock verify tests, stop the server first.
+kill_pid $UNBOUND_PID
+cat unbound.log
+# Remove pidfile so that the post script does not try to stop the server,
+# it is already stopped.
+rm -f unbound.pid
+if test -f ublocktrace-doqclient.0; then
+	if $PRE/lock-verify ublocktrace-doqclient.* 2>&1; then
+		echo "lock-verify test ublocktrace-doqclient worked."
+	else
+		echo "lock-verify test ublocktrace-doqclient failed."
+		exit 1
+	fi
+fi
+if test -f ublocktrace.0; then
+	if $PRE/lock-verify ublocktrace.* 2>&1; then
+		echo "lock-verify test ublocktrace worked."
+	else
+		echo "lock-verify test ublocktrace failed."
+		exit 1
+	fi
+	if grep "lock error" unbound.log >/dev/null; then
+		echo "lock error"
+		exit 1
+	fi
+fi
+# check valgrind output
+if test -f $PRE/unbound_do_valgrind_in_test; then
+	if grep "All heap blocks were freed -- no leaks are possible" unbound.log; then
+		:  # clean
+	else
+		grep "^==" unbound.log
+		echo "Memory leaked"
+		grep "in use at exit" unbound.log
+		exit 1
+	fi
+	if grep "ERROR SUMMARY: 0 errors from 0 contexts" unbound.log; then
+		:  # clean
+	else
+		grep "^==" unbound.log
+		echo "Errors"
+		grep "ERROR SUMMARY" unbound.log
+		exit 1
+	fi
+fi
+exit 0

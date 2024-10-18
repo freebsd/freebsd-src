@@ -395,7 +395,7 @@ context_serialize_cancel(struct ctx_query* q, uint32_t* len)
 	/* format of cancel:
 	 * 	o uint32 cmd
 	 * 	o uint32 async-id */
-	uint8_t* p = (uint8_t*)reallocarray(NULL, sizeof(uint32_t), 2);
+	uint8_t* p = (uint8_t*)reallocarray(NULL, 2, sizeof(uint32_t));
 	if(!p) return NULL;
 	*len = 2*sizeof(uint32_t);
 	sldns_write_uint32(p, UB_LIBCMD_CANCEL);

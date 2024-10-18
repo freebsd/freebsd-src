@@ -179,11 +179,11 @@ testcode/unitlruhash.c testcode/unitmain.c testcode/unitmsgparse.c \
 testcode/unitneg.c testcode/unitregional.c testcode/unitslabhash.c \
 testcode/unitverify.c testcode/readhex.c testcode/testpkts.c testcode/unitldns.c \
 testcode/unitecs.c testcode/unitauth.c testcode/unitzonemd.c \
-testcode/unittcpreuse.c
+testcode/unittcpreuse.c testcode/unitdoq.c
 UNITTEST_OBJ=unitanchor.lo unitdname.lo unitlruhash.lo unitmain.lo \
 unitmsgparse.lo unitneg.lo unitregional.lo unitslabhash.lo unitverify.lo \
 readhex.lo testpkts.lo unitldns.lo unitecs.lo unitauth.lo unitzonemd.lo \
-unittcpreuse.lo
+unittcpreuse.lo unitdoq.lo
 UNITTEST_OBJ_LINK=$(UNITTEST_OBJ) worker_cb.lo $(COMMON_OBJ) $(SLDNS_OBJ) \
 $(COMPAT_OBJ)
 DAEMON_SRC=daemon/acl_list.c daemon/cachedump.c daemon/daemon.c \
@@ -242,6 +242,10 @@ DOHCLIENT_SRC=testcode/dohclient.c
 DOHCLIENT_OBJ=dohclient.lo
 DOHCLIENT_OBJ_LINK=$(DOHCLIENT_OBJ) worker_cb.lo $(COMMON_OBJ) $(COMPAT_OBJ) \
 $(SLDNS_OBJ)
+DOQCLIENT_SRC=testcode/doqclient.c
+DOQCLIENT_OBJ=doqclient.lo
+DOQCLIENT_OBJ_LINK=$(DOQCLIENT_OBJ) $(COMMON_OBJ) $(COMPAT_OBJ) \
+$(SLDNS_OBJ)
 PERF_SRC=testcode/perf.c
 PERF_OBJ=perf.lo
 PERF_OBJ_LINK=$(PERF_OBJ) worker_cb.lo $(COMMON_OBJ) $(COMPAT_OBJ) $(SLDNS_OBJ)
@@ -288,7 +292,7 @@ ALL_SRC=$(COMMON_SRC) $(UNITTEST_SRC) $(DAEMON_SRC) \
 	$(CONTROL_SRC) $(UBANCHOR_SRC) $(PETAL_SRC) $(DNSTAP_SOCKET_SRC)\
 	$(PYTHONMOD_SRC) $(PYUNBOUND_SRC) $(WIN_DAEMON_THE_SRC) \
 	$(SVCINST_SRC) $(SVCUNINST_SRC) $(ANCHORUPD_SRC) $(SLDNS_SRC) \
-	$(DOHCLIENT_SRC) $(READZONE_SRC)
+	$(DOHCLIENT_SRC) $(DOQCLIENT_SRC) $(READZONE_SRC)
 
 ALL_OBJ=$(COMMON_OBJ) $(UNITTEST_OBJ) $(DAEMON_OBJ) \
 	$(TESTBOUND_OBJ) $(LOCKVERIFY_OBJ) $(PKTVIEW_OBJ) \
@@ -297,7 +301,7 @@ ALL_OBJ=$(COMMON_OBJ) $(UNITTEST_OBJ) $(DAEMON_OBJ) \
 	$(CONTROL_OBJ) $(UBANCHOR_OBJ) $(PETAL_OBJ) $(DNSTAP_SOCKET_OBJ)\
 	$(COMPAT_OBJ) $(PYUNBOUND_OBJ) \
 	$(SVCINST_OBJ) $(SVCUNINST_OBJ) $(ANCHORUPD_OBJ) $(SLDNS_OBJ) \
-	$(DOHCLIENT_OBJ) $(READZONE_OBJ)
+	$(DOHCLIENT_OBJ) $(DOQCLIENT_OBJ) $(READZONE_OBJ)
 
 COMPILE=$(LIBTOOL) --tag=CC --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS) @PTHREAD_CFLAGS_ONLY@
 LINK=$(LIBTOOL) --tag=CC --mode=link $(CC) $(staticexe) $(RUNTIME_PATH) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
@@ -334,7 +338,7 @@ rsrc_unbound_checkconf.o:	$(srcdir)/winrc/rsrc_unbound_checkconf.rc config.h
 TEST_BIN=asynclook$(EXEEXT) delayer$(EXEEXT) \
 	lock-verify$(EXEEXT) memstats$(EXEEXT) perf$(EXEEXT) \
 	petal$(EXEEXT) pktview$(EXEEXT) streamtcp$(EXEEXT) \
-	$(DNSTAP_SOCKET_TESTBIN) dohclient$(EXEEXT) \
+	$(DNSTAP_SOCKET_TESTBIN) dohclient$(EXEEXT) doqclient$(EXEEXT) \
 	testbound$(EXEEXT) unittest$(EXEEXT) readzone$(EXEEXT)
 tests:	all $(TEST_BIN)
 
@@ -415,6 +419,9 @@ streamtcp$(EXEEXT):	$(STREAMTCP_OBJ_LINK)
 
 dohclient$(EXEEXT):	$(DOHCLIENT_OBJ_LINK)
 	$(LINK) -o $@ $(DOHCLIENT_OBJ_LINK) $(SSLLIB) $(LIBS)
+
+doqclient$(EXEEXT):	$(DOQCLIENT_OBJ_LINK)
+	$(LINK) -o $@ $(DOQCLIENT_OBJ_LINK) $(SSLLIB) $(LIBS)
 
 perf$(EXEEXT):	$(PERF_OBJ_LINK)
 	$(LINK) -o $@ $(PERF_OBJ_LINK) $(SSLLIB) $(LIBS)
@@ -703,6 +710,8 @@ depend:
 
 # build rules
 ipset.lo ipset.o: $(srcdir)/ipset/ipset.c
+doqclient.lo doqclient.o: $(srcdir)/testcode/doqclient.c
+unitdoq.lo unitdoq.o: $(srcdir)/testcode/unitdoq.c
 
 # Dependencies
 dns.lo dns.o: $(srcdir)/services/cache/dns.c config.h $(srcdir)/iterator/iter_delegpt.h $(srcdir)/util/log.h \

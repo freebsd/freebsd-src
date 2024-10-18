@@ -428,4 +428,11 @@ int iter_stub_fwd_no_cache(struct module_qstate *qstate,
 void iterator_set_ip46_support(struct module_stack* mods,
 	struct module_env* env, struct outside_network* outnet);
 
+/**
+ * Limit NSEC and NSEC3 TTL in response, RFC9077
+ * @param msg: dns message, the SOA record ttl is used to restrict ttls
+ *	of NSEC and NSEC3 RRsets. If no SOA record, nothing happens.
+ */
+void limit_nsec_ttl(struct dns_msg* msg);
+
 #endif /* ITERATOR_ITER_UTILS_H */

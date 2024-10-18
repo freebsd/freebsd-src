@@ -3684,6 +3684,29 @@ auth_zone_parse_notify_serial(sldns_buffer* pkt, uint32_t *serial)
 	return 1;
 }
 
+/** print addr to str, and if not 53, append "@port_number", for logs. */
+static void addr_port_to_str(struct sockaddr_storage* addr, socklen_t addrlen,
+	char* buf, size_t len)
+{
+	uint16_t port = 0;
+	if(addr_is_ip6(addr, addrlen)) {
+		struct sockaddr_in6* sa = (struct sockaddr_in6*)addr;
+		port = ntohs((uint16_t)sa->sin6_port);
+	} else {
+		struct sockaddr_in* sa = (struct sockaddr_in*)addr;
+		port = ntohs((uint16_t)sa->sin_port);
+	}
+	if(port == UNBOUND_DNS_PORT) {
+		/* If it is port 53, print it plainly. */
+		addr_to_str(addr, addrlen, buf, len);
+	} else {
+		char a[256];
+		a[0]=0;
+		addr_to_str(addr, addrlen, a, sizeof(a));
+		snprintf(buf, len, "%s@%d", a, (int)port);
+	}
+}
+
 /** see if addr appears in the list */
 static int
 addr_in_list(struct auth_addr* list, struct sockaddr_storage* addr,
@@ -5516,7 +5539,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 		if(!xfr->task_transfer->cp) {
 			char zname[255+1], as[256];
 			dname_str(xfr->name, zname);
-			addr_to_str(&addr, addrlen, as, sizeof(as));
+			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "cannot create http cp "
 				"connection for %s to %s", zname, as);
 			return 0;
@@ -5525,7 +5548,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 		if(verbosity >= VERB_ALGO) {
 			char zname[255+1], as[256];
 			dname_str(xfr->name, zname);
-			addr_to_str(&addr, addrlen, as, sizeof(as));
+			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "auth zone %s transfer next HTTP fetch from %s started", zname, as);
 		}
 		/* Create or refresh the list of allow_notify addrs */
@@ -5548,7 +5571,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 	if(!xfr->task_transfer->cp) {
 		char zname[255+1], as[256];
  		dname_str(xfr->name, zname);
-		addr_to_str(&addr, addrlen, as, sizeof(as));
+		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "cannot create tcp cp connection for "
 			"xfr %s to %s", zname, as);
 		return 0;
@@ -5557,7 +5580,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 	if(verbosity >= VERB_ALGO) {
 		char zname[255+1], as[256];
  		dname_str(xfr->name, zname);
-		addr_to_str(&addr, addrlen, as, sizeof(as));
+		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "auth zone %s transfer next %s fetch from %s started", zname, 
 			(xfr->task_transfer->on_ixfr?"IXFR":"AXFR"), as);
 	}
@@ -5660,7 +5683,7 @@ xfr_master_add_addrs(struct auth_master* m, struct ub_packed_rrset_key* rrset,
 		}
 		if(verbosity >= VERB_ALGO) {
 			char s[64];
-			addr_to_str(&a->addr, a->addrlen, s, sizeof(s));
+			addr_port_to_str(&a->addr, a->addrlen, s, sizeof(s));
 			verbose(VERB_ALGO, "auth host %s lookup %s",
 				m->host, s);
 		}
@@ -6406,7 +6429,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 		if(!xfr->task_probe->cp) {
 			char zname[255+1], as[256];
 			dname_str(xfr->name, zname);
-			addr_to_str(&addr, addrlen, as, sizeof(as));
+			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "cannot create udp cp for "
 				"probe %s to %s", zname, as);
 			return 0;
@@ -6426,7 +6449,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 		(struct sockaddr*)&addr, addrlen, 0)) {
 		char zname[255+1], as[256];
 		dname_str(xfr->name, zname);
-		addr_to_str(&addr, addrlen, as, sizeof(as));
+		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "failed to send soa probe for %s to %s",
 			zname, as);
 		return 0;
@@ -6434,7 +6457,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 	if(verbosity >= VERB_ALGO) {
 		char zname[255+1], as[256];
 		dname_str(xfr->name, zname);
-		addr_to_str(&addr, addrlen, as, sizeof(as));
+		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "auth zone %s soa probe sent to %s", zname,
 			as);
 	}

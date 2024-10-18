@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct  3, 2024" "NLnet Labs" "unbound 1.21.1"
+.TH "unbound.conf" "5" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -566,6 +566,9 @@ tls\-system\-cert to load CA certs, otherwise the connections cannot be
 authenticated. This option enables TLS for all of them, but if you do not set
 this you can configure TLS specifically for some forward zones with
 forward\-tls\-upstream.  And also with stub\-tls\-upstream.
+If the tls\-upstream option is enabled, it is for all the forwards and stubs,
+where the forward\-tls\-upstream and stub\-tls\-upstream options are ignored,
+as if they had been set to yes.
 .TP
 .B ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
@@ -715,6 +718,18 @@ will be used where applicable for logging, ACL, DNSTAP, RPZ and IP ratelimiting.
 PROXYv2 is supported for UDP and TCP/TLS listening interfaces.
 There is no support for PROXYv2 on a DoH or DNSCrypt listening interface.
 Can list multiple, each on a new statement.
+.TP
+.B quic\-port: \fI<number>
+The port number on which to provide DNS-over-QUIC service, default 853, only
+interfaces configured with that port number as @number get the QUIC service.
+The interface uses QUIC for the UDP traffic on that port number.
+.TP
+.B quic\-size: \fI<size in bytes>
+Maximum number of bytes for all QUIC buffers and data combined. Default is 8
+megabytes. A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes,
+megabytes or gigabytes (1024*1024 bytes in a megabyte). New connections receive
+connection refused when the limit is exceeded. New streams are reset when the
+limit is exceeded.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -936,6 +951,10 @@ Sets logfile lines to use a timestamp in UTC ascii. Default is no, which
 prints the seconds since 1970 in brackets. No effect if using syslog, in
 that case syslog formats the timestamp printed into the log files.
 .TP
+.B log\-time\-iso:\fR <yes or no>
+Log time in ISO8601 format, if \fBlog\-time\-ascii:\fR yes is also set.
+Default is no.
+.TP
 .B log\-queries: \fI<yes or no>
 Prints one line per query to the log, with the log timestamp and IP address,
 name, type and class.  Default is no.  Note that it takes time to print these
@@ -1047,6 +1066,11 @@ payload is very large.
 .TP
 .B harden\-glue: \fI<yes or no>
 Will trust glue only if it is within the servers authority. Default is yes.
+.TP
+.B harden\-unverified\-glue: \fI<yes or no>
+Will trust only in-zone glue. Will try to resolve all out of zone
+(\fI<unverfied>) glue. Will fallback to the original glue if unable to resolve.
+Default is no.
 .TP
 .B harden\-dnssec\-stripped: \fI<yes or no>
 Require DNSSEC data for trust\-anchored zones, if such data is absent,
@@ -1171,10 +1195,11 @@ IP6 ::1 and IP4 127.0.0.1/8. If no, then localhost can be used to send
 queries to. Default is yes.
 .TP
 .B prefetch: \fI<yes or no>
-If yes, message cache elements are prefetched before they expire to
-keep the cache up to date.  Default is no.  Turning it on gives about
-10 percent more traffic and load on the machine, but popular items do
-not expire from the cache.
+If yes, cache hits on message cache elements that are on their last 10 percent
+of their TTL value trigger a prefetch to keep the cache up to date.
+Default is no.
+Turning it on gives about 10 percent more traffic and load on the machine, but
+popular items do not expire from the cache.
 .TP
 .B prefetch\-key: \fI<yes or no>
 If yes, fetch the DNSKEYs earlier in the validation process, when a DS
@@ -1194,12 +1219,13 @@ from the query ID, for speed and thread safety).  Default is yes.
 .B minimal-responses: \fI<yes or no>
 If yes, Unbound does not insert authority/additional sections into response
 messages when those sections are not required.  This reduces response
-size significantly, and may avoid TCP fallback for some responses.
-This may cause a slight speedup.  The default is yes, even though the DNS
+size significantly, and may avoid TCP fallback for some responses which may
+cause a slight speedup.  The default is yes, even though the DNS
 protocol RFCs mandate these sections, and the additional content could
-be of use and save roundtrips for clients.  Because they are not used,
-and the saved roundtrips are easier saved with prefetch, whilst this is
-faster.
+save roundtrips for clients that use the additional content.
+However these sections are hardly used by clients.
+Enabling prefetch can benefit clients that need the additional content
+by trying to keep that content fresh in the cache.
 .TP
 .B disable-dnssec-lame-check: \fI<yes or no>
 If true, disables the DNSSEC lameness check in the iterator.  This check
@@ -1956,6 +1982,23 @@ Results in SERVFAIL when reached.
 Changing this value needs caution as it can allow long CNAME chains to be
 accepted, where Unbound needs to verify (resolve) each link individually.
 Default is 11.
+.TP 5
+.B iter\-scrub\-ns: \fI<number>
+Limit on the number of NS records allowed in an rrset of type NS, from the
+iterator scrubber. This protects the internals of the resolver from overly
+large NS sets. Default is 20.
+.TP 5
+.B iter\-scrub\-cname: \fI<number>
+Limit on the number of CNAME, DNAME records in an answer, from the iterator
+scrubber. This protects the internals of the resolver from overly long
+indirection chains. Clips off the remainder of the reply packet at that point.
+Default is 11.
+.TP 5
+.B max\-global\-quota: \fI<number>
+Limit on the number of upstream queries sent out for an incoming query and
+its subqueries from recursion. It is not reset during the resolution. When
+it is exceeded the query is failed and the lookup process stops.
+Default is 128.
 .TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
@@ -2787,6 +2830,14 @@ If this timeout expires Unbound closes the connection, treats it as
 if the Redis server does not have the requested data, and will try to
 re-establish a new connection later.
 This option defaults to 100 milliseconds.
+.TP
+.B redis-command-timeout: \fI<msec>\fR
+The timeout to use for redis commands, in milliseconds. If 0, it uses the
+redis\-timeout value. The default is 0.
+.TP
+.B redis-connect-timeout: \fI<msec>\fR
+The timeout to use for redis connection set up, in milliseconds. If 0, it
+uses the redis\-timeout value. The default is 0.
 .TP
 .B redis-expire-records: \fI<yes or no>
 If Redis record expiration is enabled.  If yes, Unbound sets timeout for Redis

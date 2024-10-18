@@ -15,7 +15,7 @@ stub-zone:
 	stub-addr: 1.2.3.4
 CONFIG_END
 
-SCENARIO_BEGIN Test serve-expired with client-timeout and a SERVFAIL upstream reply
+SCENARIO_BEGIN Test serve-expired without client-timeout and a SERVFAIL upstream reply
 ; Scenario overview:
 ; - query for example.com. IN A
 ; - answer from upstream is SERVFAIL; will be cached for NORR_TTL(5)

@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.21.1.
+# See unbound.conf(5) man page, version 1.22.0.
 #
 # this is a comment.
 
@@ -186,6 +186,15 @@ server:
 	# Hard limit on the number of times Unbound is allowed to restart a
 	# query upon encountering a CNAME record.
 	# max-query-restarts: 11
+
+	# Limit on number of NS records in NS RRset for incoming packets.
+	# iter-scrub-ns: 20
+
+	# Limit on number of CNAME, DNAME records for incoming packets.
+	# iter-scrub-cname: 11
+
+	# Limit on upstream queries for an incoming query and its recursion.
+	# max-global-quota: 128
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
@@ -452,6 +461,10 @@ server:
 	# print UTC timestamp in ascii to logfile, default is epoch in seconds.
 	# log-time-ascii: no
 
+	# log timestamp in ISO8601 format if also log-time-ascii is enabled.
+	# (y-m-dTh:m:s.msec[+-]tzhours:tzminutes)
+	# log-time-iso: no
+
 	# print one line with time, IP, name, type, class for every query.
 	# log-queries: no
 
@@ -523,6 +536,9 @@ server:
 
 	# Harden against out of zone rrsets, to avoid spoofing attempts.
 	# harden-glue: yes
+
+	# Harden against unverified (outside-zone, including sibling zone) glue rrsets
+	# harden-unverified-glue: no
 
 	# Harden against receiving dnssec-stripped data. If you turn it
 	# off, failing to validate dnskey data for a trustanchor will
@@ -904,6 +920,7 @@ server:
 	# tls-service-pem: "path/to/publiccertfile.pem"
 	# tls-port: 853
 	# https-port: 443
+	# quic-port: 853
 
 	# cipher setting for TLSv1.2
 	# tls-ciphers: "DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256"
@@ -967,6 +984,9 @@ server:
 
 	# Disable TLS for DNS-over-HTTP downstream service.
 	# http-notls-downstream: no
+
+	# Maximum number of bytes used for QUIC buffers.
+	# quic-size: 8m
 
 	# The interfaces that use these listed port numbers will support and
 	# expect PROXYv2. For UDP and TCP/TLS interfaces.
@@ -1289,6 +1309,10 @@ remote-control:
 #     # redis-server-password: ""
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
+#     # timeout (in ms) for commands, if 0, uses redis-timeout.
+#     redis-command-timeout: 0
+#     # timeout (in ms) for connection set up, if 0, uses redis-timeout.
+#     redis-connect-timeout: 0
 #     # set timeout on redis records based on DNS response TTL
 #     redis-expire-records: no
 #     # redis logical database to use, 0 is the default database.

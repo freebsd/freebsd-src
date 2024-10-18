@@ -1564,3 +1564,45 @@ void iterator_set_ip46_support(struct module_stack* mods,
 	if(outnet->num_ip6 == 0)
 		ie->supports_ipv6 = 0;
 }
+
+void
+limit_nsec_ttl(struct dns_msg* msg)
+{
+	/* Limit NSEC and NSEC3 TTL in response, RFC9077 */
+	size_t i;
+	int found = 0;
+	time_t soa_ttl = 0;
+	/* Limit the NSEC and NSEC3 TTL values to the SOA TTL and SOA minimum
+	 * TTL. That has already been applied to the SOA record ttl. */
+	for(i=0; i<msg->rep->rrset_count; i++) {
+		struct ub_packed_rrset_key* s = msg->rep->rrsets[i];
+		if(ntohs(s->rk.type) == LDNS_RR_TYPE_SOA) {
+			struct packed_rrset_data* soadata = (struct packed_rrset_data*)s->entry.data;
+			found = 1;
+			soa_ttl = soadata->ttl;
+			break;
+		}
+	}
+	if(!found)
+		return;
+	for(i=0; i<msg->rep->rrset_count; i++) {
+		struct ub_packed_rrset_key* s = msg->rep->rrsets[i];
+		if(ntohs(s->rk.type) == LDNS_RR_TYPE_NSEC ||
+			ntohs(s->rk.type) == LDNS_RR_TYPE_NSEC3) {
+			struct packed_rrset_data* data = (struct packed_rrset_data*)s->entry.data;
+			/* Limit the negative TTL. */
+			if(data->ttl > soa_ttl) {
+				if(verbosity >= VERB_ALGO) {
+					char buf[256];
+					snprintf(buf, sizeof(buf),
+						"limiting TTL %d of %s record to the SOA TTL of %d for",
+						(int)data->ttl, ((ntohs(s->rk.type) == LDNS_RR_TYPE_NSEC)?"NSEC":"NSEC3"), (int)soa_ttl);
+					log_nametypeclass(VERB_ALGO, buf,
+						s->rk.dname, ntohs(s->rk.type),
+						ntohs(s->rk.rrset_class));
+				}
+				data->ttl = soa_ttl;
+			}
+		}
+	}
+}

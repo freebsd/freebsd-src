@@ -1,4 +1,4 @@
-.TH "unbound-checkconf" "8" "Oct  3, 2024" "NLnet Labs" "unbound 1.21.1"
+.TH "unbound-checkconf" "8" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
 .\"
 .\" unbound-checkconf.8 -- unbound configuration checker manual
 .\"

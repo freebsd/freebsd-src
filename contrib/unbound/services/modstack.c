@@ -265,7 +265,7 @@ modstack_call_init(struct module_stack* stack, const char* module_conf,
         int i, changed = 0;
         env->need_to_validate = 0; /* set by module init below */
         for(i=0; i<stack->num; i++) {
-		while(*module_conf && isspace(*module_conf))
+		while(*module_conf && isspace((unsigned char)*module_conf))
 			module_conf++;
                 if(strncmp(stack->mod[i]->name, module_conf,
 			strlen(stack->mod[i]->name))) {

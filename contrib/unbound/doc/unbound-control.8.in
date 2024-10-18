@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Oct  3, 2024" "NLnet Labs" "unbound 1.21.1"
+.TH "unbound-control" "8" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -606,6 +606,10 @@ queries waiting for request stream completion.
 Memory in bytes used by the HTTP/2 response buffers. Containing DNS responses
 waiting to be written back to the clients.
 .TP
+.I mem.quic
+Memory in bytes used by QUIC. Containing connection information, stream
+information, queries read and responses written back to the clients.
+.TP
 .I histogram.<sec>.<usec>.to.<sec>.<usec>
 Shows a histogram, summed over all threads. Every element counts the
 recursive queries whose reply time fit between the lower and upper bound.
@@ -653,6 +657,10 @@ the Unbound server where the client negotiated a TLS session resumption key.
 Number of queries that were made using HTTPS towards the Unbound server.
 These are also counted in num.query.tcp and num.query.tls, because HTTPS
 uses TLS and TCP.
+.TP
+.I num.query.quic
+Number of queries that were made using QUIC towards the Unbound server.
+These are also counted in num.query.tls, because TLS is used for these queries.
 .TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the Unbound server.

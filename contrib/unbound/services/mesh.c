@@ -311,7 +311,7 @@ int mesh_make_new_space(struct mesh_area* mesh, sldns_buffer* qbuf)
 
 struct dns_msg*
 mesh_serve_expired_lookup(struct module_qstate* qstate,
-	struct query_info* lookup_qinfo)
+	struct query_info* lookup_qinfo, int* is_expired)
 {
 	hashvalue_type h;
 	struct lruhash_entry* e;
@@ -321,6 +321,7 @@ mesh_serve_expired_lookup(struct module_qstate* qstate,
 	time_t timenow = *qstate->env->now;
 	int must_validate = (!(qstate->query_flags&BIT_CD)
 		|| qstate->env->cfg->ignore_cd) && qstate->env->need_to_validate;
+	*is_expired = 0;
 	/* Lookup cache */
 	h = query_info_hash(lookup_qinfo, qstate->query_flags);
 	e = slabhash_lookup(qstate->env->msg_cache, h, lookup_qinfo, 0);
@@ -328,6 +329,7 @@ mesh_serve_expired_lookup(struct module_qstate* qstate,
 
 	key = (struct msgreply_entry*)e->key;
 	data = (struct reply_info*)e->data;
+	if(data->ttl < timenow) *is_expired = 1;
 	msg = tomsg(qstate->env, &key->key, data, qstate->region, timenow,
 		qstate->env->cfg->serve_expired, qstate->env->scratch);
 	if(!msg)
@@ -2176,6 +2178,7 @@ mesh_serve_expired_callback(void* arg)
 	int must_validate = (!(qstate->query_flags&BIT_CD)
 		|| qstate->env->cfg->ignore_cd) && qstate->env->need_to_validate;
 	int i = 0;
+	int is_expired;
 	if(!qstate->serve_expired_data) return;
 	verbose(VERB_ALGO, "Serve expired: Trying to reply with expired data");
 	comm_timer_delete(qstate->serve_expired_data->timer);
@@ -2193,7 +2196,7 @@ mesh_serve_expired_callback(void* arg)
 		fptr_ok(fptr_whitelist_serve_expired_lookup(
 			qstate->serve_expired_data->get_cached_answer));
 		msg = (*qstate->serve_expired_data->get_cached_answer)(qstate,
-			lookup_qinfo);
+			lookup_qinfo, &is_expired);
 		if(!msg)
 			return;
 		/* Reset these in case we pass a second time from here. */
@@ -2285,8 +2288,10 @@ mesh_serve_expired_callback(void* arg)
 
 		/* Add EDE Stale Answer (RCF8914). Ignore global ede as this is
 		 * warning instead of an error */
-		if (r->edns.edns_present && qstate->env->cfg->ede_serve_expired &&
-			qstate->env->cfg->ede) {
+		if(r->edns.edns_present &&
+			qstate->env->cfg->ede_serve_expired &&
+			qstate->env->cfg->ede &&
+			is_expired) {
 			edns_opt_list_append_ede(&r->edns.opt_list_out,
 				mstate->s.region, LDNS_EDE_STALE_ANSWER, NULL);
 		}
