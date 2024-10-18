@@ -1453,7 +1453,7 @@ m3_pci_attach(device_t dev)
 	/* Create the buffer for saving the card state during suspend */
 	len = sizeof(u_int16_t) * (REV_B_CODE_MEMORY_LENGTH +
 	    REV_B_DATA_MEMORY_LENGTH);
-	sc->savemem = (u_int16_t*)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->savemem = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	return 0;
 
