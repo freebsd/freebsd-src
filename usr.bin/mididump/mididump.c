@@ -44,10 +44,10 @@
 #define NOTE2FREQ(n)	(440 * pow(2.0f, ((float)n - 69) / 12))
 #define CHAN_MASK	0x0f
 
-struct note {
+static struct note {
 	const char *name;
 	const char *alt;
-} static notes[] = {
+} notes[] = {
 	{ "C",	NULL },
 	{ "C#",	"Db" },
 	{ "D",	NULL },
@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 		case 0xb0 ... 0xbf:
 			b1 = read_byte(fd);
 			b2 = read_byte(fd);
-			if (b1 < 0 || b1 > ARRLEN(ctls) - 1)
+			if (b1 > ARRLEN(ctls) - 1)
 				break;
 			printf("Control/Mode change	channel=%d, "
 			    "control=%d (%s), value=%d",
