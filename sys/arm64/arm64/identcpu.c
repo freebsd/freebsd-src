@@ -1283,7 +1283,14 @@ static const struct mrs_field id_aa64mmfr1_fields[] = {
 	MRS_FIELD(ID_AA64MMFR1, ETS, false, MRS_LOWER, 0, id_aa64mmfr1_ets),
 	MRS_FIELD(ID_AA64MMFR1, TWED, false, MRS_LOWER, 0, id_aa64mmfr1_twed),
 	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_LOWER, 0, id_aa64mmfr1_xnx),
-	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_LOWER, 0,
+	/*
+	 * SpecSEI != 0 indicates the CPU might generate an external abort
+	 * under speculation, while 0 indicates it can't happen. It's safer
+	 * to incorrectly indicate it might happen when it can't rather than
+	 * say it can't happen when it could. As such use the largest value
+	 * found in the system.
+	 */
+	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_HIGHER, 0,
 	    id_aa64mmfr1_specsei),
 	MRS_FIELD(ID_AA64MMFR1, PAN, false, MRS_LOWER, 0, id_aa64mmfr1_pan),
 	MRS_FIELD(ID_AA64MMFR1, LO, false, MRS_LOWER, 0, id_aa64mmfr1_lo),
