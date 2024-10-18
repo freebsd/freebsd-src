@@ -1107,8 +1107,6 @@ struct	tcpstat {
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
 
 #ifdef _KERNEL
-#define	TI_UNLOCKED	1
-#define	TI_RLOCKED	2
 #include <sys/counter.h>
 #include <netinet/in_kdtrace.h>
 
