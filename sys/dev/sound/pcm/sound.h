@@ -325,6 +325,10 @@ struct snddev_info {
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
 	struct cv cv;
+	struct unrhdr *p_unr;
+	struct unrhdr *vp_unr;
+	struct unrhdr *r_unr;
+	struct unrhdr *vr_unr;
 };
 
 void	sound_oss_sysinfo(oss_sysinfo *);
