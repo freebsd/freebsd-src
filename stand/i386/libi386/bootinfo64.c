@@ -143,9 +143,7 @@ bi_load64(char *args, vm_offset_t *modulep,
     /* place the metadata before anything */
     module = *modulep = addr;
 
-    kfp = file_findfile(NULL, "elf kernel");
-    if (kfp == NULL)
-      kfp = file_findfile(NULL, "elf64 kernel");
+    kfp = file_findfile(NULL, md_kerntype);
     if (kfp == NULL)
 	panic("can't find kernel file");
     kernend = 0;	/* fill it in later */

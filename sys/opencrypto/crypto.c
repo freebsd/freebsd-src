@@ -253,14 +253,7 @@ static struct keybuf empty_keybuf = {
 static void
 keybuf_init(void)
 {
-	caddr_t kmdp;
-
-	kmdp = preload_search_by_type("elf kernel");
-
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-
-	keybuf = (struct keybuf *)preload_search_info(kmdp,
+	keybuf = (struct keybuf *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_KEYBUF);
 
         if (keybuf == NULL)
