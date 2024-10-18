@@ -1,4 +1,6 @@
 .\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2023-2024 Bjoern A. Zeeb
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -62,6 +64,9 @@ Otherwise no
 .Xr wlan 4
 interface can be created using
 .Xr ifconfig 8 .
+One can use
+.Xr fwget 8
+to install the correct firmware package.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
@@ -74,12 +79,6 @@ native
 driver code as well as to the native
 .Xr net80211 4
 wireless stack.
-.Pp
-While
-.Nm
-supports all 802.11 a/b/g/n/ac and ax
-the compatibility code currently only supports 802.11 a/b/g modes.
-Support for 802.11 n/ac is to come.
 .Sh HARDWARE
 The
 .Nm
@@ -88,10 +87,10 @@ driver supports PCIe devices with the following chipsets:
 .Bl -tag -width Ds -offset indent -compact
 .It MediaTek MT7921E
 .El
-.Sh BUGS
-Certainly.
 .Sh SEE ALSO
 .Xr wlan 4 ,
+.Xr networking 7 ,
+.Xr fwget 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Sh HISTORY
@@ -99,3 +98,11 @@ The
 .Nm
 driver first appeared in
 .Fx 14.0 .
+.Sh BUGS
+Certainly.
+.Pp
+While
+.Nm
+supports 802.11 a/b/g/n/ac/ax modes,
+the compatibility code currently only supports 802.11 a/b/g modes.
+Support for 802.11 n/ac/ax is to come.
