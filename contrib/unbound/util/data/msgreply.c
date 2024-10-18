@@ -67,6 +67,8 @@ time_t MIN_NEG_TTL = 0;
 int SERVE_EXPIRED = 0;
 /** Time to serve records after expiration */
 time_t SERVE_EXPIRED_TTL = 0;
+/** Reset serve expired TTL after failed update attempt */
+time_t SERVE_EXPIRED_TTL_RESET = 0;
 /** TTL to use for expired records */
 time_t SERVE_EXPIRED_REPLY_TTL = 30;
 /** If we serve the original TTL or decrementing TTLs */
@@ -95,8 +97,9 @@ parse_create_qinfo(sldns_buffer* pkt, struct msg_parse* msg,
 /** constructor for replyinfo */
 struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-	time_t ttl, time_t prettl, time_t expttl, size_t an, size_t ns,
-	size_t ar, size_t total, enum sec_status sec, sldns_ede_code reason_bogus)
+	time_t ttl, time_t prettl, time_t expttl, time_t norecttl, size_t an,
+	size_t ns, size_t ar, size_t total, enum sec_status sec,
+	sldns_ede_code reason_bogus)
 {
 	struct reply_info* rep;
 	/* rrset_count-1 because the first ref is part of the struct. */
@@ -114,6 +117,7 @@ construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
 	rep->ttl = ttl;
 	rep->prefetch_ttl = prettl;
 	rep->serve_expired_ttl = expttl;
+	rep->serve_expired_norec_ttl = norecttl;
 	rep->an_numrrsets = an;
 	rep->ns_numrrsets = ns;
 	rep->ar_numrrsets = ar;
@@ -139,8 +143,8 @@ static int
 parse_create_repinfo(struct msg_parse* msg, struct reply_info** rep,
 	struct regional* region)
 {
-	*rep = construct_reply_info_base(region, msg->flags, msg->qdcount, 0, 
-		0, 0, msg->an_rrsets, msg->ns_rrsets, msg->ar_rrsets, 
+	*rep = construct_reply_info_base(region, msg->flags, msg->qdcount, 0,
+		0, 0, 0, msg->an_rrsets, msg->ns_rrsets, msg->ar_rrsets,
 		msg->rrset_count, sec_status_unchecked, LDNS_EDE_NONE);
 	if(!*rep)
 		return 0;
@@ -171,6 +175,32 @@ reply_info_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc,
 	return 1;
 }
 
+int
+reply_info_can_answer_expired(struct reply_info* rep, time_t timenow)
+{
+	log_assert(rep->ttl < timenow);
+	/* Really expired */
+	if(SERVE_EXPIRED_TTL && rep->serve_expired_ttl < timenow) return 0;
+	/* Ignore expired failure answers */
+	if(FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NOERROR &&
+		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NXDOMAIN &&
+		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_YXDOMAIN) return 0;
+	return 1;
+}
+
+int reply_info_could_use_expired(struct reply_info* rep, time_t timenow)
+{
+	log_assert(rep->ttl < timenow);
+	/* Really expired */
+	if(SERVE_EXPIRED_TTL && rep->serve_expired_ttl < timenow &&
+		!SERVE_EXPIRED_TTL_RESET) return 0;
+	/* Ignore expired failure answers */
+	if(FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NOERROR &&
+		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_NXDOMAIN &&
+		FLAGS_GET_RCODE(rep->flags) != LDNS_RCODE_YXDOMAIN) return 0;
+	return 1;
+}
+
 struct reply_info *
 make_new_reply_info(const struct reply_info* rep, struct regional* region,
 	size_t an_numrrsets, size_t copy_rrsets)
@@ -185,7 +215,8 @@ make_new_reply_info(const struct reply_info* rep, struct regional* region,
 	 * so the total number of RRsets is an_numrrsets. */
 	new_rep = construct_reply_info_base(region, rep->flags,
 		rep->qdcount, rep->ttl, rep->prefetch_ttl,
-		rep->serve_expired_ttl, an_numrrsets, 0, 0, an_numrrsets,
+		rep->serve_expired_ttl, rep->serve_expired_norec_ttl,
+		an_numrrsets, 0, 0, an_numrrsets,
 		sec_status_insecure, LDNS_EDE_NONE);
 	if(!new_rep)
 		return NULL;
@@ -486,6 +517,8 @@ parse_copy_decompress(sldns_buffer* pkt, struct msg_parse* msg,
 	}
 	rep->prefetch_ttl = PREFETCH_TTL_CALC(rep->ttl);
 	rep->serve_expired_ttl = rep->ttl + SERVE_EXPIRED_TTL;
+	/* rep->serve_expired_norec_ttl should stay at 0 */
+	log_assert(rep->serve_expired_norec_ttl == 0);
 	return 1;
 }
 
@@ -568,6 +601,9 @@ reply_info_set_ttls(struct reply_info* rep, time_t timenow)
 	rep->ttl += timenow;
 	rep->prefetch_ttl += timenow;
 	rep->serve_expired_ttl += timenow;
+	/* Don't set rep->serve_expired_norec_ttl; this should only be set
+	 * on cached records when encountering an error */
+	log_assert(rep->serve_expired_norec_ttl == 0);
 	for(i=0; i<rep->rrset_count; i++) {
 		struct packed_rrset_data* data = (struct packed_rrset_data*)
 			rep->ref[i].key->entry.data;
@@ -763,6 +799,7 @@ reply_info_copy(struct reply_info* rep, struct alloc_cache* alloc,
 	struct reply_info* cp;
 	cp = construct_reply_info_base(region, rep->flags, rep->qdcount,
 		rep->ttl, rep->prefetch_ttl, rep->serve_expired_ttl,
+		rep->serve_expired_norec_ttl,
 		rep->an_numrrsets, rep->ns_numrrsets, rep->ar_numrrsets,
 		rep->rrset_count, rep->security, rep->reason_bogus);
 	if(!cp)

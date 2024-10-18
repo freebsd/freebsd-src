@@ -293,6 +293,9 @@ static void print_mem(struct ub_shm_stat_info* shm_stat,
 	PR_LL("mem.streamwait", s->svr.mem_stream_wait);
 	PR_LL("mem.http.query_buffer", s->svr.mem_http2_query_buffer);
 	PR_LL("mem.http.response_buffer", s->svr.mem_http2_response_buffer);
+#ifdef HAVE_NGTCP2
+	PR_LL("mem.quic", s->svr.mem_quic);
+#endif
 }
 
 /** print histogram */
@@ -359,6 +362,9 @@ static void print_extended(struct ub_stats_info* s, int inhibit_zero)
 	PR_UL("num.query.tls_resume", s->svr.qtls_resume);
 	PR_UL("num.query.ipv6", s->svr.qipv6);
 	PR_UL("num.query.https", s->svr.qhttps);
+#ifdef HAVE_NGTCP2
+	PR_UL("num.query.quic", s->svr.qquic);
+#endif
 
 	/* flags */
 	PR_UL("num.query.flags.QR", s->svr.qbit_QR);

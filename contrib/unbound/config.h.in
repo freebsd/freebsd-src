@@ -129,6 +129,14 @@
    and to 0 if you don't. */
 #undef HAVE_DECL_NGHTTP2_SESSION_SERVER_NEW
 
+/* Define to 1 if you have the declaration of `ngtcp2_conn_server_new', and to
+   0 if you don't. */
+#undef HAVE_DECL_NGTCP2_CONN_SERVER_NEW
+
+/* Define to 1 if you have the declaration of `ngtcp2_crypto_encrypt_cb', and
+   to 0 if you don't. */
+#undef HAVE_DECL_NGTCP2_CRYPTO_ENCRYPT_CB
+
 /* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_ED25519
@@ -421,6 +429,65 @@
 /* Define to 1 if you have the <nghttp2/nghttp2.h> header file. */
 #undef HAVE_NGHTTP2_NGHTTP2_H
 
+/* Define this to use ngtcp2. */
+#undef HAVE_NGTCP2
+
+/* Define to 1 if you have the `ngtcp2_ccerr_default' function. */
+#undef HAVE_NGTCP2_CCERR_DEFAULT
+
+/* Define to 1 if you have the `ngtcp2_conn_encode_0rtt_transport_params'
+   function. */
+#undef HAVE_NGTCP2_CONN_ENCODE_0RTT_TRANSPORT_PARAMS
+
+/* Define to 1 if you have the `ngtcp2_conn_get_max_local_streams_uni'
+   function. */
+#undef HAVE_NGTCP2_CONN_GET_MAX_LOCAL_STREAMS_UNI
+
+/* Define to 1 if you have the `ngtcp2_conn_get_num_scid' function. */
+#undef HAVE_NGTCP2_CONN_GET_NUM_SCID
+
+/* Define to 1 if you have the `ngtcp2_conn_in_closing_period' function. */
+#undef HAVE_NGTCP2_CONN_IN_CLOSING_PERIOD
+
+/* Define to 1 if you have the `ngtcp2_conn_in_draining_period' function. */
+#undef HAVE_NGTCP2_CONN_IN_DRAINING_PERIOD
+
+/* Define if ngtcp2_conn_shutdown_stream has 4 arguments. */
+#undef HAVE_NGTCP2_CONN_SHUTDOWN_STREAM4
+
+/* Define to 1 if you have the `ngtcp2_conn_tls_early_data_rejected' function.
+   */
+#undef HAVE_NGTCP2_CONN_TLS_EARLY_DATA_REJECTED
+
+/* Define to 1 if you have the `ngtcp2_crypto_encrypt_cb' function. */
+#undef HAVE_NGTCP2_CRYPTO_ENCRYPT_CB
+
+/* Define to 1 if you have the
+   `ngtcp2_crypto_quictls_configure_client_context' function. */
+#undef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_CLIENT_CONTEXT
+
+/* Define to 1 if you have the
+   `ngtcp2_crypto_quictls_configure_server_context' function. */
+#undef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
+
+/* Define to 1 if you have the
+   `ngtcp2_crypto_quictls_from_ossl_encryption_level' function. */
+#undef HAVE_NGTCP2_CRYPTO_QUICTLS_FROM_OSSL_ENCRYPTION_LEVEL
+
+/* Define to 1 if the system has the type `ngtcp2_encryption_level'. */
+#undef HAVE_NGTCP2_ENCRYPTION_LEVEL
+
+/* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_openssl.h> header file.
+   */
+#undef HAVE_NGTCP2_NGTCP2_CRYPTO_OPENSSL_H
+
+/* Define to 1 if you have the <ngtcp2/ngtcp2_crypto_quictls.h> header file.
+   */
+#undef HAVE_NGTCP2_NGTCP2_CRYPTO_QUICTLS_H
+
+/* Define to 1 if you have the <ngtcp2/ngtcp2.h> header file. */
+#undef HAVE_NGTCP2_NGTCP2_H
+
 /* Use libnss for crypto */
 #undef HAVE_NSS
 
@@ -587,6 +654,9 @@
 /* Define to 1 if you have the `SSL_get1_peer_certificate' function. */
 #undef HAVE_SSL_GET1_PEER_CERTIFICATE
 
+/* Define to 1 if you have the `SSL_is_quic' function. */
+#undef HAVE_SSL_IS_QUIC
+
 /* Define to 1 if you have the `SSL_set1_host' function. */
 #undef HAVE_SSL_SET1_HOST
 
@@ -628,6 +698,23 @@
 
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST
+
+/* Define to 1 if `tokenlen' is a member of `struct ngtcp2_pkt_hd'. */
+#undef HAVE_STRUCT_NGTCP2_PKT_HD_TOKENLEN
+
+/* Define to 1 if `max_tx_udp_payload_size' is a member of `struct
+   ngtcp2_settings'. */
+#undef HAVE_STRUCT_NGTCP2_SETTINGS_MAX_TX_UDP_PAYLOAD_SIZE
+
+/* Define to 1 if `tokenlen' is a member of `struct ngtcp2_settings'. */
+#undef HAVE_STRUCT_NGTCP2_SETTINGS_TOKENLEN
+
+/* Define to 1 if `original_dcid_present' is a member of `struct
+   ngtcp2_transport_params'. */
+#undef HAVE_STRUCT_NGTCP2_TRANSPORT_PARAMS_ORIGINAL_DCID_PRESENT
+
+/* Define to 1 if the system has the type `struct ngtcp2_version_cid'. */
+#undef HAVE_STRUCT_NGTCP2_VERSION_CID
 
 /* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
 #undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
@@ -1497,6 +1584,9 @@ struct sockaddr_storage;
 #  define free(p) unbound_stat_free_log(p, __FILE__, __LINE__, __func__)
 #  define realloc(p,s) unbound_stat_realloc_log(p, s, __FILE__, __LINE__, __func__)
 #  define strdup(s) unbound_stat_strdup_log(s, __FILE__, __LINE__, __func__)
+#ifdef HAVE_REALLOCARRAY
+#  define reallocarray(p,n,s) unbound_stat_reallocarray_log(p, n, s, __FILE__, __LINE__, __func__)
+#endif
 void *unbound_stat_malloc(size_t size);
 void *unbound_stat_calloc(size_t nmemb, size_t size);
 void unbound_stat_free(void *ptr);
@@ -1509,6 +1599,8 @@ void unbound_stat_free_log(void *ptr, const char* file, int line,
 	const char* func);
 void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 	int line, const char* func);
+void *unbound_stat_reallocarray_log(void *ptr, size_t nmemb, size_t size,
+	const char* file, int line, const char* func);
 char *unbound_stat_strdup_log(const char *s, const char* file, int line,
 	const char* func);
 #elif defined(UNBOUND_ALLOC_LITE)
@@ -1521,6 +1613,8 @@ char *unbound_stat_strdup_log(const char *s, const char* file, int line,
 #define UNBOUND_DNS_OVER_TLS_PORT 853
 /** default port for DNS over HTTPS traffic. */
 #define UNBOUND_DNS_OVER_HTTPS_PORT 443
+/** default port for DNS over QUIC traffic. */
+#define UNBOUND_DNS_OVER_QUIC_PORT 853
 /** default port for unbound control traffic, registered port with IANA,
     ub-dns-control  8953/tcp    unbound dns nameserver control */
 #define UNBOUND_CONTROL_PORT 8953

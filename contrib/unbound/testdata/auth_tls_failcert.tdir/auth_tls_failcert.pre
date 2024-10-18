@@ -1,0 +1,47 @@
+# #-- auth_tls_failcert.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+if test -n "$NSD"; then
+	:
+else
+	if `which nsd >/dev/null 2>&1`; then
+		# need nsd >= 4.2.0
+		NSD="nsd"
+	else
+		if test -f $PRE/../nsd/nsd; then
+			NSD="$PRE/../nsd/nsd"
+		else
+			skip_test "need nsd"
+		fi
+	fi
+fi
+echo "NSD=$NSD"
+
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+NSD_PORT=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "NSD_PORT=$NSD_PORT" >> .tpkg.var.test
+
+# make config file
+sed -e 's/@UNBOUND_PORT\@/'$UNBOUND_PORT'/' -e 's/@NSD_PORT\@/'$NSD_PORT'/' < auth_tls_failcert.ub.conf > ub.conf
+sed -e 's/@UNBOUND_PORT\@/'$UNBOUND_PORT'/' -e 's/@NSD_PORT\@/'$NSD_PORT'/' < auth_tls_failcert.nsd.conf > nsd.conf
+
+# start nsd
+$NSD -d -c nsd.conf >nsd.log 2>&1 &
+NSD_PID=$!
+echo "NSD_PID=$NSD_PID" >> .tpkg.var.test
+
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_nsd_up nsd.log
+wait_unbound_up unbound.log

@@ -65,6 +65,9 @@
 #ifdef HAVE_NGHTTP2_NGHTTP2_H
 #include <nghttp2/nghttp2.h>
 #endif
+#ifdef HAVE_NGTCP2
+#include <ngtcp2/ngtcp2.h>
+#endif
 
 struct sldns_buffer;
 struct comm_point;
@@ -72,6 +75,11 @@ struct comm_reply;
 struct tcl_list;
 struct ub_event_base;
 struct unbound_socket;
+struct doq_server_socket;
+struct doq_table;
+struct doq_conn;
+struct config_file;
+struct ub_randstate;
 
 struct mesh_state;
 struct mesh_area;
@@ -105,6 +113,8 @@ typedef int comm_point_callback_type(struct comm_point*, void*, int,
 #define NETEVENT_SLOW_ACCEPT_TIME 2000
 /** timeout to slow down log print, so it does not spam the logs, in sec */
 #define SLOW_LOG_TIME 10
+/** for doq, the maximum dcid length, in ngtcp2 it is 20. */
+#define DOQ_MAX_CIDLEN 24
 
 /**
  * A communication point dispatcher. Thread specific.
@@ -164,6 +174,19 @@ struct comm_reply {
 	struct sockaddr_storage client_addr;
 	/** the original address length */
 	socklen_t client_addrlen;
+#ifdef HAVE_NGTCP2
+	/** the doq ifindex, together with addr and localaddr in pktinfo,
+	 * and dcid makes the doq_conn_key to find the connection */
+	int doq_ifindex;
+	/** the doq dcid, the connection id used to find the connection */
+	uint8_t doq_dcid[DOQ_MAX_CIDLEN];
+	/** the length of the doq dcid */
+	size_t doq_dcidlen;
+	/** the doq stream id where the query came in on */
+	int64_t doq_streamid;
+	/** port number for doq */
+	int doq_srcport;
+#endif /* HAVE_NGTCP2 */
 };
 
 /**
@@ -266,6 +289,11 @@ struct comm_point {
 	/** maximum number of HTTP/2 streams per connection. Send in HTTP/2
 	 * SETTINGS frame. */
 	uint32_t http2_max_streams;
+	/* -------- DoQ ------- */
+#ifdef HAVE_NGTCP2
+	/** the doq server socket, with list of doq connections */
+	struct doq_server_socket* doq_socket;
+#endif
 
 	/* -------- dnstap ------- */
 	/** the dnstap environment */
@@ -281,6 +309,8 @@ struct comm_point {
 		comm_tcp,
 		/** HTTP handler socket */
 		comm_http,
+		/** DOQ handler socket */
+		comm_doq,
 		/** AF_UNIX socket - for internal commands. */
 		comm_local,
 		/** raw - not DNS format - for pipe readers and writers */
@@ -553,6 +583,30 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
 	comm_point_callback_type* callback, void* callback_arg, struct unbound_socket* socket);
 
 /**
+ * Create an UDP comm point for DoQ. Calls malloc.
+ * setups the structure with the parameters you provide.
+ * @param base: in which base to alloc the commpoint.
+ * @param fd : file descriptor of open UDP socket.
+ * @param buffer: shared buffer by UDP sockets from this thread.
+ * @param callback: callback function pointer.
+ * @param callback_arg: will be passed to your callback function.
+ * @param socket: and opened socket properties will be passed to your callback function.
+ * @param table: the doq connection table for the host.
+ * @param rnd: random generator to use.
+ * @param ssl_service_key: the ssl service key file.
+ * @param ssl_service_pem: the ssl service pem file.
+ * @param cfg: config file struct.
+ * @return: returns the allocated communication point. NULL on error.
+ * Sets timeout to NULL. Turns off TCP options.
+ */
+struct comm_point* comm_point_create_doq(struct comm_base* base,
+	int fd, struct sldns_buffer* buffer,
+	comm_point_callback_type* callback, void* callback_arg,
+	struct unbound_socket* socket, struct doq_table* table,
+	struct ub_randstate* rnd, const char* ssl_service_key,
+	const char* ssl_service_pem, struct config_file* cfg);
+
+/**
  * Create a TCP listener comm point. Calls malloc.
  * Setups the structure with the parameters you provide.
  * Also Creates TCP Handlers, pre allocated for you.
@@ -823,6 +877,16 @@ void comm_point_udp_ancil_callback(int fd, short event, void* arg);
 
 /**
  * This routine is published for checks and tests, and is only used internally.
+ * handle libevent callback for doq comm point.
+ * @param fd: file descriptor.
+ * @param event: event bits from libevent:
+ *	EV_READ, EV_WRITE, EV_SIGNAL, EV_TIMEOUT.
+ * @param arg: the comm_point structure.
+ */
+void comm_point_doq_callback(int fd, short event, void* arg);
+
+/**
+ * This routine is published for checks and tests, and is only used internally.
  * handle libevent callback for tcp accept comm point
  * @param fd: file descriptor.
  * @param event: event bits from libevent:
@@ -957,6 +1021,106 @@ void http2_stream_add_meshstate(struct http2_stream* h2_stream,
 
 /** Remove mesh state from stream. When the mesh state has been removed. */
 void http2_stream_remove_mesh_state(struct http2_stream* h2_stream);
+
+/**
+ * DoQ socket address storage for IP4 or IP6 address. Smaller than
+ * the sockaddr_storage because not with af_unix pathnames.
+ */
+struct doq_addr_storage {
+	union {
+		struct sockaddr_in in;
+#ifdef AF_INET6
+		struct sockaddr_in6 in6;
+#endif
+	} sockaddr;
+};
+
+/**
+ * The DoQ server socket information, for DNS over QUIC.
+ */
+struct doq_server_socket {
+	/** the doq connection table */
+	struct doq_table* table;
+	/** random generator */
+	struct ub_randstate* rnd;
+	/** if address validation is enabled */
+	uint8_t validate_addr;
+	/** the ssl service key file */
+	char* ssl_service_key;
+	/** the ssl service pem file */
+	char* ssl_service_pem;
+	/** the ssl verify pem file */
+	char* ssl_verify_pem;
+	/** the server scid length */
+	int sv_scidlen;
+	/** the idle timeout in nanoseconds */
+	uint64_t idle_timeout;
+	/** the static secret for the server */
+	uint8_t* static_secret;
+	/** length of the static secret */
+	size_t static_secret_len;
+	/** ssl context, SSL_CTX* */
+	void* ctx;
+#ifndef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
+	/** quic method functions, SSL_QUIC_METHOD* */
+	void* quic_method;
+#endif
+	/** the comm point for this doq server socket */
+	struct comm_point* cp;
+	/** the buffer for packets, doq in and out */
+	struct sldns_buffer* pkt_buf;
+	/** the current doq connection when we are in callbacks to worker,
+	 * so that we have the already locked structure at our disposal. */
+	struct doq_conn* current_conn;
+	/** if the callback event on the fd has write flags */
+	uint8_t event_has_write;
+	/** if there is a blocked packet in the blocked_pkt buffer */
+	int have_blocked_pkt;
+	/** store blocked packet, a packet that could not be send on the
+	 * nonblocking socket. It has to be sent later, when the write on
+	 * the udp socket unblocks. */
+	struct sldns_buffer* blocked_pkt;
+#ifdef HAVE_NGTCP2
+	/** the ecn info for the blocked packet, congestion information. */
+	struct ngtcp2_pkt_info blocked_pkt_pi;
+#endif
+	/** the packet destination for the blocked packet. */
+	struct doq_pkt_addr* blocked_paddr;
+	/** timer for this worker on this comm_point to wait on. */
+	struct comm_timer* timer;
+	/** the timer that is marked by the doq_socket as waited on. */
+	struct timeval marked_time;
+	/** the current time for use by time functions, time_t. */
+	time_t* now_tt;
+	/** the current time for use by time functions, timeval. */
+	struct timeval* now_tv;
+	/** config file for the worker. */
+	struct config_file* cfg;
+};
+
+/**
+ * DoQ packet address information. From pktinfo, stores local and remote
+ * address and ifindex, so the packet can be sent there.
+ */
+struct doq_pkt_addr {
+	/** the remote addr, and local addr */
+	struct doq_addr_storage addr, localaddr;
+	/** length of addr and length of localaddr */
+	socklen_t addrlen, localaddrlen;
+	/** interface index from pktinfo ancillary information */
+	int ifindex;
+};
+
+/** Initialize the pkt addr with lengths set to sizeof. That is ready for
+ * a call to recv. */
+void doq_pkt_addr_init(struct doq_pkt_addr* paddr);
+
+/** send doq packet over UDP. */
+void doq_send_pkt(struct comm_point* c, struct doq_pkt_addr* paddr,
+	uint32_t ecn);
+
+/** doq timer callback function. */
+void doq_timer_cb(void* arg);
 
 /**
  * This routine is published for checks and tests, and is only used internally.

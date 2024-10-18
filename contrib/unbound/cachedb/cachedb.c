@@ -621,6 +621,9 @@ parse_data(struct module_qstate* qstate, struct sldns_buffer* buf,
 	}
 	verbose(VERB_ALGO, "cachedb msg adjusted down by %d", (int)adjust);
 	adjust_msg_ttl(qstate->return_msg, adjust);
+	if(qstate->env->cfg->aggressive_nsec) {
+		limit_nsec_ttl(qstate->return_msg);
+	}
 
 	/* Similar to the unbound worker, if serve-expired is enabled and
 	 * the msg would be considered to be expired, mark the state so a
@@ -828,8 +831,6 @@ cachedb_handle_query(struct module_qstate* qstate,
 		/* In case we have expired data but there is a client timer for expired
 		 * answers, pass execution to next module in order to try updating the
 		 * data first.
-		 * TODO: this needs revisit. The expired data stored from cachedb has
-		 * 0 TTL which is picked up by iterator later when looking in the cache.
 		 */
 		if(qstate->env->cfg->serve_expired && msg_expired) {
 			qstate->return_msg = NULL;
