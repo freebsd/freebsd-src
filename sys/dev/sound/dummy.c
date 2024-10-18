@@ -327,6 +327,7 @@ dummy_detach(device_t dev)
 	struct dummy_softc *sc = device_get_softc(dev);
 	int err;
 
+	callout_drain(&sc->callout);
 	err = pcm_unregister(dev);
 	snd_mtxfree(sc->lock);
 
