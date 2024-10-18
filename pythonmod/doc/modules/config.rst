@@ -176,6 +176,10 @@ config_file
    
       Harden against spoofed glue (out of zone data).
    
+   .. attribute:: harden_unverified_glue
+
+      Harden against unverified glue.
+
    .. attribute:: harden_dnssec_stripped
    
       Harden against receiving no DNSSEC data for trust anchor.

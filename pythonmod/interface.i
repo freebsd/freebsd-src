@@ -1009,6 +1009,7 @@ struct config_file {
    int harden_short_bufsize;
    int harden_large_queries;
    int harden_glue;
+   int harden_unverified_glue;
    int harden_dnssec_stripped;
    int harden_referral_path;
    int use_caps_bits_for_id;

@@ -47,6 +47,7 @@
 #include "util/fptr_wlist.h"
 #include "util/mini_event.h"
 #include "services/outside_network.h"
+#include "services/listen_dnsport.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
 #include "services/authzone.h"
@@ -132,6 +133,9 @@ fptr_whitelist_comm_timer(void (*fptr)(void*))
 	else if(fptr == &worker_stat_timer_cb) return 1;
 	else if(fptr == &worker_probe_timer_cb) return 1;
 	else if(fptr == &validate_suspend_timer_cb) return 1;
+#ifdef HAVE_NGTCP2
+	else if(fptr == &doq_timer_cb) return 1;
+#endif
 #ifdef UB_ON_WINDOWS
 	else if(fptr == &wsvc_cron_cb) return 1;
 #endif
@@ -181,6 +185,9 @@ fptr_whitelist_event(void (*fptr)(int, short, void *))
 	else if(fptr == &tube_handle_signal) return 1;
 	else if(fptr == &comm_base_handle_slow_accept) return 1;
 	else if(fptr == &comm_point_http_handle_callback) return 1;
+#ifdef HAVE_NGTCP2
+	else if(fptr == &comm_point_doq_callback) return 1;
+#endif
 #ifdef USE_DNSTAP
 	else if(fptr == &dtio_output_cb) return 1;
 	else if(fptr == &dtio_cmd_cb) return 1;
@@ -189,6 +196,10 @@ fptr_whitelist_event(void (*fptr)(int, short, void *))
 	else if(fptr == &dtio_stop_ev_cb) return 1;
 	else if(fptr == &dtio_tap_callback) return 1;
 	else if(fptr == &dtio_mainfdcallback) return 1;
+#endif
+#ifdef HAVE_NGTCP2
+	else if(fptr == &doq_client_event_cb) return 1;
+	else if(fptr == &doq_client_timer_cb) return 1;
 #endif
 #ifdef UB_ON_WINDOWS
 	else if(fptr == &worker_win_stop_cb) return 1;
@@ -248,6 +259,12 @@ fptr_whitelist_rbtree_cmp(int (*fptr) (const void *, const void *))
 	else if(fptr == &auth_zone_cmp) return 1;
 	else if(fptr == &auth_data_cmp) return 1;
 	else if(fptr == &auth_xfer_cmp) return 1;
+#ifdef HAVE_NGTCP2
+	else if(fptr == &doq_conn_cmp) return 1;
+	else if(fptr == &doq_conid_cmp) return 1;
+	else if(fptr == &doq_timer_cmp) return 1;
+	else if(fptr == &doq_stream_cmp) return 1;
+#endif
 	return 0;
 }
 

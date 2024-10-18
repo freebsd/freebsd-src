@@ -135,9 +135,12 @@ config_create(void)
 	cfg->http_query_buffer_size = 4*1024*1024;
 	cfg->http_response_buffer_size = 4*1024*1024;
 	cfg->http_nodelay = 1;
+	cfg->quic_port = UNBOUND_DNS_OVER_QUIC_PORT;
+	cfg->quic_size = 8*1024*1024;
 	cfg->use_syslog = 1;
 	cfg->log_identity = NULL; /* changed later with argv[0] */
 	cfg->log_time_ascii = 0;
+	cfg->log_time_iso = 0;
 	cfg->log_queries = 0;
 	cfg->log_replies = 0;
 	cfg->log_tag_queryreply = 0;
@@ -237,6 +240,7 @@ config_create(void)
 	cfg->harden_short_bufsize = 1;
 	cfg->harden_large_queries = 0;
 	cfg->harden_glue = 1;
+	cfg->harden_unverified_glue = 0;
 	cfg->harden_dnssec_stripped = 1;
 	cfg->harden_below_nxdomain = 1;
 	cfg->harden_referral_path = 0;
@@ -398,6 +402,8 @@ config_create(void)
 	cfg->redis_server_path = NULL;
 	cfg->redis_server_password = NULL;
 	cfg->redis_timeout = 100;
+	cfg->redis_command_timeout = 0;
+	cfg->redis_connect_timeout = 0;
 	cfg->redis_server_port = 6379;
 	cfg->redis_expire_records = 0;
 	cfg->redis_logical_db = 0;
@@ -408,6 +414,9 @@ config_create(void)
 	cfg->ipset_name_v6 = NULL;
 #endif
 	cfg->ede = 0;
+	cfg->iter_scrub_ns = 20;
+	cfg->iter_scrub_cname = 11;
+	cfg->max_global_quota = 128;
 	return cfg;
 error_exit:
 	config_delete(cfg);
@@ -541,6 +550,9 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else if(strcmp(opt, "log-time-ascii:") == 0)
 	{ IS_YES_OR_NO; cfg->log_time_ascii = (strcmp(val, "yes") == 0);
 	  log_set_time_asc(cfg->log_time_ascii); }
+	else if(strcmp(opt, "log-time-iso:") == 0)
+	{ IS_YES_OR_NO; cfg->log_time_iso = (strcmp(val, "yes") == 0);
+	  log_set_time_iso(cfg->log_time_iso); }
 	else S_SIZET_NONZERO("max-udp-size:", max_udp_size)
 	else S_YNO("use-syslog:", use_syslog)
 	else S_STR("log-identity:", log_identity)
@@ -594,6 +606,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_MEMSIZE("http-response-buffer-size:", http_response_buffer_size)
 	else S_YNO("http-nodelay:", http_nodelay)
 	else S_YNO("http-notls-downstream:", http_notls_downstream)
+	else S_NUMBER_NONZERO("quic-port:", quic_port)
+	else S_MEMSIZE("quic-size:", quic_size)
 	else S_YNO("interface-automatic:", if_automatic)
 	else S_STR("interface-automatic-ports:", if_automatic_ports)
 	else S_YNO("use-systemd:", use_systemd)
@@ -672,6 +686,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STRLIST("root-hints:", root_hints)
 	else S_STR("target-fetch-policy:", target_fetch_policy)
 	else S_YNO("harden-glue:", harden_glue)
+	else S_YNO("harden-unverified-glue:", harden_unverified_glue)
 	else S_YNO("harden-short-bufsize:", harden_short_bufsize)
 	else S_YNO("harden-large-queries:", harden_large_queries)
 	else S_YNO("harden-dnssec-stripped:", harden_dnssec_stripped)
@@ -712,12 +727,17 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	  SERVE_EXPIRED = cfg->serve_expired; }
 	else if(strcmp(opt, "serve-expired-ttl:") == 0)
 	{ IS_NUMBER_OR_ZERO; cfg->serve_expired_ttl = atoi(val); SERVE_EXPIRED_TTL=(time_t)cfg->serve_expired_ttl;}
-	else S_YNO("serve-expired-ttl-reset:", serve_expired_ttl_reset)
+	else if(strcmp(opt, "serve-expired-ttl-reset:") == 0)
+	{ IS_YES_OR_NO; cfg->serve_expired_ttl_reset = (strcmp(val, "yes") == 0);
+	  SERVE_EXPIRED_TTL_RESET = cfg->serve_expired_ttl_reset; }
 	else if(strcmp(opt, "serve-expired-reply-ttl:") == 0)
 	{ IS_NUMBER_OR_ZERO; cfg->serve_expired_reply_ttl = atoi(val); SERVE_EXPIRED_REPLY_TTL=(time_t)cfg->serve_expired_reply_ttl;}
 	else S_NUMBER_OR_ZERO("serve-expired-client-timeout:", serve_expired_client_timeout)
 	else S_YNO("ede:", ede)
 	else S_YNO("ede-serve-expired:", ede_serve_expired)
+	else S_NUMBER_OR_ZERO("iter-scrub-ns:", iter_scrub_ns)
+	else S_NUMBER_OR_ZERO("iter-scrub-cname:", iter_scrub_cname)
+	else S_NUMBER_OR_ZERO("max-global-quota:", max_global_quota)
 	else S_YNO("serve-original-ttl:", serve_original_ttl)
 	else S_STR("val-nsec3-keysize-iterations:", val_nsec3_key_iterations)
 	else S_YNO("zonemd-permissive-mode:", zonemd_permissive_mode)
@@ -1054,6 +1074,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "use-syslog", use_syslog)
 	else O_STR(opt, "log-identity", log_identity)
 	else O_YNO(opt, "log-time-ascii", log_time_ascii)
+	else O_YNO(opt, "log-time-iso", log_time_iso)
 	else O_DEC(opt, "num-threads", num_threads)
 	else O_IFC(opt, "interface", num_ifs, ifs)
 	else O_IFC(opt, "outgoing-interface", num_out_ifs, out_ifs)
@@ -1137,6 +1158,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_MEM(opt, "http-response-buffer-size", http_response_buffer_size)
 	else O_YNO(opt, "http-nodelay", http_nodelay)
 	else O_YNO(opt, "http-notls-downstream", http_notls_downstream)
+	else O_DEC(opt, "quic-port", quic_port)
+	else O_MEM(opt, "quic-size", quic_size)
 	else O_YNO(opt, "use-systemd", use_systemd)
 	else O_YNO(opt, "do-daemonize", do_daemonize)
 	else O_STR(opt, "chroot", chrootdir)
@@ -1162,6 +1185,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "harden-short-bufsize", harden_short_bufsize)
 	else O_YNO(opt, "harden-large-queries", harden_large_queries)
 	else O_YNO(opt, "harden-glue", harden_glue)
+	else O_YNO(opt, "harden-unverified-glue", harden_unverified_glue)
 	else O_YNO(opt, "harden-dnssec-stripped", harden_dnssec_stripped)
 	else O_YNO(opt, "harden-below-nxdomain", harden_below_nxdomain)
 	else O_YNO(opt, "harden-referral-path", harden_referral_path)
@@ -1186,6 +1210,9 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "serve-expired-client-timeout", serve_expired_client_timeout)
 	else O_YNO(opt, "ede", ede)
 	else O_YNO(opt, "ede-serve-expired", ede_serve_expired)
+	else O_DEC(opt, "iter-scrub-ns", iter_scrub_ns)
+	else O_DEC(opt, "iter-scrub-cname", iter_scrub_cname)
+	else O_DEC(opt, "max-global-quota", max_global_quota)
 	else O_YNO(opt, "serve-original-ttl", serve_original_ttl)
 	else O_STR(opt, "val-nsec3-keysize-iterations",val_nsec3_key_iterations)
 	else O_YNO(opt, "zonemd-permissive-mode", zonemd_permissive_mode)
@@ -1352,6 +1379,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_STR(opt, "redis-server-path", redis_server_path)
 	else O_STR(opt, "redis-server-password", redis_server_password)
 	else O_DEC(opt, "redis-timeout", redis_timeout)
+	else O_DEC(opt, "redis-command-timeout", redis_command_timeout)
+	else O_DEC(opt, "redis-connect-timeout", redis_connect_timeout)
 	else O_YNO(opt, "redis-expire-records", redis_expire_records)
 	else O_DEC(opt, "redis-logical-db", redis_logical_db)
 #endif  /* USE_REDIS */
@@ -2323,7 +2352,7 @@ uint8_t* cfg_parse_nsid(const char* str, uint16_t* nsid_len)
 		uint8_t *dp;
 
 		for ( ch = str, dp = nsid
-		    ; isxdigit(ch[0]) && isxdigit(ch[1])
+		    ; isxdigit((unsigned char)ch[0]) && isxdigit((unsigned char)ch[1])
 		    ; ch += 2, dp++) {
 			*dp  = (uint8_t)sldns_hexdigit_to_int(ch[0]) * 16;
 			*dp += (uint8_t)sldns_hexdigit_to_int(ch[1]);
@@ -2379,6 +2408,7 @@ config_apply(struct config_file* config)
 	MIN_TTL = (time_t)config->min_ttl;
 	SERVE_EXPIRED = config->serve_expired;
 	SERVE_EXPIRED_TTL = (time_t)config->serve_expired_ttl;
+	SERVE_EXPIRED_TTL_RESET = config->serve_expired_ttl_reset;
 	SERVE_EXPIRED_REPLY_TTL = (time_t)config->serve_expired_reply_ttl;
 	SERVE_ORIGINAL_TTL = config->serve_original_ttl;
 	MAX_NEG_TTL = (time_t)config->max_negative_ttl;
@@ -2389,10 +2419,12 @@ config_apply(struct config_file* config)
 	MINIMAL_RESPONSES = config->minimal_responses;
 	RRSET_ROUNDROBIN = config->rrset_roundrobin;
 	LOG_TAG_QUERYREPLY = config->log_tag_queryreply;
+	MAX_GLOBAL_QUOTA = config->max_global_quota;
 	UNKNOWN_SERVER_NICENESS = config->unknown_server_time_limit;
 	USEFUL_SERVER_TOP_TIMEOUT = RTT_MAX_TIMEOUT;
 	BLACKLIST_PENALTY = USEFUL_SERVER_TOP_TIMEOUT*4;
 	log_set_time_asc(config->log_time_ascii);
+	log_set_time_iso(config->log_time_iso);
 	autr_permit_small_holddown = config->permit_small_holddown;
 	stream_wait_max = config->stream_wait_size;
 	http2_query_buffer_max = config->http_query_buffer_size;
@@ -2792,6 +2824,25 @@ if_is_dnscrypt(const char* ifname, const char* port, int dnscrypt_port)
 	(void)ifname;
 	(void)port;
 	(void)dnscrypt_port;
+	return 0;
+#endif
+}
+
+/** see if interface is quic, its port number == the quic port number */
+int
+if_is_quic(const char* ifname, const char* port, int quic_port)
+{
+#ifndef HAVE_NGTCP2
+	(void)ifname;
+	(void)port;
+	(void)quic_port;
+	return 0;
+#else
+	char* p = strchr(ifname, '@');
+	if(!p && atoi(port) == quic_port)
+		return 1;
+	if(p && atoi(p+1) == quic_port)
+		return 1;
 	return 0;
 #endif
 }

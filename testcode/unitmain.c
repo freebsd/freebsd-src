@@ -1232,7 +1232,7 @@ static void edns_ede_answer_encode_test(void)
 	unit_assert(region);
 	rep = construct_reply_info_base(region,
 		LDNS_RCODE_NOERROR | BIT_QR, 1,
-		3600, 3600, 3600,
+		3600, 3600, 3600, 0,
 		0, 0, 0, 0,
 		sec_status_unchecked, LDNS_EDE_NONE);
 	unit_assert(rep);
@@ -1432,6 +1432,9 @@ main(int argc, char* argv[])
 #ifdef CLIENT_SUBNET
 	ecs_test();
 #endif /* CLIENT_SUBNET */
+#ifdef HAVE_NGTCP2
+	doq_test();
+#endif /* HAVE_NGTCP2 */
 	if(log_get_lock()) {
 		lock_basic_destroy((lock_basic_type*)log_get_lock());
 	}

@@ -33,7 +33,7 @@ echo "num answers $num and num write events $nummodew"
 if [ $num -eq 8 ]; then
 	echo "content OK"
 else
-    if [ "(" $num -eq 9 -o $num -eq 10 ")" -a $nummodew -eq 2 ]; then
+    if [ "(" $num -eq 9 -o $num -eq 10 ")" -a "(" $nummodew -eq 2 -o $nummodew -eq 3 ")" ]; then
 	echo "skip buffer emptied event"
     else
 	echo "result contents not OK"

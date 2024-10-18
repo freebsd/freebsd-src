@@ -97,8 +97,8 @@ fill_nsec3_iter(struct val_env* ve, char* s, int c)
 	int i;
 	free(ve->nsec3_keysize);
 	free(ve->nsec3_maxiter);
-	ve->nsec3_keysize = (size_t*)calloc(sizeof(size_t), (size_t)c);
-	ve->nsec3_maxiter = (size_t*)calloc(sizeof(size_t), (size_t)c);
+	ve->nsec3_keysize = (size_t*)calloc((size_t)c, sizeof(size_t));
+	ve->nsec3_maxiter = (size_t*)calloc((size_t)c, sizeof(size_t));
 	if(!ve->nsec3_keysize || !ve->nsec3_maxiter) {
 		log_err("out of memory");
 		return 0;
@@ -2435,6 +2435,8 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	/* if the result is bogus - set message ttl to bogus ttl to avoid
 	 * endless bogus revalidation */
 	if(vq->orig_msg->rep->security == sec_status_bogus) {
+		struct msgreply_entry* e;
+
 		/* see if we can try again to fetch data */
 		if(vq->restart_count < ve->max_restart) {
 			verbose(VERB_ALGO, "validation failed, "
@@ -2449,10 +2451,51 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			return 0;
 		}
 
+		if(qstate->env->cfg->serve_expired &&
+			(e=msg_cache_lookup(qstate->env, qstate->qinfo.qname,
+			qstate->qinfo.qname_len, qstate->qinfo.qtype,
+			qstate->qinfo.qclass, qstate->query_flags,
+			0 /*now; allow expired*/,
+			1 /*wr; we may update the data*/))) {
+			struct reply_info* rep = (struct reply_info*)e->entry.data;
+			if(rep && rep->security > sec_status_bogus &&
+				(!qstate->env->cfg->serve_expired_ttl ||
+				 qstate->env->cfg->serve_expired_ttl_reset ||
+				*qstate->env->now <= rep->serve_expired_ttl)) {
+				verbose(VERB_ALGO, "validation failed but "
+					"previously cached valid response "
+					"exists; set serve-expired-norec-ttl "
+					"for response in cache");
+				rep->serve_expired_norec_ttl = NORR_TTL +
+					*qstate->env->now;
+				if(qstate->env->cfg->serve_expired_ttl_reset &&
+					*qstate->env->now + qstate->env->cfg->serve_expired_ttl
+					> rep->serve_expired_ttl) {
+					verbose(VERB_ALGO, "reset serve-expired-ttl for "
+						"valid response in cache");
+					rep->serve_expired_ttl = *qstate->env->now +
+						qstate->env->cfg->serve_expired_ttl;
+				}
+				/* Return an error response.
+				 * If serve-expired-client-timeout is enabled,
+				 * the client-timeout logic will try to find an
+				 * (expired) answer in the cache as last
+				 * resort. If it is not enabled, expired
+				 * answers are already used before the mesh
+				 * activation. */
+				qstate->return_rcode = LDNS_RCODE_SERVFAIL;
+				qstate->return_msg = NULL;
+				qstate->ext_state[id] = module_finished;
+				lock_rw_unlock(&e->entry.lock);
+				return 0;
+			}
+			lock_rw_unlock(&e->entry.lock);
+		}
+
 		vq->orig_msg->rep->ttl = ve->bogus_ttl;
 		vq->orig_msg->rep->prefetch_ttl = 
 			PREFETCH_TTL_CALC(vq->orig_msg->rep->ttl);
-		vq->orig_msg->rep->serve_expired_ttl = 
+		vq->orig_msg->rep->serve_expired_ttl =
 			vq->orig_msg->rep->ttl + qstate->env->cfg->serve_expired_ttl;
 		if((qstate->env->cfg->val_log_level >= 1 ||
 			qstate->env->cfg->log_servfail) &&
@@ -2518,8 +2561,9 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		 * to check if from parentNS */
 		if(!qstate->no_cache_store) {
 			if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
-				vq->orig_msg->rep, 0, qstate->prefetch_leeway, 0, NULL,
-				qstate->query_flags, qstate->qstarttime)) {
+				vq->orig_msg->rep, 0, qstate->prefetch_leeway,
+				0, qstate->region, qstate->query_flags,
+				qstate->qstarttime)) {
 				log_err("out of memory caching validator results");
 			}
 		}
@@ -2527,7 +2571,7 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		/* for a referral, store the verified RRsets */
 		/* and this does not get prefetched, so no leeway */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
-			vq->orig_msg->rep, 1, 0, 0, NULL,
+			vq->orig_msg->rep, 1, 0, 0, qstate->region,
 			qstate->query_flags, qstate->qstarttime)) {
 			log_err("out of memory caching validator results");
 		}
@@ -2614,6 +2658,14 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 			return;
 		}
 		if(already_validated(qstate->return_msg)) {
+			qstate->ext_state[id] = module_finished;
+			return;
+		}
+		if(qstate->rpz_applied) {
+			verbose(VERB_ALGO, "rpz applied, mark it as insecure");
+			if(qstate->return_msg)
+				qstate->return_msg->rep->security =
+					sec_status_insecure;
 			qstate->ext_state[id] = module_finished;
 			return;
 		}
@@ -3053,6 +3105,14 @@ process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
 	int ret;
 	*suspend = 0;
 	vq->empty_DS_name = NULL;
+	if(sub_qstate && sub_qstate->rpz_applied) {
+		verbose(VERB_ALGO, "rpz was applied to the DS lookup, "
+			"make it insecure");
+		vq->key_entry = NULL;
+		vq->state = VAL_FINISHED_STATE;
+		vq->chase_reply->security = sec_status_insecure;
+		return;
+	}
 	ret = ds_response_to_ke(qstate, vq, id, rcode, msg, qinfo, &dske,
 		sub_qstate);
 	if(ret != 0) {
@@ -3145,6 +3205,15 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 	char reasonbuf[256];
 	char* reason = NULL;
 	sldns_ede_code reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+
+	if(sub_qstate && sub_qstate->rpz_applied) {
+		verbose(VERB_ALGO, "rpz was applied to the DNSKEY lookup, "
+			"make it insecure");
+		vq->key_entry = NULL;
+		vq->state = VAL_FINISHED_STATE;
+		vq->chase_reply->security = sec_status_insecure;
+		return;
+	}
 
 	if(rcode == LDNS_RCODE_NOERROR)
 		dnskey = reply_find_answer_rrset(qinfo, msg->rep);

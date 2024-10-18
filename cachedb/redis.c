@@ -58,7 +58,8 @@ struct redis_moddata {
 	int server_port;	 /* server's TCP port */
 	const char* server_path; /* server's unix path, or "", NULL if unused */
 	const char* server_password; /* server's AUTH password, or "", NULL if unused */
-	struct timeval timeout;	 /* timeout for connection setup and commands */
+	struct timeval command_timeout;	 /* timeout for commands */
+	struct timeval connect_timeout;	 /* timeout for connect */
 	int logical_db;		/* the redis logical database to use */
 };
 
@@ -88,10 +89,10 @@ redis_connect(const struct redis_moddata* moddata)
 
 	if(moddata->server_path && moddata->server_path[0]!=0) {
 		ctx = redisConnectUnixWithTimeout(moddata->server_path,
-			moddata->timeout);
+			moddata->connect_timeout);
 	} else {
 		ctx = redisConnectWithTimeout(moddata->server_host,
-			moddata->server_port, moddata->timeout);
+			moddata->server_port, moddata->connect_timeout);
 	}
 	if(!ctx || ctx->err) {
 		const char *errstr = "out of memory";
@@ -100,7 +101,7 @@ redis_connect(const struct redis_moddata* moddata)
 		log_err("failed to connect to redis server: %s", errstr);
 		goto fail;
 	}
-	if(redisSetTimeout(ctx, moddata->timeout) != REDIS_OK) {
+	if(redisSetTimeout(ctx, moddata->command_timeout) != REDIS_OK) {
 		log_err("failed to set redis timeout");
 		goto fail;
 	}
@@ -159,8 +160,24 @@ redis_init(struct module_env* env, struct cachedb_env* cachedb_env)
 	moddata->server_port = env->cfg->redis_server_port;
 	moddata->server_path = env->cfg->redis_server_path;
 	moddata->server_password = env->cfg->redis_server_password;
-	moddata->timeout.tv_sec = env->cfg->redis_timeout / 1000;
-	moddata->timeout.tv_usec = (env->cfg->redis_timeout % 1000) * 1000;
+	moddata->command_timeout.tv_sec = env->cfg->redis_timeout / 1000;
+	moddata->command_timeout.tv_usec =
+		(env->cfg->redis_timeout % 1000) * 1000;
+	moddata->connect_timeout.tv_sec = env->cfg->redis_timeout / 1000;
+	moddata->connect_timeout.tv_usec =
+		(env->cfg->redis_timeout % 1000) * 1000;
+	if(env->cfg->redis_command_timeout != 0) {
+		moddata->command_timeout.tv_sec =
+			env->cfg->redis_command_timeout / 1000;
+		moddata->command_timeout.tv_usec =
+			(env->cfg->redis_command_timeout % 1000) * 1000;
+	}
+	if(env->cfg->redis_connect_timeout != 0) {
+		moddata->connect_timeout.tv_sec =
+			env->cfg->redis_connect_timeout / 1000;
+		moddata->connect_timeout.tv_usec =
+			(env->cfg->redis_connect_timeout % 1000) * 1000;
+	}
 	moddata->logical_db = env->cfg->redis_logical_db;
 	for(i = 0; i < moddata->numctxs; i++) {
 		redisContext* ctx = redis_connect(moddata);

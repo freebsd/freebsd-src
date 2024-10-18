@@ -90,6 +90,14 @@ struct protected_area {
 	void* hold;
 	/** next protected area in list */
 	struct protected_area* next;
+	/** the place where the lock_protect is made, at init. */
+	const char* def_func;
+	/** the file where the lock_protect is made */
+	const char* def_file;
+	/** the line number where the lock_protect is made */
+	int def_line;
+	/** the text string for the area that is protected, at init call. */
+	const char* def_area;
 };
 
 /**
@@ -181,12 +189,19 @@ struct checked_lock {
  *	It demangles the lock itself (struct checked_lock**).
  * @param area: ptr to mem.
  * @param size: length of area.
+ * @param def_func: function where the lock_protect() line is.
+ * @param def_file: file where the lock_protect() line is.
+ * @param def_line: line where the lock_protect() line is.
+ * @param def_area: area string
  * You can call it multiple times with the same lock to give several areas.
  * Call it when you are done initializing the area, since it will be copied
  * at this time and protected right away against unauthorised changes until 
  * the next lock() call is done.
  */
-void lock_protect(void* lock, void* area, size_t size);
+void lock_protect_place(void* lock, void* area, size_t size,
+	const char* def_func, const char* def_file, int def_line,
+	const char* def_area);
+#define lock_protect(lock, area, size) lock_protect_place(lock, area, size, __func__, __FILE__, __LINE__, #area)
 
 /**
  * Remove protected area from lock.
@@ -202,6 +217,13 @@ void lock_unprotect(void* lock, void* area);
  * @return: in bytes, including protected areas.
  */
 size_t lock_get_mem(void* lock);
+
+/**
+ * Set the output name, prefix, of the lock check output file(s).
+ * Call it before the checklock_start or thread creation. Pass a fixed string.
+ * @param name: string to use for output data file names.
+ */
+void checklock_set_output_name(const char* name);
 
 /**
  * Initialise checklock. Sets up internal debug structures.

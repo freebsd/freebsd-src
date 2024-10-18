@@ -22,7 +22,13 @@ SCENARIO_BEGIN Test serve-expired with client-timeout and a SERVFAIL upstream re
 ; - check that we get an answer for example.com. IN A with the correct TTL
 ; - query again right after the TTL expired
 ; - answer from upstream is servfail
-; - check that we get the expired cached answer instead
+; - (expired cached answer will not be replaced, instead marked as unresolvable for NORR_TTL(5))
+; - check that we get the expired cached answer
+; - query again (the answer is available on the upstream server now)
+; - check that we get the immediate expired answer back instead
+; - (the upstream query does happen after the expired reply and updates the cache)
+; - query again (the upstream has no answer)
+; - check that we get the freshly cached answer
 
 ; ns.example.com.
 RANGE_BEGIN 0 20
@@ -55,7 +61,7 @@ RANGE_BEGIN 0 20
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 30 70
+RANGE_BEGIN 30 40
 	ADDRESS 1.2.3.4
 	; response to A query
 	ENTRY_BEGIN
@@ -64,6 +70,25 @@ RANGE_BEGIN 30 70
 		REPLY QR AA SERVFAIL
 		SECTION QUESTION
 			example.com. IN A
+	ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 50 60
+	ADDRESS 1.2.3.4
+	; response to A query
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION ANSWER
+			example.com. 10 IN A 5.6.7.8
+		SECTION AUTHORITY
+			example.com. 10 IN NS ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com. 10 IN A 1.2.3.4
 	ENTRY_END
 RANGE_END
 
@@ -101,7 +126,7 @@ ENTRY_BEGIN
 		example.com. IN A
 ENTRY_END
 
-; Check that we got a stale answer
+; Check that we got a stale answer because of the upstream SERVFAIL
 STEP 40 CHECK_ANSWER
 ENTRY_BEGIN
 	MATCH all ttl ede=3
@@ -114,6 +139,58 @@ ENTRY_BEGIN
 		example.com. 123 IN NS ns.example.com.
 	SECTION ADDITIONAL
 		ns.example.com. 123 IN A 1.2.3.4
+ENTRY_END
+
+; Query again
+STEP 50 QUERY
+ENTRY_BEGIN
+	REPLY RD DO
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+; Allow for upstream query to resolve.
+STEP 51 TRAFFIC
+
+; Check that we got an immediate stale answer because of the previous failure,
+; regardless if upstream has the answer already in this range. The query will
+; be resolved after the immediate cached answer and will cache the result.
+STEP 60 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl ede=3
+	REPLY QR RD RA DO NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com.  123 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. 123 IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. 123 IN A 1.2.3.4
+ENTRY_END
+
+; Query again
+STEP 70 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+; Check that we got the cached updated answer from the previous step since
+; there is no upstream in this range.
+STEP 80 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com. 10 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. 10 IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. 10 IN A 1.2.3.4
 ENTRY_END
 
 SCENARIO_END

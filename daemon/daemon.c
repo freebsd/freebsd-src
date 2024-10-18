@@ -557,6 +557,12 @@ daemon_create_workers(struct daemon* daemon)
 		fatal_exit("out of memory during daemon init");
 	numport = daemon_get_shufport(daemon, shufport);
 	verbose(VERB_ALGO, "total of %d outgoing ports available", numport);
+
+#ifdef HAVE_NGTCP2
+	daemon->doq_table = doq_table_create(daemon->cfg, daemon->rand);
+	if(!daemon->doq_table)
+		fatal_exit("could not create doq_table: out of memory");
+#endif
 	
 	daemon->num = (daemon->cfg->num_threads?daemon->cfg->num_threads:1);
 	if(daemon->reuseport && (int)daemon->num < (int)daemon->num_ports) {
@@ -906,6 +912,10 @@ daemon_cleanup(struct daemon* daemon)
 #ifdef USE_DNSCRYPT
 	dnsc_delete(daemon->dnscenv);
 	daemon->dnscenv = NULL;
+#endif
+#ifdef HAVE_NGTCP2
+	doq_table_delete(daemon->doq_table);
+	daemon->doq_table = NULL;
 #endif
 	daemon->cfg = NULL;
 }

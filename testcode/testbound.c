@@ -502,7 +502,7 @@ struct listen_port* daemon_remote_open_ports(struct config_file*
 
 struct daemon_remote* daemon_remote_create(struct config_file* ATTR_UNUSED(cfg))
 {
-	return (struct daemon_remote*)calloc(1,1);
+	return (struct daemon_remote*)calloc(1, sizeof(struct daemon_remote));
 }
 
 void daemon_remote_delete(struct daemon_remote* rc)
@@ -600,3 +600,52 @@ void listen_desetup_locks(void)
 {
 	/* nothing */
 }
+
+#ifdef HAVE_NGTCP2
+void comm_point_doq_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(event),
+	void* ATTR_UNUSED(arg))
+{
+	/* nothing */
+}
+
+int doq_conn_cmp(const void* ATTR_UNUSED(key1), const void* ATTR_UNUSED(key2))
+{
+	return 0;
+}
+
+int doq_conid_cmp(const void* ATTR_UNUSED(key1), const void* ATTR_UNUSED(key2))
+{
+	return 0;
+}
+
+int doq_timer_cmp(const void* ATTR_UNUSED(key1), const void* ATTR_UNUSED(key2))
+{
+	return 0;
+}
+
+int doq_stream_cmp(const void* ATTR_UNUSED(key1), const void* ATTR_UNUSED(key2))
+{
+	return 0;
+}
+
+struct doq_table* doq_table_create(struct config_file* ATTR_UNUSED(cfg),
+	struct ub_randstate* ATTR_UNUSED(rnd))
+{
+	return calloc(1, sizeof(struct doq_table));
+}
+
+void doq_table_delete(struct doq_table* table)
+{
+	free(table);
+}
+
+void doq_timer_cb(void* ATTR_UNUSED(arg))
+{
+	/* nothing */
+}
+
+size_t doq_table_quic_size_get(struct doq_table* ATTR_UNUSED(table))
+{
+	return 0;
+}
+#endif
