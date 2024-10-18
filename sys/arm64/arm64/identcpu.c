@@ -294,9 +294,11 @@ const struct cpu_implementers cpu_implementers[] = {
 #define	MRS_TYPE_LNX_SHIFT	8
 #define	MRS_INVALID		0
 #define	MRS_EXACT		1
-#define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
-#define	MRS_EXACT_FIELD(x)	(((x) >> 4) & 0xf)
 #define	MRS_LOWER		2
+#define	MRS_SAFE_SHIFT		4
+#define	MRS_SAFE_MASK		(0xfu << MRS_SAFE_SHIFT)
+#define	MRS_SAFE(x)		(((x) << MRS_SAFE_SHIFT) & MRS_SAFE_MASK)
+#define	MRS_SAFE_VAL(x)		(((x) & MRS_SAFE_MASK) >> MRS_SAFE_SHIFT)
 
 struct mrs_field_value {
 	uint64_t	value;
@@ -498,7 +500,7 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
 	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,
 	    id_aa64dfr0_tracever),
-	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_EXACT_VAL(0x6),
+	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_EXACT | MRS_SAFE(0x6),
 	    id_aa64dfr0_debugver),
 	MRS_FIELD_END,
 };
@@ -2158,7 +2160,7 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 	switch (type & MRS_TYPE_MASK) {
 	case MRS_EXACT:
 		user_reg &= ~(0xful << shift);
-		user_reg |= (uint64_t)MRS_EXACT_FIELD(type) << shift;
+		user_reg |= (uint64_t)MRS_SAFE(type) << shift;
 		break;
 	case MRS_LOWER:
 		user_reg = update_lower_register(user_reg, value, shift, width,
