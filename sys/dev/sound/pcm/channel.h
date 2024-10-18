@@ -225,7 +225,8 @@ struct pcm_channel {
 #define CHN_INSERT_SORT(w, x, y, z)		do {			\
 	struct pcm_channel *t, *a = NULL;				\
 	CHN_FOREACH(t, x, z) {						\
-		if ((y)->type w t->type)				\
+		if (((y)->type w t->type) ||				\
+		    (((y)->type == t->type) && ((y)->unit w t->unit)))	\
 			a = t;						\
 		else							\
 			break;						\
@@ -236,7 +237,7 @@ struct pcm_channel {
 		CHN_INSERT_HEAD(x, y, z);				\
 } while (0)
 
-#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>=, x, y, z)
+#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>, x, y, z)
 #define CHN_INSERT_SORT_DESCEND(x, y, z)	CHN_INSERT_SORT(<, x, y, z)
 
 #define CHN_BUF_PARENT(x, y)						\
