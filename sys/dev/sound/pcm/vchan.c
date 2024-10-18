@@ -945,9 +945,6 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 		return (EINVAL);
 
 	if (newcnt > vcnt) {
-		KASSERT((newcnt - 1) == vcnt,
-		    ("bogus vchan_create() request newcnt=%d vcnt=%d",
-		    newcnt, vcnt));
 		/* add new vchans - find a parent channel first */
 		ch = NULL;
 		CHN_FOREACH(c, d, channels.pcm) {
