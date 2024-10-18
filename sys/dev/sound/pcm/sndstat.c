@@ -1109,7 +1109,7 @@ sndstat_line2userdev(struct sndstat_file *pf, const char *line, int n)
 	if (e == NULL)
 		goto fail;
 	ud->nameunit = strndup(line, e - line, M_DEVBUF);
-	ud->devnode = (char *)malloc(e - line + 1, M_DEVBUF, M_WAITOK | M_ZERO);
+	ud->devnode = malloc(e - line + 1, M_DEVBUF, M_WAITOK | M_ZERO);
 	strlcat(ud->devnode, ud->nameunit, e - line + 1);
 	line = e + 1;
 
