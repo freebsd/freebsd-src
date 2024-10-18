@@ -109,13 +109,12 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	return bus_setup_intr(dev, res, flags, NULL, hand, param, cookiep);
 }
 
-/* return error status and a locked channel */
 int
 pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     pid_t pid, char *comm)
 {
 	struct pcm_channel *c;
-	int err, vchancount, vchan_num;
+	int err, vchancount;
 	bool retry;
 
 	KASSERT(d != NULL && ch != NULL &&
@@ -125,46 +124,38 @@ pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 	PCM_BUSYASSERT(d);
 
 	*ch = NULL;
-	vchan_num = 0;
 	vchancount = (direction == PCMDIR_PLAY) ? d->pvchancount :
 	    d->rvchancount;
-
 	retry = false;
+
 retry_chnalloc:
-	err = ENOTSUP;
-	/* scan for a free channel */
+	/* Scan for a free channel. */
 	CHN_FOREACH(c, d, channels.pcm) {
 		CHN_LOCK(c);
-		if (c->direction == direction && (c->flags & CHN_F_VIRTUAL)) {
-			if (vchancount < snd_maxautovchans &&
-			    vchan_num < c->unit) {
-			    	CHN_UNLOCK(c);
-				goto vchan_alloc;
-			}
-			vchan_num++;
+		if (c->direction != direction) {
+			CHN_UNLOCK(c);
+			continue;
 		}
-		if (c->direction == direction && !(c->flags & CHN_F_BUSY)) {
+		if (!(c->flags & CHN_F_BUSY)) {
 			c->flags |= CHN_F_BUSY;
 			c->pid = pid;
 			strlcpy(c->comm, (comm != NULL) ? comm :
 			    CHN_COMM_UNKNOWN, sizeof(c->comm));
 			*ch = c;
+
 			return (0);
-		} else if (c->direction == direction && (c->flags & CHN_F_BUSY))
-			err = EBUSY;
+		}
 		CHN_UNLOCK(c);
 	}
-
-	/*
-	 * We came from retry_chnalloc and still didn't find a free channel.
-	 */
+	/* Maybe next time... */
 	if (retry)
-		return (err);
+		return (EBUSY);
 
-vchan_alloc:
-	/* no channel available */
+	/* No channel available. We also cannot create more VCHANs. */
 	if (!(vchancount > 0 && vchancount < snd_maxautovchans))
-		return (err);
+		return (ENOTSUP);
+
+	/* Increase the VCHAN count and try to get the new channel. */
 	err = vchan_setnew(d, direction, vchancount + 1);
 	if (err == 0) {
 		retry = true;
