@@ -45,13 +45,11 @@
 #if !defined(_GNU_SOURCE)
 #warning "Attempting to use limits.h with -std=c89/without _GNU_SOURCE, many macros will be missing"
 #endif
+#endif /* C89 */
 
-#else /* Not C89 */
-/* Not C89 -> check that all macros that we expect are defined */
 #ifndef IOV_MAX
 #error IOV_MAX should be defined
 #endif
-#endif /* C89 */
 
 #ifndef MAXBSIZE
 #define MAXBSIZE 65536 /* must be power of 2 */
@@ -83,7 +81,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sys/uio.h> /* For IOV_MAX */
 
 /* Sanity checks for glibc */
 #ifndef _GNU_SOURCE
