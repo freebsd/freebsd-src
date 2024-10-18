@@ -40,12 +40,17 @@ ${CC} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c \
 #
 # -z rodynamic is undocumented lld-specific option, seemingly required
 # for lld to avoid putting dynamic into dedicated writeable segment,
-# despite ldscript placement.  It is ignored by ld.bfd but ldscript
+# despite ldscript placement.  It is omitted for ld.bfd, but ldscript
 # alone is enough there.
 #
+if ${LD} --version | ${AWK} '/^GNU ld/{exit 1}' ; then
+    RODYNAMIC="-z rodynamic"
+else
+    RODYNAMIC=""
+fi
 ${LD} --shared -Bsymbolic -soname="elf-vdso.so.1" \
    -T "${S}"/conf/vdso_amd64.ldscript \
-   --eh-frame-hdr --no-undefined -z rodynamic -z norelro -nmagic \
+   --eh-frame-hdr --no-undefined ${RODYNAMIC} -z norelro -nmagic \
    --hash-style=sysv --fatal-warnings --strip-all \
    -o elf-vdso.so.1 sigtramp.pico
 
