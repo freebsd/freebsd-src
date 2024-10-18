@@ -77,49 +77,6 @@ feeder_register(void *p)
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
 		feedercnt++;
 
-		/* initialize global variables */
-
-		if (snd_verbose < 0 || snd_verbose > 4)
-			snd_verbose = 1;
-
-		if (snd_unit < 0)
-			snd_unit = -1;
-		
-		if (snd_maxautovchans < 0 ||
-		    snd_maxautovchans > SND_MAXVCHANS)
-			snd_maxautovchans = 0;
-
-		if (chn_latency < CHN_LATENCY_MIN ||
-		    chn_latency > CHN_LATENCY_MAX)
-			chn_latency = CHN_LATENCY_DEFAULT;
-
-		if (chn_latency_profile < CHN_LATENCY_PROFILE_MIN ||
-		    chn_latency_profile > CHN_LATENCY_PROFILE_MAX)
-			chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
-
-		if (feeder_rate_min < FEEDRATE_MIN ||
-			    feeder_rate_max < FEEDRATE_MIN ||
-			    feeder_rate_min > FEEDRATE_MAX ||
-			    feeder_rate_max > FEEDRATE_MAX ||
-			    !(feeder_rate_min < feeder_rate_max)) {
-			feeder_rate_min = FEEDRATE_RATEMIN;
-			feeder_rate_max = FEEDRATE_RATEMAX;
-		}
-
-		if (feeder_rate_round < FEEDRATE_ROUNDHZ_MIN ||
-		    	    feeder_rate_round > FEEDRATE_ROUNDHZ_MAX)
-			feeder_rate_round = FEEDRATE_ROUNDHZ;
-
-		if (bootverbose)
-			printf("%s: snd_unit=%d snd_maxautovchans=%d "
-			    "latency=%d "
-			    "feeder_rate_min=%d feeder_rate_max=%d "
-			    "feeder_rate_round=%d\n",
-			    __func__, snd_unit, snd_maxautovchans,
-			    chn_latency,
-			    feeder_rate_min, feeder_rate_max,
-			    feeder_rate_round);
-
 		/* we've got our root feeder so don't veto pcm loading anymore */
 		pcm_veto_load = 0;
 
