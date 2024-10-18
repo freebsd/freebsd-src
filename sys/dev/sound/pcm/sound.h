@@ -99,11 +99,7 @@ struct snd_mixer;
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
 
-/*
- * By design, limit possible channels for each direction.
- */
-#define SND_MAXHWCHAN		256
-#define SND_MAXVCHANS		SND_MAXHWCHAN
+#define SND_MAXVCHANS		256
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
