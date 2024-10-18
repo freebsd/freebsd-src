@@ -138,6 +138,12 @@ void log_ident_set_or_default(const char* identity);
  */
 void log_set_time_asc(int use_asc);
 
+/**
+ * Set if the time value is printed in ISO8601 format.
+ * @param use_iso: if true, ascii timestamps are formatted in iso format.
+ */
+void log_set_time_iso(int use_iso);
+
 /** get log lock */
 void* log_get_lock(void);
 

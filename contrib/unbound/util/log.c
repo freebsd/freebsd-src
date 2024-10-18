@@ -45,6 +45,7 @@
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
+#include <sys/time.h>
 #ifdef HAVE_SYSLOG_H
 #  include <syslog.h>
 #else
@@ -81,6 +82,8 @@ static int logging_to_syslog = 0;
 #endif /* HAVE_SYSLOG_H */
 /** print time in UTC or in secondsfrom1970 */
 static int log_time_asc = 0;
+/** print time in iso format */
+static int log_time_iso = 0;
 
 void
 log_init(const char* filename, int use_syslog, const char* chrootdir)
@@ -205,6 +208,11 @@ void log_set_time_asc(int use_asc)
 	log_time_asc = use_asc;
 }
 
+void log_set_time_iso(int use_iso)
+{
+	log_time_iso = use_iso;
+}
+
 void* log_get_lock(void)
 {
 	if(!key_created)
@@ -269,6 +277,34 @@ log_vmsg(int pri, const char* type,
 		lock_basic_unlock(&log_lock);
 		return;
 	}
+#if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R)
+	if(log_time_iso && log_time_asc) {
+		char tzbuf[16];
+		struct timeval tv;
+		struct tm tm, *tm_p;
+		if(gettimeofday(&tv, NULL) < 0)
+			memset(&tv, 0, sizeof(tv));
+		now = (time_t)tv.tv_sec;
+		tm_p = localtime_r(&now, &tm);
+		strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%dT%H:%M:%S", tm_p);
+		if(strftime(tzbuf, sizeof(tzbuf), "%z", tm_p) == 5) {
+			/* put ':' in "+hh:mm" */
+			tzbuf[5] = tzbuf[4];
+			tzbuf[4] = tzbuf[3];
+			tzbuf[3] = ':';
+			tzbuf[6] = 0;
+		}
+		fprintf(logfile, "%s.%3.3d%s %s[%d:%x] %s: %s\n",
+			tmbuf, (int)tv.tv_usec/1000, tzbuf,
+			ident, (int)getpid(), tid?*tid:0, type, message);
+#ifdef UB_ON_WINDOWS
+		/* line buffering does not work on windows */
+		fflush(logfile);
+#endif
+		lock_basic_unlock(&log_lock);
+		return;
+	}
+#endif /* HAVE_STRFTIME && HAVE_LOCALTIME_R */
 	now = (time_t)time(NULL);
 #if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R) 
 	if(log_time_asc && strftime(tmbuf, sizeof(tmbuf), "%b %d %H:%M:%S",

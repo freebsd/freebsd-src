@@ -58,6 +58,7 @@ struct ub_randstate;
 struct daemon_remote;
 struct respip_set;
 struct shm_main_info;
+struct doq_table;
 struct cookie_secrets;
 
 #include "dnstap/dnstap_config.h"
@@ -147,6 +148,8 @@ struct daemon {
 	/** the dnscrypt environment */
 	struct dnsc_env* dnscenv;
 #endif
+	/** the doq connection table */
+	struct doq_table* doq_table;
 	/** reuse existing cache on reload if other conditions allow it. */
 	int reuse_cache;
 	/** the EDNS cookie secrets from the cookie-secret-file */

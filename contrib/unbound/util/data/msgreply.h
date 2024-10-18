@@ -145,7 +145,7 @@ struct reply_info {
 	/** 32 bit padding to pad struct member alignment to 64 bits. */
 	uint32_t padding;
 
-	/** 
+	/**
 	 * TTL of the entire reply (for negative caching).
 	 * only for use when there are 0 RRsets in this message.
 	 * if there are RRsets, check those instead.
@@ -158,11 +158,23 @@ struct reply_info {
 	 */
 	time_t prefetch_ttl;
 
-	/** 
+	/**
 	 * Reply TTL extended with serve expired TTL, to limit time to serve
 	 * expired message.
 	 */
 	time_t serve_expired_ttl;
+
+	/**
+	 * TTL for an expired entry to be used without attempting recursion
+	 * since a previous recursion attempt failed to update the message.
+	 * This is just an efficiency timer when serve-expired-client-timeout
+	 * is configured. It will make Unbound immediately reply with the
+	 * expired entry instead of trying resolution first.
+	 * It is set on cached entries by modules that identified problems
+	 * while resolving, e.g., failed upstreams from Iterator, or failed
+	 * validation from Validator.
+	 */
+	time_t serve_expired_norec_ttl;
 
 	/**
 	 * The security status from DNSSEC validation of this message.
@@ -244,6 +256,7 @@ struct msgreply_entry {
  * @param ttl: TTL of replyinfo
  * @param prettl: prefetch ttl
  * @param expttl: serve expired ttl
+ * @param norecttl: serve expired no recursion ttl
  * @param an: an count
  * @param ns: ns count
  * @param ar: ar count
@@ -255,8 +268,8 @@ struct msgreply_entry {
  */
 struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-	time_t ttl, time_t prettl, time_t expttl, size_t an, size_t ns,
-	size_t ar, size_t total, enum sec_status sec,
+	time_t ttl, time_t prettl, time_t expttl, time_t norecttl, size_t an,
+	size_t ns, size_t ar, size_t total, enum sec_status sec,
 	sldns_ede_code reason_bogus);
 
 /** 
@@ -398,6 +411,24 @@ struct reply_info* reply_info_copy(struct reply_info* rep,
  */
 int reply_info_alloc_rrset_keys(struct reply_info* rep,
 	struct alloc_cache* alloc, struct regional* region);
+
+/**
+ * Check if an *expired* (checked by the caller already) reply info can be used
+ * as an expired answer.
+ * @param rep: expired reply info to check.
+ * @param timenow: the current time.
+ * @return 1 if it can be used as an answer, 0 otherwise.
+ */
+int reply_info_can_answer_expired(struct reply_info* rep, time_t timenow);
+
+/**
+ * Check if an *expired* (checked by the caller already) reply info could be
+ * useful data to stay in the cache.
+ * @param rep: expired reply info to check.
+ * @param timenow: the current time.
+ * @return 1 if it is useful, 0 otherwise.
+ */
+int reply_info_could_use_expired(struct reply_info* rep, time_t timenow);
 
 /*
  * Create a new reply_info based on 'rep'.  The new info is based on
