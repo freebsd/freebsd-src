@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 6, 2024
+.Dd September 27, 2024
 .Dt VMM 4
 .Os
 .Sh NAME
@@ -108,11 +108,36 @@ bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
 .Bd -literal -offset indent
 pptdevs="10/0/0 6/5/0 6/5/1"
 .Ed
+.Pp
+It is possible to detach
+.Va ppt
+from a PCI device without rebooting the host machine and then attach a host
+driver, using the
+.Xr devctl 8
+utility.
+Suppose
+.Va ppt
+is currently attached to
+.Va pci0:0:1:0
+and we want the host's
+.Xr xhci 4
+driver to be attached instead:
+.Bd -literal -offset indent
+# devctl set driver -f pci0:0:1:0 xhci
+.Ed
+.Pp
+The same can be applied to attach
+.Va ppt
+back:
+.Bd -literal -offset indent
+# devctl set driver -f pci0:0:1:0 ppt
+.Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr loader.conf 5 ,
 .Xr bhyve 8 ,
 .Xr bhyveload 8 ,
+.Xr devctl 8 ,
 .Xr kldload 8
 .Sh HISTORY
 .Nm vmm.ko
