@@ -1,3 +1,0 @@
-$ORIGIN rpz-two.
-@ IN SOA no.no no.no 1 2 3 4 5
-local IN A 22.22.22.22
