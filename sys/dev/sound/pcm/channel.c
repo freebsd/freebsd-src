@@ -1296,12 +1296,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	 */
 	if (c->direction == PCMDIR_PLAY) {
 		bs->sl = sndbuf_getmaxsize(bs);
-		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_NOWAIT);
-		if (bs->shadbuf == NULL) {
-			device_printf(d->dev, "%s(): failed to create shadow "
-			    "buffer\n", __func__);
-			goto fail;
-		}
+		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_WAITOK);
 	}
 
 	PCM_LOCK(d);
