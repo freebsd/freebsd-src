@@ -142,7 +142,8 @@ opal_ipmi_discard_msgs(struct opal_ipmi_softc *sc)
 }
 
 static int
-opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req)
+opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req,
+    int timo)
 {
 	uint64_t msg_len;
 	int err;
@@ -191,7 +192,7 @@ opal_ipmi_polled_request(struct opal_ipmi_softc *sc, struct ipmi_request *req)
 		goto out;
 	}
 
-	if ((err = opal_ipmi_recv(sc, &msg_len, 0)) == 0) {
+	if ((err = opal_ipmi_recv(sc, &msg_len, timo)) == 0) {
 		/* Subtract one extra for the completion code. */
 		req->ir_replylen = msg_len - sizeof(struct opal_ipmi_msg) - 1;
 		req->ir_replylen = min(req->ir_replylen, req->ir_replybuflen);
@@ -254,7 +255,7 @@ opal_ipmi_driver_request(struct ipmi_softc *isc, struct ipmi_request *req)
 
 	for (i = 0; i < 3; i++) {
 		IPMI_LOCK(&sc->ipmi);
-		err = opal_ipmi_polled_request(sc, req);
+		err = opal_ipmi_polled_request(sc, req, 0);
 		IPMI_UNLOCK(&sc->ipmi);
 		if (err == 0)
 			break;
