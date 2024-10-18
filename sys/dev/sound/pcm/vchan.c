@@ -508,8 +508,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		return (ret);
 	}
 
-	if (newspd < 1 || newspd < feeder_rate_min ||
-	    newspd > feeder_rate_max) {
+	if (newspd < feeder_rate_min || newspd > feeder_rate_max) {
 		PCM_RELEASE_QUICK(d);
 		return (EINVAL);
 	}
