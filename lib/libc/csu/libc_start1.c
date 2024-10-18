@@ -137,6 +137,24 @@ handle_argv(int argc, char *argv[], char **env)
 	}
 }
 
+static void
+handle_irelocs(char *env[])
+{
+#ifndef CRT_IRELOC_SUPPRESS
+	const Elf_Auxinfo *aux;
+
+	/* Find the auxiliary vector on the stack. */
+	while (*env++ != 0)	/* Skip over environment, and NULL terminator */
+		;
+	aux = (const Elf_Auxinfo *)env;
+
+	ifunc_init(aux);
+	process_irelocs();
+#else
+	(void)env;
+#endif
+}
+
 void
 __libc_start1(int argc, char *argv[], char *env[], void (*cleanup)(void),
     int (*mainX)(int, char *[], char *[]))
@@ -146,10 +164,7 @@ __libc_start1(int argc, char *argv[], char *env[], void (*cleanup)(void),
 	if (&_DYNAMIC != NULL) {
 		atexit(cleanup);
 	} else {
-#ifndef CRT_IRELOC_SUPPRESS
-		INIT_IRELOCS;
-		process_irelocs();
-#endif
+		handle_irelocs(env);
 		_init_tls();
 	}
 
@@ -171,10 +186,7 @@ __libc_start1_gcrt(int argc, char *argv[], char *env[],
 	if (&_DYNAMIC != NULL) {
 		atexit(cleanup);
 	} else {
-#ifndef CRT_IRELOC_SUPPRESS
-		INIT_IRELOCS;
-		process_irelocs();
-#endif
+		handle_irelocs(env);
 		_init_tls();
 	}
 
