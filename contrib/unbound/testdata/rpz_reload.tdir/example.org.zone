@@ -1,2 +1,0 @@
-example.org. 3600 IN SOA ns1.example.org. hostmaster.example.org. 1379078166 28800 7200 604800 7200
-www.example.org. A 1.2.3.5
