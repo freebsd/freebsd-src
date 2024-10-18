@@ -365,6 +365,15 @@ struct mrs_field {
 	u_int		shift;
 };
 
+#define	MRS_FIELD_RES1(_width, _shift)					\
+	{								\
+		.sign = false,						\
+		.type =	MRS_EXACT | MRS_SAFE((1u << (_width)) - 1) |	\
+		    MRS_USERSPACE,					\
+		.width = (_width),					\
+		.shift = (_shift),					\
+	}
+
 #define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _visibility,	\
     _values, _hwcap)							\
 	{								\
@@ -2549,9 +2558,8 @@ print_id_fields(struct sbuf *sb, uint64_t reg, const void *arg)
 	for (i = 0; fields[i].type != 0; i++) {
 		fv = fields[i].values;
 
-		/* TODO: Handle with an unknown message */
 		if (fv == NULL)
-			continue;
+			goto next;
 
 		field = (reg & fields[i].mask) >> fields[i].shift;
 		for (j = 0; fv[j].desc != NULL; j++) {
@@ -2566,6 +2574,7 @@ print_id_fields(struct sbuf *sb, uint64_t reg, const void *arg)
 			sbuf_printf(sb, "%sUnknown %s(%x)", SEP_STR,
 			    fields[i].name, field);
 
+next:
 		reg &= ~(((1ul << fields[i].width) - 1) << fields[i].shift);
 	}
 
