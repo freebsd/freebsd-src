@@ -1,4 +1,4 @@
 #
 
-CFLAGS+=	-DCRT_IRELOC_SUPPRESS \
-		-DINIT_IRELOCS=""
+CFLAGS+=	-DCRT_IRELOC_RELA \
+		-DINIT_IRELOCS="init_cpu_features(env)"
