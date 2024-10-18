@@ -85,7 +85,7 @@
 #define	 BT_IM_BMC_HWRST	(1L << 7)
 
 static int bt_polled_request(struct ipmi_softc *, struct ipmi_request *);
-static int bt_driver_request(struct ipmi_softc *, struct ipmi_request *, int);
+static int bt_driver_request(struct ipmi_softc *, struct ipmi_request *);
 static int bt_wait(struct ipmi_softc *, uint8_t, uint8_t);
 static int bt_reset(struct ipmi_softc *);
 
@@ -247,7 +247,7 @@ bt_loop(void *arg)
 	IPMI_LOCK(sc);
 	while ((req = ipmi_dequeue_request(sc)) != NULL) {
 		IPMI_UNLOCK(sc);
-		(void)bt_driver_request(sc, req, 0);
+		(void)bt_driver_request(sc, req);
 		IPMI_LOCK(sc);
 		sc->ipmi_bt_seq++;
 		ipmi_complete_request(sc, req);
@@ -265,7 +265,7 @@ bt_startup(struct ipmi_softc *sc)
 }
 
 static int
-bt_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo __unused)
+bt_driver_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 	int i, ok;
 
