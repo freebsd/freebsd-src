@@ -33,14 +33,14 @@ from_branch=freebsd/main
 author="${USER}"
 
 # Get the FreeBSD repository
-repo=$(basename "$(git remote get-url freebsd 2>/dev/null)" 2>/dev/null)
+repo=$(basename "$(git remote get-url freebsd 2>/dev/null)" .git 2>/dev/null)
 
-if [ "${repo}" = "ports.git" ]; then
+if [ "${repo}" = "ports" -o "${repo}" = "freebsd-ports" ]; then
 	year=$(date '+%Y')
 	month=$(date '+%m')
 	qtr=$(((month-1) / 3 + 1))
 	to_branch="freebsd/${year}Q${qtr}"
-elif [ "${repo}" = "src.git" ]; then
+elif [ "${repo}" = "src" -o "${repo}" = "freebsd-src" ]; then
 	to_branch=freebsd/stable/14
 	# If pwd is a stable or release branch tree, default to it.
 	cur_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
