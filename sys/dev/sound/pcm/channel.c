@@ -1311,6 +1311,24 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	}
 
 	PCM_LOCK(d);
+	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
+
+	switch (c->type) {
+	case SND_DEV_DSPHW_PLAY:
+		d->playcount++;
+		break;
+	case SND_DEV_DSPHW_VPLAY:
+		d->pvchancount++;
+		break;
+	case SND_DEV_DSPHW_REC:
+		d->reccount++;
+		break;
+	case SND_DEV_DSPHW_VREC:
+		d->rvchancount++;
+		break;
+	default:
+		__assert_unreachable();
+	}
 
 	return (c);
 
@@ -1337,10 +1355,32 @@ fail:
 void
 chn_kill(struct pcm_channel *c)
 {
+	struct snddev_info *d = c->parentsnddev;
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
 
 	PCM_BUSYASSERT(c->parentsnddev);
+
+	PCM_LOCK(d);
+	CHN_REMOVE(d, c, channels.pcm);
+
+	switch (c->type) {
+	case SND_DEV_DSPHW_PLAY:
+		d->playcount--;
+		break;
+	case SND_DEV_DSPHW_VPLAY:
+		d->pvchancount--;
+		break;
+	case SND_DEV_DSPHW_REC:
+		d->reccount--;
+		break;
+	case SND_DEV_DSPHW_VREC:
+		d->rvchancount--;
+		break;
+	default:
+		__assert_unreachable();
+	}
+	PCM_UNLOCK(d);
 
 	if (CHN_STARTED(c)) {
 		CHN_LOCK(c);

@@ -710,9 +710,6 @@ vchan_create(struct pcm_channel *parent)
 		CHN_LOCK(parent);
 		return (ENODEV);
 	}
-
-	/* add us to our grandparent's channel list */
-	pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
 
 	CHN_LOCK(parent);
@@ -818,12 +815,7 @@ fail:
 	CHN_REMOVE(parent, ch, children);
 	parent->flags &= ~CHN_F_HAS_VCHAN;
 	CHN_UNLOCK(parent);
-	PCM_LOCK(d);
-	if (pcm_chn_remove(d, ch) == 0) {
-		PCM_UNLOCK(d);
-		chn_kill(ch);
-	} else
-		PCM_UNLOCK(d);
+	chn_kill(ch);
 	CHN_LOCK(parent);
 
 	return (ret);
@@ -833,8 +825,6 @@ int
 vchan_destroy(struct pcm_channel *c)
 {
 	struct pcm_channel *parent;
-	struct snddev_info *d;
-	int ret;
 
 	KASSERT(c != NULL && c->parentchannel != NULL &&
 	    c->parentsnddev != NULL, ("%s(): invalid channel=%p",
@@ -842,10 +832,9 @@ vchan_destroy(struct pcm_channel *c)
 
 	CHN_LOCKASSERT(c);
 
-	d = c->parentsnddev;
 	parent = c->parentchannel;
 
-	PCM_BUSYASSERT(d);
+	PCM_BUSYASSERT(c->parentsnddev);
 	CHN_LOCKASSERT(parent);
 
 	CHN_UNLOCK(c);
@@ -866,18 +855,12 @@ vchan_destroy(struct pcm_channel *c)
 
 	CHN_UNLOCK(parent);
 
-	/* remove us from our grandparent's channel list */
-	PCM_LOCK(d);
-	ret = pcm_chn_remove(d, c);
-	PCM_UNLOCK(d);
-
 	/* destroy ourselves */
-	if (ret == 0)
-		chn_kill(c);
+	chn_kill(c);
 
 	CHN_LOCK(parent);
 
-	return (ret);
+	return (0);
 }
 
 int
