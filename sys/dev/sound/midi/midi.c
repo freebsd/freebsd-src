@@ -951,12 +951,8 @@ midistat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		return EBUSY;
 	}
 	midistat_isopen = 1;
-	if (sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		error = ENXIO;
-		goto out;
-	}
+	sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND);
 	error = (midistat_prepare(&midistat_sbuf) > 0) ? 0 : ENOMEM;
-out:
 	if (error)
 		midistat_isopen = 0;
 	midistat_unlock();
