@@ -292,7 +292,10 @@ const struct cpu_implementers cpu_implementers[] = {
 #define	MRS_TYPE_MASK		0xf
 #define	MRS_INVALID		0
 #define	MRS_EXACT		1
-#define	MRS_LOWER		2
+#define	MRS_EXACT_IF_DIFFERENT	2
+#define	MRS_LOWER		3
+#define	MRS_HIGHER_OR_ZERO	4
+#define	MRS_HIGHER		5
 #define	MRS_SAFE_SHIFT		4
 #define	MRS_SAFE_MASK		(0xfu << MRS_SAFE_SHIFT)
 #define	MRS_SAFE(x)		(((x) << MRS_SAFE_SHIFT) & MRS_SAFE_MASK)
@@ -2175,18 +2178,40 @@ static uint64_t
 update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
     u_int width, u_int shift, bool sign)
 {
+	uint64_t cur, mask, new_val;
+
+	mask = ((1ul << width) - 1) << shift;
+	cur = user_reg & mask;
+	new_val = value & mask;
+
 	switch (type & MRS_TYPE_MASK) {
+	case MRS_EXACT_IF_DIFFERENT:
+		if (mrs_field_cmp(cur, new_val, shift, width, sign) != 0)
+			break;
+		/* FALLTHROUGH */
 	case MRS_EXACT:
-		user_reg &= ~(0xful << shift);
-		user_reg |= (uint64_t)MRS_SAFE(type) << shift;
+		cur = (uint64_t)MRS_SAFE_VAL(type) << shift;
 		break;
 	case MRS_LOWER:
-		user_reg = update_lower_register(user_reg, value, shift, width,
-		    sign);
+		if (mrs_field_cmp(cur, new_val, shift, width, sign) < 0)
+			cur = new_val;
+		break;
+	case MRS_HIGHER_OR_ZERO:
+		if (cur == 0 || new_val == 0) {
+			cur = 0;
+			break;
+		}
+		/* FALLTHROUGH */
+	case MRS_HIGHER:
+		if (mrs_field_cmp(cur, new_val, shift, width, sign) > 0)
+			cur = new_val;
 		break;
 	default:
 		panic("Invalid field type: %d", type);
 	}
+
+	user_reg &= ~mask;
+	user_reg |= cur;
 
 	return (user_reg);
 }
