@@ -1613,7 +1613,7 @@ pf_handle_get_addr(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (ENOMEM);
 
 	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
-	ghdr_new->cmd = PFNL_CMD_GET_ADDRS;
+	ghdr_new->cmd = PFNL_CMD_GET_ADDR;
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
