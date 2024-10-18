@@ -199,3 +199,19 @@ clean_dep   cddl/lib/libzpool zfs_debug c "linux/zfs/zfs_debug\.c"
 
 # 20241011
 clean_dep   cddl/lib/libzpool arc_os c "linux/zfs/arc_os\.c"
+
+# 20241018  1363acbf25de    libc/csu: Support IFUNCs on riscv
+if [ ${MACHINE} = riscv ]; then
+	for f in "$OBJTOP"/lib/libc/.depend.libc_start1.*o; do
+		if [ ! -f "$f" ]; then
+			continue
+		fi
+		if ! grep -q 'lib/libc/csu/riscv/reloc\.c' "$f"; then
+			echo "Removing stale dependencies and objects for libc_start1.c"
+			run rm -f \
+			    "$OBJTOP"/lib/libc/.depend.libc_start1.* \
+			    "$OBJTOP"/lib/libc/libc_start1.*o
+			break
+		fi
+	done
+fi
