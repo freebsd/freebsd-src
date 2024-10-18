@@ -78,6 +78,8 @@ SYSCTL_INT(_machdep_cache, OID_AUTO, allow_idc, CTLFLAG_RDTUN, &allow_idc, 0,
 
 static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
     struct cpu_desc *prev_desc);
+static uint64_t update_special_reg_field(uint64_t user_reg, u_int type,
+    uint64_t value, u_int width, u_int shift, bool sign);
 
 /*
  * The default implementation of I-cache sync assumes we have an
@@ -2181,27 +2183,6 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 	return (a - b);
 }
 
-static uint64_t
-update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
-    int width, bool sign)
-{
-	uint64_t mask;
-
-	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
-	    width));
-
-	/*
-	 * If the new value is less than the existing value update it.
-	 */
-	if (mrs_field_cmp(new_val, val, shift, width, sign) < 0) {
-		mask = (1ul << width) - 1;
-		val &= ~(mask << shift);
-		val |= new_val & (mask << shift);
-	}
-
-	return (val);
-}
-
 bool
 extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
 {
@@ -2249,9 +2230,9 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 			val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			fields = user_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
-				mask = update_lower_register(mask, val,
-				    fields[j].shift, fields[j].width,
-				    fields[j].sign);
+				mask = update_special_reg_field(mask,
+				    fields[j].type, val, fields[j].width,
+				    fields[j].shift, fields[j].sign);
 			}
 			*valp = mask;
 			return (true);
@@ -2357,8 +2338,9 @@ update_special_regs(u_int cpu)
 			    fields[j].sign);
 
 			/* Update the kernel ID register view */
-			kern_reg = update_lower_register(kern_reg, value,
-			    fields[j].shift, fields[j].width, fields[j].sign);
+			kern_reg = update_special_reg_field(kern_reg,
+			    fields[j].type, value, fields[j].width,
+			    fields[j].shift, fields[j].sign);
 		}
 
 		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
