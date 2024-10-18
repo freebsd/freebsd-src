@@ -2493,7 +2493,7 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 	 * syncgroup.
 	 */
 	if (group->id == 0) {
-		sg = (struct pcmchan_syncgroup *)malloc(sizeof(*sg), M_DEVBUF, M_NOWAIT);
+		sg = malloc(sizeof(*sg), M_DEVBUF, M_NOWAIT);
 		if (sg != NULL) {
 			SLIST_INIT(&sg->members);
 			sg->id = alloc_unr(pcmsg_unrhdr);
@@ -2520,7 +2520,7 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 	 * insert into syncgroup.
 	 */
 	if (group->mode & PCM_ENABLE_INPUT) {
-		smrd = (struct pcmchan_syncmember *)malloc(sizeof(*smrd), M_DEVBUF, M_NOWAIT);
+		smrd = malloc(sizeof(*smrd), M_DEVBUF, M_NOWAIT);
 		if (smrd == NULL) {
 			ret = ENOMEM;
 			goto out;
@@ -2536,7 +2536,7 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 	}
 
 	if (group->mode & PCM_ENABLE_OUTPUT) {
-		smwr = (struct pcmchan_syncmember *)malloc(sizeof(*smwr), M_DEVBUF, M_NOWAIT);
+		smwr = malloc(sizeof(*smwr), M_DEVBUF, M_NOWAIT);
 		if (smwr == NULL) {
 			ret = ENOMEM;
 			goto out;

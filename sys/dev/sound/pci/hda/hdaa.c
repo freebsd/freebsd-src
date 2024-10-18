@@ -3033,8 +3033,7 @@ hdaa_audio_ctl_parse(struct hdaa_devinfo *devinfo)
 	if (max < 1)
 		return;
 
-	ctls = (struct hdaa_audio_ctl *)malloc(
-	    sizeof(*ctls) * max, M_HDAA, M_ZERO | M_NOWAIT);
+	ctls = malloc(sizeof(*ctls) * max, M_HDAA, M_ZERO | M_NOWAIT);
 
 	if (ctls == NULL) {
 		/* Blekh! */
@@ -3186,8 +3185,7 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 	if (max < 1)
 		return;
 
-	as = (struct hdaa_audio_as *)malloc(
-	    sizeof(*as) * max, M_HDAA, M_ZERO | M_NOWAIT);
+	as = malloc(sizeof(*as) * max, M_HDAA, M_ZERO | M_NOWAIT);
 
 	if (as == NULL) {
 		/* Blekh! */
@@ -4077,8 +4075,7 @@ hdaa_audio_bind_as(struct hdaa_devinfo *devinfo)
 			cnt += as[j].num_chans;
 	}
 	if (devinfo->num_chans == 0) {
-		devinfo->chans = (struct hdaa_chan *)malloc(
-		    sizeof(struct hdaa_chan) * cnt,
+		devinfo->chans = malloc(sizeof(struct hdaa_chan) * cnt,
 		    M_HDAA, M_ZERO | M_NOWAIT);
 		if (devinfo->chans == NULL) {
 			device_printf(devinfo->dev,
@@ -5490,10 +5487,8 @@ hdaa_prepare_pcms(struct hdaa_devinfo *devinfo)
 	}
 	devinfo->num_devs =
 	    max(ardev, apdev) + max(drdev, dpdev);
-	devinfo->devs =
-	    (struct hdaa_pcm_devinfo *)malloc(
-	    devinfo->num_devs * sizeof(struct hdaa_pcm_devinfo),
-	    M_HDAA, M_ZERO | M_NOWAIT);
+	devinfo->devs = malloc(devinfo->num_devs *
+	    sizeof(struct hdaa_pcm_devinfo), M_HDAA, M_ZERO | M_NOWAIT);
 	if (devinfo->devs == NULL) {
 		device_printf(devinfo->dev,
 		    "Unable to allocate memory for devices\n");
@@ -6625,9 +6620,8 @@ hdaa_attach(device_t dev)
 	);
 
 	if (devinfo->nodecnt > 0)
-		devinfo->widget = (struct hdaa_widget *)malloc(
-		    sizeof(*(devinfo->widget)) * devinfo->nodecnt, M_HDAA,
-		    M_WAITOK | M_ZERO);
+		devinfo->widget = malloc(sizeof(*(devinfo->widget)) *
+		    devinfo->nodecnt, M_HDAA, M_WAITOK | M_ZERO);
 	else
 		devinfo->widget = NULL;
 

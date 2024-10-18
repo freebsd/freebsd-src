@@ -367,7 +367,7 @@ audio_soc_init(void *arg)
 		auxdev = OF_device_from_xref(aux_devs[i]);
 		if (auxdev == NULL)
 			device_printf(sc->dev, "warning: no driver attached to aux node\n");
-		aux_node = (struct audio_soc_aux_node *)malloc(sizeof(*aux_node), M_DEVBUF, M_NOWAIT);
+		aux_node = malloc(sizeof(*aux_node), M_DEVBUF, M_NOWAIT);
 		if (aux_node == NULL) {
 			device_printf(sc->dev, "failed to allocate aux node struct\n");
 			return;
