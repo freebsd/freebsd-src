@@ -37,6 +37,8 @@ extern "C" {
 #include <unistd.h>
 }
 
+#include <iomanip>
+
 #include "mockfs.hh"
 #include "utils.hh"
 
