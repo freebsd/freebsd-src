@@ -712,21 +712,33 @@
  * GCC has the nosanitize attribute, but as a function attribute only, and
  * warns on use as a variable attribute.
  */
-#if __has_attribute(no_sanitize) && defined(__clang__)
+#if __has_feature(address_sanitizer) && defined(__clang__)
 #ifdef _KERNEL
-#define __nosanitizeaddress	__attribute__((no_sanitize("kernel-address")))
-#define __nosanitizememory	__attribute__((no_sanitize("kernel-memory")))
+#define	__nosanitizeaddress	__attribute__((no_sanitize("kernel-address")))
 #else
-#define __nosanitizeaddress	__attribute__((no_sanitize("address")))
-#define __nosanitizememory	__attribute__((no_sanitize("memory")))
+#define	__nosanitizeaddress	__attribute__((no_sanitize("address")))
 #endif
-#define __nosanitizecoverage	__attribute__((no_sanitize("coverage")))
-#define __nosanitizethread	__attribute__((no_sanitize("thread")))
 #else
-#define __nosanitizeaddress
-#define __nosanitizecoverage
-#define __nosanitizememory
-#define __nosanitizethread
+#define	__nosanitizeaddress
+#endif
+#if __has_feature(coverage_sanitizer) && defined(__clang__)
+#define	__nosanitizecoverage	__attribute__((no_sanitize("coverage")))
+#else
+#define	__nosanitizecoverage
+#endif
+#if __has_feature(memory_sanitizer) && defined(__clang__)
+#ifdef _KERNEL
+#define	__nosanitizememory	__attribute__((no_sanitize("kernel-memory")))
+#else
+#define	__nosanitizememory	__attribute__((no_sanitize("memory")))
+#endif
+#else
+#define	__nosanitizememory
+#endif
+#if __has_feature(thread_sanitizer) && defined(__clang__)
+#define	__nosanitizethread	__attribute__((no_sanitize("thread")))
+#else
+#define	__nosanitizethread
 #endif
 
 /*
