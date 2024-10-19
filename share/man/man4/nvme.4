@@ -128,6 +128,43 @@ hw.nvme.hmb_max
 .Pp
 The default value is 5% of physical memory size per device.
 .Pp
+To enable Autonomous Power State Transition (APST), set the following
+tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.apst_enable=1
+.Ed
+.Pp
+The default vendor-provided settings, if any, will be applied.
+To override this, set the following tunable:
+.Bd -literal -offset indent
+hw.nvme.apst_data
+.Ed
+.Pp
+The value may contain up to 32 entries, one for each allowable power
+state.
+Each entry is calculated as
+.Ql ITPT << 8 | ITPS << 3
+, where ITPT is the Idle Time Prior to Transition (in milliseconds)
+and ITPS is the Idle Transition Power State (i.e., the target state
+to switch to from the current one).
+For example, the string "0x6418 0x6418 0x6418 0x3E820" instructs the
+controller to enter Non-Operational Power State (NOPS) 3 from states
+0–2 after 100 ms of inactivity.
+After an additional 1000 ms of inactivity, the device will transition
+to NOPS 4.
+For more details, please refer to the Autonomous Power State
+Transition section in the NVM Express Base Specification.
+.Pp
+In addition to manually overriding APST table, it is possible to
+specify only the maximum total latency (i.e., enter + exit) in
+milliseconds to generate transition data automatically.
+In this case, the controller will be instructed to sequentially
+switch through all NOPS, excluding those with higher latency:
+.Bd -literal -offset indent
+hw.nvme.apst_max_latency
+.Ed
+.Pp
 The
 .Xr nvd 4
 driver is used to provide a disk driver to the system by default.
@@ -254,6 +291,11 @@ This message will appear at most once per boot per controller.
 .Xr pci 4 ,
 .Xr nvmecontrol 8 ,
 .Xr disk 9
+.Rs
+.%T The NVM Express Base Specification
+.%D June 10, 2019
+.%U https://nvmexpress.org/wp-content/uploads/NVM-Express-1_4-2019.06.10-Ratified.pdf
+.Re
 .Sh HISTORY
 The
 .Nm
