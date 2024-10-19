@@ -2014,6 +2014,18 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 }
 
 /*
+ *	vm_page_mpred:
+ *
+ *	Return the greatest page of the object with index <= pindex,
+ *	or NULL, if there is none.  Assumes object lock is held.
+ */
+vm_page_t
+vm_page_mpred(vm_object_t object, vm_pindex_t pindex)
+{
+	return (vm_radix_lookup_le(&object->rtree, pindex));
+}
+
+/*
  *	vm_page_alloc:
  *
  *	Allocate and return a page that is associated with the specified
@@ -2040,16 +2052,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 
 	return (vm_page_alloc_after(object, pindex, req,
-	    vm_radix_lookup_le(&object->rtree, pindex)));
-}
-
-vm_page_t
-vm_page_alloc_domain(vm_object_t object, vm_pindex_t pindex, int domain,
-    int req)
-{
-
-	return (vm_page_alloc_domain_after(object, pindex, domain, req,
-	    vm_radix_lookup_le(&object->rtree, pindex)));
+	    vm_page_mpred(object, pindex)));
 }
 
 /*
@@ -2390,7 +2393,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	    object));
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
-	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	mpred = vm_page_mpred(object, pindex);
 	KASSERT(mpred == NULL || mpred->pindex != pindex,
 	    ("vm_page_alloc_contig: pindex already allocated"));
 	for (;;) {
@@ -5073,7 +5076,7 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	pflags = vm_page_grab_pflags(allocflags);
 	i = 0;
 retrylookup:
-	m = vm_radix_lookup_le(&object->rtree, pindex + i);
+	m = vm_page_mpred(object, pindex + i);
 	if (m == NULL || m->pindex != pindex + i) {
 		mpred = m;
 		m = NULL;

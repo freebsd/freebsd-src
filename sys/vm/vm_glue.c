@@ -623,8 +623,9 @@ vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
 		m = vm_page_grab(obj, pindex + n,
 		    VM_ALLOC_NOCREAT | VM_ALLOC_WIRED);
 		if (m == NULL) {
-			m = vm_page_alloc_domain(obj, pindex + n, domain,
-			    req_class | VM_ALLOC_WIRED);
+			m = n > 0 ? ma[n - 1] : vm_page_mpred(obj, pindex);
+			m = vm_page_alloc_domain_after(obj, pindex + n, domain,
+			    req_class | VM_ALLOC_WIRED, m);
 		}
 		if (m == NULL)
 			break;
