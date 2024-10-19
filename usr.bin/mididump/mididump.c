@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <sys/soundcard.h>
 
 #include <err.h>
@@ -39,7 +40,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define ARRLEN(x)	(sizeof(x) / sizeof(x[0]))
 #define NOTE2OCTAVE(n)	(n / 12 - 1)
 #define NOTE2FREQ(n)	(440 * pow(2.0f, ((float)n - 69) / 12))
 #define CHAN_MASK	0x0f
@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 		case 0x90 ... 0x9f:
 			b1 = read_byte(fd);
 			b2 = read_byte(fd);
-			pn = &notes[b1 % ARRLEN(notes)];
+			pn = &notes[b1 % nitems(notes)];
 			snprintf(buf, sizeof(buf), "%s%d", pn->name,
 			    NOTE2OCTAVE(b1));
 			if (pn->alt != NULL) {
@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 		case 0xb0 ... 0xbf:
 			b1 = read_byte(fd);
 			b2 = read_byte(fd);
-			if (b1 > ARRLEN(ctls) - 1)
+			if (b1 > nitems(ctls) - 1)
 				break;
 			printf("Control/Mode change	channel=%d, "
 			    "control=%d (%s), value=%d",
