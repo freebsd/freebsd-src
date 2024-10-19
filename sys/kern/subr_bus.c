@@ -35,6 +35,7 @@
 #include <sys/conf.h>
 #include <sys/domainset.h>
 #include <sys/eventhandler.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -2538,10 +2539,7 @@ device_probe_and_attach(device_t dev)
 	else if (error != 0)
 		return (error);
 
-	CURVNET_SET_QUIET(vnet0);
-	error = device_attach(dev);
-	CURVNET_RESTORE();
-	return error;
+	return (device_attach(dev));
 }
 
 /**
@@ -2577,6 +2575,10 @@ device_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	KASSERT(IS_DEFAULT_VNET(TD_TO_VNET(curthread)),
+	    ("device_attach: curthread is not in default vnet"));
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
+
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
@@ -2609,8 +2611,10 @@ device_attach(device_t dev)
 			KASSERT(dev->busy == 0, ("attach failed but busy"));
 			dev->state = DS_NOTPRESENT;
 		}
+		CURVNET_RESTORE();
 		return (error);
 	}
+	CURVNET_RESTORE();
 	dev->flags |= DF_ATTACHED_ONCE;
 	/*
 	 * We only need the low bits of this time, but ranges from tens to thousands
