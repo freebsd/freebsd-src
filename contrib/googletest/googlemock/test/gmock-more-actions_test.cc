@@ -85,6 +85,16 @@ struct UnaryFunctor {
   int operator()(bool x) { return x ? 1 : -1; }
 };
 
+struct UnaryMoveOnlyFunctor : UnaryFunctor {
+  UnaryMoveOnlyFunctor() = default;
+  UnaryMoveOnlyFunctor(const UnaryMoveOnlyFunctor&) = delete;
+  UnaryMoveOnlyFunctor(UnaryMoveOnlyFunctor&&) = default;
+};
+
+struct OneShotUnaryFunctor {
+  int operator()(bool x) && { return x ? 1 : -1; }
+};
+
 const char* Binary(const char* input, short n) { return input + n; }  // NOLINT
 
 int Ternary(int x, char y, short z) { return x + y + z; }  // NOLINT
@@ -698,10 +708,22 @@ TEST(InvokeArgumentTest, Function0) {
   EXPECT_EQ(1, a.Perform(std::make_tuple(2, &Nullary)));
 }
 
-// Tests using InvokeArgument with a unary function.
+// Tests using InvokeArgument with a unary functor.
 TEST(InvokeArgumentTest, Functor1) {
   Action<int(UnaryFunctor)> a = InvokeArgument<0>(true);  // NOLINT
   EXPECT_EQ(1, a.Perform(std::make_tuple(UnaryFunctor())));
+}
+
+// Tests using InvokeArgument with a unary move-only functor.
+TEST(InvokeArgumentTest, Functor1MoveOnly) {
+  Action<int(UnaryMoveOnlyFunctor)> a = InvokeArgument<0>(true);  // NOLINT
+  EXPECT_EQ(1, a.Perform(std::make_tuple(UnaryMoveOnlyFunctor())));
+}
+
+// Tests using InvokeArgument with a one-shot unary functor.
+TEST(InvokeArgumentTest, OneShotFunctor1) {
+  Action<int(OneShotUnaryFunctor)> a = InvokeArgument<0>(true);  // NOLINT
+  EXPECT_EQ(1, a.Perform(std::make_tuple(OneShotUnaryFunctor())));
 }
 
 // Tests using InvokeArgument with a 5-ary function.
@@ -804,6 +826,22 @@ TEST(InvokeArgumentTest, ByExplicitConstReferenceFunction) {
   double x = 0;
   a = InvokeArgument<0>(ByRef(x));  // This calls ByRef() on a non-const.
   EXPECT_FALSE(a.Perform(std::make_tuple(&ReferencesGlobalDouble)));
+}
+
+TEST(InvokeArgumentTest, MoveOnlyType) {
+  struct Marker {};
+  struct {
+    // Method takes a unique_ptr (to a type we don't care about), and an
+    // invocable type.
+    MOCK_METHOD(bool, MockMethod,
+                (std::unique_ptr<Marker>, std::function<int()>), ());
+  } mock;
+
+  ON_CALL(mock, MockMethod(_, _)).WillByDefault(InvokeArgument<1>());
+
+  // This compiles, but is a little opaque as a workaround:
+  ON_CALL(mock, MockMethod(_, _))
+      .WillByDefault(WithArg<1>(InvokeArgument<0>()));
 }
 
 // Tests DoAll(a1, a2).
