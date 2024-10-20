@@ -58,7 +58,7 @@ archive_write_set_format_raw(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	raw = (struct raw *)calloc(1, sizeof(*raw));
+	raw = calloc(1, sizeof(*raw));
 	if (raw == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate raw data");
 		return (ARCHIVE_FATAL);

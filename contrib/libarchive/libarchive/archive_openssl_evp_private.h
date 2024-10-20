@@ -39,7 +39,7 @@
 #include <string.h> /* memset */
 static inline EVP_MD_CTX *EVP_MD_CTX_new(void)
 {
-	EVP_MD_CTX *ctx = (EVP_MD_CTX *)calloc(1, sizeof(EVP_MD_CTX));
+	EVP_MD_CTX *ctx = calloc(1, sizeof(EVP_MD_CTX));
 	return ctx;
 }
 

@@ -184,7 +184,7 @@ file_open(struct archive *a, void *data)
     mydata->fd = open(mydata->filename, O_RDONLY | O_BINARY);
     if (mydata->fd >= 0)
     {
-      if ((mydata->buffer = (void*)calloc(BLOCK_SIZE, 1)) == NULL)
+      if ((mydata->buffer = calloc(BLOCK_SIZE, 1)) == NULL)
         return (ARCHIVE_FAILED);
     }
   }
@@ -280,28 +280,21 @@ test_customized_multiple_data_objects(void)
 
   for (i = 0; filename != NULL;)
   {
-    assert((mydata = (struct mydata *)calloc(1, sizeof(*mydata))) != NULL);
+    assert((mydata = calloc(1, sizeof(*mydata))) != NULL);
     if (mydata == NULL) {
       assertEqualInt(ARCHIVE_OK, archive_read_free(a));
       return;
     }
-    assert((mydata->filename =
-      (char *)calloc(strlen(filename) + 1, sizeof(char))) != NULL);
-    if (mydata->filename == NULL) {
-      free(mydata);
-      assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-      return;
-    }
-    strcpy(mydata->filename, filename);
+    assert((mydata->filename = strdup(filename)) != NULL);
     mydata->fd = -1;
     filename = reffiles[++i];
     assertA(0 == archive_read_append_callback_data(a, mydata));
   }
-	assertA(0 == archive_read_set_open_callback(a, file_open));
-	assertA(0 == archive_read_set_read_callback(a, file_read));
-	assertA(0 == archive_read_set_skip_callback(a, file_skip));
-	assertA(0 == archive_read_set_close_callback(a, file_close));
-	assertA(0 == archive_read_set_switch_callback(a, file_switch));
+  assertA(0 == archive_read_set_open_callback(a, file_open));
+  assertA(0 == archive_read_set_read_callback(a, file_read));
+  assertA(0 == archive_read_set_skip_callback(a, file_skip));
+  assertA(0 == archive_read_set_close_callback(a, file_close));
+  assertA(0 == archive_read_set_switch_callback(a, file_switch));
   assertA(0 == archive_read_set_seek_callback(a, file_seek));
   assertA(0 == archive_read_open1(a));
 

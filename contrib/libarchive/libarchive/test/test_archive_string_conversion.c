@@ -882,3 +882,138 @@ DEFINE_TEST(test_archive_string_conversion)
 	test_archive_string_canonicalization();
 	test_archive_string_set_get();
 }
+
+DEFINE_TEST(test_archive_string_conversion_utf16_utf8)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
+	struct archive_mstring mstr;
+	const char* utf8_string;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_copy_wcs(&mstr, L"\U0000043f\U00000440\U00000438"));
+
+	/* Conversion from WCS to UTF-8 should always succeed */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_get_utf8(NULL, &mstr, &utf8_string));
+	assertEqualString("\xD0\xBF\xD1\x80\xD0\xB8", utf8_string);
+
+	archive_mstring_clean(&mstr);
+#endif
+}
+
+DEFINE_TEST(test_archive_string_conversion_utf8_utf16)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows");
+#else
+	struct archive_mstring mstr;
+	const wchar_t* wcs_string;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	assertEqualInt(6,
+	    archive_mstring_copy_utf8(&mstr, "\xD0\xBF\xD1\x80\xD0\xB8"));
+
+	/* Conversion from UTF-8 to WCS should always succeed */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_mstring_get_wcs(NULL, &mstr, &wcs_string));
+	assertEqualWString(L"\U0000043f\U00000440\U00000438", wcs_string);
+
+	archive_mstring_clean(&mstr);
+#endif
+}
+
+DEFINE_TEST(test_archive_string_update_utf8_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling on Windows"
+	    " with the C locale");
+#else
+	static const char utf8_string[] = "\xD0\xBF\xD1\x80\xD0\xB8";
+	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
+	struct archive_mstring mstr;
+	int r;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	r = archive_mstring_update_utf8(NULL, &mstr, utf8_string);
+
+	/* On Windows, this should reliably fail with the C locale */
+	assertEqualInt(-1, r);
+	assertEqualInt(0, mstr.aes_set & AES_SET_MBS);
+
+	/* NOTE: We access the internals to validate that they were set by the
+	 *       'archive_mstring_update_utf8' function */
+	/* UTF-8 should always be set */
+	assertEqualInt(AES_SET_UTF8, mstr.aes_set & AES_SET_UTF8);
+	assertEqualString(utf8_string, mstr.aes_utf8.s);
+	/* WCS should always be set as well */
+	assertEqualInt(AES_SET_WCS, mstr.aes_set & AES_SET_WCS);
+	assertEqualWString(wcs_string, mstr.aes_wcs.s);
+
+	archive_mstring_clean(&mstr);
+#endif
+}
+
+DEFINE_TEST(test_archive_string_update_utf8_utf8)
+{
+	static const char utf8_string[] = "\xD0\xBF\xD1\x80\xD0\xB8";
+	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
+	struct archive_mstring mstr;
+	int r;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	if (setlocale(LC_ALL, "en_US.UTF-8") == NULL) {
+		skipping("UTF-8 not supported on this system.");
+		return;
+	}
+
+	r = archive_mstring_update_utf8(NULL, &mstr, utf8_string);
+
+	/* All conversions should have succeeded */
+	assertEqualInt(0, r);
+	assertEqualInt(AES_SET_MBS | AES_SET_WCS | AES_SET_UTF8, mstr.aes_set);
+	assertEqualString(utf8_string, mstr.aes_utf8.s);
+	assertEqualString(utf8_string, mstr.aes_mbs.s);
+	assertEqualWString(wcs_string, mstr.aes_wcs.s);
+
+	archive_mstring_clean(&mstr);
+}
+
+DEFINE_TEST(test_archive_string_update_utf8_koi8)
+{
+	static const char utf8_string[] = "\xD0\xBF\xD1\x80\xD0\xB8";
+	static const char koi8_string[] = "\xD0\xD2\xC9";
+	static const wchar_t wcs_string[] = L"\U0000043f\U00000440\U00000438";
+	struct archive_mstring mstr;
+	int r;
+
+	memset(&mstr, 0, sizeof(mstr));
+
+	if (setlocale(LC_ALL, "ru_RU.KOI8-R") == NULL) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	r = archive_mstring_update_utf8(NULL, &mstr, utf8_string);
+
+	/* All conversions should have succeeded */
+	assertEqualInt(0, r);
+	assertEqualInt(AES_SET_MBS | AES_SET_WCS | AES_SET_UTF8, mstr.aes_set);
+	assertEqualString(utf8_string, mstr.aes_utf8.s);
+	assertEqualString(koi8_string, mstr.aes_mbs.s);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	assertEqualWString(wcs_string, mstr.aes_wcs.s);
+#else
+	/* No guarantee of how WCS strings behave, however this test test is
+	 * primarily meant for Windows */
+	(void)wcs_string;
+#endif
+
+	archive_mstring_clean(&mstr);
+}

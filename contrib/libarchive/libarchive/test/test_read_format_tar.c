@@ -437,7 +437,7 @@ static void verify(unsigned char *d, size_t s,
 	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, s + 1024));
-	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt(archive_filter_code(a, 0), compression);
 	assertEqualInt(archive_format(a), format);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
