@@ -1927,6 +1927,12 @@ class MockFoo : public Foo {
                       action_n));
 ```
 
+The return value of the last action **must** match the return type of the mocked
+method. In the example above, `action_n` could be `Return(true)`, or a lambda
+that returns a `bool`, but not `SaveArg`, which returns `void`. Otherwise the
+signature of `DoAll` would not match the signature expected by `WillOnce`, which
+is the signature of the mocked method, and it wouldn't compile.
+
 ### Verifying Complex Arguments {#SaveArgVerify}
 
 If you want to verify that a method is called with a particular argument but the
@@ -3306,7 +3312,7 @@ For convenience, we allow the description string to be empty (`""`), in which
 case gMock will use the sequence of words in the matcher name as the
 description.
 
-For example:
+#### Basic Example
 
 ```cpp
 MATCHER(IsDivisibleBy7, "") { return (arg % 7) == 0; }
@@ -3344,6 +3350,8 @@ If the above assertions fail, they will print something like:
 where the descriptions `"is divisible by 7"` and `"not (is divisible by 7)"` are
 automatically calculated from the matcher name `IsDivisibleBy7`.
 
+#### Adding Custom Failure Messages
+
 As you may have noticed, the auto-generated descriptions (especially those for
 the negation) may not be so great. You can always override them with a `string`
 expression of your own:
@@ -3377,14 +3385,41 @@ With this definition, the above assertion will give a better message:
     Actual: 27 (the remainder is 6)
 ```
 
+#### Using EXPECT_ Statements in Matchers
+
+You can also use `EXPECT_...` (and `ASSERT_...`) statements inside custom
+matcher definitions. In many cases, this allows you to write your matcher more
+concisely while still providing an informative error message. For example:
+
+```cpp
+MATCHER(IsDivisibleBy7, "") {
+  const auto remainder = arg % 7;
+  EXPECT_EQ(remainder, 0);
+  return true;
+}
+```
+
+If you write a test that includes the line `EXPECT_THAT(27, IsDivisibleBy7());`,
+you will get an error something like the following:
+
+```shell
+Expected equality of these values:
+  remainder
+    Which is: 6
+  0
+```
+
+#### `MatchAndExplain`
+
 You should let `MatchAndExplain()` print *any additional information* that can
 help a user understand the match result. Note that it should explain why the
 match succeeds in case of a success (unless it's obvious) - this is useful when
 the matcher is used inside `Not()`. There is no need to print the argument value
 itself, as gMock already prints it for you.
 
-{: .callout .note}
-NOTE: The type of the value being matched (`arg_type`) is determined by the
+#### Argument Types
+
+The type of the value being matched (`arg_type`) is determined by the
 context in which you use the matcher and is supplied to you by the compiler, so
 you don't need to worry about declaring it (nor can you). This allows the
 matcher to be polymorphic. For example, `IsDivisibleBy7()` can be used to match
