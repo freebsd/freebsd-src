@@ -210,7 +210,11 @@ struct comp_state {
 	   or just a part of it. */
 	uint8_t block_parsing_finished : 1;
 
-	signed int notused : 4;
+	/* Flag used to indicate that a previous file using this buffer was
+	   encrypted, meaning no data in the buffer can be trusted */
+	uint8_t data_encrypted : 1;
+
+	signed int notused : 3;
 
 	int flags;                   /* Uncompression flags. */
 	int method;                  /* Uncompression algorithm method. */
@@ -220,7 +224,7 @@ struct comp_state {
 	                                decompression. */
 	uint8_t* filtered_buf;       /* Buffer used when applying filters. */
 	const uint8_t* block_buf;    /* Buffer used when merging blocks. */
-	size_t window_mask;          /* Convenience field; window_size - 1. */
+	ssize_t window_mask;         /* Convenience field; window_size - 1. */
 	int64_t write_ptr;           /* This amount of data has been unpacked
 					in the window buffer. */
 	int64_t last_write_ptr;      /* This amount of data has been stored in
@@ -352,6 +356,12 @@ struct rar5 {
 	/* The header of currently processed RARv5 block. Used in main
 	 * decompression logic loop. */
 	struct compressed_block_header last_block_hdr;
+
+	/*
+	 * Custom field to denote that this archive contains encrypted entries
+	 */
+	int has_encrypted_entries;
+	int headers_are_encrypted;
 };
 
 /* Forward function declarations. */
@@ -361,6 +371,7 @@ static int verify_global_checksums(struct archive_read* a);
 static int rar5_read_data_skip(struct archive_read *a);
 static int push_data_ready(struct archive_read* a, struct rar5* rar,
 	const uint8_t* buf, size_t size, int64_t offset);
+static void clear_data_ready_stack(struct rar5* rar);
 
 /* CDE_xxx = Circular Double Ended (Queue) return values. */
 enum CDE_RETURN_VALUES {
@@ -505,7 +516,7 @@ static inline struct rar5* get_context(struct archive_read* a) {
 }
 
 /* Convenience functions used by filter implementations. */
-static void circular_memcpy(uint8_t* dst, uint8_t* window, const uint64_t mask,
+static void circular_memcpy(uint8_t* dst, uint8_t* window, const ssize_t mask,
     int64_t start, int64_t end)
 {
 	if((start & mask) > (end & mask)) {
@@ -534,8 +545,7 @@ static void write_filter_data(struct rar5* rar, uint32_t offset,
 
 /* Allocates a new filter descriptor and adds it to the filter array. */
 static struct filter_info* add_new_filter(struct rar5* rar) {
-	struct filter_info* f =
-		(struct filter_info*) calloc(1, sizeof(struct filter_info));
+	struct filter_info* f = calloc(1, sizeof(*f));
 
 	if(!f) {
 		return NULL;
@@ -652,6 +662,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 	int ret;
 	struct rar5* rar = get_context(a);
 
+	clear_data_ready_stack(rar);
 	free(rar->cstate.filtered_buf);
 
 	rar->cstate.filtered_buf = malloc(flt->block_length);
@@ -709,7 +720,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
 static void push_data(struct archive_read* a, struct rar5* rar,
     const uint8_t* buf, int64_t idx_begin, int64_t idx_end)
 {
-	const uint64_t wmask = rar->cstate.window_mask;
+	const ssize_t wmask = rar->cstate.window_mask;
 	const ssize_t solid_write_ptr = (rar->cstate.solid_offset +
 	    rar->cstate.last_write_ptr) & wmask;
 
@@ -1246,7 +1257,7 @@ static int process_main_locator_extra_block(struct archive_read* a,
 }
 
 static int parse_file_extra_hash(struct archive_read* a, struct rar5* rar,
-    ssize_t* extra_data_size)
+    int64_t* extra_data_size)
 {
 	size_t hash_type = 0;
 	size_t value_len;
@@ -1296,7 +1307,7 @@ static uint64_t time_win_to_unix(uint64_t win_time) {
 }
 
 static int parse_htime_item(struct archive_read* a, char unix_time,
-    uint64_t* where, ssize_t* extra_data_size)
+    uint64_t* where, int64_t* extra_data_size)
 {
 	if(unix_time) {
 		uint32_t time_val;
@@ -1318,7 +1329,7 @@ static int parse_htime_item(struct archive_read* a, char unix_time,
 }
 
 static int parse_file_extra_version(struct archive_read* a,
-    struct archive_entry* e, ssize_t* extra_data_size)
+    struct archive_entry* e, int64_t* extra_data_size)
 {
 	size_t flags = 0;
 	size_t version = 0;
@@ -1372,7 +1383,7 @@ static int parse_file_extra_version(struct archive_read* a,
 }
 
 static int parse_file_extra_htime(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t* extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t* extra_data_size)
 {
 	char unix_time = 0;
 	size_t flags = 0;
@@ -1425,7 +1436,7 @@ static int parse_file_extra_htime(struct archive_read* a,
 }
 
 static int parse_file_extra_redir(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t* extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t* extra_data_size)
 {
 	uint64_t value_size = 0;
 	size_t target_size = 0;
@@ -1448,9 +1459,6 @@ static int parse_file_extra_redir(struct archive_read* a,
 		return ARCHIVE_EOF;
 	*extra_data_size -= target_size + 1;
 
-	if(!read_ahead(a, target_size, &p))
-		return ARCHIVE_EOF;
-
 	if(target_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Link target is too long");
@@ -1462,6 +1470,9 @@ static int parse_file_extra_redir(struct archive_read* a,
 		    "No link target specified");
 		return ARCHIVE_FATAL;
 	}
+
+	if(!read_ahead(a, target_size, &p))
+		return ARCHIVE_EOF;
 
 	memcpy(target_utf8_buf, p, target_size);
 	target_utf8_buf[target_size] = 0;
@@ -1496,7 +1507,7 @@ static int parse_file_extra_redir(struct archive_read* a,
 }
 
 static int parse_file_extra_owner(struct archive_read* a,
-    struct archive_entry* e, ssize_t* extra_data_size)
+    struct archive_entry* e, int64_t* extra_data_size)
 {
 	uint64_t flags = 0;
 	uint64_t value_size = 0;
@@ -1576,15 +1587,15 @@ static int parse_file_extra_owner(struct archive_read* a,
 }
 
 static int process_head_file_extra(struct archive_read* a,
-    struct archive_entry* e, struct rar5* rar, ssize_t extra_data_size)
+    struct archive_entry* e, struct rar5* rar, int64_t extra_data_size)
 {
-	size_t extra_field_size;
-	size_t extra_field_id = 0;
+	uint64_t extra_field_size;
+	uint64_t extra_field_id = 0;
 	int ret = ARCHIVE_FATAL;
-	size_t var_size;
+	uint64_t var_size;
 
 	while(extra_data_size > 0) {
-		if(!read_var_sized(a, &extra_field_size, &var_size))
+		if(!read_var(a, &extra_field_size, &var_size))
 			return ARCHIVE_EOF;
 
 		extra_data_size -= var_size;
@@ -1592,9 +1603,10 @@ static int process_head_file_extra(struct archive_read* a,
 			return ARCHIVE_EOF;
 		}
 
-		if(!read_var_sized(a, &extra_field_id, &var_size))
+		if(!read_var(a, &extra_field_id, &var_size))
 			return ARCHIVE_EOF;
 
+		extra_field_size -= var_size;
 		extra_data_size -= var_size;
 		if(ARCHIVE_OK != consume(a, var_size)) {
 			return ARCHIVE_EOF;
@@ -1622,12 +1634,19 @@ static int process_head_file_extra(struct archive_read* a,
 				    &extra_data_size);
 				break;
 			case EX_CRYPT:
+				/* Mark the entry as encrypted */
+				archive_entry_set_is_data_encrypted(e, 1);
+				rar->has_encrypted_entries = 1;
+				rar->cstate.data_encrypted = 1;
 				/* fallthrough */
 			case EX_SUBDATA:
 				/* fallthrough */
 			default:
 				/* Skip unsupported entry. */
-				return consume(a, extra_data_size);
+				extra_data_size -= extra_field_size;
+				if (ARCHIVE_OK != consume(a, extra_field_size)) {
+					return ARCHIVE_EOF;
+				}
 		}
 	}
 
@@ -1642,7 +1661,7 @@ static int process_head_file_extra(struct archive_read* a,
 static int process_head_file(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
-	ssize_t extra_data_size = 0;
+	int64_t extra_data_size = 0;
 	size_t data_size = 0;
 	size_t file_flags = 0;
 	size_t file_attr = 0;
@@ -1682,12 +1701,12 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	}
 
 	if(block_flags & HFL_EXTRA_DATA) {
-		size_t edata_size = 0;
-		if(!read_var_sized(a, &edata_size, NULL))
+		uint64_t edata_size = 0;
+		if(!read_var(a, &edata_size, NULL))
 			return ARCHIVE_EOF;
 
 		/* Intentional type cast from unsigned to signed. */
-		extra_data_size = (ssize_t) edata_size;
+		extra_data_size = (int64_t) edata_size;
 	}
 
 	if(block_flags & HFL_DATA) {
@@ -1745,9 +1764,11 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	rar->file.solid = (compression_info & SOLID) > 0;
 
 	/* Archives which declare solid files without initializing the window
-	 * buffer first are invalid. */
+	 * buffer first are invalid, unless previous data was encrypted, in
+	 * which case we may never have had the chance */
 
-	if(rar->file.solid > 0 && rar->cstate.window_buf == NULL) {
+	if(rar->file.solid > 0 && rar->cstate.data_encrypted == 0 &&
+	    rar->cstate.window_buf == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				  "Declared solid file, but no window buffer "
 				  "initialized yet.");
@@ -1776,15 +1797,24 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 			return ARCHIVE_FATAL;
 		}
 	}
+	else
+		rar->cstate.data_encrypted = 0; /* Reset for new buffer */
 
 	if(rar->cstate.window_size < (ssize_t) window_size &&
 	    rar->cstate.window_buf)
 	{
+		/* The `data_ready` stack contains pointers to the `window_buf` or
+		 * `filtered_buf` buffers.  Since we're about to reallocate the first
+		 * buffer, some of those pointers could become invalid. Therefore, we
+		 * need to dispose of all entries from the stack before attempting the
+		 * realloc. */
+		clear_data_ready_stack(rar);
+
 		/* If window_buf has been allocated before, reallocate it, so
 		 * that its size will match new window_size. */
 
 		uint8_t* new_window_buf =
-			realloc(rar->cstate.window_buf, window_size);
+			realloc(rar->cstate.window_buf, (size_t) window_size);
 
 		if(!new_window_buf) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
@@ -1837,27 +1867,25 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		if (file_attr & (ATTR_READONLY | ATTR_HIDDEN | ATTR_SYSTEM)) {
 			char *fflags_text, *ptr;
-			/* allocate for "rdonly,hidden,system," */
-			fflags_text = malloc(22 * sizeof(char));
+			/* allocate for ",rdonly,hidden,system" */
+			fflags_text = malloc(22 * sizeof(*fflags_text));
 			if (fflags_text != NULL) {
 				ptr = fflags_text;
 				if (file_attr & ATTR_READONLY) {
-					strcpy(ptr, "rdonly,");
+					strcpy(ptr, ",rdonly");
 					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_HIDDEN) {
-					strcpy(ptr, "hidden,");
+					strcpy(ptr, ",hidden");
 					ptr = ptr + 7;
 				}
 				if (file_attr & ATTR_SYSTEM) {
-					strcpy(ptr, "system,");
+					strcpy(ptr, ",system");
 					ptr = ptr + 7;
 				}
 				if (ptr > fflags_text) {
-					/* Delete trailing comma */
-					*(ptr - 1) = '\0';
 					archive_entry_copy_fflags_text(entry,
-					    fflags_text);
+					    fflags_text + 1);
 				}
 				free(fflags_text);
 			}
@@ -1876,9 +1904,6 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 	if(!read_var_sized(a, &name_size, NULL))
 		return ARCHIVE_EOF;
 
-	if(!read_ahead(a, name_size, &p))
-		return ARCHIVE_EOF;
-
 	if(name_size > (MAX_NAME_IN_CHARS - 1)) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				"Filename is too long");
@@ -1892,6 +1917,9 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 
 		return ARCHIVE_FATAL;
 	}
+
+	if(!read_ahead(a, name_size, &p))
+		return ARCHIVE_EOF;
 
 	memcpy(name_utf8_buf, p, name_size);
 	name_utf8_buf[name_size] = 0;
@@ -1980,7 +2008,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
     struct archive_entry* entry, size_t block_flags)
 {
 	int ret;
-	size_t extra_data_size = 0;
+	uint64_t extra_data_size = 0;
 	size_t extra_field_size = 0;
 	size_t extra_field_id = 0;
 	size_t archive_flags = 0;
@@ -2002,7 +2030,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 	(void) entry;
 
 	if(block_flags & HFL_EXTRA_DATA) {
-		if(!read_var_sized(a, &extra_data_size, NULL))
+		if(!read_var(a, &extra_data_size, NULL))
 			return ARCHIVE_EOF;
 	} else {
 		extra_data_size = 0;
@@ -2229,10 +2257,12 @@ static int process_base_block(struct archive_read* a,
 	/* Verify the CRC32 of the header data. */
 	computed_crc = (uint32_t) crc32(0, p, (int) hdr_size);
 	if(computed_crc != hdr_crc) {
+#ifndef DONT_FAIL_ON_CRC_ERROR
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Header CRC error");
 
 		return ARCHIVE_FATAL;
+#endif
 	}
 
 	/* If the checksum is OK, we proceed with parsing. */
@@ -2271,6 +2301,10 @@ static int process_base_block(struct archive_read* a,
 			ret = process_head_file(a, rar, entry, header_flags);
 			return ret;
 		case HEAD_CRYPT:
+			archive_entry_set_is_metadata_encrypted(entry, 1);
+			archive_entry_set_is_data_encrypted(entry, 1);
+			rar->has_encrypted_entries = 1;
+			rar->headers_are_encrypted = 1;
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encryption is not supported");
@@ -2415,6 +2449,14 @@ static int rar5_read_header(struct archive_read *a,
 	struct rar5* rar = get_context(a);
 	int ret;
 
+	/*
+	 * It should be sufficient to call archive_read_next_header() for
+	 * a reader to determine if an entry is encrypted or not.
+	 */
+	if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		rar->has_encrypted_entries = 0;
+	}
+
 	if(rar->header_initialized == 0) {
 		init_header(a);
 		if ((ret = try_skip_sfx(a)) < ARCHIVE_WARN)
@@ -2452,6 +2494,8 @@ static void init_unpack(struct rar5* rar) {
 		rar->cstate.window_buf = NULL;
 		rar->cstate.filtered_buf = NULL;
 	}
+
+	clear_data_ready_stack(rar);
 
 	rar->cstate.write_ptr = 0;
 	rar->cstate.last_write_ptr = 0;
@@ -2983,7 +3027,7 @@ static int decode_code_length(struct archive_read* a, struct rar5* rar,
 
 static int copy_string(struct archive_read* a, int len, int dist) {
 	struct rar5* rar = get_context(a);
-	const uint64_t cmask = rar->cstate.window_mask;
+	const ssize_t cmask = rar->cstate.window_mask;
 	const uint64_t write_ptr = rar->cstate.write_ptr +
 	    rar->cstate.solid_offset;
 	int i;
@@ -3627,6 +3671,10 @@ static int use_data(struct rar5* rar, const void** buf, size_t* size,
 	return ARCHIVE_RETRY;
 }
 
+static void clear_data_ready_stack(struct rar5* rar) {
+	memset(&rar->cstate.dready, 0, sizeof(rar->cstate.dready));
+}
+
 /* Pushes the `buf`, `size` and `offset` arguments to the rar->cstate.dready
  * FIFO stack. Those values will be popped from this stack by the `use_data`
  * function. */
@@ -4069,6 +4117,16 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 	if (size)
 		*size = 0;
 
+	if (rar->has_encrypted_entries == ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW) {
+		rar->has_encrypted_entries = 0;
+	}
+
+	if (rar->headers_are_encrypted || rar->cstate.data_encrypted) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Reading encrypted data is not currently supported");
+		return ARCHIVE_FATAL;
+	}
+
 	if(rar->file.dir > 0) {
 		/* Don't process any data if this file entry was declared
 		 * as a directory. This is needed, because entries marked as
@@ -4120,11 +4178,14 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
 static int rar5_read_data_skip(struct archive_read *a) {
 	struct rar5* rar = get_context(a);
 
-	if(rar->main.solid) {
+	if(rar->main.solid && (rar->cstate.data_encrypted == 0)) {
 		/* In solid archives, instead of skipping the data, we need to
 		 * extract it, and dispose the result. The side effect of this
 		 * operation will be setting up the initial window buffer state
-		 * needed to be able to extract the selected file. */
+		 * needed to be able to extract the selected file. Note that
+		 * this is only possible when data withing this solid block is
+		 * not encrypted, in which case we'll skip and fail if the user
+		 * tries to read data. */
 
 		int ret;
 
@@ -4185,6 +4246,7 @@ static int rar5_cleanup(struct archive_read *a) {
 
 	free(rar->cstate.window_buf);
 	free(rar->cstate.filtered_buf);
+	clear_data_ready_stack(rar);
 
 	free(rar->vol.push_buf);
 
@@ -4199,14 +4261,19 @@ static int rar5_cleanup(struct archive_read *a) {
 
 static int rar5_capabilities(struct archive_read * a) {
 	(void) a;
-	return 0;
+	return (ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA
+			| ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA);
 }
 
 static int rar5_has_encrypted_entries(struct archive_read *_a) {
-	(void) _a;
+	if (_a && _a->format) {
+		struct rar5 *rar = (struct rar5 *)_a->format->data;
+		if (rar) {
+			return rar->has_encrypted_entries;
+		}
+	}
 
-	/* Unsupported for now. */
-	return ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED;
+	return ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 }
 
 static int rar5_init(struct rar5* rar) {
@@ -4214,6 +4281,12 @@ static int rar5_init(struct rar5* rar) {
 
 	if(CDE_OK != cdeque_init(&rar->cstate.filters, 8192))
 		return ARCHIVE_FATAL;
+
+	/*
+	 * Until enough data has been read, we cannot tell about
+	 * any encrypted entries yet.
+	 */
+	rar->has_encrypted_entries = ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW;
 
 	return ARCHIVE_OK;
 }

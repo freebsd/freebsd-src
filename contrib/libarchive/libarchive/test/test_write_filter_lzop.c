@@ -52,10 +52,10 @@ DEFINE_TEST(test_write_filter_lzop)
 	}
 
 	buffsize = 2000000;
-	assert(NULL != (buff = (char *)malloc(buffsize)));
+	assert(NULL != (buff = malloc(buffsize)));
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)calloc(datasize, 1)));
+	assert(NULL != (data = calloc(datasize, 1)));
 	filecount = 10;
 
 	/*

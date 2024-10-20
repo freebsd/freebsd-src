@@ -4,43 +4,11 @@
  * Copyright (c) 2009, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2007-2008 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * This file would be much shorter if we didn't care about command-line
- * compatibility with Info-ZIP's UnZip, which requires us to duplicate
- * parts of libarchive in order to gain more detailed control of its
- * behaviour for the purpose of implementing the -n, -o, -L and -a
- * options.
  */
 
 #include "bsdunzip_platform.h"
 
-#ifdef HAVE_SYS_QUEUE_H
-#include <sys/queue.h>
-#else
 #include "la_queue.h"
-#endif
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -484,13 +452,8 @@ handle_existing_file(char **path)
 		fprintf(stderr,
 		    "replace %s? [y]es, [n]o, [A]ll, [N]one, [r]ename: ",
 		    *path);
-		if (fgets(buf, sizeof(buf), stdin) == NULL) {
-			clearerr(stdin);
-			printf("NULL\n(EOF or read error, "
-			    "treating as \"[N]one\"...)\n");
-			n_opt = 1;
-			return -1;
-		}
+		if (fgets(buf, sizeof(buf), stdin) == NULL)
+			goto stdin_err;
 		switch (*buf) {
 		case 'A':
 			o_opt = 1;
@@ -512,6 +475,8 @@ handle_existing_file(char **path)
 			*path = NULL;
 			alen = 0;
 			len = getline(path, &alen, stdin);
+			if (len < 1)
+				goto stdin_err;
 			if ((*path)[len - 1] == '\n')
 				(*path)[len - 1] = '\0';
 			return 0;
@@ -519,6 +484,12 @@ handle_existing_file(char **path)
 			break;
 		}
 	}
+stdin_err:
+	clearerr(stdin);
+	printf("NULL\n(EOF or read error, "
+		"treating as \"[N]one\"...)\n");
+	n_opt = 1;
+	return -1;
 }
 
 /*

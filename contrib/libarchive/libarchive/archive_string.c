@@ -313,7 +313,7 @@ archive_string_ensure(struct archive_string *as, size_t s)
 	if (new_length < s)
 		new_length = s;
 	/* Now we can reallocate the buffer. */
-	p = (char *)realloc(as->s, new_length);
+	p = realloc(as->s, new_length);
 	if (p == NULL) {
 		/* On failure, wipe the string and return NULL. */
 		archive_string_free(as);
@@ -3874,6 +3874,30 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 	}
 
 	*p = NULL;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows, first try converting from WCS because (1) there's no
+	 * guarantee that the conversion to MBS will succeed, e.g. when using
+	 * CP_ACP, and (2) that's more efficient than converting to MBS, just to
+	 * convert back to WCS again before finally converting to UTF-8
+	 */
+	if ((aes->aes_set & AES_SET_WCS) != 0) {
+		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
+		if (sc == NULL)
+			return (-1);/* Couldn't allocate memory for sc. */
+		archive_string_empty(&(aes->aes_utf8));
+		r = archive_string_append_from_wcs_in_codepage(&(aes->aes_utf8),
+			aes->aes_wcs.s, aes->aes_wcs.length, sc);
+		if (a == NULL)
+			free_sconv_object(sc);
+		if (r == 0) {
+			aes->aes_set |= AES_SET_UTF8;
+			*p = aes->aes_utf8.s;
+			return (0);/* success. */
+		} else
+			return (-1);/* failure. */
+	}
+#endif
 	/* Try converting WCS to MBS first if MBS does not exist yet. */
 	if ((aes->aes_set & AES_SET_MBS) == 0) {
 		const char *pm; /* unused */
@@ -3958,6 +3982,32 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 	}
 
 	*wp = NULL;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/*
+	 * On Windows, prefer converting from UTF-8 directly to WCS because:
+	 * (1) there's no guarantee that the string can be represented in MBS (e.g.
+	 * with CP_ACP), and (2) in order to convert from UTF-8 to MBS, we're going
+	 * to need to convert from UTF-8 to WCS anyway and its wasteful to throw
+	 * away that intermediate result
+	 */
+	if (aes->aes_set & AES_SET_UTF8) {
+		struct archive_string_conv *sc;
+
+		sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+		if (sc != NULL) {
+			archive_wstring_empty((&aes->aes_wcs));
+			r = archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+			    aes->aes_utf8.s, aes->aes_utf8.length, sc);
+			if (a == NULL)
+				free_sconv_object(sc);
+			if (r == 0) {
+				aes->aes_set |= AES_SET_WCS;
+				*wp = aes->aes_wcs.s;
+				return (0);
+			}
+		}
+	}
+#endif
 	/* Try converting UTF8 to MBS first if MBS does not exist yet. */
 	if ((aes->aes_set & AES_SET_MBS) == 0) {
 		const char *p; /* unused */
@@ -4211,21 +4261,31 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 
 	aes->aes_set = AES_SET_UTF8;	/* Only UTF8 is set now. */
 
-	/* Try converting UTF-8 to MBS, return false on failure. */
 	sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
 	if (sc == NULL)
 		return (-1);/* Couldn't allocate memory for sc. */
-	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	/* On failure, make an effort to convert UTF8 to WCS as the active code page
-	 * may not be able to represent all characters in the string */
-	if (r != 0) {
-		if (archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
-			aes->aes_utf8.s, aes->aes_utf8.length, sc) == 0)
-			aes->aes_set = AES_SET_UTF8 | AES_SET_WCS;
-	}
-#endif
+	/* On Windows, there's no good way to convert from UTF8 -> MBS directly, so
+	 * prefer to first convert to WCS as (1) it's wasteful to throw away the
+	 * intermediate result, and (2) WCS will still be set even if we fail to
+	 * convert to MBS (e.g. with ACP that can't represent the characters) */
+	r = archive_wstring_append_from_mbs_in_codepage(&(aes->aes_wcs),
+		aes->aes_utf8.s, aes->aes_utf8.length, sc);
+
+	if (a == NULL)
+		free_sconv_object(sc);
+	if (r != 0)
+		return (-1); /* This will guarantee we can't convert to MBS */
+	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS; /* Both UTF8 and WCS set. */
+
+	/* Try converting WCS to MBS, return false on failure. */
+	if (archive_string_append_from_wcs(&(aes->aes_mbs), aes->aes_wcs.s,
+	    aes->aes_wcs.length))
+		return (-1);
+#else
+	/* Try converting UTF-8 to MBS, return false on failure. */
+	r = archive_strcpy_l(&(aes->aes_mbs), utf8, sc);
 
 	if (a == NULL)
 		free_sconv_object(sc);
@@ -4237,8 +4297,10 @@ archive_mstring_update_utf8(struct archive *a, struct archive_mstring *aes,
 	if (archive_wstring_append_from_mbs(&(aes->aes_wcs), aes->aes_mbs.s,
 	    aes->aes_mbs.length))
 		return (-1);
-	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
+#endif
 
 	/* All conversions succeeded. */
+	aes->aes_set = AES_SET_UTF8 | AES_SET_WCS | AES_SET_MBS;
+
 	return (0);
 }

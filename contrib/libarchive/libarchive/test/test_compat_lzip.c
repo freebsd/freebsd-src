@@ -47,7 +47,7 @@ echo "f3" > $dir/d1/f3
 rm -r $dir
 }
 #
-# Make a lzip file from splitted tar file.
+# Make a lzip file from split tar file.
 #
 name=test_compat_lzip_1
 dir="$name`date +%Y%m%d%H%M%S`.$USER"

@@ -40,7 +40,28 @@ test1(void)
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, name, 512));
+
+	/* Root directory */
 	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 1131434684, archive_entry_atime(ae));
+	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
+	assertEqualIntA(a, 1131434684, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFDIR | 0700, archive_entry_mode(ae));
+	assertEqualIntA(a, 1131434684, archive_entry_mtime(ae));
+	assertEqualIntA(a, 2, archive_entry_nlink(ae));
+	assertEqualStringA(a, ".", archive_entry_pathname(ae));
+	assertEqualIntA(a, 0700, archive_entry_perm(ae));
+	assertEqualIntA(a, 2048, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_filter_code(a, 0),
@@ -53,11 +74,10 @@ test1(void)
 }
 
 static void
-test2(void)
+test_small(const char *name)
 {
 	struct archive_entry *ae;
 	struct archive *a;
-	const char *name = "test_read_format_iso_2.iso.Z";
 
 	extract_reference_file(name);
 
@@ -68,21 +88,114 @@ test2(void)
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_filename(a, name, 512));
+
+	/* Root directory */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString(".", archive_entry_pathname(ae));
+	assertEqualInt(0, archive_entry_atime_is_set(ae));
+	assertEqualInt(0, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_birthtime_is_set(ae));
+	assertEqualInt(0, archive_entry_birthtime(ae));
+	assertEqualInt(0, archive_entry_ctime_is_set(ae));
+	assertEqualInt(0, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFDIR | 0700, archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_mtime_is_set(ae));
+	assertEqualInt(0, archive_entry_mtime(ae));
+	assertEqualIntA(a, 4, archive_entry_nlink(ae));
+	assertEqualIntA(a, 0700, archive_entry_perm(ae));
+	assertEqualIntA(a, 2048, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+
+	/* Directory "A" */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString("A", archive_entry_pathname(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_atime(ae));
+	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFDIR | 0700, archive_entry_mode(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_mtime(ae));
+	assertEqualIntA(a, 2, archive_entry_nlink(ae));
+	assertEqualIntA(a, 0700, archive_entry_perm(ae));
+	assertEqualIntA(a, 2048, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+
+	/* File "A/B" */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString("A/B", archive_entry_pathname(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_atime(ae));
+	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFREG, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFREG | 0400, archive_entry_mode(ae));
+	assertEqualIntA(a, 1313381406, archive_entry_mtime(ae));
+	assertEqualIntA(a, 1, archive_entry_nlink(ae));
+	assertEqualIntA(a, 0400, archive_entry_perm(ae));
+	assertEqualIntA(a, 6, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+	/* TODO: Verify that file contents are "hello\n" */
+
+	/* Directory "C" */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString("C", archive_entry_pathname(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_atime(ae));
+	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFDIR, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFDIR | 0700, archive_entry_mode(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_mtime(ae));
+	assertEqualIntA(a, 2, archive_entry_nlink(ae));
+	assertEqualIntA(a, 0700, archive_entry_perm(ae));
+	assertEqualIntA(a, 2048, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+
+	/* File "C/D" */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
 	assertEqualString("C/D", archive_entry_pathname(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_atime(ae));
+	assertEqualIntA(a, 0, archive_entry_birthtime(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_ctime(ae));
+	assertEqualIntA(a, 0, archive_entry_dev(ae));
+	assertEqualIntA(a, AE_IFREG, archive_entry_filetype(ae));
+	assertEqualIntA(a, 0, archive_entry_gid(ae));
+	assertEqualStringA(a, NULL, archive_entry_gname(ae));
+	assertEqualIntA(a, 0, archive_entry_ino(ae));
+	assertEqualIntA(a, AE_IFREG | 0400, archive_entry_mode(ae));
+	assertEqualIntA(a, 1313381411, archive_entry_mtime(ae));
+	assertEqualIntA(a, 1, archive_entry_nlink(ae));
+	assertEqualIntA(a, 0400, archive_entry_perm(ae));
+	assertEqualIntA(a, 6, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_entry_uid(ae));
+	assertEqualStringA(a, NULL, archive_entry_uname(ae));
+	/* TODO: Verify that file contents are "hello\n" */
+
+	/* Final statistics */
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(5, archive_file_count(a));
@@ -98,5 +211,8 @@ test2(void)
 DEFINE_TEST(test_read_format_iso_Z)
 {
 	test1();
-	test2();
+	/* A very small ISO image with a variety of contents. */
+	test_small("test_read_format_iso_2.iso.Z");
+	/* As above, but with a non-standard 68-byte root directory in the PVD */
+	test_small("test_read_format_iso_3.iso.Z");
 }

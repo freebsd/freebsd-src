@@ -37,12 +37,12 @@ DEFINE_TEST(test_write_filter_zstd)
 	int i, r;
 
 	buffsize = 2000000;
-	assert(NULL != (buff = (char *)malloc(buffsize)));
+	assert(NULL != (buff = malloc(buffsize)));
 	if (buff == NULL)
 		return;
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)malloc(datasize)));
+	assert(NULL != (data = malloc(datasize)));
 	if (data == NULL) {
 		free(buff);
 		return;
@@ -230,12 +230,8 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "max-frame-out", "1GB"));
 #endif
 #if ZSTD_VERSION_NUMBER >= MINVER_LONG
-	if ((int)(sizeof(size_t) == 4))
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_set_filter_option(a, NULL, "long", "26"));
-	else
-		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_write_set_filter_option(a, NULL, "long", "27"));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "long", "23"));
 	assertEqualIntA(a, ARCHIVE_FAILED,
 	    archive_write_set_filter_option(a, NULL, "long", "-1")); /* negative */
 #endif

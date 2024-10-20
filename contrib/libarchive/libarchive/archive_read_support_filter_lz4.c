@@ -223,7 +223,7 @@ lz4_reader_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_LZ4;
 	self->name = "lz4";
 
-	state = (struct private_data *)calloc(1, sizeof(*state));
+	state = calloc(1, sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for lz4 decompression");
@@ -248,7 +248,7 @@ lz4_allocate_out_block(struct archive_read_filter *self)
 		out_block_size += 64 * 1024;
 	if (state->out_block_size < out_block_size) {
 		free(state->out_block);
-		out_block = (unsigned char *)malloc(out_block_size);
+		out_block = malloc(out_block_size);
 		state->out_block_size = out_block_size;
 		if (out_block == NULL) {
 			archive_set_error(&self->archive->archive, ENOMEM,
@@ -271,7 +271,7 @@ lz4_allocate_out_block_for_legacy(struct archive_read_filter *self)
 
 	if (state->out_block_size < out_block_size) {
 		free(state->out_block);
-		out_block = (unsigned char *)malloc(out_block_size);
+		out_block = malloc(out_block_size);
 		state->out_block_size = out_block_size;
 		if (out_block == NULL) {
 			archive_set_error(&self->archive->archive, ENOMEM,

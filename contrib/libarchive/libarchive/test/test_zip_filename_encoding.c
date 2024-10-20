@@ -527,3 +527,98 @@ DEFINE_TEST(test_zip_filename_encoding_CP932)
 	assertEqualInt(0, buff[7]);
 	assertEqualMem(buff + 30, "abcABC", 6);
 }
+
+DEFINE_TEST(test_zip_filename_encoding_UTF16_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling"
+		" on Windows with UTF-16 names");
+	return;
+#else
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	/*
+	 * Don't call setlocale because we're verifying that the '_w' functions
+	 * work as expected when 'hdrcharset' is UTF-8
+	 */
+
+	/* Part 1: file */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from UTF-16 to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set the filename using a UTF-16 string */
+	archive_entry_copy_pathname_w(entry, L"\u8868.txt");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpose flag should be 1,
+	 * which indicates the filename charset is UTF-8. */
+	assertEqualInt(0x08, buff[7]);
+	/* Check UTF-8 version. */
+	assertEqualMem(buff + 30, "\xE8\xA1\xA8.txt", 7);
+
+	/* Part 2: directory */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_set_options(a, "hdrcharset=UTF-8"));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set the directory name using a UTF-16 string */
+	/* NOTE: Explicitly not adding trailing slash to test that code path */
+	archive_entry_copy_pathname_w(entry, L"\u8868");
+	archive_entry_set_filetype(entry, AE_IFDIR);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpose flag should be 1,
+	 * which indicates the filename charset is UTF-8. */
+	assertEqualInt(0x08, buff[7]);
+	/* Check UTF-8 version. */
+	assertEqualMem(buff+ 30, "\xE8\xA1\xA8/", 4);
+
+	/* Part 3: symlink */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_zip(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_set_options(a, "hdrcharset=UTF-8"));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	/* Set the symlink target using a UTF-16 string */
+	archive_entry_set_pathname(entry, "link.txt");
+	archive_entry_copy_symlink_w(entry, L"\u8868.txt");
+	archive_entry_set_filetype(entry, AE_IFLNK);
+	archive_entry_set_symlink_type(entry, AE_SYMLINK_TYPE_FILE);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* A bit 11 of general purpose flag should be 0,
+	 * because the file name is ASCII. */
+	assertEqualInt(0, buff[7]);
+	/* Check UTF-8 version. */
+	assertEqualMem(buff + 38, "\xE8\xA1\xA8.txt", 7);
+
+	/* NOTE: ZIP does not support hardlinks */
+#endif
+}

@@ -796,7 +796,7 @@ xar_finish_entry(struct archive_write *a)
 		if (w > 0)
 			xar->bytes_remaining -= w;
 		else
-			return (w);
+			return ((int)w);
 	}
 	file = xar->cur_file;
 	checksum_final(&(xar->e_sumwrk), &(file->data.e_sum));
@@ -1163,7 +1163,7 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 	/*
 	 * Make a file name entry, "<name>".
 	 */
-	l = ll = archive_strlen(&(file->basename));
+	l = ll = (int)archive_strlen(&(file->basename));
 	tmp = malloc(l);
 	if (tmp == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -1189,7 +1189,7 @@ make_file_entry(struct archive_write *a, xmlTextWriterPtr writer,
 			return (ARCHIVE_FATAL);
 		}
 		r = xmlTextWriterWriteBase64(writer, file->basename.s,
-		    0, archive_strlen(&(file->basename)));
+		    0, (int)archive_strlen(&(file->basename)));
 		if (r < 0) {
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_MISC,
@@ -2231,10 +2231,10 @@ get_path_component(char *name, int n, const char *fn)
 
 	p = strchr(fn, '/');
 	if (p == NULL) {
-		if ((l = strlen(fn)) == 0)
+		if ((l = (int)strlen(fn)) == 0)
 			return (0);
 	} else
-		l = p - fn;
+		l = (int)(p - fn);
 	if (l > n -1)
 		return (-1);
 	memcpy(name, fn, l);
@@ -2651,10 +2651,10 @@ compression_init_encoder_gzip(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (uInt)lastrm->avail_in;
 	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (uInt)lastrm->avail_out;
 	strm->total_out = (uLong)lastrm->total_out;
 	if (deflateInit2(strm, level, Z_DEFLATED,
 	    (withheader)?15:-15,
@@ -2684,10 +2684,10 @@ compression_code_gzip(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (Bytef *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (uInt)lastrm->avail_in;
 	strm->total_in = (uLong)lastrm->total_in;
 	strm->next_out = lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (uInt)lastrm->avail_out;
 	strm->total_out = (uLong)lastrm->total_out;
 	r = deflate(strm,
 	    (action == ARCHIVE_Z_FINISH)? Z_FINISH: Z_NO_FLUSH);
@@ -2748,11 +2748,11 @@ compression_init_encoder_bzip2(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (char *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (unsigned int)lastrm->avail_in;
 	strm->total_in_lo32 = (uint32_t)(lastrm->total_in & 0xffffffff);
 	strm->total_in_hi32 = (uint32_t)(lastrm->total_in >> 32);
 	strm->next_out = (char *)lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (unsigned int)lastrm->avail_out;
 	strm->total_out_lo32 = (uint32_t)(lastrm->total_out & 0xffffffff);
 	strm->total_out_hi32 = (uint32_t)(lastrm->total_out >> 32);
 	if (BZ2_bzCompressInit(strm, level, 0, 30) != BZ_OK) {
@@ -2781,11 +2781,11 @@ compression_code_bzip2(struct archive *a,
 	 * of ugly hackery to convert a const * pointer to
 	 * a non-const pointer. */
 	strm->next_in = (char *)(uintptr_t)(const void *)lastrm->next_in;
-	strm->avail_in = lastrm->avail_in;
+	strm->avail_in = (unsigned int)lastrm->avail_in;
 	strm->total_in_lo32 = (uint32_t)(lastrm->total_in & 0xffffffff);
 	strm->total_in_hi32 = (uint32_t)(lastrm->total_in >> 32);
 	strm->next_out = (char *)lastrm->next_out;
-	strm->avail_out = lastrm->avail_out;
+	strm->avail_out = (unsigned int)lastrm->avail_out;
 	strm->total_out_lo32 = (uint32_t)(lastrm->total_out & 0xffffffff);
 	strm->total_out_hi32 = (uint32_t)(lastrm->total_out >> 32);
 	r = BZ2_bzCompress(strm,
