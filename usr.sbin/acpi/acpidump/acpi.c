@@ -1275,14 +1275,16 @@ devscope_type2str(int type)
 	static char typebuf[16];
 
 	switch (type) {
-	case 1:
+	case ACPI_DMAR_SCOPE_TYPE_ENDPOINT:
 		return ("PCI Endpoint Device");
-	case 2:
+	case ACPI_DMAR_SCOPE_TYPE_BRIDGE:
 		return ("PCI Sub-Hierarchy");
-	case 3:
+	case ACPI_DMAR_SCOPE_TYPE_IOAPIC:
 		return ("IOAPIC");
-	case 4:
+	case ACPI_DMAR_SCOPE_TYPE_HPET:
 		return ("HPET");
+	case ACPI_DMAR_SCOPE_TYPE_NAMESPACE:
+		return ("ACPI NS DEV");
 	default:
 		snprintf(typebuf, sizeof(typebuf), "%d", type);
 		return (typebuf);
