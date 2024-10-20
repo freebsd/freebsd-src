@@ -122,7 +122,7 @@ archive_read_open_filenames(struct archive *a, const char **filenames,
 	{
 		if (filename == NULL)
 			filename = "";
-		mine = (struct read_file_data *)calloc(1,
+		mine = calloc(1,
 			sizeof(*mine) + strlen(filename));
 		if (mine == NULL)
 			goto no_memory;
@@ -175,7 +175,7 @@ archive_read_open_filenames_w(struct archive *a, const wchar_t **wfilenames,
 	{
 		if (wfilename == NULL)
 			wfilename = L"";
-		mine = (struct read_file_data *)calloc(1,
+		mine = calloc(1,
 			sizeof(*mine) + wcslen(wfilename) * sizeof(wchar_t));
 		if (mine == NULL)
 			goto no_memory;

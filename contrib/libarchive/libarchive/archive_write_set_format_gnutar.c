@@ -174,7 +174,7 @@ archive_write_set_format_gnutar(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct gnutar *gnutar;
 
-	gnutar = (struct gnutar *)calloc(1, sizeof(*gnutar));
+	gnutar = calloc(1, sizeof(*gnutar));
 	if (gnutar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate gnutar data");
@@ -296,7 +296,7 @@ archive_write_gnutar_header(struct archive_write *a,
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
 	    archive_entry_symlink(entry) != NULL ||
-	    !(archive_entry_filetype(entry) == AE_IFREG))
+	    archive_entry_filetype(entry) != AE_IFREG)
 		archive_entry_set_size(entry, 0);
 
 	if (AE_IFDIR == archive_entry_filetype(entry)) {
@@ -523,7 +523,7 @@ archive_write_gnutar_header(struct archive_write *a,
 			goto exit_write_header;
 	}
 
-	if (archive_entry_hardlink(entry) != NULL) {
+	if (archive_entry_hardlink_is_set(entry)) {
 		tartype = '1';
 	} else
 		switch (archive_entry_filetype(entry)) {

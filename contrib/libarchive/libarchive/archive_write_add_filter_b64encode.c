@@ -83,9 +83,9 @@ archive_write_add_filter_b64encode(struct archive *_a)
 	struct private_b64encode *state;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_add_filter_uu");
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_b64encode");
 
-	state = (struct private_b64encode *)calloc(1, sizeof(*state));
+	state = calloc(1, sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for b64encode filter");
@@ -149,7 +149,7 @@ archive_filter_b64encode_open(struct archive_write_filter *f)
 	size_t bs = 65536, bpb;
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
-		/* Buffer size should be a multiple number of the of bytes
+		/* Buffer size should be a multiple number of the bytes
 		 * per block for performance. */
 		bpb = archive_write_get_bytes_per_block(f->archive);
 		if (bpb > bs)

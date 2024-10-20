@@ -138,7 +138,7 @@ archive_write_set_format_pax(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	pax = (struct pax *)calloc(1, sizeof(*pax));
+	pax = calloc(1, sizeof(*pax));
 	if (pax == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate pax data");
@@ -608,7 +608,15 @@ archive_write_pax_header(struct archive_write *a,
 	const time_t ustar_max_mtime = get_ustar_max_mtime();
 
 	/* Sanity check. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* NOTE: If the caller supplied a pathname that fails WCS conversion (e.g.
+	 * if it is invalid UTF-8), we are expected to return ARCHIVE_WARN later on
+	 * in execution, hence the check for both pointers */
+	if ((archive_entry_pathname_w(entry_original) == NULL) &&
+	    (archive_entry_pathname(entry_original) == NULL)) {
+#else
 	if (archive_entry_pathname(entry_original) == NULL) {
+#endif
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			  "Can't record entry in tar file without pathname");
 		return (ARCHIVE_FAILED);
@@ -1031,6 +1039,14 @@ archive_write_pax_header(struct archive_write *a,
 				else
 					archive_entry_set_symlink(entry_main,
 					    "././@LongSymLink");
+			}
+			else {
+				/* Otherwise, has non-ASCII characters; update the paths to
+				 * however they got decoded above */
+				if (hardlink != NULL) 
+					archive_entry_set_hardlink(entry_main, linkpath);
+				else
+					archive_entry_set_symlink(entry_main, linkpath);
 			}
 			need_extension = 1;
 		}
@@ -1928,7 +1944,7 @@ url_encode(const char *in)
 		}
 	}
 
-	out = (char *)malloc(out_len + 1);
+	out = malloc(out_len + 1);
 	if (out == NULL)
 		return (NULL);
 
@@ -1966,7 +1982,7 @@ base64_encode(const char *s, size_t len)
 	char *d, *out;
 
 	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = (char *)malloc((len * 4 + 2) / 3 + 1);
+	out = malloc((len * 4 + 2) / 3 + 1);
 	if (out == NULL)
 		return (NULL);
 	d = out;
@@ -2021,7 +2037,7 @@ _sparse_list_add_block(struct pax *pax, int64_t offset, int64_t length,
 {
 	struct sparse_block *sb;
 
-	sb = (struct sparse_block *)malloc(sizeof(*sb));
+	sb = malloc(sizeof(*sb));
 	if (sb == NULL)
 		return (ARCHIVE_FATAL);
 	sb->next = NULL;

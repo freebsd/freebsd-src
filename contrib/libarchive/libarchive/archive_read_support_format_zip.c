@@ -1751,8 +1751,7 @@ zipx_xz_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for xz decompression");
@@ -1862,8 +1861,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 
 	if(!zip->uncompressed_buffer) {
 		zip->uncompressed_buffer_size = 256 * 1024;
-		zip->uncompressed_buffer =
-			(uint8_t*) malloc(zip->uncompressed_buffer_size);
+		zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -1924,7 +1922,7 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	in_bytes = (ssize_t)zipmin(zip->entry_bytes_remaining, bytes_avail);
 	zip->zipx_lzma_stream.next_in = compressed_buf;
 	zip->zipx_lzma_stream.avail_in = in_bytes;
 	zip->zipx_lzma_stream.total_in = 0;
@@ -1966,14 +1964,14 @@ zip_read_data_zipx_xz(struct archive_read *a, const void **buff,
 			break;
 	}
 
-	to_consume = zip->zipx_lzma_stream.total_in;
+	to_consume = (ssize_t)zip->zipx_lzma_stream.total_in;
 
 	__archive_read_consume(a, to_consume);
 	zip->entry_bytes_remaining -= to_consume;
 	zip->entry_compressed_bytes_read += to_consume;
 	zip->entry_uncompressed_bytes_read += zip->zipx_lzma_stream.total_out;
 
-	*size = zip->zipx_lzma_stream.total_out;
+	*size = (size_t)zip->zipx_lzma_stream.total_out;
 	*buff = zip->uncompressed_buffer;
 
 	return (ARCHIVE_OK);
@@ -2014,7 +2012,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	}
 
 	/* Set decompressor parameters. */
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	in_bytes = (ssize_t)zipmin(zip->entry_bytes_remaining, bytes_avail);
 
 	zip->zipx_lzma_stream.next_in = compressed_buf;
 	zip->zipx_lzma_stream.avail_in = in_bytes;
@@ -2024,7 +2022,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 		/* These lzma_alone streams lack end of stream marker, so let's
 		 * make sure the unpacker won't try to unpack more than it's
 		 * supposed to. */
-		zipmin((int64_t) zip->uncompressed_buffer_size,
+		(size_t)zipmin((int64_t) zip->uncompressed_buffer_size,
 		    zip->entry->uncompressed_size -
 		    zip->entry_uncompressed_bytes_read);
 	zip->zipx_lzma_stream.total_out = 0;
@@ -2061,7 +2059,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 			return (ARCHIVE_FATAL);
 	}
 
-	to_consume = zip->zipx_lzma_stream.total_in;
+	to_consume = (ssize_t)zip->zipx_lzma_stream.total_in;
 
 	/* Update pointers. */
 	__archive_read_consume(a, to_consume);
@@ -2082,7 +2080,7 @@ zip_read_data_zipx_lzma_alone(struct archive_read *a, const void **buff,
 	}
 
 	/* Return values. */
-	*size = zip->zipx_lzma_stream.total_out;
+	*size = (size_t)zip->zipx_lzma_stream.total_out;
 	*buff = zip->uncompressed_buffer;
 
 	/* If we're here, then we're good! */
@@ -2167,8 +2165,7 @@ zipx_ppmd8_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 
 	if(zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -2291,8 +2288,7 @@ zipx_bzip2_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = 256 * 1024;
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for bzip2 decompression");
@@ -2331,7 +2327,7 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	in_bytes = (ssize_t)zipmin(zip->entry_bytes_remaining, bytes_avail);
 	if(in_bytes < 1) {
 		/* libbz2 doesn't complain when caller feeds avail_in == 0.
 		 * It will actually return success in this case, which is
@@ -2394,7 +2390,7 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 	zip->entry_uncompressed_bytes_read += total_out;
 
 	/* Give libarchive its due. */
-	*size = total_out;
+	*size = (size_t)total_out;
 	*buff = zip->uncompressed_buffer;
 
 	return ARCHIVE_OK;
@@ -2434,8 +2430,7 @@ zipx_zstd_init(struct archive_read *a, struct zip *zip)
 	free(zip->uncompressed_buffer);
 
 	zip->uncompressed_buffer_size = ZSTD_DStreamOutSize();
-	zip->uncompressed_buffer =
-	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	zip->uncompressed_buffer = malloc(zip->uncompressed_buffer_size);
 	if (zip->uncompressed_buffer == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 			"No memory for Zstd decompression");
@@ -2478,7 +2473,7 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 		return (ARCHIVE_FATAL);
 	}
 
-	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	in_bytes = (ssize_t)zipmin(zip->entry_bytes_remaining, bytes_avail);
 	if(in_bytes < 1) {
 		/* zstd doesn't complain when caller feeds avail_in == 0.
 		 * It will actually return success in this case, which is
@@ -2524,7 +2519,7 @@ zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
 	zip->entry_uncompressed_bytes_read += total_out;
 
 	/* Give libarchive its due. */
-	*size = total_out;
+	*size = (size_t)total_out;
 	*buff = zip->uncompressed_buffer;
 
 	return ARCHIVE_OK;
@@ -2574,7 +2569,7 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	if (zip->uncompressed_buffer == NULL) {
 		zip->uncompressed_buffer_size = 256 * 1024;
 		zip->uncompressed_buffer
-		    = (unsigned char *)malloc(zip->uncompressed_buffer_size);
+		    = malloc(zip->uncompressed_buffer_size);
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for ZIP decompression");
@@ -3600,7 +3595,7 @@ archive_read_support_format_zip_streamable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
@@ -3680,7 +3675,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
 	if (archive_le16dec(p + 10) != archive_le16dec(p + 8))
 		return 0;
 	/* Central directory can't extend beyond start of EOCD record. */
-	if (cd_offset + cd_size > current_offset)
+	if ((int64_t)cd_offset + cd_size > current_offset)
 		return 0;
 
 	/* Save the central directory location for later use. */
@@ -4392,7 +4387,7 @@ archive_read_support_format_zip_seekable(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_zip_seekable");
 
-	zip = (struct zip *)calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");

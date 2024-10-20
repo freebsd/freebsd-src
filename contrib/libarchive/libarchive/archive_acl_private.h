@@ -77,5 +77,7 @@ int archive_acl_from_text_w(struct archive_acl *, const wchar_t * /* wtext */,
     int /* type */);
 int archive_acl_from_text_l(struct archive_acl *, const char * /* text */,
     int /* type */, struct archive_string_conv *);
+int archive_acl_from_text_nl(struct archive_acl *, const char * /* text */,
+    size_t /* size of text */, int /* type */, struct archive_string_conv *);
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

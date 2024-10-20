@@ -49,7 +49,7 @@ DEFINE_TEST(test_read_format_zip_nested)
 
 	/* Save contents of inner Zip. */
 	innerLength = (size_t)archive_entry_size(ae);
-	inner = calloc(innerLength, sizeof(char));
+	inner = calloc(innerLength, sizeof(*inner));
 	assertEqualInt(innerLength, archive_read_data(a, inner, innerLength));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));

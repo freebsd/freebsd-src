@@ -28,7 +28,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3007004
+#define	ARCHIVE_VERSION_NUMBER 3007007
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
@@ -259,9 +259,11 @@ __LA_DECL int		 archive_entry_gid_is_set(struct archive_entry *);
 __LA_DECL const char	*archive_entry_gname(struct archive_entry *);
 __LA_DECL const char	*archive_entry_gname_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_gname_w(struct archive_entry *);
+__LA_DECL void		 archive_entry_set_link_to_hardlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_hardlink_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_hardlink_w(struct archive_entry *);
+__LA_DECL int		 archive_entry_hardlink_is_set(struct archive_entry *);
 __LA_DECL la_int64_t	 archive_entry_ino(struct archive_entry *);
 __LA_DECL la_int64_t	 archive_entry_ino64(struct archive_entry *);
 __LA_DECL int		 archive_entry_ino_is_set(struct archive_entry *);
@@ -275,6 +277,7 @@ __LA_DECL const char	*archive_entry_pathname_utf8(struct archive_entry *);
 __LA_DECL const wchar_t	*archive_entry_pathname_w(struct archive_entry *);
 __LA_DECL __LA_MODE_T	 archive_entry_perm(struct archive_entry *);
 __LA_DECL int		 archive_entry_perm_is_set(struct archive_entry *);
+__LA_DECL int		 archive_entry_rdev_is_set(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdev(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevmajor(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevminor(struct archive_entry *);
@@ -283,6 +286,7 @@ __LA_DECL const wchar_t	*archive_entry_sourcepath_w(struct archive_entry *);
 __LA_DECL la_int64_t	 archive_entry_size(struct archive_entry *);
 __LA_DECL int		 archive_entry_size_is_set(struct archive_entry *);
 __LA_DECL const char	*archive_entry_strmode(struct archive_entry *);
+__LA_DECL void		 archive_entry_set_link_to_symlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_symlink(struct archive_entry *);
 __LA_DECL const char	*archive_entry_symlink_utf8(struct archive_entry *);
 __LA_DECL int		 archive_entry_symlink_type(struct archive_entry *);
@@ -324,6 +328,8 @@ __LA_DECL void	archive_entry_set_fflags(struct archive_entry *,
 /* Note that all recognized tokens are processed, regardless. */
 __LA_DECL const char *archive_entry_copy_fflags_text(struct archive_entry *,
 	    const char *);
+__LA_DECL const char *archive_entry_copy_fflags_text_len(struct archive_entry *,
+	    const char *, size_t);
 __LA_DECL const wchar_t *archive_entry_copy_fflags_text_w(struct archive_entry *,
 	    const wchar_t *);
 __LA_DECL void	archive_entry_set_gid(struct archive_entry *, la_int64_t);

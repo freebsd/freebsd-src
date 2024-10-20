@@ -228,7 +228,7 @@ archive_read_support_format_cpio(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_cpio");
 
-	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
+	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
@@ -834,6 +834,7 @@ static int
 header_afiol(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
+	int64_t t;
 	const void *h;
 	const char *header;
 
@@ -850,7 +851,12 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 
 	archive_entry_set_dev(entry, 
 		(dev_t)atol16(header + afiol_dev_offset, afiol_dev_size));
-	archive_entry_set_ino(entry, atol16(header + afiol_ino_offset, afiol_ino_size));
+	t = atol16(header + afiol_ino_offset, afiol_ino_size);
+	if (t < 0) {
+		archive_set_error(&a->archive, 0, "Nonsensical ino value");
+		return (ARCHIVE_FATAL);
+	}
+	archive_entry_set_ino(entry, t);
 	archive_entry_set_mode(entry,
 		(mode_t)atol8(header + afiol_mode_offset, afiol_mode_size));
 	archive_entry_set_uid(entry, atol16(header + afiol_uid_offset, afiol_uid_size));
@@ -863,8 +869,12 @@ header_afiol(struct archive_read *a, struct cpio *cpio,
 	*namelength = (size_t)atol16(header + afiol_namesize_offset, afiol_namesize_size);
 	*name_pad = 0; /* No padding of filename. */
 
-	cpio->entry_bytes_remaining =
-	    atol16(header + afiol_filesize_offset, afiol_filesize_size);
+	t = atol16(header + afiol_filesize_offset, afiol_filesize_size);
+	if (t < 0) {
+		archive_set_error(&a->archive, 0, "Nonsensical file size");
+		return (ARCHIVE_FATAL);
+	}
+	cpio->entry_bytes_remaining = t;
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
 	__archive_read_consume(a, afiol_header_size);
@@ -1002,7 +1012,7 @@ be4(const unsigned char *p)
 static int64_t
 atol8(const char *p, unsigned char_cnt)
 {
-	int64_t l;
+	uint64_t l;
 	int digit;
 
 	l = 0;
@@ -1010,18 +1020,18 @@ atol8(const char *p, unsigned char_cnt)
 		if (*p >= '0' && *p <= '7')
 			digit = *p - '0';
 		else
-			return (l);
+			return ((int64_t)l);
 		p++;
 		l <<= 3;
 		l |= digit;
 	}
-	return (l);
+	return ((int64_t)l);
 }
 
 static int64_t
 atol16(const char *p, unsigned char_cnt)
 {
-	int64_t l;
+	uint64_t l;
 	int digit;
 
 	l = 0;
@@ -1033,12 +1043,12 @@ atol16(const char *p, unsigned char_cnt)
 		else if (*p >= '0' && *p <= '9')
 			digit = *p - '0';
 		else
-			return (l);
+			return ((int64_t)l);
 		p++;
 		l <<= 4;
 		l |= digit;
 	}
-	return (l);
+	return ((int64_t)l);
 }
 
 static int
@@ -1078,7 +1088,7 @@ record_hardlink(struct archive_read *a,
 		}
 	}
 
-	le = (struct links_entry *)malloc(sizeof(struct links_entry));
+	le = malloc(sizeof(struct links_entry));
 	if (le == NULL) {
 		archive_set_error(&a->archive,
 		    ENOMEM, "Out of memory adding file to list");

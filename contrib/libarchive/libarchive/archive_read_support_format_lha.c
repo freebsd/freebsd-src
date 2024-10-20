@@ -227,7 +227,7 @@ static int	lha_read_file_header_1(struct archive_read *, struct lha *);
 static int	lha_read_file_header_2(struct archive_read *, struct lha *);
 static int	lha_read_file_header_3(struct archive_read *, struct lha *);
 static int	lha_read_file_extended_header(struct archive_read *,
-		    struct lha *, uint16_t *, int, size_t, size_t *);
+		    struct lha *, uint16_t *, int, uint64_t, size_t *);
 static size_t	lha_check_header_format(const void *);
 static int	lha_skip_sfx(struct archive_read *);
 static time_t	lha_dos_time(const unsigned char *);
@@ -265,7 +265,7 @@ archive_read_support_format_lha(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_lha");
 
-	lha = (struct lha *)calloc(1, sizeof(*lha));
+	lha = calloc(1, sizeof(*lha));
 	if (lha == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate lha data");
@@ -945,7 +945,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 
 	/* Read extended headers */
 	err2 = lha_read_file_extended_header(a, lha, NULL, 2,
-	    (size_t)(lha->compsize + 2), &extdsize);
+	    (uint64_t)(lha->compsize + 2), &extdsize);
 	if (err2 < ARCHIVE_WARN)
 		return (err2);
 	if (err2 < err)
@@ -1138,7 +1138,7 @@ invalid:
  */
 static int
 lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
-    uint16_t *crc, int sizefield_length, size_t limitsize, size_t *total_size)
+    uint16_t *crc, int sizefield_length, uint64_t limitsize, size_t *total_size)
 {
 	const void *h;
 	const unsigned char *extdheader;
@@ -1187,8 +1187,7 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 		}
 
 		/* Sanity check to the extended header size. */
-		if (((uint64_t)*total_size + extdsize) >
-				    (uint64_t)limitsize ||
+		if (((uint64_t)*total_size + extdsize) > limitsize ||
 		    extdsize <= (size_t)sizefield_length)
 			goto invalid;
 

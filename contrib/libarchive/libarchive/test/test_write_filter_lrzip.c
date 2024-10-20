@@ -46,10 +46,10 @@ DEFINE_TEST(test_write_filter_lrzip)
 	}
 
 	buffsize = 2000000;
-	assert(NULL != (buff = (char *)malloc(buffsize)));
+	assert(NULL != (buff = malloc(buffsize)));
 
 	datasize = 10000;
-	assert(NULL != (data = (char *)malloc(datasize)));
+	assert(NULL != (data = malloc(datasize)));
 	memset(data, 0, datasize);
 
 	/*

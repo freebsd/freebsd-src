@@ -110,7 +110,7 @@ archive_write_set_format_cpio_odc(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
+	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
@@ -467,6 +467,9 @@ archive_write_odc_close(struct archive_write *a)
 	struct archive_entry *trailer;
 
 	trailer = archive_entry_new2(NULL);
+	if (trailer == NULL) {
+		return ARCHIVE_FATAL;
+	}
 	/* nlink = 1 here for GNU cpio compat. */
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_size(trailer, 0);

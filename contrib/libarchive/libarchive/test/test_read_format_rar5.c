@@ -843,7 +843,7 @@ DEFINE_TEST(test_read_format_rar5_block_by_block)
 	struct archive_entry *ae;
 	struct archive *a;
 	uint8_t buf[173];
-	int bytes_read;
+	ssize_t bytes_read;
 	uint32_t computed_crc = 0;
 
 	extract_reference_file("test_read_format_rar5_compressed.rar");
@@ -932,19 +932,22 @@ DEFINE_TEST(test_read_format_rar5_symlink)
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_FILE, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dirlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("dir", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_DIRECTORY, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
@@ -969,7 +972,8 @@ DEFINE_TEST(test_read_format_rar5_hardlink)
 	assertEqualString("hardlink.txt", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_hardlink(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
@@ -1340,7 +1344,7 @@ DEFINE_TEST(test_read_format_rar5_sfx)
 
 	assertA(size == archive_read_data(a, buff, size));
 	assertEqualMem(buff, test_txt, size);
-	
+
 	EPILOGUE();
 }
 
@@ -1399,6 +1403,29 @@ DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
 	/* The test archive doesn't contain a sparse file. And because of that, here
 	 * we assume that the first returned offset should be 0. */
 	assertEqualInt(0, offset);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_data_ready_pointer_leak)
+{
+	/* oss fuzz 70024 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_data_ready_pointer_leak.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	/* This call shouldn't produce SIGSEGV. */
+	(void) archive_read_data(a, buf, sizeof(buf));
 
 	EPILOGUE();
 }

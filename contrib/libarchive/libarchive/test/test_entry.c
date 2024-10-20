@@ -269,7 +269,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_hardlink(e, "hardlink");
 	archive_entry_set_symlink(e, "symlink");
 	archive_entry_set_link(e, "link");
-	assertEqualString(archive_entry_hardlink(e), "hardlink");
+	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualString(archive_entry_symlink(e), "link");
 
 	/* mode */
@@ -513,7 +513,6 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_rdev(e, 532);
 	archive_entry_set_size(e, 987654321);
 	archive_entry_copy_sourcepath(e, "source");
-	archive_entry_set_symlink(e, "symlinkname");
 	archive_entry_set_uid(e, 83);
 	archive_entry_set_uname(e, "user");
 	/* Add an ACL entry. */
@@ -548,7 +547,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_rdev(e2), 532);
 	assertEqualInt(archive_entry_size(e2), 987654321);
 	assertEqualString(archive_entry_sourcepath(e2), "source");
-	assertEqualString(archive_entry_symlink(e2), "symlinkname");
+	assertEqualString(archive_entry_symlink(e2), NULL);
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");
 
@@ -649,7 +648,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_rdev(e2), 532);
 	assertEqualInt(archive_entry_size(e2), 987654321);
 	assertEqualString(archive_entry_sourcepath(e2), "source");
-	assertEqualString(archive_entry_symlink(e2), "symlinkname");
+	assertEqualString(archive_entry_symlink(e2), NULL);
 	assertEqualInt(archive_entry_uid(e2), 83);
 	assertEqualString(archive_entry_uname(e2), "user");
 
@@ -703,6 +702,13 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(1, archive_entry_xattr_reset(e2));
 
 	/* Release clone. */
+	archive_entry_free(e2);
+
+	/* Verify that symlink is copied over by `clone` */
+	archive_entry_set_symlink(e, "symlinkpath");
+	e2 = archive_entry_clone(e);
+	assertEqualString(archive_entry_hardlink(e2), NULL);
+	assertEqualString(archive_entry_symlink(e2), "symlinkpath");
 	archive_entry_free(e2);
 
 	/*

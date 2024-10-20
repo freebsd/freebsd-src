@@ -1,26 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2009 Tim Kientzle
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
 
@@ -55,6 +37,14 @@ int_in_list(int i, const int *l, size_t n)
 	failure("%d", i);
 	return (0);
 }
+
+static void
+free_cpio_owner(struct cpio_owner *owner) {
+	owner->uid = -1;
+	owner->gid = -1;
+	free(owner->uname);
+	free(owner->gname);
+}
 #endif
 
 DEFINE_TEST(test_owner_parse)
@@ -62,49 +52,58 @@ DEFINE_TEST(test_owner_parse)
 #if !defined(ROOT)
 	skipping("No uid/gid configuration for this OS");
 #else
-	int uid, gid;
+	struct cpio_owner owner;
+	const char *errstr;
 
-	assert(NULL == owner_parse(ROOT, &uid, &gid));
-	assert(int_in_list(uid, root_uids,
+	assert(0 == owner_parse(ROOT, &owner, &errstr));
+	assert(int_in_list(owner.uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
-	assertEqualInt(-1, gid);
+	assertEqualInt(-1, owner.gid);
+	free_cpio_owner(&owner);
 
-
-	assert(NULL == owner_parse(ROOT ":", &uid, &gid));
-	assert(int_in_list(uid, root_uids,
+	assert(0 == owner_parse(ROOT ":", &owner, &errstr));
+	assert(int_in_list(owner.uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
-	assert(int_in_list(gid, root_gids,
+	assert(int_in_list(owner.gid, root_gids,
 		sizeof(root_gids)/sizeof(root_gids[0])));
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse(ROOT ".", &uid, &gid));
-	assert(int_in_list(uid, root_uids,
+	assert(0 == owner_parse(ROOT ".", &owner, &errstr));
+	assert(int_in_list(owner.uid, root_uids,
 		sizeof(root_uids)/sizeof(root_uids[0])));
-	assert(int_in_list(gid, root_gids,
+	assert(int_in_list(owner.gid, root_gids,
 		sizeof(root_gids)/sizeof(root_gids[0])));
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse("111", &uid, &gid));
-	assertEqualInt(111, uid);
-	assertEqualInt(-1, gid);
+	assert(0 == owner_parse("111", &owner, &errstr));
+	assertEqualInt(111, owner.uid);
+	assertEqualInt(-1, owner.gid);
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse("112:", &uid, &gid));
-	assertEqualInt(112, uid);
+	assert(0 == owner_parse("112:", &owner, &errstr));
+	assertEqualInt(112, owner.uid);
 	/* Can't assert gid, since we don't know gid for user #112. */
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse("113.", &uid, &gid));
-	assertEqualInt(113, uid);
+	assert(0 == owner_parse("113.", &owner, &errstr));
+	assertEqualInt(113, owner.uid);
 	/* Can't assert gid, since we don't know gid for user #113. */
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse(":114", &uid, &gid));
-	assertEqualInt(-1, uid);
-	assertEqualInt(114, gid);
+	assert(0 == owner_parse(":114", &owner, &errstr));
+	assertEqualInt(-1, owner.uid);
+	assertEqualInt(114, owner.gid);
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse(".115", &uid, &gid));
-	assertEqualInt(-1, uid);
-	assertEqualInt(115, gid);
+	assert(0 == owner_parse(".115", &owner, &errstr));
+	assertEqualInt(-1, owner.uid);
+	assertEqualInt(115, owner.gid);
+	free_cpio_owner(&owner);
 
-	assert(NULL == owner_parse("116:117", &uid, &gid));
-	assertEqualInt(116, uid);
-	assertEqualInt(117, gid);
+	assert(0 == owner_parse("116:117", &owner, &errstr));
+	assertEqualInt(116, owner.uid);
+	assertEqualInt(117, owner.gid);
+	free_cpio_owner(&owner);
 
 	/*
 	 * TODO: Lookup current user/group name, build strings and
@@ -112,9 +111,20 @@ DEFINE_TEST(test_owner_parse)
 	 * users.
 	 */
 
-	assert(NULL != owner_parse(":nonexistentgroup", &uid, &gid));
-	assert(NULL != owner_parse(ROOT ":nonexistentgroup", &uid, &gid));
-	assert(NULL !=
-	    owner_parse("nonexistentuser:nonexistentgroup", &uid, &gid));
+	errstr = NULL;
+	assert(0 != owner_parse(":nonexistentgroup", &owner, &errstr));
+	assertEqualString(errstr, "Couldn't lookup group ``nonexistentgroup''");
+	free_cpio_owner(&owner);
+
+	errstr = NULL;
+	assert(0 != owner_parse(ROOT ":nonexistentgroup", &owner, &errstr));
+	assertEqualString(errstr, "Couldn't lookup group ``nonexistentgroup''");
+	free_cpio_owner(&owner);
+
+	errstr = NULL;
+	assert(0 != owner_parse("nonexistentuser:nonexistentgroup", &owner,
+	    &errstr));
+	assertEqualString(errstr, "Couldn't lookup user ``nonexistentuser''");
+	free_cpio_owner(&owner);
 #endif
 }

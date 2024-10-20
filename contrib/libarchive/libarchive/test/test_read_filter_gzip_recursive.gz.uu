@@ -1,0 +1,19 @@
+From oss-fuzz:
+
+clusterfuzz-testcase-minimized-libarchive_fuzzer-5138261947580416
+
+This is a gzip input that expands to a gzip, etc, in such a way that
+the "filename" field in the nested gzip header ends up being extremely
+large (> 500 MiB).  This caused headaches for the gzip filter before I
+implemented a sanity limit on filename and comment sizes.
+
+begin 644 test_read_filter_gzip_recursive.gz
+M'XL(`5`M[_<\`'#_``#_'XL("0!D0`GK_W,)&P!P_P``_Q^+"`@(`%$`"0D<
+M`'#_``#_'XL($?\'_^_W/`!P_P``_Q^+"`D`9$`)Z_]S[AL`</\``/\?BP@(
+M"`!1``D)'`!P_P``_Q^+"!'_!___ZP$)=Q'_!___<PD;`'#_``#_'XL("`@`
+M40`)"1P`</\``/\?BP@1_P?_[_<\`'#_``#_'XL("0!D0`GK_SP`</\``/\?
+MBP@)`&1`">O_<^YC:&$!"7<1_P?__W,)&P!P_P``_Q^+"`@(`%$`"0D<`'#_
+M``#_'XL($?\'_^_W/`!P_P``_Q^+"`D`9$`)Z_\\@</"P\/#P\/#P\/!P\/#
+7P\/#P\/#P\/EP\/#B`$`PT.?"`M=P\,`
+`
+end

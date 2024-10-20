@@ -74,7 +74,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		return (ARCHIVE_FATAL);
 	}
 
-	mine = (struct read_fd_data *)calloc(1, sizeof(*mine));
+	mine = calloc(1, sizeof(*mine));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
