@@ -202,3 +202,48 @@ DEFINE_TEST(test_link_resolver)
 	test_linkify_old_cpio();
 	test_linkify_new_cpio();
 }
+
+DEFINE_TEST(test_link_resolver_unicode_win)
+{
+#if !defined(_WIN32) || defined(__CYGWIN__)
+	skipping("This test is meant to verify unicode string handling"
+	    " on Windows with UTF-16 names");
+	return;
+#else
+	struct archive_entry *entry, *e2;
+	struct archive_entry_linkresolver *resolver;
+
+	/* Initialize the resolver. */
+	assert(NULL != (resolver = archive_entry_linkresolver_new()));
+	archive_entry_linkresolver_set_strategy(resolver,
+	    ARCHIVE_FORMAT_TAR_USTAR);
+
+	/* Create an entry with a unicode filename and 2 links. */
+	assert(NULL != (entry = archive_entry_new()));
+	archive_entry_copy_pathname_w(entry, L"\u4f60\u597d.txt");
+	archive_entry_set_ino(entry, 1);
+	archive_entry_set_dev(entry, 2);
+	archive_entry_set_nlink(entry, 2);
+	archive_entry_set_size(entry, 10);
+	archive_entry_linkify(resolver, &entry, &e2);
+
+	/* Shouldn't be altered, since it wasn't seen before. */
+	assert(e2 == NULL);
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(NULL, archive_entry_hardlink_w(entry));
+	assertEqualInt(10, archive_entry_size(entry));
+
+	/* Link to the same file contents, but a new unicode name. */
+	archive_entry_copy_pathname_w(entry, L"\u518d\u89c1.txt");
+	archive_entry_linkify(resolver, &entry, &e2);
+
+	/* Size & link path should have changed. */
+	assert(e2 == NULL);
+	assertEqualWString(L"\u518d\u89c1.txt", archive_entry_pathname_w(entry));
+	assertEqualWString(L"\u4f60\u597d.txt", archive_entry_hardlink_w(entry));
+	assertEqualInt(0, archive_entry_size(entry));
+
+	archive_entry_free(entry);
+	archive_entry_linkresolver_free(resolver);
+#endif
+}

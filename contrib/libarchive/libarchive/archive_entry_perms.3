@@ -150,6 +150,7 @@ character strings at the same time.
 .Fn archive_entry_set_XXX
 is an alias for
 .Fn archive_entry_copy_XXX .
+The strings are copied, and don't need to outlive the call.
 .Ss File Flags
 File flags are transparently converted between a bitmap
 representation and a textual format.

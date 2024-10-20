@@ -39,7 +39,7 @@
 #include <string.h> /* memset */
 static inline HMAC_CTX *HMAC_CTX_new(void)
 {
-	HMAC_CTX *ctx = (HMAC_CTX *)calloc(1, sizeof(HMAC_CTX));
+	HMAC_CTX *ctx = calloc(1, sizeof(HMAC_CTX));
 	return ctx;
 }
 

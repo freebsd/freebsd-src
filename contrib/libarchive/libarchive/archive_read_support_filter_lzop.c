@@ -185,7 +185,7 @@ lzop_bidder_init(struct archive_read_filter *self)
 	self->code = ARCHIVE_FILTER_LZOP;
 	self->name = "lzop";
 
-	state = (struct read_lzop *)calloc(1, sizeof(*state));
+	state = calloc(1, sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,
 		    "Can't allocate data for lzop decompression");
@@ -291,7 +291,8 @@ consume_header(struct archive_read_filter *self)
 		if (p == NULL)
 			goto truncated;
 		len = archive_be32dec(p);
-		__archive_read_filter_consume(self->upstream, len + 4 + 4);
+		__archive_read_filter_consume(self->upstream,
+		    (int64_t)len + 4 + 4);
 	}
 	state->flags = flags;
 	state->in_stream = 1;

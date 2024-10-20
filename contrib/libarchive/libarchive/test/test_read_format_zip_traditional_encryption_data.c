@@ -41,7 +41,7 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	if (ARCHIVE_OK != archive_write_set_options(a,
 				"zip:encryption=traditional")) {
-		skipping("This system does not have cryptographic liberary");
+		skipping("This system does not have cryptographic library");
 		archive_write_free(a);
 		return;
 	}

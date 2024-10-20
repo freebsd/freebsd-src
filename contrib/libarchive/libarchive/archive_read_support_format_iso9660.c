@@ -273,7 +273,7 @@ struct file_info {
 	char		 re;		/* Having RRIP "RE" extension.	*/
 	char		 re_descendant;
 	uint64_t	 cl_offset;	/* Having RRIP "CL" extension.	*/
-	int		 birthtime_is_set;
+	int		 time_is_set;	/* Bitmask indicating which times are known */
 	time_t		 birthtime;	/* File created time.		*/
 	time_t		 mtime;		/* File last modified time.	*/
 	time_t		 atime;		/* File last accessed time.	*/
@@ -305,6 +305,11 @@ struct file_info {
 		struct file_info	**last;
 	} rede_files;
 };
+
+#define BIRTHTIME_IS_SET 1
+#define MTIME_IS_SET 2
+#define ATIME_IS_SET 4
+#define CTIME_IS_SET 8
 
 struct heap_queue {
 	struct file_info **files;
@@ -394,7 +399,9 @@ static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 #endif
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
+static int	isodate17_valid(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
+static int	isodate7_valid(const unsigned char *);
 static int	isBootRecord(struct iso9660 *, const unsigned char *);
 static int	isVolumePartition(struct iso9660 *, const unsigned char *);
 static int	isVDSetTerminator(struct iso9660 *, const unsigned char *);
@@ -402,6 +409,9 @@ static int	isJolietSVD(struct iso9660 *, const unsigned char *);
 static int	isSVD(struct iso9660 *, const unsigned char *);
 static int	isEVD(struct iso9660 *, const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
+static int	isRootDirectoryRecord(const unsigned char *);
+static int	isValid723Integer(const unsigned char *);
+static int	isValid733Integer(const unsigned char *);
 static int	next_cache_entry(struct archive_read *, struct iso9660 *,
 		    struct file_info **);
 static int	next_entry_seek(struct archive_read *, struct iso9660 *,
@@ -453,7 +463,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_iso9660");
 
-	iso9660 = (struct iso9660 *)calloc(1, sizeof(*iso9660));
+	iso9660 = calloc(1, sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate iso9660 data");
@@ -773,8 +783,9 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + SVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	return (48);
 }
@@ -851,8 +862,9 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	return (48);
 }
@@ -882,21 +894,43 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
+	/* Volume space size must be encoded according to 7.3.3 */
+	if (!isValid733Integer(h + PVD_volume_space_size_offset)) {
+		return (0);
+	}
+	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
+	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+		return (0);
+
 	/* Reserved field must be 0. */
 	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
+	/* Volume set size must be encoded according to 7.2.3 */
+	if (!isValid723Integer(h + PVD_volume_set_size_offset)) {
+		return (0);
+	}
+
+	/* Volume sequence number must be encoded according to 7.2.3 */
+	if (!isValid723Integer(h + PVD_volume_sequence_number_offset)) {
+		return (0);
+	}
+
 	/* Logical block size must be > 0. */
 	/* I've looked at Ecma 119 and can't find any stronger
 	 * restriction on this field. */
+	if (!isValid723Integer(h + PVD_logical_block_size_offset)) {
+		return (0);
+	}
 	logical_block_size =
 	    archive_le16dec(h + PVD_logical_block_size_offset);
 	if (logical_block_size <= 0)
 		return (0);
 
-	volume_block = archive_le32dec(h + PVD_volume_space_size_offset);
-	if (volume_block <= SYSTEM_AREA_BLOCK+4)
+	/* Path Table size must be encoded according to 7.3.3 */
+	if (!isValid733Integer(h + PVD_path_table_size_offset)) {
 		return (0);
+	}
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
 	if (h[PVD_file_structure_version_offset] != 1)
@@ -935,8 +969,9 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Read Root Directory Record in Volume Descriptor. */
 	p = h + PVD_root_directory_record_offset;
-	if (p[DR_length_offset] != 34)
+	if (!isRootDirectoryRecord(p)) {
 		return (0);
+	}
 
 	if (!iso9660->primary.location) {
 		iso9660->logical_block_size = logical_block_size;
@@ -949,6 +984,51 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 	}
 
 	return (48);
+}
+
+static int
+isRootDirectoryRecord(const unsigned char *p) {
+	int flags;
+
+	/* ECMA119/ISO9660 requires that the root directory record be _exactly_ 34 bytes.
+	 * However, we've seen images that have root directory records up to 68 bytes. */
+	if (p[DR_length_offset] < 34 || p[DR_length_offset] > 68) {
+		return (0);
+	}
+
+	/* The root directory location must be a 7.3.3 32-bit integer. */
+	if (!isValid733Integer(p + DR_extent_offset)) {
+		return (0);
+	}
+
+	/* The root directory size must be a 7.3.3 integer. */
+	if (!isValid733Integer(p + DR_size_offset)) {
+		return (0);
+	}
+
+	/* According to the standard, certain bits must be one or zero:
+	 * Bit 1: must be 1 (this is a directory)
+	 * Bit 2: must be 0 (not an associated file)
+	 * Bit 3: must be 0 (doesn't use extended attribute record)
+	 * Bit 7: must be 0 (final directory record for this file)
+	 */
+	flags = p[DR_flags_offset];
+	if ((flags & 0x8E) != 0x02) {
+		return (0);
+	}
+
+	/* Volume sequence number must be a 7.2.3 integer. */
+	if (!isValid723Integer(p + DR_volume_sequence_number_offset)) {
+		return (0);
+	}
+
+	/* Root directory name is a single zero byte... */
+	if (p[DR_name_len_offset] != 1 || p[DR_name_offset] != 0) {
+		return (0);
+	}
+
+	/* Nothing looked wrong, so let's accept it. */
+	return (1);
 }
 
 static int
@@ -1212,7 +1292,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			}
 		}
 		if (iso9660->utf16be_previous_path == NULL) {
-			iso9660->utf16be_previous_path = malloc(UTF16_NAME_MAX);
+			iso9660->utf16be_previous_path = calloc(1, UTF16_NAME_MAX);
 			if (iso9660->utf16be_previous_path == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory");
@@ -1278,13 +1358,22 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_entry_set_uid(entry, file->uid);
 	archive_entry_set_gid(entry, file->gid);
 	archive_entry_set_nlink(entry, file->nlinks);
-	if (file->birthtime_is_set)
+	if ((file->time_is_set & BIRTHTIME_IS_SET))
 		archive_entry_set_birthtime(entry, file->birthtime, 0);
 	else
 		archive_entry_unset_birthtime(entry);
-	archive_entry_set_mtime(entry, file->mtime, 0);
-	archive_entry_set_ctime(entry, file->ctime, 0);
-	archive_entry_set_atime(entry, file->atime, 0);
+	if ((file->time_is_set & MTIME_IS_SET))
+		archive_entry_set_mtime(entry, file->mtime, 0);
+	else
+		archive_entry_unset_mtime(entry);
+	if ((file->time_is_set & CTIME_IS_SET))
+		archive_entry_set_ctime(entry, file->ctime, 0);
+	else
+		archive_entry_unset_ctime(entry);
+	if ((file->time_is_set & ATIME_IS_SET))
+		archive_entry_set_atime(entry, file->atime, 0);
+	else
+		archive_entry_unset_atime(entry);
 	/* N.B.: Rock Ridge supports 64-bit device numbers. */
 	archive_entry_set_rdev(entry, (dev_t)file->rdev);
 	archive_entry_set_size(entry, iso9660->entry_bytes_remaining);
@@ -1816,7 +1905,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	}
 
 	/* Create a new file entry and copy data from the ISO dir record. */
-	file = (struct file_info *)calloc(1, sizeof(*file));
+	file = calloc(1, sizeof(*file));
 	if (file == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for file entry");
@@ -1825,8 +1914,11 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	file->parent = parent;
 	file->offset = offset;
 	file->size = fsize;
-	file->mtime = isodate7(isodirrec + DR_date_offset);
-	file->ctime = file->atime = file->mtime;
+	if (isodate7_valid(isodirrec + DR_date_offset)) {
+		file->time_is_set |= MTIME_IS_SET | ATIME_IS_SET | CTIME_IS_SET;
+		file->mtime = isodate7(isodirrec + DR_date_offset);
+		file->ctime = file->atime = file->mtime;
+	}
 	file->rede_files.first = NULL;
 	file->rede_files.last = &(file->rede_files.first);
 
@@ -2500,51 +2592,73 @@ parse_rockridge_TF1(struct file_info *file, const unsigned char *data,
 		/* Use 17-byte time format. */
 		if ((flag & 1) && data_length >= 17) {
 			/* Create time. */
-			file->birthtime_is_set = 1;
-			file->birthtime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= BIRTHTIME_IS_SET;
+				file->birthtime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 2) && data_length >= 17) {
 			/* Modify time. */
-			file->mtime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= MTIME_IS_SET;
+				file->mtime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 4) && data_length >= 17) {
 			/* Access time. */
-			file->atime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= ATIME_IS_SET;
+				file->atime = isodate17(data);
+			}
 			data += 17;
 			data_length -= 17;
 		}
 		if ((flag & 8) && data_length >= 17) {
 			/* Attribute change time. */
-			file->ctime = isodate17(data);
+			if (isodate17_valid(data)) {
+				file->time_is_set |= CTIME_IS_SET;
+				file->ctime = isodate17(data);
+			}
 		}
 	} else {
 		/* Use 7-byte time format. */
 		if ((flag & 1) && data_length >= 7) {
 			/* Create time. */
-			file->birthtime_is_set = 1;
-			file->birthtime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= BIRTHTIME_IS_SET;
+				file->birthtime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 2) && data_length >= 7) {
 			/* Modify time. */
-			file->mtime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= MTIME_IS_SET;
+				file->mtime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 4) && data_length >= 7) {
 			/* Access time. */
-			file->atime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= ATIME_IS_SET;
+				file->atime = isodate7(data);
+			}
 			data += 7;
 			data_length -= 7;
 		}
 		if ((flag & 8) && data_length >= 7) {
 			/* Attribute change time. */
-			file->ctime = isodate7(data);
+			if (isodate7_valid(data)) {
+				file->time_is_set |= CTIME_IS_SET;
+				file->ctime = isodate7(data);
+			}
 		}
 	}
 }
@@ -3033,7 +3147,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct file_info **)
-		    malloc(new_size * sizeof(new_pending_files[0]));
+		    calloc(new_size, sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
@@ -3127,6 +3241,82 @@ toi(const void *p, int n)
 	return (0);
 }
 
+/*
+ * ECMA119/ISO9660 stores multi-byte integers in one of
+ * three different formats:
+ *  * Little-endian (specified in section 7.2.1 and 7.3.1)
+ *  * Big-endian (specified in section 7.2.2 and 7.3.2)
+ *  * Both (specified in section 7.2.3 and 7.3.3)
+ *
+ * For values that follow section 7.2.3 (16-bit) or 7.3.3 (32-bit), we
+ * can check that the little-endian and big-endian forms agree with
+ * each other.  This helps us avoid trying to decode files that are
+ * not really ISO images.
+ */
+static int
+isValid723Integer(const unsigned char *p) {
+	return (p[0] == p[3] && p[1] == p[2]);
+}
+
+static int
+isValid733Integer(const unsigned char *p)
+{
+	return (p[0] == p[7]
+		&& p[1] == p[6]
+		&& p[2] == p[5]
+		&& p[3] == p[4]);
+}
+
+static int
+isodate7_valid(const unsigned char *v)
+{
+	int year = v[0];
+	int month = v[1];
+	int day = v[2];
+	int hour = v[3];
+	int minute = v[4];
+	int second = v[5];
+	int gmt_off = (signed char)v[6];
+
+	/* ECMA-119 9.1.5 "If all seven values are zero, it shall mean
+	 * that the date is unspecified" */
+	if (year == 0
+	    && month == 0
+	    && day == 0
+	    && hour == 0
+	    && minute == 0
+	    && second == 0
+	    && gmt_off == 0)
+		return 0;
+	/*
+	 * Sanity-test each individual field
+	 */
+	/* Year can have any value */
+	/* Month must be 1-12 */
+	if (month < 1 || month > 12)
+		return 0;
+	/* Day must be 1-31 */
+	if (day < 1 || day > 31)
+		return 0;
+	/* Hour must be 0-23 */
+	if (hour > 23)
+		return 0;
+	/* Minute must be 0-59 */
+	if (minute > 59)
+		return 0;
+	/* second must be 0-59 according to ECMA-119 9.1.5 */
+	/* BUT: we should probably allow for the time being in UTC, which
+	   allows up to 61 seconds in a minute in certain cases */
+	if (second > 61)
+		return 0;
+	/* Offset from GMT must be -48 to +52 */
+	if (gmt_off < -48 || gmt_off > +52)
+		return 0;
+
+	/* All tests pass, this is OK */
+	return 1;
+}
+
 static time_t
 isodate7(const unsigned char *v)
 {
@@ -3153,6 +3343,67 @@ isodate7(const unsigned char *v)
 	return (t);
 }
 
+static int
+isodate17_valid(const unsigned char *v)
+{
+	/* First 16 bytes are all ASCII digits */
+	for (int i = 0; i < 16; i++) {
+		if (v[i] < '0' || v[i] > '9')
+			return 0;
+	}
+
+	int year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
+		+ (v[2] - '0') * 10 + (v[3] - '0');
+	int month = (v[4] - '0') * 10 + (v[5] - '0');
+	int day = (v[6] - '0') * 10 + (v[7] - '0');
+	int hour = (v[8] - '0') * 10 + (v[9] - '0');
+	int minute = (v[10] - '0') * 10 + (v[11] - '0');
+	int second = (v[12] - '0') * 10 + (v[13] - '0');
+	int hundredths = (v[14] - '0') * 10 + (v[15] - '0');
+	int gmt_off = (signed char)v[16];
+
+	if (year == 0 && month == 0 && day == 0
+	    && hour == 0 && minute == 0 && second == 0
+	    && hundredths == 0 && gmt_off == 0)
+		return 0;
+	/*
+	 * Sanity-test each individual field
+	 */
+
+	/* Year must be 1900-2300 */
+	/* (Not specified in ECMA-119, but these seem
+	   like reasonable limits. */
+	if (year < 1900 || year > 2300)
+		return 0;
+	/* Month must be 1-12 */
+	if (month < 1 || month > 12)
+		return 0;
+	/* Day must be 1-31 */
+	if (day < 1 || day > 31)
+		return 0;
+	/* Hour must be 0-23 */
+	if (hour > 23)
+		return 0;
+	/* Minute must be 0-59 */
+	if (minute > 59)
+		return 0;
+	/* second must be 0-59 according to ECMA-119 9.1.5 */
+	/* BUT: we should probably allow for the time being in UTC, which
+	   allows up to 61 seconds in a minute in certain cases */
+	if (second > 61)
+		return 0;
+	/* Hundredths must be 0-99 */
+	if (hundredths > 99)
+		return 0;
+	/* Offset from GMT must be -48 to +52 */
+	if (gmt_off < -48 || gmt_off > +52)
+		return 0;
+
+	/* All tests pass, this is OK */
+	return 1;
+
+}
+
 static time_t
 isodate17(const unsigned char *v)
 {
@@ -3164,7 +3415,7 @@ isodate17(const unsigned char *v)
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
 	    + (v[2] - '0') * 10 + (v[3] - '0')
 	    - 1900;
-	tm.tm_mon = (v[4] - '0') * 10 + (v[5] - '0');
+	tm.tm_mon = (v[4] - '0') * 10 + (v[5] - '0') - 1;
 	tm.tm_mday = (v[6] - '0') * 10 + (v[7] - '0');
 	tm.tm_hour = (v[8] - '0') * 10 + (v[9] - '0');
 	tm.tm_min = (v[10] - '0') * 10 + (v[11] - '0');

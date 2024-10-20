@@ -1,26 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
 
@@ -33,7 +15,7 @@ DEFINE_TEST(test_option_t)
 	char *p;
 	int r;
 	time_t mtime;
-	char date[32];
+	char date[48];
 	char date2[32];
 	struct tm *tmptr;
 #if defined(HAVE_LOCALTIME_R) || defined(HAVE_LOCALTIME_S)
@@ -89,6 +71,7 @@ DEFINE_TEST(test_option_t)
 	mtime = 1;
 #ifdef HAVE_LOCALE_H
 	setlocale(LC_ALL, "");
+	setlocale(LC_TIME, "");
 #endif
 #if defined(HAVE_LOCALTIME_S)
         tmptr = localtime_s(&tmbuf, &mtime) ? NULL : &tmbuf;
@@ -99,10 +82,10 @@ DEFINE_TEST(test_option_t)
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	strftime(date2, sizeof(date2)-1, "%b %d  %Y", tmptr);
-	_snprintf(date, sizeof(date)-1, "%12.12s file", date2);
+	_snprintf(date, sizeof(date)-1, "%12s file", date2);
 #else
 	strftime(date2, sizeof(date2)-1, "%b %e  %Y", tmptr);
-	snprintf(date, sizeof(date)-1, "%12.12s file", date2);
+	snprintf(date, sizeof(date)-1, "%12s file", date2);
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
 	free(p);

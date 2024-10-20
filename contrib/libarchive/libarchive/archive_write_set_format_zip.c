@@ -456,7 +456,7 @@ archive_write_set_format_zip(struct archive *_a)
 	if (a->format_free != NULL)
 		(a->format_free)(a);
 
-	zip = (struct zip *) calloc(1, sizeof(*zip));
+	zip = calloc(1, sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate zip data");
@@ -609,7 +609,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		const char *p;
 		size_t len;
 
-		if (archive_entry_pathname_l(entry, &p, &len, sconv) != 0) {
+		if (archive_entry_pathname_l(zip->entry, &p, &len, sconv) != 0) {
 			if (errno == ENOMEM) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "Can't allocate memory for Pathname");
@@ -618,7 +618,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			archive_set_error(&a->archive,
 			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Can't translate Pathname '%s' to %s",
-			    archive_entry_pathname(entry),
+			    archive_entry_pathname(zip->entry),
 			    archive_string_conversion_charset_name(sconv));
 			ret2 = ARCHIVE_WARN;
 		}
@@ -631,7 +631,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		 * for filename.
 		 */
 		if (type == AE_IFLNK) {
-			if (archive_entry_symlink_l(entry, &p, &len, sconv)) {
+			if (archive_entry_symlink_l(zip->entry, &p, &len, sconv)) {
 				if (errno == ENOMEM) {
 					archive_set_error(&a->archive, ENOMEM,
 					    "Can't allocate memory "
@@ -906,7 +906,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 			archive_le32enc(e, (uint32_t)archive_entry_ctime(entry));
 			e += 4;
 		}
-		archive_le16enc(ut + 2, e - ut - 4);
+		archive_le16enc(ut + 2, (uint16_t)(e - ut - 4));
 	}
 
 	/*
