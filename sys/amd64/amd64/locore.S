@@ -89,15 +89,36 @@ ENTRY(btext)
 0:	hlt
 	jmp	0b
 
-/* la57_trampoline(%rdi pml5) */
+/*
+ * void la57_trampoline(%rdi pml5)
+ *
+ * Entered in 4-level paging long mode on AP, hopefully returns alive in
+ * 5-level paging mode. The parameter is a pointer to a 5-level page
+ * table root. The passed 5-level page table, and the current 4-level page
+ * table, both must map the trampoline code page 1:1 physical, below 4G.
+ * The trampoline must be PIC because it is copied from kernel text into
+ * this page.
+ *
+ * The current paging level cannot be changed while paging is enabled, and
+ * paging cannot be disabled while in long mode.  As consequence, code
+ * switches into the compat mode, then disables paging to descend into
+ * protected mode.  There, the paging level bit CR4.LA57 can be changed,
+ * and code directly jumps back into long mode.
+ *
+ * Falling into the protected mode requires single-purpose GDT entries,
+ * which are provided by the private GDT.  It is the caller's responsibility
+ * to
+ * - restore the GDT and %gsbase after the call
+ * - reset IDT back to long mode.
+ */
 ENTRY(la57_trampoline)
-	movq	%rsp,lst(%rip)
-	movq	%rbx,lst+8(%rip)
-	movq	%rbp,lst+0x10(%rip)
+	movq	%rsp,lst(%rip)		/* save registers into memeory */
+	movq	%rbx,lst+8(%rip)	/* upper halves are not saved .. */
+	movq	%rbp,lst+0x10(%rip)	/* by 64->32->64 switch */
 	movq	%cr4,%rax
-	orq	$CR4_LA57,%rax
+	orq	$CR4_LA57,%rax		/* 5-lvl %cr4 */
 	movq	%rax,lst+0x18(%rip)
-	leaq	la57_trampoline_end(%rip),%rsp
+	leaq	la57_trampoline_end(%rip),%rsp /* priv stack */
 
 	movq	%cr0,%rbp
 	lgdtq	la57_trampoline_gdt_desc(%rip)
@@ -111,45 +132,45 @@ ENTRY(la57_trampoline)
 	.code32
 
 l1:	movl	$(3<<3),%eax
-	movl	%eax,%ss
+	movl	%eax,%ss		/* 32bit paged, priv gdt and stack */
 
 	movl	%cr4,%eax
-	andl	$~(CR4_PGE | CR4_PCIDE),%eax
+	andl	$~(CR4_PGE | CR4_PCIDE),%eax /* clear sensitive paging ctrls */
 	movl	%eax,%cr4
 
 	movl	%ebp,%eax
-	andl	$~CR0_PG,%eax
+	andl	$~CR0_PG,%eax		/* protected mode */
 	movl	%eax,%cr0
 
-	movl	$MSR_EFER,%ecx
-	rdmsr
+	movl	$MSR_EFER,%ecx		/* disable long mode bit */
+	rdmsr				/* to safer tweaking LA57 */
 	andl	$~EFER_LME,%eax
 	wrmsr
 
-	movl	%cr4,%eax
+	movl	%cr4,%eax		/* finally safe to switch bit */
 	orl	$CR4_LA57,%eax
 	movl	%eax,%cr4
 
-	movl	%edi,%cr3
+	movl	%edi,%cr3		/* and load the 5-level pgtable root */
 
 	rdmsr
 	orl	$EFER_LME,%eax
-	wrmsr
+	wrmsr				/* prepare for ... */
 
-	movl	%ebp,%cr0
-	jmp	1f
+	movl	%ebp,%cr0		/* and jump back directly into long */
+	jmp	1f			/* mode from protected by enabling pg */
 
-1:	pushl	$(1<<3)
+1:	pushl	$(1<<3)			/* reload %cs */
 	pushl	%ebx
 	lretl
 	.code64
 
-l2:	movq	lst(%rip),%rsp
+l2:	movq	lst(%rip),%rsp		/* back on C stack */
 	movq	lst+8(%rip),%rbx
 	movq	lst+0x10(%rip),%rbp
 	movq	lst+0x18(%rip),%rax
-	movq	%rax,%cr4
-	retq
+	movq	%rax,%cr4		/* re-enable paging controls */
+	retq				/* back to C */
 	.p2align 4,0
 lst:	.quad	0,0,0,0
 ENTRY(la57_trampoline_gdt_desc)
