@@ -687,15 +687,6 @@
 /* All required iov_iter interfaces are available */
 /* #undef HAVE_VFS_IOV_ITER */
 
-/* fops->iterate() is available */
-/* #undef HAVE_VFS_ITERATE */
-
-/* fops->iterate_shared() is available */
-/* #undef HAVE_VFS_ITERATE_SHARED */
-
-/* fops->readdir() is available */
-/* #undef HAVE_VFS_READDIR */
-
 /* address_space_operations->readpages exists */
 /* #undef HAVE_VFS_READPAGES */
 
@@ -801,7 +792,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.0-rc1-FreeBSD_g3a9fca901"
+#define ZFS_META_ALIAS "zfs-2.3.99-31-FreeBSD_gb2f6de7b5"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -831,10 +822,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "rc1-FreeBSD_g3a9fca901"
+#define ZFS_META_RELEASE "31-FreeBSD_gb2f6de7b5"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.3.0"
+#define ZFS_META_VERSION "2.3.99"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */

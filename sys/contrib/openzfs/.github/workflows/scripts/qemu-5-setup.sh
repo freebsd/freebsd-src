@@ -14,17 +14,21 @@ PID=$(pidof /usr/bin/qemu-system-x86_64)
 tail --pid=$PID -f /dev/null
 sudo virsh undefine openzfs
 
-# definitions of per operating system
+# default values per test vm:
+VMs=2
+CPU=2
+
+# cpu pinning
+CPUSET=("0,1" "2,3")
+
 case "$OS" in
   freebsd*)
-    VMs=2
-    CPU=3
+    # FreeBSD can't be optimized via ksmtuned
     RAM=6
     ;;
   *)
-    VMs=2
-    CPU=3
-    RAM=7
+    # Linux can be optimized via ksmtuned
+    RAM=8
     ;;
 esac
 
@@ -73,6 +77,7 @@ EOF
     --cpu host-passthrough \
     --virt-type=kvm --hvm \
     --vcpus=$CPU,sockets=1 \
+    --cpuset=${CPUSET[$((i-1))]} \
     --memory $((1024*RAM)) \
     --memballoon model=virtio \
     --graphics none \
