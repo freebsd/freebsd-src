@@ -16,7 +16,7 @@ SRCS= \
 	zstream_redup.c \
 	zstream_token.c
 
-SYMLINKS=	${BINDIR}/zstream ${BINDIR}/zstreamdump
+SYMLINKS=	zstream ${BINDIR}/zstreamdump
 
 WARNS?=	2
 CFLAGS+= \
