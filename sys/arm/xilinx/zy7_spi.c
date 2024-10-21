@@ -439,7 +439,7 @@ zy7_spi_attach(device_t dev)
 	zy7_spi_add_sysctls(dev);
 
 	/* Attach spibus driver as a child later when interrupts work. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 }
