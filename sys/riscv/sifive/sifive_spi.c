@@ -346,7 +346,7 @@ sfspi_attach(device_t dev)
 
 	/* Probe and attach the spibus when interrupts are available. */
 	sc->parent = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 
