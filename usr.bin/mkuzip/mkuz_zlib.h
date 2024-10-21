@@ -26,9 +26,7 @@
 
 #define DEFAULT_SUFX_ZLIB       ".uzip"
 
-#define CLOOP_MAGIC_ZLIB        "#!/bin/sh\n#V2.0 Format\n" \
-    "(kldstat -qm g_uzip||kldload geom_uzip)>&-&&" \
-    "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n"
+#define CLOOP_MAGIC_ZLIB        "#!/bin/sh\n#V2.0 Format\n"
 
 size_t mkuz_zlib_cbound(size_t);
 void *mkuz_zlib_init(int *);
