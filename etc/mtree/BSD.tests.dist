@@ -854,6 +854,8 @@
             ..
             pipe
             ..
+            tty
+            ..
         ..
         kqueue
             libkqueue

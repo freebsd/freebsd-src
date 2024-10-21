@@ -1,0 +1,39 @@
+#!/usr/bin/env -S porch -f
+--
+-- Copyright (c) 2024 Kyle Evans <kevans@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
+
+timeout(3)
+
+local function spawn_one(...)
+	spawn(...)
+
+	stty("lflag", 0, tty.lflag.ICANON)
+end
+
+-- We can send one byte...
+spawn_one("readsz", "-c", 1)
+write "H"
+match "^H$"
+
+-- or many.
+spawn_one("readsz", "-c", 1)
+write "Hello"
+match "^Hello$"
+
+-- VEOF is a normal character here, passed through as-is.
+spawn_one("readsz", "-c", 1)
+write "Hello^D"
+match "^Hello\x04$"
+spawn_one("readsz", "-c", 1)
+write "^D"
+match "^\x04$"
+
+-- Confirm that FIONREAD agrees that VEOF will be returned, even if it was sent
+-- while the tty was still in canonical mode.
+spawn("fionread")
+write "^D"
+stty("lflag", 0, tty.lflag.ICANON)
+match "^1$"
