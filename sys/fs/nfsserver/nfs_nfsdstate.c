@@ -6357,7 +6357,8 @@ nfsrv_cache_session(struct nfsrv_descript *nd, struct mbuf **m)
 {
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
-	char *buf, *cp;
+	char *buf;
+	const char *cp;
 #ifdef INET
 	struct sockaddr_in *sin;
 #endif
