@@ -267,6 +267,8 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  * cpufreq(4) hang off this.
  */
 static void	cpu_identify(driver_t *driver, device_t parent);
+static device_probe_t cpu_probe;
+static device_attach_t cpu_attach;
 static int	cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
 static device_t cpu_add_child(device_t bus, u_int order, const char *name,
@@ -281,8 +283,8 @@ struct cpu_device {
 static device_method_t cpu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	cpu_identify),
-	DEVMETHOD(device_probe,		bus_generic_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_probe,		cpu_probe),
+	DEVMETHOD(device_attach,	cpu_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -328,6 +330,21 @@ cpu_identify(driver_t *driver, device_t parent)
 		if (child == NULL)
 			panic("legacy_attach cpu");
 	}
+}
+
+static int
+cpu_probe(device_t dev)
+{
+	device_set_desc(dev, "legacy CPU");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+cpu_attach(device_t dev)
+{
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+	return (0);
 }
 
 static device_t
