@@ -97,6 +97,7 @@ TAILQ_HEAD(cf_setting_lst, cf_setting_array);
 		printf("cpufreq: " msg);	\
 	} while (0)
 
+static int	cpufreq_probe(device_t dev);
 static int	cpufreq_attach(device_t dev);
 static void	cpufreq_startup_task(void *ctx, int pending);
 static int	cpufreq_detach(device_t dev);
@@ -116,7 +117,7 @@ static int	cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS);
 static int	cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t cpufreq_methods[] = {
-	DEVMETHOD(device_probe,		bus_generic_probe),
+	DEVMETHOD(device_probe,		cpufreq_probe),
 	DEVMETHOD(device_attach,	cpufreq_attach),
 	DEVMETHOD(device_detach,	cpufreq_detach),
 
@@ -140,6 +141,13 @@ SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RWTUN, &cf_lowest_freq, 1,
     "Don't provide levels below this frequency.");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RWTUN, &cf_verbose, 1,
     "Print verbose debugging messages");
+
+static int
+cpufreq_probe(device_t dev)
+{
+	device_set_desc(dev, "CPU frequency control");
+	return (BUS_PROBE_DEFAULT);
+}
 
 /*
  * This is called as the result of a hardware specific frequency control driver
