@@ -829,7 +829,7 @@ main(int argc, char *argv[])
 	const char *optstring;
 	char *pp;
 
-	optstring = "b:d:hi:r:s:vw:f:";
+	optstring = "b:d:hi:r:s:uvw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
 		case 'b':
@@ -898,6 +898,10 @@ main(int argc, char *argv[])
 			/* snapeshot == 0 is special */
 			if (snapshot == 0)
 				snapshot = -1;
+			break;
+		case 'u':
+			setbuf(stdout, NULL);
+			setbuf(stderr, NULL);
 			break;
 		case 'v':
 			verbose++;
