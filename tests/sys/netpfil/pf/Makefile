@@ -28,6 +28,7 @@ ATF_TESTS_SH+=	altq \
 		modulate \
 		names \
 		nat \
+		nat64 \
 		pass_block \
 		pflog \
 		pflow \
