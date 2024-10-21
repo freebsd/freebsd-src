@@ -43,6 +43,17 @@ TEST_INTERFACE.${_T}= plain
 .endfor
 .endif
 
+.if !empty(PLAIN_TESTS_PORCH)
+SCRIPTS+= ${PLAIN_TESTS_PORCH:S/$/.orch/}
+_TESTS+= ${PLAIN_TESTS_PORCH}
+.for _T in ${PLAIN_TESTS_PORCH}
+SCRIPTSDIR_${_T}.orch= ${TESTSDIR}
+
+TEST_INTERFACE.${_T}= plain
+TEST_METADATA.${_T}+=	required_programs="porch"
+.endfor
+.endif
+
 .if !empty(PLAIN_TESTS_SH)
 SCRIPTS+= ${PLAIN_TESTS_SH}
 _TESTS+= ${PLAIN_TESTS_SH}
