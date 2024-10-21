@@ -1,0 +1,23 @@
+#!/usr/bin/env -S porch -f
+--
+-- Copyright (c) 2024 Kyle Evans <kevans@FreeBSD.org>
+--
+-- SPDX-License-Identifier: BSD-2-Clause
+--
+
+timeout(3)
+
+local TTYINQ_DATASIZE = 128
+local scream = string.rep("A", TTYINQ_DATASIZE - 1)
+
+spawn("cat")
+
+-- Fill up a whole block with screaming + VEOF
+write(scream .. "^D")
+match(scream .. "$")
+
+scream = scream .. "A"
+
+-- Now fill up the next block, but spill the VEOF over to a third block.
+write(scream .. "^D")
+match(scream .. "$")
