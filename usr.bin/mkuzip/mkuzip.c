@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 	toc[hdr.nblocks] = 0;
 
 	cfs.fdw = open(oname, (cfs.en_dedup ? O_RDWR : O_WRONLY) | O_TRUNC | O_CREAT,
-		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+		   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (cfs.fdw < 0) {
 		err(1, "open(%s)", oname);
 		/* Not reached */

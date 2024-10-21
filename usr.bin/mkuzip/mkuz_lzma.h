@@ -25,16 +25,10 @@
  * SUCH DAMAGE.
  */
 
-/* Format L3.0, since we move to XZ API */
-#define CLOOP_MAGIC_LZMA \
-    "#!/bin/sh\n" \
-    "#L3.0\n" \
-    "n=uncompress\n" \
-    "m=geom_$n\n" \
-    "(kldstat -m $m 2>&-||kldload $m)>&-&&" \
-        "mount_cd9660 /dev/`mdconfig -af $0`.$n $1\n" \
-    "exit $?\n"
 #define DEFAULT_SUFX_LZMA   ".ulzma"
+
+/* Format L3.0, since we move to XZ API */
+#define CLOOP_MAGIC_LZMA "#!/bin/sh\n#L3.0\n"
 
 size_t mkuz_lzma_cbound(size_t);
 void *mkuz_lzma_init(int *);

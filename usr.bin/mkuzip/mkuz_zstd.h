@@ -27,9 +27,7 @@
 
 #define DEFAULT_SUFX_ZSTD       ".uzst"
 
-#define CLOOP_MAGIC_ZSTD        "#!/bin/sh\n#Z4.0 Format\n" \
-    "(kldstat -qm g_uzip||kldload geom_uzip)>&-&&" \
-    "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n"
+#define CLOOP_MAGIC_ZSTD        "#!/bin/sh\n#Z4.0 Format\n"
 
 size_t mkuz_zstd_cbound(size_t);
 void *mkuz_zstd_init(int *);
