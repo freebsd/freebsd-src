@@ -1620,7 +1620,7 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	if (nd->nd_cred->cr_uid == 0)
 		goto out;
 	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid != nd->nd_cred->cr_uid) ||
-	    (NFSVNO_ISSETGID(nvap) && nvap->na_gid != nd->nd_cred->cr_gid &&
+	    (NFSVNO_ISSETGID(nvap) &&
 	    !groupmember(nvap->na_gid, nd->nd_cred)))
 		error = NFSERR_PERM;
 
@@ -1679,8 +1679,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 	}
 	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_OWNERGROUP) &&
 	    NFSVNO_ISSETGID(nvap)) {
-		if (nvap->na_gid == nd->nd_cred->cr_gid ||
-		    groupmember(nvap->na_gid, nd->nd_cred)) {
+		if (groupmember(nvap->na_gid, nd->nd_cred)) {
 			nd->nd_cred->cr_uid = 0;
 			nva.na_gid = nvap->na_gid;
 			change++;
