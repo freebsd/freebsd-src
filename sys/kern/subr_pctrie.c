@@ -958,7 +958,7 @@ pctrie_iter_lookup_le(struct pctrie_iter *it, uint64_t index)
 
 	/*
 	 * If no such node was found, and instead this path leads only to nodes
-	 * > index, back up to find a subtrie with the least value > index.
+	 * > index, back up to find a subtrie with the greatest value < index.
 	 */
 	if (pctrie_isleaf(node) ?
 	    (m = pctrie_toval(node)) == NULL || *m > index :
