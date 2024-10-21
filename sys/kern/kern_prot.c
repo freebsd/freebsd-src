@@ -1306,6 +1306,13 @@ int
 groupmember(gid_t gid, struct ucred *cred)
 {
 
+	/*
+	 * The nfsd server can use a credential with zero groups in it
+	 * when certain mapped export credentials are specified via exports(5).
+	 */
+	if (cred->cr_ngroups == 0)
+		return (0);
+
 	if (cred->cr_groups[0] == gid)
 		return (1);
 
