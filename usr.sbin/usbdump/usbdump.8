@@ -37,6 +37,7 @@
 .Op Fl i Ar ifname
 .Op Fl r Ar file
 .Op Fl s Ar snaplen
+.Op Fl u
 .Op Fl v
 .Op Fl w Ar file
 .Op Fl f Ar filter
@@ -89,6 +90,8 @@ This option also works with the -f option.
 Snapshot
 .Ar snaplen
 bytes from each packet.
+.It Fl u
+Unbuffered output.
 .It Fl v
 Enable debugging messages.
 When defined multiple times the verbosity level increases.
