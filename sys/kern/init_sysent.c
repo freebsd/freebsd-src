@@ -58,6 +58,12 @@
 #define compat13(n, name) .sy_narg = 0, .sy_call = (sy_call_t *)nosys
 #endif
 
+#ifdef COMPAT_FREEBSD14
+#define compat14(n, name) .sy_narg = n, .sy_call = (sy_call_t *)__CONCAT(freebsd14_, name)
+#else
+#define compat14(n, name) .sy_narg = 0, .sy_call = (sy_call_t *)nosys
+#endif
+
 /* The casts are bogus but will do for now. */
 struct sysent sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 0 = syscall */
