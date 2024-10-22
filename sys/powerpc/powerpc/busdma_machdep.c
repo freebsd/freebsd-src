@@ -648,6 +648,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		sgsize = MIN(buflen, PAGE_SIZE - (curaddr & PAGE_MASK));
 		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->alignment);
+			sgsize = MIN(sgsize, buflen);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		}
