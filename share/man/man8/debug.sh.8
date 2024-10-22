@@ -12,7 +12,7 @@
 .\" Please send copies of changes and bug-fixes to:
 .\" sjg@crufty.net
 .\"
-.Dd January 31, 2024
+.Dd October 22, 2024
 .Dt DEBUG.SH 8
 .Os
 .Sh NAME
@@ -29,6 +29,8 @@
 .Ic DebugOff Oo Fl eo Oc Oo Cm rc= Ns Ar rc Oc Ar tag ...
 .It
 .Ic Debugging
+.It
+.Ic DebugAdd Ar tag
 .It
 .Ic DebugEcho Op Ar message
 .It
@@ -110,6 +112,13 @@ It is useful for bounding complex debug actions, rather than
 using lots of
 .Ic $DEBUG_DO
 lines.
+.It Ic DebugAdd Ar tag
+Add
+.Ar tag
+to
+.Va DEBUG_SH
+to influence later output,
+possibly in a child process.
 .It Ic DebugEcho
 is just shorthand for:
 .Bd -literal -offset indent

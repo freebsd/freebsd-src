@@ -9,6 +9,7 @@
 #	DebugOn [-eo] "tag" ...
 #	DebugOff [-eo] [rc="rc"] "tag" ...
 #	Debugging
+#	DebugAdd "tag"
 #	DebugEcho ...
 #	DebugLog ...
 #	DebugShell "tag" ...
@@ -38,6 +39,9 @@
 #	The optional "rc" value will be returned rather than the
 #	default of 0. Thus if DebugOff is the last operation in a
 #	function, "rc" will be the return code of that function.
+#
+#	DebugAdd allows adding a "tag" to "DEBUG_SH" to influence
+#	later events, possibly in a child process.
 #
 #	DebugEcho is just shorthand for:
 #.nf
@@ -74,7 +78,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.40 2024/09/09 20:06:00 sjg Exp $
+#	$Id: debug.sh,v 1.41 2024/10/22 17:57:22 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -167,6 +171,21 @@ _debugOff() {
 	DEBUG_X=
 }
 
+##
+# DebugAdd tag
+#
+# Add tag to DEBUG_SH
+#
+DebugAdd() {
+        DEBUG_SH=${DEBUG_SH:+$DEBUG_SH,}$1
+        export DEBUG_SH
+}
+
+##
+# DebugEcho message
+#
+# Output message if we are debugging
+#
 DebugEcho() {
 	$DEBUG_DO echo "$@"
 }
