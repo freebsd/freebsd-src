@@ -47,10 +47,8 @@ local config = {
 	ptr_intptr_t_cast = "intptr_t",
 	obsol = {},
 	unimpl = {},
-	capabilities_conf = "capabilities.conf",
 	compat_set = "native",
 	mincompat = 0,
-	capenabled = {},
 	-- System calls that require ABI-specific handling.
 	syscall_abi_change = {},
 	-- System calls that appear to require handling, but don't.
@@ -222,8 +220,7 @@ function config.merge(fh)
 				-- Match for pipe, that's how abi_flags
 				-- is formatted.
 				config[k] = util.setFromString(v, "[^|]+")
-			elseif k:find("capenabled") or
-			    k:find("syscall_abi_change") or
+			elseif k:find("syscall_abi_change") or
 			    k:find("syscall_no_abi_change") or
 			    k:find("obsol") or
 			    k:find("unimpl") then
@@ -260,52 +257,6 @@ function config.mergeCompat()
 		end
 
 		config.compat_options = compat_option_sets[config.compat_set]
-	end
-end
-
--- Parses the provided capabilities.conf. Returns a string (comma separated
--- list) as its formatted in capabilities.conf, or NIL and a message if no file
--- was provided.
-local function grabCapenabled(file, open_fail_ok)
-	local capentries = {}
-	local commentExpr = "#.*"
-
-	if file == nil then
-		return nil, "No file given"
-	end
-
-	local fh, msg, errno = io.open(file)
-	if fh == nil then
-		if not open_fail_ok then
-			util.abort(errno, msg)
-		end
-		return nil, msg
-	end
-
-	for nextline in fh:lines() do
-		-- Strip any comments.
-		nextline = nextline:gsub(commentExpr, "")
-		if nextline ~= "" then
-			capentries[nextline] = true
-		end
-	end
-
-	assert(fh:close())
-	return capentries
-end
-
--- Merge capability (Capsicum) configuration into the global config.
-function config.mergeCapability()
-	-- We ignore errors here if we're relying on the default configuration.
-	if not config.modifications.capenabled then
-		config.capenabled = grabCapenabled(config.capabilities_conf,
-		    config.modifications.capabilities_conf == nil)
-	elseif config.capenabled ~= "" then
-		-- We have a comma separated list from the format of
-		-- capabilities.conf, split it into a set with boolean values
-		-- for each key.
-		config.capenabled = util.setFromString(config.capenabled,
-		    "[^,]+")
 	end
 end
 
