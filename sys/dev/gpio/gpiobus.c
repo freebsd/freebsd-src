@@ -752,7 +752,7 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 	}
 }
 
-static int
+int
 gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct gpiobus_ivar *devi;
