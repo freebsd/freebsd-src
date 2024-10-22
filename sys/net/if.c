@@ -832,6 +832,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 
 #ifdef VIMAGE
+	CURVNET_ASSERT_SET();
 	ifp->if_vnet = curvnet;
 	if (ifp->if_home_vnet == NULL)
 		ifp->if_home_vnet = curvnet;
