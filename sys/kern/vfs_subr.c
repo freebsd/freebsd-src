@@ -538,6 +538,42 @@ PCTRIE_DEFINE_SMR(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free,
     buf_trie_smr);
 
 /*
+ * Lookup the next element greater than or equal to lblkno, accounting for the
+ * fact that, for pctries, negative values are greater than nonnegative ones.
+ */
+static struct buf *
+buf_lookup_ge(struct bufv *bv, daddr_t lblkno)
+{
+	struct buf *bp;
+
+	bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, lblkno);
+	if (bp == NULL && lblkno < 0)
+		bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, 0);
+	if (bp != NULL && bp->b_lblkno < lblkno)
+		bp = NULL;
+	return (bp);
+}
+
+/*
+ * Insert bp, and find the next element smaller than bp, accounting for the fact
+ * that, for pctries, negative values are greater than nonnegative ones.
+ */
+static int
+buf_insert_lookup_le(struct bufv *bv, struct buf *bp, struct buf **n)
+{
+	int error;
+
+	error = BUF_PCTRIE_INSERT_LOOKUP_LE(&bv->bv_root, bp, n);
+	if (error != EEXIST) {
+		if (*n == NULL && bp->b_lblkno >= 0)
+			*n = BUF_PCTRIE_LOOKUP_LE(&bv->bv_root, ~0L);
+		if (*n != NULL && (*n)->b_lblkno >= bp->b_lblkno)
+			*n = NULL;
+	}
+	return (error);
+}
+
+/*
  * Initialize the vnode management data structures.
  *
  * Reevaluate the following cap on the number of vnodes after the physical
@@ -2489,9 +2525,8 @@ bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
 
 	for (lblkno = startn;;) {
 again:
-		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
-		if (bp == NULL || bp->b_lblkno >= endn ||
-		    bp->b_lblkno < startn)
+		bp = buf_lookup_ge(bufv, lblkno);
+		if (bp == NULL || bp->b_lblkno >= endn)
 			break;
 		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
 		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
@@ -2628,9 +2663,8 @@ v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 	clean = true;
 	do {
 		bv = clean ? &bo->bo_clean : &bo->bo_dirty;
-		bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, startlbn);
-		if (bp == NULL || bp->b_lblkno >= endlbn ||
-		    bp->b_lblkno < startlbn)
+		bp = buf_lookup_ge(bv, startlbn);
+		if (bp == NULL)
 			continue;
 		TAILQ_FOREACH_FROM_SAFE(bp, &bv->bv_hd, b_bobufs, nbp) {
 			if (bp->b_lblkno >= endlbn)
@@ -2709,13 +2743,13 @@ buf_vlist_find_or_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	else
 		bv = &bo->bo_clean;
 
-	error = BUF_PCTRIE_INSERT_LOOKUP_LE(&bv->bv_root, bp, &n);
+	error = buf_insert_lookup_le(bv, bp, &n);
 	if (n == NULL) {
 		KASSERT(error != EEXIST,
 		    ("buf_vlist_add: EEXIST but no existing buf found: bp %p",
 		    bp));
 	} else {
-		KASSERT((uint64_t)n->b_lblkno <= (uint64_t)bp->b_lblkno,
+		KASSERT(n->b_lblkno <= bp->b_lblkno,
 		    ("buf_vlist_add: out of order insert/lookup: bp %p n %p",
 		    bp, n));
 		KASSERT((n->b_lblkno == bp->b_lblkno) == (error == EEXIST),
@@ -2728,16 +2762,14 @@ buf_vlist_find_or_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	/* Keep the list ordered. */
 	if (n == NULL) {
 		KASSERT(TAILQ_EMPTY(&bv->bv_hd) ||
-		    (uint64_t)bp->b_lblkno <
-		    (uint64_t)TAILQ_FIRST(&bv->bv_hd)->b_lblkno,
+		    bp->b_lblkno < TAILQ_FIRST(&bv->bv_hd)->b_lblkno,
 		    ("buf_vlist_add: queue order: "
 		    "%p should be before first %p",
 		    bp, TAILQ_FIRST(&bv->bv_hd)));
 		TAILQ_INSERT_HEAD(&bv->bv_hd, bp, b_bobufs);
 	} else {
 		KASSERT(TAILQ_NEXT(n, b_bobufs) == NULL ||
-		    (uint64_t)bp->b_lblkno <
-		    (uint64_t)TAILQ_NEXT(n, b_bobufs)->b_lblkno,
+		    bp->b_lblkno < TAILQ_NEXT(n, b_bobufs)->b_lblkno,
 		    ("buf_vlist_add: queue order: "
 		    "%p should be before next %p",
 		    bp, TAILQ_NEXT(n, b_bobufs)));
