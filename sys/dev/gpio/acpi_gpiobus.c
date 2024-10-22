@@ -52,8 +52,6 @@ acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 	uint32_t flags = 0;
 
 	/* Figure out pin flags */
-#ifdef NOT_YET
-	/* These are currently unused. */
 	if (gpio_res->ConnectionType == ACPI_RESOURCE_GPIO_TYPE_INT) {
 		switch (gpio_res->Polarity) {
 		case ACPI_ACTIVE_HIGH:
@@ -69,10 +67,12 @@ acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 			break;
 		}
 
+#ifdef NOT_YET
+		/* This is not currently implemented. */
 		if (gpio_res->Shareable == ACPI_SHARED)
 			flags |= GPIO_INTR_SHAREABLE;
-	}
 #endif
+	}
 	switch (gpio_res->IoRestriction) {
 	case ACPI_IO_RESTRICT_INPUT:
 		flags |= GPIO_PIN_INPUT;
