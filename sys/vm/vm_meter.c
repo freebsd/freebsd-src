@@ -455,7 +455,8 @@ u_int
 vm_laundry_count(void)
 {
 
-	return (vm_pagequeue_count(PQ_LAUNDRY));
+	return (vm_pagequeue_count(PQ_LAUNDRY) +
+	    vm_pagequeue_count(PQ_UNSWAPPABLE));
 }
 
 static int
@@ -476,6 +477,18 @@ sysctl_vm_pdpages(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdpages,
     CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0, sysctl_vm_pdpages, "QU",
     "Pages analyzed by pagedaemon");
+
+static int
+sysctl_vm_laundry_pages(SYSCTL_HANDLER_ARGS)
+{
+	struct vm_domain *vmd;
+	u_int ret;
+
+	vmd = arg1;
+	ret = vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt +
+	    vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt;
+	return (SYSCTL_OUT(req, &ret, sizeof(ret)));
+}
 
 static void
 vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
@@ -503,8 +516,9 @@ vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
 	    "inactpdpgs", CTLFLAG_RD,
 	    &vmd->vmd_pagequeues[PQ_INACTIVE].pq_pdpages, 0,
 	    "Inactive pages scanned by the page daemon");
-	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "laundry", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt, 0,
+	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "laundry", CTLFLAG_RD | CTLTYPE_UINT, vmd, 0,
+	    sysctl_vm_laundry_pages, "IU",
 	    "laundry pages");
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "laundpdpgs", CTLFLAG_RD,
