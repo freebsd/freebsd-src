@@ -1574,7 +1574,7 @@ write_line("libsys_h", string.format([[/*
 ]], generated_tag))
 
 write_line("systrace", string.format([[/*
- * System call argument to DTrace register array converstion.
+ * System call argument to DTrace register array conversion.
  *
  * This file is part of the DTrace syscall provider.
  *
