@@ -459,6 +459,7 @@ int	in_joingroup_locked(struct ifnet *, const struct in_addr *,
 int	in_leavegroup(struct in_multi *, /*const*/ struct in_mfilter *);
 int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
+int	in_mask2len(struct in_addr *);
 int	in_control(struct socket *, u_long, void *, struct ifnet *,
 	    struct thread *);
 int	in_control_ioctl(u_long, void *, struct ifnet *,

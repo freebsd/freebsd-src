@@ -442,6 +442,27 @@ in_control_ioctl(u_long cmd, void *data, struct ifnet *ifp,
 }
 
 int
+in_mask2len(struct in_addr *mask)
+{
+	int x, y;
+	u_char *p;
+
+	p = (u_char *)mask;
+	for (x = 0; x < sizeof(*mask); x++) {
+		if (p[x] != 0xff)
+			break;
+	}
+	y = 0;
+	if (x < sizeof(*mask)) {
+		for (y = 0; y < 8; y++) {
+			if ((p[x] & (0x80 >> y)) == 0)
+				break;
+		}
+	}
+	return (x * 8 + y);
+}
+
+int
 in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
     struct thread *td)
 {
