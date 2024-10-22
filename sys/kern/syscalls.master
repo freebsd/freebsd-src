@@ -58,10 +58,10 @@
 ;  - Use u_int and u_long rather than "unsigned (int|long)".
 ;  - size_t is allowed.
 ;  - typedefs are allowed, but new signed types that vary between 32- and
-;    64-bit ABIs must be added to makesyscalls.lua so it knows they require
-;    handling.
+;    64-bit ABIs must be added to config.known_abi_flags in
+;    sys/tools/syscalls/config.lua so it knows they require handling.
 ;  - Always-64-bit types other than dev_t, id_t, and off_t must be added to
-;    makesyscalls.lua.
+;    util.is64bitType in sys/tools/syscalls/tools/util.lua.
 ; For pointers:
 ;  - Prefer structs to typedefs so an ABI-specific suffix (e.g., "32") can
 ;    be prepended (e.g., ucontext_t -> struct ucontext -> struct ucontext32).
