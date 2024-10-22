@@ -2574,7 +2574,8 @@ static void
 acpi_report_sdp(ACPI_TABLE_HEADER *sdp)
 {
 	for (u_int i = 0; i < nitems(known); i++) {
-		if (memcmp(sdp->Signature, known[i].sig, ACPI_NAMESEG_SIZE) != 0) {
+		if (memcmp(sdp->Signature, known[i].sig, ACPI_NAMESEG_SIZE)
+		    == 0) {
 			known[i].fnp(sdp);
 			return;
 		}
