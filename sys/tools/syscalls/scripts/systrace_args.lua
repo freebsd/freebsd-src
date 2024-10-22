@@ -255,7 +255,6 @@ if script then
 
 	config.merge(configfile)
 	config.mergeCompat()
-	config.mergeCapability()
 
 	-- The parsed system call table.
 	local tbl = FreeBSDSyscall:new{sysfile = sysfile, config = config}

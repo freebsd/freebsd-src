@@ -48,14 +48,9 @@ end
 function syscall:processCap()
 	self.cap = "0"
 	local stripped = util.stripAbiPrefix(self.name, self.prefix)
-	if config.capenabled ~= nil and (config.capenabled[self.name] ~= nil or
-		config.capenabled[stripped] ~= nil) then
-		self.cap = "SYF_CAPENABLED"
-	else
-		for k, _ in pairs(self.type) do
-			if k == "CAPENABLED" then
-				self.cap = "SYF_CAPENABLED"
-			end
+	for k, _ in pairs(self.type) do
+		if k == "CAPENABLED" then
+			self.cap = "SYF_CAPENABLED"
 		end
 	end
 end

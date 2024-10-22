@@ -40,7 +40,6 @@ local sysfile, configfile = arg[1], arg[2]
 
 config.merge(configfile)
 config.mergeCompat()
-config.mergeCapability()
 
 local tbl = FreeBSDSyscall:new{sysfile = sysfile, config = config}
 
