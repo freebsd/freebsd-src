@@ -864,6 +864,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 		    ifp->if_xname);
 
 #ifdef VIMAGE
+	CURVNET_ASSERT_SET();
 	ifp->if_vnet = curvnet;
 	if (ifp->if_home_vnet == NULL)
 		ifp->if_home_vnet = curvnet;
