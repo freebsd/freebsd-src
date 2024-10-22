@@ -30,12 +30,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/domainset.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -231,6 +232,10 @@ dmar_get_idmap_pgtbl(struct dmar_domain *domain, iommu_gaddr_t maxaddr)
 	tbl->maxaddr = maxaddr;
 	tbl->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
 	    IDX_TO_OFF(pglvl_max_pages(tbl->pglvl)), 0, 0, NULL);
+	/*
+	 * Do not set NUMA policy, the identity table might be used
+	 * by more than one unit.
+	 */
 	VM_OBJECT_WLOCK(tbl->pgtbl_obj);
 	dmar_idmap_nextlvl(tbl, 0, 0, 0);
 	VM_OBJECT_WUNLOCK(tbl->pgtbl_obj);
@@ -675,21 +680,27 @@ int
 dmar_domain_alloc_pgtbl(struct dmar_domain *domain)
 {
 	vm_page_t m;
+	struct dmar_unit *unit;
 
 	KASSERT(domain->pgtbl_obj == NULL,
 	    ("already initialized %p", domain));
 
+	unit = domain->dmar;
 	domain->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
 	    IDX_TO_OFF(pglvl_max_pages(domain->pglvl)), 0, 0, NULL);
+	if (unit->memdomain != -1) {
+		domain->pgtbl_obj->domain.dr_policy = DOMAINSET_PREF(
+		    unit->memdomain);
+	}
 	DMAR_DOMAIN_PGLOCK(domain);
 	m = iommu_pgalloc(domain->pgtbl_obj, 0, IOMMU_PGF_WAITOK |
 	    IOMMU_PGF_ZERO | IOMMU_PGF_OBJL);
 	/* No implicit free of the top level page table page. */
 	vm_page_wire(m);
 	DMAR_DOMAIN_PGUNLOCK(domain);
-	DMAR_LOCK(domain->dmar);
+	DMAR_LOCK(unit);
 	domain->iodom.flags |= IOMMU_DOMAIN_PGTBL_INITED;
-	DMAR_UNLOCK(domain->dmar);
+	DMAR_UNLOCK(unit);
 	return (0);
 }
 

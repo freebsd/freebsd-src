@@ -38,6 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -325,12 +326,34 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	    DMAR_ECAP_IRO(unit->hw_ecap));
 }
 
+/* Remapping Hardware Static Affinity Structure lookup */
+struct rhsa_iter_arg {
+	uint64_t base;
+	u_int proxim_dom;
+};
+
+static int
+dmar_rhsa_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
+{
+	struct rhsa_iter_arg *ria;
+	ACPI_DMAR_RHSA *adr;
+
+	if (dmarh->Type == ACPI_DMAR_TYPE_HARDWARE_AFFINITY) {
+		ria = arg;
+		adr = (ACPI_DMAR_RHSA *)dmarh;
+		if (adr->BaseAddress == ria->base)
+			ria->proxim_dom = adr->ProximityDomain;
+	}
+	return (1);
+}
+
 static int
 dmar_attach(device_t dev)
 {
 	struct dmar_unit *unit;
 	ACPI_DMAR_HARDWARE_UNIT *dmaru;
 	struct iommu_msi_data *dmd;
+	struct rhsa_iter_arg ria;
 	uint64_t timeout;
 	int disable_pmr;
 	int i, error;
@@ -358,6 +381,12 @@ dmar_attach(device_t dev)
 	if (bootverbose)
 		dmar_print_caps(dev, unit, dmaru);
 	dmar_quirks_post_ident(unit);
+	unit->memdomain = -1;
+	ria.base = unit->base;
+	ria.proxim_dom = -1;
+	dmar_iterate_tbl(dmar_rhsa_iter, &ria);
+	if (ria.proxim_dom != -1)
+		unit->memdomain = acpi_map_pxm_to_vm_domainid(ria.proxim_dom);
 
 	timeout = dmar_get_timeout();
 	TUNABLE_UINT64_FETCH("hw.iommu.dmar.timeout", &timeout);
@@ -424,6 +453,10 @@ dmar_attach(device_t dev)
 
 	unit->ctx_obj = vm_pager_allocate(OBJT_PHYS, NULL, IDX_TO_OFF(1 +
 	    DMAR_CTX_CNT), 0, 0, NULL);
+	if (unit->memdomain != -1) {
+		unit->ctx_obj->domain.dr_policy = DOMAINSET_PREF(
+		    unit->memdomain);
+	}
 
 	/*
 	 * Allocate and load the root entry table pointer.  Enable the

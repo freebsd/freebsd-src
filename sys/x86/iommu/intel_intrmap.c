@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -337,10 +338,20 @@ dmar_init_irt(struct dmar_unit *unit)
 		return (0);
 	}
 	unit->irte_cnt = roundup_pow_of_two(num_io_irqs);
-	unit->irt = kmem_alloc_contig(unit->irte_cnt * sizeof(dmar_irte_t),
-	    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
-	    DMAR_IS_COHERENT(unit) ?
-	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
+	if (unit->memdomain == -1) {
+		unit->irt = kmem_alloc_contig(
+		    unit->irte_cnt * sizeof(dmar_irte_t),
+		    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
+		    DMAR_IS_COHERENT(unit) ?
+		    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
+	} else {
+		unit->irt = kmem_alloc_contig_domainset(
+		    DOMAINSET_PREF(unit->memdomain),
+		    unit->irte_cnt * sizeof(dmar_irte_t),
+		    M_ZERO | M_WAITOK, 0, iommu_high, PAGE_SIZE, 0,
+		    DMAR_IS_COHERENT(unit) ?
+		    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
+	}
 	if (unit->irt == NULL)
 		return (ENOMEM);
 	unit->irt_phys = pmap_kextract((vm_offset_t)unit->irt);

@@ -109,6 +109,7 @@ struct dmar_unit {
 	struct x86_unit_common x86c;
 	uint16_t segment;
 	uint64_t base;
+	int memdomain;
 
 	/* Resources */
 	int reg_rid;
