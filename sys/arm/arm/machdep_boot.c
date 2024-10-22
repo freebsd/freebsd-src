@@ -270,7 +270,6 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 {
 	vm_offset_t lastaddr = 0;
 	void *mdp;
-	void *kmdp;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -287,17 +286,19 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	if ((mdp = (void *)(abp->abp_r0 & ~PAGE_MASK)) == NULL)
 		return 0;
 	preload_metadata = mdp;
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
+
+	/* Initialize preload_kmdp */
+	preload_initkmdp(false);
+	if (preload_kmdp == NULL)
 		return 0;
 
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+	loader_envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 	init_static_kenv(loader_envp, 0);
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+	lastaddr = MD_FETCH(preload_kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 	return lastaddr;
@@ -358,9 +359,9 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 	strcpy((char*)&fake_preload[i++], "kernel");
 	i += 1;
 	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
+	fake_preload[i++] = strlen(preload_kerntype) + 1;
+	strcpy((char*)&fake_preload[i], preload_kerntype);
+	i += howmany(fake_preload[i - 1], sizeof(uint32_t));
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
 	fake_preload[i++] = KERNVIRTADDR;
@@ -380,6 +381,9 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
+
+	/* Initialize preload_kmdp */
+	preload_initkmdp(true);
 
 	init_static_kenv(NULL, 0);
 
