@@ -534,6 +534,12 @@
 #define	CPUID_STDEXT3_CORE_CAP		0x40000000
 #define	CPUID_STDEXT3_SSBD		0x80000000
 
+/*
+ * CPUID instruction 7 Structured Extended Features, leaf 1 eax info
+ */
+#define	CPUID_STDEXT4_LASS		0x00000040
+#define	CPUID_STDEXT4_LAM		0x04000000
+
 /* CPUID_HYBRID_ID leaf 0x1a */
 #define	CPUID_HYBRID_CORE_MASK	0xff000000
 #define	CPUID_HYBRID_SMALL_CORE	0x20000000
