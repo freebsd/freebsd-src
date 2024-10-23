@@ -296,6 +296,7 @@ ATF_TC_BODY(test_rdonly_wronly, tc)
 	fclose(fp);
 
 	fp = fmemopen(buf_orig, sizeof(buf), "w");
+	ATF_REQUIRE(fp != NULL);
 	sz = fread(buf, sizeof(buf), 1, fp);
 	ATF_REQUIRE(sz == 0);
 	ATF_REQUIRE(errno == EBADF);
