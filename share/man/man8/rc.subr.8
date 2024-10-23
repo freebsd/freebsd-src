@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 22, 2024
+.Dd October 23, 2024
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -1017,41 +1017,27 @@ and
 to enable tracing if any of those tags appear in
 .Va DEBUG_SH .
 .Pp
-The startup behaviour of
+.Ic run_rc_script
+executes
 .Ar file
-depends upon the following checks:
+unless:
 .Bl -enum
 .It
-If
 .Ar file
 ends in
-.Pa .sh ,
-it is sourced into the current shell.
+.Pa .sh
+and lives in
+.Pa /etc/rc.d .
 .It
-If
 .Ar file
 appears to be a backup or scratch file
-(e.g., with a suffix of
-.Pa ~ , # , .OLD ,
+.Po e.g., with a suffix of
+.Pa ~ , # , .OLD , ,v ,
 or
-.Pa .orig ) ,
-ignore it.
+.Pa .orig Pc .
 .It
-If
 .Ar file
-is not executable, ignore it.
-.It
-If the
-.Xr rc.conf 5
-variable
-.Va rc_fast_and_loose
-is empty,
-source
-.Ar file
-in a sub shell,
-otherwise source
-.Ar file
-into the current shell.
+is not executable.
 .El
 .It Ic run_rc_scripts Oo options Oc file ...
 Call
