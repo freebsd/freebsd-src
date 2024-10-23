@@ -200,7 +200,7 @@ gic_cpu_mask(struct arm_gic_softc *sc)
 
 #ifdef SMP
 static void
-arm_gic_init_secondary(device_t dev, uint32_t rootnum)
+arm_gic_init_secondary(device_t dev, enum root_type root_type)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	u_int irq, cpu;

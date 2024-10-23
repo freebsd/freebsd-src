@@ -30,9 +30,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
