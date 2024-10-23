@@ -1854,8 +1854,10 @@ intr_ipi_pic_register(device_t dev, u_int priority)
 		return (EBUSY);
 	}
 
-	if (intr_ipi_dev == NULL || priority > intr_ipi_dev_priority)
+	if (intr_ipi_dev == NULL || priority > intr_ipi_dev_priority) {
+		intr_ipi_dev_priority = priority;
 		intr_ipi_dev = dev;
+	}
 
 	return (0);
 }
