@@ -75,10 +75,9 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 	}
 
 	/*
-	 * There's no point in requiring an automatically allocated buffer
-	 * in write-only mode.
+	 * An automatically allocated buffer is only allowed in read-write mode.
 	 */
-	if (!(flags & O_RDWR) && buf == NULL) {
+	if ((flags & O_ACCMODE) != O_RDWR && buf == NULL) {
 		errno = EINVAL;
 		return (NULL);
 	}
@@ -137,9 +136,10 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 		break;
 	}
 
+	/* Disable read in O_WRONLY mode, and write in O_RDONLY mode. */
 	f = funopen(ck,
-	    flags & O_WRONLY ? NULL : fmemopen_read, 
-	    flags & O_RDONLY ? NULL : fmemopen_write,
+	    (flags & O_ACCMODE) == O_WRONLY ? NULL : fmemopen_read,
+	    (flags & O_ACCMODE) == O_RDONLY ? NULL : fmemopen_write,
 	    fmemopen_seek, fmemopen_close);
 
 	if (f == NULL) {
