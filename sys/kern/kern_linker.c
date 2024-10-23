@@ -2030,6 +2030,10 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 		printf("linker.hints file too large %ld\n", (long)vattr.va_size);
 		goto bad;
 	}
+	if (vattr.va_size < sizeof(ival)) {
+		printf("linker.hints file truncated\n");
+		goto bad;
+	}
 	hints = malloc(vattr.va_size, M_TEMP, M_WAITOK);
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,
 	    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED, &reclen, td);
