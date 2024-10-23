@@ -84,6 +84,13 @@
 #define	CR4_SMAP	0x00200000	/* Supervisor-Mode Access
 					   Prevention */
 #define	CR4_PKE		0x00400000	/* Protection Keys Enable */
+#define	CR4_CET		0x00800000	/* Control-flow Enforcement
+					   Technology */
+#define	CR4_PKS		0x01000000	/* Protection Keys for Supervisor */
+#define	CR4_UINTR	0x02000000	/* User Interrupts Enable */
+#define	CR4_LASS	0x08000000	/* Linear Address Space Separation */
+#define	CR4_LAM_SUP	0x10000000	/* Linear-Address Masking for
+					   Supervisor */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
