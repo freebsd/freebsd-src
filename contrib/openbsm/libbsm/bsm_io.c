@@ -644,7 +644,7 @@ print_user(FILE *fp, u_int32_t usr, int oflags)
 {
 	struct passwd *pwent;
 
-	if (oflags & AU_OFLAG_RAW)
+	if (oflags & (AU_OFLAG_RAW | AU_OFLAG_NORESOLVE))
 		fprintf(fp, "%d", usr);
 	else {
 		pwent = getpwuid(usr);
@@ -663,7 +663,7 @@ print_group(FILE *fp, u_int32_t grp, int oflags)
 {
 	struct group *grpent;
 
-	if (oflags & AU_OFLAG_RAW)
+	if (oflags & (AU_OFLAG_RAW | AU_OFLAG_NORESOLVE))
 		fprintf(fp, "%d", grp);
 	else {
 		grpent = getgrgid(grp);
