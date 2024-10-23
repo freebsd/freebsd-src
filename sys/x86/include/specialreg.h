@@ -59,39 +59,45 @@
 /*
  * Bits in PPro special registers
  */
-#define	CR4_VME	0x00000001	/* Virtual 8086 mode extensions */
-#define	CR4_PVI	0x00000002	/* Protected-mode virtual interrupts */
-#define	CR4_TSD	0x00000004	/* Time stamp disable */
-#define	CR4_DE	0x00000008	/* Debugging extensions */
-#define	CR4_PSE	0x00000010	/* Page size extensions */
-#define	CR4_PAE	0x00000020	/* Physical address extension */
-#define	CR4_MCE	0x00000040	/* Machine check enable */
-#define	CR4_PGE	0x00000080	/* Page global enable */
-#define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
-#define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
-#define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
-#define	CR4_UMIP 0x00000800	/* User Mode Instruction Prevention */
-#define	CR4_LA57 0x00001000	/* Enable 5-level paging */
-#define	CR4_VMXE 0x00002000	/* enable VMX operation (Intel-specific) */
-#define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
-#define	CR4_PCIDE 0x00020000	/* Enable Context ID */
-#define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
-#define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
-#define	CR4_SMAP 0x00200000	/* Supervisor-Mode Access Prevention */
-#define	CR4_PKE	0x00400000	/* Protection Keys Enable */
+#define	CR4_VME		0x00000001	/* Virtual 8086 mode extensions */
+#define	CR4_PVI		0x00000002	/* Protected-mode virtual interrupts */
+#define	CR4_TSD		0x00000004	/* Time stamp disable */
+#define	CR4_DE		0x00000008	/* Debugging extensions */
+#define	CR4_PSE		0x00000010	/* Page size extensions */
+#define	CR4_PAE		0x00000020	/* Physical address extension */
+#define	CR4_MCE		0x00000040	/* Machine check enable */
+#define	CR4_PGE		0x00000080	/* Page global enable */
+#define	CR4_PCE		0x00000100	/* Performance monitoring counter
+					   enable */
+#define	CR4_FXSR	0x00000200	/* Fast FPU save/restore used by OS */
+#define	CR4_XMM		0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_UMIP	0x00000800	/* User Mode Instruction Prevention */
+#define	CR4_LA57	0x00001000	/* Enable 5-level paging */
+#define	CR4_VMXE	0x00002000	/* enable VMX operation
+					   (Intel-specific) */
+#define	CR4_FSGSBASE	0x00010000	/* Enable FS/GS BASE access
+					   instructions */
+#define	CR4_PCIDE	0x00020000	/* Enable Context ID */
+#define	CR4_XSAVE	0x00040000	/* XSETBV/XGETBV */
+#define	CR4_SMEP	0x00100000	/* Supervisor-Mode Execution
+					   Prevention */
+#define	CR4_SMAP	0x00200000	/* Supervisor-Mode Access
+					   Prevention */
+#define	CR4_PKE		0x00400000	/* Protection Keys Enable */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
  */
-#define	EFER_SCE 0x000000001	/* System Call Extensions (R/W) */
-#define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
-#define	EFER_LMA 0x000000400	/* Long mode active (R) */
-#define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
-#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
-#define	EFER_LMSLE 0x000002000	/* Long Mode Segment Limit Enable */
-#define	EFER_FFXSR 0x000004000	/* Fast FXSAVE/FSRSTOR */
-#define	EFER_TCE   0x000008000	/* Translation Cache Extension */
-#define	EFER_MCOMMIT	0x00020000	/* Enable MCOMMIT (AMD) */
+#define	EFER_SCE	0x000000001	/* System Call Extensions (R/W) */
+#define	EFER_LME	0x000000100	/* Long mode enable (R/W) */
+#define	EFER_LMA	0x000000400	/* Long mode active (R) */
+#define	EFER_NXE	0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM	0x000001000	/* SVM enable bit for AMD, reserved
+					   for Intel */
+#define	EFER_LMSLE	0x000002000	/* Long Mode Segment Limit Enable */
+#define	EFER_FFXSR	0x000004000	/* Fast FXSAVE/FSRSTOR */
+#define	EFER_TCE	0x000008000	/* Translation Cache Extension */
+#define	EFER_MCOMMIT	0x000020000	/* Enable MCOMMIT (AMD) */
 
 /*
  * Intel Extended Features registers
