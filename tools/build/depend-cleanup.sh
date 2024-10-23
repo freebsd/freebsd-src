@@ -95,3 +95,13 @@ if [ -d "$OBJTOP"/usr.sbin/zic/zic ] ; then
 	echo "Removing old zic directory"
 	rm -rf "$OBJTOP"/usr.sbin/zic/zic
 fi
+
+# 20241018  5deeebd8c6ca   Merge llvm-project release/19.x llvmorg-19.1.2-0-g7ba7d8e2f7b6
+p="$OBJTOP"/lib/clang/libclang/clang/Basic
+f="$p"/arm_mve_builtin_sema.inc
+if [ -e "$f" ]; then
+	if grep -q SemaBuiltinConstantArgRange "$f"; then
+		echo "Removing pre-llvm19 clang-tblgen output"
+		run rm -f "$p"/*.inc
+	fi
+fi
