@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
- * Copyright (c) 2016 The FreeBSD Foundation, Inc.
+ * Copyright (c) 2016 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Kurt Lidl
