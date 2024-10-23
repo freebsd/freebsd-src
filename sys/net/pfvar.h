@@ -1600,6 +1600,9 @@ struct pf_pdesc {
 		char any[0];
 	} hdr;
 
+	struct pf_addr	 nsaddr;	/* src address after NAT */
+	struct pf_addr	 ndaddr;	/* dst address after NAT */
+
 	struct pfi_kkif	*kif;		/* incomming interface */
 	struct mbuf	*m;
 
@@ -1609,6 +1612,8 @@ struct pf_pdesc {
 	u_int16_t	*dport;
 	u_int16_t	 osport;
 	u_int16_t	 odport;
+	u_int16_t	 nsport;	/* src port after NAT */
+	u_int16_t	 ndport;	/* dst port after NAT */
 	struct pf_mtag	*pf_mtag;
 	struct pf_rule_actions	act;
 
@@ -2644,13 +2649,11 @@ u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_ksrc_node **, struct pf_srchash **);
 u_short			 pf_get_translation(struct pf_pdesc *,
 			    int, struct pf_state_key **, struct pf_state_key **,
-			    struct pf_addr *, struct pf_addr *,
-			    uint16_t, uint16_t, struct pf_kanchor_stackframe *,
-			    struct pf_krule **,
+			    struct pf_kanchor_stackframe *, struct pf_krule **,
 			    struct pf_udp_mapping **udp_mapping);
 
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *,
-			    struct pf_addr *, struct pf_addr *, u_int16_t, u_int16_t);
+			    u_int16_t, u_int16_t);
 struct pf_state_key	*pf_state_key_clone(const struct pf_state_key *);
 void			 pf_rule_to_actions(struct pf_krule *,
 			    struct pf_rule_actions *);
