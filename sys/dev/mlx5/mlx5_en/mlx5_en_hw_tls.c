@@ -335,9 +335,7 @@ mlx5e_tls_snd_tag_alloc(if_t ifp,
 		return (EOPNOTSUPP);
 
 	/* allocate new tag from zone, if any */
-	ptag = uma_zalloc(priv->tls.zone, M_NOWAIT);
-	if (ptag == NULL)
-		return (ENOMEM);
+	ptag = uma_zalloc(priv->tls.zone, M_WAITOK);
 
 	/* sanity check default values */
 	MPASS(ptag->dek_index == 0);
