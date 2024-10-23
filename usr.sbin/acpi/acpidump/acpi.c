@@ -2547,7 +2547,7 @@ acpi_print_rsd_ptr(ACPI_TABLE_RSDP *rp)
 	printf(END_COMMENT);
 }
 
-static struct {
+static const struct {
 	const char *sig;
 	void (*fnp)(ACPI_TABLE_HEADER *);
 } known[] = {
