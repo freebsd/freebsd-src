@@ -107,6 +107,9 @@
 #define	EFER_FFXSR	0x000004000	/* Fast FXSAVE/FSRSTOR */
 #define	EFER_TCE	0x000008000	/* Translation Cache Extension */
 #define	EFER_MCOMMIT	0x000020000	/* Enable MCOMMIT (AMD) */
+#define	EFER_INTWB	0x000040000	/* Interruptible WBINVD */
+#define	EFER_UAIE	0x000100000	/* Upper Address Ignore */
+#define	EFER_AIBRSE	0x000200000	/* Automatic IBRS */
 
 /*
  * Intel Extended Features registers
