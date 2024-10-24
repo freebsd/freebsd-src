@@ -40,6 +40,7 @@ arm64/arm64/debug_monitor.c			standard
 arm64/arm64/disassem.c				optional ddb
 arm64/arm64/dump_machdep.c			standard
 arm64/arm64/efirt_machdep.c			optional efirt
+arm64/arm64/efirt_support.S			optional efirt
 arm64/arm64/elf32_machdep.c			optional compat_freebsd32
 arm64/arm64/elf_machdep.c			standard
 arm64/arm64/exception.S				standard
