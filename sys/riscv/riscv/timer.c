@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -50,7 +51,6 @@
 #include <sys/watchdog.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr.h>
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 
