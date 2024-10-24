@@ -308,10 +308,18 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 				break;
 			}
 		}
-		intr_enable();
+		if (td->td_md.md_spinlock_count == 0 &&
+		    (frame->tf_spsr & PSR_DAIF_INTR) != PSR_DAIF_INTR) {
+			MPASS((frame->tf_spsr & PSR_DAIF_INTR) == 0);
+			intr_enable();
+		}
 		map = kernel_map;
 	} else {
-		intr_enable();
+		if (td->td_md.md_spinlock_count == 0 &&
+		    (frame->tf_spsr & PSR_DAIF_INTR) != PSR_DAIF_INTR) {
+			MPASS((frame->tf_spsr & PSR_DAIF_INTR) == 0);
+			intr_enable();
+		}
 		map = &td->td_proc->p_vmspace->vm_map;
 		if (map == NULL)
 			map = kernel_map;
