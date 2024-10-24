@@ -74,8 +74,9 @@ extern int nsw_cluster_max;
 struct xswdev;
 int swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len);
 void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
-vm_pindex_t swap_pager_find_least(vm_object_t object, vm_pindex_t pindex);
 bool swap_pager_scan_all_shadowed(vm_object_t object);
+vm_pindex_t swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex);
+vm_pindex_t swap_pager_seek_hole(vm_object_t object, vm_pindex_t pindex);
 void swap_pager_freespace(vm_object_t object, vm_pindex_t start,
     vm_size_t size, vm_size_t *freed);
 void swap_pager_swap_init(void);
