@@ -13,7 +13,11 @@
 #define LLVM_ABI_BREAKING_CHECKS_H
 
 /* Define to enable checks that alter the LLVM C++ ABI */
+#ifdef NDEBUG
+#define LLVM_ENABLE_ABI_BREAKING_CHECKS 0
+#else
 #define LLVM_ENABLE_ABI_BREAKING_CHECKS 1
+#endif
 
 /* Define to enable reverse iteration of unordered llvm containers */
 #define LLVM_ENABLE_REVERSE_ITERATION 0
