@@ -1967,7 +1967,7 @@ found:
 	 * have returned already, meaning it will have set snd_unit to -1, and
 	 * thus devclass_get_softc() will return NULL here.
 	 */
-	if (d != NULL && PCM_REGISTERED(d) && d->dsp_dev != NULL) {
+	if (DSP_REGISTERED(d)) {
 		*dev = d->dsp_dev;
 		dev_ref(*dev);
 	}
