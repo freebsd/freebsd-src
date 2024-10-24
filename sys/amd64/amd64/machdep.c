@@ -204,6 +204,7 @@ int cold = 1;
 long Maxmem = 0;
 long realmem = 0;
 int late_console = 1;
+int lass_enabled = 0;
 
 struct kva_md_info kmi;
 

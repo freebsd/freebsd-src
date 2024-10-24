@@ -1737,6 +1737,7 @@ pmap_bootstrap_la57(vm_paddr_t *firstaddr)
 {
 	void (*la57_tramp)(uint64_t pml5);
 	pml5_entry_t *pt;
+	uint64_t cr4;
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
 		return;
@@ -1757,8 +1758,16 @@ pmap_bootstrap_la57(vm_paddr_t *firstaddr)
 	    KERNSTART + amd64_loadaddr());
 	printf("Calling la57 trampoline at %p, KPML5phys %#lx ...",
 	    la57_tramp, KPML5phys);
+	if (lass_enabled) {
+		cr4 = rcr4();
+		load_cr4(cr4 & ~CR4_LASS);
+	}
 	la57_tramp(KPML5phys);
 	printf(" alive in la57 mode\n");
+	if (lass_enabled) {
+		cr4 = rcr4();
+		load_cr4(cr4 | CR4_LASS);
+	}
 }
 
 static void

@@ -348,6 +348,8 @@ efi_arch_enter(void)
 	 */
 	if (!pmap_pcid_enabled)
 		invltlb();
+	if (lass_enabled)
+		load_cr4(rcr4() & ~CR4_LASS);
 	return (0);
 }
 
@@ -357,6 +359,8 @@ efi_arch_leave(void)
 	pmap_t curpmap;
 	uint64_t cr3;
 
+	if (lass_enabled)
+		load_cr4(rcr4() | CR4_LASS);
 	curpmap = &curproc->p_vmspace->vm_pmap;
 	cr3 = curpmap->pm_cr3;
 	if (pmap_pcid_enabled) {
