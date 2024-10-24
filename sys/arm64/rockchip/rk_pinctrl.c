@@ -1191,7 +1191,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 
 			drive = ((1 << (value + 1)) - 1) << (pin % 2);
 
-			mask = 0x3f << (pin % 2);;
+			mask = 0x3f << (pin % 2);
 
 			SYSCON_WRITE_4(syscon, reg, drive | (mask << 16));
 		}
