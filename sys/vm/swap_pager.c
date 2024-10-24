@@ -557,6 +557,13 @@ swblk_is_empty(vm_object_t object)
 	return (pctrie_is_empty(&object->un_pager.swp.swp_blks));
 }
 
+static struct swblk *
+swblk_iter_lookup_ge(struct pctrie_iter *blks, vm_pindex_t pindex)
+{
+	return (SWAP_PCTRIE_ITER_LOOKUP_GE(blks,
+	    rounddown(pindex, SWAP_META_PAGES)));
+}
+
 static void
 swblk_iter_init_only(struct pctrie_iter *blks, vm_object_t object)
 {
@@ -571,8 +578,7 @@ swblk_iter_init(struct pctrie_iter *blks, vm_object_t object,
     vm_pindex_t pindex)
 {
 	swblk_iter_init_only(blks, object);
-	return (SWAP_PCTRIE_ITER_LOOKUP_GE(blks,
-	    rounddown(pindex, SWAP_META_PAGES)));
+	return (swblk_iter_lookup_ge(blks, pindex));
 }
 
 static struct swblk *
@@ -591,8 +597,7 @@ swblk_iter_limit_init(struct pctrie_iter *blks, vm_object_t object,
 	VM_OBJECT_ASSERT_LOCKED(object);
 	MPASS((object->flags & OBJ_SWAP) != 0);
 	pctrie_iter_limit_init(blks, &object->un_pager.swp.swp_blks, limit);
-	return (SWAP_PCTRIE_ITER_LOOKUP_GE(blks,
-	    rounddown(pindex, SWAP_META_PAGES)));
+	return (swblk_iter_lookup_ge(blks, pindex));
 }
 
 static struct swblk *
@@ -2441,26 +2446,25 @@ swp_pager_meta_lookup(vm_object_t object, vm_pindex_t pindex)
  * pindex and for which there is a swap block allocated.  Returns OBJ_MAX_SIZE
  * if are no allocated swap blocks for the object after the requested pindex.
  */
-vm_pindex_t
-swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
+static vm_pindex_t
+swap_pager_iter_find_least(struct pctrie_iter *blks, vm_pindex_t pindex)
 {
-	struct pctrie_iter blks;
 	struct swblk *sb;
 	int i;
 
-	if ((sb = swblk_iter_init(&blks, object, pindex)) == NULL)
+	if ((sb = swblk_iter_lookup_ge(blks, pindex)) == NULL)
 		return (OBJ_MAX_SIZE);
-	if (blks.index < pindex) {
+	if (blks->index < pindex) {
 		for (i = pindex % SWAP_META_PAGES; i < SWAP_META_PAGES; i++) {
 			if (sb->d[i] != SWAPBLK_NONE)
-				return (blks.index + i);
+				return (blks->index + i);
 		}
-		if ((sb = swblk_iter_next(&blks)) == NULL)
+		if ((sb = swblk_iter_next(blks)) == NULL)
 			return (OBJ_MAX_SIZE);
 	}
 	for (i = 0; i < SWAP_META_PAGES; i++) {
 		if (sb->d[i] != SWAPBLK_NONE)
-			return (blks.index + i);
+			return (blks->index + i);
 	}
 
 	/*
@@ -2469,6 +2473,118 @@ swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
 	 */
 	MPASS(0);
 	return (OBJ_MAX_SIZE);
+}
+
+/*
+ * Returns the least page index which is greater than or equal to the parameter
+ * pindex and for which there is a swap block allocated.  Returns OBJ_MAX_SIZE
+ * if are no allocated swap blocks for the object after the requested pindex.
+ */
+vm_pindex_t
+swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
+{
+	struct pctrie_iter blks;
+
+	swblk_iter_init_only(&blks, object);
+	return (swap_pager_iter_find_least(&blks, pindex));
+}
+
+/*
+ * Is every page in the backing object or swap shadowed in the parent, and
+ * unbusy and valid in swap?
+ */
+bool
+swap_pager_scan_all_shadowed(vm_object_t object)
+{
+	struct pctrie_iter backing_blks, backing_pages, pages;
+	vm_object_t backing_object;
+	vm_page_t p, pp;
+	vm_pindex_t backing_offset_index, new_pindex, pi, pi_ubound, ps, pv;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
+
+	backing_object = object->backing_object;
+
+	if ((backing_object->flags & OBJ_ANON) == 0)
+		return (false);
+
+	KASSERT((object->flags & OBJ_ANON) != 0,
+	    ("Shadow object is not anonymous"));
+	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	pi_ubound = MIN(backing_object->size,
+	    backing_offset_index + object->size);
+	vm_page_iter_init(&pages, object);
+	vm_page_iter_init(&backing_pages, backing_object);
+	swblk_iter_init_only(&backing_blks, backing_object);
+
+	/*
+	 * Only check pages inside the parent object's range and inside the
+	 * parent object's mapping of the backing object.
+	 */
+	pv = ps = pi = backing_offset_index - 1;
+	for (;;) {
+		if (pi == pv) {
+			p = vm_page_iter_lookup_ge(&backing_pages, pv + 1);
+			pv = p != NULL ? p->pindex : backing_object->size;
+		}
+		if (pi == ps)
+			ps = swap_pager_iter_find_least(&backing_blks, ps + 1);
+		pi = MIN(pv, ps);
+		if (pi >= pi_ubound)
+			break;
+
+		if (pi == pv) {
+			/*
+			 * If the backing object page is busy a grandparent or
+			 * older page may still be undergoing CoW.  It is not
+			 * safe to collapse the backing object until it is
+			 * quiesced.
+			 */
+			if (vm_page_tryxbusy(p) == 0)
+				return (false);
+
+			/*
+			 * We raced with the fault handler that left newly
+			 * allocated invalid page on the object queue and
+			 * retried.
+			 */
+			if (!vm_page_all_valid(p))
+				break;
+
+			/*
+			 * Busy of p disallows fault handler to validate parent
+			 * page (pp, below).
+			 */
+		}
+
+		/*
+		 * See if the parent has the page or if the parent's object
+		 * pager has the page.  If the parent has the page but the page
+		 * is not valid, the parent's object pager must have the page.
+		 *
+		 * If this fails, the parent does not completely shadow the
+		 * object and we might as well give up now.
+		 */
+		new_pindex = pi - backing_offset_index;
+		pp = vm_page_iter_lookup(&pages, new_pindex);
+
+		/*
+		 * The valid check here is stable due to object lock being
+		 * required to clear valid and initiate paging.
+		 */
+		if ((pp == NULL || vm_page_none_valid(pp)) &&
+		    !swap_pager_haspage(object, new_pindex, NULL, NULL))
+			break;
+		if (pi == pv)
+			vm_page_xunbusy(p);
+	}
+	if (pi < pi_ubound) {
+		if (pi == pv)
+			vm_page_xunbusy(p);
+		return (false);
+	}
+	return (true);
 }
 
 /*
