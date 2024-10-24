@@ -577,7 +577,7 @@ next:
 				goto nextparam;
 			}
 		match &= negate;
-nextparam:;
+nextparam:
 		negate = 0;
 	}
 	compile += match;
