@@ -12192,7 +12192,7 @@ ocs_hw_set_persistent_topology(ocs_hw_t *hw, uint32_t topology, uint32_t opts)
 			param.persistent_topo = SLI4_INIT_LINK_F_P2P_FAIL_OVER;
 			param.topo_failover = 1;
 		} else {
-			param.persistent_topo = SLI4_INIT_LINK_F_P2P_ONLY;;
+			param.persistent_topo = SLI4_INIT_LINK_F_P2P_ONLY;
 			param.topo_failover = 0;
 		}
 		break;
