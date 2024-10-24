@@ -2524,7 +2524,7 @@ swap_pager_seek_hole(vm_object_t object, vm_pindex_t pindex)
 	struct swblk *sb;
 	vm_page_t m;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_RLOCKED(object);
 	vm_page_iter_init(&pages, object);
 	swblk_iter_init_only(&blks, object);
 	while (((m = vm_page_iter_lookup(&pages, pindex)) != NULL &&
