@@ -1,0 +1,2 @@
+MDSRCS+= \
+	strrchr.S
