@@ -1426,7 +1426,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 	uint16_t next_to_complete;
 	if_t ndev;
 	int comp_read;
-	int txq_idx = txq->idx;;
+	int txq_idx = txq->idx;
 	int i;
 	int sa_drop = 0;
 
@@ -2114,7 +2114,7 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 
 		mana_dbg(NULL,
 		    "txq %d, txq gdma id %d, txq cq gdma id %d\n",
-		    i, txq->gdma_txq_id, cq->gdma_id);;
+		    i, txq->gdma_txq_id, cq->gdma_id);
 
 		if (cq->gdma_id >= gc->max_num_cqs) {
 			if_printf(net, "CQ id %u too large.\n", cq->gdma_id);
