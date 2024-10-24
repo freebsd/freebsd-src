@@ -28,10 +28,12 @@
 
 #include <sys/param.h>
 #include <sys/assym.h>
+#include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 
 #include <machine/frame.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
 
@@ -77,3 +79,6 @@ ASSYM(TF_ELR, offsetof(struct trapframe, tf_elr));
 ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_ESR, offsetof(struct trapframe, tf_esr));
 ASSYM(TF_X, offsetof(struct trapframe, tf_x));
+
+ASSYM(INTR_ROOT_IRQ, INTR_ROOT_IRQ);
+ASSYM(INTR_ROOT_FIQ, INTR_ROOT_FIQ);

@@ -48,12 +48,11 @@
 
 #include "assym.inc"
 
-#include <sys/intr.h>
-
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
 #include <machine/trap.h>
+
 #ifdef KDTRACE_HOOKS
 	.bss
 	.align 4
