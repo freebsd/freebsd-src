@@ -1181,7 +1181,7 @@ chn_mkname(char *buf, size_t len, struct pcm_channel *c)
 	const char *str;
 
 	KASSERT(buf != NULL && len != 0,
-	    ("%s(): bogus buf=%p len=%lu", __func__, buf, len));
+	    ("%s(): bogus buf=%p len=%zu", __func__, buf, len));
 
 	switch (c->type) {
 	case PCMDIR_PLAY:
