@@ -26,6 +26,6 @@ compile_commands.json
 compile_commands.events.json
 tags
 .cache
-.clangd
+# .clangd
 .ccls-cache
 sys/*/compile

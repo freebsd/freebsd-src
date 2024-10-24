@@ -1,0 +1,16 @@
+{
+    "favorites.resources": [
+        {
+            "filePath": "sys/modules/cc/cc_cubic_search/Makefile",
+            "group": "Default"
+        },
+        {
+            "filePath": "sys/netinet/cc/cc_cubic_search.h",
+            "group": "Default"
+        },
+        {
+            "filePath": "sys/netinet/cc/cc_cubic_search.c",
+            "group": "Default"
+        }
+    ]
+}
