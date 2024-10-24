@@ -38,8 +38,6 @@ enum root_type {
 	INTR_ROOT_COUNT	/* MUST BE LAST */
 };
 
-#include <sys/intr.h>
-
 #ifndef NIRQ
 #define	NIRQ		16384	/* XXX - It should be an option. */
 #endif

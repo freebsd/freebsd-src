@@ -45,8 +45,6 @@ enum root_type {
 #define	NIRQ			1024
 #endif
 
-#include <sys/intr.h>
-
 enum {
 	IRQ_SOFTWARE_USER,
 	IRQ_SOFTWARE_SUPERVISOR,

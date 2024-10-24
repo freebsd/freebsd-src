@@ -35,6 +35,8 @@
 
 #include <sys/systm.h>
 
+#include <machine/intr.h>
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 enum intr_map_data_type {
