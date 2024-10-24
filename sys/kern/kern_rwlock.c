@@ -72,6 +72,7 @@ static void	db_show_rwlock(const struct lock_object *lock);
 #endif
 static void	assert_rw(const struct lock_object *lock, int what);
 static void	lock_rw(struct lock_object *lock, uintptr_t how);
+static int	trylock_rw(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_rw(const struct lock_object *lock, struct thread **owner);
 #endif
@@ -85,6 +86,7 @@ struct lock_class lock_class_rw = {
 	.lc_ddb_show = db_show_rwlock,
 #endif
 	.lc_lock = lock_rw,
+	.lc_trylock = trylock_rw,
 	.lc_unlock = unlock_rw,
 #ifdef KDTRACE_HOOKS
 	.lc_owner = owner_rw,
@@ -174,6 +176,18 @@ lock_rw(struct lock_object *lock, uintptr_t how)
 		rw_rlock(rw);
 	else
 		rw_wlock(rw);
+}
+
+static int
+trylock_rw(struct lock_object *lock, uintptr_t how)
+{
+	struct rwlock *rw;
+
+	rw = (struct rwlock *)lock;
+	if (how)
+		return (rw_try_rlock(rw));
+	else
+		return (rw_try_wlock(rw));
 }
 
 static uintptr_t
