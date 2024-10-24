@@ -699,13 +699,11 @@ void
 rt_stats(void)
 {
 	struct rtstat rtstat;
-	u_long rtsaddr;
 
-	if ((rtsaddr = nl[N_RTSTAT].n_value) == 0) {
-		xo_emit("{W:rtstat: symbol not in namelist}\n");
+	if (fetch_stats("net.route.stats", nl[N_RTSTAT].n_value, &rtstat,
+	    sizeof(rtstat), kread_counters) != 0)
 		return;
-	}
-	kread_counters(rtsaddr, (char *)&rtstat, sizeof (rtstat));
+
 	xo_emit("{T:routing}:\n");
 
 #define	p(f, m) if (rtstat.f || sflag <= 1) \
