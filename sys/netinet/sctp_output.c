@@ -13913,15 +13913,15 @@ sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro)
 	mask = (struct sockaddr_in *)(ifa->ifa_netmask);
 	sin = &sifa->address.sin;
 	srcnetaddr.s_addr = (sin->sin_addr.s_addr & mask->sin_addr.s_addr);
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "match_nexthop4: src address is ");
+	SCTPDBG(SCTP_DEBUG_OUTPUT2, "match_nexthop4: src address is ");
 	SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, &sifa->address.sa);
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "network address is %x\n", srcnetaddr.s_addr);
+	SCTPDBG(SCTP_DEBUG_OUTPUT2, "network address is %x\n", srcnetaddr.s_addr);
 
 	sin = &ro->ro_nh->gw4_sa;
 	gwnetaddr.s_addr = (sin->sin_addr.s_addr & mask->sin_addr.s_addr);
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "match_nexthop4: nexthop is ");
+	SCTPDBG(SCTP_DEBUG_OUTPUT2, "match_nexthop4: nexthop is ");
 	SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, &ro->ro_nh->gw_sa);
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "network address is %x\n", gwnetaddr.s_addr);
+	SCTPDBG(SCTP_DEBUG_OUTPUT2, "network address is %x\n", gwnetaddr.s_addr);
 	if (srcnetaddr.s_addr == gwnetaddr.s_addr) {
 		return (1);
 	}
