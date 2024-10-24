@@ -373,7 +373,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
 	nreno = ccv->cc_data;
-	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;;
+	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;
 	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
 	/*
 	 * Note that we only change the backoff for ECN if the
