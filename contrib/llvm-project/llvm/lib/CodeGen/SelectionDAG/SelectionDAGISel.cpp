@@ -916,7 +916,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                    << "'\n";
             CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
   if (TTI->hasBranchDivergence())
     CurDAG->VerifyDAGDivergence();
 #endif
@@ -936,7 +936,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                    << "'\n";
             CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
   if (TTI->hasBranchDivergence())
     CurDAG->VerifyDAGDivergence();
 #endif
@@ -958,7 +958,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                    << "'\n";
             CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
   if (TTI->hasBranchDivergence())
     CurDAG->VerifyDAGDivergence();
 #endif
@@ -982,7 +982,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                      << "'\n";
               CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
     if (TTI->hasBranchDivergence())
       CurDAG->VerifyDAGDivergence();
 #endif
@@ -1000,7 +1000,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                      << "'\n";
               CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
     if (TTI->hasBranchDivergence())
       CurDAG->VerifyDAGDivergence();
 #endif
@@ -1016,7 +1016,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                      << "'\n";
               CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
     if (TTI->hasBranchDivergence())
       CurDAG->VerifyDAGDivergence();
 #endif
@@ -1036,7 +1036,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                      << "'\n";
               CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
     if (TTI->hasBranchDivergence())
       CurDAG->VerifyDAGDivergence();
 #endif
@@ -1056,7 +1056,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                    << "'\n";
             CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
   if (TTI->hasBranchDivergence())
     CurDAG->VerifyDAGDivergence();
 #endif
@@ -1076,7 +1076,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
                    << "'\n";
             CurDAG->dump());
 
-#if LLVM_ENABLE_ABI_BREAKING_CHECKS
+#if !defined(NDEBUG) && LLVM_ENABLE_ABI_BREAKING_CHECKS
   if (TTI->hasBranchDivergence())
     CurDAG->VerifyDAGDivergence();
 #endif
