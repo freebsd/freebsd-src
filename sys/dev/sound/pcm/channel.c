@@ -1161,18 +1161,49 @@ static struct unrhdr *
 chn_getunr(struct snddev_info *d, int type)
 {
 	switch (type) {
-	case SND_DEV_DSPHW_PLAY:
+	case PCMDIR_PLAY:
 		return (d->p_unr);
-	case SND_DEV_DSPHW_VPLAY:
+	case PCMDIR_PLAY_VIRTUAL:
 		return (d->vp_unr);
-	case SND_DEV_DSPHW_REC:
+	case PCMDIR_REC:
 		return (d->r_unr);
-	case SND_DEV_DSPHW_VREC:
+	case PCMDIR_REC_VIRTUAL:
 		return (d->vr_unr);
 	default:
 		__assert_unreachable();
 	}
 
+}
+
+char *
+chn_mkname(char *buf, size_t len, struct pcm_channel *c)
+{
+	const char *str;
+
+	KASSERT(buf != NULL && len != 0,
+	    ("%s(): bogus buf=%p len=%lu", __func__, buf, len));
+
+	switch (c->type) {
+	case PCMDIR_PLAY:
+		str = "play";
+		break;
+	case PCMDIR_PLAY_VIRTUAL:
+		str = "virtual_play";
+		break;
+	case PCMDIR_REC:
+		str = "record";
+		break;
+	case PCMDIR_REC_VIRTUAL:
+		str = "virtual_record";
+		break;
+	default:
+		__assert_unreachable();
+	}
+
+	snprintf(buf, len, "dsp%d.%s.%d",
+	    device_get_unit(c->dev), str, c->unit);
+
+	return (buf);
 }
 
 struct pcm_channel *
@@ -1183,27 +1214,19 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
-	int i, direction, type;
+	int i, direction;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
 
 	switch (dir) {
 	case PCMDIR_PLAY:
-		direction = PCMDIR_PLAY;
-		type = SND_DEV_DSPHW_PLAY;
-		break;
 	case PCMDIR_PLAY_VIRTUAL:
 		direction = PCMDIR_PLAY;
-		type = SND_DEV_DSPHW_VPLAY;
 		break;
 	case PCMDIR_REC:
-		direction = PCMDIR_REC;
-		type = SND_DEV_DSPHW_REC;
-		break;
 	case PCMDIR_REC_VIRTUAL:
 		direction = PCMDIR_REC;
-		type = SND_DEV_DSPHW_VREC;
 		break;
 	default:
 		device_printf(d->dev,
@@ -1222,7 +1245,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	CHN_INIT(c, children);
 	CHN_INIT(c, children.busy);
 	c->direction = direction;
-	c->type = type;
+	c->type = dir;
 	c->unit = alloc_unr(chn_getunr(d, c->type));
 	c->format = SND_FORMAT(AFMT_U8, 1, 0);
 	c->speed = DSP_DEFAULT_SPEED;
@@ -1234,8 +1257,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	c->parentchannel = parent;
 	c->dev = d->dev;
 	c->trigger = PCMTRIG_STOP;
-
-	strlcpy(c->name, dsp_unit2name(buf, sizeof(buf), c), sizeof(c->name));
+	strlcpy(c->name, chn_mkname(buf, sizeof(buf), c), sizeof(c->name));
 
 	c->matrix = *feeder_matrix_id_map(SND_CHN_MATRIX_1_0);
 	c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
@@ -1303,16 +1325,16 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
 
 	switch (c->type) {
-	case SND_DEV_DSPHW_PLAY:
+	case PCMDIR_PLAY:
 		d->playcount++;
 		break;
-	case SND_DEV_DSPHW_VPLAY:
+	case PCMDIR_PLAY_VIRTUAL:
 		d->pvchancount++;
 		break;
-	case SND_DEV_DSPHW_REC:
+	case PCMDIR_REC:
 		d->reccount++;
 		break;
-	case SND_DEV_DSPHW_VREC:
+	case PCMDIR_REC_VIRTUAL:
 		d->rvchancount++;
 		break;
 	default:
@@ -1354,16 +1376,16 @@ chn_kill(struct pcm_channel *c)
 	CHN_REMOVE(d, c, channels.pcm);
 
 	switch (c->type) {
-	case SND_DEV_DSPHW_PLAY:
+	case PCMDIR_PLAY:
 		d->playcount--;
 		break;
-	case SND_DEV_DSPHW_VPLAY:
+	case PCMDIR_PLAY_VIRTUAL:
 		d->pvchancount--;
 		break;
-	case SND_DEV_DSPHW_REC:
+	case PCMDIR_REC:
 		d->reccount--;
 		break;
-	case SND_DEV_DSPHW_VREC:
+	case PCMDIR_REC_VIRTUAL:
 		d->rvchancount--;
 		break;
 	default:

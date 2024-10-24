@@ -225,10 +225,6 @@ enum {
 	SND_DEV_MIDIN,		/* Raw midi access */
 	SND_DEV_DSP,		/* Digitized voice /dev/dsp */
 	SND_DEV_STATUS,		/* /dev/sndstat */
-	SND_DEV_DSPHW_PLAY,	/* specific playback channel */
-	SND_DEV_DSPHW_VPLAY,	/* specific virtual playback channel */
-	SND_DEV_DSPHW_REC,	/* specific record channel */
-	SND_DEV_DSPHW_VREC,	/* specific virtual record channel */
 };
 
 #define DSP_DEFAULT_SPEED	8000

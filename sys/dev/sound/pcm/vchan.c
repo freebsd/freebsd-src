@@ -886,14 +886,9 @@ vchan_sync(struct pcm_channel *c)
 		c->flags |= CHN_F_DIRTY;
 
 #ifdef SND_DEBUG
-	if (snd_passthrough_verbose != 0) {
-		char *devname, buf[CHN_NAMELEN];
-
-		devname = dsp_unit2name(buf, sizeof(buf), c);
-		device_printf(c->dev,
-		    "%s(%s/%s) %s() -> re-sync err=%d\n",
-		    __func__, (devname != NULL) ? devname : "dspX", c->comm,
-		    caller, ret);
+	if (snd_passthrough_verbose) {
+		device_printf(c->dev, "%s(%s/%s) %s() -> re-sync err=%d\n",
+		    __func__, c->name, c->comm, caller, ret);
 	}
 #endif
 
