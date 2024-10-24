@@ -1293,7 +1293,7 @@ gicv3_its_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 #ifdef SMP
 static void
-gicv3_its_init_secondary(device_t dev, uint32_t rootnum)
+gicv3_its_init_secondary(device_t dev, enum root_type root_type)
 {
 	struct gicv3_its_softc *sc;
 

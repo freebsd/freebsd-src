@@ -74,7 +74,7 @@ CODE {
 	}
 
 	static void
-	null_pic_init_secondary(device_t dev, uint32_t rootnum)
+	null_pic_init_secondary(device_t dev, enum root_type root_type)
 	{
 	}
 
@@ -157,7 +157,7 @@ METHOD void pre_ithread {
 
 METHOD void init_secondary {
 	device_t	dev;
-	uint32_t	rootnum;
+	enum root_type	root_type;
 } DEFAULT null_pic_init_secondary;
 
 METHOD void ipi_send {
