@@ -228,7 +228,7 @@ struct enic {
 
 	/* interrupt vectors (len = conf_intr_count) */
 	struct vnic_intr *intr;
-	struct intr_queue *intr_queues;;
+	struct intr_queue *intr_queues;
 	unsigned int intr_count; /* equals enabled interrupts (lsc + rxqs) */
 
 
