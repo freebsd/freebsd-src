@@ -260,6 +260,7 @@ int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
+char *chn_mkname(char *buf, size_t len, struct pcm_channel *c);
 struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
     kobj_class_t cls, int dir, void *devinfo);
 void chn_kill(struct pcm_channel *c);
