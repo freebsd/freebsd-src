@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE
 .
-.Dd November 18, 2024
+.Dd October 8, 2025
 .Dt SIMD 7
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ can be used to override this mechanism.
 .Pp
 Enhanced functions are present for the following architectures:
 .Bl -column FUNCTION_________ aarch64_ arm_ amd64_ i386_ ppc64_ -offset indent
-.It Em FUNCTION          Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64
+.It Em FUNCTION          Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64 Ta Em RISC-V
 .It    bcmp              Ta    A       Ta        Ta    S1     Ta    S
 .It    bcopy             Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
 .It    bzero             Ta    A       Ta    S   Ta    S      Ta    S
@@ -65,7 +65,7 @@ Enhanced functions are present for the following architectures:
 .It    memmove           Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
 .It    memrchr           Ta    A       Ta        Ta    S1
 .It    memset            Ta    A       Ta    S   Ta    S      Ta    S
-.It    rindex            Ta    A       Ta        Ta    S1     Ta    S
+.It    rindex            Ta    A       Ta        Ta    S1     Ta    S    Ta          Ta    S
 .It    stpcpy            Ta    A       Ta        Ta    S1
 .It    stpncpy           Ta            Ta        Ta    S1
 .It    strcat            Ta    A       Ta        Ta    S1     Ta    S
@@ -81,7 +81,7 @@ Enhanced functions are present for the following architectures:
 .It    strncmp           Ta    A       Ta    S   Ta    S1     Ta    S
 .It    strncpy           Ta            Ta        Ta    S1     Ta         Ta    S2
 .It    strnlen           Ta    A       Ta        Ta    S1
-.It    strrchr           Ta    A       Ta        Ta    S1     Ta    S
+.It    strrchr           Ta    A       Ta        Ta    S1     Ta    S    Ta          Ta    S
 .It    strpbrk           Ta    S       Ta        Ta    S2
 .It    strsep            Ta    S       Ta        Ta    S2
 .It    strspn            Ta    S       Ta        Ta    S2
@@ -207,10 +207,13 @@ for
 .Fx 11.0
 for
 .Cm aarch64 ,
-and
 .Fx 12.0
 for
-.Cm powerpc64 .
+.Cm powerpc64 ,
+and
+.Fx 16.0
+for
+.Cm riscv64 .
 SIMD-enhanced functions were first added with
 .Fx 13.0
 for
