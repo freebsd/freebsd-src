@@ -239,6 +239,7 @@ struct rtstat {
 	uint64_t rts_add_retry;		/* # of route addition retries */
 	uint64_t rts_del_failure;	/* # of route deletion failure */
 	uint64_t rts_del_retry;		/* # of route deletion retries */
+	uint64_t rts_spare[5];
 };
 
 /*
