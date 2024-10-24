@@ -245,7 +245,7 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 		return (0);
 	}
 
-hiteof:;
+hiteof:
 	if (cnp)
 		*cnp = i;
 	if (bp)
