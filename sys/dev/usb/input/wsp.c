@@ -53,18 +53,7 @@
 
 #include "usbdevs.h"
 
-#define	USB_DEBUG_VAR wsp_debug
-#include <dev/usb/usb_debug.h>
-
-#ifdef EVDEV_SUPPORT
-#include <dev/evdev/input.h>
-#include <dev/evdev/evdev.h>
-#endif
-
-#include <sys/mouse.h>
-
-#define	WSP_DRIVER_NAME "wsp"
-#define	WSP_BUFFER_MAX	1024
+#include "wsp.h"
 
 #define	WSP_CLAMP(x,low,high) do {		\
 	if ((x) < (low))			\
@@ -74,7 +63,7 @@
 } while (0)
 
 /* Tunables */
-static	SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB wsp");
 
 #ifdef USB_DEBUG
@@ -87,18 +76,23 @@ enum wsp_log_level {
 static int wsp_debug = WSP_LLEVEL_ERROR;/* the default is to only log errors */
 
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &wsp_debug, WSP_LLEVEL_ERROR, "WSP debug level");
+    &wsp_debug, WSP_LLEVEL_ERROR, "WSP debug level (0-3)");
 #endif					/* USB_DEBUG */
 
 static struct wsp_tuning {
 	int	scale_factor;
+	int	scroll_finger_count;
+	int	horizontal_swipe_finger_count;
 	int	z_factor;
 	int	z_invert;
+	int	t_factor;
+	int	t_invert;
 	int	pressure_touch_threshold;
 	int	pressure_untouch_threshold;
 	int	pressure_tap_threshold;
-	int	scr_hor_threshold;
+	int	scr_threshold;
 	int	max_finger_area;
+	int	max_scroll_finger_distance;
 	int	max_double_tap_distance;
 	int	enable_single_tap_clicks;
 	int	enable_single_tap_movement;
@@ -106,40 +100,58 @@ static struct wsp_tuning {
 	wsp_tuning =
 {
 	.scale_factor = 12,
+	.scroll_finger_count = 2,
+	.horizontal_swipe_finger_count = 3,
 	.z_factor = 5,
 	.z_invert = 0,
+	.t_factor = 0,
+	.t_invert = 0,
 	.pressure_touch_threshold = 50,
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
-	.scr_hor_threshold = 20,
+	.scr_threshold = 20,
 	.max_finger_area = 1900,
+	.max_scroll_finger_distance = MAX_FINGER_ORIENTATION/2,
 	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
 	.enable_single_tap_movement = 1,
 };
 
 static void
-wsp_runing_rangecheck(struct wsp_tuning *ptun)
+wsp_running_rangecheck(struct wsp_tuning *ptun)
 {
 	WSP_CLAMP(ptun->scale_factor, 1, 63);
-	WSP_CLAMP(ptun->z_factor, 1, 63);
+	WSP_CLAMP(ptun->scroll_finger_count, 0, 3);
+	WSP_CLAMP(ptun->horizontal_swipe_finger_count, 0, 3);
+	WSP_CLAMP(ptun->z_factor, 0, 63);
 	WSP_CLAMP(ptun->z_invert, 0, 1);
+	WSP_CLAMP(ptun->t_factor, 0, 63);
+	WSP_CLAMP(ptun->t_invert, 0, 1);
 	WSP_CLAMP(ptun->pressure_touch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
 	WSP_CLAMP(ptun->max_finger_area, 1, 2400);
-	WSP_CLAMP(ptun->max_double_tap_distance, 1, 16384);
-	WSP_CLAMP(ptun->scr_hor_threshold, 1, 255);
+	WSP_CLAMP(ptun->max_scroll_finger_distance, 1, MAX_FINGER_ORIENTATION);
+	WSP_CLAMP(ptun->max_double_tap_distance, 1, MAX_FINGER_ORIENTATION);
+	WSP_CLAMP(ptun->scr_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
 	WSP_CLAMP(ptun->enable_single_tap_movement, 0, 1);
 }
 
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scale_factor, CTLFLAG_RWTUN,
     &wsp_tuning.scale_factor, 0, "movement scale factor");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scroll_finger_count, CTLFLAG_RWTUN,
+    &wsp_tuning.scroll_finger_count, 0, "amount of fingers to use scrolling gesture");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, horizontal_swipe_finger_count, CTLFLAG_RWTUN,
+    &wsp_tuning.horizontal_swipe_finger_count, 0, "amount of fingers to use horizontal swipe gesture");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, z_factor, CTLFLAG_RWTUN,
-    &wsp_tuning.z_factor, 0, "Z-axis scale factor");
+    &wsp_tuning.z_factor, 0, "Z-axis (vertical) scale factor");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, z_invert, CTLFLAG_RWTUN,
-    &wsp_tuning.z_invert, 0, "enable Z-axis inversion");
+    &wsp_tuning.z_invert, 0, "enable (vertical) Z-axis inversion");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, t_factor, CTLFLAG_RWTUN,
+    &wsp_tuning.t_factor, 0, "T-axis (horizontal) scale factor");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, t_invert, CTLFLAG_RWTUN,
+    &wsp_tuning.t_invert, 0, "enable T-axis (horizontal) inversion");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_touch_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_touch_threshold, 0, "touch pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_untouch_threshold, CTLFLAG_RWTUN,
@@ -148,472 +160,16 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_tap_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_tap_threshold, 0, "tap pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_finger_area, CTLFLAG_RWTUN,
     &wsp_tuning.max_finger_area, 0, "maximum finger area");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_scroll_finger_distance, CTLFLAG_RWTUN,
+    &wsp_tuning.max_scroll_finger_distance, 0, "maximum scroll finger distance");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_double_tap_distance, CTLFLAG_RWTUN,
     &wsp_tuning.max_double_tap_distance, 0, "maximum double-finger click distance");
-SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RWTUN,
-    &wsp_tuning.scr_hor_threshold, 0, "horizontal scrolling threshold");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_threshold, CTLFLAG_RWTUN,
+    &wsp_tuning.scr_threshold, 0, "scrolling threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_clicks, CTLFLAG_RWTUN,
     &wsp_tuning.enable_single_tap_clicks, 0, "enable single tap clicks");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, enable_single_tap_movement, CTLFLAG_RWTUN,
     &wsp_tuning.enable_single_tap_movement, 0, "enable single tap movement");
-
-
-/*
- * Some tables, structures, definitions and constant values for the
- * touchpad protocol has been copied from Linux's
- * "drivers/input/mouse/bcm5974.c" which has the following copyright
- * holders under GPLv2. All device specific code in this driver has
- * been written from scratch. The decoding algorithm is based on
- * output from FreeBSD's usbdump.
- *
- * Copyright (C) 2008      Henrik Rydberg (rydberg@euromail.se)
- * Copyright (C) 2008      Scott Shawcroft (scott.shawcroft@gmail.com)
- * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
- * Copyright (C) 2005      Johannes Berg (johannes@sipsolutions.net)
- * Copyright (C) 2005      Stelian Pop (stelian@popies.net)
- * Copyright (C) 2005      Frank Arnold (frank@scirocco-5v-turbo.de)
- * Copyright (C) 2005      Peter Osterlund (petero2@telia.com)
- * Copyright (C) 2005      Michael Hanselmann (linux-kernel@hansmi.ch)
- * Copyright (C) 2006      Nicolas Boichat (nicolas@boichat.ch)
- */
-
-/* button data structure */
-struct bt_data {
-	uint8_t	unknown1;		/* constant */
-	uint8_t	button;			/* left button */
-	uint8_t	rel_x;			/* relative x coordinate */
-	uint8_t	rel_y;			/* relative y coordinate */
-} __packed;
-
-/* trackpad header types */
-enum tp_type {
-	TYPE1,			/* plain trackpad */
-	TYPE2,			/* button integrated in trackpad */
-	TYPE3,			/* additional header fields since June 2013 */
-	TYPE4,                  /* additional header field for pressure data */
-	TYPE_CNT
-};
-
-/* trackpad finger data offsets, le16-aligned */
-#define	FINGER_TYPE1		(13 * 2)
-#define	FINGER_TYPE2		(15 * 2)
-#define	FINGER_TYPE3		(19 * 2)
-#define	FINGER_TYPE4		(23 * 2)
-
-/* trackpad button data offsets */
-#define	BUTTON_TYPE2		15
-#define	BUTTON_TYPE3		23
-#define	BUTTON_TYPE4		31
-
-/* list of device capability bits */
-#define	HAS_INTEGRATED_BUTTON	1
-
-/* trackpad finger data block size */
-#define FSIZE_TYPE1             (14 * 2)
-#define FSIZE_TYPE2             (14 * 2)
-#define FSIZE_TYPE3             (14 * 2)
-#define FSIZE_TYPE4             (15 * 2)
-
-struct wsp_tp {
-	uint8_t	caps;			/* device capability bitmask */
-	uint8_t	button;			/* offset to button data */
-	uint8_t	offset;			/* offset to trackpad finger data */
-	uint8_t fsize;			/* bytes in single finger block */
-	uint8_t delta;			/* offset from header to finger struct */
-	uint8_t iface_index;
-	uint8_t um_size;		/* usb control message length */
-	uint8_t um_req_idx;		/* usb control message index */
-	uint8_t um_switch_idx;		/* usb control message mode switch index */
-	uint8_t um_switch_on;		/* usb control message mode switch on */
-	uint8_t um_switch_off;		/* usb control message mode switch off */
-} const static wsp_tp[TYPE_CNT] = {
-	[TYPE1] = {
-		.caps = 0,
-		.button = 0,
-		.offset = FINGER_TYPE1,
-		.fsize = FSIZE_TYPE1,
-		.delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
-	},
-	[TYPE2] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.button = BUTTON_TYPE2,
-		.offset = FINGER_TYPE2,
-		.fsize = FSIZE_TYPE2,
-		.delta = 0,
-		.iface_index = 0,
-		.um_size = 8,
-		.um_req_idx = 0x00,
-		.um_switch_idx = 0,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x08,
-	},
-	[TYPE3] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.button = BUTTON_TYPE3,
-		.offset = FINGER_TYPE3,
-		.fsize = FSIZE_TYPE3,
-		.delta = 0,
-	},
-	[TYPE4] = {
-		.caps = HAS_INTEGRATED_BUTTON,
-		.button = BUTTON_TYPE4,
-		.offset = FINGER_TYPE4,
-		.fsize = FSIZE_TYPE4,
-		.delta = 2,
-		.iface_index = 2,
-		.um_size = 2,
-		.um_req_idx = 0x02,
-		.um_switch_idx = 1,
-		.um_switch_on = 0x01,
-		.um_switch_off = 0x00,
-	},
-};
-
-/* trackpad finger header - little endian */
-struct tp_header {
-	uint8_t	flag;
-	uint8_t	sn0;
-	uint16_t wFixed0;
-	uint32_t dwSn1;
-	uint32_t dwFixed1;
-	uint16_t wLength;
-	uint8_t	nfinger;
-	uint8_t	ibt;
-	int16_t	wUnknown[6];
-	uint8_t	q1;
-	uint8_t	q2;
-} __packed;
-
-/* trackpad finger structure - little endian */
-struct tp_finger {
-	int16_t	origin;			/* zero when switching track finger */
-	int16_t	abs_x;			/* absolute x coodinate */
-	int16_t	abs_y;			/* absolute y coodinate */
-	int16_t	rel_x;			/* relative x coodinate */
-	int16_t	rel_y;			/* relative y coodinate */
-	int16_t	tool_major;		/* tool area, major axis */
-	int16_t	tool_minor;		/* tool area, minor axis */
-	int16_t	orientation;		/* 16384 when point, else 15 bit angle */
-	int16_t	touch_major;		/* touch area, major axis */
-	int16_t	touch_minor;		/* touch area, minor axis */
-	int16_t	unused[2];		/* zeros */
-	int16_t pressure;		/* pressure on forcetouch touchpad */
-	int16_t	multi;			/* one finger: varies, more fingers:
-				 	 * constant */
-} __packed;
-
-/* trackpad finger data size, empirically at least ten fingers */
-#ifdef EVDEV_SUPPORT
-#define	MAX_FINGERS		MAX_MT_SLOTS
-#else
-#define	MAX_FINGERS		16
-#endif
-#define	SIZEOF_FINGER		sizeof(struct tp_finger)
-#define	SIZEOF_ALL_FINGERS	(MAX_FINGERS * SIZEOF_FINGER)
-#define	MAX_FINGER_ORIENTATION	16384
-
-#if (WSP_BUFFER_MAX < ((MAX_FINGERS * FSIZE_TYPE4) + FINGER_TYPE4))
-#error "WSP_BUFFER_MAX is too small"
-#endif
-
-enum {
-	WSP_FLAG_WELLSPRING1,
-	WSP_FLAG_WELLSPRING2,
-	WSP_FLAG_WELLSPRING3,
-	WSP_FLAG_WELLSPRING4,
-	WSP_FLAG_WELLSPRING4A,
-	WSP_FLAG_WELLSPRING5,
-	WSP_FLAG_WELLSPRING6A,
-	WSP_FLAG_WELLSPRING6,
-	WSP_FLAG_WELLSPRING5A,
-	WSP_FLAG_WELLSPRING7,
-	WSP_FLAG_WELLSPRING7A,
-	WSP_FLAG_WELLSPRING8,
-	WSP_FLAG_WELLSPRING9,
-	WSP_FLAG_MAX,
-};
-
-/* device-specific parameters */
-struct wsp_param {
-	int snratio;			/* signal-to-noise ratio */
-	int min;			/* device minimum reading */
-	int max;			/* device maximum reading */
-	int size;			/* physical size, mm */
-};
-
-/* device-specific configuration */
-struct wsp_dev_params {
-	const struct wsp_tp* tp;
-	struct wsp_param p;		/* finger pressure limits */
-	struct wsp_param w;		/* finger width limits */
-	struct wsp_param x;		/* horizontal limits */
-	struct wsp_param y;		/* vertical limits */
-	struct wsp_param o;		/* orientation limits */
-};
-
-/* logical signal quality */
-#define	SN_PRESSURE	45		/* pressure signal-to-noise ratio */
-#define	SN_WIDTH	25		/* width signal-to-noise ratio */
-#define	SN_COORD	250		/* coordinate signal-to-noise ratio */
-#define	SN_ORIENT	10		/* orientation signal-to-noise ratio */
-
-static const struct wsp_dev_params wsp_dev_params[WSP_FLAG_MAX] = {
-	[WSP_FLAG_WELLSPRING1] = {
-		.tp = wsp_tp + TYPE1,
-		.p = { SN_PRESSURE, 0, 256, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4824, 5342, 105 },
-		.y = { SN_COORD, -172, 5820, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING2] = {
-		.tp = wsp_tp + TYPE1,
-		.p = { SN_PRESSURE, 0, 256, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4824, 4824, 105 },
-		.y = { SN_COORD, -172, 4290, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING3] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4460, 5166, 105 },
-		.y = { SN_COORD, -75, 6700, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING4] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4620, 5140, 105 },
-		.y = { SN_COORD, -150, 6600, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING4A] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4616, 5112, 105 },
-		.y = { SN_COORD, -142, 5234, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING5] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4415, 5050, 105 },
-		.y = { SN_COORD, -55, 6680, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING6] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4620, 5140, 105 },
-		.y = { SN_COORD, -150, 6600, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING5A] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4750, 5280, 105 },
-		.y = { SN_COORD, -150, 6730, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING6A] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4620, 5140, 105 },
-		.y = { SN_COORD, -150, 6600, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING7] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4750, 5280, 105 },
-		.y = { SN_COORD, -150, 6730, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING7A] = {
-		.tp = wsp_tp + TYPE2,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4750, 5280, 105 },
-		.y = { SN_COORD, -150, 6730, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING8] = {
-		.tp = wsp_tp + TYPE3,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4620, 5140, 105 },
-		.y = { SN_COORD, -150, 6600, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-	[WSP_FLAG_WELLSPRING9] = {
-		.tp = wsp_tp + TYPE4,
-		.p = { SN_PRESSURE, 0, 300, 0 },
-		.w = { SN_WIDTH, 0, 2048, 0 },
-		.x = { SN_COORD, -4828, 5345, 105 },
-		.y = { SN_COORD, -203, 6803, 75 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
-	},
-};
-#define	WSP_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
-
-static const STRUCT_USB_HOST_ID wsp_devs[] = {
-	/* MacbookAir1.1 */
-	WSP_DEV(APPLE, WELLSPRING_ANSI, WSP_FLAG_WELLSPRING1),
-	WSP_DEV(APPLE, WELLSPRING_ISO, WSP_FLAG_WELLSPRING1),
-	WSP_DEV(APPLE, WELLSPRING_JIS, WSP_FLAG_WELLSPRING1),
-
-	/* MacbookProPenryn, aka wellspring2 */
-	WSP_DEV(APPLE, WELLSPRING2_ANSI, WSP_FLAG_WELLSPRING2),
-	WSP_DEV(APPLE, WELLSPRING2_ISO, WSP_FLAG_WELLSPRING2),
-	WSP_DEV(APPLE, WELLSPRING2_JIS, WSP_FLAG_WELLSPRING2),
-
-	/* Macbook5,1 (unibody), aka wellspring3 */
-	WSP_DEV(APPLE, WELLSPRING3_ANSI, WSP_FLAG_WELLSPRING3),
-	WSP_DEV(APPLE, WELLSPRING3_ISO, WSP_FLAG_WELLSPRING3),
-	WSP_DEV(APPLE, WELLSPRING3_JIS, WSP_FLAG_WELLSPRING3),
-
-	/* MacbookAir3,2 (unibody), aka wellspring4 */
-	WSP_DEV(APPLE, WELLSPRING4_ANSI, WSP_FLAG_WELLSPRING4),
-	WSP_DEV(APPLE, WELLSPRING4_ISO, WSP_FLAG_WELLSPRING4),
-	WSP_DEV(APPLE, WELLSPRING4_JIS, WSP_FLAG_WELLSPRING4),
-
-	/* MacbookAir3,1 (unibody), aka wellspring4 */
-	WSP_DEV(APPLE, WELLSPRING4A_ANSI, WSP_FLAG_WELLSPRING4A),
-	WSP_DEV(APPLE, WELLSPRING4A_ISO, WSP_FLAG_WELLSPRING4A),
-	WSP_DEV(APPLE, WELLSPRING4A_JIS, WSP_FLAG_WELLSPRING4A),
-
-	/* Macbook8 (unibody, March 2011) */
-	WSP_DEV(APPLE, WELLSPRING5_ANSI, WSP_FLAG_WELLSPRING5),
-	WSP_DEV(APPLE, WELLSPRING5_ISO, WSP_FLAG_WELLSPRING5),
-	WSP_DEV(APPLE, WELLSPRING5_JIS, WSP_FLAG_WELLSPRING5),
-
-	/* MacbookAir4,1 (unibody, July 2011) */
-	WSP_DEV(APPLE, WELLSPRING6A_ANSI, WSP_FLAG_WELLSPRING6A),
-	WSP_DEV(APPLE, WELLSPRING6A_ISO, WSP_FLAG_WELLSPRING6A),
-	WSP_DEV(APPLE, WELLSPRING6A_JIS, WSP_FLAG_WELLSPRING6A),
-
-	/* MacbookAir4,2 (unibody, July 2011) */
-	WSP_DEV(APPLE, WELLSPRING6_ANSI, WSP_FLAG_WELLSPRING6),
-	WSP_DEV(APPLE, WELLSPRING6_ISO, WSP_FLAG_WELLSPRING6),
-	WSP_DEV(APPLE, WELLSPRING6_JIS, WSP_FLAG_WELLSPRING6),
-
-	/* Macbook8,2 (unibody) */
-	WSP_DEV(APPLE, WELLSPRING5A_ANSI, WSP_FLAG_WELLSPRING5A),
-	WSP_DEV(APPLE, WELLSPRING5A_ISO, WSP_FLAG_WELLSPRING5A),
-	WSP_DEV(APPLE, WELLSPRING5A_JIS, WSP_FLAG_WELLSPRING5A),
-
-	/* MacbookPro10,1 (unibody, June 2012) */
-	/* MacbookPro11,1-3 (unibody, June 2013) */
-	WSP_DEV(APPLE, WELLSPRING7_ANSI, WSP_FLAG_WELLSPRING7),
-	WSP_DEV(APPLE, WELLSPRING7_ISO, WSP_FLAG_WELLSPRING7),
-	WSP_DEV(APPLE, WELLSPRING7_JIS, WSP_FLAG_WELLSPRING7),
-
-	/* MacbookPro10,2 (unibody, October 2012) */
-	WSP_DEV(APPLE, WELLSPRING7A_ANSI, WSP_FLAG_WELLSPRING7A),
-	WSP_DEV(APPLE, WELLSPRING7A_ISO, WSP_FLAG_WELLSPRING7A),
-	WSP_DEV(APPLE, WELLSPRING7A_JIS, WSP_FLAG_WELLSPRING7A),
-
-	/* MacbookAir6,2 (unibody, June 2013) */
-	WSP_DEV(APPLE, WELLSPRING8_ANSI, WSP_FLAG_WELLSPRING8),
-	WSP_DEV(APPLE, WELLSPRING8_ISO, WSP_FLAG_WELLSPRING8),
-	WSP_DEV(APPLE, WELLSPRING8_JIS, WSP_FLAG_WELLSPRING8),
-
-	/* MacbookPro12,1 MacbookPro11,4 */
-	WSP_DEV(APPLE, WELLSPRING9_ANSI, WSP_FLAG_WELLSPRING9),
-	WSP_DEV(APPLE, WELLSPRING9_ISO, WSP_FLAG_WELLSPRING9),
-	WSP_DEV(APPLE, WELLSPRING9_JIS, WSP_FLAG_WELLSPRING9),
-};
-
-#define	WSP_FIFO_BUF_SIZE	 8	/* bytes */
-#define	WSP_FIFO_QUEUE_MAXLEN	50	/* units */
-
-enum {
-	WSP_INTR_DT,
-	WSP_N_TRANSFER,
-};
-
-struct wsp_softc {
-	struct usb_device *sc_usb_device;
-	struct mtx sc_mutex;		/* for synchronization */
-	struct usb_xfer *sc_xfer[WSP_N_TRANSFER];
-	struct usb_fifo_sc sc_fifo;
-
-	const struct wsp_dev_params *sc_params;	/* device configuration */
-
-#ifdef EVDEV_SUPPORT
-	struct evdev_dev *sc_evdev;
-#endif
-	mousehw_t sc_hw;
-	mousemode_t sc_mode;
-	u_int	sc_pollrate;
-	mousestatus_t sc_status;
-	int	sc_fflags;
-	u_int	sc_state;
-#define	WSP_ENABLED		0x01
-#define	WSP_EVDEV_OPENED	0x02
-
-	struct tp_finger *index[MAX_FINGERS];	/* finger index data */
-	int16_t	pos_x[MAX_FINGERS];	/* position array */
-	int16_t	pos_y[MAX_FINGERS];	/* position array */
-	int16_t pre_pos_x[MAX_FINGERS];	/* previous position array */
-	int16_t pre_pos_y[MAX_FINGERS]; /* previous position array */
-	u_int	sc_touch;		/* touch status */
-#define	WSP_UNTOUCH		0x00
-#define	WSP_FIRST_TOUCH		0x01
-#define	WSP_SECOND_TOUCH	0x02
-#define	WSP_TOUCHING		0x04
-	int	dx_sum;			/* x axis cumulative movement */
-	int	dy_sum;			/* y axis cumulative movement */
-	int	dz_sum;			/* z axis cumulative movement */
-	int	dz_count;
-#define	WSP_DZ_MAX_COUNT	32
-	int	dt_sum;			/* T-axis cumulative movement */
-	int	rdx;			/* x axis remainder of divide by scale_factor */
-	int	rdy;			/* y axis remainder of divide by scale_factor */
-	int	rdz;			/* z axis remainder of divide by scale_factor */
-	int	tp_datalen;
-	uint8_t o_ntouch;		/* old touch finger status */
-	uint8_t	finger;			/* 0 or 1 *, check which finger moving */
-	uint16_t intr_count;
-#define	WSP_TAP_THRESHOLD	3
-#define	WSP_TAP_MAX_COUNT	20
-	int	distance;		/* the distance of 2 fingers */
-	uint8_t	ibtn;			/* button status in tapping */
-	uint8_t	ntaps;			/* finger status in tapping */
-	uint8_t	scr_mode;		/* scroll status in movement */
-#define	WSP_SCR_NONE		0
-#define	WSP_SCR_VER		1
-#define	WSP_SCR_HOR		2
-	uint8_t tp_data[WSP_BUFFER_MAX] __aligned(4);		/* trackpad transferred data */
-};
 
 /*
  * function prototypes
@@ -954,7 +510,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int slot = 0;
 #endif
 
-	wsp_runing_rangecheck(&tun);
+	wsp_running_rangecheck(&tun);
 
 	if (sc->dz_count == 0)
 		sc->dz_count = WSP_DZ_MAX_COUNT;
@@ -1009,7 +565,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				f->pressure = le16toh((uint16_t)f->pressure);
 				f->multi = le16toh((uint16_t)f->multi);
 			}
-			DPRINTFN(WSP_LLEVEL_INFO, 
+			DPRINTFN(WSP_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 			    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
 			    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
@@ -1140,17 +696,19 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				}
 				wsp_add_to_queue(sc, 0, 0, 0, 0);	/* button release */
 			}
-			if ((sc->dt_sum / tun.scr_hor_threshold) != 0 &&
-			    sc->ntaps == 2 && sc->scr_mode == WSP_SCR_HOR) {
+
+			if (sc->scr_mode == WSP_SCR_HOR && sc->ntaps == tun.horizontal_swipe_finger_count
+			    && tun.horizontal_swipe_finger_count > 0 && (sc->dt_sum / tun.scr_threshold) != 0) {
 				/*
-				 * translate T-axis into button presses
-				 * until further
+				 * translate T-axis swipe into button
+				 * presses 3 and 4 (forward/back)
 				 */
 				if (sc->dt_sum > 0)
 					wsp_add_to_queue(sc, 0, 0, 0, 1UL << 3);
 				else if (sc->dt_sum < 0)
 					wsp_add_to_queue(sc, 0, 0, 0, 1UL << 4);
 			}
+
 			sc->dz_count = WSP_DZ_MAX_COUNT;
 			sc->dz_sum = 0;
 			sc->intr_count = 0;
@@ -1194,15 +752,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (ntouch == 1 && sc->index[0]->tool_major > tun.max_finger_area)
 					dx = dy = 0;
 
-				if (sc->ibtn != 0 && ntouch == 1 && 
-				    sc->intr_count < WSP_TAP_MAX_COUNT && 
+				if (sc->ibtn != 0 && ntouch == 1 &&
+				    sc->intr_count < WSP_TAP_MAX_COUNT &&
 				    abs(sc->dx_sum) < 1 && abs(sc->dy_sum) < 1 )
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x[sc->finger];
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y[sc->finger];
-					
+
 					/*
 					 * Ignore movement of switch finger or
 					 * movement from ibt=0 to ibt=1
@@ -1230,11 +788,18 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					    dx, dy, sc->finger);
 				}
 				if (sc->dz_count--) {
-					rdz = (dy + sc->rdz) % tun.scale_factor;
-					sc->dz_sum -= (dy + sc->rdz) / tun.scale_factor;
+					if (sc->scr_mode == WSP_SCR_HOR) {
+						rdz = (dx + sc->rdz) % tun.scale_factor;
+						sc->dz_sum -= (dx + sc->rdz) / tun.scale_factor;
+					} else if (sc->scr_mode == WSP_SCR_VER) {
+						rdz = (dy + sc->rdz) % tun.scale_factor;
+						sc->dz_sum -= (dy + sc->rdz) / tun.scale_factor;
+					}
 					sc->rdz = rdz;
 				}
-				if ((sc->dz_sum / tun.z_factor) != 0)
+				if (sc->scr_mode == WSP_SCR_VER && (tun.z_factor == 0 || (sc->dz_sum / tun.z_factor) != 0))
+					sc->dz_count = 0;
+				else if (sc->scr_mode == WSP_SCR_HOR && (tun.t_factor == 0 || (sc->dz_sum / tun.t_factor) != 0))
 					sc->dz_count = 0;
 			}
 			rdx = (dx + sc->rdx) % tun.scale_factor;
@@ -1248,26 +813,55 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->dx_sum += dx;
 			sc->dy_sum += dy;
 
-			if (ntouch == 2 && sc->sc_status.button == 0) {
-				if (sc->scr_mode == WSP_SCR_NONE &&
-				    abs(sc->dx_sum) + abs(sc->dy_sum) > tun.scr_hor_threshold)
-					sc->scr_mode = abs(sc->dx_sum) >
-					    abs(sc->dy_sum) * 2 ? WSP_SCR_HOR : WSP_SCR_VER;
-				DPRINTFN(WSP_LLEVEL_INFO, "scr_mode=%5d, count=%d, dx_sum=%d, dy_sum=%d\n",
-				    sc->scr_mode, sc->intr_count, sc->dx_sum, sc->dy_sum);
-				if (sc->scr_mode == WSP_SCR_HOR)
-					sc->dt_sum += dx;
-				else
-					sc->dt_sum = 0;
+			if (sc->sc_status.button == 0 && ntouch > 0) {
+				if (ntouch == tun.scroll_finger_count || ntouch == tun.horizontal_swipe_finger_count) {
+					if (sc->scr_mode == WSP_SCR_NONE && abs(sc->dx_sum) + abs(sc->dy_sum) > tun.scr_threshold)
+						sc->scr_mode = abs(sc->dx_sum) > abs(sc->dy_sum) * 2 ? WSP_SCR_HOR : WSP_SCR_VER;
 
-				dx = dy = 0;
-				if (sc->dz_count == 0)
-					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
-				if (sc->scr_mode == WSP_SCR_HOR || sc->distance > tun.max_double_tap_distance)
+					DPRINTFN(WSP_LLEVEL_INFO, "scr_mode=%5d, count=%d, dx_sum=%d, dy_sum=%d\n", sc->scr_mode, sc->intr_count, sc->dx_sum, sc->dy_sum);
+				}
+
+				if (ntouch == tun.scroll_finger_count) { /* preference scrolling over swipe if tun.scroll_finger_count == tun.horizontal_swipe_finger_count */
+					if (sc->scr_mode == WSP_SCR_HOR) {
+						sc->sc_status.button = 1 << 5;
+					}
+					dx = dy = 0;
 					dz = 0;
+					sc->dt_sum = 0;
+					if (sc->distance > tun.max_scroll_finger_distance)
+						dz = 0;
+					else if (sc->dz_count == 0) {
+						if (sc->scr_mode == WSP_SCR_VER) {
+							if (tun.z_factor > 0)
+								dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
+							else
+								dz = 0;
+						} else if (sc->scr_mode == WSP_SCR_HOR) {
+							if (tun.t_factor > 0)
+								dz = (sc->dz_sum / tun.t_factor) * (tun.t_invert ? -1 : 1);
+							else
+								dz = 0;
+						}
+					}
+				} else if (ntouch == tun.horizontal_swipe_finger_count) {
+					if (sc->scr_mode == WSP_SCR_HOR) {
+						sc->dt_sum += dx * (tun.t_invert ? -1 : 1);
+					} else {
+						sc->dt_sum = 0;
+					}
+					dx = dy = dz = 0;
+				}
 			}
+
 			if (ntouch == 3)
 				dx = dy = dz = 0;
+
+			if (ntouch != tun.horizontal_swipe_finger_count)
+				sc->dt_sum = 0;
+
+			if (ntouch == 0)
+				sc->scr_mode = WSP_SCR_NONE;
+
 			if (sc->intr_count < WSP_TAP_MAX_COUNT &&
 			    abs(dx) < 3 && abs(dy) < 3 && abs(dz) < 3)
 				dx = dy = dz = 0;
@@ -1352,6 +946,7 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 		buf[6] = dz - (dz >> 1);/* dz - (dz / 2) */
 		buf[7] = (((~buttons_in) >> 3) & MOUSE_SYS_EXTBUTTONS);
 	}
+
 	usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 	    sc->sc_mode.packetsize, 1);
 }
