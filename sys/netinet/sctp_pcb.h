@@ -506,8 +506,6 @@ sctp_add_addr_to_vrf(uint32_t vrfid,
     void *ifa, struct sockaddr *addr, uint32_t ifa_flags,
     int dynamic_add);
 
-void sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu);
-
 void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
 
 void
