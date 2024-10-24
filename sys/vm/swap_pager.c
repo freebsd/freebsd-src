@@ -111,6 +111,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
+#include <vm/vm_radix.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -2476,17 +2477,62 @@ swap_pager_iter_find_least(struct pctrie_iter *blks, vm_pindex_t pindex)
 }
 
 /*
- * Returns the least page index which is greater than or equal to the parameter
- * pindex and for which there is a swap block allocated.  Returns OBJ_MAX_SIZE
- * if are no allocated swap blocks for the object after the requested pindex.
+ * Find the first index >= pindex that has either a valid page or a swap
+ * block.
  */
 vm_pindex_t
-swap_pager_find_least(vm_object_t object, vm_pindex_t pindex)
+swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 {
-	struct pctrie_iter blks;
+	struct pctrie_iter blks, pages;
+	vm_page_t m;
+	vm_pindex_t swap_index;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	vm_page_iter_init(&pages, object);
+	m = vm_page_iter_lookup_ge(&pages, pindex);
+	if (m != NULL) {
+		if (!vm_page_any_valid(m))
+			m = NULL;
+		else if (pages.index == pindex)
+			return (pages.index);
+	}
 	swblk_iter_init_only(&blks, object);
-	return (swap_pager_iter_find_least(&blks, pindex));
+	swap_index = swap_pager_iter_find_least(&blks, pindex);
+	if (swap_index == pindex)
+		return (swap_index);
+	if (swap_index == OBJ_MAX_SIZE)
+		swap_index = object->size;
+	if (m == NULL)
+		return (swap_index);
+
+	while ((m = vm_radix_iter_step(&pages)) != NULL &&
+	    pages.index < swap_index) {
+		if (vm_page_any_valid(m))
+			return (pages.index);
+	}
+	return (swap_index);
+}
+
+/*
+ * Find the first index >= pindex that has neither a valid page nor a swap
+ * block.
+ */
+vm_pindex_t
+swap_pager_seek_hole(vm_object_t object, vm_pindex_t pindex)
+{
+	struct pctrie_iter blks, pages;
+	struct swblk *sb;
+	vm_page_t m;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	vm_page_iter_init(&pages, object);
+	swblk_iter_init_only(&blks, object);
+	while (((m = vm_page_iter_lookup(&pages, pindex)) != NULL &&
+	    vm_page_any_valid(m)) ||
+	    ((sb = swblk_iter_lookup(&blks, pindex)) != NULL &&
+	    sb->d[pindex % SWAP_META_PAGES] != SWAPBLK_NONE))
+		pindex++;
+	return (pindex);
 }
 
 /*
