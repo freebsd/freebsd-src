@@ -614,7 +614,7 @@ static inline void
 __skb_unlink(struct sk_buff *skb, struct sk_buff_head *head)
 {
 	SKB_TRACE2(skb, head);
-	struct sk_buff *p, *n;;
+	struct sk_buff *p, *n;
 
 	head->qlen--;
 	p = skb->prev;
