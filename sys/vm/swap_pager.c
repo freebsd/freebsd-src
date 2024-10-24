@@ -2487,7 +2487,7 @@ swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 	vm_pindex_t swap_index;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_RLOCKED(object);
 	vm_page_iter_init(&pages, object);
 	m = vm_page_iter_lookup_ge(&pages, pindex);
 	if (m != NULL) {
