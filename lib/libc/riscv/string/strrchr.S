@@ -6,6 +6,9 @@
 
 #include <machine/asm.h>
 
+        .weak   rindex
+        .set    rindex, strrchr
+
 /*
  * a0 - const char *s
  * a1 - int c
