@@ -769,7 +769,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	else {
 		SCTPDBG(SCTP_DEBUG_PCB4, "Del Addr-ifn:%d Could not find address:",
 		    ifn_index);
-		SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
+		SCTPDBG_ADDR(SCTP_DEBUG_PCB4, addr);
 	}
 #endif
 
