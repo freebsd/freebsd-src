@@ -649,6 +649,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	static callout_func_t *lastfunc;
 #endif
 
+	CC_LOCK_ASSERT(cc);
 	KASSERT((c->c_iflags & CALLOUT_PENDING) == CALLOUT_PENDING,
 	    ("softclock_call_cc: pend %p %x", c, c->c_iflags));
 	KASSERT((c->c_flags & CALLOUT_ACTIVE) == CALLOUT_ACTIVE,
@@ -671,16 +672,29 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	cc_exec_last_func(cc, direct) = c_func;
 	cc_exec_last_arg(cc, direct) = c_arg;
 	cc_exec_cancel(cc, direct) = false;
-	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
-		class->lc_lock(c_lock, lock_status);
-		/*
-		 * The callout may have been cancelled
-		 * while we switched locks.
-		 */
-		if (cc_exec_cancel(cc, direct)) {
-			class->lc_unlock(c_lock);
-			goto skip;
+		if (c_iflags & CALLOUT_TRYLOCK) {
+			if (__predict_false(class->lc_trylock(c_lock,
+			    lock_status) == 0)) {
+				cc_exec_curr(cc, direct) = NULL;
+				callout_cc_add(c, cc,
+				    cc->cc_lastscan + c->c_precision / 2,
+				    qmax(c->c_precision / 2, 1), c_func, c_arg,
+				    (direct) ? C_DIRECT_EXEC : 0);
+				return;
+			}
+			CC_UNLOCK(cc);
+		} else {
+			CC_UNLOCK(cc);
+			class->lc_lock(c_lock, lock_status);
+			/*
+			 * The callout may have been cancelled
+			 * while we switched locks.
+			 */
+			if (cc_exec_cancel(cc, direct)) {
+				class->lc_unlock(c_lock);
+				goto skip;
+			}
 		}
 		/* The callout cannot be stopped now. */
 		cc_exec_cancel(cc, direct) = true;
@@ -698,6 +712,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 			    c, c_func, c_arg);
 		}
 	} else {
+		CC_UNLOCK(cc);
 #ifdef CALLOUT_PROFILING
 		(*mpcalls)++;
 #endif
@@ -1332,10 +1347,15 @@ void
 _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 {
 	KASSERT(lock != NULL, ("%s: no lock", __func__));
-	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK)) == 0,
+	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK |
+	    CALLOUT_TRYLOCK)) == 0,
 	    ("%s: bad flags %d", __func__, flags));
 	KASSERT(!(LOCK_CLASS(lock)->lc_flags & LC_SLEEPABLE),
 	    ("%s: callout %p has sleepable lock", __func__, c));
+	KASSERT(!(flags & CALLOUT_TRYLOCK) ||
+	    (LOCK_CLASS(lock)->lc_trylock != NULL),
+	    ("%s: CALLOUT_TRYLOCK requested for %s",
+	    __func__, LOCK_CLASS(lock)->lc_name));
 
 	*c = (struct callout ){
 		.c_lock = lock,
