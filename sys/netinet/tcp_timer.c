@@ -874,12 +874,8 @@ tcp_timer_enter(void *xtp)
 	struct inpcb *inp = tptoinpcb(tp);
 	sbintime_t precision;
 	tt_which which;
-	bool tp_valid;
 
 	INP_WLOCK_ASSERT(inp);
-	MPASS((curthread->td_pflags & TDP_INTCPCALLOUT) == 0);
-
-	curthread->td_pflags |= TDP_INTCPCALLOUT;
 
 	which = tcp_timer_next(tp, NULL);
 	MPASS(which < TT_N);
@@ -887,8 +883,7 @@ tcp_timer_enter(void *xtp)
 	tp->t_precisions[which] = 0;
 
 	tcp_bblog_timer(tp, which, TT_PROCESSING, 0);
-	tp_valid = tcp_timersw[which](tp);
-	if (tp_valid) {
+	if (tcp_timersw[which](tp)) {
 		tcp_bblog_timer(tp, which, TT_PROCESSED, 0);
 		if ((which = tcp_timer_next(tp, &precision)) != TT_N) {
 			MPASS(tp->t_state > TCPS_CLOSED);
@@ -898,8 +893,6 @@ tcp_timer_enter(void *xtp)
 		}
 		INP_WUNLOCK(inp);
 	}
-
-	curthread->td_pflags &= ~TDP_INTCPCALLOUT;
 }
 
 /*
