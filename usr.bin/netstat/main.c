@@ -523,12 +523,9 @@ main(int argc, char *argv[])
 	if (rflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
-		if (sflag) {
-			if (live) {
-				kresolve_list(nl);
-			}
+		if (sflag)
 			rt_stats();
-		} else
+		else
 			routepr(fib, af);
 		xo_close_container("statistics");
 		if (xo_finish() < 0)
