@@ -338,8 +338,9 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		    td->td_md.md_spinlock_count);
 	}
 #endif
-	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
-	    WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
+	if ((td->td_pflags & TDP_NOFAULTING) == 0 &&
+	    (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
+	    WARN_GIANTOK, NULL, "Kernel page fault") != 0)) {
 		print_registers(frame);
 		print_gp_register("far", far);
 		printf(" esr: 0x%.16lx\n", esr);
