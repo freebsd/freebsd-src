@@ -249,17 +249,6 @@ sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 }
 
 void
-sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu)
-{
-	struct sctp_ifn *sctp_ifnp;
-
-	sctp_ifnp = sctp_find_ifn((void *)NULL, ifn_index);
-	if (sctp_ifnp != NULL) {
-		sctp_ifnp->ifn_mtu = mtu;
-	}
-}
-
-void
 sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 {
 	if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&sctp_ifap->refcount)) {
