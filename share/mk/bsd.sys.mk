@@ -221,6 +221,7 @@ CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=restrict				\
 		-Wno-error=sizeof-pointer-memaccess		\
 		-Wno-error=stringop-truncation
+CXXWARNFLAGS+=	-Wno-error=class-memaccess
 .endif
 
 # GCC 9.2.0
