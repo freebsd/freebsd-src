@@ -538,7 +538,7 @@ bcm_lintc_init_pmu_on_ap(struct bcm_lintc_softc *sc, u_int cpu)
 }
 
 static void
-bcm_lintc_init_secondary(device_t dev, uint32_t rootnum)
+bcm_lintc_init_secondary(device_t dev, enum root_type root_type)
 {
 	u_int cpu;
 	struct bcm_lintc_softc *sc;
