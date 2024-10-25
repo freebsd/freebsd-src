@@ -152,6 +152,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 
 	/* Grab the channel lock*/
 	VT9P_LOCK(chan);
+req_retry:
 	sglist_reset(sg);
 	/* Handle out VirtIO ring buffers */
 	error = sglist_append(sg, req->tc->sdata, req->tc->size);
@@ -170,9 +171,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 	}
 	writable = sg->sg_nseg - readable;
 
-req_retry:
 	error = virtqueue_enqueue(vq, req, sg, readable, writable);
-
 	if (error != 0) {
 		if (error == ENOSPC) {
 			/*
