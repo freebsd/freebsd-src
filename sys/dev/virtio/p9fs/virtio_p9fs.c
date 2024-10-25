@@ -110,20 +110,20 @@ SYSCTL_UINT(_vfs_9p, OID_AUTO, ackmaxidle, CTLFLAG_RW, &vt9p_ackmaxidle, 0,
 static int
 vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 {
-	if (req->tc->tag != req->rc->tag) {
-		if (msleep(req, VT9P_MTX(chan), 0, "chan lock",
-		    vt9p_ackmaxidle * hz)) {
-			/*
-			 * Waited for 120s. No response from host.
-			 * Can't wait for ever..
-			 */
-			P9_DEBUG(ERROR, "Timeout after waiting %u seconds"
-			    "for an ack from host\n", vt9p_ackmaxidle);
-			return (EIO);
-		}
-		KASSERT(req->tc->tag == req->rc->tag,
-		    ("Spurious event on p9 req"));
+	KASSERT(req->tc->tag != req->rc->tag,
+	    ("%s: request %p already completed", __func__, req));
+
+	if (msleep(req, VT9P_MTX(chan), 0, "chan lock", vt9p_ackmaxidle * hz)) {
+		/*
+		 * Waited for 120s. No response from host.
+		 * Can't wait for ever..
+		 */
+		P9_DEBUG(ERROR, "Timeout after waiting %u seconds"
+		    "for an ack from host\n", vt9p_ackmaxidle);
+		return (EIO);
 	}
+	KASSERT(req->tc->tag == req->rc->tag,
+	    ("%s spurious event on request %p", __func__, req));
 	return (0);
 }
 
