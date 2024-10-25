@@ -71,6 +71,9 @@ void	*(memmove)(void *, const void *, size_t);
 void	*(mempcpy)(void * __restrict, const void * __restrict, size_t);
 #endif
 void	*(memset)(void *, int, size_t);
+#if __BSD_VISIBLE || __ISO_C_VISIBLE >= 2023
+void	*memset_explicit(void *, int, size_t);
+#endif
 #if __POSIX_VISIBLE >= 200809
 char	*(stpcpy)(char * __restrict, const char * __restrict);
 char	*(stpncpy)(char * __restrict, const char * __restrict, size_t);
