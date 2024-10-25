@@ -928,7 +928,6 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 			CHN_LOCK(c);
 			if (c->direction == direction &&
 			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
-			    c->refcount < 1 &&
 			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL))))) {
 				/*
 				 * Reuse hw channel with vchans already
@@ -987,12 +986,11 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 			}
 			CHN_FOREACH_SAFE(ch, c, nch, children) {
 				CHN_LOCK(ch);
-				if (vcnt == 1 && c->refcount > 0) {
+				if (vcnt == 1 && ch->flags & CHN_F_BUSY) {
 					CHN_UNLOCK(ch);
 					break;
 				}
-				if (!(ch->flags & CHN_F_BUSY) &&
-				    ch->refcount < 1) {
+				if (!(ch->flags & CHN_F_BUSY)) {
 					err = vchan_destroy(ch);
 					if (err == 0)
 						vcnt--;
