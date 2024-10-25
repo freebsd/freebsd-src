@@ -222,11 +222,15 @@ vt9p_intr_complete(void *xsc)
 	P9_DEBUG(TRANS, "%s: completing\n", __func__);
 
 	VT9P_LOCK(chan);
+again:
 	while ((curreq = virtqueue_dequeue(vq, NULL)) != NULL) {
 		curreq->rc->tag = curreq->tc->tag;
 		wakeup_one(curreq);
 	}
-	virtqueue_enable_intr(vq);
+	if (virtqueue_enable_intr(vq) != 0) {
+		virtqueue_disable_intr(vq);
+		goto again;
+	}
 	cv_signal(&chan->submit_cv);
 	VT9P_UNLOCK(chan);
 }
