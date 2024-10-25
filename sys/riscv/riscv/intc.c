@@ -241,7 +241,7 @@ intc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 #ifdef SMP
 static void
-intc_init_secondary(device_t dev, enum root_type root_type)
+intc_init_secondary(device_t dev, uint32_t rootnum)
 {
 	struct intc_softc *sc;
 	struct intr_irqsrc *isrc;
