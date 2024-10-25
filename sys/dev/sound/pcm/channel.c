@@ -1436,19 +1436,6 @@ chn_release(struct pcm_channel *c)
 }
 
 int
-chn_ref(struct pcm_channel *c, int ref)
-{
-	PCM_BUSYASSERT(c->parentsnddev);
-	CHN_LOCKASSERT(c);
-	KASSERT((c->refcount + ref) >= 0,
-	    ("%s(): new refcount will be negative", __func__));
-
-	c->refcount += ref;
-
-	return (c->refcount);
-}
-
-int
 chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center)
 {
