@@ -685,6 +685,133 @@ monitor:
 
 }
 
+ATF_TC_WITHOUT_HEAD(memset_explicit_before_end);
+ATF_TC_BODY(memset_explicit_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	memset_explicit(__stack.__buf, 0, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(memset_explicit_end);
+ATF_TC_BODY(memset_explicit_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	memset_explicit(__stack.__buf, 0, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(memset_explicit_heap_before_end);
+ATF_TC_BODY(memset_explicit_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	memset_explicit(__stack.__buf, 0, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(memset_explicit_heap_end);
+ATF_TC_BODY(memset_explicit_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	memset_explicit(__stack.__buf, 0, __len);
+#undef BUF
+
+}
+
+ATF_TC_WITHOUT_HEAD(memset_explicit_heap_after_end);
+ATF_TC_BODY(memset_explicit_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	memset_explicit(__stack.__buf, 0, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
 ATF_TC_WITHOUT_HEAD(stpcpy_before_end);
 ATF_TC_BODY(stpcpy_before_end, tc)
 {
@@ -1899,6 +2026,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, memset_heap_before_end);
 	ATF_TP_ADD_TC(tp, memset_heap_end);
 	ATF_TP_ADD_TC(tp, memset_heap_after_end);
+	ATF_TP_ADD_TC(tp, memset_explicit_before_end);
+	ATF_TP_ADD_TC(tp, memset_explicit_end);
+	ATF_TP_ADD_TC(tp, memset_explicit_heap_before_end);
+	ATF_TP_ADD_TC(tp, memset_explicit_heap_end);
+	ATF_TP_ADD_TC(tp, memset_explicit_heap_after_end);
 	ATF_TP_ADD_TC(tp, stpcpy_before_end);
 	ATF_TP_ADD_TC(tp, stpcpy_end);
 	ATF_TP_ADD_TC(tp, stpcpy_heap_before_end);

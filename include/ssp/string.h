@@ -109,6 +109,8 @@ __ssp_bos_icheck3_restrict(memcpy, void *, const void *)
 __ssp_bos_icheck3_restrict(mempcpy, void *, const void *)
 __ssp_bos_icheck3(memmove, void *, const void *)
 __ssp_bos_icheck3(memset, void *, int)
+__ssp_redirect(void *, memset_explicit, (void *__buf, int __ch, size_t __len),
+    (__buf, __ch, __len));
 __ssp_bos_icheck2_restrict(stpcpy, char *, const char *)
 __ssp_bos_icheck3_restrict(stpncpy, char *, const char *)
 __ssp_bos_icheck2_restrict(strcpy, char *, const char *)
