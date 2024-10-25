@@ -1692,11 +1692,10 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 	freebsd_crypt_session_t *tmpl = NULL;
 	uint8_t *authbuf = NULL;
 
-
+	bzero(&puio_s, sizeof (puio_s));
+	bzero(&cuio_s, sizeof (cuio_s));
 	zfs_uio_init(&puio, &puio_s);
 	zfs_uio_init(&cuio, &cuio_s);
-	bzero(GET_UIO_STRUCT(&puio), sizeof (struct uio));
-	bzero(GET_UIO_STRUCT(&cuio), sizeof (struct uio));
 
 #ifdef FCRYPTO_DEBUG
 	printf("%s(%s, %p, %p, %d, %p, %p, %u, %s, %p, %p, %p)\n",
