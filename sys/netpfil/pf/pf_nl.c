@@ -133,6 +133,8 @@ dump_state_key(struct nl_writer *nw, int attr, const struct pf_state_key *key)
 	dump_addr(nw, PF_STK_ADDR1, &key->addr[1], key->af);
 	nlattr_add_u16(nw, PF_STK_PORT0, key->port[0]);
 	nlattr_add_u16(nw, PF_STK_PORT1, key->port[1]);
+	nlattr_add_u8(nw, PF_STK_AF, key->af);
+	nlattr_add_u16(nw, PF_STK_PROTO, key->proto);
 
 	nlattr_set_len(nw, off);
 
