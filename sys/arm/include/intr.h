@@ -43,12 +43,6 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
-enum root_type {
-	INTR_ROOT_IRQ =	0,
-
-	INTR_ROOT_COUNT	/* MUST BE LAST */
-};
-
 #ifndef NIRQ
 #define	NIRQ		1024	/* XXX - It should be an option. */
 #endif

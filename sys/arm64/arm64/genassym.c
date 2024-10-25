@@ -29,12 +29,12 @@
 #include <sys/param.h>
 #include <sys/assym.h>
 #include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 
 #include <machine/efi.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
 
