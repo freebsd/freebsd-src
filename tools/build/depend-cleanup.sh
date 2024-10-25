@@ -225,3 +225,9 @@ if [ -e "$f" ]; then
 		run rm -f "$p"/*.inc
 	fi
 fi
+
+# 20241025  cb5e41b16083  Unbundle hash functions fom lib/libcrypt
+clean_dep   lib/libcrypt crypt-md5    c
+clean_dep   lib/libcrypt crypt-nthash c
+clean_dep   lib/libcrypt crypt-sha256 c
+clean_dep   lib/libcrypt crypt-sha512 c
