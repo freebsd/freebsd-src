@@ -71,6 +71,8 @@ enum pfstate_key_type_t {
 	PF_STK_ADDR1		= 2, /* ip */
 	PF_STK_PORT0		= 3, /* u16 */
 	PF_STK_PORT1		= 4, /* u16 */
+	PF_STK_AF		= 5, /* u8 */
+	PF_STK_PROTO		= 6, /* u16 */
 };
 
 enum pfstate_peer_type_t {
