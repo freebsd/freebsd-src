@@ -11,6 +11,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 	ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memccpy.c memchr.c memrchr.c memcmp.c \
 	memcpy.c memmem.c memmove.c mempcpy.c memset.c memset_s.c \
+	memset_explicit.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
 	strcat.c strcasestr.c strchr.c strchrnul.c strcmp.c strcoll.c strcpy.c\
 	strcspn.c strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c \
@@ -62,7 +63,8 @@ MLINKS+=ffs.3 ffsl.3 \
 MLINKS+=index.3 rindex.3
 MLINKS+=memchr.3 memrchr.3
 MLINKS+=memcpy.3 mempcpy.3
-MLINKS+=memset.3 memset_s.3
+MLINKS+=memset.3 memset_s.3 \
+	memset.3 memset_explicit.3
 MLINKS+=strcasecmp.3 strncasecmp.3 \
 	strcasecmp.3 strcasecmp_l.3 \
 	strcasecmp.3 strncasecmp_l.3
