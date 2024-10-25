@@ -9,5 +9,7 @@
 #include <expected>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
+#if _LIBCPP_STD_VER >= 23
 const char* bad_expected_access<void>::what() const noexcept { return "bad access to std::expected"; }
+#endif
 _LIBCPP_END_NAMESPACE_STD
