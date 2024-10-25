@@ -631,6 +631,15 @@ local all_tests = {
 			exclude = excludes_stack_overflow,
 		},
 		{
+			func = "memset_explicit",
+			arguments = {
+				"__buf",
+				"0",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
 			func = "stpcpy",
 			arguments = {
 				"__buf",
