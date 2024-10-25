@@ -801,9 +801,7 @@ pctrie_iter_lookup_ge(struct pctrie_iter *it, uint64_t index)
 	 * If no such node was found, and instead this path leads only to nodes
 	 * < index, back up to find a subtrie with the least value > index.
 	 */
-	if (pctrie_isleaf(node) ?
-	    (m = pctrie_toval(node)) == NULL || *m < index :
-	    node->pn_owner < index) {
+	if (node == PCTRIE_NULL || *pctrie_toval(node) < index) {
 		/* Climb the path to find a node with a descendant > index. */
 		while (it->top != 0) {
 			node = it->path[it->top - 1];
@@ -960,9 +958,7 @@ pctrie_iter_lookup_le(struct pctrie_iter *it, uint64_t index)
 	 * If no such node was found, and instead this path leads only to nodes
 	 * > index, back up to find a subtrie with the greatest value < index.
 	 */
-	if (pctrie_isleaf(node) ?
-	    (m = pctrie_toval(node)) == NULL || *m > index :
-	    node->pn_owner > index) {
+	if (node == PCTRIE_NULL || *pctrie_toval(node) > index) {
 		/* Climb the path to find a node with a descendant < index. */
 		while (it->top != 0) {
 			node = it->path[it->top - 1];
