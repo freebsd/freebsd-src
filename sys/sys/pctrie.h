@@ -147,8 +147,6 @@ name##_PCTRIE_INSERT_LOOKUP_GE(struct pctrie *ptree, struct type *ptr,	\
 			*found_out = NULL;				\
 			return (ENOMEM);				\
 		}							\
-		if (neighbor == parentp)				\
-			neighbor = parent;				\
 		pctrie_insert_node(parentp, parent, val);		\
 	}								\
 	found = pctrie_subtree_lookup_gt(neighbor, *val);		\
@@ -178,8 +176,6 @@ name##_PCTRIE_INSERT_LOOKUP_LE(struct pctrie *ptree, struct type *ptr,	\
 			*found_out = NULL;				\
 			return (ENOMEM);				\
 		}							\
-		if (neighbor == parentp)				\
-			neighbor = parent;				\
 		pctrie_insert_node(parentp, parent, val);		\
 	}								\
 	found = pctrie_subtree_lookup_lt(neighbor, *val);		\
