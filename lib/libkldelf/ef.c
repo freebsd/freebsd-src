@@ -81,7 +81,7 @@ static GElf_Addr ef_symaddr(elf_file_t ef, GElf_Size symidx);
 static int	ef_lookup_set(elf_file_t ef, const char *name,
 		    GElf_Addr *startp, GElf_Addr *stopp, long *countp);
 static int	ef_lookup_symbol(elf_file_t ef, const char *name,
-		    GElf_Sym **sym);
+		    GElf_Sym **sym, bool see_local);
 
 static struct elf_file_ops ef_file_ops = {
 	.close			= ef_close,
@@ -126,7 +126,7 @@ ef_get_offset(elf_file_t ef, GElf_Addr addr)
  * next two functions copied from link_elf.c
  */
 static int
-ef_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym)
+ef_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym, bool see_local)
 {
 	unsigned long hash, symnum;
 	GElf_Sym *symp;
@@ -156,8 +156,11 @@ ef_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym)
 			if (symp->st_shndx != SHN_UNDEF ||
 			    (symp->st_value != 0 &&
 				GELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
-				*sym = symp;
-				return (0);
+				if (see_local ||
+				    GELF_ST_BIND(symp->st_info) != STB_LOCAL) {
+					*sym = symp;
+					return (0);
+				}
 			} else
 				return (ENOENT);
 		}
@@ -183,14 +186,14 @@ ef_lookup_set(elf_file_t ef, const char *name, GElf_Addr *startp,
 
 	/* get address of first entry */
 	snprintf(setsym, len, "%s%s", "__start_set_", name);
-	error = ef_lookup_symbol(ef, setsym, &sym);
+	error = ef_lookup_symbol(ef, setsym, &sym, true);
 	if (error != 0)
 		goto out;
 	*startp = sym->st_value;
 
 	/* get address of last entry */
 	snprintf(setsym, len, "%s%s", "__stop_set_", name);
-	error = ef_lookup_symbol(ef, setsym, &sym);
+	error = ef_lookup_symbol(ef, setsym, &sym, true);
 	if (error != 0)
 		goto out;
 	*stopp = sym->st_value;
