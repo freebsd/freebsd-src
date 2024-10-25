@@ -168,9 +168,9 @@ static void
 dsp_close(void *data)
 {
 	struct dsp_cdevpriv *priv = data;
-	struct pcm_channel *rdch, *wrch, *volch;
+	struct pcm_channel *rdch, *wrch;
 	struct snddev_info *d;
-	int sg_ids, rdref, wdref;
+	int sg_ids;
 
 	if (priv == NULL)
 		return;
@@ -188,22 +188,6 @@ dsp_close(void *data)
 
 	rdch = priv->rdch;
 	wrch = priv->wrch;
-	volch = priv->volch;
-
-	rdref = -1;
-	wdref = -1;
-
-	if (volch != NULL) {
-		if (volch == rdch)
-			rdref--;
-		else if (volch == wrch)
-			wdref--;
-		else {
-			CHN_LOCK(volch);
-			chn_ref(volch, -1);
-			CHN_UNLOCK(volch);
-		}
-	}
 
 	if (rdch != NULL)
 		CHN_REMOVE(d, rdch, channels.pcm.opened);
@@ -231,7 +215,6 @@ dsp_close(void *data)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
 			CHN_LOCK(rdch);
-			chn_ref(rdch, rdref);
 			chn_abort(rdch); /* won't sleep */
 			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
 			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
@@ -249,7 +232,6 @@ dsp_close(void *data)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
 			CHN_LOCK(wrch);
-			chn_ref(wrch, wdref);
 			chn_flush(wrch); /* may sleep */
 			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
 			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
@@ -382,7 +364,6 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				rdch->flags |= CHN_F_NBIO;
 			if (flags & O_EXCL)
 				rdch->flags |= CHN_F_EXCLUSIVE;
-			chn_ref(rdch, 1);
 			chn_vpc_reset(rdch, SND_VOL_C_PCM, 0);
 		 	CHN_UNLOCK(rdch);
 		}
@@ -402,11 +383,10 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 			if (!DSP_F_DUPLEX(flags)) {
 				if (rdch != NULL) {
 					/*
-					 * Lock, deref and release previously
-					 * created record channel
+					 * Lock, and release previously created
+					 * record channel
 					 */
 					CHN_LOCK(rdch);
-					chn_ref(rdch, -1);
 					chn_release(rdch);
 				}
 				PCM_RELEASE_QUICK(d);
@@ -419,7 +399,6 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 				wrch->flags |= CHN_F_NBIO;
 			if (flags & O_EXCL)
 				wrch->flags |= CHN_F_EXCLUSIVE;
-			chn_ref(wrch, 1);
 			chn_vpc_reset(wrch, SND_VOL_C_PCM, 0);
 			CHN_UNLOCK(wrch);
 		}

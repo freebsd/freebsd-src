@@ -84,7 +84,6 @@ struct pcm_channel {
 	kobj_t methods;
 
 	pid_t pid;
-	int refcount;
 	struct pcm_feeder *feeder;
 	u_int32_t align;
 
@@ -266,7 +265,6 @@ struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
 void chn_kill(struct pcm_channel *c);
 void chn_shutdown(struct pcm_channel *c);
 int chn_release(struct pcm_channel *c);
-int chn_ref(struct pcm_channel *c, int ref);
 int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
