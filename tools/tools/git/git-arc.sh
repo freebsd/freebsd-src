@@ -328,10 +328,10 @@ diff2reviewers()
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
         echo '{
-                  "constraints": {"phids": ['"$(echo -n "$userids" | tr '[:space:]' ',')"']}
+                  "constraints": {"phids": ['"$(printf "%s" "$userids" | tr '[:space:]' ',')"']}
               }' |
-            arc_call_conduit -- user.search |
-            jq -r '.response.data[].fields.username'
+        arc_call_conduit -- user.search |
+        jq -r '.response.data[].fields.username'
     fi
 }
 
@@ -444,7 +444,7 @@ gitarc__list()
 
     for commit in $commits; do
         chash=$(git show -s --format='%C(auto)%h' "$commit")
-        echo -n "${chash} "
+        printf "%s" "${chash} "
 
         diff=$(log2diff "$commit")
         if [ -n "$diff" ]; then
@@ -461,7 +461,7 @@ gitarc__list()
         if [ -z "$diff" ]; then
             echo "No Review            : $title"
         elif [ "$(echo "$diff" | wc -l)" -ne 1 ]; then
-            echo -n "Ambiguous Reviews: "
+            printf "%s" "Ambiguous Reviews: "
             echo "$diff" | grep -E -o 'D[1-9][0-9]*:' | tr -d ':' \
                 | paste -sd ',' - | sed 's/,/, /g'
         else
