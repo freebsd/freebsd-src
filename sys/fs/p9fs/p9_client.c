@@ -380,16 +380,16 @@ out:
 uint16_t
 p9_tag_create(struct p9_client *clnt)
 {
-        int tag;
+	int tag;
 
-        tag = alloc_unr(&clnt->tagpool);
-        P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
+	tag = alloc_unr(&clnt->tagpool);
+	P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
 
-        /* Alloc_unr returning -1 is an error for no units left */
-        if (tag == -1) {
-                return (P9_NOTAG);
-        }
-        return (tag);
+	/* Alloc_unr returning -1 is an error for no units left */
+	if (tag == -1) {
+		return (P9_NOTAG);
+	}
+	return (tag);
 }
 
 /* Clean up tag structures */
@@ -397,10 +397,10 @@ void
 p9_tag_destroy(struct p9_client *clnt, uint16_t tag)
 {
 
-        P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
+	P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
 
-        /* Release to the pool */
-        free_unr(&clnt->tagpool, tag);
+	/* Release to the pool */
+	free_unr(&clnt->tagpool, tag);
 }
 
 /* Allocate a new fid from the fidpool */
