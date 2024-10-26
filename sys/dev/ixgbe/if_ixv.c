@@ -1373,7 +1373,9 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx;
 	struct ixgbe_hw    *hw = &sc->hw;
+#ifdef DEV_NETMAP
 	if_t               ifp = iflib_get_ifp(ctx);
+#endif
 	struct ix_rx_queue *que = sc->rx_queues;
 	u32                bufsz, psrtype;
 
