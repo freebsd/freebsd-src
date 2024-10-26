@@ -96,12 +96,10 @@ main(int argc, char **argv)
 	}
 
 	/* read from stdin */
-	if (strcmp(file, "-") == 0) {
+	if (strcmp(file, "-") == 0)
 		mbox = stdin;
-	} 
-	else if ((mbox = fopen(file, "r")) == NULL) {
+	else if ((mbox = fopen(file, "r")) == NULL)
 		errx(1, "can't read %s", file);
-	}
 	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
 			newline = 1;
