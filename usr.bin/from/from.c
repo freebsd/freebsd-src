@@ -30,6 +30,7 @@
  */
 
 #include <sys/types.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <pwd.h>
@@ -99,7 +100,7 @@ main(int argc, char **argv)
 		mbox = stdin;
 	} 
 	else if ((mbox = fopen(file, "r")) == NULL) {
-		errx(1, "can't read %s", file);
+		errx(EXIT_FAILURE, "can't read %s", file);
 	}
 	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
@@ -119,14 +120,14 @@ main(int argc, char **argv)
 		printf("There %s %d message%s in your incoming mailbox.\n",
 		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
 	fclose(mbox);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: from [-c] [-f file] [-s sender] [user]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 static int
