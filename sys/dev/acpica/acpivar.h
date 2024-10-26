@@ -89,6 +89,7 @@ struct acpi_device {
     void			*ad_private;
     int				ad_flags;
     int				ad_cls_class;
+    int				ad_domain;
 
     ACPI_BUFFER			dsd;	/* Device Specific Data */
     const ACPI_OBJECT	*dsd_pkg;
@@ -272,6 +273,12 @@ extern int	acpi_override_isa_irq_polarity;
 #define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
 #define ACPI_IVAR_PRIVATE	0x102
 #define ACPI_IVAR_FLAGS		0x103
+#define	ACPI_IVAR_DOMAIN	0x104
+
+/*
+ * ad_domain NUMA domain special value.
+ */
+#define	ACPI_DEV_DOMAIN_UNKNOWN	(-1)
 
 /*
  * Accessor functions for our ivars.  Default value for BUS_READ_IVAR is
@@ -297,6 +304,7 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
+__ACPI_BUS_ACCESSOR(acpi, domain, ACPI, DOMAIN, int)
 
 void acpi_fake_objhandler(ACPI_HANDLE h, void *data);
 static __inline device_t
@@ -594,7 +602,6 @@ int		acpi_pxm_parse(device_t dev);
  */
 int		acpi_map_pxm_to_vm_domainid(int pxm);
 bus_get_cpus_t		acpi_get_cpus;
-bus_get_domain_t	acpi_get_domain;
 
 #ifdef __aarch64__
 /*
