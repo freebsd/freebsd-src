@@ -61,20 +61,20 @@ main(int argc, char **argv)
 	errnum = strtol(argv[1], &cp, 0);
 
 	if (errno != 0)
-		err(1, NULL);
+		err(EXIT_FAILURE, NULL);
 
 	if ((errstr = strerror(errnum)) == NULL) 
-		err(1, NULL);
+		err(EXIT_FAILURE, NULL);
 
 	printf("%s\n", errstr);
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void 
 usage(void)
 {
 	fprintf(stderr, "usage: perror number\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
