@@ -35,6 +35,8 @@
 #include <locale.h>
 #include <sys/errno.h>
 
+#include <capsicum_helpers.h>
+
 static void usage(void) __dead2;
 
 int 
@@ -45,6 +47,11 @@ main(int argc, char **argv)
 	long errnum;
 
 	(void) setlocale(LC_MESSAGES, "");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
+
 	if (argc != 2)
 		usage();
 
