@@ -44,10 +44,12 @@ kld_start()
 
 	local _kld
 
-	echo 'Loading kernel modules:'
+	echo -n 'Loading kernel modules: '
 	for _kld in $kld_list ; do
 		load_kld -e ${_kld}.ko $_kld
+		echo -n "${_kld} "
 	done
+	echo
 }
 
 load_rc_config $name
