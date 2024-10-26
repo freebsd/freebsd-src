@@ -2050,8 +2050,6 @@ igc_if_queues_free(if_ctx_t ctx)
 		sc->rx_queues = NULL;
 	}
 
-	igc_release_hw_control(sc);
-
 	if (sc->mta != NULL) {
 		free(sc->mta, M_DEVBUF);
 	}
