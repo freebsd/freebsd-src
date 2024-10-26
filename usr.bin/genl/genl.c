@@ -263,7 +263,7 @@ monitor_mcast(int argc __unused, char **argv)
 		}
 	}
 	if (!found)
-		errx(EXIT_FAILURE, "No such multicat group '%s'"
+		errx(EXIT_FAILURE, "No such multicast group '%s'"
 		    " in family '%s'", argv[1], argv[0]);
 	for (size_t i= 0; i < nitems(mcast_parsers); i++) {
 		if (strcmp(mcast_parsers[i].family, argv[0]) == 0) {
