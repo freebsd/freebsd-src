@@ -142,6 +142,7 @@ static bus_child_location_t	acpi_child_location_method;
 static bus_hint_device_unit_t	acpi_hint_device_unit;
 static bus_get_property_t	acpi_bus_get_prop;
 static bus_get_device_path_t	acpi_get_device_path;
+static bus_get_domain_t		acpi_get_domain_method;
 
 static acpi_id_probe_t		acpi_device_id_probe;
 static acpi_evaluate_object_t	acpi_device_eval_obj;
@@ -219,7 +220,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
     DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
-    DEVMETHOD(bus_get_domain,		acpi_get_domain),
+    DEVMETHOD(bus_get_domain,		acpi_get_domain_method),
     DEVMETHOD(bus_get_property,		acpi_bus_get_prop),
     DEVMETHOD(bus_get_device_path,	acpi_get_device_path),
 
@@ -819,6 +820,7 @@ acpi_add_child(device_t bus, u_int order, const char *name, int unit)
     if ((ad = malloc(sizeof(*ad), M_ACPIDEV, M_NOWAIT | M_ZERO)) == NULL)
 	return (NULL);
 
+    ad->ad_domain = ACPI_DEV_DOMAIN_UNKNOWN;
     resource_list_init(&ad->ad_rl);
 
     child = device_add_child_ordered(bus, order, name, unit);
@@ -1055,6 +1057,9 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
     case ACPI_IVAR_FLAGS:
 	*(int *)result = ad->ad_flags;
 	break;
+    case ACPI_IVAR_DOMAIN:
+	*(int *)result = ad->ad_domain;
+	break;
     case ISA_IVAR_VENDORID:
     case ISA_IVAR_SERIAL:
     case ISA_IVAR_COMPATID:
@@ -1098,6 +1103,9 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	break;
     case ACPI_IVAR_FLAGS:
 	ad->ad_flags = (int)value;
+	break;
+    case ACPI_IVAR_DOMAIN:
+	ad->ad_domain = (int)value;
 	break;
     default:
 	panic("bad ivar write request (%d)", index);
@@ -1297,29 +1305,16 @@ acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
 	}
 }
 
-/*
- * Fetch the NUMA domain for the given device 'dev'.
- *
- * If a device has a _PXM method, map that to a NUMA domain.
- * Otherwise, pass the request up to the parent.
- * If there's no matching domain or the domain cannot be
- * determined, return ENOENT.
- */
-int
-acpi_get_domain(device_t dev, device_t child, int *domain)
+static int
+acpi_get_domain_method(device_t dev, device_t child, int *domain)
 {
-	int d;
+	int error;
 
-	d = acpi_pxm_parse(child);
-	if (d >= 0) {
-		*domain = d;
+	error = acpi_read_ivar(dev, child, ACPI_IVAR_DOMAIN,
+	    (uintptr_t *)domain);
+	if (error == 0 && *domain != ACPI_DEV_DOMAIN_UNKNOWN)
 		return (0);
-	}
-	if (d == -1)
-		return (ENOENT);
-
-	/* No _PXM node; go up a level */
-	return (bus_generic_get_domain(dev, child, domain));
+	return (ENOENT);
 }
 
 static struct rman *
@@ -2348,7 +2343,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     ACPI_HANDLE h;
     device_t bus, child;
     char *handle_str;
-    int order;
+    int d, order;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -2456,6 +2451,10 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		}
 		AcpiOsFree(devinfo);
 	    }
+
+	    d = acpi_pxm_parse(child);
+	    if (d >= 0)
+		ad->ad_domain = d;
 	    break;
 	}
     }
