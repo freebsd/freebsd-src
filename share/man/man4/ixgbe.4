@@ -124,3 +124,11 @@ The
 .Nm
 driver was written by
 .An Intel Corporation Aq Mt freebsd@intel.com .
+.Sh CAVEATS
+Intel (R) Flow director support is not fully implemented in
+.Fx
+at this time and additional work is required
+before those features can be supported.
+.Pp
+Enabling flow director may route traffic to the wrong RX queue of the NIC,
+resulting in sub-optimal performance on the receive side.
