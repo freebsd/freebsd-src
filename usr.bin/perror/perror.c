@@ -28,12 +28,13 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/errno.h>
+
+#include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
-#include <locale.h>
-#include <sys/errno.h>
 
 #include <capsicum_helpers.h>
 
