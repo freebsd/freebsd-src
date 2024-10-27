@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <locale.h>
@@ -60,6 +61,10 @@ main(int argc, char **argv)
 
 	if (setlocale(LC_TIME, "") == NULL)
 		warn("setlocale");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	if (argc < 2) {
 #define	MSG1	"When do you have to leave? "
