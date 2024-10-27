@@ -39,8 +39,8 @@ int
 main(int argc, char **argv)
 {
 	struct xvfsconf vfc, *xvfsp;
-	size_t buflen;
-	int cnt, i, rv = 0;
+	size_t cnt, buflen;
+	int rv = 0;
 
 	argc--, argv++;
 
@@ -59,15 +59,14 @@ main(int argc, char **argv)
 		}
 	} else {
 		if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
-		xvfsp = malloc(buflen);
-		if (xvfsp == NULL)
-			errx(1, "malloc failed");
+			err(EXIT_FAILURE, "sysctl(vfs.conflist)");
+		if ((xvfsp = malloc(buflen)) == NULL)
+			errx(EXIT_FAILURE, "malloc failed");
 		if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
+			err(EXIT_FAILURE, "sysctl(vfs.conflist)");
 		cnt = buflen / sizeof(struct xvfsconf);
 
-		for (i = 0; i < cnt; i++) {
+		for (size_t i = 0; i < cnt; i++) {
 			printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
 			    xvfsp[i].vfc_refcount,
 			    fmt_flags(xvfsp[i].vfc_flags));
@@ -82,10 +81,9 @@ static const char *
 fmt_flags(int flags)
 {
 	static char buf[sizeof(struct flaglist) * sizeof(fl)];
-	int i;
 
 	buf[0] = '\0';
-	for (i = 0; i < (int)nitems(fl); i++) {
+	for (size_t i = 0; i < (int)nitems(fl); i++) {
 		if ((flags & fl[i].flag) != 0) {
 			strlcat(buf, fl[i].str, sizeof(buf));
 			strlcat(buf, ", ", sizeof(buf));
