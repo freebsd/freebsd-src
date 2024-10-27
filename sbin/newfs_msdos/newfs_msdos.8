@@ -28,7 +28,7 @@
 .Os
 .Sh NAME
 .Nm newfs_msdos
-.Nd construct a new MS-DOS (FAT) file system
+.Nd construct a new File Allocation Table (FAT) file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl N
@@ -252,6 +252,7 @@ Create a 30MB image file, with the FAT partition starting
 newfs_msdos -C 30M -@63s ./somefile
 .Ed
 .Sh SEE ALSO
+.Xr msdosfs 4 ,
 .Xr gpart 8 ,
 .Xr newfs 8
 .Sh HISTORY
