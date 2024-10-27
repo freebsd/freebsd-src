@@ -63,7 +63,7 @@ The template may be any file name with some number of
 .Ql X Ns s
 appended
 to it, for example
-.Pa /tmp/temp.XXXXXX .
+.Pa /tmp/temp.XXXXXXXXXX .
 The trailing
 .Ql X Ns s
 are replaced with a
@@ -116,7 +116,7 @@ and
 respectively,
 except they permit a suffix to exist in the template.
 The template should be of the form
-.Pa /tmp/tmpXXXXXXsuffix .
+.Pa /tmp/tmpXXXXXXXXXXsuffix .
 The
 .Fn mkstemps
 and
@@ -243,7 +243,7 @@ compilers were common.
 For example, calling
 .Fn mkstemp
 with an argument of
-.Qq /tmp/tempfile.XXXXXX
+.Qq /tmp/tempfile.XXXXXXXXXX
 will result in a core dump due to
 .Fn mkstemp
 attempting to modify the string constant that was given.
