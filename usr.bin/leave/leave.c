@@ -49,6 +49,8 @@ static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
 #include <time.h>
 #include <unistd.h>
 
+#include <capsicum_helpers.h>
+
 static void doalarm(u_int);
 static void usage(void) __dead2;
 
@@ -72,6 +74,10 @@ main(int argc, char **argv)
 
 	if (setlocale(LC_TIME, "") == NULL)
 		warn("setlocale");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	if (argc < 2) {
 #define	MSG1	"When do you have to leave? "
