@@ -86,6 +86,42 @@ Intel(R) 82598EB 10 Gigabit AF Network Connection
 .It
 Intel(R) 82598EB 10 Gigabit AT CX4 Network Connection
 .El
+.Sh LOADER TUNABLES
+The
+.Nm
+driver supports the following loader tunables:
+.Bl -tag -width "hw.ix.allow_unsupported_sfp"
+.It Va hw.ix.max_interrupt_rate
+Maximum interrupts per second.
+.It Va hw.ix.flow_control
+Default flow control used for all adapters.
+.It Va hw.ix.advertise_speed
+Default advertised speed for all adapters.
+.It Va hw.ix.enable_msix
+Enable Message Signalled Interrupts (MSI-X).
+.It Va hw.ix.allow_unsupported_sfp
+Allow unsupported small form-factor pluggable
+.Pq SFP
+modules.
+Use at your own risk.
+.It Va hw.ix.enable_fdir
+Enable Flow Director.
+Flow Director directs Ethernet packets to the core where the
+packet consuming process, application, container,
+or microservice is running.
+.It Va hw.ix.enable_rss
+Enable Receive-Side Scaling (RSS).
+When RSS is enabled, all of the receive data processing for
+a particular TCP connection is shared across multiple processors
+or processor cores.
+Without RSS, all of the processing is performed by a single
+processor, resulting in inefficient system cache utilization.
+This has no effect if your system has only one processing unit.
+.It Va hw.ix.enable_aim
+Enable Adaptive Interrupt Moderation (AIM).
+Vary the interrupt rate over time based on the traffic for
+that interrupt vector.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ix%d: Unable to allocate bus resource: memory"
@@ -113,7 +149,8 @@ issue to
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
