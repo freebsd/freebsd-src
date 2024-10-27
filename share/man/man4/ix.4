@@ -30,10 +30,10 @@
 .\" * Other names and brands may be claimed as the property of others.
 .\"
 .Dd May 17, 2023
-.Dt IXGBE 4
+.Dt IX 4
 .Os
 .Sh NAME
-.Nm ixgbe
+.Nm ix
 .Nd "Intel(R) 10Gb Ethernet driver for the FreeBSD operating system"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
@@ -41,14 +41,14 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iflib"
-.Cd "device ixgbe"
+.Cd "device ix"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-if_ixgbe_load="YES"
+if_ix_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -88,11 +88,11 @@ Intel(R) 82598EB 10 Gigabit AT CX4 Network Connection
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "ixgbe%d: Unable to allocate bus resource: memory"
+.It "ix%d: Unable to allocate bus resource: memory"
 A fatal initialization error has occurred.
-.It "ixgbe%d: Unable to allocate bus resource: interrupt"
+.It "ix%d: Unable to allocate bus resource: interrupt"
 A fatal initialization error has occurred.
-.It "ixgbe%d: watchdog timeout -- resetting"
+.It "ix%d: watchdog timeout -- resetting"
 The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
 .El
