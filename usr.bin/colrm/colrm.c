@@ -40,6 +40,8 @@
 #include <unistd.h>
 #include <wchar.h>
 
+#include <capsicum_helpers.h>
+
 #define	TAB	8
 
 void check(FILE *);
@@ -53,6 +55,10 @@ main(int argc, char *argv[])
 	char *p;
 
 	setlocale(LC_ALL, "");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
