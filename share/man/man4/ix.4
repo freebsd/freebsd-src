@@ -29,12 +29,12 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd May 17, 2023
+.Dd October 26, 2024
 .Dt IX 4
 .Os
 .Sh NAME
 .Nm ix
-.Nd "Intel(R) 10Gb Ethernet driver for the FreeBSD operating system"
+.Nd Intel 10Gb Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -53,7 +53,7 @@ if_ix_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCI 10Gb Ethernet adapters based on
+driver provides support for 10Gb Ethernet PCIe adapters based on
 the Intel 82598EB Intel(R) Network Connections.
 The driver supports Jumbo Frames, MSIX, TSO, and RSS.
 .Pp
@@ -74,17 +74,26 @@ For information on enabling VLANs, see
 .Sh HARDWARE
 The
 .Nm
-driver supports the following cards:
+driver supports Intel 10Gb Ethernet PCIe adapters,
+including:
 .Pp
 .Bl -bullet -compact
 .It
-Intel(R) 10 Gigabit XF SR/AF Dual Port Server Adapter
+Intel(R) Ethernet X553
 .It
-Intel(R) 10 Gigabit XF SR/LR Server Adapter
+Intel(R) Ethernet X552
 .It
-Intel(R) 82598EB 10 Gigabit AF Network Connection
+Intel(R) Ethernet X550
 .It
-Intel(R) 82598EB 10 Gigabit AT CX4 Network Connection
+Intel(R) Ethernet X540 Bypass
+.It
+Intel(R) Ethernet X540
+.It
+Intel(R) Ethernet X520 Bypass (82599)
+.It
+Intel(R) Ethernet X520 (82599)
+.It
+Intel(R) 10 Gigabit Server Adapter (82598EB)
 .El
 .Sh LOADER TUNABLES
 The
