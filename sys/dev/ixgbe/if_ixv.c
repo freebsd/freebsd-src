@@ -1073,11 +1073,14 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	 */
 	if (sc->hw.mac.type == ixgbe_mac_82599_vf) {
 		int msix_ctrl;
-		pci_find_cap(dev, PCIY_MSIX, &rid);
-		rid += PCIR_MSIX_CTRL;
-		msix_ctrl = pci_read_config(dev, rid, 2);
-		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-		pci_write_config(dev, rid, msix_ctrl, 2);
+		if (pci_find_cap(dev, PCIY_MSIX, &rid)) {
+			device_printf(dev, "Finding MSIX capability failed\n");
+		} else {
+			rid += PCIR_MSIX_CTRL;
+			msix_ctrl = pci_read_config(dev, rid, 2);
+			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+			pci_write_config(dev, rid, msix_ctrl, 2);
+		}
 	}
 
 	return (0);
