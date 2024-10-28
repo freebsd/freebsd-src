@@ -1834,6 +1834,9 @@ vm_phys_early_startup(void)
 	struct vm_phys_seg *seg;
 	int i;
 
+	if (phys_avail[1] == 0)
+		panic("phys_avail[] is empty");
+
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		phys_avail[i] = round_page(phys_avail[i]);
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
