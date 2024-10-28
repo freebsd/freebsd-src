@@ -56,6 +56,7 @@ static const luaL_Reg loadedlibs[] = {
 #endif
   /* FreeBSD Extensions */
   {"lfs", luaopen_lfs},
+  {"posix.fnmatch", luaopen_posix_fnmatch},
   {"posix.libgen", luaopen_posix_libgen},
   {"posix.stdlib", luaopen_posix_stdlib},
   {"posix.sys.stat", luaopen_posix_sys_stat},

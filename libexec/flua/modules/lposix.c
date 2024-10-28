@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 
 #include <errno.h>
+#include <fnmatch.h>
 #include <grp.h>
 #include <libgen.h>
 #include <pwd.h>
@@ -171,6 +172,23 @@ err:
 	lua_pushinteger(L, error);
 	return (3);
 
+}
+
+static int
+lua_fnmatch(lua_State *L)
+{
+	const char *pattern, *string;
+	int flags, n;
+
+	n = lua_gettop(L);
+	luaL_argcheck(L, n == 2 || n == 3, 4, "need 2 or 3 arguments");
+
+	pattern = luaL_checkstring(L, 1);
+	string = luaL_checkstring(L, 2);
+	flags = luaL_optinteger(L, 3, 0);
+	lua_pushinteger(L, fnmatch(pattern, string, flags));
+
+	return (1);
 }
 
 static int
@@ -471,6 +489,11 @@ static const struct luaL_Reg stdliblib[] = {
 	{ NULL, NULL },
 };
 
+static const struct luaL_Reg fnmatchlib[] = {
+	REG_SIMPLE(fnmatch),
+	{ NULL, NULL },
+};
+
 static const struct luaL_Reg sys_statlib[] = {
 	REG_SIMPLE(chmod),
 	{ NULL, NULL },
@@ -513,6 +536,24 @@ luaopen_posix_stdlib(lua_State *L)
 {
 	luaL_newlib(L, stdliblib);
 	return (1);
+}
+
+int
+luaopen_posix_fnmatch(lua_State *L)
+{
+	luaL_newlib(L, fnmatchlib);
+
+#define	setkv(f) do {			\
+	lua_pushinteger(L, f);		\
+	lua_setfield(L, -2, #f);	\
+} while (0)
+	setkv(FNM_PATHNAME);
+	setkv(FNM_NOESCAPE);
+	setkv(FNM_NOMATCH);
+	setkv(FNM_PERIOD);
+#undef setkv
+
+	return 1;
 }
 
 int
