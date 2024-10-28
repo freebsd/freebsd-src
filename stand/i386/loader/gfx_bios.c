@@ -22,7 +22,7 @@
 #include <gfx_fb.h>
 #endif
 
-#ifdef BIOS_TEXT_ONLY
+#ifdef BIOS_TEXT_ONLY		/* Note: likely need a forced commits when this changes */
 void autoload_font(bool bios);
 
 void
