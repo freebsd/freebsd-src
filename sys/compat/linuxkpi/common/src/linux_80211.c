@@ -1270,9 +1270,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	} else {
 		error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
 		if (error == 0 || error == EOPNOTSUPP) {
-			vif->bss_conf.chandef.chan = chanctx_conf->def.chan;
-			vif->bss_conf.chandef.width = chanctx_conf->def.width;
-			vif->bss_conf.chandef.center_freq1 =
+			vif->bss_conf.chanreq.oper.chan = chanctx_conf->def.chan;
+			vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
+			vif->bss_conf.chanreq.oper.center_freq1 =
 			    chanctx_conf->def.center_freq1;
 #ifdef LKPI_80211_HT
 			if (vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_40) {
@@ -1283,7 +1283,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 					vif->bss_conf.chandef.center_freq1 -= 10;
 			}
 #endif
-			vif->bss_conf.chandef.center_freq2 =
+			vif->bss_conf.chanreq.oper.center_freq2 =
 			    chanctx_conf->def.center_freq2;
 		} else {
 			ic_printf(vap->iv_ic, "%s:%d: mo_add_chanctx "
@@ -2841,7 +2841,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	lvif->lvif_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 	    lkpi_vif_iflladdr, vif, EVENTHANDLER_PRI_ANY);
 	vif->bss_conf.link_id = 0;	/* Non-MLO operation. */
-	vif->bss_conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+	vif->bss_conf.chanreq.oper.width = NL80211_CHAN_WIDTH_20_NOHT;
 	vif->bss_conf.use_short_preamble = false;	/* vap->iv_flags IEEE80211_F_SHPREAMBLE */
 	vif->bss_conf.use_short_slot = false;		/* vap->iv_flags IEEE80211_F_SHSLOT */
 	vif->bss_conf.qos = false;
@@ -3027,7 +3027,7 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	lkpi_80211_mo_remove_interface(hw, vif);
 
 	/* Single VAP, so we can do this here. */
-	lkpi_80211_mo_stop(hw);
+	lkpi_80211_mo_stop(hw, false);			/* XXX SUSPEND */
 
 	mtx_destroy(&lvif->mtx);
 	free(lvif, M_80211_VAP);
@@ -3084,7 +3084,7 @@ lkpi_ic_parent(struct ieee80211com *ic)
 			start_all = true;
 	} else {
 #ifdef HW_START_STOP
-		lkpi_80211_mo_stop(hw);
+		lkpi_80211_mo_stop(hw, false);		/* XXX SUSPEND */
 #endif
 	}
 	LKPI_80211_LHW_UNLOCK(lhw);
