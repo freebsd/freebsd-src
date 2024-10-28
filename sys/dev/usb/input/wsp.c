@@ -102,7 +102,7 @@ static struct wsp_tuning {
 	int	pressure_untouch_threshold;
 	int	pressure_tap_threshold;
 	int	scr_threshold;
-	int	max_finger_area;
+	int	max_finger_diameter;
 	int	max_scroll_finger_distance;
 	int	max_double_tap_distance;
 	int	enable_single_tap_clicks;
@@ -121,7 +121,7 @@ static struct wsp_tuning {
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
 	.scr_threshold = 20,
-	.max_finger_area = 1900,
+	.max_finger_diameter = 1900,
 	.max_scroll_finger_distance = MAX_FINGER_ORIENTATION/2,
 	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
@@ -141,7 +141,7 @@ wsp_running_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_touch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
-	WSP_CLAMP(ptun->max_finger_area, 1, 2400);
+	WSP_CLAMP(ptun->max_finger_diameter, 1, 2400);
 	WSP_CLAMP(ptun->max_scroll_finger_distance, 1, MAX_FINGER_ORIENTATION);
 	WSP_CLAMP(ptun->max_double_tap_distance, 1, MAX_FINGER_ORIENTATION);
 	WSP_CLAMP(ptun->scr_threshold, 1, 255);
@@ -169,8 +169,8 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_untouch_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_untouch_threshold, 0, "untouch pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_tap_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_tap_threshold, 0, "tap pressure threshold");
-SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_finger_area, CTLFLAG_RWTUN,
-    &wsp_tuning.max_finger_area, 0, "maximum finger area");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_finger_diameter, CTLFLAG_RWTUN,
+    &wsp_tuning.max_finger_diameter, 0, "maximum finger diameter");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_scroll_finger_distance, CTLFLAG_RWTUN,
     &wsp_tuning.max_scroll_finger_distance, 0, "maximum scroll finger distance");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_double_tap_distance, CTLFLAG_RWTUN,
@@ -898,10 +898,10 @@ wsp_attach(device_t dev)
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_POSITION_Y, sc->sc_params->y);
 	/* finger pressure */
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
-	/* finger touch area */
+	/* finger major/minor axis */
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MAJOR, sc->sc_params->w);
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MINOR, sc->sc_params->w);
-	/* finger approach area */
+	/* finger major/minor approach */
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_WIDTH_MAJOR, sc->sc_params->w);
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_WIDTH_MINOR, sc->sc_params->w);
 	/* finger orientation */
@@ -1111,7 +1111,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			switch (ntouch) {
 			case 1:
 				if (sc->index[0]->touch_major > tun.pressure_tap_threshold &&
-				    sc->index[0]->tool_major <= tun.max_finger_area)
+				    sc->index[0]->tool_major <= tun.max_finger_diameter)
 					sc->ntaps = 1;
 				break;
 			case 2:
@@ -1217,7 +1217,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					dx = dy = 0;
 
 				/* Ignore unexpected movement when typing (palm detection) */
-				if (ntouch == 1 && sc->index[0]->tool_major > tun.max_finger_area)
+				if (ntouch == 1 && sc->index[0]->tool_major > tun.max_finger_diameter)
 					dx = dy = 0;
 
 				if (sc->ibtn != 0 && ntouch == 1 && 
