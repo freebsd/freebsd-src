@@ -944,11 +944,11 @@ tuncreate(struct cdev *dev)
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_flags = iflags;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capabilities |= IFCAP_LINKSTATE | IFCAP_MEXTPG;
 	if ((tp->tun_flags & TUN_L2) != 0)
 		ifp->if_capabilities |=
 		    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO;
-	ifp->if_capenable |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE | IFCAP_MEXTPG;
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
 		ifp->if_init = tunifinit;
@@ -1728,18 +1728,9 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 		    vhdr.hdr.csum_offset);
 		error = uiomove(&vhdr, len, uio);
 	}
-
-	while (m && uio->uio_resid > 0 && error == 0) {
-		len = min(uio->uio_resid, m->m_len);
-		if (len != 0)
-			error = uiomove(mtod(m, void *), len, uio);
-		m = m_free(m);
-	}
-
-	if (m) {
-		TUNDEBUG(ifp, "Dropping mbuf\n");
-		m_freem(m);
-	}
+	if (error == 0)
+		error = m_mbuftouio(uio, m, 0);
+	m_freem(m);
 	return (error);
 }
 
