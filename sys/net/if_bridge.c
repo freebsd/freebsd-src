@@ -193,7 +193,7 @@
  * List of capabilities to possibly mask on the member interface.
  */
 #define	BRIDGE_IFCAPS_MASK		(IFCAP_TOE|IFCAP_TSO|IFCAP_TXCSUM|\
-					 IFCAP_TXCSUM_IPV6)
+					 IFCAP_TXCSUM_IPV6|IFCAP_MEXTPG)
 
 /*
  * List of capabilities to strip
