@@ -1782,12 +1782,10 @@ vm_phys_avail_count(void)
 {
 	int i;
 
-	for (i = 0; phys_avail[i + 1]; i += 2)
-		continue;
-	if (i > PHYS_AVAIL_ENTRIES)
-		panic("Improperly terminated phys_avail %d entries", i);
-
-	return (i);
+	for (i = 0; i < PHYS_AVAIL_COUNT; i += 2)
+		if (phys_avail[i] == 0 && phys_avail[i + 1] == 0)
+			return (i);
+	panic("Improperly terminated phys_avail[]");
 }
 
 /*
