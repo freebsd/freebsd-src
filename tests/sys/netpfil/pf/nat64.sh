@@ -26,14 +26,7 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-atf_test_case "icmp_echo" "cleanup"
-icmp_echo_head()
-{
-	atf_set descr 'ICMP echo NAT64 test'
-	atf_set require.user root
-}
-
-icmp_echo_body()
+nat64_setup()
 {
 	pft_init
 
@@ -60,6 +53,18 @@ icmp_echo_body()
 	jexec rtr pfctl -e
 	pft_set_rules rtr \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
+}
+
+atf_test_case "icmp_echo" "cleanup"
+icmp_echo_head()
+{
+	atf_set descr 'Basic NAT64 ICMP echo test'
+	atf_set require.user root
+}
+
+icmp_echo_body()
+{
+	nat64_setup
 
 	# One ping
 	atf_check -s exit:0 -o ignore \
@@ -76,7 +81,38 @@ icmp_echo_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "tcp" "cleanup"
+tcp_head()
+{
+	atf_set descr 'TCP NAT64 test'
+	atf_set require.user root
+}
+
+tcp_body()
+{
+	nat64_setup
+
+	echo "foo" | jexec dst nc -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to TCP server"
+	fi
+}
+
+tcp_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
+	atf_add_test_case "tcp"
 }
