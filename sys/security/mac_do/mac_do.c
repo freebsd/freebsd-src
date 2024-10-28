@@ -411,7 +411,7 @@ rule_is_valid(struct ucred *cred, struct rule *r)
 {
 	if (r->from_type == RULE_UID && r->f_uid == cred->cr_uid)
 		return (true);
-	if (r->from_type == RULE_GID && r->f_gid == cred->cr_gid)
+	if (r->from_type == RULE_GID && groupmember(r->f_gid, cred))
 		return (true);
 	return (false);
 }
@@ -516,7 +516,7 @@ check_setuid(struct ucred *cred, uid_t uid)
 			}
 		}
 		if (r->from_type == RULE_GID) {
-			if (cred->cr_gid != r->f_gid)
+			if (!groupmember(r->f_gid, cred))
 				continue;
 			if (r->to_type == RULE_ANY) {
 				error = 0;
