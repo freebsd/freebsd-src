@@ -74,7 +74,7 @@ out:
 }
 
 void
-lkpi_80211_mo_stop(struct ieee80211_hw *hw)
+lkpi_80211_mo_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct lkpi_hw *lhw;
 
@@ -82,8 +82,8 @@ lkpi_80211_mo_stop(struct ieee80211_hw *hw)
 	if (lhw->ops->stop == NULL)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p", hw);
-	lhw->ops->stop(hw);
+	LKPI_80211_TRACE_MO("hw %p suspend %d", hw, suspend);
+	lhw->ops->stop(hw, suspend);
 	lhw->sc_flags &= ~LKPI_MAC80211_DRV_STARTED;
 }
 
