@@ -1041,6 +1041,11 @@ cxgb_port_attach(device_t dev)
 		if_sethwassistbits(ifp, 0, CSUM_TSO);
 	}
 
+	/* Create a list of media supported by this port */
+	ifmedia_init(&p->media, IFM_IMASK, cxgb_media_change,
+	    cxgb_media_status);
+	cxgb_build_medialist(p);
+
 	ether_ifattach(ifp, p->hw_addr);
 
 	/* Attach driver debugnet methods. */
@@ -1055,11 +1060,6 @@ cxgb_port_attach(device_t dev)
 		return (err);
 	}
 
-	/* Create a list of media supported by this port */
-	ifmedia_init(&p->media, IFM_IMASK, cxgb_media_change,
-	    cxgb_media_status);
-	cxgb_build_medialist(p);
-      
 	t3_sge_init_port(p);
 
 	return (err);
