@@ -33,6 +33,7 @@ logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import math
 import scapy.all as sp
 import sys
+import socket
 
 from copy import copy
 from sniffer import Sniffer
@@ -227,10 +228,12 @@ def check_ipv6(expect_params, packet):
     if not ip6:
         LOGGER.debug('Packet is not IPv6!')
         return False
-    if src_address and ip6.src != src_address:
+    if src_address and socket.inet_pton(socket.AF_INET6, ip6.src) != \
+      socket.inet_pton(socket.AF_INET6, src_address):
         LOGGER.debug(f'Wrong IPv6 source {ip6.src}, expected {src_address}')
         return False
-    if dst_address and ip6.dst != dst_address:
+    if dst_address and socket.inet_pton(socket.AF_INET6, ip6.dst) != \
+      socket.inet_pton(socket.AF_INET6, dst_address):
         LOGGER.debug(f'Wrong IPv6 destination {ip6.dst}, expected {dst_address}')
         return False
     # IPv6 has no IP-level checksum.
