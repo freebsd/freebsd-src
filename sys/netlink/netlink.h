@@ -210,11 +210,11 @@ enum nlmsginfo_attrs {
 /* part of netlink(3) API */
 #define NLMSG_ALIGNTO			NL_ITEM_ALIGN_SIZE
 #define NLMSG_ALIGN(_len)		NL_ITEM_ALIGN(_len)
-#define NLMSG_HDRLEN			((int)sizeof(struct nlmsghdr))
+#define NLMSG_HDRLEN			(sizeof(struct nlmsghdr))
 #define NLMSG_LENGTH(_len)		((_len) + NLMSG_HDRLEN)
 #define NLMSG_SPACE(_len)		NLMSG_ALIGN(NLMSG_LENGTH(_len))
 #define NLMSG_DATA(_hdr)		NL_ITEM_DATA(_hdr, NLMSG_HDRLEN)
-#define	_NLMSG_LEN(_hdr)		((int)(_hdr)->nlmsg_len)
+#define	_NLMSG_LEN(_hdr)		((_hdr)->nlmsg_len)
 #define	_NLMSG_ALIGNED_LEN(_hdr)	NLMSG_ALIGN(_NLMSG_LEN(_hdr))
 #define	NLMSG_OK(_hdr, _len)		NL_ITEM_OK(_hdr, _len, NLMSG_HDRLEN, _NLMSG_LEN)
 #define NLMSG_PAYLOAD(_hdr,_len)	(_NLMSG_LEN(_hdr) - NLMSG_SPACE((_len)))
@@ -223,7 +223,7 @@ enum nlmsginfo_attrs {
 #else
 #define NLMSG_ALIGNTO 4U
 #define NLMSG_ALIGN(len) (((len) + NLMSG_ALIGNTO - 1) & ~(NLMSG_ALIGNTO - 1))
-#define NLMSG_HDRLEN ((int)NLMSG_ALIGN(sizeof(struct nlmsghdr)))
+#define NLMSG_HDRLEN (NLMSG_ALIGN(sizeof(struct nlmsghdr)))
 #endif
 
 /*
