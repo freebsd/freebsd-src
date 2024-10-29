@@ -335,9 +335,6 @@ ${PACKAGE}FILES+=	test_fuzz_1.iso.Z.uu
 BROKEN_TESTS+=			test_fuzz_rar
 .endif
 
-# https://bugs.freebsd.org/240683
-BROKEN_TESTS+=			test_write_filter_zstd
-
 # Build the test program.
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
