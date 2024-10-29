@@ -4,7 +4,7 @@
 .PATH:		${CLANG_SRCS}/lib/Headers
 
 INCSGROUPS+=	INCS
-INCSDIR=	${LIBDIR}/clang/18/include
+INCSDIR=	${LIBDIR}/clang/19/include
 INCS+=		__clang_cuda_builtin_vars.h
 INCS+=		__clang_cuda_cmath.h
 INCS+=		__clang_cuda_complex_builtins.h
@@ -22,9 +22,11 @@ INCS+=		__clang_hip_runtime_wrapper.h
 INCS+=		__clang_hip_stdlib.h
 INCS+=		__stdarg___gnuc_va_list.h
 INCS+=		__stdarg___va_copy.h
+INCS+=		__stdarg_header_macro.h
 INCS+=		__stdarg_va_arg.h
 INCS+=		__stdarg_va_copy.h
 INCS+=		__stdarg_va_list.h
+INCS+=		__stddef_header_macro.h
 INCS+=		__stddef_max_align_t.h
 INCS+=		__stddef_null.h
 INCS+=		__stddef_nullptr_t.h
@@ -55,12 +57,10 @@ INCS+=		avx512bitalgintrin.h
 INCS+=		avx512bwintrin.h
 INCS+=		avx512cdintrin.h
 INCS+=		avx512dqintrin.h
-INCS+=		avx512erintrin.h
 INCS+=		avx512fintrin.h
 INCS+=		avx512fp16intrin.h
 INCS+=		avx512ifmaintrin.h
 INCS+=		avx512ifmavlintrin.h
-INCS+=		avx512pfintrin.h
 INCS+=		avx512vbmi2intrin.h
 INCS+=		avx512vbmiintrin.h
 INCS+=		avx512vbmivlintrin.h
@@ -136,6 +136,7 @@ INCS+=		pmmintrin.h
 INCS+=		popcntintrin.h
 INCS+=		prfchiintrin.h
 INCS+=		prfchwintrin.h
+INCS+=		ptrauth.h
 INCS+=		ptwriteintrin.h
 INCS+=		raointintrin.h
 INCS+=		rdpruintrin.h
@@ -143,7 +144,6 @@ INCS+=		rdseedintrin.h
 INCS+=		riscv_bitmanip.h
 INCS+=		riscv_crypto.h
 INCS+=		riscv_ntlh.h
-INCS+=		riscv_vector.h
 INCS+=		rtmintrin.h
 INCS+=		s390intrin.h
 INCS+=		serializeintrin.h
@@ -180,12 +180,14 @@ INCS+=		xsaveintrin.h
 INCS+=		xsaveoptintrin.h
 INCS+=		xsavesintrin.h
 INCS+=		xtestintrin.h
+INCS+=		yvals_core.h
 INCS+=		${GENINCS}
 
 # Headers which possibly conflict with our own versions:
 .ifdef INSTALL_CONFLICTING_CLANG_HEADERS
 INCS+=		float.h
 INCS+=		intrin.h
+INCS+=		intrin0.h
 INCS+=		inttypes.h
 INCS+=		iso646.h
 INCS+=		limits.h
@@ -246,19 +248,13 @@ PPC+=		ppc_wrappers/x86intrin.h
 PPC+=		ppc_wrappers/xmmintrin.h
 
 .for hdr in bf16/bf16 cde/cde-header fp16/fp16 mve/mve-header neon/neon \
-	sve/sve-header
+	sme/sme-header sve/sve-header
 arm_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 	${CLANG_TBLGEN} -gen-arm-${hdr:T} \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 GENINCS+=	arm_${hdr:H}.h
 .endfor
-
-arm_sme_draft_spec_subject_to_change.h: ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
-	${CLANG_TBLGEN} -gen-arm-sme-header \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
-GENINCS+=	arm_sme_draft_spec_subject_to_change.h
 
 arm_vector_types.h: ${CLANG_SRCS}/include/clang/Basic/arm_sme.td
 	${CLANG_TBLGEN} -gen-arm-vector-type \

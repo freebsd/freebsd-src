@@ -19,6 +19,8 @@ CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
 
 # PCI parts.
 SRCS+=	pci.c
+SRCS+=	rtw8723x.c					# 87x3 common
+SRCS+=	rtw8703b.c rtw8703b_tables.c			# 11n
 SRCS+=	rtw8723d.c rtw8723d_table.c rtw8723de.c		# 11n
 SRCS+=	rtw8821c.c rtw8821c_table.c rtw8821ce.c		# 11ac
 SRCS+=	rtw8822b.c rtw8822b_table.c rtw8822be.c		# 11ac

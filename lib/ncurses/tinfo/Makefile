@@ -230,7 +230,8 @@ codes.c: MKcodes.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_keyname.c: keys.list MKkeyname.awk
-	${AWK} -f ${NCURSES_DIR}/ncurses/base/MKkeyname.awk bigstrings=${USE_BIG_STRINGS} keys.list > lib_keyname.c
+	${AWK} -f ${NCURSES_DIR}/ncurses/base/MKkeyname.awk use_sigwinch=${ENABLE_SIGWINCH} \
+	    bigstrings=${USE_BIG_STRINGS} keys.list > lib_keyname.c
 
 unctrl.c: MKunctrl.awk
 	echo | ${AWK} -f ${NCURSES_DIR}/ncurses/base/MKunctrl.awk bigstrings=${USE_BIG_STRINGS} > unctrl.c
@@ -278,7 +279,7 @@ curses.h: curses.head MKkey_defs.sh Caps Caps-ncurses
 
 # Generated intermediate files
 keys.list: MKkeys_list.sh Caps Caps-ncurses
-	AWK=${AWK} sh ${NCURSES_DIR}/ncurses/tinfo/MKkeys_list.sh \
+	AWK=${AWK} USE_SIGWINCH=${ENABLE_SIGWINCH} sh ${NCURSES_DIR}/ncurses/tinfo/MKkeys_list.sh \
 	    ${NCURSES_DIR}/include/Caps ${NCURSES_DIR}/include/Caps-ncurses | LC_ALL=C sort > keys.list
 
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${MACHINE} != "host"

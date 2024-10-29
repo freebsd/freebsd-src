@@ -192,21 +192,17 @@ sctp_find_ifn(void *ifn, uint32_t ifn_index)
 	struct sctp_ifn *sctp_ifnp;
 	struct sctp_ifnlist *hash_ifn_head;
 
-	/*
-	 * We assume the lock is held for the addresses if that's wrong
-	 * problems could occur :-)
-	 */
 	SCTP_IPI_ADDR_LOCK_ASSERT();
 	hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 	LIST_FOREACH(sctp_ifnp, hash_ifn_head, next_bucket) {
 		if (sctp_ifnp->ifn_index == ifn_index) {
-			return (sctp_ifnp);
+			break;
 		}
-		if (sctp_ifnp->ifn_p && ifn && (sctp_ifnp->ifn_p == ifn)) {
-			return (sctp_ifnp);
+		if (ifn != NULL && sctp_ifnp->ifn_p == ifn) {
+			break;
 		}
 	}
-	return (NULL);
+	return (sctp_ifnp);
 }
 
 struct sctp_vrf *
@@ -249,17 +245,6 @@ sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 		}
 		SCTP_FREE(sctp_ifnp, SCTP_M_IFN);
 		atomic_subtract_int(&SCTP_BASE_INFO(ipi_count_ifns), 1);
-	}
-}
-
-void
-sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu)
-{
-	struct sctp_ifn *sctp_ifnp;
-
-	sctp_ifnp = sctp_find_ifn((void *)NULL, ifn_index);
-	if (sctp_ifnp != NULL) {
-		sctp_ifnp->ifn_mtu = mtu;
 	}
 }
 
@@ -470,7 +455,6 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	struct sctp_ifalist *hash_addr_head;
 	struct sctp_ifnlist *hash_ifn_head;
 	uint32_t hash_of_addr;
-	int new_ifn_af = 0;
 
 #ifdef SCTP_DEBUG
 	SCTPDBG(SCTP_DEBUG_PCB4, "vrf_id 0x%x: adding address: ", vrf_id);
@@ -534,59 +518,63 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		LIST_INSERT_HEAD(hash_ifn_head, sctp_ifnp, next_bucket);
 		LIST_INSERT_HEAD(&vrf->ifnlist, sctp_ifnp, next_ifn);
 		atomic_add_int(&SCTP_BASE_INFO(ipi_count_ifns), 1);
-		new_ifn_af = 1;
 	}
 	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
-	if (sctp_ifap) {
-		/* Hmm, it already exists? */
-		if ((sctp_ifap->ifn_p) &&
-		    (sctp_ifap->ifn_p->ifn_index == ifn_index)) {
-			SCTPDBG(SCTP_DEBUG_PCB4, "Using existing ifn %s (0x%x) for ifa %p\n",
-			    sctp_ifap->ifn_p->ifn_name, ifn_index,
-			    (void *)sctp_ifap);
-			if (new_ifn_af) {
-				/* Remove the created one that we don't want */
-				sctp_delete_ifn(sctp_ifnp);
-			}
-			if (sctp_ifap->localifa_flags & SCTP_BEING_DELETED) {
-				/* easy to solve, just switch back to active */
-				SCTPDBG(SCTP_DEBUG_PCB4, "Clearing deleted ifa flag\n");
-				sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
-				sctp_ifap->ifn_p = sctp_ifnp;
-				atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
-			}
-	exit_stage_left:
-			SCTP_IPI_ADDR_WUNLOCK();
-			if (new_sctp_ifnp != NULL) {
-				SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
-			}
-			SCTP_FREE(new_sctp_ifap, SCTP_M_IFA);
-			return (sctp_ifap);
-		} else {
-			if (sctp_ifap->ifn_p) {
+	if (sctp_ifap != NULL) {
+		/* The address being added is already or still known. */
+		if (sctp_ifap->ifn_p != NULL) {
+			if (sctp_ifap->ifn_p->ifn_index == ifn_index) {
+				SCTPDBG(SCTP_DEBUG_PCB4,
+				    "Using existing ifn %s (0x%x) for ifa %p\n",
+				    sctp_ifap->ifn_p->ifn_name, ifn_index,
+				    (void *)sctp_ifap);
+				if (new_sctp_ifnp == NULL) {
+					/* Remove the created one not used. */
+					sctp_delete_ifn(sctp_ifnp);
+				}
+				if (sctp_ifap->localifa_flags & SCTP_BEING_DELETED) {
+					/* Switch back to active. */
+					SCTPDBG(SCTP_DEBUG_PCB4,
+					    "Clearing deleted ifa flag\n");
+					sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
+					sctp_ifap->ifn_p = sctp_ifnp;
+					atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
+				}
+			} else {
 				/*
 				 * The last IFN gets the address, remove the
-				 * old one
+				 * old one.
 				 */
-				SCTPDBG(SCTP_DEBUG_PCB4, "Moving ifa %p from %s (0x%x) to %s (0x%x)\n",
-				    (void *)sctp_ifap, sctp_ifap->ifn_p->ifn_name,
+				SCTPDBG(SCTP_DEBUG_PCB4,
+				    "Moving ifa %p from %s (0x%x) to %s (0x%x)\n",
+				    (void *)sctp_ifap,
+				    sctp_ifap->ifn_p->ifn_name,
 				    sctp_ifap->ifn_p->ifn_index, if_name,
 				    ifn_index);
 				/* remove the address from the old ifn */
 				sctp_remove_ifa_from_ifn(sctp_ifap);
 				/* move the address over to the new ifn */
 				sctp_add_ifa_to_ifn(sctp_ifnp, sctp_ifap);
-				goto exit_stage_left;
-			} else {
-				/* repair ifnp which was NULL ? */
-				sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
-				SCTPDBG(SCTP_DEBUG_PCB4, "Repairing ifn %p for ifa %p\n",
-				    (void *)sctp_ifnp, (void *)sctp_ifap);
-				sctp_add_ifa_to_ifn(sctp_ifnp, sctp_ifap);
 			}
-			goto exit_stage_left;
+		} else {
+			/* Repair ifn_p, which was NULL... */
+			sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
+			SCTPDBG(SCTP_DEBUG_PCB4,
+			    "Repairing ifn %p for ifa %p\n",
+			    (void *)sctp_ifnp, (void *)sctp_ifap);
+			sctp_add_ifa_to_ifn(sctp_ifnp, sctp_ifap);
 		}
+		SCTP_IPI_ADDR_WUNLOCK();
+		if (new_sctp_ifnp != NULL) {
+			SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
+		}
+		SCTP_FREE(new_sctp_ifap, SCTP_M_IFA);
+		return (sctp_ifap);
 	}
+	KASSERT(sctp_ifnp != NULL,
+	    ("sctp_add_addr_to_vrf: sctp_ifnp == NULL"));
+	KASSERT(sctp_ifap == NULL,
+	    ("sctp_add_addr_to_vrf: sctp_ifap (%p) != NULL", sctp_ifap));
 	sctp_ifap = new_sctp_ifap;
 	memset(sctp_ifap, 0, sizeof(struct sctp_ifa));
 	sctp_ifap->ifn_p = sctp_ifnp;
@@ -612,8 +600,8 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 				sctp_ifap->src_is_priv = 1;
 			}
 			sctp_ifnp->num_v4++;
-			if (new_ifn_af)
-				new_ifn_af = AF_INET;
+			if (new_sctp_ifnp == NULL)
+				sctp_ifnp->registered_af = AF_INET;
 			break;
 		}
 #endif
@@ -632,13 +620,12 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 				sctp_ifap->src_is_priv = 1;
 			}
 			sctp_ifnp->num_v6++;
-			if (new_ifn_af)
-				new_ifn_af = AF_INET6;
+			if (new_sctp_ifnp == NULL)
+				sctp_ifnp->registered_af = AF_INET6;
 			break;
 		}
 #endif
 	default:
-		new_ifn_af = 0;
 		break;
 	}
 	hash_of_addr = sctp_get_ifa_hash_val(&sctp_ifap->address.sa);
@@ -654,9 +641,6 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	sctp_ifnp->ifa_count++;
 	vrf->total_ifa_count++;
 	atomic_add_int(&SCTP_BASE_INFO(ipi_count_ifas), 1);
-	if (new_ifn_af) {
-		sctp_ifnp->registered_af = new_ifn_af;
-	}
 	SCTP_IPI_ADDR_WUNLOCK();
 	if (new_sctp_ifnp != NULL) {
 		SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
@@ -707,13 +691,14 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
     uint32_t ifn_index, const char *if_name)
 {
 	struct sctp_vrf *vrf;
-	struct sctp_ifa *sctp_ifap = NULL;
+	struct sctp_ifa *sctp_ifap;
 
 	SCTP_IPI_ADDR_WLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		SCTPDBG(SCTP_DEBUG_PCB4, "Can't find vrf_id 0x%x\n", vrf_id);
-		goto out_now;
+		SCTP_IPI_ADDR_WUNLOCK();
+		return;
 	}
 
 #ifdef SCTP_DEBUG
@@ -721,10 +706,10 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	SCTPDBG_ADDR(SCTP_DEBUG_PCB4, addr);
 #endif
 	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
-	if (sctp_ifap) {
+	if (sctp_ifap != NULL) {
 		/* Validate the delete */
 		if (sctp_ifap->ifn_p) {
-			int valid = 0;
+			bool valid = false;
 
 			/*-
 			 * The name has priority over the ifn_index
@@ -733,13 +718,13 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 			if (if_name) {
 				if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) == 0) {
 					/* They match its a correct delete */
-					valid = 1;
+					valid = true;
 				}
 			}
 			if (!valid) {
 				/* last ditch check ifn_index */
 				if (ifn_index == sctp_ifap->ifn_p->ifn_index) {
-					valid = 1;
+					valid = true;
 				}
 			}
 			if (!valid) {
@@ -769,13 +754,12 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	else {
 		SCTPDBG(SCTP_DEBUG_PCB4, "Del Addr-ifn:%d Could not find address:",
 		    ifn_index);
-		SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
+		SCTPDBG_ADDR(SCTP_DEBUG_PCB4, addr);
 	}
 #endif
 
-out_now:
 	SCTP_IPI_ADDR_WUNLOCK();
-	if (sctp_ifap) {
+	if (sctp_ifap != NULL) {
 		struct sctp_laddr *wi;
 
 		wi = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr), struct sctp_laddr);

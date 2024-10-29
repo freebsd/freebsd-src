@@ -9,12 +9,11 @@ KMOD=	if_iwlwifi
 
 SRCS=	iwl-drv.c
 SRCS+=	iwl-dbg-tlv.c iwl-debug.c
-SRCS+=	iwl-eeprom-parse.c iwl-eeprom-read.c
-SRCS+=	iwl-io.c iwl-nvm-parse.c iwl-phy-db.c iwl-trans.c
+SRCS+=	iwl-io.c iwl-nvm-parse.c iwl-nvm-utils.c iwl-phy-db.c iwl-trans.c
 SRCS+=	cfg/7000.c cfg/8000.c cfg/9000.c cfg/22000.c
 SRCS+=	cfg/ax210.c cfg/bz.c cfg/sc.c
 SRCS+=	fw/dbg.c fw/dump.c fw/img.c fw/notif-wait.c
-SRCS+=	fw/paging.c fw/pnvm.c fw/rs.c fw/smem.c fw/init.c
+SRCS+=	fw/paging.c fw/pnvm.c fw/regulatory.c fw/rs.c fw/smem.c fw/init.c
 #SRCS+=	fw/uefi.c
 SRCS+=	mvm/rs.c mvm/binding.c mvm/coex.c mvm/ftm-initiator.c
 SRCS+=	mvm/ftm-responder.c mvm/fw.c mvm/mac-ctxt.c
@@ -29,7 +28,6 @@ SRCS+=	mvm/ptp.c mvm/time-sync.c
 SRCS+=	pcie/ctxt-info-gen3.c pcie/ctxt-info.c
 SRCS+=	pcie/drv.c pcie/rx.c pcie/trans-gen2.c pcie/trans.c
 SRCS+=	pcie/tx-gen2.c pcie/tx.c
-SRCS+=	queue/tx.c
 
 .if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
 SRCS+=	fw/debugfs.c mvm/debugfs.c mvm/debugfs-vif.c
@@ -49,6 +47,7 @@ SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"iwlwifi"'
+CFLAGS+=	-DLINUXKPI_VERSION=61100
 
 CFLAGS+=	-I${DEVIWLWIFIDIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}

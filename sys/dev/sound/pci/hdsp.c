@@ -231,6 +231,198 @@ hdsp_map_dmabuf(struct sc_info *sc)
 	hdsp_write_4(sc, HDSP_PAGE_ADDR_BUF_IN, raddr);
 }
 
+static const char *
+hdsp_control_input_level(uint32_t control)
+{
+	switch (control & HDSP_INPUT_LEVEL_MASK) {
+	case HDSP_INPUT_LEVEL_LOWGAIN:
+		return ("LowGain");
+	case HDSP_INPUT_LEVEL_PLUS4DBU:
+		return ("+4dBu");
+	case HDSP_INPUT_LEVEL_MINUS10DBV:
+		return ("-10dBV");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdsp_sysctl_input_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t control;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSP 9632. */
+	if (sc->type != HDSP_9632)
+		return (ENXIO);
+
+	/* Extract current input level from control register. */
+	control = sc->ctrl_register & HDSP_INPUT_LEVEL_MASK;
+	label = hdsp_control_input_level(control);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find input level matching the sysctl string. */
+	label = hdsp_control_input_level(HDSP_INPUT_LEVEL_LOWGAIN);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_INPUT_LEVEL_LOWGAIN;
+	label = hdsp_control_input_level(HDSP_INPUT_LEVEL_PLUS4DBU);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_INPUT_LEVEL_PLUS4DBU;
+	label = hdsp_control_input_level(HDSP_INPUT_LEVEL_MINUS10DBV);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_INPUT_LEVEL_MINUS10DBV;
+
+	/* Set input level in control register. */
+	control &= HDSP_INPUT_LEVEL_MASK;
+	if (control != (sc->ctrl_register & HDSP_INPUT_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->ctrl_register &= ~HDSP_INPUT_LEVEL_MASK;
+		sc->ctrl_register |= control;
+		hdsp_write_4(sc, HDSP_CONTROL_REG, sc->ctrl_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
+static const char *
+hdsp_control_output_level(uint32_t control)
+{
+	switch (control & HDSP_OUTPUT_LEVEL_MASK) {
+	case HDSP_OUTPUT_LEVEL_MINUS10DBV:
+		return ("-10dBV");
+	case HDSP_OUTPUT_LEVEL_PLUS4DBU:
+		return ("+4dBu");
+	case HDSP_OUTPUT_LEVEL_HIGHGAIN:
+		return ("HighGain");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdsp_sysctl_output_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t control;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSP 9632. */
+	if (sc->type != HDSP_9632)
+		return (ENXIO);
+
+	/* Extract current output level from control register. */
+	control = sc->ctrl_register & HDSP_OUTPUT_LEVEL_MASK;
+	label = hdsp_control_output_level(control);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find output level matching the sysctl string. */
+	label = hdsp_control_output_level(HDSP_OUTPUT_LEVEL_MINUS10DBV);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_OUTPUT_LEVEL_MINUS10DBV;
+	label = hdsp_control_output_level(HDSP_OUTPUT_LEVEL_PLUS4DBU);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_OUTPUT_LEVEL_PLUS4DBU;
+	label = hdsp_control_output_level(HDSP_OUTPUT_LEVEL_HIGHGAIN);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_OUTPUT_LEVEL_HIGHGAIN;
+
+	/* Set output level in control register. */
+	control &= HDSP_OUTPUT_LEVEL_MASK;
+	if (control != (sc->ctrl_register & HDSP_OUTPUT_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->ctrl_register &= ~HDSP_OUTPUT_LEVEL_MASK;
+		sc->ctrl_register |= control;
+		hdsp_write_4(sc, HDSP_CONTROL_REG, sc->ctrl_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
+static const char *
+hdsp_control_phones_level(uint32_t control)
+{
+	switch (control & HDSP_PHONES_LEVEL_MASK) {
+	case HDSP_PHONES_LEVEL_MINUS12DB:
+		return ("-12dB");
+	case HDSP_PHONES_LEVEL_MINUS6DB:
+		return ("-6dB");
+	case HDSP_PHONES_LEVEL_0DB:
+		return ("0dB");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdsp_sysctl_phones_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t control;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSP 9632. */
+	if (sc->type != HDSP_9632)
+		return (ENXIO);
+
+	/* Extract current phones level from control register. */
+	control = sc->ctrl_register & HDSP_PHONES_LEVEL_MASK;
+	label = hdsp_control_phones_level(control);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find phones level matching the sysctl string. */
+	label = hdsp_control_phones_level(HDSP_PHONES_LEVEL_MINUS12DB);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_PHONES_LEVEL_MINUS12DB;
+	label = hdsp_control_phones_level(HDSP_PHONES_LEVEL_MINUS6DB);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_PHONES_LEVEL_MINUS6DB;
+	label = hdsp_control_phones_level(HDSP_PHONES_LEVEL_0DB);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		control = HDSP_PHONES_LEVEL_0DB;
+
+	/* Set phones level in control register. */
+	control &= HDSP_PHONES_LEVEL_MASK;
+	if (control != (sc->ctrl_register & HDSP_PHONES_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->ctrl_register &= ~HDSP_PHONES_LEVEL_MASK;
+		sc->ctrl_register |= control;
+		hdsp_write_4(sc, HDSP_CONTROL_REG, sc->ctrl_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
 static int
 hdsp_sysctl_sample_rate(SYSCTL_HANDLER_ARGS)
 {
@@ -606,6 +798,14 @@ hdsp_init(struct sc_info *sc)
 	sc->ctrl_register &= ~HDSP_CONTROL_LINE_OUT;
 	sc->ctrl_register |= HDSP_CONTROL_LINE_OUT;
 
+	/* Default gain levels. */
+	sc->ctrl_register &= ~HDSP_INPUT_LEVEL_MASK;
+	sc->ctrl_register |= HDSP_INPUT_LEVEL_LOWGAIN;
+	sc->ctrl_register &= ~HDSP_OUTPUT_LEVEL_MASK;
+	sc->ctrl_register |= HDSP_OUTPUT_LEVEL_MINUS10DBV;
+	sc->ctrl_register &= ~HDSP_PHONES_LEVEL_MASK;
+	sc->ctrl_register |= HDSP_PHONES_LEVEL_MINUS12DB;
+
 	hdsp_write_4(sc, HDSP_CONTROL_REG, sc->ctrl_register);
 
 	if (sc->type == HDSP_9652)
@@ -731,6 +931,26 @@ hdsp_attach(device_t dev)
 	    "sample_rate", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    sc, 0, hdsp_sysctl_sample_rate, "A",
 	    "Force sample rate (32000, 44100, 48000, ... 192000)");
+
+	if (sc->type == HDSP_9632) {
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "phones_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdsp_sysctl_phones_level, "A",
+		    "Phones output level ('0dB', '-6dB', '-12dB')");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "output_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdsp_sysctl_output_level, "A",
+		    "Analog output level ('HighGain', '+4dBU', '-10dBV')");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "input_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdsp_sysctl_input_level, "A",
+		    "Analog input level ('LowGain', '+4dBU', '-10dBV')");
+	}
 
 	return (bus_generic_attach(dev));
 }

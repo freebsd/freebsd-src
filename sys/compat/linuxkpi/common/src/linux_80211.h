@@ -205,7 +205,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	TAILQ_HEAD(, lkpi_vif)		lvif_head;
 	struct sx			lvif_sx;
 
-	struct sx			sx;
+	struct sx			sx;			/* XXX-BZ Can this be wiphy->mtx in the future? */
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
@@ -284,11 +284,28 @@ struct lkpi_chanctx {
 struct lkpi_wiphy {
 	const struct cfg80211_ops	*ops;
 
+	struct work_struct		wwk;
+	struct list_head		wwk_list;
+	struct mtx			wwk_mtx;
+
 	/* Must be last! */
 	struct wiphy			wiphy __aligned(CACHE_LINE_SIZE);
 };
 #define	WIPHY_TO_LWIPHY(_wiphy)	container_of(_wiphy, struct lkpi_wiphy, wiphy)
 #define	LWIPHY_TO_WIPHY(_lwiphy)	(&(_lwiphy)->wiphy)
+
+#define	LKPI_80211_LWIPHY_WORK_LOCK_INIT(_lwiphy)	\
+    mtx_init(&(_lwiphy)->wwk_mtx, "lwiphy-work", NULL, MTX_DEF);
+#define	LKPI_80211_LWIPHY_WORK_LOCK_DESTROY(_lwiphy)	\
+    mtx_destroy(&(_lwiphy)->wwk_mtx)
+#define	LKPI_80211_LWIPHY_WORK_LOCK(_lwiphy)		\
+    mtx_lock(&(_lwiphy)->wwk_mtx)
+#define	LKPI_80211_LWIPHY_WORK_UNLOCK(_lwiphy)		\
+    mtx_unlock(&(_lwiphy)->wwk_mtx)
+#define	LKPI_80211_LWIPHY_WORK_LOCK_ASSERT(_lwiphy)	\
+    mtx_assert(&(_lwiphy)->wwk_mtx, MA_OWNED)
+#define	LKPI_80211_LWIPHY_WORK_UNLOCK_ASSERT(_lwiphy)	\
+    mtx_assert(&(_lwiphy)->wwk_mtx, MA_NOTOWNED)
 
 #define	LKPI_80211_LHW_LOCK_INIT(_lhw)			\
     sx_init_flags(&(_lhw)->sx, "lhw", SX_RECURSE);
@@ -375,7 +392,7 @@ struct lkpi_wiphy {
     mtx_assert(&(_ltxq)->ltxq_mtx, MA_NOTOWNED)
 
 int lkpi_80211_mo_start(struct ieee80211_hw *);
-void lkpi_80211_mo_stop(struct ieee80211_hw *);
+void lkpi_80211_mo_stop(struct ieee80211_hw *, bool);
 int lkpi_80211_mo_get_antenna(struct ieee80211_hw *, u32 *, u32 *);
 int lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_set_rts_threshold(struct ieee80211_hw *, uint32_t);

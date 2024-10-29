@@ -81,7 +81,6 @@ void *aligned_alloc(size_t alignment, size_t size);                       // C11
 
 */
 
-#include <__assert> // all public C++ headers provide the assertion handler
 #include <__config>
 
 #include <stdlib.h>
@@ -103,18 +102,26 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 using ::size_t _LIBCPP_USING_IF_EXISTS;
 using ::div_t _LIBCPP_USING_IF_EXISTS;
 using ::ldiv_t _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::lldiv_t _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::atof _LIBCPP_USING_IF_EXISTS;
 using ::atoi _LIBCPP_USING_IF_EXISTS;
 using ::atol _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::atoll _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::strtod _LIBCPP_USING_IF_EXISTS;
 using ::strtof _LIBCPP_USING_IF_EXISTS;
 using ::strtold _LIBCPP_USING_IF_EXISTS;
 using ::strtol _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::strtoll _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::strtoul _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::strtoull _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::rand _LIBCPP_USING_IF_EXISTS;
 using ::srand _LIBCPP_USING_IF_EXISTS;
 using ::calloc _LIBCPP_USING_IF_EXISTS;
@@ -131,10 +138,14 @@ using ::bsearch _LIBCPP_USING_IF_EXISTS;
 using ::qsort _LIBCPP_USING_IF_EXISTS;
 using ::abs _LIBCPP_USING_IF_EXISTS;
 using ::labs _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::llabs _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::div _LIBCPP_USING_IF_EXISTS;
 using ::ldiv _LIBCPP_USING_IF_EXISTS;
+#if defined(__FreeBSD__) && defined(__LONG_LONG_SUPPORTED)
 using ::lldiv _LIBCPP_USING_IF_EXISTS;
+#endif
 using ::mblen _LIBCPP_USING_IF_EXISTS;
 #ifndef _LIBCPP_HAS_NO_WIDE_CHARACTERS
 using ::mbtowc _LIBCPP_USING_IF_EXISTS;

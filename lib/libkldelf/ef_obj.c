@@ -101,7 +101,7 @@ static GElf_Addr ef_obj_symaddr(elf_file_t ef, GElf_Size symidx);
 static int	ef_obj_lookup_set(elf_file_t ef, const char *name,
 		    GElf_Addr *startp, GElf_Addr *stopp, long *countp);
 static int	ef_obj_lookup_symbol(elf_file_t ef, const char *name,
-		    GElf_Sym **sym);
+		    GElf_Sym **sym, bool see_local);
 
 static struct elf_file_ops ef_obj_file_ops = {
 	.close			= ef_obj_close,
@@ -129,7 +129,8 @@ ef_obj_get_offset(elf_file_t ef, GElf_Addr addr)
 }
 
 static int
-ef_obj_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym)
+ef_obj_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym,
+    bool see_local)
 {
 	GElf_Sym *symp;
 	const char *strp;
@@ -138,8 +139,11 @@ ef_obj_lookup_symbol(elf_file_t ef, const char *name, GElf_Sym **sym)
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		strp = ef->ddbstrtab + symp->st_name;
 		if (symp->st_shndx != SHN_UNDEF && strcmp(name, strp) == 0) {
-			*sym = symp;
-			return (0);
+			if (see_local ||
+			    GELF_ST_BIND(symp->st_info) != STB_LOCAL) {
+				*sym = symp;
+				return (0);
+			}
 		}
 	}
 	return (ENOENT);

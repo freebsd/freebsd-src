@@ -341,7 +341,7 @@ static inline bool
 mac_pton(const char *macin, uint8_t *macout)
 {
 	const char *s, *d;
-	uint8_t mac[6], hx, lx;;
+	uint8_t mac[6], hx, lx;
 	int i;
 
 	if (strlen(macin) < (3 * 6 - 1))

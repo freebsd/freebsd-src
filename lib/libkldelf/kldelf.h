@@ -48,8 +48,8 @@
     (ef)->ef_ops->symaddr((ef)->ef_ef, symidx)
 #define EF_LOOKUP_SET(ef, name, startp, stopp, countp) \
     (ef)->ef_ops->lookup_set((ef)->ef_ef, name, startp, stopp, countp)
-#define EF_LOOKUP_SYMBOL(ef, name, sym) \
-    (ef)->ef_ops->lookup_symbol((ef)->ef_ef, name, sym)
+#define EF_LOOKUP_SYMBOL(ef, name, sym, see_local) \
+    (ef)->ef_ops->lookup_symbol((ef)->ef_ef, name, sym, see_local)
 
 /* XXX, should have a different name. */
 typedef struct ef_file *elf_file_t;
@@ -69,7 +69,8 @@ struct elf_file_ops {
 	GElf_Addr (*symaddr)(elf_file_t ef, GElf_Size symidx);
 	int (*lookup_set)(elf_file_t ef, const char *name, GElf_Addr *startp,
 	    GElf_Addr *stopp, long *countp);
-	int (*lookup_symbol)(elf_file_t ef, const char *name, GElf_Sym **sym);
+	int (*lookup_symbol)(elf_file_t ef, const char *name, GElf_Sym **sym,
+	    bool see_local);
 };
 
 typedef int (elf_reloc_t)(struct elf_file *ef, const void *reldata,
@@ -317,11 +318,9 @@ int	elf_reloc(struct elf_file *ef, const void *reldata, Elf_Type reltype,
  * Find the symbol with the specified symbol name 'name' within the given
  * 'efile'. 0 is returned when such a symbol is found, otherwise ENOENT is
  * returned.
- *
- * XXX: This only return the first symbol being found when traversing symtab.
  */
 int	elf_lookup_symbol(struct elf_file *efile, const char *name,
-    GElf_Sym **sym);
+    GElf_Sym **sym, bool see_local);
 
 __END_DECLS
 

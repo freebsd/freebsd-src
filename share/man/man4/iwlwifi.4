@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 30, 2024
+.Dd October 12, 2024
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
@@ -86,12 +86,36 @@ The
 .Nm
 driver supports PCIe devices from the
 .Em mvm
-sub-driver with the following chipsets:
+sub-driver with the following chipset generations:
+.Pp
+.\" awk -F\\t '{ print $5 }' ~/tmp/iwlwifi_pci_ids_name.txt | \
+.\" grep -v undefined | sort -V | uniq | grep -v ^$ | \
+.\" awk '{ printf ".It\n%s\n", $0 }'
+.Bl -bullet -compact
+.It
+7000
+.It
+8000
+.It
+9000
+.It
+22000
+.It
+AX210
+.It
+BZ
+.It
+SC
+.El
+.Pp
+These chipset generations match the following common device names:
 .Pp
 .Bl -bullet -compact
 .\" ---------------------------------------------------------------------
 .\" This list is manually generated from a sysctl and post-processing.
 .\" Edits will be overwritten on next update.
+.\" awk -F\\t '{ if ($2 == "") { next; } if (seen[$2]) { next; } \
+.\" seen[$2]=1; printf ".It\n%s\n", $2; }' iwlwifi_pci_ids_name.txt
 .\" ---------------------------------------------------------------------
 .It
 Intel(R) Dual Band Wireless AC 7260
@@ -200,15 +224,19 @@ Intel(R) Wi-Fi 6 AX101
 .It
 Intel(R) Wi-Fi 6 AX203
 .It
-Intel(R) Wi-Fi 6E AX221 160MHz
-.It
 Intel(R) Wi-Fi 6E AX231 160MHz
 .It
-Intel(R) TBD Bz device
+Intel(R) Wi-Fi 7 BE201 320MHz
 .It
-Intel(R) Wi-Fi 6 AX204 160MHz
+Intel(R) Wi-Fi 7 BE200 320MHz
+.It
+Intel(R) Wi-Fi 7 BE202 160MHz
 .It
 Intel(R) TBD Sc device
+.It
+Intel(R) TBD Sc2 device
+.It
+Intel(R) TBD Sc2f device
 .\" ---------------------------------------------------------------------
 .El
 .Sh BUGS

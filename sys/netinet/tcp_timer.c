@@ -874,12 +874,8 @@ tcp_timer_enter(void *xtp)
 	struct inpcb *inp = tptoinpcb(tp);
 	sbintime_t precision;
 	tt_which which;
-	bool tp_valid;
 
 	INP_WLOCK_ASSERT(inp);
-	MPASS((curthread->td_pflags & TDP_INTCPCALLOUT) == 0);
-
-	curthread->td_pflags |= TDP_INTCPCALLOUT;
 
 	which = tcp_timer_next(tp, NULL);
 	MPASS(which < TT_N);
@@ -887,8 +883,7 @@ tcp_timer_enter(void *xtp)
 	tp->t_precisions[which] = 0;
 
 	tcp_bblog_timer(tp, which, TT_PROCESSING, 0);
-	tp_valid = tcp_timersw[which](tp);
-	if (tp_valid) {
+	if (tcp_timersw[which](tp)) {
 		tcp_bblog_timer(tp, which, TT_PROCESSED, 0);
 		if ((which = tcp_timer_next(tp, &precision)) != TT_N) {
 			MPASS(tp->t_state > TCPS_CLOSED);
@@ -898,8 +893,6 @@ tcp_timer_enter(void *xtp)
 		}
 		INP_WUNLOCK(inp);
 	}
-
-	curthread->td_pflags &= ~TDP_INTCPCALLOUT;
 }
 
 /*
@@ -949,35 +942,26 @@ tcp_timer_active(struct tcpcb *tp, tt_which which)
 
 /*
  * Stop all timers associated with tcpcb.
- *
  * Called when tcpcb moves to TCPS_CLOSED.
- *
- * XXXGL: unfortunately our callout(9) is not able to fully stop a locked
- * callout even when only two threads are involved: the callout itself and the
- * thread that does callout_stop().  See where softclock_call_cc() swaps the
- * callwheel lock to callout lock and then checks cc_exec_cancel().  This is
- * the race window.  If it happens, the tcp_timer_enter() won't be executed,
- * however pcb lock will be locked and released, hence we can't free memory.
- * Until callout(9) is improved, just keep retrying.  In my profiling I've seen
- * such event happening less than 1 time per hour with 20-30 Gbit/s of traffic.
  */
 void
 tcp_timer_stop(struct tcpcb *tp)
 {
-	struct inpcb *inp = tptoinpcb(tp);
 
-	INP_WLOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-	if (curthread->td_pflags & TDP_INTCPCALLOUT) {
-		int stopped __diagused;
-
-		stopped = callout_stop(&tp->t_callout);
-		MPASS(stopped == 0);
-		for (tt_which i = 0; i < TT_N; i++)
-			tp->t_timers[i] = SBT_MAX;
-	} else while(__predict_false(callout_stop(&tp->t_callout) == 0)) {
-		INP_WUNLOCK(inp);
-		kern_yield(PRI_UNCHANGED);
-		INP_WLOCK(inp);
-	}
+	/*
+	 * We don't check return value from callout_stop().  There are two
+	 * reasons why it can return 0.  First, a legitimate one: we could have
+	 * been called from the callout itself.  Second, callout(9) has a bug.
+	 * It can race internally in softclock_call_cc(), when callout has
+	 * already completed, but cc_exec_curr still points at the callout.
+	 */
+	(void )callout_stop(&tp->t_callout);
+	/*
+	 * In case of being called from callout itself, we must make sure that
+	 * we don't reschedule.
+	 */
+	for (tt_which i = 0; i < TT_N; i++)
+		tp->t_timers[i] = SBT_MAX;
 }

@@ -74,30 +74,20 @@ struct vt9p_softc {
 };
 
 /* Global channel list, Each channel will correspond to a mount point */
-static STAILQ_HEAD( ,vt9p_softc) global_chan_list;
+static STAILQ_HEAD( ,vt9p_softc) global_chan_list =
+    STAILQ_HEAD_INITIALIZER(global_chan_list);
 struct mtx global_chan_list_mtx;
+MTX_SYSINIT(global_chan_list_mtx, &global_chan_list_mtx, "9pglobal", MTX_DEF);
 
 static struct virtio_feature_desc virtio_9p_feature_desc[] = {
 	{ VIRTIO_9PNET_F_MOUNT_TAG,	"9PMountTag" },
 	{ 0, NULL }
 };
 
-static void
-global_chan_list_init(void)
-{
-
-	mtx_init(&global_chan_list_mtx, "9pglobal",
-	    NULL, MTX_DEF);
-	STAILQ_INIT(&global_chan_list);
-}
-SYSINIT(global_chan_list_init, SI_SUB_KLD, SI_ORDER_FIRST,
-    global_chan_list_init, NULL);
-
 /* We don't currently allow canceling of virtio requests */
 static int
 vt9p_cancel(void *handle, struct p9_req_t *req)
 {
-
 	return (1);
 }
 
@@ -108,7 +98,6 @@ SYSCTL_NODE(_vfs, OID_AUTO, 9p, CTLFLAG_RW, 0, "9P File System Protocol");
  * ack from the host, before exiting
  */
 static unsigned int vt9p_ackmaxidle = 120;
-
 SYSCTL_UINT(_vfs_9p, OID_AUTO, ackmaxidle, CTLFLAG_RW, &vt9p_ackmaxidle, 0,
     "Maximum time request thread waits for ack from host");
 
@@ -121,20 +110,20 @@ SYSCTL_UINT(_vfs_9p, OID_AUTO, ackmaxidle, CTLFLAG_RW, &vt9p_ackmaxidle, 0,
 static int
 vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 {
-	if (req->tc->tag != req->rc->tag) {
-		if (msleep(req, VT9P_MTX(chan), 0, "chan lock",
-		    vt9p_ackmaxidle * hz)) {
-			/*
-			 * Waited for 120s. No response from host.
-			 * Can't wait for ever..
-			 */
-			P9_DEBUG(ERROR, "Timeout after waiting %u seconds"
-			    "for an ack from host\n", vt9p_ackmaxidle);
-			return (EIO);
-		}
-		KASSERT(req->tc->tag == req->rc->tag,
-		    ("Spurious event on p9 req"));
+	KASSERT(req->tc->tag != req->rc->tag,
+	    ("%s: request %p already completed", __func__, req));
+
+	if (msleep(req, VT9P_MTX(chan), 0, "chan lock", vt9p_ackmaxidle * hz)) {
+		/*
+		 * Waited for 120s. No response from host.
+		 * Can't wait for ever..
+		 */
+		P9_DEBUG(ERROR, "Timeout after waiting %u seconds"
+		    "for an ack from host\n", vt9p_ackmaxidle);
+		return (EIO);
 	}
+	KASSERT(req->tc->tag == req->rc->tag,
+	    ("%s spurious event on request %p", __func__, req));
 	return (0);
 }
 
@@ -163,6 +152,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 
 	/* Grab the channel lock*/
 	VT9P_LOCK(chan);
+req_retry:
 	sglist_reset(sg);
 	/* Handle out VirtIO ring buffers */
 	error = sglist_append(sg, req->tc->sdata, req->tc->size);
@@ -181,9 +171,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 	}
 	writable = sg->sg_nseg - readable;
 
-req_retry:
 	error = virtqueue_enqueue(vq, req, sg, readable, writable);
-
 	if (error != 0) {
 		if (error == ENOSPC) {
 			/*
@@ -234,11 +222,15 @@ vt9p_intr_complete(void *xsc)
 	P9_DEBUG(TRANS, "%s: completing\n", __func__);
 
 	VT9P_LOCK(chan);
+again:
 	while ((curreq = virtqueue_dequeue(vq, NULL)) != NULL) {
 		curreq->rc->tag = curreq->tc->tag;
 		wakeup_one(curreq);
 	}
-	virtqueue_enable_intr(vq);
+	if (virtqueue_enable_intr(vq) != 0) {
+		virtqueue_disable_intr(vq);
+		goto again;
+	}
 	cv_signal(&chan->submit_cv);
 	VT9P_UNLOCK(chan);
 }
@@ -369,20 +361,16 @@ vt9p_attach(device_t dev)
 
 	/* We expect one virtqueue, for requests. */
 	error = vt9p_alloc_virtqueue(chan);
-
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: Allocating the virtqueue failed \n", __func__);
 		goto out;
 	}
-
 	error = virtio_setup_intr(dev, INTR_TYPE_MISC|INTR_MPSAFE);
-
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: Cannot setup virtqueue interrupt\n", __func__);
 		goto out;
 	}
 	error = virtqueue_enable_intr(chan->vt9p_vq);
-
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: Cannot enable virtqueue interrupt\n", __func__);
 		goto out;
@@ -436,7 +424,7 @@ vt9p_create(const char *mount_tag, void **handlep)
 	/* If we dont have one, for now bail out.*/
 	if (chan) {
 		*handlep = (void *)chan;
-		chan->busy = TRUE;
+		chan->busy = true;
 	} else {
 		P9_DEBUG(TRANS, "%s: No Global channel with mount_tag=%s\n",
 		    __func__, mount_tag);
@@ -450,7 +438,8 @@ static void
 vt9p_close(void *handle)
 {
 	struct vt9p_softc *chan = handle;
-	chan->busy = FALSE;
+
+	chan->busy = false;
 }
 
 static struct p9_trans_module vt9p_trans = {

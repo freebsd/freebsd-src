@@ -213,54 +213,63 @@ mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 		counter_u64_free(ptls->stats.arg[x]);
 }
 
+
+static int
+mlx5e_tls_st_init(struct mlx5e_priv *priv, struct mlx5e_tls_tag *ptag)
+{
+	int err;
+
+	/* try to open TIS, if not present */
+	if (ptag->tisn == 0) {
+		err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
+		    priv->pdn, &ptag->tisn);
+		if (err) {
+			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
+			return (err);
+		}
+	}
+	MLX5_SET(sw_tls_cntx, ptag->crypto_params, progress.pd, ptag->tisn);
+
+	/* try to allocate a DEK context ID */
+	err = mlx5_encryption_key_create(priv->mdev, priv->pdn,
+	    MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
+	    MLX5_ADDR_OF(sw_tls_cntx, ptag->crypto_params, key.key_data),
+	    MLX5_GET(sw_tls_cntx, ptag->crypto_params, key.key_len),
+	    &ptag->dek_index);
+	if (err) {
+		MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
+		return (err);
+	}
+
+	MLX5_SET(sw_tls_cntx, ptag->crypto_params, param.dek_index, ptag->dek_index);
+
+	ptag->dek_index_ok = 1;
+
+	MLX5E_TLS_TAG_LOCK(ptag);
+	if (ptag->state == MLX5E_TLS_ST_INIT)
+		ptag->state = MLX5E_TLS_ST_SETUP;
+	MLX5E_TLS_TAG_UNLOCK(ptag);
+	return (0);
+}
+
 static void
 mlx5e_tls_work(struct work_struct *work)
 {
 	struct mlx5e_tls_tag *ptag;
 	struct mlx5e_priv *priv;
-	int err;
 
 	ptag = container_of(work, struct mlx5e_tls_tag, work);
 	priv = container_of(ptag->tls, struct mlx5e_priv, tls);
 
 	switch (ptag->state) {
 	case MLX5E_TLS_ST_INIT:
-		/* try to open TIS, if not present */
-		if (ptag->tisn == 0) {
-			err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
-			    priv->pdn, &ptag->tisn);
-			if (err) {
-				MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-				break;
-			}
-		}
-		MLX5_SET(sw_tls_cntx, ptag->crypto_params, progress.pd, ptag->tisn);
-
-		/* try to allocate a DEK context ID */
-		err = mlx5_encryption_key_create(priv->mdev, priv->pdn,
-		    MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
-		    MLX5_ADDR_OF(sw_tls_cntx, ptag->crypto_params, key.key_data),
-		    MLX5_GET(sw_tls_cntx, ptag->crypto_params, key.key_len),
-		    &ptag->dek_index);
-		if (err) {
-			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-			break;
-		}
-
-		MLX5_SET(sw_tls_cntx, ptag->crypto_params, param.dek_index, ptag->dek_index);
-
-		ptag->dek_index_ok = 1;
-
-		MLX5E_TLS_TAG_LOCK(ptag);
-		if (ptag->state == MLX5E_TLS_ST_INIT)
-			ptag->state = MLX5E_TLS_ST_SETUP;
-		MLX5E_TLS_TAG_UNLOCK(ptag);
+		(void)mlx5e_tls_st_init(priv, ptag);
 		break;
 
 	case MLX5E_TLS_ST_RELEASE:
 		/* try to destroy DEK context by ID */
 		if (ptag->dek_index_ok)
-			err = mlx5_encryption_key_destroy(priv->mdev, ptag->dek_index);
+			(void)mlx5_encryption_key_destroy(priv->mdev, ptag->dek_index);
 
 		/* free tag */
 		mlx5e_tls_tag_zfree(ptag);
@@ -326,9 +335,7 @@ mlx5e_tls_snd_tag_alloc(if_t ifp,
 		return (EOPNOTSUPP);
 
 	/* allocate new tag from zone, if any */
-	ptag = uma_zalloc(priv->tls.zone, M_NOWAIT);
-	if (ptag == NULL)
-		return (ENOMEM);
+	ptag = uma_zalloc(priv->tls.zone, M_WAITOK);
 
 	/* sanity check default values */
 	MPASS(ptag->dek_index == 0);
@@ -441,8 +448,17 @@ mlx5e_tls_snd_tag_alloc(if_t ifp,
 	/* reset state */
 	ptag->state = MLX5E_TLS_ST_INIT;
 
-	queue_work(priv->tls.wq, &ptag->work);
-	flush_work(&ptag->work);
+	/*
+	 *  Try to immediately init the tag.  We may fail if the NIC's
+	 *  resources are tied up with send tags that are in the work
+	 *  queue, waiting to be freed.  So if we fail, put ourselves
+	 *  on the queue so as to try again after resouces have been freed.
+	 */
+	error = mlx5e_tls_st_init(priv, ptag);
+	if (error != 0) {
+		queue_work(priv->tls.wq, &ptag->work);
+		flush_work(&ptag->work);
+	}
 
 	return (0);
 

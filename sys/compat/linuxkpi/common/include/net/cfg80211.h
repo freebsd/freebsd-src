@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2024 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -39,6 +39,8 @@
 #include <linux/netdevice.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include <net/regulatory.h>
 
 /* linux_80211.c */
@@ -49,8 +51,8 @@ extern int linuxkpi_debug_80211;
 #ifndef	D80211_IMPROVE
 #define	D80211_IMPROVE		0x2
 #endif
-#define	TODO(...)		if (linuxkpi_debug_80211 & D80211_TODO)	\
-    printf("%s:%d: XXX LKPI80211 TODO\n", __func__, __LINE__)
+#define	TODO(fmt, ...)		if (linuxkpi_debug_80211 & D80211_TODO)	\
+    printf("%s:%d: XXX LKPI80211 TODO " fmt "\n",  __func__, __LINE__, ##__VA_ARGS__)
 #define	IMPROVE(...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
     printf("%s:%d: XXX LKPI80211 IMPROVE\n", __func__, __LINE__)
 
@@ -106,6 +108,11 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_80MHZ			= BIT(7),
 	IEEE80211_CHAN_NO_160MHZ		= BIT(8),
 	IEEE80211_CHAN_NO_OFDM			= BIT(9),
+	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT	= BIT(10),
+	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT	= BIT(11),
+	IEEE80211_CHAN_PSD			= BIT(12),
+	IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP	= BIT(13),
+	IEEE80211_CHAN_CAN_MONITOR		= BIT(14),
 };
 #define	IEEE80211_CHAN_NO_HT40	(IEEE80211_CHAN_NO_HT40MINUS|IEEE80211_CHAN_NO_HT40PLUS)
 
@@ -275,6 +282,9 @@ struct cfg80211_bss_ies {
 struct cfg80211_bss {
 		/* XXX TODO */
 	struct cfg80211_bss_ies		*ies;
+	struct cfg80211_bss_ies		*beacon_ies;
+
+	int32_t				signal;
 };
 
 struct cfg80211_chan_def {
@@ -283,6 +293,7 @@ struct cfg80211_chan_def {
 	enum nl80211_chan_width		width;
 	uint32_t			center_freq1;
 	uint32_t			center_freq2;
+	uint16_t			punctured;
 };
 
 struct cfg80211_ftm_responder_stats {
@@ -378,11 +389,16 @@ struct cfg80211_match_set {
 
 struct cfg80211_scan_request {
 		/* XXX TODO */
-	int	duration, duration_mandatory, flags;
 	bool					no_cck;
 	bool					scan_6ghz;
+	bool					duration_mandatory;
+	int8_t					tsf_report_link_id;
+	uint16_t				duration;
+	uint32_t				flags;
 	struct wireless_dev			*wdev;
 	struct wiphy				*wiphy;
+	uint64_t				scan_start;
+	uint32_t				rates[NUM_NL80211_BANDS];
 	int					ie_len;
 	uint8_t					*ie;
 	uint8_t					mac_addr[ETH_ALEN], mac_addr_mask[ETH_ALEN];
@@ -774,6 +790,7 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1		0x05
 #define	IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2		0x06
 #define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991		0x07
+#define	IEEE80211_EHT_MAC_CAP0_SCS_TRAFFIC_DESC			0x08
 
 #define	IEEE80211_EHT_MAC_CAP1_MAX_AMPDU_LEN_MASK		0x01
 
@@ -895,16 +912,26 @@ struct ieee80211_sta_he_6ghz_capa {
 };
 
 struct ieee80211_eht_mcs_nss_supp_20mhz_only {
-	uint8_t					rx_tx_mcs7_max_nss;
-	uint8_t					rx_tx_mcs9_max_nss;
-	uint8_t					rx_tx_mcs11_max_nss;
-	uint8_t					rx_tx_mcs13_max_nss;
+	union {
+		struct {
+			uint8_t				rx_tx_mcs7_max_nss;
+			uint8_t				rx_tx_mcs9_max_nss;
+			uint8_t				rx_tx_mcs11_max_nss;
+			uint8_t				rx_tx_mcs13_max_nss;
+		};
+		uint8_t					rx_tx_max_nss[4];
+	};
 };
 
 struct ieee80211_eht_mcs_nss_supp_bw {
-	uint8_t					rx_tx_mcs9_max_nss;
-	uint8_t					rx_tx_mcs11_max_nss;
-	uint8_t					rx_tx_mcs13_max_nss;
+	union {
+		struct {
+			uint8_t				rx_tx_mcs9_max_nss;
+			uint8_t				rx_tx_mcs11_max_nss;
+			uint8_t				rx_tx_mcs13_max_nss;
+		};
+		uint8_t					rx_tx_max_nss[3];
+	};
 };
 
 struct ieee80211_eht_cap_elem_fixed {
@@ -1096,7 +1123,7 @@ struct wiphy_iftype_ext_capab {
 	const uint8_t				*extended_capabilities_mask;
 	uint8_t					extended_capabilities_len;
 	uint16_t				eml_capabilities;
-
+	uint16_t				mld_capa_and_ops;
 };
 
 struct tid_config_support {
@@ -1133,10 +1160,23 @@ enum wiphy_flags {
 	WIPHY_FLAG_4ADDR_AP			= BIT(14),
 	WIPHY_FLAG_4ADDR_STATION		= BIT(15),
 	WIPHY_FLAG_SUPPORTS_MLO			= BIT(16),
+	WIPHY_FLAG_DISABLE_WEXT			= BIT(17),
+};
+
+struct wiphy_work;
+typedef void (*wiphy_work_fn)(struct wiphy *, struct wiphy_work *);
+struct wiphy_work {
+	struct list_head			entry;
+	wiphy_work_fn				fn;
+};
+struct wiphy_delayed_work {
+	struct wiphy_work			work;
+	struct wiphy				*wiphy;
+	struct timer_list			timer;
 };
 
 struct wiphy {
-
+	struct mutex				mtx;
 	struct device				*dev;
 	struct mac_address			*addresses;
 	int					n_addresses;
@@ -1184,6 +1224,9 @@ struct wiphy {
 	/* Must stay last. */
 	uint8_t					priv[0] __aligned(CACHE_LINE_SIZE);
 };
+
+#define	lockdep_assert_wiphy(wiphy)					\
+    lockdep_assert_held(&(wiphy)->mtx)
 
 struct wireless_dev {
 		/* XXX TODO, like ic? */
@@ -1249,6 +1292,15 @@ struct cfg80211_ops {
 struct wiphy *linuxkpi_wiphy_new(const struct cfg80211_ops *, size_t);
 void linuxkpi_wiphy_free(struct wiphy *wiphy);
 
+void linuxkpi_wiphy_work_queue(struct wiphy *, struct wiphy_work *);
+void linuxkpi_wiphy_work_cancel(struct wiphy *, struct wiphy_work *);
+void linuxkpi_wiphy_work_flush(struct wiphy *, struct wiphy_work *);
+void lkpi_wiphy_delayed_work_timer(struct timer_list *);
+void linuxkpi_wiphy_delayed_work_queue(struct wiphy *,
+    struct wiphy_delayed_work *, unsigned long);
+void linuxkpi_wiphy_delayed_work_cancel(struct wiphy *,
+    struct wiphy_delayed_work *);
+
 int linuxkpi_regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
     struct linuxkpi_ieee80211_regdomain *regd);
 uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
@@ -1300,16 +1352,8 @@ wiphy_dev(struct wiphy *wiphy)
 	return (wiphy->dev);
 }
 
-#define	wiphy_err(_wiphy, _fmt, ...)					\
-    dev_err((_wiphy)->dev, _fmt, __VA_ARGS__)
-
-static __inline const struct linuxkpi_ieee80211_regdomain *
-wiphy_dereference(struct wiphy *wiphy,
-    const struct linuxkpi_ieee80211_regdomain *regd)
-{
-	TODO();
-        return (NULL);
-}
+#define	wiphy_dereference(wiphy, p)					\
+    rcu_dereference_check(p, lockdep_is_held(&(wiphy)->mtx))
 
 static __inline void
 wiphy_lock(struct wiphy *wiphy)
@@ -1661,6 +1705,12 @@ wiphy_ext_feature_set(struct wiphy *wiphy, enum nl80211_ext_feature ef)
 	set_bit(ef, wiphy->ext_features);
 }
 
+static inline bool
+wiphy_ext_feature_isset(struct wiphy *wiphy, enum nl80211_ext_feature ef)
+{
+	return (test_bit(ef, wiphy->ext_features));
+}
+
 static __inline void *
 wiphy_net(struct wiphy *wiphy)
 {
@@ -1984,6 +2034,44 @@ cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	return (false);
 }
 
+static __inline bool
+cfg80211_chandef_dfs_usable(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
+{
+	TODO();
+	return (false);
+}
+
+static __inline unsigned int
+cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
+{
+	TODO();
+	return (0);
+}
+
+static inline void
+_ieee80211_set_sband_iftype_data(struct ieee80211_supported_band *band,
+    struct ieee80211_sband_iftype_data *iftype_data, size_t nitems)
+{
+	band->iftype_data = iftype_data;
+	band->n_iftype_data = nitems;
+}
+
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *band,
+    enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *iftype_data;
+	int i;
+
+	for (i = 0; i < band->n_iftype_data; i++) {
+		iftype_data = (const void *)&band->iftype_data[i];
+		if (iftype_data->types_mask & BIT(iftype))
+			return (iftype_data);
+	}
+
+	return (NULL);
+}
+
 static __inline const struct ieee80211_sta_eht_cap *
 ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *band,
     enum nl80211_iftype iftype)
@@ -1992,8 +2080,122 @@ ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *band,
 	return (NULL);
 }
 
+static inline bool
+cfg80211_ssid_eq(struct cfg80211_ssid *ssid1, struct cfg80211_ssid *ssid2)
+{
+	int error;
+
+	if (ssid1 == NULL || ssid2 == NULL)	/* Can we KASSERT this? */
+		return (false);
+
+	if (ssid1->ssid_len != ssid2->ssid_len)
+		return (false);
+	error = memcmp(ssid1->ssid, ssid2->ssid, ssid2->ssid_len);
+	if (error != 0)
+		return (false);
+	return (true);
+}
+
+static inline void
+cfg80211_rx_unprot_mlme_mgmt(struct net_device *ndev, const uint8_t *hdr,
+    uint32_t len)
+{
+	TODO();
+}
+
+static inline const struct wiphy_iftype_ext_capab *
+cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype iftype)
+{
+
+	TODO();
+	return (NULL);
+}
+
+static inline int
+nl80211_chan_width_to_mhz(enum nl80211_chan_width width)
+{
+	switch (width) {
+	case NL80211_CHAN_WIDTH_5:
+		return (5);
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		return (10);
+		break;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		return (20);
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		return (40);
+		break;
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+		return (80);
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		return (160);
+		break;
+	case NL80211_CHAN_WIDTH_320:
+		return (320);
+		break;
+	}
+}
+
+/* -------------------------------------------------------------------------- */
+
+static inline void
+wiphy_work_init(struct wiphy_work *wwk, wiphy_work_fn fn)
+{
+	INIT_LIST_HEAD(&wwk->entry);
+	wwk->fn = fn;
+}
+
+static inline void
+wiphy_work_queue(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	linuxkpi_wiphy_work_queue(wiphy, wwk);
+}
+
+static inline void
+wiphy_work_cancel(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	linuxkpi_wiphy_work_cancel(wiphy, wwk);
+}
+
+static inline void
+wiphy_work_flush(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	linuxkpi_wiphy_work_flush(wiphy, wwk);
+}
+
+static inline void
+wiphy_delayed_work_init(struct wiphy_delayed_work *wdwk, wiphy_work_fn fn)
+{
+	wiphy_work_init(&wdwk->work, fn);
+	timer_setup(&wdwk->timer, lkpi_wiphy_delayed_work_timer, 0);
+}
+
+static inline void
+wiphy_delayed_work_queue(struct wiphy *wiphy, struct wiphy_delayed_work *wdwk,
+    unsigned long delay)
+{
+	linuxkpi_wiphy_delayed_work_queue(wiphy, wdwk, delay);
+}
+
+static inline void
+wiphy_delayed_work_cancel(struct wiphy *wiphy, struct wiphy_delayed_work *wdwk)
+{
+	linuxkpi_wiphy_delayed_work_cancel(wiphy, wdwk);
+}
+
+/* -------------------------------------------------------------------------- */
+
+#define	wiphy_err(_wiphy, _fmt, ...)					\
+    dev_err((_wiphy)->dev, _fmt, __VA_ARGS__)
 #define	wiphy_info(wiphy, fmt, ...)					\
-	printf("%s:%d XXX TODO " fmt, __func__, __LINE__, __VA_ARGS__)
+    dev_info(&(wiphy)->dev, fmt, ##__VA_ARGS__)
+#define	wiphy_info_once(wiphy, fmt, ...)				\
+    dev_info_once(&(wiphy)->dev, fmt, ##__VA_ARGS__)
 
 #ifndef LINUXKPI_NET80211
 #define	ieee80211_channel		linuxkpi_ieee80211_channel

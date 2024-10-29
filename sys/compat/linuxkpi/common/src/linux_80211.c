@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2024 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -895,14 +895,14 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	if (linuxkpi_debug_80211 & D80211_TRACE)
 		printf("%s:%d [%s:%d] assoc %d aid %d beacon_int %u "
 		    "dtim_period %u sync_dtim_count %u sync_tsf %ju "
-		    "sync_device_ts %u bss_changed %#08x\n",
+		    "sync_device_ts %u bss_changed %#010jx\n",
 			__func__, __LINE__, _f, _l,
 			vif->cfg.assoc, vif->cfg.aid,
 			vif->bss_conf.beacon_int, vif->bss_conf.dtim_period,
 			vif->bss_conf.sync_dtim_count,
 			(uintmax_t)vif->bss_conf.sync_tsf,
 			vif->bss_conf.sync_device_ts,
-			bss_changed);
+			(uintmax_t)bss_changed);
 #endif
 
 	if (vif->bss_conf.beacon_int != ni->ni_intval) {
@@ -926,14 +926,14 @@ lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
 	if (linuxkpi_debug_80211 & D80211_TRACE)
 		printf("%s:%d [%s:%d] assoc %d aid %d beacon_int %u "
 		    "dtim_period %u sync_dtim_count %u sync_tsf %ju "
-		    "sync_device_ts %u bss_changed %#08x\n",
+		    "sync_device_ts %u bss_changed %#010jx\n",
 			__func__, __LINE__, _f, _l,
 			vif->cfg.assoc, vif->cfg.aid,
 			vif->bss_conf.beacon_int, vif->bss_conf.dtim_period,
 			vif->bss_conf.sync_dtim_count,
 			(uintmax_t)vif->bss_conf.sync_tsf,
 			vif->bss_conf.sync_device_ts,
-			bss_changed);
+			(uintmax_t)bss_changed);
 #endif
 
 	return (bss_changed);
@@ -1267,9 +1267,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	} else {
 		error = lkpi_80211_mo_add_chanctx(hw, chanctx_conf);
 		if (error == 0 || error == EOPNOTSUPP) {
-			vif->bss_conf.chandef.chan = chanctx_conf->def.chan;
-			vif->bss_conf.chandef.width = chanctx_conf->def.width;
-			vif->bss_conf.chandef.center_freq1 =
+			vif->bss_conf.chanreq.oper.chan = chanctx_conf->def.chan;
+			vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
+			vif->bss_conf.chanreq.oper.center_freq1 =
 			    chanctx_conf->def.center_freq1;
 #ifdef LKPI_80211_HT
 			if (vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_40) {
@@ -1280,7 +1280,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 					vif->bss_conf.chandef.center_freq1 -= 10;
 			}
 #endif
-			vif->bss_conf.chandef.center_freq2 =
+			vif->bss_conf.chanreq.oper.center_freq2 =
 			    chanctx_conf->def.center_freq2;
 		} else {
 			ic_printf(vap->iv_ic, "%s:%d: mo_add_chanctx "
@@ -1775,6 +1775,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	    !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -1809,6 +1810,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.success = false;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -2162,6 +2164,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	    !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -2196,6 +2199,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.success = false;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -2300,6 +2304,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	    !lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.duration = PREP_TX_INFO_DURATION;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_prepare_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = true;
 	}
@@ -2334,6 +2339,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	if (lsta->in_mgd) {
 		memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 		prep_tx_info.success = false;
+		prep_tx_info.was_assoc = true;
 		lkpi_80211_mo_mgd_complete_tx(hw, vif, &prep_tx_info);
 		lsta->in_mgd = false;
 	}
@@ -2827,7 +2833,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	lvif->lvif_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 	    lkpi_vif_iflladdr, vif, EVENTHANDLER_PRI_ANY);
 	vif->bss_conf.link_id = 0;	/* Non-MLO operation. */
-	vif->bss_conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+	vif->bss_conf.chanreq.oper.width = NL80211_CHAN_WIDTH_20_NOHT;
 	vif->bss_conf.use_short_preamble = false;	/* vap->iv_flags IEEE80211_F_SHPREAMBLE */
 	vif->bss_conf.use_short_slot = false;		/* vap->iv_flags IEEE80211_F_SHSLOT */
 	vif->bss_conf.qos = false;
@@ -3013,7 +3019,7 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	lkpi_80211_mo_remove_interface(hw, vif);
 
 	/* Single VAP, so we can do this here. */
-	lkpi_80211_mo_stop(hw);
+	lkpi_80211_mo_stop(hw, false);			/* XXX SUSPEND */
 
 	mtx_destroy(&lvif->mtx);
 	free(lvif, M_80211_VAP);
@@ -3070,7 +3076,7 @@ lkpi_ic_parent(struct ieee80211com *ic)
 			start_all = true;
 	} else {
 #ifdef HW_START_STOP
-		lkpi_80211_mo_stop(hw);
+		lkpi_80211_mo_stop(hw, false);		/* XXX SUSPEND */
 #endif
 	}
 	LKPI_80211_LHW_UNLOCK(lhw);
@@ -5331,18 +5337,158 @@ linuxkpi_ieee80211_get_tid(struct ieee80211_hdr *hdr, bool nonqos_ok)
 	return (tid);
 }
 
+/* -------------------------------------------------------------------------- */
+
+static void
+lkpi_wiphy_work(struct work_struct *work)
+{
+	struct lkpi_wiphy *lwiphy;
+	struct wiphy *wiphy;
+	struct wiphy_work *wk;
+
+	lwiphy = container_of(work, struct lkpi_wiphy, wwk);
+	wiphy = LWIPHY_TO_WIPHY(lwiphy);
+
+	wiphy_lock(wiphy);
+
+	LKPI_80211_LWIPHY_WORK_LOCK(lwiphy);
+	wk = list_first_entry_or_null(&lwiphy->wwk_list, struct wiphy_work, entry);
+	/* If there is nothing we do nothing. */
+	if (wk == NULL) {
+		LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+		wiphy_unlock(wiphy);
+		return;
+	}
+	list_del_init(&wk->entry);
+
+	/* More work to do? */
+	if (!list_empty(&lwiphy->wwk_list))
+		schedule_work(work);
+	LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+
+	/* Finally call the (*wiphy_work_fn)() function. */
+	wk->fn(wiphy, wk);
+
+	wiphy_unlock(wiphy);
+}
+
+void
+linuxkpi_wiphy_work_queue(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	struct lkpi_wiphy *lwiphy;
+
+	lwiphy = WIPHY_TO_LWIPHY(wiphy);
+
+	LKPI_80211_LWIPHY_WORK_LOCK(lwiphy);
+	/* Do not double-queue. */
+	if (list_empty(&wwk->entry))
+		list_add_tail(&wwk->entry, &lwiphy->wwk_list);
+	LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+
+	/*
+	 * See how ieee80211_queue_work() work continues in Linux or if things
+	 * migrate here over time?
+	 * Use a system queue from linux/workqueue.h for now.
+	 */
+	queue_work(system_wq, &lwiphy->wwk);
+}
+
+void
+linuxkpi_wiphy_work_cancel(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	struct lkpi_wiphy *lwiphy;
+
+	lwiphy = WIPHY_TO_LWIPHY(wiphy);
+
+	LKPI_80211_LWIPHY_WORK_LOCK(lwiphy);
+	/* Only cancel if queued. */
+	if (!list_empty(&wwk->entry))
+		list_del_init(&wwk->entry);
+	LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+}
+
+void
+linuxkpi_wiphy_work_flush(struct wiphy *wiphy, struct wiphy_work *wwk)
+{
+	struct lkpi_wiphy *lwiphy;
+	struct wiphy_work *wk;
+
+	lwiphy = WIPHY_TO_LWIPHY(wiphy);
+	LKPI_80211_LWIPHY_WORK_LOCK(lwiphy);
+	/* If wwk is unset, flush everything; called when wiphy is shut down. */
+	if (wwk != NULL && list_empty(&wwk->entry)) {
+		LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+		return;
+	}
+
+	while (!list_empty(&lwiphy->wwk_list)) {
+
+		wk = list_first_entry(&lwiphy->wwk_list, struct wiphy_work,
+		    entry);
+		list_del_init(&wk->entry);
+		LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+		wk->fn(wiphy, wk);
+		LKPI_80211_LWIPHY_WORK_LOCK(lwiphy);
+		if (wk == wwk)
+			break;
+	}
+	LKPI_80211_LWIPHY_WORK_UNLOCK(lwiphy);
+}
+
+void
+lkpi_wiphy_delayed_work_timer(struct timer_list *tl)
+{
+	struct wiphy_delayed_work *wdwk;
+
+	wdwk = from_timer(wdwk, tl, timer);
+        wiphy_work_queue(wdwk->wiphy, &wdwk->work);
+}
+
+void
+linuxkpi_wiphy_delayed_work_queue(struct wiphy *wiphy,
+    struct wiphy_delayed_work *wdwk, unsigned long delay)
+{
+	if (delay == 0) {
+		/* Run right away. */
+		del_timer(&wdwk->timer);
+		wiphy_work_queue(wiphy, &wdwk->work);
+	} else {
+		wdwk->wiphy = wiphy;
+		mod_timer(&wdwk->timer, jiffies + delay);
+	}
+}
+
+void
+linuxkpi_wiphy_delayed_work_cancel(struct wiphy *wiphy,
+    struct wiphy_delayed_work *wdwk)
+{
+	del_timer_sync(&wdwk->timer);
+	wiphy_work_cancel(wiphy, &wdwk->work);
+}
+
+/* -------------------------------------------------------------------------- */
+
 struct wiphy *
 linuxkpi_wiphy_new(const struct cfg80211_ops *ops, size_t priv_len)
 {
 	struct lkpi_wiphy *lwiphy;
+	struct wiphy *wiphy;
 
 	lwiphy = kzalloc(sizeof(*lwiphy) + priv_len, GFP_KERNEL);
 	if (lwiphy == NULL)
 		return (NULL);
 	lwiphy->ops = ops;
 
-	/* XXX TODO */
-	return (LWIPHY_TO_WIPHY(lwiphy));
+	LKPI_80211_LWIPHY_WORK_LOCK_INIT(lwiphy);
+	INIT_LIST_HEAD(&lwiphy->wwk_list);
+	INIT_WORK(&lwiphy->wwk, lkpi_wiphy_work);
+
+	wiphy = LWIPHY_TO_WIPHY(lwiphy);
+
+	mutex_init(&wiphy->mtx);
+	TODO();
+
+	return (wiphy);
 }
 
 void
@@ -5353,7 +5499,12 @@ linuxkpi_wiphy_free(struct wiphy *wiphy)
 	if (wiphy == NULL)
 		return;
 
+	linuxkpi_wiphy_work_flush(wiphy, NULL);
+	mutex_destroy(&wiphy->mtx);
+
 	lwiphy = WIPHY_TO_LWIPHY(wiphy);
+	LKPI_80211_LWIPHY_WORK_LOCK_DESTROY(lwiphy);
+
 	kfree(lwiphy);
 }
 
@@ -6286,6 +6437,43 @@ linuxkpi_cfg80211_bss_flush(struct wiphy *wiphy)
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		ieee80211_scan_flush(vap);
 	IEEE80211_UNLOCK(ic);
+}
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * hw->conf get initialized/set in various places for us:
+ * - linuxkpi_ieee80211_alloc_hw(): flags
+ * - linuxkpi_ieee80211_ifattach(): chandef
+ * - lkpi_ic_vap_create(): listen_interval
+ * - lkpi_ic_set_channel(): chandef, flags
+ */
+
+int lkpi_80211_update_chandef(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *new)
+{
+	struct cfg80211_chan_def *cd;
+	uint32_t changed;
+	int error;
+
+	changed = 0;
+	if (new == NULL || new->def.chan == NULL)
+		cd = NULL;
+	else
+		cd = &new->def;
+
+	if (cd && cd->chan != hw->conf.chandef.chan) {
+		/* Copy; the chan pointer is fine and will stay valid. */
+		hw->conf.chandef = *cd;
+		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
+	}
+	IMPROVE("IEEE80211_CONF_CHANGE_PS, IEEE80211_CONF_CHANGE_POWER");
+
+	if (changed == 0)
+		return (0);
+
+	error = lkpi_80211_mo_config(hw, changed);
+	return (error);
 }
 
 /* -------------------------------------------------------------------------- */

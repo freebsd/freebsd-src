@@ -328,10 +328,10 @@ diff2reviewers()
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
         echo '{
-                  "constraints": {"phids": ['"$(echo -n "$userids" | tr '[:space:]' ',')"']}
+                  "constraints": {"phids": ['"$(printf "%s" "$userids" | tr '[:space:]' ',')"']}
               }' |
-            arc_call_conduit -- user.search |
-            jq -r '.response.data[].fields.username'
+        arc_call_conduit -- user.search |
+        jq -r '.response.data[].fields.username'
     fi
 }
 
@@ -444,7 +444,7 @@ gitarc__list()
 
     for commit in $commits; do
         chash=$(git show -s --format='%C(auto)%h' "$commit")
-        echo -n "${chash} "
+        printf "%s" "${chash} "
 
         diff=$(log2diff "$commit")
         if [ -n "$diff" ]; then
@@ -461,7 +461,7 @@ gitarc__list()
         if [ -z "$diff" ]; then
             echo "No Review            : $title"
         elif [ "$(echo "$diff" | wc -l)" -ne 1 ]; then
-            echo -n "Ambiguous Reviews: "
+            printf "%s" "Ambiguous Reviews: "
             echo "$diff" | grep -E -o 'D[1-9][0-9]*:' | tr -d ':' \
                 | paste -sd ',' - | sed 's/,/, /g'
         else
@@ -548,32 +548,32 @@ patch_commit()
     diff=$1
     reviewid=$(diff2phid "$diff")
     # Get the author phid for this patch
-    review_data=$(echo '{
-                  "constraints": {"phids": ["'"$reviewid"'"]}
-		}' |
-        arc_call_conduit -- differential.revision.search)
-    authorid=$(echo "$review_data" | jq -r '.response.data[].fields.authorPHID' )
+    review_data=$(mktemp)
+    echo '{"constraints": {"phids": ["'"$reviewid"'"]}}' | \
+        arc_call_conduit -- differential.revision.search > "$review_data"
+    authorid=$(jq -r '.response.data[].fields.authorPHID' "$review_data")
     # Get metadata about the user that submitted this patch
-    user_data=$(echo '{
-                  "constraints": {"phids": ["'"$authorid"'"]}
-		}' |
-            arc call-conduit -- user.search | grep -v ^Warning: |
-            jq -r '.response.data[].fields')
-    user_addr=$(echo "$user_data" | jq -r '.username')
-    user_name=$(echo "$user_data" | jq -r '.realName')
+    user_data=$(mktemp)
+    echo '{"constraints": {"phids": ["'"$authorid"'"]}}' | \
+        arc_call_conduit -- user.search | \
+        jq -r '.response.data[].fields' > "$user_data"
+    user_addr=$(jq -r '.username' "$user_data")
+    user_name=$(jq -r '.realName' "$user_data")
+    rm "$user_data"
     # Dig the data out of querydiffs api endpoint, although it's deprecated,
     # since it's one of the few places we can get email addresses. It's unclear
     # if we can expect multiple difference ones of these. Some records don't
     # have this data, so we remove all the 'null's. We sort the results and
     # remove duplicates 'just to be sure' since we've not seen multiple
     # records that match.
-    diff_data=$(echo '{
-		"revisionIDs": [ '"${diff#D}"' ]
-		}' | arc_call_conduit -- differential.querydiffs |
-	     jq -r '.response | flatten | .[]')
-    author_addr=$(echo "$diff_data" | jq -r ".authorEmail?" | sort -u)
-    author_name=$(echo "$diff_data" | jq -r ".authorName?" | sort -u)
+    diff_data=$(mktemp)
+    echo '{"revisionIDs": [ '"${diff#D}"' ]}' | \
+        arc_call_conduit -- differential.querydiffs |
+        jq -r '.response | flatten | .[]' > "$diff_data"
+    author_addr=$(jq -r ".authorEmail?" "$diff_data" | sort -u)
+    author_name=$(jq -r ".authorName?" "$diff_data" | sort -u)
     author=$(find_author "$user_addr" "$user_name" "$author_addr" "$author_name")
+    rm "$diff_data"
 
     # If we had to guess, and the user didn't want to guess, abort
     if [ "${author}" = "ABORT" ]; then
@@ -582,10 +582,11 @@ patch_commit()
     fi
 
     tmp=$(mktemp)
-    echo "$review_data" | jq -r '.response.data[].fields.title' > $tmp
+    jq -r '.response.data[].fields.title' "$review_data" > $tmp
     echo >> $tmp
-    echo "$review_data" | jq -r '.response.data[].fields.summary' >> $tmp
+    jq -r '.response.data[].fields.summary' "$review_data" >> $tmp
     echo >> $tmp
+    rm "$review_data"
     # XXX this leaves an extra newline in some cases.
     reviewers=$(diff2reviewers "$diff" | sed '/^$/d' | paste -sd ',' - | sed 's/,/, /g')
     if [ -n "$reviewers" ]; then

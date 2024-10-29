@@ -3223,6 +3223,7 @@ lib/libc__L: lib/libsys__L
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
 lib/libcxxrt__L: lib/libgcc_s__L
+lib/libcrypt__L: lib/libmd__L
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhdb} \

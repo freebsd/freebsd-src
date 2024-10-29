@@ -29,6 +29,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
@@ -231,8 +232,8 @@ struct ConstraintTy {
 
   ConstraintTy(SmallVector<int64_t, 8> Coefficients, bool IsSigned, bool IsEq,
                bool IsNe)
-      : Coefficients(Coefficients), IsSigned(IsSigned), IsEq(IsEq), IsNe(IsNe) {
-  }
+      : Coefficients(std::move(Coefficients)), IsSigned(IsSigned), IsEq(IsEq),
+        IsNe(IsNe) {}
 
   unsigned size() const { return Coefficients.size(); }
 
@@ -461,7 +462,7 @@ static Decomposition decomposeGEP(GEPOperator &GEP,
 
     // If Op0 is signed non-negative, the GEP is increasing monotonically and
     // can be de-composed.
-    if (!isKnownNonNegative(Index, DL, /*Depth=*/MaxAnalysisRecursionDepth - 1))
+    if (!isKnownNonNegative(Index, DL))
       Preconditions.emplace_back(CmpInst::ICMP_SGE, Index,
                                  ConstantInt::get(Index->getType(), 0));
   }
@@ -499,6 +500,8 @@ static Decomposition decompose(Value *V,
   if (!Ty->isIntegerTy() || Ty->getIntegerBitWidth() > 64)
     return V;
 
+  bool IsKnownNonNegative = false;
+
   // Decompose \p V used with a signed predicate.
   if (IsSigned) {
     if (auto *CI = dyn_cast<ConstantInt>(V)) {
@@ -507,6 +510,14 @@ static Decomposition decompose(Value *V,
     }
     Value *Op0;
     Value *Op1;
+
+    if (match(V, m_SExt(m_Value(Op0))))
+      V = Op0;
+    else if (match(V, m_NNegZExt(m_Value(Op0)))) {
+      V = Op0;
+      IsKnownNonNegative = true;
+    }
+
     if (match(V, m_NSWAdd(m_Value(Op0), m_Value(Op1))))
       return MergeResults(Op0, Op1, IsSigned);
 
@@ -529,7 +540,7 @@ static Decomposition decompose(Value *V,
       }
     }
 
-    return V;
+    return {V, IsKnownNonNegative};
   }
 
   if (auto *CI = dyn_cast<ConstantInt>(V)) {
@@ -539,10 +550,15 @@ static Decomposition decompose(Value *V,
   }
 
   Value *Op0;
-  bool IsKnownNonNegative = false;
   if (match(V, m_ZExt(m_Value(Op0)))) {
     IsKnownNonNegative = true;
     V = Op0;
+  }
+
+  if (match(V, m_SExt(m_Value(Op0)))) {
+    V = Op0;
+    Preconditions.emplace_back(CmpInst::ICMP_SGE, Op0,
+                               ConstantInt::get(Op0->getType(), 0));
   }
 
   Value *Op1;
@@ -551,10 +567,10 @@ static Decomposition decompose(Value *V,
     return MergeResults(Op0, Op1, IsSigned);
   }
   if (match(V, m_NSWAdd(m_Value(Op0), m_Value(Op1)))) {
-    if (!isKnownNonNegative(Op0, DL, /*Depth=*/MaxAnalysisRecursionDepth - 1))
+    if (!isKnownNonNegative(Op0, DL))
       Preconditions.emplace_back(CmpInst::ICMP_SGE, Op0,
                                  ConstantInt::get(Op0->getType(), 0));
-    if (!isKnownNonNegative(Op1, DL, /*Depth=*/MaxAnalysisRecursionDepth - 1))
+    if (!isKnownNonNegative(Op1, DL))
       Preconditions.emplace_back(CmpInst::ICMP_SGE, Op1,
                                  ConstantInt::get(Op1->getType(), 0));
 
@@ -1016,6 +1032,20 @@ void State::addInfoForInductions(BasicBlock &BB) {
   WorkList.push_back(FactOrCheck::getConditionFact(
       DTN, CmpInst::ICMP_SLT, PN, B,
       ConditionTy(CmpInst::ICMP_SLE, StartValue, B)));
+
+  // Try to add condition from header to the exit blocks. When exiting either
+  // with EQ or NE in the header, we know that the induction value must be u<=
+  // B, as other exits may only exit earlier.
+  assert(!StepOffset.isNegative() && "induction must be increasing");
+  assert((Pred == CmpInst::ICMP_EQ || Pred == CmpInst::ICMP_NE) &&
+         "unsupported predicate");
+  ConditionTy Precond = {CmpInst::ICMP_ULE, StartValue, B};
+  SmallVector<BasicBlock *> ExitBBs;
+  L->getExitBlocks(ExitBBs);
+  for (BasicBlock *EB : ExitBBs) {
+    WorkList.emplace_back(FactOrCheck::getConditionFact(
+        DT.getNode(EB), CmpInst::ICMP_ULE, A, B, Precond));
+  }
 }
 
 void State::addInfoFor(BasicBlock &BB) {
@@ -1057,6 +1087,8 @@ void State::addInfoFor(BasicBlock &BB) {
     }
     // Enqueue ssub_with_overflow for simplification.
     case Intrinsic::ssub_with_overflow:
+    case Intrinsic::ucmp:
+    case Intrinsic::scmp:
       WorkList.push_back(
           FactOrCheck::getCheck(DT.getNode(&BB), cast<CallInst>(&I)));
       break;
@@ -1065,6 +1097,9 @@ void State::addInfoFor(BasicBlock &BB) {
     case Intrinsic::umax:
     case Intrinsic::smin:
     case Intrinsic::smax:
+      // TODO: handle llvm.abs as well
+      WorkList.push_back(
+          FactOrCheck::getCheck(DT.getNode(&BB), cast<CallInst>(&I)));
       // TODO: Check if it is possible to instead only added the min/max facts
       // when simplifying uses of the min/max intrinsics.
       if (!isGuaranteedNotToBePoison(&I))
@@ -1395,6 +1430,48 @@ static bool checkAndReplaceCondition(
   return false;
 }
 
+static bool checkAndReplaceMinMax(MinMaxIntrinsic *MinMax, ConstraintInfo &Info,
+                                  SmallVectorImpl<Instruction *> &ToRemove) {
+  auto ReplaceMinMaxWithOperand = [&](MinMaxIntrinsic *MinMax, bool UseLHS) {
+    // TODO: generate reproducer for min/max.
+    MinMax->replaceAllUsesWith(MinMax->getOperand(UseLHS ? 0 : 1));
+    ToRemove.push_back(MinMax);
+    return true;
+  };
+
+  ICmpInst::Predicate Pred =
+      ICmpInst::getNonStrictPredicate(MinMax->getPredicate());
+  if (auto ImpliedCondition = checkCondition(
+          Pred, MinMax->getOperand(0), MinMax->getOperand(1), MinMax, Info))
+    return ReplaceMinMaxWithOperand(MinMax, *ImpliedCondition);
+  if (auto ImpliedCondition = checkCondition(
+          Pred, MinMax->getOperand(1), MinMax->getOperand(0), MinMax, Info))
+    return ReplaceMinMaxWithOperand(MinMax, !*ImpliedCondition);
+  return false;
+}
+
+static bool checkAndReplaceCmp(CmpIntrinsic *I, ConstraintInfo &Info,
+                               SmallVectorImpl<Instruction *> &ToRemove) {
+  Value *LHS = I->getOperand(0);
+  Value *RHS = I->getOperand(1);
+  if (checkCondition(I->getGTPredicate(), LHS, RHS, I, Info).value_or(false)) {
+    I->replaceAllUsesWith(ConstantInt::get(I->getType(), 1));
+    ToRemove.push_back(I);
+    return true;
+  }
+  if (checkCondition(I->getLTPredicate(), LHS, RHS, I, Info).value_or(false)) {
+    I->replaceAllUsesWith(ConstantInt::getSigned(I->getType(), -1));
+    ToRemove.push_back(I);
+    return true;
+  }
+  if (checkCondition(ICmpInst::ICMP_EQ, LHS, RHS, I, Info).value_or(false)) {
+    I->replaceAllUsesWith(ConstantInt::get(I->getType(), 0));
+    ToRemove.push_back(I);
+    return true;
+  }
+  return false;
+}
+
 static void
 removeEntryFromStack(const StackEntry &E, ConstraintInfo &Info,
                      Module *ReproducerModule,
@@ -1602,7 +1679,7 @@ static bool eliminateConstraints(Function &F, DominatorTree &DT, LoopInfo &LI,
   SmallVector<Value *> FunctionArgs;
   for (Value &Arg : F.args())
     FunctionArgs.push_back(&Arg);
-  ConstraintInfo Info(F.getParent()->getDataLayout(), FunctionArgs);
+  ConstraintInfo Info(F.getDataLayout(), FunctionArgs);
   State S(DT, LI, SE);
   std::unique_ptr<Module> ReproducerModule(
       DumpReproducers ? new Module(F.getName(), F.getContext()) : nullptr);
@@ -1695,6 +1772,10 @@ static bool eliminateConstraints(Function &F, DominatorTree &DT, LoopInfo &LI,
                                          ReproducerCondStack, DFSInStack);
         }
         Changed |= Simplified;
+      } else if (auto *MinMax = dyn_cast<MinMaxIntrinsic>(Inst)) {
+        Changed |= checkAndReplaceMinMax(MinMax, Info, ToRemove);
+      } else if (auto *CmpIntr = dyn_cast<CmpIntrinsic>(Inst)) {
+        Changed |= checkAndReplaceCmp(CmpIntr, Info, ToRemove);
       }
       continue;
     }
@@ -1730,7 +1811,10 @@ static bool eliminateConstraints(Function &F, DominatorTree &DT, LoopInfo &LI,
     if (!CB.isConditionFact()) {
       Value *X;
       if (match(CB.Inst, m_Intrinsic<Intrinsic::abs>(m_Value(X)))) {
-        // TODO: Add CB.Inst >= 0 fact.
+        // If is_int_min_poison is true then we may assume llvm.abs >= 0.
+        if (cast<ConstantInt>(CB.Inst->getOperand(1))->isOne())
+          AddFact(CmpInst::ICMP_SGE, CB.Inst,
+                  ConstantInt::get(CB.Inst->getType(), 0));
         AddFact(CmpInst::ICMP_SGE, CB.Inst, X);
         continue;
       }

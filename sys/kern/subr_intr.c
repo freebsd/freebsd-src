@@ -51,6 +51,7 @@
 #include <sys/conf.h>
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -72,7 +73,6 @@
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
@@ -1863,8 +1863,10 @@ intr_ipi_pic_register(device_t dev, u_int priority)
 		return (EBUSY);
 	}
 
-	if (intr_ipi_dev == NULL || priority > intr_ipi_dev_priority)
+	if (intr_ipi_dev == NULL || priority > intr_ipi_dev_priority) {
+		intr_ipi_dev_priority = priority;
 		intr_ipi_dev = dev;
+	}
 
 	return (0);
 }

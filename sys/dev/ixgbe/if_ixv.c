@@ -1073,11 +1073,14 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	 */
 	if (sc->hw.mac.type == ixgbe_mac_82599_vf) {
 		int msix_ctrl;
-		pci_find_cap(dev, PCIY_MSIX, &rid);
-		rid += PCIR_MSIX_CTRL;
-		msix_ctrl = pci_read_config(dev, rid, 2);
-		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-		pci_write_config(dev, rid, msix_ctrl, 2);
+		if (pci_find_cap(dev, PCIY_MSIX, &rid)) {
+			device_printf(dev, "Finding MSIX capability failed\n");
+		} else {
+			rid += PCIR_MSIX_CTRL;
+			msix_ctrl = pci_read_config(dev, rid, 2);
+			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+			pci_write_config(dev, rid, msix_ctrl, 2);
+		}
 	}
 
 	return (0);
@@ -1363,7 +1366,7 @@ ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 	IXGBE_WRITE_REG(hw, IXGBE_VFMRQC, mrqc);
 } /* ixv_initialize_rss_mapping */
 
-
+#define BSIZEPKT_ROUNDUP ((1<<IXGBE_SRRCTL_BSIZEPKT_SHIFT)-1)
 /************************************************************************
  * ixv_initialize_receive_units - Setup receive registers and features.
  ************************************************************************/
@@ -1373,14 +1376,14 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t     scctx;
 	struct ixgbe_hw    *hw = &sc->hw;
+#ifdef DEV_NETMAP
 	if_t               ifp = iflib_get_ifp(ctx);
+#endif
 	struct ix_rx_queue *que = sc->rx_queues;
 	u32                bufsz, psrtype;
 
-	if (if_getmtu(ifp) > ETHERMTU)
-		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	else
-		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	bufsz = (sc->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >>
+	    IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
 	psrtype = IXGBE_PSRTYPE_TCPHDR
 	        | IXGBE_PSRTYPE_UDPHDR

@@ -233,6 +233,90 @@ forward_v6_cleanup()
 	pft_cleanup
 }
 
+loopback_test()
+{
+	local addr port
+
+	addr=$1
+	port=$2
+
+	# syncookies don't work without state tracking enabled.
+	atf_check -e ignore pfctl -e
+	atf_check pfctl -f - <<__EOF__
+set syncookies always
+pass all keep state
+__EOF__
+
+        # Try to transmit data over a loopback connection.
+	cat <<__EOF__ >in
+Creativity, no.
+__EOF__
+	nc -l $addr $port >out &
+
+	atf_check nc -N $addr $port < in
+
+	atf_check -o file:in cat out
+
+	atf_check -e ignore pfctl -d
+}
+
+atf_test_case "loopback" "cleanup"
+loopback_head()
+{
+	atf_set descr 'Make sure that loopback v4 TCP connections work with syncookies on'
+	atf_set require.user root
+}
+
+loopback_body()
+{
+	local epair
+
+	pft_init
+
+	atf_check ifconfig lo0 127.0.0.1/8
+	atf_check ifconfig lo0 up
+
+	loopback_test 127.0.0.1 8080
+
+	epair=$(vnet_mkepair)
+	atf_check ifconfig ${epair}a inet 192.0.2.1/24
+
+	loopback_test 192.0.2.1 8081
+}
+
+loopback_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "loopback_v6" "cleanup"
+loopback_v6_head()
+{
+	atf_set descr 'Make sure that loopback v6 TCP connections work with syncookies on'
+	atf_set require.user root
+}
+
+loopback_v6_body()
+{
+	local epair
+
+	pft_init
+
+	atf_check ifconfig lo0 up
+
+	loopback_test ::1 8080
+
+	epair=$(vnet_mkepair)
+	atf_check ifconfig ${epair}a inet6 2001:db8::1/64
+
+	loopback_test 2001:db8::1 8081
+}
+
+loopback_v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "nostate" "cleanup"
 nostate_head()
 {
@@ -483,6 +567,8 @@ atf_init_test_cases()
 	atf_add_test_case "basic_v6"
 	atf_add_test_case "forward"
 	atf_add_test_case "forward_v6"
+	atf_add_test_case "loopback"
+	atf_add_test_case "loopback_v6"
 	atf_add_test_case "nostate"
 	atf_add_test_case "nostate_v6"
 	atf_add_test_case "adaptive"

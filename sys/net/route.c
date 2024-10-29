@@ -75,6 +75,10 @@ VNET_PCPUSTAT_SYSINIT(rtstat);
 VNET_PCPUSTAT_SYSUNINIT(rtstat);
 #endif
 
+SYSCTL_DECL(_net_route);
+SYSCTL_VNET_PCPUSTAT(_net_route, OID_AUTO, stats, struct rtstat,
+    rtstat, "route statistics");
+
 EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,

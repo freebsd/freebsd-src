@@ -26,11 +26,10 @@
  */
 
 #include <sys/elf_common.h>
-#include <sys/intr.h>
 
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include <machine/intr.h>
+
 #include "assym.inc"
 
 	.text
