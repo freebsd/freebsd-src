@@ -655,40 +655,39 @@ vm_page_startup(vm_offset_t vaddr)
 #else
 	(void)pa;
 #endif
+
 	/*
-	 * Compute the number of pages of memory that will be available for
-	 * use, taking into account the overhead of a page structure per page.
-	 * In other words, solve
-	 *	"available physical memory" - round_page(page_range *
-	 *	    sizeof(struct vm_page)) = page_range * PAGE_SIZE 
-	 * for page_range.  
+	 * Determine the lowest and highest physical addresses and, in the case
+	 * of VM_PHYSSEG_SPARSE, the exact size of the available physical
+	 * memory.  vm_phys_early_startup() already checked that phys_avail[]
+	 * has at least one element.
 	 */
+#ifdef VM_PHYSSEG_SPARSE
+	size = phys_avail[1] - phys_avail[0];
+#endif
 	low_avail = phys_avail[0];
 	high_avail = phys_avail[1];
-	for (i = 0; i < vm_phys_nsegs; i++) {
-		if (vm_phys_segs[i].start < low_avail)
-			low_avail = vm_phys_segs[i].start;
-		if (vm_phys_segs[i].end > high_avail)
-			high_avail = vm_phys_segs[i].end;
-	}
-	/* Skip the first chunk.  It is already accounted for. */
 	for (i = 2; phys_avail[i + 1] != 0; i += 2) {
+#ifdef VM_PHYSSEG_SPARSE
+		size += phys_avail[i + 1] - phys_avail[i];
+#endif
 		if (phys_avail[i] < low_avail)
 			low_avail = phys_avail[i];
 		if (phys_avail[i + 1] > high_avail)
 			high_avail = phys_avail[i + 1];
 	}
-	first_page = low_avail / PAGE_SIZE;
+	for (i = 0; i < vm_phys_nsegs; i++) {
 #ifdef VM_PHYSSEG_SPARSE
-	size = 0;
-	for (i = 0; i < vm_phys_nsegs; i++)
 		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
-	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		size += phys_avail[i + 1] - phys_avail[i];
-#elif defined(VM_PHYSSEG_DENSE)
+#endif
+		if (vm_phys_segs[i].start < low_avail)
+			low_avail = vm_phys_segs[i].start;
+		if (vm_phys_segs[i].end > high_avail)
+			high_avail = vm_phys_segs[i].end;
+	}
+	first_page = low_avail / PAGE_SIZE;
+#ifdef VM_PHYSSEG_DENSE
 	size = high_avail - low_avail;
-#else
-#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
 
 #ifdef PMAP_HAS_PAGE_ARRAY
