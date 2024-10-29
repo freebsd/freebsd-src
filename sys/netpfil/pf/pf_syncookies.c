@@ -298,7 +298,8 @@ pf_syncookie_send(struct pf_pdesc *pd)
 	iss = pf_syncookie_generate(pd, mss);
 	pf_send_tcp(NULL, pd->af, pd->dst, pd->src, *pd->dport, *pd->sport,
 	    iss, ntohl(pd->hdr.tcp.th_seq) + 1, TH_SYN|TH_ACK, 0, mss,
-	    0, true, 0, 0, pd->act.rtableid);
+	    0, M_SKIP_FIREWALL | (pd->m->m_flags & M_LOOP), 0, 0,
+	    pd->act.rtableid);
 	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_SENT], 1);
 	/* XXX Maybe only in adaptive mode? */
 	atomic_add_64(&V_pf_status.syncookies_inflight[V_pf_syncookie_status.oddeven],
@@ -515,6 +516,7 @@ pf_syncookie_recreate_syn(struct pf_pdesc *pd)
 	wscale = pf_syncookie_wstab[cookie.flags.wscale_idx];
 
 	return (pf_build_tcp(NULL, pd->af, pd->src, pd->dst, *pd->sport,
-	    *pd->dport, seq, 0, TH_SYN, wscale, mss, pd->ttl, false, 0,
-	    PF_MTAG_FLAG_SYNCOOKIE_RECREATED, pd->act.rtableid));
+	    *pd->dport, seq, 0, TH_SYN, wscale, mss, pd->ttl,
+	    (pd->m->m_flags & M_LOOP), 0, PF_MTAG_FLAG_SYNCOOKIE_RECREATED,
+	    pd->act.rtableid));
 }

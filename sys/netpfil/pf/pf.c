@@ -2207,6 +2207,9 @@ pf_intr(void *v)
 #ifdef INET
 		case PFSE_IP: {
 			if (pf_isforlocal(pfse->pfse_m, AF_INET)) {
+				KASSERT(pfse->pfse_m->m_pkthdr.rcvif == V_loif,
+				    ("%s: rcvif != loif", __func__));
+
 				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
 				pfse->pfse_m->m_pkthdr.csum_flags |=
 				    CSUM_IP_VALID | CSUM_IP_CHECKED;
@@ -2225,7 +2228,11 @@ pf_intr(void *v)
 #ifdef INET6
 		case PFSE_IP6:
 			if (pf_isforlocal(pfse->pfse_m, AF_INET6)) {
-				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
+				KASSERT(pfse->pfse_m->m_pkthdr.rcvif == V_loif,
+				    ("%s: rcvif != loif", __func__));
+
+				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL |
+				    M_LOOP;
 				ip6_input(pfse->pfse_m);
 			} else {
 				ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL,
@@ -2574,7 +2581,8 @@ pf_unlink_state(struct pf_kstate *s)
 		    s->key[PF_SK_WIRE]->port[1],
 		    s->key[PF_SK_WIRE]->port[0],
 		    s->src.seqhi, s->src.seqlo + 1,
-		    TH_RST|TH_ACK, 0, 0, 0, true, s->tag, 0, s->act.rtableid);
+		    TH_RST|TH_ACK, 0, 0, 0, M_SKIP_FIREWALL, s->tag, 0,
+		    s->act.rtableid);
 	}
 
 	LIST_REMOVE(s, entry);
@@ -3334,7 +3342,7 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t tcp_flags, u_int16_t win, u_int16_t mss, u_int8_t ttl,
-    bool skip_firewall, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
+    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
 {
 	struct mbuf	*m;
 	int		 len, tlen;
@@ -3380,8 +3388,7 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		m_freem(m);
 		return (NULL);
 	}
-	if (skip_firewall)
-		m->m_flags |= M_SKIP_FIREWALL;
+	m->m_flags |= mbuf_flags;
 	pf_mtag->tag = mtag_tag;
 	pf_mtag->flags = mtag_flags;
 
@@ -3598,13 +3605,13 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t tcp_flags, u_int16_t win, u_int16_t mss, u_int8_t ttl,
-    bool skip_firewall, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
+    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
 {
 	struct pf_send_entry *pfse;
 	struct mbuf	*m;
 
 	m = pf_build_tcp(r, af, saddr, daddr, sport, dport, seq, ack, tcp_flags,
-	    win, mss, ttl, skip_firewall, mtag_tag, mtag_flags, rtableid);
+	    win, mss, ttl, mbuf_flags, mtag_tag, mtag_flags, rtableid);
 	if (m == NULL)
 		return;
 
@@ -3672,7 +3679,7 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 			pf_send_tcp(r, pd->af, pd->dst,
 				pd->src, th->th_dport, th->th_sport,
 				ntohl(th->th_ack), ack, TH_RST|TH_ACK, 0, 0,
-				r->return_ttl, true, 0, 0, rtableid);
+				r->return_ttl, M_SKIP_FIREWALL, 0, 0, rtableid);
 		}
 	} else if (pd->proto == IPPROTO_SCTP &&
 	    (r->rule_flag & PFRULE_RETURN)) {
@@ -5537,7 +5544,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		s->src.mss = mss;
 		pf_send_tcp(r, pd->af, pd->dst, pd->src, th->th_dport,
 		    th->th_sport, s->src.seqhi, ntohl(th->th_seq) + 1,
-		    TH_SYN|TH_ACK, 0, s->src.mss, 0, true, 0, 0,
+		    TH_SYN|TH_ACK, 0, s->src.mss, 0, M_SKIP_FIREWALL, 0, 0,
 		    pd->act.rtableid);
 		REASON_SET(&reason, PFRES_SYNPROXY);
 		return (PF_SYNPROXY_DROP);
@@ -5898,8 +5905,8 @@ pf_tcp_track_full(struct pf_kstate **state, struct pf_pdesc *pd,
 				    pd->dst, pd->src, th->th_dport,
 				    th->th_sport, ntohl(th->th_ack), 0,
 				    TH_RST, 0, 0,
-				    (*state)->rule->return_ttl, true, 0, 0,
-				    (*state)->act.rtableid);
+				    (*state)->rule->return_ttl, M_SKIP_FIREWALL,
+				    0, 0, (*state)->act.rtableid);
 			src->seqlo = 0;
 			src->seqhi = 1;
 			src->max_win = 1;
@@ -6035,8 +6042,8 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 			pf_send_tcp((*state)->rule, pd->af, pd->dst,
 			    pd->src, th->th_dport, th->th_sport,
 			    (*state)->src.seqhi, ntohl(th->th_seq) + 1,
-			    TH_SYN|TH_ACK, 0, (*state)->src.mss, 0, true, 0, 0,
-			    (*state)->act.rtableid);
+			    TH_SYN|TH_ACK, 0, (*state)->src.mss, 0,
+			    M_SKIP_FIREWALL, 0, 0, (*state)->act.rtableid);
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_SYNPROXY_DROP);
 		} else if ((th->th_flags & (TH_ACK|TH_RST|TH_FIN)) != TH_ACK ||
@@ -6067,8 +6074,9 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 			    &sk->addr[pd->sidx], &sk->addr[pd->didx],
 			    sk->port[pd->sidx], sk->port[pd->didx],
 			    (*state)->dst.seqhi, 0, TH_SYN, 0,
-			    (*state)->src.mss, 0, false, (*state)->tag, 0,
-			    (*state)->act.rtableid);
+			    (*state)->src.mss, 0,
+			    (*state)->orig_kif->pfik_ifp == V_loif ? M_LOOP : 0,
+			    (*state)->tag, 0, (*state)->act.rtableid);
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_SYNPROXY_DROP);
 		} else if (((th->th_flags & (TH_SYN|TH_ACK)) !=
@@ -6082,14 +6090,14 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 			pf_send_tcp((*state)->rule, pd->af, pd->dst,
 			    pd->src, th->th_dport, th->th_sport,
 			    ntohl(th->th_ack), ntohl(th->th_seq) + 1,
-			    TH_ACK, (*state)->src.max_win, 0, 0, false,
+			    TH_ACK, (*state)->src.max_win, 0, 0, 0,
 			    (*state)->tag, 0, (*state)->act.rtableid);
 			pf_send_tcp((*state)->rule, pd->af,
 			    &sk->addr[pd->sidx], &sk->addr[pd->didx],
 			    sk->port[pd->sidx], sk->port[pd->didx],
 			    (*state)->src.seqhi + 1, (*state)->src.seqlo + 1,
-			    TH_ACK, (*state)->dst.max_win, 0, 0, true, 0, 0,
-			    (*state)->act.rtableid);
+			    TH_ACK, (*state)->dst.max_win, 0, 0,
+			    M_SKIP_FIREWALL, 0, 0, (*state)->act.rtableid);
 			(*state)->src.seqdiff = (*state)->dst.seqhi -
 			    (*state)->src.seqlo;
 			(*state)->dst.seqdiff = (*state)->src.seqhi -
