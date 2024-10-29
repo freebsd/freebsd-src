@@ -30,7 +30,7 @@
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd August 18, 2023
+.Dd October 29, 2024
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -113,6 +113,8 @@ The purpose is to make use of
 .Nm
 for collecting data from a variety of machines (not all of which
 are necessarily running exactly the same software) easier.
+.It Fl J
+Display only jail prision sysctl variables (CTLFLAG_PRISON).
 .It Fl l
 Show the length of variables along with their values.
 This option cannot be combined with the
@@ -155,6 +157,8 @@ to standard error.
 Display only variables that are settable via loader (CTLFLAG_TUN).
 .It Fl t
 Print the type of the variable.
+.It Fl V
+Display only VNET sysctl variables (CTLFLAG_VNET).
 .It Fl W
 Display only writable variables that are not statistical.
 Useful for determining the set of runtime tunable sysctls.
@@ -327,7 +331,8 @@ option has been deprecated and is silently ignored.
 .Xr loader.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr security 7 ,
-.Xr loader 8
+.Xr loader 8 ,
+.Xr jail 8
 .Sh HISTORY
 A
 .Nm
