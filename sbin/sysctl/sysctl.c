@@ -64,6 +64,7 @@ static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
+static bool	Jflag, Vflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
@@ -136,7 +137,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqtTwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabB:def:hiJNnoqtTVwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -166,6 +167,9 @@ main(int argc, char **argv)
 		case 'i':
 			iflag = 1;
 			break;
+		case 'J':
+			Jflag = true;
+			break;
 		case 'N':
 			Nflag = 1;
 			break;
@@ -183,6 +187,9 @@ main(int argc, char **argv)
 			break;
 		case 'T':
 			Tflag = 1;
+			break;
+		case 'V':
+			Vflag = true;
 			break;
 		case 'w':
 			/* compatibility */
@@ -992,8 +999,16 @@ show_var(int *oid, int nlen, bool honor_skip)
 	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
 		return (1);
 
+	/* if Jflag then only list sysctls that are prison variables. */
+	if (Jflag && (kind & CTLFLAG_PRISON) == 0)
+		return (1);
+
 	/* if Tflag then only list sysctls that are tuneables. */
 	if (Tflag && (kind & CTLFLAG_TUN) == 0)
+		return (1);
+
+	/* if Vflag then only list sysctls that are vnet variables. */
+	if (Vflag && (kind & CTLFLAG_VNET) == 0)
 		return (1);
 
 	if (Nflag) {
