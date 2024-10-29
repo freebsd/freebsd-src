@@ -266,8 +266,10 @@ again:
 	 * resending already delivered data.  Adjust snd_nxt accordingly.
 	 */
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
-	    SEQ_LT(tp->snd_nxt, tp->snd_max))
+	    (tp->sackhint.nexthole != NULL) &&
+	    !IN_FASTRECOVERY(tp->t_flags)) {
 		sendwin = tcp_sack_adjust(tp);
+	}
 	sendalot = 0;
 	tso = 0;
 	mtu = 0;
@@ -292,10 +294,13 @@ again:
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
 	    (IN_FASTRECOVERY(tp->t_flags) || SEQ_LT(tp->snd_nxt, tp->snd_max)) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
-		uint32_t cwin;
+		int32_t cwin;
 
-		cwin =
-		    imax(min(tp->snd_wnd, tp->snd_cwnd) - sack_bytes_rxmt, 0);
+		if (IN_FASTRECOVERY(tp->t_flags)) {
+			cwin = imax(sendwin - tcp_compute_pipe(tp), 0);
+		} else {
+			cwin = imax(sendwin - off, 0);
+		}
 		/* Do not retransmit SACK segments beyond snd_recover */
 		if (SEQ_GT(p->end, tp->snd_recover)) {
 			/*
@@ -314,19 +319,34 @@ again:
 				goto after_sack_rexmit;
 			} else {
 				/* Can rexmit part of the current hole */
-				len = ((int32_t)ulmin(cwin,
-				    SEQ_SUB(tp->snd_recover, p->rxmit)));
+				len = SEQ_SUB(tp->snd_recover, p->rxmit);
+				if (cwin <= len) {
+					len = cwin;
+				} else {
+					sendalot = 1;
+				}
 			}
 		} else {
-			len = ((int32_t)ulmin(cwin,
-			    SEQ_SUB(p->end, p->rxmit)));
+			len = SEQ_SUB(p->end, p->rxmit);
+			if (cwin <= len) {
+				len = cwin;
+			} else {
+				sendalot = 1;
+			}
 		}
+		/* we could have transmitted from the scoreboard,
+		 * but sendwin (expected flightsize) - pipe didn't
+		 * allow any transmission.
+		 * Bypass recalculating the possible transmission
+		 * length further down by setting sack_rxmit.
+		 * Wouldn't be here if there would have been
+		 * nothing in the scoreboard to transmit.
+		 */
+		sack_rxmit = 1;
 		if (len > 0) {
 			off = SEQ_SUB(p->rxmit, tp->snd_una);
 			KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 			    __func__, off));
-			sack_rxmit = 1;
-			sendalot = 1;
 		}
 	}
 after_sack_rexmit:
@@ -390,34 +410,15 @@ after_sack_rexmit:
 	 */
 	if (sack_rxmit == 0) {
 		if ((sack_bytes_rxmt == 0) || SEQ_LT(tp->snd_nxt, tp->snd_max)) {
-			len = ((int32_t)min(sbavail(&so->so_snd), sendwin) -
-			    off);
+			len = imin(sbavail(&so->so_snd), sendwin) - off;
 		} else {
-			int32_t cwin;
-
 			/*
 			 * We are inside of a SACK recovery episode and are
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = ((int32_t)min(sbavail(&so->so_snd), tp->snd_wnd) -
-			    off);
-			/*
-			 * Don't remove this (len > 0) check !
-			 * We explicitly check for len > 0 here (although it
-			 * isn't really necessary), to work around a gcc
-			 * optimization issue - to force gcc to compute
-			 * len above. Without this check, the computation
-			 * of len is bungled by the optimizer.
-			 */
-			if (len > 0) {
-				cwin = tp->snd_cwnd - imax(0, (int32_t)
-					(tp->snd_nxt - tp->snd_recover)) -
-					sack_bytes_rxmt;
-				if (cwin < 0)
-					cwin = 0;
-				len = imin(len, cwin);
-			}
+			len = imin(sbavail(&so->so_snd) - off,
+				sendwin - tcp_compute_pipe(tp));
 		}
 	}
 
@@ -1647,6 +1648,10 @@ timer:
 	if ((error == 0) &&
 	    sack_rxmit &&
 	    SEQ_LT(tp->snd_nxt, SEQ_MIN(p->rxmit, p->end))) {
+		/*
+		 * When transmitting from SACK scoreboard
+		 * after an RTO, pull snd_nxt along.
+		 */
 		tp->snd_nxt = SEQ_MIN(p->rxmit, p->end);
 	}
 	if (error) {
