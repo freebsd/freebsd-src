@@ -63,7 +63,6 @@ TEST_METADATA.sonewconn_overflow+=	required_user="root"
 TEST_METADATA.sonewconn_overflow+=	is_exclusive="true"
 ATF_TESTS_SH+=	sendfile_test
 ATF_TESTS_SH+=	sysctl_security_jail_children
-TEST_METADATA.sysctl_security_jail_children+=	is_exclusive="true"
 
 ${PACKAGE}FILES+=	sonewconn_overflow.py
 ${PACKAGE}FILESMODE_sonewconn_overflow.py=0555
