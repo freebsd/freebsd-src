@@ -4367,7 +4367,7 @@ bus_generic_rman_activate_resource(device_t dev, device_t child,
 	if (error != 0)
 		return (error);
 
-	switch (rman_get_type(r)) {
+	switch (type) {
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
