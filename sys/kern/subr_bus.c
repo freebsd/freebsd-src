@@ -53,6 +53,9 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 
 #include <net/vnet.h>
 
@@ -4382,17 +4385,26 @@ bus_generic_rman_activate_resource(device_t dev, device_t child, int type,
 	if (error != 0)
 		return (error);
 
-	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
-	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
-		if (error != 0) {
-			rman_deactivate_resource(r);
-			return (error);
-		}
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
+			error = BUS_MAP_RESOURCE(dev, child, type, r, NULL, &map);
+			if (error != 0)
+				break;
 
-		rman_set_mapping(r, &map);
+			rman_set_mapping(r, &map);
+		}
+		break;
+#ifdef INTRNG
+	case SYS_RES_IRQ:
+		error = intr_activate_irq(child, r);
+		break;
+#endif
 	}
-	return (0);
+	if (error != 0)
+		rman_deactivate_resource(r);
+	return (error);
 }
 
 /**
@@ -4421,10 +4433,19 @@ bus_generic_rman_deactivate_resource(device_t dev, device_t child, int type,
 	if (error != 0)
 		return (error);
 
-	if ((rman_get_flags(r) & RF_UNMAPPED) == 0 &&
-	    (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT)) {
-		rman_get_mapping(r, &map);
-		BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
+			rman_get_mapping(r, &map);
+			BUS_UNMAP_RESOURCE(dev, child, type, r, &map);
+		}
+		break;
+#ifdef INTRNG
+	case SYS_RES_IRQ:
+		intr_deactivate_irq(child, r);
+		break;
+#endif
 	}
 	return (0);
 }
