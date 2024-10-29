@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20241029:
+	13.3-RELEASE-p8 SA-24:17.bhyve
+			SA-24:18.ctl
+			SA-24.19.fetch
+
+	Multiple issues in the bhyve hypervisor  [SA-24:17.bhyve]
+
+	Unbounded allocation in ctl(4) CAM Target Layer [SA-24:18.ctl]
+
+	Certificate revocation list fetch(1) option fails [SA-24:19.fetch]
+
 20240919:
 	13.3-RELEASE-p7 EN-24:16.pf
 			SA-24:15.bhyve
