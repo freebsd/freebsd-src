@@ -2653,13 +2653,14 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 						tcp_do_prr_ack(tp, th, &to,
 						    sack_changed, &maxseg);
 					} else if (tcp_is_sack_recovery(tp, &to) &&
-						    IN_FASTRECOVERY(tp->t_flags)) {
+						    IN_FASTRECOVERY(tp->t_flags) &&
+						    (tp->snd_nxt == tp->snd_max)) {
 						int awnd;
 
 						/*
 						 * Compute the amount of data in flight first.
 						 * We can inject new data into the pipe iff
-						 * we have less than 1/2 the original window's
+						 * we have less than ssthresh
 						 * worth of data in flight.
 						 */
 						if (V_tcp_do_newsack) {
@@ -2669,10 +2670,18 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 								tp->sackhint.sack_bytes_rexmit;
 						}
 						if (awnd < tp->snd_ssthresh) {
-							tp->snd_cwnd += maxseg;
+							tp->snd_cwnd += imax(maxseg,
+							    imin(2 * maxseg,
+							    tp->sackhint.delivered_data));
 							if (tp->snd_cwnd > tp->snd_ssthresh)
 								tp->snd_cwnd = tp->snd_ssthresh;
 						}
+					} else if (tcp_is_sack_recovery(tp, &to) &&
+						    IN_FASTRECOVERY(tp->t_flags) &&
+						    SEQ_LT(tp->snd_nxt, tp->snd_max)) {
+						tp->snd_cwnd += imax(maxseg,
+						    imin(2 * maxseg,
+						    tp->sackhint.delivered_data));
 					} else {
 						tp->snd_cwnd += maxseg;
 					}
@@ -2696,14 +2705,13 @@ enter_recovery:
 					tcp_seq onxt = tp->snd_nxt;
 
 					/*
-					 * If we're doing sack, or prr, check
-					 * to see if we're already in sack
+					 * If we're doing sack, check to
+					 * see if we're already in sack
 					 * recovery. If we're not doing sack,
 					 * check to see if we're in newreno
 					 * recovery.
 					 */
-					if (V_tcp_do_prr ||
-					    (tp->t_flags & TF_SACK_PERMIT)) {
+					if (tcp_is_sack_recovery(tp, &to)) {
 						if (IN_FASTRECOVERY(tp->t_flags)) {
 							tp->t_dupacks = 0;
 							break;
@@ -2723,29 +2731,40 @@ enter_recovery:
 					tp->t_rtttime = 0;
 					if (V_tcp_do_prr) {
 						/*
-						 * snd_ssthresh is already updated by
-						 * cc_cong_signal.
+						 * snd_ssthresh and snd_recover are
+						 * already updated by cc_cong_signal.
 						 */
 						if (tcp_is_sack_recovery(tp, &to)) {
 							/*
-							 * Exclude Limited Transmit
+							 * Include Limited Transmit
 							 * segments here
 							 */
 							tp->sackhint.prr_delivered =
-							    maxseg;
+							    imin(tp->snd_max - th->th_ack,
+							    (tp->snd_limited + 1) * maxseg);
 						} else {
 							tp->sackhint.prr_delivered =
-							    imin(tp->snd_max - tp->snd_una,
-							    imin(INT_MAX / 65536,
-								tp->t_dupacks) * maxseg);
+							    maxseg;
 						}
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
 					}
+					tp->snd_limited = 0;
 					if (tcp_is_sack_recovery(tp, &to)) {
 						TCPSTAT_INC(tcps_sack_recovery_episode);
-						tp->snd_cwnd = maxseg;
+						/*
+						 * When entering LR after RTO due to
+						 * Duplicate ACKs, retransmit existing
+						 * holes from the scoreboard.
+						 */
+						tcp_resend_sackholes(tp);
+						/* Avoid inflating cwnd in tcp_output */
+						tp->snd_nxt = tp->snd_max;
+						tp->snd_cwnd = tcp_compute_pipe(tp) +
+						    maxseg;
 						(void) tcp_output(tp);
+						/* Set cwnd to the expected flightsize */
+						tp->snd_cwnd = tp->snd_ssthresh;
 						if (SEQ_GT(th->th_ack, tp->snd_una)) {
 							goto resume_partialack;
 						}
@@ -2790,7 +2809,8 @@ enter_recovery:
 					    (tp->t_rxtshift == 0))
 						tp->snd_cwnd =
 						    SEQ_SUB(tp->snd_nxt,
-							    tp->snd_una);
+							    tp->snd_una) -
+							tcp_sack_adjust(tp);
 					tp->snd_cwnd +=
 					    (tp->t_dupacks - tp->snd_limited) *
 					    maxseg;
@@ -3049,9 +3069,8 @@ process_ACK:
 		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
 			cc_post_recovery(tp, th);
 		}
-		if (tp->t_flags & TF_SACK_PERMIT) {
-			if (SEQ_GT(tp->snd_una, tp->snd_recover))
-				tp->snd_recover = tp->snd_una;
+		if (SEQ_GT(tp->snd_una, tp->snd_recover)) {
+			tp->snd_recover = tp->snd_una;
 		}
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
@@ -4138,9 +4157,7 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
 	 */
 	if (IN_FASTRECOVERY(tp->t_flags)) {
 		if (tcp_is_sack_recovery(tp, to)) {
-			tp->snd_cwnd = tp->snd_nxt - tp->snd_recover +
-					    tp->sackhint.sack_bytes_rexmit +
-					    (snd_cnt * maxseg);
+			tp->snd_cwnd = pipe - del_data + (snd_cnt * maxseg);
 		} else {
 			tp->snd_cwnd = (tp->snd_max - tp->snd_una) +
 					    (snd_cnt * maxseg);
@@ -4168,17 +4185,19 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
-	tp->snd_nxt = th->th_ack;
-	/*
-	 * Set snd_cwnd to one segment beyond acknowledged offset.
-	 * (tp->snd_una has not yet been updated when this function is called.)
-	 */
-	tp->snd_cwnd = maxseg + BYTES_THIS_ACK(tp, th);
-	tp->t_flags |= TF_ACKNOW;
-	(void) tcp_output(tp);
-	tp->snd_cwnd = ocwnd;
-	if (SEQ_GT(onxt, tp->snd_nxt))
-		tp->snd_nxt = onxt;
+	if (IN_FASTRECOVERY(tp->t_flags)) {
+		tp->snd_nxt = th->th_ack;
+		/*
+		 * Set snd_cwnd to one segment beyond acknowledged offset.
+		 * (tp->snd_una has not yet been updated when this function is called.)
+		 */
+		tp->snd_cwnd = maxseg + BYTES_THIS_ACK(tp, th);
+		tp->t_flags |= TF_ACKNOW;
+		(void) tcp_output(tp);
+		tp->snd_cwnd = ocwnd;
+		if (SEQ_GT(onxt, tp->snd_nxt))
+			tp->snd_nxt = onxt;
+	}
 	/*
 	 * Partial window deflation.  Relies on fact that tp->snd_una
 	 * not updated yet.
