@@ -179,5 +179,5 @@ static moduledata_t fdt_slicer_mod = {
 };
 
 DECLARE_MODULE(fdt_slicer, fdt_slicer_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-MODULE_DEPEND(fdt_slicer, g_flashmap, 0, 0, 0);
+MODULE_DEPEND(fdt_slicer, geom_flashmap, 0, 0, 0);
 MODULE_VERSION(fdt_slicer, 1);
