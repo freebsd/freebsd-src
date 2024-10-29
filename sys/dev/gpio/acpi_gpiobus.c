@@ -73,13 +73,15 @@ acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 			flags |= GPIO_INTR_SHAREABLE;
 #endif
 	}
-	switch (gpio_res->IoRestriction) {
-	case ACPI_IO_RESTRICT_INPUT:
-		flags |= GPIO_PIN_INPUT;
-		break;
-	case ACPI_IO_RESTRICT_OUTPUT:
-		flags |= GPIO_PIN_OUTPUT;
-		break;
+	if (gpio_res->ConnectionType == ACPI_RESOURCE_GPIO_TYPE_IO) {
+		switch (gpio_res->IoRestriction) {
+		case ACPI_IO_RESTRICT_INPUT:
+			flags |= GPIO_PIN_INPUT;
+			break;
+		case ACPI_IO_RESTRICT_OUTPUT:
+			flags |= GPIO_PIN_OUTPUT;
+			break;
+		}
 	}
 
 	switch (gpio_res->PinConfig) {
