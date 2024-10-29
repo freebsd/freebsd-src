@@ -6540,6 +6540,7 @@ OLD_FILES+=usr/share/man/man8/ibstat.8.gz
 .endif
 
 .if ${MK_OFED_EXTRA} == no
+OLD_FILES+=etc/rc.d/opensm
 OLD_FILES+=usr/bin/dump_fts
 OLD_FILES+=usr/bin/ibaddr
 OLD_FILES+=usr/bin/ibcacheedit
