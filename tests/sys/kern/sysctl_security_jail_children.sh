@@ -24,21 +24,15 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-#
-# Even being is_exclusive="true" this test does not expect a host to spawn
-# other jails during the test execution.
-#
 atf_test_case "max_cur" "cleanup"
 max_cur_head()
 {
 	atf_set descr 'Test maximum and current number of child jails'
 	atf_set require.user root
+	atf_set execenv jail
 }
 max_cur_body()
 {
-	if ! which -s jail; then
-		atf_skip "This test requires jail"
-	fi
 	origin_max=$(sysctl -n security.jail.children.max)
 	origin_cur=$(sysctl -n security.jail.children.cur)
 
