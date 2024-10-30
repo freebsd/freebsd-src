@@ -49,6 +49,8 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 #include "pic_if.h"
 
 #define	PLIC_MAX_IRQS		1024
@@ -82,6 +84,7 @@ static pic_bind_intr_t		plic_bind_intr;
 struct plic_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
+	u_int			trigtype;
 };
 
 struct plic_context {
@@ -214,6 +217,7 @@ plic_map_intr(device_t dev, struct intr_map_data *data,
 {
 	struct intr_map_data_fdt *daf;
 	struct plic_softc *sc;
+	u_int irq, type;
 
 	sc = device_get_softc(dev);
 
@@ -221,10 +225,47 @@ plic_map_intr(device_t dev, struct intr_map_data *data,
 		return (ENOTSUP);
 
 	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 1 || daf->cells[0] > sc->ndev)
+	if (daf->ncells != 1 && daf->ncells != 2) {
+		device_printf(dev, "invalid ncells value: %u\n", daf->ncells);
 		return (EINVAL);
+	}
 
-	*isrcp = &sc->isrcs[daf->cells[0]].isrc;
+	irq = daf->cells[0];
+	type = daf->ncells == 2 ? daf->cells[1] : IRQ_TYPE_LEVEL_HIGH;
+
+	if (irq > sc->ndev) {
+		device_printf(dev, "irq (%u) > sc->ndev (%u)",
+		    daf->cells[0], sc->ndev);
+		return (EINVAL);
+	}
+
+	/*
+	 * TODO: handling of edge-triggered interrupts.
+	 *
+	 * From sifive,plic-1.0.0.yaml:
+	 *
+	 * "The PLIC supports both edge-triggered and level-triggered
+	 * interrupts. For edge-triggered interrupts, the RISC-V PLIC spec
+	 * allows two responses to edges seen while an interrupt handler is
+	 * active; the PLIC may either queue them or ignore them. In the first
+	 * case, handlers are oblivious to the trigger type, so it is not
+	 * included in the interrupt specifier. In the second case, software
+	 * needs to know the trigger type, so it can reorder the interrupt flow
+	 * to avoid missing interrupts. This special handling is needed by at
+	 * least the Renesas RZ/Five SoC (AX45MP AndesCore with a NCEPLIC100)
+	 * and the T-HEAD C900 PLIC."
+	 *
+	 * For now, prevent interrupts with type IRQ_TYPE_EDGE_RISING from
+	 * allocation. Emit a message so that when the relevant driver fails to
+	 * attach, it will at least be clear why.
+	 */
+	if (type != IRQ_TYPE_LEVEL_HIGH) {
+		device_printf(dev, "edge-triggered interrupts not supported\n");
+		return (EINVAL);
+	}
+
+	sc->isrcs[irq].trigtype = type;
+	*isrcp = &sc->isrcs[irq].isrc;
 
 	return (0);
 }
