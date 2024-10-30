@@ -175,9 +175,8 @@ plic_intr(void *arg)
 	sc = arg;
 	cpu = PCPU_GET(cpuid);
 
-	/* Claim any pending interrupt. */
-	pending = RD4(sc, PLIC_CLAIM(sc, cpu));
-	if (pending) {
+	/* Claim all pending interrupts. */
+	while ((pending = RD4(sc, PLIC_CLAIM(sc, cpu))) != 0) {
 		tf = curthread->td_intr_frame;
 		plic_irq_dispatch(sc, pending, tf);
 	}

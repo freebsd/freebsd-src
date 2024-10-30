@@ -224,21 +224,23 @@ aplic_intr(void *arg)
 {
 	struct aplic_softc *sc;
 	struct trapframe *tf;
-	u_int claimi, prio, irq;
+	uint32_t claimi;
+	u_int prio, irq;
 	int cpu;
 
 	sc = arg;
 	cpu = PCPU_GET(cpuid);
 
-	/* Claim any pending interrupt. */
-	claimi = aplic_read(sc, APLIC_IDC_CLAIMI(sc, cpu));
-	prio = APLIC_IDC_CLAIMI_PRIO(claimi);
-	irq = APLIC_IDC_CLAIMI_IRQ(claimi);
+	/* Claim all pending interrupts. */
+	while ((claimi = aplic_read(sc, APLIC_IDC_CLAIMI(sc, cpu))) != 0) {
+		prio = APLIC_IDC_CLAIMI_PRIO(claimi);
+		irq = APLIC_IDC_CLAIMI_IRQ(claimi);
 
-	KASSERT((irq != 0), ("Invalid IRQ 0"));
+		KASSERT((irq != 0), ("Invalid IRQ 0"));
 
-	tf = curthread->td_intr_frame;
-	aplic_irq_dispatch(sc, irq, prio, tf);
+		tf = curthread->td_intr_frame;
+		aplic_irq_dispatch(sc, irq, prio, tf);
+	}
 
 	return (FILTER_HANDLED);
 }
