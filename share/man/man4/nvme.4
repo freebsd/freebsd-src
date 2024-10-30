@@ -136,6 +136,18 @@ hw.nvme.apst_enable=1
 .Ed
 .Pp
 The default vendor-provided settings, if any, will be applied.
+To override this, set the following tunable:
+.Bd -literal -offset indent
+hw.nvme.apst_data
+.Ed
+.Pp
+The string must contain up to 32 encoded integers, e.g. "0x6418 0
+0 0x3e820".
+Each value corresponds to a specific available power state starting
+from the lowest, and defines the target state (bits 3..7) to
+transition to, as well as the idle time in milliseconds (bits 8..31)
+to wait before that transition.
+Bits 0..2 must be zero.
 .Pp
 The
 .Xr nvd 4
