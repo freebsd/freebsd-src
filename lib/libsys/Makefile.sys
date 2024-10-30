@@ -49,8 +49,6 @@ STATICOBJS+=	auxv.o
 STATICOBJS+=	interposing_table.o
 .endif
 
-NOASM=	yield.o
-
 PSEUDO= \
 	clock_gettime \
 	exit \
