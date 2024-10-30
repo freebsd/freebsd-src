@@ -1099,6 +1099,25 @@ IDS_check_params () {
 	fetch_setup_verboselevel
 }
 
+# Packaged base and freebsd-update are incompatible.  Exit with an error if
+# packaged base is in use.
+check_pkgbase()
+{
+	# Packaged base requires that pkg is bootstrapped.
+	if ! pkg -c ${BASEDIR} -N >/dev/null 2>/dev/null; then
+		return
+	fi
+	# Presence of FreeBSD-* package(s) indicates packaged base.
+	if ! pkg -c ${BASEDIR} info -q -x '^FreeBSD' 2>/dev/null; then
+		return
+	fi
+	cat <<EOF
+FreeBSD-update is incompatible with the use of packaged base.  Please see
+https://wiki.freebsd.org/PkgBase for more information.
+EOF
+	exit 1
+}
+
 #### Core functionality -- the actual work gets done here
 
 # Use an SRV query to pick a server.  If the SRV query doesn't provide
@@ -3517,6 +3536,7 @@ cmd_cron () {
 
 # Fetch files for upgrading to a new release.
 cmd_upgrade () {
+	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	upgrade_check_params
 	upgrade_check_kmod_ports
@@ -3551,6 +3571,7 @@ cmd_updatesready () {
 
 # Install downloaded updates.
 cmd_install () {
+	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	install_check_params
 	install_create_be
@@ -3559,6 +3580,7 @@ cmd_install () {
 
 # Rollback most recently installed updates.
 cmd_rollback () {
+	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	rollback_check_params
 	rollback_run || exit 1
