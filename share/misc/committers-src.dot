@@ -225,6 +225,7 @@ jimharris [label="Jim Harris\njimharris@FreeBSD.org\n2011/12/09"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
+jlduran [label="Jose Luis Duran\njlduran@FreeBSD.org\n2024/09/05"]
 jlh [label="Jeremie Le Hen\njlh@FreeBSD.org\n2012/04/22"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 jmcneill [label="Jared McNeill\njmcneill@FreeBSD.org\n2016/02/24"]
@@ -547,6 +548,7 @@ eivind -> rwatson
 emaste -> achim
 emaste -> bwidawsk
 emaste -> dteske
+emaste -> jlduran
 emaste -> kd
 emaste -> kevans
 emaste -> lwhsu
