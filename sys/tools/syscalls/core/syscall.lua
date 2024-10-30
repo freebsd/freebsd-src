@@ -24,8 +24,10 @@ syscall.known_flags = util.set {
 	"NOARGS",
 	"NOPROTO",
 	"NOSTD",
-	"NOTSTATIC",
+
+	-- flags beyond this point are modifiers
 	"CAPENABLED",
+	"NOTSTATIC",
 	"SYSMUX",
 }
 
