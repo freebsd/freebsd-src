@@ -38,7 +38,7 @@ function syscalls_map.generate(tbl, config, fh)
 
 	for _, v in pairs(s) do
 		--print("num " .. v.num .. " name " .. v.name)
-		if v:native() and not v.type.NODEF and v.name ~= "yield" then
+		if v:native() and not v.type.NODEF and not v.type.NOLIB then
 			if v.name ~= "exit" and v.name ~= "vfork" then
 				gen:write(string.format("\t_%s;\n", v.name))
 			end

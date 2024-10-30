@@ -31,7 +31,7 @@ function libsys_h.generate(tbl, config, fh)
 
 	local print_decl = function (sc)
 		return sc:native() and not sc.type.NODEF and
-		    not sc.type.SYSMUX and sc.name ~= "yield"
+		    not sc.type.NOLIB and not sc.type.SYSMUX
 	end
 
 	-- Bind the generator to the parameter file.

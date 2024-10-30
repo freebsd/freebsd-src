@@ -44,7 +44,7 @@ function syscall_mk.generate(tbl, config, fh)
 	for _, v in pairs(s) do
 		local c = v:compatLevel()
 		idx = idx + 1
-		if v:native() and not v.type.NODEF then
+		if v:native() and not v.type.NODEF and not v.type.NOLIB then
 			if idx >= size then
 				-- At last system call, no backslash.
 				gen:write(string.format("\t%s.o\n", v:symbol()))
@@ -53,7 +53,7 @@ function syscall_mk.generate(tbl, config, fh)
 				gen:write(string.format("\t%s.o \\\n", v:symbol()))
 			end
 		-- Handle compat (everything >= FREEBSD3):
-		elseif c >= 7 and not v.type.NODEF then
+		elseif c >= 7 and not v.type.NODEF and not v.type.NOLIB then
 			if idx >= size then
 				-- At last system call, no backslash.
 				gen:write(string.format("\t%s.o\n", v:symbol()))
