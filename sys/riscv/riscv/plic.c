@@ -63,13 +63,13 @@
 #define	PLIC_CONTEXT_THRESHOLD	0x0U
 #define	PLIC_CONTEXT_CLAIM	0x4U
 
-#define	PLIC_PRIORITY(n)	(PLIC_PRIORITY_BASE + (n) * sizeof(uint32_t))
-#define	PLIC_ENABLE(sc, n, h)						\
-    (sc->contexts[h].enable_offset + ((n) / 32) * sizeof(uint32_t))
-#define	PLIC_THRESHOLD(sc, h)						\
-    (sc->contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
-#define	PLIC_CLAIM(sc, h)						\
-    (sc->contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
+#define	PLIC_PRIORITY(_irq)	(PLIC_PRIORITY_BASE + (_irq) * sizeof(uint32_t))
+#define	PLIC_ENABLE(_sc, _irq, _cpu)					\
+    (_sc->contexts[_cpu].enable_offset + ((_irq) / 32) * sizeof(uint32_t))
+#define	PLIC_THRESHOLD(_sc, _cpu)					\
+    (_sc->contexts[_cpu].context_offset + PLIC_CONTEXT_THRESHOLD)
+#define	PLIC_CLAIM(_sc, _cpu)						\
+    (_sc->contexts[_cpu].context_offset + PLIC_CONTEXT_CLAIM)
 
 static pic_disable_intr_t	plic_disable_intr;
 static pic_enable_intr_t	plic_enable_intr;
