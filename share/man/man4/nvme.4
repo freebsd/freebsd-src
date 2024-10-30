@@ -128,6 +128,15 @@ hw.nvme.hmb_max
 .Pp
 The default value is 5% of physical memory size per device.
 .Pp
+To enable Autonomous Power State Transition (APST), set the following
+tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.nvme.apst_enable=1
+.Ed
+.Pp
+The default vendor-provided settings, if any, will be applied.
+.Pp
 The
 .Xr nvd 4
 driver is used to provide a disk driver to the system by default.
