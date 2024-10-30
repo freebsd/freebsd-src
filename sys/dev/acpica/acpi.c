@@ -1246,8 +1246,8 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
  * _PXM to a NUMA domain.  If the device does not have a _PXM method,
  * -2 is returned.  If any other error occurs, -1 is returned.
  */
-static int
-acpi_parse_pxm(device_t dev)
+int
+acpi_pxm_parse(device_t dev)
 {
 #ifdef NUMA
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
@@ -1274,7 +1274,7 @@ acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
 {
 	int d, error;
 
-	d = acpi_parse_pxm(child);
+	d = acpi_pxm_parse(child);
 	if (d < 0)
 		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
 
@@ -1310,7 +1310,7 @@ acpi_get_domain(device_t dev, device_t child, int *domain)
 {
 	int d;
 
-	d = acpi_parse_pxm(child);
+	d = acpi_pxm_parse(child);
 	if (d >= 0) {
 		*domain = d;
 		return (0);
