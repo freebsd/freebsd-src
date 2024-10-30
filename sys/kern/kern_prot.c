@@ -1307,7 +1307,7 @@ group_is_supplementary(const gid_t gid, const struct ucred *const cred)
  * supplementary groups).
  */
 bool
-groupmember(gid_t gid, struct ucred *cred)
+groupmember(gid_t gid, const struct ucred *cred)
 {
 
 	/*
@@ -1328,7 +1328,7 @@ groupmember(gid_t gid, struct ucred *cred)
  * groups).
  */
 bool
-realgroupmember(gid_t gid, struct ucred *cred)
+realgroupmember(gid_t gid, const struct ucred *cred)
 {
 	if (gid == cred->cr_rgid)
 		return (true);
