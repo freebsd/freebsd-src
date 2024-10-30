@@ -2916,8 +2916,7 @@ ice_init_device_features(struct ice_softc *sc)
 	/* Disable features due to hardware limitations... */
 	if (!hw->func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
-	if (!hw->func_caps.common_cap.iwarp || !ice_enable_irdma ||
-	    ice_is_e830(hw))
+	if (!hw->func_caps.common_cap.iwarp || !ice_enable_irdma)
 		ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
 	if (!hw->func_caps.common_cap.dcb)
 		ice_clear_bit(ICE_FEATURE_DCB, sc->feat_cap);
