@@ -1,0 +1,2 @@
+Include graphics, font and video mode support in the i386 and amd64 BIOS
+boot loader.
