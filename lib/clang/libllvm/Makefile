@@ -24,13 +24,13 @@ CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
 .if ${MK_LLVM_TARGET_AARCH64} == "no" && ${MK_LLVM_TARGET_ARM} == "no" && \
     ${MK_LLVM_TARGET_BPF} == "no" && ${MK_LLVM_TARGET_MIPS} == "no" && \
     ${MK_LLVM_TARGET_POWERPC} == "no" && ${MK_LLVM_TARGET_RISCV} == "no" && \
-    ${MK_LLVM_TARGET_X86} == "no"
+    ${MK_LLVM_TARGET_X86} == "no" && ${MK_LLVM_TARGET_LOONGARCH} == "no"
 .error Please enable at least one of: MK_LLVM_TARGET_AARCH64,\
  MK_LLVM_TARGET_ARM, MK_LLVM_TARGET_BPF, MK_LLVM_TARGET_MIPS, \
- MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_RISCV, or MK_LLVM_TARGET_X86
+ MK_LLVM_TARGET_POWERPC, MK_LLVM_TARGET_RISCV,MK_LLVM_TARGET_LOONGARCH, or MK_LLVM_TARGET_X86
 .endif
 
-.for arch in AArch64 ARM BPF Mips PowerPC RISCV X86
+.for arch in AArch64 ARM BPF LoongArch Mips PowerPC RISCV X86
 . if ${MK_LLVM_TARGET_${arch:tu}} != "no"
 CFLAGS+=	-I${LLVM_SRCS}/lib/Target/${arch}
 . endif
@@ -1437,6 +1437,36 @@ SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCCodeEmitter.cpp
 SRCS_MIN+=	Target/BPF/MCTargetDesc/BPFMCTargetDesc.cpp
 SRCS_MIN+=	Target/BPF/TargetInfo/BPFTargetInfo.cpp
 .endif # MK_LLVM_TARGET_BPF
+.if ${MK_LLVM_TARGET_LOONGARCH} != "no"
+SRCS_MIN+=	Target/LoongArch/AsmParser/LoongArchAsmParser.cpp
+SRCS_MIN+=	Target/LoongArch/Disassembler/LoongArchDisassembler.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchBaseInfo.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchELFObjectWriter.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchMatInt.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchMCExpr.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp
+SRCS_MIN+=	Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchAsmPrinter.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchDeadRegisterDefinitions.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchExpandAtomicPseudoInsts.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchExpandPseudoInsts.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchFrameLowering.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchInstrInfo.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchISelDAGToDAG.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchISelLowering.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchMCInstLower.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchOptWInstrs.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchRegisterInfo.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchSubtarget.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchTargetMachine.cpp
+SRCS_MIN+=	Target/LoongArch/LoongArchTargetTransformInfo.cpp
+SRCS_MIN+=	Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp
+.endif # MK_LLVM_TARGET_LOONGARCH
 .if ${MK_LLVM_TARGET_MIPS} != "no"
 SRCS_MIN+=	Target/Mips/AsmParser/MipsAsmParser.cpp
 SRCS_XDW+=	Target/Mips/Disassembler/MipsDisassembler.cpp
@@ -2150,7 +2180,7 @@ beforebuild:
 
 # Note: some rules are superfluous, not every combination is valid.
 .for arch in \
-	AArch64/AArch64 ARM/ARM BPF/BPF Mips/Mips PowerPC/PPC RISCV/RISCV \
+	AArch64/AArch64 ARM/ARM BPF/BPF LoongArch/LoongArch Mips/Mips PowerPC/PPC RISCV/RISCV \
 	X86/X86
 . for hdr in \
 	AsmMatcher/-gen-asm-matcher \
@@ -2242,6 +2272,17 @@ TGHDRS+=	BPFGenRegisterBank.inc
 TGHDRS+=	BPFGenRegisterInfo.inc
 TGHDRS+=	BPFGenSubtargetInfo.inc
 .endif # MK_LLVM_TARGET_BPF
+.if ${MK_LLVM_TARGET_LOONGARCH} != "no"
+TGHDRS+=        LoongArchGenAsmMatcher.inc
+TGHDRS+=        LoongArchGenAsmWriter.inc
+TGHDRS+=        LoongArchGenDAGISel.inc
+TGHDRS+=        LoongArchGenDisassemblerTables.inc
+TGHDRS+=        LoongArchGenInstrInfo.inc
+TGHDRS+=        LoongArchGenMCCodeEmitter.inc
+TGHDRS+=        LoongArchGenMCPseudoLowering.inc
+TGHDRS+=        LoongArchGenRegisterInfo.inc
+TGHDRS+=        LoongArchGenSubtargetInfo.inc
+.endif # MK_LLVM_TARGET_LOONGARCH
 .if ${MK_LLVM_TARGET_MIPS} != "no"
 TGHDRS+=	MipsGenAsmMatcher.inc
 TGHDRS+=	MipsGenAsmWriter.inc

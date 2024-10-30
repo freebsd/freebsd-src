@@ -178,7 +178,7 @@ SRCF+=		fp_mode
 # only used on some architectures.
 #
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "riscv"
+    ${MACHINE_CPUARCH} == "riscv" || ${MACHINE_CPUARCH} == "loongarch"
 SRCF+=		addtf3
 SRCF+=		comparetf2
 SRCF+=		divtc3
@@ -208,7 +208,7 @@ SRCF+=		trunctfsf2
 .endif
 
 # These are already shipped by libc.a on some architectures.
-.if ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_CPUARCH} != "riscv" && ${MACHINE_CPUARCH} != "loongarch"
 SRCF+=		adddf3
 SRCF+=		addsf3
 SRCF+=		divdf3
