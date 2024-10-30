@@ -111,8 +111,39 @@ tcp_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "udp" "cleanup"
+udp_head()
+{
+	atf_set descr 'UDP NAT64 test'
+	atf_set require.user root
+}
+
+udp_body()
+{
+	nat64_setup
+
+	echo "foo" | jexec dst nc -u -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(echo bar | nc -w 3 -6 -u 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to UDP server"
+	fi
+}
+
+udp_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
 	atf_add_test_case "tcp"
+	atf_add_test_case "udp"
 }
