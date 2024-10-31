@@ -554,7 +554,7 @@ nvmf_attach(device_t dev)
 	sc->shutdown_pre_sync_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 	    nvmf_shutdown_pre_sync, sc, SHUTDOWN_PRI_FIRST);
 	sc->shutdown_post_sync_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
-	    nvmf_shutdown_post_sync, sc, SHUTDOWN_PRI_FIRST);
+	    nvmf_shutdown_post_sync, sc, SHUTDOWN_PRI_LAST);
 
 	return (0);
 out:
@@ -776,6 +776,18 @@ nvmf_shutdown_post_sync(void *arg, int howto)
 	callout_drain(&sc->ka_rx_timer);
 
 	nvmf_shutdown_controller(sc);
+
+	/*
+	 * Quiesce consumers so that any commands submitted after this
+	 * fail with an error.  Notably, nda(4) calls nda_flush() from
+	 * a post_sync handler that might be ordered after this one.
+	 */
+	for (u_int i = 0; i < sc->cdata->nn; i++) {
+		if (sc->ns[i] != NULL)
+			nvmf_shutdown_ns(sc->ns[i]);
+	}
+	nvmf_shutdown_sim(sc);
+
 	for (u_int i = 0; i < sc->num_io_queues; i++) {
 		nvmf_destroy_qp(sc->io[i]);
 	}
