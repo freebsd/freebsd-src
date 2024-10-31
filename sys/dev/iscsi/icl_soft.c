@@ -1139,7 +1139,7 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 		while (len > 0) {
 			if (m == NULL) {
 				m = mb_alloc_ext_pgs(flags & ~ICL_NOCOPY,
-				    icl_soft_free_mext_pg);
+				    icl_soft_free_mext_pg, 0);
 				if (__predict_false(m == NULL))
 					return (ENOMEM);
 				atomic_add_int(&isp->ref_cnt, 1);

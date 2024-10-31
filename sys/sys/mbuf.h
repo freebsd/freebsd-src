@@ -808,7 +808,7 @@ void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 void		 mb_free_extpg(struct mbuf *);
 void		 mb_free_mext_pgs(struct mbuf *);
-struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t);
+struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t, int);
 struct mbuf	*mb_alloc_ext_plus_pages(int, int);
 struct mbuf	*mb_mapped_to_unmapped(struct mbuf *, int, int, int,
 		    struct mbuf **);
