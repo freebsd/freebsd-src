@@ -47,8 +47,6 @@
 #define	cpu_spinwait()		/* nothing */
 #define	cpu_lock_delay()	DELAY(1)
 
-#ifdef _KERNEL
-
 /*
  * Core manufacturer IDs, as reported by the mvendorid CSR.
  */
@@ -88,6 +86,8 @@
 #define	MMU_SV39	0x1	/* 3-level paging */
 #define	MMU_SV48	0x2	/* 4-level paging */
 #define	MMU_SV57	0x4	/* 5-level paging */
+
+#ifdef _KERNEL
 
 extern char btext[];
 extern char etext[];
