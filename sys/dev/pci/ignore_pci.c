@@ -41,11 +41,12 @@
 #include <dev/pci/pcivar.h>
 
 static int	ignore_pci_probe(device_t dev);
+static int	ignore_pci_attach(device_t dev);
 
 static device_method_t ignore_pci_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		ignore_pci_probe),
-    DEVMETHOD(device_attach,		bus_generic_attach),
+    DEVMETHOD(device_attach,		ignore_pci_attach),
     { 0, 0 }
 };
 
@@ -67,4 +68,10 @@ ignore_pci_probe(device_t dev)
 	return(-10000);
     }
     return(ENXIO);
+}
+
+static int
+ignore_pci_attach(device_t dev)
+{
+	return (0);
 }
