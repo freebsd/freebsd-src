@@ -292,6 +292,7 @@ MAN+=	alarm.3 \
 	rand48.3 \
 	readpassphrase.3 \
 	rfork_thread.3 \
+	rtld_get_var.3 \
 	scandir.3 \
 	sem_destroy.3 \
 	sem_getvalue.3 \
@@ -500,6 +501,8 @@ MLINKS+=rand48.3 _rand48.3 \
 	rand48.3 seed48.3 \
 	rand48.3 srand48.3
 MLINKS+=recv.2 recvmmsg.2
+MLINKS+=rtld_get_var.3 \
+	rtld_set_var.3
 MLINKS+=scandir.3 alphasort.3 \
 	scandir.3 scandirat.3 \
 	scandir.3 scandir_b.3 \
