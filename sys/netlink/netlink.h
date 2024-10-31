@@ -195,7 +195,7 @@ enum nlmsginfo_attrs {
 
 
 #define	NL_ITEM_ALIGN_SIZE		sizeof(uint32_t)
-#define	NL_ITEM_ALIGN(_len)		roundup2(_len, NL_ITEM_ALIGN_SIZE)
+#define	NL_ITEM_ALIGN(_len)		__align_up(_len, NL_ITEM_ALIGN_SIZE)
 #define	NL_ITEM_DATA(_ptr, _off)	((void *)((char *)(_ptr) + _off))
 #define	NL_ITEM_DATA_CONST(_ptr, _off)	((const void *)((const char *)(_ptr) + _off))
 
