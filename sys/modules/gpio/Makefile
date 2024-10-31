@@ -24,10 +24,14 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR = gpioaei gpiobus gpioiic gpioled gpiospi gpioths
+SUBDIR = gpiobus gpioiic gpioled gpiospi gpioths
 
 .if !empty(OPT_FDT)
 SUBDIR += gpiokeys gpiopps
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SUBDIR += gpioaei
 .endif
 
 .include <bsd.subdir.mk>
