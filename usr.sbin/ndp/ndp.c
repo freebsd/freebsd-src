@@ -125,7 +125,6 @@
 static pid_t pid;
 static int32_t thiszone;	/* time difference with gmt */
 static int s = -1;
-static int repeat = 0;
 
 static char host_buf[NI_MAXHOST];	/* getnameinfo() */
 static char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
@@ -252,8 +251,8 @@ main(int argc, char **argv)
 				/*NOTREACHED*/
 			}
 			mode = 'a';
-			repeat = atoi(optarg);
-			if (repeat < 0) {
+			opts.repeat = atoi(optarg);
+			if (opts.repeat < 0) {
 				usage();
 				/*NOTREACHED*/
 			}
@@ -823,10 +822,10 @@ again:
 	if (buf != NULL)
 		free(buf);
 
-	if (repeat) {
+	if (opts.repeat) {
 		xo_emit("\n");
 		xo_flush();
-		sleep(repeat);
+		sleep(opts.repeat);
 		goto again;
 	}
 
