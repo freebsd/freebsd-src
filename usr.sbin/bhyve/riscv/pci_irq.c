@@ -1,9 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2014 Hudson River Trading LLC
- * Written by: John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2024 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,23 +25,42 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __PCI_IRQ_H__
-#define	__PCI_IRQ_H__
+#include <vmmapi.h>
 
-struct pci_devinst;
+#include "pci_emul.h"
+#include "pci_irq.h"
 
-#if defined(__amd64__)
-#include "amd64/pci_irq_machdep.h"
-#elif defined(__aarch64__)
-#include "aarch64/pci_irq_machdep.h"
-#elif defined(__riscv)
-#include "riscv/pci_irq_machdep.h"
-#else
-#error Unsupported platform
-#endif
+static int aplic_irqs[4];
 
-void	pci_irq_assert(struct pci_devinst *pi);
-void	pci_irq_deassert(struct pci_devinst *pi);
-void	pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq);
+void
+pci_irq_init(int intrs[static 4])
+{
+	int i;
 
-#endif
+	for (i = 0; i < 4; ++i)
+		aplic_irqs[i] = intrs[i];
+}
+
+void
+pci_irq_assert(struct pci_devinst *pi)
+{
+	vm_assert_irq(pi->pi_vmctx, pi->pi_lintr.irq.aplic_irq);
+}
+
+void
+pci_irq_deassert(struct pci_devinst *pi)
+{
+	vm_deassert_irq(pi->pi_vmctx, pi->pi_lintr.irq.aplic_irq);
+}
+
+void
+pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq)
+{
+	/*
+	 * Assign swizzled IRQ for this INTx if one is not yet assigned. Must
+	 * match fdt_add_pcie().
+	 */
+	if (irq->aplic_irq == 0)
+		irq->aplic_irq =
+		    aplic_irqs[(pi->pi_slot + pi->pi_lintr.pin - 1) % 4];
+}

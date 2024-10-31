@@ -1,9 +1,10 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2014 Hudson River Trading LLC
- * Written by: John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2022 The FreeBSD Foundation
+ *
+ * This software was developed by Andrew Turner under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,7 +18,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,23 +28,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __PCI_IRQ_H__
-#define	__PCI_IRQ_H__
+#ifndef _FDT_H_
+#define	_FDT_H_
 
-struct pci_devinst;
+#include <sys/types.h>
 
-#if defined(__amd64__)
-#include "amd64/pci_irq_machdep.h"
-#elif defined(__aarch64__)
-#include "aarch64/pci_irq_machdep.h"
-#elif defined(__riscv)
-#include "riscv/pci_irq_machdep.h"
-#else
-#error Unsupported platform
-#endif
+struct vmctx;
 
-void	pci_irq_assert(struct pci_devinst *pi);
-void	pci_irq_deassert(struct pci_devinst *pi);
-void	pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq);
+int	fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t addrp,
+	    vm_size_t size);
+void	fdt_add_aplic(uint64_t dist_base, uint64_t dist_size);
+void	fdt_add_pcie(int intrs[static 4]);
+void	fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr);
+void	fdt_finalize(void);
 
-#endif
+#endif	/* _FDT_H_ */
