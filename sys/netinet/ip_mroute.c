@@ -1311,6 +1311,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	u_long hash;
 	int hlen;
 
+	M_ASSERTMAPPED(m);
+
 	CTR3(KTR_IPMF, "ip_mforward: delete mfc orig 0x%08x group %lx ifp %p",
 	    ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr), ifp);
 
@@ -1562,6 +1564,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	vifi_t vifi;
 	int plen = ntohs(ip->ip_len);
 
+	M_ASSERTMAPPED(m);
 	MRW_LOCK_ASSERT();
 	NET_EPOCH_ASSERT();
 
@@ -1745,6 +1748,7 @@ phyint_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
 	int hlen = ip->ip_hl << 2;
 
 	MRW_LOCK_ASSERT();
+	M_ASSERTMAPPED(m);
 
 	/*
 	 * Make a new reference to the packet; make sure that

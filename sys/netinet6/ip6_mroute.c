@@ -1073,6 +1073,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	GET_TIME(tp);
 #endif /* UPCALL_TIMING */
 
+	M_ASSERTMAPPED(m);
 	MRT6_DLOG(DEBUG_FORWARD, "src %s, dst %s, ifindex %d",
 	    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 	    ip6_sprintf(ip6bufd, &ip6->ip6_dst), ifp->if_index);
@@ -1364,6 +1365,8 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	u_int32_t iszone, idzone, oszone, odzone;
 	int error = 0;
 
+	M_ASSERTMAPPED(m);
+
 	/*
 	 * Don't forward if it didn't arrive from the parent mif
 	 * for its origin.
@@ -1526,6 +1529,8 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	struct ifnet *ifp = mifp->m6_ifp;
 	int error __unused = 0;
 	u_long linkmtu;
+
+	M_ASSERTMAPPED(m);
 
 	/*
 	 * Make a new reference to the packet; make sure that
