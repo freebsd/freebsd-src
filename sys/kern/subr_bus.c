@@ -1229,28 +1229,18 @@ devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 	}
 
 	/*
-	 * We've selected a unit beyond the length of the table, so let's
-	 * extend the table to make room for all units up to and including
-	 * this one.
+	 * We've selected a unit beyond the length of the table, so let's extend
+	 * the table to make room for all units up to and including this one.
 	 */
 	if (unit >= dc->maxunit) {
-		device_t *newlist, *oldlist;
 		int newsize;
 
-		oldlist = dc->devices;
-		newsize = roundup((unit + 1),
-		    MAX(1, MINALLOCSIZE / sizeof(device_t)));
-		newlist = malloc(sizeof(device_t) * newsize, M_BUS, M_NOWAIT);
-		if (!newlist)
-			return (ENOMEM);
-		if (oldlist != NULL)
-			bcopy(oldlist, newlist, sizeof(device_t) * dc->maxunit);
-		bzero(newlist + dc->maxunit,
+		newsize = unit + 1;
+		dc->devices = reallocf(dc->devices,
+		    newsize * sizeof(*dc->devices), M_BUS, M_WAITOK);
+		memset(dc->devices + dc->maxunit, 0,
 		    sizeof(device_t) * (newsize - dc->maxunit));
-		dc->devices = newlist;
 		dc->maxunit = newsize;
-		if (oldlist != NULL)
-			free(oldlist, M_BUS);
 	}
 	PDEBUG(("now: unit %d in devclass %s", unit, DEVCLANAME(dc)));
 
