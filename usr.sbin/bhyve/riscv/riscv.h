@@ -1,9 +1,12 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2014 Hudson River Trading LLC
- * Written by: John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2024 Ruslan Bukin <br@bsdpad.com>
+ *
+ * This software was developed by the University of Cambridge Computer
+ * Laboratory (Department of Computer Science and Technology) under Innovate
+ * UK project 105694, "Digital Security by Design (DSbD) Technology Platform
+ * Prototype".
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,23 +30,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __PCI_IRQ_H__
-#define	__PCI_IRQ_H__
+#ifndef _RISCV_H_
+#define _RISCV_H_
 
-struct pci_devinst;
+#define	CPU_TO_HART(x)	(x)
+#define	HART_TO_CPU(x)	(x)
 
-#if defined(__amd64__)
-#include "amd64/pci_irq_machdep.h"
-#elif defined(__aarch64__)
-#include "aarch64/pci_irq_machdep.h"
-#elif defined(__riscv)
-#include "riscv/pci_irq_machdep.h"
-#else
-#error Unsupported platform
-#endif
+void vmexit_set_bsp(int hart_id);
 
-void	pci_irq_assert(struct pci_devinst *pi);
-void	pci_irq_deassert(struct pci_devinst *pi);
-void	pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq);
-
-#endif
+#endif /* !_RISCV_H_ */

@@ -1,9 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2014 Hudson River Trading LLC
- * Written by: John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2024 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,23 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __PCI_IRQ_H__
-#define	__PCI_IRQ_H__
+#ifndef __PCI_IRQ_MD_H__
+#define	__PCI_IRQ_MD_H__
 
-struct pci_devinst;
+struct pci_irq {
+	int	aplic_irq;
+};
 
-#if defined(__amd64__)
-#include "amd64/pci_irq_machdep.h"
-#elif defined(__aarch64__)
-#include "aarch64/pci_irq_machdep.h"
-#elif defined(__riscv)
-#include "riscv/pci_irq_machdep.h"
-#else
-#error Unsupported platform
-#endif
+void	pci_irq_init(int intrs[static 4]);
 
-void	pci_irq_assert(struct pci_devinst *pi);
-void	pci_irq_deassert(struct pci_devinst *pi);
-void	pci_irq_route(struct pci_devinst *pi, struct pci_irq *irq);
+static inline void
+pci_irq_init_irq(struct pci_irq *irq)
+{
+	irq->aplic_irq = 0;
+}
+
+static inline uint8_t
+pci_irq_intline(struct pci_irq *irq __unused)
+{
+	return (255);
+}
 
 #endif

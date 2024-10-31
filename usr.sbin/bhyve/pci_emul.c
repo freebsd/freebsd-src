@@ -136,7 +136,7 @@ static TAILQ_HEAD(boot_list, boot_device) boot_devices = TAILQ_HEAD_INITIALIZER(
  * change this address without changing it in OVMF.
  */
 #define	PCI_EMUL_MEMBASE32	0xc0000000
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
 #define	PCI_EMUL_IOBASE		0xdf000000UL
 #define	PCI_EMUL_IOLIMIT	0xe0000000UL
 #define	PCI_EMUL_MEMBASE32	0xa0000000UL
