@@ -35,6 +35,7 @@
 #include <sys/mman.h>
 #include <machine/atomic.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <link.h>
 #include <stddef.h>
 #include <string.h>
@@ -335,6 +336,22 @@ _rtld_is_dlopened(void *arg __unused)
 {
 
 	return (0);
+}
+
+#pragma weak rtld_get_var
+const char *
+rtld_get_var(const char *name __unused)
+{
+	_rtld_error(sorry);
+	return (NULL);
+}
+
+#pragma weak rtld_set_var
+int
+rtld_set_var(const char *name __unused, const char *val __unused)
+{
+	_rtld_error(sorry);
+	return (EINVAL);
 }
 
 #endif /* !defined(IN_LIBDL) || defined(PIC) */
