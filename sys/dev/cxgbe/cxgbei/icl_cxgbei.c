@@ -651,7 +651,7 @@ icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
 		while (len > 0) {
 			if (m == NULL) {
 				m = mb_alloc_ext_pgs(flags & ~ICL_NOCOPY,
-				    cxgbei_free_mext_pg);
+				    cxgbei_free_mext_pg, 0);
 				if (__predict_false(m == NULL))
 					return (ENOMEM);
 				atomic_add_int(&icp->ref_cnt, 1);
