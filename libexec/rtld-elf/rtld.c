@@ -346,7 +346,7 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 struct ld_env_var_desc {
 	const char * const n;
 	const char *val;
-	const bool unsecure;
+	const bool unsecure:1;
 };
 #define LD_ENV_DESC(var, unsec) \
     [LD_##var] = { .n = #var, .unsecure = unsec }
