@@ -721,7 +721,8 @@ struct mlx5_core_dev {
 	u32			vsc_addr;
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;
-	unsigned int module_status[MLX5_MAX_PORTS];
+	unsigned int module_status;
+	unsigned int module_num;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
 	struct mlx5_flow_root_namespace *esw_egress_root_ns;

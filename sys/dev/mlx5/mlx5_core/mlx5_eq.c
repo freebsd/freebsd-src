@@ -679,9 +679,9 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 
 unsigned int mlx5_query_module_status(struct mlx5_core_dev *dev, int module_num)
 {
-	if (module_num < 0 || module_num >= MLX5_MAX_PORTS)
-		return 0;		/* undefined */
-	return dev->module_status[module_num];
+	if (module_num != dev->module_num)
+		return 0;		/* module num doesn't equal to what FW reported */
+	return dev->module_status;
 }
 
 static void mlx5_port_module_event(struct mlx5_core_dev *dev,
@@ -729,8 +729,8 @@ static void mlx5_port_module_event(struct mlx5_core_dev *dev,
 		    "Module %u, unknown status %d\n", module_num, module_status);
 	}
 	/* store module status */
-	if (module_num < MLX5_MAX_PORTS)
-		dev->module_status[module_num] = module_status;
+	dev->module_status = module_status;
+	dev->module_num = module_num;
 }
 
 static void mlx5_port_general_notification_event(struct mlx5_core_dev *dev,
