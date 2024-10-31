@@ -524,27 +524,13 @@ static int
 malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
     int flags)
 {
-#ifdef INVARIANTS
-	int indx;
-
 	KASSERT(mtp->ks_version == M_VERSION, ("malloc: bad malloc type version"));
-	/*
-	 * Check that exactly one of M_WAITOK or M_NOWAIT is specified.
-	 */
-	indx = flags & (M_WAITOK | M_NOWAIT);
-	if (indx != M_NOWAIT && indx != M_WAITOK) {
-		static	struct timeval lasterr;
-		static	int curerr, once;
-		if (once == 0 && ppsratecheck(&lasterr, &curerr, 1)) {
-			printf("Bad malloc flags: %x\n", indx);
-			kdb_backtrace();
-			flags |= M_WAITOK;
-			once++;
-		}
-	}
+	KASSERT((flags & (M_WAITOK | M_NOWAIT)) != 0,
+	    ("malloc: flags must include either M_WAITOK or M_NOWAIT"));
+	KASSERT((flags & (M_WAITOK | M_NOWAIT)) != (M_WAITOK | M_NOWAIT),
+	    ("malloc: flags may not include both M_WAITOK and M_NOWAIT"));
 	KASSERT((flags & M_NEVERFREED) == 0,
 	    ("malloc: M_NEVERFREED is for internal use only"));
-#endif
 #ifdef MALLOC_MAKE_FAILURES
 	if ((flags & M_NOWAIT) && (malloc_failure_rate != 0)) {
 		atomic_add_int(&malloc_nowait_count, 1);
