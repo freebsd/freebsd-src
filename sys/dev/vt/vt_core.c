@@ -1136,6 +1136,13 @@ vtterm_bell(struct terminal *tm)
 	sysbeep(vw->vw_bell_pitch, vw->vw_bell_duration);
 }
 
+/*
+ * Beep with user-provided frequency and duration as specified by a KDMKTONE
+ * ioctl (compatible with Linux).  The frequency is specified as a 8254 PIT
+ * divisor for a 1.19MHz clock.
+ *
+ * See https://tldp.org/LDP/lpg/node83.html.
+ */
 static void
 vtterm_beep(struct terminal *tm, u_int param)
 {
@@ -1149,6 +1156,7 @@ vtterm_beep(struct terminal *tm, u_int param)
 		return;
 	}
 
+	/* XXX period unit is supposed to be "timer ticks." */
 	period = ((param >> 16) & 0xffff) * SBT_1MS;
 	freq = 1193182 / (param & 0xffff);
 
