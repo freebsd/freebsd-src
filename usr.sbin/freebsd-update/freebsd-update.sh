@@ -1107,12 +1107,13 @@ check_pkgbase()
 	if ! pkg -c ${BASEDIR} -N >/dev/null 2>/dev/null; then
 		return
 	fi
-	# Presence of FreeBSD-* package(s) indicates packaged base.
-	if ! pkg -c ${BASEDIR} info -q -x '^FreeBSD' 2>/dev/null; then
+	# uname(1) is used by pkg to determine ABI, so it should exist.
+	# If it comes from a package then this system uses packaged base.
+	if ! pkg -c ${BASEDIR} which /usr/bin/uname >/dev/null; then
 		return
 	fi
 	cat <<EOF
-FreeBSD-update is incompatible with the use of packaged base.  Please see
+freebsd-update is incompatible with the use of packaged base.  Please see
 https://wiki.freebsd.org/PkgBase for more information.
 EOF
 	exit 1
@@ -3536,7 +3537,6 @@ cmd_cron () {
 
 # Fetch files for upgrading to a new release.
 cmd_upgrade () {
-	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	upgrade_check_params
 	upgrade_check_kmod_ports
@@ -3571,7 +3571,6 @@ cmd_updatesready () {
 
 # Install downloaded updates.
 cmd_install () {
-	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	install_check_params
 	install_create_be
@@ -3580,7 +3579,6 @@ cmd_install () {
 
 # Rollback most recently installed updates.
 cmd_rollback () {
-	check_pkgbase
 	finalize_components_config ${COMPONENTS}
 	rollback_check_params
 	rollback_run || exit 1
@@ -3616,6 +3614,9 @@ export LC_ALL=C
 
 # Clear environment variables that may affect operation of tools that we use.
 unset GREP_OPTIONS
+
+# Disallow use with packaged base.
+check_pkgbase
 
 get_params $@
 for COMMAND in ${COMMANDS}; do
