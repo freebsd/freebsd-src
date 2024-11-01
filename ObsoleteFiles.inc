@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20241104: remove the outdated c2x.7 symlink in favor of c23.7
+OLD_FILES+=usr/share/man/man7/c2x.7.gz
+
 # 20241023: new clang import which bumps version from 18 to 19
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_cmath.h
