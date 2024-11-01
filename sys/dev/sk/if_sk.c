@@ -185,6 +185,7 @@ static const struct sk_type sk_devs[] = {
 
 static int skc_probe(device_t);
 static int skc_attach(device_t);
+static void skc_child_deleted(device_t, device_t);
 static int skc_detach(device_t);
 static int skc_shutdown(device_t);
 static int skc_suspend(device_t);
@@ -291,6 +292,7 @@ static device_method_t skc_methods[] = {
 	DEVMETHOD(device_resume,	skc_resume),
 	DEVMETHOD(device_shutdown,	skc_shutdown),
 
+	DEVMETHOD(bus_child_deleted,	skc_child_deleted),
 	DEVMETHOD(bus_get_dma_tag,	skc_get_dma_tag),
 
 	DEVMETHOD_END
@@ -1738,6 +1740,12 @@ fail:
 	return(error);
 }
 
+static void
+skc_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 /*
  * Shutdown hardware and free up resources. This can be called any
  * time after the mutex has been initialized. It is called in both
@@ -1796,11 +1804,9 @@ skc_detach(device_t dev)
 
 	if (device_is_alive(dev)) {
 		if (sc->sk_devs[SK_PORT_A] != NULL) {
-			free(device_get_ivars(sc->sk_devs[SK_PORT_A]), M_DEVBUF);
 			device_delete_child(dev, sc->sk_devs[SK_PORT_A]);
 		}
 		if (sc->sk_devs[SK_PORT_B] != NULL) {
-			free(device_get_ivars(sc->sk_devs[SK_PORT_B]), M_DEVBUF);
 			device_delete_child(dev, sc->sk_devs[SK_PORT_B]);
 		}
 		bus_generic_detach(dev);
