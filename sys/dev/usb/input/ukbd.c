@@ -72,6 +72,8 @@
 
 #include <dev/usb/quirk/usb_quirk.h>
 
+#include "usbdevs.h"
+
 #ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
@@ -173,13 +175,19 @@ struct ukbd_softc {
 #define	UKBD_FLAG_ATTACHED	0x00000010
 #define	UKBD_FLAG_GONE		0x00000020
 
-#define	UKBD_FLAG_HID_MASK	0x003fffc0
-#define	UKBD_FLAG_APPLE_EJECT	0x00000040
-#define	UKBD_FLAG_APPLE_FN	0x00000080
-#define	UKBD_FLAG_APPLE_SWAP	0x00000100
+/* set in ukbd_attach */
+#define	UKBD_FLAG_APPLE_SWAP	0x00000040
+/* set in ukbd_parse_hid */
+#define	UKBD_FLAG_APPLE_EJECT	0x00000080
+#define	UKBD_FLAG_APPLE_FN	0x00000100
 #define	UKBD_FLAG_NUMLOCK	0x00080000
 #define	UKBD_FLAG_CAPSLOCK	0x00100000
 #define	UKBD_FLAG_SCROLLLOCK 	0x00200000
+#define	UKBD_FLAG_HID_MASK	UKBD_FLAG_APPLE_EJECT	| \
+				UKBD_FLAG_APPLE_FN	| \
+				UKBD_FLAG_NUMLOCK	| \
+				UKBD_FLAG_CAPSLOCK	| \
+				UKBD_FLAG_SCROLLLOCK
 
 	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int	sc_state;		/* shift/lock key state */
@@ -295,6 +303,48 @@ static const uint8_t ukbd_boot_desc[] = {
 	0x05, 0x07, 0x19, 0x00, 0x2a,
 	0xff, 0x00, 0x81, 0x00, 0xc0
 };
+
+static const STRUCT_USB_HOST_ID ukbd_apple_iso_models[] = {
+	/* PowerBooks Feb 2005, iBooks G4 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_FOUNTAIN_ISO) },
+	/* PowerBooks Oct 2005 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_GEYSER_ISO) },
+	/* Core Duo MacBook & MacBook Pro */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_GEYSER3_ISO) },
+	/* Core2 Duo MacBook & MacBook Pro */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_GEYSER4_ISO) },
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_GEYSER4_HF_ISO) },
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ALU_MINI_ISO) },
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ALU_ISO) },
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_ALU_REVB_ISO) },
+	/* MacbookAir, aka wellspring */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING_ISO) },
+	/* MacbookProPenryn, aka wellspring2 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING2_ISO) },
+	/* Macbook5,1 (unibody), aka wellspring3 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING3_ISO) },
+	/* MacbookAir3,2 (unibody), aka wellspring4 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING4_ISO) },
+	/* MacbookAir3,1 (unibody), aka wellspring4 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING4A_ISO) },
+	/* Macbook8 (unibody, March 2011) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING5_ISO) },
+	/* Macbook8,2 (unibody) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING5A_ISO) },
+	/* MacbookAir4,2 (unibody, July 2011) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING6_ISO) },
+	/* MacbookAir4,1 (unibody, July 2011) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING6A_ISO) },
+	/* MacbookPro10,1 (unibody, June 2012) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING7_ISO) },
+	/* MacbookPro10,2 (unibody, October 2012) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING7A_ISO) },
+	/* MacbookAir6,2 (unibody, June 2013) */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING8_ISO) },
+	/* MacbookPro12,1 */
+	{ USB_VP(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_WELLSPRING9_ISO) },
+};
+
 
 /* prototypes */
 static void	ukbd_timeout(void *);
@@ -1001,8 +1051,7 @@ ukbd_parse_hid(struct ukbd_softc *sc, const uint8_t *ptr, uint32_t len)
 	    hid_input, 0, &sc->sc_loc_apple_eject, &flags,
 	    &sc->sc_id_apple_eject)) {
 		if (flags & HIO_VARIABLE)
-			sc->sc_flags |= UKBD_FLAG_APPLE_EJECT | 
-			    UKBD_FLAG_APPLE_SWAP;
+			sc->sc_flags |= UKBD_FLAG_APPLE_EJECT;
 		DPRINTFN(1, "Found Apple eject-key\n");
 	}
 	if (hid_locate(ptr, len,
@@ -1136,6 +1185,17 @@ ukbd_attach(device_t dev)
 	sc->sc_accmap = accent_map;
 	for (n = 0; n < UKBD_NFKEY; n++) {
 		sc->sc_fkeymap[n] = fkey_tab[n];
+	}
+
+	/* check if this is an Apple keyboard with swapped key codes
+	 * apparently, these are the ISO layout models
+	*/
+	DPRINTF("uaa vendor: 0x%04x, uaa product 0x%04x\n", uaa->info.idVendor, uaa->info.idProduct );
+	if (usbd_lookup_id_by_uaa(ukbd_apple_iso_models, sizeof(ukbd_apple_iso_models), uaa) == 0) {
+		sc->sc_flags |= UKBD_FLAG_APPLE_SWAP;
+		DPRINTF("UKBD_FLAG_APPLE_SWAP set\n");
+	} else {
+		DPRINTF("UKBD_FLAG_APPLE_SWAP not set\n");
 	}
 
 	kbd_set_maps(kbd, &sc->sc_keymap, &sc->sc_accmap,
