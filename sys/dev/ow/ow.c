@@ -331,6 +331,12 @@ ow_add_child(device_t dev, romid_t romid)
 	return (0);
 }
 
+static void
+ow_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_OW);
+}
+
 static device_t
 ow_child_by_romid(device_t dev, romid_t romid)
 {
@@ -561,7 +567,6 @@ ow_detach(device_t ndev)
 {
 	device_t *children, child;
 	int nkid, i;
-	struct ow_devinfo *di;
 	struct ow_softc *sc;
 
 	sc = device_get_softc(ndev);
@@ -578,8 +583,6 @@ ow_detach(device_t ndev)
 		return ENOMEM;
 	for (i = 0; i < nkid; i++) {
 		child = children[i];
-		di = device_get_ivars(child);
-		free(di, M_OW);
 		device_delete_child(ndev, child);
 	}
 	free(children, M_TEMP);
@@ -704,6 +707,7 @@ static device_method_t ow_methods[] = {
 	DEVMETHOD(device_detach,	ow_detach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ow_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo,	ow_child_pnpinfo),
 	DEVMETHOD(bus_read_ivar,	ow_read_ivar),
 	DEVMETHOD(bus_write_ivar,	ow_write_ivar),
