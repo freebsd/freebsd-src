@@ -348,8 +348,11 @@ struct ld_env_var_desc {
 	const char *val;
 	const bool unsecure:1;
 };
-#define LD_ENV_DESC(var, unsec) \
-    [LD_##var] = { .n = #var, .unsecure = unsec }
+#define LD_ENV_DESC(var, unsec, ...)		\
+	[LD_##var] = {				\
+	    .n = #var,				\
+	    .unsecure = unsec,			\
+	    __VA_ARGS__				\
 
 static struct ld_env_var_desc ld_env_vars[] = {
 	LD_ENV_DESC(BIND_NOW, false),
