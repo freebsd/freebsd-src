@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <pwd.h>
@@ -100,6 +101,8 @@ main(int argc, char **argv)
 		mbox = stdin;
 	else if ((mbox = fopen(file, "r")) == NULL)
 		errx(1, "can't read %s", file);
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
 			newline = 1;
