@@ -561,6 +561,7 @@ static device_method_t acpi_spibus_methods[] = {
 	DEVMETHOD(bus_alloc_resource,   acpi_spibus_alloc_resource),
 #endif
 	DEVMETHOD(bus_add_child,	acpi_spibus_add_child),
+	DEVMETHOD(bus_child_deleted,	spibus_child_deleted),
 	DEVMETHOD(bus_probe_nomatch,	acpi_spibus_probe_nomatch),
 	DEVMETHOD(bus_driver_added,	acpi_spibus_driver_added),
 	DEVMETHOD(bus_child_deleted,	acpi_spibus_child_deleted),
