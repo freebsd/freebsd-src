@@ -1358,6 +1358,8 @@ bool
 group_is_supplementary(const gid_t gid, const struct ucred *const cred)
 {
 
+	groups_check_normalized(cred->cr_ngroups, cred->cr_groups);
+
 	/*
 	 * Perform a binary search of the supplementary groups.  This is
 	 * possible because we sort the groups in crsetgroups().
@@ -1381,6 +1383,8 @@ groupmember(gid_t gid, const struct ucred *cred)
 	if (cred->cr_ngroups == 0)
 		return (false);
 
+	groups_check_positive_len(cred->cr_ngroups);
+
 	if (gid == cred->cr_groups[0])
 		return (true);
 
@@ -1394,6 +1398,14 @@ groupmember(gid_t gid, const struct ucred *cred)
 bool
 realgroupmember(gid_t gid, const struct ucred *cred)
 {
+	/*
+	 * Although the equality test on 'cr_rgid' below doesn't access
+	 * 'cr_groups', we check for the latter's length here as we assume that,
+	 * if 'cr_ngroups' is 0, the passed 'struct ucred' is invalid, and
+	 * 'cr_rgid' may not have been filled.
+	 */
+	groups_check_positive_len(cred->cr_ngroups);
+
 	if (gid == cred->cr_rgid)
 		return (true);
 
