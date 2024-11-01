@@ -252,6 +252,7 @@ static const char *model_name[] = {
 
 static int mskc_probe(device_t);
 static int mskc_attach(device_t);
+static void mskc_child_deleted(device_t, device_t);
 static int mskc_detach(device_t);
 static int mskc_shutdown(device_t);
 static int mskc_setup_rambuffer(struct msk_softc *);
@@ -335,6 +336,7 @@ static device_method_t mskc_methods[] = {
 	DEVMETHOD(device_resume,	mskc_resume),
 	DEVMETHOD(device_shutdown,	mskc_shutdown),
 
+	DEVMETHOD(bus_child_deleted,	mskc_child_deleted),
 	DEVMETHOD(bus_get_dma_tag,	mskc_get_dma_tag),
 
 	DEVMETHOD_END
@@ -2046,6 +2048,12 @@ msk_detach(device_t dev)
 	return (0);
 }
 
+static void
+mskc_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 static int
 mskc_detach(device_t dev)
 {
@@ -2056,13 +2064,9 @@ mskc_detach(device_t dev)
 
 	if (device_is_alive(dev)) {
 		if (sc->msk_devs[MSK_PORT_A] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_A]),
-			    M_DEVBUF);
 			device_delete_child(dev, sc->msk_devs[MSK_PORT_A]);
 		}
 		if (sc->msk_devs[MSK_PORT_B] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_B]),
-			    M_DEVBUF);
 			device_delete_child(dev, sc->msk_devs[MSK_PORT_B]);
 		}
 		bus_generic_detach(dev);
