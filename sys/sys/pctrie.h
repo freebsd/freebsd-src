@@ -311,6 +311,14 @@ name##_PCTRIE_ITER_STEP_LE(struct pctrie_iter *it)			\
 }									\
 									\
 static __inline __unused void						\
+name##_PCTRIE_REMOVE_BASE(struct pctrie *ptree,				\
+    struct pctrie_node *freenode)					\
+{									\
+	if (freenode != NULL)						\
+		freefn(ptree, freenode);				\
+}									\
+									\
+static __inline __unused void						\
 name##_PCTRIE_ITER_REMOVE(struct pctrie_iter *it)			\
 {									\
 	uint64_t *val;							\
@@ -319,8 +327,7 @@ name##_PCTRIE_ITER_REMOVE(struct pctrie_iter *it)			\
 	val = pctrie_iter_remove(it, &freenode);			\
 	if (val == NULL)						\
 		panic("%s: key not found", __func__);			\
-	if (freenode != NULL)						\
-		freefn(it->ptree, freenode);				\
+	name##_PCTRIE_REMOVE_BASE(it->ptree, freenode);			\
 }									\
 									\
 static __inline __unused struct type *					\
@@ -340,8 +347,7 @@ name##_PCTRIE_REMOVE(struct pctrie *ptree, uint64_t key)		\
 	val = pctrie_remove_lookup(ptree, key, &freenode);		\
 	if (val == NULL)						\
 		panic("%s: key not found", __func__);			\
-	if (freenode != NULL)						\
-		freefn(ptree, freenode);				\
+	name##_PCTRIE_REMOVE_BASE(ptree, freenode);			\
 }									\
 									\
 static __inline __unused struct type *					\
@@ -351,8 +357,7 @@ name##_PCTRIE_REMOVE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 	struct pctrie_node *freenode;					\
 									\
 	val = pctrie_remove_lookup(ptree, key, &freenode);		\
-	if (freenode != NULL)						\
-		freefn(ptree, freenode);				\
+	name##_PCTRIE_REMOVE_BASE(ptree, freenode);			\
 	return name##_PCTRIE_VAL2PTR(val);				\
 }
 
