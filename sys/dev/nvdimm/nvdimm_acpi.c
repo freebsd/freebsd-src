@@ -197,13 +197,18 @@ nvdimm_root_attach(device_t dev)
 	return (error);
 }
 
+static void
+nvdimm_root_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_NVDIMM_ACPI);
+}
+
 static int
 nvdimm_root_detach(device_t dev)
 {
 	struct nvdimm_root_dev *root;
 	struct SPA_mapping *spa, *next;
-	device_t *children;
-	int i, error, num_children;
+	int error;
 
 	root = device_get_softc(dev);
 	SLIST_FOREACH_SAFE(spa, &root->spas, link, next) {
@@ -215,12 +220,6 @@ nvdimm_root_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
-	error = device_get_children(dev, &children, &num_children);
-	if (error != 0)
-		return (error);
-	for (i = 0; i < num_children; i++)
-		free(device_get_ivars(children[i]), M_NVDIMM_ACPI);
-	free(children, M_TEMP);
 	error = device_delete_children(dev);
 	return (error);
 }
@@ -264,6 +263,7 @@ static device_method_t nvdimm_acpi_methods[] = {
 	DEVMETHOD(device_attach, nvdimm_root_attach),
 	DEVMETHOD(device_detach, nvdimm_root_detach),
 	DEVMETHOD(bus_add_child, bus_generic_add_child),
+	DEVMETHOD(bus_child_deleted, nvdimm_root_child_deleted),
 	DEVMETHOD(bus_read_ivar, nvdimm_root_read_ivar),
 	DEVMETHOD(bus_write_ivar, nvdimm_root_write_ivar),
 	DEVMETHOD(bus_child_location, nvdimm_root_child_location),
