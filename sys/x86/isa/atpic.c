@@ -599,10 +599,6 @@ static device_method_t atpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atpic_probe),
 	DEVMETHOD(device_attach,	atpic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 

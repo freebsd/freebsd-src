@@ -639,9 +639,6 @@ static device_method_t atrtc_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atrtc_probe),
 	DEVMETHOD(device_attach,	atrtc_isa_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
 		/* XXX stop statclock? */
 	DEVMETHOD(device_resume,	atrtc_resume),
 
