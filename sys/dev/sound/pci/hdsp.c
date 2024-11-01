@@ -887,7 +887,7 @@ hdsp_attach(device_t dev)
 		return (ENXIO);
 
 	for (i = 0; i < HDSP_MAX_CHANS && chan_map[i].descr != NULL; i++) {
-		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		scp->hc = &chan_map[i];
 		scp->sc = sc;
 		scp->dev = device_add_child(dev, "pcm", -1);
@@ -956,6 +956,12 @@ hdsp_attach(device_t dev)
 }
 
 static void
+hdsp_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
+static void
 hdsp_dmafree(struct sc_info *sc)
 {
 
@@ -1002,6 +1008,7 @@ static device_method_t hdsp_methods[] = {
 	DEVMETHOD(device_probe,     hdsp_probe),
 	DEVMETHOD(device_attach,    hdsp_attach),
 	DEVMETHOD(device_detach,    hdsp_detach),
+	DEVMETHOD(bus_child_deleted, hdsp_child_deleted),
 	{ 0, 0 }
 };
 
