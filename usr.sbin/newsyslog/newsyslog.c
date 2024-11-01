@@ -77,6 +77,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <libgen.h>
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -1335,9 +1336,21 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			badline("malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
-		if (isdigitch(*q))
-			working->trsize = atoi(q);
-		else if (strcmp(q, "*") == 0)
+		if (isdigitch(*q)) {
+			char last_digit = q[strlen(q) - 1];
+			if (isdigitch(last_digit))
+				working->trsize = atoi(q);
+			else {
+				uint64_t trsize = 0;
+				if (expand_number(q, &trsize) == 0)
+					working->trsize = trsize / 1024;
+				else {
+					working->trsize = -1;
+					warnx("Invalid value of '%s' for 'size' in line:\n%s",
+						q, errline);
+				}
+			}
+		} else if (strcmp(q, "*") == 0)
 			working->trsize = -1;
 		else {
 			warnx("Invalid value of '%s' for 'size' in line:\n%s",
