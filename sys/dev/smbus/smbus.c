@@ -114,6 +114,12 @@ smbus_add_child(device_t dev, u_int order, const char *name, int unit)
 }
 
 static void
+smbus_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
+static void
 smbus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	struct smbus_ivar *devi;
@@ -223,6 +229,7 @@ static device_method_t smbus_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	smbus_add_child),
+	DEVMETHOD(bus_child_deleted,	smbus_child_deleted),
 	DEVMETHOD(bus_hinted_child,	smbus_hinted_child),
 	DEVMETHOD(bus_probe_nomatch,	smbus_probe_nomatch),
 	DEVMETHOD(bus_child_location,	smbus_child_location),
