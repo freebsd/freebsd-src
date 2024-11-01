@@ -1141,10 +1141,38 @@ product AOX USB101		0x0008	Ethernet
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
+/* PowerBooks Feb 2005, iBooks G4 */
+product APPLE FOUNTAIN_ANSI		0x020e	Apple Internal Keyboard/Trackpad
+product APPLE FOUNTAIN_ISO		0x020f	Apple Internal Keyboard/Trackpad
+/* 17 inch PowerBook */
+product APPLE GEYSER_17		0x020d	Apple Internal Keyboard/Trackpad
+/* PowerBooks Oct 2005 */
+product APPLE GEYSER_ANSI	0x0214	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER_ISO	0x0215	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER_JIS	0x0216	Apple Internal Keyboard/Trackpad
+/* Core Duo MacBook & MacBook Pro */
+product APPLE GEYSER3_ANSI	0x0217	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER3_ISO	0x0218	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER3_JIS	0x0219	Apple Internal Keyboard/Trackpad
+/* Core2 Duo MacBook & MacBook Pro */
+product APPLE GEYSER4_ANSI	0x021a	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_ISO	0x021b	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_JIS	0x021c	Apple Internal Keyboard/Trackpad
+/* External */
+product APPLE ALU_MINI_ANSI	0x021d	Apple Keyboard/Trackpad
+product APPLE ALU_MINI_ISO	0x021e	Apple Keyboard/Trackpad
+product APPLE ALU_MINI_JIS	0x021f	Apple Keyboard/Trackpad
+product APPLE ALU_ANSI	0x0220	Apple Keyboard/Trackpad
+product APPLE ALU_ISO	0x0221	Apple Keyboard/Trackpad
+product APPLE ALU_JIS	0x0222	Apple Keyboard/Trackpad
 /* MacbookAir, aka wellspring */
 product APPLE WELLSPRING_ANSI	0x0223	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING_ISO	0x0224	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING_JIS	0x0225	Apple Internal Keyboard/Trackpad
+/* Core2 Duo MacBook3,1 */
+product APPLE GEYSER4_HF_ANSI	0x0229	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_HF_ISO	0x022a	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_HF_JIS	0x022b	Apple Internal Keyboard/Trackpad
 /* MacbookProPenryn, aka wellspring2 */
 product APPLE WELLSPRING2_ANSI	0x0230	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING2_ISO	0x0231	Apple Internal Keyboard/Trackpad
@@ -1173,6 +1201,10 @@ product APPLE WELLSPRING6A_JIS	0x024b	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_ANSI	0x024c	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_ISO	0x024d	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_JIS	0x024e	Apple Internal Keyboard/Trackpad
+/* External */
+product APPLE ALU_REVB_ANSI		0x024f	Apple Keyboard/Trackpad
+product APPLE ALU_REVB_ISO		0x0250	Apple Keyboard/Trackpad
+product APPLE ALU_REVB_JIS		0x0251	Apple Keyboard/Trackpad
 /* Macbook8,2 (unibody) */
 product APPLE WELLSPRING5A_ANSI	0x0252	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING5A_ISO	0x0253	Apple Internal Keyboard/Trackpad
@@ -1193,6 +1225,16 @@ product APPLE WELLSPRING8_JIS	0x0292	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_ANSI	0x0272	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_ISO	0x0273	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_JIS	0x0274	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J140K	0x027a	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J132	0x027b	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J680	0x027c	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J213	0x027d	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J214K	0x027e	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J223	0x027f	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J230K	0x0280	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J152F	0x0340	Apple Internal Keyboard/Trackpad
+product APPLE MAGIC_KEYBOARD_2021	0x029c	Apple Internal Keyboard/Trackpad
+product APPLE MAGIC_KEYBOARD_FINGERPRINT_2021	0x029a	Apple Keyboard/Trackpad
 product APPLE MAGIC_TRACKPAD2	0x0265	Apple Magic Trackpad 2
 product APPLE MOUSE		0x0301	Mouse M4848
 product APPLE OPTMOUSE		0x0302	Optical mouse
