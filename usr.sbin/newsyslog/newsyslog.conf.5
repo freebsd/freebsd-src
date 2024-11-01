@@ -117,7 +117,9 @@ This does not consider the current log file.
 .It Ar size
 When the size of the log file reaches
 .Ar size
-in kilobytes, the log file will be trimmed as described above.
+in kilobytes, or by using any suffix (e.g., k, M, G) supported by
+.Xr expanded_number 3 ;
+the log file will be trimmed as described above.
 If this field contains an asterisk
 .Pq Ql * ,
 the log file will not be trimmed based on size.
@@ -438,6 +440,7 @@ entry:
 .Xr gzip 1 ,
 .Xr xz 1 ,
 .Xr zstd 1 ,
+.Xr expanded_number 3 ,
 .Xr syslog 3 ,
 .Xr chown 8 ,
 .Xr newsyslog 8 ,
