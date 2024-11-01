@@ -769,6 +769,18 @@ superio_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
+static void
+superio_child_deleted(device_t dev, device_t child)
+{
+	struct superio_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	if (dinfo == NULL)
+		return;
+	resource_list_free(&dinfo->resources);
+	free(dinfo, M_DEVBUF);
+}
+
 static int
 superio_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
@@ -1079,6 +1091,7 @@ static device_method_t superio_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	DEVMETHOD(bus_add_child,	superio_add_child),
+	DEVMETHOD(bus_child_deleted,	superio_child_deleted),
 	DEVMETHOD(bus_child_detached,	superio_child_detached),
 	DEVMETHOD(bus_child_location,	superio_child_location),
 	DEVMETHOD(bus_child_pnpinfo,	superio_child_pnp),
