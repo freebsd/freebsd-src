@@ -58,7 +58,7 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
-static bus_child_detached_t miibus_child_detached;
+static bus_child_deleted_t miibus_child_deleted;
 static bus_child_location_t miibus_child_location;
 static bus_child_pnpinfo_t miibus_child_pnpinfo;
 static device_detach_t miibus_detach;
@@ -84,7 +84,7 @@ static device_method_t miibus_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	miibus_print_child),
 	DEVMETHOD(bus_read_ivar,	miibus_read_ivar),
-	DEVMETHOD(bus_child_detached,	miibus_child_detached),
+	DEVMETHOD(bus_child_deleted,	miibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo,	miibus_child_pnpinfo),
 	DEVMETHOD(bus_child_location,	miibus_child_location),
 	DEVMETHOD(bus_hinted_child,	miibus_hinted_child),
@@ -167,7 +167,7 @@ miibus_detach(device_t dev)
 }
 
 static void
-miibus_child_detached(device_t dev, device_t child)
+miibus_child_deleted(device_t dev, device_t child)
 {
 	struct mii_attach_args *args;
 
