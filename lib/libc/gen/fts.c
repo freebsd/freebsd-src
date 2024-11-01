@@ -40,6 +40,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -1026,44 +1027,32 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 	FTSENT *p;
 	size_t len;
 
-	struct ftsent_withstat {
-		FTSENT	ent;
-		struct	stat statbuf;
-	};
-
 	/*
 	 * The file name is a variable length array and no stat structure is
 	 * necessary if the user has set the nostat bit.  Allocate the FTSENT
 	 * structure, the file name and the stat structure in one chunk, but
 	 * be careful that the stat structure is reasonably aligned.
 	 */
-	if (ISSET(FTS_NOSTAT))
-		len = sizeof(FTSENT) + namelen + 1;
-	else
-		len = sizeof(struct ftsent_withstat) + namelen + 1;
-
-	if ((p = malloc(len)) == NULL)
+	len = sizeof(FTSENT) + namelen + 1;
+	if (!ISSET(FTS_NOSTAT)) {
+		len = roundup(len, alignof(struct stat));
+		p = calloc(1, len + sizeof(struct stat));
+	} else {
+		p = calloc(1, len);
+	}
+	if (p == NULL)
 		return (NULL);
 
-	if (ISSET(FTS_NOSTAT)) {
-		p->fts_name = (char *)(p + 1);
-		p->fts_statp = NULL;
-	} else {
-		p->fts_name = (char *)((struct ftsent_withstat *)p + 1);
-		p->fts_statp = &((struct ftsent_withstat *)p)->statbuf;
-	}
-
-	/* Copy the name and guarantee NUL termination. */
-	memcpy(p->fts_name, name, namelen);
-	p->fts_name[namelen] = '\0';
-	p->fts_namelen = namelen;
+	p->fts_symfd = -1;
 	p->fts_path = sp->fts_path;
-	p->fts_errno = 0;
-	p->fts_flags = 0;
+	p->fts_name = (char *)(p + 1);
+	p->fts_namelen = namelen;
 	p->fts_instr = FTS_NOINSTR;
-	p->fts_number = 0;
-	p->fts_pointer = NULL;
+	if (!ISSET(FTS_NOSTAT))
+		p->fts_statp = (struct stat *)((char *)p + len);
 	p->fts_fts = sp;
+	memcpy(p->fts_name, name, namelen);
+
 	return (p);
 }
 
