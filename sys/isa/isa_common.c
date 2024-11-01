@@ -622,6 +622,12 @@ isa_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
+static void
+isa_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_ISADEV);
+}
+
 static int
 isa_print_all_resources(device_t dev)
 {
@@ -1060,6 +1066,7 @@ static device_method_t isa_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	isa_add_child),
+	DEVMETHOD(bus_child_deleted,	isa_child_deleted),
 	DEVMETHOD(bus_print_child,	isa_print_child),
 	DEVMETHOD(bus_probe_nomatch,	isa_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
