@@ -662,8 +662,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			 */
 			SCTPDBG(SCTP_DEBUG_PCB4, "Lost an address change?\n");
 			/* Opps, must decrement the count */
-			sctp_del_addr_from_vrf(vrf_id, addr, ifn_index,
-			    if_name);
+			sctp_del_addr_from_vrf(vrf_id, addr, ifn_index);
 			return (NULL);
 		}
 		SCTP_INCR_LADDR_COUNT();
@@ -688,7 +687,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 
 void
 sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
-    uint32_t ifn_index, const char *if_name)
+    uint32_t ifn_index)
 {
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap;
@@ -709,27 +708,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	if (sctp_ifap != NULL) {
 		/* Validate the delete */
 		if (sctp_ifap->ifn_p) {
-			bool valid = false;
-
-			/*-
-			 * The name has priority over the ifn_index
-			 * if its given.
-			 */
-			if (if_name) {
-				if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) == 0) {
-					/* They match its a correct delete */
-					valid = true;
-				}
-			}
-			if (!valid) {
-				/* last ditch check ifn_index */
-				if (ifn_index == sctp_ifap->ifn_p->ifn_index) {
-					valid = true;
-				}
-			}
-			if (!valid) {
-				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d ifname:%s does not match addresses\n",
-				    ifn_index, ((if_name == NULL) ? "NULL" : if_name));
+			if (ifn_index != sctp_ifap->ifn_p->ifn_index) {
 				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d ifname:%s - ignoring delete\n",
 				    sctp_ifap->ifn_p->ifn_index, sctp_ifap->ifn_p->ifn_name);
 				SCTP_IPI_ADDR_WUNLOCK();
