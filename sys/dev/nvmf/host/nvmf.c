@@ -780,7 +780,7 @@ nvmf_detach(device_t dev)
 	sx_xunlock(&sc->connection_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_pre_sync_eh);
-	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_post_sync_eh);
+	EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->shutdown_post_sync_eh);
 
 	nvmf_destroy_sim(sc);
 	for (i = 0; i < sc->cdata->nn; i++) {
