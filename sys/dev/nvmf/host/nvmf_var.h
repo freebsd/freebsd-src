@@ -22,6 +22,7 @@ struct nvmf_aer;
 struct nvmf_capsule;
 struct nvmf_host_qpair;
 struct nvmf_namespace;
+struct sysctl_oid_list;
 
 typedef void nvmf_request_complete_t(void *, const struct nvme_completion *);
 
@@ -84,6 +85,8 @@ struct nvmf_softc {
 
 	u_int num_aer;
 	struct nvmf_aer *aer;
+
+	struct sysctl_oid_list *ioq_oid_list;
 
 	eventhandler_tag shutdown_pre_sync_eh;
 	eventhandler_tag shutdown_post_sync_eh;
@@ -200,7 +203,7 @@ bool	nvmf_update_ns(struct nvmf_namespace *ns,
 /* nvmf_qpair.c */
 struct nvmf_host_qpair *nvmf_init_qp(struct nvmf_softc *sc,
     enum nvmf_trtype trtype, struct nvmf_handoff_qpair_params *handoff,
-    const char *name);
+    const char *name, u_int qid);
 void	nvmf_shutdown_qp(struct nvmf_host_qpair *qp);
 void	nvmf_destroy_qp(struct nvmf_host_qpair *qp);
 struct nvmf_request *nvmf_allocate_request(struct nvmf_host_qpair *qp,
