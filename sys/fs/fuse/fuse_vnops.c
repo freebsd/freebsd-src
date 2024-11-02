@@ -1945,10 +1945,9 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	tresid = uio->uio_resid;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
 	if (err == EBADF && mp->mnt_flag & MNT_EXPORTED) {
-		KASSERT(fuse_get_mpdata(mp)->dataflags
-				& FSESS_NO_OPENDIR_SUPPORT,
-			("FUSE file systems that don't set "
-			 "FUSE_NO_OPENDIR_SUPPORT should not be exported"));
+		KASSERT(!fsess_is_impl(mp, FUSE_OPENDIR),
+			("FUSE file systems that implement "
+			 "FUSE_OPENDIR should not be exported"));
 		/* 
 		 * nfsd will do VOP_READDIR without first doing VOP_OPEN.  We
 		 * must implicitly open the directory here.
@@ -3202,21 +3201,21 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 		return EOPNOTSUPP;
 	}
 	if ((mp->mnt_flag & MNT_EXPORTED) &&
-		!(data->dataflags & FSESS_NO_OPENDIR_SUPPORT))
+		fsess_is_impl(mp, FUSE_OPENDIR))
 	{
 		/*
 		 * NFS is stateless, so nfsd must reopen a directory on every
 		 * call to VOP_READDIR, passing in the d_off field from the
-		 * final dirent of the previous invocation.  But without
-		 * FUSE_NO_OPENDIR_SUPPORT, the FUSE protocol does not
+		 * final dirent of the previous invocation.  But if the server
+		 * implements FUSE_OPENDIR, the FUSE protocol does not
 		 * guarantee that d_off will be valid after a directory is
 		 * closed and reopened.  So prohibit exporting FUSE file
-		 * systems that don't set that flag.
+		 * systems that implement FUSE_OPENDIR.
 		 *
 		 * But userspace NFS servers don't have this problem.
                  */
 		SDT_PROBE2(fusefs, , vnops, trace, 1,
-			"VOP_VPTOFH without FUSE_NO_OPENDIR_SUPPORT");
+			"VOP_VPTOFH with FUSE_OPENDIR");
 		return EOPNOTSUPP;
 	}
 

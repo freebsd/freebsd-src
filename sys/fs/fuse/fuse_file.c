@@ -122,7 +122,6 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
     struct fuse_filehandle **fufhp, struct thread *td, struct ucred *cred)
 {
 	struct mount *mp = vnode_mount(vp);
-	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct fuse_dispatcher fdi;
 	const struct fuse_open_out default_foo = {
 		.fh = 0,
@@ -132,12 +131,10 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 	struct fuse_open_in *foi = NULL;
 	const struct fuse_open_out *foo;
 	fufh_type_t fufh_type;
-	int dataflags = data->dataflags;
 	int err = 0;
 	int oflags = 0;
 	int op = FUSE_OPEN;
 	int relop = FUSE_RELEASE;
-	int fsess_no_op_support = FSESS_NO_OPEN_SUPPORT;
 
 	fufh_type = fflags_2_fufh_type(a_mode);
 	oflags = fufh_type_2_fflags(fufh_type);
@@ -145,12 +142,11 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 	if (vnode_isdir(vp)) {
 		op = FUSE_OPENDIR;
 		relop = FUSE_RELEASEDIR;
-		fsess_no_op_support = FSESS_NO_OPENDIR_SUPPORT;
 		/* vn_open_vnode already rejects FWRITE on directories */
 		MPASS(fufh_type == FUFH_RDONLY || fufh_type == FUFH_EXEC);
 	}
 	fdisp_init(&fdi, sizeof(*foi));
-	if (fsess_not_impl(mp, op) && dataflags & fsess_no_op_support) {
+	if (fsess_not_impl(mp, op)) {
 		/* The operation implicitly succeeds */
 		foo = &default_foo;
 	} else {
@@ -160,7 +156,7 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 		foi->flags = oflags;
 
 		err = fdisp_wait_answ(&fdi);
-		if (err == ENOSYS && dataflags & fsess_no_op_support) {
+		if (err == ENOSYS) {
 			/* The operation implicitly succeeds */
 			foo = &default_foo;
 			fsess_set_notimpl(mp, op);
@@ -174,6 +170,7 @@ fuse_filehandle_open(struct vnode *vp, int a_mode,
 			goto out;
 		} else {
 			foo = fdi.answ;
+			fsess_set_impl(mp, op);
 		}
 	}
 
