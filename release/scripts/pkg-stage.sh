@@ -19,7 +19,7 @@ graphics/drm-515-kmod
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
-net/wifi-firmware-rtw88-kmod
+net/wifi-firmware-kmod@release
 ports-mgmt/pkg
 shells/bash
 shells/zsh
