@@ -543,6 +543,15 @@ function core.nextConsoleChoice()
 	end
 end
 
+-- The graphical-enabled loaders have unicode drawing character support. The
+-- text-only ones do not. We check the old and new bindings for term_drawrect as
+-- a proxy for unicode support, which will work on older boot loaders as well
+-- as be future proof for when we remove the old binding. This also abstracts
+-- out the test to one spot in case we start to export this notion more directly.
+function core.hasUnicode()
+	 return gfx.term_drawrect ~= nil or loader.term_drawrect ~= nil
+end
+
 -- Sanity check the boot loader revision
 -- Loaders with version 3.0 have everything that we need without backwards
 -- compatible hacks. Warn users that still have old versions to upgrade so
