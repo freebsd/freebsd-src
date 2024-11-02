@@ -181,7 +181,7 @@ ipf_timer_func(void *arg)
 #if 0
 		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
 #endif
-		callout_init(&softc->ipf_slow_ch, 1);
+		callout_init_rw(&softc->ipf_slow_ch, &softc->ipf_global.ipf_lk, CALLOUT_SHAREDLOCK);
 		callout_reset(&softc->ipf_slow_ch,
 			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 			ipf_timer_func, softc);
@@ -221,7 +221,7 @@ ipfattach(ipf_main_softc_t *softc)
 	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
 				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #endif
-	callout_init(&softc->ipf_slow_ch, 1);
+	callout_init_rw(&softc->ipf_slow_ch, &softc->ipf_global.ipf_lk, CALLOUT_SHAREDLOCK);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
 	return (0);
