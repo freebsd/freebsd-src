@@ -346,8 +346,8 @@ void
 nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 {
 	struct sysctl_ctx_list	*ctrlr_ctx;
-	struct sysctl_oid	*ctrlr_tree, *que_tree;
-	struct sysctl_oid_list	*ctrlr_list;
+	struct sysctl_oid	*ctrlr_tree, *que_tree, *ioq_tree;
+	struct sysctl_oid_list	*ctrlr_list, *ioq_list;
 #define QUEUE_NAME_LENGTH	16
 	char			queue_name[QUEUE_NAME_LENGTH];
 	int			i;
@@ -441,9 +441,13 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	 * of the sysctls to diagnose things.
 	 */
 	if (ctrlr->ioq != NULL) {
+		ioq_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO,
+		    "ioq", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "I/O Queues");
+		ioq_list = SYSCTL_CHILDREN(ioq_tree);
+
 		for (i = 0; i < ctrlr->num_io_queues; i++) {
-			snprintf(queue_name, QUEUE_NAME_LENGTH, "ioq%d", i);
-			que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO,
+			snprintf(queue_name, QUEUE_NAME_LENGTH, "%d", i);
+			que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ioq_list, OID_AUTO,
 			    queue_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "IO Queue");
 			nvme_sysctl_initialize_queue(&ctrlr->ioq[i], ctrlr_ctx,
 			    que_tree);
