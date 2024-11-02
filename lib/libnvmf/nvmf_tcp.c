@@ -1024,8 +1024,8 @@ tcp_connect(struct nvmf_tcp_qpair *qp, struct nvmf_association *na, bool admin)
 		return (false);
 	}
 
-	qp->txpda = (params->tcp.pda + 1) * 4;
-	qp->rxpda = (ic_resp.cpda + 1) * 4;
+	qp->rxpda = (params->tcp.pda + 1) * 4;
+	qp->txpda = (ic_resp.cpda + 1) * 4;
 	qp->header_digests = ic_resp.dgst.bits.hdgst_enable != 0;
 	qp->data_digests = ic_resp.dgst.bits.ddgst_enable != 0;
 	qp->maxr2t = params->tcp.maxr2t;
@@ -1069,8 +1069,8 @@ tcp_accept(struct nvmf_tcp_qpair *qp, struct nvmf_association *na)
 		return (false);
 	}
 
-	qp->txpda = (params->tcp.pda + 1) * 4;
-	qp->rxpda = (ic_req.hpda + 1) * 4;
+	qp->rxpda = (params->tcp.pda + 1) * 4;
+	qp->txpda = (ic_req.hpda + 1) * 4;
 	qp->header_digests = ic_resp.dgst.bits.hdgst_enable != 0;
 	qp->data_digests = ic_resp.dgst.bits.ddgst_enable != 0;
 	qp->maxr2t = le32toh(ic_req.maxr2t);
