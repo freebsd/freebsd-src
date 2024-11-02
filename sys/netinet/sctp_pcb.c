@@ -312,7 +312,7 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr,
 		}
 	}
 
-	sctp_ifap->localifa_flags &= (~SCTP_ADDR_VALID);
+	sctp_ifap->localifa_flags &= ~SCTP_ADDR_VALID;
 	sctp_ifap->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
 out:
 	SCTP_IPI_ADDR_RUNLOCK();
@@ -354,7 +354,7 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr,
 		}
 	}
 
-	sctp_ifap->localifa_flags &= (~SCTP_ADDR_IFA_UNUSEABLE);
+	sctp_ifap->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
 	sctp_ifap->localifa_flags |= SCTP_ADDR_VALID;
 out:
 	SCTP_IPI_ADDR_RUNLOCK();
