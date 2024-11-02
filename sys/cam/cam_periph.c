@@ -2166,9 +2166,9 @@ cam_periph_devctl_notify(union ccb *ccb)
 	{
 		struct ccb_nvmeio *n = &ccb->nvmeio;
 
-		sbuf_printf(&sb, "sc=\"%02x\" sct=\"%02x\" cdw0=\"%08x\" ",
-		    NVME_STATUS_GET_SC(n->cpl.status),
-		    NVME_STATUS_GET_SCT(n->cpl.status), n->cpl.cdw0);
+		sbuf_printf(&sb, "sct=\"%02x\" sc=\"%02x\" cdw0=\"%08x\" ",
+		    NVME_STATUS_GET_SCT(n->cpl.status),
+		    NVME_STATUS_GET_SC(n->cpl.status), n->cpl.cdw0);
 		type = "error";
 		break;
 	}
