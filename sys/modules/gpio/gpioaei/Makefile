@@ -4,6 +4,7 @@ KMOD=	gpioaei
 SRCS=	gpioaei.c
 
 SRCS+=	\
+	acpi_if.h \
 	bus_if.h \
 	device_if.h \
 	gpio_if.h \
