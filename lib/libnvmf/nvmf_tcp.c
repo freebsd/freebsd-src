@@ -432,7 +432,7 @@ nvmf_tcp_construct_pdu(struct nvmf_tcp_qpair *qp, void *hdr, size_t hlen,
 	if (qp->header_digests)
 		plen += sizeof(header_digest);
 	if (data_len != 0) {
-		pdo = roundup2(plen, qp->txpda);
+		pdo = roundup(plen, qp->txpda);
 		pad = pdo - plen;
 		plen = pdo + data_len;
 		if (qp->data_digests)
