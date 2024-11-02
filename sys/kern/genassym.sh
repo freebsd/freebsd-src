@@ -45,7 +45,7 @@ work()
 
 
 #
-#MAIN PROGGRAM
+# MAIN PROGRAM
 #
 use_outfile="no"
 while getopts "o:" option
