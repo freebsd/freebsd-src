@@ -1755,6 +1755,7 @@ command_chain(int argc, char *argv[])
 
 COMMAND_SET(chain, "chain", "chain load file", command_chain);
 
+#if defined(LOADER_NET_SUPPORT)
 extern struct in_addr servip;
 static int
 command_netserver(int argc, char *argv[])
@@ -1785,3 +1786,4 @@ command_netserver(int argc, char *argv[])
 
 COMMAND_SET(netserver, "netserver", "change or display netserver URI",
     command_netserver);
+#endif
