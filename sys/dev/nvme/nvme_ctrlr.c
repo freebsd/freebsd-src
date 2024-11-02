@@ -1804,7 +1804,8 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 	/*
 	 * Now that we've reset the hardware, we can restart the controller. Any
 	 * I/O that was pending is requeued. Any admin commands are aborted with
-	 * an error. Once we've restarted, take the controller out of reset.
+	 * an error. Once we've restarted, stop flagging the controller as being
+	 * in the reset phase.
 	 */
 	nvme_ctrlr_start(ctrlr, true);
 	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
