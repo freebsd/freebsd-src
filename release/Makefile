@@ -70,6 +70,17 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endfor
 .endif
 
+.if ${.MAKE.OS} == "FreeBSD"
+# For installing packages into the release media.
+.if defined(NO_ROOT)
+PKG_ENV+=	INSTALL_AS_USER=yes
+PKG_ARGS+=	-o METALOG=METALOG
+.endif
+PKG_ENV+=	ASSUME_ALWAYS_YES=yes
+PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
+PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install
+.endif
+
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
 VOLUME_LABEL=	FreeBSD_Install
 .endif
@@ -186,6 +197,10 @@ disc1: packagesystem
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
 .endif
+.if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
+# Install packages onto release media.
+	${PKG_INSTALL} wifi-firmware-kmod-release
+.endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
@@ -255,6 +270,10 @@ dvd: packagesystem
 	for dist in MANIFEST $$(ls *.txz | grep -v container); \
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
+.endif
+.if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
+# Install packages onto release media.
+	${PKG_INSTALL} wifi-firmware-kmod-release
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
