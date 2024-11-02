@@ -30,6 +30,7 @@
 #ifndef _LINUXKPI_LINUX_LOCKDEP_H_
 #define	_LINUXKPI_LINUX_LOCKDEP_H_
 
+#include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/lock.h>
 
