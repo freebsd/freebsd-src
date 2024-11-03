@@ -248,21 +248,22 @@ SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
  * called.
  */
 int
-intr_register_source(unsigned int vector, struct intsrc *isrc)
+intr_register_source(unsigned int vector, struct intsrc *isrc, device_t pic)
 {
 	int error;
 
-	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_enable_intr) != NULL);
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_disable_intr) != NULL);
-	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)(isrc->is_pic), pic_assign_cpu) != NULL);
+	KASSERT(intr_pic_registered(pic), ("unregistered PIC"));
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, pic_enable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, pic_disable_intr) != NULL);
+	MPASS(KOBJ_LOOKUP_METHOD((kobj_t)pic, pic_assign_cpu) != NULL);
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
+	isrc->is_pic = pic;
 	bzero(&isrc->is_event, sizeof(isrc->is_event));
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] == NULL)
-		error = intr_event_init_(&isrc->is_event, isrc->is_pic,
-		    vector, 0, "irq%d:", vector);
+		error = intr_event_init_(&isrc->is_event, pic, vector, 0,
+		    "irq%d:", vector);
 	else
 		error = EEXIST;
 	if (error) {
