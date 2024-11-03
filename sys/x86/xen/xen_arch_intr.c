@@ -309,8 +309,7 @@ xen_arch_intr_alloc(void)
 
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_arch.intsrc.is_pic = X86PIC_PTR(xen_intr_pic);
-	error = intr_register_source(vector, &isrc->xi_arch.intsrc);
+	error = intr_register_source(vector, &isrc->xi_arch.intsrc, xen_intr_pic);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);
