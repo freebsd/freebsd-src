@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
@@ -432,6 +433,7 @@ priv_grant(struct ucred *cred, int priv)
 			switch (priv) {
 			case PRIV_CRED_SETGROUPS:
 			case PRIV_CRED_SETUID:
+				log(LOG_SECURITY | LOG_INFO, "Uid %d met the condition and will be granted privileges.\n", cred->cr_uid);
 				mtx_unlock(&pr->pr_mtx);
 				return (0);
 			default:
@@ -439,6 +441,7 @@ priv_grant(struct ucred *cred, int priv)
 			}
 		}
 	}
+	log(LOG_SECURITY | LOG_WARNING, "Uid %d failed to meet the condition.\n", cred->cr_uid);
 	mtx_unlock(&pr->pr_mtx);
 	return (EPERM);
 }
