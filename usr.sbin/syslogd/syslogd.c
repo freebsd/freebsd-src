@@ -3721,6 +3721,11 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 	if (ai->ai_family == AF_LOCAL)
 		unlink(name);
 	if (ai->ai_family == AF_LOCAL || NoBind == 0 || name != NULL) {
+		if (ai->ai_family == AF_LOCAL && fchmod(s, mode) < 0) {
+			dprintf("fchmod %s: %s\n", name, strerror(errno));
+			close(s);
+			return (NULL);
+		}
 		if (bind(s, ai->ai_addr, ai->ai_addrlen) < 0) {
 			logerror("bind");
 			close(s);
@@ -3728,11 +3733,6 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 		}
 		if (ai->ai_family == AF_LOCAL || SecureMode == 0)
 			increase_rcvbuf(s);
-	}
-	if (ai->ai_family == AF_LOCAL && chmod(name, mode) < 0) {
-		dprintf("chmod %s: %s\n", name, strerror(errno));
-		close(s);
-		return (NULL);
 	}
 	dprintf("new socket fd is %d\n", s);
 	sl_recv = socklist_recv_sock;
