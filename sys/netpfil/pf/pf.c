@@ -1798,6 +1798,9 @@ pf_find_state_all(const struct pf_state_key_cmp *key, u_int dir, int *more)
 	struct pf_kstate	*s, *ret = NULL;
 	int			 idx, inout = 0;
 
+	if (more != NULL)
+		*more = 0;
+
 	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	kh = &V_pf_keyhash[pf_hashkey((const struct pf_state_key *)key)];
