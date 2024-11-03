@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd Nov 1, 2024
+.Dd November 1, 2024
 .Dt C 7
 .Os
 .Sh NAME
@@ -113,9 +113,12 @@ development of the language did not stop.
 .Pp
 The ISO C standard was later extended with an amendment as
 ISO/IEC 9899/AMD1 in 1995.
-This contained, for example, the wide-character support in <wchar.h> and
-<wctype.h>, and also restricted character set support via diagraphs and
-<iso646.h>.
+This contained, for example, the wide-character support in
+.In wchar.h
+and
+.In wctype.h ,
+and also restricted character set support via diagraphs and
+.In iso646.h .
 This amendment is usually referred to as C95.
 Two technical corrigenda were also published: Technical Corrigendum 1 as
 ISO/IEC 9899/COR1 in 1994 and Technical Corrigendum 2 as ISO/IEC 9899/COR2
@@ -131,18 +134,23 @@ The improvements include (but are not limited to) the following:
 .Bl -bullet -offset indent
 .It
 digraphs, trigraphs, and alternative spellings for the operators that
-use non-ISO646 characters in <iso646.h>
+use non-ISO646 characters in
+.In iso646.h
 .It
-extended multibyte and wide character library support in <wchar.h> and
-<wctype.h>
+extended multibyte and wide character library support in
+.In wchar.h
+and
+.In wctype.h
 .It
 variable length arrays
 .It
 flexible array members
 .It
-complex (and imaginary) number arithmetic support in <complex.h>
+complex (and imaginary) number arithmetic support in
+.In complex.h
 .It
-type-generic math macros in <tgmath.h>
+type-generic math macros in
+.In tgmath.h
 .It
 the long long int type and library functions
 .It
@@ -158,15 +166,24 @@ BCPL style single-line comments
 .It
 allow mixed declarations and code
 .It
-the vscanf family of functions in <stdio.h> and <wchar.h>
+the
+.Fn vscanf
+family of functions in
+.In stdio.h
+and
+.In wchar.h
 .It
 allow trailing comma in enum declaration
 .It
 inline functions
 .It
-the snprintf family of functions in <stdio.h>
+the
+.Fn snprintf
+family of functions in
+.In stdio.h
 .It
-boolean type and macros in <stdbool.h>
+boolean type and macros in
+.In stdbool.h
 .It
 empty macro arguments
 .It
@@ -174,7 +191,8 @@ _Pragma preprocessing operator
 .It
 __func__ predefined identifier
 .It
-va_copy macro in <stdarg.h>
+va_copy macro in
+.In stdarg.h
 .It
 additional strftime conversion specifiers
 .El
@@ -186,24 +204,34 @@ and ISO/IEC 9899:1999/COR3:2007.
 The improvements include (but are not limited to) the following:
 .Bl -bullet -offset indent
 .It
-support for multiple threads of execution and atomic operations in <threads.h>
-and <stdatomic.h>
+support for multiple threads of execution and atomic operations in
+.In threads.h
+and
+.In stdatomic.h
 .It
-additional floating-point characteristic macros in <float.h>
+additional floating-point characteristic macros in
+.In float.h
 .It
-querying and specifying alignment of objects in <stdalign.h> and <stdlib.h>
+querying and specifying alignment of objects in
+.In stdalign.h
+and
+.In stdlib.h
 .It
-Unicode character types and functions in <uchar.h>
+Unicode character types and functions in
+.In uchar.h
 .It
 type-generic expressions
 .It
-static assertions in <assert.h>
+static assertions in
+.In assert.h
 .It
 anonymous structures and unions
 .It
-remove the gets function from <stdio.h>
+remove the gets function from
+.In stdio.h
 .It
-add the aligned_alloc, at_quick_exit, and quick_exit functions in <stdlib.h>
+add the aligned_alloc, at_quick_exit, and quick_exit functions in
+.In stdlib.h
 .El
 .Pp
 C11 was later superseded by ISO/IEC 9899:2018, also known as C17 which was
@@ -232,10 +260,16 @@ Redefine the usage of the auto keyword to support type inference while also
 retaining its previous functionality as a storage-class specifier when used
 with a type
 .It
-Add %b binary conversion specifier to the printf() and scanf() function
-families
+Add %b binary conversion specifier to the
+.Fn printf
+and
+.Fn scanf
+function families
 .It
-Add binary conversion support (0b and 0B) to the strtol() and wcstol()
+Add binary conversion support (0b and 0B) to the
+.Fn strtol
+and
+.Fn wcstol
 function families
 .It
 Add the #embed directive for binary resource inclusion and __has_embed to
@@ -251,7 +285,11 @@ compatible with C++17
 Add the char8_t type for UTF-8 encoded data and update the types of u8
 character constants and string literals to char8_t
 .It
-Add functions mbrtoc8() and c8rtomb() to convert between narrow multibyte
+Add functions
+.Fn mbrtoc8
+and
+.Fn c8rtomb
+to convert between narrow multibyte
 characters and UTF-8 encoding
 .It
 Define all char16_t strings and literals as UTF-16 encoded and char32_t
@@ -271,21 +309,45 @@ Add digit separator ' (the single quote character) for literals
 .It
 Enable specification of the underlying type of an enum
 .It
-Standardize the typeof() operator
+Standardize the
+.Fn typeof
+operator
 .It
-Add memset_explicit() in <string.h> to securely erase sensitive data
+Add
+.Fn memset_explicit
+in
+.In string.h
+to securely erase sensitive data
 regardless of optimizations
 .It
-Add memccpy() in <string.h> for efficient string concatenation
+Add
+.Fn memccpy
+in
+.In string.h
+for efficient string concatenation
 .It
-Add memalignment() in <stdlib.h> to determine pointer alignment
+Add
+.Fn memalignment
+in
+.In stdlib.h
+to determine pointer alignment
 .It
-Add strdup() and strndup() in <string.h> to allocate string copies
+Add
+.Fn strdup
+and
+.Fn strndup
+in
+.In string.h
+to allocate string copies
 .It
 Introduce bit utility functions, macros, and types in the new header
-<stdbit.h>
+.In stdbit.h
 .It
-Add timegm() in <time.h> for converting time structures to calendar time
+Add
+.Fn timegm
+in
+.In time.h
+for converting time structures to calendar time
 values
 .It
 Add __has_include for header availability checking via preprocessor
@@ -298,7 +360,7 @@ Add _BitInt(N) and unsigned _BitInt(N) for bit-precise integers, and
 BITINT_MAXWIDTH for maximum bit width
 .It
 Elevate true and false to proper keywords (previously macros from
-<stdbool.h>)
+.In stdbool.h )
 .It
 Add keywords alignas, alignof, bool, static_assert, thread_local; previously
 defined keywords remain available as alternative spellings
@@ -308,7 +370,9 @@ Enable zero initialization with {} (including initialization of VLAs)
 Introduce C++11 style attributes using [[]], with adding [[deprecated]],
 [[fallthrough]], [[maybe_unused]], [[nodiscard]], and [[noreturn]]
 .It
-Deprecate _Noreturn, noreturn, header <stdnoreturn.h> features introduced
+Deprecate _Noreturn, noreturn, header
+.In stdnoreturn.h
+features introduced
 in C11
 .It
 Remove trigraph support
