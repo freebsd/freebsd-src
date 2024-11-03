@@ -342,7 +342,7 @@ _Static_assert(sizeof(struct amdiommu_dte) == 8 * sizeof(uint32_t), "DTE");
 #define	AMDIOMMU_DTE_SYSMGT_T		0x0	/* Translated */
 
 #define	AMDIOMMU_DTE_GPM_4LV		0x0	/* 4 Level */
-#define	AMDIOMMU_DTE_GPM_5LV		0x1	/* 4 Level */
+#define	AMDIOMMU_DTE_GPM_5LV		0x1	/* 5 Level */
 #define	AMDIOMMU_DTE_GPM_RSRV1		0x2
 #define	AMDIOMMU_DTE_GPM_RSRV2		0x3
 
