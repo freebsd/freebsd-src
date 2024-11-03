@@ -626,7 +626,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 		if (sctp_ifap->ifn_p) {
 			if (ifn_index != sctp_ifap->ifn_p->ifn_index ||
 			    ifn != sctp_ifap->ifn_p->ifn_p) {
-				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d (p) ifname:%s - ignoring delete\n",
+				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d (%p) ifname:%s - ignoring delete\n",
 				    sctp_ifap->ifn_p->ifn_index,
 				    sctp_ifap->ifn_p->ifn_p,
 				    sctp_ifap->ifn_p->ifn_name);
