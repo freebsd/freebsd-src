@@ -229,7 +229,6 @@ enum {
 
 #define DSP_DEFAULT_SPEED	8000
 
-extern int pcm_veto_load;
 extern int snd_unit;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;

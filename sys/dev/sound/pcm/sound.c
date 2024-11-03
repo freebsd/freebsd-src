@@ -48,8 +48,6 @@
 
 devclass_t pcm_devclass;
 
-int pcm_veto_load = 1;
-
 int snd_unit = -1;
 
 static int snd_unit_auto = -1;
@@ -461,12 +459,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
 	struct snddev_info *d;
 	int i;
-
-	if (pcm_veto_load) {
-		device_printf(dev, "disabled due to an error while initialising: %d\n", pcm_veto_load);
-
-		return EINVAL;
-	}
 
 	d = device_get_softc(dev);
 	d->dev = dev;
