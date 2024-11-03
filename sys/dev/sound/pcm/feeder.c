@@ -68,9 +68,6 @@ feeder_register_root(void *p)
 	fte->idx = feedercnt;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
 	feedercnt++;
-
-	/* we've got our root feeder so don't veto pcm loading anymore */
-	pcm_veto_load = 0;
 }
 
 void
@@ -465,6 +462,10 @@ static struct feeder_class feeder_root_class = {
 	.desc =		NULL,
 	.data =		NULL,
 };
+/*
+ * Register the root feeder first so that pcm_addchan() and subsequent
+ * functions can use it.
+ */
 SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register_root,
     &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);
