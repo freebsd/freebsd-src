@@ -34,14 +34,11 @@
 
 typedef struct intsrc interrupt_t;
 
+#include <sys/interrupt.h>
+
 /* FreeBSD standard interrupt controller interface */
 
-#include <sys/_cpuset.h>
-#include <sys/interrupt.h>
-#include <sys/kobj.h>
 #include <sys/types.h>
-
-DECLARE_CLASS(pic_base_class);
 
 typedef struct { device_t next, prev; } pic_base_softc_t;
 
