@@ -2130,13 +2130,14 @@ emu_pci_attach(device_t dev)
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
 
-	if (pcm_register(dev, sc, sc->nchans, gotmic ? 3 : 2)) goto bad;
+	pcm_init(dev, sc);
 	for (i = 0; i < sc->nchans; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
 	for (i = 0; i < (gotmic ? 3 : 2); i++)
 		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 
 	return 0;
 
