@@ -2217,16 +2217,14 @@ void
 crcopy(struct ucred *dest, struct ucred *src)
 {
 
+	/*
+	 * Ideally, 'cr_ngroups' should be moved out of 'struct ucred''s bcopied
+	 * area, but this would break the ABI, so is deferred until there is
+	 * a compelling need to change it.
+	 */
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
-	/*
-	 * Avoids an assertion in crsetgroups() -> crextend().  Ideally,
-	 * 'cr_ngroups' should be moved out of 'struct ucred''s bcopied area,
-	 * but this would break the ABI, so is deferred until there is a real
-	 * need to change the ABI.
-	 */
-	dest->cr_ngroups = 0;
 	dest->cr_flags = src->cr_flags;
 	crsetgroups(dest, src->cr_ngroups, src->cr_groups);
 	uihold(dest->cr_uidinfo);
@@ -2475,6 +2473,13 @@ crsetgroups(struct ucred *cr, int ngrp, const gid_t *groups)
 
 	if (ngrp > ngroups_max + 1)
 		ngrp = ngroups_max + 1;
+	/*
+	 * crextend() asserts that groups are not set, as it may allocate a new
+	 * backing storage without copying the content of the old one.  Since we
+	 * are going to install a completely new set anyway, signal that we
+	 * consider the old ones thrown away.
+	 */
+	cr->cr_ngroups = 0;
 	crextend(cr, ngrp);
 	crsetgroups_internal(cr, ngrp, groups);
 	groups_normalize(&cr->cr_ngroups, cr->cr_groups);
