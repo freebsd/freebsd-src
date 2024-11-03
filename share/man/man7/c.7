@@ -112,9 +112,12 @@ development of the language did not stop.
 .Pp
 The ISO C standard was later extended with an amendment as
 ISO/IEC 9899/AMD1 in 1995.
-This contained, for example, the wide-character support in <wchar.h> and
-<wctype.h>, and also restricted character set support via diagraphs and
-<iso646.h>.
+This contained, for example, the wide-character support in
+.In wchar.h
+and
+.In wctype.h ,
+and also restricted character set support via diagraphs and
+.In iso646.h .
 This amendment is usually referred to as C95.
 Two technical corrigenda were also published: Technical Corrigendum 1 as
 ISO/IEC 9899/COR1 in 1994 and Technical Corrigendum 2 as ISO/IEC 9899/COR2
@@ -130,18 +133,23 @@ The improvements include (but are not limited to) the following:
 .Bl -bullet -offset indent
 .It
 digraphs, trigraphs, and alternative spellings for the operators that
-use non-ISO646 characters in <iso646.h>
+use non-ISO646 characters in
+.In iso646.h
 .It
-extended multibyte and wide character library support in <wchar.h> and
-<wctype.h>
+extended multibyte and wide character library support in
+.In wchar.h
+and
+.In wctype.h
 .It
 variable length arrays
 .It
 flexible array members
 .It
-complex (and imaginary) number arithmetic support in <complex.h>
+complex (and imaginary) number arithmetic support in
+.In complex.h
 .It
-type-generic math macros in <tgmath.h>
+type-generic math macros in
+.In tgmath.h
 .It
 the long long int type and library functions
 .It
@@ -157,15 +165,24 @@ BCPL style single-line comments
 .It
 allow mixed declarations and code
 .It
-the vscanf family of functions in <stdio.h> and <wchar.h>
+the
+.Fn vscanf
+family of functions in
+.In stdio.h
+and
+.In wchar.h
 .It
 allow trailing comma in enum declaration
 .It
 inline functions
 .It
-the snprintf family of functions in <stdio.h>
+the
+.Fn snprintf
+family of functions in
+.In stdio.h
 .It
-boolean type and macros in <stdbool.h>
+boolean type and macros in
+.In stdbool.h
 .It
 empty macro arguments
 .It
@@ -173,7 +190,8 @@ _Pragma preprocessing operator
 .It
 __func__ predefined identifier
 .It
-va_copy macro in <stdarg.h>
+va_copy macro in
+.In stdarg.h
 .It
 additional strftime conversion specifiers
 .El
@@ -185,24 +203,34 @@ and ISO/IEC 9899:1999/COR3:2007.
 The improvements include (but are not limited to) the following:
 .Bl -bullet -offset indent
 .It
-support for multiple threads of execution and atomic operations in <threads.h>
-and <stdatomic.h>
+support for multiple threads of execution and atomic operations in
+.In threads.h
+and
+.In stdatomic.h
 .It
-additional floating-point characteristic macros in <float.h>
+additional floating-point characteristic macros in
+.In float.h
 .It
-querying and specifying alignment of objects in <stdalign.h> and <stdlib.h>
+querying and specifying alignment of objects in
+.In stdalign.h
+and
+.In stdlib.h
 .It
-Unicode character types and functions in <uchar.h>
+Unicode character types and functions in
+.In uchar.h
 .It
 type-generic expressions
 .It
-static assertions in <assert.h>
+static assertions in
+.In assert.h
 .It
 anonymous structures and unions
 .It
-remove the gets function from <stdio.h>
+remove the gets function from
+.In stdio.h
 .It
-add the aligned_alloc, at_quick_exit, and quick_exit functions in <stdlib.h>
+add the aligned_alloc, at_quick_exit, and quick_exit functions in
+.In stdlib.h
 .El
 .Pp
 C11 was later superseded by ISO/IEC 9899:2018, also known as C17 which was
