@@ -1317,7 +1317,6 @@ static struct x86_iommu dmar_x86_iommu = {
 	.domain_unload = dmar_domain_unload,
 	.get_ctx = dmar_get_ctx,
 	.free_ctx_locked = dmar_free_ctx_locked_method,
-	.free_ctx = dmar_free_ctx_method,
 	.find = dmar_find_method,
 	.alloc_msi_intr = dmar_alloc_msi_intr,
 	.map_msi_intr = dmar_map_msi_intr,

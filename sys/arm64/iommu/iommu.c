@@ -375,32 +375,19 @@ void
 iommu_free_ctx_locked(struct iommu_unit *iommu, struct iommu_ctx *ioctx)
 {
 	struct bus_dma_tag_iommu *tag;
+	int error;
 
 	IOMMU_ASSERT_LOCKED(iommu);
 
 	tag = ioctx->tag;
 
 	IOMMU_CTX_FREE(iommu->dev, ioctx);
-
-	free(tag, M_IOMMU);
-}
-
-void
-iommu_free_ctx(struct iommu_ctx *ioctx)
-{
-	struct iommu_unit *iommu;
-	struct iommu_domain *iodom;
-	int error;
-
-	iodom = ioctx->domain;
-	iommu = iodom->iommu;
-
-	IOMMU_LOCK(iommu);
-	iommu_free_ctx_locked(iommu, ioctx);
 	IOMMU_UNLOCK(iommu);
 
+	free(tag, M_IOMMU);
+
 	/* Since we have a domain per each ctx, remove the domain too. */
-	error = iommu_domain_free(iodom);
+	error = iommu_domain_free(ioctx->domain);
 	if (error)
 		device_printf(iommu->dev, "Could not free a domain\n");
 }
