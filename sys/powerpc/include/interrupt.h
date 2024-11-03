@@ -36,10 +36,6 @@ typedef struct powerpc_intr interrupt_t;
 
 /* FreeBSD standard interrupt controller interface */
 
-#include <sys/kobj.h>
-
-DECLARE_CLASS(pic_base_class);
-
 DECLARE_CLASS(pic_hw_class);
 
 #define	INTR_VECTORS	256
