@@ -166,8 +166,6 @@ struct pcm_channel {
 
 	int16_t volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
   	int8_t muted[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
-
-	void *data1, *data2;
 };
 
 #define CHN_HEAD(x, y)			&(x)->y.head
