@@ -293,6 +293,7 @@ pcm_setstatus(device_t dev, char *str)
 	vchan_setmaxauto(d, snd_maxautovchans);
 
 	strlcpy(d->status, str, SND_STATUSLEN);
+	sndstat_register(dev, d->status);
 
 	PCM_LOCK(d);
 
@@ -508,8 +509,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;
-
-	sndstat_register(dev, d->status);
 
 	return (0);
 }
