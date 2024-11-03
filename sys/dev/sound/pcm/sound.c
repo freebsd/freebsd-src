@@ -316,7 +316,7 @@ pcm_setstatus(device_t dev, char *str)
 	else if (snd_unit_auto == 1)
 		snd_unit = pcm_best_unit(snd_unit);
 
-	return (0);
+	return (dsp_make_dev(dev));
 }
 
 uint32_t
@@ -433,6 +433,15 @@ pcm_sysinit(device_t dev)
 
 	mode = pcm_mode_init(d);
 
+	sysctl_ctx_init(&d->play_sysctl_ctx);
+	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "play",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "playback channels node");
+	sysctl_ctx_init(&d->rec_sysctl_ctx);
+	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "recording channels node");
+
 	/* XXX: a user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -497,21 +506,12 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	if ((numplay == 0 || numrec == 0) && numplay != numrec)
 		d->flags |= SD_F_SIMPLEX;
 
-	sysctl_ctx_init(&d->play_sysctl_ctx);
-	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "play",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "playback channels node");
-	sysctl_ctx_init(&d->rec_sysctl_ctx);
-	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "recording channels node");
-
 	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;
 
 	sndstat_register(dev, d->status);
 
-	return (dsp_make_dev(dev));
+	return (0);
 }
 
 int
