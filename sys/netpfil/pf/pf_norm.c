@@ -2224,6 +2224,7 @@ pf_scrub(struct pf_pdesc *pd)
 	}
 
 	/* random-id, but not for fragments */
+#ifdef INET
 	if (pd->af == AF_INET &&
 	    pd->act.flags & PFSTATE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
 		uint16_t ip_id = h->ip_id;
@@ -2231,5 +2232,6 @@ pf_scrub(struct pf_pdesc *pd)
 		ip_fillid(h);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
+#endif
 }
 #endif
