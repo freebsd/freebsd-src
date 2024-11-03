@@ -2480,10 +2480,7 @@ envy24ht_pci_attach(device_t dev)
 	mixer_init(dev, &envy24htmixer_class, sc);
 
 	/* set channel information */
-	/* err = pcm_register(dev, sc, 5, 2 + sc->adcn); */
-	err = pcm_register(dev, sc, 1, 2 + sc->adcn);
-	if (err)
-		goto bad;
+	pcm_init(dev, sc);
 	sc->chnum = 0;
 	/* for (i = 0; i < 5; i++) { */
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24htchan_class, sc);
@@ -2503,7 +2500,8 @@ envy24ht_pci_attach(device_t dev)
 	    rman_get_end(sc->mt) - rman_get_start(sc->mt) + 1,
 	    rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 
 	return 0;
 

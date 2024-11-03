@@ -305,8 +305,7 @@ dummy_attach(device_t dev)
 	};
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
-	if (pcm_register(dev, sc, DUMMY_NPCHAN, DUMMY_NRCHAN))
-		return (ENXIO);
+	pcm_init(dev, sc);
 	for (i = 0; i < DUMMY_NPCHAN; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &dummy_chan_class, sc);
 	for (i = 0; i < DUMMY_NRCHAN; i++)
@@ -314,7 +313,8 @@ dummy_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		return (ENXIO);
 	mixer_init(dev, &dummy_mixer_class, sc);
 	callout_init(&sc->callout, 1);
 
