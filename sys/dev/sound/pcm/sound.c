@@ -465,7 +465,8 @@ pcm_sysinit(device_t dev)
 }
 
 int
-pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
+pcm_register(device_t dev, void *devinfo, int numplay __unused,
+    int numrec __unused)
 {
 	struct snddev_info *d;
 	int i;
@@ -502,13 +503,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	CHN_INIT(d, channels.pcm);
 	CHN_INIT(d, channels.pcm.busy);
 	CHN_INIT(d, channels.pcm.opened);
-
-	/* XXX This is incorrect, but lets play along for now. */
-	if ((numplay == 0 || numrec == 0) && numplay != numrec)
-		d->flags |= SD_F_SIMPLEX;
-
-	if (numplay > 0 || numrec > 0)
-		d->flags |= SD_F_AUTOVCHAN;
 
 	return (0);
 }
