@@ -323,6 +323,7 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 {
 	int client_s, server_s, pid, argv_idx;
 	char execname[] = "/usr/libexec/tftpd";
+	char b_flag_str[] = "-b";
 	char s_flag_str[] = "-s";
 	char w_flag_str[] = "-w";
 	char pwd[MAXPATHLEN];
@@ -382,6 +383,7 @@ setup(struct sockaddr_storage *to, uint16_t idx)
 		bzero(argv, sizeof(argv));
 		argv[0] = execname;
 		argv_idx = 1;
+		argv[argv_idx++] = b_flag_str;
 		if (w_flag)
 			argv[argv_idx++] = w_flag_str;
 		if (s_flag)
