@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -60,10 +61,6 @@
 
 #include <rpc/types.h>
 #include <rpc/auth.h>
-
-#include <fs/nfs/nfsport.h>
-
-NFSD_VNET_DECLARE(gid_t, nfsrv_defaultgid);
 
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
@@ -138,7 +135,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		np->netc_anon = crget();
 		np->netc_anon->cr_uid = argp->ex_uid;
 		crsetgroups_fallback(np->netc_anon, argp->ex_ngroups,
-		    argp->ex_groups, NFSD_VNET(nfsrv_defaultgid));
+		    argp->ex_groups, GID_NOGROUP);
 		np->netc_anon->cr_prison = &prison0;
 		prison_hold(np->netc_anon->cr_prison);
 		np->netc_numsecflavors = argp->ex_numsecflavors;
@@ -217,7 +214,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_anon = crget();
 	np->netc_anon->cr_uid = argp->ex_uid;
 	crsetgroups_fallback(np->netc_anon, argp->ex_ngroups, argp->ex_groups,
-	    NFSD_VNET(nfsrv_defaultgid));
+	    GID_NOGROUP);
 	np->netc_anon->cr_prison = &prison0;
 	prison_hold(np->netc_anon->cr_prison);
 	np->netc_numsecflavors = argp->ex_numsecflavors;
