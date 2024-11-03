@@ -258,17 +258,18 @@ SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
  * called.
  */
 int
-intr_register_source(unsigned int vector, struct intsrc *isrc)
+intr_register_source(unsigned int vector, struct intsrc *isrc, device_t pic)
 {
 	int error;
 
-	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
+	KASSERT(intr_pic_registered(pic), ("unregistered PIC"));
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
+	isrc->is_pic = pic;
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] == NULL)
-		error = intr_event_init_(&isrc->is_event, isrc->is_pic,
-		    vector, 0, "irq%d:", vector);
+		error = intr_event_init_(&isrc->is_event, pic, vector, 0,
+		    "irq%d:", vector);
 	else
 		error = EEXIST;
 	if (error) {
