@@ -193,12 +193,11 @@ sctp_find_ifn(void *ifn, uint32_t ifn_index)
 	struct sctp_ifnlist *hash_ifn_head;
 
 	SCTP_IPI_ADDR_LOCK_ASSERT();
+	KASSERT(ifn != NULL, ("sctp_find_ifn(NULL, %u) called", ifn_index));
 	hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 	LIST_FOREACH(sctp_ifnp, hash_ifn_head, next_bucket) {
-		if (sctp_ifnp->ifn_index == ifn_index) {
-			break;
-		}
-		if (ifn != NULL && sctp_ifnp->ifn_p == ifn) {
+		if (sctp_ifnp->ifn_index == ifn_index &&
+		    sctp_ifnp->ifn_p == ifn) {
 			break;
 		}
 	}
@@ -439,7 +438,8 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	if (sctp_ifap != NULL) {
 		/* The address being added is already or still known. */
 		if (sctp_ifap->ifn_p != NULL) {
-			if (sctp_ifap->ifn_p->ifn_index == ifn_index) {
+			if (sctp_ifap->ifn_p->ifn_index == ifn_index &&
+			    sctp_ifap->ifn_p->ifn_p == ifn) {
 				SCTPDBG(SCTP_DEBUG_PCB4,
 				    "Using existing ifn %s (0x%x) for ifa %p\n",
 				    sctp_ifap->ifn_p->ifn_name, ifn_index,
@@ -578,7 +578,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			 */
 			SCTPDBG(SCTP_DEBUG_PCB4, "Lost an address change?\n");
 			/* Opps, must decrement the count */
-			sctp_del_addr_from_vrf(vrf_id, addr, ifn_index);
+			sctp_del_addr_from_vrf(vrf_id, addr, ifn, ifn_index);
 			return (NULL);
 		}
 		SCTP_INCR_LADDR_COUNT();
@@ -603,7 +603,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 
 void
 sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
-    uint32_t ifn_index)
+    void *ifn, uint32_t ifn_index)
 {
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap;
@@ -624,9 +624,12 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	if (sctp_ifap != NULL) {
 		/* Validate the delete */
 		if (sctp_ifap->ifn_p) {
-			if (ifn_index != sctp_ifap->ifn_p->ifn_index) {
-				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d ifname:%s - ignoring delete\n",
-				    sctp_ifap->ifn_p->ifn_index, sctp_ifap->ifn_p->ifn_name);
+			if (ifn_index != sctp_ifap->ifn_p->ifn_index ||
+			    ifn != sctp_ifap->ifn_p->ifn_p) {
+				SCTPDBG(SCTP_DEBUG_PCB4, "ifn:%d (p) ifname:%s - ignoring delete\n",
+				    sctp_ifap->ifn_p->ifn_index,
+				    sctp_ifap->ifn_p->ifn_p,
+				    sctp_ifap->ifn_p->ifn_name);
 				SCTP_IPI_ADDR_WUNLOCK();
 				return;
 			}
