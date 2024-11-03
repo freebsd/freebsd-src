@@ -30,13 +30,22 @@
 #define _SYS_INTERRUPT_H_
 #ifdef	_KERNEL
 
+#include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
 #include <sys/_lock.h>
 #include <sys/ck.h>
+#include <sys/kobj.h>
 #include <sys/mutex.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
+
+/*
+ * Common base class for PICs.  All FreeBSD architectures provide this,
+ * so present in this header.
+ */
+
+DECLARE_CLASS(pic_base_class);
 
 struct intr_event;
 struct intr_thread;
