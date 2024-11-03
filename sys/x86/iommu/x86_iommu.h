@@ -81,7 +81,6 @@ struct x86_iommu {
 	    device_t dev, uint16_t rid, bool id_mapped, bool rmrr_init);
 	void (*free_ctx_locked)(struct iommu_unit *iommu,
 	    struct iommu_ctx *context);
-	void (*free_ctx)(struct iommu_ctx *context);
 	struct iommu_unit *(*find)(device_t dev, bool verbose);
 	int (*alloc_msi_intr)(device_t src, u_int *cookies, u_int count);
 	int (*map_msi_intr)(device_t src, u_int cpu, u_int vector,

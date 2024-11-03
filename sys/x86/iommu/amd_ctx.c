@@ -399,16 +399,6 @@ amdiommu_free_ctx_locked(struct amdiommu_unit *unit, struct amdiommu_ctx *ctx)
 }
 
 static void
-amdiommu_free_ctx(struct amdiommu_ctx *ctx)
-{
-	struct amdiommu_unit *unit;
-
-	unit = CTX2AMD(ctx);
-	AMDIOMMU_LOCK(unit);
-	amdiommu_free_ctx_locked(unit, ctx);
-}
-
-static void
 amdiommu_unref_domain_locked(struct amdiommu_unit *unit,
     struct amdiommu_domain *domain)
 {
@@ -627,13 +617,4 @@ amdiommu_free_ctx_locked_method(struct iommu_unit *iommu,
 	unit = IOMMU2AMD(iommu);
 	ctx = IOCTX2CTX(context);
 	amdiommu_free_ctx_locked(unit, ctx);
-}
-
-void
-amdiommu_free_ctx_method(struct iommu_ctx *context)
-{
-	struct amdiommu_ctx *ctx;
-
-	ctx = IOCTX2CTX(context);
-	amdiommu_free_ctx(ctx);
 }
