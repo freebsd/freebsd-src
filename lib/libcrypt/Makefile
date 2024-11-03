@@ -45,8 +45,9 @@ libcrypt.ald: ${.CURDIR}/${STATIC_LDSCRIPT}
 all: ${STATIC_LDSCRIPT} libcrypt.ald
 
 install-libcrypt.a: libcrypt.ald
+	# XXX JL
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} libcrypt.ald ${DESTDIR}${_LIBDIR}/lib${LIB}.a
+	    ${_INSTALLFLAGS} ${DESTDIR}${_LIBDIR}/lib${LIB}${_STATICLIB_SUFFIX}.a ${DESTDIR}${_LIBDIR}/lib${LIB}.a
 
 realinstall: install-libcrypt.a
 
