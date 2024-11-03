@@ -222,7 +222,6 @@ struct amdiommu_ctx *amdiommu_find_ctx_locked(struct amdiommu_unit *unit,
     uint16_t rid);
 void amdiommu_free_ctx_locked_method(struct iommu_unit *iommu,
     struct iommu_ctx *context);
-void amdiommu_free_ctx_method(struct iommu_ctx *context);
 struct amdiommu_domain *amdiommu_find_domain(struct amdiommu_unit *unit,
     uint16_t rid);
 

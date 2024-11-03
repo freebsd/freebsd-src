@@ -1072,7 +1072,6 @@ static struct x86_iommu amd_x86_iommu = {
 	.domain_unload = amdiommu_domain_unload,
 	.get_ctx = amdiommu_get_ctx,
 	.free_ctx_locked = amdiommu_free_ctx_locked_method,
-	.free_ctx = amdiommu_free_ctx_method,
 	.alloc_msi_intr = amdiommu_alloc_msi_intr,
 	.map_msi_intr = amdiommu_map_msi_intr,
 	.unmap_msi_intr = amdiommu_unmap_msi_intr,
