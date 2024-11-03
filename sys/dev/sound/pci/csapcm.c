@@ -832,14 +832,14 @@ pcmcsa_attach(device_t dev)
 	csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
 	csa_active(csa, -1);
 
-	if (pcm_register(dev, csa, 1, 1)) {
+	pcm_init(dev, csa);
+	pcm_addchan(dev, PCMDIR_REC, &csachan_class, csa);
+	pcm_addchan(dev, PCMDIR_PLAY, &csachan_class, csa);
+	if (pcm_register(dev, status)) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
-	pcm_addchan(dev, PCMDIR_REC, &csachan_class, csa);
-	pcm_addchan(dev, PCMDIR_PLAY, &csachan_class, csa);
-	pcm_setstatus(dev, status);
 
 	return (0);
 }

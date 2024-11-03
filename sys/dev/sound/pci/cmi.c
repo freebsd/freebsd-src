@@ -982,8 +982,7 @@ cmi_attach(device_t dev)
 	if (mixer_init(dev, &cmi_mixer_class, sc))
 		goto bad;
 
-	if (pcm_register(dev, sc, 1, 1))
-		goto bad;
+	pcm_init(dev, sc);
 
 	cmi_initsys(sc);
 
@@ -993,7 +992,8 @@ cmi_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq),
 		 device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 
 	DEB(printf("cmi_attach: succeeded\n"));
 	return 0;

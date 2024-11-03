@@ -1026,11 +1026,11 @@ ess_attach(device_t dev)
 		rman_get_start(sc->irq),
 		device_get_nameunit(device_get_parent(dev)));
 
-    	if (pcm_register(dev, sc, 1, 1))
-		goto no;
+	pcm_init(dev, sc);
       	pcm_addchan(dev, PCMDIR_REC, &esschan_class, sc);
 	pcm_addchan(dev, PCMDIR_PLAY, &esschan_class, sc);
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto no;
 
     	return 0;
 

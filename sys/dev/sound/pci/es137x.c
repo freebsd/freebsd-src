@@ -1861,13 +1861,13 @@ es_pci_attach(device_t dev)
 	    rman_get_start(es->reg), rman_get_start(es->irq),
 	    device_get_nameunit(device_get_parent(dev)));
 
-	if (pcm_register(dev, es, numplay, 1))
-		goto bad;
+	pcm_init(dev, es);
 	for (i = 0; i < numplay; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, ct, es);
 	pcm_addchan(dev, PCMDIR_REC, ct, es);
 	es_init_sysctls(dev);
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 	es->escfg = ES_SET_GP(es->escfg, 0);
 	if (numplay == 1)
 		device_printf(dev, "<Playback: DAC%d / Record: ADC>\n",
