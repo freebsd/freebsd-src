@@ -1099,14 +1099,12 @@ amdiommu_print_domain(struct amdiommu_domain *domain, bool show_mappings)
 
 	iodom = DOM2IODOM(domain);
 
-#if 0
 	db_printf(
-	    "  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"
+	    "  @%p dom %d pglvl %d end %jx refs %d\n"
 	    "   ctx_cnt %d flags %x pgobj %p map_ents %u\n",
-	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
+	    domain, domain->domain, domain->pglvl,
 	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
 	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
-#endif
 
 	iommu_db_domain_print_contexts(iodom);
 
