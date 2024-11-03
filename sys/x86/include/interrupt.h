@@ -138,7 +138,7 @@ struct intsrc *intr_lookup_source(int vector);
 device_t	intr_create_pic(const char *name, u_int unit,
 		    struct kobj_class *driver);
 void	intr_register_pic(x86pic_t pic);
-int	intr_register_source(u_int vector, struct intsrc *isrc);
+int	intr_register_source(u_int vector, struct intsrc *isrc, device_t pic);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
