@@ -576,8 +576,10 @@ static bool
 pf_is_loopback(sa_family_t af, struct pf_addr *addr)
 {
 	switch (af) {
+#ifdef INET
 	case AF_INET:
 		return IN_LOOPBACK(ntohl(addr->v4.s_addr));
+#endif
 	case AF_INET6:
 		return IN6_IS_ADDR_LOOPBACK(&addr->v6);
 	default:
