@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\"
-.Dd May 8, 2024
+.Dd November 3, 2024
 .Dt TFTPD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm tftpd
-.Op Fl CcdlnoSw
+.Op Fl bCcdlnoSw
 .Op Fl F Ar strftime-format
 .Op Fl s Ar directory
 .Op Fl U Ar umask
@@ -121,6 +121,16 @@ option is specified.
 .Pp
 The options are:
 .Bl -tag -width Ds
+.It Fl b
+By default,
+.Nm
+expects an initial message to be available on its input socket.
+If no data is available, the server exits immediately.
+If
+.Fl b
+is specified,
+.Nm
+will block waiting for the initial message.
 .It Fl c
 Changes the default root directory of a connecting host via
 .Xr chroot 2
