@@ -698,8 +698,9 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	 */
 	bzero(io->io_pins, sizeof(struct ioapic_intsrc) * numintr);
 	mtx_lock_spin(&icu_lock);
+	/* stash for intr_register_pic() and intr_register_source() calls */
+	io->io_pins->io_intsrc.is_pic = io_pic;
 	for (i = 0, intpin = io->io_pins; i < numintr; i++, intpin++) {
-		intpin->io_intsrc.is_pic = io_pic;
 		intpin->io_intpin = i;
 		intpin->io_irq = intbase + i;
 
@@ -942,11 +943,13 @@ ioapic_register_sources(x86pic_t pic)
 {
 	struct ioapic_intsrc *pin;
 	struct ioapic *io = X86PIC_PIC(ioapic, pic);
+	device_t io_pic = io->io_pins->io_intsrc.is_pic;
 	int i;
 
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
 		if (pin->io_irq >= 0)
-			intr_register_source(pin->io_irq, &pin->io_intsrc);
+			intr_register_source(pin->io_irq, &pin->io_intsrc,
+			    io_pic);
 	}
 }
 

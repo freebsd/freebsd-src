@@ -374,8 +374,7 @@ msi_create_source(void)
 	mtx_unlock(&msi_lock);
 
 	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
-	msi->msi_intsrc.is_pic = X86PIC_PTR(msi_pic);
-	intr_register_source(irq, &msi->msi_intsrc);
+	intr_register_source(irq, &msi->msi_intsrc, msi_pic);
 	nexus_add_irq(irq);
 }
 
