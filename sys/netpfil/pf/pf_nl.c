@@ -1264,7 +1264,7 @@ pf_handle_natlook(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct pf_state_key	*sk;
 	struct pf_kstate	*state;
 	struct genlmsghdr	*ghdr_new;
-	int			 error, m;
+	int			 error, m = 0;
 	int			 sidx, didx;
 
 	error = nl_parse_nlmsg(hdr, &natlook_parser, npt, &attrs);
