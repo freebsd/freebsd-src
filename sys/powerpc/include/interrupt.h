@@ -32,13 +32,11 @@
 
 typedef struct powerpc_intr interrupt_t;
 
+#include <sys/interrupt.h>
+
 /* FreeBSD standard interrupt controller interface */
 
-#include <sys/_types_interrupt.h>
-#include <sys/kobj.h>
 #include <sys/types.h>
-
-DECLARE_CLASS(pic_base_class);
 
 #define	INTR_VECTORS	256
 
@@ -51,9 +49,6 @@ DECLARE_CLASS(pic_base_class);
 #define	MSI_INTEL_ADDR_BASE		0xfee00000
 
 extern device_t root_pic;
-
-struct trapframe;
-struct intr_handler;
 
 driver_filter_t powerpc_ipi_handler;
 
