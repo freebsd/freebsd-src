@@ -255,10 +255,11 @@ atpic_register_sources(x86pic_t pic)
 
 	/* Loop through all interrupt sources and add them. */
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
-		ai->at_intsrc.is_pic = atpics[i / 8].at_pic;
-		if (i == ICU_SLAVEID)
+		if (i == ICU_SLAVEID) {
+			ai->at_intsrc.is_pic = atpics[i / 8].at_pic;
 			continue;
-		intr_register_source(i, &ai->at_intsrc);
+		}
+		intr_register_source(i, &ai->at_intsrc, atpics[i / 8].at_pic);
 	}
 }
 
