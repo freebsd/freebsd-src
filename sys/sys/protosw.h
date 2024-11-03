@@ -34,6 +34,7 @@
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
+#include <sys/_types.h>
 #include <sys/queue.h>
 
 /* Forward declare these structures referenced from prototypes below. */
@@ -104,6 +105,8 @@ typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
 typedef int	pr_connectat_t(int, struct socket *, struct sockaddr *,
 		    struct thread *);
 typedef int	pr_aio_queue_t(struct socket *, struct kaiocb *);
+typedef int	pr_chmod_t(struct socket *, __mode_t, struct ucred *,
+		    struct thread *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -144,6 +147,7 @@ struct protosw {
 	pr_flush_t	*pr_flush;	/* XXXGL: merge with pr_shutdown_t! */
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
+	pr_chmod_t	*pr_chmod;	/* fchmod(2) */
 };
 /*#endif*/
 

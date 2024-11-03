@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\"
-.Dd June 24, 2022
+.Dd October 31, 2024
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -78,6 +78,15 @@ This file is
 removed when the socket is closed \(em
 .Xr unlink 2
 must be used to remove the file.
+.Pp
+Prior to binding a socket,
+.Xr fchmod 2
+can be used to set the permissions of the socket file.
+This avoids the race that would otherwise occur between creation of the file
+and a subsequent call to
+.Xr chmod 2 .
+Once the socket is bound to a file name, the permissions of the file can not be
+changed this way.
 .Pp
 The length of
 .Ux Ns -domain
@@ -451,6 +460,7 @@ The order is preserved for writes coming through a particular connection.
 .Sh SEE ALSO
 .Xr connect 2 ,
 .Xr dup 2 ,
+.Xr fchmod 2 ,
 .Xr fcntl 2 ,
 .Xr getsockopt 2 ,
 .Xr listen 2 ,

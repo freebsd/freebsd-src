@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\"
-.Dd March 30, 2021
+.Dd October 31, 2024
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -216,6 +216,13 @@ This makes the system somewhat more secure
 by protecting set-user-id (set-group-id) files
 from remaining set-user-id (set-group-id) if they are modified,
 at the expense of a degree of compatibility.
+.Pp
+While it is normally an error to invoke
+.Fn fchmod
+on a socket, it is possible to do so on
+.Dv AF_LOCAL
+sockets before they are bound to a file name; see
+.Xr unix 4 .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
