@@ -139,7 +139,7 @@ struct vm_object {
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
 			const struct cdev_pager_ops *ops;
-			struct cdev *dev;
+			void *handle;
 		} devp;
 
 		/*

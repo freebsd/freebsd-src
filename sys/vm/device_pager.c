@@ -121,8 +121,8 @@ cdev_pager_lookup(void *handle)
 again:
 	mtx_lock(&dev_pager_mtx);
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
-	if (object != NULL && object->un_pager.devp.dev == NULL) {
-		msleep(&object->un_pager.devp.dev, &dev_pager_mtx,
+	if (object != NULL && object->un_pager.devp.handle == NULL) {
+		msleep(&object->un_pager.devp.handle, &dev_pager_mtx,
 		    PVM | PDROP, "cdplkp", 0);
 		vm_object_deallocate(object);
 		goto again;
@@ -186,8 +186,8 @@ again:
 			object1->type = OBJT_DEAD;
 			vm_object_deallocate(object1);
 			object1 = NULL;
-			if (object->un_pager.devp.dev == NULL) {
-				msleep(&object->un_pager.devp.dev,
+			if (object->un_pager.devp.handle == NULL) {
+				msleep(&object->un_pager.devp.handle,
 				    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
 				vm_object_deallocate(object);
 				goto again;
@@ -221,7 +221,7 @@ again:
 				mtx_lock(&dev_pager_mtx);
 				TAILQ_REMOVE(&dev_pager_object_list, object,
 				    pager_object_list);
-				wakeup(&object->un_pager.devp.dev);
+				wakeup(&object->un_pager.devp.handle);
 				mtx_unlock(&dev_pager_mtx);
 				object->type = OBJT_DEAD;
 				vm_object_deallocate(object);
@@ -231,14 +231,14 @@ again:
 				mtx_lock(&dev_pager_mtx);
 				object->flags |= OBJ_COLORED;
 				object->pg_color = color;
-				object->un_pager.devp.dev = handle;
-				wakeup(&object->un_pager.devp.dev);
+				object->un_pager.devp.handle = handle;
+				wakeup(&object->un_pager.devp.handle);
 			}
 		}
 		MPASS(object1 == NULL);
 	} else {
-		if (object->un_pager.devp.dev == NULL) {
-			msleep(&object->un_pager.devp.dev,
+		if (object->un_pager.devp.handle == NULL) {
+			msleep(&object->un_pager.devp.handle,
 			    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
 			vm_object_deallocate(object);
 			goto again;
@@ -292,7 +292,7 @@ dev_pager_dealloc(vm_object_t object)
 	vm_page_t m;
 
 	VM_OBJECT_WUNLOCK(object);
-	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.dev);
+	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.handle);
 
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
