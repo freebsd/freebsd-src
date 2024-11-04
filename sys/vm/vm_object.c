@@ -2610,7 +2610,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			sp = swap_pager_swapped_pages(obj);
 			kvo->kvo_swapped = sp > UINT32_MAX ? UINT32_MAX : sp;
 		}
-		if (obj->type == OBJT_DEVICE || obj->type == OBJT_MGTDEVICE) {
+		if ((obj->type == OBJT_DEVICE || obj->type == OBJT_MGTDEVICE) &&
+		    (obj->flags & OBJ_CDEVH) != 0) {
 			cdev = obj->un_pager.devp.handle;
 			if (cdev != NULL) {
 				csw = dev_refthread(cdev, &ref);
