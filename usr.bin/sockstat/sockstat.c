@@ -83,6 +83,7 @@ static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_C;		/* Show congestion control */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_f;		/* Show FIB numbers */
 static int	 opt_I;		/* Show spliced socket addresses */
 static int	 opt_i;		/* Show inp_gencnt */
 static int	 opt_j;		/* Show specified jail */
@@ -141,6 +142,7 @@ struct sock {
 	int family;
 	int proto;
 	int state;
+	int fibnum;
 	const char *protoname;
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char cc[TCP_CA_NAME_MAX];
@@ -772,6 +774,7 @@ gather_inet(int proto)
 		sock->splice_socket = so->so_splice_so;
 		sock->proto = proto;
 		sock->inp_gencnt = xip->inp_gencnt;
+		sock->fibnum = so->so_fibnum;
 		if (xip->inp_vflag & INP_IPV4) {
 			sock->family = AF_INET;
 			sockaddr(&laddr->address, sock->family,
@@ -1205,6 +1208,12 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (opt_f) {
+			while (pos < offset)
+				pos += xprintf(" ");
+			pos += xprintf("%d", s->fibnum);
+			offset += 7;
+		}
 		if (opt_I) {
 			if (s->splice_socket != 0) {
 				struct sock *sp;
@@ -1330,6 +1339,9 @@ display(void)
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_f)
+			/* RT_MAXFIBS is 65535. */
+			printf(" %-6s", "FIB");
 		if (opt_I)
 			printf(" %-*s", opt_w ? 45 : 21, "SPLICE ADDRESS");
 		if (opt_i)
@@ -1454,9 +1466,8 @@ jail_getvnet(int jid)
 static void
 usage(void)
 {
-	fprintf(stderr,
-    "usage: sockstat [-46CcIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
-	exit(1);
+	errx(1,
+    "usage: sockstat [-46CcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
 }
 
 int
@@ -1470,7 +1481,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46CcIij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46CcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1483,6 +1494,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'f':
+			opt_f = 1;
 			break;
 		case 'I':
 			opt_I = 1;
