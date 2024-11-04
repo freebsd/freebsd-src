@@ -77,7 +77,6 @@ static void dmar_unref_domain_locked(struct dmar_unit *dmar,
 static void dmar_domain_destroy(struct dmar_domain *domain);
 
 static void dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx);
-static void dmar_free_ctx(struct dmar_ctx *ctx);
 
 static void
 dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
