@@ -31,6 +31,11 @@
 #	If the '-o' flag is given, tracing is turned off unless there
 #	was a matched "tag", useful for functions too noisy to tace.
 #
+#	Further; when we set "DEBUG_ON" if we find
+#	"$DEBUG_ON:debug_add:tag" in "DEBUG_SH" we will 
+#	add the new "tag" to "DEBUG_SH" so it only has effect after that
+#	point.
+#	
 #	DebugOff turns tracing on if any "tag" matches "DEBUG_OFF" or
 #	off if any "tag" matches "DEBUG_ON". This allows nested
 #	functions to not interfere with each other.
@@ -78,7 +83,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.41 2024/10/22 17:57:22 sjg Exp $
+#	$Id: debug.sh,v 1.42 2024/10/30 18:23:19 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -97,29 +102,81 @@ _DEBUG_SH=:
 
 Myname=${Myname:-`basename $0 .sh`}
 
-# We want to use local if we can
-# if isposix-shell.sh has been sourced isPOSIX_SHELL will be set
-# as will local
-case "$local" in
-local|:) ;;
-*)
-	if (echo ${PATH%:*}) > /dev/null 2>&1; then
-		local=local
-	else
-		local=:
-	fi
-	;;
-esac
-
 DEBUGGING=
 DEBUG_DO=:
 DEBUG_SKIP=
 export DEBUGGING DEBUG_DO DEBUG_SKIP
 
+case "$isPOSIX_SHELL,$local" in
+:,:|:,local|false,:) ;;		# sane
+*)	# this is the bulk of isposix-shell.sh
+	if (echo ${PATH%:*}) > /dev/null 2>&1; then
+		# true should be a builtin, : certainly is
+		isPOSIX_SHELL=:
+		# you need to eval $local var
+		local=local
+		: KSH_VERSION=$KSH_VERSION
+		case "$KSH_VERSION" in
+		Version*) local=: ;; # broken
+		esac
+	else
+		isPOSIX_SHELL=false
+		local=:
+		false() {
+			return 1
+		}
+	fi
+	;;
+esac
+
+is_posix_shell() {
+	$isPOSIX_SHELL
+	return
+}
+
+    
+##
+# _debugAdd match
+#
+# Called from _debugOn when $match also appears in $DEBUG_SH with
+# a suffix of :debug_add:tag we will add tag to DEBUG_SH
+#
+_debugAdd() {
+	eval $local tag
+
+	for tag in `IFS=,; echo $DEBUG_SH`
+	do
+		: tag=$tag
+		case "$tag" in
+		$1:debug_add:*)
+			if is_posix_shell; then
+				tag=${tag#$1:debug_add:}
+			else
+				tag=`expr $tag : '.*:debug_add:\(.*\)'`
+			fi
+			case ",$DEBUG_SH," in
+			*,$tag,*) ;;
+			*)	set -x
+				: _debugAdd $1
+				DEBUG_SH=$DEBUG_SH,$tag
+				set +x
+				;;
+			esac
+			;;
+		esac
+	done
+	export DEBUG_SH
+}
+
+
 ##
 # _debugOn match first
 #
 # Actually turn on tracing, set $DEBUG_ON=$match
+#
+# Check if $DEBUG_SH contains $match:debug_add:* and call _debugAdd
+# to add the suffix to DEBUG_SH.  This useful when we only want
+# to trace some script when run under specific circumstances.
 #
 # If we have included hooks.sh $_HOOKS_SH will be set
 # and if $first (the first arg to DebugOn) is suitable as a variable
@@ -133,6 +190,11 @@ _debugOn() {
 	DEBUG_DO=
 	DEBUG_SKIP=:
 	DEBUG_X=-x
+	# do this firt to reduce noise
+	case ",$DEBUG_SH," in
+	*,$1:debug_add:*) _debugAdd $1;;
+	*,$2:debug_add:*) _debugAdd $2;;
+	esac
 	set -x
 	DEBUG_ON=$1
 	case "$_HOOKS_SH,$2" in
