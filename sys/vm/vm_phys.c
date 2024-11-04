@@ -1671,7 +1671,13 @@ vm_phys_avail_size(int i)
 }
 
 /*
- * Split an entry at the address 'pa'.  Return zero on success or errno.
+ * Split a chunk in phys_avail[] at the address 'pa'.
+ *
+ * 'pa' must be within a chunk (slots i and i + 1) or one of its boundaries.
+ * Returns zero on actual split, in which case the two new chunks occupy slots
+ * i to i + 3, else EJUSTRETURN if 'pa' was one of the boundaries (and no split
+ * actually occurred) else ENOSPC if there are not enough slots in phys_avail[]
+ * to represent the additional chunk caused by the split.
  */
 static int
 vm_phys_avail_split(vm_paddr_t pa, int i)
@@ -1679,8 +1685,12 @@ vm_phys_avail_split(vm_paddr_t pa, int i)
 	int cnt;
 
 	vm_phys_avail_check(i);
-	if (pa <= phys_avail[i] || pa >= phys_avail[i + 1])
-		panic("vm_phys_avail_split: invalid address");
+	if (pa < phys_avail[i] || pa > phys_avail[i + 1])
+		panic("%s: Address %#jx not in range at slot %d [%#jx;%#jx].",
+		    __func__, (uintmax_t)pa, i,
+		    (uintmax_t)phys_avail[i], (uintmax_t)phys_avail[i + 1]);
+	if (pa == phys_avail[i] || pa == phys_avail[i + 1])
+		return (EJUSTRETURN);
 	cnt = vm_phys_avail_count();
 	if (cnt >= PHYS_AVAIL_ENTRIES)
 		return (ENOSPC);
@@ -1842,12 +1852,10 @@ vm_phys_early_startup(void)
 
 		for (i = 0; mem_affinity[i].end != 0; i++) {
 			idx = vm_phys_avail_find(mem_affinity[i].start);
-			if (idx != -1 &&
-			    phys_avail[idx] != mem_affinity[i].start)
+			if (idx != -1)
 				vm_phys_avail_split(mem_affinity[i].start, idx);
 			idx = vm_phys_avail_find(mem_affinity[i].end);
-			if (idx != -1 &&
-			    phys_avail[idx] != mem_affinity[i].end)
+			if (idx != -1)
 				vm_phys_avail_split(mem_affinity[i].end, idx);
 		}
 	}
