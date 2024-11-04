@@ -41,36 +41,36 @@
 #include "amdvi_priv.h"
 #include "ivhd_if.h"
 
-struct amdiommu_softc {
+struct amdviiommu_softc {
 	struct resource *event_res;	/* Event interrupt resource. */
 	void   		*event_tag;	/* Event interrupt tag. */
 	int		event_rid;
 };
 
-static int	amdiommu_probe(device_t);
-static int	amdiommu_attach(device_t);
-static int	amdiommu_detach(device_t);
+static int	amdviiommu_probe(device_t);
+static int	amdviiommu_attach(device_t);
+static int	amdviiommu_detach(device_t);
 static int	ivhd_setup_intr(device_t, driver_intr_t, void *,
 		    const char *);
 static int	ivhd_teardown_intr(device_t);
 
-static device_method_t amdiommu_methods[] = {
+static device_method_t amdviiommu_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,			amdiommu_probe),
-	DEVMETHOD(device_attach,		amdiommu_attach),
-	DEVMETHOD(device_detach,		amdiommu_detach),
+	DEVMETHOD(device_probe,			amdviiommu_probe),
+	DEVMETHOD(device_attach,		amdviiommu_attach),
+	DEVMETHOD(device_detach,		amdviiommu_detach),
 	DEVMETHOD(ivhd_setup_intr,		ivhd_setup_intr),
 	DEVMETHOD(ivhd_teardown_intr,		ivhd_teardown_intr),
 	DEVMETHOD_END
 };
-static driver_t amdiommu_driver = {
-	"amdiommu",
-	amdiommu_methods,
-	sizeof(struct amdiommu_softc),
+static driver_t amdviiommu_driver = {
+	"amdviiommu",
+	amdviiommu_methods,
+	sizeof(struct amdviiommu_softc),
 };
 
 static int
-amdiommu_probe(device_t dev)
+amdviiommu_probe(device_t dev)
 {
 	int error;
 	int capoff;
@@ -100,7 +100,7 @@ amdiommu_probe(device_t dev)
 }
 
 static int
-amdiommu_attach(device_t dev)
+amdviiommu_attach(device_t dev)
 {
 
 	device_set_desc(dev, "AMD-Vi/IOMMU PCI function");
@@ -108,7 +108,7 @@ amdiommu_attach(device_t dev)
 }
 
 static int
-amdiommu_detach(device_t dev)
+amdviiommu_detach(device_t dev)
 {
 
 	return (0);
@@ -118,7 +118,7 @@ static int
 ivhd_setup_intr(device_t dev, driver_intr_t handler, void *arg,
     const char *desc)
 {
-	struct amdiommu_softc *sc;
+	struct amdviiommu_softc *sc;
 	int error, msicnt;
 
 	sc = device_get_softc(dev);
@@ -159,7 +159,7 @@ fail:
 static int
 ivhd_teardown_intr(device_t dev)
 {
-	struct amdiommu_softc *sc;
+	struct amdviiommu_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -177,5 +177,5 @@ ivhd_teardown_intr(device_t dev)
 }
 
 /* This driver has to be loaded before ivhd */
-DRIVER_MODULE(amdiommu, pci, amdiommu_driver, 0, 0);
-MODULE_DEPEND(amdiommu, pci, 1, 1, 1);
+DRIVER_MODULE(amdviiommu, pci, amdviiommu_driver, 0, 0);
+MODULE_DEPEND(amdviiommu, pci, 1, 1, 1);

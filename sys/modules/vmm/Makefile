@@ -50,7 +50,7 @@ SRCS+=	ept.c		\
 # amd-specific files
 .PATH: ${SRCTOP}/sys/amd64/vmm/amd
 SRCS+=	vmcb.c		\
-	amdiommu.c	\
+	amdviiommu.c	\
 	ivhd_if.c	\
 	ivhd_if.h	\
 	svm.c		\
