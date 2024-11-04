@@ -1435,6 +1435,9 @@ vm_mmap_cdev(struct thread *td, vm_size_t objsize, vm_prot_t prot,
 	    td->td_ucred);
 	if (obj == NULL)
 		return (EINVAL);
+	VM_OBJECT_WLOCK(obj);
+	vm_object_set_flag(obj, OBJ_CDEVH);
+	VM_OBJECT_WUNLOCK(obj);
 	*objp = obj;
 	*flagsp = flags;
 	return (0);

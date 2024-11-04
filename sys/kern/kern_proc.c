@@ -2718,8 +2718,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			if (obj->type == OBJT_DEVICE ||
-			    obj->type == OBJT_MGTDEVICE) {
+			if ((obj->type == OBJT_DEVICE ||
+			    obj->type == OBJT_MGTDEVICE) &&
+			    (obj->flags & OBJ_CDEVH) != 0) {
 				cdev = obj->un_pager.devp.handle;
 				if (cdev != NULL) {
 					csw = dev_refthread(cdev, &ref);
