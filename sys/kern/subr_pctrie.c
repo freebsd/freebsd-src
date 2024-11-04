@@ -168,22 +168,21 @@ pctrie_node_store(smr_pctnode_t *p, void *v, enum pctrie_access access)
 }
 
 /*
+ * Get the root address, cast to proper type for load/store.
+ */
+static __inline smr_pctnode_t *
+pctrie_root(struct pctrie *ptree)
+{
+	return ((smr_pctnode_t *)&ptree->pt_root);
+}
+
+/*
  * Get the root node for a tree.
  */
 static __inline struct pctrie_node *
 pctrie_root_load(struct pctrie *ptree, smr_t smr, enum pctrie_access access)
 {
-	return (pctrie_node_load((smr_pctnode_t *)&ptree->pt_root, smr, access));
-}
-
-/*
- * Set the root node for a tree.
- */
-static __inline void
-pctrie_root_store(struct pctrie *ptree, struct pctrie_node *node,
-    enum pctrie_access access)
-{
-	pctrie_node_store((smr_pctnode_t *)&ptree->pt_root, node, access);
+	return (pctrie_node_load(pctrie_root(ptree), smr, access));
 }
 
 /*
@@ -304,7 +303,7 @@ pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
 		if (pctrie_isleaf(node)) {
 			if (node == PCTRIE_NULL) {
 				if (parent == NULL)
-					pctrie_root_store(ptree,
+					pctrie_node_store(pctrie_root(ptree),
 					    pctrie_toleaf(val), PCTRIE_LOCKED);
 				else
 					pctrie_addnode(parent, index,
@@ -354,8 +353,7 @@ pctrie_insert_lookup_compound(struct pctrie *ptree, uint64_t *val,
 	 * children 'node' and 'val'. Return the place that points to 'node'
 	 * now, and will point to to the new branching node later.
 	 */
-	return ((parent != NULL) ? &parent->pn_child[slot]:
-	    (smr_pctnode_t *)&ptree->pt_root);
+	return ((parent == NULL) ? pctrie_root(ptree): &parent->pn_child[slot]);
 }
 
 /*
@@ -608,7 +606,7 @@ pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
 	node = _pctrie_iter_lookup_node(it, *val, NULL, PCTRIE_LOCKED);
 	if (node == PCTRIE_NULL) {
 		if (it->top == 0)
-			pctrie_root_store(it->ptree,
+			pctrie_node_store(pctrie_root(it->ptree),
 			    pctrie_toleaf(val), PCTRIE_LOCKED);
 		else
 			pctrie_addnode(it->path[it->top - 1], it->index,
@@ -625,7 +623,7 @@ pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
 	 * now, and will point to to the new branching node later.
 	 */
 	if (it->top == 0)
-		return ((smr_pctnode_t *)&it->ptree->pt_root);
+		return (pctrie_root(it->ptree));
 	node = it->path[it->top - 1];
 	return (&node->pn_child[pctrie_slot(node, it->index)]);
 }
@@ -1037,7 +1035,8 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, struct pctrie_node *parent,
 	int slot;
 
 	if (node == NULL) {
-		pctrie_root_store(ptree, PCTRIE_NULL, PCTRIE_LOCKED);
+		pctrie_node_store(pctrie_root(ptree),
+		    PCTRIE_NULL, PCTRIE_LOCKED);
 		return;
 	}
 	slot = pctrie_slot(node, index);
@@ -1054,7 +1053,7 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, struct pctrie_node *parent,
 	KASSERT(child != PCTRIE_NULL,
 	    ("%s: bad popmap slot %d in node %p", __func__, slot, node));
 	if (parent == NULL)
-		pctrie_root_store(ptree, child, PCTRIE_LOCKED);
+		pctrie_node_store(pctrie_root(ptree), child, PCTRIE_LOCKED);
 	else {
 		slot = pctrie_slot(parent, index);
 		KASSERT(node ==
@@ -1218,7 +1217,7 @@ pctrie_reclaim_begin_compound(struct pctrie_node **pnode,
 	struct pctrie_node *node;
 
 	node = pctrie_root_load(ptree, NULL, PCTRIE_UNSERIALIZED);
-	pctrie_root_store(ptree, PCTRIE_NULL, PCTRIE_UNSERIALIZED);
+	pctrie_node_store(pctrie_root(ptree), PCTRIE_NULL, PCTRIE_UNSERIALIZED);
 	if (pctrie_isleaf(node)) {
 		if (callback != NULL && node != PCTRIE_NULL)
 			callback(pctrie_toptr(node, keyoff), arg);
@@ -1275,7 +1274,7 @@ pctrie_replace(struct pctrie *ptree, uint64_t *newval)
 		if (pctrie_isleaf(node)) {
 			if ((m = pctrie_toval(node)) != NULL && *m == index) {
 				if (parent == NULL)
-					pctrie_root_store(ptree,
+					pctrie_node_store(pctrie_root(ptree),
 					    leaf, PCTRIE_LOCKED);
 				else
 					pctrie_node_store(
