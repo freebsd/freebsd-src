@@ -637,8 +637,6 @@ hifn_detach(device_t dev)
 
 	crypto_unregister_all(sc->sc_cid);
 
-	bus_generic_detach(dev);	/*XXX should be no children, right? */
-
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_intrhand);
 	/* XXX don't store rid */
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
