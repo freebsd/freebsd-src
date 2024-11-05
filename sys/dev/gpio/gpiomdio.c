@@ -213,7 +213,6 @@ static device_method_t gpiomdio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gpiomdio_probe),
 	DEVMETHOD(device_attach,	gpiomdio_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* MDIO interface */
 	DEVMETHOD(miibus_readreg,	gpiomdio_readreg),
