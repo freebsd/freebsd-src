@@ -63,14 +63,14 @@ def build_response_packet(echo, ip, icmp, oip_ihl, special):
     if icmp.type in icmp_id_seq_types:
         pkt = ip / icmp / load
     else:
-        ip.options = ""
+        del ip.options
         pkt = ip / icmp / oip / oicmp / load
     return pkt
 
 
 def generate_ip_options(opts):
     if not opts:
-        return ""
+        return []
 
     routers = [
         "192.0.2.10",
@@ -118,7 +118,7 @@ def generate_ip_options(opts):
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
         options = b"\x9f" * 40
     else:
-        options = ""
+        options = []
     return options
 
 
@@ -134,7 +134,7 @@ def pinger(
     icmp_code: sc.scapy.fields.MultiEnumField,
     # IP arguments
     ihl: Optional[sc.scapy.fields.BitField] = None,
-    flags: Optional[sc.scapy.fields.FlagsField] = None,
+    flags: Optional[sc.scapy.fields.FlagsField] = 0,
     opts: Optional[str] = None,
     oip_ihl: Optional[sc.scapy.fields.BitField] = None,
     special: Optional[str] = None,
@@ -169,7 +169,7 @@ def pinger(
 
     :keyword ihl: Internet Header Length, defaults to None
     :type ihl: class:`scapy.fields.BitField`, optional
-    :keyword flags: IP flags - one of `DF`, `MF` or `evil`, defaults to None
+    :keyword flags: IP flags - one of `DF`, `MF` or `evil`, defaults to 0
     :type flags: class:`scapy.fields.FlagsField`, optional
     :keyword opts: Include IP options - one of `EOL`, `NOP`, `NOP-40`, `unk`,
         `unk-40`, `RR`, `RR-same`, `RR-trunc`, `LSRR`, `LSRR-trunc`, `SSRR` or
