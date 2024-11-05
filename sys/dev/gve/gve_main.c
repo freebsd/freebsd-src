@@ -32,10 +32,10 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.0\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.1\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 0
+#define GVE_VERSION_SUB 1
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 

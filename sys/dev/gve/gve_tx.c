@@ -246,6 +246,8 @@ gve_start_tx_ring(struct gve_priv *priv, int i,
 	struct gve_tx_ring *tx = &priv->tx[i];
 	struct gve_ring_com *com = &tx->com;
 
+	atomic_store_bool(&tx->stopped, false);
+
 	NET_TASK_INIT(&com->cleanup_task, 0, cleanup, tx);
 	com->cleanup_tq = taskqueue_create_fast("gve tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &com->cleanup_tq);
@@ -426,6 +428,11 @@ gve_tx_cleanup_tq(void *arg, int pending)
 	if (todo != 0) {
 		gve_db_bar_write_4(priv, tx->com.irq_db_offset, GVE_IRQ_MASK);
 		taskqueue_enqueue(tx->com.cleanup_tq, &tx->com.cleanup_task);
+	}
+
+	if (atomic_load_bool(&tx->stopped) && space_freed) {
+		atomic_store_bool(&tx->stopped, false);
+		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
 	}
 }
 
@@ -671,8 +678,7 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	bytes_required = gve_fifo_bytes_required(tx, first_seg_len, pkt_len);
 	if (__predict_false(!gve_can_tx(tx, bytes_required))) {
 		counter_enter();
-		counter_u64_add_protected(tx->stats.tx_dropped_pkt_nospace_device, 1);
-		counter_u64_add_protected(tx->stats.tx_dropped_pkt, 1);
+		counter_u64_add_protected(tx->stats.tx_delayed_pkt_nospace_device, 1);
 		counter_exit();
 		return (ENOBUFS);
 	}
@@ -733,6 +739,59 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	return (0);
 }
 
+static int
+gve_xmit_mbuf(struct gve_tx_ring *tx,
+    struct mbuf **mbuf)
+{
+	if (gve_is_gqi(tx->com.priv))
+		return (gve_xmit(tx, *mbuf));
+
+	if (gve_is_qpl(tx->com.priv))
+		return (gve_xmit_dqo_qpl(tx, *mbuf));
+
+	/*
+	 * gve_xmit_dqo might attempt to defrag the mbuf chain.
+	 * The reference is passed in so that in the case of
+	 * errors, the new mbuf chain is what's put back on the br.
+	 */
+	return (gve_xmit_dqo(tx, mbuf));
+}
+
+/*
+ * Has the side-effect of stopping the xmit queue by setting tx->stopped
+ */
+static int
+gve_xmit_retry_enobuf_mbuf(struct gve_tx_ring *tx,
+    struct mbuf **mbuf)
+{
+	int err;
+
+	atomic_store_bool(&tx->stopped, true);
+
+	/*
+	 * Room made in the queue BEFORE the barrier will be seen by the
+	 * gve_xmit_mbuf retry below.
+	 *
+	 * If room is made in the queue AFTER the barrier, the cleanup tq
+	 * iteration creating the room will either see a tx->stopped value
+	 * of 0 or the 1 we just wrote:
+	 *
+	 *   If it sees a 1, then it would enqueue the xmit tq. Enqueue
+	 *   implies a retry on the waiting pkt.
+	 *
+	 *   If it sees a 0, then that implies a previous iteration overwrote
+	 *   our 1, and that iteration would enqueue the xmit tq. Enqueue
+	 *   implies a retry on the waiting pkt.
+	 */
+	atomic_thread_fence_seq_cst();
+
+	err = gve_xmit_mbuf(tx, mbuf);
+	if (err == 0)
+		atomic_store_bool(&tx->stopped, false);
+
+	return (err);
+}
+
 static void
 gve_xmit_br(struct gve_tx_ring *tx)
 {
@@ -743,24 +802,23 @@ gve_xmit_br(struct gve_tx_ring *tx)
 
 	while ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
 	    (mbuf = drbr_peek(ifp, tx->br)) != NULL) {
+		err = gve_xmit_mbuf(tx, &mbuf);
 
-		if (gve_is_gqi(priv))
-			err = gve_xmit(tx, mbuf);
-		else {
-			/*
-			 * gve_xmit_dqo might attempt to defrag the mbuf chain.
-			 * The reference is passed in so that in the case of
-			 * errors, the new mbuf chain is what's put back on the br.
-			 */
-			if (gve_is_qpl(priv))
-				err = gve_xmit_dqo_qpl(tx, mbuf);
-			else
-				err = gve_xmit_dqo(tx, &mbuf);
-		}
+		/*
+		 * We need to stop this taskqueue when we can't xmit the pkt due
+		 * to lack of space in the NIC ring (ENOBUFS). The retry exists
+		 * to guard against a TOCTTOU bug that could end up freezing the
+		 * queue forever.
+		 */
+		if (__predict_false(mbuf != NULL && err == ENOBUFS))
+			err = gve_xmit_retry_enobuf_mbuf(tx, &mbuf);
 
 		if (__predict_false(err != 0 && mbuf != NULL)) {
-			drbr_putback(ifp, tx->br, mbuf);
-			taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
+			if (err == EINVAL) {
+				drbr_advance(ifp, tx->br);
+				m_freem(mbuf);
+			} else
+				drbr_putback(ifp, tx->br, mbuf);
 			break;
 		}
 
@@ -827,7 +885,8 @@ gve_xmit_ifp(if_t ifp, struct mbuf *mbuf)
 	is_br_empty = drbr_empty(ifp, tx->br);
 	err = drbr_enqueue(ifp, tx->br, mbuf);
 	if (__predict_false(err != 0)) {
-		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
+		if (!atomic_load_bool(&tx->stopped))
+			taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
 		counter_enter();
 		counter_u64_add_protected(tx->stats.tx_dropped_pkt_nospace_bufring, 1);
 		counter_u64_add_protected(tx->stats.tx_dropped_pkt, 1);
@@ -842,9 +901,8 @@ gve_xmit_ifp(if_t ifp, struct mbuf *mbuf)
 	if (is_br_empty && (GVE_RING_TRYLOCK(tx) != 0)) {
 		gve_xmit_br(tx);
 		GVE_RING_UNLOCK(tx);
-	} else {
+	} else if (!atomic_load_bool(&tx->stopped))
 		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
-	}
 
 	return (0);
 }
