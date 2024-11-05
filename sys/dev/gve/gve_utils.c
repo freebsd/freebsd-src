@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "gve.h"
+#include "gve_dqo.h"
 
 uint32_t
 gve_reg_bar_read_4(struct gve_priv *priv, bus_size_t offset)
@@ -46,6 +47,12 @@ void
 gve_db_bar_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val)
 {
 	bus_write_4(priv->db_bar, offset, htobe32(val));
+}
+
+void
+gve_db_bar_dqo_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val)
+{
+	bus_write_4(priv->db_bar, offset, val);
 }
 
 void
@@ -307,7 +314,8 @@ gve_alloc_irqs(struct gve_priv *priv)
 		}
 
 		err = bus_setup_intr(priv->dev, irq->res, INTR_TYPE_NET | INTR_MPSAFE,
-		    gve_tx_intr, NULL, &priv->tx[i], &irq->cookie);
+		    gve_is_gqi(priv) ? gve_tx_intr : gve_tx_intr_dqo, NULL,
+		    &priv->tx[i], &irq->cookie);
 		if (err != 0) {
 			device_printf(priv->dev, "Failed to setup irq %d for Tx queue %d, "
 			    "err: %d\n", rid, i, err);
@@ -334,7 +342,8 @@ gve_alloc_irqs(struct gve_priv *priv)
 		}
 
 		err = bus_setup_intr(priv->dev, irq->res, INTR_TYPE_NET | INTR_MPSAFE,
-		    gve_rx_intr, NULL, &priv->rx[j], &irq->cookie);
+		    gve_is_gqi(priv) ? gve_rx_intr : gve_rx_intr_dqo, NULL,
+		    &priv->rx[j], &irq->cookie);
 		if (err != 0) {
 			device_printf(priv->dev, "Failed to setup irq %d for Rx queue %d, "
 			    "err: %d\n", rid, j, err);
@@ -374,6 +383,24 @@ abort:
 	return (err);
 }
 
+/*
+ * Builds register value to write to DQO IRQ doorbell to enable with specified
+ * ITR interval.
+ */
+static uint32_t
+gve_setup_itr_interval_dqo(uint32_t interval_us)
+{
+	uint32_t result = GVE_ITR_ENABLE_BIT_DQO;
+
+	/* Interval has 2us granularity. */
+	interval_us >>= 1;
+
+	interval_us &= GVE_ITR_INTERVAL_DQO_MASK;
+	result |= (interval_us << GVE_ITR_INTERVAL_DQO_SHIFT);
+
+	return (result);
+}
+
 void
 gve_unmask_all_queue_irqs(struct gve_priv *priv)
 {
@@ -383,11 +410,20 @@ gve_unmask_all_queue_irqs(struct gve_priv *priv)
 
 	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
 		tx = &priv->tx[idx];
-		gve_db_bar_write_4(priv, tx->com.irq_db_offset, 0);
+		if (gve_is_gqi(priv))
+			gve_db_bar_write_4(priv, tx->com.irq_db_offset, 0);
+		else
+			gve_db_bar_dqo_write_4(priv, tx->com.irq_db_offset,
+			    gve_setup_itr_interval_dqo(GVE_TX_IRQ_RATELIMIT_US_DQO));
 	}
+
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		rx = &priv->rx[idx];
-		gve_db_bar_write_4(priv, rx->com.irq_db_offset, 0);
+		if (gve_is_gqi(priv))
+			gve_db_bar_write_4(priv, rx->com.irq_db_offset, 0);
+		else
+			gve_db_bar_dqo_write_4(priv, rx->com.irq_db_offset,
+			    gve_setup_itr_interval_dqo(GVE_RX_IRQ_RATELIMIT_US_DQO));
 	}
 }
 
