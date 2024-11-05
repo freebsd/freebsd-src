@@ -162,7 +162,7 @@ xen_intr_pic_enable_source(x86pic_t pic, struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
+xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -187,11 +187,12 @@ xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
 	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_disable_source((struct xenisrc *)isrc);
 	xen_intr_disable_intr((struct xenisrc *)isrc);
 }
 

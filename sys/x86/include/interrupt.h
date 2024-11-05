@@ -87,8 +87,8 @@ typedef	device_t		x86pic_t, x86pics_t;
 #define	X86PIC_PIC(type, pic)	((struct type *)device_get_softc(pic))
 #define	X86PICX86PIC_PTR	(pic)
 
-/* Flags for pic_disable_source() */
-enum {
+/* Flags for pic_disable_intr() */
+enum eoi_flag {
 	PIC_EOI,
 	PIC_NO_EOI,
 };
