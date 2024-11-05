@@ -281,7 +281,9 @@ dpaa2_mc_detach(device_t dev)
 	struct dpaa2_devinfo *dinfo = NULL;
 	int error;
 
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->rcdev)
@@ -291,10 +293,6 @@ dpaa2_mc_detach(device_t dev)
 	dinfo = device_get_ivars(dev);
 	if (dinfo)
 		free(dinfo, M_DPAA2_MC);
-
-	error = bus_generic_detach(dev);
-	if (error != 0)
-		return (error);
 
 	return (device_delete_children(dev));
 }
