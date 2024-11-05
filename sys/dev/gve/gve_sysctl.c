@@ -140,9 +140,9 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_bytes", CTLFLAG_RD,
 	    &stats->tbytes, "Bytes transmitted");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-	    "tx_dropped_pkt_nospace_device", CTLFLAG_RD,
-	    &stats->tx_dropped_pkt_nospace_device,
-	    "Packets dropped due to no space in device");
+	    "tx_delayed_pkt_nospace_device", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_device,
+	    "Packets delayed due to no space in device");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_dropped_pkt_nospace_bufring", CTLFLAG_RD,
 	    &stats->tx_dropped_pkt_nospace_bufring,
