@@ -493,16 +493,16 @@ find_author()
     case "${addr}" in
     *.*) ;;		# external user
     *)
-	echo "${name} <${addr}@FreeBSD.org>"
-	return
-	;;
+        echo "${name} <${addr}@FreeBSD.org>"
+        return
+        ;;
     esac
 
     # Choice 2: author_addr and author_name were set in the bundle, so use
     # that. We may need to filter some known bogus ones, should they crop up.
     if [ -n "$author_name" -a -n "$author_addr" ]; then
-	echo "${author_name} <${author_addr}>"
-	return
+        echo "${author_name} <${author_addr}>"
+        return
     fi
 
     # Choice 3: We can find this user in the FreeBSD repo. They've submited
@@ -510,8 +510,8 @@ find_author()
     # similar to their phab username.
     email=$(git log -1 --author "$(echo ${addr} | tr _ .)" --pretty="%aN <%aE>")
     if [ -n "${email}" ]; then
-	echo "${email}"
-	return
+        echo "${email}"
+        return
     fi
 
     # Choice 4: We know this user. They've committed before, and they happened
@@ -519,11 +519,11 @@ find_author()
     # might not be a good idea, since names can be somewhat common (there
     # are two Andrew Turners that have contributed to FreeBSD, for example).
     if ! (echo "${name}" | grep -w "[Uu]ser" -q); then
-	email=$(git log -1 --author "${name}" --pretty="%aN <%aE>")
-	if [ -n "$email" ]; then
-	    echo "$email"
-	    return
-	fi
+        email=$(git log -1 --author "${name}" --pretty="%aN <%aE>")
+        if [ -n "$email" ]; then
+            echo "$email"
+            return
+        fi
     fi
 
     # Choice 5: Wing it as best we can. In this scenario, we replace the last _
@@ -534,8 +534,8 @@ find_author()
     a=$(printf "%s <%s>\n" "${name}" $(echo "$addr" | sed -e 's/\(.*\)_/\1@/'))
     echo "Making best guess: Truning ${addr} to ${a}"
     if ! prompt; then
-       echo "ABORT"
-       return
+        echo "ABORT"
+        return
     fi
     echo "${a}"
 }
@@ -572,6 +572,16 @@ patch_commit()
         jq -r '.response | flatten | .[]' > "$diff_data"
     author_addr=$(jq -r ".authorEmail?" "$diff_data" | sort -u)
     author_name=$(jq -r ".authorName?" "$diff_data" | sort -u)
+
+    # JSON will return "null" when a field is not populated.
+    # Turn this string into an empty one.
+    if [ "$author_addr" = "null" ]; then
+        author_addr=""
+    fi
+    if [ "$author_name" = "null" ]; then
+        author_name=""
+    fi
+
     author=$(find_author "$user_addr" "$user_name" "$author_addr" "$author_name")
     rm "$diff_data"
 
