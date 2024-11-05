@@ -810,7 +810,9 @@ tcp_timer_rexmt(struct tcpcb *tp)
 	 */
 	tp->t_rtttime = 0;
 
-	cc_cong_signal(tp, NULL, CC_RTO);
+	/* Do not overwrite the snd_cwnd on SYN retransmissions. */
+	if (tp->t_state != TCPS_SYN_SENT)
+		cc_cong_signal(tp, NULL, CC_RTO);
 	NET_EPOCH_ENTER(et);
 	rv = tcp_output_locked(tp);
 	NET_EPOCH_EXIT(et);
