@@ -58,6 +58,7 @@ void gve_parse_device_option(struct gve_priv *priv,
     struct gve_device_option *option,
     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
+    struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames)
 {
 	uint32_t req_feat_mask = be32toh(option->required_features_mask);
@@ -103,6 +104,23 @@ void gve_parse_device_option(struct gve_priv *priv,
 		*dev_op_dqo_rda = (void *)(option + 1);
 		break;
 
+	case GVE_DEV_OPT_ID_DQO_QPL:
+		if (option_length < sizeof(**dev_op_dqo_qpl) ||
+		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL) {
+			device_printf(priv->dev, GVE_DEVICE_OPTION_ERROR_FMT,
+			    "DQO QPL", (int)sizeof(**dev_op_dqo_qpl),
+			    GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL,
+			    option_length, req_feat_mask);
+			break;
+		}
+
+		if (option_length > sizeof(**dev_op_dqo_qpl)) {
+			device_printf(priv->dev, GVE_DEVICE_OPTION_TOO_BIG_FMT,
+			    "DQO QPL");
+		}
+		*dev_op_dqo_qpl = (void *)(option + 1);
+		break;
+
 	case GVE_DEV_OPT_ID_JUMBO_FRAMES:
 		if (option_length < sizeof(**dev_op_jumbo_frames) ||
 		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES) {
@@ -136,6 +154,7 @@ gve_process_device_options(struct gve_priv *priv,
     struct gve_device_descriptor *descriptor,
     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
+    struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames)
 {
 	char *desc_end = (char *)descriptor + be16toh(descriptor->total_length);
@@ -154,7 +173,10 @@ gve_process_device_options(struct gve_priv *priv,
 		}
 
 		gve_parse_device_option(priv, descriptor, dev_opt,
-		    dev_op_gqi_qpl, dev_op_dqo_rda, dev_op_jumbo_frames);
+		    dev_op_gqi_qpl,
+		    dev_op_dqo_rda,
+		    dev_op_dqo_qpl,
+		    dev_op_jumbo_frames);
 		dev_opt = (void *)((char *)(dev_opt + 1) + be16toh(dev_opt->option_length));
 	}
 
@@ -387,6 +409,7 @@ gve_adminq_describe_device(struct gve_priv *priv)
 	struct gve_dma_handle desc_mem;
 	struct gve_device_option_gqi_qpl *dev_op_gqi_qpl = NULL;
 	struct gve_device_option_dqo_rda *dev_op_dqo_rda = NULL;
+	struct gve_device_option_dqo_qpl *dev_op_dqo_qpl = NULL;
 	struct gve_device_option_jumbo_frames *dev_op_jumbo_frames = NULL;
 	uint32_t supported_features_mask = 0;
 	int rc;
@@ -416,7 +439,9 @@ gve_adminq_describe_device(struct gve_priv *priv)
 	bus_dmamap_sync(desc_mem.tag, desc_mem.map, BUS_DMASYNC_POSTREAD);
 
 	rc = gve_process_device_options(priv, desc,
-	    &dev_op_gqi_qpl, &dev_op_dqo_rda,
+	    &dev_op_gqi_qpl,
+	    &dev_op_dqo_rda,
+	    &dev_op_dqo_qpl,
 	    &dev_op_jumbo_frames);
 	if (rc != 0)
 		goto free_device_descriptor;
@@ -430,6 +455,15 @@ gve_adminq_describe_device(struct gve_priv *priv)
 		if (bootverbose)
 			device_printf(priv->dev,
 			    "Driver is running with DQO RDA queue format.\n");
+	} else if (dev_op_dqo_qpl != NULL) {
+		snprintf(gve_queue_format, sizeof(gve_queue_format),
+		    "%s", "DQO QPL");
+		priv->queue_format = GVE_DQO_QPL_FORMAT;
+		supported_features_mask = be32toh(
+		    dev_op_dqo_qpl->supported_features_mask);
+		if (bootverbose)
+			device_printf(priv->dev,
+			    "Driver is running with DQO QPL queue format.\n");
 	} else if (dev_op_gqi_qpl != NULL) {
 		snprintf(gve_queue_format, sizeof(gve_queue_format),
 		    "%s", "GQI QPL");

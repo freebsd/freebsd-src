@@ -57,7 +57,22 @@
  * Start dropping RX fragments if at least these many
  * buffers cannot be posted to the NIC.
  */
-#define GVE_RX_DQO_MIN_PENDING_BUFS 32
+#define GVE_RX_DQO_MIN_PENDING_BUFS 128
+
+#define GVE_DQ_NUM_FRAGS_IN_PAGE (PAGE_SIZE / GVE_DEFAULT_RX_BUFFER_SIZE)
+
+/*
+ * gve_rx_qpl_buf_id_dqo's 11 bit wide buf_id field limits the total
+ * number of pages per QPL to 2048.
+ */
+#define GVE_RX_NUM_QPL_PAGES_DQO 2048
+
+/* 2K TX buffers for DQO-QPL */
+#define GVE_TX_BUF_SHIFT_DQO 11
+#define GVE_TX_BUF_SIZE_DQO BIT(GVE_TX_BUF_SHIFT_DQO)
+#define GVE_TX_BUFS_PER_PAGE_DQO (PAGE_SIZE >> GVE_TX_BUF_SHIFT_DQO)
+
+#define GVE_TX_NUM_QPL_PAGES_DQO 512
 
 /* Basic TX descriptor (DTYPE 0x0C) */
 struct gve_tx_pkt_desc_dqo {

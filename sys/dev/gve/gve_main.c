@@ -32,9 +32,9 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.2.0\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.0\n"
 #define GVE_VERSION_MAJOR 1
-#define GVE_VERSION_MINOR 2
+#define GVE_VERSION_MINOR 3
 #define GVE_VERSION_SUB 0
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
@@ -125,7 +125,7 @@ gve_up(struct gve_priv *priv)
 	if (if_getcapenable(ifp) & IFCAP_TSO6)
 		if_sethwassistbits(ifp, CSUM_IP6_TSO, 0);
 
-	if (gve_is_gqi(priv)) {
+	if (gve_is_qpl(priv)) {
 		err = gve_register_qpls(priv);
 		if (err != 0)
 			goto reset;
@@ -177,7 +177,7 @@ gve_down(struct gve_priv *priv)
 	if (gve_destroy_tx_rings(priv) != 0)
 		goto reset;
 
-	if (gve_is_gqi(priv)) {
+	if (gve_is_qpl(priv)) {
 		if (gve_unregister_qpls(priv) != 0)
 			goto reset;
 	}
@@ -375,13 +375,15 @@ gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 
 	/*
 	 * Set TSO limits, must match the arguments to bus_dma_tag_create
-	 * when creating tx->dqo.buf_dmatag
+	 * when creating tx->dqo.buf_dmatag. Only applies to the RDA mode
+	 * because in QPL we copy the entire pakcet into the bounce buffer
+	 * and thus it does not matter how fragmented the mbuf is.
 	 */
-	if (!gve_is_gqi(priv)) {
-		if_sethwtsomax(ifp, GVE_TSO_MAXSIZE_DQO);
+	if (!gve_is_gqi(priv) && !gve_is_qpl(priv)) {
 		if_sethwtsomaxsegcount(ifp, GVE_TX_MAX_DATA_DESCS_DQO);
 		if_sethwtsomaxsegsize(ifp, GVE_TX_MAX_BUF_SIZE_DQO);
 	}
+	if_sethwtsomax(ifp, GVE_TSO_MAXSIZE_DQO);
 
 #if __FreeBSD_version >= 1400086
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -465,7 +467,7 @@ gve_free_rings(struct gve_priv *priv)
 	gve_free_irqs(priv);
 	gve_free_tx_rings(priv);
 	gve_free_rx_rings(priv);
-	if (gve_is_gqi(priv))
+	if (gve_is_qpl(priv))
 		gve_free_qpls(priv);
 }
 
@@ -474,7 +476,7 @@ gve_alloc_rings(struct gve_priv *priv)
 {
 	int err;
 
-	if (gve_is_gqi(priv)) {
+	if (gve_is_qpl(priv)) {
 		err = gve_alloc_qpls(priv);
 		if (err != 0)
 			goto abort;

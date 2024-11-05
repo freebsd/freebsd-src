@@ -144,6 +144,15 @@ struct gve_device_option_dqo_rda {
 _Static_assert(sizeof(struct gve_device_option_dqo_rda) == 8,
     "gve: bad admin queue struct length");
 
+struct gve_device_option_dqo_qpl {
+	__be32 supported_features_mask;
+	__be16 tx_comp_ring_entries;
+	__be16 rx_buff_ring_entries;
+};
+
+_Static_assert(sizeof(struct gve_device_option_dqo_qpl) == 8,
+    "gve: bad admin queue struct length");
+
 struct gve_device_option_modify_ring {
 	__be32 supported_features_mask;
 	__be16 max_rx_ring_size;
@@ -168,6 +177,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
 	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
 	GVE_DEV_OPT_ID_MODIFY_RING = 0x6,
+	GVE_DEV_OPT_ID_DQO_QPL = 0x7,
 	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
 };
 
@@ -182,6 +192,7 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
 };
@@ -196,7 +207,7 @@ enum gve_sup_feature_mask {
 enum gve_driver_capability {
 	gve_driver_capability_gqi_qpl = 0,
 	gve_driver_capability_gqi_rda = 1,
-	gve_driver_capability_dqo_qpl = 2, /* reserved for future use */
+	gve_driver_capability_dqo_qpl = 2,
 	gve_driver_capability_dqo_rda = 3,
 };
 
@@ -212,6 +223,7 @@ enum gve_driver_capability {
  */
 #define GVE_DRIVER_CAPABILITY_FLAGS1 \
 	(GVE_CAP1(gve_driver_capability_gqi_qpl) | \
+	 GVE_CAP1(gve_driver_capability_dqo_qpl) | \
 	 GVE_CAP1(gve_driver_capability_dqo_rda))
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
