@@ -325,10 +325,8 @@ intr_remove_handler(void *cookie)
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
-		if (isrc->is_handlers == 0) {
-			PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_NO_EOI);
+		if (isrc->is_handlers == 0)
 			PIC_DISABLE_INTR(isrc->is_pic, isrc);
-		}
 		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
 	}
@@ -349,7 +347,7 @@ intr_disable_src(void *arg)
 	struct intsrc *isrc;
 
 	isrc = arg;
-	PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_EOI);
+	PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
 }
 
 static void
@@ -398,7 +396,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * stray count, and log the condition.
 	 */
 	if (intr_event_handle(ie, frame) != 0) {
-		PIC_DISABLE_SOURCE(isrc->is_pic, isrc, PIC_EOI);
+		PIC_DISABLE_SOURCE(isrc->is_pic, isrc);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
