@@ -1597,15 +1597,17 @@ vm_phys_avail_count(void)
 static void
 vm_phys_avail_check(int i)
 {
+	if (i % 2 != 0)
+		panic("Chunk start index %d is not even.", i);
 	if (phys_avail[i] & PAGE_MASK)
 		panic("Unaligned phys_avail[%d]: %#jx", i,
 		    (intmax_t)phys_avail[i]);
-	if (phys_avail[i+1] & PAGE_MASK)
+	if (phys_avail[i + 1] & PAGE_MASK)
 		panic("Unaligned phys_avail[%d + 1]: %#jx", i,
-		    (intmax_t)phys_avail[i]);
+		    (intmax_t)phys_avail[i + 1]);
 	if (phys_avail[i + 1] < phys_avail[i])
-		panic("phys_avail[%d] start %#jx < end %#jx", i,
-		    (intmax_t)phys_avail[i], (intmax_t)phys_avail[i+1]);
+		panic("phys_avail[%d]: start %#jx > end %#jx", i,
+		    (intmax_t)phys_avail[i], (intmax_t)phys_avail[i + 1]);
 }
 
 /*
