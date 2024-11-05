@@ -915,6 +915,11 @@ static int
 ti_adc_detach(device_t dev)
 {
 	struct ti_adc_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
@@ -938,7 +943,7 @@ ti_adc_detach(device_t dev)
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t ti_adc_methods[] = {

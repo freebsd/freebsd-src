@@ -450,6 +450,11 @@ static int
 max77620_detach(device_t dev)
 {
 	struct max77620_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->irq_h != NULL)
@@ -458,7 +463,7 @@ max77620_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	LOCK_DESTROY(sc);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static phandle_t
