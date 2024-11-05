@@ -85,11 +85,11 @@ def generate_ip_options(opts):
     ]
     routers_zero = [0, 0, 0, 0, 0, 0, 0, 0, 0]
     if opts == "EOL":
-        options = sc.IPOption(b"\x00")
+        options = sc.IPOption_EOL()
     elif opts == "NOP":
-        options = sc.IPOption(b"\x01")
+        options = sc.IPOption_NOP()
     elif opts == "NOP-40":
-        options = sc.IPOption(b"\x01" * 40)
+        options = sc.IPOption_NOP() * 40
     elif opts == "RR":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
         options = sc.IPOption_RR(pointer=40, routers=routers)
@@ -116,7 +116,7 @@ def generate_ip_options(opts):
         options = b"\x9f"
     elif opts == "unk-40":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
-        options = sc.IPOption(b"\x9f" * 40)
+        options = b"\x9f" * 40
     else:
         options = ""
     return options
