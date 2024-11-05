@@ -376,10 +376,10 @@ nvmf_scan_active_nslist(struct nvmf_softc *sc, struct nvme_ns_list *nslist,
 
 	MPASS(nsid == nslist->ns[nitems(nslist->ns) - 1] && nsid != 0);
 
-	if (nsid >= 0xfffffffd)
+	if (nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
 		*nsidp = 0;
 	else
-		*nsidp = nsid + 1;
+		*nsidp = nsid;
 	return (true);
 }
 
