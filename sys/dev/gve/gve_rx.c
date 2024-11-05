@@ -410,24 +410,6 @@ gve_set_rss_type(__be16 flag, struct mbuf *mbuf)
 }
 
 static void
-gve_mextadd_free(struct mbuf *mbuf)
-{
-	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
-	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
-
-	/*
-	 * Free the page only if this is the last ref.
-	 * The interface might no longer exist by the time
-	 * this callback is called, see gve_free_qpl.
-	 */
-	if (__predict_false(vm_page_unwire_noq(page))) {
-		pmap_qremove(va, 1);
-		kva_free(va, PAGE_SIZE);
-		vm_page_free(page);
-	}
-}
-
-static void
 gve_rx_flip_buff(struct gve_rx_slot_page_info *page_info, __be64 *slot_addr)
 {
 	const __be64 offset = htobe64(GVE_DEFAULT_RX_BUFFER_OFFSET);
