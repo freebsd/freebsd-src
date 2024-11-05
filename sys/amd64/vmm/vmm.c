@@ -465,7 +465,9 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		if (vmm_is_hw_supported()) {
-			vmmdev_init();
+			error = vmmdev_init();
+			if (error != 0)
+				break;
 			error = vmm_init();
 			if (error == 0)
 				vmm_initialized = 1;
