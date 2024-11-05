@@ -82,7 +82,7 @@ typedef	struct pic		*x86pic_t, x86pics_t;
 struct pic {
 	void (*pic_register_sources)(x86pic_t);
 	void (*pic_enable_source)(x86pic_t, struct intsrc *);
-	void (*pic_disable_source)(x86pic_t, struct intsrc *, int);
+	void (*pic_disable_source)(x86pic_t, struct intsrc *);
 	void (*pic_eoi_source)(x86pic_t, struct intsrc *);
 	void (*pic_enable_intr)(x86pic_t, struct intsrc *);
 	void (*pic_disable_intr)(x86pic_t, struct intsrc *);
@@ -95,12 +95,6 @@ struct pic {
 	void (*pic_reprogram_pin)(x86pic_t, struct intsrc *);
 };
 
-/* Flags for pic_disable_source() */
-enum {
-	PIC_EOI,
-	PIC_NO_EOI,
-};
-
 /* Wrappers for transition to kobj/devices */
 #define	PIC_REGISTER_SOURCES(pic) \
 		do {							\
@@ -109,8 +103,8 @@ enum {
 		} while(0)
 #define	PIC_ENABLE_SOURCE(pic, isrc) \
 		((pic)->pic_enable_source((pic), (isrc)))
-#define	PIC_DISABLE_SOURCE(pic, isrc, eoi) \
-		((pic)->pic_disable_source((pic), (isrc), (eoi)))
+#define	PIC_DISABLE_SOURCE(pic, isrc) \
+		((pic)->pic_disable_source((pic), (isrc)))
 #define	PIC_EOI_SOURCE(pic, isrc)	((pic)->pic_eoi_source((pic), (isrc)))
 #define	PIC_ENABLE_INTR(pic, isrc)	((pic)->pic_enable_intr((pic), (isrc)))
 #define	PIC_DISABLE_INTR(pic, isrc)	((pic)->pic_disable_intr((pic), (isrc)))
