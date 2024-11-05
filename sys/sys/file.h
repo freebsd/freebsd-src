@@ -37,13 +37,16 @@
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #else
-#include <sys/queue.h>
-#include <sys/refcount.h>
+#include <sys/errno.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_null.h>
+#include <sys/queue.h>
+#include <sys/refcount.h>
 #include <vm/vm.h>
 
 struct filedesc;
+struct proc;
 struct stat;
 struct thread;
 struct uio;

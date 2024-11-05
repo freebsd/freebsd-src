@@ -100,7 +100,6 @@ BADHDRS= \
 	sys/prng.h \
 	sys/qmath.h \
 	sys/racct.h \
-	sys/refcount.h \
 	sys/resourcevar.h \
 	sys/rman.h \
 	sys/rmlock.h \

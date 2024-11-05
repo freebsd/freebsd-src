@@ -28,8 +28,11 @@
 #define	_SYS_KTLS_H_
 
 #ifdef _KERNEL
+#include <sys/_null.h>
 #include <sys/refcount.h>
 #include <sys/_task.h>
+
+#include <machine/param.h>
 #endif
 
 struct tls_record_layer {
