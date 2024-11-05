@@ -65,7 +65,6 @@ METHOD void enable_source {
 METHOD void disable_source {
 	device_t	pic;
 	struct intsrc	*isrc;
-	int		eoi;
 };
 
 METHOD void eoi_source {
