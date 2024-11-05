@@ -43,6 +43,14 @@ err()
     exit 1
 }
 
+cleanup()
+{
+    rc=$?
+    rm -fr "$GITARC_TMPDIR"
+    trap - EXIT
+    exit $rc
+}
+
 err_usage()
 {
     cat >&2 <<__EOF__
@@ -147,6 +155,12 @@ __EOF__
     exit 1
 }
 
+# Use xmktemp instead of mktemp when creating temporary files.
+xmktemp()
+{
+    mktemp "${GITARC_TMPDIR:?}/tmp.XXXXXXXXXX" || exit 1
+}
+
 #
 # Fetch the value of a boolean config variable ($1) and return true
 # (0) if the variable is true.  The default value to use if the
@@ -200,7 +214,7 @@ diff2status()
         err "invalid diff ID $diff"
     fi
 
-    tmp=$(mktemp)
+    tmp=$(xmktemp)
     echo '{"names":["'"$diff"'"]}' |
         arc_call_conduit -- phid.lookup > "$tmp"
     status=$(jq -r "select(.response != []) | .response.${diff}.status" < "$tmp")
@@ -279,7 +293,7 @@ create_one_review()
         return 1
     fi
 
-    msg=$(mktemp)
+    msg=$(xmktemp)
     git show -s --format='%B' "$commit" > "$msg"
     printf "\nTest Plan:\n" >> "$msg"
     printf "\nReviewers:\n" >> "$msg"
@@ -308,7 +322,6 @@ create_one_review()
             ]}' |
             arc_call_conduit -- differential.revision.edit >&3
     fi
-    rm -f "$msg"
     return 0
 }
 
@@ -542,31 +555,30 @@ find_author()
 
 patch_commit()
 {
-    local diff reviewid review_data authorid user_data user_addr user_name author
-    local tmp author_addr author_name
+    local diff reviewid review_data authorid user_data user_addr user_name
+    local diff_data author_addr author_name author tmp
 
     diff=$1
     reviewid=$(diff2phid "$diff")
     # Get the author phid for this patch
-    review_data=$(mktemp)
+    review_data=$(xmktemp)
     echo '{"constraints": {"phids": ["'"$reviewid"'"]}}' | \
         arc_call_conduit -- differential.revision.search > "$review_data"
     authorid=$(jq -r '.response.data[].fields.authorPHID' "$review_data")
     # Get metadata about the user that submitted this patch
-    user_data=$(mktemp)
+    user_data=$(xmktemp)
     echo '{"constraints": {"phids": ["'"$authorid"'"]}}' | \
         arc_call_conduit -- user.search | \
         jq -r '.response.data[].fields' > "$user_data"
     user_addr=$(jq -r '.username' "$user_data")
     user_name=$(jq -r '.realName' "$user_data")
-    rm "$user_data"
     # Dig the data out of querydiffs api endpoint, although it's deprecated,
     # since it's one of the few places we can get email addresses. It's unclear
     # if we can expect multiple difference ones of these. Some records don't
     # have this data, so we remove all the 'null's. We sort the results and
     # remove duplicates 'just to be sure' since we've not seen multiple
     # records that match.
-    diff_data=$(mktemp)
+    diff_data=$(xmktemp)
     echo '{"revisionIDs": [ '"${diff#D}"' ]}' | \
         arc_call_conduit -- differential.querydiffs |
         jq -r '.response | flatten | .[]' > "$diff_data"
@@ -583,7 +595,6 @@ patch_commit()
     fi
 
     author=$(find_author "$user_addr" "$user_name" "$author_addr" "$author_name")
-    rm "$diff_data"
 
     # If we had to guess, and the user didn't want to guess, abort
     if [ "${author}" = "ABORT" ]; then
@@ -591,12 +602,11 @@ patch_commit()
         exit 1
     fi
 
-    tmp=$(mktemp)
-    jq -r '.response.data[].fields.title' "$review_data" > $tmp
-    echo >> $tmp
-    jq -r '.response.data[].fields.summary' "$review_data" >> $tmp
-    echo >> $tmp
-    rm "$review_data"
+    tmp=$(xmktemp)
+    jq -r '.response.data[].fields.title' "$review_data" > "$tmp"
+    echo >> "$tmp"
+    jq -r '.response.data[].fields.summary' "$review_data" >> "$tmp"
+    echo >> "$tmp"
     # XXX this leaves an extra newline in some cases.
     reviewers=$(diff2reviewers "$diff" | sed '/^$/d' | paste -sd ',' - | sed 's/,/, /g')
     if [ -n "$reviewers" ]; then
@@ -605,7 +615,6 @@ patch_commit()
     # XXX TODO refactor with gitarc__stage maybe?
     printf "Differential Revision:\thttps://reviews.freebsd.org/%s\n" "${diff}" >> "$tmp"
     git commit --author "${author}" --file "$tmp"
-    rm "$tmp"
 }
 
 gitarc__patch()
@@ -665,7 +674,7 @@ gitarc__stage()
         git checkout -q -b "${branch}" main
     fi
 
-    tmp=$(mktemp)
+    tmp=$(xmktemp)
     for commit in $commits; do
         git show -s --format=%B "$commit" > "$tmp"
         title=$(git show -s --format=%s "$commit")
@@ -825,5 +834,8 @@ esac
 if get_bool_config arc.browse false; then
     BROWSE=--browse
 fi
+
+GITARC_TMPDIR=$(mktemp -d) || exit 1
+trap cleanup EXIT HUP INT QUIT TRAP USR1 TERM
 
 gitarc__"${verb}" "$@"
