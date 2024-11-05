@@ -101,10 +101,10 @@ Config Variables:
                           Defaults to false.
 
     arc.list [bool]    -- Always use "list mode" (-l) with create and update.
-			  In this mode, the list of git revisions to use
+                          In this mode, the list of git revisions to use
                           is listed with a single prompt before creating or
                           updating reviews.  The diffs for individual commits
-			  are not shown.
+                          are not shown.
 
     arc.verbose [bool] -- Verbose output.  Equivalent to the -v flag.
 
@@ -205,7 +205,7 @@ diff2status()
         arc_call_conduit -- phid.lookup > "$tmp"
     status=$(jq -r "select(.response != []) | .response.${diff}.status" < "$tmp")
     summary=$(jq -r "select(.response != []) |
-         .response.${diff}.fullName" < "$tmp")
+        .response.${diff}.fullName" < "$tmp")
     printf "%-14s %s\n" "${status}" "${summary}"
 }
 
@@ -305,7 +305,7 @@ create_one_review()
                     "type": "parents.add",
                     "value": ["'"${parentphid}"'"]
                 }
-             ]}' |
+            ]}' |
             arc_call_conduit -- differential.revision.edit >&3
     fi
     rm -f "$msg"
@@ -321,15 +321,15 @@ diff2reviewers()
     reviewid=$(diff2phid "$diff")
     userids=$( \
         echo '{
-                  "constraints": {"phids": ["'"$reviewid"'"]},
-                  "attachments": {"reviewers": true}
-              }' |
+        "constraints": {"phids": ["'"$reviewid"'"]},
+        "attachments": {"reviewers": true}
+        }' |
         arc_call_conduit -- differential.revision.search |
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
         echo '{
-                  "constraints": {"phids": ['"$(printf "%s" "$userids" | tr '[:space:]' ',')"']}
-              }' |
+        "constraints": {"phids": ['"$(printf "%s" "$userids" | tr '[:space:]' ',')"']}
+        }' |
         arc_call_conduit -- user.search |
         jq -r '.response.data[].fields.username'
     fi
@@ -427,7 +427,7 @@ gitarc__create()
 
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
-                             "$doprompt"; then
+            "$doprompt"; then
             prev=$(commit2diff "$commit")
         else
             prev=""
@@ -448,8 +448,8 @@ gitarc__list()
 
         diff=$(log2diff "$commit")
         if [ -n "$diff" ]; then
-                diff2status "$diff"
-                continue
+            diff2status "$diff"
+            continue
         fi
 
         # This does not use commit2diff as it needs to handle errors
@@ -457,7 +457,7 @@ gitarc__list()
         title=$(git show -s --format=%s "$commit")
         diff=$(echo "$openrevs" | \
             awk -F'D[1-9][0-9]*: ' \
-                '{if ($2 == "'"$(echo $title | sed 's/"/\\"/g')"'") print $0}')
+            '{if ($2 == "'"$(echo $title | sed 's/"/\\"/g')"'") print $0}')
         if [ -z "$diff" ]; then
             echo "No Review            : $title"
         elif [ "$(echo "$diff" | wc -l)" -ne 1 ]; then
@@ -491,7 +491,7 @@ find_author()
     # freebsd.org (which isn't surprising for ports committers getting src
     # commits reviewed).
     case "${addr}" in
-    *.*) ;;		# external user
+    *.*) ;;             # external user
     *)
         echo "${name} <${addr}@FreeBSD.org>"
         return
@@ -532,7 +532,7 @@ find_author()
     # don't know if the prior _ are _ or + or any number of other characters.
     # Since there's issues here, prompt
     a=$(printf "%s <%s>\n" "${name}" $(echo "$addr" | sed -e 's/\(.*\)_/\1@/'))
-    echo "Making best guess: Truning ${addr} to ${a}"
+    echo "Making best guess: Turning ${addr} to ${a}"
     if ! prompt; then
         echo "ABORT"
         return
@@ -587,8 +587,8 @@ patch_commit()
 
     # If we had to guess, and the user didn't want to guess, abort
     if [ "${author}" = "ABORT" ]; then
-	warn "Not committing due to uncertainty over author name"
-	exit 1
+        warn "Not committing due to uncertainty over author name"
+        exit 1
     fi
 
     tmp=$(mktemp)
@@ -620,7 +620,7 @@ gitarc__patch()
     while getopts c o; do
         case "$o" in
         c)
-	    require_clean_work_tree "patch -c"
+            require_clean_work_tree "patch -c"
             commit=true
             ;;
         *)
@@ -634,9 +634,9 @@ gitarc__patch()
         arc patch --skip-dependencies --nocommit --nobranch --force "$rev"
         echo "Applying ${rev}..."
         [ $? -eq 0 ] || break
-	if ${commit}; then
-	    patch_commit $rev
-	fi
+        if ${commit}; then
+            patch_commit $rev
+        fi
     done
 }
 
