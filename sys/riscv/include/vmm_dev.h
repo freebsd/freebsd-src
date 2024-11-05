@@ -34,6 +34,8 @@
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
 
+#include <machine/vmm.h>
+
 struct vm_memmap {
 	vm_paddr_t	gpa;
 	int		segid;		/* memory segment */
