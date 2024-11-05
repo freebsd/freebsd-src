@@ -74,6 +74,12 @@ struct intsrc;
 
 typedef	struct pic		*x86pic_t, x86pics_t;
 
+/* Flags for pic_disable_intr() */
+enum eoi_flag {
+	PIC_EOI,
+	PIC_NO_EOI,
+};
+
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,
  * "turn on" the interrupt on the CPU side by setting up an IDT entry, and
@@ -85,7 +91,7 @@ struct pic {
 	void (*pic_disable_source)(x86pic_t, struct intsrc *);
 	void (*pic_eoi_source)(x86pic_t, struct intsrc *);
 	void (*pic_enable_intr)(x86pic_t, struct intsrc *);
-	void (*pic_disable_intr)(x86pic_t, struct intsrc *);
+	void (*pic_disable_intr)(x86pic_t, struct intsrc *, enum eoi_flag);
 	int (*pic_source_pending)(x86pic_t, struct intsrc *);
 	void (*pic_suspend)(x86pic_t);
 	void (*pic_resume)(x86pic_t, bool suspend_cancelled);
@@ -107,7 +113,8 @@ struct pic {
 		((pic)->pic_disable_source((pic), (isrc)))
 #define	PIC_EOI_SOURCE(pic, isrc)	((pic)->pic_eoi_source((pic), (isrc)))
 #define	PIC_ENABLE_INTR(pic, isrc)	((pic)->pic_enable_intr((pic), (isrc)))
-#define	PIC_DISABLE_INTR(pic, isrc)	((pic)->pic_disable_intr((pic), (isrc)))
+#define	PIC_DISABLE_INTR(pic, isrc, eoi) \
+		((pic)->pic_disable_intr((pic), (isrc), (eoi)))
 #define	PIC_SUSPEND(pic) \
 		do {							\
 			if ((pic)->pic_suspend != NULL)			\
