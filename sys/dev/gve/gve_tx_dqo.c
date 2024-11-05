@@ -1052,6 +1052,16 @@ gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 		work_done++;
 	}
 
+	/*
+	 * Waking the xmit taskqueue has to occur after room has been made in
+	 * the queue.
+	 */
+	atomic_thread_fence_seq_cst();
+	if (atomic_load_bool(&tx->stopped) && work_done) {
+		atomic_store_bool(&tx->stopped, false);
+		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
+	}
+
 	tx->done += work_done; /* tx->done is just a sysctl counter */
 	counter_enter();
 	counter_u64_add_protected(tx->stats.tbytes, bytes_done);

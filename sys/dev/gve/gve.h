@@ -341,7 +341,7 @@ struct gve_txq_stats {
 	counter_u64_t tpackets;
 	counter_u64_t tso_packet_cnt;
 	counter_u64_t tx_dropped_pkt;
-	counter_u64_t tx_dropped_pkt_nospace_device;
+	counter_u64_t tx_delayed_pkt_nospace_device;
 	counter_u64_t tx_dropped_pkt_nospace_bufring;
 	counter_u64_t tx_delayed_pkt_nospace_descring;
 	counter_u64_t tx_delayed_pkt_nospace_compring;
@@ -383,6 +383,7 @@ struct gve_tx_ring {
 
 	struct task xmit_task;
 	struct taskqueue *xmit_tq;
+	bool stopped;
 
 	/* Accessed when writing descriptors */
 	struct buf_ring *br;
