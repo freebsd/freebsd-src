@@ -117,6 +117,9 @@ int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
 
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
+#define	VMMAPI_OPEN_CREATE	0x01	/* create if the VM does not exist */
+#define	VMMAPI_OPEN_REINIT	0x02	/* reinitialize the VM if it exists */
+struct vmctx *vm_openf(const char *name, int flags);
 void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
 int	vm_limit_rights(struct vmctx *ctx);
