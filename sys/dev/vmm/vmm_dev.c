@@ -8,6 +8,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -917,11 +918,88 @@ SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
     NULL, 0, sysctl_vmm_create, "A",
     NULL);
 
-void
+static int
+vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
+{
+	int error;
+
+	error = vmm_priv_check(td->td_ucred);
+	if (error != 0)
+		return (error);
+
+	if ((flags & FWRITE) == 0)
+		return (EPERM);
+
+	return (0);
+}
+
+static int
+vmmctl_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	int error;
+
+	switch (cmd) {
+	case VMMCTL_VM_CREATE: {
+		struct vmmctl_vm_create *vmc;
+
+		vmc = (struct vmmctl_vm_create *)data;
+		vmc->name[VM_MAX_NAMELEN] = '\0';
+		for (size_t i = 0; i < nitems(vmc->reserved); i++) {
+			if (vmc->reserved[i] != 0) {
+				error = EINVAL;
+				return (error);
+			}
+		}
+
+		error = vmmdev_create(vmc->name, td->td_ucred);
+		break;
+	}
+	case VMMCTL_VM_DESTROY: {
+		struct vmmctl_vm_destroy *vmd;
+
+		vmd = (struct vmmctl_vm_destroy *)data;
+		vmd->name[VM_MAX_NAMELEN] = '\0';
+		for (size_t i = 0; i < nitems(vmd->reserved); i++) {
+			if (vmd->reserved[i] != 0) {
+				error = EINVAL;
+				return (error);
+			}
+		}
+
+		error = vmmdev_lookup_and_destroy(vmd->name, td->td_ucred);
+		break;
+	}
+	default:
+		error = ENOTTY;
+		break;
+	}
+
+	return (error);
+}
+
+static struct cdevsw vmmctlsw = {
+	.d_name		= "vmmctl",
+	.d_version	= D_VERSION,
+	.d_open		= vmmctl_open,
+	.d_ioctl	= vmmctl_ioctl,
+};
+
+int
 vmmdev_init(void)
 {
+	struct cdev *cdev;
+	int error;
+
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmctlsw, NULL,
+	    UID_ROOT, GID_WHEEL, 0600, "vmmctl");
+	if (error)
+		return (error);
+
 	pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
 	    "Allow use of vmm in a jail.");
+
+	return (0);
 }
 
 int
