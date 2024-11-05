@@ -861,6 +861,11 @@ gve_detach(device_t dev)
 {
 	struct gve_priv *priv = device_get_softc(dev);
 	if_t ifp = priv->ifp;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	ether_ifdetach(ifp);
 
@@ -877,7 +882,7 @@ gve_detach(device_t dev)
 	taskqueue_free(priv->service_tq);
 
 	if_free(ifp);
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t gve_methods[] = {
