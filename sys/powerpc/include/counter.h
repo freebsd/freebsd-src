@@ -100,6 +100,8 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 
 #else	/* !64bit */
 
+#include <sys/systm.h>
+
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
 
