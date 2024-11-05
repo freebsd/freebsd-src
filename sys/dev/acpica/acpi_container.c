@@ -39,7 +39,6 @@ ACPI_MODULE_NAME("CONTAINER")
 
 static int			acpi_syscont_probe(device_t);
 static int			acpi_syscont_attach(device_t);
-static int			acpi_syscont_detach(device_t);
 static int			acpi_syscont_alloc_msi(device_t, device_t,
 				    int count, int maxcount, int *irqs);
 static int			acpi_syscont_release_msi(device_t bus, device_t dev,
@@ -55,7 +54,7 @@ static device_method_t acpi_syscont_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		acpi_syscont_probe),
     DEVMETHOD(device_attach,		acpi_syscont_attach),
-    DEVMETHOD(device_detach,		acpi_syscont_detach),
+    DEVMETHOD(device_detach,		bus_generic_detach),
 
     /* Bus interface */
     DEVMETHOD(bus_add_child,		bus_generic_add_child),
@@ -107,13 +106,6 @@ acpi_syscont_attach(device_t dev)
 
     bus_generic_probe(dev);
     return (bus_generic_attach(dev));
-}
-
-static int
-acpi_syscont_detach(device_t dev)
-{
-
-    return (bus_generic_detach(dev));
 }
 
 static int
