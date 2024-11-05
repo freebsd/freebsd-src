@@ -283,7 +283,7 @@ intr_disable_all(void)
 		is = interrupt_sources[v];
 		if (is == NULL)
 			continue;
-		PIC_DISABLE_INTR(is->is_pic, is);
+		PIC_DISABLE_INTR(is->is_pic, is, PIC_EOI);
 	}
 }
 
@@ -331,7 +331,7 @@ intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler)
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
 		if (isrc->is_handlers == 0)
-			PIC_DISABLE_INTR(isrc->is_pic, isrc);
+			PIC_DISABLE_INTR(isrc->is_pic, isrc, PIC_NO_EOI);
 		intrcnt_updatename(isrc);
 		sx_xunlock(&intrsrc_lock);
 	}
