@@ -752,7 +752,10 @@ gve_xmit_br(struct gve_tx_ring *tx)
 			 * The reference is passed in so that in the case of
 			 * errors, the new mbuf chain is what's put back on the br.
 			 */
-			err = gve_xmit_dqo(tx, &mbuf);
+			if (gve_is_qpl(priv))
+				err = gve_xmit_dqo_qpl(tx, mbuf);
+			else
+				err = gve_xmit_dqo(tx, &mbuf);
 		}
 
 		if (__predict_false(err != 0 && mbuf != NULL)) {

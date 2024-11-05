@@ -54,7 +54,12 @@ gve_free_tx_mbufs_dqo(struct gve_tx_ring *tx)
 		if (!pending_pkt->mbuf)
 			continue;
 
-		gve_unmap_packet(tx, pending_pkt);
+		if (gve_is_qpl(tx->com.priv)) {
+			pending_pkt->qpl_buf_head = -1;
+			pending_pkt->num_qpl_bufs = 0;
+		} else
+			gve_unmap_packet(tx, pending_pkt);
+
 		m_freem(pending_pkt->mbuf);
 		pending_pkt->mbuf = NULL;
 	}
@@ -79,7 +84,7 @@ gve_tx_free_ring_dqo(struct gve_priv *priv, int i)
 	if (tx->dqo.pending_pkts != NULL) {
 		gve_free_tx_mbufs_dqo(tx);
 
-		if (tx->dqo.buf_dmatag) {
+		if (!gve_is_qpl(priv) && tx->dqo.buf_dmatag) {
 			for (j = 0; j < tx->dqo.num_pending_pkts; j++)
 				if (tx->dqo.pending_pkts[j].state !=
 				    GVE_PACKET_STATE_UNALLOCATED)
@@ -91,8 +96,59 @@ gve_tx_free_ring_dqo(struct gve_priv *priv, int i)
 		tx->dqo.pending_pkts = NULL;
 	}
 
-	if (tx->dqo.buf_dmatag)
+	if (!gve_is_qpl(priv) && tx->dqo.buf_dmatag)
 		bus_dma_tag_destroy(tx->dqo.buf_dmatag);
+
+	if (gve_is_qpl(priv) && tx->dqo.qpl_bufs != NULL) {
+		free(tx->dqo.qpl_bufs, M_GVE);
+		tx->dqo.qpl_bufs = NULL;
+	}
+}
+
+static int
+gve_tx_alloc_rda_fields_dqo(struct gve_tx_ring *tx)
+{
+	struct gve_priv *priv = tx->com.priv;
+	int err;
+	int j;
+
+	/*
+	 * DMA tag for mapping Tx mbufs
+	 * The maxsize, nsegments, and maxsegsize params should match
+	 * the if_sethwtso* arguments in gve_setup_ifnet in gve_main.c.
+	 */
+	err = bus_dma_tag_create(
+	    bus_get_dma_tag(priv->dev),	/* parent */
+	    1, 0,			/* alignment, bounds */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    GVE_TSO_MAXSIZE_DQO,	/* maxsize */
+	    GVE_TX_MAX_DATA_DESCS_DQO,	/* nsegments */
+	    GVE_TX_MAX_BUF_SIZE_DQO,	/* maxsegsize */
+	    BUS_DMA_ALLOCNOW,		/* flags */
+	    NULL,			/* lockfunc */
+	    NULL,			/* lockarg */
+	    &tx->dqo.buf_dmatag);
+	if (err != 0) {
+		device_printf(priv->dev, "%s: bus_dma_tag_create failed: %d\n",
+		    __func__, err);
+		return (err);
+	}
+
+	for (j = 0; j < tx->dqo.num_pending_pkts; j++) {
+		err = bus_dmamap_create(tx->dqo.buf_dmatag, 0,
+		    &tx->dqo.pending_pkts[j].dmamap);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "err in creating pending pkt dmamap %d: %d",
+			    j, err);
+			return (err);
+		}
+		tx->dqo.pending_pkts[j].state = GVE_PACKET_STATE_FREE;
+	}
+
+	return (0);
 }
 
 int
@@ -101,7 +157,6 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	struct gve_tx_ring *tx = &priv->tx[i];
 	uint16_t num_pending_pkts;
 	int err;
-	int j;
 
 	/* Descriptor ring */
 	err = gve_dma_alloc_coherent(priv,
@@ -126,30 +181,6 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	tx->dqo.compl_ring = tx->dqo.compl_ring_mem.cpu_addr;
 
 	/*
-	 * DMA tag for mapping Tx mbufs
-	 * The maxsize, nsegments, and maxsegsize params should match
-	 * the if_sethwtso* arguments in gve_setup_ifnet in gve_main.c.
-	 */
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(priv->dev),	/* parent */
-	    1, 0,			/* alignment, bounds */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    GVE_TSO_MAXSIZE_DQO,	/* maxsize */
-	    GVE_TX_MAX_DATA_DESCS_DQO,	/* nsegments */
-	    GVE_TX_MAX_BUF_SIZE_DQO,	/* maxsegsize */
-	    BUS_DMA_ALLOCNOW,		/* flags */
-	    NULL,			/* lockfunc */
-	    NULL,			/* lockarg */
-	    &tx->dqo.buf_dmatag);
-	if (err != 0) {
-		device_printf(priv->dev, "%s: bus_dma_tag_create failed: %d\n",
-		    __func__, err);
-		goto abort;
-	}
-
-	/*
 	 * pending_pkts array
 	 *
 	 * The max number of pending packets determines the maximum number of
@@ -170,18 +201,18 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	    sizeof(struct gve_tx_pending_pkt_dqo) * num_pending_pkts,
 	    M_GVE, M_WAITOK | M_ZERO);
 
-	for (j = 0; j < tx->dqo.num_pending_pkts; j++) {
-		err = bus_dmamap_create(tx->dqo.buf_dmatag, 0,
-		    &tx->dqo.pending_pkts[j].dmamap);
-		if (err != 0) {
-			device_printf(priv->dev,
-			    "err in creating pending pkt dmamap %d: %d",
-			    j, err);
-			goto abort;
-		}
-		tx->dqo.pending_pkts[j].state = GVE_PACKET_STATE_FREE;
-	}
+	if (gve_is_qpl(priv)) {
+		int qpl_buf_cnt;
 
+		tx->com.qpl = &priv->qpls[i];
+		qpl_buf_cnt = GVE_TX_BUFS_PER_PAGE_DQO *
+		    tx->com.qpl->num_pages;
+
+		tx->dqo.qpl_bufs = malloc(
+		    sizeof(*tx->dqo.qpl_bufs) * qpl_buf_cnt,
+		    M_GVE, M_WAITOK | M_ZERO);
+	} else
+		gve_tx_alloc_rda_fields_dqo(tx);
 	return (0);
 
 abort:
@@ -333,6 +364,44 @@ gve_prep_tso(struct mbuf *mbuf, int *header_len)
 	 */
 	th->th_sum = csum;
 
+	return (0);
+}
+
+static int
+gve_tx_fill_ctx_descs(struct gve_tx_ring *tx, struct mbuf *mbuf,
+    bool is_tso, uint32_t *desc_idx)
+{
+	struct gve_tx_general_context_desc_dqo *gen_desc;
+	struct gve_tx_tso_context_desc_dqo *tso_desc;
+	struct gve_tx_metadata_dqo metadata;
+	int header_len;
+	int err;
+
+	metadata = (struct gve_tx_metadata_dqo){0};
+	gve_extract_tx_metadata_dqo(mbuf, &metadata);
+
+	if (is_tso) {
+		err = gve_prep_tso(mbuf, &header_len);
+		if (__predict_false(err)) {
+			counter_enter();
+			counter_u64_add_protected(
+			    tx->stats.tx_delayed_pkt_tsoerr, 1);
+			counter_exit();
+			return (err);
+		}
+
+		tso_desc = &tx->dqo.desc_ring[*desc_idx].tso_ctx;
+		gve_tx_fill_tso_ctx_desc(tso_desc, mbuf, &metadata, header_len);
+
+		*desc_idx = (*desc_idx + 1) & tx->dqo.desc_mask;
+		counter_enter();
+		counter_u64_add_protected(tx->stats.tso_packet_cnt, 1);
+		counter_exit();
+	}
+
+	gen_desc = &tx->dqo.desc_ring[*desc_idx].general_ctx;
+	gve_tx_fill_general_ctx_desc(gen_desc, &metadata);
+	*desc_idx = (*desc_idx + 1) & tx->dqo.desc_mask;
 	return (0);
 }
 
@@ -501,18 +570,197 @@ gve_tx_request_desc_compl(struct gve_tx_ring *tx, uint32_t desc_idx)
 	}
 }
 
+static bool
+gve_tx_have_enough_qpl_bufs(struct gve_tx_ring *tx, int num_bufs)
+{
+	uint32_t available = tx->dqo.qpl_bufs_produced_cached -
+	    tx->dqo.qpl_bufs_consumed;
+
+	if (__predict_true(available >= num_bufs))
+		return (true);
+
+	tx->dqo.qpl_bufs_produced_cached = atomic_load_acq_32(
+	    &tx->dqo.qpl_bufs_produced);
+	available = tx->dqo.qpl_bufs_produced_cached -
+	    tx->dqo.qpl_bufs_consumed;
+
+	if (__predict_true(available >= num_bufs))
+		return (true);
+	return (false);
+}
+
+static int32_t
+gve_tx_alloc_qpl_buf(struct gve_tx_ring *tx)
+{
+	int32_t buf = tx->dqo.free_qpl_bufs_csm;
+
+	if (__predict_false(buf == -1)) {
+		tx->dqo.free_qpl_bufs_csm = atomic_swap_32(
+		    &tx->dqo.free_qpl_bufs_prd, -1);
+		buf = tx->dqo.free_qpl_bufs_csm;
+		if (__predict_false(buf == -1))
+			return (-1);
+	}
+
+	tx->dqo.free_qpl_bufs_csm = tx->dqo.qpl_bufs[buf];
+	tx->dqo.qpl_bufs_consumed++;
+	return (buf);
+}
+
+/*
+ * Tx buffer i corresponds to
+ * qpl_page_id = i / GVE_TX_BUFS_PER_PAGE_DQO
+ * qpl_page_offset = (i % GVE_TX_BUFS_PER_PAGE_DQO) * GVE_TX_BUF_SIZE_DQO
+ */
+static void
+gve_tx_buf_get_addr_dqo(struct gve_tx_ring *tx,
+    int32_t index, void **va, bus_addr_t *dma_addr)
+{
+	int page_id = index >> (PAGE_SHIFT - GVE_TX_BUF_SHIFT_DQO);
+	int offset = (index & (GVE_TX_BUFS_PER_PAGE_DQO - 1)) <<
+	    GVE_TX_BUF_SHIFT_DQO;
+
+	*va = (char *)tx->com.qpl->dmas[page_id].cpu_addr + offset;
+	*dma_addr = tx->com.qpl->dmas[page_id].bus_addr + offset;
+}
+
+static struct gve_dma_handle *
+gve_get_page_dma_handle(struct gve_tx_ring *tx, int32_t index)
+{
+	int page_id = index >> (PAGE_SHIFT - GVE_TX_BUF_SHIFT_DQO);
+
+	return (&tx->com.qpl->dmas[page_id]);
+}
+
+static void
+gve_tx_copy_mbuf_and_write_pkt_descs(struct gve_tx_ring *tx,
+    struct mbuf *mbuf, struct gve_tx_pending_pkt_dqo *pkt,
+    bool csum_enabled, int16_t completion_tag,
+    uint32_t *desc_idx)
+{
+	int32_t pkt_len = mbuf->m_pkthdr.len;
+	struct gve_dma_handle *dma;
+	uint32_t copy_offset = 0;
+	int32_t prev_buf = -1;
+	uint32_t copy_len;
+	bus_addr_t addr;
+	int32_t buf;
+	void *va;
+
+	MPASS(pkt->num_qpl_bufs == 0);
+	MPASS(pkt->qpl_buf_head == -1);
+
+	while (copy_offset < pkt_len) {
+		buf = gve_tx_alloc_qpl_buf(tx);
+		/* We already checked for availability */
+		MPASS(buf != -1);
+
+		gve_tx_buf_get_addr_dqo(tx, buf, &va, &addr);
+		copy_len = MIN(GVE_TX_BUF_SIZE_DQO, pkt_len - copy_offset);
+		m_copydata(mbuf, copy_offset, copy_len, va);
+		copy_offset += copy_len;
+
+		dma = gve_get_page_dma_handle(tx, buf);
+		bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx,
+		    copy_len, addr, completion_tag,
+		    /*eop=*/copy_offset == pkt_len,
+		    csum_enabled);
+
+		/* Link all the qpl bufs for a packet */
+		if (prev_buf == -1)
+			pkt->qpl_buf_head = buf;
+		else
+			tx->dqo.qpl_bufs[prev_buf] = buf;
+
+		prev_buf = buf;
+		pkt->num_qpl_bufs++;
+	}
+
+	tx->dqo.qpl_bufs[buf] = -1;
+}
+
+int
+gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf)
+{
+	uint32_t desc_idx = tx->dqo.desc_tail;
+	struct gve_tx_pending_pkt_dqo *pkt;
+	int total_descs_needed;
+	int16_t completion_tag;
+	bool has_csum_flag;
+	int csum_flags;
+	bool is_tso;
+	int nsegs;
+	int err;
+
+	csum_flags = mbuf->m_pkthdr.csum_flags;
+	has_csum_flag = csum_flags & (CSUM_TCP | CSUM_UDP |
+	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_TSO);
+	is_tso = csum_flags & CSUM_TSO;
+
+	nsegs = howmany(mbuf->m_pkthdr.len, GVE_TX_BUF_SIZE_DQO);
+	/* Check if we have enough room in the desc ring */
+	total_descs_needed = 1 +     /* general_ctx_desc */
+	    nsegs +		     /* pkt_desc */
+	    (is_tso ? 1 : 0);        /* tso_ctx_desc */
+	if (__predict_false(!gve_tx_has_desc_room_dqo(tx, total_descs_needed)))
+		return (ENOBUFS);
+
+	if (!gve_tx_have_enough_qpl_bufs(tx, nsegs)) {
+		counter_enter();
+		counter_u64_add_protected(
+		    tx->stats.tx_delayed_pkt_nospace_qpl_bufs, 1);
+		counter_exit();
+		return (ENOBUFS);
+	}
+
+	pkt = gve_alloc_pending_packet(tx);
+	if (pkt == NULL) {
+		counter_enter();
+		counter_u64_add_protected(
+		    tx->stats.tx_delayed_pkt_nospace_compring, 1);
+		counter_exit();
+		return (ENOBUFS);
+	}
+	completion_tag = pkt - tx->dqo.pending_pkts;
+	pkt->mbuf = mbuf;
+
+	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
+	if (err)
+		goto abort;
+
+	gve_tx_copy_mbuf_and_write_pkt_descs(tx, mbuf, pkt,
+	    has_csum_flag, completion_tag, &desc_idx);
+
+	/* Remember the index of the last desc written */
+	tx->dqo.desc_tail = desc_idx;
+
+	/*
+	 * Request a descriptor completion on the last descriptor of the
+	 * packet if we are allowed to by the HW enforced interval.
+	 */
+	gve_tx_request_desc_compl(tx, desc_idx);
+
+	tx->req += total_descs_needed; /* tx->req is just a sysctl counter */
+	return (0);
+
+abort:
+	pkt->mbuf = NULL;
+	gve_free_pending_packet(tx, pkt);
+	return (err);
+}
+
 int
 gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 {
 	bus_dma_segment_t segs[GVE_TX_MAX_DATA_DESCS_DQO];
 	uint32_t desc_idx = tx->dqo.desc_tail;
-	struct gve_tx_metadata_dqo metadata;
 	struct gve_tx_pending_pkt_dqo *pkt;
 	struct mbuf *mbuf = *mbuf_ptr;
 	int total_descs_needed;
 	int16_t completion_tag;
 	bool has_csum_flag;
-	int header_len;
 	int csum_flags;
 	bool is_tso;
 	int nsegs;
@@ -562,34 +810,11 @@ gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr)
 		goto abort_with_dma;
 	}
 
+	err = gve_tx_fill_ctx_descs(tx, mbuf, is_tso, &desc_idx);
+	if (err)
+		goto abort_with_dma;
+
 	bus_dmamap_sync(tx->dqo.buf_dmatag, pkt->dmamap, BUS_DMASYNC_PREWRITE);
-
-	metadata = (struct gve_tx_metadata_dqo){0};
-	gve_extract_tx_metadata_dqo(mbuf, &metadata);
-
-	if (is_tso) {
-		err = gve_prep_tso(mbuf, &header_len);
-		if (__predict_false(err)) {
-			counter_enter();
-			counter_u64_add_protected(
-			    tx->stats.tx_delayed_pkt_tsoerr, 1);
-			counter_exit();
-			goto abort_with_dma;
-		}
-
-		gve_tx_fill_tso_ctx_desc(&tx->dqo.desc_ring[desc_idx].tso_ctx,
-		    mbuf, &metadata, header_len);
-		desc_idx = (desc_idx + 1) & tx->dqo.desc_mask;
-
-		counter_enter();
-		counter_u64_add_protected(tx->stats.tso_packet_cnt, 1);
-		counter_exit();
-	}
-
-	gve_tx_fill_general_ctx_desc(&tx->dqo.desc_ring[desc_idx].general_ctx,
-	    &metadata);
-	desc_idx = (desc_idx + 1) & tx->dqo.desc_mask;
-
 	for (i = 0; i < nsegs; i++) {
 		gve_tx_fill_pkt_desc_dqo(tx, &desc_idx,
 		    segs[i].ds_len, segs[i].ds_addr,
@@ -617,6 +842,48 @@ abort:
 	return (err);
 }
 
+static void
+gve_reap_qpl_bufs_dqo(struct gve_tx_ring *tx,
+    struct gve_tx_pending_pkt_dqo *pkt)
+{
+	int32_t buf = pkt->qpl_buf_head;
+	struct gve_dma_handle *dma;
+	int32_t qpl_buf_tail;
+	int32_t old_head;
+	int i;
+
+	for (i = 0; i < pkt->num_qpl_bufs; i++) {
+		dma = gve_get_page_dma_handle(tx, buf);
+		bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_POSTWRITE);
+		qpl_buf_tail = buf;
+		buf = tx->dqo.qpl_bufs[buf];
+	}
+	MPASS(buf == -1);
+	buf = qpl_buf_tail;
+
+	while (true) {
+		old_head = atomic_load_32(&tx->dqo.free_qpl_bufs_prd);
+		tx->dqo.qpl_bufs[buf] = old_head;
+
+		/*
+		 * The "rel" ensures that the update to dqo.free_qpl_bufs_prd
+		 * is visible only after the linked list from this pkt is
+		 * attached above to old_head.
+		 */
+		if (atomic_cmpset_rel_32(&tx->dqo.free_qpl_bufs_prd,
+		    old_head, pkt->qpl_buf_head))
+			break;
+	}
+	/*
+	 * The "rel" ensures that the update to dqo.qpl_bufs_produced is
+	 * visible only adter the update to dqo.free_qpl_bufs_prd above.
+	 */
+	atomic_add_rel_32(&tx->dqo.qpl_bufs_produced, pkt->num_qpl_bufs);
+
+	pkt->qpl_buf_head = -1;
+	pkt->num_qpl_bufs = 0;
+}
+
 static uint64_t
 gve_handle_packet_completion(struct gve_priv *priv,
     struct gve_tx_ring *tx, uint16_t compl_tag)
@@ -641,7 +908,12 @@ gve_handle_packet_completion(struct gve_priv *priv,
 	}
 
 	pkt_len = pending_pkt->mbuf->m_pkthdr.len;
-	gve_unmap_packet(tx, pending_pkt);
+
+	if (gve_is_qpl(priv))
+		gve_reap_qpl_bufs_dqo(tx, pending_pkt);
+	else
+		gve_unmap_packet(tx, pending_pkt);
+
 	m_freem(pending_pkt->mbuf);
 	pending_pkt->mbuf = NULL;
 	gve_free_pending_packet(tx, pending_pkt);
@@ -716,6 +988,21 @@ gve_clear_tx_ring_dqo(struct gve_priv *priv, int i)
 	tx->dqo.pending_pkts[tx->dqo.num_pending_pkts - 1].next = -1;
 	tx->dqo.free_pending_pkts_csm = 0;
 	atomic_store_rel_32(&tx->dqo.free_pending_pkts_prd, -1);
+
+	if (gve_is_qpl(priv)) {
+		int qpl_buf_cnt = GVE_TX_BUFS_PER_PAGE_DQO *
+		    tx->com.qpl->num_pages;
+
+		for (j = 0; j < qpl_buf_cnt - 1; j++)
+			tx->dqo.qpl_bufs[j] = j + 1;
+		tx->dqo.qpl_bufs[j] = -1;
+
+		tx->dqo.free_qpl_bufs_csm = 0;
+		atomic_store_32(&tx->dqo.free_qpl_bufs_prd, -1);
+		atomic_store_32(&tx->dqo.qpl_bufs_produced, qpl_buf_cnt);
+		tx->dqo.qpl_bufs_produced_cached = qpl_buf_cnt;
+		tx->dqo.qpl_bufs_consumed = 0;
+	}
 
 	gve_tx_clear_desc_ring_dqo(tx);
 	gve_tx_clear_compl_ring_dqo(tx);

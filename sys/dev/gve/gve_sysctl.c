@@ -84,6 +84,10 @@ gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->rx_dropped_pkt_desc_err,
 	    "Packets dropped due to descriptor error");
 	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_dropped_pkt_buf_post_fail", CTLFLAG_RD,
+	    &stats->rx_dropped_pkt_buf_post_fail,
+	    "Packets dropped due to failure to post enough buffers");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
 	    "rx_dropped_pkt_mbuf_alloc_fail", CTLFLAG_RD,
 	    &stats->rx_dropped_pkt_mbuf_alloc_fail,
 	    "Packets dropped due to failed mbuf allocation");
@@ -155,6 +159,10 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_delayed_pkt_nospace_compring", CTLFLAG_RD,
 	    &stats->tx_delayed_pkt_nospace_compring,
 	    "Packets delayed due to no space in comp ring");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_qpl_bufs", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_qpl_bufs,
+	    "Packets delayed due to not enough qpl bufs");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_delayed_pkt_tsoerr", CTLFLAG_RD,
 	    &stats->tx_delayed_pkt_tsoerr,

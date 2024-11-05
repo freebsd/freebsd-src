@@ -105,6 +105,7 @@ enum gve_queue_format {
 	GVE_GQI_RDA_FORMAT		= 0x1,
 	GVE_GQI_QPL_FORMAT		= 0x2,
 	GVE_DQO_RDA_FORMAT		= 0x3,
+	GVE_DQO_QPL_FORMAT		= 0x4,
 };
 
 enum gve_state_flags_bit {
@@ -226,6 +227,7 @@ struct gve_rxq_stats {
 	counter_u64_t rx_frag_flip_cnt;
 	counter_u64_t rx_frag_copy_cnt;
 	counter_u64_t rx_dropped_pkt_desc_err;
+	counter_u64_t rx_dropped_pkt_buf_post_fail;
 	counter_u64_t rx_dropped_pkt_mbuf_alloc_fail;
 	counter_u64_t rx_mbuf_dmamap_err;
 	counter_u64_t rx_mbuf_mclget_null;
@@ -233,11 +235,34 @@ struct gve_rxq_stats {
 
 #define NUM_RX_STATS (sizeof(struct gve_rxq_stats) / sizeof(counter_u64_t))
 
+union gve_rx_qpl_buf_id_dqo {
+	struct {
+		uint16_t buf_id:11; /* Index into rx->dqo.bufs */
+		uint8_t frag_num:5; /* Which frag in the QPL page */
+	};
+	uint16_t all;
+} __packed;
+_Static_assert(sizeof(union gve_rx_qpl_buf_id_dqo) == 2,
+    "gve: bad dqo qpl rx buf id length");
+
 struct gve_rx_buf_dqo {
-	struct mbuf *mbuf;
-	bus_dmamap_t dmamap;
-	uint64_t addr;
-	bool mapped;
+	union {
+		/* RDA */
+		struct {
+			struct mbuf *mbuf;
+			bus_dmamap_t dmamap;
+			uint64_t addr;
+			bool mapped;
+		};
+		/* QPL */
+		struct {
+			uint8_t num_nic_frags; /* number of pending completions */
+			uint8_t next_idx;  /* index of the next frag to post */
+			/* for chaining rx->dqo.used_bufs */
+			STAILQ_ENTRY(gve_rx_buf_dqo) stailq_entry;
+		};
+	};
+	/* for chaining rx->dqo.free_bufs */
 	SLIST_ENTRY(gve_rx_buf_dqo) slist_entry;
 };
 
@@ -276,6 +301,13 @@ struct gve_rx_ring {
 			uint32_t tail; /* The index at which to receive the next compl at */
 			uint8_t cur_gen_bit; /* Gets flipped on every cycle of the compl ring */
 			SLIST_HEAD(, gve_rx_buf_dqo) free_bufs;
+
+			/*
+			 * Only used in QPL mode. Pages refered to by if_input-ed mbufs
+			 * stay parked here till their wire count comes back to 1.
+			 * Pages are moved here after there aren't any pending completions.
+			 */
+			STAILQ_HEAD(, gve_rx_buf_dqo) used_bufs;
 		} dqo;
 	};
 
@@ -313,6 +345,7 @@ struct gve_txq_stats {
 	counter_u64_t tx_dropped_pkt_nospace_bufring;
 	counter_u64_t tx_delayed_pkt_nospace_descring;
 	counter_u64_t tx_delayed_pkt_nospace_compring;
+	counter_u64_t tx_delayed_pkt_nospace_qpl_bufs;
 	counter_u64_t tx_delayed_pkt_tsoerr;
 	counter_u64_t tx_dropped_pkt_vlan;
 	counter_u64_t tx_mbuf_collapse;
@@ -326,7 +359,19 @@ struct gve_txq_stats {
 
 struct gve_tx_pending_pkt_dqo {
 	struct mbuf *mbuf;
-	bus_dmamap_t dmamap;
+	union {
+		/* RDA */
+		bus_dmamap_t dmamap;
+		/* QPL */
+		struct {
+			/*
+			 * A linked list of entries from qpl_bufs that served
+			 * as the bounce buffer for this packet.
+			 */
+			int32_t qpl_buf_head;
+			uint32_t num_qpl_bufs;
+		};
+	};
 	uint8_t state; /* the gve_packet_state enum */
 	int next; /* To chain the free_pending_pkts lists */
 };
@@ -377,7 +422,20 @@ struct gve_tx_ring {
 				 */
 				int32_t free_pending_pkts_csm;
 
-				bus_dma_tag_t buf_dmatag; /* DMA params for mapping Tx mbufs */
+				/*
+				 * The head index of a singly linked list representing QPL page fragments
+				 * to copy mbuf payload into for the NIC to see. Once this list is depleted,
+				 * the "_prd" suffixed producer list, grown by the completion taskqueue,
+				 * is stolen.
+				 *
+				 * Only used in QPL mode. int32_t because atomic_swap_16 doesn't exist.
+				 */
+				int32_t free_qpl_bufs_csm;
+				uint32_t qpl_bufs_consumed; /* Allows quickly checking for buf availability */
+				uint32_t qpl_bufs_produced_cached; /* Cached value of qpl_bufs_produced */
+
+				/* DMA params for mapping Tx mbufs. Only used in RDA mode. */
+				bus_dma_tag_t buf_dmatag;
 			} __aligned(CACHE_LINE_SIZE);
 
 			/* Accessed when processing completions */
@@ -395,6 +453,18 @@ struct gve_tx_ring {
 				 * its consumer list, with the "_csm" suffix, is depleted.
 				 */
 				int32_t free_pending_pkts_prd;
+
+				/*
+				 * The completion taskqueue moves the QPL pages corresponding to a
+				 * completed packet into this list. It is only used in QPL mode.
+				 * The "_prd" denotes that this is a producer list. The trasnmit
+				 * taskqueue steals this list once its consumer list, with the "_csm"
+				 * suffix, is depleted.
+				 *
+				 * Only used in QPL mode. int32_t because atomic_swap_16 doesn't exist.
+				 */
+				int32_t free_qpl_bufs_prd;
+				uint32_t qpl_bufs_produced;
 			} __aligned(CACHE_LINE_SIZE);
 
 			/* Accessed by both the completion and xmit loops */
@@ -402,6 +472,16 @@ struct gve_tx_ring {
 				/* completion tags index into this array */
 				struct gve_tx_pending_pkt_dqo *pending_pkts;
 				uint16_t num_pending_pkts;
+
+				/*
+				 * Represents QPL page fragments. An index into this array
+				 * always represents the same QPL page fragment. The value
+				 * is also an index into this array and servers as a means
+				 * to chain buffers into linked lists whose heads are
+				 * either free_qpl_bufs_prd or free_qpl_bufs_csm or
+				 * qpl_bufs_head.
+				 */
+				int32_t *qpl_bufs;
 			} __aligned(CACHE_LINE_SIZE);
 		} dqo;
 	};
@@ -531,6 +611,13 @@ gve_is_gqi(struct gve_priv *priv)
 	return (priv->queue_format == GVE_GQI_QPL_FORMAT);
 }
 
+static inline bool
+gve_is_qpl(struct gve_priv *priv)
+{
+	return (priv->queue_format == GVE_GQI_QPL_FORMAT ||
+	    priv->queue_format == GVE_DQO_QPL_FORMAT);
+}
+
 /* Defined in gve_main.c */
 void gve_schedule_reset(struct gve_priv *priv);
 
@@ -545,6 +632,7 @@ int gve_alloc_qpls(struct gve_priv *priv);
 void gve_free_qpls(struct gve_priv *priv);
 int gve_register_qpls(struct gve_priv *priv);
 int gve_unregister_qpls(struct gve_priv *priv);
+void gve_mextadd_free(struct mbuf *mbuf);
 
 /* TX functions defined in gve_tx.c */
 int gve_alloc_tx_rings(struct gve_priv *priv);
@@ -563,6 +651,7 @@ void gve_tx_free_ring_dqo(struct gve_priv *priv, int i);
 void gve_clear_tx_ring_dqo(struct gve_priv *priv, int i);
 int gve_tx_intr_dqo(void *arg);
 int gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr);
+int gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf);
 void gve_tx_cleanup_tq_dqo(void *arg, int pending);
 
 /* RX functions defined in gve_rx.c */
