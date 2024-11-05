@@ -114,7 +114,7 @@ static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
 static void	ioapic_register_sources(x86pic_t pic);
 static void	ioapic_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
+static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void	ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc);
@@ -280,7 +280,7 @@ ioapic_enable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
+ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_pic);
@@ -294,8 +294,7 @@ ioapic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 		intpin->io_masked = 1;
 	}
 
-	if (eoi == PIC_EOI)
-		_ioapic_eoi_source(isrc, 1);
+	_ioapic_eoi_source(isrc, 1);
 
 	mtx_unlock_spin(&icu_lock);
 }
@@ -534,6 +533,8 @@ ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	u_int vector;
+
+	ioapic_disable_source(pic, isrc);
 
 	if (intpin->io_vector != 0) {
 		/* Mask this interrupt pin and free its APIC vector. */
