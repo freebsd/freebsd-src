@@ -131,7 +131,7 @@ struct atpic_intsrc {
 
 static void atpic_register_sources(x86pic_t pic);
 static void atpic_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi);
+static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc);
 static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
 static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void atpic_disable_intr(x86pic_t pic, struct intsrc *isrc);
@@ -279,7 +279,7 @@ atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
+atpic_disable_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
@@ -295,12 +295,10 @@ atpic_disable_source(x86pic_t pic, struct intsrc *isrc, int eoi)
 	 * a function pointer.  All of the referenced variables should
 	 * still be hot in the cache.
 	 */
-	if (eoi == PIC_EOI) {
-		if (isrc->is_pic == atpics[MASTER].at_pic)
-			_atpic_eoi_master(isrc);
-		else
-			_atpic_eoi_slave(isrc);
-	}
+	if (isrc->is_pic == atpics[MASTER].at_pic)
+		_atpic_eoi_master(isrc);
+	else
+		_atpic_eoi_slave(isrc);
 
 	spinlock_exit();
 }
@@ -332,6 +330,15 @@ atpic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 static void
 atpic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 {
+	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
+	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
+
+	spinlock_enter();
+	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
+		ap->at_imen |= IMEN_MASK(ai);
+		outb(ap->at_ioaddr + ICU_IMR_OFFSET, ap->at_imen);
+	}
+	spinlock_exit();
 }
 
 static int
