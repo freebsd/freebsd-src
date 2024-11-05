@@ -270,15 +270,15 @@ def pinger(
 def redact(output):
     """Redact some elements of ping's output"""
     pattern_replacements = [
-        ("localhost \([0-9]{1,3}(\.[0-9]{1,3}){3}\)", "localhost"),
-        ("from [0-9]{1,3}(\.[0-9]{1,3}){3}", "from"),
+        (r"localhost \([0-9]{1,3}(\.[0-9]{1,3}){3}\)", "localhost"),
+        (r"from [0-9]{1,3}(\.[0-9]{1,3}){3}", "from"),
         ("hlim=[0-9]*", "hlim="),
         ("ttl=[0-9]*", "ttl="),
         ("time=[0-9.-]*", "time="),
         ("cp: .*", "cp: xx xx xx xx xx xx xx xx"),
         ("dp: .*", "dp: xx xx xx xx xx xx xx xx"),
-        ("\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
-        ("[0-9\.]+/[0-9.]+", "/"),
+        (r"\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
+        (r"[0-9\.]+/[0-9.]+", "/"),
     ]
     for pattern, repl in pattern_replacements:
         output = re.sub(pattern, repl, output)
