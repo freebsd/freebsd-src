@@ -88,12 +88,6 @@ typedef	device_t		x86pic_t, x86pics_t;
 #define	X86PICP(pic)		(pic)
 typedef	const kobj_method_t	x86pic_func_t[];
 
-/* Flags for pic_disable_source() */
-enum {
-	PIC_EOI,
-	PIC_NO_EOI,
-};
-
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
  * control a given source.  The lower-layer PIC drivers can store additional
