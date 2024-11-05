@@ -81,6 +81,7 @@ int open_dev(const char *str, int *fd, int write, int exit_on_error);
 void get_nsid(int fd, char **ctrlr_str, uint32_t *nsid);
 int read_controller_data(int fd, struct nvme_controller_data *cdata);
 int read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata);
+int read_active_namespaces(int fd, uint32_t nsid, struct nvme_ns_list *nslist);
 void print_hex(void *data, uint32_t length);
 void print_namespace(struct nvme_namespace_data *nsdata);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,

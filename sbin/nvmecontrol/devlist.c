@@ -116,9 +116,10 @@ static bool
 scan_controller(int ctrlr)
 {
 	struct nvme_controller_data	cdata;
+	struct nvme_ns_list		nslist;
 	char				name[64];
 	uint8_t				mn[64];
-	uint32_t			i;
+	uint32_t			nsid;
 	int				fd, ret;
 
 	snprintf(name, sizeof(name), "%s%d", NVME_CTRLR_PREFIX, ctrlr);
@@ -139,8 +140,20 @@ scan_controller(int ctrlr)
 	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
 	printf("%6s: %s\n", name, mn);
 
-	for (i = 0; i < cdata.nn; i++) {
-		scan_namespace(fd, ctrlr, i + 1);
+	nsid = 0;
+	for (;;) {
+		if (read_active_namespaces(fd, nsid, &nslist) != 0)
+			break;
+		for (u_int i = 0; i < nitems(nslist.ns); i++) {
+			nsid = nslist.ns[i];
+			if (nsid == 0) {
+				break;
+			}
+
+			scan_namespace(fd, ctrlr, nsid);
+		}
+		if (nsid == 0 || nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
+			break;
 	}
 
 	close(fd);
