@@ -52,7 +52,7 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
-	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/vmm dev/wg \
+	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wg \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -308,6 +308,13 @@ INCS+=		iconv.h
 
 .if ${MK_USB} != "no"
 LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "riscv"
+.if ${MK_BHYVE} != "no"
+LSUBDIRS+=	dev/vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
