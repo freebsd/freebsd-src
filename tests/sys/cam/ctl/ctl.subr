@@ -47,7 +47,14 @@ find_device() {
 	ctladm port -o on -p 0 >/dev/null
 	HEXLUN=`printf %x $LUN`
 	while true; do
-		dev=`camcontrol devlist | awk -v lun=$HEXLUN '/FREEBSD CTL/ && $9==lun {split($10, fields, /[,]/); print fields[1];}' | sed 's:[()]::'`
+		dev=`camcontrol devlist | awk -v lun=$HEXLUN '
+		/FREEBSD CTL.*,pass/ && $9==lun {
+			split($10, fields, /[,]/); print fields[1];
+		}
+		/FREEBSD CTL.*\(pass/ && $9==lun {
+			split($10, fields, /[,]/); print fields[2];
+		}
+		' | sed 's:[()]::'`
 		if [ -z "$dev" -o ! -c /dev/$dev ]; then
 			retries=$(( $retries - 1 ))
 			if [ $retries -eq 0 ]; then
