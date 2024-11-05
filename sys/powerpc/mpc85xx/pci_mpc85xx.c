@@ -673,12 +673,17 @@ static int
 fsl_pcib_detach(device_t dev)
 {
 	struct fsl_pcib_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
 	mtx_destroy(&sc->sc_cfg_mtx);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static int

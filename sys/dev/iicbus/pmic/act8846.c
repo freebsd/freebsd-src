@@ -226,11 +226,16 @@ static int
 act8846_detach(device_t dev)
 {
 	struct act8846_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	LOCK_DESTROY(sc);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t act8846_methods[] = {

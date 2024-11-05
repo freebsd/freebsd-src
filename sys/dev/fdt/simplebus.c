@@ -189,12 +189,17 @@ int
 simplebus_detach(device_t dev)
 {
 	struct		simplebus_softc *sc;
+	int	rv;
+
+	rv = bus_generic_detach(dev);
+	if (rv != 0)
+		return (rv);
 
 	sc = device_get_softc(dev);
 	if (sc->ranges != NULL)
 		free(sc->ranges, M_DEVBUF);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 void

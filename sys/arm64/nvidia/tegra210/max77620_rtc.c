@@ -366,11 +366,16 @@ static int
 max77620_rtc_detach(device_t dev)
 {
 	struct max77620_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	LOCK_DESTROY(sc);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 /*
