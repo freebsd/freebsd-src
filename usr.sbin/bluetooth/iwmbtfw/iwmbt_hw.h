@@ -72,6 +72,12 @@ struct iwmbt_hci_event_cmd_compl {
 #define	IWMBT_HCI_MAX_CMD_SIZE		256
 #define	IWMBT_HCI_MAX_EVENT_SIZE	16
 
+#define	IWMBT_MSEC2TS(msec)				\
+	(struct timespec) {				\
+	    .tv_sec = (msec) / 1000,			\
+	    .tv_nsec = ((msec) % 1000) * 1000000	\
+	};
+#define	IWMBT_TS2MSEC(ts)	((ts).tv_sec * 1000 + (ts).tv_nsec / 1000000)
 #define	IWMBT_HCI_CMD_TIMEOUT		2000	/* ms */
 #define	IWMBT_LOADCMPL_TIMEOUT		5000	/* ms */
 
