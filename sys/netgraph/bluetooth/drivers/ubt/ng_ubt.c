@@ -614,6 +614,9 @@ ubt_probe(device_t dev)
 	if (usbd_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
 		return (ENXIO);
+	if (usbd_lookup_id_by_uaa(ubt_rtl_devs,
+			ubt_rtl_devs_sizeof, uaa) == 0)
+		return (ENXIO);
 
 	id = usbd_lookup_id_by_info(ubt_devs,
 	    sizeof(ubt_devs), &uaa->info);

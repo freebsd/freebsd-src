@@ -4225,6 +4225,7 @@ net80211/ieee80211_alq.c	optional wlan ieee80211_alq
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt usb
 netgraph/bluetooth/drivers/ubt/ng_ubt_intel.c optional netgraph_bluetooth_ubt usb
+netgraph/bluetooth/drivers/ubt/ng_ubt_rtl.c optional netgraph_bluetooth_ubt usb
 netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw usb
 netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
