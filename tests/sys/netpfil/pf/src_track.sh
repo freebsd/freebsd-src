@@ -52,7 +52,19 @@ source_track_body()
 		"pass out keep state (source-track)"
 
 	ping -c 3 192.0.2.1
-	jexec alcatraz pfctl -s all -v
+	atf_check -s exit:0 -o match:'192.0.2.2 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+
+	# Flush all source nodes
+	jexec alcatraz pfctl -FS
+
+	# We can't find the previous source node any more
+	atf_check -s exit:0 -o not-match:'192.0.2.2 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+
+	# But we still have the state
+	atf_check -s exit:0 -o match:'all icmp 192.0.2.1:8 <- 192.0.2.2:.*' \
+	    jexec alcatraz pfctl -ss
 }
 
 source_track_cleanup()
@@ -60,6 +72,61 @@ source_track_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "kill" "cleanup"
+kill_head()
+{
+	atf_set descr 'Test killing source nodes'
+	atf_set require.user root
+}
+
+kill_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a inet alias 192.0.2.3/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Enable pf!
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass in keep state (source-track)" \
+		"pass out keep state (source-track)"
+
+	# Establish two sources
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -S 192.0.2.2 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -S 192.0.2.3 192.0.2.1
+
+	# Check that both source nodes exist
+	atf_check -s exit:0 -o match:'192.0.2.2 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+	atf_check -s exit:0 -o match:'192.0.2.3 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+
+
+jexec alcatraz pfctl -sS
+
+	# Kill the 192.0.2.2 source
+	jexec alcatraz pfctl -K 192.0.2.2
+
+	# The other source still exists
+	atf_check -s exit:0 -o match:'192.0.2.3 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+
+	# But not the one we killed
+	atf_check -s exit:0 -o not-match:'192.0.2.2 -> 0.0.0.0 \( states 1,.*' \
+	    jexec alcatraz pfctl -sS
+}
+
+kill_cleanup()
+{
+	pft_cleanup
+}
 
 max_src_conn_rule_head()
 {
@@ -188,6 +255,7 @@ max_src_states_rule_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "source_track"
+	atf_add_test_case "kill"
 	atf_add_test_case "max_src_conn_rule"
 	atf_add_test_case "max_src_states_rule"
 }
