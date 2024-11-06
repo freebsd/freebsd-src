@@ -1,0 +1,100 @@
+.\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
+.\" Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\" Copyright (c) 2023 Future Crew LLC.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd July 19, 2023
+.Dt RTLBTFW 8
+.Os
+.Sh NAME
+.Nm rtlbtfw
+.Nd firmware download utility for Realtek 87XX/88XX chip based Bluetooth
+USB devices
+.Sh SYNOPSIS
+.Nm
+.Fl d Ar device_name
+.Fl f Ar firmware_path
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility downloads the specified firmware file to the specified
+.Xr ugen 4
+device.
+.Pp
+This utility will
+.Em only
+work with Realtek 87XX/88XX chip based Bluetooth USB devices and some of
+their successors.
+The identification is currently based on USB vendor ID/product ID pair and
+interface class.
+For Realtek devices the vendor ID should be 0x0bda
+.Pq Dv USB_VENDOR_REALTEK
+and the 0-th interface class/subclass/protocol should be a Bluetooth RF
+Wireless Controller.
+Non-Realtek devices are identified based on USB vendor ID/product ID pair.
+.Pp
+Firmware files are available in the
+.Pa comms/rtlbt-firmware
+port.
+.Pp
+The
+.Nm
+utility will query the device to determine which firmware image and board
+configuration to load in at runtime.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl D
+Enable verbose debugging.
+.It Fl d Ar device_name
+Specify
+.Xr ugen 4
+device name.
+.It Fl I
+Enable informational debugging.
+.It Fl f Ar firmware_path
+Specify the directory containing the firmware files to search and upload.
+.It Fl h
+Display usage message and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr libusb 3 ,
+.Xr ng_ubt 4 ,
+.Xr ugen 4 ,
+.Xr devd 8
+.Sh AUTHORS
+.Nm
+is based on
+.Xr ath3kfw 8
+utility used as firmware downloader template and on Linux btrtl driver
+source code.
+It is written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org
+under sponsorship from Future Crew LLC.
+.Sh BUGS
+Most likely.
+Please report if found.
