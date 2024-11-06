@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2013 Adrian Chadd <adrian@freebsd.org>
  * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Future Crew LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -167,6 +168,26 @@ iwmbt_get_fwname(struct iwmbt_version *ver, struct iwmbt_boot_params *params,
 	default:
 		fwname = NULL;
 	}
+
+	return (fwname);
+}
+
+char *
+iwmbt_get_fwname_tlv(struct iwmbt_version_tlv *ver, const char *prefix,
+    const char *suffix)
+{
+	char *fwname;
+
+#define	IWMBT_PACK_CNVX_TOP(cnvx_top)	((uint16_t)(	\
+	((cnvx_top) & 0x0f000000) >> 16 |		\
+	((cnvx_top) & 0x0000000f) << 12 |		\
+	((cnvx_top) & 0x00000ff0) >> 4))
+
+	asprintf(&fwname, "%s/ibt-%04x-%04x.%s",
+	    prefix,
+	    IWMBT_PACK_CNVX_TOP(ver->cnvi_top),
+	    IWMBT_PACK_CNVX_TOP(ver->cnvr_top),
+	    suffix);
 
 	return (fwname);
 }
