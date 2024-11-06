@@ -37,9 +37,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <libusb.h>
+
+#include <netgraph/bluetooth/include/ng_hci.h>
 
 #include "iwmbt_fw.h"
 #include "iwmbt_hw.h"
@@ -95,6 +98,7 @@ static int
 iwmbt_hci_command(struct libusb_device_handle *hdl, struct iwmbt_hci_cmd *cmd,
     void *event, int size, int *transferred, int timeout)
 {
+	struct timespec to, now, remains;
 	int ret;
 
 	ret = libusb_control_transfer(hdl,
@@ -112,18 +116,47 @@ iwmbt_hci_command(struct libusb_device_handle *hdl, struct iwmbt_hci_cmd *cmd,
 		return (ret);
 	}
 
-	ret = libusb_interrupt_transfer(hdl,
-	    IWMBT_INTERRUPT_ENDPOINT_ADDR,
-	    event,
-	    size,
-	    transferred,
-	    timeout);
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	to = IWMBT_MSEC2TS(timeout);
+	timespecadd(&to, &now, &to);
 
-	if (ret < 0)
-		iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
-		    libusb_strerror(ret));
+	do {
+		timespecsub(&to, &now, &remains);
+		ret = libusb_interrupt_transfer(hdl,
+		    IWMBT_INTERRUPT_ENDPOINT_ADDR,
+		    event,
+		    size,
+		    transferred,
+		    IWMBT_TS2MSEC(remains) + 1);
 
-	return (ret);
+		if (ret < 0) {
+			iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
+			    libusb_strerror(ret));
+			return (ret);
+		}
+
+		switch (((struct iwmbt_hci_event *)event)->header.event) {
+		case NG_HCI_EVENT_COMMAND_COMPL:
+			if (*transferred <
+			    (int)offsetof(struct iwmbt_hci_event_cmd_compl, data))
+				break;
+			if (cmd->opcode !=
+			    ((struct iwmbt_hci_event_cmd_compl *)event)->opcode)
+				break;
+			/* FALLTHROUGH */
+		case 0xFF:
+			return (0);
+		default:
+			break;
+		}
+		iwmbt_debug("Stray HCI event: %x",
+		    ((struct iwmbt_hci_event *)event)->header.event);
+	} while (timespeccmp(&to, &now, >));
+
+	iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
+	    libusb_strerror(LIBUSB_ERROR_TIMEOUT));
+
+	return (LIBUSB_ERROR_TIMEOUT);
 }
 
 int
@@ -691,6 +724,7 @@ iwmbt_load_ddc(struct libusb_device_handle *hdl,
 	int size, sent = 0;
 	int ret, transferred;
 	uint8_t buf[IWMBT_HCI_MAX_CMD_SIZE];
+	uint8_t evt[IWMBT_HCI_MAX_CMD_SIZE];
 	struct iwmbt_hci_cmd *cmd = (struct iwmbt_hci_cmd *)buf;
 
 	size = ddc->len;
@@ -713,8 +747,8 @@ iwmbt_load_ddc(struct libusb_device_handle *hdl,
 
 		ret = iwmbt_hci_command(hdl,
 		    cmd,
-		    buf,
-		    sizeof(buf),
+		    evt,
+		    sizeof(evt),
 		    &transferred,
 		    IWMBT_HCI_CMD_TIMEOUT);
 
