@@ -26,7 +26,9 @@
 #include <stand.h>
 #include <sys/param.h>
 #include <sys/boot.h>
+#ifdef LOADER_FDT_SUPPORT
 #include <fdt_platform.h>
+#endif
 
 #include <machine/cpufunc.h>
 #include <bootstrap.h>
@@ -620,6 +622,7 @@ kboot_zfs_probe(void)
 #endif
 }
 
+#ifdef LOADER_FDT_SUPPORT
 /*
  * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
  * and declaring it as extern is in contradiction with COMMAND_SET() macro
@@ -634,4 +637,4 @@ command_fdt(int argc, char *argv[])
 }
 
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
-
+#endif
