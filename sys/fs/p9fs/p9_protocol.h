@@ -267,6 +267,8 @@ struct p9_iattr_dotl {
 
 #define P9PROTO_TGETATTR_BLK		512
 
+#define	P9PROTO_UNLINKAT_REMOVEDIR	0x200
+
 /* PDU buffer used for SG lists. */
 struct p9_buffer {
 	uint32_t size;

@@ -669,6 +669,27 @@ p9_client_remove(struct p9_fid *fid)
 	return (error);
 }
 
+int
+p9_client_unlink(struct p9_fid *dfid, const char *name, int32_t flags)
+{
+	int error;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	error = 0;
+	clnt = dfid->clnt;
+
+	req = p9_client_request(clnt, P9PROTO_TUNLINKAT, &error, "dsd",
+	    dfid->fid, name, flags);
+	if (error != 0) {
+		P9_DEBUG(PROTO, "RUNLINKAT fid %d\n", dfid->fid);
+		return (error);
+	}
+
+	p9_free_req(clnt, req);
+	return (error);
+}
+
 /* Inform the file server that the current file represented by fid is no longer
  * needed by the client. Any allocated fid on the server needs a clunk to be
  * destroyed.
