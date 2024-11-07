@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20241112: move p9fs from section 5 to section 4
+OLD_FILES+=usr/share/man/man5/p9fs.5.gz
+
 # 20241104: remove the outdated c2x.7 symlink in favor of c23.7
 OLD_FILES+=usr/share/man/man7/c2x.7.gz
 
