@@ -1686,20 +1686,19 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 			break;
 		}
 
-		/* do not change link mode for 100BaseFX */
-		if (dev_spec->eth_flags.e100_base_fx)
-			break;
-
 		/* change current link mode setting */
 		ctrl_ext &= ~E1000_CTRL_EXT_LINK_MODE_MASK;
 
-		if (hw->phy.media_type == e1000_media_type_copper)
+		if (dev_spec->sgmii_active)
 			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_SGMII;
 		else
 			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES;
 
 		E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
 
+		break;
+	default:
+		DEBUGOUT("e1000_get_media_type_82575 unknown link type\n");
 		break;
 	}
 
@@ -1750,24 +1749,27 @@ static s32 e1000_set_sfp_media_type_82575(struct e1000_hw *hw)
 
 	/* Check if there is some SFP module plugged and powered */
 	if ((tranceiver_type == E1000_SFF_IDENTIFIER_SFP) ||
-	    (tranceiver_type == E1000_SFF_IDENTIFIER_SFF)) {
+	    (tranceiver_type == E1000_SFF_IDENTIFIER_SFF))
 		dev_spec->module_plugged = true;
-		if (eth_flags->e1000_base_lx || eth_flags->e1000_base_sx) {
-			hw->phy.media_type = e1000_media_type_internal_serdes;
-		} else if (eth_flags->e100_base_fx) {
-			dev_spec->sgmii_active = true;
-			hw->phy.media_type = e1000_media_type_internal_serdes;
-		} else if (eth_flags->e1000_base_t) {
-			dev_spec->sgmii_active = true;
-			hw->phy.media_type = e1000_media_type_copper;
-		} else {
-			hw->phy.media_type = e1000_media_type_unknown;
-			DEBUGOUT("PHY module has not been recognized\n");
-			goto out;
-		}
+	else
+		DEBUGOUT("PHY module is not SFP/SFF %x\n", tranceiver_type);
+
+	if (eth_flags->e1000_base_lx || eth_flags->e1000_base_sx) {
+		hw->phy.media_type = e1000_media_type_internal_serdes;
+		DEBUGOUT("PHY module is 1000_base_lxsx\n");
+	} else if (eth_flags->e100_base_fx || eth_flags->e100_base_lx) {
+		dev_spec->sgmii_active = true;
+		hw->phy.media_type = e1000_media_type_internal_serdes;
+		DEBUGOUT("PHY module is 100_base_fxlx\n");
+	} else if (eth_flags->e1000_base_t) {
+		dev_spec->sgmii_active = true;
+		hw->phy.media_type = e1000_media_type_copper;
+		DEBUGOUT("PHY module is 1000_base_t\n");
 	} else {
 		hw->phy.media_type = e1000_media_type_unknown;
+		DEBUGOUT("PHY module has not been recognized\n");
 	}
+
 	ret_val = E1000_SUCCESS;
 out:
 	/* Restore I2C interface setting */
