@@ -55,7 +55,7 @@ load_hashnode(int unit, char *name, iphtent_t *node, int ttl,
 		if (!(opts & OPT_DONOTHING)) {
 			char msg[80];
 
-			snprintf(msg, sizeof(msg), "%s node from lookup hash table", what);
+			snprintf(msg, sizeof(msg), "%s node from lookup hash table(%s)", what, name);
 			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
 	return (0);
