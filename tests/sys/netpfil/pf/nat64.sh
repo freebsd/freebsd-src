@@ -141,9 +141,43 @@ udp_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "sctp" "cleanup"
+sctp_head()
+{
+	atf_set descr 'SCTP NAT64 test'
+	atf_set require.user root
+}
+
+sctp_body()
+{
+	nat64_setup
+	if ! kldstat -q -m sctp; then
+		atf_skip "This test requires SCTP"
+	fi
+
+	echo "foo" | jexec dst nc --sctp -N -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(echo bar | nc --sctp -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to SCTP server"
+	fi
+}
+
+sctp_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
 	atf_add_test_case "tcp"
 	atf_add_test_case "udp"
+	atf_add_test_case "sctp"
 }
