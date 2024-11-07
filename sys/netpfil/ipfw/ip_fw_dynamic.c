@@ -144,10 +144,10 @@ struct dyn_data {
 	uint32_t	sync;		/* synchronization time */
 	uint32_t	expire;		/* expire time */
 
-	uint64_t	pcnt_fwd;	/* bytes counter in forward */
-	uint64_t	bcnt_fwd;	/* packets counter in forward */
-	uint64_t	pcnt_rev;	/* bytes counter in reverse */
-	uint64_t	bcnt_rev;	/* packets counter in reverse */
+	uint64_t	pcnt_fwd;	/* packets counter in forward */
+	uint64_t	bcnt_fwd;	/* bytes counter in forward */
+	uint64_t	pcnt_rev;	/* packets counter in reverse */
+	uint64_t	bcnt_rev;	/* bytes counter in reverse */
 };
 
 #define	DPARENT_COUNT_DEC(p)	do {			\
