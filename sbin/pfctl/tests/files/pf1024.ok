@@ -1,0 +1,1 @@
+pass in inet all flags S/SA keep state af-to inet6 from 2001:db8::1
