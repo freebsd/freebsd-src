@@ -1497,7 +1497,8 @@ out:
  * After that, does a node metadata cleanup on client side.
  */
 static int
-remove_common(struct p9fs_node *np, struct ucred *cred)
+remove_common(struct p9fs_node *dnp, struct p9fs_node *np, const char *name,
+    struct ucred *cred)
 {
 	int error;
 	struct p9fs_session *vses;
@@ -1508,21 +1509,23 @@ remove_common(struct p9fs_node *np, struct ucred *cred)
 	vses = np->p9fs_ses;
 	vp = P9FS_NTOV(np);
 
-	vfid = p9fs_get_fid(vses->clnt, np, cred, VFID, -1, &error);
+	vfid = p9fs_get_fid(vses->clnt, dnp, cred, VFID, -1, &error);
 	if (error != 0)
 		return (error);
 
-	error = p9_client_remove(vfid);
+	error = p9_client_unlink(vfid, name,
+	    np->v_node->v_type == VDIR ? P9PROTO_UNLINKAT_REMOVEDIR : 0);
 	if (error != 0)
 		return (error);
 
 	/* Remove all non-open fids associated with the vp */
-	p9fs_fid_remove_all(np, TRUE);
+	if (np->inode.i_links_count == 1)
+		p9fs_fid_remove_all(np, TRUE);
 
 	/* Invalidate all entries of vnode from name cache and hash list. */
 	cache_purge(vp);
-
 	vfs_hash_remove(vp);
+
 	np->flags |= P9FS_NODE_DELETED;
 
 	return (error);
@@ -1537,8 +1540,10 @@ p9fs_remove(struct vop_remove_args *ap)
 	struct vnode *dvp;
 	struct p9fs_node *dnp;
 	struct p9fs_inode *dinode;
+	struct componentname *cnp;
 	int error;
 
+	cnp = ap->a_cnp;
 	vp = ap->a_vp;
 	np = P9FS_VTON(vp);
 	dvp = ap->a_dvp;
@@ -1550,7 +1555,7 @@ p9fs_remove(struct vop_remove_args *ap)
 	if (vp->v_type == VDIR)
 		return (EISDIR);
 
-	error = remove_common(np, ap->a_cnp->cn_cred);
+	error = remove_common(dnp, np, cnp->cn_nameptr, cnp->cn_cred);
 	if (error == 0)
 		P9FS_DECR_LINKS(dinode);
 
@@ -1566,8 +1571,10 @@ p9fs_rmdir(struct vop_rmdir_args *ap)
 	struct vnode *dvp;
 	struct p9fs_node *dnp;
 	struct p9fs_inode *dinode;
+	struct componentname *cnp;
 	int error;
 
+	cnp = ap->a_cnp;
 	vp = ap->a_vp;
 	np = P9FS_VTON(vp);
 	dvp = ap->a_dvp;
@@ -1576,7 +1583,7 @@ p9fs_rmdir(struct vop_rmdir_args *ap)
 
 	P9_DEBUG(VOPS, "%s: vp %p node %p \n", __func__, vp, np);
 
-	error = remove_common(np, ap->a_cnp->cn_cred);
+	error = remove_common(dnp, np, cnp->cn_nameptr, cnp->cn_cred);
 	if (error == 0)
 		P9FS_DECR_LINKS(dinode);
 
