@@ -54,8 +54,8 @@ load_poolnode(int role, char *name, ip_pool_node_t *node, int ttl,
 		if ((opts & OPT_DONOTHING) == 0) {
 			char msg[255];
 
-			snprintf(msg, sizeof(msg), "%s pool node(%s/", what,
-				inet_ntoa(pn.ipn_addr.adf_addr.in4));
+			snprintf(msg, sizeof(msg), "%s pool(%s) node(%s/", what,
+				name, inet_ntoa(pn.ipn_addr.adf_addr.in4));
 			strlcat(msg, inet_ntoa(pn.ipn_mask.adf_addr.in4), sizeof(msg));
 			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
