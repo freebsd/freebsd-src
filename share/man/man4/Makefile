@@ -428,6 +428,7 @@ MAN=	aac.4 \
 	owc.4 \
 	ovpn.4 \
 	${_padlock.4} \
+	p9fs.4 \
 	pass.4 \
 	pca954x.4 \
 	pccard.4 \
