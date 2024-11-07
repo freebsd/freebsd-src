@@ -852,17 +852,20 @@ pprint ( ) (
 
 usage ( ) {
 	(
-	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
+	echo "Usage: $0 [-BbfhIiKknqvWwX] [-c config_file]"
+	echo "	-B	suppress installs (both kernel and world)"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction (implies -i)"
 	echo "	-h	print this help summary page"
+	echo "	-I	build disk image from existing build/install"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
+	echo "	-W	suppress installworld"
 	echo "	-w	suppress buildworld"
 	echo "	-X	make native-xtools"
 	) 1>&2
