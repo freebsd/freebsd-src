@@ -56,6 +56,7 @@ In
 In
 .Xr loader.conf 5 or
 .Xr sysctl.conf 5 :
+.Cd kern.consmute=1
 .Cd kern.vt.kbd_halt=1
 .Cd kern.vt.kbd_poweroff=1
 .Cd kern.vt.kbd_reboot=1
@@ -319,6 +320,8 @@ prompt, set in
 or changed at runtime with
 .Xr sysctl 8 .
 .Bl -tag -width indent
+.It Va kern.consmute
+Disable printing kernel messages to the system console.
 .It Va kern.vt.enable_bell
 Enable the terminal bell.
 .El
