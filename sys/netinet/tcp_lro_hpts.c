@@ -39,6 +39,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
