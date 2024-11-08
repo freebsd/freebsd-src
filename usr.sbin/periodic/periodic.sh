@@ -29,20 +29,16 @@ if [ $# -lt 1 ] ; then
     usage
 fi
 
-_localbase=`/sbin/sysctl -n user.localbase 2> /dev/null`
-# Set default value of _localbase if not previously set
-: ${_localbase:="/usr/local"}
-
-# Use a deterministic path to match the preset from /etc/crontab in case
-# periodic is run interactively.
-export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${_localbase}/sbin:${_localbase}/bin
-
 # If possible, check the global system configuration file,
 # to see if there are additional dirs to check
 if [ -r /etc/defaults/periodic.conf ]; then
     . /etc/defaults/periodic.conf
     source_periodic_confs
 fi
+
+# Use a deterministic path to match the preset from /etc/crontab in case
+# periodic is run interactively.
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${_localbase}/sbin:${_localbase}/bin
 
 host=`hostname`
 export host
