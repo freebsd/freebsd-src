@@ -1205,8 +1205,12 @@ iichid_attach(device_t dev)
 		iichid_detach(dev);
 	}
 done:
-	(void)iichid_set_power(sc, I2C_HID_POWER_OFF);
-	sc->power_on = false;
+	iicbus_request_bus(device_get_parent(dev), dev, IIC_WAIT);
+	if (!sc->open) {
+		(void)iichid_set_power(sc, I2C_HID_POWER_OFF);
+		sc->power_on = false;
+	}
+	iicbus_release_bus(device_get_parent(dev), dev);
 	return (error);
 }
 
