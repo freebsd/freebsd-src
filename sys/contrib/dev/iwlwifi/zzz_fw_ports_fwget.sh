@@ -155,11 +155,11 @@ list_fw()
 					vn=$(echo ${fx} | awk '{ gsub(".ucode$", ""); gsub("^.*-", ""); print; }')
 					#echo "BN ${bn} VN ${vn}"
 					# Single digits are not zero-padded so just ${i} will be fine.
-					for i in `jot ${vn} 1`; do
+					for i in `jot ${vn} ${vn} 1`; do
 						xn="${bn}-${i}.ucode"
 						if test -e ${LFWDIR}/${xn}; then
 							lx="${lx} ${xn}"
-							break 2;
+							break
 						fi
 					done
 					;;
