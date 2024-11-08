@@ -883,6 +883,11 @@ static struct da_quirk_entry da_quirk_table[] =
 		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
 	{
+		/* ADATA USB sticks lie on RC16. */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ADATA", "USB Flash Drive*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
+	},
+	{
 		/*
 		 * I-O Data USB Flash Disk
 		 * PR: usb/211716
