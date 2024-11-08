@@ -55,6 +55,7 @@ ATF_TESTS_SH+=	altq \
 
 ATF_TESTS_PYTEST+=	frag6.py
 ATF_TESTS_PYTEST+=	icmp.py
+ATF_TESTS_PYTEST+=	nat64.py
 ATF_TESTS_PYTEST+=	nat66.py
 ATF_TESTS_PYTEST+=	sctp.py
 
