@@ -62,6 +62,7 @@ extern	char	cpu_vendor[];
 extern	char	cpu_model[];
 extern	u_int	cpu_vendor_id;
 extern	u_int	cpu_mon_mwait_flags;
+extern	u_int	cpu_mon_mwait_edx;
 extern	u_int	cpu_mon_min_size;
 extern	u_int	cpu_mon_max_size;
 extern	u_int	cpu_maxphyaddr;
