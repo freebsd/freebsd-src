@@ -570,13 +570,42 @@ setup_nanobsd_etc ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 boot/defaults/loader.conf
+	{
+		echo
+		echo '###  NanoBSD configuration  ##################################'
+		echo 'hostuuid_load="NO"'
+		echo 'entropy_cache_load="NO"		# Disable loading cached entropy at boot time.'
+		echo 'kern.random.initial_seeding.disable_bypass_warnings="1"	# Do not log a warning'
+		echo "				# if the 'bypass_before_seeding' knob is enabled"
+		echo "				# and a request is submitted prior to initial"
+		echo "				# seeding."
+	} >> boot/defaults/loader.conf
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 boot/defaults/loader.conf
+
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
+	if ! ed -s etc/defaults/rc.conf <<\EOF
+/^### Define source_rc_confs, the mechanism used by \/etc\/rc\.\* ##$/i
+###  NanoBSD options  ########################################
+##############################################################
 
-	# Make root filesystem R/O by default
-	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
-	# Disable entropy file, since / is read-only /var/db/entropy should be enough?
-	echo "entropy_file=NO" >> etc/defaults/rc.conf
+kldxref_enable="NO"	# Disable building linker.hints files with kldxref(8).
+root_rw_mount="NO"	# Inhibit remounting root read-write.
+entropy_boot_file="NO"	# Disable very early (used at early boot time)
+			# entropy caching through reboots.
+entropy_file="NO"	# Disable late (used when going multi-user)
+			# entropy through reboots.
+entropy_dir="NO"	# Disable caching entropy via cron.
 
+##############################################################
+.
+w
+q
+EOF
+	then
+		echo "Regular expression pattern not found"
+		exit 2
+	fi
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
