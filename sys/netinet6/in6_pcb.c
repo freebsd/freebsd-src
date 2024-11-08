@@ -1066,8 +1066,7 @@ in6_pcblookup_wild_match(const struct inpcb *inp, const struct in6_addr *laddr,
 
 static struct inpcb *
 in6_pcblookup_hash_wild_smr(struct inpcbinfo *pcbinfo,
-    const struct in6_addr *faddr, u_short fport, const struct in6_addr *laddr,
-    u_short lport, const inp_lookup_t lockflags)
+    const struct in6_addr *laddr, u_short lport, const inp_lookup_t lockflags)
 {
 	struct inpcbhead *head;
 	struct inpcb *inp;
@@ -1104,8 +1103,7 @@ in6_pcblookup_hash_wild_smr(struct inpcbinfo *pcbinfo,
 
 static struct inpcb *
 in6_pcblookup_hash_wild_locked(struct inpcbinfo *pcbinfo,
-    const struct in6_addr *faddr, u_short fport, const struct in6_addr *laddr,
-    u_short lport)
+    const struct in6_addr *laddr, u_short lport)
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *jail_wild, *local_exact, *local_wild;
@@ -1187,8 +1185,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
 		inp = in6_pcblookup_lbgroup(pcbinfo, faddr, fport, laddr,
 		    lport, numa_domain);
 		if (inp == NULL) {
-			inp = in6_pcblookup_hash_wild_locked(pcbinfo, faddr,
-			    fport, laddr, lport);
+			inp = in6_pcblookup_hash_wild_locked(pcbinfo,
+			    laddr, lport);
 		}
 	}
 	return (inp);
@@ -1264,8 +1262,8 @@ in6_pcblookup_hash_smr(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
 			}
 			inp = INP_LOOKUP_AGAIN;
 		} else {
-			inp = in6_pcblookup_hash_wild_smr(pcbinfo, faddr, fport,
-			    laddr, lport, lockflags);
+			inp = in6_pcblookup_hash_wild_smr(pcbinfo, laddr, lport,
+			    lockflags);
 		}
 		if (inp == INP_LOOKUP_AGAIN) {
 			return (in6_pcblookup_hash(pcbinfo, faddr, fport, laddr,
