@@ -226,12 +226,9 @@ enum {
 	MWL_DEBUG_AMPDU		= 0x00004000,	/* BA stream handling */
 	MWL_DEBUG_ANY		= 0xffffffff
 };
-#define	IS_BEACON(wh) \
-    ((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) == \
-	 (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_BEACON))
 #define	IFF_DUMPPKTS_RECV(sc, wh) \
     ((sc->sc_debug & MWL_DEBUG_RECV) && \
-      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IS_BEACON(wh)))
+      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IEEE80211_IS_MGMT_BEACON(wh)))
 #define	IFF_DUMPPKTS_XMIT(sc) \
 	(sc->sc_debug & MWL_DEBUG_XMIT)
 
@@ -2553,7 +2550,7 @@ mwl_anyhdrsize(const void *data)
 {
 	const struct ieee80211_frame *wh = data;
 
-	if ((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
+	if (IEEE80211_IS_CTL(wh)) {
 		switch (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 		case IEEE80211_FC0_SUBTYPE_CTS:
 		case IEEE80211_FC0_SUBTYPE_ACK:

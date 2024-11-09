@@ -1559,9 +1559,7 @@ rt2860_tx(struct rt2860_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
 	/* ask MAC to insert timestamp into probe responses */
-	if ((wh->i_fc[0] &
-	     (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	     (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+	if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 	    /* NOTE: beacons do not pass through tx_data() */
 		txwi->flags |= RT2860_TX_TS;
 
@@ -1802,9 +1800,7 @@ rt2860_tx_raw(struct rt2860_softc *sc, struct mbuf *m,
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
 	/* ask MAC to insert timestamp into probe responses */
-	if ((wh->i_fc[0] &
-	     (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	     (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+	if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 	    /* NOTE: beacons do not pass through tx_data() */
 		txwi->flags |= RT2860_TX_TS;
 

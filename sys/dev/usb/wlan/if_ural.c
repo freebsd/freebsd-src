@@ -1097,10 +1097,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
-		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		    IEEE80211_FC0_TYPE_MGT &&
-		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
-		    IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+		if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 			flags |= RAL_TX_TIMESTAMP;
 	}
 

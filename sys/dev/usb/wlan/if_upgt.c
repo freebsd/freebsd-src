@@ -2139,8 +2139,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	mem->addr = htole32(data->addr);
 	txdesc = (struct upgt_lmac_tx_desc *)(mem + 1);
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-	    IEEE80211_FC0_TYPE_MGT) {
+	if (IEEE80211_IS_MGMT(wh)) {
 		/* mgmt frames  */
 		txdesc->header1.flags = UPGT_H1_FLAGS_TX_MGMT;
 		/* always send mgmt frames at lowest rate (DS1) */

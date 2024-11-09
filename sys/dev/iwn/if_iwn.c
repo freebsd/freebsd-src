@@ -4624,9 +4624,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		    IEEE80211_QOS_ACKPOLICY_NOACK)
 			flags |= IWN_TX_NEED_ACK;
 	}
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_BAR))
+	if (IEEE80211_IS_CTL_BAR(wh))
 		flags |= IWN_TX_IMM_BA;		/* Cannot happen yet. */
 
 	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG)
