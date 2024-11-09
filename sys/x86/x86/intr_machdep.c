@@ -111,7 +111,7 @@ static intr_event_post_ithread_t	intr_enable_source;
 static intr_event_post_filter_t		intr_eoi_source;
 #endif
 static void	intr_init(void *__dummy);
-static int	intr_pic_registered(x86pic_t pic);
+static int	intr_pic_registered(device_t pic);
 static void	intrcnt_setname(const char *name, int index);
 static void	intrcnt_updatename(struct intsrc *is);
 static void	intrcnt_register(struct intsrc *is);
@@ -129,7 +129,7 @@ static void	intrcnt_register(struct intsrc *is);
  */
 
 static int
-intr_pic_registered(x86pic_t pic)
+intr_pic_registered(device_t pic)
 {
 	device_t p = pics.next;
 
@@ -172,7 +172,7 @@ intr_create_pic(const char *name, u_int unit, driver_t *driver)
  * 8259As in a system using the APICs) to participate in suspend and resume.
  */
 void
-intr_register_pic(x86pic_t pic)
+intr_register_pic(device_t pic)
 {
 
 	mtx_lock(&intrpic_lock);
