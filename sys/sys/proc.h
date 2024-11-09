@@ -874,7 +874,7 @@ struct proc {
 						   MAP_STACK */
 #define	P2_STKGAP_DISABLE_EXEC	0x00001000	/* Stack gap disabled
 						   after exec */
-#define	P2_ITSTOPPED		0x00002000
+#define	P2_ITSTOPPED		0x00002000	/* itimers stopped */
 #define	P2_PTRACEREQ		0x00004000	/* Active ptrace req */
 #define	P2_NO_NEW_PRIVS		0x00008000	/* Ignore setuid */
 #define	P2_WXORX_DISABLE	0x00010000	/* WX mappings enabled */
@@ -882,7 +882,7 @@ struct proc {
 #define	P2_WEXIT		0x00040000	/* exit just started, no
 						   external thread_single() is
 						   permitted */
-#define	P2_REAPKILLED		0x00080000
+#define	P2_REAPKILLED		0x00080000	/* REAP_KILL pass touched me */
 #define	P2_MEMBAR_PRIVE		0x00100000	/* membar private expedited
 						   registered */
 #define	P2_MEMBAR_PRIVE_SYNCORE	0x00200000	/* membar private expedited
