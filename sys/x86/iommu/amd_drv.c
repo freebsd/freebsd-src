@@ -1001,8 +1001,9 @@ amdiommu_find_unit_for_hpet(device_t hpet, struct amdiommu_unit **unitp,
 	res = amdiommu_ivrs_iterate_tbl(amdiommu_find_unit_scan_0x11,
 	    amdiommu_find_unit_scan_0x11, amdiommu_find_unit_scan_0x10, &ifu);
 	if (!res) {
-		printf("amdiommu cannot match hpet no %d in IVHD\n",
-		    hpet_no);
+		if (verbose)
+			printf("amdiommu cannot match hpet no %d in IVHD\n",
+			    hpet_no);
 		return (ENXIO);
 	}
 
