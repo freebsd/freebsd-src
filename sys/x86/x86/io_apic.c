@@ -115,21 +115,19 @@ static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_irq(struct ioapic_intsrc *intpin);
-static void	ioapic_register_sources(x86pic_t pic);
-static void	ioapic_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void	ioapic_disable_source(x86pic_t pic, struct intsrc *isrc);
-static void	ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc);
-static void	ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc);
+static pic_register_sources_t		ioapic_register_sources;
+static intr_event_post_ithread_t	ioapic_enable_source;
+static intr_event_pre_ithread_t		ioapic_disable_source;
+static intr_event_post_filter_t		ioapic_eoi_source;
+static pic_enable_intr_t		ioapic_enable_intr;
 static pic_disable_intr_t		ioapic_disable_intr;
-static int	ioapic_source_pending(x86pic_t pic, struct intsrc *isrc);
-static int	ioapic_config_intr(x86pic_t pic, struct intsrc *isrc,
-		    enum intr_trigger trig, enum intr_polarity pol);
-static void	ioapic_resume(x86pic_t pic, bool suspend_cancelled);
-static int	ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc,
-		    u_int apic_id);
+static pic_source_pending_t		ioapic_source_pending;
+static pic_config_intr_t		ioapic_config_intr;
+static pic_resume_t			ioapic_resume;
+static pic_assign_cpu_t			ioapic_assign_cpu;
 static void	_ioapic_program_intpin(struct ioapic *pic,
 		    struct ioapic_intsrc *intpin);
-static void	ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc);
+static pic_reprogram_pin_t		ioapic_reprogram_intpin;
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 static const device_method_t ioapic_template[] = {
@@ -139,16 +137,16 @@ static const device_method_t ioapic_template[] = {
 	DEVMETHOD(intr_event_pre_ithread,	ioapic_disable_source),
 
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_register_sources,	ioapic_register_sources),
-	X86PIC_FUNC(pic_enable_intr,		ioapic_enable_intr),
-	X86PIC_FUNC(pic_disable_intr,		ioapic_disable_intr),
-	X86PIC_FUNC(pic_source_pending,		ioapic_source_pending),
-	X86PIC_FUNC(pic_resume,			ioapic_resume),
-	X86PIC_FUNC(pic_config_intr,		ioapic_config_intr),
-	X86PIC_FUNC(pic_assign_cpu,		ioapic_assign_cpu),
-	X86PIC_FUNC(pic_reprogram_pin,		ioapic_reprogram_intpin),
+	DEVMETHOD(pic_register_sources,		ioapic_register_sources),
+	DEVMETHOD(pic_enable_intr,		ioapic_enable_intr),
+	DEVMETHOD(pic_disable_intr,		ioapic_disable_intr),
+	DEVMETHOD(pic_source_pending,		ioapic_source_pending),
+	DEVMETHOD(pic_resume,			ioapic_resume),
+	DEVMETHOD(pic_config_intr,		ioapic_config_intr),
+	DEVMETHOD(pic_assign_cpu,		ioapic_assign_cpu),
+	DEVMETHOD(pic_reprogram_pin,		ioapic_reprogram_intpin),
 
-	X86PIC_END
+	DEVMETHOD_END
 };
 
 PRIVATE_DEFINE_CLASSN(io_apic, io_apic_class, ioapic_template, 0,
@@ -268,10 +266,10 @@ ioapic_print_irq(struct ioapic_intsrc *intpin)
 }
 
 static void
-ioapic_enable_source(x86pic_t pic, struct intsrc *isrc)
+ioapic_enable_source(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	uint32_t flags;
 
 	mtx_lock_spin(&icu_lock);
@@ -285,10 +283,10 @@ ioapic_enable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
+ioapic_disable_source(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	uint32_t flags;
 
 	mtx_lock_spin(&icu_lock);
@@ -305,7 +303,7 @@ ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc)
+ioapic_eoi_source(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 
@@ -413,7 +411,7 @@ _ioapic_program_intpin(struct ioapic *io, struct ioapic_intsrc *intpin)
 }
 
 static void
-ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc)
+ioapic_reprogram_intpin(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
@@ -424,10 +422,10 @@ ioapic_reprogram_intpin(x86pic_t pic, struct intsrc *isrc)
 }
 
 static int
-ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
+ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	u_int old_vector, new_vector;
 	u_int old_id;
 
@@ -507,7 +505,7 @@ ioapic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 }
 
 static void
-ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc)
+ioapic_enable_intr(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
@@ -519,10 +517,10 @@ ioapic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+ioapic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	uint32_t flags;
 	u_int vector;
 
@@ -553,7 +551,7 @@ ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 }
 
 static int
-ioapic_source_pending(x86pic_t pic, struct intsrc *isrc)
+ioapic_source_pending(device_t pic, struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
@@ -563,11 +561,11 @@ ioapic_source_pending(x86pic_t pic, struct intsrc *isrc)
 }
 
 static int
-ioapic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
+ioapic_config_intr(device_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
-	struct ioapic *io = X86PIC_PIC(ioapic, isrc->is_event.ie_pic);
+	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 	int changed;
 
 	KASSERT(!(trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM),
@@ -607,9 +605,9 @@ ioapic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-ioapic_resume(x86pic_t pic, bool suspend_cancelled)
+ioapic_resume(device_t pic, bool suspend_cancelled)
 {
-	struct ioapic *io = X86PIC_PIC(ioapic, pic);
+	struct ioapic *io = device_get_softc(pic);
 	int i;
 
 	mtx_lock_spin(&icu_lock);
@@ -940,10 +938,10 @@ ioapic_register(ioapic_drv_t io)
  * Add interrupt sources for I/O APIC interrupt pins.
  */
 static void
-ioapic_register_sources(x86pic_t pic)
+ioapic_register_sources(device_t pic)
 {
 	struct ioapic_intsrc *pin;
-	struct ioapic *io = X86PIC_PIC(ioapic, pic);
+	struct ioapic *io = device_get_softc(pic);
 	device_t io_pic = io->io_pins->io_intsrc.is_event.ie_pic;
 	int i;
 
