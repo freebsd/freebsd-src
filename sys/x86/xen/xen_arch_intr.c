@@ -147,7 +147,7 @@ xen_intr_alloc_irqs(void)
 }
 
 static void
-xen_intr_pic_enable_source(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_enable_source(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -161,7 +161,7 @@ xen_intr_pic_enable_source(x86pic_t pic, struct intsrc *isrc)
  * \param isrc  The interrupt source to EOI.
  */
 static void
-xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_disable_source(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -170,14 +170,14 @@ xen_intr_pic_disable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_eoi_source(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_eoi_source(device_t pic, struct intsrc *isrc)
 {
 
 	/* Nothing to do on end-of-interrupt */
 }
 
 static void
-xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_enable_intr(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -186,7 +186,7 @@ xen_intr_pic_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
+xen_intr_pic_disable_intr(device_t pic, struct intsrc *isrc)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -196,7 +196,7 @@ xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
+xen_intr_pic_resume(device_t pic, bool suspend_cancelled)
 {
 
 	if (!suspend_cancelled)
@@ -205,7 +205,7 @@ xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 
 
 static int
-xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
+xen_intr_pic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
 {
 
 	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
@@ -217,19 +217,19 @@ xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-static x86pic_func_t xen_intr_methods = {
+static const device_method_t xen_intr_methods[] = {
 	/* Interrupt event interface */
 	DEVMETHOD(intr_event_pre_ithread,	xen_intr_pic_disable_source),
 	DEVMETHOD(intr_event_post_ithread,	xen_intr_pic_enable_source),
 	DEVMETHOD(intr_event_post_filter,	xen_intr_pic_eoi_source),
 
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_enable_intr,		xen_intr_pic_enable_intr),
-	X86PIC_FUNC(pic_disable_intr,		xen_intr_pic_disable_intr),
-	X86PIC_FUNC(pic_resume,			xen_intr_pic_resume),
-	X86PIC_FUNC(pic_assign_cpu,		xen_intr_pic_assign_cpu),
+	DEVMETHOD(pic_enable_intr,		xen_intr_pic_enable_intr),
+	DEVMETHOD(pic_disable_intr,		xen_intr_pic_disable_intr),
+	DEVMETHOD(pic_resume,			xen_intr_pic_resume),
+	DEVMETHOD(pic_assign_cpu,		xen_intr_pic_assign_cpu),
 
-	X86PIC_END
+	DEVMETHOD_END
 };
 
 PRIVATE_DEFINE_CLASSN(xen_intr, xen_arch_intr_class, xen_intr_methods,

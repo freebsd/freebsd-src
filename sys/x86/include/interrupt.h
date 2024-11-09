@@ -81,12 +81,6 @@ typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
-typedef const kobj_method_t x86pic_func_t[];
-#define	X86PIC_FUNC(func, impl) DEVMETHOD(func, impl)
-#define	X86PIC_END DEVMETHOD_END
-typedef device_t x86pic_t, x86pics_t;
-#define	X86PIC_PIC(pic) ((struct X86PIC_TYPE *)device_get_softc(pic))
-
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
  * control a given source.  The lower-layer PIC drivers can store additional
@@ -136,7 +130,7 @@ u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
 device_t	intr_create_pic(const char *name, u_int unit,
 		    struct kobj_class *driver /* driver_t * */);
-void	intr_register_pic(x86pic_t pic);
+void	intr_register_pic(device_t pic);
 int	intr_register_source(u_int vector, struct intsrc *isrc, device_t pic);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
