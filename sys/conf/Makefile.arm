@@ -59,7 +59,6 @@ KERNVIRTADDR= 0xc0000000
 # "ELF for the ARM architecture" for more info on the mapping symbols.
 SYSTEM_LD= \
 	${SYSTEM_LD_BASECMD} \
-	    --Map=/usr2/Meloun/ld.map \
 	    --defsym='text_start=kernbase + SIZEOF_HEADERS' \
 	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o; \
 	$(OBJCOPY) \
