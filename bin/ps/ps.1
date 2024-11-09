@@ -159,9 +159,6 @@ does not imply
 but works well with it.
 .It Fl e
 Display the environment as well.
-.It Fl f
-Show command-line and environment information about swapped out processes.
-This option is honored only if the UID of the user is 0.
 .It Fl G
 Display information about processes which are running with the specified
 real group IDs.
@@ -358,9 +355,7 @@ the include file
 .It Dv "P_TOTAL_STOP" Ta No "0x02000000" Ta "Stopped for system suspend"
 .It Dv "P_INEXEC" Ta No "0x04000000" Ta Process is in Xr execve 2
 .It Dv "P_STATCHILD" Ta No "0x08000000" Ta "Child process stopped or exited"
-.It Dv "P_INMEM" Ta No "0x10000000" Ta "Loaded into memory"
-.It Dv "P_SWAPPINGOUT" Ta No "0x20000000" Ta "Process is being swapped out"
-.It Dv "P_SWAPPINGIN" Ta No "0x40000000" Ta "Process is being swapped in"
+.It Dv "P_INMEM" Ta No "0x10000000" Ta "Always set, unused"
 .It Dv "P_PPTRACE" Ta No "0x80000000" Ta "Vforked child issued ptrace(PT_TRACEME)"
 .El
 .It Cm flags2
@@ -491,8 +486,6 @@ The process is a session leader.
 The process' parent is suspended during a
 .Xr vfork 2 ,
 waiting for the process to exec or exit.
-.It Li W
-The process is swapped out.
 .It Li X
 The process is being traced or debugged.
 .El
