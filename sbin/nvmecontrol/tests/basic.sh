@@ -94,11 +94,11 @@ admin_passthru_head()
 admin_passthru_body()
 {
 	if [ -c "${TEST_DEV_PATH}" ] ; then
-		atf_check -o not-empty -e empty nvmecontrol admin-passthru --opcode=06 --data-len=4096 --cdw10=1 -r 0 ${TEST_DEV}
+		atf_check -o not-empty -e empty nvmecontrol admin-passthru --opcode=06 --data-len=4096 --cdw10=1 -r ${TEST_DEV}
 	else
-		atf_check -s not-exit:0 -o empty -e not-empty nvmecontrol admin-passthru --opcode=06 --data-len=4096 --cdw10=1 -r 0 ${TEST_DEV}
+		atf_check -s not-exit:0 -o empty -e not-empty nvmecontrol admin-passthru --opcode=06 --data-len=4096 --cdw10=1 -r ${TEST_DEV}
 	fi
-	atf_check -s not-exit:0 -o ignore -e match:"${INV_OPT_MSG}" nvmecontrol admin-passthru ${INV_OPT} --opcode=06 --data-len=4096 --cdw10=1 -r 0 ${TEST_DEV}
+	atf_check -s not-exit:0 -o ignore -e match:"${INV_OPT_MSG}" nvmecontrol admin-passthru ${INV_OPT} --opcode=06 --data-len=4096 --cdw10=1 -r ${TEST_DEV}
 }
 
 atf_test_case devlist
@@ -142,11 +142,11 @@ io_passthru_head()
 io_passthru_body()
 {
 	if [ -c "${TEST_DEV_PATH}" ] ; then
-		atf_check -o not-empty -e empty nvmecontrol io-passthru --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r 0 nvme0 ${TEST_DEV}
+		atf_check -o not-empty -e empty nvmecontrol io-passthru --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r nvme0 ${TEST_DEV}
 	else
-		atf_check -s not-exit:0 -o empty -e not-empty nvmecontrol io-passthru --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r 0 nvme0 ${TEST_DEV}
+		atf_check -s not-exit:0 -o empty -e not-empty nvmecontrol io-passthru --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r nvme0 ${TEST_DEV}
 	fi
-	atf_check -s not-exit:0 -o ignore -e match:"${INV_OPT_MSG}" nvmecontrol io-passthru ${INV_OPT} --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r 0 nvme0 ${TEST_DEV}
+	atf_check -s not-exit:0 -o ignore -e match:"${INV_OPT_MSG}" nvmecontrol io-passthru ${INV_OPT} --opcode=02 --data-len=4096 --cdw10=0 --cdw11=0 --cdw12=0x70000 -r nvme0 ${TEST_DEV}
 }
 
 atf_test_case logpage
