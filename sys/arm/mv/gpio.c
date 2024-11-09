@@ -77,7 +77,9 @@ struct mv_gpio_softc {
 	int			mem_rid;
 	struct resource	*	irq_res[GPIO_MAX_INTR_COUNT];
 	int			irq_rid[GPIO_MAX_INTR_COUNT];
+#if 0
 	struct intr_event *	gpio_events[MV_GPIO_MAX_NPINS];
+#endif
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
@@ -103,11 +105,15 @@ static int	mv_gpio_probe(device_t);
 static int	mv_gpio_attach(device_t);
 static int	mv_gpio_intr(device_t, void *);
 
+#if 0
 static void	mv_gpio_double_edge_init(device_t, int);
+#endif
 
 static int	mv_gpio_debounce_setup(device_t, int);
 static int	mv_gpio_debounce_prepare(device_t, int);
+#if 0
 static int	mv_gpio_debounce_init(device_t, int);
+#endif
 static void	mv_gpio_debounce_start(device_t, int);
 static void	mv_gpio_debounce(void *);
 static void	mv_gpio_debounced_state_set(device_t, int, uint8_t);
@@ -122,20 +128,32 @@ static void	mv_gpio_reg_clear(device_t, uint32_t, uint32_t);
 
 static void	mv_gpio_blink(device_t, uint32_t, uint8_t);
 static void	mv_gpio_polarity(device_t, uint32_t, uint8_t, uint8_t);
+#if 0
 static void	mv_gpio_level(device_t, uint32_t, uint8_t);
+#endif
+#if 0
 static void	mv_gpio_edge(device_t, uint32_t, uint8_t);
+#endif
 static void	mv_gpio_out_en(device_t, uint32_t, uint8_t);
 static void	mv_gpio_int_ack(struct mv_gpio_pindev *);
 static void	mv_gpio_value_set(device_t, uint32_t, uint8_t);
 static uint32_t	mv_gpio_value_get(device_t, uint32_t, uint8_t);
 
+#if 0
 static void	mv_gpio_intr_mask(struct mv_gpio_pindev *);
+#endif
+#if 0
 static void	mv_gpio_intr_unmask(struct mv_gpio_pindev *);
+#endif
 
+#if 0
 static void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
+#endif
+#if 0
 static int mv_gpio_setup_intrhandler(device_t, const char *,
     driver_filter_t *, void (*)(void *), void *,
     int, int, void **);
+#endif
 static int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
 static void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
 static uint8_t mv_gpio_in(device_t, uint32_t);
@@ -382,6 +400,7 @@ mv_gpio_intr(device_t dev, void *arg)
  * GPIO interrupt handling
  */
 
+#if 0
 static void
 mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 {
@@ -396,7 +415,9 @@ mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 	 */
 	free(s, M_DEVBUF);
 }
+#endif
 
+#if 0
 static int
 mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
     void (*hand)(void *), void *arg, int pin, int flags, void **cookiep)
@@ -437,7 +458,9 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 	    intr_priority(flags), flags, cookiep);
 	return (0);
 }
+#endif
 
+#if 0
 static void
 mv_gpio_intr_mask(struct mv_gpio_pindev *s)
 {
@@ -467,7 +490,9 @@ mv_gpio_intr_mask(struct mv_gpio_pindev *s)
 
 	return;
 }
+#endif
 
+#if 0
 static void
 mv_gpio_intr_unmask(struct mv_gpio_pindev *s)
 {
@@ -489,6 +514,7 @@ mv_gpio_intr_unmask(struct mv_gpio_pindev *s)
 
 	return;
 }
+#endif
 
 static void
 mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
@@ -519,15 +545,19 @@ mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
 static void
 mv_gpio_intr_handler(device_t dev, int pin)
 {
+#if 0
 	struct intr_irqsrc isrc;
+#endif
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
 	MV_GPIO_ASSERT_LOCKED();
 
+#if 0
 #ifdef INTR_SOLO
 	isrc.isrc_filter = NULL;
 #endif
+#error "No known invoked functions modify ->gpio_events, therefore NOP."
 	isrc.isrc_event = sc->gpio_events[pin];
 
 	if (isrc.isrc_event == NULL ||
@@ -535,6 +565,7 @@ mv_gpio_intr_handler(device_t dev, int pin)
 		return;
 
 	intr_isrc_dispatch(&isrc, NULL);
+#endif
 }
 
 static int
@@ -593,6 +624,7 @@ mv_gpio_configure(device_t dev, uint32_t pin, uint32_t flags, uint32_t mask)
 	return (0);
 }
 
+#if 0
 static void
 mv_gpio_double_edge_init(device_t dev, int pin)
 {
@@ -609,6 +641,7 @@ mv_gpio_double_edge_init(device_t dev, int pin)
 	else
 		mv_gpio_polarity(dev, pin, 0, 0);
 }
+#endif
 
 static int
 mv_gpio_debounce_setup(device_t dev, int pin)
@@ -653,6 +686,7 @@ mv_gpio_debounce_prepare(device_t dev, int pin)
 	return (0);
 }
 
+#if 0
 static int
 mv_gpio_debounce_init(device_t dev, int pin)
 {
@@ -678,6 +712,7 @@ mv_gpio_debounce_init(device_t dev, int pin)
 
 	return (0);
 }
+#endif
 
 static void
 mv_gpio_debounce_start(device_t dev, int pin)
@@ -953,6 +988,7 @@ mv_gpio_polarity(device_t dev, uint32_t pin, uint8_t enable, uint8_t toggle)
 		mv_gpio_reg_clear(dev, reg, pin);
 }
 
+#if 0
 static void
 mv_gpio_level(device_t dev, uint32_t pin, uint8_t enable)
 {
@@ -970,7 +1006,9 @@ mv_gpio_level(device_t dev, uint32_t pin, uint8_t enable)
 	else
 		mv_gpio_reg_clear(dev, reg, pin);
 }
+#endif
 
+#if 0
 static void
 mv_gpio_edge(device_t dev, uint32_t pin, uint8_t enable)
 {
@@ -988,6 +1026,7 @@ mv_gpio_edge(device_t dev, uint32_t pin, uint8_t enable)
 	else
 		mv_gpio_reg_clear(dev, reg, pin);
 }
+#endif
 
 static void
 mv_gpio_int_ack(struct mv_gpio_pindev *s)
