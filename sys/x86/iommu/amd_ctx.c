@@ -462,7 +462,7 @@ dte_entry_init_one(struct amdiommu_dte *dtep, struct amdiommu_ctx *ctx,
 	if (unit->irte_enabled) {
 		dtep->iv = 1;
 		dtep->i = 0;
-		dtep->inttablen = ilog2(unit->irte_nentries);
+		dtep->inttablen = ilog2_local(unit->irte_nentries);
 		dtep->intrroot = pmap_kextract(unit->irte_x2apic ?
 		    (vm_offset_t)ctx->irtx2 :
 		    (vm_offset_t)ctx->irtb) >> 6;

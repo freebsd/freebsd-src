@@ -374,7 +374,7 @@ amdiommu_init_irt(struct amdiommu_unit *unit)
 
 	nentries = 32;
 	TUNABLE_INT_FETCH("hw.iommu.amd.ir_num", &nentries);
-	nentries = roundup_pow_of_two(nentries);
+	nentries = roundup_pow_of_two_local(nentries);
 	if (nentries < 1)
 		nentries = 1;
 	if (nentries > 2048)

@@ -320,7 +320,7 @@ amdiommu_init_cmd(struct amdiommu_unit *unit)
 {
 	uint64_t qi_sz, rv;
 
-	unit->x86c.qi_buf_maxsz = ilog2(AMDIOMMU_CMDBUF_MAX / PAGE_SIZE);
+	unit->x86c.qi_buf_maxsz = ilog2_local(AMDIOMMU_CMDBUF_MAX / PAGE_SIZE);
 	unit->x86c.qi_cmd_sz = AMDIOMMU_CMD_SZ;
 	iommu_qi_common_init(AMD2IOMMU(unit), amdiommu_qi_task);
 	get_x86_iommu()->qi_ensure = amdiommu_cmd_ensure;
@@ -334,7 +334,7 @@ amdiommu_init_cmd(struct amdiommu_unit *unit)
 	 * See the description of the ComLen encoding for Command
 	 * buffer Base Address Register.
 	 */
-	qi_sz = ilog2(unit->x86c.inv_queue_size / PAGE_SIZE) + 8;
+	qi_sz = ilog2_local(unit->x86c.inv_queue_size / PAGE_SIZE) + 8;
 	rv |= qi_sz << AMDIOMMU_CMDBUF_BASE_SZSHIFT;
 
 	AMDIOMMU_LOCK(unit);

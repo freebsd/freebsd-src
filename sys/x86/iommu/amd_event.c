@@ -285,7 +285,7 @@ amdiommu_init_event(struct amdiommu_unit *unit)
 	    "amdiommu%d event taskq", unit->iommu.unit);
 
 	base_reg = pmap_kextract((vm_offset_t)unit->event_log) |
-	    (((uint64_t)0x8 + ilog2(unit->event_log_size /
+	    (((uint64_t)0x8 + ilog2_local(unit->event_log_size /
 	    AMDIOMMU_EVNTLOG_MIN)) << AMDIOMMU_EVNTLOG_BASE_SZSHIFT);
 	AMDIOMMU_LOCK(unit);
 	/*

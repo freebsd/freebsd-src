@@ -200,4 +200,14 @@ void iommu_db_print_ctx(struct iommu_ctx *ctx);
 void iommu_db_domain_print_contexts(struct iommu_domain *iodom);
 void iommu_db_domain_print_mappings(struct iommu_domain *iodom);
 
+static __inline __pure2 int
+ilog2_local(int n)
+{
+	KASSERT(n != 0, ("ilog argument must be nonzero"));
+	return (8 * sizeof(n) - 1 - __builtin_clz((u_int)n));
+}
+
+#define order_base_2_local(n) ilog2_local(2*(n)-1)
+#define	roundup_pow_of_two_local(n) ((__typeof(n))1 << order_base_2_local(n))
+
 #endif

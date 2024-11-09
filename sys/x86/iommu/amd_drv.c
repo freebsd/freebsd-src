@@ -236,7 +236,7 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 		sc->devtbl_obj->domain.dr_policy = DOMAINSET_PREF(dom);
 
 	sc->hw_ctrl &= ~AMDIOMMU_CTRL_DEVTABSEG_MASK;
-	sc->hw_ctrl |= (uint64_t)segnum_log << ilog2(AMDIOMMU_CTRL_DEVTABSEG_2);
+	sc->hw_ctrl |= (uint64_t)segnum_log << 34; /* ilog2(AMDIOMMU_CTRL_DEVTABSEG_2) */
 	sc->hw_ctrl |= AMDIOMMU_CTRL_COHERENT;
 	amdiommu_write8(sc, AMDIOMMU_CTRL, sc->hw_ctrl);
 
