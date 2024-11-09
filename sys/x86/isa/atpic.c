@@ -108,7 +108,7 @@ inthand_t
 
 struct atpic {
 	pic_base_softc_t	pic_base_softc;
-	x86pics_t	at_pic;
+	device_t	at_pic;
 	int	at_ioaddr;
 	int	at_irqbase;
 	uint8_t	at_intbase;
@@ -126,17 +126,16 @@ struct atpic_intsrc {
 	u_long	at_straycount;
 };
 
-static void atpic_register_sources(x86pic_t pic);
-static void atpic_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc);
-static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
-static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
+static pic_register_sources_t		atpic_register_sources;
+static intr_event_post_ithread_t	atpic_enable_source;
+static intr_event_pre_ithread_t		atpic_disable_source;
+static intr_event_post_filter_t		atpic_eoi;
+static pic_enable_intr_t		atpic_enable_intr;
 static pic_disable_intr_t		atpic_disable_intr;
-static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
-static int atpic_source_pending(x86pic_t pic, struct intsrc *isrc);
-static int atpic_config_intr(x86pic_t pic, struct intsrc *isrc,
-    enum intr_trigger trig, enum intr_polarity pol);
-static int atpic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id);
+static pic_resume_t			atpic_resume;
+static pic_source_pending_t		atpic_source_pending;
+static pic_config_intr_t		atpic_config_intr;
+static pic_assign_cpu_t			atpic_assign_cpu;
 static void i8259_init(struct atpic *pic, int slave);
 
 #ifdef DEV_ISA
@@ -157,15 +156,15 @@ static const device_method_t atpic_methods[] = {
 	DEVMETHOD(intr_event_pre_ithread,	atpic_disable_source),
 
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_register_sources,	atpic_register_sources),
-	X86PIC_FUNC(pic_enable_intr,		atpic_enable_intr),
-	X86PIC_FUNC(pic_disable_intr,		atpic_disable_intr),
-	X86PIC_FUNC(pic_source_pending,		atpic_source_pending),
-	X86PIC_FUNC(pic_resume,			atpic_resume),
-	X86PIC_FUNC(pic_config_intr,		atpic_config_intr),
-	X86PIC_FUNC(pic_assign_cpu,		atpic_assign_cpu),
+	DEVMETHOD(pic_register_sources,		atpic_register_sources),
+	DEVMETHOD(pic_enable_intr,		atpic_enable_intr),
+	DEVMETHOD(pic_disable_intr,		atpic_disable_intr),
+	DEVMETHOD(pic_source_pending,		atpic_source_pending),
+	DEVMETHOD(pic_resume,			atpic_resume),
+	DEVMETHOD(pic_config_intr,		atpic_config_intr),
+	DEVMETHOD(pic_assign_cpu,		atpic_assign_cpu),
 
-	X86PIC_END
+	DEVMETHOD_END
 };
 
 PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
@@ -226,9 +225,9 @@ _atpic_eoi_slave(struct intsrc *isrc)
 }
 
 static void
-atpic_register_sources(x86pic_t pic)
+atpic_register_sources(device_t pic)
 {
-	struct atpic *ap = X86PIC_PIC(atpic, pic);
+	struct atpic *ap = device_get_softc(pic);
 	struct atpic_intsrc *ai;
 	int i;
 
@@ -264,10 +263,10 @@ atpic_register_sources(x86pic_t pic)
 }
 
 static void
-atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
+atpic_enable_source(device_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
+	struct atpic *ap = device_get_softc(isrc->is_event.ie_pic);
 
 	spinlock_enter();
 	if (ap->at_imen & IMEN_MASK(ai)) {
@@ -278,10 +277,10 @@ atpic_enable_source(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+atpic_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
+	struct atpic *ap = device_get_softc(isrc->is_event.ie_pic);
 
 	spinlock_enter();
 	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
@@ -305,14 +304,14 @@ atpic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 }
 
 static void
-atpic_disable_source(x86pic_t pic, struct intsrc *isrc)
+atpic_disable_source(device_t pic, struct intsrc *isrc)
 {
 
 	atpic_disable_intr(pic, isrc, PIC_EOI);
 }
 
 static void
-atpic_eoi(x86pic_t pic, struct intsrc *isrc)
+atpic_eoi(device_t pic, struct intsrc *isrc)
 {
 	/* Reference the above comment (atpic_disable_source()) */
 	if (isrc->is_event.ie_pic == atpics[MASTER].at_pic) {
@@ -331,23 +330,23 @@ atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-atpic_enable_intr(x86pic_t pic, struct intsrc *isrc)
+atpic_enable_intr(device_t pic, struct intsrc *isrc)
 {
 }
 
 static int
-atpic_source_pending(x86pic_t pic, struct intsrc *isrc)
+atpic_source_pending(device_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
+	struct atpic *ap = device_get_softc(isrc->is_event.ie_pic);
 
 	return (inb(ap->at_ioaddr) & IMEN_MASK(ai));
 }
 
 static void
-atpic_resume(x86pic_t pic, bool suspend_cancelled)
+atpic_resume(device_t pic, bool suspend_cancelled)
 {
-	struct atpic *ap = X86PIC_PIC(atpic, pic);
+	struct atpic *ap = device_get_softc(pic);
 
 	i8259_init(ap, ap == &atpics[SLAVE]);
 	if (ap == &atpics[SLAVE] && elcr_found)
@@ -355,11 +354,11 @@ atpic_resume(x86pic_t pic, bool suspend_cancelled)
 }
 
 static int
-atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
+atpic_config_intr(device_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(atpic, isrc->is_event.ie_pic);
+	struct atpic *ap = device_get_softc(isrc->is_event.ie_pic);
 	const u_int vector = ap->at_irqbase + ai->at_irq;
 
 	/* Map conforming values to edge/hi and sanity check the values. */
@@ -411,7 +410,7 @@ atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static int
-atpic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
+atpic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
 {
 
 	/*
@@ -482,7 +481,7 @@ atpic_startup(void)
 			continue;
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
-		setidt(X86PIC_PIC(atpic, ai->at_intsrc.is_event.ie_pic)->at_intbase +
+		setidt(((struct atpic *)device_get_softc(ai->at_intsrc.is_event.ie_pic))->at_intbase +
 		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
 		    SEL_KPL, GSEL_ATPIC);
 	}
@@ -563,7 +562,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		 * Read the ISR register to see if IRQ 7/15 is really
 		 * pending.  Reset read register back to IRR when done.
 		 */
-		port = X86PIC_PIC(atpic, isrc->is_event.ie_pic)->at_ioaddr;
+		port = ((struct atpic *)device_get_softc(isrc->is_event.ie_pic))->at_ioaddr;
 		spinlock_enter();
 		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
 		isr = inb(port);
