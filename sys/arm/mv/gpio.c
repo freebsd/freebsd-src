@@ -77,7 +77,9 @@ struct mv_gpio_softc {
 	int			mem_rid;
 	struct resource	*	irq_res[GPIO_MAX_INTR_COUNT];
 	int			irq_rid[GPIO_MAX_INTR_COUNT];
+#if 0
 	struct intr_event *	gpio_events[MV_GPIO_MAX_NPINS];
+#endif
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
@@ -548,15 +550,19 @@ mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
 static void
 mv_gpio_intr_handler(device_t dev, int pin)
 {
+#if 0
 	struct intr_irqsrc isrc;
+#endif
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
 	MV_GPIO_ASSERT_LOCKED();
 
+#if 0
 #ifdef INTR_SOLO
 	isrc.isrc_filter = NULL;
 #endif
+#error "No known invoked functions modify ->gpio_events, therefore NOP."
 	isrc.isrc_event = sc->gpio_events[pin];
 
 	if (isrc.isrc_event == NULL ||
@@ -564,6 +570,7 @@ mv_gpio_intr_handler(device_t dev, int pin)
 		return;
 
 	intr_isrc_dispatch(&isrc, NULL);
+#endif
 }
 
 static int
