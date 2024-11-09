@@ -91,7 +91,7 @@ static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	uint16_t i8254_lastcount;
 static	uint16_t i8254_offset;
-static	int	(*i8254_pending)(x86pic_t, struct intsrc *);
+static	pic_source_pending_t	*i8254_pending;
 static	int	i8254_ticked;
 
 struct attimer_softc {

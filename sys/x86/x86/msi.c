@@ -127,12 +127,11 @@ struct msi_intsrc {
 };
 
 static void	msi_create_source(void);
-static void	msi_enable_source(x86pic_t pic, struct intsrc *isrc);
-static void	msi_eoi_source(x86pic_t pic, struct intsrc *isrc);
-static void	msi_enable_intr(x86pic_t pic, struct intsrc *isrc);
+static intr_event_post_ithread_t	msi_enable_source;
+static intr_event_post_filter_t		msi_eoi_source;
+static pic_enable_intr_t		msi_enable_intr;
 static pic_disable_intr_t		msi_disable_intr;
-static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
-		    u_int apic_id);
+static pic_assign_cpu_t			msi_assign_cpu;
 
 static const device_method_t msi_methods[] = {
 	/* Interrupt event interface */
@@ -141,11 +140,11 @@ static const device_method_t msi_methods[] = {
 	DEVMETHOD(intr_event_pre_ithread,	msi_eoi_source),
 
 	/* Interrupt controller interface */
-	X86PIC_FUNC(pic_enable_intr,		msi_enable_intr),
-	X86PIC_FUNC(pic_disable_intr,		msi_disable_intr),
-	X86PIC_FUNC(pic_assign_cpu,		msi_assign_cpu),
+	DEVMETHOD(pic_enable_intr,		msi_enable_intr),
+	DEVMETHOD(pic_disable_intr,		msi_disable_intr),
+	DEVMETHOD(pic_assign_cpu,		msi_assign_cpu),
 
-	X86PIC_END
+	DEVMETHOD_END
 };
 
 PRIVATE_DEFINE_CLASSN(msi, msi_class, msi_methods, sizeof(pic_base_softc_t),
@@ -182,19 +181,19 @@ static u_int msi_last_irq;
 static struct mtx msi_lock;
 
 static void
-msi_enable_source(x86pic_t pic, struct intsrc *isrc)
+msi_enable_source(device_t pic, struct intsrc *isrc)
 {
 }
 
 static void
-msi_eoi_source(x86pic_t pic, struct intsrc *isrc)
+msi_eoi_source(device_t pic, struct intsrc *isrc)
 {
 
 	lapic_eoi();
 }
 
 static void
-msi_enable_intr(x86pic_t pic, struct intsrc *isrc)
+msi_enable_intr(device_t pic, struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
@@ -207,7 +206,7 @@ msi_enable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static void
-msi_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
+msi_disable_intr(device_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
@@ -231,7 +230,7 @@ msi_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 }
 
 static int
-msi_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
+msi_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
 {
 	struct msi_intsrc *sib, *msi = (struct msi_intsrc *)isrc;
 	int old_vector;
