@@ -161,6 +161,7 @@ struct ieee80211_qosframe_addr4 {
 /* 0001-0011 Reserved				0x10-0x30 */	/* Were: CF_ACK, CF_POLL, CF_ACPL */
 #define	IEEE80211_FC0_SUBTYPE_NODATA		0x40	/* Null */
 /* 0101-0111 Reserved				0x50-0x70 */	/* Were: CFACK, CFPOLL, CF_ACK_CF_ACK */
+#define	IEEE80211_FC0_SUBTYPE_QOS_MASK_ANY	0x80	/* QoS mask - matching any subtypes 8..15 */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA		0x80	/* QoS Data */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA_CFACK	0x90	/* QoS Data +CF-Ack */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA_CFPOLL	0xa0	/* QoS Data +CF-Poll */
@@ -190,24 +191,55 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_CTL_EXT_TDD_BF		0x0b	/* TDD Beamforming, 80211ay-2021 */
 /* 1100-1111 Reserved				0xc-0xf */
 
-#define	IEEE80211_IS_MGMT(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_MGT))
+/* Check the version field */
+#define	IEEE80211_IS_FC0_CHECK_VER(wh, v)			\
+	(((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))
+
+/* Check the version and type field */
+#define	IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, v, t)			\
+	(((((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))) &&	\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == (t)))
+
+/* Check the version, type and subtype field */
+#define	IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh, v, t, st)		\
+	(((((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))) &&	\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == (t)) &&		\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == (st)))
+
+#define	IEEE80211_IS_MGMT(wh)						\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_MGT))
 #define	IEEE80211_IS_CTL(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_CTL))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_CTL))
 #define	IEEE80211_IS_DATA(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_DATA))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_DATA))
 #define	IEEE80211_IS_EXT(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_EXT))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_EXT))
 
 #define	IEEE80211_FC0_QOSDATA \
 	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS_DATA|IEEE80211_FC0_VERSION_0)
 
-#define	IEEE80211_IS_QOSDATA(wh) \
-	((wh)->i_fc[0] == IEEE80211_FC0_QOSDATA)
+/*
+ * Return true if the frame is any of the QOS frame types, not just
+ * data frames.  Matching on the IEEE80211_FC0_SUBTYPE_QOS_ANY bit
+ * being set also matches on subtypes 8..15.
+ */
+#define	IEEE80211_IS_QOS_ANY(wh)					\
+	((IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_DATA)) &&					\
+	 ((wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS_MASK_ANY))
+
+/*
+ * Return true if this frame is QOS data, and only QOS data.
+ */
+#define	IEEE80211_IS_QOSDATA(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_DATA,			\
+	 IEEE80211_FC0_SUBTYPE_QOS_DATA))
 
 #define	IEEE80211_FC1_DIR_MASK			0x03
 #define	IEEE80211_FC1_DIR_NODS			0x00	/* STA->STA */

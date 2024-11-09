@@ -1014,7 +1014,7 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m,
 
 	/* NB: m_len known to be sufficient */
 	wh = mtod(m, struct ieee80211_qosframe *);
-	if (wh->i_fc[0] != IEEE80211_FC0_QOSDATA) {
+	if (!IEEE80211_IS_QOSDATA(wh)) {
 		/*
 		 * Not QoS data, shouldn't get here but just
 		 * return it to the caller for processing.

@@ -568,8 +568,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		vap->iv_stats.is_rx_tooshort++;
 		goto err;
 	}
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0) {
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0)) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
 		    wh->i_fc[0], wh->i_fc[1]);
