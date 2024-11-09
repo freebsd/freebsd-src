@@ -361,6 +361,12 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
 
+	if (writing) {
+		error = priv_check_cred(p->p_ucred, PRIV_PROC_MEM_WRITE);
+		if (error)
+			return (error);
+	}
+
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
 	 * makes things easier.  This way is trivial - right?
