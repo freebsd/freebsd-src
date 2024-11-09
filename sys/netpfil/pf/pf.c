@@ -1345,7 +1345,9 @@ keyattach:
 					s->timeout = PFTM_UNLINKED;
 					PF_HASHROW_UNLOCK(ih);
 					KEYS_UNLOCK();
-					uma_zfree(V_pf_state_key_z, sk);
+					uma_zfree(V_pf_state_key_z, skw);
+					if (skw != sks)
+						uma_zfree(V_pf_state_key_z, sks);
 					if (idx == PF_SK_STACK)
 						pf_detach_state(s);
 					return (EEXIST); /* collision! */
