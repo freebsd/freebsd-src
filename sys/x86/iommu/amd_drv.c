@@ -879,6 +879,9 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	int error, flags;
 	bool res;
 
+	if (!amdiommu_enable)
+		return (ENXIO);
+
 	if (device_get_devclass(device_get_parent(dev)) !=
 	    devclass_find("pci"))
 		return (ENXIO);
@@ -943,6 +946,9 @@ amdiommu_find_unit_for_ioapic(int apic_id, struct amdiommu_unit **unitp,
 	device_t apic_dev;
 	bool res;
 
+	if (!amdiommu_enable)
+		return (ENXIO);
+
 	bzero(&ifu, sizeof(ifu));
 	ifu.type = IFU_DEV_IOAPIC;
 	ifu.devno = apic_id;
@@ -991,6 +997,9 @@ amdiommu_find_unit_for_hpet(device_t hpet, struct amdiommu_unit **unitp,
 	struct amdiommu_unit *unit;
 	int hpet_no;
 	bool res;
+
+	if (!amdiommu_enable)
+		return (ENXIO);
 
 	hpet_no = hpet_get_uid(hpet);
 	bzero(&ifu, sizeof(ifu));
@@ -1042,7 +1051,7 @@ amdiommu_find_method(device_t dev, bool verbose)
 
 	error = amdiommu_find_unit(dev, &unit, &rid, &dte, &edte, verbose);
 	if (error != 0) {
-		if (verbose)
+		if (verbose && amdiommu_enable)
 			device_printf(dev,
 			    "cannot find amdiommu unit, error %d\n",
 			    error);
