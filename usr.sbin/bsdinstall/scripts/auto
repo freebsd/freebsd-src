@@ -364,6 +364,7 @@ fi
 [ -z "$BSDINSTALL_SKIP_TIME" ] && bsdinstall time
 [ -z "$BSDINSTALL_SKIP_SERVICES" ] && bsdinstall services
 [ -z "$BSDINSTALL_SKIP_HARDENING" ] && bsdinstall hardening
+[ -z "$BSDINSTALL_SKIP_FIRMWARE" ] && bsdinstall firmware
 
 [ -z "$BSDINSTALL_SKIP_USERS" ] && bsddialog --backtitle "$OSNAME Installer" \
 	--title "Add User Accounts" --yesno \
