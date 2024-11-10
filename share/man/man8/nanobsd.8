@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 19, 2016
+.Dd November 10, 2024
 .Dt NANOBSD 8
 .Os
 .Sh NAME
@@ -31,7 +31,7 @@
 applications
 .Sh SYNOPSIS
 .Nm
-.Op Fl bfhiKknqvwX
+.Op Fl BbfhIiKknqvWwX
 .Op Fl c Ar config-file
 .Sh DESCRIPTION
 The
@@ -47,6 +47,8 @@ installation and maintenance.
 .Pp
 The following options are available:
 .Bl -tag -width ".Fl c Ar config-file" -offset indent
+.It Fl B
+Skip the install stages (both for kernel and world).
 .It Fl b
 Skip the build stages (both for kernel and world).
 .It Fl c Ar config-file
@@ -55,6 +57,8 @@ Specify the configuration file to use.
 Skip the code slice extraction.
 .It Fl h
 Display usage information.
+.It Fl I
+Build the disk image from an existing build/install.
 .It Fl i
 Skip the disk image build stage.
 .It Fl K
@@ -75,13 +79,17 @@ used for each build stage (world and kernel).
 Make output more quiet.
 .It Fl v
 Make output more verbose.
+.It Fl W
+Skip the
+.Cm installworld
+stage of the build.
 .It Fl w
 Skip the
 .Cm buildworld
 stage of the build.
 .It Fl X
 Make
-.Cm native-xtools.
+.Cm native-xtools .
 .El
 .Pp
 The features of
