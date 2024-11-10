@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" $OpenBSD: rtwn.4,v 1.2 2015/07/09 11:28:53 stsp Exp $
 .\"
 .\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
@@ -16,12 +19,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd January 2, 2019
+.Dd November 10, 2024
 .Dt RTWN 4
 .Os
 .Sh NAME
 .Nm rtwn
-.Nd Realtek IEEE 802.11 wireless network driver
+.Nd Realtek IEEE 802.11n/ac wireless network driver
 .Sh SYNOPSIS
 .Cd "options RTWN_DEBUG"
 .Cd "options RTWN_WITHOUT_UCODE"
@@ -48,16 +51,14 @@ if_rtwn_usb_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for wireless network devices based on
-the Realtek RTL8192C, RTL8188E, RTL8192E, RTL8812A and RTL8821A
-programming APIs.
-These APIs are used by a wide variety of chips;
-most chips with USB and some with PCI interface are supported.
+driver provides support for 802.11n/ac wireless network PHYs supplied by
+.Xr rtwn_pci 4
+and
+.Xr rtwn_usb 4 .
 .Pp
-To enable use for PCI/PCIe systems, see the rtwn_pci(4) driver;
-for USB devices, use the rtwn_usb(4) driver.
-.Pp
-The driver supports
+The
+.Nm
+driver supports
 .Cm station ,
 .Cm adhoc ,
 .Cm hostap
@@ -79,17 +80,40 @@ The
 .Nm
 driver can be configured at runtime with
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports USB and PCI devices with the following chipsets:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Realtek 802.11n wireless 8188e (RTL8188E)
+.It
+Realtek 802.11n wireless 8192c (RTL8192C)
+.It
+Realtek 802.11n wireless 8192e (RTL8192E)
+.It
+Realtek 802.11ac wireless 8812a (RTL8812A)
+.It
+Realtek 802.11ac wireless 8821a (RTL8821A)
+.El
+.Pp
+For specific devices, see
+.Xr rtwn_pci 4
+and
+.Xr rtwn_usb 4 .
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.Bl -tag -width "/usr/share/doc/legal/realtek.LICENSE" -compact
 .It Pa /usr/share/doc/legal/realtek.LICENSE
 .Nm
 firmware license
 .El
 .Pp
-The driver (if not compiled with
-.Cd options RTWN_WITHOUT_UCODE
-) may use following firmware files, which are loaded
-when an interface is brought up:
+The driver
+.Pq if not compiled with Cd options RTWN_WITHOUT_UCODE
+may use following firmware files,
+which are loaded when an interface is brought up:
+.Pp
 .Bl -tag -width Ds -offset indent -compact
 .It Pa /boot/kernel/rtwn-rtl8188eefw.ko
 .It Pa /boot/kernel/rtwn-rtl8188eufw.ko
@@ -103,41 +127,38 @@ when an interface is brought up:
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Bd -literal -offset indent
-ifconfig wlan create wlandev rtwn0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Pp
+.Dl ifconfig wlan create wlandev rtwn0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev rtwn0 ssid my_net up"
+.Dl ifconfig wlan create wlandev rtwn0 ssid my_net up
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev rtwn0 ssid my_net \e
-        wepmode on wepkey 0x1234567890 weptxkey 1 up
+    wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
 Create an IBSS network with 128-bit WEP encryption on the channel 4:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev rtwn0 wlanmode adhoc ssid my_net \e
-	wepmode on wepkey 0x01020304050607080910111213 weptxkey 1 \e
-	channel 4
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1 \e
+    channel 4
 .Ed
 .Pp
 Join/create an 802.11b IBSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev rtwn0 wlanmode adhoc
-ifconfig wlan0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
-	mode 11b
+ifconfig wlan0 inet 192.0.2.20/24 ssid my_net mode 11b
 .Ed
 .Pp
 Create a host-based access point:
 .Bd -literal -offset indent
 ifconfig wlan0 create wlandev rtwn0 wlanmode hostap
-ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap
+ifconfig wlan0 inet 192.0.2.20/24 ssid my_ap
 .Ed
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -147,32 +168,32 @@ prompt before booting the kernel or stored in
 .Bl -tag -width indent
 .It Va dev.rtwn.%d.hwcrypto
 This tunable controls how key slots are assigned:
-.br
+.Pp
 0 - disable h/w crypto support.
 Features that require access to frame contents (e.g., TCP/UDP/IP Rx
 checksum validation) will not work;
-.br
+.Pp
 1 - use h/w crypto support for pairwise keys only;
-.br
+.Pp
 2 - use h/w crypto support for all keys; may not work for
 multi-vap configurations.
-.br
+.Pp
 By default it is set to 1.
 .It Va dev.rtwn.%d.ratectl
 This tunable switches between rate control implementations:
-.br
+.Pp
 0 - no rate control;
-.br
+.Pp
 1 - driver sends 'tx complete' reports to net80211; algorithm
 is controlled via net80211;
-.br
+.Pp
 2 - firmware-based rate control.
-.br
+.Pp
 By default it is set to 1; however driver may choose another
 algorithm in case if it is not implemented
-.br
+.Pp
 Currently selected algorithm is reported via
-.Em Va dev.rtwn.%d.ratectl_selected
+.Va dev.rtwn.%d.ratectl_selected
 read-only OID.
 .It Va dev.rtwn.%d.rx_buf_size
 (USB only) Controls size of temporary Rx buffer; smaller buffer size
@@ -212,6 +233,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
+.Xr networking 7 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
@@ -225,7 +247,9 @@ and
 the
 .Nm
 driver first appeared in
-.Ox 5.8 .
+.Ox 5.8
+and
+.Fx 11.0 .
 .Sh AUTHORS
 The
 .Nm
