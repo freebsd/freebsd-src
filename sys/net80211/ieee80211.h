@@ -255,9 +255,6 @@ struct ieee80211_qosframe_addr4 {
 
 /* Data frame types */
 
-#define	IEEE80211_FC0_QOSDATA \
-	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS_DATA|IEEE80211_FC0_VERSION_0)
-
 /*
  * Return true if the frame is any of the QOS frame types, not just
  * data frames.  Matching on the IEEE80211_FC0_SUBTYPE_QOS_ANY bit
