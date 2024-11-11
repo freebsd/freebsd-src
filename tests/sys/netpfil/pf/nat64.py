@@ -39,11 +39,13 @@ class TestNAT64(VnetTestTemplate):
     }
 
     def vnet3_handler(self, vnet):
+        ToolsHelper.print_output("/sbin/sysctl net.inet.ip.forwarding=1")
         ToolsHelper.print_output("echo foo | nc -l 1234 &")
 
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
 
+        ToolsHelper.print_output("/sbin/route add default 192.0.2.2")
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "pass inet6 proto icmp6",
@@ -99,6 +101,27 @@ class TestNAT64(VnetTestTemplate):
         assert icmp
         assert icmp.type == 1
         assert icmp.code == 4
+        udp = reply.getlayer(sp.UDPerror)
+        assert udp
+        assert udp.dport == 1222
+
+    @pytest.mark.require_user("root")
+    def test_address_unreachable(self):
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+
+        import scapy.all as sp
+
+        packet = sp.IPv6(dst="64:ff9b::198.51.100.3") \
+            / sp.UDP(dport=1222) / sp.Raw("bar")
+        reply = sp.sr1(packet, timeout=3)
+        print(reply.show())
+
+        # We expect an ICMPv6 error, not a UDP reply
+        assert not reply.getlayer(sp.UDP)
+        icmp = reply.getlayer(sp.ICMPv6DestUnreach)
+        assert icmp
+        assert icmp.type == 1
+        assert icmp.code == 0
         udp = reply.getlayer(sp.UDPerror)
         assert udp
         assert udp.dport == 1222
