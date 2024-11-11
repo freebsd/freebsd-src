@@ -14,6 +14,7 @@
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
 #include <sys/_task.h>
+#include <sys/smp.h>
 #include <sys/queue.h>
 #include <dev/nvme/nvme.h>
 #include <dev/nvmf/nvmf_transport.h>
@@ -112,8 +113,8 @@ struct nvmf_completion_status {
 static __inline struct nvmf_host_qpair *
 nvmf_select_io_queue(struct nvmf_softc *sc)
 {
-	/* TODO: Support multiple queues? */
-	return (sc->io[0]);
+	u_int idx = curcpu * sc->num_io_queues / (mp_maxid + 1);
+	return (sc->io[idx]);
 }
 
 static __inline bool
