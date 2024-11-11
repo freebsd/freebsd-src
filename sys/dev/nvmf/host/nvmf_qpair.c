@@ -115,7 +115,22 @@ nvmf_dispatch_command(struct nvmf_host_qpair *qp, struct nvmf_host_command *cmd)
 	struct nvmf_softc *sc = qp->sc;
 	struct nvme_command *sqe;
 	struct nvmf_capsule *nc;
+	uint16_t new_sqtail;
 	int error;
+
+	mtx_assert(&qp->lock, MA_OWNED);
+
+	qp->submitted++;
+
+	/*
+	 * Update flow control tracking.  This is just a sanity check.
+	 * Since num_commands == qsize - 1, there can never be too
+	 * many commands in flight.
+	 */
+	new_sqtail = (qp->sqtail + 1) % (qp->num_commands + 1);
+	KASSERT(new_sqtail != qp->sqhd, ("%s: qp %p is full", __func__, qp));
+	qp->sqtail = new_sqtail;
+	mtx_unlock(&qp->lock);
 
 	nc = cmd->req->nc;
 	sqe = nvmf_capsule_sqe(nc);
@@ -180,11 +195,23 @@ nvmf_receive_capsule(void *arg, struct nvmf_capsule *nc)
 		return;
 	}
 
+	/* Update flow control tracking. */
+	mtx_lock(&qp->lock);
+	if (qp->sq_flow_control) {
+		if (nvmf_sqhd_valid(nc))
+			qp->sqhd = le16toh(cqe->sqhd);
+	} else {
+		/*
+		 * If SQ FC is disabled, just advance the head for
+		 * each response capsule received.
+		 */
+		qp->sqhd = (qp->sqhd + 1) % (qp->num_commands + 1);
+	}
+
 	/*
 	 * If the queue has been shutdown due to an error, silently
 	 * drop the response.
 	 */
-	mtx_lock(&qp->lock);
 	if (qp->qp == NULL) {
 		device_printf(sc->dev,
 		    "received completion for CID %u on shutdown %s\n", cid,
@@ -215,8 +242,6 @@ nvmf_receive_capsule(void *arg, struct nvmf_capsule *nc)
 	} else {
 		cmd->req = STAILQ_FIRST(&qp->pending_requests);
 		STAILQ_REMOVE_HEAD(&qp->pending_requests, link);
-		qp->submitted++;
-		mtx_unlock(&qp->lock);
 		nvmf_dispatch_command(qp, cmd);
 	}
 
@@ -420,7 +445,5 @@ nvmf_submit_request(struct nvmf_request *req)
 	    ("%s: CID already busy", __func__));
 	qp->active_commands[cmd->cid] = cmd;
 	cmd->req = req;
-	qp->submitted++;
-	mtx_unlock(&qp->lock);
 	nvmf_dispatch_command(qp, cmd);
 }

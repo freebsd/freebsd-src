@@ -78,6 +78,7 @@ int	nvmf_transmit_capsule(struct nvmf_capsule *nc);
 void	nvmf_abort_capsule_data(struct nvmf_capsule *nc, int error);
 void *nvmf_capsule_sqe(struct nvmf_capsule *nc);
 void *nvmf_capsule_cqe(struct nvmf_capsule *nc);
+bool	nvmf_sqhd_valid(struct nvmf_capsule *nc);
 
 /* Controller-specific APIs. */
 
