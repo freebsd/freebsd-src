@@ -33,8 +33,6 @@
 INTERFACE pic;
 
 HEADER {
-	#include <sys/_cpuset.h>
-
 	#include <machine/interrupt.h>
 
 	#include "intr_event_if.h"
