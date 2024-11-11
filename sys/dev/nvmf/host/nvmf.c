@@ -479,9 +479,6 @@ nvmf_attach(device_t dev)
 
 	nvmf_init_aer(sc);
 
-	/* TODO: Multiqueue support. */
-	sc->max_pending_io = ivars->io_params[0].qsize /* * sc->num_io_queues */;
-
 	error = nvmf_establish_connection(sc, ivars);
 	if (error != 0)
 		goto out;
@@ -508,6 +505,8 @@ nvmf_attach(device_t dev)
 		    1 << (sc->cdata->mdts + NVME_MPS_SHIFT +
 		    NVME_CAP_HI_MPSMIN(sc->cap >> 32)));
 	}
+
+	sc->max_pending_io = ivars->io_params[0].qsize * sc->num_io_queues;
 
 	error = nvmf_init_sim(sc);
 	if (error != 0)
