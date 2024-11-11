@@ -87,24 +87,6 @@
 
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
-struct powerpc_intr {
-	struct intr_event event;
-	long	*cntp;
-	void	*priv;		/* PIC-private data */
-	u_int	irq;
-	u_int	intline;
-	u_int	vector;
-	u_int	cntindex;
-	int	fwcode;
-	int	ipi;
-	int	pi_domain;
-	enum intr_trigger trig;
-	enum intr_polarity pol;
-	cpuset_t pi_cpuset;
-};
-_Static_assert(offsetof(struct powerpc_intr, event) == 0,
-    ".event misaligned from structure!");
-
 struct pic {
 	device_t dev;
 	uint32_t node;

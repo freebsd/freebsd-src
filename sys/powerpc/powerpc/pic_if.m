@@ -33,8 +33,6 @@
 INTERFACE pic;
 
 HEADER {
-	#include <sys/_cpuset.h>
-
 	#include "intr_event_if.h"
 
 	DECLARE_CLASS(pic_base_class);
