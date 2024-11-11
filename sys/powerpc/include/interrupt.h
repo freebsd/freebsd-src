@@ -28,7 +28,8 @@
 #ifndef	__MACHINE_INTERRUPT_H__
 #define	__MACHINE_INTERRUPT_H__
 
-#include <sys/_interrupt.h>
+#include <sys/_cpuset.h>
+#include <sys/interrupt.h>
 #include <sys/types.h>
 
 /* FreeBSD standard interrupt controller interface */
@@ -51,6 +52,25 @@ extern device_t root_pic;
 
 struct trapframe;
 struct intr_handler;
+
+/* Main interrupt structure, exported to allow fast read access for PICs */
+struct powerpc_intr {
+	struct intr_event event;
+	long		*cntp;
+	void		*priv;		/* PIC-private data */
+	unsigned int	irq;
+	unsigned int	intline;
+	unsigned int	vector;
+	unsigned int	cntindex;
+	int		fwcode;
+	int		ipi;
+	int		pi_domain;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+	cpuset_t	pi_cpuset;
+};
+_Static_assert(offsetof(struct powerpc_intr, event) == 0,
+    ".event misaligned from structure!");
 
 driver_filter_t powerpc_ipi_handler;
 
