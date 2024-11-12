@@ -788,6 +788,7 @@ cust_pkgng ( ) (
 	fi
 
 	# If the package directory doesn't exist, we're done.
+	NANO_PACKAGE_DIR="$(realpath $NANO_PACKAGE_DIR)"
 	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
 		echo "DONE 0 packages"
 		return 0
