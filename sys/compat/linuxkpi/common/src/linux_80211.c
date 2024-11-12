@@ -3720,7 +3720,7 @@ lkpi_vif_iflladdr(void *arg, struct ifnet *ifp)
 	}
 
 	vif = arg;
-	IEEE80211_ADDR_COPY(vif->bss_conf.addr, IF_LLADDR(ifp));
+	IEEE80211_ADDR_COPY(vif->bss_conf.addr, if_getlladdr(ifp));
 	NET_EPOCH_EXIT(et);
 }
 
