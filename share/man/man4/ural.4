@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" Copyright (c) 2005, 2006
 .\"     Damien Bergamini <damien.bergamini@free.fr>
 .\"
@@ -13,12 +16,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd April 13, 2008
+.Dd November 10, 2024
 .Dt URAL 4
 .Os
 .Sh NAME
 .Nm ural
-.Nd "Ralink Technology RT2500USB IEEE 802.11 driver"
+.Nd Ralink RT2500USB IEEE 802.11a/b/g wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -68,7 +71,7 @@ The
 driver supports USB 2.0 wireless adapters based on the Ralink Technology
 RT2500USB chipset, including:
 .Pp
-.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "Bus"
+.Bl -column -compact "Atlantis Land A02-PCM-W54" "Bus"
 .It Em Card Ta Em Bus
 .It "AMIT WL532U" Ta USB
 .It "ASUS WL-167g" Ta USB
@@ -103,20 +106,18 @@ An up to date list can be found at
 .Pa http://ralink.rapla.net/ .
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Bd -literal -offset indent
-ifconfig wlan create wlandev ural0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Pp
+.Dl ifconfig wlan create wlandev ural0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev ural0 ssid my_net up"
+.Dl ifconfig wlan create wlandev ural0 ssid my_net up
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev ural0 ssid my_net \e
-	wepmode on wepkey 0x1234567890 weptxkey 1 up
+    wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
 Join a specific BSS network with 128-bit WEP encryption:
@@ -140,6 +141,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
+.Xr networking 7 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
@@ -147,7 +149,9 @@ This should not happen.
 The
 .Nm
 driver first appeared in
-.Ox 3.7 .
+.Ox 3.7
+and
+.Fx 6.0 .
 .Sh AUTHORS
 The original
 .Nm
@@ -155,5 +159,5 @@ driver was written by
 .An Damien Bergamini Aq Mt damien.bergamini@free.fr .
 .Sh BUGS
 Host AP mode doesn't support client power save.
-Clients using power save mode will experience
-packet loss (disabling power saving on the client will fix this).
+Clients using power save mode will experience packet loss
+.Pq disabling power saving on the client will fix this .
