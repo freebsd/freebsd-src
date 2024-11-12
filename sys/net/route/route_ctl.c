@@ -772,12 +772,15 @@ add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
 	rnd_add.rnd_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
 
 	int op_flags = RTM_F_CREATE;
-	if (get_prio_from_info(info) == NH_PRIORITY_HIGH)
-		op_flags |= RTM_F_FORCE;
-	else
-		op_flags |= RTM_F_APPEND;
-	return (add_route_flags(rnh, rt, &rnd_add, op_flags, rc));
 
+	/*
+	 * Set the desired action when the route already exists:
+	 * If RTF_PINNED is present, assume the direct kernel routes that cannot be multipath.
+	 * Otherwise, append the path.
+	 */
+	op_flags |= (info->rti_flags & RTF_PINNED) ? RTM_F_REPLACE : RTM_F_APPEND;
+
+	return (add_route_flags(rnh, rt, &rnd_add, op_flags, rc));
 }
 
 static int
