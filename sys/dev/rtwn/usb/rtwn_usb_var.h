@@ -37,6 +37,7 @@ struct rtwn_data {
 	uint8_t				*buf;
 	/* 'id' is meaningful for beacons only */
 	int				id;
+	int				qid;
 	uint16_t			buflen;
 	struct mbuf			*m;
 	struct ieee80211_node		*ni;
@@ -50,15 +51,16 @@ enum {
 	RTWN_BULK_TX_BK,	/* = WME_AC_BK */
 	RTWN_BULK_TX_VI,	/* = WME_AC_VI */
 	RTWN_BULK_TX_VO,	/* = WME_AC_VO */
-	RTWN_N_TRANSFER = 5,
+	RTWN_BULK_EP_COUNT = 5,
 };
 
 #define RTWN_EP_QUEUES		RTWN_BULK_RX
+#define	RTWN_BULK_TX_FIRST	RTWN_BULK_TX_BE
 
 struct rtwn_usb_softc {
 	struct rtwn_softc	uc_sc;		/* must be the first */
 	struct usb_device	*uc_udev;
-	struct usb_xfer		*uc_xfer[RTWN_N_TRANSFER];
+	struct usb_xfer		*uc_xfer[RTWN_BULK_EP_COUNT];
 
 	struct rtwn_data	uc_rx[RTWN_USB_RX_LIST_COUNT];
 	rtwn_datahead		uc_rx_active;
@@ -70,14 +72,16 @@ struct rtwn_usb_softc {
 	int			uc_rx_off;
 
 	struct rtwn_data	uc_tx[RTWN_USB_TX_LIST_COUNT];
-	rtwn_datahead		uc_tx_active;
+	rtwn_datahead		uc_tx_active[RTWN_BULK_EP_COUNT];
 	rtwn_datahead		uc_tx_inactive;
-	rtwn_datahead		uc_tx_pending;
+	rtwn_datahead		uc_tx_pending[RTWN_BULK_EP_COUNT];
 
 	int			(*uc_align_rx)(int, int);
 
 	int			ntx;
 	int			tx_agg_desc_num;
+
+	uint8_t			wme2qid[4];
 };
 #define RTWN_USB_SOFTC(sc)	((struct rtwn_usb_softc *)(sc))
 
