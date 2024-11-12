@@ -211,10 +211,6 @@ ipfattach(ipf_main_softc_t *softc)
 		V_ipforwarding = 1;
 
 	SPL_X(s);
-#if 0
-	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
-				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
-#endif
 	callout_init_rw(&softc->ipf_slow_ch, &softc->ipf_global.ipf_lk, CALLOUT_SHAREDLOCK);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
@@ -238,11 +234,6 @@ ipfdetach(ipf_main_softc_t *softc)
 
 	SPL_NET(s);
 
-#if 0
-	if (softc->ipf_slow_ch.callout != NULL)
-		untimeout(ipf_timer_func, softc, softc->ipf_slow_ch);
-	bzero(&softc->ipf_slow, sizeof(softc->ipf_slow));
-#endif
 	callout_drain(&softc->ipf_slow_ch);
 
 	ipf_fini_all(softc);
