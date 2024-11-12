@@ -709,7 +709,7 @@ struct proc {
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
 	int		p_boundary_count;/* (j) Num threads at user boundary */
-	int		p_pendingcnt;	/* how many signals are pending */
+	int		p_pendingcnt;	/* (c) how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
