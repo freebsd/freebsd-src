@@ -178,9 +178,6 @@ ipf_timer_func(void *arg)
 		ipf_slowtimer(softc);
 
 	if (softc->ipf_running == -1 || softc->ipf_running == 1) {
-#if 0
-		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
-#endif
 		callout_init_rw(&softc->ipf_slow_ch, &softc->ipf_global.ipf_lk, CALLOUT_SHAREDLOCK);
 		callout_reset(&softc->ipf_slow_ch,
 			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
