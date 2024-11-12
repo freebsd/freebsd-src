@@ -32,7 +32,7 @@
 #define RTWN_MACID_VALID 	0x8000
 #define RTWN_MACID_LIMIT	128
 
-#define RTWN_TX_TIMEOUT		5000	/* ms */
+#define RTWN_TX_TIMEOUT		1000	/* ms */
 #define RTWN_MAX_EPOUT		4
 #define RTWN_PORT_COUNT		2
 
