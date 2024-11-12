@@ -86,11 +86,14 @@ struct bounce_zone {
 };
 
 static struct mtx bounce_lock;
+MTX_SYSINIT(bounce_lock, &bounce_lock, "bounce pages lock", MTX_DEF);
 static int total_bpages;
 static int busdma_zonecount;
 
-static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
-static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
+static STAILQ_HEAD(, bounce_zone) bounce_zone_list =
+    STAILQ_HEAD_INITIALIZER(bounce_zone_list);
+static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist =
+    STAILQ_HEAD_INITIALIZER(bounce_map_callbacklist);
 
 static MALLOC_DEFINE(M_BOUNCE, "bounce", "busdma bounce pages");
 
@@ -129,17 +132,6 @@ _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
 
 	return (0);
 }
-
-static void
-init_bounce_pages(void *dummy __unused)
-{
-
-	total_bpages = 0;
-	STAILQ_INIT(&bounce_zone_list);
-	STAILQ_INIT(&bounce_map_callbacklist);
-	mtx_init(&bounce_lock, "bounce pages lock", NULL, MTX_DEF);
-}
-SYSINIT(bpages, SI_SUB_LOCK, SI_ORDER_ANY, init_bounce_pages, NULL);
 
 static struct sysctl_ctx_list *
 busdma_sysctl_tree(struct bounce_zone *bz)
