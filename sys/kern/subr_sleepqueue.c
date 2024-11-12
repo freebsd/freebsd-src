@@ -539,7 +539,8 @@ sleepq_catch_signals(const void *wchan, int pri)
 
 /*
  * Switches to another thread if we are still asleep on a sleep queue.
- * Returns with thread lock.
+ *
+ * The thread lock is required on entry and is no longer held on return.
  */
 static void
 sleepq_switch(const void *wchan, int pri)
