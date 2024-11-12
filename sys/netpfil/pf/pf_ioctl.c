@@ -233,7 +233,6 @@ static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_getstate(struct pfioc_nv *);
 static int		 pf_getstatus(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
-static void		 pf_clear_srcnodes(void);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static int		 pf_keepcounters(struct pfioc_nv *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
@@ -5451,8 +5450,7 @@ DIOCCHANGEADDR_error:
 	}
 
 	case DIOCCLRSRCNODES: {
-		pf_clear_srcnodes();
-		pf_purge_expired_src_nodes();
+		pf_kill_srcnodes(NULL);
 		break;
 	}
 
@@ -5928,39 +5926,10 @@ pf_clear_tables(void)
 }
 
 static void
-pf_clear_srcnodes(void)
-{
-	struct pf_kstate	*s;
-	struct pf_srchash	*sh;
-	struct pf_ksrc_node	*sn;
-	int			 i;
-
-	for (i = 0; i <= V_pf_hashmask; i++) {
-		struct pf_idhash *ih = &V_pf_idhash[i];
-
-		PF_HASHROW_LOCK(ih);
-		LIST_FOREACH(s, &ih->states, entry) {
-			s->src_node = NULL;
-			s->nat_src_node = NULL;
-		}
-		PF_HASHROW_UNLOCK(ih);
-	}
-
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
-	    i++, sh++) {
-		PF_HASHROW_LOCK(sh);
-		LIST_FOREACH(sn, &sh->nodes, entry) {
-			sn->expire = 1;
-			sn->states = 0;
-		}
-		PF_HASHROW_UNLOCK(sh);
-	}
-}
-
-static void
 pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 {
 	struct pf_ksrc_node_list	 kill;
+	u_int 				 killed;
 
 	LIST_INIT(&kill);
 	for (int i = 0; i <= V_pf_srchashmask; i++) {
@@ -5969,14 +5938,15 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(sh);
 		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
-			if (PF_MATCHA(psnk->psnk_src.neg,
+			if (psnk == NULL ||
+			    (PF_MATCHA(psnk->psnk_src.neg,
 			      &psnk->psnk_src.addr.v.a.addr,
 			      &psnk->psnk_src.addr.v.a.mask,
 			      &sn->addr, sn->af) &&
 			    PF_MATCHA(psnk->psnk_dst.neg,
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
-			      &sn->raddr, sn->af)) {
+			      &sn->raddr, sn->af))) {
 				pf_unlink_src_node(sn);
 				LIST_INSERT_HEAD(&kill, sn, entry);
 				sn->expire = 1;
@@ -5998,7 +5968,10 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 		PF_HASHROW_UNLOCK(ih);
 	}
 
-	psnk->psnk_killed = pf_free_src_nodes(&kill);
+	killed = pf_free_src_nodes(&kill);
+
+	if (psnk != NULL)
+		psnk->psnk_killed = killed;
 }
 
 static int
@@ -6422,7 +6395,7 @@ shutdown_pf(void)
 
 		pf_clear_all_states();
 
-		pf_clear_srcnodes();
+		pf_kill_srcnodes(NULL);
 
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
