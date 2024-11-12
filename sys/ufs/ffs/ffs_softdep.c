@@ -3634,6 +3634,7 @@ softdep_process_journal(struct mount *mp,
 	int cnt;
 	int off;
 	int devbsize;
+	int savef;
 
 	ump = VFSTOUFS(mp);
 	if (ump->um_softdep == NULL || ump->um_softdep->sd_jblocks == NULL)
@@ -3645,6 +3646,8 @@ softdep_process_journal(struct mount *mp,
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
 	devbsize = ump->um_devvp->v_bufobj.bo_bsize;
+	savef = curthread_pflags_set(TDP_NORUNNINGBUF);
+
 	/*
 	 * We write anywhere between a disk block and fs block.  The upper
 	 * bound is picked to prevent buffer cache fragmentation and limit
@@ -3863,12 +3866,15 @@ softdep_process_journal(struct mount *mp,
 	 */
 	if (flags == 0 && jblocks->jb_suspended) {
 		if (journal_unsuspend(ump))
-			return;
+			goto out;
 		FREE_LOCK(ump);
 		VFS_SYNC(mp, MNT_NOWAIT);
 		ffs_sbupdate(ump, MNT_WAIT, 0);
 		ACQUIRE_LOCK(ump);
 	}
+
+out:
+	curthread_pflags_restore(savef);
 }
 
 /*
