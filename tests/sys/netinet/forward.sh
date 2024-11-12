@@ -259,6 +259,58 @@ fwd_ip_icmp_gw_slow_success_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "fwd_ip_blackhole" "cleanup"
+fwd_ip_blackhole_head() {
+
+	atf_set descr 'Test blackhole routes'
+	atf_set require.user root
+}
+
+fwd_ip_blackhole_body() {
+	jname="v4t-fwd_ip_blackhole"
+
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	epair_out=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail ${jname} ${epair}b ${epair_out}b
+	jexec ${jname} ifconfig lo0 127.0.0.1/8 up
+	jexec ${jname} ifconfig ${epair}b 192.0.2.1/24 up
+	jexec ${jname} ifconfig ${epair_out}b 198.51.100.1/24 up
+	jexec ${jname} sysctl net.inet.ip.forwarding=1
+
+	route add default 192.0.2.1
+
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 -t 1 198.51.100.2
+	atf_check -s exit:0 -o match:"0 packets not forwardable" \
+	    jexec ${jname} netstat -s -p ip
+
+	# Create blackhole route
+	jexec ${jname} /sbin/route add 198.51.100.2 -blackhole -fib 0
+	jexec ${jname} netstat -rn
+
+	# Include an IP option to ensure slow path
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 -t 1 -R 198.51.100.2
+	atf_check -s exit:0 -o match:"1 packet not forwardable" \
+	    jexec ${jname} netstat -s -p ip
+
+	# Now try via the fast path
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 -t 1 198.51.100.2
+	atf_check -s exit:0 -o match:"2 packets not forwardable" \
+	    jexec ${jname} netstat -s -p ip
+}
+
+fwd_ip_blackhole_cleanup() {
+
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 
@@ -266,6 +318,7 @@ atf_init_test_cases()
 	atf_add_test_case "fwd_ip_icmp_gw_fast_success"
 	atf_add_test_case "fwd_ip_icmp_iface_slow_success"
 	atf_add_test_case "fwd_ip_icmp_gw_slow_success"
+	atf_add_test_case "fwd_ip_blackhole"
 }
 
 # end
