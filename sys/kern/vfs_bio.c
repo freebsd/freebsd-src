@@ -2375,11 +2375,9 @@ bufwrite(struct buf *bp)
 	} else if (space > hirunningspace) {
 		/*
 		 * Don't allow the async write to saturate the I/O
-		 * system.  We will not deadlock here because
-		 * we are blocking waiting for I/O that is already in-progress
-		 * to complete. We do not block here if it is the update
-		 * or syncer daemon trying to clean up as that can lead
-		 * to deadlock.
+		 * system.  We do not block here if it is the update
+		 * or syncer daemon trying to clean up as that can
+		 * lead to deadlock.
 		 */
 		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0 && !vp_md)
 			waitrunningbufspace();
