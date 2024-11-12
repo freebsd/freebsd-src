@@ -580,13 +580,12 @@ dummynet_fragmented_body()
 	ping_dummy_check_request exit:0 --ping-type=udp --send-length=10000 --send-frag-length=1280
 
 	rules=$(mktemp) || exit 1
-	jexec router pfctl -qvsr > $rules
+	jexec router pfctl -qvsr | normalize_pfctl_s > $rules
 
 	# Count that fragmented packets have hit the rule only once and that
 	# they have not created states. There is no stateful firewall support
 	# for fragmented packets.
-	grep -A2 'pass in on epair0b inet proto udp all keep state dnpipe(1, 1)' $rules |
-		grep -qE 'Packets: 8\s+Bytes: 10168\s+States: 0\s+' ||
+	grep -qE 'pass in on epair0b inet proto udp all keep state dnpipe\(1, 1\) .* Packets: 8 Bytes: 10168 States: 0 ' $rules ||
 		atf_fail "Fragmented packets not counted correctly"
 }
 
