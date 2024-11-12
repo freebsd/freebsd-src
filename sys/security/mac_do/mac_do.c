@@ -147,7 +147,7 @@ typedef uint16_t	 id_nb_t;
 typedef uint16_t	 id_type_t;
 
 struct rule {
-	TAILQ_ENTRY(rule) r_entries;
+	STAILQ_ENTRY(rule) r_entries;
 	id_type_t	 from_type;
 	u_int		 from_id;
 	flags_t		 uid_flags; /* See MDF_* above. */
@@ -158,7 +158,7 @@ struct rule {
 	struct id_spec	*gids;
 };
 
-TAILQ_HEAD(rulehead, rule);
+STAILQ_HEAD(rulehead, rule);
 
 struct rules {
 	char		string[MAC_RULE_STRING_LEN];
@@ -171,11 +171,11 @@ struct rules {
  */
 
 struct id_elem {
-	TAILQ_ENTRY(id_elem) ie_entries;
+	STAILQ_ENTRY(id_elem) ie_entries;
 	struct id_spec spec;
 };
 
-TAILQ_HEAD(id_list, id_elem);
+STAILQ_HEAD(id_list, id_elem);
 
 #ifdef INVARIANTS
 static void
@@ -313,7 +313,7 @@ toast_rules(struct rules *const rules)
 	struct rulehead *const head = &rules->head;
 	struct rule *rule, *rule_next;
 
-	TAILQ_FOREACH_SAFE(rule, head, r_entries, rule_next) {
+	STAILQ_FOREACH_SAFE(rule, head, r_entries, rule_next) {
 		free(rule->uids, M_DO);
 		free(rule->gids, M_DO);
 		free(rule, M_DO);
@@ -328,7 +328,7 @@ alloc_rules(void)
 
 	_Static_assert(MAC_RULE_STRING_LEN > 0, "MAC_RULE_STRING_LEN <= 0!");
 	rules->string[0] = 0;
-	TAILQ_INIT(&rules->head);
+	STAILQ_INIT(&rules->head);
 	rules->use_count = 0;
 	return (rules);
 }
@@ -730,7 +730,7 @@ parse_target_clause(char *to, struct rule *const rule,
 	}
 	ie = malloc(sizeof(*ie), M_DO, M_WAITOK);
 	ie->spec = is;
-	TAILQ_INSERT_TAIL(list, ie, ie_entries);
+	STAILQ_INSERT_TAIL(list, ie, ie_entries);
 	check_type_and_id_spec(type, &is);
 check_type_and_finish:
 	check_type_and_type_flags(type, *tflags);
@@ -776,14 +776,14 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 	size_t idx = 0;
 
 	/* Fill the array. */
-	TAILQ_FOREACH_SAFE(ie, list, ie_entries, ie_next) {
+	STAILQ_FOREACH_SAFE(ie, list, ie_entries, ie_next) {
 		MPASS(idx < *nb);
 		array[idx] = ie->spec;
 		free(ie, M_DO);
 		++idx;
 	}
 	MPASS(idx == *nb);
-	TAILQ_INIT(list);
+	STAILQ_INIT(list);
 
 	/* Sort it (by ID). */
 	qsort(array, *nb, sizeof(*array), id_spec_cmp);
@@ -865,8 +865,8 @@ parse_single_rule(char *rule, struct rules *const rules,
 	int error;
 
 	MPASS(*parse_error == NULL);
-	TAILQ_INIT(&uid_list);
-	TAILQ_INIT(&gid_list);
+	STAILQ_INIT(&uid_list);
+	STAILQ_INIT(&gid_list);
 
 	/* Freed when the 'struct rules' container is freed. */
 	new = malloc(sizeof(*new), M_DO, M_WAITOK | M_ZERO);
@@ -935,7 +935,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 		if (error != 0)
 			goto einval;
 	}
-	MPASS(TAILQ_EMPTY(&uid_list));
+	MPASS(STAILQ_EMPTY(&uid_list));
 	if (!has_clauses(new->uids_nb, new->uid_flags)) {
 		/* No UID specified, default is "uid=.". */
 		MPASS(new->uid_flags == 0);
@@ -951,7 +951,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 		if (error != 0)
 			goto einval;
 	}
-	MPASS(TAILQ_EMPTY(&gid_list));
+	MPASS(STAILQ_EMPTY(&gid_list));
 	if (!has_clauses(new->gids_nb, new->gid_flags)) {
 		/* No GID specified, default is "gid=.,!gid=.". */
 		MPASS(new->gid_flags == 0);
@@ -960,16 +960,16 @@ parse_single_rule(char *rule, struct rules *const rules,
 		check_type_and_type_flags(IT_GID, new->gid_flags);
 	}
 
-	TAILQ_INSERT_TAIL(&rules->head, new, r_entries);
+	STAILQ_INSERT_TAIL(&rules->head, new, r_entries);
 	return (0);
 
 einval:
 	free(new->gids, M_DO);
 	free(new->uids, M_DO);
 	free(new, M_DO);
-	TAILQ_FOREACH_SAFE(ie, &gid_list, ie_entries, ie_next)
+	STAILQ_FOREACH_SAFE(ie, &gid_list, ie_entries, ie_next)
 	    free(ie, M_DO);
-	TAILQ_FOREACH_SAFE(ie, &uid_list, ie_entries, ie_next)
+	STAILQ_FOREACH_SAFE(ie, &uid_list, ie_entries, ie_next)
 	    free(ie, M_DO);
 	MPASS(*parse_error != NULL);
 	return (EINVAL);
@@ -1279,7 +1279,7 @@ mac_do_jail_get(void *obj, void *data)
 	rules = find_rules(pr, &ppr);
 
 	jsys = pr == ppr ?
-	    (TAILQ_EMPTY(&rules->head) ? JAIL_SYS_DISABLE : JAIL_SYS_NEW) :
+	    (STAILQ_EMPTY(&rules->head) ? JAIL_SYS_DISABLE : JAIL_SYS_NEW) :
 	    JAIL_SYS_INHERIT;
 	error = vfs_setopt(opts, "mac.do", &jsys, sizeof(jsys));
 	if (error != 0 && error != ENOENT)
@@ -1967,7 +1967,7 @@ mac_do_priv_grant(struct ucred *cred, int priv)
 	 * privilege granting functions interpreting the "to"/"target" part.
 	 */
 	error = EPERM;
-	TAILQ_FOREACH(rule, &rules->head, r_entries)
+	STAILQ_FOREACH(rule, &rules->head, r_entries)
 	    if (rule_applies(rule, cred)) {
 		    error = rule_grant_setcred(rule, cred, new_cred);
 		    if (error != EPERM)
