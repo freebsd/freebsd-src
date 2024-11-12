@@ -165,16 +165,16 @@ max_src_conn_rule_body()
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4205 --fromaddr 2001:db8:44::2
 
 	states=$(mktemp) || exit 1
-	jexec router pfctl -qss | grep 'tcp 2001:db8:43::2\[9\] <-' > $states
+	jexec router pfctl -qss | normalize_pfctl_s | grep 'tcp 2001:db8:43::2\[9\] <-' > $states
 
-	grep -qE '2001:db8:44::1\[4201\]\s+ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4201 not found or not established"
-	grep -qE '2001:db8:44::1\[4202\]\s+ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4202 not found or not established"
-	grep -qE '2001:db8:44::1\[4203\]\s+ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4203 not found or not established"
-	grep -qE '2001:db8:44::2\[4205\]\s+ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4205 not found or not established"
+	grep -qE '2001:db8:44::1\[4201\] ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4201 not found or not established"
+	grep -qE '2001:db8:44::1\[4202\] ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4202 not found or not established"
+	grep -qE '2001:db8:44::1\[4203\] ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4203 not found or not established"
+	grep -qE '2001:db8:44::2\[4205\] ESTABLISHED:ESTABLISHED' $states || atf_fail "State for port 4205 not found or not established"
 
 	if (
-		grep -qE '2001:db8:44::1\[4204\]\s+' $states &&
-		! grep -qE '2001:db8:44::1\[4204\]\s+CLOSED:CLOSED' $states
+		grep -qE '2001:db8:44::1\[4204\] ' $states &&
+		! grep -qE '2001:db8:44::1\[4204\] CLOSED:CLOSED' $states
 	); then
 		atf_fail "State for port 4204 found but not closed"
 	fi
@@ -234,13 +234,13 @@ max_src_states_rule_body()
 	# We will check the resulting source nodes, though.
 	# Order of source nodes in output is not guaranteed, find each one separately.
 	nodes=$(mktemp) || exit 1
-	jexec router pfctl -qvsS  > $nodes
+	jexec router pfctl -qvsS | normalize_pfctl_s > $nodes
 	for node_regexp in \
-		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \)\s+age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 3' \
-		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \)\s+age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4' \
-		'2001:db8:44::2 -> :: \( states 2, connections 2, rate [0-9/\.]+s \)\s+age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4' \
+		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 3$' \
+		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4$' \
+		'2001:db8:44::2 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4$' \
 	; do
-		cat $nodes | tr '\n' ' ' | grep -qE "$node_regexp" || atf_fail "Source nodes not matching expected output"
+		grep -qE "$node_regexp" $nodes || atf_fail "Source nodes not matching expected output"
 	done
 
 	# Check if limit counters have been properly set.
