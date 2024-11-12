@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" $OpenBSD: rsu.4,v 1.11 2013/02/14 07:40:42 jmc Exp $
 .\"
 .\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
@@ -14,12 +17,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd May 23, 2021
+.Dd November 10, 2024
 .Dt RSU 4
 .Os
 .Sh NAME
 .Nm rsu
-.Nd Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network device
+.Nd Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your kernel configuration file:
@@ -93,8 +96,46 @@ The
 .Nm
 driver can be configured at runtime with
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n
+wireless network adapters, including:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+ASUS USB-N10
+.It
+ASUS WL-167G V3
+.It
+Belkin F7D1101 v1
+.It
+D-Link DWA-131 A1
+.It
+EDUP EP-MS150N(W)
+.It
+Edimax EW-7622UMN
+.It
+Hercules HWGUn-54
+.It
+Hercules HWNUm-300
+.It
+Planex GW-USNano
+.It
+Sitecom WL-349 v1
+.It
+Sitecom WL-353
+.It
+Sweex LW154
+.It
+TRENDnet TEW-646UBH
+.It
+TRENDnet TEW-648UB
+.It
+TRENDnet TEW-649UB
+.El
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.Bl -tag -width "/usr/share/doc/legal/realtek.LICENSE" -compact
 .It Pa /usr/share/doc/legal/realtek.LICENSE
 .Nm
 firmware license
@@ -106,45 +147,20 @@ which is loaded when an interface is attached:
 .Bl -tag -width Ds -offset indent -compact
 .It Pa /boot/kernel/rsu-rtl8712fw.ko
 .El
-.Sh HARDWARE
-The
-.Nm
-driver provides support for Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n
-wireless network adapters, including:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It ASUS USB-N10
-.It ASUS WL-167G V3
-.It Belkin F7D1101 v1
-.It D-Link DWA-131 A1
-.It EDUP EP-MS150N(W)
-.It Edimax EW-7622UMN
-.It Hercules HWGUn-54
-.It Hercules HWNUm-300
-.It Planex GW-USNano
-.It Sitecom WL-349 v1
-.It Sitecom WL-353
-.It Sweex LW154
-.It TRENDnet TEW-646UBH
-.It TRENDnet TEW-648UB
-.It TRENDnet TEW-649UB
-.El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Bd -literal -offset indent
-ifconfig wlan create wlandev rsu0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Pp
+.Dl ifconfig wlan create wlandev rsu0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev rsu0 ssid my_net up"
+.Dl ifconfig wlan create wlandev rsu0 ssid my_net up
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev rsu0 ssid my_net \e
-        wepmode on wepkey 0x1234567890 weptxkey 1 up
+    wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -163,6 +179,7 @@ This should not happen.
 .Xr rsufw 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
+.Xr networking 7 ,
 .Xr arp 8 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
