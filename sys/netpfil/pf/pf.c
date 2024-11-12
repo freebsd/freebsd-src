@@ -7815,6 +7815,10 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &pd->hdr.icmp6.icmp6_cksum,
 					    &nk->addr[didx], 0);
 
+				if (nk->port[iidx] != pd->hdr.icmp6.icmp6_id)
+					pd->hdr.icmp6.icmp6_id =
+					    nk->port[iidx];
+
 				m_copyback(pd->m, pd->off, sizeof(struct icmp6_hdr),
 				    (caddr_t )&pd->hdr.icmp6);
 				break;
