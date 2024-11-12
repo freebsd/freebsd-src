@@ -381,6 +381,48 @@ strtoui_strict(const char *const restrict s, const char **const restrict endptr,
 	return (0);
 }
 
+/*
+ * strsep() variant skipping spaces and tabs.
+ *
+ * Skips spaces and tabs at beginning and end of the token before one of the
+ * 'delim' characters, i.e., at start of string and just before one of the
+ * delimiter characters (so it doesn't prevent tokens containing spaces and tabs
+ * in the middle).
+ */
+static char *
+strsep_noblanks(char **const stringp, const char *delim)
+{
+	char *p = *stringp;
+	char *ret, *wsp;
+	size_t idx;
+
+	if (p == NULL)
+		return (NULL);
+
+	idx = strspn(p, " \t");
+	p += idx;
+
+	ret = strsep(&p, delim);
+
+	/* Rewind spaces/tabs at the end. */
+	if (p == NULL)
+		wsp = ret + strlen(ret);
+	else
+		wsp = p - 1;
+	for (; wsp != ret; --wsp) {
+		switch (wsp[-1]) {
+		case ' ':
+		case '\t':
+			continue;
+		}
+		break;
+	}
+	*wsp = '\0';
+
+	*stringp = p;
+	return (ret);
+}
+
 
 static void
 make_parse_error(struct parse_error **const parse_error, const size_t pos,
@@ -485,7 +527,7 @@ parse_target_clause(char *to, struct rule *const rule,
 
 	MPASS(*parse_error == NULL);
 	MPASS(to != NULL);
-	to_type = strsep(&to, "=");
+	to_type = strsep_noblanks(&to, "=");
 	MPASS(to_type != NULL);
 	to_type += parse_gid_flags(to_type, &is.flags, &gid_flags);
 	error = parse_id_type(to_type, &type, parse_error);
@@ -498,7 +540,7 @@ parse_target_clause(char *to, struct rule *const rule,
 		goto einval;
 	}
 
-	to_id = strsep(&to, "");
+	to_id = strsep_noblanks(&to, "");
 	switch (type) {
 	case IT_GID:
 		if (to_id == NULL) {
@@ -829,7 +871,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	/* Freed when the 'struct rules' container is freed. */
 	new = malloc(sizeof(*new), M_DO, M_WAITOK | M_ZERO);
 
-	from_type = strsep(&rule, "=");
+	from_type = strsep_noblanks(&rule, "=");
 	MPASS(from_type != NULL); /* Because 'rule' was not NULL. */
 	error = parse_id_type(from_type, &new->from_type, parse_error);
 	if (error != 0)
@@ -844,7 +886,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 		goto einval;
 	}
 
-	from_id = strsep(&rule, ":");
+	from_id = strsep_noblanks(&rule, ":");
 	if (is_null_or_empty(from_id)) {
 		make_parse_error(parse_error, 0, "No ID specified.");
 		goto einval;
@@ -869,7 +911,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 	 * allows to minimize memory allocations and enables searching IDs in
 	 * O(log(n)) instead of linearly.
 	 */
-	to_list = strsep(&rule, ",");
+	to_list = strsep_noblanks(&rule, ",");
 	if (to_list == NULL) {
 		make_parse_error(parse_error, 0, "No target list.");
 		goto einval;
@@ -882,7 +924,7 @@ parse_single_rule(char *rule, struct rules *const rules,
 			goto einval;
 		}
 
-		to_list = strsep(&rule, ",");
+		to_list = strsep_noblanks(&rule, ",");
 	} while (to_list != NULL);
 
 	if (new->uids_nb != 0) {
@@ -949,7 +991,10 @@ einval:
  * is "uid" or "gid", <id> an UID or GID (depending on <type>) and <target> is
  * "*", "any" or a comma-separated list of '<flags><type>=<id>' clauses (see the
  * comment for parse_single_rule() for more details).  For convenience, empty
- * rules are allowed (and do nothing).
+ * rules are allowed (and do nothing), and spaces and tabs are allowed (and
+ * removed) around each token (tokens are natural ones, except that
+ * '<flags><type>' as a whole is considered a single token, so no blanks are
+ * allowed between '<flags>' and '<type>').
  *
  * Examples:
  * - "uid=1001:uid=1010,gid=1010;uid=1002:any"
@@ -982,7 +1027,7 @@ parse_rules(const char *const string, struct rules **const rulesp,
 	MPASS(copy[len] == '\0'); /* Catch some races. */
 
 	p = copy;
-	while ((rule = strsep(&p, ";")) != NULL) {
+	while ((rule = strsep_noblanks(&p, ";")) != NULL) {
 		if (rule[0] == '\0')
 			continue;
 		error = parse_single_rule(rule, rules, parse_error);
