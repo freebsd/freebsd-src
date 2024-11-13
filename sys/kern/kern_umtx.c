@@ -2604,11 +2604,9 @@ do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags,
 			 */
 			if (error == 0) {
 				error = thread_check_susp(td, false);
-				if (error == 0) {
-					if (try != 0)
-						error = EBUSY;
-					else
-						continue;
+				if (error == 0 && try == 0) {
+					umtxq_unbusy_unlocked(&uq->uq_key);
+					continue;
 				}
 				error = 0;
 			}
