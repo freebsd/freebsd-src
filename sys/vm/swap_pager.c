@@ -1998,6 +1998,7 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 			vm_object_pip_wakeupn(object, 1);
 			KASSERT(vm_page_all_valid(m),
 			    ("%s: Page %p not all valid", __func__, m));
+			vm_page_deactivate_noreuse(m);
 			vm_page_xunbusy(m);
 			break;
 		}
