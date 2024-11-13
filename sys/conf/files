@@ -225,7 +225,6 @@ contrib/openzfs/module/os/freebsd/zfs/zio_crypt.c		optional zfs compile-with "${
 contrib/openzfs/module/os/freebsd/zfs/zvol_os.c		optional zfs compile-with "${ZFS_C}"
 
 #zfs unicode support
-contrib/openzfs/module/unicode/uconv.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/unicode/u8_textprep.c		optional zfs compile-with "${ZFS_C}"
 
 #zfs checksums / zcommon

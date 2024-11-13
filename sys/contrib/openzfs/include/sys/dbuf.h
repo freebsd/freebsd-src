@@ -171,7 +171,6 @@ typedef struct dbuf_dirty_record {
 			 * gets COW'd in a subsequent transaction group.
 			 */
 			arc_buf_t *dr_data;
-			blkptr_t dr_overridden_by;
 			override_states_t dr_override_state;
 			uint8_t dr_copies;
 			boolean_t dr_nopwrite;
@@ -179,14 +178,21 @@ typedef struct dbuf_dirty_record {
 			boolean_t dr_diowrite;
 			boolean_t dr_has_raw_params;
 
-			/*
-			 * If dr_has_raw_params is set, the following crypt
-			 * params will be set on the BP that's written.
-			 */
-			boolean_t dr_byteorder;
-			uint8_t	dr_salt[ZIO_DATA_SALT_LEN];
-			uint8_t	dr_iv[ZIO_DATA_IV_LEN];
-			uint8_t	dr_mac[ZIO_DATA_MAC_LEN];
+			/* Override and raw params are mutually exclusive. */
+			union {
+				blkptr_t dr_overridden_by;
+				struct {
+					/*
+					 * If dr_has_raw_params is set, the
+					 * following crypt params will be set
+					 * on the BP that's written.
+					 */
+					boolean_t dr_byteorder;
+					uint8_t	dr_salt[ZIO_DATA_SALT_LEN];
+					uint8_t	dr_iv[ZIO_DATA_IV_LEN];
+					uint8_t	dr_mac[ZIO_DATA_MAC_LEN];
+				};
+			};
 		} dl;
 		struct dirty_lightweight_leaf {
 			/*
@@ -264,6 +270,27 @@ typedef struct dmu_buf_impl {
 	 */
 	uint8_t db_level;
 
+	/* This block was freed while a read or write was active. */
+	uint8_t db_freed_in_flight;
+
+	/*
+	 * Evict user data as soon as the dirty and reference counts are equal.
+	 */
+	uint8_t db_user_immediate_evict;
+
+	/*
+	 * dnode_evict_dbufs() or dnode_evict_bonus() tried to evict this dbuf,
+	 * but couldn't due to outstanding references.  Evict once the refcount
+	 * drops to 0.
+	 */
+	uint8_t db_pending_evict;
+
+	/* Number of TXGs in which this buffer is dirty. */
+	uint8_t db_dirtycnt;
+
+	/* The buffer was partially read.  More reads may follow. */
+	uint8_t db_partial_read;
+
 	/*
 	 * Protects db_buf's contents if they contain an indirect block or data
 	 * block of the meta-dnode. We use this lock to protect the structure of
@@ -288,6 +315,9 @@ typedef struct dmu_buf_impl {
 	 */
 	dbuf_states_t db_state;
 
+	/* In which dbuf cache this dbuf is, if any. */
+	dbuf_cached_state_t db_caching_status;
+
 	/*
 	 * Refcount accessed by dmu_buf_{hold,rele}.
 	 * If nonzero, the buffer can't be destroyed.
@@ -304,39 +334,10 @@ typedef struct dmu_buf_impl {
 	/* Link in dbuf_cache or dbuf_metadata_cache */
 	multilist_node_t db_cache_link;
 
-	/* Tells us which dbuf cache this dbuf is in, if any */
-	dbuf_cached_state_t db_caching_status;
-
 	uint64_t db_hash;
-
-	/* Data which is unique to data (leaf) blocks: */
 
 	/* User callback information. */
 	dmu_buf_user_t *db_user;
-
-	/*
-	 * Evict user data as soon as the dirty and reference
-	 * counts are equal.
-	 */
-	uint8_t db_user_immediate_evict;
-
-	/*
-	 * This block was freed while a read or write was
-	 * active.
-	 */
-	uint8_t db_freed_in_flight;
-
-	/*
-	 * dnode_evict_dbufs() or dnode_evict_bonus() tried to
-	 * evict this dbuf, but couldn't due to outstanding
-	 * references.  Evict once the refcount drops to 0.
-	 */
-	uint8_t db_pending_evict;
-
-	uint8_t db_dirtycnt;
-
-	/* The buffer was partially read.  More reads may follow. */
-	uint8_t db_partial_read;
 } dmu_buf_impl_t;
 
 #define	DBUF_HASH_MUTEX(h, idx) \
@@ -350,6 +351,8 @@ typedef struct dbuf_hash_table {
 } dbuf_hash_table_t;
 
 typedef void (*dbuf_prefetch_fn)(void *, uint64_t, uint64_t, boolean_t);
+
+extern kmem_cache_t *dbuf_dirty_kmem_cache;
 
 uint64_t dbuf_whichblock(const struct dnode *di, const int64_t level,
     const uint64_t offset);
