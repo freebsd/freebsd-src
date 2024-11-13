@@ -445,6 +445,7 @@ struct ifmedia_description {
 	{ IFM_1000_SX,	"1000baseSX" },					\
 	{ IFM_1000_LX,	"1000baseLX" },					\
 	{ IFM_1000_CX,	"1000baseCX" },					\
+	{ IFM_1000_BX,	"1000baseBX" },					\
 	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
 	{ IFM_10G_LR,	"10Gbase-LR" },					\
@@ -793,6 +794,7 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_10_FL,	IF_Mbps(10) },			\
 	{ IFM_ETHER | IFM_1000_LX,	IF_Mbps(1000) },		\
 	{ IFM_ETHER | IFM_1000_CX,	IF_Mbps(1000) },		\
+	{ IFM_ETHER | IFM_1000_BX,	IF_Mbps(1000) },		\
 	{ IFM_ETHER | IFM_1000_T,	IF_Mbps(1000) },		\
 	{ IFM_ETHER | IFM_HPNA_1,	IF_Mbps(1) },			\
 	{ IFM_ETHER | IFM_10G_LR,	IF_Gbps(10ULL) },		\
