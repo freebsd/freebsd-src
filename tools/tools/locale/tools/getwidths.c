@@ -28,6 +28,21 @@
 
 #include <utf8proc.h>
 
+static int
+width_of(int32_t wc)
+{
+
+	/*
+	 * Hangul Jamo medial vowels and final consonants are more of
+	 * a combining character, and should be considered zero-width.
+	 */
+	if (wc >= 0x1160 && wc <= 0x11ff)
+		return (0);
+
+	/* No override by default, trust utf8proc's width. */
+	return (utf8proc_charwidth(wc));
+}
+
 int
 main(void)
 {
@@ -43,9 +58,10 @@ main(void)
 		wcc = utf8proc_category(wc);
 		if (wcc == UTF8PROC_CATEGORY_CC)
 			continue;
-		wcw = utf8proc_charwidth(wc);
+		wcw = width_of(wc);
 		if (wcw == 1)
 			continue;
+
 		printf("%04X %d\n", wc, wcw);
 	}
 
