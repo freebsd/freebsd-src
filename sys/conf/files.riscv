@@ -46,7 +46,7 @@ riscv/riscv/dump_machdep.c	standard
 riscv/riscv/elf_machdep.c	standard
 riscv/riscv/exception.S		standard
 riscv/riscv/exec_machdep.c	standard
-riscv/riscv/fpe.c		optional	vmm
+riscv/riscv/fpe.c		standard
 riscv/riscv/gdb_machdep.c	optional	gdb
 riscv/riscv/intc.c		standard
 riscv/riscv/identcpu.c		standard
