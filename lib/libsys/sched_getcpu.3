@@ -1,0 +1,51 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Ed Maste <emaste@FreeBSD.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd November 13, 2024
+.Dt SCHED_GETCPU 3
+.Os
+.Sh NAME
+.Nm sched_getcpu
+.Nd get current CPU
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sched.h
+.Ft int
+.Fn sched_getcpu void
+.Sh DESCRIPTION
+The
+.Fn sched_getcpu
+function returns the current CPU on which the calling thread is running.
+.Sh RETURN VALUES
+.Fn sched_getcpu
+returns the 0-based index of the current CPU at the time of the call.
+The value may become invalid immediately after return, unless the thread is
+pinned to a specific CPU.
+CPU numbering is the same as used by
+.Xr cpuset 2
+and CPU affinity calls.
+.Pp
+There are no error values as
+.Fn sched_getcpu
+does not fail.
+.Sh SEE ALSO
+.Xr cpuset 2 ,
+.Xr cpuset_getaffinity 2 ,
+.Xr cpuset_setaffinity 2 ,
+.Xr pthread_getaffinity_np 3 ,
+.Xr pthread_setaffinity_np
+.Sh STANDARDS
+The
+.Nm
+function originated in Linux.
+This implementation aims to be source-compatible with the Linux implementation.
+.Sh HISTORY
+The
+.Nm
+function was introduced in
+.Fx 13.1 .
