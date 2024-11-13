@@ -37,9 +37,7 @@ INTERP_DEPENDS+=	lua
 .include <bsd.arch.inc.mk>
 
 S.${MK_EFI}+=		efi
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "aarch64" || ${MACHINE_ARCH} == "powerpc64"
 S.${MK_LOADER_KBOOT}+=	kboot
-.endif
 S.${MK_LOADER_UBOOT}+=	uboot
 
 .if defined(LIB32LIST)
