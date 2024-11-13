@@ -3,7 +3,6 @@
 .SH NAME
 ipnat, ipnat.conf \- IPFilter NAT file format
 .SH DESCRIPTION
-.PP
 The
 .B ipnat.conf
 file is used to specify rules for the Network Address Translation (NAT)
@@ -30,7 +29,6 @@ to text that appears before the "->" and the "right hand side" (RHS) for text
 that appears after it.  In essence, the LHS is the packet matching and the
 RHS is the new data to be used.
 .SH VARIABLES
-.PP
 This configuration file, like all others used with IPFilter, supports the
 use of variable substitution throughout the text.
 .nf
@@ -280,7 +278,6 @@ of (say) 172.192.0.2 wanted 260 simultaneous connections going out, they would
 be limited to 252 with \fBmap-block\fP but would just \fImove on\fP to the next
 IP address with the \fBmap\fP command.
 .SS Extended matching
-.PP
 If it is desirable to match on both the source and destination of a packet
 before applying an address translation to it, this can be achieved by using
 the same from-to syntax as is used in \fBipf.conf\fP(5).  What follows
@@ -322,7 +319,6 @@ the defined pool only has /24's or /32's.  Pools may also be used
 .I wherever
 the from-to syntax in \fBipnat.conf\fR(5) is allowed.
 .SH INBOUND DESTINATION TRANSLATION (redirection)
-.PP
 Redirection of packets is used to change the destination fields in a packet
 and is supported for packets that are moving \fIin\fP on a network interface.
 While the same general syntax for
@@ -465,7 +461,6 @@ rdr le0,ppp0 9.8.7.6/32 port 80 -> 1.1.1.1,1.1.1.2 port 80 tcp
     round-robin frag age 40/40 sticky mssclamp 1000 tag tagged
 .fi
 .SH REWRITING SOURCE AND DESTINATION
-.PP
 Whilst the above two commands provide a lot of flexibility in changing
 addressing fields in packets, often it can be of benefit to translate
 \fIboth\fP source \fBand\fR destination at the same time or to change
@@ -549,7 +544,6 @@ rewrite from any to any port = 80 ->
 	src 1.1.2.3 - 1.1.2.6 dst 2.2.3.4 - 2.2.3.6;
 .fi
 .SH DIVERTING PACKETS
-.PP
 If you'd like to send packets to a UDP socket rather than just another
 computer to be decapsulated, this can be achieved using a
 .B divert
@@ -598,7 +592,6 @@ are flushed out, it is expected that the operator will similarly
 flush the NAT table and thus NAT sessions are not removed when the
 NAT rules are flushed out.
 .SH RULE ORDERING
-.PP
 .B NOTE:
 Rules in
 .B ipnat.conf
@@ -655,7 +648,6 @@ rdr le0 from 1.1.1.0/24 to 192.2.2.1 port 80 -> 127.0.0.1 3128 tcp
 .PP
 Then no packets will match the 2nd rule, they'll all match the first.
 .SH IPv6
-.PP
 In all of the examples above, where an IPv4 address is present, an IPv6
 address can also be used. All rules must use either IPv4 addresses with
 both halves of the NAT rule or IPv6 addresses for both halves. Mixing
@@ -667,7 +659,6 @@ For shorthand notations such as "0/32", the equivalent for IPv6 is
 implicit direction that the address should be IPv6, not IPv4.
 To be unambiguous with 0/0, for IPv6 use ::0/0.
 .SH KERNEL PROXIES
-.PP
 IP Filter comes with a few, simple, proxies built into the code that is loaded
 into the kernel to allow secondary channels to be opened without forcing the
 packets through a user program.  The current state of the proxies is listed
