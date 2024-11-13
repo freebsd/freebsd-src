@@ -3,16 +3,12 @@
 KMOD=	vmm
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	opt_acpi.h		\
-	opt_bhyve_snapshot.h	\
-	opt_ddb.h
 .endif
 
 SRCS+=	acpi_if.h bus_if.h device_if.h pci_if.h pcib_if.h vnode_if.h
 
 CFLAGS+= -DVMM_KEEP_STATS
 CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm
-CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
 
 # generic vmm support
 .PATH: ${SRCTOP}/sys/dev/vmm ${SRCTOP}/sys/${MACHINE}/vmm
@@ -24,6 +20,7 @@ SRCS+=	vmm.c			\
 	vmm_stat.c
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
 DPSRCS+=	assym.inc
 
 # TODO: Add the new EL2 code
@@ -71,11 +68,16 @@ vmm_hyp_blob.bin:	vmm_hyp_blob.elf
 vmm_hyp_el2.o:	vmm_hyp_blob.bin
 
 .elif ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+= -I${SRCTOP}/sys/${MACHINE}/vmm/io
 DPSRCS+=	vmx_assym.h svm_assym.h
 DPSRCS+=	vmx_genassym.c svm_genassym.c offset.inc
 
 CFLAGS+= -I${SRCTOP}/sys/amd64/vmm/intel
 CFLAGS+= -I${SRCTOP}/sys/amd64/vmm/amd
+
+SRCS+=	opt_acpi.h		\
+	opt_bhyve_snapshot.h	\
+	opt_ddb.h
 
 SRCS+=	vmm_host.c	\
 	vmm_ioport.c	\
@@ -123,7 +125,6 @@ CLEANFILES+=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 
 OBJS_DEPEND_GUESS.vmx_support.o+= vmx_assym.h
 OBJS_DEPEND_GUESS.svm_support.o+= svm_assym.h
-.endif
 
 vmx_assym.h:    vmx_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh vmx_genassym.o > ${.TARGET}
@@ -147,5 +148,14 @@ vmx_genassym.o: offset.inc
 
 svm_genassym.o: offset.inc
 	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon ${.IMPSRC}
+
+.elif ${MACHINE_CPUARCH} == "riscv"
+
+SRCS+=	vmm_aplic.c	\
+	vmm_riscv.c	\
+	vmm_sbi.c	\
+	vmm_switch.S
+
+.endif
 
 .include <bsd.kmod.mk>

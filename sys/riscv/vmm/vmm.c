@@ -176,6 +176,11 @@ static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
 
+/* global statistics */
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_IRQ, "number of vmexits for an irq");
+VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
+
 /*
  * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
  * is a safe value for now.
