@@ -262,18 +262,19 @@ static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
 	struct timespec ts[2];
-	static u_int blen = MAXPHYS;
-	static char *bp = NULL;
-	mode_t oldmode;
-	int nread, from_fd, to_fd;
 	struct stat tsb;
+	static char *bp = NULL;
+	static size_t blen = MAXPHYS;
+	ssize_t nread;
+	int from_fd, to_fd;
+	mode_t oldmode;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("fastcopy: open() failed (from): %s", from);
 		return (1);
 	}
-	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
-		warnx("malloc(%u) failed", blen);
+	if (bp == NULL && (bp = malloc(blen)) == NULL) {
+		warnx("malloc(%zu) failed", blen);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -285,7 +286,7 @@ fastcopy(const char *from, const char *to, struct stat *sbp)
 		(void)close(from_fd);
 		return (1);
 	}
-	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
+	while ((nread = read(from_fd, bp, blen)) > 0)
 		if (write(to_fd, bp, (size_t)nread) != nread) {
 			warn("fastcopy: write() failed: %s", to);
 			goto err;
