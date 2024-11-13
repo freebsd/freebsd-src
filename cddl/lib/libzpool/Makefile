@@ -248,7 +248,7 @@ LUA_C = \
 	lvm.c \
 	lzio.c
 
-UNICODE_C = u8_textprep.c uconv.c
+UNICODE_C = u8_textprep.c
 
 SRCS+=		${USER_C} ${KERNEL_C} ${LUA_C} ${UNICODE_C} ${ARCH_C}
 

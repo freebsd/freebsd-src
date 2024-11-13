@@ -202,8 +202,7 @@ SRCS+=	abd_os.c \
 	zvol_os.c
 
 #unicode
-SRCS+=	uconv.c \
-	u8_textprep.c
+SRCS+=	u8_textprep.c
 
 #zcommon
 SRCS+=	zfeature_common.c \
