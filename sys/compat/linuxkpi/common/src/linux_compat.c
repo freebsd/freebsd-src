@@ -772,7 +772,7 @@ linux_dev_fdopen(struct cdev *dev, int fflags, struct thread *td,
 	}
 
 	/* hold on to the vnode - used for fstat() */
-	vhold(filp->f_vnode);
+	vref(filp->f_vnode);
 
 	/* release the file from devfs */
 	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
@@ -1504,7 +1504,7 @@ linux_file_close(struct file *file, struct thread *td)
 		error = -OPW(file, td, release(filp->f_vnode, filp));
 	funsetown(&filp->f_sigio);
 	if (filp->f_vnode != NULL)
-		vdrop(filp->f_vnode);
+		vrele(filp->f_vnode);
 	linux_drop_fop(ldev);
 	ldev = filp->f_cdev;
 	if (ldev != NULL)
