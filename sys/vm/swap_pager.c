@@ -1895,6 +1895,7 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 				    __func__, rv);
 			VM_OBJECT_WLOCK(object);
 			vm_object_pip_wakeupn(object, 1);
+			vm_page_deactivate_noreuse(m);
 			vm_page_xunbusy(m);
 
 			/*
