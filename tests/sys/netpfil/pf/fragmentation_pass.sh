@@ -344,61 +344,6 @@ no_df_body()
 {
 	setup_router_server_ipv4
 
-	ifconfig ${epair_tester}a mtu 9000
-	jexec router ifconfig ${epair_tester}b mtu 9000
-	jexec router ifconfig ${epair_server}a mtu 1500
-	jexec server ifconfig ${epair_server}b mtu 1500
-
-	# Sanity check.
-	ping_server_check_reply exit:0 --ping-type=icmp
-
-	pft_set_rules router \
-		"set reassemble no" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with normal, fragmentable packets.
-	ping_server_check_reply exit:1 --ping-type=icmp --send-length=2000
-
-	pft_set_rules router \
-		"set reassemble yes" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with normal, fragmentable packets.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000
-
-	# Ping with non-fragmentable packets.
-	ping_server_check_reply exit:1 --ping-type=icmp --send-length=2000 --send-flags DF
-
-	pft_set_rules router \
-		"set reassemble yes no-df" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with non-fragmentable packets again.
-	# This time pf will strip the DF flag.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
-}
-no_df_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "no_df" "cleanup"
-no_df_head()
-{
-	atf_set descr 'Test removing of DF flag'
-	atf_set require.user root
-}
-
-no_df_body()
-{
-	setup_router_server_ipv4
-
 	# Tester can send long packets which will get fragmented by the router.
 	# Replies from server will come in fragments which might get
 	# reassembled resulting in a long reply packet sent back to tester.
@@ -420,6 +365,7 @@ no_df_body()
 	# getting properly forwarded.
 	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
 }
+
 no_df_cleanup()
 {
 	pft_cleanup
