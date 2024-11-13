@@ -1222,7 +1222,7 @@ g_mirror_start(struct bio *bp)
 }
 
 /*
- * Return TRUE if the given request is colliding with a in-progress
+ * Return true if the given request is colliding with a in-progress
  * synchronization request.
  */
 static bool
@@ -1254,7 +1254,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 }
 
 /*
- * Return TRUE if the given sync request is colliding with a in-progress regular
+ * Return true if the given sync request is colliding with a in-progress regular
  * request.
  */
 static bool
