@@ -34,6 +34,11 @@ a1da7dc1cdad:
 	be spliced together, enabling proxy-like functionality without the
 	need to copy data in and out of user memory.
 
+fc12c191c087:
+	grep(1) no longer follows symbolic links by default for
+	recursive searches.  This matches the documented behavior in
+	the manual page.
+
 e962b37bf0ff:
 	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
 	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
