@@ -52,7 +52,6 @@ The lines above would save all ipf log entries to /var/log/ipf-log, send
 all of the entries for NAT (ipnat related) to syslog and generate an email
 to root for each log entry from the state tables.
 .SH SYNTAX - MATCHING
-.PP
 In the above example, the matching segment was confined to matching on
 the type of log entry generated.  The full list of fields that can be
 used here is:
@@ -189,7 +188,6 @@ it can then be used in any
 .I do
 statement.
 .SH EXAMPLES
-.PP
 Some further examples are:
 .nf
 
@@ -208,7 +206,6 @@ match { dstip 127.0.0.1; } do { local("local options"); };
 #
 .fi
 .SH MATCHING
-.PP
 All entries of the rules present in the file are
 compared for matches - there is no first or last rule match.
 .SH FILES

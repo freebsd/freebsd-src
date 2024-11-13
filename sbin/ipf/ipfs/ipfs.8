@@ -40,7 +40,6 @@ ipfs \- saves and restores information for NAT and state tables.
 .B \-i
 <if1>,<if2>
 .SH DESCRIPTION
-.PP
 \fBipfs\fP allows state information created for NAT entries and rules using
 \fIkeep state\fP to be locked (modification prevented) and then saved to disk,
 allowing for the system to experience a reboot, followed by the restoration
@@ -117,10 +116,8 @@ operation and unlocked once complete.
 .SH SEE ALSO
 ipf(8), ipl(4), ipmon(8), ipnat(8)
 .SH DIAGNOSTICS
-.PP
 Perhaps the -W and -R operations should set the locking but rather than
 undo it, restore it to what it was previously.  Fragment table information
 is currently not saved.
 .SH BUGS
-.PP
 If you find any, please send email to me at darrenr@pobox.com

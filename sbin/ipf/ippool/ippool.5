@@ -38,7 +38,6 @@ heirarchical matching, so it is possible to define a subnet as matching
 but then exclude specific addresses from it.
 .SS
 Evolving Configuration
-.PP
 Over time the configuration syntax used by ippool.conf(5) has evolved.
 Originally the syntax used was more verbose about what a particular
 value was being used for, for example:
@@ -65,7 +64,6 @@ configuration syntax and all output using "ippool -l" will also be in the
 new configuration syntax.
 .SS
 IPFilter devices and pools
-.PP
 To cater to different administration styles, ipool.conf(5) allows you to
 tie a pool to a specific role in IPFilter. The recognised role names are:
 .HP
@@ -89,7 +87,6 @@ all
 pools that are defined for the "all" role are available to all types of
 rules, be they NAT rules in ipnat.conf(5) or firewall rules in ipf.conf(5).
 .SH Address Pools
-.PP
 An address pool can be used in ipf.conf(5) and ipnat.conf(5) for matching
 the source or destination address of packets. They can be referred to either
 by name or number and can hold an arbitrary number of address patterns to
@@ -163,7 +160,6 @@ block in from pool/microsoft to any
 Note that there are limitations on the output returned by whois servers
 so be aware that their output may not be 100% perfect for your goal.
 .SH Destination Lists
-.PP
 Destination lists are provided for use primarily with NAT redirect rules
 (rdr). Their purpose is to allow more sophisticated methods of selecting
 which host to send traffic to next than the simple round-robin technique
@@ -242,7 +238,6 @@ pool all/dstlist (name servers; policy weighted connection;)
         { bge0:1.1.1.2; bge0:1.1.1.4; bge1:1.1.1.5; bge1:1.1.1.9; };
 .fi
 .SH Group maps
-.PP
 Group maps are provided to allow more efficient processing of packets
 where there are a larger number of subnets and groups of rules for those
 subnets. Group maps are used with "call" rules in ipf.conf(5) that
@@ -282,7 +277,6 @@ The limitation with group maps is that only the source address or the
 destination address can be used to map the packet to the starting group,
 not both, in your ipf.conf(5) file.
 .SH Hash Tables
-.PP
 The hash table is operationally similar to the address pool. It is
 used as a store for a collection of address to match on, saving the
 need to write a lengthy list of rules. As with address pools, searching

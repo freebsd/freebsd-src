@@ -7,7 +7,6 @@ text file which fits the grammar described below.  The purpose of this
 grammar is to allow IP packets to be described in an arbitary way which
 also allows encapsulation to be so done to an arbitary level.
 .SH GRAMMAR
-.LP
 .nf
 line ::= iface | arp | send | defrouter | ipv4line .
 
@@ -80,7 +79,6 @@ databodyopts ::= "len" number | "value" string | "file" filename .
 icmpechoopts ::= "icmpseq" number | "icmpid" number .
 .fi
 .SH COMMANDS
-.PP
 Before sending any packets or defining any packets, it is necessary to
 describe the interface(s) which will be used to send packets out.
 .TP
