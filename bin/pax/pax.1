@@ -611,7 +611,7 @@ As in
 .Cm old
 is a basic regular expression and
 .Cm new
-can contain an ampersand (&), \\n (where n is a digit) back-references,
+can contain an ampersand (&), \en (where n is a digit) back-references,
 or subexpression matching.
 The
 .Cm old
@@ -850,7 +850,7 @@ Select a file based on its
 name, or when starting with a
 .Cm # ,
 a numeric gid.
-A '\\' can be used to escape the
+A '\e' can be used to escape the
 .Cm # .
 Multiple
 .Fl G
@@ -971,7 +971,7 @@ Select a file based on its
 name, or when starting with a
 .Cm # ,
 a numeric uid.
-A '\\' can be used to escape the
+A '\e' can be used to escape the
 .Cm # .
 Multiple
 .Fl U

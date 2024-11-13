@@ -325,7 +325,7 @@ Q_QMULQ(&a, r);
 Q_QMULQ(&a, pi);
 
 Q_TOSTR(a, -1, 10, buf, sizeof(buf));
-printf("%s\\n", buf);
+printf("%s\en", buf);
 .Ed
 .Ss Debugging
 Declare a Q20.8 s32q_t number
@@ -340,16 +340,16 @@ Q_INI(&s32, 0, 0, 8);
 Q_QFRACI(&s32, 5, 3);
 char buf[Q_MAXSTRLEN(s32, 10)];
 Q_TOSTR(s32, -1, 10, buf, sizeof(buf));
-printf(Q_DEBUG(s32, "", "\\n\\ttostr=%s\\n\\n", 0), buf);
+printf(Q_DEBUG(s32, "", "\en\ettostr=%s\en\en", 0), buf);
 .Ed
 .Pp
 The above code outputs the following to the console:
 .Bd -literal -offset indent
 "s32"@0x7fffffffe7d4
-	type=s32q_t, Qm.n=Q20.8, rpshft=11, imin=0xfff00001, \\
+	type=s32q_t, Qm.n=Q20.8, rpshft=11, imin=0xfff00001, \e
 imax=0xfffff
 	qraw=0x00000d53
-	imask=0x7ffff800, fmask=0x000007f8, cmask=0x00000007, \\
+	imask=0x7ffff800, fmask=0x000007f8, cmask=0x00000007, \e
 ifmask=0x7ffffff8
 	iraw=0x00000800, iabsval=0x1, ival=0x1
 	fraw=0x00000550, fabsval=0xaa, fval=0xaa

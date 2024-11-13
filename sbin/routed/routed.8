@@ -566,8 +566,8 @@ with
 specifies a RIPv2 cleartext password that will be included on
 all RIPv2 responses sent, and checked on all RIPv2 responses received.
 Any blanks, tab characters, commas, or '#', '|', or NULL characters in the
-password must be escaped with a backslash (\\).
-The common escape sequences \\n, \\r, \\t, \\b, and \\xxx have their
+password must be escaped with a backslash (\e).
+The common escape sequences \en, \er, \et, \eb, and \exxx have their
 usual meanings.
 The
 .Cm KeyID

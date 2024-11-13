@@ -164,7 +164,7 @@ Specifying
 as -1 renders the number's fractional component with maximum precision.
 If
 .Fa slen
-is greater than zero but insufficient to hold the complete C-string, the '\\0'
+is greater than zero but insufficient to hold the complete C-string, the '\e0'
 C-string terminator will be written to
 .Fa *s ,
 thereby returning a zero length C-string.
@@ -231,7 +231,7 @@ returns the initialised Q number which can be used to chain initialise
 additional Q numbers.
 .Pp
 .Fn Q_TOSTR
-returns a pointer to the '\\0' C-string terminator appended to
+returns a pointer to the '\e0' C-string terminator appended to
 .Fa s
 after the rendered numeric data, or NULL on buffer overflow.
 .Pp

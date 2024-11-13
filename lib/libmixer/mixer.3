@@ -557,7 +557,7 @@ if ((m = mixer_open(mix_name)) == NULL)
 
 TAILQ_FOREACH(dp, &m->devs, devs) {
 	if (M_ISRECSRC(m, dp->devno))
-		printf("%s\\t%.2f:%.2f\\n",
+		printf("%s\et%.2f:%.2f\en",
 		    dp->name, dp->vol.left, dp->vol.right);
 }
 

@@ -158,7 +158,7 @@ the standard output of
 executed via
 .Xr sh 1 .
 To read a file whose name begins with a bang, prefix the
-name with a backslash (\\).
+name with a backslash (\e).
 The default filename is set to
 .Ar file
 only if it is not prefixed with a bang.
@@ -485,7 +485,7 @@ All
 commands are single characters, though some require additional parameters.
 If a command's parameters extend over several lines, then
 each line except for the last
-must be terminated with a backslash (\\).
+must be terminated with a backslash (\e).
 .Pp
 In general, at most one command is allowed per line.
 However, most commands accept a print suffix, which is any of
@@ -579,7 +579,7 @@ Each command in
 .Ar command-list
 must be on a separate line,
 and every line except for the last must be terminated by a backslash
-(\\).
+(\e).
 Any commands are allowed, except for
 .Em g ,
 .Em G ,
@@ -765,7 +765,7 @@ then
 from the last substitution is used.
 Newlines may be embedded in
 .Ar replacement
-if they are escaped with a backslash (\\).
+if they are escaped with a backslash (\e).
 .It (.,.)s
 Repeat the last substitution.
 This form of the
@@ -883,7 +883,7 @@ The
 .Nm
 utility does not process
 .Ar command
-for backslash (\\) escapes.
+for backslash (\e) escapes.
 However, an unescaped
 .Em %
 is replaced by the default filename.
@@ -976,7 +976,7 @@ The
 utility processes
 .Ar file
 arguments for backslash escapes, i.e., in a filename,
-any characters preceded by a backslash (\\) are
+any characters preceded by a backslash (\e) are
 interpreted literally.
 .Pp
 If a text (non-binary) file is not terminated by a newline character,

@@ -213,7 +213,7 @@ error = cap_getnameinfo(capdns, res->ai_addr, res->ai_addrlen, hname, sizeof(hna
 if (error != 0)
 	errx(1, "cap_getnameinfo(): %s: %s", ipstr, gai_strerror(error));
 
-printf("Name associated with %s is %s.\\n", ipstr, hname);
+printf("Name associated with %s is %s.\en", ipstr, hname);
 .Ed
 .Sh SEE ALSO
 .Xr cap_enter 2 ,

@@ -202,7 +202,7 @@ group = cap_getgrgid(capgrp, gid[0]);
 if (group == NULL)
 	err(1, "Unable to get name of group");
 
-printf("GID %d is associated with name %s.\\n", gid[0], group->gr_name);
+printf("GID %d is associated with name %s.\en", gid[0], group->gr_name);
 
 cap_close(capgrp);
 .Ed

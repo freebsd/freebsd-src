@@ -169,7 +169,7 @@ and read it from
 .Fx .
 .Bd -literal
 # Create a RAID-0 on Linux:
-mdadm --create --chunk=32 --level=0 --raid-devices=2 /dev/md0 \\
+mdadm --create --chunk=32 --level=0 --raid-devices=2 /dev/md0 \e
    /dev/hda1 /dev/hdb1
 # Make the RAID-0 just created available on FreeBSD:
 ccdconfig -c /dev/ccd0 32 linux /dev/ada0s1 /dev/ada0s2

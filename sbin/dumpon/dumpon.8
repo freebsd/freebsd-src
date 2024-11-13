@@ -347,7 +347,7 @@ on the vtnet0 interface, add the following to
 .Bd -literal
 case $reason in
 BOUND|REBIND|REBOOT|RENEW)
-	if [ "$interface" != vtnet0 ] || [ -n "$old_ip_address" -a \\
+	if [ "$interface" != vtnet0 ] || [ -n "$old_ip_address" -a \e
 	     "$old_ip_address" = "$new_ip_address" ]; then
 		break
 	fi

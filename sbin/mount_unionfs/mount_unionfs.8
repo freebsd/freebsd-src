@@ -276,7 +276,7 @@ The commands
 .Bd -literal -offset indent
 mount -t cd9660 -o ro /dev/cd0 /usr/src
 chown 2020 /usr/src
-mount -t unionfs -o noatime -o copymode=masquerade -o uid=builder \\
+mount -t unionfs -o noatime -o copymode=masquerade -o uid=builder \e
     -o udir=755 -o ufile=644 /var/obj /usr/src
 .Ed
 .Pp
