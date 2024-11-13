@@ -1146,6 +1146,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_1000_KX:
 		case IFM_1000_SGMII:
 		case IFM_1000_CX_SGMII:
+		case IFM_1000_BX:
 			key = IFM_1000_SX;
 			break;
 		case IFM_10G_LR:
