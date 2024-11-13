@@ -22,7 +22,6 @@ ipf \- alters packet filtering lists for IP packet input and output
 <\fIfilename\fP>
 [...]]
 .SH DESCRIPTION
-.PP
 \fBipf\fP opens the filenames listed (treating "\-" as stdin) and parses the
 file for a set of rules which are to be added or removed from the packet
 filter rule set.
@@ -176,9 +175,7 @@ IPF_PREDEFINED='my_server="10.1.1.1"; my_client="10.1.1.2";'
 .SH SEE ALSO
 ipftest(1), mkfilters(1), ipf(4), ipl(4), ipf(5), ipfstat(8), ipmon(8), ipnat(8)
 .SH DIAGNOSTICS
-.PP
 Needs to be run as root for the packet filtering lists to actually
 be affected inside the kernel.
 .SH BUGS
-.PP
 If you find any, please send email to me at darrenr@pobox.com
