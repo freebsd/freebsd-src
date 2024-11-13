@@ -299,6 +299,7 @@ MAN+=	abort2.2 \
 	rmdir.2 \
 	rtprio.2 \
 	sched_get_priority_max.2 \
+	sched_getcpu.3 \
 	sched_setparam.2 \
 	sched_setscheduler.2 \
 	sched_yield.2 \
