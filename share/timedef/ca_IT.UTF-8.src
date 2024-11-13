@@ -63,7 +63,7 @@ a. m.
 p. m.
 #
 # date_fmt
-%A, %e de %B de %Y, %X %Z
+%A, %e %B de %Y, %X %Z
 #
 # Long month names (without case ending)
 de gener
