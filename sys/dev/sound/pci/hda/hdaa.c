@@ -7053,7 +7053,9 @@ hdaa_pcm_attach(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
 	);
-	pcm_init(dev, pdevinfo);
+	if (pcm_register(dev, pdevinfo, (pdevinfo->playas >= 0)?1:0,
+	    (pdevinfo->recas >= 0)?1:0) != 0)
+		device_printf(dev, "Can't register PCM\n");
 
 	pdevinfo->registered++;
 
@@ -7106,8 +7108,9 @@ hdaa_pcm_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
+	pcm_setstatus(dev, status);
 
-	return (pcm_register(dev, status));
+	return (0);
 }
 
 static int

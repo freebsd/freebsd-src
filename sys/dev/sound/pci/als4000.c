@@ -839,7 +839,10 @@ als_pci_attach(device_t dev)
 		goto bad_attach;
 	}
 
-	pcm_init(dev, sc);
+	if (pcm_register(dev, sc, 1, 1)) {
+		device_printf(dev, "failed to register pcm entries\n");
+		goto bad_attach;
+	}
 
 	pcm_addchan(dev, PCMDIR_PLAY, &alspchan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC,  &alsrchan_class, sc);
@@ -847,11 +850,7 @@ als_pci_attach(device_t dev)
 	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq),
 		 device_get_nameunit(device_get_parent(dev)));
-	if (pcm_register(dev, status)) {
-		device_printf(dev, "failed to register pcm entries\n");
-		goto bad_attach;
-	}
-
+	pcm_setstatus(dev, status);
 	return 0;
 
  bad_attach:

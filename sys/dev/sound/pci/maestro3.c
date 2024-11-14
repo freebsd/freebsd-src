@@ -1423,7 +1423,10 @@ m3_pci_attach(device_t dev)
 
 	m3_enable_ints(sc);
 
-	pcm_init(dev, sc);
+	if (pcm_register(dev, sc, dacn, adcn)) {
+		device_printf(dev, "pcm_register error\n");
+		goto bad;
+	}
 	for (i=0 ; i<dacn ; i++) {
 		if (pcm_addchan(dev, PCMDIR_PLAY, &m3_pch_class, sc)) {
 			device_printf(dev, "pcm_addchan (play) error\n");
@@ -1440,8 +1443,8 @@ m3_pci_attach(device_t dev)
 	    (sc->regtype == SYS_RES_IOPORT)? "port" : "mem",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
-	if (pcm_register(dev, status)) {
-		device_printf(dev, "pcm_register error\n");
+	if (pcm_setstatus(dev, status)) {
+		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;
 	}
 

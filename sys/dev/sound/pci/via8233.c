@@ -1352,7 +1352,8 @@ via_attach(device_t dev)
 	    device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
-	pcm_init(dev, via);
+	if (pcm_register(dev, via, via_dxs_chnum + via_sgd_chnum, NWRCHANS))
+	      goto bad;
 	for (i = 0; i < via_dxs_chnum; i++)
 	      pcm_addchan(dev, PCMDIR_PLAY, &via8233dxs_class, via);
 	for (i = 0; i < via_sgd_chnum; i++)
@@ -1365,8 +1366,7 @@ via_attach(device_t dev)
 	    (via_dxs_chnum > 0) ? "En" : "Dis", (via->dxs_src) ? "(SRC)" : "",
 	    via_dxs_chnum, via_sgd_chnum, NWRCHANS);
 
-	if (pcm_register(dev, status))
-	      goto bad;
+	pcm_setstatus(dev, status);
 
 	return (0);
 bad:

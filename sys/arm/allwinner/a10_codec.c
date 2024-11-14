@@ -1166,16 +1166,16 @@ a10codec_attach(device_t dev)
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
-	pcm_init(dev, sc);
+	if (pcm_register(dev, sc, 1, 1)) {
+		device_printf(dev, "pcm_register failed\n");
+		goto fail;
+	}
 
 	pcm_addchan(dev, PCMDIR_PLAY, &a10codec_chan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC, &a10codec_chan_class, sc);
 
 	snprintf(status, SND_STATUSLEN, "at %s", ofw_bus_get_name(dev));
-	if (pcm_register(dev, status)) {
-		device_printf(dev, "pcm_register failed\n");
-		goto fail;
-	}
+	pcm_setstatus(dev, status);
 
 	return (0);
 

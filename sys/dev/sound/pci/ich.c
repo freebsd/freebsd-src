@@ -695,7 +695,7 @@ ich_setstatus(struct sc_info *sc)
 		device_printf(sc->dev,
 		    "PCI Master abort workaround enabled\n");
 
-	pcm_register(sc->dev, status);
+	pcm_setstatus(sc->dev, status);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1066,7 +1066,8 @@ ich_pci_attach(device_t dev)
 	    ich_setmap, sc, 0))
 		goto bad;
 
-	pcm_init(dev, sc);
+	if (pcm_register(dev, sc, 1, (sc->hasmic) ? 2 : 1))
+		goto bad;
 
 	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);		/* play */
 	pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);		/* record */

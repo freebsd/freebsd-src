@@ -642,11 +642,10 @@ fm801_pci_attach(device_t dev)
 		device_get_nameunit(device_get_parent(dev)));
 
 #define FM801_MAXPLAYCH	1
-	pcm_init(dev, fm801);
+	if (pcm_register(dev, fm801, FM801_MAXPLAYCH, 1)) goto oops;
 	pcm_addchan(dev, PCMDIR_PLAY, &fm801ch_class, fm801);
 	pcm_addchan(dev, PCMDIR_REC, &fm801ch_class, fm801);
-	if (pcm_register(dev, status))
-		goto oops;
+	pcm_setstatus(dev, status);
 
 	fm801->radio = device_add_child(dev, "radio", -1);
 	bus_generic_attach(dev);

@@ -866,17 +866,18 @@ sv_attach(device_t dev) {
 	if (bootverbose)
 		printf("Sonicvibes: revision %d.\n", sc->rev);
 
-	pcm_init(dev, sc);
+        if (pcm_register(dev, sc, 1, 1)) {
+		device_printf(dev, "sv_attach: pcm_register fail\n");
+                goto fail;
+	}
+
         pcm_addchan(dev, PCMDIR_PLAY, &svpchan_class, sc);
         pcm_addchan(dev, PCMDIR_REC,  &svrchan_class, sc);
 
         snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
                  rman_get_start(sc->enh_reg),  rman_get_start(sc->irq),
 		 device_get_nameunit(device_get_parent(dev)));
-	if (pcm_register(dev, status)) {
-		device_printf(dev, "sv_attach: pcm_register fail\n");
-                goto fail;
-	}
+        pcm_setstatus(dev, status);
 
         DEB(printf("sv_attach: succeeded\n"));
 
