@@ -27,6 +27,7 @@ FBSD_1.8 {
 };
 
 FBSDprivate_1.0 {
+    _dl_iterate_phdr_locked;
     _rtld_thread_init;
     _rtld_allocate_tls;
     _rtld_free_tls;
