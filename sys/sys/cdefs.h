@@ -616,6 +616,12 @@
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		2011
 #define	__EXT1_VISIBLE		0
+#elif defined(_C23_SOURCE)	/* Localism to specify strict C23 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		2023
+#define	__EXT1_VISIBLE		0
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
