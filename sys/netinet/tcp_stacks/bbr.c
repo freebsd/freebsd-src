@@ -12619,7 +12619,6 @@ recheck_resend:
 	    (len > maxseg) &&
 	    (tp->t_port == 0) &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-	    tp->rcv_numsacks == 0 &&
 	    ipoptlen == 0)
 		tso = 1;
 
