@@ -247,11 +247,11 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 		if (lport) {
 			struct inpcb *t;
 
-			/* GROSS */
 			if (ntohs(lport) <= V_ipport_reservedhigh &&
 			    ntohs(lport) >= V_ipport_reservedlow &&
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT))
 				return (EACCES);
+
 			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
 			    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
@@ -279,8 +279,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 					    INPLOOKUP_WILDCARD, cred);
 					if (t != NULL &&
 					    (so->so_type != SOCK_STREAM ||
-					     ntohl(t->inp_faddr.s_addr) ==
-					      INADDR_ANY) &&
+					     in_nullhost(t->inp_faddr)) &&
 					    (inp->inp_cred->cr_uid !=
 					     t->inp_cred->cr_uid))
 						return (EADDRINUSE);
@@ -289,10 +288,9 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 			    lport, lookupflags, cred);
-			if (t && (reuseport & t->inp_socket->so_options) == 0 &&
-			    (reuseport_lb & t->inp_socket->so_options) == 0) {
+			if (t != NULL && ((reuseport | reuseport_lb) &
+			    t->inp_socket->so_options) == 0)
 				return (EADDRINUSE);
-			}
 #ifdef INET
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
@@ -301,11 +299,10 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
 				   lport, lookupflags, cred);
-				if (t &&
-				    (reuseport & t->inp_socket->so_options) == 0 &&
-				    (reuseport_lb & t->inp_socket->so_options) == 0 &&
-				    (ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				        (t->inp_vflag & INP_IPV6PROTO) != 0)) {
+				if (t != NULL && ((reuseport | reuseport_lb) &
+				    t->inp_socket->so_options) == 0 &&
+				    (!in_nullhost(t->inp_laddr) ||
+				     (t->inp_vflag & INP_IPV6PROTO) != 0)) {
 					return (EADDRINUSE);
 				}
 			}
