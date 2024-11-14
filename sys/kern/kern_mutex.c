@@ -1072,7 +1072,7 @@ __mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v)
 	_mtx_release_lock_quick(m);
 	ts = turnstile_lookup(&m->lock_object);
 	if (__predict_false(ts == NULL)) {
-		panic("got NULL turnstile on mutex %p v %zx", m, v);
+		panic("got NULL turnstile on mutex %p v %p", m, (void *)v);
 	}
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);

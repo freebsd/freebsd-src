@@ -843,8 +843,8 @@ __rw_runlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 		 */
 		ts = turnstile_lookup(&rw->lock_object);
 		if (__predict_false(ts == NULL)) {
-			panic("got NULL turnstile on rwlock %p passedv %zx v %zx",
-			    rw, passedv, v);
+			panic("got NULL turnstile on rwlock %p passedv %p v %p",
+			    rw, (void *)passedv, (void *)v);
 		}
 		turnstile_broadcast(ts, queue);
 		turnstile_unpend(ts);
@@ -1288,8 +1288,8 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 
 	ts = turnstile_lookup(&rw->lock_object);
 	if (__predict_false(ts == NULL)) {
-		panic("got NULL turnstile on rwlock %p passedv %zx v %zx", rw,
-		    passedv, v);
+		panic("got NULL turnstile on rwlock %p passedv %p v %p", rw,
+		    (void *)passedv, (void *)v);
 	}
 	turnstile_broadcast(ts, queue);
 	turnstile_unpend(ts);
