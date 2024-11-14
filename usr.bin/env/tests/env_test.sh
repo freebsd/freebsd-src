@@ -139,6 +139,7 @@ stdout_body()
 {
 	(
 		trap "" PIPE
+		sleep 1
 		env 2>stderr
 		echo $? >result
 	) | true
