@@ -193,6 +193,7 @@ static void
 htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	htcp_data = ccv->cc_data;
 	htcp_record_rtt(ccv);
@@ -220,7 +221,7 @@ htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 			if (V_tcp_do_rfc3465) {
 				/* Increment cwnd by alpha segments. */
 				CCV(ccv, snd_cwnd) += htcp_data->alpha *
-				    CCV(ccv, t_maxseg);
+				    mss;
 				ccv->flags &= ~CCF_ABC_SENTAWND;
 			} else
 				/*
@@ -230,8 +231,8 @@ htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 				 */
 				CCV(ccv, snd_cwnd) += (((htcp_data->alpha <<
 				    HTCP_SHIFT) / (max(1,
-				    CCV(ccv, snd_cwnd) / CCV(ccv, t_maxseg)))) *
-				    CCV(ccv, t_maxseg))  >> HTCP_SHIFT;
+				    CCV(ccv, snd_cwnd) / mss))) *
+				    mss)  >> HTCP_SHIFT;
 		}
 	}
 }
@@ -370,6 +371,7 @@ htcp_post_recovery(struct cc_var *ccv)
 {
 	int pipe;
 	struct htcp *htcp_data;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	pipe = 0;
 	htcp_data = ccv->cc_data;
@@ -392,12 +394,11 @@ htcp_post_recovery(struct cc_var *ccv)
 			 * Ensure that cwnd down not collape to 1 MSS under
 			 * adverse conditions. Implements RFC6582
 			 */
-			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
-			    CCV(ccv, t_maxseg);
+			CCV(ccv, snd_cwnd) = max(pipe, mss) + mss;
 		else
 			CCV(ccv, snd_cwnd) = max(1, ((htcp_data->beta *
-			    htcp_data->prev_cwnd / CCV(ccv, t_maxseg))
-			    >> HTCP_SHIFT)) * CCV(ccv, t_maxseg);
+			    htcp_data->prev_cwnd / mss)
+			    >> HTCP_SHIFT)) * mss;
 	}
 }
 

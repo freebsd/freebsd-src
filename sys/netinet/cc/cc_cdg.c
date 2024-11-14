@@ -416,27 +416,28 @@ cdg_window_increase(struct cc_var *ccv, int new_measurement)
 {
 	struct cdg *cdg_data;
 	int incr, s_w_incr;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	cdg_data = ccv->cc_data;
 	incr = s_w_incr = 0;
 
 	if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh)) {
 		/* Slow start. */
-		incr = CCV(ccv, t_maxseg);
+		incr = mss;
 		s_w_incr = incr;
 		cdg_data->window_incr = cdg_data->rtt_count = 0;
 	} else {
 		/* Congestion avoidance. */
 		if (new_measurement) {
-			s_w_incr = CCV(ccv, t_maxseg);
+			s_w_incr = mss;
 			if (V_cdg_alpha_inc == 0) {
-				incr = CCV(ccv, t_maxseg);
+				incr = mss;
 			} else {
 				if (++cdg_data->rtt_count >= V_cdg_alpha_inc) {
 					cdg_data->window_incr++;
 					cdg_data->rtt_count = 0;
 				}
-				incr = CCV(ccv, t_maxseg) *
+				incr = mss *
 				    cdg_data->window_incr;
 			}
 		}

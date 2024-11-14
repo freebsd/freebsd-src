@@ -392,6 +392,7 @@ void
 newreno_cc_post_recovery(struct cc_var *ccv)
 {
 	int pipe;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 		/*
@@ -412,8 +413,7 @@ newreno_cc_post_recovery(struct cc_var *ccv)
 			 * Ensure that cwnd does not collapse to 1 MSS under
 			 * adverse conditions. Implements RFC6582
 			 */
-			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
-			    CCV(ccv, t_maxseg);
+			CCV(ccv, snd_cwnd) = max(pipe, mss) + mss;
 		else
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 	}
@@ -521,7 +521,7 @@ u_int
 newreno_cc_cwnd_in_cong_avoid(struct cc_var *ccv)
 {
 	u_int cw = CCV(ccv, snd_cwnd);
-	u_int incr = CCV(ccv, t_maxseg);
+	u_int incr = tcp_fixed_maxseg(ccv->tp);
 
 	KASSERT(cw > CCV(ccv, snd_ssthresh),
 		("congestion control state not in congestion avoidance\n"));
@@ -561,7 +561,8 @@ u_int
 newreno_cc_cwnd_in_slow_start(struct cc_var *ccv)
 {
 	u_int cw = CCV(ccv, snd_cwnd);
-	u_int incr = CCV(ccv, t_maxseg);
+	u_int mss = tcp_fixed_maxseg(ccv->tp);
+	u_int incr = mss;
 
 	KASSERT(cw <= CCV(ccv, snd_ssthresh),
 		("congestion control state not in slow start\n"));
@@ -599,9 +600,9 @@ newreno_cc_cwnd_in_slow_start(struct cc_var *ccv)
 			abc_val = V_tcp_abc_l_var;
 		if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
 			incr = min(ccv->bytes_this_ack,
-			           ccv->nsegs * abc_val * CCV(ccv, t_maxseg));
+			           ccv->nsegs * abc_val * mss);
 		else
-			incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+			incr = min(ccv->bytes_this_ack, mss);
 	}
 	/* ABC is on by default, so incr equals 0 frequently. */
 	if (incr > 0)

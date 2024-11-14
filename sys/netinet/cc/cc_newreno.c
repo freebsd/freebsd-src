@@ -215,12 +215,13 @@ static void
 newreno_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct newreno *nreno;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	nreno = ccv->cc_data;
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {
 		u_int cw = CCV(ccv, snd_cwnd);
-		u_int incr = CCV(ccv, t_maxseg);
+		u_int incr = mss;
 
 		/*
 		 * Regular in-order ACK, open the congestion window.
@@ -324,10 +325,9 @@ newreno_ack_received(struct cc_var *ccv, ccsignal_t type)
 			}
 			if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
 				incr = min(ccv->bytes_this_ack,
-				    ccv->nsegs * abc_val *
-				    CCV(ccv, t_maxseg));
+				    ccv->nsegs * abc_val * mss);
 			else
-				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+				incr = min(ccv->bytes_this_ack, mss);
 
 			/* Only if Hystart is enabled will the flag get set */
 			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {

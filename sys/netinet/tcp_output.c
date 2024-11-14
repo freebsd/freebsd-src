@@ -1696,7 +1696,7 @@ timer:
 			return (error);
 		case ENOBUFS:
 			TCP_XMIT_TIMER_ASSERT(tp, len, flags);
-			tp->snd_cwnd = tp->t_maxseg;
+			tp->snd_cwnd = tcp_maxseg(tp);
 			return (0);
 		case EMSGSIZE:
 			/*
