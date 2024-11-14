@@ -513,7 +513,16 @@
 #define	_POSIX_C_SOURCE		199209
 #endif
 
-/* Deal with various X/Open Portability Guides and Single UNIX Spec. */
+/*
+ * Deal with various X/Open Portability Guides and Single UNIX Spec. We use the
+ * '- 0' construct so software that defines _XOPEN_SOURCE to nothing doesn't
+ * cause errors. X/Open CAE Specification, August 1994, System Interfaces and
+ * Headers, Issue 4, Version 2 section 2.2 states an empty definition means the
+ * same thing as _POSIX_C_SOURCE == 2. This broadly mirrors "System V Interface
+ * Definition, Fourth Edition", but earlier editions suggest some ambiguity.
+ * However, FreeBSD has histoically implemented this as a NOP, so we just
+ * document what it should be for now to not break ports gratuitously.
+ */
 #ifdef _XOPEN_SOURCE
 #if _XOPEN_SOURCE - 0 >= 800
 #define	__XSI_VISIBLE		800
@@ -531,6 +540,8 @@
 #define	__XSI_VISIBLE		500
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		199506
+#else
+/* #define	_POSIX_C_SOURCE		199209 */
 #endif
 #endif
 
