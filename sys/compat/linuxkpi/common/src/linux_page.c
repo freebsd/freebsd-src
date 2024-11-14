@@ -118,7 +118,8 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
-				if (flags & M_WAITOK) {
+				if ((flags & (M_WAITOK | __GFP_NORETRY)) ==
+				    M_WAITOK) {
 					if (!vm_page_reclaim_contig(req,
 					    npages, 0, pmax, PAGE_SIZE, 0)) {
 						vm_wait(NULL);
