@@ -292,7 +292,8 @@ again:
 	len = 0;
 	p = NULL;
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
-	    (IN_FASTRECOVERY(tp->t_flags) || SEQ_LT(tp->snd_nxt, tp->snd_max)) &&
+	    (IN_FASTRECOVERY(tp->t_flags) ||
+	     (SEQ_LT(tp->snd_nxt, tp->snd_max) && (tp->t_dupacks >= tcprexmtthresh))) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		int32_t cwin;
 

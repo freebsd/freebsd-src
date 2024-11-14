@@ -2813,7 +2813,7 @@ enter_recovery:
 							tcp_sack_adjust(tp);
 					tp->snd_cwnd +=
 					    (tp->t_dupacks - tp->snd_limited) *
-					    maxseg;
+					    maxseg - tcp_sack_adjust(tp);
 					/*
 					 * Only call tcp_output when there
 					 * is new data available to be sent
