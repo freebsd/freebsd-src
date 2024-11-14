@@ -721,7 +721,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
  * hash lock.  No inpcb locks or references are acquired.
  */
 struct inpcb *
-in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
+in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
     u_short lport, int lookupflags, struct ucred *cred)
 {
 	struct inpcb *inp;
@@ -1184,9 +1184,9 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
 }
 
 static struct inpcb *
-in6_pcblookup_hash_smr(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
-    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg, int lookupflags,
-    uint8_t numa_domain)
+in6_pcblookup_hash_smr(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
+    u_int fport_arg, const struct in6_addr *laddr, u_int lport_arg,
+    int lookupflags, uint8_t numa_domain)
 {
 	struct inpcb *inp;
 	const inp_lookup_t lockflags = lookupflags & INPLOOKUP_LOCKMASK;
@@ -1246,8 +1246,8 @@ in6_pcblookup_hash_smr(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
  * from which a pre-calculated hash value may be extracted.
  */
 struct inpcb *
-in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
-    struct in6_addr *laddr, u_int lport, int lookupflags,
+in6_pcblookup(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
+    u_int fport, const struct in6_addr *laddr, u_int lport, int lookupflags,
     struct ifnet *ifp __unused)
 {
 	return (in6_pcblookup_hash_smr(pcbinfo, faddr, fport, laddr, lport,
@@ -1255,8 +1255,8 @@ in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
 }
 
 struct inpcb *
-in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
-    u_int fport, struct in6_addr *laddr, u_int lport, int lookupflags,
+in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, const struct in6_addr *faddr,
+    u_int fport, const struct in6_addr *laddr, u_int lport, int lookupflags,
     struct ifnet *ifp __unused, struct mbuf *m)
 {
 	return (in6_pcblookup_hash_smr(pcbinfo, faddr, fport, laddr, lport,
