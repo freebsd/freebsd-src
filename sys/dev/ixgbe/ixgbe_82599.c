@@ -441,6 +441,17 @@ s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 		goto out;
 	}
 
+	if (hw->phy.sfp_type == ixgbe_sfp_type_da_cu_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_da_cu_core1) {
+		*speed = IXGBE_LINK_SPEED_10GB_FULL;
+		*autoneg = true;
+
+		if (hw->phy.multispeed_fiber)
+			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
+
+		goto out;
+	}
+
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
 	 * which represents EEPROM defaults.  If AUTOC value has not
