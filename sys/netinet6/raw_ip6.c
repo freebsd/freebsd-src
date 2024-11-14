@@ -766,9 +766,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	NET_EPOCH_EXIT(et);
 	INP_WLOCK(inp);
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	inp->in6p_laddr = addr->sin6_addr;
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -806,14 +804,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	INP_WLOCK(inp);
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	/* Source address selection. XXX: need pcblookup? */
 	NET_EPOCH_ENTER(et);
 	error = in6_selectsrc_socket(addr, inp->in6p_outputopts,
 	    inp, so->so_cred, scope_ambiguous, &in6a, NULL);
 	NET_EPOCH_EXIT(et);
 	if (error) {
-		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		INP_WUNLOCK(inp);
 		return (error);
 	}
@@ -821,7 +817,6 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = in6a;
 	soisconnected(so);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
