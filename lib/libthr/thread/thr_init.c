@@ -271,6 +271,8 @@ static pthread_func_t jmp_table[][2] = {
 	[PJT_GETTHREADID_NP] = {DUAL_ENTRY(_thr_getthreadid_np)},
 	[PJT_ATTR_GET_NP] = {DUAL_ENTRY(_thr_attr_get_np)},
 	[PJT_GETNAME_NP] = {DUAL_ENTRY(_thr_getname_np)},
+	[PJT_SUSPEND_ALL_NP] = {DUAL_ENTRY(_thr_suspend_all_np)},
+	[PJT_RESUME_ALL_NP] = {DUAL_ENTRY(_thr_resume_all_np)},
 };
 
 static int init_once = 0;
