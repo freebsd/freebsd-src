@@ -1315,9 +1315,11 @@ ixgbe_add_media_types(if_ctx_t ctx)
 	}
 
 	if (layer & IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU ||
-	    layer & IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA)
+	    layer & IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA) {
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_TWINAX, 0,
 		    NULL);
+		ifmedia_add(sc->media, IFM_ETHER | IFM_1000_KX, 0, NULL);
+	}
 
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_LR) {
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_LR, 0, NULL);
@@ -2322,6 +2324,9 @@ ixgbe_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 		switch (sc->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ifmr->ifm_active |= IFM_10G_TWINAX | IFM_FDX;
+			break;
+		case IXGBE_LINK_SPEED_1GB_FULL:
+			ifmr->ifm_active |= IFM_1000_KX | IFM_FDX;
 			break;
 		}
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_LR)
