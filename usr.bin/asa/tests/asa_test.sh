@@ -70,6 +70,7 @@ stdout_head() {
 stdout_body() {
 	(
 		trap "" PIPE
+		sleep 1
 		echo " $a $b" | asa 2>stderr
 		echo $? >result
 	) | true

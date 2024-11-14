@@ -138,6 +138,7 @@ atf_check_stdout()
 {
 	(
 		trap "" PIPE
+		sleep 1
 		cmp "$@" 2>stderr
 		echo $? >result
 	) | true
