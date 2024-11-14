@@ -41,7 +41,8 @@ static int suspend_common(struct pthread *, struct pthread *,
 		int);
 
 __weak_reference(_pthread_suspend_np, pthread_suspend_np);
-__weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
+__weak_reference(_thr_suspend_all_np, pthread_suspend_all_np);
+__weak_reference(_thr_suspend_all_np, _pthread_suspend_all_np);
 
 /* Suspend a thread: */
 int
@@ -101,7 +102,7 @@ _thr_suspend_all_unlock(struct pthread *curthread)
 }
 
 void
-_pthread_suspend_all_np(void)
+_thr_suspend_all_np(void)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *thread;
