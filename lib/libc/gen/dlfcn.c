@@ -204,6 +204,8 @@ dl_init_phdr_info(void)
 #endif
 
 #pragma weak _dl_iterate_phdr_locked
+int _dl_iterate_phdr_locked(int (*callback)(struct dl_phdr_info *,
+    size_t, void *), void *data);
 int
 _dl_iterate_phdr_locked(
     int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
