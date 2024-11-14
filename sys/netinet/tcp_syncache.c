@@ -898,7 +898,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_port = sc->sc_inc.inc_fport;
 		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in_pcbconnect(inp, &sin, thread0.td_ucred, false);
+		error = in_pcbconnect(inp, &sin, thread0.td_ucred);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0)
 			goto abort;
