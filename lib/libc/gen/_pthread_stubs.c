@@ -50,6 +50,7 @@ struct pthread {
 static struct pthread	main_thread;
 
 static int		stub_main(void);
+static void		stub_void(void);
 static void		*stub_null(void);
 static struct pthread	*stub_self(void);
 static int		stub_zero(void);
@@ -132,8 +133,8 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	[PJT_GETTHREADID_NP] =		{PJT_DUAL_ENTRY(stub_zero)},
 	[PJT_ATTR_GET_NP] =		{PJT_DUAL_ENTRY(stub_esrch)},
 	[PJT_GETNAME_NP] =		{PJT_DUAL_ENTRY(stub_getname_np)},
-	[PJT_SUSPEND_ALL_NP] =		{PJT_DUAL_ENTRY(stub_null)},
-	[PJT_RESUME_ALL_NP] =		{PJT_DUAL_ENTRY(stub_null)},
+	[PJT_SUSPEND_ALL_NP] =		{PJT_DUAL_ENTRY(stub_void)},
+	[PJT_RESUME_ALL_NP] =		{PJT_DUAL_ENTRY(stub_void)},
 };
 
 /*
@@ -300,6 +301,12 @@ static int
 stub_zero(void)
 {
 	return (0);
+}
+
+static void
+stub_void(void)
+{
+
 }
 
 static void *
