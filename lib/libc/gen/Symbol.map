@@ -469,6 +469,7 @@ FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
 
+	_dl_iterate_phdr_locked;
 	_pthread_atfork;
 	_pthread_attr_destroy;
 	_pthread_attr_getdetachstate;
