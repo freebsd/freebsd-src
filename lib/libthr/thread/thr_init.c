@@ -519,7 +519,6 @@ init_private(void)
 		env = getenv("LIBPTHREAD_QUEUE_FIFO");
 		if (env)
 			_thr_queuefifo = atoi(env);
-		TAILQ_INIT(&_thr_atfork_list);
 		env = getenv("LIBPTHREAD_UMTX_MIN_TIMEOUT");
 		if (env) {
 			char *endptr;

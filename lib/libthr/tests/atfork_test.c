@@ -25,6 +25,58 @@ static int child;
 static int forked;
 static int parent;
 
+/*
+ * We'll disable prefork unless we're specifically running the preinit test to
+ * be sure that we don't mess up any other tests' results.
+ */
+static bool prefork_enabled;
+
+static void
+prefork(void)
+{
+	if (prefork_enabled)
+		forked++;
+}
+
+static void
+registrar(void)
+{
+	pthread_atfork(prefork, NULL, NULL);
+}
+
+static __attribute__((section(".preinit_array"), used))
+void (*preinitfn)(void) = &registrar;
+
+/*
+ * preinit_atfork() just enables the prepare handler that we registered in a
+ * .preinit_array entry and checks that forking actually invoked that callback.
+ * We don't bother testing all three callbacks here because the implementation
+ * doesn't really lend itself to the kind of error where we only have a partial
+ * set of callbacks registered.
+ */
+ATF_TC(preinit_atfork);
+ATF_TC_HEAD(preinit_atfork, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks that atfork callbacks may be registered in .preinit_array functions");
+}
+ATF_TC_BODY(preinit_atfork, tc)
+{
+	pid_t p;
+
+	(void)signal(SIGCHLD, SIG_IGN);
+	prefork_enabled = true;
+	p = fork();
+
+	ATF_REQUIRE(p >= 0);
+	if (p == 0)
+		_exit(0);
+
+	prefork_enabled = false;
+
+	ATF_REQUIRE(forked != 0);
+}
+
 static void
 basic_prepare(void)
 {
@@ -221,6 +273,7 @@ ATF_TC_BODY(multi_atfork, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, preinit_atfork);
 	ATF_TP_ADD_TC(tp, basic_atfork);
 	ATF_TP_ADD_TC(tp, multi_atfork);
 	return (atf_no_error());
