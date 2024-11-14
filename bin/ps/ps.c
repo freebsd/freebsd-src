@@ -1268,7 +1268,6 @@ static void
 saveuser(KINFO *ki)
 {
 	char tdname[COMMLEN + 1];
-	char *argsp;
 
 	ki->ki_valid = 1;
 
@@ -1278,14 +1277,11 @@ saveuser(KINFO *ki)
 	if (needcomm) {
 		if (ki->ki_p->ki_stat == SZOMB) {
 			ki->ki_args = strdup("<defunct>");
-		} else if (ki->ki_p->ki_args != NULL) {
+		} else {
 			(void)snprintf(tdname, sizeof(tdname), "%s%s",
 			    ki->ki_p->ki_tdname, ki->ki_p->ki_moretdname);
 			ki->ki_args = fmt(kvm_getargv, ki,
 			    ki->ki_p->ki_comm, tdname, COMMLEN * 2 + 1);
-		} else {
-			asprintf(&argsp, "(%s)", ki->ki_p->ki_comm);
-			ki->ki_args = argsp;
 		}
 		if (ki->ki_args == NULL)
 			xo_errx(1, "malloc failed");
