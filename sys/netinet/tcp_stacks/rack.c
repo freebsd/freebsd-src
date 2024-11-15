@@ -11992,7 +11992,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* Must be non-newreno (cubic) getting too ahead of itself */
 		tp->snd_cwnd = p_cwnd;
 	}
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	acked_amount = min(acked, (int)sbavail(&so->so_snd));
 	tp->snd_wnd -= acked_amount;
 	mfree = sbcut_locked(&so->so_snd, acked_amount);
@@ -12378,7 +12378,7 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			thflags = tcp_get_flags(th) & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
-			SOCKBUF_LOCK(&so->so_rcv);
+			SOCK_RECVBUF_LOCK(so);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
@@ -12620,7 +12620,7 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
 
 	/* Add data to socket buffer. */
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		m_freem(m);
 	} else {
@@ -12779,7 +12779,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		struct mbuf *mfree;
 
 		rack_ack_received(tp, rack, th->th_ack, nsegs, CC_ACK, 0);
-		SOCKBUF_LOCK(&so->so_snd);
+		SOCK_SENDBUF_LOCK(so);
 		mfree = sbcut_locked(&so->so_snd, acked);
 		tp->snd_una = th->th_ack;
 		/* Note we want to hold the sb lock through the sendmap adjust */
@@ -16108,7 +16108,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				/* Must be non-newreno (cubic) getting too ahead of itself */
 				tp->snd_cwnd = p_cwnd;
 			}
-			SOCKBUF_LOCK(&so->so_snd);
+			SOCK_SENDBUF_LOCK(so);
 			mfree = sbcut_locked(&so->so_snd, acked_amount);
 			tp->snd_una = high_seq;
 			/* Note we want to hold the sb lock through the sendmap adjust */
@@ -19531,9 +19531,9 @@ again:
 		rack->r_fast_output = 0;
 		rack->r_ctl.fsb.left_to_send = 0;
 		/* At the end of fast_output scale up the sb */
-		SOCKBUF_LOCK(&rack->rc_inp->inp_socket->so_snd);
+		SOCK_SENDBUF_LOCK(rack->rc_inp->inp_socket);
 		rack_sndbuf_autoscale(rack);
-		SOCKBUF_UNLOCK(&rack->rc_inp->inp_socket->so_snd);
+		SOCK_SENDBUF_UNLOCK(rack->rc_inp->inp_socket);
 	}
 	if (tp->t_rtttime == 0) {
 		tp->t_rtttime = ticks;
@@ -20111,7 +20111,7 @@ again:
 	len = 0;
 	rsm = NULL;
 	if (flags & TH_RST) {
-		SOCKBUF_LOCK(&inp->inp_socket->so_snd);
+		SOCK_SENDBUF_LOCK(inp->inp_socket);
 		so = inp->inp_socket;
 		sb = &so->so_snd;
 		goto send;
@@ -20370,7 +20370,7 @@ again:
 			kern_prefetch(end_rsm, &prefetch_rsm);
 		prefetch_rsm = 1;
 	}
-	SOCKBUF_LOCK(sb);
+	SOCK_SENDBUF_LOCK(so);
 	if ((sack_rxmit == 0) &&
 	    (TCPS_HAVEESTABLISHED(tp->t_state) ||
 	    (tp->t_flags & TF_FASTOPEN))) {
@@ -20880,7 +20880,7 @@ dontupdate:
 	 * No reason to send a segment, just return.
 	 */
 just_return:
-	SOCKBUF_UNLOCK(sb);
+	SOCK_SENDBUF_UNLOCK(so);
 just_return_nolock:
 	{
 		int app_limited = CTF_JR_SENT_DATA;
@@ -21139,7 +21139,7 @@ send:
 			rack->r_ctl.rc_agg_early = 0;
 			rack->r_early = 0;
 			rack->r_late = 0;
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 			goto skip_all_send;
 		}
 	}
@@ -21356,7 +21356,7 @@ send:
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 #ifdef TCP_ACCOUNTING
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
@@ -21459,7 +21459,7 @@ send:
 				 * byte of the payload can be put into the
 				 * TCP segment.
 				 */
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 				error = EMSGSIZE;
 				sack_rxmit = 0;
 				goto out;
@@ -21542,7 +21542,7 @@ send:
 			m = m_gethdr(M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
-			SOCKBUF_UNLOCK(sb);
+			SOCK_SENDBUF_UNLOCK(so);
 			error = ENOBUFS;
 			sack_rxmit = 0;
 			goto out;
@@ -21600,7 +21600,7 @@ send:
 				tso = 0;
 			}
 			if (m->m_next == NULL) {
-				SOCKBUF_UNLOCK(sb);
+				SOCK_SENDBUF_UNLOCK(so);
 				(void)m_free(m);
 				error = ENOBUFS;
 				sack_rxmit = 0;
@@ -21644,9 +21644,9 @@ send:
 			add_flag |= RACK_HAD_PUSH;
 		}
 
-		SOCKBUF_UNLOCK(sb);
+		SOCK_SENDBUF_UNLOCK(so);
 	} else {
-		SOCKBUF_UNLOCK(sb);
+		SOCK_SENDBUF_UNLOCK(so);
 		if (tp->t_flags & TF_ACKNOW)
 			KMOD_TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN | TH_FIN | TH_RST))
@@ -21669,7 +21669,7 @@ send:
 			m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 	}
-	SOCKBUF_UNLOCK_ASSERT(sb);
+	SOCK_SENDBUF_UNLOCK_ASSERT(so);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
@@ -22331,7 +22331,7 @@ out:
 				len = n_len;
 				sb_offset = tp->snd_max - tp->snd_una;
 				/* Re-lock for the next spin */
-				SOCKBUF_LOCK(sb);
+				SOCK_SENDBUF_LOCK(so);
 				goto send;
 			}
 		} else {
@@ -22350,7 +22350,7 @@ out:
 				len = n_len;
 				sb_offset = tp->snd_max - tp->snd_una;
 				/* Re-lock for the next spin */
-				SOCKBUF_LOCK(sb);
+				SOCK_SENDBUF_LOCK(so);
 				goto send;
 			}
 		}
