@@ -2,6 +2,7 @@
 # Allwinner SoC support
 #
 
+device		aw_rtc		# Allwinner Real-time Clock
 device		aw_wdog		# Allwinner Watchdog
 
 files		"../allwinner/files.allwinner"
