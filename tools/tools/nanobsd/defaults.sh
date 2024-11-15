@@ -497,10 +497,10 @@ run_late_customize ( ) (
 # a user's cfg file would override this.
 #
 fixup_before_diskimage ( ) (
-	# Run the deduplication script that takes the matalog journal and
+	# Run the deduplication script that takes the metalog journal and
 	# combines multiple entries for the same file (see source for
 	# details). We take the extra step of removing the size keywords. This
-	# script, and many of the user scripts, copies, appeneds and otherwise
+	# script, and many of the user scripts, copies, appends and otherwise
 	# modifies files in the build, changing their sizes.  These actions are
 	# impossible to trap, so go ahead remove the size= keyword. For this
 	# narrow use, it doesn't buy us any protection and just gets in the way.
@@ -814,7 +814,7 @@ cust_pkgng ( ) (
 	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
 
 	(
-		# Expand any glob characters in pacakge list
+		# Expand any glob characters in package list
 		cd "${NANO_PACKAGE_DIR}"
 		_PKGS=`find ${NANO_PACKAGE_LIST} -not -name "${_NANO_PKG_PACKAGE}" -print | sort | uniq`
 
@@ -905,7 +905,7 @@ usage ( ) {
 # Setup and Export Internal variables
 #
 
-export_var ( ) {		# Don't wawnt a subshell
+export_var ( ) {		# Don't want a subshell
 	var=$1
 	# Lookup value of the variable.
 	eval val=\$$var
@@ -914,7 +914,7 @@ export_var ( ) {		# Don't wawnt a subshell
 }
 
 # Call this function to set defaults _after_ parsing options.
-# dont want a subshell otherwise variable setting is thrown away.
+# don't want a subshell otherwise variable setting is thrown away.
 set_defaults_and_export ( ) {
 	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
