@@ -160,7 +160,7 @@ for i in `cat "$PL"` ; do
 	if [ -f "$NANO_PKG_DUMP/$i.pkg" ] ; then
 		$COPY "$NANO_PKG_DUMP/$i.pkg" "$NANO_PKG_DIR"
 	else
-		echo "Package $i misssing in $NANO_PKG_DUMP" 1>&2
+		echo "Package $i missing in $NANO_PKG_DUMP" 1>&2
 		exit 1
 	fi
 done
