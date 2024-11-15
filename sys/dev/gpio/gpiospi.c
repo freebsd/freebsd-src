@@ -396,5 +396,5 @@ static driver_t gpio_spi_driver = {
 
 DRIVER_MODULE(gpiospi, gpiobus, gpio_spi_driver, 0, 0);
 DRIVER_MODULE(spibus, gpiospi, spibus_driver, 0, 0);
-MODULE_DEPEND(spi, gpiospi, 1, 1, 1);
-MODULE_DEPEND(gpiobus, gpiospi, 1, 1, 1);
+MODULE_DEPEND(gpiospi, spibus, 1, 1, 1);
+MODULE_DEPEND(gpiospi, gpiobus, 1, 1, 1);
