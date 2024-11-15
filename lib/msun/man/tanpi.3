@@ -62,22 +62,17 @@ where p is the floating\(enpoint precision of
 .Ar x ,
 then the returned value is \*(Pm0 and it has no significance.
 .Sh SPECIAL VALUES
-.Bl -tag
-.It
-.Fn tanpi \*(Pm0
+.Bl -tag -width "tanpi(+n/2)"
+.It Fn tanpi \*(Pm0
 returns \*(Pm0.
-.It
-.Fn tanpi \*(Pmn
+.It Fn tanpi \*(Pmn
 returns \*(Pm0 for positive integers
 .Ar n .
-.It
-.Fn tanpi \*(Pmn/2
+.It Fn tanpi \*(Pmn/2
 returns \*(Na for n > 0 and raises an FE_INVALID exception.
-.It
-.Fn tanpi \*(Pm\(if
+.It Fn tanpi \*(Pm\(if
 return an \*(Na and raises an FE_INVALID exception.
-.It
-.Fn tanpi \*(Na
+.It Fn tanpi \*(Na
 return an \*(Na and raises an FE_INVALID exception.
 .El
 .Sh SEE ALSO
