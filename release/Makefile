@@ -320,6 +320,7 @@ ftp: packagesystem
 	rm -rf ftp
 	mkdir -p ftp
 	cp *.txz MANIFEST ftp
+	rm -f ftp/container-*.txz
 
 release:	real-release vm-release cloudware-release oci-release
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} release-done
