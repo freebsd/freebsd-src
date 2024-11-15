@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2024
+.Dd December 12, 2024
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -124,7 +124,8 @@ The
 .Fl width
 argument to the
 .Sy \&.Bl
-macro should match the length of the longest item in the list, e.g.:
+macro should match the length of the longest rendered item in the list,
+e.g.:
 .Bd -literal -offset indent
 \&.Bl -tag -width "-a address"
 \&.It Fl a Ar address
