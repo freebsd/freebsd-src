@@ -52,6 +52,7 @@ nat64_setup()
 
 	jexec rtr pfctl -e
 	pft_set_rules rtr \
+	    "set state-policy if-bound" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 }
 

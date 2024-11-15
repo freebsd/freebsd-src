@@ -438,8 +438,10 @@ enum { PF_ICMP_MULTI_NONE, PF_ICMP_MULTI_LINK };
 	} while (0)
 
 static struct pfi_kkif *
-BOUND_IFACE(struct pf_kstate *st, struct pfi_kkif *k)
+BOUND_IFACE(struct pf_kstate *st, struct pf_pdesc *pd)
 {
+	struct pfi_kkif *k = pd->kif;
+
 	SDT_PROBE2(pf, ip, , bound_iface, st, k);
 
 	/* Floating unless otherwise specified. */
@@ -450,7 +452,7 @@ BOUND_IFACE(struct pf_kstate *st, struct pfi_kkif *k)
 	 * Initially set to all, because we don't know what interface we'll be
 	 * sending this out when we create the state.
 	 */
-	if (st->rule->rt == PF_REPLYTO)
+	if (st->rule->rt == PF_REPLYTO || (pd->af != pd->naf))
 		return (V_pfi_all);
 
 	/* Don't overrule the interface for states created on incoming packets. */
@@ -6125,7 +6127,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    __func__, nr, sk, nk));
 
 	/* Swap sk/nk for PF_OUT. */
-	if (pf_state_insert(BOUND_IFACE(s, pd->kif), pd->kif,
+	if (pf_state_insert(BOUND_IFACE(s, pd), pd->kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		REASON_SET(&reason, PFRES_STATEINS);
@@ -8800,6 +8802,16 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 					dst.sin_addr = nh->gw4_sa.sin_addr;
 				else
 					dst.sin_addr = ip->ip_dst;
+
+				/*
+				 * Bind to the correct interface if we're
+				 * if-bound. We don't know which interface
+				 * that will be until here, so we've inserted
+				 * the state on V_pf_all. Fix that now.
+				 */
+				if (s->kif == V_pfi_all && ifp != NULL &&
+				    r->rule_flag & PFRULE_IFBOUND)
+					s->kif = ifp->if_pf_kif;
 			}
 		}
 
@@ -9050,6 +9062,16 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 					    sizeof(dst.sin6_addr));
 				else
 					dst.sin6_addr = ip6->ip6_dst;
+
+				/*
+				 * Bind to the correct interface if we're
+				 * if-bound. We don't know which interface
+				 * that will be until here, so we've inserted
+				 * the state on V_pf_all. Fix that now.
+				 */
+				if (s->kif == V_pfi_all && ifp != NULL &&
+				    r->rule_flag & PFRULE_IFBOUND)
+					s->kif = ifp->if_pf_kif;
 			}
 		}
 
