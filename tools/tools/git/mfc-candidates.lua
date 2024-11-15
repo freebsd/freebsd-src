@@ -176,7 +176,6 @@ local function main()
 			verbose = verbose + 1
 		elseif opt == "-X" then
 			exclude_file = arg[i + 1]
-			print ("-X not working")
 			i = i + 1
 		else
 			break
