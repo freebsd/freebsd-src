@@ -62,7 +62,7 @@ do
 			# Add to cfg (y/n/i)?
 			#	y) -> save this file in /cfg
 			#	n) -> do not save this file in /cfg for current script invocation ONLY
-			#	i) -> add file to ignore list (/cfg/.ignore hiereachy) and never save
+			#	i) -> add file to ignore list (/cfg/.ignore hierarchy) and never save
 			#	      try to add this file to /cfg.
 			#
 			# touch is used to add files to /cfg to keep the script flow straight and easy
