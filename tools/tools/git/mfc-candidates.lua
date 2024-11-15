@@ -77,7 +77,7 @@ local function read_exclude(filename)
 			-- Hashes are 40 chars; if less, expand short hash.
 			if #hash < 40 then
 				hash = exec_command(
-				    "git show --pretty=%H --no-patch " .. hash)
+				    "git rev-parse " .. hash)
 			end
 			table.insert(content, hash)
 		end
