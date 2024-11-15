@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd February 24, 2018
+.Dd November 20, 2024
 .Dt GETENTROPY 3
 .Os
 .Sh NAME
@@ -69,10 +69,8 @@ Too many bytes requested, or some other fatal error occurred.
 .Xr random 4
 .Sh STANDARDS
 .Fn getentropy
-is non-standard.
-It is present on
-.Ox
-and Linux.
+nearly conforms to
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn getentropy
@@ -82,3 +80,9 @@ The
 .Fx
 libc compatibility shim first appeared in
 .Fx 12.0 .
+.Sh BUGS
+.In limits.h
+does not define
+.Dv GETENTROPY_MAX .
+Some error values do not match
+.St -p1003.1-2024 .
