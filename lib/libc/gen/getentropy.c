@@ -31,6 +31,7 @@
 #include <sys/sysctl.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -110,8 +111,8 @@ getentropy(void *buf, size_t buflen)
 	ssize_t rd;
 	bool have_getrandom;
 
-	if (buflen > 256) {
-		errno = EIO;
+	if (buflen > GETENTROPY_MAX) {
+		errno = EINVAL;
 		return (-1);
 	}
 
