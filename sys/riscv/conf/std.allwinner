@@ -2,6 +2,10 @@
 # Allwinner SoC support
 #
 
+# SoC support
+options 	SOC_ALLWINNER_D1
+
+device		aw_ccu		# Allwinner clock controller
 device		aw_rtc		# Allwinner Real-time Clock
 device		aw_wdog		# Allwinner Watchdog
 
