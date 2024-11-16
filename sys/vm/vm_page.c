@@ -162,6 +162,8 @@ SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
 
 static uma_zone_t fakepg_zone;
 
+static vm_page_t vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
+    int req, vm_page_t mpred);
 static void vm_page_alloc_check(vm_page_t m);
 static vm_page_t vm_page_alloc_nofree_domain(int domain, int req);
 static bool _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
@@ -2085,7 +2087,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
  * the resident page in the object with largest index smaller than the given
  * page index, or NULL if no such page exists.
  */
-vm_page_t
+static vm_page_t
 vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
     int req, vm_page_t mpred)
 {
