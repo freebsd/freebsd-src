@@ -124,11 +124,11 @@ getentropy(void *buf, size_t buflen)
 				switch (errno) {
 				case ECAPMODE:
 					/*
-					 * Kernel >= r331280 and < r337999
-					 * will return ECAPMODE when the
-					 * caller is already in capability
-					 * mode, fallback to traditional
-					 * method in this case.
+					 * Kernel >= r331280 (4948f7bf1153)
+					 * and < r337999 (ed1fa01ac45a) will
+					 * return ECAPMODE when the caller is
+					 * already in capability mode; fallback
+					 * to traditional method in this case.
 					 */
 					have_getrandom = false;
 					continue;
