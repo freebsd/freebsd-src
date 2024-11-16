@@ -1475,16 +1475,17 @@ vm_page_dirty_KBI(vm_page_t m)
 /*
  * Insert the given page into the given object at the given pindex.  mpred is
  * used for memq linkage.  From vm_page_insert, lookup is true, mpred is
- * initially NULL, and this procedure looks it up.  From vm_page_insert_after,
- * lookup is false and mpred is known to the caller to be valid, and may be
- * NULL if this will be the page with the lowest pindex.
+ * initially NULL, and this procedure looks it up.  From vm_page_insert_after
+ * and vm_page_iter_insert, lookup is false and mpred is known to the caller
+ * to be valid, and may be NULL if this will be the page with the lowest
+ * pindex.
  *
  * The procedure is marked __always_inline to suggest to the compiler to
  * eliminate the lookup parameter and the associated alternate branch.
  */
 static __always_inline int
 vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
-    vm_page_t mpred, bool lookup)
+    struct pctrie_iter *pages, bool iter, vm_page_t mpred, bool lookup)
 {
 	int error;
 
@@ -1503,7 +1504,10 @@ vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	 * Add this page to the object's radix tree, and look up mpred if
 	 * needed.
 	 */
-	if (lookup)
+	if (iter) {
+		KASSERT(!lookup, ("%s: cannot lookup mpred", __func__));
+		error = vm_radix_iter_insert(pages, m);
+	} else if (lookup)
 		error = vm_radix_insert_lookup_lt(&object->rtree, m, &mpred);
 	else
 		error = vm_radix_insert(&object->rtree, m);
@@ -1532,7 +1536,8 @@ vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 int
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	return (vm_page_insert_lookup(m, object, pindex, NULL, true));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, false, NULL,
+	    true));
 }
 
 /*
@@ -1549,7 +1554,28 @@ static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
-	return (vm_page_insert_lookup(m, object, pindex, mpred, false));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, false, mpred,
+	    false));
+}
+
+/*
+ *	vm_page_iter_insert:
+ *
+ *	Tries to insert the page "m" into the specified object at offset
+ *	"pindex" using the iterator "pages".  Returns 0 if the insertion was
+ *	successful.
+ *
+ *	The page "mpred" must immediately precede the offset "pindex" within
+ *	the specified object.
+ *
+ *	The object must be locked.
+ */
+static int
+vm_page_iter_insert(struct pctrie_iter *pages, vm_page_t m, vm_object_t object,
+    vm_pindex_t pindex, vm_page_t mpred)
+{
+	return (vm_page_insert_lookup(m, object, pindex, pages, true, mpred,
+	    false));
 }
 
 /*
@@ -2373,6 +2399,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
     int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+	struct pctrie_iter pages;
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
 
@@ -2391,7 +2418,8 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	    object));
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
-	mpred = vm_page_mpred(object, pindex);
+	vm_page_iter_init(&pages, object);
+	mpred = vm_radix_iter_lookup_le(&pages, pindex);
 	KASSERT(mpred == NULL || mpred->pindex != pindex,
 	    ("vm_page_alloc_contig: pindex already allocated"));
 	for (;;) {
@@ -2440,7 +2468,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 			m->ref_count = 1;
 		m->a.act_count = 0;
 		m->oflags = oflags;
-		if (vm_page_insert_after(m, object, pindex, mpred)) {
+		if (vm_page_iter_insert(&pages, m, object, pindex, mpred)) {
 			if ((req & VM_ALLOC_WIRED) != 0)
 				vm_wire_sub(npages);
 			KASSERT(m->object == NULL,
