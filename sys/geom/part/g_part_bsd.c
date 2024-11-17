@@ -136,7 +136,7 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
-		if (type[1] == '\0' || *endp != '\0' || lt <= 0 || lt >= 256)
+		if (type[1] == '\0' || *endp != '\0' || lt < 0 || lt >= 256)
 			return (EINVAL);
 		*fstype = (u_int)lt;
 		return (0);
