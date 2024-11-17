@@ -67,6 +67,7 @@ SECTIONS
   _extab_end = .;
   PROVIDE(extab_end = .);
 
+  . = ALIGN(4);
   _exidx_start = .;
   PROVIDE(exidx_start = .);
   .ARM.exidx : { *(.ARM.exidx) }
