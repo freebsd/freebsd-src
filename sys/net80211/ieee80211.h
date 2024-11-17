@@ -274,6 +274,16 @@ struct ieee80211_qosframe_addr4 {
 	 IEEE80211_FC0_TYPE_DATA,			\
 	 IEEE80211_FC0_SUBTYPE_QOS_DATA))
 
+/*
+ * Return true if this frame is a QoS NULL data frame.
+ */
+#define	IEEE80211_IS_QOS_NULL(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_DATA,			\
+	 IEEE80211_FC0_SUBTYPE_QOS_NULL))
+
+
 #define	IEEE80211_FC1_DIR_MASK			0x03
 #define	IEEE80211_FC1_DIR_NODS			0x00	/* STA->STA */
 #define	IEEE80211_FC1_DIR_TODS			0x01	/* STA->AP  */

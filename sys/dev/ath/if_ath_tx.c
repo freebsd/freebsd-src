@@ -2050,7 +2050,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
 		    (! IEEE80211_IS_MULTICAST(wh->i_addr1)) &&
-		    (subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL)) {
+		    (! IEEE80211_IS_QOS_NULL(wh))) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
 	}
@@ -2991,7 +2991,7 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * RX side.
 	 */
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
-	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+	if (IEEE80211_IS_QOS_NULL(wh)) {
 		/* XXX no locking for this TID? This is a bit of a problem. */
 		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
 		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
