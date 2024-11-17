@@ -98,7 +98,7 @@ error_to_xattrerror(int attrnamespace, int error)
 }
 
 static int
-xatrr_to_extattr(const char *uattrname, int *attrnamespace, char *attrname)
+xattr_to_extattr(const char *uattrname, int *attrnamespace, char *attrname)
 {
 	char uname[LINUX_XATTR_NAME_MAX + 1], *dot;
 	size_t len, cplen;
@@ -255,7 +255,7 @@ removexattr(struct thread *td, struct removexattr_args *args)
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
 
-	error = xatrr_to_extattr(args->name, &attrnamespace, attrname);
+	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
 	if (args->path != NULL)
@@ -312,7 +312,7 @@ getxattr(struct thread *td, struct getxattr_args *args)
 	char attrname[LINUX_XATTR_NAME_MAX + 1];
 	int attrnamespace, error;
 
-	error = xatrr_to_extattr(args->name, &attrnamespace, attrname);
+	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
 	if (args->path != NULL)
@@ -378,7 +378,7 @@ setxattr(struct thread *td, struct setxattr_args *args)
 	if ((args->flags & ~(LINUX_XATTR_FLAGS)) != 0 ||
 	    args->flags == (LINUX_XATTR_FLAGS))
 		return (EINVAL);
-	error = xatrr_to_extattr(args->name, &attrnamespace, attrname);
+	error = xattr_to_extattr(args->name, &attrnamespace, attrname);
 	if (error != 0)
 		return (error);
 
