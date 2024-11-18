@@ -116,14 +116,15 @@ create_code_slice ( ) (
 
 	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
-	bsdlabel -w ${MD}
+	gpart create -s bsd "${MD}"
+	gpart add -t freebsd-ufs -b 16 "${MD}"
 	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
 	    echo "Making bootable partition"
 	    gpart bootcode -b ${NANO_WORLDDIR}/boot/boot ${MD}
 	else
 	    echo "Partition will not be bootable"
 	fi
-	bsdlabel ${MD}
+	gpart list ${MD}
 
 	# Create first image
 	populate_slice /dev/${MD}${NANO_PARTITION_ROOT} ${NANO_WORLDDIR} ${MNT} "${NANO_ROOT}"
