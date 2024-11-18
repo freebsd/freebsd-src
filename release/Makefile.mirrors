@@ -380,8 +380,8 @@ oci-images-stage:
 . endfor
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cd ${RELEASEDIR}/ociimages && \
-		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
-	cp -p ${RELEASEDIR}/ociimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}
+	cp -p ${RELEASEDIR}/ociimages/CHECKSUM.${CHECKSUM} \
 		${OCI_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
 .endif
