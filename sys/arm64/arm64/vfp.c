@@ -577,10 +577,13 @@ vfp_save_state_savectx(struct pcb *pcb)
 {
 	/*
 	 * savectx() will be called on panic with dumppcb as an argument,
-	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
-	 * the VFP registers.
+	 * dumppcb either has no pcb_fpusaved set or it was previously set
+	 * to its own fpu state.
+	 *
+	 * In both cases we can set it here to the pcb fpu state.
 	 */
-	MPASS(pcb->pcb_fpusaved == NULL);
+	MPASS(pcb->pcb_fpusaved == NULL ||
+	    pcb->pcb_fpusaved == &pcb->pcb_fpustate);
 	pcb->pcb_fpusaved = &pcb->pcb_fpustate;
 
 	vfp_save_state_common(curthread, pcb, true);
