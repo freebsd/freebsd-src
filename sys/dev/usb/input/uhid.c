@@ -633,11 +633,13 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
+		size = imin(ugd->ugd_maxlen, size);
 		if (id != 0)
 			error = copyin(ugd->ugd_data, &id, 1);
 		if (error == 0)
 			error = uhid_get_report(sc, ugd->ugd_report_type, id,
-			    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
+			    NULL, ugd->ugd_data, size);
+		ugd->ugd_actlen = size;
 		break;
 
 	case USB_SET_REPORT:
