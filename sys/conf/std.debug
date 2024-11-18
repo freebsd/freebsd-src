@@ -15,3 +15,4 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 options		ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
+options		KDTRACE_MIB_SDT		# Add SDT probes to network counters

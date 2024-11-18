@@ -357,7 +357,7 @@ __sdt_probe##uniq:;							\
 	    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2,		\
 	    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5)
 
-#ifndef KDTRACE_NO_MIB_SDT
+#ifdef KDTRACE_MIB_SDT
 #define	MIB_SDT_PROBE1(...)	SDT_PROBE1(mib, __VA_ARGS__)
 #define	MIB_SDT_PROBE2(...)	SDT_PROBE2(mib, __VA_ARGS__)
 #else
