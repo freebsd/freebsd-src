@@ -36,7 +36,7 @@ SDT_PROVIDER_DEFINE(tcp);
 SDT_PROVIDER_DEFINE(udp);
 SDT_PROVIDER_DEFINE(udplite);
 
-#ifndef KDTRACE_NO_MIB_SDT
+#ifdef KDTRACE_MIB_SDT
 #define MIB_PROBE_IP(name) \
     SDT_PROBE_DEFINE1(mib, ip, count, name, \
         "int")
