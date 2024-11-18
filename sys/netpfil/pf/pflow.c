@@ -26,6 +26,7 @@
 #include <sys/callout.h>
 #include <sys/endian.h>
 #include <sys/interrupt.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -184,15 +185,28 @@ vnet_pflowattach(void)
 VNET_SYSINIT(vnet_pflowattach, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pflowattach, NULL);
 
-static void
-vnet_pflowdetach(void)
+static int
+pflow_jail_remove(void *obj, void *data __unused)
 {
+#ifdef VIMAGE
+	const struct prison *pr = obj;
+#endif
 	struct pflow_softc	*sc;
 
+	CURVNET_SET(pr->pr_vnet);
 	CK_LIST_FOREACH(sc, &V_pflowif_list, sc_next) {
 		pflow_destroy(sc->sc_id, false);
 	}
+	CURVNET_RESTORE();
 
+	return (0);
+}
+
+static void
+vnet_pflowdetach(void)
+{
+
+	/* Should have been done by pflow_jail_remove() */
 	MPASS(CK_LIST_EMPTY(&V_pflowif_list));
 	delete_unrhdr(V_pflow_unr);
 	mtx_destroy(&V_pflowif_list_mtx);
@@ -1776,6 +1790,8 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&set_parser,
 };
 
+static unsigned		pflow_do_osd_jail_slot;
+
 static int
 pflow_init(void)
 {
@@ -1783,6 +1799,11 @@ pflow_init(void)
 	int family_id __diagused;
 
 	NL_VERIFY_PARSERS(all_parsers);
+
+	static osd_method_t methods[PR_MAXMETHOD] = {
+		[PR_METHOD_REMOVE] = pflow_jail_remove,
+	};
+	pflow_do_osd_jail_slot = osd_jail_register(NULL, methods);
 
 	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2, PFLOWNL_CMD_MAX);
 	MPASS(family_id != 0);
@@ -1794,6 +1815,7 @@ pflow_init(void)
 static void
 pflow_uninit(void)
 {
+	osd_jail_deregister(pflow_do_osd_jail_slot);
 	genl_unregister_family(PFLOWNL_FAMILY_NAME);
 }
 
