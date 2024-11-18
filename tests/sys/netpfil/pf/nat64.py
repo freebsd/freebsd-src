@@ -40,6 +40,7 @@ class TestNAT64(VnetTestTemplate):
 
     def vnet3_handler(self, vnet):
         ToolsHelper.print_output("/sbin/sysctl net.inet.ip.forwarding=1")
+        ToolsHelper.print_output("/sbin/sysctl net.inet.ip.ttl=62")
         ToolsHelper.print_output("echo foo | nc -l 1234 &")
 
     def vnet2_handler(self, vnet):
@@ -125,3 +126,7 @@ class TestNAT64(VnetTestTemplate):
         udp = reply.getlayer(sp.UDPerror)
         assert udp
         assert udp.dport == 1222
+
+        # Check the hop limit
+        ip6 = reply.getlayer(sp.IPv6)
+        assert ip6.hlim == 62
