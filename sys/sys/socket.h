@@ -171,10 +171,10 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_TS_CLOCK	0x1017		/* clock type used for SO_TIMESTAMP */
 #define	SO_MAX_PACING_RATE	0x1018	/* socket's max TX pacing rate (Linux name) */
 #define	SO_DOMAIN	0x1019		/* get socket domain */
+#define	SO_SPLICE	0x1023		/* splice data to other socket */
 #endif
 
 #if __BSD_VISIBLE
-#define	SO_SPLICE	0x1023		/* splice data to other socket */
 #define	SO_TS_REALTIME_MICRO	0	/* microsecond resolution, realtime */
 #define	SO_TS_BINTIME		1	/* sub-nanosecond resolution, realtime */
 #define	SO_TS_REALTIME		2	/* nanosecond resolution, realtime */
