@@ -285,11 +285,17 @@ They can also be given the values
 and
 .Dq false .
 Other parameters may have more than one value, specified as a
-comma-separated list or with
+comma-separated list, or with
 .Dq +=
 in the configuration file (see
 .Xr jail.conf 5
 for details).
+List-based parameters may also be specified multiple times on the command
+line, i.e.,
+.Dq name=value1,value2
+and
+.Dq name=value1 name=value2
+are equivalent for such parameters.
 .Pp
 The
 .Nm
@@ -944,8 +950,8 @@ an interface, prefix and additional parameters (as supported by
 may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix param ... .
 .It Va vnet.interface
-A network interface to give to a vnet-enabled jail after is it created.
-The interface will automatically be released when the jail is removed.
+A list of network interfaces to give to a vnet-enabled jail after is it created.
+The interfaces will automatically be released when the jail is removed.
 .It Va zfs.dataset
 A list of ZFS datasets to be attached to the jail.
 This requires

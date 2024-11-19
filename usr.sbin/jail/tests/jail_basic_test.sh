@@ -25,9 +25,6 @@
 # SUCH DAMAGE.
 
 atf_test_case "basic" "cleanup"
-atf_test_case "nested" "cleanup"
-atf_test_case "commands" "cleanup"
-
 basic_head()
 {
 	atf_set descr 'Basic jail test'
@@ -58,6 +55,36 @@ basic_cleanup()
 	jail -r basejail
 }
 
+atf_test_case "list" "cleanup"
+list_head()
+{
+	atf_set descr 'Specify some jail parameters as lists'
+	atf_set require.user root
+}
+
+list_body()
+{
+	if [ "$(sysctl -qn kern.features.vimage)" -ne 1 ]; then
+		atf_skip "cannot create VNET jails"
+	fi
+	atf_check -o save:epair ifconfig epair create
+
+	epair=$(cat epair)
+	atf_check jail -c name=basejail vnet persist vnet.interface=${epair},${epair%a}b
+
+	atf_check -o ignore jexec basejail ifconfig ${epair}
+	atf_check -o ignore jexec basejail ifconfig ${epair%a}b
+}
+
+list_cleanup()
+{
+	jail -r basejail
+	if [ -f epair ]; then
+		ifconfig $(cat epair) destroy
+	fi
+}
+
+atf_test_case "nested" "cleanup"
 nested_head()
 {
 	atf_set descr 'Hierarchical jails test'
@@ -97,6 +124,7 @@ nested_cleanup()
 	jail -r basejail_nochild
 }
 
+atf_test_case "commands" "cleanup"
 commands_head()
 {
 	atf_set descr 'Commands jail test'
@@ -129,6 +157,7 @@ commands_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "list"
 	atf_add_test_case "nested"
 	atf_add_test_case "commands"
 }
