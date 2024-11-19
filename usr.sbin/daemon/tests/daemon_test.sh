@@ -139,8 +139,11 @@ restart_child_body() {
 	kill $orig_sleep_pid
 	# Wait up to 10s for the daemon to restart the child.
 	for t in `seq 0 0.1 10`; do
-		new_sleep_pid=`cat sleep.pid`
-		[ "$orig_sleep_pid" -ne "$new_sleep_pid" ] && break
+		if [ -s "sleep.pid" ]; then
+			new_sleep_pid=`cat sleep.pid`
+			[ "$orig_sleep_pid" -ne "$new_sleep_pid" ] && break
+		fi
+
 		sleep 0.1
 	done
 	[ "$orig_sleep_pid" -ne "$new_sleep_pid" ] || \
