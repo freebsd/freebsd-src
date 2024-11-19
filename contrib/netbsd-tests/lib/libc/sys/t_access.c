@@ -38,11 +38,13 @@ __RCSID("$NetBSD: t_access.c,v 1.2 2017/01/10 22:36:29 christos Exp $");
 #include <atf-c.h>
 
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -176,6 +178,38 @@ ATF_TC_BODY(access_notexist, tc)
 	}
 }
 
+ATF_TC(access_text);
+ATF_TC_HEAD(access_text, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test access(2) for ETXTBSY");
+}
+
+ATF_TC_BODY(access_text, tc)
+{
+	char path[PATH_MAX];
+	size_t sz;
+	int fd, name[4];
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PATHNAME;
+	name[3] = -1;
+
+	sz = sizeof(path);
+	ATF_REQUIRE(sysctl(name, 4, path, &sz, NULL, 0) == 0);
+
+	fd = open(path, O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+
+	ATF_REQUIRE(access(path, W_OK) != 0);
+	ATF_REQUIRE(errno == ETXTBSY);
+
+	ATF_REQUIRE(faccessat(AT_FDCWD, path, W_OK, 0) != 0);
+	ATF_REQUIRE(errno == ETXTBSY);
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TC(access_toolong);
 ATF_TC_HEAD(access_toolong, tc)
 {
@@ -214,6 +248,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, access_inval);
 	ATF_TP_ADD_TC(tp, access_notdir);
 	ATF_TP_ADD_TC(tp, access_notexist);
+	ATF_TP_ADD_TC(tp, access_text);
 	ATF_TP_ADD_TC(tp, access_toolong);
 
 	return atf_no_error();
