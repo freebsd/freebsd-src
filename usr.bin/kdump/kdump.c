@@ -59,6 +59,7 @@
 #endif
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netlink/netlink.h>
 #include <ctype.h>
 #include <capsicum_helpers.h>
 #include <err.h>
@@ -1942,6 +1943,15 @@ ktrsockaddr(struct sockaddr *sa)
 		memset(&sa_un, 0, sizeof(sa_un));
 		memcpy(&sa_un, sa, sa->sa_len);
 		printf("%.*s", (int)sizeof(sa_un.sun_path), sa_un.sun_path);
+		break;
+	}
+	case AF_NETLINK: {
+		struct sockaddr_nl sa_nl;
+
+		memset(&sa_nl, 0, sizeof(sa_nl));
+		memcpy(&sa_nl, sa, sa->sa_len);
+		printf("netlink[pid=%u, groups=0x%x]",
+		    sa_nl.nl_pid, sa_nl.nl_groups);
 		break;
 	}
 	default:
