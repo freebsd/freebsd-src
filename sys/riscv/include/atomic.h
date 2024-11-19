@@ -530,6 +530,8 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_set_ptr			atomic_set_64
 #define	atomic_subtract_ptr		atomic_subtract_64
 #define	atomic_swap_ptr			atomic_swap_64
+#define	atomic_testandclear_ptr		atomic_testandclear_64
+#define	atomic_testandset_ptr		atomic_testandset_64
 
 ATOMIC_ACQ_REL(set, 64)
 ATOMIC_ACQ_REL(clear, 64)
