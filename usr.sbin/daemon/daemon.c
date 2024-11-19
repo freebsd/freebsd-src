@@ -114,6 +114,8 @@ static void daemon_exec(struct daemon_state *);
 static bool daemon_is_child_dead(struct daemon_state *);
 static void daemon_set_child_pipe(struct daemon_state *);
 
+static int pidfile_truncate(struct pidfh *);
+
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:C:h";
 
 static const struct option longopts[] = {
@@ -526,6 +528,15 @@ daemon_eventloop(struct daemon_state *state)
 	close(kq);
 	close(state->pipe_rd);
 	state->pipe_rd = -1;
+
+	/*
+	 * We don't have to truncate the pidfile, but it's easier to test
+	 * daemon(8) behavior in some respects if we do.  We won't bother if
+	 * the child won't be restarted.
+	 */
+	if (state->child_pidfh != NULL && state->restart_enabled) {
+		pidfile_truncate(state->child_pidfh);
+	}
 }
 
 static void
@@ -822,4 +833,23 @@ daemon_set_child_pipe(struct daemon_state *state)
 
 	/* The child gets dup'd pipes. */
 	close(state->pipe_rd);
+}
+
+static int
+pidfile_truncate(struct pidfh *pfh)
+{
+	int pfd = pidfile_fileno(pfh);
+
+	assert(pfd >= 0);
+
+	if (ftruncate(pfd, 0) == -1)
+		return (-1);
+
+	/*
+	 * pidfile_write(3) will always pwrite(..., 0) today, but let's assume
+	 * it may not always and do a best-effort reset of the position just to
+	 * set a good example.
+	 */
+	(void)lseek(pfd, 0, SEEK_SET);
+	return (0);
 }
