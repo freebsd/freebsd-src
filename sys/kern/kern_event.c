@@ -346,19 +346,19 @@ static struct {
 	int for_nolock;
 	int for_refcnt;
 } sysfilt_ops[EVFILT_SYSCOUNT] = {
-	{ &file_filtops, 1 },			/* EVFILT_READ */
-	{ &file_filtops, 1 },			/* EVFILT_WRITE */
-	{ &null_filtops },			/* EVFILT_AIO */
-	{ &file_filtops, 1 },			/* EVFILT_VNODE */
-	{ &proc_filtops, 1 },			/* EVFILT_PROC */
-	{ &sig_filtops, 1 },			/* EVFILT_SIGNAL */
-	{ &timer_filtops, 1 },			/* EVFILT_TIMER */
-	{ &file_filtops, 1 },			/* EVFILT_PROCDESC */
-	{ &fs_filtops, 1 },			/* EVFILT_FS */
-	{ &null_filtops },			/* EVFILT_LIO */
-	{ &user_filtops, 1 },			/* EVFILT_USER */
-	{ &null_filtops },			/* EVFILT_SENDFILE */
-	{ &file_filtops, 1 },                   /* EVFILT_EMPTY */
+	[~EVFILT_READ] = { &file_filtops, 1 },
+	[~EVFILT_WRITE] = { &file_filtops, 1 },
+	[~EVFILT_AIO] = { &null_filtops },
+	[~EVFILT_VNODE] = { &file_filtops, 1 },
+	[~EVFILT_PROC] = { &proc_filtops, 1 },
+	[~EVFILT_SIGNAL] = { &sig_filtops, 1 },
+	[~EVFILT_TIMER] = { &timer_filtops, 1 },
+	[~EVFILT_PROCDESC] = { &file_filtops, 1 },
+	[~EVFILT_FS] = { &fs_filtops, 1 },
+	[~EVFILT_LIO] = { &null_filtops },
+	[~EVFILT_USER] = { &user_filtops, 1 },
+	[~EVFILT_SENDFILE] = { &null_filtops },
+	[~EVFILT_EMPTY] = { &file_filtops, 1 },
 };
 
 /*
