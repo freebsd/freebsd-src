@@ -1161,7 +1161,7 @@ static int
 vop_stdis_text(struct vop_is_text_args *ap)
 {
 
-	return (atomic_load_int(&ap->a_vp->v_writecount) < 0);
+	return ((int)atomic_load_int(&ap->a_vp->v_writecount) < 0);
 }
 
 int
