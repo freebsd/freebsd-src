@@ -892,8 +892,6 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 
 	return (atomic_testandclear_32((volatile uint32_t *)p, v));
 }
-#define	atomic_testandclear_long	atomic_testandclear_long
-
 
 static __inline int
 atomic_testandclear_64(volatile uint64_t *p, u_int v)
@@ -952,7 +950,6 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 
 	return (atomic_testandset_32((volatile uint32_t *)p, v));
 }
-#define	atomic_testandset_long	atomic_testandset_long
 
 static __inline int
 atomic_testandset_acq_long(volatile u_long *p, u_int v)
@@ -963,7 +960,6 @@ atomic_testandset_acq_long(volatile u_long *p, u_int v)
 	dmb();
 	return (ret);
 }
-#define	atomic_testandset_acq_long	atomic_testandset_acq_long
 
 static __inline int
 atomic_testandset_64(volatile uint64_t *p, u_int v)
