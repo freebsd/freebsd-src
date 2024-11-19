@@ -865,6 +865,10 @@ atomic_swap_long(volatile u_long *p, u_long v)
 	atomic_swap_int((volatile u_int *)(p), (u_int)(v))
 #define	atomic_readandclear_ptr(p) \
 	atomic_readandclear_int((volatile u_int *)(p))
+#define	atomic_testandclear_ptr(p, val) \
+	atomic_testandclear_int((volatile u_int *)(p), (val))
+#define	atomic_testandset_ptr(p, val) \
+	atomic_testandset_int((volatile u_int *)(p), (val))
 
 #endif /* !WANT_FUNCTIONS */
 

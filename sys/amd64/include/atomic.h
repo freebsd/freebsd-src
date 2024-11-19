@@ -589,6 +589,8 @@ atomic_swap_long(volatile u_long *p, u_long v)
 #define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_long
 #define	atomic_swap_ptr		atomic_swap_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
+#define	atomic_testandset_ptr	atomic_testandset_long
+#define	atomic_testandclear_ptr	atomic_testandclear_long
 
 #endif /* !WANT_FUNCTIONS */
 
