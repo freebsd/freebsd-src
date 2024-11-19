@@ -2261,14 +2261,14 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 
 	switch (type & MRS_TYPE_MASK) {
 	case MRS_EXACT_IF_DIFFERENT:
-		if (mrs_field_cmp(cur, new_val, shift, width, sign) != 0)
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) != 0)
 			break;
 		/* FALLTHROUGH */
 	case MRS_EXACT:
 		cur = (uint64_t)MRS_SAFE_VAL(type) << shift;
 		break;
 	case MRS_LOWER:
-		if (mrs_field_cmp(cur, new_val, shift, width, sign) < 0)
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) < 0)
 			cur = new_val;
 		break;
 	case MRS_HIGHER_OR_ZERO:
@@ -2278,7 +2278,7 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 		}
 		/* FALLTHROUGH */
 	case MRS_HIGHER:
-		if (mrs_field_cmp(cur, new_val, shift, width, sign) > 0)
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) > 0)
 			cur = new_val;
 		break;
 	default:
