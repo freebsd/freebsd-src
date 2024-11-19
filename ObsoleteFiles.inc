@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20241119: rewrite mv tests
+OLD_FILES+=usr/tests/bin/mv/legacy_test
+
 # 20241112: Retire MK_PROFILE support
 OLD_FILES+=usr/lib/lib80211_p.a
 OLD_FILES+=usr/lib/lib9p_p.a
