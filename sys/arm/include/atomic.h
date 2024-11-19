@@ -1076,6 +1076,8 @@ atomic_thread_fence_seq_cst(void)
 #define atomic_load_acq_ptr		atomic_load_acq_32
 #define atomic_store_rel_ptr		atomic_store_rel_32
 #define atomic_swap_ptr			atomic_swap_32
+#define	atomic_testandset_ptr		atomic_testandset_32
+#define	atomic_testandclear_ptr		atomic_testandclear_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32
