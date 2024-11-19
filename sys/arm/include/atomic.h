@@ -955,6 +955,17 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 #define	atomic_testandset_long	atomic_testandset_long
 
 static __inline int
+atomic_testandset_acq_long(volatile u_long *p, u_int v)
+{
+	int ret;
+
+	ret = atomic_testandset_32((volatile uint32_t *)p, v);
+	dmb();
+	return (ret);
+}
+#define	atomic_testandset_acq_long	atomic_testandset_acq_long
+
+static __inline int
 atomic_testandset_64(volatile uint64_t *p, u_int v)
 {
 	volatile uint32_t *p32;
@@ -1098,7 +1109,6 @@ atomic_thread_fence_seq_cst(void)
  * For:
  *  - atomic_load_acq_8
  *  - atomic_load_acq_16
- *  - atomic_testandset_acq_long
  */
 #include <sys/_atomic_subword.h>
 
