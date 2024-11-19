@@ -364,8 +364,8 @@ rl_e_unmark(const struct rl_q_entry *e)
 static void
 rl_e_mark(struct rl_q_entry *e)
 {
-#if defined(INVARIANTS) && defined(__LP64__)
-	int r = atomic_testandset_long((uintptr_t *)&e->rl_q_next, 0);
+#if defined(INVARIANTS)
+	int r = atomic_testandset_ptr((uintptr_t *)&e->rl_q_next, 0);
 	MPASS(r == 0);
 #else
 	atomic_set_ptr((uintptr_t *)&e->rl_q_next, 1);
