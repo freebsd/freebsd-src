@@ -116,6 +116,8 @@ mii_fdt_lookup_phy(phandle_t node, int addr)
 	 */
 	ports = ofw_bus_find_child(node, "ports");
 	if (ports <= 0)
+		ports = ofw_bus_find_child(node, "ethernet-ports");
+	if (ports <= 0)
 		return (-1);
 
 	for (child = OF_child(ports); child != 0; child = OF_peer(child)) {
