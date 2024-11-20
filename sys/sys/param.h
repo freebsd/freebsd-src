@@ -150,11 +150,9 @@
 #endif
 #endif
 
-#ifndef _KERNEL
-#ifndef LOCORE
+#if !defined(_KERNEL) && !defined(_STANDALONE) && !defined(LOCORE)
 /* Signals. */
 #include <sys/signal.h>
-#endif
 #endif
 
 /* Machine type dependent parameters. */
