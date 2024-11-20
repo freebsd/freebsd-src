@@ -9043,8 +9043,10 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 
 	if (__predict_false(! M_WRITABLE(*m0))) {
 		*m0 = m_unshare(*m0, M_NOWAIT);
-		if (*m0 == NULL)
+		if (*m0 == NULL) {
+			PF_RULES_RUNLOCK();
 			return (PF_DROP);
+		}
 	}
 
 	pf_init_pdesc(&pd, *m0);
