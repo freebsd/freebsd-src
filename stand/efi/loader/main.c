@@ -45,7 +45,7 @@
 #include <disk.h>
 #include <dev_net.h>
 #include <net.h>
-#include <inttypes.h>
+#include <machine/_inttypes.h>
 
 #include <efi.h>
 #include <efilib.h>
