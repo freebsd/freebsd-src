@@ -170,7 +170,7 @@ static bool _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
     vm_pindex_t pindex, const char *wmesg, int allocflags, bool locked);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(vm_page_t m, uint8_t queue);
-static bool vm_page_free_prep(vm_page_t m, bool do_remove);
+static bool vm_page_free_prep(vm_page_t m);
 static void vm_page_free_toq(vm_page_t m);
 static void vm_page_free_toq_impl(vm_page_t m, bool do_remove);
 static void vm_page_init(void *dummy);
@@ -1388,22 +1388,6 @@ vm_page_free(vm_page_t m)
 }
 
 /*
- *	vm_page_iter_free:
- *
- *	Free the current page, as identified by iterator.
- */
-void
-vm_page_iter_free(struct pctrie_iter *pages)
-{
-	vm_page_t m;
-
-	m = vm_radix_iter_page(pages);
-	vm_radix_iter_remove(pages);
-	m->flags &= ~PG_ZERO;
-	vm_page_free_toq_impl(m, false);
-}
-
-/*
  *	vm_page_free_zero:
  *
  *	Free a page to the zerod-pages queue
@@ -1697,6 +1681,52 @@ vm_page_remove_radixdone(vm_page_t m)
 	 */
 	if (object->resident_page_count == 0 && object->type == OBJT_VNODE)
 		vdrop(object->handle);
+}
+
+/*
+ *	vm_page_free_object_prep:
+ *
+ *	Disassociates the given page from its VM object.
+ *
+ *	The object must be locked, and the page must be xbusy.
+ */
+static void
+vm_page_free_object_prep(vm_page_t m)
+{
+	KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
+	    ((m->object->flags & OBJ_UNMANAGED) != 0),
+	    ("%s: managed flag mismatch for page %p",
+	     __func__, m));
+	vm_page_assert_xbusied(m);
+
+	/*
+	 * The object reference can be released without an atomic
+	 * operation.
+	 */
+	KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
+	    m->ref_count == VPRC_OBJREF,
+	    ("%s: page %p has unexpected ref_count %u",
+	    __func__, m, m->ref_count));
+	vm_page_remove_radixdone(m);
+	m->ref_count -= VPRC_OBJREF;
+}
+
+/*
+ *	vm_page_iter_free:
+ *
+ *	Free the current page, as identified by iterator.
+ */
+void
+vm_page_iter_free(struct pctrie_iter *pages)
+{
+	vm_page_t m;
+
+	m = vm_radix_iter_page(pages);
+	vm_radix_iter_remove(pages);
+	vm_page_free_object_prep(m);
+	vm_page_xunbusy(m);
+	m->flags &= ~PG_ZERO;
+	vm_page_free_toq(m);
 }
 
 /*
@@ -3180,7 +3210,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 					vm_page_dequeue(m);
 					if (vm_page_replace_hold(m_new, object,
 					    m->pindex, m) &&
-					    vm_page_free_prep(m, true))
+					    vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 
@@ -3192,7 +3222,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 				} else {
 					m->flags &= ~PG_ZERO;
 					vm_page_dequeue(m);
-					if (vm_page_free_prep(m, true))
+					if (vm_page_free_prep(m))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 					KASSERT(m->dirty == 0,
@@ -4131,7 +4161,7 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
  *	page must be unmapped.
  */
 static bool
-vm_page_free_prep(vm_page_t m, bool do_remove)
+vm_page_free_prep(vm_page_t m)
 {
 
 	/*
@@ -4164,24 +4194,8 @@ vm_page_free_prep(vm_page_t m, bool do_remove)
 	VM_CNT_INC(v_tfree);
 
 	if (m->object != NULL) {
-		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
-		    ((m->object->flags & OBJ_UNMANAGED) != 0),
-		    ("vm_page_free_prep: managed flag mismatch for page %p",
-		    m));
-		vm_page_assert_xbusied(m);
-
-		/*
-		 * The object reference can be released without an atomic
-		 * operation.
-		 */
-		KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
-		    m->ref_count == VPRC_OBJREF,
-		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
-		    m, m->ref_count));
-		if (do_remove)
-			vm_page_radix_remove(m);
-		vm_page_remove_radixdone(m);
-		m->ref_count -= VPRC_OBJREF;
+		vm_page_radix_remove(m);
+		vm_page_free_object_prep(m);
 	} else
 		vm_page_assert_unbusied(m);
 
@@ -4232,27 +4246,6 @@ vm_page_free_prep(vm_page_t m, bool do_remove)
 	return (true);
 }
 
-static void
-vm_page_free_toq_impl(vm_page_t m, bool do_remove)
-{
-	struct vm_domain *vmd;
-	uma_zone_t zone;
-
-	if (!vm_page_free_prep(m, do_remove))
-		return;
-
-	vmd = vm_pagequeue_domain(m);
-	zone = vmd->vmd_pgcache[m->pool].zone;
-	if ((m->flags & PG_PCPU_CACHE) != 0 && zone != NULL) {
-		uma_zfree(zone, m);
-		return;
-	}
-	vm_domain_free_lock(vmd);
-	vm_phys_free_pages(m, 0);
-	vm_domain_free_unlock(vmd);
-	vm_domain_freecnt_inc(vmd, 1);
-}
-
 /*
  *	vm_page_free_toq:
  *
@@ -4265,7 +4258,22 @@ vm_page_free_toq_impl(vm_page_t m, bool do_remove)
 static void
 vm_page_free_toq(vm_page_t m)
 {
-	vm_page_free_toq_impl(m, true);
+	struct vm_domain *vmd;
+	uma_zone_t zone;
+
+	if (!vm_page_free_prep(m))
+		return;
+
+	vmd = vm_pagequeue_domain(m);
+	zone = vmd->vmd_pgcache[m->pool].zone;
+	if ((m->flags & PG_PCPU_CACHE) != 0 && zone != NULL) {
+		uma_zfree(zone, m);
+		return;
+	}
+	vm_domain_free_lock(vmd);
+	vm_phys_free_pages(m, 0);
+	vm_domain_free_unlock(vmd);
+	vm_domain_freecnt_inc(vmd, 1);
 }
 
 /*
