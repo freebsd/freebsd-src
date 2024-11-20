@@ -1520,9 +1520,10 @@ vm_object_shadow(vm_object_t *object, vm_ooffset_t *offset, vm_size_t length,
 void
 vm_object_split(vm_map_entry_t entry)
 {
-	vm_page_t m, m_next;
+	struct pctrie_iter pages;
+	vm_page_t m;
 	vm_object_t orig_object, new_object, backing_object;
-	vm_pindex_t idx, offidxstart;
+	vm_pindex_t offidxstart;
 	vm_size_t size;
 
 	orig_object = entry->object.vm_object;
@@ -1573,17 +1574,11 @@ vm_object_split(vm_map_entry_t entry)
 	 * that the object is in transition.
 	 */
 	vm_object_set_flag(orig_object, OBJ_SPLIT);
-#ifdef INVARIANTS
-	idx = 0;
-#endif
+	vm_page_iter_limit_init(&pages, orig_object, offidxstart + size);
 retry:
-	m = vm_page_find_least(orig_object, offidxstart);
-	KASSERT(m == NULL || idx <= m->pindex - offidxstart,
-	    ("%s: object %p was repopulated", __func__, orig_object));
-	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
-	    m = m_next) {
-		m_next = TAILQ_NEXT(m, listq);
-
+	pctrie_iter_reset(&pages);
+	for (m = vm_page_iter_lookup_ge(&pages, offidxstart); m != NULL;
+	    m = vm_radix_iter_step(&pages)) {
 		/*
 		 * We must wait for pending I/O to complete before we can
 		 * rename the page.
@@ -1604,13 +1599,13 @@ retry:
 		 * an incomplete fault.  Just remove and ignore.
 		 */
 		if (vm_page_none_valid(m)) {
-			if (vm_page_remove(m))
+			if (vm_page_iter_remove(&pages))
 				vm_page_free(m);
 			continue;
 		}
 
 		/* vm_page_rename() will dirty the page. */
-		if (vm_page_rename(m, new_object, idx)) {
+		if (vm_page_rename(&pages, new_object, m->pindex - offidxstart)) {
 			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
@@ -1656,7 +1651,8 @@ retry:
 }
 
 static vm_page_t
-vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p)
+vm_object_collapse_scan_wait(struct pctrie_iter *pages, vm_object_t object,
+    vm_page_t p)
 {
 	vm_object_t backing_object;
 
@@ -1683,12 +1679,14 @@ vm_object_collapse_scan_wait(vm_object_t object, vm_page_t p)
 		VM_OBJECT_WLOCK(object);
 	}
 	VM_OBJECT_WLOCK(backing_object);
-	return (TAILQ_FIRST(&backing_object->memq));
+	vm_page_iter_init(pages, backing_object);
+	return (vm_page_iter_lookup_ge(pages, 0));
 }
 
 static void
 vm_object_collapse_scan(vm_object_t object)
 {
+	struct pctrie_iter pages;
 	vm_object_t backing_object;
 	vm_page_t next, p, pp;
 	vm_pindex_t backing_offset_index, new_pindex;
@@ -1702,7 +1700,8 @@ vm_object_collapse_scan(vm_object_t object)
 	/*
 	 * Our scan
 	 */
-	for (p = TAILQ_FIRST(&backing_object->memq); p != NULL; p = next) {
+	vm_page_iter_init(&pages, backing_object);
+	for (p = vm_page_iter_lookup_ge(&pages, 0); p != NULL; p = next) {
 		next = TAILQ_NEXT(p, listq);
 		new_pindex = p->pindex - backing_offset_index;
 
@@ -1710,7 +1709,7 @@ vm_object_collapse_scan(vm_object_t object)
 		 * Check for busy page
 		 */
 		if (vm_page_tryxbusy(p) == 0) {
-			next = vm_object_collapse_scan_wait(object, p);
+			next = vm_object_collapse_scan_wait(&pages, object, p);
 			continue;
 		}
 
@@ -1727,16 +1726,18 @@ vm_object_collapse_scan(vm_object_t object)
 
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (vm_page_remove(p))
+			if (vm_page_iter_remove(&pages))
 				vm_page_free(p);
+			next = vm_radix_iter_step(&pages);
 			continue;
 		}
 
 		if (!vm_page_all_valid(p)) {
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (vm_page_remove(p))
+			if (vm_page_iter_remove(&pages))
 				vm_page_free(p);
+			next = vm_radix_iter_step(&pages);
 			continue;
 		}
 
@@ -1749,7 +1750,7 @@ vm_object_collapse_scan(vm_object_t object)
 			 * busy bit owner, we can't tell whether it shadows the
 			 * original page.
 			 */
-			next = vm_object_collapse_scan_wait(object, pp);
+			next = vm_object_collapse_scan_wait(&pages, object, pp);
 			continue;
 		}
 
@@ -1775,10 +1776,11 @@ vm_object_collapse_scan(vm_object_t object)
 			vm_pager_freespace(backing_object, p->pindex, 1);
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (vm_page_remove(p))
-				vm_page_free(p);
 			if (pp != NULL)
 				vm_page_xunbusy(pp);
+			if (vm_page_iter_remove(&pages))
+				vm_page_free(p);
+			next = vm_radix_iter_step(&pages);
 			continue;
 		}
 
@@ -1789,9 +1791,10 @@ vm_object_collapse_scan(vm_object_t object)
 		 * If the page was mapped to a process, it can remain mapped
 		 * through the rename.  vm_page_rename() will dirty the page.
 		 */
-		if (vm_page_rename(p, object, new_pindex)) {
+		if (vm_page_rename(&pages, object, new_pindex)) {
 			vm_page_xunbusy(p);
-			next = vm_object_collapse_scan_wait(object, NULL);
+			next = vm_object_collapse_scan_wait(&pages, object,
+			    NULL);
 			continue;
 		}
 
@@ -1807,6 +1810,7 @@ vm_object_collapse_scan(vm_object_t object)
 		    backing_offset_index);
 #endif
 		vm_page_xunbusy(p);
+		next = vm_radix_iter_step(&pages);
 	}
 	return;
 }
@@ -1981,7 +1985,8 @@ void
 vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
-	vm_page_t p, next;
+	struct pctrie_iter pages;
+	vm_page_t p;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1990,16 +1995,11 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	if (object->resident_page_count == 0)
 		return;
 	vm_object_pip_add(object, 1);
+	vm_page_iter_limit_init(&pages, object, end);
 again:
-	p = vm_page_find_least(object, start);
-
-	/*
-	 * Here, the variable "p" is either (1) the page with the least pindex
-	 * greater than or equal to the parameter "start" or (2) NULL. 
-	 */
-	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
-		next = TAILQ_NEXT(p, listq);
-
+	pctrie_iter_reset(&pages);
+	for (p = vm_page_iter_lookup_ge(&pages, start); p != NULL;
+	     p = vm_radix_iter_step(&pages)) {
 		/*
 		 * Skip invalid pages if asked to do so.  Try to avoid acquiring
 		 * the busy lock, as some consumers rely on this to avoid
@@ -2060,7 +2060,7 @@ wired:
 		if ((options & OBJPR_NOTMAPPED) == 0 &&
 		    object->ref_count != 0 && !vm_page_try_remove_all(p))
 			goto wired;
-		vm_page_free(p);
+		vm_page_iter_free(&pages);
 	}
 	vm_object_pip_wakeup(object);
 

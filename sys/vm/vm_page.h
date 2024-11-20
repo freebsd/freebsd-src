@@ -602,6 +602,7 @@ bool vm_page_busy_sleep(vm_page_t m, const char *msg, int allocflags);
 void vm_page_busy_sleep_unlocked(vm_object_t obj, vm_page_t m,
     vm_pindex_t pindex, const char *wmesg, int allocflags);
 void vm_page_free(vm_page_t m);
+void vm_page_iter_free(struct pctrie_iter *);
 void vm_page_free_zero(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
@@ -679,8 +680,9 @@ void vm_page_release(vm_page_t m, int flags);
 void vm_page_release_locked(vm_page_t m, int flags);
 vm_page_t vm_page_relookup(vm_object_t, vm_pindex_t);
 bool vm_page_remove(vm_page_t);
+bool vm_page_iter_remove(struct pctrie_iter *);
 bool vm_page_remove_xbusy(vm_page_t);
-int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);
+int vm_page_rename(struct pctrie_iter *, vm_object_t, vm_pindex_t);
 void vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mold);
 int vm_page_sbusied(vm_page_t m);
