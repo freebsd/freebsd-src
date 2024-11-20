@@ -41,6 +41,7 @@ struct ns8250_softc {
 	uint8_t		ier_mask;
 	uint8_t		ier_rxbits;
 	uint8_t		busy_detect;
+	int		noise_count;
 };
 
 extern struct uart_ops uart_ns8250_ops;
