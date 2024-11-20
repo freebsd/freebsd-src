@@ -3630,6 +3630,7 @@ rtsx_attach(device_t dev)
 			device_printf(dev, "If a card is detected without an SD card present,"
 				      " add dev.rtsx.0.inversion=0 in loader.conf(5)\n");
 			sc->rtsx_inversion = 1;
+			break;
 		}
 	}
 
