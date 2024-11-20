@@ -170,8 +170,9 @@ static bool _vm_page_busy_sleep(vm_object_t obj, vm_page_t m,
     vm_pindex_t pindex, const char *wmesg, int allocflags, bool locked);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(vm_page_t m, uint8_t queue);
-static bool vm_page_free_prep(vm_page_t m);
+static bool vm_page_free_prep(vm_page_t m, bool do_remove);
 static void vm_page_free_toq(vm_page_t m);
+static void vm_page_free_toq_impl(vm_page_t m, bool do_remove);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -1387,6 +1388,22 @@ vm_page_free(vm_page_t m)
 }
 
 /*
+ *	vm_page_iter_free:
+ *
+ *	Free the current page, as identified by iterator.
+ */
+void
+vm_page_iter_free(struct pctrie_iter *pages)
+{
+	vm_page_t m;
+
+	m = vm_radix_iter_page(pages);
+	vm_radix_iter_remove(pages);
+	m->flags &= ~PG_ZERO;
+	vm_page_free_toq_impl(m, false);
+}
+
+/*
  *	vm_page_free_zero:
  *
  *	Free a page to the zerod-pages queue
@@ -1639,14 +1656,18 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 }
 
 /*
- * Do the work to remove a page from its object.  The caller is responsible for
- * updating the page's fields to reflect this removal.
+ *	vm_page_remove_radixdone
+ *
+ *	Complete page "m" removal from the specified object after the radix trie
+ *	unhooking.
+ *
+ *	The caller is responsible for updating the page's fields to reflect this
+ *	removal.
  */
 static void
-vm_page_object_remove(vm_page_t m)
+vm_page_remove_radixdone(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mrem __diagused;
 
 	vm_page_assert_xbusied(m);
 	object = m->object;
@@ -1659,10 +1680,7 @@ vm_page_object_remove(vm_page_t m)
 		vm_pager_page_unswapped(m);
 
 	vm_pager_page_removed(object, m);
-
 	m->object = NULL;
-	mrem = vm_radix_remove(&object->rtree, m->pindex);
-	KASSERT(mrem == m, ("removed page %p, expected page %p", mrem, m));
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -1705,6 +1723,42 @@ vm_page_remove(vm_page_t m)
 }
 
 /*
+ *	vm_page_iter_remove:
+ *
+ *	Remove the current page, as identified by iterator, and remove it from the
+ *	radix tree.
+ */
+bool
+vm_page_iter_remove(struct pctrie_iter *pages)
+{
+	vm_page_t m;
+	bool dropped;
+
+	m = vm_radix_iter_page(pages);
+	vm_radix_iter_remove(pages);
+	vm_page_remove_radixdone(m);
+	dropped = (vm_page_drop(m, VPRC_OBJREF) == VPRC_OBJREF);
+	vm_page_xunbusy(m);
+
+	return (dropped);
+}
+
+/*
+ *	vm_page_radix_remove
+ *
+ *	Removes the specified page from the radix tree.
+ */
+static void
+vm_page_radix_remove(vm_page_t m)
+{
+	vm_page_t mrem __diagused;
+
+	mrem = vm_radix_remove(&m->object->rtree, m->pindex);
+	KASSERT(mrem == m,
+	    ("removed page %p, expected page %p", mrem, m));
+}
+
+/*
  *	vm_page_remove_xbusy
  *
  *	Removes the page but leaves the xbusy held.  Returns true if this
@@ -1714,7 +1768,8 @@ bool
 vm_page_remove_xbusy(vm_page_t m)
 {
 
-	vm_page_object_remove(m);
+	vm_page_radix_remove(m);
+	vm_page_remove_radixdone(m);
 	return (vm_page_drop(m, VPRC_OBJREF) == VPRC_OBJREF);
 }
 
@@ -1985,8 +2040,8 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 /*
  *	vm_page_rename:
  *
- *	Move the given memory entry from its
- *	current object to the specified target object/offset.
+ *	Move the current page, as identified by iterator, from its current
+ *	object to the specified target object/offset.
  *
  *	Note: swap associated with the page must be invalidated by the move.  We
  *	      have to do this for several reasons:  (1) we aren't freeing the
@@ -2001,13 +2056,15 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
  *	The objects must be locked.
  */
 int
-vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
+vm_page_rename(struct pctrie_iter *pages,
+    vm_object_t new_object, vm_pindex_t new_pindex)
 {
-	vm_page_t mpred;
+	vm_page_t m, mpred;
 	vm_pindex_t opidx;
 
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
 
+	m = vm_radix_iter_page(pages);
 	KASSERT(m->ref_count != 0, ("vm_page_rename: page %p has no refs", m));
 
 	/*
@@ -2027,7 +2084,8 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	 * the listq iterator is tainted.
 	 */
 	m->pindex = opidx;
-	vm_page_object_remove(m);
+	vm_radix_iter_remove(pages);
+	vm_page_remove_radixdone(m);
 
 	/* Return back to the new pindex to complete vm_page_insert(). */
 	m->pindex = new_pindex;
@@ -3122,7 +3180,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 					vm_page_dequeue(m);
 					if (vm_page_replace_hold(m_new, object,
 					    m->pindex, m) &&
-					    vm_page_free_prep(m))
+					    vm_page_free_prep(m, true))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 
@@ -3134,7 +3192,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 				} else {
 					m->flags &= ~PG_ZERO;
 					vm_page_dequeue(m);
-					if (vm_page_free_prep(m))
+					if (vm_page_free_prep(m, true))
 						SLIST_INSERT_HEAD(&free, m,
 						    plinks.s.ss);
 					KASSERT(m->dirty == 0,
@@ -4073,7 +4131,7 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
  *	page must be unmapped.
  */
 static bool
-vm_page_free_prep(vm_page_t m)
+vm_page_free_prep(vm_page_t m, bool do_remove)
 {
 
 	/*
@@ -4120,7 +4178,9 @@ vm_page_free_prep(vm_page_t m)
 		    m->ref_count == VPRC_OBJREF,
 		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
 		    m, m->ref_count));
-		vm_page_object_remove(m);
+		if (do_remove)
+			vm_page_radix_remove(m);
+		vm_page_remove_radixdone(m);
 		m->ref_count -= VPRC_OBJREF;
 	} else
 		vm_page_assert_unbusied(m);
@@ -4172,22 +4232,13 @@ vm_page_free_prep(vm_page_t m)
 	return (true);
 }
 
-/*
- *	vm_page_free_toq:
- *
- *	Returns the given page to the free list, disassociating it
- *	from any VM object.
- *
- *	The object must be locked.  The page must be exclusively busied if it
- *	belongs to an object.
- */
 static void
-vm_page_free_toq(vm_page_t m)
+vm_page_free_toq_impl(vm_page_t m, bool do_remove)
 {
 	struct vm_domain *vmd;
 	uma_zone_t zone;
 
-	if (!vm_page_free_prep(m))
+	if (!vm_page_free_prep(m, do_remove))
 		return;
 
 	vmd = vm_pagequeue_domain(m);
@@ -4200,6 +4251,21 @@ vm_page_free_toq(vm_page_t m)
 	vm_phys_free_pages(m, 0);
 	vm_domain_free_unlock(vmd);
 	vm_domain_freecnt_inc(vmd, 1);
+}
+
+/*
+ *	vm_page_free_toq:
+ *
+ *	Returns the given page to the free list, disassociating it
+ *	from any VM object.
+ *
+ *	The object must be locked.  The page must be exclusively busied if it
+ *	belongs to an object.
+ */
+static void
+vm_page_free_toq(vm_page_t m)
+{
+	vm_page_free_toq_impl(m, true);
 }
 
 /*
