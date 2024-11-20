@@ -44,6 +44,7 @@
 #else
 #include <sys/queue.h>
 #endif
+#include <sys/_timespec.h>
 
 struct snapdata;
 struct devfs_dirent;
