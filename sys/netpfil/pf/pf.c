@@ -8091,7 +8091,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		md = m0;
 		pf_dummynet_route(pd, s, r, ifp, sintosa(&dst), &md);
 		if (md != NULL) {
-			int ret;
+			int ret __sdt_used;
 			ret = nd6_output_ifp(ifp, ifp, md, &dst, NULL);
 			SDT_PROBE2(pf, ip6, route_to, output, ifp, ret);
 		}
