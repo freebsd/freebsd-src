@@ -31,7 +31,7 @@
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\"
-.Dd December 14, 2022
+.Dd November 20, 2024
 .Dt SH 1
 .Os
 .Sh NAME
@@ -39,14 +39,14 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Oo
 .Ar script
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl c Ar string
 .Oo
@@ -54,7 +54,7 @@
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl s
 .Op Ar arg ...
@@ -253,6 +253,8 @@ Ignore
 from input when in interactive mode.
 .It Fl i Li interactive
 Force the shell to behave interactively.
+.It Fl l
+Force the shell to act as if it has been invoked as a login shell.
 .It Fl m Li monitor
 Turn on job control (set automatically when interactive).
 A new process group is created for each pipeline (called a job).
