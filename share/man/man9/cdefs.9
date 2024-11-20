@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 20, 2024
+.Dd November 20, 2024
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -357,6 +357,10 @@ However, system headers not defined by that standard may define extensions.
 .It Dv _POSIX_C_SOURCE = 200112 Ta St -p1003.1-2001 including St -isoC-99
 .It Dv _POSIX_C_SOURCE = 200809 Ta St -p1003.1-2008 including St -isoC-99
 .It Dv _POSIX_C_SOURCE = 202405 Ta St -p1003.1-2024 including ISO/IEC 9899:2018 ("ISO C17"),
+.It Dv _XOPEN_SOURCE defined Ta St -p1003.1-90 with XPG Extensions to St -susv1 including St -ansiC .
+However,
+.Fx
+implements this as a NOP because too much software breaks with the correct strict environment.
 .It Dv _XOPEN_SOURCE = 500 Ta St -p1003.1c-95 and XPG extensions to St -susv2 including St -ansiC
 .It Dv _XOPEN_SOURCE = 600 Ta St -p1003.1-2001 and XPG extensions to St -susv3 including St -isoC-99
 .It Dv _XOPEN_SOURCE = 700 Ta St -p1003.1-2008 and XPG extensions to St -susv4 including St -isoC-99
