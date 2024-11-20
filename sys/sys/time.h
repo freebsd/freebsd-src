@@ -611,7 +611,9 @@ int	tvtohz(struct timeval *tv);
 #include <time.h>
 
 #include <sys/cdefs.h>
+#ifndef _STANDALONE
 #include <sys/select.h>
+#endif
 
 __BEGIN_DECLS
 int	setitimer(int, const struct itimerval *, struct itimerval *);

@@ -311,7 +311,9 @@ typedef	_Bool	bool;
 
 #if __BSD_VISIBLE
 
+#ifndef _STANDALONE
 #include <sys/select.h>
+#endif
 
 /*
  * The major and minor numbers are encoded in dev_t as MMMmmmMm (where
