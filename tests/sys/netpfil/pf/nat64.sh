@@ -52,6 +52,7 @@ nat64_setup()
 
 	jexec rtr pfctl -e
 	pft_set_rules rtr \
+	    "set reassemble yes" \
 	    "set state-policy if-bound" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 }
@@ -78,6 +79,33 @@ icmp_echo_body()
 }
 
 icmp_echo_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "fragmentation" "cleanup"
+fragmentation_head()
+{
+	atf_set descr 'Test fragmented packets'
+	atf_set require.user root
+}
+
+fragmentation_body()
+{
+	nat64_setup
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 -s 1280 64:ff9b::192.0.2.2
+
+	atf_check -s exit:0 \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
+	    ping6 -c 3 -s 2000 64:ff9b::192.0.2.2
+	atf_check -s exit:0 \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
+	    ping6 -c 3 -s 10000 -b 20000 64:ff9b::192.0.2.2
+}
+
+fragmentation_cleanup()
 {
 	pft_cleanup
 }
@@ -178,6 +206,7 @@ sctp_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
+	atf_add_test_case "fragmentation"
 	atf_add_test_case "tcp"
 	atf_add_test_case "udp"
 	atf_add_test_case "sctp"
