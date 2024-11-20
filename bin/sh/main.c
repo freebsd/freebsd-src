@@ -95,6 +95,7 @@ main(int argc, char *argv[])
 	static struct stackmark smark, smark2;
 	volatile int state;
 	char *shinit;
+	int login;
 
 	(void) setlocale(LC_ALL, "");
 	initcharset();
@@ -128,13 +129,13 @@ main(int argc, char *argv[])
 	initvar();
 	setstackmark(&smark);
 	setstackmark(&smark2);
-	procargs(argc, argv);
+	login = procargs(argc, argv);
 	trap_init();
 	pwd_init(iflag);
 	INTON;
 	if (iflag)
 		chkmail(1);
-	if (argv[0] && argv[0][0] == '-') {
+	if (login) {
 		state = 1;
 		read_profile("/etc/profile");
 state1:
