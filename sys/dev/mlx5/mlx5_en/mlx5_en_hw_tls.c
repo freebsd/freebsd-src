@@ -301,7 +301,7 @@ mlx5e_tls_st_init(struct mlx5e_priv *priv, struct mlx5e_tls_tag *ptag)
 		    priv->pdn, &ptag->tisn);
 		if (err) {
 			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-			return (err);
+			return (-err);
 		}
 	}
 	MLX5_SET(sw_tls_cntx, ptag->crypto_params, progress.pd, ptag->tisn);
@@ -314,7 +314,7 @@ mlx5e_tls_st_init(struct mlx5e_priv *priv, struct mlx5e_tls_tag *ptag)
 	    &ptag->dek_index);
 	if (err) {
 		MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-		return (err);
+		return (-err);
 	}
 
 	MLX5_SET(sw_tls_cntx, ptag->crypto_params, param.dek_index, ptag->dek_index);
