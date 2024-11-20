@@ -119,11 +119,12 @@ local function adduser(pwd)
 	end
 	local precmd = ""
 	local postcmd = ""
+	local input = nil
 	if pwd.passwd then
-		precmd = "echo '" .. pwd.passwd .. "' | "
+		input = pwd.passwd
 		postcmd = " -H 0"
 	elseif pwd.plain_text_passwd then
-		precmd = "echo '" .. pwd.plain_text_passwd .. "' | "
+		input = pwd.plain_text_passwd
 		postcmd = " -h 0"
 	end
 	cmd = precmd .. "pw "
@@ -134,7 +135,11 @@ local function adduser(pwd)
 	cmd = cmd .. extraargs .. " -c '" .. pwd.gecos
 	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s " .. pwd.shell .. postcmd
 
-	local r = os.execute(cmd)
+	local f = io.popen(cmd, "w")
+	if input then
+		f:write(input)
+	end
+	local r = f:close(cmd)
 	if not r then
 		warnmsg("fail to add user " .. pwd.name)
 		warnmsg(cmd)
