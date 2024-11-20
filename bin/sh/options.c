@@ -194,7 +194,7 @@ options(int cmdline)
 				if (q == NULL || minusc != NULL)
 					error("Bad -c option");
 				minusc = q;
-			} else if (c == 'l') {
+			} else if (c == 'l' && cmdline) {
 				login = 1;
 			} else if (c == 'o') {
 				minus_o(*argptr, val);
