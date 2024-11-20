@@ -60,6 +60,9 @@ adduser_passwd_body()
 	passhash=`awk -F ':' '/^foo:/ {print $2}' etc/master.passwd`
 	atf_check -s exit:0 -o inline:$passhash \
 		$(atf_get_srcdir)/crypt $passhash "bar"
+	passhash=`awk -F ':' '/^foocrypted:/ {print $2}' etc/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "barcrypted"
 }
 
 addgroup_body()
