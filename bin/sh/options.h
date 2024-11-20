@@ -109,7 +109,7 @@ extern char **argptr;		/* argument list for builtin commands */
 extern char *shoptarg;		/* set by nextopt */
 extern char *nextopt_optptr;	/* used by nextopt */
 
-void procargs(int, char **);
+int procargs(int, char **);
 void optschanged(void);
 void freeparam(struct shparam *);
 int nextopt(const char *);
