@@ -42,3 +42,9 @@ mfs_root:
 	.type	mfs_root_end, %object
 mfs_root_end:
 	.size	mfs_root_end, . - mfs_root_end
+
+#if defined(__aarch64__)
+#include <machine/asm.h>
+#include <sys/elf_common.h>
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
+#endif
