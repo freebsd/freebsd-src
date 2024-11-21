@@ -120,9 +120,9 @@ Examples:
   Create a Phabricator review using the contents of the most recent commit in
   your git checkout.  The commit title is used as the review title, the commit
   log message is used as the review description, markj@FreeBSD.org is added as
-  a reviewer.
+  a reviewer. Also, the "Jails" reviewer group is added using its hashtag.
 
-  $ git arc create -r markj HEAD
+  $ git arc create -r markj,#jails HEAD
 
   Create a series of Phabricator reviews for each of HEAD~2, HEAD~ and HEAD.
   Pairs of consecutive commits are linked into a patch stack.  Note that the

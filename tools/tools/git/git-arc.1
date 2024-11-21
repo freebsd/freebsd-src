@@ -185,13 +185,16 @@ $ git push freebsd HEAD:main
 Create a Phabricator review using the contents of the most recent
 commit in your git checkout:
 .Bd -literal -offset indent
-$ git arc create -r markj HEAD
+$ git arc create -r markj,#jails HEAD
 .Ed
 .Pp
 The commit title is used as the review title, the commit log
 message is used as the review description, and
 .Aq Mt markj@FreeBSD.org
 is added as a reviewer.
+Also, the
+.Dq Jails
+reviewer group is added using its hashtag.
 .Pp
 Create a series of Phabricator reviews for each of HEAD~2, HEAD~ and
 HEAD:
