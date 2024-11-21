@@ -146,7 +146,7 @@ VNET_DEFINE_STATIC(struct tcp_hostcache, tcp_hostcache);
 VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
-static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
+static struct hc_metrics *tcp_hc_lookup(const struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
@@ -312,7 +312,7 @@ tcp_hc_destroy(void)
  * Internal function: compare cache entry to a connection.
  */
 static bool
-tcp_hc_cmp(struct hc_metrics *hc_entry, struct in_conninfo *inc)
+tcp_hc_cmp(struct hc_metrics *hc_entry, const struct in_conninfo *inc)
 {
 
 	if (inc->inc_flags & INC_ISIPV6) {
@@ -334,7 +334,7 @@ tcp_hc_cmp(struct hc_metrics *hc_entry, struct in_conninfo *inc)
  * On success returns in SMR section.
  */
 static struct hc_metrics *
-tcp_hc_lookup(struct in_conninfo *inc)
+tcp_hc_lookup(const struct in_conninfo *inc)
 {
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -371,7 +371,8 @@ tcp_hc_lookup(struct in_conninfo *inc)
  * a value is not set.
  */
 void
-tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
+tcp_hc_get(const struct in_conninfo *inc,
+    struct hc_metrics_lite *hc_metrics_lite)
 {
 	struct hc_metrics *hc_entry;
 
@@ -410,7 +411,7 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
  * set.
  */
 uint32_t
-tcp_hc_getmtu(struct in_conninfo *inc)
+tcp_hc_getmtu(const struct in_conninfo *inc)
 {
 	struct hc_metrics *hc_entry;
 	uint32_t mtu;
@@ -434,7 +435,7 @@ tcp_hc_getmtu(struct in_conninfo *inc)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
+tcp_hc_updatemtu(const struct in_conninfo *inc, uint32_t mtu)
 {
 	struct hc_metrics_lite hcml = { .hc_mtu = mtu };
 
@@ -446,7 +447,7 @@ tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
+tcp_hc_update(const struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 {
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry, *hc_prev;
