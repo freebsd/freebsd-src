@@ -1570,6 +1570,7 @@ pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 		out->expire = 0;
 
 	/* Adjust the connection rate estimate. */
+	out->conn_rate = in->conn_rate;
 	diff = secs - in->conn_rate.last;
 	if (diff >= in->conn_rate.seconds)
 		out->conn_rate.count = 0;
