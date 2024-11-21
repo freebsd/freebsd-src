@@ -892,13 +892,13 @@ struct tcpopt {
 #define	TO_SYN		0x01		/* parse SYN-only options */
 
 struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
-	uint32_t	rmx_mtu;	/* MTU for this path */
-	uint32_t	rmx_ssthresh;	/* outbound gateway buffer limit */
-	uint32_t	rmx_rtt;	/* estimated round trip time */
-	uint32_t	rmx_rttvar;	/* estimated rtt variance */
-	uint32_t	rmx_cwnd;	/* congestion window */
-	uint32_t	rmx_sendpipe;   /* outbound delay-bandwidth product */
-	uint32_t	rmx_recvpipe;   /* inbound delay-bandwidth product */
+	uint32_t	hc_mtu;		/* MTU for this path */
+	uint32_t	hc_ssthresh;	/* outbound gateway buffer limit */
+	uint32_t	hc_rtt;		/* estimated round trip time */
+	uint32_t	hc_rttvar;	/* estimated rtt variance */
+	uint32_t	hc_cwnd;	/* congestion window */
+	uint32_t	hc_sendpipe;	/* outbound delay-bandwidth product */
+	uint32_t	hc_recvpipe;	/* inbound delay-bandwidth product */
 };
 
 #ifndef _NETINET_IN_PCB_H_

@@ -2507,13 +2507,13 @@ tcp_discardcb(struct tcpcb *tp)
 			    );
 		} else
 			ssthresh = 0;
-		metrics.rmx_ssthresh = ssthresh;
+		metrics.hc_ssthresh = ssthresh;
 
-		metrics.rmx_rtt = tp->t_srtt;
-		metrics.rmx_rttvar = tp->t_rttvar;
-		metrics.rmx_cwnd = tp->snd_cwnd;
-		metrics.rmx_sendpipe = 0;
-		metrics.rmx_recvpipe = 0;
+		metrics.hc_rtt = tp->t_srtt;
+		metrics.hc_rttvar = tp->t_rttvar;
+		metrics.hc_cwnd = tp->snd_cwnd;
+		metrics.hc_sendpipe = 0;
+		metrics.hc_recvpipe = 0;
 
 		tcp_hc_update(&inp->inp_inc, &metrics);
 	}

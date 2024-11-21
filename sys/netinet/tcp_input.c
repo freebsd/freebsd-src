@@ -368,11 +368,11 @@ cc_conn_init(struct tcpcb *tp)
 	tcp_hc_get(&inp->inp_inc, &metrics);
 	maxseg = tcp_maxseg(tp);
 
-	if (tp->t_srtt == 0 && (rtt = metrics.rmx_rtt)) {
+	if (tp->t_srtt == 0 && (rtt = metrics.hc_rtt)) {
 		tp->t_srtt = rtt;
 		TCPSTAT_INC(tcps_usedrtt);
-		if (metrics.rmx_rttvar) {
-			tp->t_rttvar = metrics.rmx_rttvar;
+		if (metrics.hc_rttvar) {
+			tp->t_rttvar = metrics.hc_rttvar;
 			TCPSTAT_INC(tcps_usedrttvar);
 		} else {
 			/* default variation is +- 1 rtt */
@@ -383,14 +383,14 @@ cc_conn_init(struct tcpcb *tp)
 		    ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
 		    tp->t_rttmin, TCPTV_REXMTMAX);
 	}
-	if (metrics.rmx_ssthresh) {
+	if (metrics.hc_ssthresh) {
 		/*
 		 * There's some sort of gateway or interface
 		 * buffer limit on the path.  Use this to set
 		 * the slow start threshold, but set the
 		 * threshold to no less than 2*mss.
 		 */
-		tp->snd_ssthresh = max(2 * maxseg, metrics.rmx_ssthresh);
+		tp->snd_ssthresh = max(2 * maxseg, metrics.hc_ssthresh);
 		TCPSTAT_INC(tcps_usedssthresh);
 	}
 
@@ -3888,8 +3888,8 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	 * If there's a discovered mtu in tcp hostcache, use it.
 	 * Else, use the link mtu.
 	 */
-	if (metrics.rmx_mtu)
-		mss = min(metrics.rmx_mtu, maxmtu) - min_protoh;
+	if (metrics.hc_mtu)
+		mss = min(metrics.hc_mtu, maxmtu) - min_protoh;
 	else {
 #ifdef INET6
 		if (isipv6) {
@@ -3981,8 +3981,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 	 */
 	so = inp->inp_socket;
 	SOCK_SENDBUF_LOCK(so);
-	if ((so->so_snd.sb_hiwat == V_tcp_sendspace) && metrics.rmx_sendpipe)
-		bufsize = metrics.rmx_sendpipe;
+	if ((so->so_snd.sb_hiwat == V_tcp_sendspace) && metrics.hc_sendpipe)
+		bufsize = metrics.hc_sendpipe;
 	else
 		bufsize = so->so_snd.sb_hiwat;
 	if (bufsize < mss)
@@ -4016,8 +4016,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 	}
 
 	SOCK_RECVBUF_LOCK(so);
-	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.rmx_recvpipe)
-		bufsize = metrics.rmx_recvpipe;
+	if ((so->so_rcv.sb_hiwat == V_tcp_recvspace) && metrics.hc_recvpipe)
+		bufsize = metrics.hc_recvpipe;
 	else
 		bufsize = so->so_rcv.sb_hiwat;
 	if (bufsize > mss) {
