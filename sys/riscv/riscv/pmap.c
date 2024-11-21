@@ -5013,7 +5013,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (anychanged) {
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
 		if (mode == VM_MEMATTR_UNCACHEABLE)
-			cpu_dcache_wbinv_range((void *)base, size);
+			cpu_dcache_wbinv_range(base, size);
 	}
 
 	return (error);
