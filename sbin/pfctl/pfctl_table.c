@@ -345,9 +345,22 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		}
 		if (nmatch < b.pfrb_size)
 			rv = 2;
+	} else if (!strcmp(command, "zero") && (argc || file != NULL)) {
+		b.pfrb_type = PFRB_ADDRS;
+		if (load_addr(&b, argc, argv, file, 0))
+			goto _error;
+		if (opts & PF_OPT_VERBOSE)
+			flags |= PFR_FLAG_FEEDBACK;
+		RVTEST(pfr_clr_astats(&table, b.pfrb_caddr, b.pfrb_size,
+		    &nzero, flags));
+		xprintf(opts, "%d/%d addresses cleared", nzero, b.pfrb_size);
+		if (opts & PF_OPT_VERBOSE)
+			PFRB_FOREACH(a, &b)
+				if (opts & PF_OPT_VERBOSE2 ||
+				    a->pfra_fback != PFR_FB_NONE)
+					print_addrx(a, NULL,
+					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "zero")) {
-		if (argc || file != NULL)
-			usage();
 		flags |= PFR_FLAG_ADDRSTOO;
 		RVTEST(pfr_clr_tstats(&table, 1, &nzero, flags));
 		xprintf(opts, "%d table/stats cleared", nzero);
