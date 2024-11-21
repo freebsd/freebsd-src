@@ -83,8 +83,12 @@ _alt_start:
 	lla	t0, boot_hart
 	sw	a0, 0(t0)
 
-	/* Load zero as modulep */
-	mv	a0, zero
+	/*
+	 * Stash the DTB pointer in the callee-saved register s4, and zero s3
+	 * to indicate that we have no loader metadata.
+	 */
+	mv	s4, a1
+	mv	s3, zero
 	j	pagetables
 
 /*
@@ -104,10 +108,12 @@ _start:
 .option pop
 
 	/*
-	 * Zero a1 to indicate that we have no DTB pointer. It is already
-	 * included in the loader(8) metadata.
+	 * Stash modulep in the callee-saved register s3, and zero s4 to
+	 * indicate that we have no DTB pointer. It is already included in the
+	 * loader(8) metadata.
 	 */
-	mv	a1, zero
+	mv	s3, a0
+	mv	s4, zero
 
 	/*
 	 * Set up page tables: Our goal is to enable virtual memory, doing the
@@ -128,8 +134,8 @@ _start:
 	 * here and will conditionally enable Sv48 (or higher) later.
 	 *
 	 * We arrive here with:
-	 *  a0 - modulep or zero
-	 *  a1 - zero or dtbp
+	 *  s3 - modulep or zero
+	 *  s4 - zero or dtbp
 	 */
 pagetables:
 	/* Get the kernel's load address (kernstart) in s9 */
@@ -244,8 +250,8 @@ va:
 
 	la	t0, initstack
 	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
-	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
-	sd	a0, RISCV_BOOTPARAMS_MODULEP(sp)
+	sd	s4, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
+	sd	s3, RISCV_BOOTPARAMS_MODULEP(sp)
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
