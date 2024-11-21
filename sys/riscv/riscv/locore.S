@@ -42,9 +42,11 @@
 #include "assym.inc"
 
 #include <machine/asm.h>
+#include <machine/cpu.h>
 #include <machine/param.h>
-#include <machine/riscvreg.h>
 #include <machine/pte.h>
+#include <machine/riscvreg.h>
+#include <machine/sbi.h>
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -141,12 +143,16 @@ pagetables:
 	/* Get the kernel's load address (kernstart) in s9 */
 	jal	get_physmem
 
+	/* Get PTE attribute bits in s8 */
+	jal	get_pte_fixup_bits
+
 	/* Construct 1GB Identity Map (1:1 PA->VA) */
 	lla	s1, bootstrap_pt_l1
 
 	srli	s2, s9, L1_SHIFT	/* kernstart >> L1_SHIFT */
 	andi	a5, s2, Ln_ADDR_MASK	/* & Ln_ADDR_MASK */
 	li	t4, (PTE_KERN)
+	or	t4, t4, s8		/* t4 |= pte bits */
 	slli	s2, s2, PTE_PPN2_S	/* (s2 << PTE_PPN2_S) */
 	or	t6, t4, s2
 
@@ -182,6 +188,7 @@ pagetables:
 	li	t2, Ln_ENTRIES		/* Build 512 entries */
 	add	t3, t4, t2
 	li	t0, (PTE_KERN | PTE_X)
+	or	t0, t0, s8		/* t0 |= pte bits */
 1:
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
@@ -271,6 +278,28 @@ get_physmem:
 	sub	t1, t1, t0	/* calculate phys->virt delta */
 	li	t2, KERNBASE
 	sub	s9, t2, t1	/* s9 = physmem base */
+	ret
+
+/*
+ * T-HEAD CPUs implement an alternate scheme for PTE attributes that is
+ * incompatible with the RISC-V PTE specification (see the definitions in
+ * pte.h). Worse, it defines a non-zero value for "main" memory, and this must
+ * be set in order to proceed with our new page tables.
+ *
+ * Therefore, we are forced to check the CPU identity here, which is both
+ * inconvenient and fragile.
+ *
+ * Return the required attribute bits in s8. For sane implementations this is
+ * zero.
+ */
+get_pte_fixup_bits:
+	mv	s8, zero
+	SBI_CALL(SBI_EXT_ID_BASE, SBI_BASE_GET_MVENDORID)
+	li	t0, MVENDORID_THEAD
+	xor	t0, t0, a1
+	bnez	t0, 1f		/* branch if a1 != t0 */
+	li	s8, PTE_THEAD_MA_NONE
+1:
 	ret
 
 	.align  4

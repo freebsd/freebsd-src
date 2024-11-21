@@ -35,9 +35,11 @@
 #ifndef _MACHINE_CPU_H_
 #define	_MACHINE_CPU_H_
 
+#ifndef LOCORE
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
+#endif
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_sepc)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_sstatus & SSTATUS_SPP) == 0)
@@ -88,6 +90,7 @@
 #define	MMU_SV57	0x4	/* 5-level paging */
 
 #ifdef _KERNEL
+#ifndef LOCORE
 
 extern char btext[];
 extern char etext[];
@@ -105,6 +108,7 @@ get_cyclecount(void)
 	return (rdcycle());
 }
 
-#endif
+#endif /* !LOCORE */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPU_H_ */
