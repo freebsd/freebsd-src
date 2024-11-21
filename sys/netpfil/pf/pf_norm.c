@@ -1198,6 +1198,7 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 			return (PF_DROP);
 
 		h = mtod(pd->m, struct ip *);
+		pd->tot_len = htons(h->ip_len);
 
  no_fragment:
 		/* At this point, only IP_DF is allowed in ip_off */
@@ -1228,6 +1229,7 @@ pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct pf_krule		*r;
+	struct ip6_hdr		*h;
 	struct ip6_frag		 frag;
 	bool			 scrub_compat;
 
@@ -1294,6 +1296,8 @@ pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
 		pd->m = *m0;
 		if (pd->m == NULL)
 			return (PF_DROP);
+		h = mtod(pd->m, struct ip6_hdr *);
+		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 	}
 
 	return (PF_PASS);
