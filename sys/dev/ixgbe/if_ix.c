@@ -204,6 +204,7 @@ static int  ixgbe_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_wol_enable(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_wufc(SYSCTL_HANDLER_ARGS);
+static int  ixgbe_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 
 /* Deferred interrupt tasklets */
 static void ixgbe_handle_msf(void *);
@@ -2743,6 +2744,24 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    ixgbe_sysctl_print_fw_version, "A", "Prints FW/NVM Versions");
 
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_first_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 0, ixgbe_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for first segment");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_middle_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 1, ixgbe_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for middle segment");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_last_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 2, ixgbe_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for last segment");
+
 #ifdef IXGBE_DEBUG
 	/* testing sysctls (for all devices) */
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "power_state",
@@ -4728,6 +4747,43 @@ ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS)
 
 	return (error);
 } /* ixgbe_sysctl_eee_state */
+
+static int
+ixgbe_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct ixgbe_softc *sc;
+	u32 reg, val, shift;
+	int error, mask;
+
+	sc = oidp->oid_arg1;
+	switch (oidp->oid_arg2) {
+	case 0:
+		reg = IXGBE_DTXTCPFLGL;
+		shift = 0;
+		break;
+	case 1:
+		reg = IXGBE_DTXTCPFLGL;
+		shift = 16;
+		break;
+	case 2:
+		reg = IXGBE_DTXTCPFLGH;
+		shift = 0;
+		break;
+	default:
+		return (EINVAL);
+		break;
+	}
+	val = IXGBE_READ_REG(&sc->hw, reg);
+	mask = (val >> shift) & 0xfff;
+	error = sysctl_handle_int(oidp, &mask, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (mask < 0 || mask > 0xfff)
+		return (EINVAL);
+	val = (val & ~(0xfff << shift)) | (mask << shift);
+	IXGBE_WRITE_REG(&sc->hw, reg, val);
+	return (0);
+}
 
 /************************************************************************
  * ixgbe_init_device_features
