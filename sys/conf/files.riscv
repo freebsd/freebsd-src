@@ -84,5 +84,7 @@ riscv/vmm/vmm_riscv.c				optional	vmm
 riscv/vmm/vmm_sbi.c				optional	vmm
 riscv/vmm/vmm_switch.S				optional	vmm
 
+riscv/thead/thead.c		standard
+
 # Zstd
 contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

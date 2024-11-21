@@ -52,6 +52,7 @@
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#include <machine/thead.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -463,6 +464,25 @@ identify_cpu_ids(struct cpu_desc *desc)
 	}
 }
 
+static void
+handle_thead_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	if (cpu != 0)
+		return;
+
+	thead_setup_cache();
+}
+
+static void
+handle_cpu_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	switch (mvendorid) {
+	case MVENDORID_THEAD:
+		handle_thead_quirks(cpu, desc);
+		break;
+	}
+}
+
 void
 identify_cpu(u_int cpu)
 {
@@ -472,6 +492,7 @@ identify_cpu(u_int cpu)
 	identify_cpu_features(cpu, desc);
 
 	update_global_capabilities(cpu, desc);
+	handle_cpu_quirks(cpu, desc);
 }
 
 void
