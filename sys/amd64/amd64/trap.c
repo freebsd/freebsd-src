@@ -599,6 +599,18 @@ trap(struct trapframe *frame)
 			 */
 		case T_BPTFLT:
 			/*
+			 * Most likely, EFI RT hitting INT3.  This
+			 * check prevents kdb from handling
+			 * breakpoints set on the BIOS text, if such
+			 * option is ever needed.
+			 */
+			if ((td->td_pflags & TDP_EFIRT) != 0 &&
+			    curpcb->pcb_onfault != NULL) {
+				frame->tf_rip = (long)curpcb->pcb_onfault;
+				return;
+			}
+
+			/*
 			 * If KDB is enabled, let it handle the debugger trap.
 			 * Otherwise, debugger traps "can't happen".
 			 */
