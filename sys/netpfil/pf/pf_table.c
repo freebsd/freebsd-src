@@ -669,7 +669,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	}
 
 	if (!(flags & PFR_FLAG_DUMMY))
-		pfr_clstats_kentries(kt, &workq, 0, 0);
+		pfr_clstats_kentries(kt, &workq, time_second, 0);
 	if (nzero != NULL)
 		*nzero = xzero;
 	return (0);
