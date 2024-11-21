@@ -333,6 +333,7 @@ static int 	em_is_valid_ether_addr(u8 *);
 static void	em_newitr(struct e1000_softc *, struct em_rx_queue *,
     struct tx_ring *, struct rx_ring *);
 static bool	em_automask_tso(if_ctx_t);
+static int	em_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
 static void	em_add_int_delay_sysctl(struct e1000_softc *, const char *,
     const char *, struct em_int_delay_info *, int, int);
@@ -875,6 +876,24 @@ em_if_attach_pre(if_ctx_t ctx)
 		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    igb_sysctl_dmac, "I", "DMA Coalesce");
 	}
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_first_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 0, em_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for first segment");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_middle_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 1, em_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for middle segment");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO,
+	    "tso_tcp_flags_mask_last_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 2, em_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for last segment");
 
 	scctx->isc_tx_nsegments = EM_MAX_SCATTER;
 	scctx->isc_nrxqsets_max = scctx->isc_ntxqsets_max = em_set_num_queues(ctx);
@@ -5179,6 +5198,43 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		break;
 	}
 	E1000_WRITE_OFFSET(&sc->hw, info->offset, regval);
+	return (0);
+}
+
+static int
+em_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct e1000_softc *sc;
+	u32 reg, val, shift;
+	int error, mask;
+
+	sc = oidp->oid_arg1;
+	switch (oidp->oid_arg2) {
+	case 0:
+		reg = E1000_DTXTCPFLGL;
+		shift = 0;
+		break;
+	case 1:
+		reg = E1000_DTXTCPFLGL;
+		shift = 16;
+		break;
+	case 2:
+		reg = E1000_DTXTCPFLGH;
+		shift = 0;
+		break;
+	default:
+		return (EINVAL);
+		break;
+	}
+	val = E1000_READ_REG(&sc->hw, reg);
+	mask = (val >> shift) & 0xfff;
+	error = sysctl_handle_int(oidp, &mask, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (mask < 0 || mask > 0xfff)
+		return (EINVAL);
+	val = (val & ~(0xfff << shift)) | (mask << shift);
+	E1000_WRITE_REG(&sc->hw, reg, val);
 	return (0);
 }
 
