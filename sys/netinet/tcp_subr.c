@@ -2469,10 +2469,8 @@ tcp_discardcb(struct tcpcb *tp)
 	 * XXXRRS: Updating must be after the stack fini() since
 	 * that may be converting some internal representation of
 	 * say srtt etc into the general one used by other stacks.
-	 * Lets also at least protect against the so being NULL
-	 * as RW stated below.
 	 */
-	if ((tp->t_rttupdated >= 4) && (so != NULL)) {
+	if (tp->t_rttupdated >= 4) {
 		struct hc_metrics_lite metrics;
 		uint32_t ssthresh;
 
@@ -2482,9 +2480,6 @@ tcp_discardcb(struct tcpcb *tp)
 		 * are satisfied. This gives us better new start value
 		 * for the congestion avoidance for new connections.
 		 * ssthresh is only set if packet loss occurred on a session.
-		 *
-		 * XXXRW: 'so' may be NULL here, and/or socket buffer may be
-		 * being torn down.  Ideally this code would not use 'so'.
 		 */
 		ssthresh = tp->snd_ssthresh;
 		if (ssthresh != 0 && ssthresh < so->so_snd.sb_hiwat / 2) {
