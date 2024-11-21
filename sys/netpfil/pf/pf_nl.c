@@ -1714,13 +1714,23 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 }
 
 static bool
-nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype, struct pf_threshold *t)
+nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype,
+    struct pf_threshold *t, int secs)
 {
-	int off = nlattr_add_nested(nw, attrtype);
+	int	 off = nlattr_add_nested(nw, attrtype);
+	int	 diff, conn_rate_count;
+
+	/* Adjust the connection rate estimate. */
+	conn_rate_count = t->count;
+	diff = secs - t->last;
+	if (diff >= t->seconds)
+		conn_rate_count = 0;
+	else
+		conn_rate_count -= t->count * diff / t->seconds;
 
 	nlattr_add_u32(nw, PF_TH_LIMIT, t->limit);
 	nlattr_add_u32(nw, PF_TH_SECONDS, t->seconds);
-	nlattr_add_u32(nw, PF_TH_COUNT, t->count);
+	nlattr_add_u32(nw, PF_TH_COUNT, conn_rate_count);
 	nlattr_add_u32(nw, PF_TH_LAST, t->last);
 
 	nlattr_set_len(nw, off);
@@ -1736,6 +1746,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct pf_ksrc_node	*n;
 	struct pf_srchash	*sh;
 	int			 i;
+	int			 secs;
 
 	hdr->nlmsg_flags |= NLM_F_MULTI;
 
@@ -1746,6 +1757,8 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			continue;
 
 		PF_HASHROW_LOCK(sh);
+		secs = time_uptime;
+
 		LIST_FOREACH(n, &sh->nodes, entry) {
 			if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
 				nlmsg_abort(nw);
@@ -1768,9 +1781,15 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 			nlattr_add_u32(nw, PF_SN_CONNECTIONS, n->conn);
 			nlattr_add_u8(nw, PF_SN_AF, n->af);
 			nlattr_add_u8(nw, PF_SN_RULE_TYPE, n->ruletype);
-			nlattr_add_u64(nw, PF_SN_CREATION, n->creation);
-			nlattr_add_u64(nw, PF_SN_EXPIRE, n->expire);
-			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE, &n->conn_rate);
+
+			nlattr_add_u64(nw, PF_SN_CREATION, secs - n->creation);
+			if (n->expire > secs)
+				nlattr_add_u64(nw, PF_SN_EXPIRE, n->expire - secs);
+			else
+				nlattr_add_u64(nw, PF_SN_EXPIRE, 0);
+
+			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE,
+			    &n->conn_rate, secs);
 
 			if (!nlmsg_end(nw)) {
 				PF_HASHROW_UNLOCK(sh);
