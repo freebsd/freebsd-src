@@ -199,7 +199,7 @@ disc1: packagesystem
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
-	${PKG_INSTALL} wifi-firmware-kmod-release
+	${PKG_INSTALL} wifi-firmware-kmod-release || true
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
@@ -273,7 +273,7 @@ dvd: packagesystem
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
-	${PKG_INSTALL} wifi-firmware-kmod-release
+	${PKG_INSTALL} wifi-firmware-kmod-release || true
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
