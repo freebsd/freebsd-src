@@ -470,6 +470,7 @@ handle_thead_quirks(u_int cpu, struct cpu_desc *desc)
 	if (cpu != 0)
 		return;
 
+	has_errata_thead_pbmt = true;
 	thead_setup_cache();
 }
 

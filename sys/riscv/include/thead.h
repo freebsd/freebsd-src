@@ -30,6 +30,8 @@
 #ifndef _RISCV_THEAD_H_
 #define	_RISCV_THEAD_H_
 
+extern bool has_errata_thead_pbmt;
+
 void thead_setup_cache(void);
 
 #endif /* _RISCV_THEAD_H_ */
