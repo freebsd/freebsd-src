@@ -1486,10 +1486,10 @@ void	 tcp_hc_init(void);
 #ifdef VIMAGE
 void	 tcp_hc_destroy(void);
 #endif
-void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
-uint32_t tcp_hc_getmtu(struct in_conninfo *);
-void	 tcp_hc_updatemtu(struct in_conninfo *, uint32_t);
-void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
+void	 tcp_hc_get(const struct in_conninfo *, struct hc_metrics_lite *);
+uint32_t tcp_hc_getmtu(const struct in_conninfo *);
+void	 tcp_hc_updatemtu(const struct in_conninfo *, uint32_t);
+void	 tcp_hc_update(const struct in_conninfo *, struct hc_metrics_lite *);
 void 	 cc_after_idle(struct tcpcb *tp);
 
 extern	struct protosw tcp_protosw;		/* shared for TOE */
