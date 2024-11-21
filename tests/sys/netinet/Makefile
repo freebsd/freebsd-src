@@ -31,6 +31,8 @@ TEST_METADATA.arp+=	is_exclusive="true"
 TEST_METADATA.divert+=	required_programs="python"	\
 			execenv="jail"			\
 			execenv_jail_params="vnet allow.raw_sockets"
+TEST_METADATA.fibs_test+= execenv="jail"		\
+			execenv_jail_params="vnet allow.raw_sockets"
 TEST_METADATA.forward+=	required_programs="python"	\
 			execenv="jail"			\
 			execenv_jail_params="vnet allow.raw_sockets"
