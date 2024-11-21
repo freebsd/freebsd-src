@@ -32,6 +32,8 @@
 
 #include <machine/thead.h>
 
+bool has_errata_thead_pbmt = false;
+
 /* ----------------- dcache ops --------------------- */
 
 
