@@ -3552,6 +3552,24 @@ mlx5e_ioctl(if_t ifp, u_long command, caddr_t data)
 		drv_ioctl_data = (struct siocsifcapnv_driver_data *)data;
 		PRIV_LOCK(priv);
 siocsifcap_driver:
+		if (!mlx5e_is_tlstx_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap &= ~(IFCAP_TXTLS4 |
+			    IFCAP_TXTLS6);
+		}
+		if (!mlx5e_is_tlsrx_capable(priv->mdev)) {
+		        drv_ioctl_data->reqcap &= ~(
+			    IFCAP2_BIT(IFCAP2_RXTLS4) |
+			    IFCAP2_BIT(IFCAP2_RXTLS6));
+		}
+		if (!mlx5e_is_ipsec_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap &=
+			    ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
+		}
+		if (!mlx5e_is_ratelimit_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap &= ~(IFCAP_TXTLS_RTLMT |
+			    IFCAP_TXRTLMT);
+		}
+
 		mask = drv_ioctl_data->reqcap ^ if_getcapenable(ifp);
 
 		if (mask & IFCAP_TXCSUM) {
