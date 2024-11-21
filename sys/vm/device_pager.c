@@ -52,6 +52,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/uma.h>
 
 static void dev_pager_init(void);
@@ -262,9 +263,13 @@ void
 cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	if (object->type == OBJT_MGTDEVICE)
-		cdev_mgtdev_pager_free_page(object, m);
-	else if (object->type == OBJT_DEVICE)
+	if (object->type == OBJT_MGTDEVICE) {
+		struct pctrie_iter pages;
+
+		vm_page_iter_init(&pages, object);
+		vm_page_iter_lookup(&pages, m->pindex);
+		cdev_mgtdev_pager_free_page(&pages);
+	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
 	else
 		KASSERT(false,
@@ -272,15 +277,30 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 }
 
 void
-cdev_mgtdev_pager_free_page(vm_object_t object, vm_page_t m)
+cdev_mgtdev_pager_free_page(struct pctrie_iter *pages)
 {
+	pmap_remove_all(vm_radix_iter_page(pages));
+	vm_page_iter_remove(pages);
+}
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT((object->type == OBJT_MGTDEVICE &&
-	    (m->oflags & VPO_UNMANAGED) == 0),
-	    ("Unmanaged device or page obj %p m %p", object, m));
-	pmap_remove_all(m);
-	(void)vm_page_remove(m);
+void
+cdev_mgtdev_pager_free_pages(vm_object_t object)
+{
+	struct pctrie_iter pages;
+	vm_page_t m;
+
+	vm_page_iter_init(&pages, object);
+	VM_OBJECT_WLOCK(object);
+retry:
+	for (m = vm_page_iter_lookup_ge(&pages, 0); m != NULL;
+	    m = vm_radix_iter_step(&pages)) {
+		if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL)) {
+			pctrie_iter_reset(&pages);
+			goto retry;
+		}
+		cdev_mgtdev_pager_free_page(&pages);
+	}
+	VM_OBJECT_WUNLOCK(object);
 }
 
 static void
