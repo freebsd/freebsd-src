@@ -109,6 +109,62 @@ v6_counters_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "zero_one" "cleanup"
+zero_one_head()
+{
+	atf_set descr 'Test zeroing a single address in a table'
+	atf_set require.user root
+}
+
+zero_one_body()
+{
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+	ifconfig ${epair_send}a inet alias 192.0.2.3/24
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1, 192.0.2.3 }" \
+	    "block all" \
+	    "pass in from <foo> to any" \
+	    "pass out from any to <foo>" \
+	    "set skip on lo"
+
+	atf_check -s exit:0 -o ignore ping -c 3 -S 192.0.2.1 192.0.2.2
+	atf_check -s exit:0 -o ignore ping -c 3 -S 192.0.2.3 192.0.2.2
+
+	jexec alcatraz pfctl -t foo -T show -vv
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:'In/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    -o match:'Out/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    jexec alcatraz pfctl -t foo -T show -vv
+
+	atf_check -s exit:0 -e ignore \
+	    jexec alcatraz pfctl -t foo -T zero 192.0.2.3
+
+	# We now have a zeroed and a non-zeroed counter, so both patterns
+	# should match
+	atf_check -s exit:0 -e ignore \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    jexec alcatraz pfctl -t foo -T show -vv
+	atf_check -s exit:0 -e ignore \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    jexec alcatraz pfctl -t foo -T show -vv
+}
+
+zero_one_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "pr251414" "cleanup"
 pr251414_head()
 {
@@ -324,6 +380,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
+	atf_add_test_case "zero_one"
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
 	atf_add_test_case "network"
