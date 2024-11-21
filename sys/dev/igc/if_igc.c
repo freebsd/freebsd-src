@@ -127,6 +127,7 @@ static void	igc_print_debug_info(struct igc_softc *);
 static int 	igc_is_valid_ether_addr(u8 *);
 static void	igc_neweitr(struct igc_softc *, struct igc_rx_queue *,
     struct tx_ring *, struct rx_ring *);
+static int	igc_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_softc *);
 static void	igc_release_hw_control(struct igc_softc *);
@@ -496,6 +497,27 @@ igc_if_attach_pre(if_ctx_t ctx)
 	    OID_AUTO, "dmac",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    igc_sysctl_dmac, "I", "DMA Coalesce");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "tso_tcp_flags_mask_first_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 0, igc_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for first segment");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "tso_tcp_flags_mask_middle_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 1, igc_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for middle segment");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "tso_tcp_flags_mask_last_segment",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    sc, 2, igc_sysctl_tso_tcp_flags_mask, "IU",
+	    "TSO TCP flags mask for last segment");
 
 	/* Determine hardware and mac info */
 	igc_identify_hardware(ctx);
@@ -3011,6 +3033,43 @@ igc_print_nvm_info(struct igc_softc *sc)
 		printf("%04x ", eeprom_data);
 	}
 	printf("\n");
+}
+
+static int
+igc_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS)
+{
+	struct igc_softc *sc;
+	u32 reg, val, shift;
+	int error, mask;
+
+	sc = oidp->oid_arg1;
+	switch (oidp->oid_arg2) {
+	case 0:
+		reg = IGC_DTXTCPFLGL;
+		shift = 0;
+		break;
+	case 1:
+		reg = IGC_DTXTCPFLGL;
+		shift = 16;
+		break;
+	case 2:
+		reg = IGC_DTXTCPFLGH;
+		shift = 0;
+		break;
+	default:
+		return (EINVAL);
+		break;
+	}
+	val = IGC_READ_REG(&sc->hw, reg);
+	mask = (val >> shift) & 0xfff;
+	error = sysctl_handle_int(oidp, &mask, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (mask < 0 || mask > 0xfff)
+		return (EINVAL);
+	val = (val & ~(0xfff << shift)) | (mask << shift);
+	IGC_WRITE_REG(&sc->hw, reg, val);
+	return (0);
 }
 
 /*
