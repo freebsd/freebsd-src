@@ -3877,19 +3877,16 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 			offer = max(offer, V_tcp_minmss);
 	}
 
-	/*
-	 * rmx information is now retrieved from tcp_hostcache.
-	 */
-	tcp_hc_get(&inp->inp_inc, &metrics);
-	if (metricptr != NULL)
-		bcopy(&metrics, metricptr, sizeof(struct hc_metrics_lite));
+	if (metricptr == NULL)
+		metricptr = &metrics;
+	tcp_hc_get(&inp->inp_inc, metricptr);
 
 	/*
 	 * If there's a discovered mtu in tcp hostcache, use it.
 	 * Else, use the link mtu.
 	 */
-	if (metrics.hc_mtu)
-		mss = min(metrics.hc_mtu, maxmtu) - min_protoh;
+	if (metricptr->hc_mtu)
+		mss = min(metricptr->hc_mtu, maxmtu) - min_protoh;
 	else {
 #ifdef INET6
 		if (isipv6) {
