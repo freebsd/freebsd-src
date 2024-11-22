@@ -8383,66 +8383,68 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
     struct pf_krule *r, struct ifnet *ifp, struct sockaddr *sa,
     struct mbuf **m0)
 {
+	struct ip_fw_args dnflow;
+
 	NET_EPOCH_ASSERT();
 
-	if (pd->act.dnpipe || pd->act.dnrpipe) {
-		struct ip_fw_args dnflow;
-		if (ip_dn_io_ptr == NULL) {
-			m_freem(*m0);
-			*m0 = NULL;
-			return (ENOMEM);
+	if (pd->act.dnpipe == 0 && pd->act.dnrpipe == 0)
+		return (0);
+
+	if (ip_dn_io_ptr == NULL) {
+		m_freem(*m0);
+		*m0 = NULL;
+		return (ENOMEM);
+	}
+
+	if (pd->pf_mtag == NULL &&
+	    ((pd->pf_mtag = pf_get_mtag(*m0)) == NULL)) {
+		m_freem(*m0);
+		*m0 = NULL;
+		return (ENOMEM);
+	}
+
+	if (ifp != NULL) {
+		pd->pf_mtag->flags |= PF_MTAG_FLAG_ROUTE_TO;
+
+		pd->pf_mtag->if_index = ifp->if_index;
+		pd->pf_mtag->if_idxgen = ifp->if_idxgen;
+
+		MPASS(sa != NULL);
+
+		switch (pd->af) {
+		case AF_INET:
+			memcpy(&pd->pf_mtag->dst, sa,
+			    sizeof(struct sockaddr_in));
+			break;
+		case AF_INET6:
+			memcpy(&pd->pf_mtag->dst, sa,
+			    sizeof(struct sockaddr_in6));
+			break;
 		}
+	}
 
-		if (pd->pf_mtag == NULL &&
-		    ((pd->pf_mtag = pf_get_mtag(*m0)) == NULL)) {
-			m_freem(*m0);
-			*m0 = NULL;
-			return (ENOMEM);
-		}
-
-		if (ifp != NULL) {
-			pd->pf_mtag->flags |= PF_MTAG_FLAG_ROUTE_TO;
-
-			pd->pf_mtag->if_index = ifp->if_index;
-			pd->pf_mtag->if_idxgen = ifp->if_idxgen;
-
-			MPASS(sa != NULL);
-
-			switch (pd->af) {
-			case AF_INET:
-				memcpy(&pd->pf_mtag->dst, sa,
-				    sizeof(struct sockaddr_in));
-				break;
-			case AF_INET6:
-				memcpy(&pd->pf_mtag->dst, sa,
-				    sizeof(struct sockaddr_in6));
-				break;
-			}
-		}
-
-		if (s != NULL && s->nat_rule != NULL &&
-		    s->nat_rule->action == PF_RDR &&
-		    (
+	if (s != NULL && s->nat_rule != NULL &&
+	    s->nat_rule->action == PF_RDR &&
+	    (
 #ifdef INET
-		    (pd->af == AF_INET && IN_LOOPBACK(ntohl(pd->dst->v4.s_addr))) ||
+	    (pd->af == AF_INET && IN_LOOPBACK(ntohl(pd->dst->v4.s_addr))) ||
 #endif
-		    (pd->af == AF_INET6 && IN6_IS_ADDR_LOOPBACK(&pd->dst->v6)))) {
-			/*
-			 * If we're redirecting to loopback mark this packet
-			 * as being local. Otherwise it might get dropped
-			 * if dummynet re-injects.
-			 */
-			(*m0)->m_pkthdr.rcvif = V_loif;
-		}
+	    (pd->af == AF_INET6 && IN6_IS_ADDR_LOOPBACK(&pd->dst->v6)))) {
+		/*
+		 * If we're redirecting to loopback mark this packet
+		 * as being local. Otherwise it might get dropped
+		 * if dummynet re-injects.
+		 */
+		(*m0)->m_pkthdr.rcvif = V_loif;
+	}
 
-		if (pf_pdesc_to_dnflow(pd, r, s, &dnflow)) {
-			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNET;
-			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNETED;
-			ip_dn_io_ptr(m0, &dnflow);
-			if (*m0 != NULL) {
-				pd->pf_mtag->flags &= ~PF_MTAG_FLAG_ROUTE_TO;
-				pf_dummynet_flag_remove(*m0, pd->pf_mtag);
-			}
+	if (pf_pdesc_to_dnflow(pd, r, s, &dnflow)) {
+		pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNET;
+		pd->pf_mtag->flags |= PF_MTAG_FLAG_DUMMYNETED;
+		ip_dn_io_ptr(m0, &dnflow);
+		if (*m0 != NULL) {
+			pd->pf_mtag->flags &= ~PF_MTAG_FLAG_ROUTE_TO;
+			pf_dummynet_flag_remove(*m0, pd->pf_mtag);
 		}
 	}
 
