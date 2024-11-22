@@ -2343,9 +2343,8 @@ ffs_copyonwrite(struct vnode *devvp, struct buf *bp)
 		    TAILQ_EMPTY(&sn->sn_head)) {
 			VI_UNLOCK(devvp);
 			if (saved_runningbufspace != 0) {
-				bp->b_runningbufspace = saved_runningbufspace;
-				atomic_add_long(&runningbufspace,
-					       bp->b_runningbufspace);
+				(void)runningbufclaim(bp,
+				    saved_runningbufspace);
 			}
 			return (0);		/* Snapshot gone */
 		}
@@ -2479,10 +2478,8 @@ ffs_copyonwrite(struct vnode *devvp, struct buf *bp)
 	/*
 	 * I/O on bp will now be started, so count it in runningbufspace.
 	 */
-	if (saved_runningbufspace != 0) {
-		bp->b_runningbufspace = saved_runningbufspace;
-		atomic_add_long(&runningbufspace, bp->b_runningbufspace);
-	}
+	if (saved_runningbufspace != 0)
+		(void)runningbufclaim(bp, saved_runningbufspace);
 	return (error);
 }
 

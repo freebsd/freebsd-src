@@ -717,8 +717,7 @@ vnode_pager_input_smlfs(vm_object_t object, vm_page_t m)
 			bp->b_vp = vp;
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
-			bp->b_runningbufspace = bp->b_bufsize;
-			atomic_add_long(&runningbufspace, bp->b_runningbufspace);
+			(void)runningbufclaim(bp, bp->b_bufsize);
 
 			/* do the input */
 			bp->b_iooffset = dbtob(bp->b_blkno);
@@ -1160,7 +1159,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	bp->b_wcred = crhold(curthread->td_ucred);
 	pbgetbo(bo, bp);
 	bp->b_vp = vp;
-	bp->b_bcount = bp->b_bufsize = bp->b_runningbufspace = bytecount;
+	bp->b_bcount = bp->b_bufsize = bytecount;
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	KASSERT(IDX_TO_OFF(m[0]->pindex - bp->b_pages[0]->pindex) ==
 	    (blkno0 - bp->b_blkno) * DEV_BSIZE +
@@ -1170,7 +1169,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	    (uintmax_t)m[0]->pindex, (uintmax_t)bp->b_pages[0]->pindex,
 	    (uintmax_t)blkno0, (uintmax_t)bp->b_blkno));
 
-	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
+	(void)runningbufclaim(bp, bp->b_bufsize);
+
 	VM_CNT_INC(v_vnodein);
 	VM_CNT_ADD(v_vnodepgsin, bp->b_npages);
 
