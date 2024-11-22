@@ -444,7 +444,7 @@ gicv3_its_table_page_size(struct gicv3_its_softc *sc, int table)
 	reg = gic_its_read_8(sc, GITS_BASER(table));
 
 	while (1) {
-		reg &= GITS_BASER_PSZ_MASK;
+		reg &= ~GITS_BASER_PSZ_MASK;
 		switch (page_size) {
 		case PAGE_SIZE_4K:	/* 4KB */
 			reg |= GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
