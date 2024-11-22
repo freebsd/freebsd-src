@@ -323,7 +323,7 @@ efi_leave(void)
 	pmap_t curpmap;
 
 	td = curthread;
-	MPASS((td->td_pflags2 & TDP2_EFIRT) == 0);
+	MPASS((td->td_pflags2 & TDP2_EFIRT) != 0);
 	td->td_pflags2 &= ~TDP2_EFIRT;
 
 	efi_arch_leave();
