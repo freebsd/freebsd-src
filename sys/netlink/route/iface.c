@@ -1427,7 +1427,7 @@ rtnl_handle_ifdetach(void *arg, if_t ifp)
 }
 
 static void
-rtnl_handle_iflink(void *arg, if_t ifp)
+rtnl_handle_iflink(void *arg, if_t ifp, int link_state __unused)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
