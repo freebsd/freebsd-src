@@ -1,4 +1,6 @@
-.\"-
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2020 Rubicon Communications, LLC (Netgate)
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,12 +24,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2020
+.Dd November 22, 2024
 .Dt SAFEXCEL 4
 .Os
 .Sh NAME
 .Nm safexcel
-.Nd Inside Secure SafeXcel-IP-97 security packet engine
+.Nd Inside Secure SafeXcel-IP-97 cryptographic offload engine
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -69,6 +71,11 @@ AES-CCM
 .Nm
 also implements SHA1 and SHA2 transforms, and can combine AES-CBC and AES-CTR
 with SHA1-HMAC and SHA2-HMAC for encrypt-then-authenticate operations.
+.Sh HARDWARE
+The
+.Nm
+driver supports the cryptographic acceleration functions of the
+Inside Secure EIP-97 device found on some Marvell systems-on-chip.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
