@@ -1762,6 +1762,13 @@ struct pf_divert {
 #define PFFRAG_FRENT_HIWAT	5000	/* Number of fragment entries */
 #define PFR_KENTRY_HIWAT	200000	/* Number of table entries */
 
+struct pf_fragment_tag {
+	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
+	uint16_t	ft_extoff;	/* last extension header offset or 0 */
+	uint16_t	ft_maxlen;	/* maximum fragment payload length */
+	uint32_t	ft_id;		/* fragment id */
+};
+
 /*
  * Limit the length of the fragment queue traversal.  Remember
  * search entry points based on the fragment offset.
