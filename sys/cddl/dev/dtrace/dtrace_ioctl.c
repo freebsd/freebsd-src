@@ -229,7 +229,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		    "DTRACEIOC_AGGSNAP":"DTRACEIOC_BUFSNAP",
 		    curcpu, desc.dtbd_cpu);
 
-		if (desc.dtbd_cpu >= MAXCPU || CPU_ABSENT(desc.dtbd_cpu))
+		if (desc.dtbd_cpu > mp_maxid || CPU_ABSENT(desc.dtbd_cpu))
 			return (ENOENT);
 
 		mutex_enter(&dtrace_lock);
