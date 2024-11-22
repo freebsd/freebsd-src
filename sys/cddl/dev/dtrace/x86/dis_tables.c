@@ -3720,8 +3720,8 @@ dtrace_disx86(dis86_t *x, uint_t cpu_mode)
 	x->d86_len = 0;
 	x->d86_rmindex = -1;
 	x->d86_error = 0;
-#ifdef DIS_TEXT
 	x->d86_numopnds = 0;
+#ifdef DIS_TEXT
 	x->d86_seg_prefix = NULL;
 	x->d86_mnem[0] = 0;
 	for (i = 0; i < 4; ++i) {
@@ -4860,6 +4860,7 @@ mm_shift:
 		dtrace_rex_adjust(rex_prefix, mode, NULL, &r_m);
 		dtrace_get_operand(x, mode, r_m, LONG_OPND, vbit);
 		dtrace_get_operand(x, REG_ONLY, reg, SEG_OPND, 1 - vbit);
+		wbit = SEG_OPND;
 		break;
 
 	/*
@@ -5787,6 +5788,7 @@ xmmprm:
 #endif
 			dtrace_rex_adjust(rex_prefix, mode, &reg, &r_m);
 			dtrace_get_operand(x, mode, r_m, BYTE_OPND, 0);
+			wbit = LONG_OPND;
 		}
 		break;
 
@@ -6442,7 +6444,7 @@ done:
 		else
 			x->d86_memsize = dp->it_size;
 
-	} else if (wbit == 0) {
+	} else if (wbit == BYTE_OPND) {
 		x->d86_memsize = 1;
 
 	} else if (wbit == LONG_OPND) {
