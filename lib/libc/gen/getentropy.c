@@ -31,6 +31,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <unistd.h>
 #include <ssp/ssp.h>
 
 #include "libc_private.h"
