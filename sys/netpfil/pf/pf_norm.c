@@ -103,13 +103,6 @@ struct pf_fragment {
 	TAILQ_HEAD(pf_fragq, pf_frent) fr_queue;
 };
 
-struct pf_fragment_tag {
-	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
-	uint16_t	ft_extoff;	/* last extension header offset or 0 */
-	uint16_t	ft_maxlen;	/* maximum fragment payload length */
-	uint32_t	ft_id;		/* fragment id */
-};
-
 VNET_DEFINE_STATIC(struct mtx, pf_frag_mtx);
 #define V_pf_frag_mtx		VNET(pf_frag_mtx)
 #define PF_FRAG_LOCK()		mtx_lock(&V_pf_frag_mtx)
@@ -750,8 +743,12 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 	struct ip		*ip = mtod(m, struct ip *);
 	struct pf_frent		*frent;
 	struct pf_fragment	*frag;
+	struct m_tag		*mtag;
+	struct pf_fragment_tag	*ftag;
 	struct pf_fragment_cmp	key;
 	uint16_t		total, hdrlen;
+	uint32_t		 frag_id;
+	uint16_t		 maxlen;
 
 	/* Get an entry for the fragment queue */
 	if ((frent = pf_create_fragment(reason)) == NULL)
@@ -784,6 +781,8 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 		TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_len;
 	hdrlen = frent->fe_hdrlen;
 
+	maxlen = frag->fr_maxlen;
+	frag_id = frag->fr_id;
 	m = *m0 = pf_join_fragment(frag);
 	frag = NULL;
 
@@ -794,6 +793,19 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 		m = *m0;
 		m->m_pkthdr.len = plen;
 	}
+
+	if ((mtag = m_tag_get(PACKET_TAG_PF_REASSEMBLED,
+	    sizeof(struct pf_fragment_tag), M_NOWAIT)) == NULL) {
+		REASON_SET(reason, PFRES_SHORT);
+		/* PF_DROP requires a valid mbuf *m0 in pf_test() */
+		return (PF_DROP);
+	}
+	ftag = (struct pf_fragment_tag *)(mtag + 1);
+	ftag->ft_hdrlen = hdrlen;
+	ftag->ft_extoff = 0;
+	ftag->ft_maxlen = maxlen;
+	ftag->ft_id = frag_id;
+	m_tag_prepend(m, mtag);
 
 	ip = mtod(m, struct ip *);
 	ip->ip_sum = pf_cksum_fixup(ip->ip_sum, ip->ip_len,

@@ -3440,6 +3440,8 @@ pf_translate_af(struct pf_pdesc *pd)
 	struct ip		*ip4;
 	struct ip6_hdr		*ip6;
 	struct icmp6_hdr	*icmp;
+	struct m_tag		*mtag;
+	struct pf_fragment_tag	*ftag;
 	int			 hlen;
 
 	hlen = pd->naf == AF_INET ? sizeof(*ip4) : sizeof(*ip6);
@@ -3460,7 +3462,6 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip4->ip_hl = hlen >> 2;
 		ip4->ip_len = htons(hlen + (pd->tot_len - pd->off));
 		ip_fillid(ip4);
-		ip4->ip_off = htons(IP_DF);
 		ip4->ip_ttl = pd->ttl;
 		ip4->ip_p = pd->proto;
 		ip4->ip_src = pd->nsaddr.v4;
@@ -3482,6 +3483,19 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip6->ip6_dst = pd->ndaddr.v6;
 		pd->src = (struct pf_addr *)&ip6->ip6_src;
 		pd->dst = (struct pf_addr *)&ip6->ip6_dst;
+
+		/*
+		 * If we're dealing with a reassembled packet we need to adjust
+		 * the header length from the IPv4 header size to IPv6 header
+		 * size.
+		 */
+		mtag = m_tag_find(pd->m, PACKET_TAG_PF_REASSEMBLED, NULL);
+		if (mtag) {
+			ftag = (struct pf_fragment_tag *)(mtag + 1);
+			ftag->ft_hdrlen = sizeof(*ip6);
+			ftag->ft_maxlen -= sizeof(struct ip6_hdr) -
+			    sizeof(struct ip) + sizeof(struct ip6_frag);
+		}
 		break;
 	default:
 		return (-1);
