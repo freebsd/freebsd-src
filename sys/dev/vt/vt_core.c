@@ -132,6 +132,9 @@ static VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 static VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 static VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
 
+/* Slow down and dont rely on timers and interrupts */
+static VT_SYSCTL_INT(slow_down, 0, "Non-zero make console slower and synchronous.");
+
 /* Allow to disable some keyboard combinations. */
 static VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
     "See kbdmap(5) to configure.");
@@ -1657,6 +1660,12 @@ vtterm_done(struct terminal *tm)
 		}
 		vd->vd_flags &= ~VDF_SPLASH;
 		vt_flush(vd);
+	} else if (vt_slow_down > 0) {
+		int i, j;
+		for (i = 0; i < vt_slow_down; i++) {
+			for (j = 0; j < 1000; j++)
+				vt_flush(vd);
+		}
 	} else if (!(vd->vd_flags & VDF_ASYNC)) {
 		vt_flush(vd);
 	}
