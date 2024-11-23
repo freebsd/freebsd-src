@@ -217,28 +217,31 @@ max_src_states_rule_body()
 	# 2 connections from host ::1 matching rule_A will be allowed, 1 will fail to create a state.
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4211 --fromaddr 2001:db8:44::1
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4212 --fromaddr 2001:db8:44::1
-	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4213 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4213 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4214 --fromaddr 2001:db8:44::1
 
 	# 2 connections from host ::1 matching rule_B will be allowed, 1 will fail to create a state.
 	# Limits from rule_A don't interfere with rule_B.
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4221 --fromaddr 2001:db8:44::1
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4222 --fromaddr 2001:db8:44::1
-	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4223 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4223 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4224 --fromaddr 2001:db8:44::1
 
 	# 2 connections from host ::2 matching rule_B will be allowed, 1 will fail to create a state.
 	# Limits for host ::1 will not interfere with host ::2.
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4224 --fromaddr 2001:db8:44::2
 	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4225 --fromaddr 2001:db8:44::2
-	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4226 --fromaddr 2001:db8:44::2
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4226 --fromaddr 2001:db8:44::2
+	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4227 --fromaddr 2001:db8:44::2
 
 	# We will check the resulting source nodes, though.
 	# Order of source nodes in output is not guaranteed, find each one separately.
 	nodes=$(mktemp) || exit 1
 	jexec router pfctl -qvsS | normalize_pfctl_s > $nodes
 	for node_regexp in \
-		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 3$' \
-		'2001:db8:44::1 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4$' \
-		'2001:db8:44::2 -> :: \( states 2, connections 2, rate [0-9/\.]+s \) age [0-9:]+, 6 pkts, [0-9]+ bytes, filter rule 4$' \
+		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 3$' \
+		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4$' \
+		'2001:db8:44::2 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4$' \
 	; do
 		grep -qE "$node_regexp" $nodes || atf_fail "Source nodes not matching expected output"
 	done

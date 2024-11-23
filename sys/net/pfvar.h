@@ -2334,6 +2334,9 @@ extern int			 pf_udp_mapping_insert(struct pf_udp_mapping
 				    *mapping);
 extern void			 pf_udp_mapping_release(struct pf_udp_mapping
 				    *mapping);
+uint32_t			 pf_hashsrc(struct pf_addr *, sa_family_t);
+extern bool			 pf_src_node_exists(struct pf_ksrc_node **,
+				    struct pf_srchash *);
 extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_krule *, sa_family_t,
 				    struct pf_srchash **, bool);
@@ -2622,10 +2625,9 @@ u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_ksrc_node **);
+			    struct pf_ksrc_node **, struct pf_srchash **);
 u_short			 pf_get_translation(struct pf_pdesc *,
-			    int, struct pf_ksrc_node **,
-			    struct pf_state_key **, struct pf_state_key **,
+			    int, struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
 			    uint16_t, uint16_t, struct pf_kanchor_stackframe *,
 			    struct pf_krule **,
