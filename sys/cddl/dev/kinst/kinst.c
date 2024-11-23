@@ -133,6 +133,13 @@ kinst_excluded(const char *name)
 		return (true);
 
 	/*
+	 * The KMSAN runtime can't be instrumented safely.
+	 */
+	if (strncmp(name, "__msan", 6) == 0 ||
+	    strncmp(name, "kmsan_", 6) == 0)
+		return (1);
+
+	/*
 	 * When DTrace is built into the kernel we need to exclude the kinst
 	 * functions from instrumentation.
 	 */
