@@ -84,7 +84,7 @@ struct mlx5e_tls {
 	struct workqueue_struct *wq;
 	uma_zone_t zone;
 	uint32_t max_resources;		/* max number of resources */
-	volatile uint32_t num_resources;	/* current number of resources */
+	int zone_max;
 	int init;			/* set when ready */
 	char zname[32];
 };
