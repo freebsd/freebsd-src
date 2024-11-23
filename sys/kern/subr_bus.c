@@ -2591,7 +2591,13 @@ device_attach(device_t dev)
 	int error;
 
 	if (resource_disabled(dev->driver->name, dev->unit)) {
+		/*
+		 * Mostly detach the device, but leave it attached to
+		 * the devclass to reserve the name and unit.
+		 */
 		device_disable(dev);
+		(void)device_set_driver(dev, NULL);
+		dev->state = DS_NOTPRESENT;
 		if (bootverbose)
 			 device_printf(dev, "disabled via hints entry\n");
 		return (ENXIO);
@@ -5759,17 +5765,20 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 * attach the device rather than doing a full probe.
 		 */
 		device_enable(dev);
-		if (device_is_alive(dev)) {
+		if (dev->devclass != NULL) {
 			/*
 			 * If the device was disabled via a hint, clear
 			 * the hint.
 			 */
-			if (resource_disabled(dev->driver->name, dev->unit))
-				resource_unset_value(dev->driver->name,
+			if (resource_disabled(dev->devclass->name, dev->unit))
+				resource_unset_value(dev->devclass->name,
 				    dev->unit, "disabled");
-			error = device_attach(dev);
-		} else
-			error = device_probe_and_attach(dev);
+
+			/* Allow any drivers to rebid. */
+			if (!(dev->flags & DF_FIXEDCLASS))
+				devclass_delete_device(dev->devclass, dev);
+		}
+		error = device_probe_and_attach(dev);
 		break;
 	case DEV_DISABLE:
 		if (!device_is_enabled(dev)) {
