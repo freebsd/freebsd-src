@@ -69,7 +69,7 @@ static struct pf_krule	*pf_match_translation(struct pf_pdesc *,
 			    struct pf_kanchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
-    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **,
+    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **, struct pf_srchash**,
     struct pf_udp_mapping **);
 static bool		 pf_islinklocal(const sa_family_t, const struct pf_addr *);
 
@@ -225,12 +225,11 @@ static int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
-    uint16_t high, struct pf_ksrc_node **sn,
+    uint16_t high, struct pf_ksrc_node **sn, struct pf_srchash **sh,
     struct pf_udp_mapping **udp_mapping)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
-	struct pf_srchash	*sh = NULL;
 
 	bzero(&init_addr, sizeof(init_addr));
 
@@ -255,7 +254,9 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			/* Try to find a src_node as per pf_map_addr(). */
 			if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
 			    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
-				*sn = pf_find_src_node(saddr, r, af, &sh, 0);
+				*sn = pf_find_src_node(saddr, r, af, sh, false);
+			if (*sn != NULL)
+				PF_SRC_NODE_UNLOCK(*sn);
 			return (0);
 		} else {
 			*udp_mapping = pf_udp_mapping_create(af, saddr, sport, &init_addr, 0);
@@ -264,7 +265,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		}
 	}
 
-	if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn))
+	if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn, sh))
 		goto failed;
 
 	if (proto == IPPROTO_ICMP) {
@@ -385,7 +386,8 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 			 * pick a different source address since we're out
 			 * of free port choices for the current one.
 			 */
-			if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn))
+			(*sn) = NULL;
+			if (pf_map_addr_sn(af, r, saddr, naddr, NULL, &init_addr, sn, sh))
 				return (1);
 			break;
 		case PF_POOL_NONE:
@@ -414,7 +416,8 @@ static int
 pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport,
-    struct pf_ksrc_node **sn, struct pf_udp_mapping **udp_mapping)
+    struct pf_ksrc_node **sn, struct pf_srchash **sh,
+    struct pf_udp_mapping **udp_mapping)
 {
 	uint16_t psmask, low, highmask;
 	uint16_t i, ahigh, cut;
@@ -434,13 +437,13 @@ pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	for (i = cut; i <= ahigh; i++) {
 		low = (i << ashift) | psmask;
 		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
-		    naddr, nport, low, low | highmask, sn, udp_mapping))
+		    naddr, nport, low, low | highmask, sn, sh, udp_mapping))
 			return (0);
 	}
 	for (i = cut - 1; i > 0; i--) {
 		low = (i << ashift) | psmask;
 		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
-		    naddr, nport, low, low | highmask, sn, udp_mapping))
+		    naddr, nport, low, low | highmask, sn, sh, udp_mapping))
 			return (0);
 	}
 	return (1);
@@ -623,23 +626,31 @@ done_pool_mtx:
 u_short
 pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pfi_kkif **nkif, struct pf_addr *init_addr,
-    struct pf_ksrc_node **sn)
+    struct pf_ksrc_node **sn, struct pf_srchash **sh)
 {
 	u_short			 reason = 0;
 	struct pf_kpool		*rpool = &r->rpool;
-	struct pf_srchash	*sh = NULL;
 
-	/* Try to find a src_node if none was given and this
-	   is a sticky-address rule. */
-	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
-	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
-		*sn = pf_find_src_node(saddr, r, af, &sh, false);
+	/*
+	 * Try to find a src_node if none was given and this is
+	 * a sticky-address rule. Request the sh to be unlocked if
+	 * sn was not found, as here we never insert a new sn.
+	 */
+	if (*sn == NULL) {
+		if (r->rpool.opts & PF_POOL_STICKYADDR &&
+		    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+			*sn = pf_find_src_node(saddr, r, af, sh, false);
+	} else {
+		pf_src_node_exists(sn, *sh);
+	}
 
 	/* If a src_node was found or explicitly given and it has a non-zero
 	   route address, use this address. A zeroed address is found if the
 	   src node was created just a moment ago in pf_create_state and it
 	   needs to be filled in with routing decision calculated here. */
 	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+		PF_SRC_NODE_LOCK_ASSERT(*sn);
+
 		/* If the supplied address is the same as the current one we've
 		 * been asked before, so tell the caller that there's no other
 		 * address to be had. */
@@ -673,6 +684,8 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	}
 
 	if (*sn != NULL) {
+		PF_SRC_NODE_LOCK_ASSERT(*sn);
+
 		PF_ACPY(&(*sn)->raddr, naddr, af);
 		if (nkif)
 			(*sn)->rkif = *nkif;
@@ -688,6 +701,9 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	}
 
 done:
+	if ((*sn) != NULL)
+		PF_SRC_NODE_UNLOCK(*sn);
+
 	if (reason) {
 		counter_u64_add(V_pf_status.counters[reason], 1);
 	}
@@ -697,14 +713,15 @@ done:
 
 u_short
 pf_get_translation(struct pf_pdesc *pd, int off,
-    struct pf_ksrc_node **sn, struct pf_state_key **skp,
-    struct pf_state_key **nkp, struct pf_addr *saddr, struct pf_addr *daddr,
-    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack,
-    struct pf_krule **rp,
+    struct pf_state_key **skp, struct pf_state_key **nkp, struct pf_addr *saddr,
+    struct pf_addr *daddr, uint16_t sport, uint16_t dport,
+    struct pf_kanchor_stackframe *anchor_stack, struct pf_krule **rp,
     struct pf_udp_mapping **udp_mapping)
 {
 	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
+	struct pf_ksrc_node	*sn = NULL;
+	struct pf_srchash	*sh = NULL;
 	uint16_t	*nportp;
 	uint16_t	 low, high;
 	u_short		 reason;
@@ -765,7 +782,8 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 		}
 		if (r->rpool.mape.offset > 0) {
 			if (pf_get_mape_sport(pd->af, pd->proto, r, saddr,
-			    sport, daddr, dport, naddr, nportp, sn, udp_mapping)) {
+			    sport, daddr, dport, naddr, nportp, &sn, &sh,
+			    udp_mapping)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: MAP-E port allocation (%u/%u/%u)"
 				    " failed\n",
@@ -776,7 +794,8 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
-		    daddr, dport, naddr, nportp, low, high, sn, udp_mapping)) {
+		    daddr, dport, naddr, nportp, low, high, &sn, &sh,
+		    udp_mapping)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
@@ -863,7 +882,7 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 		int tries;
 		uint16_t cut, low, high, nport;
 
-		reason = pf_map_addr_sn(pd->af, r, saddr, naddr, NULL, NULL, sn);
+		reason = pf_map_addr_sn(pd->af, r, saddr, naddr, NULL, NULL, &sn, &sh);
 		if (reason != 0)
 			goto notrans;
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
@@ -970,7 +989,6 @@ notrans:
 	uma_zfree(V_pf_state_key_z, *nkp);
 	uma_zfree(V_pf_state_key_z, *skp);
 	*skp = *nkp = NULL;
-	*sn = NULL;
 
 	return (reason);
 }
