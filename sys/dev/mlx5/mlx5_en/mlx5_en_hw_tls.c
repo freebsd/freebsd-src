@@ -392,8 +392,7 @@ mlx5e_tls_set_params(void *ctx, const struct tls_session_params *en)
 CTASSERT(MLX5E_TLS_ST_INIT == 0);
 
 int
-mlx5e_tls_snd_tag_alloc(if_t ifp,
-    union if_snd_tag_alloc_params *params,
+mlx5e_tls_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
 {
 	union if_snd_tag_alloc_params rl_params;
