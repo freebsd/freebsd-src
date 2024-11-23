@@ -172,7 +172,6 @@ static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(vm_page_t m, uint8_t queue);
 static bool vm_page_free_prep(vm_page_t m);
 static void vm_page_free_toq(vm_page_t m);
-static void vm_page_free_toq_impl(vm_page_t m, bool do_remove);
 static void vm_page_init(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
