@@ -4082,7 +4082,19 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	va = sva;
 	while (count-- > 0) {
+		/*
+		 * pmap_enter() calls within the kernel virtual
+		 * address space happen on virtual addresses from
+		 * subarenas that import superpage-sized and -aligned
+		 * address ranges.  So, the virtual address that we
+		 * allocate to use with pmap_qenter() can't be close
+		 * enough to one of those pmap_enter() calls for it to
+		 * be caught up in a promotion.
+		 */
 		KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", va));
+		KASSERT((*vtopde(va) & X86_PG_PS) == 0,
+		    ("pmap_qremove on promoted va %#lx", va));
+
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
