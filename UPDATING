@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20241124:
+	The OpenBSD derived bc and dc implementations and the WITHOUT_GH_BC
+	option that allowed building them instead of the advanced version
+	imported more than 4 years ago have been removed.
+
 20241025:
 	The support for the rc_fast_and_loose variable has been removed from
 	rc.subr(8). Users setting rc_fast_and_loose on their systems are

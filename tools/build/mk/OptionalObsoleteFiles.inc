@@ -2071,14 +2071,6 @@ OLD_FILES+=usr/share/man/man8/strfile.8.gz
 OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
-.if ${MK_GH_BC} == no
-OLD_FILES+=usr/share/misc/bc.library
-OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
-OLD_FILES+=usr/tests/usr.bin/dc/bcode
-OLD_FILES+=usr/tests/usr.bin/dc/inout
-OLD_DIRS+=usr/tests/usr.bin/dc
-.endif
-
 .if ${MK_GOOGLETEST} == no
 OLD_FILES+=usr/include/private/gmock/gmock-actions.h
 OLD_FILES+=usr/include/private/gmock/gmock-cardinalities.h
