@@ -372,7 +372,7 @@ static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
 			    bool, u_int8_t);
 static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
 			    const struct pf_state_key_cmp *, u_int);
-static int		 pf_src_connlimit(struct pf_kstate **);
+static int		 pf_src_connlimit(struct pf_kstate *);
 static int		 pf_match_rcvif(struct mbuf *, struct pf_krule *);
 static void		 pf_counters_inc(int, struct pf_pdesc *,
 			    struct pf_kstate *, struct pf_krule *,
@@ -813,30 +813,30 @@ pf_check_threshold(struct pf_threshold *threshold)
 }
 
 static int
-pf_src_connlimit(struct pf_kstate **state)
+pf_src_connlimit(struct pf_kstate *state)
 {
 	struct pf_overload_entry *pfoe;
 	int bad = 0;
 
-	PF_STATE_LOCK_ASSERT(*state);
+	PF_STATE_LOCK_ASSERT(state);
 	/*
 	 * XXXKS: The src node is accessed unlocked!
-	 * PF_SRC_NODE_LOCK_ASSERT((*state)->src_node);
+	 * PF_SRC_NODE_LOCK_ASSERT(state->src_node);
 	 */
 
-	(*state)->src_node->conn++;
-	(*state)->src.tcp_est = 1;
-	pf_add_threshold(&(*state)->src_node->conn_rate);
+	state->src_node->conn++;
+	state->src.tcp_est = 1;
+	pf_add_threshold(&state->src_node->conn_rate);
 
-	if ((*state)->rule->max_src_conn &&
-	    (*state)->rule->max_src_conn <
-	    (*state)->src_node->conn) {
+	if (state->rule->max_src_conn &&
+	    state->rule->max_src_conn <
+	    state->src_node->conn) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONN], 1);
 		bad++;
 	}
 
-	if ((*state)->rule->max_src_conn_rate.limit &&
-	    pf_check_threshold(&(*state)->src_node->conn_rate)) {
+	if (state->rule->max_src_conn_rate.limit &&
+	    pf_check_threshold(&state->src_node->conn_rate)) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONNRATE], 1);
 		bad++;
 	}
@@ -845,10 +845,10 @@ pf_src_connlimit(struct pf_kstate **state)
 		return (0);
 
 	/* Kill this state. */
-	(*state)->timeout = PFTM_PURGE;
-	pf_set_protostate(*state, PF_PEER_BOTH, TCPS_CLOSED);
+	state->timeout = PFTM_PURGE;
+	pf_set_protostate(state, PF_PEER_BOTH, TCPS_CLOSED);
 
-	if ((*state)->rule->overload_tbl == NULL)
+	if (state->rule->overload_tbl == NULL)
 		return (1);
 
 	/* Schedule overloading and flushing task. */
@@ -856,10 +856,10 @@ pf_src_connlimit(struct pf_kstate **state)
 	if (pfoe == NULL)
 		return (1);	/* too bad :( */
 
-	bcopy(&(*state)->src_node->addr, &pfoe->addr, sizeof(pfoe->addr));
-	pfoe->af = (*state)->key[PF_SK_WIRE]->af;
-	pfoe->rule = (*state)->rule;
-	pfoe->dir = (*state)->direction;
+	bcopy(&state->src_node->addr, &pfoe->addr, sizeof(pfoe->addr));
+	pfoe->af = state->key[PF_SK_WIRE]->af;
+	pfoe->rule = state->rule;
+	pfoe->dir = state->direction;
 	PF_OVERLOADQ_LOCK();
 	SLIST_INSERT_HEAD(&V_pf_overloadqueue, pfoe, next);
 	PF_OVERLOADQ_UNLOCK();
@@ -5811,7 +5811,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pf_pdesc *pd,
 				    TCPS_ESTABLISHED);
 				if (src->state == TCPS_ESTABLISHED &&
 				    (*state)->src_node != NULL &&
-				    pf_src_connlimit(state)) {
+				    pf_src_connlimit(*state)) {
 					REASON_SET(reason, PFRES_SRCLIMIT);
 					return (PF_DROP);
 				}
@@ -5982,7 +5982,7 @@ pf_tcp_track_sloppy(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reas
 			pf_set_protostate(*state, pdst, TCPS_ESTABLISHED);
 			if (src->state == TCPS_ESTABLISHED &&
 			    (*state)->src_node != NULL &&
-			    pf_src_connlimit(state)) {
+			    pf_src_connlimit(*state)) {
 				REASON_SET(reason, PFRES_SRCLIMIT);
 				return (PF_DROP);
 			}
@@ -6000,7 +6000,7 @@ pf_tcp_track_sloppy(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reas
 			    TCPS_ESTABLISHED);
 			dst->state = src->state = TCPS_ESTABLISHED;
 			if ((*state)->src_node != NULL &&
-			    pf_src_connlimit(state)) {
+			    pf_src_connlimit(*state)) {
 				REASON_SET(reason, PFRES_SRCLIMIT);
 				return (PF_DROP);
 			}
@@ -6067,7 +6067,7 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_DROP);
 		} else if ((*state)->src_node != NULL &&
-		    pf_src_connlimit(state)) {
+		    pf_src_connlimit(*state)) {
 			REASON_SET(reason, PFRES_SRCLIMIT);
 			return (PF_DROP);
 		} else
