@@ -545,6 +545,10 @@
         ..
         auditpipe
         ..
+        cam
+            ctl
+            ..
+        ..
         capsicum
         ..
         cddl
@@ -794,10 +798,6 @@
         common
         ..
         compat32
-        ..
-        cam
-            ctl
-            ..
         ..
         devrandom
         ..
