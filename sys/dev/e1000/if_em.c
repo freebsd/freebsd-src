@@ -3156,7 +3156,8 @@ em_reset(if_ctx_t ctx)
 	 * response (Rx) to Ethernet PAUSE frames.
 	 * - High water mark should allow for at least two frames to be
 	 *   received after sending an XOFF.
-	 * - Low water mark works best when it is very near the high water mark
+	 * - Low water mark works best when it is very near the high water
+	     mark.
 	 *   This allows the receiver to restart by sending XON when it has
 	 *   drained a bit. Here we use an arbitrary value of 1500 which will
 	 *   restart after one full frame is pulled from the buffer. There
