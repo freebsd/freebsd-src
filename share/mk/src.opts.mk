@@ -101,7 +101,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GH_BC \
     GNU_DIFF \
     GOOGLETEST \
     GPIO \

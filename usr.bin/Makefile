@@ -207,12 +207,7 @@ SUBDIR.${MK_GAMES}+=	number
 SUBDIR.${MK_GAMES}+=	pom
 SUBDIR.${MK_GAMES}+=	primes
 SUBDIR.${MK_GAMES}+=	random
-.if ${MK_GH_BC} == "yes"
 SUBDIR+=		gh-bc
-.else
-SUBDIR.${MK_OPENSSL}+=	bc
-SUBDIR.${MK_OPENSSL}+=	dc
-.endif
 .if ${MK_GNU_DIFF} == "no"
 SUBDIR+=		diff3
 .endif

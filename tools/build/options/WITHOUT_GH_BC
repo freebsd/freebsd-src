@@ -1,5 +1,0 @@
-Install the traditional FreeBSD
-.Xr bc 1
-and
-.Xr dc 1
-programs instead of the enhanced versions.
