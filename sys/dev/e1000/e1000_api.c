@@ -338,12 +338,12 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_PCH_ADL_I219_V16:
 	case E1000_DEV_ID_PCH_ADL_I219_LM17:
 	case E1000_DEV_ID_PCH_ADL_I219_V17:
+	case E1000_DEV_ID_PCH_ADL_I219_LM19:
+	case E1000_DEV_ID_PCH_ADL_I219_V19:
 		mac->type = e1000_pch_adp;
 		break;
 	case E1000_DEV_ID_PCH_MTP_I219_LM18:
 	case E1000_DEV_ID_PCH_MTP_I219_V18:
-	case E1000_DEV_ID_PCH_MTP_I219_LM19:
-	case E1000_DEV_ID_PCH_MTP_I219_V19:
 		mac->type = e1000_pch_mtp;
 		break;
 	case E1000_DEV_ID_PCH_ARL_I219_LM24:
