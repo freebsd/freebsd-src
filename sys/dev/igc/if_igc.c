@@ -633,7 +633,7 @@ igc_if_attach_pre(if_ctx_t ctx)
 	/* Copy the permanent MAC address out of the EEPROM */
 	if (igc_read_mac_addr(hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
-			      " address\n");
+		    " address\n");
 		error = EIO;
 		goto err_late;
 	}
@@ -773,7 +773,7 @@ igc_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
 
-	 IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
+	IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
 
 	 /* 9K Jumbo Frame size */
 	 max_frame_size = 9234;
@@ -1171,13 +1171,13 @@ igc_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 		break;
 	case 100:
 		ifmr->ifm_active |= IFM_100_TX;
-                break;
+		break;
 	case 1000:
 		ifmr->ifm_active |= IFM_1000_T;
 		break;
 	case 2500:
-                ifmr->ifm_active |= IFM_2500_T;
-                break;
+		ifmr->ifm_active |= IFM_2500_T;
+		break;
 	}
 
 	if (sc->link_duplex == FULL_DUPLEX)
@@ -1211,9 +1211,9 @@ igc_if_media_change(if_ctx_t ctx)
 	case IFM_AUTO:
 		sc->hw.phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 		break;
-        case IFM_2500_T:
-                sc->hw.phy.autoneg_advertised = ADVERTISE_2500_FULL;
-                break;
+	case IFM_2500_T:
+		sc->hw.phy.autoneg_advertised = ADVERTISE_2500_FULL;
+		break;
 	case IFM_1000_T:
 		sc->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
@@ -1297,7 +1297,7 @@ igc_if_multi_set(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	struct ifnet *ifp = iflib_get_ifp(ctx);
-	u8  *mta; /* Multicast array memory */
+	u8 *mta; /* Multicast array memory */
 	u32 reg_rctl = 0;
 	int mcnt = 0;
 
@@ -1316,8 +1316,8 @@ igc_if_multi_set(if_ctx_t ctx)
 		if (igc_debug_sbp)
 			reg_rctl |= IGC_RCTL_SBP;
 	} else if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES ||
-	      if_getflags(ifp) & IFF_ALLMULTI) {
-                reg_rctl |= IGC_RCTL_MPE;
+		    if_getflags(ifp) & IFF_ALLMULTI) {
+		reg_rctl |= IGC_RCTL_MPE;
 		reg_rctl &= ~IGC_RCTL_UPE;
         } else
 		reg_rctl &= ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
@@ -1663,12 +1663,12 @@ igc_setup_msix(if_ctx_t ctx)
 static void
 igc_init_dmac(struct igc_softc *sc, u32 pba)
 {
-	device_t	dev = sc->dev;
+	device_t dev = sc->dev;
 	struct igc_hw *hw = &sc->hw;
-	u32 		dmac, reg = ~IGC_DMACR_DMAC_EN;
-	u16		hwm;
-	u16		max_frame_size;
-	int		status;
+	u32 dmac, reg = ~IGC_DMACR_DMAC_EN;
+	u16 hwm;
+	u16 max_frame_size;
+	int status;
 
 	max_frame_size = sc->shared->isc_max_frame_size;
 
@@ -2138,7 +2138,7 @@ igc_initialize_transmit_unit(if_ctx_t ctx)
 	tctl = IGC_READ_REG(&sc->hw, IGC_TCTL);
 	tctl &= ~IGC_TCTL_CT;
 	tctl |= (IGC_TCTL_PSP | IGC_TCTL_RTLC | IGC_TCTL_EN |
-		   (IGC_COLLISION_THRESHOLD << IGC_CT_SHIFT));
+	    (IGC_COLLISION_THRESHOLD << IGC_CT_SHIFT));
 
 	/* This write will effectively turn on the transmit unit. */
 	IGC_WRITE_REG(&sc->hw, IGC_TCTL, tctl);
@@ -2649,17 +2649,17 @@ igc_add_hw_stats(struct igc_softc *sc)
 
 	/* Driver Statistics */
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped",
-			CTLFLAG_RD, &sc->dropped_pkts,
-			"Driver dropped packets");
+	    CTLFLAG_RD, &sc->dropped_pkts,
+	    "Driver dropped packets");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
-			CTLFLAG_RD, &sc->link_irq,
-			"Link MSI-X IRQ Handled");
+	    CTLFLAG_RD, &sc->link_irq,
+	    "Link MSI-X IRQ Handled");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
-			CTLFLAG_RD, &sc->rx_overruns,
-			"RX overruns");
+	    CTLFLAG_RD, &sc->rx_overruns,
+	    "RX overruns");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
-			CTLFLAG_RD, &sc->watchdog_events,
-			"Watchdog timeouts");
+	    CTLFLAG_RD, &sc->watchdog_events,
+	    "Watchdog timeouts");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
 	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, IGC_CTRL, igc_sysctl_reg_handler, "IU",
@@ -2669,11 +2669,11 @@ igc_add_hw_stats(struct igc_softc *sc)
 	    sc, IGC_RCTL, igc_sysctl_reg_handler, "IU",
 	    "Receiver Control Register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_high_water",
-			CTLFLAG_RD, &sc->hw.fc.high_water, 0,
-			"Flow Control High Watermark");
+	    CTLFLAG_RD, &sc->hw.fc.high_water, 0,
+	    "Flow Control High Watermark");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_low_water",
-			CTLFLAG_RD, &sc->hw.fc.low_water, 0,
-			"Flow Control Low Watermark");
+	    CTLFLAG_RD, &sc->hw.fc.low_water, 0,
+	    "Flow Control Low Watermark");
 
 	for (int i = 0; i < sc->tx_num_queues; i++, tx_que++) {
 		struct tx_ring *txr = &tx_que->txr;
@@ -2695,8 +2695,8 @@ igc_add_hw_stats(struct igc_softc *sc)
 		    IGC_TDT(txr->me), igc_sysctl_reg_handler, "IU",
 		    "Transmit Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
-				CTLFLAG_RD, &txr->tx_irq,
-				"Queue MSI-X Transmit Interrupts");
+		    CTLFLAG_RD, &txr->tx_irq,
+		    "Queue MSI-X Transmit Interrupts");
 	}
 
 	for (int j = 0; j < sc->rx_num_queues; j++, rx_que++) {
@@ -2708,8 +2708,8 @@ igc_add_hw_stats(struct igc_softc *sc)
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
 		    CTLTYPE_UINT | CTLFLAG_RD, rx_que,
-			false, igc_sysctl_interrupt_rate_handler, "IU",
-			"Interrupt Rate");
+		    false, igc_sysctl_interrupt_rate_handler, "IU",
+		    "Interrupt Rate");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
 		    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc,
 		    IGC_RDH(rxr->me), igc_sysctl_reg_handler, "IU",
@@ -2719,8 +2719,8 @@ igc_add_hw_stats(struct igc_softc *sc)
 		    IGC_RDT(rxr->me), igc_sysctl_reg_handler, "IU",
 		    "Receive Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",
-				CTLFLAG_RD, &rxr->rx_irq,
-				"Queue MSI-X Receive Interrupts");
+		    CTLFLAG_RD, &rxr->rx_irq,
+		    "Queue MSI-X Receive Interrupts");
 	}
 
 	/* MAC stats get their own sub node */
@@ -2730,156 +2730,156 @@ igc_add_hw_stats(struct igc_softc *sc)
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "excess_coll",
-			CTLFLAG_RD, &stats->ecol,
-			"Excessive collisions");
+	    CTLFLAG_RD, &stats->ecol,
+	    "Excessive collisions");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "single_coll",
-			CTLFLAG_RD, &stats->scc,
-			"Single collisions");
+	    CTLFLAG_RD, &stats->scc,
+	    "Single collisions");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "multiple_coll",
-			CTLFLAG_RD, &stats->mcc,
-			"Multiple collisions");
+	    CTLFLAG_RD, &stats->mcc,
+	    "Multiple collisions");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "late_coll",
-			CTLFLAG_RD, &stats->latecol,
-			"Late collisions");
+	    CTLFLAG_RD, &stats->latecol,
+	    "Late collisions");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "collision_count",
-			CTLFLAG_RD, &stats->colc,
-			"Collision Count");
+	    CTLFLAG_RD, &stats->colc,
+	    "Collision Count");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "symbol_errors",
-			CTLFLAG_RD, &sc->stats.symerrs,
-			"Symbol Errors");
+	    CTLFLAG_RD, &sc->stats.symerrs,
+	    "Symbol Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "sequence_errors",
-			CTLFLAG_RD, &sc->stats.sec,
-			"Sequence Errors");
+	    CTLFLAG_RD, &sc->stats.sec,
+	    "Sequence Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "defer_count",
-			CTLFLAG_RD, &sc->stats.dc,
-			"Defer Count");
+	    CTLFLAG_RD, &sc->stats.dc,
+	    "Defer Count");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "missed_packets",
-			CTLFLAG_RD, &sc->stats.mpc,
-			"Missed Packets");
+	    CTLFLAG_RD, &sc->stats.mpc,
+	    "Missed Packets");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_length_errors",
-			CTLFLAG_RD, &sc->stats.rlec,
-			"Receive Length Errors");
+	    CTLFLAG_RD, &sc->stats.rlec,
+	    "Receive Length Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_no_buff",
-			CTLFLAG_RD, &sc->stats.rnbc,
-			"Receive No Buffers");
+	    CTLFLAG_RD, &sc->stats.rnbc,
+	    "Receive No Buffers");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_undersize",
-			CTLFLAG_RD, &sc->stats.ruc,
-			"Receive Undersize");
+	    CTLFLAG_RD, &sc->stats.ruc,
+	    "Receive Undersize");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
-			CTLFLAG_RD, &sc->stats.rfc,
-			"Fragmented Packets Received ");
+	    CTLFLAG_RD, &sc->stats.rfc,
+	    "Fragmented Packets Received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_oversize",
-			CTLFLAG_RD, &sc->stats.roc,
-			"Oversized Packets Received");
+	    CTLFLAG_RD, &sc->stats.roc,
+	    "Oversized Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_jabber",
-			CTLFLAG_RD, &sc->stats.rjc,
-			"Recevied Jabber");
+	    CTLFLAG_RD, &sc->stats.rjc,
+	    "Recevied Jabber");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
-			CTLFLAG_RD, &sc->stats.rxerrc,
-			"Receive Errors");
+	    CTLFLAG_RD, &sc->stats.rxerrc,
+	    "Receive Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
-			CTLFLAG_RD, &sc->stats.crcerrs,
-			"CRC errors");
+	    CTLFLAG_RD, &sc->stats.crcerrs,
+	    "CRC errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "alignment_errs",
-			CTLFLAG_RD, &sc->stats.algnerrc,
-			"Alignment Errors");
+	    CTLFLAG_RD, &sc->stats.algnerrc,
+	    "Alignment Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
-			CTLFLAG_RD, &sc->stats.xonrxc,
-			"XON Received");
+	    CTLFLAG_RD, &sc->stats.xonrxc,
+	    "XON Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_txd",
-			CTLFLAG_RD, &sc->stats.xontxc,
-			"XON Transmitted");
+	    CTLFLAG_RD, &sc->stats.xontxc,
+	    "XON Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_recvd",
-			CTLFLAG_RD, &sc->stats.xoffrxc,
-			"XOFF Received");
+	    CTLFLAG_RD, &sc->stats.xoffrxc,
+	    "XOFF Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
-			CTLFLAG_RD, &sc->stats.xofftxc,
-			"XOFF Transmitted");
+	    CTLFLAG_RD, &sc->stats.xofftxc,
+	    "XOFF Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "unsupported_fc_recvd",
-			CTLFLAG_RD, &sc->stats.fcruc,
-			"Unsupported Flow Control Received");
+	    CTLFLAG_RD, &sc->stats.fcruc,
+	    "Unsupported Flow Control Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_recvd",
-			CTLFLAG_RD, &sc->stats.mgprc,
-			"Management Packets Received");
+	    CTLFLAG_RD, &sc->stats.mgprc,
+	    "Management Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_drop",
-			CTLFLAG_RD, &sc->stats.mgpdc,
-			"Management Packets Dropped");
+	    CTLFLAG_RD, &sc->stats.mgpdc,
+	    "Management Packets Dropped");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mgmt_pkts_txd",
-			CTLFLAG_RD, &sc->stats.mgptc,
-			"Management Packets Transmitted");
+	    CTLFLAG_RD, &sc->stats.mgptc,
+	    "Management Packets Transmitted");
 
 	/* Packet Reception Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_recvd",
-			CTLFLAG_RD, &sc->stats.tpr,
-			"Total Packets Received ");
+	    CTLFLAG_RD, &sc->stats.tpr,
+	    "Total Packets Received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_recvd",
-			CTLFLAG_RD, &sc->stats.gprc,
-			"Good Packets Received");
+	    CTLFLAG_RD, &sc->stats.gprc,
+	    "Good Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_recvd",
-			CTLFLAG_RD, &sc->stats.bprc,
-			"Broadcast Packets Received");
+	    CTLFLAG_RD, &sc->stats.bprc,
+	    "Broadcast Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
-			CTLFLAG_RD, &sc->stats.mprc,
-			"Multicast Packets Received");
+	    CTLFLAG_RD, &sc->stats.mprc,
+	    "Multicast Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
-			CTLFLAG_RD, &sc->stats.prc64,
-			"64 byte frames received ");
+	    CTLFLAG_RD, &sc->stats.prc64,
+	    "64 byte frames received ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
-			CTLFLAG_RD, &sc->stats.prc127,
-			"65-127 byte frames received");
+	    CTLFLAG_RD, &sc->stats.prc127,
+	    "65-127 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
-			CTLFLAG_RD, &sc->stats.prc255,
-			"128-255 byte frames received");
+	    CTLFLAG_RD, &sc->stats.prc255,
+	    "128-255 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
-			CTLFLAG_RD, &sc->stats.prc511,
-			"256-511 byte frames received");
+	    CTLFLAG_RD, &sc->stats.prc511,
+	    "256-511 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
-			CTLFLAG_RD, &sc->stats.prc1023,
-			"512-1023 byte frames received");
+	    CTLFLAG_RD, &sc->stats.prc1023,
+	    "512-1023 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
-			CTLFLAG_RD, &sc->stats.prc1522,
-			"1023-1522 byte frames received");
+	    CTLFLAG_RD, &sc->stats.prc1522,
+	    "1023-1522 byte frames received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd",
-			CTLFLAG_RD, &sc->stats.gorc,
-			"Good Octets Received");
+	    CTLFLAG_RD, &sc->stats.gorc,
+	    "Good Octets Received");
 
 	/* Packet Transmission Stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
-			CTLFLAG_RD, &sc->stats.gotc,
-			"Good Octets Transmitted");
+	    CTLFLAG_RD, &sc->stats.gotc,
+	    "Good Octets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
-			CTLFLAG_RD, &sc->stats.tpt,
-			"Total Packets Transmitted");
+	    CTLFLAG_RD, &sc->stats.tpt,
+	    "Total Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
-			CTLFLAG_RD, &sc->stats.gptc,
-			"Good Packets Transmitted");
+	    CTLFLAG_RD, &sc->stats.gptc,
+	    "Good Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
-			CTLFLAG_RD, &sc->stats.bptc,
-			"Broadcast Packets Transmitted");
+	    CTLFLAG_RD, &sc->stats.bptc,
+	    "Broadcast Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
-			CTLFLAG_RD, &sc->stats.mptc,
-			"Multicast Packets Transmitted");
+	    CTLFLAG_RD, &sc->stats.mptc,
+	    "Multicast Packets Transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
-			CTLFLAG_RD, &sc->stats.ptc64,
-			"64 byte frames transmitted ");
+	    CTLFLAG_RD, &sc->stats.ptc64,
+	    "64 byte frames transmitted ");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
-			CTLFLAG_RD, &sc->stats.ptc127,
-			"65-127 byte frames transmitted");
+	    CTLFLAG_RD, &sc->stats.ptc127,
+	    "65-127 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
-			CTLFLAG_RD, &sc->stats.ptc255,
-			"128-255 byte frames transmitted");
+	    CTLFLAG_RD, &sc->stats.ptc255,
+	    "128-255 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
-			CTLFLAG_RD, &sc->stats.ptc511,
-			"256-511 byte frames transmitted");
+	    CTLFLAG_RD, &sc->stats.ptc511,
+	    "256-511 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
-			CTLFLAG_RD, &sc->stats.ptc1023,
-			"512-1023 byte frames transmitted");
+	    CTLFLAG_RD, &sc->stats.ptc1023,
+	    "512-1023 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
-			CTLFLAG_RD, &sc->stats.ptc1522,
-			"1024-1522 byte frames transmitted");
+	    CTLFLAG_RD, &sc->stats.ptc1522,
+	    "1024-1522 byte frames transmitted");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tso_txd",
-			CTLFLAG_RD, &sc->stats.tsctc,
-			"TSO Contexts Transmitted");
+	    CTLFLAG_RD, &sc->stats.tsctc,
+	    "TSO Contexts Transmitted");
 
 	/* Interrupt Stats */
 
@@ -2888,12 +2888,12 @@ igc_add_hw_stats(struct igc_softc *sc)
 	int_list = SYSCTL_CHILDREN(int_node);
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "asserts",
-			CTLFLAG_RD, &sc->stats.iac,
-			"Interrupt Assertion Count");
+	    CTLFLAG_RD, &sc->stats.iac,
+	    "Interrupt Assertion Count");
 
 	SYSCTL_ADD_UQUAD(ctx, int_list, OID_AUTO, "rx_desc_min_thresh",
-			CTLFLAG_RD, &sc->stats.rxdmtc,
-			"Rx Desc Min Thresh Count");
+	    CTLFLAG_RD, &sc->stats.rxdmtc,
+	    "Rx Desc Min Thresh Count");
 }
 
 static void
@@ -2914,21 +2914,21 @@ igc_sbuf_fw_version(struct igc_fw_version *fw_ver, struct sbuf *buf)
 
 	if (fw_ver->eep_major || fw_ver->eep_minor || fw_ver->eep_build) {
 		sbuf_printf(buf, "EEPROM V%d.%d-%d", fw_ver->eep_major,
-			    fw_ver->eep_minor, fw_ver->eep_build);
+		    fw_ver->eep_minor, fw_ver->eep_build);
 		space = " ";
 	}
 
 	if (fw_ver->invm_major || fw_ver->invm_minor || fw_ver->invm_img_type) {
 		sbuf_printf(buf, "%sNVM V%d.%d imgtype%d",
-			    space, fw_ver->invm_major, fw_ver->invm_minor,
-			    fw_ver->invm_img_type);
+		    space, fw_ver->invm_major, fw_ver->invm_minor,
+		    fw_ver->invm_img_type);
 		space = " ";
 	}
 
 	if (fw_ver->or_valid) {
 		sbuf_printf(buf, "%sOption ROM V%d-b%d-p%d",
-			    space, fw_ver->or_major, fw_ver->or_build,
-			    fw_ver->or_patch);
+		    space, fw_ver->or_major, fw_ver->or_build,
+		    fw_ver->or_patch);
 		space = " ";
 	}
 
@@ -3086,7 +3086,7 @@ igc_set_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	static int input = 3; /* default is full */
-	struct igc_softc	*sc = (struct igc_softc *) arg1;
+	struct igc_softc *sc = (struct igc_softc *) arg1;
 
 	error = sysctl_handle_int(oidp, &input, 0, req);
 
@@ -3254,14 +3254,14 @@ igc_print_debug_info(struct igc_softc *sc)
 	for (int i = 0; i < sc->tx_num_queues; i++, txr++) {
 		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
-			IGC_READ_REG(&sc->hw, IGC_TDH(i)),
-			IGC_READ_REG(&sc->hw, IGC_TDT(i)));
+		    IGC_READ_REG(&sc->hw, IGC_TDH(i)),
+		    IGC_READ_REG(&sc->hw, IGC_TDT(i)));
 
 	}
 	for (int j=0; j < sc->rx_num_queues; j++, rxr++) {
 		device_printf(dev, "RX Queue %d ------\n", j);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
-			IGC_READ_REG(&sc->hw, IGC_RDH(j)),
-			IGC_READ_REG(&sc->hw, IGC_RDT(j)));
+		    IGC_READ_REG(&sc->hw, IGC_RDH(j)),
+		    IGC_READ_REG(&sc->hw, IGC_RDT(j)));
 	}
 }
