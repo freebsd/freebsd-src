@@ -252,7 +252,7 @@ SYSCTL_INT(_hw_igc, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN,
     0, "Set to true to leave smart power down enabled on newer adapters");
 
 /* Controls whether promiscuous also shows bad packets */
-static int igc_debug_sbp = true;
+static int igc_debug_sbp = false;
 SYSCTL_INT(_hw_igc, OID_AUTO, sbp, CTLFLAG_RDTUN, &igc_debug_sbp, 0,
     "Show bad packets in promiscuous mode");
 
@@ -1351,7 +1351,7 @@ igc_if_multi_set(if_ctx_t ctx)
 		    if_getflags(ifp) & IFF_ALLMULTI) {
 		reg_rctl |= IGC_RCTL_MPE;
 		reg_rctl &= ~IGC_RCTL_UPE;
-        } else
+	} else
 		reg_rctl &= ~(IGC_RCTL_UPE | IGC_RCTL_MPE);
 
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
