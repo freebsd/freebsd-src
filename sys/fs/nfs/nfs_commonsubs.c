@@ -225,7 +225,6 @@ static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
-static int nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
 static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
@@ -3438,13 +3437,13 @@ tryagain:
 		/*
 		 * If an '@' is found and the domain name matches, search for
 		 * the name with dns stripped off.
-		 * Mixed case alphabetics will match for the domain name, but
-		 * all upper case will not.
+		 * The match for alphabetics in now case insensitive,
+		 * since RFC8881 defines this string as a DNS domain name.
 		 */
 		if (cnt == 0 && i < len && i > 0 &&
 		    (len - 1 - i) == NFSD_VNET(nfsrv_dnsnamelen) &&
-		    !nfsrv_cmpmixedcase(cp,
-		     NFSD_VNET(nfsrv_dnsname), NFSD_VNET(nfsrv_dnsnamelen))) {
+		    strncasecmp(cp, NFSD_VNET(nfsrv_dnsname),
+		     NFSD_VNET(nfsrv_dnsnamelen)) == 0) {
 			len -= (NFSD_VNET(nfsrv_dnsnamelen) + 1);
 			*(cp - 1) = '\0';
 		}
@@ -3665,8 +3664,8 @@ tryagain:
 		 */
 		if (cnt == 0 && i < len && i > 0 &&
 		    (len - 1 - i) == NFSD_VNET(nfsrv_dnsnamelen) &&
-		    !nfsrv_cmpmixedcase(cp,
-		     NFSD_VNET(nfsrv_dnsname), NFSD_VNET(nfsrv_dnsnamelen))) {
+		    strncasecmp(cp, NFSD_VNET(nfsrv_dnsname),
+		    NFSD_VNET(nfsrv_dnsnamelen)) == 0) {
 			len -= (NFSD_VNET(nfsrv_dnsnamelen) + 1);
 			*(cp - 1) = '\0';
 		}
@@ -3712,35 +3711,6 @@ out:
 	NFSD_CURVNET_RESTORE();
 	NFSEXITCODE(error);
 	return (error);
-}
-
-/*
- * Cmp len chars, allowing mixed case in the first argument to match lower
- * case in the second, but not if the first argument is all upper case.
- * Return 0 for a match, 1 otherwise.
- */
-static int
-nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len)
-{
-	int i;
-	u_char tmp;
-	int fndlower = 0;
-
-	for (i = 0; i < len; i++) {
-		if (*cp >= 'A' && *cp <= 'Z') {
-			tmp = *cp++ + ('a' - 'A');
-		} else {
-			tmp = *cp++;
-			if (tmp >= 'a' && tmp <= 'z')
-				fndlower = 1;
-		}
-		if (tmp != *cp2++)
-			return (1);
-	}
-	if (fndlower)
-		return (0);
-	else
-		return (1);
 }
 
 /*
