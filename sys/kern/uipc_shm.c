@@ -150,7 +150,7 @@ static fo_fallocate_t	shm_fallocate;
 static fo_fspacectl_t	shm_fspacectl;
 
 /* File descriptor operations. */
-struct fileops shm_ops = {
+const struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,

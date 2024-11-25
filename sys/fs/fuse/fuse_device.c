@@ -120,13 +120,13 @@ static int fuse_device_filt_read(struct knote *kn, long hint);
 static int fuse_device_filt_write(struct knote *kn, long hint);
 static void fuse_device_filt_detach(struct knote *kn);
 
-struct filterops fuse_device_rfiltops = {
+static const struct filterops fuse_device_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = fuse_device_filt_detach,
 	.f_event = fuse_device_filt_read,
 };
 
-struct filterops fuse_device_wfiltops = {
+static const struct filterops fuse_device_wfiltops = {
 	.f_isfd = 1,
 	.f_event = fuse_device_filt_write,
 };

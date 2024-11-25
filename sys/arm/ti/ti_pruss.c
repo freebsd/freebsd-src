@@ -789,7 +789,7 @@ ti_pruss_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return (0);
 }
 
-static struct filterops ti_pruss_kq_read = {
+static const struct filterops ti_pruss_kq_read = {
 	.f_isfd = 1,
 	.f_detach = ti_pruss_irq_kqread_detach,
 	.f_event = ti_pruss_irq_kqevent,

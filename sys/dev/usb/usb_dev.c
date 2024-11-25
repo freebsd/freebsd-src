@@ -1228,13 +1228,13 @@ usb_filter_read(struct knote *kn, long hint)
 	return (m ? 1 : 0);
 }
 
-static struct filterops usb_filtops_write = {
+static const struct filterops usb_filtops_write = {
 	.f_isfd = 1,
 	.f_detach = usb_filter_detach,
 	.f_event = usb_filter_write,
 };
 
-static struct filterops usb_filtops_read = {
+static const struct filterops usb_filtops_read = {
 	.f_isfd = 1,
 	.f_detach = usb_filter_detach,
 	.f_event = usb_filter_read,

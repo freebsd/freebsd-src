@@ -172,7 +172,7 @@ static int		hidraw_kqread(struct knote *, long);
 static void		hidraw_kqdetach(struct knote *);
 static void		hidraw_notify(struct hidraw_softc *);
 
-static struct filterops hidraw_filterops_read = {
+static const struct filterops hidraw_filterops_read = {
 	.f_isfd =	1,
 	.f_detach =	hidraw_kqdetach,
 	.f_event =	hidraw_kqread,

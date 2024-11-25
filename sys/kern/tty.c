@@ -751,13 +751,13 @@ tty_kqops_write_event(struct knote *kn, long hint __unused)
 	}
 }
 
-static struct filterops tty_kqops_read = {
+static const struct filterops tty_kqops_read = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_read_detach,
 	.f_event = tty_kqops_read_event,
 };
 
-static struct filterops tty_kqops_write = {
+static const struct filterops tty_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_write_detach,
 	.f_event = tty_kqops_write_event,

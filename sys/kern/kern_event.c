@@ -127,7 +127,7 @@ static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
 static fo_fill_kinfo_t	kqueue_fill_kinfo;
 
-static struct fileops kqueueops = {
+static const struct fileops kqueueops = {
 	.fo_read = invfo_rdwr,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
@@ -173,30 +173,30 @@ static int	filt_user(struct knote *kn, long hint);
 static void	filt_usertouch(struct knote *kn, struct kevent *kev,
 		    u_long type);
 
-static struct filterops file_filtops = {
+static const struct filterops file_filtops = {
 	.f_isfd = 1,
 	.f_attach = filt_fileattach,
 };
-static struct filterops kqread_filtops = {
+static const struct filterops kqread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_kqdetach,
 	.f_event = filt_kqueue,
 };
 /* XXX - move to kern_proc.c?  */
-static struct filterops proc_filtops = {
+static const struct filterops proc_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_procattach,
 	.f_detach = filt_procdetach,
 	.f_event = filt_proc,
 };
-static struct filterops timer_filtops = {
+static const struct filterops timer_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_timerattach,
 	.f_detach = filt_timerdetach,
 	.f_event = filt_timer,
 	.f_touch = filt_timertouch,
 };
-static struct filterops user_filtops = {
+static const struct filterops user_filtops = {
 	.f_attach = filt_userattach,
 	.f_detach = filt_userdetach,
 	.f_event = filt_user,
@@ -327,14 +327,14 @@ filt_nullattach(struct knote *kn)
 	return (ENXIO);
 };
 
-struct filterops null_filtops = {
+static const struct filterops null_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_nullattach,
 };
 
 /* XXX - make SYSINIT to add these, and move into respective modules. */
-extern struct filterops sig_filtops;
-extern struct filterops fs_filtops;
+extern const struct filterops sig_filtops;
+extern const struct filterops fs_filtops;
 
 /*
  * Table for all system-defined filters.

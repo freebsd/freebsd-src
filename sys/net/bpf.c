@@ -249,13 +249,13 @@ static struct cdevsw bpf_cdevsw = {
 	.d_kqfilter =	bpfkqfilter,
 };
 
-static struct filterops bpfread_filtops = {
+static const struct filterops bpfread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfread,
 };
 
-static struct filterops bpfwrite_filtops = {
+static const struct filterops bpfwrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_bpfdetach,
 	.f_event = filt_bpfwrite,

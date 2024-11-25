@@ -126,7 +126,7 @@ static struct cdevsw dev_cdevsw = {
 static void	filt_devctl_detach(struct knote *kn);
 static int	filt_devctl_read(struct knote *kn, long hint);
 
-static struct filterops devctl_rfiltops = {
+static const struct filterops devctl_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_devctl_detach,
 	.f_event = filt_devctl_read,

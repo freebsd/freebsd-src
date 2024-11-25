@@ -253,14 +253,14 @@ static int		tunkqread(struct knote *, long);
 static int		tunkqwrite(struct knote *, long);
 static void		tunkqdetach(struct knote *);
 
-static struct filterops tun_read_filterops = {
+static const struct filterops tun_read_filterops = {
 	.f_isfd =	1,
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,
 	.f_event =	tunkqread,
 };
 
-static struct filterops tun_write_filterops = {
+static const struct filterops tun_write_filterops = {
 	.f_isfd =	1,
 	.f_attach =	NULL,
 	.f_detach =	tunkqdetach,

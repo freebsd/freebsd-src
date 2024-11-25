@@ -339,13 +339,13 @@ static int	filt_lio(struct knote *kn, long hint);
 static uma_zone_t kaio_zone, aiocb_zone, aiolio_zone;
 
 /* kqueue filters for aio */
-static struct filterops aio_filtops = {
+static const struct filterops aio_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_aioattach,
 	.f_detach = filt_aiodetach,
 	.f_event = filt_aio,
 };
-static struct filterops lio_filtops = {
+static const struct filterops lio_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_lioattach,
 	.f_detach = filt_liodetach,
