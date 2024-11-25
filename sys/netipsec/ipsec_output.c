@@ -1112,7 +1112,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 #endif
 	struct ip *ip;
 #ifdef INET
-	int setdf;
+	int setdf = V_ip4_ipsec_dfbit == 1 ? 1: 0;
 #endif
 	uint8_t itos, proto;
 
@@ -1122,17 +1122,11 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 	case IPVERSION:
 		proto = IPPROTO_IPIP;
 		/*
-		 * Collect IP_DF state from the inner header
-		 * and honor system-wide control of how to handle it.
+		 * Copy IP_DF flag from the inner header if
+		 * system-wide control variable is greater than 1.
 		 */
-		switch (V_ip4_ipsec_dfbit) {
-		case 0:	/* clear in outer header */
-		case 1:	/* set in outer header */
-			setdf = V_ip4_ipsec_dfbit;
-			break;
-		default:/* propagate to outer header */
+		if (V_ip4_ipsec_dfbit > 1)
 			setdf = (ip->ip_off & htons(IP_DF)) != 0;
-		}
 		itos = ip->ip_tos;
 		break;
 #endif
