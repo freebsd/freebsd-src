@@ -325,7 +325,7 @@ while ((getline < srcfile) > 0) {
 
 		# Print out function prototypes.
 		printh("int " uname "_AP(struct " name "_args *);");
-		printh("int " uname "_APV(struct vop_vector *vop, struct " name "_args *);");
+		printh("int " uname "_APV(const struct vop_vector *vop, struct " name "_args *);");
 		printh("");
 		printh("static __inline int " uname "(");
 		for (i = 0; i < numargs; ++i) {
@@ -389,7 +389,7 @@ while ((getline < srcfile) > 0) {
 		printc("");
 		printc("\treturn(" uname "_APV(a->a_" args[0] "->v_op, a));");
 		printc("}");
-		printc("\nint\n" uname "_APV(struct vop_vector *vop, struct " name "_args *a)");
+		printc("\nint\n" uname "_APV(const struct vop_vector *vop, struct " name "_args *a)");
 		printc("{");
 		printc("\tint rc;");
 		printc("");
