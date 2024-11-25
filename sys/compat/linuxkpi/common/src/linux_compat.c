@@ -1112,13 +1112,13 @@ linux_file_kqfilter_write_event(struct knote *kn, long hint)
 	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_WRITE) ? 1 : 0);
 }
 
-static struct filterops linux_dev_kqfiltops_read = {
+static const struct filterops linux_dev_kqfiltops_read = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_read_event,
 };
 
-static struct filterops linux_dev_kqfiltops_write = {
+static const struct filterops linux_dev_kqfiltops_write = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_write_event,
@@ -1737,7 +1737,7 @@ linux_file_kcmp(struct file *fp1, struct file *fp2, struct thread *td)
 	return (kcmp_cmp((uintptr_t)filp1->f_cdev, (uintptr_t)filp2->f_cdev));
 }
 
-struct fileops linuxfileops = {
+const struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = linux_file_write,
 	.fo_truncate = invfo_truncate,

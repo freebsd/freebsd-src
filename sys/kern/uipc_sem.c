@@ -140,7 +140,7 @@ static fo_chown_t	ksem_chown;
 static fo_fill_kinfo_t	ksem_fill_kinfo;
 
 /* File descriptor operations. */
-static struct fileops ksem_ops = {
+static const struct fileops ksem_ops = {
 	.fo_read = invfo_rdwr,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,

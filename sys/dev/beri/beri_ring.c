@@ -365,14 +365,14 @@ beri_kqdetach(struct knote *kn)
 	knlist_remove(&sc->beri_rsel.si_note, kn, 0);
 }
 
-static struct filterops beri_read_filterops = {
+static const struct filterops beri_read_filterops = {
 	.f_isfd =       1,
 	.f_attach =     NULL,
 	.f_detach =     beri_kqdetach,
 	.f_event =      beri_kqread,
 };
 
-static struct filterops beri_write_filterops = {
+static const struct filterops beri_write_filterops = {
 	.f_isfd =       1,
 	.f_attach =     NULL,
 	.f_detach =     beri_kqdetach,

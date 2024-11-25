@@ -249,10 +249,10 @@ struct xfile {
 
 #ifdef _KERNEL
 
-extern struct fileops vnops;
-extern struct fileops badfileops;
-extern struct fileops path_fileops;
-extern struct fileops socketops;
+extern const struct fileops vnops;
+extern const struct fileops badfileops;
+extern const struct fileops path_fileops;
+extern const struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 
@@ -284,8 +284,8 @@ fo_kqfilter_t	vn_kqfilter_opath;
 int vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif);
 int file_kcmp_generic(struct file *fp1, struct file *fp2, struct thread *td);
 
-void finit(struct file *, u_int, short, void *, struct fileops *);
-void finit_vnode(struct file *, u_int, void *, struct fileops *);
+void finit(struct file *, u_int, short, void *, const struct fileops *);
+void finit_vnode(struct file *, u_int, void *, const struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 int fgetvp_exec(struct thread *td, int fd, cap_rights_t *rightsp,

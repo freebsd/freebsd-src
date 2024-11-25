@@ -96,7 +96,7 @@ static fo_close_t	procdesc_close;
 static fo_fill_kinfo_t	procdesc_fill_kinfo;
 static fo_cmp_t		procdesc_cmp;
 
-static struct fileops procdesc_ops = {
+static const struct fileops procdesc_ops = {
 	.fo_read = invfo_rdwr,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
@@ -481,7 +481,7 @@ procdesc_kqops_event(struct knote *kn, long hint)
 	return (kn->kn_fflags != 0);
 }
 
-static struct filterops procdesc_kqops = {
+static const struct filterops procdesc_kqops = {
 	.f_isfd = 1,
 	.f_detach = procdesc_kqops_detach,
 	.f_event = procdesc_kqops_event,

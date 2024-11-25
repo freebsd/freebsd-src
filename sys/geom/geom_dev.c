@@ -78,7 +78,7 @@ static d_kqfilter_t	g_dev_kqfilter;
 static void		gdev_filter_detach(struct knote *kn);
 static int		gdev_filter_vnode(struct knote *kn, long hint);
 
-static struct filterops gdev_filterops_vnode = {
+static const struct filterops gdev_filterops_vnode = {
 	.f_isfd = 1,
 	.f_detach = gdev_filter_detach,
 	.f_event = gdev_filter_vnode,

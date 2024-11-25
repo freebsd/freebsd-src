@@ -230,7 +230,7 @@ static uma_zone_t		mqueue_zone;
 static uma_zone_t		mvdata_zone;
 static uma_zone_t		mqnoti_zone;
 static struct vop_vector	mqfs_vnodeops;
-static struct fileops		mqueueops;
+static const struct fileops	mqueueops;
 static unsigned			mqfs_osd_jail_slot;
 
 /*
@@ -277,12 +277,12 @@ static void	filt_mqdetach(struct knote *kn);
 static int	filt_mqread(struct knote *kn, long hint);
 static int	filt_mqwrite(struct knote *kn, long hint);
 
-struct filterops mq_rfiltops = {
+static const struct filterops mq_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqread,
 };
-struct filterops mq_wfiltops = {
+static const struct filterops mq_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqwrite,
@@ -2681,7 +2681,7 @@ mqf_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);
 }
 
-static struct fileops mqueueops = {
+static const struct fileops mqueueops = {
 	.fo_read		= invfo_rdwr,
 	.fo_write		= invfo_rdwr,
 	.fo_truncate		= invfo_truncate,
