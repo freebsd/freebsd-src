@@ -119,7 +119,7 @@ static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 
 static uma_zone_t	ksiginfo_zone = NULL;
-struct filterops sig_filtops = {
+const struct filterops sig_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_sigattach,
 	.f_detach = filt_sigdetach,

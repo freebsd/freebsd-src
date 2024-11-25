@@ -1397,13 +1397,13 @@ netmap_knwrite(struct knote *kn, long hint)
 	return netmap_knrw(kn, hint, POLLOUT);
 }
 
-static struct filterops netmap_rfiltops = {
+static const struct filterops netmap_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = netmap_knrdetach,
 	.f_event = netmap_knread,
 };
 
-static struct filterops netmap_wfiltops = {
+static const struct filterops netmap_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = netmap_knwdetach,
 	.f_event = netmap_knwrite,

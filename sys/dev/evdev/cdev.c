@@ -91,7 +91,7 @@ static struct cdevsw evdev_cdevsw = {
 	.d_name = "evdev",
 };
 
-static struct filterops evdev_cdev_filterops = {
+static const struct filterops evdev_cdev_filterops = {
 	.f_isfd = 1,
 	.f_attach = NULL,
 	.f_detach = evdev_kqdetach,
