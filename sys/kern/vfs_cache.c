@@ -3290,7 +3290,7 @@ kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
 		    &freebuf, &size);
 	}
 	if (error == 0) {
-		error = copyout(retbuf, buf, size);
+		error = copyout(retbuf, buf, min(strlen(retbuf) + 1, size));
 		free(freebuf, M_TEMP);
 	}
 out:
