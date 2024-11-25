@@ -409,7 +409,7 @@ mlx5e_tls_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
 	if (priv->gone != 0 || priv->tls.init == 0)
 		return (EOPNOTSUPP);
 
-	ptag = uma_zalloc(priv->tls.zone, M_WAITOK);
+	ptag = uma_zalloc(priv->tls.zone, M_NOWAIT);
  	if (ptag == NULL)
  		return (ENOMEM);
 
