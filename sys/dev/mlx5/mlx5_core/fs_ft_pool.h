@@ -9,7 +9,7 @@
 #include <dev/mlx5/mlx5_core/fs_core.h>
 #include <linux/compiler.h>
 
-#define POOL_NEXT_SIZE 0
+#define POOL_NEXT_SIZE BIT(30)
 
 int mlx5_ft_pool_init(struct mlx5_core_dev *dev);
 void mlx5_ft_pool_destroy(struct mlx5_core_dev *dev);
