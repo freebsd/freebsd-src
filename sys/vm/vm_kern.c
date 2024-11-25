@@ -660,7 +660,7 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	    m = vm_page_iter_lookup(&pages, atop(offset))) {
 		vm_page_xbusy_claim(m);
 		vm_page_unwire_noq(m);
-		vm_page_iter_free(&pages);
+		vm_page_iter_free(&pages, m);
 	}
 	VM_OBJECT_WUNLOCK(object);
 
