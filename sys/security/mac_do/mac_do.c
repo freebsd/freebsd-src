@@ -5,10 +5,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
+#include <sys/systm.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -17,7 +18,6 @@
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
