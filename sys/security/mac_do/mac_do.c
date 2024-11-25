@@ -36,7 +36,7 @@ static MALLOC_DEFINE(M_DO, "do_rule", "Rules for mac_do");
 
 #define MAC_RULE_STRING_LEN	1024
 
-static unsigned		mac_do_osd_jail_slot;
+static unsigned		osd_jail_slot;
 
 #define RULE_INVALID	0 /* Must stay 0. */
 #define RULE_UID	1
@@ -284,7 +284,7 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 	cpr = pr;
 	for (;;) {
 		prison_lock(cpr);
-		rules = osd_jail_get(cpr, mac_do_osd_jail_slot);
+		rules = osd_jail_get(cpr, osd_jail_slot);
 		if (rules != NULL)
 			break;
 		prison_unlock(cpr);
@@ -299,7 +299,7 @@ find_rules(struct prison *const pr, struct prison **const aprp)
 }
 
 /*
- * OSD destructor for slot 'mac_do_osd_jail_slot'.
+ * OSD destructor for slot 'osd_jail_slot'.
  *
  * Called with 'value' not NULL.
  */
@@ -317,14 +317,14 @@ dealloc_osd(void *const value)
  * In practice, this means that the rules become inherited (from the closest
  * ascendant that has some).
  *
- * Destroys the 'mac_do_osd_jail_slot' slot of the passed jail.
+ * Destroys the 'osd_jail_slot' slot of the passed jail.
  */
 static void
 remove_rules(struct prison *const pr)
 {
 	prison_lock(pr);
 	/* This calls destructor dealloc_osd(). */
-	osd_jail_del(pr, mac_do_osd_jail_slot);
+	osd_jail_del(pr, osd_jail_slot);
 	prison_unlock(pr);
 }
 
@@ -337,11 +337,11 @@ set_rules(struct prison *const pr, struct rules *const rules)
 	struct rules *old_rules;
 	void **rsv;
 
-	rsv = osd_reserve(mac_do_osd_jail_slot);
+	rsv = osd_reserve(osd_jail_slot);
 
 	prison_lock(pr);
-	old_rules = osd_jail_get(pr, mac_do_osd_jail_slot);
-	osd_jail_set_reserved(pr, mac_do_osd_jail_slot, rsv, rules);
+	old_rules = osd_jail_get(pr, osd_jail_slot);
+	osd_jail_set_reserved(pr, osd_jail_slot, rsv, rules);
 	prison_unlock(pr);
 	if (old_rules != NULL)
 		toast_rules(old_rules);
@@ -617,7 +617,7 @@ mac_do_init(struct mac_policy_conf *mpc)
 {
 	struct prison *pr;
 
-	mac_do_osd_jail_slot = osd_jail_register(dealloc_osd, osd_methods);
+	osd_jail_slot = osd_jail_register(dealloc_osd, osd_methods);
 	set_empty_rules(&prison0);
 	sx_slock(&allprison_lock);
 	TAILQ_FOREACH(pr, &allprison, pr_list)
@@ -628,7 +628,7 @@ mac_do_init(struct mac_policy_conf *mpc)
 static void
 mac_do_destroy(struct mac_policy_conf *mpc)
 {
-	osd_jail_deregister(mac_do_osd_jail_slot);
+	osd_jail_deregister(osd_jail_slot);
 }
 
 static bool
