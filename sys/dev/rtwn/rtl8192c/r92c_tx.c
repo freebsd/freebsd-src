@@ -172,12 +172,20 @@ r92c_tx_set_sgi(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r92c_tx_desc *txd = (struct r92c_tx_desc *)buf;
 
-	if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)
-	    && ieee80211_ht_check_tx_shortgi_40(ni))
-		txd->txdw5 |= htole32(R92C_TXDW5_SGI);
-	else if (IEEE80211_IS_CHAN_HT20(ni->ni_chan)
-	    && ieee80211_ht_check_tx_shortgi_20(ni))
-		txd->txdw5 |= htole32(R92C_TXDW5_SGI);
+	/*
+	 * Only enable short-GI if we're transmitting in that
+	 * width to that node.
+	 *
+	 * Specifically, do not enable shortgi for 20MHz if
+	 * we're attempting to transmit at 40MHz.
+	 */
+	if (ieee80211_ht_check_tx_ht40(ni)) {
+		if (ieee80211_ht_check_tx_shortgi_40(ni))
+			txd->txdw5 |= htole32(R92C_TXDW5_SGI);
+	} else if (ieee80211_ht_check_tx_ht(ni)) {
+		if (ieee80211_ht_check_tx_shortgi_20(ni))
+			txd->txdw5 |= htole32(R92C_TXDW5_SGI);
+	}
 }
 
 void
