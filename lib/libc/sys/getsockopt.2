@@ -570,9 +570,14 @@ struct so_splice {
 .Pp
 Data received on
 .Fa s
-will automatically be transmitted from the socket specified in
+will automatically be transmitted via the socket specified in
 .Fa sp_fd
 without any intervention by userspace.
+That is, the data will be transmitted via
+.Fa sp_fd
+as if userspace had called
+.Xr send 2
+directly.
 Splicing is a one-way operation; a given pair of sockets may be
 spliced in one or both directions.
 Currently only connected
