@@ -3290,7 +3290,15 @@ kern___realpathat(struct thread *td, int fd, const char *path, char *buf,
 		    &freebuf, &size);
 	}
 	if (error == 0) {
-		error = copyout(retbuf, buf, min(strlen(retbuf) + 1, size));
+		size_t len;
+
+		len = strlen(retbuf) + 1;
+		if (size < len)
+			error = ENAMETOOLONG;
+		else if (pathseg == UIO_USERSPACE)
+			error = copyout(retbuf, buf, len);
+		else
+			memcpy(buf, retbuf, len);
 		free(freebuf, M_TEMP);
 	}
 out:
