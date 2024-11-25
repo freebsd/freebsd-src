@@ -136,7 +136,7 @@ SYSCTL_UINT(_kern_ipc_tls, OID_AUTO, ifnet_max_rexmit_pct, CTLFLAG_RWTUN,
     &ktls_ifnet_max_rexmit_pct, 2,
     "Max percent bytes retransmitted before ifnet TLS is disabled");
 
-static bool ktls_offload_enable;
+static bool ktls_offload_enable = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, enable, CTLFLAG_RWTUN,
     &ktls_offload_enable, 0,
     "Enable support for kernel TLS offload");
@@ -273,7 +273,7 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, reset_failed, CTLFLAG_RD,
     &ktls_ifnet_reset_failed,
     "TLS sessions that failed to allocate a new ifnet send tag");
 
-static int ktls_ifnet_permitted;
+static int ktls_ifnet_permitted = 1;
 SYSCTL_UINT(_kern_ipc_tls_ifnet, OID_AUTO, permitted, CTLFLAG_RWTUN,
     &ktls_ifnet_permitted, 1,
     "Whether to permit hardware (ifnet) TLS sessions");
