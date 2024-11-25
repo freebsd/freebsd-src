@@ -17,7 +17,7 @@ stop_cmd="_var_run_stop"
 
 load_rc_config $name
 
-# doesn't make sense to run in a svcj: config setting
+# doesn't make sense to run in a svc: config setting
 var_run_svcj="NO"
 
 _var_run_load() {
