@@ -179,6 +179,9 @@ kmsan_report_hook(const void *addr, msan_orig_t *orig, size_t size, size_t off,
 
 	if (__predict_false(KERNEL_PANICKED() || kdb_active || kmsan_reporting))
 		return;
+	if (__predict_false(curthread != NULL &&
+	    (curthread->td_pflags2 & TDP2_SAN_QUIET) != 0))
+		return;
 
 	kmsan_reporting = true;
 	__compiler_membar();
@@ -231,6 +234,9 @@ kmsan_report_inline(msan_orig_t orig, unsigned long pc)
 	int type;
 
 	if (__predict_false(KERNEL_PANICKED() || kdb_active || kmsan_reporting))
+		return;
+	if (__predict_false(curthread != NULL &&
+	    (curthread->td_pflags2 & TDP2_SAN_QUIET) != 0))
 		return;
 
 	kmsan_reporting = true;

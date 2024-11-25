@@ -405,6 +405,9 @@ kasan_shadow_check(unsigned long addr, size_t size, bool write,
 
 	if (__predict_false(!kasan_enabled))
 		return;
+	if (__predict_false(curthread != NULL &&
+	    (curthread->td_pflags2 & TDP2_SAN_QUIET) != 0))
+		return;
 	if (__predict_false(size == 0))
 		return;
 	if (__predict_false(kasan_md_unsupported(addr)))
