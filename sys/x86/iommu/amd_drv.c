@@ -277,7 +277,7 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 			pmap_qenter(seg_vaddr, &m, 1);
 		}
 		reg = i == 0 ? AMDIOMMU_DEVTAB_BASE : AMDIOMMU_DEVTAB_S1_BASE +
-		    i - 1;
+		    ((i - 1) << 3);
 		amdiommu_write8(sc, reg, rval);		
 	}
 
