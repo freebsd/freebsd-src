@@ -568,6 +568,7 @@ enum {
 #define	TDP2_COMPAT32RB	0x00000002 /* compat32 ABI for robust lists */
 #define	TDP2_ACCT	0x00000004 /* Doing accounting */
 #define	TDP2_EFIRT	0x20000000 /* In firmware (EFI RT) call */
+#define	TDP2_SAN_QUIET	0x00000008 /* Disable warnings from K(A|M)SAN */
 
 /*
  * Reasons that the current thread can not be run yet.
