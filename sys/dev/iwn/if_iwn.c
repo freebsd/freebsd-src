@@ -2813,22 +2813,17 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 		plcp = IEEE80211_RV(rate) | IWN_RFLAG_MCS;
 
 		/*
-		 * XXX the following should only occur if both
-		 * the local configuration _and_ the remote node
-		 * advertise these capabilities.  Thus this code
-		 * may need fixing!
-		 */
-
-		/*
 		 * Set the channel width and guard interval.
+		 *
+		 * Take into account the local configuration and
+		 * the node/peer advertised abilities.
 		 */
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 			plcp |= IWN_RFLAG_HT40;
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			if (ieee80211_ht_check_tx_shortgi_40(ni))
 				plcp |= IWN_RFLAG_SGI;
-		} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) {
+		} else if (ieee80211_ht_check_tx_shortgi_20(ni))
 			plcp |= IWN_RFLAG_SGI;
-		}
 
 		/*
 		 * Ensure the selected rate matches the link quality
