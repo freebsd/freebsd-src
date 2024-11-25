@@ -240,5 +240,11 @@ int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
 	    int tid, int status);
 void	ieee80211_htinfo_notify(struct ieee80211vap *vap);
+int	ieee80211_ht_get_node_ampdu_density(const struct ieee80211_node *ni);
+int	ieee80211_ht_get_node_ampdu_limit(const struct ieee80211_node *ni);
+bool	ieee80211_ht_check_tx_shortgi_20(const struct ieee80211_node *ni);
+bool	ieee80211_ht_check_tx_shortgi_40(const struct ieee80211_node *ni);
+bool	ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni);
+bool	ieee80211_ht_check_tx_ht(const struct ieee80211_node *ht);
 
 #endif /* _NET80211_IEEE80211_HT_H_ */

@@ -3604,3 +3604,143 @@ ieee80211_add_htinfo_vendor(uint8_t *frm, struct ieee80211_node *ni)
 	frm[5] = BCM_OUI_HTINFO;
 	return ieee80211_add_htinfo_body(frm + 6, ni);
 }
+
+/*
+ * Get the HT density for the given 802.11n node.
+ *
+ * Take into account the density advertised from the peer.
+ * Larger values are longer A-MPDU density spacing values, and
+ * we want to obey them per station if we get them.
+ */
+int
+ieee80211_ht_get_node_ampdu_density(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	int peer_mpdudensity;
+
+	vap = ni->ni_vap;
+	peer_mpdudensity =
+	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+	if (vap->iv_ampdu_density > peer_mpdudensity)
+		peer_mpdudensity = vap->iv_ampdu_density;
+	return (peer_mpdudensity);
+}
+
+/*
+ * Get the transmit A-MPDU limit for the given 802.11n node.
+ *
+ * Take into account the limit advertised from the peer.
+ * Smaller values indicate smaller maximum A-MPDU sizes, and
+ * should be used when forming an A-MPDU to the given peer.
+ */
+int
+ieee80211_ht_get_node_ampdu_limit(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	int peer_mpdulimit;
+
+	vap = ni->ni_vap;
+	peer_mpdulimit =
+	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
+
+	return (MIN(vap->iv_ampdu_limit, peer_mpdulimit));
+}
+
+/*
+ * Return true if short-GI is available when transmitting to
+ * the given node at 20MHz.
+ *
+ * Ensure it's configured and available in the VAP / driver as
+ * well as the node.
+ */
+bool
+ieee80211_ht_check_tx_shortgi_20(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211com *ic;
+
+	if (! ieee80211_ht_check_tx_ht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	ic = ni->ni_ic;
+
+	return ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20));
+}
+
+/*
+ * Return true if short-GI is available when transmitting to
+ * the given node at 40MHz.
+ *
+ * Ensure it's configured and available in the VAP / driver as
+ * well as the node and BSS.
+ */
+bool
+ieee80211_ht_check_tx_shortgi_40(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211com *ic;
+
+	if (! ieee80211_ht_check_tx_ht40(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	ic = ni->ni_ic;
+
+	return ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40));
+}
+
+/*
+ * Return true if HT rates can be used for the given node.
+ *
+ * There are some situations seen in the wild, wild past where
+ * HT APs would announce HT but no HT rates.
+ */
+bool
+ieee80211_ht_check_tx_ht(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211_channel *bss_chan;
+
+	if (ni == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC ||
+	    ni->ni_vap == NULL || ni->ni_vap->iv_bss == NULL)
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	if (bss_chan == IEEE80211_CHAN_ANYC)
+		return (false);
+
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
+	    ni->ni_htrates.rs_nrates == 0)
+		return (false);
+	return (IEEE80211_IS_CHAN_HT(ni->ni_chan));
+}
+
+/*
+ * Return true if HT40 rates can be transmitted to the given node.
+ *
+ * This verifies that the BSS is HT40 capable and the current
+ * node channel width is 40MHz.
+ */
+bool
+ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211_channel *bss_chan;
+
+	if (! ieee80211_ht_check_tx_ht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	return (IEEE80211_IS_CHAN_HT40(bss_chan) &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan) &&
+	    (ni->ni_chw == 40));
+}
