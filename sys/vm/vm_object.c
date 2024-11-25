@@ -2060,7 +2060,7 @@ wired:
 		if ((options & OBJPR_NOTMAPPED) == 0 &&
 		    object->ref_count != 0 && !vm_page_try_remove_all(p))
 			goto wired;
-		vm_page_iter_free(&pages);
+		vm_page_iter_free(&pages, p);
 	}
 	vm_object_pip_wakeup(object);
 
