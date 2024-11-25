@@ -1,4 +1,4 @@
-.\"	$Id: tbl.7,v 1.37 2021/09/18 12:34:27 schwarze Exp $
+.\" $Id: tbl.7,v 1.39 2022/08/28 13:52:59 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2014,2015,2017,2018,2019 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 18 2021 $
+.Dd $Mdocdate: August 28 2022 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -333,7 +333,7 @@ Ruby:1.8.7.374
 TeX Live:2015
 .TE
 .Ed
-.sp 2v
+.Pp
 Spans and skipping width calculations:
 .Bd -literal -offset indent
 \&.TS
@@ -357,7 +357,7 @@ l:center:
 :right
 .TE
 .Ed
-.sp 2v
+.Pp
 Text blocks, specifying spacings and specifying and equalizing
 column widths, putting lines into individual cells, and overriding
 .Cm allbox :
@@ -367,7 +367,7 @@ allbox tab(:);
 le le||7 lw10.
 The fourth line:_:line 1
 of this column:=:line 2
-determines:\_:line 3
+determines:\e_:line 3
 the column width.:T{
 This text is too wide to fit into a column of width 17.
 T}:line 4
@@ -391,7 +391,7 @@ No break here.
 T}::line 5
 .TE
 .Ed
-.sp 2v
+.Pp
 These examples were constructed to demonstrate many
 .Nm
 features in a compact way.

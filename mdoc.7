@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.287 2021/07/29 17:32:01 schwarze Exp $
+.\" $Id: mdoc.7,v 1.294 2024/09/22 10:34:58 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013-2020 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 29 2021 $
+.Dd $Mdocdate: September 22 2024 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -439,7 +439,7 @@ in the alphabetical
 .Bl -column "Brq, Bro, Brc" description
 .It Ic \&Dd Ta document date: Cm $\&Mdocdate$ | Ar month day , year
 .It Ic \&Dt Ta document title: Ar TITLE section Op Ar arch
-.It Ic \&Os Ta operating system version: Op Ar system Op Ar version
+.It Ic \&Os Ta operating system footer: Op Ar footer text
 .It Ic \&Nm Ta document name (one argument)
 .It Ic \&Nd Ta document description (one line)
 .El
@@ -1015,7 +1015,7 @@ A numbered list.
 No item heads can be specified.
 Formatted like
 .Fl bullet ,
-except that cardinal numbers are used in place of bullets,
+except that ordinal numbers are used in place of bullets,
 starting at 1.
 .It Fl hang
 Like
@@ -1614,7 +1614,7 @@ Examples:
 .Dl ".Nm aucat Fl o Fl"
 .Dl ".Nm kill Fl Ar signal_number"
 .Pp
-For GNU-sytle long options, escaping the additional hyphen-minus is not
+For GNU-style long options, escaping the additional hyphen-minus is not
 strictly required, but may be safer with future versions of GNU troff; see
 .Xr mandoc_char 7
 for details.
@@ -2074,31 +2074,28 @@ Examples:
 See also
 .Ic \&Oo .
 .Tg Os
-.It Ic \&Os Op Ar system Op Ar version
-Operating system version for display in the page footer.
-This is the mandatory third macro of
-any
+.It Ic \&Os Op Ar footer text
+The mandatory third macro of every
 .Nm
 file.
+Usually, do not specify any arguments,
+in particular not the operating system name and/or version.
 .Pp
-The optional
-.Ar system
-parameter specifies the relevant operating system or environment.
-It is suggested to leave it unspecified, in which case
+If no argument is given,
 .Xr mandoc 1
-uses its
+prints its
 .Fl Ios
-argument or, if that isn't specified either,
+argument in the page footer, or
 .Fa sysname
 and
 .Fa release
 as returned by
-.Xr uname 3 .
+.Xr uname 3
+by default.
 .Pp
-Examples:
-.Dl \&.Os
-.Dl \&.Os KTH/CSC/TCS
-.Dl \&.Os BSD 4.3
+Manual pages that are part of a portable software project can override
+the default by giving the project name and version number as arguments,
+but leaving it blank is never a bad choice.
 .Pp
 See also
 .Ic \&Dd
@@ -2408,7 +2405,7 @@ The second major version of the C language standard.
 .br
 The third major version of the C language standard.
 .El
-.It POSIX.1 before the Single UNIX Specification
+.It POSIX.1 before XPG4.2
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-p1003.1-88
@@ -2449,7 +2446,7 @@ Technical Corrigendum.
 .br
 Includes POSIX.1-1990, 1b, 1c, and 1i.
 .El
-.It X/Open Portability Guide version 4 and related standards
+.It X/Open Portability Guide before XPG4.2
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-xpg3
@@ -2476,7 +2473,7 @@ Updates to POSIX.2.
 .br
 Based on POSIX.1 and POSIX.2, published in 1992.
 .El
-.It Single UNIX Specification version 1 and related standards
+.It X/Open Portability Guide Issue 4 Version 2 and related standards
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-susv1
@@ -2486,10 +2483,7 @@ Based on POSIX.1 and POSIX.2, published in 1992.
 .br
 This standard was published in 1994.
 It was used as the basis for UNIX 95 certification.
-The following three refer to parts of it.
-.Pp
-.It \-xsh4.2
-.St -xsh4.2
+The following two refer to parts of it.
 .Pp
 .It \-xcurses4.2
 .St -xcurses4.2
@@ -2504,13 +2498,14 @@ Networking APIs, including sockets.
 .br
 Published in 1995.
 .El
-.It Single UNIX Specification version 2 and related standards
+.It X/Open Portability Guide Issue 5 and related standards
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-susv2
 .St -susv2
+.br
 This Standard was published in 1997
-and is also called X/Open Portability Guide version 5.
+and is also called X/Open Portability Guide Issue 5.
 It was used as the basis for UNIX 98 certification.
 The following refer to parts of it.
 .Pp
@@ -2528,7 +2523,7 @@ The following refer to parts of it.
 .It \-xns5.2
 .St -xns5.2
 .El
-.It Single UNIX Specification version 3
+.It POSIX Issue 6
 .Pp
 .Bl -tag -width "-p1003.1-2001" -compact
 .It \-p1003.1-2001
@@ -2537,7 +2532,7 @@ The following refer to parts of it.
 .St -susv3
 .br
 This standard is based on C99, SUSv2, POSIX.1-1996, 1d, and 1j.
-It is also called X/Open Portability Guide version 6.
+It is also called X/Open Portability Guide Issue 6.
 It is used as the basis for UNIX 03 certification.
 .Pp
 .It \-p1003.1-2004
@@ -2545,7 +2540,7 @@ It is used as the basis for UNIX 03 certification.
 .br
 The second and last Technical Corrigendum.
 .El
-.It Single UNIX Specification version 4
+.It POSIX Issues 7 and 8
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-p1003.1-2008
@@ -2553,8 +2548,18 @@ The second and last Technical Corrigendum.
 .It \-susv4
 .St -susv4
 .br
-This standard is also called
-X/Open Portability Guide version 7.
+This standard is based on C99.
+It is also called the
+Open Group Standard Base Specifications, Issue 7.
+.El
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-p1003.1-2024
+.St -p1003.1-2024
+.br
+This standard is based on C17.
+It is also called the
+Open Group Standard Base Specifications, Issue 8.
 .El
 .It Other standards
 .Pp
@@ -3012,7 +3017,7 @@ then the macro accepts an arbitrary number of arguments.
 .It Ic \&Fx  Ta    Yes      Ta    Yes      Ta    n
 .It Ic \&Hf  Ta    \&No     Ta    \&No     Ta    n
 .It Ic \&Ic  Ta    Yes      Ta    Yes      Ta    >0
-.It Ic \&In  Ta    \&No     Ta    \&No     Ta    1
+.It Ic \&In  Ta    Yes      Ta    Yes      Ta    1
 .It Ic \&Lb  Ta    \&No     Ta    \&No     Ta    1
 .It Ic \&Li  Ta    Yes      Ta    Yes      Ta    >0
 .It Ic \&Lk  Ta    Yes      Ta    Yes      Ta    >0

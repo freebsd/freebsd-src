@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: configure,v 1.81 2021/09/20 10:19:51 schwarze Exp $
+# $Id: configure,v 1.83 2023/10/19 11:45:42 schwarze Exp $
 #
 # Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -37,6 +37,7 @@ SOURCEDIR=`dirname "${0}"`
 
 MANPATH_BASE="/usr/share/man:/usr/X11R6/man"
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+DEBUG_MEMORY=0
 OSENUM=
 OSNAME=
 UTF8_LOCALE=
@@ -99,6 +100,7 @@ NEED_GNU_SOURCE=0
 NEED_OPENBSD_SOURCE=0
 NEED_XPG4_2=0
 
+DEBUG_OBJS=
 MANDOC_COBJS=
 SOELIM_COBJS=
 
@@ -109,6 +111,7 @@ BIN_FROM_SBIN=
 INCLUDEDIR=
 LIBDIR=
 MANDIR=
+MISCDIR=
 READ_ALLOWED_PATH=
 
 WWWPREFIX="/var/www"
@@ -334,6 +337,7 @@ runtest vasprintf	VASPRINTF	"" -D_GNU_SOURCE || true
 
 # --- fts ---
 if [ "${1}" = "-depend" ]; then
+	DEBUG_MEMORY=1
 	HAVE_FTS=0
 	HAVE_FTS_COMPARE_CONST=0
 	echo "tested fts: HAVE_FTS=0 (for make depend)" 1>&2
@@ -461,6 +465,10 @@ echo
 echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
 echo "#define MANPATH_BASE \"${MANPATH_BASE}\""
 echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
+if [ ${DEBUG_MEMORY} -ne 0 ]; then
+	echo "#define DEBUG_MEMORY ${DEBUG_MEMORY}"
+	DEBUG_OBJS=mandoc_dbg.o
+fi
 echo "#define OSENUM ${OSENUM}"
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
 [ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
@@ -613,6 +621,7 @@ exec > Makefile.local
 [ -z "${INCLUDEDIR}"      ] && INCLUDEDIR="${PREFIX}/include/mandoc"
 [ -z "${LIBDIR}"          ] && LIBDIR="${PREFIX}/lib/mandoc"
 [ -z "${MANDIR}"          ] && MANDIR="${PREFIX}/man"
+[ -z "${MISCDIR}"         ] && MISCDIR="${PREFIX}/share/misc"
 
 [ -z "${HTDOCDIR}"        ] && HTDOCDIR="${WWWPREFIX}/htdocs"
 [ -z "${CGIBINDIR}"       ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
@@ -640,6 +649,7 @@ CC		= ${CC}
 CFLAGS		= ${CFLAGS}
 LDADD		= ${LDADD}
 LDFLAGS		= ${LDFLAGS}
+DEBUG_OBJS	= ${DEBUG_OBJS}
 MANDOC_COBJS	= ${MANDOC_COBJS}
 SOELIM_COBJS	= ${SOELIM_COBJS}
 STATIC		= ${STATIC}
@@ -650,6 +660,7 @@ BIN_FROM_SBIN	= ${BIN_FROM_SBIN}
 INCLUDEDIR	= ${INCLUDEDIR}
 LIBDIR		= ${LIBDIR}
 MANDIR		= ${MANDIR}
+MISCDIR		= ${MISCDIR}
 WWWPREFIX	= ${WWWPREFIX}
 HTDOCDIR	= ${HTDOCDIR}
 CGIBINDIR	= ${CGIBINDIR}

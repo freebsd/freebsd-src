@@ -1,4 +1,4 @@
-/*	$Id: chars.c,v 1.79 2020/02/13 16:18:29 schwarze Exp $ */
+/* $Id: chars.c,v 1.81 2022/06/26 20:33:43 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015, 2017, 2018, 2020
@@ -92,7 +92,6 @@ static struct ln lines[] = {
 	{ "en",			"-",		0x2013	},
 	{ "hy",			"-",		0x2010	},
 	{ "e",			"\\",		0x005c	},
-	{ ".",			".",		0x002e	},
 	{ "r!",			"!",		0x00a1	},
 	{ "r?",			"?",		0x00bf	},
 
@@ -365,7 +364,7 @@ static struct ln lines[] = {
 	{ "de",			"<degree>",	0x00b0	},
 	{ "%0",			"<permille>",	0x2030	},
 	{ "fm",			"\'",		0x2032	},
-	{ "sd",			"''",		0x2033	},
+	{ "sd",			"\"",		0x2033	},
 	{ "mc",			"<micro>",	0x00b5	},
 	{ "Of",			"_\ba",		0x00aa	},
 	{ "Om",			"_\bo",		0x00ba	},

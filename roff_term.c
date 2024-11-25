@@ -1,4 +1,4 @@
-/* $OpenBSD: roff_term.c,v 1.20 2020/09/03 17:37:06 schwarze Exp $ */
+/* $Id: roff_term.c,v 1.25 2023/04/28 19:11:04 schwarze Exp $ */
 /*
  * Copyright (c) 2010,2014,2015,2017-2020 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -175,7 +175,7 @@ roff_term_pre_po(ROFF_TERM_ARGS)
 	} else
 		ponew = polast;
 
-	/* Remeber both the previous and the newly requested offset. */
+	/* Remember both the previous and the newly requested offset. */
 	polast = po;
 	po = ponew;
 

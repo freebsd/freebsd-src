@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_escape.3,v 1.4 2017/07/04 23:40:01 schwarze Exp $
+.\" $Id: mandoc_escape.3,v 1.6 2023/10/23 14:46:22 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 4 2017 $
+.Dd $Mdocdate: October 23 2023 $
 .Dt MANDOC_ESCAPE 3
 .Os
 .Sh NAME
@@ -80,12 +80,12 @@ that can be used as quoting characters.
 .El
 .Pp
 Upon function entry,
-.Fa end
+.Pf * Fa end
 is expected to point to the escape sequence identifier.
 The values passed in as
-.Fa start
+.Pf * Fa start
 and
-.Fa sz
+.Pf * Fa sz
 are ignored and overwritten.
 .Pp
 By design, this function cannot handle those
@@ -100,9 +100,11 @@ width measurements
 and numerical expression control
 .Ic \eB .
 These are handled by
-.Fn roff_res ,
+.Fn roff_expand ,
 a private preprocessor function called from
-.Fn roff_parseln ,
+.Fn roff_parseln
+and
+.Fn roff_getarg ,
 see the file
 .Pa roff.c .
 .Pp
@@ -114,12 +116,21 @@ is used
 recursively by itself, because some escape sequence arguments can
 in turn contain other escape sequences,
 .It
-for error detection internally by the
+for parsing and error detection internally by the
 .Xr roff 7
 parser part of the
 .Xr mandoc 3
 library, see the file
 .Pa roff.c ,
+.It
+occasionally by high-level parser and validation modules when they
+need to skip escape sequences while scanning the input, see the files
+.Pa mdoc.c ,
+.Pa man.c ,
+.Pa man_validate.c ,
+.Pa eqn.c ,
+and
+.Pa tbl_data.c
 .It
 above all externally by the
 .Xr mandoc 1
@@ -139,19 +150,19 @@ to purge escape sequences from text.
 .El
 .Sh RETURN VALUES
 Upon function return, the pointer
-.Fa end
+.Pf * Fa end
 is set to the character after the end of the escape sequence,
 such that the calling higher-level parser can easily continue.
 .Pp
 For escape sequences taking an argument, the pointer
-.Fa start
+.Pf * Fa start
 is set to the beginning of the argument and
-.Fa sz
+.Pf * Fa sz
 is set to the length of the argument.
 For escape sequences not taking an argument,
-.Fa start
+.Pf * Fa start
 is set to the character after the end of the sequence and
-.Fa sz
+.Pf * Fa sz
 is set to 0.
 Both
 .Fa start
@@ -165,6 +176,11 @@ For sequences taking an argument, the function
 .Fn mandoc_escape
 returns one of the following values:
 .Bl -tag -width 2n
+.It Dv ESCAPE_DEVICE
+The escape sequence
+.Ic \e*(.T
+or
+.Ic \e*[.T] .
 .It Dv ESCAPE_FONT
 The escape sequence
 .Ic \ef
@@ -183,6 +199,33 @@ More specific values are returned for the most commonly used arguments:
 .It Cm P Ta Dv ESCAPE_FONTPREV
 .It Cm BI Ta Dv ESCAPE_FONTBI
 .El
+.It Dv ESCAPE_HLINE
+The escape sequence
+.Ic \eh
+followed by an argument delimited by an arbitrary character.
+.It Dv ESCAPE_HORIZ
+The escape sequence
+.Ic \el
+followed by an argument delimited by an arbitrary character.
+.It Dv ESCAPE_NUMBERED
+The escape sequence
+.Ic \eN
+followed by a delimited argument.
+The delimiter character is arbitrary except that digits cannot be used.
+If a digit is encountered instead of the opening delimiter, that
+digit is considered to be the argument and the end of the sequence, and
+.Dv ESCAPE_IGNORE
+is returned.
+.Pp
+Such ASCII character escape sequences can be rendered using the function
+.Fn mchars_num2char
+described in the
+.Xr mchars_alloc 3
+manual.
+.It Dv ESCAPE_OVERSTRIKE
+The escape sequence
+.Ic \eo
+followed by an argument delimited by an arbitrary character.
 .It Dv ESCAPE_SPECIAL
 The escape sequence
 .Ic \eC
@@ -225,11 +268,11 @@ are hexadecimal digits and
 is not zero:
 .Ic \eC'u , \e[u .
 As a special exception,
-.Fa start
+.Pf * Fa start
 is set to the character after the
 .Ic u ,
 and the
-.Fa sz
+.Pf * Fa sz
 return value does not include the
 .Ic u
 either.
@@ -239,26 +282,10 @@ Such Unicode character escape sequences can be rendered using the function
 described in the
 .Xr mchars_alloc 3
 manual.
-.It Dv ESCAPE_NUMBERED
-The escape sequence
-.Ic \eN
-followed by a delimited argument.
-The delimiter character is arbitrary except that digits cannot be used.
-If a digit is encountered instead of the opening delimiter, that
-digit is considered to be the argument and the end of the sequence, and
-.Dv ESCAPE_IGNORE
-is returned.
-.Pp
-Such ASCII character escape sequences can be rendered using the function
-.Fn mchars_num2char
-described in the
-.Xr mchars_alloc 3
-manual.
-.It Dv ESCAPE_OVERSTRIKE
-The escape sequence
-.Ic \eo
-followed by an argument delimited by an arbitrary character.
 .It Dv ESCAPE_IGNORE
+Many escape sequences that
+.Xr mandoc 1
+intends to ignore, in particular:
 .Bl -bullet -width 2n
 .It
 The escape sequence
@@ -276,18 +303,15 @@ for all forms.
 .It
 The escape sequences
 .Ic \eF ,
-.Ic \eg ,
 .Ic \ek ,
 .Ic \eM ,
 .Ic \em ,
-.Ic \en ,
-.Ic \eV ,
+.Ic \eO ,
 and
 .Ic \eY
 followed by an argument in standard form.
 .It
 The escape sequences
-.Ic \eA ,
 .Ic \eb ,
 .Ic \eD ,
 .Ic \eR ,
@@ -298,9 +322,7 @@ followed by an argument delimited by an arbitrary character.
 .It
 The escape sequences
 .Ic \eH ,
-.Ic \eh ,
 .Ic \eL ,
-.Ic \el ,
 .Ic \eS ,
 .Ic \ev ,
 and
@@ -312,9 +334,21 @@ is found instead of a delimiter, the sequence is considered to end
 with that character, and
 .Dv ESCAPE_ERROR
 is returned.
+.It
+The escape sequences
+.Ic \eO
+with a single-digit argument in the range from 1 to 4 inclusive.
 .El
+.It Dv ESCAPE_UNSUPP
+An escape sequence that
+.Xr mandoc 1
+can parse, but for which formatting in unsupported, in particular
+.Qq \eO0
+and
+.Qq \eO5 .
 .It Dv ESCAPE_ERROR
-Escape sequences taking an argument but not matching any of the above patterns.
+Escape sequences taking an argument
+where the actual argument contains a syntax error.
 In particular, that happens if the end of the logical input line
 is reached before the end of the argument.
 .El
@@ -323,17 +357,45 @@ For sequences that do not take an argument, the function
 .Fn mandoc_escape
 returns one of the following values:
 .Bl -tag -width 2n
-.It Dv ESCAPE_SKIPCHAR
+.It Dv ESCAPE_BREAK
 The escape sequence
-.Qq \ez .
+.Qq \ep .
+.It Dv ESCAPE_IGNORE
+Many escape sequences including
+.Qq \e% ,
+.Qq \e& ,
+.Qq \e| ,
+.Qq \ed ,
+and
+.Qq \eu .
 .It Dv ESCAPE_NOSPACE
 The escape sequence
 .Qq \ec .
-.It Dv ESCAPE_IGNORE
+.It Dv ESCAPE_SKIPCHAR
+The escape sequence
+.Qq \ez .
+.It Dv ESCAPE_UNSUPP
 The escape sequences
-.Qq \ed
+.Qq \e! ,
+.Qq \e? ,
 and
-.Qq \eu .
+.Qq \er .
+.It Dv ESCAPE_UNDEF
+Many escape sequences that other
+.Xr roff 7
+implementations do not define either, for example
+.Qq \eG ,
+.Qq \eI ,
+.Qq \ei ,
+.Qq \eJ ,
+.Qq \ej ,
+.Qq \eK ,
+.Qq \eP ,
+.Qq \eT ,
+.Qq \eU ,
+.Qq \eW ,
+and
+.Qq \ey .
 .El
 .Sh FILES
 This function is implemented in
@@ -347,21 +409,3 @@ This function has been available since mandoc 1.11.2.
 .Sh AUTHORS
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
 .An Ingo Schwarze Aq Mt schwarze@openbsd.org
-.Sh BUGS
-The function doesn't cleanly distinguish between sequences that are
-valid and supported, valid and ignored, valid and unsupported,
-syntactically invalid, or undefined.
-For sequences that are ignored or unsupported, it doesn't tell
-whether that deficiency is likely to cause major formatting problems
-and/or loss of document content.
-The function is already rather complicated and still parses some
-sequences incorrectly.
-.
-.ig
-For these sequences, the list given below specifies a starting string
-and either the length of the argument or an ending character.
-The argument starts after the starting string.
-In the former case, the sequence ends with the end of the argument.
-In the latter case, the argument ends before the ending character,
-and the sequence ends with the ending character.
-..

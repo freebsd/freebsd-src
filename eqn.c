@@ -1,7 +1,8 @@
-/*	$Id: eqn.c,v 1.84 2020/01/08 12:16:24 schwarze Exp $ */
+/* $Id: eqn.c,v 1.86 2023/04/28 19:11:03 schwarze Exp $ */
 /*
+ * Copyright (c) 2014, 2015, 2017, 2018, 2020, 2022
+ *               Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014,2015,2017,2018,2020 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -355,7 +356,7 @@ eqn_def_find(struct eqn_node *ep)
 /*
  * Parse a token from the input text.  The modes are:
  * MODE_QUOTED: Use *ep->start as the delimiter; the token ends
- *   before its next occurence.  Do not interpret the token in any
+ *   before its next occurrence.  Do not interpret the token in any
  *   way and return EQN_TOK_QUOTED.  All other modes behave like
  *   MODE_QUOTED when *ep->start is '"'.
  * MODE_NOSUB: If *ep->start is a curly brace, the token ends after it;
@@ -375,19 +376,17 @@ eqn_def_find(struct eqn_node *ep)
 static enum eqn_tok
 eqn_next(struct eqn_node *ep, enum parse_mode mode)
 {
-	static int	 last_len, lim;
-
 	struct eqn_def	*def;
 	size_t		 start;
-	int		 diff, i, quoted;
+	int		 diff, i, newlen, quoted;
 	enum eqn_tok	 tok;
 
 	/*
 	 * Reset the recursion counter after advancing
-	 * beyond the end of the previous substitution.
+	 * beyond the end of the rightmost substitution.
 	 */
-	if (ep->end - ep->data >= last_len)
-		lim = 0;
+	if (ep->end - ep->data >= ep->sublen)
+		ep->subcnt = 0;
 
 	ep->start = ep->end;
 	quoted = mode == MODE_QUOTED;
@@ -434,10 +433,10 @@ eqn_next(struct eqn_node *ep, enum parse_mode mode)
 			return EQN_TOK__MAX;
 		if ((def = eqn_def_find(ep)) == NULL)
 			break;
-		if (++lim > EQN_NEST_MAX) {
+		if (++ep->subcnt > EQN_NEST_MAX) {
 			mandoc_msg(MANDOCERR_ROFFLOOP,
 			    ep->node->line, ep->node->pos, NULL);
-			return EQN_TOK_EOF;
+			break;
 		}
 
 		/* Replace a defined name with its string value. */
@@ -446,12 +445,15 @@ eqn_next(struct eqn_node *ep, enum parse_mode mode)
 			ep->sz += diff;
 			ep->data = mandoc_realloc(ep->data, ep->sz + 1);
 			ep->start = ep->data + start;
+			ep->sublen += diff;
 		}
 		if (diff)
 			memmove(ep->start + def->valsz, ep->start + ep->toksz,
 			    strlen(ep->start + ep->toksz) + 1);
 		memcpy(ep->start, def->val, def->valsz);
-		last_len = ep->start - ep->data + def->valsz;
+		newlen = ep->start - ep->data + def->valsz;
+		if (ep->sublen < newlen)
+			ep->sublen = newlen;
 	}
 	if (mode != MODE_TOK)
 		return quoted ? EQN_TOK_QUOTED : EQN_TOK__MAX;
@@ -678,6 +680,8 @@ eqn_parse(struct eqn_node *ep)
 		return;
 
 	ep->start = ep->end = ep->data;
+	ep->sublen = 0;
+	ep->subcnt = 0;
 
 next_tok:
 	tok = eqn_next(ep, MODE_TOK);
