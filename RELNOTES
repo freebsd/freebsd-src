@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+b2f7c53430c3:
+	Kernel TLS is now enabled by default in kernels including KTLS
+	support.  KTLS is included in GENERIC kernels for aarch64,
+	amd64, powerpc64, and powerpc64le.
+
 f57efe95cc25:
 	New mididump(1) utility which dumps MIDI 1.0 events in real time.
 
