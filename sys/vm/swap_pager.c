@@ -2503,26 +2503,23 @@ swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 	VM_OBJECT_ASSERT_RLOCKED(object);
 	vm_page_iter_init(&pages, object);
 	m = vm_page_iter_lookup_ge(&pages, pindex);
-	if (m != NULL) {
-		if (!vm_page_any_valid(m))
-			m = NULL;
-		else if (pages.index == pindex)
-			return (pages.index);
-	}
+	if (m != NULL && pages.index == pindex && vm_page_any_valid(m))
+		return (pages.index);
 	swblk_iter_init_only(&blks, object);
 	swap_index = swap_pager_iter_find_least(&blks, pindex);
 	if (swap_index == pindex)
 		return (swap_index);
-	if (swap_index == OBJ_MAX_SIZE)
-		swap_index = object->size;
-	if (m == NULL)
-		return (swap_index);
 
-	while ((m = vm_radix_iter_step(&pages)) != NULL &&
-	    pages.index < swap_index) {
+	/*
+	 * Find the first resident page after m, before swap_index.
+	 */
+	while (m != NULL && pages.index < swap_index) {
 		if (vm_page_any_valid(m))
 			return (pages.index);
+		m = vm_radix_iter_step(&pages);
 	}
+	if (swap_index == OBJ_MAX_SIZE)
+		swap_index = object->size;
 	return (swap_index);
 }
 
