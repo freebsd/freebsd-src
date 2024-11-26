@@ -354,7 +354,7 @@ enum {
 #define CHN_F_RUNNING		0x00000004  /* dma is running */
 #define CHN_F_TRIGGERED		0x00000008
 #define CHN_F_NOTRIGGER		0x00000010
-#define CHN_F_SLEEPING		0x00000020
+/* unused			0x00000020 */
 
 #define CHN_F_NBIO              0x00000040  /* do non-blocking i/o */
 #define CHN_F_MMAP		0x00000080  /* has been mmap()ed */
@@ -381,8 +381,8 @@ enum {
 				"\002ABORTING"				\
 				"\003RUNNING"				\
 				"\004TRIGGERED"				\
+				/* \006 */				\
 				"\005NOTRIGGER"				\
-				"\006SLEEPING"				\
 				"\007NBIO"				\
 				"\010MMAP"				\
 				"\011BUSY"				\
