@@ -2318,44 +2318,46 @@ chn_trigger(struct pcm_channel *c, int go)
 	if (go == c->trigger)
 		return (0);
 
+	if (snd_verbose > 3) {
+		device_printf(c->dev, "%s() %s: calling go=0x%08x , "
+		    "prev=0x%08x\n", __func__, c->name, go, c->trigger);
+	}
+
+	c->trigger = go;
 	ret = CHANNEL_TRIGGER(c->methods, c->devinfo, go);
 	if (ret != 0)
 		return (ret);
 
+	CHN_UNLOCK(c);
+	PCM_LOCK(d);
+	CHN_LOCK(c);
+
+	/*
+	 * Do nothing if another thread set a different trigger while we had
+	 * dropped the mutex.
+	 */
+	if (go != c->trigger) {
+		PCM_UNLOCK(d);
+		return (0);
+	}
+
+	/*
+	 * Use the SAFE variants to prevent inserting/removing an already
+	 * existing/missing element.
+	 */
 	switch (go) {
 	case PCMTRIG_START:
-		if (snd_verbose > 3)
-			device_printf(c->dev,
-			    "%s() %s: calling go=0x%08x , "
-			    "prev=0x%08x\n", __func__, c->name, go,
-			    c->trigger);
-		if (c->trigger != PCMTRIG_START) {
-			c->trigger = go;
-			CHN_UNLOCK(c);
-			PCM_LOCK(d);
-			CHN_INSERT_HEAD(d, c, channels.pcm.busy);
-			PCM_UNLOCK(d);
-			CHN_LOCK(c);
-			chn_syncstate(c);
-		}
+		CHN_INSERT_HEAD_SAFE(d, c, channels.pcm.busy);
+		PCM_UNLOCK(d);
+		chn_syncstate(c);
 		break;
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		if (snd_verbose > 3)
-			device_printf(c->dev,
-			    "%s() %s: calling go=0x%08x , "
-			    "prev=0x%08x\n", __func__, c->name, go,
-			    c->trigger);
-		if (c->trigger == PCMTRIG_START) {
-			c->trigger = go;
-			CHN_UNLOCK(c);
-			PCM_LOCK(d);
-			CHN_REMOVE(d, c, channels.pcm.busy);
-			PCM_UNLOCK(d);
-			CHN_LOCK(c);
-		}
+		CHN_REMOVE_SAFE(d, c, channels.pcm.busy);
+		PCM_UNLOCK(d);
 		break;
 	default:
+		PCM_UNLOCK(d);
 		break;
 	}
 
