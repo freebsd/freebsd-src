@@ -4480,7 +4480,7 @@ iwn_tx_rate_to_linkq_offset(struct iwn_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Figure out if we're using 11n or not here.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0)
+	if (ieee80211_ht_check_tx_ht(ni))
 		is_11n = 1;
 	else
 		is_11n = 0;
@@ -5358,7 +5358,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	 * 11n _and_ we have some 11n rates, or don't
 	 * try.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0) {
+	if (ieee80211_ht_check_tx_ht(ni)) {
 		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
 		is_11n = 1;
 	} else {
