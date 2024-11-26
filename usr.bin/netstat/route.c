@@ -578,7 +578,7 @@ netname4(in_addr_t in, in_addr_t mask)
 	struct netent *np = 0;
 	in_addr_t i;
 
-	if (in == INADDR_ANY && mask == 0) {
+	if (!numeric_addr && in == INADDR_ANY && mask == 0) {
 		strlcpy(line, "default", sizeof(line));
 		return (line);
 	}
@@ -673,7 +673,8 @@ netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 	else
 		masklen = 128;
 
-	if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
+	if (!numeric_addr && masklen == 0 &&
+	    IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
 		return("default");
 
 	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, nline, sizeof(nline),
