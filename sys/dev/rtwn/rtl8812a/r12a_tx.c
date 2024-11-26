@@ -147,6 +147,9 @@ r12a_tx_raid(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 		case IEEE80211_MODE_11NG:
 			mode = IEEE80211_MODE_11G;
 			break;
+		case IEEE80211_MODE_VHT_5GHZ:
+			mode = IEEE80211_MODE_VHT_5GHZ;
+			break;
 		default:
 			device_printf(sc->sc_dev, "unknown mode(1) %d!\n",
 			    ic->ic_curmode);
@@ -186,8 +189,13 @@ r12a_tx_raid(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 				raid = R12A_RAID_11BGN_2;
 		}
 		break;
+	case IEEE80211_MODE_VHT_5GHZ:
+		if (sc->ntxchains == 1)
+			raid = R12A_RAID_11AC_1;
+		else
+			raid = R12A_RAID_11AC_2;
+		break;
 	default:
-		/* TODO: 80 MHz / 11ac */
 		device_printf(sc->sc_dev, "unknown mode(2) %d!\n", mode);
 		return;
 	}
