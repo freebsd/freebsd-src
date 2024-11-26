@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2015 M. Warner Losh <imp@FreeBSD.org>
 .\"
@@ -21,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 20, 2015
+.Dd November 22, 2024
 .Dt OW_TEMP 4
 .Os
 .Sh NAME
@@ -38,22 +40,17 @@ The sensor is read periodically and the results returned via a
 .Xr sysctl 3
 as described below.
 .Sh HARDWARE
-These temperature sensors are supported by the
+The
 .Nm
-driver:
-.Bl -tag -width MAX31820 -compact
-.It DS1820
-1-Wire Digital Thermometer
-.It DS18S20
-High-Precision 1-Wire Digital Thermometer
-.It DS18B20
-Programmable Resolution 1-Wire Digital Thermometer
-.It DS1822
-Econo 1-Wire Digital Thermometer
-.It DS1825
-Programmable Resolution 1-Wire Digital Thermometer with 4-bit ID
-.It MAX31820
-1-Wire, Parasite-Power, Ambient Temperature Sensor
+driver supports the following temperature sensors:
+.Pp
+.Bl -column "DS18S20" "Econo 1-Wire Digital Thermometer" -compact
+.It DS1820 Ta 1-Wire Digital Thermometer
+.It DS18S20 Ta High-Precision 1-Wire Digital Thermometer
+.It DS18B20 Ta Programmable Resolution 1-Wire Digital Thermometer
+.It DS1822 Ta Econo 1-Wire Digital Thermometer
+.It DS1825 Ta Programmable Resolution 1-Wire Digital Thermometer with 4-bit ID
+.It MAX31820 Ta 1-Wire, Parasite-Power, Ambient Temperature Sensor
 .El
 .Pp
 The driver supports Family codes 0x10, 0x22, 0x28, and 0x3b.
@@ -65,7 +62,7 @@ driver reports data via
 entries in the device's node in the
 .Xr sysctl 8
 tree:
-.Bl -tag -width xxxxxxxxxx
+.Bl -tag -width "reading_interval"
 .It temperature
 The last temperature read, in milli-Kelvin.
 .It badcrc
