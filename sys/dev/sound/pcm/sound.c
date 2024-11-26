@@ -536,8 +536,6 @@ pcm_unregister(device_t dev)
 	PCM_LOCK(d);
 	PCM_WAIT(d);
 
-	d->flags |= SD_F_DETACHING;
-	d->flags |= SD_F_DYING;
 	d->flags &= ~SD_F_REGISTERED;
 
 	PCM_ACQUIRE(d);
