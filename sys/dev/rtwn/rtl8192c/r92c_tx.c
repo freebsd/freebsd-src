@@ -221,6 +221,28 @@ r92c_tx_setup_macid(void *buf, int id)
 	txd->txdw4 &= ~htole32(R92C_TXDW4_RTS_SHORT);
 }
 
+static int
+r92c_calculate_tx_agg_window(struct rtwn_softc *sc,
+    const struct ieee80211_node *ni, int tid)
+{
+	const struct ieee80211_tx_ampdu *tap;
+	int wnd;
+
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/*
+	 * BAW is (MAX_AGG * 2) + 1, hence the /2 here.
+	 * Ensure we don't send 0 or more than 64.
+	 */
+	wnd = tap->txa_wnd / 2;
+	if (wnd == 0)
+		wnd = 1;
+	else if (wnd > 0x1f)
+		wnd = 0x1f;
+
+	return (wnd);
+}
+
 void
 r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
@@ -276,9 +298,9 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 			    (m->m_flags & M_AMPDU_MPDU) != 0);
 			if (m->m_flags & M_AMPDU_MPDU) {
 				txd->txdw2 |= htole32(SM(R92C_TXDW2_AMPDU_DEN,
-				    vap->iv_ampdu_density));
+				    ieee80211_ht_get_node_ampdu_density(ni)));
 				txd->txdw6 |= htole32(SM(R92C_TXDW6_MAX_AGG,
-				    0x1f));	/* XXX */
+				    r92c_calculate_tx_agg_window(sc, ni, tid)));
 			}
 			if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
 				txd->txdw2 |= htole32(R92C_TXDW2_CCX_RPT);
