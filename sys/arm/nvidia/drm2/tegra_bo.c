@@ -29,6 +29,8 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/pctrie.h>
+#include <sys/vmem.h>
 
 #include <machine/bus.h>
 
@@ -39,8 +41,6 @@
 
 #include <arm/nvidia/drm2/tegra_drm.h>
 
-#include <sys/vmem.h>
-#include <sys/vmem.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
 
