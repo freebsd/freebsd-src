@@ -221,8 +221,8 @@ pcm_killchans(struct snddev_info *d)
 		/* Make sure all channels are stopped. */
 		CHN_FOREACH(ch, d, channels.pcm) {
 			CHN_LOCK(ch);
-			if ((ch->flags & CHN_F_SLEEPING) == 0 &&
-			    CHN_STOPPED(ch) && ch->inprog == 0) {
+			if (ch->intr_cv.cv_waiters == 0 && CHN_STOPPED(ch) &&
+			    ch->inprog == 0) {
 				CHN_UNLOCK(ch);
 				continue;
 			}
