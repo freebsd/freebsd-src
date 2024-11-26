@@ -494,6 +494,7 @@ enum {
 	TDA_RACCT,
 	TDA_MOD1,		/* For third party use, before signals are */
 	TAD_MOD2,		/* processed .. */
+	TDA_PSELECT,		/* For discarding temporary signal mask */
 	TDA_SIG,
 	TDA_KTRACE,
 	TDA_SUSPEND,
