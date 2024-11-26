@@ -1050,15 +1050,31 @@ kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
 		    &td->td_oldsigmask, 0);
 		if (error != 0)
 			return (error);
-		td->td_pflags |= TDP_OLDMASK;
+	}
+	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+	if (uset != NULL) {
 		/*
 		 * Make sure that ast() is called on return to
 		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
 		 */
-		ast_sched(td, TDA_SIGSUSPEND);
+		if (error == EINTR) {
+			td->td_pflags |= TDP_OLDMASK;
+			ast_sched(td, TDA_SIGSUSPEND);
+		} else {
+			int serror __diagused;
+
+			/* *select(2) should never restart. */
+			MPASS(error != ERESTART);
+			serror = kern_sigprocmask(td, SIG_SETMASK,
+			    &td->td_oldsigmask, NULL, 0);
+			MPASS(serror == 0);
+		}
 	}
-	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+
 	return (error);
 }
 
@@ -1529,13 +1545,6 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		    &td->td_oldsigmask, 0);
 		if (error)
 			return (error);
-		td->td_pflags |= TDP_OLDMASK;
-		/*
-		 * Make sure that ast() is called on return to
-		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
-		 */
-		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	seltdinit(td);
@@ -1558,6 +1567,28 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
+
+	if (uset != NULL) {
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
+		 */
+		if (error == EINTR) {
+			td->td_pflags |= TDP_OLDMASK;
+			ast_sched(td, TDA_SIGSUSPEND);
+		} else {
+			int serror __diagused;
+
+			serror = kern_sigprocmask(td, SIG_SETMASK,
+			    &td->td_oldsigmask, NULL, 0);
+			MPASS(serror == 0);
+		}
+	}
+
 	return (error);
 }
 
