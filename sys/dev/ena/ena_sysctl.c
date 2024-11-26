@@ -158,7 +158,7 @@ SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
 int ena_force_large_llq_header = ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT;
 SYSCTL_INT(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
     &ena_force_large_llq_header, 0,
-    "Change default LLQ entry size received from the device\n");
+    "Change default LLQ entry size received from the device");
 
 int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
 
