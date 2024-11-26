@@ -146,19 +146,18 @@ vchan_trigger(kobj_t obj, void *data, int go)
 	int ret, otrigger;
 
 	info = data;
+	c = info->channel;
+	p = c->parentchannel;
 
+	CHN_LOCKASSERT(c);
 	if (!PCMTRIG_COMMON(go) || go == info->trigger)
 		return (0);
 
-	c = info->channel;
-	p = c->parentchannel;
-	otrigger = info->trigger;
-	info->trigger = go;
-
-	CHN_LOCKASSERT(c);
-
 	CHN_UNLOCK(c);
 	CHN_LOCK(p);
+
+	otrigger = info->trigger;
+	info->trigger = go;
 
 	switch (go) {
 	case PCMTRIG_START:
