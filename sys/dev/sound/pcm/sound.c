@@ -211,40 +211,53 @@ static void
 pcm_killchans(struct snddev_info *d)
 {
 	struct pcm_channel *ch;
-	bool found;
+	bool again;
 
 	PCM_BUSYASSERT(d);
-	do {
-		found = false;
+	KASSERT(!PCM_REGISTERED(d), ("%s(): still registered\n", __func__));
+
+	for (;;) {
+		again = false;
+		/* Make sure all channels are stopped. */
 		CHN_FOREACH(ch, d, channels.pcm) {
 			CHN_LOCK(ch);
-			/*
-			 * Make sure no channel has went to sleep in the
-			 * meantime.
-			 */
-			chn_shutdown(ch);
-			/*
-			 * We have to give a thread sleeping in chn_sleep() a
-			 * chance to observe that the channel is dead.
-			 */
-			if ((ch->flags & CHN_F_SLEEPING) == 0) {
-				found = true;
+			if ((ch->flags & CHN_F_SLEEPING) == 0 &&
+			    CHN_STOPPED(ch) && ch->inprog == 0) {
 				CHN_UNLOCK(ch);
-				break;
+				continue;
 			}
+			chn_shutdown(ch);
+			if (ch->direction == PCMDIR_PLAY)
+				chn_flush(ch);
+			else
+				chn_abort(ch);
 			CHN_UNLOCK(ch);
+			again = true;
 		}
-
 		/*
-		 * All channels are still sleeping. Sleep for a bit and try
-		 * again to see if any of them is awake now.
+		 * Some channels are still active. Sleep for a bit and try
+		 * again.
 		 */
-		if (!found) {
-			pause_sbt("pcmkillchans", SBT_1MS * 5, 0, 0);
-			continue;
-		}
+		if (again)
+			pause_sbt("pcmkillchans", mstosbt(5), 0, 0);
+		else
+			break;
+	}
+
+	/* All channels are finally dead. */
+	while (!CHN_EMPTY(d, channels.pcm)) {
+		ch = CHN_FIRST(d, channels.pcm);
 		chn_kill(ch);
-	} while (!CHN_EMPTY(d, channels.pcm));
+	}
+
+	if (d->p_unr != NULL)
+		delete_unrhdr(d->p_unr);
+	if (d->vp_unr != NULL)
+		delete_unrhdr(d->vp_unr);
+	if (d->r_unr != NULL)
+		delete_unrhdr(d->r_unr);
+	if (d->vr_unr != NULL)
+		delete_unrhdr(d->vr_unr);
 }
 
 static int
@@ -512,7 +525,6 @@ int
 pcm_unregister(device_t dev)
 {
 	struct snddev_info *d;
-	struct pcm_channel *ch;
 
 	d = device_get_softc(dev);
 
@@ -525,28 +537,15 @@ pcm_unregister(device_t dev)
 	PCM_WAIT(d);
 
 	d->flags |= SD_F_DETACHING;
+	d->flags |= SD_F_DYING;
+	d->flags &= ~SD_F_REGISTERED;
 
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	CHN_FOREACH(ch, d, channels.pcm) {
-		CHN_LOCK(ch);
-		/*
-		 * Do not wait for the timeout in chn_read()/chn_write(). Wake
-		 * up the sleeping thread and kill the channel.
-		 */
-		chn_shutdown(ch);
-		chn_abort(ch);
-		CHN_UNLOCK(ch);
-	}
+	pcm_killchans(d);
 
-	/* remove /dev/sndstat entry first */
-	sndstat_unregister(dev);
-
-	PCM_LOCK(d);
-	d->flags |= SD_F_DYING;
-	d->flags &= ~SD_F_REGISTERED;
-	PCM_UNLOCK(d);
+	PCM_RELEASE_QUICK(d);
 
 	if (d->play_sysctl_tree != NULL) {
 		sysctl_ctx_free(&d->play_sysctl_ctx);
@@ -557,24 +556,12 @@ pcm_unregister(device_t dev)
 		d->rec_sysctl_tree = NULL;
 	}
 
+	sndstat_unregister(dev);
+	mixer_uninit(dev);
 	dsp_destroy_dev(dev);
-	(void)mixer_uninit(dev);
 
-	pcm_killchans(d);
-
-	PCM_LOCK(d);
-	PCM_RELEASE(d);
 	cv_destroy(&d->cv);
-	PCM_UNLOCK(d);
 	snd_mtxfree(d->lock);
-	if (d->p_unr != NULL)
-		delete_unrhdr(d->p_unr);
-	if (d->vp_unr != NULL)
-		delete_unrhdr(d->vp_unr);
-	if (d->r_unr != NULL)
-		delete_unrhdr(d->r_unr);
-	if (d->vr_unr != NULL)
-		delete_unrhdr(d->vr_unr);
 
 	if (snd_unit == device_get_unit(dev)) {
 		snd_unit = pcm_best_unit(-1);
