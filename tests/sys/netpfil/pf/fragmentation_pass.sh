@@ -155,6 +155,75 @@ v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_route_to" "cleanup"
+v6_route_to_head()
+{
+	atf_set descr 'Test IPv6 reassembly combined with route-to'
+	atf_set require.user root
+}
+
+v6_route_to_body()
+{
+	pft_init
+}
+
+v6_route_to_cleanup()
+{
+	pft_cleanup
+
+	epair_send=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_link}a
+	vnet_mkjail singsing ${epair_link}b
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 no_dad up
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 no_dad up
+	jexec alcatraz ifconfig ${epair_link}a inet6 2001:db8:43::2/64 no_dad up
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+
+	jexec singsing ifconfig ${epair_link}b inet6 2001:db8:43::3/64 no_dad up
+	jexec singsing route add -6 2001:db8:42::/64 2001:db8:43::2
+	route add -6 2001:db8:43::/64 2001:db8:42::2
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 -ifdisabled
+	jexec alcatraz ifconfig ${epair_link}a inet6 -ifdisabled
+	jexec singsing ifconfig ${epair_link}b inet6 -ifdisabled
+	ifconfig ${epair_send}a inet6 -ifdisabled
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"pass" \
+		"pass in route-to (${epair_link}a 2001:db8:43::3) inet6 proto icmp6 from any to 2001:db8:43::3 keep state"
+
+	# Forwarding test
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 -s 4500 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore\
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+
+	# Now test this without fragmentation
+	pft_set_rules alcatraz \
+		"set reassemble no" \
+		"pass" \
+		"pass in route-to (${epair_link}a 2001:db8:43::3) inet6 proto icmp6 from any to 2001:db8:43::3 keep state"
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 -s 4500 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore\
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+}
+
 atf_test_case "mtu_diff" "cleanup"
 mtu_diff_head()
 {
@@ -544,6 +613,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
 	atf_add_test_case "v6"
+	atf_add_test_case "v6_route_to"
 	atf_add_test_case "mtu_diff"
 	atf_add_test_case "overreplace"
 	atf_add_test_case "overindex"

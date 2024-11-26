@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
@@ -49,6 +50,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/tcp.h>
@@ -958,7 +961,7 @@ pf_max_frag_size(struct mbuf *m)
 
 int
 pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
-    bool forward)
+    struct ifnet *rt, bool forward)
 {
 	struct mbuf		*m = *m0, *t;
 	struct ip6_hdr		*hdr;
@@ -1029,16 +1032,27 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 		m->m_flags |= M_SKIP_FIREWALL;
 		memset(&pd, 0, sizeof(pd));
 		pd.pf_mtag = pf_find_mtag(m);
-		if (error == 0)
-			if (forward) {
-				MPASS(m->m_pkthdr.rcvif != NULL);
-				ip6_forward(m, 0);
-			} else {
-				(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
-				    NULL);
-			}
-		else
+		if (error != 0) {
 			m_freem(m);
+			continue;
+		}
+		if (rt != NULL) {
+			struct sockaddr_in6	dst;
+			hdr = mtod(m, struct ip6_hdr *);
+
+			bzero(&dst, sizeof(dst));
+			dst.sin6_family = AF_INET6;
+			dst.sin6_len = sizeof(dst);
+			dst.sin6_addr = hdr->ip6_dst;
+
+			nd6_output_ifp(rt, rt, m, &dst, NULL);
+		} else if (forward) {
+			MPASS(m->m_pkthdr.rcvif != NULL);
+			ip6_forward(m, 0);
+		} else {
+			(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
+			    NULL);
+		}
 	}
 
 	return (action);

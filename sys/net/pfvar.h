@@ -70,6 +70,8 @@
 
 #ifdef _KERNEL
 
+#define        PF_PFIL_NOREFRAGMENT    0x80000000
+
 #if defined(__arm__)
 #define PF_WANT_32_TO_64_COUNTER
 #endif
@@ -2372,7 +2374,8 @@ void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
 int	pf_max_frag_size(struct mbuf *);
-int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *, bool);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *,
+	    struct ifnet *, bool);
 #endif /* INET6 */
 
 int	pf_multihome_scan_init(int, int, struct pf_pdesc *);

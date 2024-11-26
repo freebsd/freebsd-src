@@ -7927,6 +7927,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *md;
+	struct m_tag		*mtag;
 	struct sockaddr_in6	dst;
 	struct ip6_hdr		*ip6;
 	struct pfi_kkif		*nkif = NULL;
@@ -8053,8 +8054,8 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	if (pd->dir == PF_IN) {
-		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD, ifp, &m0, inp,
-		    &pd->act) != PF_PASS) {
+		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
+		    ifp, &m0, inp, &pd->act) != PF_PASS) {
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 			goto bad;
 		} else if (m0 == NULL) {
@@ -8087,6 +8088,14 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	 */
 	if (IN6_IS_SCOPE_EMBED(&dst.sin6_addr))
 		dst.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+	mtag = m_tag_find(m0, PACKET_TAG_PF_REASSEMBLED, NULL);
+	if (mtag != NULL) {
+		int ret;
+		ret = pf_refragment6(ifp, &m0, mtag, ifp, true);
+		SDT_PROBE2(pf, ip6, route_to, output, ifp, ret);
+		goto done;
+	}
+
 	if ((u_long)m0->m_pkthdr.len <= ifp->if_mtu) {
 		md = m0;
 		pf_dummynet_route(pd, s, r, ifp, sintosa(&dst), &md);
@@ -9474,14 +9483,15 @@ eat_pkt:
 	if (s)
 		PF_STATE_UNLOCK(s);
 
+out:
 #ifdef INET6
 	/* If reassembled packet passed, create new fragments. */
 	if (af == AF_INET6 && action == PF_PASS && *m0 && dir == PF_OUT &&
+	    (! (pflags & PF_PFIL_NOREFRAGMENT)) &&
 	    (mtag = m_tag_find(pd.m, PACKET_TAG_PF_REASSEMBLED, NULL)) != NULL)
-		action = pf_refragment6(ifp, m0, mtag, pflags & PFIL_FWD);
+		action = pf_refragment6(ifp, m0, mtag, NULL, pflags & PFIL_FWD);
 #endif
 
-out:
 	pf_sctp_multihome_delayed(&pd, kif, s, action);
 
 	return (action);
