@@ -387,6 +387,14 @@
 #define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
+ * CPUID instruction 0xd Processor Extended State Enumeration
+ * Sub-leaf > 1 ecx info
+ */
+#define	CPUID_EXTSTATE_SUPERVISOR	0x00000001
+#define	CPUID_EXTSTATE_ALIGNED		0x00000002
+#define	CPUID_EXTSTATE_XFD_SUPPORTED	0x00000004
+
+/*
  * AMD extended function 8000_0007h ebx info
  */
 #define	AMDRAS_MCA_OF_RECOV	0x00000001
