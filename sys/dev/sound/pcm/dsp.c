@@ -137,7 +137,7 @@ dsp_destroy_dev(device_t dev)
 	struct snddev_info *d;
 
 	d = device_get_softc(dev);
-	destroy_dev_sched(d->dsp_dev);
+	destroy_dev(d->dsp_dev);
 }
 
 static void
