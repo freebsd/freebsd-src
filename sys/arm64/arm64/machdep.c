@@ -508,7 +508,7 @@ efi_early_map(vm_offset_t va)
  * anything since msgbufp isn't initialized, let alone a console...
  */
 static void
-exclude_efi_memreserve(vm_offset_t efi_systbl_phys)
+exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 {
 	struct efi_systbl *systbl;
 	struct uuid efi_memreserve = LINUX_EFI_MEMRESERVE_TABLE;
