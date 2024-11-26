@@ -177,7 +177,7 @@ dsp_close(void *data)
 
 	d = priv->sc;
 	/* At this point pcm_unregister() will destroy all channels anyway. */
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d))
+	if (!DSP_REGISTERED(d))
 		goto skip;
 
 	PCM_GIANT_ENTER(d);
@@ -264,7 +264,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		return (ENODEV);
 
 	d = i_dev->si_drv1;
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d))
+	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
 	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -445,7 +445,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	    ("%s(): io train wreck!", __func__));
 
 	d = priv->sc;
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d))
+	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
@@ -664,7 +664,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 		return (err);
 
 	d = priv->sc;
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d))
+	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
 	PCM_GIANT_ENTER(d);
@@ -1783,7 +1783,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
 	d = priv->sc;
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d)) {
+	if (!DSP_REGISTERED(d)) {
 		/* XXX many clients don't understand POLLNVAL */
 		return (events & (POLLHUP | POLLPRI | POLLIN |
 		    POLLRDNORM | POLLOUT | POLLWRNORM));
@@ -1865,7 +1865,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
 	d = priv->sc;
-	if (!DSP_REGISTERED(d) || PCM_DETACHING(d))
+	if (!DSP_REGISTERED(d))
 		return (EINVAL);
 
 	PCM_GIANT_ENTER(d);

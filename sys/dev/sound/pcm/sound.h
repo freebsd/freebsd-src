@@ -104,17 +104,15 @@ struct snd_mixer;
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
 #define SD_F_SOFTPCMVOL		0x00000004
-#define SD_F_DYING		0x00000008
-#define SD_F_DETACHING		0x00000010
-#define SD_F_BUSY		0x00000020
-#define SD_F_MPSAFE		0x00000040
-#define SD_F_REGISTERED		0x00000080
-#define SD_F_BITPERFECT		0x00000100
-#define SD_F_VPC		0x00000200	/* volume-per-channel */
-#define SD_F_EQ			0x00000400	/* EQ */
-#define SD_F_EQ_ENABLED		0x00000800	/* EQ enabled */
-#define SD_F_EQ_BYPASSED	0x00001000	/* EQ bypassed */
-#define SD_F_EQ_PC		0x00002000	/* EQ per-channel */
+#define SD_F_BUSY		0x00000008
+#define SD_F_MPSAFE		0x00000010
+#define SD_F_REGISTERED		0x00000020
+#define SD_F_BITPERFECT		0x00000040
+#define SD_F_VPC		0x00000080	/* volume-per-channel */
+#define SD_F_EQ			0x00000100	/* EQ */
+#define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
+#define SD_F_EQ_BYPASSED	0x00000400	/* EQ bypassed */
+#define SD_F_EQ_PC		0x00000800	/* EQ per-channel */
 
 #define SD_F_EQ_DEFAULT		(SD_F_EQ | SD_F_EQ_ENABLED)
 #define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
@@ -127,26 +125,20 @@ struct snd_mixer;
 				"\001SIMPLEX"				\
 				"\002AUTOVCHAN"				\
 				"\003SOFTPCMVOL"			\
-				"\004DYING"				\
-				"\005DETACHING"				\
-				"\006BUSY"				\
-				"\007MPSAFE"				\
-				"\010REGISTERED"			\
-				"\011BITPERFECT"			\
-				"\012VPC"				\
-				"\013EQ"				\
-				"\014EQ_ENABLED"			\
-				"\015EQ_BYPASSED"			\
-				"\016EQ_PC"				\
+				"\004BUSY"				\
+				"\005MPSAFE"				\
+				"\006REGISTERED"			\
+				"\007BITPERFECT"			\
+				"\010VPC"				\
+				"\011EQ"				\
+				"\012EQ_ENABLED"			\
+				"\013EQ_BYPASSED"			\
+				"\014EQ_PC"				\
 				"\035PRIO_RD"				\
 				"\036PRIO_WR"
 
-#define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL &&	\
-				 !((x)->flags & SD_F_DYING))
-#define PCM_REGISTERED(x)	(PCM_ALIVE(x) &&			\
-				 ((x)->flags & SD_F_REGISTERED))
-
-#define	PCM_DETACHING(x)	((x)->flags & SD_F_DETACHING)
+#define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL)
+#define PCM_REGISTERED(x)	(PCM_ALIVE(x) && ((x)->flags & SD_F_REGISTERED))
 
 #define	PCM_CHANCOUNT(d)	\
 	(d->playcount + d->pvchancount + d->reccount + d->rvchancount)
