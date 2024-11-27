@@ -40,7 +40,7 @@
 
 static void usage(void) __dead2;
 
-int 
+int
 main(int argc, char **argv)
 {
 	char *cp;
@@ -63,7 +63,7 @@ main(int argc, char **argv)
 	if (errno != 0)
 		err(EXIT_FAILURE, NULL);
 
-	if ((errstr = strerror(errnum)) == NULL) 
+	if ((errstr = strerror(errnum)) == NULL)
 		err(EXIT_FAILURE, NULL);
 
 	printf("%s\n", errstr);
@@ -71,7 +71,7 @@ main(int argc, char **argv)
 	exit(EXIT_SUCCESS);
 }
 
-static void 
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: perror number\n");
