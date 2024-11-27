@@ -461,9 +461,9 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+	uintptr_t state = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 
@@ -473,12 +473,11 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 			goto out_lockstat;
 		doing_lockprof = 1;
 		all_time -= lockstat_nsecs(&rw->lock_object);
-		state = v;
 	}
+	state = v;
 #endif
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
-	state = v;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -936,9 +935,9 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+	uintptr_t state = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 	int extra_work = 0;
@@ -955,13 +954,12 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 		extra_work = 1;
 		doing_lockprof = 1;
 		all_time -= lockstat_nsecs(&rw->lock_object);
-		state = v;
 	}
+	state = v;
 #endif
 #ifdef LOCK_PROFILING
 	extra_work = 1;
 	doing_lockprof = 1;
-	state = v;
 #endif
 
 	if (SCHEDULER_STOPPED())
