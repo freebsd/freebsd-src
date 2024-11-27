@@ -221,7 +221,6 @@ intrcnt_add(const char *name, u_long **countp)
 	intrcnt_setname(name, idx);
 }
 
-extern void kdb_backtrace(void);
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
