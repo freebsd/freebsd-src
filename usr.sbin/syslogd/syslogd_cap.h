@@ -47,8 +47,27 @@
 
 #include "syslogd.h"
 
+/*
+ * Information used to verify filed integrity when executing outside of the
+ * security sandbox.
+ */
+struct cap_filed {
+	size_t idx;
+	char pipe_cmd[MAXPATHLEN];
+	SLIST_ENTRY(cap_filed) next;
+};
+extern SLIST_HEAD(cfiled_list, cap_filed) cfiled_head;
+
+int cap_p_open(cap_channel_t *, size_t, const char *, int *);
 nvlist_t *cap_readconfigfile(cap_channel_t *, const char *);
+const char *cap_ttymsg(cap_channel_t *, struct iovec *, int, const char *, int);
+void cap_wallmsg(cap_channel_t *, const struct filed *, struct iovec *,
+    const int);
+
+int casper_p_open(nvlist_t *, nvlist_t *);
 int casper_readconfigfile(nvlist_t *, nvlist_t *);
+int casper_ttymsg(nvlist_t *, nvlist_t *);
+int casper_wallmsg(nvlist_t *);
 
 nvlist_t *filed_to_nvlist(const struct filed *);
 nvlist_t *prop_filter_to_nvlist(const struct prop_filter *pfilter);
@@ -58,8 +77,14 @@ struct prop_filter *nvlist_to_prop_filter(const nvlist_t *nvl_prop_filter);
 
 #else /* !WITH_CASPER */
 
+#define	cap_p_open(chan, f_idx, prog, rpd) \
+	p_open(prog, rpd)
 #define	cap_readconfigfile(chan, cf) \
 	readconfigfile(cf)
+#define	cap_ttymsg(chan, iov, iovcnt, line, tmout) \
+	ttymsg(iov, iovcnt, line, tmout)
+#define	cap_wallmsg(chan, f, iov, iovcnt) \
+	wallmsg(f, iov, iovcnt)
 
 #endif /* WITH_CASPER */
 
