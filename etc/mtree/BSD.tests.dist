@@ -905,6 +905,8 @@
         ..
         posixshm
         ..
+        sound
+        ..
         sys
         ..
         vfs
