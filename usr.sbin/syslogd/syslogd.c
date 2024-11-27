@@ -271,6 +271,16 @@ static const int sigcatch[] = {
 	SIGCHLD,
 };
 
+/*
+ * Communication channels between syslogd and libcasper
+ * services. These channels are used to request external
+ * resources while in capability mode.
+ */
+#ifdef WITH_CASPER
+static cap_channel_t *cap_syslogd;
+static cap_channel_t *cap_net;
+#endif
+
 static int	nulldesc;	/* /dev/null descriptor */
 static bool	Debug;		/* debug flag */
 static bool	Foreground = false; /* Run in foreground, instead of daemonizing */
@@ -1826,7 +1836,8 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 					break;
 				++i;
 			}
-			f->f_file = p_open(i, f->f_pname, &f->f_procdesc);
+			f->f_file = cap_p_open(cap_syslogd, i, f->f_pname,
+			    &f->f_procdesc);
 			if (f->f_file < 0) {
 				logerror(f->f_pname);
 				break;
@@ -1849,7 +1860,8 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		dprintf(" %s%s\n", _PATH_DEV, f->f_fname);
 		iovlist_append(il, "\r\n");
 		errno = 0;	/* ttymsg() only sometimes returns an errno */
-		if ((msgret = ttymsg(il->iov, il->iovcnt, f->f_fname, 10))) {
+		if ((msgret = cap_ttymsg(cap_syslogd, il->iov, il->iovcnt,
+		    f->f_fname, 10))) {
 			f->f_type = F_UNUSED;
 			logerror(msgret);
 		}
@@ -1859,7 +1871,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 	case F_WALL:
 		dprintf("\n");
 		iovlist_append(il, "\r\n");
-		wallmsg(f, il->iov, il->iovcnt);
+		cap_wallmsg(cap_syslogd, f, il->iov, il->iovcnt);
 		break;
 	default:
 		break;
@@ -2142,7 +2154,7 @@ cvthname(struct sockaddr *f)
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 
 	dprintf("cvthname(%d) len = %d\n", f->sa_family, f->sa_len);
-	error = getnameinfo(f, f->sa_len, ip, sizeof(ip), NULL, 0,
+	error = cap_getnameinfo(cap_net, f, f->sa_len, ip, sizeof(ip), NULL, 0,
 		    NI_NUMERICHOST);
 	if (error) {
 		dprintf("Malformed from address %s\n", gai_strerror(error));
@@ -2153,7 +2165,7 @@ cvthname(struct sockaddr *f)
 	if (!resolve)
 		return (ip);
 
-	error = getnameinfo(f, f->sa_len, hname, sizeof(hname),
+	error = cap_getnameinfo(cap_net, f, f->sa_len, hname, sizeof(hname),
 		    NULL, 0, NI_NAMEREQD);
 	if (error) {
 		dprintf("Host name for your address (%s) unknown\n", ip);
@@ -2477,6 +2489,36 @@ closelogfiles(void)
 	}
 }
 
+static void
+syslogd_cap_enter(void)
+{
+#ifdef WITH_CASPER
+	cap_channel_t *cap_casper;
+	cap_net_limit_t *limit;
+
+	cap_casper = cap_init();
+	if (cap_casper == NULL)
+		err(1, "Failed to communicate with libcasper");
+	cap_syslogd = cap_service_open(cap_casper, "syslogd.casper");
+	if (cap_syslogd == NULL)
+		err(1, "Failed to open the syslogd.casper libcasper service");
+	cap_net = cap_service_open(cap_casper, "system.net");
+	if (cap_syslogd == NULL)
+		err(1, "Failed to open the system.net libcasper service");
+	cap_close(cap_casper);
+	limit = cap_net_limit_init(cap_net,
+	    CAPNET_ADDR2NAME | CAPNET_NAME2ADDR);
+	if (limit == NULL)
+		err(1, "Failed to create system.net limits");
+	if (cap_net_limit(limit) == -1)
+		err(1, "Failed to apply system.net limits");
+	caph_cache_tzdata();
+	caph_cache_catpages();
+	if (caph_enter_casper() == -1)
+		err(1, "Failed to enter capability mode");
+#endif
+}
+
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
@@ -2532,9 +2574,16 @@ init(bool reload)
 	}
 #endif
 
+	if (!reload) {
+		struct tm tm;
+		/* Cache time files before entering capability mode. */
+		timegm(&tm);
+		syslogd_cap_enter();
+	}
+
 	Initialized = false;
 	closelogfiles();
-	fill_flist(readconfigfile(ConfFile));
+	fill_flist(cap_readconfigfile(cap_syslogd, ConfFile));
 	Initialized = true;
 
 	if (Debug) {
@@ -3364,14 +3413,14 @@ validate(struct sockaddr *sa, const char *hname)
 		.ai_socktype = SOCK_DGRAM,
 		.ai_flags = AI_PASSIVE | AI_NUMERICHOST
 	};
-	if (getaddrinfo(name, NULL, &hints, &res) == 0)
+	if (cap_getaddrinfo(cap_net, name, NULL, &hints, &res) == 0)
 		freeaddrinfo(res);
 	else if (strchr(name, '.') == NULL) {
 		strlcat(name, ".", sizeof(name));
 		strlcat(name, LocalDomain, sizeof(name));
 	}
-	if (getnameinfo(sa, sa->sa_len, ip, sizeof(ip), port, sizeof(port),
-			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
+	if (cap_getnameinfo(cap_net, sa, sa->sa_len, ip, sizeof(ip), port,
+	    sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) != 0)
 		return (false);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
 		ip, port, name);
