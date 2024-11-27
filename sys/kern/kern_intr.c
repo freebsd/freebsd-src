@@ -191,7 +191,7 @@ ithread_update(struct intr_thread *ithd)
 	mtx_assert(&ie->ie_lock, MA_OWNED);
 
 	/* Determine the overall priority of this event. */
-	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+	if (!intr_event_has_handlers(ie))
 		pri = PRI_MAX_ITHD;
 	else
 		pri = CK_SLIST_FIRST(&ie->ie_handlers)->ih_pri;
@@ -535,7 +535,7 @@ intr_event_destroy(struct intr_event *ie)
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers(ie)) {
 		mtx_unlock(&ie->ie_lock);
 		mtx_unlock(&event_lock);
 		return (EBUSY);
@@ -635,7 +635,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 
 	/* We can only have one exclusive or sleepable handler in a event. */
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers(ie)) {
 		if ((flags & (INTR_EXCL | INTR_SLEEPABLE)) ||
 		    (CK_SLIST_FIRST(&ie->ie_handlers)->ih_flags & IH_EXCLUSIVE)) {
 			mtx_unlock(&ie->ie_lock);
@@ -966,7 +966,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
 	 */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers) ||
+	if (ie == NULL || !intr_event_has_handlers(ie) ||
 	    ie->ie_thread == NULL)
 		return (EINVAL);
 
@@ -1351,7 +1351,7 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 #endif
 
 	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
+	if (ie == NULL || !intr_event_has_handlers(ie))
 		return (EINVAL);
 
 	/*
@@ -1582,7 +1582,7 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 	verbose = strchr(modif, 'v') != NULL;
 	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
-		if (!all && CK_SLIST_EMPTY(&ie->ie_handlers))
+		if (!all && !intr_event_has_handlers(ie))
 			continue;
 		db_dump_intr_event(ie, verbose);
 		if (db_pager_quit)

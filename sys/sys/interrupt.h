@@ -201,4 +201,10 @@ int	swi_add(struct intr_event **eventp, const char *name,
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
 
+static inline bool
+intr_event_has_handlers(struct intr_event *ie)
+{
+	return (!CK_SLIST_EMPTY(&ie->ie_handlers));
+}
+
 #endif
