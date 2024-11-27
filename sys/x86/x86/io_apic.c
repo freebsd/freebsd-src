@@ -94,7 +94,6 @@ struct ioapic_intsrc {
 
 struct ioapic {
 	pic_base_softc_t pic_base_softc;
-	x86pics_t io_pic;
 	u_int io_id:8;			/* logical ID */
 	u_int io_apic_id:8;		/* Id as enumerated by MADT */
 	u_int io_hw_apic_id:8;		/* Content of APIC ID register */
@@ -627,6 +626,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	struct ioapic *io;
 	struct ioapic_intsrc *intpin;
 	ioapic_t *apic;
+	device_t io_pic;
 	u_int numintr, i;
 	uint32_t value;
 
@@ -672,8 +672,8 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_addr = apic;
 	io->io_paddr = addr;
 
-	io->io_pic = intr_create_pic("ioapic", io->io_id, &io_apic_class);
-	device_set_softc(io->io_pic, io);
+	io_pic = intr_create_pic("ioapic", io->io_id, &io_apic_class);
+	device_set_softc(io_pic, io);
 
 	if (bootverbose) {
 		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io->io_id,
@@ -699,7 +699,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	bzero(io->io_pins, sizeof(struct ioapic_intsrc) * numintr);
 	mtx_lock_spin(&icu_lock);
 	for (i = 0, intpin = io->io_pins; i < numintr; i++, intpin++) {
-		intpin->io_intsrc.is_pic = io->io_pic;
+		intpin->io_intsrc.is_pic = io_pic;
 		intpin->io_intpin = i;
 		intpin->io_irq = intbase + i;
 
@@ -917,7 +917,7 @@ ioapic_register(ioapic_drv_t io)
 	int i;
 
 	apic = io->io_addr;
-	intr_register_pic(io->io_pic);
+	intr_register_pic(io->io_pins->io_intsrc.is_pic);
 	mtx_lock_spin(&icu_lock);
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
