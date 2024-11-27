@@ -213,4 +213,10 @@ intr_event_is_valid(struct intr_event *ie)
 }
 #endif
 
+static inline bool
+intr_event_has_handlers(struct intr_event *ie)
+{
+	return (!CK_SLIST_EMPTY(&ie->ie_handlers));
+}
+
 #endif
