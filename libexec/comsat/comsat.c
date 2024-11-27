@@ -225,8 +225,10 @@ jkfprintf(FILE *tp, char user[], char file[], off_t offset)
 	unsigned char line[BUFSIZ];
 
 	/* Set effective uid to user in case mail drop is on nfs */
-	if ((p = getpwnam(user)) != NULL)
-		(void) setuid(p->pw_uid);
+	if ((p = getpwnam(user)) == NULL)
+		return;
+	if (setuid(p->pw_uid) != 0)
+		return;
 
 	if ((fi = fopen(file, "r")) == NULL)
 		return;
