@@ -118,41 +118,76 @@ syslogd_stop()
     fi
 }
 
-atf_test_case "basic" "cleanup"
-basic_head()
+atf_test_case "unix" "cleanup"
+unix_head()
 {
-    atf_set descr "Messages are logged via supported transports"
+    atf_set descr "Messages are logged over UNIX transport"
 }
-basic_body()
+unix_body()
 {
-    logfile="${PWD}/basic.log"
+    local logfile="${PWD}/unix.log"
+
     printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
     syslogd_start
 
-    syslogd_log -p user.debug -t basic -h "${SYSLOGD_LOCAL_SOCKET}" \
+    syslogd_log -p user.debug -t unix -h "${SYSLOGD_LOCAL_SOCKET}" \
         "hello, world (unix)"
-    atf_check -s exit:0 -o match:"basic: hello, world \(unix\)" \
+    atf_check -s exit:0 -o match:"unix: hello, world \(unix\)" \
         tail -n 1 "${logfile}"
+}
+unix_cleanup()
+{
+    syslogd_stop
+}
 
-    # Grab kernel configuration file.
-    sysctl kern.conftxt > conf.txt
+atf_test_case "inet" "cleanup"
+inet_head()
+{
+    atf_set descr "Messages are logged over INET transport"
+}
+inet_body()
+{
+    local logfile="${PWD}/inet.log"
+
+    [ "$(sysctl -n kern.features.inet)" != "1" ] &&
+        atf_skip "Kernel does not support INET"
+
+    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start
 
     # We have INET transport; make sure we can use it.
-    if grep -qw "INET" conf.txt; then
-        syslogd_log -4 -p user.debug -t basic -h 127.0.0.1 -P "${SYSLOGD_UDP_PORT}" \
-            "hello, world (v4)"
-        atf_check -s exit:0 -o match:"basic: hello, world \(v4\)" \
-            tail -n 1 "${logfile}"
-    fi
-    # We have INET6 transport; make sure we can use it.
-    if grep -qw "INET6" conf.txt; then
-        syslogd_log -6 -p user.debug -t basic -h ::1 -P "${SYSLOGD_UDP_PORT}" \
-            "hello, world (v6)"
-        atf_check -s exit:0 -o match:"basic: hello, world \(v6\)" \
-            tail -n 1 "${logfile}"
-    fi
+    syslogd_log -4 -p user.debug -t inet -h 127.0.0.1 -P "${SYSLOGD_UDP_PORT}" \
+        "hello, world (v4)"
+    atf_check -s exit:0 -o match:"inet: hello, world \(v4\)" \
+        tail -n 1 "${logfile}"
 }
-basic_cleanup()
+inet_cleanup()
+{
+    syslogd_stop
+}
+
+atf_test_case "inet6" "cleanup"
+inet6_head()
+{
+    atf_set descr "Messages are logged over INET6 transport"
+}
+inet6_body()
+{
+    local logfile="${PWD}/inet6.log"
+
+    [ "$(sysctl -n kern.features.inet6)" != "1" ] &&
+        atf_skip "Kernel does not support INET6"
+
+    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start
+
+    # We have INET6 transport; make sure we can use it.
+    syslogd_log -6 -p user.debug -t unix -h ::1 -P "${SYSLOGD_UDP_PORT}" \
+        "hello, world (v6)"
+    atf_check -s exit:0 -o match:"unix: hello, world \(v6\)" \
+        tail -n 1 "${logfile}"
+}
+inet6_cleanup()
 {
     syslogd_stop
 }
@@ -407,7 +442,9 @@ jail_noinet_cleanup()
 
 atf_init_test_cases()
 {
-    atf_add_test_case "basic"
+    atf_add_test_case "unix"
+    atf_add_test_case "inet"
+    atf_add_test_case "inet6"
     atf_add_test_case "reload"
     atf_add_test_case "prog_filter"
     atf_add_test_case "host_filter"
