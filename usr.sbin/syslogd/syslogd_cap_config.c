@@ -137,18 +137,9 @@ filed_to_nvlist(const struct filed *filed)
 	} else if (f_type == F_FILE || f_type == F_CONSOLE || f_type == F_TTY) {
 		nvlist_add_string(nvl_filed, "f_fname", filed->f_fname);
 	} else if (f_type == F_FORW) {
-		struct addrinfo *ai = filed->f_addr, *cur;
-		nvlist_t *nvl_addrinfo;
-
 		nvlist_add_string(nvl_filed, "f_hname", filed->f_hname);
-		if (filed->f_addr != NULL) {
-			for (cur = ai; cur != NULL; cur = cur->ai_next) {
-				nvl_addrinfo = addrinfo_pack(cur);
-				nvlist_append_nvlist_array(nvl_filed,
-				    "f_addr", nvl_addrinfo);
-				nvlist_destroy(nvl_addrinfo);
-			}
-		}
+		nvlist_add_descriptor_array(nvl_filed, "f_addr_fds",
+		    filed->f_addr_fds, filed->f_num_addr_fds);
 	} else if (filed->f_type == F_PIPE) {
 		nvlist_add_string(nvl_filed, "f_pname", filed->f_pname);
 		if (filed->f_procdesc >= 0) {
@@ -217,19 +208,21 @@ nvlist_to_filed(const nvlist_t *nvl_filed)
 		(void)strlcpy(filed->f_fname, nvlist_get_string(nvl_filed,
 		    "f_fname"), sizeof(filed->f_fname));
 	} else if (f_type == F_FORW) {
-		const nvlist_t * const *f_addr;
-		struct addrinfo *ai, **next = NULL;
+		const int *f_addr_fds;
 
 		(void)strlcpy(filed->f_hname, nvlist_get_string(nvl_filed,
 		    "f_hname"), sizeof(filed->f_hname));
-		f_addr = nvlist_get_nvlist_array(nvl_filed, "f_addr", &sz);
-		for (i = 0; i < sz; ++i) {
-			ai = addrinfo_unpack(f_addr[i]);
-			if (next == NULL)
-				filed->f_addr = ai;
-			else
-				*next = ai;
-			next = &ai->ai_next;
+
+		f_addr_fds = nvlist_get_descriptor_array(nvl_filed,
+		    "f_addr_fds", &filed->f_num_addr_fds);
+		filed->f_addr_fds = calloc(filed->f_num_addr_fds,
+		    sizeof(*f_addr_fds));
+		if (filed->f_addr_fds == NULL)
+			err(1, "calloc");
+		for (i = 0; i < filed->f_num_addr_fds; ++i) {
+			filed->f_addr_fds[i] = dup(f_addr_fds[i]);
+			if (filed->f_addr_fds[i] < 0)
+				err(1, "dup");
 		}
 	} else if (filed->f_type == F_PIPE) {
 		(void)strlcpy(filed->f_pname, nvlist_get_string(nvl_filed,

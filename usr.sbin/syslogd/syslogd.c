@@ -364,9 +364,12 @@ close_filed(struct filed *f)
 
 	switch (f->f_type) {
 	case F_FORW:
-		if (f->f_addr != NULL) {
-			freeaddrinfo(f->f_addr);
-			f->f_addr = NULL;
+		if (f->f_addr_fds != NULL) {
+			for (size_t i = 0; i < f->f_num_addr_fds; ++i)
+				close(f->f_addr_fds[i]);
+			free(f->f_addr_fds);
+			f->f_addr_fds = NULL;
+			f->f_num_addr_fds = 0;
 		}
 		/* FALLTHROUGH */
 	case F_FILE:
@@ -1742,30 +1745,49 @@ iovlist_truncate(struct iovlist *il, size_t size)
 static void
 fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 {
-	struct msghdr msghdr;
-	struct addrinfo *r;
-	struct socklist *sl;
 	const char *msgret;
-	ssize_t lsent;
 
 	switch (f->f_type) {
-	case F_FORW:
-		dprintf(" %s", f->f_hname);
-		switch (f->f_addr->ai_family) {
+	case F_FORW: {
+		ssize_t lsent;
+
+		if (Debug) {
+			int domain, sockfd = f->f_addr_fds[0];
+			socklen_t len = sizeof(domain);
+
+			if (getsockopt(sockfd, SOL_SOCKET, SO_DOMAIN,
+			    &domain, &len) < 0)
+				err(1, "getsockopt");
+
+			printf(" %s", f->f_hname);
+			switch (domain) {
 #ifdef INET
-		case AF_INET:
-			dprintf(":%d\n",
-			    ntohs(satosin(f->f_addr->ai_addr)->sin_port));
-			break;
+			case AF_INET: {
+				struct sockaddr_in sin;
+
+				len = sizeof(sin);
+				if (getpeername(sockfd,
+				    (struct sockaddr *)&sin, &len) < 0)
+					err(1, "getpeername");
+				printf(":%d\n", ntohs(sin.sin_port));
+				break;
+			}
 #endif
 #ifdef INET6
-		case AF_INET6:
-			dprintf(":%d\n",
-			    ntohs(satosin6(f->f_addr->ai_addr)->sin6_port));
-			break;
+			case AF_INET6: {
+				struct sockaddr_in6 sin6;
+
+				len = sizeof(sin6);
+				if (getpeername(sockfd,
+				    (struct sockaddr *)&sin6, &len) < 0)
+					err(1, "getpeername");
+				printf(":%d\n", ntohs(sin6.sin6_port));
+				break;
+			}
 #endif
-		default:
-			dprintf("\n");
+			default:
+				printf("\n");
+			}
 		}
 
 #if defined(INET) || defined(INET6)
@@ -1773,24 +1795,13 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		iovlist_truncate(il, MaxForwardLen);
 #endif
 
-		lsent = 0;
-		for (r = f->f_addr; r; r = r->ai_next) {
-			memset(&msghdr, 0, sizeof(msghdr));
-			msghdr.msg_name = r->ai_addr;
-			msghdr.msg_namelen = r->ai_addrlen;
-			msghdr.msg_iov = il->iov;
-			msghdr.msg_iovlen = il->iovcnt;
-			STAILQ_FOREACH(sl, &shead, next) {
-				if (sl->sl_socket < 0)
-					continue;
-				if (sl->sl_sa == NULL ||
-				    sl->sl_family == AF_UNSPEC ||
-				    sl->sl_family == AF_LOCAL)
-					continue;
-				lsent = sendmsg(sl->sl_socket, &msghdr, 0);
-				if (lsent == (ssize_t)il->totalsize)
-					break;
-			}
+		for (size_t i = 0; i < f->f_num_addr_fds; ++i) {
+			struct msghdr msg = {
+				.msg_iov = il->iov,
+				.msg_iovlen = il->iovcnt,
+			};
+
+			lsent = sendmsg(f->f_addr_fds[i], &msg, 0);
 			if (lsent == (ssize_t)il->totalsize && !send_to_all)
 				break;
 		}
@@ -1822,6 +1833,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			}
 		}
 		break;
+	}
 
 	case F_FILE:
 		dprintf(" %s\n", f->f_fname);
@@ -2650,17 +2662,36 @@ init(bool reload)
 				printf("%s%s", _PATH_DEV, f->f_fname);
 				break;
 
-			case F_FORW:
-				switch (f->f_addr->ai_family) {
+			case F_FORW: {
+				int domain, sockfd = f->f_addr_fds[0];
+				socklen_t len = sizeof(domain);
+
+				if (getsockopt(sockfd, SOL_SOCKET, SO_DOMAIN,
+				    &domain, &len) < 0)
+					err(1, "getsockopt");
+
+				switch (domain) {
 #ifdef INET
-				case AF_INET:
-					port = ntohs(satosin(f->f_addr->ai_addr)->sin_port);
+				case AF_INET: {
+					struct sockaddr_in sin;
+
+					len = sizeof(sin);
+					if (getpeername(sockfd, (struct sockaddr *)&sin, &len) < 0)
+						err(1, "getpeername");
+					port = ntohs(sin.sin_port);
 					break;
+				}
 #endif
 #ifdef INET6
-				case AF_INET6:
-					port = ntohs(satosin6(f->f_addr->ai_addr)->sin6_port);
+				case AF_INET6: {
+					struct sockaddr_in6 sin6;
+
+					len = sizeof(sin6);
+					if (getpeername(sockfd, (struct sockaddr *)&sin6, &len) < 0)
+						err(1, "getpeername");
+					port = ntohs(sin6.sin6_port);
 					break;
+				}
 #endif
 				default:
 					port = 0;
@@ -2671,6 +2702,7 @@ init(bool reload)
 					printf("%s", f->f_hname);
 				}
 				break;
+			}
 
 			case F_PIPE:
 				printf("%s", f->f_pname);
@@ -2948,7 +2980,7 @@ parse_selector(const char *p, struct filed *f)
 static void
 parse_action(const char *p, struct filed *f)
 {
-	struct addrinfo hints, *res;
+	struct addrinfo *ai, hints, *res;
 	int error, i;
 	const char *q;
 	bool syncfile;
@@ -3003,7 +3035,28 @@ parse_action(const char *p, struct filed *f)
 			dprintf("%s\n", gai_strerror(error));
 			break;
 		}
-		f->f_addr = res;
+
+		for (ai = res; ai != NULL; ai = ai->ai_next)
+			++f->f_num_addr_fds;
+
+		f->f_addr_fds = calloc(f->f_num_addr_fds,
+		    sizeof(*f->f_addr_fds));
+		if (f->f_addr_fds == NULL)
+			err(1, "malloc failed");
+
+		for (ai = res, i = 0; ai != NULL; ai = ai->ai_next, ++i) {
+			int *sockp = &f->f_addr_fds[i];
+
+			*sockp = socket(ai->ai_family, ai->ai_socktype, 0);
+			if (*sockp < 0)
+				err(1, "socket");
+			if (connect(*sockp, ai->ai_addr, ai->ai_addrlen) < 0)
+				err(1, "connect");
+			/* Make it a write-only socket. */
+			if (shutdown(*sockp, SHUT_RD) < 0)
+				err(1, "shutdown");
+		}
+
 		f->f_type = F_FORW;
 		break;
 

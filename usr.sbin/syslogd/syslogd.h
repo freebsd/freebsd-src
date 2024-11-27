@@ -156,7 +156,8 @@ struct filed {
 		char	f_fname[MAXPATHLEN];	/* F_FILE, F_CONSOLE, F_TTY */
 		struct {
 			char	f_hname[MAXHOSTNAMELEN];
-			struct addrinfo *f_addr;
+			int	*f_addr_fds;
+			size_t	f_num_addr_fds;
 		};				/* F_FORW */
 		struct {
 			char	f_pname[MAXPATHLEN];
