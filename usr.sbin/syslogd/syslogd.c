@@ -131,7 +131,7 @@
 #include "syslogd_cap.h"
 #include "ttymsg.h"
 
-static const char *ConfFile = _PATH_LOGCONF;
+const char *ConfFile = _PATH_LOGCONF;
 static const char *PidFile = _PATH_LOGPID;
 static const char include_str[] = "include";
 static const char include_ext[] = ".conf";
@@ -276,7 +276,7 @@ static int	nulldesc;	/* /dev/null descriptor */
 static bool	Debug;		/* debug flag */
 static bool	Foreground = false; /* Run in foreground, instead of daemonizing */
 static bool	resolve = true;	/* resolve hostname */
-static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
+char		LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
 static bool	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -313,7 +313,7 @@ struct iovlist;
 static bool	allowaddr(char *);
 static void	addpeer(const char *, const char *, mode_t);
 static void	addsock(const char *, const char *, mode_t);
-static void	cfline(const char *, const char *, const char *, const char *);
+static nvlist_t *cfline(const char *, const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(int);
 static void	deadq_remove(struct deadq_entry *);
@@ -325,7 +325,6 @@ static void	fprintlog_first(struct filed *, const char *, const char *,
 static void	fprintlog_write(struct filed *, struct iovlist *, int);
 static void	fprintlog_successive(struct filed *, int);
 static void	init(bool);
-static void	logerror(const char *);
 static void	logmsg(int, const struct logtime *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
 static void	markit(void);
@@ -335,7 +334,7 @@ static int	socklist_recv_sock(struct socklist *);
 static int	skip_message(const char *, const char *, int);
 static int	evaluate_prop_filter(const struct prop_filter *filter,
     const char *value);
-static struct prop_filter *prop_filter_compile(const char *);
+static nvlist_t *prop_filter_compile(const char *);
 static void	parsemsg(const char *, char *);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
@@ -1387,7 +1386,7 @@ skip_message(const char *name, const char *spec, int checkcase)
 	int exclude = 0;
 	/* Behaviour on explicit match */
 
-	if (spec == NULL)
+	if (spec == NULL || *spec == '\0')
 		return (0);
 	switch (*spec) {
 	case '-':
@@ -1445,7 +1444,7 @@ evaluate_prop_filter(const struct prop_filter *filter, const char *value)
 
 	/* a shortcut for equal with different length is always false */
 	if (filter->cmp_type == FILT_CMP_EQUAL &&
-	    valuelen != filter->pflt_strlen)
+	    valuelen != strlen(filter->pflt_strval))
 		return (!exclude);
 
 	if (filter->cmp_flags & FILT_FLAG_ICASE)
@@ -2178,7 +2177,7 @@ cvthname(struct sockaddr *f)
 /*
  * Print syslogd errors some place.
  */
-static void
+void
 logerror(const char *msg)
 {
 	char buf[512];
@@ -2255,8 +2254,8 @@ configfiles(const struct dirent *dp)
 	return (1);
 }
 
-static void
-parseconfigfile(FILE *cf, bool allow_includes)
+static nvlist_t *
+parseconfigfile(FILE *cf, bool allow_includes, nvlist_t *nvl_conf)
 {
 	FILE *cf2;
 	struct dirent **ent;
@@ -2316,7 +2315,7 @@ parseconfigfile(FILE *cf, bool allow_includes)
 				if (cf2 == NULL)
 					continue;
 				dprintf("reading %s\n", file);
-				parseconfigfile(cf2, false);
+				parseconfigfile(cf2, false, nvl_conf);
 				fclose(cf2);
 			}
 			free(ent);
@@ -2386,29 +2385,55 @@ parseconfigfile(FILE *cf, bool allow_includes)
 		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
-		cfline(cline, prog, host, pfilter);
+		nvlist_append_nvlist_array(nvl_conf, "filed_list",
+		    cfline(cline, prog, host, pfilter));
+
 	}
+	return (nvl_conf);
 }
 
-static void
+nvlist_t *
 readconfigfile(const char *path)
 {
 	FILE *cf;
+	nvlist_t *nvl_conf = nvlist_create(0);
 
 	if ((cf = fopen(path, "r")) != NULL) {
-		parseconfigfile(cf, true);
+		nvl_conf = parseconfigfile(cf, true, nvl_conf);
 		(void)fclose(cf);
 	} else {
-		dprintf("cannot open %s\n", ConfFile);
-		cfline("*.ERR\t/dev/console", "*", "*", "*");
-		cfline("*.PANIC\t*", "*", "*", "*");
+		dprintf("cannot open %s\n", path);
+		nvlist_append_nvlist_array(nvl_conf, "filed_list",
+		    cfline("*.ERR\t/dev/console", "*", "*", "*"));
+		nvlist_append_nvlist_array(nvl_conf, "filed_list",
+		    cfline("*.PANIC\t*", "*", "*", "*"));
 	}
+	return (nvl_conf);
+}
+
+static void
+fill_flist(nvlist_t *nvl_conf)
+{
+	const nvlist_t * const *filed_list;
+	size_t nfileds;
+
+	if (!nvlist_exists_nvlist_array(nvl_conf, "filed_list"))
+		return;
+	filed_list = nvlist_get_nvlist_array(nvl_conf, "filed_list",
+	    &nfileds);
+	for (size_t i = 0; i < nfileds; ++i) {
+		struct filed *f;
+
+		f = nvlist_to_filed(filed_list[i]);
+		STAILQ_INSERT_TAIL(&fhead, f, next);
+	}
+	nvlist_destroy(nvl_conf);
 }
 
 /*
  * Close all open log files.
  */
-static void
+void
 closelogfiles(void)
 {
 	struct filed *f;
@@ -2433,14 +2458,12 @@ closelogfiles(void)
 			break;
 		}
 
-		free(f->f_program);
-		free(f->f_host);
 		if (f->f_prop_filter) {
 			switch (f->f_prop_filter->cmp_type) {
 			case FILT_CMP_REGEX:
 				regfree(f->f_prop_filter->pflt_re);
 				free(f->f_prop_filter->pflt_re);
-				break;
+				/* FALLTHROUGH */
 			case FILT_CMP_CONTAINS:
 			case FILT_CMP_EQUAL:
 			case FILT_CMP_STARTS:
@@ -2504,7 +2527,7 @@ init(bool reload)
 
 	Initialized = false;
 	closelogfiles();
-	readconfigfile(ConfFile);
+	fill_flist(readconfigfile(ConfFile));
 	Initialized = true;
 
 	if (Debug) {
@@ -2561,7 +2584,7 @@ init(bool reload)
 			default:
 				break;
 			}
-			if (f->f_program)
+			if (*f->f_program != '\0')
 				printf(" (%s)", f->f_program);
 			printf("\n");
 		}
@@ -2597,29 +2620,18 @@ init(bool reload)
 /*
  * Compile property-based filter.
  */
-static struct prop_filter *
+static nvlist_t *
 prop_filter_compile(const char *cfilter)
 {
-	struct prop_filter *pfilter;
+	nvlist_t *nvl_pfilter;
+	struct prop_filter pfilter = { };
 	char *filter, *filter_endpos, *filter_begpos, *p;
 	char **ap, *argv[2] = {NULL, NULL};
-	int re_flags = REG_NOSUB;
 	int escaped;
 
-	pfilter = calloc(1, sizeof(*pfilter));
-	if (pfilter == NULL) {
-		logerror("pfilter calloc");
-		exit(1);
-	}
-	if (*cfilter == '*') {
-		pfilter->prop_type = FILT_PROP_NOOP;
-		return (pfilter);
-	}
 	filter = strdup(cfilter);
-	if (filter == NULL) {
-		logerror("strdup");
-		exit(1);
-	}
+	if (filter == NULL)
+		err(1, "strdup");
 	filter_begpos = filter;
 
 	/*
@@ -2640,48 +2652,48 @@ prop_filter_compile(const char *cfilter)
 	}
 
 	if (argv[0] == NULL || argv[1] == NULL) {
-		logerror("filter parse error");
+		dprintf("filter parse error");
 		goto error;
 	}
 
 	/* fill in prop_type */
 	if (strcasecmp(argv[0], "msg") == 0)
-		pfilter->prop_type = FILT_PROP_MSG;
+		pfilter.prop_type = FILT_PROP_MSG;
 	else if (strcasecmp(argv[0], "hostname") == 0)
-		pfilter->prop_type = FILT_PROP_HOSTNAME;
+		pfilter.prop_type = FILT_PROP_HOSTNAME;
 	else if (strcasecmp(argv[0], "source") == 0)
-		pfilter->prop_type = FILT_PROP_HOSTNAME;
+		pfilter.prop_type = FILT_PROP_HOSTNAME;
 	else if (strcasecmp(argv[0], "programname") == 0)
-		pfilter->prop_type = FILT_PROP_PROGNAME;
+		pfilter.prop_type = FILT_PROP_PROGNAME;
 	else {
-		logerror("unknown property");
+		dprintf("unknown property");
 		goto error;
 	}
 
 	/* full in cmp_flags (i.e. !contains, icase_regex, etc.) */
 	if (*argv[1] == '!') {
-		pfilter->cmp_flags |= FILT_FLAG_EXCLUDE;
+		pfilter.cmp_flags |= FILT_FLAG_EXCLUDE;
 		argv[1]++;
 	}
 	if (strncasecmp(argv[1], "icase_", (sizeof("icase_") - 1)) == 0) {
-		pfilter->cmp_flags |= FILT_FLAG_ICASE;
+		pfilter.cmp_flags |= FILT_FLAG_ICASE;
 		argv[1] += sizeof("icase_") - 1;
 	}
 
 	/* fill in cmp_type */
 	if (strcasecmp(argv[1], "contains") == 0)
-		pfilter->cmp_type = FILT_CMP_CONTAINS;
+		pfilter.cmp_type = FILT_CMP_CONTAINS;
 	else if (strcasecmp(argv[1], "isequal") == 0)
-		pfilter->cmp_type = FILT_CMP_EQUAL;
+		pfilter.cmp_type = FILT_CMP_EQUAL;
 	else if (strcasecmp(argv[1], "startswith") == 0)
-		pfilter->cmp_type = FILT_CMP_STARTS;
+		pfilter.cmp_type = FILT_CMP_STARTS;
 	else if (strcasecmp(argv[1], "regex") == 0)
-		pfilter->cmp_type = FILT_CMP_REGEX;
+		pfilter.cmp_type = FILT_CMP_REGEX;
 	else if (strcasecmp(argv[1], "ereregex") == 0) {
-		pfilter->cmp_type = FILT_CMP_REGEX;
-		re_flags |= REG_EXTENDED;
+		pfilter.cmp_type = FILT_CMP_REGEX;
+		pfilter.cmp_flags |= REG_EXTENDED;
 	} else {
-		logerror("unknown cmp function");
+		dprintf("unknown cmp function");
 		goto error;
 	}
 
@@ -2693,7 +2705,7 @@ prop_filter_compile(const char *cfilter)
 	/* remove leading whitespace and check for '"' next character  */
 	filter += strspn(filter, ", \t\n");
 	if (*filter != '"' || strlen(filter) < 3) {
-		logerror("property value parse error");
+		dprintf("property value parse error");
 		goto error;
 	}
 	filter++;
@@ -2725,33 +2737,18 @@ prop_filter_compile(const char *cfilter)
 
 	/* We should not have anything but whitespace left after closing '"' */
 	if (*p != '\0' && strspn(p, " \t\n") != strlen(p)) {
-		logerror("property value parse error");
+		dprintf("property value parse error");
 		goto error;
 	}
 
-	if (pfilter->cmp_type == FILT_CMP_REGEX) {
-		pfilter->pflt_re = calloc(1, sizeof(*pfilter->pflt_re));
-		if (pfilter->pflt_re == NULL) {
-			logerror("RE calloc() error");
-			goto error;
-		}
-		if (pfilter->cmp_flags & FILT_FLAG_ICASE)
-			re_flags |= REG_ICASE;
-		if (regcomp(pfilter->pflt_re, filter, re_flags) != 0) {
-			logerror("RE compilation error");
-			goto error;
-		}
-	} else {
-		pfilter->pflt_strval = strdup(filter);
-		pfilter->pflt_strlen = strlen(filter);
-	}
+	pfilter.pflt_strval = filter;
+	/* An nvlist is heap allocated heap here. */
+	nvl_pfilter = prop_filter_to_nvlist(&pfilter);
 
 	free(filter_begpos);
-	return (pfilter);
+	return (nvl_pfilter);
 error:
 	free(filter_begpos);
-	free(pfilter->pflt_re);
-	free(pfilter);
 	return (NULL);
 }
 
@@ -2760,7 +2757,7 @@ parse_selector(const char *p, struct filed *f)
 {
 	int i, pri;
 	int pri_done = 0, pri_cmp = 0, pri_invert = 0;
-	char *bp, buf[LINE_MAX], ebuf[100];
+	char *bp, buf[LINE_MAX];
 	const char *q;
 
 	/* find the end of this facility name list */
@@ -2812,10 +2809,7 @@ parse_selector(const char *p, struct filed *f)
 
 		pri = decode(buf, prioritynames);
 		if (pri < 0) {
-			errno = 0;
-			(void)snprintf(ebuf, sizeof(ebuf),
-			    "unknown priority name \"%s\"", buf);
-			logerror(ebuf);
+			dprintf("unknown priority name \"%s\"", buf);
 			free(f);
 			return (NULL);
 		}
@@ -2839,11 +2833,7 @@ parse_selector(const char *p, struct filed *f)
 		} else {
 			i = decode(buf, facilitynames);
 			if (i < 0) {
-				errno = 0;
-				(void)snprintf(ebuf, sizeof(ebuf),
-				    "unknown facility name \"%s\"",
-				    buf);
-				logerror(ebuf);
+				dprintf("unknown facility name \"%s\"", buf);
 				free(f);
 				return (NULL);
 			}
@@ -2870,6 +2860,7 @@ parse_action(const char *p, struct filed *f)
 	} else
 		syncfile = true;
 
+	f->f_file = -1;
 	switch (*p) {
 	case '@':
 		{
@@ -2910,7 +2901,7 @@ parse_action(const char *p, struct filed *f)
 		};
 		error = getaddrinfo(f->f_hname, p ? p : "syslog", &hints, &res);
 		if (error) {
-			logerror(gai_strerror(error));
+			dprintf("%s\n", gai_strerror(error));
 			break;
 		}
 		f->f_addr = res;
@@ -2920,7 +2911,7 @@ parse_action(const char *p, struct filed *f)
 	case '/':
 		if ((f->f_file = open(p, logflags, 0600)) < 0) {
 			f->f_type = F_UNUSED;
-			logerror(p);
+			dprintf("%s\n", p);
 			break;
 		}
 		if (syncfile)
@@ -2969,74 +2960,59 @@ parse_action(const char *p, struct filed *f)
 /*
  * Crack a configuration file line
  */
-static void
+static nvlist_t *
 cfline(const char *line, const char *prog, const char *host,
     const char *pfilter)
 {
-	struct filed *f;
+	nvlist_t *nvl_filed;
+	struct filed f = { };
 	const char *p;
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
 	    host, pfilter);
 
-	f = calloc(1, sizeof(*f));
-	if (f == NULL) {
-		logerror("malloc");
-		exit(1);
-	}
-	errno = 0;	/* keep strerror() stuff out of logerror messages */
-
 	for (int i = 0; i <= LOG_NFACILITIES; i++)
-		f->f_pmask[i] = INTERNAL_NOPRI;
+		f.f_pmask[i] = INTERNAL_NOPRI;
 
 	/* save hostname if any */
-	if (host && *host == '*')
-		host = NULL;
-	if (host) {
+	if (host != NULL && *host != '*') {
 		int hl;
 
-		f->f_host = strdup(host);
-		if (f->f_host == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-		hl = strlen(f->f_host);
-		if (hl > 0 && f->f_host[hl-1] == '.')
-			f->f_host[--hl] = '\0';
+		strlcpy(f.f_host, host, sizeof(f.f_host));
+		hl = strlen(f.f_host);
+		if (hl > 0 && f.f_host[hl-1] == '.')
+			f.f_host[--hl] = '\0';
 		/* RFC 5424 prefers logging FQDNs. */
 		if (RFC3164OutputFormat)
-			trimdomain(f->f_host, hl);
+			trimdomain(f.f_host, hl);
 	}
 
 	/* save program name if any */
-	if (prog && *prog == '*')
-		prog = NULL;
-	if (prog) {
-		f->f_program = strdup(prog);
-		if (f->f_program == NULL) {
-			logerror("strdup");
-			exit(1);
-		}
-	}
-
-	if (pfilter) {
-		f->f_prop_filter = prop_filter_compile(pfilter);
-		if (f->f_prop_filter == NULL) {
-			logerror("filter compile error");
-			exit(1);
-		}
-	}
+	if (prog != NULL && *prog != '*')
+		strlcpy(f.f_program, prog, sizeof(f.f_program));
 
 	/* scan through the list of selectors */
 	for (p = line; *p != '\0' && *p != '\t' && *p != ' ';)
-		p = parse_selector(p, f);
+		p = parse_selector(p, &f);
 
 	/* skip to action part */
 	while (*p == '\t' || *p == ' ')
 		p++;
-	parse_action(p, f);
+	parse_action(p, &f);
 
-	STAILQ_INSERT_TAIL(&fhead, f, next);
+	/* An nvlist is heap allocated heap here. */
+	nvl_filed = filed_to_nvlist(&f);
+
+	if (pfilter && *pfilter != '*') {
+		nvlist_t *nvl_pfilter;
+
+		nvl_pfilter = prop_filter_compile(pfilter);
+		if (nvl_pfilter == NULL)
+			err(1, "filter compile error");
+		nvlist_add_nvlist(nvl_filed, "f_prop_filter", nvl_pfilter);
+	}
+
+	return (nvl_filed);
 }
 
 /*

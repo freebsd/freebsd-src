@@ -32,6 +32,7 @@
 #include <sys/socket.h>
 
 #include <libcasper.h>
+#include <string.h>
 
 #include <casper/cap_net.h>
 
@@ -39,10 +40,14 @@
 
 /* This is where libcasper receives commands via nvlist. */
 static int
-casper_command(const char *cmd __unused, const nvlist_t *limits __unused,
-    nvlist_t *nvlin __unused, nvlist_t *nvlout __unused)
+casper_command(const char *cmd, const nvlist_t *limits __unused,
+    nvlist_t *nvlin, nvlist_t *nvlout)
 {
 	int error = EINVAL;
+
+	if (strcmp(cmd, "readconfigfile") == 0)
+		error = casper_readconfigfile(nvlin, nvlout);
+
 	return (error);
 }
 
