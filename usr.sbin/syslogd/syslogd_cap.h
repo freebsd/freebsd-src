@@ -45,6 +45,8 @@
 #include <capsicum_helpers.h>
 #include <libcasper_service.h>
 
+#include <casper/cap_net.h>
+
 #include "syslogd.h"
 
 /*
