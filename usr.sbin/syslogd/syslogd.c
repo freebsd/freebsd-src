@@ -2508,7 +2508,12 @@ init(bool reload)
 		LocalDomain = "";
 	}
 
+#ifndef WITH_CASPER
 	/*
+	 * XXX: Disable when running in capability mode, for now.
+	 * This requires a new interface in the tzcode module to
+	 * get running without capability violations.
+	 *
 	 * Load / reload timezone data (in case it changed).
 	 *
 	 * Just calling tzset() again does not work, the timezone code
@@ -2525,6 +2530,7 @@ init(bool reload)
 		tzset();
 		unsetenv("TZ");
 	}
+#endif
 
 	Initialized = false;
 	closelogfiles();
