@@ -709,7 +709,7 @@ apply_with(int (*db_func)(SCR *, recno_t, CHAR_T *, size_t), SCR *sp,
 	static size_t blen;
 	static u_char *bp;
 
-	if (!__builtin_is_aligned(p, sizeof(unsigned long))) {
+	if (!is_aligned(p, sizeof(unsigned long))) {
 		if (len > blen) {
 			blen = p2roundup(MAX(len, 512));
 			REALLOC(sp, bp, u_char *, blen);
