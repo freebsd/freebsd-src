@@ -1604,8 +1604,9 @@ retry:
 			continue;
 		}
 
-		/* vm_page_rename() will dirty the page. */
-		if (vm_page_rename(&pages, new_object, m->pindex - offidxstart)) {
+		/* vm_page_iter_rename() will dirty the page. */
+		if (!vm_page_iter_rename(&pages, m, new_object, m->pindex -
+		    offidxstart)) {
 			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
@@ -1789,9 +1790,10 @@ vm_object_collapse_scan(vm_object_t object)
 		 * backing object to the main object.
 		 *
 		 * If the page was mapped to a process, it can remain mapped
-		 * through the rename.  vm_page_rename() will dirty the page.
+		 * through the rename.  vm_page_iter_rename() will dirty the
+		 * page.
 		 */
-		if (vm_page_rename(&pages, object, new_pindex)) {
+		if (!vm_page_iter_rename(&pages, p, object, new_pindex)) {
 			vm_page_xunbusy(p);
 			next = vm_object_collapse_scan_wait(&pages, object,
 			    NULL);

@@ -678,7 +678,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 		if (pa < low || pa + size > high ||
 		    !vm_addr_ok(pa, size, alignment, boundary))
 			goto out;
-		/* Handle vm_page_rename(m, new_object, ...). */
+		/* Handle vm_page_iter_rename(..., m, new_object, ...). */
 		if (!bit_ntest(rv->popmap, index, index + npages - 1, 0))
 			goto out;
 		if (!vm_domain_allocate(vmd, req, npages))
@@ -847,7 +847,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 		vm_reserv_lock(rv);
 		/* Handle reclaim race. */
 		if (rv->object != object ||
-		    /* Handle vm_page_rename(m, new_object, ...). */
+		    /* Handle vm_page_iter_rename(..., m, new_object, ...). */
 		    bit_test(rv->popmap, index)) {
 			m = NULL;
 			goto out;

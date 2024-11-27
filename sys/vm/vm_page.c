@@ -2065,10 +2065,14 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 }
 
 /*
- *	vm_page_rename:
+ *	vm_page_iter_rename:
  *
- *	Move the current page, as identified by iterator, from its current
- *	object to the specified target object/offset.
+ *	Tries to move the specified page from its current object to a new object
+ *	and pindex, using the given iterator to remove the page from its current
+ *	object.  Returns true if the move was successful, and false if the move
+ *	was aborted due to a failed memory allocation.
+ *
+ *	Panics if a page already resides in the new object at the new pindex.
  *
  *	Note: swap associated with the page must be invalidated by the move.  We
  *	      have to do this for several reasons:  (1) we aren't freeing the
@@ -2082,17 +2086,17 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
  *
  *	The objects must be locked.
  */
-int
-vm_page_rename(struct pctrie_iter *pages,
+bool
+vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
     vm_object_t new_object, vm_pindex_t new_pindex)
 {
-	vm_page_t m, mpred;
+	vm_page_t mpred;
 	vm_pindex_t opidx;
 
+	KASSERT((m->ref_count & VPRC_OBJREF) != 0,
+	    ("%s: page %p is missing object ref", __func__, m));
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
-
-	m = vm_radix_iter_page(pages);
-	KASSERT(m->ref_count != 0, ("vm_page_rename: page %p has no refs", m));
 
 	/*
 	 * Create a custom version of vm_page_insert() which does not depend
@@ -2103,7 +2107,7 @@ vm_page_rename(struct pctrie_iter *pages,
 	m->pindex = new_pindex;
 	if (vm_radix_insert_lookup_lt(&new_object->rtree, m, &mpred) != 0) {
 		m->pindex = opidx;
-		return (1);
+		return (false);
 	}
 
 	/*
@@ -2111,7 +2115,7 @@ vm_page_rename(struct pctrie_iter *pages,
 	 * the listq iterator is tainted.
 	 */
 	m->pindex = opidx;
-	vm_radix_iter_remove(pages);
+	vm_radix_iter_remove(old_pages);
 	vm_page_remove_radixdone(m);
 
 	/* Return back to the new pindex to complete vm_page_insert(). */
@@ -2121,7 +2125,7 @@ vm_page_rename(struct pctrie_iter *pages,
 	vm_page_insert_radixdone(m, new_object, mpred);
 	vm_page_dirty(m);
 	vm_pager_page_inserted(new_object, m);
-	return (0);
+	return (true);
 }
 
 /*

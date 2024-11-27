@@ -655,6 +655,8 @@ void vm_page_iter_init(struct pctrie_iter *, vm_object_t);
 void vm_page_iter_limit_init(struct pctrie_iter *, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_iter_lookup(struct pctrie_iter *, vm_pindex_t);
 bool vm_page_iter_remove(struct pctrie_iter *pages);
+bool vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
+    vm_object_t new_object, vm_pindex_t new_pindex);
 void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup_unlocked(vm_object_t, vm_pindex_t);
@@ -682,7 +684,6 @@ void vm_page_release_locked(vm_page_t m, int flags);
 vm_page_t vm_page_relookup(vm_object_t, vm_pindex_t);
 bool vm_page_remove(vm_page_t);
 bool vm_page_remove_xbusy(vm_page_t);
-int vm_page_rename(struct pctrie_iter *, vm_object_t, vm_pindex_t);
 void vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mold);
 int vm_page_sbusied(vm_page_t m);
