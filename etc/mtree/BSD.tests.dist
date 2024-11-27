@@ -949,6 +949,8 @@
         ..
         ses
         ..
+        sound
+        ..
         sys
         ..
         vfs
