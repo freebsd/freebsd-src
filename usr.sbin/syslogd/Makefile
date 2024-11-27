@@ -15,7 +15,8 @@ LIBADD=	util
 
 .if ${MK_CASPER} != "no"
 SRCS+=	syslogd_cap.c \
-	syslogd_cap_config.c
+	syslogd_cap_config.c \
+	syslogd_cap_log.c
 CFLAGS+= -DWITH_CASPER
 LIBADD+= cap_net casper nv
 .endif

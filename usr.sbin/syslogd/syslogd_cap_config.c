@@ -277,6 +277,9 @@ cap_readconfigfile(cap_channel_t *chan, const char *path)
 int
 casper_readconfigfile(nvlist_t *nvlin, nvlist_t *nvlout)
 {
+	const nvlist_t * const *filed_list;
+	nvlist_t *nvl_conf;
+	size_t n_fileds;
 	const char *path;
 
 	/*
@@ -291,6 +294,35 @@ casper_readconfigfile(nvlist_t *nvlin, nvlist_t *nvlout)
 	strlcpy(LocalHostName, nvlist_get_string(nvlin, "LocalHostName"),
 	    sizeof(LocalHostName));
 
-	nvlist_move_nvlist(nvlout, "nvl_conf", readconfigfile(path));
+	nvl_conf = readconfigfile(path);
+
+	/* Remove old filed data in case we are reloading. */
+	while (!SLIST_EMPTY(&cfiled_head)) {
+		struct cap_filed *cfiled;
+
+		cfiled = SLIST_FIRST(&cfiled_head);
+		SLIST_REMOVE_HEAD(&cfiled_head, next);
+		free(cfiled);
+	}
+	/* Record F_PIPE filed data for use in p_open(). */
+	if (!nvlist_exists_nvlist_array(nvl_conf, "filed_list"))
+		return (0);
+	filed_list = nvlist_get_nvlist_array(nvl_conf, "filed_list", &n_fileds);
+	for (size_t i = 0; i < n_fileds; ++i) {
+		if (nvlist_get_number(filed_list[i], "f_type") == F_PIPE) {
+			struct cap_filed *cfiled;
+			const char *pipe_cmd;
+
+			cfiled = malloc(sizeof(*cfiled));
+			if (cfiled == NULL)
+				err(1, "malloc");
+			cfiled->idx = i;
+			pipe_cmd = nvlist_get_string(filed_list[i], "f_pname");
+			strlcpy(cfiled->pipe_cmd, pipe_cmd, sizeof(cfiled->pipe_cmd));
+			SLIST_INSERT_HEAD(&cfiled_head, cfiled, next);
+		}
+	}
+
+	nvlist_move_nvlist(nvlout, "nvl_conf", nvl_conf);
 	return (0);
 }

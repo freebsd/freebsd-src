@@ -67,6 +67,7 @@
 #include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
@@ -74,6 +75,8 @@
 #include <regex.h>
 #include <stdbool.h>
 #include <stdio.h>
+
+#include "ttymsg.h"
 
 #define	MAXLINE		8192		/* maximum line length */
 #define	MAXSVLINE	MAXLINE		/* maximum saved line length */
@@ -172,11 +175,23 @@ struct filed {
 	STAILQ_ENTRY(filed) next;		/* next in linked list */
 };
 
+/*
+ * List of iovecs to which entries can be appended.
+ * Used for constructing the message to be logged.
+ */
+struct iovlist {
+	struct iovec	iov[TTYMSG_IOV_MAX];
+	size_t		iovcnt;
+	size_t		totalsize;
+};
+
 extern const char *ConfFile;
 extern char LocalHostName[MAXHOSTNAMELEN];
 
 void closelogfiles(void);
 void logerror(const char *);
+int p_open(const char *, pid_t *);
 nvlist_t *readconfigfile(const char *);
+void wallmsg(const struct filed *, struct iovec *, const int);
 
 #endif /* !_SYSLOGD_H_ */
