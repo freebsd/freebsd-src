@@ -95,7 +95,6 @@ local function config2_network(p)
 		mylinks[v["id"]] = ifaces[s]
 	end
 
-	nuage.mkdir_p(root .. "/etc/rc.conf.d")
 	local network = open_config("network")
 	local routing = open_config("routing")
 	local ipv6 = {}
@@ -308,7 +307,6 @@ if line == "#cloud-config" then
 	end
 	if obj.network then
 		local ifaces = get_ifaces()
-		nuage.mkdir_p(root .. "/etc/rc.conf.d")
 		local network = open_config("network")
 		local routing = open_config("routing")
 		local ipv6 = {}
