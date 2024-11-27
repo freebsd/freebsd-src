@@ -64,6 +64,7 @@
 #define _SYSLOGD_H_
 
 #include <sys/param.h>
+#include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/time.h>
 
@@ -71,6 +72,8 @@
 #include <sys/syslog.h>
 
 #include <regex.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 #define	MAXLINE		8192		/* maximum line length */
 #define	MAXSVLINE	MAXLINE		/* maximum saved line length */
@@ -107,7 +110,6 @@ struct prop_filter {
 #define	FILT_FLAG_EXTENDED	(1 << 1)
 #define	FILT_FLAG_ICASE		(1 << 2)
 	char *pflt_strval;
-	size_t	pflt_strlen;
 	regex_t *pflt_re;
 };
 
@@ -132,8 +134,8 @@ struct filed {
 	enum f_type f_type;
 
 	/* Used for filtering. */
-	char	*f_host;			/* host from which to recd. */
-	char	*f_program;			/* program this applies to */
+	char	f_host[MAXHOSTNAMELEN];		/* host from which to recd. */
+	char	f_program[MAXPATHLEN];		/* program this applies to */
 	struct prop_filter *f_prop_filter;	/* property-based filter */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
 	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
@@ -169,5 +171,12 @@ struct filed {
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
 	STAILQ_ENTRY(filed) next;		/* next in linked list */
 };
+
+extern const char *ConfFile;
+extern char LocalHostName[MAXHOSTNAMELEN];
+
+void closelogfiles(void);
+void logerror(const char *);
+nvlist_t *readconfigfile(const char *);
 
 #endif /* !_SYSLOGD_H_ */

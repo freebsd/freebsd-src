@@ -47,6 +47,20 @@
 
 #include "syslogd.h"
 
+nvlist_t *cap_readconfigfile(cap_channel_t *, const char *);
+int casper_readconfigfile(nvlist_t *, nvlist_t *);
+
+nvlist_t *filed_to_nvlist(const struct filed *);
+nvlist_t *prop_filter_to_nvlist(const struct prop_filter *pfilter);
+
+struct filed *nvlist_to_filed(const nvlist_t *);
+struct prop_filter *nvlist_to_prop_filter(const nvlist_t *nvl_prop_filter);
+
+#else /* !WITH_CASPER */
+
+#define	cap_readconfigfile(chan, cf) \
+	readconfigfile(cf)
+
 #endif /* WITH_CASPER */
 
 #endif /* !_SYSLOGD_CAP_H_ */
