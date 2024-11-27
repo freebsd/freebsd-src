@@ -152,18 +152,12 @@ struct filed {
 		struct {
 			char	f_hname[MAXHOSTNAMELEN];
 			struct addrinfo *f_addr;
-		} f_forw;			/* F_FORW */
+		};				/* F_FORW */
 		struct {
 			char	f_pname[MAXPATHLEN];
 			int	f_procdesc;
-		} f_pipe;			/* F_PIPE */
-	} f_un;
-#define	fu_uname	f_un.f_uname
-#define	fu_fname	f_un.f_fname
-#define	fu_forw_hname	f_un.f_forw.f_hname
-#define	fu_forw_addr	f_un.f_forw.f_addr
-#define	fu_pipe_pname	f_un.f_pipe.f_pname
-#define	fu_pipe_pd	f_un.f_pipe.f_procdesc
+		};				/* F_PIPE */
+	};
 
 	/* Book-keeping. */
 	char	f_prevline[MAXSVLINE];		/* last message logged */
