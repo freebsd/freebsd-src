@@ -316,6 +316,7 @@ static bool	KeepKernFac;	/* Keep remotely logged kernel facility */
 static bool	needdofsync = true; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
 static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
+static int	kq;		/* kqueue(2) descriptor. */
 
 struct iovlist;
 
@@ -324,7 +325,7 @@ static void	addpeer(const char *, const char *, mode_t);
 static void	addsock(const char *, const char *, mode_t);
 static nvlist_t *cfline(const char *, const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
-static void	deadq_enter(int);
+static struct deadq_entry *deadq_enter(int);
 static void	deadq_remove(struct deadq_entry *);
 static int	decode(const char *, const CODE *);
 static void	die(int) __dead2;
@@ -336,6 +337,7 @@ static void	fprintlog_successive(struct filed *, int);
 static void	init(bool);
 static void	logmsg(int, const struct logtime *, const char *, const char *,
     const char *, const char *, const char *, const char *, int);
+static void	log_deadchild(int, int, const struct filed *);
 static void	markit(void);
 static struct socklist *socksetup(struct addrinfo *, const char *, mode_t);
 static int	socklist_recv_file(struct socklist *);
@@ -373,9 +375,21 @@ close_filed(struct filed *f)
 		f->f_type = F_UNUSED;
 		break;
 	case F_PIPE:
-		if (f->f_procdesc >= 0) {
-			deadq_enter(f->f_procdesc);
+		if (f->f_procdesc != -1) {
+			/*
+			 * Close the procdesc, killing the underlying
+			 * process (if it is still alive).
+			 */
+			(void)close(f->f_procdesc);
 			f->f_procdesc = -1;
+			/*
+			 * The pipe process is guaranteed to be dead now,
+			 * so remove it from the deadq.
+			 */
+			if (f->f_dq != NULL) {
+				deadq_remove(f->f_dq);
+				f->f_dq = NULL;
+			}
 		}
 		break;
 	default:
@@ -487,7 +501,7 @@ main(int argc, char *argv[])
 	struct kevent ev;
 	struct socklist *sl;
 	pid_t spid;
-	int ch, kq, ppipe_w = -1, s;
+	int ch, ppipe_w = -1, s;
 	char *p;
 	bool bflag = false, pflag = false, Sflag = false;
 
@@ -787,6 +801,12 @@ main(int argc, char *argv[])
 			case SIGALRM:
 				markit();
 				break;
+			}
+			break;
+		case EVFILT_PROCDESC:
+			if ((ev.fflags & NOTE_EXIT) != 0) {
+				log_deadchild(ev.ident, ev.data, ev.udata);
+				close_filed(ev.udata);
 			}
 			break;
 		}
@@ -1828,6 +1848,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		dprintf(" %s\n", f->f_pname);
 		iovlist_append(il, "\n");
 		if (f->f_procdesc == -1) {
+			struct kevent ev;
 			struct filed *f_in_list;
 			size_t i = 0;
 
@@ -1842,10 +1863,16 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 				logerror(f->f_pname);
 				break;
 			}
+			EV_SET(&ev, f->f_procdesc, EVFILT_PROCDESC, EV_ADD,
+			    NOTE_EXIT, 0, f);
+			if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
+				logerror("failed to add procdesc kevent");
+				exit(1);
+			}
 		}
 		if (writev(f->f_file, il->iov, il->iovcnt) < 0) {
 			logerror(f->f_pname);
-			close_filed(f);
+			f->f_dq = deadq_enter(f->f_procdesc);
 		}
 		break;
 
@@ -2216,7 +2243,7 @@ die(int signo)
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
-		/* close our end of the pipe */
+		/* terminate existing pipe processes */
 		if (f->f_type == F_PIPE)
 			close_filed(f);
 	}
@@ -2464,7 +2491,23 @@ closelogfiles(void)
 		case F_FORW:
 		case F_CONSOLE:
 		case F_TTY:
+			close_filed(f);
+			break;
 		case F_PIPE:
+			if (f->f_procdesc != -1) {
+				struct kevent ev;
+				/*
+				 * This filed is going to be freed.
+				 * Delete procdesc kevents that reference it.
+				 */
+				EV_SET(&ev, f->f_procdesc, EVFILT_PROCDESC,
+				    EV_DELETE, NOTE_EXIT, 0, f);
+				if (kevent(kq, &ev, 1, NULL, 0, NULL) == -1) {
+					logerror("failed to delete procdesc"
+					    "kevent");
+					exit(1);
+				}
+			}
 			close_filed(f);
 			break;
 		default:
@@ -3127,15 +3170,11 @@ markit(void)
 		case 0:
 			/* Already signalled once, try harder now. */
 			(void)pdkill(dq->dq_procdesc, SIGKILL);
-			(void)deadq_remove(dq);
 			break;
 
 		case 1:
-			if (pdkill(dq->dq_procdesc, SIGTERM) != 0)
-				(void)deadq_remove(dq);
-			else
-				dq->dq_timeout--;
-			break;
+			(void)pdkill(dq->dq_procdesc, SIGTERM);
+			/* FALLTHROUGH. */
 		default:
 			dq->dq_timeout--;
 		}
@@ -3552,13 +3591,13 @@ p_open(const char *prog, int *rpd)
 	return (pfd[1]);
 }
 
-static void
+static struct deadq_entry *
 deadq_enter(int pd)
 {
 	struct deadq_entry *dq;
 
 	if (pd == -1)
-		return;
+		return (NULL);
 
 	dq = malloc(sizeof(*dq));
 	if (dq == NULL) {
@@ -3569,14 +3608,40 @@ deadq_enter(int pd)
 	dq->dq_procdesc = pd;
 	dq->dq_timeout = DQ_TIMO_INIT;
 	TAILQ_INSERT_TAIL(&deadq_head, dq, dq_entries);
+	return (dq);
 }
 
 static void
 deadq_remove(struct deadq_entry *dq)
 {
 	TAILQ_REMOVE(&deadq_head, dq, dq_entries);
-	close(dq->dq_procdesc);
 	free(dq);
+}
+
+static void
+log_deadchild(int pd, int status, const struct filed *f)
+{
+	pid_t pid;
+	int code;
+	char buf[256];
+	const char *reason;
+
+	errno = 0; /* Keep strerror() stuff out of logerror messages. */
+	if (WIFSIGNALED(status)) {
+		reason = "due to signal";
+		code = WTERMSIG(status);
+	} else {
+		reason = "with status";
+		code = WEXITSTATUS(status);
+		if (code == 0)
+			return;
+	}
+	if (pdgetpid(pd, &pid) == -1)
+		err(1, "pdgetpid");
+	(void)snprintf(buf, sizeof(buf),
+	    "Logging subprocess %d (%s) exited %s %d.",
+	    pid, f->f_pname, reason, code);
+	logerror(buf);
 }
 
 static struct socklist *
