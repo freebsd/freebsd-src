@@ -18,6 +18,7 @@ atf_test_case config2_pubkeys_user_data
 atf_test_case config2_pubkeys_meta_data
 atf_test_case config2_network
 atf_test_case config2_network_static_v4
+atf_test_case config2_ssh_keys
 
 args_body()
 {
@@ -404,6 +405,60 @@ EOF
 	atf_check -o file:routing cat "${PWD}"/etc/rc.conf.d/routing
 }
 
+config2_ssh_keys_head()
+{
+	atf_set "require.user" root
+}
+config2_ssh_keys_body()
+{
+	here=$(pwd)
+	export NUAGE_FAKE_ROOTDIR=$(pwd)
+	mkdir -p media/nuageinit
+	touch media/nuageinit/meta_data.json
+	cat > media/nuageinit/user-data << EOF
+#cloud-config
+ssh_keys:
+  rsa_private: |
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+    ...
+    -----END RSA PRIVATE KEY-----
+  rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+  ed25519_private: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    blabla
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+  ed25519_public: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+
+EOF
+	mkdir -p etc/ssh
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/csh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
+EOF
+	pwd_mkdb -d etc ${here}/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	_expected="-----BEGIN RSA PRIVATE KEY-----
+MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+...
+-----END RSA PRIVATE KEY-----
+"
+	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_rsa_key
+	_expected="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...\n"
+	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_rsa_key.pub
+	_expected="-----BEGIN OPENSSH PRIVATE KEY-----
+blabla
+...
+-----END OPENSSH PRIVATE KEY-----\n"
+	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key
+	_expected="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK+MH4E8KO32N5CXRvXVqvyZVl0+6ue4DobdhU0FqFd+\n"
+	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key.pub
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -418,4 +473,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_pubkeys_meta_data
 	atf_add_test_case config2_network
 	atf_add_test_case config2_network_static_v4
+	atf_add_test_case config2_ssh_keys
 }
