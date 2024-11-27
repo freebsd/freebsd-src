@@ -8090,7 +8090,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		dst.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
 	mtag = m_tag_find(m0, PACKET_TAG_PF_REASSEMBLED, NULL);
 	if (mtag != NULL) {
-		int ret;
+		int ret __sdt_used;
 		ret = pf_refragment6(ifp, &m0, mtag, ifp, true);
 		SDT_PROBE2(pf, ip6, route_to, output, ifp, ret);
 		goto done;
