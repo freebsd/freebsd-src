@@ -114,7 +114,7 @@ main(int argc, char **argv)
 			t_12_hour = t->tm_hour;
 
 		if (hours < t_12_hour ||
-	 	   (hours == t_12_hour && minutes <= t->tm_min))
+		   (hours == t_12_hour && minutes <= t->tm_min))
 			/* Leave time is in the past so we add 12 hrs */
 			hours += 12;
 
