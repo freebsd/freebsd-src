@@ -582,9 +582,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+	uintptr_t state = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 	int extra_work = 0;
@@ -600,13 +600,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		extra_work = 1;
 		doing_lockprof = 1;
 		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
 	}
+	state = x;
 #endif
 #ifdef LOCK_PROFILING
 	extra_work = 1;
 	doing_lockprof = 1;
-	state = x;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -1034,8 +1033,6 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
-#endif
-#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	uintptr_t state = 0;
 #endif
 	int extra_work __sdt_used = 0;
@@ -1048,12 +1045,11 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 			goto out_lockstat;
 		extra_work = 1;
 		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
 	}
+	state = x;
 #endif
 #ifdef LOCK_PROFILING
 	extra_work = 1;
-	state = x;
 #endif
 
 	if (SCHEDULER_STOPPED())
