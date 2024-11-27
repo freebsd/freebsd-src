@@ -161,6 +161,7 @@ struct filed {
 		struct {
 			char	f_pname[MAXPATHLEN];
 			int	f_procdesc;
+			struct deadq_entry *f_dq;
 		};				/* F_PIPE */
 	};
 
