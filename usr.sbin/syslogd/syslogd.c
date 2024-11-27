@@ -67,12 +67,6 @@
  * To kill syslogd, send a signal 15 (terminate).  A signal 1 (hup) will
  * cause it to reread its configuration file.
  *
- * Defined Constants:
- *
- * MAXLINE -- the maximum line length that can be handled.
- * DEFUPRI -- the default priority for user messages
- * DEFSPRI -- the default priority for kernel messages
- *
  * Author: Eric Allman
  * extensive changes by Ralph Campbell
  * more extensive changes by Eric Allman (again)
@@ -82,8 +76,6 @@
  * Priority comparison code by Harlan Stenn.
  */
 
-#define	MAXLINE		8192		/* maximum line length */
-#define	MAXSVLINE	MAXLINE		/* maximum saved line length */
 #define	DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define	DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define	TIMERINTVL	30		/* interval for checking flush, mark */
@@ -135,10 +127,9 @@
 #include <utmpx.h>
 
 #include "pathnames.h"
+#include "syslogd.h"
+#include "syslogd_cap.h"
 #include "ttymsg.h"
-
-#define SYSLOG_NAMES
-#include <sys/syslog.h>
 
 static const char *ConfFile = _PATH_LOGCONF;
 static const char *PidFile = _PATH_LOGPID;
@@ -146,8 +137,6 @@ static const char include_str[] = "include";
 static const char include_ext[] = ".conf";
 
 #define	dprintf		if (Debug) printf
-
-#define	MAXUNAMES	20	/* maximum number of user names */
 
 #define	sstosa(ss)	((struct sockaddr *)(ss))
 #ifdef INET
@@ -202,116 +191,13 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 #define	MARK		0x008	/* this message is a mark */
 #define	ISKERNEL	0x010	/* kernel generated message */
 
-/* Timestamps of log entries. */
-struct logtime {
-	struct tm	tm;
-	suseconds_t	usec;
-};
-
 /* Traditional syslog timestamp format. */
 #define	RFC3164_DATELEN	15
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
 
-enum filt_proptype {
-	FILT_PROP_NOOP,
-	FILT_PROP_MSG,
-	FILT_PROP_HOSTNAME,
-	FILT_PROP_PROGNAME,
-};
-
-enum filt_cmptype {
-	FILT_CMP_CONTAINS,
-	FILT_CMP_EQUAL,
-	FILT_CMP_STARTS,
-	FILT_CMP_REGEX,
-};
-
-/*
- * This structure holds a property-based filter
- */
-struct prop_filter {
-	enum filt_proptype prop_type;
-	enum filt_cmptype cmp_type;
-	uint8_t cmp_flags;
-#define	FILT_FLAG_EXCLUDE	(1 << 0)
-#define	FILT_FLAG_ICASE		(1 << 1)
-	union {
-		char *p_strval;
-		regex_t *p_re;
-	} pflt_uniptr;
-#define	pflt_strval	pflt_uniptr.p_strval
-#define	pflt_re		pflt_uniptr.p_re
-	size_t	pflt_strlen;
-};
-
-enum f_type {
-	F_UNUSED,	/* unused entry */
-	F_FILE,		/* regular file */
-	F_TTY,		/* terminal */
-	F_CONSOLE,	/* console terminal */
-	F_FORW,		/* remote machine */
-	F_USERS,	/* list of users */
-	F_WALL,		/* everyone logged on */
-	F_PIPE,		/* pipe to program */
-};
-
-/*
- * This structure represents the files that will have log
- * copies printed.
- * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
- * or if f_type is F_PIPE and f_pid > 0.
- */
-struct filed {
-	enum f_type f_type;
-
-	/* Used for filtering. */
-	char	*f_host;			/* host from which to recd. */
-	char	*f_program;			/* program this applies to */
-	struct prop_filter *f_prop_filter;	/* property-based filter */
-	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
-	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
-#define PRI_LT	0x1
-#define PRI_EQ	0x2
-#define PRI_GT	0x4
-
-	/* Logging destinations. */
-	int	f_file;				/* file descriptor */
-	int	f_flags;			/* file-specific flags */
-#define	FFLAG_SYNC	0x01
-#define	FFLAG_NEEDSYNC	0x02
-	union {
-		char	f_uname[MAXUNAMES][MAXLOGNAME];	/* F_WALL, F_USERS */
-		char	f_fname[MAXPATHLEN];	/* F_FILE, F_CONSOLE, F_TTY */
-		struct {
-			char	f_hname[MAXHOSTNAMELEN];
-			struct addrinfo *f_addr;
-		} f_forw;			/* F_FORW */
-		struct {
-			char	f_pname[MAXPATHLEN];
-			int	f_procdesc;
-		} f_pipe;			/* F_PIPE */
-	} f_un;
-#define	fu_uname	f_un.f_uname
-#define	fu_fname	f_un.f_fname
-#define	fu_forw_hname	f_un.f_forw.f_hname
-#define	fu_forw_addr	f_un.f_forw.f_addr
-#define	fu_pipe_pname	f_un.f_pipe.f_pname
-#define	fu_pipe_pd	f_un.f_pipe.f_procdesc
-
-	/* Book-keeping. */
-	char	f_prevline[MAXSVLINE];		/* last message logged */
-	time_t	f_time;				/* time this was last written */
-	struct logtime f_lasttime;		/* time of last occurrence */
-	int	f_prevpri;			/* pri of f_prevline */
-	size_t	f_prevlen;			/* length of f_prevline */
-	int	f_prevcount;			/* repetition cnt of prevline */
-	u_int	f_repeatcount;			/* number of "repeated" msgs */
-	STAILQ_ENTRY(filed) next;		/* next in linked list */
-};
 static STAILQ_HEAD(, filed) fhead =
     STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
 static struct filed consfile;		/* Console */
-
 
 /*
  * Queue of about-to-be dead processes we should watch out for.
