@@ -3506,6 +3506,26 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		else
 			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80P80);
 
+		/* Check if we can do STBC TX/RX before changing the setting. */
+		if ((ireq->i_val & IEEE80211_FVHT_STBC_TX) &&
+		    ((vap->iv_vht_cap.vht_cap_info & IEEE80211_VHTCAP_TXSTBC) == 0))
+			return EOPNOTSUPP;
+		if ((ireq->i_val & IEEE80211_FVHT_STBC_RX) &&
+		    ((vap->iv_vht_cap.vht_cap_info & IEEE80211_VHTCAP_RXSTBC_MASK) == 0))
+			return EOPNOTSUPP;
+
+		/* TX */
+		if (ireq->i_val & IEEE80211_FVHT_STBC_TX)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_STBC_TX);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_STBC_TX);
+
+		/* RX */
+		if (ireq->i_val & IEEE80211_FVHT_STBC_RX)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_STBC_RX);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_STBC_RX);
+
 		error = ENETRESET;
 		break;
 
