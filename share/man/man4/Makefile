@@ -845,7 +845,6 @@ _if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_urtw.4=	if_urtw.4
-_if_vmx.4=	if_vmx.4
 _if_wpi.4=	if_wpi.4
 _igc.4=		igc.4
 _imcsmb.4=	imcsmb.4
@@ -878,7 +877,6 @@ _urtw.4=	urtw.4
 _viawd.4=	viawd.4
 _vmci.4=	vmci.4
 _vmd.4=		vmd.4
-_vmx.4=		vmx.4
 _wbwd.4=	wbwd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
@@ -922,9 +920,11 @@ _nvme.4=	nvme.4
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
 	 ${MACHINE_CPUARCH} == "aarch64"
 _gve.4=		gve.4
+_if_vmx.4=	if_vmx.4
 _ipmi.4=	ipmi.4
 _linux.4=	linux.4
 _ossl.4=	ossl.4
+_vmx.4=		vmx.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
