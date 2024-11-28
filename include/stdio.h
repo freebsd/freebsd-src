@@ -497,10 +497,6 @@ extern int __isthreaded;
 #define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))
 #define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : (clearerr)(p))
 
-#if __POSIX_VISIBLE
-#define	fileno(p)	(!__isthreaded ? __sfileno(p) : (fileno)(p))
-#endif
-
 #define	getc(fp)	(!__isthreaded ? __sgetc(fp) : (getc)(fp))
 #define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : (putc)(x, fp))
 
