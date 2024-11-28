@@ -477,6 +477,7 @@ MAN=	aac.4 \
 	pty.4 \
 	puc.4 \
 	pwmc.4 \
+	${_pvscsi.4} \
 	${_qat.4} \
 	${_qat_c2xxx.4} \
 	${_qlxge.4} \
@@ -928,6 +929,7 @@ _if_vmx.4=	if_vmx.4
 _ipmi.4=	ipmi.4
 _linux.4=	linux.4
 _ossl.4=	ossl.4
+_pvscsi.4=	pvscsi.4
 _vmx.4=		vmx.4
 .endif
 
