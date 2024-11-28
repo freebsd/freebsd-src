@@ -135,6 +135,8 @@
 #define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
 #define	IEEE80211_FVHT_USEVHT160 0x000000008	/* CONF: Use VHT160 */
 #define	IEEE80211_FVHT_USEVHT80P80 0x000000010	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_STBC_TX  0x00000020	/* CONF: STBC tx enabled */
+#define	IEEE80211_FVHT_STBC_RX  0x00000040	/* CONF: STBC rx enabled */
 #endif
 
 /* Helper macros unified. */
@@ -6038,6 +6040,12 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-vht160",	-IEEE80211_FVHT_USEVHT160,	set80211vhtconf),
 	DEF_CMD("vht80p80",	IEEE80211_FVHT_USEVHT80P80,	set80211vhtconf),
 	DEF_CMD("-vht80p80",	-IEEE80211_FVHT_USEVHT80P80,	set80211vhtconf),
+	DEF_CMD("vhtstbctx",	IEEE80211_FVHT_STBC_TX,		set80211vhtconf),
+	DEF_CMD("-vhtstbctx",	-IEEE80211_FVHT_STBC_TX,	set80211vhtconf),
+	DEF_CMD("vhtstbcrx",	IEEE80211_FVHT_STBC_RX,		set80211vhtconf),
+	DEF_CMD("-vhtstbcrx",	-IEEE80211_FVHT_STBC_RX,	set80211vhtconf),
+	DEF_CMD("vhtstbc",	(IEEE80211_FVHT_STBC_TX|IEEE80211_FVHT_STBC_RX),	set80211vhtconf),
+	DEF_CMD("-vhtstbc",	-(IEEE80211_FVHT_STBC_TX|IEEE80211_FVHT_STBC_RX),	set80211vhtconf),
 	DEF_CMD("rifs",		1,	set80211rifs),
 	DEF_CMD("-rifs",	0,	set80211rifs),
 	DEF_CMD("smps",		IEEE80211_HTCAP_SMPS_ENA,	set80211smps),
