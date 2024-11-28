@@ -212,10 +212,11 @@ jkfprintf(FILE *tp, char user[], char file[], off_t offset)
 	struct passwd *p;
 	unsigned char line[BUFSIZ];
 
-	/* Set effective uid to user in case mail drop is on nfs */
-	if ((p = getpwnam(user)) == NULL)
-		return;
-	if (setuid(p->pw_uid) != 0)
+	/* Set uid/gid/groups to user's in case mail drop is on nfs */
+	if ((p = getpwnam(user)) == NULL ||
+	    initgroups(p->pw_name, p->pw_gid) == -1 ||
+	    setgid(p->pw_gid) == -1 ||
+	    setuid(p->pw_uid) == -1)
 		return;
 
 	if ((fi = fopen(file, "r")) == NULL)
