@@ -631,24 +631,18 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	u_short			 reason = 0;
 	struct pf_kpool		*rpool = &r->rpool;
 
-	/*
-	 * Try to find a src_node if none was given and this is
-	 * a sticky-address rule. Request the sh to be unlocked if
-	 * sn was not found, as here we never insert a new sn.
-	 */
-	if (*sn == NULL) {
-		if (r->rpool.opts & PF_POOL_STICKYADDR &&
-		    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
-			*sn = pf_find_src_node(saddr, r, af, sh, false);
-	} else {
-		pf_src_node_exists(sn, *sh);
-	}
+	KASSERT(*sn == NULL, ("*sn not NULL"));
 
-	/* If a src_node was found or explicitly given and it has a non-zero
-	   route address, use this address. A zeroed address is found if the
-	   src node was created just a moment ago in pf_create_state and it
-	   needs to be filled in with routing decision calculated here. */
-	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+	/*
+	 * If this is a sticky-address rule, try to find an existing src_node.
+	 * Request the sh to be unlocked if sn was not found, as we never
+	 * insert a new sn when parsing the ruleset.
+	 */
+	if (r->rpool.opts & PF_POOL_STICKYADDR &&
+	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+		*sn = pf_find_src_node(saddr, r, af, sh, false);
+
+	if (*sn != NULL) {
 		PF_SRC_NODE_LOCK_ASSERT(*sn);
 
 		/* If the supplied address is the same as the current one we've
@@ -681,14 +675,6 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	if (pf_map_addr(af, r, saddr, naddr, nkif, init_addr) != 0) {
 		/* pf_map_addr() sets reason counters on its own */
 		goto done;
-	}
-
-	if (*sn != NULL) {
-		PF_SRC_NODE_LOCK_ASSERT(*sn);
-
-		PF_ACPY(&(*sn)->raddr, naddr, af);
-		if (nkif)
-			(*sn)->rkif = *nkif;
 	}
 
 	if (V_pf_status.debug >= PF_DEBUG_NOISY &&
