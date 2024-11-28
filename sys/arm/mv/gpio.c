@@ -132,13 +132,13 @@ static uint32_t	mv_gpio_value_get(device_t, uint32_t, uint8_t);
 static void	mv_gpio_intr_mask(struct mv_gpio_pindev *);
 static void	mv_gpio_intr_unmask(struct mv_gpio_pindev *);
 
-void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
-int mv_gpio_setup_intrhandler(device_t, const char *,
+static void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
+static int mv_gpio_setup_intrhandler(device_t, const char *,
     driver_filter_t *, void (*)(void *), void *,
     int, int, void **);
-int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
-void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
-uint8_t mv_gpio_in(device_t, uint32_t);
+static int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
+static void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
+static uint8_t mv_gpio_in(device_t, uint32_t);
 
 /*
  * GPIO interface
@@ -385,7 +385,7 @@ mv_gpio_intr(device_t dev, void *arg)
  * GPIO interrupt handling
  */
 
-void
+static void
 mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 {
 	/* When we acheive full interrupt support
@@ -400,7 +400,7 @@ mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 	free(s, M_DEVBUF);
 }
 
-int
+static int
 mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
     void (*hand)(void *), void *arg, int pin, int flags, void **cookiep)
 {
@@ -540,7 +540,7 @@ mv_gpio_intr_handler(device_t dev, int pin)
 	intr_isrc_dispatch(&isrc, NULL);
 }
 
-int
+static int
 mv_gpio_configure(device_t dev, uint32_t pin, uint32_t flags, uint32_t mask)
 {
 	int error;
@@ -819,7 +819,7 @@ mv_gpio_debounced_state_get(device_t dev, int pin)
 	return (*state & (1 << pin));
 }
 
-void
+static void
 mv_gpio_out(device_t dev, uint32_t pin, uint8_t val, uint8_t enable)
 {
 	struct mv_gpio_softc *sc;
@@ -833,7 +833,7 @@ mv_gpio_out(device_t dev, uint32_t pin, uint8_t val, uint8_t enable)
 	MV_GPIO_UNLOCK();
 }
 
-uint8_t
+static uint8_t
 mv_gpio_in(device_t dev, uint32_t pin)
 {
 	uint8_t state;
