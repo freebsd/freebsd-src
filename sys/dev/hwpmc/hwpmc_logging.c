@@ -140,6 +140,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 	ph = (struct pmclog_header *)_le;				\
 	ph->pl_header =_PMCLOG_TO_HEADER(TYPE,_len);			\
 	ph->pl_tsc = tsc;						\
+	_le += sizeof(*ph) / 4	/* skip over timestamp */
 
 #define	PMCLOG_RESERVE_SAFE(P, T, L, TSC)				\
 	_PMCLOG_RESERVE_SAFE(P, T, L, return, TSC)
