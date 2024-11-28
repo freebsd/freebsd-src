@@ -110,9 +110,25 @@ before calling them.
 These functions may be used to avoid the overhead of locking the stream
 and to prevent races when multiple threads are operating on the same stream.
 .Sh ERRORS
-These functions should not fail and do not set the external
-variable
+These functions, except
+.Fn fileno ,
+should not fail and do not set the external variable
 .Va errno .
+.Pp
+On error,
+.Fn fileno
+returns \-1 and sets
+.Va errno
+to one of the following values:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The stream is not associated with a file.
+.It Bq Er EBADF
+The file descriptor underlying stream is not a valid file descriptor.
+.Pp
+Note that detection of this condition is not reliable, the error might
+be not reported.
+.El
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr fdopen 3 ,
