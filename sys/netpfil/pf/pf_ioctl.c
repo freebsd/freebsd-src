@@ -2341,7 +2341,7 @@ relock_DIOCKILLSTATES:
 		if (!  PF_MATCHA(psk->psk_rt_addr.neg,
 		    &psk->psk_rt_addr.addr.v.a.addr,
 		    &psk->psk_rt_addr.addr.v.a.mask,
-		    &s->rt_addr, sk->af))
+		    &s->act.rt_addr, sk->af))
 			continue;
 
 		if (psk->psk_src.port_op != 0 &&
@@ -5587,7 +5587,7 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 
 	/* copy from state */
 	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
-	bcopy(&st->rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
+	bcopy(&st->act.rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
 	sp->pfs_1301.creation = htonl(time_uptime - (st->creation / 1000));
 	sp->pfs_1301.expire = pf_state_expires(st);
 	if (sp->pfs_1301.expire <= time_uptime)
@@ -5615,10 +5615,10 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 			sp->pfs_1400.max_mss = htons(st->act.max_mss);
 			sp->pfs_1400.set_prio[0] = st->act.set_prio[0];
 			sp->pfs_1400.set_prio[1] = st->act.set_prio[1];
-			sp->pfs_1400.rt = st->rt;
-			if (st->rt_kif)
+			sp->pfs_1400.rt = st->act.rt;
+			if (st->act.rt_kif)
 				strlcpy(sp->pfs_1400.rt_ifname,
-				    st->rt_kif->pfik_name,
+				    st->act.rt_kif->pfik_name,
 				    sizeof(sp->pfs_1400.rt_ifname));
 			break;
 		default:
@@ -5678,7 +5678,7 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
 	strlcpy(sp->orig_ifname, st->orig_kif->pfik_name,
 	    sizeof(sp->orig_ifname));
-	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
+	bcopy(&st->act.rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
 	sp->creation = htonl(time_uptime - (st->creation / 1000));
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_uptime)
@@ -5728,9 +5728,9 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	sp->min_ttl = st->act.min_ttl;
 	sp->set_tos = st->act.set_tos;
 	sp->max_mss = htons(st->act.max_mss);
-	sp->rt = st->rt;
-	if (st->rt_kif)
-		strlcpy(sp->rt_ifname, st->rt_kif->pfik_name,
+	sp->rt = st->act.rt;
+	if (st->act.rt_kif)
+		strlcpy(sp->rt_ifname, st->act.rt_kif->pfik_name,
 		    sizeof(sp->rt_ifname));
 	sp->set_prio[0] = st->act.set_prio[0];
 	sp->set_prio[1] = st->act.set_prio[1];

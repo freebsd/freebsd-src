@@ -963,7 +963,7 @@ pf_state_to_nvstate(const struct pf_kstate *s)
 	nvlist_add_nvlist(nvl, "dst", tmp);
 	nvlist_destroy(tmp);
 
-	tmp = pf_addr_to_nvaddr(&s->rt_addr);
+	tmp = pf_addr_to_nvaddr(&s->act.rt_addr);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "rt_addr", tmp);

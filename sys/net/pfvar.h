@@ -648,17 +648,20 @@ struct pf_kpool {
 };
 
 struct pf_rule_actions {
+	struct pf_addr	 rt_addr;
+	struct pfi_kkif	*rt_kif;
 	int32_t		 rtableid;
+	uint32_t	 flags;
 	uint16_t	 qid;
 	uint16_t	 pqid;
 	uint16_t	 max_mss;
+	uint16_t	 dnpipe;
+	uint16_t	 dnrpipe;	/* Reverse direction pipe */
 	uint8_t		 log;
 	uint8_t		 set_tos;
 	uint8_t		 min_ttl;
-	uint16_t	 dnpipe;
-	uint16_t	 dnrpipe;	/* Reverse direction pipe */
-	uint32_t	 flags;
 	uint8_t		 set_prio[2];
+	uint8_t		 rt;
 };
 
 union pf_keth_rule_ptr {
@@ -1089,12 +1092,10 @@ struct pf_kstate {
 	struct pf_krule		*rule;
 	struct pf_krule		*anchor;
 	struct pf_krule		*nat_rule;
-	struct pf_addr		 rt_addr;
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
 	struct pf_udp_mapping	*udp_mapping;
 	struct pfi_kkif		*kif;
 	struct pfi_kkif		*orig_kif;	/* The real kif, even if we're a floating state (i.e. if == V_pfi_all). */
-	struct pfi_kkif		*rt_kif;
 	struct pf_ksrc_node	*src_node;
 	struct pf_ksrc_node	*nat_src_node;
 	u_int64_t		 packets[2];
@@ -1104,7 +1105,6 @@ struct pf_kstate {
 	u_int32_t		 pfsync_time;
 	struct pf_rule_actions	 act;
 	u_int16_t		 tag;
-	u_int8_t		 rt;
 	u_int16_t		 if_index_in;
 	u_int16_t		 if_index_out;
 };

@@ -611,7 +611,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	}
 
 	/* copy to state */
-	bcopy(&sp->pfs_1301.rt_addr, &st->rt_addr, sizeof(st->rt_addr));
+	bcopy(&sp->pfs_1301.rt_addr, &st->act.rt_addr, sizeof(st->act.rt_addr));
 	st->creation = (time_uptime - ntohl(sp->pfs_1301.creation)) * 1000;
 	st->expire = pf_get_uptime();
 	if (sp->pfs_1301.expire) {
@@ -680,8 +680,8 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			st->act.max_mss = ntohs(sp->pfs_1400.max_mss);
 			st->act.set_prio[0] = sp->pfs_1400.set_prio[0];
 			st->act.set_prio[1] = sp->pfs_1400.set_prio[1];
-			st->rt = sp->pfs_1400.rt;
-			if (st->rt && (st->rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname)) == NULL) {
+			st->act.rt = sp->pfs_1400.rt;
+			if (st->act.rt && (st->act.rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname)) == NULL) {
 				if (V_pf_status.debug >= PF_DEBUG_MISC)
 					printf("%s: unknown route interface: %s\n",
 					    __func__, sp->pfs_1400.rt_ifname);

@@ -173,7 +173,7 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 
 	nlattr_add_string(nw, PF_ST_IFNAME, s->kif->pfik_name);
 	nlattr_add_string(nw, PF_ST_ORIG_IFNAME, s->orig_kif->pfik_name);
-	dump_addr(nw, PF_ST_RT_ADDR, &s->rt_addr, af);
+	dump_addr(nw, PF_ST_RT_ADDR, &s->act.rt_addr, af);
 	nlattr_add_u32(nw, PF_ST_CREATION, time_uptime - (s->creation / 1000));
 	uint32_t expire = pf_state_expires(s);
 	if (expire > time_uptime)
@@ -205,9 +205,9 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_u16(nw, PF_ST_MAX_MSS, s->act.max_mss);
 	nlattr_add_u16(nw, PF_ST_DNPIPE, s->act.dnpipe);
 	nlattr_add_u16(nw, PF_ST_DNRPIPE, s->act.dnrpipe);
-	nlattr_add_u8(nw, PF_ST_RT, s->rt);
-	if (s->rt_kif != NULL)
-		nlattr_add_string(nw, PF_ST_RT_IFNAME, s->rt_kif->pfik_name);
+	nlattr_add_u8(nw, PF_ST_RT, s->act.rt);
+	if (s->act.rt_kif != NULL)
+		nlattr_add_string(nw, PF_ST_RT_IFNAME, s->act.rt_kif->pfik_name);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
