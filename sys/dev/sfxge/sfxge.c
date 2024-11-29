@@ -611,8 +611,6 @@ sfxge_ifnet_init(if_t ifp, struct sfxge_softc *sc)
 	if_sethwassistbits(ifp, CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
 			   CSUM_TCP_IPV6 | CSUM_UDP_IPV6, 0);
 
-	ether_ifattach(ifp, encp->enc_mac_addr);
-
 	if_settransmitfn(ifp, sfxge_if_transmit);
 	if_setqflushfn(ifp, sfxge_if_qflush);
 
@@ -620,13 +618,11 @@ sfxge_ifnet_init(if_t ifp, struct sfxge_softc *sc)
 
 	DBGPRINT(sc->dev, "ifmedia_init");
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
-		goto fail;
+		return (rc);
+
+	ether_ifattach(ifp, encp->enc_mac_addr);
 
 	return (0);
-
-fail:
-	ether_ifdetach(sc->ifnet);
-	return (rc);
 }
 
 void
