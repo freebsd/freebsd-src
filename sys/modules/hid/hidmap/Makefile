@@ -2,7 +2,7 @@
 
 KMOD=	hidmap
 SRCS=	hidmap.c
-SRCS+=	opt_hid.h
+SRCS+=	opt_hid.h opt_kbd.h
 SRCS+=	bus_if.h device_if.h
 
 EXPORT_SYMS=	YES
