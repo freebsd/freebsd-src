@@ -149,6 +149,7 @@ static struct cap_desc {
 	{ CAP_FCHFLAGS,		"cf" },
 	{ CAP_FCHMOD,		"cm" },
 	{ CAP_FCHOWN,		"cn" },
+	{ CAP_FCHROOT,		"ct" },
 	{ CAP_FCNTL,		"fc" },
 	{ CAP_FLOCK,		"fl" },
 	{ CAP_FPATHCONF,	"fp" },

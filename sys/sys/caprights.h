@@ -66,6 +66,7 @@ extern cap_rights_t cap_fchdir_rights;
 extern cap_rights_t cap_fchflags_rights;
 extern cap_rights_t cap_fchmod_rights;
 extern cap_rights_t cap_fchown_rights;
+extern cap_rights_t cap_fchroot_rights;
 extern cap_rights_t cap_fcntl_rights;
 extern cap_rights_t cap_fexecve_rights;
 extern cap_rights_t cap_flock_rights;

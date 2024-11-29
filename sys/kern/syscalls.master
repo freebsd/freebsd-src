@@ -3341,5 +3341,10 @@
 		    _Out_ rlim_t *res
 		);
 	}
+590	AUE_NULL	STD {
+		int fchroot(
+		    int fd
+		);
+	}
 
 ; vim: syntax=off
