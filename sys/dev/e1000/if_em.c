@@ -1234,10 +1234,6 @@ em_if_attach_pre(if_ctx_t ctx)
 		    "transmit interrupt delay limit in usecs",
 		    &sc->tx_abs_int_delay,
 		    E1000_REGISTER(hw, E1000_TADV), em_tx_abs_int_delay_dflt);
-		em_add_int_delay_sysctl(sc, "itr",
-		    "interrupt delay limit in usecs/4", &sc->tx_itr,
-		    E1000_REGISTER(hw, E1000_ITR),
-		    EM_INTS_TO_ITR(em_max_interrupt_rate));
 	}
 
 	hw->mac.autoneg = DO_AUTO_NEG;
@@ -5403,8 +5399,6 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
-	if (info->offset == E1000_ITR)	/* units are 256ns here */
-		ticks *= 4;
 
 	sc = info->sc;
 
