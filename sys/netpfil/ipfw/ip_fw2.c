@@ -719,12 +719,12 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	if (flags & TH_RST) {
 		if (flags & TH_ACK) {
 			th->th_seq = htonl(ack);
-			th->th_flags = TH_RST;
+			tcp_set_flags(th, TH_RST);
 		} else {
 			if (flags & TH_SYN)
 				seq++;
 			th->th_ack = htonl(seq);
-			th->th_flags = TH_RST | TH_ACK;
+			tcp_set_flags(th, TH_RST | TH_ACK);
 		}
 	} else {
 		/*
@@ -732,7 +732,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 		 */
 		th->th_seq = htonl(seq);
 		th->th_ack = htonl(ack);
-		th->th_flags = TH_ACK;
+		tcp_set_flags(th, TH_ACK);
 	}
 
 	switch (id->addr_type) {
@@ -893,11 +893,11 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 		struct tcphdr *tcp;
 		tcp = (struct tcphdr *)((char *)ip6 + hlen);
 
-		if ((tcp->th_flags & TH_RST) == 0) {
+		if ((tcp_get_flags(tcp) & TH_RST) == 0) {
 			struct mbuf *m0;
 			m0 = ipfw_send_pkt(args->m, &(args->f_id),
 			    ntohl(tcp->th_seq), ntohl(tcp->th_ack),
-			    tcp->th_flags | TH_RST);
+			    tcp_get_flags(tcp) | TH_RST);
 			if (m0 != NULL)
 				ip6_output(m0, NULL, NULL, 0, NULL, NULL,
 				    NULL);
@@ -1021,11 +1021,11 @@ send_reject(struct ip_fw_args *args, const ipfw_insn *cmd, int iplen,
 	} else if (code == ICMP_REJECT_RST && args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
-		if ( (tcp->th_flags & TH_RST) == 0) {
+		if ( (tcp_get_flags(tcp) & TH_RST) == 0) {
 			struct mbuf *m;
 			m = ipfw_send_pkt(args->m, &(args->f_id),
 				ntohl(tcp->th_seq), ntohl(tcp->th_ack),
-				tcp->th_flags | TH_RST);
+				tcp_get_flags(tcp) | TH_RST);
 			if (m != NULL)
 				ip_output(m, NULL, NULL, 0, NULL, NULL);
 		}
@@ -1571,7 +1571,7 @@ do {								\
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
 				/* save flags for dynamic rules */
-				args->f_id._flags = TCP(ulp)->th_flags;
+				args->f_id._flags = tcp_get_flags(TCP(ulp));
 				break;
 
 			case IPPROTO_SCTP:
@@ -1762,7 +1762,7 @@ do {								\
 				dst_port = TCP(ulp)->th_dport;
 				src_port = TCP(ulp)->th_sport;
 				/* save flags for dynamic rules */
-				args->f_id._flags = TCP(ulp)->th_flags;
+				args->f_id._flags = tcp_get_flags(TCP(ulp));
 				break;
 
 			case IPPROTO_SCTP:
@@ -2439,8 +2439,13 @@ do {								\
 				break;
 
 			case O_TCPFLAGS:
+				/*
+				 * Note that this is currently only set up to
+				 * match the lower 8 TCP header flag bits, not
+				 * the full compliment of all 12 flags.
+				 */
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    flags_match(cmd, TCP(ulp)->th_flags));
+				    flags_match(cmd, tcp_get_flags(TCP(ulp))));
 				break;
 
 			case O_TCPOPTS:
@@ -2511,7 +2516,7 @@ do {								\
 				/* reject packets which have SYN only */
 				/* XXX should i also check for TH_ACK ? */
 				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    (TCP(ulp)->th_flags &
+				    (tcp_get_flags(TCP(ulp)) &
 				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
 				break;
 

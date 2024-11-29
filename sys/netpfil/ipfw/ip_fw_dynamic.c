@@ -2388,7 +2388,7 @@ dyn_make_keepalive_ipv4(struct mbuf *m, in_addr_t src, in_addr_t dst,
 	tcp->th_off = sizeof(struct tcphdr) >> 2;
 	tcp->th_seq = htonl(seq);
 	tcp->th_ack = htonl(ack);
-	tcp->th_flags = TH_ACK;
+	tcp_set_flags(tcp, TH_ACK);
 	tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 	    htons(sizeof(struct tcphdr) + IPPROTO_TCP));
 
@@ -2498,7 +2498,7 @@ dyn_make_keepalive_ipv6(struct mbuf *m, const struct in6_addr *src,
 	tcp->th_off = sizeof(struct tcphdr) >> 2;
 	tcp->th_seq = htonl(seq);
 	tcp->th_ack = htonl(ack);
-	tcp->th_flags = TH_ACK;
+	tcp_set_flags(tcp, TH_ACK);
 	tcp->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr),
 	    IPPROTO_TCP, 0);
 

@@ -416,7 +416,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		struct tcphdr 	*th;
 
 		th = (struct tcphdr *)(ip + 1);
-		if (th->th_x2 & (TH_RES1 >> 8))
+		if (tcp_get_flags(th) & TH_RES1)
 			ldt = 1;
 	}
 
@@ -436,7 +436,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 			 * Maybe it was set in
 			 * libalias...
 			 */
-			th->th_x2 &= ~(TH_RES1 >> 8);
+			tcp_set_flags(th, tcp_get_flags(th) & ~TH_RES1);
 			th->th_sum = cksum;
 			mcl->m_pkthdr.csum_data =
 			    offsetof(struct tcphdr, th_sum);

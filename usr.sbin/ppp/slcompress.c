@@ -179,8 +179,8 @@ sl_compress_tcp(struct mbuf * m,
     return (TYPE_IP);
   }
   th = (struct tcphdr *) & ((int *) ip)[hlen];
-  if ((th->th_flags & (TH_SYN | TH_FIN | TH_RST | TH_ACK)) != TH_ACK) {
-    log_Printf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
+  if ((__tcp_get_flags(th) & (TH_SYN | TH_FIN | TH_RST | TH_ACK)) != TH_ACK) {
+    log_Printf(LogDEBUG, "??? 2 th_flags = %x\n", __tcp_get_flags(th));
     log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
@@ -283,7 +283,7 @@ found:
    * changes in the order: urgent, window, ack, seq (the order minimizes the
    * number of temporaries needed in this section of code).
    */
-  if (th->th_flags & TH_URG) {
+  if (__tcp_get_flags(th) & TH_URG) {
     deltaS = ntohs(th->th_urp);
     ENCODEZ(deltaS);
     changes |= NEW_U;
@@ -366,7 +366,7 @@ found:
     ENCODEZ(deltaS);
     changes |= NEW_I;
   }
-  if (th->th_flags & TH_PUSH)
+  if (__tcp_get_flags(th) & TH_PUSH)
     changes |= TCP_PUSH_BIT;
 
   /*
@@ -501,9 +501,9 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
   th->th_sum = htons((*cp << 8) | cp[1]);
   cp += 2;
   if (changes & TCP_PUSH_BIT)
-    th->th_flags |= TH_PUSH;
+    __tcp_set_flags(th, __tcp_get_flags(th) | TH_PUSH);
   else
-    th->th_flags &= ~TH_PUSH;
+    __tcp_set_flags(th, __tcp_get_flags(th) & ~TH_PUSH);
 
   switch (changes & SPECIALS_MASK) {
   case SPECIAL_I:
@@ -522,10 +522,10 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
 
   default:
     if (changes & NEW_U) {
-      th->th_flags |= TH_URG;
+      __tcp_set_flags(th, __tcp_get_flags(th) | TH_URG);
       DECODEU(th->th_urp)
     } else
-      th->th_flags &= ~TH_URG;
+      __tcp_set_flags(th, __tcp_get_flags(th) & ~TH_URG);
     if (changes & NEW_W)
       DECODES(th->th_win)
 	if (changes & NEW_A)

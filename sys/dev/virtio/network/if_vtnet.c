@@ -2438,7 +2438,7 @@ vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int eth_type,
 	hdr->gso_type = eth_type == ETHERTYPE_IP ? VIRTIO_NET_HDR_GSO_TCPV4 :
 	    VIRTIO_NET_HDR_GSO_TCPV6;
 
-	if (__predict_false(tcp->th_flags & TH_CWR)) {
+	if (__predict_false(tcp_get_flags(tcp) & TH_CWR)) {
 		/*
 		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In
 		 * FreeBSD, ECN support is not on a per-interface basis,

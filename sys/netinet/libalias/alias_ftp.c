@@ -752,7 +752,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		/* Compute TCP checksum for revised packet */
 		tc->th_sum = 0;
 #ifdef _KERNEL
-		tc->th_x2 = (TH_RES1 >> 8);
+		tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 		tc->th_sum = TcpChecksum(pip);
 #endif
