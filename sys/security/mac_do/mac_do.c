@@ -1906,9 +1906,9 @@ rule_grant_setcred(const struct rule *const rule,
 static bool
 rule_applies(const struct rule *const rule, const struct ucred *const cred)
 {
-	if (rule->from_type == IT_UID && rule->from_id == cred->cr_uid)
+	if (rule->from_type == IT_UID && rule->from_id == cred->cr_ruid)
 		return (true);
-	if (rule->from_type == IT_GID && groupmember(rule->from_id, cred))
+	if (rule->from_type == IT_GID && realgroupmember(rule->from_id, cred))
 		return (true);
 	return (false);
 }
