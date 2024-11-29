@@ -1795,6 +1795,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		iovlist_truncate(il, MaxForwardLen);
 #endif
 
+		lsent = 0;
 		for (size_t i = 0; i < f->f_num_addr_fds; ++i) {
 			struct msghdr msg = {
 				.msg_iov = il->iov,
@@ -2941,7 +2942,6 @@ parse_selector(const char *p, struct filed *f)
 		pri = decode(buf, prioritynames);
 		if (pri < 0) {
 			dprintf("unknown priority name \"%s\"", buf);
-			free(f);
 			return (NULL);
 		}
 	}
@@ -2965,7 +2965,6 @@ parse_selector(const char *p, struct filed *f)
 			i = decode(buf, facilitynames);
 			if (i < 0) {
 				dprintf("unknown facility name \"%s\"", buf);
-				free(f);
 				return (NULL);
 			}
 			f->f_pmask[i >> 3] = pri;
