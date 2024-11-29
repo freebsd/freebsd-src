@@ -835,16 +835,11 @@ basic_ipv6_cleanup()
 	pfsynct_cleanup
 }
 
-atf_test_case "route_to" "cleanup"
-route_to_head()
+route_to_common_head()
 {
-	atf_set descr 'Test route-to with default rule'
-	atf_set require.user root
-	atf_set require.progs scapy
-}
+	pfsync_version=$1
+	shift
 
-route_to_body()
-{
 	pfsynct_init
 
 	epair_sync=$(vnet_mkepair)
@@ -866,32 +861,20 @@ route_to_body()
 	jexec one ifconfig pfsync0 \
 		syncdev ${epair_sync}a \
 		maxupd 1 \
+		version $pfsync_version \
 		up
 
 	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
 	jexec two ifconfig ${epair_two}a 198.51.100.2/24 up
 	jexec two ifconfig ${epair_out_two}a 203.0.113.2/24 up
-	#jexec two ifconfig ${epair_out_two}a name outif
+	jexec two ifconfig ${epair_out_two}a name outif
 	jexec two sysctl net.inet.ip.forwarding=1
 	jexec two arp -s 203.0.113.254 00:01:02:03:04:05
 	jexec two ifconfig pfsync0 \
 		syncdev ${epair_sync}b \
 		maxupd 1 \
+		version $pfsync_version \
 		up
-
-	# Enable pf!
-	jexec one pfctl -e
-	pft_set_rules one \
-		"set skip on ${epair_sync}a" \
-		"pass out route-to (outif 203.0.113.254)"
-	jexec two pfctl -e
-
-	# Make sure we have different rulesets so the synced state is associated with
-	# V_pf_default_rule
-	pft_set_rules two \
-		"set skip on ${epair_sync}b" \
-		"pass out route-to (outif 203.0.113.254)" \
-		"pass out proto tcp"
 
 	ifconfig ${epair_one}b 198.51.100.254/24 up
 	ifconfig ${epair_two}b 198.51.100.253/24 up
@@ -899,7 +882,10 @@ route_to_body()
 	ifconfig ${epair_two}b up
 	ifconfig ${epair_out_one}b up
 	ifconfig ${epair_out_two}b up
+}
 
+route_to_common_tail()
+{
 	atf_check -s exit:0 env PYTHONPATH=${common_dir} \
 		${common_dir}/pft_ping.py \
 		--sendif ${epair_one}b \
@@ -908,24 +894,230 @@ route_to_body()
 		--recvif ${epair_out_one}b
 
 	# Allow time for sync
-	ifconfig ${epair_one}b inet 198.51.100.254 -alias
-	route del -net 203.0.113.0/24 198.51.100.1
-	route add -net 203.0.113.0/24 198.51.100.2
-
 	sleep 2
 
-	# Now try to trigger the state on the other pfsync member
-	env PYTHONPATH=${common_dir} \
-		${common_dir}/pft_ping.py \
-		--sendif ${epair_two}b \
-		--fromaddr 198.51.100.254 \
-		--to 203.0.113.254 \
-		--recvif ${epair_out_two}b
+	states_one=$(mktemp)
+	states_two=$(mktemp)
+	jexec one pfctl -qvvss | normalize_pfctl_s > $states_one
+	jexec two pfctl -qvvss | normalize_pfctl_s > $states_two
+}
+
+atf_test_case "route_to_1301_body" "cleanup"
+route_to_1301_head()
+{
+	atf_set descr 'Test route-to with pfsync version 13.1'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+route_to_1301_body()
+{
+	route_to_common_head 1301
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass out route-to (outif 203.0.113.254)"
+
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set skip on ${epair_sync}b" \
+		"pass out route-to (outif 203.0.113.254)"
+
+	route_to_common_tail
+
+	# Sanity check
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif origif: outif' $states_one ||
+		atf_fail "State missing on router one"
+
+	# With identical ruleset the routing information is recovered from the matching rule.
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif' $states_two ||
+		atf_fail "State missing on router two"
 
 	true
 }
 
-route_to_cleanup()
+route_to_1301_cleanup()
+{
+	pfsynct_cleanup
+}
+
+atf_test_case "route_to_1301_bad_ruleset" "cleanup"
+route_to_1301_bad_ruleset_head()
+{
+	atf_set descr 'Test route-to with pfsync version 13.1 and incompatible ruleset'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+route_to_1301_bad_ruleset_body()
+{
+	route_to_common_head 1301
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass out route-to (outif 203.0.113.254)"
+
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set debug loud" \
+		"set skip on ${epair_sync}b" \
+		"pass out route-to (outif 203.0.113.254)" \
+		"pass out proto tcp"
+
+	atf_check -s exit:0 env PYTHONPATH=${common_dir} \
+		${common_dir}/pft_ping.py \
+		--sendif ${epair_one}b \
+		--fromaddr 198.51.100.254 \
+		--to 203.0.113.254 \
+		--recvif ${epair_out_one}b
+
+	route_to_common_tail
+
+	# Sanity check
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif origif: outif' $states_one ||
+		atf_fail "State missing on router one"
+
+	# Different ruleset on each router means the routing information recovery
+	# from rule is impossible. The state is not synced.
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*' $states_two &&
+		atf_fail "State present on router two"
+
+	true
+}
+
+route_to_1301_bad_ruleset_cleanup()
+{
+	pfsynct_cleanup
+}
+
+atf_test_case "route_to_1301_bad_rpool" "cleanup"
+route_to_1301_bad_rpool_head()
+{
+	atf_set descr 'Test route-to with pfsync version 13.1 and different interface'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+route_to_1301_bad_rpool_body()
+{
+	route_to_common_head 1301
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass out route-to { (outif 203.0.113.254) (outif 203.0.113.254) }"
+
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set skip on ${epair_sync}b" \
+		"pass out route-to { (outif 203.0.113.254) (outif 203.0.113.254) }"
+
+	atf_check -s exit:0 env PYTHONPATH=${common_dir} \
+		${common_dir}/pft_ping.py \
+		--sendif ${epair_one}b \
+		--fromaddr 198.51.100.254 \
+		--to 203.0.113.254 \
+		--recvif ${epair_out_one}b
+
+	route_to_common_tail
+
+	# Sanity check
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif origif: outif' $states_one ||
+		atf_fail "State missing on router one"
+
+	# The ruleset is identical but since the redirection pool contains multiple interfaces
+	# pfsync will not attempt to recover the routing information from the rule.
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*' $states_two &&
+		atf_fail "State present on router two"
+
+	true
+}
+
+route_to_1301_bad_rpool_cleanup()
+{
+	pfsynct_cleanup
+}
+
+atf_test_case "route_to_1400_bad_ruleset" "cleanup"
+route_to_1400_bad_ruleset_head()
+{
+	atf_set descr 'Test route-to with pfsync version 14.0'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+route_to_1400_bad_ruleset_body()
+{
+	route_to_common_head 1400
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass out route-to (outif 203.0.113.254)"
+
+	jexec two pfctl -e
+	pft_set_rules two \
+		"set skip on ${epair_sync}b"
+
+	route_to_common_tail
+
+	# Sanity check
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif origif: outif' $states_one ||
+		atf_fail "State missing on router one"
+
+	# Even with a different ruleset FreeBSD 14 syncs the state just fine.
+	# There's no recovery involved, the pfsync packet contains the routing information.
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .* route-to: 203.0.113.254@outif' $states_two ||
+		atf_fail "State missing on router two"
+
+	true
+}
+
+route_to_1400_bad_ruleset_cleanup()
+{
+	pfsynct_cleanup
+}
+
+atf_test_case "route_to_1400_bad_ifname" "cleanup"
+route_to_1400_bad_ifname_head()
+{
+	atf_set descr 'Test route-to with pfsync version 14.0'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+route_to_1400_bad_ifname_body()
+{
+	route_to_common_head 1400
+
+	jexec one pfctl -e
+	pft_set_rules one \
+		"set skip on ${epair_sync}a" \
+		"pass out route-to (outif 203.0.113.254)"
+
+	jexec two pfctl -e
+	jexec two ifconfig outif name outif_new
+	pft_set_rules two \
+		"set skip on ${epair_sync}b" \
+		"pass out route-to (outif_new 203.0.113.254)"
+
+	route_to_common_tail
+
+	# Sanity check
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*, rule 0 .* route-to: 203.0.113.254@outif origif: outif' $states_one ||
+		atf_fail "State missing on router one"
+
+	# Since FreeBSD 14 never attempts recovery of missing routing information
+	# a state synced to a router with a different interface name is dropped.
+	grep -qE 'all icmp 198.51.100.254 -> 203.0.113.254:8 .*' $states_two &&
+		atf_fail "State present on router two"
+
+	true
+}
+
+route_to_1400_bad_ifname_cleanup()
 {
 	pfsynct_cleanup
 }
@@ -942,5 +1134,9 @@ atf_init_test_cases()
 	atf_add_test_case "timeout"
 	atf_add_test_case "basic_ipv6_unicast"
 	atf_add_test_case "basic_ipv6"
-	atf_add_test_case "route_to"
+	atf_add_test_case "route_to_1301"
+	atf_add_test_case "route_to_1301_bad_ruleset"
+	atf_add_test_case "route_to_1301_bad_rpool"
+	atf_add_test_case "route_to_1400_bad_ruleset"
+	atf_add_test_case "route_to_1400_bad_ifname"
 }

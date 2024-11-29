@@ -110,6 +110,8 @@
 
 #include <netpfil/pf/pfsync_nv.h>
 
+#define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
+
 struct pfsync_bucket;
 struct pfsync_softc;
 
@@ -521,10 +523,13 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 #endif
 	struct pfsync_state_key *kw, *ks;
 	struct pf_kstate	*st = NULL;
-	struct pf_state_key *skw = NULL, *sks = NULL;
-	struct pf_krule *r = NULL;
-	struct pfi_kkif	*kif;
-	int error;
+	struct pf_state_key	*skw = NULL, *sks = NULL;
+	struct pf_krule		*r = NULL;
+	struct pfi_kkif		*kif;
+	struct pfi_kkif		*rt_kif = NULL;
+	struct pf_kpooladdr	*rpool_first;
+	int			 error;
+	uint8_t			 rt = 0;
 
 	PF_RULES_RASSERT();
 
@@ -555,6 +560,67 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 		    PF_RULESET_FILTER].active.ptr_array[ntohl(sp->pfs_1301.rule)];
 	else
 		r = &V_pf_default_rule;
+
+	/*
+	 * Check routing interface early on. Do it before allocating memory etc.
+	 * because there is a high chance there will be a lot more such states.
+	 */
+	switch (msg_version) {
+	case PFSYNC_MSG_VERSION_1301:
+		/*
+		 * On FreeBSD <= 13 the routing interface and routing operation
+		 * are not sent over pfsync. If the ruleset is identical,
+		 * though, we might be able to recover the routing information
+		 * from the local ruleset.
+		 */
+		if (r != &V_pf_default_rule) {
+			/*
+			 * The ruleset is identical, try to recover. If the rule
+			 * has a redirection pool with a single interface, there
+			 * is a chance that this interface is identical as on
+			 * the pfsync peer. If there's more than one interface,
+			 * give up, as we can't be sure that we will pick the
+			 * same one as the pfsync peer did.
+			 */
+			rpool_first = TAILQ_FIRST(&(r->rpool.list));
+			if ((rpool_first == NULL) ||
+			    (TAILQ_NEXT(rpool_first, entries) != NULL)) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("%s: can't recover routing information "
+				    "because of empty or bad redirection pool\n",
+				    __func__));
+				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
+			}
+			rt = r->rt;
+			rt_kif = rpool_first->kif;
+		} else if (!PF_AZERO(&sp->pfs_1301.rt_addr, sp->pfs_1301.af)) {
+			/*
+			 * Ruleset different, routing *supposedly* requested,
+			 * give up on recovering.
+			 */
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("%s: can't recover routing information "
+			    "because of different ruleset\n", __func__));
+			return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
+		}
+	break;
+	case PFSYNC_MSG_VERSION_1400:
+		/*
+		 * On FreeBSD 14 and above we're not taking any chances.
+		 * We use the information synced to us.
+		 */
+		if (sp->pfs_1400.rt) {
+			rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname);
+			if (rt_kif == NULL) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("%s: unknown route interface: %s\n",
+				    __func__, sp->pfs_1400.rt_ifname));
+				return ((flags & PFSYNC_SI_IOCTL) ? EINVAL : 0);
+			}
+			rt = sp->pfs_1400.rt;
+		}
+	break;
+	}
 
 	if ((r->max_states &&
 	    counter_u64_fetch(r->states_cur) >= r->max_states))
@@ -629,6 +695,9 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 	st->act.log = sp->pfs_1301.log;
 	st->timeout = sp->pfs_1301.timeout;
 
+	st->act.rt = rt;
+	st->act.rt_kif = rt_kif;
+
 	switch (msg_version) {
 		case PFSYNC_MSG_VERSION_1301:
 			st->state_flags = sp->pfs_1301.state_flags;
@@ -680,17 +749,6 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			st->act.max_mss = ntohs(sp->pfs_1400.max_mss);
 			st->act.set_prio[0] = sp->pfs_1400.set_prio[0];
 			st->act.set_prio[1] = sp->pfs_1400.set_prio[1];
-			st->act.rt = sp->pfs_1400.rt;
-			if (st->act.rt && (st->act.rt_kif = pfi_kkif_find(sp->pfs_1400.rt_ifname)) == NULL) {
-				if (V_pf_status.debug >= PF_DEBUG_MISC)
-					printf("%s: unknown route interface: %s\n",
-					    __func__, sp->pfs_1400.rt_ifname);
-				if (flags & PFSYNC_SI_IOCTL)
-					error = EINVAL;
-				else
-					error = 0;
-				goto cleanup_keys;
-			}
 			break;
 		default:
 			panic("%s: Unsupported pfsync_msg_version %d",
@@ -737,7 +795,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 
 cleanup:
 	error = ENOMEM;
-cleanup_keys:
+
 	if (skw == sks)
 		sks = NULL;
 	uma_zfree(V_pf_state_key_z, skw);
