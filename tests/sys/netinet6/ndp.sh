@@ -163,12 +163,12 @@ ndp_slaac_default_route_body() {
 	while [ -z "$(jexec ${jname} ndp -r)" ]; do
 		sleep 0.1
 	done
-	atf_check -o match:"^default[[:space:]]+fe80:" \
+	atf_check -o match:"^::/0[[:space:]]+fe80:" \
 	    jexec ${jname} netstat -rn -6
 
 	# Get rid of the default route.
 	jexec ${jname} route -6 flush
-	atf_check -o not-match:"^default[[:space:]]+fe80:" \
+	atf_check -o not-match:"^::/0[[:space:]]+fe80:" \
 	    jexec ${jname} netstat -rn -6
 
 	# Send another RA, make sure that the default route is installed again.
@@ -180,7 +180,7 @@ ndp_slaac_default_route_body() {
 	while [ -z "$(jexec ${jname} ndp -r)" ]; do
 		sleep 0.1
 	done
-	atf_check -o match:"^default[[:space:]]+fe80:" \
+	atf_check -o match:"^::/0[[:space:]]+fe80:" \
 	    jexec ${jname} netstat -rn -6
 }
 
