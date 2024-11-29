@@ -77,7 +77,8 @@ struct	flags	tcpfl[] = {
 	{ TH_URG, 'U' },
 	{ TH_PUSH,'P' },
 	{ TH_ECN, 'E' },
-	{ TH_CWR, 'C' },
+	{ TH_CWR, 'W' },
+	{ TH_AE,  'e' },
 	{ 0, '\0' }
 };
 
@@ -1196,7 +1197,7 @@ print_ipflog(config_t *conf, char *buf, int blen)
 				*t++ = ' ';
 				*t++ = '-';
 				for (i = 0; tcpfl[i].value; i++)
-					if (tp->th_flags & tcpfl[i].value)
+					if (__tcp_get_flags(tp) & tcpfl[i].value)
 						*t++ = tcpfl[i].flag;
 				if (ipmonopts & IPMON_VERBOSE) {
 					sprintf(t, " %lu %lu %hu",

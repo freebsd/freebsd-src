@@ -4,10 +4,10 @@
 void
 printtcpflags(u_32_t tcpf, u_32_t tcpfm)
 {
-	u_char *t;
+	uint16_t *t;
 	char *s;
 
-	if (tcpf & ~TCPF_ALL) {
+	if (tcpf & ~TH_FLAGS) {
 		PRINTF("0x%x", tcpf);
 	} else {
 		for (s = flagset, t = flags; *s; s++, t++) {
@@ -18,7 +18,7 @@ printtcpflags(u_32_t tcpf, u_32_t tcpfm)
 
 	if (tcpfm) {
 		(void)putchar('/');
-		if (tcpfm & ~TCPF_ALL) {
+		if (tcpfm & ~TH_FLAGS) {
 			PRINTF("0x%x", tcpfm);
 		} else {
 			for (s = flagset, t = flags; *s; s++, t++)

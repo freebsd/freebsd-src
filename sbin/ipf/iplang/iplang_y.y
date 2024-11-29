@@ -1045,9 +1045,9 @@ void set_tcpsum(char **arg)
 
 void set_tcpflags(char **arg)
 {
-	static	char	flags[] = "ASURPF";
+	static	char	flags[] = "ASURPFEWe";
 	static	int	flagv[] = { TH_ACK, TH_SYN, TH_URG, TH_RST, TH_PUSH,
-				    TH_FIN } ;
+				    TH_FIN, TH_ECE, TH_CWR, TH_AE } ;
 	char *s, *t;
 
 	for (s = *arg; *s; s++)
@@ -1056,10 +1056,10 @@ void set_tcpflags(char **arg)
 				fprintf(stderr, "unknown TCP flag %c\n", *s);
 				break;
 			}
-			tcp->th_flags = strtol(*arg, NULL, 0);
+			__tcp_set_flags(tcp, strtol(*arg, NULL, 0));
 			break;
 		} else
-			tcp->th_flags |= flagv[t - flags];
+			__tcp_set_flags(tcp, __tcp_get_flags(tcp) | flagv[t - flags]);
 	free(*arg);
 	*arg = NULL;
 }

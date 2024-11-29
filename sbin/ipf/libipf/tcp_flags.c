@@ -9,13 +9,13 @@
 
 #include "ipf.h"
 
-extern	char	flagset[];
-extern	u_char	flags[];
+extern	char	 flagset[];
+extern	uint16_t flags[];
 
 
-u_char tcp_flags(char *flgs, u_char *mask, int linenum)
+uint16_t tcp_flags(char *flgs, uint16_t *mask, int linenum)
 {
-	u_char tcpf = 0, tcpfm = 0;
+	uint16_t tcpf = 0, tcpfm = 0;
 	char *s;
 
 	s = strchr(flgs, '/');
@@ -37,9 +37,9 @@ u_char tcp_flags(char *flgs, u_char *mask, int linenum)
 
 	if (!tcpfm) {
 		if (tcpf == TH_SYN)
-			tcpfm = 0xff & ~(TH_ECN|TH_CWR);
+			tcpfm = TH_FLAGS & ~(TH_ECN|TH_CWR);
 		else
-			tcpfm = 0xff & ~(TH_ECN);
+			tcpfm = TH_FLAGS & ~(TH_ECN);
 	}
 	*mask = tcpfm;
 	return (tcpf);

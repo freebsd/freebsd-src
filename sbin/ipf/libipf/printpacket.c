@@ -19,6 +19,7 @@ printpacket(int dir, mb_t *m)
 {
 	u_short len, off;
 	tcphdr_t *tcp;
+	uint16_t tcpflags;
 	ip_t *ip;
 
 	ip = MTOD(m, ip_t *);
@@ -82,24 +83,26 @@ printpacket(int dir, mb_t *m)
 	if (!(off & IP_OFFMASK)) {
 		if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
 			PRINTF(",%d", ntohs(tcp->th_dport));
-		if ((ip->ip_p == IPPROTO_TCP) && (tcp->th_flags != 0)) {
+		if ((ip->ip_p == IPPROTO_TCP) && ((tcpflags = __tcp_get_flags(tcp)) != 0)) {
 			putchar(' ');
-			if (tcp->th_flags & TH_FIN)
+			if (tcpflags & TH_FIN)
 				putchar('F');
-			if (tcp->th_flags & TH_SYN)
+			if (tcpflags & TH_SYN)
 				putchar('S');
-			if (tcp->th_flags & TH_RST)
+			if (tcpflags & TH_RST)
 				putchar('R');
-			if (tcp->th_flags & TH_PUSH)
+			if (tcpflags & TH_PUSH)
 				putchar('P');
-			if (tcp->th_flags & TH_ACK)
+			if (tcpflags & TH_ACK)
 				putchar('A');
-			if (tcp->th_flags & TH_URG)
+			if (tcpflags & TH_URG)
 				putchar('U');
-			if (tcp->th_flags & TH_ECN)
+			if (tcpflags & TH_ECN)
 				putchar('E');
-			if (tcp->th_flags & TH_CWR)
-				putchar('C');
+			if (tcpflags & TH_CWR)
+				putchar('W');
+			if (tcpflags & TH_AE)
+				putchar('e');
 		}
 	}
 

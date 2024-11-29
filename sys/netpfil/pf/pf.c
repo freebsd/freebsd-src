@@ -2934,7 +2934,7 @@ pf_print_state_parts(struct pf_kstate *s,
 }
 
 void
-pf_print_flags(u_int8_t f)
+pf_print_flags(uint16_t f)
 {
 	if (f)
 		printf(" ");
@@ -2954,6 +2954,8 @@ pf_print_flags(u_int8_t f)
 		printf("E");
 	if (f & TH_CWR)
 		printf("W");
+	if (f & TH_AE)
+		printf("e");
 }
 
 #define	PF_SET_SKIP_STEPS(i)					\
