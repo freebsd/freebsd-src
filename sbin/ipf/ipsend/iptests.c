@@ -924,9 +924,8 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 		 */
 		TCP_OFF_A(t, sizeof(*t) >> 2);
 		printf("5.1 Test TCP flag combinations\n");
-		for (i = 0; i <= (TH_URG|TH_ACK|TH_PUSH|TH_RST|TH_SYN|TH_FIN);
-		     i++) {
-			t->th_flags = i;
+		for (i = 0; i <= TH_FLAGS; i++) {
+			__tcp_set_flags(t, i);
 			(void) send_tcp(nfd, mtu, ip, gwip);
 			printf("%d\r", i);
 			fflush(stdout);
@@ -936,7 +935,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 	}
 
 	if (!ptest || (ptest == 2)) {
-		t->th_flags = TH_SYN;
+		__tcp_set_flags(t, TH_SYN);
 		/*
 		 * Test 2: seq = 0, seq = 1, seq = 0x7fffffff, seq=0x80000000,
 		 *         seq = 0xa000000, seq = 0xffffffff
@@ -979,7 +978,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 	}
 
 	if (!ptest || (ptest == 3)) {
-		t->th_flags = TH_ACK;
+		__tcp_set_flags(t, TH_ACK);
 		/*
 		 * Test 3: ack = 0, ack = 1, ack = 0x7fffffff, ack = 0x8000000
 		 *         ack = 0xa000000, ack = 0xffffffff
@@ -1022,7 +1021,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 	}
 
 	if (!ptest || (ptest == 4)) {
-		t->th_flags = TH_SYN;
+		__tcp_set_flags(t, TH_SYN);
 		/*
 		 * Test 4: win = 0, win = 32768, win = 65535
 		 */
@@ -1092,7 +1091,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 		/*
 		 * Test 5: urp
 		 */
-		t->th_flags = TH_ACK|TH_URG;
+		__tcp_set_flags(t, TH_ACK|TH_URG);
 		printf("5.5.1 TCP Urgent pointer, sport %hu dport %hu\n",
 			ntohs(t->th_sport), ntohs(t->th_dport));
 		t->th_urp = htons(1);
@@ -1111,7 +1110,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		PAUSE();
 		t->th_urp = 0;
-		t->th_flags &= ~TH_URG;
+		__tcp_set_flags(t, __tcp_get_flags(t) & ~TH_URG);
 		ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t);
 	}
 
@@ -1119,7 +1118,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 		/*
 		 * Test 6: data offset, off = 0, off is inside, off is outside
 		 */
-		t->th_flags = TH_ACK;
+		__tcp_set_flags(t, TH_ACK);
 		printf("5.6.1 TCP off = 1-15, len = 40\n");
 		for (i = 1; i < 16; i++) {
 			TCP_OFF_A(t, ntohs(i));
@@ -1141,7 +1140,7 @@ skip_five_and_six:
 	TCP_OFF_A(t, 0);
 
 	if (!ptest || (ptest == 7)) {
-		t->th_flags = TH_SYN;
+		__tcp_set_flags(t, TH_SYN);
 		/*
 		 * Test 7: sport = 0, sport = 1, sport = 32767
 		 *         sport = 32768, sport = 65535
@@ -1179,7 +1178,7 @@ skip_five_and_six:
 
 	if (!ptest || (ptest == 8)) {
 		t->th_sport = htons(1);
-		t->th_flags = TH_SYN;
+		__tcp_set_flags(t, TH_SYN);
 		/*
 		 * Test 8: dport = 0, dport = 1, dport = 32767
 		 *         dport = 32768, dport = 65535
@@ -1221,7 +1220,7 @@ skip_five_and_six:
 		/* chose SMTP port 25 */
 		t->th_sport = htons(25);
 		t->th_dport = htons(25);
-		t->th_flags = TH_SYN;
+		__tcp_set_flags(t, TH_SYN);
 		ip->ip_src = ip->ip_dst;
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		fflush(stdout);

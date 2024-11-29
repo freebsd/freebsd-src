@@ -365,22 +365,31 @@ main(int argc, char **argv)
 			switch(c)
 			{
 			case 'S' : case 's' :
-				tcp->th_flags |= TH_SYN;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_SYN);
 				break;
 			case 'A' : case 'a' :
-				tcp->th_flags |= TH_ACK;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_ACK);
 				break;
 			case 'F' : case 'f' :
-				tcp->th_flags |= TH_FIN;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_FIN);
 				break;
 			case 'R' : case 'r' :
-				tcp->th_flags |= TH_RST;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_RST);
 				break;
 			case 'P' : case 'p' :
-				tcp->th_flags |= TH_PUSH;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_PUSH);
 				break;
 			case 'U' : case 'u' :
-				tcp->th_flags |= TH_URG;
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_URG);
+				break;
+			case 'E' :
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_ECE);
+				break;
+			case 'W' :
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_CWR);
+				break;
+			case 'e' :
+				__tcp_set_flags(tcp, __tcp_get_flags(tcp) | TH_AE);
 				break;
 			}
 
@@ -390,8 +399,8 @@ main(int argc, char **argv)
 	printf("Source:  %s\n", inet_ntoa(ip->ip_src));
 	printf("Dest:    %s\n", inet_ntoa(ip->ip_dst));
 	printf("Gateway: %s\n", inet_ntoa(gwip));
-	if (ip->ip_p == IPPROTO_TCP && tcp->th_flags)
-		printf("Flags:   %#x\n", tcp->th_flags);
+	if (ip->ip_p == IPPROTO_TCP && __tcp_get_flags(tcp))
+		printf("Flags:   %#x\n", __tcp_get_flags(tcp));
 	printf("mtu:     %d\n", mtu);
 
 	if (ip->ip_p == IPPROTO_UDP) {

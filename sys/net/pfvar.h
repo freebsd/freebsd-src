@@ -2343,7 +2343,7 @@ extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
 extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
 extern void			 pf_print_state(struct pf_kstate *);
-extern void			 pf_print_flags(u_int8_t);
+extern void			 pf_print_flags(uint16_t);
 extern int			 pf_addr_wrap_neq(struct pf_addr_wrap *,
 				    struct pf_addr_wrap *);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,

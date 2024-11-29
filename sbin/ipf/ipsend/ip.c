@@ -261,7 +261,7 @@ send_tcp(int nfd, int mtu, ip_t *ip, struct in_addr gwip)
 
 	i = sizeof(struct tcpiphdr) / sizeof(long);
 
-	if ((t2->th_flags == TH_SYN) && !ntohs(ip->ip_off) &&
+	if ((__tcp_get_flags(t2) == TH_SYN) && !ntohs(ip->ip_off) &&
 	    (lbuf[i] != htonl(0x020405b4))) {
 		lbuf[i] = htonl(0x020405b4);
 		bcopy((char *)ip + hlen + thlen, (char *)ip + hlen + thlen + 4,

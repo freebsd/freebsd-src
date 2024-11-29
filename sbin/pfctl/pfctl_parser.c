@@ -44,6 +44,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
+#include <netinet/tcp.h>
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 
@@ -67,7 +68,7 @@
 void		 print_op (u_int8_t, const char *, const char *);
 void		 print_port (u_int8_t, u_int16_t, u_int16_t, const char *, int);
 void		 print_ugid (u_int8_t, unsigned, unsigned, const char *, unsigned);
-void		 print_flags (u_int8_t);
+void		 print_flags (uint16_t);
 void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, sa_family_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
@@ -77,7 +78,7 @@ struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int);
 
-const char * const tcpflags = "FSRPAUEW";
+const char * const tcpflags = "FSRPAUEWe";
 
 static const struct icmptypeent icmp_type[] = {
 	{ "echoreq",	ICMP_ECHO },
@@ -365,7 +366,7 @@ print_ugid(u_int8_t op, unsigned u1, unsigned u2, const char *t, unsigned umax)
 }
 
 void
-print_flags(u_int8_t f)
+print_flags(uint16_t f)
 {
 	int	i;
 
@@ -1286,7 +1287,7 @@ int
 parse_flags(char *s)
 {
 	char		*p, *q;
-	u_int8_t	 f = 0;
+	uint16_t	 f = 0;
 
 	for (p = s; *p; p++) {
 		if ((q = strchr(tcpflags, *p)) == NULL)
@@ -1294,7 +1295,7 @@ parse_flags(char *s)
 		else
 			f |= 1 << (q - tcpflags);
 	}
-	return (f ? f : PF_TH_ALL);
+	return (f ? f : TH_FLAGS);
 }
 
 void

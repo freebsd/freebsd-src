@@ -533,10 +533,10 @@ When matching TCP flags, it is normal to just list the flag that you
 wish to be set. By default the set of flags it is compared against
 is "FSRPAU". Rules that say "flags S" will be displayed by ipfstat(8)
 as having "flags S/FSRPAU". This is normal.
-The last two flags, "C" and "E", are optional - they
+The last three flags, "E", "W" and "e", are optional - they
 may or may not be used by an end host and have no bearing on either
 the acceptance of data nor control of the connection. Masking them
-out with "flags S/FSRPAUCE" may cause problems for remote hosts
+out with "flags S/FSRPAUEWe" may cause problems for remote hosts
 making a successful connection.
 .PP
 .nf
