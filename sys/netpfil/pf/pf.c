@@ -7690,14 +7690,14 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct mbuf		*m0, *m1, *md;
 	struct sockaddr_in	dst;
 	struct ip		*ip;
-	struct ifnet		*ifp = NULL;
-	struct pf_addr		 naddr;
+	struct ifnet		*ifp;
 	int			 error = 0;
 	uint16_t		 ip_len, ip_off;
 	uint16_t		 tmp;
 	int			 r_dir;
 
-	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(m && *m && r && oifp && pd->act.rt_kif,
+	    ("%s: invalid parameters", __func__));
 
 	SDT_PROBE4(pf, ip, route_to, entry, *m, pd, s, oifp);
 
@@ -7720,13 +7720,15 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad_locked;
 	}
 
+	if ((ifp = pd->act.rt_kif->pfik_ifp) == NULL) {
+		m0 = *m;
+		*m = NULL;
+		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
+		goto bad_locked;
+	}
+
 	if (pd->act.rt == PF_DUPTO) {
 		if ((pd->pf_mtag->flags & PF_MTAG_FLAG_DUPLICATED)) {
-			ifp = pd->act.rt_kif ? pd->act.rt_kif->pfik_ifp : NULL;
-			/* If pfsync'd from FreeBSD < 14 */
-			if (ifp == NULL && r->rpool.cur != NULL)
-				ifp = r->rpool.cur->kif ?
-				    r->rpool.cur->kif->pfik_ifp : NULL;
 			if (s != NULL) {
 				PF_STATE_UNLOCK(s);
 			}
@@ -7764,34 +7766,16 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	dst.sin_len = sizeof(dst);
 	dst.sin_addr = ip->ip_dst;
 	dst.sin_addr.s_addr = pd->act.rt_addr.v4.s_addr;
-	ifp = pd->act.rt_kif ? pd->act.rt_kif->pfik_ifp : NULL;
-
-	bzero(&naddr, sizeof(naddr));
 
 	if (s != NULL){
-		struct pfi_kkif *kif;
-
-		kif = pd->act.rt_kif;
-		/* If pfsync'd from FreeBSD < 14 */
-		if (ifp == NULL && r->rpool.cur != NULL) {
-			ifp = r->rpool.cur->kif ?
-			    r->rpool.cur->kif->pfik_ifp : NULL;
-			kif = r->rpool.cur->kif;
-		}
-		if (ifp != NULL && kif != NULL &&
-		    r->rule_flag & PFRULE_IFBOUND &&
+		if (r->rule_flag & PFRULE_IFBOUND &&
 		    pd->act.rt == PF_REPLYTO &&
 		    s->kif == V_pfi_all) {
-			s->kif = kif;
+			s->kif = pd->act.rt_kif;
 			s->orig_kif = oifp->if_pf_kif;
 		}
 
 		PF_STATE_UNLOCK(s);
-	}
-
-	if (ifp == NULL) {
-		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
-		goto bad;
 	}
 
 	if (pd->dir == PF_IN) {
@@ -7943,10 +7927,10 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct sockaddr_in6	dst;
 	struct ip6_hdr		*ip6;
 	struct ifnet		*ifp = NULL;
-	struct pf_addr		 naddr;
 	int			 r_dir;
 
-	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(m && *m && r && oifp && pd->act.rt_kif,
+	    ("%s: invalid parameters", __func__));
 
 	SDT_PROBE4(pf, ip6, route_to, entry, *m, pd, s, oifp);
 
@@ -7969,13 +7953,15 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad_locked;
 	}
 
+	if ((ifp = pd->act.rt_kif->pfik_ifp) == NULL) {
+		m0 = *m;
+		*m = NULL;
+		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
+		goto bad_locked;
+	}
+
 	if (pd->act.rt == PF_DUPTO) {
 		if ((pd->pf_mtag->flags & PF_MTAG_FLAG_DUPLICATED)) {
-			ifp = pd->act.rt_kif ? pd->act.rt_kif->pfik_ifp : NULL;
-			/* If pfsync'd from FreeBSD < 14 */
-			if (ifp == NULL && r->rpool.cur != NULL)
-				ifp = r->rpool.cur->kif ?
-				    r->rpool.cur->kif->pfik_ifp : NULL;
 			if (s != NULL) {
 				PF_STATE_UNLOCK(s);
 			}
@@ -8013,33 +7999,15 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	dst.sin6_len = sizeof(dst);
 	dst.sin6_addr = ip6->ip6_dst;
 	PF_ACPY((struct pf_addr *)&dst.sin6_addr, &pd->act.rt_addr, AF_INET6);
-	bzero(&naddr, sizeof(naddr));
-	ifp = pd->act.rt_kif ? pd->act.rt_kif->pfik_ifp : NULL;
 
 	if (s != NULL) {
-		struct pfi_kkif *kif;
-
-		kif = pd->act.rt_kif;
-		/* If pfsync'd from FreeBSD < 14 */
-		if (ifp == NULL && r->rpool.cur != NULL) {
-			ifp = r->rpool.cur->kif ?
-			    r->rpool.cur->kif->pfik_ifp : NULL;
-			kif = r->rpool.cur->kif;
-		}
-		if (ifp != NULL && kif != NULL &&
-		    r->rule_flag & PFRULE_IFBOUND &&
+		if (r->rule_flag & PFRULE_IFBOUND &&
 		    pd->act.rt == PF_REPLYTO &&
 		    s->kif == V_pfi_all) {
-			s->kif = kif;
+			s->kif = pd->act.rt_kif;
 			s->orig_kif = oifp->if_pf_kif;
 		}
-
 		PF_STATE_UNLOCK(s);
-	}
-
-	if (ifp == NULL) {
-		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
-		goto bad;
 	}
 
 	if (pd->dir == PF_IN) {
