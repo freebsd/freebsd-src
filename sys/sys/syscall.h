@@ -526,4 +526,5 @@
 #define	SYS_timerfd_settime	587
 #define	SYS_kcmp	588
 #define	SYS_getrlimitusage	589
-#define	SYS_MAXSYSCALL	590
+#define	SYS_fchroot	590
+#define	SYS_MAXSYSCALL	591
