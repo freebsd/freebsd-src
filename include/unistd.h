@@ -507,6 +507,7 @@ int	 exect(const char *, char * const *, char * const *);
 int	 execvP(const char *, const char *, char * const *);
 int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
+int	 fchroot(int);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getentropy(void *, size_t);

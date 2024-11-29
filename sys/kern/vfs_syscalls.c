@@ -967,6 +967,45 @@ static int unprivileged_chroot = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
     &unprivileged_chroot, 0,
     "Unprivileged processes can use chroot(2)");
+
+/*
+ * Takes locked vnode, unlocks it before returning.
+ */
+static int
+kern_chroot(struct thread *td, struct vnode *vp)
+{
+	struct proc *p;
+	int error;
+
+	error = priv_check(td, PRIV_VFS_CHROOT);
+	if (error != 0) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		if (unprivileged_chroot == 0 ||
+		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
+			PROC_UNLOCK(p);
+			goto e_vunlock;
+		}
+		PROC_UNLOCK(p);
+	}
+
+	error = change_dir(vp, td);
+	if (error != 0)
+		goto e_vunlock;
+#ifdef MAC
+	error = mac_vnode_check_chroot(td->td_ucred, vp);
+	if (error != 0)
+		goto e_vunlock;
+#endif
+	VOP_UNLOCK(vp);
+	error = pwd_chroot(td, vp);
+	vrele(vp);
+	return (error);
+e_vunlock:
+	vput(vp);
+	return (error);
+}
+
 /*
  * Change notion of root (``/'') directory.
  */
@@ -979,40 +1018,41 @@ int
 sys_chroot(struct thread *td, struct chroot_args *uap)
 {
 	struct nameidata nd;
-	struct proc *p;
 	int error;
 
-	error = priv_check(td, PRIV_VFS_CHROOT);
-	if (error != 0) {
-		p = td->td_proc;
-		PROC_LOCK(p);
-		if (unprivileged_chroot == 0 ||
-		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			PROC_UNLOCK(p);
-			return (error);
-		}
-		PROC_UNLOCK(p);
-	}
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
 	NDFREE_PNBUF(&nd);
-	error = change_dir(nd.ni_vp, td);
-	if (error != 0)
-		goto e_vunlock;
-#ifdef MAC
-	error = mac_vnode_check_chroot(td->td_ucred, nd.ni_vp);
-	if (error != 0)
-		goto e_vunlock;
-#endif
-	VOP_UNLOCK(nd.ni_vp);
-	error = pwd_chroot(td, nd.ni_vp);
-	vrele(nd.ni_vp);
+	error = kern_chroot(td, nd.ni_vp);
 	return (error);
-e_vunlock:
-	vput(nd.ni_vp);
+}
+
+/*
+ * Change notion of root directory to a given file descriptor.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct fchroot_args {
+	int	fd;
+};
+#endif
+int
+sys_fchroot(struct thread *td, struct fchroot_args *uap)
+{
+	struct vnode *vp;
+	struct file *fp;
+	int error;
+
+	error = getvnode_path(td, uap->fd, &cap_fchroot_rights, &fp);
+	if (error != 0)
+		return (error);
+	vp = fp->f_vnode;
+	vrefact(vp);
+	fdrop(fp, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = kern_chroot(td, vp);
 	return (error);
 }
 
