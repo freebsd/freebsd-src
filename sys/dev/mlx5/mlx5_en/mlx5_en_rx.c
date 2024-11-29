@@ -168,10 +168,10 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 	ts_ptr = (uint32_t *)(th + 1);
 
 	if (get_cqe_lro_tcppsh(cqe))
-		th->th_flags |= TH_PUSH;
+		tcp_set_flags(th, tcp_get_flags(th) | TH_PUSH);
 
 	if (tcp_ack) {
-		th->th_flags |= TH_ACK;
+		tcp_set_flags(th, tcp_get_flags(th) | TH_ACK);
 		th->th_ack = cqe->lro_ack_seq_num;
 		th->th_win = cqe->lro_tcp_win;
 

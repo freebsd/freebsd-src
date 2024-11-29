@@ -1494,7 +1494,7 @@ oce_correct_header(struct mbuf *m, struct nic_hwlro_cqe_part1 *cqe1, struct nic_
         /* correct tcp header */
         tcp_hdr->th_ack = htonl(cqe2->tcp_ack_num);
         if(cqe2->push) {
-        	tcp_hdr->th_flags |= TH_PUSH;
+		tcp_set_flags(tcp_hdr, tcp_get_flags(tcp_hdr) | TH_PUSH);
         }
         tcp_hdr->th_win = htons(cqe2->tcp_window);
         tcp_hdr->th_sum = 0xffff;

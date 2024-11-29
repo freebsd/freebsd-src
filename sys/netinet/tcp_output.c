@@ -1265,7 +1265,6 @@ send:
 		bcopy(opt, th + 1, optlen);
 		th->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
-	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
@@ -1310,8 +1309,8 @@ send:
 		tp->t_flags &= ~TF_RXWIN0SENT;
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		th->th_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
-		th->th_flags |= TH_URG;
-	} else
+		flags |= TH_URG;
+	} else {
 		/*
 		 * If no urgent pointer to send, then we pull
 		 * the urgent pointer to the left edge of the send window
@@ -1319,6 +1318,8 @@ send:
 		 * number wraparound.
 		 */
 		tp->snd_up = tp->snd_una;		/* drag it along */
+	}
+	tcp_set_flags(th, flags);
 
 	/*
 	 * Put TCP length in extended header, and then

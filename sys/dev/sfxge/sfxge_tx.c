@@ -859,10 +859,10 @@ static void sfxge_parse_tx_packet(struct mbuf *mbuf)
 	 * generates TSO packets with RST flag. So, do not assert
 	 * its absence.
 	 */
-	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
+	KASSERT(!(tcp_get_flags(th) & (TH_URG | TH_SYN)),
 		("incompatible TCP flag 0x%x on TSO packet",
-		 th->th_flags & (TH_URG | TH_SYN)));
-	TSO_MBUF_FLAGS(mbuf) = th->th_flags;
+		 tcp_get_flags(th) & (TH_URG | TH_SYN)));
+	TSO_MBUF_FLAGS(mbuf) = tcp_get_flags(th);
 }
 #endif
 
@@ -1117,10 +1117,10 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	 * generates TSO packets with RST flag. So, do not assert
 	 * its absence.
 	 */
-	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
+	KASSERT(!(tcp_get_flags(th) & (TH_URG | TH_SYN)),
 		("incompatible TCP flag 0x%x on TSO packet",
-		 th->th_flags & (TH_URG | TH_SYN)));
-	tso->tcp_flags = th->th_flags;
+		 tcp_get_flags(th) & (TH_URG | TH_SYN)));
+	tso->tcp_flags = tcp_get_flags(th);
 #else
 	tso->seqnum = TSO_MBUF_SEQNUM(mbuf);
 	tso->tcp_flags = TSO_MBUF_FLAGS(mbuf);
@@ -1319,7 +1319,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 		if (tso->out_len > tso->seg_size) {
 			/* This packet will not finish the TSO burst. */
 			ip_length = tso->header_len - tso->nh_off + tso->seg_size;
-			tsoh_th->th_flags &= ~(TH_FIN | TH_PUSH);
+			tcp_set_flags(tsoh_th, tcp_get_flags(tsoh_th) & ~(TH_FIN | TH_PUSH));
 		} else {
 			/* This packet will be the last in the TSO burst. */
 			ip_length = tso->header_len - tso->nh_off + tso->out_len;

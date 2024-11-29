@@ -1213,7 +1213,7 @@ send_probe(int seq, u_long hops)
 		tcp->th_seq = (tcp->th_sport << 16) | tcp->th_dport;
 		tcp->th_ack = 0;
 		tcp->th_off = 5;
-		tcp->th_flags = TH_SYN;
+		__tcp_set_flags(tcp, TH_SYN);
 		tcp->th_sum = 0;
 		tcp->th_sum = tcp_chksum(&Src, &Dst, outpacket, datalen);
 		break;

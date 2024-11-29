@@ -898,7 +898,7 @@ hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
 
 	PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
 	th = mtodo(m_head, ehlen + iphlen);
-	if (th->th_flags & TH_SYN)
+	if (tcp_get_flags(th) & TH_SYN)
 		*tcpsyn = 1;
 	return (m_head);
 }

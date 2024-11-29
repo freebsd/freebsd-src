@@ -314,15 +314,15 @@ ipf_send_reset(fr_info_t *fin)
 	ip_t *ip;
 
 	tcp = fin->fin_dp;
-	if (tcp->th_flags & TH_RST)
+	if (tcp_get_flags(tcp) & TH_RST)
 		return (-1);		/* feedback loop */
 
 	if (ipf_checkl4sum(fin) == -1)
 		return (-1);
 
 	tlen = fin->fin_dlen - (TCP_OFF(tcp) << 2) +
-			((tcp->th_flags & TH_SYN) ? 1 : 0) +
-			((tcp->th_flags & TH_FIN) ? 1 : 0);
+			((tcp_get_flags(tcp) & TH_SYN) ? 1 : 0) +
+			((tcp_get_flags(tcp) & TH_FIN) ? 1 : 0);
 
 #ifdef USE_INET6
 	hlen = (fin->fin_v == 6) ? sizeof(ip6_t) : sizeof(ip_t);

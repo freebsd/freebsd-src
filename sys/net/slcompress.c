@@ -170,7 +170,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		return (TYPE_IP);
 
 	th = (struct tcphdr *)&((int32_t *)ip)[hlen];
-	if ((th->th_flags & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK)
+	if ((tcp_get_flags(th) & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK)
 		return (TYPE_IP);
 	/*
 	 * Packet is compressible -- we're going to send either a
@@ -271,7 +271,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 	 * ack, seq (the order minimizes the number of temporaries
 	 * needed in this section of code).
 	 */
-	if (th->th_flags & TH_URG) {
+	if (tcp_get_flags(th) & TH_URG) {
 		deltaS = ntohs(th->th_urp);
 		ENCODEZ(deltaS);
 		changes |= NEW_U;
@@ -351,7 +351,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		ENCODEZ(deltaS);
 		changes |= NEW_I;
 	}
-	if (th->th_flags & TH_PUSH)
+	if (tcp_get_flags(th) & TH_PUSH)
 		changes |= TCP_PUSH_BIT;
 	/*
 	 * Grab the cksum before we overwrite it below.  Then update our
@@ -516,9 +516,9 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 	th->th_sum = htons((*cp << 8) | cp[1]);
 	cp += 2;
 	if (changes & TCP_PUSH_BIT)
-		th->th_flags |= TH_PUSH;
+		tcp_set_flags(th, tcp_get_flags(th) | TH_PUSH);
 	else
-		th->th_flags &=~ TH_PUSH;
+		tcp_set_flags(th, tcp_get_flags(th) & ~TH_PUSH);
 
 	switch (changes & SPECIALS_MASK) {
 	case SPECIAL_I:
@@ -536,10 +536,10 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 
 	default:
 		if (changes & NEW_U) {
-			th->th_flags |= TH_URG;
+			tcp_set_flags(th, tcp_get_flags(th) | TH_URG);
 			DECODEU(th->th_urp)
 		} else
-			th->th_flags &=~ TH_URG;
+			tcp_set_flags(th, tcp_get_flags(th) & ~TH_URG);
 		if (changes & NEW_W)
 			DECODES(th->th_win)
 		if (changes & NEW_A)

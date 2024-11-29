@@ -1460,7 +1460,7 @@ pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
 	 * All normalizations below are only begun if we see the start of
 	 * the connections.  They must all set an enabled bit in pfss_flags
 	 */
-	if ((th->th_flags & TH_SYN) == 0)
+	if ((tcp_get_flags(th) & TH_SYN) == 0)
 		return (0);
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) && src->scrub &&
@@ -1811,7 +1811,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
 			if (V_pf_status.debug >= PF_DEBUG_MISC) {
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 			REASON_SET(reason, PFRES_TS);
@@ -1820,9 +1820,9 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 
 		/* XXX I'd really like to require tsecr but it's optional */
 
-	} else if (!got_ts && (th->th_flags & TH_RST) == 0 &&
+	} else if (!got_ts && (tcp_get_flags(th) & TH_RST) == 0 &&
 	    ((src->state == TCPS_ESTABLISHED && dst->state == TCPS_ESTABLISHED)
-	    || pd->p_len > 0 || (th->th_flags & TH_SYN)) &&
+	    || pd->p_len > 0 || (tcp_get_flags(th) & TH_SYN)) &&
 	    src->scrub && dst->scrub &&
 	    (src->scrub->pfss_flags & PFSS_PAWS) &&
 	    (dst->scrub->pfss_flags & PFSS_PAWS)) {
@@ -1861,7 +1861,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 				DPFPRINTF(("Did not receive expected RFC1323 "
 				    "timestamp\n"));
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 			REASON_SET(reason, PFRES_TS);
@@ -1890,7 +1890,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 				    "timestamp data packet. Disabled PAWS "
 				    "security.\n"));
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 		}

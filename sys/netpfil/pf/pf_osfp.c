@@ -103,7 +103,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	char srcname[INET_ADDRSTRLEN];
 #endif
 
-	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN)
+	if ((tcp_get_flags(tcp) & (TH_SYN|TH_ACK)) != TH_SYN)
 		return (NULL);
 	if (ip) {
 		if ((ip->ip_off & htons(IP_OFFMASK)) != 0)

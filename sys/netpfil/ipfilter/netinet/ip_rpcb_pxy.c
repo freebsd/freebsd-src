@@ -1127,7 +1127,7 @@ ipf_p_rpcb_getnat(fr_info_t *fin, nat_t *nat, u_int proto, u_int port)
 		tcp.th_win = htons(8192);
 		TCP_OFF_A(&tcp, sizeof(tcphdr_t) >> 2);
 		fi.fin_dlen = sizeof(tcphdr_t);
-		tcp.th_flags = TH_SYN;
+		tcp_set_flags(&tcp, TH_SYN);
 		nflags = NAT_TCP;
 	} else {
 		fi.fin_dlen = sizeof(udphdr_t);

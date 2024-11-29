@@ -263,7 +263,7 @@ ipf_p_rcmd_portmsg(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	bzero((char *)tcp2, sizeof(*tcp2));
 	tcp2->th_win = htons(8192);
 	TCP_OFF_A(tcp2, 5);
-	tcp2->th_flags = TH_SYN;
+	tcp_set_flags(tcp2, TH_SYN);
 
 	fi.fin_dp = (char *)tcp2;
 	fi.fin_fr = &rcmdfr;

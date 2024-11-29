@@ -330,7 +330,7 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 		ERROUT(EINVAL);
 
 	/* Check SYN packet and has options. */
-	if (!(tcp->th_flags & TH_SYN) || tcphlen == sizeof(struct tcphdr))
+	if (!(tcp_get_flags(tcp) & TH_SYN) || tcphlen == sizeof(struct tcphdr))
 		goto send;
 
 	/* Update SYN stats. */
