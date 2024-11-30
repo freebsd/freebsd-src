@@ -476,8 +476,8 @@ td-service	267/udp    #Tobit David Service Layer
 td-replica	268/tcp    #Tobit David Replica
 td-replica	268/udp    #Tobit David Replica
 manet		269/tcp    #MANET Protocols [RFC5498]
-manet		269/ucp    #MANET Protocols [RFC5498]
-gist		270/ucp    #Q-mode encapsulation for [RFC5971]
+manet		269/udp    #MANET Protocols [RFC5498]
+gist		270/udp    #Q-mode encapsulation for [RFC5971]
 pt-tls		271/tcp    #Assessment (NEA) Posture
 #		272-279	   unassigned
 http-mgmt	280/tcp
