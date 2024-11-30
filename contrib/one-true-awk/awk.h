@@ -162,6 +162,7 @@ extern Cell	*symtabloc;	/* SYMTAB */
 #define FRSHIFT	20
 #define FSYSTIME	21
 #define FSTRFTIME	22
+#define FMKTIME	23
 
 /* Node:  parse tree is made of nodes, with Cell's at bottom */
 
