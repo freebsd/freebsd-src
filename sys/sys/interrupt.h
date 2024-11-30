@@ -31,7 +31,9 @@
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_types_interrupt.h>
 #include <sys/ck.h>
+#include <sys/queue.h>
 
 struct intr_event;
 struct intr_thread;
