@@ -26,12 +26,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_INTERRUPT_H_
+#if !defined(_SYS_INTERRUPT_H_) && defined(_KERNEL)
 #define _SYS_INTERRUPT_H_
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_types_interrupt.h>
 #include <sys/ck.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
@@ -167,8 +171,8 @@ void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
 u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
-	    driver_filter_t filter, driver_intr_t handler, void *arg, 
-	    u_char pri, enum intr_type flags, void **cookiep);	    
+	    driver_filter_t filter, driver_intr_t handler, void *arg,
+	    u_char pri, enum intr_type flags, void **cookiep);
 int	intr_event_bind(struct intr_event *ie, int cpu);
 int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
 int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
