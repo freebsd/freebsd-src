@@ -616,7 +616,7 @@ static void resize_gototab(fa *f, int state)
 	if (p == NULL)
 		overflo(__func__);
 
-	// need to initialized the new memory to zero
+	// need to initialize the new memory to zero
 	size_t orig_size = f->gototab[state].allocated;		// 2nd half of new mem is this size
 	memset(p + orig_size, 0, orig_size * sizeof(gtte));	// clean it out
 
