@@ -26,12 +26,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_INTERRUPT_H_
+#if !defined(_SYS_INTERRUPT_H_) && defined(_KERNEL)
 #define _SYS_INTERRUPT_H_
 
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_types_interrupt.h>
 #include <sys/ck.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
