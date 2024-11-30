@@ -225,6 +225,7 @@ procmatch_match(struct mprintc *mc, struct parsec *pc)
 			else
 				break;
 		}
+
 		pc->matchidx = 0;
 		printtail(pc);
 
