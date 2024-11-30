@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+83f1b98d8227:
+	grep(1) no longer follows symbolic links by default for
+	recursive searches.  This matches the documented behavior in
+	the manual page.
+
 c333758fca3e:
 	new MAC/do policy and mdo(1) utility which enables a user to
 	become another user without the requirement of setuid root.
