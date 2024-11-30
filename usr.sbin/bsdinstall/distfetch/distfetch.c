@@ -117,7 +117,7 @@ fetch_files(int nfiles, char **urls)
 	uint8_t block[4096];
 
 	/* Make the transfer list for dialog */
-	items = calloc(sizeof(char *), nfiles * 2);
+	items = calloc(nfiles * 2, sizeof(char *));
 	if (items == NULL)
 		errx(EXIT_FAILURE, "Out of memory!");
 
