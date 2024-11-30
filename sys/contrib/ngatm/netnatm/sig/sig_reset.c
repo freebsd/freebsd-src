@@ -79,7 +79,7 @@ TIMER_FUNC_UNI(t316, t316_func)
  * Reset-Start process.
  */
 void
-uni_sig_start(struct uni *uni, u_int sig, uint32_t cookie,
+uni_sig_start(struct uni *uni, enum start_sig sig, uint32_t cookie,
     struct uni_msg *m, struct uni_all *u)
 {
 	if (sig >= SIGS_END) {
@@ -435,7 +435,7 @@ start_status(struct uni *uni, struct uni_msg *m, struct uni_all *u)
  * Reset-Respond process.
  */
 void
-uni_sig_respond(struct uni *uni, u_int sig, uint32_t cookie,
+uni_sig_respond(struct uni *uni, enum respond_sig sig, uint32_t cookie,
     struct uni_msg *m, struct uni_all *u)
 {
 	if (sig >= SIGR_END) {

@@ -134,7 +134,7 @@ struct ccuser *cc_user_create(struct ccdata *, void *, const char *);
 void cc_user_destroy(struct ccuser *);
 
 /* signal from user */
-int cc_user_signal(struct ccuser *, u_int, struct uni_msg *);
+int cc_user_signal(struct ccuser *, enum atmop, struct uni_msg *);
 
 /* Management is given up on this node. */
 void cc_unmanage(struct ccdata *);
