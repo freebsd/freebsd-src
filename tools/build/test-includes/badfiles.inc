@@ -53,7 +53,6 @@ BADHDRS= \
 	sys/imgact.h \
 	sys/imgact_aout.h \
 	sys/imgact_elf.h \
-	sys/interrupt.h \
 	sys/intr.h \
 	sys/ioctl_compat.h \
 	sys/iov.h \
