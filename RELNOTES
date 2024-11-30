@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+35b193572545:
+	grep(1) no longer follows symbolic links by default for
+	recursive searches.  This matches the documented behavior in
+	the manual page.
+
 0644746d5091:
 	Add a new "syskrb5" mount option for Kerberized NFSv4.1/4.2 mounts.
 	Without this patch, a Kerberized NFSv4.1/4.2 mount must provide
