@@ -15,6 +15,6 @@
 #define EFI_FIRMWARE_CONTENTS_SIGNED_GUID \
    { 0xf9d89e8, 0x9259, 0x4f76, {0xa5, 0xaf, 0xc, 0x89, 0xe3, 0x40, 0x23, 0xdf } }
 
-extern EFI_GUID gEfiFirmwareContentsSignedGuid;
+extern EFI_GUID  gEfiFirmwareContentsSignedGuid;
 
 #endif

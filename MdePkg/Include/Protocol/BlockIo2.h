@@ -20,26 +20,24 @@
     0xa77b2472, 0xe282, 0x4e9f, {0xa2, 0x45, 0xc2, 0xc0, 0xe2, 0x7b, 0xbc, 0xc1} \
   }
 
-typedef struct _EFI_BLOCK_IO2_PROTOCOL  EFI_BLOCK_IO2_PROTOCOL;
+typedef struct _EFI_BLOCK_IO2_PROTOCOL EFI_BLOCK_IO2_PROTOCOL;
 
 /**
   The struct of Block IO2 Token.
 **/
 typedef struct {
-
   ///
   /// If Event is NULL, then blocking I/O is performed.If Event is not NULL and
   /// non-blocking I/O is supported, then non-blocking I/O is performed, and
   /// Event will be signaled when the read request is completed.
   ///
-  EFI_EVENT               Event;
+  EFI_EVENT     Event;
 
   ///
   /// Defines whether or not the signaled event encountered an error.
   ///
-  EFI_STATUS              TransactionStatus;
+  EFI_STATUS    TransactionStatus;
 } EFI_BLOCK_IO2_TOKEN;
-
 
 /**
   Reset the block device hardware.
@@ -56,7 +54,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_RESET_EX) (
+(EFIAPI *EFI_BLOCK_RESET_EX)(
   IN EFI_BLOCK_IO2_PROTOCOL  *This,
   IN BOOLEAN                 ExtendedVerification
   );
@@ -96,13 +94,13 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_READ_EX) (
+(EFIAPI *EFI_BLOCK_READ_EX)(
   IN     EFI_BLOCK_IO2_PROTOCOL *This,
   IN     UINT32                 MediaId,
   IN     EFI_LBA                LBA,
   IN OUT EFI_BLOCK_IO2_TOKEN    *Token,
   IN     UINTN                  BufferSize,
-     OUT VOID                  *Buffer
+  OUT VOID                  *Buffer
   );
 
 /**
@@ -138,7 +136,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_WRITE_EX) (
+(EFIAPI *EFI_BLOCK_WRITE_EX)(
   IN     EFI_BLOCK_IO2_PROTOCOL  *This,
   IN     UINT32                 MediaId,
   IN     EFI_LBA                LBA,
@@ -171,7 +169,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_FLUSH_EX) (
+(EFIAPI *EFI_BLOCK_FLUSH_EX)(
   IN     EFI_BLOCK_IO2_PROTOCOL   *This,
   IN OUT EFI_BLOCK_IO2_TOKEN      *Token
   );
@@ -186,15 +184,14 @@ struct _EFI_BLOCK_IO2_PROTOCOL {
   /// A pointer to the EFI_BLOCK_IO_MEDIA data for this device.
   /// Type EFI_BLOCK_IO_MEDIA is defined in BlockIo.h.
   ///
-  EFI_BLOCK_IO_MEDIA      *Media;
+  EFI_BLOCK_IO_MEDIA    *Media;
 
-  EFI_BLOCK_RESET_EX      Reset;
-  EFI_BLOCK_READ_EX       ReadBlocksEx;
-  EFI_BLOCK_WRITE_EX      WriteBlocksEx;
-  EFI_BLOCK_FLUSH_EX      FlushBlocksEx;
+  EFI_BLOCK_RESET_EX    Reset;
+  EFI_BLOCK_READ_EX     ReadBlocksEx;
+  EFI_BLOCK_WRITE_EX    WriteBlocksEx;
+  EFI_BLOCK_FLUSH_EX    FlushBlocksEx;
 };
 
-extern EFI_GUID gEfiBlockIo2ProtocolGuid;
+extern EFI_GUID  gEfiBlockIo2ProtocolGuid;
 
 #endif
-

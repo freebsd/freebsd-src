@@ -59,26 +59,26 @@
 //
 // #define OPCODE_27         0x27
 //
-#define OPCODE_MOVQQ    0x28  // Does this go away?
-#define OPCODE_LOADSP   0x29
-#define OPCODE_STORESP  0x2A
-#define OPCODE_PUSH     0x2B
-#define OPCODE_POP      0x2C
-#define OPCODE_CMPIEQ   0x2D
-#define OPCODE_CMPILTE  0x2E
-#define OPCODE_CMPIGTE  0x2F
-#define OPCODE_CMPIULTE 0x30
-#define OPCODE_CMPIUGTE 0x31
-#define OPCODE_MOVNW    0x32
-#define OPCODE_MOVND    0x33
+#define OPCODE_MOVQQ     0x28 // Does this go away?
+#define OPCODE_LOADSP    0x29
+#define OPCODE_STORESP   0x2A
+#define OPCODE_PUSH      0x2B
+#define OPCODE_POP       0x2C
+#define OPCODE_CMPIEQ    0x2D
+#define OPCODE_CMPILTE   0x2E
+#define OPCODE_CMPIGTE   0x2F
+#define OPCODE_CMPIULTE  0x30
+#define OPCODE_CMPIUGTE  0x31
+#define OPCODE_MOVNW     0x32
+#define OPCODE_MOVND     0x33
 //
 // #define OPCODE_34         0x34
 //
-#define OPCODE_PUSHN  0x35
-#define OPCODE_POPN   0x36
-#define OPCODE_MOVI   0x37
-#define OPCODE_MOVIN  0x38
-#define OPCODE_MOVREL 0x39
+#define OPCODE_PUSHN   0x35
+#define OPCODE_POPN    0x36
+#define OPCODE_MOVI    0x37
+#define OPCODE_MOVIN   0x38
+#define OPCODE_MOVREL  0x39
 
 //
 // Bit masks for opcode encodings
@@ -103,16 +103,16 @@
 //
 // Bit masks for operand encodings
 //
-#define OPERAND_M_INDIRECT1 0x08
-#define OPERAND_M_INDIRECT2 0x80
-#define OPERAND_M_OP1       0x07
-#define OPERAND_M_OP2       0x70
+#define OPERAND_M_INDIRECT1  0x08
+#define OPERAND_M_INDIRECT2  0x80
+#define OPERAND_M_OP1        0x07
+#define OPERAND_M_OP2        0x70
 
 //
 // Masks for data manipulation instructions
 //
-#define DATAMANIP_M_64      0x40  // 64-bit width operation
-#define DATAMANIP_M_IMMDATA 0x80
+#define DATAMANIP_M_64       0x40 // 64-bit width operation
+#define DATAMANIP_M_IMMDATA  0x80
 
 //
 // For MOV instructions, need a mask for the opcode when immediate
@@ -139,46 +139,46 @@
 //
 // Masks for CALL instruction encodings
 //
-#define OPERAND_M_RELATIVE_ADDR 0x10
-#define OPERAND_M_NATIVE_CALL   0x20
+#define OPERAND_M_RELATIVE_ADDR  0x10
+#define OPERAND_M_NATIVE_CALL    0x20
 
 //
 // Masks for decoding push/pop instructions
 //
-#define PUSHPOP_M_IMMDATA 0x80  // opcode bit indicating immediate data
-#define PUSHPOP_M_64      0x40  // opcode bit indicating 64-bit operation
+#define PUSHPOP_M_IMMDATA  0x80 // opcode bit indicating immediate data
+#define PUSHPOP_M_64       0x40 // opcode bit indicating 64-bit operation
 //
 // Mask for operand of JMP instruction
 //
-#define JMP_M_RELATIVE    0x10
-#define JMP_M_CONDITIONAL 0x80
-#define JMP_M_CS          0x40
+#define JMP_M_RELATIVE     0x10
+#define JMP_M_CONDITIONAL  0x80
+#define JMP_M_CS           0x40
 
 //
 // Macros to determine if a given operand is indirect
 //
-#define OPERAND1_INDIRECT(op) ((op) & OPERAND_M_INDIRECT1)
-#define OPERAND2_INDIRECT(op) ((op) & OPERAND_M_INDIRECT2)
+#define OPERAND1_INDIRECT(op)  ((op) & OPERAND_M_INDIRECT1)
+#define OPERAND2_INDIRECT(op)  ((op) & OPERAND_M_INDIRECT2)
 
 //
 // Macros to extract the operands from second byte of instructions
 //
-#define OPERAND1_REGNUM(op)       ((op) & OPERAND_M_OP1)
-#define OPERAND2_REGNUM(op)       (((op) & OPERAND_M_OP2) >> 4)
+#define OPERAND1_REGNUM(op)  ((op) & OPERAND_M_OP1)
+#define OPERAND2_REGNUM(op)  (((op) & OPERAND_M_OP2) >> 4)
 
-#define OPERAND1_CHAR(op)         ('0' + OPERAND1_REGNUM (op))
-#define OPERAND2_CHAR(op)         ('0' + OPERAND2_REGNUM (op))
+#define OPERAND1_CHAR(op)  ('0' + OPERAND1_REGNUM (op))
+#define OPERAND2_CHAR(op)  ('0' + OPERAND2_REGNUM (op))
 
 //
 // Condition masks usually for byte 1 encodings of code
 //
-#define CONDITION_M_CONDITIONAL 0x80
-#define CONDITION_M_CS          0x40
+#define CONDITION_M_CONDITIONAL  0x80
+#define CONDITION_M_CS           0x40
 
 ///
 /// Protocol Guid Name defined in spec.
 ///
-#define EFI_EBC_PROTOCOL_GUID EFI_EBC_INTERPRETER_PROTOCOL_GUID
+#define EFI_EBC_PROTOCOL_GUID  EFI_EBC_INTERPRETER_PROTOCOL_GUID
 
 ///
 /// Define for forward reference.
@@ -294,15 +294,15 @@ EFI_STATUS
 /// image can then be run using the standard EFI start image services.
 ///
 struct _EFI_EBC_PROTOCOL {
-  EFI_EBC_CREATE_THUNK          CreateThunk;
-  EFI_EBC_UNLOAD_IMAGE          UnloadImage;
-  EFI_EBC_REGISTER_ICACHE_FLUSH RegisterICacheFlush;
-  EFI_EBC_GET_VERSION           GetVersion;
+  EFI_EBC_CREATE_THUNK             CreateThunk;
+  EFI_EBC_UNLOAD_IMAGE             UnloadImage;
+  EFI_EBC_REGISTER_ICACHE_FLUSH    RegisterICacheFlush;
+  EFI_EBC_GET_VERSION              GetVersion;
 };
 
 //
 // Extern the global EBC protocol GUID
 //
-extern EFI_GUID gEfiEbcProtocolGuid;
+extern EFI_GUID  gEfiEbcProtocolGuid;
 
 #endif

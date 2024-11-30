@@ -1,0 +1,52 @@
+## @file
+#  A library providing funcitons to communicate with mipi sys-T submodule.
+#
+#  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = MipiSysTLib
+  FILE_GUID                      = A58B0510-9E6D-4747-95D8-E5B8AF4633E6
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = MipiSysTLib
+
+  DEFINE MIPI_HEADER_PATH        = mipisyst/library/include/mipi_syst
+  DEFINE MIPI_SOURCE_PATH        = mipisyst/library/src
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+# VALID_ARCHITECTURES = IA32 X64
+#
+
+[LibraryClasses]
+  IoLib
+  BaseMemoryLib
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[Sources]
+  MipiSysTLib.c
+  mipi_syst.h
+  Platform.c
+  Platform.h
+  $(MIPI_HEADER_PATH)/api.h
+  $(MIPI_HEADER_PATH)/crc32.h
+  $(MIPI_HEADER_PATH)/compiler.h
+  $(MIPI_HEADER_PATH)/message.h
+  $(MIPI_HEADER_PATH)/inline.h
+  $(MIPI_SOURCE_PATH)/mipi_syst_init.c
+  $(MIPI_SOURCE_PATH)/mipi_syst_api.c
+  $(MIPI_SOURCE_PATH)/mipi_syst_crc32.c
+  $(MIPI_SOURCE_PATH)/mipi_syst_writer.c
+  $(MIPI_SOURCE_PATH)/mipi_syst_inline.c
+  $(MIPI_SOURCE_PATH)/mipi_syst_compiler.c
+
+[BuildOptions]
+  *_*_*_CC_FLAGS  = -DMIPI_SYST_STATIC

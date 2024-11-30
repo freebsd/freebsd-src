@@ -14,6 +14,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #include <PiMm.h>
 
-extern EFI_MM_SYSTEM_TABLE         *gMmst;
+extern EFI_MM_SYSTEM_TABLE  *gMmst;
 
 #endif

@@ -6,9 +6,7 @@
 
 **/
 
-
 #include <Base.h>
-
 
 #include <Library/PerformanceLib.h>
 #include <Library/DebugLib.h>
@@ -38,9 +36,9 @@
 RETURN_STATUS
 EFIAPI
 StartPerformanceMeasurement (
-  IN CONST VOID   *Handle,  OPTIONAL
-  IN CONST CHAR8  *Token,   OPTIONAL
-  IN CONST CHAR8  *Module,  OPTIONAL
+  IN CONST VOID   *Handle   OPTIONAL,
+  IN CONST CHAR8  *Token    OPTIONAL,
+  IN CONST CHAR8  *Module   OPTIONAL,
   IN UINT64       TimeStamp
   )
 {
@@ -73,9 +71,9 @@ StartPerformanceMeasurement (
 RETURN_STATUS
 EFIAPI
 EndPerformanceMeasurement (
-  IN CONST VOID   *Handle,  OPTIONAL
-  IN CONST CHAR8  *Token,   OPTIONAL
-  IN CONST CHAR8  *Module,  OPTIONAL
+  IN CONST VOID   *Handle   OPTIONAL,
+  IN CONST CHAR8  *Token    OPTIONAL,
+  IN CONST CHAR8  *Module   OPTIONAL,
   IN UINT64       TimeStamp
   )
 {
@@ -124,12 +122,12 @@ EndPerformanceMeasurement (
 UINTN
 EFIAPI
 GetPerformanceMeasurement (
-  IN  UINTN       LogEntryKey,
-  OUT CONST VOID  **Handle,
-  OUT CONST CHAR8 **Token,
-  OUT CONST CHAR8 **Module,
-  OUT UINT64      *StartTimeStamp,
-  OUT UINT64      *EndTimeStamp
+  IN  UINTN        LogEntryKey,
+  OUT CONST VOID   **Handle,
+  OUT CONST CHAR8  **Token,
+  OUT CONST CHAR8  **Module,
+  OUT UINT64       *StartTimeStamp,
+  OUT UINT64       *EndTimeStamp
   )
 {
   ASSERT (Handle != NULL);
@@ -167,9 +165,9 @@ GetPerformanceMeasurement (
 RETURN_STATUS
 EFIAPI
 StartPerformanceMeasurementEx (
-  IN CONST VOID   *Handle,  OPTIONAL
-  IN CONST CHAR8  *Token,   OPTIONAL
-  IN CONST CHAR8  *Module,  OPTIONAL
+  IN CONST VOID   *Handle   OPTIONAL,
+  IN CONST CHAR8  *Token    OPTIONAL,
+  IN CONST CHAR8  *Module   OPTIONAL,
   IN UINT64       TimeStamp,
   IN UINT32       Identifier
   )
@@ -205,9 +203,9 @@ StartPerformanceMeasurementEx (
 RETURN_STATUS
 EFIAPI
 EndPerformanceMeasurementEx (
-  IN CONST VOID   *Handle,  OPTIONAL
-  IN CONST CHAR8  *Token,   OPTIONAL
-  IN CONST CHAR8  *Module,  OPTIONAL
+  IN CONST VOID   *Handle   OPTIONAL,
+  IN CONST CHAR8  *Token    OPTIONAL,
+  IN CONST CHAR8  *Module   OPTIONAL,
   IN UINT64       TimeStamp,
   IN UINT32       Identifier
   )
@@ -259,13 +257,13 @@ EndPerformanceMeasurementEx (
 UINTN
 EFIAPI
 GetPerformanceMeasurementEx (
-  IN  UINTN       LogEntryKey,
-  OUT CONST VOID  **Handle,
-  OUT CONST CHAR8 **Token,
-  OUT CONST CHAR8 **Module,
-  OUT UINT64      *StartTimeStamp,
-  OUT UINT64      *EndTimeStamp,
-  OUT UINT32      *Identifier
+  IN  UINTN        LogEntryKey,
+  OUT CONST VOID   **Handle,
+  OUT CONST CHAR8  **Token,
+  OUT CONST CHAR8  **Module,
+  OUT UINT64       *StartTimeStamp,
+  OUT UINT64       *EndTimeStamp,
+  OUT UINT32       *Identifier
   )
 {
   ASSERT (Handle != NULL);
@@ -296,7 +294,7 @@ PerformanceMeasurementEnabled (
   VOID
   )
 {
-  return (BOOLEAN) ((PcdGet8(PcdPerformanceLibraryPropertyMask) & PERFORMANCE_LIBRARY_PROPERTY_MEASUREMENT_ENABLED) != 0);
+  return (BOOLEAN)((PcdGet8 (PcdPerformanceLibraryPropertyMask) & PERFORMANCE_LIBRARY_PROPERTY_MEASUREMENT_ENABLED) != 0);
 }
 
 /**
@@ -317,10 +315,10 @@ PerformanceMeasurementEnabled (
 RETURN_STATUS
 EFIAPI
 LogPerformanceMeasurement (
-  IN CONST VOID   *CallerIdentifier,OPTIONAL
-  IN CONST VOID   *Guid,    OPTIONAL
-  IN CONST CHAR8  *String,  OPTIONAL
-  IN UINT64       Address,  OPTIONAL
+  IN CONST VOID   *CallerIdentifier OPTIONAL,
+  IN CONST VOID   *Guid     OPTIONAL,
+  IN CONST CHAR8  *String   OPTIONAL,
+  IN UINT64       Address   OPTIONAL,
   IN UINT32       Identifier
   )
 {
@@ -342,14 +340,15 @@ LogPerformanceMeasurement (
 BOOLEAN
 EFIAPI
 LogPerformanceMeasurementEnabled (
-  IN  CONST UINTN        Type
+  IN  CONST UINTN  Type
   )
 {
   //
   // When Performance measurement is enabled and the type is not filtered, the performance can be logged.
   //
-  if (PerformanceMeasurementEnabled () && (PcdGet8(PcdPerformanceLibraryPropertyMask) & Type) == 0) {
+  if (PerformanceMeasurementEnabled () && ((PcdGet8 (PcdPerformanceLibraryPropertyMask) & Type) == 0)) {
     return TRUE;
   }
+
   return FALSE;
 }

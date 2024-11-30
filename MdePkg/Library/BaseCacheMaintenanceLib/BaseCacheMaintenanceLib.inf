@@ -7,6 +7,7 @@
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 #  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+#  Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -24,7 +25,7 @@
 
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64 LOONGARCH64
 #
 
 [Sources.IA32]
@@ -45,6 +46,9 @@
 [Sources.RISCV64]
   RiscVCache.c
 
+[Sources.LOONGARCH64]
+  LoongArchCache.c
+
 [Packages]
   MdePkg/MdePkg.dec
 
@@ -52,3 +56,8 @@
   BaseLib
   DebugLib
 
+[LibraryClasses.RISCV64]
+  PcdLib
+
+[Pcd.RISCV64]
+  gEfiMdePkgTokenSpaceGuid.PcdRiscVFeatureOverride  ## CONSUMES

@@ -20,19 +20,20 @@
     0x378daedc, 0xf06b, 0x4446, { 0x83, 0x14, 0x40, 0xab, 0x93, 0x3c, 0x87, 0xa3 } \
   }
 
-typedef struct _EFI_MM_COMMUNICATION2_PROTOCOL  EFI_MM_COMMUNICATION2_PROTOCOL;
+typedef struct _EFI_MM_COMMUNICATION2_PROTOCOL EFI_MM_COMMUNICATION2_PROTOCOL;
 
 /**
   Communicates with a registered handler.
 
   This function provides a service to send and receive messages from a registered UEFI service.
 
-  @param[in] This                The EFI_MM_COMMUNICATION_PROTOCOL instance.
-  @param[in] CommBufferPhysical  Physical address of the MM communication buffer
-  @param[in] CommBufferVirtual   Virtual address of the MM communication buffer
-  @param[in] CommSize            The size of the data buffer being passed in. On exit, the size of data
-                                 being returned. Zero if the handler does not wish to reply with any data.
-                                 This parameter is optional and may be NULL.
+  @param[in] This                     The EFI_MM_COMMUNICATION_PROTOCOL instance.
+  @param[in, out] CommBufferPhysical  Physical address of the MM communication buffer
+  @param[in, out] CommBufferVirtual   Virtual address of the MM communication buffer
+  @param[in, out] CommSize            The size of the data buffer being passed in. On exit, the
+                                      size of data being returned. Zero if the handler does not
+                                      wish to reply with any data. This parameter is optional
+                                      and may be NULL.
 
   @retval EFI_SUCCESS            The message was successfully posted.
   @retval EFI_INVALID_PARAMETER  CommBufferPhysical was NULL or CommBufferVirtual was NULL.
@@ -60,10 +61,9 @@ EFI_STATUS
 /// between DXE drivers and a registered MMI handler.
 ///
 struct _EFI_MM_COMMUNICATION2_PROTOCOL {
-  EFI_MM_COMMUNICATE2  Communicate;
+  EFI_MM_COMMUNICATE2    Communicate;
 };
 
-extern EFI_GUID gEfiMmCommunication2ProtocolGuid;
+extern EFI_GUID  gEfiMmCommunication2ProtocolGuid;
 
 #endif
-

@@ -138,11 +138,11 @@ typedef struct {
   ///
   /// A unique element ID defined in IEEE 802.11 specification.
   ///
-  UINT8                              ElementID;
+  UINT8    ElementID;
   ///
   /// Specifies the number of octets in the element body.
   ///
-  UINT8                              Length;
+  UINT8    Length;
 } EFI_80211_ELEMENT_HEADER;
 
 ///
@@ -152,12 +152,12 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER    Hdr;
   ///
   /// Start of elements that are requested to be included in the Probe Response frame.
   /// The elements are listed in order of increasing element ID.
   ///
-  UINT8                              RequestIDs[1];
+  UINT8                       RequestIDs[1];
 } EFI_80211_ELEMENT_REQ;
 
 ///
@@ -167,11 +167,11 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER    Hdr;
   ///
   /// Service set identifier. If Hdr.Length is zero, this field is ignored.
   ///
-  UINT8                              SSId[32];
+  UINT8                       SSId[32];
 } EFI_80211_ELEMENT_SSID;
 
 ///
@@ -182,63 +182,63 @@ typedef struct {
   /// Determines whether infrastructure BSS, IBSS, MBSS, or all, are included in the
   /// scan.
   ///
-  EFI_80211_BSS_TYPE                 BSSType;
+  EFI_80211_BSS_TYPE        BSSType;
   ///
   /// Indicates a specific or wildcard BSSID. Use all binary 1s to represent all SSIDs.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS     BSSId;
   ///
   /// Length in bytes of the SSId. If zero, ignore SSId field.
   ///
-  UINT8                              SSIdLen;
+  UINT8                     SSIdLen;
   ///
   /// Specifies the desired SSID or the wildcard SSID. Use NULL to represent all SSIDs.
   ///
-  UINT8                              *SSId;
+  UINT8                     *SSId;
   ///
   /// Indicates passive scanning if TRUE.
   ///
-  BOOLEAN                            PassiveMode;
+  BOOLEAN                   PassiveMode;
   ///
   /// The delay in microseconds to be used prior to transmitting a Probe frame during
   /// active scanning. If zero, the value can be overridden by an
   /// implementation-dependent default value.
   ///
-  UINT32                             ProbeDelay;
+  UINT32                    ProbeDelay;
   ///
   /// Specifies a list of channels that are examined when scanning for a BSS. If set to
   /// NULL, all valid channels will be scanned.
   ///
-  UINT32                             *ChannelList;
+  UINT32                    *ChannelList;
   ///
   /// Indicates the minimum time in TU to spend on each channel when scanning. If zero,
   /// the value can be overridden by an implementation-dependent default value.
   ///
-  UINT32                             MinChannelTime;
+  UINT32                    MinChannelTime;
   ///
   /// Indicates the maximum time in TU to spend on each channel when scanning. If zero,
   /// the value can be overridden by an implementation-dependent default value.
   ///
-  UINT32                             MaxChannelTime;
+  UINT32                    MaxChannelTime;
   ///
   /// Points to an optionally present element. This is an optional parameter and may be
   /// NULL.
   ///
-  EFI_80211_ELEMENT_REQ              *RequestInformation;
+  EFI_80211_ELEMENT_REQ     *RequestInformation;
   ///
   /// Indicates one or more SSID elements that are optionally present. This is an
   /// optional parameter and may be NULL.
   ///
-  EFI_80211_ELEMENT_SSID             *SSIDList;
+  EFI_80211_ELEMENT_SSID    *SSIDList;
   ///
   /// Specifies a desired specific access network type or the wildcard access network
   /// type. Use 15 as wildcard access network type.
   ///
-  EFI_80211_ACC_NET_TYPE             AccessNetworkType;
+  EFI_80211_ACC_NET_TYPE    AccessNetworkType;
   ///
   ///  Specifies zero or more elements. This is an optional parameter and may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                     *VendorSpecificInfo;
 } EFI_80211_SCAN_DATA;
 
 ///
@@ -249,15 +249,15 @@ typedef struct {
   /// Indicates the lowest channel number in the subband. It has a positive integer
   /// value less than 201.
   ///
-  UINT8                              FirstChannelNum;
+  UINT8    FirstChannelNum;
   ///
   /// Indicates the number of channels in the subband.
   ///
-  UINT8                              NumOfChannels;
+  UINT8    NumOfChannels;
   ///
   /// Indicates the maximum power in dBm allowed to be transmitted.
   ///
-  UINT8                              MaxTxPowerLevel;
+  UINT8    MaxTxPowerLevel;
 } EFI_80211_COUNTRY_TRIPLET_SUBBAND;
 
 ///
@@ -268,16 +268,16 @@ typedef struct {
   /// Indicates the operating extension identifier. It has a positive integer value of
   /// 201 or greater.
   ///
-  UINT8                              OperatingExtId;
+  UINT8    OperatingExtId;
   ///
   /// Index into a set of values for radio equipment set of rules.
   ///
-  UINT8                              OperatingClass;
+  UINT8    OperatingClass;
   ///
   /// Specifies aAirPropagationTime characteristics used in BSS operation. Refer the
   /// definition of aAirPropagationTime in IEEE 802.11 specification.
   ///
-  UINT8                              CoverageClass;
+  UINT8    CoverageClass;
 } EFI_80211_COUNTRY_TRIPLET_OPERATE;
 
 ///
@@ -287,11 +287,11 @@ typedef union {
   ///
   /// The subband triplet.
   ///
-  EFI_80211_COUNTRY_TRIPLET_SUBBAND  Subband;
+  EFI_80211_COUNTRY_TRIPLET_SUBBAND    Subband;
   ///
   /// The operating triplet.
   ///
-  EFI_80211_COUNTRY_TRIPLET_OPERATE  Operating;
+  EFI_80211_COUNTRY_TRIPLET_OPERATE    Operating;
 } EFI_80211_COUNTRY_TRIPLET;
 
 ///
@@ -301,16 +301,16 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER     Hdr;
   ///
   /// Specifies country strings in 3 octets.
   ///
-  UINT8                              CountryStr[3];
+  UINT8                        CountryStr[3];
   ///
   /// Indicates a triplet that repeated in country element. The number of triplets is
   /// determined by the Hdr.Length field.
   ///
-  EFI_80211_COUNTRY_TRIPLET          CountryTriplet[1];
+  EFI_80211_COUNTRY_TRIPLET    CountryTriplet[1];
 } EFI_80211_ELEMENT_COUNTRY;
 
 ///
@@ -321,47 +321,47 @@ typedef struct {
   /// Indicates the version number of the RSNA protocol. Value 1 is defined in current
   /// IEEE 802.11 specification.
   ///
-  UINT16                             Version;
+  UINT16    Version;
   ///
   /// Specifies the cipher suite selector used by the BSS to protect group address frames.
   ///
-  UINT32                             GroupDataCipherSuite;
+  UINT32    GroupDataCipherSuite;
   ///
   /// Indicates the number of pairwise cipher suite selectors that are contained in
   /// PairwiseCipherSuiteList.
   ///
-//UINT16                             PairwiseCipherSuiteCount;
+  // UINT16                             PairwiseCipherSuiteCount;
   ///
   /// Contains a series of cipher suite selectors that indicate the pairwise cipher
   /// suites contained in this element.
   ///
-//UINT32                             PairwiseCipherSuiteList[PairwiseCipherSuiteCount];
+  // UINT32                             PairwiseCipherSuiteList[PairwiseCipherSuiteCount];
   ///
   /// Indicates the number of AKM suite selectors that are contained in AKMSuiteList.
   ///
-//UINT16                             AKMSuiteCount;
+  // UINT16                             AKMSuiteCount;
   ///
   /// Contains a series of AKM suite selectors that indicate the AKM suites contained in
   /// this element.
   ///
-//UINT32                             AKMSuiteList[AKMSuiteCount];
+  // UINT32                             AKMSuiteList[AKMSuiteCount];
   ///
   /// Indicates requested or advertised capabilities.
   ///
-//UINT16                             RSNCapabilities;
+  // UINT16                             RSNCapabilities;
   ///
   /// Indicates the number of PKMIDs in the PMKIDList.
   ///
-//UINT16                             PMKIDCount;
+  // UINT16                             PMKIDCount;
   ///
   /// Contains zero or more PKMIDs that the STA believes to be valid for the destination
   /// AP.
-//UINT8                              PMKIDList[PMKIDCount][16];
+  // UINT8                              PMKIDList[PMKIDCount][16];
   ///
   /// Specifies the cipher suite selector used by the BSS to protect group addressed
   /// robust management frames.
   ///
-//UINT32                             GroupManagementCipherSuite;
+  // UINT32                             GroupManagementCipherSuite;
 } EFI_80211_ELEMENT_DATA_RSN;
 
 ///
@@ -371,11 +371,11 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER      Hdr;
   ///
   /// Points to RSN element. The size of a RSN element is limited to 255 octets.
   ///
-  EFI_80211_ELEMENT_DATA_RSN         *Data;
+  EFI_80211_ELEMENT_DATA_RSN    *Data;
 } EFI_80211_ELEMENT_RSN;
 
 ///
@@ -385,13 +385,13 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER    Hdr;
   ///
   /// Indicates the capabilities being advertised by the STA transmitting the element.
   /// This is a bit field with variable length. Refer to IEEE 802.11 specification for
   /// bit value.
   ///
-  UINT8                              Capabilities[1];
+  UINT8                       Capabilities[1];
 } EFI_80211_ELEMENT_EXT_CAP;
 
 ///
@@ -401,77 +401,77 @@ typedef struct {
   ///
   /// Indicates a specific BSSID of the found BSS.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS        BSSId;
   ///
   /// Specifies the SSID of the found BSS. If NULL, ignore SSIdLen field.
   ///
-  UINT8                              *SSId;
+  UINT8                        *SSId;
   ///
   /// Specifies the SSID of the found BSS. If NULL, ignore SSIdLen field.
   ///
-  UINT8                              SSIdLen;
+  UINT8                        SSIdLen;
   ///
   /// Specifies the type of the found BSS.
   ///
-  EFI_80211_BSS_TYPE                 BSSType;
+  EFI_80211_BSS_TYPE           BSSType;
   ///
   /// The beacon period in TU of the found BSS.
   ///
-  UINT16                             BeaconPeriod;
+  UINT16                       BeaconPeriod;
   ///
   /// The timestamp of the received frame from the found BSS.
   ///
-  UINT64                             Timestamp;
+  UINT64                       Timestamp;
   ///
   /// The advertised capabilities of the BSS.
   ///
-  UINT16                             CapabilityInfo;
+  UINT16                       CapabilityInfo;
   ///
   /// The set of data rates that shall be supported by all STAs that desire to join this
   /// BSS.
   ///
-  UINT8                              *BSSBasicRateSet;
+  UINT8                        *BSSBasicRateSet;
   ///
   /// The set of data rates that the peer STA desires to use for communication within
   /// the BSS.
   ///
-  UINT8                              *OperationalRateSet;
+  UINT8                        *OperationalRateSet;
   ///
   /// The information required to identify the regulatory domain in which the peer STA
   /// is located.
   ///
-  EFI_80211_ELEMENT_COUNTRY          *Country;
+  EFI_80211_ELEMENT_COUNTRY    *Country;
   ///
   /// The cipher suites and AKM suites supported in the BSS.
   ///
-  EFI_80211_ELEMENT_RSN              RSN;
+  EFI_80211_ELEMENT_RSN        RSN;
   ///
   /// Specifies the RSSI of the received frame.
   ///
-  UINT8                              RSSI;
+  UINT8                        RSSI;
   ///
   /// Specifies the RCPI of the received frame.
   ///
-  UINT8                              RCPIMeasurement;
+  UINT8                        RCPIMeasurement;
   ///
   /// Specifies the RSNI of the received frame.
   ///
-  UINT8                              RSNIMeasurement;
+  UINT8                        RSNIMeasurement;
   ///
   /// Specifies the elements requested by the request element of the Probe Request frame.
   /// This is an optional parameter and may be NULL.
   ///
-  UINT8                              *RequestedElements;
+  UINT8                        *RequestedElements;
   ///
   /// Specifies the BSS membership selectors that represent the set of features that
   /// shall be supported by all STAs to join this BSS.
   ///
-  UINT8                              *BSSMembershipSelectorSet;
+  UINT8                        *BSSMembershipSelectorSet;
   ///
   /// Specifies the parameters within the Extended Capabilities element that are
   /// supported by the MAC entity. This is an optional parameter and may be NULL.
   ///
-  EFI_80211_ELEMENT_EXT_CAP          *ExtCapElement;
+  EFI_80211_ELEMENT_EXT_CAP    *ExtCapElement;
 } EFI_80211_BSS_DESCRIPTION;
 
 ///
@@ -481,15 +481,15 @@ typedef struct {
   ///
   /// Indicates the unique identifier within the containing element or sub-element.
   ///
-  UINT8                              SubElementID;
+  UINT8    SubElementID;
   ///
   /// Specifies the number of octets in the Data field.
   ///
-  UINT8                              Length;
+  UINT8    Length;
   ///
   /// A variable length data buffer.
   ///
-  UINT8                              Data[1];
+  UINT8    Data[1];
 } EFI_80211_SUBELEMENT_INFO;
 
 ///
@@ -499,16 +499,16 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER     Hdr;
   ///
   /// Indicates the maximum number of BSSIDs in the multiple BSSID set. When Indicator
   /// is set to n, 2n is the maximum number.
   ///
-  UINT8                              Indicator;
+  UINT8                        Indicator;
   ///
   /// Contains zero or more sub-elements.
   ///
-  EFI_80211_SUBELEMENT_INFO          SubElement[1];
+  EFI_80211_SUBELEMENT_INFO    SubElement[1];
 } EFI_80211_MULTIPLE_BSSID;
 
 ///
@@ -518,43 +518,43 @@ typedef struct {
   ///
   /// Indicates a specific BSSID of the found BSS.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS       BSSId;
   ///
   /// Specifies the type of the found BSS.
   ///
-  EFI_80211_BSS_TYPE                 BSSType;
+  EFI_80211_BSS_TYPE          BSSType;
   ///
   /// One octet field to report condensed capability information.
   ///
-  UINT8                              ConCapInfo;
+  UINT8                       ConCapInfo;
   ///
   /// Two octet's field to report condensed country string.
   ///
-  UINT8                              ConCountryStr[2];
+  UINT8                       ConCountryStr[2];
   ///
   /// Indicates the operating class value for the operating channel.
   ///
-  UINT8                              OperatingClass;
+  UINT8                       OperatingClass;
   ///
   /// Indicates the operating channel.
   ///
-  UINT8                              Channel;
+  UINT8                       Channel;
   ///
   /// Indicates the measurement pilot interval in TU.
   ///
-  UINT8                              Interval;
+  UINT8                       Interval;
   ///
   /// Indicates that the BSS is within a multiple BSSID set.
   ///
-  EFI_80211_MULTIPLE_BSSID           *MultipleBSSID;
+  EFI_80211_MULTIPLE_BSSID    *MultipleBSSID;
   ///
   /// Specifies the RCPI of the received frame.
   ///
-  UINT8                              RCPIMeasurement;
+  UINT8                       RCPIMeasurement;
   ///
   /// Specifies the RSNI of the received frame.
   ///
-  UINT8                              RSNIMeasurement;
+  UINT8                       RSNIMeasurement;
 } EFI_80211_BSS_DESP_PILOT;
 
 ///
@@ -565,24 +565,24 @@ typedef struct {
   /// The number of EFI_80211_BSS_DESCRIPTION in BSSDespSet. If zero, BSSDespSet should
   /// be ignored.
   ///
-  UINTN                              NumOfBSSDesp;
+  UINTN                        NumOfBSSDesp;
   ///
   /// Points to zero or more instances of EFI_80211_BSS_DESCRIPTION.
   ///
-  EFI_80211_BSS_DESCRIPTION          **BSSDespSet;
+  EFI_80211_BSS_DESCRIPTION    **BSSDespSet;
   ///
   /// The number of EFI_80211_BSS_DESP_PILOT in BSSDespFromPilotSet. If zero,
   /// BSSDespFromPilotSet should be ignored.
   ///
-  UINTN                              NumofBSSDespFromPilot;
+  UINTN                        NumofBSSDespFromPilot;
   ///
   /// Points to zero or more instances of EFI_80211_BSS_DESP_PILOT.
   ///
-  EFI_80211_BSS_DESP_PILOT           **BSSDespFromPilotSet;
+  EFI_80211_BSS_DESP_PILOT     **BSSDespFromPilotSet;
   ///
   /// Specifies zero or more elements. This is an optional parameter and may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                        *VendorSpecificInfo;
 } EFI_80211_SCAN_RESULT;
 
 ///
@@ -593,7 +593,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI Wireless
   /// MAC Connection Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                          Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS:       Scan operation completed successfully.
@@ -602,19 +602,19 @@ typedef struct {
   ///   EFI_ACCESS_DENIED: The scan operation is not completed due to some underlying
   ///                      hardware or software state.
   ///   EFI_NOT_READY:     The scan operation is started but not yet completed.
-  EFI_STATUS                         Status;
+  EFI_STATUS                    Status;
   ///
   /// Pointer to the scan data.
   ///
-  EFI_80211_SCAN_DATA                *Data;
+  EFI_80211_SCAN_DATA           *Data;
   ///
   /// Indicates the scan state.
   ///
-  EFI_80211_SCAN_RESULT_CODE         ResultCode;
+  EFI_80211_SCAN_RESULT_CODE    ResultCode;
   ///
   /// Indicates the scan result. It is caller's responsibility to free this buffer.
   ///
-  EFI_80211_SCAN_RESULT              *Result;
+  EFI_80211_SCAN_RESULT         *Result;
 } EFI_80211_SCAN_DATA_TOKEN;
 
 ///
@@ -624,11 +624,11 @@ typedef struct {
   ///
   /// The first channel number in a subband of supported channels.
   ///
-  UINT8                              FirstChannelNumber;
+  UINT8    FirstChannelNumber;
   ///
   /// The number of channels in a subband of supported channels.
   ///
-  UINT8                              NumberOfChannels;
+  UINT8    NumberOfChannels;
 } EFI_80211_ELEMENT_SUPP_CHANNEL_TUPLE;
 
 ///
@@ -652,37 +652,37 @@ typedef struct {
   ///
   /// Specifies the address of the peer MAC entity to associate with.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS             BSSId;
   ///
   /// Specifies the requested operational capabilities to the AP in 2 octets.
   ///
-  UINT16                             CapabilityInfo;
+  UINT16                            CapabilityInfo;
   ///
   /// Specifies a time limit in TU, after which the associate procedure is terminated.
   ///
-  UINT32                             FailureTimeout;
+  UINT32                            FailureTimeout;
   ///
   /// Specifies if in power save mode, how often the STA awakes and listens for the next
   /// beacon frame in TU.
   ///
-  UINT32                             ListenInterval;
+  UINT32                            ListenInterval;
   ///
   /// Indicates a list of channels in which the STA is capable of operating.
   ///
-  EFI_80211_ELEMENT_SUPP_CHANNEL     *Channels;
+  EFI_80211_ELEMENT_SUPP_CHANNEL    *Channels;
   ///
   /// The cipher suites and AKM suites selected by the STA.
   ///
-  EFI_80211_ELEMENT_RSN              RSN;
+  EFI_80211_ELEMENT_RSN             RSN;
   ///
   /// Specifies the parameters within the Extended Capabilities element that are
   /// supported by the MAC entity.  This is an optional parameter and may be NULL.
   ///
-  EFI_80211_ELEMENT_EXT_CAP          *ExtCapElement;
+  EFI_80211_ELEMENT_EXT_CAP         *ExtCapElement;
   ///
   /// Specifies zero or more elements. This is an optional parameter and may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                             *VendorSpecificInfo;
 } EFI_80211_ASSOCIATE_DATA;
 
 ///
@@ -692,15 +692,15 @@ typedef struct {
   ///
   /// Common header of an element.
   ///
-  EFI_80211_ELEMENT_HEADER           Hdr;
+  EFI_80211_ELEMENT_HEADER    Hdr;
   ///
   /// Specifies the timeout interval type.
   ///
-  UINT8                              Type;
+  UINT8                       Type;
   ///
   /// Specifies the timeout interval value.
   ///
-  UINT32                             Value;
+  UINT32                      Value;
 } EFI_80211_ELEMENT_TIMEOUT_VAL;
 
 ///
@@ -711,38 +711,38 @@ typedef struct {
   /// Specifies the address of the peer MAC entity from which the association request
   /// was received.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS            BSSId;
   ///
   /// Specifies the operational capabilities advertised by the AP.
   ///
-  UINT16                             CapabilityInfo;
+  UINT16                           CapabilityInfo;
   ///
   /// Specifies the association ID value assigned by the AP.
   ///
-  UINT16                             AssociationID;
+  UINT16                           AssociationID;
   ///
   /// Indicates the measured RCPI of the corresponding association request frame. It is
   /// an optional parameter and is set to zero if unavailable.
   ///
-  UINT8                              RCPIValue;
+  UINT8                            RCPIValue;
   ///
   /// Indicates the measured RSNI at the time the corresponding association request
   /// frame was received. It is an optional parameter and is set to zero if unavailable.
   ///
-  UINT8                              RSNIValue;
+  UINT8                            RSNIValue;
   ///
   /// Specifies the parameters within the Extended Capabilities element that are
   /// supported by the MAC entity.  This is an optional parameter and may be NULL.
   ///
-  EFI_80211_ELEMENT_EXT_CAP          *ExtCapElement;
+  EFI_80211_ELEMENT_EXT_CAP        *ExtCapElement;
   ///
   /// Specifies the timeout interval when the result code is AssociateRefusedTemporarily.
   ///
-  EFI_80211_ELEMENT_TIMEOUT_VAL      TimeoutInterval;
+  EFI_80211_ELEMENT_TIMEOUT_VAL    TimeoutInterval;
   ///
   /// Specifies zero or more elements. This is an optional parameter and may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                            *VendorSpecificInfo;
 } EFI_80211_ASSOCIATE_RESULT;
 
 ///
@@ -783,15 +783,15 @@ typedef struct {
   /// Specifies the address of the peer MAC entity with which to perform the
   /// disassociation process.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS    BSSId;
   ///
   /// Specifies the reason for initiating the disassociation process.
   ///
-  EFI_80211_REASON_CODE              ReasonCode;
+  EFI_80211_REASON_CODE    ReasonCode;
   ///
   /// Zero or more elements, may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                    *VendorSpecificInfo;
 } EFI_80211_DISASSOCIATE_DATA;
 
 ///
@@ -802,7 +802,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI Wireless
   /// MAC Connection Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                          Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS:       Disassociation operation completed successfully.
@@ -811,15 +811,15 @@ typedef struct {
   ///                      underlying hardware or software state.
   ///   EFI_NOT_READY:     The disassociation operation is started but not yet completed.
   ///
-  EFI_STATUS                         Status;
+  EFI_STATUS                            Status;
   ///
   /// Pointer to the disassociation data.
   ///
-  EFI_80211_DISASSOCIATE_DATA        *Data;
+  EFI_80211_DISASSOCIATE_DATA           *Data;
   ///
   /// Indicates the disassociation state.
   ///
-  EFI_80211_DISASSOCIATE_RESULT_CODE ResultCode;
+  EFI_80211_DISASSOCIATE_RESULT_CODE    ResultCode;
 } EFI_80211_DISASSOCIATE_DATA_TOKEN;
 
 ///
@@ -830,31 +830,31 @@ typedef struct {
   /// Specifies the address of the peer MAC entity with which to perform the
   /// authentication process.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS            BSSId;
   ///
   /// Specifies the type of authentication algorithm to use during the authentication
   /// process.
   ///
-  EFI_80211_AUTHENTICATION_TYPE      AuthType;
+  EFI_80211_AUTHENTICATION_TYPE    AuthType;
   ///
   /// Specifies a time limit in TU after which the authentication procedure is
   /// terminated.
   ///
-  UINT32                             FailureTimeout;
+  UINT32                           FailureTimeout;
   ///
   /// Specifies the set of elements to be included in the first message of the FT
   /// authentication sequence, may be NULL.
   ///
-  UINT8                              *FTContent;
+  UINT8                            *FTContent;
   ///
   /// Specifies the set of elements to be included in the SAE Commit Message or SAE
   /// Confirm Message, may be NULL.
   ///
-  UINT8                              *SAEContent;
+  UINT8                            *SAEContent;
   ///
   /// Zero or more elements, may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                            *VendorSpecificInfo;
 } EFI_80211_AUTHENTICATE_DATA;
 
 ///
@@ -865,21 +865,21 @@ typedef struct {
   /// Specifies the address of the peer MAC entity from which the authentication request
   /// was received.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS    BSSId;
   ///
   /// Specifies the set of elements to be included in the second message of the FT
   /// authentication sequence, may be NULL.
   ///
-  UINT8                              *FTContent;
+  UINT8                    *FTContent;
   ///
   /// Specifies the set of elements to be included in the SAE Commit Message or SAE
   /// Confirm Message, may be NULL.
   ///
-  UINT8                              *SAEContent;
+  UINT8                    *SAEContent;
   ///
   /// Zero or more elements, may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                    *VendorSpecificInfo;
 } EFI_80211_AUTHENTICATE_RESULT;
 
 ///
@@ -890,7 +890,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI Wireless
   /// MAC Connection Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                          Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS: Authentication operation completed successfully.
@@ -901,20 +901,20 @@ typedef struct {
   ///                       underlying hardware or software state.
   ///   EFI_NOT_READY:      The authentication operation is started but not yet completed.
   ///
-  EFI_STATUS                         Status;
+  EFI_STATUS                            Status;
   ///
   /// Pointer to the authentication data.
   ///
-  EFI_80211_AUTHENTICATE_DATA        *Data;
+  EFI_80211_AUTHENTICATE_DATA           *Data;
   ///
   /// Indicates the association state.
   ///
-  EFI_80211_AUTHENTICATE_RESULT_CODE ResultCode;
+  EFI_80211_AUTHENTICATE_RESULT_CODE    ResultCode;
   ///
   /// Indicates the association result. It is caller's responsibility to free this
   /// buffer.
   ///
-  EFI_80211_AUTHENTICATE_RESULT      *Result;
+  EFI_80211_AUTHENTICATE_RESULT         *Result;
 } EFI_80211_AUTHENTICATE_DATA_TOKEN;
 
 ///
@@ -925,15 +925,15 @@ typedef struct {
   /// Specifies the address of the peer MAC entity with which to perform the
   /// deauthentication process.
   ///
-  EFI_80211_MAC_ADDRESS              BSSId;
+  EFI_80211_MAC_ADDRESS    BSSId;
   ///
   /// Specifies the reason for initiating the deauthentication process.
   ///
-  EFI_80211_REASON_CODE              ReasonCode;
+  EFI_80211_REASON_CODE    ReasonCode;
   ///
   /// Zero or more elements, may be NULL.
   ///
-  UINT8                              *VendorSpecificInfo;
+  UINT8                    *VendorSpecificInfo;
 } EFI_80211_DEAUTHENTICATE_DATA;
 
 ///
@@ -944,7 +944,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI Wireless
   /// MAC Connection Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                          Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS:       Deauthentication operation completed successfully.
@@ -954,11 +954,11 @@ typedef struct {
   ///   EFI_NOT_READY:     The deauthentication operation is started but not yet
   ///                      completed.
   ///
-  EFI_STATUS                         Status;
+  EFI_STATUS                       Status;
   ///
   /// Pointer to the deauthentication data.
   ///
-  EFI_80211_DEAUTHENTICATE_DATA      *Data;
+  EFI_80211_DEAUTHENTICATE_DATA    *Data;
 } EFI_80211_DEAUTHENTICATE_DATA_TOKEN;
 
 /**
@@ -1111,13 +1111,13 @@ EFI_STATUS
 /// communication device that the EFI wireless network stack runs on.
 ///
 struct _EFI_WIRELESS_MAC_CONNECTION_PROTOCOL {
-  EFI_WIRELESS_MAC_CONNECTION_SCAN               Scan;
-  EFI_WIRELESS_MAC_CONNECTION_ASSOCIATE          Associate;
-  EFI_WIRELESS_MAC_CONNECTION_DISASSOCIATE       Disassociate;
-  EFI_WIRELESS_MAC_CONNECTION_AUTHENTICATE       Authenticate;
-  EFI_WIRELESS_MAC_CONNECTION_DEAUTHENTICATE     Deauthenticate;
+  EFI_WIRELESS_MAC_CONNECTION_SCAN              Scan;
+  EFI_WIRELESS_MAC_CONNECTION_ASSOCIATE         Associate;
+  EFI_WIRELESS_MAC_CONNECTION_DISASSOCIATE      Disassociate;
+  EFI_WIRELESS_MAC_CONNECTION_AUTHENTICATE      Authenticate;
+  EFI_WIRELESS_MAC_CONNECTION_DEAUTHENTICATE    Deauthenticate;
 };
 
-extern EFI_GUID gEfiWiFiProtocolGuid;
+extern EFI_GUID  gEfiWiFiProtocolGuid;
 
 #endif

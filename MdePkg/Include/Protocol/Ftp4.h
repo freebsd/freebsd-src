@@ -18,7 +18,6 @@
 #ifndef __EFI_FTP4_PROTOCOL_H__
 #define __EFI_FTP4_PROTOCOL_H__
 
-
 #define EFI_FTP4_SERVICE_BINDING_PROTOCOL_GUID \
   { \
     0xfaaecb1, 0x226e, 0x4782, {0xaa, 0xce, 0x7d, 0xb9, 0xbc, 0xbf, 0x4d, 0xaf } \
@@ -42,7 +41,7 @@ typedef struct {
   /// equal to TPL_CALLBACK. If it is set to NULL, this function will not return  until the
   /// function completes.
   ///
-  EFI_EVENT                            Event;
+  EFI_EVENT    Event;
   ///
   /// The variable to receive the result of the completed operation.
   /// EFI_SUCCESS:              The FTP connection is established successfully
@@ -63,7 +62,7 @@ typedef struct {
   ///                           error is received.
   /// EFI_DEVICE_ERROR:         An unexpected system or network error occurred.
   ///
-  EFI_STATUS                           Status;
+  EFI_STATUS    Status;
 } EFI_FTP4_CONNECTION_TOKEN;
 
 ///
@@ -74,47 +73,47 @@ typedef struct {
   /// Pointer to a ASCII string that contains user name. The caller is
   /// responsible for freeing Username after GetModeData() is called.
   ///
-  UINT8                                *Username;
+  UINT8               *Username;
   ///
   /// Pointer to a ASCII string that contains password. The caller is
   /// responsible for freeing Password after GetModeData() is called.
   ///
-  UINT8                                *Password;
+  UINT8               *Password;
   ///
   /// Set it to TRUE to initiate an active data connection. Set it to
   /// FALSE to initiate a passive data connection.
   ///
-  BOOLEAN                              Active;
+  BOOLEAN             Active;
   ///
   /// Boolean value indicating if default network settting used.
   ///
-  BOOLEAN                              UseDefaultSetting;
+  BOOLEAN             UseDefaultSetting;
   ///
   /// IP address of station if UseDefaultSetting is FALSE.
   ///
-  EFI_IPv4_ADDRESS                     StationIp;
+  EFI_IPv4_ADDRESS    StationIp;
   ///
   /// Subnet mask of station if UseDefaultSetting is FALSE.
   ///
-  EFI_IPv4_ADDRESS                     SubnetMask;
+  EFI_IPv4_ADDRESS    SubnetMask;
   ///
   /// IP address of gateway if UseDefaultSetting is FALSE.
   ///
-  EFI_IPv4_ADDRESS                     GatewayIp;
+  EFI_IPv4_ADDRESS    GatewayIp;
   ///
   /// IP address of FTPv4 server.
   ///
-  EFI_IPv4_ADDRESS                     ServerIp;
+  EFI_IPv4_ADDRESS    ServerIp;
   ///
   /// FTPv4 server port number of control connection, and the default
   /// value is 21 as convention.
   ///
-  UINT16                               ServerPort;
+  UINT16              ServerPort;
   ///
   /// FTPv4 server port number of data connection. If it is zero, use
   /// (ServerPort - 1) by convention.
   ///
-  UINT16                               AltDataPort;
+  UINT16              AltDataPort;
   ///
   /// A byte indicate the representation type. The right 4 bit is used for
   /// first parameter, the left 4 bit is use for second parameter
@@ -124,15 +123,15 @@ typedef struct {
   /// - If it is a local type, the second parameter is the local byte byte size.
   /// - If it is a image type, the second parameter is undefined.
   ///
-  UINT8                                RepType;
+  UINT8    RepType;
   ///
   /// Defines the file structure in FTP used. 0x00 = file, 0x01 = record, 0x02 = page.
   ///
-  UINT8                                FileStruct;
+  UINT8    FileStruct;
   ///
   /// Defines the transifer mode used in FTP. 0x00 = stream, 0x01 = Block, 0x02 = Compressed.
   ///
-  UINT8                                TransMode;
+  UINT8    TransMode;
 } EFI_FTP4_CONFIG_DATA;
 
 typedef struct _EFI_FTP4_COMMAND_TOKEN EFI_FTP4_COMMAND_TOKEN;
@@ -172,20 +171,20 @@ struct _EFI_FTP4_COMMAND_TOKEN {
   /// set to NULL, related function must wait until the function
   /// completes.
   ///
-  EFI_EVENT                             Event;
+  EFI_EVENT    Event;
   ///
   /// Pointer to a null-terminated ASCII name string.
   ///
-  UINT8                                 *Pathname;
+  UINT8        *Pathname;
   ///
   /// The size of data buffer in bytes.
   ///
-  UINT64                                DataBufferSize;
+  UINT64       DataBufferSize;
   ///
   /// Pointer to the data buffer. Data downloaded from FTP server
   /// through connection is downloaded here.
   ///
-  VOID                                  *DataBuffer;
+  VOID         *DataBuffer;
   ///
   /// Pointer to a callback function. If it is receiving function that leads
   /// to inbound data, the callback function is called when databuffer is
@@ -198,11 +197,11 @@ struct _EFI_FTP4_COMMAND_TOKEN {
   /// DataBufferSize, again. If there is no data remained,
   /// DataBufferSize should be set to 0.
   ///
-  EFI_FTP4_DATA_CALLBACK                DataCallback;
+  EFI_FTP4_DATA_CALLBACK    DataCallback;
   ///
   /// Pointer to the parameter for DataCallback.
   ///
-  VOID                                  *Context;
+  VOID                      *Context;
   ///
   /// The variable to receive the result of the completed operation.
   /// EFI_SUCCESS:              The FTP command is completed successfully.
@@ -223,7 +222,7 @@ struct _EFI_FTP4_COMMAND_TOKEN {
   ///                           error is received.
   /// EFI_DEVICE_ERROR:         An unexpected system or network error occurred.
   ///
-  EFI_STATUS                            Status;
+  EFI_STATUS    Status;
 };
 
 /**
@@ -352,7 +351,6 @@ EFI_STATUS
   IN EFI_FTP4_PROTOCOL           *This,
   IN EFI_FTP4_CONFIG_DATA        *FtpConfigData OPTIONAL
   );
-
 
 /**
   Downloads a file from an FTPv4 server.
@@ -511,8 +509,7 @@ struct _EFI_FTP4_PROTOCOL {
   EFI_FTP4_POLL              Poll;
 };
 
-extern EFI_GUID gEfiFtp4ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiFtp4ProtocolGuid;
+extern EFI_GUID  gEfiFtp4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiFtp4ProtocolGuid;
 
 #endif
-

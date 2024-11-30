@@ -33,7 +33,7 @@
 
 typedef struct _EFI_BOOT_MANAGER_POLICY_PROTOCOL EFI_BOOT_MANAGER_POLICY_PROTOCOL;
 
-#define EFI_BOOT_MANAGER_POLICY_PROTOCOL_REVISION 0x00010000
+#define EFI_BOOT_MANAGER_POLICY_PROTOCOL_REVISION  0x00010000
 
 /**
   Connect a device path following the platforms EFI Boot Manager policy.
@@ -118,15 +118,15 @@ EFI_STATUS
   );
 
 struct _EFI_BOOT_MANAGER_POLICY_PROTOCOL {
-  UINT64                                       Revision;
-  EFI_BOOT_MANAGER_POLICY_CONNECT_DEVICE_PATH  ConnectDevicePath;
-  EFI_BOOT_MANAGER_POLICY_CONNECT_DEVICE_CLASS ConnectDeviceClass;
+  UINT64                                          Revision;
+  EFI_BOOT_MANAGER_POLICY_CONNECT_DEVICE_PATH     ConnectDevicePath;
+  EFI_BOOT_MANAGER_POLICY_CONNECT_DEVICE_CLASS    ConnectDeviceClass;
 };
 
-extern EFI_GUID gEfiBootManagerPolicyProtocolGuid;
+extern EFI_GUID  gEfiBootManagerPolicyProtocolGuid;
 
-extern EFI_GUID gEfiBootManagerPolicyConsoleGuid;
-extern EFI_GUID gEfiBootManagerPolicyNetworkGuid;
-extern EFI_GUID gEfiBootManagerPolicyConnectAllGuid;
+extern EFI_GUID  gEfiBootManagerPolicyConsoleGuid;
+extern EFI_GUID  gEfiBootManagerPolicyNetworkGuid;
+extern EFI_GUID  gEfiBootManagerPolicyConnectAllGuid;
 
 #endif

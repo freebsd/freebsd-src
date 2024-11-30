@@ -17,10 +17,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define EFI_FORM_BROWSER2_PROTOCOL_GUID \
   {0xb9d4c360, 0xbcfb, 0x4f9b, {0x92, 0x98, 0x53, 0xc1, 0x36, 0x98, 0x22, 0x58 }}
 
-
-typedef struct _EFI_FORM_BROWSER2_PROTOCOL   EFI_FORM_BROWSER2_PROTOCOL;
-
-
+typedef struct _EFI_FORM_BROWSER2_PROTOCOL EFI_FORM_BROWSER2_PROTOCOL;
 
 /**
 
@@ -41,24 +38,24 @@ typedef struct _EFI_FORM_BROWSER2_PROTOCOL   EFI_FORM_BROWSER2_PROTOCOL;
                       window will end.
 **/
 typedef struct {
-  UINTN   LeftColumn;
-  UINTN   RightColumn;
-  UINTN   TopRow;
-  UINTN   BottomRow;
+  UINTN    LeftColumn;
+  UINTN    RightColumn;
+  UINTN    TopRow;
+  UINTN    BottomRow;
 } EFI_SCREEN_DESCRIPTOR;
 
 typedef UINTN EFI_BROWSER_ACTION_REQUEST;
 
-#define EFI_BROWSER_ACTION_REQUEST_NONE   0
-#define EFI_BROWSER_ACTION_REQUEST_RESET  1
-#define EFI_BROWSER_ACTION_REQUEST_SUBMIT 2
-#define EFI_BROWSER_ACTION_REQUEST_EXIT   3
-#define EFI_BROWSER_ACTION_REQUEST_FORM_SUBMIT_EXIT  4
-#define EFI_BROWSER_ACTION_REQUEST_FORM_DISCARD_EXIT 5
-#define EFI_BROWSER_ACTION_REQUEST_FORM_APPLY        6
-#define EFI_BROWSER_ACTION_REQUEST_FORM_DISCARD      7
-#define EFI_BROWSER_ACTION_REQUEST_RECONNECT         8
-
+#define EFI_BROWSER_ACTION_REQUEST_NONE               0
+#define EFI_BROWSER_ACTION_REQUEST_RESET              1
+#define EFI_BROWSER_ACTION_REQUEST_SUBMIT             2
+#define EFI_BROWSER_ACTION_REQUEST_EXIT               3
+#define EFI_BROWSER_ACTION_REQUEST_FORM_SUBMIT_EXIT   4
+#define EFI_BROWSER_ACTION_REQUEST_FORM_DISCARD_EXIT  5
+#define EFI_BROWSER_ACTION_REQUEST_FORM_APPLY         6
+#define EFI_BROWSER_ACTION_REQUEST_FORM_DISCARD       7
+#define EFI_BROWSER_ACTION_REQUEST_RECONNECT          8
+#define EFI_BROWSER_ACTION_REQUEST_QUESTION_APPLY     9
 
 /**
   Initialize the browser to display the specified configuration forms.
@@ -102,12 +99,11 @@ EFI_STATUS
   IN CONST  EFI_FORM_BROWSER2_PROTOCOL  *This,
   IN        EFI_HII_HANDLE              *Handle,
   IN        UINTN                      HandleCount,
-  IN        EFI_GUID                   *FormSetGuid, OPTIONAL
-  IN        EFI_FORM_ID                FormId, OPTIONAL
-  IN CONST  EFI_SCREEN_DESCRIPTOR      *ScreenDimensions, OPTIONAL
+  IN        EFI_GUID                   *FormSetGuid  OPTIONAL,
+  IN        EFI_FORM_ID                FormId  OPTIONAL,
+  IN CONST  EFI_SCREEN_DESCRIPTOR      *ScreenDimensions  OPTIONAL,
   OUT       EFI_BROWSER_ACTION_REQUEST *ActionRequest  OPTIONAL
-);
-
+  );
 
 /**
   This function is called by a callback handler to retrieve uncommitted state data from the browser.
@@ -143,9 +139,12 @@ EFI_STATUS
   @retval EFI_SUCCESS           The results have been distributed or are
                                 awaiting distribution.
 
-  @retval EFI_OUT_OF_RESOURCES  The ResultsDataSize specified
+  @retval EFI_BUFFER_TOO_SMALL  The ResultsDataSize specified
                                 was too small to contain the
                                 results data.
+
+  @retval EFI_UNSUPPORTED       Uncommitted browser state is not available
+                                at the current stage of execution.
 
 **/
 typedef
@@ -155,20 +154,19 @@ EFI_STATUS
   IN OUT    UINTN                     *ResultsDataSize,
   IN OUT    EFI_STRING                ResultsData,
   IN CONST  BOOLEAN                   RetrieveData,
-  IN CONST  EFI_GUID                  *VariableGuid, OPTIONAL
+  IN CONST  EFI_GUID                  *VariableGuid  OPTIONAL,
   IN CONST  CHAR16                    *VariableName OPTIONAL
-);
+  );
 
 ///
 /// This interface will allow the caller to direct the configuration
 /// driver to use either the HII database or use the passed-in packet of data.
 ///
 struct _EFI_FORM_BROWSER2_PROTOCOL {
-  EFI_SEND_FORM2         SendForm;
-  EFI_BROWSER_CALLBACK2  BrowserCallback;
-} ;
+  EFI_SEND_FORM2           SendForm;
+  EFI_BROWSER_CALLBACK2    BrowserCallback;
+};
 
-extern EFI_GUID gEfiFormBrowser2ProtocolGuid;
+extern EFI_GUID  gEfiFormBrowser2ProtocolGuid;
 
 #endif
-

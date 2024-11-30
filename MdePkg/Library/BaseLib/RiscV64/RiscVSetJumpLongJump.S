@@ -3,6 +3,7 @@
 // Set/Long jump for RISC-V
 //
 // Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+// Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //
@@ -47,9 +48,5 @@ InternalLongJump:
     REG_L s10, 11*SZREG(a0)
     REG_L s11, 12*SZREG(a0)
     REG_L sp,  13*SZREG(a0)
-
-    add   a0, s0, 0
-    add   a1, s1, 0
-    add   a2, s2, 0
-    add   a3, s3, 0
+    mv    a0, a1
     ret

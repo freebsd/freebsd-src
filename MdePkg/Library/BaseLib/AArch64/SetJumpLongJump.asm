@@ -7,6 +7,7 @@
 
   EXPORT SetJump
   EXPORT InternalLongJump
+  EXTERN InternalAssertJumpBuffer
   AREA BaseLib_LowLevel, CODE, READONLY
 
 #define GPR_LAYOUT                          \
@@ -19,10 +20,10 @@
         REG_ONE  (x16,      #96) /*IP0*/
 
 #define FPR_LAYOUT                       \
-        REG_PAIR ( d8,  d9, #112);       \
-        REG_PAIR (d10, d11, #128);       \
-        REG_PAIR (d12, d13, #144);       \
-        REG_PAIR (d14, d15, #160);
+        REG_PAIR ( d8,  d9, #104);       \
+        REG_PAIR (d10, d11, #120);       \
+        REG_PAIR (d12, d13, #136);       \
+        REG_PAIR (d14, d15, #152);
 
 ;/**
 ;  Saves the current CPU context that can be restored with a call to LongJump() and returns 0.#
@@ -32,7 +33,6 @@
 ;  value to be returned by SetJump().
 ;
 ;  If JumpBuffer is NULL, then ASSERT().
-;  For IPF CPUs, if JumpBuffer is not aligned on a 16-byte boundary, then ASSERT().
 ;
 ;  @param  JumpBuffer    A pointer to CPU context buffer.
 ;
@@ -45,6 +45,14 @@
 ;  );
 ;
 SetJump
+#ifndef MDEPKG_NDEBUG
+        stp     x29, x30, [sp, #-32]!
+        mov     x29, sp
+        str     x0, [sp, #16]
+        bl      InternalAssertJumpBuffer
+        ldr     x0, [sp, #16]
+        ldp     x29, x30, [sp], #32
+#endif
         mov     x16, sp // use IP0 so save SP
 #define REG_PAIR(REG1, REG2, OFFS)      stp REG1, REG2, [x0, OFFS]
 #define REG_ONE(REG1, OFFS)             str REG1, [x0, OFFS]
@@ -52,7 +60,7 @@ SetJump
         FPR_LAYOUT
 #undef REG_PAIR
 #undef REG_ONE
-        mov     w0, #0
+        mov     x0, #0
         ret
 
 ;/**
@@ -60,7 +68,7 @@ SetJump
 ;
 ;  Restores the CPU context from the buffer specified by JumpBuffer.
 ;  This function never returns to the caller.
-;  Instead is resumes execution based on the state of JumpBuffer.
+;  Instead it resumes execution based on the state of JumpBuffer.
 ;
 ;  @param  JumpBuffer    A pointer to CPU context buffer.
 ;  @param  Value         The value to return when the SetJump() context is restored.
@@ -81,10 +89,10 @@ InternalLongJump
 #undef REG_PAIR
 #undef REG_ONE
         mov     sp, x16
-        cmp     w1, #0
-        mov     w0, #1
+        cmp     x1, #0
+        mov     x0, #1
         beq     exit
-        mov     w0, w1
+        mov     x0, x1
 exit
         // use br not ret, as ret is guaranteed to mispredict
         br      x30

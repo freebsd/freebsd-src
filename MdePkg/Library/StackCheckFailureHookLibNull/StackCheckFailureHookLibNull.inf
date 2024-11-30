@@ -1,0 +1,20 @@
+## @file
+#  Library provides a hook called when a stack cookie check fails.
+#
+#  Copyright (c) Microsoft Corporation.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 1.29
+  BASE_NAME                      = StackCheckFailureHookLibNull
+  FILE_GUID                      = 9ca2587c-d1f2-451a-989a-d49a9a0a613e
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = StackCheckFailureHookLib
+
+[Sources]
+  StackCheckFailureHook.c
+
+[Packages]
+  MdePkg/MdePkg.dec

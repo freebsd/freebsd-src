@@ -2,10 +2,11 @@
   This file defines the SPI Host Controller Protocol.
 
   Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-    This Protocol was introduced in UEFI PI Specification 1.6.
+    This Protocol was introduced in UEFI PI Specification 1.8 A.
 
 **/
 
@@ -54,7 +55,7 @@ typedef struct _EFI_SPI_HC_PROTOCOL EFI_SPI_HC_PROTOCOL;
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_SPI_HC_PROTOCOL_CHIP_SELECT) (
+(EFIAPI *EFI_SPI_HC_PROTOCOL_CHIP_SELECT)(
   IN CONST EFI_SPI_HC_PROTOCOL  *This,
   IN CONST EFI_SPI_PERIPHERAL   *SpiPeripheral,
   IN BOOLEAN                    PinValue
@@ -87,7 +88,7 @@ typedef EFI_STATUS
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_SPI_HC_PROTOCOL_CLOCK) (
+(EFIAPI *EFI_SPI_HC_PROTOCOL_CLOCK)(
   IN CONST EFI_SPI_HC_PROTOCOL  *This,
   IN CONST EFI_SPI_PERIPHERAL   *SpiPeripheral,
   IN UINT32                      *ClockHz
@@ -116,11 +117,24 @@ typedef EFI_STATUS
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_SPI_HC_PROTOCOL_TRANSACTION) (
+(EFIAPI *EFI_SPI_HC_PROTOCOL_TRANSACTION)(
   IN CONST EFI_SPI_HC_PROTOCOL  *This,
   IN EFI_SPI_BUS_TRANSACTION    *BusTransaction
   );
 
+///
+/// Definitions of SPI Host Controller Attributes.
+///
+#define HC_SUPPORTS_WRITE_ONLY_OPERATIONS       BIT0
+#define HC_SUPPORTS_READ_ONLY_OPERATIONS        BIT1
+#define HC_SUPPORTS_WRITE_THEN_READ_OPERATIONS  BIT2
+#define HC_TX_FRAME_IN_MOST_SIGNIFICANT_BITS    BIT3
+#define HC_RX_FRAME_IN_MOST_SIGNIFICANT_BITS    BIT4
+#define HC_SUPPORTS_2_BIT_DATA_BUS_WIDTH        BIT5
+#define HC_SUPPORTS_4_BIT_DATA_BUS_WIDTH        BIT6
+#define HC_SUPPORTS_8_BIT_DATA_BUS_WIDTH        BIT7
+#define HC_TRANSFER_SIZE_INCLUDES_OPCODE        BIT8
+#define HC_TRANSFER_SIZE_INCLUDES_ADDRESS       BIT9
 ///
 /// Support a SPI data transaction between the SPI controller and a SPI chip.
 ///
@@ -151,38 +165,38 @@ struct _EFI_SPI_HC_PROTOCOL {
   /// sending) operation.The SPI host controller must support a 1 - bit bus
   /// width.
   ///
-  UINT32                          Attributes;
+  UINT32                             Attributes;
 
   ///
   /// Mask of frame sizes which the SPI host controller supports. Frame size of
   /// N-bits is supported when bit N-1 is set. The host controller must support
   /// a frame size of 8-bits.
   ///
-  UINT32                          FrameSizeSupportMask;
+  UINT32                             FrameSizeSupportMask;
 
   ///
   /// Maximum transfer size in bytes: 1 - Oxffffffff
   ///
-  UINT32                          MaximumTransferBytes;
+  UINT32                             MaximumTransferBytes;
 
   ///
   /// Assert or deassert the SPI chip select.
   ///
-  EFI_SPI_HC_PROTOCOL_CHIP_SELECT ChipSelect;
+  EFI_SPI_HC_PROTOCOL_CHIP_SELECT    ChipSelect;
 
   ///
   /// Set up the clock generator to produce the correct clock frequency, phase
   /// and polarity for a SPI chip.
   ///
-  EFI_SPI_HC_PROTOCOL_CLOCK       Clock;
+  EFI_SPI_HC_PROTOCOL_CLOCK          Clock;
 
   ///
   /// Perform the SPI transaction on the SPI peripheral using the SPI host
   /// controller.
   ///
-  EFI_SPI_HC_PROTOCOL_TRANSACTION Transaction;
+  EFI_SPI_HC_PROTOCOL_TRANSACTION    Transaction;
 };
 
-extern EFI_GUID gEfiSpiHcProtocolGuid;
+extern EFI_GUID  gEfiSpiHcProtocolGuid;
 
 #endif // __SPI_HC_PROTOCOL_H__

@@ -25,9 +25,9 @@
 UINTN
 EFIAPI
 AsmMonitor (
-  IN      UINTN                     RegisterEax,
-  IN      UINTN                     RegisterEcx,
-  IN      UINTN                     RegisterEdx
+  IN      UINTN  RegisterEax,
+  IN      UINTN  RegisterEcx,
+  IN      UINTN  RegisterEdx
   )
 {
   _asm {
@@ -39,4 +39,3 @@ AsmMonitor (
     _emit   0xc8
   }
 }
-

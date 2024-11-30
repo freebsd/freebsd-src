@@ -10,11 +10,12 @@
   Microsoft Visual Studio 7.1 Function Prototypes for I/O Intrinsics.
 **/
 
-long _InterlockedCompareExchange(
-   long volatile * Destination,
-   long Exchange,
-   long Comperand
-);
+long
+_InterlockedCompareExchange (
+  long volatile  *Destination,
+  long           Exchange,
+  long           Comperand
+  );
 
 #pragma intrinsic(_InterlockedCompareExchange)
 
@@ -38,11 +39,10 @@ long _InterlockedCompareExchange(
 UINT32
 EFIAPI
 InternalSyncCompareExchange32 (
-  IN      volatile UINT32           *Value,
-  IN      UINT32                    CompareValue,
-  IN      UINT32                    ExchangeValue
+  IN      volatile UINT32  *Value,
+  IN      UINT32           CompareValue,
+  IN      UINT32           ExchangeValue
   )
 {
   return _InterlockedCompareExchange (Value, ExchangeValue, CompareValue);
 }
-

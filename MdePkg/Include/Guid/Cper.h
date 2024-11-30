@@ -15,34 +15,34 @@
 
 #pragma pack(1)
 
-#define EFI_ERROR_RECORD_SIGNATURE_START   SIGNATURE_32('C', 'P', 'E', 'R')
-#define EFI_ERROR_RECORD_SIGNATURE_END     0xFFFFFFFF
+#define EFI_ERROR_RECORD_SIGNATURE_START  SIGNATURE_32('C', 'P', 'E', 'R')
+#define EFI_ERROR_RECORD_SIGNATURE_END    0xFFFFFFFF
 
-#define EFI_ERROR_RECORD_REVISION          0x0101
+#define EFI_ERROR_RECORD_REVISION  0x0101
 
 ///
 /// Error Severity in Error Record Header and Error Section Descriptor
 ///@{
-#define EFI_GENERIC_ERROR_RECOVERABLE                0x00000000
-#define EFI_GENERIC_ERROR_FATAL                      0x00000001
-#define EFI_GENERIC_ERROR_CORRECTED                  0x00000002
-#define EFI_GENERIC_ERROR_INFO                       0x00000003
+#define EFI_GENERIC_ERROR_RECOVERABLE  0x00000000
+#define EFI_GENERIC_ERROR_FATAL        0x00000001
+#define EFI_GENERIC_ERROR_CORRECTED    0x00000002
+#define EFI_GENERIC_ERROR_INFO         0x00000003
 ///@}
 
 ///
 /// The validation bit mask indicates the validity of the following fields
 /// in Error Record Header.
 ///@{
-#define EFI_ERROR_RECORD_HEADER_PLATFORM_ID_VALID    BIT0
-#define EFI_ERROR_RECORD_HEADER_TIME_STAMP_VALID     BIT1
-#define EFI_ERROR_RECORD_HEADER_PARTITION_ID_VALID   BIT2
+#define EFI_ERROR_RECORD_HEADER_PLATFORM_ID_VALID   BIT0
+#define EFI_ERROR_RECORD_HEADER_TIME_STAMP_VALID    BIT1
+#define EFI_ERROR_RECORD_HEADER_PARTITION_ID_VALID  BIT2
 ///@}
 
 ///
 /// Timestamp is precise if this bit is set and correlates to the time of the
 /// error event.
 ///
-#define EFI_ERROR_TIME_STAMP_PRECISE                 BIT0
+#define EFI_ERROR_TIME_STAMP_PRECISE  BIT0
 
 ///
 /// The timestamp correlates to the time when the error information was collected
@@ -50,14 +50,14 @@
 /// event. The timestamp contains the local time in BCD format.
 ///
 typedef struct {
-  UINT8              Seconds;
-  UINT8              Minutes;
-  UINT8              Hours;
-  UINT8              Flag;
-  UINT8              Day;
-  UINT8              Month;
-  UINT8              Year;
-  UINT8              Century;
+  UINT8    Seconds;
+  UINT8    Minutes;
+  UINT8    Hours;
+  UINT8    Flag;
+  UINT8    Day;
+  UINT8    Month;
+  UINT8    Year;
+  UINT8    Century;
 } EFI_ERROR_TIME_STAMP;
 
 ///
@@ -112,31 +112,31 @@ typedef struct {
 ///
 /// Error Record Header Flags
 ///@{
-#define EFI_HW_ERROR_FLAGS_RECOVERED                 0x00000001
-#define EFI_HW_ERROR_FLAGS_PREVERR                   0x00000002
-#define EFI_HW_ERROR_FLAGS_SIMULATED                 0x00000004
+#define EFI_HW_ERROR_FLAGS_RECOVERED  0x00000001
+#define EFI_HW_ERROR_FLAGS_PREVERR    0x00000002
+#define EFI_HW_ERROR_FLAGS_SIMULATED  0x00000004
 ///@}
 
 ///
 /// Common error record header
 ///
 typedef struct {
-  UINT32               SignatureStart;
-  UINT16               Revision;
-  UINT32               SignatureEnd;
-  UINT16               SectionCount;
-  UINT32               ErrorSeverity;
-  UINT32               ValidationBits;
-  UINT32               RecordLength;
-  EFI_ERROR_TIME_STAMP TimeStamp;
-  EFI_GUID             PlatformID;
-  EFI_GUID             PartitionID;
-  EFI_GUID             CreatorID;
-  EFI_GUID             NotificationType;
-  UINT64               RecordID;
-  UINT32               Flags;
-  UINT64               PersistenceInfo;
-  UINT8                Resv1[12];
+  UINT32                  SignatureStart;
+  UINT16                  Revision;
+  UINT32                  SignatureEnd;
+  UINT16                  SectionCount;
+  UINT32                  ErrorSeverity;
+  UINT32                  ValidationBits;
+  UINT32                  RecordLength;
+  EFI_ERROR_TIME_STAMP    TimeStamp;
+  EFI_GUID                PlatformID;
+  EFI_GUID                PartitionID;
+  EFI_GUID                CreatorID;
+  EFI_GUID                NotificationType;
+  UINT64                  RecordID;
+  UINT32                  Flags;
+  UINT64                  PersistenceInfo;
+  UINT8                   Resv1[12];
   ///
   /// An array of SectionCount descriptors for the associated
   /// sections. The number of valid sections is equivalent to the
@@ -151,19 +151,19 @@ typedef struct {
 ///
 /// Validity Fields in Error Section Descriptor.
 ///
-#define EFI_ERROR_SECTION_FRU_ID_VALID               BIT0
-#define EFI_ERROR_SECTION_FRU_STRING_VALID           BIT1
+#define EFI_ERROR_SECTION_FRU_ID_VALID      BIT0
+#define EFI_ERROR_SECTION_FRU_STRING_VALID  BIT1
 
 ///
 /// Flag field contains information that describes the error section
 /// in Error Section Descriptor.
 ///
-#define EFI_ERROR_SECTION_FLAGS_PRIMARY                        BIT0
-#define EFI_ERROR_SECTION_FLAGS_CONTAINMENT_WARNING            BIT1
-#define EFI_ERROR_SECTION_FLAGS_RESET                          BIT2
-#define EFI_ERROR_SECTION_FLAGS_ERROR_THRESHOLD_EXCEEDED       BIT3
-#define EFI_ERROR_SECTION_FLAGS_RESOURCE_NOT_ACCESSIBLE        BIT4
-#define EFI_ERROR_SECTION_FLAGS_LATENT_ERROR                   BIT5
+#define EFI_ERROR_SECTION_FLAGS_PRIMARY                   BIT0
+#define EFI_ERROR_SECTION_FLAGS_CONTAINMENT_WARNING       BIT1
+#define EFI_ERROR_SECTION_FLAGS_RESET                     BIT2
+#define EFI_ERROR_SECTION_FLAGS_ERROR_THRESHOLD_EXCEEDED  BIT3
+#define EFI_ERROR_SECTION_FLAGS_RESOURCE_NOT_ACCESSIBLE   BIT4
+#define EFI_ERROR_SECTION_FLAGS_LATENT_ERROR              BIT5
 
 ///
 /// Error Sectition Type GUIDs in Error Section Descriptor
@@ -226,83 +226,83 @@ typedef struct {
 /// Error Section Descriptor
 ///
 typedef struct {
-  UINT32                 SectionOffset;
-  UINT32                 SectionLength;
-  UINT16                 Revision;
-  UINT8                  SecValidMask;
-  UINT8                  Resv1;
-  UINT32                 SectionFlags;
-  EFI_GUID               SectionType;
-  EFI_GUID               FruId;
-  UINT32                 Severity;
-  CHAR8                  FruString[20];
+  UINT32      SectionOffset;
+  UINT32      SectionLength;
+  UINT16      Revision;
+  UINT8       SecValidMask;
+  UINT8       Resv1;
+  UINT32      SectionFlags;
+  EFI_GUID    SectionType;
+  EFI_GUID    FruId;
+  UINT32      Severity;
+  CHAR8       FruString[20];
 } EFI_ERROR_SECTION_DESCRIPTOR;
 
 ///
 /// The validation bit mask indicates whether or not each of the following fields are
 /// valid in Proessor Generic Error section.
 ///@{
-#define EFI_GENERIC_ERROR_PROC_TYPE_VALID            BIT0
-#define EFI_GENERIC_ERROR_PROC_ISA_VALID             BIT1
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_VALID      BIT2
-#define EFI_GENERIC_ERROR_PROC_OPERATION_VALID       BIT3
-#define EFI_GENERIC_ERROR_PROC_FLAGS_VALID           BIT4
-#define EFI_GENERIC_ERROR_PROC_LEVEL_VALID           BIT5
-#define EFI_GENERIC_ERROR_PROC_VERSION_VALID         BIT6
-#define EFI_GENERIC_ERROR_PROC_BRAND_VALID           BIT7
-#define EFI_GENERIC_ERROR_PROC_ID_VALID              BIT8
-#define EFI_GENERIC_ERROR_PROC_TARGET_ADDR_VALID     BIT9
-#define EFI_GENERIC_ERROR_PROC_REQUESTER_ID_VALID    BIT10
-#define EFI_GENERIC_ERROR_PROC_RESPONDER_ID_VALID    BIT11
-#define EFI_GENERIC_ERROR_PROC_INST_IP_VALID         BIT12
+#define EFI_GENERIC_ERROR_PROC_TYPE_VALID          BIT0
+#define EFI_GENERIC_ERROR_PROC_ISA_VALID           BIT1
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_VALID    BIT2
+#define EFI_GENERIC_ERROR_PROC_OPERATION_VALID     BIT3
+#define EFI_GENERIC_ERROR_PROC_FLAGS_VALID         BIT4
+#define EFI_GENERIC_ERROR_PROC_LEVEL_VALID         BIT5
+#define EFI_GENERIC_ERROR_PROC_VERSION_VALID       BIT6
+#define EFI_GENERIC_ERROR_PROC_BRAND_VALID         BIT7
+#define EFI_GENERIC_ERROR_PROC_ID_VALID            BIT8
+#define EFI_GENERIC_ERROR_PROC_TARGET_ADDR_VALID   BIT9
+#define EFI_GENERIC_ERROR_PROC_REQUESTER_ID_VALID  BIT10
+#define EFI_GENERIC_ERROR_PROC_RESPONDER_ID_VALID  BIT11
+#define EFI_GENERIC_ERROR_PROC_INST_IP_VALID       BIT12
 ///@}
 
 ///
 /// The type of the processor architecture in Proessor Generic Error section.
 ///@{
-#define EFI_GENERIC_ERROR_PROC_TYPE_IA32_X64         0x00
-#define EFI_GENERIC_ERROR_PROC_TYPE_IA64             0x01
-#define EFI_GENERIC_ERROR_PROC_TYPE_ARM              0x02
+#define EFI_GENERIC_ERROR_PROC_TYPE_IA32_X64  0x00
+#define EFI_GENERIC_ERROR_PROC_TYPE_IA64      0x01
+#define EFI_GENERIC_ERROR_PROC_TYPE_ARM       0x02
 ///@}
 
 ///
 /// The type of the instruction set executing when the error occurred in Proessor
 /// Generic Error section.
 ///@{
-#define EFI_GENERIC_ERROR_PROC_ISA_IA32              0x00
-#define EFI_GENERIC_ERROR_PROC_ISA_IA64              0x01
-#define EFI_GENERIC_ERROR_PROC_ISA_X64               0x02
-#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A32_T32       0x03
-#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A64           0x04
+#define EFI_GENERIC_ERROR_PROC_ISA_IA32         0x00
+#define EFI_GENERIC_ERROR_PROC_ISA_IA64         0x01
+#define EFI_GENERIC_ERROR_PROC_ISA_X64          0x02
+#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A32_T32  0x03
+#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A64      0x04
 ///@}
 
 ///
 /// The type of error that occurred in Proessor Generic Error section.
 ///@{
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_UNKNOWN    0x00
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_CACHE      0x01
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_TLB        0x02
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_BUS        0x04
-#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_MICRO_ARCH 0x08
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_UNKNOWN     0x00
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_CACHE       0x01
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_TLB         0x02
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_BUS         0x04
+#define EFI_GENERIC_ERROR_PROC_ERROR_TYPE_MICRO_ARCH  0x08
 ///@}
 
 ///
 /// The type of operation in Proessor Generic Error section.
 ///@{
-#define EFI_GENERIC_ERROR_PROC_OPERATION_GENERIC               0x00
-#define EFI_GENERIC_ERROR_PROC_OPERATION_DATA_READ             0x01
-#define EFI_GENERIC_ERROR_PROC_OPERATION_DATA_WRITE            0x02
-#define EFI_GENERIC_ERROR_PROC_OPERATION_INSTRUCTION_EXEC      0x03
+#define EFI_GENERIC_ERROR_PROC_OPERATION_GENERIC           0x00
+#define EFI_GENERIC_ERROR_PROC_OPERATION_DATA_READ         0x01
+#define EFI_GENERIC_ERROR_PROC_OPERATION_DATA_WRITE        0x02
+#define EFI_GENERIC_ERROR_PROC_OPERATION_INSTRUCTION_EXEC  0x03
 ///@}
 
 ///
 /// Flags bit mask indicates additional information about the error in Proessor Generic
 /// Error section
 ///@{
-#define EFI_GENERIC_ERROR_PROC_FLAGS_RESTARTABLE     BIT0
-#define EFI_GENERIC_ERROR_PROC_FLAGS_PRECISE_IP      BIT1
-#define EFI_GENERIC_ERROR_PROC_FLAGS_OVERFLOW        BIT2
-#define EFI_GENERIC_ERROR_PROC_FLAGS_CORRECTED       BIT3
+#define EFI_GENERIC_ERROR_PROC_FLAGS_RESTARTABLE  BIT0
+#define EFI_GENERIC_ERROR_PROC_FLAGS_PRECISE_IP   BIT1
+#define EFI_GENERIC_ERROR_PROC_FLAGS_OVERFLOW     BIT2
+#define EFI_GENERIC_ERROR_PROC_FLAGS_CORRECTED    BIT3
 ///@}
 
 ///
@@ -310,23 +310,22 @@ typedef struct {
 /// describes processor reported hardware errors for logical processors in the system.
 ///
 typedef struct {
-  UINT64             ValidFields;
-  UINT8              Type;
-  UINT8              Isa;
-  UINT8              ErrorType;
-  UINT8              Operation;
-  UINT8              Flags;
-  UINT8              Level;
-  UINT16             Resv1;
-  UINT64             VersionInfo;
-  CHAR8              BrandString[128];
-  UINT64             ApicId;
-  UINT64             TargetAddr;
-  UINT64             RequestorId;
-  UINT64             ResponderId;
-  UINT64             InstructionIP;
+  UINT64    ValidFields;
+  UINT8     Type;
+  UINT8     Isa;
+  UINT8     ErrorType;
+  UINT8     Operation;
+  UINT8     Flags;
+  UINT8     Level;
+  UINT16    Resv1;
+  UINT64    VersionInfo;
+  CHAR8     BrandString[128];
+  UINT64    ApicId;
+  UINT64    TargetAddr;
+  UINT64    RequestorId;
+  UINT64    ResponderId;
+  UINT64    InstructionIP;
 } EFI_PROCESSOR_GENERIC_ERROR_DATA;
-
 
 #if defined (MDE_CPU_IA32) || defined (MDE_CPU_X64)
 ///
@@ -359,278 +358,278 @@ typedef struct {
 /// The validation bit mask indicates which fields in the IA32/X64 Processor
 /// Error Record structure are valid.
 ///@{
-#define EFI_IA32_X64_PROCESSOR_ERROR_APIC_ID_VALID         BIT0
-#define EFI_IA32_X64_PROCESSOR_ERROR_CPU_ID_INFO_VALID     BIT1
+#define EFI_IA32_X64_PROCESSOR_ERROR_APIC_ID_VALID      BIT0
+#define EFI_IA32_X64_PROCESSOR_ERROR_CPU_ID_INFO_VALID  BIT1
 ///@}
 
 ///
 /// IA32/X64 Processor Error Record
 ///
 typedef struct {
-  UINT64             ValidFields;
-  UINT64             ApicId;
-  UINT8              CpuIdInfo[48];
+  UINT64    ValidFields;
+  UINT64    ApicId;
+  UINT8     CpuIdInfo[48];
 } EFI_IA32_X64_PROCESSOR_ERROR_RECORD;
 
 ///
 /// The validation bit mask indicates which fields in the Cache Check structure
 /// are valid.
 ///@{
-#define EFI_CACHE_CHECK_TRANSACTION_TYPE_VALID       BIT0
-#define EFI_CACHE_CHECK_OPERATION_VALID              BIT1
-#define EFI_CACHE_CHECK_LEVEL_VALID                  BIT2
-#define EFI_CACHE_CHECK_CONTEXT_CORRUPT_VALID        BIT3
-#define EFI_CACHE_CHECK_UNCORRECTED_VALID            BIT4
-#define EFI_CACHE_CHECK_PRECISE_IP_VALID             BIT5
-#define EFI_CACHE_CHECK_RESTARTABLE_VALID            BIT6
-#define EFI_CACHE_CHECK_OVERFLOW_VALID               BIT7
+#define EFI_CACHE_CHECK_TRANSACTION_TYPE_VALID  BIT0
+#define EFI_CACHE_CHECK_OPERATION_VALID         BIT1
+#define EFI_CACHE_CHECK_LEVEL_VALID             BIT2
+#define EFI_CACHE_CHECK_CONTEXT_CORRUPT_VALID   BIT3
+#define EFI_CACHE_CHECK_UNCORRECTED_VALID       BIT4
+#define EFI_CACHE_CHECK_PRECISE_IP_VALID        BIT5
+#define EFI_CACHE_CHECK_RESTARTABLE_VALID       BIT6
+#define EFI_CACHE_CHECK_OVERFLOW_VALID          BIT7
 ///@}
 
 ///
 /// Type of cache error in the Cache Check structure
 ///@{
-#define EFI_CACHE_CHECK_ERROR_TYPE_INSTRUCTION       0
-#define EFI_CACHE_CHECK_ERROR_TYPE_DATA_ACCESS       1
-#define EFI_CACHE_CHECK_ERROR_TYPE_GENERIC           2
+#define EFI_CACHE_CHECK_ERROR_TYPE_INSTRUCTION  0
+#define EFI_CACHE_CHECK_ERROR_TYPE_DATA_ACCESS  1
+#define EFI_CACHE_CHECK_ERROR_TYPE_GENERIC      2
 ///@}
 
 ///
 /// Type of cache operation that caused the error in the Cache
 /// Check structure
 ///@{
-#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC                 0
-#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC_READ            1
-#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC_WRITE           2
-#define EFI_CACHE_CHECK_OPERATION_TYPE_DATA_READ               3
-#define EFI_CACHE_CHECK_OPERATION_TYPE_DATA_WRITE              4
-#define EFI_CACHE_CHECK_OPERATION_TYPE_INSTRUCTION_FETCH       5
-#define EFI_CACHE_CHECK_OPERATION_TYPE_PREFETCH                6
-#define EFI_CACHE_CHECK_OPERATION_TYPE_EVICTION                7
-#define EFI_CACHE_CHECK_OPERATION_TYPE_SNOOP                   8
+#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC            0
+#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC_READ       1
+#define EFI_CACHE_CHECK_OPERATION_TYPE_GENERIC_WRITE      2
+#define EFI_CACHE_CHECK_OPERATION_TYPE_DATA_READ          3
+#define EFI_CACHE_CHECK_OPERATION_TYPE_DATA_WRITE         4
+#define EFI_CACHE_CHECK_OPERATION_TYPE_INSTRUCTION_FETCH  5
+#define EFI_CACHE_CHECK_OPERATION_TYPE_PREFETCH           6
+#define EFI_CACHE_CHECK_OPERATION_TYPE_EVICTION           7
+#define EFI_CACHE_CHECK_OPERATION_TYPE_SNOOP              8
 ///@}
 
 ///
 /// IA32/X64 Cache Check Structure
 ///
 typedef struct {
-  UINT64             ValidFields:16;
-  UINT64             TransactionType:2;
-  UINT64             Operation:4;
-  UINT64             Level:3;
-  UINT64             ContextCorrupt:1;
-  UINT64             ErrorUncorrected:1;
-  UINT64             PreciseIp:1;
-  UINT64             RestartableIp:1;
-  UINT64             Overflow:1;
-  UINT64             Resv1:34;
+  UINT64    ValidFields      : 16;
+  UINT64    TransactionType  : 2;
+  UINT64    Operation        : 4;
+  UINT64    Level            : 3;
+  UINT64    ContextCorrupt   : 1;
+  UINT64    ErrorUncorrected : 1;
+  UINT64    PreciseIp        : 1;
+  UINT64    RestartableIp    : 1;
+  UINT64    Overflow         : 1;
+  UINT64    Resv1            : 34;
 } EFI_IA32_X64_CACHE_CHECK_INFO;
 
 ///
 /// The validation bit mask indicates which fields in the TLB Check structure
 /// are valid.
 ///@{
-#define EFI_TLB_CHECK_TRANSACTION_TYPE_VALID         BIT0
-#define EFI_TLB_CHECK_OPERATION_VALID                BIT1
-#define EFI_TLB_CHECK_LEVEL_VALID                    BIT2
-#define EFI_TLB_CHECK_CONTEXT_CORRUPT_VALID          BIT3
-#define EFI_TLB_CHECK_UNCORRECTED_VALID              BIT4
-#define EFI_TLB_CHECK_PRECISE_IP_VALID               BIT5
-#define EFI_TLB_CHECK_RESTARTABLE_VALID              BIT6
-#define EFI_TLB_CHECK_OVERFLOW_VALID                 BIT7
+#define EFI_TLB_CHECK_TRANSACTION_TYPE_VALID  BIT0
+#define EFI_TLB_CHECK_OPERATION_VALID         BIT1
+#define EFI_TLB_CHECK_LEVEL_VALID             BIT2
+#define EFI_TLB_CHECK_CONTEXT_CORRUPT_VALID   BIT3
+#define EFI_TLB_CHECK_UNCORRECTED_VALID       BIT4
+#define EFI_TLB_CHECK_PRECISE_IP_VALID        BIT5
+#define EFI_TLB_CHECK_RESTARTABLE_VALID       BIT6
+#define EFI_TLB_CHECK_OVERFLOW_VALID          BIT7
 ///@}
 
 ///
 /// Type of cache error in the TLB Check structure
 ///@{
-#define EFI_TLB_CHECK_ERROR_TYPE_INSTRUCTION         0
-#define EFI_TLB_CHECK_ERROR_TYPE_DATA_ACCESS         1
-#define EFI_TLB_CHECK_ERROR_TYPE_GENERIC             2
+#define EFI_TLB_CHECK_ERROR_TYPE_INSTRUCTION  0
+#define EFI_TLB_CHECK_ERROR_TYPE_DATA_ACCESS  1
+#define EFI_TLB_CHECK_ERROR_TYPE_GENERIC      2
 ///@}
 
 ///
 /// Type of cache operation that caused the error in the TLB
 /// Check structure
 ///@{
-#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC         0
-#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC_READ    1
-#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC_WRITE   2
-#define EFI_TLB_CHECK_OPERATION_TYPE_DATA_READ       3
-#define EFI_TLB_CHECK_OPERATION_TYPE_DATA_WRITE      4
-#define EFI_TLB_CHECK_OPERATION_TYPE_INST_FETCH      5
-#define EFI_TLB_CHECK_OPERATION_TYPE_PREFETCH        6
+#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC        0
+#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC_READ   1
+#define EFI_TLB_CHECK_OPERATION_TYPE_GENERIC_WRITE  2
+#define EFI_TLB_CHECK_OPERATION_TYPE_DATA_READ      3
+#define EFI_TLB_CHECK_OPERATION_TYPE_DATA_WRITE     4
+#define EFI_TLB_CHECK_OPERATION_TYPE_INST_FETCH     5
+#define EFI_TLB_CHECK_OPERATION_TYPE_PREFETCH       6
 ///@}
 
 ///
 /// IA32/X64 TLB Check Structure
 ///
 typedef struct {
-  UINT64             ValidFields:16;
-  UINT64             TransactionType:2;
-  UINT64             Operation:4;
-  UINT64             Level:3;
-  UINT64             ContextCorrupt:1;
-  UINT64             ErrorUncorrected:1;
-  UINT64             PreciseIp:1;
-  UINT64             RestartableIp:1;
-  UINT64             Overflow:1;
-  UINT64             Resv1:34;
+  UINT64    ValidFields      : 16;
+  UINT64    TransactionType  : 2;
+  UINT64    Operation        : 4;
+  UINT64    Level            : 3;
+  UINT64    ContextCorrupt   : 1;
+  UINT64    ErrorUncorrected : 1;
+  UINT64    PreciseIp        : 1;
+  UINT64    RestartableIp    : 1;
+  UINT64    Overflow         : 1;
+  UINT64    Resv1            : 34;
 } EFI_IA32_X64_TLB_CHECK_INFO;
 
 ///
 /// The validation bit mask indicates which fields in the MS Check structure
 /// are valid.
 ///@{
-#define EFI_BUS_CHECK_TRANSACTION_TYPE_VALID         BIT0
-#define EFI_BUS_CHECK_OPERATION_VALID                BIT1
-#define EFI_BUS_CHECK_LEVEL_VALID                    BIT2
-#define EFI_BUS_CHECK_CONTEXT_CORRUPT_VALID          BIT3
-#define EFI_BUS_CHECK_UNCORRECTED_VALID              BIT4
-#define EFI_BUS_CHECK_PRECISE_IP_VALID               BIT5
-#define EFI_BUS_CHECK_RESTARTABLE_VALID              BIT6
-#define EFI_BUS_CHECK_OVERFLOW_VALID                 BIT7
-#define EFI_BUS_CHECK_PARTICIPATION_TYPE_VALID       BIT8
-#define EFI_BUS_CHECK_TIME_OUT_VALID                 BIT9
-#define EFI_BUS_CHECK_ADDRESS_SPACE_VALID            BIT10
+#define EFI_BUS_CHECK_TRANSACTION_TYPE_VALID    BIT0
+#define EFI_BUS_CHECK_OPERATION_VALID           BIT1
+#define EFI_BUS_CHECK_LEVEL_VALID               BIT2
+#define EFI_BUS_CHECK_CONTEXT_CORRUPT_VALID     BIT3
+#define EFI_BUS_CHECK_UNCORRECTED_VALID         BIT4
+#define EFI_BUS_CHECK_PRECISE_IP_VALID          BIT5
+#define EFI_BUS_CHECK_RESTARTABLE_VALID         BIT6
+#define EFI_BUS_CHECK_OVERFLOW_VALID            BIT7
+#define EFI_BUS_CHECK_PARTICIPATION_TYPE_VALID  BIT8
+#define EFI_BUS_CHECK_TIME_OUT_VALID            BIT9
+#define EFI_BUS_CHECK_ADDRESS_SPACE_VALID       BIT10
 ///@}
 
 ///
 /// Type of cache error in the Bus Check structure
 ///@{
-#define EFI_BUS_CHECK_ERROR_TYPE_INSTRUCTION         0
-#define EFI_BUS_CHECK_ERROR_TYPE_DATA_ACCESS         1
-#define EFI_BUS_CHECK_ERROR_TYPE_GENERIC             2
+#define EFI_BUS_CHECK_ERROR_TYPE_INSTRUCTION  0
+#define EFI_BUS_CHECK_ERROR_TYPE_DATA_ACCESS  1
+#define EFI_BUS_CHECK_ERROR_TYPE_GENERIC      2
 ///@}
 
 ///
 /// Type of cache operation that caused the error in the Bus
 /// Check structure
 ///@{
-#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC         0
-#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC_READ    1
-#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC_WRITE   2
-#define EFI_BUS_CHECK_OPERATION_TYPE_DATA_READ       3
-#define EFI_BUS_CHECK_OPERATION_TYPE_DATA_WRITE      4
-#define EFI_BUS_CHECK_OPERATION_TYPE_INST_FETCH      5
-#define EFI_BUS_CHECK_OPERATION_TYPE_PREFETCH        6
+#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC        0
+#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC_READ   1
+#define EFI_BUS_CHECK_OPERATION_TYPE_GENERIC_WRITE  2
+#define EFI_BUS_CHECK_OPERATION_TYPE_DATA_READ      3
+#define EFI_BUS_CHECK_OPERATION_TYPE_DATA_WRITE     4
+#define EFI_BUS_CHECK_OPERATION_TYPE_INST_FETCH     5
+#define EFI_BUS_CHECK_OPERATION_TYPE_PREFETCH       6
 ///@}
 
 ///
 /// Type of Participation
 ///@{
-#define EFI_BUS_CHECK_PARTICIPATION_TYPE_REQUEST     0
-#define EFI_BUS_CHECK_PARTICIPATION_TYPE_RESPONDED   1
-#define EFI_BUS_CHECK_PARTICIPATION_TYPE_OBSERVED    2
-#define EFI_BUS_CHECK_PARTICIPATION_TYPE_GENERIC     3
+#define EFI_BUS_CHECK_PARTICIPATION_TYPE_REQUEST    0
+#define EFI_BUS_CHECK_PARTICIPATION_TYPE_RESPONDED  1
+#define EFI_BUS_CHECK_PARTICIPATION_TYPE_OBSERVED   2
+#define EFI_BUS_CHECK_PARTICIPATION_TYPE_GENERIC    3
 ///@}
 
 ///
 /// Type of Address Space
 ///@{
-#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_MEMORY      0
-#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_RESERVED    1
-#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_IO          2
-#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_OTHER       3
+#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_MEMORY    0
+#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_RESERVED  1
+#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_IO        2
+#define EFI_BUS_CHECK_ADDRESS_SPACE_TYPE_OTHER     3
 ///@}
 
 ///
 /// IA32/X64 Bus Check Structure
 ///
 typedef struct {
-  UINT64             ValidFields:16;
-  UINT64             TransactionType:2;
-  UINT64             Operation:4;
-  UINT64             Level:3;
-  UINT64             ContextCorrupt:1;
-  UINT64             ErrorUncorrected:1;
-  UINT64             PreciseIp:1;
-  UINT64             RestartableIp:1;
-  UINT64             Overflow:1;
-  UINT64             ParticipationType:2;
-  UINT64             TimeOut:1;
-  UINT64             AddressSpace:2;
-  UINT64             Resv1:29;
+  UINT64    ValidFields       : 16;
+  UINT64    TransactionType   : 2;
+  UINT64    Operation         : 4;
+  UINT64    Level             : 3;
+  UINT64    ContextCorrupt    : 1;
+  UINT64    ErrorUncorrected  : 1;
+  UINT64    PreciseIp         : 1;
+  UINT64    RestartableIp     : 1;
+  UINT64    Overflow          : 1;
+  UINT64    ParticipationType : 2;
+  UINT64    TimeOut           : 1;
+  UINT64    AddressSpace      : 2;
+  UINT64    Resv1             : 29;
 } EFI_IA32_X64_BUS_CHECK_INFO;
 
 ///
 /// The validation bit mask indicates which fields in the MS Check structure
 /// are valid.
 ///@{
-#define EFI_MS_CHECK_ERROR_TYPE_VALID                BIT0
-#define EFI_MS_CHECK_CONTEXT_CORRUPT_VALID           BIT1
-#define EFI_MS_CHECK_UNCORRECTED_VALID               BIT2
-#define EFI_MS_CHECK_PRECISE_IP_VALID                BIT3
-#define EFI_MS_CHECK_RESTARTABLE_VALID               BIT4
-#define EFI_MS_CHECK_OVERFLOW_VALID                  BIT5
+#define EFI_MS_CHECK_ERROR_TYPE_VALID       BIT0
+#define EFI_MS_CHECK_CONTEXT_CORRUPT_VALID  BIT1
+#define EFI_MS_CHECK_UNCORRECTED_VALID      BIT2
+#define EFI_MS_CHECK_PRECISE_IP_VALID       BIT3
+#define EFI_MS_CHECK_RESTARTABLE_VALID      BIT4
+#define EFI_MS_CHECK_OVERFLOW_VALID         BIT5
 ///@}
 
 ///
 /// Error type identifies the operation that caused the error.
 ///@{
-#define EFI_MS_CHECK_ERROR_TYPE_NO                             0
-#define EFI_MS_CHECK_ERROR_TYPE_UNCLASSIFIED                   1
-#define EFI_MS_CHECK_ERROR_TYPE_MICROCODE_PARITY               2
-#define EFI_MS_CHECK_ERROR_TYPE_EXTERNAL                       3
-#define EFI_MS_CHECK_ERROR_TYPE_FRC                            4
-#define EFI_MS_CHECK_ERROR_TYPE_INTERNAL_UNCLASSIFIED          5
+#define EFI_MS_CHECK_ERROR_TYPE_NO                     0
+#define EFI_MS_CHECK_ERROR_TYPE_UNCLASSIFIED           1
+#define EFI_MS_CHECK_ERROR_TYPE_MICROCODE_PARITY       2
+#define EFI_MS_CHECK_ERROR_TYPE_EXTERNAL               3
+#define EFI_MS_CHECK_ERROR_TYPE_FRC                    4
+#define EFI_MS_CHECK_ERROR_TYPE_INTERNAL_UNCLASSIFIED  5
 ///@}
 
 ///
 /// IA32/X64 MS Check Field Description
 ///
 typedef struct {
-  UINT64             ValidFields:16;
-  UINT64             ErrorType:3;
-  UINT64             ContextCorrupt:1;
-  UINT64             ErrorUncorrected:1;
-  UINT64             PreciseIp:1;
-  UINT64             RestartableIp:1;
-  UINT64             Overflow:1;
-  UINT64             Resv1:40;
+  UINT64    ValidFields      : 16;
+  UINT64    ErrorType        : 3;
+  UINT64    ContextCorrupt   : 1;
+  UINT64    ErrorUncorrected : 1;
+  UINT64    PreciseIp        : 1;
+  UINT64    RestartableIp    : 1;
+  UINT64    Overflow         : 1;
+  UINT64    Resv1            : 40;
 } EFI_IA32_X64_MS_CHECK_INFO;
 
 ///
 /// IA32/X64 Check Information Item
 ///
 typedef union {
-  EFI_IA32_X64_CACHE_CHECK_INFO  CacheCheck;
-  EFI_IA32_X64_TLB_CHECK_INFO    TlbCheck;
-  EFI_IA32_X64_BUS_CHECK_INFO    BusCheck;
-  EFI_IA32_X64_MS_CHECK_INFO     MsCheck;
-  UINT64                         Data64;
+  EFI_IA32_X64_CACHE_CHECK_INFO    CacheCheck;
+  EFI_IA32_X64_TLB_CHECK_INFO      TlbCheck;
+  EFI_IA32_X64_BUS_CHECK_INFO      BusCheck;
+  EFI_IA32_X64_MS_CHECK_INFO       MsCheck;
+  UINT64                           Data64;
 } EFI_IA32_X64_CHECK_INFO_ITEM;
 
 ///
 /// The validation bit mask indicates which fields in the IA32/X64 Processor Error
 /// Information Structure are valid.
 ///@{
-#define EFI_IA32_X64_ERROR_PROC_CHECK_INFO_VALID       BIT0
-#define EFI_IA32_X64_ERROR_PROC_TARGET_ADDR_VALID      BIT1
-#define EFI_IA32_X64_ERROR_PROC_REQUESTER_ID_VALID     BIT2
-#define EFI_IA32_X64_ERROR_PROC_RESPONDER_ID_VALID     BIT3
-#define EFI_IA32_X64_ERROR_PROC_INST_IP_VALID          BIT4
+#define EFI_IA32_X64_ERROR_PROC_CHECK_INFO_VALID    BIT0
+#define EFI_IA32_X64_ERROR_PROC_TARGET_ADDR_VALID   BIT1
+#define EFI_IA32_X64_ERROR_PROC_REQUESTER_ID_VALID  BIT2
+#define EFI_IA32_X64_ERROR_PROC_RESPONDER_ID_VALID  BIT3
+#define EFI_IA32_X64_ERROR_PROC_INST_IP_VALID       BIT4
 ///@}
 
 ///
 /// IA32/X64 Processor Error Information Structure
 ///
 typedef struct {
-  EFI_GUID                     ErrorType;
-  UINT64                       ValidFields;
-  EFI_IA32_X64_CHECK_INFO_ITEM CheckInfo;
-  UINT64                       TargetId;
-  UINT64                       RequestorId;
-  UINT64                       ResponderId;
-  UINT64                       InstructionIP;
+  EFI_GUID                        ErrorType;
+  UINT64                          ValidFields;
+  EFI_IA32_X64_CHECK_INFO_ITEM    CheckInfo;
+  UINT64                          TargetId;
+  UINT64                          RequestorId;
+  UINT64                          ResponderId;
+  UINT64                          InstructionIP;
 } EFI_IA32_X64_PROCESS_ERROR_INFO;
 
 ///
 /// IA32/X64 Processor Context Information Structure
 ///
 typedef struct {
-  UINT16             RegisterType;
-  UINT16             ArraySize;
-  UINT32             MsrAddress;
-  UINT64             MmRegisterAddress;
+  UINT16    RegisterType;
+  UINT16    ArraySize;
+  UINT32    MsrAddress;
+  UINT64    MmRegisterAddress;
   //
   // This field will provide the contents of the actual registers or raw data.
   // The number of Registers or size of the raw data reported is determined
@@ -642,85 +641,85 @@ typedef struct {
 ///
 /// Register Context Type
 ///@{
-#define EFI_REG_CONTEXT_TYPE_UNCLASSIFIED            0x0000
-#define EFI_REG_CONTEXT_TYPE_MSR                     0x0001
-#define EFI_REG_CONTEXT_TYPE_IA32                    0x0002
-#define EFI_REG_CONTEXT_TYPE_X64                     0x0003
-#define EFI_REG_CONTEXT_TYPE_FXSAVE                  0x0004
-#define EFI_REG_CONTEXT_TYPE_DR_IA32                 0x0005
-#define EFI_REG_CONTEXT_TYPE_DR_X64                  0x0006
-#define EFI_REG_CONTEXT_TYPE_MEM_MAP                 0x0007
+#define EFI_REG_CONTEXT_TYPE_UNCLASSIFIED  0x0000
+#define EFI_REG_CONTEXT_TYPE_MSR           0x0001
+#define EFI_REG_CONTEXT_TYPE_IA32          0x0002
+#define EFI_REG_CONTEXT_TYPE_X64           0x0003
+#define EFI_REG_CONTEXT_TYPE_FXSAVE        0x0004
+#define EFI_REG_CONTEXT_TYPE_DR_IA32       0x0005
+#define EFI_REG_CONTEXT_TYPE_DR_X64        0x0006
+#define EFI_REG_CONTEXT_TYPE_MEM_MAP       0x0007
 ///@}
 
 ///
 /// IA32 Register State
 ///
 typedef struct {
-  UINT32             Eax;
-  UINT32             Ebx;
-  UINT32             Ecx;
-  UINT32             Edx;
-  UINT32             Esi;
-  UINT32             Edi;
-  UINT32             Ebp;
-  UINT32             Esp;
-  UINT16             Cs;
-  UINT16             Ds;
-  UINT16             Ss;
-  UINT16             Es;
-  UINT16             Fs;
-  UINT16             Gs;
-  UINT32             Eflags;
-  UINT32             Eip;
-  UINT32             Cr0;
-  UINT32             Cr1;
-  UINT32             Cr2;
-  UINT32             Cr3;
-  UINT32             Cr4;
-  UINT32             Gdtr[2];
-  UINT32             Idtr[2];
-  UINT16             Ldtr;
-  UINT16             Tr;
+  UINT32    Eax;
+  UINT32    Ebx;
+  UINT32    Ecx;
+  UINT32    Edx;
+  UINT32    Esi;
+  UINT32    Edi;
+  UINT32    Ebp;
+  UINT32    Esp;
+  UINT16    Cs;
+  UINT16    Ds;
+  UINT16    Ss;
+  UINT16    Es;
+  UINT16    Fs;
+  UINT16    Gs;
+  UINT32    Eflags;
+  UINT32    Eip;
+  UINT32    Cr0;
+  UINT32    Cr1;
+  UINT32    Cr2;
+  UINT32    Cr3;
+  UINT32    Cr4;
+  UINT32    Gdtr[2];
+  UINT32    Idtr[2];
+  UINT16    Ldtr;
+  UINT16    Tr;
 } EFI_CONTEXT_IA32_REGISTER_STATE;
 
 ///
 /// X64 Register State
 ///
 typedef struct {
-  UINT64             Rax;
-  UINT64             Rbx;
-  UINT64             Rcx;
-  UINT64             Rdx;
-  UINT64             Rsi;
-  UINT64             Rdi;
-  UINT64             Rbp;
-  UINT64             Rsp;
-  UINT64             R8;
-  UINT64             R9;
-  UINT64             R10;
-  UINT64             R11;
-  UINT64             R12;
-  UINT64             R13;
-  UINT64             R14;
-  UINT64             R15;
-  UINT16             Cs;
-  UINT16             Ds;
-  UINT16             Ss;
-  UINT16             Es;
-  UINT16             Fs;
-  UINT16             Gs;
-  UINT32             Resv1;
-  UINT64             Rflags;
-  UINT64             Rip;
-  UINT64             Cr0;
-  UINT64             Cr1;
-  UINT64             Cr2;
-  UINT64             Cr3;
-  UINT64             Cr4;
-  UINT64             Gdtr[2];
-  UINT64             Idtr[2];
-  UINT16             Ldtr;
-  UINT16             Tr;
+  UINT64    Rax;
+  UINT64    Rbx;
+  UINT64    Rcx;
+  UINT64    Rdx;
+  UINT64    Rsi;
+  UINT64    Rdi;
+  UINT64    Rbp;
+  UINT64    Rsp;
+  UINT64    R8;
+  UINT64    R9;
+  UINT64    R10;
+  UINT64    R11;
+  UINT64    R12;
+  UINT64    R13;
+  UINT64    R14;
+  UINT64    R15;
+  UINT16    Cs;
+  UINT16    Ds;
+  UINT16    Ss;
+  UINT16    Es;
+  UINT16    Fs;
+  UINT16    Gs;
+  UINT32    Resv1;
+  UINT64    Rflags;
+  UINT64    Rip;
+  UINT64    Cr0;
+  UINT64    Cr1;
+  UINT64    Cr2;
+  UINT64    Cr3;
+  UINT64    Cr4;
+  UINT64    Gdtr[2];
+  UINT64    Idtr[2];
+  UINT16    Ldtr;
+  UINT16    Tr;
 } EFI_CONTEXT_X64_REGISTER_STATE;
 
 ///
@@ -728,11 +727,11 @@ typedef struct {
 /// Processor Error Section.
 ///
 typedef struct {
-  UINT64             ApicIdValid:1;
-  UINT64             CpuIdInforValid:1;
-  UINT64             ErrorInfoNum:6;
-  UINT64             ContextNum:6;
-  UINT64             Resv1:50;
+  UINT64    ApicIdValid     : 1;
+  UINT64    CpuIdInforValid : 1;
+  UINT64    ErrorInfoNum    : 6;
+  UINT64    ContextNum      : 6;
+  UINT64    Resv1           : 50;
 } EFI_IA32_X64_VALID_BITS;
 
 #endif
@@ -741,16 +740,16 @@ typedef struct {
 /// Error Status Fields
 ///
 typedef struct {
-  UINT64          Resv1:8;
-  UINT64          Type:8;
-  UINT64          AddressSignal:1;        ///< Error in Address signals or in Address portion of transaction
-  UINT64          ControlSignal:1;        ///< Error in Control signals or in Control portion of transaction
-  UINT64          DataSignal:1;           ///< Error in Data signals or in Data portion of transaction
-  UINT64          DetectedByResponder:1;  ///< Error detected by responder
-  UINT64          DetectedByRequester:1;  ///< Error detected by requestor
-  UINT64          FirstError:1;           ///< First Error in the sequence - option field
-  UINT64          OverflowNotLogged:1;    ///< Additional errors were not logged due to lack of resources
-  UINT64          Resv2:41;
+  UINT64    Resv1               : 8;
+  UINT64    Type                : 8;
+  UINT64    AddressSignal       : 1;      ///< Error in Address signals or in Address portion of transaction
+  UINT64    ControlSignal       : 1;      ///< Error in Control signals or in Control portion of transaction
+  UINT64    DataSignal          : 1;      ///< Error in Data signals or in Data portion of transaction
+  UINT64    DetectedByResponder : 1;      ///< Error detected by responder
+  UINT64    DetectedByRequester : 1;      ///< Error detected by requestor
+  UINT64    FirstError          : 1;      ///< First Error in the sequence - option field
+  UINT64    OverflowNotLogged   : 1;      ///< Additional errors were not logged due to lack of resources
+  UINT64    Resv2               : 41;
 } EFI_GENERIC_ERROR_STATUS;
 
 ///
@@ -760,8 +759,8 @@ typedef enum {
   ///
   /// General Internal errors
   ///
-  ErrorInternal       = 1,
-  ErrorBus            = 16,
+  ErrorInternal = 1,
+  ErrorBus      = 16,
   ///
   /// Component Internal errors
   ///
@@ -774,206 +773,206 @@ typedef enum {
   ///
   /// Bus internal errors
   ///
-  ErrorVirtualMap     = 17,
-  ErrorAccessInvalid  = 18,       // Improper access
-  ErrorUnimplAccess   = 19,       // Unimplemented memory access
-  ErrorLossOfLockstep = 20,
-  ErrorResponseInvalid= 21,       // Response not associated with request
-  ErrorParity         = 22,
-  ErrorProtocol       = 23,
-  ErrorPath           = 24,       // Detected path error
-  ErrorTimeout        = 25,       // Bus timeout
-  ErrorPoisoned       = 26        // Read data poisoned
+  ErrorVirtualMap      = 17,
+  ErrorAccessInvalid   = 18,      // Improper access
+  ErrorUnimplAccess    = 19,      // Unimplemented memory access
+  ErrorLossOfLockstep  = 20,
+  ErrorResponseInvalid = 21,       // Response not associated with request
+  ErrorParity          = 22,
+  ErrorProtocol        = 23,
+  ErrorPath            = 24,      // Detected path error
+  ErrorTimeout         = 25,      // Bus timeout
+  ErrorPoisoned        = 26       // Read data poisoned
 } EFI_GENERIC_ERROR_STATUS_ERROR_TYPE;
 
 ///
 /// Validation bit mask indicates which fields in the memory error record are valid
 /// in Memory Error section
 ///@{
-#define EFI_PLATFORM_MEMORY_ERROR_STATUS_VALID                 BIT0
-#define EFI_PLATFORM_MEMORY_PHY_ADDRESS_VALID                  BIT1
-#define EFI_PLATFORM_MEMORY_PHY_ADDRESS_MASK_VALID             BIT2
-#define EFI_PLATFORM_MEMORY_NODE_VALID                         BIT3
-#define EFI_PLATFORM_MEMORY_CARD_VALID                         BIT4
-#define EFI_PLATFORM_MEMORY_MODULE_VALID                       BIT5
-#define EFI_PLATFORM_MEMORY_BANK_VALID                         BIT6
-#define EFI_PLATFORM_MEMORY_DEVICE_VALID                       BIT7
-#define EFI_PLATFORM_MEMORY_ROW_VALID                          BIT8
-#define EFI_PLATFORM_MEMORY_COLUMN_VALID                       BIT9
-#define EFI_PLATFORM_MEMORY_BIT_POS_VALID                      BIT10
-#define EFI_PLATFORM_MEMORY_REQUESTOR_ID_VALID                 BIT11
-#define EFI_PLATFORM_MEMORY_RESPONDER_ID_VALID                 BIT12
-#define EFI_PLATFORM_MEMORY_TARGET_ID_VALID                    BIT13
-#define EFI_PLATFORM_MEMORY_ERROR_TYPE_VALID                   BIT14
-#define EFI_PLATFORM_MEMORY_ERROR_RANK_NUM_VALID               BIT15
-#define EFI_PLATFORM_MEMORY_ERROR_CARD_HANDLE_VALID            BIT16
-#define EFI_PLATFORM_MEMORY_ERROR_MODULE_HANDLE_VALID          BIT17
-#define EFI_PLATFORM_MEMORY_ERROR_EXTENDED_ROW_BIT_16_17_VALID BIT18
-#define EFI_PLATFORM_MEMORY_ERROR_BANK_GROUP_VALID             BIT19
-#define EFI_PLATFORM_MEMORY_ERROR_BANK_ADDRESS_VALID           BIT20
-#define EFI_PLATFORM_MEMORY_ERROR_CHIP_IDENTIFICATION_VALID    BIT21
+#define EFI_PLATFORM_MEMORY_ERROR_STATUS_VALID                  BIT0
+#define EFI_PLATFORM_MEMORY_PHY_ADDRESS_VALID                   BIT1
+#define EFI_PLATFORM_MEMORY_PHY_ADDRESS_MASK_VALID              BIT2
+#define EFI_PLATFORM_MEMORY_NODE_VALID                          BIT3
+#define EFI_PLATFORM_MEMORY_CARD_VALID                          BIT4
+#define EFI_PLATFORM_MEMORY_MODULE_VALID                        BIT5
+#define EFI_PLATFORM_MEMORY_BANK_VALID                          BIT6
+#define EFI_PLATFORM_MEMORY_DEVICE_VALID                        BIT7
+#define EFI_PLATFORM_MEMORY_ROW_VALID                           BIT8
+#define EFI_PLATFORM_MEMORY_COLUMN_VALID                        BIT9
+#define EFI_PLATFORM_MEMORY_BIT_POS_VALID                       BIT10
+#define EFI_PLATFORM_MEMORY_REQUESTOR_ID_VALID                  BIT11
+#define EFI_PLATFORM_MEMORY_RESPONDER_ID_VALID                  BIT12
+#define EFI_PLATFORM_MEMORY_TARGET_ID_VALID                     BIT13
+#define EFI_PLATFORM_MEMORY_ERROR_TYPE_VALID                    BIT14
+#define EFI_PLATFORM_MEMORY_ERROR_RANK_NUM_VALID                BIT15
+#define EFI_PLATFORM_MEMORY_ERROR_CARD_HANDLE_VALID             BIT16
+#define EFI_PLATFORM_MEMORY_ERROR_MODULE_HANDLE_VALID           BIT17
+#define EFI_PLATFORM_MEMORY_ERROR_EXTENDED_ROW_BIT_16_17_VALID  BIT18
+#define EFI_PLATFORM_MEMORY_ERROR_BANK_GROUP_VALID              BIT19
+#define EFI_PLATFORM_MEMORY_ERROR_BANK_ADDRESS_VALID            BIT20
+#define EFI_PLATFORM_MEMORY_ERROR_CHIP_IDENTIFICATION_VALID     BIT21
 ///@}
 
 ///
 /// Memory Error Type identifies the type of error that occurred in Memory
 /// Error section
 ///@{
-#define EFI_PLATFORM_MEMORY_ERROR_UNKNOWN                      0x00
-#define EFI_PLATFORM_MEMORY_ERROR_NONE                         0x01
-#define EFI_PLATFORM_MEMORY_ERROR_SINGLEBIT_ECC                0x02
-#define EFI_PLATFORM_MEMORY_ERROR_MLTIBIT_ECC                  0x03
-#define EFI_PLATFORM_MEMORY_ERROR_SINGLESYMBOLS_CHIPKILL       0x04
-#define EFI_PLATFORM_MEMORY_ERROR_MULTISYMBOL_CHIPKILL         0x05
-#define EFI_PLATFORM_MEMORY_ERROR_MATER_ABORT                  0x06
-#define EFI_PLATFORM_MEMORY_ERROR_TARGET_ABORT                 0x07
-#define EFI_PLATFORM_MEMORY_ERROR_PARITY                       0x08
-#define EFI_PLATFORM_MEMORY_ERROR_WDT                          0x09
-#define EFI_PLATFORM_MEMORY_ERROR_INVALID_ADDRESS              0x0A
-#define EFI_PLATFORM_MEMORY_ERROR_MIRROR_FAILED                0x0B
-#define EFI_PLATFORM_MEMORY_ERROR_SPARING                      0x0C
-#define EFI_PLATFORM_MEMORY_ERROR_SCRUB_CORRECTED              0x0D
-#define EFI_PLATFORM_MEMORY_ERROR_SCRUB_UNCORRECTED            0x0E
-#define EFI_PLATFORM_MEMORY_ERROR_MEMORY_MAP_EVENT             0x0F
+#define EFI_PLATFORM_MEMORY_ERROR_UNKNOWN                 0x00
+#define EFI_PLATFORM_MEMORY_ERROR_NONE                    0x01
+#define EFI_PLATFORM_MEMORY_ERROR_SINGLEBIT_ECC           0x02
+#define EFI_PLATFORM_MEMORY_ERROR_MLTIBIT_ECC             0x03
+#define EFI_PLATFORM_MEMORY_ERROR_SINGLESYMBOLS_CHIPKILL  0x04
+#define EFI_PLATFORM_MEMORY_ERROR_MULTISYMBOL_CHIPKILL    0x05
+#define EFI_PLATFORM_MEMORY_ERROR_MATER_ABORT             0x06
+#define EFI_PLATFORM_MEMORY_ERROR_TARGET_ABORT            0x07
+#define EFI_PLATFORM_MEMORY_ERROR_PARITY                  0x08
+#define EFI_PLATFORM_MEMORY_ERROR_WDT                     0x09
+#define EFI_PLATFORM_MEMORY_ERROR_INVALID_ADDRESS         0x0A
+#define EFI_PLATFORM_MEMORY_ERROR_MIRROR_FAILED           0x0B
+#define EFI_PLATFORM_MEMORY_ERROR_SPARING                 0x0C
+#define EFI_PLATFORM_MEMORY_ERROR_SCRUB_CORRECTED         0x0D
+#define EFI_PLATFORM_MEMORY_ERROR_SCRUB_UNCORRECTED       0x0E
+#define EFI_PLATFORM_MEMORY_ERROR_MEMORY_MAP_EVENT        0x0F
 ///@}
 
 ///
 /// Memory Error Section
 ///
 typedef struct {
-  UINT64                   ValidFields;
-  EFI_GENERIC_ERROR_STATUS ErrorStatus;
-  UINT64                   PhysicalAddress;      // Error physical address
-  UINT64                   PhysicalAddressMask;  // Grnaularity
-  UINT16                   Node;                 // Node #
-  UINT16                   Card;
-  UINT16                   ModuleRank;           // Module or Rank#
-  UINT16                   Bank;
-  UINT16                   Device;
-  UINT16                   Row;
-  UINT16                   Column;
-  UINT16                   BitPosition;
-  UINT64                   RequestorId;
-  UINT64                   ResponderId;
-  UINT64                   TargetId;
-  UINT8                    ErrorType;
-  UINT8                    Extended;
-  UINT16                   RankNum;
-  UINT16                   CardHandle;
-  UINT16                   ModuleHandle;
+  UINT64                      ValidFields;
+  EFI_GENERIC_ERROR_STATUS    ErrorStatus;
+  UINT64                      PhysicalAddress;     // Error physical address
+  UINT64                      PhysicalAddressMask; // Grnaularity
+  UINT16                      Node;                // Node #
+  UINT16                      Card;
+  UINT16                      ModuleRank;        // Module or Rank#
+  UINT16                      Bank;
+  UINT16                      Device;
+  UINT16                      Row;
+  UINT16                      Column;
+  UINT16                      BitPosition;
+  UINT64                      RequestorId;
+  UINT64                      ResponderId;
+  UINT64                      TargetId;
+  UINT8                       ErrorType;
+  UINT8                       Extended;
+  UINT16                      RankNum;
+  UINT16                      CardHandle;
+  UINT16                      ModuleHandle;
 } EFI_PLATFORM_MEMORY_ERROR_DATA;
 
 ///
 /// Validation bit mask indicates which fields in the memory error record 2 are valid
 /// in Memory Error section 2
 ///@{
-#define EFI_PLATFORM_MEMORY2_ERROR_STATUS_VALID                 BIT0
-#define EFI_PLATFORM_MEMORY2_PHY_ADDRESS_VALID                  BIT1
-#define EFI_PLATFORM_MEMORY2_PHY_ADDRESS_MASK_VALID             BIT2
-#define EFI_PLATFORM_MEMORY2_NODE_VALID                         BIT3
-#define EFI_PLATFORM_MEMORY2_CARD_VALID                         BIT4
-#define EFI_PLATFORM_MEMORY2_MODULE_VALID                       BIT5
-#define EFI_PLATFORM_MEMORY2_BANK_VALID                         BIT6
-#define EFI_PLATFORM_MEMORY2_DEVICE_VALID                       BIT7
-#define EFI_PLATFORM_MEMORY2_ROW_VALID                          BIT8
-#define EFI_PLATFORM_MEMORY2_COLUMN_VALID                       BIT9
-#define EFI_PLATFORM_MEMORY2_RANK_VALID                         BIT10
-#define EFI_PLATFORM_MEMORY2_BIT_POS_VALID                      BIT11
-#define EFI_PLATFORM_MEMORY2_CHIP_ID_VALID                      BIT12
-#define EFI_PLATFORM_MEMORY2_MEMORY_ERROR_TYPE_VALID            BIT13
-#define EFI_PLATFORM_MEMORY2_STATUS_VALID                       BIT14
-#define EFI_PLATFORM_MEMORY2_REQUESTOR_ID_VALID                 BIT15
-#define EFI_PLATFORM_MEMORY2_RESPONDER_ID_VALID                 BIT16
-#define EFI_PLATFORM_MEMORY2_TARGET_ID_VALID                    BIT17
-#define EFI_PLATFORM_MEMORY2_CARD_HANDLE_VALID                  BIT18
-#define EFI_PLATFORM_MEMORY2_MODULE_HANDLE_VALID                BIT19
-#define EFI_PLATFORM_MEMORY2_BANK_GROUP_VALID                   BIT20
-#define EFI_PLATFORM_MEMORY2_BANK_ADDRESS_VALID                 BIT21
+#define EFI_PLATFORM_MEMORY2_ERROR_STATUS_VALID       BIT0
+#define EFI_PLATFORM_MEMORY2_PHY_ADDRESS_VALID        BIT1
+#define EFI_PLATFORM_MEMORY2_PHY_ADDRESS_MASK_VALID   BIT2
+#define EFI_PLATFORM_MEMORY2_NODE_VALID               BIT3
+#define EFI_PLATFORM_MEMORY2_CARD_VALID               BIT4
+#define EFI_PLATFORM_MEMORY2_MODULE_VALID             BIT5
+#define EFI_PLATFORM_MEMORY2_BANK_VALID               BIT6
+#define EFI_PLATFORM_MEMORY2_DEVICE_VALID             BIT7
+#define EFI_PLATFORM_MEMORY2_ROW_VALID                BIT8
+#define EFI_PLATFORM_MEMORY2_COLUMN_VALID             BIT9
+#define EFI_PLATFORM_MEMORY2_RANK_VALID               BIT10
+#define EFI_PLATFORM_MEMORY2_BIT_POS_VALID            BIT11
+#define EFI_PLATFORM_MEMORY2_CHIP_ID_VALID            BIT12
+#define EFI_PLATFORM_MEMORY2_MEMORY_ERROR_TYPE_VALID  BIT13
+#define EFI_PLATFORM_MEMORY2_STATUS_VALID             BIT14
+#define EFI_PLATFORM_MEMORY2_REQUESTOR_ID_VALID       BIT15
+#define EFI_PLATFORM_MEMORY2_RESPONDER_ID_VALID       BIT16
+#define EFI_PLATFORM_MEMORY2_TARGET_ID_VALID          BIT17
+#define EFI_PLATFORM_MEMORY2_CARD_HANDLE_VALID        BIT18
+#define EFI_PLATFORM_MEMORY2_MODULE_HANDLE_VALID      BIT19
+#define EFI_PLATFORM_MEMORY2_BANK_GROUP_VALID         BIT20
+#define EFI_PLATFORM_MEMORY2_BANK_ADDRESS_VALID       BIT21
 ///@}
 
 ///
 /// Memory Error Type identifies the type of error that occurred in Memory
 /// Error section 2
 ///@{
-#define EFI_PLATFORM_MEMORY2_ERROR_UNKNOWN                      0x00
-#define EFI_PLATFORM_MEMORY2_ERROR_NONE                         0x01
-#define EFI_PLATFORM_MEMORY2_ERROR_SINGLEBIT_ECC                0x02
-#define EFI_PLATFORM_MEMORY2_ERROR_MLTIBIT_ECC                  0x03
-#define EFI_PLATFORM_MEMORY2_ERROR_SINGLESYMBOL_CHIPKILL        0x04
-#define EFI_PLATFORM_MEMORY2_ERROR_MULTISYMBOL_CHIPKILL         0x05
-#define EFI_PLATFORM_MEMORY2_ERROR_MASTER_ABORT                 0x06
-#define EFI_PLATFORM_MEMORY2_ERROR_TARGET_ABORT                 0x07
-#define EFI_PLATFORM_MEMORY2_ERROR_PARITY                       0x08
-#define EFI_PLATFORM_MEMORY2_ERROR_WDT                          0x09
-#define EFI_PLATFORM_MEMORY2_ERROR_INVALID_ADDRESS              0x0A
-#define EFI_PLATFORM_MEMORY2_ERROR_MIRROR_BROKEN                0x0B
-#define EFI_PLATFORM_MEMORY2_ERROR_MEMORY_SPARING               0x0C
-#define EFI_PLATFORM_MEMORY2_ERROR_SCRUB_CORRECTED              0x0D
-#define EFI_PLATFORM_MEMORY2_ERROR_SCRUB_UNCORRECTED            0x0E
-#define EFI_PLATFORM_MEMORY2_ERROR_MEMORY_MAP_EVENT             0x0F
+#define EFI_PLATFORM_MEMORY2_ERROR_UNKNOWN                0x00
+#define EFI_PLATFORM_MEMORY2_ERROR_NONE                   0x01
+#define EFI_PLATFORM_MEMORY2_ERROR_SINGLEBIT_ECC          0x02
+#define EFI_PLATFORM_MEMORY2_ERROR_MLTIBIT_ECC            0x03
+#define EFI_PLATFORM_MEMORY2_ERROR_SINGLESYMBOL_CHIPKILL  0x04
+#define EFI_PLATFORM_MEMORY2_ERROR_MULTISYMBOL_CHIPKILL   0x05
+#define EFI_PLATFORM_MEMORY2_ERROR_MASTER_ABORT           0x06
+#define EFI_PLATFORM_MEMORY2_ERROR_TARGET_ABORT           0x07
+#define EFI_PLATFORM_MEMORY2_ERROR_PARITY                 0x08
+#define EFI_PLATFORM_MEMORY2_ERROR_WDT                    0x09
+#define EFI_PLATFORM_MEMORY2_ERROR_INVALID_ADDRESS        0x0A
+#define EFI_PLATFORM_MEMORY2_ERROR_MIRROR_BROKEN          0x0B
+#define EFI_PLATFORM_MEMORY2_ERROR_MEMORY_SPARING         0x0C
+#define EFI_PLATFORM_MEMORY2_ERROR_SCRUB_CORRECTED        0x0D
+#define EFI_PLATFORM_MEMORY2_ERROR_SCRUB_UNCORRECTED      0x0E
+#define EFI_PLATFORM_MEMORY2_ERROR_MEMORY_MAP_EVENT       0x0F
 ///@}
 
 ///
 /// Memory Error Section 2
 ///
 typedef struct {
-  UINT64                    ValidFields;
-  EFI_GENERIC_ERROR_STATUS  ErrorStatus;
-  UINT64                    PhysicalAddress;      // Error physical address
-  UINT64                    PhysicalAddressMask;  // Grnaularity
-  UINT16                    Node;                 // Node #
-  UINT16                    Card;
-  UINT16                    Module;               // Module or Rank#
-  UINT16                    Bank;
-  UINT32                    Device;
-  UINT32                    Row;
-  UINT32                    Column;
-  UINT32                    Rank;
-  UINT32                    BitPosition;
-  UINT8                     ChipId;
-  UINT8                     MemErrorType;
-  UINT8                     Status;
-  UINT8                     Reserved;
-  UINT64                    RequestorId;
-  UINT64                    ResponderId;
-  UINT64                    TargetId;
-  UINT32                    CardHandle;
-  UINT32                    ModuleHandle;
+  UINT64                      ValidFields;
+  EFI_GENERIC_ERROR_STATUS    ErrorStatus;
+  UINT64                      PhysicalAddress;     // Error physical address
+  UINT64                      PhysicalAddressMask; // Grnaularity
+  UINT16                      Node;                // Node #
+  UINT16                      Card;
+  UINT16                      Module;             // Module or Rank#
+  UINT16                      Bank;
+  UINT32                      Device;
+  UINT32                      Row;
+  UINT32                      Column;
+  UINT32                      Rank;
+  UINT32                      BitPosition;
+  UINT8                       ChipId;
+  UINT8                       MemErrorType;
+  UINT8                       Status;
+  UINT8                       Reserved;
+  UINT64                      RequestorId;
+  UINT64                      ResponderId;
+  UINT64                      TargetId;
+  UINT32                      CardHandle;
+  UINT32                      ModuleHandle;
 } EFI_PLATFORM_MEMORY2_ERROR_DATA;
 
 ///
 /// Validation bits mask indicates which of the following fields is valid
 /// in PCI Express Error Record.
 ///@{
-#define EFI_PCIE_ERROR_PORT_TYPE_VALID               BIT0
-#define EFI_PCIE_ERROR_VERSION_VALID                 BIT1
-#define EFI_PCIE_ERROR_COMMAND_STATUS_VALID          BIT2
-#define EFI_PCIE_ERROR_DEVICE_ID_VALID               BIT3
-#define EFI_PCIE_ERROR_SERIAL_NO_VALID               BIT4
-#define EFI_PCIE_ERROR_BRIDGE_CRL_STS_VALID          BIT5
-#define EFI_PCIE_ERROR_CAPABILITY_INFO_VALID         BIT6
-#define EFI_PCIE_ERROR_AER_INFO_VALID                BIT7
+#define EFI_PCIE_ERROR_PORT_TYPE_VALID        BIT0
+#define EFI_PCIE_ERROR_VERSION_VALID          BIT1
+#define EFI_PCIE_ERROR_COMMAND_STATUS_VALID   BIT2
+#define EFI_PCIE_ERROR_DEVICE_ID_VALID        BIT3
+#define EFI_PCIE_ERROR_SERIAL_NO_VALID        BIT4
+#define EFI_PCIE_ERROR_BRIDGE_CRL_STS_VALID   BIT5
+#define EFI_PCIE_ERROR_CAPABILITY_INFO_VALID  BIT6
+#define EFI_PCIE_ERROR_AER_INFO_VALID         BIT7
 ///@}
 
 ///
 /// PCIe Device/Port Type as defined in the PCI Express capabilities register
 ///@{
-#define EFI_PCIE_ERROR_PORT_PCIE_ENDPOINT            0x00000000
-#define EFI_PCIE_ERROR_PORT_PCI_ENDPOINT             0x00000001
-#define EFI_PCIE_ERROR_PORT_ROOT_PORT                0x00000004
-#define EFI_PCIE_ERROR_PORT_UPSWITCH_PORT            0x00000005
-#define EFI_PCIE_ERROR_PORT_DOWNSWITCH_PORT          0x00000006
-#define EFI_PCIE_ERROR_PORT_PCIE_TO_PCI_BRIDGE       0x00000007
-#define EFI_PCIE_ERROR_PORT_PCI_TO_PCIE_BRIDGE       0x00000008
-#define EFI_PCIE_ERROR_PORT_ROOT_INT_ENDPOINT        0x00000009
-#define EFI_PCIE_ERROR_PORT_ROOT_EVENT_COLLECTOR     0x0000000A
+#define EFI_PCIE_ERROR_PORT_PCIE_ENDPOINT         0x00000000
+#define EFI_PCIE_ERROR_PORT_PCI_ENDPOINT          0x00000001
+#define EFI_PCIE_ERROR_PORT_ROOT_PORT             0x00000004
+#define EFI_PCIE_ERROR_PORT_UPSWITCH_PORT         0x00000005
+#define EFI_PCIE_ERROR_PORT_DOWNSWITCH_PORT       0x00000006
+#define EFI_PCIE_ERROR_PORT_PCIE_TO_PCI_BRIDGE    0x00000007
+#define EFI_PCIE_ERROR_PORT_PCI_TO_PCIE_BRIDGE    0x00000008
+#define EFI_PCIE_ERROR_PORT_ROOT_INT_ENDPOINT     0x00000009
+#define EFI_PCIE_ERROR_PORT_ROOT_EVENT_COLLECTOR  0x0000000A
 ///@}
 
 ///
 /// PCI Slot number
 ///
 typedef struct {
-  UINT16          Resv1:3;
-  UINT16          Number:13;
+  UINT16    Resv1  : 3;
+  UINT16    Number : 13;
 } EFI_GENERIC_ERROR_PCI_SLOT;
 
 ///
@@ -982,125 +981,125 @@ typedef struct {
 /// bridge. Default values for both the bus numbers is zero.
 ///
 typedef struct {
-  UINT16                     VendorId;
-  UINT16                     DeviceId;
-  UINT8                      ClassCode[3];
-  UINT8                      Function;
-  UINT8                      Device;
-  UINT16                     Segment;
-  UINT8                      PrimaryOrDeviceBus;
-  UINT8                      SecondaryBus;
-  EFI_GENERIC_ERROR_PCI_SLOT Slot;
-  UINT8                      Resv1;
+  UINT16                        VendorId;
+  UINT16                        DeviceId;
+  UINT8                         ClassCode[3];
+  UINT8                         Function;
+  UINT8                         Device;
+  UINT16                        Segment;
+  UINT8                         PrimaryOrDeviceBus;
+  UINT8                         SecondaryBus;
+  EFI_GENERIC_ERROR_PCI_SLOT    Slot;
+  UINT8                         Resv1;
 } EFI_GENERIC_ERROR_PCIE_DEV_BRIDGE_ID;
 
 ///
 /// PCIe Capability Structure
 ///
 typedef struct {
-  UINT8           PcieCap[60];
+  UINT8    PcieCap[60];
 } EFI_PCIE_ERROR_DATA_CAPABILITY;
 
 ///
 /// PCIe Advanced Error Reporting Extended Capability Structure.
 ///
 typedef struct {
-  UINT8           PcieAer[96];
+  UINT8    PcieAer[96];
 } EFI_PCIE_ERROR_DATA_AER;
 
 ///
 /// PCI Express Error Record
 ///
 typedef struct {
-  UINT64                               ValidFields;
-  UINT32                               PortType;
-  UINT32                               Version;
-  UINT32                               CommandStatus;
-  UINT32                               Resv2;
-  EFI_GENERIC_ERROR_PCIE_DEV_BRIDGE_ID DevBridge;
-  UINT64                               SerialNo;
-  UINT32                               BridgeControlStatus;
-  EFI_PCIE_ERROR_DATA_CAPABILITY       Capability;
-  EFI_PCIE_ERROR_DATA_AER              AerInfo;
+  UINT64                                  ValidFields;
+  UINT32                                  PortType;
+  UINT32                                  Version;
+  UINT32                                  CommandStatus;
+  UINT32                                  Resv2;
+  EFI_GENERIC_ERROR_PCIE_DEV_BRIDGE_ID    DevBridge;
+  UINT64                                  SerialNo;
+  UINT32                                  BridgeControlStatus;
+  EFI_PCIE_ERROR_DATA_CAPABILITY          Capability;
+  EFI_PCIE_ERROR_DATA_AER                 AerInfo;
 } EFI_PCIE_ERROR_DATA;
 
 ///
 /// Validation bits Indicates which of the following fields is valid
 /// in PCI/PCI-X Bus Error Section.
 ///@{
-#define EFI_PCI_PCIX_BUS_ERROR_STATUS_VALID          BIT0
-#define EFI_PCI_PCIX_BUS_ERROR_TYPE_VALID            BIT1
-#define EFI_PCI_PCIX_BUS_ERROR_BUS_ID_VALID          BIT2
-#define EFI_PCI_PCIX_BUS_ERROR_BUS_ADDRESS_VALID     BIT3
-#define EFI_PCI_PCIX_BUS_ERROR_BUS_DATA_VALID        BIT4
-#define EFI_PCI_PCIX_BUS_ERROR_COMMAND_VALID         BIT5
-#define EFI_PCI_PCIX_BUS_ERROR_REQUESTOR_ID_VALID    BIT6
-#define EFI_PCI_PCIX_BUS_ERROR_COMPLETER_ID_VALID    BIT7
-#define EFI_PCI_PCIX_BUS_ERROR_TARGET_ID_VALID       BIT8
+#define EFI_PCI_PCIX_BUS_ERROR_STATUS_VALID        BIT0
+#define EFI_PCI_PCIX_BUS_ERROR_TYPE_VALID          BIT1
+#define EFI_PCI_PCIX_BUS_ERROR_BUS_ID_VALID        BIT2
+#define EFI_PCI_PCIX_BUS_ERROR_BUS_ADDRESS_VALID   BIT3
+#define EFI_PCI_PCIX_BUS_ERROR_BUS_DATA_VALID      BIT4
+#define EFI_PCI_PCIX_BUS_ERROR_COMMAND_VALID       BIT5
+#define EFI_PCI_PCIX_BUS_ERROR_REQUESTOR_ID_VALID  BIT6
+#define EFI_PCI_PCIX_BUS_ERROR_COMPLETER_ID_VALID  BIT7
+#define EFI_PCI_PCIX_BUS_ERROR_TARGET_ID_VALID     BIT8
 ///@}
 
 ///
 /// PCI Bus Error Type in PCI/PCI-X Bus Error Section
 ///@{
-#define EFI_PCI_PCIX_BUS_ERROR_UNKNOWN               0x0000
-#define EFI_PCI_PCIX_BUS_ERROR_DATA_PARITY           0x0001
-#define EFI_PCI_PCIX_BUS_ERROR_SYSTEM                0x0002
-#define EFI_PCI_PCIX_BUS_ERROR_MASTER_ABORT          0x0003
-#define EFI_PCI_PCIX_BUS_ERROR_BUS_TIMEOUT           0x0004
-#define EFI_PCI_PCIX_BUS_ERROR_MASTER_DATA_PARITY    0x0005
-#define EFI_PCI_PCIX_BUS_ERROR_ADDRESS_PARITY        0x0006
-#define EFI_PCI_PCIX_BUS_ERROR_COMMAND_PARITY        0x0007
+#define EFI_PCI_PCIX_BUS_ERROR_UNKNOWN             0x0000
+#define EFI_PCI_PCIX_BUS_ERROR_DATA_PARITY         0x0001
+#define EFI_PCI_PCIX_BUS_ERROR_SYSTEM              0x0002
+#define EFI_PCI_PCIX_BUS_ERROR_MASTER_ABORT        0x0003
+#define EFI_PCI_PCIX_BUS_ERROR_BUS_TIMEOUT         0x0004
+#define EFI_PCI_PCIX_BUS_ERROR_MASTER_DATA_PARITY  0x0005
+#define EFI_PCI_PCIX_BUS_ERROR_ADDRESS_PARITY      0x0006
+#define EFI_PCI_PCIX_BUS_ERROR_COMMAND_PARITY      0x0007
 ///@}
 
 ///
 /// PCI/PCI-X Bus Error Section
 ///
 typedef struct {
-  UINT64                   ValidFields;
-  EFI_GENERIC_ERROR_STATUS ErrorStatus;
-  UINT16                   Type;
-  UINT16                   BusId;
-  UINT32                   Resv2;
-  UINT64                   BusAddress;
-  UINT64                   BusData;
-  UINT64                   BusCommand;
-  UINT64                   RequestorId;
-  UINT64                   ResponderId;
-  UINT64                   TargetId;
+  UINT64                      ValidFields;
+  EFI_GENERIC_ERROR_STATUS    ErrorStatus;
+  UINT16                      Type;
+  UINT16                      BusId;
+  UINT32                      Resv2;
+  UINT64                      BusAddress;
+  UINT64                      BusData;
+  UINT64                      BusCommand;
+  UINT64                      RequestorId;
+  UINT64                      ResponderId;
+  UINT64                      TargetId;
 } EFI_PCI_PCIX_BUS_ERROR_DATA;
 
 ///
 /// Validation bits Indicates which of the following fields is valid
 /// in PCI/PCI-X Component Error Section.
 ///@{
-#define EFI_PCI_PCIX_DEVICE_ERROR_STATUS_VALID                 BIT0
-#define EFI_PCI_PCIX_DEVICE_ERROR_ID_INFO_VALID                BIT1
-#define EFI_PCI_PCIX_DEVICE_ERROR_MEM_NUM_VALID                BIT2
-#define EFI_PCI_PCIX_DEVICE_ERROR_IO_NUM_VALID                 BIT3
-#define EFI_PCI_PCIX_DEVICE_ERROR_REG_DATA_PAIR_VALID          BIT4
+#define EFI_PCI_PCIX_DEVICE_ERROR_STATUS_VALID         BIT0
+#define EFI_PCI_PCIX_DEVICE_ERROR_ID_INFO_VALID        BIT1
+#define EFI_PCI_PCIX_DEVICE_ERROR_MEM_NUM_VALID        BIT2
+#define EFI_PCI_PCIX_DEVICE_ERROR_IO_NUM_VALID         BIT3
+#define EFI_PCI_PCIX_DEVICE_ERROR_REG_DATA_PAIR_VALID  BIT4
 ///@}
 
 ///
 /// PCI/PCI-X Device Identification Information
 ///
 typedef struct {
-  UINT16          VendorId;
-  UINT16          DeviceId;
-  UINT8           ClassCode[3];
-  UINT8           Function;
-  UINT8           Device;
-  UINT8           Bus;
-  UINT8           Segment;
-  UINT8           Resv1;
-  UINT32          Resv2;
+  UINT16    VendorId;
+  UINT16    DeviceId;
+  UINT8     ClassCode[3];
+  UINT8     Function;
+  UINT8     Device;
+  UINT8     Bus;
+  UINT8     Segment;
+  UINT8     Resv1;
+  UINT32    Resv2;
 } EFI_GENERIC_ERROR_PCI_DEVICE_ID;
 
 ///
 /// Identifies the type of firmware error record
 ///@{
-#define EFI_FIRMWARE_ERROR_TYPE_IPF_SAL              0x00
-#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE1            0x01
-#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE2            0x02
+#define EFI_FIRMWARE_ERROR_TYPE_IPF_SAL    0x00
+#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE1  0x01
+#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE2  0x02
 ///@}
 
 ///
@@ -1117,135 +1116,233 @@ typedef struct {
 ///
 /// Fault Reason in DMAr Generic Error Section
 ///@{
-#define EFI_DMA_FAULT_REASON_TABLE_ENTRY_NOT_PRESENT           0x01
-#define EFI_DMA_FAULT_REASON_TABLE_ENTRY_INVALID               0x02
-#define EFI_DMA_FAULT_REASON_ACCESS_MAPPING_TABLE_ERROR        0x03
-#define EFI_DMA_FAULT_REASON_RESV_BIT_ERROR_IN_MAPPING_TABLE   0x04
-#define EFI_DMA_FAULT_REASON_ACCESS_ADDR_OUT_OF_SPACE          0x05
-#define EFI_DMA_FAULT_REASON_INVALID_ACCESS                    0x06
-#define EFI_DMA_FAULT_REASON_INVALID_REQUEST                   0x07
-#define EFI_DMA_FAULT_REASON_ACCESS_TRANSLATE_TABLE_ERROR      0x08
-#define EFI_DMA_FAULT_REASON_RESV_BIT_ERROR_IN_TRANSLATE_TABLE 0x09
-#define EFI_DMA_FAULT_REASON_INVALID_COMMAOND                  0x0A
-#define EFI_DMA_FAULT_REASON_ACCESS_COMMAND_BUFFER_ERROR       0x0B
+#define EFI_DMA_FAULT_REASON_TABLE_ENTRY_NOT_PRESENT            0x01
+#define EFI_DMA_FAULT_REASON_TABLE_ENTRY_INVALID                0x02
+#define EFI_DMA_FAULT_REASON_ACCESS_MAPPING_TABLE_ERROR         0x03
+#define EFI_DMA_FAULT_REASON_RESV_BIT_ERROR_IN_MAPPING_TABLE    0x04
+#define EFI_DMA_FAULT_REASON_ACCESS_ADDR_OUT_OF_SPACE           0x05
+#define EFI_DMA_FAULT_REASON_INVALID_ACCESS                     0x06
+#define EFI_DMA_FAULT_REASON_INVALID_REQUEST                    0x07
+#define EFI_DMA_FAULT_REASON_ACCESS_TRANSLATE_TABLE_ERROR       0x08
+#define EFI_DMA_FAULT_REASON_RESV_BIT_ERROR_IN_TRANSLATE_TABLE  0x09
+#define EFI_DMA_FAULT_REASON_INVALID_COMMAOND                   0x0A
+#define EFI_DMA_FAULT_REASON_ACCESS_COMMAND_BUFFER_ERROR        0x0B
 ///@}
 
 ///
 /// DMA access type in DMAr Generic Error Section
 ///@{
-#define EFI_DMA_ACCESS_TYPE_READ                     0x00
-#define EFI_DMA_ACCESS_TYPE_WRITE                    0x01
+#define EFI_DMA_ACCESS_TYPE_READ   0x00
+#define EFI_DMA_ACCESS_TYPE_WRITE  0x01
 ///@}
 
 ///
 /// DMA address type in DMAr Generic Error Section
 ///@{
-#define EFI_DMA_ADDRESS_UNTRANSLATED                 0x00
-#define EFI_DMA_ADDRESS_TRANSLATION                  0x01
+#define EFI_DMA_ADDRESS_UNTRANSLATED  0x00
+#define EFI_DMA_ADDRESS_TRANSLATION   0x01
 ///@}
 
 ///
 /// Architecture type in DMAr Generic Error Section
 ///@{
-#define EFI_DMA_ARCH_TYPE_VT                         0x01
-#define EFI_DMA_ARCH_TYPE_IOMMU                      0x02
+#define EFI_DMA_ARCH_TYPE_VT     0x01
+#define EFI_DMA_ARCH_TYPE_IOMMU  0x02
 ///@}
 
 ///
 /// DMAr Generic Error Section
 ///
 typedef struct {
-  UINT16      RequesterId;
-  UINT16      SegmentNumber;
-  UINT8       FaultReason;
-  UINT8       AccessType;
-  UINT8       AddressType;
-  UINT8       ArchType;
-  UINT64      DeviceAddr;
-  UINT8       Resv1[16];
+  UINT16    RequesterId;
+  UINT16    SegmentNumber;
+  UINT8     FaultReason;
+  UINT8     AccessType;
+  UINT8     AddressType;
+  UINT8     ArchType;
+  UINT64    DeviceAddr;
+  UINT8     Resv1[16];
 } EFI_DMAR_GENERIC_ERROR_DATA;
 
 ///
 /// Intel VT for Directed I/O specific DMAr Errors
 ///
 typedef struct {
-  UINT8           Version;
-  UINT8           Revision;
-  UINT8           OemId[6];
-  UINT64          Capability;
-  UINT64          CapabilityEx;
-  UINT32          GlobalCommand;
-  UINT32          GlobalStatus;
-  UINT32          FaultStatus;
-  UINT8           Resv1[12];
-  UINT64          FaultRecord[2];
-  UINT64          RootEntry[2];
-  UINT64          ContextEntry[2];
-  UINT64          PteL6;
-  UINT64          PteL5;
-  UINT64          PteL4;
-  UINT64          PteL3;
-  UINT64          PteL2;
-  UINT64          PteL1;
+  UINT8     Version;
+  UINT8     Revision;
+  UINT8     OemId[6];
+  UINT64    Capability;
+  UINT64    CapabilityEx;
+  UINT32    GlobalCommand;
+  UINT32    GlobalStatus;
+  UINT32    FaultStatus;
+  UINT8     Resv1[12];
+  UINT64    FaultRecord[2];
+  UINT64    RootEntry[2];
+  UINT64    ContextEntry[2];
+  UINT64    PteL6;
+  UINT64    PteL5;
+  UINT64    PteL4;
+  UINT64    PteL3;
+  UINT64    PteL2;
+  UINT64    PteL1;
 } EFI_DIRECTED_IO_DMAR_ERROR_DATA;
 
 ///
 /// IOMMU specific DMAr Errors
 ///
 typedef struct {
-  UINT8           Revision;
-  UINT8           Resv1[7];
-  UINT64          Control;
-  UINT64          Status;
-  UINT8           Resv2[8];
-  UINT64          EventLogEntry[2];
-  UINT8           Resv3[16];
-  UINT64          DeviceTableEntry[4];
-  UINT64          PteL6;
-  UINT64          PteL5;
-  UINT64          PteL4;
-  UINT64          PteL3;
-  UINT64          PteL2;
-  UINT64          PteL1;
+  UINT8     Revision;
+  UINT8     Resv1[7];
+  UINT64    Control;
+  UINT64    Status;
+  UINT8     Resv2[8];
+  UINT64    EventLogEntry[2];
+  UINT8     Resv3[16];
+  UINT64    DeviceTableEntry[4];
+  UINT64    PteL6;
+  UINT64    PteL5;
+  UINT64    PteL4;
+  UINT64    PteL3;
+  UINT64    PteL2;
+  UINT64    PteL1;
 } EFI_IOMMU_DMAR_ERROR_DATA;
+
+///
+/// CXL Cachemem Event Log Valid bits
+///@{
+#define EFI_CXL_CACHMEM_AGENT_TYPE      BIT0  // CXL Agent Type field is valid
+#define EFI_CXL_CACHMEM_AGENT_ADDRESS   BIT1  // CXL Agent Address field is valid
+#define EFI_CXL_CACHMEM_DEVICE_ID       BIT2  // Device ID field is valid
+#define EFI_CXL_CACHMEM_DEVICE_SER_NUM  BIT3  // Device Serial Number field is valid
+#define EFI_CXL_CACHMEM_CAP_STRUCT      BIT4  // Capability structure field is valid
+#define EFI_CXL_CACHMEM_DVSEC           BIT5  // CXL DVSET field is valid
+#define EFI_CXL_CACHMEM_ERROR_LOG       BIT6  // CXL Error Log field is valid
+///@}
+
+//
+// CXL Agent Types
+///@{
+#define EFI_CXL_AGENT_CXL11_DEV          0    // CXL 1.1 Device
+#define EFI_CXL_AGENT_CXL11_DSP          1    // CXL 1.1 Downstream Port
+#define EFI_CXL_AGENT_CXL20_DEV          2    // CXL 2.0 Device
+#define EFI_CXL_AGENT_CXL20_LOGICAL_DEV  3    // CXL 2.0 Logical Device
+#define EFI_CXL_AGENT_CXL20_FMLD         4    // CXL 2.0 Fabric Manager managed Logical device
+#define EFI_CXL_AGENT_CXL20_RP           5    // CXL 2.0 Root Port
+#define EFI_CXL_AGENT_CXL20_DSP          6    // CXL 2.0 Downstream Switch Port
+#define EFI_CXL_AGENT_CXL20_USP          7    // CXL 2.0 Upstream Switch Port
+///@}
+
+//
+// CXL Mem Event Log Valid bits
+///@{
+#define EFI_CXL_MEM_DEVICE_ID       BIT0  // Device ID field is valid
+#define EFI_CXL_MEM_DEVICE_SER_NUM  BIT1  // Device Serial Number field is valid
+#define EFI_CXL_MEM_COMP_ERROR_LOG  BIT2  // CXL Component Error Log field is valid
+///@}
+
+//
+// CXL Agent Address
+//
+typedef union {
+  struct {
+    UINT64    Function : 8;
+    UINT64    Device   : 8;
+    UINT64    Bus      : 8;
+    UINT64    Segment  : 16;
+    UINT64    Rsvd     : 24;
+  } Bits;
+  struct {
+    UINT32    Low;
+    UINT32    High;
+  } RcrbBase;
+} EFI_CXL_AGENT_ADDRESS;
+
+//
+// CXL Device ID
+//
+typedef struct {
+  UINT16    VendorId;
+  UINT16    DeviceId;
+  UINT16    Svid;
+  UINT16    Sid;
+  UINT16    ClassCode;
+  struct {
+    UINT16    Rsvd : 3;
+    UINT16    Num  : 13;
+  } Slot;
+  UINT32    Rsvd;
+} EFI_CXL_AGENT_DEVICE_ID;
+
+//
+// CXL Device Serial Number
+//
+typedef struct {
+  UINT32    Lower;
+  UINT32    Upper;
+} EFI_CXL_DEVICE_SERIAL_NUM;
+
+//
+// PCIe device identifiers of CXL Component
+//
+typedef struct {
+  UINT16                        VendorId;
+  UINT16                        DeviceId;
+  UINT8                         Function;
+  UINT8                         Device;
+  UINT8                         Bus;
+  UINT16                        Segment;
+  EFI_GENERIC_ERROR_PCI_SLOT    Slot;
+  UINT8                         Resvd;
+} EFI_CXL_ERROR_PCIE_DEV_ID;
+
+//
+// CXL Component Events Section
+//
+typedef struct {
+  UINT32                       Length;
+  UINT64                       ValidFields;
+  EFI_CXL_ERROR_PCIE_DEV_ID    CxlDeviceId;
+  UINT64                       DeviceSerialNo;
+} EFI_CXL_COMPONENT_EVENT_LOG;
 
 #pragma pack()
 
-extern EFI_GUID gEfiEventNotificationTypeCmcGuid;
-extern EFI_GUID gEfiEventNotificationTypeCpeGuid;
-extern EFI_GUID gEfiEventNotificationTypeMceGuid;
-extern EFI_GUID gEfiEventNotificationTypePcieGuid;
-extern EFI_GUID gEfiEventNotificationTypeInitGuid;
-extern EFI_GUID gEfiEventNotificationTypeNmiGuid;
-extern EFI_GUID gEfiEventNotificationTypeBootGuid;
-extern EFI_GUID gEfiEventNotificationTypeDmarGuid;
-extern EFI_GUID gEfiEventNotificationTypeSeaGuid;
-extern EFI_GUID gEfiEventNotificationTypeSeiGuid;
-extern EFI_GUID gEfiEventNotificationTypePeiGuid;
+extern EFI_GUID  gEfiEventNotificationTypeCmcGuid;
+extern EFI_GUID  gEfiEventNotificationTypeCpeGuid;
+extern EFI_GUID  gEfiEventNotificationTypeMceGuid;
+extern EFI_GUID  gEfiEventNotificationTypePcieGuid;
+extern EFI_GUID  gEfiEventNotificationTypeInitGuid;
+extern EFI_GUID  gEfiEventNotificationTypeNmiGuid;
+extern EFI_GUID  gEfiEventNotificationTypeBootGuid;
+extern EFI_GUID  gEfiEventNotificationTypeDmarGuid;
+extern EFI_GUID  gEfiEventNotificationTypeSeaGuid;
+extern EFI_GUID  gEfiEventNotificationTypeSeiGuid;
+extern EFI_GUID  gEfiEventNotificationTypePeiGuid;
 
-extern EFI_GUID gEfiProcessorGenericErrorSectionGuid;
-extern EFI_GUID gEfiProcessorSpecificErrorSectionGuid;
-extern EFI_GUID gEfiIa32X64ProcessorErrorSectionGuid;
-extern EFI_GUID gEfiArmProcessorErrorSectionGuid ;
-extern EFI_GUID gEfiPlatformMemoryErrorSectionGuid;
-extern EFI_GUID gEfiPlatformMemory2ErrorSectionGuid;
-extern EFI_GUID gEfiPcieErrorSectionGuid;
-extern EFI_GUID gEfiFirmwareErrorSectionGuid;
-extern EFI_GUID gEfiPciBusErrorSectionGuid;
-extern EFI_GUID gEfiPciDevErrorSectionGuid;
-extern EFI_GUID gEfiDMArGenericErrorSectionGuid;
-extern EFI_GUID gEfiDirectedIoDMArErrorSectionGuid;
-extern EFI_GUID gEfiIommuDMArErrorSectionGuid;
+extern EFI_GUID  gEfiProcessorGenericErrorSectionGuid;
+extern EFI_GUID  gEfiProcessorSpecificErrorSectionGuid;
+extern EFI_GUID  gEfiIa32X64ProcessorErrorSectionGuid;
+extern EFI_GUID  gEfiArmProcessorErrorSectionGuid;
+extern EFI_GUID  gEfiPlatformMemoryErrorSectionGuid;
+extern EFI_GUID  gEfiPlatformMemory2ErrorSectionGuid;
+extern EFI_GUID  gEfiPcieErrorSectionGuid;
+extern EFI_GUID  gEfiFirmwareErrorSectionGuid;
+extern EFI_GUID  gEfiPciBusErrorSectionGuid;
+extern EFI_GUID  gEfiPciDevErrorSectionGuid;
+extern EFI_GUID  gEfiDMArGenericErrorSectionGuid;
+extern EFI_GUID  gEfiDirectedIoDMArErrorSectionGuid;
+extern EFI_GUID  gEfiIommuDMArErrorSectionGuid;
 
 #if defined (MDE_CPU_IA32) || defined (MDE_CPU_X64)
 ///
 /// IA32 and x64 Specific definitions.
 ///
 
-extern EFI_GUID gEfiIa32X64ErrorTypeCacheCheckGuid;
-extern EFI_GUID gEfiIa32X64ErrorTypeTlbCheckGuid;
-extern EFI_GUID gEfiIa32X64ErrorTypeBusCheckGuid;
-extern EFI_GUID gEfiIa32X64ErrorTypeMsCheckGuid;
+extern EFI_GUID  gEfiIa32X64ErrorTypeCacheCheckGuid;
+extern EFI_GUID  gEfiIa32X64ErrorTypeTlbCheckGuid;
+extern EFI_GUID  gEfiIa32X64ErrorTypeBusCheckGuid;
+extern EFI_GUID  gEfiIa32X64ErrorTypeMsCheckGuid;
 
 #endif
 

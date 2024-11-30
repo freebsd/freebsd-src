@@ -14,9 +14,9 @@
 //
 // _WIN_CERTIFICATE.wCertificateType
 //
-#define WIN_CERT_TYPE_PKCS_SIGNED_DATA 0x0002
-#define WIN_CERT_TYPE_EFI_PKCS115      0x0EF0
-#define WIN_CERT_TYPE_EFI_GUID         0x0EF1
+#define WIN_CERT_TYPE_PKCS_SIGNED_DATA  0x0002
+#define WIN_CERT_TYPE_EFI_PKCS115       0x0EF0
+#define WIN_CERT_TYPE_EFI_GUID          0x0EF1
 
 ///
 /// The WIN_CERTIFICATE structure is part of the PE/COFF specification.
@@ -26,18 +26,18 @@ typedef struct {
   /// The length of the entire certificate,
   /// including the length of the header, in bytes.
   ///
-  UINT32  dwLength;
+  UINT32    dwLength;
   ///
   /// The revision level of the WIN_CERTIFICATE
   /// structure. The current revision level is 0x0200.
   ///
-  UINT16  wRevision;
+  UINT16    wRevision;
   ///
   /// The certificate type. See WIN_CERT_TYPE_xxx for the UEFI
   /// certificate types. The UEFI specification reserves the range of
   /// certificate type values from 0x0EF0 to 0x0EFF.
   ///
-  UINT16  wCertificateType;
+  UINT16    wCertificateType;
   ///
   /// The following is the actual certificate. The format of
   /// the certificate depends on wCertificateType.
@@ -56,11 +56,10 @@ typedef struct {
 /// WIN_CERTIFICATE_UEFI_GUID.CertData
 ///
 typedef struct {
-  EFI_GUID  HashType;
-  UINT8     PublicKey[256];
-  UINT8     Signature[256];
+  EFI_GUID    HashType;
+  UINT8       PublicKey[256];
+  UINT8       Signature[256];
 } EFI_CERT_BLOCK_RSA_2048_SHA256;
-
 
 ///
 /// Certificate which encapsulates a GUID-specific digital signature
@@ -70,21 +69,20 @@ typedef struct {
   /// This is the standard WIN_CERTIFICATE header, where
   /// wCertificateType is set to WIN_CERT_TYPE_EFI_GUID.
   ///
-  WIN_CERTIFICATE   Hdr;
+  WIN_CERTIFICATE    Hdr;
   ///
   /// This is the unique id which determines the
   /// format of the CertData. .
   ///
-  EFI_GUID          CertType;
+  EFI_GUID           CertType;
   ///
   /// The following is the certificate data. The format of
   /// the data is determined by the CertType.
   /// If CertType is EFI_CERT_TYPE_RSA2048_SHA256_GUID,
   /// the CertData will be EFI_CERT_BLOCK_RSA_2048_SHA256 structure.
   ///
-  UINT8            CertData[1];
+  UINT8              CertData[1];
 } WIN_CERTIFICATE_UEFI_GUID;
-
 
 ///
 /// Certificate which encapsulates the RSASSA_PKCS1-v1_5 digital signature.
@@ -99,12 +97,12 @@ typedef struct {
   /// This is the standard WIN_CERTIFICATE header, where
   /// wCertificateType is set to WIN_CERT_TYPE_UEFI_PKCS1_15.
   ///
-  WIN_CERTIFICATE Hdr;
+  WIN_CERTIFICATE    Hdr;
   ///
   /// This is the hashing algorithm which was performed on the
   /// UEFI executable when creating the digital signature.
   ///
-  EFI_GUID        HashAlgorithm;
+  EFI_GUID           HashAlgorithm;
   ///
   /// The following is the actual digital signature. The
   /// size of the signature is the same size as the key
@@ -117,6 +115,6 @@ typedef struct {
   ///
 } WIN_CERTIFICATE_EFI_PKCS1_15;
 
-extern EFI_GUID gEfiCertTypeRsa2048Sha256Guid;
+extern EFI_GUID  gEfiCertTypeRsa2048Sha256Guid;
 
 #endif

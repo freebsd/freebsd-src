@@ -5,6 +5,7 @@
 // The IA32 version library support loading IA32, X64 and EBC PE/COFF images.
 // The X64 version library support loading IA32, X64 and EBC PE/COFF images.
 // The RISC-V version library support loading RISC-V32 and RISC-V64 PE/COFF images.
+// The LoongArch version library support loading LoongArch32 and LoongArch64 PE/COFF images.
 //
 // Caution: This module requires additional review when modified.
 // This library will have external input - PE/COFF image.
@@ -14,6 +15,7 @@
 // Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 // Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 // Portions Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+// Portions Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //

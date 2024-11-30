@@ -20,21 +20,21 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     0x964e5b22, 0x6459, 0x11d2, {0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b } \
   }
 
-typedef struct _EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL;
+typedef struct _EFI_SIMPLE_FILE_SYSTEM_PROTOCOL EFI_SIMPLE_FILE_SYSTEM_PROTOCOL;
 
-typedef struct _EFI_FILE_PROTOCOL         EFI_FILE_PROTOCOL;
-typedef struct _EFI_FILE_PROTOCOL         *EFI_FILE_HANDLE;
+typedef struct _EFI_FILE_PROTOCOL EFI_FILE_PROTOCOL;
+typedef struct _EFI_FILE_PROTOCOL *EFI_FILE_HANDLE;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
 ///
-#define SIMPLE_FILE_SYSTEM_PROTOCOL       EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
+#define SIMPLE_FILE_SYSTEM_PROTOCOL  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
 
 ///
 /// Protocol name defined in EFI1.1.
 ///
-typedef EFI_SIMPLE_FILE_SYSTEM_PROTOCOL   EFI_FILE_IO_INTERFACE;
-typedef EFI_FILE_PROTOCOL                 EFI_FILE;
+typedef EFI_SIMPLE_FILE_SYSTEM_PROTOCOL EFI_FILE_IO_INTERFACE;
+typedef EFI_FILE_PROTOCOL               EFI_FILE;
 
 /**
   Open the root directory on a volume.
@@ -76,8 +76,8 @@ struct _EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
   /// specified by this specification is 0x00010000. All future revisions
   /// must be backwards compatible.
   ///
-  UINT64                                      Revision;
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_OPEN_VOLUME OpenVolume;
+  UINT64                                         Revision;
+  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_OPEN_VOLUME    OpenVolume;
 };
 
 /**
@@ -130,13 +130,13 @@ EFI_STATUS
 //
 // File attributes
 //
-#define EFI_FILE_READ_ONLY  0x0000000000000001ULL
-#define EFI_FILE_HIDDEN     0x0000000000000002ULL
-#define EFI_FILE_SYSTEM     0x0000000000000004ULL
-#define EFI_FILE_RESERVED   0x0000000000000008ULL
-#define EFI_FILE_DIRECTORY  0x0000000000000010ULL
-#define EFI_FILE_ARCHIVE    0x0000000000000020ULL
-#define EFI_FILE_VALID_ATTR 0x0000000000000037ULL
+#define EFI_FILE_READ_ONLY   0x0000000000000001ULL
+#define EFI_FILE_HIDDEN      0x0000000000000002ULL
+#define EFI_FILE_SYSTEM      0x0000000000000004ULL
+#define EFI_FILE_RESERVED    0x0000000000000008ULL
+#define EFI_FILE_DIRECTORY   0x0000000000000010ULL
+#define EFI_FILE_ARCHIVE     0x0000000000000020ULL
+#define EFI_FILE_VALID_ATTR  0x0000000000000037ULL
 
 /**
   Closes a specified file handle.
@@ -365,12 +365,12 @@ typedef struct {
   // The caller must be prepared to handle the case where the callback associated with Event
   // occurs before the original asynchronous I/O request call returns.
   //
-  EFI_EVENT                   Event;
+  EFI_EVENT     Event;
 
   //
   // Defines whether or not the signaled event encountered an error.
   //
-  EFI_STATUS                  Status;
+  EFI_STATUS    Status;
 
   //
   // For OpenEx():  Not Used, ignored.
@@ -380,7 +380,7 @@ typedef struct {
   //                In both cases, the size is measured in bytes.
   // For FlushEx(): Not used, ignored.
   //
-  UINTN                       BufferSize;
+  UINTN    BufferSize;
 
   //
   // For OpenEx():  Not Used, ignored.
@@ -388,7 +388,7 @@ typedef struct {
   // For WriteEx(): The buffer of data to write.
   // For FlushEx(): Not Used, ignored.
   //
-  VOID                        *Buffer;
+  VOID     *Buffer;
 } EFI_FILE_IO_TOKEN;
 
 /**
@@ -434,7 +434,6 @@ EFI_STATUS
   IN OUT EFI_FILE_IO_TOKEN    *Token
   );
 
-
 /**
   Reads data from a file.
 
@@ -453,11 +452,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_FILE_READ_EX) (
+(EFIAPI *EFI_FILE_READ_EX)(
   IN EFI_FILE_PROTOCOL        *This,
   IN OUT EFI_FILE_IO_TOKEN    *Token
-);
-
+  );
 
 /**
   Writes data to a file.
@@ -480,10 +478,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_FILE_WRITE_EX) (
+(EFIAPI *EFI_FILE_WRITE_EX)(
   IN EFI_FILE_PROTOCOL        *This,
   IN OUT EFI_FILE_IO_TOKEN    *Token
-);
+  );
 
 /**
   Flushes all modified data associated with a file to a device.
@@ -506,19 +504,19 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_FILE_FLUSH_EX) (
+(EFIAPI *EFI_FILE_FLUSH_EX)(
   IN EFI_FILE_PROTOCOL        *This,
   IN OUT EFI_FILE_IO_TOKEN    *Token
   );
 
-#define EFI_FILE_PROTOCOL_REVISION        0x00010000
-#define EFI_FILE_PROTOCOL_REVISION2       0x00020000
-#define EFI_FILE_PROTOCOL_LATEST_REVISION EFI_FILE_PROTOCOL_REVISION2
+#define EFI_FILE_PROTOCOL_REVISION         0x00010000
+#define EFI_FILE_PROTOCOL_REVISION2        0x00020000
+#define EFI_FILE_PROTOCOL_LATEST_REVISION  EFI_FILE_PROTOCOL_REVISION2
 
 //
 // Revision defined in EFI1.1.
 //
-#define EFI_FILE_REVISION   EFI_FILE_PROTOCOL_REVISION
+#define EFI_FILE_REVISION  EFI_FILE_PROTOCOL_REVISION
 
 ///
 /// The EFI_FILE_PROTOCOL provides file IO access to supported file systems.
@@ -533,24 +531,23 @@ struct _EFI_FILE_PROTOCOL {
   /// by this specification is EFI_FILE_PROTOCOL_LATEST_REVISION.
   /// Future versions are required to be backward compatible to version 1.0.
   ///
-  UINT64                Revision;
-  EFI_FILE_OPEN         Open;
-  EFI_FILE_CLOSE        Close;
-  EFI_FILE_DELETE       Delete;
-  EFI_FILE_READ         Read;
-  EFI_FILE_WRITE        Write;
-  EFI_FILE_GET_POSITION GetPosition;
-  EFI_FILE_SET_POSITION SetPosition;
-  EFI_FILE_GET_INFO     GetInfo;
-  EFI_FILE_SET_INFO     SetInfo;
-  EFI_FILE_FLUSH        Flush;
-  EFI_FILE_OPEN_EX      OpenEx;
-  EFI_FILE_READ_EX      ReadEx;
-  EFI_FILE_WRITE_EX     WriteEx;
-  EFI_FILE_FLUSH_EX     FlushEx;
+  UINT64                   Revision;
+  EFI_FILE_OPEN            Open;
+  EFI_FILE_CLOSE           Close;
+  EFI_FILE_DELETE          Delete;
+  EFI_FILE_READ            Read;
+  EFI_FILE_WRITE           Write;
+  EFI_FILE_GET_POSITION    GetPosition;
+  EFI_FILE_SET_POSITION    SetPosition;
+  EFI_FILE_GET_INFO        GetInfo;
+  EFI_FILE_SET_INFO        SetInfo;
+  EFI_FILE_FLUSH           Flush;
+  EFI_FILE_OPEN_EX         OpenEx;
+  EFI_FILE_READ_EX         ReadEx;
+  EFI_FILE_WRITE_EX        WriteEx;
+  EFI_FILE_FLUSH_EX        FlushEx;
 };
 
-
-extern EFI_GUID gEfiSimpleFileSystemProtocolGuid;
+extern EFI_GUID  gEfiSimpleFileSystemProtocolGuid;
 
 #endif

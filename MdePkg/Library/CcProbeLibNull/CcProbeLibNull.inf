@@ -1,0 +1,21 @@
+## @file
+# CcProbeLib null instance.
+#
+#  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = CcProbeLibNull
+  FILE_GUID                      = B15D67FE-0DAC-4316-8E26-8A6b85E43782
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = CcProbeLib
+
+[Sources]
+  CcProbeLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec

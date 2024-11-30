@@ -20,7 +20,7 @@
       0xa00490ba, 0x3f1a, 0x4b4c, {0xab, 0x90, 0x4f, 0xa9, 0x97, 0x26, 0xa1, 0xe8} \
     }
 
-typedef struct _EFI_BLOCK_IO_CRYPTO_PROTOCOL  EFI_BLOCK_IO_CRYPTO_PROTOCOL;
+typedef struct _EFI_BLOCK_IO_CRYPTO_PROTOCOL EFI_BLOCK_IO_CRYPTO_PROTOCOL;
 
 ///
 /// The struct of Block I/O Crypto Token.
@@ -32,27 +32,27 @@ typedef struct {
   // Event will be signaled when the read request is completed and data was
   // decrypted  (when Index was specified).
   //
-  EFI_EVENT               Event;
+  EFI_EVENT     Event;
   //
   // Defines whether or not the signaled event encountered an error.
   //
-  EFI_STATUS              TransactionStatus;
+  EFI_STATUS    TransactionStatus;
 } EFI_BLOCK_IO_CRYPTO_TOKEN;
 
 typedef struct {
   //
   // GUID of the algorithm.
   //
-  EFI_GUID       Algorithm;
+  EFI_GUID    Algorithm;
   //
   // Specifies KeySizein bits used with this Algorithm.
   //
-  UINT64         KeySize;
+  UINT64      KeySize;
   //
   // Specifies bitmask of block sizes supported by this algorithm.
   // Bit j being set means that 2^j bytes crypto block size is supported.
   //
-  UINT64         CryptoBlockSizeBitMask;
+  UINT64      CryptoBlockSizeBitMask;
 } EFI_BLOCK_IO_CRYPTO_CAPABILITY;
 
 ///
@@ -63,7 +63,7 @@ typedef struct {
 /// the Inline Cryptographic Interface.
 ///
 typedef struct {
-  UINT64         InputSize;
+  UINT64    InputSize;
 } EFI_BLOCK_IO_CRYPTO_IV_INPUT;
 
 #define EFI_BLOCK_IO_CRYPTO_ALGO_GUID_AES_XTS \
@@ -71,12 +71,12 @@ typedef struct {
       0x2f87ba6a, 0x5c04, 0x4385, {0xa7, 0x80, 0xf3, 0xbf, 0x78, 0xa9, 0x7b, 0xec} \
     }
 
-extern EFI_GUID gEfiBlockIoCryptoAlgoAesXtsGuid;
+extern EFI_GUID  gEfiBlockIoCryptoAlgoAesXtsGuid;
 
 typedef struct {
-  EFI_BLOCK_IO_CRYPTO_IV_INPUT Header;
-  UINT64                       CryptoBlockNumber;
-  UINT64                       CryptoBlockByteSize;
+  EFI_BLOCK_IO_CRYPTO_IV_INPUT    Header;
+  UINT64                          CryptoBlockNumber;
+  UINT64                          CryptoBlockByteSize;
 } EFI_BLOCK_IO_CRYPTO_IV_INPUT_AES_XTS;
 
 #define EFI_BLOCK_IO_CRYPTO_ALGO_GUID_AES_CBC_MICROSOFT_BITLOCKER \
@@ -84,33 +84,33 @@ typedef struct {
       0x689e4c62, 0x70bf, 0x4cf3, {0x88, 0xbb, 0x33, 0xb3, 0x18, 0x26, 0x86, 0x70} \
     }
 
-extern EFI_GUID gEfiBlockIoCryptoAlgoAesCbcMsBitlockerGuid;
+extern EFI_GUID  gEfiBlockIoCryptoAlgoAesCbcMsBitlockerGuid;
 
 typedef struct {
-  EFI_BLOCK_IO_CRYPTO_IV_INPUT  Header;
-  UINT64                        CryptoBlockByteOffset;
-  UINT64                        CryptoBlockByteSize;
+  EFI_BLOCK_IO_CRYPTO_IV_INPUT    Header;
+  UINT64                          CryptoBlockByteOffset;
+  UINT64                          CryptoBlockByteSize;
 } EFI_BLOCK_IO_CRYPTO_IV_INPUT_AES_CBC_MICROSOFT_BITLOCKER;
 
-#define EFI_BLOCK_IO_CRYPTO_INDEX_ANY 0xFFFFFFFFFFFFFFFF
+#define EFI_BLOCK_IO_CRYPTO_INDEX_ANY  0xFFFFFFFFFFFFFFFF
 
 typedef struct {
   //
   // Is inline cryptographic capability supported on this device.
   //
-  BOOLEAN                         Supported;
+  BOOLEAN                           Supported;
   //
   // Maximum number of keys that can be configured at the same time.
   //
-  UINT64                          KeyCount;
+  UINT64                            KeyCount;
   //
   // Number of supported capabilities.
   //
-  UINT64                          CapabilityCount;
+  UINT64                            CapabilityCount;
   //
   // Array of supported capabilities.
   //
-  EFI_BLOCK_IO_CRYPTO_CAPABILITY  Capabilities[1];
+  EFI_BLOCK_IO_CRYPTO_CAPABILITY    Capabilities[1];
 } EFI_BLOCK_IO_CRYPTO_CAPABILITIES;
 
 typedef struct {
@@ -118,38 +118,38 @@ typedef struct {
   // Configuration table index. A special Index EFI_BLOCK_IO_CRYPTO_INDEX_ANY can be
   // used to set any available entry in the configuration table.
   //
-  UINT64                          Index;
+  UINT64                            Index;
   //
   // Identifies the owner of the configuration table entry. Entry can also be used
   // with the Nil value to clear key from the configuration table index.
   //
-  EFI_GUID                        KeyOwnerGuid;
+  EFI_GUID                          KeyOwnerGuid;
   //
   // A supported capability to be used. The CryptoBlockSizeBitMask field of the
   // structure should have only one bit set from the supported mask.
   //
-  EFI_BLOCK_IO_CRYPTO_CAPABILITY  Capability;
+  EFI_BLOCK_IO_CRYPTO_CAPABILITY    Capability;
   //
   // Pointer to the key. The size of the key is defined by the KeySize field of
   // the capability specified by the Capability parameter.
   //
-  VOID                            *CryptoKey;
+  VOID                              *CryptoKey;
 } EFI_BLOCK_IO_CRYPTO_CONFIGURATION_TABLE_ENTRY;
 
 typedef struct {
   //
   // Configuration table index.
   //
-  UINT64                          Index;
+  UINT64                            Index;
   //
   // Identifies the current owner of the entry.
   //
-  EFI_GUID                        KeyOwnerGuid;
+  EFI_GUID                          KeyOwnerGuid;
   //
   // The capability to be used. The CryptoBlockSizeBitMask field of the structure
   // has only one bit set from the supported mask.
   //
-  EFI_BLOCK_IO_CRYPTO_CAPABILITY  Capability;
+  EFI_BLOCK_IO_CRYPTO_CAPABILITY    Capability;
 } EFI_BLOCK_IO_CRYPTO_RESPONSE_CONFIGURATION_ENTRY;
 
 /**
@@ -179,7 +179,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_RESET) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_RESET)(
   IN EFI_BLOCK_IO_CRYPTO_PROTOCOL  *This,
   IN BOOLEAN                       ExtendedVerification
   );
@@ -212,9 +212,9 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_GET_CAPABILITIES) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_GET_CAPABILITIES)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL           *This,
-     OUT EFI_BLOCK_IO_CRYPTO_CAPABILITIES       *Capabilities
+  OUT EFI_BLOCK_IO_CRYPTO_CAPABILITIES       *Capabilities
   );
 
 /**
@@ -281,11 +281,11 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_SET_CONFIGURATION) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_SET_CONFIGURATION)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL                     *This,
   IN     UINT64                                           ConfigurationCount,
   IN     EFI_BLOCK_IO_CRYPTO_CONFIGURATION_TABLE_ENTRY    *ConfigurationTable,
-     OUT EFI_BLOCK_IO_CRYPTO_RESPONSE_CONFIGURATION_ENTRY *ResultingTable OPTIONAL
+  OUT EFI_BLOCK_IO_CRYPTO_RESPONSE_CONFIGURATION_ENTRY *ResultingTable OPTIONAL
   );
 
 /**
@@ -322,13 +322,13 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_GET_CONFIGURATION) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_GET_CONFIGURATION)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL                     *This,
   IN     UINT64                                           StartIndex,
   IN     UINT64                                           ConfigurationCount,
   IN     EFI_GUID                                         *KeyOwnerGuid OPTIONAL,
-     OUT EFI_BLOCK_IO_CRYPTO_RESPONSE_CONFIGURATION_ENTRY *ConfigurationTable
-);
+  OUT EFI_BLOCK_IO_CRYPTO_RESPONSE_CONFIGURATION_ENTRY *ConfigurationTable
+  );
 
 /**
   Reads the requested number of blocks from the device and optionally decrypts
@@ -387,13 +387,13 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_READ_EXTENDED) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_READ_EXTENDED)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL  *This,
   IN     UINT32                        MediaId,
   IN     EFI_LBA                       LBA,
   IN OUT EFI_BLOCK_IO_CRYPTO_TOKEN     *Token,
   IN     UINT64                        BufferSize,
-     OUT VOID                          *Buffer,
+  OUT VOID                          *Buffer,
   IN     UINT64                        *Index OPTIONAL,
   IN     VOID                          *CryptoIvInput OPTIONAL
   );
@@ -453,7 +453,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_WRITE_EXTENDED) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_WRITE_EXTENDED)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL  *This,
   IN     UINT32                        MediaId,
   IN     EFI_LBA                       LBA,
@@ -498,7 +498,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLOCK_IO_CRYPTO_FLUSH) (
+(EFIAPI *EFI_BLOCK_IO_CRYPTO_FLUSH)(
   IN     EFI_BLOCK_IO_CRYPTO_PROTOCOL  *This,
   IN OUT EFI_BLOCK_IO_CRYPTO_TOKEN     *Token
   );
@@ -508,17 +508,16 @@ EFI_STATUS
 /// drivers and applications to perform block encryption on a storage device, such as UFS.
 ///
 struct _EFI_BLOCK_IO_CRYPTO_PROTOCOL {
-  EFI_BLOCK_IO_MEDIA                        *Media;
-  EFI_BLOCK_IO_CRYPTO_RESET                 Reset;
-  EFI_BLOCK_IO_CRYPTO_GET_CAPABILITIES      GetCapabilities;
-  EFI_BLOCK_IO_CRYPTO_SET_CONFIGURATION     SetConfiguration;
-  EFI_BLOCK_IO_CRYPTO_GET_CONFIGURATION     GetConfiguration;
-  EFI_BLOCK_IO_CRYPTO_READ_EXTENDED         ReadExtended;
-  EFI_BLOCK_IO_CRYPTO_WRITE_EXTENDED        WriteExtended;
-  EFI_BLOCK_IO_CRYPTO_FLUSH                 FlushBlocks;
+  EFI_BLOCK_IO_MEDIA                       *Media;
+  EFI_BLOCK_IO_CRYPTO_RESET                Reset;
+  EFI_BLOCK_IO_CRYPTO_GET_CAPABILITIES     GetCapabilities;
+  EFI_BLOCK_IO_CRYPTO_SET_CONFIGURATION    SetConfiguration;
+  EFI_BLOCK_IO_CRYPTO_GET_CONFIGURATION    GetConfiguration;
+  EFI_BLOCK_IO_CRYPTO_READ_EXTENDED        ReadExtended;
+  EFI_BLOCK_IO_CRYPTO_WRITE_EXTENDED       WriteExtended;
+  EFI_BLOCK_IO_CRYPTO_FLUSH                FlushBlocks;
 };
 
-extern EFI_GUID gEfiBlockIoCryptoProtocolGuid;
+extern EFI_GUID  gEfiBlockIoCryptoProtocolGuid;
 
 #endif
-

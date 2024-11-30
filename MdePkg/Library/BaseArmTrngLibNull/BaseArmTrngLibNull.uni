@@ -1,0 +1,12 @@
+// /** @file
+// Null Instance of the Arm TRNG (True Random Number Generator) Library.
+//
+//  Copyright (c) 2021 - 2022, Arm Limited. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#string STR_MODULE_ABSTRACT             #language en-US "Null instance of TRNG Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This library instance should be used with modules that inherit an (indirect) dependency on the ArmTrngLib class, but never actually call ArmTrngLib APIs for consuming Entropy."

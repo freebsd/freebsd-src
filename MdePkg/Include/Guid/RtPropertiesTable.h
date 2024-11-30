@@ -22,32 +22,29 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     { 0xeb66918a, 0x7eef, 0x402a, \
     { 0x84, 0x2e, 0x93, 0x1d, 0x21, 0xc3, 0x8a, 0xe9 }}
 
-
-
-
 #pragma pack(1)
 
 typedef struct {
   ///
   /// Version of the structure, must be 0x1.
   ///
-  UINT16 Version;
+  UINT16    Version;
 
   ///
   /// Size in bytes of the entire EFI_RT_PROPERTIES_TABLE, must be 8.
   ///
-  UINT16 Length;
+  UINT16    Length;
 
   ///
   /// Bitmask of which calls are or are not supported, where a bit set to 1 indicates
   /// that the call is supported, and 0 indicates that it is not.
   ///
-  UINT32 RuntimeServicesSupported;
+  UINT32    RuntimeServicesSupported;
 } EFI_RT_PROPERTIES_TABLE;
 
 #pragma pack()
 
-#define EFI_RT_PROPERTIES_TABLE_VERSION 0x1
+#define EFI_RT_PROPERTIES_TABLE_VERSION  0x1
 
 #define EFI_RT_SUPPORTED_GET_TIME                       0x0001
 #define EFI_RT_SUPPORTED_SET_TIME                       0x0002
@@ -64,6 +61,6 @@ typedef struct {
 #define EFI_RT_SUPPORTED_QUERY_CAPSULE_CAPABILITIES     0x1000
 #define EFI_RT_SUPPORTED_QUERY_VARIABLE_INFO            0x2000
 
-extern EFI_GUID gEfiRtPropertiesTableGuid;
+extern EFI_GUID  gEfiRtPropertiesTableGuid;
 
 #endif

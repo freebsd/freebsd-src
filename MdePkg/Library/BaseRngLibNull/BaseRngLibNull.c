@@ -1,13 +1,16 @@
 /** @file
   Null version of Random number generator services.
 
+Copyright (c) 2023, Arm Limited. All rights reserved.<BR>
 Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
+#include <Uefi.h>
 #include <Library/DebugLib.h>
 #include <Library/RngLib.h>
+#include <Protocol/Rng.h>
 
 /**
   Generates a 16-bit random number.
@@ -23,7 +26,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 BOOLEAN
 EFIAPI
 GetRandomNumber16 (
-  OUT     UINT16                    *Rand
+  OUT     UINT16  *Rand
   )
 {
   ASSERT (FALSE);
@@ -44,7 +47,7 @@ GetRandomNumber16 (
 BOOLEAN
 EFIAPI
 GetRandomNumber32 (
-  OUT     UINT32                    *Rand
+  OUT     UINT32  *Rand
   )
 {
   ASSERT (FALSE);
@@ -65,7 +68,7 @@ GetRandomNumber32 (
 BOOLEAN
 EFIAPI
 GetRandomNumber64 (
-  OUT     UINT64                    *Rand
+  OUT     UINT64  *Rand
   )
 {
   ASSERT (FALSE);
@@ -86,9 +89,28 @@ GetRandomNumber64 (
 BOOLEAN
 EFIAPI
 GetRandomNumber128 (
-  OUT     UINT64                    *Rand
+  OUT     UINT64  *Rand
   )
 {
   ASSERT (FALSE);
   return FALSE;
+}
+
+/**
+  Get a GUID identifying the RNG algorithm implementation.
+
+  @param [out] RngGuid  If success, contains the GUID identifying
+                        the RNG algorithm implementation.
+
+  @retval EFI_SUCCESS             Success.
+  @retval EFI_UNSUPPORTED         Not supported.
+  @retval EFI_INVALID_PARAMETER   Invalid parameter.
+**/
+EFI_STATUS
+EFIAPI
+GetRngGuid (
+  GUID  *RngGuid
+  )
+{
+  return EFI_UNSUPPORTED;
 }

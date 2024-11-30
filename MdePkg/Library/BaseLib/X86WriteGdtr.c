@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -25,7 +22,7 @@
 VOID
 EFIAPI
 AsmWriteGdtr (
-  IN      CONST IA32_DESCRIPTOR     *Gdtr
+  IN      CONST IA32_DESCRIPTOR  *Gdtr
   )
 {
   ASSERT (Gdtr != NULL);

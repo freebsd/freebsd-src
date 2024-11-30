@@ -47,38 +47,38 @@ typedef struct {
   /// structure as defined here. Future version of this specification may extend this data structure in a
   /// backward compatible way and increase the value of Version.
   ///
-  UINT32                    Version;
+  UINT32    Version;
   ///
   /// Passive scanning or active scanning. See Bluetooth specification.
   ///
-  UINT8                     ScanType;
+  UINT8     ScanType;
   ///
   /// Recommended scan interval to be used while performing scan.
   ///
-  UINT16                    ScanInterval;
+  UINT16    ScanInterval;
   ///
   /// Recommended scan window to be used while performing a scan.
   ///
-  UINT16                    ScanWindow;
+  UINT16    ScanWindow;
   ///
   /// Recommended scanning filter policy to be used while performing a scan.
   ///
-  UINT8                     ScanningFilterPolicy;
+  UINT8     ScanningFilterPolicy;
   ///
   /// This is one byte flag to serve as a filter to remove unneeded scan
   /// result. For example, set BIT0 means scan in LE Limited Discoverable
   /// Mode. Set BIT1 means scan in LE General Discoverable Mode.
   ///
-  UINT8                     AdvertisementFlagFilter;
+  UINT8     AdvertisementFlagFilter;
 } EFI_BLUETOOTH_LE_CONFIG_SCAN_PARAMETER;
 
-typedef struct{
-  BLUETOOTH_LE_ADDRESS BDAddr;
-  BLUETOOTH_LE_ADDRESS DirectAddress;
-  UINT8                RemoteDeviceState;
-  INT8                 RSSI;
-  UINTN                AdvertisementDataSize;
-  VOID                 *AdvertisementData;
+typedef struct {
+  BLUETOOTH_LE_ADDRESS    BDAddr;
+  BLUETOOTH_LE_ADDRESS    DirectAddress;
+  UINT8                   RemoteDeviceState;
+  INT8                    RSSI;
+  UINTN                   AdvertisementDataSize;
+  VOID                    *AdvertisementData;
 } EFI_BLUETOOTH_LE_SCAN_CALLBACK_INFORMATION;
 
 /**
@@ -93,7 +93,7 @@ typedef struct{
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SCAN_CALLBACK_FUNCTION) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SCAN_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL             *This,
   IN VOID                                         *Context,
   IN EFI_BLUETOOTH_LE_SCAN_CALLBACK_INFORMATION   *CallbackInfo
@@ -128,7 +128,7 @@ EFI_STATUS
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL                *This,
   IN BOOLEAN                                         ReScan,
   IN UINT32                                          Timeout,
-  IN EFI_BLUETOOTH_LE_CONFIG_SCAN_PARAMETER          *ScanParameter, OPTIONAL
+  IN EFI_BLUETOOTH_LE_CONFIG_SCAN_PARAMETER          *ScanParameter  OPTIONAL,
   IN EFI_BLUETOOTH_LE_CONFIG_SCAN_CALLBACK_FUNCTION  Callback,
   IN VOID                                            *Context
   );
@@ -141,31 +141,31 @@ typedef struct {
   /// extend this data structure in a backward compatible way and
   /// increase the value of Version.
   ///
-  UINT32                    Version;
+  UINT32    Version;
   ///
   /// Recommended scan interval to be used while performing scan before connect.
   ///
-  UINT16                    ScanInterval;
+  UINT16    ScanInterval;
   ///
   /// Recommended scan window to be used while performing a connection
   ///
-  UINT16                    ScanWindow;
+  UINT16    ScanWindow;
   ///
   /// Minimum allowed connection interval. Shall be less than or equal to ConnIntervalMax.
   ///
-  UINT16                    ConnIntervalMin;
+  UINT16    ConnIntervalMin;
   ///
   /// Maximum allowed connection interval. Shall be greater than or equal to ConnIntervalMin.
   ///
-  UINT16                    ConnIntervalMax;
+  UINT16    ConnIntervalMax;
   ///
   /// Slave latency for the connection in number of connection events.
   ///
-  UINT16                    ConnLatency;
+  UINT16    ConnLatency;
   ///
   /// Link supervision timeout for the connection.
   ///
-  UINT16                    SupervisionTimeout;
+  UINT16    SupervisionTimeout;
 } EFI_BLUETOOTH_LE_CONFIG_CONNECT_PARAMETER;
 
 /**
@@ -197,7 +197,7 @@ EFI_STATUS
   IN  EFI_BLUETOOTH_LE_CONFIG_PROTOCOL            *This,
   IN  BOOLEAN                                     AutoReconnect,
   IN  BOOLEAN                                     DoBonding,
-  IN  EFI_BLUETOOTH_LE_CONFIG_CONNECT_PARAMETER   *ConnectParameter, OPTIONAL
+  IN  EFI_BLUETOOTH_LE_CONFIG_CONNECT_PARAMETER   *ConnectParameter  OPTIONAL,
   IN  BLUETOOTH_LE_ADDRESS                        *BD_ADDR
   );
 
@@ -250,7 +250,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_GET_DATA) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_GET_DATA)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL       *This,
   IN EFI_BLUETOOTH_CONFIG_DATA_TYPE      DataType,
   IN OUT UINTN                           *DataSize,
@@ -278,7 +278,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SET_DATA) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SET_DATA)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL       *This,
   IN EFI_BLUETOOTH_CONFIG_DATA_TYPE         DataType,
   IN UINTN                                  DataSize,
@@ -309,7 +309,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_GET_REMOTE_DATA) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_GET_REMOTE_DATA)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL       *This,
   IN EFI_BLUETOOTH_CONFIG_DATA_TYPE         DataType,
   IN BLUETOOTH_LE_ADDRESS                   *BDAddr,
@@ -369,7 +369,7 @@ typedef enum {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_SMP_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_SMP_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL       *This,
   IN VOID                                   *Context,
   IN BLUETOOTH_LE_ADDRESS                   *BDAddr,
@@ -397,7 +397,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_REGISTER_SMP_AUTH_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_REGISTER_SMP_AUTH_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL  *This,
   IN EFI_BLUETOOTH_LE_SMP_CALLBACK     Callback,
   IN VOID                              *Context
@@ -423,7 +423,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_SEND_SMP_AUTH_DATA) (
+(EFIAPI *EFI_BLUETOOTH_LE_SEND_SMP_AUTH_DATA)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL       *This,
   IN BLUETOOTH_LE_ADDRESS                   *BDAddr,
   IN EFI_BLUETOOTH_LE_SMP_EVENT_DATA_TYPE   EventDataType,
@@ -433,8 +433,8 @@ EFI_STATUS
 
 typedef enum {
   // For local device only
-  EfiBluetoothSmpLocalIR, /* If Key hierarchy is supported */
-  EfiBluetoothSmpLocalER, /* If Key hierarchy is supported */
+  EfiBluetoothSmpLocalIR,  /* If Key hierarchy is supported */
+  EfiBluetoothSmpLocalER,  /* If Key hierarchy is supported */
   EfiBluetoothSmpLocalDHK, /* If Key hierarchy is supported. OPTIONAL */
   // For peer specific
   EfiBluetoothSmpKeysDistributed = 0x1000,
@@ -446,8 +446,8 @@ typedef enum {
   EfiBluetoothSmpPeerRand,
   EfiBluetoothSmpPeerEDIV,
   EfiBluetoothSmpPeerSignCounter,
-  EfiBluetoothSmpLocalLTK, /* If Key hierarchy not supported */
-  EfiBluetoothSmpLocalIRK, /* If Key hierarchy not supported */
+  EfiBluetoothSmpLocalLTK,  /* If Key hierarchy not supported */
+  EfiBluetoothSmpLocalIRK,  /* If Key hierarchy not supported */
   EfiBluetoothSmpLocalCSRK, /* If Key hierarchy not supported */
   EfiBluetoothSmpLocalSignCounter,
   EfiBluetoothSmpLocalDIV,
@@ -473,7 +473,7 @@ typedef enum {
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_BLUETOOTH_LE_CONFIG_SMP_GET_DATA_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SMP_GET_DATA_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL  *This,
   IN VOID                              *Context,
   IN BLUETOOTH_LE_ADDRESS              *BDAddr,
@@ -499,7 +499,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_GET_DATA_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_GET_DATA_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL              *This,
   IN EFI_BLUETOOTH_LE_CONFIG_SMP_GET_DATA_CALLBACK Callback,
   IN VOID                                          *Context
@@ -521,7 +521,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_BLUETOOTH_LE_CONFIG_SMP_SET_DATA_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_SMP_SET_DATA_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL  *This,
   IN VOID                              *Context,
   IN BLUETOOTH_LE_ADDRESS              *BDAddr,
@@ -547,7 +547,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_SET_DATA_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_SET_DATA_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL              *This,
   IN EFI_BLUETOOTH_LE_CONFIG_SMP_SET_DATA_CALLBACK Callback,
   IN VOID                                          *Context
@@ -569,7 +569,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_CONNECT_COMPLETE_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_CONNECT_COMPLETE_CALLBACK)(
   IN  EFI_BLUETOOTH_LE_CONFIG_PROTOCOL                 *This,
   IN  VOID                                             *Context,
   IN  EFI_BLUETOOTH_CONNECT_COMPLETE_CALLBACK_TYPE     CallbackType,
@@ -600,7 +600,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_LE_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK)(
   IN EFI_BLUETOOTH_LE_CONFIG_PROTOCOL                        *This,
   IN EFI_BLUETOOTH_LE_CONFIG_CONNECT_COMPLETE_CALLBACK       Callback,
   IN VOID                                                    *Context
@@ -610,21 +610,20 @@ EFI_STATUS
 /// This protocol abstracts user interface configuration for BluetoothLe device.
 ///
 struct _EFI_BLUETOOTH_LE_CONFIG_PROTOCOL {
-  EFI_BLUETOOTH_LE_CONFIG_INIT                               Init;
-  EFI_BLUETOOTH_LE_CONFIG_SCAN                               Scan;
-  EFI_BLUETOOTH_LE_CONFIG_CONNECT                            Connect;
-  EFI_BLUETOOTH_LE_CONFIG_DISCONNECT                         Disconnect;
-  EFI_BLUETOOTH_LE_CONFIG_GET_DATA                           GetData;
-  EFI_BLUETOOTH_LE_CONFIG_SET_DATA                           SetData;
-  EFI_BLUETOOTH_LE_CONFIG_GET_REMOTE_DATA                    GetRemoteData;
-  EFI_BLUETOOTH_LE_REGISTER_SMP_AUTH_CALLBACK                RegisterSmpAuthCallback;
-  EFI_BLUETOOTH_LE_SEND_SMP_AUTH_DATA                        SendSmpAuthData;
-  EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_GET_DATA_CALLBACK     RegisterSmpGetDataCallback;
-  EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_SET_DATA_CALLBACK     RegisterSmpSetDataCallback;
-  EFI_BLUETOOTH_LE_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK RegisterLinkConnectCompleteCallback;
+  EFI_BLUETOOTH_LE_CONFIG_INIT                                  Init;
+  EFI_BLUETOOTH_LE_CONFIG_SCAN                                  Scan;
+  EFI_BLUETOOTH_LE_CONFIG_CONNECT                               Connect;
+  EFI_BLUETOOTH_LE_CONFIG_DISCONNECT                            Disconnect;
+  EFI_BLUETOOTH_LE_CONFIG_GET_DATA                              GetData;
+  EFI_BLUETOOTH_LE_CONFIG_SET_DATA                              SetData;
+  EFI_BLUETOOTH_LE_CONFIG_GET_REMOTE_DATA                       GetRemoteData;
+  EFI_BLUETOOTH_LE_REGISTER_SMP_AUTH_CALLBACK                   RegisterSmpAuthCallback;
+  EFI_BLUETOOTH_LE_SEND_SMP_AUTH_DATA                           SendSmpAuthData;
+  EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_GET_DATA_CALLBACK        RegisterSmpGetDataCallback;
+  EFI_BLUETOOTH_LE_CONFIG_REGISTER_SMP_SET_DATA_CALLBACK        RegisterSmpSetDataCallback;
+  EFI_BLUETOOTH_LE_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK    RegisterLinkConnectCompleteCallback;
 };
 
-extern EFI_GUID gEfiBluetoothLeConfigProtocolGuid;
+extern EFI_GUID  gEfiBluetoothLeConfigProtocolGuid;
 
 #endif
-

@@ -32,7 +32,7 @@ ASM_PFX(InternalMemZeroMem):
     xor     rcx, rcx
     xor     eax, eax
     sub     rcx, rdi
-    and     rcx, 15
+    and     rcx, 63
     mov     r8, rdi
     jz      .0
     cmp     rcx, rdx
@@ -41,13 +41,16 @@ ASM_PFX(InternalMemZeroMem):
     rep     stosb
 .0:
     mov     rcx, rdx
-    and     edx, 15
-    shr     rcx, 4
+    and     edx, 63
+    shr     rcx, 6
     jz      @ZeroBytes
     pxor    xmm0, xmm0
 .1:
-    movntdq [rdi], xmm0                 ; rdi should be 16-byte aligned
-    add     rdi, 16
+    movntdq [rdi], xmm0
+    movntdq [rdi + 16], xmm0
+    movntdq [rdi + 32], xmm0
+    movntdq [rdi + 48], xmm0
+    add     rdi, 64
     loop    .1
     mfence
 @ZeroBytes:

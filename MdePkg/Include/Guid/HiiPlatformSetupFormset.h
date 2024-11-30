@@ -25,9 +25,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define EFI_HII_REST_STYLE_FORMSET_GUID \
   { 0x790217bd, 0xbecf, 0x485b, { 0x91, 0x70, 0x5f, 0xf7, 0x11, 0x31, 0x8b, 0x27 } }
 
-extern EFI_GUID gEfiHiiPlatformSetupFormsetGuid;
-extern EFI_GUID gEfiHiiDriverHealthFormsetGuid;
-extern EFI_GUID gEfiHiiUserCredentialFormsetGuid;
-extern EFI_GUID gEfiHiiRestStyleFormsetGuid;
+extern EFI_GUID  gEfiHiiPlatformSetupFormsetGuid;
+extern EFI_GUID  gEfiHiiDriverHealthFormsetGuid;
+extern EFI_GUID  gEfiHiiUserCredentialFormsetGuid;
+extern EFI_GUID  gEfiHiiRestStyleFormsetGuid;
 
 #endif

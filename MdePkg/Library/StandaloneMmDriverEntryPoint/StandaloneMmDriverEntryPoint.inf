@@ -1,7 +1,7 @@
 ## @file
 # Module entry point library for Standalone MM driver.
 #
-# Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2015 - 2021, Intel Corporation. All rights reserved.<BR>
 # Copyright (c) 2016-2018, ARM Ltd. All rights reserved.<BR>
 # Copyright (c) 2018, Linaro, Limited. All rights reserved.<BR>
 #
@@ -36,3 +36,6 @@
   BaseLib
   DebugLib
   MmServicesTableLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid      ## SOMETIMES_CONSUMES

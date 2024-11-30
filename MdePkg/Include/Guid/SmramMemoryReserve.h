@@ -31,15 +31,14 @@ typedef struct {
   /// Designates the number of possible regions in the system
   /// that can be usable for SMRAM.
   ///
-  UINT32                NumberOfSmmReservedRegions;
+  UINT32                  NumberOfSmmReservedRegions;
   ///
   /// Used throughout this protocol to describe the candidate
   /// regions for SMRAM that are supported by this platform.
   ///
-  EFI_SMRAM_DESCRIPTOR  Descriptor[1];
+  EFI_SMRAM_DESCRIPTOR    Descriptor[1];
 } EFI_SMRAM_HOB_DESCRIPTOR_BLOCK;
 
-extern EFI_GUID gEfiSmmSmramMemoryGuid;
+extern EFI_GUID  gEfiSmmSmramMemoryGuid;
 
 #endif
-

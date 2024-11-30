@@ -30,9 +30,9 @@
 /// This PPI provides provide a simple reset service.
 ///
 typedef struct {
-  EFI_PEI_RESET_SYSTEM  ResetSystem;
+  EFI_PEI_RESET_SYSTEM    ResetSystem;
 } EFI_PEI_RESET_PPI;
 
-extern EFI_GUID gEfiPeiResetPpiGuid;
+extern EFI_GUID  gEfiPeiResetPpiGuid;
 
 #endif

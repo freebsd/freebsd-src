@@ -22,11 +22,11 @@
 ///
 typedef union {
   struct {
-    UINT32   Year:16;
-    UINT32   Day:8;
-    UINT32   Month:8;
+    UINT32    Year  : 16;
+    UINT32    Day   : 8;
+    UINT32    Month : 8;
   } Bits;
-  UINT32     Uint32;
+  UINT32    Uint32;
 } CPU_MICROCODE_DATE;
 
 ///
@@ -34,16 +34,16 @@ typedef union {
 ///
 typedef union {
   struct {
-    UINT32   Stepping:4;
-    UINT32   Model:4;
-    UINT32   Family:4;
-    UINT32   Type:2;
-    UINT32   Reserved1:2;
-    UINT32   ExtendedModel:4;
-    UINT32   ExtendedFamily:8;
-    UINT32   Reserved2:4;
+    UINT32    Stepping       : 4;
+    UINT32    Model          : 4;
+    UINT32    Family         : 4;
+    UINT32    Type           : 2;
+    UINT32    Reserved1      : 2;
+    UINT32    ExtendedModel  : 4;
+    UINT32    ExtendedFamily : 8;
+    UINT32    Reserved2      : 4;
   } Bits;
-  UINT32     Uint32;
+  UINT32    Uint32;
 } CPU_MICROCODE_PROCESSOR_SIGNATURE;
 
 #pragma pack (1)
@@ -55,7 +55,7 @@ typedef struct {
   ///
   /// Version number of the update header
   ///
-  UINT32                            HeaderVersion;
+  UINT32    HeaderVersion;
   ///
   /// Unique version number for the update, the basis for the update
   /// signature provided by the processor to indicate the current update
@@ -64,12 +64,12 @@ typedef struct {
   /// value in this field cannot be used for processor stepping identification
   /// alone. This is a signed 32-bit number.
   ///
-  UINT32                            UpdateRevision;
+  UINT32                UpdateRevision;
   ///
   /// Date of the update creation in binary format: mmddyyyy (e.g.
   /// 07/18/98 is 07181998H).
   ///
-  CPU_MICROCODE_DATE                Date;
+  CPU_MICROCODE_DATE    Date;
   ///
   /// Extended family, extended model, type, family, model, and stepping
   /// of processor that requires this particular update revision (e.g.,
@@ -82,7 +82,7 @@ typedef struct {
   /// this field exactly corresponds to the bit representations returned by
   /// the CPUID instruction.
   ///
-  CPU_MICROCODE_PROCESSOR_SIGNATURE ProcessorSignature;
+  CPU_MICROCODE_PROCESSOR_SIGNATURE    ProcessorSignature;
   ///
   /// Checksum of Update Data and Header. Used to verify the integrity of
   /// the update header and data. Checksum is correct when the
@@ -90,12 +90,12 @@ typedef struct {
   /// Signature Table) that comprise the microcode update result in
   /// 00000000H.
   ///
-  UINT32                            Checksum;
+  UINT32                               Checksum;
   ///
   /// Version number of the loader program needed to correctly load this
   /// update. The initial version is 00000001H
   ///
-  UINT32                            LoaderRevision;
+  UINT32                               LoaderRevision;
   ///
   /// Platform type information is encoded in the lower 8 bits of this 4-
   /// byte field. Each bit represents a particular platform type for a given
@@ -104,24 +104,24 @@ typedef struct {
   /// update is appropriate to load on a processor. Multiple bits may be set
   /// representing support for multiple platform IDs.
   ///
-  UINT32                            ProcessorFlags;
+  UINT32    ProcessorFlags;
   ///
   /// Specifies the size of the encrypted data in bytes, and must be a
   /// multiple of DWORDs. If this value is 00000000H, then the microcode
   /// update encrypted data is 2000 bytes (or 500 DWORDs).
   ///
-  UINT32                            DataSize;
+  UINT32    DataSize;
   ///
   /// Specifies the total size of the microcode update in bytes. It is the
   /// summation of the header size, the encrypted data size and the size of
   /// the optional extended signature table. This value is always a multiple
   /// of 1024.
   ///
-  UINT32                            TotalSize;
+  UINT32    TotalSize;
   ///
   /// Reserved fields for future expansion.
   ///
-  UINT8                             Reserved[12];
+  UINT8     Reserved[12];
 } CPU_MICROCODE_HEADER;
 
 ///
@@ -133,7 +133,7 @@ typedef struct {
   /// Signature[n], processor flags[n] and checksum[n]) that exist in this
   /// microcode update
   ///
-  UINT32                            ExtendedSignatureCount;
+  UINT32    ExtendedSignatureCount;
   ///
   /// Checksum of update extended processor signature table. Used to
   /// verify the integrity of the extended processor signature table.
@@ -141,11 +141,11 @@ typedef struct {
   /// comprise the extended processor signature table results in
   /// 00000000H.
   ///
-  UINT32                            ExtendedChecksum;
+  UINT32    ExtendedChecksum;
   ///
   /// Reserved fields.
   ///
-  UINT8                             Reserved[12];
+  UINT8     Reserved[12];
 } CPU_MICROCODE_EXTENDED_TABLE_HEADER;
 
 ///
@@ -164,7 +164,7 @@ typedef struct {
   /// this field exactly corresponds to the bit representations returned by
   /// the CPUID instruction.
   ///
-  CPU_MICROCODE_PROCESSOR_SIGNATURE ProcessorSignature;
+  CPU_MICROCODE_PROCESSOR_SIGNATURE    ProcessorSignature;
   ///
   /// Platform type information is encoded in the lower 8 bits of this 4-
   /// byte field. Each bit represents a particular platform type for a given
@@ -173,7 +173,7 @@ typedef struct {
   /// update is appropriate to load on a processor. Multiple bits may be set
   /// representing support for multiple platform IDs.
   ///
-  UINT32                             ProcessorFlag;
+  UINT32    ProcessorFlag;
   ///
   /// Used by utility software to decompose a microcode update into
   /// multiple microcode updates where each of the new updates is
@@ -186,7 +186,7 @@ typedef struct {
   /// summation of all DWORDs that comprise the created Extended
   /// Processor Patch results in 00000000H.
   ///
-  UINT32                             Checksum;
+  UINT32    Checksum;
 } CPU_MICROCODE_EXTENDED_TABLE;
 
 #pragma pack ()

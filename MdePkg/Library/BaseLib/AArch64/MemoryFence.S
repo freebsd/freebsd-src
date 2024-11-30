@@ -28,6 +28,7 @@ GCC_ASM_EXPORT(MemoryFence)
 #  );
 #
 ASM_PFX(MemoryFence):
+    AARCH64_BTI(c)
     // System wide Data Memory Barrier.
     dmb sy
     ret

@@ -14,7 +14,6 @@
 #ifndef __EFI_ADAPTER_INFORMATION_PROTOCOL_H__
 #define __EFI_ADAPTER_INFORMATION_PROTOCOL_H__
 
-
 #define EFI_ADAPTER_INFORMATION_PROTOCOL_GUID \
   { \
     0xE5DD1403, 0xD622, 0xC24E, {0x84, 0x88, 0xC7, 0x1B, 0x17, 0xF5, 0xE8, 0x02 } \
@@ -45,7 +44,6 @@
     0x8484472f, 0x71ec, 0x411a, { 0xb3, 0x9c, 0x62, 0xcd, 0x94, 0xd9, 0x91, 0x6e } \
   }
 
-
 typedef struct _EFI_ADAPTER_INFORMATION_PROTOCOL EFI_ADAPTER_INFORMATION_PROTOCOL;
 
 ///
@@ -58,7 +56,7 @@ typedef struct {
   /// There was media attached to the network adapter, but it was removed and reattached. EFI_NO_MEDIA: There is
   /// not any media attached to the network.
   ///
-  EFI_STATUS                    MediaState;
+  EFI_STATUS    MediaState;
 } EFI_ADAPTER_INFO_MEDIA_STATE;
 
 ///
@@ -71,7 +69,7 @@ typedef struct {
   /// 2: Ethernet Wireless Network Adapter
   /// 3~255: Reserved
   ///
-  UINT8 MediaType;
+  UINT8    MediaType;
 } EFI_ADAPTER_INFO_MEDIA_TYPE;
 
 ///
@@ -81,39 +79,39 @@ typedef struct {
   ///
   /// TRUE if the adapter supports booting from iSCSI IPv4 targets.
   ///
-  BOOLEAN                       iScsiIpv4BootCapablity;
+  BOOLEAN    iScsiIpv4BootCapablity;
   ///
   /// TRUE if the adapter supports booting from iSCSI IPv6 targets.
   ///
-  BOOLEAN                       iScsiIpv6BootCapablity;
+  BOOLEAN    iScsiIpv6BootCapablity;
   ///
   /// TRUE if the adapter supports booting from FCoE targets.
   ///
-  BOOLEAN                       FCoeBootCapablity;
+  BOOLEAN    FCoeBootCapablity;
   ///
   /// TRUE if the adapter supports an offload engine (such as TCP
   /// Offload Engine (TOE)) for its iSCSI or FCoE boot operations.
   ///
-  BOOLEAN                       OffloadCapability;
+  BOOLEAN    OffloadCapability;
   ///
   /// TRUE if the adapter supports multipath I/O (MPIO) for its iSCSI
   /// boot operations.
   ///
-  BOOLEAN                       iScsiMpioCapability;
+  BOOLEAN    iScsiMpioCapability;
   ///
   /// TRUE if the adapter is currently configured to boot from iSCSI
   /// IPv4 targets.
   ///
-  BOOLEAN                       iScsiIpv4Boot;
+  BOOLEAN    iScsiIpv4Boot;
   ///
   /// TRUE if the adapter is currently configured to boot from iSCSI
   /// IPv6 targets.
   ///
-  BOOLEAN                       iScsiIpv6Boot;
+  BOOLEAN    iScsiIpv6Boot;
   ///
   /// TRUE if the adapter is currently configured to boot from FCoE targets.
   ///
-  BOOLEAN                       FCoeBoot;
+  BOOLEAN    FCoeBoot;
 } EFI_ADAPTER_INFO_NETWORK_BOOT;
 
 ///
@@ -124,7 +122,7 @@ typedef struct {
   /// Returns the SAN MAC address for the adapter.For adapters that support today's 802.3 ethernet
   /// networking and Fibre-Channel Over Ethernet (FCOE), this conveys the FCOE SAN MAC address from the adapter.
   ///
-  EFI_MAC_ADDRESS                    SanMacAddress;
+  EFI_MAC_ADDRESS    SanMacAddress;
 } EFI_ADAPTER_INFO_SAN_MAC_ADDRESS;
 
 ///
@@ -134,7 +132,7 @@ typedef struct {
   ///
   /// Returns capability of UNDI to support IPv6 traffic.
   ///
-  BOOLEAN                            Ipv6Support;
+  BOOLEAN    Ipv6Support;
 } EFI_ADAPTER_INFO_UNDI_IPV6_SUPPORT;
 
 /**
@@ -142,7 +140,9 @@ typedef struct {
 
   This function returns information of type InformationType from the adapter.
   If an adapter does not support the requested informational type, then
-  EFI_UNSUPPORTED is returned.
+  EFI_UNSUPPORTED is returned. If an adapter does not contain Information for
+  the requested InformationType, it fills InformationBlockSize with 0 and
+  returns EFI_NOT_FOUND.
 
   @param[in]  This                   A pointer to the EFI_ADAPTER_INFORMATION_PROTOCOL instance.
   @param[in]  InformationType        A pointer to an EFI_GUID that defines the contents of InformationBlock.
@@ -152,6 +152,7 @@ typedef struct {
 
   @retval EFI_SUCCESS                The InformationType information was retrieved.
   @retval EFI_UNSUPPORTED            The InformationType is not known.
+  @retval EFI_NOT_FOUND              Information is not available for the requested information type.
   @retval EFI_DEVICE_ERROR           The device reported an error.
   @retval EFI_OUT_OF_RESOURCES       The request could not be completed due to a lack of resources.
   @retval EFI_INVALID_PARAMETER      This is NULL.
@@ -236,19 +237,19 @@ EFI_STATUS
 /// - Gets a list of supported information types for this instance of the protocol.
 ///
 struct _EFI_ADAPTER_INFORMATION_PROTOCOL {
-  EFI_ADAPTER_INFO_GET_INFO              GetInformation;
-  EFI_ADAPTER_INFO_SET_INFO              SetInformation;
-  EFI_ADAPTER_INFO_GET_SUPPORTED_TYPES   GetSupportedTypes;
+  EFI_ADAPTER_INFO_GET_INFO               GetInformation;
+  EFI_ADAPTER_INFO_SET_INFO               SetInformation;
+  EFI_ADAPTER_INFO_GET_SUPPORTED_TYPES    GetSupportedTypes;
 };
 
-extern EFI_GUID gEfiAdapterInformationProtocolGuid;
+extern EFI_GUID  gEfiAdapterInformationProtocolGuid;
 
-extern EFI_GUID gEfiAdapterInfoMediaStateGuid;
+extern EFI_GUID  gEfiAdapterInfoMediaStateGuid;
 
-extern EFI_GUID gEfiAdapterInfoNetworkBootGuid;
+extern EFI_GUID  gEfiAdapterInfoNetworkBootGuid;
 
-extern EFI_GUID gEfiAdapterInfoSanMacAddressGuid;
+extern EFI_GUID  gEfiAdapterInfoSanMacAddressGuid;
 
-extern EFI_GUID gEfiAdapterInfoUndiIpv6SupportGuid;
+extern EFI_GUID  gEfiAdapterInfoUndiIpv6SupportGuid;
 
 #endif

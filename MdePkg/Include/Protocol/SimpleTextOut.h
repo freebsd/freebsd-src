@@ -22,17 +22,17 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 ///
 /// Protocol GUID defined in EFI1.1.
 ///
-#define SIMPLE_TEXT_OUTPUT_PROTOCOL   EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL_GUID
+#define SIMPLE_TEXT_OUTPUT_PROTOCOL  EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL_GUID
 
 typedef struct _EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL;
 
 ///
 /// Backward-compatible with EFI1.1.
 ///
-typedef EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL   SIMPLE_TEXT_OUTPUT_INTERFACE;
+typedef EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL SIMPLE_TEXT_OUTPUT_INTERFACE;
 
 //
-// Define's for required EFI Unicode Box Draw characters
+// Defines for required EFI Unicode Box Draw characters
 //
 #define BOXDRAW_HORIZONTAL                  0x2500
 #define BOXDRAW_VERTICAL                    0x2502
@@ -84,39 +84,39 @@ typedef EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL   SIMPLE_TEXT_OUTPUT_INTERFACE;
 //
 // EFI Required Geometric Shapes Code Chart
 //
-#define GEOMETRICSHAPE_UP_TRIANGLE    0x25b2
-#define GEOMETRICSHAPE_RIGHT_TRIANGLE 0x25ba
-#define GEOMETRICSHAPE_DOWN_TRIANGLE  0x25bc
-#define GEOMETRICSHAPE_LEFT_TRIANGLE  0x25c4
+#define GEOMETRICSHAPE_UP_TRIANGLE     0x25b2
+#define GEOMETRICSHAPE_RIGHT_TRIANGLE  0x25ba
+#define GEOMETRICSHAPE_DOWN_TRIANGLE   0x25bc
+#define GEOMETRICSHAPE_LEFT_TRIANGLE   0x25c4
 
 //
 // EFI Required Arrow shapes
 //
-#define ARROW_LEFT  0x2190
-#define ARROW_UP    0x2191
-#define ARROW_RIGHT 0x2192
-#define ARROW_DOWN  0x2193
+#define ARROW_LEFT   0x2190
+#define ARROW_UP     0x2191
+#define ARROW_RIGHT  0x2192
+#define ARROW_DOWN   0x2193
 
 //
 // EFI Console Colours
 //
-#define EFI_BLACK                 0x00
-#define EFI_BLUE                  0x01
-#define EFI_GREEN                 0x02
-#define EFI_CYAN                  (EFI_BLUE | EFI_GREEN)
-#define EFI_RED                   0x04
-#define EFI_MAGENTA               (EFI_BLUE | EFI_RED)
-#define EFI_BROWN                 (EFI_GREEN | EFI_RED)
-#define EFI_LIGHTGRAY             (EFI_BLUE | EFI_GREEN | EFI_RED)
-#define EFI_BRIGHT                0x08
-#define EFI_DARKGRAY              (EFI_BLACK | EFI_BRIGHT)
-#define EFI_LIGHTBLUE             (EFI_BLUE | EFI_BRIGHT)
-#define EFI_LIGHTGREEN            (EFI_GREEN | EFI_BRIGHT)
-#define EFI_LIGHTCYAN             (EFI_CYAN | EFI_BRIGHT)
-#define EFI_LIGHTRED              (EFI_RED | EFI_BRIGHT)
-#define EFI_LIGHTMAGENTA          (EFI_MAGENTA | EFI_BRIGHT)
-#define EFI_YELLOW                (EFI_BROWN | EFI_BRIGHT)
-#define EFI_WHITE                 (EFI_BLUE | EFI_GREEN | EFI_RED | EFI_BRIGHT)
+#define EFI_BLACK         0x00
+#define EFI_BLUE          0x01
+#define EFI_GREEN         0x02
+#define EFI_CYAN          (EFI_BLUE | EFI_GREEN)
+#define EFI_RED           0x04
+#define EFI_MAGENTA       (EFI_BLUE | EFI_RED)
+#define EFI_BROWN         (EFI_GREEN | EFI_RED)
+#define EFI_LIGHTGRAY     (EFI_BLUE | EFI_GREEN | EFI_RED)
+#define EFI_BRIGHT        0x08
+#define EFI_DARKGRAY      (EFI_BLACK | EFI_BRIGHT)
+#define EFI_LIGHTBLUE     (EFI_BLUE | EFI_BRIGHT)
+#define EFI_LIGHTGREEN    (EFI_GREEN | EFI_BRIGHT)
+#define EFI_LIGHTCYAN     (EFI_CYAN | EFI_BRIGHT)
+#define EFI_LIGHTRED      (EFI_RED | EFI_BRIGHT)
+#define EFI_LIGHTMAGENTA  (EFI_MAGENTA | EFI_BRIGHT)
+#define EFI_YELLOW        (EFI_BROWN | EFI_BRIGHT)
+#define EFI_WHITE         (EFI_BLUE | EFI_GREEN | EFI_RED | EFI_BRIGHT)
 
 //
 // Macro to accept color values in their raw form to create
@@ -129,7 +129,7 @@ typedef EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL   SIMPLE_TEXT_OUTPUT_INTERFACE;
 //
 // Do not use EFI_BACKGROUND_xxx values with this macro.
 //
-#define EFI_TEXT_ATTR(Foreground,Background) ((Foreground) | ((Background) << 4))
+#define EFI_TEXT_ATTR(Foreground, Background)  ((Foreground) | ((Background) << 4))
 
 #define EFI_BACKGROUND_BLACK      0x00
 #define EFI_BACKGROUND_BLUE       0x10
@@ -151,7 +151,7 @@ typedef EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL   SIMPLE_TEXT_OUTPUT_INTERFACE;
 #define EFI_WIDE_ATTRIBUTE  0x80
 
 /**
-  Reset the text output device hardware and optionaly run diagnostics
+  Reset the text output device hardware and optionally run diagnostics
 
   @param  This                 The protocol instance pointer.
   @param  ExtendedVerification Driver may perform more exhaustive verification
@@ -350,7 +350,7 @@ typedef struct {
   ///
   /// The number of modes supported by QueryMode () and SetMode ().
   ///
-  INT32   MaxMode;
+  INT32    MaxMode;
 
   //
   // current settings
@@ -359,23 +359,23 @@ typedef struct {
   ///
   /// The text mode of the output device(s).
   ///
-  INT32   Mode;
+  INT32      Mode;
   ///
   /// The current character output attribute.
   ///
-  INT32   Attribute;
+  INT32      Attribute;
   ///
   /// The cursor's column.
   ///
-  INT32   CursorColumn;
+  INT32      CursorColumn;
   ///
   /// The cursor's row.
   ///
-  INT32   CursorRow;
+  INT32      CursorRow;
   ///
-  /// The cursor is currently visbile or not.
+  /// The cursor is currently visible or not.
   ///
-  BOOLEAN CursorVisible;
+  BOOLEAN    CursorVisible;
 } EFI_SIMPLE_TEXT_OUTPUT_MODE;
 
 ///
@@ -385,25 +385,25 @@ typedef struct {
 /// devices is at least 80 x 25 characters.
 ///
 struct _EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL {
-  EFI_TEXT_RESET                Reset;
+  EFI_TEXT_RESET                  Reset;
 
-  EFI_TEXT_STRING               OutputString;
-  EFI_TEXT_TEST_STRING          TestString;
+  EFI_TEXT_STRING                 OutputString;
+  EFI_TEXT_TEST_STRING            TestString;
 
-  EFI_TEXT_QUERY_MODE           QueryMode;
-  EFI_TEXT_SET_MODE             SetMode;
-  EFI_TEXT_SET_ATTRIBUTE        SetAttribute;
+  EFI_TEXT_QUERY_MODE             QueryMode;
+  EFI_TEXT_SET_MODE               SetMode;
+  EFI_TEXT_SET_ATTRIBUTE          SetAttribute;
 
-  EFI_TEXT_CLEAR_SCREEN         ClearScreen;
-  EFI_TEXT_SET_CURSOR_POSITION  SetCursorPosition;
-  EFI_TEXT_ENABLE_CURSOR        EnableCursor;
+  EFI_TEXT_CLEAR_SCREEN           ClearScreen;
+  EFI_TEXT_SET_CURSOR_POSITION    SetCursorPosition;
+  EFI_TEXT_ENABLE_CURSOR          EnableCursor;
 
   ///
   /// Pointer to SIMPLE_TEXT_OUTPUT_MODE data.
   ///
-  EFI_SIMPLE_TEXT_OUTPUT_MODE   *Mode;
+  EFI_SIMPLE_TEXT_OUTPUT_MODE     *Mode;
 };
 
-extern EFI_GUID gEfiSimpleTextOutProtocolGuid;
+extern EFI_GUID  gEfiSimpleTextOutProtocolGuid;
 
 #endif

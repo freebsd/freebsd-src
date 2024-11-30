@@ -3,7 +3,7 @@
 
   This library is consumed by PciSegmentLib to support multiple segment PCI configuration access.
 
-  Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017 - 2020, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -12,10 +12,10 @@
 #define __PCI_SEGMENT_INFO_LIB__
 
 typedef struct {
-  UINT16               SegmentNumber;   ///< Segment number.
-  UINT64               BaseAddress;     ///< ECAM Base address.
-  UINT8                StartBusNumber;  ///< Start BUS number, for verifying the PCI Segment address.
-  UINT8                EndBusNumber;    ///< End BUS number, for verifying the PCI Segment address.
+  UINT16    SegmentNumber;              ///< Segment number.
+  UINT64    BaseAddress;                ///< ECAM Base address.
+  UINT8     StartBusNumber;             ///< Start BUS number, for verifying the PCI Segment address.
+  UINT8     EndBusNumber;               ///< End BUS number, for verifying the PCI Segment address.
 } PCI_SEGMENT_INFO;
 
 /**
@@ -28,6 +28,7 @@ typedef struct {
   @retval A callee owned array holding the segment information.
 **/
 PCI_SEGMENT_INFO *
+EFIAPI
 GetPciSegmentInfo (
   UINTN  *Count
   );

@@ -17,7 +17,7 @@
 
 #include <Protocol/MmPowerButtonDispatch.h>
 
-#define EFI_SMM_POWER_BUTTON_DISPATCH2_PROTOCOL_GUID EFI_MM_POWER_BUTTON_DISPATCH_PROTOCOL_GUID
+#define EFI_SMM_POWER_BUTTON_DISPATCH2_PROTOCOL_GUID  EFI_MM_POWER_BUTTON_DISPATCH_PROTOCOL_GUID
 
 ///
 /// The dispatch function's context.
@@ -30,7 +30,6 @@ typedef EFI_MM_POWER_BUTTON_REGISTER EFI_SMM_POWER_BUTTON_REGISTER2;
 
 typedef EFI_MM_POWER_BUTTON_UNREGISTER EFI_SMM_POWER_BUTTON_UNREGISTER2;
 
-extern EFI_GUID gEfiSmmPowerButtonDispatch2ProtocolGuid;
+extern EFI_GUID  gEfiSmmPowerButtonDispatch2ProtocolGuid;
 
 #endif
-

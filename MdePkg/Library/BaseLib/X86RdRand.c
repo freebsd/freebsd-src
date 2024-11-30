@@ -23,7 +23,7 @@
 BOOLEAN
 EFIAPI
 AsmRdRand16 (
-  OUT     UINT16                    *Rand
+  OUT     UINT16  *Rand
   )
 {
   ASSERT (Rand != NULL);
@@ -44,7 +44,7 @@ AsmRdRand16 (
 BOOLEAN
 EFIAPI
 AsmRdRand32 (
-  OUT     UINT32                    *Rand
+  OUT     UINT32  *Rand
   )
 {
   ASSERT (Rand != NULL);
@@ -65,7 +65,7 @@ AsmRdRand32 (
 BOOLEAN
 EFIAPI
 AsmRdRand64  (
-  OUT     UINT64                    *Rand
+  OUT     UINT64  *Rand
   )
 {
   ASSERT (Rand != NULL);

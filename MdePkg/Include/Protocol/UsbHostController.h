@@ -461,7 +461,6 @@ EFI_STATUS
   IN EFI_USB_PORT_FEATURE    PortFeature
   );
 
-
 ///
 /// The EFI_USB_HC_PROTOCOL provides USB host controller management, basic data transactions
 /// over a USB bus, and USB root hub access. A device driver that wishes to manage a USB bus in a
@@ -470,33 +469,33 @@ EFI_STATUS
 /// EFI_DEVICE_PATH_PROTOCOL instance, and an EFI_USB_HC_PROTOCOL instance.
 ///
 struct _EFI_USB_HC_PROTOCOL {
-  EFI_USB_HC_PROTOCOL_RESET                       Reset;
-  EFI_USB_HC_PROTOCOL_GET_STATE                   GetState;
-  EFI_USB_HC_PROTOCOL_SET_STATE                   SetState;
-  EFI_USB_HC_PROTOCOL_CONTROL_TRANSFER            ControlTransfer;
-  EFI_USB_HC_PROTOCOL_BULK_TRANSFER               BulkTransfer;
-  EFI_USB_HC_PROTOCOL_ASYNC_INTERRUPT_TRANSFER    AsyncInterruptTransfer;
-  EFI_USB_HC_PROTOCOL_SYNC_INTERRUPT_TRANSFER     SyncInterruptTransfer;
-  EFI_USB_HC_PROTOCOL_ISOCHRONOUS_TRANSFER        IsochronousTransfer;
-  EFI_USB_HC_PROTOCOL_ASYNC_ISOCHRONOUS_TRANSFER  AsyncIsochronousTransfer;
-  EFI_USB_HC_PROTOCOL_GET_ROOTHUB_PORT_NUMBER     GetRootHubPortNumber;
-  EFI_USB_HC_PROTOCOL_GET_ROOTHUB_PORT_STATUS     GetRootHubPortStatus;
-  EFI_USB_HC_PROTOCOL_SET_ROOTHUB_PORT_FEATURE    SetRootHubPortFeature;
-  EFI_USB_HC_PROTOCOL_CLEAR_ROOTHUB_PORT_FEATURE  ClearRootHubPortFeature;
+  EFI_USB_HC_PROTOCOL_RESET                         Reset;
+  EFI_USB_HC_PROTOCOL_GET_STATE                     GetState;
+  EFI_USB_HC_PROTOCOL_SET_STATE                     SetState;
+  EFI_USB_HC_PROTOCOL_CONTROL_TRANSFER              ControlTransfer;
+  EFI_USB_HC_PROTOCOL_BULK_TRANSFER                 BulkTransfer;
+  EFI_USB_HC_PROTOCOL_ASYNC_INTERRUPT_TRANSFER      AsyncInterruptTransfer;
+  EFI_USB_HC_PROTOCOL_SYNC_INTERRUPT_TRANSFER       SyncInterruptTransfer;
+  EFI_USB_HC_PROTOCOL_ISOCHRONOUS_TRANSFER          IsochronousTransfer;
+  EFI_USB_HC_PROTOCOL_ASYNC_ISOCHRONOUS_TRANSFER    AsyncIsochronousTransfer;
+  EFI_USB_HC_PROTOCOL_GET_ROOTHUB_PORT_NUMBER       GetRootHubPortNumber;
+  EFI_USB_HC_PROTOCOL_GET_ROOTHUB_PORT_STATUS       GetRootHubPortStatus;
+  EFI_USB_HC_PROTOCOL_SET_ROOTHUB_PORT_FEATURE      SetRootHubPortFeature;
+  EFI_USB_HC_PROTOCOL_CLEAR_ROOTHUB_PORT_FEATURE    ClearRootHubPortFeature;
   ///
   /// The major revision number of the USB host controller. The revision information
   /// indicates the release of the Universal Serial Bus Specification with which the
   /// host controller is compliant.
   ///
-  UINT16                                          MajorRevision;
+  UINT16                                            MajorRevision;
   ///
   /// The minor revision number of the USB host controller. The revision information
   /// indicates the release of the Universal Serial Bus Specification with which the
   /// host controller is compliant.
   ///
-  UINT16                                          MinorRevision;
+  UINT16                                            MinorRevision;
 };
 
-extern EFI_GUID gEfiUsbHcProtocolGuid;
+extern EFI_GUID  gEfiUsbHcProtocolGuid;
 
 #endif

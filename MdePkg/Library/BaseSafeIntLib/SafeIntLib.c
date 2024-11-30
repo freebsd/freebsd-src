@@ -13,11 +13,10 @@
 #include <Library/SafeIntLib.h>
 #include <Library/BaseLib.h>
 
-
 //
 // Magnitude of MIN_INT64 as expressed by a UINT64 number.
 //
-#define MIN_INT64_MAGNITUDE (((UINT64)(- (MIN_INT64 + 1))) + 1)
+#define MIN_INT64_MAGNITUDE  (((UINT64)(- (MIN_INT64 + 1))) + 1)
 
 //
 // Conversion functions
@@ -69,10 +68,10 @@ SafeInt8ToUint8 (
 
   if (Operand >= 0) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -113,10 +112,10 @@ SafeInt8ToChar8 (
 
   if (Operand >= 0) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -157,10 +156,10 @@ SafeInt8ToUint16 (
 
   if (Operand >= 0) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -201,10 +200,10 @@ SafeInt8ToUint32 (
 
   if (Operand >= 0) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -245,10 +244,10 @@ SafeInt8ToUintn (
 
   if (Operand >= 0) {
     *Result = (UINTN)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -289,10 +288,10 @@ SafeInt8ToUint64 (
 
   if (Operand >= 0) {
     *Result = (UINT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -333,10 +332,10 @@ SafeUint8ToInt8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -377,10 +376,10 @@ SafeUint8ToChar8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -421,10 +420,10 @@ SafeInt16ToInt8 (
 
   if ((Operand >= MIN_INT8) && (Operand <= MAX_INT8)) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -465,10 +464,10 @@ SafeInt16ToChar8 (
 
   if ((Operand >= 0) && (Operand <= MAX_INT8)) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -509,10 +508,10 @@ SafeInt16ToUint8 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT8)) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -553,10 +552,10 @@ SafeInt16ToUint16 (
 
   if (Operand >= 0) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -597,10 +596,10 @@ SafeInt16ToUint32 (
 
   if (Operand >= 0) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -641,10 +640,10 @@ SafeInt16ToUintn (
 
   if (Operand >= 0) {
     *Result = (UINTN)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -685,10 +684,10 @@ SafeInt16ToUint64 (
 
   if (Operand >= 0) {
     *Result = (UINT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -729,10 +728,10 @@ SafeUint16ToInt8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -773,10 +772,10 @@ SafeUint16ToChar8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -817,10 +816,10 @@ SafeUint16ToUint8 (
 
   if (Operand <= MAX_UINT8) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -861,10 +860,10 @@ SafeUint16ToInt16 (
 
   if (Operand <= MAX_INT16) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -905,10 +904,10 @@ SafeInt32ToInt8 (
 
   if ((Operand >= MIN_INT8) && (Operand <= MAX_INT8)) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -949,10 +948,10 @@ SafeInt32ToChar8 (
 
   if ((Operand >= 0) && (Operand <= MAX_INT8)) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -993,10 +992,10 @@ SafeInt32ToUint8 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT8)) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1037,10 +1036,10 @@ SafeInt32ToInt16 (
 
   if ((Operand >= MIN_INT16) && (Operand <= MAX_INT16)) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1081,10 +1080,10 @@ SafeInt32ToUint16 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT16)) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1125,10 +1124,10 @@ SafeInt32ToUint32 (
 
   if (Operand >= 0) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1169,10 +1168,10 @@ SafeInt32ToUint64 (
 
   if (Operand >= 0) {
     *Result = (UINT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1213,10 +1212,10 @@ SafeUint32ToInt8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1257,10 +1256,10 @@ SafeUint32ToChar8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1301,10 +1300,10 @@ SafeUint32ToUint8 (
 
   if (Operand <= MAX_UINT8) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1345,10 +1344,10 @@ SafeUint32ToInt16 (
 
   if (Operand <= MAX_INT16) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1389,10 +1388,10 @@ SafeUint32ToUint16 (
 
   if (Operand <= MAX_UINT16) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1433,10 +1432,10 @@ SafeUint32ToInt32 (
 
   if (Operand <= MAX_INT32) {
     *Result = (INT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1477,10 +1476,10 @@ SafeIntnToInt8 (
 
   if ((Operand >= MIN_INT8) && (Operand <= MAX_INT8)) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1521,10 +1520,10 @@ SafeIntnToChar8 (
 
   if ((Operand >= 0) && (Operand <= MAX_INT8)) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1565,10 +1564,10 @@ SafeIntnToUint8 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT8)) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1609,10 +1608,10 @@ SafeIntnToInt16 (
 
   if ((Operand >= MIN_INT16) && (Operand <= MAX_INT16)) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1653,10 +1652,10 @@ SafeIntnToUint16 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT16)) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1697,10 +1696,10 @@ SafeIntnToUintn (
 
   if (Operand >= 0) {
     *Result = (UINTN)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1741,10 +1740,10 @@ SafeIntnToUint64 (
 
   if (Operand >= 0) {
     *Result = (UINT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1785,10 +1784,10 @@ SafeUintnToInt8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1829,10 +1828,10 @@ SafeUintnToChar8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1873,10 +1872,10 @@ SafeUintnToUint8 (
 
   if (Operand <= MAX_UINT8) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1917,10 +1916,10 @@ SafeUintnToInt16 (
 
   if (Operand <= MAX_INT16) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -1961,10 +1960,10 @@ SafeUintnToUint16 (
 
   if (Operand <= MAX_UINT16) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2005,10 +2004,10 @@ SafeUintnToInt32 (
 
   if (Operand <= MAX_INT32) {
     *Result = (INT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2049,10 +2048,10 @@ SafeUintnToIntn (
 
   if (Operand <= MAX_INTN) {
     *Result = (INTN)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2093,10 +2092,10 @@ SafeInt64ToInt8 (
 
   if ((Operand >= MIN_INT8) && (Operand <= MAX_INT8)) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2137,10 +2136,10 @@ SafeInt64ToChar8 (
 
   if ((Operand >= 0) && (Operand <= MAX_INT8)) {
     *Result = (CHAR8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2181,10 +2180,10 @@ SafeInt64ToUint8 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT8)) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2225,10 +2224,10 @@ SafeInt64ToInt16 (
 
   if ((Operand >= MIN_INT16) && (Operand <= MAX_INT16)) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2269,10 +2268,10 @@ SafeInt64ToUint16 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT16)) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2313,10 +2312,10 @@ SafeInt64ToInt32 (
 
   if ((Operand >= MIN_INT32) && (Operand <= MAX_INT32)) {
     *Result = (INT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2357,10 +2356,10 @@ SafeInt64ToUint32 (
 
   if ((Operand >= 0) && (Operand <= MAX_UINT32)) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2401,10 +2400,10 @@ SafeInt64ToUint64 (
 
   if (Operand >= 0) {
     *Result = (UINT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2445,10 +2444,10 @@ SafeUint64ToInt8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2489,10 +2488,10 @@ SafeUint64ToChar8 (
 
   if (Operand <= MAX_INT8) {
     *Result = (INT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = CHAR8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2533,10 +2532,10 @@ SafeUint64ToUint8 (
 
   if (Operand <= MAX_UINT8) {
     *Result = (UINT8)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2577,10 +2576,10 @@ SafeUint64ToInt16 (
 
   if (Operand <= MAX_INT16) {
     *Result = (INT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2621,10 +2620,10 @@ SafeUint64ToUint16 (
 
   if (Operand <= MAX_UINT16) {
     *Result = (UINT16)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2665,10 +2664,10 @@ SafeUint64ToInt32 (
 
   if (Operand <= MAX_INT32) {
     *Result = (INT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2709,10 +2708,10 @@ SafeUint64ToUint32 (
 
   if (Operand <= MAX_UINT32) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2753,10 +2752,10 @@ SafeUint64ToIntn (
 
   if (Operand <= MAX_INTN) {
     *Result = (INTN)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2797,10 +2796,10 @@ SafeUint64ToInt64 (
 
   if (Operand <= MAX_INT64) {
     *Result = (INT64)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = INT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2847,10 +2846,10 @@ SafeUint8Add (
 
   if (((UINT8)(Augend + Addend)) >= Augend) {
     *Result = (UINT8)(Augend + Addend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2893,10 +2892,10 @@ SafeUint16Add (
 
   if (((UINT16)(Augend + Addend)) >= Augend) {
     *Result = (UINT16)(Augend + Addend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2939,10 +2938,10 @@ SafeUint32Add (
 
   if ((Augend + Addend) >= Augend) {
     *Result = (Augend + Addend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -2985,10 +2984,10 @@ SafeUint64Add (
 
   if ((Augend + Addend) >= Augend) {
     *Result = (Augend + Addend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -3035,10 +3034,10 @@ SafeUint8Sub (
 
   if (Minuend >= Subtrahend) {
     *Result = (UINT8)(Minuend - Subtrahend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT8_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -3081,10 +3080,10 @@ SafeUint16Sub (
 
   if (Minuend >= Subtrahend) {
     *Result = (UINT16)(Minuend - Subtrahend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT16_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -3127,10 +3126,10 @@ SafeUint32Sub (
 
   if (Minuend >= Subtrahend) {
     *Result = (Minuend - Subtrahend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -3173,10 +3172,10 @@ SafeUint64Sub (
 
   if (Minuend >= Subtrahend) {
     *Result = (Minuend - Subtrahend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -3289,7 +3288,7 @@ SafeUint32Mult (
 {
   UINT64  IntermediateResult;
 
-  IntermediateResult = ((UINT64) Multiplicand) *((UINT64) Multiplier);
+  IntermediateResult = ((UINT64)Multiplicand) *((UINT64)Multiplier);
 
   return SafeUint64ToUint32 (IntermediateResult, Result);
 }
@@ -3337,11 +3336,11 @@ SafeUint64Mult (
     return RETURN_INVALID_PARAMETER;
   }
 
-  ProductAD = 0;
-  ProductBC = 0;
-  ProductBD = 0;
+  ProductAD      = 0;
+  ProductBC      = 0;
+  ProductBD      = 0;
   UnsignedResult = 0;
-  Status = RETURN_BUFFER_TOO_SMALL;
+  Status         = RETURN_BUFFER_TOO_SMALL;
 
   //
   // 64x64 into 128 is like 32.32 x 32.32.
@@ -3368,13 +3367,14 @@ SafeUint64Mult (
     DwordD = (UINT32)Multiplier;
 
     *Result = (((UINT64)DwordB) *(UINT64)DwordD);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     //
     // a * c must be 0 or there would be bits set in the high 64-bits
     //
     if ((DwordA == 0) ||
-        (DwordC == 0)) {
+        (DwordC == 0))
+    {
       DwordD = (UINT32)Multiplier;
 
       //
@@ -3401,7 +3401,7 @@ SafeUint64Mult (
 
             if (!RETURN_ERROR (SafeUint64Add (UnsignedResult, ProductBD, &UnsignedResult))) {
               *Result = UnsignedResult;
-              Status = RETURN_SUCCESS;
+              Status  = RETURN_SUCCESS;
             }
           }
         }
@@ -3412,6 +3412,7 @@ SafeUint64Mult (
   if (RETURN_ERROR (Status)) {
     *Result = UINT64_ERROR;
   }
+
   return Status;
 }
 
@@ -3509,11 +3510,12 @@ SafeChar8Add (
 
   Augend32 = (INT32)Augend;
   Addend32 = (INT32)Addend;
-  if (Augend32 < 0 || Augend32 > MAX_INT8) {
+  if ((Augend32 < 0) || (Augend32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
-  if (Addend32 < 0 || Addend32 > MAX_INT8) {
+
+  if ((Addend32 < 0) || (Addend32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
@@ -3666,12 +3668,13 @@ SafeInt64Add (
   //     0 >= (MIN_INT64 - Addend) > MIN_INT64
   //
   if (((Addend > 0) && (Augend > (MAX_INT64 - Addend))) ||
-      ((Addend < 0) && (Augend < (MIN_INT64 - Addend)))) {
+      ((Addend < 0) && (Augend < (MIN_INT64 - Addend))))
+  {
     *Result = INT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   } else {
     *Result = Augend + Addend;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   }
 
   return Status;
@@ -3751,11 +3754,12 @@ SafeChar8Sub (
 
   Minuend32    = (INT32)Minuend;
   Subtrahend32 = (INT32)Subtrahend;
-  if (Minuend32 < 0 || Minuend32 > MAX_INT8) {
+  if ((Minuend32 < 0) || (Minuend32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
-  if (Subtrahend32 < 0 || Subtrahend32 > MAX_INT8) {
+
+  if ((Subtrahend32 < 0) || (Subtrahend32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
@@ -3901,12 +3905,13 @@ SafeInt64Sub (
   //     -1 = (MAX_INT64 + MIN_INT64) <= (MAX_INT64 + Subtrahend) < MAX_INT64
   //
   if (((Subtrahend > 0) && (Minuend < (MIN_INT64 + Subtrahend))) ||
-      ((Subtrahend < 0) && (Minuend > (MAX_INT64 + Subtrahend)))) {
+      ((Subtrahend < 0) && (Minuend > (MAX_INT64 + Subtrahend))))
+  {
     *Result = INT64_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   } else {
     *Result = Minuend - Subtrahend;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   }
 
   return Status;
@@ -3986,11 +3991,12 @@ SafeChar8Mult (
 
   Multiplicand32 = (INT32)Multiplicand;
   Multiplier32   = (INT32)Multiplier;
-  if (Multiplicand32 < 0 || Multiplicand32 > MAX_INT8) {
+  if ((Multiplicand32 < 0) || (Multiplicand32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
-  if (Multiplier32 < 0 || Multiplier32 > MAX_INT8) {
+
+  if ((Multiplier32 < 0) || (Multiplier32 > MAX_INT8)) {
     *Result = CHAR8_ERROR;
     return RETURN_BUFFER_TOO_SMALL;
   }
@@ -4107,7 +4113,7 @@ SafeInt64Mult (
     //
     // Avoid negating the most negative number.
     //
-    UnsignedMultiplicand = ((UINT64)(- (Multiplicand + 1))) + 1;
+    UnsignedMultiplicand = ((UINT64)(-(Multiplicand + 1))) + 1;
   } else {
     UnsignedMultiplicand = (UINT64)Multiplicand;
   }
@@ -4116,7 +4122,7 @@ SafeInt64Mult (
     //
     // Avoid negating the most negative number.
     //
-    UnsignedMultiplier = ((UINT64)(- (Multiplier + 1))) + 1;
+    UnsignedMultiplier = ((UINT64)(-(Multiplier + 1))) + 1;
   } else {
     UnsignedMultiplier = (UINT64)Multiplier;
   }
@@ -4126,16 +4132,16 @@ SafeInt64Mult (
     if ((Multiplicand < 0) != (Multiplier < 0)) {
       if (UnsignedResult > MIN_INT64_MAGNITUDE) {
         *Result = INT64_ERROR;
-        Status = RETURN_BUFFER_TOO_SMALL;
+        Status  = RETURN_BUFFER_TOO_SMALL;
       } else if (UnsignedResult == MIN_INT64_MAGNITUDE) {
         *Result = MIN_INT64;
       } else {
-        *Result = - ((INT64)UnsignedResult);
+        *Result = -((INT64)UnsignedResult);
       }
     } else {
       if (UnsignedResult > MAX_INT64) {
         *Result = INT64_ERROR;
-        Status = RETURN_BUFFER_TOO_SMALL;
+        Status  = RETURN_BUFFER_TOO_SMALL;
       } else {
         *Result = (INT64)UnsignedResult;
       }
@@ -4143,6 +4149,6 @@ SafeInt64Mult (
   } else {
     *Result = INT64_ERROR;
   }
+
   return Status;
 }
-

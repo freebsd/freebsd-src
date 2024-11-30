@@ -21,27 +21,26 @@
 ///
 typedef union {
   struct {
-    UINT32 Revision       : 8;
-    UINT32 NumberOfTimers : 5;
-    UINT32 CounterSize    : 1;
-    UINT32 Reserved       : 1;
-    UINT32 LegacyRoute    : 1;
-    UINT32 VendorId       : 16;
+    UINT32    Revision       : 8;
+    UINT32    NumberOfTimers : 5;
+    UINT32    CounterSize    : 1;
+    UINT32    Reserved       : 1;
+    UINT32    LegacyRoute    : 1;
+    UINT32    VendorId       : 16;
   }      Bits;
-  UINT32 Uint32;
+  UINT32    Uint32;
 } EFI_ACPI_HIGH_PRECISION_EVENT_TIMER_BLOCK_ID;
-
 
 ///
 /// High Precision Event Timer Table header definition.
 ///
 typedef struct {
-  EFI_ACPI_DESCRIPTION_HEADER             Header;
-  UINT32                                  EventTimerBlockId;
-  EFI_ACPI_2_0_GENERIC_ADDRESS_STRUCTURE  BaseAddressLower32Bit;
-  UINT8                                   HpetNumber;
-  UINT16                                  MainCounterMinimumClockTickInPeriodicMode;
-  UINT8                                   PageProtectionAndOemAttribute;
+  EFI_ACPI_DESCRIPTION_HEADER               Header;
+  UINT32                                    EventTimerBlockId;
+  EFI_ACPI_2_0_GENERIC_ADDRESS_STRUCTURE    BaseAddressLower32Bit;
+  UINT8                                     HpetNumber;
+  UINT16                                    MainCounterMinimumClockTickInPeriodicMode;
+  UINT8                                     PageProtectionAndOemAttribute;
 } EFI_ACPI_HIGH_PRECISION_EVENT_TIMER_TABLE_HEADER;
 
 ///
@@ -53,9 +52,9 @@ typedef struct {
 // Page protection setting
 // Values 3 through 15 are reserved for use by the specification
 //
-#define EFI_ACPI_NO_PAGE_PROTECTION   0
-#define EFI_ACPI_4KB_PAGE_PROTECTION  1
-#define EFI_ACPI_64KB_PAGE_PROTECTION 2
+#define EFI_ACPI_NO_PAGE_PROTECTION    0
+#define EFI_ACPI_4KB_PAGE_PROTECTION   1
+#define EFI_ACPI_64KB_PAGE_PROTECTION  2
 
 #pragma pack()
 

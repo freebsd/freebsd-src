@@ -109,11 +109,11 @@ typedef struct {
   ///
   /// This service provides the various modalities of memory and I/O read.
   ///
-  EFI_CPU_IO_PROTOCOL_IO_MEM  Read;
+  EFI_CPU_IO_PROTOCOL_IO_MEM    Read;
   ///
   /// This service provides the various modalities of memory and I/O write.
   ///
-  EFI_CPU_IO_PROTOCOL_IO_MEM  Write;
+  EFI_CPU_IO_PROTOCOL_IO_MEM    Write;
 } EFI_CPU_IO_PROTOCOL_ACCESS;
 
 ///
@@ -124,13 +124,13 @@ struct _EFI_CPU_IO2_PROTOCOL {
   ///
   /// Enables a driver to access memory-mapped registers in the EFI system memory space.
   ///
-  EFI_CPU_IO_PROTOCOL_ACCESS  Mem;
+  EFI_CPU_IO_PROTOCOL_ACCESS    Mem;
   ///
   /// Enables a driver to access registers in the EFI CPU I/O space.
   ///
-  EFI_CPU_IO_PROTOCOL_ACCESS  Io;
+  EFI_CPU_IO_PROTOCOL_ACCESS    Io;
 };
 
-extern EFI_GUID gEfiCpuIo2ProtocolGuid;
+extern EFI_GUID  gEfiCpuIo2ProtocolGuid;
 
 #endif

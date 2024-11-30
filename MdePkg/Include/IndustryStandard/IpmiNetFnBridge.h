@@ -16,7 +16,7 @@
 //
 // Net function definition for Bridge command
 //
-#define IPMI_NETFN_BRIDGE 0x02
+#define IPMI_NETFN_BRIDGE  0x02
 
 //
 //  Definitions for Get Bridge State command
@@ -39,7 +39,7 @@
 //
 //  Definitions for Get ICMB Address command
 //
-#define IPMI_BRIDGE_GET_ICMB_ADDRESS 0x02
+#define IPMI_BRIDGE_GET_ICMB_ADDRESS  0x02
 
 //
 //  Constants and Structure definitions for "Get ICMB Address" command to follow here
@@ -48,7 +48,7 @@
 //
 //  Definitions for Set ICMB Address command
 //
-#define IPMI_BRIDGE_SET_ICMB_ADDRESS 0x03
+#define IPMI_BRIDGE_SET_ICMB_ADDRESS  0x03
 
 //
 //  Constants and Structure definitions for "Set ICMB Address" command to follow here
@@ -84,7 +84,7 @@
 //
 //  Definitions for Clear Bridge Statistics command
 //
-#define IPMI_BRIDGE_CLEAR_STATISTICS 0x08
+#define IPMI_BRIDGE_CLEAR_STATISTICS  0x08
 
 //
 //  Constants and Structure definitions for "Clear Bridge Statistics" command to follow here
@@ -111,7 +111,7 @@
 //
 //  Definitions for Get ICMB Connection ID command
 //
-#define IPMI_BRIDGE_GET_ICMB_CONNECTION_ID 0x0B
+#define IPMI_BRIDGE_GET_ICMB_CONNECTION_ID  0x0B
 
 //
 //  Constants and Structure definitions for "Get ICMB Connection ID" command to follow here
@@ -147,7 +147,7 @@
 //
 //  Definitions for Set Discovered command
 //
-#define IPMI_BRIDGE_SET_DISCOVERED 0x12
+#define IPMI_BRIDGE_SET_DISCOVERED  0x12
 
 //
 //  Constants and Structure definitions for "Set Discovered" command to follow here
@@ -156,7 +156,7 @@
 //
 //  Definitions for Get Chassis Device ID command
 //
-#define IPMI_BRIDGE_GET_CHASSIS_DEVICEID 0x13
+#define IPMI_BRIDGE_GET_CHASSIS_DEVICEID  0x13
 
 //
 //  Constants and Structure definitions for "Get Chassis Device ID" command to follow here
@@ -165,7 +165,7 @@
 //
 //  Definitions for Set Chassis Device ID command
 //
-#define IPMI_BRIDGE_SET_CHASSIS_DEVICEID 0x14
+#define IPMI_BRIDGE_SET_CHASSIS_DEVICEID  0x14
 
 //
 //  Constants and Structure definitions for "Set Chassis Device ID" command to follow here

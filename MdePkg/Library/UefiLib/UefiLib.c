@@ -10,7 +10,6 @@
 
 **/
 
-
 #include "UefiLibInternal.h"
 
 /**
@@ -54,10 +53,10 @@ CompareIso639LanguageCode (
   UINT32  Name1;
   UINT32  Name2;
 
-  Name1 = ReadUnaligned24 ((CONST UINT32 *) Language1);
-  Name2 = ReadUnaligned24 ((CONST UINT32 *) Language2);
+  Name1 = ReadUnaligned24 ((CONST UINT32 *)Language1);
+  Name2 = ReadUnaligned24 ((CONST UINT32 *)Language2);
 
-  return (BOOLEAN) (Name1 == Name2);
+  return (BOOLEAN)(Name1 == Name2);
 }
 
 /**
@@ -92,7 +91,7 @@ EfiGetSystemConfigurationTable (
   ASSERT (Table != NULL);
 
   SystemTable = gST;
-  *Table = NULL;
+  *Table      = NULL;
   for (Index = 0; Index < SystemTable->NumberOfTableEntries; Index++) {
     if (CompareGuid (TableGuid, &(SystemTable->ConfigurationTable[Index].VendorGuid))) {
       *Table = SystemTable->ConfigurationTable[Index].VendorTable;
@@ -132,11 +131,11 @@ EfiGetSystemConfigurationTable (
 **/
 EFI_EVENT
 EFIAPI
-EfiCreateProtocolNotifyEvent(
+EfiCreateProtocolNotifyEvent (
   IN  EFI_GUID          *ProtocolGuid,
   IN  EFI_TPL           NotifyTpl,
   IN  EFI_EVENT_NOTIFY  NotifyFunction,
-  IN  VOID              *NotifyContext,  OPTIONAL
+  IN  VOID              *NotifyContext   OPTIONAL,
   OUT VOID              **Registration
   )
 {
@@ -207,7 +206,7 @@ EfiNamedEventListen (
   IN CONST EFI_GUID    *Name,
   IN EFI_TPL           NotifyTpl,
   IN EFI_EVENT_NOTIFY  NotifyFunction,
-  IN CONST VOID        *NotifyContext,  OPTIONAL
+  IN CONST VOID        *NotifyContext   OPTIONAL,
   OUT VOID             *Registration OPTIONAL
   )
 {
@@ -226,7 +225,7 @@ EfiNamedEventListen (
                   EVT_NOTIFY_SIGNAL,
                   NotifyTpl,
                   NotifyFunction,
-                  (VOID *) NotifyContext,
+                  (VOID *)NotifyContext,
                   &Event
                   );
   ASSERT_EFI_ERROR (Status);
@@ -246,7 +245,7 @@ EfiNamedEventListen (
   //
 
   Status = gBS->RegisterProtocolNotify (
-                  (EFI_GUID *) Name,
+                  (EFI_GUID *)Name,
                   Event,
                   RegistrationLocal
                   );
@@ -277,12 +276,12 @@ EfiNamedEventSignal (
   EFI_STATUS  Status;
   EFI_HANDLE  Handle;
 
-  ASSERT(Name != NULL);
+  ASSERT (Name != NULL);
 
   Handle = NULL;
   Status = gBS->InstallProtocolInterface (
                   &Handle,
-                  (EFI_GUID *) Name,
+                  (EFI_GUID *)Name,
                   EFI_NATIVE_INTERFACE,
                   NULL
                   );
@@ -290,7 +289,7 @@ EfiNamedEventSignal (
 
   Status = gBS->UninstallProtocolInterface (
                   Handle,
-                  (EFI_GUID *) Name,
+                  (EFI_GUID *)Name,
                   NULL
                   );
   ASSERT_EFI_ERROR (Status);
@@ -313,11 +312,11 @@ EfiNamedEventSignal (
 EFI_STATUS
 EFIAPI
 EfiEventGroupSignal (
-  IN CONST EFI_GUID *EventGroup
+  IN CONST EFI_GUID  *EventGroup
   )
 {
-  EFI_STATUS Status;
-  EFI_EVENT  Event;
+  EFI_STATUS  Status;
+  EFI_EVENT   Event;
 
   if (EventGroup == NULL) {
     return EFI_INVALID_PARAMETER;
@@ -353,8 +352,8 @@ EfiEventGroupSignal (
 VOID
 EFIAPI
 EfiEventEmptyFunction (
-  IN EFI_EVENT              Event,
-  IN VOID                   *Context
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
   )
 {
 }
@@ -377,14 +376,13 @@ EfiGetCurrentTpl (
   VOID
   )
 {
-  EFI_TPL Tpl;
+  EFI_TPL  Tpl;
 
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   gBS->RestoreTPL (Tpl);
 
   return Tpl;
 }
-
 
 /**
   Initializes a basic mutual exclusion lock.
@@ -406,15 +404,15 @@ EFI_LOCK *
 EFIAPI
 EfiInitializeLock (
   IN OUT EFI_LOCK  *Lock,
-  IN EFI_TPL        Priority
+  IN EFI_TPL       Priority
   )
 {
   ASSERT (Lock != NULL);
   ASSERT (Priority <= TPL_HIGH_LEVEL);
 
-  Lock->Tpl       = Priority;
-  Lock->OwnerTpl  = TPL_APPLICATION;
-  Lock->Lock      = EfiLockReleased ;
+  Lock->Tpl      = Priority;
+  Lock->OwnerTpl = TPL_APPLICATION;
+  Lock->Lock     = EfiLockReleased;
   return Lock;
 }
 
@@ -466,7 +464,6 @@ EfiAcquireLockOrFail (
   IN EFI_LOCK  *Lock
   )
 {
-
   ASSERT (Lock != NULL);
   ASSERT (Lock->Lock != EfiLockUninitialized);
 
@@ -503,7 +500,7 @@ EfiReleaseLock (
   IN EFI_LOCK  *Lock
   )
 {
-  EFI_TPL Tpl;
+  EFI_TPL  Tpl;
 
   ASSERT (Lock != NULL);
   ASSERT (Lock->Lock == EfiLockAcquired);
@@ -541,19 +538,19 @@ EfiReleaseLock (
 EFI_STATUS
 EFIAPI
 EfiTestManagedDevice (
-  IN CONST EFI_HANDLE       ControllerHandle,
-  IN CONST EFI_HANDLE       DriverBindingHandle,
-  IN CONST EFI_GUID         *ProtocolGuid
+  IN CONST EFI_HANDLE  ControllerHandle,
+  IN CONST EFI_HANDLE  DriverBindingHandle,
+  IN CONST EFI_GUID    *ProtocolGuid
   )
 {
-  EFI_STATUS     Status;
-  VOID           *ManagedInterface;
+  EFI_STATUS  Status;
+  VOID        *ManagedInterface;
 
   ASSERT (ProtocolGuid != NULL);
 
   Status = gBS->OpenProtocol (
                   ControllerHandle,
-                  (EFI_GUID *) ProtocolGuid,
+                  (EFI_GUID *)ProtocolGuid,
                   &ManagedInterface,
                   DriverBindingHandle,
                   ControllerHandle,
@@ -562,7 +559,7 @@ EfiTestManagedDevice (
   if (!EFI_ERROR (Status)) {
     gBS->CloseProtocol (
            ControllerHandle,
-           (EFI_GUID *) ProtocolGuid,
+           (EFI_GUID *)ProtocolGuid,
            DriverBindingHandle,
            ControllerHandle
            );
@@ -598,15 +595,15 @@ EfiTestManagedDevice (
 EFI_STATUS
 EFIAPI
 EfiTestChildHandle (
-  IN CONST EFI_HANDLE       ControllerHandle,
-  IN CONST EFI_HANDLE       ChildHandle,
-  IN CONST EFI_GUID         *ProtocolGuid
+  IN CONST EFI_HANDLE  ControllerHandle,
+  IN CONST EFI_HANDLE  ChildHandle,
+  IN CONST EFI_GUID    *ProtocolGuid
   )
 {
-  EFI_STATUS                            Status;
-  EFI_OPEN_PROTOCOL_INFORMATION_ENTRY   *OpenInfoBuffer;
-  UINTN                                 EntryCount;
-  UINTN                                 Index;
+  EFI_STATUS                           Status;
+  EFI_OPEN_PROTOCOL_INFORMATION_ENTRY  *OpenInfoBuffer;
+  UINTN                                EntryCount;
+  UINTN                                Index;
 
   ASSERT (ProtocolGuid != NULL);
 
@@ -616,7 +613,7 @@ EfiTestChildHandle (
   //
   Status = gBS->OpenProtocolInformation (
                   ControllerHandle,
-                  (EFI_GUID *) ProtocolGuid,
+                  (EFI_GUID *)ProtocolGuid,
                   &OpenInfoBuffer,
                   &EntryCount
                   );
@@ -630,7 +627,8 @@ EfiTestChildHandle (
   Status = EFI_UNSUPPORTED;
   for (Index = 0; Index < EntryCount; Index++) {
     if ((OpenInfoBuffer[Index].ControllerHandle == ChildHandle) &&
-        (OpenInfoBuffer[Index].Attributes & EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER) != 0) {
+        ((OpenInfoBuffer[Index].Attributes & EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER) != 0))
+    {
       Status = EFI_SUCCESS;
       break;
     }
@@ -653,18 +651,23 @@ EfiTestChildHandle (
 EFI_STATUS
 EFIAPI
 IsLanguageSupported (
-  IN CONST CHAR8 *SupportedLanguages,
-  IN CONST CHAR8 *TargetLanguage
+  IN CONST CHAR8  *SupportedLanguages,
+  IN CONST CHAR8  *TargetLanguage
   )
 {
-  UINTN Index;
+  UINTN  Index;
+
   while (*SupportedLanguages != 0) {
-    for (Index = 0; SupportedLanguages[Index] != 0 && SupportedLanguages[Index] != ';'; Index++);
-    if ((AsciiStrnCmp(SupportedLanguages, TargetLanguage, Index) == 0) && (TargetLanguage[Index] == 0)) {
+    for (Index = 0; SupportedLanguages[Index] != 0 && SupportedLanguages[Index] != ';'; Index++) {
+    }
+
+    if ((AsciiStrnCmp (SupportedLanguages, TargetLanguage, Index) == 0) && (TargetLanguage[Index] == 0)) {
       return EFI_SUCCESS;
     }
+
     SupportedLanguages += Index;
-    for (; *SupportedLanguages != 0 && *SupportedLanguages == ';'; SupportedLanguages++);
+    for ( ; *SupportedLanguages != 0 && *SupportedLanguages == ';'; SupportedLanguages++) {
+    }
   }
 
   return EFI_UNSUPPORTED;
@@ -712,7 +715,7 @@ LookupUnicodeString (
   //
   // Make sure the parameters are valid
   //
-  if (Language == NULL || UnicodeString == NULL) {
+  if ((Language == NULL) || (UnicodeString == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -720,7 +723,7 @@ LookupUnicodeString (
   // If there are no supported languages, or the Unicode String Table is empty, then the
   // Unicode String specified by Language is not supported by this Unicode String Table
   //
-  if (SupportedLanguages == NULL || UnicodeStringTable == NULL) {
+  if ((SupportedLanguages == NULL) || (UnicodeStringTable == NULL)) {
     return EFI_UNSUPPORTED;
   }
 
@@ -729,13 +732,11 @@ LookupUnicodeString (
   //
   while (*SupportedLanguages != 0) {
     if (CompareIso639LanguageCode (Language, SupportedLanguages)) {
-
       //
       // Search the Unicode String Table for the matching Language specifier
       //
       while (UnicodeStringTable->Language != NULL) {
         if (CompareIso639LanguageCode (Language, UnicodeStringTable->Language)) {
-
           //
           // A matching string was found, so return it
           //
@@ -754,8 +755,6 @@ LookupUnicodeString (
 
   return EFI_UNSUPPORTED;
 }
-
-
 
 /**
   This function looks up a Unicode string in UnicodeStringTable.
@@ -807,14 +806,14 @@ LookupUnicodeString2 (
   IN BOOLEAN                         Iso639Language
   )
 {
-  BOOLEAN   Found;
-  UINTN     Index;
-  CHAR8     *LanguageString;
+  BOOLEAN  Found;
+  UINTN    Index;
+  CHAR8    *LanguageString;
 
   //
   // Make sure the parameters are valid
   //
-  if (Language == NULL || UnicodeString == NULL) {
+  if ((Language == NULL) || (UnicodeString == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -822,7 +821,7 @@ LookupUnicodeString2 (
   // If there are no supported languages, or the Unicode String Table is empty, then the
   // Unicode String specified by Language is not supported by this Unicode String Table
   //
-  if (SupportedLanguages == NULL || UnicodeStringTable == NULL) {
+  if ((SupportedLanguages == NULL) || (UnicodeStringTable == NULL)) {
     return EFI_UNSUPPORTED;
   }
 
@@ -836,12 +835,12 @@ LookupUnicodeString2 (
         Found = TRUE;
         break;
       }
+
       SupportedLanguages += 3;
     }
   } else {
-    Found = !IsLanguageSupported(Language, SupportedLanguages);
+    Found = !IsLanguageSupported (SupportedLanguages, Language);
   }
-
 
   //
   // If Language is not a member of SupportedLanguages, then return EFI_UNSUPPORTED
@@ -856,20 +855,24 @@ LookupUnicodeString2 (
   while (UnicodeStringTable->Language != NULL) {
     LanguageString = UnicodeStringTable->Language;
     while (0 != *LanguageString) {
-      for (Index = 0 ;LanguageString[Index] != 0 && LanguageString[Index] != ';'; Index++);
-      if (AsciiStrnCmp(LanguageString, Language, Index) == 0) {
+      for (Index = 0; LanguageString[Index] != 0 && LanguageString[Index] != ';'; Index++) {
+      }
+
+      if (AsciiStrnCmp (LanguageString, Language, Index) == 0) {
         *UnicodeString = UnicodeStringTable->UnicodeString;
         return EFI_SUCCESS;
       }
+
       LanguageString += Index;
-      for (Index = 0 ;LanguageString[Index] != 0 && LanguageString[Index] == ';'; Index++);
+      for (Index = 0; LanguageString[Index] != 0 && LanguageString[Index] == ';'; Index++) {
+      }
     }
+
     UnicodeStringTable++;
   }
 
   return EFI_UNSUPPORTED;
 }
-
 
 /**
   This function adds a Unicode string to UnicodeStringTable.
@@ -921,7 +924,7 @@ AddUnicodeString (
   //
   // Make sure the parameter are valid
   //
-  if (Language == NULL || UnicodeString == NULL || UnicodeStringTable == NULL) {
+  if ((Language == NULL) || (UnicodeString == NULL) || (UnicodeStringTable == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -944,7 +947,6 @@ AddUnicodeString (
   //
   while (*SupportedLanguages != 0) {
     if (CompareIso639LanguageCode (Language, SupportedLanguages)) {
-
       //
       // Determine the size of the Unicode String Table by looking for a NULL Language entry
       //
@@ -977,10 +979,10 @@ AddUnicodeString (
       //
       if (*UnicodeStringTable != NULL) {
         CopyMem (
-           NewUnicodeStringTable,
-           *UnicodeStringTable,
-           NumberOfEntries * sizeof (EFI_UNICODE_STRING_TABLE)
-           );
+          NewUnicodeStringTable,
+          *UnicodeStringTable,
+          NumberOfEntries * sizeof (EFI_UNICODE_STRING_TABLE)
+          );
       }
 
       //
@@ -995,16 +997,16 @@ AddUnicodeString (
       //
       // Compute the length of the Unicode String
       //
-      for (UnicodeStringLength = 0; UnicodeString[UnicodeStringLength] != 0; UnicodeStringLength++)
-        ;
+      for (UnicodeStringLength = 0; UnicodeString[UnicodeStringLength] != 0; UnicodeStringLength++) {
+      }
 
       //
       // Allocate space for a copy of the Unicode String
       //
       NewUnicodeStringTable[NumberOfEntries].UnicodeString = AllocateCopyPool (
-                                                              (UnicodeStringLength + 1) * sizeof (CHAR16),
-                                                              UnicodeString
-                                                              );
+                                                               (UnicodeStringLength + 1) * sizeof (CHAR16),
+                                                               UnicodeString
+                                                               );
       if (NewUnicodeStringTable[NumberOfEntries].UnicodeString == NULL) {
         FreePool (NewUnicodeStringTable[NumberOfEntries].Language);
         FreePool (NewUnicodeStringTable);
@@ -1014,8 +1016,8 @@ AddUnicodeString (
       //
       // Mark the end of the Unicode String Table
       //
-      NewUnicodeStringTable[NumberOfEntries + 1].Language       = NULL;
-      NewUnicodeStringTable[NumberOfEntries + 1].UnicodeString  = NULL;
+      NewUnicodeStringTable[NumberOfEntries + 1].Language      = NULL;
+      NewUnicodeStringTable[NumberOfEntries + 1].UnicodeString = NULL;
 
       //
       // Free the old Unicode String Table
@@ -1037,7 +1039,6 @@ AddUnicodeString (
 
   return EFI_UNSUPPORTED;
 }
-
 
 /**
   This function adds the Null-terminated Unicode string specified by UnicodeString
@@ -1102,7 +1103,7 @@ AddUnicodeString2 (
   //
   // Make sure the parameter are valid
   //
-  if (Language == NULL || UnicodeString == NULL || UnicodeStringTable == NULL) {
+  if ((Language == NULL) || (UnicodeString == NULL) || (UnicodeStringTable == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -1130,11 +1131,13 @@ AddUnicodeString2 (
         Found = TRUE;
         break;
       }
+
       SupportedLanguages += 3;
     }
   } else {
-    Found = !IsLanguageSupported(Language, SupportedLanguages);
+    Found = !IsLanguageSupported (SupportedLanguages, Language);
   }
+
   //
   // If Language is not a member of SupportedLanguages, then return EFI_UNSUPPORTED
   //
@@ -1152,14 +1155,18 @@ AddUnicodeString2 (
       LanguageString = OldUnicodeStringTable->Language;
 
       while (*LanguageString != 0) {
-        for (Index = 0; LanguageString[Index] != 0 && LanguageString[Index] != ';'; Index++);
+        for (Index = 0; LanguageString[Index] != 0 && LanguageString[Index] != ';'; Index++) {
+        }
 
         if (AsciiStrnCmp (Language, LanguageString, Index) == 0) {
           return EFI_ALREADY_STARTED;
         }
+
         LanguageString += Index;
-        for (; *LanguageString != 0 && *LanguageString == ';'; LanguageString++);
+        for ( ; *LanguageString != 0 && *LanguageString == ';'; LanguageString++) {
+        }
       }
+
       OldUnicodeStringTable++;
       NumberOfEntries++;
     }
@@ -1190,7 +1197,7 @@ AddUnicodeString2 (
   //
   // Allocate space for a copy of the Language specifier
   //
-  NewUnicodeStringTable[NumberOfEntries].Language = AllocateCopyPool (AsciiStrSize(Language), Language);
+  NewUnicodeStringTable[NumberOfEntries].Language = AllocateCopyPool (AsciiStrSize (Language), Language);
   if (NewUnicodeStringTable[NumberOfEntries].Language == NULL) {
     FreePool (NewUnicodeStringTable);
     return EFI_OUT_OF_RESOURCES;
@@ -1199,7 +1206,8 @@ AddUnicodeString2 (
   //
   // Compute the length of the Unicode String
   //
-  for (UnicodeStringLength = 0; UnicodeString[UnicodeStringLength] != 0; UnicodeStringLength++);
+  for (UnicodeStringLength = 0; UnicodeString[UnicodeStringLength] != 0; UnicodeStringLength++) {
+  }
 
   //
   // Allocate space for a copy of the Unicode String
@@ -1214,8 +1222,8 @@ AddUnicodeString2 (
   //
   // Mark the end of the Unicode String Table
   //
-  NewUnicodeStringTable[NumberOfEntries + 1].Language       = NULL;
-  NewUnicodeStringTable[NumberOfEntries + 1].UnicodeString  = NULL;
+  NewUnicodeStringTable[NumberOfEntries + 1].Language      = NULL;
+  NewUnicodeStringTable[NumberOfEntries + 1].UnicodeString = NULL;
 
   //
   // Free the old Unicode String Table
@@ -1250,7 +1258,7 @@ FreeUnicodeStringTable (
   IN EFI_UNICODE_STRING_TABLE  *UnicodeStringTable
   )
 {
-  UINTN Index;
+  UINTN  Index;
 
   //
   // If the Unicode String Table is NULL, then it is already freed
@@ -1263,7 +1271,6 @@ FreeUnicodeStringTable (
   // Loop through the Unicode String Table until we reach the end of table marker
   //
   for (Index = 0; UnicodeStringTable[Index].Language != NULL; Index++) {
-
     //
     // Free the Language string from the Unicode String Table
     //
@@ -1284,99 +1291,6 @@ FreeUnicodeStringTable (
 
   return EFI_SUCCESS;
 }
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Returns a pointer to an allocated buffer that contains the contents of a
-  variable retrieved through the UEFI Runtime Service GetVariable().  The
-  returned buffer is allocated using AllocatePool().  The caller is responsible
-  for freeing this buffer with FreePool().
-
-  If Name is NULL, then ASSERT().
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Name  The pointer to a Null-terminated Unicode string.
-  @param[in]  Guid  The pointer to an EFI_GUID structure
-
-  @retval NULL   The variable could not be retrieved.
-  @retval NULL   There are not enough resources available for the variable contents.
-  @retval Other  A pointer to allocated buffer containing the variable contents.
-
-**/
-VOID *
-EFIAPI
-GetVariable (
-  IN CONST CHAR16    *Name,
-  IN CONST EFI_GUID  *Guid
-  )
-{
-  EFI_STATUS  Status;
-  UINTN       Size;
-  VOID        *Value;
-
-  ASSERT (Name != NULL);
-  ASSERT (Guid != NULL);
-
-  //
-  // Try to get the variable size.
-  //
-  Value = NULL;
-  Size = 0;
-  Status = gRT->GetVariable ((CHAR16 *) Name, (EFI_GUID *) Guid, NULL, &Size, Value);
-  if (Status != EFI_BUFFER_TOO_SMALL) {
-    return NULL;
-  }
-
-  //
-  // Allocate buffer to get the variable.
-  //
-  Value = AllocatePool (Size);
-  if (Value == NULL) {
-    return NULL;
-  }
-
-  //
-  // Get the variable data.
-  //
-  Status = gRT->GetVariable ((CHAR16 *) Name, (EFI_GUID *) Guid, NULL, &Size, Value);
-  if (EFI_ERROR (Status)) {
-    FreePool(Value);
-    return NULL;
-  }
-
-  return Value;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Returns a pointer to an allocated buffer that contains the contents of a
-  variable retrieved through the UEFI Runtime Service GetVariable().  This
-  function always uses the EFI_GLOBAL_VARIABLE GUID to retrieve variables.
-  The returned buffer is allocated using AllocatePool().  The caller is
-  responsible for freeing this buffer with FreePool().
-
-  If Name is NULL, then ASSERT().
-
-  @param[in]  Name  The pointer to a Null-terminated Unicode string.
-
-  @retval NULL   The variable could not be retrieved.
-  @retval NULL   There are not enough resources available for the variable contents.
-  @retval Other  A pointer to allocated buffer containing the variable contents.
-
-**/
-VOID *
-EFIAPI
-GetEfiGlobalVariable (
-  IN CONST CHAR16  *Name
-  )
-{
-  return GetVariable (Name, &gEfiGlobalVariableGuid);
-}
-#endif
 
 /**
   Returns the status whether get the variable success. The function retrieves
@@ -1418,10 +1332,10 @@ GetVariable2 (
   BufferSize = 0;
   *Value     = NULL;
   if (Size != NULL) {
-    *Size  = 0;
+    *Size = 0;
   }
 
-  Status = gRT->GetVariable ((CHAR16 *) Name, (EFI_GUID *) Guid, NULL, &BufferSize, *Value);
+  Status = gRT->GetVariable ((CHAR16 *)Name, (EFI_GUID *)Guid, NULL, &BufferSize, *Value);
   if (Status != EFI_BUFFER_TOO_SMALL) {
     return Status;
   }
@@ -1438,9 +1352,9 @@ GetVariable2 (
   //
   // Get the variable data.
   //
-  Status = gRT->GetVariable ((CHAR16 *) Name, (EFI_GUID *) Guid, NULL, &BufferSize, *Value);
+  Status = gRT->GetVariable ((CHAR16 *)Name, (EFI_GUID *)Guid, NULL, &BufferSize, *Value);
   if (EFI_ERROR (Status)) {
-    FreePool(*Value);
+    FreePool (*Value);
     *Value = NULL;
   }
 
@@ -1476,24 +1390,24 @@ GetVariable2 (
 **/
 EFI_STATUS
 EFIAPI
-GetVariable3(
-  IN CONST CHAR16       *Name,
-  IN CONST EFI_GUID     *Guid,
-     OUT VOID           **Value,
-     OUT UINTN          *Size OPTIONAL,
-     OUT UINT32         *Attr OPTIONAL
+GetVariable3 (
+  IN CONST CHAR16    *Name,
+  IN CONST EFI_GUID  *Guid,
+  OUT VOID           **Value,
+  OUT UINTN          *Size OPTIONAL,
+  OUT UINT32         *Attr OPTIONAL
   )
 {
   EFI_STATUS  Status;
   UINTN       BufferSize;
 
-  ASSERT(Name != NULL && Guid != NULL && Value != NULL);
+  ASSERT (Name != NULL && Guid != NULL && Value != NULL);
 
   //
   // Try to get the variable size.
   //
   BufferSize = 0;
-  *Value = NULL;
+  *Value     = NULL;
   if (Size != NULL) {
     *Size = 0;
   }
@@ -1502,7 +1416,7 @@ GetVariable3(
     *Attr = 0;
   }
 
-  Status = gRT->GetVariable((CHAR16 *)Name, (EFI_GUID *)Guid, Attr, &BufferSize, *Value);
+  Status = gRT->GetVariable ((CHAR16 *)Name, (EFI_GUID *)Guid, Attr, &BufferSize, *Value);
   if (Status != EFI_BUFFER_TOO_SMALL) {
     return Status;
   }
@@ -1510,8 +1424,8 @@ GetVariable3(
   //
   // Allocate buffer to get the variable.
   //
-  *Value = AllocatePool(BufferSize);
-  ASSERT(*Value != NULL);
+  *Value = AllocatePool (BufferSize);
+  ASSERT (*Value != NULL);
   if (*Value == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
@@ -1519,9 +1433,9 @@ GetVariable3(
   //
   // Get the variable data.
   //
-  Status = gRT->GetVariable((CHAR16 *)Name, (EFI_GUID *)Guid, Attr, &BufferSize, *Value);
-  if (EFI_ERROR(Status)) {
-    FreePool(*Value);
+  Status = gRT->GetVariable ((CHAR16 *)Name, (EFI_GUID *)Guid, Attr, &BufferSize, *Value);
+  if (EFI_ERROR (Status)) {
+    FreePool (*Value);
     *Value = NULL;
   }
 
@@ -1554,9 +1468,9 @@ GetVariable3(
 EFI_STATUS
 EFIAPI
 GetEfiGlobalVariable2 (
-  IN CONST CHAR16    *Name,
-  OUT VOID           **Value,
-  OUT UINTN          *Size OPTIONAL
+  IN CONST CHAR16  *Name,
+  OUT VOID         **Value,
+  OUT UINTN        *Size OPTIONAL
   )
 {
   return GetVariable2 (Name, &gEfiGlobalVariableGuid, Value, Size);
@@ -1632,7 +1546,8 @@ GetBestLanguage (
     // If in RFC 4646 mode, then determine the length of the first RFC 4646 language code in Language
     //
     if (Iso639Language == 0) {
-      for (LanguageLength = 0; Language[LanguageLength] != 0 && Language[LanguageLength] != ';'; LanguageLength++);
+      for (LanguageLength = 0; Language[LanguageLength] != 0 && Language[LanguageLength] != ';'; LanguageLength++) {
+      }
     }
 
     //
@@ -1650,11 +1565,15 @@ GetBestLanguage (
           //
           // Skip ';' characters in Supported
           //
-          for (; *Supported != '\0' && *Supported == ';'; Supported++);
+          for ( ; *Supported != '\0' && *Supported == ';'; Supported++) {
+          }
+
           //
           // Determine the length of the next language code in Supported
           //
-          for (CompareLength = 0; Supported[CompareLength] != 0 && Supported[CompareLength] != ';'; CompareLength++);
+          for (CompareLength = 0; Supported[CompareLength] != 0 && Supported[CompareLength] != ';'; CompareLength++) {
+          }
+
           //
           // If Language is longer than the Supported, then skip to the next language
           //
@@ -1662,6 +1581,7 @@ GetBestLanguage (
             continue;
           }
         }
+
         //
         // See if the first LanguageLength characters in Supported match Language
         //
@@ -1674,6 +1594,7 @@ GetBestLanguage (
           if (BestLanguage == NULL) {
             return NULL;
           }
+
           return CopyMem (BestLanguage, Supported, CompareLength);
         }
       }
@@ -1687,10 +1608,12 @@ GetBestLanguage (
         //
         // If RFC 4646 mode, then trim Language from the right to the next '-' character
         //
-        for (LanguageLength--; LanguageLength > 0 && Language[LanguageLength] != '-'; LanguageLength--);
+        for (LanguageLength--; LanguageLength > 0 && Language[LanguageLength] != '-'; LanguageLength--) {
+        }
       }
     }
   }
+
   VA_END (Args);
 
   //
@@ -1738,7 +1661,7 @@ EfiLocateProtocolBuffer (
   //
   // Check input parameters
   //
-  if (Protocol == NULL || NoProtocols == NULL || Buffer == NULL) {
+  if ((Protocol == NULL) || (NoProtocols == NULL) || (Buffer == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
 
@@ -1746,7 +1669,7 @@ EfiLocateProtocolBuffer (
   // Initialze output parameters
   //
   *NoProtocols = 0;
-  *Buffer = NULL;
+  *Buffer      = NULL;
 
   //
   // Retrieve the array of handles that support Protocol
@@ -1777,6 +1700,7 @@ EfiLocateProtocolBuffer (
     gBS->FreePool (HandleBuffer);
     return EFI_OUT_OF_RESOURCES;
   }
+
   ZeroMem (*Buffer, NoHandles * sizeof (VOID *));
 
   //
@@ -1886,18 +1810,19 @@ EfiOpenFileByDevicePath (
   IN     UINT64                    Attributes
   )
 {
-  EFI_STATUS                      Status;
-  EFI_HANDLE                      FileSystemHandle;
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *FileSystem;
-  EFI_FILE_PROTOCOL               *LastFile;
-  FILEPATH_DEVICE_PATH            *FilePathNode;
-  CHAR16                          *AlignedPathName;
-  CHAR16                          *PathName;
-  EFI_FILE_PROTOCOL               *NextFile;
+  EFI_STATUS                       Status;
+  EFI_HANDLE                       FileSystemHandle;
+  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *FileSystem;
+  EFI_FILE_PROTOCOL                *LastFile;
+  FILEPATH_DEVICE_PATH             *FilePathNode;
+  CHAR16                           *AlignedPathName;
+  CHAR16                           *PathName;
+  EFI_FILE_PROTOCOL                *NextFile;
 
   if (File == NULL) {
     return EFI_INVALID_PARAMETER;
   }
+
   *File = NULL;
 
   if (FilePath == NULL) {
@@ -1915,6 +1840,7 @@ EfiOpenFileByDevicePath (
   if (EFI_ERROR (Status)) {
     return Status;
   }
+
   Status = gBS->OpenProtocol (
                   FileSystemHandle,
                   &gEfiSimpleFileSystemProtocolGuid,
@@ -1940,11 +1866,13 @@ EfiOpenFileByDevicePath (
   // Traverse the device path nodes relative to the filesystem.
   //
   while (!IsDevicePathEnd (*FilePath)) {
-    if (DevicePathType (*FilePath) != MEDIA_DEVICE_PATH ||
-        DevicePathSubType (*FilePath) != MEDIA_FILEPATH_DP) {
+    if ((DevicePathType (*FilePath) != MEDIA_DEVICE_PATH) ||
+        (DevicePathSubType (*FilePath) != MEDIA_FILEPATH_DP))
+    {
       Status = EFI_INVALID_PARAMETER;
       goto CloseLastFile;
     }
+
     FilePathNode = (FILEPATH_DEVICE_PATH *)*FilePath;
 
     //
@@ -1954,7 +1882,7 @@ EfiOpenFileByDevicePath (
     //
     if ((UINTN)FilePathNode->PathName % sizeof *FilePathNode->PathName == 0) {
       AlignedPathName = NULL;
-      PathName = FilePathNode->PathName;
+      PathName        = FilePathNode->PathName;
     } else {
       AlignedPathName = AllocateCopyPool (
                           (DevicePathNodeLength (FilePathNode) -
@@ -1965,6 +1893,7 @@ EfiOpenFileByDevicePath (
         Status = EFI_OUT_OF_RESOURCES;
         goto CloseLastFile;
       }
+
       PathName = AlignedPathName;
     }
 
@@ -1986,6 +1915,7 @@ EfiOpenFileByDevicePath (
     if (AlignedPathName != NULL) {
       FreePool (AlignedPathName);
     }
+
     if (EFI_ERROR (Status)) {
       goto CloseLastFile;
     }
@@ -1994,7 +1924,7 @@ EfiOpenFileByDevicePath (
     // Advance to the next device path node.
     //
     LastFile->Close (LastFile);
-    LastFile = NextFile;
+    LastFile  = NextFile;
     *FilePath = NextDevicePathNode (FilePathNode);
   }
 

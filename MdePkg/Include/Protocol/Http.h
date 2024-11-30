@@ -98,7 +98,8 @@ typedef enum {
   HTTP_STATUS_503_SERVICE_UNAVAILABLE,
   HTTP_STATUS_504_GATEWAY_TIME_OUT,
   HTTP_STATUS_505_HTTP_VERSION_NOT_SUPPORTED,
-  HTTP_STATUS_308_PERMANENT_REDIRECT
+  HTTP_STATUS_308_PERMANENT_REDIRECT,
+  HTTP_STATUS_429_TOO_MANY_REQUESTS
 } EFI_HTTP_STATUS_CODE;
 
 ///
@@ -110,22 +111,22 @@ typedef struct {
   /// information in every TCP connection made by this instance. In addition, when set
   /// to TRUE, LocalAddress and LocalSubnet are ignored.
   ///
-  BOOLEAN                       UseDefaultAddress;
+  BOOLEAN             UseDefaultAddress;
   ///
   /// If UseDefaultAddress is set to FALSE, this defines the local IP address to be
   /// used in every TCP connection opened by this instance.
   ///
-  EFI_IPv4_ADDRESS              LocalAddress;
+  EFI_IPv4_ADDRESS    LocalAddress;
   ///
   /// If UseDefaultAddress is set to FALSE, this defines the local subnet to be used
   /// in every TCP connection opened by this instance.
   ///
-  EFI_IPv4_ADDRESS              LocalSubnet;
+  EFI_IPv4_ADDRESS    LocalSubnet;
   ///
   /// This defines the local port to be used in
   /// every TCP connection opened by this instance.
   ///
-  UINT16                        LocalPort;
+  UINT16              LocalPort;
 } EFI_HTTPv4_ACCESS_POINT;
 
 ///
@@ -135,45 +136,44 @@ typedef struct {
   ///
   /// Local IP address to be used in every TCP connection opened by this instance.
   ///
-  EFI_IPv6_ADDRESS              LocalAddress;
+  EFI_IPv6_ADDRESS    LocalAddress;
   ///
   /// Local port to be used in every TCP connection opened by this instance.
   ///
-  UINT16                        LocalPort;
+  UINT16              LocalPort;
 } EFI_HTTPv6_ACCESS_POINT;
 
 ///
 /// EFI_HTTP_CONFIG_DATA_ACCESS_POINT
 ///
 
-
 typedef struct {
   ///
   /// HTTP version that this instance will support.
   ///
-  EFI_HTTP_VERSION                   HttpVersion;
+  EFI_HTTP_VERSION    HttpVersion;
   ///
   /// Time out (in milliseconds) when blocking for requests.
   ///
-  UINT32                             TimeOutMillisec;
+  UINT32              TimeOutMillisec;
   ///
   /// Defines behavior of EFI DNS and TCP protocols consumed by this instance. If
   /// FALSE, this instance will use EFI_DNS4_PROTOCOL and EFI_TCP4_PROTOCOL. If TRUE,
   /// this instance will use EFI_DNS6_PROTOCOL and EFI_TCP6_PROTOCOL.
   ///
-  BOOLEAN                            LocalAddressIsIPv6;
+  BOOLEAN             LocalAddressIsIPv6;
 
   union {
     ///
     /// When LocalAddressIsIPv6 is FALSE, this points to the local address, subnet, and
     /// port used by the underlying TCP protocol.
     ///
-    EFI_HTTPv4_ACCESS_POINT          *IPv4Node;
+    EFI_HTTPv4_ACCESS_POINT    *IPv4Node;
     ///
     /// When LocalAddressIsIPv6 is TRUE, this points to the local IPv6 address and port
     /// used by the underlying TCP protocol.
     ///
-    EFI_HTTPv6_ACCESS_POINT          *IPv6Node;
+    EFI_HTTPv6_ACCESS_POINT    *IPv6Node;
   } AccessPoint;
 } EFI_HTTP_CONFIG_DATA;
 
@@ -184,14 +184,14 @@ typedef struct {
   ///
   /// The HTTP method (e.g. GET, POST) for this HTTP Request.
   ///
-  EFI_HTTP_METHOD               Method;
+  EFI_HTTP_METHOD    Method;
   ///
   /// The URI of a remote host. From the information in this field, the HTTP instance
   /// will be able to determine whether to use HTTP or HTTPS and will also be able to
   /// determine the port number to use. If no port number is specified, port 80 (HTTP)
   /// is assumed. See RFC 3986 for more details on URI syntax.
   ///
-  CHAR16                        *Url;
+  CHAR16             *Url;
 } EFI_HTTP_REQUEST_DATA;
 
 ///
@@ -201,7 +201,7 @@ typedef struct {
   ///
   /// Response status code returned by the remote host.
   ///
-  EFI_HTTP_STATUS_CODE          StatusCode;
+  EFI_HTTP_STATUS_CODE    StatusCode;
 } EFI_HTTP_RESPONSE_DATA;
 
 ///
@@ -212,12 +212,12 @@ typedef struct {
   /// Null terminated string which describes a field name. See RFC 2616 Section 14 for
   /// detailed information about field names.
   ///
-  CHAR8                         *FieldName;
+  CHAR8    *FieldName;
   ///
   /// Null terminated string which describes the corresponding field value. See RFC 2616
   /// Section 14 for detailed information about field values.
   ///
-  CHAR8                         *FieldValue;
+  CHAR8    *FieldValue;
 } EFI_HTTP_HEADER;
 
 ///
@@ -232,36 +232,35 @@ typedef struct {
     /// When the token is used to send a HTTP request, Request is a pointer to storage that
     /// contains such data as URL and HTTP method.
     ///
-    EFI_HTTP_REQUEST_DATA       *Request;
+    EFI_HTTP_REQUEST_DATA     *Request;
     ///
     /// When used to await a response, Response points to storage containing HTTP response
     /// status code.
     ///
-    EFI_HTTP_RESPONSE_DATA      *Response;
+    EFI_HTTP_RESPONSE_DATA    *Response;
   } Data;
   ///
   /// Number of HTTP header structures in Headers list. On request, this count is
   /// provided by the caller. On response, this count is provided by the HTTP driver.
   ///
-  UINTN                         HeaderCount;
+  UINTN              HeaderCount;
   ///
   /// Array containing list of HTTP headers. On request, this array is populated by the
   /// caller. On response, this array is allocated and populated by the HTTP driver. It
   /// is the responsibility of the caller to free this memory on both request and
   /// response.
   ///
-  EFI_HTTP_HEADER               *Headers;
+  EFI_HTTP_HEADER    *Headers;
   ///
   /// Length in bytes of the HTTP body. This can be zero depending on the HttpMethod type.
   ///
-  UINTN                         BodyLength;
+  UINTN              BodyLength;
   ///
   /// Body associated with the HTTP request or response. This can be NULL depending on
   /// the HttpMethod type.
   ///
-  VOID                          *Body;
+  VOID               *Body;
 } EFI_HTTP_MESSAGE;
-
 
 ///
 /// EFI_HTTP_TOKEN
@@ -272,7 +271,7 @@ typedef struct {
   /// Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL. The Task Priority
   /// Level (TPL) of Event must be lower than or equal to TPL_CALLBACK.
   ///
-  EFI_EVENT                     Event;
+  EFI_EVENT    Event;
   ///
   /// Status will be set to one of the following value if the HTTP request is
   /// successfully sent or if an unexpected error occurs:
@@ -284,11 +283,11 @@ typedef struct {
   ///   EFI_TIMEOUT:      The HTTP request timed out before reaching the remote host.
   ///   EFI_DEVICE_ERROR: An unexpected system or network error occurred.
   ///
-  EFI_STATUS                    Status;
+  EFI_STATUS          Status;
   ///
   /// Pointer to storage containing HTTP message data.
   ///
-  EFI_HTTP_MESSAGE              *Message;
+  EFI_HTTP_MESSAGE    *Message;
 } EFI_HTTP_TOKEN;
 
 /**
@@ -383,7 +382,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_HTTP_REQUEST) (
+(EFIAPI *EFI_HTTP_REQUEST)(
   IN  EFI_HTTP_PROTOCOL         *This,
   IN  EFI_HTTP_TOKEN            *Token
   );
@@ -465,7 +464,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_HTTP_RESPONSE) (
+(EFIAPI *EFI_HTTP_RESPONSE)(
   IN  EFI_HTTP_PROTOCOL         *This,
   IN  EFI_HTTP_TOKEN            *Token
   );
@@ -491,7 +490,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_HTTP_POLL) (
+(EFIAPI *EFI_HTTP_POLL)(
   IN  EFI_HTTP_PROTOCOL         *This
   );
 
@@ -502,15 +501,15 @@ EFI_STATUS
 /// TCP protocol.
 ///
 struct _EFI_HTTP_PROTOCOL {
-  EFI_HTTP_GET_MODE_DATA        GetModeData;
-  EFI_HTTP_CONFIGURE            Configure;
-  EFI_HTTP_REQUEST              Request;
-  EFI_HTTP_CANCEL               Cancel;
-  EFI_HTTP_RESPONSE             Response;
-  EFI_HTTP_POLL                 Poll;
+  EFI_HTTP_GET_MODE_DATA    GetModeData;
+  EFI_HTTP_CONFIGURE        Configure;
+  EFI_HTTP_REQUEST          Request;
+  EFI_HTTP_CANCEL           Cancel;
+  EFI_HTTP_RESPONSE         Response;
+  EFI_HTTP_POLL             Poll;
 };
 
-extern EFI_GUID gEfiHttpServiceBindingProtocolGuid;
-extern EFI_GUID gEfiHttpProtocolGuid;
+extern EFI_GUID  gEfiHttpServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiHttpProtocolGuid;
 
 #endif

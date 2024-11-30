@@ -16,10 +16,10 @@
 
 typedef struct _EFI_UGA_IO_PROTOCOL EFI_UGA_IO_PROTOCOL;
 
-typedef UINT32                      UGA_STATUS;
+typedef UINT32 UGA_STATUS;
 
 typedef enum {
-  UgaDtParentBus          = 1,
+  UgaDtParentBus = 1,
   UgaDtGraphicsController,
   UgaDtOutputController,
   UgaDtOutputPort,
@@ -29,24 +29,24 @@ typedef enum {
 typedef UINT32 UGA_DEVICE_ID, *PUGA_DEVICE_ID;
 
 typedef struct {
-  UGA_DEVICE_TYPE deviceType;
-  UGA_DEVICE_ID   deviceId;
-  UINT32          ui32DeviceContextSize;
-  UINT32          ui32SharedContextSize;
+  UGA_DEVICE_TYPE    deviceType;
+  UGA_DEVICE_ID      deviceId;
+  UINT32             ui32DeviceContextSize;
+  UINT32             ui32SharedContextSize;
 } UGA_DEVICE_DATA, *PUGA_DEVICE_DATA;
 
 typedef struct _UGA_DEVICE {
-  VOID                *pvDeviceContext;
-  VOID                *pvSharedContext;
-  VOID                *pvRunTimeContext;
-  struct _UGA_DEVICE  *pParentDevice;
-  VOID                *pvBusIoServices;
-  VOID                *pvStdIoServices;
-  UGA_DEVICE_DATA     deviceData;
+  VOID                  *pvDeviceContext;
+  VOID                  *pvSharedContext;
+  VOID                  *pvRunTimeContext;
+  struct _UGA_DEVICE    *pParentDevice;
+  VOID                  *pvBusIoServices;
+  VOID                  *pvStdIoServices;
+  UGA_DEVICE_DATA       deviceData;
 } UGA_DEVICE, *PUGA_DEVICE;
 
 typedef enum {
-  UgaIoGetVersion             = 1,
+  UgaIoGetVersion = 1,
   UgaIoGetChildDevice,
   UgaIoStartDevice,
   UgaIoStopDevice,
@@ -72,14 +72,13 @@ typedef enum {
 } UGA_IO_REQUEST_CODE, *PUGA_IO_REQUEST_CODE;
 
 typedef struct {
-  IN UGA_IO_REQUEST_CODE  ioRequestCode;
-  IN VOID                 *pvInBuffer;
-  IN UINT64               ui64InBufferSize;
-  OUT VOID                *pvOutBuffer;
-  IN UINT64               ui64OutBufferSize;
-  OUT UINT64              ui64BytesReturned;
+  IN UGA_IO_REQUEST_CODE    ioRequestCode;
+  IN VOID                   *pvInBuffer;
+  IN UINT64                 ui64InBufferSize;
+  OUT VOID                  *pvOutBuffer;
+  IN UINT64                 ui64OutBufferSize;
+  OUT UINT64                ui64BytesReturned;
 } UGA_IO_REQUEST, *PUGA_IO_REQUEST;
-
 
 /**
   Dynamically allocate storage for a child UGA_DEVICE.
@@ -108,7 +107,6 @@ EFI_STATUS
   OUT UGA_DEVICE           **Device
   );
 
-
 /**
   Delete a dynamically allocated child UGA_DEVICE object that was allocated via CreateDevice().
 
@@ -125,8 +123,8 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_UGA_IO_PROTOCOL_DELETE_DEVICE)(
-  IN EFI_UGA_IO_PROTOCOL  * This,
-  IN UGA_DEVICE           * Device
+  IN EFI_UGA_IO_PROTOCOL  *This,
+  IN UGA_DEVICE           *Device
   );
 
 /**
@@ -156,12 +154,12 @@ typedef UGA_STATUS
 /// Provides a basic abstraction to send I/O requests to the graphics device and any of its children.
 ///
 struct _EFI_UGA_IO_PROTOCOL {
-  EFI_UGA_IO_PROTOCOL_CREATE_DEVICE CreateDevice;
-  EFI_UGA_IO_PROTOCOL_DELETE_DEVICE DeleteDevice;
-  PUGA_FW_SERVICE_DISPATCH          DispatchService;
+  EFI_UGA_IO_PROTOCOL_CREATE_DEVICE    CreateDevice;
+  EFI_UGA_IO_PROTOCOL_DELETE_DEVICE    DeleteDevice;
+  PUGA_FW_SERVICE_DISPATCH             DispatchService;
 };
 
-extern EFI_GUID gEfiUgaIoProtocolGuid;
+extern EFI_GUID  gEfiUgaIoProtocolGuid;
 
 //
 // Data structure that is stored in the EFI Configuration Table with the
@@ -169,10 +167,10 @@ extern EFI_GUID gEfiUgaIoProtocolGuid;
 // EBC UGA drivers.
 //
 typedef struct {
-  UINT32  Version;
-  UINT32  HeaderSize;
-  UINT32  SizeOfEntries;
-  UINT32  NumberOfEntries;
+  UINT32    Version;
+  UINT32    HeaderSize;
+  UINT32    SizeOfEntries;
+  UINT32    NumberOfEntries;
 } EFI_DRIVER_OS_HANDOFF_HEADER;
 
 typedef enum {
@@ -182,10 +180,10 @@ typedef enum {
 } EFI_DRIVER_HANOFF_ENUM;
 
 typedef struct {
-  EFI_DRIVER_HANOFF_ENUM    Type;
-  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
-  VOID                      *PciRomImage;
-  UINT64                    PciRomSize;
+  EFI_DRIVER_HANOFF_ENUM      Type;
+  EFI_DEVICE_PATH_PROTOCOL    *DevicePath;
+  VOID                        *PciRomImage;
+  UINT64                      PciRomSize;
 } EFI_DRIVER_OS_HANDOFF;
 
 #endif

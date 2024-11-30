@@ -28,7 +28,7 @@ InvalidateInstructionCache (
   VOID
   )
 {
-  ASSERT(FALSE);
+  ASSERT (FALSE);
 }
 
 /**
@@ -59,12 +59,12 @@ InvalidateInstructionCache (
 VOID *
 EFIAPI
 InvalidateInstructionCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
-  ASSERT(FALSE);
+  ASSERT (FALSE);
   return Address;
 }
 
@@ -84,7 +84,7 @@ WriteBackInvalidateDataCache (
   VOID
   )
 {
-  ASSERT(FALSE);
+  ASSERT (FALSE);
 }
 
 /**
@@ -116,12 +116,12 @@ WriteBackInvalidateDataCache (
 VOID *
 EFIAPI
 WriteBackInvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
-  ASSERT(FALSE);
+  ASSERT (FALSE);
   return Address;
 }
 
@@ -141,7 +141,7 @@ WriteBackDataCache (
   VOID
   )
 {
-  ASSERT(FALSE);
+  ASSERT (FALSE);
 }
 
 /**
@@ -172,12 +172,12 @@ WriteBackDataCache (
 VOID *
 EFIAPI
 WriteBackDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
-  ASSERT(FALSE);
+  ASSERT (FALSE);
   return Address;
 }
 
@@ -198,7 +198,7 @@ InvalidateDataCache (
   VOID
   )
 {
-  ASSERT(FALSE);
+  ASSERT (FALSE);
 }
 
 /**
@@ -231,11 +231,11 @@ InvalidateDataCache (
 VOID *
 EFIAPI
 InvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
-  ASSERT(FALSE);
+  ASSERT (FALSE);
   return Address;
 }

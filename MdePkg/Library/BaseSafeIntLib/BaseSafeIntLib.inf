@@ -4,9 +4,10 @@
 # This library provides helper functions to prevent integer overflow during
 # type conversion, addition, subtraction, and multiplication.
 #
-#  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
 # Copyright (c) 2017, Microsoft Corporation
-#  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+# Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+# Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
 
 #
 # All rights reserved.
@@ -25,7 +26,7 @@
 #
 # The following information is for reference only and not required by the build tools.
 #
-#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64 RISCV64
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64 RISCV64 LOONGARCH64
 #
 
 [Sources]
@@ -34,7 +35,7 @@
 [Sources.Ia32, Sources.ARM]
   SafeIntLib32.c
 
-[Sources.X64, Sources.AARCH64, Sources.RISCV64]
+[Sources.X64, Sources.AARCH64, Sources.RISCV64, Sources.LOONGARCH64]
   SafeIntLib64.c
 
 [Sources.EBC]

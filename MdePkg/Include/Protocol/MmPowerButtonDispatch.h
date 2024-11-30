@@ -38,7 +38,7 @@ typedef struct {
   ///
   /// Designates whether this handler should be invoked upon entry or exit.
   ///
-  EFI_POWER_BUTTON_PHASE  Phase;
+  EFI_POWER_BUTTON_PHASE    Phase;
 } EFI_MM_POWER_BUTTON_REGISTER_CONTEXT;
 
 typedef struct _EFI_MM_POWER_BUTTON_DISPATCH_PROTOCOL EFI_MM_POWER_BUTTON_DISPATCH_PROTOCOL;
@@ -101,11 +101,10 @@ EFI_STATUS
 /// This protocol provides the parent dispatch service for the power button MMI source generator.
 ///
 struct _EFI_MM_POWER_BUTTON_DISPATCH_PROTOCOL {
-  EFI_MM_POWER_BUTTON_REGISTER    Register;
-  EFI_MM_POWER_BUTTON_UNREGISTER  UnRegister;
+  EFI_MM_POWER_BUTTON_REGISTER      Register;
+  EFI_MM_POWER_BUTTON_UNREGISTER    UnRegister;
 };
 
-extern EFI_GUID gEfiMmPowerButtonDispatchProtocolGuid;
+extern EFI_GUID  gEfiMmPowerButtonDispatchProtocolGuid;
 
 #endif
-

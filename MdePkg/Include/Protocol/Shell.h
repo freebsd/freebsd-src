@@ -22,110 +22,110 @@ typedef enum {
   ///
   /// The operation completed successfully.
   ///
-  SHELL_SUCCESS               = 0,
+  SHELL_SUCCESS = 0,
 
   ///
   /// The image failed to load.
   ///
-  SHELL_LOAD_ERROR            = 1,
+  SHELL_LOAD_ERROR = 1,
 
   ///
   /// The parameter was incorrect.
   ///
-  SHELL_INVALID_PARAMETER     = 2,
+  SHELL_INVALID_PARAMETER = 2,
 
   ///
   /// The operation is not supported.
   ///
-  SHELL_UNSUPPORTED           = 3,
+  SHELL_UNSUPPORTED = 3,
 
   ///
   /// The buffer was not the proper size for the request.
   ///
-  SHELL_BAD_BUFFER_SIZE       = 4,
+  SHELL_BAD_BUFFER_SIZE = 4,
 
   ///
   /// The buffer was not large enough to hold the requested data.
   /// The required buffer size is returned in the appropriate
   /// parameter when this error occurs.
   ///
-  SHELL_BUFFER_TOO_SMALL      = 5,
+  SHELL_BUFFER_TOO_SMALL = 5,
 
   ///
   /// There is no data pending upon return.
   ///
-  SHELL_NOT_READY             = 6,
+  SHELL_NOT_READY = 6,
 
   ///
   /// The physical device reported an error while attempting the
   /// operation.
   ///
-  SHELL_DEVICE_ERROR          = 7,
+  SHELL_DEVICE_ERROR = 7,
 
   ///
   /// The device cannot be written to.
   ///
-  SHELL_WRITE_PROTECTED       = 8,
+  SHELL_WRITE_PROTECTED = 8,
 
   ///
   /// The resource has run out.
   ///
-  SHELL_OUT_OF_RESOURCES      = 9,
+  SHELL_OUT_OF_RESOURCES = 9,
 
   ///
   /// An inconsistency was detected on the file system causing the
   /// operation to fail.
   ///
-  SHELL_VOLUME_CORRUPTED      = 10,
+  SHELL_VOLUME_CORRUPTED = 10,
 
   ///
   /// There is no more space on the file system.
   ///
-  SHELL_VOLUME_FULL           = 11,
+  SHELL_VOLUME_FULL = 11,
 
   ///
   /// The device does not contain any medium to perform the
   /// operation.
   ///
-  SHELL_NO_MEDIA              = 12,
+  SHELL_NO_MEDIA = 12,
 
   ///
   /// The medium in the device has changed since the last
   /// access.
   ///
-  SHELL_MEDIA_CHANGED         = 13,
+  SHELL_MEDIA_CHANGED = 13,
 
   ///
   /// The item was not found.
   ///
-  SHELL_NOT_FOUND             = 14,
+  SHELL_NOT_FOUND = 14,
 
   ///
   /// Access was denied.
   ///
-  SHELL_ACCESS_DENIED         = 15,
+  SHELL_ACCESS_DENIED = 15,
 
   // note the skipping of 16 and 17
 
   ///
   /// A timeout time expired.
   ///
-  SHELL_TIMEOUT               = 18,
+  SHELL_TIMEOUT = 18,
 
   ///
   /// The protocol has not been started.
   ///
-  SHELL_NOT_STARTED           = 19,
+  SHELL_NOT_STARTED = 19,
 
   ///
   /// The protocol has already been started.
   ///
-  SHELL_ALREADY_STARTED       = 20,
+  SHELL_ALREADY_STARTED = 20,
 
   ///
   /// The operation was aborted.
   ///
-  SHELL_ABORTED               = 21,
+  SHELL_ABORTED = 21,
 
   // note the skipping of 22, 23, and 24
 
@@ -133,30 +133,29 @@ typedef enum {
   /// A function encountered an internal version that was
   /// incompatible with a version requested by the caller.
   ///
-  SHELL_INCOMPATIBLE_VERSION  = 25,
+  SHELL_INCOMPATIBLE_VERSION = 25,
 
   ///
   /// The function was not performed due to a security violation.
   ///
-  SHELL_SECURITY_VIOLATION    = 26,
+  SHELL_SECURITY_VIOLATION = 26,
 
   ///
   /// The function was performed and resulted in an unequal
   /// comparison..
   ///
-  SHELL_NOT_EQUAL             = 27
+  SHELL_NOT_EQUAL = 27
 } SHELL_STATUS;
-
 
 // replaced EFI_LIST_ENTRY with LIST_ENTRY for simplicity.
 // they are identical outside of the name.
 typedef struct {
-  LIST_ENTRY        Link;       ///< Linked list members.
-  EFI_STATUS        Status;     ///< Status of opening the file.  Valid only if Handle != NULL.
-  CONST CHAR16      *FullName;  ///< Fully qualified filename.
-  CONST CHAR16      *FileName;  ///< name of this file.
-  SHELL_FILE_HANDLE Handle;     ///< Handle for interacting with the opened file or NULL if closed.
-  EFI_FILE_INFO     *Info;      ///< Pointer to the FileInfo struct for this file or NULL.
+  LIST_ENTRY           Link;      ///< Linked list members.
+  EFI_STATUS           Status;    ///< Status of opening the file.  Valid only if Handle != NULL.
+  CONST CHAR16         *FullName; ///< Fully qualified filename.
+  CONST CHAR16         *FileName; ///< name of this file.
+  SHELL_FILE_HANDLE    Handle;    ///< Handle for interacting with the opened file or NULL if closed.
+  EFI_FILE_INFO        *Info;     ///< Pointer to the FileInfo struct for this file or NULL.
 } EFI_SHELL_FILE_INFO;
 
 /**
@@ -168,7 +167,7 @@ typedef struct {
 **/
 typedef
 BOOLEAN
-(EFIAPI *EFI_SHELL_BATCH_IS_ACTIVE) (
+(EFIAPI *EFI_SHELL_BATCH_IS_ACTIVE)(
   VOID
   );
 
@@ -272,7 +271,7 @@ EFI_STATUS
 **/
 typedef
 VOID
-(EFIAPI *EFI_SHELL_DISABLE_PAGE_BREAK) (
+(EFIAPI *EFI_SHELL_DISABLE_PAGE_BREAK)(
   VOID
   );
 
@@ -281,7 +280,7 @@ VOID
 **/
 typedef
 VOID
-(EFIAPI *EFI_SHELL_ENABLE_PAGE_BREAK) (
+(EFIAPI *EFI_SHELL_ENABLE_PAGE_BREAK)(
   VOID
   );
 
@@ -318,7 +317,7 @@ VOID
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_EXECUTE) (
+(EFIAPI *EFI_SHELL_EXECUTE)(
   IN EFI_HANDLE                 *ParentImageHandle,
   IN CHAR16                     *CommandLine OPTIONAL,
   IN CHAR16                     **Environment OPTIONAL,
@@ -368,9 +367,9 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_SHELL_FIND_FILES_IN_DIR)(
-IN SHELL_FILE_HANDLE            FileDirHandle,
-OUT EFI_SHELL_FILE_INFO         **FileList
-);
+  IN SHELL_FILE_HANDLE            FileDirHandle,
+  OUT EFI_SHELL_FILE_INFO         **FileList
+  );
 
 /**
   Flushes data back to a device.
@@ -406,7 +405,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_FREE_FILE_LIST) (
+(EFIAPI *EFI_SHELL_FREE_FILE_LIST)(
   IN EFI_SHELL_FILE_INFO **FileList
   );
 
@@ -428,7 +427,7 @@ EFI_STATUS
 **/
 typedef
 CONST CHAR16 *
-(EFIAPI *EFI_SHELL_GET_CUR_DIR) (
+(EFIAPI *EFI_SHELL_GET_CUR_DIR)(
   IN CONST CHAR16 *FileSystemMapping OPTIONAL
   );
 
@@ -468,7 +467,7 @@ typedef UINT32 EFI_SHELL_DEVICE_NAME_FLAGS;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_GET_DEVICE_NAME) (
+(EFIAPI *EFI_SHELL_GET_DEVICE_NAME)(
   IN EFI_HANDLE                   DeviceHandle,
   IN EFI_SHELL_DEVICE_NAME_FLAGS  Flags,
   IN CHAR8                        *Language,
@@ -490,7 +489,7 @@ EFI_STATUS
 **/
 typedef
 CONST EFI_DEVICE_PATH_PROTOCOL *
-(EFIAPI *EFI_SHELL_GET_DEVICE_PATH_FROM_MAP) (
+(EFIAPI *EFI_SHELL_GET_DEVICE_PATH_FROM_MAP)(
   IN CONST CHAR16 *Mapping
   );
 
@@ -507,7 +506,7 @@ CONST EFI_DEVICE_PATH_PROTOCOL *
 **/
 typedef
 EFI_DEVICE_PATH_PROTOCOL *
-(EFIAPI *EFI_SHELL_GET_DEVICE_PATH_FROM_FILE_PATH) (
+(EFIAPI *EFI_SHELL_GET_DEVICE_PATH_FROM_FILE_PATH)(
   IN CONST CHAR16 *Path
   );
 
@@ -536,7 +535,7 @@ EFI_DEVICE_PATH_PROTOCOL *
 **/
 typedef
 CONST CHAR16 *
-(EFIAPI *EFI_SHELL_GET_ENV) (
+(EFIAPI *EFI_SHELL_GET_ENV)(
   IN CONST CHAR16 *Name OPTIONAL
   );
 
@@ -564,7 +563,7 @@ CONST CHAR16 *
 **/
 typedef
 CONST CHAR16 *
-(EFIAPI *EFI_SHELL_GET_ENV_EX) (
+(EFIAPI *EFI_SHELL_GET_ENV_EX)(
   IN  CONST CHAR16 *Name,
   OUT       UINT32 *Attributes OPTIONAL
   );
@@ -600,7 +599,7 @@ EFI_FILE_INFO *
 **/
 typedef
 CHAR16 *
-(EFIAPI *EFI_SHELL_GET_FILE_PATH_FROM_DEVICE_PATH) (
+(EFIAPI *EFI_SHELL_GET_FILE_PATH_FROM_DEVICE_PATH)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *Path
   );
 
@@ -717,7 +716,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_GET_HELP_TEXT) (
+(EFIAPI *EFI_SHELL_GET_HELP_TEXT)(
   IN CONST CHAR16 *Command,
   IN CONST CHAR16 *Sections OPTIONAL,
   OUT CHAR16 **HelpText
@@ -745,7 +744,7 @@ EFI_STATUS
 **/
 typedef
 CONST CHAR16 *
-(EFIAPI *EFI_SHELL_GET_MAP_FROM_DEVICE_PATH) (
+(EFIAPI *EFI_SHELL_GET_MAP_FROM_DEVICE_PATH)(
   IN OUT EFI_DEVICE_PATH_PROTOCOL **DevicePath
   );
 
@@ -759,7 +758,7 @@ CONST CHAR16 *
 **/
 typedef
 BOOLEAN
-(EFIAPI *EFI_SHELL_GET_PAGE_BREAK) (
+(EFIAPI *EFI_SHELL_GET_PAGE_BREAK)(
   VOID
   );
 
@@ -773,9 +772,9 @@ BOOLEAN
 **/
 typedef
 BOOLEAN
-(EFIAPI *EFI_SHELL_IS_ROOT_SHELL) (
-VOID
-);
+(EFIAPI *EFI_SHELL_IS_ROOT_SHELL)(
+  VOID
+  );
 
 /**
   Opens a file or a directory by file name.
@@ -831,7 +830,7 @@ VOID
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_OPEN_FILE_BY_NAME) (
+(EFIAPI *EFI_SHELL_OPEN_FILE_BY_NAME)(
   IN CONST CHAR16 *FileName,
   OUT SHELL_FILE_HANDLE *FileHandle,
   IN UINT64 OpenMode
@@ -854,7 +853,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_OPEN_FILE_LIST) (
+(EFIAPI *EFI_SHELL_OPEN_FILE_LIST)(
   IN CHAR16 *Path,
   IN UINT64 OpenMode,
   IN OUT EFI_SHELL_FILE_INFO **FileList
@@ -926,7 +925,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_READ_FILE) (
+(EFIAPI *EFI_SHELL_READ_FILE)(
   IN SHELL_FILE_HANDLE FileHandle,
   IN OUT UINTN *ReadSize,
   IN OUT VOID *Buffer
@@ -965,7 +964,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_REMOVE_DUP_IN_FILE_LIST) (
+(EFIAPI *EFI_SHELL_REMOVE_DUP_IN_FILE_LIST)(
   IN EFI_SHELL_FILE_INFO **FileList
   );
 
@@ -1046,7 +1045,7 @@ CONST CHAR16 *
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_SET_CUR_DIR) (
+(EFIAPI *EFI_SHELL_SET_CUR_DIR)(
   IN CONST CHAR16 *FileSystem OPTIONAL,
   IN CONST CHAR16 *Dir
   );
@@ -1074,7 +1073,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SHELL_SET_ENV) (
+(EFIAPI *EFI_SHELL_SET_ENV)(
   IN CONST CHAR16 *Name,
   IN CONST CHAR16 *Value,
   IN BOOLEAN Volatile
@@ -1203,56 +1202,56 @@ EFI_STATUS
 // }
 //
 typedef struct _EFI_SHELL_PROTOCOL {
-  EFI_SHELL_EXECUTE                         Execute;
-  EFI_SHELL_GET_ENV                         GetEnv;
-  EFI_SHELL_SET_ENV                         SetEnv;
-  EFI_SHELL_GET_ALIAS                       GetAlias;
-  EFI_SHELL_SET_ALIAS                       SetAlias;
-  EFI_SHELL_GET_HELP_TEXT                   GetHelpText;
-  EFI_SHELL_GET_DEVICE_PATH_FROM_MAP        GetDevicePathFromMap;
-  EFI_SHELL_GET_MAP_FROM_DEVICE_PATH        GetMapFromDevicePath;
-  EFI_SHELL_GET_DEVICE_PATH_FROM_FILE_PATH  GetDevicePathFromFilePath;
-  EFI_SHELL_GET_FILE_PATH_FROM_DEVICE_PATH  GetFilePathFromDevicePath;
-  EFI_SHELL_SET_MAP                         SetMap;
-  EFI_SHELL_GET_CUR_DIR                     GetCurDir;
-  EFI_SHELL_SET_CUR_DIR                     SetCurDir;
-  EFI_SHELL_OPEN_FILE_LIST                  OpenFileList;
-  EFI_SHELL_FREE_FILE_LIST                  FreeFileList;
-  EFI_SHELL_REMOVE_DUP_IN_FILE_LIST         RemoveDupInFileList;
-  EFI_SHELL_BATCH_IS_ACTIVE                 BatchIsActive;
-  EFI_SHELL_IS_ROOT_SHELL                   IsRootShell;
-  EFI_SHELL_ENABLE_PAGE_BREAK               EnablePageBreak;
-  EFI_SHELL_DISABLE_PAGE_BREAK              DisablePageBreak;
-  EFI_SHELL_GET_PAGE_BREAK                  GetPageBreak;
-  EFI_SHELL_GET_DEVICE_NAME                 GetDeviceName;
-  EFI_SHELL_GET_FILE_INFO                   GetFileInfo;
-  EFI_SHELL_SET_FILE_INFO                   SetFileInfo;
-  EFI_SHELL_OPEN_FILE_BY_NAME               OpenFileByName;
-  EFI_SHELL_CLOSE_FILE                      CloseFile;
-  EFI_SHELL_CREATE_FILE                     CreateFile;
-  EFI_SHELL_READ_FILE                       ReadFile;
-  EFI_SHELL_WRITE_FILE                      WriteFile;
-  EFI_SHELL_DELETE_FILE                     DeleteFile;
-  EFI_SHELL_DELETE_FILE_BY_NAME             DeleteFileByName;
-  EFI_SHELL_GET_FILE_POSITION               GetFilePosition;
-  EFI_SHELL_SET_FILE_POSITION               SetFilePosition;
-  EFI_SHELL_FLUSH_FILE                      FlushFile;
-  EFI_SHELL_FIND_FILES                      FindFiles;
-  EFI_SHELL_FIND_FILES_IN_DIR               FindFilesInDir;
-  EFI_SHELL_GET_FILE_SIZE                   GetFileSize;
-  EFI_SHELL_OPEN_ROOT                       OpenRoot;
-  EFI_SHELL_OPEN_ROOT_BY_HANDLE             OpenRootByHandle;
-  EFI_EVENT                                 ExecutionBreak;
-  UINT32                                    MajorVersion;
-  UINT32                                    MinorVersion;
+  EFI_SHELL_EXECUTE                           Execute;
+  EFI_SHELL_GET_ENV                           GetEnv;
+  EFI_SHELL_SET_ENV                           SetEnv;
+  EFI_SHELL_GET_ALIAS                         GetAlias;
+  EFI_SHELL_SET_ALIAS                         SetAlias;
+  EFI_SHELL_GET_HELP_TEXT                     GetHelpText;
+  EFI_SHELL_GET_DEVICE_PATH_FROM_MAP          GetDevicePathFromMap;
+  EFI_SHELL_GET_MAP_FROM_DEVICE_PATH          GetMapFromDevicePath;
+  EFI_SHELL_GET_DEVICE_PATH_FROM_FILE_PATH    GetDevicePathFromFilePath;
+  EFI_SHELL_GET_FILE_PATH_FROM_DEVICE_PATH    GetFilePathFromDevicePath;
+  EFI_SHELL_SET_MAP                           SetMap;
+  EFI_SHELL_GET_CUR_DIR                       GetCurDir;
+  EFI_SHELL_SET_CUR_DIR                       SetCurDir;
+  EFI_SHELL_OPEN_FILE_LIST                    OpenFileList;
+  EFI_SHELL_FREE_FILE_LIST                    FreeFileList;
+  EFI_SHELL_REMOVE_DUP_IN_FILE_LIST           RemoveDupInFileList;
+  EFI_SHELL_BATCH_IS_ACTIVE                   BatchIsActive;
+  EFI_SHELL_IS_ROOT_SHELL                     IsRootShell;
+  EFI_SHELL_ENABLE_PAGE_BREAK                 EnablePageBreak;
+  EFI_SHELL_DISABLE_PAGE_BREAK                DisablePageBreak;
+  EFI_SHELL_GET_PAGE_BREAK                    GetPageBreak;
+  EFI_SHELL_GET_DEVICE_NAME                   GetDeviceName;
+  EFI_SHELL_GET_FILE_INFO                     GetFileInfo;
+  EFI_SHELL_SET_FILE_INFO                     SetFileInfo;
+  EFI_SHELL_OPEN_FILE_BY_NAME                 OpenFileByName;
+  EFI_SHELL_CLOSE_FILE                        CloseFile;
+  EFI_SHELL_CREATE_FILE                       CreateFile;
+  EFI_SHELL_READ_FILE                         ReadFile;
+  EFI_SHELL_WRITE_FILE                        WriteFile;
+  EFI_SHELL_DELETE_FILE                       DeleteFile;
+  EFI_SHELL_DELETE_FILE_BY_NAME               DeleteFileByName;
+  EFI_SHELL_GET_FILE_POSITION                 GetFilePosition;
+  EFI_SHELL_SET_FILE_POSITION                 SetFilePosition;
+  EFI_SHELL_FLUSH_FILE                        FlushFile;
+  EFI_SHELL_FIND_FILES                        FindFiles;
+  EFI_SHELL_FIND_FILES_IN_DIR                 FindFilesInDir;
+  EFI_SHELL_GET_FILE_SIZE                     GetFileSize;
+  EFI_SHELL_OPEN_ROOT                         OpenRoot;
+  EFI_SHELL_OPEN_ROOT_BY_HANDLE               OpenRootByHandle;
+  EFI_EVENT                                   ExecutionBreak;
+  UINT32                                      MajorVersion;
+  UINT32                                      MinorVersion;
   // Added for Shell 2.1
-  EFI_SHELL_REGISTER_GUID_NAME              RegisterGuidName;
-  EFI_SHELL_GET_GUID_NAME                   GetGuidName;
-  EFI_SHELL_GET_GUID_FROM_NAME              GetGuidFromName;
-  EFI_SHELL_GET_ENV_EX                      GetEnvEx;
+  EFI_SHELL_REGISTER_GUID_NAME                RegisterGuidName;
+  EFI_SHELL_GET_GUID_NAME                     GetGuidName;
+  EFI_SHELL_GET_GUID_FROM_NAME                GetGuidFromName;
+  EFI_SHELL_GET_ENV_EX                        GetEnvEx;
 } EFI_SHELL_PROTOCOL;
 
-extern EFI_GUID gEfiShellProtocolGuid;
+extern EFI_GUID  gEfiShellProtocolGuid;
 
 enum ShellVersion {
   SHELL_MAJOR_VERSION = 2,

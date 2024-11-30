@@ -22,89 +22,88 @@
 typedef struct _EFI_ATA_PASS_THRU_PROTOCOL EFI_ATA_PASS_THRU_PROTOCOL;
 
 typedef struct {
-  UINT32 Attributes;
-  UINT32 IoAlign;
+  UINT32    Attributes;
+  UINT32    IoAlign;
 } EFI_ATA_PASS_THRU_MODE;
 
 ///
 /// If this bit is set, then the EFI_ATA_PASS_THRU_PROTOCOL interface is for physical
 /// devices on the ATA controller.
 ///
-#define EFI_ATA_PASS_THRU_ATTRIBUTES_PHYSICAL   0x0001
+#define EFI_ATA_PASS_THRU_ATTRIBUTES_PHYSICAL  0x0001
 ///
 /// If this bit is set, then the EFI_ATA_PASS_THRU_PROTOCOL interface is for logical
 /// devices on the ATA controller.
 ///
-#define EFI_ATA_PASS_THRU_ATTRIBUTES_LOGICAL    0x0002
+#define EFI_ATA_PASS_THRU_ATTRIBUTES_LOGICAL  0x0002
 ///
 /// If this bit is set, then the EFI_ATA_PASS_THRU_PROTOCOL interface supports non blocking
 /// I/O. Every EFI_ATA_PASS_THRU_PROTOCOL must support blocking I/O. The support of non-blocking
 /// I/O is optional.
 ///
-#define EFI_ATA_PASS_THRU_ATTRIBUTES_NONBLOCKIO 0x0004
+#define EFI_ATA_PASS_THRU_ATTRIBUTES_NONBLOCKIO  0x0004
 
 typedef struct _EFI_ATA_COMMAND_BLOCK {
-  UINT8 Reserved1[2];
-  UINT8 AtaCommand;
-  UINT8 AtaFeatures;
-  UINT8 AtaSectorNumber;
-  UINT8 AtaCylinderLow;
-  UINT8 AtaCylinderHigh;
-  UINT8 AtaDeviceHead;
-  UINT8 AtaSectorNumberExp;
-  UINT8 AtaCylinderLowExp;
-  UINT8 AtaCylinderHighExp;
-  UINT8 AtaFeaturesExp;
-  UINT8 AtaSectorCount;
-  UINT8 AtaSectorCountExp;
-  UINT8 Reserved2[6];
+  UINT8    Reserved1[2];
+  UINT8    AtaCommand;
+  UINT8    AtaFeatures;
+  UINT8    AtaSectorNumber;
+  UINT8    AtaCylinderLow;
+  UINT8    AtaCylinderHigh;
+  UINT8    AtaDeviceHead;
+  UINT8    AtaSectorNumberExp;
+  UINT8    AtaCylinderLowExp;
+  UINT8    AtaCylinderHighExp;
+  UINT8    AtaFeaturesExp;
+  UINT8    AtaSectorCount;
+  UINT8    AtaSectorCountExp;
+  UINT8    Reserved2[6];
 } EFI_ATA_COMMAND_BLOCK;
 
 typedef struct _EFI_ATA_STATUS_BLOCK {
-  UINT8 Reserved1[2];
-  UINT8 AtaStatus;
-  UINT8 AtaError;
-  UINT8 AtaSectorNumber;
-  UINT8 AtaCylinderLow;
-  UINT8 AtaCylinderHigh;
-  UINT8 AtaDeviceHead;
-  UINT8 AtaSectorNumberExp;
-  UINT8 AtaCylinderLowExp;
-  UINT8 AtaCylinderHighExp;
-  UINT8 Reserved2;
-  UINT8 AtaSectorCount;
-  UINT8 AtaSectorCountExp;
-  UINT8 Reserved3[6];
+  UINT8    Reserved1[2];
+  UINT8    AtaStatus;
+  UINT8    AtaError;
+  UINT8    AtaSectorNumber;
+  UINT8    AtaCylinderLow;
+  UINT8    AtaCylinderHigh;
+  UINT8    AtaDeviceHead;
+  UINT8    AtaSectorNumberExp;
+  UINT8    AtaCylinderLowExp;
+  UINT8    AtaCylinderHighExp;
+  UINT8    Reserved2;
+  UINT8    AtaSectorCount;
+  UINT8    AtaSectorCountExp;
+  UINT8    Reserved3[6];
 } EFI_ATA_STATUS_BLOCK;
 
 typedef UINT8 EFI_ATA_PASS_THRU_CMD_PROTOCOL;
 
-#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_HARDWARE_RESET 0x00
-#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_SOFTWARE_RESET 0x01
-#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_NON_DATA       0x02
-#define EFI_ATA_PASS_THRU_PROTOCOL_PIO_DATA_IN        0x04
-#define EFI_ATA_PASS_THRU_PROTOCOL_PIO_DATA_OUT       0x05
-#define EFI_ATA_PASS_THRU_PROTOCOL_DMA                0x06
-#define EFI_ATA_PASS_THRU_PROTOCOL_DMA_QUEUED         0x07
-#define EFI_ATA_PASS_THRU_PROTOCOL_DEVICE_DIAGNOSTIC  0x08
-#define EFI_ATA_PASS_THRU_PROTOCOL_DEVICE_RESET       0x09
-#define EFI_ATA_PASS_THRU_PROTOCOL_UDMA_DATA_IN       0x0A
-#define EFI_ATA_PASS_THRU_PROTOCOL_UDMA_DATA_OUT      0x0B
-#define EFI_ATA_PASS_THRU_PROTOCOL_FPDMA              0x0C
-#define EFI_ATA_PASS_THRU_PROTOCOL_RETURN_RESPONSE    0xFF
+#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_HARDWARE_RESET  0x00
+#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_SOFTWARE_RESET  0x01
+#define EFI_ATA_PASS_THRU_PROTOCOL_ATA_NON_DATA        0x02
+#define EFI_ATA_PASS_THRU_PROTOCOL_PIO_DATA_IN         0x04
+#define EFI_ATA_PASS_THRU_PROTOCOL_PIO_DATA_OUT        0x05
+#define EFI_ATA_PASS_THRU_PROTOCOL_DMA                 0x06
+#define EFI_ATA_PASS_THRU_PROTOCOL_DMA_QUEUED          0x07
+#define EFI_ATA_PASS_THRU_PROTOCOL_DEVICE_DIAGNOSTIC   0x08
+#define EFI_ATA_PASS_THRU_PROTOCOL_DEVICE_RESET        0x09
+#define EFI_ATA_PASS_THRU_PROTOCOL_UDMA_DATA_IN        0x0A
+#define EFI_ATA_PASS_THRU_PROTOCOL_UDMA_DATA_OUT       0x0B
+#define EFI_ATA_PASS_THRU_PROTOCOL_FPDMA               0x0C
+#define EFI_ATA_PASS_THRU_PROTOCOL_RETURN_RESPONSE     0xFF
 
 typedef UINT8 EFI_ATA_PASS_THRU_LENGTH;
 
-#define EFI_ATA_PASS_THRU_LENGTH_BYTES                0x80
+#define EFI_ATA_PASS_THRU_LENGTH_BYTES  0x80
 
+#define EFI_ATA_PASS_THRU_LENGTH_MASK              0x70
+#define EFI_ATA_PASS_THRU_LENGTH_NO_DATA_TRANSFER  0x00
+#define EFI_ATA_PASS_THRU_LENGTH_FEATURES          0x10
+#define EFI_ATA_PASS_THRU_LENGTH_SECTOR_COUNT      0x20
+#define EFI_ATA_PASS_THRU_LENGTH_TPSIU             0x30
 
-#define EFI_ATA_PASS_THRU_LENGTH_MASK                 0x70
-#define EFI_ATA_PASS_THRU_LENGTH_NO_DATA_TRANSFER     0x00
-#define EFI_ATA_PASS_THRU_LENGTH_FEATURES             0x10
-#define EFI_ATA_PASS_THRU_LENGTH_SECTOR_COUNT         0x20
-#define EFI_ATA_PASS_THRU_LENGTH_TPSIU                0x30
-
-#define EFI_ATA_PASS_THRU_LENGTH_COUNT                0x0F
+#define EFI_ATA_PASS_THRU_LENGTH_COUNT  0x0F
 
 typedef struct {
   ///
@@ -112,12 +111,12 @@ typedef struct {
   /// command. It must be aligned to the boundary specified in the IoAlign field
   /// in the EFI_ATA_PASS_THRU_MODE structure.
   ///
-  EFI_ATA_STATUS_BLOCK           *Asb;
+  EFI_ATA_STATUS_BLOCK              *Asb;
   ///
   /// A pointer to buffer that contains the Command Data Block to send to the ATA
   /// device specified by Port and PortMultiplierPort.
   ///
-  EFI_ATA_COMMAND_BLOCK          *Acb;
+  EFI_ATA_COMMAND_BLOCK             *Acb;
   ///
   /// The timeout, in 100 ns units, to use for the execution of this ATA command.
   /// A Timeout value of 0 means that this function will wait indefinitely for the
@@ -125,7 +124,7 @@ typedef struct {
   /// will return EFI_TIMEOUT if the time required to execute the ATA command is
   /// greater than Timeout.
   ///
-  UINT64                         Timeout;
+  UINT64                            Timeout;
   ///
   /// A pointer to the data buffer to transfer between the ATA controller and the
   /// ATA device for read and bidirectional commands. For all write and non data
@@ -133,7 +132,7 @@ typedef struct {
   /// If this field is not NULL, then it must be aligned on the boundary specified
   /// by the IoAlign field in the EFI_ATA_PASS_THRU_MODE structure.
   ///
-  VOID                           *InDataBuffer;
+  VOID                              *InDataBuffer;
   ///
   /// A pointer to the data buffer to transfer between the ATA controller and the
   /// ATA device for write or bidirectional commands. For all read and non data
@@ -141,7 +140,7 @@ typedef struct {
   /// If this field is not NULL, then it must be aligned on the boundary specified
   /// by the IoAlign field in the EFI_ATA_PASS_THRU_MODE structure.
   ///
-  VOID                           *OutDataBuffer;
+  VOID                              *OutDataBuffer;
   ///
   /// On input, the size, in bytes, of InDataBuffer. On output, the number of bytes
   /// transferred between the ATA controller and the ATA device. If InTransferLength
@@ -149,7 +148,7 @@ typedef struct {
   /// InTransferLength will be updated to contain the number of bytes that the ATA
   /// controller is able to transfer, and EFI_BAD_BUFFER_SIZE will be returned.
   ///
-  UINT32                         InTransferLength;
+  UINT32                            InTransferLength;
   ///
   /// On Input, the size, in bytes of OutDataBuffer. On Output, the Number of bytes
   /// transferred between ATA Controller and the ATA device. If OutTransferLength is
@@ -157,17 +156,16 @@ typedef struct {
   /// OutTransferLength will be updated to contain the number of bytes that the ATA
   /// controller is able to transfer, and EFI_BAD_BUFFER_SIZE will be returned.
   ///
-  UINT32                         OutTransferLength;
+  UINT32                            OutTransferLength;
   ///
   /// Specifies the protocol used when the ATA device executes the command.
   ///
-  EFI_ATA_PASS_THRU_CMD_PROTOCOL Protocol;
+  EFI_ATA_PASS_THRU_CMD_PROTOCOL    Protocol;
   ///
   /// Specifies the way in which the ATA command length is encoded.
   ///
-  EFI_ATA_PASS_THRU_LENGTH       Length;
+  EFI_ATA_PASS_THRU_LENGTH          Length;
 } EFI_ATA_PASS_THRU_COMMAND_PACKET;
-
 
 /**
   Sends an ATA command to an ATA device that is attached to the ATA controller. This function
@@ -453,16 +451,16 @@ EFI_STATUS
   );
 
 struct _EFI_ATA_PASS_THRU_PROTOCOL {
-  EFI_ATA_PASS_THRU_MODE               *Mode;
-  EFI_ATA_PASS_THRU_PASSTHRU           PassThru;
-  EFI_ATA_PASS_THRU_GET_NEXT_PORT      GetNextPort;
-  EFI_ATA_PASS_THRU_GET_NEXT_DEVICE    GetNextDevice;
-  EFI_ATA_PASS_THRU_BUILD_DEVICE_PATH  BuildDevicePath;
-  EFI_ATA_PASS_THRU_GET_DEVICE         GetDevice;
-  EFI_ATA_PASS_THRU_RESET_PORT         ResetPort;
-  EFI_ATA_PASS_THRU_RESET_DEVICE       ResetDevice;
+  EFI_ATA_PASS_THRU_MODE                 *Mode;
+  EFI_ATA_PASS_THRU_PASSTHRU             PassThru;
+  EFI_ATA_PASS_THRU_GET_NEXT_PORT        GetNextPort;
+  EFI_ATA_PASS_THRU_GET_NEXT_DEVICE      GetNextDevice;
+  EFI_ATA_PASS_THRU_BUILD_DEVICE_PATH    BuildDevicePath;
+  EFI_ATA_PASS_THRU_GET_DEVICE           GetDevice;
+  EFI_ATA_PASS_THRU_RESET_PORT           ResetPort;
+  EFI_ATA_PASS_THRU_RESET_DEVICE         ResetDevice;
 };
 
-extern EFI_GUID gEfiAtaPassThruProtocolGuid;
+extern EFI_GUID  gEfiAtaPassThruProtocolGuid;
 
 #endif

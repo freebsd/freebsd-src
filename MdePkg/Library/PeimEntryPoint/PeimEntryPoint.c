@@ -6,9 +6,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
-
 #include <PiPei.h>
-
 
 #include <Library/PeimEntryPoint.h>
 #include <Library/DebugLib.h>
@@ -29,8 +27,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 EFI_STATUS
 EFIAPI
 _ModuleEntryPoint (
-  IN EFI_PEI_FILE_HANDLE       FileHandle,
-  IN CONST EFI_PEI_SERVICES    **PeiServices
+  IN EFI_PEI_FILE_HANDLE     FileHandle,
+  IN CONST EFI_PEI_SERVICES  **PeiServices
   )
 {
   if (_gPeimRevision != 0) {
@@ -51,7 +49,6 @@ _ModuleEntryPoint (
   return ProcessModuleEntryPointList (FileHandle, PeiServices);
 }
 
-
 /**
   Required by the EBC compiler and identical in functionality to _ModuleEntryPoint().
 
@@ -67,8 +64,8 @@ _ModuleEntryPoint (
 EFI_STATUS
 EFIAPI
 EfiMain (
-  IN EFI_PEI_FILE_HANDLE       FileHandle,
-  IN CONST EFI_PEI_SERVICES    **PeiServices
+  IN EFI_PEI_FILE_HANDLE     FileHandle,
+  IN CONST EFI_PEI_SERVICES  **PeiServices
   )
 {
   return _ModuleEntryPoint (FileHandle, PeiServices);

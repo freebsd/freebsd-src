@@ -15,7 +15,7 @@
 /**
   STM Status Codes
 **/
-typedef UINT32  STM_STATUS;
+typedef UINT32 STM_STATUS;
 
 /**
   Success code have BIT31 clear.

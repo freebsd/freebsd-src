@@ -1,15 +1,15 @@
 /** @file
   Base Library CPU Functions for all architectures.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2024, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
-
-
 #include <Base.h>
 #include <Library/BaseLib.h>
+
+static volatile UINTN  mDeadLoopComparator = 0;
 
 /**
   Executes an infinite loop.
@@ -28,5 +28,7 @@ CpuDeadLoop (
 {
   volatile UINTN  Index;
 
-  for (Index = 0; Index == 0;);
+  for (Index = mDeadLoopComparator; Index == mDeadLoopComparator;) {
+    CpuPause ();
+  }
 }

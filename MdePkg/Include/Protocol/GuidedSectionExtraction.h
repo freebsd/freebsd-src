@@ -28,7 +28,6 @@
 
 typedef struct _EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL;
 
-
 /**
   The ExtractSection() function processes the input section and
   allocates a buffer from the pool in which it returns the section
@@ -117,8 +116,7 @@ EFI_STATUS
   OUT       VOID                                    **OutputBuffer,
   OUT       UINTN                                   *OutputSize,
   OUT       UINT32                                  *AuthenticationStatus
-);
-
+  );
 
 ///
 /// Typically, protocol interface structures are identified by associating them with a GUID. Each
@@ -128,8 +126,7 @@ EFI_STATUS
 /// Extraction Protocol is used to correlate it with the GUIDed section type that it is intended to process.
 ///
 struct _EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL {
-  EFI_EXTRACT_GUIDED_SECTION  ExtractSection;
+  EFI_EXTRACT_GUIDED_SECTION    ExtractSection;
 };
-
 
 #endif

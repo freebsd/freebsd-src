@@ -16,7 +16,6 @@
 #ifndef __EFI_MTFTP6_PROTOCOL_H__
 #define __EFI_MTFTP6_PROTOCOL_H__
 
-
 #define EFI_MTFTP6_SERVICE_BINDING_PROTOCOL_GUID \
   { \
     0xd9760ff3, 0x3cca, 0x4267, {0x80, 0xf9, 0x75, 0x27, 0xfa, 0xfa, 0x42, 0x23 } \
@@ -27,21 +26,21 @@
     0xbf0a78ba, 0xec29, 0x49cf, {0xa1, 0xc9, 0x7a, 0xe5, 0x4e, 0xab, 0x6a, 0x51 } \
   }
 
-typedef struct _EFI_MTFTP6_PROTOCOL EFI_MTFTP6_PROTOCOL;
-typedef struct _EFI_MTFTP6_TOKEN    EFI_MTFTP6_TOKEN;
+typedef struct _EFI_MTFTP6_PROTOCOL  EFI_MTFTP6_PROTOCOL;
+typedef struct _EFI_MTFTP6_TOKEN     EFI_MTFTP6_TOKEN;
 
 ///
 /// MTFTP Packet OpCodes
 ///@{
-#define EFI_MTFTP6_OPCODE_RRQ      1 ///< The MTFTPv6 packet is a read request.
-#define EFI_MTFTP6_OPCODE_WRQ      2 ///< The MTFTPv6 packet is a write request.
-#define EFI_MTFTP6_OPCODE_DATA     3 ///< The MTFTPv6 packet is a data packet.
-#define EFI_MTFTP6_OPCODE_ACK      4 ///< The MTFTPv6 packet is an acknowledgement packet.
-#define EFI_MTFTP6_OPCODE_ERROR    5 ///< The MTFTPv6 packet is an error packet.
-#define EFI_MTFTP6_OPCODE_OACK     6 ///< The MTFTPv6 packet is an option acknowledgement packet.
-#define EFI_MTFTP6_OPCODE_DIR      7 ///< The MTFTPv6 packet is a directory query packet.
-#define EFI_MTFTP6_OPCODE_DATA8    8 ///< The MTFTPv6 packet is a data packet with a big block number.
-#define EFI_MTFTP6_OPCODE_ACK8     9 ///< The MTFTPv6 packet is an acknowledgement packet with a big block number.
+#define EFI_MTFTP6_OPCODE_RRQ    1   ///< The MTFTPv6 packet is a read request.
+#define EFI_MTFTP6_OPCODE_WRQ    2   ///< The MTFTPv6 packet is a write request.
+#define EFI_MTFTP6_OPCODE_DATA   3   ///< The MTFTPv6 packet is a data packet.
+#define EFI_MTFTP6_OPCODE_ACK    4   ///< The MTFTPv6 packet is an acknowledgement packet.
+#define EFI_MTFTP6_OPCODE_ERROR  5   ///< The MTFTPv6 packet is an error packet.
+#define EFI_MTFTP6_OPCODE_OACK   6   ///< The MTFTPv6 packet is an option acknowledgement packet.
+#define EFI_MTFTP6_OPCODE_DIR    7   ///< The MTFTPv6 packet is a directory query packet.
+#define EFI_MTFTP6_OPCODE_DATA8  8   ///< The MTFTPv6 packet is a data packet with a big block number.
+#define EFI_MTFTP6_OPCODE_ACK8   9   ///< The MTFTPv6 packet is an acknowledgement packet with a big block number.
 ///@}
 
 ///
@@ -50,39 +49,39 @@ typedef struct _EFI_MTFTP6_TOKEN    EFI_MTFTP6_TOKEN;
 ///
 /// The error code is not defined. See the error message in the packet (if any) for details.
 ///
-#define EFI_MTFTP6_ERRORCODE_NOT_DEFINED           0
+#define EFI_MTFTP6_ERRORCODE_NOT_DEFINED  0
 ///
 /// The file was not found.
 ///
-#define EFI_MTFTP6_ERRORCODE_FILE_NOT_FOUND        1
+#define EFI_MTFTP6_ERRORCODE_FILE_NOT_FOUND  1
 ///
 /// There was an access violation.
 ///
-#define EFI_MTFTP6_ERRORCODE_ACCESS_VIOLATION      2
+#define EFI_MTFTP6_ERRORCODE_ACCESS_VIOLATION  2
 ///
 /// The disk was full or its allocation was exceeded.
 ///
-#define EFI_MTFTP6_ERRORCODE_DISK_FULL             3
+#define EFI_MTFTP6_ERRORCODE_DISK_FULL  3
 ///
 /// The MTFTPv6 operation was illegal.
 ///
-#define EFI_MTFTP6_ERRORCODE_ILLEGAL_OPERATION     4
+#define EFI_MTFTP6_ERRORCODE_ILLEGAL_OPERATION  4
 ///
 /// The transfer ID is unknown.
 ///
-#define EFI_MTFTP6_ERRORCODE_UNKNOWN_TRANSFER_ID   5
+#define EFI_MTFTP6_ERRORCODE_UNKNOWN_TRANSFER_ID  5
 ///
 /// The file already exists.
 ///
-#define EFI_MTFTP6_ERRORCODE_FILE_ALREADY_EXISTS   6
+#define EFI_MTFTP6_ERRORCODE_FILE_ALREADY_EXISTS  6
 ///
 /// There is no such user.
 ///
-#define EFI_MTFTP6_ERRORCODE_NO_SUCH_USER          7
+#define EFI_MTFTP6_ERRORCODE_NO_SUCH_USER  7
 ///
 /// The request has been denied due to option negotiation.
 ///
-#define EFI_MTFTP6_ERRORCODE_REQUEST_DENIED        8
+#define EFI_MTFTP6_ERRORCODE_REQUEST_DENIED  8
 ///@}
 
 #pragma pack(1)
@@ -202,15 +201,15 @@ typedef struct {
 /// EFI_MTFTP6_PACKET
 ///
 typedef union {
-  UINT16                   OpCode; ///< Type of packets as defined by the MTFTPv6 packet opcodes.
-  EFI_MTFTP6_REQ_HEADER    Rrq;    ///< Read request packet header.
-  EFI_MTFTP6_REQ_HEADER    Wrq;    ///< write request packet header.
-  EFI_MTFTP6_OACK_HEADER   Oack;   ///< Option acknowledge packet header.
-  EFI_MTFTP6_DATA_HEADER   Data;   ///< Data packet header.
-  EFI_MTFTP6_ACK_HEADER    Ack;    ///< Acknowledgement packet header.
-  EFI_MTFTP6_DATA8_HEADER  Data8;  ///< Data packet header with big block number.
-  EFI_MTFTP6_ACK8_HEADER   Ack8;   ///< Acknowledgement header with big block number.
-  EFI_MTFTP6_ERROR_HEADER  Error;  ///< Error packet header.
+  UINT16                     OpCode; ///< Type of packets as defined by the MTFTPv6 packet opcodes.
+  EFI_MTFTP6_REQ_HEADER      Rrq;    ///< Read request packet header.
+  EFI_MTFTP6_REQ_HEADER      Wrq;    ///< write request packet header.
+  EFI_MTFTP6_OACK_HEADER     Oack;   ///< Option acknowledge packet header.
+  EFI_MTFTP6_DATA_HEADER     Data;   ///< Data packet header.
+  EFI_MTFTP6_ACK_HEADER      Ack;    ///< Acknowledgement packet header.
+  EFI_MTFTP6_DATA8_HEADER    Data8;  ///< Data packet header with big block number.
+  EFI_MTFTP6_ACK8_HEADER     Ack8;   ///< Acknowledgement header with big block number.
+  EFI_MTFTP6_ERROR_HEADER    Error;  ///< Error packet header.
 } EFI_MTFTP6_PACKET;
 
 #pragma pack()
@@ -224,28 +223,28 @@ typedef struct {
   /// driver choose a source address. If not zero it must be one of the
   /// configured IP addresses in the underlying IPv6 driver.
   ///
-  EFI_IPv6_ADDRESS       StationIp;
+  EFI_IPv6_ADDRESS    StationIp;
   ///
   /// Local port number. Set to zero to use the automatically assigned port number.
   ///
-  UINT16                 LocalPort;
+  UINT16              LocalPort;
   ///
   /// The IP address of the MTFTPv6 server.
   ///
-  EFI_IPv6_ADDRESS       ServerIp;
+  EFI_IPv6_ADDRESS    ServerIp;
   ///
   /// The initial MTFTPv6 server port number. Request packets are
   /// sent to this port. This number is almost always 69 and using zero
   /// defaults to 69.
-  UINT16                 InitialServerPort;
+  UINT16              InitialServerPort;
   ///
   /// The number of times to transmit MTFTPv6 request packets and wait for a response.
   ///
-  UINT16                 TryCount;
+  UINT16              TryCount;
   ///
   /// The number of seconds to wait for a response after sending the MTFTPv6 request packet.
   ///
-  UINT16                 TimeoutValue;
+  UINT16              TimeoutValue;
 } EFI_MTFTP6_CONFIG_DATA;
 
 ///
@@ -255,17 +254,17 @@ typedef struct {
   ///
   /// The configuration data of this instance.
   ///
-  EFI_MTFTP6_CONFIG_DATA  ConfigData;
+  EFI_MTFTP6_CONFIG_DATA    ConfigData;
   ///
   /// The number of option strings in the following SupportedOptions array.
   ///
-  UINT8                   SupportedOptionCount;
+  UINT8                     SupportedOptionCount;
   ///
   /// An array of null-terminated ASCII option strings that are recognized and supported by
   /// this EFI MTFTPv6 Protocol driver implementation. The buffer is
   /// read only to the caller and the caller should NOT free the buffer.
   ///
-  UINT8                   **SupportedOptions;
+  UINT8                     **SupportedOptions;
 } EFI_MTFTP6_MODE_DATA;
 
 ///
@@ -276,32 +275,32 @@ typedef struct {
   /// IP address of the MTFTPv6 server. If set to all zero, the value that
   /// was set by the EFI_MTFTP6_PROTOCOL.Configure() function will be used.
   ///
-  EFI_IPv6_ADDRESS       ServerIp;
+  EFI_IPv6_ADDRESS    ServerIp;
   ///
   /// MTFTPv6 server port number. If set to zero, it will use the value
   /// that was set by the EFI_MTFTP6_PROTOCOL.Configure() function.
   ///
-  UINT16                 ServerPort;
+  UINT16              ServerPort;
   ///
   /// Number of times to transmit MTFTPv6 request packets and wait
   /// for a response. If set to zero, the value that was set by
   /// theEFI_MTFTP6_PROTOCOL.Configure() function will be used.
   ///
-  UINT16                 TryCount;
+  UINT16              TryCount;
   ///
   /// Number of seconds to wait for a response after sending the
   /// MTFTPv6 request packet. If set to zero, the value that was set by
   /// the EFI_MTFTP6_PROTOCOL.Configure() function will be used.
   ///
-  UINT16                 TimeoutValue;
+  UINT16              TimeoutValue;
 } EFI_MTFTP6_OVERRIDE_DATA;
 
 ///
 /// EFI_MTFTP6_OPTION
 ///
 typedef struct {
-  UINT8                  *OptionStr; ///< Pointer to the null-terminated ASCII MTFTPv6 option string.
-  UINT8                  *ValueStr;  ///< Pointer to the null-terminated ASCII MTFTPv6 value string.
+  UINT8    *OptionStr;               ///< Pointer to the null-terminated ASCII MTFTPv6 option string.
+  UINT8    *ValueStr;                ///< Pointer to the null-terminated ASCII MTFTPv6 value string.
 } EFI_MTFTP6_OPTION;
 
 /**
@@ -392,30 +391,30 @@ struct _EFI_MTFTP6_TOKEN {
   /// to indicate whether this operation completed successfully.
   /// Defined Status values are listed below.
   ///
-  EFI_STATUS                  Status;
+  EFI_STATUS                     Status;
   ///
   /// The event that will be signaled when the operation completes. If
   /// set to NULL, the corresponding function will wait until the read or
   /// write operation finishes. The type of Event must be EVT_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                   Event;
+  EFI_EVENT                      Event;
   ///
   /// If not NULL, the data that will be used to override the existing
   /// configure data.
   ///
-  EFI_MTFTP6_OVERRIDE_DATA    *OverrideData;
+  EFI_MTFTP6_OVERRIDE_DATA       *OverrideData;
   ///
   /// Pointer to the null-terminated ASCII file name string.
   ///
-  UINT8                       *Filename;
+  UINT8                          *Filename;
   ///
   /// Pointer to the null-terminated ASCII mode string. If NULL, octet is used.
   ///
-  UINT8                       *ModeStr;
+  UINT8                          *ModeStr;
   ///
   /// Number of option/value string pairs.
   ///
-  UINT32                      OptionCount;
+  UINT32                         OptionCount;
   ///
   /// Pointer to an array of option/value string pairs. Ignored if
   /// OptionCount is zero. Both a remote server and this driver
@@ -423,37 +422,37 @@ struct _EFI_MTFTP6_TOKEN {
   /// options are unrecognized by this implementation, it is sent to the
   /// remote server without being changed.
   ///
-  EFI_MTFTP6_OPTION           *OptionList;
+  EFI_MTFTP6_OPTION              *OptionList;
   ///
   /// On input, the size, in bytes, of Buffer. On output, the number
   /// of bytes transferred.
   ///
-  UINT64                      BufferSize;
+  UINT64                         BufferSize;
   ///
   /// Pointer to the data buffer. Data that is downloaded from the
   /// MTFTPv6 server is stored here. Data that is uploaded to the
   /// MTFTPv6 server is read from here. Ignored if BufferSize is zero.
   ///
-  VOID                        *Buffer;
+  VOID                           *Buffer;
   ///
   /// Pointer to the context that will be used by CheckPacket,
   /// TimeoutCallback and PacketNeeded.
   ///
-  VOID                        *Context;
+  VOID                           *Context;
   ///
   /// Pointer to the callback function to check the contents of the
   /// received packet.
   ///
-  EFI_MTFTP6_CHECK_PACKET      CheckPacket;
+  EFI_MTFTP6_CHECK_PACKET        CheckPacket;
   ///
   /// Pointer to the function to be called when a timeout occurs.
   ///
-  EFI_MTFTP6_TIMEOUT_CALLBACK  TimeoutCallback;
+  EFI_MTFTP6_TIMEOUT_CALLBACK    TimeoutCallback;
   ///
   /// Pointer to the function to provide the needed packet contents.
   /// Only used in WriteFile() operation.
   ///
-  EFI_MTFTP6_PACKET_NEEDED     PacketNeeded;
+  EFI_MTFTP6_PACKET_NEEDED       PacketNeeded;
 };
 
 /**
@@ -516,7 +515,7 @@ EFI_STATUS
 (EFIAPI *EFI_MTFTP6_CONFIGURE)(
   IN EFI_MTFTP6_PROTOCOL      *This,
   IN EFI_MTFTP6_CONFIG_DATA   *MtftpConfigData OPTIONAL
-);
+  );
 
 /**
   Get information about a file from an MTFTPv6 server.
@@ -577,7 +576,7 @@ EFI_STATUS
   IN EFI_MTFTP6_OPTION        *OptionList OPTIONAL,
   OUT UINT32                  *PacketLength,
   OUT EFI_MTFTP6_PACKET       **Packet OPTIONAL
-);
+  );
 
 /**
   Parse the options in an MTFTPv6 OACK packet.
@@ -769,7 +768,7 @@ EFI_STATUS
 (EFIAPI *EFI_MTFTP6_READ_DIRECTORY)(
   IN EFI_MTFTP6_PROTOCOL      *This,
   IN EFI_MTFTP6_TOKEN         *Token
-);
+  );
 
 /**
   Polls for incoming data packets and processes outgoing data packets.
@@ -803,18 +802,17 @@ EFI_STATUS
 /// driver and EFI IPv6 Protocol driver.
 ///
 struct _EFI_MTFTP6_PROTOCOL {
-  EFI_MTFTP6_GET_MODE_DATA  GetModeData;
-  EFI_MTFTP6_CONFIGURE      Configure;
-  EFI_MTFTP6_GET_INFO       GetInfo;
-  EFI_MTFTP6_PARSE_OPTIONS  ParseOptions;
-  EFI_MTFTP6_READ_FILE      ReadFile;
-  EFI_MTFTP6_WRITE_FILE     WriteFile;
-  EFI_MTFTP6_READ_DIRECTORY ReadDirectory;
-  EFI_MTFTP6_POLL           Poll;
+  EFI_MTFTP6_GET_MODE_DATA     GetModeData;
+  EFI_MTFTP6_CONFIGURE         Configure;
+  EFI_MTFTP6_GET_INFO          GetInfo;
+  EFI_MTFTP6_PARSE_OPTIONS     ParseOptions;
+  EFI_MTFTP6_READ_FILE         ReadFile;
+  EFI_MTFTP6_WRITE_FILE        WriteFile;
+  EFI_MTFTP6_READ_DIRECTORY    ReadDirectory;
+  EFI_MTFTP6_POLL              Poll;
 };
 
-extern EFI_GUID gEfiMtftp6ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiMtftp6ProtocolGuid;
+extern EFI_GUID  gEfiMtftp6ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiMtftp6ProtocolGuid;
 
 #endif
-

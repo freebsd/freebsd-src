@@ -20,7 +20,7 @@
 ///
 /// Declare forward reference for the BDS Architectural Protocol
 ///
-typedef struct _EFI_BDS_ARCH_PROTOCOL   EFI_BDS_ARCH_PROTOCOL;
+typedef struct _EFI_BDS_ARCH_PROTOCOL EFI_BDS_ARCH_PROTOCOL;
 
 /**
   This function uses policy data from the platform to determine what operating
@@ -58,9 +58,9 @@ VOID
 /// the boot device can be used to load and invoke an OS or a system utility.
 ///
 struct _EFI_BDS_ARCH_PROTOCOL {
-  EFI_BDS_ENTRY Entry;
+  EFI_BDS_ENTRY    Entry;
 };
 
-extern EFI_GUID gEfiBdsArchProtocolGuid;
+extern EFI_GUID  gEfiBdsArchProtocolGuid;
 
 #endif

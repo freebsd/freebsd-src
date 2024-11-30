@@ -1,0 +1,21 @@
+// /** @file
+// Null instance of MM Unblock Page Library.
+//
+// This library provides an interface to request non-MMRAM pages to be mapped/unblocked
+// from inside MM environment.
+//
+// For MM modules that need to access regions outside of MMRAMs, the agents that set up
+// these regions are responsible for invoking this API in order for these memory areas
+// to be accessed from inside MM.
+//
+// Copyright (c) Microsoft Corporation.
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Null instance of MM Unblock Page Library."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This library provides an interface to request non-MMRAM pages to be mapped/unblocked from inside MM environment.\n"
+                                                        "For MM modules that need to access regions outside of MMRAMs, the agents that set up these regions are responsible for invoking this API in order for these memory areas to be accessed from inside MM."
+

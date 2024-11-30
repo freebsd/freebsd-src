@@ -26,7 +26,7 @@
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_PEI_TEMPORARY_RAM_DONE) (
+(EFIAPI *EFI_PEI_TEMPORARY_RAM_DONE)(
   VOID
   );
 
@@ -38,9 +38,9 @@ EFI_STATUS
 /// Permanent RAM to be enabled and accessed at the same time with no side effects.
 ///
 typedef struct _EFI_PEI_TEMPORARY_RAM_DONE_PPI {
-  EFI_PEI_TEMPORARY_RAM_DONE TemporaryRamDone;
+  EFI_PEI_TEMPORARY_RAM_DONE    TemporaryRamDone;
 } EFI_PEI_TEMPORARY_RAM_DONE_PPI;
 
-extern EFI_GUID gEfiTemporaryRamDonePpiGuid;
+extern EFI_GUID  gEfiTemporaryRamDonePpiGuid;
 
 #endif

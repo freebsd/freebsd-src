@@ -22,12 +22,12 @@
 #ifndef __PI_PCD_H__
 #define __PI_PCD_H__
 
-extern EFI_GUID gEfiPcdProtocolGuid;
+extern EFI_GUID  gEfiPcdProtocolGuid;
 
 #define EFI_PCD_PROTOCOL_GUID \
   { 0x13a3f0f6, 0x264a, 0x3ef0, { 0xf2, 0xe0, 0xde, 0xc5, 0x12, 0x34, 0x2f, 0x34 } }
 
-#define EFI_PCD_INVALID_TOKEN_NUMBER ((UINTN) 0)
+#define EFI_PCD_INVALID_TOKEN_NUMBER  ((UINTN) 0)
 
 /**
   SetSku() sets the SKU Id to be used for subsequent calls to set or get PCD values. SetSku() is
@@ -48,7 +48,7 @@ typedef
 VOID
 (EFIAPI *EFI_PCD_PROTOCOL_SET_SKU)(
   IN UINTN SkuId
-);
+  );
 
 /**
   Retrieves an 8-bit value for a given PCD token.
@@ -64,7 +64,7 @@ UINT8
 (EFIAPI *EFI_PCD_PROTOCOL_GET_8)(
   IN CONST EFI_GUID   *Guid,
   IN       UINTN      TokenNumber
-);
+  );
 
 /**
   Retrieves the current word-sized value for a PCD token number.
@@ -80,7 +80,7 @@ UINT16
 (EFIAPI *EFI_PCD_PROTOCOL_GET_16)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Retrieves the current 32-bit sized value for a PCD token number.
@@ -96,7 +96,7 @@ UINT32
 (EFIAPI *EFI_PCD_PROTOCOL_GET_32)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Retrieves the 64-bit sized value for a PCD token number.
@@ -113,7 +113,7 @@ UINT64
 (EFIAPI *EFI_PCD_PROTOCOL_GET_64)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Retrieves the current pointer to the value for a PCD token number. Do not make any assumptions
@@ -130,7 +130,7 @@ VOID *
 (EFIAPI *EFI_PCD_PROTOCOL_GET_POINTER)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Retrieves the current BOOLEAN-sized value for a PCD token number. If the TokenNumber is
@@ -146,7 +146,7 @@ BOOLEAN
 (EFIAPI *EFI_PCD_PROTOCOL_GET_BOOLEAN)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Retrieves the current size of a particular PCD token. If the TokenNumber is invalid, the results are
@@ -162,7 +162,7 @@ UINTN
 (EFIAPI *EFI_PCD_PROTOCOL_GET_SIZE)(
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber
-);
+  );
 
 /**
   Sets an 8-bit value for a given PCD token.
@@ -186,7 +186,7 @@ EFI_STATUS
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber,
   IN        UINT8     Value
-);
+  );
 
 /**
   Sets an 16-bit value for a given PCD token.
@@ -210,7 +210,7 @@ EFI_STATUS
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber,
   IN        UINT16    Value
-);
+  );
 
 /**
   Sets an 32-bit value for a given PCD token.
@@ -234,7 +234,7 @@ EFI_STATUS
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber,
   IN        UINT32    Value
-);
+  );
 
 /**
   Sets an 64-bit value for a given PCD token.
@@ -258,7 +258,7 @@ EFI_STATUS
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber,
   IN        UINT64    Value
-);
+  );
 
 /**
   Sets a value of a specified size for a given PCD token.
@@ -286,7 +286,7 @@ EFI_STATUS
   IN        UINTN     TokenNumber,
   IN OUT    UINTN     *SizeOfValue,
   IN        VOID      *Buffer
-);
+  );
 
 /**
   Sets a Boolean value for a given PCD token.
@@ -310,7 +310,7 @@ EFI_STATUS
   IN CONST  EFI_GUID  *Guid,
   IN        UINTN     TokenNumber,
   IN        BOOLEAN   Value
-);
+  );
 
 typedef
 VOID
@@ -319,7 +319,7 @@ VOID
   IN     UINTN    CallBackToken,
   IN OUT VOID     *TokenData,
   IN     UINTN    TokenDataSize
-);
+  );
 
 /**
   Specifies a function to be called anytime the value of a designated token is changed.
@@ -337,7 +337,7 @@ EFI_STATUS
   IN CONST  EFI_GUID                  *Guid           OPTIONAL,
   IN        UINTN                     CallBackToken,
   IN        EFI_PCD_PROTOCOL_CALLBACK CallBackFunction
-);
+  );
 
 /**
   Cancels a callback function that was set through a previous call to the CallBackOnSet function.
@@ -355,7 +355,7 @@ EFI_STATUS
   IN CONST  EFI_GUID                  *Guid OPTIONAL,
   IN        UINTN                     CallBackToken,
   IN        EFI_PCD_PROTOCOL_CALLBACK CallBackFunction
-);
+  );
 
 /**
   Gets the next valid token number in a given namespace. This is useful since the PCD infrastructure
@@ -371,9 +371,9 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_PCD_PROTOCOL_GET_NEXT_TOKEN)(
-  IN CONST  EFI_GUID  *Guid, OPTIONAL
+  IN CONST  EFI_GUID  *Guid  OPTIONAL,
   IN        UINTN     *TokenNumber
-);
+  );
 
 /**
   Gets the next valid token namespace for a given namespace. This is useful to traverse the valid
@@ -392,27 +392,27 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_PCD_PROTOCOL_GET_NEXT_TOKEN_SPACE)(
   IN OUT CONST EFI_GUID **Guid
-);
+  );
 
 typedef struct _EFI_PCD_PROTOCOL {
-  EFI_PCD_PROTOCOL_SET_SKU              SetSku;
-  EFI_PCD_PROTOCOL_GET_8                Get8;
-  EFI_PCD_PROTOCOL_GET_16               Get16;
-  EFI_PCD_PROTOCOL_GET_32               Get32;
-  EFI_PCD_PROTOCOL_GET_64               Get64;
-  EFI_PCD_PROTOCOL_GET_POINTER          GetPtr;
-  EFI_PCD_PROTOCOL_GET_BOOLEAN          GetBool;
-  EFI_PCD_PROTOCOL_GET_SIZE             GetSize;
-  EFI_PCD_PROTOCOL_SET_8                Set8;
-  EFI_PCD_PROTOCOL_SET_16               Set16;
-  EFI_PCD_PROTOCOL_SET_32               Set32;
-  EFI_PCD_PROTOCOL_SET_64               Set64;
-  EFI_PCD_PROTOCOL_SET_POINTER          SetPtr;
-  EFI_PCD_PROTOCOL_SET_BOOLEAN          SetBool;
-  EFI_PCD_PROTOCOL_CALLBACK_ON_SET      CallbackOnSet;
-  EFI_PCD_PROTOCOL_CANCEL_CALLBACK      CancelCallback;
-  EFI_PCD_PROTOCOL_GET_NEXT_TOKEN       GetNextToken;
-  EFI_PCD_PROTOCOL_GET_NEXT_TOKEN_SPACE GetNextTokenSpace;
+  EFI_PCD_PROTOCOL_SET_SKU                 SetSku;
+  EFI_PCD_PROTOCOL_GET_8                   Get8;
+  EFI_PCD_PROTOCOL_GET_16                  Get16;
+  EFI_PCD_PROTOCOL_GET_32                  Get32;
+  EFI_PCD_PROTOCOL_GET_64                  Get64;
+  EFI_PCD_PROTOCOL_GET_POINTER             GetPtr;
+  EFI_PCD_PROTOCOL_GET_BOOLEAN             GetBool;
+  EFI_PCD_PROTOCOL_GET_SIZE                GetSize;
+  EFI_PCD_PROTOCOL_SET_8                   Set8;
+  EFI_PCD_PROTOCOL_SET_16                  Set16;
+  EFI_PCD_PROTOCOL_SET_32                  Set32;
+  EFI_PCD_PROTOCOL_SET_64                  Set64;
+  EFI_PCD_PROTOCOL_SET_POINTER             SetPtr;
+  EFI_PCD_PROTOCOL_SET_BOOLEAN             SetBool;
+  EFI_PCD_PROTOCOL_CALLBACK_ON_SET         CallbackOnSet;
+  EFI_PCD_PROTOCOL_CANCEL_CALLBACK         CancelCallback;
+  EFI_PCD_PROTOCOL_GET_NEXT_TOKEN          GetNextToken;
+  EFI_PCD_PROTOCOL_GET_NEXT_TOKEN_SPACE    GetNextTokenSpace;
 } EFI_PCD_PROTOCOL;
 
 #endif

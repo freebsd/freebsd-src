@@ -96,7 +96,7 @@ PeriodicSmiYield (
 **/
 typedef
 VOID
-(EFIAPI *PERIODIC_SMI_LIBRARY_HANDLER) (
+(EFIAPI *PERIODIC_SMI_LIBRARY_HANDLER)(
   IN CONST VOID  *Context OPTIONAL,
   IN UINT64      ElapsedTime
   );
@@ -144,9 +144,9 @@ VOID
 EFI_STATUS
 EFIAPI
 PeriodicSmiEnable (
-  IN OUT EFI_HANDLE                    *DispatchHandle,    OPTIONAL
+  IN OUT EFI_HANDLE                    *DispatchHandle     OPTIONAL,
   IN     PERIODIC_SMI_LIBRARY_HANDLER  DispatchFunction,
-  IN     CONST VOID                    *Context,           OPTIONAL
+  IN     CONST VOID                    *Context            OPTIONAL,
   IN     UINT64                        TickPeriod,
   IN     UINTN                         Cpu,
   IN     UINTN                         StackSize

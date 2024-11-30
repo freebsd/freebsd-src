@@ -3,6 +3,8 @@
   Intelligent Platform Management Interface Specification Second Generation.
 
   Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2024 Advanced Micro Devices, Inc. All rights reserved.
+
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
@@ -10,6 +12,7 @@
       v2.0 Revision 1.1, Dated October 2013.
       https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/ipmi-intelligent-platform-mgt-interface-spec-2nd-gen-v2-0-spec-update.pdf
 **/
+
 #ifndef _SERVICE_PROCESSOR_MANAGEMENT_INTERFACE_TABLE_H_
 #define _SERVICE_PROCESSOR_MANAGEMENT_INTERFACE_TABLE_H_
 
@@ -26,62 +29,61 @@ typedef union {
   /// For PCI IPMI device
   ///
   struct {
-    UINT8                                 SegmentGroup;
-    UINT8                                 Bus;
-    UINT8                                 Device;
-    UINT8                                 Function;
+    UINT8    SegmentGroup;
+    UINT8    Bus;
+    UINT8    Device;
+    UINT8    Function;
   } Pci;
   ///
   /// For non-PCI IPMI device, the ACPI _UID value of the device
   ///
-  UINT32                                  Uid;
+  UINT32    Uid;
 } EFI_ACPI_SERVICE_PROCESSOR_MANAGEMENT_INTERFACE_TABLE_DEVICE_ID;
-
 
 ///
 /// Definition for Service Processor Management Interface Description Table
 ///
 typedef struct {
-  EFI_ACPI_DESCRIPTION_HEADER               Header;
+  EFI_ACPI_DESCRIPTION_HEADER                                        Header;
   ///
   /// Indicates the type of IPMI interface.
   ///
-  UINT8                                     InterfaceType;
+  UINT8                                                              InterfaceType;
   ///
   /// This field must always be 01h to be compatible with any software that
   /// implements previous versions of this spec.
   ///
-  UINT8                                     Reserved1;
+  UINT8                                                              Reserved1;
   ///
   /// Identifies the IPMI specification revision, in BCD format.
   ///
-  UINT16                                    SpecificationRevision;
+  UINT16                                                             SpecificationRevision;
   ///
   /// Interrupt type(s) used by the interface.
   ///
-  UINT8                                     InterruptType;
+  UINT8                                                              InterruptType;
   ///
   /// The bit assignment of the SCI interrupt within the GPEx_STS register of a
   /// GPE described if the FADT that the interface triggers.
   ///
-  UINT8                                     Gpe;
+  UINT8                                                              Gpe;
   ///
   /// Reserved, must be 00h.
   ///
-  UINT8                                     Reserved2;
+  UINT8                                                              Reserved2;
   ///
   /// PCI Device Flag.
   ///
-  UINT8                                     PciDeviceFlag;
+  UINT8                                                              PciDeviceFlag;
   ///
   /// The I/O APIC or I/O SAPIC Global System Interrupt used by the interface.
   ///
-  UINT32                                    GlobalSystemInterrupt;
+  UINT32                                                             GlobalSystemInterrupt;
   ///
   /// The base address of the interface register set described using the
   /// Generic Address Structure (GAS, See [ACPI 2.0] for the definition).
   ///
-  EFI_ACPI_2_0_GENERIC_ADDRESS_STRUCTURE    BaseAddress;
+  EFI_ACPI_2_0_GENERIC_ADDRESS_STRUCTURE                             BaseAddress;
   ///
   /// Device identification information.
   ///
@@ -90,9 +92,22 @@ typedef struct {
   /// This field must always be null (0x00) to be compatible with any software
   /// that implements previous versions of this spec.
   ///
-  UINT8                                     Reserved3;
+  UINT8                                                              Reserved3;
 } EFI_ACPI_SERVICE_PROCESSOR_MANAGEMENT_INTERFACE_TABLE;
 
 #pragma pack()
+
+///
+/// SPMI Revision (defined in spec)
+///
+#define EFI_ACPI_SERVICE_PROCESSOR_MANAGEMENT_INTERFACE_5_TABLE_REVISION  0x05
+
+///
+/// SPMI Interface Type
+///
+#define EFI_ACPI_SPMI_INTERFACE_TYPE_KCS   0x01
+#define EFI_ACPI_SPMI_INTERFACE_TYPE_SMIC  0x02
+#define EFI_ACPI_SPMI_INTERFACE_TYPE_BT    0x03
+#define EFI_ACPI_SPMI_INTERFACE_TYPE_SSIF  0x04
 
 #endif

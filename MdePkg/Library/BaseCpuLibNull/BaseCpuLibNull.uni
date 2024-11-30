@@ -1,0 +1,11 @@
+// /** @file
+// Null instance of CPU Library.
+//
+// Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#string STR_MODULE_ABSTRACT             #language en-US "Null Instance of CPU Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Null instance of CPU Library."

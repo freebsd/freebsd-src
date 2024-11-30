@@ -28,9 +28,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 ///
 /// The forward declaration for EFI_PEI_RECOVERY_BLOCK_IO_PPI.
 ///
-typedef struct _EFI_PEI_RECOVERY_BLOCK_IO2_PPI  EFI_PEI_RECOVERY_BLOCK_IO2_PPI;
+typedef struct _EFI_PEI_RECOVERY_BLOCK_IO2_PPI EFI_PEI_RECOVERY_BLOCK_IO2_PPI;
 
-#define EFI_PEI_RECOVERY_BLOCK_IO2_PPI_REVISION 0x00010000
+#define EFI_PEI_RECOVERY_BLOCK_IO2_PPI_REVISION  0x00010000
 
 typedef struct {
   ///
@@ -40,28 +40,28 @@ typedef struct {
   /// When more than one sub-type is associated with the interface, sub-type with
   /// the smallest number must be used.
   ///
-  UINT8                      InterfaceType;
+  UINT8          InterfaceType;
   ///
   /// A flag that indicates if media is removable.
   ///
-  BOOLEAN                    RemovableMedia;
+  BOOLEAN        RemovableMedia;
   ///
   /// A flag that indicates if media is present. This flag is always set for
   /// non-removable media devices.
   ///
-  BOOLEAN                    MediaPresent;
+  BOOLEAN        MediaPresent;
   ///
   /// A flag that indicates if media is read-only.
   ///
-  BOOLEAN                    ReadOnly;
+  BOOLEAN        ReadOnly;
   ///
   /// The size of a logical block in bytes.
   ///
-  UINT32                     BlockSize;
+  UINT32         BlockSize;
   ///
   /// The last logical block that the device supports.
   ///
-  EFI_PEI_LBA                LastBlock;
+  EFI_PEI_LBA    LastBlock;
 } EFI_PEI_BLOCK_IO2_MEDIA;
 
 /**
@@ -195,23 +195,23 @@ struct _EFI_PEI_RECOVERY_BLOCK_IO2_PPI {
   /// The revision to which the interface adheres.
   /// All future revisions must be backwards compatible.
   ///
-  UINT64                                 Revision;
+  UINT64                                   Revision;
   ///
   /// Gets the number of block I/O devices that the specific block driver manages.
   ///
-  EFI_PEI_GET_NUMBER_BLOCK_DEVICES2      GetNumberOfBlockDevices;
+  EFI_PEI_GET_NUMBER_BLOCK_DEVICES2        GetNumberOfBlockDevices;
 
   ///
   /// Gets the specified media information.
   ///
-  EFI_PEI_GET_DEVICE_MEDIA_INFORMATION2  GetBlockDeviceMediaInfo;
+  EFI_PEI_GET_DEVICE_MEDIA_INFORMATION2    GetBlockDeviceMediaInfo;
 
   ///
   /// Reads the requested number of blocks from the specified block device.
   ///
-  EFI_PEI_READ_BLOCKS2                   ReadBlocks;
+  EFI_PEI_READ_BLOCKS2                     ReadBlocks;
 };
 
-extern EFI_GUID gEfiPeiVirtualBlockIo2PpiGuid;
+extern EFI_GUID  gEfiPeiVirtualBlockIo2PpiGuid;
 
 #endif

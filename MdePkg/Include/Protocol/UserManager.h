@@ -24,23 +24,23 @@
     0xbaf1e6de, 0x209e, 0x4adb, { 0x8d, 0x96, 0xfd, 0x8b, 0x71, 0xf3, 0xf6, 0x83 } \
   }
 
-typedef VOID *EFI_USER_PROFILE_HANDLE;
-typedef VOID *EFI_USER_INFO_HANDLE;
+typedef VOID  *EFI_USER_PROFILE_HANDLE;
+typedef VOID  *EFI_USER_INFO_HANDLE;
 
 ///
 /// The attributes of the user profile information.
 ///
 typedef UINT16 EFI_USER_INFO_ATTRIBS;
-#define EFI_USER_INFO_STORAGE                   0x000F
-#define EFI_USER_INFO_STORAGE_VOLATILE          0x0000
-#define EFI_USER_INFO_STORAGE_CREDENTIAL_NV     0x0001
-#define EFI_USER_INFO_STORAGE_PLATFORM_NV       0x0002
+#define EFI_USER_INFO_STORAGE                0x000F
+#define EFI_USER_INFO_STORAGE_VOLATILE       0x0000
+#define EFI_USER_INFO_STORAGE_CREDENTIAL_NV  0x0001
+#define EFI_USER_INFO_STORAGE_PLATFORM_NV    0x0002
 
-#define EFI_USER_INFO_ACCESS                    0x0070
-#define EFI_USER_INFO_PUBLIC                    0x0010
-#define EFI_USER_INFO_PRIVATE                   0x0020
-#define EFI_USER_INFO_PROTECTED                 0x0030
-#define EFI_USER_INFO_EXCLUSIVE                 0x0080
+#define EFI_USER_INFO_ACCESS     0x0070
+#define EFI_USER_INFO_PUBLIC     0x0010
+#define EFI_USER_INFO_PRIVATE    0x0020
+#define EFI_USER_INFO_PROTECTED  0x0030
+#define EFI_USER_INFO_EXCLUSIVE  0x0080
 
 ///
 /// User information structure
@@ -50,23 +50,23 @@ typedef struct {
   /// The user credential identifier associated with this user information or else Nil if the
   /// information is not associated with any specific credential.
   ///
-  EFI_GUID               Credential;
+  EFI_GUID                 Credential;
   ///
   /// The type of user information.
   ///
-  UINT8                  InfoType;
+  UINT8                    InfoType;
   ///
   /// Must be set to 0.
   ///
-  UINT8                  Reserved1;
+  UINT8                    Reserved1;
   ///
   /// The attributes of the user profile information.
   ///
-  EFI_USER_INFO_ATTRIBS  InfoAttribs;
+  EFI_USER_INFO_ATTRIBS    InfoAttribs;
   ///
   /// The size of the user information, in bytes, including this header.
   ///
-  UINT32                 InfoSize;
+  UINT32                   InfoSize;
 } EFI_USER_INFO;
 
 ///
@@ -85,15 +85,15 @@ typedef struct {
 #define EFI_USER_CREDENTIAL_CLASS_SECURE_CARD \
   { 0x8a6b4a83, 0x42fe, 0x45d2, { 0xa2, 0xef, 0x46, 0xf0, 0x6c, 0x7d, 0x98, 0x52 } }
 
-typedef UINT64   EFI_CREDENTIAL_CAPABILITIES;
+typedef UINT64 EFI_CREDENTIAL_CAPABILITIES;
 #define EFI_CREDENTIAL_CAPABILITIES_ENROLL  0x0000000000000001
 
 ///
 /// Credential logon flags
 ///
 typedef UINT32 EFI_CREDENTIAL_LOGON_FLAGS;
-#define EFI_CREDENTIAL_LOGON_FLAG_AUTO                0x00000001
-#define EFI_CREDENTIAL_LOGON_FLAG_DEFAULT             0x00000002
+#define EFI_CREDENTIAL_LOGON_FLAG_AUTO     0x00000001
+#define EFI_CREDENTIAL_LOGON_FLAG_DEFAULT  0x00000002
 
 ///
 /// User information record types
@@ -102,81 +102,81 @@ typedef UINT32 EFI_CREDENTIAL_LOGON_FLAGS;
 ///
 /// No information.
 ///
-#define EFI_USER_INFO_EMPTY_RECORD                    0x00
+#define EFI_USER_INFO_EMPTY_RECORD  0x00
 ///
 /// Provide the user's name for the enrolled user.
 ///
-#define EFI_USER_INFO_NAME_RECORD                     0x01
+#define EFI_USER_INFO_NAME_RECORD  0x01
 typedef CHAR16 *EFI_USER_INFO_NAME;
 ///
 /// Provides the date and time when the user profile was created.
 ///
-#define EFI_USER_INFO_CREATE_DATE_RECORD              0x02
+#define EFI_USER_INFO_CREATE_DATE_RECORD  0x02
 typedef EFI_TIME EFI_USER_INFO_CREATE_DATE;
 ///
 /// Provides the date and time when the user profile was selected.
 ///
-#define EFI_USER_INFO_USAGE_DATE_RECORD               0x03
+#define EFI_USER_INFO_USAGE_DATE_RECORD  0x03
 typedef EFI_TIME EFI_USER_INFO_USAGE_DATE;
 ///
 /// Provides the number of times that the user profile has been selected.
 ///
-#define EFI_USER_INFO_USAGE_COUNT_RECORD              0x04
+#define EFI_USER_INFO_USAGE_COUNT_RECORD  0x04
 typedef UINT64 EFI_USER_INFO_USAGE_COUNT;
 ///
 /// Provides a unique non-volatile user identifier for each enrolled user.
 ///
-#define EFI_USER_INFO_IDENTIFIER_RECORD               0x05
+#define EFI_USER_INFO_IDENTIFIER_RECORD  0x05
 typedef UINT8 EFI_USER_INFO_IDENTIFIER[16];
 ///
 /// Specifies the type of a particular credential associated with the user profile.
 ///
-#define EFI_USER_INFO_CREDENTIAL_TYPE_RECORD          0x06
+#define EFI_USER_INFO_CREDENTIAL_TYPE_RECORD  0x06
 typedef EFI_GUID EFI_USER_INFO_CREDENTIAL_TYPE;
 ///
 /// Specifies the user-readable name of a particular credential type.
 ///
-#define EFI_USER_INFO_CREDENTIAL_TYPE_NAME_RECORD     0x07
+#define EFI_USER_INFO_CREDENTIAL_TYPE_NAME_RECORD  0x07
 typedef CHAR16 *EFI_USER_INFO_CREDENTIAL_TYPE_NAME;
 ///
 /// Specifies the credential provider.
 ///
-#define EFI_USER_INFO_CREDENTIAL_PROVIDER_RECORD      0x08
+#define EFI_USER_INFO_CREDENTIAL_PROVIDER_RECORD  0x08
 typedef EFI_GUID EFI_USER_INFO_CREDENTIAL_PROVIDER;
 ///
 /// Specifies the user-readable name of a particular credential's provider.
 ///
-#define EFI_USER_INFO_CREDENTIAL_PROVIDER_NAME_RECORD 0x09
+#define EFI_USER_INFO_CREDENTIAL_PROVIDER_NAME_RECORD  0x09
 typedef CHAR16 *EFI_USER_INFO_CREDENTIAL_PROVIDER_NAME;
 ///
 /// Provides PKCS#11 credential information from a smart card.
 ///
-#define EFI_USER_INFO_PKCS11_RECORD                   0x0A
+#define EFI_USER_INFO_PKCS11_RECORD  0x0A
 ///
 /// Provides standard biometric information in the format specified by the ISO 19785 (Common
 /// Biometric Exchange Formats Framework) specification.
 ///
-#define EFI_USER_INFO_CBEFF_RECORD                    0x0B
+#define EFI_USER_INFO_CBEFF_RECORD  0x0B
 typedef VOID *EFI_USER_INFO_CBEFF;
 ///
 /// Indicates how close of a match the fingerprint must be in order to be considered a match.
 ///
-#define EFI_USER_INFO_FAR_RECORD                      0x0C
+#define EFI_USER_INFO_FAR_RECORD  0x0C
 typedef UINT8 EFI_USER_INFO_FAR;
 ///
 /// Indicates how many attempts the user has to with a particular credential before the system prevents
 /// further attempts.
 ///
-#define EFI_USER_INFO_RETRY_RECORD                    0x0D
+#define EFI_USER_INFO_RETRY_RECORD  0x0D
 typedef UINT8 EFI_USER_INFO_RETRY;
 ///
 /// Provides the user's pre-OS access rights.
 ///
-#define EFI_USER_INFO_ACCESS_POLICY_RECORD            0x0E
+#define EFI_USER_INFO_ACCESS_POLICY_RECORD  0x0E
 
 typedef struct {
-  UINT32  Type;  ///< Specifies the type of user access control.
-  UINT32  Size;  ///< Specifies the size of the user access control record, in bytes, including this header.
+  UINT32    Type; ///< Specifies the type of user access control.
+  UINT32    Size; ///< Specifies the size of the user access control record, in bytes, including this header.
 } EFI_USER_INFO_ACCESS_CONTROL;
 
 typedef EFI_USER_INFO_ACCESS_CONTROL EFI_USER_INFO_ACCESS_POLICY;
@@ -189,7 +189,7 @@ typedef EFI_USER_INFO_ACCESS_CONTROL EFI_USER_INFO_ACCESS_POLICY;
 /// Forbids the user from booting or loading executables from the specified device path or any child
 /// device paths.
 ///
-#define EFI_USER_INFO_ACCESS_FORBID_LOAD              0x00000001
+#define EFI_USER_INFO_ACCESS_FORBID_LOAD  0x00000001
 ///
 /// Permits the user from booting or loading executables from the specified device path or any child
 /// device paths.
@@ -197,23 +197,23 @@ typedef EFI_USER_INFO_ACCESS_CONTROL EFI_USER_INFO_ACCESS_POLICY;
 /// The definition EFI_USER_INFO_ACCESS_PERMIT_BOOT in the specification should be typo and wait for
 /// spec update.
 ///
-#define EFI_USER_INFO_ACCESS_PERMIT_LOAD              0x00000002
+#define EFI_USER_INFO_ACCESS_PERMIT_LOAD  0x00000002
 ///
 /// Presence of this record indicates that a user can update enrollment information.
 ///
-#define EFI_USER_INFO_ACCESS_ENROLL_SELF              0x00000003
+#define EFI_USER_INFO_ACCESS_ENROLL_SELF  0x00000003
 ///
 /// Presence of this record indicates that a user can enroll new users.
 ///
-#define EFI_USER_INFO_ACCESS_ENROLL_OTHERS            0x00000004
+#define EFI_USER_INFO_ACCESS_ENROLL_OTHERS  0x00000004
 ///
 /// Presence of this record indicates that a user can update the user information of any user.
 ///
-#define EFI_USER_INFO_ACCESS_MANAGE                   0x00000005
+#define EFI_USER_INFO_ACCESS_MANAGE  0x00000005
 ///
 /// Describes permissions usable when configuring the platform.
 ///
-#define EFI_USER_INFO_ACCESS_SETUP                    0x00000006
+#define EFI_USER_INFO_ACCESS_SETUP  0x00000006
 ///
 /// Standard GUIDs for access to configure the platform.
 ///
@@ -227,61 +227,61 @@ typedef EFI_USER_INFO_ACCESS_CONTROL EFI_USER_INFO_ACCESS_POLICY;
 ///
 /// Forbids UEFI drivers from being started from the specified device path(s) or any child device paths.
 ///
-#define EFI_USER_INFO_ACCESS_FORBID_CONNECT           0x00000007
+#define EFI_USER_INFO_ACCESS_FORBID_CONNECT  0x00000007
 ///
 /// Permits UEFI drivers to be started on the specified device path(s) or any child device paths.
 ///
-#define EFI_USER_INFO_ACCESS_PERMIT_CONNECT           0x00000008
+#define EFI_USER_INFO_ACCESS_PERMIT_CONNECT  0x00000008
 ///
 /// Modifies the boot order.
 ///
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER               0x00000009
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER  0x00000009
 typedef UINT32 EFI_USER_INFO_ACCESS_BOOT_ORDER_HDR;
 
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER_MASK          0x0000000F
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER_MASK  0x0000000F
 ///
 /// Insert new boot options at the beginning of the boot order.
 ///
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER_INSERT        0x00000000
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER_INSERT  0x00000000
 ///
 /// Append new boot options to the end of the boot order.
 ///
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER_APPEND        0x00000001
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER_APPEND  0x00000001
 ///
 /// Replace the entire boot order.
 ///
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER_REPLACE       0x00000002
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER_REPLACE  0x00000002
 ///
 /// The Boot Manager will not attempt find a default boot device
 /// when the default boot order is does not lead to a bootable device.
 ///
-#define EFI_USER_INFO_ACCESS_BOOT_ORDER_NODEFAULT     0x00000010
+#define EFI_USER_INFO_ACCESS_BOOT_ORDER_NODEFAULT  0x00000010
 
 ///
 /// Provides the expression which determines which credentials are required to assert user identity.
 ///
-#define EFI_USER_INFO_IDENTITY_POLICY_RECORD          0x0F
+#define EFI_USER_INFO_IDENTITY_POLICY_RECORD  0x0F
 
 typedef struct {
-  UINT32  Type;    ///< Specifies either an operator or a data item.
-  UINT32  Length;  ///< The length of this block, in bytes, including this header.
+  UINT32    Type;   ///< Specifies either an operator or a data item.
+  UINT32    Length; ///< The length of this block, in bytes, including this header.
 } EFI_USER_INFO_IDENTITY_POLICY;
 
 ///
 /// User identity policy expression operators.
 ///
-#define EFI_USER_INFO_IDENTITY_FALSE                  0x00
-#define EFI_USER_INFO_IDENTITY_TRUE                   0x01
-#define EFI_USER_INFO_IDENTITY_CREDENTIAL_TYPE        0x02
-#define EFI_USER_INFO_IDENTITY_CREDENTIAL_PROVIDER    0x03
-#define EFI_USER_INFO_IDENTITY_NOT                    0x10
-#define EFI_USER_INFO_IDENTITY_AND                    0x11
-#define EFI_USER_INFO_IDENTITY_OR                     0x12
+#define EFI_USER_INFO_IDENTITY_FALSE                0x00
+#define EFI_USER_INFO_IDENTITY_TRUE                 0x01
+#define EFI_USER_INFO_IDENTITY_CREDENTIAL_TYPE      0x02
+#define EFI_USER_INFO_IDENTITY_CREDENTIAL_PROVIDER  0x03
+#define EFI_USER_INFO_IDENTITY_NOT                  0x10
+#define EFI_USER_INFO_IDENTITY_AND                  0x11
+#define EFI_USER_INFO_IDENTITY_OR                   0x12
 
 ///
 /// Provides placeholder for additional user profile information identified by a GUID.
 ///
-#define EFI_USER_INFO_GUID_RECORD                     0xFF
+#define EFI_USER_INFO_GUID_RECORD  0xFF
 typedef EFI_GUID EFI_USER_INFO_GUID;
 
 ///
@@ -289,10 +289,10 @@ typedef EFI_GUID EFI_USER_INFO_GUID;
 /// A collection of EFI_USER_INFO records, prefixed with this header.
 ///
 typedef struct {
-  UINT64   Size;  ///< Total size of the user information table, in bytes.
+  UINT64    Size; ///< Total size of the user information table, in bytes.
 } EFI_USER_INFO_TABLE;
 
-typedef struct _EFI_USER_MANAGER_PROTOCOL  EFI_USER_MANAGER_PROTOCOL;
+typedef struct _EFI_USER_MANAGER_PROTOCOL EFI_USER_MANAGER_PROTOCOL;
 
 /**
   Create a new user profile.
@@ -590,29 +590,29 @@ EFI_STATUS
 /// This protocol provides the services used to manage user profiles.
 ///
 struct _EFI_USER_MANAGER_PROTOCOL {
-  EFI_USER_PROFILE_CREATE         Create;
-  EFI_USER_PROFILE_DELETE         Delete;
-  EFI_USER_PROFILE_GET_NEXT       GetNext;
-  EFI_USER_PROFILE_CURRENT        Current;
-  EFI_USER_PROFILE_IDENTIFY       Identify;
-  EFI_USER_PROFILE_FIND           Find;
-  EFI_USER_PROFILE_NOTIFY         Notify;
-  EFI_USER_PROFILE_GET_INFO       GetInfo;
-  EFI_USER_PROFILE_SET_INFO       SetInfo;
-  EFI_USER_PROFILE_DELETE_INFO    DeleteInfo;
-  EFI_USER_PROFILE_GET_NEXT_INFO  GetNextInfo;
+  EFI_USER_PROFILE_CREATE           Create;
+  EFI_USER_PROFILE_DELETE           Delete;
+  EFI_USER_PROFILE_GET_NEXT         GetNext;
+  EFI_USER_PROFILE_CURRENT          Current;
+  EFI_USER_PROFILE_IDENTIFY         Identify;
+  EFI_USER_PROFILE_FIND             Find;
+  EFI_USER_PROFILE_NOTIFY           Notify;
+  EFI_USER_PROFILE_GET_INFO         GetInfo;
+  EFI_USER_PROFILE_SET_INFO         SetInfo;
+  EFI_USER_PROFILE_DELETE_INFO      DeleteInfo;
+  EFI_USER_PROFILE_GET_NEXT_INFO    GetNextInfo;
 };
 
-extern EFI_GUID gEfiUserManagerProtocolGuid;
-extern EFI_GUID gEfiEventUserProfileChangedGuid;
-extern EFI_GUID gEfiUserCredentialClassUnknownGuid;
-extern EFI_GUID gEfiUserCredentialClassPasswordGuid;
-extern EFI_GUID gEfiUserCredentialClassSmartCardGuid;
-extern EFI_GUID gEfiUserCredentialClassFingerprintGuid;
-extern EFI_GUID gEfiUserCredentialClassHandprintGuid;
-extern EFI_GUID gEfiUserCredentialClassSecureCardGuid;
-extern EFI_GUID gEfiUserInfoAccessSetupAdminGuid;
-extern EFI_GUID gEfiUserInfoAccessSetupNormalGuid;
-extern EFI_GUID gEfiUserInfoAccessSetupRestrictedGuid;
+extern EFI_GUID  gEfiUserManagerProtocolGuid;
+extern EFI_GUID  gEfiEventUserProfileChangedGuid;
+extern EFI_GUID  gEfiUserCredentialClassUnknownGuid;
+extern EFI_GUID  gEfiUserCredentialClassPasswordGuid;
+extern EFI_GUID  gEfiUserCredentialClassSmartCardGuid;
+extern EFI_GUID  gEfiUserCredentialClassFingerprintGuid;
+extern EFI_GUID  gEfiUserCredentialClassHandprintGuid;
+extern EFI_GUID  gEfiUserCredentialClassSecureCardGuid;
+extern EFI_GUID  gEfiUserInfoAccessSetupAdminGuid;
+extern EFI_GUID  gEfiUserInfoAccessSetupNormalGuid;
+extern EFI_GUID  gEfiUserInfoAccessSetupRestrictedGuid;
 
 #endif

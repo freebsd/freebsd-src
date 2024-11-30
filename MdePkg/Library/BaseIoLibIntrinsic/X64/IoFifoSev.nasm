@@ -67,14 +67,14 @@ ASM_PFX(SevNoRepIo):
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
-;  IoReadFifo8 (
+;  SevIoReadFifo8 (
 ;    IN  UINTN                 Port,              // rcx
 ;    IN  UINTN                 Size,              // rdx
 ;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo8)
-ASM_PFX(IoReadFifo8):
+global ASM_PFX(SevIoReadFifo8)
+ASM_PFX(SevIoReadFifo8):
     xchg    rcx, rdx
     xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 
@@ -103,14 +103,14 @@ ASM_PFX(IoReadFifo8):
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
-;  IoReadFifo16 (
+;  SevIoReadFifo16 (
 ;    IN  UINTN                 Port,              // rcx
 ;    IN  UINTN                 Size,              // rdx
 ;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo16)
-ASM_PFX(IoReadFifo16):
+global ASM_PFX(SevIoReadFifo16)
+ASM_PFX(SevIoReadFifo16):
     xchg    rcx, rdx
     xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 
@@ -139,14 +139,14 @@ ASM_PFX(IoReadFifo16):
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
-;  IoReadFifo32 (
+;  SevIoReadFifo32 (
 ;    IN  UINTN                 Port,              // rcx
 ;    IN  UINTN                 Size,              // rdx
 ;    OUT VOID                  *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoReadFifo32)
-ASM_PFX(IoReadFifo32):
+global ASM_PFX(SevIoReadFifo32)
+ASM_PFX(SevIoReadFifo32):
     xchg    rcx, rdx
     xchg    rdi, r8             ; rdi: buffer address; r8: save rdi
 
@@ -181,8 +181,8 @@ ASM_PFX(IoReadFifo32):
 ;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo8)
-ASM_PFX(IoWriteFifo8):
+global ASM_PFX(SevIoWriteFifo8)
+ASM_PFX(SevIoWriteFifo8):
     xchg    rcx, rdx
     xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 
@@ -211,14 +211,14 @@ ASM_PFX(IoWriteFifo8):
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
-;  IoWriteFifo16 (
+;  SevIoWriteFifo16 (
 ;    IN UINTN                  Port,              // rcx
 ;    IN UINTN                  Size,              // rdx
 ;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo16)
-ASM_PFX(IoWriteFifo16):
+global ASM_PFX(SevIoWriteFifo16)
+ASM_PFX(SevIoWriteFifo16):
     xchg    rcx, rdx
     xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 
@@ -247,14 +247,14 @@ ASM_PFX(IoWriteFifo16):
 ;------------------------------------------------------------------------------
 ;  VOID
 ;  EFIAPI
-;  IoWriteFifo32 (
+;  SevIoWriteFifo32 (
 ;    IN UINTN                  Port,              // rcx
 ;    IN UINTN                  Size,              // rdx
 ;    IN VOID                   *Buffer            // r8
 ;    );
 ;------------------------------------------------------------------------------
-global ASM_PFX(IoWriteFifo32)
-ASM_PFX(IoWriteFifo32):
+global ASM_PFX(SevIoWriteFifo32)
+ASM_PFX(SevIoWriteFifo32):
     xchg    rcx, rdx
     xchg    rsi, r8             ; rsi: buffer address; r8: save rsi
 

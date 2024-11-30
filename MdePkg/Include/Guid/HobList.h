@@ -14,11 +14,15 @@
 #ifndef __HOB_LIST_GUID_H__
 #define __HOB_LIST_GUID_H__
 
+//
+// The HOB List Table shall be stored in memory of type
+// EfiBootServicesData
+//
 #define HOB_LIST_GUID \
   { \
     0x7739f24c, 0x93d7, 0x11d4, {0x9a, 0x3a, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
 
-extern EFI_GUID gEfiHobListGuid;
+extern EFI_GUID  gEfiHobListGuid;
 
 #endif

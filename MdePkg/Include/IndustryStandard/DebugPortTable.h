@@ -7,7 +7,6 @@
 
 **/
 
-
 #ifndef _DEBUG_PORT_TABLE_H_
 #define _DEBUG_PORT_TABLE_H_
 
@@ -33,7 +32,7 @@ typedef struct {
 //
 // DBGP Revision (defined in spec)
 //
-#define EFI_ACPI_DEBUG_PORT_TABLE_REVISION      0x01
+#define EFI_ACPI_DEBUG_PORT_TABLE_REVISION  0x01
 
 //
 // Interface Type

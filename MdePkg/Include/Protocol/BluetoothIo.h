@@ -36,31 +36,31 @@ typedef struct {
   ///
   /// The version of the structure
   ///
-  UINT32                      Version;
+  UINT32                       Version;
   ///
   /// 48bit Bluetooth device address.
   ///
-  BLUETOOTH_ADDRESS           BD_ADDR;
+  BLUETOOTH_ADDRESS            BD_ADDR;
   ///
   /// Bluetooth PageScanRepetitionMode. See Bluetooth specification for detail.
   ///
-  UINT8                       PageScanRepetitionMode;
+  UINT8                        PageScanRepetitionMode;
   ///
   /// Bluetooth ClassOfDevice. See Bluetooth specification for detail.
   ///
-  BLUETOOTH_CLASS_OF_DEVICE   ClassOfDevice;
+  BLUETOOTH_CLASS_OF_DEVICE    ClassOfDevice;
   ///
   /// Bluetooth CloseOffset. See Bluetooth specification for detail.
   ///
-  UINT16                      ClockOffset;
+  UINT16                       ClockOffset;
   ///
   /// Bluetooth RSSI. See Bluetooth specification for detail.
   ///
-  UINT8                       RSSI;
+  UINT8                        RSSI;
   ///
   /// Bluetooth ExtendedInquiryResponse. See Bluetooth specification for detail.
   ///
-  UINT8                       ExtendedInquiryResponse[240];
+  UINT8                        ExtendedInquiryResponse[240];
 } EFI_BLUETOOTH_DEVICE_INFO;
 
 /**
@@ -172,7 +172,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_IO_ASYNC_FUNC_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_IO_ASYNC_FUNC_CALLBACK)(
   IN UINT16                     ChannelID,
   IN VOID                       *Data,
   IN UINTN                      DataLength,
@@ -282,7 +282,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_IO_CHANNEL_SERVICE_CALLBACK) (
+(EFIAPI *EFI_BLUETOOTH_IO_CHANNEL_SERVICE_CALLBACK)(
   IN VOID                         *Data,
   IN UINTN                        DataLength,
   IN VOID                         *Context
@@ -311,7 +311,7 @@ EFI_STATUS
   IN  EFI_BLUETOOTH_IO_PROTOCOL                   *This,
   IN  EFI_HANDLE                                  Handle,
   IN  EFI_BLUETOOTH_IO_CHANNEL_SERVICE_CALLBACK   Callback,
-  IN  VOID*                                       Context
+  IN  VOID *Context
   );
 
 /**
@@ -405,7 +405,7 @@ struct _EFI_BLUETOOTH_IO_PROTOCOL {
   EFI_BLUETOOTH_IO_L2CAP_REGISTER_SERVICE     L2CapRegisterService;
 };
 
-extern EFI_GUID gEfiBluetoothIoServiceBindingProtocolGuid;
-extern EFI_GUID gEfiBluetoothIoProtocolGuid;
+extern EFI_GUID  gEfiBluetoothIoServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiBluetoothIoProtocolGuid;
 
 #endif

@@ -35,23 +35,23 @@ typedef struct {
   /// If TRUE, enable DNS cache function for this DNS instance. If FALSE, all DNS query
   /// will not lookup local DNS cache.
   ///
-  BOOLEAN                       EnableDnsCache;
+  BOOLEAN             EnableDnsCache;
   ///
   /// Use the protocol number defined in
   /// http://www.iana.org/assignments/protocol-numbers. Beside TCP/UDP, Other protocol
   /// is invalid value. An implementation can choose to support UDP, or both TCP and UDP.
   ///
-  UINT8                         Protocol;
+  UINT8               Protocol;
   ///
   /// The local IP address to use. Set to zero to let the underlying IPv6
   /// driver choose a source address. If not zero it must be one of the
   /// configured IP addresses in the underlying IPv6 driver.
   ///
-  EFI_IPv6_ADDRESS              StationIp;
+  EFI_IPv6_ADDRESS    StationIp;
   ///
   /// Local port number. Set to zero to use the automatically assigned port number.
   ///
-  UINT16                        LocalPort;
+  UINT16              LocalPort;
   ///
   /// Count of the DNS servers. When used with GetModeData(),
   /// this field is the count of originally configured servers when
@@ -60,7 +60,7 @@ typedef struct {
   /// DnsServerListCount is zero, the DNS server configuration
   /// will be retrieved from DHCP server automatically.
   ///
-  UINT32                        DnsServerCount;
+  UINT32    DnsServerCount;
   ///
   /// Pointer to DNS server list containing DnsServerListCount
   /// entries or NULL if DnsServerListCount is 0. For Configure(),
@@ -72,15 +72,15 @@ typedef struct {
   /// freed by the caller. When used with Configure(), the buffer
   /// containing the list will be allocated and released by the caller.
   ///
-  EFI_IPv6_ADDRESS              *DnsServerList;
+  EFI_IPv6_ADDRESS    *DnsServerList;
   ///
   /// Retry number if no response received after RetryInterval.
   ///
-  UINT32                        RetryCount;
+  UINT32              RetryCount;
   ///
   /// Minimum interval of retry is 2 second. If the retry interval is less than 2
   /// seconds, then use the 2 seconds.
-  UINT32                        RetryInterval;
+  UINT32              RetryInterval;
 } EFI_DNS6_CONFIG_DATA;
 
 ///
@@ -90,18 +90,18 @@ typedef struct {
   ///
   /// Host name. This should be interpreted as Unicode characters.
   ///
-  CHAR16                        *HostName;
+  CHAR16              *HostName;
   ///
   /// IP address of this host.
   ///
-  EFI_IPv6_ADDRESS              *IpAddress;
+  EFI_IPv6_ADDRESS    *IpAddress;
   ///
   /// Time in second unit that this entry will remain in DNS cache. A value of zero means
   /// that this entry is permanent. A nonzero value will override the existing one if
   /// this entry to be added is dynamic entry. Implementations may set its default
   /// timeout value for the dynamically created DNS cache entry after one DNS resolve
   /// succeeds.
-  UINT32                        Timeout;
+  UINT32              Timeout;
 } EFI_DNS6_CACHE_ENTRY;
 
 ///
@@ -111,28 +111,28 @@ typedef struct {
   ///
   /// The configuration data of this instance.
   ///
-  EFI_DNS6_CONFIG_DATA          DnsConfigData;
+  EFI_DNS6_CONFIG_DATA    DnsConfigData;
   ///
   /// Number of configured DNS6 servers.
   ///
-  UINT32                         DnsServerCount;
+  UINT32                  DnsServerCount;
   ///
   /// Pointer to common list of addresses of all configured DNS server used by EFI_DNS6_PROTOCOL
   /// instances. List will include DNS servers configured by this or any other EFI_DNS6_PROTOCOL
   /// instance. The storage for this list is allocated by the driver publishing this protocol,
   /// and must be freed by the caller.
   ///
-  EFI_IPv6_ADDRESS               *DnsServerList;
+  EFI_IPv6_ADDRESS        *DnsServerList;
   ///
   /// Number of DNS Cache entries. The DNS Cache is shared among all DNS instances.
   ///
-  UINT32                        DnsCacheCount;
+  UINT32                  DnsCacheCount;
   ///
   /// Pointer to a buffer containing DnsCacheCount DNS Cache
   /// entry structures. The storage for thislist is allocated by the driver
   /// publishing this protocol and must be freed by caller.
   ///
-  EFI_DNS6_CACHE_ENTRY          *DnsCacheList;
+  EFI_DNS6_CACHE_ENTRY    *DnsCacheList;
 } EFI_DNS6_MODE_DATA;
 
 ///
@@ -142,11 +142,11 @@ typedef struct {
   ///
   /// Number of the returned IP address.
   ///
-  UINT32                        IpCount;
+  UINT32              IpCount;
   ///
   /// Pointer to the all the returned IP address.
   ///
-  EFI_IPv6_ADDRESS              *IpList;
+  EFI_IPv6_ADDRESS    *IpList;
 } DNS6_HOST_TO_ADDR_DATA;
 
 ///
@@ -157,7 +157,7 @@ typedef struct {
   /// Pointer to the primary name for this host address. It's the caller's
   /// responsibility to free the response memory.
   ///
-  CHAR16                        *HostName;
+  CHAR16    *HostName;
 } DNS6_ADDR_TO_HOST_DATA;
 
 ///
@@ -167,30 +167,30 @@ typedef struct {
   ///
   /// The Owner name.
   ///
-  CHAR8                         *QName;
+  CHAR8     *QName;
   ///
   /// The Type Code of this RR.
   ///
-  UINT16                        QType;
+  UINT16    QType;
   ///
   /// The CLASS code of this RR.
   ///
-  UINT16                        QClass;
+  UINT16    QClass;
   ///
   /// 32 bit integer which specify the time interval that the resource record may be
   /// cached before the source of the information should again be consulted. Zero means
   /// this RR cannot be cached.
   ///
-  UINT32                        TTL;
+  UINT32    TTL;
   ///
   /// 16 big integer which specify the length of RData.
   ///
-  UINT16                        DataLength;
+  UINT16    DataLength;
   ///
   /// A string of octets that describe the resource, the format of this information
   /// varies according to QType and QClass difference.
   ///
-  CHAR8                         *RData;
+  CHAR8     *RData;
 } DNS6_RESOURCE_RECORD;
 
 ///
@@ -200,12 +200,12 @@ typedef struct {
   ///
   /// Number of returned matching RRs.
   ///
-  UINTN                         RRCount;
+  UINTN                   RRCount;
   ///
   /// Pointer to the all the returned matching RRs. It's caller responsibility to free
   /// the allocated memory to hold the returned RRs.
   ///
-  DNS6_RESOURCE_RECORD          *RRList;
+  DNS6_RESOURCE_RECORD    *RRList;
 } DNS6_GENERAL_LOOKUP_DATA;
 
 ///
@@ -216,7 +216,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI DNSv6
   /// protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                               Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS:      The host name to address translation completed successfully.
@@ -226,18 +226,18 @@ typedef struct {
   ///   EFI_DEVICE_ERROR: An unexpected system or network error occurred.
   ///   EFI_NO_MEDIA:     There was a media error.
   ///
-  EFI_STATUS                              Status;
+  EFI_STATUS    Status;
   ///
   /// The parameter configured through DNSv6.Configure() interface. Retry number if no
   /// response received after RetryInterval.
   ///
-  UINT32                                  RetryCount;
+  UINT32        RetryCount;
   ///
   /// The parameter configured through DNSv6.Configure() interface. Minimum interval of
   /// retry is 2 seconds. If the retry interval is less than 2 seconds, then use the 2
   /// seconds.
   ///
-  UINT32                                  RetryInterval;
+  UINT32        RetryInterval;
   ///
   /// DNSv6 completion token data
   ///
@@ -278,7 +278,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_DNS6_GET_MODE_DATA)(
+(EFIAPI *EFI_DNS6_GET_MODE_DATA)(
   IN  EFI_DNS6_PROTOCOL         *This,
   OUT EFI_DNS6_MODE_DATA        *DnsModeData
   );
@@ -308,7 +308,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_DNS6_CONFIGURE)(
+(EFIAPI *EFI_DNS6_CONFIGURE)(
   IN EFI_DNS6_PROTOCOL          *This,
   IN EFI_DNS6_CONFIG_DATA       *DnsConfigData
   );
@@ -337,7 +337,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_HOST_NAME_TO_IP) (
+(EFIAPI *EFI_DNS6_HOST_NAME_TO_IP)(
   IN  EFI_DNS6_PROTOCOL         *This,
   IN  CHAR16                    *HostName,
   IN  EFI_DNS6_COMPLETION_TOKEN *Token
@@ -368,7 +368,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_IP_TO_HOST_NAME) (
+(EFIAPI *EFI_DNS6_IP_TO_HOST_NAME)(
   IN  EFI_DNS6_PROTOCOL         *This,
   IN  EFI_IPv6_ADDRESS          IpAddress,
   IN  EFI_DNS6_COMPLETION_TOKEN *Token
@@ -405,7 +405,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_GENERAL_LOOKUP) (
+(EFIAPI *EFI_DNS6_GENERAL_LOOKUP)(
   IN  EFI_DNS6_PROTOCOL         *This,
   IN  CHAR8                     *QName,
   IN  UINT16                    QType,
@@ -442,7 +442,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_UPDATE_DNS_CACHE) (
+(EFIAPI *EFI_DNS6_UPDATE_DNS_CACHE)(
   IN EFI_DNS6_PROTOCOL          *This,
   IN BOOLEAN                    DeleteFlag,
   IN BOOLEAN                    Override,
@@ -474,7 +474,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_POLL) (
+(EFIAPI *EFI_DNS6_POLL)(
   IN  EFI_DNS6_PROTOCOL         *This
   );
 
@@ -506,7 +506,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS6_CANCEL) (
+(EFIAPI *EFI_DNS6_CANCEL)(
   IN  EFI_DNS6_PROTOCOL         *This,
   IN  EFI_DNS6_COMPLETION_TOKEN *Token
   );
@@ -517,17 +517,17 @@ EFI_STATUS
 /// DNSv6.
 ///
 struct _EFI_DNS6_PROTOCOL {
-  EFI_DNS6_GET_MODE_DATA        GetModeData;
-  EFI_DNS6_CONFIGURE            Configure;
-  EFI_DNS6_HOST_NAME_TO_IP      HostNameToIp;
-  EFI_DNS6_IP_TO_HOST_NAME      IpToHostName;
-  EFI_DNS6_GENERAL_LOOKUP       GeneralLookUp;
-  EFI_DNS6_UPDATE_DNS_CACHE     UpdateDnsCache;
-  EFI_DNS6_POLL                 Poll;
-  EFI_DNS6_CANCEL               Cancel;
+  EFI_DNS6_GET_MODE_DATA       GetModeData;
+  EFI_DNS6_CONFIGURE           Configure;
+  EFI_DNS6_HOST_NAME_TO_IP     HostNameToIp;
+  EFI_DNS6_IP_TO_HOST_NAME     IpToHostName;
+  EFI_DNS6_GENERAL_LOOKUP      GeneralLookUp;
+  EFI_DNS6_UPDATE_DNS_CACHE    UpdateDnsCache;
+  EFI_DNS6_POLL                Poll;
+  EFI_DNS6_CANCEL              Cancel;
 };
 
-extern EFI_GUID gEfiDns6ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiDns6ProtocolGuid;
+extern EFI_GUID  gEfiDns6ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiDns6ProtocolGuid;
 
 #endif

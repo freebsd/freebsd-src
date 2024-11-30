@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Writes the current value of 64-bit MMX Register #4 (MM4).
 
@@ -21,7 +18,7 @@
 VOID
 EFIAPI
 AsmWriteMm4 (
-  IN UINT64   Value
+  IN UINT64  Value
   )
 {
   _asm {

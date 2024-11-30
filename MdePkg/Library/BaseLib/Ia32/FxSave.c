@@ -6,9 +6,7 @@
 
 **/
 
-
 #include "BaseLibInternals.h"
-
 
 /**
   Save the current floating point/SSE/SSE2 context to a buffer.
@@ -23,7 +21,7 @@
 VOID
 EFIAPI
 InternalX86FxSave (
-  OUT IA32_FX_BUFFER *Buffer
+  OUT IA32_FX_BUFFER  *Buffer
   )
 {
   _asm {
@@ -31,4 +29,3 @@ InternalX86FxSave (
     fxsave  [eax]
   }
 }
-

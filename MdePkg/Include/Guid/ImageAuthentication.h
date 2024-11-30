@@ -1,7 +1,7 @@
 /** @file
   Image signature database are defined for the signed image validation.
 
-  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2009 - 2024, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
@@ -23,27 +23,30 @@
 /// Varialbe name with guid EFI_IMAGE_SECURITY_DATABASE_GUID
 /// for the authorized signature database.
 ///
-#define EFI_IMAGE_SECURITY_DATABASE       L"db"
+#define EFI_IMAGE_SECURITY_DATABASE  L"db"
 ///
 /// Varialbe name with guid EFI_IMAGE_SECURITY_DATABASE_GUID
 /// for the forbidden signature database.
 ///
-#define EFI_IMAGE_SECURITY_DATABASE1      L"dbx"
+#define EFI_IMAGE_SECURITY_DATABASE1  L"dbx"
 ///
 /// Variable name with guid EFI_IMAGE_SECURITY_DATABASE_GUID
 /// for the timestamp signature database.
 ///
-#define EFI_IMAGE_SECURITY_DATABASE2      L"dbt"
+#define EFI_IMAGE_SECURITY_DATABASE2  L"dbt"
 
-#define SECURE_BOOT_MODE_ENABLE           1
-#define SECURE_BOOT_MODE_DISABLE          0
+#define SECURE_BOOT_MODE_ENABLE   1
+#define SECURE_BOOT_MODE_DISABLE  0
 
-#define SETUP_MODE                        1
-#define USER_MODE                         0
+#define SETUP_MODE  1
+#define USER_MODE   0
 
-//***********************************************************************
+#define DEVICE_AUTH_BOOT_MODE_ENABLE   1
+#define DEVICE_AUTH_BOOT_MODE_DISABLE  0
+
+// ***********************************************************************
 // Signature Database
-//***********************************************************************
+// ***********************************************************************
 ///
 /// The format of a signature database.
 ///
@@ -53,30 +56,30 @@ typedef struct {
   ///
   /// An identifier which identifies the agent which added the signature to the list.
   ///
-  EFI_GUID          SignatureOwner;
+  EFI_GUID    SignatureOwner;
   ///
   /// The format of the signature is defined by the SignatureType.
   ///
-  UINT8             SignatureData[1];
+  UINT8       SignatureData[1];
 } EFI_SIGNATURE_DATA;
 
 typedef struct {
   ///
   /// Type of the signature. GUID signature types are defined in below.
   ///
-  EFI_GUID            SignatureType;
+  EFI_GUID    SignatureType;
   ///
   /// Total size of the signature list, including this header.
   ///
-  UINT32              SignatureListSize;
+  UINT32      SignatureListSize;
   ///
   /// Size of the signature header which precedes the array of signatures.
   ///
-  UINT32              SignatureHeaderSize;
+  UINT32      SignatureHeaderSize;
   ///
   /// Size of each signature.
   ///
-  UINT32              SignatureSize;
+  UINT32      SignatureSize;
   ///
   /// Header before the array of signatures. The format of this header is specified
   /// by the SignatureType.
@@ -91,33 +94,33 @@ typedef struct {
   ///
   /// The SHA256 hash of an X.509 certificate's To-Be-Signed contents.
   ///
-  EFI_SHA256_HASH     ToBeSignedHash;
+  EFI_SHA256_HASH    ToBeSignedHash;
   ///
   /// The time that the certificate shall be considered to be revoked.
   ///
-  EFI_TIME            TimeOfRevocation;
+  EFI_TIME           TimeOfRevocation;
 } EFI_CERT_X509_SHA256;
 
 typedef struct {
   ///
   /// The SHA384 hash of an X.509 certificate's To-Be-Signed contents.
   ///
-  EFI_SHA384_HASH     ToBeSignedHash;
+  EFI_SHA384_HASH    ToBeSignedHash;
   ///
   /// The time that the certificate shall be considered to be revoked.
   ///
-  EFI_TIME            TimeOfRevocation;
+  EFI_TIME           TimeOfRevocation;
 } EFI_CERT_X509_SHA384;
 
 typedef struct {
   ///
   /// The SHA512 hash of an X.509 certificate's To-Be-Signed contents.
   ///
-  EFI_SHA512_HASH     ToBeSignedHash;
+  EFI_SHA512_HASH    ToBeSignedHash;
   ///
   /// The time that the certificate shall be considered to be revoked.
   ///
-  EFI_TIME            TimeOfRevocation;
+  EFI_TIME           TimeOfRevocation;
 } EFI_CERT_X509_SHA512;
 
 #pragma pack()
@@ -265,9 +268,9 @@ typedef struct {
     0x4aafd29d, 0x68df, 0x49ee, {0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7} \
   }
 
-//***********************************************************************
+// ***********************************************************************
 // Image Execution Information Table Definition
-//***********************************************************************
+// ***********************************************************************
 typedef UINT32 EFI_IMAGE_EXECUTION_ACTION;
 
 #define EFI_IMAGE_EXECUTION_AUTHENTICATION      0x00000007
@@ -316,31 +319,30 @@ typedef struct {
   ///
 } EFI_IMAGE_EXECUTION_INFO;
 
-
 typedef struct {
   ///
   /// Number of EFI_IMAGE_EXECUTION_INFO structures.
   ///
-  UINTN                     NumberOfImages;
+  UINTN    NumberOfImages;
   ///
   /// Number of image instances of EFI_IMAGE_EXECUTION_INFO structures.
   ///
   // EFI_IMAGE_EXECUTION_INFO  InformationInfo[]
 } EFI_IMAGE_EXECUTION_INFO_TABLE;
 
-extern EFI_GUID gEfiImageSecurityDatabaseGuid;
-extern EFI_GUID gEfiCertSha256Guid;
-extern EFI_GUID gEfiCertRsa2048Guid;
-extern EFI_GUID gEfiCertRsa2048Sha256Guid;
-extern EFI_GUID gEfiCertSha1Guid;
-extern EFI_GUID gEfiCertRsa2048Sha1Guid;
-extern EFI_GUID gEfiCertX509Guid;
-extern EFI_GUID gEfiCertSha224Guid;
-extern EFI_GUID gEfiCertSha384Guid;
-extern EFI_GUID gEfiCertSha512Guid;
-extern EFI_GUID gEfiCertX509Sha256Guid;
-extern EFI_GUID gEfiCertX509Sha384Guid;
-extern EFI_GUID gEfiCertX509Sha512Guid;
-extern EFI_GUID gEfiCertPkcs7Guid;
+extern EFI_GUID  gEfiImageSecurityDatabaseGuid;
+extern EFI_GUID  gEfiCertSha256Guid;
+extern EFI_GUID  gEfiCertRsa2048Guid;
+extern EFI_GUID  gEfiCertRsa2048Sha256Guid;
+extern EFI_GUID  gEfiCertSha1Guid;
+extern EFI_GUID  gEfiCertRsa2048Sha1Guid;
+extern EFI_GUID  gEfiCertX509Guid;
+extern EFI_GUID  gEfiCertSha224Guid;
+extern EFI_GUID  gEfiCertSha384Guid;
+extern EFI_GUID  gEfiCertSha512Guid;
+extern EFI_GUID  gEfiCertX509Sha256Guid;
+extern EFI_GUID  gEfiCertX509Sha384Guid;
+extern EFI_GUID  gEfiCertX509Sha512Guid;
+extern EFI_GUID  gEfiCertPkcs7Guid;
 
 #endif

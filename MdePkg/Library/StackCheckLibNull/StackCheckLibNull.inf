@@ -1,0 +1,41 @@
+## @file
+#  Null library instance for StackCheckLib which can be included
+#  when a build needs to include stack check functions but does
+#  not want to generate stack check failures.
+#
+#  Copyright (c) Microsoft Corporation.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 1.29
+  BASE_NAME                      = StackCheckLibNull
+  FILE_GUID                      = f6ef2763-ca3b-4c6f-a931-2a48de3ce352
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = StackCheckLib
+
+[Sources]
+  StackCheckLibNullGcc.c  | GCC
+  StackCheckLibNullMsvc.c | MSFT
+
+[Sources.IA32]
+  IA32/StackCheckFunctionsMsvc.nasm | MSFT
+
+[Sources.X64]
+  X64/StackCheckFunctionsMsvc.nasm | MSFT
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[BuildOptions]
+  # We cannot build the MSVC version with /GL (whole program optimization) because we run into linker error
+  # LNK1237, which is a failure to link against a symbol from a library compiled with /GL. The whole program
+  # optimization tries to do away with references to this symbol. The solution is to not compile the stack
+  # check libs with /GL
+  MSFT:*_*_*_CC_FLAGS = /GL-
+
+  # We cannot build the GCC version with LTO (link time optimization) because we run into linker errors where
+  # the stack cookie variable has been optimized away, as it looks to GCC like the variable is not used, because
+  # the compiler inserts the usage.
+  GCC:*_*_*_CC_FLAGS = -fno-lto

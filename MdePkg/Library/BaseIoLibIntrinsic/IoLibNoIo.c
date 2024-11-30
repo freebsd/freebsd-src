@@ -1,16 +1,16 @@
 /** @file
   I/O library for non I/O read and write access (memory map I/O read and
-  write only) architecture, such as ARM and RISC-V processor.
+  write only) architecture, such as ARM, RISC-V and LoongArch processor.
 
-  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2021, Intel Corporation. All rights reserved.<BR>
   Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
   Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
   Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+  Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
-
 
 //
 // Include common header file for this module.
@@ -34,7 +34,7 @@
 UINT8
 EFIAPI
 IoRead8 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -59,8 +59,8 @@ IoRead8 (
 UINT8
 EFIAPI
 IoWrite8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     Value
+  IN      UINTN  Port,
+  IN      UINT8  Value
   )
 {
   ASSERT (FALSE);
@@ -84,7 +84,7 @@ IoWrite8 (
 UINT16
 EFIAPI
 IoRead16 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -109,8 +109,8 @@ IoRead16 (
 UINT16
 EFIAPI
 IoWrite16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    Value
+  IN      UINTN   Port,
+  IN      UINT16  Value
   )
 {
   ASSERT (FALSE);
@@ -134,7 +134,7 @@ IoWrite16 (
 UINT32
 EFIAPI
 IoRead32 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -159,8 +159,8 @@ IoRead32 (
 UINT32
 EFIAPI
 IoWrite32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    Value
+  IN      UINTN   Port,
+  IN      UINT32  Value
   )
 {
   ASSERT (FALSE);
@@ -185,7 +185,7 @@ IoWrite32 (
 UINT64
 EFIAPI
 IoRead64 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -211,8 +211,8 @@ IoRead64 (
 UINT64
 EFIAPI
 IoWrite64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    Value
+  IN      UINTN   Port,
+  IN      UINT64  Value
   )
 {
   ASSERT (FALSE);
@@ -239,9 +239,9 @@ IoWrite64 (
 VOID
 EFIAPI
 IoReadFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -267,9 +267,9 @@ IoReadFifo8 (
 VOID
 EFIAPI
 IoWriteFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -295,9 +295,9 @@ IoWriteFifo8 (
 VOID
 EFIAPI
 IoReadFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -323,9 +323,9 @@ IoReadFifo16 (
 VOID
 EFIAPI
 IoWriteFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -351,9 +351,9 @@ IoWriteFifo16 (
 VOID
 EFIAPI
 IoReadFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -379,9 +379,9 @@ IoReadFifo32 (
 VOID
 EFIAPI
 IoWriteFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -404,12 +404,19 @@ IoWriteFifo32 (
 UINT8
 EFIAPI
 MmioRead8 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT8                             Value;
+  UINT8    Value;
+  BOOLEAN  Flag;
 
-  Value = *(volatile UINT8*)Address;
+  Flag = FilterBeforeMmIoRead (FilterWidth8, Address, &Value);
+  if (Flag) {
+    Value = *(volatile UINT8 *)Address;
+  }
+
+  FilterAfterMmIoRead (FilterWidth8, Address, &Value);
+
   return Value;
 }
 
@@ -429,11 +436,19 @@ MmioRead8 (
 UINT8
 EFIAPI
 MmioWrite8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     Value
+  IN      UINTN  Address,
+  IN      UINT8  Value
   )
 {
-  *(volatile UINT8*)Address = Value;
+  BOOLEAN  Flag;
+
+  Flag = FilterBeforeMmIoWrite (FilterWidth8, Address, &Value);
+  if (Flag) {
+    *(volatile UINT8 *)Address = Value;
+  }
+
+  FilterAfterMmIoWrite (FilterWidth8, Address, &Value);
+
   return Value;
 }
 
@@ -454,13 +469,21 @@ MmioWrite8 (
 UINT16
 EFIAPI
 MmioRead16 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT16                            Value;
+  UINT16   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 1) == 0);
-  Value = *(volatile UINT16*)Address;
+
+  Flag = FilterBeforeMmIoRead (FilterWidth16, Address, &Value);
+  if (Flag) {
+    Value = *(volatile UINT16 *)Address;
+  }
+
+  FilterAfterMmIoRead (FilterWidth16, Address, &Value);
+
   return Value;
 }
 
@@ -480,12 +503,21 @@ MmioRead16 (
 UINT16
 EFIAPI
 MmioWrite16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    Value
+  IN      UINTN   Address,
+  IN      UINT16  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 1) == 0);
-  *(volatile UINT16*)Address = Value;
+
+  Flag = FilterBeforeMmIoWrite (FilterWidth16, Address, &Value);
+  if (Flag) {
+    *(volatile UINT16 *)Address = Value;
+  }
+
+  FilterAfterMmIoWrite (FilterWidth16, Address, &Value);
+
   return Value;
 }
 
@@ -506,13 +538,21 @@ MmioWrite16 (
 UINT32
 EFIAPI
 MmioRead32 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT32                            Value;
+  UINT32   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 3) == 0);
-  Value = *(volatile UINT32*)Address;
+
+  Flag = FilterBeforeMmIoRead (FilterWidth32, Address, &Value);
+  if (Flag) {
+    Value = *(volatile UINT32 *)Address;
+  }
+
+  FilterAfterMmIoRead (FilterWidth32, Address, &Value);
+
   return Value;
 }
 
@@ -532,12 +572,21 @@ MmioRead32 (
 UINT32
 EFIAPI
 MmioWrite32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    Value
+  IN      UINTN   Address,
+  IN      UINT32  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 3) == 0);
-  *(volatile UINT32*)Address = Value;
+
+  Flag = FilterBeforeMmIoWrite (FilterWidth32, Address, &Value);
+  if (Flag) {
+    *(volatile UINT32 *)Address = Value;
+  }
+
+  FilterAfterMmIoWrite (FilterWidth32, Address, &Value);
+
   return Value;
 }
 
@@ -558,13 +607,21 @@ MmioWrite32 (
 UINT64
 EFIAPI
 MmioRead64 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT64                            Value;
+  UINT64   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 7) == 0);
-  Value = *(volatile UINT64*)Address;
+
+  Flag = FilterBeforeMmIoRead (FilterWidth64, Address, &Value);
+  if (Flag) {
+    Value = *(volatile UINT64 *)Address;
+  }
+
+  FilterAfterMmIoRead (FilterWidth64, Address, &Value);
+
   return Value;
 }
 
@@ -584,12 +641,20 @@ MmioRead64 (
 UINT64
 EFIAPI
 MmioWrite64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    Value
+  IN      UINTN   Address,
+  IN      UINT64  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 7) == 0);
-  *(volatile UINT64*)Address = Value;
+
+  Flag = FilterBeforeMmIoWrite (FilterWidth64, Address, &Value);
+  if (Flag) {
+    *(volatile UINT64 *)Address = Value;
+  }
+
+  FilterAfterMmIoWrite (FilterWidth64, Address, &Value);
+
   return Value;
 }
-

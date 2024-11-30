@@ -24,6 +24,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define EFI_CAPSULE_ARCH_PROTOCOL_GUID \
   { 0x5053697e, 0x2cbc, 0x4819, {0x90, 0xd9, 0x05, 0x80, 0xde, 0xee, 0x57, 0x54 }}
 
-extern EFI_GUID gEfiCapsuleArchProtocolGuid;
+extern EFI_GUID  gEfiCapsuleArchProtocolGuid;
 
 #endif

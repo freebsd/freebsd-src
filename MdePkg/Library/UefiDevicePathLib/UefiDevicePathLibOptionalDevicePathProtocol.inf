@@ -29,6 +29,7 @@
 
 [Sources]
   DevicePathUtilities.c
+  DevicePathUtilitiesDxeSmm.c
   DevicePathToText.c
   DevicePathFromText.c
   UefiDevicePathLibOptionalDevicePathProtocol.c

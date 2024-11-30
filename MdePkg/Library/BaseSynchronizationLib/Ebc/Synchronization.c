@@ -28,13 +28,13 @@
 UINT16
 EFIAPI
 InternalSyncCompareExchange16 (
-  IN      volatile UINT16           *Value,
-  IN      UINT16                    CompareValue,
-  IN      UINT16                    ExchangeValue
+  IN      volatile UINT16  *Value,
+  IN      UINT16           CompareValue,
+  IN      UINT16           ExchangeValue
   )
 {
   return *Value != CompareValue ? *Value :
-           ((*Value = ExchangeValue), CompareValue);
+         ((*Value = ExchangeValue), CompareValue);
 }
 
 /**
@@ -59,13 +59,13 @@ InternalSyncCompareExchange16 (
 UINT32
 EFIAPI
 InternalSyncCompareExchange32 (
-  IN      volatile UINT32           *Value,
-  IN      UINT32                    CompareValue,
-  IN      UINT32                    ExchangeValue
+  IN      volatile UINT32  *Value,
+  IN      UINT32           CompareValue,
+  IN      UINT32           ExchangeValue
   )
 {
   return *Value != CompareValue ? *Value :
-           ((*Value = ExchangeValue), CompareValue);
+         ((*Value = ExchangeValue), CompareValue);
 }
 
 /**
@@ -87,13 +87,13 @@ InternalSyncCompareExchange32 (
 UINT64
 EFIAPI
 InternalSyncCompareExchange64 (
-  IN      volatile UINT64           *Value,
-  IN      UINT64                    CompareValue,
-  IN      UINT64                    ExchangeValue
+  IN      volatile UINT64  *Value,
+  IN      UINT64           CompareValue,
+  IN      UINT64           ExchangeValue
   )
 {
   return *Value != CompareValue ? *Value :
-           ((*Value = ExchangeValue), CompareValue);
+         ((*Value = ExchangeValue), CompareValue);
 }
 
 /**
@@ -112,7 +112,7 @@ InternalSyncCompareExchange64 (
 UINT32
 EFIAPI
 InternalSyncIncrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   )
 {
   return ++*Value;
@@ -134,7 +134,7 @@ InternalSyncIncrement (
 UINT32
 EFIAPI
 InternalSyncDecrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   )
 {
   return --*Value;

@@ -36,8 +36,6 @@ exit:
     mv    a0, a3
     ret
 
-.global ASM_PFX(InternalSyncCompareExchange64)
-
 //
 // Compare and xchange a 64-bit value.
 //
@@ -45,7 +43,7 @@ exit:
 // @param a1 : Compare value.
 // @param a2 : Exchange value.
 //
-ASM_PFX (SyncCompareExchange64):
+ASM_PFX (InternalSyncCompareExchange64):
     lr.d  a3, (a0)       // Load the value from a0 and make
                          // the reservation of address.
     bne   a3, a1, exit

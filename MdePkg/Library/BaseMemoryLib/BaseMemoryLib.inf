@@ -32,6 +32,7 @@
   ScanMem8Wrapper.c
   ZeroMemWrapper.c
   CompareMemWrapper.c
+  SetMemNWrapper.c
   SetMem64Wrapper.c
   SetMem32Wrapper.c
   SetMem16Wrapper.c

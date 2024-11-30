@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Shifts a 64-bit integer right between 0 and 63 bits. The high bits
   are filled with original integer's bit 63. The shifted value is returned.
@@ -25,8 +22,8 @@
 UINT64
 EFIAPI
 InternalMathARShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   _asm {
@@ -42,4 +39,3 @@ L0:
     sar     edx, cl
   }
 }
-

@@ -35,9 +35,9 @@
 VOID *
 EFIAPI
 InternalMemCopyMem (
-  OUT     VOID                      *DestinationBuffer,
-  IN      CONST VOID                *SourceBuffer,
-  IN      UINTN                     Length
+  OUT     VOID        *DestinationBuffer,
+  IN      CONST VOID  *SourceBuffer,
+  IN      UINTN       Length
   );
 
 /**
@@ -53,9 +53,9 @@ InternalMemCopyMem (
 VOID *
 EFIAPI
 InternalMemSetMem (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT8                     Value
+  OUT     VOID   *Buffer,
+  IN      UINTN  Length,
+  IN      UINT8  Value
   );
 
 /**
@@ -71,9 +71,9 @@ InternalMemSetMem (
 VOID *
 EFIAPI
 InternalMemSetMem16 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT16                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT16  Value
   );
 
 /**
@@ -89,9 +89,9 @@ InternalMemSetMem16 (
 VOID *
 EFIAPI
 InternalMemSetMem32 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT32                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT32  Value
   );
 
 /**
@@ -107,9 +107,9 @@ InternalMemSetMem32 (
 VOID *
 EFIAPI
 InternalMemSetMem64 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT64                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT64  Value
   );
 
 /**
@@ -124,8 +124,8 @@ InternalMemSetMem64 (
 VOID *
 EFIAPI
 InternalMemZeroMem (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length
+  OUT     VOID   *Buffer,
+  IN      UINTN  Length
   );
 
 /**
@@ -144,9 +144,9 @@ InternalMemZeroMem (
 INTN
 EFIAPI
 InternalMemCompareMem (
-  IN      CONST VOID                *DestinationBuffer,
-  IN      CONST VOID                *SourceBuffer,
-  IN      UINTN                     Length
+  IN      CONST VOID  *DestinationBuffer,
+  IN      CONST VOID  *SourceBuffer,
+  IN      UINTN       Length
   );
 
 /**
@@ -163,9 +163,9 @@ InternalMemCompareMem (
 CONST VOID *
 EFIAPI
 InternalMemScanMem8 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT8                     Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT8       Value
   );
 
 /**
@@ -182,9 +182,9 @@ InternalMemScanMem8 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem16 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT16                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT16      Value
   );
 
 /**
@@ -201,9 +201,9 @@ InternalMemScanMem16 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem32 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT32                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT32      Value
   );
 
 /**
@@ -220,9 +220,9 @@ InternalMemScanMem32 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem64 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT64                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT64      Value
   );
 
 /**

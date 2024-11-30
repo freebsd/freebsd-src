@@ -20,7 +20,7 @@
 **/
 UINTN
 PciSegmentLibVirtualAddress (
-  IN UINTN                     Address
+  IN UINTN  Address
   )
 {
   return Address;
@@ -59,6 +59,6 @@ PciSegmentRegisterForRuntimeAccess (
 
     SegmentInfo = GetPciSegmentInfo (&Count);
     PciSegmentLibGetEcamAddress (Address, SegmentInfo, Count);
-  );
+    );
   return RETURN_SUCCESS;
 }

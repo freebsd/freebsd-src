@@ -33,6 +33,7 @@ GCC_ASM_EXPORT(GetInterruptState)
 # );
 #
 ASM_PFX(GetInterruptState):
+    AARCH64_BTI(c)
     mrs    x0, daif
     tst    x0, #DAIF_RD_IRQ_BIT   // Check IRQ mask; set Z=1 if clear/unmasked
     cset   w0, eq                 // if Z=1 (eq) return 1, else 0

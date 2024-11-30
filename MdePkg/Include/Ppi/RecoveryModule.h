@@ -73,9 +73,9 @@ EFI_STATUS
 ///  Finds and loads the recovery files.
 ///
 struct _EFI_PEI_RECOVERY_MODULE_PPI {
-  EFI_PEI_LOAD_RECOVERY_CAPSULE LoadRecoveryCapsule;  ///< Loads a DXE binary capsule into memory.
+  EFI_PEI_LOAD_RECOVERY_CAPSULE    LoadRecoveryCapsule; ///< Loads a DXE binary capsule into memory.
 };
 
-extern EFI_GUID gEfiPeiRecoveryModulePpiGuid;
+extern EFI_GUID  gEfiPeiRecoveryModulePpiGuid;
 
 #endif

@@ -34,7 +34,6 @@ DebugPrint (
 {
 }
 
-
 /**
   Prints a debug message to the debug output device if the specified
   error level is enabled.
@@ -53,13 +52,12 @@ DebugPrint (
 VOID
 EFIAPI
 DebugVPrint (
-  IN  UINTN         ErrorLevel,
-  IN  CONST CHAR8   *Format,
-  IN  VA_LIST       VaListMarker
+  IN  UINTN        ErrorLevel,
+  IN  CONST CHAR8  *Format,
+  IN  VA_LIST      VaListMarker
   )
 {
 }
-
 
 /**
   Prints a debug message to the debug output device if the specified
@@ -81,13 +79,12 @@ DebugVPrint (
 VOID
 EFIAPI
 DebugBPrint (
-  IN  UINTN         ErrorLevel,
-  IN  CONST CHAR8   *Format,
-  IN  BASE_LIST     BaseListMarker
+  IN  UINTN        ErrorLevel,
+  IN  CONST CHAR8  *Format,
+  IN  BASE_LIST    BaseListMarker
   )
 {
 }
-
 
 /**
   Prints an assert message containing a filename, line number, and description.
@@ -120,7 +117,6 @@ DebugAssert (
 {
 }
 
-
 /**
   Fills a target buffer with PcdDebugClearMemoryValue, and returns the target buffer.
 
@@ -146,7 +142,6 @@ DebugClearMemory (
   return Buffer;
 }
 
-
 /**
   Returns TRUE if ASSERT() macros are enabled.
 
@@ -165,7 +160,6 @@ DebugAssertEnabled (
 {
   return FALSE;
 }
-
 
 /**
   Returns TRUE if DEBUG() macros are enabled.
@@ -186,7 +180,6 @@ DebugPrintEnabled (
   return FALSE;
 }
 
-
 /**
   Returns TRUE if DEBUG_CODE() macros are enabled.
 
@@ -205,7 +198,6 @@ DebugCodeEnabled (
 {
   return FALSE;
 }
-
 
 /**
   Returns TRUE if DEBUG_CLEAR_MEMORY() macro is enabled.
@@ -238,9 +230,8 @@ DebugClearMemoryEnabled (
 BOOLEAN
 EFIAPI
 DebugPrintLevelEnabled (
-  IN  CONST UINTN        ErrorLevel
+  IN  CONST UINTN  ErrorLevel
   )
 {
   return FALSE;
 }
-

@@ -2,7 +2,7 @@
   This protocol provides services to display a popup window.
   The protocol is typically produced by the forms browser and consumed by a driver callback handler.
 
-  Copyright (c) 2017-2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017-2021, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
@@ -16,7 +16,7 @@
 #define EFI_HII_POPUP_PROTOCOL_GUID \
   {0x4311edc0, 0x6054, 0x46d4, {0x9e, 0x40, 0x89, 0x3e, 0xa9, 0x52, 0xfc, 0xcc}}
 
-#define EFI_HII_POPUP_PROTOCOL_REVISION 1
+#define EFI_HII_POPUP_PROTOCOL_REVISION  1
 
 typedef struct _EFI_HII_POPUP_PROTOCOL EFI_HII_POPUP_PROTOCOL;
 
@@ -58,21 +58,20 @@ typedef enum {
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_HII_CREATE_POPUP) (
+(EFIAPI *EFI_HII_CREATE_POPUP)(
   IN  EFI_HII_POPUP_PROTOCOL  *This,
   IN  EFI_HII_POPUP_STYLE     PopupStyle,
   IN  EFI_HII_POPUP_TYPE      PopupType,
   IN  EFI_HII_HANDLE          HiiHandle,
   IN  EFI_STRING_ID           Message,
   OUT EFI_HII_POPUP_SELECTION *UserSelection OPTIONAL
-);
+  );
 
-typedef struct _EFI_HII_POPUP_PROTOCOL {
-  UINT64                Revision;
-  EFI_HII_CREATE_POPUP  CreatePopup;
-} EFI_HII_POPUP_PROTOCOL;
+struct _EFI_HII_POPUP_PROTOCOL {
+  UINT64                  Revision;
+  EFI_HII_CREATE_POPUP    CreatePopup;
+};
 
-extern EFI_GUID gEfiHiiPopupProtocolGuid;
+extern EFI_GUID  gEfiHiiPopupProtocolGuid;
 
 #endif
-

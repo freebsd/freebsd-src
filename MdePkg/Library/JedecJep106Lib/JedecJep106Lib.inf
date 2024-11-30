@@ -1,0 +1,25 @@
+## @file
+#  Instance of JEDEC JEP106 Library
+#
+#  JedecJep106Lib fetches the manufacturer string given the JEP106
+#  Code and Continuation Bytes.
+#
+#  Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001d
+  BASE_NAME                      = JedecJep106Lib
+  FILE_GUID                      = d48d43d7-ba31-4463-9433-ccb233cf0df7
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = JedecJep106Lib
+
+[Sources]
+  JedecJep106Lib.c
+
+[Packages]
+  MdePkg/MdePkg.dec

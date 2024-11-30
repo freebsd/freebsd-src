@@ -49,10 +49,11 @@ ScanMem8 (
   if (Length == 0) {
     return NULL;
   }
+
   ASSERT (Buffer != NULL);
   ASSERT ((Length - 1) <= (MAX_ADDRESS - (UINTN)Buffer));
 
-  return (VOID*)InternalMemScanMem8 (Buffer, Length, Value);
+  return (VOID *)InternalMemScanMem8 (Buffer, Length, Value);
 }
 
 /**
@@ -91,4 +92,3 @@ ScanMemN (
     return ScanMem32 (Buffer, Length, (UINT32)Value);
   }
 }
-

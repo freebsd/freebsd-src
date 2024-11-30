@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of the Control Register 2 (CR2).
 
@@ -29,4 +26,3 @@ AsmReadCr2 (
     mov     eax, cr2
   }
 }
-

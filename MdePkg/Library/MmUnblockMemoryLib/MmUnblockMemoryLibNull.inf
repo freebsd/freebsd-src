@@ -1,0 +1,34 @@
+## @file
+#  Null instance of MM Unblock Page Library.
+#
+#  This library provides an interface to request non-MMRAM pages to be mapped/unblocked
+#  from inside MM environment.
+#
+#  For MM modules that need to access regions outside of MMRAMs, the agents that set up
+#  these regions are responsible for invoking this API in order for these memory areas
+#  to be accessed from inside MM.
+#
+#  Copyright (c) Microsoft Corporation.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = MmUnblockMemoryLibNull
+  MODULE_UNI_FILE                = MmUnblockMemoryLibNull.uni
+  FILE_GUID                      = 9E890F68-5C95-4C31-95DD-59E6286F85EA
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = MmUnblockMemoryLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  MmUnblockMemoryLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec

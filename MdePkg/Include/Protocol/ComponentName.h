@@ -19,8 +19,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     0x107a772c, 0xd5e1, 0x11d4, {0x9a, 0x46, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
 
-typedef struct _EFI_COMPONENT_NAME_PROTOCOL  EFI_COMPONENT_NAME_PROTOCOL;
-
+typedef struct _EFI_COMPONENT_NAME_PROTOCOL EFI_COMPONENT_NAME_PROTOCOL;
 
 /**
   Retrieves a Unicode string that is the user-readable name of the EFI Driver.
@@ -51,7 +50,6 @@ EFI_STATUS
   IN  CHAR8                                *Language,
   OUT CHAR16                               **DriverName
   );
-
 
 /**
   Retrieves a Unicode string that is the user readable name of the controller
@@ -108,16 +106,16 @@ EFI_STATUS
 /// and controllers managed by UEFI Drivers.
 ///
 struct _EFI_COMPONENT_NAME_PROTOCOL {
-  EFI_COMPONENT_NAME_GET_DRIVER_NAME      GetDriverName;
-  EFI_COMPONENT_NAME_GET_CONTROLLER_NAME  GetControllerName;
+  EFI_COMPONENT_NAME_GET_DRIVER_NAME        GetDriverName;
+  EFI_COMPONENT_NAME_GET_CONTROLLER_NAME    GetControllerName;
   ///
   /// A Null-terminated ASCII string that contains one or more
   /// ISO 639-2 language codes. This is the list of language codes
   /// that this protocol supports.
   ///
-  CHAR8                                   *SupportedLanguages;
+  CHAR8                                     *SupportedLanguages;
 };
 
-extern EFI_GUID gEfiComponentNameProtocolGuid;
+extern EFI_GUID  gEfiComponentNameProtocolGuid;
 
 #endif

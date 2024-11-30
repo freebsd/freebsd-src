@@ -13,14 +13,14 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/ExtractGuidedSectionLib.h>
 
-#define EXTRACT_HANDLER_INFO_SIGNATURE SIGNATURE_32 ('E', 'G', 'S', 'I')
+#define EXTRACT_HANDLER_INFO_SIGNATURE  SIGNATURE_32 ('E', 'G', 'S', 'I')
 
 typedef struct {
-  UINT32                                  Signature;
-  UINT32                                  NumberOfExtractHandler;
-  GUID                                    *ExtractHandlerGuidTable;
-  EXTRACT_GUIDED_SECTION_DECODE_HANDLER   *ExtractDecodeHandlerTable;
-  EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER *ExtractGetInfoHandlerTable;
+  UINT32                                     Signature;
+  UINT32                                     NumberOfExtractHandler;
+  GUID                                       *ExtractHandlerGuidTable;
+  EXTRACT_GUIDED_SECTION_DECODE_HANDLER      *ExtractDecodeHandlerTable;
+  EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER    *ExtractGetInfoHandlerTable;
 } EXTRACT_GUIDED_SECTION_HANDLER_INFO;
 
 /**
@@ -35,15 +35,15 @@ typedef struct {
 **/
 RETURN_STATUS
 GetExtractGuidedSectionHandlerInfo (
-  IN OUT EXTRACT_GUIDED_SECTION_HANDLER_INFO **InfoPointer
+  IN OUT EXTRACT_GUIDED_SECTION_HANDLER_INFO  **InfoPointer
   )
 {
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
 
   //
   // Set the available memory address to handler info.
   //
-  HandlerInfo = (EXTRACT_GUIDED_SECTION_HANDLER_INFO*)(VOID*)(UINTN) PcdGet64 (PcdGuidedExtractHandlerTableAddress);
+  HandlerInfo = (EXTRACT_GUIDED_SECTION_HANDLER_INFO *)(VOID *)(UINTN)PcdGet64 (PcdGuidedExtractHandlerTableAddress);
   if (HandlerInfo == NULL) {
     *InfoPointer = NULL;
     return EFI_OUT_OF_RESOURCES;
@@ -75,17 +75,17 @@ GetExtractGuidedSectionHandlerInfo (
   //
   // Init HandlerInfo structure
   //
-  HandlerInfo->NumberOfExtractHandler     = 0;
-  HandlerInfo->ExtractHandlerGuidTable    = (GUID *) (HandlerInfo + 1);
-  HandlerInfo->ExtractDecodeHandlerTable  = (EXTRACT_GUIDED_SECTION_DECODE_HANDLER *) (
-                                              (UINT8 *)HandlerInfo->ExtractHandlerGuidTable +
-                                              PcdGet32 (PcdMaximumGuidedExtractHandler) * sizeof (GUID)
-                                             );
-  HandlerInfo->ExtractGetInfoHandlerTable = (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER *) (
-                                              (UINT8 *)HandlerInfo->ExtractDecodeHandlerTable +
-                                              PcdGet32 (PcdMaximumGuidedExtractHandler) *
-                                              sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER)
-                                             );
+  HandlerInfo->NumberOfExtractHandler    = 0;
+  HandlerInfo->ExtractHandlerGuidTable   = (GUID *)(HandlerInfo + 1);
+  HandlerInfo->ExtractDecodeHandlerTable = (EXTRACT_GUIDED_SECTION_DECODE_HANDLER *)(
+                                                                                     (UINT8 *)HandlerInfo->ExtractHandlerGuidTable +
+                                                                                     PcdGet32 (PcdMaximumGuidedExtractHandler) * sizeof (GUID)
+                                                                                     );
+  HandlerInfo->ExtractGetInfoHandlerTable = (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER *)(
+                                                                                        (UINT8 *)HandlerInfo->ExtractDecodeHandlerTable +
+                                                                                        PcdGet32 (PcdMaximumGuidedExtractHandler) *
+                                                                                        sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER)
+                                                                                        );
   *InfoPointer = HandlerInfo;
   return RETURN_SUCCESS;
 }
@@ -110,8 +110,8 @@ ExtractGuidedSectionGetGuidList (
   OUT  GUID  **ExtractHandlerGuidTable
   )
 {
-  RETURN_STATUS                       Status;
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
+  RETURN_STATUS                        Status;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
 
   ASSERT (ExtractHandlerGuidTable != NULL);
 
@@ -164,9 +164,9 @@ ExtractGuidedSectionRegisterHandlers (
   IN        EXTRACT_GUIDED_SECTION_DECODE_HANDLER    DecodeHandler
   )
 {
-  UINT32                              Index;
-  RETURN_STATUS                       Status;
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
+  UINT32                               Index;
+  RETURN_STATUS                        Status;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
 
   //
   // Check input parameter
@@ -187,13 +187,13 @@ ExtractGuidedSectionRegisterHandlers (
   // Search the match registered GetInfo handler for the input guided section.
   //
   ASSERT (HandlerInfo != NULL);
-  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index ++) {
+  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index++) {
     if (CompareGuid (HandlerInfo->ExtractHandlerGuidTable + Index, SectionGuid)) {
       //
       // If the guided handler has been registered before, only update its handler.
       //
-      HandlerInfo->ExtractDecodeHandlerTable [Index] = DecodeHandler;
-      HandlerInfo->ExtractGetInfoHandlerTable [Index] = GetInfoHandler;
+      HandlerInfo->ExtractDecodeHandlerTable[Index]  = DecodeHandler;
+      HandlerInfo->ExtractGetInfoHandlerTable[Index] = GetInfoHandler;
       return RETURN_SUCCESS;
     }
   }
@@ -209,8 +209,8 @@ ExtractGuidedSectionRegisterHandlers (
   // Register new Handler and guid value.
   //
   CopyGuid (HandlerInfo->ExtractHandlerGuidTable + HandlerInfo->NumberOfExtractHandler, SectionGuid);
-  HandlerInfo->ExtractDecodeHandlerTable [HandlerInfo->NumberOfExtractHandler] = DecodeHandler;
-  HandlerInfo->ExtractGetInfoHandlerTable [HandlerInfo->NumberOfExtractHandler++] = GetInfoHandler;
+  HandlerInfo->ExtractDecodeHandlerTable[HandlerInfo->NumberOfExtractHandler]    = DecodeHandler;
+  HandlerInfo->ExtractGetInfoHandlerTable[HandlerInfo->NumberOfExtractHandler++] = GetInfoHandler;
 
   return RETURN_SUCCESS;
 }
@@ -258,10 +258,10 @@ ExtractGuidedSectionGetInfo (
   OUT       UINT16  *SectionAttribute
   )
 {
-  UINT32                              Index;
-  RETURN_STATUS                       Status;
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
-  EFI_GUID                            *SectionDefinitionGuid;
+  UINT32                               Index;
+  RETURN_STATUS                        Status;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
+  EFI_GUID                             *SectionDefinitionGuid;
 
   //
   // Check input parameter
@@ -280,26 +280,26 @@ ExtractGuidedSectionGetInfo (
   }
 
   if (IS_SECTION2 (InputSection)) {
-    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION2 *) InputSection)->SectionDefinitionGuid);
+    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION2 *)InputSection)->SectionDefinitionGuid);
   } else {
-    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION *) InputSection)->SectionDefinitionGuid);
+    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION *)InputSection)->SectionDefinitionGuid);
   }
 
   //
   // Search the match registered GetInfo handler for the input guided section.
   //
   ASSERT (HandlerInfo != NULL);
-  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index ++) {
+  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index++) {
     if (CompareGuid (HandlerInfo->ExtractHandlerGuidTable + Index, SectionDefinitionGuid)) {
       //
       // Call the match handler to get information for the input section data.
       //
-      return HandlerInfo->ExtractGetInfoHandlerTable [Index] (
-                InputSection,
-                OutputBufferSize,
-                ScratchBufferSize,
-                SectionAttribute
-              );
+      return HandlerInfo->ExtractGetInfoHandlerTable[Index](
+                                                            InputSection,
+                                                            OutputBufferSize,
+                                                            ScratchBufferSize,
+                                                            SectionAttribute
+                                                            );
     }
   }
 
@@ -349,14 +349,14 @@ EFIAPI
 ExtractGuidedSectionDecode (
   IN  CONST VOID    *InputSection,
   OUT       VOID    **OutputBuffer,
-  IN        VOID    *ScratchBuffer,        OPTIONAL
+  IN        VOID    *ScratchBuffer         OPTIONAL,
   OUT       UINT32  *AuthenticationStatus
   )
 {
-  UINT32                              Index;
-  RETURN_STATUS                       Status;
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
-  EFI_GUID                            *SectionDefinitionGuid;
+  UINT32                               Index;
+  RETURN_STATUS                        Status;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
+  EFI_GUID                             *SectionDefinitionGuid;
 
   //
   // Check input parameter
@@ -374,26 +374,26 @@ ExtractGuidedSectionDecode (
   }
 
   if (IS_SECTION2 (InputSection)) {
-    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION2 *) InputSection)->SectionDefinitionGuid);
+    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION2 *)InputSection)->SectionDefinitionGuid);
   } else {
-    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION *) InputSection)->SectionDefinitionGuid);
+    SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION *)InputSection)->SectionDefinitionGuid);
   }
 
   //
   // Search the match registered Extract handler for the input guided section.
   //
   ASSERT (HandlerInfo != NULL);
-  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index ++) {
+  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index++) {
     if (CompareGuid (HandlerInfo->ExtractHandlerGuidTable + Index, SectionDefinitionGuid)) {
       //
       // Call the match handler to extract raw data for the input guided section.
       //
-      return HandlerInfo->ExtractDecodeHandlerTable [Index] (
-                InputSection,
-                OutputBuffer,
-                ScratchBuffer,
-                AuthenticationStatus
-              );
+      return HandlerInfo->ExtractDecodeHandlerTable[Index](
+                                                           InputSection,
+                                                           OutputBuffer,
+                                                           ScratchBuffer,
+                                                           AuthenticationStatus
+                                                           );
     }
   }
 
@@ -434,13 +434,13 @@ RETURN_STATUS
 EFIAPI
 ExtractGuidedSectionGetHandlers (
   IN CONST   GUID                                     *SectionGuid,
-  OUT        EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER  *GetInfoHandler,  OPTIONAL
+  OUT        EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER  *GetInfoHandler   OPTIONAL,
   OUT        EXTRACT_GUIDED_SECTION_DECODE_HANDLER    *DecodeHandler    OPTIONAL
   )
 {
-  UINT32                              Index;
-  RETURN_STATUS                       Status;
-  EXTRACT_GUIDED_SECTION_HANDLER_INFO *HandlerInfo;
+  UINT32                               Index;
+  RETURN_STATUS                        Status;
+  EXTRACT_GUIDED_SECTION_HANDLER_INFO  *HandlerInfo;
 
   //
   // Check input parameter
@@ -459,20 +459,22 @@ ExtractGuidedSectionGetHandlers (
   // Search the match registered GetInfo handler for the input guided section.
   //
   ASSERT (HandlerInfo != NULL);
-  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index ++) {
+  for (Index = 0; Index < HandlerInfo->NumberOfExtractHandler; Index++) {
     if (CompareGuid (HandlerInfo->ExtractHandlerGuidTable + Index, SectionGuid)) {
-
       //
       // If the guided handler has been registered before, then return the registered handlers.
       //
       if (GetInfoHandler != NULL) {
         *GetInfoHandler = HandlerInfo->ExtractGetInfoHandlerTable[Index];
       }
+
       if (DecodeHandler != NULL) {
         *DecodeHandler = HandlerInfo->ExtractDecodeHandlerTable[Index];
       }
+
       return RETURN_SUCCESS;
     }
   }
+
   return RETURN_NOT_FOUND;
 }

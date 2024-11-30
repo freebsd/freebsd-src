@@ -10,7 +10,6 @@
 
 **/
 
-
 #include <PiSmm.h>
 
 #include <Library/BaseLib.h>
@@ -24,15 +23,15 @@
 #include <Protocol/SmmReadyToLock.h>
 #include <Protocol/SmmEndOfDxe.h>
 
-EFI_GCD_MEMORY_SPACE_DESCRIPTOR   *mSmmIoLibGcdMemSpace       = NULL;
-UINTN                             mSmmIoLibGcdMemNumberOfDesc = 0;
+EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *mSmmIoLibGcdMemSpace       = NULL;
+UINTN                            mSmmIoLibGcdMemNumberOfDesc = 0;
 
 EFI_PHYSICAL_ADDRESS  mSmmIoLibInternalMaximumSupportMemAddress = 0;
 
-VOID                  *mSmmIoLibRegistrationEndOfDxe;
-VOID                  *mSmmIoLibRegistrationReadyToLock;
+VOID  *mSmmIoLibRegistrationEndOfDxe;
+VOID  *mSmmIoLibRegistrationReadyToLock;
 
-BOOLEAN               mSmmIoLibReadyToLock = FALSE;
+BOOLEAN  mSmmIoLibReadyToLock = FALSE;
 
 /**
   Calculate and save the maximum support address.
@@ -43,25 +42,26 @@ SmmIoLibInternalCalculateMaximumSupportAddress (
   VOID
   )
 {
-  VOID         *Hob;
-  UINT32       RegEax;
-  UINT8        MemPhysicalAddressBits;
+  VOID    *Hob;
+  UINT32  RegEax;
+  UINT8   MemPhysicalAddressBits;
 
   //
   // Get physical address bits supported.
   //
   Hob = GetFirstHob (EFI_HOB_TYPE_CPU);
   if (Hob != NULL) {
-    MemPhysicalAddressBits = ((EFI_HOB_CPU *) Hob)->SizeOfMemorySpace;
+    MemPhysicalAddressBits = ((EFI_HOB_CPU *)Hob)->SizeOfMemorySpace;
   } else {
     AsmCpuid (0x80000000, &RegEax, NULL, NULL, NULL);
     if (RegEax >= 0x80000008) {
       AsmCpuid (0x80000008, &RegEax, NULL, NULL, NULL);
-      MemPhysicalAddressBits = (UINT8) RegEax;
+      MemPhysicalAddressBits = (UINT8)RegEax;
     } else {
       MemPhysicalAddressBits = 36;
     }
   }
+
   //
   // IA-32e paging translates 48-bit linear addresses to 52-bit physical addresses.
   //
@@ -98,9 +98,9 @@ SmmIsMmioValid (
   IN EFI_GUID              *Owner  OPTIONAL
   )
 {
-  UINTN                           Index;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR *Desc;
-  BOOLEAN                         InValidRegion;
+  UINTN                            Index;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *Desc;
+  BOOLEAN                          InValidRegion;
 
   //
   // Check override.
@@ -108,7 +108,8 @@ SmmIsMmioValid (
   //
   if ((Length > mSmmIoLibInternalMaximumSupportMemAddress) ||
       (BaseAddress > mSmmIoLibInternalMaximumSupportMemAddress) ||
-      ((Length != 0) && (BaseAddress > (mSmmIoLibInternalMaximumSupportMemAddress - (Length - 1)))) ) {
+      ((Length != 0) && (BaseAddress > (mSmmIoLibInternalMaximumSupportMemAddress - (Length - 1)))))
+  {
     //
     // Overflow happen
     //
@@ -127,11 +128,12 @@ SmmIsMmioValid (
   //
   if (mSmmIoLibReadyToLock) {
     InValidRegion = FALSE;
-    for (Index = 0; Index < mSmmIoLibGcdMemNumberOfDesc; Index ++) {
+    for (Index = 0; Index < mSmmIoLibGcdMemNumberOfDesc; Index++) {
       Desc = &mSmmIoLibGcdMemSpace[Index];
       if ((Desc->GcdMemoryType == EfiGcdMemoryTypeMemoryMappedIo) &&
           (BaseAddress >= Desc->BaseAddress) &&
-          ((BaseAddress + Length) <= (Desc->BaseAddress + Desc->Length))) {
+          ((BaseAddress + Length) <= (Desc->BaseAddress + Desc->Length)))
+      {
         InValidRegion = TRUE;
       }
     }
@@ -146,6 +148,7 @@ SmmIsMmioValid (
       return FALSE;
     }
   }
+
   return TRUE;
 }
 
@@ -166,22 +169,23 @@ MergeGcdMmioEntry (
   IN OUT UINTN                            *NumberOfDescriptors
   )
 {
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       *GcdMemoryMapEntry;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       *GcdMemoryMapEnd;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       *NewGcdMemoryMapEntry;
-  EFI_GCD_MEMORY_SPACE_DESCRIPTOR       *NextGcdMemoryMapEntry;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *GcdMemoryMapEntry;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *GcdMemoryMapEnd;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *NewGcdMemoryMapEntry;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *NextGcdMemoryMapEntry;
 
-  GcdMemoryMapEntry = GcdMemoryMap;
+  GcdMemoryMapEntry    = GcdMemoryMap;
   NewGcdMemoryMapEntry = GcdMemoryMap;
-  GcdMemoryMapEnd = (EFI_GCD_MEMORY_SPACE_DESCRIPTOR *) ((UINT8 *) GcdMemoryMap + (*NumberOfDescriptors) * sizeof(EFI_GCD_MEMORY_SPACE_DESCRIPTOR));
+  GcdMemoryMapEnd      = (EFI_GCD_MEMORY_SPACE_DESCRIPTOR *)((UINT8 *)GcdMemoryMap + (*NumberOfDescriptors) * sizeof (EFI_GCD_MEMORY_SPACE_DESCRIPTOR));
   while ((UINTN)GcdMemoryMapEntry < (UINTN)GcdMemoryMapEnd) {
-    CopyMem (NewGcdMemoryMapEntry, GcdMemoryMapEntry, sizeof(EFI_GCD_MEMORY_SPACE_DESCRIPTOR));
+    CopyMem (NewGcdMemoryMapEntry, GcdMemoryMapEntry, sizeof (EFI_GCD_MEMORY_SPACE_DESCRIPTOR));
     NextGcdMemoryMapEntry = GcdMemoryMapEntry + 1;
 
     do {
       if (((UINTN)NextGcdMemoryMapEntry < (UINTN)GcdMemoryMapEnd) &&
           (GcdMemoryMapEntry->GcdMemoryType == EfiGcdMemoryTypeMemoryMappedIo) && (NextGcdMemoryMapEntry->GcdMemoryType == EfiGcdMemoryTypeMemoryMappedIo) &&
-          ((GcdMemoryMapEntry->BaseAddress + GcdMemoryMapEntry->Length) == NextGcdMemoryMapEntry->BaseAddress)) {
+          ((GcdMemoryMapEntry->BaseAddress + GcdMemoryMapEntry->Length) == NextGcdMemoryMapEntry->BaseAddress))
+      {
         GcdMemoryMapEntry->Length += NextGcdMemoryMapEntry->Length;
         if (NewGcdMemoryMapEntry != GcdMemoryMapEntry) {
           NewGcdMemoryMapEntry->Length += NextGcdMemoryMapEntry->Length;
@@ -195,13 +199,13 @@ MergeGcdMmioEntry (
       }
     } while (TRUE);
 
-    GcdMemoryMapEntry = GcdMemoryMapEntry + 1;
+    GcdMemoryMapEntry    = GcdMemoryMapEntry + 1;
     NewGcdMemoryMapEntry = NewGcdMemoryMapEntry + 1;
   }
 
-  *NumberOfDescriptors = ((UINTN)NewGcdMemoryMapEntry - (UINTN)GcdMemoryMap) / sizeof(EFI_GCD_MEMORY_SPACE_DESCRIPTOR);
+  *NumberOfDescriptors = ((UINTN)NewGcdMemoryMapEntry - (UINTN)GcdMemoryMap) / sizeof (EFI_GCD_MEMORY_SPACE_DESCRIPTOR);
 
-  return ;
+  return;
 }
 
 /**
@@ -228,7 +232,6 @@ SmmIoLibInternalEndOfDxeNotify (
 
   Status = gDS->GetMemorySpaceMap (&NumberOfDescriptors, &MemSpaceMap);
   if (!EFI_ERROR (Status)) {
-
     MergeGcdMmioEntry (MemSpaceMap, &NumberOfDescriptors);
 
     mSmmIoLibGcdMemSpace = AllocateCopyPool (NumberOfDescriptors * sizeof (EFI_GCD_MEMORY_SPACE_DESCRIPTOR), MemSpaceMap);
@@ -282,7 +285,7 @@ SmmIoLibConstructor (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS                    Status;
+  EFI_STATUS  Status;
 
   //
   // Calculate and save maximum support address

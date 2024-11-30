@@ -17,17 +17,17 @@
     0x964e5b21, 0x6459, 0x11d2, {0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b } \
   }
 
-typedef struct _EFI_BLOCK_IO_PROTOCOL  EFI_BLOCK_IO_PROTOCOL;
+typedef struct _EFI_BLOCK_IO_PROTOCOL EFI_BLOCK_IO_PROTOCOL;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
 ///
-#define BLOCK_IO_PROTOCOL       EFI_BLOCK_IO_PROTOCOL_GUID
+#define BLOCK_IO_PROTOCOL  EFI_BLOCK_IO_PROTOCOL_GUID
 
 ///
 /// Protocol defined in EFI1.1.
 ///
-typedef EFI_BLOCK_IO_PROTOCOL   EFI_BLOCK_IO;
+typedef EFI_BLOCK_IO_PROTOCOL EFI_BLOCK_IO;
 
 /**
   Reset the Block Device.
@@ -129,84 +129,84 @@ typedef struct {
   ///
   /// The curent media Id. If the media changes, this value is changed.
   ///
-  UINT32  MediaId;
+  UINT32     MediaId;
 
   ///
   /// TRUE if the media is removable; otherwise, FALSE.
   ///
-  BOOLEAN RemovableMedia;
+  BOOLEAN    RemovableMedia;
 
   ///
   /// TRUE if there is a media currently present in the device;
   /// othersise, FALSE. THis field shows the media present status
   /// as of the most recent ReadBlocks() or WriteBlocks() call.
   ///
-  BOOLEAN MediaPresent;
+  BOOLEAN    MediaPresent;
 
   ///
   /// TRUE if LBA 0 is the first block of a partition; otherwise
   /// FALSE. For media with only one partition this would be TRUE.
   ///
-  BOOLEAN LogicalPartition;
+  BOOLEAN    LogicalPartition;
 
   ///
   /// TRUE if the media is marked read-only otherwise, FALSE.
   /// This field shows the read-only status as of the most recent WriteBlocks () call.
   ///
-  BOOLEAN ReadOnly;
+  BOOLEAN    ReadOnly;
 
   ///
   /// TRUE if the WriteBlock () function caches write data.
   ///
-  BOOLEAN WriteCaching;
+  BOOLEAN    WriteCaching;
 
   ///
   /// The intrinsic block size of the device. If the media changes, then
   /// this field is updated.
   ///
-  UINT32  BlockSize;
+  UINT32     BlockSize;
 
   ///
   /// Supplies the alignment requirement for any buffer to read or write block(s).
   ///
-  UINT32  IoAlign;
+  UINT32     IoAlign;
 
   ///
   /// The last logical block address on the device.
   /// If the media changes, then this field is updated.
   ///
-  EFI_LBA LastBlock;
+  EFI_LBA    LastBlock;
 
   ///
   /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
   /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the first LBA is aligned to
   /// a physical block boundary.
   ///
-  EFI_LBA LowestAlignedLba;
+  EFI_LBA    LowestAlignedLba;
 
   ///
   /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
   /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the number of logical blocks
   /// per physical block.
   ///
-  UINT32 LogicalBlocksPerPhysicalBlock;
+  UINT32     LogicalBlocksPerPhysicalBlock;
 
   ///
   /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
   /// EFI_BLOCK_IO_PROTOCOL_REVISION3. Returns the optimal transfer length
   /// granularity as a number of logical blocks.
   ///
-  UINT32 OptimalTransferLengthGranularity;
+  UINT32     OptimalTransferLengthGranularity;
 } EFI_BLOCK_IO_MEDIA;
 
-#define EFI_BLOCK_IO_PROTOCOL_REVISION  0x00010000
-#define EFI_BLOCK_IO_PROTOCOL_REVISION2 0x00020001
-#define EFI_BLOCK_IO_PROTOCOL_REVISION3 0x00020031
+#define EFI_BLOCK_IO_PROTOCOL_REVISION   0x00010000
+#define EFI_BLOCK_IO_PROTOCOL_REVISION2  0x00020001
+#define EFI_BLOCK_IO_PROTOCOL_REVISION3  0x0002001F
 
 ///
 /// Revision defined in EFI1.1.
 ///
-#define EFI_BLOCK_IO_INTERFACE_REVISION   EFI_BLOCK_IO_PROTOCOL_REVISION
+#define EFI_BLOCK_IO_INTERFACE_REVISION  EFI_BLOCK_IO_PROTOCOL_REVISION
 
 ///
 ///  This protocol provides control over block devices.
@@ -217,19 +217,18 @@ struct _EFI_BLOCK_IO_PROTOCOL {
   /// revisions must be backwards compatible. If a future version is not
   /// back wards compatible, it is not the same GUID.
   ///
-  UINT64              Revision;
+  UINT64                Revision;
   ///
   /// Pointer to the EFI_BLOCK_IO_MEDIA data for this device.
   ///
-  EFI_BLOCK_IO_MEDIA  *Media;
+  EFI_BLOCK_IO_MEDIA    *Media;
 
-  EFI_BLOCK_RESET     Reset;
-  EFI_BLOCK_READ      ReadBlocks;
-  EFI_BLOCK_WRITE     WriteBlocks;
-  EFI_BLOCK_FLUSH     FlushBlocks;
-
+  EFI_BLOCK_RESET       Reset;
+  EFI_BLOCK_READ        ReadBlocks;
+  EFI_BLOCK_WRITE       WriteBlocks;
+  EFI_BLOCK_FLUSH       FlushBlocks;
 };
 
-extern EFI_GUID gEfiBlockIoProtocolGuid;
+extern EFI_GUID  gEfiBlockIoProtocolGuid;
 
 #endif

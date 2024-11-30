@@ -27,7 +27,7 @@
 **/
 UINTN
 PciSegmentLibVirtualAddress (
-  IN UINTN                     Address
+  IN UINTN  Address
   );
 
 /**
@@ -43,9 +43,9 @@ PciSegmentLibVirtualAddress (
 **/
 UINTN
 PciSegmentLibGetEcamAddress (
-  IN UINT64                    Address,
-  IN CONST PCI_SEGMENT_INFO    *SegmentInfo,
-  IN UINTN                     Count
+  IN UINT64                  Address,
+  IN CONST PCI_SEGMENT_INFO  *SegmentInfo,
+  IN UINTN                   Count
   );
 
 #endif

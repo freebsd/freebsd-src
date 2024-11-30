@@ -4,6 +4,7 @@
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 #  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+#  Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -71,7 +72,6 @@
 
 [Sources.ARM]
   Synchronization.c
-  Arm/Synchronization.asm       | RVCT
   Arm/Synchronization.S         | GCC
 
 [Sources.AARCH64]
@@ -81,7 +81,12 @@
 
 [Sources.RISCV64]
   Synchronization.c
-  RiscV64/Synchronization.S
+  RiscV64/Synchronization.S     | GCC
+
+[Sources.LOONGARCH64]
+  Synchronization.c
+  LoongArch64/Synchronization.c    | GCC
+  LoongArch64/AsmSynchronization.S | GCC
 
 [Packages]
   MdePkg/MdePkg.dec

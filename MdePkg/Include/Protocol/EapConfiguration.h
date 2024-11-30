@@ -25,7 +25,7 @@ typedef struct _EFI_EAP_CONFIGURATION_PROTOCOL EFI_EAP_CONFIGURATION_PROTOCOL;
 ///
 /// Make sure it not conflict with any real EapTypeXXX
 ///
-#define EFI_EAP_TYPE_ATTRIBUTE 0
+#define EFI_EAP_TYPE_ATTRIBUTE  0
 
 typedef enum {
   ///
@@ -98,7 +98,7 @@ typedef UINT8 EFI_EAP_TYPE;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_EAP_CONFIGURATION_SET_DATA) (
+(EFIAPI *EFI_EAP_CONFIGURATION_SET_DATA)(
   IN EFI_EAP_CONFIGURATION_PROTOCOL       *This,
   IN EFI_EAP_TYPE                         EapType,
   IN EFI_EAP_CONFIG_DATA_TYPE             DataType,
@@ -130,7 +130,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_EAP_CONFIGURATION_GET_DATA) (
+(EFIAPI *EFI_EAP_CONFIGURATION_GET_DATA)(
   IN EFI_EAP_CONFIGURATION_PROTOCOL       *This,
   IN EFI_EAP_TYPE                         EapType,
   IN EFI_EAP_CONFIG_DATA_TYPE             DataType,
@@ -144,10 +144,10 @@ EFI_STATUS
 /// private key file.
 ///
 struct _EFI_EAP_CONFIGURATION_PROTOCOL {
-  EFI_EAP_CONFIGURATION_SET_DATA          SetData;
-  EFI_EAP_CONFIGURATION_GET_DATA          GetData;
+  EFI_EAP_CONFIGURATION_SET_DATA    SetData;
+  EFI_EAP_CONFIGURATION_GET_DATA    GetData;
 };
 
-extern EFI_GUID gEfiEapConfigurationProtocolGuid;
+extern EFI_GUID  gEfiEapConfigurationProtocolGuid;
 
 #endif

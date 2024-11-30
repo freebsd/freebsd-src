@@ -6,15 +6,11 @@
 
 **/
 
-
-
 #include <PiPei.h>
-
 
 #include <Library/ResourcePublicationLib.h>
 #include <Library/PeiServicesLib.h>
 #include <Library/DebugLib.h>
-
 
 /**
   Declares the presence of permanent system memory in the platform.
@@ -36,17 +32,16 @@
 RETURN_STATUS
 EFIAPI
 PublishSystemMemory (
-  IN PHYSICAL_ADDRESS       MemoryBegin,
-  IN UINT64                 MemoryLength
+  IN PHYSICAL_ADDRESS  MemoryBegin,
+  IN UINT64            MemoryLength
   )
 {
-  EFI_STATUS        Status;
+  EFI_STATUS  Status;
 
   ASSERT (MemoryLength > 0);
   ASSERT (MemoryLength <= (MAX_ADDRESS - MemoryBegin + 1));
 
-  Status      = PeiServicesInstallPeiMemory (MemoryBegin, MemoryLength);
+  Status = PeiServicesInstallPeiMemory (MemoryBegin, MemoryLength);
 
-  return (RETURN_STATUS) Status;
+  return (RETURN_STATUS)Status;
 }
-

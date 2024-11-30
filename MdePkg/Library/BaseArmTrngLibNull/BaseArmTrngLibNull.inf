@@ -1,0 +1,30 @@
+## @file
+#  Null instance of the Arm TRNG (True Random Number Generator) Library.
+#
+#  Copyright (c) 2021 - 2022, Arm Limited. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 1.29
+  BASE_NAME                      = BaseArmTrngLibNull
+  MODULE_UNI_FILE                = BaseArmTrngLibNull.uni
+  FILE_GUID                      = ABDE1C87-4F50-4B82-9133-7A79E13F69AB
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ArmTrngLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64 RISCV64
+#
+
+[Sources]
+  BaseArmTrngLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib

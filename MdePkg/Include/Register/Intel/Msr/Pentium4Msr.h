@@ -50,8 +50,7 @@
   @endcode
   @note MSR_PENTIUM_4_IA32_MONITOR_FILTER_LINE_SIZE is defined as IA32_MONITOR_FILTER_LINE_SIZE in SDM.
 **/
-#define MSR_PENTIUM_4_IA32_MONITOR_FILTER_LINE_SIZE 0x00000006
-
+#define MSR_PENTIUM_4_IA32_MONITOR_FILTER_LINE_SIZE  0x00000006
 
 /**
   0, 1, 2, 3, 4, 6. Shared. Processor Hard Power-On Configuration (R/W)
@@ -73,7 +72,7 @@
   @endcode
   @note MSR_PENTIUM_4_EBC_HARD_POWERON is defined as MSR_EBC_HARD_POWERON in SDM.
 **/
-#define MSR_PENTIUM_4_EBC_HARD_POWERON           0x0000002A
+#define MSR_PENTIUM_4_EBC_HARD_POWERON  0x0000002A
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_EBC_HARD_POWERON
@@ -89,70 +88,69 @@ typedef union {
     /// The value in this bit is written on the deassertion of RESET#; the bit
     /// is set to 1 when the address bus signal is asserted.
     ///
-    UINT32  OutputTriStateEnabled:1;
+    UINT32    OutputTriStateEnabled     : 1;
     ///
     /// [Bit 1] Execute BIST (R)  Indicates whether the execution of the BIST
     /// is enabled (1) or disabled (0) as set by the strapping of INIT#. The
     /// value in this bit is written on the deassertion of RESET#; the bit is
     /// set to 1 when the address bus signal is asserted.
     ///
-    UINT32  ExecuteBIST:1;
+    UINT32    ExecuteBIST               : 1;
     ///
     /// [Bit 2] In Order Queue Depth (R) Indicates whether the in order queue
     /// depth for the system bus is 1 (1) or up to 12 (0) as set by the
     /// strapping of A7#. The value in this bit is written on the deassertion
     /// of RESET#; the bit is set to 1 when the address bus signal is asserted.
     ///
-    UINT32  InOrderQueueDepth:1;
+    UINT32    InOrderQueueDepth         : 1;
     ///
     /// [Bit 3] MCERR# Observation Disabled (R) Indicates whether MCERR#
     /// observation is enabled (0) or disabled (1) as determined by the
     /// strapping of A9#. The value in this bit is written on the deassertion
     /// of RESET#; the bit is set to 1 when the address bus signal is asserted.
     ///
-    UINT32  MCERR_ObservationDisabled:1;
+    UINT32    MCERR_ObservationDisabled : 1;
     ///
     /// [Bit 4] BINIT# Observation Enabled (R) Indicates whether BINIT#
     /// observation is enabled (0) or disabled (1) as determined by the
     /// strapping of A10#. The value in this bit is written on the deassertion
     /// of RESET#; the bit is set to 1 when the address bus signal is asserted.
     ///
-    UINT32  BINIT_ObservationEnabled:1;
+    UINT32    BINIT_ObservationEnabled  : 1;
     ///
     /// [Bits 6:5] APIC Cluster ID (R)  Contains the logical APIC cluster ID
     /// value as set by the strapping of A12# and A11#. The logical cluster ID
     /// value is written into the field on the deassertion of RESET#; the
     /// field is set to 1 when the address bus signal is asserted.
     ///
-    UINT32  APICClusterID:2;
+    UINT32    APICClusterID             : 2;
     ///
     /// [Bit 7] Bus Park Disable (R)  Indicates whether bus park is enabled
     /// (0) or disabled (1) as set by the strapping of A15#. The value in this
     /// bit is written on the deassertion of RESET#; the bit is set to 1 when
     /// the address bus signal is asserted.
     ///
-    UINT32  BusParkDisable:1;
-    UINT32  Reserved1:4;
+    UINT32    BusParkDisable            : 1;
+    UINT32    Reserved1                 : 4;
     ///
     /// [Bits 13:12] Agent ID (R)  Contains the logical agent ID value as set
     /// by the strapping of BR[3:0]. The logical ID value is written into the
     /// field on the deassertion of RESET#; the field is set to 1 when the
     /// address bus signal is asserted.
     ///
-    UINT32  AgentID:2;
-    UINT32  Reserved2:18;
-    UINT32  Reserved3:32;
+    UINT32    AgentID                   : 2;
+    UINT32    Reserved2                 : 18;
+    UINT32    Reserved3                 : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_EBC_HARD_POWERON_REGISTER;
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. Processor Soft Power-On Configuration (R/W)
@@ -173,7 +171,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EBC_SOFT_POWERON is defined as MSR_EBC_SOFT_POWERON in SDM.
 **/
-#define MSR_PENTIUM_4_EBC_SOFT_POWERON           0x0000002B
+#define MSR_PENTIUM_4_EBC_SOFT_POWERON  0x0000002B
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_EBC_SOFT_POWERON
@@ -188,50 +186,49 @@ typedef union {
     /// driving of RCNT/SCNT on the request encoding. Set to enable (1); clear
     /// to disabled (0, default).
     ///
-    UINT32  RCNT_SCNT:1;
+    UINT32    RCNT_SCNT                          : 1;
     ///
     /// [Bit 1] Data Error Checking Disable (R/W)  Set to disable system data
     /// bus parity checking; clear to enable parity checking.
     ///
-    UINT32  DataErrorCheckingDisable:1;
+    UINT32    DataErrorCheckingDisable           : 1;
     ///
     /// [Bit 2] Response Error Checking Disable (R/W) Set to disable
     /// (default); clear to enable.
     ///
-    UINT32  ResponseErrorCheckingDisable:1;
+    UINT32    ResponseErrorCheckingDisable       : 1;
     ///
     /// [Bit 3] Address/Request Error Checking Disable (R/W) Set to disable
     /// (default); clear to enable.
     ///
-    UINT32  AddressRequestErrorCheckingDisable:1;
+    UINT32    AddressRequestErrorCheckingDisable : 1;
     ///
     /// [Bit 4] Initiator MCERR# Disable (R/W) Set to disable MCERR# driving
     /// for initiator bus requests (default); clear to enable.
     ///
-    UINT32  InitiatorMCERR_Disable:1;
+    UINT32    InitiatorMCERR_Disable             : 1;
     ///
     /// [Bit 5] Internal MCERR# Disable (R/W) Set to disable MCERR# driving
     /// for initiator internal errors (default); clear to enable.
     ///
-    UINT32  InternalMCERR_Disable:1;
+    UINT32    InternalMCERR_Disable              : 1;
     ///
     /// [Bit 6] BINIT# Driver Disable (R/W)  Set to disable BINIT# driver
     /// (default); clear to enable driver.
     ///
-    UINT32  BINIT_DriverDisable:1;
-    UINT32  Reserved1:25;
-    UINT32  Reserved2:32;
+    UINT32    BINIT_DriverDisable                : 1;
+    UINT32    Reserved1                          : 25;
+    UINT32    Reserved2                          : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_EBC_SOFT_POWERON_REGISTER;
-
 
 /**
   2,3, 4, 6. Shared. Processor Frequency Configuration The bit field layout of
@@ -254,7 +251,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EBC_FREQUENCY_ID is defined as MSR_EBC_FREQUENCY_ID in SDM.
 **/
-#define MSR_PENTIUM_4_EBC_FREQUENCY_ID           0x0000002C
+#define MSR_PENTIUM_4_EBC_FREQUENCY_ID  0x0000002C
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_EBC_FREQUENCY_ID
@@ -264,7 +261,7 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:16;
+    UINT32    Reserved1 : 16;
     ///
     /// [Bits 18:16] Scalable Bus Speed (R/W) Indicates the intended scalable
     /// bus speed: *EncodingScalable Bus Speed*
@@ -285,26 +282,25 @@ typedef union {
     ///   Speed when encoding is 100B and model encoding = 6. All other values
     ///   are reserved.
     ///
-    UINT32  ScalableBusSpeed:3;
-    UINT32  Reserved2:5;
+    UINT32    ScalableBusSpeed : 3;
+    UINT32    Reserved2        : 5;
     ///
     /// [Bits 31:24] Core Clock Frequency to System Bus  Frequency Ratio (R)
     /// The processor core clock frequency to system bus frequency ratio
     /// observed at the de-assertion of the reset pin.
     ///
-    UINT32  ClockRatio:8;
-    UINT32  Reserved3:32;
+    UINT32    ClockRatio       : 8;
+    UINT32    Reserved3        : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_EBC_FREQUENCY_ID_REGISTER;
-
 
 /**
   0, 1. Shared. Processor Frequency Configuration (R)  The bit field layout of
@@ -327,7 +323,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EBC_FREQUENCY_ID_1 is defined as MSR_EBC_FREQUENCY_ID_1 in SDM.
 **/
-#define MSR_PENTIUM_4_EBC_FREQUENCY_ID_1         0x0000002C
+#define MSR_PENTIUM_4_EBC_FREQUENCY_ID_1  0x0000002C
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_EBC_FREQUENCY_ID_1
@@ -337,27 +333,26 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:21;
+    UINT32    Reserved1        : 21;
     ///
     /// [Bits 23:21] Scalable Bus Speed (R/W) Indicates the intended scalable
     /// bus speed: *Encoding* *Scalable Bus Speed*
     ///
     ///   000B 100 MHz All others values reserved.
     ///
-    UINT32  ScalableBusSpeed:3;
-    UINT32  Reserved2:8;
-    UINT32  Reserved3:32;
+    UINT32    ScalableBusSpeed : 3;
+    UINT32    Reserved2        : 8;
+    UINT32    Reserved3        : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_EBC_FREQUENCY_ID_1_REGISTER;
-
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EAX/RAX Save State See Section
@@ -378,8 +373,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RAX is defined as MSR_MCG_RAX in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RAX                    0x00000180
-
+#define MSR_PENTIUM_4_MCG_RAX  0x00000180
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EBX/RBX Save State See Section
@@ -400,8 +394,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RBX is defined as MSR_MCG_RBX in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RBX                    0x00000181
-
+#define MSR_PENTIUM_4_MCG_RBX  0x00000181
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check ECX/RCX Save State See Section
@@ -422,8 +415,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RCX is defined as MSR_MCG_RCX in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RCX                    0x00000182
-
+#define MSR_PENTIUM_4_MCG_RCX  0x00000182
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EDX/RDX Save State See Section
@@ -444,8 +436,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RDX is defined as MSR_MCG_RDX in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RDX                    0x00000183
-
+#define MSR_PENTIUM_4_MCG_RDX  0x00000183
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check ESI/RSI Save State See Section
@@ -466,8 +457,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RSI is defined as MSR_MCG_RSI in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RSI                    0x00000184
-
+#define MSR_PENTIUM_4_MCG_RSI  0x00000184
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EDI/RDI Save State See Section
@@ -488,8 +478,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RDI is defined as MSR_MCG_RDI in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RDI                    0x00000185
-
+#define MSR_PENTIUM_4_MCG_RDI  0x00000185
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EBP/RBP Save State See Section
@@ -510,8 +499,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RBP is defined as MSR_MCG_RBP in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RBP                    0x00000186
-
+#define MSR_PENTIUM_4_MCG_RBP  0x00000186
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check ESP/RSP Save State See Section
@@ -532,8 +520,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RSP is defined as MSR_MCG_RSP in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RSP                    0x00000187
-
+#define MSR_PENTIUM_4_MCG_RSP  0x00000187
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EFLAGS/RFLAG Save State See Section
@@ -554,8 +541,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RFLAGS is defined as MSR_MCG_RFLAGS in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RFLAGS                 0x00000188
-
+#define MSR_PENTIUM_4_MCG_RFLAGS  0x00000188
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check EIP/RIP Save State See Section
@@ -576,8 +562,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_RIP is defined as MSR_MCG_RIP in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_RIP                    0x00000189
-
+#define MSR_PENTIUM_4_MCG_RIP  0x00000189
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check Miscellaneous See Section 15.3.2.6,
@@ -598,7 +583,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_MISC is defined as MSR_MCG_MISC in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_MISC                   0x0000018A
+#define MSR_PENTIUM_4_MCG_MISC  0x0000018A
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_MCG_MISC
@@ -615,20 +600,19 @@ typedef union {
     /// code. It is the responsibility of the user (BIOS or operating system)
     /// to clear this bit for normal operation.
     ///
-    UINT32  DS:1;
-    UINT32  Reserved1:31;
-    UINT32  Reserved2:32;
+    UINT32    DS        : 1;
+    UINT32    Reserved1 : 31;
+    UINT32    Reserved2 : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_MCG_MISC_REGISTER;
-
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R8 See Section 15.3.2.6, "IA32_MCG
@@ -650,8 +634,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R8 is defined as MSR_MCG_R8 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R8                     0x00000190
-
+#define MSR_PENTIUM_4_MCG_R8  0x00000190
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R9D/R9 See Section 15.3.2.6,
@@ -673,8 +656,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R9 is defined as MSR_MCG_R9 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R9                     0x00000191
-
+#define MSR_PENTIUM_4_MCG_R9  0x00000191
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R10 See Section 15.3.2.6, "IA32_MCG
@@ -696,8 +678,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R10 is defined as MSR_MCG_R10 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R10                    0x00000192
-
+#define MSR_PENTIUM_4_MCG_R10  0x00000192
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R11 See Section 15.3.2.6, "IA32_MCG
@@ -719,8 +700,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R11 is defined as MSR_MCG_R11 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R11                    0x00000193
-
+#define MSR_PENTIUM_4_MCG_R11  0x00000193
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R12 See Section 15.3.2.6, "IA32_MCG
@@ -742,8 +722,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R12 is defined as MSR_MCG_R12 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R12                    0x00000194
-
+#define MSR_PENTIUM_4_MCG_R12  0x00000194
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R13 See Section 15.3.2.6, "IA32_MCG
@@ -765,8 +744,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R13 is defined as MSR_MCG_R13 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R13                    0x00000195
-
+#define MSR_PENTIUM_4_MCG_R13  0x00000195
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R14 See Section 15.3.2.6, "IA32_MCG
@@ -788,8 +766,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R14 is defined as MSR_MCG_R14 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R14                    0x00000196
-
+#define MSR_PENTIUM_4_MCG_R14  0x00000196
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Machine Check R15 See Section 15.3.2.6, "IA32_MCG
@@ -811,8 +788,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MCG_R15 is defined as MSR_MCG_R15 in SDM.
 **/
-#define MSR_PENTIUM_4_MCG_R15                    0x00000197
-
+#define MSR_PENTIUM_4_MCG_R15  0x00000197
 
 /**
   Thermal Monitor 2 Control. 3,. Shared. For Family F, Model 3 processors:
@@ -834,8 +810,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_THERM2_CTL is defined as MSR_THERM2_CTL in SDM.
 **/
-#define MSR_PENTIUM_4_THERM2_CTL                 0x0000019D
-
+#define MSR_PENTIUM_4_THERM2_CTL  0x0000019D
 
 /**
   0, 1, 2, 3, 4, 6. Shared. Enable Miscellaneous Processor Features (R/W).
@@ -855,7 +830,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IA32_MISC_ENABLE is defined as IA32_MISC_ENABLE in SDM.
 **/
-#define MSR_PENTIUM_4_IA32_MISC_ENABLE           0x000001A0
+#define MSR_PENTIUM_4_IA32_MISC_ENABLE  0x000001A0
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_IA32_MISC_ENABLE
@@ -868,17 +843,17 @@ typedef union {
     ///
     /// [Bit 0] Fast-Strings Enable. See Table 2-2.
     ///
-    UINT32  FastStrings:1;
-    UINT32  Reserved1:1;
+    UINT32    FastStrings : 1;
+    UINT32    Reserved1   : 1;
     ///
     /// [Bit 2] x87 FPU Fopcode Compatibility Mode Enable.
     ///
-    UINT32  FPU:1;
+    UINT32    FPU         : 1;
     ///
     /// [Bit 3] Thermal Monitor 1 Enable See Section 14.7.2, "Thermal
     /// Monitor," and see Table 2-2.
     ///
-    UINT32  TM1:1;
+    UINT32    TM1         : 1;
     ///
     /// [Bit 4] Split-Lock Disable When set, the bit causes an #AC exception
     /// to be issued instead of a split-lock cycle. Operating systems that set
@@ -887,8 +862,8 @@ typedef union {
     /// bus.
     ///   This debug feature is specific to the Pentium 4 processor.
     ///
-    UINT32  SplitLockDisable:1;
-    UINT32  Reserved2:1;
+    UINT32    SplitLockDisable : 1;
+    UINT32    Reserved2        : 1;
     ///
     /// [Bit 6] Third-Level Cache Disable (R/W) When set, the third-level
     /// cache is disabled; when clear (default) the third-level cache is
@@ -898,22 +873,22 @@ typedef union {
     /// control register CR0, the page-level cache controls, and/or the MTRRs.
     /// See Section 11.5.4, "Disabling and Enabling the L3 Cache.".
     ///
-    UINT32  ThirdLevelCacheDisable:1;
+    UINT32    ThirdLevelCacheDisable : 1;
     ///
     /// [Bit 7] Performance Monitoring Available (R) See Table 2-2.
     ///
-    UINT32  PerformanceMonitoring:1;
+    UINT32    PerformanceMonitoring  : 1;
     ///
     /// [Bit 8] Suppress Lock Enable When set, assertion of LOCK on the bus is
     /// suppressed during a Split Lock access. When clear (default), LOCK is
     /// not suppressed.
     ///
-    UINT32  SuppressLockEnable:1;
+    UINT32    SuppressLockEnable     : 1;
     ///
     /// [Bit 9] Prefetch Queue Disable When set, disables the prefetch queue.
     /// When clear (default), enables the prefetch queue.
     ///
-    UINT32  PrefetchQueueDisable:1;
+    UINT32    PrefetchQueueDisable   : 1;
     ///
     /// [Bit 10] FERR# Interrupt Reporting Enable (R/W)  When set, interrupt
     /// reporting through the FERR# pin is enabled; when clear, this interrupt
@@ -926,19 +901,19 @@ typedef union {
     ///   the normal operation of the FERR# pin (to indicate an unmasked
     ///   floatingpoint error) when the STPCLK# pin is not asserted.
     ///
-    UINT32  FERR:1;
+    UINT32    FERR : 1;
     ///
     /// [Bit 11] Branch Trace Storage Unavailable (BTS_UNAVILABLE) (R) See
     /// Table 2-2. When set, the processor does not support branch trace
     /// storage (BTS); when clear, BTS is supported.
     ///
-    UINT32  BTS:1;
+    UINT32    BTS  : 1;
     ///
     /// [Bit 12] PEBS_UNAVILABLE: Processor Event Based Sampling Unavailable
     /// (R) See Table 2-2. When set, the processor does not support processor
     /// event-based sampling (PEBS); when clear, PEBS is supported.
     ///
-    UINT32  PEBS:1;
+    UINT32    PEBS : 1;
     ///
     /// [Bit 13] 3. TM2 Enable (R/W) When this bit is set (1) and the thermal
     /// sensor indicates that the die temperature is at the predetermined
@@ -952,12 +927,12 @@ typedef union {
     /// this bit location. The processor is operating out of spec if both this
     /// bit and the TM1 bit are set to disabled states.
     ///
-    UINT32  TM2:1;
-    UINT32  Reserved3:4;
+    UINT32    TM2       : 1;
+    UINT32    Reserved3 : 4;
     ///
     /// [Bit 18] 3, 4, 6. ENABLE MONITOR FSM (R/W) See Table 2-2.
     ///
-    UINT32  MONITOR:1;
+    UINT32    MONITOR   : 1;
     ///
     /// [Bit 19] Adjacent Cache Line Prefetch Disable (R/W)  When set to 1,
     /// the processor fetches the cache line of the 128-byte sector containing
@@ -968,18 +943,18 @@ typedef union {
     ///   in validation and testing. BIOS may contain a setup option that
     ///   controls the setting of this bit.
     ///
-    UINT32  AdjacentCacheLinePrefetchDisable:1;
-    UINT32  Reserved4:2;
+    UINT32    AdjacentCacheLinePrefetchDisable : 1;
+    UINT32    Reserved4                        : 2;
     ///
     /// [Bit 22] 3, 4, 6. Limit CPUID MAXVAL (R/W) See Table 2-2. Setting this
     /// can cause unexpected behavior to software that depends on the
     /// availability of CPUID leaves greater than 3.
     ///
-    UINT32  LimitCpuidMaxval:1;
+    UINT32    LimitCpuidMaxval                 : 1;
     ///
     /// [Bit 23] Shared. xTPR Message Disable (R/W) See Table 2-2.
     ///
-    UINT32  xTPR_Message_Disable:1;
+    UINT32    xTPR_Message_Disable             : 1;
     ///
     /// [Bit 24] L1 Data Cache Context Mode (R/W)  When set, the L1 data cache
     /// is placed in shared mode; when clear (default), the cache is placed in
@@ -992,21 +967,20 @@ typedef union {
     /// the ability to switch modes is not supported. BIOS must not alter the
     /// contents of IA32_MISC_ENABLE[24].
     ///
-    UINT32  L1DataCacheContextMode:1;
-    UINT32  Reserved5:7;
-    UINT32  Reserved6:2;
+    UINT32    L1DataCacheContextMode : 1;
+    UINT32    Reserved5              : 7;
+    UINT32    Reserved6              : 2;
     ///
     /// [Bit 34] Unique. XD Bit Disable (R/W) See Table 2-2.
     ///
-    UINT32  XD:1;
-    UINT32  Reserved7:29;
+    UINT32    XD                     : 1;
+    UINT32    Reserved7              : 29;
   } Bits;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_IA32_MISC_ENABLE_REGISTER;
-
 
 /**
   3, 4, 6. Shared. Platform Feature Requirements (R).
@@ -1025,7 +999,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_PLATFORM_BRV is defined as MSR_PLATFORM_BRV in SDM.
 **/
-#define MSR_PENTIUM_4_PLATFORM_BRV               0x000001A1
+#define MSR_PENTIUM_4_PLATFORM_BRV  0x000001A1
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_PLATFORM_BRV
@@ -1035,26 +1009,25 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:18;
+    UINT32    Reserved1 : 18;
     ///
     /// [Bit 18] PLATFORM Requirements When set to 1, indicates the processor
     /// has specific platform requirements. The details of the platform
     /// requirements are listed in the respective data sheets of the processor.
     ///
-    UINT32  PLATFORM:1;
-    UINT32  Reserved2:13;
-    UINT32  Reserved3:32;
+    UINT32    PLATFORM  : 1;
+    UINT32    Reserved2 : 13;
+    UINT32    Reserved3 : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_PLATFORM_BRV_REGISTER;
-
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Last Exception Record From Linear IP (R)  Contains
@@ -1076,8 +1049,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_LER_FROM_LIP is defined as MSR_LER_FROM_LIP in SDM.
 **/
-#define MSR_PENTIUM_4_LER_FROM_LIP               0x000001D7
-
+#define MSR_PENTIUM_4_LER_FROM_LIP  0x000001D7
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Last Exception Record To Linear IP (R)  This area
@@ -1100,8 +1072,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_LER_TO_LIP is defined as MSR_LER_TO_LIP in SDM.
 **/
-#define MSR_PENTIUM_4_LER_TO_LIP                 0x000001D8
-
+#define MSR_PENTIUM_4_LER_TO_LIP  0x000001D8
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Debug Control (R/W)  Controls how several debug
@@ -1121,8 +1092,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_DEBUGCTLA is defined as MSR_DEBUGCTLA in SDM.
 **/
-#define MSR_PENTIUM_4_DEBUGCTLA                  0x000001D9
-
+#define MSR_PENTIUM_4_DEBUGCTLA  0x000001D9
 
 /**
   0, 1, 2, 3, 4, 6. Unique. Last Branch Record Stack TOS (R/W)  Contains an
@@ -1144,8 +1114,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_LASTBRANCH_TOS is defined as MSR_LASTBRANCH_TOS in SDM.
 **/
-#define MSR_PENTIUM_4_LASTBRANCH_TOS             0x000001DA
-
+#define MSR_PENTIUM_4_LASTBRANCH_TOS  0x000001DA
 
 /**
   0, 1, 2. Unique. Last Branch Record n (R/W)  One of four last branch record
@@ -1174,12 +1143,11 @@ typedef union {
         MSR_PENTIUM_4_LASTBRANCH_3 is defined as MSR_LASTBRANCH_3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_LASTBRANCH_0               0x000001DB
-#define MSR_PENTIUM_4_LASTBRANCH_1               0x000001DC
-#define MSR_PENTIUM_4_LASTBRANCH_2               0x000001DD
-#define MSR_PENTIUM_4_LASTBRANCH_3               0x000001DE
+#define MSR_PENTIUM_4_LASTBRANCH_0  0x000001DB
+#define MSR_PENTIUM_4_LASTBRANCH_1  0x000001DC
+#define MSR_PENTIUM_4_LASTBRANCH_2  0x000001DD
+#define MSR_PENTIUM_4_LASTBRANCH_3  0x000001DE
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.2, "Performance Counters.".
@@ -1201,12 +1169,11 @@ typedef union {
         MSR_PENTIUM_4_BPU_COUNTER3 is defined as MSR_BPU_COUNTER3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_BPU_COUNTER0               0x00000300
-#define MSR_PENTIUM_4_BPU_COUNTER1               0x00000301
-#define MSR_PENTIUM_4_BPU_COUNTER2               0x00000302
-#define MSR_PENTIUM_4_BPU_COUNTER3               0x00000303
+#define MSR_PENTIUM_4_BPU_COUNTER0  0x00000300
+#define MSR_PENTIUM_4_BPU_COUNTER1  0x00000301
+#define MSR_PENTIUM_4_BPU_COUNTER2  0x00000302
+#define MSR_PENTIUM_4_BPU_COUNTER3  0x00000303
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.2, "Performance Counters.".
@@ -1228,12 +1195,11 @@ typedef union {
         MSR_PENTIUM_4_MS_COUNTER3 is defined as MSR_MS_COUNTER3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_MS_COUNTER0                0x00000304
-#define MSR_PENTIUM_4_MS_COUNTER1                0x00000305
-#define MSR_PENTIUM_4_MS_COUNTER2                0x00000306
-#define MSR_PENTIUM_4_MS_COUNTER3                0x00000307
+#define MSR_PENTIUM_4_MS_COUNTER0  0x00000304
+#define MSR_PENTIUM_4_MS_COUNTER1  0x00000305
+#define MSR_PENTIUM_4_MS_COUNTER2  0x00000306
+#define MSR_PENTIUM_4_MS_COUNTER3  0x00000307
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.2, "Performance Counters.".
@@ -1255,12 +1221,11 @@ typedef union {
         MSR_PENTIUM_4_FLAME_COUNTER3 is defined as MSR_FLAME_COUNTER3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_FLAME_COUNTER0             0x00000308
-#define MSR_PENTIUM_4_FLAME_COUNTER1             0x00000309
-#define MSR_PENTIUM_4_FLAME_COUNTER2             0x0000030A
-#define MSR_PENTIUM_4_FLAME_COUNTER3             0x0000030B
+#define MSR_PENTIUM_4_FLAME_COUNTER0  0x00000308
+#define MSR_PENTIUM_4_FLAME_COUNTER1  0x00000309
+#define MSR_PENTIUM_4_FLAME_COUNTER2  0x0000030A
+#define MSR_PENTIUM_4_FLAME_COUNTER3  0x0000030B
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.2, "Performance Counters.".
@@ -1284,14 +1249,13 @@ typedef union {
         MSR_PENTIUM_4_IQ_COUNTER5 is defined as MSR_IQ_COUNTER5 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_IQ_COUNTER0                0x0000030C
-#define MSR_PENTIUM_4_IQ_COUNTER1                0x0000030D
-#define MSR_PENTIUM_4_IQ_COUNTER2                0x0000030E
-#define MSR_PENTIUM_4_IQ_COUNTER3                0x0000030F
-#define MSR_PENTIUM_4_IQ_COUNTER4                0x00000310
-#define MSR_PENTIUM_4_IQ_COUNTER5                0x00000311
+#define MSR_PENTIUM_4_IQ_COUNTER0  0x0000030C
+#define MSR_PENTIUM_4_IQ_COUNTER1  0x0000030D
+#define MSR_PENTIUM_4_IQ_COUNTER2  0x0000030E
+#define MSR_PENTIUM_4_IQ_COUNTER3  0x0000030F
+#define MSR_PENTIUM_4_IQ_COUNTER4  0x00000310
+#define MSR_PENTIUM_4_IQ_COUNTER5  0x00000311
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.3, "CCCR MSRs.".
@@ -1313,12 +1277,11 @@ typedef union {
         MSR_PENTIUM_4_BPU_CCCR3 is defined as MSR_BPU_CCCR3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_BPU_CCCR0                  0x00000360
-#define MSR_PENTIUM_4_BPU_CCCR1                  0x00000361
-#define MSR_PENTIUM_4_BPU_CCCR2                  0x00000362
-#define MSR_PENTIUM_4_BPU_CCCR3                  0x00000363
+#define MSR_PENTIUM_4_BPU_CCCR0  0x00000360
+#define MSR_PENTIUM_4_BPU_CCCR1  0x00000361
+#define MSR_PENTIUM_4_BPU_CCCR2  0x00000362
+#define MSR_PENTIUM_4_BPU_CCCR3  0x00000363
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.3, "CCCR MSRs.".
@@ -1340,12 +1303,11 @@ typedef union {
         MSR_PENTIUM_4_MS_CCCR3 is defined as MSR_MS_CCCR3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_MS_CCCR0                   0x00000364
-#define MSR_PENTIUM_4_MS_CCCR1                   0x00000365
-#define MSR_PENTIUM_4_MS_CCCR2                   0x00000366
-#define MSR_PENTIUM_4_MS_CCCR3                   0x00000367
+#define MSR_PENTIUM_4_MS_CCCR0  0x00000364
+#define MSR_PENTIUM_4_MS_CCCR1  0x00000365
+#define MSR_PENTIUM_4_MS_CCCR2  0x00000366
+#define MSR_PENTIUM_4_MS_CCCR3  0x00000367
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.3, "CCCR MSRs.".
@@ -1367,12 +1329,11 @@ typedef union {
         MSR_PENTIUM_4_FLAME_CCCR3 is defined as MSR_FLAME_CCCR3 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_FLAME_CCCR0                0x00000368
-#define MSR_PENTIUM_4_FLAME_CCCR1                0x00000369
-#define MSR_PENTIUM_4_FLAME_CCCR2                0x0000036A
-#define MSR_PENTIUM_4_FLAME_CCCR3                0x0000036B
+#define MSR_PENTIUM_4_FLAME_CCCR0  0x00000368
+#define MSR_PENTIUM_4_FLAME_CCCR1  0x00000369
+#define MSR_PENTIUM_4_FLAME_CCCR2  0x0000036A
+#define MSR_PENTIUM_4_FLAME_CCCR3  0x0000036B
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.3, "CCCR MSRs.".
@@ -1396,14 +1357,13 @@ typedef union {
         MSR_PENTIUM_4_IQ_CCCR5 is defined as MSR_IQ_CCCR5 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_IQ_CCCR0                   0x0000036C
-#define MSR_PENTIUM_4_IQ_CCCR1                   0x0000036D
-#define MSR_PENTIUM_4_IQ_CCCR2                   0x0000036E
-#define MSR_PENTIUM_4_IQ_CCCR3                   0x0000036F
-#define MSR_PENTIUM_4_IQ_CCCR4                   0x00000370
-#define MSR_PENTIUM_4_IQ_CCCR5                   0x00000371
+#define MSR_PENTIUM_4_IQ_CCCR0  0x0000036C
+#define MSR_PENTIUM_4_IQ_CCCR1  0x0000036D
+#define MSR_PENTIUM_4_IQ_CCCR2  0x0000036E
+#define MSR_PENTIUM_4_IQ_CCCR3  0x0000036F
+#define MSR_PENTIUM_4_IQ_CCCR4  0x00000370
+#define MSR_PENTIUM_4_IQ_CCCR5  0x00000371
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1421,8 +1381,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_BSU_ESCR0 is defined as MSR_BSU_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_BSU_ESCR0                  0x000003A0
-
+#define MSR_PENTIUM_4_BSU_ESCR0  0x000003A0
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1440,8 +1399,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_BSU_ESCR1 is defined as MSR_BSU_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_BSU_ESCR1                  0x000003A1
-
+#define MSR_PENTIUM_4_BSU_ESCR1  0x000003A1
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1459,8 +1417,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FSB_ESCR0 is defined as MSR_FSB_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_FSB_ESCR0                  0x000003A2
-
+#define MSR_PENTIUM_4_FSB_ESCR0  0x000003A2
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1478,8 +1435,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FSB_ESCR1 is defined as MSR_FSB_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_FSB_ESCR1                  0x000003A3
-
+#define MSR_PENTIUM_4_FSB_ESCR1  0x000003A3
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1497,8 +1453,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FIRM_ESCR0 is defined as MSR_FIRM_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_FIRM_ESCR0                 0x000003A4
-
+#define MSR_PENTIUM_4_FIRM_ESCR0  0x000003A4
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1516,8 +1471,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FIRM_ESCR1 is defined as MSR_FIRM_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_FIRM_ESCR1                 0x000003A5
-
+#define MSR_PENTIUM_4_FIRM_ESCR1  0x000003A5
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1535,8 +1489,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FLAME_ESCR0 is defined as MSR_FLAME_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_FLAME_ESCR0                0x000003A6
-
+#define MSR_PENTIUM_4_FLAME_ESCR0  0x000003A6
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1554,8 +1507,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_FLAME_ESCR1 is defined as MSR_FLAME_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_FLAME_ESCR1                0x000003A7
-
+#define MSR_PENTIUM_4_FLAME_ESCR1  0x000003A7
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1573,8 +1525,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_DAC_ESCR0 is defined as MSR_DAC_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_DAC_ESCR0                  0x000003A8
-
+#define MSR_PENTIUM_4_DAC_ESCR0  0x000003A8
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1592,8 +1543,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_DAC_ESCR1 is defined as MSR_DAC_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_DAC_ESCR1                  0x000003A9
-
+#define MSR_PENTIUM_4_DAC_ESCR1  0x000003A9
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1611,8 +1561,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MOB_ESCR0 is defined as MSR_MOB_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_MOB_ESCR0                  0x000003AA
-
+#define MSR_PENTIUM_4_MOB_ESCR0  0x000003AA
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1630,8 +1579,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MOB_ESCR1 is defined as MSR_MOB_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_MOB_ESCR1                  0x000003AB
-
+#define MSR_PENTIUM_4_MOB_ESCR1  0x000003AB
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1649,8 +1597,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_PMH_ESCR0 is defined as MSR_PMH_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_PMH_ESCR0                  0x000003AC
-
+#define MSR_PENTIUM_4_PMH_ESCR0  0x000003AC
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1668,8 +1615,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_PMH_ESCR1 is defined as MSR_PMH_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_PMH_ESCR1                  0x000003AD
-
+#define MSR_PENTIUM_4_PMH_ESCR1  0x000003AD
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1687,8 +1633,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_SAAT_ESCR0 is defined as MSR_SAAT_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_SAAT_ESCR0                 0x000003AE
-
+#define MSR_PENTIUM_4_SAAT_ESCR0  0x000003AE
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1706,8 +1651,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_SAAT_ESCR1 is defined as MSR_SAAT_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_SAAT_ESCR1                 0x000003AF
-
+#define MSR_PENTIUM_4_SAAT_ESCR1  0x000003AF
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1725,8 +1669,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_U2L_ESCR0 is defined as MSR_U2L_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_U2L_ESCR0                  0x000003B0
-
+#define MSR_PENTIUM_4_U2L_ESCR0  0x000003B0
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1744,8 +1687,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_U2L_ESCR1 is defined as MSR_U2L_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_U2L_ESCR1                  0x000003B1
-
+#define MSR_PENTIUM_4_U2L_ESCR1  0x000003B1
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1763,8 +1705,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_BPU_ESCR0 is defined as MSR_BPU_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_BPU_ESCR0                  0x000003B2
-
+#define MSR_PENTIUM_4_BPU_ESCR0  0x000003B2
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1782,8 +1723,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_BPU_ESCR1 is defined as MSR_BPU_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_BPU_ESCR1                  0x000003B3
-
+#define MSR_PENTIUM_4_BPU_ESCR1  0x000003B3
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1801,8 +1741,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IS_ESCR0 is defined as MSR_IS_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_IS_ESCR0                   0x000003B4
-
+#define MSR_PENTIUM_4_IS_ESCR0  0x000003B4
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1820,8 +1759,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IS_ESCR1 is defined as MSR_IS_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_IS_ESCR1                   0x000003B5
-
+#define MSR_PENTIUM_4_IS_ESCR1  0x000003B5
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1839,8 +1777,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_ITLB_ESCR0 is defined as MSR_ITLB_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_ITLB_ESCR0                 0x000003B6
-
+#define MSR_PENTIUM_4_ITLB_ESCR0  0x000003B6
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1858,8 +1795,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_ITLB_ESCR1 is defined as MSR_ITLB_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_ITLB_ESCR1                 0x000003B7
-
+#define MSR_PENTIUM_4_ITLB_ESCR1  0x000003B7
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1877,8 +1813,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_CRU_ESCR0 is defined as MSR_CRU_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_CRU_ESCR0                  0x000003B8
-
+#define MSR_PENTIUM_4_CRU_ESCR0  0x000003B8
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1896,8 +1831,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_CRU_ESCR1 is defined as MSR_CRU_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_CRU_ESCR1                  0x000003B9
-
+#define MSR_PENTIUM_4_CRU_ESCR1  0x000003B9
 
 /**
   0, 1, 2. Shared. See Section 18.6.3.1, "ESCR MSRs." This MSR is not
@@ -1917,8 +1851,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IQ_ESCR0 is defined as MSR_IQ_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_IQ_ESCR0                   0x000003BA
-
+#define MSR_PENTIUM_4_IQ_ESCR0  0x000003BA
 
 /**
   0, 1, 2. Shared. See Section 18.6.3.1, "ESCR MSRs." This MSR is not
@@ -1938,8 +1871,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IQ_ESCR1 is defined as MSR_IQ_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_IQ_ESCR1                   0x000003BB
-
+#define MSR_PENTIUM_4_IQ_ESCR1  0x000003BB
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1957,8 +1889,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_RAT_ESCR0 is defined as MSR_RAT_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_RAT_ESCR0                  0x000003BC
-
+#define MSR_PENTIUM_4_RAT_ESCR0  0x000003BC
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1976,8 +1907,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_RAT_ESCR1 is defined as MSR_RAT_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_RAT_ESCR1                  0x000003BD
-
+#define MSR_PENTIUM_4_RAT_ESCR1  0x000003BD
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -1995,8 +1925,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_SSU_ESCR0 is defined as MSR_SSU_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_SSU_ESCR0                  0x000003BE
-
+#define MSR_PENTIUM_4_SSU_ESCR0  0x000003BE
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2014,8 +1943,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MS_ESCR0 is defined as MSR_MS_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_MS_ESCR0                   0x000003C0
-
+#define MSR_PENTIUM_4_MS_ESCR0  0x000003C0
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2033,8 +1961,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_MS_ESCR1 is defined as MSR_MS_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_MS_ESCR1                   0x000003C1
-
+#define MSR_PENTIUM_4_MS_ESCR1  0x000003C1
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2052,8 +1979,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_TBPU_ESCR0 is defined as MSR_TBPU_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_TBPU_ESCR0                 0x000003C2
-
+#define MSR_PENTIUM_4_TBPU_ESCR0  0x000003C2
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2071,8 +1997,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_TBPU_ESCR1 is defined as MSR_TBPU_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_TBPU_ESCR1                 0x000003C3
-
+#define MSR_PENTIUM_4_TBPU_ESCR1  0x000003C3
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2090,8 +2015,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_TC_ESCR0 is defined as MSR_TC_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_TC_ESCR0                   0x000003C4
-
+#define MSR_PENTIUM_4_TC_ESCR0  0x000003C4
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2109,8 +2033,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_TC_ESCR1 is defined as MSR_TC_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_TC_ESCR1                   0x000003C5
-
+#define MSR_PENTIUM_4_TC_ESCR1  0x000003C5
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2128,8 +2051,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IX_ESCR0 is defined as MSR_IX_ESCR0 in SDM.
 **/
-#define MSR_PENTIUM_4_IX_ESCR0                   0x000003C8
-
+#define MSR_PENTIUM_4_IX_ESCR0  0x000003C8
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2147,8 +2069,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IX_ESCR1 is defined as MSR_IX_ESCR1 in SDM.
 **/
-#define MSR_PENTIUM_4_IX_ESCR1                   0x000003C9
-
+#define MSR_PENTIUM_4_IX_ESCR1  0x000003C9
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2172,14 +2093,13 @@ typedef union {
         MSR_PENTIUM_4_CRU_ESCR5 is defined as MSR_CRU_ESCR5 in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_ALF_ESCR0                  0x000003CA
-#define MSR_PENTIUM_4_ALF_ESCR1                  0x000003CB
-#define MSR_PENTIUM_4_CRU_ESCR2                  0x000003CC
-#define MSR_PENTIUM_4_CRU_ESCR3                  0x000003CD
-#define MSR_PENTIUM_4_CRU_ESCR4                  0x000003E0
-#define MSR_PENTIUM_4_CRU_ESCR5                  0x000003E1
+#define MSR_PENTIUM_4_ALF_ESCR0  0x000003CA
+#define MSR_PENTIUM_4_ALF_ESCR1  0x000003CB
+#define MSR_PENTIUM_4_CRU_ESCR2  0x000003CC
+#define MSR_PENTIUM_4_CRU_ESCR3  0x000003CD
+#define MSR_PENTIUM_4_CRU_ESCR4  0x000003E0
+#define MSR_PENTIUM_4_CRU_ESCR5  0x000003E1
 /// @}
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Section 18.6.3.1, "ESCR MSRs.".
@@ -2197,8 +2117,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_TC_PRECISE_EVENT is defined as MSR_TC_PRECISE_EVENT in SDM.
 **/
-#define MSR_PENTIUM_4_TC_PRECISE_EVENT           0x000003F0
-
+#define MSR_PENTIUM_4_TC_PRECISE_EVENT  0x000003F0
 
 /**
   0, 1, 2, 3, 4, 6. Shared. Processor Event Based Sampling (PEBS) (R/W)
@@ -2219,7 +2138,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_PEBS_ENABLE is defined as MSR_PEBS_ENABLE in SDM.
 **/
-#define MSR_PENTIUM_4_PEBS_ENABLE                0x000003F1
+#define MSR_PENTIUM_4_PEBS_ENABLE  0x000003F1
 
 /**
   MSR information returned for MSR index #MSR_PENTIUM_4_PEBS_ENABLE
@@ -2232,12 +2151,12 @@ typedef union {
     ///
     /// [Bits 12:0] See Table 19-36.
     ///
-    UINT32  EventNum:13;
-    UINT32  Reserved1:11;
+    UINT32    EventNum            : 13;
+    UINT32    Reserved1           : 11;
     ///
     /// [Bit 24] UOP Tag  Enables replay tagging when set.
     ///
-    UINT32  UOP:1;
+    UINT32    UOP                 : 1;
     ///
     /// [Bit 25] ENABLE_PEBS_MY_THR (R/W) Enables PEBS for the target logical
     /// processor when set; disables PEBS when clear (default). See Section
@@ -2245,7 +2164,7 @@ typedef union {
     /// logical processor. This bit is called ENABLE_PEBS in IA-32 processors
     /// that do not support Intel HyperThreading Technology.
     ///
-    UINT32  ENABLE_PEBS_MY_THR:1;
+    UINT32    ENABLE_PEBS_MY_THR  : 1;
     ///
     /// [Bit 26] ENABLE_PEBS_OTH_THR (R/W) Enables PEBS for the target logical
     /// processor when set; disables PEBS when clear (default). See Section
@@ -2253,20 +2172,19 @@ typedef union {
     /// logical processor. This bit is reserved for IA-32 processors that do
     /// not support Intel Hyper-Threading Technology.
     ///
-    UINT32  ENABLE_PEBS_OTH_THR:1;
-    UINT32  Reserved2:5;
-    UINT32  Reserved3:32;
+    UINT32    ENABLE_PEBS_OTH_THR : 1;
+    UINT32    Reserved2           : 5;
+    UINT32    Reserved3           : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_PENTIUM_4_PEBS_ENABLE_REGISTER;
-
 
 /**
   0, 1, 2, 3, 4, 6. Shared. See Table 19-36.
@@ -2284,8 +2202,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_PEBS_MATRIX_VERT is defined as MSR_PEBS_MATRIX_VERT in SDM.
 **/
-#define MSR_PENTIUM_4_PEBS_MATRIX_VERT           0x000003F2
-
+#define MSR_PENTIUM_4_PEBS_MATRIX_VERT  0x000003F2
 
 /**
   3, 4, 6. Unique. Last Branch Record n (R/W)  One of 16 pairs of last branch
@@ -2327,24 +2244,23 @@ typedef union {
         MSR_PENTIUM_4_LASTBRANCH_15_FROM_IP is defined as MSR_LASTBRANCH_15_FROM_IP in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_LASTBRANCH_0_FROM_IP       0x00000680
-#define MSR_PENTIUM_4_LASTBRANCH_1_FROM_IP       0x00000681
-#define MSR_PENTIUM_4_LASTBRANCH_2_FROM_IP       0x00000682
-#define MSR_PENTIUM_4_LASTBRANCH_3_FROM_IP       0x00000683
-#define MSR_PENTIUM_4_LASTBRANCH_4_FROM_IP       0x00000684
-#define MSR_PENTIUM_4_LASTBRANCH_5_FROM_IP       0x00000685
-#define MSR_PENTIUM_4_LASTBRANCH_6_FROM_IP       0x00000686
-#define MSR_PENTIUM_4_LASTBRANCH_7_FROM_IP       0x00000687
-#define MSR_PENTIUM_4_LASTBRANCH_8_FROM_IP       0x00000688
-#define MSR_PENTIUM_4_LASTBRANCH_9_FROM_IP       0x00000689
-#define MSR_PENTIUM_4_LASTBRANCH_10_FROM_IP      0x0000068A
-#define MSR_PENTIUM_4_LASTBRANCH_11_FROM_IP      0x0000068B
-#define MSR_PENTIUM_4_LASTBRANCH_12_FROM_IP      0x0000068C
-#define MSR_PENTIUM_4_LASTBRANCH_13_FROM_IP      0x0000068D
-#define MSR_PENTIUM_4_LASTBRANCH_14_FROM_IP      0x0000068E
-#define MSR_PENTIUM_4_LASTBRANCH_15_FROM_IP      0x0000068F
+#define MSR_PENTIUM_4_LASTBRANCH_0_FROM_IP   0x00000680
+#define MSR_PENTIUM_4_LASTBRANCH_1_FROM_IP   0x00000681
+#define MSR_PENTIUM_4_LASTBRANCH_2_FROM_IP   0x00000682
+#define MSR_PENTIUM_4_LASTBRANCH_3_FROM_IP   0x00000683
+#define MSR_PENTIUM_4_LASTBRANCH_4_FROM_IP   0x00000684
+#define MSR_PENTIUM_4_LASTBRANCH_5_FROM_IP   0x00000685
+#define MSR_PENTIUM_4_LASTBRANCH_6_FROM_IP   0x00000686
+#define MSR_PENTIUM_4_LASTBRANCH_7_FROM_IP   0x00000687
+#define MSR_PENTIUM_4_LASTBRANCH_8_FROM_IP   0x00000688
+#define MSR_PENTIUM_4_LASTBRANCH_9_FROM_IP   0x00000689
+#define MSR_PENTIUM_4_LASTBRANCH_10_FROM_IP  0x0000068A
+#define MSR_PENTIUM_4_LASTBRANCH_11_FROM_IP  0x0000068B
+#define MSR_PENTIUM_4_LASTBRANCH_12_FROM_IP  0x0000068C
+#define MSR_PENTIUM_4_LASTBRANCH_13_FROM_IP  0x0000068D
+#define MSR_PENTIUM_4_LASTBRANCH_14_FROM_IP  0x0000068E
+#define MSR_PENTIUM_4_LASTBRANCH_15_FROM_IP  0x0000068F
 /// @}
-
 
 /**
   3, 4, 6. Unique. Last Branch Record n (R/W)  One of 16 pairs of last branch
@@ -2383,24 +2299,23 @@ typedef union {
         MSR_PENTIUM_4_LASTBRANCH_15_TO_IP is defined as MSR_LASTBRANCH_15_TO_IP in SDM.
   @{
 **/
-#define MSR_PENTIUM_4_LASTBRANCH_0_TO_IP         0x000006C0
-#define MSR_PENTIUM_4_LASTBRANCH_1_TO_IP         0x000006C1
-#define MSR_PENTIUM_4_LASTBRANCH_2_TO_IP         0x000006C2
-#define MSR_PENTIUM_4_LASTBRANCH_3_TO_IP         0x000006C3
-#define MSR_PENTIUM_4_LASTBRANCH_4_TO_IP         0x000006C4
-#define MSR_PENTIUM_4_LASTBRANCH_5_TO_IP         0x000006C5
-#define MSR_PENTIUM_4_LASTBRANCH_6_TO_IP         0x000006C6
-#define MSR_PENTIUM_4_LASTBRANCH_7_TO_IP         0x000006C7
-#define MSR_PENTIUM_4_LASTBRANCH_8_TO_IP         0x000006C8
-#define MSR_PENTIUM_4_LASTBRANCH_9_TO_IP         0x000006C9
-#define MSR_PENTIUM_4_LASTBRANCH_10_TO_IP        0x000006CA
-#define MSR_PENTIUM_4_LASTBRANCH_11_TO_IP        0x000006CB
-#define MSR_PENTIUM_4_LASTBRANCH_12_TO_IP        0x000006CC
-#define MSR_PENTIUM_4_LASTBRANCH_13_TO_IP        0x000006CD
-#define MSR_PENTIUM_4_LASTBRANCH_14_TO_IP        0x000006CE
-#define MSR_PENTIUM_4_LASTBRANCH_15_TO_IP        0x000006CF
+#define MSR_PENTIUM_4_LASTBRANCH_0_TO_IP   0x000006C0
+#define MSR_PENTIUM_4_LASTBRANCH_1_TO_IP   0x000006C1
+#define MSR_PENTIUM_4_LASTBRANCH_2_TO_IP   0x000006C2
+#define MSR_PENTIUM_4_LASTBRANCH_3_TO_IP   0x000006C3
+#define MSR_PENTIUM_4_LASTBRANCH_4_TO_IP   0x000006C4
+#define MSR_PENTIUM_4_LASTBRANCH_5_TO_IP   0x000006C5
+#define MSR_PENTIUM_4_LASTBRANCH_6_TO_IP   0x000006C6
+#define MSR_PENTIUM_4_LASTBRANCH_7_TO_IP   0x000006C7
+#define MSR_PENTIUM_4_LASTBRANCH_8_TO_IP   0x000006C8
+#define MSR_PENTIUM_4_LASTBRANCH_9_TO_IP   0x000006C9
+#define MSR_PENTIUM_4_LASTBRANCH_10_TO_IP  0x000006CA
+#define MSR_PENTIUM_4_LASTBRANCH_11_TO_IP  0x000006CB
+#define MSR_PENTIUM_4_LASTBRANCH_12_TO_IP  0x000006CC
+#define MSR_PENTIUM_4_LASTBRANCH_13_TO_IP  0x000006CD
+#define MSR_PENTIUM_4_LASTBRANCH_14_TO_IP  0x000006CE
+#define MSR_PENTIUM_4_LASTBRANCH_15_TO_IP  0x000006CF
 /// @}
-
 
 /**
   3, 4. Shared. IFSB BUSQ Event Control and Counter Register (R/W) See Section
@@ -2420,8 +2335,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_BUSQ0 is defined as MSR_IFSB_BUSQ0 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_BUSQ0                 0x000107CC
-
+#define MSR_PENTIUM_4_IFSB_BUSQ0  0x000107CC
 
 /**
   3, 4. Shared. IFSB BUSQ Event Control and Counter Register (R/W).
@@ -2439,8 +2353,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_BUSQ1 is defined as MSR_IFSB_BUSQ1 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_BUSQ1                 0x000107CD
-
+#define MSR_PENTIUM_4_IFSB_BUSQ1  0x000107CD
 
 /**
   3, 4. Shared. IFSB SNPQ Event Control and Counter Register (R/W) See Section
@@ -2460,8 +2373,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_SNPQ0 is defined as MSR_IFSB_SNPQ0 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_SNPQ0                 0x000107CE
-
+#define MSR_PENTIUM_4_IFSB_SNPQ0  0x000107CE
 
 /**
   3, 4. Shared. IFSB SNPQ Event Control and Counter Register (R/W).
@@ -2479,8 +2391,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_SNPQ1 is defined as MSR_IFSB_SNPQ1 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_SNPQ1                 0x000107CF
-
+#define MSR_PENTIUM_4_IFSB_SNPQ1  0x000107CF
 
 /**
   3, 4. Shared. EFSB DRDY Event Control and Counter Register (R/W) See Section
@@ -2500,8 +2411,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EFSB_DRDY0 is defined as MSR_EFSB_DRDY0 in SDM.
 **/
-#define MSR_PENTIUM_4_EFSB_DRDY0                 0x000107D0
-
+#define MSR_PENTIUM_4_EFSB_DRDY0  0x000107D0
 
 /**
   3, 4. Shared. EFSB DRDY Event Control and Counter Register (R/W).
@@ -2519,8 +2429,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EFSB_DRDY1 is defined as MSR_EFSB_DRDY1 in SDM.
 **/
-#define MSR_PENTIUM_4_EFSB_DRDY1                 0x000107D1
-
+#define MSR_PENTIUM_4_EFSB_DRDY1  0x000107D1
 
 /**
   3, 4. Shared. IFSB Latency Event Control Register (R/W) See Section 18.6.6,
@@ -2540,8 +2449,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_CTL6 is defined as MSR_IFSB_CTL6 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_CTL6                  0x000107D2
-
+#define MSR_PENTIUM_4_IFSB_CTL6  0x000107D2
 
 /**
   3, 4. Shared. IFSB Latency Event Counter Register (R/W) See Section 18.6.6,
@@ -2561,8 +2469,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_IFSB_CNTR7 is defined as MSR_IFSB_CNTR7 in SDM.
 **/
-#define MSR_PENTIUM_4_IFSB_CNTR7                 0x000107D3
-
+#define MSR_PENTIUM_4_IFSB_CNTR7  0x000107D3
 
 /**
   6. Shared. GBUSQ Event Control and Counter Register (R/W) See Section
@@ -2582,8 +2489,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL0 is defined as MSR_EMON_L3_CTR_CTL0 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL0           0x000107CC
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL0  0x000107CC
 
 /**
   6. Shared. GBUSQ Event Control and Counter Register (R/W).
@@ -2601,8 +2507,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL1 is defined as MSR_EMON_L3_CTR_CTL1 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL1           0x000107CD
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL1  0x000107CD
 
 /**
   6. Shared. GSNPQ Event Control and Counter Register (R/W) See Section
@@ -2622,8 +2527,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL2 is defined as MSR_EMON_L3_CTR_CTL2 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL2           0x000107CE
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL2  0x000107CE
 
 /**
   6. Shared. GSNPQ Event Control and Counter Register (R/W).
@@ -2641,8 +2545,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL3 is defined as MSR_EMON_L3_CTR_CTL3 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL3           0x000107CF
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL3  0x000107CF
 
 /**
   6. Shared. FSB Event Control and Counter Register (R/W) See Section 18.6.6,
@@ -2662,8 +2565,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL4 is defined as MSR_EMON_L3_CTR_CTL4 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL4           0x000107D0
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL4  0x000107D0
 
 /**
   6. Shared. FSB Event Control and Counter Register (R/W).
@@ -2681,8 +2583,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL5 is defined as MSR_EMON_L3_CTR_CTL5 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL5           0x000107D1
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL5  0x000107D1
 
 /**
   6. Shared. FSB Event Control and Counter Register (R/W).
@@ -2700,8 +2601,7 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL6 is defined as MSR_EMON_L3_CTR_CTL6 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL6           0x000107D2
-
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL6  0x000107D2
 
 /**
   6. Shared. FSB Event Control and Counter Register (R/W).
@@ -2719,6 +2619,6 @@ typedef union {
   @endcode
   @note MSR_PENTIUM_4_EMON_L3_CTR_CTL7 is defined as MSR_EMON_L3_CTR_CTL7 in SDM.
 **/
-#define MSR_PENTIUM_4_EMON_L3_CTR_CTL7           0x000107D3
+#define MSR_PENTIUM_4_EMON_L3_CTR_CTL7  0x000107D3
 
 #endif

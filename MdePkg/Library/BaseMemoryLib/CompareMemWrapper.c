@@ -48,9 +48,10 @@ CompareMem (
   IN UINTN       Length
   )
 {
-  if (Length == 0 || DestinationBuffer == SourceBuffer) {
+  if ((Length == 0) || (DestinationBuffer == SourceBuffer)) {
     return 0;
   }
+
   ASSERT (DestinationBuffer != NULL);
   ASSERT (SourceBuffer != NULL);
   ASSERT ((Length - 1) <= (MAX_ADDRESS - (UINTN)DestinationBuffer));

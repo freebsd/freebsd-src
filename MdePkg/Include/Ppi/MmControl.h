@@ -14,14 +14,13 @@
 
 **/
 
-
 #ifndef _MM_CONTROL_PPI_H_
 #define _MM_CONTROL_PPI_H_
 
 #define EFI_PEI_MM_CONTROL_PPI_GUID \
   { 0x61c68702, 0x4d7e, 0x4f43, 0x8d, 0xef, 0xa7, 0x43, 0x5, 0xce, 0x74, 0xc5 }
 
-typedef struct _EFI_PEI_MM_CONTROL_PPI  EFI_PEI_MM_CONTROL_PPI;
+typedef struct _EFI_PEI_MM_CONTROL_PPI EFI_PEI_MM_CONTROL_PPI;
 
 /**
   Invokes PPI activation from the PI PEI environment.
@@ -45,9 +44,9 @@ typedef struct _EFI_PEI_MM_CONTROL_PPI  EFI_PEI_MM_CONTROL_PPI;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_PEI_MM_ACTIVATE) (
+(EFIAPI *EFI_PEI_MM_ACTIVATE)(
   IN EFI_PEI_SERVICES                                **PeiServices,
-  IN EFI_PEI_MM_CONTROL_PPI                          * This,
+  IN EFI_PEI_MM_CONTROL_PPI                          *This,
   IN OUT INT8                                        *ArgumentBuffer OPTIONAL,
   IN OUT UINTN                                       *ArgumentBufferSize OPTIONAL,
   IN BOOLEAN                                         Periodic OPTIONAL,
@@ -69,9 +68,9 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *PEI_MM_DEACTIVATE) (
+(EFIAPI *EFI_PEI_MM_DEACTIVATE)(
   IN EFI_PEI_SERVICES                      **PeiServices,
-  IN EFI_PEI_MM_CONTROL_PPI                * This,
+  IN EFI_PEI_MM_CONTROL_PPI                *This,
   IN BOOLEAN                               Periodic OPTIONAL
   );
 
@@ -80,11 +79,11 @@ EFI_STATUS
 ///  platform hardware that generates an MMI. There are often I/O ports that, when accessed, will
 ///  generate the MMI. Also, the hardware optionally supports the periodic generation of these signals.
 ///
-struct _PEI_MM_CONTROL_PPI {
-  PEI_MM_ACTIVATE    Trigger;
-  PEI_MM_DEACTIVATE  Clear;
+struct _EFI_PEI_MM_CONTROL_PPI {
+  EFI_PEI_MM_ACTIVATE      Trigger;
+  EFI_PEI_MM_DEACTIVATE    Clear;
 };
 
-extern EFI_GUID gEfiPeiMmControlPpiGuid;
+extern EFI_GUID  gEfiPeiMmControlPpiGuid;
 
 #endif

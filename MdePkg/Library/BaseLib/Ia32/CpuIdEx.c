@@ -41,12 +41,12 @@
 UINT32
 EFIAPI
 AsmCpuidEx (
-  IN      UINT32                    Index,
-  IN      UINT32                    SubIndex,
-  OUT     UINT32                    *RegisterEax,  OPTIONAL
-  OUT     UINT32                    *RegisterEbx,  OPTIONAL
-  OUT     UINT32                    *RegisterEcx,  OPTIONAL
-  OUT     UINT32                    *RegisterEdx   OPTIONAL
+  IN      UINT32  Index,
+  IN      UINT32  SubIndex,
+  OUT     UINT32  *RegisterEax   OPTIONAL,
+  OUT     UINT32  *RegisterEbx   OPTIONAL,
+  OUT     UINT32  *RegisterEcx   OPTIONAL,
+  OUT     UINT32  *RegisterEdx   OPTIONAL
   )
 {
   _asm {

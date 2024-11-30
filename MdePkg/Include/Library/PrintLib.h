@@ -192,10 +192,10 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 /// Flags bitmask values use in UnicodeValueToString() and
 /// AsciiValueToString()
 ///
-#define LEFT_JUSTIFY      0x01
-#define COMMA_TYPE        0x08
-#define PREFIX_ZERO       0x20
-#define RADIX_HEX         0x80
+#define LEFT_JUSTIFY  0x01
+#define COMMA_TYPE    0x08
+#define PREFIX_ZERO   0x20
+#define RADIX_HEX     0x80
 
 /**
   Produces a Null-terminated Unicode string in an output buffer based on
@@ -485,62 +485,6 @@ UnicodeSPrintAsciiFormat (
   ...
   );
 
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function is deprecated for security reason.
-
-  Converts a decimal value to a Null-terminated Unicode string.
-
-  Converts the decimal number specified by Value to a Null-terminated Unicode
-  string specified by Buffer containing at most Width characters. No padding of spaces
-  is ever performed. If Width is 0 then a width of MAXIMUM_VALUE_CHARACTERS is assumed.
-  The number of Unicode characters in Buffer is returned, not including the Null-terminator.
-  If the conversion contains more than Width characters, then only the first
-  Width characters are returned, and the total number of characters
-  required to perform the conversion is returned.
-  Additional conversion parameters are specified in Flags.
-
-  The Flags bit LEFT_JUSTIFY is always ignored.
-  All conversions are left justified in Buffer.
-  If Width is 0, PREFIX_ZERO is ignored in Flags.
-  If COMMA_TYPE is set in Flags, then PREFIX_ZERO is ignored in Flags, and commas
-  are inserted every 3rd digit starting from the right.
-  If RADIX_HEX is set in Flags, then the output buffer will be
-  formatted in hexadecimal format.
-  If Value is < 0 and RADIX_HEX is not set in Flags, then the fist character in Buffer is a '-'.
-  If PREFIX_ZERO is set in Flags and PREFIX_ZERO is not being ignored,
-  then Buffer is padded with '0' characters so the combination of the optional '-'
-  sign character, '0' characters, digit characters for Value, and the Null-terminator
-  add up to Width characters.
-  If both COMMA_TYPE and RADIX_HEX are set in Flags, then ASSERT().
-  If Buffer is NULL, then ASSERT().
-  If Buffer is not aligned on a 16-bit boundary, then ASSERT().
-  If unsupported bits are set in Flags, then ASSERT().
-  If both COMMA_TYPE and RADIX_HEX are set in Flags, then ASSERT().
-  If Width >= MAXIMUM_VALUE_CHARACTERS, then ASSERT()
-
-  @param  Buffer  The pointer to the output buffer for the produced Null-terminated
-                  Unicode string.
-  @param  Flags   The bitmask of flags that specify left justification, zero pad, and commas.
-  @param  Value   The 64-bit signed value to convert to a string.
-  @param  Width   The maximum number of Unicode characters to place in Buffer, not including
-                  the Null-terminator.
-
-  @return The number of Unicode characters in Buffer, not including the Null-terminator.
-
-**/
-UINTN
-EFIAPI
-UnicodeValueToString (
-  IN OUT CHAR16  *Buffer,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width
-  );
-
-#endif
-
 /**
   Converts a decimal value to a Null-terminated Unicode string.
 
@@ -642,10 +586,10 @@ UnicodeValueToStringS (
 UINTN
 EFIAPI
 AsciiVSPrint (
-  OUT CHAR8         *StartOfBuffer,
-  IN  UINTN         BufferSize,
-  IN  CONST CHAR8   *FormatString,
-  IN  VA_LIST       Marker
+  OUT CHAR8        *StartOfBuffer,
+  IN  UINTN        BufferSize,
+  IN  CONST CHAR8  *FormatString,
+  IN  VA_LIST      Marker
   );
 
 /**
@@ -686,10 +630,10 @@ AsciiVSPrint (
 UINTN
 EFIAPI
 AsciiBSPrint (
-  OUT CHAR8         *StartOfBuffer,
-  IN  UINTN         BufferSize,
-  IN  CONST CHAR8   *FormatString,
-  IN  BASE_LIST     Marker
+  OUT CHAR8        *StartOfBuffer,
+  IN  UINTN        BufferSize,
+  IN  CONST CHAR8  *FormatString,
+  IN  BASE_LIST    Marker
   );
 
 /**
@@ -882,61 +826,6 @@ AsciiSPrintUnicodeFormat (
   ...
   );
 
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function is deprecated for security reason.
-
-  Converts a decimal value to a Null-terminated ASCII string.
-
-  Converts the decimal number specified by Value to a Null-terminated ASCII string
-  specified by Buffer containing at most Width characters. No padding of spaces
-  is ever performed.
-  If Width is 0 then a width of  MAXIMUM_VALUE_CHARACTERS is assumed.
-  The number of ASCII characters in Buffer is returned, not including the Null-terminator.
-  If the conversion contains more than Width characters, then only the first Width
-  characters are returned, and the total number of characters required to perform
-  the conversion is returned.
-  Additional conversion parameters are specified in Flags.
-  The Flags bit LEFT_JUSTIFY is always ignored.
-  All conversions are left justified in Buffer.
-  If Width is 0, PREFIX_ZERO is ignored in Flags.
-  If COMMA_TYPE is set in Flags, then PREFIX_ZERO is ignored in Flags, and commas
-  are inserted every 3rd digit starting from the right.
-  If RADIX_HEX is set in Flags, then the output buffer will be
-  formatted in hexadecimal format.
-  If Value is < 0 and RADIX_HEX is not set in Flags, then the fist character in Buffer is a '-'.
-  If PREFIX_ZERO is set in Flags and PREFIX_ZERO is not being ignored,
-  then Buffer is padded with '0' characters so the combination of the optional '-'
-  sign character, '0' characters, digit characters for Value, and the Null-terminator
-  add up to Width characters.
-
-  If Buffer is NULL, then ASSERT().
-  If unsupported bits are set in Flags, then ASSERT().
-  If both COMMA_TYPE and RADIX_HEX are set in Flags, then ASSERT().
-  If Width >= MAXIMUM_VALUE_CHARACTERS, then ASSERT()
-
-  @param  Buffer  A pointer to the output buffer for the produced Null-terminated
-                  ASCII string.
-  @param  Flags   The bitmask of flags that specify left justification, zero pad, and commas.
-  @param  Value   The 64-bit signed value to convert to a string.
-  @param  Width   The maximum number of ASCII characters to place in Buffer, not including
-                  the Null-terminator.
-
-  @return The number of ASCII characters in Buffer, not including the Null-terminator.
-
-**/
-UINTN
-EFIAPI
-AsciiValueToString (
-  OUT CHAR8      *Buffer,
-  IN  UINTN      Flags,
-  IN  INT64      Value,
-  IN  UINTN      Width
-  );
-
-#endif
-
 /**
   Converts a decimal value to a Null-terminated Ascii string.
 
@@ -989,11 +878,11 @@ AsciiValueToString (
 RETURN_STATUS
 EFIAPI
 AsciiValueToStringS (
-  IN OUT CHAR8   *Buffer,
-  IN UINTN       BufferSize,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width
+  IN OUT CHAR8  *Buffer,
+  IN UINTN      BufferSize,
+  IN UINTN      Flags,
+  IN INT64      Value,
+  IN UINTN      Width
   );
 
 /**
@@ -1016,7 +905,7 @@ AsciiValueToStringS (
 UINTN
 EFIAPI
 SPrintLength (
-  IN  CONST CHAR16   *FormatString,
+  IN  CONST CHAR16  *FormatString,
   IN  VA_LIST       Marker
   );
 
@@ -1038,8 +927,8 @@ SPrintLength (
 UINTN
 EFIAPI
 SPrintLengthAsciiFormat (
-  IN  CONST CHAR8   *FormatString,
-  IN  VA_LIST       Marker
+  IN  CONST CHAR8  *FormatString,
+  IN  VA_LIST      Marker
   );
 
 #endif

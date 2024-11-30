@@ -30,13 +30,13 @@ EFI_CPU_IO2_PROTOCOL  *mCpuIo = NULL;
 EFI_STATUS
 EFIAPI
 IoLibConstructor (
-  IN      EFI_HANDLE                ImageHandle,
-  IN      EFI_SYSTEM_TABLE          *SystemTable
+  IN      EFI_HANDLE        ImageHandle,
+  IN      EFI_SYSTEM_TABLE  *SystemTable
   )
 {
   EFI_STATUS  Status;
 
-  Status = gBS->LocateProtocol (&gEfiCpuIo2ProtocolGuid, NULL, (VOID **) &mCpuIo);
+  Status = gBS->LocateProtocol (&gEfiCpuIo2ProtocolGuid, NULL, (VOID **)&mCpuIo);
   ASSERT_EFI_ERROR (Status);
 
   return Status;
@@ -247,7 +247,7 @@ MmioWriteWorker (
 UINT8
 EFIAPI
 IoRead8 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   return (UINT8)IoReadWorker (Port, EfiCpuIoWidthUint8);
@@ -271,8 +271,8 @@ IoRead8 (
 UINT8
 EFIAPI
 IoWrite8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     Value
+  IN      UINTN  Port,
+  IN      UINT8  Value
   )
 {
   return (UINT8)IoWriteWorker (Port, EfiCpuIoWidthUint8, Value);
@@ -297,7 +297,7 @@ IoWrite8 (
 UINT16
 EFIAPI
 IoRead16 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -327,8 +327,8 @@ IoRead16 (
 UINT16
 EFIAPI
 IoWrite16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    Value
+  IN      UINTN   Port,
+  IN      UINT16  Value
   )
 {
   //
@@ -357,7 +357,7 @@ IoWrite16 (
 UINT32
 EFIAPI
 IoRead32 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -387,8 +387,8 @@ IoRead32 (
 UINT32
 EFIAPI
 IoWrite32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    Value
+  IN      UINTN   Port,
+  IN      UINT32  Value
   )
 {
   //
@@ -417,7 +417,7 @@ IoWrite32 (
 UINT64
 EFIAPI
 IoRead64 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -447,8 +447,8 @@ IoRead64 (
 UINT64
 EFIAPI
 IoWrite64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    Value
+  IN      UINTN   Port,
+  IN      UINT64  Value
   )
 {
   //
@@ -478,9 +478,9 @@ IoWrite64 (
 VOID
 EFIAPI
 IoReadFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   IoReadFifoWorker (Port, EfiCpuIoWidthFifoUint8, Count, Buffer);
@@ -506,9 +506,9 @@ IoReadFifo8 (
 VOID
 EFIAPI
 IoWriteFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   IoWriteFifoWorker (Port, EfiCpuIoWidthFifoUint8, Count, Buffer);
@@ -534,9 +534,9 @@ IoWriteFifo8 (
 VOID
 EFIAPI
 IoReadFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   //
@@ -566,9 +566,9 @@ IoReadFifo16 (
 VOID
 EFIAPI
 IoWriteFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   //
@@ -598,9 +598,9 @@ IoWriteFifo16 (
 VOID
 EFIAPI
 IoReadFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   //
@@ -630,9 +630,9 @@ IoReadFifo32 (
 VOID
 EFIAPI
 IoWriteFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   //
@@ -659,7 +659,7 @@ IoWriteFifo32 (
 UINT8
 EFIAPI
 MmioRead8 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   return (UINT8)MmioReadWorker (Address, EfiCpuIoWidthUint8);
@@ -681,8 +681,8 @@ MmioRead8 (
 UINT8
 EFIAPI
 MmioWrite8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     Value
+  IN      UINTN  Address,
+  IN      UINT8  Value
   )
 {
   return (UINT8)MmioWriteWorker (Address, EfiCpuIoWidthUint8, Value);
@@ -707,7 +707,7 @@ MmioWrite8 (
 UINT16
 EFIAPI
 MmioRead16 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -735,8 +735,8 @@ MmioRead16 (
 UINT16
 EFIAPI
 MmioWrite16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    Value
+  IN      UINTN   Address,
+  IN      UINT16  Value
   )
 {
   //
@@ -765,7 +765,7 @@ MmioWrite16 (
 UINT32
 EFIAPI
 MmioRead32 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -793,8 +793,8 @@ MmioRead32 (
 UINT32
 EFIAPI
 MmioWrite32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    Value
+  IN      UINTN   Address,
+  IN      UINT32  Value
   )
 {
   //
@@ -823,7 +823,7 @@ MmioWrite32 (
 UINT64
 EFIAPI
 MmioRead64 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -851,8 +851,8 @@ MmioRead64 (
 UINT64
 EFIAPI
 MmioWrite64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    Value
+  IN      UINTN   Address,
+  IN      UINT64  Value
   )
 {
   //

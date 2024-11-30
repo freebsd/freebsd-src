@@ -8,7 +8,10 @@
 
 #include "BaseLibInternals.h"
 
-extern UINT32 RiscVGetSupervisorModeInterrupts (VOID);
+extern UINT32
+RiscVGetSupervisorModeInterrupts (
+  VOID
+  );
 
 /**
   Retrieves the current CPU interrupt state.
@@ -26,10 +29,8 @@ GetInterruptState (
   VOID
   )
 {
-  unsigned long RetValue;
+  unsigned long  RetValue;
 
   RetValue = RiscVGetSupervisorModeInterrupts ();
-  return RetValue? TRUE: FALSE;
+  return RetValue ? TRUE : FALSE;
 }
-
-

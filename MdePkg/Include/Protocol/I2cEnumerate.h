@@ -16,9 +16,9 @@
 
 #include <Pi/PiI2c.h>
 
-#define EFI_I2C_ENUMERATE_PROTOCOL_GUID   { 0xda8cd7c4, 0x1c00, 0x49e2, { 0x80, 0x3e, 0x52, 0x14, 0xe7, 0x01, 0x89, 0x4c }}
+#define EFI_I2C_ENUMERATE_PROTOCOL_GUID  { 0xda8cd7c4, 0x1c00, 0x49e2, { 0x80, 0x3e, 0x52, 0x14, 0xe7, 0x01, 0x89, 0x4c }}
 
-typedef struct _EFI_I2C_ENUMERATE_PROTOCOL  EFI_I2C_ENUMERATE_PROTOCOL;
+typedef struct _EFI_I2C_ENUMERATE_PROTOCOL EFI_I2C_ENUMERATE_PROTOCOL;
 
 /**
   Enumerate the I2C devices
@@ -45,7 +45,7 @@ typedef struct _EFI_I2C_ENUMERATE_PROTOCOL  EFI_I2C_ENUMERATE_PROTOCOL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_I2C_ENUMERATE_PROTOCOL_ENUMERATE) (
+(EFIAPI *EFI_I2C_ENUMERATE_PROTOCOL_ENUMERATE)(
   IN CONST EFI_I2C_ENUMERATE_PROTOCOL *This,
   IN OUT CONST EFI_I2C_DEVICE         **Device
   );
@@ -73,7 +73,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_I2C_ENUMERATE_PROTOCOL_GET_BUS_FREQUENCY) (
+(EFIAPI *EFI_I2C_ENUMERATE_PROTOCOL_GET_BUS_FREQUENCY)(
   IN CONST EFI_I2C_ENUMERATE_PROTOCOL *This,
   IN UINTN                            I2cBusConfiguration,
   OUT UINTN                           *BusClockHertz
@@ -87,18 +87,18 @@ struct _EFI_I2C_ENUMERATE_PROTOCOL {
   /// Traverse the set of I2C devices on an I2C bus.  This routine
   /// returns the next I2C device on an I2C bus.
   ///
-  EFI_I2C_ENUMERATE_PROTOCOL_ENUMERATE         Enumerate;
+  EFI_I2C_ENUMERATE_PROTOCOL_ENUMERATE            Enumerate;
 
   ///
   /// Get the requested I2C bus frequency for a specified bus
   /// configuration.
   ///
-  EFI_I2C_ENUMERATE_PROTOCOL_GET_BUS_FREQUENCY GetBusFrequency;
+  EFI_I2C_ENUMERATE_PROTOCOL_GET_BUS_FREQUENCY    GetBusFrequency;
 };
 
 ///
 /// Reference to variable defined in the .DEC file
 ///
-extern EFI_GUID gEfiI2cEnumerateProtocolGuid;
+extern EFI_GUID  gEfiI2cEnumerateProtocolGuid;
 
-#endif  //  __I2C_ENUMERATE_H__
+#endif //  __I2C_ENUMERATE_H__

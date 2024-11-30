@@ -25,7 +25,7 @@
 /// child registration for each SwMmiInputValue.
 ///
 typedef struct {
-  UINTN SwMmiInputValue;
+  UINTN    SwMmiInputValue;
 } EFI_MM_SW_REGISTER_CONTEXT;
 
 ///
@@ -38,18 +38,18 @@ typedef struct {
   ///
   /// The 0-based index of the CPU which generated the software MMI.
   ///
-  UINTN SwMmiCpuIndex;
+  UINTN    SwMmiCpuIndex;
   ///
   /// This value corresponds directly to the CommandPort parameter used in the call to Trigger().
   ///
-  UINT8 CommandPort;
+  UINT8    CommandPort;
   ///
   /// This value corresponds directly to the DataPort parameter used in the call to Trigger().
   ///
-  UINT8 DataPort;
+  UINT8    DataPort;
 } EFI_MM_SW_CONTEXT;
 
-typedef struct _EFI_MM_SW_DISPATCH_PROTOCOL  EFI_MM_SW_DISPATCH_PROTOCOL;
+typedef struct _EFI_MM_SW_DISPATCH_PROTOCOL EFI_MM_SW_DISPATCH_PROTOCOL;
 
 /**
   Register a child MMI source dispatch function for the specified software MMI.
@@ -106,7 +106,7 @@ EFI_STATUS
 (EFIAPI *EFI_MM_SW_UNREGISTER)(
   IN CONST EFI_MM_SW_DISPATCH_PROTOCOL  *This,
   IN       EFI_HANDLE                   DispatchHandle
-);
+  );
 
 ///
 /// Interface structure for the MM Software MMI Dispatch Protocol.
@@ -116,15 +116,15 @@ EFI_STATUS
 /// interrupt in the EFI_MM_SW_REGISTER_CONTEXT is denoted by MaximumSwiValue.
 ///
 struct _EFI_MM_SW_DISPATCH_PROTOCOL {
-  EFI_MM_SW_REGISTER    Register;
-  EFI_MM_SW_UNREGISTER  UnRegister;
+  EFI_MM_SW_REGISTER      Register;
+  EFI_MM_SW_UNREGISTER    UnRegister;
   ///
   /// A read-only field that describes the maximum value that can be used in the
   /// EFI_MM_SW_DISPATCH_PROTOCOL.Register() service.
   ///
-  UINTN                 MaximumSwiValue;
+  UINTN                   MaximumSwiValue;
 };
 
-extern EFI_GUID gEfiMmSwDispatchProtocolGuid;
+extern EFI_GUID  gEfiMmSwDispatchProtocolGuid;
 
 #endif

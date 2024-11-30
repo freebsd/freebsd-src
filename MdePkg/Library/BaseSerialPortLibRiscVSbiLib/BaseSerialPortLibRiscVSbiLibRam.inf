@@ -1,0 +1,38 @@
+## @file
+#  Serial Port Library backed by SBI console.
+#
+#  Meant for PrePi and DXE environments (where globals are allowed). See
+#  BaseSerialPortLibRiscVSbiLib.inf for a reduced variant appropriate
+#  for SEC and PEI (XIP) environments.
+#
+#  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = BaseSerialPortLibRiscVSbiLibRam
+  MODULE_UNI_FILE                = BaseSerialPortLibRiscVSbiLib.uni
+  FILE_GUID                      = 872af743-ab56-45b4-a065-602567f4820c
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SerialPortLib | SEC DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION
+
+
+#
+#  VALID_ARCHITECTURES           = RISCV64
+#
+
+[Sources]
+  BaseSerialPortLibRiscVSbiLibRam.c
+  Common.c
+  Common.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  RiscVSbiLib

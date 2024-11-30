@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -44,15 +44,15 @@ ASM_PFX(InternalMemCopyMem):
     and     r8, 7
     shr     rcx, 3                      ; rcx <- # of Qwords to copy
     jz      @CopyBytes
-    DB      0x49, 0xf, 0x7e, 0xc2         ; movd r10, mm0 (Save mm0 in r10)
+    movq    r10, mm0
 .1:
-    DB      0xf, 0x6f, 0x6               ; movd mm0, [rsi]
-    DB      0xf, 0xe7, 0x7              ; movntq [rdi], mm0
+    movq    mm0, [rsi]
+    movntq  [rdi], mm0
     add     rsi, 8
     add     rdi, 8
     loop    .1
     mfence
-    DB      0x49, 0xf, 0x6e, 0xc2         ; movd mm0, r10 (Restore mm0)
+    movq    mm0, r10
     jmp     @CopyBytes
 @CopyBackward:
     mov     rsi, r9                     ; rsi <- End of Source

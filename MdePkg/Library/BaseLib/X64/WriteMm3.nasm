@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -27,9 +27,6 @@
 ;------------------------------------------------------------------------------
 global ASM_PFX(AsmWriteMm3)
 ASM_PFX(AsmWriteMm3):
-    ;
-    ; 64-bit MASM doesn't support MMX instructions, so use opcode here
-    ;
-    DB      0x48, 0xf, 0x6e, 0xd9
+    movq    mm3, rcx
     ret
 

@@ -34,11 +34,11 @@
 UINT32
 EFIAPI
 AsmCpuid (
-  IN      UINT32                    Index,
-  OUT     UINT32                    *RegisterEax,  OPTIONAL
-  OUT     UINT32                    *RegisterEbx,  OPTIONAL
-  OUT     UINT32                    *RegisterEcx,  OPTIONAL
-  OUT     UINT32                    *RegisterEdx   OPTIONAL
+  IN      UINT32  Index,
+  OUT     UINT32  *RegisterEax   OPTIONAL,
+  OUT     UINT32  *RegisterEbx   OPTIONAL,
+  OUT     UINT32  *RegisterEcx   OPTIONAL,
+  OUT     UINT32  *RegisterEdx   OPTIONAL
   )
 {
   _asm {
@@ -65,4 +65,3 @@ SkipEdx:
     mov     eax, Index
   }
 }
-

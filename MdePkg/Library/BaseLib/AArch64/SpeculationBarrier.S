@@ -28,6 +28,7 @@ GCC_ASM_EXPORT(SpeculationBarrier)
 #  );
 #
 ASM_PFX(SpeculationBarrier):
+    AARCH64_BTI(c)
     dsb  sy
     isb
     ret

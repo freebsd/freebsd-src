@@ -13,7 +13,7 @@
 #pragma pack(1)
 
 ///
-/// TLS Cipher Suite, refers to A.5 of rfc-2246, rfc-4346 and rfc-5246.
+/// TLS Cipher Suite, refers to A.5 of rfc-2246, rfc-4346, rfc-5246, rfc-5288 and rfc-5289.
 ///
 #define TLS_RSA_WITH_NULL_MD5                    {0x00, 0x01}
 #define TLS_RSA_WITH_NULL_SHA                    {0x00, 0x02}
@@ -51,6 +51,10 @@
 #define TLS_DH_RSA_WITH_AES_256_CBC_SHA256       {0x00, 0x69}
 #define TLS_DHE_DSS_WITH_AES_256_CBC_SHA256      {0x00, 0x6A}
 #define TLS_DHE_RSA_WITH_AES_256_CBC_SHA256      {0x00, 0x6B}
+#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      {0x00, 0x9F}
+#define TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256  {0xC0, 0x2B}
+#define TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384  {0xC0, 0x2C}
+#define TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384    {0xC0, 0x30}
 
 ///
 /// TLS Version, refers to A.1 of rfc-2246, rfc-4346 and rfc-5246.
@@ -76,26 +80,59 @@ typedef enum {
 /// TLS Record Header, refers to A.1 of rfc-2246, rfc-4346 and rfc-5246.
 ///
 typedef struct {
-  UINT8                   ContentType;
-  EFI_TLS_VERSION         Version;
-  UINT16                  Length;
+  UINT8              ContentType;
+  EFI_TLS_VERSION    Version;
+  UINT16             Length;
 } TLS_RECORD_HEADER;
 
-#define TLS_RECORD_HEADER_LENGTH   5
+#define TLS_RECORD_HEADER_LENGTH  5
 
 //
 // The length (in bytes) of the TLSPlaintext records payload MUST NOT exceed 2^14.
 // Refers to section 6.2 of RFC5246.
 //
-#define TLS_PLAINTEXT_RECORD_MAX_PAYLOAD_LENGTH   16384
+#define TLS_PLAINTEXT_RECORD_MAX_PAYLOAD_LENGTH  16384
 
 //
 // The length (in bytes) of the TLSCiphertext records payload MUST NOT exceed 2^14 + 2048.
 // Refers to section 6.2 of RFC5246.
 //
-#define TLS_CIPHERTEXT_RECORD_MAX_PAYLOAD_LENGTH   18432
+#define TLS_CIPHERTEXT_RECORD_MAX_PAYLOAD_LENGTH  18432
+
+///
+/// TLS Hash algorithm, refers to section 7.4.1.4.1. of rfc-5246.
+///
+typedef enum {
+  TlsHashAlgoNone   = 0,
+  TlsHashAlgoMd5    = 1,
+  TlsHashAlgoSha1   = 2,
+  TlsHashAlgoSha224 = 3,
+  TlsHashAlgoSha256 = 4,
+  TlsHashAlgoSha384 = 5,
+  TlsHashAlgoSha512 = 6,
+} TLS_HASH_ALGO;
+
+///
+/// TLS Signature algorithm, refers to section 7.4.1.4.1. of rfc-5246.
+///
+typedef enum {
+  TlsSignatureAlgoAnonymous = 0,
+  TlsSignatureAlgoRsa       = 1,
+  TlsSignatureAlgoDsa       = 2,
+  TlsSignatureAlgoEcdsa     = 3,
+} TLS_SIGNATURE_ALGO;
+
+///
+/// TLS Supported Elliptic Curves Extensions, refers to section 5.1.1 of rfc-8422.
+///
+typedef enum {
+  TlsEcNamedCurveSecp256r1 = 23,
+  TlsEcNamedCurveSecp384r1 = 24,
+  TlsEcNamedCurveSecp521r1 = 25,
+  TlsEcNamedCurveX25519    = 29,
+  TlsEcNamedCurveX448      = 30,
+} TLS_EC_NAMED_CURVE;
 
 #pragma pack()
 
 #endif
-

@@ -17,7 +17,7 @@
 #include <Protocol/MmConfiguration.h>
 #include <Pi/PiSmmCis.h>
 
-#define EFI_SMM_CONFIGURATION_PROTOCOL_GUID EFI_MM_CONFIGURATION_PROTOCOL_GUID
+#define EFI_SMM_CONFIGURATION_PROTOCOL_GUID  EFI_MM_CONFIGURATION_PROTOCOL_GUID
 
 ///
 /// Structure describing a SMRAM region which cannot be used for the SMRAM heap.
@@ -35,7 +35,7 @@ typedef struct _EFI_SMM_RESERVED_SMRAM_REGION {
   UINT64                  SmramReservedSize;
 } EFI_SMM_RESERVED_SMRAM_REGION;
 
-typedef struct _EFI_SMM_CONFIGURATION_PROTOCOL  EFI_SMM_CONFIGURATION_PROTOCOL;
+typedef struct _EFI_SMM_CONFIGURATION_PROTOCOL EFI_SMM_CONFIGURATION_PROTOCOL;
 
 /**
   Register the SMM Foundation entry point.
@@ -68,11 +68,10 @@ struct _EFI_SMM_CONFIGURATION_PROTOCOL {
   ///
   /// A pointer to an array SMRAM ranges used by the initial SMM entry code.
   ///
-  EFI_SMM_RESERVED_SMRAM_REGION  *SmramReservedRegions;
-  EFI_SMM_REGISTER_SMM_ENTRY     RegisterSmmEntry;
+  EFI_SMM_RESERVED_SMRAM_REGION    *SmramReservedRegions;
+  EFI_SMM_REGISTER_SMM_ENTRY       RegisterSmmEntry;
 };
 
-extern EFI_GUID gEfiSmmConfigurationProtocolGuid;
+extern EFI_GUID  gEfiSmmConfigurationProtocolGuid;
 
 #endif
-

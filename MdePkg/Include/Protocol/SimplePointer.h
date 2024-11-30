@@ -16,7 +16,7 @@
     0x31878c87, 0xb75, 0x11d5, {0x9a, 0x4f, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
 
-typedef struct _EFI_SIMPLE_POINTER_PROTOCOL  EFI_SIMPLE_POINTER_PROTOCOL;
+typedef struct _EFI_SIMPLE_POINTER_PROTOCOL EFI_SIMPLE_POINTER_PROTOCOL;
 
 //
 // Data structures
@@ -25,25 +25,25 @@ typedef struct {
   ///
   /// The signed distance in counts that the pointer device has been moved along the x-axis.
   ///
-  INT32   RelativeMovementX;
+  INT32      RelativeMovementX;
   ///
   /// The signed distance in counts that the pointer device has been moved along the y-axis.
   ///
-  INT32   RelativeMovementY;
+  INT32      RelativeMovementY;
   ///
   /// The signed distance in counts that the pointer device has been moved along the z-axis.
   ///
-  INT32   RelativeMovementZ;
+  INT32      RelativeMovementZ;
   ///
   /// If TRUE, then the left button of the pointer device is being
   /// pressed. If FALSE, then the left button of the pointer device is not being pressed.
   ///
-  BOOLEAN LeftButton;
+  BOOLEAN    LeftButton;
   ///
   /// If TRUE, then the right button of the pointer device is being
   /// pressed. If FALSE, then the right button of the pointer device is not being pressed.
   ///
-  BOOLEAN RightButton;
+  BOOLEAN    RightButton;
 } EFI_SIMPLE_POINTER_STATE;
 
 typedef struct {
@@ -51,25 +51,25 @@ typedef struct {
   /// The resolution of the pointer device on the x-axis in counts/mm.
   /// If 0, then the pointer device does not support an x-axis.
   ///
-  UINT64  ResolutionX;
+  UINT64     ResolutionX;
   ///
   /// The resolution of the pointer device on the y-axis in counts/mm.
   /// If 0, then the pointer device does not support an x-axis.
   ///
-  UINT64  ResolutionY;
+  UINT64     ResolutionY;
   ///
   /// The resolution of the pointer device on the z-axis in counts/mm.
   /// If 0, then the pointer device does not support an x-axis.
   ///
-  UINT64  ResolutionZ;
+  UINT64     ResolutionZ;
   ///
   /// TRUE if a left button is present on the pointer device. Otherwise FALSE.
   ///
-  BOOLEAN LeftButton;
+  BOOLEAN    LeftButton;
   ///
   /// TRUE if a right button is present on the pointer device. Otherwise FALSE.
   ///
-  BOOLEAN RightButton;
+  BOOLEAN    RightButton;
 } EFI_SIMPLE_POINTER_MODE;
 
 /**
@@ -120,18 +120,18 @@ EFI_STATUS
 /// retrieve the capabilities of the pointer device.
 ///
 struct _EFI_SIMPLE_POINTER_PROTOCOL {
-  EFI_SIMPLE_POINTER_RESET      Reset;
-  EFI_SIMPLE_POINTER_GET_STATE  GetState;
+  EFI_SIMPLE_POINTER_RESET        Reset;
+  EFI_SIMPLE_POINTER_GET_STATE    GetState;
   ///
   /// Event to use with WaitForEvent() to wait for input from the pointer device.
   ///
-  EFI_EVENT                     WaitForInput;
+  EFI_EVENT                       WaitForInput;
   ///
   /// Pointer to EFI_SIMPLE_POINTER_MODE data.
   ///
-  EFI_SIMPLE_POINTER_MODE       *Mode;
+  EFI_SIMPLE_POINTER_MODE         *Mode;
 };
 
-extern EFI_GUID gEfiSimplePointerProtocolGuid;
+extern EFI_GUID  gEfiSimplePointerProtocolGuid;
 
 #endif

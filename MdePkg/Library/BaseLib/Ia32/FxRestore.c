@@ -6,9 +6,7 @@
 
 **/
 
-
 #include "BaseLibInternals.h"
-
 
 /**
   Restores the current floating point/SSE/SSE2 context from a buffer.
@@ -23,7 +21,7 @@
 VOID
 EFIAPI
 InternalX86FxRestore (
-  IN CONST IA32_FX_BUFFER *Buffer
+  IN CONST IA32_FX_BUFFER  *Buffer
   )
 {
   _asm {
@@ -31,4 +29,3 @@ InternalX86FxRestore (
     fxrstor [eax]
   }
 }
-

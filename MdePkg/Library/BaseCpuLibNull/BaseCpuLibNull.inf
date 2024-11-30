@@ -1,0 +1,29 @@
+## @file
+#  Null instance of CPU Library.
+#
+#  Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseCpuLibNull
+  MODULE_UNI_FILE                = BaseCpuLibNull.uni
+  FILE_GUID                      = 8A29AAA5-0FB7-44CC-8709-1344FE89B878
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = CpuLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64
+#
+
+[Sources]
+  BaseCpuLibNull.c
+
+[Sources.IA32, Sources.X64]
+  X86BaseCpuLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec

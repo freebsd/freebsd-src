@@ -1,0 +1,23 @@
+## @file
+#  Null instance of RegisterFilterLib.
+#
+#  Copyright (c) 2021, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = FilterLibNull
+  MODULE_UNI_FILE                = FilterLibNull.uni
+  FILE_GUID                      = 9F555194-A410-4AD6-B3FC-53F6E10FA793
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = RegisterFilterLib
+
+[Sources]
+  RegisterFilterLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec

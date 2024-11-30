@@ -25,7 +25,7 @@
 ///
 /// Forward declaration for EFI_DISK_INFO_PROTOCOL
 ///
-typedef struct _EFI_DISK_INFO_PROTOCOL  EFI_DISK_INFO_PROTOCOL;
+typedef struct _EFI_DISK_INFO_PROTOCOL EFI_DISK_INFO_PROTOCOL;
 
 ///
 /// Global ID for an IDE interface.  Used to fill in EFI_DISK_INFO_PROTOCOL.Interface
@@ -186,36 +186,36 @@ struct _EFI_DISK_INFO_PROTOCOL {
   /// A GUID that defines the format of buffers for the other member functions
   /// of this protocol.
   ///
-  EFI_GUID                  Interface;
+  EFI_GUID                    Interface;
   ///
   /// Return the results of the Inquiry command to a drive in InquiryData. Data
   /// format of Inquiry data is defined by the Interface GUID.
   ///
-  EFI_DISK_INFO_INQUIRY     Inquiry;
+  EFI_DISK_INFO_INQUIRY       Inquiry;
   ///
   /// Return the results of the Identify command to a drive in IdentifyData. Data
   /// format of Identify data is defined by the Interface GUID.
   ///
-  EFI_DISK_INFO_IDENTIFY    Identify;
+  EFI_DISK_INFO_IDENTIFY      Identify;
   ///
   /// Return the results of the Request Sense command to a drive in SenseData. Data
   /// format of Sense data is defined by the Interface GUID.
   ///
-  EFI_DISK_INFO_SENSE_DATA  SenseData;
+  EFI_DISK_INFO_SENSE_DATA    SenseData;
   ///
   /// Specific controller.
   ///
-  EFI_DISK_INFO_WHICH_IDE   WhichIde;
+  EFI_DISK_INFO_WHICH_IDE     WhichIde;
 };
 
-extern EFI_GUID gEfiDiskInfoProtocolGuid;
+extern EFI_GUID  gEfiDiskInfoProtocolGuid;
 
-extern EFI_GUID gEfiDiskInfoIdeInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoScsiInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoUsbInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoAhciInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoNvmeInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoUfsInterfaceGuid;
-extern EFI_GUID gEfiDiskInfoSdMmcInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoIdeInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoScsiInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoUsbInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoAhciInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoNvmeInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoUfsInterfaceGuid;
+extern EFI_GUID  gEfiDiskInfoSdMmcInterfaceGuid;
 
 #endif

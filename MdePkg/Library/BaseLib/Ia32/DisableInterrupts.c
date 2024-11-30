@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Disables CPU interrupts.
 
@@ -23,4 +20,3 @@ DisableInterrupts (
     cli
   }
 }
-

@@ -27,25 +27,25 @@
 ///  EFI_VARIABLE_BOOTSERVICE_ACCESS |
 ///  EFI_VARIABLE_RUNTIME_ACCESS
 ///
-#define MEMORY_OVERWRITE_REQUEST_VARIABLE_NAME L"MemoryOverwriteRequestControl"
+#define MEMORY_OVERWRITE_REQUEST_VARIABLE_NAME  L"MemoryOverwriteRequestControl"
 
 ///
 /// 0 = Firmware MUST clear the MOR bit
 /// 1 = Firmware MUST set the MOR bit
 ///
-#define MOR_CLEAR_MEMORY_BIT_MASK        0x01
+#define MOR_CLEAR_MEMORY_BIT_MASK  0x01
 
 ///
 /// 0 = Firmware MAY autodetect a clean shutdown of the Static RTM OS.
 /// 1 = Firmware MUST NOT autodetect a clean shutdown of the Static RTM OS.
 ///
-#define MOR_DISABLEAUTODETECT_BIT_MASK   0x10
+#define MOR_DISABLEAUTODETECT_BIT_MASK  0x10
 
 ///
 /// MOR field bit offset
 ///
-#define MOR_CLEAR_MEMORY_BIT_OFFSET      0
-#define MOR_DISABLEAUTODETECT_BIT_OFFSET 4
+#define MOR_CLEAR_MEMORY_BIT_OFFSET       0
+#define MOR_DISABLEAUTODETECT_BIT_OFFSET  4
 
 /**
   Return the ClearMemory bit value 0 or 1.
@@ -54,7 +54,7 @@
 
   @return ClearMemory bit value
 **/
-#define MOR_CLEAR_MEMORY_VALUE(mor)        (((UINT8)(mor) & MOR_CLEAR_MEMORY_BIT_MASK) >> MOR_CLEAR_MEMORY_BIT_OFFSET)
+#define MOR_CLEAR_MEMORY_VALUE(mor)  (((UINT8)(mor) & MOR_CLEAR_MEMORY_BIT_MASK) >> MOR_CLEAR_MEMORY_BIT_OFFSET)
 
 /**
   Return the DisableAutoDetect bit value 0 or 1.
@@ -63,8 +63,8 @@
 
   @return DisableAutoDetect bit value
 **/
-#define MOR_DISABLE_AUTO_DETECT_VALUE(mor) (((UINT8)(mor) & MOR_DISABLEAUTODETECT_BIT_MASK) >> MOR_DISABLEAUTODETECT_BIT_OFFSET)
+#define MOR_DISABLE_AUTO_DETECT_VALUE(mor)  (((UINT8)(mor) & MOR_DISABLEAUTODETECT_BIT_MASK) >> MOR_DISABLEAUTODETECT_BIT_OFFSET)
 
-extern EFI_GUID gEfiMemoryOverwriteControlDataGuid;
+extern EFI_GUID  gEfiMemoryOverwriteControlDataGuid;
 
 #endif

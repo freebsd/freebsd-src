@@ -14,7 +14,7 @@
 
 /// The tag for use in identifying UNICODE files.
 /// If the file is UNICODE, the first 16 bits of the file will equal this value.
-extern CONST UINT16 gUnicodeFileTag;
+extern CONST UINT16  gUnicodeFileTag;
 
 /**
   This function retrieves information about the file for the handle
@@ -29,10 +29,10 @@ extern CONST UINT16 gUnicodeFileTag;
   @retval NULL                  Information could not be retrieved.
   @retval !NULL                 The information about the file.
 **/
-EFI_FILE_INFO*
+EFI_FILE_INFO *
 EFIAPI
 FileHandleGetInfo (
-  IN EFI_FILE_HANDLE            FileHandle
+  IN EFI_FILE_HANDLE  FileHandle
   );
 
 /**
@@ -57,8 +57,8 @@ FileHandleGetInfo (
 EFI_STATUS
 EFIAPI
 FileHandleSetInfo (
-  IN EFI_FILE_HANDLE            FileHandle,
-  IN CONST EFI_FILE_INFO        *FileInfo
+  IN EFI_FILE_HANDLE      FileHandle,
+  IN CONST EFI_FILE_INFO  *FileInfo
   );
 
 /**
@@ -92,10 +92,10 @@ FileHandleSetInfo (
 **/
 EFI_STATUS
 EFIAPI
-FileHandleRead(
-  IN EFI_FILE_HANDLE            FileHandle,
-  IN OUT UINTN                  *BufferSize,
-  OUT VOID                      *Buffer
+FileHandleRead (
+  IN EFI_FILE_HANDLE  FileHandle,
+  IN OUT UINTN        *BufferSize,
+  OUT VOID            *Buffer
   );
 
 /**
@@ -124,10 +124,10 @@ FileHandleRead(
 **/
 EFI_STATUS
 EFIAPI
-FileHandleWrite(
-  IN EFI_FILE_HANDLE            FileHandle,
-  IN OUT UINTN                  *BufferSize,
-  IN VOID                       *Buffer
+FileHandleWrite (
+  IN EFI_FILE_HANDLE  FileHandle,
+  IN OUT UINTN        *BufferSize,
+  IN VOID             *Buffer
   );
 
 /**
@@ -144,7 +144,7 @@ FileHandleWrite(
 EFI_STATUS
 EFIAPI
 FileHandleClose (
-  IN EFI_FILE_HANDLE            FileHandle
+  IN EFI_FILE_HANDLE  FileHandle
   );
 
 /**
@@ -164,7 +164,7 @@ FileHandleClose (
 EFI_STATUS
 EFIAPI
 FileHandleDelete (
-  IN EFI_FILE_HANDLE    FileHandle
+  IN EFI_FILE_HANDLE  FileHandle
   );
 
 /**
@@ -189,8 +189,8 @@ FileHandleDelete (
 EFI_STATUS
 EFIAPI
 FileHandleSetPosition (
-  IN EFI_FILE_HANDLE    FileHandle,
-  IN UINT64             Position
+  IN EFI_FILE_HANDLE  FileHandle,
+  IN UINT64           Position
   );
 
 /**
@@ -211,9 +211,10 @@ FileHandleSetPosition (
 EFI_STATUS
 EFIAPI
 FileHandleGetPosition (
-  IN EFI_FILE_HANDLE            FileHandle,
-  OUT UINT64                    *Position
+  IN EFI_FILE_HANDLE  FileHandle,
+  OUT UINT64          *Position
   );
+
 /**
   Flushes data on a file.
 
@@ -231,7 +232,7 @@ FileHandleGetPosition (
 EFI_STATUS
 EFIAPI
 FileHandleFlush (
-  IN EFI_FILE_HANDLE            FileHandle
+  IN EFI_FILE_HANDLE  FileHandle
   );
 
 /**
@@ -250,7 +251,7 @@ FileHandleFlush (
 EFI_STATUS
 EFIAPI
 FileHandleIsDirectory (
-  IN EFI_FILE_HANDLE            DirHandle
+  IN EFI_FILE_HANDLE  DirHandle
   );
 
 /** Retrieve first entry from a directory.
@@ -278,8 +279,8 @@ FileHandleIsDirectory (
 EFI_STATUS
 EFIAPI
 FileHandleFindFirstFile (
-  IN EFI_FILE_HANDLE            DirHandle,
-  OUT EFI_FILE_INFO             **Buffer
+  IN EFI_FILE_HANDLE  DirHandle,
+  OUT EFI_FILE_INFO   **Buffer
   );
 
 /** Retrieve next entries from a directory.
@@ -302,10 +303,10 @@ FileHandleFindFirstFile (
 **/
 EFI_STATUS
 EFIAPI
-FileHandleFindNextFile(
-  IN EFI_FILE_HANDLE             DirHandle,
-  OUT EFI_FILE_INFO              *Buffer,
-  OUT BOOLEAN                    *NoFile
+FileHandleFindNextFile (
+  IN EFI_FILE_HANDLE  DirHandle,
+  OUT EFI_FILE_INFO   *Buffer,
+  OUT BOOLEAN         *NoFile
   );
 
 /**
@@ -325,8 +326,8 @@ FileHandleFindNextFile(
 EFI_STATUS
 EFIAPI
 FileHandleGetSize (
-  IN EFI_FILE_HANDLE            FileHandle,
-  OUT UINT64                    *Size
+  IN EFI_FILE_HANDLE  FileHandle,
+  OUT UINT64          *Size
   );
 
 /**
@@ -345,8 +346,8 @@ FileHandleGetSize (
 EFI_STATUS
 EFIAPI
 FileHandleSetSize (
-  IN EFI_FILE_HANDLE            FileHandle,
-  IN UINT64                     Size
+  IN EFI_FILE_HANDLE  FileHandle,
+  IN UINT64           Size
   );
 
 /**
@@ -367,8 +368,8 @@ FileHandleSetSize (
 EFI_STATUS
 EFIAPI
 FileHandleGetFileName (
-  IN CONST EFI_FILE_HANDLE      Handle,
-  OUT CHAR16                    **FullFileName
+  IN CONST EFI_FILE_HANDLE  Handle,
+  OUT CHAR16                **FullFileName
   );
 
 /**
@@ -401,12 +402,12 @@ FileHandleGetFileName (
 **/
 EFI_STATUS
 EFIAPI
-FileHandleReadLine(
-  IN EFI_FILE_HANDLE            Handle,
-  IN OUT CHAR16                 *Buffer,
-  IN OUT UINTN                  *Size,
-  IN BOOLEAN                    Truncate,
-  IN OUT BOOLEAN                *Ascii
+FileHandleReadLine (
+  IN EFI_FILE_HANDLE  Handle,
+  IN OUT CHAR16       *Buffer,
+  IN OUT UINTN        *Size,
+  IN BOOLEAN          Truncate,
+  IN OUT BOOLEAN      *Ascii
   );
 
 /**
@@ -424,11 +425,11 @@ FileHandleReadLine(
 
   @sa FileHandleReadLine
 **/
-CHAR16*
+CHAR16 *
 EFIAPI
-FileHandleReturnLine(
-  IN EFI_FILE_HANDLE            Handle,
-  IN OUT BOOLEAN                *Ascii
+FileHandleReturnLine (
+  IN EFI_FILE_HANDLE  Handle,
+  IN OUT BOOLEAN      *Ascii
   );
 
 /**
@@ -454,9 +455,9 @@ FileHandleReturnLine(
 **/
 EFI_STATUS
 EFIAPI
-FileHandleWriteLine(
-  IN EFI_FILE_HANDLE Handle,
-  IN CHAR16          *Buffer
+FileHandleWriteLine (
+  IN EFI_FILE_HANDLE  Handle,
+  IN CHAR16           *Buffer
   );
 
 /**
@@ -473,7 +474,7 @@ FileHandleWriteLine(
 **/
 EFI_STATUS
 EFIAPI
-FileHandlePrintLine(
+FileHandlePrintLine (
   IN EFI_FILE_HANDLE  Handle,
   IN CONST CHAR16     *Format,
   ...
@@ -493,9 +494,8 @@ FileHandlePrintLine(
 **/
 BOOLEAN
 EFIAPI
-FileHandleEof(
-  IN EFI_FILE_HANDLE Handle
+FileHandleEof (
+  IN EFI_FILE_HANDLE  Handle
   );
 
 #endif //_FILE_HANDLE_LIBRARY_HEADER_
-

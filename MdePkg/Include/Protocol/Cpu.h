@@ -16,7 +16,7 @@
 #define EFI_CPU_ARCH_PROTOCOL_GUID \
   { 0x26baccb1, 0x6f42, 0x11d4, {0xbc, 0xe7, 0x0, 0x80, 0xc7, 0x3c, 0x88, 0x81 } }
 
-typedef struct _EFI_CPU_ARCH_PROTOCOL   EFI_CPU_ARCH_PROTOCOL;
+typedef struct _EFI_CPU_ARCH_PROTOCOL EFI_CPU_ARCH_PROTOCOL;
 
 ///
 /// The type of flush operation
@@ -90,7 +90,6 @@ EFI_STATUS
   IN EFI_CPU_FLUSH_TYPE                 FlushType
   );
 
-
 /**
   This function enables interrupt processing by the processor.
 
@@ -106,7 +105,6 @@ EFI_STATUS
   IN EFI_CPU_ARCH_PROTOCOL              *This
   );
 
-
 /**
   This function disables interrupt processing by the processor.
 
@@ -121,7 +119,6 @@ EFI_STATUS
 (EFIAPI *EFI_CPU_DISABLE_INTERRUPT)(
   IN EFI_CPU_ARCH_PROTOCOL              *This
   );
-
 
 /**
   This function retrieves the processor's current interrupt state a returns it in
@@ -142,7 +139,6 @@ EFI_STATUS
   IN EFI_CPU_ARCH_PROTOCOL              *This,
   OUT BOOLEAN                           *State
   );
-
 
 /**
   This function generates an INIT on the processor. If this function succeeds, then the
@@ -166,7 +162,6 @@ EFI_STATUS
   IN EFI_CPU_ARCH_PROTOCOL              *This,
   IN EFI_CPU_INIT_TYPE                  InitType
   );
-
 
 /**
   This function registers and enables the handler specified by InterruptHandler for a processor
@@ -197,7 +192,6 @@ EFI_STATUS
   IN EFI_CPU_INTERRUPT_HANDLER          InterruptHandler
   );
 
-
 /**
   This function reads the processor timer specified by TimerIndex and returns it in TimerValue.
 
@@ -223,7 +217,6 @@ EFI_STATUS
   OUT UINT64                            *TimerValue,
   OUT UINT64                            *TimerPeriod OPTIONAL
   );
-
 
 /**
   This function modifies the attributes for the memory region specified by BaseAddress and
@@ -257,7 +250,6 @@ EFI_STATUS
   IN  UINT64                            Attributes
   );
 
-
 ///
 /// The EFI_CPU_ARCH_PROTOCOL is used to abstract processor-specific functions from the DXE
 /// Foundation. This includes flushing caches, enabling and disabling interrupts, hooking interrupt
@@ -265,20 +257,20 @@ EFI_STATUS
 /// determining the processor frequency.
 ///
 struct _EFI_CPU_ARCH_PROTOCOL {
-  EFI_CPU_FLUSH_DATA_CACHE            FlushDataCache;
-  EFI_CPU_ENABLE_INTERRUPT            EnableInterrupt;
-  EFI_CPU_DISABLE_INTERRUPT           DisableInterrupt;
-  EFI_CPU_GET_INTERRUPT_STATE         GetInterruptState;
-  EFI_CPU_INIT                        Init;
-  EFI_CPU_REGISTER_INTERRUPT_HANDLER  RegisterInterruptHandler;
-  EFI_CPU_GET_TIMER_VALUE             GetTimerValue;
-  EFI_CPU_SET_MEMORY_ATTRIBUTES       SetMemoryAttributes;
+  EFI_CPU_FLUSH_DATA_CACHE              FlushDataCache;
+  EFI_CPU_ENABLE_INTERRUPT              EnableInterrupt;
+  EFI_CPU_DISABLE_INTERRUPT             DisableInterrupt;
+  EFI_CPU_GET_INTERRUPT_STATE           GetInterruptState;
+  EFI_CPU_INIT                          Init;
+  EFI_CPU_REGISTER_INTERRUPT_HANDLER    RegisterInterruptHandler;
+  EFI_CPU_GET_TIMER_VALUE               GetTimerValue;
+  EFI_CPU_SET_MEMORY_ATTRIBUTES         SetMemoryAttributes;
   ///
   /// The number of timers that are available in a processor. The value in this
   /// field is a constant that must not be modified after the CPU Architectural
   /// Protocol is installed. All consumers must treat this as a read-only field.
   ///
-  UINT32                              NumberOfTimers;
+  UINT32                                NumberOfTimers;
   ///
   /// The size, in bytes, of the alignment required for DMA buffer allocations.
   /// This is typically the size of the largest data cache line in the platform.
@@ -286,9 +278,9 @@ struct _EFI_CPU_ARCH_PROTOCOL {
   /// CPU Architectural Protocol is installed. All consumers must treat this as
   /// a read-only field.
   ///
-  UINT32                              DmaBufferAlignment;
+  UINT32                                DmaBufferAlignment;
 };
 
-extern EFI_GUID gEfiCpuArchProtocolGuid;
+extern EFI_GUID  gEfiCpuArchProtocolGuid;
 
 #endif

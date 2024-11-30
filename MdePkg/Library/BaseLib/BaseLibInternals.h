@@ -35,8 +35,8 @@
 UINT64
 EFIAPI
 InternalMathLShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   );
 
 /**
@@ -55,8 +55,8 @@ InternalMathLShiftU64 (
 UINT64
 EFIAPI
 InternalMathRShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   );
 
 /**
@@ -75,8 +75,8 @@ InternalMathRShiftU64 (
 UINT64
 EFIAPI
 InternalMathARShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   );
 
 /**
@@ -96,8 +96,8 @@ InternalMathARShiftU64 (
 UINT64
 EFIAPI
 InternalMathLRotU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   );
 
 /**
@@ -117,8 +117,8 @@ InternalMathLRotU64 (
 UINT64
 EFIAPI
 InternalMathRRotU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   );
 
 /**
@@ -136,7 +136,7 @@ InternalMathRRotU64 (
 UINT64
 EFIAPI
 InternalMathSwapBytes64 (
-  IN      UINT64                    Operand
+  IN      UINT64  Operand
   );
 
 /**
@@ -156,8 +156,8 @@ InternalMathSwapBytes64 (
 UINT64
 EFIAPI
 InternalMathMultU64x32 (
-  IN      UINT64                    Multiplicand,
-  IN      UINT32                    Multiplier
+  IN      UINT64  Multiplicand,
+  IN      UINT32  Multiplier
   );
 
 /**
@@ -177,8 +177,8 @@ InternalMathMultU64x32 (
 UINT64
 EFIAPI
 InternalMathMultU64x64 (
-  IN      UINT64                    Multiplicand,
-  IN      UINT64                    Multiplier
+  IN      UINT64  Multiplicand,
+  IN      UINT64  Multiplier
   );
 
 /**
@@ -198,8 +198,8 @@ InternalMathMultU64x64 (
 UINT64
 EFIAPI
 InternalMathDivU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor
   );
 
 /**
@@ -219,8 +219,8 @@ InternalMathDivU64x32 (
 UINT32
 EFIAPI
 InternalMathModU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor
   );
 
 /**
@@ -243,9 +243,9 @@ InternalMathModU64x32 (
 UINT64
 EFIAPI
 InternalMathDivRemU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor,
-  OUT     UINT32                    *Remainder OPTIONAL
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor,
+  OUT     UINT32  *Remainder OPTIONAL
   );
 
 /**
@@ -268,9 +268,9 @@ InternalMathDivRemU64x32 (
 UINT64
 EFIAPI
 InternalMathDivRemU64x64 (
-  IN      UINT64                    Dividend,
-  IN      UINT64                    Divisor,
-  OUT     UINT64                    *Remainder OPTIONAL
+  IN      UINT64  Dividend,
+  IN      UINT64  Divisor,
+  OUT     UINT64  *Remainder OPTIONAL
   );
 
 /**
@@ -293,9 +293,9 @@ InternalMathDivRemU64x64 (
 INT64
 EFIAPI
 InternalMathDivRemS64x64 (
-  IN      INT64                     Dividend,
-  IN      INT64                     Divisor,
-  OUT     INT64                     *Remainder  OPTIONAL
+  IN      INT64  Dividend,
+  IN      INT64  Divisor,
+  OUT     INT64  *Remainder  OPTIONAL
   );
 
 /**
@@ -326,12 +326,11 @@ VOID
 EFIAPI
 InternalSwitchStack (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,   OPTIONAL
-  IN      VOID                      *Context2,   OPTIONAL
+  IN      VOID                      *Context1    OPTIONAL,
+  IN      VOID                      *Context2    OPTIONAL,
   IN      VOID                      *NewStack,
   IN      VA_LIST                   Marker
   );
-
 
 /**
   Worker function that returns a bit field from Operand.
@@ -348,11 +347,10 @@ InternalSwitchStack (
 UINTN
 EFIAPI
 BitFieldReadUint (
-  IN      UINTN                     Operand,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   );
-
 
 /**
   Worker function that reads a bit field from Operand, performs a bitwise OR,
@@ -373,12 +371,11 @@ BitFieldReadUint (
 UINTN
 EFIAPI
 BitFieldOrUint (
-  IN      UINTN                     Operand,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINTN                     OrData
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINTN  OrData
   );
-
 
 /**
   Worker function that reads a bit field from Operand, performs a bitwise AND,
@@ -399,12 +396,11 @@ BitFieldOrUint (
 UINTN
 EFIAPI
 BitFieldAndUint (
-  IN      UINTN                     Operand,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINTN                     AndData
+  IN      UINTN  Operand,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINTN  AndData
   );
-
 
 /**
   Worker function that checks ASSERT condition for JumpBuffer
@@ -422,7 +418,6 @@ EFIAPI
 InternalAssertJumpBuffer (
   IN      BASE_LIBRARY_JUMP_BUFFER  *JumpBuffer
   );
-
 
 /**
   Restores the CPU context that was saved with SetJump().
@@ -442,7 +437,6 @@ InternalLongJump (
   IN      UINTN                     Value
   );
 
-
 /**
   Check if a Unicode character is a decimal character.
 
@@ -459,9 +453,8 @@ InternalLongJump (
 BOOLEAN
 EFIAPI
 InternalIsDecimalDigitCharacter (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   );
-
 
 /**
   Convert a Unicode character to numerical value.
@@ -479,9 +472,8 @@ InternalIsDecimalDigitCharacter (
 UINTN
 EFIAPI
 InternalHexCharToUintn (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   );
-
 
 /**
   Check if a Unicode character is a hexadecimal character.
@@ -500,9 +492,8 @@ InternalHexCharToUintn (
 BOOLEAN
 EFIAPI
 InternalIsHexaDecimalDigitCharacter (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   );
-
 
 /**
   Check if a ASCII character is a decimal character.
@@ -520,9 +511,8 @@ InternalIsHexaDecimalDigitCharacter (
 BOOLEAN
 EFIAPI
 InternalAsciiIsDecimalDigitCharacter (
-  IN      CHAR8                     Char
+  IN      CHAR8  Char
   );
-
 
 /**
   Check if a ASCII character is a hexadecimal character.
@@ -541,9 +531,8 @@ InternalAsciiIsDecimalDigitCharacter (
 BOOLEAN
 EFIAPI
 InternalAsciiIsHexaDecimalDigitCharacter (
-  IN      CHAR8                    Char
+  IN      CHAR8  Char
   );
-
 
 /**
   Convert a ASCII character to numerical value.
@@ -561,9 +550,8 @@ InternalAsciiIsHexaDecimalDigitCharacter (
 UINTN
 EFIAPI
 InternalAsciiHexCharToUintn (
-  IN      CHAR8                    Char
+  IN      CHAR8  Char
   );
-
 
 //
 // Ia32 and x64 specific functions
@@ -582,7 +570,7 @@ InternalAsciiHexCharToUintn (
 VOID
 EFIAPI
 InternalX86ReadGdtr (
-  OUT     IA32_DESCRIPTOR           *Gdtr
+  OUT     IA32_DESCRIPTOR  *Gdtr
   );
 
 /**
@@ -597,7 +585,7 @@ InternalX86ReadGdtr (
 VOID
 EFIAPI
 InternalX86WriteGdtr (
-  IN      CONST IA32_DESCRIPTOR     *Gdtr
+  IN      CONST IA32_DESCRIPTOR  *Gdtr
   );
 
 /**
@@ -612,7 +600,7 @@ InternalX86WriteGdtr (
 VOID
 EFIAPI
 InternalX86ReadIdtr (
-  OUT     IA32_DESCRIPTOR           *Idtr
+  OUT     IA32_DESCRIPTOR  *Idtr
   );
 
 /**
@@ -627,7 +615,7 @@ InternalX86ReadIdtr (
 VOID
 EFIAPI
 InternalX86WriteIdtr (
-  IN      CONST IA32_DESCRIPTOR     *Idtr
+  IN      CONST IA32_DESCRIPTOR  *Idtr
   );
 
 /**
@@ -643,7 +631,7 @@ InternalX86WriteIdtr (
 VOID
 EFIAPI
 InternalX86FxSave (
-  OUT     IA32_FX_BUFFER            *Buffer
+  OUT     IA32_FX_BUFFER  *Buffer
   );
 
 /**
@@ -659,7 +647,7 @@ InternalX86FxSave (
 VOID
 EFIAPI
 InternalX86FxRestore (
-  IN      CONST IA32_FX_BUFFER      *Buffer
+  IN      CONST IA32_FX_BUFFER  *Buffer
   );
 
 /**
@@ -699,8 +687,8 @@ VOID
 EFIAPI
 InternalX86EnablePaging32 (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,  OPTIONAL
-  IN      VOID                      *Context2,  OPTIONAL
+  IN      VOID                      *Context1   OPTIONAL,
+  IN      VOID                      *Context2   OPTIONAL,
   IN      VOID                      *NewStack
   );
 
@@ -738,8 +726,8 @@ VOID
 EFIAPI
 InternalX86DisablePaging32 (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,  OPTIONAL
-  IN      VOID                      *Context2,  OPTIONAL
+  IN      VOID                      *Context1   OPTIONAL,
+  IN      VOID                      *Context2   OPTIONAL,
   IN      VOID                      *NewStack
   );
 
@@ -773,11 +761,11 @@ InternalX86DisablePaging32 (
 VOID
 EFIAPI
 InternalX86EnablePaging64 (
-  IN      UINT16                    Cs,
-  IN      UINT64                    EntryPoint,
-  IN      UINT64                    Context1,  OPTIONAL
-  IN      UINT64                    Context2,  OPTIONAL
-  IN      UINT64                    NewStack
+  IN      UINT16  Cs,
+  IN      UINT64  EntryPoint,
+  IN      UINT64  Context1   OPTIONAL,
+  IN      UINT64  Context2   OPTIONAL,
+  IN      UINT64  NewStack
   );
 
 /**
@@ -809,11 +797,11 @@ InternalX86EnablePaging64 (
 VOID
 EFIAPI
 InternalX86DisablePaging64 (
-  IN      UINT16                    Cs,
-  IN      UINT32                    EntryPoint,
-  IN      UINT32                    Context1,  OPTIONAL
-  IN      UINT32                    Context2,  OPTIONAL
-  IN      UINT32                    NewStack
+  IN      UINT16  Cs,
+  IN      UINT32  EntryPoint,
+  IN      UINT32  Context1   OPTIONAL,
+  IN      UINT32  Context2   OPTIONAL,
+  IN      UINT32  NewStack
   );
 
 /**
@@ -828,7 +816,7 @@ InternalX86DisablePaging64 (
 BOOLEAN
 EFIAPI
 InternalX86RdRand16 (
-  OUT     UINT16                    *Rand
+  OUT     UINT16  *Rand
   );
 
 /**
@@ -843,7 +831,7 @@ InternalX86RdRand16 (
 BOOLEAN
 EFIAPI
 InternalX86RdRand32 (
-  OUT     UINT32                    *Rand
+  OUT     UINT32  *Rand
   );
 
 /**
@@ -859,7 +847,7 @@ InternalX86RdRand32 (
 BOOLEAN
 EFIAPI
 InternalX86RdRand64  (
-  OUT     UINT64                    *Rand
+  OUT     UINT64  *Rand
   );
 
 #else

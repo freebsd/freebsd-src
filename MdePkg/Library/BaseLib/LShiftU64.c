@@ -26,8 +26,8 @@
 UINT64
 EFIAPI
 LShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   ASSERT (Count < 64);

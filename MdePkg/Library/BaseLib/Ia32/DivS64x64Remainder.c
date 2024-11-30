@@ -28,20 +28,21 @@
 INT64
 EFIAPI
 InternalMathDivRemS64x64 (
-  IN      INT64                     Dividend,
-  IN      INT64                     Divisor,
-  OUT     INT64                     *Remainder  OPTIONAL
+  IN      INT64  Dividend,
+  IN      INT64  Divisor,
+  OUT     INT64  *Remainder  OPTIONAL
   )
 {
-  INT64                             Quot;
+  INT64  Quot;
 
   Quot = InternalMathDivRemU64x64 (
-           (UINT64) (Dividend >= 0 ? Dividend : -Dividend),
-           (UINT64) (Divisor >= 0 ? Divisor : -Divisor),
-           (UINT64 *) Remainder
+           (UINT64)(Dividend >= 0 ? Dividend : -Dividend),
+           (UINT64)(Divisor >= 0 ? Divisor : -Divisor),
+           (UINT64 *)Remainder
            );
-  if (Remainder != NULL && Dividend < 0) {
+  if ((Remainder != NULL) && (Dividend < 0)) {
     *Remainder = -*Remainder;
   }
+
   return (Dividend ^ Divisor) >= 0 ? Quot : -Quot;
 }

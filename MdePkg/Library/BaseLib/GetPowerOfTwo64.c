@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -27,12 +24,12 @@
 UINT64
 EFIAPI
 GetPowerOfTwo64 (
-  IN      UINT64                    Operand
+  IN      UINT64  Operand
   )
 {
   if (Operand == 0) {
     return 0;
   }
 
-  return LShiftU64 (1, (UINTN) HighBitSet64 (Operand));
+  return LShiftU64 (1, (UINTN)HighBitSet64 (Operand));
 }

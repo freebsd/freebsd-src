@@ -214,6 +214,7 @@
                                                                                    "BIT20 - Global Coherency Database changes message.<BR>\n"
                                                                                    "BIT21 - Memory range cacheability changes message.<BR>\n"
                                                                                    "BIT22 - Detailed debug message.<BR>\n"
+                                                                                   "BIT23 - Manageability debug message.<BR>\n"
                                                                                    "BIT31 - Error message.<BR>"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdFixedDebugPrintErrorLevel_PROMPT  #language en-US "Fixed Debug Message Print Level"
@@ -237,6 +238,7 @@
                                                                                    "BIT20 - Global Coherency Database changes message.<BR>\n"
                                                                                    "BIT21 - Memory range cacheability changes message.<BR>\n"
                                                                                    "BIT22 - Detailed debug message.<BR>\n"
+                                                                                   "BIT23 - Manageability debug message.<BR>\n"
                                                                                    "BIT31 - Error message.<BR>"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdReportStatusCodePropertyMask_PROMPT  #language en-US "Report Status Code Property"
@@ -286,6 +288,10 @@
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdGuidedExtractHandlerTableAddress_PROMPT  #language en-US "Memory Address of GuidedExtractHandler Table"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdGuidedExtractHandlerTableAddress_HELP  #language en-US "This value is used to set the available memory address to store Guided Extract Handlers. The required memory space is decided by the value of PcdMaximumGuidedExtractHandler."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdRiscVFeatureOverride_PROMPT  #language en-US "RISC-V Feature Override"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdRiscVFeatureOverride_HELP  #language en-US "This value is used to override any RISC-V specific features supported by this PCD"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdPciExpressBaseAddress_PROMPT  #language en-US "PCI Express Base Address"
 

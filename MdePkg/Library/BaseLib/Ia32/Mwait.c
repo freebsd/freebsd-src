@@ -23,8 +23,8 @@
 UINTN
 EFIAPI
 AsmMwait (
-  IN      UINTN                     RegisterEax,
-  IN      UINTN                     RegisterEcx
+  IN      UINTN  RegisterEax,
+  IN      UINTN  RegisterEcx
   )
 {
   _asm {
@@ -35,4 +35,3 @@ AsmMwait (
     _emit   0xC9
   }
 }
-

@@ -8,136 +8,6 @@
 
 #include "BaseLibInternals.h"
 
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Copies one Null-terminated Unicode string to another Null-terminated Unicode
-  string and returns the new Unicode string.
-
-  This function copies the contents of the Unicode string Source to the Unicode
-  string Destination, and returns Destination. If Source and Destination
-  overlap, then the results are undefined.
-
-  If Destination is NULL, then ASSERT().
-  If Destination is not aligned on a 16-bit boundary, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source is not aligned on a 16-bit boundary, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains more than
-  PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated Unicode string.
-  @param  Source      A pointer to a Null-terminated Unicode string.
-
-  @return Destination.
-
-**/
-CHAR16 *
-EFIAPI
-StrCpy (
-  OUT     CHAR16                    *Destination,
-  IN      CONST CHAR16              *Source
-  )
-{
-  CHAR16                            *ReturnValue;
-
-  //
-  // Destination cannot be NULL
-  //
-  ASSERT (Destination != NULL);
-  ASSERT (((UINTN) Destination & BIT0) == 0);
-
-  //
-  // Destination and source cannot overlap
-  //
-  ASSERT ((UINTN)(Destination - Source) > StrLen (Source));
-  ASSERT ((UINTN)(Source - Destination) > StrLen (Source));
-
-  ReturnValue = Destination;
-  while (*Source != 0) {
-    *(Destination++) = *(Source++);
-  }
-  *Destination = 0;
-  return ReturnValue;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Copies up to a specified length from one Null-terminated Unicode string  to
-  another Null-terminated Unicode string and returns the new Unicode string.
-
-  This function copies the contents of the Unicode string Source to the Unicode
-  string Destination, and returns Destination. At most, Length Unicode
-  characters are copied from Source to Destination. If Length is 0, then
-  Destination is returned unmodified. If Length is greater that the number of
-  Unicode characters in Source, then Destination is padded with Null Unicode
-  characters. If Source and Destination overlap, then the results are
-  undefined.
-
-  If Length > 0 and Destination is NULL, then ASSERT().
-  If Length > 0 and Destination is not aligned on a 16-bit boundary, then ASSERT().
-  If Length > 0 and Source is NULL, then ASSERT().
-  If Length > 0 and Source is not aligned on a 16-bit boundary, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Length is greater than
-  PcdMaximumUnicodeStringLength, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains more than
-  PcdMaximumUnicodeStringLength Unicode characters, not including the Null-terminator,
-  then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated Unicode string.
-  @param  Source      A pointer to a Null-terminated Unicode string.
-  @param  Length      The maximum number of Unicode characters to copy.
-
-  @return Destination.
-
-**/
-CHAR16 *
-EFIAPI
-StrnCpy (
-  OUT     CHAR16                    *Destination,
-  IN      CONST CHAR16              *Source,
-  IN      UINTN                     Length
-  )
-{
-  CHAR16                            *ReturnValue;
-
-  if (Length == 0) {
-    return Destination;
-  }
-
-  //
-  // Destination cannot be NULL if Length is not zero
-  //
-  ASSERT (Destination != NULL);
-  ASSERT (((UINTN) Destination & BIT0) == 0);
-
-  //
-  // Destination and source cannot overlap
-  //
-  ASSERT ((UINTN)(Destination - Source) > StrLen (Source));
-  ASSERT ((UINTN)(Source - Destination) >= Length);
-
-  if (PcdGet32 (PcdMaximumUnicodeStringLength) != 0) {
-    ASSERT (Length <= PcdGet32 (PcdMaximumUnicodeStringLength));
-  }
-
-  ReturnValue = Destination;
-
-  while ((*Source != L'\0') && (Length > 0)) {
-    *(Destination++) = *(Source++);
-    Length--;
-  }
-
-  ZeroMem (Destination, Length * sizeof (*Destination));
-  return ReturnValue;
-}
-#endif
-
 /**
   Returns the length of a Null-terminated Unicode string.
 
@@ -158,13 +28,13 @@ StrnCpy (
 UINTN
 EFIAPI
 StrLen (
-  IN      CONST CHAR16              *String
+  IN      CONST CHAR16  *String
   )
 {
-  UINTN                             Length;
+  UINTN  Length;
 
   ASSERT (String != NULL);
-  ASSERT (((UINTN) String & BIT0) == 0);
+  ASSERT (((UINTN)String & BIT0) == 0);
 
   for (Length = 0; *String != L'\0'; String++, Length++) {
     //
@@ -175,6 +45,7 @@ StrLen (
       ASSERT (Length < PcdGet32 (PcdMaximumUnicodeStringLength));
     }
   }
+
   return Length;
 }
 
@@ -199,7 +70,7 @@ StrLen (
 UINTN
 EFIAPI
 StrSize (
-  IN      CONST CHAR16              *String
+  IN      CONST CHAR16  *String
   )
 {
   return (StrLen (String) + 1) * sizeof (*String);
@@ -236,8 +107,8 @@ StrSize (
 INTN
 EFIAPI
 StrCmp (
-  IN      CONST CHAR16              *FirstString,
-  IN      CONST CHAR16              *SecondString
+  IN      CONST CHAR16  *FirstString,
+  IN      CONST CHAR16  *SecondString
   )
 {
   //
@@ -250,6 +121,7 @@ StrCmp (
     FirstString++;
     SecondString++;
   }
+
   return *FirstString - *SecondString;
 }
 
@@ -288,9 +160,9 @@ StrCmp (
 INTN
 EFIAPI
 StrnCmp (
-  IN      CONST CHAR16              *FirstString,
-  IN      CONST CHAR16              *SecondString,
-  IN      UINTN                     Length
+  IN      CONST CHAR16  *FirstString,
+  IN      CONST CHAR16  *SecondString,
+  IN      UINTN         Length
   )
 {
   if (Length == 0) {
@@ -311,7 +183,8 @@ StrnCmp (
   while ((*FirstString != L'\0') &&
          (*SecondString != L'\0') &&
          (*FirstString == *SecondString) &&
-         (Length > 1)) {
+         (Length > 1))
+  {
     FirstString++;
     SecondString++;
     Length--;
@@ -319,122 +192,6 @@ StrnCmp (
 
   return *FirstString - *SecondString;
 }
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Concatenates one Null-terminated Unicode string to another Null-terminated
-  Unicode string, and returns the concatenated Unicode string.
-
-  This function concatenates two Null-terminated Unicode strings. The contents
-  of Null-terminated Unicode string Source are concatenated to the end of
-  Null-terminated Unicode string Destination. The Null-terminated concatenated
-  Unicode String is returned. If Source and Destination overlap, then the
-  results are undefined.
-
-  If Destination is NULL, then ASSERT().
-  If Destination is not aligned on a 16-bit boundary, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source is not aligned on a 16-bit boundary, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Destination contains more
-  than PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains more than
-  PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and concatenating Destination
-  and Source results in a Unicode string with more than
-  PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated Unicode string.
-  @param  Source      A pointer to a Null-terminated Unicode string.
-
-  @return Destination.
-
-**/
-CHAR16 *
-EFIAPI
-StrCat (
-  IN OUT  CHAR16                    *Destination,
-  IN      CONST CHAR16              *Source
-  )
-{
-  StrCpy (Destination + StrLen (Destination), Source);
-
-  //
-  // Size of the resulting string should never be zero.
-  // PcdMaximumUnicodeStringLength is tested inside StrLen().
-  //
-  ASSERT (StrSize (Destination) != 0);
-  return Destination;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Concatenates up to a specified length one Null-terminated Unicode to the end
-  of another Null-terminated Unicode string, and returns the concatenated
-  Unicode string.
-
-  This function concatenates two Null-terminated Unicode strings. The contents
-  of Null-terminated Unicode string Source are concatenated to the end of
-  Null-terminated Unicode string Destination, and Destination is returned. At
-  most, Length Unicode characters are concatenated from Source to the end of
-  Destination, and Destination is always Null-terminated. If Length is 0, then
-  Destination is returned unmodified. If Source and Destination overlap, then
-  the results are undefined.
-
-  If Destination is NULL, then ASSERT().
-  If Length > 0 and Destination is not aligned on a 16-bit boundary, then ASSERT().
-  If Length > 0 and Source is NULL, then ASSERT().
-  If Length > 0 and Source is not aligned on a 16-bit boundary, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Length is greater than
-  PcdMaximumUnicodeStringLength, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Destination contains more
-  than PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains more than
-  PcdMaximumUnicodeStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and concatenating Destination
-  and Source results in a Unicode string with more than PcdMaximumUnicodeStringLength
-  Unicode characters, not including the Null-terminator, then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated Unicode string.
-  @param  Source      A pointer to a Null-terminated Unicode string.
-  @param  Length      The maximum number of Unicode characters to concatenate from
-                      Source.
-
-  @return Destination.
-
-**/
-CHAR16 *
-EFIAPI
-StrnCat (
-  IN OUT  CHAR16                    *Destination,
-  IN      CONST CHAR16              *Source,
-  IN      UINTN                     Length
-  )
-{
-  UINTN   DestinationLen;
-
-  DestinationLen = StrLen (Destination);
-  StrnCpy (Destination + DestinationLen, Source, Length);
-  Destination[DestinationLen + Length] = L'\0';
-
-  //
-  // Size of the resulting string should never be zero.
-  // PcdMaximumUnicodeStringLength is tested inside StrLen().
-  //
-  ASSERT (StrSize (Destination) != 0);
-  return Destination;
-}
-#endif
 
 /**
   Returns the first occurrence of a Null-terminated Unicode sub-string
@@ -465,12 +222,12 @@ StrnCat (
 CHAR16 *
 EFIAPI
 StrStr (
-  IN      CONST CHAR16              *String,
-  IN      CONST CHAR16              *SearchString
+  IN      CONST CHAR16  *String,
+  IN      CONST CHAR16  *SearchString
   )
 {
-  CONST CHAR16 *FirstMatch;
-  CONST CHAR16 *SearchStringTmp;
+  CONST CHAR16  *FirstMatch;
+  CONST CHAR16  *SearchStringTmp;
 
   //
   // ASSERT both strings are less long than PcdMaximumUnicodeStringLength.
@@ -480,21 +237,22 @@ StrStr (
   ASSERT (StrSize (SearchString) != 0);
 
   if (*SearchString == L'\0') {
-    return (CHAR16 *) String;
+    return (CHAR16 *)String;
   }
 
   while (*String != L'\0') {
     SearchStringTmp = SearchString;
-    FirstMatch = String;
+    FirstMatch      = String;
 
-    while ((*String == *SearchStringTmp)
-            && (*String != L'\0')) {
+    while (  (*String == *SearchStringTmp)
+          && (*String != L'\0'))
+    {
       String++;
       SearchStringTmp++;
     }
 
     if (*SearchStringTmp == L'\0') {
-      return (CHAR16 *) FirstMatch;
+      return (CHAR16 *)FirstMatch;
     }
 
     if (*String == L'\0') {
@@ -523,10 +281,10 @@ StrStr (
 BOOLEAN
 EFIAPI
 InternalIsDecimalDigitCharacter (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   )
 {
-  return (BOOLEAN) (Char >= L'0' && Char <= L'9');
+  return (BOOLEAN)(Char >= L'0' && Char <= L'9');
 }
 
 /**
@@ -547,11 +305,11 @@ InternalIsDecimalDigitCharacter (
 CHAR16
 EFIAPI
 CharToUpper (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   )
 {
-  if (Char >= L'a' && Char <= L'z') {
-    return (CHAR16) (Char - (L'a' - L'A'));
+  if ((Char >= L'a') && (Char <= L'z')) {
+    return (CHAR16)(Char - (L'a' - L'A'));
   }
 
   return Char;
@@ -573,7 +331,7 @@ CharToUpper (
 UINTN
 EFIAPI
 InternalHexCharToUintn (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   )
 {
   if (InternalIsDecimalDigitCharacter (Char)) {
@@ -600,13 +358,12 @@ InternalHexCharToUintn (
 BOOLEAN
 EFIAPI
 InternalIsHexaDecimalDigitCharacter (
-  IN      CHAR16                    Char
+  IN      CHAR16  Char
   )
 {
-
-  return (BOOLEAN) (InternalIsDecimalDigitCharacter (Char) ||
-    (Char >= L'A' && Char <= L'F') ||
-    (Char >= L'a' && Char <= L'f'));
+  return (BOOLEAN)(InternalIsDecimalDigitCharacter (Char) ||
+                   (Char >= L'A' && Char <= L'F') ||
+                   (Char >= L'a' && Char <= L'f'));
 }
 
 /**
@@ -646,15 +403,19 @@ InternalIsHexaDecimalDigitCharacter (
 UINTN
 EFIAPI
 StrDecimalToUintn (
-  IN      CONST CHAR16              *String
+  IN      CONST CHAR16  *String
   )
 {
-  UINTN     Result;
+  UINTN          Result;
+  RETURN_STATUS  Status;
 
-  StrDecimalToUintnS (String, (CHAR16 **) NULL, &Result);
+  Status = StrDecimalToUintnS (String, (CHAR16 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
-
 
 /**
   Convert a Null-terminated Unicode decimal string to a value of
@@ -693,12 +454,17 @@ StrDecimalToUintn (
 UINT64
 EFIAPI
 StrDecimalToUint64 (
-  IN      CONST CHAR16              *String
+  IN      CONST CHAR16  *String
   )
 {
-  UINT64     Result;
+  UINT64         Result;
+  RETURN_STATUS  Status;
 
-  StrDecimalToUint64S (String, (CHAR16 **) NULL, &Result);
+  Status = StrDecimalToUint64S (String, (CHAR16 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
 
@@ -740,15 +506,19 @@ StrDecimalToUint64 (
 UINTN
 EFIAPI
 StrHexToUintn (
-  IN      CONST CHAR16              *String
+  IN      CONST CHAR16  *String
   )
 {
-  UINTN     Result;
+  UINTN          Result;
+  RETURN_STATUS  Status;
 
-  StrHexToUintnS (String, (CHAR16 **) NULL, &Result);
+  Status = StrHexToUintnS (String, (CHAR16 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
-
 
 /**
   Convert a Null-terminated Unicode hexadecimal string to a value of type UINT64.
@@ -788,12 +558,17 @@ StrHexToUintn (
 UINT64
 EFIAPI
 StrHexToUint64 (
-  IN      CONST CHAR16             *String
+  IN      CONST CHAR16  *String
   )
 {
-  UINT64    Result;
+  UINT64         Result;
+  RETURN_STATUS  Status;
 
-  StrHexToUint64S (String, (CHAR16 **) NULL, &Result);
+  Status = StrHexToUint64S (String, (CHAR16 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
 
@@ -813,10 +588,10 @@ StrHexToUint64 (
 BOOLEAN
 EFIAPI
 InternalAsciiIsDecimalDigitCharacter (
-  IN      CHAR8                     Char
+  IN      CHAR8  Char
   )
 {
-  return (BOOLEAN) (Char >= '0' && Char <= '9');
+  return (BOOLEAN)(Char >= '0' && Char <= '9');
 }
 
 /**
@@ -836,217 +611,13 @@ InternalAsciiIsDecimalDigitCharacter (
 BOOLEAN
 EFIAPI
 InternalAsciiIsHexaDecimalDigitCharacter (
-  IN      CHAR8                    Char
+  IN      CHAR8  Char
   )
 {
-
-  return (BOOLEAN) (InternalAsciiIsDecimalDigitCharacter (Char) ||
-    (Char >= 'A' && Char <= 'F') ||
-    (Char >= 'a' && Char <= 'f'));
+  return (BOOLEAN)(InternalAsciiIsDecimalDigitCharacter (Char) ||
+                   (Char >= 'A' && Char <= 'F') ||
+                   (Char >= 'a' && Char <= 'f'));
 }
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function is deprecated for security reason.
-
-  Convert a Null-terminated Unicode string to a Null-terminated
-  ASCII string and returns the ASCII string.
-
-  This function converts the content of the Unicode string Source
-  to the ASCII string Destination by copying the lower 8 bits of
-  each Unicode character. It returns Destination.
-
-  The caller is responsible to make sure Destination points to a buffer with size
-  equal or greater than ((StrLen (Source) + 1) * sizeof (CHAR8)) in bytes.
-
-  If any Unicode characters in Source contain non-zero value in
-  the upper 8 bits, then ASSERT().
-
-  If Destination is NULL, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source is not aligned on a 16-bit boundary, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains
-  more than PcdMaximumUnicodeStringLength Unicode characters, not including
-  the Null-terminator, then ASSERT().
-
-  If PcdMaximumAsciiStringLength is not zero, and Source contains more
-  than PcdMaximumAsciiStringLength Unicode characters, not including the
-  Null-terminator, then ASSERT().
-
-  @param  Source        A pointer to a Null-terminated Unicode string.
-  @param  Destination   A pointer to a Null-terminated ASCII string.
-
-  @return Destination.
-
-**/
-CHAR8 *
-EFIAPI
-UnicodeStrToAsciiStr (
-  IN      CONST CHAR16              *Source,
-  OUT     CHAR8                     *Destination
-  )
-{
-  CHAR8                               *ReturnValue;
-
-  ASSERT (Destination != NULL);
-
-  //
-  // ASSERT if Source is long than PcdMaximumUnicodeStringLength.
-  // Length tests are performed inside StrLen().
-  //
-  ASSERT (StrSize (Source) != 0);
-
-  //
-  // Source and Destination should not overlap
-  //
-  ASSERT ((UINTN) (Destination - (CHAR8 *) Source) >= StrSize (Source));
-  ASSERT ((UINTN) ((CHAR8 *) Source - Destination) > StrLen (Source));
-
-
-  ReturnValue = Destination;
-  while (*Source != '\0') {
-    //
-    // If any Unicode characters in Source contain
-    // non-zero value in the upper 8 bits, then ASSERT().
-    //
-    ASSERT (*Source < 0x100);
-    *(Destination++) = (CHAR8) *(Source++);
-  }
-
-  *Destination = '\0';
-
-  //
-  // ASSERT Original Destination is less long than PcdMaximumAsciiStringLength.
-  // Length tests are performed inside AsciiStrLen().
-  //
-  ASSERT (AsciiStrSize (ReturnValue) != 0);
-
-  return ReturnValue;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Copies one Null-terminated ASCII string to another Null-terminated ASCII
-  string and returns the new ASCII string.
-
-  This function copies the contents of the ASCII string Source to the ASCII
-  string Destination, and returns Destination. If Source and Destination
-  overlap, then the results are undefined.
-
-  If Destination is NULL, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero and Source contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated ASCII string.
-  @param  Source      A pointer to a Null-terminated ASCII string.
-
-  @return Destination
-
-**/
-CHAR8 *
-EFIAPI
-AsciiStrCpy (
-  OUT     CHAR8                     *Destination,
-  IN      CONST CHAR8               *Source
-  )
-{
-  CHAR8                             *ReturnValue;
-
-  //
-  // Destination cannot be NULL
-  //
-  ASSERT (Destination != NULL);
-
-  //
-  // Destination and source cannot overlap
-  //
-  ASSERT ((UINTN)(Destination - Source) > AsciiStrLen (Source));
-  ASSERT ((UINTN)(Source - Destination) > AsciiStrLen (Source));
-
-  ReturnValue = Destination;
-  while (*Source != 0) {
-    *(Destination++) = *(Source++);
-  }
-  *Destination = 0;
-  return ReturnValue;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Copies up to a specified length one Null-terminated ASCII string to another
-  Null-terminated ASCII string and returns the new ASCII string.
-
-  This function copies the contents of the ASCII string Source to the ASCII
-  string Destination, and returns Destination. At most, Length ASCII characters
-  are copied from Source to Destination. If Length is 0, then Destination is
-  returned unmodified. If Length is greater that the number of ASCII characters
-  in Source, then Destination is padded with Null ASCII characters. If Source
-  and Destination overlap, then the results are undefined.
-
-  If Destination is NULL, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Length is greater than
-  PcdMaximumAsciiStringLength, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Source contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated ASCII string.
-  @param  Source      A pointer to a Null-terminated ASCII string.
-  @param  Length      The maximum number of ASCII characters to copy.
-
-  @return Destination
-
-**/
-CHAR8 *
-EFIAPI
-AsciiStrnCpy (
-  OUT     CHAR8                     *Destination,
-  IN      CONST CHAR8               *Source,
-  IN      UINTN                     Length
-  )
-{
-  CHAR8                             *ReturnValue;
-
-  if (Length == 0) {
-    return Destination;
-  }
-
-  //
-  // Destination cannot be NULL
-  //
-  ASSERT (Destination != NULL);
-
-  //
-  // Destination and source cannot overlap
-  //
-  ASSERT ((UINTN)(Destination - Source) > AsciiStrLen (Source));
-  ASSERT ((UINTN)(Source - Destination) >= Length);
-
-  if (PcdGet32 (PcdMaximumAsciiStringLength) != 0) {
-    ASSERT (Length <= PcdGet32 (PcdMaximumAsciiStringLength));
-  }
-
-  ReturnValue = Destination;
-
-  while (*Source != 0 && Length > 0) {
-    *(Destination++) = *(Source++);
-    Length--;
-  }
-
-  ZeroMem (Destination, Length * sizeof (*Destination));
-  return ReturnValue;
-}
-#endif
 
 /**
   Returns the length of a Null-terminated ASCII string.
@@ -1068,10 +639,10 @@ AsciiStrnCpy (
 UINTN
 EFIAPI
 AsciiStrLen (
-  IN      CONST CHAR8               *String
+  IN      CONST CHAR8  *String
   )
 {
-  UINTN                             Length;
+  UINTN  Length;
 
   ASSERT (String != NULL);
 
@@ -1084,6 +655,7 @@ AsciiStrLen (
       ASSERT (Length < PcdGet32 (PcdMaximumAsciiStringLength));
     }
   }
+
   return Length;
 }
 
@@ -1107,7 +679,7 @@ AsciiStrLen (
 UINTN
 EFIAPI
 AsciiStrSize (
-  IN      CONST CHAR8               *String
+  IN      CONST CHAR8  *String
   )
 {
   return (AsciiStrLen (String) + 1) * sizeof (*String);
@@ -1142,8 +714,8 @@ AsciiStrSize (
 INTN
 EFIAPI
 AsciiStrCmp (
-  IN      CONST CHAR8               *FirstString,
-  IN      CONST CHAR8               *SecondString
+  IN      CONST CHAR8  *FirstString,
+  IN      CONST CHAR8  *SecondString
   )
 {
   //
@@ -1176,10 +748,10 @@ AsciiStrCmp (
 CHAR8
 EFIAPI
 AsciiCharToUpper (
-  IN      CHAR8                     Chr
+  IN      CHAR8  Chr
   )
 {
-  return (UINT8) ((Chr >= 'a' && Chr <= 'z') ? Chr - ('a' - 'A') : Chr);
+  return (UINT8)((Chr >= 'a' && Chr <= 'z') ? Chr - ('a' - 'A') : Chr);
 }
 
 /**
@@ -1198,7 +770,7 @@ AsciiCharToUpper (
 UINTN
 EFIAPI
 InternalAsciiHexCharToUintn (
-  IN      CHAR8                    Char
+  IN      CHAR8  Char
   )
 {
   if (InternalIsDecimalDigitCharacter (Char)) {
@@ -1207,7 +779,6 @@ InternalAsciiHexCharToUintn (
 
   return (10 + AsciiCharToUpper (Char) - 'A');
 }
-
 
 /**
   Performs a case insensitive comparison of two Null-terminated ASCII strings,
@@ -1241,8 +812,8 @@ InternalAsciiHexCharToUintn (
 INTN
 EFIAPI
 AsciiStriCmp (
-  IN      CONST CHAR8               *FirstString,
-  IN      CONST CHAR8               *SecondString
+  IN      CONST CHAR8  *FirstString,
+  IN      CONST CHAR8  *SecondString
   )
 {
   CHAR8  UpperFirstString;
@@ -1299,9 +870,9 @@ AsciiStriCmp (
 INTN
 EFIAPI
 AsciiStrnCmp (
-  IN      CONST CHAR8               *FirstString,
-  IN      CONST CHAR8               *SecondString,
-  IN      UINTN                     Length
+  IN      CONST CHAR8  *FirstString,
+  IN      CONST CHAR8  *SecondString,
+  IN      UINTN        Length
   )
 {
   if (Length == 0) {
@@ -1321,122 +892,15 @@ AsciiStrnCmp (
   while ((*FirstString != '\0') &&
          (*SecondString != '\0') &&
          (*FirstString == *SecondString) &&
-         (Length > 1)) {
+         (Length > 1))
+  {
     FirstString++;
     SecondString++;
     Length--;
   }
+
   return *FirstString - *SecondString;
 }
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Concatenates one Null-terminated ASCII string to another Null-terminated
-  ASCII string, and returns the concatenated ASCII string.
-
-  This function concatenates two Null-terminated ASCII strings. The contents of
-  Null-terminated ASCII string Source are concatenated to the end of Null-
-  terminated ASCII string Destination. The Null-terminated concatenated ASCII
-  String is returned.
-
-  If Destination is NULL, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero and Destination contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero and Source contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero and concatenating Destination and
-  Source results in a ASCII string with more than PcdMaximumAsciiStringLength
-  ASCII characters, then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated ASCII string.
-  @param  Source      A pointer to a Null-terminated ASCII string.
-
-  @return Destination
-
-**/
-CHAR8 *
-EFIAPI
-AsciiStrCat (
-  IN OUT CHAR8    *Destination,
-  IN CONST CHAR8  *Source
-  )
-{
-  AsciiStrCpy (Destination + AsciiStrLen (Destination), Source);
-
-  //
-  // Size of the resulting string should never be zero.
-  // PcdMaximumUnicodeStringLength is tested inside StrLen().
-  //
-  ASSERT (AsciiStrSize (Destination) != 0);
-  return Destination;
-}
-
-/**
-  [ATTENTION] This function will be deprecated for security reason.
-
-  Concatenates up to a specified length one Null-terminated ASCII string to
-  the end of another Null-terminated ASCII string, and returns the
-  concatenated ASCII string.
-
-  This function concatenates two Null-terminated ASCII strings. The contents
-  of Null-terminated ASCII string Source are concatenated to the end of Null-
-  terminated ASCII string Destination, and Destination is returned. At most,
-  Length ASCII characters are concatenated from Source to the end of
-  Destination, and Destination is always Null-terminated. If Length is 0, then
-  Destination is returned unmodified. If Source and Destination overlap, then
-  the results are undefined.
-
-  If Length > 0 and Destination is NULL, then ASSERT().
-  If Length > 0 and Source is NULL, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Length is greater than
-  PcdMaximumAsciiStringLength, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Destination contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Source contains more than
-  PcdMaximumAsciiStringLength ASCII characters, not including the Null-terminator,
-  then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and concatenating Destination and
-  Source results in a ASCII string with more than PcdMaximumAsciiStringLength
-  ASCII characters, not including the Null-terminator, then ASSERT().
-
-  @param  Destination A pointer to a Null-terminated ASCII string.
-  @param  Source      A pointer to a Null-terminated ASCII string.
-  @param  Length      The maximum number of ASCII characters to concatenate from
-                      Source.
-
-  @return Destination
-
-**/
-CHAR8 *
-EFIAPI
-AsciiStrnCat (
-  IN OUT  CHAR8                     *Destination,
-  IN      CONST CHAR8               *Source,
-  IN      UINTN                     Length
-  )
-{
-  UINTN   DestinationLen;
-
-  DestinationLen = AsciiStrLen (Destination);
-  AsciiStrnCpy (Destination + DestinationLen, Source, Length);
-  Destination[DestinationLen + Length] = '\0';
-
-  //
-  // Size of the resulting string should never be zero.
-  // PcdMaximumUnicodeStringLength is tested inside StrLen().
-  //
-  ASSERT (AsciiStrSize (Destination) != 0);
-  return Destination;
-}
-#endif
 
 /**
   Returns the first occurrence of a Null-terminated ASCII sub-string
@@ -1465,12 +929,12 @@ AsciiStrnCat (
 CHAR8 *
 EFIAPI
 AsciiStrStr (
-  IN      CONST CHAR8               *String,
-  IN      CONST CHAR8               *SearchString
+  IN      CONST CHAR8  *String,
+  IN      CONST CHAR8  *SearchString
   )
 {
-  CONST CHAR8 *FirstMatch;
-  CONST CHAR8 *SearchStringTmp;
+  CONST CHAR8  *FirstMatch;
+  CONST CHAR8  *SearchStringTmp;
 
   //
   // ASSERT both strings are less long than PcdMaximumAsciiStringLength
@@ -1479,21 +943,22 @@ AsciiStrStr (
   ASSERT (AsciiStrSize (SearchString) != 0);
 
   if (*SearchString == '\0') {
-    return (CHAR8 *) String;
+    return (CHAR8 *)String;
   }
 
   while (*String != '\0') {
     SearchStringTmp = SearchString;
-    FirstMatch = String;
+    FirstMatch      = String;
 
-    while ((*String == *SearchStringTmp)
-            && (*String != '\0')) {
+    while (  (*String == *SearchStringTmp)
+          && (*String != '\0'))
+    {
       String++;
       SearchStringTmp++;
     }
 
     if (*SearchStringTmp == '\0') {
-      return (CHAR8 *) FirstMatch;
+      return (CHAR8 *)FirstMatch;
     }
 
     if (*String == '\0') {
@@ -1539,15 +1004,19 @@ AsciiStrStr (
 UINTN
 EFIAPI
 AsciiStrDecimalToUintn (
-  IN      CONST CHAR8               *String
+  IN      CONST CHAR8  *String
   )
 {
-  UINTN     Result;
+  UINTN          Result;
+  RETURN_STATUS  Status;
 
-  AsciiStrDecimalToUintnS (String, (CHAR8 **) NULL, &Result);
+  Status = AsciiStrDecimalToUintnS (String, (CHAR8 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
-
 
 /**
   Convert a Null-terminated ASCII decimal string to a value of type
@@ -1582,12 +1051,17 @@ AsciiStrDecimalToUintn (
 UINT64
 EFIAPI
 AsciiStrDecimalToUint64 (
-  IN      CONST CHAR8               *String
+  IN      CONST CHAR8  *String
   )
 {
-  UINT64     Result;
+  UINT64         Result;
+  RETURN_STATUS  Status;
 
-  AsciiStrDecimalToUint64S (String, (CHAR8 **) NULL, &Result);
+  Status = AsciiStrDecimalToUint64S (String, (CHAR8 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
 
@@ -1628,15 +1102,19 @@ AsciiStrDecimalToUint64 (
 UINTN
 EFIAPI
 AsciiStrHexToUintn (
-  IN      CONST CHAR8               *String
+  IN      CONST CHAR8  *String
   )
 {
-  UINTN     Result;
+  UINTN          Result;
+  RETURN_STATUS  Status;
 
-  AsciiStrHexToUintnS (String, (CHAR8 **) NULL, &Result);
+  Status = AsciiStrHexToUintnS (String, (CHAR8 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
-
 
 /**
   Convert a Null-terminated ASCII hexadecimal string to a value of type UINT64.
@@ -1675,89 +1153,21 @@ AsciiStrHexToUintn (
 UINT64
 EFIAPI
 AsciiStrHexToUint64 (
-  IN      CONST CHAR8                *String
+  IN      CONST CHAR8  *String
   )
 {
-  UINT64    Result;
+  UINT64         Result;
+  RETURN_STATUS  Status;
 
-  AsciiStrHexToUint64S (String, (CHAR8 **) NULL, &Result);
+  Status = AsciiStrHexToUint64S (String, (CHAR8 **)NULL, &Result);
+  if (Status == RETURN_INVALID_PARAMETER) {
+    Result = 0;
+  }
+
   return Result;
 }
 
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-
-/**
-  [ATTENTION] This function is deprecated for security reason.
-
-  Convert one Null-terminated ASCII string to a Null-terminated
-  Unicode string and returns the Unicode string.
-
-  This function converts the contents of the ASCII string Source to the Unicode
-  string Destination, and returns Destination.  The function terminates the
-  Unicode string Destination by appending a Null-terminator character at the end.
-  The caller is responsible to make sure Destination points to a buffer with size
-  equal or greater than ((AsciiStrLen (Source) + 1) * sizeof (CHAR16)) in bytes.
-
-  If Destination is NULL, then ASSERT().
-  If Destination is not aligned on a 16-bit boundary, then ASSERT().
-  If Source is NULL, then ASSERT().
-  If Source and Destination overlap, then ASSERT().
-  If PcdMaximumAsciiStringLength is not zero, and Source contains more than
-  PcdMaximumAsciiStringLength ASCII characters not including the Null-terminator,
-  then ASSERT().
-  If PcdMaximumUnicodeStringLength is not zero, and Source contains more than
-  PcdMaximumUnicodeStringLength ASCII characters not including the
-  Null-terminator, then ASSERT().
-
-  @param  Source        A pointer to a Null-terminated ASCII string.
-  @param  Destination   A pointer to a Null-terminated Unicode string.
-
-  @return Destination.
-
-**/
-CHAR16 *
-EFIAPI
-AsciiStrToUnicodeStr (
-  IN      CONST CHAR8               *Source,
-  OUT     CHAR16                    *Destination
-  )
-{
-  CHAR16                            *ReturnValue;
-
-  ASSERT (Destination != NULL);
-
-  //
-  // ASSERT Source is less long than PcdMaximumAsciiStringLength
-  //
-  ASSERT (AsciiStrSize (Source) != 0);
-
-  //
-  // Source and Destination should not overlap
-  //
-  ASSERT ((UINTN) ((CHAR8 *) Destination - Source) > AsciiStrLen (Source));
-  ASSERT ((UINTN) (Source - (CHAR8 *) Destination) >= (AsciiStrSize (Source) * sizeof (CHAR16)));
-
-
-  ReturnValue = Destination;
-  while (*Source != '\0') {
-    *(Destination++) = (CHAR16)(UINT8) *(Source++);
-  }
-  //
-  // End the Destination with a NULL.
-  //
-  *Destination = '\0';
-
-  //
-  // ASSERT Original Destination is less long than PcdMaximumUnicodeStringLength
-  //
-  ASSERT (StrSize (ReturnValue) != 0);
-
-  return ReturnValue;
-}
-
-#endif
-
-STATIC CHAR8 EncodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+STATIC CHAR8  EncodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                 "abcdefghijklmnopqrstuvwxyz"
                                 "0123456789+/";
 
@@ -1784,14 +1194,13 @@ RETURN_STATUS
 EFIAPI
 Base64Encode (
   IN  CONST UINT8  *Source,
-  IN        UINTN   SourceLength,
+  IN        UINTN  SourceLength,
   OUT       CHAR8  *Destination   OPTIONAL,
   IN OUT    UINTN  *DestinationSize
   )
 {
-
-  UINTN          RequiredSize;
-  UINTN          Left;
+  UINTN  RequiredSize;
+  UINTN  Left;
 
   //
   // Check pointers, and SourceLength is valid
@@ -1808,15 +1217,16 @@ Base64Encode (
       *DestinationSize = 1;
       return RETURN_BUFFER_TOO_SMALL;
     }
+
     *DestinationSize = 1;
-    *Destination = '\0';
+    *Destination     = '\0';
     return RETURN_SUCCESS;
   }
 
   //
   // Check if SourceLength or  DestinationSize is valid
   //
-  if ((SourceLength >= (MAX_ADDRESS - (UINTN)Source)) || (*DestinationSize >= (MAX_ADDRESS - (UINTN)Destination))){
+  if ((SourceLength >= (MAX_ADDRESS - (UINTN)Source)) || (*DestinationSize >= (MAX_ADDRESS - (UINTN)Destination))) {
     return RETURN_INVALID_PARAMETER;
   }
 
@@ -1824,7 +1234,7 @@ Base64Encode (
   // 4 ascii per 3 bytes + NULL
   //
   RequiredSize = ((SourceLength + 2) / 3) * 4 + 1;
-  if ((Destination == NULL) || *DestinationSize < RequiredSize) {
+  if ((Destination == NULL) || (*DestinationSize < RequiredSize)) {
     *DestinationSize = RequiredSize;
     return RETURN_BUFFER_TOO_SMALL;
   }
@@ -1835,13 +1245,12 @@ Base64Encode (
   // Encode 24 bits (three bytes) into 4 ascii characters
   //
   while (Left >= 3) {
-
-    *Destination++ = EncodingTable[( Source[0] & 0xfc) >> 2 ];
+    *Destination++ = EncodingTable[(Source[0] & 0xfc) >> 2];
     *Destination++ = EncodingTable[((Source[0] & 0x03) << 4) + ((Source[1] & 0xf0) >> 4)];
     *Destination++ = EncodingTable[((Source[1] & 0x0f) << 2) + ((Source[2] & 0xc0) >> 6)];
-    *Destination++ = EncodingTable[( Source[2] & 0x3f)];
-    Left -= 3;
-    Source += 3;
+    *Destination++ = EncodingTable[(Source[2] & 0x3f)];
+    Left          -= 3;
+    Source        += 3;
   }
 
   //
@@ -1859,7 +1268,7 @@ Base64Encode (
       //
       // One more data byte, two pad characters
       //
-      *Destination++ = EncodingTable[( Source[0] & 0xfc) >> 2];
+      *Destination++ = EncodingTable[(Source[0] & 0xfc) >> 2];
       *Destination++ = EncodingTable[((Source[0] & 0x03) << 4)];
       *Destination++ = '=';
       *Destination++ = '=';
@@ -1869,12 +1278,13 @@ Base64Encode (
       //
       // Two more data bytes, and one pad character
       //
-      *Destination++ = EncodingTable[( Source[0] & 0xfc) >> 2];
+      *Destination++ = EncodingTable[(Source[0] & 0xfc) >> 2];
       *Destination++ = EncodingTable[((Source[0] & 0x03) << 4) + ((Source[1] & 0xf0) >> 4)];
       *Destination++ = EncodingTable[((Source[1] & 0x0f) << 2)];
       *Destination++ = '=';
       break;
-    }
+  }
+
   //
   // Add terminating NULL
   //
@@ -1967,20 +1377,20 @@ Base64Encode (
 RETURN_STATUS
 EFIAPI
 Base64Decode (
-  IN     CONST CHAR8 *Source          OPTIONAL,
-  IN     UINTN       SourceSize,
-  OUT    UINT8       *Destination     OPTIONAL,
-  IN OUT UINTN       *DestinationSize
+  IN     CONST CHAR8  *Source          OPTIONAL,
+  IN     UINTN        SourceSize,
+  OUT    UINT8        *Destination     OPTIONAL,
+  IN OUT UINTN        *DestinationSize
   )
 {
-  BOOLEAN PaddingMode;
-  UINTN   SixBitGroupsConsumed;
-  UINT32  Accumulator;
-  UINTN   OriginalDestinationSize;
-  UINTN   SourceIndex;
-  CHAR8   SourceChar;
-  UINT32  Base64Value;
-  UINT8   DestinationOctet;
+  BOOLEAN  PaddingMode;
+  UINTN    SixBitGroupsConsumed;
+  UINT32   Accumulator;
+  UINTN    OriginalDestinationSize;
+  UINTN    SourceIndex;
+  CHAR8    SourceChar;
+  UINT32   Base64Value;
+  UINT8    DestinationOctet;
 
   if (DestinationSize == NULL) {
     return RETURN_INVALID_PARAMETER;
@@ -2023,7 +1433,7 @@ Base64Decode (
   //
   // Check for overlap.
   //
-  if (Source != NULL && Destination != NULL) {
+  if ((Source != NULL) && (Destination != NULL)) {
     //
     // Both arrays have been provided, and we know from earlier that each array
     // is valid in itself.
@@ -2062,8 +1472,9 @@ Base64Decode (
     //
     // Whitespace is ignored at all positions (regardless of padding mode).
     //
-    if (SourceChar == '\t' || SourceChar == '\n' || SourceChar == '\v' ||
-        SourceChar == '\f' || SourceChar == '\r' || SourceChar == ' ') {
+    if ((SourceChar == '\t') || (SourceChar == '\n') || (SourceChar == '\v') ||
+        (SourceChar == '\f') || (SourceChar == '\r') || (SourceChar == ' '))
+    {
       continue;
     }
 
@@ -2077,10 +1488,11 @@ Base64Decode (
     //     "=" padding characters.
     //
     if (PaddingMode) {
-      if (SourceChar == '=' && SixBitGroupsConsumed == 3) {
+      if ((SourceChar == '=') && (SixBitGroupsConsumed == 3)) {
         SixBitGroupsConsumed = 0;
         continue;
       }
+
       return RETURN_INVALID_PARAMETER;
     }
 
@@ -2088,11 +1500,11 @@ Base64Decode (
     // When not in padding mode, decode Base64Value based on RFC4648, "Table 1:
     // The Base 64 Alphabet".
     //
-    if ('A' <= SourceChar && SourceChar <= 'Z') {
+    if (('A' <= SourceChar) && (SourceChar <= 'Z')) {
       Base64Value = SourceChar - 'A';
-    } else if ('a' <= SourceChar && SourceChar <= 'z') {
+    } else if (('a' <= SourceChar) && (SourceChar <= 'z')) {
       Base64Value = 26 + (SourceChar - 'a');
-    } else if ('0' <= SourceChar && SourceChar <= '9') {
+    } else if (('0' <= SourceChar) && (SourceChar <= '9')) {
       Base64Value = 52 + (SourceChar - '0');
     } else if (SourceChar == '+') {
       Base64Value = 62;
@@ -2156,38 +1568,38 @@ Base64Decode (
     Accumulator = (Accumulator << 6) | Base64Value;
     SixBitGroupsConsumed++;
     switch (SixBitGroupsConsumed) {
-    case 1:
-      //
-      // No octet to spill after consuming the first 6-bit group of the
-      // quantum; advance to the next source character.
-      //
-      continue;
-    case 2:
-      //
-      // 12 bits accumulated (6 pending + 6 new); prepare for spilling an
-      // octet. 4 bits remain pending.
-      //
-      DestinationOctet = (UINT8)(Accumulator >> 4);
-      Accumulator &= 0xF;
-      break;
-    case 3:
-      //
-      // 10 bits accumulated (4 pending + 6 new); prepare for spilling an
-      // octet. 2 bits remain pending.
-      //
-      DestinationOctet = (UINT8)(Accumulator >> 2);
-      Accumulator &= 0x3;
-      break;
-    default:
-      ASSERT (SixBitGroupsConsumed == 4);
-      //
-      // 8 bits accumulated (2 pending + 6 new); prepare for spilling an octet.
-      // The quantum is complete, 0 bits remain pending.
-      //
-      DestinationOctet = (UINT8)Accumulator;
-      Accumulator = 0;
-      SixBitGroupsConsumed = 0;
-      break;
+      case 1:
+        //
+        // No octet to spill after consuming the first 6-bit group of the
+        // quantum; advance to the next source character.
+        //
+        continue;
+      case 2:
+        //
+        // 12 bits accumulated (6 pending + 6 new); prepare for spilling an
+        // octet. 4 bits remain pending.
+        //
+        DestinationOctet = (UINT8)(Accumulator >> 4);
+        Accumulator     &= 0xF;
+        break;
+      case 3:
+        //
+        // 10 bits accumulated (4 pending + 6 new); prepare for spilling an
+        // octet. 2 bits remain pending.
+        //
+        DestinationOctet = (UINT8)(Accumulator >> 2);
+        Accumulator     &= 0x3;
+        break;
+      default:
+        ASSERT (SixBitGroupsConsumed == 4);
+        //
+        // 8 bits accumulated (2 pending + 6 new); prepare for spilling an octet.
+        // The quantum is complete, 0 bits remain pending.
+        //
+        DestinationOctet     = (UINT8)Accumulator;
+        Accumulator          = 0;
+        SixBitGroupsConsumed = 0;
+        break;
     }
 
     //
@@ -2198,6 +1610,7 @@ Base64Decode (
       ASSERT (Destination != NULL);
       Destination[*DestinationSize] = DestinationOctet;
     }
+
     (*DestinationSize)++;
 
     //
@@ -2218,6 +1631,7 @@ Base64Decode (
   if (*DestinationSize <= OriginalDestinationSize) {
     return RETURN_SUCCESS;
   }
+
   return RETURN_BUFFER_TOO_SMALL;
 }
 
@@ -2237,11 +1651,11 @@ Base64Decode (
 UINT8
 EFIAPI
 DecimalToBcd8 (
-  IN      UINT8                     Value
+  IN      UINT8  Value
   )
 {
   ASSERT (Value < 100);
-  return (UINT8) (((Value / 10) << 4) | (Value % 10));
+  return (UINT8)(((Value / 10) << 4) | (Value % 10));
 }
 
 /**
@@ -2261,10 +1675,10 @@ DecimalToBcd8 (
 UINT8
 EFIAPI
 BcdToDecimal8 (
-  IN      UINT8                     Value
+  IN      UINT8  Value
   )
 {
   ASSERT (Value < 0xa0);
   ASSERT ((Value & 0xf) < 0xa);
-  return (UINT8) ((Value >> 4) * 10 + (Value & 0xf));
+  return (UINT8)((Value >> 4) * 10 + (Value & 0xf));
 }

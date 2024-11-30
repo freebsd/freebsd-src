@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of 64-bit MMX Register #5 (MM5).
 
@@ -33,4 +30,3 @@ AsmReadMm5 (
     emms
   }
 }
-

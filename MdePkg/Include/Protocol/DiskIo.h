@@ -28,7 +28,7 @@ typedef struct _EFI_DISK_IO_PROTOCOL EFI_DISK_IO_PROTOCOL;
 ///
 /// Protocol defined in EFI1.1.
 ///
-typedef EFI_DISK_IO_PROTOCOL  EFI_DISK_IO;
+typedef EFI_DISK_IO_PROTOCOL EFI_DISK_IO;
 
 /**
   Read BufferSize bytes from Offset into Buffer.
@@ -85,7 +85,7 @@ EFI_STATUS
   IN VOID                         *Buffer
   );
 
-#define EFI_DISK_IO_PROTOCOL_REVISION 0x00010000
+#define EFI_DISK_IO_PROTOCOL_REVISION  0x00010000
 
 ///
 /// Revision defined in EFI1.1
@@ -101,11 +101,11 @@ struct _EFI_DISK_IO_PROTOCOL {
   /// revisions must be backwards compatible. If a future version is not
   /// backwards compatible, it is not the same GUID.
   ///
-  UINT64          Revision;
-  EFI_DISK_READ   ReadDisk;
-  EFI_DISK_WRITE  WriteDisk;
+  UINT64            Revision;
+  EFI_DISK_READ     ReadDisk;
+  EFI_DISK_WRITE    WriteDisk;
 };
 
-extern EFI_GUID gEfiDiskIoProtocolGuid;
+extern EFI_GUID  gEfiDiskIoProtocolGuid;
 
 #endif

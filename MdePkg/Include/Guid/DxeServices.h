@@ -12,11 +12,15 @@
 #ifndef __DXE_SERVICES_GUID_H__
 #define __DXE_SERVICES_GUID_H__
 
+//
+// The DXE Services Table shall be stored in memory of type
+// EfiBootServicesData
+//
 #define DXE_SERVICES_TABLE_GUID \
   { \
     0x5ad34ba, 0x6f02, 0x4214, {0x95, 0x2e, 0x4d, 0xa0, 0x39, 0x8e, 0x2b, 0xb9 } \
   }
 
-extern EFI_GUID gEfiDxeServicesTableGuid;
+extern EFI_GUID  gEfiDxeServicesTableGuid;
 
 #endif

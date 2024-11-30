@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -31,7 +31,7 @@ ASM_PFX(AsmWriteDr5):
     ; There's no obvious reason to access this register, since it's aliased to
     ; DR7 when DE=0 or an exception generated when DE=1
     ;
-    DB      0xf, 0x23, 0xe9
+    mov     dr5, rcx
     mov     rax, rcx
     ret
 

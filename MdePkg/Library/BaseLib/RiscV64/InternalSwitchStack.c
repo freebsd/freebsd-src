@@ -11,6 +11,30 @@
 /**
   Transfers control to a function starting with a new stack.
 
+  This internal worker function transfers control to the function
+  specified by EntryPoint using the new stack specified by NewStack,
+  and passes in the parameters specified by Context1 and Context2.
+  Context1 and Context2 are optional and may be NULL.
+  The function EntryPoint must never return.
+
+  @param Context1     The first parameter to pass in.
+  @param Context2     The second Parameter to pass in
+  @param EntryPoint   The pointer to the function to enter.
+  @param NewStack     The new Location of the stack
+
+**/
+VOID
+EFIAPI
+InternalSwitchStackAsm (
+  IN      VOID                      *Context1    OPTIONAL,
+  IN      VOID                      *Context2    OPTIONAL,
+  IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
+  IN      VOID                      *NewStack
+  );
+
+/**
+  Transfers control to a function starting with a new stack.
+
   Transfers control to the function specified by EntryPoint using the
   new stack specified by NewStack and passing in the parameters specified
   by Context1 and Context2.  Context1 and Context2 are optional and may
@@ -36,20 +60,12 @@ VOID
 EFIAPI
 InternalSwitchStack (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,   OPTIONAL
-  IN      VOID                      *Context2,   OPTIONAL
+  IN      VOID                      *Context1    OPTIONAL,
+  IN      VOID                      *Context2    OPTIONAL,
   IN      VOID                      *NewStack,
   IN      VA_LIST                   Marker
   )
 {
-  BASE_LIBRARY_JUMP_BUFFER  JumpBuffer;
-
-  DEBUG ((DEBUG_INFO, "RISC-V InternalSwitchStack Entry:%x Context1:%x Context2:%x NewStack%x\n", \
-          EntryPoint, Context1, Context2, NewStack));
-  JumpBuffer.RA = (UINTN)EntryPoint;
-  JumpBuffer.SP = (UINTN)NewStack - sizeof (VOID *);
-  JumpBuffer.S0 = (UINT64)(UINTN)Context1;
-  JumpBuffer.S1 = (UINT64)(UINTN)Context2;
-  LongJump (&JumpBuffer, (UINTN)-1);
-  ASSERT(FALSE);
+  InternalSwitchStackAsm (Context1, Context2, EntryPoint, (VOID *)((UINTN)NewStack - sizeof (VOID *)));
+  ASSERT (FALSE);
 }

@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -30,8 +27,8 @@
 UINT32
 EFIAPI
 ModU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor
   )
 {
   ASSERT (Divisor != 0);

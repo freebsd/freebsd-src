@@ -22,21 +22,21 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     0x78247c57, 0x63db, 0x4708, {0x99, 0xc2, 0xa8, 0xb4, 0xa9, 0xa6, 0x1f, 0x6b } \
   }
 
-typedef struct _EFI_MTFTP4_PROTOCOL EFI_MTFTP4_PROTOCOL;
-typedef struct _EFI_MTFTP4_TOKEN EFI_MTFTP4_TOKEN;
+typedef struct _EFI_MTFTP4_PROTOCOL  EFI_MTFTP4_PROTOCOL;
+typedef struct _EFI_MTFTP4_TOKEN     EFI_MTFTP4_TOKEN;
 
 //
-//MTFTP4 packet opcode definition
+// MTFTP4 packet opcode definition
 //
-#define EFI_MTFTP4_OPCODE_RRQ                     1
-#define EFI_MTFTP4_OPCODE_WRQ                     2
-#define EFI_MTFTP4_OPCODE_DATA                    3
-#define EFI_MTFTP4_OPCODE_ACK                     4
-#define EFI_MTFTP4_OPCODE_ERROR                   5
-#define EFI_MTFTP4_OPCODE_OACK                    6
-#define EFI_MTFTP4_OPCODE_DIR                     7
-#define EFI_MTFTP4_OPCODE_DATA8                   8
-#define EFI_MTFTP4_OPCODE_ACK8                    9
+#define EFI_MTFTP4_OPCODE_RRQ    1
+#define EFI_MTFTP4_OPCODE_WRQ    2
+#define EFI_MTFTP4_OPCODE_DATA   3
+#define EFI_MTFTP4_OPCODE_ACK    4
+#define EFI_MTFTP4_OPCODE_ERROR  5
+#define EFI_MTFTP4_OPCODE_OACK   6
+#define EFI_MTFTP4_OPCODE_DIR    7
+#define EFI_MTFTP4_OPCODE_DATA8  8
+#define EFI_MTFTP4_OPCODE_ACK8   9
 
 //
 // MTFTP4 error code definition
@@ -57,80 +57,80 @@ typedef struct _EFI_MTFTP4_TOKEN EFI_MTFTP4_TOKEN;
 #pragma pack(1)
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT8                   Filename[1];
+  UINT16    OpCode;
+  UINT8     Filename[1];
 } EFI_MTFTP4_REQ_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT8                   Data[1];
+  UINT16    OpCode;
+  UINT8     Data[1];
 } EFI_MTFTP4_OACK_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT16                  Block;
-  UINT8                   Data[1];
+  UINT16    OpCode;
+  UINT16    Block;
+  UINT8     Data[1];
 } EFI_MTFTP4_DATA_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT16                  Block[1];
+  UINT16    OpCode;
+  UINT16    Block[1];
 } EFI_MTFTP4_ACK_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT64                  Block;
-  UINT8                   Data[1];
+  UINT16    OpCode;
+  UINT64    Block;
+  UINT8     Data[1];
 } EFI_MTFTP4_DATA8_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT64                  Block[1];
+  UINT16    OpCode;
+  UINT64    Block[1];
 } EFI_MTFTP4_ACK8_HEADER;
 
 typedef struct {
-  UINT16                  OpCode;
-  UINT16                  ErrorCode;
-  UINT8                   ErrorMessage[1];
+  UINT16    OpCode;
+  UINT16    ErrorCode;
+  UINT8     ErrorMessage[1];
 } EFI_MTFTP4_ERROR_HEADER;
 
 typedef union {
   ///
   /// Type of packets as defined by the MTFTPv4 packet opcodes.
   ///
-  UINT16                  OpCode;
+  UINT16                     OpCode;
   ///
   /// Read request packet header.
   ///
-  EFI_MTFTP4_REQ_HEADER   Rrq;
+  EFI_MTFTP4_REQ_HEADER      Rrq;
   ///
   /// Write request packet header.
   ///
-  EFI_MTFTP4_REQ_HEADER   Wrq;
+  EFI_MTFTP4_REQ_HEADER      Wrq;
   ///
   /// Option acknowledge packet header.
   ///
-  EFI_MTFTP4_OACK_HEADER  Oack;
+  EFI_MTFTP4_OACK_HEADER     Oack;
   ///
   /// Data packet header.
   ///
-  EFI_MTFTP4_DATA_HEADER  Data;
+  EFI_MTFTP4_DATA_HEADER     Data;
   ///
   /// Acknowledgement packet header.
   ///
-  EFI_MTFTP4_ACK_HEADER   Ack;
+  EFI_MTFTP4_ACK_HEADER      Ack;
   ///
   /// Data packet header with big block number.
   ///
-  EFI_MTFTP4_DATA8_HEADER Data8;
+  EFI_MTFTP4_DATA8_HEADER    Data8;
   ///
   /// Acknowledgement header with big block num.
   ///
-  EFI_MTFTP4_ACK8_HEADER  Ack8;
+  EFI_MTFTP4_ACK8_HEADER     Ack8;
   ///
   /// Error packet header.
   ///
-  EFI_MTFTP4_ERROR_HEADER Error;
+  EFI_MTFTP4_ERROR_HEADER    Error;
 } EFI_MTFTP4_PACKET;
 
 #pragma pack()
@@ -139,39 +139,36 @@ typedef union {
 /// MTFTP4 option definition.
 ///
 typedef struct {
-  UINT8                   *OptionStr;
-  UINT8                   *ValueStr;
+  UINT8    *OptionStr;
+  UINT8    *ValueStr;
 } EFI_MTFTP4_OPTION;
 
-
 typedef struct {
-  BOOLEAN                 UseDefaultSetting;
-  EFI_IPv4_ADDRESS        StationIp;
-  EFI_IPv4_ADDRESS        SubnetMask;
-  UINT16                  LocalPort;
-  EFI_IPv4_ADDRESS        GatewayIp;
-  EFI_IPv4_ADDRESS        ServerIp;
-  UINT16                  InitialServerPort;
-  UINT16                  TryCount;
-  UINT16                  TimeoutValue;
+  BOOLEAN             UseDefaultSetting;
+  EFI_IPv4_ADDRESS    StationIp;
+  EFI_IPv4_ADDRESS    SubnetMask;
+  UINT16              LocalPort;
+  EFI_IPv4_ADDRESS    GatewayIp;
+  EFI_IPv4_ADDRESS    ServerIp;
+  UINT16              InitialServerPort;
+  UINT16              TryCount;
+  UINT16              TimeoutValue;
 } EFI_MTFTP4_CONFIG_DATA;
 
-
 typedef struct {
-  EFI_MTFTP4_CONFIG_DATA  ConfigData;
-  UINT8                   SupportedOptionCount;
-  UINT8                   **SupportedOptoins;
-  UINT8                   UnsupportedOptionCount;
-  UINT8                   **UnsupportedOptoins;
+  EFI_MTFTP4_CONFIG_DATA    ConfigData;
+  UINT8                     SupportedOptionCount;
+  UINT8                     **SupportedOptoins;
+  UINT8                     UnsupportedOptionCount;
+  UINT8                     **UnsupportedOptoins;
 } EFI_MTFTP4_MODE_DATA;
 
-
 typedef struct {
-  EFI_IPv4_ADDRESS        GatewayIp;
-  EFI_IPv4_ADDRESS        ServerIp;
-  UINT16                  ServerPort;
-  UINT16                  TryCount;
-  UINT16                  TimeoutValue;
+  EFI_IPv4_ADDRESS    GatewayIp;
+  EFI_IPv4_ADDRESS    ServerIp;
+  UINT16              ServerPort;
+  UINT16              TryCount;
+  UINT16              TimeoutValue;
 } EFI_MTFTP4_OVERRIDE_DATA;
 
 //
@@ -250,7 +247,6 @@ EFI_STATUS
   OUT VOID                **Buffer
   );
 
-
 /**
   Submits an asynchronous interrupt transfer to an interrupt endpoint of a USB device.
 
@@ -268,7 +264,6 @@ EFI_STATUS
   IN  EFI_MTFTP4_PROTOCOL     *This,
   OUT EFI_MTFTP4_MODE_DATA    *ModeData
   );
-
 
 /**
   Initializes, changes, or resets the default operational setting for this
@@ -298,7 +293,6 @@ EFI_STATUS
   IN EFI_MTFTP4_PROTOCOL       *This,
   IN EFI_MTFTP4_CONFIG_DATA    *MtftpConfigData OPTIONAL
   );
-
 
 /**
   Gets information about a file from an MTFTPv4 server.
@@ -389,7 +383,6 @@ EFI_STATUS
   OUT EFI_MTFTP4_OPTION        **OptionList OPTIONAL
   );
 
-
 /**
   Downloads a file from an MTFTPv4 server.
 
@@ -420,8 +413,6 @@ EFI_STATUS
   IN EFI_MTFTP4_TOKEN          *Token
   );
 
-
-
 /**
   Sends a file to an MTFTPv4 server.
 
@@ -449,7 +440,6 @@ EFI_STATUS
   IN EFI_MTFTP4_PROTOCOL       *This,
   IN EFI_MTFTP4_TOKEN          *Token
   );
-
 
 /**
   Downloads a data file "directory" from an MTFTPv4 server. May be unsupported in some EFI
@@ -522,7 +512,7 @@ struct _EFI_MTFTP4_TOKEN {
   /// The status that is returned to the caller at the end of the operation
   /// to indicate whether this operation completed successfully.
   ///
-  EFI_STATUS                  Status;
+  EFI_STATUS                     Status;
   ///
   /// The event that will be signaled when the operation completes. If
   /// set to NULL, the corresponding function will wait until the read or
@@ -530,58 +520,57 @@ struct _EFI_MTFTP4_TOKEN {
   /// EVT_NOTIFY_SIGNAL. The Task Priority Level (TPL) of
   /// Event must be lower than or equal to TPL_CALLBACK.
   ///
-  EFI_EVENT                   Event;
+  EFI_EVENT                      Event;
   ///
   /// If not NULL, the data that will be used to override the existing configure data.
   ///
-  EFI_MTFTP4_OVERRIDE_DATA    *OverrideData;
+  EFI_MTFTP4_OVERRIDE_DATA       *OverrideData;
   ///
   /// The pointer to the null-terminated ASCII file name string.
   ///
-  UINT8                       *Filename;
+  UINT8                          *Filename;
   ///
   /// The pointer to the null-terminated ASCII mode string. If NULL, "octet" is used.
   ///
-  UINT8                       *ModeStr;
+  UINT8                          *ModeStr;
   ///
   /// Number of option/value string pairs.
   ///
-  UINT32                      OptionCount;
+  UINT32                         OptionCount;
   ///
   /// The pointer to an array of option/value string pairs. Ignored if OptionCount is zero.
   ///
-  EFI_MTFTP4_OPTION           *OptionList;
+  EFI_MTFTP4_OPTION              *OptionList;
   ///
   /// The size of the data buffer.
   ///
-  UINT64                      BufferSize;
+  UINT64                         BufferSize;
   ///
   /// The pointer to the data buffer. Data that is downloaded from the
   /// MTFTPv4 server is stored here. Data that is uploaded to the
   /// MTFTPv4 server is read from here. Ignored if BufferSize is zero.
   ///
-  VOID                        *Buffer;
+  VOID                           *Buffer;
   ///
   /// The pointer to the context that will be used by CheckPacket,
   /// TimeoutCallback and PacketNeeded.
   ///
-  VOID                        *Context;
+  VOID                           *Context;
   ///
   /// The pointer to the callback function to check the contents of the received packet.
   ///
-  EFI_MTFTP4_CHECK_PACKET     CheckPacket;
+  EFI_MTFTP4_CHECK_PACKET        CheckPacket;
   ///
   /// The pointer to the function to be called when a timeout occurs.
   ///
-  EFI_MTFTP4_TIMEOUT_CALLBACK TimeoutCallback;
+  EFI_MTFTP4_TIMEOUT_CALLBACK    TimeoutCallback;
   ///
   /// The pointer to the function to provide the needed packet contents.
   ///
-  EFI_MTFTP4_PACKET_NEEDED    PacketNeeded;
+  EFI_MTFTP4_PACKET_NEEDED       PacketNeeded;
 };
 
-extern EFI_GUID gEfiMtftp4ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiMtftp4ProtocolGuid;
+extern EFI_GUID  gEfiMtftp4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiMtftp4ProtocolGuid;
 
 #endif
-

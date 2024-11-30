@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Writes the current value of 64-bit MMX Register #1 (MM1).
 
@@ -21,7 +18,7 @@
 VOID
 EFIAPI
 AsmWriteMm1 (
-  IN UINT64   Value
+  IN UINT64  Value
   )
 {
   _asm {
@@ -29,4 +26,3 @@ AsmWriteMm1 (
     emms
   }
 }
-

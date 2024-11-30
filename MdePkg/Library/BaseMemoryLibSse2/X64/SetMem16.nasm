@@ -33,7 +33,7 @@ ASM_PFX(InternalMemSetMem16):
     mov     r9, rdi
     xor     rcx, rcx
     sub     rcx, rdi
-    and     rcx, 15
+    and     rcx, 63
     mov     rax, r8
     jz      .0
     shr     rcx, 1
@@ -43,15 +43,18 @@ ASM_PFX(InternalMemSetMem16):
     rep     stosw
 .0:
     mov     rcx, rdx
-    and     edx, 7
-    shr     rcx, 3
+    and     edx, 31
+    shr     rcx, 5
     jz      @SetWords
     movd    xmm0, eax
     pshuflw xmm0, xmm0, 0
     movlhps xmm0, xmm0
 .1:
     movntdq [rdi], xmm0
-    add     rdi, 16
+    movntdq [rdi + 16], xmm0
+    movntdq [rdi + 32], xmm0
+    movntdq [rdi + 48], xmm0
+    add     rdi, 64
     loop    .1
     mfence
 @SetWords:

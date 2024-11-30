@@ -25,63 +25,66 @@
 **/
 RETURN_STATUS
 PeCoffLoaderRelocateImageEx (
-  IN UINT16      *Reloc,
-  IN OUT CHAR8   *Fixup,
-  IN OUT CHAR8   **FixupData,
-  IN UINT64      Adjust
+  IN UINT16     *Reloc,
+  IN OUT CHAR8  *Fixup,
+  IN OUT CHAR8  **FixupData,
+  IN UINT64     Adjust
   )
 {
-  UINT32 Value;
-  UINT32 Value2;
-  UINT32 *RiscVHi20Fixup;
+  UINT32  Value;
+  UINT32  Value2;
+  UINT32  *RiscVHi20Fixup;
 
   switch ((*Reloc) >> 12) {
-  case EFI_IMAGE_REL_BASED_RISCV_HI20:
+    case EFI_IMAGE_REL_BASED_RISCV_HI20:
       *(UINT64 *)(*FixupData) = (UINT64)(UINTN)Fixup;
       break;
 
-  case EFI_IMAGE_REL_BASED_RISCV_LOW12I:
+    case EFI_IMAGE_REL_BASED_RISCV_LOW12I:
       RiscVHi20Fixup =  (UINT32 *)(*(UINT64 *)(*FixupData));
       if (RiscVHi20Fixup != NULL) {
-
-        Value = (UINT32)(RV_X(*RiscVHi20Fixup, 12, 20) << 12);
-        Value2 = (UINT32)(RV_X(*(UINT32 *)Fixup, 20, 12));
+        Value  = (UINT32)(RV_X (*RiscVHi20Fixup, 12, 20) << 12);
+        Value2 = (UINT32)(RV_X (*(UINT32 *)Fixup, 20, 12));
         if (Value2 & (RISCV_IMM_REACH/2)) {
           Value2 |= ~(RISCV_IMM_REACH-1);
         }
-        Value += Value2;
-        Value += (UINT32)Adjust;
-        Value2 = RISCV_CONST_HIGH_PART (Value);
-        *(UINT32 *)RiscVHi20Fixup = (RV_X (Value2, 12, 20) << 12) |\
-                                           (RV_X (*(UINT32 *)RiscVHi20Fixup, 0, 12));
-        *(UINT32 *)Fixup = (RV_X (Value, 0, 12) << 20) |\
+
+        Value                    += Value2;
+        Value                    += (UINT32)Adjust;
+        Value2                    = RISCV_CONST_HIGH_PART (Value);
+        *(UINT32 *)RiscVHi20Fixup = (RV_X (Value2, 12, 20) << 12) | \
+                                    (RV_X (*(UINT32 *)RiscVHi20Fixup, 0, 12));
+        *(UINT32 *)Fixup = (RV_X (Value, 0, 12) << 20) | \
                            (RV_X (*(UINT32 *)Fixup, 0, 20));
       }
+
       break;
 
-  case EFI_IMAGE_REL_BASED_RISCV_LOW12S:
+    case EFI_IMAGE_REL_BASED_RISCV_LOW12S:
       RiscVHi20Fixup =  (UINT32 *)(*(UINT64 *)(*FixupData));
       if (RiscVHi20Fixup != NULL) {
-        Value = (UINT32)(RV_X(*RiscVHi20Fixup, 12, 20) << 12);
-        Value2 = (UINT32)(RV_X(*(UINT32 *)Fixup, 7, 5) | (RV_X(*(UINT32 *)Fixup, 25, 7) << 5));
+        Value  = (UINT32)(RV_X (*RiscVHi20Fixup, 12, 20) << 12);
+        Value2 = (UINT32)(RV_X (*(UINT32 *)Fixup, 7, 5) | (RV_X (*(UINT32 *)Fixup, 25, 7) << 5));
         if (Value2 & (RISCV_IMM_REACH/2)) {
           Value2 |= ~(RISCV_IMM_REACH-1);
         }
-        Value += Value2;
-        Value += (UINT32)Adjust;
-        Value2 = RISCV_CONST_HIGH_PART (Value);
+
+        Value                    += Value2;
+        Value                    += (UINT32)Adjust;
+        Value2                    = RISCV_CONST_HIGH_PART (Value);
         *(UINT32 *)RiscVHi20Fixup = (RV_X (Value2, 12, 20) << 12) | \
-                                           (RV_X (*(UINT32 *)RiscVHi20Fixup, 0, 12));
-        Value2 = *(UINT32 *)Fixup & 0x01fff07f;
-        Value &= RISCV_IMM_REACH - 1;
-        *(UINT32 *)Fixup = Value2 | (UINT32)(((RV_X(Value, 0, 5) << 7) | (RV_X(Value, 5, 7) << 25)));
+                                    (RV_X (*(UINT32 *)RiscVHi20Fixup, 0, 12));
+        Value2           = *(UINT32 *)Fixup & 0x01fff07f;
+        Value           &= RISCV_IMM_REACH - 1;
+        *(UINT32 *)Fixup = Value2 | (UINT32)(((RV_X (Value, 0, 5) << 7) | (RV_X (Value, 5, 7) << 25)));
       }
+
       break;
 
-  default:
+    default:
       return RETURN_UNSUPPORTED;
-
   }
+
   return RETURN_SUCCESS;
 }
 
@@ -101,7 +104,15 @@ PeCoffLoaderImageFormatSupported (
   IN  UINT16  Machine
   )
 {
-  if (Machine ==  IMAGE_FILE_MACHINE_RISCV64) {
+  /*
+   * ARM64 and X64 may allow such foreign images to be used when
+   * a driver implementing EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL is
+   * present.
+   */
+  if ((Machine == IMAGE_FILE_MACHINE_RISCV64) ||
+      (Machine == IMAGE_FILE_MACHINE_ARM64) ||
+      (Machine == IMAGE_FILE_MACHINE_X64))
+  {
     return TRUE;
   }
 
@@ -123,10 +134,10 @@ PeCoffLoaderImageFormatSupported (
 **/
 RETURN_STATUS
 PeHotRelocateImageEx (
-  IN UINT16      *Reloc,
-  IN OUT CHAR8   *Fixup,
-  IN OUT CHAR8   **FixupData,
-  IN UINT64      Adjust
+  IN UINT16     *Reloc,
+  IN OUT CHAR8  *Fixup,
+  IN OUT CHAR8  **FixupData,
+  IN UINT64     Adjust
   )
 {
   return RETURN_UNSUPPORTED;

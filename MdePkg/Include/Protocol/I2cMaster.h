@@ -17,7 +17,7 @@
 
 #include <Pi/PiI2c.h>
 
-#define EFI_I2C_MASTER_PROTOCOL_GUID { 0xcd72881f, 0x45b5, 0x4feb, { 0x98, 0xc8, 0x31, 0x3d, 0xa8, 0x11, 0x74, 0x62 }}
+#define EFI_I2C_MASTER_PROTOCOL_GUID  { 0xcd72881f, 0x45b5, 0x4feb, { 0x98, 0xc8, 0x31, 0x3d, 0xa8, 0x11, 0x74, 0x62 }}
 
 typedef struct _EFI_I2C_MASTER_PROTOCOL EFI_I2C_MASTER_PROTOCOL;
 
@@ -48,7 +48,7 @@ typedef struct _EFI_I2C_MASTER_PROTOCOL EFI_I2C_MASTER_PROTOCOL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_I2C_MASTER_PROTOCOL_SET_BUS_FREQUENCY) (
+(EFIAPI *EFI_I2C_MASTER_PROTOCOL_SET_BUS_FREQUENCY)(
   IN CONST EFI_I2C_MASTER_PROTOCOL   *This,
   IN OUT UINTN                       *BusClockHertz
   );
@@ -70,7 +70,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_I2C_MASTER_PROTOCOL_RESET) (
+(EFIAPI *EFI_I2C_MASTER_PROTOCOL_RESET)(
   IN CONST EFI_I2C_MASTER_PROTOCOL *This
   );
 
@@ -143,7 +143,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_I2C_MASTER_PROTOCOL_START_REQUEST) (
+(EFIAPI *EFI_I2C_MASTER_PROTOCOL_START_REQUEST)(
   IN CONST EFI_I2C_MASTER_PROTOCOL *This,
   IN UINTN                         SlaveAddress,
   IN EFI_I2C_REQUEST_PACKET        *RequestPacket,
@@ -162,25 +162,25 @@ struct _EFI_I2C_MASTER_PROTOCOL {
   ///
   /// Set the clock frequency for the I2C bus.
   ///
-  EFI_I2C_MASTER_PROTOCOL_SET_BUS_FREQUENCY SetBusFrequency;
+  EFI_I2C_MASTER_PROTOCOL_SET_BUS_FREQUENCY    SetBusFrequency;
 
   ///
   /// Reset the I2C host controller.
   ///
-  EFI_I2C_MASTER_PROTOCOL_RESET             Reset;
+  EFI_I2C_MASTER_PROTOCOL_RESET                Reset;
 
   ///
   /// Start an I2C transaction in master mode on the host controller.
   ///
-  EFI_I2C_MASTER_PROTOCOL_START_REQUEST     StartRequest;
+  EFI_I2C_MASTER_PROTOCOL_START_REQUEST        StartRequest;
 
   ///
   /// Pointer to an EFI_I2C_CONTROLLER_CAPABILITIES data structure containing
   /// the capabilities of the I2C host controller.
   ///
-  CONST EFI_I2C_CONTROLLER_CAPABILITIES     *I2cControllerCapabilities;
+  CONST EFI_I2C_CONTROLLER_CAPABILITIES        *I2cControllerCapabilities;
 };
 
-extern EFI_GUID gEfiI2cMasterProtocolGuid;
+extern EFI_GUID  gEfiI2cMasterProtocolGuid;
 
-#endif  //  __I2C_MASTER_H__
+#endif //  __I2C_MASTER_H__

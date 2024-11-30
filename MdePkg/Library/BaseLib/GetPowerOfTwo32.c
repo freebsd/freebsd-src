@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -27,7 +24,7 @@
 UINT32
 EFIAPI
 GetPowerOfTwo32 (
-  IN      UINT32                    Operand
+  IN      UINT32  Operand
   )
 {
   if (0 == Operand) {

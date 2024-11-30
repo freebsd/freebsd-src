@@ -23,12 +23,12 @@
 VOID *
 EFIAPI
 InternalMemCopyMem (
-  OUT     VOID                      *Destination,
-  IN      CONST VOID                *Source,
-  IN      UINTN                     Length
+  OUT     VOID        *Destination,
+  IN      CONST VOID  *Source,
+  IN      UINTN       Length
   )
 {
-  gBS->CopyMem (Destination, (VOID*)Source, Length);
+  gBS->CopyMem (Destination, (VOID *)Source, Length);
   return Destination;
 }
 
@@ -47,9 +47,9 @@ InternalMemCopyMem (
 VOID *
 EFIAPI
 InternalMemSetMem (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Size,
-  IN      UINT8                     Value
+  OUT     VOID   *Buffer,
+  IN      UINTN  Size,
+  IN      UINT8  Value
   )
 {
   gBS->SetMem (Buffer, Size, Value);

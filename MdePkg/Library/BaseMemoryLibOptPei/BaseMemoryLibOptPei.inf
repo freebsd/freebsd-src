@@ -27,6 +27,20 @@
 
 [Sources]
   MemLibInternals.h
+  ScanMem64Wrapper.c
+  ScanMem32Wrapper.c
+  ScanMem16Wrapper.c
+  ScanMem8Wrapper.c
+  ZeroMemWrapper.c
+  CompareMemWrapper.c
+  SetMemNWrapper.c
+  SetMem64Wrapper.c
+  SetMem32Wrapper.c
+  SetMem16Wrapper.c
+  SetMemWrapper.c
+  CopyMemWrapper.c
+  IsZeroBufferWrapper.c
+  MemLibGuid.c
 
 [Sources.Ia32]
   Ia32/ScanMem64.nasm
@@ -40,31 +54,7 @@
   Ia32/SetMem16.nasm
   Ia32/SetMem.nasm
   Ia32/CopyMem.nasm
-  Ia32/ScanMem64.nasm
-  Ia32/ScanMem32.nasm
-  Ia32/ScanMem16.nasm
-  Ia32/ScanMem8.nasm
-  Ia32/CompareMem.nasm
-  Ia32/ZeroMem.nasm
-  Ia32/SetMem64.nasm
-  Ia32/SetMem32.nasm
-  Ia32/SetMem16.nasm
-  Ia32/SetMem.nasm
-  Ia32/CopyMem.nasm
   Ia32/IsZeroBuffer.nasm
-  ScanMem64Wrapper.c
-  ScanMem32Wrapper.c
-  ScanMem16Wrapper.c
-  ScanMem8Wrapper.c
-  ZeroMemWrapper.c
-  CompareMemWrapper.c
-  SetMem64Wrapper.c
-  SetMem32Wrapper.c
-  SetMem16Wrapper.c
-  SetMemWrapper.c
-  CopyMemWrapper.c
-  IsZeroBufferWrapper.c
-  MemLibGuid.c
 
 [Sources.X64]
   X64/ScanMem64.nasm
@@ -79,20 +69,6 @@
   X64/SetMem.nasm
   X64/CopyMem.nasm
   X64/IsZeroBuffer.nasm
-  ScanMem64Wrapper.c
-  ScanMem32Wrapper.c
-  ScanMem16Wrapper.c
-  ScanMem8Wrapper.c
-  ZeroMemWrapper.c
-  CompareMemWrapper.c
-  SetMem64Wrapper.c
-  SetMem32Wrapper.c
-  SetMem16Wrapper.c
-  SetMemWrapper.c
-  CopyMemWrapper.c
-  IsZeroBufferWrapper.c
-  MemLibGuid.c
-
 
 [Packages]
   MdePkg/MdePkg.dec

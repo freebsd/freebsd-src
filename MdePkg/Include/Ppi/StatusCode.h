@@ -27,9 +27,9 @@
 /// There can be only one instance of this service in the system.
 ///
 typedef struct {
-  EFI_PEI_REPORT_STATUS_CODE  ReportStatusCode;
+  EFI_PEI_REPORT_STATUS_CODE    ReportStatusCode;
 } EFI_PEI_PROGRESS_CODE_PPI;
 
-extern EFI_GUID gEfiPeiStatusCodePpiGuid;
+extern EFI_GUID  gEfiPeiStatusCodePpiGuid;
 
 #endif

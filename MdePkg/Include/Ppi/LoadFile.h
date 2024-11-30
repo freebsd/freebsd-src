@@ -15,7 +15,6 @@
 #define EFI_PEI_LOAD_FILE_PPI_GUID \
   { 0xb9e0abfe, 0x5979, 0x4914, { 0x97, 0x7f, 0x6d, 0xee, 0x78, 0xc2, 0x78, 0xa6 } }
 
-
 typedef struct _EFI_PEI_LOAD_FILE_PPI EFI_PEI_LOAD_FILE_PPI;
 
 /**
@@ -55,7 +54,7 @@ EFI_STATUS
   OUT UINT64                         *ImageSize,
   OUT EFI_PHYSICAL_ADDRESS           *EntryPoint,
   OUT UINT32                         *AuthenticationState
-);
+  );
 
 ///
 /// This PPI is a pointer to the Load File service.
@@ -63,9 +62,9 @@ EFI_STATUS
 /// will use this service to launch the known PEI module images.
 ///
 struct _EFI_PEI_LOAD_FILE_PPI {
-  EFI_PEI_LOAD_FILE LoadFile;
+  EFI_PEI_LOAD_FILE    LoadFile;
 };
 
-extern EFI_GUID gEfiPeiLoadFilePpiGuid;
+extern EFI_GUID  gEfiPeiLoadFilePpiGuid;
 
 #endif

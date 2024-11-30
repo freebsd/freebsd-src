@@ -1,0 +1,20 @@
+// /** @file
+// Instance of PEI Services Table Pointer Library using register CSR KS0 for the table pointer.
+//
+// PEI Services Table Pointer Library implementation that retrieves a pointer to the
+// PEI Services Table from a CPU register. Applies to modules that execute from
+// read-only memory.
+//
+// Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2011 Hewlett-Packard Corporation. All rights reserved.<BR>
+// Copyright (c) 2024 Loongson Technology Corporation Limited. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of PEI Services Table Pointer Library using CPU register for the table pointer"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "The PEI Services Table Pointer Library implementation that retrieves a pointer to the PEI Services Table from a CPU register. Applies to modules that execute from read-only memory."
+

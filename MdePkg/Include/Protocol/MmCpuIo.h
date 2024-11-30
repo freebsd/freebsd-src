@@ -16,7 +16,7 @@
     0x3242A9D8, 0xCE70, 0x4AA0, { 0x95, 0x5D, 0x5E, 0x7B, 0x14, 0x0D, 0xE4, 0xD2 } \
   }
 
-typedef struct _EFI_MM_CPU_IO_PROTOCOL  EFI_MM_CPU_IO_PROTOCOL;
+typedef struct _EFI_MM_CPU_IO_PROTOCOL EFI_MM_CPU_IO_PROTOCOL;
 
 ///
 /// Width of the MM CPU I/O operations
@@ -64,11 +64,11 @@ typedef struct {
   ///
   /// This service provides the various modalities of memory and I/O read.
   ///
-  EFI_MM_CPU_IO  Read;
+  EFI_MM_CPU_IO    Read;
   ///
   /// This service provides the various modalities of memory and I/O write.
   ///
-  EFI_MM_CPU_IO  Write;
+  EFI_MM_CPU_IO    Write;
 } EFI_MM_IO_ACCESS;
 
 ///
@@ -78,13 +78,13 @@ struct _EFI_MM_CPU_IO_PROTOCOL {
   ///
   /// Allows reads and writes to memory-mapped I/O space.
   ///
-  EFI_MM_IO_ACCESS Mem;
+  EFI_MM_IO_ACCESS    Mem;
   ///
   /// Allows reads and writes to I/O space.
   ///
-  EFI_MM_IO_ACCESS Io;
+  EFI_MM_IO_ACCESS    Io;
 };
 
-extern EFI_GUID gEfiMmCpuIoProtocolGuid;
+extern EFI_GUID  gEfiMmCpuIoProtocolGuid;
 
 #endif

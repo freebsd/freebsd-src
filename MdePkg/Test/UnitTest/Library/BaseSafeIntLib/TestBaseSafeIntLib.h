@@ -20,104 +20,104 @@
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeInt32ToUintn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeInt32ToUintn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUint32ToIntn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUint32ToIntn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeIntnToInt32(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeIntnToInt32 (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeIntnToUint32(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeIntnToUint32 (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnToUint32(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnToUint32 (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnToIntn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnToIntn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnToInt64(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnToInt64 (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeInt64ToIntn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeInt64ToIntn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeInt64ToUintn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeInt64ToUintn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUint64ToIntn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUint64ToIntn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUint64ToUintn(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUint64ToUintn (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnAdd(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnAdd (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeIntnAdd(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeIntnAdd (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnSub(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnSub (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeIntnSub(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeIntnSub (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeUintnMult(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeUintnMult (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 UNIT_TEST_STATUS
 EFIAPI
-TestSafeIntnMult(
-  IN UNIT_TEST_CONTEXT           Context
+TestSafeIntnMult (
+  IN UNIT_TEST_CONTEXT  Context
   );
 
 #endif

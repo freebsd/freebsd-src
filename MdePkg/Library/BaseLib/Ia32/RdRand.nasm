@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2015 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -25,9 +25,8 @@ SECTION .text
 ;------------------------------------------------------------------------------
 global ASM_PFX(InternalX86RdRand16)
 ASM_PFX(InternalX86RdRand16):
-    ; rdrand   ax                  ; generate a 16 bit RN into ax
+    rdrand eax                     ; generate a 16 bit RN into ax
                                    ; CF=1 if RN generated ok, otherwise CF=0
-    db     0xf, 0xc7, 0xf0         ; rdrand r16: "0f c7 /6  ModRM:r/m(w)"
     jc     rn16_ok                 ; jmp if CF=1
     xor    eax, eax                ; reg=0 if CF=0
     ret                            ; return with failure status
@@ -45,9 +44,8 @@ rn16_ok:
 ;------------------------------------------------------------------------------
 global ASM_PFX(InternalX86RdRand32)
 ASM_PFX(InternalX86RdRand32):
-    ; rdrand   eax                 ; generate a 32 bit RN into eax
+    rdrand eax                     ; generate a 32 bit RN into eax
                                    ; CF=1 if RN generated ok, otherwise CF=0
-    db     0xf, 0xc7, 0xf0         ; rdrand r32: "0f c7 /6  ModRM:r/m(w)"
     jc     rn32_ok                 ; jmp if CF=1
     xor    eax, eax                ; reg=0 if CF=0
     ret                            ; return with failure status
@@ -65,14 +63,13 @@ rn32_ok:
 ;------------------------------------------------------------------------------
 global ASM_PFX(InternalX86RdRand64)
 ASM_PFX(InternalX86RdRand64):
-    ; rdrand   eax                 ; generate a 32 bit RN into eax
+    rdrand eax                     ; generate a 32 bit RN into eax
                                    ; CF=1 if RN generated ok, otherwise CF=0
-    db     0xf, 0xc7, 0xf0         ; rdrand r32: "0f c7 /6  ModRM:r/m(w)"
     jnc    rn64_ret                ; jmp if CF=0
     mov    edx, dword [esp + 4]
     mov    [edx], eax
 
-    db     0xf, 0xc7, 0xf0         ; generate another 32 bit RN
+    rdrand eax                     ; generate another 32 bit RN
     jnc    rn64_ret                ; jmp if CF=0
     mov    [edx + 4], eax
 

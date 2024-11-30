@@ -19,8 +19,7 @@
 #define EFI_PEI_SECURITY2_PPI_GUID \
   { 0xdcd0be23, 0x9586, 0x40f4, { 0xb6, 0x43, 0x6, 0x52, 0x2c, 0xed, 0x4e, 0xde } }
 
-
-typedef struct _EFI_PEI_SECURITY2_PPI  EFI_PEI_SECURITY2_PPI;
+typedef struct _EFI_PEI_SECURITY2_PPI EFI_PEI_SECURITY2_PPI;
 
 /**
   Allows the platform builder to implement a security policy
@@ -71,7 +70,7 @@ EFI_STATUS
   IN EFI_PEI_FV_HANDLE            FvHandle,
   IN EFI_PEI_FILE_HANDLE          FileHandle,
   IN OUT    BOOLEAN               *DeferExecution
-);
+  );
 
 ///
 /// This PPI is a means by which the platform builder can indicate
@@ -86,10 +85,9 @@ EFI_STATUS
 /// trusted.
 ///
 struct _EFI_PEI_SECURITY2_PPI {
-  EFI_PEI_SECURITY_AUTHENTICATION_STATE   AuthenticationState;
+  EFI_PEI_SECURITY_AUTHENTICATION_STATE    AuthenticationState;
 };
 
-
-extern EFI_GUID gEfiPeiSecurity2PpiGuid;
+extern EFI_GUID  gEfiPeiSecurity2PpiGuid;
 
 #endif

@@ -115,16 +115,16 @@ EFI_STATUS
 /// processing, and once memory is available, create a HOB for the capsule.
 ///
 struct _EFI_PEI_CAPSULE_PPI {
-  EFI_PEI_CAPSULE_COALESCE              Coalesce;
-  EFI_PEI_CAPSULE_CHECK_CAPSULE_UPDATE  CheckCapsuleUpdate;
-  EFI_PEI_CAPSULE_CREATE_STATE          CreateState;
+  EFI_PEI_CAPSULE_COALESCE                Coalesce;
+  EFI_PEI_CAPSULE_CHECK_CAPSULE_UPDATE    CheckCapsuleUpdate;
+  EFI_PEI_CAPSULE_CREATE_STATE            CreateState;
 };
 
 ///
 /// Keep name backwards compatible before PI Version 1.4
 ///
-extern EFI_GUID gPeiCapsulePpiGuid;
+extern EFI_GUID  gPeiCapsulePpiGuid;
 
-extern EFI_GUID gEfiPeiCapsulePpiGuid;
+extern EFI_GUID  gEfiPeiCapsulePpiGuid;
 
 #endif // #ifndef _PEI_CAPSULE_PPI_H_

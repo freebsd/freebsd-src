@@ -44,7 +44,7 @@ InternalGetSpinLockProperties (
     // In processors based on Intel NetBurst microarchitecture, use two cache lines
     //
     ModelId = ModelId | ((RegEax >> 12) & 0xf0);
-    if (ModelId <= 0x04 || ModelId == 0x06) {
+    if ((ModelId <= 0x04) || (ModelId == 0x06)) {
       CacheLineSize *= 2;
     }
   }
@@ -55,4 +55,3 @@ InternalGetSpinLockProperties (
 
   return CacheLineSize;
 }
-

@@ -1,8 +1,8 @@
 // /** @file
 // Instance of RNG (Random Number Generator) Library.
 //
-// BaseRng Library that uses CPU RdRand instruction access to provide
-// high-quality random numbers.
+// BaseRng Library that uses CPU RNG instructions to provide
+// random numbers.
 //
 // Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
 //
@@ -13,5 +13,4 @@
 
 #string STR_MODULE_ABSTRACT             #language en-US "Instance of RNG Library"
 
-#string STR_MODULE_DESCRIPTION          #language en-US "BaseRng Library that uses CPU RdRand instruction access to provide high-quality random numbers"
-
+#string STR_MODULE_DESCRIPTION          #language en-US "BaseRng Library that uses CPU RNG instructions to provide random numbers"

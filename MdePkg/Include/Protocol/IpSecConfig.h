@@ -14,7 +14,6 @@
 #ifndef __EFI_IPSE_CCONFIG_PROTOCOL_H__
 #define __EFI_IPSE_CCONFIG_PROTOCOL_H__
 
-
 #define EFI_IPSEC_CONFIG_PROTOCOL_GUID \
   { \
     0xce5e5929, 0xc7a3, 0x4602, {0xad, 0x9e, 0xc9, 0xda, 0xf9, 0x4e, 0xbf, 0xcf } \
@@ -64,10 +63,9 @@ typedef enum {
 /// EFI_IP_ADDRESS_INFO
 ///
 typedef struct _EFI_IP_ADDRESS_INFO {
-  EFI_IP_ADDRESS  Address;      ///< The IPv4 or IPv6 address
-  UINT8           PrefixLength; ///< The length of the prefix associated with the Address.
+  EFI_IP_ADDRESS    Address;      ///< The IPv4 or IPv6 address
+  UINT8             PrefixLength; ///< The length of the prefix associated with the Address.
 } EFI_IP_ADDRESS_INFO;
-
 
 ///
 /// EFI_IPSEC_SPD_SELECTOR
@@ -76,52 +74,52 @@ typedef struct _EFI_IPSEC_SPD_SELECTOR {
   ///
   /// Specifies the actual number of entries in LocalAddress.
   ///
-  UINT32                          LocalAddressCount;
+  UINT32                 LocalAddressCount;
   ///
   /// A list of ranges of IPv4 or IPv6 addresses, which refers to the
   /// addresses being protected by IPsec policy.
   ///
-  EFI_IP_ADDRESS_INFO             *LocalAddress;
+  EFI_IP_ADDRESS_INFO    *LocalAddress;
   ///
   /// Specifies the actual number of entries in RemoteAddress.
   ///
-  UINT32                          RemoteAddressCount;
+  UINT32                 RemoteAddressCount;
   ///
   /// A list of ranges of IPv4 or IPv6 addresses, which are peer entities
   /// to LocalAddress.
   ///
-  EFI_IP_ADDRESS_INFO             *RemoteAddress;
+  EFI_IP_ADDRESS_INFO    *RemoteAddress;
   ///
   /// Next layer protocol. Obtained from the IPv4 Protocol or the IPv6
   /// Next Header fields. The next layer protocol is whatever comes
   /// after any IP extension headers that are present. A zero value is a
   /// wildcard that matches any value in NextLayerProtocol field.
   ///
-  UINT16                          NextLayerProtocol;
+  UINT16                 NextLayerProtocol;
   ///
   /// Local Port if the Next Layer Protocol uses two ports (as do TCP,
   /// UDP, and others). A zero value is a wildcard that matches any
   /// value in LocalPort field.
   ///
-  UINT16                          LocalPort;
+  UINT16                 LocalPort;
   ///
   /// A designed port range size. The start port is LocalPort, and
   /// the total number of ports is described by LocalPortRange.
   /// This field is ignored if NextLayerProtocol does not use
   /// ports.
   ///
-  UINT16                          LocalPortRange;
+  UINT16                 LocalPortRange;
   ///
   /// Remote Port if the Next Layer Protocol uses two ports. A zero
   /// value is a wildcard that matches any value in RemotePort field.
   ///
-  UINT16                          RemotePort;
+  UINT16                 RemotePort;
   ///
   /// A designed port range size. The start port is RemotePort, and
   /// the total number of ports is described by RemotePortRange.
   /// This field is ignored if NextLayerProtocol does not use ports.
   ///
-  UINT16                          RemotePortRange;
+  UINT16                 RemotePortRange;
 } EFI_IPSEC_SPD_SELECTOR;
 
 ///
@@ -179,17 +177,17 @@ typedef struct _EFI_IPSEC_SA_LIFETIME {
   /// AH, this is the authentication algorithm. The ByteCount
   /// includes pad bytes for cryptographic operations.
   ///
-  UINT64        ByteCount;
+  UINT64    ByteCount;
   ///
   /// A time interval in second that warns the implementation to
   /// initiate action such as setting up a replacement SA.
   ///
-  UINT64        SoftLifetime;
+  UINT64    SoftLifetime;
   ///
   /// A time interval in second when the current SA ends and is
   /// destroyed.
   ///
-  UINT64        HardLifetime;
+  UINT64    HardLifetime;
 } EFI_IPSEC_SA_LIFETIME;
 
 ///
@@ -223,17 +221,17 @@ typedef struct _EFI_IPSEC_TUNNEL_OPTION {
   ///
   /// Local tunnel address when IPsec mode is EfiIPsecTunnel.
   ///
-  EFI_IP_ADDRESS              LocalTunnelAddress;
+  EFI_IP_ADDRESS                LocalTunnelAddress;
   ///
   /// Remote tunnel address when IPsec mode is EfiIPsecTunnel.
   ///
-  EFI_IP_ADDRESS              RemoteTunnelAddress;
+  EFI_IP_ADDRESS                RemoteTunnelAddress;
   ///
   /// The option of copying the DF bit from an outbound package
   /// to the tunnel mode header that it emits, when traffic is
   /// carried via a tunnel mode SA.
   ///
-  EFI_IPSEC_TUNNEL_DF_OPTION  DF;
+  EFI_IPSEC_TUNNEL_DF_OPTION    DF;
 } EFI_IPSEC_TUNNEL_OPTION;
 
 ///
@@ -253,47 +251,47 @@ typedef struct _EFI_IPSEC_PROCESS_POLICY {
   /// Extended Sequence Number. Is this SA using extended sequence
   /// numbers. 64 bit counter is used if TRUE.
   ///
-  BOOLEAN                 ExtSeqNum;
+  BOOLEAN                    ExtSeqNum;
   ///
   /// A flag indicating whether overflow of the sequence number
   /// counter should generate an auditable event and prevent
   /// transmission of additional packets on the SA, or whether rollover
   /// is permitted.
   ///
-  BOOLEAN                 SeqOverflow;
+  BOOLEAN                    SeqOverflow;
   ///
   /// Is this SA using stateful fragment checking. TRUE represents
   /// stateful fragment checking.
   ///
-  BOOLEAN                 FragCheck;
+  BOOLEAN                    FragCheck;
   ///
   /// A time interval after which a SA must be replaced with a new SA
   /// (and new SPI) or terminated.
   ///
-  EFI_IPSEC_SA_LIFETIME   SaLifetime;
+  EFI_IPSEC_SA_LIFETIME      SaLifetime;
   ///
   /// IPsec mode: tunnel or transport.
   ///
-  EFI_IPSEC_MODE          Mode;
+  EFI_IPSEC_MODE             Mode;
   ///
   /// Tunnel Option. TunnelOption is ignored if Mode is EfiIPsecTransport.
   ///
-  EFI_IPSEC_TUNNEL_OPTION *TunnelOption;
+  EFI_IPSEC_TUNNEL_OPTION    *TunnelOption;
   ///
   /// IPsec protocol: AH or ESP
   ///
-  EFI_IPSEC_PROTOCOL_TYPE Proto;
+  EFI_IPSEC_PROTOCOL_TYPE    Proto;
   ///
   /// Cryptographic algorithm type used for authentication.
   ///
-  UINT8                   AuthAlgoId;
+  UINT8                      AuthAlgoId;
   ///
   /// Cryptographic algorithm type used for encryption. EncAlgo is
   /// NULL when IPsec protocol is AH. For ESP protocol, EncAlgo
   /// can also be used to describe the algorithm if a combined mode
   /// algorithm is used.
   ///
-  UINT8                   EncAlgoId;
+  UINT8                      EncAlgoId;
 } EFI_IPSEC_PROCESS_POLICY;
 
 ///
@@ -306,19 +304,18 @@ typedef struct _EFI_IPSEC_SA_ID {
   /// that is used by a receiver to identity the SA to which an incoming
   /// package should be bound.
   ///
-  UINT32                          Spi;
+  UINT32                     Spi;
   ///
   /// IPsec protocol: AH or ESP
   ///
-  EFI_IPSEC_PROTOCOL_TYPE         Proto;
+  EFI_IPSEC_PROTOCOL_TYPE    Proto;
   ///
   /// Destination IP address.
   ///
-  EFI_IP_ADDRESS                  DestAddress;
+  EFI_IP_ADDRESS             DestAddress;
 } EFI_IPSEC_SA_ID;
 
-
-#define MAX_PEERID_LEN     128
+#define MAX_PEERID_LEN  128
 
 ///
 /// EFI_IPSEC_SPD_DATA
@@ -328,7 +325,7 @@ typedef struct _EFI_IPSEC_SPD_DATA {
   /// A null-terminated ASCII name string which is used as a symbolic
   /// identifier for an IPsec Local or Remote address.
   ///
-  UINT8                           Name[MAX_PEERID_LEN];
+  UINT8    Name[MAX_PEERID_LEN];
   ///
   /// Bit-mapped list describing Populate from Packet flags. When
   /// creating a SA, if PackageFlag bit is set to TRUE, instantiate
@@ -344,29 +341,29 @@ typedef struct _EFI_IPSEC_SPD_DATA {
   ///     Bit 4: EFI_IPSEC_SPD_SELECTOR.RemotePort
   ///     Others: Reserved.
   ///
-  UINT32                          PackageFlag;
+  UINT32                      PackageFlag;
   ///
   /// The traffic direction of data gram.
   ///
-  EFI_IPSEC_TRAFFIC_DIR           TrafficDirection;
+  EFI_IPSEC_TRAFFIC_DIR       TrafficDirection;
   ///
   /// Processing choices to indicate which action is required by this
   /// policy.
   ///
-  EFI_IPSEC_ACTION                Action;
+  EFI_IPSEC_ACTION            Action;
   ///
   /// The policy and rule information for a SPD entry.
   ///
-  EFI_IPSEC_PROCESS_POLICY        *ProcessingPolicy;
+  EFI_IPSEC_PROCESS_POLICY    *ProcessingPolicy;
   ///
   /// Specifies the actual number of entries in SaId list.
   ///
-  UINTN                           SaIdCount;
+  UINTN                       SaIdCount;
   ///
   /// The SAD entry used for the traffic processing. The
   /// existed SAD entry links indicate this is the manual key case.
   ///
-  EFI_IPSEC_SA_ID                 SaId[1];
+  EFI_IPSEC_SA_ID             SaId[1];
 } EFI_IPSEC_SPD_DATA;
 
 ///
@@ -375,9 +372,9 @@ typedef struct _EFI_IPSEC_SPD_DATA {
 /// The required authentication algorithm is specified in RFC 4305.
 ///
 typedef struct _EFI_IPSEC_AH_ALGO_INFO {
-  UINT8                           AuthAlgoId;
-  UINTN                           AuthKeyLength;
-  VOID                            *AuthKey;
+  UINT8    AuthAlgoId;
+  UINTN    AuthKeyLength;
+  VOID     *AuthKey;
 } EFI_IPSEC_AH_ALGO_INFO;
 
 ///
@@ -389,20 +386,20 @@ typedef struct _EFI_IPSEC_AH_ALGO_INFO {
 /// confidentiality and authentication services.
 ///
 typedef struct _EFI_IPSEC_ESP_ALGO_INFO {
-  UINT8                     EncAlgoId;
-  UINTN                     EncKeyLength;
-  VOID                      *EncKey;
-  UINT8                     AuthAlgoId;
-  UINTN                     AuthKeyLength;
-  VOID                      *AuthKey;
+  UINT8    EncAlgoId;
+  UINTN    EncKeyLength;
+  VOID     *EncKey;
+  UINT8    AuthAlgoId;
+  UINTN    AuthKeyLength;
+  VOID     *AuthKey;
 } EFI_IPSEC_ESP_ALGO_INFO;
 
 ///
 /// EFI_IPSEC_ALGO_INFO
 ///
 typedef union {
-  EFI_IPSEC_AH_ALGO_INFO          AhAlgoInfo;
-  EFI_IPSEC_ESP_ALGO_INFO         EspAlgoInfo;
+  EFI_IPSEC_AH_ALGO_INFO     AhAlgoInfo;
+  EFI_IPSEC_ESP_ALGO_INFO    EspAlgoInfo;
 } EFI_IPSEC_ALGO_INFO;
 
 ///
@@ -412,40 +409,40 @@ typedef struct _EFI_IPSEC_SA_DATA {
   ///
   /// IPsec mode: tunnel or transport.
   ///
-  EFI_IPSEC_MODE                  Mode;
+  EFI_IPSEC_MODE            Mode;
   ///
   /// Sequence Number Counter. A 64-bit counter used to generate the
   /// sequence number field in AH or ESP headers.
   ///
-  UINT64                          SNCount;
+  UINT64                    SNCount;
   ///
   /// Anti-Replay Window. A 64-bit counter and a bit-map used to
   /// determine whether an inbound AH or ESP packet is a replay.
   ///
-  UINT8                           AntiReplayWindows;
+  UINT8                     AntiReplayWindows;
   ///
   /// AH/ESP cryptographic algorithm, key and parameters.
   ///
-  EFI_IPSEC_ALGO_INFO             AlgoInfo;
+  EFI_IPSEC_ALGO_INFO       AlgoInfo;
   ///
   /// Lifetime of this SA.
   ///
-  EFI_IPSEC_SA_LIFETIME           SaLifetime;
+  EFI_IPSEC_SA_LIFETIME     SaLifetime;
   ///
   /// Any observed path MTU and aging variables. The Path MTU
   /// processing is defined in section 8 of RFC 4301.
   ///
-  UINT32                          PathMTU;
+  UINT32                    PathMTU;
   ///
   /// Link to one SPD entry.
   ///
-  EFI_IPSEC_SPD_SELECTOR          *SpdSelector;
+  EFI_IPSEC_SPD_SELECTOR    *SpdSelector;
   ///
   /// Indication of whether it's manually set or negotiated automatically.
   /// If ManualSet is FALSE, the corresponding SA entry is inserted through
   /// IKE protocol negotiation.
   ///
-  BOOLEAN                         ManualSet;
+  BOOLEAN                   ManualSet;
 } EFI_IPSEC_SA_DATA;
 
 ///
@@ -455,50 +452,49 @@ typedef struct _EFI_IPSEC_SA_DATA2 {
   ///
   /// IPsec mode: tunnel or transport
   ///
-  EFI_IPSEC_MODE             Mode;
+  EFI_IPSEC_MODE            Mode;
   ///
   /// Sequence Number Counter. A 64-bit counter used to generate the sequence
   /// number field in AH or ESP headers.
   ///
-  UINT64                     SNCount;
+  UINT64                    SNCount;
   ///
   /// Anti-Replay Window. A 64-bit counter and a bit-map used to determine
   /// whether an inbound AH or ESP packet is a replay.
   ///
-  UINT8                      AntiReplayWindows;
+  UINT8                     AntiReplayWindows;
   ///
   /// AH/ESP cryptographic algorithm, key and parameters.
   ///
-  EFI_IPSEC_ALGO_INFO        AlgoInfo;
+  EFI_IPSEC_ALGO_INFO       AlgoInfo;
   ///
   /// Lifetime of this SA.
   ///
-  EFI_IPSEC_SA_LIFETIME      SaLifetime;
+  EFI_IPSEC_SA_LIFETIME     SaLifetime;
   ///
   /// Any observed path MTU and aging variables. The Path MTU processing is
   /// defined in section 8 of RFC 4301.
   ///
-  UINT32                     PathMTU;
+  UINT32                    PathMTU;
   ///
   /// Link to one SPD entry
   ///
-  EFI_IPSEC_SPD_SELECTOR     *SpdSelector;
+  EFI_IPSEC_SPD_SELECTOR    *SpdSelector;
   ///
   /// Indication of whether it's manually set or negotiated automatically.
   /// If ManualSet is FALSE, the corresponding SA entry is inserted through IKE
   /// protocol negotiation
   ///
-  BOOLEAN                    ManualSet;
+  BOOLEAN                   ManualSet;
   ///
   /// The tunnel header IP source address.
   ///
-  EFI_IP_ADDRESS             TunnelSourceAddress;
+  EFI_IP_ADDRESS            TunnelSourceAddress;
   ///
   /// The tunnel header IP destination address.
   ///
-  EFI_IP_ADDRESS             TunnelDestinationAddress;
+  EFI_IP_ADDRESS            TunnelDestinationAddress;
 } EFI_IPSEC_SA_DATA2;
-
 
 ///
 /// EFI_IPSEC_PAD_ID
@@ -509,19 +505,19 @@ typedef struct _EFI_IPSEC_PAD_ID {
   ///
   /// Flag to identify which type of PAD Id is used.
   ///
-  BOOLEAN               PeerIdValid;
+  BOOLEAN    PeerIdValid;
   union {
     ///
     /// Pointer to the IPv4 or IPv6 address range.
     ///
-    EFI_IP_ADDRESS_INFO   IpAddress;
+    EFI_IP_ADDRESS_INFO    IpAddress;
     ///
     /// Pointer to a null terminated ASCII string
     /// representing the symbolic names. A PeerId can be a DNS
     /// name, Distinguished Name, RFC 822 email address or Key ID
     /// (specified in section 4.4.3.1 of RFC 4301)
     ///
-    UINT8                 PeerId[MAX_PEERID_LEN];
+    UINT8                  PeerId[MAX_PEERID_LEN];
   } Id;
 } EFI_IPSEC_PAD_ID;
 
@@ -531,9 +527,9 @@ typedef struct _EFI_IPSEC_PAD_ID {
 /// of type EFI_IPSEC_CONFIG_DATA_TYPE.
 ///
 typedef union {
-  EFI_IPSEC_SPD_SELECTOR              SpdSelector;
-  EFI_IPSEC_SA_ID                     SaId;
-  EFI_IPSEC_PAD_ID                    PadId;
+  EFI_IPSEC_SPD_SELECTOR    SpdSelector;
+  EFI_IPSEC_SA_ID           SaId;
+  EFI_IPSEC_PAD_ID          PadId;
 } EFI_IPSEC_CONFIG_SELECTOR;
 
 ///
@@ -569,38 +565,37 @@ typedef struct _EFI_IPSEC_PAD_DATA {
   ///
   /// Authentication Protocol for IPsec security association  management.
   ///
-  EFI_IPSEC_AUTH_PROTOCOL_TYPE  AuthProtocol;
+  EFI_IPSEC_AUTH_PROTOCOL_TYPE    AuthProtocol;
   ///
   /// Authentication method used.
   ///
-  EFI_IPSEC_AUTH_METHOD         AuthMethod;
+  EFI_IPSEC_AUTH_METHOD           AuthMethod;
   ///
   /// The IKE ID payload will be used as a symbolic name for SPD
   /// lookup if IkeIdFlag is TRUE. Otherwise, the remote IP
   /// address provided in traffic selector playloads will be used.
   ///
-  BOOLEAN                       IkeIdFlag;
+  BOOLEAN                         IkeIdFlag;
   ///
   /// The size of Authentication data buffer, in bytes.
   ///
-  UINTN                         AuthDataSize;
+  UINTN                           AuthDataSize;
   ///
   /// Buffer for Authentication data, (e.g., the pre-shared secret or the
   /// trust anchor relative to which the peer's certificate will be
   /// validated).
   ///
-  VOID                          *AuthData;
+  VOID                            *AuthData;
   ///
   /// The size of RevocationData, in bytes
   ///
-  UINTN                         RevocationDataSize;
+  UINTN                           RevocationDataSize;
   ///
   /// Pointer to CRL or OCSP data, if certificates are used for
   /// authentication method.
   ///
-  VOID                          *RevocationData;
+  VOID                            *RevocationData;
 } EFI_IPSEC_PAD_DATA;
-
 
 /**
   Set the security association, security policy and peer authorization configuration
@@ -789,13 +784,13 @@ EFI_STATUS
 /// protocol for IPsec configuration in both IPv4 and IPv6 environment.
 ///
 struct _EFI_IPSEC_CONFIG_PROTOCOL {
-  EFI_IPSEC_CONFIG_SET_DATA           SetData;
-  EFI_IPSEC_CONFIG_GET_DATA           GetData;
-  EFI_IPSEC_CONFIG_GET_NEXT_SELECTOR  GetNextSelector;
-  EFI_IPSEC_CONFIG_REGISTER_NOTIFY    RegisterDataNotify;
-  EFI_IPSEC_CONFIG_UNREGISTER_NOTIFY  UnregisterDataNotify;
+  EFI_IPSEC_CONFIG_SET_DATA             SetData;
+  EFI_IPSEC_CONFIG_GET_DATA             GetData;
+  EFI_IPSEC_CONFIG_GET_NEXT_SELECTOR    GetNextSelector;
+  EFI_IPSEC_CONFIG_REGISTER_NOTIFY      RegisterDataNotify;
+  EFI_IPSEC_CONFIG_UNREGISTER_NOTIFY    UnregisterDataNotify;
 };
 
-extern EFI_GUID gEfiIpSecConfigProtocolGuid;
+extern EFI_GUID  gEfiIpSecConfigProtocolGuid;
 
 #endif

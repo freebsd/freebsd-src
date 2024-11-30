@@ -12,7 +12,9 @@
 
   This function returns information of type InformationType from the adapter.
   If an adapter does not support the requested informational type, then
-  EFI_UNSUPPORTED is returned.
+  EFI_UNSUPPORTED is returned. If an adapter does not contain Information for
+  the requested InformationType, it fills InformationBlockSize with 0 and
+  returns EFI_NOT_FOUND.
 
   @param[in]  This                   A pointer to the EFI_ADAPTER_INFORMATION_PROTOCOL instance.
   @param[in]  InformationType        A pointer to an EFI_GUID that defines the contents of InformationBlock.
@@ -22,6 +24,7 @@
 
   @retval EFI_SUCCESS                The InformationType information was retrieved.
   @retval EFI_UNSUPPORTED            The InformationType is not known.
+  @retval EFI_NOT_FOUND              Information is not available for the requested information type.
   @retval EFI_DEVICE_ERROR           The device reported an error.
   @retval EFI_OUT_OF_RESOURCES       The request could not be completed due to a lack of resources.
   @retval EFI_INVALID_PARAMETER      This is NULL.
@@ -43,16 +46,18 @@ HstiAipGetInfo (
   if ((This == NULL) || (InformationBlock == NULL) || (InformationBlockSize == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
+
   if (!CompareGuid (InformationType, &gAdapterInfoPlatformSecurityGuid)) {
     return EFI_UNSUPPORTED;
   }
 
-  HstiAip = HSTI_AIP_PRIVATE_DATA_FROM_THIS(This);
+  HstiAip = HSTI_AIP_PRIVATE_DATA_FROM_THIS (This);
 
   *InformationBlock = AllocateCopyPool (HstiAip->HstiSize, HstiAip->Hsti);
   if (*InformationBlock == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
+
   *InformationBlockSize = HstiAip->HstiSize;
   return EFI_SUCCESS;
 }
@@ -93,6 +98,7 @@ HstiAipSetInfo (
   if ((This == NULL) || (InformationBlock == NULL)) {
     return EFI_INVALID_PARAMETER;
   }
+
   if (!CompareGuid (InformationType, &gAdapterInfoPlatformSecurityGuid)) {
     return EFI_UNSUPPORTED;
   }
@@ -101,16 +107,17 @@ HstiAipSetInfo (
     return EFI_VOLUME_CORRUPTED;
   }
 
-  HstiAip = HSTI_AIP_PRIVATE_DATA_FROM_THIS(This);
+  HstiAip = HSTI_AIP_PRIVATE_DATA_FROM_THIS (This);
 
   if (InformationBlockSize > HstiAip->HstiMaxSize) {
     NewHsti = AllocateZeroPool (InformationBlockSize);
     if (NewHsti == NULL) {
       return EFI_OUT_OF_RESOURCES;
     }
+
     FreePool (HstiAip->Hsti);
-    HstiAip->Hsti = NewHsti;
-    HstiAip->HstiSize = 0;
+    HstiAip->Hsti        = NewHsti;
+    HstiAip->HstiSize    = 0;
     HstiAip->HstiMaxSize = InformationBlockSize;
   }
 
@@ -153,16 +160,17 @@ HstiAipGetSupportedTypes (
     return EFI_INVALID_PARAMETER;
   }
 
-  *InfoTypesBuffer = AllocateCopyPool (sizeof(gAdapterInfoPlatformSecurityGuid), &gAdapterInfoPlatformSecurityGuid);
+  *InfoTypesBuffer = AllocateCopyPool (sizeof (gAdapterInfoPlatformSecurityGuid), &gAdapterInfoPlatformSecurityGuid);
   if (*InfoTypesBuffer == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
+
   *InfoTypesBufferCount = 1;
 
   return EFI_SUCCESS;
 }
 
-EFI_ADAPTER_INFORMATION_PROTOCOL mAdapterInformationProtocol = {
+EFI_ADAPTER_INFORMATION_PROTOCOL  mAdapterInformationProtocol = {
   HstiAipGetInfo,
   HstiAipSetInfo,
   HstiAipGetSupportedTypes,

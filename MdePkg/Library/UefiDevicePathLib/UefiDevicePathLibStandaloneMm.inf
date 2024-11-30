@@ -1,0 +1,78 @@
+## @file
+# Instance of Device Path Library based on Memory Allocation Library.
+#
+# Device Path Library that layers on top of the Memory Allocation Library.
+#
+# This library instances is deprecated and should no longer be used.  Ue
+# MdePkg/Library/UefiDevicePathLib/UefiDevicePathLibBase.inf instead.
+#
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) Microsoft Corporation.
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiDevicePathLibStandaloneMm
+  MODULE_UNI_FILE                = UefiDevicePathLib.uni
+  FILE_GUID                      = 7B60A2BC-9259-48A8-8279-971412EECAB3
+  MODULE_TYPE                    = BASE
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DevicePathLib
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
+#
+
+[Sources]
+  DevicePathUtilities.c
+  DevicePathUtilitiesBase.c
+  DevicePathToText.c
+  DevicePathFromText.c
+  UefiDevicePathLib.c
+  UefiDevicePathLib.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  MemoryAllocationLib
+  DebugLib
+  BaseMemoryLib
+  PcdLib
+  PrintLib
+
+[Guids]
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiVTUTF8Guid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiVT100Guid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiVT100PlusGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiPcAnsiGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiUartDevicePathGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiSasDevicePathGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiVirtualDiskGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiVirtualCdGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiPersistentVirtualDiskGuid
+  ## SOMETIMES_CONSUMES  ## GUID
+  gEfiPersistentVirtualCdGuid
+
+[Protocols]
+  gEfiDevicePathProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiDebugPortProtocolGuid                     ## UNDEFINED
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumDevicePathNodeCount    ## SOMETIMES_CONSUMES

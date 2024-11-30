@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -34,12 +34,12 @@ ASM_PFX(InternalMemZeroMem):
     and     edx, 7
     shr     rcx, 3
     jz      @ZeroBytes
-    DB      0xf, 0xef, 0xc0             ; pxor mm0, mm0
+    pxor    mm0, mm0
 .0:
-    DB      0xf, 0xe7, 7                ; movntq [rdi], mm0
+    movntq  [rdi], mm0
     add     rdi, 8
     loop    .0
-    DB      0xf, 0xae, 0xf0             ; mfence
+    mfence
 @ZeroBytes:
     xor     eax, eax
     mov     ecx, edx

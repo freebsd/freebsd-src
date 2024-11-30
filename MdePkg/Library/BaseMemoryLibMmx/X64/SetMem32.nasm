@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -28,20 +28,20 @@
 ;------------------------------------------------------------------------------
 global ASM_PFX(InternalMemSetMem32)
 ASM_PFX(InternalMemSetMem32):
-    DB      0x49, 0xf, 0x6e, 0xc0         ; movd mm0, r8 (Value)
+    movq    mm0, r8
     mov     rax, rcx                    ; rax <- Buffer
     xchg    rcx, rdx                    ; rcx <- Count  rdx <- Buffer
     shr     rcx, 1                      ; rcx <- # of qwords to set
     jz      @SetDwords
-    DB      0xf, 0x70, 0xC0, 0x44         ; pshufw mm0, mm0, 44h
+    pshufw  mm0, mm0, 44h
 .0:
-    DB      0xf, 0xe7, 0x2              ; movntq [rdx], mm0
+    movntq  [rdx], mm0
     lea     rdx, [rdx + 8]              ; use "lea" to avoid flag changes
     loop    .0
     mfence
 @SetDwords:
     jnc     .1
-    DB      0xf, 0x7e, 0x2               ; movd [rdx], mm0
+    movd    [rdx], mm0
 .1:
     ret
 

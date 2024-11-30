@@ -42,18 +42,18 @@ typedef struct _EFI_SEC_HOB_DATA_PPI EFI_SEC_HOB_DATA_PPI;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SEC_HOB_DATA_GET) (
+(EFIAPI *EFI_SEC_HOB_DATA_GET)(
   IN CONST EFI_SEC_HOB_DATA_PPI *This,
   OUT EFI_HOB_GENERIC_HEADER    **HobList
-);
+  );
 
 ///
 /// This PPI provides a way for the SEC code to pass zero or more HOBs in a HOB list.
 ///
 struct _EFI_SEC_HOB_DATA_PPI {
-  EFI_SEC_HOB_DATA_GET          GetHobs;
+  EFI_SEC_HOB_DATA_GET    GetHobs;
 };
 
-extern EFI_GUID gEfiSecHobDataPpiGuid;
+extern EFI_GUID  gEfiSecHobDataPpiGuid;
 
 #endif

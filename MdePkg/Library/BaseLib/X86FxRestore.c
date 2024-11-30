@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -28,7 +25,7 @@
 VOID
 EFIAPI
 AsmFxRestore (
-  IN      CONST IA32_FX_BUFFER      *Buffer
+  IN      CONST IA32_FX_BUFFER  *Buffer
   )
 {
   ASSERT (Buffer != NULL);
@@ -37,7 +34,7 @@ AsmFxRestore (
   //
   // Check the flag recorded by AsmFxSave()
   //
-  ASSERT (0xAA5555AA == *(UINT32 *) (&Buffer->Buffer[sizeof (Buffer->Buffer) - 4]));
+  ASSERT (0xAA5555AA == *(UINT32 *)(&Buffer->Buffer[sizeof (Buffer->Buffer) - 4]));
 
   InternalX86FxRestore (Buffer);
 }

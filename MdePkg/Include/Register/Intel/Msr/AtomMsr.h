@@ -57,7 +57,7 @@
   @endcode
   @note MSR_ATOM_PLATFORM_ID is defined as MSR_PLATFORM_ID in SDM.
 **/
-#define MSR_ATOM_PLATFORM_ID                     0x00000017
+#define MSR_ATOM_PLATFORM_ID  0x00000017
 
 /**
   MSR information returned for MSR index #MSR_ATOM_PLATFORM_ID
@@ -67,24 +67,23 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:8;
+    UINT32    Reserved1             : 8;
     ///
     /// [Bits 12:8] Maximum Qualified Ratio (R)  The maximum allowed bus ratio.
     ///
-    UINT32  MaximumQualifiedRatio:5;
-    UINT32  Reserved2:19;
-    UINT32  Reserved3:32;
+    UINT32    MaximumQualifiedRatio : 5;
+    UINT32    Reserved2             : 19;
+    UINT32    Reserved3             : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_PLATFORM_ID_REGISTER;
-
 
 /**
   Shared. Processor Hard Power-On Configuration (R/W) Enables and disables
@@ -105,7 +104,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_EBL_CR_POWERON is defined as MSR_EBL_CR_POWERON in SDM.
 **/
-#define MSR_ATOM_EBL_CR_POWERON                  0x0000002A
+#define MSR_ATOM_EBL_CR_POWERON  0x0000002A
 
 /**
   MSR information returned for MSR index #MSR_ATOM_EBL_CR_POWERON
@@ -115,80 +114,79 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:1;
+    UINT32    Reserved1                   : 1;
     ///
     /// [Bit 1] Data Error Checking Enable (R/W) 1 = Enabled; 0 = Disabled
     /// Always 0.
     ///
-    UINT32  DataErrorCheckingEnable:1;
+    UINT32    DataErrorCheckingEnable     : 1;
     ///
     /// [Bit 2] Response Error Checking Enable (R/W) 1 = Enabled; 0 = Disabled
     /// Always 0.
     ///
-    UINT32  ResponseErrorCheckingEnable:1;
+    UINT32    ResponseErrorCheckingEnable : 1;
     ///
     /// [Bit 3] AERR# Drive Enable (R/W)  1 = Enabled; 0 = Disabled Always 0.
     ///
-    UINT32  AERR_DriveEnable:1;
+    UINT32    AERR_DriveEnable            : 1;
     ///
     /// [Bit 4] BERR# Enable for initiator bus requests (R/W) 1 = Enabled; 0 =
     /// Disabled Always 0.
     ///
-    UINT32  BERR_Enable:1;
-    UINT32  Reserved2:1;
-    UINT32  Reserved3:1;
+    UINT32    BERR_Enable                 : 1;
+    UINT32    Reserved2                   : 1;
+    UINT32    Reserved3                   : 1;
     ///
     /// [Bit 7] BINIT# Driver Enable (R/W) 1 = Enabled; 0 = Disabled Always 0.
     ///
-    UINT32  BINIT_DriverEnable:1;
-    UINT32  Reserved4:1;
+    UINT32    BINIT_DriverEnable          : 1;
+    UINT32    Reserved4                   : 1;
     ///
     /// [Bit 9] Execute BIST (R/O) 1 = Enabled; 0 = Disabled.
     ///
-    UINT32  ExecuteBIST:1;
+    UINT32    ExecuteBIST                 : 1;
     ///
     /// [Bit 10] AERR# Observation Enabled (R/O) 1 = Enabled; 0 = Disabled
     /// Always 0.
     ///
-    UINT32  AERR_ObservationEnabled:1;
-    UINT32  Reserved5:1;
+    UINT32    AERR_ObservationEnabled     : 1;
+    UINT32    Reserved5                   : 1;
     ///
     /// [Bit 12] BINIT# Observation Enabled (R/O) 1 = Enabled; 0 = Disabled
     /// Always 0.
     ///
-    UINT32  BINIT_ObservationEnabled:1;
-    UINT32  Reserved6:1;
+    UINT32    BINIT_ObservationEnabled    : 1;
+    UINT32    Reserved6                   : 1;
     ///
     /// [Bit 14] 1 MByte Power on Reset Vector (R/O) 1 = 1 MByte; 0 = 4 GBytes.
     ///
-    UINT32  ResetVector:1;
-    UINT32  Reserved7:1;
+    UINT32    ResetVector                 : 1;
+    UINT32    Reserved7                   : 1;
     ///
     /// [Bits 17:16] APIC Cluster ID (R/O) Always 00B.
     ///
-    UINT32  APICClusterID:2;
-    UINT32  Reserved8:2;
+    UINT32    APICClusterID               : 2;
+    UINT32    Reserved8                   : 2;
     ///
     /// [Bits 21:20] Symmetric Arbitration ID (R/O) Always 00B.
     ///
-    UINT32  SymmetricArbitrationID:2;
+    UINT32    SymmetricArbitrationID      : 2;
     ///
     /// [Bits 26:22] Integer Bus Frequency Ratio (R/O).
     ///
-    UINT32  IntegerBusFrequencyRatio:5;
-    UINT32  Reserved9:5;
-    UINT32  Reserved10:32;
+    UINT32    IntegerBusFrequencyRatio    : 5;
+    UINT32    Reserved9                   : 5;
+    UINT32    Reserved10                  : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_EBL_CR_POWERON_REGISTER;
-
 
 /**
   Unique. Last Branch Record n From IP (R/W) One of eight pairs of last branch
@@ -217,16 +215,15 @@ typedef union {
         MSR_ATOM_LASTBRANCH_7_FROM_IP is defined as MSR_LASTBRANCH_7_FROM_IP in SDM.
   @{
 **/
-#define MSR_ATOM_LASTBRANCH_0_FROM_IP            0x00000040
-#define MSR_ATOM_LASTBRANCH_1_FROM_IP            0x00000041
-#define MSR_ATOM_LASTBRANCH_2_FROM_IP            0x00000042
-#define MSR_ATOM_LASTBRANCH_3_FROM_IP            0x00000043
-#define MSR_ATOM_LASTBRANCH_4_FROM_IP            0x00000044
-#define MSR_ATOM_LASTBRANCH_5_FROM_IP            0x00000045
-#define MSR_ATOM_LASTBRANCH_6_FROM_IP            0x00000046
-#define MSR_ATOM_LASTBRANCH_7_FROM_IP            0x00000047
+#define MSR_ATOM_LASTBRANCH_0_FROM_IP  0x00000040
+#define MSR_ATOM_LASTBRANCH_1_FROM_IP  0x00000041
+#define MSR_ATOM_LASTBRANCH_2_FROM_IP  0x00000042
+#define MSR_ATOM_LASTBRANCH_3_FROM_IP  0x00000043
+#define MSR_ATOM_LASTBRANCH_4_FROM_IP  0x00000044
+#define MSR_ATOM_LASTBRANCH_5_FROM_IP  0x00000045
+#define MSR_ATOM_LASTBRANCH_6_FROM_IP  0x00000046
+#define MSR_ATOM_LASTBRANCH_7_FROM_IP  0x00000047
 /// @}
-
 
 /**
   Unique. Last Branch Record n To IP (R/W) One of eight pairs of last branch
@@ -254,16 +251,15 @@ typedef union {
         MSR_ATOM_LASTBRANCH_7_TO_IP is defined as MSR_LASTBRANCH_7_TO_IP in SDM.
   @{
 **/
-#define MSR_ATOM_LASTBRANCH_0_TO_IP              0x00000060
-#define MSR_ATOM_LASTBRANCH_1_TO_IP              0x00000061
-#define MSR_ATOM_LASTBRANCH_2_TO_IP              0x00000062
-#define MSR_ATOM_LASTBRANCH_3_TO_IP              0x00000063
-#define MSR_ATOM_LASTBRANCH_4_TO_IP              0x00000064
-#define MSR_ATOM_LASTBRANCH_5_TO_IP              0x00000065
-#define MSR_ATOM_LASTBRANCH_6_TO_IP              0x00000066
-#define MSR_ATOM_LASTBRANCH_7_TO_IP              0x00000067
+#define MSR_ATOM_LASTBRANCH_0_TO_IP  0x00000060
+#define MSR_ATOM_LASTBRANCH_1_TO_IP  0x00000061
+#define MSR_ATOM_LASTBRANCH_2_TO_IP  0x00000062
+#define MSR_ATOM_LASTBRANCH_3_TO_IP  0x00000063
+#define MSR_ATOM_LASTBRANCH_4_TO_IP  0x00000064
+#define MSR_ATOM_LASTBRANCH_5_TO_IP  0x00000065
+#define MSR_ATOM_LASTBRANCH_6_TO_IP  0x00000066
+#define MSR_ATOM_LASTBRANCH_7_TO_IP  0x00000067
 /// @}
-
 
 /**
   Shared. Scalable Bus Speed(RO) This field indicates the intended scalable
@@ -283,7 +279,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_FSB_FREQ is defined as MSR_FSB_FREQ in SDM.
 **/
-#define MSR_ATOM_FSB_FREQ                        0x000000CD
+#define MSR_ATOM_FSB_FREQ  0x000000CD
 
 /**
   MSR information returned for MSR index #MSR_ATOM_FSB_FREQ
@@ -309,20 +305,19 @@ typedef union {
     /// System Bus Speed when
     /// encoding is 011B.
     ///
-    UINT32  ScalableBusSpeed:3;
-    UINT32  Reserved1:29;
-    UINT32  Reserved2:32;
+    UINT32    ScalableBusSpeed : 3;
+    UINT32    Reserved1        : 29;
+    UINT32    Reserved2        : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_FSB_FREQ_REGISTER;
-
 
 /**
   Shared.
@@ -342,7 +337,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_BBL_CR_CTL3 is defined as MSR_BBL_CR_CTL3 in SDM.
 **/
-#define MSR_ATOM_BBL_CR_CTL3                     0x0000011E
+#define MSR_ATOM_BBL_CR_CTL3  0x0000011E
 
 /**
   MSR information returned for MSR index #MSR_ATOM_BBL_CR_CTL3
@@ -356,32 +351,31 @@ typedef union {
     /// [Bit 0] L2 Hardware Enabled (RO) 1 = If the L2 is hardware-enabled 0 =
     /// Indicates if the L2 is hardware-disabled.
     ///
-    UINT32  L2HardwareEnabled:1;
-    UINT32  Reserved1:7;
+    UINT32    L2HardwareEnabled : 1;
+    UINT32    Reserved1         : 7;
     ///
     /// [Bit 8] L2 Enabled. (R/W)  1 = L2 cache has been initialized 0 =
     /// Disabled (default) Until this bit is set the processor will not
     /// respond to the WBINVD instruction or the assertion of the FLUSH# input.
     ///
-    UINT32  L2Enabled:1;
-    UINT32  Reserved2:14;
+    UINT32    L2Enabled         : 1;
+    UINT32    Reserved2         : 14;
     ///
     /// [Bit 23] L2 Not Present (RO)  1. = L2 Present 2. = L2 Not Present.
     ///
-    UINT32  L2NotPresent:1;
-    UINT32  Reserved3:8;
-    UINT32  Reserved4:32;
+    UINT32    L2NotPresent      : 1;
+    UINT32    Reserved3         : 8;
+    UINT32    Reserved4         : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_BBL_CR_CTL3_REGISTER;
-
 
 /**
   Shared.
@@ -401,7 +395,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_PERF_STATUS is defined as MSR_PERF_STATUS in SDM.
 **/
-#define MSR_ATOM_PERF_STATUS                     0x00000198
+#define MSR_ATOM_PERF_STATUS  0x00000198
 
 /**
   MSR information returned for MSR index #MSR_ATOM_PERF_STATUS
@@ -414,22 +408,21 @@ typedef union {
     ///
     /// [Bits 15:0] Current Performance State Value.
     ///
-    UINT32  CurrentPerformanceStateValue:16;
-    UINT32  Reserved1:16;
-    UINT32  Reserved2:8;
+    UINT32    CurrentPerformanceStateValue : 16;
+    UINT32    Reserved1                    : 16;
+    UINT32    Reserved2                    : 8;
     ///
     /// [Bits 44:40] Maximum Bus Ratio (R/O) Indicates maximum bus ratio
     /// configured for the processor.
     ///
-    UINT32  MaximumBusRatio:5;
-    UINT32  Reserved3:19;
+    UINT32    MaximumBusRatio              : 5;
+    UINT32    Reserved3                    : 19;
   } Bits;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_PERF_STATUS_REGISTER;
-
 
 /**
   Shared.
@@ -449,7 +442,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_THERM2_CTL is defined as MSR_THERM2_CTL in SDM.
 **/
-#define MSR_ATOM_THERM2_CTL                      0x0000019D
+#define MSR_ATOM_THERM2_CTL  0x0000019D
 
 /**
   MSR information returned for MSR index #MSR_ATOM_THERM2_CTL
@@ -459,7 +452,7 @@ typedef union {
   /// Individual bit fields
   ///
   struct {
-    UINT32  Reserved1:16;
+    UINT32    Reserved1 : 16;
     ///
     /// [Bit 16] TM_SELECT (R/W)  Mode of automatic thermal monitor: 1. =
     /// Thermal Monitor 1 (thermally-initiated on-die modulation of the
@@ -467,20 +460,19 @@ typedef union {
     /// frequency transitions) If bit 3 of the IA32_MISC_ENABLE register is
     /// cleared, TM_SELECT has no effect. Neither TM1 nor TM2 are enabled.
     ///
-    UINT32  TM_SELECT:1;
-    UINT32  Reserved2:15;
-    UINT32  Reserved3:32;
+    UINT32    TM_SELECT : 1;
+    UINT32    Reserved2 : 15;
+    UINT32    Reserved3 : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_THERM2_CTL_REGISTER;
-
 
 /**
   Unique. Enable Misc. Processor Features (R/W)  Allows a variety of processor
@@ -501,7 +493,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_IA32_MISC_ENABLE is defined as IA32_MISC_ENABLE in SDM.
 **/
-#define MSR_ATOM_IA32_MISC_ENABLE                0x000001A0
+#define MSR_ATOM_IA32_MISC_ENABLE  0x000001A0
 
 /**
   MSR information returned for MSR index #MSR_ATOM_IA32_MISC_ENABLE
@@ -514,36 +506,36 @@ typedef union {
     ///
     /// [Bit 0] Fast-Strings Enable See Table 2-2.
     ///
-    UINT32  FastStrings:1;
-    UINT32  Reserved1:2;
+    UINT32    FastStrings                    : 1;
+    UINT32    Reserved1                      : 2;
     ///
     /// [Bit 3] Unique. Automatic Thermal Control Circuit Enable (R/W) See
     /// Table 2-2. Default value is 0.
     ///
-    UINT32  AutomaticThermalControlCircuit:1;
-    UINT32  Reserved2:3;
+    UINT32    AutomaticThermalControlCircuit : 1;
+    UINT32    Reserved2                      : 3;
     ///
     /// [Bit 7] Shared. Performance Monitoring Available (R) See Table 2-2.
     ///
-    UINT32  PerformanceMonitoring:1;
-    UINT32  Reserved3:1;
-    UINT32  Reserved4:1;
+    UINT32    PerformanceMonitoring          : 1;
+    UINT32    Reserved3                      : 1;
+    UINT32    Reserved4                      : 1;
     ///
     /// [Bit 10] Shared. FERR# Multiplexing Enable (R/W) 1 = FERR# asserted by
     /// the processor to indicate a pending break event within the processor 0
     /// = Indicates compatible FERR# signaling behavior This bit must be set
     /// to 1 to support XAPIC interrupt model usage.
     ///
-    UINT32  FERR:1;
+    UINT32    FERR                           : 1;
     ///
     /// [Bit 11] Shared. Branch Trace Storage Unavailable (RO) See Table 2-2.
     ///
-    UINT32  BTS:1;
+    UINT32    BTS                            : 1;
     ///
     /// [Bit 12] Shared. Processor Event Based Sampling Unavailable (RO) See
     /// Table 2-2.
     ///
-    UINT32  PEBS:1;
+    UINT32    PEBS                           : 1;
     ///
     /// [Bit 13] Shared. TM2 Enable (R/W) When this bit is set (1) and the
     /// thermal sensor indicates that the die temperature is at the
@@ -558,19 +550,19 @@ typedef union {
     ///   contents of the TM2 bit location. The processor is operating out of
     ///   specification if both this bit and the TM1 bit are set to 0.
     ///
-    UINT32  TM2:1;
-    UINT32  Reserved5:2;
+    UINT32    TM2       : 1;
+    UINT32    Reserved5 : 2;
     ///
     /// [Bit 16] Shared. Enhanced Intel SpeedStep Technology Enable (R/W) See
     /// Table 2-2.
     ///
-    UINT32  EIST:1;
-    UINT32  Reserved6:1;
+    UINT32    EIST      : 1;
+    UINT32    Reserved6 : 1;
     ///
     /// [Bit 18] Shared. ENABLE MONITOR FSM (R/W) See Table 2-2.
     ///
-    UINT32  MONITOR:1;
-    UINT32  Reserved7:1;
+    UINT32    MONITOR   : 1;
+    UINT32    Reserved7 : 1;
     ///
     /// [Bit 20] Shared. Enhanced Intel SpeedStep Technology Select Lock
     /// (R/WO) When set, this bit causes the following bits to become
@@ -579,30 +571,29 @@ typedef union {
     /// be set before an Enhanced Intel SpeedStep Technology transition is
     /// requested. This bit is cleared on reset.
     ///
-    UINT32  EISTLock:1;
-    UINT32  Reserved8:1;
+    UINT32    EISTLock             : 1;
+    UINT32    Reserved8            : 1;
     ///
     /// [Bit 22] Unique. Limit CPUID Maxval (R/W) See Table 2-2.
     ///
-    UINT32  LimitCpuidMaxval:1;
+    UINT32    LimitCpuidMaxval     : 1;
     ///
     /// [Bit 23] Shared. xTPR Message Disable (R/W) See Table 2-2.
     ///
-    UINT32  xTPR_Message_Disable:1;
-    UINT32  Reserved9:8;
-    UINT32  Reserved10:2;
+    UINT32    xTPR_Message_Disable : 1;
+    UINT32    Reserved9            : 8;
+    UINT32    Reserved10           : 2;
     ///
     /// [Bit 34] Unique. XD Bit Disable (R/W) See Table 2-2.
     ///
-    UINT32  XD:1;
-    UINT32  Reserved11:29;
+    UINT32    XD                   : 1;
+    UINT32    Reserved11           : 29;
   } Bits;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_IA32_MISC_ENABLE_REGISTER;
-
 
 /**
   Unique. Last Branch Record Stack TOS (R/W)  Contains an index (bits 0-2)
@@ -622,8 +613,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_LASTBRANCH_TOS is defined as MSR_LASTBRANCH_TOS in SDM.
 **/
-#define MSR_ATOM_LASTBRANCH_TOS                  0x000001C9
-
+#define MSR_ATOM_LASTBRANCH_TOS  0x000001C9
 
 /**
   Unique. Last Exception Record From Linear IP (R)  Contains a pointer to the
@@ -642,8 +632,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_LER_FROM_LIP is defined as MSR_LER_FROM_LIP in SDM.
 **/
-#define MSR_ATOM_LER_FROM_LIP                    0x000001DD
-
+#define MSR_ATOM_LER_FROM_LIP  0x000001DD
 
 /**
   Unique. Last Exception Record To Linear IP (R)  This area contains a pointer
@@ -663,8 +652,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_LER_TO_LIP is defined as MSR_LER_TO_LIP in SDM.
 **/
-#define MSR_ATOM_LER_TO_LIP                      0x000001DE
-
+#define MSR_ATOM_LER_TO_LIP  0x000001DE
 
 /**
   Unique. See Table 2-2. See Section 18.6.2.4, "Processor Event Based Sampling
@@ -685,7 +673,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_PEBS_ENABLE is defined as MSR_PEBS_ENABLE in SDM.
 **/
-#define MSR_ATOM_PEBS_ENABLE                     0x000003F1
+#define MSR_ATOM_PEBS_ENABLE  0x000003F1
 
 /**
   MSR information returned for MSR index #MSR_ATOM_PEBS_ENABLE
@@ -698,20 +686,19 @@ typedef union {
     ///
     /// [Bit 0] Enable PEBS on IA32_PMC0. (R/W).
     ///
-    UINT32  Enable:1;
-    UINT32  Reserved1:31;
-    UINT32  Reserved2:32;
+    UINT32    Enable    : 1;
+    UINT32    Reserved1 : 31;
+    UINT32    Reserved2 : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_ATOM_PEBS_ENABLE_REGISTER;
-
 
 /**
   Package. Package C2 Residency Note: C-state values are processor specific
@@ -733,8 +720,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_PKG_C2_RESIDENCY is defined as MSR_PKG_C2_RESIDENCY in SDM.
 **/
-#define MSR_ATOM_PKG_C2_RESIDENCY                0x000003F8
-
+#define MSR_ATOM_PKG_C2_RESIDENCY  0x000003F8
 
 /**
   Package. Package C4 Residency Note: C-state values are processor specific
@@ -756,8 +742,7 @@ typedef union {
   @endcode
   @note MSR_ATOM_PKG_C4_RESIDENCY is defined as MSR_PKG_C4_RESIDENCY in SDM.
 **/
-#define MSR_ATOM_PKG_C4_RESIDENCY                0x000003F9
-
+#define MSR_ATOM_PKG_C4_RESIDENCY  0x000003F9
 
 /**
   Package. Package C6 Residency Note: C-state values are processor specific
@@ -779,6 +764,6 @@ typedef union {
   @endcode
   @note MSR_ATOM_PKG_C6_RESIDENCY is defined as MSR_PKG_C6_RESIDENCY in SDM.
 **/
-#define MSR_ATOM_PKG_C6_RESIDENCY                0x000003FA
+#define MSR_ATOM_PKG_C6_RESIDENCY  0x000003FA
 
 #endif

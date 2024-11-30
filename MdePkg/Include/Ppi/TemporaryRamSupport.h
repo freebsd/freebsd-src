@@ -20,7 +20,6 @@
 #define EFI_PEI_TEMPORARY_RAM_SUPPORT_PPI_GUID  \
   { 0xdbe23aa9, 0xa345, 0x4b97, {0x85, 0xb6, 0xb2, 0x26, 0xf1, 0x61, 0x73, 0x89} }
 
-
 /**
   This service of the EFI_PEI_TEMPORARY_RAM_SUPPORT_PPI that migrates temporary RAM into
   permanent memory.
@@ -39,12 +38,12 @@
 **/
 typedef
 EFI_STATUS
-(EFIAPI * TEMPORARY_RAM_MIGRATION)(
+(EFIAPI *TEMPORARY_RAM_MIGRATION)(
   IN CONST EFI_PEI_SERVICES   **PeiServices,
   IN EFI_PHYSICAL_ADDRESS     TemporaryMemoryBase,
   IN EFI_PHYSICAL_ADDRESS     PermanentMemoryBase,
   IN UINTN                    CopySize
-);
+  );
 
 ///
 /// This service abstracts the ability to migrate contents of the platform early memory store.
@@ -52,9 +51,9 @@ EFI_STATUS
 ///       This PPI was optional.
 ///
 typedef struct {
-  TEMPORARY_RAM_MIGRATION   TemporaryRamMigration;
+  TEMPORARY_RAM_MIGRATION    TemporaryRamMigration;
 } EFI_PEI_TEMPORARY_RAM_SUPPORT_PPI;
 
-extern EFI_GUID gEfiTemporaryRamSupportPpiGuid;
+extern EFI_GUID  gEfiTemporaryRamSupportPpiGuid;
 
 #endif

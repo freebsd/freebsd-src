@@ -30,8 +30,8 @@ typedef struct _EFI_EAP_MANAGEMENT_PROTOCOL EFI_EAP_MANAGEMENT_PROTOCOL;
 /// PAE Capabilities
 ///
 ///@{
-#define PAE_SUPPORT_AUTHENTICATOR       0x01
-#define PAE_SUPPORT_SUPPLICANT          0x02
+#define PAE_SUPPORT_AUTHENTICATOR  0x01
+#define PAE_SUPPORT_SUPPLICANT     0x02
 ///@}
 
 ///
@@ -42,18 +42,18 @@ typedef struct _EFI_EAPOL_PORT_INFO {
   /// The identification number assigned to the Port by the System in
   /// which the Port resides.
   ///
-  EFI_PORT_HANDLE     PortNumber;
+  EFI_PORT_HANDLE    PortNumber;
   ///
   /// The protocol version number of the EAPOL implementation
   /// supported by the Port.
   ///
-  UINT8               ProtocolVersion;
+  UINT8              ProtocolVersion;
   ///
   /// The capabilities of the PAE associated with the Port. This field
   /// indicates whether Authenticator functionality, Supplicant
   /// functionality, both, or neither, is supported by the Port's PAE.
   ///
-  UINT8               PaeCapabilities;
+  UINT8              PaeCapabilities;
 } EFI_EAPOL_PORT_INFO;
 
 ///
@@ -74,10 +74,10 @@ typedef enum _EFI_EAPOL_SUPPLICANT_PAE_STATE {
 /// Definitions for ValidFieldMask
 ///
 ///@{
-#define AUTH_PERIOD_FIELD_VALID       0x01
-#define HELD_PERIOD_FIELD_VALID       0x02
-#define START_PERIOD_FIELD_VALID      0x04
-#define MAX_START_FIELD_VALID         0x08
+#define AUTH_PERIOD_FIELD_VALID   0x01
+#define HELD_PERIOD_FIELD_VALID   0x02
+#define START_PERIOD_FIELD_VALID  0x04
+#define MAX_START_FIELD_VALID     0x08
 ///@}
 
 ///
@@ -87,25 +87,25 @@ typedef struct _EFI_EAPOL_SUPPLICANT_PAE_CONFIGURATION {
   ///
   /// Indicates which of the following fields are valid.
   ///
-  UINT8       ValidFieldMask;
+  UINT8    ValidFieldMask;
   ///
   /// The initial value for the authWhile timer. Its default value is 30s.
   ///
-  UINTN       AuthPeriod;
+  UINTN    AuthPeriod;
   ///
   /// The initial value for the heldWhile timer. Its default value is 60s.
   ///
-  UINTN       HeldPeriod;
+  UINTN    HeldPeriod;
   ///
   /// The initial value for the startWhen timer. Its default value is 30s.
   ///
-  UINTN       StartPeriod;
+  UINTN    StartPeriod;
   ///
   /// The maximum number of successive EAPOL-Start messages will
   /// be sent before the Supplicant assumes that there is no
   /// Authenticator present. Its default value is 3.
   ///
-  UINTN       MaxStart;
+  UINTN    MaxStart;
 } EFI_EAPOL_SUPPLICANT_PAE_CONFIGURATION;
 
 ///
@@ -115,55 +115,55 @@ typedef struct _EFI_EAPOL_SUPPLICANT_PAE_STATISTICS {
   ///
   /// The number of EAPOL frames of any type that have been received by this Supplican.
   ///
-  UINTN     EapolFramesReceived;
+  UINTN    EapolFramesReceived;
   ///
   /// The number of EAPOL frames of any type that have been transmitted by this Supplicant.
   ///
-  UINTN     EapolFramesTransmitted;
+  UINTN    EapolFramesTransmitted;
   ///
   /// The number of EAPOL Start frames that have been transmitted by this Supplicant.
   ///
-  UINTN     EapolStartFramesTransmitted;
+  UINTN    EapolStartFramesTransmitted;
   ///
   /// The number of EAPOL Logoff frames that have been transmitted by this Supplicant.
   ///
-  UINTN     EapolLogoffFramesTransmitted;
+  UINTN    EapolLogoffFramesTransmitted;
   ///
   /// The number of EAP Resp/Id frames that have been transmitted by this Supplicant.
   ///
-  UINTN     EapRespIdFramesTransmitted;
+  UINTN    EapRespIdFramesTransmitted;
   ///
   /// The number of valid EAP Response frames (other than Resp/Id frames) that have been
   /// transmitted by this Supplicant.
   ///
-  UINTN     EapResponseFramesTransmitted;
+  UINTN    EapResponseFramesTransmitted;
   ///
   /// The number of EAP Req/Id frames that have been received by this Supplicant.
   ///
-  UINTN     EapReqIdFramesReceived;
+  UINTN    EapReqIdFramesReceived;
   ///
   /// The number of EAP Request frames (other than Rq/Id frames) that have been received
   /// by this Supplicant.
   ///
-  UINTN     EapRequestFramesReceived;
+  UINTN    EapRequestFramesReceived;
   ///
   /// The number of EAPOL frames that have been received by this Supplicant in which the
   /// frame type is not recognized.
   ///
-  UINTN     InvalidEapolFramesReceived;
+  UINTN    InvalidEapolFramesReceived;
   ///
   /// The number of EAPOL frames that have been received by this Supplicant in which the
   /// Packet Body Length field (7.5.5) is invalid.
   ///
-  UINTN     EapLengthErrorFramesReceived;
+  UINTN    EapLengthErrorFramesReceived;
   ///
   /// The protocol version number carried in the most recently received EAPOL frame.
   ///
-  UINTN     LastEapolFrameVersion;
+  UINTN    LastEapolFrameVersion;
   ///
   /// The source MAC address carried in the most recently received EAPOL frame.
   ///
-  UINTN     LastEapolFrameSource;
+  UINTN    LastEapolFrameSource;
 } EFI_EAPOL_SUPPLICANT_PAE_STATISTICS;
 
 /**
@@ -391,7 +391,6 @@ struct _EFI_EAP_MANAGEMENT_PROTOCOL {
   EFI_EAP_GET_SUPPLICANT_STATISTICS       GetSupplicantStatistics;
 };
 
-extern EFI_GUID gEfiEapManagementProtocolGuid;
+extern EFI_GUID  gEfiEapManagementProtocolGuid;
 
 #endif
-

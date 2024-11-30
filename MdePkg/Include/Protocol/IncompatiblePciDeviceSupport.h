@@ -159,9 +159,9 @@ struct _EFI_INCOMPATIBLE_PCI_DEVICE_SUPPORT_PROTOCOL {
   ///  resource configuration requirements if the specified device is a recognized
   ///  incompatible PCI device.
   ///
-  EFI_INCOMPATIBLE_PCI_DEVICE_SUPPORT_CHECK_DEVICE  CheckDevice;
+  EFI_INCOMPATIBLE_PCI_DEVICE_SUPPORT_CHECK_DEVICE    CheckDevice;
 };
 
-extern EFI_GUID gEfiIncompatiblePciDeviceSupportProtocolGuid;
+extern EFI_GUID  gEfiIncompatiblePciDeviceSupportProtocolGuid;
 
 #endif

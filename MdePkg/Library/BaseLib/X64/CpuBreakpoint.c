@@ -6,12 +6,14 @@
 
 **/
 
-
 /**
   Microsoft Visual Studio 7.1 Function Prototypes for I/O Intrinsics.
 **/
 
-void __debugbreak (VOID);
+void
+__debugbreak (
+  VOID
+  );
 
 #pragma intrinsic(__debugbreak)
 
@@ -30,4 +32,3 @@ CpuBreakpoint (
 {
   __debugbreak ();
 }
-

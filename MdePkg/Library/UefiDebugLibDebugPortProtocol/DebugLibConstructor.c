@@ -13,18 +13,18 @@
 #include <Library/BaseMemoryLib.h>
 
 //
-// BOOLEAN value to indicate if it is at the post ExitBootServices pahse
+// BOOLEAN value to indicate if it is at the post ExitBootServices phase
 //
-BOOLEAN     mPostEBS = FALSE;
+BOOLEAN  mPostEBS = FALSE;
 
-static EFI_EVENT   mExitBootServicesEvent;
+static EFI_EVENT  mExitBootServicesEvent;
 
 //
 // Pointer to SystemTable
 // This library instance may have a cycle consume with UefiBootServicesTableLib
 // because of the constructors.
 //
-EFI_BOOT_SERVICES     *mDebugBS;
+EFI_BOOT_SERVICES  *mDebugBS;
 
 /**
   This routine sets the mPostEBS for exit boot servies true
@@ -34,11 +34,12 @@ EFI_BOOT_SERVICES     *mDebugBS;
   @param  Context      Pointer to the notification function's context.
 
 **/
+static
 VOID
 EFIAPI
-ExitBootServicesCallback (
-  EFI_EVENT   Event,
-  VOID*       Context
+UefiDebugLibDebugPortProtocolExitBootServicesCallback (
+  EFI_EVENT  Event,
+  VOID       *Context
   )
 {
   mPostEBS = TRUE;
@@ -57,9 +58,9 @@ ExitBootServicesCallback (
 **/
 EFI_STATUS
 EFIAPI
-DxeDebugLibConstructor(
-  IN EFI_HANDLE                 ImageHandle,
-  IN EFI_SYSTEM_TABLE           *SystemTable
+DxeDebugLibConstructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
   mDebugBS = SystemTable->BootServices;
@@ -67,7 +68,7 @@ DxeDebugLibConstructor(
   mDebugBS->CreateEvent (
               EVT_SIGNAL_EXIT_BOOT_SERVICES,
               TPL_NOTIFY,
-              ExitBootServicesCallback,
+              UefiDebugLibDebugPortProtocolExitBootServicesCallback,
               NULL,
               &mExitBootServicesEvent
               );
@@ -86,9 +87,9 @@ DxeDebugLibConstructor(
 **/
 EFI_STATUS
 EFIAPI
-DxeDebugLibDestructor(
-  IN EFI_HANDLE                 ImageHandle,
-  IN EFI_SYSTEM_TABLE           *SystemTable
+DxeDebugLibDestructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
   if (mExitBootServicesEvent != NULL) {

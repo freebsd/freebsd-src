@@ -1,0 +1,26 @@
+## @file
+# RISC-V Library to call SBI ecalls
+#
+#  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION         = 0x0001001b
+  BASE_NAME           = BaseRiscVSbiLib
+  FILE_GUID           = D742CF3D-E600-4009-8FB5-318073008508
+  MODULE_TYPE         = BASE
+  VERSION_STRING      = 1.0
+  LIBRARY_CLASS       = RiscVSbiLib
+
+[Sources]
+  BaseRiscVSbiLib.c
+  RiscVSbiEcall.S
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib

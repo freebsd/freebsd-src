@@ -12,7 +12,7 @@
   Hack function for passing GCC build.
 **/
 VOID
-__chkstk()
+__chkstk (
+  )
 {
 }
-

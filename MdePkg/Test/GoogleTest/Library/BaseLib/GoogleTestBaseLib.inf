@@ -1,0 +1,31 @@
+## @file
+# Host OS based Application that unit tests BaseLib using Google Test
+#
+# Copyright (c) 2023, Pedro Falcato. All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION     = 0x00010005
+  BASE_NAME       = GoogleTestBaseLib
+  FILE_GUID       = 34D8CBBA-2442-455F-8454-5B06B12A8B62
+  MODULE_TYPE     = HOST_APPLICATION
+  VERSION_STRING  = 1.0
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  TestCheckSum.cpp
+  TestBaseLibMain.cpp
+
+[Packages]
+  MdePkg/MdePkg.dec
+  UnitTestFrameworkPkg/UnitTestFrameworkPkg.dec
+
+[LibraryClasses]
+  GoogleTestLib
+  BaseLib

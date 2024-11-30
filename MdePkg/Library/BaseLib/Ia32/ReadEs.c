@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of ES Data Segment Register (ES).
 
@@ -29,4 +26,3 @@ AsmReadEs (
     mov     ax, es
   }
 }
-

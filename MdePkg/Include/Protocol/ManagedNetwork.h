@@ -84,37 +84,36 @@ typedef struct {
 } EFI_MANAGED_NETWORK_CONFIG_DATA;
 
 typedef struct {
-  EFI_TIME      Timestamp;
-  EFI_EVENT     RecycleEvent;
-  UINT32        PacketLength;
-  UINT32        HeaderLength;
-  UINT32        AddressLength;
-  UINT32        DataLength;
-  BOOLEAN       BroadcastFlag;
-  BOOLEAN       MulticastFlag;
-  BOOLEAN       PromiscuousFlag;
-  UINT16        ProtocolType;
-  VOID          *DestinationAddress;
-  VOID          *SourceAddress;
-  VOID          *MediaHeader;
-  VOID          *PacketData;
+  EFI_TIME     Timestamp;
+  EFI_EVENT    RecycleEvent;
+  UINT32       PacketLength;
+  UINT32       HeaderLength;
+  UINT32       AddressLength;
+  UINT32       DataLength;
+  BOOLEAN      BroadcastFlag;
+  BOOLEAN      MulticastFlag;
+  BOOLEAN      PromiscuousFlag;
+  UINT16       ProtocolType;
+  VOID         *DestinationAddress;
+  VOID         *SourceAddress;
+  VOID         *MediaHeader;
+  VOID         *PacketData;
 } EFI_MANAGED_NETWORK_RECEIVE_DATA;
 
 typedef struct {
-  UINT32        FragmentLength;
-  VOID          *FragmentBuffer;
+  UINT32    FragmentLength;
+  VOID      *FragmentBuffer;
 } EFI_MANAGED_NETWORK_FRAGMENT_DATA;
 
 typedef struct {
-  EFI_MAC_ADDRESS                   *DestinationAddress; //OPTIONAL
-  EFI_MAC_ADDRESS                   *SourceAddress;      //OPTIONAL
-  UINT16                            ProtocolType;        //OPTIONAL
-  UINT32                            DataLength;
-  UINT16                            HeaderLength;        //OPTIONAL
-  UINT16                            FragmentCount;
-  EFI_MANAGED_NETWORK_FRAGMENT_DATA FragmentTable[1];
+  EFI_MAC_ADDRESS                      *DestinationAddress; // OPTIONAL
+  EFI_MAC_ADDRESS                      *SourceAddress;      // OPTIONAL
+  UINT16                               ProtocolType;        // OPTIONAL
+  UINT32                               DataLength;
+  UINT16                               HeaderLength;     // OPTIONAL
+  UINT16                               FragmentCount;
+  EFI_MANAGED_NETWORK_FRAGMENT_DATA    FragmentTable[1];
 } EFI_MANAGED_NETWORK_TRANSMIT_DATA;
-
 
 typedef struct {
   ///
@@ -123,21 +122,21 @@ typedef struct {
   /// EFI_NOTIFY_SIGNAL. The Task Priority Level (TPL) of
   /// Event must be lower than or equal to TPL_CALLBACK.
   ///
-  EFI_EVENT                             Event;
+  EFI_EVENT     Event;
   ///
   /// The status that is returned to the caller at the end of the operation
   /// to indicate whether this operation completed successfully.
   ///
-  EFI_STATUS                            Status;
+  EFI_STATUS    Status;
   union {
     ///
     /// When this token is used for receiving, RxData is a pointer to the EFI_MANAGED_NETWORK_RECEIVE_DATA.
     ///
-    EFI_MANAGED_NETWORK_RECEIVE_DATA    *RxData;
+    EFI_MANAGED_NETWORK_RECEIVE_DATA     *RxData;
     ///
     /// When this token is used for transmitting, TxData is a pointer to the EFI_MANAGED_NETWORK_TRANSMIT_DATA.
     ///
-    EFI_MANAGED_NETWORK_TRANSMIT_DATA   *TxData;
+    EFI_MANAGED_NETWORK_TRANSMIT_DATA    *TxData;
   } Packet;
 } EFI_MANAGED_NETWORK_COMPLETION_TOKEN;
 
@@ -298,7 +297,6 @@ EFI_STATUS
   IN EFI_MANAGED_NETWORK_COMPLETION_TOKEN  *Token
   );
 
-
 /**
   Aborts an asynchronous transmit or receive request.
 
@@ -350,17 +348,17 @@ EFI_STATUS
 /// perform raw (unformatted) asynchronous network packet I/O.
 ///
 struct _EFI_MANAGED_NETWORK_PROTOCOL {
-  EFI_MANAGED_NETWORK_GET_MODE_DATA       GetModeData;
-  EFI_MANAGED_NETWORK_CONFIGURE           Configure;
-  EFI_MANAGED_NETWORK_MCAST_IP_TO_MAC     McastIpToMac;
-  EFI_MANAGED_NETWORK_GROUPS              Groups;
-  EFI_MANAGED_NETWORK_TRANSMIT            Transmit;
-  EFI_MANAGED_NETWORK_RECEIVE             Receive;
-  EFI_MANAGED_NETWORK_CANCEL              Cancel;
-  EFI_MANAGED_NETWORK_POLL                Poll;
+  EFI_MANAGED_NETWORK_GET_MODE_DATA      GetModeData;
+  EFI_MANAGED_NETWORK_CONFIGURE          Configure;
+  EFI_MANAGED_NETWORK_MCAST_IP_TO_MAC    McastIpToMac;
+  EFI_MANAGED_NETWORK_GROUPS             Groups;
+  EFI_MANAGED_NETWORK_TRANSMIT           Transmit;
+  EFI_MANAGED_NETWORK_RECEIVE            Receive;
+  EFI_MANAGED_NETWORK_CANCEL             Cancel;
+  EFI_MANAGED_NETWORK_POLL               Poll;
 };
 
-extern EFI_GUID gEfiManagedNetworkServiceBindingProtocolGuid;
-extern EFI_GUID gEfiManagedNetworkProtocolGuid;
+extern EFI_GUID  gEfiManagedNetworkServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiManagedNetworkProtocolGuid;
 
 #endif

@@ -20,16 +20,16 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   0x0a8badd5, 0x03b8, 0x4d19, {0xb1, 0x28, 0x7b, 0x8f, 0x0e, 0xda, 0xa5, 0x96 } \
 }
 
-//***********************************************************
+// ***********************************************************
 // Progress Errors
-//***********************************************************
-#define KEYWORD_HANDLER_NO_ERROR                       0x00000000
-#define KEYWORD_HANDLER_NAMESPACE_ID_NOT_FOUND         0x00000001
-#define KEYWORD_HANDLER_MALFORMED_STRING               0x00000002
-#define KEYWORD_HANDLER_KEYWORD_NOT_FOUND              0x00000004
-#define KEYWORD_HANDLER_INCOMPATIBLE_VALUE_DETECTED    0x00000008
-#define KEYWORD_HANDLER_ACCESS_NOT_PERMITTED           0x00000010
-#define KEYWORD_HANDLER_UNDEFINED_PROCESSING_ERROR     0x80000000
+// ***********************************************************
+#define KEYWORD_HANDLER_NO_ERROR                     0x00000000
+#define KEYWORD_HANDLER_NAMESPACE_ID_NOT_FOUND       0x00000001
+#define KEYWORD_HANDLER_MALFORMED_STRING             0x00000002
+#define KEYWORD_HANDLER_KEYWORD_NOT_FOUND            0x00000004
+#define KEYWORD_HANDLER_INCOMPATIBLE_VALUE_DETECTED  0x00000008
+#define KEYWORD_HANDLER_ACCESS_NOT_PERMITTED         0x00000010
+#define KEYWORD_HANDLER_UNDEFINED_PROCESSING_ERROR   0x80000000
 
 typedef struct _EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL;
 
@@ -94,13 +94,12 @@ typedef struct _EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL EFI_CONFIG_KEYWORD_HANDLER_P
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_CONFIG_KEYWORD_HANDLER_SET_DATA) (
+(EFIAPI *EFI_CONFIG_KEYWORD_HANDLER_SET_DATA)(
   IN EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL *This,
   IN CONST EFI_STRING                    KeywordString,
   OUT EFI_STRING                         *Progress,
   OUT UINT32                             *ProgressErr
   );
-
 
 /**
 
@@ -173,10 +172,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_CONFIG_KEYWORD_HANDLER_GET_DATA) (
+(EFIAPI *EFI_CONFIG_KEYWORD_HANDLER_GET_DATA)(
   IN EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL  *This,
-  IN CONST EFI_STRING                     NameSpaceId, OPTIONAL
-  IN CONST EFI_STRING                     KeywordString, OPTIONAL
+  IN CONST EFI_STRING                     NameSpaceId  OPTIONAL,
+  IN CONST EFI_STRING                     KeywordString  OPTIONAL,
   OUT EFI_STRING                          *Progress,
   OUT UINT32                              *ProgressErr,
   OUT EFI_STRING                          *Results
@@ -189,11 +188,10 @@ EFI_STATUS
 ///
 
 struct _EFI_CONFIG_KEYWORD_HANDLER_PROTOCOL {
-  EFI_CONFIG_KEYWORD_HANDLER_SET_DATA  SetData;
-  EFI_CONFIG_KEYWORD_HANDLER_GET_DATA  GetData;
+  EFI_CONFIG_KEYWORD_HANDLER_SET_DATA    SetData;
+  EFI_CONFIG_KEYWORD_HANDLER_GET_DATA    GetData;
 };
 
-extern EFI_GUID gEfiConfigKeywordHandlerProtocolGuid;
+extern EFI_GUID  gEfiConfigKeywordHandlerProtocolGuid;
 
 #endif
-

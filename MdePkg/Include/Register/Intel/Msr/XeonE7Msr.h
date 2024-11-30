@@ -55,7 +55,7 @@
   @endcode
   @note MSR_XEON_E7_FEATURE_CONFIG is defined as MSR_FEATURE_CONFIG in SDM.
 **/
-#define MSR_XEON_E7_FEATURE_CONFIG               0x0000013C
+#define MSR_XEON_E7_FEATURE_CONFIG  0x0000013C
 
 /**
   MSR information returned for MSR index #MSR_XEON_E7_FEATURE_CONFIG
@@ -74,20 +74,19 @@ typedef union {
     /// 01b, AES instruction can be mis-configured if a privileged agent
     /// unintentionally writes 11b.
     ///
-    UINT32  AESConfiguration:2;
-    UINT32  Reserved1:30;
-    UINT32  Reserved2:32;
+    UINT32    AESConfiguration : 2;
+    UINT32    Reserved1        : 30;
+    UINT32    Reserved2        : 32;
   } Bits;
   ///
   /// All bit fields as a 32-bit value
   ///
-  UINT32  Uint32;
+  UINT32    Uint32;
   ///
   /// All bit fields as a 64-bit value
   ///
-  UINT64  Uint64;
+  UINT64    Uint64;
 } MSR_XEON_E7_FEATURE_CONFIG_REGISTER;
-
 
 /**
   Thread. Offcore Response Event Select Register (R/W).
@@ -105,8 +104,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_OFFCORE_RSP_1 is defined as MSR_OFFCORE_RSP_1 in SDM.
 **/
-#define MSR_XEON_E7_OFFCORE_RSP_1                0x000001A7
-
+#define MSR_XEON_E7_OFFCORE_RSP_1  0x000001A7
 
 /**
   Package. Reserved Attempt to read/write will cause #UD.
@@ -124,8 +122,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_TURBO_RATIO_LIMIT is defined as MSR_TURBO_RATIO_LIMIT in SDM.
 **/
-#define MSR_XEON_E7_TURBO_RATIO_LIMIT            0x000001AD
-
+#define MSR_XEON_E7_TURBO_RATIO_LIMIT  0x000001AD
 
 /**
   Package. Uncore C-box 8 perfmon local box control MSR.
@@ -143,8 +140,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C8_PMON_BOX_CTRL is defined as MSR_C8_PMON_BOX_CTRL in SDM.
 **/
-#define MSR_XEON_E7_C8_PMON_BOX_CTRL             0x00000F40
-
+#define MSR_XEON_E7_C8_PMON_BOX_CTRL  0x00000F40
 
 /**
   Package. Uncore C-box 8 perfmon local box status MSR.
@@ -162,8 +158,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C8_PMON_BOX_STATUS is defined as MSR_C8_PMON_BOX_STATUS in SDM.
 **/
-#define MSR_XEON_E7_C8_PMON_BOX_STATUS           0x00000F41
-
+#define MSR_XEON_E7_C8_PMON_BOX_STATUS  0x00000F41
 
 /**
   Package. Uncore C-box 8 perfmon local box overflow control MSR.
@@ -181,8 +176,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C8_PMON_BOX_OVF_CTRL is defined as MSR_C8_PMON_BOX_OVF_CTRL in SDM.
 **/
-#define MSR_XEON_E7_C8_PMON_BOX_OVF_CTRL         0x00000F42
-
+#define MSR_XEON_E7_C8_PMON_BOX_OVF_CTRL  0x00000F42
 
 /**
   Package. Uncore C-box 8 perfmon event select MSR.
@@ -206,14 +200,13 @@ typedef union {
         MSR_XEON_E7_C8_PMON_EVNT_SEL5 is defined as MSR_C8_PMON_EVNT_SEL5 in SDM.
   @{
 **/
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL0            0x00000F50
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL1            0x00000F52
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL2            0x00000F54
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL3            0x00000F56
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL4            0x00000F58
-#define MSR_XEON_E7_C8_PMON_EVNT_SEL5            0x00000F5A
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL0  0x00000F50
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL1  0x00000F52
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL2  0x00000F54
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL3  0x00000F56
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL4  0x00000F58
+#define MSR_XEON_E7_C8_PMON_EVNT_SEL5  0x00000F5A
 /// @}
-
 
 /**
   Package. Uncore C-box 8 perfmon counter MSR.
@@ -237,14 +230,13 @@ typedef union {
         MSR_XEON_E7_C8_PMON_CTR5 is defined as MSR_C8_PMON_CTR5 in SDM.
   @{
 **/
-#define MSR_XEON_E7_C8_PMON_CTR0                 0x00000F51
-#define MSR_XEON_E7_C8_PMON_CTR1                 0x00000F53
-#define MSR_XEON_E7_C8_PMON_CTR2                 0x00000F55
-#define MSR_XEON_E7_C8_PMON_CTR3                 0x00000F57
-#define MSR_XEON_E7_C8_PMON_CTR4                 0x00000F59
-#define MSR_XEON_E7_C8_PMON_CTR5                 0x00000F5B
+#define MSR_XEON_E7_C8_PMON_CTR0  0x00000F51
+#define MSR_XEON_E7_C8_PMON_CTR1  0x00000F53
+#define MSR_XEON_E7_C8_PMON_CTR2  0x00000F55
+#define MSR_XEON_E7_C8_PMON_CTR3  0x00000F57
+#define MSR_XEON_E7_C8_PMON_CTR4  0x00000F59
+#define MSR_XEON_E7_C8_PMON_CTR5  0x00000F5B
 /// @}
-
 
 /**
   Package. Uncore C-box 9 perfmon local box control MSR.
@@ -262,8 +254,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C9_PMON_BOX_CTRL is defined as MSR_C9_PMON_BOX_CTRL in SDM.
 **/
-#define MSR_XEON_E7_C9_PMON_BOX_CTRL             0x00000FC0
-
+#define MSR_XEON_E7_C9_PMON_BOX_CTRL  0x00000FC0
 
 /**
   Package. Uncore C-box 9 perfmon local box status MSR.
@@ -281,8 +272,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C9_PMON_BOX_STATUS is defined as MSR_C9_PMON_BOX_STATUS in SDM.
 **/
-#define MSR_XEON_E7_C9_PMON_BOX_STATUS           0x00000FC1
-
+#define MSR_XEON_E7_C9_PMON_BOX_STATUS  0x00000FC1
 
 /**
   Package. Uncore C-box 9 perfmon local box overflow control MSR.
@@ -300,8 +290,7 @@ typedef union {
   @endcode
   @note MSR_XEON_E7_C9_PMON_BOX_OVF_CTRL is defined as MSR_C9_PMON_BOX_OVF_CTRL in SDM.
 **/
-#define MSR_XEON_E7_C9_PMON_BOX_OVF_CTRL         0x00000FC2
-
+#define MSR_XEON_E7_C9_PMON_BOX_OVF_CTRL  0x00000FC2
 
 /**
   Package. Uncore C-box 9 perfmon event select MSR.
@@ -325,14 +314,13 @@ typedef union {
         MSR_XEON_E7_C9_PMON_EVNT_SEL5 is defined as MSR_C9_PMON_EVNT_SEL5 in SDM.
   @{
 **/
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL0            0x00000FD0
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL1            0x00000FD2
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL2            0x00000FD4
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL3            0x00000FD6
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL4            0x00000FD8
-#define MSR_XEON_E7_C9_PMON_EVNT_SEL5            0x00000FDA
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL0  0x00000FD0
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL1  0x00000FD2
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL2  0x00000FD4
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL3  0x00000FD6
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL4  0x00000FD8
+#define MSR_XEON_E7_C9_PMON_EVNT_SEL5  0x00000FDA
 /// @}
-
 
 /**
   Package. Uncore C-box 9 perfmon counter MSR.
@@ -356,12 +344,12 @@ typedef union {
         MSR_XEON_E7_C9_PMON_CTR5 is defined as MSR_C9_PMON_CTR5 in SDM.
   @{
 **/
-#define MSR_XEON_E7_C9_PMON_CTR0                 0x00000FD1
-#define MSR_XEON_E7_C9_PMON_CTR1                 0x00000FD3
-#define MSR_XEON_E7_C9_PMON_CTR2                 0x00000FD5
-#define MSR_XEON_E7_C9_PMON_CTR3                 0x00000FD7
-#define MSR_XEON_E7_C9_PMON_CTR4                 0x00000FD9
-#define MSR_XEON_E7_C9_PMON_CTR5                 0x00000FDB
+#define MSR_XEON_E7_C9_PMON_CTR0  0x00000FD1
+#define MSR_XEON_E7_C9_PMON_CTR1  0x00000FD3
+#define MSR_XEON_E7_C9_PMON_CTR2  0x00000FD5
+#define MSR_XEON_E7_C9_PMON_CTR3  0x00000FD7
+#define MSR_XEON_E7_C9_PMON_CTR4  0x00000FD9
+#define MSR_XEON_E7_C9_PMON_CTR5  0x00000FDB
 /// @}
 
 #endif

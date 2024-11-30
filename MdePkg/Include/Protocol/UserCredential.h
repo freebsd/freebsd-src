@@ -19,7 +19,7 @@
     0x71ee5e94, 0x65b9, 0x45d5, { 0x82, 0x1a, 0x3a, 0x4d, 0x86, 0xcf, 0xe6, 0xbe } \
   }
 
-typedef struct _EFI_USER_CREDENTIAL_PROTOCOL  EFI_USER_CREDENTIAL_PROTOCOL;
+typedef struct _EFI_USER_CREDENTIAL_PROTOCOL EFI_USER_CREDENTIAL_PROTOCOL;
 
 /**
   Enroll a user on a credential provider.
@@ -266,21 +266,21 @@ EFI_STATUS
 /// This protocol provides support for a single class of credentials
 ///
 struct _EFI_USER_CREDENTIAL_PROTOCOL {
-  EFI_GUID                      Identifier;  ///< Uniquely identifies this credential provider.
-  EFI_GUID                      Type;        ///< Identifies this class of User Credential Provider.
-  EFI_CREDENTIAL_ENROLL         Enroll;
-  EFI_CREDENTIAL_FORM           Form;
-  EFI_CREDENTIAL_TILE           Tile;
-  EFI_CREDENTIAL_TITLE          Title;
-  EFI_CREDENTIAL_USER           User;
-  EFI_CREDENTIAL_SELECT         Select;
-  EFI_CREDENTIAL_DESELECT       Deselect;
-  EFI_CREDENTIAL_DEFAULT        Default;
-  EFI_CREDENTIAL_GET_INFO       GetInfo;
-  EFI_CREDENTIAL_GET_NEXT_INFO  GetNextInfo;
-  EFI_CREDENTIAL_CAPABILITIES   Capabilities;
+  EFI_GUID                        Identifier; ///< Uniquely identifies this credential provider.
+  EFI_GUID                        Type;       ///< Identifies this class of User Credential Provider.
+  EFI_CREDENTIAL_ENROLL           Enroll;
+  EFI_CREDENTIAL_FORM             Form;
+  EFI_CREDENTIAL_TILE             Tile;
+  EFI_CREDENTIAL_TITLE            Title;
+  EFI_CREDENTIAL_USER             User;
+  EFI_CREDENTIAL_SELECT           Select;
+  EFI_CREDENTIAL_DESELECT         Deselect;
+  EFI_CREDENTIAL_DEFAULT          Default;
+  EFI_CREDENTIAL_GET_INFO         GetInfo;
+  EFI_CREDENTIAL_GET_NEXT_INFO    GetNextInfo;
+  EFI_CREDENTIAL_CAPABILITIES     Capabilities;
 };
 
-extern EFI_GUID gEfiUserCredentialProtocolGuid;
+extern EFI_GUID  gEfiUserCredentialProtocolGuid;
 
 #endif

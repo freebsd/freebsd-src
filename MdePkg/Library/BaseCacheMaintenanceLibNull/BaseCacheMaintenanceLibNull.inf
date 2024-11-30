@@ -1,0 +1,29 @@
+## @file
+#  Null Cache Maintenance Library implementation.
+#
+#  Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseCacheMaintenanceLibNull
+  MODULE_UNI_FILE                = BaseCacheMaintenanceLibNull.uni
+  FILE_GUID                      = 13F13249-AC31-4373-8B2B-AFC5755A6FCD
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.1
+  LIBRARY_CLASS                  = CacheMaintenanceLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64
+#
+
+[Sources]
+  BaseCacheMaintenanceLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib

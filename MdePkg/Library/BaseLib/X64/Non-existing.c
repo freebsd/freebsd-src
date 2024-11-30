@@ -46,8 +46,8 @@ VOID
 EFIAPI
 InternalX86EnablePaging32 (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,  OPTIONAL
-  IN      VOID                      *Context2,  OPTIONAL
+  IN      VOID                      *Context1   OPTIONAL,
+  IN      VOID                      *Context2   OPTIONAL,
   IN      VOID                      *NewStack
   )
 {
@@ -91,8 +91,8 @@ VOID
 EFIAPI
 InternalX86DisablePaging32 (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,  OPTIONAL
-  IN      VOID                      *Context2,  OPTIONAL
+  IN      VOID                      *Context1   OPTIONAL,
+  IN      VOID                      *Context2   OPTIONAL,
   IN      VOID                      *NewStack
   )
 {
@@ -101,7 +101,6 @@ InternalX86DisablePaging32 (
   //
   ASSERT (FALSE);
 }
-
 
 /**
   Enables the 64-bit paging mode on the CPU.
@@ -133,11 +132,11 @@ InternalX86DisablePaging32 (
 VOID
 EFIAPI
 InternalX86EnablePaging64 (
-  IN      UINT16                    Cs,
-  IN      UINT64                    EntryPoint,
-  IN      UINT64                    Context1,  OPTIONAL
-  IN      UINT64                    Context2,  OPTIONAL
-  IN      UINT64                    NewStack
+  IN      UINT16  Cs,
+  IN      UINT64  EntryPoint,
+  IN      UINT64  Context1   OPTIONAL,
+  IN      UINT64  Context2   OPTIONAL,
+  IN      UINT64  NewStack
   )
 {
   //

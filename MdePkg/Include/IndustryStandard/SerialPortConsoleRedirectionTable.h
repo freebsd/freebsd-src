@@ -11,7 +11,6 @@
 #ifndef _SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_H_
 #define _SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_H_
 
-
 #include <IndustryStandard/Acpi.h>
 
 //
@@ -22,34 +21,66 @@
 ///
 /// SPCR Revision (defined in spec)
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_REVISION 0x02
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_REVISION  0x02
 
+#define EFI_ACPI_4_0_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_REVISION  0x04
 ///
 /// Serial Port Console Redirection Table Format
 ///
 typedef struct {
-  EFI_ACPI_DESCRIPTION_HEADER             Header;
-  UINT8                                   InterfaceType;
-  UINT8                                   Reserved1[3];
-  EFI_ACPI_5_0_GENERIC_ADDRESS_STRUCTURE  BaseAddress;
-  UINT8                                   InterruptType;
-  UINT8                                   Irq;
-  UINT32                                  GlobalSystemInterrupt;
-  UINT8                                   BaudRate;
-  UINT8                                   Parity;
-  UINT8                                   StopBits;
-  UINT8                                   FlowControl;
-  UINT8                                   TerminalType;
-  UINT8                                   Reserved2;
-  UINT16                                  PciDeviceId;
-  UINT16                                  PciVendorId;
-  UINT8                                   PciBusNumber;
-  UINT8                                   PciDeviceNumber;
-  UINT8                                   PciFunctionNumber;
-  UINT32                                  PciFlags;
-  UINT8                                   PciSegment;
-  UINT32                                  Reserved3;
+  EFI_ACPI_DESCRIPTION_HEADER               Header;
+  UINT8                                     InterfaceType;
+  UINT8                                     Reserved1[3];
+  EFI_ACPI_5_0_GENERIC_ADDRESS_STRUCTURE    BaseAddress;
+  UINT8                                     InterruptType;
+  UINT8                                     Irq;
+  UINT32                                    GlobalSystemInterrupt;
+  UINT8                                     BaudRate;
+  UINT8                                     Parity;
+  UINT8                                     StopBits;
+  UINT8                                     FlowControl;
+  UINT8                                     TerminalType;
+  UINT8                                     Reserved2;
+  UINT16                                    PciDeviceId;
+  UINT16                                    PciVendorId;
+  UINT8                                     PciBusNumber;
+  UINT8                                     PciDeviceNumber;
+  UINT8                                     PciFunctionNumber;
+  UINT32                                    PciFlags;
+  UINT8                                     PciSegment;
+  UINT32                                    Reserved3;
 } EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE;
+
+///
+/// Serial Port Console Redirection Table Format Revision 4
+///
+typedef struct {
+  EFI_ACPI_DESCRIPTION_HEADER               Header;
+  UINT8                                     InterfaceType;
+  UINT8                                     Reserved1[3];
+  EFI_ACPI_5_0_GENERIC_ADDRESS_STRUCTURE    BaseAddress;
+  UINT8                                     InterruptType;
+  UINT8                                     Irq;
+  UINT32                                    GlobalSystemInterrupt;
+  UINT8                                     BaudRate;
+  UINT8                                     Parity;
+  UINT8                                     StopBits;
+  UINT8                                     FlowControl;
+  UINT8                                     TerminalType;
+  UINT8                                     Reserved2;
+  UINT16                                    PciDeviceId;
+  UINT16                                    PciVendorId;
+  UINT8                                     PciBusNumber;
+  UINT8                                     PciDeviceNumber;
+  UINT8                                     PciFunctionNumber;
+  UINT32                                    PciFlags;
+  UINT8                                     PciSegment;
+  UINT32                                    UartClockFrequency;
+  UINT32                                    PreciseBaudRate;
+  UINT16                                    NameSpaceStrLength;
+  UINT16                                    NameSpaceStrOffset;
+  CHAR8                                     NameSpaceString[0];
+} EFI_ACPI_4_0_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE;
 
 #pragma pack()
 
@@ -64,12 +95,11 @@ typedef struct {
 ///
 /// Full 16550 interface
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_16550                     0
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_16550  0
 ///
 /// Full 16450 interface
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_16450                     1
-
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_16450  1
 
 //
 // The Serial Port Subtypes for ARM are documented in Table 3 of the DBG2 Specification
@@ -78,7 +108,12 @@ typedef struct {
 ///
 /// ARM PL011 UART
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_ARM_PL011_UART            0x03
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_ARM_PL011_UART  0x03
+
+///
+/// NVIDIA 16550 UART
+///
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_NVIDIA_16550_UART  0x05
 
 ///
 /// ARM SBSA Generic UART (2.x) supporting 32-bit only accesses [deprecated]
@@ -88,17 +123,22 @@ typedef struct {
 ///
 /// ARM SBSA Generic UART
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_ARM_SBSA_GENERIC_UART     0x0e
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_ARM_SBSA_GENERIC_UART  0x0e
 
 ///
 /// ARM DCC
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_DCC                       0x0f
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_DCC  0x0f
 
 ///
 /// BCM2835 UART
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_BCM2835_UART              0x10
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_BCM2835_UART  0x10
+
+///
+/// 16550-compatible with parameters defined in Generic Address Structure
+///
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_16550_WITH_GAS  0x12
 
 //
 // Interrupt Type
@@ -107,37 +147,37 @@ typedef struct {
 ///
 /// PC-AT-compatible dual-8259 IRQ interrupt
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_8259    0x1
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_8259  0x1
 ///
 /// I/O APIC interrupt (Global System Interrupt)
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_APIC    0x2
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_APIC  0x2
 ///
 /// I/O SAPIC interrupt (Global System Interrupt)
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_SAPIC   0x4
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_SAPIC  0x4
 ///
 /// ARMH GIC interrupt (Global System Interrupt)
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_GIC     0x8
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERRUPT_TYPE_GIC  0x8
 
 //
 // Baud Rate
 //
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_9600         3
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_19200        4
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_57600        6
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_115200       7
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_9600    3
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_19200   4
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_57600   6
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_BAUD_RATE_115200  7
 
 //
 // Parity
 //
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_PARITY_NO_PARITY       0
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_PARITY_NO_PARITY  0
 
 //
 // Stop Bits
 //
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_STOP_BITS_1            1
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_STOP_BITS_1  1
 
 //
 // Flow Control
@@ -146,11 +186,11 @@ typedef struct {
 ///
 /// DCD required for transmit
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_FLOW_CONTROL_DCD       0x1
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_FLOW_CONTROL_DCD  0x1
 ///
 /// RTS/CTS hardware flow control
 ///
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_FLOW_CONTROL_RTS_CTS   0x2
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_FLOW_CONTROL_RTS_CTS  0x2
 ///
 ///  XON/XOFF software control
 ///
@@ -159,9 +199,9 @@ typedef struct {
 //
 // Terminal Type
 //
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT100      0
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT100_PLUS 1
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT_UTF8    2
-#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_ANSI       3
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT100       0
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT100_PLUS  1
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_VT_UTF8     2
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_TERMINAL_TYPE_ANSI        3
 
 #endif

@@ -6,7 +6,6 @@
 
 **/
 
-
 #include <PiPei.h>
 
 #include <Ppi/FirmwareVolumeInfo.h>
@@ -34,7 +33,7 @@
 EFI_STATUS
 EFIAPI
 PeiServicesInstallPpi (
-  IN CONST EFI_PEI_PPI_DESCRIPTOR     *PpiList
+  IN CONST EFI_PEI_PPI_DESCRIPTOR  *PpiList
   )
 {
   CONST EFI_PEI_SERVICES  **PeiServices;
@@ -61,11 +60,11 @@ PeiServicesInstallPpi (
 EFI_STATUS
 EFIAPI
 PeiServicesReInstallPpi (
-  IN CONST EFI_PEI_PPI_DESCRIPTOR     *OldPpi,
-  IN CONST EFI_PEI_PPI_DESCRIPTOR     *NewPpi
+  IN CONST EFI_PEI_PPI_DESCRIPTOR  *OldPpi,
+  IN CONST EFI_PEI_PPI_DESCRIPTOR  *NewPpi
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->ReInstallPpi (PeiServices, OldPpi, NewPpi);
@@ -87,13 +86,13 @@ PeiServicesReInstallPpi (
 EFI_STATUS
 EFIAPI
 PeiServicesLocatePpi (
-  IN CONST EFI_GUID                   *Guid,
-  IN UINTN                      Instance,
-  IN OUT EFI_PEI_PPI_DESCRIPTOR **PpiDescriptor, OPTIONAL
-  IN OUT VOID                   **Ppi
+  IN CONST EFI_GUID              *Guid,
+  IN UINTN                       Instance,
+  IN OUT EFI_PEI_PPI_DESCRIPTOR  **PpiDescriptor  OPTIONAL,
+  IN OUT VOID                    **Ppi
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->LocatePpi (PeiServices, Guid, Instance, PpiDescriptor, Ppi);
@@ -120,7 +119,7 @@ PeiServicesNotifyPpi (
   IN CONST EFI_PEI_NOTIFY_DESCRIPTOR  *NotifyList
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->NotifyPpi (PeiServices, NotifyList);
@@ -138,10 +137,10 @@ PeiServicesNotifyPpi (
 EFI_STATUS
 EFIAPI
 PeiServicesGetBootMode (
-  OUT EFI_BOOT_MODE          *BootMode
+  OUT EFI_BOOT_MODE  *BootMode
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->GetBootMode (PeiServices, BootMode);
@@ -158,10 +157,10 @@ PeiServicesGetBootMode (
 EFI_STATUS
 EFIAPI
 PeiServicesSetBootMode (
-  IN EFI_BOOT_MODE              BootMode
+  IN EFI_BOOT_MODE  BootMode
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->SetBootMode (PeiServices, BootMode);
@@ -180,10 +179,10 @@ PeiServicesSetBootMode (
 EFI_STATUS
 EFIAPI
 PeiServicesGetHobList (
-  OUT VOID                      **HobList
+  OUT VOID  **HobList
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->GetHobList (PeiServices, HobList);
@@ -204,12 +203,12 @@ PeiServicesGetHobList (
 EFI_STATUS
 EFIAPI
 PeiServicesCreateHob (
-  IN UINT16                     Type,
-  IN UINT16                     Length,
-  OUT VOID                      **Hob
+  IN UINT16  Type,
+  IN UINT16  Length,
+  OUT VOID   **Hob
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->CreateHob (PeiServices, Type, Length, Hob);
@@ -231,11 +230,11 @@ PeiServicesCreateHob (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsFindNextVolume (
-  IN UINTN                          Instance,
-  IN OUT EFI_PEI_FV_HANDLE          *VolumeHandle
+  IN UINTN                  Instance,
+  IN OUT EFI_PEI_FV_HANDLE  *VolumeHandle
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->FfsFindNextVolume (PeiServices, Instance, VolumeHandle);
@@ -258,12 +257,12 @@ PeiServicesFfsFindNextVolume (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsFindNextFile (
-  IN EFI_FV_FILETYPE            SearchType,
-  IN EFI_PEI_FV_HANDLE          VolumeHandle,
-  IN OUT EFI_PEI_FILE_HANDLE    *FileHandle
+  IN EFI_FV_FILETYPE          SearchType,
+  IN EFI_PEI_FV_HANDLE        VolumeHandle,
+  IN OUT EFI_PEI_FILE_HANDLE  *FileHandle
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->FfsFindNextFile (PeiServices, SearchType, VolumeHandle, FileHandle);
@@ -284,12 +283,12 @@ PeiServicesFfsFindNextFile (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsFindSectionData (
-  IN EFI_SECTION_TYPE           SectionType,
-  IN EFI_PEI_FILE_HANDLE        FileHandle,
-  OUT VOID                      **SectionData
+  IN EFI_SECTION_TYPE     SectionType,
+  IN EFI_PEI_FILE_HANDLE  FileHandle,
+  OUT VOID                **SectionData
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->FfsFindSectionData (PeiServices, SectionType, FileHandle, SectionData);
@@ -312,14 +311,14 @@ PeiServicesFfsFindSectionData (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsFindSectionData3 (
-  IN EFI_SECTION_TYPE           SectionType,
-  IN UINTN                      SectionInstance,
-  IN EFI_PEI_FILE_HANDLE        FileHandle,
-  OUT VOID                      **SectionData,
-  OUT UINT32                    *AuthenticationStatus
+  IN EFI_SECTION_TYPE     SectionType,
+  IN UINTN                SectionInstance,
+  IN EFI_PEI_FILE_HANDLE  FileHandle,
+  OUT VOID                **SectionData,
+  OUT UINT32              *AuthenticationStatus
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->FindSectionData3 (PeiServices, SectionType, SectionInstance, FileHandle, SectionData, AuthenticationStatus);
@@ -340,11 +339,11 @@ PeiServicesFfsFindSectionData3 (
 EFI_STATUS
 EFIAPI
 PeiServicesInstallPeiMemory (
-  IN EFI_PHYSICAL_ADDRESS       MemoryBegin,
-  IN UINT64                     MemoryLength
+  IN EFI_PHYSICAL_ADDRESS  MemoryBegin,
+  IN UINT64                MemoryLength
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->InstallPeiMemory (PeiServices, MemoryBegin, MemoryLength);
@@ -367,12 +366,12 @@ PeiServicesInstallPeiMemory (
 EFI_STATUS
 EFIAPI
 PeiServicesAllocatePages (
-  IN EFI_MEMORY_TYPE            MemoryType,
-  IN UINTN                      Pages,
-  OUT EFI_PHYSICAL_ADDRESS      *Memory
+  IN EFI_MEMORY_TYPE        MemoryType,
+  IN UINTN                  Pages,
+  OUT EFI_PHYSICAL_ADDRESS  *Memory
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->AllocatePages (PeiServices, MemoryType, Pages, Memory);
@@ -393,11 +392,11 @@ PeiServicesAllocatePages (
 EFI_STATUS
 EFIAPI
 PeiServicesFreePages (
-  IN EFI_PHYSICAL_ADDRESS       Memory,
-  IN UINTN                      Pages
+  IN EFI_PHYSICAL_ADDRESS  Memory,
+  IN UINTN                 Pages
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->FreePages (PeiServices, Memory, Pages);
@@ -417,11 +416,11 @@ PeiServicesFreePages (
 EFI_STATUS
 EFIAPI
 PeiServicesAllocatePool (
-  IN UINTN                      Size,
-  OUT VOID                      **Buffer
+  IN UINTN  Size,
+  OUT VOID  **Buffer
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->AllocatePool (PeiServices, Size, Buffer);
@@ -440,7 +439,7 @@ PeiServicesResetSystem (
   VOID
   )
 {
-  CONST EFI_PEI_SERVICES **PeiServices;
+  CONST EFI_PEI_SERVICES  **PeiServices;
 
   PeiServices = GetPeiServicesTablePointer ();
   return (*PeiServices)->ResetSystem (PeiServices);
@@ -466,10 +465,10 @@ PeiServicesResetSystem (
 EFI_STATUS
 EFIAPI
 PeiServicesRegisterForShadow (
-  IN  EFI_PEI_FILE_HANDLE FileHandle
+  IN  EFI_PEI_FILE_HANDLE  FileHandle
   )
 {
-  return (*GetPeiServicesTablePointer())->RegisterForShadow (FileHandle);
+  return (*GetPeiServicesTablePointer ())->RegisterForShadow (FileHandle);
 }
 
 /**
@@ -493,11 +492,11 @@ PeiServicesRegisterForShadow (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsGetFileInfo (
-  IN CONST  EFI_PEI_FILE_HANDLE   FileHandle,
-  OUT EFI_FV_FILE_INFO            *FileInfo
+  IN CONST  EFI_PEI_FILE_HANDLE  FileHandle,
+  OUT EFI_FV_FILE_INFO           *FileInfo
   )
 {
-  return (*GetPeiServicesTablePointer())->FfsGetFileInfo (FileHandle, FileInfo);
+  return (*GetPeiServicesTablePointer ())->FfsGetFileInfo (FileHandle, FileInfo);
 }
 
 /**
@@ -518,11 +517,11 @@ PeiServicesFfsGetFileInfo (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsGetFileInfo2 (
-  IN CONST  EFI_PEI_FILE_HANDLE   FileHandle,
-  OUT EFI_FV_FILE_INFO2           *FileInfo
+  IN CONST  EFI_PEI_FILE_HANDLE  FileHandle,
+  OUT EFI_FV_FILE_INFO2          *FileInfo
   )
 {
-  return (*GetPeiServicesTablePointer())->FfsGetFileInfo2 (FileHandle, FileInfo);
+  return (*GetPeiServicesTablePointer ())->FfsGetFileInfo2 (FileHandle, FileInfo);
 }
 
 /**
@@ -549,14 +548,13 @@ PeiServicesFfsGetFileInfo2 (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsFindFileByName (
-  IN CONST  EFI_GUID            *FileName,
-  IN CONST  EFI_PEI_FV_HANDLE   VolumeHandle,
-  OUT       EFI_PEI_FILE_HANDLE *FileHandle
+  IN CONST  EFI_GUID             *FileName,
+  IN CONST  EFI_PEI_FV_HANDLE    VolumeHandle,
+  OUT       EFI_PEI_FILE_HANDLE  *FileHandle
   )
 {
-  return (*GetPeiServicesTablePointer())->FfsFindFileByName (FileName, VolumeHandle, FileHandle);
+  return (*GetPeiServicesTablePointer ())->FfsFindFileByName (FileName, VolumeHandle, FileHandle);
 }
-
 
 /**
   This service is a wrapper for the PEI Service FfsGetVolumeInfo(), except the pointer to the PEI Services
@@ -579,11 +577,11 @@ PeiServicesFfsFindFileByName (
 EFI_STATUS
 EFIAPI
 PeiServicesFfsGetVolumeInfo (
-  IN  EFI_PEI_FV_HANDLE       VolumeHandle,
-  OUT EFI_FV_INFO             *VolumeInfo
+  IN  EFI_PEI_FV_HANDLE  VolumeHandle,
+  OUT EFI_FV_INFO        *VolumeInfo
   )
 {
-  return (*GetPeiServicesTablePointer())->FfsGetVolumeInfo (VolumeHandle, VolumeInfo);
+  return (*GetPeiServicesTablePointer ())->FfsGetVolumeInfo (VolumeHandle, VolumeInfo);
 }
 
 /**
@@ -621,21 +619,21 @@ PeiServicesFfsGetVolumeInfo (
 VOID
 EFIAPI
 InternalPeiServicesInstallFvInfoPpi (
-  IN       BOOLEAN                 InstallFvInfoPpi,
-  IN CONST EFI_GUID                *FvFormat, OPTIONAL
-  IN CONST VOID                    *FvInfo,
-  IN       UINT32                  FvInfoSize,
-  IN CONST EFI_GUID                *ParentFvName, OPTIONAL
-  IN CONST EFI_GUID                *ParentFileName, OPTIONAL
-  IN       UINT32                  AuthenticationStatus
+  IN       BOOLEAN   InstallFvInfoPpi,
+  IN CONST EFI_GUID  *FvFormat  OPTIONAL,
+  IN CONST VOID      *FvInfo,
+  IN       UINT32    FvInfoSize,
+  IN CONST EFI_GUID  *ParentFvName  OPTIONAL,
+  IN CONST EFI_GUID  *ParentFileName  OPTIONAL,
+  IN       UINT32    AuthenticationStatus
   )
 {
-  EFI_STATUS                       Status;
-  EFI_PEI_FIRMWARE_VOLUME_INFO_PPI *FvInfoPpi;
-  EFI_PEI_PPI_DESCRIPTOR           *FvInfoPpiDescriptor;
-  EFI_GUID                         *ParentFvNameValue;
-  EFI_GUID                         *ParentFileNameValue;
-  EFI_GUID                         *PpiGuid;
+  EFI_STATUS                        Status;
+  EFI_PEI_FIRMWARE_VOLUME_INFO_PPI  *FvInfoPpi;
+  EFI_PEI_PPI_DESCRIPTOR            *FvInfoPpiDescriptor;
+  EFI_GUID                          *ParentFvNameValue;
+  EFI_GUID                          *ParentFileNameValue;
+  EFI_GUID                          *PpiGuid;
 
   ParentFvNameValue   = NULL;
   ParentFileNameValue = NULL;
@@ -652,8 +650,8 @@ InternalPeiServicesInstallFvInfoPpi (
     //
     FvInfoPpi = AllocateZeroPool (sizeof (EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI));
     ASSERT (FvInfoPpi != NULL);
-    ((EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI *) FvInfoPpi)->AuthenticationStatus = AuthenticationStatus;
-    PpiGuid = &gEfiPeiFirmwareVolumeInfo2PpiGuid;
+    ((EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI *)FvInfoPpi)->AuthenticationStatus = AuthenticationStatus;
+    PpiGuid                                                                = &gEfiPeiFirmwareVolumeInfo2PpiGuid;
   }
 
   if (FvFormat != NULL) {
@@ -669,15 +667,17 @@ InternalPeiServicesInstallFvInfoPpi (
     // ((EFI_FIRMWARE_VOLUME_HEADER *) FvInfo)->FileSystemGuid can be just used for both
     // firmware file system 2 and 3 format.
     //
-    ASSERT (CompareGuid (&(((EFI_FIRMWARE_VOLUME_HEADER *) FvInfo)->FileSystemGuid), &gEfiFirmwareFileSystem2Guid));
+    ASSERT (CompareGuid (&(((EFI_FIRMWARE_VOLUME_HEADER *)FvInfo)->FileSystemGuid), &gEfiFirmwareFileSystem2Guid));
   }
-  FvInfoPpi->FvInfo = (VOID *) FvInfo;
+
+  FvInfoPpi->FvInfo     = (VOID *)FvInfo;
   FvInfoPpi->FvInfoSize = FvInfoSize;
   if (ParentFvName != NULL) {
     ParentFvNameValue = AllocateCopyPool (sizeof (EFI_GUID), ParentFvName);
     ASSERT (ParentFvNameValue != NULL);
     FvInfoPpi->ParentFvName = ParentFvNameValue;
   }
+
   if (ParentFileName != NULL) {
     ParentFileNameValue = AllocateCopyPool (sizeof (EFI_GUID), ParentFileName);
     ASSERT (ParentFileNameValue != NULL);
@@ -685,14 +685,17 @@ InternalPeiServicesInstallFvInfoPpi (
   }
 
   FvInfoPpiDescriptor = AllocatePool (sizeof (EFI_PEI_PPI_DESCRIPTOR));
-  ASSERT (FvInfoPpiDescriptor != NULL);
+  if (FvInfoPpiDescriptor == NULL) {
+    ASSERT (FvInfoPpiDescriptor != NULL);
+    // Need to return here, FV may not be published, but we are out of resources anyway...
+    return;
+  }
 
   FvInfoPpiDescriptor->Guid  = PpiGuid;
   FvInfoPpiDescriptor->Flags = EFI_PEI_PPI_DESCRIPTOR_PPI | EFI_PEI_PPI_DESCRIPTOR_TERMINATE_LIST;
-  FvInfoPpiDescriptor->Ppi   = (VOID *) FvInfoPpi;
-  Status = PeiServicesInstallPpi (FvInfoPpiDescriptor);
+  FvInfoPpiDescriptor->Ppi   = (VOID *)FvInfoPpi;
+  Status                     = PeiServicesInstallPpi (FvInfoPpiDescriptor);
   ASSERT_EFI_ERROR (Status);
-
 }
 
 /**
@@ -728,11 +731,11 @@ InternalPeiServicesInstallFvInfoPpi (
 VOID
 EFIAPI
 PeiServicesInstallFvInfoPpi (
-  IN CONST EFI_GUID                *FvFormat, OPTIONAL
-  IN CONST VOID                    *FvInfo,
-  IN       UINT32                  FvInfoSize,
-  IN CONST EFI_GUID                *ParentFvName, OPTIONAL
-  IN CONST EFI_GUID                *ParentFileName OPTIONAL
+  IN CONST EFI_GUID  *FvFormat  OPTIONAL,
+  IN CONST VOID      *FvInfo,
+  IN       UINT32    FvInfoSize,
+  IN CONST EFI_GUID  *ParentFvName  OPTIONAL,
+  IN CONST EFI_GUID  *ParentFileName OPTIONAL
   )
 {
   InternalPeiServicesInstallFvInfoPpi (TRUE, FvFormat, FvInfo, FvInfoSize, ParentFvName, ParentFileName, 0);
@@ -772,12 +775,12 @@ PeiServicesInstallFvInfoPpi (
 VOID
 EFIAPI
 PeiServicesInstallFvInfo2Ppi (
-  IN CONST EFI_GUID                *FvFormat, OPTIONAL
-  IN CONST VOID                    *FvInfo,
-  IN       UINT32                  FvInfoSize,
-  IN CONST EFI_GUID                *ParentFvName, OPTIONAL
-  IN CONST EFI_GUID                *ParentFileName, OPTIONAL
-  IN       UINT32                  AuthenticationStatus
+  IN CONST EFI_GUID  *FvFormat  OPTIONAL,
+  IN CONST VOID      *FvInfo,
+  IN       UINT32    FvInfoSize,
+  IN CONST EFI_GUID  *ParentFvName  OPTIONAL,
+  IN CONST EFI_GUID  *ParentFileName  OPTIONAL,
+  IN       UINT32    AuthenticationStatus
   )
 {
   InternalPeiServicesInstallFvInfoPpi (FALSE, FvFormat, FvInfo, FvInfoSize, ParentFvName, ParentFileName, AuthenticationStatus);
@@ -799,11 +802,11 @@ PeiServicesInstallFvInfo2Ppi (
 VOID
 EFIAPI
 PeiServicesResetSystem2 (
-  IN EFI_RESET_TYPE     ResetType,
-  IN EFI_STATUS         ResetStatus,
-  IN UINTN              DataSize,
-  IN VOID               *ResetData OPTIONAL
+  IN EFI_RESET_TYPE  ResetType,
+  IN EFI_STATUS      ResetStatus,
+  IN UINTN           DataSize,
+  IN VOID            *ResetData OPTIONAL
   )
 {
-  (*GetPeiServicesTablePointer())->ResetSystem2 (ResetType, ResetStatus, DataSize, ResetData);
+  (*GetPeiServicesTablePointer ())->ResetSystem2 (ResetType, ResetStatus, DataSize, ResetData);
 }

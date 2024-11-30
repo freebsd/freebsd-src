@@ -24,9 +24,9 @@
 /// This PPI provides provide a simple reset service.
 ///
 typedef struct _EFI_PEI_RESET2_PPI {
-  EFI_PEI_RESET2_SYSTEM ResetSystem;
+  EFI_PEI_RESET2_SYSTEM    ResetSystem;
 } EFI_PEI_RESET2_PPI;
 
-extern EFI_GUID gEfiPeiReset2PpiGuid;
+extern EFI_GUID  gEfiPeiReset2PpiGuid;
 
 #endif

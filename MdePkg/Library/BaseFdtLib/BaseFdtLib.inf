@@ -1,0 +1,65 @@
+## @file
+# Flattened Device Tree Library.
+#
+# Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = BaseFdtLib
+  MODULE_UNI_FILE                = BaseFdtLib.uni
+  FILE_GUID                      = C64DCB01-B037-4FF6-9CF3-E8CEC206DE04
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = FdtLib
+
+  DEFINE FDT_LIB_PATH            = libfdt/libfdt
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  FdtLib.c
+  LibFdtWrapper.c
+  # header Wrapper files
+  limits.h
+  stdbool.h
+  stddef.h
+  stdint.h
+  stdlib.h
+  string.h
+
+  $(FDT_LIB_PATH)/fdt.c
+  $(FDT_LIB_PATH)/fdt.h
+  $(FDT_LIB_PATH)/fdt_addresses.c
+  $(FDT_LIB_PATH)/fdt_check.c
+  $(FDT_LIB_PATH)/fdt_empty_tree.c
+  $(FDT_LIB_PATH)/fdt_overlay.c
+  $(FDT_LIB_PATH)/fdt_ro.c
+  $(FDT_LIB_PATH)/fdt_rw.c
+  $(FDT_LIB_PATH)/fdt_strerror.c
+  $(FDT_LIB_PATH)/fdt_sw.c
+  $(FDT_LIB_PATH)/fdt_wip.c
+  $(FDT_LIB_PATH)/libfdt.h
+  $(FDT_LIB_PATH)/libfdt_env.h
+  $(FDT_LIB_PATH)/libfdt_internal.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+
+[BuildOptions]
+# warning C4706: assignment within conditional expression
+# if ((err = fdt_splice_(fdt, p, oldlen, newlen)))
+# in BaseFdtLib\libfdt\libfdt\fdt_rw.c (wait for sub module update to remove this)
+  MSFT:*_*_IA32_CC_FLAGS = /wd4146 /wd4245 /wd4706
+  MSFT:*_*_X64_CC_FLAGS  = /wd4146 /wd4244 /wd4245 /wd4267 /wd4706
+

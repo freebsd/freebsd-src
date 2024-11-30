@@ -52,8 +52,8 @@ InvalidateInstructionCache (
 VOID *
 EFIAPI
 InvalidateInstructionCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   if (Length == 0) {
@@ -112,15 +112,15 @@ WriteBackInvalidateDataCache (
 VOID *
 EFIAPI
 WriteBackInvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
-  UINT32                            RegEbx;
-  UINT32                            RegEdx;
-  UINTN                             CacheLineSize;
-  UINTN                             Start;
-  UINTN                             End;
+  UINT32  RegEbx;
+  UINT32  RegEdx;
+  UINTN   CacheLineSize;
+  UINTN   Start;
+  UINTN   End;
 
   if (Length == 0) {
     return Address;
@@ -147,12 +147,13 @@ WriteBackInvalidateDataCacheRange (
   //
   // Calculate the cache line alignment
   //
-  End = (Start + Length + (CacheLineSize - 1)) & ~(CacheLineSize - 1);
+  End    = (Start + Length + (CacheLineSize - 1)) & ~(CacheLineSize - 1);
   Start &= ~((UINTN)CacheLineSize - 1);
 
   do {
-    Start = (UINTN)AsmFlushCacheLine ((VOID*)Start) + CacheLineSize;
+    Start = (UINTN)AsmFlushCacheLine ((VOID *)Start) + CacheLineSize;
   } while (Start != End);
+
   return Address;
 }
 
@@ -203,8 +204,8 @@ WriteBackDataCache (
 VOID *
 EFIAPI
 WriteBackDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   return WriteBackInvalidateDataCacheRange (Address, Length);
@@ -260,8 +261,8 @@ InvalidateDataCache (
 VOID *
 EFIAPI
 InvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   //

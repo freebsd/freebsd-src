@@ -25,8 +25,8 @@
 UINT64
 EFIAPI
 InternalMathLShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   return Operand << Count;
@@ -48,8 +48,8 @@ InternalMathLShiftU64 (
 UINT64
 EFIAPI
 InternalMathRShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   return Operand >> Count;
@@ -71,8 +71,8 @@ InternalMathRShiftU64 (
 UINT64
 EFIAPI
 InternalMathARShiftU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   INTN  TestValue;
@@ -95,7 +95,6 @@ InternalMathARShiftU64 (
          ((INTN)Operand < 0 ? ~((UINTN)-1 >> Count) : 0);
 }
 
-
 /**
   Rotates a 64-bit integer left between 0 and 63 bits, filling
   the low bits with the high bits that were rotated.
@@ -113,8 +112,8 @@ InternalMathARShiftU64 (
 UINT64
 EFIAPI
 InternalMathLRotU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   return (Operand << Count) | (Operand >> (64 - Count));
@@ -137,8 +136,8 @@ InternalMathLRotU64 (
 UINT64
 EFIAPI
 InternalMathRRotU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   return (Operand >> Count) | (Operand << (64 - Count));
@@ -159,14 +158,14 @@ InternalMathRRotU64 (
 UINT64
 EFIAPI
 InternalMathSwapBytes64 (
-  IN      UINT64                    Operand
+  IN      UINT64  Operand
   )
 {
   UINT64  LowerBytes;
   UINT64  HigherBytes;
 
-  LowerBytes  = (UINT64) SwapBytes32 ((UINT32) Operand);
-  HigherBytes = (UINT64) SwapBytes32 ((UINT32) (Operand >> 32));
+  LowerBytes  = (UINT64)SwapBytes32 ((UINT32)Operand);
+  HigherBytes = (UINT64)SwapBytes32 ((UINT32)(Operand >> 32));
 
   return (LowerBytes << 32 | HigherBytes);
 }
@@ -188,13 +187,12 @@ InternalMathSwapBytes64 (
 UINT64
 EFIAPI
 InternalMathMultU64x32 (
-  IN      UINT64                    Multiplicand,
-  IN      UINT32                    Multiplier
+  IN      UINT64  Multiplicand,
+  IN      UINT32  Multiplier
   )
 {
   return Multiplicand * Multiplier;
 }
-
 
 /**
   Multiplies a 64-bit unsigned integer by a 64-bit unsigned integer
@@ -213,8 +211,8 @@ InternalMathMultU64x32 (
 UINT64
 EFIAPI
 InternalMathMultU64x64 (
-  IN      UINT64                    Multiplicand,
-  IN      UINT64                    Multiplier
+  IN      UINT64  Multiplicand,
+  IN      UINT64  Multiplier
   )
 {
   return Multiplicand * Multiplier;
@@ -237,8 +235,8 @@ InternalMathMultU64x64 (
 UINT64
 EFIAPI
 InternalMathDivU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor
   )
 {
   return Dividend / Divisor;
@@ -261,8 +259,8 @@ InternalMathDivU64x32 (
 UINT32
 EFIAPI
 InternalMathModU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor
   )
 {
   return (UINT32)(Dividend % Divisor);
@@ -288,14 +286,15 @@ InternalMathModU64x32 (
 UINT64
 EFIAPI
 InternalMathDivRemU64x32 (
-  IN      UINT64                    Dividend,
-  IN      UINT32                    Divisor,
-  OUT     UINT32                    *Remainder OPTIONAL
+  IN      UINT64  Dividend,
+  IN      UINT32  Divisor,
+  OUT     UINT32  *Remainder OPTIONAL
   )
 {
   if (Remainder != NULL) {
     *Remainder = (UINT32)(Dividend % Divisor);
   }
+
   return Dividend / Divisor;
 }
 
@@ -319,14 +318,15 @@ InternalMathDivRemU64x32 (
 UINT64
 EFIAPI
 InternalMathDivRemU64x64 (
-  IN      UINT64                    Dividend,
-  IN      UINT64                    Divisor,
-  OUT     UINT64                    *Remainder OPTIONAL
+  IN      UINT64  Dividend,
+  IN      UINT64  Divisor,
+  OUT     UINT64  *Remainder OPTIONAL
   )
 {
   if (Remainder != NULL) {
     *Remainder = Dividend % Divisor;
   }
+
   return Dividend / Divisor;
 }
 
@@ -350,13 +350,14 @@ InternalMathDivRemU64x64 (
 INT64
 EFIAPI
 InternalMathDivRemS64x64 (
-  IN      INT64                     Dividend,
-  IN      INT64                     Divisor,
-  OUT     INT64                     *Remainder  OPTIONAL
+  IN      INT64  Dividend,
+  IN      INT64  Divisor,
+  OUT     INT64  *Remainder  OPTIONAL
   )
 {
   if (Remainder != NULL) {
     *Remainder = Dividend % Divisor;
   }
+
   return Dividend / Divisor;
 }

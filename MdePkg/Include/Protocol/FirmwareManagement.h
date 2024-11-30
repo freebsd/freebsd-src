@@ -20,7 +20,6 @@
 #ifndef __EFI_FIRMWARE_MANAGEMENT_PROTOCOL_H__
 #define __EFI_FIRMWARE_MANAGEMENT_PROTOCOL_H__
 
-
 #define EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GUID \
   { \
     0x86c77a67, 0xb97, 0x4633, {0xa1, 0x87, 0x49, 0x10, 0x4d, 0x6, 0x85, 0xc7 } \
@@ -31,26 +30,27 @@ typedef struct _EFI_FIRMWARE_MANAGEMENT_PROTOCOL EFI_FIRMWARE_MANAGEMENT_PROTOCO
 ///
 /// Dependency Expression Opcode
 ///
-#define EFI_FMP_DEP_PUSH_GUID        0x00
-#define EFI_FMP_DEP_PUSH_VERSION     0x01
-#define EFI_FMP_DEP_VERSION_STR      0x02
-#define EFI_FMP_DEP_AND              0x03
-#define EFI_FMP_DEP_OR               0x04
-#define EFI_FMP_DEP_NOT              0x05
-#define EFI_FMP_DEP_TRUE             0x06
-#define EFI_FMP_DEP_FALSE            0x07
-#define EFI_FMP_DEP_EQ               0x08
-#define EFI_FMP_DEP_GT               0x09
-#define EFI_FMP_DEP_GTE              0x0A
-#define EFI_FMP_DEP_LT               0x0B
-#define EFI_FMP_DEP_LTE              0x0C
-#define EFI_FMP_DEP_END              0x0D
+#define EFI_FMP_DEP_PUSH_GUID       0x00
+#define EFI_FMP_DEP_PUSH_VERSION    0x01
+#define EFI_FMP_DEP_VERSION_STR     0x02
+#define EFI_FMP_DEP_AND             0x03
+#define EFI_FMP_DEP_OR              0x04
+#define EFI_FMP_DEP_NOT             0x05
+#define EFI_FMP_DEP_TRUE            0x06
+#define EFI_FMP_DEP_FALSE           0x07
+#define EFI_FMP_DEP_EQ              0x08
+#define EFI_FMP_DEP_GT              0x09
+#define EFI_FMP_DEP_GTE             0x0A
+#define EFI_FMP_DEP_LT              0x0B
+#define EFI_FMP_DEP_LTE             0x0C
+#define EFI_FMP_DEP_END             0x0D
+#define EFI_FMP_DEP_DECLARE_LENGTH  0x0E
 
 ///
 /// Image Attribute - Dependency
 ///
 typedef struct {
-  UINT8 Dependencies[1];
+  UINT8    Dependencies[1];
 } EFI_FIRMWARE_IMAGE_DEP;
 
 ///
@@ -61,32 +61,32 @@ typedef struct {
   /// A unique number identifying the firmware image within the device. The number is
   /// between 1 and DescriptorCount.
   ///
-  UINT8                            ImageIndex;
+  UINT8       ImageIndex;
   ///
   /// A unique GUID identifying the firmware image type.
   ///
-  EFI_GUID                         ImageTypeId;
+  EFI_GUID    ImageTypeId;
   ///
   /// A unique number identifying the firmware image.
   ///
-  UINT64                           ImageId;
+  UINT64      ImageId;
   ///
   /// A pointer to a null-terminated string representing the firmware image name.
   ///
-  CHAR16                           *ImageIdName;
+  CHAR16      *ImageIdName;
   ///
   /// Identifies the version of the device firmware. The format is vendor specific and new
   /// version must have a greater value than an old version.
   ///
-  UINT32                           Version;
+  UINT32      Version;
   ///
   /// A pointer to a null-terminated string representing the firmware image version name.
   ///
-  CHAR16                           *VersionName;
+  CHAR16      *VersionName;
   ///
   /// Size of the image in bytes. If size=0, then only ImageIndex and ImageTypeId are valid.
   ///
-  UINTN                            Size;
+  UINTN       Size;
   ///
   /// Image attributes that are supported by this device. See 'Image Attribute Definitions'
   /// for possible returned values of this parameter. A value of 1 indicates the attribute is
@@ -94,32 +94,32 @@ typedef struct {
   /// value of 0 indicates the attribute is not supported and the current setting value in
   /// AttributesSetting is meaningless.
   ///
-  UINT64                           AttributesSupported;
+  UINT64      AttributesSupported;
   ///
   /// Image attributes. See 'Image Attribute Definitions' for possible returned values of
   /// this parameter.
   ///
-  UINT64                           AttributesSetting;
+  UINT64      AttributesSetting;
   ///
   /// Image compatibilities. See 'Image Compatibility Definitions' for possible returned
   /// values of this parameter.
   ///
-  UINT64                           Compatibilities;
+  UINT64      Compatibilities;
   ///
   /// Describes the lowest ImageDescriptor version that the device will accept. Only
   /// present in version 2 or higher.
   ///
-  UINT32                           LowestSupportedImageVersion;
+  UINT32      LowestSupportedImageVersion;
   ///
   /// Describes the version that was last attempted to update. If no update attempted the
   /// value will be 0. If the update attempted was improperly formatted and no version
   /// number was available then the value will be zero. Only present in version 3 or higher.
-  UINT32                           LastAttemptVersion;
+  UINT32      LastAttemptVersion;
   ///
   /// Describes the status that was last attempted to update. If no update has been attempted
   /// the value will be LAST_ATTEMPT_STATUS_SUCCESS. Only present in version 3 or higher.
   ///
-  UINT32                           LastAttemptStatus;
+  UINT32      LastAttemptStatus;
   ///
   /// An optional number to identify the unique hardware instance within the system for
   /// devices that may have multiple instances (Example: a plug in pci network card). This
@@ -135,10 +135,9 @@ typedef struct {
   /// unique hardware instance number or a hardware instance number is not needed. Only
   /// present in version 3 or higher.
   ///
-  UINT64                           HardwareInstance;
-  EFI_FIRMWARE_IMAGE_DEP           *Dependencies;
+  UINT64                    HardwareInstance;
+  EFI_FIRMWARE_IMAGE_DEP    *Dependencies;
 } EFI_FIRMWARE_IMAGE_DESCRIPTOR;
-
 
 //
 // Image Attribute Definitions
@@ -147,34 +146,33 @@ typedef struct {
 /// The attribute IMAGE_ATTRIBUTE_IMAGE_UPDATABLE indicates this device supports firmware
 /// image update.
 ///
-#define    IMAGE_ATTRIBUTE_IMAGE_UPDATABLE         0x0000000000000001
+#define    IMAGE_ATTRIBUTE_IMAGE_UPDATABLE  0x0000000000000001
 ///
 /// The attribute IMAGE_ATTRIBUTE_RESET_REQUIRED indicates a reset of the device is required
 /// for the new firmware image to take effect after a firmware update. The device is the device hosting
 /// the firmware image.
 ///
-#define    IMAGE_ATTRIBUTE_RESET_REQUIRED          0x0000000000000002
+#define    IMAGE_ATTRIBUTE_RESET_REQUIRED  0x0000000000000002
 ///
 /// The attribute IMAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED indicates authentication is
 /// required to perform the following image operations: GetImage(), SetImage(), and
 /// CheckImage(). See 'Image Attribute - Authentication'.
 ///
-#define    IMAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED 0x0000000000000004
+#define    IMAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED  0x0000000000000004
 ///
 /// The attribute IMAGE_ATTRIBUTE_IN_USE indicates the current state of the firmware image.
 /// This distinguishes firmware images in a device that supports redundant images.
 ///
-#define    IMAGE_ATTRIBUTE_IN_USE                  0x0000000000000008
+#define    IMAGE_ATTRIBUTE_IN_USE  0x0000000000000008
 ///
 /// The attribute IMAGE_ATTRIBUTE_UEFI_IMAGE indicates that this image is an EFI compatible image.
 ///
-#define    IMAGE_ATTRIBUTE_UEFI_IMAGE              0x0000000000000010
+#define    IMAGE_ATTRIBUTE_UEFI_IMAGE  0x0000000000000010
 ///
 /// The attribute IMAGE_ATTRIBUTE_DEPENDENCY indicates that there is an EFI_FIRMWARE_IMAGE_DEP
 /// section associated with the image.
 ///
-#define    IMAGE_ATTRIBUTE_DEPENDENCY              0x0000000000000020
-
+#define    IMAGE_ATTRIBUTE_DEPENDENCY  0x0000000000000020
 
 //
 // Image Compatibility Definitions
@@ -184,13 +182,12 @@ typedef struct {
 /// Values from 0x0000000000010000 thru 0xFFFFFFFFFFFFFFFF are used by firmware vendor for
 /// compatibility check.
 ///
-#define   IMAGE_COMPATIBILITY_CHECK_SUPPORTED      0x0000000000000001
+#define   IMAGE_COMPATIBILITY_CHECK_SUPPORTED  0x0000000000000001
 
 ///
 /// Descriptor Version exposed by GetImageInfo() function
 ///
-#define   EFI_FIRMWARE_IMAGE_DESCRIPTOR_VERSION   4
-
+#define   EFI_FIRMWARE_IMAGE_DESCRIPTOR_VERSION  4
 
 ///
 /// Image Attribute - Authentication Required
@@ -200,7 +197,7 @@ typedef struct {
   /// It is included in the signature of AuthInfo. It is used to ensure freshness/no replay.
   /// It is incremented during each firmware image operation.
   ///
-  UINT64                                  MonotonicCount;
+  UINT64                       MonotonicCount;
   ///
   /// Provides the authorization for the firmware image operations. It is a signature across
   /// the image data and the Monotonic Count value. Caller uses the private key that is
@@ -208,9 +205,8 @@ typedef struct {
   /// Because this is defined as a signature, WIN_CERTIFICATE_UEFI_GUID.CertType must
   /// be EFI_CERT_TYPE_PKCS7_GUID.
   ///
-  WIN_CERTIFICATE_UEFI_GUID               AuthInfo;
+  WIN_CERTIFICATE_UEFI_GUID    AuthInfo;
 } EFI_FIRMWARE_IMAGE_AUTHENTICATION;
-
 
 //
 // ImageUpdatable Definitions
@@ -221,31 +217,30 @@ typedef struct {
 /// the current image. SetImage VendorCode is optional but can be used for vendor
 /// specific action.
 ///
-#define  IMAGE_UPDATABLE_VALID                     0x0000000000000001
+#define  IMAGE_UPDATABLE_VALID  0x0000000000000001
 ///
 /// IMAGE_UPDATABLE_INVALID indicates SetImage() will reject the new image. No additional
 /// information is provided for the rejection.
 ///
-#define  IMAGE_UPDATABLE_INVALID                   0x0000000000000002
+#define  IMAGE_UPDATABLE_INVALID  0x0000000000000002
 ///
 /// IMAGE_UPDATABLE_INVALID_TYPE indicates SetImage() will reject the new image. The
 /// rejection is due to the new image is not a firmware image recognized for this device.
 ///
-#define  IMAGE_UPDATABLE_INVALID_TYPE              0x0000000000000004
+#define  IMAGE_UPDATABLE_INVALID_TYPE  0x0000000000000004
 ///
 /// IMAGE_UPDATABLE_INVALID_OLD indicates SetImage() will reject the new image. The
 /// rejection is due to the new image version is older than the current firmware image
 /// version in the device. The device firmware update policy does not support firmware
 /// version downgrade.
 ///
-#define  IMAGE_UPDATABLE_INVALID_OLD               0x0000000000000008
+#define  IMAGE_UPDATABLE_INVALID_OLD  0x0000000000000008
 ///
 /// IMAGE_UPDATABLE_VALID_WITH_VENDOR_CODE indicates SetImage() will accept and update
 /// the new image only if a correct VendorCode is provided or else image would be
 /// rejected and SetImage will return appropriate error.
 ///
-#define IMAGE_UPDATABLE_VALID_WITH_VENDOR_CODE     0x0000000000000010
-
+#define IMAGE_UPDATABLE_VALID_WITH_VENDOR_CODE  0x0000000000000010
 
 //
 // Package Attribute Definitions
@@ -254,17 +249,17 @@ typedef struct {
 /// The attribute PACKAGE_ATTRIBUTE_VERSION_UPDATABLE indicates this device supports the
 /// update of the firmware package version.
 ///
-#define  PACKAGE_ATTRIBUTE_VERSION_UPDATABLE       0x0000000000000001
+#define  PACKAGE_ATTRIBUTE_VERSION_UPDATABLE  0x0000000000000001
 ///
 /// The attribute PACKAGE_ATTRIBUTE_RESET_REQUIRED indicates a reset of the device is
 /// required for the new package info to take effect after an update.
 ///
-#define  PACKAGE_ATTRIBUTE_RESET_REQUIRED          0x0000000000000002
+#define  PACKAGE_ATTRIBUTE_RESET_REQUIRED  0x0000000000000002
 ///
 /// The attribute PACKAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED indicates authentication
 /// is required to update the package info.
 ///
-#define  PACKAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED 0x0000000000000004
+#define  PACKAGE_ATTRIBUTE_AUTHENTICATION_REQUIRED  0x0000000000000004
 
 /**
   Callback function to report the process of the firmware updating.
@@ -551,14 +546,14 @@ EFI_STATUS
 /// - Label all the firmware images within a device with a single version.
 ///
 struct _EFI_FIRMWARE_MANAGEMENT_PROTOCOL {
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_IMAGE_INFO    GetImageInfo;
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_IMAGE         GetImage;
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_SET_IMAGE         SetImage;
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_CHECK_IMAGE       CheckImage;
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_PACKAGE_INFO  GetPackageInfo;
-  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_SET_PACKAGE_INFO  SetPackageInfo;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_IMAGE_INFO      GetImageInfo;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_IMAGE           GetImage;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_SET_IMAGE           SetImage;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_CHECK_IMAGE         CheckImage;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_GET_PACKAGE_INFO    GetPackageInfo;
+  EFI_FIRMWARE_MANAGEMENT_PROTOCOL_SET_PACKAGE_INFO    SetPackageInfo;
 };
 
-extern EFI_GUID gEfiFirmwareManagementProtocolGuid;
+extern EFI_GUID  gEfiFirmwareManagementProtocolGuid;
 
 #endif

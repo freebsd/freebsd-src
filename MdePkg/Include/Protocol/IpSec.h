@@ -33,18 +33,17 @@
     0xa3979e64, 0xace8, 0x4ddc, {0xbc, 0x7, 0x4d, 0x66, 0xb8, 0xfd, 0x9, 0x77 } \
   }
 
-typedef struct _EFI_IPSEC_PROTOCOL  EFI_IPSEC_PROTOCOL;
-typedef struct _EFI_IPSEC2_PROTOCOL EFI_IPSEC2_PROTOCOL;
+typedef struct _EFI_IPSEC_PROTOCOL   EFI_IPSEC_PROTOCOL;
+typedef struct _EFI_IPSEC2_PROTOCOL  EFI_IPSEC2_PROTOCOL;
 
 ///
 /// EFI_IPSEC_FRAGMENT_DATA
 /// defines the instances of packet fragments.
 ///
 typedef struct _EFI_IPSEC_FRAGMENT_DATA {
-  UINT32  FragmentLength;
-  VOID    *FragmentBuffer;
+  UINT32    FragmentLength;
+  VOID      *FragmentBuffer;
 } EFI_IPSEC_FRAGMENT_DATA;
-
 
 /**
   Handles IPsec packet processing for inbound and outbound IP packets.
@@ -83,7 +82,7 @@ EFI_STATUS
   IN OUT EFI_IPSEC_FRAGMENT_DATA **FragmentTable,
   IN     UINT32                  *FragmentCount,
   IN     EFI_IPSEC_TRAFFIC_DIR   TrafficDirection,
-     OUT EFI_EVENT               *RecycleSignal
+  OUT EFI_EVENT               *RecycleSignal
   );
 
 ///
@@ -95,9 +94,9 @@ EFI_STATUS
 //  and IPv6 environment.
 ///
 struct _EFI_IPSEC_PROTOCOL {
-  EFI_IPSEC_PROCESS      Process;           ///< Handle the IPsec message.
-  EFI_EVENT              DisabledEvent;     ///< Event signaled when the interface is disabled.
-  BOOLEAN                DisabledFlag;      ///< State of the interface.
+  EFI_IPSEC_PROCESS    Process;             ///< Handle the IPsec message.
+  EFI_EVENT            DisabledEvent;       ///< Event signaled when the interface is disabled.
+  BOOLEAN              DisabledFlag;        ///< State of the interface.
 };
 
 /**
@@ -185,7 +184,7 @@ struct _EFI_IPSEC_PROTOCOL {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_IPSEC_PROCESSEXT) (
+(EFIAPI *EFI_IPSEC_PROCESSEXT)(
   IN EFI_IPSEC2_PROTOCOL         *This,
   IN EFI_HANDLE                  NicHandle,
   IN UINT8                       IpVer,
@@ -196,7 +195,7 @@ EFI_STATUS
   IN OUT EFI_IPSEC_FRAGMENT_DATA **FragmentTable,
   IN OUT UINT32                  *FragmentCount,
   IN EFI_IPSEC_TRAFFIC_DIR       TrafficDirection,
-     OUT EFI_EVENT               *RecycleSignal
+  OUT EFI_EVENT               *RecycleSignal
   );
 
 ///
@@ -208,11 +207,11 @@ EFI_STATUS
 /// encrypting each IP packet in a data stream.
 ///
 struct _EFI_IPSEC2_PROTOCOL {
-EFI_IPSEC_PROCESSEXT ProcessExt;
-EFI_EVENT            DisabledEvent;
-BOOLEAN              DisabledFlag;
+  EFI_IPSEC_PROCESSEXT    ProcessExt;
+  EFI_EVENT               DisabledEvent;
+  BOOLEAN                 DisabledFlag;
 };
 
-extern EFI_GUID gEfiIpSecProtocolGuid;
-extern EFI_GUID gEfiIpSec2ProtocolGuid;
+extern EFI_GUID  gEfiIpSecProtocolGuid;
+extern EFI_GUID  gEfiIpSec2ProtocolGuid;
 #endif

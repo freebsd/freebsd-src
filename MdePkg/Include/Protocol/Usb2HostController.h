@@ -24,35 +24,33 @@
 ///
 typedef struct _EFI_USB2_HC_PROTOCOL EFI_USB2_HC_PROTOCOL;
 
-
 typedef struct {
-  UINT16          PortStatus;        ///< Contains current port status bitmap.
-  UINT16          PortChangeStatus;  ///< Contains current port status change bitmap.
+  UINT16    PortStatus;              ///< Contains current port status bitmap.
+  UINT16    PortChangeStatus;        ///< Contains current port status change bitmap.
 } EFI_USB_PORT_STATUS;
 
 ///
 /// EFI_USB_PORT_STATUS.PortStatus bit definition
 ///
-#define USB_PORT_STAT_CONNECTION    0x0001
-#define USB_PORT_STAT_ENABLE        0x0002
-#define USB_PORT_STAT_SUSPEND       0x0004
-#define USB_PORT_STAT_OVERCURRENT   0x0008
-#define USB_PORT_STAT_RESET         0x0010
-#define USB_PORT_STAT_POWER         0x0100
-#define USB_PORT_STAT_LOW_SPEED     0x0200
-#define USB_PORT_STAT_HIGH_SPEED    0x0400
-#define USB_PORT_STAT_SUPER_SPEED   0x0800
-#define USB_PORT_STAT_OWNER         0x2000
+#define USB_PORT_STAT_CONNECTION   0x0001
+#define USB_PORT_STAT_ENABLE       0x0002
+#define USB_PORT_STAT_SUSPEND      0x0004
+#define USB_PORT_STAT_OVERCURRENT  0x0008
+#define USB_PORT_STAT_RESET        0x0010
+#define USB_PORT_STAT_POWER        0x0100
+#define USB_PORT_STAT_LOW_SPEED    0x0200
+#define USB_PORT_STAT_HIGH_SPEED   0x0400
+#define USB_PORT_STAT_SUPER_SPEED  0x0800
+#define USB_PORT_STAT_OWNER        0x2000
 
 ///
 /// EFI_USB_PORT_STATUS.PortChangeStatus bit definition
 ///
-#define USB_PORT_STAT_C_CONNECTION  0x0001
-#define USB_PORT_STAT_C_ENABLE      0x0002
-#define USB_PORT_STAT_C_SUSPEND     0x0004
-#define USB_PORT_STAT_C_OVERCURRENT 0x0008
-#define USB_PORT_STAT_C_RESET       0x0010
-
+#define USB_PORT_STAT_C_CONNECTION   0x0001
+#define USB_PORT_STAT_C_ENABLE       0x0002
+#define USB_PORT_STAT_C_SUSPEND      0x0004
+#define USB_PORT_STAT_C_OVERCURRENT  0x0008
+#define USB_PORT_STAT_C_RESET        0x0010
 
 ///
 /// Usb port features value
@@ -72,14 +70,14 @@ typedef enum {
   EfiUsbPortResetChange       = 20
 } EFI_USB_PORT_FEATURE;
 
-#define EFI_USB_SPEED_FULL      0x0000  ///< 12 Mb/s, USB 1.1 OHCI and UHCI HC.
-#define EFI_USB_SPEED_LOW       0x0001  ///< 1 Mb/s, USB 1.1 OHCI and UHCI HC.
-#define EFI_USB_SPEED_HIGH      0x0002  ///< 480 Mb/s, USB 2.0 EHCI HC.
-#define EFI_USB_SPEED_SUPER     0x0003  ///< 4.8 Gb/s, USB 3.0 XHCI HC.
+#define EFI_USB_SPEED_FULL   0x0000     ///< 12 Mb/s, USB 1.1 OHCI and UHCI HC.
+#define EFI_USB_SPEED_LOW    0x0001     ///< 1 Mb/s, USB 1.1 OHCI and UHCI HC.
+#define EFI_USB_SPEED_HIGH   0x0002     ///< 480 Mb/s, USB 2.0 EHCI HC.
+#define EFI_USB_SPEED_SUPER  0x0003     ///< 4.8 Gb/s, USB 3.0 XHCI HC.
 
 typedef struct {
-  UINT8      TranslatorHubAddress; ///< device address
-  UINT8      TranslatorPortNumber; ///< the port number of the hub that device is connected to.
+  UINT8    TranslatorHubAddress;   ///< device address
+  UINT8    TranslatorPortNumber;   ///< the port number of the hub that device is connected to.
 } EFI_USB2_HC_TRANSACTION_TRANSLATOR;
 
 //
@@ -114,6 +112,7 @@ EFI_STATUS
 #define EFI_USB_HC_RESET_HOST_CONTROLLER    0x0002
 #define EFI_USB_HC_RESET_GLOBAL_WITH_DEBUG  0x0004
 #define EFI_USB_HC_RESET_HOST_WITH_DEBUG    0x0008
+
 /**
   Provides software reset for the USB host controller.
 
@@ -192,7 +191,7 @@ EFI_STATUS
 (EFIAPI *EFI_USB2_HC_PROTOCOL_GET_STATE)(
   IN        EFI_USB2_HC_PROTOCOL    *This,
   OUT       EFI_USB_HC_STATE        *State
-);
+  );
 
 /**
   Sets the USB host controller to a specific state.
@@ -258,7 +257,7 @@ EFI_STATUS
   OUT    UINT32                             *TransferResult
   );
 
-#define EFI_USB_MAX_BULK_BUFFER_NUM 10
+#define EFI_USB_MAX_BULK_BUFFER_NUM  10
 
 /**
   Submits bulk transfer to a bulk endpoint of a USB device.
@@ -401,8 +400,8 @@ EFI_STATUS
   OUT    UINT32                                      *TransferResult
   );
 
-#define EFI_USB_MAX_ISO_BUFFER_NUM  7
-#define EFI_USB_MAX_ISO_BUFFER_NUM1 2
+#define EFI_USB_MAX_ISO_BUFFER_NUM   7
+#define EFI_USB_MAX_ISO_BUFFER_NUM1  2
 
 /**
   Submits isochronous transfer to an isochronous endpoint of a USB device.
@@ -624,35 +623,35 @@ EFI_STATUS
 /// instance, and an EFI_USB2_HC_PROTOCOL instance.
 ///
 struct _EFI_USB2_HC_PROTOCOL {
-  EFI_USB2_HC_PROTOCOL_GET_CAPABILITY              GetCapability;
-  EFI_USB2_HC_PROTOCOL_RESET                       Reset;
-  EFI_USB2_HC_PROTOCOL_GET_STATE                   GetState;
-  EFI_USB2_HC_PROTOCOL_SET_STATE                   SetState;
-  EFI_USB2_HC_PROTOCOL_CONTROL_TRANSFER            ControlTransfer;
-  EFI_USB2_HC_PROTOCOL_BULK_TRANSFER               BulkTransfer;
-  EFI_USB2_HC_PROTOCOL_ASYNC_INTERRUPT_TRANSFER    AsyncInterruptTransfer;
-  EFI_USB2_HC_PROTOCOL_SYNC_INTERRUPT_TRANSFER     SyncInterruptTransfer;
-  EFI_USB2_HC_PROTOCOL_ISOCHRONOUS_TRANSFER        IsochronousTransfer;
-  EFI_USB2_HC_PROTOCOL_ASYNC_ISOCHRONOUS_TRANSFER  AsyncIsochronousTransfer;
-  EFI_USB2_HC_PROTOCOL_GET_ROOTHUB_PORT_STATUS     GetRootHubPortStatus;
-  EFI_USB2_HC_PROTOCOL_SET_ROOTHUB_PORT_FEATURE    SetRootHubPortFeature;
-  EFI_USB2_HC_PROTOCOL_CLEAR_ROOTHUB_PORT_FEATURE  ClearRootHubPortFeature;
+  EFI_USB2_HC_PROTOCOL_GET_CAPABILITY                GetCapability;
+  EFI_USB2_HC_PROTOCOL_RESET                         Reset;
+  EFI_USB2_HC_PROTOCOL_GET_STATE                     GetState;
+  EFI_USB2_HC_PROTOCOL_SET_STATE                     SetState;
+  EFI_USB2_HC_PROTOCOL_CONTROL_TRANSFER              ControlTransfer;
+  EFI_USB2_HC_PROTOCOL_BULK_TRANSFER                 BulkTransfer;
+  EFI_USB2_HC_PROTOCOL_ASYNC_INTERRUPT_TRANSFER      AsyncInterruptTransfer;
+  EFI_USB2_HC_PROTOCOL_SYNC_INTERRUPT_TRANSFER       SyncInterruptTransfer;
+  EFI_USB2_HC_PROTOCOL_ISOCHRONOUS_TRANSFER          IsochronousTransfer;
+  EFI_USB2_HC_PROTOCOL_ASYNC_ISOCHRONOUS_TRANSFER    AsyncIsochronousTransfer;
+  EFI_USB2_HC_PROTOCOL_GET_ROOTHUB_PORT_STATUS       GetRootHubPortStatus;
+  EFI_USB2_HC_PROTOCOL_SET_ROOTHUB_PORT_FEATURE      SetRootHubPortFeature;
+  EFI_USB2_HC_PROTOCOL_CLEAR_ROOTHUB_PORT_FEATURE    ClearRootHubPortFeature;
 
   ///
   /// The major revision number of the USB host controller. The revision information
   /// indicates the release of the Universal Serial Bus Specification with which the
   /// host controller is compliant.
   ///
-  UINT16                                           MajorRevision;
+  UINT16                                             MajorRevision;
 
   ///
   /// The minor revision number of the USB host controller. The revision information
   /// indicates the release of the Universal Serial Bus Specification with which the
   /// host controller is compliant.
   ///
-  UINT16                                           MinorRevision;
+  UINT16                                             MinorRevision;
 };
 
-extern EFI_GUID gEfiUsb2HcProtocolGuid;
+extern EFI_GUID  gEfiUsb2HcProtocolGuid;
 
 #endif

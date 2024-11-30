@@ -40,9 +40,9 @@ typedef struct _EFI_IP4_PROTOCOL EFI_IP4_PROTOCOL;
 /// The definition in here is only present to provide backwards compatability.
 ///
 typedef struct {
-  EFI_HANDLE              InstanceHandle;
-  EFI_IPv4_ADDRESS        Ip4Address;
-  EFI_IPv4_ADDRESS        SubnetMask;
+  EFI_HANDLE          InstanceHandle;
+  EFI_IPv4_ADDRESS    Ip4Address;
+  EFI_IPv4_ADDRESS    SubnetMask;
 } EFI_IP4_ADDRESS_PAIR;
 
 ///
@@ -60,182 +60,178 @@ typedef struct {
   /// The default IPv4 protocol packets to send and receive. Ignored
   /// when AcceptPromiscuous is TRUE.
   ///
-  UINT8                   DefaultProtocol;
+  UINT8               DefaultProtocol;
   ///
   /// Set to TRUE to receive all IPv4 packets that get through the receive filters.
   /// Set to FALSE to receive only the DefaultProtocol IPv4
   /// packets that get through the receive filters.
   ///
-  BOOLEAN                 AcceptAnyProtocol;
+  BOOLEAN             AcceptAnyProtocol;
   ///
   /// Set to TRUE to receive ICMP error report packets. Ignored when
   /// AcceptPromiscuous or AcceptAnyProtocol is TRUE.
   ///
-  BOOLEAN                 AcceptIcmpErrors;
+  BOOLEAN             AcceptIcmpErrors;
   ///
   /// Set to TRUE to receive broadcast IPv4 packets. Ignored when
   /// AcceptPromiscuous is TRUE.
   /// Set to FALSE to stop receiving broadcast IPv4 packets.
   ///
-  BOOLEAN                 AcceptBroadcast;
+  BOOLEAN             AcceptBroadcast;
   ///
   /// Set to TRUE to receive all IPv4 packets that are sent to any
   /// hardware address or any protocol address.
   /// Set to FALSE to stop receiving all promiscuous IPv4 packets
   ///
-  BOOLEAN                 AcceptPromiscuous;
+  BOOLEAN             AcceptPromiscuous;
   ///
   /// Set to TRUE to use the default IPv4 address and default routing table.
   ///
-  BOOLEAN                 UseDefaultAddress;
+  BOOLEAN             UseDefaultAddress;
   ///
   /// The station IPv4 address that will be assigned to this EFI IPv4Protocol instance.
   ///
-  EFI_IPv4_ADDRESS        StationAddress;
+  EFI_IPv4_ADDRESS    StationAddress;
   ///
   /// The subnet address mask that is associated with the station address.
   ///
-  EFI_IPv4_ADDRESS        SubnetMask;
+  EFI_IPv4_ADDRESS    SubnetMask;
   ///
   /// TypeOfService field in transmitted IPv4 packets.
   ///
-  UINT8                   TypeOfService;
+  UINT8               TypeOfService;
   ///
   /// TimeToLive field in transmitted IPv4 packets.
   ///
-  UINT8                   TimeToLive;
+  UINT8               TimeToLive;
   ///
   /// State of the DoNotFragment bit in transmitted IPv4 packets.
   ///
-  BOOLEAN                 DoNotFragment;
+  BOOLEAN             DoNotFragment;
   ///
   /// Set to TRUE to send and receive unformatted packets. The other
   /// IPv4 receive filters are still applied. Fragmentation is disabled for RawData mode.
   ///
-  BOOLEAN                 RawData;
+  BOOLEAN             RawData;
   ///
   /// The timer timeout value (number of microseconds) for the
   /// receive timeout event to be associated with each assembled
   /// packet. Zero means do not drop assembled packets.
   ///
-  UINT32                  ReceiveTimeout;
+  UINT32              ReceiveTimeout;
   ///
   /// The timer timeout value (number of microseconds) for the
   /// transmit timeout event to be associated with each outgoing
   /// packet. Zero means do not drop outgoing packets.
   ///
-  UINT32                  TransmitTimeout;
+  UINT32              TransmitTimeout;
 } EFI_IP4_CONFIG_DATA;
 
-
 typedef struct {
-  EFI_IPv4_ADDRESS        SubnetAddress;
-  EFI_IPv4_ADDRESS        SubnetMask;
-  EFI_IPv4_ADDRESS        GatewayAddress;
+  EFI_IPv4_ADDRESS    SubnetAddress;
+  EFI_IPv4_ADDRESS    SubnetMask;
+  EFI_IPv4_ADDRESS    GatewayAddress;
 } EFI_IP4_ROUTE_TABLE;
 
 typedef struct {
-  UINT8                   Type;
-  UINT8                   Code;
+  UINT8    Type;
+  UINT8    Code;
 } EFI_IP4_ICMP_TYPE;
 
 typedef struct {
   ///
   /// Set to TRUE after this EFI IPv4 Protocol instance has been successfully configured.
   ///
-  BOOLEAN                 IsStarted;
+  BOOLEAN                IsStarted;
   ///
   /// The maximum packet size, in bytes, of the packet which the upper layer driver could feed.
   ///
-  UINT32                  MaxPacketSize;
+  UINT32                 MaxPacketSize;
   ///
   /// Current configuration settings.
   ///
-  EFI_IP4_CONFIG_DATA     ConfigData;
+  EFI_IP4_CONFIG_DATA    ConfigData;
   ///
   /// Set to TRUE when the EFI IPv4 Protocol instance has a station address and subnet mask.
   ///
-  BOOLEAN                 IsConfigured;
+  BOOLEAN                IsConfigured;
   ///
   /// Number of joined multicast groups.
   ///
-  UINT32                  GroupCount;
+  UINT32                 GroupCount;
   ///
   /// List of joined multicast group addresses.
   ///
-  EFI_IPv4_ADDRESS        *GroupTable;
+  EFI_IPv4_ADDRESS       *GroupTable;
   ///
   /// Number of entries in the routing table.
   ///
-  UINT32                  RouteCount;
+  UINT32                 RouteCount;
   ///
   /// Routing table entries.
   ///
-  EFI_IP4_ROUTE_TABLE     *RouteTable;
+  EFI_IP4_ROUTE_TABLE    *RouteTable;
   ///
   /// Number of entries in the supported ICMP types list.
   ///
-  UINT32                  IcmpTypeCount;
+  UINT32                 IcmpTypeCount;
   ///
   /// Array of ICMP types and codes that are supported by this EFI IPv4 Protocol driver
   ///
-  EFI_IP4_ICMP_TYPE       *IcmpTypeList;
+  EFI_IP4_ICMP_TYPE      *IcmpTypeList;
 } EFI_IP4_MODE_DATA;
 
 #pragma pack(1)
 
 typedef struct {
-  UINT8                   HeaderLength:4;
-  UINT8                   Version:4;
-  UINT8                   TypeOfService;
-  UINT16                  TotalLength;
-  UINT16                  Identification;
-  UINT16                  Fragmentation;
-  UINT8                   TimeToLive;
-  UINT8                   Protocol;
-  UINT16                  Checksum;
-  EFI_IPv4_ADDRESS        SourceAddress;
-  EFI_IPv4_ADDRESS        DestinationAddress;
+  UINT8               HeaderLength : 4;
+  UINT8               Version      : 4;
+  UINT8               TypeOfService;
+  UINT16              TotalLength;
+  UINT16              Identification;
+  UINT16              Fragmentation;
+  UINT8               TimeToLive;
+  UINT8               Protocol;
+  UINT16              Checksum;
+  EFI_IPv4_ADDRESS    SourceAddress;
+  EFI_IPv4_ADDRESS    DestinationAddress;
 } EFI_IP4_HEADER;
 #pragma pack()
 
-
 typedef struct {
-  UINT32                  FragmentLength;
-  VOID                    *FragmentBuffer;
+  UINT32    FragmentLength;
+  VOID      *FragmentBuffer;
 } EFI_IP4_FRAGMENT_DATA;
 
-
 typedef struct {
-  EFI_TIME               TimeStamp;
-  EFI_EVENT              RecycleSignal;
-  UINT32                 HeaderLength;
-  EFI_IP4_HEADER         *Header;
-  UINT32                 OptionsLength;
-  VOID                   *Options;
-  UINT32                 DataLength;
-  UINT32                 FragmentCount;
-  EFI_IP4_FRAGMENT_DATA  FragmentTable[1];
+  EFI_TIME                 TimeStamp;
+  EFI_EVENT                RecycleSignal;
+  UINT32                   HeaderLength;
+  EFI_IP4_HEADER           *Header;
+  UINT32                   OptionsLength;
+  VOID                     *Options;
+  UINT32                   DataLength;
+  UINT32                   FragmentCount;
+  EFI_IP4_FRAGMENT_DATA    FragmentTable[1];
 } EFI_IP4_RECEIVE_DATA;
 
-
 typedef struct {
-  EFI_IPv4_ADDRESS       SourceAddress;
-  EFI_IPv4_ADDRESS       GatewayAddress;
-  UINT8                  Protocol;
-  UINT8                  TypeOfService;
-  UINT8                  TimeToLive;
-  BOOLEAN                DoNotFragment;
+  EFI_IPv4_ADDRESS    SourceAddress;
+  EFI_IPv4_ADDRESS    GatewayAddress;
+  UINT8               Protocol;
+  UINT8               TypeOfService;
+  UINT8               TimeToLive;
+  BOOLEAN             DoNotFragment;
 } EFI_IP4_OVERRIDE_DATA;
 
 typedef struct {
-  EFI_IPv4_ADDRESS       DestinationAddress;
-  EFI_IP4_OVERRIDE_DATA  *OverrideData;      //OPTIONAL
-  UINT32                 OptionsLength;      //OPTIONAL
-  VOID                   *OptionsBuffer;     //OPTIONAL
-  UINT32                 TotalDataLength;
-  UINT32                 FragmentCount;
-  EFI_IP4_FRAGMENT_DATA  FragmentTable[1];
+  EFI_IPv4_ADDRESS         DestinationAddress;
+  EFI_IP4_OVERRIDE_DATA    *OverrideData;    // OPTIONAL
+  UINT32                   OptionsLength;    // OPTIONAL
+  VOID                     *OptionsBuffer;   // OPTIONAL
+  UINT32                   TotalDataLength;
+  UINT32                   FragmentCount;
+  EFI_IP4_FRAGMENT_DATA    FragmentTable[1];
 } EFI_IP4_TRANSMIT_DATA;
 
 typedef struct {
@@ -245,21 +241,21 @@ typedef struct {
   /// EFI_NOTIFY_SIGNAL. The Task Priority Level (TPL) of
   /// Event must be lower than or equal to TPL_CALLBACK.
   ///
-  EFI_EVENT                Event;
+  EFI_EVENT     Event;
   ///
   /// The status that is returned to the caller at the end of the operation
   /// to indicate whether this operation completed successfully.
   ///
-  EFI_STATUS               Status;
+  EFI_STATUS    Status;
   union {
     ///
     /// When this token is used for receiving, RxData is a pointer to the EFI_IP4_RECEIVE_DATA.
     ///
-    EFI_IP4_RECEIVE_DATA   *RxData;
+    EFI_IP4_RECEIVE_DATA     *RxData;
     ///
     /// When this token is used for transmitting, TxData is a pointer to the EFI_IP4_TRANSMIT_DATA.
     ///
-    EFI_IP4_TRANSMIT_DATA  *TxData;
+    EFI_IP4_TRANSMIT_DATA    *TxData;
   } Packet;
 } EFI_IP4_COMPLETION_TOKEN;
 
@@ -590,17 +586,17 @@ EFI_STATUS
 /// used by drivers, daemons, and applications to transmit and receive network packets.
 ///
 struct _EFI_IP4_PROTOCOL {
-  EFI_IP4_GET_MODE_DATA        GetModeData;
-  EFI_IP4_CONFIGURE            Configure;
-  EFI_IP4_GROUPS               Groups;
-  EFI_IP4_ROUTES               Routes;
-  EFI_IP4_TRANSMIT             Transmit;
-  EFI_IP4_RECEIVE              Receive;
-  EFI_IP4_CANCEL               Cancel;
-  EFI_IP4_POLL                 Poll;
+  EFI_IP4_GET_MODE_DATA    GetModeData;
+  EFI_IP4_CONFIGURE        Configure;
+  EFI_IP4_GROUPS           Groups;
+  EFI_IP4_ROUTES           Routes;
+  EFI_IP4_TRANSMIT         Transmit;
+  EFI_IP4_RECEIVE          Receive;
+  EFI_IP4_CANCEL           Cancel;
+  EFI_IP4_POLL             Poll;
 };
 
-extern EFI_GUID gEfiIp4ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiIp4ProtocolGuid;
+extern EFI_GUID  gEfiIp4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiIp4ProtocolGuid;
 
 #endif

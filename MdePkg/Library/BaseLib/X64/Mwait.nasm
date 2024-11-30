@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -30,6 +30,6 @@ global ASM_PFX(AsmMwait)
 ASM_PFX(AsmMwait):
     mov     eax, ecx
     mov     ecx, edx
-    DB      0xf, 1, 0xc9                ; mwait
+    mwait
     ret
 

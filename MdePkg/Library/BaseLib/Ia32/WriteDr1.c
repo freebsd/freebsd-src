@@ -20,7 +20,7 @@
 UINTN
 EFIAPI
 AsmWriteDr1 (
-  IN UINTN Value
+  IN UINTN  Value
   )
 {
   _asm {
@@ -28,4 +28,3 @@ AsmWriteDr1 (
     mov     dr1, eax
   }
 }
-

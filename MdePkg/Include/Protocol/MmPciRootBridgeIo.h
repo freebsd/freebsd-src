@@ -23,9 +23,8 @@
 /// UEFI 2.1 Specifcation, section 13.2, except that the functions for Map() and Unmap() may return
 /// EFI_UNSUPPORTED.
 ///
-typedef EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL  EFI_MM_PCI_ROOT_BRIDGE_IO_PROTOCOL;
+typedef EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL EFI_MM_PCI_ROOT_BRIDGE_IO_PROTOCOL;
 
-extern EFI_GUID gEfiMmPciRootBridgeIoProtocolGuid;
+extern EFI_GUID  gEfiMmPciRootBridgeIoProtocolGuid;
 
 #endif
-

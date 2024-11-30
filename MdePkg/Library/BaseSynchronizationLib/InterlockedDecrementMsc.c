@@ -10,9 +10,10 @@
   Microsoft Visual Studio 7.1 Function Prototypes for I/O Intrinsics.
 **/
 
-long _InterlockedDecrement(
-   long * lpAddend
-);
+long
+_InterlockedDecrement (
+  long  *lpAddend
+  );
 
 #pragma intrinsic(_InterlockedDecrement)
 
@@ -32,9 +33,8 @@ long _InterlockedDecrement(
 UINT32
 EFIAPI
 InternalSyncDecrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   )
 {
   return _InterlockedDecrement ((long *)(Value));
 }
-

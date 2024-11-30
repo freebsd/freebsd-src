@@ -37,16 +37,16 @@ typedef enum {
 /// IO trap event that should invoke the handler
 ///
 typedef struct {
-  UINT16                         Address;
-  UINT16                         Length;
-  EFI_MM_IO_TRAP_DISPATCH_TYPE   Type;
+  UINT16                          Address;
+  UINT16                          Length;
+  EFI_MM_IO_TRAP_DISPATCH_TYPE    Type;
 } EFI_MM_IO_TRAP_REGISTER_CONTEXT;
 
 ///
 /// IO Trap context structure containing information about the IO trap that occurred
 ///
 typedef struct {
-  UINT32  WriteData;
+  UINT32    WriteData;
 } EFI_MM_IO_TRAP_CONTEXT;
 
 typedef struct _EFI_MM_IO_TRAP_DISPATCH_PROTOCOL EFI_MM_IO_TRAP_DISPATCH_PROTOCOL;
@@ -92,7 +92,7 @@ EFI_STATUS
   IN CONST EFI_MM_IO_TRAP_DISPATCH_PROTOCOL    *This,
   IN       EFI_MM_HANDLER_ENTRY_POINT          DispatchFunction,
   IN OUT   EFI_MM_IO_TRAP_REGISTER_CONTEXT     *RegisterContext,
-     OUT   EFI_HANDLE                          *DispatchHandle
+  OUT   EFI_HANDLE                          *DispatchHandle
   );
 
 /**
@@ -120,11 +120,10 @@ EFI_STATUS
 /// This protocol provides a parent dispatch service for IO trap MMI sources.
 ///
 struct _EFI_MM_IO_TRAP_DISPATCH_PROTOCOL {
-  EFI_MM_IO_TRAP_DISPATCH_REGISTER    Register;
-  EFI_MM_IO_TRAP_DISPATCH_UNREGISTER  UnRegister;
+  EFI_MM_IO_TRAP_DISPATCH_REGISTER      Register;
+  EFI_MM_IO_TRAP_DISPATCH_UNREGISTER    UnRegister;
 };
 
-extern EFI_GUID gEfiMmIoTrapDispatchProtocolGuid;
+extern EFI_GUID  gEfiMmIoTrapDispatchProtocolGuid;
 
 #endif
-

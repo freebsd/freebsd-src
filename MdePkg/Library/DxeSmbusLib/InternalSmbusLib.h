@@ -10,7 +10,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #ifndef __INTERNAL_SMBUS_LIB_H_
 #define __INTERNAL_SMBUS_LIB_H_
 
-
 #include <PiDxe.h>
 
 #include <Protocol/SmbusHc.h>
@@ -25,6 +24,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // Declaration for internal functions
 //
+
 /**
   Executes an SMBus operation to an SMBus controller.
 
@@ -50,11 +50,11 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 UINTN
 InternalSmBusExec (
-  IN     EFI_SMBUS_OPERATION        SmbusOperation,
-  IN     UINTN                      SmBusAddress,
-  IN     UINTN                      Length,
-  IN OUT VOID                       *Buffer,
-     OUT RETURN_STATUS              *Status        OPTIONAL
+  IN     EFI_SMBUS_OPERATION  SmbusOperation,
+  IN     UINTN                SmBusAddress,
+  IN     UINTN                Length,
+  IN OUT VOID                 *Buffer,
+  OUT RETURN_STATUS           *Status        OPTIONAL
   );
 
 /**
@@ -72,8 +72,8 @@ InternalSmBusExec (
 EFI_STATUS
 EFIAPI
 SmbusLibConstructor (
-  IN EFI_HANDLE                ImageHandle,
-  IN EFI_SYSTEM_TABLE          *SystemTable
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
   );
 
 #endif

@@ -143,10 +143,10 @@ SafeIntnToUint32 (
 
   if (Operand >= 0) {
     *Result = (UINT32)Operand;
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINT32_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -309,7 +309,7 @@ SafeUint64ToUintn (
   OUT UINTN   *Result
   )
 {
-  return SafeUint64ToUint32 ((UINT64) Operand, (UINT32 *)Result);
+  return SafeUint64ToUint32 ((UINT64)Operand, (UINT32 *)Result);
 }
 
 /**
@@ -349,10 +349,10 @@ SafeUintnAdd (
 
   if ((Augend + Addend) >= Augend) {
     *Result = (Augend + Addend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -395,10 +395,10 @@ SafeUintnSub (
 
   if (Minuend >= Subtrahend) {
     *Result = (Minuend - Subtrahend);
-    Status = RETURN_SUCCESS;
+    Status  = RETURN_SUCCESS;
   } else {
     *Result = UINTN_ERROR;
-    Status = RETURN_BUFFER_TOO_SMALL;
+    Status  = RETURN_BUFFER_TOO_SMALL;
   }
 
   return Status;
@@ -435,7 +435,7 @@ SafeUintnMult (
 {
   UINT64  IntermediateResult;
 
-  IntermediateResult = ((UINT64) Multiplicand) *((UINT64) Multiplier);
+  IntermediateResult = ((UINT64)Multiplicand) *((UINT64)Multiplier);
 
   return SafeUint64ToUintn (IntermediateResult, Result);
 }
@@ -535,4 +535,3 @@ SafeIntnMult (
 {
   return SafeInt64ToIntn (MultS64x64 (Multiplicand, Multiplier), Result);
 }
-

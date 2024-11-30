@@ -26,14 +26,15 @@
 VOID *
 EFIAPI
 InternalMemSetMem16 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT16                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT16  Value
   )
 {
-  for (; Length != 0; Length--) {
-    ((UINT16*)Buffer)[Length - 1] = Value;
+  for ( ; Length != 0; Length--) {
+    ((UINT16 *)Buffer)[Length - 1] = Value;
   }
+
   return Buffer;
 }
 
@@ -50,14 +51,15 @@ InternalMemSetMem16 (
 VOID *
 EFIAPI
 InternalMemSetMem32 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT32                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT32  Value
   )
 {
-  for (; Length != 0; Length--) {
-    ((UINT32*)Buffer)[Length - 1] = Value;
+  for ( ; Length != 0; Length--) {
+    ((UINT32 *)Buffer)[Length - 1] = Value;
   }
+
   return Buffer;
 }
 
@@ -74,14 +76,15 @@ InternalMemSetMem32 (
 VOID *
 EFIAPI
 InternalMemSetMem64 (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT64                    Value
+  OUT     VOID    *Buffer,
+  IN      UINTN   Length,
+  IN      UINT64  Value
   )
 {
-  for (; Length != 0; Length--) {
-    ((UINT64*)Buffer)[Length - 1] = Value;
+  for ( ; Length != 0; Length--) {
+    ((UINT64 *)Buffer)[Length - 1] = Value;
   }
+
   return Buffer;
 }
 
@@ -97,8 +100,8 @@ InternalMemSetMem64 (
 VOID *
 EFIAPI
 InternalMemZeroMem (
-  OUT     VOID                      *Buffer,
-  IN      UINTN                     Length
+  OUT     VOID   *Buffer,
+  IN      UINTN  Length
   )
 {
   return InternalMemSetMem (Buffer, Length, 0);
@@ -120,17 +123,19 @@ InternalMemZeroMem (
 INTN
 EFIAPI
 InternalMemCompareMem (
-  IN      CONST VOID                *DestinationBuffer,
-  IN      CONST VOID                *SourceBuffer,
-  IN      UINTN                     Length
+  IN      CONST VOID  *DestinationBuffer,
+  IN      CONST VOID  *SourceBuffer,
+  IN      UINTN       Length
   )
 {
   while ((--Length != 0) &&
-         (*(INT8*)DestinationBuffer == *(INT8*)SourceBuffer)) {
-    DestinationBuffer = (INT8*)DestinationBuffer + 1;
-    SourceBuffer = (INT8*)SourceBuffer + 1;
+         (*(INT8 *)DestinationBuffer == *(INT8 *)SourceBuffer))
+  {
+    DestinationBuffer = (INT8 *)DestinationBuffer + 1;
+    SourceBuffer      = (INT8 *)SourceBuffer + 1;
   }
-  return (INTN)*(UINT8*)DestinationBuffer - (INTN)*(UINT8*)SourceBuffer;
+
+  return (INTN)*(UINT8 *)DestinationBuffer - (INTN)*(UINT8 *)SourceBuffer;
 }
 
 /**
@@ -147,20 +152,22 @@ InternalMemCompareMem (
 CONST VOID *
 EFIAPI
 InternalMemScanMem8 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT8                     Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT8       Value
   )
 {
-  CONST UINT8                       *Pointer;
+  CONST UINT8  *Pointer;
 
-  Pointer = (CONST UINT8*)Buffer;
+  Pointer = (CONST UINT8 *)Buffer;
   do {
     if (*Pointer == Value) {
       return Pointer;
     }
+
     ++Pointer;
   } while (--Length != 0);
+
   return NULL;
 }
 
@@ -178,20 +185,22 @@ InternalMemScanMem8 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem16 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT16                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT16      Value
   )
 {
-  CONST UINT16                      *Pointer;
+  CONST UINT16  *Pointer;
 
-  Pointer = (CONST UINT16*)Buffer;
+  Pointer = (CONST UINT16 *)Buffer;
   do {
     if (*Pointer == Value) {
       return Pointer;
     }
+
     ++Pointer;
   } while (--Length != 0);
+
   return NULL;
 }
 
@@ -209,20 +218,22 @@ InternalMemScanMem16 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem32 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT32                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT32      Value
   )
 {
-  CONST UINT32                      *Pointer;
+  CONST UINT32  *Pointer;
 
-  Pointer = (CONST UINT32*)Buffer;
+  Pointer = (CONST UINT32 *)Buffer;
   do {
     if (*Pointer == Value) {
       return Pointer;
     }
+
     ++Pointer;
   } while (--Length != 0);
+
   return NULL;
 }
 
@@ -240,20 +251,22 @@ InternalMemScanMem32 (
 CONST VOID *
 EFIAPI
 InternalMemScanMem64 (
-  IN      CONST VOID                *Buffer,
-  IN      UINTN                     Length,
-  IN      UINT64                    Value
+  IN      CONST VOID  *Buffer,
+  IN      UINTN       Length,
+  IN      UINT64      Value
   )
 {
-  CONST UINT64                      *Pointer;
+  CONST UINT64  *Pointer;
 
-  Pointer = (CONST UINT64*)Buffer;
+  Pointer = (CONST UINT64 *)Buffer;
   do {
     if (*Pointer == Value) {
       return Pointer;
     }
+
     ++Pointer;
   } while (--Length != 0);
+
   return NULL;
 }
 
@@ -274,8 +287,8 @@ InternalMemIsZeroBuffer (
   IN UINTN       Length
   )
 {
-  CONST UINT8 *BufferData;
-  UINTN       Index;
+  CONST UINT8  *BufferData;
+  UINTN        Index;
 
   BufferData = Buffer;
   for (Index = 0; Index < Length; Index++) {
@@ -283,5 +296,6 @@ InternalMemIsZeroBuffer (
       return FALSE;
     }
   }
+
   return TRUE;
 }

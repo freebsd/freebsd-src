@@ -15,7 +15,6 @@
 #define EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL_GUID  \
   { 0x5c198761, 0x16a8, 0x4e69, { 0x97, 0x2c, 0x89, 0xd6, 0x79, 0x54, 0xf8, 0x1d } }
 
-
 ///
 /// The EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL provides a
 /// mechanism for an EFI driver to publish the version of the EFI
@@ -28,13 +27,13 @@ typedef struct _EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL {
   /// The size, in bytes, of the entire structure. Future versions of this
   /// specification may grow the size of the structure.
   ///
-  UINT32 Length;
+  UINT32    Length;
   ///
   /// The latest version of the UEFI specification that this driver conforms to.
   ///
-  UINT32 FirmwareVersion;
+  UINT32    FirmwareVersion;
 } EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL;
 
-extern EFI_GUID gEfiDriverSupportedEfiVersionProtocolGuid;
+extern EFI_GUID  gEfiDriverSupportedEfiVersionProtocolGuid;
 
 #endif

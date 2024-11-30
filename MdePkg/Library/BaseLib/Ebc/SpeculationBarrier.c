@@ -7,7 +7,6 @@
 
 **/
 
-
 /**
   Uses as a barrier to stop speculative execution.
 

@@ -22,13 +22,13 @@
   LIBRARY_CLASS                  = DxeServicesLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER SMM_CORE UEFI_APPLICATION UEFI_DRIVER
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64 LOONGARCH64
 #
 
 [Sources]
   DxeServicesLib.c
 
-[Sources.IA32, Sources.EBC, Sources.ARM, Sources.AARCH64, Sources.RISCV64]
+[Sources.IA32, Sources.EBC, Sources.ARM, Sources.AARCH64, Sources.RISCV64, Sources.LOONGARCH64]
   Allocate.c
 
 [Sources.X64]

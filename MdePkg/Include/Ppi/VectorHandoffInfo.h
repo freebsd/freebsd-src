@@ -27,10 +27,10 @@
 ///
 /// Vector Handoff Info Attributes
 ///@{
-#define EFI_VECTOR_HANDOFF_DO_NOT_HOOK 0x00000000
-#define EFI_VECTOR_HANDOFF_HOOK_BEFORE 0x00000001
-#define EFI_VECTOR_HANDOFF_HOOK_AFTER  0x00000002
-#define EFI_VECTOR_HANDOFF_LAST_ENTRY  0x80000000
+#define EFI_VECTOR_HANDOFF_DO_NOT_HOOK  0x00000000
+#define EFI_VECTOR_HANDOFF_HOOK_BEFORE  0x00000001
+#define EFI_VECTOR_HANDOFF_HOOK_AFTER   0x00000002
+#define EFI_VECTOR_HANDOFF_LAST_ENTRY   0x80000000
 ///@}
 
 ///
@@ -41,16 +41,16 @@ typedef struct {
   //
   // The interrupt or exception vector that is in use and must be preserved.
   //
-  UINT32    VectorNumber;
+  UINT32      VectorNumber;
   //
   // A bitmask that describes the attributes of the interrupt or exception vector.
   //
-  UINT32    Attribute;
+  UINT32      Attribute;
   //
   // The GUID identifies the party who created the entry. For the
   // EFI_VECTOR_HANDOFF_DO_NOT_HOOK case, this establishes the single owner.
   //
-  EFI_GUID  Owner;
+  EFI_GUID    Owner;
 } EFI_VECTOR_HANDOFF_INFO;
 
 ///
@@ -61,9 +61,9 @@ typedef struct _EFI_PEI_VECTOR_HANDOFF_INFO_PPI {
   //
   // Pointer to an array of interrupt and /or exception vectors.
   //
-  EFI_VECTOR_HANDOFF_INFO  *Info;
+  EFI_VECTOR_HANDOFF_INFO    *Info;
 } EFI_PEI_VECTOR_HANDOFF_INFO_PPI;
 
-extern EFI_GUID gEfiVectorHandoffInfoPpiGuid;
+extern EFI_GUID  gEfiVectorHandoffInfoPpiGuid;
 
 #endif

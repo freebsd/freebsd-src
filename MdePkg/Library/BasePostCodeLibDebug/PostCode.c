@@ -36,10 +36,9 @@ PostCode (
   IN UINT32  Value
   )
 {
-  DEBUG((EFI_D_INFO, "POST %08x\n", Value));
+  DEBUG ((DEBUG_INFO, "POST %08x\n", Value));
   return Value;
 }
-
 
 /**
   Sends an 32-bit value to a POST and associated ASCII string.
@@ -72,10 +71,9 @@ PostCodeWithDescription (
   IN CONST CHAR8  *Description  OPTIONAL
   )
 {
-  DEBUG((EFI_D_INFO, "POST %08x - %s\n", Value, Description));
+  DEBUG ((DEBUG_INFO, "POST %08x - %s\n", Value, Description));
   return Value;
 }
-
 
 /**
   Returns TRUE if POST Codes are enabled.
@@ -95,9 +93,8 @@ PostCodeEnabled (
   VOID
   )
 {
-  return (BOOLEAN) ((PcdGet8(PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_ENABLED) != 0);
+  return (BOOLEAN)((PcdGet8 (PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_ENABLED) != 0);
 }
-
 
 /**
   Returns TRUE if POST code descriptions are enabled.
@@ -117,5 +114,5 @@ PostCodeDescriptionEnabled (
   VOID
   )
 {
-  return (BOOLEAN) ((PcdGet8(PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_DESCRIPTION_ENABLED) != 0);
+  return (BOOLEAN)((PcdGet8 (PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_DESCRIPTION_ENABLED) != 0);
 }

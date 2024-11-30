@@ -19,6 +19,6 @@
    0x30cfe3e7, 0x3de1, 0x4586, { 0xbe, 0x20, 0xde, 0xab, 0xa1, 0xb3, 0xb7, 0x93  } \
   }
 
-extern EFI_GUID gEfiPciEnumerationCompleteProtocolGuid;
+extern EFI_GUID  gEfiPciEnumerationCompleteProtocolGuid;
 
 #endif

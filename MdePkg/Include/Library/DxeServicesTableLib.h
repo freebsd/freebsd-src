@@ -25,4 +25,3 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 extern EFI_DXE_SERVICES  *gDS;
 
 #endif
-

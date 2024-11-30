@@ -6,9 +6,7 @@
 
 **/
 
-
 #include "BaseLibInternals.h"
-
 
 /**
   Retrieves the current CPU interrupt state.
@@ -26,10 +24,8 @@ GetInterruptState (
   VOID
   )
 {
-  IA32_EFLAGS32                     EFlags;
+  IA32_EFLAGS32  EFlags;
 
   EFlags.UintN = AsmReadEflags ();
   return (BOOLEAN)(1 == EFlags.Bits.IF);
 }
-
-

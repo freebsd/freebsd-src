@@ -29,12 +29,12 @@
 UINT64
 EFIAPI
 IoReadWorker (
-  IN      UINTN                     Port,
-  IN      EFI_SMM_IO_WIDTH          Width
+  IN      UINTN             Port,
+  IN      EFI_SMM_IO_WIDTH  Width
   )
 {
-  EFI_STATUS                        Status;
-  UINT64                            Data;
+  EFI_STATUS  Status;
+  UINT64      Data;
 
   Status = gSmst->SmmIo.Io.Read (&gSmst->SmmIo, Width, Port, 1, &Data);
   ASSERT_EFI_ERROR (Status);
@@ -60,12 +60,12 @@ IoReadWorker (
 UINT64
 EFIAPI
 IoWriteWorker (
-  IN      UINTN                     Port,
-  IN      EFI_SMM_IO_WIDTH          Width,
-  IN      UINT64                    Data
+  IN      UINTN             Port,
+  IN      EFI_SMM_IO_WIDTH  Width,
+  IN      UINT64            Data
   )
 {
-  EFI_STATUS                        Status;
+  EFI_STATUS  Status;
 
   Status = gSmst->SmmIo.Io.Write (&gSmst->SmmIo, Width, Port, 1, &Data);
   ASSERT_EFI_ERROR (Status);
@@ -90,12 +90,12 @@ IoWriteWorker (
 UINT64
 EFIAPI
 MmioReadWorker (
-  IN      UINTN                     Address,
-  IN      EFI_SMM_IO_WIDTH          Width
+  IN      UINTN             Address,
+  IN      EFI_SMM_IO_WIDTH  Width
   )
 {
-  EFI_STATUS                        Status;
-  UINT64                            Data;
+  EFI_STATUS  Status;
+  UINT64      Data;
 
   Status = gSmst->SmmIo.Mem.Read (&gSmst->SmmIo, Width, Address, 1, &Data);
   ASSERT_EFI_ERROR (Status);
@@ -121,12 +121,12 @@ MmioReadWorker (
 UINT64
 EFIAPI
 MmioWriteWorker (
-  IN      UINTN                     Address,
-  IN      EFI_SMM_IO_WIDTH          Width,
-  IN      UINT64                    Data
+  IN      UINTN             Address,
+  IN      EFI_SMM_IO_WIDTH  Width,
+  IN      UINT64            Data
   )
 {
-  EFI_STATUS                        Status;
+  EFI_STATUS  Status;
 
   Status = gSmst->SmmIo.Mem.Write (&gSmst->SmmIo, Width, Address, 1, &Data);
   ASSERT_EFI_ERROR (Status);
@@ -151,7 +151,7 @@ MmioWriteWorker (
 UINT8
 EFIAPI
 IoRead8 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   return (UINT8)IoReadWorker (Port, SMM_IO_UINT8);
@@ -175,8 +175,8 @@ IoRead8 (
 UINT8
 EFIAPI
 IoWrite8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     Value
+  IN      UINTN  Port,
+  IN      UINT8  Value
   )
 {
   return (UINT8)IoWriteWorker (Port, SMM_IO_UINT8, Value);
@@ -201,7 +201,7 @@ IoWrite8 (
 UINT16
 EFIAPI
 IoRead16 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -231,8 +231,8 @@ IoRead16 (
 UINT16
 EFIAPI
 IoWrite16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    Value
+  IN      UINTN   Port,
+  IN      UINT16  Value
   )
 {
   //
@@ -261,7 +261,7 @@ IoWrite16 (
 UINT32
 EFIAPI
 IoRead32 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -291,8 +291,8 @@ IoRead32 (
 UINT32
 EFIAPI
 IoWrite32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    Value
+  IN      UINTN   Port,
+  IN      UINT32  Value
   )
 {
   //
@@ -321,7 +321,7 @@ IoWrite32 (
 UINT64
 EFIAPI
 IoRead64 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   //
@@ -351,8 +351,8 @@ IoRead64 (
 UINT64
 EFIAPI
 IoWrite64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    Value
+  IN      UINTN   Port,
+  IN      UINT64  Value
   )
 {
   //
@@ -382,12 +382,12 @@ IoWrite64 (
 VOID
 EFIAPI
 IoReadFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
-  UINT8 *Buffer8;
+  UINT8  *Buffer8;
 
   Buffer8 = (UINT8 *)Buffer;
   while (Count-- > 0) {
@@ -415,12 +415,12 @@ IoReadFifo8 (
 VOID
 EFIAPI
 IoWriteFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
-  UINT8 *Buffer8;
+  UINT8  *Buffer8;
 
   Buffer8 = (UINT8 *)Buffer;
   while (Count-- > 0) {
@@ -448,12 +448,12 @@ IoWriteFifo8 (
 VOID
 EFIAPI
 IoReadFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
-  UINT16 *Buffer16;
+  UINT16  *Buffer16;
 
   //
   // Make sure Port is aligned on a 16-bit boundary.
@@ -485,12 +485,12 @@ IoReadFifo16 (
 VOID
 EFIAPI
 IoWriteFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
-  UINT16 *Buffer16;
+  UINT16  *Buffer16;
 
   //
   // Make sure Port is aligned on a 16-bit boundary.
@@ -522,12 +522,12 @@ IoWriteFifo16 (
 VOID
 EFIAPI
 IoReadFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
-  UINT32 *Buffer32;
+  UINT32  *Buffer32;
 
   //
   // Make sure Port is aligned on a 32-bit boundary.
@@ -559,12 +559,12 @@ IoReadFifo32 (
 VOID
 EFIAPI
 IoWriteFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
-  UINT32 *Buffer32;
+  UINT32  *Buffer32;
 
   //
   // Make sure Port is aligned on a 32-bit boundary.
@@ -593,7 +593,7 @@ IoWriteFifo32 (
 UINT8
 EFIAPI
 MmioRead8 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   return (UINT8)MmioReadWorker (Address, SMM_IO_UINT8);
@@ -615,8 +615,8 @@ MmioRead8 (
 UINT8
 EFIAPI
 MmioWrite8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     Value
+  IN      UINTN  Address,
+  IN      UINT8  Value
   )
 {
   return (UINT8)MmioWriteWorker (Address, SMM_IO_UINT8, Value);
@@ -641,7 +641,7 @@ MmioWrite8 (
 UINT16
 EFIAPI
 MmioRead16 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -669,8 +669,8 @@ MmioRead16 (
 UINT16
 EFIAPI
 MmioWrite16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    Value
+  IN      UINTN   Address,
+  IN      UINT16  Value
   )
 {
   //
@@ -699,7 +699,7 @@ MmioWrite16 (
 UINT32
 EFIAPI
 MmioRead32 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -727,8 +727,8 @@ MmioRead32 (
 UINT32
 EFIAPI
 MmioWrite32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    Value
+  IN      UINTN   Address,
+  IN      UINT32  Value
   )
 {
   //
@@ -757,7 +757,7 @@ MmioWrite32 (
 UINT64
 EFIAPI
 MmioRead64 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
   //
@@ -785,8 +785,8 @@ MmioRead64 (
 UINT64
 EFIAPI
 MmioWrite64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    Value
+  IN      UINTN   Address,
+  IN      UINT64  Value
   )
 {
   //

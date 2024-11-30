@@ -12,10 +12,10 @@
 //
 // GCC inline assembly for Read Write Barrier
 //
-#define _ReadWriteBarrier() do { __asm__ __volatile__ ("": : : "memory"); } while(0)
+#define _ReadWriteBarrier()  do { __asm__ __volatile__ ("": : : "memory"); } while(0)
 
-#define SPIN_LOCK_RELEASED          ((UINTN) 1)
-#define SPIN_LOCK_ACQUIRED          ((UINTN) 2)
+#define SPIN_LOCK_RELEASED  ((UINTN) 1)
+#define SPIN_LOCK_ACQUIRED  ((UINTN) 2)
 
 /**
   Retrieves the architecture specific spin lock alignment requirements for
@@ -61,14 +61,14 @@ GetSpinLockProperties (
 SPIN_LOCK *
 EFIAPI
 InitializeSpinLock (
-  OUT      SPIN_LOCK                 *SpinLock
+  OUT      SPIN_LOCK  *SpinLock
   )
 {
   ASSERT (SpinLock != NULL);
 
-  _ReadWriteBarrier();
+  _ReadWriteBarrier ();
   *SpinLock = SPIN_LOCK_RELEASED;
-  _ReadWriteBarrier();
+  _ReadWriteBarrier ();
 
   return SpinLock;
 }
@@ -96,7 +96,7 @@ InitializeSpinLock (
 SPIN_LOCK *
 EFIAPI
 AcquireSpinLock (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   )
 {
   UINT64  Current;
@@ -116,7 +116,7 @@ AcquireSpinLock (
     //
     // Get the current timer value
     //
-    Current = GetPerformanceCounter();
+    Current = GetPerformanceCounter ();
 
     //
     // Initialize local variables
@@ -140,23 +140,27 @@ AcquireSpinLock (
     if (Cycle < 0) {
       Cycle = -Cycle;
     }
+
     Cycle++;
 
     while (!AcquireSpinLockOrFail (SpinLock)) {
       CpuPause ();
       Previous = Current;
-      Current  = GetPerformanceCounter();
-      Delta = (INT64) (Current - Previous);
+      Current  = GetPerformanceCounter ();
+      Delta    = (INT64)(Current - Previous);
       if (Start > End) {
         Delta = -Delta;
       }
+
       if (Delta < 0) {
         Delta += Cycle;
       }
+
       Total += Delta;
       ASSERT (Total < Timeout);
     }
   }
+
   return SpinLock;
 }
 
@@ -180,11 +184,11 @@ AcquireSpinLock (
 BOOLEAN
 EFIAPI
 AcquireSpinLockOrFail (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   )
 {
-  SPIN_LOCK   LockValue;
-  VOID        *Result;
+  SPIN_LOCK  LockValue;
+  VOID       *Result;
 
   ASSERT (SpinLock != NULL);
 
@@ -193,13 +197,13 @@ AcquireSpinLockOrFail (
 
   _ReadWriteBarrier ();
   Result = InterlockedCompareExchangePointer (
-             (VOID**)SpinLock,
-             (VOID*)SPIN_LOCK_RELEASED,
-             (VOID*)SPIN_LOCK_ACQUIRED
-           );
+             (VOID **)SpinLock,
+             (VOID *)SPIN_LOCK_RELEASED,
+             (VOID *)SPIN_LOCK_ACQUIRED
+             );
 
   _ReadWriteBarrier ();
-  return (BOOLEAN) (Result == (VOID*) SPIN_LOCK_RELEASED);
+  return (BOOLEAN)(Result == (VOID *)SPIN_LOCK_RELEASED);
 }
 
 /**
@@ -219,10 +223,10 @@ AcquireSpinLockOrFail (
 SPIN_LOCK *
 EFIAPI
 ReleaseSpinLock (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   )
 {
-  SPIN_LOCK    LockValue;
+  SPIN_LOCK  LockValue;
 
   ASSERT (SpinLock != NULL);
 
@@ -253,7 +257,7 @@ ReleaseSpinLock (
 UINT32
 EFIAPI
 InterlockedIncrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   )
 {
   ASSERT (Value != NULL);
@@ -277,7 +281,7 @@ InterlockedIncrement (
 UINT32
 EFIAPI
 InterlockedDecrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   )
 {
   ASSERT (Value != NULL);
@@ -306,9 +310,9 @@ InterlockedDecrement (
 UINT16
 EFIAPI
 InterlockedCompareExchange16 (
-  IN OUT  volatile UINT16           *Value,
-  IN      UINT16                    CompareValue,
-  IN      UINT16                    ExchangeValue
+  IN OUT  volatile UINT16  *Value,
+  IN      UINT16           CompareValue,
+  IN      UINT16           ExchangeValue
   )
 {
   ASSERT (Value != NULL);
@@ -337,9 +341,9 @@ InterlockedCompareExchange16 (
 UINT32
 EFIAPI
 InterlockedCompareExchange32 (
-  IN OUT  volatile UINT32           *Value,
-  IN      UINT32                    CompareValue,
-  IN      UINT32                    ExchangeValue
+  IN OUT  volatile UINT32  *Value,
+  IN      UINT32           CompareValue,
+  IN      UINT32           ExchangeValue
   )
 {
   ASSERT (Value != NULL);
@@ -367,9 +371,9 @@ InterlockedCompareExchange32 (
 UINT64
 EFIAPI
 InterlockedCompareExchange64 (
-  IN OUT  volatile UINT64           *Value,
-  IN      UINT64                    CompareValue,
-  IN      UINT64                    ExchangeValue
+  IN OUT  volatile UINT64  *Value,
+  IN      UINT64           CompareValue,
+  IN      UINT64           ExchangeValue
   )
 {
   ASSERT (Value != NULL);
@@ -397,9 +401,9 @@ InterlockedCompareExchange64 (
 VOID *
 EFIAPI
 InterlockedCompareExchangePointer (
-  IN OUT  VOID                      * volatile *Value,
-  IN      VOID                      *CompareValue,
-  IN      VOID                      *ExchangeValue
+  IN OUT  VOID                      *volatile  *Value,
+  IN      VOID                                 *CompareValue,
+  IN      VOID                                 *ExchangeValue
   )
 {
   UINT8  SizeOfValue;
@@ -408,17 +412,17 @@ InterlockedCompareExchangePointer (
 
   switch (SizeOfValue) {
     case sizeof (UINT32):
-      return (VOID*)(UINTN)InterlockedCompareExchange32 (
-                             (volatile UINT32 *)Value,
-                             (UINT32)(UINTN)CompareValue,
-                             (UINT32)(UINTN)ExchangeValue
-                             );
+      return (VOID *)(UINTN)InterlockedCompareExchange32 (
+                              (volatile UINT32 *)Value,
+                              (UINT32)(UINTN)CompareValue,
+                              (UINT32)(UINTN)ExchangeValue
+                              );
     case sizeof (UINT64):
-      return (VOID*)(UINTN)InterlockedCompareExchange64 (
-                             (volatile UINT64 *)Value,
-                             (UINT64)(UINTN)CompareValue,
-                             (UINT64)(UINTN)ExchangeValue
-                             );
+      return (VOID *)(UINTN)InterlockedCompareExchange64 (
+                              (volatile UINT64 *)Value,
+                              (UINT64)(UINTN)CompareValue,
+                              (UINT64)(UINTN)ExchangeValue
+                              );
     default:
       ASSERT (FALSE);
       return NULL;

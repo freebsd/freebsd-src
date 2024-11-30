@@ -81,8 +81,8 @@ EFI_STATUS
 /// protocol and calling DestroyChild() when it is finished with that protocol.
 ///
 struct _EFI_SERVICE_BINDING_PROTOCOL {
-  EFI_SERVICE_BINDING_CREATE_CHILD         CreateChild;
-  EFI_SERVICE_BINDING_DESTROY_CHILD        DestroyChild;
+  EFI_SERVICE_BINDING_CREATE_CHILD     CreateChild;
+  EFI_SERVICE_BINDING_DESTROY_CHILD    DestroyChild;
 };
 
 #endif

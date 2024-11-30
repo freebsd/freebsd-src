@@ -18,17 +18,17 @@
   { 0x215fdd18, 0xbd50, 0x4feb, { 0x89, 0xb, 0x58, 0xca, 0xb, 0x47, 0x39, 0xe9 } }
 
 typedef union {
-  ACPI_SMALL_RESOURCE_HEADER *SmallHeader;
-  ACPI_LARGE_RESOURCE_HEADER *LargeHeader;
+  ACPI_SMALL_RESOURCE_HEADER    *SmallHeader;
+  ACPI_LARGE_RESOURCE_HEADER    *LargeHeader;
 } ACPI_RESOURCE_HEADER_PTR;
 
 typedef struct {
-  UINT8 Register;       ///< Register number.
-  UINT8 AndMask;        ///< Bitwise AND mask.
-  UINT8 OrMask;         ///< Bitwise OR mask.
+  UINT8    Register;    ///< Register number.
+  UINT8    AndMask;     ///< Bitwise AND mask.
+  UINT8    OrMask;      ///< Bitwise OR mask.
 } EFI_SIO_REGISTER_MODIFY;
 
-typedef struct _EFI_SIO_PROTOCOL  EFI_SIO_PROTOCOL;
+typedef struct _EFI_SIO_PROTOCOL EFI_SIO_PROTOCOL;
 
 /**
   Provides a low level access to the registers for the Super I/O.
@@ -62,7 +62,7 @@ EFI_STATUS
   IN          BOOLEAN           ExitCfgMode,
   IN          UINT8             Register,
   IN OUT      UINT8             *Value
-);
+  );
 
 /**
   Provides an interface to get a list of the current resources consumed by the device in the ACPI
@@ -88,7 +88,7 @@ EFI_STATUS
 (EFIAPI *EFI_SIO_GET_RESOURCES)(
   IN  CONST EFI_SIO_PROTOCOL            *This,
   OUT       ACPI_RESOURCE_HEADER_PTR    *ResourceList
-);
+  );
 
 /**
   Sets the resources for the device.
@@ -108,7 +108,7 @@ EFI_STATUS
 (EFIAPI *EFI_SIO_SET_RESOURCES)(
   IN CONST  EFI_SIO_PROTOCOL        *This,
   IN        ACPI_RESOURCE_HEADER_PTR ResourceList
-);
+  );
 
 /**
   Provides a collection of resource descriptor lists. Each resource descriptor list in the collection
@@ -125,7 +125,7 @@ EFI_STATUS
 (EFIAPI *EFI_SIO_POSSIBLE_RESOURCES)(
   IN  CONST EFI_SIO_PROTOCOL         *This,
   OUT       ACPI_RESOURCE_HEADER_PTR *ResourceCollection
-);
+  );
 
 /**
   Provides an interface for a table based programming of the Super I/O registers.
@@ -154,16 +154,16 @@ EFI_STATUS
   IN CONST EFI_SIO_PROTOCOL         *This,
   IN CONST EFI_SIO_REGISTER_MODIFY  *Command,
   IN       UINTN                    NumberOfCommands
-);
+  );
 
 struct _EFI_SIO_PROTOCOL {
   EFI_SIO_REGISTER_ACCESS       RegisterAccess;
   EFI_SIO_GET_RESOURCES         GetResources;
   EFI_SIO_SET_RESOURCES         SetResources;
   EFI_SIO_POSSIBLE_RESOURCES    PossibleResources;
-  EFI_SIO_MODIFY Modify;
+  EFI_SIO_MODIFY                Modify;
 };
 
-extern EFI_GUID gEfiSioProtocolGuid;
+extern EFI_GUID  gEfiSioProtocolGuid;
 
 #endif // __EFI_SUPER_IO_PROTOCOL_H__

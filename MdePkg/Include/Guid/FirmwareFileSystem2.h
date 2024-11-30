@@ -27,8 +27,7 @@
 #define EFI_FFS_VOLUME_TOP_FILE_GUID \
   { 0x1BA0062E, 0xC779, 0x4582, { 0x85, 0x66, 0x33, 0x6A, 0xE8, 0xF7, 0x8F, 0x9 } }
 
-
-extern EFI_GUID gEfiFirmwareFileSystem2Guid;
-extern EFI_GUID gEfiFirmwareVolumeTopFileGuid;
+extern EFI_GUID  gEfiFirmwareFileSystem2Guid;
+extern EFI_GUID  gEfiFirmwareVolumeTopFileGuid;
 
 #endif

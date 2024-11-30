@@ -8,7 +8,10 @@
 
 #include "BaseLibInternals.h"
 
-extern VOID RiscVCpuBreakpoint (VOID);
+extern VOID
+RiscVCpuBreakpoint (
+  VOID
+  );
 
 /**
   Generates a breakpoint on the CPU.

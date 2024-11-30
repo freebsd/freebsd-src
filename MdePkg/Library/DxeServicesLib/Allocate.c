@@ -33,8 +33,8 @@ AllocatePeiAccessiblePages (
   IN UINTN            Pages
   )
 {
-  EFI_STATUS                  Status;
-  EFI_PHYSICAL_ADDRESS        Memory;
+  EFI_STATUS            Status;
+  EFI_PHYSICAL_ADDRESS  Memory;
 
   if (Pages == 0) {
     return NULL;
@@ -44,5 +44,6 @@ AllocatePeiAccessiblePages (
   if (EFI_ERROR (Status)) {
     return NULL;
   }
+
   return (VOID *)(UINTN)Memory;
 }

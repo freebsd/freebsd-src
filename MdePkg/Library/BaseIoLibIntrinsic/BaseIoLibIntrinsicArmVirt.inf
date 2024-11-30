@@ -1,7 +1,7 @@
 ## @file
 #  Instance of I/O Library using KVM/ARM safe assembler routines
 #
-#  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2007 - 2021, Intel Corporation. All rights reserved.<BR>
 #  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 #  Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 #  Copyright (c) 2018, Linaro, Ltd. All rights reserved.<BR>
@@ -31,7 +31,6 @@
 [Sources.ARM]
   IoLibArmVirt.c
   Arm/ArmVirtMmio.S       | GCC
-  Arm/ArmVirtMmio.asm     | RVCT
 
 [Sources.AARCH64]
   IoLibArmVirt.c
@@ -44,3 +43,4 @@
 [LibraryClasses]
   DebugLib
   BaseLib
+  RegisterFilterLib

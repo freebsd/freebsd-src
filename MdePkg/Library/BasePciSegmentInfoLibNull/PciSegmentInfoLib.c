@@ -2,7 +2,7 @@
   Default PCI Segment Information Library that returns one segment whose
   segment base address equals to PcdPciExpressBaseAddress.
 
-  Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2017 - 2020, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -21,6 +21,7 @@
   @retval A callee owned array holding the segment information.
 **/
 PCI_SEGMENT_INFO *
+EFIAPI
 GetPciSegmentInfo (
   UINTN  *Count
   )

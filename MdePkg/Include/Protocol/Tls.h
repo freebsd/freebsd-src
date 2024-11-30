@@ -114,8 +114,8 @@ typedef enum {
 ///       SSL2.0 is obsolete and should not be used.
 ///
 typedef struct {
-  UINT8                         Major;
-  UINT8                         Minor;
+  UINT8    Major;
+  UINT8    Minor;
 } EFI_TLS_VERSION;
 
 ///
@@ -134,8 +134,8 @@ typedef enum {
 ///
 #pragma pack (1)
 typedef struct {
-  UINT8                         Data1;
-  UINT8                         Data2;
+  UINT8    Data1;
+  UINT8    Data2;
 } EFI_TLS_CIPHER;
 #pragma pack ()
 
@@ -152,9 +152,9 @@ typedef UINT8 EFI_TLS_COMPRESSION;
 ///
 #pragma pack (1)
 typedef struct {
-  UINT16                        ExtensionType;
-  UINT16                        Length;
-  UINT8                         Data[1];
+  UINT16    ExtensionType;
+  UINT16    Length;
+  UINT8     Data[1];
 } EFI_TLS_EXTENSION;
 #pragma pack ()
 
@@ -163,17 +163,17 @@ typedef struct {
 /// Use either EFI_TLS_VERIFY_NONE or EFI_TLS_VERIFY_PEER, the last two options
 /// are 'ORed' with EFI_TLS_VERIFY_PEER if they are desired.
 ///
-typedef UINT32  EFI_TLS_VERIFY;
+typedef UINT32 EFI_TLS_VERIFY;
 ///
 /// No certificates will be sent or the TLS/SSL handshake will be continued regardless
 /// of the certificate verification result.
 ///
-#define EFI_TLS_VERIFY_NONE                  0x0
+#define EFI_TLS_VERIFY_NONE  0x0
 ///
 /// The TLS/SSL handshake is immediately terminated with an alert message containing
 /// the reason for the certificate verification failure.
 ///
-#define EFI_TLS_VERIFY_PEER                  0x1
+#define EFI_TLS_VERIFY_PEER  0x1
 ///
 /// EFI_TLS_VERIFY_FAIL_IF_NO_PEER_CERT is only meaningful in the server mode.
 /// TLS session will fail if client certificate is absent.
@@ -183,7 +183,7 @@ typedef UINT32  EFI_TLS_VERIFY;
 /// TLS session only verify client once, and doesn't request certificate during
 /// re-negotiation.
 ///
-#define EFI_TLS_VERIFY_CLIENT_ONCE           0x4
+#define EFI_TLS_VERIFY_CLIENT_ONCE  0x4
 
 ///
 /// EFI_TLS_VERIFY_HOST_FLAG
@@ -193,43 +193,43 @@ typedef UINT32 EFI_TLS_VERIFY_HOST_FLAG;
 /// There is no additional flags set for hostname validation.
 /// Wildcards are supported and they match only in the left-most label.
 ///
-#define EFI_TLS_VERIFY_FLAG_NONE                    0x00
+#define EFI_TLS_VERIFY_FLAG_NONE  0x00
 ///
 /// Always check the Subject Distinguished Name (DN) in the peer certificate even if the
 /// certificate contains Subject Alternative Name (SAN).
 ///
-#define EFI_TLS_VERIFY_FLAG_ALWAYS_CHECK_SUBJECT    0x01
+#define EFI_TLS_VERIFY_FLAG_ALWAYS_CHECK_SUBJECT  0x01
 ///
 /// Disable the match of all wildcards.
 ///
-#define EFI_TLS_VERIFY_FLAG_NO_WILDCARDS            0x02
+#define EFI_TLS_VERIFY_FLAG_NO_WILDCARDS  0x02
 ///
 /// Disable the "*" as wildcard in labels that have a prefix or suffix (e.g. "www*" or "*www").
 ///
-#define EFI_TLS_VERIFY_FLAG_NO_PARTIAL_WILDCARDS    0x04
+#define EFI_TLS_VERIFY_FLAG_NO_PARTIAL_WILDCARDS  0x04
 ///
 /// Allow the "*" to match more than one labels. Otherwise, only matches a single label.
 ///
-#define EFI_TLS_VERIFY_FLAG_MULTI_LABEL_WILDCARDS   0x08
+#define EFI_TLS_VERIFY_FLAG_MULTI_LABEL_WILDCARDS  0x08
 ///
 /// Restrict to only match direct child sub-domains which start with ".".
 /// For example, a name of ".example.com" would match "www.example.com" with this flag,
 /// but would not match "www.sub.example.com".
 ///
-#define EFI_TLS_VERIFY_FLAG_SINGLE_LABEL_SUBDOMAINS 0x10
+#define EFI_TLS_VERIFY_FLAG_SINGLE_LABEL_SUBDOMAINS  0x10
 ///
 /// Never check the Subject Distinguished Name (DN) even there is no
 /// Subject Alternative Name (SAN) in the certificate.
 ///
-#define EFI_TLS_VERIFY_FLAG_NEVER_CHECK_SUBJECT     0x20
+#define EFI_TLS_VERIFY_FLAG_NEVER_CHECK_SUBJECT  0x20
 
 ///
 /// EFI_TLS_VERIFY_HOST
 ///
 #pragma pack (1)
 typedef struct {
-  EFI_TLS_VERIFY_HOST_FLAG Flags;
-  CHAR8                    *HostName;
+  EFI_TLS_VERIFY_HOST_FLAG    Flags;
+  CHAR8                       *HostName;
 } EFI_TLS_VERIFY_HOST;
 #pragma pack ()
 
@@ -240,8 +240,8 @@ typedef struct {
 ///
 #pragma pack (1)
 typedef struct {
-  UINT32                        GmtUnixTime;
-  UINT8                         RandomBytes[28];
+  UINT32    GmtUnixTime;
+  UINT8     RandomBytes[28];
 } EFI_TLS_RANDOM;
 #pragma pack ()
 
@@ -252,7 +252,7 @@ typedef struct {
 ///
 #pragma pack (1)
 typedef struct {
-  UINT8                         Data[48];
+  UINT8    Data[48];
 } EFI_TLS_MASTER_SECRET;
 #pragma pack ()
 
@@ -263,8 +263,8 @@ typedef struct {
 #define MAX_TLS_SESSION_ID_LENGTH  32
 #pragma pack (1)
 typedef struct {
-  UINT16                        Length;
-  UINT8                         Data[MAX_TLS_SESSION_ID_LENGTH];
+  UINT16    Length;
+  UINT8     Data[MAX_TLS_SESSION_ID_LENGTH];
 } EFI_TLS_SESSION_ID;
 #pragma pack ()
 
@@ -305,7 +305,6 @@ typedef enum {
   EfiTlsSessionError,
 
   EfiTlsSessionStateMaximum
-
 } EFI_TLS_SESSION_STATE;
 
 ///
@@ -315,11 +314,11 @@ typedef struct {
   ///
   /// Length of data buffer in the fragment.
   ///
-  UINT32                        FragmentLength;
+  UINT32    FragmentLength;
   ///
   /// Pointer to the data buffer in the fragment.
   ///
-  VOID                          *FragmentBuffer;
+  VOID      *FragmentBuffer;
 } EFI_TLS_FRAGMENT_DATA;
 
 ///
@@ -363,7 +362,7 @@ typedef enum {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TLS_SET_SESSION_DATA) (
+(EFIAPI *EFI_TLS_SET_SESSION_DATA)(
   IN EFI_TLS_PROTOCOL                *This,
   IN EFI_TLS_SESSION_DATA_TYPE       DataType,
   IN VOID                            *Data,
@@ -395,10 +394,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TLS_GET_SESSION_DATA) (
+(EFIAPI *EFI_TLS_GET_SESSION_DATA)(
   IN EFI_TLS_PROTOCOL                *This,
   IN EFI_TLS_SESSION_DATA_TYPE       DataType,
-  IN OUT VOID                        *Data,  OPTIONAL
+  IN OUT VOID                        *Data   OPTIONAL,
   IN OUT UINTN                       *DataSize
   );
 
@@ -442,11 +441,11 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TLS_BUILD_RESPONSE_PACKET) (
+(EFIAPI *EFI_TLS_BUILD_RESPONSE_PACKET)(
   IN EFI_TLS_PROTOCOL                *This,
-  IN UINT8                           *RequestBuffer, OPTIONAL
-  IN UINTN                           RequestSize, OPTIONAL
-  OUT UINT8                          *Buffer, OPTIONAL
+  IN UINT8                           *RequestBuffer  OPTIONAL,
+  IN UINTN                           RequestSize  OPTIONAL,
+  OUT UINT8                          *Buffer  OPTIONAL,
   IN OUT UINTN                       *BufferSize
   );
 
@@ -486,7 +485,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TLS_PROCESS_PACKET) (
+(EFIAPI *EFI_TLS_PROCESS_PACKET)(
   IN EFI_TLS_PROTOCOL                *This,
   IN OUT EFI_TLS_FRAGMENT_DATA       **FragmentTable,
   IN UINT32                          *FragmentCount,
@@ -498,14 +497,13 @@ EFI_STATUS
 /// For detail of TLS, please refer to TLS related RFC.
 ///
 struct _EFI_TLS_PROTOCOL {
-  EFI_TLS_SET_SESSION_DATA           SetSessionData;
-  EFI_TLS_GET_SESSION_DATA           GetSessionData;
-  EFI_TLS_BUILD_RESPONSE_PACKET      BuildResponsePacket;
-  EFI_TLS_PROCESS_PACKET             ProcessPacket;
+  EFI_TLS_SET_SESSION_DATA         SetSessionData;
+  EFI_TLS_GET_SESSION_DATA         GetSessionData;
+  EFI_TLS_BUILD_RESPONSE_PACKET    BuildResponsePacket;
+  EFI_TLS_PROCESS_PACKET           ProcessPacket;
 };
 
-extern EFI_GUID gEfiTlsServiceBindingProtocolGuid;
-extern EFI_GUID gEfiTlsProtocolGuid;
+extern EFI_GUID  gEfiTlsServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiTlsProtocolGuid;
 
-#endif  // __EFI_TLS_PROTOCOL_H__
-
+#endif // __EFI_TLS_PROTOCOL_H__

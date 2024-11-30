@@ -20,27 +20,27 @@ typedef struct {
   ///
   /// The size of the EFI_FILE_SYSTEM_INFO structure, including the Null-terminated VolumeLabel string.
   ///
-  UINT64  Size;
+  UINT64     Size;
   ///
   /// TRUE if the volume only supports read access.
   ///
-  BOOLEAN ReadOnly;
+  BOOLEAN    ReadOnly;
   ///
   /// The number of bytes managed by the file system.
   ///
-  UINT64  VolumeSize;
+  UINT64     VolumeSize;
   ///
   /// The number of available bytes for use by the file system.
   ///
-  UINT64  FreeSpace;
+  UINT64     FreeSpace;
   ///
   /// The nominal block size by which files are typically grown.
   ///
-  UINT32  BlockSize;
+  UINT32     BlockSize;
   ///
   /// The Null-terminated string that is the volume's label.
   ///
-  CHAR16  VolumeLabel[1];
+  CHAR16     VolumeLabel[1];
 } EFI_FILE_SYSTEM_INFO;
 
 ///
@@ -52,6 +52,6 @@ typedef struct {
 ///
 #define SIZE_OF_EFI_FILE_SYSTEM_INFO  OFFSET_OF (EFI_FILE_SYSTEM_INFO, VolumeLabel)
 
-extern EFI_GUID gEfiFileSystemInfoGuid;
+extern EFI_GUID  gEfiFileSystemInfoGuid;
 
 #endif

@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -25,7 +22,7 @@
 VOID
 EFIAPI
 AsmReadIdtr (
-  OUT     IA32_DESCRIPTOR           *Idtr
+  OUT     IA32_DESCRIPTOR  *Idtr
   )
 {
   ASSERT (Idtr != NULL);

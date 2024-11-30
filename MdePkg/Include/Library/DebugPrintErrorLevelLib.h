@@ -5,6 +5,7 @@
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
+
 #ifndef _DEBUG_PRINT_ERROR_LEVEL_LIB_H_
 #define _DEBUG_PRINT_ERROR_LEVEL_LIB_H_
 
@@ -34,4 +35,5 @@ EFIAPI
 SetDebugPrintErrorLevel (
   UINT32  ErrorLevel
   );
+
 #endif

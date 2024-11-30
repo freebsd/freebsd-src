@@ -38,17 +38,29 @@ ASM_PFX(InternalMemSetMem64):
     add     edx, 8
     dec     ecx
 .0:
-    shr     ecx, 1
+    push    ebx
+    mov     ebx, ecx
+    and     ebx, 7
+    shr     ecx, 3
     jz      @SetQwords
     movlhps xmm0, xmm0
 .1:
     movntdq [edx], xmm0
-    lea     edx, [edx + 16]
+    movntdq [edx + 16], xmm0
+    movntdq [edx + 32], xmm0
+    movntdq [edx + 48], xmm0
+    lea     edx, [edx + 64]
     loop    .1
     mfence
 @SetQwords:
-    jnc     .2
+    test    ebx, ebx
+    jz .3
+    mov     ecx, ebx
+.2
     movq    qword [edx], xmm0
-.2:
+    lea     edx, [edx + 8]
+    loop    .2
+.3:
+    pop ebx
     ret
 

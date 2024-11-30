@@ -40,7 +40,7 @@ typedef struct _EFI_PEI_GRAPHICS_PPI EFI_PEI_GRAPHICS_PPI;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_PEI_GRAPHICS_INIT) (
+(EFIAPI *EFI_PEI_GRAPHICS_INIT)(
   IN VOID                            *GraphicsPolicyPtr
   );
 
@@ -61,7 +61,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_PEI_GRAPHICS_GET_MODE) (
+(EFIAPI *EFI_PEI_GRAPHICS_GET_MODE)(
   IN OUT EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE  *Mode
   );
 
@@ -70,10 +70,10 @@ EFI_STATUS
 /// firmware modules.
 ///
 struct _EFI_PEI_GRAPHICS_PPI {
-  EFI_PEI_GRAPHICS_INIT              GraphicsPpiInit;
-  EFI_PEI_GRAPHICS_GET_MODE          GraphicsPpiGetMode;
+  EFI_PEI_GRAPHICS_INIT        GraphicsPpiInit;
+  EFI_PEI_GRAPHICS_GET_MODE    GraphicsPpiGetMode;
 };
 
-extern EFI_GUID gEfiPeiGraphicsPpiGuid;
+extern EFI_GUID  gEfiPeiGraphicsPpiGuid;
 
 #endif

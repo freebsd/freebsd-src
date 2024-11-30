@@ -27,8 +27,8 @@
 UINT32
 EFIAPI
 RRotU32 (
-  IN      UINT32                    Operand,
-  IN      UINTN                     Count
+  IN      UINT32  Operand,
+  IN      UINTN   Count
   )
 {
   ASSERT (Count < 32);

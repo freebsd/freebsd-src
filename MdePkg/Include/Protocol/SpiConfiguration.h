@@ -2,10 +2,11 @@
   This file defines the SPI Configuration Protocol.
 
   Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-    This Protocol was introduced in UEFI PI Specification 1.6.
+    This Protocol was introduced in UEFI PI Specification 1.8 A.
 
 **/
 
@@ -54,7 +55,7 @@ typedef struct _EFI_SPI_PERIPHERAL EFI_SPI_PERIPHERAL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_SPI_CHIP_SELECT) (
+(EFIAPI *EFI_SPI_CHIP_SELECT)(
   IN CONST EFI_SPI_PERIPHERAL  *SpiPeripheral,
   IN BOOLEAN                   PinValue
   );
@@ -85,7 +86,7 @@ EFI_STATUS
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_SPI_CLOCK) (
+(EFIAPI *EFI_SPI_CLOCK)(
   IN CONST EFI_SPI_PERIPHERAL  *SpiPeripheral,
   IN UINT32                    *ClockHz
   );
@@ -99,31 +100,31 @@ typedef struct _EFI_SPI_PART {
   ///
   /// A Unicode string specifying the SPI chip vendor.
   ///
-  CONST CHAR16 *Vendor;
+  CONST CHAR16    *Vendor;
 
   ///
   /// A Unicode string specifying the SPI chip part number.
   ///
-  CONST CHAR16 *PartNumber;
+  CONST CHAR16    *PartNumber;
 
   ///
   /// The minimum SPI bus clock frequency used to access this chip. This value
   /// may be specified in the chip's datasheet. If not, use the value of zero.
   ///
-  UINT32       MinClockHz;
+  UINT32          MinClockHz;
 
   ///
   /// The maximum SPI bus clock frequency used to access this chip. This value
   /// is found in the chip's datasheet.
   ///
-  UINT32       MaxClockHz;
+  UINT32          MaxClockHz;
 
   ///
   /// Specify the polarity of the chip select pin. This value can be found in
   /// the SPI chip's datasheet. Specify TRUE when a one asserts the chip select
-  ///and FALSE when a zero asserts the chip select.
+  /// and FALSE when a zero asserts the chip select.
   ///
-  BOOLEAN      ChipSelectPolarity;
+  BOOLEAN         ChipSelectPolarity;
 } EFI_SPI_PART;
 
 ///
@@ -137,26 +138,26 @@ typedef struct _EFI_SPI_BUS {
   ///
   /// A Unicode string describing the SPI bus
   ///
-  CONST CHAR16                   *FriendlyName;
+  CONST CHAR16                      *FriendlyName;
 
   ///
   /// Address of the first EFI_SPI_PERIPHERAL data structure connected to this
   /// bus. Specify NULL if there are no SPI peripherals connected to this bus.
   ///
-  CONST EFI_SPI_PERIPHERAL       *Peripherallist;
+  CONST EFI_SPI_PERIPHERAL          *Peripherallist;
 
   ///
   /// Address of an EFI_DEVICE_PATH_PROTOCOL data structure which uniquely
   /// describes the SPI controller.
   ///
-  CONST EFI_DEVICE_PATH_PROTOCOL *ControllerPath;
+  CONST EFI_DEVICE_PATH_PROTOCOL    *ControllerPath;
 
   ///
   /// Address of the routine which controls the clock used by the SPI bus for
   /// this SPI peripheral. The SPI host co ntroller's clock routine is called
   /// when this value is set to NULL.
   ///
-  EFI_SPI_CLOCK                  Clock;
+  EFI_SPI_CLOCK                     Clock;
 
   ///
   /// Address of a data structure containing the additional values which
@@ -165,8 +166,15 @@ typedef struct _EFI_SPI_BUS {
   /// host's SPI controller driver. When Clock is not NULL, the declaration for
   /// this data structure is provided by the board layer.
   ///
-  VOID                           *ClockParameter;
+  VOID    *ClockParameter;
 } EFI_SPI_BUS;
+
+///
+/// Definitions of SPI Part Attributes.
+///
+#define SPI_PART_SUPPORTS_2_BIT_DATA_BUS_WIDTH  BIT0
+#define SPI_PART_SUPPORTS_4_BIT_DATA_BUS_WIDTH  BIT1
+#define SPI_PART_SUPPORTS_8_BIT_DATA_BUS_WIDTH  BIT2
 
 ///
 /// The EFI_SPI_PERIPHERAL data structure describes how a specific block of
@@ -180,12 +188,12 @@ struct _EFI_SPI_PERIPHERAL {
   /// Address of the next EFI_SPI_PERIPHERAL data structure. Specify NULL if
   /// the current data structure is the last one on the SPI bus.
   ///
-  CONST EFI_SPI_PERIPHERAL *NextSpiPeripheral;
+  CONST EFI_SPI_PERIPHERAL    *NextSpiPeripheral;
 
   ///
   /// A unicode string describing the function of the SPI part.
   ///
-  CONST CHAR16             *FriendlyName;
+  CONST CHAR16                *FriendlyName;
 
   ///
   /// Address of a GUID provided by the vendor of the SPI peripheral driver.
@@ -195,32 +203,32 @@ struct _EFI_SPI_PERIPHERAL {
   /// This reduces the comparison logic in the SPI peripheral driver's
   /// Supported routine.
   ///
-  CONST GUID               *SpiPeripheralDriverGuid;
+  CONST GUID            *SpiPeripheralDriverGuid;
 
   ///
   /// The address of an EFI_SPI_PART data structure which describes this chip.
   ///
-  CONST EFI_SPI_PART       *SpiPart;
+  CONST EFI_SPI_PART    *SpiPart;
 
   ///
   /// The maximum clock frequency is specified in the EFI_SPI_P ART. When this
   /// this value is non-zero and less than the value in the EFI_SPI_PART then
   /// this value is used for the maximum clock frequency for the SPI part.
   ///
-  UINT32                   MaxClockHz;
+  UINT32                MaxClockHz;
 
   ///
   /// Specify the idle value of the clock as found in the datasheet.
   /// Use zero (0) if the clock'S idle value is low or one (1) if the the
   /// clock's idle value is high.
   ///
-  BOOLEAN                  ClockPolarity;
+  BOOLEAN               ClockPolarity;
 
   ///
   /// Specify the clock delay after chip select. Specify zero (0) to delay an
   /// entire clock cycle or one (1) to delay only half a clock cycle.
   ///
-  BOOLEAN                  ClockPhase;
+  BOOLEAN               ClockPhase;
 
   ///
   /// SPI peripheral attributes, select zero or more of:
@@ -229,27 +237,27 @@ struct _EFI_SPI_PERIPHERAL {
   /// * SPI_PART_SUPPORTS_4_B1T_DATA_BUS_W1DTH - The SPI peripheral is wired to
   ///   support a 4-bit data bus
   ///
-  UINT32                   Attributes;
+  UINT32                 Attributes;
 
   ///
   /// Address of a vendor specific data structure containing additional board
   /// configuration details related to the SPI chip. The SPI peripheral layer
   /// uses this data structure when configuring the chip.
   ///
-  CONST VOID               *ConfigurationData;
+  CONST VOID             *ConfigurationData;
 
   ///
   /// The address of an EFI_SPI_BUS data structure which describes the SPI bus
   /// to which this chip is connected.
   ///
-  CONST EFI_SPI_BUS        *SpiBus;
+  CONST EFI_SPI_BUS      *SpiBus;
 
   ///
   /// Address of the routine which controls the chip select pin for this SPI
   /// peripheral. Call the SPI host controller's chip select routine when this
   /// value is set to NULL.
   ///
-  EFI_SPI_CHIP_SELECT      ChipSelect;
+  EFI_SPI_CHIP_SELECT    ChipSelect;
 
   ///
   /// Address of a data structure containing the additional values which
@@ -260,7 +268,7 @@ struct _EFI_SPI_PERIPHERAL {
   /// control. When Chipselect is not NULL, the declaration for this data
   /// structure is provided by the board layer.
   ///
-  VOID                     *ChipSelectParameter;
+  VOID    *ChipSelectParameter;
 };
 
 ///
@@ -274,14 +282,14 @@ typedef struct _EFI_SPI_CONFIGURATION_PROTOCOL {
   ///
   /// The number of SPI busses on the board.
   ///
-  UINT32                          BusCount;
+  UINT32                             BusCount;
 
   ///
   /// The address of an array of EFI_SPI_BUS data structure addresses.
   ///
-  CONST EFI_SPI_BUS *CONST *CONST Buslist;
+  CONST EFI_SPI_BUS *CONST *CONST    Buslist;
 } EFI_SPI_CONFIGURATION_PROTOCOL;
 
-extern EFI_GUID gEfiSpiConfigurationProtocolGuid;
+extern EFI_GUID  gEfiSpiConfigurationProtocolGuid;
 
 #endif // __SPI_CONFIGURATION_PROTOCOL_H__

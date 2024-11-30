@@ -33,4 +33,3 @@ SmmIsMmioValid (
   );
 
 #endif
-

@@ -18,10 +18,10 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 typedef struct _EFI_TCG_PROTOCOL EFI_TCG_PROTOCOL;
 
 typedef struct {
-  UINT8  Major;
-  UINT8  Minor;
-  UINT8  RevMajor;
-  UINT8  RevMinor;
+  UINT8    Major;
+  UINT8    Minor;
+  UINT8    RevMajor;
+  UINT8    RevMinor;
 } TCG_VERSION;
 
 typedef struct _TCG_EFI_BOOT_SERVICE_CAPABILITY {
@@ -34,7 +34,7 @@ typedef struct _TCG_EFI_BOOT_SERVICE_CAPABILITY {
   BOOLEAN        TPMDeactivatedFlag;  /// 01h = TPM currently deactivated.
 } TCG_EFI_BOOT_SERVICE_CAPABILITY;
 
-typedef UINT32   TCG_ALGORITHM_ID;
+typedef UINT32 TCG_ALGORITHM_ID;
 
 /**
   This service provides EFI protocol capability information, state information
@@ -62,7 +62,7 @@ EFI_STATUS
 (EFIAPI *EFI_TCG_STATUS_CHECK)(
   IN      EFI_TCG_PROTOCOL          *This,
   OUT     TCG_EFI_BOOT_SERVICE_CAPABILITY
-                                    *ProtocolCapability,
+  *ProtocolCapability,
   OUT     UINT32                    *TCGFeatureFlags,
   OUT     EFI_PHYSICAL_ADDRESS      *EventLogLocation,
   OUT     EFI_PHYSICAL_ADDRESS      *EventLogLastEntry
@@ -176,20 +176,20 @@ EFI_STATUS
   IN      TCG_ALGORITHM_ID          AlgorithmId,
   IN OUT  TCG_PCR_EVENT             *TCGLogData,
   IN OUT  UINT32                    *EventNumber,
-     OUT  EFI_PHYSICAL_ADDRESS      *EventLogLastEntry
+  OUT  EFI_PHYSICAL_ADDRESS      *EventLogLastEntry
   );
 
 ///
 /// The EFI_TCG Protocol abstracts TCG activity.
 ///
 struct _EFI_TCG_PROTOCOL {
-  EFI_TCG_STATUS_CHECK              StatusCheck;
-  EFI_TCG_HASH_ALL                  HashAll;
-  EFI_TCG_LOG_EVENT                 LogEvent;
-  EFI_TCG_PASS_THROUGH_TO_TPM       PassThroughToTpm;
-  EFI_TCG_HASH_LOG_EXTEND_EVENT     HashLogExtendEvent;
+  EFI_TCG_STATUS_CHECK             StatusCheck;
+  EFI_TCG_HASH_ALL                 HashAll;
+  EFI_TCG_LOG_EVENT                LogEvent;
+  EFI_TCG_PASS_THROUGH_TO_TPM      PassThroughToTpm;
+  EFI_TCG_HASH_LOG_EXTEND_EVENT    HashLogExtendEvent;
 };
 
-extern EFI_GUID gEfiTcgProtocolGuid;
+extern EFI_GUID  gEfiTcgProtocolGuid;
 
 #endif

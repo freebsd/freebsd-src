@@ -29,6 +29,7 @@ GCC_ASM_EXPORT(MmioWrite64Internal)
 //  @return The value read.
 //
 ASM_PFX(MmioRead8Internal):
+  AARCH64_BTI(c)
   ldrb    w0, [x0]
   dmb     ld
   ret
@@ -44,6 +45,7 @@ ASM_PFX(MmioRead8Internal):
 //  @param  Value   The value to write to the MMIO register.
 //
 ASM_PFX(MmioWrite8Internal):
+  AARCH64_BTI(c)
   dmb     st
   strb    w1, [x0]
   ret
@@ -60,6 +62,7 @@ ASM_PFX(MmioWrite8Internal):
 //  @return The value read.
 //
 ASM_PFX(MmioRead16Internal):
+  AARCH64_BTI(c)
   ldrh    w0, [x0]
   dmb     ld
   ret
@@ -75,6 +78,7 @@ ASM_PFX(MmioRead16Internal):
 //  @param  Value   The value to write to the MMIO register.
 //
 ASM_PFX(MmioWrite16Internal):
+  AARCH64_BTI(c)
   dmb     st
   strh    w1, [x0]
   ret
@@ -91,6 +95,7 @@ ASM_PFX(MmioWrite16Internal):
 //  @return The value read.
 //
 ASM_PFX(MmioRead32Internal):
+  AARCH64_BTI(c)
   ldr     w0, [x0]
   dmb     ld
   ret
@@ -106,6 +111,7 @@ ASM_PFX(MmioRead32Internal):
 //  @param  Value   The value to write to the MMIO register.
 //
 ASM_PFX(MmioWrite32Internal):
+  AARCH64_BTI(c)
   dmb     st
   str     w1, [x0]
   ret
@@ -122,6 +128,7 @@ ASM_PFX(MmioWrite32Internal):
 //  @return The value read.
 //
 ASM_PFX(MmioRead64Internal):
+  AARCH64_BTI(c)
   ldr     x0, [x0]
   dmb     ld
   ret
@@ -137,6 +144,7 @@ ASM_PFX(MmioRead64Internal):
 //  @param  Value   The value to write to the MMIO register.
 //
 ASM_PFX(MmioWrite64Internal):
+  AARCH64_BTI(c)
   dmb     st
   str     x1, [x0]
   ret

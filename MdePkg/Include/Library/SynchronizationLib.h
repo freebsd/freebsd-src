@@ -12,8 +12,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 ///
 /// Definitions for SPIN_LOCK
 ///
-typedef volatile UINTN              SPIN_LOCK;
-
+typedef volatile UINTN SPIN_LOCK;
 
 /**
   Retrieves the architecture-specific spin lock alignment requirements for
@@ -37,7 +36,6 @@ GetSpinLockProperties (
   VOID
   );
 
-
 /**
   Initializes a spin lock to the released state and returns the spin lock.
 
@@ -57,9 +55,8 @@ GetSpinLockProperties (
 SPIN_LOCK *
 EFIAPI
 InitializeSpinLock (
-  OUT      SPIN_LOCK                 *SpinLock
+  OUT      SPIN_LOCK  *SpinLock
   );
-
 
 /**
   Waits until a spin lock can be placed in the acquired state.
@@ -84,9 +81,8 @@ InitializeSpinLock (
 SPIN_LOCK *
 EFIAPI
 AcquireSpinLock (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   );
-
 
 /**
   Attempts to place a spin lock in the acquired state.
@@ -108,9 +104,8 @@ AcquireSpinLock (
 BOOLEAN
 EFIAPI
 AcquireSpinLockOrFail (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   );
-
 
 /**
   Releases a spin lock.
@@ -129,9 +124,8 @@ AcquireSpinLockOrFail (
 SPIN_LOCK *
 EFIAPI
 ReleaseSpinLock (
-  IN OUT  SPIN_LOCK                 *SpinLock
+  IN OUT  SPIN_LOCK  *SpinLock
   );
-
 
 /**
   Performs an atomic increment of a 32-bit unsigned integer.
@@ -150,9 +144,8 @@ ReleaseSpinLock (
 UINT32
 EFIAPI
 InterlockedIncrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   );
-
 
 /**
   Performs an atomic decrement of a 32-bit unsigned integer.
@@ -171,9 +164,8 @@ InterlockedIncrement (
 UINT32
 EFIAPI
 InterlockedDecrement (
-  IN      volatile UINT32           *Value
+  IN      volatile UINT32  *Value
   );
-
 
 /**
   Performs an atomic compare exchange operation on a 16-bit unsigned integer.
@@ -196,9 +188,9 @@ InterlockedDecrement (
 UINT16
 EFIAPI
 InterlockedCompareExchange16 (
-  IN OUT  volatile UINT16           *Value,
-  IN      UINT16                    CompareValue,
-  IN      UINT16                    ExchangeValue
+  IN OUT  volatile UINT16  *Value,
+  IN      UINT16           CompareValue,
+  IN      UINT16           ExchangeValue
   );
 
 /**
@@ -223,11 +215,10 @@ InterlockedCompareExchange16 (
 UINT32
 EFIAPI
 InterlockedCompareExchange32 (
-  IN OUT  volatile UINT32           *Value,
-  IN      UINT32                    CompareValue,
-  IN      UINT32                    ExchangeValue
+  IN OUT  volatile UINT32  *Value,
+  IN      UINT32           CompareValue,
+  IN      UINT32           ExchangeValue
   );
-
 
 /**
   Performs an atomic compare exchange operation on a 64-bit unsigned integer.
@@ -250,11 +241,10 @@ InterlockedCompareExchange32 (
 UINT64
 EFIAPI
 InterlockedCompareExchange64 (
-  IN OUT  volatile UINT64           *Value,
-  IN      UINT64                    CompareValue,
-  IN      UINT64                    ExchangeValue
+  IN OUT  volatile UINT64  *Value,
+  IN      UINT64           CompareValue,
+  IN      UINT64           ExchangeValue
   );
-
 
 /**
   Performs an atomic compare exchange operation on a pointer value.
@@ -277,11 +267,9 @@ InterlockedCompareExchange64 (
 VOID *
 EFIAPI
 InterlockedCompareExchangePointer (
-  IN OUT  VOID                      * volatile *Value,
-  IN      VOID                      *CompareValue,
-  IN      VOID                      *ExchangeValue
+  IN OUT  VOID                      *volatile  *Value,
+  IN      VOID                                 *CompareValue,
+  IN      VOID                                 *ExchangeValue
   );
 
 #endif
-
-

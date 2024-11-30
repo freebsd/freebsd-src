@@ -34,51 +34,51 @@ typedef struct {
   ///
   /// Length in bytes of this entry.
   ///
-  UINT32                      Size;
+  UINT32     Size;
 
   ///
   /// Set to TRUE if this entry is a "deny" entry.
   /// Set to FALSE if this entry is a "normal" entry.
   ///
-  BOOLEAN                     DenyFlag;
+  BOOLEAN    DenyFlag;
 
   ///
   /// Set to TRUE if this entry will not time out.
   /// Set to FALSE if this entry will time out.
   ///
-  BOOLEAN                     StaticFlag;
+  BOOLEAN    StaticFlag;
 
   ///
   /// 16-bit ARP hardware identifier number.
   ///
-  UINT16                      HwAddressType;
+  UINT16     HwAddressType;
 
   ///
   /// 16-bit protocol type number.
   ///
-  UINT16                      SwAddressType;
+  UINT16     SwAddressType;
 
   ///
   /// The length of the hardware address.
   ///
-  UINT8                       HwAddressLength;
+  UINT8      HwAddressLength;
 
   ///
   /// The length of the protocol address.
   ///
-  UINT8                       SwAddressLength;
+  UINT8      SwAddressLength;
 } EFI_ARP_FIND_DATA;
 
 typedef struct {
   ///
   /// 16-bit protocol type number in host byte order.
   ///
-  UINT16                    SwAddressType;
+  UINT16    SwAddressType;
 
   ///
   /// The length in bytes of the station's protocol address to register.
   ///
-  UINT8                     SwAddressLength;
+  UINT8     SwAddressLength;
 
   ///
   /// The pointer to the first byte of the protocol address to register. For
@@ -86,29 +86,28 @@ typedef struct {
   /// StationAddress points to the first byte of this station's IP
   /// address stored in network byte order.
   ///
-  VOID                      *StationAddress;
+  VOID      *StationAddress;
 
   ///
   /// The timeout value in 100-ns units that is associated with each
   /// new dynamic ARP cache entry. If it is set to zero, the value is
   /// implementation-specific.
   ///
-  UINT32                    EntryTimeOut;
+  UINT32    EntryTimeOut;
 
   ///
   /// The number of retries before a MAC address is resolved. If it is
   /// set to zero, the value is implementation-specific.
   ///
-  UINT32                    RetryCount;
+  UINT32    RetryCount;
 
   ///
   /// The timeout value in 100-ns units that is used to wait for the ARP
   /// reply packet or the timeout value between two retries. Set to zero
   /// to use implementation-specific value.
   ///
-  UINT32                    RetryTimeOut;
+  UINT32    RetryTimeOut;
 } EFI_ARP_CONFIG_DATA;
-
 
 /**
   This function is used to assign a station address to the ARP cache for this instance
@@ -247,7 +246,6 @@ EFI_STATUS
   IN BOOLEAN                Refresh
   );
 
-
 /**
   This function removes specified ARP cache entries.
 
@@ -363,17 +361,16 @@ EFI_STATUS
 /// network hardware addresses.
 ///
 struct _EFI_ARP_PROTOCOL {
-  EFI_ARP_CONFIGURE         Configure;
-  EFI_ARP_ADD               Add;
-  EFI_ARP_FIND              Find;
-  EFI_ARP_DELETE            Delete;
-  EFI_ARP_FLUSH             Flush;
-  EFI_ARP_REQUEST           Request;
-  EFI_ARP_CANCEL            Cancel;
+  EFI_ARP_CONFIGURE    Configure;
+  EFI_ARP_ADD          Add;
+  EFI_ARP_FIND         Find;
+  EFI_ARP_DELETE       Delete;
+  EFI_ARP_FLUSH        Flush;
+  EFI_ARP_REQUEST      Request;
+  EFI_ARP_CANCEL       Cancel;
 };
 
-
-extern EFI_GUID gEfiArpServiceBindingProtocolGuid;
-extern EFI_GUID gEfiArpProtocolGuid;
+extern EFI_GUID  gEfiArpServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiArpProtocolGuid;
 
 #endif

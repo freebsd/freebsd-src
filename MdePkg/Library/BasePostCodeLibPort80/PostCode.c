@@ -38,26 +38,25 @@ PostCode (
   )
 {
   switch (PcdGet8 (PcdPort80DataWidth)) {
-  case 8:
-    IoWrite8 (0x80, (UINT8)(Value));
-    break;
-  case 16:
-    IoWrite16 (0x80, (UINT16)(Value));
-    break;
-  case 32:
-    IoWrite32 (0x80, Value);
-    break;
-  default:
-    //
-    // Assert on the invalid data width
-    //
-    ASSERT (FALSE);
-    break;
+    case 8:
+      IoWrite8 (0x80, (UINT8)(Value));
+      break;
+    case 16:
+      IoWrite16 (0x80, (UINT16)(Value));
+      break;
+    case 32:
+      IoWrite32 (0x80, Value);
+      break;
+    default:
+      //
+      // Assert on the invalid data width
+      //
+      ASSERT (FALSE);
+      break;
   }
 
   return Value;
 }
-
 
 /**
   Sends an 32-bit value to a POST and associated ASCII string.
@@ -94,7 +93,6 @@ PostCodeWithDescription (
   return Value;
 }
 
-
 /**
   Returns TRUE if POST Codes are enabled.
 
@@ -113,9 +111,8 @@ PostCodeEnabled (
   VOID
   )
 {
-  return (BOOLEAN) ((PcdGet8(PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_ENABLED) != 0);
+  return (BOOLEAN)((PcdGet8 (PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_ENABLED) != 0);
 }
-
 
 /**
   Returns TRUE if POST code descriptions are enabled.
@@ -135,5 +132,5 @@ PostCodeDescriptionEnabled (
   VOID
   )
 {
-  return (BOOLEAN) ((PcdGet8(PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_DESCRIPTION_ENABLED) != 0);
+  return (BOOLEAN)((PcdGet8 (PcdPostCodePropertyMask) & POST_CODE_PROPERTY_POST_CODE_DESCRIPTION_ENABLED) != 0);
 }

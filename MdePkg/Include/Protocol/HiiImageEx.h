@@ -235,14 +235,14 @@ EFI_STATUS
 /// Protocol which allows access to the images in the images database.
 ///
 struct _EFI_HII_IMAGE_EX_PROTOCOL {
-  EFI_HII_NEW_IMAGE_EX      NewImageEx;
-  EFI_HII_GET_IMAGE_EX      GetImageEx;
-  EFI_HII_SET_IMAGE_EX      SetImageEx;
-  EFI_HII_DRAW_IMAGE_EX     DrawImageEx;
-  EFI_HII_DRAW_IMAGE_ID_EX  DrawImageIdEx;
-  EFI_HII_GET_IMAGE_INFO    GetImageInfo;
+  EFI_HII_NEW_IMAGE_EX        NewImageEx;
+  EFI_HII_GET_IMAGE_EX        GetImageEx;
+  EFI_HII_SET_IMAGE_EX        SetImageEx;
+  EFI_HII_DRAW_IMAGE_EX       DrawImageEx;
+  EFI_HII_DRAW_IMAGE_ID_EX    DrawImageIdEx;
+  EFI_HII_GET_IMAGE_INFO      GetImageInfo;
 };
 
-extern EFI_GUID gEfiHiiImageExProtocolGuid;
+extern EFI_GUID  gEfiHiiImageExProtocolGuid;
 
 #endif

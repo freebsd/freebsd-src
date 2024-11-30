@@ -22,9 +22,9 @@
 
 typedef struct _EFI_BLUETOOTH_CONFIG_PROTOCOL EFI_BLUETOOTH_CONFIG_PROTOCOL;
 
-typedef UINT32      EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_TYPE;
-#define EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_CONNECTED    0x1
-#define EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_PAIRED       0x2
+typedef UINT32 EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_TYPE;
+#define EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_CONNECTED  0x1
+#define EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_PAIRED     0x2
 
 ///
 /// EFI_BLUETOOTH_SCAN_CALLBACK_INFORMATION
@@ -33,19 +33,19 @@ typedef struct {
   ///
   /// 48bit Bluetooth device address.
   ///
-  BLUETOOTH_ADDRESS         BDAddr;
+  BLUETOOTH_ADDRESS            BDAddr;
   ///
   /// State of the remote deive
   ///
-  UINT8                     RemoteDeviceState;
+  UINT8                        RemoteDeviceState;
   ///
   /// Bluetooth ClassOfDevice. See Bluetooth specification for detail.
   ///
-  BLUETOOTH_CLASS_OF_DEVICE ClassOfDevice;
+  BLUETOOTH_CLASS_OF_DEVICE    ClassOfDevice;
   ///
   /// Remote device name
   ///
-  UINT8                     RemoteDeviceName[BLUETOOTH_HCI_COMMAND_LOCAL_READABLE_NAME_MAX_SIZE];
+  UINT8                        RemoteDeviceName[BLUETOOTH_HCI_COMMAND_LOCAL_READABLE_NAME_MAX_SIZE];
 } EFI_BLUETOOTH_SCAN_CALLBACK_INFORMATION;
 
 ///
@@ -85,19 +85,19 @@ typedef enum {
   ///
   EfiBluetoothConfigDataTypeAvailableDeviceList,
   EfiBluetoothConfigDataTypeRandomAddress, /* Relevant for LE*/
-  EfiBluetoothConfigDataTypeRSSI, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeRSSI,          /* Relevant for LE*/
   ///
   /// Advertisement report. Data structure is UNIT8[].
   ///
   EfiBluetoothConfigDataTypeAdvertisementData, /* Relevant for LE*/
-  EfiBluetoothConfigDataTypeIoCapability, /* Relevant for LE*/
-  EfiBluetoothConfigDataTypeOOBDataFlag, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeIoCapability,      /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeOOBDataFlag,       /* Relevant for LE*/
   ///
   /// KeyType of Authentication Requirements flag of local
   /// device as UINT8, indicating requested security properties.
   /// See Bluetooth specification 3.H.3.5.1. BIT0: MITM, BIT1:SC.
   ///
-  EfiBluetoothConfigDataTypeKeyType, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeKeyType,    /* Relevant for LE*/
   EfiBluetoothConfigDataTypeEncKeySize, /* Relevant for LE*/
   EfiBluetoothConfigDataTypeMax,
 } EFI_BLUETOOTH_CONFIG_DATA_TYPE;
@@ -154,7 +154,6 @@ typedef enum {
   EfiBluetoothConnCallbackTypeEncrypted
 } EFI_BLUETOOTH_CONNECT_COMPLETE_CALLBACK_TYPE;
 
-
 /**
   Initialize Bluetooth host controller and local device.
 
@@ -183,7 +182,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_CONFIG_SCAN_CALLBACK_FUNCTION) (
+(EFIAPI *EFI_BLUETOOTH_CONFIG_SCAN_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL            *This,
   IN VOID                                     *Context,
   IN EFI_BLUETOOTH_SCAN_CALLBACK_INFORMATION  *CallbackInfo
@@ -505,19 +504,19 @@ EFI_STATUS
 /// This protocol abstracts user interface configuration for Bluetooth device.
 ///
 struct _EFI_BLUETOOTH_CONFIG_PROTOCOL {
-  EFI_BLUETOOTH_CONFIG_INIT                               Init;
-  EFI_BLUETOOTH_CONFIG_SCAN                               Scan;
-  EFI_BLUETOOTH_CONFIG_CONNECT                            Connect;
-  EFI_BLUETOOTH_CONFIG_DISCONNECT                         Disconnect;
-  EFI_BLUETOOTH_CONFIG_GET_DATA                           GetData;
-  EFI_BLUETOOTH_CONFIG_SET_DATA                           SetData;
-  EFI_BLUETOOTH_CONFIG_GET_REMOTE_DATA                    GetRemoteData;
-  EFI_BLUETOOTH_CONFIG_REGISTER_PIN_CALLBACK              RegisterPinCallback;
-  EFI_BLUETOOTH_CONFIG_REGISTER_GET_LINK_KEY_CALLBACK     RegisterGetLinkKeyCallback;
-  EFI_BLUETOOTH_CONFIG_REGISTER_SET_LINK_KEY_CALLBACK     RegisterSetLinkKeyCallback;
-  EFI_BLUETOOTH_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK RegisterLinkConnectCompleteCallback;
+  EFI_BLUETOOTH_CONFIG_INIT                                  Init;
+  EFI_BLUETOOTH_CONFIG_SCAN                                  Scan;
+  EFI_BLUETOOTH_CONFIG_CONNECT                               Connect;
+  EFI_BLUETOOTH_CONFIG_DISCONNECT                            Disconnect;
+  EFI_BLUETOOTH_CONFIG_GET_DATA                              GetData;
+  EFI_BLUETOOTH_CONFIG_SET_DATA                              SetData;
+  EFI_BLUETOOTH_CONFIG_GET_REMOTE_DATA                       GetRemoteData;
+  EFI_BLUETOOTH_CONFIG_REGISTER_PIN_CALLBACK                 RegisterPinCallback;
+  EFI_BLUETOOTH_CONFIG_REGISTER_GET_LINK_KEY_CALLBACK        RegisterGetLinkKeyCallback;
+  EFI_BLUETOOTH_CONFIG_REGISTER_SET_LINK_KEY_CALLBACK        RegisterSetLinkKeyCallback;
+  EFI_BLUETOOTH_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK    RegisterLinkConnectCompleteCallback;
 };
 
-extern EFI_GUID gEfiBluetoothConfigProtocolGuid;
+extern EFI_GUID  gEfiBluetoothConfigProtocolGuid;
 
 #endif

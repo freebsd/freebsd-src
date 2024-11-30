@@ -17,8 +17,8 @@
     0x8d48bd70, 0xc8a3, 0x4c06, {0x90, 0x1b, 0x74, 0x79, 0x46, 0xaa, 0xc3, 0x58} \
   }
 
-typedef struct _EFI_ISA_HC_PPI EFI_ISA_HC_PPI;
-typedef struct _EFI_ISA_HC_PPI *PEFI_ISA_HC_PPI;
+typedef struct _EFI_ISA_HC_PPI  EFI_ISA_HC_PPI;
+typedef struct _EFI_ISA_HC_PPI  *PEFI_ISA_HC_PPI;
 
 /**
   Open I/O aperture.
@@ -45,7 +45,7 @@ typedef struct _EFI_ISA_HC_PPI *PEFI_ISA_HC_PPI;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_PEI_ISA_HC_OPEN_IO) (
+(EFIAPI *EFI_PEI_ISA_HC_OPEN_IO)(
   IN CONST EFI_ISA_HC_PPI   *This,
   IN UINT16                 IoAddress,
   IN UINT16                 IoLength,
@@ -71,7 +71,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_PEI_ISA_HC_CLOSE_IO) (
+(EFIAPI *EFI_PEI_ISA_HC_CLOSE_IO)(
   IN CONST EFI_ISA_HC_PPI     *This,
   IN UINT64                   IoApertureHandle
   );
@@ -83,7 +83,7 @@ struct _EFI_ISA_HC_PPI {
   ///
   /// An unsigned integer that specifies the version of the PPI structure.
   ///
-  UINT32                  Version;
+  UINT32    Version;
   ///
   /// The address of the ISA/LPC Bridge device.
   /// For PCI, this is the segment, bus, device and function of the a ISA/LPC
@@ -97,17 +97,17 @@ struct _EFI_ISA_HC_PPI {
   /// Bits 24-31 - Bus Type
   /// If bits 24-31 are 0xff, then the definition is platform-specific.
   ///
-  UINT32                  Address;
+  UINT32                     Address;
   ///
   /// Opens an aperture on a positive-decode ISA Host Controller.
   ///
-  EFI_PEI_ISA_HC_OPEN_IO  OpenIoAperture;
+  EFI_PEI_ISA_HC_OPEN_IO     OpenIoAperture;
   ///
   /// Closes an aperture on a positive-decode ISA Host Controller.
   ///
-  EFI_PEI_ISA_HC_CLOSE_IO CloseIoAperture;
+  EFI_PEI_ISA_HC_CLOSE_IO    CloseIoAperture;
 };
 
-extern EFI_GUID gEfiIsaHcPpiGuid;
+extern EFI_GUID  gEfiIsaHcPpiGuid;
 
 #endif

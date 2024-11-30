@@ -8,14 +8,14 @@
 
 #include "PrintLibInternal.h"
 
-#define WARNING_STATUS_NUMBER         5
-#define ERROR_STATUS_NUMBER           33
+#define WARNING_STATUS_NUMBER  7
+#define ERROR_STATUS_NUMBER    35
 
 //
 // Safe print checks
 //
-#define RSIZE_MAX             (PcdGet32 (PcdMaximumUnicodeStringLength))
-#define ASCII_RSIZE_MAX       (PcdGet32 (PcdMaximumAsciiStringLength))
+#define RSIZE_MAX        (PcdGet32 (PcdMaximumUnicodeStringLength))
+#define ASCII_RSIZE_MAX  (PcdGet32 (PcdMaximumAsciiStringLength))
 
 #define SAFE_PRINT_CONSTRAINT_CHECK(Expression, RetVal)  \
   do { \
@@ -25,15 +25,26 @@
     } \
   } while (FALSE)
 
-GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8 mHexStr[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8  mHexStr[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8 * CONST mStatusString[] = {
+//
+// Longest string: RETURN_WARN_BUFFER_TOO_SMALL => 24 characters plus NUL byte
+//
+GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8  mWarningString[][24+1] = {
   "Success",                      //  RETURN_SUCCESS                = 0
   "Warning Unknown Glyph",        //  RETURN_WARN_UNKNOWN_GLYPH     = 1
   "Warning Delete Failure",       //  RETURN_WARN_DELETE_FAILURE    = 2
   "Warning Write Failure",        //  RETURN_WARN_WRITE_FAILURE     = 3
   "Warning Buffer Too Small",     //  RETURN_WARN_BUFFER_TOO_SMALL  = 4
   "Warning Stale Data",           //  RETURN_WARN_STALE_DATA        = 5
+  "Warning File System",          //  RETURN_WARN_FILE_SYSTEM       = 6
+  "Warning Reset Required",       //  RETURN_WARN_RESET_REQUIRED    = 7
+};
+
+//
+// Longest string: RETURN_INCOMPATIBLE_VERSION => 20 characters plus NUL byte
+//
+GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8  mErrorString[][20+1] = {
   "Load Error",                   //  RETURN_LOAD_ERROR             = 1  | MAX_BIT
   "Invalid Parameter",            //  RETURN_INVALID_PARAMETER      = 2  | MAX_BIT
   "Unsupported",                  //  RETURN_UNSUPPORTED            = 3  | MAX_BIT
@@ -66,9 +77,10 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8 * CONST mStatusString[] = {
   "Reserved (30)",                //  RESERVED                      = 30 | MAX_BIT
   "End of File",                  //  RETURN_END_OF_FILE            = 31 | MAX_BIT
   "Invalid Language",             //  RETURN_INVALID_LANGUAGE       = 32 | MAX_BIT
-  "Compromised Data"              //  RETURN_COMPROMISED_DATA       = 33 | MAX_BIT
+  "Compromised Data",             //  RETURN_COMPROMISED_DATA       = 33 | MAX_BIT
+  "IP Address Conflict",          //  RETURN_IP_ADDRESS_CONFLICT    = 34 | MAX_BIT
+  "HTTP Error"                    //  RETURN_HTTP_ERROR             = 35 | MAX_BIT
 };
-
 
 /**
   Internal function that places the character into the Buffer.
@@ -88,20 +100,21 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR8 * CONST mStatusString[] = {
 **/
 CHAR8 *
 BasePrintLibFillBuffer (
-  OUT CHAR8   *Buffer,
-  IN  CHAR8   *EndBuffer,
-  IN  INTN    Length,
-  IN  UINTN   Character,
-  IN  INTN    Increment
+  OUT CHAR8  *Buffer,
+  IN  CHAR8  *EndBuffer,
+  IN  INTN   Length,
+  IN  UINTN  Character,
+  IN  INTN   Increment
   )
 {
   INTN  Index;
 
   for (Index = 0; Index < Length && Buffer < EndBuffer; Index++) {
-    *Buffer = (CHAR8) Character;
+    *Buffer = (CHAR8)Character;
     if (Increment != 1) {
       *(Buffer + 1) = (CHAR8)(Character >> 8);
     }
+
     Buffer += Increment;
   }
 
@@ -134,7 +147,7 @@ BasePrintLibValueToString (
   //
   *Buffer = 0;
   do {
-    Value = (INT64)DivU64x32Remainder ((UINT64)Value, (UINT32)Radix, &Remainder);
+    Value       = (INT64)DivU64x32Remainder ((UINT64)Value, (UINT32)Radix, &Remainder);
     *(++Buffer) = mHexStr[Remainder];
   } while (Value != 0);
 
@@ -184,11 +197,11 @@ BasePrintLibValueToString (
 **/
 UINTN
 BasePrintLibConvertValueToString (
-  IN OUT CHAR8   *Buffer,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width,
-  IN UINTN       Increment
+  IN OUT CHAR8  *Buffer,
+  IN UINTN      Flags,
+  IN INT64      Value,
+  IN UINTN      Width,
+  IN UINTN      Increment
   )
 {
   CHAR8  *OriginalBuffer;
@@ -220,15 +233,17 @@ BasePrintLibConvertValueToString (
   //
   // Width is 0 or COMMA_TYPE is set, PREFIX_ZERO is ignored.
   //
-  if (Width == 0 || (Flags & COMMA_TYPE) != 0) {
-    Flags &= ~((UINTN) PREFIX_ZERO);
+  if ((Width == 0) || ((Flags & COMMA_TYPE) != 0)) {
+    Flags &= ~((UINTN)PREFIX_ZERO);
   }
+
   //
   // If Width is 0 then a width of  MAXIMUM_VALUE_CHARACTERS is assumed.
   //
   if (Width == 0) {
     Width = MAXIMUM_VALUE_CHARACTERS - 1;
   }
+
   //
   // Set the tag for the end of the input Buffer.
   //
@@ -238,7 +253,7 @@ BasePrintLibConvertValueToString (
   // Convert decimal negative
   //
   if ((Value < 0) && ((Flags & RADIX_HEX) == 0)) {
-    Value = -Value;
+    Value  = -Value;
     Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, '-', Increment);
     Width--;
   }
@@ -246,9 +261,9 @@ BasePrintLibConvertValueToString (
   //
   // Count the length of the value string.
   //
-  Radix = ((Flags & RADIX_HEX) == 0)? 10 : 16;
+  Radix          = ((Flags & RADIX_HEX) == 0) ? 10 : 16;
   ValueBufferPtr = BasePrintLibValueToString (ValueBuffer, Value, Radix);
-  Count = ValueBufferPtr - ValueBuffer;
+  Count          = ValueBufferPtr - ValueBuffer;
 
   //
   // Append Zero
@@ -264,6 +279,7 @@ BasePrintLibConvertValueToString (
   if (Digits != 0) {
     Digits = 3 - Digits;
   }
+
   for (Index = 0; Index < Count; Index++) {
     Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, *ValueBufferPtr--, Increment);
     if ((Flags & COMMA_TYPE) != 0) {
@@ -338,12 +354,12 @@ BasePrintLibConvertValueToString (
 **/
 RETURN_STATUS
 BasePrintLibConvertValueToStringS (
-  IN OUT CHAR8   *Buffer,
-  IN UINTN       BufferSize,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width,
-  IN UINTN       Increment
+  IN OUT CHAR8  *Buffer,
+  IN UINTN      BufferSize,
+  IN UINTN      Flags,
+  IN INT64      Value,
+  IN UINTN      Width,
+  IN UINTN      Increment
   )
 {
   CHAR8  *EndBuffer;
@@ -394,9 +410,10 @@ BasePrintLibConvertValueToStringS (
   //
   // Width is 0 or COMMA_TYPE is set, PREFIX_ZERO is ignored.
   //
-  if (Width == 0 || (Flags & COMMA_TYPE) != 0) {
-    Flags &= ~((UINTN) PREFIX_ZERO);
+  if ((Width == 0) || ((Flags & COMMA_TYPE) != 0)) {
+    Flags &= ~((UINTN)PREFIX_ZERO);
   }
+
   //
   // If Width is 0 then a width of MAXIMUM_VALUE_CHARACTERS is assumed.
   //
@@ -408,7 +425,7 @@ BasePrintLibConvertValueToStringS (
   // Count the characters of the output string.
   //
   Count = 0;
-  Radix = ((Flags & RADIX_HEX) == 0)? 10 : 16;
+  Radix = ((Flags & RADIX_HEX) == 0) ? 10 : 16;
 
   if ((Flags & PREFIX_ZERO) != 0) {
     Count = Width;
@@ -419,6 +436,7 @@ BasePrintLibConvertValueToStringS (
     } else {
       ValueBufferPtr = BasePrintLibValueToString (ValueBuffer, Value, Radix);
     }
+
     Digits = ValueBufferPtr - ValueBuffer;
     Count += Digits;
 
@@ -443,7 +461,7 @@ BasePrintLibConvertValueToStringS (
   // Convert decimal negative
   //
   if ((Value < 0) && ((Flags & RADIX_HEX) == 0)) {
-    Value = -Value;
+    Value  = -Value;
     Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, '-', Increment);
     Width--;
   }
@@ -452,7 +470,7 @@ BasePrintLibConvertValueToStringS (
   // Count the length of the value string.
   //
   ValueBufferPtr = BasePrintLibValueToString (ValueBuffer, Value, Radix);
-  Count = ValueBufferPtr - ValueBuffer;
+  Count          = ValueBufferPtr - ValueBuffer;
 
   //
   // Append Zero
@@ -468,6 +486,7 @@ BasePrintLibConvertValueToStringS (
   if (Digits != 0) {
     Digits = 3 - Digits;
   }
+
   for (Index = 0; Index < Count; Index++) {
     Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, *ValueBufferPtr--, Increment);
     if ((Flags & COMMA_TYPE) != 0) {
@@ -523,40 +542,40 @@ BasePrintLibSPrintMarker (
   IN  UINTN        BufferSize,
   IN  UINTN        Flags,
   IN  CONST CHAR8  *Format,
-  IN  VA_LIST      VaListMarker,   OPTIONAL
+  IN  VA_LIST      VaListMarker    OPTIONAL,
   IN  BASE_LIST    BaseListMarker  OPTIONAL
   )
 {
-  CHAR8             *OriginalBuffer;
-  CHAR8             *EndBuffer;
-  CHAR8             ValueBuffer[MAXIMUM_VALUE_CHARACTERS];
-  UINT32            BytesPerOutputCharacter;
-  UINTN             BytesPerFormatCharacter;
-  UINTN             FormatMask;
-  UINTN             FormatCharacter;
-  UINTN             Width;
-  UINTN             Precision;
-  INT64             Value;
-  CONST CHAR8       *ArgumentString;
-  UINTN             Character;
-  GUID              *TmpGuid;
-  TIME              *TmpTime;
-  UINTN             Count;
-  UINTN             ArgumentMask;
-  INTN              BytesPerArgumentCharacter;
-  UINTN             ArgumentCharacter;
-  BOOLEAN           Done;
-  UINTN             Index;
-  CHAR8             Prefix;
-  BOOLEAN           ZeroPad;
-  BOOLEAN           Comma;
-  UINTN             Digits;
-  UINTN             Radix;
-  RETURN_STATUS     Status;
-  UINT32            GuidData1;
-  UINT16            GuidData2;
-  UINT16            GuidData3;
-  UINTN             LengthToReturn;
+  CHAR8          *OriginalBuffer;
+  CHAR8          *EndBuffer;
+  CHAR8          ValueBuffer[MAXIMUM_VALUE_CHARACTERS];
+  UINT32         BytesPerOutputCharacter;
+  UINTN          BytesPerFormatCharacter;
+  UINTN          FormatMask;
+  UINTN          FormatCharacter;
+  UINTN          Width;
+  UINTN          Precision;
+  INT64          Value;
+  CONST CHAR8    *ArgumentString;
+  UINTN          Character;
+  GUID           *TmpGuid;
+  TIME           *TmpTime;
+  UINTN          Count;
+  UINTN          ArgumentMask;
+  INTN           BytesPerArgumentCharacter;
+  UINTN          ArgumentCharacter;
+  BOOLEAN        Done;
+  UINTN          Index;
+  CHAR8          Prefix;
+  BOOLEAN        ZeroPad;
+  BOOLEAN        Comma;
+  UINTN          Digits;
+  UINTN          Radix;
+  RETURN_STATUS  Status;
+  UINT32         GuidData1;
+  UINT16         GuidData2;
+  UINT16         GuidData3;
+  UINTN          LengthToReturn;
 
   //
   // If you change this code be sure to match the 2 versions of this function.
@@ -588,11 +607,13 @@ BasePrintLibSPrintMarker (
     if (RSIZE_MAX != 0) {
       SAFE_PRINT_CONSTRAINT_CHECK ((BufferSize <= RSIZE_MAX), 0);
     }
+
     BytesPerOutputCharacter = 2;
   } else {
     if (ASCII_RSIZE_MAX != 0) {
       SAFE_PRINT_CONSTRAINT_CHECK ((BufferSize <= ASCII_RSIZE_MAX), 0);
     }
+
     BytesPerOutputCharacter = 1;
   }
 
@@ -604,14 +625,16 @@ BasePrintLibSPrintMarker (
     if (RSIZE_MAX != 0) {
       SAFE_PRINT_CONSTRAINT_CHECK ((StrnLenS ((CHAR16 *)Format, RSIZE_MAX + 1) <= RSIZE_MAX), 0);
     }
+
     BytesPerFormatCharacter = 2;
-    FormatMask = 0xffff;
+    FormatMask              = 0xffff;
   } else {
     if (ASCII_RSIZE_MAX != 0) {
       SAFE_PRINT_CONSTRAINT_CHECK ((AsciiStrnLenS (Format, ASCII_RSIZE_MAX + 1) <= ASCII_RSIZE_MAX), 0);
     }
+
     BytesPerFormatCharacter = 1;
-    FormatMask = 0xff;
+    FormatMask              = 0xff;
   }
 
   if ((Flags & COUNT_ONLY_NO_PRINT) != 0) {
@@ -628,7 +651,7 @@ BasePrintLibSPrintMarker (
   }
 
   LengthToReturn = 0;
-  EndBuffer = NULL;
+  EndBuffer      = NULL;
   OriginalBuffer = NULL;
 
   //
@@ -656,10 +679,11 @@ BasePrintLibSPrintMarker (
     if ((Buffer != NULL) && (Buffer >= EndBuffer)) {
       break;
     }
+
     //
     // Clear all the flag bits except those that may have been passed in
     //
-    Flags &= (UINTN) (OUTPUT_UNICODE | FORMAT_UNICODE | COUNT_ONLY_NO_PRINT);
+    Flags &= (UINTN)(OUTPUT_UNICODE | FORMAT_UNICODE | COUNT_ONLY_NO_PRINT);
 
     //
     // Set the default width to zero, and the default precision to 1
@@ -673,344 +697,415 @@ BasePrintLibSPrintMarker (
     Digits    = 0;
 
     switch (FormatCharacter) {
-    case '%':
-      //
-      // Parse Flags and Width
-      //
-      for (Done = FALSE; !Done; ) {
-        Format += BytesPerFormatCharacter;
-        FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
-        switch (FormatCharacter) {
-        case '.':
-          Flags |= PRECISION;
-          break;
-        case '-':
-          Flags |= LEFT_JUSTIFY;
-          break;
-        case '+':
-          Flags |= PREFIX_SIGN;
-          break;
-        case ' ':
-          Flags |= PREFIX_BLANK;
-          break;
-        case ',':
-          Flags |= COMMA_TYPE;
-          break;
-        case 'L':
-        case 'l':
-          Flags |= LONG_TYPE;
-          break;
-        case '*':
-          if ((Flags & PRECISION) == 0) {
-            Flags |= PAD_TO_WIDTH;
-            if (BaseListMarker == NULL) {
-              Width = VA_ARG (VaListMarker, UINTN);
-            } else {
-              Width = BASE_ARG (BaseListMarker, UINTN);
-            }
-          } else {
-            if (BaseListMarker == NULL) {
-              Precision = VA_ARG (VaListMarker, UINTN);
-            } else {
-              Precision = BASE_ARG (BaseListMarker, UINTN);
-            }
-          }
-          break;
-        case '0':
-          if ((Flags & PRECISION) == 0) {
-            Flags |= PREFIX_ZERO;
-          }
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-          for (Count = 0; ((FormatCharacter >= '0') &&  (FormatCharacter <= '9')); ){
-            Count = (Count * 10) + FormatCharacter - '0';
-            Format += BytesPerFormatCharacter;
-            FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
-          }
-          Format -= BytesPerFormatCharacter;
-          if ((Flags & PRECISION) == 0) {
-            Flags |= PAD_TO_WIDTH;
-            Width = Count;
-          } else {
-            Precision = Count;
-          }
-          break;
-
-        case '\0':
-          //
-          // Make no output if Format string terminates unexpectedly when
-          // looking up for flag, width, precision and type.
-          //
-          Format   -= BytesPerFormatCharacter;
-          Precision = 0;
-          //
-          // break skipped on purpose.
-          //
-        default:
-          Done = TRUE;
-          break;
-        }
-      }
-
-      //
-      // Handle each argument type
-      //
-      switch (FormatCharacter) {
-      case 'p':
+      case '%':
         //
-        // Flag space, +, 0, L & l are invalid for type p.
+        // Parse Flags and Width
         //
-        Flags &= ~((UINTN) (PREFIX_BLANK | PREFIX_SIGN | PREFIX_ZERO | LONG_TYPE));
-        if (sizeof (VOID *) > 4) {
-          Flags |= LONG_TYPE;
-        }
-        //
-        // break skipped on purpose
-        //
-      case 'X':
-        Flags |= PREFIX_ZERO;
-        //
-        // break skipped on purpose
-        //
-      case 'x':
-        Flags |= RADIX_HEX;
-        //
-        // break skipped on purpose
-        //
-      case 'u':
-        if ((Flags & RADIX_HEX) == 0) {
-          Flags &= ~((UINTN) (PREFIX_SIGN));
-          Flags |= UNSIGNED_TYPE;
-        }
-        //
-        // break skipped on purpose
-        //
-      case 'd':
-        if ((Flags & LONG_TYPE) == 0) {
-          //
-          // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
-          // This assumption is made so the format string definition is compatible with the ANSI C
-          // Specification for formatted strings.  It is recommended that the Base Types be used
-          // everywhere, but in this one case, compliance with ANSI C is more important, and
-          // provides an implementation that is compatible with that largest possible set of CPU
-          // architectures.  This is why the type "int" is used in this one case.
-          //
-          if (BaseListMarker == NULL) {
-            Value = VA_ARG (VaListMarker, int);
-          } else {
-            Value = BASE_ARG (BaseListMarker, int);
-          }
-        } else {
-          if (BaseListMarker == NULL) {
-            Value = VA_ARG (VaListMarker, INT64);
-          } else {
-            Value = BASE_ARG (BaseListMarker, INT64);
-          }
-        }
-        if ((Flags & PREFIX_BLANK) != 0) {
-          Prefix = ' ';
-        }
-        if ((Flags & PREFIX_SIGN) != 0) {
-          Prefix = '+';
-        }
-        if ((Flags & COMMA_TYPE) != 0) {
-          Comma = TRUE;
-        }
-        if ((Flags & RADIX_HEX) == 0) {
-          Radix = 10;
-          if (Comma) {
-            Flags &= ~((UINTN) PREFIX_ZERO);
-            Precision = 1;
-          }
-          if (Value < 0 && (Flags & UNSIGNED_TYPE) == 0) {
-            Flags |= PREFIX_SIGN;
-            Prefix = '-';
-            Value = -Value;
-          } else if ((Flags & UNSIGNED_TYPE) != 0 && (Flags & LONG_TYPE) == 0) {
-            //
-            // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
-            // This assumption is made so the format string definition is compatible with the ANSI C
-            // Specification for formatted strings.  It is recommended that the Base Types be used
-            // everywhere, but in this one case, compliance with ANSI C is more important, and
-            // provides an implementation that is compatible with that largest possible set of CPU
-            // architectures.  This is why the type "unsigned int" is used in this one case.
-            //
-            Value = (unsigned int)Value;
-          }
-        } else {
-          Radix = 16;
-          Comma = FALSE;
-          if ((Flags & LONG_TYPE) == 0 && Value < 0) {
-            //
-            // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
-            // This assumption is made so the format string definition is compatible with the ANSI C
-            // Specification for formatted strings.  It is recommended that the Base Types be used
-            // everywhere, but in this one case, compliance with ANSI C is more important, and
-            // provides an implementation that is compatible with that largest possible set of CPU
-            // architectures.  This is why the type "unsigned int" is used in this one case.
-            //
-            Value = (unsigned int)Value;
-          }
-        }
-        //
-        // Convert Value to a reversed string
-        //
-        Count = BasePrintLibValueToString (ValueBuffer, Value, Radix) - ValueBuffer;
-        if (Value == 0 && Precision == 0) {
-          Count = 0;
-        }
-        ArgumentString = (CHAR8 *)ValueBuffer + Count;
-
-        Digits = Count % 3;
-        if (Digits != 0) {
-          Digits = 3 - Digits;
-        }
-        if (Comma && Count != 0) {
-          Count += ((Count - 1) / 3);
-        }
-        if (Prefix != 0) {
-          Count++;
-          Precision++;
-        }
-        Flags |= ARGUMENT_REVERSED;
-        ZeroPad = TRUE;
-        if ((Flags & PREFIX_ZERO) != 0) {
-          if ((Flags & LEFT_JUSTIFY) == 0) {
-            if ((Flags & PAD_TO_WIDTH) != 0) {
+        for (Done = FALSE; !Done; ) {
+          Format         += BytesPerFormatCharacter;
+          FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
+          switch (FormatCharacter) {
+            case '.':
+              Flags |= PRECISION;
+              break;
+            case '-':
+              Flags |= LEFT_JUSTIFY;
+              break;
+            case '+':
+              Flags |= PREFIX_SIGN;
+              break;
+            case ' ':
+              Flags |= PREFIX_BLANK;
+              break;
+            case ',':
+              Flags |= COMMA_TYPE;
+              break;
+            case 'L':
+            case 'l':
+              Flags |= LONG_TYPE;
+              break;
+            case '*':
               if ((Flags & PRECISION) == 0) {
-                Precision = Width;
+                Flags |= PAD_TO_WIDTH;
+                if (BaseListMarker == NULL) {
+                  Width = VA_ARG (VaListMarker, UINTN);
+                } else {
+                  Width = BASE_ARG (BaseListMarker, UINTN);
+                }
+              } else {
+                if (BaseListMarker == NULL) {
+                  Precision = VA_ARG (VaListMarker, UINTN);
+                } else {
+                  Precision = BASE_ARG (BaseListMarker, UINTN);
+                }
+              }
+
+              break;
+            case '0':
+              if ((Flags & PRECISION) == 0) {
+                Flags |= PREFIX_ZERO;
+              }
+
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+              for (Count = 0; ((FormatCharacter >= '0') &&  (FormatCharacter <= '9')); ) {
+                Count           = (Count * 10) + FormatCharacter - '0';
+                Format         += BytesPerFormatCharacter;
+                FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
+              }
+
+              Format -= BytesPerFormatCharacter;
+              if ((Flags & PRECISION) == 0) {
+                Flags |= PAD_TO_WIDTH;
+                Width  = Count;
+              } else {
+                Precision = Count;
+              }
+
+              break;
+
+            case '\0':
+              //
+              // Make no output if Format string terminates unexpectedly when
+              // looking up for flag, width, precision and type.
+              //
+              Format   -= BytesPerFormatCharacter;
+              Precision = 0;
+            //
+            // break skipped on purpose.
+            //
+            default:
+              Done = TRUE;
+              break;
+          }
+        }
+
+        //
+        // Handle each argument type
+        //
+        switch (FormatCharacter) {
+          case 'p':
+            //
+            // Flag space, +, 0, L & l are invalid for type p.
+            //
+            Flags &= ~((UINTN)(PREFIX_BLANK | PREFIX_SIGN | PREFIX_ZERO | LONG_TYPE));
+            if (sizeof (VOID *) > 4) {
+              Flags |= LONG_TYPE;
+            }
+
+          //
+          // break skipped on purpose
+          //
+          case 'X':
+            Flags |= PREFIX_ZERO;
+          //
+          // break skipped on purpose
+          //
+          case 'x':
+            Flags |= RADIX_HEX;
+          //
+          // break skipped on purpose
+          //
+          case 'u':
+            if ((Flags & RADIX_HEX) == 0) {
+              Flags &= ~((UINTN)(PREFIX_SIGN));
+              Flags |= UNSIGNED_TYPE;
+            }
+
+          //
+          // break skipped on purpose
+          //
+          case 'd':
+            if ((Flags & LONG_TYPE) == 0) {
+              //
+              // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
+              // This assumption is made so the format string definition is compatible with the ANSI C
+              // Specification for formatted strings.  It is recommended that the Base Types be used
+              // everywhere, but in this one case, compliance with ANSI C is more important, and
+              // provides an implementation that is compatible with that largest possible set of CPU
+              // architectures.  This is why the type "int" is used in this one case.
+              //
+              if (BaseListMarker == NULL) {
+                Value = VA_ARG (VaListMarker, int);
+              } else {
+                Value = BASE_ARG (BaseListMarker, int);
+              }
+            } else {
+              if (BaseListMarker == NULL) {
+                Value = VA_ARG (VaListMarker, INT64);
+              } else {
+                Value = BASE_ARG (BaseListMarker, INT64);
               }
             }
-          }
-        }
-        break;
 
-      case 's':
-      case 'S':
-        Flags |= ARGUMENT_UNICODE;
-        //
-        // break skipped on purpose
-        //
-      case 'a':
-        if (BaseListMarker == NULL) {
-          ArgumentString = VA_ARG (VaListMarker, CHAR8 *);
-        } else {
-          ArgumentString = BASE_ARG (BaseListMarker, CHAR8 *);
-        }
-        if (ArgumentString == NULL) {
-          Flags &= ~((UINTN) ARGUMENT_UNICODE);
-          ArgumentString = "<null string>";
-        }
-        //
-        // Set the default precision for string to be zero if not specified.
-        //
-        if ((Flags & PRECISION) == 0) {
-          Precision = 0;
-        }
-        break;
+            if ((Flags & PREFIX_BLANK) != 0) {
+              Prefix = ' ';
+            }
 
-      case 'c':
-        if (BaseListMarker == NULL) {
-          Character = VA_ARG (VaListMarker, UINTN) & 0xffff;
-        } else {
-          Character = BASE_ARG (BaseListMarker, UINTN) & 0xffff;
-        }
-        ArgumentString = (CHAR8 *)&Character;
-        Flags |= ARGUMENT_UNICODE;
-        break;
+            if ((Flags & PREFIX_SIGN) != 0) {
+              Prefix = '+';
+            }
 
-      case 'g':
-        if (BaseListMarker == NULL) {
-          TmpGuid = VA_ARG (VaListMarker, GUID *);
-        } else {
-          TmpGuid = BASE_ARG (BaseListMarker, GUID *);
-        }
-        if (TmpGuid == NULL) {
-          ArgumentString = "<null guid>";
-        } else {
-          GuidData1 = ReadUnaligned32 (&(TmpGuid->Data1));
-          GuidData2 = ReadUnaligned16 (&(TmpGuid->Data2));
-          GuidData3 = ReadUnaligned16 (&(TmpGuid->Data3));
-          BasePrintLibSPrint (
-            ValueBuffer,
-            MAXIMUM_VALUE_CHARACTERS,
-            0,
-            "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-            GuidData1,
-            GuidData2,
-            GuidData3,
-            TmpGuid->Data4[0],
-            TmpGuid->Data4[1],
-            TmpGuid->Data4[2],
-            TmpGuid->Data4[3],
-            TmpGuid->Data4[4],
-            TmpGuid->Data4[5],
-            TmpGuid->Data4[6],
-            TmpGuid->Data4[7]
-            );
-          ArgumentString = ValueBuffer;
-        }
-        break;
+            if ((Flags & COMMA_TYPE) != 0) {
+              Comma = TRUE;
+            }
 
-      case 't':
-        if (BaseListMarker == NULL) {
-          TmpTime = VA_ARG (VaListMarker, TIME *);
-        } else {
-          TmpTime = BASE_ARG (BaseListMarker, TIME *);
-        }
-        if (TmpTime == NULL) {
-          ArgumentString = "<null time>";
-        } else {
-          BasePrintLibSPrint (
-            ValueBuffer,
-            MAXIMUM_VALUE_CHARACTERS,
-            0,
-            "%02d/%02d/%04d  %02d:%02d",
-            TmpTime->Month,
-            TmpTime->Day,
-            TmpTime->Year,
-            TmpTime->Hour,
-            TmpTime->Minute
-            );
-          ArgumentString = ValueBuffer;
-        }
-        break;
+            if ((Flags & RADIX_HEX) == 0) {
+              Radix = 10;
+              if (Comma) {
+                Flags    &= ~((UINTN)PREFIX_ZERO);
+                Precision = 1;
+              }
 
-      case 'r':
-        if (BaseListMarker == NULL) {
-          Status = VA_ARG (VaListMarker, RETURN_STATUS);
-        } else {
-          Status = BASE_ARG (BaseListMarker, RETURN_STATUS);
-        }
-        ArgumentString = ValueBuffer;
-        if (RETURN_ERROR (Status)) {
+              if ((Value < 0) && ((Flags & UNSIGNED_TYPE) == 0)) {
+                Flags |= PREFIX_SIGN;
+                Prefix = '-';
+                Value  = -Value;
+              } else if (((Flags & UNSIGNED_TYPE) != 0) && ((Flags & LONG_TYPE) == 0)) {
+                //
+                // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
+                // This assumption is made so the format string definition is compatible with the ANSI C
+                // Specification for formatted strings.  It is recommended that the Base Types be used
+                // everywhere, but in this one case, compliance with ANSI C is more important, and
+                // provides an implementation that is compatible with that largest possible set of CPU
+                // architectures.  This is why the type "unsigned int" is used in this one case.
+                //
+                Value = (unsigned int)Value;
+              }
+            } else {
+              Radix = 16;
+              Comma = FALSE;
+              if (((Flags & LONG_TYPE) == 0) && (Value < 0)) {
+                //
+                // 'd', 'u', 'x', and 'X' that are not preceded by 'l' or 'L' are assumed to be type "int".
+                // This assumption is made so the format string definition is compatible with the ANSI C
+                // Specification for formatted strings.  It is recommended that the Base Types be used
+                // everywhere, but in this one case, compliance with ANSI C is more important, and
+                // provides an implementation that is compatible with that largest possible set of CPU
+                // architectures.  This is why the type "unsigned int" is used in this one case.
+                //
+                Value = (unsigned int)Value;
+              }
+            }
+
+            //
+            // Convert Value to a reversed string
+            //
+            Count = BasePrintLibValueToString (ValueBuffer, Value, Radix) - ValueBuffer;
+            if ((Value == 0) && (Precision == 0)) {
+              Count = 0;
+            }
+
+            ArgumentString = (CHAR8 *)ValueBuffer + Count;
+
+            Digits = Count % 3;
+            if (Digits != 0) {
+              Digits = 3 - Digits;
+            }
+
+            if (Comma && (Count != 0)) {
+              Count += ((Count - 1) / 3);
+            }
+
+            if (Prefix != 0) {
+              Count++;
+              Precision++;
+            }
+
+            Flags  |= ARGUMENT_REVERSED;
+            ZeroPad = TRUE;
+            if ((Flags & PREFIX_ZERO) != 0) {
+              if ((Flags & LEFT_JUSTIFY) == 0) {
+                if ((Flags & PAD_TO_WIDTH) != 0) {
+                  if ((Flags & PRECISION) == 0) {
+                    Precision = Width;
+                  }
+                }
+              }
+            }
+
+            break;
+
+          case 's':
+          case 'S':
+            Flags |= ARGUMENT_UNICODE;
           //
-          // Clear error bit
+          // break skipped on purpose
           //
-          Index = Status & ~MAX_BIT;
-          if (Index > 0 && Index <= ERROR_STATUS_NUMBER) {
-            ArgumentString = mStatusString [Index + WARNING_STATUS_NUMBER];
-          }
-        } else {
-          Index = Status;
-          if (Index <= WARNING_STATUS_NUMBER) {
-            ArgumentString = mStatusString [Index];
-          }
+          case 'a':
+            if (BaseListMarker == NULL) {
+              ArgumentString = VA_ARG (VaListMarker, CHAR8 *);
+            } else {
+              ArgumentString = BASE_ARG (BaseListMarker, CHAR8 *);
+            }
+
+            if (ArgumentString == NULL) {
+              Flags         &= ~((UINTN)ARGUMENT_UNICODE);
+              ArgumentString = "<null string>";
+            }
+
+            //
+            // Set the default precision for string to be zero if not specified.
+            //
+            if ((Flags & PRECISION) == 0) {
+              Precision = 0;
+            }
+
+            break;
+
+          case 'c':
+            if (BaseListMarker == NULL) {
+              Character = VA_ARG (VaListMarker, UINTN) & 0xffff;
+            } else {
+              Character = BASE_ARG (BaseListMarker, UINTN) & 0xffff;
+            }
+
+            ArgumentString = (CHAR8 *)&Character;
+            Flags         |= ARGUMENT_UNICODE;
+            break;
+
+          case 'g':
+            if (BaseListMarker == NULL) {
+              TmpGuid = VA_ARG (VaListMarker, GUID *);
+            } else {
+              TmpGuid = BASE_ARG (BaseListMarker, GUID *);
+            }
+
+            if (TmpGuid == NULL) {
+              ArgumentString = "<null guid>";
+            } else {
+              GuidData1 = ReadUnaligned32 (&(TmpGuid->Data1));
+              GuidData2 = ReadUnaligned16 (&(TmpGuid->Data2));
+              GuidData3 = ReadUnaligned16 (&(TmpGuid->Data3));
+              BasePrintLibSPrint (
+                ValueBuffer,
+                MAXIMUM_VALUE_CHARACTERS,
+                0,
+                "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+                GuidData1,
+                GuidData2,
+                GuidData3,
+                TmpGuid->Data4[0],
+                TmpGuid->Data4[1],
+                TmpGuid->Data4[2],
+                TmpGuid->Data4[3],
+                TmpGuid->Data4[4],
+                TmpGuid->Data4[5],
+                TmpGuid->Data4[6],
+                TmpGuid->Data4[7]
+                );
+              ArgumentString = ValueBuffer;
+            }
+
+            break;
+
+          case 't':
+            if (BaseListMarker == NULL) {
+              TmpTime = VA_ARG (VaListMarker, TIME *);
+            } else {
+              TmpTime = BASE_ARG (BaseListMarker, TIME *);
+            }
+
+            if (TmpTime == NULL) {
+              ArgumentString = "<null time>";
+            } else {
+              BasePrintLibSPrint (
+                ValueBuffer,
+                MAXIMUM_VALUE_CHARACTERS,
+                0,
+                "%02d/%02d/%04d  %02d:%02d",
+                TmpTime->Month,
+                TmpTime->Day,
+                TmpTime->Year,
+                TmpTime->Hour,
+                TmpTime->Minute
+                );
+              ArgumentString = ValueBuffer;
+            }
+
+            break;
+
+          case 'r':
+            if (BaseListMarker == NULL) {
+              Status = VA_ARG (VaListMarker, RETURN_STATUS);
+            } else {
+              Status = BASE_ARG (BaseListMarker, RETURN_STATUS);
+            }
+
+            ArgumentString = ValueBuffer;
+            if (RETURN_ERROR (Status)) {
+              //
+              // Clear error bit
+              //
+              Index = Status & ~MAX_BIT;
+              if ((Index > 0) && (Index <= ERROR_STATUS_NUMBER)) {
+                ArgumentString = mErrorString[Index - 1];
+              }
+            } else {
+              Index = Status;
+              if (Index <= WARNING_STATUS_NUMBER) {
+                ArgumentString = mWarningString[Index];
+              }
+            }
+
+            if (ArgumentString == ValueBuffer) {
+              BasePrintLibSPrint ((CHAR8 *)ValueBuffer, MAXIMUM_VALUE_CHARACTERS, 0, "%08X", Status);
+            }
+
+            break;
+
+          case '\r':
+            Format         += BytesPerFormatCharacter;
+            FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
+            if (FormatCharacter == '\n') {
+              //
+              // Translate '\r\n' to '\r\n'
+              //
+              ArgumentString = "\r\n";
+            } else {
+              //
+              // Translate '\r' to '\r'
+              //
+              ArgumentString = "\r";
+              Format        -= BytesPerFormatCharacter;
+            }
+
+            break;
+
+          case '\n':
+            //
+            // Translate '\n' to '\r\n' and '\n\r' to '\r\n'
+            //
+            ArgumentString  = "\r\n";
+            Format         += BytesPerFormatCharacter;
+            FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
+            if (FormatCharacter != '\r') {
+              Format -= BytesPerFormatCharacter;
+            }
+
+            break;
+
+          case '%':
+          default:
+            //
+            // if the type is '%' or unknown, then print it to the screen
+            //
+            ArgumentString = (CHAR8 *)&FormatCharacter;
+            Flags         |= ARGUMENT_UNICODE;
+            break;
         }
-        if (ArgumentString == ValueBuffer) {
-          BasePrintLibSPrint ((CHAR8 *) ValueBuffer, MAXIMUM_VALUE_CHARACTERS, 0, "%08X", Status);
-        }
+
         break;
 
       case '\r':
-        Format += BytesPerFormatCharacter;
+        Format         += BytesPerFormatCharacter;
         FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
         if (FormatCharacter == '\n') {
           //
@@ -1022,78 +1117,41 @@ BasePrintLibSPrintMarker (
           // Translate '\r' to '\r'
           //
           ArgumentString = "\r";
-          Format   -= BytesPerFormatCharacter;
+          Format        -= BytesPerFormatCharacter;
         }
+
         break;
 
       case '\n':
         //
         // Translate '\n' to '\r\n' and '\n\r' to '\r\n'
         //
-        ArgumentString = "\r\n";
-        Format += BytesPerFormatCharacter;
+        ArgumentString  = "\r\n";
+        Format         += BytesPerFormatCharacter;
         FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
         if (FormatCharacter != '\r') {
-          Format   -= BytesPerFormatCharacter;
+          Format -= BytesPerFormatCharacter;
         }
+
         break;
 
-      case '%':
       default:
-        //
-        // if the type is '%' or unknown, then print it to the screen
-        //
         ArgumentString = (CHAR8 *)&FormatCharacter;
-        Flags |= ARGUMENT_UNICODE;
+        Flags         |= ARGUMENT_UNICODE;
         break;
-      }
-      break;
-
-    case '\r':
-      Format += BytesPerFormatCharacter;
-      FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
-      if (FormatCharacter == '\n') {
-        //
-        // Translate '\r\n' to '\r\n'
-        //
-        ArgumentString = "\r\n";
-      } else {
-        //
-        // Translate '\r' to '\r'
-        //
-        ArgumentString = "\r";
-        Format   -= BytesPerFormatCharacter;
-      }
-      break;
-
-    case '\n':
-      //
-      // Translate '\n' to '\r\n' and '\n\r' to '\r\n'
-      //
-      ArgumentString = "\r\n";
-      Format += BytesPerFormatCharacter;
-      FormatCharacter = ((*Format & 0xff) | ((BytesPerFormatCharacter == 1) ? 0 : (*(Format + 1) << 8))) & FormatMask;
-      if (FormatCharacter != '\r') {
-        Format   -= BytesPerFormatCharacter;
-      }
-      break;
-
-    default:
-      ArgumentString = (CHAR8 *)&FormatCharacter;
-      Flags |= ARGUMENT_UNICODE;
-      break;
     }
 
     //
     // Retrieve the ArgumentString attriubutes
     //
     if ((Flags & ARGUMENT_UNICODE) != 0) {
-      ArgumentMask = 0xffff;
+      ArgumentMask              = 0xffff;
       BytesPerArgumentCharacter = 2;
     } else {
-      ArgumentMask = 0xff;
+      ArgumentMask              = 0xff;
       BytesPerArgumentCharacter = 1;
     }
+
     if ((Flags & ARGUMENT_REVERSED) != 0) {
       BytesPerArgumentCharacter = -BytesPerArgumentCharacter;
     } else {
@@ -1102,11 +1160,12 @@ BasePrintLibSPrintMarker (
       // ArgumentString is either null-terminated, or it contains Precision characters
       //
       for (Count = 0;
-            (ArgumentString[Count * BytesPerArgumentCharacter] != '\0' ||
-             (BytesPerArgumentCharacter > 1 &&
-              ArgumentString[Count * BytesPerArgumentCharacter + 1]!= '\0')) &&
-            (Count < Precision || ((Flags & PRECISION) == 0));
-              Count++) {
+           (ArgumentString[Count * BytesPerArgumentCharacter] != '\0' ||
+            (BytesPerArgumentCharacter > 1 &&
+             ArgumentString[Count * BytesPerArgumentCharacter + 1] != '\0')) &&
+           (Count < Precision || ((Flags & PRECISION) == 0));
+           Count++)
+      {
         ArgumentCharacter = ((ArgumentString[Count * BytesPerArgumentCharacter] & 0xff) | ((ArgumentString[Count * BytesPerArgumentCharacter + 1]) << 8)) & ArgumentMask;
         if (ArgumentCharacter == 0) {
           break;
@@ -1123,7 +1182,7 @@ BasePrintLibSPrintMarker (
     //
     if ((Flags & (PAD_TO_WIDTH | LEFT_JUSTIFY)) == (PAD_TO_WIDTH)) {
       LengthToReturn += ((Width - Precision) * BytesPerOutputCharacter);
-      if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+      if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
         Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, Width - Precision, ' ', BytesPerOutputCharacter);
       }
     }
@@ -1131,22 +1190,24 @@ BasePrintLibSPrintMarker (
     if (ZeroPad) {
       if (Prefix != 0) {
         LengthToReturn += (1 * BytesPerOutputCharacter);
-        if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+        if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
           Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, Prefix, BytesPerOutputCharacter);
         }
       }
+
       LengthToReturn += ((Precision - Count) * BytesPerOutputCharacter);
-      if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+      if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
         Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, Precision - Count, '0', BytesPerOutputCharacter);
       }
     } else {
       LengthToReturn += ((Precision - Count) * BytesPerOutputCharacter);
-      if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+      if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
         Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, Precision - Count, ' ', BytesPerOutputCharacter);
       }
+
       if (Prefix != 0) {
         LengthToReturn += (1 * BytesPerOutputCharacter);
-        if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+        if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
           Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, Prefix, BytesPerOutputCharacter);
         }
       }
@@ -1165,14 +1226,16 @@ BasePrintLibSPrintMarker (
     //
     while (Index < Count &&
            (ArgumentString[0] != '\0' ||
-            (BytesPerArgumentCharacter > 1 && ArgumentString[1] != '\0'))) {
+            (BytesPerArgumentCharacter > 1 && ArgumentString[1] != '\0')))
+    {
       ArgumentCharacter = ((*ArgumentString & 0xff) | (((UINT8)*(ArgumentString + 1)) << 8)) & ArgumentMask;
 
       LengthToReturn += (1 * BytesPerOutputCharacter);
-      if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+      if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
         Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, ArgumentCharacter, BytesPerOutputCharacter);
       }
-      ArgumentString    += BytesPerArgumentCharacter;
+
+      ArgumentString += BytesPerArgumentCharacter;
       Index++;
       if (Comma) {
         Digits++;
@@ -1181,7 +1244,7 @@ BasePrintLibSPrintMarker (
           Index++;
           if (Index < Count) {
             LengthToReturn += (1 * BytesPerOutputCharacter);
-            if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+            if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
               Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, 1, ',', BytesPerOutputCharacter);
             }
           }
@@ -1194,7 +1257,7 @@ BasePrintLibSPrintMarker (
     //
     if ((Flags & (PAD_TO_WIDTH | LEFT_JUSTIFY)) == (PAD_TO_WIDTH | LEFT_JUSTIFY)) {
       LengthToReturn += ((Width - Precision) * BytesPerOutputCharacter);
-      if ((Flags & COUNT_ONLY_NO_PRINT) == 0 && Buffer != NULL) {
+      if (((Flags & COUNT_ONLY_NO_PRINT) == 0) && (Buffer != NULL)) {
         Buffer = BasePrintLibFillBuffer (Buffer, EndBuffer, Width - Precision, ' ', BytesPerOutputCharacter);
       }
     }

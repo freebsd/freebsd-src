@@ -1,10 +1,10 @@
 ## @file
 #  Base Library implementation.
 #
-#  Copyright (c) 2007 - 2019, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2007 - 2021, Intel Corporation. All rights reserved.<BR>
 #  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
-#  Portions copyright (c) 2011 - 2013, ARM Ltd. All rights reserved.<BR>
-#  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+#  Portions copyright (c) 2011 - 2024, Arm Limited. All rights reserved.<BR>
+#  Copyright (c) 2020 - 2021, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -21,7 +21,7 @@
   LIBRARY_CLASS                  = BaseLib
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64
+#  VALID_ARCHITECTURES           = IA32 X64 EBC ARM AARCH64 RISCV64 LOONGARCH64
 #
 
 [Sources]
@@ -32,6 +32,7 @@
   SwapBytes16.c
   LongJump.c
   SetJump.c
+  QuickSort.c
   RShiftU64.c
   RRotU64.c
   RRotU32.c
@@ -156,6 +157,7 @@
 
 
   Ia32/GccInline.c | GCC
+  Ia32/GccInlinePriv.c | GCC
   Ia32/Thunk16.nasm
   Ia32/EnableDisableInterrupts.nasm| GCC
   Ia32/EnablePaging64.nasm
@@ -182,6 +184,10 @@
   Ia32/EnableCache.nasm| GCC
   Ia32/DisableCache.nasm| GCC
   Ia32/RdRand.nasm
+  Ia32/XGetBv.nasm
+  Ia32/XSetBv.nasm
+  Ia32/VmgExit.nasm
+  Ia32/VmgExitSvsm.nasm
 
   Ia32/DivS64x64Remainder.c
   Ia32/InternalSwitchStack.c | MSFT
@@ -205,6 +211,7 @@
   X86RdRand.c
   X86PatchInstruction.c
   X86SpeculationBarrier.c
+  IntelTdxNull.c
 
 [Sources.X64]
   X64/Thunk16.nasm
@@ -288,6 +295,9 @@
   X64/ReadCr0.nasm| MSFT
   X64/ReadEflags.nasm| MSFT
 
+  X64/TdCall.nasm
+  X64/TdVmcall.nasm
+  X64/TdProbe.c
 
   X64/Non-existing.c
   Math64.c
@@ -310,9 +320,16 @@
   X86PatchInstruction.c
   X86SpeculationBarrier.c
   X64/GccInline.c | GCC
+  X64/GccInlinePriv.c | GCC
   X64/EnableDisableInterrupts.nasm
   X64/DisablePaging64.nasm
+  X64/Pvalidate.nasm
   X64/RdRand.nasm
+  X64/RmpAdjust.nasm
+  X64/XGetBv.nasm
+  X64/XSetBv.nasm
+  X64/VmgExit.nasm
+  X64/VmgExitSvsm.nasm
   ChkStkGcc.c  | GCC
 
 [Sources.EBC]
@@ -322,22 +339,12 @@
   Ebc/SpeculationBarrier.c
   Unaligned.c
   Math64.c
+  IntelTdxNull.c
 
 [Sources.ARM]
   Arm/InternalSwitchStack.c
   Arm/Unaligned.c
-  Math64.c                   | RVCT
   Math64.c                   | MSFT
-
-  Arm/SwitchStack.asm        | RVCT
-  Arm/SetJumpLongJump.asm    | RVCT
-  Arm/DisableInterrupts.asm  | RVCT
-  Arm/EnableInterrupts.asm   | RVCT
-  Arm/GetInterruptsState.asm | RVCT
-  Arm/CpuPause.asm           | RVCT
-  Arm/CpuBreakpoint.asm      | RVCT
-  Arm/MemoryFence.asm        | RVCT
-  Arm/SpeculationBarrier.S   | RVCT
 
   Arm/SwitchStack.asm        | MSFT
   Arm/SetJumpLongJump.asm    | MSFT
@@ -358,6 +365,7 @@
   Arm/CpuBreakpoint.S           | GCC
   Arm/MemoryFence.S             | GCC
   Arm/SpeculationBarrier.S      | GCC
+  IntelTdxNull.c
 
 [Sources.AARCH64]
   Arm/InternalSwitchStack.c
@@ -372,6 +380,8 @@
   AArch64/SetJumpLongJump.S         | GCC
   AArch64/CpuBreakpoint.S           | GCC
   AArch64/SpeculationBarrier.S      | GCC
+  AArch64/ArmReadCntPctReg.S        | GCC
+  AArch64/ArmReadIdAA64Isar0Reg.S       | GCC
 
   AArch64/MemoryFence.asm           | MSFT
   AArch64/SwitchStack.asm           | MSFT
@@ -381,6 +391,9 @@
   AArch64/SetJumpLongJump.asm       | MSFT
   AArch64/CpuBreakpoint.asm         | MSFT
   AArch64/SpeculationBarrier.asm    | MSFT
+  AArch64/ArmReadCntPctReg.asm      | MSFT
+  AArch64/ArmReadIdAA64Isar0Reg.asm     | MSFT
+  IntelTdxNull.c
 
 [Sources.RISCV64]
   Math64.c
@@ -391,11 +404,39 @@
   RiscV64/DisableInterrupts.c
   RiscV64/EnableInterrupts.c
   RiscV64/CpuPause.c
+  RiscV64/MemoryFence.S             | GCC
   RiscV64/RiscVSetJumpLongJump.S    | GCC
+  RiscV64/SwitchStack.S             | GCC
   RiscV64/RiscVCpuBreakpoint.S      | GCC
   RiscV64/RiscVCpuPause.S           | GCC
   RiscV64/RiscVInterrupt.S          | GCC
-  RiscV64/FlushCache.S              | GCC
+  RiscV64/RiscVCacheMgmt.S          | GCC
+  RiscV64/CpuScratch.S              | GCC
+  RiscV64/ReadTimer.S               | GCC
+  RiscV64/RiscVMmu.S                | GCC
+  RiscV64/SpeculationBarrier.S      | GCC
+  IntelTdxNull.c
+
+[Sources.LOONGARCH64]
+  Math64.c
+  Unaligned.c
+  LoongArch64/Csr.c
+  LoongArch64/InternalSwitchStack.c
+  LoongArch64/AsmCsr.S              | GCC
+  LoongArch64/IoCsr.S               | GCC
+  LoongArch64/GetInterruptState.S   | GCC
+  LoongArch64/EnableInterrupts.S    | GCC
+  LoongArch64/DisableInterrupts.S   | GCC
+  LoongArch64/Barrier.S             | GCC
+  LoongArch64/MemoryFence.S         | GCC
+  LoongArch64/CpuBreakpoint.S       | GCC
+  LoongArch64/CpuPause.S            | GCC
+  LoongArch64/SetJumpLongJump.S     | GCC
+  LoongArch64/SwitchStack.S         | GCC
+  LoongArch64/ExceptionBase.S       | GCC
+  LoongArch64/Cpucfg.S              | GCC
+  LoongArch64/ReadStableCounter.S   | GCC
+  IntelTdxNull.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -404,6 +445,9 @@
   PcdLib
   DebugLib
   BaseMemoryLib
+
+[LibraryClasses.X64, LibraryClasses.IA32]
+  RegisterFilterLib
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength      ## SOMETIMES_CONSUMES

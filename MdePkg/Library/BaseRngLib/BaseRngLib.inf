@@ -1,9 +1,11 @@
 ## @file
 #  Instance of RNG (Random Number Generator) Library.
 #
-#  BaseRng Library that uses CPU RdRand instruction access to provide
-#  high-quality random numbers.
+#  BaseRng Library that uses CPU RNG instructions (e.g. RdRand) to
+#  provide random numbers.
 #
+#  Copyright (c) 2023, Arm Limited. All rights reserved.<BR>
+#  Copyright (c) 2021, NUVIA Inc. All rights reserved.<BR>
 #  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -22,15 +24,44 @@
   CONSTRUCTOR                    = BaseRngLibConstructor
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64
+#  VALID_ARCHITECTURES           = IA32 X64 AARCH64
 #
 
-[Sources.Ia32, Sources.X64]
+[Sources]
   BaseRng.c
+  BaseRngLibInternals.h
+
+[Sources.Ia32, Sources.X64]
+  Rand/RdRand.c
+
+[Sources.AARCH64]
+  AArch64/Rndr.c
+  AArch64/ArmRng.h
+
+  AArch64/ArmRng.S           | GCC
+
+  AArch64/ArmRng.asm         | MSFT
+
+[Guids.AARCH64]
+  gEfiRngAlgorithmArmRndr
+
+[Guids.Ia32, Guids.X64]
+  gEfiRngAlgorithmSp80090Ctr256Guid
+
+[Sources.RISCV64]
+  Riscv/Rng.c
+  Riscv/Seed.S               | GCC
 
 [Packages]
   MdePkg/MdePkg.dec
 
+[Pcd.AARCH64]
+  gEfiMdePkgTokenSpaceGuid.PcdCpuRngSupportedAlgorithm
+
 [LibraryClasses]
   BaseLib
   DebugLib
+
+[Pcd.RISCV64]
+  # Does the CPU support the Zkr extension (for the `Seed` CSR)
+  gEfiMdePkgTokenSpaceGuid.PcdRiscVFeatureOverride           ## CONSUMES

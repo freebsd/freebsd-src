@@ -13,7 +13,7 @@
 #include <Pi/PiMmCis.h>
 #include <Protocol/SmmCpuIo2.h>
 
-typedef struct _EFI_SMM_SYSTEM_TABLE2  EFI_SMM_SYSTEM_TABLE2;
+typedef struct _EFI_SMM_SYSTEM_TABLE2 EFI_SMM_SYSTEM_TABLE2;
 //
 // Define new MM related definition introduced by PI 1.5.
 //
@@ -49,41 +49,41 @@ EFI_STATUS
   IN UINTN                          TableSize
   );
 
-typedef  EFI_MM_STARTUP_THIS_AP                EFI_SMM_STARTUP_THIS_AP;
-typedef  EFI_MM_NOTIFY_FN                      EFI_SMM_NOTIFY_FN;
-typedef  EFI_MM_REGISTER_PROTOCOL_NOTIFY       EFI_SMM_REGISTER_PROTOCOL_NOTIFY;
-typedef  EFI_MM_INTERRUPT_MANAGE               EFI_SMM_INTERRUPT_MANAGE;
-typedef  EFI_MM_HANDLER_ENTRY_POINT            EFI_SMM_HANDLER_ENTRY_POINT2;
-typedef  EFI_MM_INTERRUPT_REGISTER             EFI_SMM_INTERRUPT_REGISTER;
-typedef  EFI_MM_INTERRUPT_UNREGISTER           EFI_SMM_INTERRUPT_UNREGISTER;
+typedef  EFI_MM_STARTUP_THIS_AP          EFI_SMM_STARTUP_THIS_AP;
+typedef  EFI_MM_NOTIFY_FN                EFI_SMM_NOTIFY_FN;
+typedef  EFI_MM_REGISTER_PROTOCOL_NOTIFY EFI_SMM_REGISTER_PROTOCOL_NOTIFY;
+typedef  EFI_MM_INTERRUPT_MANAGE         EFI_SMM_INTERRUPT_MANAGE;
+typedef  EFI_MM_HANDLER_ENTRY_POINT      EFI_SMM_HANDLER_ENTRY_POINT2;
+typedef  EFI_MM_INTERRUPT_REGISTER       EFI_SMM_INTERRUPT_REGISTER;
+typedef  EFI_MM_INTERRUPT_UNREGISTER     EFI_SMM_INTERRUPT_UNREGISTER;
 
 ///
 /// Processor information and functionality needed by SMM Foundation.
 ///
 typedef struct _EFI_SMM_ENTRY_CONTEXT {
-  EFI_SMM_STARTUP_THIS_AP  SmmStartupThisAp;
+  EFI_SMM_STARTUP_THIS_AP    SmmStartupThisAp;
   ///
   /// A number between zero and the NumberOfCpus field. This field designates which
   /// processor is executing the SMM Foundation.
   ///
-  UINTN                    CurrentlyExecutingCpu;
+  UINTN                      CurrentlyExecutingCpu;
   ///
   /// The number of possible processors in the platform.  This is a 1 based
   /// counter.  This does not indicate the number of processors that entered SMM.
   ///
-  UINTN                    NumberOfCpus;
+  UINTN                      NumberOfCpus;
   ///
   /// Points to an array, where each element describes the number of bytes in the
   /// corresponding save state specified by CpuSaveState. There are always
   /// NumberOfCpus entries in the array.
   ///
-  UINTN                    *CpuSaveStateSize;
+  UINTN                      *CpuSaveStateSize;
   ///
   /// Points to an array, where each element is a pointer to a CPU save state. The
   /// corresponding element in CpuSaveStateSize specifies the number of bytes in the
   /// save state area. There are always NumberOfCpus entries in the array.
   ///
-  VOID                     **CpuSaveState;
+  VOID                       **CpuSaveState;
 } EFI_SMM_ENTRY_CONTEXT;
 
 /**
@@ -108,36 +108,36 @@ struct _EFI_SMM_SYSTEM_TABLE2 {
   ///
   /// The table header for the SMST.
   ///
-  EFI_TABLE_HEADER                     Hdr;
+  EFI_TABLE_HEADER                        Hdr;
   ///
   /// A pointer to a NULL-terminated Unicode string containing the vendor name.
   /// It is permissible for this pointer to be NULL.
   ///
-  CHAR16                               *SmmFirmwareVendor;
+  CHAR16                                  *SmmFirmwareVendor;
   ///
   /// The particular revision of the firmware.
   ///
-  UINT32                               SmmFirmwareRevision;
+  UINT32                                  SmmFirmwareRevision;
 
-  EFI_SMM_INSTALL_CONFIGURATION_TABLE2 SmmInstallConfigurationTable;
+  EFI_SMM_INSTALL_CONFIGURATION_TABLE2    SmmInstallConfigurationTable;
 
   ///
   /// I/O Service
   ///
-  EFI_SMM_CPU_IO2_PROTOCOL             SmmIo;
+  EFI_SMM_CPU_IO2_PROTOCOL                SmmIo;
 
   ///
   /// Runtime memory services
   ///
-  EFI_ALLOCATE_POOL                    SmmAllocatePool;
-  EFI_FREE_POOL                        SmmFreePool;
-  EFI_ALLOCATE_PAGES                   SmmAllocatePages;
-  EFI_FREE_PAGES                       SmmFreePages;
+  EFI_ALLOCATE_POOL                       SmmAllocatePool;
+  EFI_FREE_POOL                           SmmFreePool;
+  EFI_ALLOCATE_PAGES                      SmmAllocatePages;
+  EFI_FREE_PAGES                          SmmFreePages;
 
   ///
   /// MP service
   ///
-  EFI_SMM_STARTUP_THIS_AP              SmmStartupThisAp;
+  EFI_SMM_STARTUP_THIS_AP                 SmmStartupThisAp;
 
   ///
   /// CPU information records
@@ -147,23 +147,23 @@ struct _EFI_SMM_SYSTEM_TABLE2 {
   /// A number between zero and and the NumberOfCpus field. This field designates
   /// which processor is executing the SMM infrastructure.
   ///
-  UINTN                                CurrentlyExecutingCpu;
+  UINTN    CurrentlyExecutingCpu;
   ///
   /// The number of possible processors in the platform.  This is a 1 based counter.
   ///
-  UINTN                                NumberOfCpus;
+  UINTN    NumberOfCpus;
   ///
   /// Points to an array, where each element describes the number of bytes in the
   /// corresponding save state specified by CpuSaveState. There are always
   /// NumberOfCpus entries in the array.
   ///
-  UINTN                                *CpuSaveStateSize;
+  UINTN    *CpuSaveStateSize;
   ///
   /// Points to an array, where each element is a pointer to a CPU save state. The
   /// corresponding element in CpuSaveStateSize specifies the number of bytes in the
   /// save state area. There are always NumberOfCpus entries in the array.
   ///
-  VOID                                 **CpuSaveState;
+  VOID     **CpuSaveState;
 
   ///
   /// Extensibility table
@@ -172,29 +172,29 @@ struct _EFI_SMM_SYSTEM_TABLE2 {
   ///
   /// The number of UEFI Configuration Tables in the buffer SmmConfigurationTable.
   ///
-  UINTN                                NumberOfTableEntries;
+  UINTN                               NumberOfTableEntries;
   ///
   /// A pointer to the UEFI Configuration Tables. The number of entries in the table is
   /// NumberOfTableEntries.
   ///
-  EFI_CONFIGURATION_TABLE              *SmmConfigurationTable;
+  EFI_CONFIGURATION_TABLE             *SmmConfigurationTable;
 
   ///
   /// Protocol services
   ///
-  EFI_INSTALL_PROTOCOL_INTERFACE       SmmInstallProtocolInterface;
-  EFI_UNINSTALL_PROTOCOL_INTERFACE     SmmUninstallProtocolInterface;
-  EFI_HANDLE_PROTOCOL                  SmmHandleProtocol;
-  EFI_SMM_REGISTER_PROTOCOL_NOTIFY     SmmRegisterProtocolNotify;
-  EFI_LOCATE_HANDLE                    SmmLocateHandle;
-  EFI_LOCATE_PROTOCOL                  SmmLocateProtocol;
+  EFI_INSTALL_PROTOCOL_INTERFACE      SmmInstallProtocolInterface;
+  EFI_UNINSTALL_PROTOCOL_INTERFACE    SmmUninstallProtocolInterface;
+  EFI_HANDLE_PROTOCOL                 SmmHandleProtocol;
+  EFI_SMM_REGISTER_PROTOCOL_NOTIFY    SmmRegisterProtocolNotify;
+  EFI_LOCATE_HANDLE                   SmmLocateHandle;
+  EFI_LOCATE_PROTOCOL                 SmmLocateProtocol;
 
   ///
   /// SMI Management functions
   ///
-  EFI_SMM_INTERRUPT_MANAGE             SmiManage;
-  EFI_SMM_INTERRUPT_REGISTER           SmiHandlerRegister;
-  EFI_SMM_INTERRUPT_UNREGISTER         SmiHandlerUnRegister;
+  EFI_SMM_INTERRUPT_MANAGE            SmiManage;
+  EFI_SMM_INTERRUPT_REGISTER          SmiHandlerRegister;
+  EFI_SMM_INTERRUPT_UNREGISTER        SmiHandlerUnRegister;
 };
 
 #endif

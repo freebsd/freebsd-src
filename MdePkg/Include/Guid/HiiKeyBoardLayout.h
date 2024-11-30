@@ -16,6 +16,6 @@
 #define EFI_HII_SET_KEYBOARD_LAYOUT_EVENT_GUID \
   { 0x14982a4f, 0xb0ed, 0x45b8, { 0xa8, 0x11, 0x5a, 0x7a, 0x9b, 0xc2, 0x32, 0xdf }}
 
-extern EFI_GUID gEfiHiiKeyBoardLayoutGuid;
+extern EFI_GUID  gEfiHiiKeyBoardLayoutGuid;
 
 #endif

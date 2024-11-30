@@ -11,13 +11,12 @@
 #ifndef _MM_STATUS_CODE_H__
 #define _MM_STATUS_CODE_H__
 
-
 #define EFI_MM_STATUS_CODE_PROTOCOL_GUID \
   { \
     0x6afd2b77, 0x98c1, 0x4acd, {0xa6, 0xf9, 0x8a, 0x94, 0x39, 0xde, 0xf, 0xb1} \
   }
 
-typedef struct _EFI_MM_STATUS_CODE_PROTOCOL  EFI_MM_STATUS_CODE_PROTOCOL;
+typedef struct _EFI_MM_STATUS_CODE_PROTOCOL EFI_MM_STATUS_CODE_PROTOCOL;
 
 /**
   Service to emit the status code in MM.
@@ -50,10 +49,9 @@ EFI_STATUS
   );
 
 struct _EFI_MM_STATUS_CODE_PROTOCOL {
-  EFI_MM_REPORT_STATUS_CODE  ReportStatusCode;
+  EFI_MM_REPORT_STATUS_CODE    ReportStatusCode;
 };
 
-extern EFI_GUID gEfiMmStatusCodeProtocolGuid;
+extern EFI_GUID  gEfiMmStatusCodeProtocolGuid;
 
 #endif
-

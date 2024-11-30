@@ -14,7 +14,7 @@
     0xd8117cfe, 0x94a6, 0x11d4, {0x9a, 0x3a, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
 
-typedef struct _EFI_DECOMPRESS_PROTOCOL  EFI_DECOMPRESS_PROTOCOL;
+typedef struct _EFI_DECOMPRESS_PROTOCOL EFI_DECOMPRESS_PROTOCOL;
 
 /**
   The GetInfo() function retrieves the size of the uncompressed buffer
@@ -107,10 +107,10 @@ EFI_STATUS
 /// Provides a decompression service.
 ///
 struct _EFI_DECOMPRESS_PROTOCOL {
-  EFI_DECOMPRESS_GET_INFO   GetInfo;
-  EFI_DECOMPRESS_DECOMPRESS Decompress;
+  EFI_DECOMPRESS_GET_INFO      GetInfo;
+  EFI_DECOMPRESS_DECOMPRESS    Decompress;
 };
 
-extern EFI_GUID gEfiDecompressProtocolGuid;
+extern EFI_GUID  gEfiDecompressProtocolGuid;
 
 #endif

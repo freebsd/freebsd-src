@@ -19,79 +19,79 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 typedef struct tdEFI_TCG2_PROTOCOL EFI_TCG2_PROTOCOL;
 
 typedef struct tdEFI_TCG2_VERSION {
-  UINT8 Major;
-  UINT8 Minor;
+  UINT8    Major;
+  UINT8    Minor;
 } EFI_TCG2_VERSION;
 
 typedef UINT32 EFI_TCG2_EVENT_LOG_BITMAP;
 typedef UINT32 EFI_TCG2_EVENT_LOG_FORMAT;
 typedef UINT32 EFI_TCG2_EVENT_ALGORITHM_BITMAP;
 
-#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2       0x00000001
-#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_2         0x00000002
+#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2  0x00000001
+#define EFI_TCG2_EVENT_LOG_FORMAT_TCG_2    0x00000002
 
 typedef struct tdEFI_TCG2_BOOT_SERVICE_CAPABILITY {
   //
   // Allocated size of the structure
   //
-  UINT8                            Size;
+  UINT8                              Size;
   //
   // Version of the EFI_TCG2_BOOT_SERVICE_CAPABILITY structure itself.
   // For this version of the protocol, the Major version shall be set to 1
   // and the Minor version shall be set to 1.
   //
-  EFI_TCG2_VERSION                 StructureVersion;
+  EFI_TCG2_VERSION                   StructureVersion;
   //
   // Version of the EFI TCG2 protocol.
   // For this version of the protocol, the Major version shall be set to 1
   // and the Minor version shall be set to 1.
   //
-  EFI_TCG2_VERSION                 ProtocolVersion;
+  EFI_TCG2_VERSION                   ProtocolVersion;
   //
   // Supported hash algorithms (this bitmap is determined by the supported PCR
   // banks in the TPM and the hashing algorithms supported by the firmware)
   //
-  EFI_TCG2_EVENT_ALGORITHM_BITMAP  HashAlgorithmBitmap;
+  EFI_TCG2_EVENT_ALGORITHM_BITMAP    HashAlgorithmBitmap;
   //
   // Bitmap of supported event log formats
   //
-  EFI_TCG2_EVENT_LOG_BITMAP        SupportedEventLogs;
+  EFI_TCG2_EVENT_LOG_BITMAP          SupportedEventLogs;
   //
   // False = TPM not present
   //
-  BOOLEAN                          TPMPresentFlag;
+  BOOLEAN                            TPMPresentFlag;
   //
   // Max size (in bytes) of a command that can be sent to the TPM
   //
-  UINT16                           MaxCommandSize;
+  UINT16                             MaxCommandSize;
   //
   // Max size (in bytes) of a response that can be provided by the TPM
   //
-  UINT16                           MaxResponseSize;
+  UINT16                             MaxResponseSize;
   //
   // 4-byte Vendor ID
   // (see TCG Vendor ID registry, Section "TPM Capabilities Vendor ID")
   //
-  UINT32                           ManufacturerID;
+  UINT32                             ManufacturerID;
   //
   // Maximum number of PCR banks (hashing algorithms) supported.
   // No granularity is provided to support a specific set of algorithms.
   // Minimum value is 1.
   //
-  UINT32                           NumberOfPCRBanks;
+  UINT32                             NumberOfPCRBanks;
   //
   // A bitmap of currently active PCR banks (hashing algorithms).
   // This is a subset of the supported hashing algorithms reported in HashAlgorithmBitMap.
   // NumberOfPcrBanks defines the number of bits that are set.
   //
-  EFI_TCG2_EVENT_ALGORITHM_BITMAP  ActivePcrBanks;
+  EFI_TCG2_EVENT_ALGORITHM_BITMAP    ActivePcrBanks;
 } EFI_TCG2_BOOT_SERVICE_CAPABILITY;
 
-#define EFI_TCG2_BOOT_HASH_ALG_SHA1    0x00000001
-#define EFI_TCG2_BOOT_HASH_ALG_SHA256  0x00000002
-#define EFI_TCG2_BOOT_HASH_ALG_SHA384  0x00000004
-#define EFI_TCG2_BOOT_HASH_ALG_SHA512  0x00000008
-#define EFI_TCG2_BOOT_HASH_ALG_SM3_256 0x00000010
+#define EFI_TCG2_BOOT_HASH_ALG_SHA1     0x00000001
+#define EFI_TCG2_BOOT_HASH_ALG_SHA256   0x00000002
+#define EFI_TCG2_BOOT_HASH_ALG_SHA384   0x00000004
+#define EFI_TCG2_BOOT_HASH_ALG_SHA512   0x00000008
+#define EFI_TCG2_BOOT_HASH_ALG_SM3_256  0x00000010
 
 //
 // This bit is shall be set when an event shall be extended but not logged.
@@ -100,7 +100,7 @@ typedef struct tdEFI_TCG2_BOOT_SERVICE_CAPABILITY {
 //
 // This bit shall be set when the intent is to measure a PE/COFF image.
 //
-#define PE_COFF_IMAGE     0x0000000000000010
+#define PE_COFF_IMAGE  0x0000000000000010
 
 #define MAX_PCR_INDEX  23
 
@@ -112,28 +112,28 @@ typedef struct {
   //
   // Size of the event header itself (sizeof(EFI_TCG2_EVENT_HEADER)).
   //
-  UINT32            HeaderSize;
+  UINT32           HeaderSize;
   //
   // Header version. For this version of this specification, the value shall be 1.
   //
-  UINT16            HeaderVersion;
+  UINT16           HeaderVersion;
   //
   // Index of the PCR that shall be extended (0 - 23).
   //
-  TCG_PCRINDEX      PCRIndex;
+  TCG_PCRINDEX     PCRIndex;
   //
   // Type of the event that shall be extended (and optionally logged).
   //
-  TCG_EVENTTYPE     EventType;
+  TCG_EVENTTYPE    EventType;
 } EFI_TCG2_EVENT_HEADER;
 
 typedef struct tdEFI_TCG2_EVENT {
   //
   // Total size of the event including the Size component, the header and the Event data.
   //
-  UINT32                Size;
-  EFI_TCG2_EVENT_HEADER Header;
-  UINT8                 Event[1];
+  UINT32                   Size;
+  EFI_TCG2_EVENT_HEADER    Header;
+  UINT8                    Event[1];
 } EFI_TCG2_EVENT;
 
 #pragma pack()
@@ -159,7 +159,7 @@ typedef struct tdEFI_TCG2_EVENT {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_GET_CAPABILITY) (
+(EFIAPI *EFI_TCG2_GET_CAPABILITY)(
   IN EFI_TCG2_PROTOCOL                    *This,
   IN OUT EFI_TCG2_BOOT_SERVICE_CAPABILITY *ProtocolCapability
   );
@@ -183,7 +183,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_GET_EVENT_LOG) (
+(EFIAPI *EFI_TCG2_GET_EVENT_LOG)(
   IN EFI_TCG2_PROTOCOL         *This,
   IN EFI_TCG2_EVENT_LOG_FORMAT EventLogFormat,
   OUT EFI_PHYSICAL_ADDRESS     *EventLogLocation,
@@ -212,7 +212,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_TCG2_HASH_LOG_EXTEND_EVENT) (
+(EFIAPI *EFI_TCG2_HASH_LOG_EXTEND_EVENT)(
   IN EFI_TCG2_PROTOCOL    *This,
   IN UINT64               Flags,
   IN EFI_PHYSICAL_ADDRESS DataToHash,
@@ -236,7 +236,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_SUBMIT_COMMAND) (
+(EFIAPI *EFI_TCG2_SUBMIT_COMMAND)(
   IN EFI_TCG2_PROTOCOL *This,
   IN UINT32            InputParameterBlockSize,
   IN UINT8             *InputParameterBlock,
@@ -255,7 +255,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_GET_ACTIVE_PCR_BANKS) (
+(EFIAPI *EFI_TCG2_GET_ACTIVE_PCR_BANKS)(
   IN  EFI_TCG2_PROTOCOL *This,
   OUT UINT32            *ActivePcrBanks
   );
@@ -271,7 +271,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_SET_ACTIVE_PCR_BANKS) (
+(EFIAPI *EFI_TCG2_SET_ACTIVE_PCR_BANKS)(
   IN EFI_TCG2_PROTOCOL *This,
   IN UINT32            ActivePcrBanks
   );
@@ -288,23 +288,23 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_TCG2_GET_RESULT_OF_SET_ACTIVE_PCR_BANKS) (
+(EFIAPI *EFI_TCG2_GET_RESULT_OF_SET_ACTIVE_PCR_BANKS)(
   IN  EFI_TCG2_PROTOCOL  *This,
   OUT UINT32             *OperationPresent,
   OUT UINT32             *Response
   );
 
 struct tdEFI_TCG2_PROTOCOL {
-  EFI_TCG2_GET_CAPABILITY                     GetCapability;
-  EFI_TCG2_GET_EVENT_LOG                      GetEventLog;
-  EFI_TCG2_HASH_LOG_EXTEND_EVENT              HashLogExtendEvent;
-  EFI_TCG2_SUBMIT_COMMAND                     SubmitCommand;
-  EFI_TCG2_GET_ACTIVE_PCR_BANKS               GetActivePcrBanks;
-  EFI_TCG2_SET_ACTIVE_PCR_BANKS               SetActivePcrBanks;
-  EFI_TCG2_GET_RESULT_OF_SET_ACTIVE_PCR_BANKS GetResultOfSetActivePcrBanks;
+  EFI_TCG2_GET_CAPABILITY                        GetCapability;
+  EFI_TCG2_GET_EVENT_LOG                         GetEventLog;
+  EFI_TCG2_HASH_LOG_EXTEND_EVENT                 HashLogExtendEvent;
+  EFI_TCG2_SUBMIT_COMMAND                        SubmitCommand;
+  EFI_TCG2_GET_ACTIVE_PCR_BANKS                  GetActivePcrBanks;
+  EFI_TCG2_SET_ACTIVE_PCR_BANKS                  SetActivePcrBanks;
+  EFI_TCG2_GET_RESULT_OF_SET_ACTIVE_PCR_BANKS    GetResultOfSetActivePcrBanks;
 };
 
-extern EFI_GUID gEfiTcg2ProtocolGuid;
+extern EFI_GUID  gEfiTcg2ProtocolGuid;
 
 //
 // Log entries after Get Event Log service
@@ -313,23 +313,23 @@ extern EFI_GUID gEfiTcg2ProtocolGuid;
 #define EFI_TCG2_FINAL_EVENTS_TABLE_GUID \
   {0x1e2ed096, 0x30e2, 0x4254, { 0xbd, 0x89, 0x86, 0x3b, 0xbe, 0xf8, 0x23, 0x25 }}
 
-extern EFI_GUID gEfiTcg2FinalEventsTableGuid;
+extern EFI_GUID  gEfiTcg2FinalEventsTableGuid;
 
 typedef struct tdEFI_TCG2_FINAL_EVENTS_TABLE {
   //
   // The version of this structure.
   //
-  UINT64                  Version;
+  UINT64    Version;
   //
   // Number of events recorded after invocation of GetEventLog API
   //
-  UINT64                  NumberOfEvents;
+  UINT64    NumberOfEvents;
   //
   // List of events of type TCG_PCR_EVENT2.
   //
-//TCG_PCR_EVENT2          Event[1];
+  // TCG_PCR_EVENT2          Event[1];
 } EFI_TCG2_FINAL_EVENTS_TABLE;
 
-#define EFI_TCG2_FINAL_EVENTS_TABLE_VERSION   1
+#define EFI_TCG2_FINAL_EVENTS_TABLE_VERSION  1
 
 #endif

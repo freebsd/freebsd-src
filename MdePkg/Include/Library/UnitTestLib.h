@@ -13,7 +13,7 @@
 ///
 /// Unit Test Status
 ///
-typedef UINT32  UNIT_TEST_STATUS;
+typedef UINT32 UNIT_TEST_STATUS;
 #define UNIT_TEST_PASSED                      (0)
 #define UNIT_TEST_ERROR_PREREQUISITE_NOT_MET  (1)
 #define UNIT_TEST_ERROR_TEST_FAILED           (2)
@@ -34,24 +34,24 @@ typedef UINT32  UNIT_TEST_STATUS;
 /// Unit Test Framework Handle
 ///
 struct UNIT_TEST_FRAMEWORK_OBJECT;
-typedef struct UNIT_TEST_FRAMEWORK_OBJECT  *UNIT_TEST_FRAMEWORK_HANDLE;
+typedef struct UNIT_TEST_FRAMEWORK_OBJECT *UNIT_TEST_FRAMEWORK_HANDLE;
 
 ///
 /// Unit Test Suite Handle
 ///
 struct UNIT_TEST_SUITE_OBJECT;
-typedef struct UNIT_TEST_SUITE_OBJECT  *UNIT_TEST_SUITE_HANDLE;
+typedef struct UNIT_TEST_SUITE_OBJECT *UNIT_TEST_SUITE_HANDLE;
 
 ///
 /// Unit Test Handle
 ///
 struct UNIT_TEST_OBJECT;
-typedef struct UNIT_TEST_OBJECT  *UNIT_TEST_HANDLE;
+typedef struct UNIT_TEST_OBJECT *UNIT_TEST_HANDLE;
 
 ///
 /// Unit Test Context
 ///
-typedef VOID*  UNIT_TEST_CONTEXT;
+typedef VOID *UNIT_TEST_CONTEXT;
 
 /**
   The prototype for a single UnitTest case function.
@@ -313,11 +313,9 @@ FreeUnitTestFramework (
   at least the current execution count) which will be saved by the framework and
   passed to the test case upon resume.
 
-  Generally called from within a test case prior to quitting or rebooting.
+  This should be called while the current test framework is valid and active. It is
+  generally called from within a test case prior to quitting or rebooting.
 
-  @param[in]  FrameworkHandle    A handle to the current running framework that
-                                 dispatched the test.  Necessary for recording
-                                 certain test events with the framework.
   @param[in]  ContextToSave      A buffer of test case-specific data to be saved
                                  along with framework state.  Will be passed as
                                  "Context" to the test case upon resume.  This
@@ -325,7 +323,7 @@ FreeUnitTestFramework (
   @param[in]  ContextToSaveSize  Size of the ContextToSave buffer.
 
   @retval  EFI_SUCCESS            The framework state and context were saved.
-  @retval  EFI_INVALID_PARAMETER  FrameworkHandle is NULL.
+  @retval  EFI_NOT_FOUND          An active framework handle was not found.
   @retval  EFI_INVALID_PARAMETER  ContextToSave is not NULL and
                                   ContextToSaveSize is 0.
   @retval  EFI_INVALID_PARAMETER  ContextToSave is >= 4GB.
@@ -338,9 +336,8 @@ FreeUnitTestFramework (
 EFI_STATUS
 EFIAPI
 SaveFrameworkState (
-  IN UNIT_TEST_FRAMEWORK_HANDLE  FrameworkHandle,
-  IN UNIT_TEST_CONTEXT           ContextToSave     OPTIONAL,
-  IN UINTN                       ContextToSaveSize
+  IN UNIT_TEST_CONTEXT  ContextToSave     OPTIONAL,
+  IN UINTN              ContextToSaveSize
   );
 
 /**
@@ -350,9 +347,9 @@ SaveFrameworkState (
 
   @param[in]  Expression  Expression to be evaluated for TRUE.
 **/
-#define UT_ASSERT_TRUE(Expression)                                                        \
-  if(!UnitTestAssertTrue ((Expression), __FUNCTION__, __LINE__, __FILE__, #Expression)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                   \
+#define UT_ASSERT_TRUE(Expression)                                                                 \
+  if(!UnitTestAssertTrue ((Expression), __func__, DEBUG_LINE_NUMBER, __FILE__, #Expression)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                            \
   }
 
 /**
@@ -362,9 +359,9 @@ SaveFrameworkState (
 
   @param[in]  Expression  Expression to be evaluated for FALSE.
 **/
-#define UT_ASSERT_FALSE(Expression)                                                        \
-  if(!UnitTestAssertFalse ((Expression), __FUNCTION__, __LINE__, __FILE__, #Expression)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                    \
+#define UT_ASSERT_FALSE(Expression)                                                                 \
+  if(!UnitTestAssertFalse ((Expression), __func__, DEBUG_LINE_NUMBER, __FILE__, #Expression)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                             \
   }
 
 /**
@@ -376,7 +373,7 @@ SaveFrameworkState (
   @param[in]  ValueB  Value to be compared for equality (64-bit comparison).
 **/
 #define UT_ASSERT_EQUAL(ValueA, ValueB)                                                                           \
-  if(!UnitTestAssertEqual ((UINT64)(ValueA), (UINT64)(ValueB), __FUNCTION__, __LINE__, __FILE__, #ValueA, #ValueB)) { \
+  if(!UnitTestAssertEqual ((UINT64)(ValueA), (UINT64)(ValueB), __func__, DEBUG_LINE_NUMBER, __FILE__, #ValueA, #ValueB)) { \
     return UNIT_TEST_ERROR_TEST_FAILED;                                                                           \
   }
 
@@ -389,9 +386,9 @@ SaveFrameworkState (
   @param[in]  BufferB  Pointer to a buffer for comparison.
   @param[in]  Length   Number of bytes to compare in BufferA and BufferB.
 **/
-#define UT_ASSERT_MEM_EQUAL(BufferA, BufferB, Length)                                                                               \
-  if(!UnitTestAssertMemEqual ((VOID *)(UINTN)(BufferA), (VOID *)(UINTN)(BufferB), (UINTN)Length, __FUNCTION__, __LINE__, __FILE__, #BufferA, #BufferB)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                                                           \
+#define UT_ASSERT_MEM_EQUAL(BufferA, BufferB, Length)                                                                                                              \
+  if(!UnitTestAssertMemEqual ((VOID *)(UINTN)(BufferA), (VOID *)(UINTN)(BufferB), (UINTN)Length, __func__, DEBUG_LINE_NUMBER, __FILE__, #BufferA, #BufferB)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                                                                                            \
   }
 
 /**
@@ -402,9 +399,9 @@ SaveFrameworkState (
   @param[in]  ValueA  Value to be compared for inequality (64-bit comparison).
   @param[in]  ValueB  Value to be compared for inequality (64-bit comparison).
 **/
-#define UT_ASSERT_NOT_EQUAL(ValueA, ValueB)                                                                          \
-  if(!UnitTestAssertNotEqual ((UINT64)(ValueA), (UINT64)(ValueB), __FUNCTION__, __LINE__, __FILE__, #ValueA, #ValueB)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                                              \
+#define UT_ASSERT_NOT_EQUAL(ValueA, ValueB)                                                                                       \
+  if(!UnitTestAssertNotEqual ((UINT64)(ValueA), (UINT64)(ValueB), __func__, DEBUG_LINE_NUMBER, __FILE__, #ValueA, #ValueB)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                                                           \
   }
 
 /**
@@ -414,9 +411,9 @@ SaveFrameworkState (
 
   @param[in]  Status  EFI_STATUS value to check.
 **/
-#define UT_ASSERT_NOT_EFI_ERROR(Status)                                                \
-  if(!UnitTestAssertNotEfiError ((Status), __FUNCTION__, __LINE__, __FILE__, #Status)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                \
+#define UT_ASSERT_NOT_EFI_ERROR(Status)                                                           \
+  if(!UnitTestAssertNotEfiError ((Status), __func__, DEBUG_LINE_NUMBER, __FILE__, #Status)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                           \
   }
 
 /**
@@ -427,9 +424,9 @@ SaveFrameworkState (
   @param[in]  Status    EFI_STATUS values to compare for equality.
   @param[in]  Expected  EFI_STATUS values to compare for equality.
 **/
-#define UT_ASSERT_STATUS_EQUAL(Status, Expected)                                                 \
-  if(!UnitTestAssertStatusEqual ((Status), (Expected), __FUNCTION__, __LINE__, __FILE__, #Status)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                                          \
+#define UT_ASSERT_STATUS_EQUAL(Status, Expected)                                                              \
+  if(!UnitTestAssertStatusEqual ((Status), (Expected), __func__, DEBUG_LINE_NUMBER, __FILE__, #Status)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                                       \
   }
 
 /**
@@ -439,10 +436,60 @@ SaveFrameworkState (
 
   @param[in]  Pointer  Pointer to be checked against NULL.
 **/
-#define UT_ASSERT_NOT_NULL(Pointer)                                                  \
-  if(!UnitTestAssertNotNull ((Pointer), __FUNCTION__, __LINE__, __FILE__, #Pointer)) { \
-    return UNIT_TEST_ERROR_TEST_FAILED;                                              \
+#define UT_ASSERT_NOT_NULL(Pointer)                                                             \
+  if(!UnitTestAssertNotNull ((Pointer), __func__, DEBUG_LINE_NUMBER, __FILE__, #Pointer)) { \
+    return UNIT_TEST_ERROR_TEST_FAILED;                                                         \
   }
+
+/**
+  This macro uses the framework assertion logic to check whether a function call
+  triggers an ASSERT() condition.  The BaseLib SetJump()/LongJump() services
+  are used to establish a safe return point when an ASSERT() is triggered.
+  If an ASSERT() is triggered, unit test execution continues and Status is set
+  to UNIT_TEST_PASSED.  Otherwise, a unit test case failure is raised and
+  Status is set to UNIT_TEST_ERROR_TEST_FAILED.
+
+  If ASSERT() macros are disabled, then the test case is skipped and a warning
+  message is added to the unit test log.  Status is set to UNIT_TEST_SKIPPED.
+
+  @param[in]  FunctionCall  Function call that is expected to trigger ASSERT().
+  @param[out] Status        Pointer to a UNIT_TEST_STATUS return value.  This
+                            is an optional parameter that may be NULL.
+**/
+#if defined (EDKII_UNIT_TEST_FRAMEWORK_ENABLED)
+  #include <Library/BaseLib.h>
+
+///
+/// Pointer to jump buffer used with SetJump()/LongJump() to test if a
+/// function under test generates an expected ASSERT() condition.
+///
+extern BASE_LIBRARY_JUMP_BUFFER  *gUnitTestExpectAssertFailureJumpBuffer;
+
+#define UT_EXPECT_ASSERT_FAILURE(FunctionCall, Status)               \
+    do {                                                               \
+      UNIT_TEST_STATUS          UnitTestJumpStatus;                    \
+      BASE_LIBRARY_JUMP_BUFFER  UnitTestJumpBuffer;                    \
+      UnitTestJumpStatus = UNIT_TEST_SKIPPED;                          \
+      if (DebugAssertEnabled ()) {                                     \
+        gUnitTestExpectAssertFailureJumpBuffer = &UnitTestJumpBuffer;  \
+        if (SetJump (gUnitTestExpectAssertFailureJumpBuffer) == 0) {   \
+          FunctionCall;                                                \
+          UnitTestJumpStatus = UNIT_TEST_ERROR_TEST_FAILED;            \
+        } else {                                                       \
+          UnitTestJumpStatus = UNIT_TEST_PASSED;                       \
+        }                                                              \
+        gUnitTestExpectAssertFailureJumpBuffer = NULL;                 \
+      }                                                                \
+      if (!UnitTestExpectAssertFailure (                               \
+             UnitTestJumpStatus,                                       \
+             __func__, DEBUG_LINE_NUMBER, __FILE__,                \
+             #FunctionCall, Status)) {                                 \
+        return UNIT_TEST_ERROR_TEST_FAILED;                            \
+      }                                                                \
+    } while (FALSE)
+#else
+#define UT_EXPECT_ASSERT_FAILURE(FunctionCall, Status)  FunctionCall;
+#endif
 
 /**
   If Expression is TRUE, then TRUE is returned.
@@ -691,6 +738,46 @@ UnitTestAssertNotNull (
   IN UINTN        LineNumber,
   IN CONST CHAR8  *FileName,
   IN CONST CHAR8  *PointerName
+  );
+
+/**
+  If UnitTestStatus is UNIT_TEST_PASSED, then log an info message and return
+  TRUE because an ASSERT() was expected when FunctionCall was executed and an
+  ASSERT() was triggered. If UnitTestStatus is UNIT_TEST_SKIPPED, then log a
+  warning message and return TRUE because ASSERT() macros are disabled.  If
+  UnitTestStatus is UNIT_TEST_ERROR_TEST_FAILED, then log an error message and
+  return FALSE because an ASSERT() was expected when FunctionCall was executed,
+  but no ASSERT() conditions were triggered.  The log messages contain
+  FunctionName, LineNumber, and FileName strings to provide the location of the
+  UT_EXPECT_ASSERT_FAILURE() macro.
+
+  @param[in]  UnitTestStatus  The status from UT_EXPECT_ASSERT_FAILURE() that
+                              is either pass, skipped, or failed.
+  @param[in]  FunctionName    Null-terminated ASCII string of the function
+                              executing the UT_EXPECT_ASSERT_FAILURE() macro.
+  @param[in]  LineNumber      The source file line number of the the function
+                              executing the UT_EXPECT_ASSERT_FAILURE() macro.
+  @param[in]  FileName        Null-terminated ASCII string of the filename
+                              executing the UT_EXPECT_ASSERT_FAILURE() macro.
+  @param[in]  FunctionCall    Null-terminated ASCII string of the function call
+                              executed by the UT_EXPECT_ASSERT_FAILURE() macro.
+  @param[out] ResultStatus    Used to return the UnitTestStatus value to the
+                              caller of UT_EXPECT_ASSERT_FAILURE().  This is
+                              optional parameter that may be NULL.
+
+  @retval  TRUE   UnitTestStatus is UNIT_TEST_PASSED.
+  @retval  TRUE   UnitTestStatus is UNIT_TEST_SKIPPED.
+  @retval  FALSE  UnitTestStatus is UNIT_TEST_ERROR_TEST_FAILED.
+**/
+BOOLEAN
+EFIAPI
+UnitTestExpectAssertFailure (
+  IN  UNIT_TEST_STATUS  UnitTestStatus,
+  IN  CONST CHAR8       *FunctionName,
+  IN  UINTN             LineNumber,
+  IN  CONST CHAR8       *FileName,
+  IN  CONST CHAR8       *FunctionCall,
+  OUT UNIT_TEST_STATUS  *ResultStatus  OPTIONAL
   );
 
 /**

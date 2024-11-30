@@ -16,8 +16,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define EFI_PEI_READ_ONLY_VARIABLE2_PPI_GUID \
   { 0x2ab86ef5, 0xecb5, 0x4134, { 0xb5, 0x56, 0x38, 0x54, 0xca, 0x1f, 0xe1, 0xb4 } }
 
-
-typedef struct _EFI_PEI_READ_ONLY_VARIABLE2_PPI  EFI_PEI_READ_ONLY_VARIABLE2_PPI;
+typedef struct _EFI_PEI_READ_ONLY_VARIABLE2_PPI EFI_PEI_READ_ONLY_VARIABLE2_PPI;
 
 /**
   This service retrieves a variable's value using its name and GUID.
@@ -56,7 +55,6 @@ EFI_STATUS
   IN OUT    UINTN                           *DataSize,
   OUT       VOID                            *Data OPTIONAL
   );
-
 
 /**
   Return the next variable name and GUID.
@@ -102,10 +100,10 @@ EFI_STATUS
 /// variable services.
 ///
 struct _EFI_PEI_READ_ONLY_VARIABLE2_PPI {
-  EFI_PEI_GET_VARIABLE2           GetVariable;
-  EFI_PEI_GET_NEXT_VARIABLE_NAME2 NextVariableName;
+  EFI_PEI_GET_VARIABLE2              GetVariable;
+  EFI_PEI_GET_NEXT_VARIABLE_NAME2    NextVariableName;
 };
 
-extern EFI_GUID gEfiPeiReadOnlyVariable2PpiGuid;
+extern EFI_GUID  gEfiPeiReadOnlyVariable2PpiGuid;
 
 #endif

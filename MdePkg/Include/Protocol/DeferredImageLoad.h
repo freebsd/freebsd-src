@@ -22,7 +22,7 @@
     0x15853d7c, 0x3ddf, 0x43e0, { 0xa1, 0xcb, 0xeb, 0xf8, 0x5b, 0x8f, 0x87, 0x2c } \
   };
 
-typedef struct _EFI_DEFERRED_IMAGE_LOAD_PROTOCOL  EFI_DEFERRED_IMAGE_LOAD_PROTOCOL;
+typedef struct _EFI_DEFERRED_IMAGE_LOAD_PROTOCOL EFI_DEFERRED_IMAGE_LOAD_PROTOCOL;
 
 /**
   Returns information about a deferred image.
@@ -66,9 +66,9 @@ EFI_STATUS
 /// This protocol returns information about a deferred image.
 ///
 struct _EFI_DEFERRED_IMAGE_LOAD_PROTOCOL {
-  EFI_DEFERRED_IMAGE_INFO  GetImageInfo;
+  EFI_DEFERRED_IMAGE_INFO    GetImageInfo;
 };
 
-extern EFI_GUID gEfiDeferredImageLoadProtocolGuid;
+extern EFI_GUID  gEfiDeferredImageLoadProtocolGuid;
 
 #endif

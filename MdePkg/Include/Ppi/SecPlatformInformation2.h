@@ -28,8 +28,8 @@ typedef struct _EFI_SEC_PLATFORM_INFORMATION2_PPI EFI_SEC_PLATFORM_INFORMATION2_
 /// EFI_SEC_PLATFORM_INFORMATION_CPU.
 ///
 typedef struct {
-  UINT32                               CpuLocation;
-  EFI_SEC_PLATFORM_INFORMATION_RECORD  InfoRecord;
+  UINT32                                 CpuLocation;
+  EFI_SEC_PLATFORM_INFORMATION_RECORD    InfoRecord;
 } EFI_SEC_PLATFORM_INFORMATION_CPU;
 
 ///
@@ -39,8 +39,8 @@ typedef struct {
   ///
   /// The CPU location would be the local APIC ID
   ///
-  UINT32                               NumberOfCpus;
-  EFI_SEC_PLATFORM_INFORMATION_CPU     CpuInstance[1];
+  UINT32                              NumberOfCpus;
+  EFI_SEC_PLATFORM_INFORMATION_CPU    CpuInstance[1];
 } EFI_SEC_PLATFORM_INFORMATION_RECORD2;
 
 /**
@@ -63,7 +63,7 @@ EFI_STATUS
   IN CONST  EFI_PEI_SERVICES                     **PeiServices,
   IN OUT    UINT64                               *StructureSize,
   OUT       EFI_SEC_PLATFORM_INFORMATION_RECORD2 *PlatformInformationRecord2
-);
+  );
 
 ///
 /// This service abstracts platform-specific information for many CPU's.
@@ -71,9 +71,9 @@ EFI_STATUS
 /// implementations that synchronize some, if not all CPU's in the SEC phase.
 ///
 struct _EFI_SEC_PLATFORM_INFORMATION2_PPI {
-  EFI_SEC_PLATFORM_INFORMATION2  PlatformInformation2;
+  EFI_SEC_PLATFORM_INFORMATION2    PlatformInformation2;
 };
 
-extern EFI_GUID gEfiSecPlatformInformation2PpiGuid;
+extern EFI_GUID  gEfiSecPlatformInformation2PpiGuid;
 
 #endif

@@ -39,7 +39,7 @@ SafeInt32ToUintn (
   OUT UINTN  *Result
   )
 {
-  return SafeInt32ToUint64 (Operand, (UINT64 *) Result);
+  return SafeInt32ToUint64 (Operand, (UINT64 *)Result);
 }
 
 /**
@@ -104,7 +104,7 @@ SafeIntnToInt32 (
   OUT INT32  *Result
   )
 {
-  return SafeInt64ToInt32 ((INT64) Operand, Result);
+  return SafeInt64ToInt32 ((INT64)Operand, Result);
 }
 
 /**
@@ -488,4 +488,3 @@ SafeIntnMult (
 {
   return SafeInt64Mult ((INT64)Multiplicand, (INT64)Multiplier, (INT64 *)Result);
 }
-

@@ -30,4 +30,3 @@ AsmWriteCr4 (
     _emit  0xE0
   }
 }
-

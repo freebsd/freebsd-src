@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Rotates a 64-bit integer left between 0 and 63 bits, filling
   the low bits with the high bits that were rotated.
@@ -26,8 +23,8 @@
 UINT64
 EFIAPI
 InternalMathLRotU64 (
-  IN      UINT64                    Operand,
-  IN      UINTN                     Count
+  IN      UINT64  Operand,
+  IN      UINTN   Count
   )
 {
   _asm {
@@ -43,7 +40,6 @@ InternalMathLRotU64 (
     mov     ecx, eax
     mov     eax, edx
     mov     edx, ecx
-L0:
+    L0 :
   }
 }
-

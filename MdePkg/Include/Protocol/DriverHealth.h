@@ -37,7 +37,7 @@
     0x2a534210, 0x9280, 0x41d8, { 0xae, 0x79, 0xca, 0xda, 0x1, 0xa2, 0xb1, 0x27 } \
   }
 
-typedef struct _EFI_DRIVER_HEALTH_PROTOCOL  EFI_DRIVER_HEALTH_PROTOCOL;
+typedef struct _EFI_DRIVER_HEALTH_PROTOCOL EFI_DRIVER_HEALTH_PROTOCOL;
 
 ///
 /// EFI_DRIVER_HEALTH_HEALTH_STATUS
@@ -55,8 +55,8 @@ typedef enum {
 /// EFI_DRIVER_HEALTH_HII_MESSAGE
 ///
 typedef struct {
-  EFI_HII_HANDLE  HiiHandle;
-  EFI_STRING_ID   StringId;
+  EFI_HII_HANDLE    HiiHandle;
+  EFI_STRING_ID     StringId;
 
   ///
   /// 64-bit numeric value of the warning/error specified by this message.
@@ -66,7 +66,7 @@ typedef struct {
   ///   The values 0x8000000000000000 to 0x8fffffffffffffff is reserved for platform/OEM drivers.
   ///   All other values are reserved and should not be used.
   ///
-  UINT64          MessageCode;
+  UINT64    MessageCode;
 } EFI_DRIVER_HEALTH_HII_MESSAGE;
 
 /**
@@ -137,34 +137,18 @@ EFI_STATUS
                               will only be returned with a HealthStatus value of
                               EfiDriverHealthStatusConfigurationRequired.
 
-  @retval EFI_SUCCESS           ControllerHandle is NULL, and all the controllers
-                                managed by this driver specified by This have a health
-                                status of EfiDriverHealthStatusHealthy with no warning
-                                messages to be returned.  The ChildHandle, HealthStatus,
-                                MessageList, and FormList parameters are ignored.
-
-  @retval EFI_DEVICE_ERROR      ControllerHandle is NULL, and one or more of the
-                                controllers managed by this driver specified by This
-                                do not have a health status of EfiDriverHealthStatusHealthy.
-                                The ChildHandle, HealthStatus, MessageList, and
-                                FormList parameters are ignored.
-
-  @retval EFI_DEVICE_ERROR      ControllerHandle is NULL, and one or more of the
-                                controllers managed by this driver specified by This
-                                have one or more warning and/or error messages.
-                                The ChildHandle, HealthStatus, MessageList, and
-                                FormList parameters are ignored.
-
-  @retval EFI_SUCCESS           ControllerHandle is not NULL and the health status
-                                of the controller specified by ControllerHandle and
-                                ChildHandle was returned in HealthStatus.  A list
-                                of warning and error messages may be optionally
-                                returned in MessageList, and a list of HII Forms
-                                may be optionally returned in FormList.
+  @retval EFI_SUCCESS           The health status of the controller specified by
+                                ControllerHandle and ChildHandle was returned in HealthStatus.
+                                A list of warning and error messages may be optionally
+                                returned in MessageList, and an HII Form may be optionally
+                                specified by FormHiiHandle.
 
   @retval EFI_UNSUPPORTED       ControllerHandle is not NULL, and the controller
                                 specified by ControllerHandle and ChildHandle is not
                                 currently being managed by the driver specified by This.
+
+  @retval EFI_UNSUPPORTED       ControllerHandle is NULL and there are no devices being
+                                managed by the driver.
 
   @retval EFI_INVALID_PARAMETER HealthStatus is NULL.
 
@@ -228,14 +212,10 @@ EFI_STATUS
 /// hardware configuration changes.
 ///
 struct _EFI_DRIVER_HEALTH_PROTOCOL {
-  EFI_DRIVER_HEALTH_GET_HEALTH_STATUS  GetHealthStatus;
-  EFI_DRIVER_HEALTH_REPAIR             Repair;
+  EFI_DRIVER_HEALTH_GET_HEALTH_STATUS    GetHealthStatus;
+  EFI_DRIVER_HEALTH_REPAIR               Repair;
 };
 
-extern EFI_GUID gEfiDriverHealthProtocolGuid;
+extern EFI_GUID  gEfiDriverHealthProtocolGuid;
 
 #endif
-
-
-
-

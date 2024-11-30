@@ -47,11 +47,13 @@ CopyMem (
   if (Length == 0) {
     return DestinationBuffer;
   }
+
   ASSERT ((Length - 1) <= (MAX_ADDRESS - (UINTN)DestinationBuffer));
   ASSERT ((Length - 1) <= (MAX_ADDRESS - (UINTN)SourceBuffer));
 
   if (DestinationBuffer == SourceBuffer) {
     return DestinationBuffer;
   }
+
   return InternalMemCopyMem (DestinationBuffer, SourceBuffer, Length);
 }

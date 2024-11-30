@@ -12,7 +12,6 @@
 #ifndef __EFI_VLANCONFIG_PROTOCOL_H__
 #define __EFI_VLANCONFIG_PROTOCOL_H__
 
-
 #define EFI_VLAN_CONFIG_PROTOCOL_GUID \
   { \
     0x9e23d768, 0xd2f3, 0x4366, {0x9f, 0xc3, 0x3a, 0x7a, 0xba, 0x86, 0x43, 0x74 } \
@@ -20,15 +19,13 @@
 
 typedef struct _EFI_VLAN_CONFIG_PROTOCOL EFI_VLAN_CONFIG_PROTOCOL;
 
-
 ///
 /// EFI_VLAN_FIND_DATA
 ///
 typedef struct {
-  UINT16          VlanId;     ///< Vlan Identifier.
-  UINT8           Priority;   ///< Priority of this VLAN.
+  UINT16    VlanId;           ///< Vlan Identifier.
+  UINT8     Priority;         ///< Priority of this VLAN.
 } EFI_VLAN_FIND_DATA;
-
 
 /**
   Create a VLAN device or modify the configuration parameter of an
@@ -127,11 +124,11 @@ EFI_STATUS
 /// VLAN tagging implementation is IEEE802.1Q.
 ///
 struct _EFI_VLAN_CONFIG_PROTOCOL {
-  EFI_VLAN_CONFIG_SET              Set;
-  EFI_VLAN_CONFIG_FIND             Find;
-  EFI_VLAN_CONFIG_REMOVE           Remove;
+  EFI_VLAN_CONFIG_SET       Set;
+  EFI_VLAN_CONFIG_FIND      Find;
+  EFI_VLAN_CONFIG_REMOVE    Remove;
 };
 
-extern EFI_GUID gEfiVlanConfigProtocolGuid;
+extern EFI_GUID  gEfiVlanConfigProtocolGuid;
 
 #endif

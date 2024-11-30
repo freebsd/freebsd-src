@@ -44,7 +44,6 @@ CodeTypeToPostCode (
   return FALSE;
 }
 
-
 /**
   Extracts ASSERT() information from a status code structure.
 
@@ -92,7 +91,6 @@ ReportStatusCodeExtractAssertInfo (
   return FALSE;
 }
 
-
 /**
   Extracts DEBUG() information from a status code structure.
 
@@ -139,7 +137,6 @@ ReportStatusCodeExtractDebugInfo (
   return FALSE;
 }
 
-
 /**
   Reports a status code.
 
@@ -170,7 +167,6 @@ ReportStatusCode (
 {
   return EFI_SUCCESS;
 }
-
 
 /**
   Reports a status code with a Device Path Protocol as the extended data.
@@ -212,7 +208,6 @@ ReportStatusCodeWithDevicePath (
 
   return EFI_SUCCESS;
 }
-
 
 /**
   Reports a status code with an extended data buffer.
@@ -260,7 +255,6 @@ ReportStatusCodeWithExtendedData (
   ASSERT (ExtendedDataSize != 0);
   return EFI_SUCCESS;
 }
-
 
 /**
   Reports a status code with full parameters.
@@ -318,7 +312,6 @@ ReportStatusCodeEx (
   return EFI_SUCCESS;
 }
 
-
 /**
   Returns TRUE if status codes of type EFI_PROGRESS_CODE are enabled
 
@@ -339,7 +332,6 @@ ReportProgressCodeEnabled (
 {
   return FALSE;
 }
-
 
 /**
   Returns TRUE if status codes of type EFI_ERROR_CODE are enabled
@@ -362,7 +354,6 @@ ReportErrorCodeEnabled (
   return FALSE;
 }
 
-
 /**
   Returns TRUE if status codes of type EFI_DEBUG_CODE are enabled
 
@@ -383,4 +374,3 @@ ReportDebugCodeEnabled (
 {
   return FALSE;
 }
-

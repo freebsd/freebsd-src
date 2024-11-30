@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -31,6 +31,6 @@ ASM_PFX(AsmMonitor):
     mov     eax, [esp + 4]
     mov     ecx, [esp + 8]
     mov     edx, [esp + 12]
-    DB      0xf, 1, 0xc8                ; monitor
+    monitor
     ret
 

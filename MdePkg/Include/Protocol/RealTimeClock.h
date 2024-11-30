@@ -25,6 +25,6 @@
 #define EFI_REAL_TIME_CLOCK_ARCH_PROTOCOL_GUID \
   { 0x27CFAC87, 0x46CC, 0x11d4, {0x9A, 0x38, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D } }
 
-extern EFI_GUID gEfiRealTimeClockArchProtocolGuid;
+extern EFI_GUID  gEfiRealTimeClockArchProtocolGuid;
 
 #endif

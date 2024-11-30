@@ -19,7 +19,7 @@
 #ifndef __PCD_INFO_H__
 #define __PCD_INFO_H__
 
-extern EFI_GUID gGetPcdInfoProtocolGuid;
+extern EFI_GUID  gGetPcdInfoProtocolGuid;
 
 #define GET_PCD_INFO_PROTOCOL_GUID \
   { 0x5be40f57, 0xfa68, 0x4610, { 0xbb, 0xbf, 0xe9, 0xc5, 0xfc, 0xda, 0xd3, 0x65 } }
@@ -27,7 +27,7 @@ extern EFI_GUID gGetPcdInfoProtocolGuid;
 ///
 /// The forward declaration for GET_PCD_INFO_PROTOCOL.
 ///
-typedef struct _GET_PCD_INFO_PROTOCOL  GET_PCD_INFO_PROTOCOL;
+typedef struct _GET_PCD_INFO_PROTOCOL GET_PCD_INFO_PROTOCOL;
 
 /**
   Retrieve additional information associated with a PCD token.
@@ -43,10 +43,10 @@ typedef struct _GET_PCD_INFO_PROTOCOL  GET_PCD_INFO_PROTOCOL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_INFO) (
+(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_INFO)(
   IN        UINTN           TokenNumber,
   OUT       EFI_PCD_INFO    *PcdInfo
-);
+  );
 
 /**
   Retrieve additional information associated with a PCD token.
@@ -63,11 +63,11 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_INFO_EX) (
+(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_INFO_EX)(
   IN CONST  EFI_GUID        *Guid,
   IN        UINTN           TokenNumber,
   OUT       EFI_PCD_INFO    *PcdInfo
-);
+  );
 
 /**
   Retrieve the currently set SKU Id.
@@ -78,9 +78,9 @@ EFI_STATUS
 **/
 typedef
 UINTN
-(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_SKU) (
+(EFIAPI *GET_PCD_INFO_PROTOCOL_GET_SKU)(
   VOID
-);
+  );
 
 ///
 /// This is the PCD service to use when querying for some additional data that can be contained in the
@@ -90,13 +90,12 @@ struct _GET_PCD_INFO_PROTOCOL {
   ///
   /// Retrieve additional information associated with a PCD.
   ///
-  GET_PCD_INFO_PROTOCOL_GET_INFO             GetInfo;
-  GET_PCD_INFO_PROTOCOL_GET_INFO_EX          GetInfoEx;
+  GET_PCD_INFO_PROTOCOL_GET_INFO       GetInfo;
+  GET_PCD_INFO_PROTOCOL_GET_INFO_EX    GetInfoEx;
   ///
   /// Retrieve the currently set SKU Id.
   ///
-  GET_PCD_INFO_PROTOCOL_GET_SKU              GetSku;
+  GET_PCD_INFO_PROTOCOL_GET_SKU        GetSku;
 };
 
 #endif
-

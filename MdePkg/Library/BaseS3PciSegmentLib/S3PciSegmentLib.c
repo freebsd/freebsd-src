@@ -8,7 +8,6 @@
 
 **/
 
-
 #include <Base.h>
 
 #include <Library/DebugLib.h>
@@ -46,11 +45,11 @@
 VOID
 InternalSavePciSegmentWriteValueToBootScript (
   IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
-  IN UINT64                 Address,
-  IN VOID                   *Buffer
+  IN UINT64                    Address,
+  IN VOID                      *Buffer
   )
 {
-  RETURN_STATUS                Status;
+  RETURN_STATUS  Status;
 
   Status = S3BootScriptSavePciCfg2Write (
              Width,
@@ -79,8 +78,8 @@ InternalSavePciSegmentWriteValueToBootScript (
 **/
 UINT8
 InternalSavePciSegmentWrite8ValueToBootScript (
-  IN UINT64             Address,
-  IN UINT8              Value
+  IN UINT64  Address,
+  IN UINT8   Value
   )
 {
   InternalSavePciSegmentWriteValueToBootScript (S3BootScriptWidthUint8, Address, &Value);
@@ -105,7 +104,7 @@ InternalSavePciSegmentWrite8ValueToBootScript (
 UINT8
 EFIAPI
 S3PciSegmentRead8 (
-  IN UINT64                    Address
+  IN UINT64  Address
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentRead8 (Address));
@@ -129,8 +128,8 @@ S3PciSegmentRead8 (
 UINT8
 EFIAPI
 S3PciSegmentWrite8 (
-  IN UINT64                    Address,
-  IN UINT8                     Value
+  IN UINT64  Address,
+  IN UINT8   Value
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentWrite8 (Address, Value));
@@ -157,8 +156,8 @@ S3PciSegmentWrite8 (
 UINT8
 EFIAPI
 S3PciSegmentOr8 (
-  IN UINT64                    Address,
-  IN UINT8                     OrData
+  IN UINT64  Address,
+  IN UINT8   OrData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentOr8 (Address, OrData));
@@ -184,8 +183,8 @@ S3PciSegmentOr8 (
 UINT8
 EFIAPI
 S3PciSegmentAnd8 (
-  IN UINT64                    Address,
-  IN UINT8                     AndData
+  IN UINT64  Address,
+  IN UINT8   AndData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentAnd8 (Address, AndData));
@@ -215,9 +214,9 @@ S3PciSegmentAnd8 (
 UINT8
 EFIAPI
 S3PciSegmentAndThenOr8 (
-  IN UINT64                    Address,
-  IN UINT8                     AndData,
-  IN UINT8                     OrData
+  IN UINT64  Address,
+  IN UINT8   AndData,
+  IN UINT8   OrData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentAndThenOr8 (Address, AndData, OrData));
@@ -248,9 +247,9 @@ S3PciSegmentAndThenOr8 (
 UINT8
 EFIAPI
 S3PciSegmentBitFieldRead8 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentBitFieldRead8 (Address, StartBit, EndBit));
@@ -284,10 +283,10 @@ S3PciSegmentBitFieldRead8 (
 UINT8
 EFIAPI
 S3PciSegmentBitFieldWrite8 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT8                     Value
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT8   Value
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentBitFieldWrite8 (Address, StartBit, EndBit, Value));
@@ -324,10 +323,10 @@ S3PciSegmentBitFieldWrite8 (
 UINT8
 EFIAPI
 S3PciSegmentBitFieldOr8 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT8                     OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT8   OrData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentBitFieldOr8 (Address, StartBit, EndBit, OrData));
@@ -364,10 +363,10 @@ S3PciSegmentBitFieldOr8 (
 UINT8
 EFIAPI
 S3PciSegmentBitFieldAnd8 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT8                     AndData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT8   AndData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentBitFieldAnd8 (Address, StartBit, EndBit, AndData));
@@ -407,11 +406,11 @@ S3PciSegmentBitFieldAnd8 (
 UINT8
 EFIAPI
 S3PciSegmentBitFieldAndThenOr8 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT8                     AndData,
-  IN UINT8                     OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT8   AndData,
+  IN UINT8   OrData
   )
 {
   return InternalSavePciSegmentWrite8ValueToBootScript (Address, PciSegmentBitFieldAndThenOr8 (Address, StartBit, EndBit, AndData, OrData));
@@ -434,8 +433,8 @@ S3PciSegmentBitFieldAndThenOr8 (
 **/
 UINT16
 InternalSavePciSegmentWrite16ValueToBootScript (
-  IN UINT64             Address,
-  IN UINT16             Value
+  IN UINT64  Address,
+  IN UINT16  Value
   )
 {
   InternalSavePciSegmentWriteValueToBootScript (S3BootScriptWidthUint16, Address, &Value);
@@ -461,7 +460,7 @@ InternalSavePciSegmentWrite16ValueToBootScript (
 UINT16
 EFIAPI
 S3PciSegmentRead16 (
-  IN UINT64                    Address
+  IN UINT64  Address
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentRead16 (Address));
@@ -486,8 +485,8 @@ S3PciSegmentRead16 (
 UINT16
 EFIAPI
 S3PciSegmentWrite16 (
-  IN UINT64                    Address,
-  IN UINT16                    Value
+  IN UINT64  Address,
+  IN UINT16  Value
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentWrite16 (Address, Value));
@@ -516,8 +515,8 @@ S3PciSegmentWrite16 (
 UINT16
 EFIAPI
 S3PciSegmentOr16 (
-  IN UINT64                    Address,
-  IN UINT16                    OrData
+  IN UINT64  Address,
+  IN UINT16  OrData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentOr16 (Address, OrData));
@@ -545,8 +544,8 @@ S3PciSegmentOr16 (
 UINT16
 EFIAPI
 S3PciSegmentAnd16 (
-  IN UINT64                    Address,
-  IN UINT16                    AndData
+  IN UINT64  Address,
+  IN UINT16  AndData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentAnd16 (Address, AndData));
@@ -577,9 +576,9 @@ S3PciSegmentAnd16 (
 UINT16
 EFIAPI
 S3PciSegmentAndThenOr16 (
-  IN UINT64                    Address,
-  IN UINT16                    AndData,
-  IN UINT16                    OrData
+  IN UINT64  Address,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentAndThenOr16 (Address, AndData, OrData));
@@ -611,9 +610,9 @@ S3PciSegmentAndThenOr16 (
 UINT16
 EFIAPI
 S3PciSegmentBitFieldRead16 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentBitFieldRead16 (Address, StartBit, EndBit));
@@ -648,10 +647,10 @@ S3PciSegmentBitFieldRead16 (
 UINT16
 EFIAPI
 S3PciSegmentBitFieldWrite16 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT16                    Value
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  Value
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentBitFieldWrite16 (Address, StartBit, EndBit, Value));
@@ -689,10 +688,10 @@ S3PciSegmentBitFieldWrite16 (
 UINT16
 EFIAPI
 S3PciSegmentBitFieldOr16 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT16                    OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  OrData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentBitFieldOr16 (Address, StartBit, EndBit, OrData));
@@ -730,10 +729,10 @@ S3PciSegmentBitFieldOr16 (
 UINT16
 EFIAPI
 S3PciSegmentBitFieldAnd16 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT16                    AndData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentBitFieldAnd16 (Address, StartBit, EndBit, AndData));
@@ -773,17 +772,15 @@ S3PciSegmentBitFieldAnd16 (
 UINT16
 EFIAPI
 S3PciSegmentBitFieldAndThenOr16 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT16                    AndData,
-  IN UINT16                    OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSavePciSegmentWrite16ValueToBootScript (Address, PciSegmentBitFieldAndThenOr16 (Address, StartBit, EndBit, AndData, OrData));
 }
-
-
 
 /**
   Saves a 32-bit PCI configuration value to the boot script.
@@ -802,8 +799,8 @@ S3PciSegmentBitFieldAndThenOr16 (
 **/
 UINT32
 InternalSavePciSegmentWrite32ValueToBootScript (
-  IN UINT64             Address,
-  IN UINT32             Value
+  IN UINT64  Address,
+  IN UINT32  Value
   )
 {
   InternalSavePciSegmentWriteValueToBootScript (S3BootScriptWidthUint32, Address, &Value);
@@ -829,7 +826,7 @@ InternalSavePciSegmentWrite32ValueToBootScript (
 UINT32
 EFIAPI
 S3PciSegmentRead32 (
-  IN UINT64                    Address
+  IN UINT64  Address
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentRead32 (Address));
@@ -854,8 +851,8 @@ S3PciSegmentRead32 (
 UINT32
 EFIAPI
 S3PciSegmentWrite32 (
-  IN UINT64                    Address,
-  IN UINT32                    Value
+  IN UINT64  Address,
+  IN UINT32  Value
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentWrite32 (Address, Value));
@@ -884,8 +881,8 @@ S3PciSegmentWrite32 (
 UINT32
 EFIAPI
 S3PciSegmentOr32 (
-  IN UINT64                    Address,
-  IN UINT32                    OrData
+  IN UINT64  Address,
+  IN UINT32  OrData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentOr32 (Address, OrData));
@@ -913,8 +910,8 @@ S3PciSegmentOr32 (
 UINT32
 EFIAPI
 S3PciSegmentAnd32 (
-  IN UINT64                    Address,
-  IN UINT32                    AndData
+  IN UINT64  Address,
+  IN UINT32  AndData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentAnd32 (Address, AndData));
@@ -945,9 +942,9 @@ S3PciSegmentAnd32 (
 UINT32
 EFIAPI
 S3PciSegmentAndThenOr32 (
-  IN UINT64                    Address,
-  IN UINT32                    AndData,
-  IN UINT32                    OrData
+  IN UINT64  Address,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentAndThenOr32 (Address, AndData, OrData));
@@ -979,9 +976,9 @@ S3PciSegmentAndThenOr32 (
 UINT32
 EFIAPI
 S3PciSegmentBitFieldRead32 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentBitFieldRead32 (Address, StartBit, EndBit));
@@ -1016,10 +1013,10 @@ S3PciSegmentBitFieldRead32 (
 UINT32
 EFIAPI
 S3PciSegmentBitFieldWrite32 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT32                    Value
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  Value
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentBitFieldWrite32 (Address, StartBit, EndBit, Value));
@@ -1057,10 +1054,10 @@ S3PciSegmentBitFieldWrite32 (
 UINT32
 EFIAPI
 S3PciSegmentBitFieldOr32 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT32                    OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  OrData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentBitFieldOr32 (Address, StartBit, EndBit, OrData));
@@ -1098,10 +1095,10 @@ S3PciSegmentBitFieldOr32 (
 UINT32
 EFIAPI
 S3PciSegmentBitFieldAnd32 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT32                    AndData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentBitFieldAnd32 (Address, StartBit, EndBit, AndData));
@@ -1141,11 +1138,11 @@ S3PciSegmentBitFieldAnd32 (
 UINT32
 EFIAPI
 S3PciSegmentBitFieldAndThenOr32 (
-  IN UINT64                    Address,
-  IN UINTN                     StartBit,
-  IN UINTN                     EndBit,
-  IN UINT32                    AndData,
-  IN UINT32                    OrData
+  IN UINT64  Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSavePciSegmentWrite32ValueToBootScript (Address, PciSegmentBitFieldAndThenOr32 (Address, StartBit, EndBit, AndData, OrData));
@@ -1178,12 +1175,12 @@ S3PciSegmentBitFieldAndThenOr32 (
 UINTN
 EFIAPI
 S3PciSegmentReadBuffer (
-  IN  UINT64                   StartAddress,
-  IN  UINTN                    Size,
-  OUT VOID                     *Buffer
+  IN  UINT64  StartAddress,
+  IN  UINTN   Size,
+  OUT VOID    *Buffer
   )
 {
-  RETURN_STATUS    Status;
+  RETURN_STATUS  Status;
 
   Status = S3BootScriptSavePciCfg2Write (
              S3BootScriptWidthUint8,
@@ -1224,12 +1221,12 @@ S3PciSegmentReadBuffer (
 UINTN
 EFIAPI
 S3PciSegmentWriteBuffer (
-  IN UINT64                    StartAddress,
-  IN UINTN                     Size,
-  IN VOID                      *Buffer
+  IN UINT64  StartAddress,
+  IN UINTN   Size,
+  IN VOID    *Buffer
   )
 {
-  RETURN_STATUS    Status;
+  RETURN_STATUS  Status;
 
   Status = S3BootScriptSavePciCfg2Write (
              S3BootScriptWidthUint8,

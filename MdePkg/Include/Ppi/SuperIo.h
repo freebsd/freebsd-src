@@ -19,12 +19,12 @@
     0x23a464ad, 0xcb83, 0x48b8, {0x94, 0xab, 0x1a, 0x6f, 0xef, 0xcf, 0xe5, 0x22} \
   }
 
-typedef struct _EFI_SIO_PPI EFI_SIO_PPI;
-typedef struct _EFI_SIO_PPI *PEFI_SIO_PPI;
+typedef struct _EFI_SIO_PPI  EFI_SIO_PPI;
+typedef struct _EFI_SIO_PPI  *PEFI_SIO_PPI;
 
 typedef UINT16 EFI_SIO_REGISTER;
-#define EFI_SIO_REG(ldn,reg)    (EFI_SIO_REGISTER) (((ldn) << 8) | reg)
-#define EFI_SIO_LDN_GLOBAL      0xFF
+#define EFI_SIO_REG(ldn, reg)  (EFI_SIO_REGISTER) (((ldn) << 8) | reg)
+#define EFI_SIO_LDN_GLOBAL  0xFF
 
 /**
   Read a Super I/O register.
@@ -136,15 +136,15 @@ EFI_STATUS
 ///
 /// Specifies the end of the information list.
 ///
-#define EFI_ACPI_PNP_HID_END       EFI_PNP_ID (0x0000)
+#define EFI_ACPI_PNP_HID_END  EFI_PNP_ID (0x0000)
 
-typedef UINT32                     EFI_ACPI_HID;
-typedef UINT32                     EFI_ACPI_UID;
+typedef UINT32 EFI_ACPI_HID;
+typedef UINT32 EFI_ACPI_UID;
 #pragma pack(1)
 typedef struct _EFI_SIO_INFO {
-  EFI_ACPI_HID                     Hid;
-  EFI_ACPI_UID                     Uid;
-  UINT8                            Ldn;
+  EFI_ACPI_HID    Hid;
+  EFI_ACPI_UID    Uid;
+  UINT8           Ldn;
 } EFI_SIO_INFO, *PEFI_SIO_INFO;
 #pragma pack()
 
@@ -158,26 +158,26 @@ struct _EFI_SIO_PPI {
   ///
   /// This function reads a register's value from the Super I/O controller.
   ///
-  EFI_PEI_SIO_REGISTER_READ   Read;
+  EFI_PEI_SIO_REGISTER_READ      Read;
   ///
   /// This function writes a value to a register in the Super I/O controller.
   ///
-  EFI_PEI_SIO_REGISTER_WRITE  Write;
+  EFI_PEI_SIO_REGISTER_WRITE     Write;
   ///
   /// This function modifies zero or more registers in the Super I/O controller
   /// using a table.
   ///
-  EFI_PEI_SIO_REGISTER_MODIFY Modify;
+  EFI_PEI_SIO_REGISTER_MODIFY    Modify;
   ///
   /// This GUID uniquely identifies the Super I/O controller.
   ///
-  EFI_GUID                    SioGuid;
+  EFI_GUID                       SioGuid;
   ///
   /// This pointer is to an array which maps EISA identifiers to logical devices numbers.
   ///
-  PEFI_SIO_INFO               Info;
+  PEFI_SIO_INFO                  Info;
 };
 
-extern EFI_GUID gEfiSioPpiGuid;
+extern EFI_GUID  gEfiSioPpiGuid;
 
 #endif

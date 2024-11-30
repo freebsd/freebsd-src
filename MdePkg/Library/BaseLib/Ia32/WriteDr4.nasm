@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -32,8 +32,8 @@ ASM_PFX(AsmWriteDr4):
     ; this register will cause a #UD exception.
     ;
     ; MS assembler doesn't support this instruction since no one would use it
-    ; under normal circustances. Here opcode is used.
+    ; under normal circustances.
     ;
-    DB      0xf, 0x23, 0xe0
+    mov     dr4, eax
     ret
 

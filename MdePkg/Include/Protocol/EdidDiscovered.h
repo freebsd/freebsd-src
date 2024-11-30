@@ -26,7 +26,7 @@ typedef struct {
   /// is available from the video output device. Otherwise, it must be a
   /// minimum of 128 bytes.
   ///
-  UINT32   SizeOfEdid;
+  UINT32    SizeOfEdid;
 
   ///
   /// A pointer to a read-only array of bytes that contains the EDID
@@ -39,6 +39,6 @@ typedef struct {
   UINT8    *Edid;
 } EFI_EDID_DISCOVERED_PROTOCOL;
 
-extern EFI_GUID gEfiEdidDiscoveredProtocolGuid;
+extern EFI_GUID  gEfiEdidDiscoveredProtocolGuid;
 
 #endif

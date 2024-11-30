@@ -46,18 +46,18 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST EFI_DEVICE_PATH_PROTOCOL  mUefiDevicePathLib
 BOOLEAN
 EFIAPI
 IsDevicePathValid (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath,
-  IN       UINTN                    MaxSize
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
+  IN       UINTN                     MaxSize
   )
 {
-  UINTN Count;
-  UINTN Size;
-  UINTN NodeLength;
+  UINTN  Count;
+  UINTN  Size;
+  UINTN  NodeLength;
 
   //
-  //Validate the input whether exists and its size big enough to touch the first node
+  // Validate the input whether exists and its size big enough to touch the first node
   //
-  if (DevicePath == NULL || (MaxSize > 0 && MaxSize < END_DEVICE_PATH_LENGTH)) {
+  if ((DevicePath == NULL) || ((MaxSize > 0) && (MaxSize < END_DEVICE_PATH_LENGTH))) {
     return FALSE;
   }
 
@@ -74,6 +74,7 @@ IsDevicePathValid (
     if (NodeLength > MAX_UINTN - Size) {
       return FALSE;
     }
+
     Size += NodeLength;
 
     //
@@ -93,9 +94,10 @@ IsDevicePathValid (
     //
     // FilePath must be a NULL-terminated string.
     //
-    if (DevicePathType (DevicePath) == MEDIA_DEVICE_PATH &&
-        DevicePathSubType (DevicePath) == MEDIA_FILEPATH_DP &&
-        *(CHAR16 *)((UINT8 *)DevicePath + NodeLength - 2) != 0) {
+    if ((DevicePathType (DevicePath) == MEDIA_DEVICE_PATH) &&
+        (DevicePathSubType (DevicePath) == MEDIA_FILEPATH_DP) &&
+        (*(CHAR16 *)((UINT8 *)DevicePath + NodeLength - 2) != 0))
+    {
       return FALSE;
     }
   }
@@ -103,9 +105,8 @@ IsDevicePathValid (
   //
   // Only return TRUE when the End Device Path node is valid.
   //
-  return (BOOLEAN) (DevicePathNodeLength (DevicePath) == END_DEVICE_PATH_LENGTH);
+  return (BOOLEAN)(DevicePathNodeLength (DevicePath) == END_DEVICE_PATH_LENGTH);
 }
-
 
 /**
   Returns the Type field of a device path node.
@@ -197,7 +198,7 @@ NextDevicePathNode (
   )
 {
   ASSERT (Node != NULL);
-  return (EFI_DEVICE_PATH_PROTOCOL *)((UINT8 *)(Node) + DevicePathNodeLength(Node));
+  return (EFI_DEVICE_PATH_PROTOCOL *)((UINT8 *)(Node) + DevicePathNodeLength (Node));
 }
 
 /**
@@ -227,7 +228,7 @@ IsDevicePathEndType (
   )
 {
   ASSERT (Node != NULL);
-  return (BOOLEAN) (DevicePathType (Node) == END_DEVICE_PATH_TYPE);
+  return (BOOLEAN)(DevicePathType (Node) == END_DEVICE_PATH_TYPE);
 }
 
 /**
@@ -254,7 +255,7 @@ IsDevicePathEnd (
   )
 {
   ASSERT (Node != NULL);
-  return (BOOLEAN) (IsDevicePathEndType (Node) && DevicePathSubType(Node) == END_ENTIRE_DEVICE_PATH_SUBTYPE);
+  return (BOOLEAN)(IsDevicePathEndType (Node) && DevicePathSubType (Node) == END_ENTIRE_DEVICE_PATH_SUBTYPE);
 }
 
 /**
@@ -281,7 +282,7 @@ IsDevicePathEndInstance (
   )
 {
   ASSERT (Node != NULL);
-  return (BOOLEAN) (IsDevicePathEndType (Node) && DevicePathSubType(Node) == END_INSTANCE_DEVICE_PATH_SUBTYPE);
+  return (BOOLEAN)(IsDevicePathEndType (Node) && DevicePathSubType (Node) == END_INSTANCE_DEVICE_PATH_SUBTYPE);
 }
 
 /**
@@ -380,7 +381,7 @@ UefiDevicePathLibGetDevicePathSize (
   //
   // Compute the size and add back in the size of the end device path structure
   //
-  return ((UINTN) DevicePath - (UINTN) Start) + DevicePathNodeLength (DevicePath);
+  return ((UINTN)DevicePath - (UINTN)Start) + DevicePathNodeLength (DevicePath);
 }
 
 /**
@@ -405,7 +406,7 @@ UefiDevicePathLibDuplicateDevicePath (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
   )
 {
-  UINTN                     Size;
+  UINTN  Size;
 
   //
   // Compute the size
@@ -449,7 +450,7 @@ UefiDevicePathLibDuplicateDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePath (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath,  OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath   OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *SecondDevicePath  OPTIONAL
   )
 {
@@ -478,9 +479,9 @@ UefiDevicePathLibAppendDevicePath (
   // Allocate space for the combined device path. It only has one end node of
   // length EFI_DEVICE_PATH_PROTOCOL.
   //
-  Size1         = GetDevicePathSize (FirstDevicePath);
-  Size2         = GetDevicePathSize (SecondDevicePath);
-  Size          = Size1 + Size2 - END_DEVICE_PATH_LENGTH;
+  Size1 = GetDevicePathSize (FirstDevicePath);
+  Size2 = GetDevicePathSize (SecondDevicePath);
+  Size  = Size1 + Size2 - END_DEVICE_PATH_LENGTH;
 
   NewDevicePath = AllocatePool (Size);
 
@@ -489,8 +490,8 @@ UefiDevicePathLibAppendDevicePath (
     //
     // Over write FirstDevicePath EndNode and do the copy
     //
-    DevicePath2 = (EFI_DEVICE_PATH_PROTOCOL *) ((CHAR8 *) NewDevicePath +
-                  (Size1 - END_DEVICE_PATH_LENGTH));
+    DevicePath2 = (EFI_DEVICE_PATH_PROTOCOL *)((CHAR8 *)NewDevicePath +
+                                               (Size1 - END_DEVICE_PATH_LENGTH));
     CopyMem (DevicePath2, SecondDevicePath, Size2);
   }
 
@@ -528,7 +529,7 @@ UefiDevicePathLibAppendDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePathNode (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,     OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath      OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathNode  OPTIONAL
   )
 {
@@ -540,6 +541,7 @@ UefiDevicePathLibAppendDevicePathNode (
   if (DevicePathNode == NULL) {
     return DuplicateDevicePath ((DevicePath != NULL) ? DevicePath : &mUefiDevicePathLibEndDevicePath);
   }
+
   //
   // Build a Node that has a terminator on it
   //
@@ -549,6 +551,7 @@ UefiDevicePathLibAppendDevicePathNode (
   if (TempDevicePath == NULL) {
     return NULL;
   }
+
   TempDevicePath = CopyMem (TempDevicePath, DevicePathNode, NodeLength);
   //
   // Add and end device path node to convert Node to device path
@@ -591,7 +594,7 @@ UefiDevicePathLibAppendDevicePathNode (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePathInstance (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,        OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath         OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathInstance OPTIONAL
   )
 {
@@ -612,20 +615,19 @@ UefiDevicePathLibAppendDevicePathInstance (
     return NULL;
   }
 
-  SrcSize       = GetDevicePathSize (DevicePath);
-  InstanceSize  = GetDevicePathSize (DevicePathInstance);
+  SrcSize      = GetDevicePathSize (DevicePath);
+  InstanceSize = GetDevicePathSize (DevicePathInstance);
 
   NewDevicePath = AllocatePool (SrcSize + InstanceSize);
   if (NewDevicePath != NULL) {
-
-    TempDevicePath = CopyMem (NewDevicePath, DevicePath, SrcSize);;
+    TempDevicePath = CopyMem (NewDevicePath, DevicePath, SrcSize);
 
     while (!IsDevicePathEnd (TempDevicePath)) {
       TempDevicePath = NextDevicePathNode (TempDevicePath);
     }
 
-    TempDevicePath->SubType  = END_INSTANCE_DEVICE_PATH_SUBTYPE;
-    TempDevicePath           = NextDevicePathNode (TempDevicePath);
+    TempDevicePath->SubType = END_INSTANCE_DEVICE_PATH_SUBTYPE;
+    TempDevicePath          = NextDevicePathNode (TempDevicePath);
     CopyMem (TempDevicePath, DevicePathInstance, InstanceSize);
   }
 
@@ -663,8 +665,8 @@ UefiDevicePathLibAppendDevicePathInstance (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibGetNextDevicePathInstance (
-  IN OUT EFI_DEVICE_PATH_PROTOCOL    **DevicePath,
-  OUT UINTN                          *Size
+  IN OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePath,
+  OUT UINTN                        *Size
   )
 {
   EFI_DEVICE_PATH_PROTOCOL  *DevPath;
@@ -673,7 +675,7 @@ UefiDevicePathLibGetNextDevicePathInstance (
 
   ASSERT (Size != NULL);
 
-  if (DevicePath == NULL || *DevicePath == NULL) {
+  if ((DevicePath == NULL) || (*DevicePath == NULL)) {
     *Size = 0;
     return NULL;
   }
@@ -693,15 +695,15 @@ UefiDevicePathLibGetNextDevicePathInstance (
   //
   // Compute the size of the device path instance
   //
-  *Size = ((UINTN) DevPath - (UINTN) (*DevicePath)) + sizeof (EFI_DEVICE_PATH_PROTOCOL);
+  *Size = ((UINTN)DevPath - (UINTN)(*DevicePath)) + sizeof (EFI_DEVICE_PATH_PROTOCOL);
 
   //
   // Make a copy and return the device path instance
   //
-  Temp              = DevPath->SubType;
-  DevPath->SubType  = END_ENTIRE_DEVICE_PATH_SUBTYPE;
-  ReturnValue       = DuplicateDevicePath (*DevicePath);
-  DevPath->SubType  = Temp;
+  Temp             = DevPath->SubType;
+  DevPath->SubType = END_ENTIRE_DEVICE_PATH_SUBTYPE;
+  ReturnValue      = DuplicateDevicePath (*DevicePath);
+  DevPath->SubType = Temp;
 
   //
   // If DevPath is the end of an entire device path, then another instance
@@ -738,12 +740,12 @@ UefiDevicePathLibGetNextDevicePathInstance (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibCreateDeviceNode (
-  IN UINT8                           NodeType,
-  IN UINT8                           NodeSubType,
-  IN UINT16                          NodeLength
+  IN UINT8   NodeType,
+  IN UINT8   NodeSubType,
+  IN UINT16  NodeLength
   )
 {
-  EFI_DEVICE_PATH_PROTOCOL      *DevicePath;
+  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
 
   if (NodeLength < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
     //
@@ -754,9 +756,9 @@ UefiDevicePathLibCreateDeviceNode (
 
   DevicePath = AllocateZeroPool (NodeLength);
   if (DevicePath != NULL) {
-     DevicePath->Type    = NodeType;
-     DevicePath->SubType = NodeSubType;
-     SetDevicePathNodeLength (DevicePath, NodeLength);
+    DevicePath->Type    = NodeType;
+    DevicePath->SubType = NodeSubType;
+    SetDevicePathNodeLength (DevicePath, NodeLength);
   }
 
   return DevicePath;
@@ -783,7 +785,7 @@ UefiDevicePathLibIsDevicePathMultiInstance (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
   )
 {
-  CONST EFI_DEVICE_PATH_PROTOCOL     *Node;
+  CONST EFI_DEVICE_PATH_PROTOCOL  *Node;
 
   if (DevicePath == NULL) {
     return FALSE;
@@ -803,40 +805,6 @@ UefiDevicePathLibIsDevicePathMultiInstance (
   }
 
   return FALSE;
-}
-
-
-/**
-  Retrieves the device path protocol from a handle.
-
-  This function returns the device path protocol from the handle specified by Handle.
-  If Handle is NULL or Handle does not contain a device path protocol, then NULL
-  is returned.
-
-  @param  Handle                     The handle from which to retrieve the device
-                                     path protocol.
-
-  @return The device path protocol from the handle specified by Handle.
-
-**/
-EFI_DEVICE_PATH_PROTOCOL *
-EFIAPI
-DevicePathFromHandle (
-  IN EFI_HANDLE                      Handle
-  )
-{
-  EFI_DEVICE_PATH_PROTOCOL  *DevicePath;
-  EFI_STATUS                Status;
-
-  Status = gBS->HandleProtocol (
-                  Handle,
-                  &gEfiDevicePathProtocolGuid,
-                  (VOID *) &DevicePath
-                  );
-  if (EFI_ERROR (Status)) {
-    DevicePath = NULL;
-  }
-  return DevicePath;
 }
 
 /**
@@ -863,8 +831,8 @@ DevicePathFromHandle (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 FileDevicePath (
-  IN EFI_HANDLE                      Device,     OPTIONAL
-  IN CONST CHAR16                    *FileName
+  IN EFI_HANDLE    Device      OPTIONAL,
+  IN CONST CHAR16  *FileName
   )
 {
   UINTN                     Size;
@@ -874,10 +842,10 @@ FileDevicePath (
 
   DevicePath = NULL;
 
-  Size = StrSize (FileName);
+  Size           = StrSize (FileName);
   FileDevicePath = AllocatePool (Size + SIZE_OF_FILEPATH_DEVICE_PATH + END_DEVICE_PATH_LENGTH);
   if (FileDevicePath != NULL) {
-    FilePath = (FILEPATH_DEVICE_PATH *) FileDevicePath;
+    FilePath                 = (FILEPATH_DEVICE_PATH *)FileDevicePath;
     FilePath->Header.Type    = MEDIA_DEVICE_PATH;
     FilePath->Header.SubType = MEDIA_FILEPATH_DP;
     CopyMem (&FilePath->PathName, FileName, Size);
@@ -894,4 +862,3 @@ FileDevicePath (
 
   return DevicePath;
 }
-

@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -28,9 +25,9 @@
 INT64
 EFIAPI
 MultS64x64 (
-  IN      INT64                     Multiplicand,
-  IN      INT64                     Multiplier
+  IN      INT64  Multiplicand,
+  IN      INT64  Multiplier
   )
 {
-  return (INT64)MultU64x64 ((UINT64) Multiplicand, (UINT64) Multiplier);
+  return (INT64)MultU64x64 ((UINT64)Multiplicand, (UINT64)Multiplier);
 }

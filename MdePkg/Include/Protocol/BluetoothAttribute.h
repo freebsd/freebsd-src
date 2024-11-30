@@ -32,100 +32,99 @@ typedef struct _EFI_BLUETOOTH_ATTRIBUTE_PROTOCOL EFI_BLUETOOTH_ATTRIBUTE_PROTOCO
 // Bluetooth UUID
 //
 typedef struct {
-  UINT8                 Length;
+  UINT8    Length;
   union {
-    UINT16              Uuid16;
-    UINT32              Uuid32;
-    UINT8               Uuid128[16];
+    UINT16    Uuid16;
+    UINT32    Uuid32;
+    UINT8     Uuid128[16];
   } Data;
 } EFI_BLUETOOTH_UUID;
-
 
 #define UUID_16BIT_TYPE_LEN   2
 #define UUID_32BIT_TYPE_LEN   4
 #define UUID_128BIT_TYPE_LEN  16
 
-#define BLUETOOTH_IS_ATTRIBUTE_OF_TYPE(a,t) ((a)->Type.Length == UUID_16BIT_TYPE_LEN && (a)->Type.Data.Uuid16 == (t))
+#define BLUETOOTH_IS_ATTRIBUTE_OF_TYPE(a, t)  ((a)->Type.Length == UUID_16BIT_TYPE_LEN && (a)->Type.Data.Uuid16 == (t))
 
 //
 // Bluetooth Attribute Permission
 //
 typedef union {
   struct {
-    UINT16  Readable            : 1;
-    UINT16  ReadEncryption      : 1;
-    UINT16  ReadAuthentication  : 1;
-    UINT16  ReadAuthorization   : 1;
-    UINT16  ReadKeySize         : 5;
-    UINT16  Reserved1           : 7;
-    UINT16  Writeable           : 1;
-    UINT16  WriteEncryption     : 1;
-    UINT16  WriteAuthentication : 1;
-    UINT16  WriteAuthorization  : 1;
-    UINT16  WriteKeySize        : 5;
-    UINT16  Reserved2           : 7;
+    UINT16    Readable            : 1;
+    UINT16    ReadEncryption      : 1;
+    UINT16    ReadAuthentication  : 1;
+    UINT16    ReadAuthorization   : 1;
+    UINT16    ReadKeySize         : 5;
+    UINT16    Reserved1           : 7;
+    UINT16    Writeable           : 1;
+    UINT16    WriteEncryption     : 1;
+    UINT16    WriteAuthentication : 1;
+    UINT16    WriteAuthorization  : 1;
+    UINT16    WriteKeySize        : 5;
+    UINT16    Reserved2           : 7;
   } Permission;
-  UINT32  Data32;
+  UINT32    Data32;
 } EFI_BLUETOOTH_ATTRIBUTE_PERMISSION;
 
 typedef struct {
-  EFI_BLUETOOTH_UUID                 Type;
-  UINT16                             Length;
-  UINT16                             AttributeHandle;
-  EFI_BLUETOOTH_ATTRIBUTE_PERMISSION AttributePermission;
+  EFI_BLUETOOTH_UUID                    Type;
+  UINT16                                Length;
+  UINT16                                AttributeHandle;
+  EFI_BLUETOOTH_ATTRIBUTE_PERMISSION    AttributePermission;
 } EFI_BLUETOOTH_ATTRIBUTE_HEADER;
 
 typedef struct {
-  EFI_BLUETOOTH_ATTRIBUTE_HEADER Header;
-  UINT16                         EndGroupHandle;
-  EFI_BLUETOOTH_UUID             ServiceUuid;
+  EFI_BLUETOOTH_ATTRIBUTE_HEADER    Header;
+  UINT16                            EndGroupHandle;
+  EFI_BLUETOOTH_UUID                ServiceUuid;
 } EFI_BLUETOOTH_GATT_PRIMARY_SERVICE_INFO;
 
 typedef struct {
-  EFI_BLUETOOTH_ATTRIBUTE_HEADER Header;
-  UINT16                         StartGroupHandle;
-  UINT16                         EndGroupHandle;
-  EFI_BLUETOOTH_UUID             ServiceUuid;
+  EFI_BLUETOOTH_ATTRIBUTE_HEADER    Header;
+  UINT16                            StartGroupHandle;
+  UINT16                            EndGroupHandle;
+  EFI_BLUETOOTH_UUID                ServiceUuid;
 } EFI_BLUETOOTH_GATT_INCLUDE_SERVICE_INFO;
 
 typedef struct {
-  EFI_BLUETOOTH_ATTRIBUTE_HEADER Header;
-  UINT8                          CharacteristicProperties;
-  UINT16                         CharacteristicValueHandle;
-  EFI_BLUETOOTH_UUID             CharacteristicUuid;
+  EFI_BLUETOOTH_ATTRIBUTE_HEADER    Header;
+  UINT8                             CharacteristicProperties;
+  UINT16                            CharacteristicValueHandle;
+  EFI_BLUETOOTH_UUID                CharacteristicUuid;
 } EFI_BLUETOOTH_GATT_CHARACTERISTIC_INFO;
 
 typedef struct {
-  EFI_BLUETOOTH_ATTRIBUTE_HEADER Header;
-  EFI_BLUETOOTH_UUID             CharacteristicDescriptorUuid;
+  EFI_BLUETOOTH_ATTRIBUTE_HEADER    Header;
+  EFI_BLUETOOTH_UUID                CharacteristicDescriptorUuid;
 } EFI_BLUETOOTH_GATT_CHARACTERISTIC_DESCRIPTOR_INFO;
 
 #pragma pack()
 
 typedef struct {
-  UINT16                    AttributeHandle;
+  UINT16    AttributeHandle;
 } EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_NOTIFICATION;
 
 typedef struct {
-  UINT16                    AttributeHandle;
+  UINT16    AttributeHandle;
 } EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_INDICATION;
 
 typedef struct {
-  UINT32                                                     Version;
-  UINT8                                                      AttributeOpCode;
+  UINT32    Version;
+  UINT8     AttributeOpCode;
   union {
-    EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_NOTIFICATION  Notification;
-    EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_INDICATION    Indication;
+    EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_NOTIFICATION    Notification;
+    EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER_INDICATION      Indication;
   } Parameter;
 } EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_PARAMETER;
 
 typedef struct {
-  UINT32               Version;
-  BLUETOOTH_LE_ADDRESS BD_ADDR;
-  BLUETOOTH_LE_ADDRESS DirectAddress;
-  UINT8                RSSI;
-  UINTN                AdvertisementDataSize;
-  VOID                 *AdvertisementData;
+  UINT32                  Version;
+  BLUETOOTH_LE_ADDRESS    BD_ADDR;
+  BLUETOOTH_LE_ADDRESS    DirectAddress;
+  UINT8                   RSSI;
+  UINTN                   AdvertisementDataSize;
+  VOID                    *AdvertisementData;
 } EFI_BLUETOOTH_LE_DEVICE_INFO;
 
 /**
@@ -143,7 +142,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_FUNCTION) (
+(EFIAPI *EFI_BLUETOOTH_ATTRIBUTE_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_ATTRIBUTE_PROTOCOL *This,
   IN VOID                             *Data,
   IN UINTN                            DataLength,
@@ -177,7 +176,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_BLUETOOTH_ATTRIBUTE_SEND_REQUEST) (
+(EFIAPI *EFI_BLUETOOTH_ATTRIBUTE_SEND_REQUEST)(
   IN EFI_BLUETOOTH_ATTRIBUTE_PROTOCOL            *This,
   IN VOID                                        *Data,
   IN UINTN                                       DataLength,
@@ -263,15 +262,13 @@ EFI_STATUS
   );
 
 struct _EFI_BLUETOOTH_ATTRIBUTE_PROTOCOL {
-  EFI_BLUETOOTH_ATTRIBUTE_SEND_REQUEST                     SendRequest;
-  EFI_BLUETOOTH_ATTRIBUTE_REGISTER_FOR_SERVER_NOTIFICATION RegisterForServerNotification;
-  EFI_BLUETOOTH_ATTRIBUTE_GET_SERVICE_INFO                 GetServiceInfo;
-  EFI_BLUETOOTH_ATTRIBUTE_GET_DEVICE_INFO                  GetDeviceInfo;
+  EFI_BLUETOOTH_ATTRIBUTE_SEND_REQUEST                        SendRequest;
+  EFI_BLUETOOTH_ATTRIBUTE_REGISTER_FOR_SERVER_NOTIFICATION    RegisterForServerNotification;
+  EFI_BLUETOOTH_ATTRIBUTE_GET_SERVICE_INFO                    GetServiceInfo;
+  EFI_BLUETOOTH_ATTRIBUTE_GET_DEVICE_INFO                     GetDeviceInfo;
 };
 
-
-extern EFI_GUID gEfiBluetoothAttributeProtocolGuid;
-extern EFI_GUID gEfiBluetoothAttributeServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiBluetoothAttributeProtocolGuid;
+extern EFI_GUID  gEfiBluetoothAttributeServiceBindingProtocolGuid;
 
 #endif
-

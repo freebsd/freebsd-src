@@ -23,7 +23,6 @@
 
 #include <Protocol/ManagedNetwork.h>
 
-
 #define EFI_IP6_SERVICE_BINDING_PROTOCOL_GUID \
   { \
     0xec835dd3, 0xfe0f, 0x617b, {0xa6, 0x21, 0xb3, 0x50, 0xc3, 0xe1, 0x33, 0x88 } \
@@ -40,7 +39,7 @@ typedef struct _EFI_IP6_PROTOCOL EFI_IP6_PROTOCOL;
 /// EFI_IP6_ADDRESS_PAIR is deprecated in the UEFI 2.4B and should not be used any more.
 /// The definition in here is only present to provide backwards compatability.
 ///
-typedef struct{
+typedef struct {
   ///
   /// The EFI IPv6 Protocol instance handle that is using this address/prefix pair.
   ///
@@ -78,57 +77,57 @@ typedef struct {
 /// ICMPv6 type definitions for error messages
 ///
 ///@{
-#define ICMP_V6_DEST_UNREACHABLE                 0x1
-#define ICMP_V6_PACKET_TOO_BIG                   0x2
-#define ICMP_V6_TIME_EXCEEDED                    0x3
-#define ICMP_V6_PARAMETER_PROBLEM                0x4
+#define ICMP_V6_DEST_UNREACHABLE   0x1
+#define ICMP_V6_PACKET_TOO_BIG     0x2
+#define ICMP_V6_TIME_EXCEEDED      0x3
+#define ICMP_V6_PARAMETER_PROBLEM  0x4
 ///@}
 
 ///
 /// ICMPv6 type definition for informational messages
 ///
 ///@{
-#define ICMP_V6_ECHO_REQUEST                     0x80
-#define ICMP_V6_ECHO_REPLY                       0x81
-#define ICMP_V6_LISTENER_QUERY                   0x82
-#define ICMP_V6_LISTENER_REPORT                  0x83
-#define ICMP_V6_LISTENER_DONE                    0x84
-#define ICMP_V6_ROUTER_SOLICIT                   0x85
-#define ICMP_V6_ROUTER_ADVERTISE                 0x86
-#define ICMP_V6_NEIGHBOR_SOLICIT                 0x87
-#define ICMP_V6_NEIGHBOR_ADVERTISE               0x88
-#define ICMP_V6_REDIRECT                         0x89
-#define ICMP_V6_LISTENER_REPORT_2                0x8F
+#define ICMP_V6_ECHO_REQUEST        0x80
+#define ICMP_V6_ECHO_REPLY          0x81
+#define ICMP_V6_LISTENER_QUERY      0x82
+#define ICMP_V6_LISTENER_REPORT     0x83
+#define ICMP_V6_LISTENER_DONE       0x84
+#define ICMP_V6_ROUTER_SOLICIT      0x85
+#define ICMP_V6_ROUTER_ADVERTISE    0x86
+#define ICMP_V6_NEIGHBOR_SOLICIT    0x87
+#define ICMP_V6_NEIGHBOR_ADVERTISE  0x88
+#define ICMP_V6_REDIRECT            0x89
+#define ICMP_V6_LISTENER_REPORT_2   0x8F
 ///@}
 
 ///
 /// ICMPv6 code definitions for ICMP_V6_DEST_UNREACHABLE
 ///
 ///@{
-#define ICMP_V6_NO_ROUTE_TO_DEST                 0x0
-#define ICMP_V6_COMM_PROHIBITED                  0x1
-#define ICMP_V6_BEYOND_SCOPE                     0x2
-#define ICMP_V6_ADDR_UNREACHABLE                 0x3
-#define ICMP_V6_PORT_UNREACHABLE                 0x4
-#define ICMP_V6_SOURCE_ADDR_FAILED               0x5
-#define ICMP_V6_ROUTE_REJECTED                   0x6
+#define ICMP_V6_NO_ROUTE_TO_DEST    0x0
+#define ICMP_V6_COMM_PROHIBITED     0x1
+#define ICMP_V6_BEYOND_SCOPE        0x2
+#define ICMP_V6_ADDR_UNREACHABLE    0x3
+#define ICMP_V6_PORT_UNREACHABLE    0x4
+#define ICMP_V6_SOURCE_ADDR_FAILED  0x5
+#define ICMP_V6_ROUTE_REJECTED      0x6
 ///@}
 
 ///
 /// ICMPv6 code definitions for ICMP_V6_TIME_EXCEEDED
 ///
 ///@{
-#define ICMP_V6_TIMEOUT_HOP_LIMIT                0x0
-#define ICMP_V6_TIMEOUT_REASSEMBLE               0x1
+#define ICMP_V6_TIMEOUT_HOP_LIMIT   0x0
+#define ICMP_V6_TIMEOUT_REASSEMBLE  0x1
 ///@}
 
 ///
 /// ICMPv6 code definitions for ICMP_V6_PARAMETER_PROBLEM
 ///
 ///@{
-#define ICMP_V6_ERRONEOUS_HEADER                 0x0
-#define ICMP_V6_UNRECOGNIZE_NEXT_HDR             0x1
-#define ICMP_V6_UNRECOGNIZE_OPTION               0x2
+#define ICMP_V6_ERRONEOUS_HEADER      0x0
+#define ICMP_V6_UNRECOGNIZE_NEXT_HDR  0x1
+#define ICMP_V6_UNRECOGNIZE_OPTION    0x2
 ///@}
 
 ///
@@ -142,7 +141,7 @@ typedef struct {
   /// the IPv6 header if there are no extension headers. Ignored when
   /// AcceptPromiscuous is TRUE.
   ///
-  UINT8                   DefaultProtocol;
+  UINT8               DefaultProtocol;
   ///
   /// Set to TRUE to receive all IPv6 packets that get through the
   /// receive filters.
@@ -150,23 +149,23 @@ typedef struct {
   /// packets that get through the receive filters. Ignored when
   /// AcceptPromiscuous is TRUE.
   ///
-  BOOLEAN                 AcceptAnyProtocol;
+  BOOLEAN             AcceptAnyProtocol;
   ///
   /// Set to TRUE to receive ICMP error report packets. Ignored when
   /// AcceptPromiscuous or AcceptAnyProtocol is TRUE.
   ///
-  BOOLEAN                 AcceptIcmpErrors;
+  BOOLEAN             AcceptIcmpErrors;
   ///
   /// Set to TRUE to receive all IPv6 packets that are sent to any
   /// hardware address or any protocol address. Set to FALSE to stop
   /// receiving all promiscuous IPv6 packets.
   ///
-  BOOLEAN                 AcceptPromiscuous;
+  BOOLEAN             AcceptPromiscuous;
   ///
   /// The destination address of the packets that will be transmitted.
   /// Ignored if it is unspecified.
   ///
-  EFI_IPv6_ADDRESS        DestinationAddress;
+  EFI_IPv6_ADDRESS    DestinationAddress;
   ///
   /// The station IPv6 address that will be assigned to this EFI IPv6
   /// Protocol instance. This field can be set and changed only when
@@ -186,41 +185,41 @@ typedef struct {
   /// only be successfully bound to this EFI IPv6 protocol instance
   /// after IP6ModeData.IsConfigured changed to TRUE.
   ///
-  EFI_IPv6_ADDRESS        StationAddress;
+  EFI_IPv6_ADDRESS    StationAddress;
   ///
   /// TrafficClass field in transmitted IPv6 packets. Default value
   /// is zero.
   ///
-  UINT8                   TrafficClass;
+  UINT8               TrafficClass;
   ///
   /// HopLimit field in transmitted IPv6 packets.
   ///
-  UINT8                   HopLimit;
+  UINT8               HopLimit;
   ///
   /// FlowLabel field in transmitted IPv6 packets. Default value is
   /// zero.
   ///
-  UINT32                  FlowLabel;
+  UINT32              FlowLabel;
   ///
   /// The timer timeout value (number of microseconds) for the
   /// receive timeout event to be associated with each assembled
   /// packet. Zero means do not drop assembled packets.
   ///
-  UINT32                  ReceiveTimeout;
+  UINT32              ReceiveTimeout;
   ///
   /// The timer timeout value (number of microseconds) for the
   /// transmit timeout event to be associated with each outgoing
   /// packet. Zero means do not drop outgoing packets.
   ///
-  UINT32                  TransmitTimeout;
+  UINT32              TransmitTimeout;
 } EFI_IP6_CONFIG_DATA;
 
 ///
 /// EFI_IP6_ADDRESS_INFO
 ///
 typedef struct {
-  EFI_IPv6_ADDRESS        Address;       ///< The IPv6 address.
-  UINT8                   PrefixLength;  ///< The length of the prefix associated with the Address.
+  EFI_IPv6_ADDRESS    Address;           ///< The IPv6 address.
+  UINT8               PrefixLength;      ///< The length of the prefix associated with the Address.
 } EFI_IP6_ADDRESS_INFO;
 
 ///
@@ -233,15 +232,15 @@ typedef struct {
   /// packets to this prefix. If the IPv6 address is all zeros, then the
   /// prefix is on-link.
   ///
-  EFI_IPv6_ADDRESS        Gateway;
+  EFI_IPv6_ADDRESS    Gateway;
   ///
   /// The destination prefix to be routed.
   ///
-  EFI_IPv6_ADDRESS        Destination;
+  EFI_IPv6_ADDRESS    Destination;
   ///
   /// The length of the prefix associated with the Destination.
   ///
-  UINT8                   PrefixLength;
+  UINT8               PrefixLength;
 } EFI_IP6_ROUTE_TABLE;
 
 ///
@@ -261,9 +260,9 @@ typedef enum {
   ///
   EfiNeighborReachable,
   ///
-  ///Reachable Time has elapsed since the last positive confirmation
-  ///was received. In this state, the forward path to the neighbor was
-  ///functioning properly.
+  /// Reachable Time has elapsed since the last positive confirmation
+  /// was received. In this state, the forward path to the neighbor was
+  /// functioning properly.
   ///
   EfiNeighborStale,
   ///
@@ -285,9 +284,9 @@ typedef enum {
 /// of entries about individual neighbors to which traffic has been sent recently.
 ///
 typedef struct {
-  EFI_IPv6_ADDRESS        Neighbor;    ///< The on-link unicast/anycast IP address of the neighbor.
-  EFI_MAC_ADDRESS         LinkAddress; ///< Link-layer address of the neighbor.
-  EFI_IP6_NEIGHBOR_STATE  State;       ///< State of this neighbor cache entry.
+  EFI_IPv6_ADDRESS          Neighbor;    ///< The on-link unicast/anycast IP address of the neighbor.
+  EFI_MAC_ADDRESS           LinkAddress; ///< Link-layer address of the neighbor.
+  EFI_IP6_NEIGHBOR_STATE    State;       ///< State of this neighbor cache entry.
 } EFI_IP6_NEIGHBOR_CACHE;
 
 ///
@@ -296,8 +295,8 @@ typedef struct {
 /// IPv6 Protocol driver.
 ///
 typedef struct {
-  UINT8                   Type;   ///< The type of ICMP message.
-  UINT8                   Code;   ///< The code of the ICMP message.
+  UINT8    Type;                  ///< The type of ICMP message.
+  UINT8    Code;                  ///< The code of the ICMP message.
 } EFI_IP6_ICMP_TYPE;
 
 ///
@@ -309,82 +308,82 @@ typedef struct {
   /// All other fields in this structure are undefined until this field is TRUE.
   /// Set to FALSE when the EFI IPv6 Protocol instance is stopped.
   ///
-  BOOLEAN                 IsStarted;
+  BOOLEAN                   IsStarted;
   ///
   /// The maximum packet size, in bytes, of the packet which the upper layer driver could feed.
   ///
-  UINT32                  MaxPacketSize;
+  UINT32                    MaxPacketSize;
   ///
   /// Current configuration settings. Undefined until IsStarted is TRUE.
   ///
-  EFI_IP6_CONFIG_DATA     ConfigData;
+  EFI_IP6_CONFIG_DATA       ConfigData;
   ///
   /// Set to TRUE when the EFI IPv6 Protocol instance is configured.
   /// The instance is configured when it has a station address and
   /// corresponding prefix length.
   /// Set to FALSE when the EFI IPv6 Protocol instance is not configured.
   ///
-  BOOLEAN                 IsConfigured;
+  BOOLEAN                   IsConfigured;
   ///
   /// Number of configured IPv6 addresses on this interface.
   ///
-  UINT32                  AddressCount;
+  UINT32                    AddressCount;
   ///
   /// List of currently configured IPv6 addresses and corresponding
   /// prefix lengths assigned to this interface. It is caller's
   /// responsibility to free this buffer.
   ///
-  EFI_IP6_ADDRESS_INFO    *AddressList;
+  EFI_IP6_ADDRESS_INFO      *AddressList;
   ///
   /// Number of joined multicast groups. Undefined until
   /// IsConfigured is TRUE.
   ///
-  UINT32                  GroupCount;
+  UINT32                    GroupCount;
   ///
   /// List of joined multicast group addresses. It is caller's
   /// responsibility to free this buffer. Undefined until
   /// IsConfigured is TRUE.
   ///
-  EFI_IPv6_ADDRESS        *GroupTable;
+  EFI_IPv6_ADDRESS          *GroupTable;
   ///
   /// Number of entries in the routing table. Undefined until
   /// IsConfigured is TRUE.
   ///
-  UINT32                  RouteCount;
+  UINT32                    RouteCount;
   ///
   /// Routing table entries. It is caller's responsibility to free this buffer.
   ///
-  EFI_IP6_ROUTE_TABLE     *RouteTable;
+  EFI_IP6_ROUTE_TABLE       *RouteTable;
   ///
   /// Number of entries in the neighbor cache. Undefined until
   /// IsConfigured is TRUE.
   ///
-  UINT32                  NeighborCount;
+  UINT32                    NeighborCount;
   ///
   /// Neighbor cache entries. It is caller's responsibility to free this
   /// buffer. Undefined until IsConfigured is TRUE.
   ///
-  EFI_IP6_NEIGHBOR_CACHE  *NeighborCache;
+  EFI_IP6_NEIGHBOR_CACHE    *NeighborCache;
   ///
   /// Number of entries in the prefix table. Undefined until
   /// IsConfigured is TRUE.
   ///
-  UINT32                  PrefixCount;
+  UINT32                    PrefixCount;
   ///
   /// On-link Prefix table entries. It is caller's responsibility to free this
   /// buffer. Undefined until IsConfigured is TRUE.
   ///
-  EFI_IP6_ADDRESS_INFO    *PrefixTable;
+  EFI_IP6_ADDRESS_INFO      *PrefixTable;
   ///
   /// Number of entries in the supported ICMP types list.
   ///
-  UINT32                  IcmpTypeCount;
+  UINT32                    IcmpTypeCount;
   ///
   /// Array of ICMP types and codes that are supported by this EFI
   /// IPv6 Protocol driver. It is caller's responsibility to free this
   /// buffer.
   ///
-  EFI_IP6_ICMP_TYPE       *IcmpTypeList;
+  EFI_IP6_ICMP_TYPE         *IcmpTypeList;
 } EFI_IP6_MODE_DATA;
 
 ///
@@ -394,16 +393,16 @@ typedef struct {
 ///
 #pragma pack(1)
 typedef struct _EFI_IP6_HEADER {
-  UINT8                   TrafficClassH:4;
-  UINT8                   Version:4;
-  UINT8                   FlowLabelH:4;
-  UINT8                   TrafficClassL:4;
-  UINT16                  FlowLabelL;
-  UINT16                  PayloadLength;
-  UINT8                   NextHeader;
-  UINT8                   HopLimit;
-  EFI_IPv6_ADDRESS        SourceAddress;
-  EFI_IPv6_ADDRESS        DestinationAddress;
+  UINT8               TrafficClassH : 4;
+  UINT8               Version       : 4;
+  UINT8               FlowLabelH    : 4;
+  UINT8               TrafficClassL : 4;
+  UINT16              FlowLabelL;
+  UINT16              PayloadLength;
+  UINT8               NextHeader;
+  UINT8               HopLimit;
+  EFI_IPv6_ADDRESS    SourceAddress;
+  EFI_IPv6_ADDRESS    DestinationAddress;
 } EFI_IP6_HEADER;
 #pragma pack()
 
@@ -413,8 +412,8 @@ typedef struct _EFI_IP6_HEADER {
 /// fragment to transmit or that has been received.
 ///
 typedef struct _EFI_IP6_FRAGMENT_DATA {
-  UINT32                  FragmentLength;  ///< Length of fragment data. This field may not be set to zero.
-  VOID                    *FragmentBuffer; ///< Pointer to fragment data. This field may not be set to NULL.
+  UINT32    FragmentLength;                ///< Length of fragment data. This field may not be set to zero.
+  VOID      *FragmentBuffer;               ///< Pointer to fragment data. This field may not be set to NULL.
 } EFI_IP6_FRAGMENT_DATA;
 
 ///
@@ -425,36 +424,36 @@ typedef struct _EFI_IP6_RECEIVE_DATA {
   /// Time when the EFI IPv6 Protocol driver accepted the packet.
   /// Ignored if it is zero.
   ///
-  EFI_TIME                TimeStamp;
+  EFI_TIME                 TimeStamp;
   ///
   /// After this event is signaled, the receive data structure is released
   /// and must not be referenced.
   ///
-  EFI_EVENT               RecycleSignal;
+  EFI_EVENT                RecycleSignal;
   ///
-  ///Length of the IPv6 packet headers, including both the IPv6
-  ///header and any extension headers.
+  /// Length of the IPv6 packet headers, including both the IPv6
+  /// header and any extension headers.
   ///
-  UINT32                  HeaderLength;
+  UINT32                   HeaderLength;
   ///
   /// Pointer to the IPv6 packet header. If the IPv6 packet was
   /// fragmented, this argument is a pointer to the header in the first
   /// fragment.
   ///
-  EFI_IP6_HEADER          *Header;
+  EFI_IP6_HEADER           *Header;
   ///
   /// Sum of the lengths of IPv6 packet buffers in FragmentTable. May
   /// be zero.
   ///
-  UINT32                  DataLength;
+  UINT32                   DataLength;
   ///
   /// Number of IPv6 payload fragments. May be zero.
   ///
-  UINT32                  FragmentCount;
+  UINT32                   FragmentCount;
   ///
   /// Array of payload fragment lengths and buffer pointers.
   ///
-  EFI_IP6_FRAGMENT_DATA   FragmentTable[1];
+  EFI_IP6_FRAGMENT_DATA    FragmentTable[1];
 } EFI_IP6_RECEIVE_DATA;
 
 ///
@@ -463,9 +462,9 @@ typedef struct _EFI_IP6_RECEIVE_DATA {
 /// default parameters or settings for one Transmit() function call.
 ///
 typedef struct _EFI_IP6_OVERRIDE_DATA {
-  UINT8                   Protocol;   ///< Protocol type override.
-  UINT8                   HopLimit;   ///< Hop-Limit override.
-  UINT32                  FlowLabel;  ///< Flow-Label override.
+  UINT8     Protocol;                 ///< Protocol type override.
+  UINT8     HopLimit;                 ///< Hop-Limit override.
+  UINT32    FlowLabel;                ///< Flow-Label override.
 } EFI_IP6_OVERRIDE_DATA;
 
 ///
@@ -476,39 +475,39 @@ typedef struct _EFI_IP6_TRANSMIT_DATA {
   /// The destination IPv6 address.  If it is unspecified,
   /// ConfigData.DestinationAddress will be used instead.
   ///
-  EFI_IPv6_ADDRESS        DestinationAddress;
+  EFI_IPv6_ADDRESS         DestinationAddress;
   ///
   /// If not NULL, the IPv6 transmission control override data.
   ///
-  EFI_IP6_OVERRIDE_DATA   *OverrideData;
+  EFI_IP6_OVERRIDE_DATA    *OverrideData;
   ///
   /// Total length in byte of the IPv6 extension headers specified in
   /// ExtHdrs.
   ///
-  UINT32                  ExtHdrsLength;
+  UINT32                   ExtHdrsLength;
   ///
   /// Pointer to the IPv6 extension headers. The IP layer will append
   /// the required extension headers if they are not specified by
   /// ExtHdrs. Ignored if ExtHdrsLength is zero.
   ///
-  VOID                    *ExtHdrs;
+  VOID                     *ExtHdrs;
   ///
   /// The protocol of first extension header in ExtHdrs. Ignored if
   /// ExtHdrsLength is zero.
   ///
-  UINT8                   NextHeader;
+  UINT8                    NextHeader;
   ///
   /// Total length in bytes of the FragmentTable data to transmit.
   ///
-  UINT32                  DataLength;
+  UINT32                   DataLength;
   ///
   /// Number of entries in the fragment data table.
   ///
-  UINT32                  FragmentCount;
+  UINT32                   FragmentCount;
   ///
   /// Start of the fragment data table.
   ///
-  EFI_IP6_FRAGMENT_DATA   FragmentTable[1];
+  EFI_IP6_FRAGMENT_DATA    FragmentTable[1];
 } EFI_IP6_TRANSMIT_DATA;
 
 ///
@@ -520,7 +519,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by
   /// the EFI IPv6 Protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT               Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   /// - EFI_SUCCESS:  The receive or transmit completed
@@ -534,16 +533,16 @@ typedef struct {
   ///   failed because of an IPsec policy check.
   /// - EFI_NO_MEDIA: There was a media error.
   ///
-  EFI_STATUS              Status;
+  EFI_STATUS    Status;
   union {
     ///
     /// When the Token is used for receiving, RxData is a pointer to the EFI_IP6_RECEIVE_DATA.
     ///
-    EFI_IP6_RECEIVE_DATA  *RxData;
+    EFI_IP6_RECEIVE_DATA     *RxData;
     ///
     /// When the Token is used for transmitting, TxData is a pointer to the EFI_IP6_TRANSMIT_DATA.
     ///
-    EFI_IP6_TRANSMIT_DATA *TxData;
+    EFI_IP6_TRANSMIT_DATA    *TxData;
   } Packet;
 } EFI_IP6_COMPLETION_TOKEN;
 
@@ -930,18 +929,18 @@ EFI_STATUS
 /// used by drivers, daemons, and applications to transmit and receive network packets.
 ///
 struct _EFI_IP6_PROTOCOL {
-  EFI_IP6_GET_MODE_DATA   GetModeData;
-  EFI_IP6_CONFIGURE       Configure;
-  EFI_IP6_GROUPS          Groups;
-  EFI_IP6_ROUTES          Routes;
-  EFI_IP6_NEIGHBORS       Neighbors;
-  EFI_IP6_TRANSMIT        Transmit;
-  EFI_IP6_RECEIVE         Receive;
-  EFI_IP6_CANCEL          Cancel;
-  EFI_IP6_POLL            Poll;
+  EFI_IP6_GET_MODE_DATA    GetModeData;
+  EFI_IP6_CONFIGURE        Configure;
+  EFI_IP6_GROUPS           Groups;
+  EFI_IP6_ROUTES           Routes;
+  EFI_IP6_NEIGHBORS        Neighbors;
+  EFI_IP6_TRANSMIT         Transmit;
+  EFI_IP6_RECEIVE          Receive;
+  EFI_IP6_CANCEL           Cancel;
+  EFI_IP6_POLL             Poll;
 };
 
-extern EFI_GUID gEfiIp6ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiIp6ProtocolGuid;
+extern EFI_GUID  gEfiIp6ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiIp6ProtocolGuid;
 
 #endif

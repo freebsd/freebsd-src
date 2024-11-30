@@ -29,7 +29,7 @@
 UINT8
 EFIAPI
 IoRead8 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -54,8 +54,8 @@ IoRead8 (
 UINT8
 EFIAPI
 IoWrite8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     Value
+  IN      UINTN  Port,
+  IN      UINT8  Value
   )
 {
   ASSERT (FALSE);
@@ -80,7 +80,7 @@ IoWrite8 (
 UINT16
 EFIAPI
 IoRead16 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -106,8 +106,8 @@ IoRead16 (
 UINT16
 EFIAPI
 IoWrite16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    Value
+  IN      UINTN   Port,
+  IN      UINT16  Value
   )
 {
   ASSERT (FALSE);
@@ -132,7 +132,7 @@ IoWrite16 (
 UINT32
 EFIAPI
 IoRead32 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -158,8 +158,8 @@ IoRead32 (
 UINT32
 EFIAPI
 IoWrite32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    Value
+  IN      UINTN   Port,
+  IN      UINT32  Value
   )
 {
   ASSERT (FALSE);
@@ -186,9 +186,9 @@ IoWrite32 (
 VOID
 EFIAPI
 IoReadFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -214,9 +214,9 @@ IoReadFifo8 (
 VOID
 EFIAPI
 IoWriteFifo8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -242,9 +242,9 @@ IoWriteFifo8 (
 VOID
 EFIAPI
 IoReadFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -270,9 +270,9 @@ IoReadFifo16 (
 VOID
 EFIAPI
 IoWriteFifo16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -298,9 +298,9 @@ IoWriteFifo16 (
 VOID
 EFIAPI
 IoReadFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  OUT     VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  OUT     VOID   *Buffer
   )
 {
   ASSERT (FALSE);
@@ -326,11 +326,10 @@ IoReadFifo32 (
 VOID
 EFIAPI
 IoWriteFifo32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     Count,
-  IN      VOID                      *Buffer
+  IN      UINTN  Port,
+  IN      UINTN  Count,
+  IN      VOID   *Buffer
   )
 {
   ASSERT (FALSE);
 }
-

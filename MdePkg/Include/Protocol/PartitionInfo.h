@@ -21,11 +21,10 @@
 #define EFI_PARTITION_INFO_PROTOCOL_GUID \
   { 0x8cf2f62c, 0xbc9b, 0x4821, { 0x80, 0x8d, 0xec, 0x9e, 0xc4, 0x21, 0xa1, 0xa0 }};
 
-
-#define EFI_PARTITION_INFO_PROTOCOL_REVISION     0x0001000
-#define PARTITION_TYPE_OTHER                     0x00
-#define PARTITION_TYPE_MBR                       0x01
-#define PARTITION_TYPE_GPT                       0x02
+#define EFI_PARTITION_INFO_PROTOCOL_REVISION  0x0001000
+#define PARTITION_TYPE_OTHER                  0x00
+#define PARTITION_TYPE_MBR                    0x01
+#define PARTITION_TYPE_GPT                    0x02
 
 #pragma pack(1)
 
@@ -36,25 +35,25 @@ typedef struct {
   //
   // Set to EFI_PARTITION_INFO_PROTOCOL_REVISION.
   //
-  UINT32                     Revision;
+  UINT32    Revision;
   //
   // Partition info type (PARTITION_TYPE_MBR, PARTITION_TYPE_GPT, or PARTITION_TYPE_OTHER).
   //
-  UINT32                     Type;
+  UINT32    Type;
   //
   // If 1, partition describes an EFI System Partition.
   //
-  UINT8                      System;
-  UINT8                      Reserved[7];
+  UINT8     System;
+  UINT8     Reserved[7];
   union {
     ///
     /// MBR data
     ///
-    MBR_PARTITION_RECORD     Mbr;
+    MBR_PARTITION_RECORD    Mbr;
     ///
     /// GPT data
     ///
-    EFI_PARTITION_ENTRY      Gpt;
+    EFI_PARTITION_ENTRY     Gpt;
   } Info;
 } EFI_PARTITION_INFO_PROTOCOL;
 
@@ -63,6 +62,6 @@ typedef struct {
 ///
 /// Partition Information Protocol GUID variable.
 ///
-extern EFI_GUID gEfiPartitionInfoProtocolGuid;
+extern EFI_GUID  gEfiPartitionInfoProtocolGuid;
 
 #endif

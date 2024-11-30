@@ -45,9 +45,9 @@ EFI_STATUS
 /// This protocol must be produced by a runtime DXE driver.
 ///
 typedef struct _EFI_STATUS_CODE_PROTOCOL {
-  EFI_REPORT_STATUS_CODE         ReportStatusCode;
+  EFI_REPORT_STATUS_CODE    ReportStatusCode;
 } EFI_STATUS_CODE_PROTOCOL;
 
-extern EFI_GUID gEfiStatusCodeRuntimeProtocolGuid;
+extern EFI_GUID  gEfiStatusCodeRuntimeProtocolGuid;
 
 #endif

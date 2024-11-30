@@ -39,7 +39,7 @@ typedef struct {
   /// DnsServerListCount is zero, the DNS server configuration
   /// will be retrieved from DHCP server automatically.
   ///
-  UINTN                         DnsServerListCount;
+  UINTN    DnsServerListCount;
   ///
   /// Pointer to DNS server list containing DnsServerListCount entries or NULL
   /// if DnsServerListCountis 0. For Configure(), this will be NULL when there are
@@ -51,16 +51,16 @@ typedef struct {
   /// freed by the caller. When used with Configure(), the buffer
   /// containing the list will be allocated and released by the caller.
   ///
-  EFI_IPv4_ADDRESS              *DnsServerList;
+  EFI_IPv4_ADDRESS    *DnsServerList;
   ///
   /// Set to TRUE to use the default IP address/subnet mask and default routing table.
   ///
-  BOOLEAN                       UseDefaultSetting;
+  BOOLEAN             UseDefaultSetting;
   ///
   /// If TRUE, enable DNS cache function for this DNS instance. If FALSE, all DNS
   /// query will not lookup local DNS cache.
   ///
-  BOOLEAN                       EnableDnsCache;
+  BOOLEAN             EnableDnsCache;
   ///
   /// Use the protocol number defined in "Links to UEFI-Related
   /// Documents"(http://uefi.org/uefi) under the heading "IANA
@@ -68,30 +68,29 @@ typedef struct {
   /// protocol values are invalid. An implementation can choose to
   /// support only UDP, or both TCP and UDP.
   ///
-  UINT8                         Protocol;
+  UINT8               Protocol;
   ///
   /// If UseDefaultSetting is FALSE indicates the station address to use.
   ///
-  EFI_IPv4_ADDRESS              StationIp;
+  EFI_IPv4_ADDRESS    StationIp;
   ///
   /// If UseDefaultSetting is FALSE indicates the subnet mask to use.
   ///
-  EFI_IPv4_ADDRESS              SubnetMask;
+  EFI_IPv4_ADDRESS    SubnetMask;
   ///
   /// Local port number. Set to zero to use the automatically assigned port number.
   ///
-  UINT16                        LocalPort;
+  UINT16              LocalPort;
   ///
   /// Retry number if no response received after RetryInterval.
   ///
-  UINT32                        RetryCount;
+  UINT32              RetryCount;
   ///
   /// Minimum interval of retry is 2 second. If the retry interval is less than 2
   /// seconds, then use the 2 seconds.
   ///
-  UINT32                        RetryInterval;
+  UINT32              RetryInterval;
 } EFI_DNS4_CONFIG_DATA;
-
 
 ///
 /// EFI_DNS4_CACHE_ENTRY
@@ -100,11 +99,11 @@ typedef struct {
   ///
   /// Host name.
   ///
-  CHAR16                        *HostName;
+  CHAR16              *HostName;
   ///
   /// IP address of this host.
   ///
-  EFI_IPv4_ADDRESS              *IpAddress;
+  EFI_IPv4_ADDRESS    *IpAddress;
   ///
   /// Time in second unit that this entry will remain in DNS cache. A value of zero
   /// means that this entry is permanent. A nonzero value will override the existing
@@ -112,7 +111,7 @@ typedef struct {
   /// default timeout value for the dynamically created DNS cache entry after one DNS
   /// resolve succeeds.
   ///
-  UINT32                        Timeout;
+  UINT32              Timeout;
 } EFI_DNS4_CACHE_ENTRY;
 
 ///
@@ -122,12 +121,12 @@ typedef struct {
   ///
   /// The configuration data of this instance.
   ///
-  EFI_DNS4_CONFIG_DATA          DnsConfigData;
+  EFI_DNS4_CONFIG_DATA    DnsConfigData;
   ///
   /// Number of configured DNS server. Each DNS instance has its own DNS server
   /// configuration.
   ///
-  UINT32                        DnsServerCount;
+  UINT32                  DnsServerCount;
   ///
   /// Pointer to common list of addresses of all configured DNS server
   /// used by EFI_DNS4_PROTOCOL instances. List will include
@@ -135,17 +134,17 @@ typedef struct {
   /// The storage for this list is allocated by the driver publishing this
   /// protocol, and must be freed by the caller.
   ///
-  EFI_IPv4_ADDRESS              *DnsServerList;
+  EFI_IPv4_ADDRESS        *DnsServerList;
   ///
   /// Number of DNS Cache entries. The DNS Cache is shared among all DNS instances.
   ///
-  UINT32                        DnsCacheCount;
+  UINT32                  DnsCacheCount;
   ///
   /// Pointer to a buffer containing DnsCacheCount DNS Cache
   /// entry structures. The storage for this list is allocated by the driver
   /// publishing this protocol and must be freed by caller.
   ///
-  EFI_DNS4_CACHE_ENTRY          *DnsCacheList;
+  EFI_DNS4_CACHE_ENTRY    *DnsCacheList;
 } EFI_DNS4_MODE_DATA;
 
 ///
@@ -155,11 +154,11 @@ typedef struct {
   ///
   /// Number of the returned IP addresses.
   ///
-  UINT32                        IpCount;
+  UINT32              IpCount;
   ///
   /// Pointer to the all the returned IP addresses.
   ///
-  EFI_IPv4_ADDRESS              *IpList;
+  EFI_IPv4_ADDRESS    *IpList;
 } DNS_HOST_TO_ADDR_DATA;
 
 ///
@@ -170,7 +169,7 @@ typedef struct {
   /// Pointer to the primary name for this host address. It's the caller's
   /// responsibility to free the response memory.
   ///
-  CHAR16                        *HostName;
+  CHAR16    *HostName;
 } DNS_ADDR_TO_HOST_DATA;
 
 ///
@@ -180,30 +179,30 @@ typedef struct {
   ///
   /// The Owner name.
   ///
-  CHAR8                         *QName;
+  CHAR8     *QName;
   ///
   /// The Type Code of this RR.
   ///
-  UINT16                        QType;
+  UINT16    QType;
   ///
   /// The CLASS code of this RR.
   ///
-  UINT16                        QClass;
+  UINT16    QClass;
   ///
   /// 32 bit integer which specify the time interval that the resource record may be
   /// cached before the source of the information should again be consulted. Zero means
   /// this RR can not be cached.
   ///
-  UINT32                        TTL;
+  UINT32    TTL;
   ///
   /// 16 big integer which specify the length of RData.
   ///
-  UINT16                        DataLength;
+  UINT16    DataLength;
   ///
   /// A string of octets that describe the resource, the format of this information
   /// varies according to QType and QClass difference.
   ///
-  CHAR8                         *RData;
+  CHAR8     *RData;
 } DNS_RESOURCE_RECORD;
 
 ///
@@ -213,12 +212,12 @@ typedef struct {
   ///
   /// Number of returned matching RRs.
   ///
-  UINTN                         RRCount;
+  UINTN                  RRCount;
   ///
   /// Pointer to the all the returned matching RRs. It's caller responsibility to free
   /// the allocated memory to hold the returned RRs.
   ///
-  DNS_RESOURCE_RECORD           *RRList;
+  DNS_RESOURCE_RECORD    *RRList;
 } DNS_GENERAL_LOOKUP_DATA;
 
 ///
@@ -229,7 +228,7 @@ typedef struct {
   /// This Event will be signaled after the Status field is updated by the EFI DNS
   /// protocol driver. The type of Event must be EFI_NOTIFY_SIGNAL.
   ///
-  EFI_EVENT                               Event;
+  EFI_EVENT    Event;
   ///
   /// Will be set to one of the following values:
   ///   EFI_SUCCESS:      The host name to address translation completed successfully.
@@ -239,17 +238,17 @@ typedef struct {
   ///   EFI_DEVICE_ERROR: An unexpected system or network error occurred.
   ///   EFI_NO_MEDIA:     There was a media error.
   ///
-  EFI_STATUS                              Status;
+  EFI_STATUS    Status;
   ///
   /// Retry number if no response received after RetryInterval. If zero, use the
   /// parameter configured through Dns.Configure() interface.
   ///
-  UINT32                                  RetryCount;
+  UINT32        RetryCount;
   ///
   /// Minimum interval of retry is 2 second. If the retry interval is less than 2
   /// seconds, then use the 2 seconds. If zero, use the parameter configured through
   /// Dns.Configure() interface.
-  UINT32                                  RetryInterval;
+  UINT32        RetryInterval;
   ///
   /// DNSv4 completion token data
   ///
@@ -258,17 +257,17 @@ typedef struct {
     /// When the Token is used for host name to address translation, H2AData is a pointer
     /// to the DNS_HOST_TO_ADDR_DATA.
     ///
-    DNS_HOST_TO_ADDR_DATA         *H2AData;
+    DNS_HOST_TO_ADDR_DATA      *H2AData;
     ///
     /// When the Token is used for host address to host name translation, A2HData is a
     /// pointer to the DNS_ADDR_TO_HOST_DATA.
     ///
-    DNS_ADDR_TO_HOST_DATA         *A2HData;
+    DNS_ADDR_TO_HOST_DATA      *A2HData;
     ///
     /// When the Token is used for a general lookup function, GLookupDATA is a pointer to
     /// the DNS_GENERAL_LOOKUP_DATA.
     ///
-    DNS_GENERAL_LOOKUP_DATA       *GLookupData;
+    DNS_GENERAL_LOOKUP_DATA    *GLookupData;
   } RspData;
 } EFI_DNS4_COMPLETION_TOKEN;
 
@@ -289,7 +288,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_GET_MODE_DATA) (
+(EFIAPI *EFI_DNS4_GET_MODE_DATA)(
   IN  EFI_DNS4_PROTOCOL          *This,
   OUT EFI_DNS4_MODE_DATA         *DnsModeData
   );
@@ -321,7 +320,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_CONFIGURE) (
+(EFIAPI *EFI_DNS4_CONFIGURE)(
   IN EFI_DNS4_PROTOCOL          *This,
   IN EFI_DNS4_CONFIG_DATA       *DnsConfigData
   );
@@ -348,10 +347,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_HOST_NAME_TO_IP) (
-   IN EFI_DNS4_PROTOCOL         *This,
-   IN CHAR16                    *HostName,
-   IN EFI_DNS4_COMPLETION_TOKEN *Token
+(EFIAPI *EFI_DNS4_HOST_NAME_TO_IP)(
+  IN EFI_DNS4_PROTOCOL         *This,
+  IN CHAR16                    *HostName,
+  IN EFI_DNS4_COMPLETION_TOKEN *Token
   );
 
 /**
@@ -378,10 +377,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_IP_TO_HOST_NAME) (
-   IN EFI_DNS4_PROTOCOL         *This,
-   IN EFI_IPv4_ADDRESS          IpAddress,
-   IN EFI_DNS4_COMPLETION_TOKEN *Token
+(EFIAPI *EFI_DNS4_IP_TO_HOST_NAME)(
+  IN EFI_DNS4_PROTOCOL         *This,
+  IN EFI_IPv4_ADDRESS          IpAddress,
+  IN EFI_DNS4_COMPLETION_TOKEN *Token
   );
 
 /**
@@ -413,7 +412,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_GENERAL_LOOKUP) (
+(EFIAPI *EFI_DNS4_GENERAL_LOOKUP)(
   IN EFI_DNS4_PROTOCOL          *This,
   IN CHAR8                      *QName,
   IN UINT16                     QType,
@@ -449,7 +448,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_UPDATE_DNS_CACHE) (
+(EFIAPI *EFI_DNS4_UPDATE_DNS_CACHE)(
   IN EFI_DNS4_PROTOCOL          *This,
   IN BOOLEAN                    DeleteFlag,
   IN BOOLEAN                    Override,
@@ -479,7 +478,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_POLL) (
+(EFIAPI *EFI_DNS4_POLL)(
   IN  EFI_DNS4_PROTOCOL         *This
   );
 
@@ -510,7 +509,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_DNS4_CANCEL) (
+(EFIAPI *EFI_DNS4_CANCEL)(
   IN  EFI_DNS4_PROTOCOL         *This,
   IN  EFI_DNS4_COMPLETION_TOKEN *Token
   );
@@ -521,17 +520,17 @@ EFI_STATUS
 /// from DNS.
 ///
 struct _EFI_DNS4_PROTOCOL {
-  EFI_DNS4_GET_MODE_DATA        GetModeData;
-  EFI_DNS4_CONFIGURE            Configure;
-  EFI_DNS4_HOST_NAME_TO_IP      HostNameToIp;
-  EFI_DNS4_IP_TO_HOST_NAME      IpToHostName;
-  EFI_DNS4_GENERAL_LOOKUP       GeneralLookUp;
-  EFI_DNS4_UPDATE_DNS_CACHE     UpdateDnsCache;
-  EFI_DNS4_POLL                 Poll;
-  EFI_DNS4_CANCEL               Cancel;
+  EFI_DNS4_GET_MODE_DATA       GetModeData;
+  EFI_DNS4_CONFIGURE           Configure;
+  EFI_DNS4_HOST_NAME_TO_IP     HostNameToIp;
+  EFI_DNS4_IP_TO_HOST_NAME     IpToHostName;
+  EFI_DNS4_GENERAL_LOOKUP      GeneralLookUp;
+  EFI_DNS4_UPDATE_DNS_CACHE    UpdateDnsCache;
+  EFI_DNS4_POLL                Poll;
+  EFI_DNS4_CANCEL              Cancel;
 };
 
-extern EFI_GUID gEfiDns4ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiDns4ProtocolGuid;
+extern EFI_GUID  gEfiDns4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiDns4ProtocolGuid;
 
 #endif

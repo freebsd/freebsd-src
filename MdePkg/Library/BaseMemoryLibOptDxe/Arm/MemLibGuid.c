@@ -116,20 +116,22 @@ ScanGuid (
   IN CONST GUID  *Guid
   )
 {
-  CONST GUID                        *GuidPtr;
+  CONST GUID  *GuidPtr;
 
   ASSERT (((UINTN)Buffer & (sizeof (Guid->Data1) - 1)) == 0);
   ASSERT (Length <= (MAX_ADDRESS - (UINTN)Buffer + 1));
   ASSERT ((Length & (sizeof (*GuidPtr) - 1)) == 0);
 
-  GuidPtr = (GUID*)Buffer;
+  GuidPtr = (GUID *)Buffer;
   Buffer  = GuidPtr + Length / sizeof (*GuidPtr);
-  while (GuidPtr < (CONST GUID*)Buffer) {
+  while (GuidPtr < (CONST GUID *)Buffer) {
     if (InternalMemCompareGuid (GuidPtr, Guid)) {
-      return (VOID*)GuidPtr;
+      return (VOID *)GuidPtr;
     }
+
     GuidPtr++;
   }
+
   return NULL;
 }
 

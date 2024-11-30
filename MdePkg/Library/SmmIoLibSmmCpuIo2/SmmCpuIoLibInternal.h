@@ -20,7 +20,6 @@
 #include <Library/BaseLib.h>
 #include <Library/SmmServicesTableLib.h>
 
-
 /**
   Reads registers in the EFI CPU I/O space.
 
@@ -38,8 +37,8 @@
 UINT64
 EFIAPI
 IoReadWorker (
-  IN      UINTN                     Port,
-  IN      EFI_SMM_IO_WIDTH          Width
+  IN      UINTN             Port,
+  IN      EFI_SMM_IO_WIDTH  Width
   );
 
 /**
@@ -60,9 +59,9 @@ IoReadWorker (
 UINT64
 EFIAPI
 IoWriteWorker (
-  IN      UINTN                     Port,
-  IN      EFI_SMM_IO_WIDTH          Width,
-  IN      UINT64                    Data
+  IN      UINTN             Port,
+  IN      EFI_SMM_IO_WIDTH  Width,
+  IN      UINT64            Data
   );
 
 /**
@@ -82,8 +81,8 @@ IoWriteWorker (
 UINT64
 EFIAPI
 MmioReadWorker (
-  IN      UINTN                     Address,
-  IN      EFI_SMM_IO_WIDTH          Width
+  IN      UINTN             Address,
+  IN      EFI_SMM_IO_WIDTH  Width
   );
 
 /**
@@ -104,9 +103,9 @@ MmioReadWorker (
 UINT64
 EFIAPI
 MmioWriteWorker (
-  IN      UINTN                     Address,
-  IN      EFI_SMM_IO_WIDTH          Width,
-  IN      UINT64                    Data
+  IN      UINTN             Address,
+  IN      EFI_SMM_IO_WIDTH  Width,
+  IN      UINT64            Data
   );
 
 #endif

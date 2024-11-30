@@ -1,0 +1,12 @@
+// /** @file
+// Null Cache Maintenance Library implementation.
+//
+// Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#string STR_MODULE_ABSTRACT             #language en-US "Null instance of Cache Maintenance Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Null instance of the Cache Maintenance Library."
+

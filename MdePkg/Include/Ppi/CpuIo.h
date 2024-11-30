@@ -16,7 +16,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define EFI_PEI_CPU_IO_PPI_INSTALLED_GUID \
   { 0xe6af1f7b, 0xfc3f, 0x46da, {0xa8, 0x28, 0xa3, 0xb4, 0x57, 0xa4, 0x42, 0x82 } }
 
-typedef struct _EFI_PEI_CPU_IO_PPI  EFI_PEI_CPU_IO_PPI;
+typedef struct _EFI_PEI_CPU_IO_PPI EFI_PEI_CPU_IO_PPI;
 
 ///
 /// EFI_PEI_CPU_IO_PPI_WIDTH.
@@ -70,11 +70,11 @@ typedef struct {
   ///
   /// This service provides the various modalities of memory and I/O read.
   ///
-  EFI_PEI_CPU_IO_PPI_IO_MEM  Read;
+  EFI_PEI_CPU_IO_PPI_IO_MEM    Read;
   ///
   /// This service provides the various modalities of memory and I/O write.
   ///
-  EFI_PEI_CPU_IO_PPI_IO_MEM  Write;
+  EFI_PEI_CPU_IO_PPI_IO_MEM    Write;
 } EFI_PEI_CPU_IO_PPI_ACCESS;
 
 /**
@@ -390,33 +390,33 @@ struct _EFI_PEI_CPU_IO_PPI {
   ///
   /// Collection of memory-access services.
   ///
-  EFI_PEI_CPU_IO_PPI_ACCESS       Mem;
+  EFI_PEI_CPU_IO_PPI_ACCESS         Mem;
   ///
   /// Collection of I/O-access services.
   ///
-  EFI_PEI_CPU_IO_PPI_ACCESS       Io;
+  EFI_PEI_CPU_IO_PPI_ACCESS         Io;
 
-  EFI_PEI_CPU_IO_PPI_IO_READ8     IoRead8;
-  EFI_PEI_CPU_IO_PPI_IO_READ16    IoRead16;
-  EFI_PEI_CPU_IO_PPI_IO_READ32    IoRead32;
-  EFI_PEI_CPU_IO_PPI_IO_READ64    IoRead64;
+  EFI_PEI_CPU_IO_PPI_IO_READ8       IoRead8;
+  EFI_PEI_CPU_IO_PPI_IO_READ16      IoRead16;
+  EFI_PEI_CPU_IO_PPI_IO_READ32      IoRead32;
+  EFI_PEI_CPU_IO_PPI_IO_READ64      IoRead64;
 
-  EFI_PEI_CPU_IO_PPI_IO_WRITE8    IoWrite8;
-  EFI_PEI_CPU_IO_PPI_IO_WRITE16   IoWrite16;
-  EFI_PEI_CPU_IO_PPI_IO_WRITE32   IoWrite32;
-  EFI_PEI_CPU_IO_PPI_IO_WRITE64   IoWrite64;
+  EFI_PEI_CPU_IO_PPI_IO_WRITE8      IoWrite8;
+  EFI_PEI_CPU_IO_PPI_IO_WRITE16     IoWrite16;
+  EFI_PEI_CPU_IO_PPI_IO_WRITE32     IoWrite32;
+  EFI_PEI_CPU_IO_PPI_IO_WRITE64     IoWrite64;
 
-  EFI_PEI_CPU_IO_PPI_MEM_READ8    MemRead8;
-  EFI_PEI_CPU_IO_PPI_MEM_READ16   MemRead16;
-  EFI_PEI_CPU_IO_PPI_MEM_READ32   MemRead32;
-  EFI_PEI_CPU_IO_PPI_MEM_READ64   MemRead64;
+  EFI_PEI_CPU_IO_PPI_MEM_READ8      MemRead8;
+  EFI_PEI_CPU_IO_PPI_MEM_READ16     MemRead16;
+  EFI_PEI_CPU_IO_PPI_MEM_READ32     MemRead32;
+  EFI_PEI_CPU_IO_PPI_MEM_READ64     MemRead64;
 
-  EFI_PEI_CPU_IO_PPI_MEM_WRITE8   MemWrite8;
-  EFI_PEI_CPU_IO_PPI_MEM_WRITE16  MemWrite16;
-  EFI_PEI_CPU_IO_PPI_MEM_WRITE32  MemWrite32;
-  EFI_PEI_CPU_IO_PPI_MEM_WRITE64  MemWrite64;
+  EFI_PEI_CPU_IO_PPI_MEM_WRITE8     MemWrite8;
+  EFI_PEI_CPU_IO_PPI_MEM_WRITE16    MemWrite16;
+  EFI_PEI_CPU_IO_PPI_MEM_WRITE32    MemWrite32;
+  EFI_PEI_CPU_IO_PPI_MEM_WRITE64    MemWrite64;
 };
 
-extern EFI_GUID gEfiPeiCpuIoPpiInstalledGuid;
+extern EFI_GUID  gEfiPeiCpuIoPpiInstalledGuid;
 
 #endif

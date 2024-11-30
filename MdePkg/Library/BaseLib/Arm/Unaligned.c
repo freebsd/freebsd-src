@@ -27,16 +27,16 @@
 UINT16
 EFIAPI
 ReadUnaligned16 (
-  IN CONST UINT16              *Buffer
+  IN CONST UINT16  *Buffer
   )
 {
-  volatile UINT8 LowerByte;
-  volatile UINT8 HigherByte;
+  volatile UINT8  LowerByte;
+  volatile UINT8  HigherByte;
 
   ASSERT (Buffer != NULL);
 
-  LowerByte = ((UINT8*)Buffer)[0];
-  HigherByte = ((UINT8*)Buffer)[1];
+  LowerByte  = ((UINT8 *)Buffer)[0];
+  HigherByte = ((UINT8 *)Buffer)[1];
 
   return (UINT16)(LowerByte | (HigherByte << 8));
 }
@@ -59,14 +59,14 @@ ReadUnaligned16 (
 UINT16
 EFIAPI
 WriteUnaligned16 (
-  OUT UINT16                    *Buffer,
-  IN  UINT16                    Value
+  OUT UINT16  *Buffer,
+  IN  UINT16  Value
   )
 {
   ASSERT (Buffer != NULL);
 
-  ((volatile UINT8*)Buffer)[0] = (UINT8)Value;
-  ((volatile UINT8*)Buffer)[1] = (UINT8)(Value >> 8);
+  ((volatile UINT8 *)Buffer)[0] = (UINT8)Value;
+  ((volatile UINT8 *)Buffer)[1] = (UINT8)(Value >> 8);
 
   return Value;
 }
@@ -87,15 +87,15 @@ WriteUnaligned16 (
 UINT32
 EFIAPI
 ReadUnaligned24 (
-  IN CONST UINT32              *Buffer
+  IN CONST UINT32  *Buffer
   )
 {
   ASSERT (Buffer != NULL);
 
   return (UINT32)(
-            ReadUnaligned16 ((UINT16*)Buffer) |
-            (((UINT8*)Buffer)[2] << 16)
-            );
+                  ReadUnaligned16 ((UINT16 *)Buffer) |
+                  (((UINT8 *)Buffer)[2] << 16)
+                  );
 }
 
 /**
@@ -116,14 +116,14 @@ ReadUnaligned24 (
 UINT32
 EFIAPI
 WriteUnaligned24 (
-  OUT UINT32                    *Buffer,
-  IN  UINT32                    Value
+  OUT UINT32  *Buffer,
+  IN  UINT32  Value
   )
 {
   ASSERT (Buffer != NULL);
 
-  WriteUnaligned16 ((UINT16*)Buffer, (UINT16)Value);
-  *(UINT8*)((UINT16*)Buffer + 1) = (UINT8)(Value >> 16);
+  WriteUnaligned16 ((UINT16 *)Buffer, (UINT16)Value);
+  *(UINT8 *)((UINT16 *)Buffer + 1) = (UINT8)(Value >> 16);
   return Value;
 }
 
@@ -143,7 +143,7 @@ WriteUnaligned24 (
 UINT32
 EFIAPI
 ReadUnaligned32 (
-  IN CONST UINT32              *Buffer
+  IN CONST UINT32  *Buffer
   )
 {
   UINT16  LowerBytes;
@@ -151,10 +151,10 @@ ReadUnaligned32 (
 
   ASSERT (Buffer != NULL);
 
-  LowerBytes  = ReadUnaligned16 ((UINT16*) Buffer);
-  HigherBytes = ReadUnaligned16 ((UINT16*) Buffer + 1);
+  LowerBytes  = ReadUnaligned16 ((UINT16 *)Buffer);
+  HigherBytes = ReadUnaligned16 ((UINT16 *)Buffer + 1);
 
-  return (UINT32) (LowerBytes | (HigherBytes << 16));
+  return (UINT32)(LowerBytes | (HigherBytes << 16));
 }
 
 /**
@@ -175,14 +175,14 @@ ReadUnaligned32 (
 UINT32
 EFIAPI
 WriteUnaligned32 (
-  OUT UINT32                    *Buffer,
-  IN  UINT32                    Value
+  OUT UINT32  *Buffer,
+  IN  UINT32  Value
   )
 {
   ASSERT (Buffer != NULL);
 
-  WriteUnaligned16 ((UINT16*)Buffer, (UINT16)Value);
-  WriteUnaligned16 ((UINT16*)Buffer + 1, (UINT16)(Value >> 16));
+  WriteUnaligned16 ((UINT16 *)Buffer, (UINT16)Value);
+  WriteUnaligned16 ((UINT16 *)Buffer + 1, (UINT16)(Value >> 16));
   return Value;
 }
 
@@ -202,7 +202,7 @@ WriteUnaligned32 (
 UINT64
 EFIAPI
 ReadUnaligned64 (
-  IN CONST UINT64              *Buffer
+  IN CONST UINT64  *Buffer
   )
 {
   UINT32  LowerBytes;
@@ -210,10 +210,10 @@ ReadUnaligned64 (
 
   ASSERT (Buffer != NULL);
 
-  LowerBytes  = ReadUnaligned32 ((UINT32*) Buffer);
-  HigherBytes = ReadUnaligned32 ((UINT32*) Buffer + 1);
+  LowerBytes  = ReadUnaligned32 ((UINT32 *)Buffer);
+  HigherBytes = ReadUnaligned32 ((UINT32 *)Buffer + 1);
 
-  return (UINT64) (LowerBytes | LShiftU64 (HigherBytes, 32));
+  return (UINT64)(LowerBytes | LShiftU64 (HigherBytes, 32));
 }
 
 /**
@@ -234,13 +234,13 @@ ReadUnaligned64 (
 UINT64
 EFIAPI
 WriteUnaligned64 (
-  OUT UINT64                    *Buffer,
-  IN  UINT64                    Value
+  OUT UINT64  *Buffer,
+  IN  UINT64  Value
   )
 {
   ASSERT (Buffer != NULL);
 
-  WriteUnaligned32 ((UINT32*)Buffer, (UINT32)Value);
-  WriteUnaligned32 ((UINT32*)Buffer + 1, (UINT32)RShiftU64 (Value, 32));
+  WriteUnaligned32 ((UINT32 *)Buffer, (UINT32)Value);
+  WriteUnaligned32 ((UINT32 *)Buffer + 1, (UINT32)RShiftU64 (Value, 32));
   return Value;
 }

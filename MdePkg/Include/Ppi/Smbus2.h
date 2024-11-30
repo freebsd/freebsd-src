@@ -19,7 +19,6 @@
 #define EFI_PEI_SMBUS2_PPI_GUID \
   { 0x9ca93627, 0xb65b, 0x4324, { 0xa2, 0x2, 0xc0, 0xb4, 0x61, 0x76, 0x45, 0x43 } }
 
-
 typedef struct _EFI_PEI_SMBUS2_PPI EFI_PEI_SMBUS2_PPI;
 
 /**
@@ -74,7 +73,7 @@ EFI_STATUS
   IN        BOOLEAN                   PecCheck,
   IN OUT    UINTN                     *Length,
   IN OUT    VOID                      *Buffer
-);
+  );
 
 /**
   The ArpDevice() function enumerates the entire bus or enumerates a specific
@@ -105,9 +104,9 @@ EFI_STATUS
 (EFIAPI *EFI_PEI_SMBUS2_PPI_ARP_DEVICE)(
   IN CONST  EFI_PEI_SMBUS2_PPI        *This,
   IN        BOOLEAN                   ArpAll,
-  IN        EFI_SMBUS_UDID            *SmbusUdid,   OPTIONAL
+  IN        EFI_SMBUS_UDID            *SmbusUdid    OPTIONAL,
   IN OUT    EFI_SMBUS_DEVICE_ADDRESS  *SlaveAddress OPTIONAL
-);
+  );
 
 /**
   The GetArpMap() function returns the mapping of all the SMBus devices
@@ -128,7 +127,7 @@ EFI_STATUS
   IN CONST  EFI_PEI_SMBUS2_PPI    *This,
   IN OUT    UINTN                 *Length,
   IN OUT    EFI_SMBUS_DEVICE_MAP  **SmbusDeviceMap
-);
+  );
 
 /**
   CallBack function can be registered in EFI_PEI_SMBUS2_PPI_NOTIFY.
@@ -150,7 +149,7 @@ EFI_STATUS
   IN CONST  EFI_PEI_SMBUS2_PPI        *SmbusPpi,
   IN        EFI_SMBUS_DEVICE_ADDRESS  SlaveAddress,
   IN        UINTN                     Data
-);
+  );
 
 /**
   The Notify() function registers all the callback functions to allow the
@@ -175,23 +174,23 @@ EFI_STATUS
   IN       EFI_SMBUS_DEVICE_ADDRESS        SlaveAddress,
   IN       UINTN                           Data,
   IN       EFI_PEI_SMBUS_NOTIFY2_FUNCTION  NotifyFunction
-);
+  );
 
 ///
 ///  Provides the basic I/O interfaces that a PEIM uses to access
 ///  its SMBus controller and the slave devices attached to it.
 ///
 struct _EFI_PEI_SMBUS2_PPI {
-  EFI_PEI_SMBUS2_PPI_EXECUTE_OPERATION  Execute;
-  EFI_PEI_SMBUS2_PPI_ARP_DEVICE         ArpDevice;
-  EFI_PEI_SMBUS2_PPI_GET_ARP_MAP        GetArpMap;
-  EFI_PEI_SMBUS2_PPI_NOTIFY             Notify;
+  EFI_PEI_SMBUS2_PPI_EXECUTE_OPERATION    Execute;
+  EFI_PEI_SMBUS2_PPI_ARP_DEVICE           ArpDevice;
+  EFI_PEI_SMBUS2_PPI_GET_ARP_MAP          GetArpMap;
+  EFI_PEI_SMBUS2_PPI_NOTIFY               Notify;
   ///
   /// Identifier which uniquely identifies this SMBus controller in a system.
   ///
-  EFI_GUID                              Identifier;
+  EFI_GUID                                Identifier;
 };
 
-extern EFI_GUID gEfiPeiSmbus2PpiGuid;
+extern EFI_GUID  gEfiPeiSmbus2PpiGuid;
 
 #endif

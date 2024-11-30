@@ -123,9 +123,7 @@ EFI_STATUS
   IN        BOOLEAN                   PecCheck,
   IN OUT    UINTN                     *Length,
   IN OUT    VOID                      *Buffer
-);
-
-
+  );
 
 /**
 
@@ -184,10 +182,9 @@ EFI_STATUS
 (EFIAPI *EFI_SMBUS_HC_PROTOCOL_ARP_DEVICE)(
   IN CONST  EFI_SMBUS_HC_PROTOCOL     *This,
   IN        BOOLEAN                   ArpAll,
-  IN        EFI_SMBUS_UDID            *SmbusUdid,   OPTIONAL
+  IN        EFI_SMBUS_UDID            *SmbusUdid    OPTIONAL,
   IN OUT    EFI_SMBUS_DEVICE_ADDRESS  *SlaveAddress OPTIONAL
-);
-
+  );
 
 /**
   The GetArpMap() function returns the mapping of all the SMBus devices
@@ -214,7 +211,7 @@ EFI_STATUS
   IN CONST  EFI_SMBUS_HC_PROTOCOL   *This,
   IN OUT    UINTN                   *Length,
   IN OUT    EFI_SMBUS_DEVICE_MAP    **SmbusDeviceMap
-);
+  );
 
 /**
   The notify function does some actions.
@@ -232,8 +229,7 @@ EFI_STATUS
 (EFIAPI *EFI_SMBUS_NOTIFY_FUNCTION)(
   IN        EFI_SMBUS_DEVICE_ADDRESS  SlaveAddress,
   IN        UINTN                     Data
-);
-
+  );
 
 /**
 
@@ -267,8 +263,7 @@ EFI_STATUS
   IN        EFI_SMBUS_DEVICE_ADDRESS  SlaveAddress,
   IN        UINTN                     Data,
   IN        EFI_SMBUS_NOTIFY_FUNCTION NotifyFunction
-);
-
+  );
 
 ///
 /// The EFI_SMBUS_HC_PROTOCOL provides SMBus host controller management and basic data
@@ -276,14 +271,12 @@ EFI_STATUS
 /// host controller.
 ///
 struct _EFI_SMBUS_HC_PROTOCOL {
-  EFI_SMBUS_HC_EXECUTE_OPERATION    Execute;
-  EFI_SMBUS_HC_PROTOCOL_ARP_DEVICE  ArpDevice;
-  EFI_SMBUS_HC_PROTOCOL_GET_ARP_MAP GetArpMap;
-  EFI_SMBUS_HC_PROTOCOL_NOTIFY      Notify;
+  EFI_SMBUS_HC_EXECUTE_OPERATION       Execute;
+  EFI_SMBUS_HC_PROTOCOL_ARP_DEVICE     ArpDevice;
+  EFI_SMBUS_HC_PROTOCOL_GET_ARP_MAP    GetArpMap;
+  EFI_SMBUS_HC_PROTOCOL_NOTIFY         Notify;
 };
 
-
-extern EFI_GUID gEfiSmbusHcProtocolGuid;
+extern EFI_GUID  gEfiSmbusHcProtocolGuid;
 
 #endif
-

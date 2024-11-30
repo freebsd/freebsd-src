@@ -50,7 +50,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 ///
 /// Value used in the NumberProcessors parameter of the GetProcessorInfo function
 ///
-#define CPU_V2_EXTENDED_TOPOLOGY BIT24
+#define CPU_V2_EXTENDED_TOPOLOGY  BIT24
 
 ///
 /// Forward declaration for the EFI_MP_SERVICES_PROTOCOL.
@@ -60,21 +60,21 @@ typedef struct _EFI_MP_SERVICES_PROTOCOL EFI_MP_SERVICES_PROTOCOL;
 ///
 /// Terminator for a list of failed CPUs returned by StartAllAPs().
 ///
-#define END_OF_CPU_LIST    0xffffffff
+#define END_OF_CPU_LIST  0xffffffff
 
 ///
 /// This bit is used in the StatusFlag field of EFI_PROCESSOR_INFORMATION and
 /// indicates whether the processor is playing the role of BSP. If the bit is 1,
 /// then the processor is BSP. Otherwise, it is AP.
 ///
-#define PROCESSOR_AS_BSP_BIT         0x00000001
+#define PROCESSOR_AS_BSP_BIT  0x00000001
 
 ///
 /// This bit is used in the StatusFlag field of EFI_PROCESSOR_INFORMATION and
 /// indicates whether the processor is enabled. If the bit is 1, then the
 /// processor is enabled. Otherwise, it is disabled.
 ///
-#define PROCESSOR_ENABLED_BIT        0x00000002
+#define PROCESSOR_ENABLED_BIT  0x00000002
 
 ///
 /// This bit is used in the StatusFlag field of EFI_PROCESSOR_INFORMATION and
@@ -90,47 +90,46 @@ typedef struct {
   ///
   /// Zero-based physical package number that identifies the cartridge of the processor.
   ///
-  UINT32  Package;
+  UINT32    Package;
   ///
   /// Zero-based physical core number within package of the processor.
   ///
-  UINT32  Core;
+  UINT32    Core;
   ///
   /// Zero-based logical thread number within core of the processor.
   ///
-  UINT32  Thread;
+  UINT32    Thread;
 } EFI_CPU_PHYSICAL_LOCATION;
 
 ///
 ///  Structure that defines the 6-level physical location of the processor
 ///
 typedef struct {
-///
-///    Package     Zero-based physical package number that identifies the cartridge of the processor.
-///
-UINT32  Package;
-///
-///    Module      Zero-based physical module number within package of the processor.
-///
-UINT32  Module;
-///
-///    Tile        Zero-based physical tile number within module of the processor.
-///
-UINT32  Tile;
-///
-///    Die         Zero-based physical die number within tile of the processor.
-///
-UINT32  Die;
-///
-///     Core        Zero-based physical core number within die of the processor.
-///
-UINT32  Core;
-///
-///     Thread      Zero-based logical thread number within core of the processor.
-///
-UINT32  Thread;
+  ///
+  ///    Package     Zero-based physical package number that identifies the cartridge of the processor.
+  ///
+  UINT32    Package;
+  ///
+  ///    Module      Zero-based physical module number within package of the processor.
+  ///
+  UINT32    Module;
+  ///
+  ///    Tile        Zero-based physical tile number within module of the processor.
+  ///
+  UINT32    Tile;
+  ///
+  ///    Die         Zero-based physical die number within tile of the processor.
+  ///
+  UINT32    Die;
+  ///
+  ///     Core        Zero-based physical core number within die of the processor.
+  ///
+  UINT32    Core;
+  ///
+  ///     Thread      Zero-based logical thread number within core of the processor.
+  ///
+  UINT32    Thread;
 } EFI_CPU_PHYSICAL_LOCATION2;
-
 
 typedef union {
   /// The 6-level physical location of the processor, including the
@@ -138,9 +137,8 @@ typedef union {
   /// module number within package, the physical tile number within the module,
   /// the physical die number within the tile, the physical core number within
   /// package, and logical thread number within core.
-  EFI_CPU_PHYSICAL_LOCATION2  Location2;
+  EFI_CPU_PHYSICAL_LOCATION2    Location2;
 } EXTENDED_PROCESSOR_INFORMATION;
-
 
 ///
 /// Structure that describes information about a logical CPU.
@@ -152,7 +150,7 @@ typedef struct {
   /// are used, and higher bits are reserved.  For IPF, the lower 16 bits contains
   /// id/eid, and higher bits are reserved.
   ///
-  UINT64                     ProcessorId;
+  UINT64    ProcessorId;
   ///
   /// Flags indicating if the processor is BSP or AP, if the processor is enabled
   /// or disabled, and if the processor is healthy. Bits 3..31 are reserved and
@@ -171,17 +169,17 @@ typedef struct {
   ///  1      1       1     Healthy Enabled BSP.
   /// </pre>
   ///
-  UINT32                     StatusFlag;
+  UINT32                            StatusFlag;
   ///
   /// The physical location of the processor, including the physical package number
   /// that identifies the cartridge, the physical core number within package, and
   /// logical thread number within core.
   ///
-  EFI_CPU_PHYSICAL_LOCATION  Location;
+  EFI_CPU_PHYSICAL_LOCATION         Location;
   ///
   /// The extended information of the processor. This field is filled only when
   /// CPU_V2_EXTENDED_TOPOLOGY is set in parameter ProcessorNumber.
-  EXTENDED_PROCESSOR_INFORMATION ExtendedInformation;
+  EXTENDED_PROCESSOR_INFORMATION    ExtendedInformation;
 } EFI_PROCESSOR_INFORMATION;
 
 /**
@@ -662,15 +660,15 @@ EFI_STATUS
 /// UEFI images must be aware that the functionality of this protocol may be reduced.
 ///
 struct _EFI_MP_SERVICES_PROTOCOL {
-  EFI_MP_SERVICES_GET_NUMBER_OF_PROCESSORS  GetNumberOfProcessors;
-  EFI_MP_SERVICES_GET_PROCESSOR_INFO        GetProcessorInfo;
-  EFI_MP_SERVICES_STARTUP_ALL_APS           StartupAllAPs;
-  EFI_MP_SERVICES_STARTUP_THIS_AP           StartupThisAP;
-  EFI_MP_SERVICES_SWITCH_BSP                SwitchBSP;
-  EFI_MP_SERVICES_ENABLEDISABLEAP           EnableDisableAP;
-  EFI_MP_SERVICES_WHOAMI                    WhoAmI;
+  EFI_MP_SERVICES_GET_NUMBER_OF_PROCESSORS    GetNumberOfProcessors;
+  EFI_MP_SERVICES_GET_PROCESSOR_INFO          GetProcessorInfo;
+  EFI_MP_SERVICES_STARTUP_ALL_APS             StartupAllAPs;
+  EFI_MP_SERVICES_STARTUP_THIS_AP             StartupThisAP;
+  EFI_MP_SERVICES_SWITCH_BSP                  SwitchBSP;
+  EFI_MP_SERVICES_ENABLEDISABLEAP             EnableDisableAP;
+  EFI_MP_SERVICES_WHOAMI                      WhoAmI;
 };
 
-extern EFI_GUID gEfiMpServiceProtocolGuid;
+extern EFI_GUID  gEfiMpServiceProtocolGuid;
 
 #endif

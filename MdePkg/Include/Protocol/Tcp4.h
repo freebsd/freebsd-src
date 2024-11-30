@@ -34,11 +34,11 @@ typedef struct _EFI_TCP4_PROTOCOL EFI_TCP4_PROTOCOL;
 /// The definition in here is only present to provide backwards compatability.
 ///
 typedef struct {
-  EFI_HANDLE              InstanceHandle;
-  EFI_IPv4_ADDRESS        LocalAddress;
-  UINT16                  LocalPort;
-  EFI_IPv4_ADDRESS        RemoteAddress;
-  UINT16                  RemotePort;
+  EFI_HANDLE          InstanceHandle;
+  EFI_IPv4_ADDRESS    LocalAddress;
+  UINT16              LocalPort;
+  EFI_IPv4_ADDRESS    RemoteAddress;
+  UINT16              RemotePort;
 } EFI_TCP4_SERVICE_POINT;
 
 ///
@@ -46,77 +46,77 @@ typedef struct {
 /// The definition in here is only present to provide backwards compatability.
 ///
 typedef struct {
-  EFI_HANDLE              DriverHandle;
-  UINT32                  ServiceCount;
-  EFI_TCP4_SERVICE_POINT  Services[1];
+  EFI_HANDLE                DriverHandle;
+  UINT32                    ServiceCount;
+  EFI_TCP4_SERVICE_POINT    Services[1];
 } EFI_TCP4_VARIABLE_DATA;
 
 typedef struct {
-  BOOLEAN                 UseDefaultAddress;
-  EFI_IPv4_ADDRESS        StationAddress;
-  EFI_IPv4_ADDRESS        SubnetMask;
-  UINT16                  StationPort;
-  EFI_IPv4_ADDRESS        RemoteAddress;
-  UINT16                  RemotePort;
-  BOOLEAN                 ActiveFlag;
+  BOOLEAN             UseDefaultAddress;
+  EFI_IPv4_ADDRESS    StationAddress;
+  EFI_IPv4_ADDRESS    SubnetMask;
+  UINT16              StationPort;
+  EFI_IPv4_ADDRESS    RemoteAddress;
+  UINT16              RemotePort;
+  BOOLEAN             ActiveFlag;
 } EFI_TCP4_ACCESS_POINT;
 
 typedef struct {
-  UINT32                  ReceiveBufferSize;
-  UINT32                  SendBufferSize;
-  UINT32                  MaxSynBackLog;
-  UINT32                  ConnectionTimeout;
-  UINT32                  DataRetries;
-  UINT32                  FinTimeout;
-  UINT32                  TimeWaitTimeout;
-  UINT32                  KeepAliveProbes;
-  UINT32                  KeepAliveTime;
-  UINT32                  KeepAliveInterval;
-  BOOLEAN                 EnableNagle;
-  BOOLEAN                 EnableTimeStamp;
-  BOOLEAN                 EnableWindowScaling;
-  BOOLEAN                 EnableSelectiveAck;
-  BOOLEAN                 EnablePathMtuDiscovery;
+  UINT32     ReceiveBufferSize;
+  UINT32     SendBufferSize;
+  UINT32     MaxSynBackLog;
+  UINT32     ConnectionTimeout;
+  UINT32     DataRetries;
+  UINT32     FinTimeout;
+  UINT32     TimeWaitTimeout;
+  UINT32     KeepAliveProbes;
+  UINT32     KeepAliveTime;
+  UINT32     KeepAliveInterval;
+  BOOLEAN    EnableNagle;
+  BOOLEAN    EnableTimeStamp;
+  BOOLEAN    EnableWindowScaling;
+  BOOLEAN    EnableSelectiveAck;
+  BOOLEAN    EnablePathMtuDiscovery;
 } EFI_TCP4_OPTION;
 
 typedef struct {
   //
   // I/O parameters
   //
-  UINT8                   TypeOfService;
-  UINT8                   TimeToLive;
+  UINT8                    TypeOfService;
+  UINT8                    TimeToLive;
 
   //
   // Access Point
   //
-  EFI_TCP4_ACCESS_POINT   AccessPoint;
+  EFI_TCP4_ACCESS_POINT    AccessPoint;
 
   //
   // TCP Control Options
   //
-  EFI_TCP4_OPTION         *ControlOption;
+  EFI_TCP4_OPTION          *ControlOption;
 } EFI_TCP4_CONFIG_DATA;
 
 ///
 /// TCP4 connnection state
 ///
 typedef enum {
-  Tcp4StateClosed         = 0,
-  Tcp4StateListen         = 1,
-  Tcp4StateSynSent        = 2,
-  Tcp4StateSynReceived    = 3,
-  Tcp4StateEstablished    = 4,
-  Tcp4StateFinWait1       = 5,
-  Tcp4StateFinWait2       = 6,
-  Tcp4StateClosing        = 7,
-  Tcp4StateTimeWait       = 8,
-  Tcp4StateCloseWait      = 9,
-  Tcp4StateLastAck        = 10
+  Tcp4StateClosed      = 0,
+  Tcp4StateListen      = 1,
+  Tcp4StateSynSent     = 2,
+  Tcp4StateSynReceived = 3,
+  Tcp4StateEstablished = 4,
+  Tcp4StateFinWait1    = 5,
+  Tcp4StateFinWait2    = 6,
+  Tcp4StateClosing     = 7,
+  Tcp4StateTimeWait    = 8,
+  Tcp4StateCloseWait   = 9,
+  Tcp4StateLastAck     = 10
 } EFI_TCP4_CONNECTION_STATE;
 
 typedef struct {
-  EFI_EVENT   Event;
-  EFI_STATUS  Status;
+  EFI_EVENT     Event;
+  EFI_STATUS    Status;
 } EFI_TCP4_COMPLETION_TOKEN;
 
 typedef struct {
@@ -146,17 +146,17 @@ typedef struct {
   /// EFI_DEVICE_ERROR:         An unexpected system or network error occurred.
   /// EFI_NO_MEDIA:             There was a media error.
   ///
-  EFI_TCP4_COMPLETION_TOKEN CompletionToken;
+  EFI_TCP4_COMPLETION_TOKEN    CompletionToken;
 } EFI_TCP4_CONNECTION_TOKEN;
 
 typedef struct {
-  EFI_TCP4_COMPLETION_TOKEN CompletionToken;
-  EFI_HANDLE                NewChildHandle;
+  EFI_TCP4_COMPLETION_TOKEN    CompletionToken;
+  EFI_HANDLE                   NewChildHandle;
 } EFI_TCP4_LISTEN_TOKEN;
 
 typedef struct {
-  UINT32 FragmentLength;
-  VOID   *FragmentBuffer;
+  UINT32    FragmentLength;
+  VOID      *FragmentBuffer;
 } EFI_TCP4_FRAGMENT_DATA;
 
 typedef struct {
@@ -202,22 +202,22 @@ typedef struct {
   /// EFI_DEVICE_ERROR:         An unexpected system or network error occurs.
   /// EFI_NO_MEDIA:             There was a media error.
   ///
-  EFI_TCP4_COMPLETION_TOKEN CompletionToken;
+  EFI_TCP4_COMPLETION_TOKEN    CompletionToken;
   union {
     ///
     /// When this token is used for receiving, RxData is a pointer to EFI_TCP4_RECEIVE_DATA.
     ///
-    EFI_TCP4_RECEIVE_DATA   *RxData;
+    EFI_TCP4_RECEIVE_DATA     *RxData;
     ///
     /// When this token is used for transmitting, TxData is a pointer to EFI_TCP4_TRANSMIT_DATA.
     ///
-    EFI_TCP4_TRANSMIT_DATA  *TxData;
+    EFI_TCP4_TRANSMIT_DATA    *TxData;
   } Packet;
 } EFI_TCP4_IO_TOKEN;
 
 typedef struct {
-  EFI_TCP4_COMPLETION_TOKEN CompletionToken;
-  BOOLEAN                   AbortOnClose;
+  EFI_TCP4_COMPLETION_TOKEN    CompletionToken;
+  BOOLEAN                      AbortOnClose;
 } EFI_TCP4_CLOSE_TOKEN;
 
 //
@@ -280,7 +280,6 @@ EFI_STATUS
   IN EFI_TCP4_PROTOCOL                   *This,
   IN EFI_TCP4_CONFIG_DATA                *TcpConfigData OPTIONAL
   );
-
 
 /**
   Add or delete a route entry to the route table
@@ -353,7 +352,6 @@ EFI_STATUS
   IN EFI_TCP4_CONNECTION_TOKEN           *ConnectionToken
   );
 
-
 /**
   Listen on the passive instance to accept an incoming connection request. This is a nonblocking operation.
 
@@ -419,7 +417,6 @@ EFI_STATUS
   IN EFI_TCP4_PROTOCOL                   *This,
   IN EFI_TCP4_IO_TOKEN                   *Token
   );
-
 
 /**
   Places an asynchronous receive request into the receiving queue.
@@ -525,7 +522,6 @@ EFI_STATUS
   IN EFI_TCP4_COMPLETION_TOKEN           *Token OPTIONAL
   );
 
-
 /**
   Poll to receive incoming data and transmit outgoing segments.
 
@@ -553,19 +549,19 @@ EFI_STATUS
 /// such as the routing table.
 ///
 struct _EFI_TCP4_PROTOCOL {
-  EFI_TCP4_GET_MODE_DATA                 GetModeData;
-  EFI_TCP4_CONFIGURE                     Configure;
-  EFI_TCP4_ROUTES                        Routes;
-  EFI_TCP4_CONNECT                       Connect;
-  EFI_TCP4_ACCEPT                        Accept;
-  EFI_TCP4_TRANSMIT                      Transmit;
-  EFI_TCP4_RECEIVE                       Receive;
-  EFI_TCP4_CLOSE                         Close;
-  EFI_TCP4_CANCEL                        Cancel;
-  EFI_TCP4_POLL                          Poll;
+  EFI_TCP4_GET_MODE_DATA    GetModeData;
+  EFI_TCP4_CONFIGURE        Configure;
+  EFI_TCP4_ROUTES           Routes;
+  EFI_TCP4_CONNECT          Connect;
+  EFI_TCP4_ACCEPT           Accept;
+  EFI_TCP4_TRANSMIT         Transmit;
+  EFI_TCP4_RECEIVE          Receive;
+  EFI_TCP4_CLOSE            Close;
+  EFI_TCP4_CANCEL           Cancel;
+  EFI_TCP4_POLL             Poll;
 };
 
-extern EFI_GUID gEfiTcp4ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiTcp4ProtocolGuid;
+extern EFI_GUID  gEfiTcp4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiTcp4ProtocolGuid;
 
 #endif

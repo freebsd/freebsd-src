@@ -17,19 +17,19 @@
     0xbfd7dc1d, 0x24f1, 0x40d9, {0x82, 0xe7, 0x2e, 0x09, 0xbb, 0x6b, 0x4e, 0xbe } \
   }
 
-typedef struct _EFI_DRIVER_CONFIGURATION2_PROTOCOL  EFI_DRIVER_CONFIGURATION2_PROTOCOL;
+typedef struct _EFI_DRIVER_CONFIGURATION2_PROTOCOL EFI_DRIVER_CONFIGURATION2_PROTOCOL;
 
 typedef enum {
   ///
   /// The controller is still in a usable state. No actions
   /// are required before this controller can be used again.
   ///
-  EfiDriverConfigurationActionNone              = 0,
+  EfiDriverConfigurationActionNone = 0,
   ///
   /// The driver has detected that the controller is not in a
   /// usable state, and it needs to be stopped.
   ///
-  EfiDriverConfigurationActionStopController    = 1,
+  EfiDriverConfigurationActionStopController = 1,
   ///
   /// This controller needs to be stopped and restarted
   /// before it can be used again.
@@ -39,14 +39,14 @@ typedef enum {
   /// A configuration change has been made that requires the platform to be restarted before
   /// the controller can be used again.
   ///
-  EfiDriverConfigurationActionRestartPlatform   = 3,
+  EfiDriverConfigurationActionRestartPlatform = 3,
   EfiDriverConfigurationActionMaximum
 } EFI_DRIVER_CONFIGURATION_ACTION_REQUIRED;
 
-#define EFI_DRIVER_CONFIGURATION_SAFE_DEFAULTS          0x00000000
-#define EFI_DRIVER_CONFIGURATION_MANUFACTURING_DEFAULTS 0x00000001
-#define EFI_DRIVER_CONFIGURATION_CUSTOM_DEFAULTS        0x00000002
-#define EFI_DRIVER_CONFIGURATION_PERORMANCE_DEFAULTS    0x00000003
+#define EFI_DRIVER_CONFIGURATION_SAFE_DEFAULTS           0x00000000
+#define EFI_DRIVER_CONFIGURATION_MANUFACTURING_DEFAULTS  0x00000001
+#define EFI_DRIVER_CONFIGURATION_CUSTOM_DEFAULTS         0x00000002
+#define EFI_DRIVER_CONFIGURATION_PERORMANCE_DEFAULTS     0x00000003
 
 /**
   Allows the user to set controller specific options for a controller that a
@@ -169,16 +169,16 @@ EFI_STATUS
 /// Used to set configuration options for a controller that an EFI Driver is managing.
 ///
 struct _EFI_DRIVER_CONFIGURATION2_PROTOCOL {
-  EFI_DRIVER_CONFIGURATION2_SET_OPTIONS     SetOptions;
-  EFI_DRIVER_CONFIGURATION2_OPTIONS_VALID   OptionsValid;
-  EFI_DRIVER_CONFIGURATION2_FORCE_DEFAULTS  ForceDefaults;
+  EFI_DRIVER_CONFIGURATION2_SET_OPTIONS       SetOptions;
+  EFI_DRIVER_CONFIGURATION2_OPTIONS_VALID     OptionsValid;
+  EFI_DRIVER_CONFIGURATION2_FORCE_DEFAULTS    ForceDefaults;
   ///
   /// A Null-terminated ASCII string that contains one or more RFC 4646
   /// language codes.  This is the list of language codes that this protocol supports.
   ///
-  CHAR8                                     *SupportedLanguages;
+  CHAR8                                       *SupportedLanguages;
 };
 
-extern EFI_GUID gEfiDriverConfiguration2ProtocolGuid;
+extern EFI_GUID  gEfiDriverConfiguration2ProtocolGuid;
 
 #endif

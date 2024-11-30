@@ -18,42 +18,43 @@
 
 #pragma pack (1)
 
+#define STM_SMM_REV_ID  0x80010100
+
 /**
   STM Header Structures
 **/
 
 typedef struct {
-  UINT32  Intel64ModeSupported :1;  ///> bitfield
-  UINT32  EptSupported         :1;  ///> bitfield
-  UINT32  Reserved             :30; ///> must be 0
+  UINT32    Intel64ModeSupported : 1;  /// > bitfield
+  UINT32    EptSupported         : 1;  /// > bitfield
+  UINT32    Reserved             : 30; /// > must be 0
 } STM_FEAT;
 
 #define STM_SPEC_VERSION_MAJOR  1
 #define STM_SPEC_VERSION_MINOR  0
 
 typedef struct {
-  UINT8     StmSpecVerMajor;
-  UINT8     StmSpecVerMinor;
+  UINT8       StmSpecVerMajor;
+  UINT8       StmSpecVerMinor;
   ///
   /// Must be zero
   ///
-  UINT16    Reserved;
-  UINT32    StaticImageSize;
-  UINT32    PerProcDynamicMemorySize;
-  UINT32    AdditionalDynamicMemorySize;
-  STM_FEAT  StmFeatures;
-  UINT32    NumberOfRevIDs;
-  UINT32    StmSmmRevID[1];
+  UINT16      Reserved;
+  UINT32      StaticImageSize;
+  UINT32      PerProcDynamicMemorySize;
+  UINT32      AdditionalDynamicMemorySize;
+  STM_FEAT    StmFeatures;
+  UINT32      NumberOfRevIDs;
+  UINT32      StmSmmRevID[1];
   ///
   /// The total STM_HEADER should be 4K.
   ///
 } SOFTWARE_STM_HEADER;
 
 typedef struct {
-  MSEG_HEADER          HwStmHdr;
-  SOFTWARE_STM_HEADER  SwStmHdr;
+  MSEG_HEADER            HwStmHdr;
+  SOFTWARE_STM_HEADER    SwStmHdr;
 } STM_HEADER;
-
 
 /**
   VMCALL API Numbers
@@ -93,16 +94,16 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_MAP_ADDRESS_RANGE                  0x00000001
+#define STM_API_MAP_ADDRESS_RANGE  0x00000001
 
 /**
   STM Map Address Range Descriptor for #STM_API_MAP_ADDRESS_RANGE VMCALL
 **/
 typedef struct {
-  UINT64  PhysicalAddress;
-  UINT64  VirtualAddress;
-  UINT32  PageCount;
-  UINT32  PatCacheType;
+  UINT64    PhysicalAddress;
+  UINT64    VirtualAddress;
+  UINT32    PageCount;
+  UINT32    PatCacheType;
 } STM_MAP_ADDRESS_RANGE_DESCRIPTOR;
 
 /**
@@ -145,16 +146,15 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_UNMAP_ADDRESS_RANGE                0x00000002
+#define STM_API_UNMAP_ADDRESS_RANGE  0x00000002
 
 /**
   STM Unmap Address Range Descriptor for #STM_API_UNMAP_ADDRESS_RANGE VMCALL
 **/
 typedef struct {
-  UINT64  VirtualAddress;
-  UINT32  Length;
+  UINT64    VirtualAddress;
+  UINT32    Length;
 } STM_UNMAP_ADDRESS_RANGE_DESCRIPTOR;
-
 
 /**
   Since the normal OS environment runs with a different set of page tables than
@@ -218,24 +218,24 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_ADDRESS_LOOKUP                     0x00000003
+#define STM_API_ADDRESS_LOOKUP  0x00000003
 
 /**
   STM Lookup Address Range Descriptor for #STM_API_ADDRESS_LOOKUP VMCALL
 **/
 typedef struct {
-  UINT64  InterruptedGuestVirtualAddress;
-  UINT32  Length;
-  UINT64  InterruptedCr3;
-  UINT64  InterruptedEptp;
-  UINT32  MapToSmmGuest:2;
-  UINT32  InterruptedCr4Pae:1;
-  UINT32  InterruptedCr4Pse:1;
-  UINT32  InterruptedIa32eMode:1;
-  UINT32  Reserved1:27;
-  UINT32  Reserved2;
-  UINT64  PhysicalAddress;
-  UINT64  SmmGuestVirtualAddress;
+  UINT64    InterruptedGuestVirtualAddress;
+  UINT32    Length;
+  UINT64    InterruptedCr3;
+  UINT64    InterruptedEptp;
+  UINT32    MapToSmmGuest        : 2;
+  UINT32    InterruptedCr4Pae    : 1;
+  UINT32    InterruptedCr4Pse    : 1;
+  UINT32    InterruptedIa32eMode : 1;
+  UINT32    Reserved1            : 27;
+  UINT32    Reserved2;
+  UINT64    PhysicalAddress;
+  UINT64    SmmGuestVirtualAddress;
 } STM_ADDRESS_LOOKUP_DESCRIPTOR;
 
 /**
@@ -246,7 +246,6 @@ typedef struct {
 #define STM_ADDRESS_LOOKUP_DESCRIPTOR_ONE_TO_ONE                 1
 #define STM_ADDRESS_LOOKUP_DESCRIPTOR_VIRTUAL_ADDRESS_SPECIFIED  3
 /// @}
-
 
 /**
   When returning from a protection exception (see section 6.2), the SMM guest
@@ -279,8 +278,7 @@ typedef struct {
                Values 0x10..0xFFFFFFFF are reserved, do not use.
 
 **/
-#define STM_API_RETURN_FROM_PROTECTION_EXCEPTION   0x00000004
-
+#define STM_API_RETURN_FROM_PROTECTION_EXCEPTION  0x00000004
 
 /**
   VMCALL API Numbers
@@ -336,7 +334,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_START                              (BIT16 | 1)
+#define STM_API_START  (BIT16 | 1)
 
 /**
   Bit values for EDX input parameter to #STM_API_START VMCALL
@@ -344,7 +342,6 @@ typedef struct {
 **/
 #define STM_CONFIG_SMI_UNBLOCKING_BY_VMX_OFF  BIT0
 /// @}
-
 
 /**
   The StopStmVMCALL() is invoked by the MLE to teardown an active STM. This is
@@ -367,8 +364,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_STOP                               (BIT16 | 2)
-
+#define STM_API_STOP  (BIT16 | 2)
 
 /**
   The ProtectResourceVMCALL() is invoked by the MLE root to request protection
@@ -419,8 +415,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_PROTECT_RESOURCE                   (BIT16 | 3)
-
+#define STM_API_PROTECT_RESOURCE  (BIT16 | 3)
 
 /**
   The UnProtectResourceVMCALL() is invoked by the MLE root to request that the
@@ -457,8 +452,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_UNPROTECT_RESOURCE                 (BIT16 | 4)
-
+#define STM_API_UNPROTECT_RESOURCE  (BIT16 | 4)
 
 /**
   The GetBiosResourcesVMCALL() is invoked by the MLE root to request the list
@@ -493,8 +487,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_GET_BIOS_RESOURCES                 (BIT16 | 5)
-
+#define STM_API_GET_BIOS_RESOURCES  (BIT16 | 5)
 
 /**
   The ManageVmcsDatabaseVMCALL() is invoked by the MLE root to add or remove an
@@ -527,7 +520,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_MANAGE_VMCS_DATABASE               (BIT16 | 6)
+#define STM_API_MANAGE_VMCS_DATABASE  (BIT16 | 6)
 
 /**
   STM VMCS Database Request for #STM_API_MANAGE_VMCS_DATABASE VMCALL
@@ -536,15 +529,15 @@ typedef struct {
   ///
   /// bits 11:0 are reserved and must be 0
   ///
-  UINT64  VmcsPhysPointer;
-  UINT32  DomainType :4;
-  UINT32  XStatePolicy :2;
-  UINT32  DegradationPolicy :4;
+  UINT64    VmcsPhysPointer;
+  UINT32    DomainType        : 4;
+  UINT32    XStatePolicy      : 2;
+  UINT32    DegradationPolicy : 4;
   ///
   /// Must be 0
   ///
-  UINT32  Reserved1 :22;
-  UINT32  AddOrRemove;
+  UINT32    Reserved1         : 22;
+  UINT32    AddOrRemove;
 } STM_VMCS_DATABASE_REQUEST;
 
 /**
@@ -577,7 +570,6 @@ typedef struct {
 #define STM_VMCS_DATABASE_REQUEST_ADD     1
 #define STM_VMCS_DATABASE_REQUEST_REMOVE  0
 /// @}
-
 
 /**
   InitializeProtectionVMCALL() prepares the STM for setup of the initial
@@ -613,7 +605,7 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_INITIALIZE_PROTECTION              (BIT16 | 7)
+#define STM_API_INITIALIZE_PROTECTION  (BIT16 | 7)
 
 /**
   Byte granular support bits returned in EBX from #STM_API_INITIALIZE_PROTECTION
@@ -623,7 +615,6 @@ typedef struct {
 #define STM_RSC_BGM  BIT2
 #define STM_RSC_MSR  BIT3
 /// @}
-
 
 /**
   The ManageEventLogVMCALL() is invoked by the MLE root to control the logging
@@ -646,20 +637,20 @@ typedef struct {
 
   @note  All other registers unmodified.
 **/
-#define STM_API_MANAGE_EVENT_LOG                   (BIT16 | 8)
+#define STM_API_MANAGE_EVENT_LOG  (BIT16 | 8)
 
 ///
 /// STM Event Log Management Request for #STM_API_MANAGE_EVENT_LOG VMCALL
 ///
 typedef struct {
-  UINT32      SubFunctionIndex;
+  UINT32    SubFunctionIndex;
   union {
     struct {
-      UINT32  PageCount;
+      UINT32    PageCount;
       //
       // number of elements is PageCount
       //
-      UINT64  Pages[];
+      UINT64    Pages[];
     } LogBuffer;
     //
     // bitmap of EVENT_TYPE
@@ -685,13 +676,13 @@ typedef struct {
   Log Entry Header
 **/
 typedef struct {
-  UINT32  EventSerialNumber;
-  UINT16  Type;
-  UINT16  Lock :1;
-  UINT16  Valid :1;
-  UINT16  ReadByMle :1;
-  UINT16  Wrapped :1;
-  UINT16  Reserved :12;
+  UINT32    EventSerialNumber;
+  UINT16    Type;
+  UINT16    Lock      : 1;
+  UINT16    Valid     : 1;
+  UINT16    ReadByMle : 1;
+  UINT16    Wrapped   : 1;
+  UINT16    Reserved  : 12;
 } LOG_ENTRY_HEADER;
 
 /**
@@ -722,63 +713,63 @@ typedef enum {
 } EVENT_TYPE;
 
 typedef struct {
-  UINT32  Reserved;
+  UINT32    Reserved;
 } ENTRY_EVT_LOG_STARTED;
 
 typedef struct {
-  UINT32  Reserved;
+  UINT32    Reserved;
 } ENTRY_EVT_LOG_STOPPED;
 
 typedef struct {
-  UINT32  VmcallApiNumber;
+  UINT32    VmcallApiNumber;
 } ENTRY_EVT_LOG_INVALID_PARAM;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_LOG_HANDLED_PROTECTION_EXCEPTION;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_BIOS_ACCESS_UNCLAIMED_RSC;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_MLE_RSC_PROT_GRANTED;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_MLE_RSC_PROT_DENIED;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_MLE_RSC_UNPROT;
 
 typedef struct {
-  STM_RSC  Resource;
+  STM_RSC    Resource;
 } ENTRY_EVT_MLE_RSC_UNPROT_ERROR;
 
 typedef struct {
-  UINT64  VmcsPhysPointer;
-  UINT8   ExpectedDomainType;
-  UINT8   DegradedDomainType;
+  UINT64    VmcsPhysPointer;
+  UINT8     ExpectedDomainType;
+  UINT8     DegradedDomainType;
 } ENTRY_EVT_MLE_DOMAIN_TYPE_DEGRADED;
 
 typedef union {
-  ENTRY_EVT_LOG_STARTED                       Started;
-  ENTRY_EVT_LOG_STOPPED                       Stopped;
-  ENTRY_EVT_LOG_INVALID_PARAM                 InvalidParam;
-  ENTRY_EVT_LOG_HANDLED_PROTECTION_EXCEPTION  HandledProtectionException;
-  ENTRY_EVT_BIOS_ACCESS_UNCLAIMED_RSC         BiosUnclaimedRsc;
-  ENTRY_EVT_MLE_RSC_PROT_GRANTED              MleRscProtGranted;
-  ENTRY_EVT_MLE_RSC_PROT_DENIED               MleRscProtDenied;
-  ENTRY_EVT_MLE_RSC_UNPROT                    MleRscUnprot;
-  ENTRY_EVT_MLE_RSC_UNPROT_ERROR              MleRscUnprotError;
-  ENTRY_EVT_MLE_DOMAIN_TYPE_DEGRADED          MleDomainTypeDegraded;
+  ENTRY_EVT_LOG_STARTED                         Started;
+  ENTRY_EVT_LOG_STOPPED                         Stopped;
+  ENTRY_EVT_LOG_INVALID_PARAM                   InvalidParam;
+  ENTRY_EVT_LOG_HANDLED_PROTECTION_EXCEPTION    HandledProtectionException;
+  ENTRY_EVT_BIOS_ACCESS_UNCLAIMED_RSC           BiosUnclaimedRsc;
+  ENTRY_EVT_MLE_RSC_PROT_GRANTED                MleRscProtGranted;
+  ENTRY_EVT_MLE_RSC_PROT_DENIED                 MleRscProtDenied;
+  ENTRY_EVT_MLE_RSC_UNPROT                      MleRscUnprot;
+  ENTRY_EVT_MLE_RSC_UNPROT_ERROR                MleRscUnprotError;
+  ENTRY_EVT_MLE_DOMAIN_TYPE_DEGRADED            MleDomainTypeDegraded;
 } LOG_ENTRY_DATA;
 
 typedef struct {
-  LOG_ENTRY_HEADER  Hdr;
-  LOG_ENTRY_DATA    Data;
+  LOG_ENTRY_HEADER    Hdr;
+  LOG_ENTRY_DATA      Data;
 } STM_LOG_ENTRY;
 
 /**
@@ -786,73 +777,72 @@ typedef struct {
 **/
 #define STM_LOG_ENTRY_SIZE  256
 
-
 /**
   STM Protection Exception Stack Frame Structures
 **/
 
 typedef struct {
-  UINT32  Rdi;
-  UINT32  Rsi;
-  UINT32  Rbp;
-  UINT32  Rdx;
-  UINT32  Rcx;
-  UINT32  Rbx;
-  UINT32  Rax;
-  UINT32  Cr3;
-  UINT32  Cr2;
-  UINT32  Cr0;
-  UINT32  VmcsExitInstructionInfo;
-  UINT32  VmcsExitInstructionLength;
-  UINT64  VmcsExitQualification;
+  UINT32    Rdi;
+  UINT32    Rsi;
+  UINT32    Rbp;
+  UINT32    Rdx;
+  UINT32    Rcx;
+  UINT32    Rbx;
+  UINT32    Rax;
+  UINT32    Cr3;
+  UINT32    Cr2;
+  UINT32    Cr0;
+  UINT32    VmcsExitInstructionInfo;
+  UINT32    VmcsExitInstructionLength;
+  UINT64    VmcsExitQualification;
   ///
   /// An TXT_SMM_PROTECTION_EXCEPTION_TYPE num value
   ///
-  UINT32  ErrorCode;
-  UINT32  Rip;
-  UINT32  Cs;
-  UINT32  Rflags;
-  UINT32  Rsp;
-  UINT32  Ss;
+  UINT32    ErrorCode;
+  UINT32    Rip;
+  UINT32    Cs;
+  UINT32    Rflags;
+  UINT32    Rsp;
+  UINT32    Ss;
 } STM_PROTECTION_EXCEPTION_STACK_FRAME_IA32;
 
 typedef struct {
-  UINT64  R15;
-  UINT64  R14;
-  UINT64  R13;
-  UINT64  R12;
-  UINT64  R11;
-  UINT64  R10;
-  UINT64  R9;
-  UINT64  R8;
-  UINT64  Rdi;
-  UINT64  Rsi;
-  UINT64  Rbp;
-  UINT64  Rdx;
-  UINT64  Rcx;
-  UINT64  Rbx;
-  UINT64  Rax;
-  UINT64  Cr8;
-  UINT64  Cr3;
-  UINT64  Cr2;
-  UINT64  Cr0;
-  UINT64  VmcsExitInstructionInfo;
-  UINT64  VmcsExitInstructionLength;
-  UINT64  VmcsExitQualification;
+  UINT64    R15;
+  UINT64    R14;
+  UINT64    R13;
+  UINT64    R12;
+  UINT64    R11;
+  UINT64    R10;
+  UINT64    R9;
+  UINT64    R8;
+  UINT64    Rdi;
+  UINT64    Rsi;
+  UINT64    Rbp;
+  UINT64    Rdx;
+  UINT64    Rcx;
+  UINT64    Rbx;
+  UINT64    Rax;
+  UINT64    Cr8;
+  UINT64    Cr3;
+  UINT64    Cr2;
+  UINT64    Cr0;
+  UINT64    VmcsExitInstructionInfo;
+  UINT64    VmcsExitInstructionLength;
+  UINT64    VmcsExitQualification;
   ///
   /// An TXT_SMM_PROTECTION_EXCEPTION_TYPE num value
   ///
-  UINT64  ErrorCode;
-  UINT64  Rip;
-  UINT64  Cs;
-  UINT64  Rflags;
-  UINT64  Rsp;
-  UINT64  Ss;
+  UINT64    ErrorCode;
+  UINT64    Rip;
+  UINT64    Cs;
+  UINT64    Rflags;
+  UINT64    Rsp;
+  UINT64    Ss;
 } STM_PROTECTION_EXCEPTION_STACK_FRAME_X64;
 
 typedef union {
-  STM_PROTECTION_EXCEPTION_STACK_FRAME_IA32  *Ia32StackFrame;
-  STM_PROTECTION_EXCEPTION_STACK_FRAME_X64   *X64StackFrame;
+  STM_PROTECTION_EXCEPTION_STACK_FRAME_IA32    *Ia32StackFrame;
+  STM_PROTECTION_EXCEPTION_STACK_FRAME_X64     *X64StackFrame;
 } STM_PROTECTION_EXCEPTION_STACK_FRAME;
 
 /**
@@ -873,37 +863,37 @@ typedef enum {
 **/
 
 typedef struct {
-  UINT64  SpeRip;
-  UINT64  SpeRsp;
-  UINT16  SpeSs;
-  UINT16  PageViolationException:1;
-  UINT16  MsrViolationException:1;
-  UINT16  RegisterViolationException:1;
-  UINT16  IoViolationException:1;
-  UINT16  PciViolationException:1;
-  UINT16  Reserved1:11;
-  UINT32  Reserved2;
+  UINT64    SpeRip;
+  UINT64    SpeRsp;
+  UINT16    SpeSs;
+  UINT16    PageViolationException     : 1;
+  UINT16    MsrViolationException      : 1;
+  UINT16    RegisterViolationException : 1;
+  UINT16    IoViolationException       : 1;
+  UINT16    PciViolationException      : 1;
+  UINT16    Reserved1                  : 11;
+  UINT32    Reserved2;
 } STM_PROTECTION_EXCEPTION_HANDLER;
 
 typedef struct {
-  UINT8  ExecutionDisableOutsideSmrr:1;
-  UINT8  Intel64Mode:1;
-  UINT8  Cr4Pae : 1;
-  UINT8  Cr4Pse : 1;
-  UINT8  Reserved1 : 4;
+  UINT8    ExecutionDisableOutsideSmrr : 1;
+  UINT8    Intel64Mode                 : 1;
+  UINT8    Cr4Pae                      : 1;
+  UINT8    Cr4Pse                      : 1;
+  UINT8    Reserved1                   : 4;
 } STM_SMM_ENTRY_STATE;
 
 typedef struct {
-  UINT8  SmramToVmcsRestoreRequired : 1; ///> BIOS restore hint
-  UINT8  ReinitializeVmcsRequired : 1;   ///> BIOS request
-  UINT8  Reserved2 : 6;
+  UINT8    SmramToVmcsRestoreRequired : 1; /// > BIOS restore hint
+  UINT8    ReinitializeVmcsRequired   : 1; /// > BIOS request
+  UINT8    Reserved2                  : 6;
 } STM_SMM_RESUME_STATE;
 
 typedef struct {
-  UINT8  DomainType : 4;   ///> STM input to BIOS on each SMI
-  UINT8  XStatePolicy : 2; ///> STM input to BIOS on each SMI
-  UINT8  EptEnabled : 1;
-  UINT8  Reserved3 : 1;
+  UINT8    DomainType   : 4; /// > STM input to BIOS on each SMI
+  UINT8    XStatePolicy : 2; /// > STM input to BIOS on each SMI
+  UINT8    EptEnabled   : 1;
+  UINT8    Reserved3    : 1;
 } STM_SMM_STATE;
 
 #define TXT_SMM_PSD_OFFSET                          0xfb00
@@ -912,35 +902,35 @@ typedef struct {
 #define TXT_PROCESSOR_SMM_DESCRIPTOR_VERSION_MINOR  0
 
 typedef struct {
-  UINT64                            Signature;
-  UINT16                            Size;
-  UINT8                             SmmDescriptorVerMajor;
-  UINT8                             SmmDescriptorVerMinor;
-  UINT32                            LocalApicId;
-  STM_SMM_ENTRY_STATE               SmmEntryState;
-  STM_SMM_RESUME_STATE              SmmResumeState;
-  STM_SMM_STATE                     StmSmmState;
-  UINT8                             Reserved4;
-  UINT16                            SmmCs;
-  UINT16                            SmmDs;
-  UINT16                            SmmSs;
-  UINT16                            SmmOtherSegment;
-  UINT16                            SmmTr;
-  UINT16                            Reserved5;
-  UINT64                            SmmCr3;
-  UINT64                            SmmStmSetupRip;
-  UINT64                            SmmStmTeardownRip;
-  UINT64                            SmmSmiHandlerRip;
-  UINT64                            SmmSmiHandlerRsp;
-  UINT64                            SmmGdtPtr;
-  UINT32                            SmmGdtSize;
-  UINT32                            RequiredStmSmmRevId;
-  STM_PROTECTION_EXCEPTION_HANDLER  StmProtectionExceptionHandler;
-  UINT64                            Reserved6;
-  UINT64                            BiosHwResourceRequirementsPtr;
+  UINT64                              Signature;
+  UINT16                              Size;
+  UINT8                               SmmDescriptorVerMajor;
+  UINT8                               SmmDescriptorVerMinor;
+  UINT32                              LocalApicId;
+  STM_SMM_ENTRY_STATE                 SmmEntryState;
+  STM_SMM_RESUME_STATE                SmmResumeState;
+  STM_SMM_STATE                       StmSmmState;
+  UINT8                               Reserved4;
+  UINT16                              SmmCs;
+  UINT16                              SmmDs;
+  UINT16                              SmmSs;
+  UINT16                              SmmOtherSegment;
+  UINT16                              SmmTr;
+  UINT16                              Reserved5;
+  UINT64                              SmmCr3;
+  UINT64                              SmmStmSetupRip;
+  UINT64                              SmmStmTeardownRip;
+  UINT64                              SmmSmiHandlerRip;
+  UINT64                              SmmSmiHandlerRsp;
+  UINT64                              SmmGdtPtr;
+  UINT32                              SmmGdtSize;
+  UINT32                              RequiredStmSmmRevId;
+  STM_PROTECTION_EXCEPTION_HANDLER    StmProtectionExceptionHandler;
+  UINT64                              Reserved6;
+  UINT64                              BiosHwResourceRequirementsPtr;
   // extend area
-  UINT64                            AcpiRsdp;
-  UINT8                             PhysicalAddressBits;
+  UINT64                              AcpiRsdp;
+  UINT8                               PhysicalAddressBits;
 } TXT_PROCESSOR_SMM_DESCRIPTOR;
 
 #pragma pack ()

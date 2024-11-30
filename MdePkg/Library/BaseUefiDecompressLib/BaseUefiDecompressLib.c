@@ -27,37 +27,35 @@ FillBuf (
   //
   // Left shift NumOfBits of bits in advance
   //
-  Sd->mBitBuf = (UINT32) LShiftU64 (((UINT64)Sd->mBitBuf), NumOfBits);
+  Sd->mBitBuf = (UINT32)LShiftU64 (((UINT64)Sd->mBitBuf), NumOfBits);
 
   //
   // Copy data needed in bytes into mSbuBitBuf
   //
   while (NumOfBits > Sd->mBitCount) {
-    NumOfBits = (UINT16) (NumOfBits - Sd->mBitCount);
-    Sd->mBitBuf |= (UINT32) LShiftU64 (((UINT64)Sd->mSubBitBuf), NumOfBits);
+    NumOfBits    = (UINT16)(NumOfBits - Sd->mBitCount);
+    Sd->mBitBuf |= (UINT32)LShiftU64 (((UINT64)Sd->mSubBitBuf), NumOfBits);
 
     if (Sd->mCompSize > 0) {
       //
       // Get 1 byte into SubBitBuf
       //
       Sd->mCompSize--;
-      Sd->mSubBitBuf  = Sd->mSrcBase[Sd->mInBuf++];
-      Sd->mBitCount   = 8;
-
+      Sd->mSubBitBuf = Sd->mSrcBase[Sd->mInBuf++];
+      Sd->mBitCount  = 8;
     } else {
       //
       // No more bits from the source, just pad zero bit.
       //
-      Sd->mSubBitBuf  = 0;
-      Sd->mBitCount   = 8;
-
+      Sd->mSubBitBuf = 0;
+      Sd->mBitCount  = 8;
     }
   }
 
   //
   // Calculate additional bit count read to update mBitCount
   //
-  Sd->mBitCount = (UINT16) (Sd->mBitCount - NumOfBits);
+  Sd->mBitCount = (UINT16)(Sd->mBitCount - NumOfBits);
 
   //
   // Copy NumOfBits of bits from mSubBitBuf into mBitBuf
@@ -89,7 +87,7 @@ GetBits (
   //
   // Pop NumOfBits of Bits from Left
   //
-  OutBits = (UINT32) (Sd->mBitBuf >> (BITBUFSIZ - NumOfBits));
+  OutBits = (UINT32)(Sd->mBitBuf >> (BITBUFSIZ - NumOfBits));
 
   //
   // Fill up mBitBuf from source
@@ -153,8 +151,9 @@ MakeTable (
 
   for (Index = 0; Index < NumOfChar; Index++) {
     if (BitLen[Index] > 16) {
-      return (UINT16) BAD_TABLE;
+      return (UINT16)BAD_TABLE;
     }
+
     Count[BitLen[Index]]++;
   }
 
@@ -162,71 +161,67 @@ MakeTable (
   Start[1] = 0;
 
   for (Index = 1; Index <= 16; Index++) {
-    WordOfStart = Start[Index];
-    WordOfCount = Count[Index];
-    Start[Index + 1] = (UINT16) (WordOfStart + (WordOfCount << (16 - Index)));
+    WordOfStart      = Start[Index];
+    WordOfCount      = Count[Index];
+    Start[Index + 1] = (UINT16)(WordOfStart + (WordOfCount << (16 - Index)));
   }
 
   if (Start[17] != 0) {
     /*(1U << 16)*/
-    return (UINT16) BAD_TABLE;
+    return (UINT16)BAD_TABLE;
   }
 
-  JuBits = (UINT16) (16 - TableBits);
+  JuBits = (UINT16)(16 - TableBits);
 
   Weight[0] = 0;
   for (Index = 1; Index <= TableBits; Index++) {
     Start[Index] >>= JuBits;
-    Weight[Index] = (UINT16) (1U << (TableBits - Index));
+    Weight[Index]  = (UINT16)(1U << (TableBits - Index));
   }
 
   while (Index <= 16) {
-    Weight[Index] = (UINT16) (1U << (16 - Index));
+    Weight[Index] = (UINT16)(1U << (16 - Index));
     Index++;
   }
 
-  Index = (UINT16) (Start[TableBits + 1] >> JuBits);
+  Index = (UINT16)(Start[TableBits + 1] >> JuBits);
 
   if (Index != 0) {
-    Index3 = (UINT16) (1U << TableBits);
+    Index3 = (UINT16)(1U << TableBits);
     if (Index < Index3) {
       SetMem16 (Table + Index, (Index3 - Index) * sizeof (*Table), 0);
     }
   }
 
-  Avail = NumOfChar;
-  Mask  = (UINT16) (1U << (15 - TableBits));
-  MaxTableLength = (UINT16) (1U << TableBits);
+  Avail          = NumOfChar;
+  Mask           = (UINT16)(1U << (15 - TableBits));
+  MaxTableLength = (UINT16)(1U << TableBits);
 
   for (Char = 0; Char < NumOfChar; Char++) {
-
     Len = BitLen[Char];
-    if (Len == 0 || Len >= 17) {
+    if ((Len == 0) || (Len >= 17)) {
       continue;
     }
 
-    NextCode = (UINT16) (Start[Len] + Weight[Len]);
+    NextCode = (UINT16)(Start[Len] + Weight[Len]);
 
     if (Len <= TableBits) {
-
-      if (Start[Len] >= NextCode || NextCode > MaxTableLength){
-        return (UINT16) BAD_TABLE;
+      if ((Start[Len] >= NextCode) || (NextCode > MaxTableLength)) {
+        return (UINT16)BAD_TABLE;
       }
 
       for (Index = Start[Len]; Index < NextCode; Index++) {
         Table[Index] = Char;
       }
-
     } else {
-
       Index3  = Start[Len];
       Pointer = &Table[Index3 >> JuBits];
-      Index   = (UINT16) (Len - TableBits);
+      Index   = (UINT16)(Len - TableBits);
 
       while (Index != 0) {
-        if (*Pointer == 0 && Avail < (2 * NC - 1)) {
+        if ((*Pointer == 0) && (Avail < (2 * NC - 1))) {
           Sd->mRight[Avail] = Sd->mLeft[Avail] = 0;
-          *Pointer = Avail++;
+          *Pointer          = Avail++;
         }
 
         if (*Pointer < (2 * NC - 1)) {
@@ -242,11 +237,11 @@ MakeTable (
       }
 
       *Pointer = Char;
-
     }
 
     Start[Len] = NextCode;
   }
+
   //
   // Succeeds
   //
@@ -278,7 +273,6 @@ DecodeP (
     Mask = 1U << (BITBUFSIZ - 1 - 8);
 
     do {
-
       if ((Sd->mBitBuf & Mask) != 0) {
         Val = Sd->mRight[Val];
       } else {
@@ -288,6 +282,7 @@ DecodeP (
       Mask >>= 1;
     } while (Val >= MAXNP);
   }
+
   //
   // Advance what we have read
   //
@@ -295,7 +290,7 @@ DecodeP (
 
   Pos = Val;
   if (Val > 1) {
-    Pos = (UINT32) ((1U << (Val - 1)) + GetBits (Sd, (UINT16) (Val - 1)));
+    Pos = (UINT32)((1U << (Val - 1)) + GetBits (Sd, (UINT16)(Val - 1)));
   }
 
   return Pos;
@@ -333,15 +328,15 @@ ReadPTLen (
   //
   // Read Extra Set Code Length Array size
   //
-  Number = (UINT16) GetBits (Sd, nbit);
+  Number = (UINT16)GetBits (Sd, nbit);
 
   if (Number == 0) {
     //
     // This represents only Huffman code used
     //
-    CharC = (UINT16) GetBits (Sd, nbit);
+    CharC = (UINT16)GetBits (Sd, nbit);
 
-    SetMem16 (&Sd->mPTTable[0] , sizeof (Sd->mPTTable), CharC);
+    SetMem16 (&Sd->mPTTable[0], sizeof (Sd->mPTTable), CharC);
 
     SetMem (Sd->mPTLen, nn, 0);
 
@@ -351,8 +346,7 @@ ReadPTLen (
   Index = 0;
 
   while (Index < Number && Index < NPT) {
-
-    CharC = (UINT16) (Sd->mBitBuf >> (BITBUFSIZ - 3));
+    CharC = (UINT16)(Sd->mBitBuf >> (BITBUFSIZ - 3));
 
     //
     // If a code length is less than 7, then it is encoded as a 3-bit
@@ -367,9 +361,9 @@ ReadPTLen (
       }
     }
 
-    FillBuf (Sd, (UINT16) ((CharC < 7) ? 3 : CharC - 3));
+    FillBuf (Sd, (UINT16)((CharC < 7) ? 3 : CharC - 3));
 
-    Sd->mPTLen[Index++] = (UINT8) CharC;
+    Sd->mPTLen[Index++] = (UINT8)CharC;
 
     //
     // For Code&Len Set,
@@ -378,8 +372,8 @@ ReadPTLen (
     // zero lengths after the third length.
     //
     if (Index == Special) {
-      CharC = (UINT16) GetBits (Sd, 2);
-      while ((INT16) (--CharC) >= 0 && Index < NPT) {
+      CharC = (UINT16)GetBits (Sd, 2);
+      while ((INT16)(--CharC) >= 0 && Index < NPT) {
         Sd->mPTLen[Index++] = 0;
       }
     }
@@ -406,23 +400,23 @@ ReadCLen (
   SCRATCH_DATA  *Sd
   )
 {
-  UINT16           Number;
-  UINT16           CharC;
-  UINT16           Index;
-  UINT32           Mask;
+  UINT16  Number;
+  UINT16  CharC;
+  UINT16  Index;
+  UINT32  Mask;
 
-  Number = (UINT16) GetBits (Sd, CBIT);
+  Number = (UINT16)GetBits (Sd, CBIT);
 
   if (Number == 0) {
     //
     // This represents only Huffman code used
     //
-    CharC = (UINT16) GetBits (Sd, CBIT);
+    CharC = (UINT16)GetBits (Sd, CBIT);
 
     SetMem (Sd->mCLen, NC, 0);
     SetMem16 (&Sd->mCTable[0], sizeof (Sd->mCTable), CharC);
 
-    return ;
+    return;
   }
 
   Index = 0;
@@ -432,7 +426,6 @@ ReadCLen (
       Mask = 1U << (BITBUFSIZ - 1 - 8);
 
       do {
-
         if (Mask & Sd->mBitBuf) {
           CharC = Sd->mRight[CharC];
         } else {
@@ -440,32 +433,28 @@ ReadCLen (
         }
 
         Mask >>= 1;
-
       } while (CharC >= NT);
     }
+
     //
     // Advance what we have read
     //
     FillBuf (Sd, Sd->mPTLen[CharC]);
 
     if (CharC <= 2) {
-
       if (CharC == 0) {
         CharC = 1;
       } else if (CharC == 1) {
-        CharC = (UINT16) (GetBits (Sd, 4) + 3);
+        CharC = (UINT16)(GetBits (Sd, 4) + 3);
       } else if (CharC == 2) {
-        CharC = (UINT16) (GetBits (Sd, CBIT) + 20);
+        CharC = (UINT16)(GetBits (Sd, CBIT) + 20);
       }
 
-      while ((INT16) (--CharC) >= 0 && Index < NC) {
+      while ((INT16)(--CharC) >= 0 && Index < NC) {
         Sd->mCLen[Index++] = 0;
       }
-
     } else {
-
-      Sd->mCLen[Index++] = (UINT8) (CharC - 2);
-
+      Sd->mCLen[Index++] = (UINT8)(CharC - 2);
     }
   }
 
@@ -473,7 +462,7 @@ ReadCLen (
 
   MakeTable (Sd, NC, Sd->mCLen, 12, Sd->mCTable);
 
-  return ;
+  return;
 }
 
 /**
@@ -501,7 +490,7 @@ DecodeC (
     // Starting a new block
     // Read BlockSize from block header
     //
-    Sd->mBlockSize    = (UINT16) GetBits (Sd, 16);
+    Sd->mBlockSize = (UINT16)GetBits (Sd, 16);
 
     //
     // Read in the Extra Set Code Length Array,
@@ -522,7 +511,7 @@ DecodeC (
     // Read in the Position Set Code Length Array,
     // Generate the Huffman code mapping table for the Position Set.
     //
-    Sd->mBadTableFlag = ReadPTLen (Sd, MAXNP, Sd->mPBit, (UINT16) (-1));
+    Sd->mBadTableFlag = ReadPTLen (Sd, MAXNP, Sd->mPBit, (UINT16)(-1));
     if (Sd->mBadTableFlag != 0) {
       return 0;
     }
@@ -547,6 +536,7 @@ DecodeC (
       Mask >>= 1;
     } while (Index2 >= NC);
   }
+
   //
   // Advance what we have read
   //
@@ -570,11 +560,11 @@ Decode (
   UINT32  DataIdx;
   UINT16  CharC;
 
-  BytesRemain = (UINT16) (-1);
+  BytesRemain = (UINT16)(-1);
 
-  DataIdx     = 0;
+  DataIdx = 0;
 
-  for (;;) {
+  for ( ; ;) {
     //
     // Get one code from mBitBuf
     //
@@ -593,14 +583,13 @@ Decode (
         //
         // Write orignal character into mDstBase
         //
-        Sd->mDstBase[Sd->mOutBuf++] = (UINT8) CharC;
+        Sd->mDstBase[Sd->mOutBuf++] = (UINT8)CharC;
       }
-
     } else {
       //
       // Process a Pointer
       //
-      CharC       = (UINT16) (CharC - (BIT8 - THRESHOLD));
+      CharC = (UINT16)(CharC - (BIT8 - THRESHOLD));
 
       //
       // Get string length
@@ -610,25 +599,28 @@ Decode (
       //
       // Locate string position
       //
-      DataIdx     = Sd->mOutBuf - DecodeP (Sd) - 1;
+      DataIdx = Sd->mOutBuf - DecodeP (Sd) - 1;
 
       //
       // Write BytesRemain of bytes into mDstBase
       //
       BytesRemain--;
 
-      while ((INT16) (BytesRemain) >= 0) {
+      while ((INT16)(BytesRemain) >= 0) {
         if (Sd->mOutBuf >= Sd->mOrigSize) {
           goto Done;
         }
+
         if (DataIdx >= Sd->mOrigSize) {
-          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
+          Sd->mBadTableFlag = (UINT16)BAD_TABLE;
           goto Done;
         }
+
         Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
 
         BytesRemain--;
       }
+
       //
       // Once mOutBuf is fully filled, directly return
       //
@@ -639,7 +631,7 @@ Decode (
   }
 
 Done:
-  return ;
+  return;
 }
 
 /**
@@ -700,12 +692,12 @@ UefiDecompressGetInfo (
     return RETURN_INVALID_PARAMETER;
   }
 
-  CompressedSize   = ReadUnaligned32 ((UINT32 *)Source);
-  if (SourceSize < (CompressedSize + 8) || (CompressedSize + 8) < 8) {
+  CompressedSize = ReadUnaligned32 ((UINT32 *)Source);
+  if ((SourceSize < (CompressedSize + 8)) || ((CompressedSize + 8) < 8)) {
     return RETURN_INVALID_PARAMETER;
   }
 
-  *ScratchSize  = sizeof (SCRATCH_DATA);
+  *ScratchSize     = sizeof (SCRATCH_DATA);
   *DestinationSize = ReadUnaligned32 ((UINT32 *)Source + 1);
 
   return RETURN_SUCCESS;
@@ -750,24 +742,24 @@ UefiTianoDecompress (
   IN UINT32      Version
   )
 {
-  UINT32           CompSize;
-  UINT32           OrigSize;
-  SCRATCH_DATA     *Sd;
-  CONST UINT8      *Src;
-  UINT8            *Dst;
+  UINT32        CompSize;
+  UINT32        OrigSize;
+  SCRATCH_DATA  *Sd;
+  CONST UINT8   *Src;
+  UINT8         *Dst;
 
   ASSERT (Source != NULL);
   ASSERT (Destination != NULL);
   ASSERT (Scratch != NULL);
   ASSERT (Version == 1 || Version == 2);
 
-  Src     = Source;
-  Dst     = Destination;
+  Src = Source;
+  Dst = Destination;
 
-  Sd = (SCRATCH_DATA *) Scratch;
+  Sd = (SCRATCH_DATA *)Scratch;
 
-  CompSize  = Src[0] + (Src[1] << 8) + (Src[2] << 16) + (Src[3] << 24);
-  OrigSize  = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);
+  CompSize = Src[0] + (Src[1] << 8) + (Src[2] << 16) + (Src[3] << 24);
+  OrigSize = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);
 
   //
   // If compressed file size is 0, return
@@ -785,17 +777,18 @@ UefiTianoDecompress (
   // For Tiano de/compression algorithm(Version 2), mPBit = 5
   //
   switch (Version) {
-    case 1 :
+    case 1:
       Sd->mPBit = 4;
       break;
-    case 2 :
+    case 2:
       Sd->mPBit = 5;
       break;
     default:
       ASSERT (FALSE);
   }
-  Sd->mSrcBase  = (UINT8 *)Src;
-  Sd->mDstBase  = Dst;
+
+  Sd->mSrcBase = (UINT8 *)Src;
+  Sd->mDstBase = Dst;
   //
   // CompSize and OrigSize are calculated in bytes
   //

@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -52,8 +49,8 @@ VOID
 EFIAPI
 AsmEnablePaging32 (
   IN      SWITCH_STACK_ENTRY_POINT  EntryPoint,
-  IN      VOID                      *Context1,  OPTIONAL
-  IN      VOID                      *Context2,  OPTIONAL
+  IN      VOID                      *Context1   OPTIONAL,
+  IN      VOID                      *Context2   OPTIONAL,
   IN      VOID                      *NewStack
   )
 {

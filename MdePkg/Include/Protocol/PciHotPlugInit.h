@@ -76,18 +76,18 @@ typedef UINT16 EFI_HPC_STATE;
 /// disabled in hardware, or it may be disabled due to user preferences,
 /// hardware failure, or other reasons. No resource padding is required.
 ///
-#define  EFI_HPC_STATE_INITIALIZED    0x01
+#define  EFI_HPC_STATE_INITIALIZED  0x01
 
 ///
 /// The HPC initialization function was called, the HPC completed
 /// initialization, and it was enabled. Resource padding is required.
 ///
-#define  EFI_HPC_STATE_ENABLED        0x02
+#define  EFI_HPC_STATE_ENABLED  0x02
 
 ///
 /// Location definition for PCI Hot Plug Controller
 ///
-typedef struct{
+typedef struct {
   ///
   ///
   /// The device path to the root HPC. An HPC cannot control its parent buses.
@@ -95,7 +95,7 @@ typedef struct{
   /// correct HpcPciAddress to the InitializeRootHpc() and GetResourcePadding()
   /// functions.
   ///
-  EFI_DEVICE_PATH_PROTOCOL  *HpcDevicePath;
+  EFI_DEVICE_PATH_PROTOCOL    *HpcDevicePath;
   ///
   /// The device path to the Hot Plug Bus (HPB) that is controlled by the root
   /// HPC. The PCI bus driver uses this information to check if a particular PCI
@@ -103,7 +103,7 @@ typedef struct{
   /// device path of its parent. For Standard(PCI) Hot Plug Controllers (SHPCs)
   /// and PCI Express*, HpbDevicePath is the same as HpcDevicePath.
   ///
-  EFI_DEVICE_PATH_PROTOCOL  *HpbDevicePath;
+  EFI_DEVICE_PATH_PROTOCOL    *HpbDevicePath;
 } EFI_HPC_LOCATION;
 
 ///
@@ -200,7 +200,7 @@ EFI_STATUS
   IN  EFI_PCI_HOT_PLUG_INIT_PROTOCOL  *This,
   IN  EFI_DEVICE_PATH_PROTOCOL        *HpcDevicePath,
   IN  UINT64                          HpcPciAddress,
-  IN  EFI_EVENT                       Event,           OPTIONAL
+  IN  EFI_EVENT                       Event            OPTIONAL,
   OUT EFI_HPC_STATE                   *HpcState
   );
 
@@ -254,19 +254,19 @@ struct _EFI_PCI_HOT_PLUG_INIT_PROTOCOL {
   ///
   /// Returns a list of root HPCs and the buses that they control.
   ///
-  EFI_GET_ROOT_HPC_LIST     GetRootHpcList;
+  EFI_GET_ROOT_HPC_LIST       GetRootHpcList;
 
   ///
   /// Initializes the specified root HPC.
   ///
-  EFI_INITIALIZE_ROOT_HPC   InitializeRootHpc;
+  EFI_INITIALIZE_ROOT_HPC     InitializeRootHpc;
 
   ///
   /// Returns the resource padding that is required by the HPC.
   ///
-  EFI_GET_HOT_PLUG_PADDING  GetResourcePadding;
+  EFI_GET_HOT_PLUG_PADDING    GetResourcePadding;
 };
 
-extern EFI_GUID gEfiPciHotPlugInitProtocolGuid;
+extern EFI_GUID  gEfiPciHotPlugInitProtocolGuid;
 
 #endif

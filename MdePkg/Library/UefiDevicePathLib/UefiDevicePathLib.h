@@ -24,28 +24,27 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/PcdLib.h>
 #include <IndustryStandard/Bluetooth.h>
 
-#define IS_COMMA(a)                ((a) == L',')
-#define IS_HYPHEN(a)               ((a) == L'-')
-#define IS_DOT(a)                  ((a) == L'.')
-#define IS_LEFT_PARENTH(a)         ((a) == L'(')
-#define IS_RIGHT_PARENTH(a)        ((a) == L')')
-#define IS_SLASH(a)                ((a) == L'/')
-#define IS_NULL(a)                 ((a) == L'\0')
-
+#define IS_COMMA(a)          ((a) == L',')
+#define IS_HYPHEN(a)         ((a) == L'-')
+#define IS_DOT(a)            ((a) == L'.')
+#define IS_LEFT_PARENTH(a)   ((a) == L'(')
+#define IS_RIGHT_PARENTH(a)  ((a) == L')')
+#define IS_SLASH(a)          ((a) == L'/')
+#define IS_NULL(a)           ((a) == L'\0')
 
 //
 // Private Data structure
 //
 typedef struct {
-  CHAR16  *Str;
-  UINTN   Count;
-  UINTN   Capacity;
+  CHAR16    *Str;
+  UINTN     Count;
+  UINTN     Capacity;
 } POOL_PRINT;
 
 typedef
 EFI_DEVICE_PATH_PROTOCOL  *
 (*DEVICE_PATH_FROM_TEXT) (
-  IN  CHAR16 *Str
+  IN  CHAR16  *Str
   );
 
 typedef
@@ -58,90 +57,90 @@ VOID
   );
 
 typedef struct {
-  UINT8                Type;
-  UINT8                SubType;
-  DEVICE_PATH_TO_TEXT  Function;
+  UINT8                  Type;
+  UINT8                  SubType;
+  DEVICE_PATH_TO_TEXT    Function;
 } DEVICE_PATH_TO_TEXT_TABLE;
 
 typedef struct {
-  UINT8                Type;
-  CHAR16               *Text;
+  UINT8     Type;
+  CHAR16    *Text;
 } DEVICE_PATH_TO_TEXT_GENERIC_TABLE;
 
 typedef struct {
-  CHAR16                    *DevicePathNodeText;
-  DEVICE_PATH_FROM_TEXT     Function;
+  CHAR16                   *DevicePathNodeText;
+  DEVICE_PATH_FROM_TEXT    Function;
 } DEVICE_PATH_FROM_TEXT_TABLE;
 
 typedef struct {
-  BOOLEAN ClassExist;
-  UINT8   Class;
-  BOOLEAN SubClassExist;
-  UINT8   SubClass;
+  BOOLEAN    ClassExist;
+  UINT8      Class;
+  BOOLEAN    SubClassExist;
+  UINT8      SubClass;
 } USB_CLASS_TEXT;
 
-#define USB_CLASS_AUDIO            1
-#define USB_CLASS_CDCCONTROL       2
-#define USB_CLASS_HID              3
-#define USB_CLASS_IMAGE            6
-#define USB_CLASS_PRINTER          7
-#define USB_CLASS_MASS_STORAGE     8
-#define USB_CLASS_HUB              9
-#define USB_CLASS_CDCDATA          10
-#define USB_CLASS_SMART_CARD       11
-#define USB_CLASS_VIDEO            14
-#define USB_CLASS_DIAGNOSTIC       220
-#define USB_CLASS_WIRELESS         224
+#define USB_CLASS_AUDIO         1
+#define USB_CLASS_CDCCONTROL    2
+#define USB_CLASS_HID           3
+#define USB_CLASS_IMAGE         6
+#define USB_CLASS_PRINTER       7
+#define USB_CLASS_MASS_STORAGE  8
+#define USB_CLASS_HUB           9
+#define USB_CLASS_CDCDATA       10
+#define USB_CLASS_SMART_CARD    11
+#define USB_CLASS_VIDEO         14
+#define USB_CLASS_DIAGNOSTIC    220
+#define USB_CLASS_WIRELESS      224
 
-#define USB_CLASS_RESERVE          254
-#define USB_SUBCLASS_FW_UPDATE     1
-#define USB_SUBCLASS_IRDA_BRIDGE   2
-#define USB_SUBCLASS_TEST          3
+#define USB_CLASS_RESERVE         254
+#define USB_SUBCLASS_FW_UPDATE    1
+#define USB_SUBCLASS_IRDA_BRIDGE  2
+#define USB_SUBCLASS_TEST         3
 
-#define RFC_1700_UDP_PROTOCOL      17
-#define RFC_1700_TCP_PROTOCOL      6
+#define RFC_1700_UDP_PROTOCOL  17
+#define RFC_1700_TCP_PROTOCOL  6
 
 #pragma pack(1)
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  EFI_GUID                  Guid;
-  UINT8                     VendorDefinedData[1];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  EFI_GUID                    Guid;
+  UINT8                       VendorDefinedData[1];
 } VENDOR_DEFINED_HARDWARE_DEVICE_PATH;
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  EFI_GUID                  Guid;
-  UINT8                     VendorDefinedData[1];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  EFI_GUID                    Guid;
+  UINT8                       VendorDefinedData[1];
 } VENDOR_DEFINED_MESSAGING_DEVICE_PATH;
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  EFI_GUID                  Guid;
-  UINT8                     VendorDefinedData[1];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  EFI_GUID                    Guid;
+  UINT8                       VendorDefinedData[1];
 } VENDOR_DEFINED_MEDIA_DEVICE_PATH;
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  UINT32                    Hid;
-  UINT32                    Uid;
-  UINT32                    Cid;
-  CHAR8                     HidUidCidStr[3];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  UINT32                      Hid;
+  UINT32                      Uid;
+  UINT32                      Cid;
+  CHAR8                       HidUidCidStr[3];
 } ACPI_EXTENDED_HID_DEVICE_PATH_WITH_STR;
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  UINT16                    NetworkProtocol;
-  UINT16                    LoginOption;
-  UINT64                    Lun;
-  UINT16                    TargetPortalGroupTag;
-  CHAR8                     TargetName[1];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  UINT16                      NetworkProtocol;
+  UINT16                      LoginOption;
+  UINT64                      Lun;
+  UINT16                      TargetPortalGroupTag;
+  CHAR8                       TargetName[1];
 } ISCSI_DEVICE_PATH_WITH_NAME;
 
 typedef struct {
-  EFI_DEVICE_PATH_PROTOCOL  Header;
-  EFI_GUID                  Guid;
-  UINT8                     VendorDefinedData[1];
+  EFI_DEVICE_PATH_PROTOCOL    Header;
+  EFI_GUID                    Guid;
+  UINT8                       VendorDefinedData[1];
 } VENDOR_DEVICE_PATH_WITH_DATA;
 
 #pragma pack()
@@ -214,7 +213,7 @@ UefiDevicePathLibDuplicateDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePath (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath,  OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *FirstDevicePath   OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *SecondDevicePath  OPTIONAL
   );
 
@@ -249,7 +248,7 @@ UefiDevicePathLibAppendDevicePath (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePathNode (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,     OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath      OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathNode  OPTIONAL
   );
 
@@ -279,7 +278,7 @@ UefiDevicePathLibAppendDevicePathNode (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibAppendDevicePathInstance (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,        OPTIONAL
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath         OPTIONAL,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePathInstance OPTIONAL
   );
 
@@ -314,8 +313,8 @@ UefiDevicePathLibAppendDevicePathInstance (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibGetNextDevicePathInstance (
-  IN OUT EFI_DEVICE_PATH_PROTOCOL    **DevicePath,
-  OUT UINTN                          *Size
+  IN OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePath,
+  OUT UINTN                        *Size
   );
 
 /**
@@ -340,9 +339,9 @@ UefiDevicePathLibGetNextDevicePathInstance (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibCreateDeviceNode (
-  IN UINT8                           NodeType,
-  IN UINT8                           NodeSubType,
-  IN UINT16                          NodeLength
+  IN UINT8   NodeType,
+  IN UINT8   NodeSubType,
+  IN UINT16  NodeLength
   );
 
 /**
@@ -366,7 +365,6 @@ UefiDevicePathLibIsDevicePathMultiInstance (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
   );
 
-
 /**
   Converts a device path to its text representation.
 
@@ -385,9 +383,9 @@ UefiDevicePathLibIsDevicePathMultiInstance (
 CHAR16 *
 EFIAPI
 UefiDevicePathLibConvertDevicePathToText (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL   *DevicePath,
-  IN BOOLEAN                          DisplayOnly,
-  IN BOOLEAN                          AllowShortcuts
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
+  IN BOOLEAN                         DisplayOnly,
+  IN BOOLEAN                         AllowShortcuts
   );
 
 /**
@@ -427,7 +425,7 @@ UefiDevicePathLibConvertDeviceNodeToText (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibConvertTextToDeviceNode (
-  IN CONST CHAR16 *TextDeviceNode
+  IN CONST CHAR16  *TextDeviceNode
   );
 
 /**
@@ -445,7 +443,7 @@ UefiDevicePathLibConvertTextToDeviceNode (
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
 UefiDevicePathLibConvertTextToDevicePath (
-  IN CONST CHAR16 *TextDevicePath
+  IN CONST CHAR16  *TextDevicePath
   );
 
 #endif

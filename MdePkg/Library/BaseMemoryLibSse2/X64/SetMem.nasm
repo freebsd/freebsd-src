@@ -42,8 +42,8 @@ ASM_PFX(InternalMemSetMem):
     rep     stosb
 .0:
     mov     rcx, rdx
-    and     rdx, 15
-    shr     rcx, 4
+    and     rdx, 63
+    shr     rcx, 6
     jz      @SetBytes
     mov     ah, al                      ; ax <- Value repeats twice
     movdqa  [rsp + 0x10], xmm0           ; save xmm0
@@ -52,7 +52,10 @@ ASM_PFX(InternalMemSetMem):
     movlhps xmm0, xmm0                  ; xmm0 <- Value repeats 16 times
 .1:
     movntdq [rdi], xmm0                 ; rdi should be 16-byte aligned
-    add     rdi, 16
+    movntdq [rdi + 16], xmm0
+    movntdq [rdi + 32], xmm0
+    movntdq [rdi + 48], xmm0
+    add     rdi, 64
     loop    .1
     mfence
     movdqa  xmm0, [rsp + 0x10]           ; restore xmm0

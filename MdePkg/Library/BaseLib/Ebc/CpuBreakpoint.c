@@ -11,7 +11,7 @@
 extern
 UINT64
 _break (
-  CHAR8 BreakCode
+  CHAR8  BreakCode
   );
 
 /**
@@ -120,4 +120,3 @@ CpuPause (
   )
 {
 }
-

@@ -26,6 +26,7 @@ GCC_ASM_EXPORT(CpuFlushTlb)
 #  )#
 #
 ASM_PFX(CpuFlushTlb):
+  AARCH64_BTI(c)
   tlbi  vmalle1                 // Invalidate Inst TLB and Data TLB
   dsb   sy
   isb

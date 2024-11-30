@@ -20,7 +20,7 @@
     0x2f707ebb, 0x4a1a, 0x11d4, {0x9a, 0x38, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
 
-typedef struct _EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL;
+typedef struct _EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL;
 
 ///
 /// *******************************************************
@@ -82,24 +82,24 @@ typedef enum {
   EfiPciOperationMaximum
 } EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_OPERATION;
 
-#define EFI_PCI_ATTRIBUTE_ISA_MOTHERBOARD_IO          0x0001
-#define EFI_PCI_ATTRIBUTE_ISA_IO                      0x0002
-#define EFI_PCI_ATTRIBUTE_VGA_PALETTE_IO              0x0004
-#define EFI_PCI_ATTRIBUTE_VGA_MEMORY                  0x0008
-#define EFI_PCI_ATTRIBUTE_VGA_IO                      0x0010
-#define EFI_PCI_ATTRIBUTE_IDE_PRIMARY_IO              0x0020
-#define EFI_PCI_ATTRIBUTE_IDE_SECONDARY_IO            0x0040
-#define EFI_PCI_ATTRIBUTE_MEMORY_WRITE_COMBINE        0x0080
-#define EFI_PCI_ATTRIBUTE_MEMORY_CACHED               0x0800
-#define EFI_PCI_ATTRIBUTE_MEMORY_DISABLE              0x1000
-#define EFI_PCI_ATTRIBUTE_DUAL_ADDRESS_CYCLE          0x8000
-#define EFI_PCI_ATTRIBUTE_ISA_IO_16                   0x10000
-#define EFI_PCI_ATTRIBUTE_VGA_PALETTE_IO_16           0x20000
-#define EFI_PCI_ATTRIBUTE_VGA_IO_16                   0x40000
+#define EFI_PCI_ATTRIBUTE_ISA_MOTHERBOARD_IO    0x0001
+#define EFI_PCI_ATTRIBUTE_ISA_IO                0x0002
+#define EFI_PCI_ATTRIBUTE_VGA_PALETTE_IO        0x0004
+#define EFI_PCI_ATTRIBUTE_VGA_MEMORY            0x0008
+#define EFI_PCI_ATTRIBUTE_VGA_IO                0x0010
+#define EFI_PCI_ATTRIBUTE_IDE_PRIMARY_IO        0x0020
+#define EFI_PCI_ATTRIBUTE_IDE_SECONDARY_IO      0x0040
+#define EFI_PCI_ATTRIBUTE_MEMORY_WRITE_COMBINE  0x0080
+#define EFI_PCI_ATTRIBUTE_MEMORY_CACHED         0x0800
+#define EFI_PCI_ATTRIBUTE_MEMORY_DISABLE        0x1000
+#define EFI_PCI_ATTRIBUTE_DUAL_ADDRESS_CYCLE    0x8000
+#define EFI_PCI_ATTRIBUTE_ISA_IO_16             0x10000
+#define EFI_PCI_ATTRIBUTE_VGA_PALETTE_IO_16     0x20000
+#define EFI_PCI_ATTRIBUTE_VGA_IO_16             0x40000
 
-#define EFI_PCI_ATTRIBUTE_VALID_FOR_ALLOCATE_BUFFER   (EFI_PCI_ATTRIBUTE_MEMORY_WRITE_COMBINE | EFI_PCI_ATTRIBUTE_MEMORY_CACHED | EFI_PCI_ATTRIBUTE_DUAL_ADDRESS_CYCLE)
+#define EFI_PCI_ATTRIBUTE_VALID_FOR_ALLOCATE_BUFFER  (EFI_PCI_ATTRIBUTE_MEMORY_WRITE_COMBINE | EFI_PCI_ATTRIBUTE_MEMORY_CACHED | EFI_PCI_ATTRIBUTE_DUAL_ADDRESS_CYCLE)
 
-#define EFI_PCI_ATTRIBUTE_INVALID_FOR_ALLOCATE_BUFFER (~EFI_PCI_ATTRIBUTE_VALID_FOR_ALLOCATE_BUFFER)
+#define EFI_PCI_ATTRIBUTE_INVALID_FOR_ALLOCATE_BUFFER  (~EFI_PCI_ATTRIBUTE_VALID_FOR_ALLOCATE_BUFFER)
 
 #define EFI_PCI_ADDRESS(bus, dev, func, reg) \
   (UINT64) ( \
@@ -109,11 +109,11 @@ typedef enum {
   (((UINTN) (reg)) < 256 ? ((UINTN) (reg)) : (UINT64) (LShiftU64 ((UINT64) (reg), 32))))
 
 typedef struct {
-  UINT8   Register;
-  UINT8   Function;
-  UINT8   Device;
-  UINT8   Bus;
-  UINT32  ExtendedRegister;
+  UINT8     Register;
+  UINT8     Function;
+  UINT8     Device;
+  UINT8     Bus;
+  UINT32    ExtendedRegister;
 } EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_PCI_ADDRESS;
 
 /**
@@ -175,11 +175,11 @@ typedef struct {
   ///
   /// Read PCI controller registers in the PCI root bridge memory space.
   ///
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_IO_MEM  Read;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_IO_MEM    Read;
   ///
   /// Write PCI controller registers in the PCI root bridge memory space.
   ///
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_IO_MEM  Write;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_IO_MEM    Write;
 } EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS;
 
 /**
@@ -409,28 +409,28 @@ struct _EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL {
   ///
   /// The EFI_HANDLE of the PCI Host Bridge of which this PCI Root Bridge is a member.
   ///
-  EFI_HANDLE                                      ParentHandle;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_POLL_IO_MEM     PollMem;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_POLL_IO_MEM     PollIo;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS          Mem;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS          Io;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS          Pci;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_COPY_MEM        CopyMem;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_MAP             Map;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_UNMAP           Unmap;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ALLOCATE_BUFFER AllocateBuffer;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_FREE_BUFFER     FreeBuffer;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_FLUSH           Flush;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GET_ATTRIBUTES  GetAttributes;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_SET_ATTRIBUTES  SetAttributes;
-  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_CONFIGURATION   Configuration;
+  EFI_HANDLE                                         ParentHandle;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_POLL_IO_MEM        PollMem;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_POLL_IO_MEM        PollIo;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS             Mem;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS             Io;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS             Pci;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_COPY_MEM           CopyMem;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_MAP                Map;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_UNMAP              Unmap;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ALLOCATE_BUFFER    AllocateBuffer;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_FREE_BUFFER        FreeBuffer;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_FLUSH              Flush;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GET_ATTRIBUTES     GetAttributes;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_SET_ATTRIBUTES     SetAttributes;
+  EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_CONFIGURATION      Configuration;
 
   ///
   /// The segment number that this PCI root bridge resides.
   ///
-  UINT32                                          SegmentNumber;
+  UINT32                                             SegmentNumber;
 };
 
-extern EFI_GUID gEfiPciRootBridgeIoProtocolGuid;
+extern EFI_GUID  gEfiPciRootBridgeIoProtocolGuid;
 
 #endif

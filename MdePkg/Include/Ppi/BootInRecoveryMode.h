@@ -18,7 +18,6 @@
     0x17ee496a, 0xd8e4, 0x4b9a, {0x94, 0xd1, 0xce, 0x82, 0x72, 0x30, 0x8, 0x50 } \
   }
 
-
-extern EFI_GUID gEfiPeiBootInRecoveryModePpiGuid;
+extern EFI_GUID  gEfiPeiBootInRecoveryModePpiGuid;
 
 #endif

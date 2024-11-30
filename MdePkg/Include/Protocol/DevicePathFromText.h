@@ -30,11 +30,10 @@
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_FROM_TEXT_NODE)(
   IN CONST CHAR16                 *TextDeviceNode
   );
-
 
 /**
   Convert text to the binary representation of a device node.
@@ -48,7 +47,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_FROM_TEXT_PATH)(
   IN CONST CHAR16                 *TextDevicePath
   );
@@ -57,10 +56,10 @@ EFI_DEVICE_PATH_PROTOCOL*
 /// This protocol converts text to device paths and device nodes.
 ///
 typedef struct {
-  EFI_DEVICE_PATH_FROM_TEXT_NODE  ConvertTextToDeviceNode;
-  EFI_DEVICE_PATH_FROM_TEXT_PATH  ConvertTextToDevicePath;
+  EFI_DEVICE_PATH_FROM_TEXT_NODE    ConvertTextToDeviceNode;
+  EFI_DEVICE_PATH_FROM_TEXT_PATH    ConvertTextToDevicePath;
 } EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL;
 
-extern EFI_GUID gEfiDevicePathFromTextProtocolGuid;
+extern EFI_GUID  gEfiDevicePathFromTextProtocolGuid;
 
 #endif

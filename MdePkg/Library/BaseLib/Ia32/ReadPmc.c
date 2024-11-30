@@ -20,7 +20,7 @@
 UINT64
 EFIAPI
 AsmReadPmc (
-  IN UINT32   Index
+  IN UINT32  Index
   )
 {
   _asm {
@@ -28,4 +28,3 @@ AsmReadPmc (
     rdpmc
   }
 }
-

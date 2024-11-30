@@ -60,10 +60,10 @@ typedef enum {
 /// EFI_80211_MAC_ADDRESS
 ///
 typedef struct {
-  UINT8                              Addr[6];
+  UINT8    Addr[6];
 } EFI_80211_MAC_ADDRESS;
 
-#define EFI_MAX_SSID_LEN 32
+#define EFI_MAX_SSID_LEN  32
 
 ///
 /// EFI_80211_SSID
@@ -72,11 +72,11 @@ typedef struct {
   //
   // Length in bytes of the SSId. If zero, ignore SSId field.
   //
-  UINT8                                     SSIdLen;
+  UINT8    SSIdLen;
   //
   // Specifies the service set identifier.
   //
-  UINT8                                     SSId[EFI_MAX_SSID_LEN];
+  UINT8    SSId[EFI_MAX_SSID_LEN];
 } EFI_80211_SSID;
 
 ///
@@ -87,7 +87,7 @@ typedef struct {
   // The number of EFI_80211_SSID in SSIDList. If zero, SSIDList should be
   // ignored.
   //
-  UINT32                                    NumOfSSID;
+  UINT32            NumOfSSID;
   //
   // The SSIDList is a pointer to an array of EFI_80211_SSID instances. The
   // number of entries is specified by NumOfSSID. The array should only include
@@ -95,7 +95,7 @@ typedef struct {
   // 10 elements in the SSIDList. It is the caller's responsibility to free
   // this buffer.
   //
-  EFI_80211_SSID                            SSIDList[1];
+  EFI_80211_SSID    SSIDList[1];
 } EFI_80211_GET_NETWORKS_DATA;
 
 ///
@@ -106,11 +106,11 @@ typedef struct {
   // Organization Unique Identifier, as defined in IEEE 802.11 standard,
   // usually set to 00-0F-AC.
   //
-  UINT8                                     Oui[3];
+  UINT8    Oui[3];
   //
   // Suites types, as defined in IEEE 802.11 standard.
   //
-  UINT8                                     SuiteType;
+  UINT8    SuiteType;
 } EFI_80211_SUITE_SELECTOR;
 
 ///
@@ -121,12 +121,12 @@ typedef struct {
   // Indicates the number of AKM suite selectors that are contained in
   // AKMSuiteList. If zero, the AKMSuiteList is ignored.
   //
-  UINT16                                    AKMSuiteCount;
+  UINT16                      AKMSuiteCount;
   //
   // A variable-length array of AKM suites, as defined in IEEE 802.11 standard,
   // Table 8-101. The number of entries is specified by AKMSuiteCount.
   //
-  EFI_80211_SUITE_SELECTOR                  AKMSuiteList[1];
+  EFI_80211_SUITE_SELECTOR    AKMSuiteList[1];
 } EFI_80211_AKM_SUITE_SELECTOR;
 
 ///
@@ -137,13 +137,13 @@ typedef struct {
   // Indicates the number of cipher suites that are contained in
   // CipherSuiteList. If zero, the CipherSuiteList is ignored.
   //
-  UINT16                                    CipherSuiteCount;
+  UINT16                      CipherSuiteCount;
   //
   // A variable-length array of cipher suites, as defined in IEEE 802.11
   // standard, Table 8-99. The number of entries is specified by
   // CipherSuiteCount.
   //
-  EFI_80211_SUITE_SELECTOR                  CipherSuiteList[1];
+  EFI_80211_SUITE_SELECTOR    CipherSuiteList[1];
 } EFI_80211_CIPHER_SUITE_SELECTOR;
 
 ///
@@ -153,19 +153,19 @@ typedef struct {
   //
   // Specifies the type of the BSS.
   //
-  EFI_80211_BSS_TYPE                        BSSType;
+  EFI_80211_BSS_TYPE                 BSSType;
   //
   // Specifies the SSID of the BSS.
   //
-  EFI_80211_SSID                            SSId;
+  EFI_80211_SSID                     SSId;
   //
   // Pointer to the AKM suites supported in the wireless network.
   //
-  EFI_80211_AKM_SUITE_SELECTOR              *AKMSuite;
+  EFI_80211_AKM_SUITE_SELECTOR       *AKMSuite;
   //
   // Pointer to the cipher suites supported in the wireless network.
   //
-  EFI_80211_CIPHER_SUITE_SELECTOR           *CipherSuite;
+  EFI_80211_CIPHER_SUITE_SELECTOR    *CipherSuite;
 } EFI_80211_NETWORK;
 
 ///
@@ -175,12 +175,12 @@ typedef struct {
   //
   // Specifies the found wireless network.
   //
-  EFI_80211_NETWORK                         Network;
+  EFI_80211_NETWORK    Network;
   //
   // Indicates the network quality as a value between 0 to 100, where 100
   // indicates the highest network quality.
   //
-  UINT8                                     NetworkQuality;
+  UINT8                NetworkQuality;
 } EFI_80211_NETWORK_DESCRIPTION;
 
 ///
@@ -191,12 +191,12 @@ typedef struct {
   // The number of EFI_80211_NETWORK_DESCRIPTION in NetworkDesc. If zero,
   // NetworkDesc should be ignored.
   //
-  UINT8                                     NumOfNetworkDesc;
+  UINT8                            NumOfNetworkDesc;
   //
   // The NetworkDesc is a pointer to an array of EFI_80211_NETWORK_DESCRIPTION
   // instances. It is caller's responsibility to free this buffer.
   //
-  EFI_80211_NETWORK_DESCRIPTION             NetworkDesc[1];
+  EFI_80211_NETWORK_DESCRIPTION    NetworkDesc[1];
 } EFI_80211_GET_NETWORKS_RESULT;
 
 ///
@@ -209,7 +209,7 @@ typedef struct {
   // Wireless MAC Connection Protocol II driver. The type of Event must be
   // EFI_NOTIFY_SIGNAL.
   //
-  EFI_EVENT                                 Event;
+  EFI_EVENT    Event;
   //
   // Will be set to one of the following values:
   // EFI_SUCCESS: The operation completed successfully.
@@ -219,16 +219,16 @@ typedef struct {
   // hardware or software state.
   // EFI_NOT_READY: The operation is started but not yet completed.
   //
-  EFI_STATUS                                Status;
+  EFI_STATUS                       Status;
   //
   // Pointer to the input data for getting networks.
   //
-  EFI_80211_GET_NETWORKS_DATA               *Data;
+  EFI_80211_GET_NETWORKS_DATA      *Data;
   //
   // Indicates the scan result. It is caller's responsibility to free this
   // buffer.
   //
-  EFI_80211_GET_NETWORKS_RESULT             *Result;
+  EFI_80211_GET_NETWORKS_RESULT    *Result;
 } EFI_80211_GET_NETWORKS_TOKEN;
 
 ///
@@ -238,14 +238,14 @@ typedef struct {
   //
   // Specifies the wireless network to connect to.
   //
-  EFI_80211_NETWORK                         *Network;
+  EFI_80211_NETWORK    *Network;
   //
   // Specifies a time limit in seconds that is optionally present, after which
   // the connection establishment procedure is terminated by the UNDI driver.
   // This is an optional parameter and may be 0. Values of 5 seconds or higher
   // are recommended.
   //
-  UINT32                                    FailureTimeout;
+  UINT32               FailureTimeout;
 } EFI_80211_CONNECT_NETWORK_DATA;
 
 ///
@@ -258,7 +258,7 @@ typedef struct {
   // Wireless MAC Connection Protocol II driver. The type of Event must be
   // EFI_NOTIFY_SIGNAL.
   //
-  EFI_EVENT                                 Event;
+  EFI_EVENT    Event;
   //
   // Will be set to one of the following values:
   // EFI_SUCCESS: The operation completed successfully.
@@ -267,15 +267,15 @@ typedef struct {
   // hardware or software state.
   // EFI_NOT_READY: The operation is started but not yet completed.
   //
-  EFI_STATUS                                Status;
+  EFI_STATUS                               Status;
   //
   // Pointer to the connection data.
   //
-  EFI_80211_CONNECT_NETWORK_DATA            *Data;
+  EFI_80211_CONNECT_NETWORK_DATA           *Data;
   //
   // Indicates the connection state.
   //
-  EFI_80211_CONNECT_NETWORK_RESULT_CODE     ResultCode;
+  EFI_80211_CONNECT_NETWORK_RESULT_CODE    ResultCode;
 } EFI_80211_CONNECT_NETWORK_TOKEN;
 
 ///
@@ -288,7 +288,7 @@ typedef struct {
   // Wireless MAC Connection Protocol II driver. The type of Event must be
   // EFI_NOTIFY_SIGNAL.
   //
-  EFI_EVENT                                 Event;
+  EFI_EVENT     Event;
   //
   // Will be set to one of the following values:
   // EFI_SUCCESS: The operation completed successfully
@@ -296,7 +296,7 @@ typedef struct {
   // EFI_ACCESS_DENIED: The operation is not completed due to some underlying
   // hardware or software state.
   //
-  EFI_STATUS                                Status;
+  EFI_STATUS    Status;
 } EFI_80211_DISCONNECT_NETWORK_TOKEN;
 
 /**
@@ -325,7 +325,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_GET_NETWORKS) (
+(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_GET_NETWORKS)(
   IN EFI_WIRELESS_MAC_CONNECTION_II_PROTOCOL          *This,
   IN EFI_80211_GET_NETWORKS_TOKEN                     *Token
   );
@@ -356,7 +356,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_CONNECT_NETWORK) (
+(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_CONNECT_NETWORK)(
   IN EFI_WIRELESS_MAC_CONNECTION_II_PROTOCOL          *This,
   IN EFI_80211_CONNECT_NETWORK_TOKEN                  *Token
   );
@@ -385,7 +385,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_DISCONNECT_NETWORK) (
+(EFIAPI *EFI_WIRELESS_MAC_CONNECTION_II_DISCONNECT_NETWORK)(
   IN EFI_WIRELESS_MAC_CONNECTION_II_PROTOCOL          *This,
   IN EFI_80211_DISCONNECT_NETWORK_TOKEN               *Token
   );
@@ -397,11 +397,11 @@ EFI_STATUS
 /// network.
 ///
 struct _EFI_WIRELESS_MAC_CONNECTION_II_PROTOCOL {
-  EFI_WIRELESS_MAC_CONNECTION_II_GET_NETWORKS         GetNetworks;
-  EFI_WIRELESS_MAC_CONNECTION_II_CONNECT_NETWORK      ConnectNetwork;
-  EFI_WIRELESS_MAC_CONNECTION_II_DISCONNECT_NETWORK   DisconnectNetwork;
+  EFI_WIRELESS_MAC_CONNECTION_II_GET_NETWORKS          GetNetworks;
+  EFI_WIRELESS_MAC_CONNECTION_II_CONNECT_NETWORK       ConnectNetwork;
+  EFI_WIRELESS_MAC_CONNECTION_II_DISCONNECT_NETWORK    DisconnectNetwork;
 };
 
-extern EFI_GUID gEfiWiFi2ProtocolGuid;
+extern EFI_GUID  gEfiWiFi2ProtocolGuid;
 
 #endif

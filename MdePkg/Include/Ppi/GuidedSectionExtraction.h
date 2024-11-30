@@ -28,9 +28,7 @@
 // that it is intended to process.
 //
 
-
-typedef struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI   EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI;
-
+typedef struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI;
 
 /**
   Processes the input section and returns the data contained therein
@@ -79,7 +77,7 @@ EFI_STATUS
   OUT VOID                                         **OutputBuffer,
   OUT UINTN                                        *OutputSize,
   OUT UINT32                                       *AuthenticationStatus
-);
+  );
 
 ///
 /// If a GUID-defined section is encountered when doing section extraction,
@@ -89,10 +87,7 @@ EFI_STATUS
 /// therein.
 ///
 struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI {
-  EFI_PEI_EXTRACT_GUIDED_SECTION ExtractSection;
+  EFI_PEI_EXTRACT_GUIDED_SECTION    ExtractSection;
 };
 
-
-
 #endif
-

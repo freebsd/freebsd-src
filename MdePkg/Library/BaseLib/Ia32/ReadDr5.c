@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of Debug Register 5 (DR5).
 
@@ -31,4 +28,3 @@ AsmReadDr5 (
     _emit  0xe8
   }
 }
-

@@ -26,7 +26,7 @@ EFI_STATUS
   IN UINT32                 Instance,
   IN EFI_GUID               *CallerId,
   IN EFI_STATUS_CODE_DATA   *Data
-);
+  );
 
 /**
   Register the callback function for ReportStatusCode() notification.
@@ -60,7 +60,7 @@ EFI_STATUS
 (EFIAPI *EFI_RSC_HANDLER_REGISTER)(
   IN EFI_RSC_HANDLER_CALLBACK   Callback,
   IN EFI_TPL                    Tpl
-);
+  );
 
 /**
   Remove a previously registered callback function from the notification list.
@@ -79,13 +79,13 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_RSC_HANDLER_UNREGISTER)(
   IN EFI_RSC_HANDLER_CALLBACK Callback
-);
+  );
 
 typedef struct {
-  EFI_RSC_HANDLER_REGISTER Register;
-  EFI_RSC_HANDLER_UNREGISTER Unregister;
+  EFI_RSC_HANDLER_REGISTER      Register;
+  EFI_RSC_HANDLER_UNREGISTER    Unregister;
 } EFI_RSC_HANDLER_PROTOCOL;
 
-extern EFI_GUID gEfiRscHandlerProtocolGuid;
+extern EFI_GUID  gEfiRscHandlerProtocolGuid;
 
 #endif // __REPORT_STATUS_CODE_HANDLER_H__

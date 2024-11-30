@@ -18,7 +18,7 @@
     0xe98adb03, 0xb8b9, 0x4af8, { 0xba, 0x20, 0x26, 0xe9, 0x11, 0x4c, 0xbc, 0xe5 } \
   }
 
-typedef struct _EFI_USER_CREDENTIAL2_PROTOCOL  EFI_USER_CREDENTIAL2_PROTOCOL;
+typedef struct _EFI_USER_CREDENTIAL2_PROTOCOL EFI_USER_CREDENTIAL2_PROTOCOL;
 
 /**
   Enroll a user on a credential provider.
@@ -279,30 +279,30 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_CREDENTIAL2_DELETE)(
- IN CONST EFI_USER_CREDENTIAL2_PROTOCOL  *This,
- IN       EFI_USER_PROFILE_HANDLE        User
-);
+  IN CONST EFI_USER_CREDENTIAL2_PROTOCOL  *This,
+  IN       EFI_USER_PROFILE_HANDLE        User
+  );
 
 ///
 /// This protocol provides support for a single class of credentials
 ///
 struct _EFI_USER_CREDENTIAL2_PROTOCOL {
-  EFI_GUID                      Identifier;  ///< Uniquely identifies this credential provider.
-  EFI_GUID                      Type;        ///< Identifies this class of User Credential Provider.
-  EFI_CREDENTIAL2_ENROLL        Enroll;
-  EFI_CREDENTIAL2_FORM          Form;
-  EFI_CREDENTIAL2_TILE          Tile;
-  EFI_CREDENTIAL2_TITLE         Title;
-  EFI_CREDENTIAL2_USER          User;
-  EFI_CREDENTIAL2_SELECT        Select;
-  EFI_CREDENTIAL2_DESELECT      Deselect;
-  EFI_CREDENTIAL2_DEFAULT       Default;
-  EFI_CREDENTIAL2_GET_INFO      GetInfo;
-  EFI_CREDENTIAL2_GET_NEXT_INFO GetNextInfo;
-  EFI_CREDENTIAL_CAPABILITIES   Capabilities;
-  EFI_CREDENTIAL2_DELETE        Delete;
+  EFI_GUID                         Identifier; ///< Uniquely identifies this credential provider.
+  EFI_GUID                         Type;       ///< Identifies this class of User Credential Provider.
+  EFI_CREDENTIAL2_ENROLL           Enroll;
+  EFI_CREDENTIAL2_FORM             Form;
+  EFI_CREDENTIAL2_TILE             Tile;
+  EFI_CREDENTIAL2_TITLE            Title;
+  EFI_CREDENTIAL2_USER             User;
+  EFI_CREDENTIAL2_SELECT           Select;
+  EFI_CREDENTIAL2_DESELECT         Deselect;
+  EFI_CREDENTIAL2_DEFAULT          Default;
+  EFI_CREDENTIAL2_GET_INFO         GetInfo;
+  EFI_CREDENTIAL2_GET_NEXT_INFO    GetNextInfo;
+  EFI_CREDENTIAL_CAPABILITIES      Capabilities;
+  EFI_CREDENTIAL2_DELETE           Delete;
 };
 
-extern EFI_GUID gEfiUserCredential2ProtocolGuid;
+extern EFI_GUID  gEfiUserCredential2ProtocolGuid;
 
 #endif

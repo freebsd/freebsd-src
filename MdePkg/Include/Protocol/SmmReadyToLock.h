@@ -21,8 +21,8 @@
 
 #include <Protocol/MmReadyToLock.h>
 
-#define EFI_SMM_READY_TO_LOCK_PROTOCOL_GUID EFI_MM_READY_TO_LOCK_PROTOCOL_GUID
+#define EFI_SMM_READY_TO_LOCK_PROTOCOL_GUID  EFI_MM_READY_TO_LOCK_PROTOCOL_GUID
 
-extern EFI_GUID gEfiSmmReadyToLockProtocolGuid;
+extern EFI_GUID  gEfiSmmReadyToLockProtocolGuid;
 
 #endif

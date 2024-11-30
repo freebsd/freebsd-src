@@ -25,34 +25,34 @@ typedef struct _EFI_SCSI_IO_PROTOCOL EFI_SCSI_IO_PROTOCOL;
 //
 // SCSI Device type information, defined in the SCSI Primary Commands standard (e.g., SPC-4)
 //
-#define EFI_SCSI_IO_TYPE_DISK                                  0x00    ///< Disk device
-#define EFI_SCSI_IO_TYPE_TAPE                                  0x01    ///< Tape device
-#define EFI_SCSI_IO_TYPE_PRINTER                               0x02    ///< Printer
-#define EFI_SCSI_IO_TYPE_PROCESSOR                             0x03    ///< Processor
-#define EFI_SCSI_IO_TYPE_WORM                                  0x04    ///< Write-once read-multiple
-#define EFI_SCSI_IO_TYPE_CDROM                                 0x05    ///< CD or DVD device
-#define EFI_SCSI_IO_TYPE_SCANNER                               0x06    ///< Scanner device
-#define EFI_SCSI_IO_TYPE_OPTICAL                               0x07    ///< Optical memory device
-#define EFI_SCSI_IO_TYPE_MEDIUMCHANGER                         0x08    ///< Medium Changer device
-#define EFI_SCSI_IO_TYPE_COMMUNICATION                         0x09    ///< Communications device
-#define MFI_SCSI_IO_TYPE_A                                     0x0A    ///< Obsolete
-#define MFI_SCSI_IO_TYPE_B                                     0x0B    ///< Obsolete
-#define MFI_SCSI_IO_TYPE_RAID                                  0x0C    ///< Storage array controller device (e.g., RAID)
-#define MFI_SCSI_IO_TYPE_SES                                   0x0D    ///< Enclosure services device
-#define MFI_SCSI_IO_TYPE_RBC                                   0x0E    ///< Simplified direct-access device (e.g., magnetic disk)
-#define MFI_SCSI_IO_TYPE_OCRW                                  0x0F    ///< Optical card reader/writer device
-#define MFI_SCSI_IO_TYPE_BRIDGE                                0x10    ///< Bridge Controller Commands
-#define MFI_SCSI_IO_TYPE_OSD                                   0x11    ///< Object-based Storage Device
-#define EFI_SCSI_IO_TYPE_RESERVED_LOW                          0x12    ///< Reserved (low)
-#define EFI_SCSI_IO_TYPE_RESERVED_HIGH                         0x1E    ///< Reserved (high)
-#define EFI_SCSI_IO_TYPE_UNKNOWN                               0x1F    ///< Unknown no device type
+#define EFI_SCSI_IO_TYPE_DISK           0x00                           ///< Disk device
+#define EFI_SCSI_IO_TYPE_TAPE           0x01                           ///< Tape device
+#define EFI_SCSI_IO_TYPE_PRINTER        0x02                           ///< Printer
+#define EFI_SCSI_IO_TYPE_PROCESSOR      0x03                           ///< Processor
+#define EFI_SCSI_IO_TYPE_WORM           0x04                           ///< Write-once read-multiple
+#define EFI_SCSI_IO_TYPE_CDROM          0x05                           ///< CD or DVD device
+#define EFI_SCSI_IO_TYPE_SCANNER        0x06                           ///< Scanner device
+#define EFI_SCSI_IO_TYPE_OPTICAL        0x07                           ///< Optical memory device
+#define EFI_SCSI_IO_TYPE_MEDIUMCHANGER  0x08                           ///< Medium Changer device
+#define EFI_SCSI_IO_TYPE_COMMUNICATION  0x09                           ///< Communications device
+#define MFI_SCSI_IO_TYPE_A              0x0A                           ///< Obsolete
+#define MFI_SCSI_IO_TYPE_B              0x0B                           ///< Obsolete
+#define MFI_SCSI_IO_TYPE_RAID           0x0C                           ///< Storage array controller device (e.g., RAID)
+#define MFI_SCSI_IO_TYPE_SES            0x0D                           ///< Enclosure services device
+#define MFI_SCSI_IO_TYPE_RBC            0x0E                           ///< Simplified direct-access device (e.g., magnetic disk)
+#define MFI_SCSI_IO_TYPE_OCRW           0x0F                           ///< Optical card reader/writer device
+#define MFI_SCSI_IO_TYPE_BRIDGE         0x10                           ///< Bridge Controller Commands
+#define MFI_SCSI_IO_TYPE_OSD            0x11                           ///< Object-based Storage Device
+#define EFI_SCSI_IO_TYPE_RESERVED_LOW   0x12                           ///< Reserved (low)
+#define EFI_SCSI_IO_TYPE_RESERVED_HIGH  0x1E                           ///< Reserved (high)
+#define EFI_SCSI_IO_TYPE_UNKNOWN        0x1F                           ///< Unknown no device type
 
 //
 // SCSI Data Direction definition
 //
-#define EFI_SCSI_IO_DATA_DIRECTION_READ                        0
-#define EFI_SCSI_IO_DATA_DIRECTION_WRITE                       1
-#define EFI_SCSI_IO_DATA_DIRECTION_BIDIRECTIONAL               2
+#define EFI_SCSI_IO_DATA_DIRECTION_READ           0
+#define EFI_SCSI_IO_DATA_DIRECTION_WRITE          1
+#define EFI_SCSI_IO_DATA_DIRECTION_BIDIRECTIONAL  2
 
 //
 // SCSI Host Adapter Status definition
@@ -70,19 +70,18 @@ typedef struct _EFI_SCSI_IO_PROTOCOL EFI_SCSI_IO_PROTOCOL;
 #define EFI_SCSI_IO_STATUS_HOST_ADAPTER_PHASE_ERROR            0x14    ///< Target bus phase sequence failure
 #define EFI_SCSI_IO_STATUS_HOST_ADAPTER_OTHER                  0x7f
 
-
 //
 // SCSI Target Status definition
 //
-#define EFI_SCSI_IO_STATUS_TARGET_GOOD                         0x00
-#define EFI_SCSI_IO_STATUS_TARGET_CHECK_CONDITION              0x02    ///< check condition
-#define EFI_SCSI_IO_STATUS_TARGET_CONDITION_MET                0x04    ///< condition met
-#define EFI_SCSI_IO_STATUS_TARGET_BUSY                         0x08    ///< busy
-#define EFI_SCSI_IO_STATUS_TARGET_INTERMEDIATE                 0x10    ///< intermediate
-#define EFI_SCSI_IO_STATUS_TARGET_INTERMEDIATE_CONDITION_MET   0x14    ///< intermediate-condition met
-#define EFI_SCSI_IO_STATUS_TARGET_RESERVATION_CONFLICT         0x18    ///< reservation conflict
-#define EFI_SCSI_IO_STATUS_TARGET_COMMOND_TERMINATED           0x22    ///< command terminated
-#define EFI_SCSI_IO_STATUS_TARGET_QUEUE_FULL                   0x28    ///< queue full
+#define EFI_SCSI_IO_STATUS_TARGET_GOOD                        0x00
+#define EFI_SCSI_IO_STATUS_TARGET_CHECK_CONDITION             0x02     ///< check condition
+#define EFI_SCSI_IO_STATUS_TARGET_CONDITION_MET               0x04     ///< condition met
+#define EFI_SCSI_IO_STATUS_TARGET_BUSY                        0x08     ///< busy
+#define EFI_SCSI_IO_STATUS_TARGET_INTERMEDIATE                0x10     ///< intermediate
+#define EFI_SCSI_IO_STATUS_TARGET_INTERMEDIATE_CONDITION_MET  0x14     ///< intermediate-condition met
+#define EFI_SCSI_IO_STATUS_TARGET_RESERVATION_CONFLICT        0x18     ///< reservation conflict
+#define EFI_SCSI_IO_STATUS_TARGET_COMMOND_TERMINATED          0x22     ///< command terminated
+#define EFI_SCSI_IO_STATUS_TARGET_QUEUE_FULL                  0x28     ///< queue full
 
 typedef struct {
   ///
@@ -93,63 +92,63 @@ typedef struct {
   /// EFI_TIMEOUT if the time required to execute the SCSI Request
   /// Packet is greater than Timeout.
   ///
-  UINT64                              Timeout;
+  UINT64    Timeout;
   ///
   /// A pointer to the data buffer to transfer between the SCSI
   /// controller and the SCSI device for SCSI READ command
   ///
-  VOID                                *InDataBuffer;
+  VOID      *InDataBuffer;
   ///
   /// A pointer to the data buffer to transfer between the SCSI
   /// controller and the SCSI device for SCSI WRITE command.
   ///
-  VOID                                *OutDataBuffer;
+  VOID      *OutDataBuffer;
   ///
   /// A pointer to the sense data that was generated by the execution of
   /// the SCSI Request Packet.
   ///
-  VOID                                *SenseData;
+  VOID      *SenseData;
   ///
   /// A pointer to buffer that contains the Command Data Block to
   /// send to the SCSI device.
   ///
-  VOID                                *Cdb;
+  VOID      *Cdb;
   ///
   /// On Input, the size, in bytes, of InDataBuffer. On output, the
   /// number of bytes transferred between the SCSI controller and the SCSI device.
   ///
-  UINT32                              InTransferLength;
+  UINT32    InTransferLength;
   ///
   /// On Input, the size, in bytes of OutDataBuffer. On Output, the
   /// Number of bytes transferred between SCSI Controller and the SCSI device.
   ///
-  UINT32                              OutTransferLength;
+  UINT32    OutTransferLength;
   ///
   /// The length, in bytes, of the buffer Cdb. The standard values are
   /// 6, 10, 12, and 16, but other values are possible if a variable length CDB is used.
   ///
-  UINT8                               CdbLength;
+  UINT8     CdbLength;
   ///
   /// The direction of the data transfer. 0 for reads, 1 for writes. A
   /// value of 2 is Reserved for Bi-Directional SCSI commands.
   ///
-  UINT8                               DataDirection;
+  UINT8     DataDirection;
   ///
   /// The status of the SCSI Host Controller that produces the SCSI
   /// bus where the SCSI device attached when the SCSI Request
   /// Packet was executed on the SCSI Controller.
   ///
-  UINT8                               HostAdapterStatus;
+  UINT8     HostAdapterStatus;
   ///
   /// The status returned by the SCSI device when the SCSI Request
   /// Packet was executed.
   ///
-  UINT8                               TargetStatus;
+  UINT8     TargetStatus;
   ///
   /// On input, the length in bytes of the SenseData buffer. On
   /// output, the number of bytes written to the SenseData buffer.
   ///
-  UINT8                               SenseDataLength;
+  UINT8     SenseDataLength;
 } EFI_SCSI_IO_SCSI_REQUEST_PACKET;
 
 /**
@@ -230,7 +229,6 @@ EFI_STATUS
   IN EFI_SCSI_IO_PROTOCOL     *This
   );
 
-
 /**
   Sends a SCSI Request Packet to the SCSI Controller for execution.
 
@@ -291,11 +289,11 @@ EFI_STATUS
 /// Provides services to manage and communicate with SCSI devices.
 ///
 struct _EFI_SCSI_IO_PROTOCOL {
-  EFI_SCSI_IO_PROTOCOL_GET_DEVICE_TYPE      GetDeviceType;
-  EFI_SCSI_IO_PROTOCOL_GET_DEVICE_LOCATION  GetDeviceLocation;
-  EFI_SCSI_IO_PROTOCOL_RESET_BUS            ResetBus;
-  EFI_SCSI_IO_PROTOCOL_RESET_DEVICE         ResetDevice;
-  EFI_SCSI_IO_PROTOCOL_EXEC_SCSI_COMMAND    ExecuteScsiCommand;
+  EFI_SCSI_IO_PROTOCOL_GET_DEVICE_TYPE        GetDeviceType;
+  EFI_SCSI_IO_PROTOCOL_GET_DEVICE_LOCATION    GetDeviceLocation;
+  EFI_SCSI_IO_PROTOCOL_RESET_BUS              ResetBus;
+  EFI_SCSI_IO_PROTOCOL_RESET_DEVICE           ResetDevice;
+  EFI_SCSI_IO_PROTOCOL_EXEC_SCSI_COMMAND      ExecuteScsiCommand;
 
   ///
   /// Supplies the alignment requirement for any buffer used in a data transfer.
@@ -303,9 +301,9 @@ struct _EFI_SCSI_IO_PROTOCOL {
   /// Otherwise, IoAlign must be a power of 2, and the requirement is that the
   /// start address of a buffer must be evenly divisible by IoAlign with no remainder.
   ///
-  UINT32                                    IoAlign;
+  UINT32                                      IoAlign;
 };
 
-extern EFI_GUID gEfiScsiIoProtocolGuid;
+extern EFI_GUID  gEfiScsiIoProtocolGuid;
 
 #endif

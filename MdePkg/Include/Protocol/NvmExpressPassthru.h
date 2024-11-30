@@ -22,98 +22,99 @@
 typedef struct _EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL;
 
 typedef struct {
-  UINT32          Attributes;
-  UINT32          IoAlign;
-  UINT32          NvmeVersion;
+  UINT32    Attributes;
+  UINT32    IoAlign;
+  UINT32    NvmeVersion;
 } EFI_NVM_EXPRESS_PASS_THRU_MODE;
 
 //
 // If this bit is set, then the EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL interface is
 // for directly addressable namespaces.
 //
-#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_PHYSICAL        0x0001
+#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_PHYSICAL  0x0001
 //
 // If this bit is set, then the EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL interface is
 // for a single volume logical namespace comprised of multiple namespaces.
 //
-#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_LOGICAL         0x0002
+#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_LOGICAL  0x0002
 //
 // If this bit is set, then the EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL interface
 // supports non-blocking I/O.
 //
-#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_NONBLOCKIO      0x0004
+#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_NONBLOCKIO  0x0004
 //
 // If this bit is set, then the EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL interface
 // supports NVM command set.
 //
-#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_CMD_SET_NVM     0x0008
+#define EFI_NVM_EXPRESS_PASS_THRU_ATTRIBUTES_CMD_SET_NVM  0x0008
 
 //
 // FusedOperation
 //
-#define NORMAL_CMD                  0x00
-#define FUSED_FIRST_CMD             0x01
-#define FUSED_SECOND_CMD            0x02
+#define NORMAL_CMD        0x00
+#define FUSED_FIRST_CMD   0x01
+#define FUSED_SECOND_CMD  0x02
 
 typedef struct {
-  UINT32                            Opcode:8;
-  UINT32                            FusedOperation:2;
-  UINT32                            Reserved:22;
+  UINT32    Opcode         : 8;
+  UINT32    FusedOperation : 2;
+  UINT32    Reserved       : 22;
 } NVME_CDW0;
 
 //
 // Flags
 //
-#define CDW2_VALID                  0x01
-#define CDW3_VALID                  0x02
-#define CDW10_VALID                 0x04
-#define CDW11_VALID                 0x08
-#define CDW12_VALID                 0x10
-#define CDW13_VALID                 0x20
-#define CDW14_VALID                 0x40
-#define CDW15_VALID                 0x80
+#define CDW2_VALID   0x01
+#define CDW3_VALID   0x02
+#define CDW10_VALID  0x04
+#define CDW11_VALID  0x08
+#define CDW12_VALID  0x10
+#define CDW13_VALID  0x20
+#define CDW14_VALID  0x40
+#define CDW15_VALID  0x80
 
 //
 // Queue Type
 //
-#define NVME_ADMIN_QUEUE            0x00
-#define NVME_IO_QUEUE               0x01
+#define NVME_ADMIN_QUEUE  0x00
+#define NVME_IO_QUEUE     0x01
 
 typedef struct {
-  NVME_CDW0                         Cdw0;
-  UINT8                             Flags;
-  UINT32                            Nsid;
-  UINT32                            Cdw2;
-  UINT32                            Cdw3;
-  UINT32                            Cdw10;
-  UINT32                            Cdw11;
-  UINT32                            Cdw12;
-  UINT32                            Cdw13;
-  UINT32                            Cdw14;
-  UINT32                            Cdw15;
+  NVME_CDW0    Cdw0;
+  UINT8        Flags;
+  UINT32       Nsid;
+  UINT32       Cdw2;
+  UINT32       Cdw3;
+  UINT32       Cdw10;
+  UINT32       Cdw11;
+  UINT32       Cdw12;
+  UINT32       Cdw13;
+  UINT32       Cdw14;
+  UINT32       Cdw15;
 } EFI_NVM_EXPRESS_COMMAND;
 
 typedef struct {
-  UINT32                            DW0;
-  UINT32                            DW1;
-  UINT32                            DW2;
-  UINT32                            DW3;
+  UINT32    DW0;
+  UINT32    DW1;
+  UINT32    DW2;
+  UINT32    DW3;
 } EFI_NVM_EXPRESS_COMPLETION;
 
 typedef struct {
-  UINT64                            CommandTimeout;
-  VOID                              *TransferBuffer;
-  UINT32                            TransferLength;
-  VOID                              *MetadataBuffer;
-  UINT32                            MetadataLength;
-  UINT8                             QueueType;
-  EFI_NVM_EXPRESS_COMMAND           *NvmeCmd;
-  EFI_NVM_EXPRESS_COMPLETION        *NvmeCompletion;
+  UINT64                        CommandTimeout;
+  VOID                          *TransferBuffer;
+  UINT32                        TransferLength;
+  VOID                          *MetadataBuffer;
+  UINT32                        MetadataLength;
+  UINT8                         QueueType;
+  EFI_NVM_EXPRESS_COMMAND       *NvmeCmd;
+  EFI_NVM_EXPRESS_COMPLETION    *NvmeCompletion;
 } EFI_NVM_EXPRESS_PASS_THRU_COMMAND_PACKET;
 
 //
 // Protocol function prototypes
 //
+
 /**
   Sends an NVM Express Command Packet to an NVM Express controller or namespace. This function supports
   both blocking I/O and non-blocking I/O. The blocking I/O functionality is required, and the non-blocking
@@ -263,21 +264,20 @@ EFI_STATUS
 (EFIAPI *EFI_NVM_EXPRESS_PASS_THRU_GET_NAMESPACE)(
   IN     EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL          *This,
   IN     EFI_DEVICE_PATH_PROTOCOL                    *DevicePath,
-     OUT UINT32                                      *NamespaceId
+  OUT UINT32                                      *NamespaceId
   );
 
 //
 // Protocol Interface Structure
 //
 struct _EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL {
-  EFI_NVM_EXPRESS_PASS_THRU_MODE                     *Mode;
-  EFI_NVM_EXPRESS_PASS_THRU_PASSTHRU                 PassThru;
-  EFI_NVM_EXPRESS_PASS_THRU_GET_NEXT_NAMESPACE       GetNextNamespace;
-  EFI_NVM_EXPRESS_PASS_THRU_BUILD_DEVICE_PATH        BuildDevicePath;
-  EFI_NVM_EXPRESS_PASS_THRU_GET_NAMESPACE            GetNamespace;
+  EFI_NVM_EXPRESS_PASS_THRU_MODE                  *Mode;
+  EFI_NVM_EXPRESS_PASS_THRU_PASSTHRU              PassThru;
+  EFI_NVM_EXPRESS_PASS_THRU_GET_NEXT_NAMESPACE    GetNextNamespace;
+  EFI_NVM_EXPRESS_PASS_THRU_BUILD_DEVICE_PATH     BuildDevicePath;
+  EFI_NVM_EXPRESS_PASS_THRU_GET_NAMESPACE         GetNamespace;
 };
 
-extern EFI_GUID gEfiNvmExpressPassThruProtocolGuid;
+extern EFI_GUID  gEfiNvmExpressPassThruProtocolGuid;
 
 #endif
-

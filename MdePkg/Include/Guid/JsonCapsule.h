@@ -31,68 +31,66 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     {0x67d6f4cd, 0xd6b8,  0x4573, \
     {0xbf, 0x4a, 0xde, 0x5e, 0x25, 0x2d, 0x61, 0xae }}
 
-
 #pragma pack(1)
 
 typedef struct {
   ///
   /// Version of the structure, initially 0x00000001.
   ///
-  UINT32 Version;
+  UINT32    Version;
 
   ///
   /// The unique identifier of this capsule.
   ///
-  UINT32 CapsuleId;
+  UINT32    CapsuleId;
 
   ///
   /// The length of the JSON payload immediately following this header, in bytes.
   ///
-  UINT32 PayloadLength;
+  UINT32    PayloadLength;
 
   ///
   /// Variable length buffer containing the JSON payload that should be parsed and applied to the system. The
   /// definition of the JSON schema used in the payload is beyond the scope of this specification.
   ///
-  UINT8 Payload[];
+  UINT8     Payload[];
 } EFI_JSON_CAPSULE_HEADER;
 
 typedef struct {
   ///
   /// The length of the following ConfigData, in bytes.
   ///
-  UINT32 ConfigDataLength;
+  UINT32    ConfigDataLength;
 
   ///
   /// Variable length buffer containing the JSON payload that describes one group of configuration data within
   /// current system. The definition of the JSON schema used in this payload is beyond the scope of this specification.
   ///
-  UINT8 ConfigData[];
+  UINT8     ConfigData[];
 } EFI_JSON_CONFIG_DATA_ITEM;
 
 typedef struct {
   ///
   /// Version of the structure, initially 0x00000001.
   ///
-  UINT32 Version;
+  UINT32                       Version;
 
   ///
   ////The total length of EFI_JSON_CAPSULE_CONFIG_DATA, in bytes.
   ///
-  UINT32 TotalLength;
+  UINT32                       TotalLength;
 
   ///
   /// Array of configuration data groups.
   ///
-  EFI_JSON_CONFIG_DATA_ITEM ConfigDataList[];
+  EFI_JSON_CONFIG_DATA_ITEM    ConfigDataList[];
 } EFI_JSON_CAPSULE_CONFIG_DATA;
 
 #pragma pack()
 
-extern EFI_GUID gEfiJsonConfigDataTableGuid;
-extern EFI_GUID gEfiJsonCapsuleDataTableGuid;
-extern EFI_GUID gEfiJsonCapsuleResultTableGuid;
-extern EFI_GUID gEfiJsonCapsuleIdGuid;
-
+extern EFI_GUID  gEfiJsonConfigDataTableGuid;
+extern EFI_GUID  gEfiJsonCapsuleDataTableGuid;
+extern EFI_GUID  gEfiJsonCapsuleResultTableGuid;
+extern EFI_GUID  gEfiJsonCapsuleIdGuid;
 
 #endif

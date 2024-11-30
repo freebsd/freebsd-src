@@ -26,5 +26,6 @@ GCC_ASM_EXPORT(DisableInterrupts)
 #  );
 #
 ASM_PFX(DisableInterrupts):
+   AARCH64_BTI(c)
    msr  daifset, #DAIF_WR_IRQ_BIT
    ret

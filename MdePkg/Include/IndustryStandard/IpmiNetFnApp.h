@@ -12,6 +12,8 @@
   and Appendix H, Sub-function Assignments.
 
   Copyright (c) 1999 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (C) 2023 Advanced Micro Devices, Inc. All rights reserved.<BR>
+  Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
@@ -31,55 +33,54 @@
 //
 //  Definitions for Get Device ID command
 //
-#define IPMI_APP_GET_DEVICE_ID 0x1
+#define IPMI_APP_GET_DEVICE_ID  0x1
 
 //
 //  Constants and Structure definitions for "Get Device ID" command to follow here
 //
 typedef union {
   struct {
-    UINT8  DeviceRevision : 4;
-    UINT8  Reserved : 3;
-    UINT8  DeviceSdr : 1;
+    UINT8    DeviceRevision : 4;
+    UINT8    Reserved       : 3;
+    UINT8    DeviceSdr      : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_DEVICE_ID_DEVICE_REV;
 
 typedef union {
   struct {
-    UINT8  MajorFirmwareRev : 7;
-    UINT8  UpdateMode : 1;
+    UINT8    MajorFirmwareRev : 7;
+    UINT8    UpdateMode       : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_DEVICE_ID_FIRMWARE_REV_1;
 
 typedef union {
   struct {
-    UINT8  SensorDeviceSupport : 1;
-    UINT8  SdrRepositorySupport : 1;
-    UINT8  SelDeviceSupport : 1;
-    UINT8  FruInventorySupport : 1;
-    UINT8  IpmbMessageReceiver : 1;
-    UINT8  IpmbMessageGenerator : 1;
-    UINT8  BridgeSupport : 1;
-    UINT8  ChassisSupport : 1;
+    UINT8    SensorDeviceSupport  : 1;
+    UINT8    SdrRepositorySupport : 1;
+    UINT8    SelDeviceSupport     : 1;
+    UINT8    FruInventorySupport  : 1;
+    UINT8    IpmbMessageReceiver  : 1;
+    UINT8    IpmbMessageGenerator : 1;
+    UINT8    BridgeSupport        : 1;
+    UINT8    ChassisSupport       : 1;
   } Bits;
   UINT8    Uint8;
 } IPMI_GET_DEVICE_ID_DEVICE_SUPPORT;
 
 typedef struct {
-  UINT8                              CompletionCode;
-  UINT8                              DeviceId;
-  IPMI_GET_DEVICE_ID_DEVICE_REV      DeviceRevision;
-  IPMI_GET_DEVICE_ID_FIRMWARE_REV_1  FirmwareRev1;
-  UINT8                              MinorFirmwareRev;
-  UINT8                              SpecificationVersion;
-  IPMI_GET_DEVICE_ID_DEVICE_SUPPORT  DeviceSupport;
-  UINT8                              ManufacturerId[3];
-  UINT16                             ProductId;
-  UINT32                             AuxFirmwareRevInfo;
+  UINT8                                CompletionCode;
+  UINT8                                DeviceId;
+  IPMI_GET_DEVICE_ID_DEVICE_REV        DeviceRevision;
+  IPMI_GET_DEVICE_ID_FIRMWARE_REV_1    FirmwareRev1;
+  UINT8                                MinorFirmwareRev;
+  UINT8                                SpecificationVersion;
+  IPMI_GET_DEVICE_ID_DEVICE_SUPPORT    DeviceSupport;
+  UINT8                                ManufacturerId[3];
+  UINT16                               ProductId;
+  UINT32                               AuxFirmwareRevInfo;
 } IPMI_GET_DEVICE_ID_RESPONSE;
-
 
 //
 //  Definitions for Cold Reset command
@@ -108,28 +109,28 @@ typedef struct {
 //  Constants and Structure definitions for "Get Self Test Results" command to follow here
 //
 typedef struct {
-  UINT8  CompletionCode;
-  UINT8  Result;
-  UINT8  Param;
+  UINT8    CompletionCode;
+  UINT8    Result;
+  UINT8    Param;
 } IPMI_SELF_TEST_RESULT_RESPONSE;
 
-#define IPMI_APP_SELFTEST_NO_ERROR             0x55
-#define IPMI_APP_SELFTEST_NOT_IMPLEMENTED      0x56
-#define IPMI_APP_SELFTEST_ERROR                0x57
-#define IPMI_APP_SELFTEST_FATAL_HW_ERROR       0x58
-#define IPMI_APP_SELFTEST_INACCESSIBLE_SEL     0x80
-#define IPMI_APP_SELFTEST_INACCESSIBLE_SDR     0x40
-#define IPMI_APP_SELFTEST_INACCESSIBLE_FRU     0x20
-#define IPMI_APP_SELFTEST_IPMB_SIGNAL_FAIL     0x10
-#define IPMI_APP_SELFTEST_SDR_REPOSITORY_EMPTY 0x08
-#define IPMI_APP_SELFTEST_FRU_CORRUPT          0x04
-#define IPMI_APP_SELFTEST_FW_BOOTBLOCK_CORRUPT 0x02
-#define IPMI_APP_SELFTEST_FW_CORRUPT           0x01
+#define IPMI_APP_SELFTEST_NO_ERROR              0x55
+#define IPMI_APP_SELFTEST_NOT_IMPLEMENTED       0x56
+#define IPMI_APP_SELFTEST_ERROR                 0x57
+#define IPMI_APP_SELFTEST_FATAL_HW_ERROR        0x58
+#define IPMI_APP_SELFTEST_INACCESSIBLE_SEL      0x80
+#define IPMI_APP_SELFTEST_INACCESSIBLE_SDR      0x40
+#define IPMI_APP_SELFTEST_INACCESSIBLE_FRU      0x20
+#define IPMI_APP_SELFTEST_IPMB_SIGNAL_FAIL      0x10
+#define IPMI_APP_SELFTEST_SDR_REPOSITORY_EMPTY  0x08
+#define IPMI_APP_SELFTEST_FRU_CORRUPT           0x04
+#define IPMI_APP_SELFTEST_FW_BOOTBLOCK_CORRUPT  0x02
+#define IPMI_APP_SELFTEST_FW_CORRUPT            0x01
 
 //
 //  Definitions for Manufacturing Test ON command
 //
-#define IPMI_APP_MANUFACTURING_TEST_ON 0x5
+#define IPMI_APP_MANUFACTURING_TEST_ON  0x5
 
 //
 //  Constants and Structure definitions for "Manufacturing Test ON" command to follow here
@@ -138,7 +139,7 @@ typedef struct {
 //
 //  Definitions for Set ACPI Power State command
 //
-#define IPMI_APP_SET_ACPI_POWERSTATE 0x6
+#define IPMI_APP_SET_ACPI_POWERSTATE  0x6
 
 //
 //  Constants and Structure definitions for "Set ACPI Power State" command to follow here
@@ -148,55 +149,55 @@ typedef struct {
 //  Definitions for System Power State
 //
 // Working
-#define IPMI_SYSTEM_POWER_STATE_S0_G0        0x0
-#define IPMI_SYSTEM_POWER_STATE_S1           0x1
-#define IPMI_SYSTEM_POWER_STATE_S2           0x2
-#define IPMI_SYSTEM_POWER_STATE_S3           0x3
-#define IPMI_SYSTEM_POWER_STATE_S4           0x4
+#define IPMI_SYSTEM_POWER_STATE_S0_G0  0x0
+#define IPMI_SYSTEM_POWER_STATE_S1     0x1
+#define IPMI_SYSTEM_POWER_STATE_S2     0x2
+#define IPMI_SYSTEM_POWER_STATE_S3     0x3
+#define IPMI_SYSTEM_POWER_STATE_S4     0x4
 // Soft off
-#define IPMI_SYSTEM_POWER_STATE_S5_G2        0x5
+#define IPMI_SYSTEM_POWER_STATE_S5_G2  0x5
 // Sent when message source cannot differentiate between S4 and S5
-#define IPMI_SYSTEM_POWER_STATE_S4_S5        0x6
+#define IPMI_SYSTEM_POWER_STATE_S4_S5  0x6
 // Mechanical off
-#define IPMI_SYSTEM_POWER_STATE_G3           0x7
+#define IPMI_SYSTEM_POWER_STATE_G3  0x7
 // Sleeping - cannot differentiate between S1-S3
-#define IPMI_SYSTEM_POWER_STATE_SLEEPING     0x8
+#define IPMI_SYSTEM_POWER_STATE_SLEEPING  0x8
 // Sleeping - cannot differentiate between S1-S4
 #define IPMI_SYSTEM_POWER_STATE_G1_SLEEPING  0x9
 // S5 entered by override
-#define IPMI_SYSTEM_POWER_STATE_OVERRIDE     0xA
-#define IPMI_SYSTEM_POWER_STATE_LEGACY_ON    0x20
-#define IPMI_SYSTEM_POWER_STATE_LEGACY_OFF   0x21
-#define IPMI_SYSTEM_POWER_STATE_UNKNOWN      0x2A
-#define IPMI_SYSTEM_POWER_STATE_NO_CHANGE    0x7F
+#define IPMI_SYSTEM_POWER_STATE_OVERRIDE    0xA
+#define IPMI_SYSTEM_POWER_STATE_LEGACY_ON   0x20
+#define IPMI_SYSTEM_POWER_STATE_LEGACY_OFF  0x21
+#define IPMI_SYSTEM_POWER_STATE_UNKNOWN     0x2A
+#define IPMI_SYSTEM_POWER_STATE_NO_CHANGE   0x7F
 
 //
 //  Definitions for Device Power State
 //
-#define IPMI_DEVICE_POWER_STATE_D0           0x0
-#define IPMI_DEVICE_POWER_STATE_D1           0x1
-#define IPMI_DEVICE_POWER_STATE_D2           0x2
-#define IPMI_DEVICE_POWER_STATE_D3           0x3
-#define IPMI_DEVICE_POWER_STATE_UNKNOWN      0x2A
-#define IPMI_DEVICE_POWER_STATE_NO_CHANGE    0x7F
+#define IPMI_DEVICE_POWER_STATE_D0         0x0
+#define IPMI_DEVICE_POWER_STATE_D1         0x1
+#define IPMI_DEVICE_POWER_STATE_D2         0x2
+#define IPMI_DEVICE_POWER_STATE_D3         0x3
+#define IPMI_DEVICE_POWER_STATE_UNKNOWN    0x2A
+#define IPMI_DEVICE_POWER_STATE_NO_CHANGE  0x7F
 
 typedef union {
   struct {
-    UINT8  PowerState  : 7;
-    UINT8  StateChange : 1;
+    UINT8    PowerState  : 7;
+    UINT8    StateChange : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_ACPI_POWER_STATE;
 
 typedef struct {
-  IPMI_ACPI_POWER_STATE  SystemPowerState;
-  IPMI_ACPI_POWER_STATE  DevicePowerState;
+  IPMI_ACPI_POWER_STATE    SystemPowerState;
+  IPMI_ACPI_POWER_STATE    DevicePowerState;
 } IPMI_SET_ACPI_POWER_STATE_REQUEST;
 
 //
 //  Definitions for Get ACPI Power State command
 //
-#define IPMI_APP_GET_ACPI_POWERSTATE 0x7
+#define IPMI_APP_GET_ACPI_POWERSTATE  0x7
 
 //
 //  Constants and Structure definitions for "Get ACPI Power State" command to follow here
@@ -205,7 +206,7 @@ typedef struct {
 //
 //  Definitions for Get Device GUID command
 //
-#define IPMI_APP_GET_DEVICE_GUID 0x8
+#define IPMI_APP_GET_DEVICE_GUID  0x8
 
 //
 //  Constants and Structure definitions for "Get Device GUID" command to follow here
@@ -214,8 +215,8 @@ typedef struct {
 //  Message structure definition for "Get Device Guid" IPMI command
 //
 typedef struct {
-  UINT8  CompletionCode;
-  UINT8  Guid[16];
+  UINT8    CompletionCode;
+  UINT8    Guid[16];
 } IPMI_GET_DEVICE_GUID_RESPONSE;
 
 //
@@ -250,12 +251,12 @@ typedef struct {
 //
 typedef union {
   struct {
-    UINT8  TimerUse : 3;
-    UINT8  Reserved : 3;
-    UINT8  TimerRunning : 1;
-    UINT8  TimerUseExpirationFlagLog : 1;
+    UINT8    TimerUse                  : 3;
+    UINT8    Reserved                  : 3;
+    UINT8    TimerRunning              : 1;
+    UINT8    TimerUseExpirationFlagLog : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_WATCHDOG_TIMER_USE;
 
 //
@@ -279,12 +280,12 @@ typedef union {
 //
 typedef union {
   struct {
-    UINT8  TimeoutAction : 3;
-    UINT8  Reserved1 : 1;
-    UINT8  PreTimeoutInterrupt : 3;
-    UINT8  Reserved2 : 1;
+    UINT8    TimeoutAction       : 3;
+    UINT8    Reserved1           : 1;
+    UINT8    PreTimeoutInterrupt : 3;
+    UINT8    Reserved2           : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_WATCHDOG_TIMER_ACTIONS;
 
 //
@@ -297,11 +298,11 @@ typedef union {
 #define IPMI_WATCHDOG_TIMER_EXPIRATION_FLAG_OEM        BIT5
 
 typedef struct {
-  IPMI_WATCHDOG_TIMER_USE         TimerUse;
-  IPMI_WATCHDOG_TIMER_ACTIONS     TimerActions;
-  UINT8                           PretimeoutInterval;
-  UINT8                           TimerUseExpirationFlagsClear;
-  UINT16                          InitialCountdownValue;
+  IPMI_WATCHDOG_TIMER_USE        TimerUse;
+  IPMI_WATCHDOG_TIMER_ACTIONS    TimerActions;
+  UINT8                          PretimeoutInterval;
+  UINT8                          TimerUseExpirationFlagsClear;
+  UINT16                         InitialCountdownValue;
 } IPMI_SET_WATCHDOG_TIMER_REQUEST;
 
 //
@@ -313,13 +314,13 @@ typedef struct {
 //  Constants and Structure definitions for "Get WatchDog Timer" command to follow here
 //
 typedef struct {
-  UINT8                           CompletionCode;
-  IPMI_WATCHDOG_TIMER_USE         TimerUse;
-  IPMI_WATCHDOG_TIMER_ACTIONS     TimerActions;
-  UINT8                           PretimeoutInterval;
-  UINT8                           TimerUseExpirationFlagsClear;
-  UINT16                          InitialCountdownValue;
-  UINT16                          PresentCountdownValue;
+  UINT8                          CompletionCode;
+  IPMI_WATCHDOG_TIMER_USE        TimerUse;
+  IPMI_WATCHDOG_TIMER_ACTIONS    TimerActions;
+  UINT8                          PretimeoutInterval;
+  UINT8                          TimerUseExpirationFlagsClear;
+  UINT16                         InitialCountdownValue;
+  UINT16                         PresentCountdownValue;
 } IPMI_GET_WATCHDOG_TIMER_RESPONSE;
 
 //
@@ -336,20 +337,20 @@ typedef struct {
 //
 typedef union {
   struct {
-    UINT8  ReceiveMessageQueueInterrupt : 1;
-    UINT8  EventMessageBufferFullInterrupt : 1;
-    UINT8  EventMessageBuffer : 1;
-    UINT8  SystemEventLogging : 1;
-    UINT8  Reserved : 1;
-    UINT8  Oem0Enable : 1;
-    UINT8  Oem1Enable : 1;
-    UINT8  Oem2Enable : 1;
+    UINT8    ReceiveMessageQueueInterrupt    : 1;
+    UINT8    EventMessageBufferFullInterrupt : 1;
+    UINT8    EventMessageBuffer              : 1;
+    UINT8    SystemEventLogging              : 1;
+    UINT8    Reserved                        : 1;
+    UINT8    Oem0Enable                      : 1;
+    UINT8    Oem1Enable                      : 1;
+    UINT8    Oem2Enable                      : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_BMC_GLOBAL_ENABLES;
 
 typedef struct {
-  IPMI_BMC_GLOBAL_ENABLES  SetEnables;
+  IPMI_BMC_GLOBAL_ENABLES    SetEnables;
 } IPMI_SET_BMC_GLOBAL_ENABLES_REQUEST;
 
 //
@@ -361,47 +362,47 @@ typedef struct {
 //  Constants and Structure definitions for "Get BMC Global Enables " command to follow here
 //
 typedef struct {
-  UINT8                    CompletionCode;
-  IPMI_BMC_GLOBAL_ENABLES  GetEnables;
+  UINT8                      CompletionCode;
+  IPMI_BMC_GLOBAL_ENABLES    GetEnables;
 } IPMI_GET_BMC_GLOBAL_ENABLES_RESPONSE;
 
 //
 //  Definitions for Clear Message Flags command
 //
-#define IPMI_APP_CLEAR_MESSAGE_FLAGS 0x30
+#define IPMI_APP_CLEAR_MESSAGE_FLAGS  0x30
 
 //
 //  Constants and Structure definitions for "Clear Message Flags" command to follow here
 //
 typedef union {
   struct {
-    UINT8  ReceiveMessageQueue : 1;
-    UINT8  EventMessageBuffer : 1;
-    UINT8  Reserved1 : 1;
-    UINT8  WatchdogPerTimeoutInterrupt : 1;
-    UINT8  Reserved2 : 1;
-    UINT8  Oem0 : 1;
-    UINT8  Oem1 : 1;
-    UINT8  Oem2 : 1;
+    UINT8    ReceiveMessageQueue         : 1;
+    UINT8    EventMessageBuffer          : 1;
+    UINT8    Reserved1                   : 1;
+    UINT8    WatchdogPerTimeoutInterrupt : 1;
+    UINT8    Reserved2                   : 1;
+    UINT8    Oem0                        : 1;
+    UINT8    Oem1                        : 1;
+    UINT8    Oem2                        : 1;
   } Bits;
   UINT8    Uint8;
 } IPMI_MESSAGE_FLAGS;
 
 typedef struct {
-  IPMI_MESSAGE_FLAGS  ClearFlags;
+  IPMI_MESSAGE_FLAGS    ClearFlags;
 } IPMI_CLEAR_MESSAGE_FLAGS_REQUEST;
 
 //
 //  Definitions for Get Message Flags command
 //
-#define IPMI_APP_GET_MESSAGE_FLAGS 0x31
+#define IPMI_APP_GET_MESSAGE_FLAGS  0x31
 
 //
 //  Constants and Structure definitions for "Get Message Flags" command to follow here
 //
 typedef struct {
-  UINT8               CompletionCode;
-  IPMI_MESSAGE_FLAGS  GetFlags;
+  UINT8                 CompletionCode;
+  IPMI_MESSAGE_FLAGS    GetFlags;
 } IPMI_GET_MESSAGE_FLAGS_RESPONSE;
 
 //
@@ -416,23 +417,23 @@ typedef struct {
 //
 //  Definitions for Get Message command
 //
-#define IPMI_APP_GET_MESSAGE 0x33
+#define IPMI_APP_GET_MESSAGE  0x33
 
 //
 //  Constants and Structure definitions for "Get Message" command to follow here
 //
 typedef union {
   struct {
-    UINT8  ChannelNumber : 4;
-    UINT8  InferredPrivilegeLevel : 4;
+    UINT8    ChannelNumber          : 4;
+    UINT8    InferredPrivilegeLevel : 4;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_MESSAGE_CHANNEL_NUMBER;
 
 typedef struct {
-  UINT8                            CompletionCode;
-  IPMI_GET_MESSAGE_CHANNEL_NUMBER  ChannelNumber;
-  UINT8                            MessageData[0];
+  UINT8                              CompletionCode;
+  IPMI_GET_MESSAGE_CHANNEL_NUMBER    ChannelNumber;
+  UINT8                              MessageData[0];
 } IPMI_GET_MESSAGE_RESPONSE;
 
 //
@@ -445,29 +446,29 @@ typedef struct {
 //
 typedef union {
   struct {
-    UINT8  ChannelNumber : 4;
-    UINT8  Authentication : 1;
-    UINT8  Encryption : 1;
-    UINT8  Tracking : 2;
+    UINT8    ChannelNumber  : 4;
+    UINT8    Authentication : 1;
+    UINT8    Encryption     : 1;
+    UINT8    Tracking       : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_SEND_MESSAGE_CHANNEL_NUMBER;
 
 typedef struct {
-  UINT8                             CompletionCode;
-  IPMI_SEND_MESSAGE_CHANNEL_NUMBER  ChannelNumber;
-  UINT8                             MessageData[0];
+  UINT8                               CompletionCode;
+  IPMI_SEND_MESSAGE_CHANNEL_NUMBER    ChannelNumber;
+  UINT8                               MessageData[0];
 } IPMI_SEND_MESSAGE_REQUEST;
 
 typedef struct {
-  UINT8  CompletionCode;
-  UINT8  ResponseData[0];
+  UINT8    CompletionCode;
+  UINT8    ResponseData[0];
 } IPMI_SEND_MESSAGE_RESPONSE;
 
 //
 //  Definitions for Read Event Message Buffer command
 //
-#define IPMI_APP_READ_EVENT_MSG_BUFFER 0x35
+#define IPMI_APP_READ_EVENT_MSG_BUFFER  0x35
 
 //
 //  Constants and Structure definitions for "Read Event Message Buffer" command to follow here
@@ -476,7 +477,7 @@ typedef struct {
 //
 //  Definitions for Get BT Interface Capabilities command
 //
-#define IPMI_APP_GET_BT_INTERFACE_CAPABILITY 0x36
+#define IPMI_APP_GET_BT_INTERFACE_CAPABILITY  0x36
 
 //
 //  Constants and Structure definitions for "Get BT Interface Capabilities" command to follow here
@@ -485,7 +486,12 @@ typedef struct {
 //
 //  Definitions for Get System GUID command
 //
-#define IPMI_APP_GET_SYSTEM_GUID 0x37
+#define IPMI_APP_GET_SYSTEM_GUID  0x37
+
+typedef struct {
+  UINT8       CompletionCode;
+  EFI_GUID    SystemUuid;
+} IPMI_GET_SYSTEM_UUID_RESPONSE;
 
 //
 //  Constants and Structure definitions for "Get System GUID" command to follow here
@@ -494,7 +500,7 @@ typedef struct {
 //
 //  Definitions for Get Channel Authentication Capabilities command
 //
-#define IPMI_APP_GET_CHANNEL_AUTHENTICATION_CAPABILITIES 0x38
+#define IPMI_APP_GET_CHANNEL_AUTHENTICATION_CAPABILITIES  0x38
 
 //
 //  Constants and Structure definitions for "Get Channel Authentication Capabilities" command to follow here
@@ -503,7 +509,7 @@ typedef struct {
 //
 //  Definitions for Get Session Challenge command
 //
-#define IPMI_APP_GET_SESSION_CHALLENGE 0x39
+#define IPMI_APP_GET_SESSION_CHALLENGE  0x39
 
 //
 //  Constants and Structure definitions for "Get Session Challenge" command to follow here
@@ -521,7 +527,7 @@ typedef struct {
 //
 //  Definitions for Set Session Privelege Level command
 //
-#define IPMI_APP_SET_SESSION_PRIVELEGE_LEVEL 0x3B
+#define IPMI_APP_SET_SESSION_PRIVELEGE_LEVEL  0x3B
 
 //
 //  Constants and Structure definitions for "Set Session Privelege Level" command to follow here
@@ -530,7 +536,7 @@ typedef struct {
 //
 //  Definitions for Close Session command
 //
-#define IPMI_APP_CLOSE_SESSION 0x3C
+#define IPMI_APP_CLOSE_SESSION  0x3C
 
 //
 //  Constants and Structure definitions for "Close Session" command to follow here
@@ -588,48 +594,48 @@ typedef struct {
 
 typedef union {
   struct {
-    UINT8  ChannelNo : 4;
-    UINT8  Reserved : 4;
+    UINT8    ChannelNo : 4;
+    UINT8    Reserved  : 4;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_CHANNEL_ACCESS_CHANNEL_NUMBER;
 
 typedef union {
   struct {
-    UINT8  Reserved : 6;
-    UINT8  MemoryType : 2;
+    UINT8    Reserved   : 6;
+    UINT8    MemoryType : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_CHANNEL_ACCESS_TYPE;
 
 typedef struct {
-  IPMI_GET_CHANNEL_ACCESS_CHANNEL_NUMBER  ChannelNumber;
-  IPMI_GET_CHANNEL_ACCESS_TYPE            AccessType;
+  IPMI_GET_CHANNEL_ACCESS_CHANNEL_NUMBER    ChannelNumber;
+  IPMI_GET_CHANNEL_ACCESS_TYPE              AccessType;
 } IPMI_GET_CHANNEL_ACCESS_REQUEST;
 
 typedef union {
   struct {
-    UINT8  AccessMode : 3;
-    UINT8  UserLevelAuthEnabled : 1;
-    UINT8  MessageAuthEnable : 1;
-    UINT8  Alert : 1;
-    UINT8  Reserved : 2;
+    UINT8    AccessMode           : 3;
+    UINT8    UserLevelAuthEnabled : 1;
+    UINT8    MessageAuthEnable    : 1;
+    UINT8    Alert                : 1;
+    UINT8    Reserved             : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_CHANNEL_ACCESS_CHANNEL_ACCESS;
 
 typedef union {
   struct {
-    UINT8  ChannelPriviledgeLimit : 4;
-    UINT8  Reserved : 4;
+    UINT8    ChannelPriviledgeLimit : 4;
+    UINT8    Reserved               : 4;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_CHANNEL_ACCESS_PRIVILEGE_LIMIT;
 
 typedef struct {
-  UINT8                                    CompletionCode;
-  IPMI_GET_CHANNEL_ACCESS_CHANNEL_ACCESS   ChannelAccess;
-  IPMI_GET_CHANNEL_ACCESS_PRIVILEGE_LIMIT  PrivilegeLimit;
+  UINT8                                      CompletionCode;
+  IPMI_GET_CHANNEL_ACCESS_CHANNEL_ACCESS     ChannelAccess;
+  IPMI_GET_CHANNEL_ACCESS_PRIVILEGE_LIMIT    PrivilegeLimit;
 } IPMI_GET_CHANNEL_ACCESS_RESPONSE;
 
 //
@@ -645,79 +651,102 @@ typedef struct {
 //  Definitions for channel media type
 //
 // IPMB (I2C)
-#define IPMI_CHANNEL_MEDIA_TYPE_IPMB              0x1
+#define IPMI_CHANNEL_MEDIA_TYPE_IPMB  0x1
 // ICMB v1.0
-#define IPMI_CHANNEL_MEDIA_TYPE_ICMB_1_0          0x2
+#define IPMI_CHANNEL_MEDIA_TYPE_ICMB_1_0  0x2
 // ICMB v0.9
-#define IPMI_CHANNEL_MEDIA_TYPE_ICMB_0_9          0x3
+#define IPMI_CHANNEL_MEDIA_TYPE_ICMB_0_9  0x3
 // 802.3 LAN
-#define IPMI_CHANNEL_MEDIA_TYPE_802_3_LAN         0x4
+#define IPMI_CHANNEL_MEDIA_TYPE_802_3_LAN  0x4
 // Asynch. Serial/Modem (RS-232)
-#define IPMI_CHANNEL_MEDIA_TYPE_RS_232            0x5
+#define IPMI_CHANNEL_MEDIA_TYPE_RS_232  0x5
 // Other LAN
-#define IPMI_CHANNEL_MEDIA_TYPE_OTHER_LAN         0x6
+#define IPMI_CHANNEL_MEDIA_TYPE_OTHER_LAN  0x6
 // PCI SMBus
-#define IPMI_CHANNEL_MEDIA_TYPE_PCI_SM_BUS        0x7
+#define IPMI_CHANNEL_MEDIA_TYPE_PCI_SM_BUS  0x7
 // SMBus v1.0/1.1
-#define IPMI_CHANNEL_MEDIA_TYPE_SM_BUS_V1         0x8
+#define IPMI_CHANNEL_MEDIA_TYPE_SM_BUS_V1  0x8
 // SMBus v2.0
-#define IPMI_CHANNEL_MEDIA_TYPE_SM_BUS_V2         0x9
+#define IPMI_CHANNEL_MEDIA_TYPE_SM_BUS_V2  0x9
 // USB 1.x
-#define IPMI_CHANNEL_MEDIA_TYPE_USB1              0xA
+#define IPMI_CHANNEL_MEDIA_TYPE_USB1  0xA
 // USB 2.x
-#define IPMI_CHANNEL_MEDIA_TYPE_USB2              0xB
+#define IPMI_CHANNEL_MEDIA_TYPE_USB2  0xB
 // System Interface (KCS, SMIC, or BT)
 #define IPMI_CHANNEL_MEDIA_TYPE_SYSTEM_INTERFACE  0xC
 // OEM
-#define IPMI_CHANNEL_MEDIA_TYPE_OEM_START         0x60
-#define IPMI_CHANNEL_MEDIA_TYPE_OEM_END           0x7F
+#define IPMI_CHANNEL_MEDIA_TYPE_OEM_START  0x60
+#define IPMI_CHANNEL_MEDIA_TYPE_OEM_END    0x7F
+
+//
+//  Definitions for channel protocol type
+//
+// Not available
+#define IPMI_CHANNEL_PROTOCOL_TYPE_NA  0x00
+// IPMB-1.0
+#define IPMI_CHANNEL_PROTOCOL_TYPE_IPMB_1_0  0x01
+// ICMB-1.0
+#define IPMI_CHANNEL_PROTOCOL_TYPE_ICMB_1_0  0x02
+// Reserved
+#define IPMI_CHANNEL_PROTOCOL_TYPE_RESERVED  0x03
+// IPMI SMBUS
+#define IPMI_CHANNEL_PROTOCOL_TYPE_IPMI_SMBUS  0x04
+// KCS
+#define IPMI_CHANNEL_PROTOCOL_TYPE_KCS  0x05
+// SMIC
+#define IPMI_CHANNEL_PROTOCOL_TYPE_SMIC  0x06
+// BT-10
+#define IPMI_CHANNEL_PROTOCOL_TYPE_BT_10  0x07
+// BT-15
+#define IPMI_CHANNEL_PROTOCOL_TYPE_BT_15  0x08
+// TMode
+#define IPMI_CHANNEL_PROTOCOL_TYPE_TMODE  0x09
 
 typedef union {
   struct {
-    UINT8  ChannelNo : 4;
-    UINT8  Reserved : 4;
+    UINT8    ChannelNo : 4;
+    UINT8    Reserved  : 4;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_CHANNEL_INFO_CHANNEL_NUMBER;
 
 typedef union {
   struct {
-    UINT8  ChannelMediumType : 7;
-    UINT8  Reserved : 1;
+    UINT8    ChannelMediumType : 7;
+    UINT8    Reserved          : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_CHANNEL_INFO_MEDIUM_TYPE;
 
 typedef union {
   struct {
-    UINT8  ChannelProtocolType : 5;
-    UINT8  Reserved : 3;
+    UINT8    ChannelProtocolType : 5;
+    UINT8    Reserved            : 3;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_CHANNEL_INFO_PROTOCOL_TYPE;
 
 typedef union {
   struct {
-    UINT8  ActiveSessionCount : 6;
-    UINT8  SessionSupport : 2;
+    UINT8    ActiveSessionCount : 6;
+    UINT8    SessionSupport     : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_CHANNEL_INFO_SESSION_SUPPORT;
 
 typedef struct {
-  UINT8   CompletionCode;
-  IPMI_CHANNEL_INFO_CHANNEL_NUMBER   ChannelNumber;
-  IPMI_CHANNEL_INFO_MEDIUM_TYPE      MediumType;
-  IPMI_CHANNEL_INFO_PROTOCOL_TYPE    ProtocolType;
-  IPMI_CHANNEL_INFO_SESSION_SUPPORT  SessionSupport;
-  UINT8                              VendorId[3];
-  UINT16                             AuxChannelInfo;
+  UINT8                                CompletionCode;
+  IPMI_CHANNEL_INFO_CHANNEL_NUMBER     ChannelNumber;
+  IPMI_CHANNEL_INFO_MEDIUM_TYPE        MediumType;
+  IPMI_CHANNEL_INFO_PROTOCOL_TYPE      ProtocolType;
+  IPMI_CHANNEL_INFO_SESSION_SUPPORT    SessionSupport;
+  UINT8                                VendorId[3];
+  UINT16                               AuxChannelInfo;
 } IPMI_GET_CHANNEL_INFO_RESPONSE;
 
-//
-//  Definitions for Get Channel Info command
-//
-#define IPMI_APP_GET_CHANNEL_INFO  0x42
+typedef struct {
+  IPMI_CHANNEL_INFO_CHANNEL_NUMBER    ChannelNumber;
+} IPMI_GET_CHANNEL_INFO_REQUEST;
 
 //
 //  Constants and Structure definitions for "Get Channel Info" command to follow here
@@ -726,7 +755,7 @@ typedef struct {
 //
 //  Definitions for Set User Access command
 //
-#define IPMI_APP_SET_USER_ACCESS 0x43
+#define IPMI_APP_SET_USER_ACCESS  0x43
 
 //
 //  Constants and Structure definitions for "Set User Access" command to follow here
@@ -735,109 +764,109 @@ typedef struct {
 //
 //  Definitions for Get User Access command
 //
-#define IPMI_APP_GET_USER_ACCESS 0x44
+#define IPMI_APP_GET_USER_ACCESS  0x44
 
 //
 //  Constants and Structure definitions for "Get User Access" command to follow here
 //
 typedef union {
   struct {
-    UINT8  ChannelNo : 4;
-    UINT8  Reserved : 4;
+    UINT8    ChannelNo : 4;
+    UINT8    Reserved  : 4;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_USER_ACCESS_CHANNEL_NUMBER;
 
 typedef union {
   struct {
-    UINT8  UserId : 6;
-    UINT8  Reserved : 2;
+    UINT8    UserId   : 6;
+    UINT8    Reserved : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_USER_ID;
 
 typedef struct {
-  IPMI_GET_USER_ACCESS_CHANNEL_NUMBER  ChannelNumber;
-  IPMI_USER_ID                         UserId;
+  IPMI_GET_USER_ACCESS_CHANNEL_NUMBER    ChannelNumber;
+  IPMI_USER_ID                           UserId;
 } IPMI_GET_USER_ACCESS_REQUEST;
 
 typedef union {
   struct {
-    UINT8  MaxUserId : 6;
-    UINT8  Reserved : 2;
+    UINT8    MaxUserId : 6;
+    UINT8    Reserved  : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_USER_ACCESS_MAX_USER_ID;
 
 typedef union {
   struct {
-    UINT8  CurrentUserId : 6;
-    UINT8  UserIdEnableStatus : 2;
+    UINT8    CurrentUserId      : 6;
+    UINT8    UserIdEnableStatus : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_USER_ACCESS_CURRENT_USER;
 
 typedef union {
   struct {
-    UINT8  FixedUserId : 6;
-    UINT8  Reserved : 2;
+    UINT8    FixedUserId : 6;
+    UINT8    Reserved    : 2;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_USER_ACCESS_FIXED_NAME_USER;
 
 typedef union {
   struct {
-    UINT8  UserPrivilegeLimit : 4;
-    UINT8  EnableIpmiMessaging : 1;
-    UINT8  EnableUserLinkAuthetication : 1;
-    UINT8  UserAccessAvailable : 1;
-    UINT8  Reserved : 1;
+    UINT8    UserPrivilegeLimit          : 4;
+    UINT8    EnableIpmiMessaging         : 1;
+    UINT8    EnableUserLinkAuthetication : 1;
+    UINT8    UserAccessAvailable         : 1;
+    UINT8    Reserved                    : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_GET_USER_ACCESS_CHANNEL_ACCESS;
 
 typedef struct {
-  UINT8                                 CompletionCode;
-  IPMI_GET_USER_ACCESS_MAX_USER_ID      MaxUserId;
-  IPMI_GET_USER_ACCESS_CURRENT_USER     CurrentUser;
-  IPMI_GET_USER_ACCESS_FIXED_NAME_USER  FixedNameUser;
-  IPMI_GET_USER_ACCESS_CHANNEL_ACCESS   ChannelAccess;
+  UINT8                                   CompletionCode;
+  IPMI_GET_USER_ACCESS_MAX_USER_ID        MaxUserId;
+  IPMI_GET_USER_ACCESS_CURRENT_USER       CurrentUser;
+  IPMI_GET_USER_ACCESS_FIXED_NAME_USER    FixedNameUser;
+  IPMI_GET_USER_ACCESS_CHANNEL_ACCESS     ChannelAccess;
 } IPMI_GET_USER_ACCESS_RESPONSE;
 
 //
 //  Definitions for Set User Name command
 //
-#define IPMI_APP_SET_USER_NAME 0x45
+#define IPMI_APP_SET_USER_NAME  0x45
 
 //
 //  Constants and Structure definitions for "Set User Name" command to follow here
 //
 typedef struct {
-  IPMI_USER_ID  UserId;
-  UINT8         UserName[16];
+  IPMI_USER_ID    UserId;
+  UINT8           UserName[16];
 } IPMI_SET_USER_NAME_REQUEST;
 
 //
 //  Definitions for Get User Name command
 //
-#define IPMI_APP_GET_USER_NAME 0x46
+#define IPMI_APP_GET_USER_NAME  0x46
 
 //
 //  Constants and Structure definitions for "Get User Name" command to follow here
 //
 typedef struct {
-  IPMI_USER_ID  UserId;
+  IPMI_USER_ID    UserId;
 } IPMI_GET_USER_NAME_REQUEST;
 
 typedef struct {
-  UINT8  CompletionCode;
-  UINT8  UserName[16];
+  UINT8    CompletionCode;
+  UINT8    UserName[16];
 } IPMI_GET_USER_NAME_RESPONSE;
 
 //
 //  Definitions for Set User Password command
 //
-#define IPMI_APP_SET_USER_PASSWORD 0x47
+#define IPMI_APP_SET_USER_PASSWORD  0x47
 
 //
 //  Constants and Structure definitions for "Set User Password" command to follow here
@@ -859,25 +888,25 @@ typedef struct {
 
 typedef union {
   struct {
-    UINT8  UserId : 6;
-    UINT8  Reserved : 1;
-    UINT8  PasswordSize : 1;
+    UINT8    UserId       : 6;
+    UINT8    Reserved     : 1;
+    UINT8    PasswordSize : 1;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_SET_USER_PASSWORD_USER_ID;
 
 typedef union {
   struct {
-    UINT8  Operation : 2;
-    UINT8  Reserved : 6;
+    UINT8    Operation : 2;
+    UINT8    Reserved  : 6;
   } Bits;
-  UINT8  Uint8;
+  UINT8    Uint8;
 } IPMI_SET_USER_PASSWORD_OPERATION;
 
 typedef struct {
-  IPMI_SET_USER_PASSWORD_USER_ID    UserId;
-  IPMI_SET_USER_PASSWORD_OPERATION  Operation;
-  UINT8                             PasswordData[0];  // 16 or 20 bytes, depending on the 'PasswordSize' field
+  IPMI_SET_USER_PASSWORD_USER_ID      UserId;
+  IPMI_SET_USER_PASSWORD_OPERATION    Operation;
+  UINT8                               PasswordData[0]; // 16 or 20 bytes, depending on the 'PasswordSize' field
 } IPMI_SET_USER_PASSWORD_REQUEST;
 
 //
@@ -905,7 +934,7 @@ typedef struct {
 //
 //  Definitions for Get Payload activation Status command
 //
-#define IPMI_APP_GET_PAYLOAD_ACTIVATION_STATUS 0x4a
+#define IPMI_APP_GET_PAYLOAD_ACTIVATION_STATUS  0x4a
 
 //
 //  Constants and Structure definitions for "Get Payload activation Status" command to follow here
@@ -914,7 +943,7 @@ typedef struct {
 //
 //  Definitions for Get Payload Instance Info command
 //
-#define IPMI_APP_GET_PAYLOAD_INSTANCE_INFO 0x4b
+#define IPMI_APP_GET_PAYLOAD_INSTANCE_INFO  0x4b
 
 //
 //  Constants and Structure definitions for "Get Payload Instance Info" command to follow here
@@ -923,7 +952,7 @@ typedef struct {
 //
 //  Definitions for Set User Payload Access command
 //
-#define IPMI_APP_SET_USER_PAYLOAD_ACCESS 0x4C
+#define IPMI_APP_SET_USER_PAYLOAD_ACCESS  0x4C
 
 //
 //  Constants and Structure definitions for "Set User Payload Access" command to follow here
@@ -932,7 +961,7 @@ typedef struct {
 //
 //  Definitions for Get User Payload Access command
 //
-#define IPMI_APP_GET_USER_PAYLOAD_ACCESS 0x4D
+#define IPMI_APP_GET_USER_PAYLOAD_ACCESS  0x4D
 
 //
 //  Constants and Structure definitions for "Get User Payload Access" command to follow here
@@ -941,7 +970,7 @@ typedef struct {
 //
 //  Definitions for Get Channel Payload Support command
 //
-#define IPMI_APP_GET_CHANNEL_PAYLOAD_SUPPORT 0x4E
+#define IPMI_APP_GET_CHANNEL_PAYLOAD_SUPPORT  0x4E
 
 //
 //  Constants and Structure definitions for "Get Channel Payload Support" command to follow here
@@ -950,7 +979,7 @@ typedef struct {
 //
 //  Definitions for Get Channel Payload Version command
 //
-#define IPMI_APP_GET_CHANNEL_PAYLOAD_VERSION 0x4F
+#define IPMI_APP_GET_CHANNEL_PAYLOAD_VERSION  0x4F
 
 //
 //  Constants and Structure definitions for "Get Channel Payload Version" command to follow here
@@ -968,7 +997,7 @@ typedef struct {
 //
 //  Definitions for  Master Write-Read command
 //
-#define IPMI_APP_MASTER_WRITE_READ 0x52
+#define IPMI_APP_MASTER_WRITE_READ  0x52
 
 //
 //  Constants and Structure definitions for "Master Write Read" command to follow here
@@ -977,7 +1006,7 @@ typedef struct {
 //
 //  Definitions for  Get Channel Cipher Suites command
 //
-#define IPMI_APP_GET_CHANNEL_CIPHER_SUITES 0x54
+#define IPMI_APP_GET_CHANNEL_CIPHER_SUITES  0x54
 
 //
 //  Constants and Structure definitions for "Get Channel Cipher Suites" command to follow here
@@ -990,7 +1019,7 @@ typedef struct {
 //
 //  Definitions for  Suspend-Resume Payload Encryption command
 //
-#define IPMI_APP_SUSPEND_RESUME_PAYLOAD_ENCRYPTION 0x55
+#define IPMI_APP_SUSPEND_RESUME_PAYLOAD_ENCRYPTION  0x55
 
 //
 //  Constants and Structure definitions for "Suspend-Resume Payload Encryption" command to follow here
@@ -1003,7 +1032,7 @@ typedef struct {
 //
 //  Definitions for  Set Channel Security Keys command
 //
-#define IPMI_APP_SET_CHANNEL_SECURITY_KEYS 0x56
+#define IPMI_APP_SET_CHANNEL_SECURITY_KEYS  0x56
 
 //
 //  Constants and Structure definitions for "Set Channel Security Keys" command to follow here
@@ -1012,11 +1041,64 @@ typedef struct {
 //
 //  Definitions for  Get System Interface Capabilities command
 //
-#define IPMI_APP_GET_SYSTEM_INTERFACE_CAPABILITIES 0x57
+#define IPMI_APP_GET_SYSTEM_INTERFACE_CAPABILITIES  0x57
 
 //
 //  Constants and Structure definitions for "Get System Interface Capabilities" command to follow here
 //
+
+#define IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_INTERFACE_TYPE_SSIF  0x0
+#define IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_INTERFACE_TYPE_KCS   0x1
+#define IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_INTERFACE_TYPE_SMIC  0x2
+
+typedef union {
+  struct {
+    UINT8    InterfaceType : 4;
+    UINT8    Reserved      : 4;
+  } Bits;
+  UINT8    Uint8;
+} IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_REQUEST;
+
+typedef union {
+  struct {
+    UINT8    Version            : 3;
+    UINT8    PecSupport         : 1;
+    UINT8    Reserved           : 2;
+    UINT8    TransactionSupport : 2;
+  } Bits;
+  UINT8    Uint8;
+} IPMI_SYSTEM_INTERFACE_SSIF_CAPABILITIES;
+
+typedef union {
+  struct {
+    UINT8    SystemInterfaceVersion : 3;
+    UINT8    Reserved               : 5;
+  } Bits;
+  UINT8    Uint8;
+} IPMI_SYSTEM_INTERFACE_KCS_SMIC_CAPABILITIES;
+
+typedef struct {
+  UINT8                                      CompletionCode;
+  UINT8                                      Reserved;
+  IPMI_SYSTEM_INTERFACE_SSIF_CAPABILITIES    InterfaceCap;
+  UINT8                                      InputMsgSize;
+  UINT8                                      OutputMsgSize;
+} IPMI_GET_SYSTEM_INTERFACE_SSIF_CAPABILITIES_RESPONSE;
+
+typedef struct {
+  UINT8                                          CompletionCode;
+  UINT8                                          Reserved;
+  IPMI_SYSTEM_INTERFACE_KCS_SMIC_CAPABILITIES    InterfaceCap;
+  UINT8                                          InputMaxMsgSize;
+} IPMI_GET_SYSTEM_INTERFACE_KCS_SMIC_CAPABILITIES_RESPONSE;
+
+//
+// Response of interface capability of SSIF/KCS/SMIC.
+//
+typedef union {
+  IPMI_GET_SYSTEM_INTERFACE_SSIF_CAPABILITIES_RESPONSE        *InterfaceSsifCapability;
+  IPMI_GET_SYSTEM_INTERFACE_KCS_SMIC_CAPABILITIES_RESPONSE    *InterfaceKcsSmicCapability;
+} IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_RESPONSE;
 
 //
 //  Definitions for Get System Interface Capabilities command SSIF transaction support

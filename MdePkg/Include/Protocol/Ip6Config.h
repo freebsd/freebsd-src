@@ -6,6 +6,7 @@ Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
+
 #ifndef __EFI_IP6CONFIG_PROTOCOL_H__
 #define __EFI_IP6CONFIG_PROTOCOL_H__
 
@@ -102,39 +103,39 @@ typedef struct {
   ///
   /// The name of the interface. It is a NULL-terminated string.
   ///
-  CHAR16                Name[32];
+  CHAR16                  Name[32];
   ///
   /// The interface type of the network interface.
   ///
-  UINT8                 IfType;
+  UINT8                   IfType;
   ///
   /// The size, in bytes, of the network interface's hardware address.
   ///
-  UINT32                HwAddressSize;
+  UINT32                  HwAddressSize;
   ///
   /// The hardware address for the network interface.
   ///
-  EFI_MAC_ADDRESS       HwAddress;
+  EFI_MAC_ADDRESS         HwAddress;
   ///
   /// Number of EFI_IP6_ADDRESS_INFO structures pointed to by AddressInfo.
   ///
-  UINT32                AddressInfoCount;
+  UINT32                  AddressInfoCount;
   ///
   /// Pointer to an array of EFI_IP6_ADDRESS_INFO instances
   /// which contain the local IPv6 addresses and the corresponding
   /// prefix length information. Set to NULL if AddressInfoCount
   /// is zero.
   ///
-  EFI_IP6_ADDRESS_INFO  *AddressInfo;
+  EFI_IP6_ADDRESS_INFO    *AddressInfo;
   ///
   /// Number of route table entries in the following RouteTable.
   ///
-  UINT32                RouteCount;
+  UINT32                  RouteCount;
   ///
   /// The route table of the IPv6 network stack runs on this interface.
   /// Set to NULL if RouteCount is zero.
   ///
-  EFI_IP6_ROUTE_TABLE   *RouteTable;
+  EFI_IP6_ROUTE_TABLE     *RouteTable;
 } EFI_IP6_CONFIG_INTERFACE_INFO;
 
 ///
@@ -142,7 +143,7 @@ typedef struct {
 /// describes the 64-bit interface ID.
 ///
 typedef struct {
-  UINT8                 Id[8];
+  UINT8    Id[8];
 } EFI_IP6_CONFIG_INTERFACE_ID;
 
 ///
@@ -190,11 +191,10 @@ typedef struct {
 /// stack manually when the policy is Ip6ConfigPolicyManual.
 ///
 typedef struct {
-  EFI_IPv6_ADDRESS      Address;       ///< The IPv6 unicast address.
-  BOOLEAN               IsAnycast;     ///< Set to TRUE if Address is anycast.
-  UINT8                 PrefixLength;  ///< The length, in bits, of the prefix associated with this Address.
+  EFI_IPv6_ADDRESS    Address;         ///< The IPv6 unicast address.
+  BOOLEAN             IsAnycast;       ///< Set to TRUE if Address is anycast.
+  UINT8               PrefixLength;    ///< The length, in bits, of the prefix associated with this Address.
 } EFI_IP6_CONFIG_MANUAL_ADDRESS;
-
 
 /**
   Set the configuration for the EFI IPv6 network stack running on the communication
@@ -356,13 +356,12 @@ EFI_STATUS
 /// types of configurations for the EFI IPv6 network stack.
 ///
 struct _EFI_IP6_CONFIG_PROTOCOL {
-  EFI_IP6_CONFIG_SET_DATA           SetData;
-  EFI_IP6_CONFIG_GET_DATA           GetData;
-  EFI_IP6_CONFIG_REGISTER_NOTIFY    RegisterDataNotify;
-  EFI_IP6_CONFIG_UNREGISTER_NOTIFY  UnregisterDataNotify;
+  EFI_IP6_CONFIG_SET_DATA             SetData;
+  EFI_IP6_CONFIG_GET_DATA             GetData;
+  EFI_IP6_CONFIG_REGISTER_NOTIFY      RegisterDataNotify;
+  EFI_IP6_CONFIG_UNREGISTER_NOTIFY    UnregisterDataNotify;
 };
 
-extern EFI_GUID gEfiIp6ConfigProtocolGuid;
+extern EFI_GUID  gEfiIp6ConfigProtocolGuid;
 
 #endif
-

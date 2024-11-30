@@ -1,0 +1,33 @@
+## @file
+# Host OS based Application that Unit Tests the UefiDevicePathLib
+#
+# Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION     = 0x00010005
+  BASE_NAME       = TestDevicePathLibHost
+  MODULE_UNI_FILE = TestDevicePathLib.uni
+  FILE_GUID       = F1505A0E-D71F-4431-99BE-736776842E38
+  MODULE_TYPE     = HOST_APPLICATION
+  VERSION_STRING  = 1.0
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  TestDevicePathLib.c
+  TestDevicePathStringConversions.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  DevicePathLib
+  UnitTestLib

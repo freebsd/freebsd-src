@@ -1,7 +1,7 @@
 ## @file
-#  Instance of PCI Express Library using the 256 MB PCI Express MMIO window.
+#  Instance of PCI Express Library using the variable size PCI Express MMIO window.
 #
-#  PCI Express Library that uses the 256 MB PCI Express MMIO window to perform
+#  PCI Express Library that uses the variable size PCI Express MMIO window to perform
 #  PCI Configuration cycles. Layers on top of an I/O Library instance.
 #
 #  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
@@ -38,4 +38,4 @@
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress  ## CONSUMES
-
+  gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseSize  ## CONSUMES

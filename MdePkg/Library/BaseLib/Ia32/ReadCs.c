@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of Code Segment Register (CS).
 
@@ -29,4 +26,3 @@ AsmReadCs (
     mov     ax, cs
   }
 }
-

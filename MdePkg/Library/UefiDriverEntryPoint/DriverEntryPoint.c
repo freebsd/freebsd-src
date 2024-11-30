@@ -6,8 +6,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
-
-
 #include <Uefi.h>
 
 #include <Protocol/LoadedImage.h>
@@ -16,7 +14,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
-
 
 /**
   Unloads an image from memory.
@@ -32,7 +29,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 EFI_STATUS
 EFIAPI
 _DriverUnloadHandler (
-  EFI_HANDLE ImageHandle
+  EFI_HANDLE  ImageHandle
   )
 {
   EFI_STATUS  Status;
@@ -56,7 +53,6 @@ _DriverUnloadHandler (
   //
   return Status;
 }
-
 
 /**
   The entry point of PE/COFF Image for a DXE Driver, DXE Runtime Driver, DXE SMM
@@ -138,7 +134,6 @@ _ModuleEntryPoint (
   //
   return Status;
 }
-
 
 /**
   Required by the EBC compiler and identical in functionality to _ModuleEntryPoint().

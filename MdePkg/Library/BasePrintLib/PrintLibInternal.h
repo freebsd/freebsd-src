@@ -15,37 +15,36 @@
 #include <Library/DebugLib.h>
 #include <Library/PcdLib.h>
 
-
 //
 // Print primitives
 //
-#define PREFIX_SIGN           BIT1
-#define PREFIX_BLANK          BIT2
-#define LONG_TYPE             BIT4
-#define OUTPUT_UNICODE        BIT6
-#define FORMAT_UNICODE        BIT8
-#define PAD_TO_WIDTH          BIT9
-#define ARGUMENT_UNICODE      BIT10
-#define PRECISION             BIT11
-#define ARGUMENT_REVERSED     BIT12
-#define COUNT_ONLY_NO_PRINT   BIT13
-#define UNSIGNED_TYPE         BIT14
+#define PREFIX_SIGN          BIT1
+#define PREFIX_BLANK         BIT2
+#define LONG_TYPE            BIT4
+#define OUTPUT_UNICODE       BIT6
+#define FORMAT_UNICODE       BIT8
+#define PAD_TO_WIDTH         BIT9
+#define ARGUMENT_UNICODE     BIT10
+#define PRECISION            BIT11
+#define ARGUMENT_REVERSED    BIT12
+#define COUNT_ONLY_NO_PRINT  BIT13
+#define UNSIGNED_TYPE        BIT14
 
 //
 // Record date and time information
 //
 typedef struct {
-  UINT16  Year;
-  UINT8   Month;
-  UINT8   Day;
-  UINT8   Hour;
-  UINT8   Minute;
-  UINT8   Second;
-  UINT8   Pad1;
-  UINT32  Nanosecond;
-  INT16   TimeZone;
-  UINT8   Daylight;
-  UINT8   Pad2;
+  UINT16    Year;
+  UINT8     Month;
+  UINT8     Day;
+  UINT8     Hour;
+  UINT8     Minute;
+  UINT8     Second;
+  UINT8     Pad1;
+  UINT32    Nanosecond;
+  INT16     TimeZone;
+  UINT8     Daylight;
+  UINT8     Pad2;
 } TIME;
 
 /**
@@ -82,7 +81,7 @@ BasePrintLibSPrintMarker (
   IN  UINTN        BufferSize,
   IN  UINTN        Flags,
   IN  CONST CHAR8  *Format,
-  IN  VA_LIST      VaListMarker,   OPTIONAL
+  IN  VA_LIST      VaListMarker    OPTIONAL,
   IN  BASE_LIST    BaseListMarker  OPTIONAL
   );
 
@@ -134,11 +133,11 @@ BasePrintLibSPrint (
 **/
 CHAR8 *
 BasePrintLibFillBuffer (
-  OUT CHAR8   *Buffer,
-  IN  CHAR8   *EndBuffer,
-  IN  INTN    Length,
-  IN  UINTN   Character,
-  IN  INTN    Increment
+  OUT CHAR8  *Buffer,
+  IN  CHAR8  *EndBuffer,
+  IN  INTN   Length,
+  IN  UINTN  Character,
+  IN  INTN   Increment
   );
 
 /**
@@ -200,11 +199,11 @@ BasePrintLibValueToString (
 **/
 UINTN
 BasePrintLibConvertValueToString (
-  IN OUT CHAR8   *Buffer,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width,
-  IN UINTN       Increment
+  IN OUT CHAR8  *Buffer,
+  IN UINTN      Flags,
+  IN INT64      Value,
+  IN UINTN      Width,
+  IN UINTN      Increment
   );
 
 /**
@@ -260,12 +259,12 @@ BasePrintLibConvertValueToString (
 **/
 RETURN_STATUS
 BasePrintLibConvertValueToStringS (
-  IN OUT CHAR8   *Buffer,
-  IN UINTN       BufferSize,
-  IN UINTN       Flags,
-  IN INT64       Value,
-  IN UINTN       Width,
-  IN UINTN       Increment
+  IN OUT CHAR8  *Buffer,
+  IN UINTN      BufferSize,
+  IN UINTN      Flags,
+  IN INT64      Value,
+  IN UINTN      Width,
+  IN UINTN      Increment
   );
 
 #endif

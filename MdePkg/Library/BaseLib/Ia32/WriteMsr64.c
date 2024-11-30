@@ -1,13 +1,12 @@
 /** @file
   AsmWriteMsr64 function
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2021, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
-
-
+#include <Library/RegisterFilterLib.h>
 
 /**
   Writes a 64-bit value to a Machine Specific Register(MSR), and returns the
@@ -33,11 +32,19 @@ AsmWriteMsr64 (
   IN UINT64  Value
   )
 {
-  _asm {
-    mov     edx, dword ptr [Value + 4]
-    mov     eax, dword ptr [Value + 0]
-    mov     ecx, Index
-    wrmsr
-  }
-}
+  BOOLEAN  Flag;
 
+  Flag = FilterBeforeMsrWrite (Index, &Value);
+  if (Flag) {
+    _asm {
+      mov     edx, dword ptr [Value + 4]
+      mov     eax, dword ptr [Value + 0]
+      mov     ecx, Index
+      wrmsr
+    }
+  }
+
+  FilterAfterMsrWrite (Index, &Value);
+
+  return Value;
+}

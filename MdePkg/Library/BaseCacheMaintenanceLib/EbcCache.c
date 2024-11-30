@@ -50,8 +50,8 @@ InvalidateInstructionCache (
 VOID *
 EFIAPI
 InvalidateInstructionCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
@@ -105,8 +105,8 @@ WriteBackInvalidateDataCache (
 VOID *
 EFIAPI
 WriteBackInvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
@@ -159,8 +159,8 @@ WriteBackDataCache (
 VOID *
 EFIAPI
 WriteBackDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);
@@ -216,8 +216,8 @@ InvalidateDataCache (
 VOID *
 EFIAPI
 InvalidateDataCacheRange (
-  IN      VOID                      *Address,
-  IN      UINTN                     Length
+  IN      VOID   *Address,
+  IN      UINTN  Length
   )
 {
   ASSERT (Length <= MAX_ADDRESS - (UINTN)Address + 1);

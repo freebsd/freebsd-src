@@ -16,7 +16,7 @@
   FILE_GUID                      = eaa4684f-fb4e-41f3-9967-307d5b409182
   MODULE_TYPE                    = MM_STANDALONE
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = MmServicesTableLib|MM_STANDALONE
+  LIBRARY_CLASS                  = MmServicesTableLib|MM_STANDALONE MM_CORE_STANDALONE
   PI_SPECIFICATION_VERSION       = 0x00010032
   CONSTRUCTOR                    = StandaloneMmServicesTableLibConstructor
 

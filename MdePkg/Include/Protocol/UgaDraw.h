@@ -11,7 +11,6 @@
 #ifndef __UGA_DRAW_H__
 #define __UGA_DRAW_H__
 
-
 #define EFI_UGA_DRAW_PROTOCOL_GUID \
   { \
     0x982c298b, 0xf4fa, 0x41cb, {0xb8, 0x38, 0x77, 0xaa, 0x68, 0x8f, 0xb8, 0x39 } \
@@ -67,15 +66,15 @@ EFI_STATUS
   );
 
 typedef struct {
-  UINT8 Blue;
-  UINT8 Green;
-  UINT8 Red;
-  UINT8 Reserved;
+  UINT8    Blue;
+  UINT8    Green;
+  UINT8    Red;
+  UINT8    Reserved;
 } EFI_UGA_PIXEL;
 
 typedef union {
-  EFI_UGA_PIXEL Pixel;
-  UINT32        Raw;
+  EFI_UGA_PIXEL    Pixel;
+  UINT32           Raw;
 } EFI_UGA_PIXEL_UNION;
 
 ///
@@ -127,14 +126,14 @@ typedef enum {
 
     @retval EFI_SUCCESS           - The Blt operation completed.
     @retval EFI_INVALID_PARAMETER - BltOperation is not valid.
-    @retval EFI_DEVICE_ERROR      - A hardware error occured writting to the video buffer.
+    @retval EFI_DEVICE_ERROR      - A hardware error occurred writting to the video buffer.
 
 **/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_UGA_DRAW_PROTOCOL_BLT)(
-  IN  EFI_UGA_DRAW_PROTOCOL                   * This,
-  IN  EFI_UGA_PIXEL                           * BltBuffer, OPTIONAL
+  IN  EFI_UGA_DRAW_PROTOCOL                   *This,
+  IN  EFI_UGA_PIXEL                           *BltBuffer  OPTIONAL,
   IN  EFI_UGA_BLT_OPERATION                   BltOperation,
   IN  UINTN                                   SourceX,
   IN  UINTN                                   SourceY,
@@ -150,11 +149,11 @@ EFI_STATUS
 /// copy pixels to and from the graphics controller's frame buffer.
 ///
 struct _EFI_UGA_DRAW_PROTOCOL {
-  EFI_UGA_DRAW_PROTOCOL_GET_MODE  GetMode;
-  EFI_UGA_DRAW_PROTOCOL_SET_MODE  SetMode;
-  EFI_UGA_DRAW_PROTOCOL_BLT       Blt;
+  EFI_UGA_DRAW_PROTOCOL_GET_MODE    GetMode;
+  EFI_UGA_DRAW_PROTOCOL_SET_MODE    SetMode;
+  EFI_UGA_DRAW_PROTOCOL_BLT         Blt;
 };
 
-extern EFI_GUID gEfiUgaDrawProtocolGuid;
+extern EFI_GUID  gEfiUgaDrawProtocolGuid;
 
 #endif

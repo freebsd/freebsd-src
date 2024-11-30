@@ -43,14 +43,17 @@ ASM_PFX(InternalMemSetMem32):
     rep     stosd
 .0:
     mov     rcx, rdx
-    and     edx, 3
-    shr     rcx, 2
+    and     edx, 15
+    shr     rcx, 4
     jz      @SetDwords
     movd    xmm0, eax
     pshufd  xmm0, xmm0, 0
 .1:
     movntdq [rdi], xmm0
-    add     rdi, 16
+    movntdq [rdi + 16], xmm0
+    movntdq [rdi + 32], xmm0
+    movntdq [rdi + 48], xmm0
+    add     rdi, 64
     loop    .1
     mfence
 @SetDwords:

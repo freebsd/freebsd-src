@@ -23,70 +23,70 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 typedef struct _EFI_NVDIMM_LABEL_PROTOCOL EFI_NVDIMM_LABEL_PROTOCOL;
 
-#define EFI_NVDIMM_LABEL_INDEX_SIG_LEN 16
-#define EFI_NVDIMM_LABEL_INDEX_ALIGN   256
+#define EFI_NVDIMM_LABEL_INDEX_SIG_LEN  16
+#define EFI_NVDIMM_LABEL_INDEX_ALIGN    256
 typedef struct {
   ///
   /// Signature of the Index Block data structure. Must be "NAMESPACE_INDEX\0".
   ///
-  CHAR8  Sig[EFI_NVDIMM_LABEL_INDEX_SIG_LEN];
+  CHAR8     Sig[EFI_NVDIMM_LABEL_INDEX_SIG_LEN];
 
   ///
   /// Attributes of this Label Storage Area.
   ///
-  UINT8  Flags[3];
+  UINT8     Flags[3];
 
   ///
   /// Size of each label in bytes, 128 bytes << LabelSize.
   /// 1 means 256 bytes, 2 means 512 bytes, etc. Shall be 1 or greater.
   ///
-  UINT8  LabelSize;
+  UINT8     LabelSize;
 
   ///
   /// Sequence number used to identify which of the two Index Blocks is current.
   ///
-  UINT32 Seq;
+  UINT32    Seq;
 
   ///
   /// The offset of this Index Block in the Label Storage Area.
   ///
-  UINT64 MyOff;
+  UINT64    MyOff;
 
   ///
   /// The size of this Index Block in bytes.
   /// This field must be a multiple of the EFI_NVDIMM_LABEL_INDEX_ALIGN.
   ///
-  UINT64 MySize;
+  UINT64    MySize;
 
   ///
   /// The offset of the other Index Block paired with this one.
   ///
-  UINT64 OtherOff;
+  UINT64    OtherOff;
 
   ///
   /// The offset of the first slot where labels are stored in this Label Storage Area.
   ///
-  UINT64 LabelOff;
+  UINT64    LabelOff;
 
   ///
   /// The total number of slots for storing labels in this Label Storage Area.
   ///
-  UINT32 NSlot;
+  UINT32    NSlot;
 
   ///
   /// Major version number. Value shall be 1.
   ///
-  UINT16 Major;
+  UINT16    Major;
 
   ///
   /// Minor version number. Value shall be 2.
   ///
-  UINT16 Minor;
+  UINT16    Minor;
 
   ///
   /// 64-bit Fletcher64 checksum of all fields in this Index Block.
   ///
-  UINT64 Checksum;
+  UINT64    Checksum;
 
   ///
   /// Array of unsigned bytes implementing a bitmask that tracks which label slots are free.
@@ -95,156 +95,172 @@ typedef struct {
   /// padded with additional zero bytes to make the Index Block size a multiple of EFI_NVDIMM_LABEL_INDEX_ALIGN.
   /// Any bits allocated beyond NSlot bits must be zero.
   ///
-  UINT8  Free[];
+  UINT8    Free[];
 } EFI_NVDIMM_LABEL_INDEX_BLOCK;
 
-#define EFI_NVDIMM_LABEL_NAME_LEN 64
+#define EFI_NVDIMM_LABEL_NAME_LEN  64
 
 ///
 /// The label is read-only.
 ///
-#define EFI_NVDIMM_LABEL_FLAGS_ROLABEL 0x00000001
+#define EFI_NVDIMM_LABEL_FLAGS_ROLABEL  0x00000001
 
 ///
 /// When set, the complete label set is local to a single NVDIMM Label Storage Area.
 /// When clear, the complete label set is contained on multiple NVDIMM Label Storage Areas.
+/// If NLabel is 1 then setting this flag is optional and it is implied that the
+/// EFI_NVDIMM_LABEL_FLAGS_LOCAL flag is set as the complete label set is local to a single NVDIMM Label Storage Area.
 ///
-#define EFI_NVDIMM_LABEL_FLAGS_LOCAL 0x00000002
+#define EFI_NVDIMM_LABEL_FLAGS_LOCAL  0x00000002
 
 ///
 /// This reserved flag is utilized on older implementations and has been deprecated.
 /// Do not use.
 //
-#define EFI_NVDIMM_LABEL_FLAGS_RESERVED 0x00000004
+#define EFI_NVDIMM_LABEL_FLAGS_RESERVED  0x00000004
 
 ///
 /// When set, the label set is being updated.
 ///
-#define EFI_NVDIMM_LABEL_FLAGS_UPDATING 0x00000008
+#define EFI_NVDIMM_LABEL_FLAGS_UPDATING  0x00000008
+
+///
+/// When set, the SPALocationCookie in the namespace label is valid and should match the
+/// current value in the NFIT SPA Range Structure.
+///
+#define EFI_NVDIMM_LABEL_FLAGS_SPACOOKIE_BOUND  0x00000010
 
 typedef struct {
   ///
   /// Unique Label Identifier UUID per RFC 4122.
   ///
-  EFI_GUID Uuid;
+  EFI_GUID    Uuid;
 
   ///
   /// NULL-terminated string using UTF-8 character formatting.
   ///
-  CHAR8    Name[EFI_NVDIMM_LABEL_NAME_LEN];
+  CHAR8       Name[EFI_NVDIMM_LABEL_NAME_LEN];
 
   ///
   /// Attributes of this namespace.
   ///
-  UINT32   Flags;
+  UINT32      Flags;
 
   ///
   /// Total number of labels describing this namespace.
   ///
-  UINT16   NLabel;
+  UINT16      NLabel;
 
   ///
   /// Position of this label in list of labels for this namespace.
   ///
-  UINT16   Position;
+  UINT16      Position;
 
   ///
   /// The SetCookie is utilized by SW to perform consistency checks on the Interleave Set to verify the current
   /// physical device configuration matches the original physical configuration when the labels were created
   /// for the set.The label is considered invalid if the actual label set cookie doesn't match the cookie stored here.
   ///
-  UINT64   SetCookie;
+  UINT64      SetCookie;
 
   ///
   /// This is the default logical block size in bytes and may be superseded by a block size that is specified
   /// in the AbstractionGuid.
   ///
-  UINT64   LbaSize;
+  UINT64      LbaSize;
 
   ///
   /// The DPA is the DIMM Physical address where the NVM contributing to this namespace begins on this NVDIMM.
   ///
-  UINT64   Dpa;
+  UINT64      Dpa;
 
   ///
   /// The extent of the DPA contributed by this label.
   ///
-  UINT64   RawSize;
+  UINT64      RawSize;
 
   ///
   /// Current slot in the Label Storage Area where this label is stored.
   ///
-  UINT32   Slot;
+  UINT32      Slot;
 
   ///
   /// Alignment hint used to advertise the preferred alignment of the data from within the namespace defined by this label.
   ///
-  UINT8    Alignment;
+  UINT8       Alignment;
 
   ///
   /// Shall be 0.
   ///
-  UINT8    Reserved[3];
+  UINT8       Reserved[3];
 
   ///
   /// Range Type GUID that describes the access mechanism for the specified DPA range.
   ///
-  EFI_GUID TypeGuid;
+  EFI_GUID    TypeGuid;
 
   ///
   /// Identifies the address abstraction mechanism for this namespace. A value of 0 indicates no mechanism used.
   ///
-  EFI_GUID AddressAbstractionGuid;
+  EFI_GUID    AddressAbstractionGuid;
+
+  ///
+  /// When creating the label, this value is set to the value from the NFIT SPA Range Structure if the
+  /// SPALocationCookie flag (bit 2) is set. If EFI_NVDIMM_LABEL_FLAGS_SPACOOKIE_BOUND is set, the SPALocationCookie
+  /// value stored in the namespace label should match the current value in the NFIT SPA Range Structure.
+  /// Otherwise, the data may not be read correctly.
+  ///
+  UINT64      SPALocationCookie;
 
   ///
   /// Shall be 0.
   ///
-  UINT8    Reserved1[88];
+  UINT8       Reserved1[80];
 
   ///
   /// 64-bit Fletcher64 checksum of all fields in this Label.
   /// This field is considered zero when the checksum is computed.
   ///
-  UINT64   Checksum;
+  UINT64      Checksum;
 } EFI_NVDIMM_LABEL;
 
 typedef struct  {
   ///
   /// The Region Offset field from the ACPI NFIT NVDIMM Region Mapping Structure for a given entry.
   ///
-  UINT64 RegionOffset;
+  UINT64    RegionOffset;
 
   ///
   /// The serial number of the NVDIMM, assigned by the module vendor.
   ///
-  UINT32 SerialNumber;
+  UINT32    SerialNumber;
 
   ///
   /// The identifier indicating the vendor of the NVDIMM.
   ///
-  UINT16 VendorId;
+  UINT16    VendorId;
 
   ///
   /// The manufacturing date of the NVDIMM, assigned by the module vendor.
   ///
-  UINT16 ManufacturingDate;
+  UINT16    ManufacturingDate;
 
   ///
   /// The manufacturing location from for the NVDIMM, assigned by the module vendor.
   ///
-  UINT8  ManufacturingLocation;
+  UINT8     ManufacturingLocation;
 
   ///
   /// Shall be 0.
   ///
-  UINT8  Reserved[31];
+  UINT8     Reserved[31];
 } EFI_NVDIMM_LABEL_SET_COOKIE_MAP;
 
 typedef struct {
   ///
   /// Array size is 1 if EFI_NVDIMM_LABEL_FLAGS_LOCAL is set indicating a Local Namespaces.
   ///
-  EFI_NVDIMM_LABEL_SET_COOKIE_MAP Mapping[0];
+  EFI_NVDIMM_LABEL_SET_COOKIE_MAP    Mapping[0];
 } EFI_NVDIMM_LABEL_SET_COOKIE_INFO;
 
 /**
@@ -262,7 +278,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_INFORMATION) (
+(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_INFORMATION)(
   IN  EFI_NVDIMM_LABEL_PROTOCOL *This,
   OUT UINT32                    *SizeOfLabelStorageArea,
   OUT UINT32                    *MaxTransferLength
@@ -293,7 +309,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_READ) (
+(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_READ)(
   IN CONST EFI_NVDIMM_LABEL_PROTOCOL *This,
   IN UINT32                          Offset,
   IN UINT32                          TransferLength,
@@ -324,7 +340,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_WRITE) (
+(EFIAPI *EFI_NVDIMM_LABEL_STORAGE_WRITE)(
   IN CONST EFI_NVDIMM_LABEL_PROTOCOL *This,
   IN UINT32                          Offset,
   IN UINT32                          TransferLength,
@@ -335,11 +351,11 @@ EFI_STATUS
 /// Provides services that allow management of labels contained in a Label Storage Area.
 ///
 struct _EFI_NVDIMM_LABEL_PROTOCOL {
-  EFI_NVDIMM_LABEL_STORAGE_INFORMATION LabelStorageInformation;
-  EFI_NVDIMM_LABEL_STORAGE_READ        LabelStorageRead;
-  EFI_NVDIMM_LABEL_STORAGE_WRITE       LabelStorageWrite;
+  EFI_NVDIMM_LABEL_STORAGE_INFORMATION    LabelStorageInformation;
+  EFI_NVDIMM_LABEL_STORAGE_READ           LabelStorageRead;
+  EFI_NVDIMM_LABEL_STORAGE_WRITE          LabelStorageWrite;
 };
 
-extern EFI_GUID gEfiNvdimmLabelProtocolGuid;
+extern EFI_GUID  gEfiNvdimmLabelProtocolGuid;
 
 #endif

@@ -22,12 +22,12 @@
 #define HSTI_AIP_PRIVATE_SIGNATURE  SIGNATURE_32('H', 'S', 'T', 'I')
 
 typedef struct {
-  UINT32                            Signature;
-  LIST_ENTRY                        Link;
-  EFI_ADAPTER_INFORMATION_PROTOCOL  Aip;
-  VOID                              *Hsti;
-  UINTN                             HstiSize;
-  UINTN                             HstiMaxSize;
+  UINT32                              Signature;
+  LIST_ENTRY                          Link;
+  EFI_ADAPTER_INFORMATION_PROTOCOL    Aip;
+  VOID                                *Hsti;
+  UINTN                               HstiSize;
+  UINTN                               HstiMaxSize;
 } HSTI_AIP_PRIVATE_DATA;
 
 #define HSTI_AIP_PRIVATE_DATA_FROM_THIS(a) \
@@ -39,7 +39,7 @@ typedef struct {
 
 #define HSTI_DEFAULT_ERROR_STRING_LEN  255
 
-extern EFI_ADAPTER_INFORMATION_PROTOCOL mAdapterInformationProtocol;
+extern EFI_ADAPTER_INFORMATION_PROTOCOL  mAdapterInformationProtocol;
 
 /**
   Return if input HSTI data follows HSTI specification.
@@ -52,8 +52,8 @@ extern EFI_ADAPTER_INFORMATION_PROTOCOL mAdapterInformationProtocol;
 **/
 BOOLEAN
 InternalHstiIsValidTable (
-  IN VOID                     *HstiData,
-  IN UINTN                    HstiSize
+  IN VOID   *HstiData,
+  IN UINTN  HstiSize
   );
 
 #endif

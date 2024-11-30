@@ -57,5 +57,5 @@ ScanMem16 (
   ASSERT ((Length - 1) <= (MAX_ADDRESS - (UINTN)Buffer));
   ASSERT ((Length & (sizeof (Value) - 1)) == 0);
 
-  return (VOID*)InternalMemScanMem16 (Buffer, Length / sizeof (Value), Value);
+  return (VOID *)InternalMemScanMem16 (Buffer, Length / sizeof (Value), Value);
 }

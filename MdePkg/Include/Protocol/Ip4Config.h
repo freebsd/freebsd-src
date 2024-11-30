@@ -9,6 +9,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   This Protocol is introduced in UEFI Specification 2.0.
 
 **/
+
 #ifndef __EFI_IP4CONFIG_PROTOCOL_H__
 #define __EFI_IP4CONFIG_PROTOCOL_H__
 
@@ -36,22 +37,21 @@ typedef struct {
   ///
   /// Default station IP address, stored in network byte order.
   ///
-  EFI_IPv4_ADDRESS             StationAddress;
+  EFI_IPv4_ADDRESS       StationAddress;
   ///
   /// Default subnet mask, stored in network byte order.
   ///
-  EFI_IPv4_ADDRESS             SubnetMask;
+  EFI_IPv4_ADDRESS       SubnetMask;
   ///
   /// Number of entries in the following RouteTable. May be zero.
   ///
-  UINT32                       RouteTableSize;
+  UINT32                 RouteTableSize;
   ///
   /// Default routing table data (stored in network byte order).
   /// Ignored if RouteTableSize is zero.
   ///
-  EFI_IP4_ROUTE_TABLE          *RouteTable;
+  EFI_IP4_ROUTE_TABLE    *RouteTable;
 } EFI_IP4_IPCONFIG_DATA;
-
 
 /**
   Starts running the configuration policy for the EFI IPv4 Protocol driver.
@@ -166,11 +166,11 @@ EFI_STATUS
 /// configurations for the EFI IPv4 Protocol driver.
 ///
 struct _EFI_IP4_CONFIG_PROTOCOL {
-  EFI_IP4_CONFIG_START         Start;
-  EFI_IP4_CONFIG_STOP          Stop;
-  EFI_IP4_CONFIG_GET_DATA      GetData;
+  EFI_IP4_CONFIG_START       Start;
+  EFI_IP4_CONFIG_STOP        Stop;
+  EFI_IP4_CONFIG_GET_DATA    GetData;
 };
 
-extern EFI_GUID gEfiIp4ConfigProtocolGuid;
+extern EFI_GUID  gEfiIp4ConfigProtocolGuid;
 
 #endif

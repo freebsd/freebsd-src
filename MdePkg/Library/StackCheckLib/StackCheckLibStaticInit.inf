@@ -1,0 +1,58 @@
+## @file
+#  Provides the required functionality for checking the stack cookie.
+#
+#  Copyright (c) Microsoft Corporation.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 1.29
+  BASE_NAME                      = StackCheckLibStaticInit
+  FILE_GUID                      = 2b24dc50-e33d-4c9f-8b62-e826f06e483f
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = NULL
+
+[Sources]
+  StackCheckLibCommonMsvc.c | MSFT
+  StackCheckLibCommonGcc.c  | GCC
+
+[Sources.IA32]
+  IA32/CheckCookieMsvc.nasm | MSFT
+
+[Sources.X64]
+  X64/CheckCookieMsvc.nasm | MSFT
+
+[Sources.IA32, Sources.X64]
+  IA32/StackCookieInterrupt.nasm
+
+[Sources.ARM]
+  Arm/StackCookieInterrupt.S   |GCC
+  Arm/StackCookieInterrupt.asm |MSFT
+
+[Sources.AARCH64]
+  AArch64/StackCookieInterrupt.S   |GCC
+  AArch64/StackCookieInterrupt.asm |MSFT
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  StackCheckFailureHookLib
+  BaseLib
+  DebugLib
+
+[FixedPcd]
+  gEfiMdePkgTokenSpaceGuid.PcdStackCookieExceptionVector
+
+[BuildOptions]
+  # We cannot build the MSVC version with /GL (whole program optimization) because we run into linker error
+  # LNK1237, which is a failure to link against a symbol from a library compiled with /GL. The whole program
+  # optimization tries to do away with references to this symbol. The solution is to not compile the stack
+  # check libs with /GL
+  MSFT:*_*_*_CC_FLAGS = /GL-
+
+  # We cannot build the GCC version with LTO (link time optimization) because we run into linker errors where
+  # the stack cookie variable has been optimized away, as it looks to GCC like the variable is not used, because
+  # the compiler inserts the usage.
+  GCC:*_*_*_CC_FLAGS = -fno-lto

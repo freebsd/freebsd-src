@@ -27,12 +27,11 @@ typedef struct _EFI_KMS_PROTOCOL EFI_KMS_PROTOCOL;
 // Where appropriate, EFI_KMS_DATA_TYPE values may be combined using a bitwise 'OR'
 // operation to indicate support for multiple data types.
 //
-#define EFI_KMS_DATA_TYPE_NONE      0
-#define EFI_KMS_DATA_TYPE_BINARY    1
-#define EFI_KMS_DATA_TYPE_ASCII     2
-#define EFI_KMS_DATA_TYPE_UNICODE   4
-#define EFI_KMS_DATA_TYPE_UTF8      8
-
+#define EFI_KMS_DATA_TYPE_NONE     0
+#define EFI_KMS_DATA_TYPE_BINARY   1
+#define EFI_KMS_DATA_TYPE_ASCII    2
+#define EFI_KMS_DATA_TYPE_UNICODE  4
+#define EFI_KMS_DATA_TYPE_UTF8     8
 
 //
 // The key formats recognized by the KMS protocol are defined by an EFI_GUID which specifies
@@ -160,76 +159,76 @@ typedef struct _EFI_KMS_PROTOCOL EFI_KMS_PROTOCOL;
   }
 ///@}
 
-#define EFI_KMS_ATTRIBUTE_TYPE_NONE             0x00
-#define EFI_KMS_ATTRIBUTE_TYPE_INTEGER          0x01
-#define EFI_KMS_ATTRIBUTE_TYPE_LONG_INTEGER     0x02
-#define EFI_KMS_ATTRIBUTE_TYPE_BIG_INTEGER      0x03
-#define EFI_KMS_ATTRIBUTE_TYPE_ENUMERATION      0x04
-#define EFI_KMS_ATTRIBUTE_TYPE_BOOLEAN          0x05
-#define EFI_KMS_ATTRIBUTE_TYPE_BYTE_STRING      0x06
-#define EFI_KMS_ATTRIBUTE_TYPE_TEXT_STRING      0x07
-#define EFI_KMS_ATTRIBUTE_TYPE_DATE_TIME        0x08
-#define EFI_KMS_ATTRIBUTE_TYPE_INTERVAL         0x09
-#define EFI_KMS_ATTRIBUTE_TYPE_STRUCTURE        0x0A
-#define EFI_KMS_ATTRIBUTE_TYPE_DYNAMIC          0x0B
+#define EFI_KMS_ATTRIBUTE_TYPE_NONE          0x00
+#define EFI_KMS_ATTRIBUTE_TYPE_INTEGER       0x01
+#define EFI_KMS_ATTRIBUTE_TYPE_LONG_INTEGER  0x02
+#define EFI_KMS_ATTRIBUTE_TYPE_BIG_INTEGER   0x03
+#define EFI_KMS_ATTRIBUTE_TYPE_ENUMERATION   0x04
+#define EFI_KMS_ATTRIBUTE_TYPE_BOOLEAN       0x05
+#define EFI_KMS_ATTRIBUTE_TYPE_BYTE_STRING   0x06
+#define EFI_KMS_ATTRIBUTE_TYPE_TEXT_STRING   0x07
+#define EFI_KMS_ATTRIBUTE_TYPE_DATE_TIME     0x08
+#define EFI_KMS_ATTRIBUTE_TYPE_INTERVAL      0x09
+#define EFI_KMS_ATTRIBUTE_TYPE_STRUCTURE     0x0A
+#define EFI_KMS_ATTRIBUTE_TYPE_DYNAMIC       0x0B
 
 typedef struct {
   ///
   /// Length in bytes of the KeyData.
   ///
-  UINT32        KeySize;
+  UINT32    KeySize;
   ///
   /// The data of the key.
   ///
-  UINT8         KeyData[1];
+  UINT8     KeyData[1];
 } EFI_KMS_FORMAT_GENERIC_DYNAMIC;
 
 typedef struct {
   ///
   /// The size in bytes for the client identifier.
   ///
-  UINT16        ClientIdSize;
+  UINT16    ClientIdSize;
   ///
   /// Pointer to a valid client identifier.
   ///
-  VOID          *ClientId;
+  VOID      *ClientId;
   ///
   /// The client name string type used by this client. The string type set here must be one of
   /// the string types reported in the ClientNameStringTypes field of the KMS protocol. If the
   /// KMS does not support client names, this field should be set to EFI_KMS_DATA_TYPE_NONE.
   ///
-  UINT8         ClientNameType;
+  UINT8     ClientNameType;
   ///
   /// The size in characters for the client name. This field will be ignored if
   /// ClientNameStringType is set to EFI_KMS_DATA_TYPE_NONE. Otherwise, it must contain
   /// number of characters contained in the ClientName field.
   ///
-  UINT8         ClientNameCount;
+  UINT8     ClientNameCount;
   ///
   /// Pointer to a client name. This field will be ignored if ClientNameStringType is set to
   /// EFI_KMS_DATA_TYPE_NONE. Otherwise, it must point to a valid string of the specified type.
   ///
-  VOID          *ClientName;
+  VOID      *ClientName;
 } EFI_KMS_CLIENT_INFO;
 
 typedef struct {
   ///
   /// The size of the KeyIdentifier field in bytes. This field is limited to the range 0 to 255.
   ///
-  UINT8         KeyIdentifierSize;
+  UINT8       KeyIdentifierSize;
   ///
   /// Pointer to an array of KeyIdentifierType elements.
   ///
-  VOID          *KeyIdentifier;
+  VOID        *KeyIdentifier;
   ///
   /// An EFI_GUID which specifies the algorithm and key value size for this key.
   ///
-  EFI_GUID      KeyFormat;
+  EFI_GUID    KeyFormat;
   ///
   /// Pointer to a key value for a key specified by the KeyFormat field. A NULL value for this
   /// field indicates that no key is available.
   ///
-  VOID          *KeyValue;
+  VOID        *KeyValue;
   ///
   /// Specifies the results of KMS operations performed with this descriptor. This field is used
   /// to indicate the status of individual operations when a KMS function is called with multiple
@@ -255,31 +254,31 @@ typedef struct {
   /// Part of a tag-type-length triplet that identifies the KeyAttributeData formatting. The
   /// definition of the value is outside the scope of this standard and may be defined by the KMS.
   ///
-  UINT16        Tag;
+  UINT16    Tag;
   ///
   /// Part of a tag-type-length triplet that identifies the KeyAttributeData formatting. The
   /// definition of the value is outside the scope of this standard and may be defined by the KMS.
   ///
-  UINT16        Type;
+  UINT16    Type;
   ///
   /// Length in bytes of the KeyAttributeData.
   ///
-  UINT32        Length;
+  UINT32    Length;
   ///
   /// An array of bytes to hold the attribute data associated with the KeyAttributeIdentifier.
   ///
-  UINT8         KeyAttributeData[1];
+  UINT8     KeyAttributeData[1];
 } EFI_KMS_DYNAMIC_FIELD;
 
 typedef struct {
   ///
   /// The number of members in the EFI_KMS_DYNAMIC_ATTRIBUTE structure.
   ///
-  UINT32                    FieldCount;
+  UINT32                   FieldCount;
   ///
   /// An array of EFI_KMS_DYNAMIC_FIELD structures.
   ///
-  EFI_KMS_DYNAMIC_FIELD     Field[1];
+  EFI_KMS_DYNAMIC_FIELD    Field[1];
 } EFI_KMS_DYNAMIC_ATTRIBUTE;
 
 typedef struct {
@@ -288,17 +287,17 @@ typedef struct {
   /// by the EFI_KMS_DATA_TYPE constants, except that EFI_KMS_DATA_TYPE_BINARY is not
   /// valid for this field.
   ///
-  UINT8         KeyAttributeIdentifierType;
+  UINT8    KeyAttributeIdentifierType;
   ///
   /// The length of the KeyAttributeIdentifier field in units defined by KeyAttributeIdentifierType
   /// field. This field is limited to the range 0 to 255.
   ///
-  UINT8         KeyAttributeIdentifierCount;
+  UINT8    KeyAttributeIdentifierCount;
   ///
   /// Pointer to an array of KeyAttributeIdentifierType elements. For string types, there must
   /// not be a null-termination element at the end of the array.
   ///
-  VOID          *KeyAttributeIdentifier;
+  VOID     *KeyAttributeIdentifier;
   ///
   /// The instance number of this attribute. If there is only one instance, the value is set to
   /// one. If this value is set to 0xFFFF (all binary 1's) then this field should be ignored if an
@@ -307,22 +306,22 @@ typedef struct {
   /// field in the request. If set to 0xFFFF in the request, it will match any attribute with the
   /// same KeyAttributeIdentifier.
   ///
-  UINT16        KeyAttributeInstance;
+  UINT16    KeyAttributeInstance;
   ///
   /// The data type of the KeyAttributeValue (e.g. struct, bool, etc.). See the list of
   /// KeyAttributeType definitions.
   ///
-  UINT16        KeyAttributeType;
+  UINT16    KeyAttributeType;
   ///
   /// The size in bytes of the KeyAttribute field. A value of zero for this field indicates that no
   /// key attribute value is available.
   ///
-  UINT16        KeyAttributeValueSize;
+  UINT16    KeyAttributeValueSize;
   ///
   /// Pointer to a key attribute value for the attribute specified by the KeyAttributeIdentifier
   /// field. If the KeyAttributeValueSize field is zero, then this field must be NULL.
   ///
-  VOID          *KeyAttributeValue;
+  VOID      *KeyAttributeValue;
   ///
   /// KeyAttributeStatusSpecifies the results of KMS operations performed with this attribute.
   /// This field is used to indicate the status of individual operations when a KMS function is
@@ -358,7 +357,7 @@ typedef struct {
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_GET_SERVICE_STATUS) (
+(EFIAPI *EFI_KMS_GET_SERVICE_STATUS)(
   IN EFI_KMS_PROTOCOL           *This
   );
 
@@ -407,7 +406,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_REGISTER_CLIENT) (
+(EFIAPI *EFI_KMS_REGISTER_CLIENT)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINTN                  *ClientDataSize OPTIONAL,
@@ -501,7 +500,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_CREATE_KEY) (
+(EFIAPI *EFI_KMS_CREATE_KEY)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINT16                 *KeyDescriptorCount,
@@ -589,7 +588,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_GET_KEY) (
+(EFIAPI *EFI_KMS_GET_KEY)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINT16                 *KeyDescriptorCount,
@@ -675,7 +674,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_ADD_KEY) (
+(EFIAPI *EFI_KMS_ADD_KEY)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINT16                 *KeyDescriptorCount,
@@ -754,7 +753,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_DELETE_KEY) (
+(EFIAPI *EFI_KMS_DELETE_KEY)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINT16                 *KeyDescriptorCount,
@@ -841,7 +840,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_GET_KEY_ATTRIBUTES) (
+(EFIAPI *EFI_KMS_GET_KEY_ATTRIBUTES)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN UINT8                      *KeyIdentifierSize,
@@ -931,7 +930,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_ADD_KEY_ATTRIBUTES) (
+(EFIAPI *EFI_KMS_ADD_KEY_ATTRIBUTES)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN UINT8                      *KeyIdentifierSize,
@@ -1014,7 +1013,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_DELETE_KEY_ATTRIBUTES) (
+(EFIAPI *EFI_KMS_DELETE_KEY_ATTRIBUTES)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN UINT8                      *KeyIdentifierSize,
@@ -1117,7 +1116,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_KMS_GET_KEY_BY_ATTRIBUTES) (
+(EFIAPI *EFI_KMS_GET_KEY_BY_ATTRIBUTES)(
   IN EFI_KMS_PROTOCOL           *This,
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINTN                  *KeyAttributeCount,
@@ -1138,64 +1137,64 @@ struct _EFI_KMS_PROTOCOL {
   /// connected to the KMS, then a call to this function will initiate a connection. This is the
   /// only function that is valid for use prior to the service being marked available.
   ///
-  EFI_KMS_GET_SERVICE_STATUS        GetServiceStatus;
+  EFI_KMS_GET_SERVICE_STATUS       GetServiceStatus;
   ///
   /// Register a specific client with the KMS.
   ///
-  EFI_KMS_REGISTER_CLIENT           RegisterClient;
+  EFI_KMS_REGISTER_CLIENT          RegisterClient;
   ///
   /// Request the generation of a new key and retrieve it.
   ///
-  EFI_KMS_CREATE_KEY                CreateKey;
+  EFI_KMS_CREATE_KEY               CreateKey;
   ///
   /// Retrieve an existing key.
   ///
-  EFI_KMS_GET_KEY                   GetKey;
+  EFI_KMS_GET_KEY                  GetKey;
   ///
   /// Add a local key to KMS database. If there is an existing key with this key identifier in the
   /// KMS database, it will be replaced with the new key.
   ///
-  EFI_KMS_ADD_KEY                   AddKey;
+  EFI_KMS_ADD_KEY                  AddKey;
   ///
   /// Delete an existing key from the KMS database.
   ///
-  EFI_KMS_DELETE_KEY                DeleteKey;
+  EFI_KMS_DELETE_KEY               DeleteKey;
   ///
   /// Get attributes for an existing key in the KMS database.
   ///
-  EFI_KMS_GET_KEY_ATTRIBUTES        GetKeyAttributes;
+  EFI_KMS_GET_KEY_ATTRIBUTES       GetKeyAttributes;
   ///
   /// Add attributes to an existing key in the KMS database.
   ///
-  EFI_KMS_ADD_KEY_ATTRIBUTES        AddKeyAttributes;
+  EFI_KMS_ADD_KEY_ATTRIBUTES       AddKeyAttributes;
   ///
   /// Delete attributes for an existing key in the KMS database.
   ///
-  EFI_KMS_DELETE_KEY_ATTRIBUTES     DeleteKeyAttributes;
+  EFI_KMS_DELETE_KEY_ATTRIBUTES    DeleteKeyAttributes;
   ///
   /// Get existing key(s) with the specified attributes.
   ///
-  EFI_KMS_GET_KEY_BY_ATTRIBUTES     GetKeyByAttributes;
+  EFI_KMS_GET_KEY_BY_ATTRIBUTES    GetKeyByAttributes;
   ///
   /// The version of this EFI_KMS_PROTOCOL structure. This must be set to 0x00020040 for
   /// the initial version of this protocol.
   ///
-  UINT32                            ProtocolVersion;
+  UINT32                           ProtocolVersion;
   ///
   /// Optional GUID used to identify a specific KMS. This GUID may be supplied by the provider,
   /// by the implementation, or may be null. If is null, then the ServiceName must not be null.
   ///
-  EFI_GUID                          ServiceId;
+  EFI_GUID                         ServiceId;
   ///
   /// Optional pointer to a unicode string which may be used to identify the KMS or provide
   /// other information about the supplier.
   ///
-  CHAR16                            *ServiceName;
+  CHAR16                           *ServiceName;
   ///
   /// Optional 32-bit value which may be used to indicate the version of the KMS provided by
   /// the supplier.
   ///
-  UINT32                            ServiceVersion;
+  UINT32                           ServiceVersion;
   ///
   /// TRUE if and only if the service is active and available for use. To avoid unnecessary
   /// delays in POST, this protocol may be installed without connecting to the service. In this
@@ -1204,64 +1203,64 @@ struct _EFI_KMS_PROTOCOL {
   /// as defined in the reminder of this protocol are not guaranteed to be valid until the service
   /// has been marked available.
   ///
-  BOOLEAN                           ServiceAvailable;
+  BOOLEAN    ServiceAvailable;
   ///
   /// TRUE if and only if the service supports client identifiers. Client identifiers may be used
   /// for auditing, access control or any other purpose specific to the implementation.
   ///
-  BOOLEAN                           ClientIdSupported;
+  BOOLEAN    ClientIdSupported;
   ///
   /// TRUE if and only if the service requires a client identifier in order to process key requests.
   /// FALSE otherwise.
   ///
-  BOOLEAN                           ClientIdRequired;
+  BOOLEAN    ClientIdRequired;
   ///
   /// The maximum size in bytes for the client identifier.
   ///
-  UINT16                            ClientIdMaxSize;
+  UINT16     ClientIdMaxSize;
   ///
   /// The client name string type(s) supported by the KMS service. If client names are not
   /// supported, this field will be set the EFI_KMS_DATA_TYPE_NONE. Otherwise, it will be set
   /// to the inclusive 'OR' of all client name formats supported. Client names may be used for
   /// auditing, access control or any other purpose specific to the implementation.
   ///
-  UINT8                             ClientNameStringTypes;
+  UINT8      ClientNameStringTypes;
   ///
   /// TRUE if only if the KMS requires a client name to be supplied to the service.
   /// FALSE otherwise.
   ///
-  BOOLEAN                           ClientNameRequired;
+  BOOLEAN    ClientNameRequired;
   ///
   /// The maximum number of characters allowed for the client name.
   ///
-  UINT16                            ClientNameMaxCount;
+  UINT16     ClientNameMaxCount;
   ///
   /// TRUE if and only if the service supports arbitrary client data requests. The use of client
   /// data requires the caller to have specific knowledge of the individual KMS service and
   /// should be used only if absolutely necessary.
   /// FALSE otherwise.
   ///
-  BOOLEAN                           ClientDataSupported;
+  BOOLEAN    ClientDataSupported;
   ///
   /// The maximum size in bytes for the client data. If the maximum data size is not specified
   /// by the KMS or it is not known, then this field must be filled with all ones.
   ///
-  UINTN                             ClientDataMaxSize;
+  UINTN      ClientDataMaxSize;
   ///
   /// TRUE if variable length key identifiers are supported.
   /// FALSE if a fixed length key identifier is supported.
   ///
-  BOOLEAN                           KeyIdVariableLenSupported;
+  BOOLEAN    KeyIdVariableLenSupported;
   ///
   /// If KeyIdVariableLenSupported is TRUE, this is the maximum supported key identifier length
   /// in bytes. Otherwise this is the fixed length of key identifier supported. Key ids shorter
   /// than the fixed length will be padded on the right with blanks.
   ///
-  UINTN                             KeyIdMaxSize;
+  UINTN      KeyIdMaxSize;
   ///
   /// The number of key format/size GUIDs returned in the KeyFormats field.
   ///
-  UINTN                             KeyFormatsCount;
+  UINTN      KeyFormatsCount;
   ///
   /// A pointer to an array of EFI_GUID values which specify key formats/sizes supported by
   /// this KMS. Each format/size pair will be specified by a separate EFI_GUID. At least one
@@ -1273,26 +1272,26 @@ struct _EFI_KMS_PROTOCOL {
   /// using an arbitrary GUID, but any GUID not recognized by the implementation or not
   /// supported by the KMS will return an error code of EFI_UNSUPPORTED
   ///
-  EFI_GUID                          *KeyFormats;
+  EFI_GUID    *KeyFormats;
   ///
   /// TRUE if key attributes are supported.
   /// FALSE if key attributes are not supported.
   ///
-  BOOLEAN                           KeyAttributesSupported;
+  BOOLEAN     KeyAttributesSupported;
   ///
   /// The key attribute identifier string type(s) supported by the KMS service. If key attributes
   /// are not supported, this field will be set to EFI_KMS_DATA_TYPE_NONE. Otherwise, it will
   /// be set to the inclusive 'OR' of all key attribute identifier string types supported.
   /// EFI_KMS_DATA_TYPE_BINARY is not valid for this field.
   ///
-  UINT8                             KeyAttributeIdStringTypes;
-  UINT16                            KeyAttributeIdMaxCount;
+  UINT8       KeyAttributeIdStringTypes;
+  UINT16      KeyAttributeIdMaxCount;
   ///
   /// The number of predefined KeyAttributes structures returned in the KeyAttributes
   /// parameter. If the KMS does not support predefined key attributes, or if it does not
   /// provide a method to obtain predefined key attributes data, then this field must be zero.
   ///
-  UINTN                             KeyAttributesCount;
+  UINTN       KeyAttributesCount;
   ///
   /// A pointer to an array of KeyAttributes structures which contains the predefined
   /// attributes supported by this KMS. Each structure must contain a valid key attribute
@@ -1305,33 +1304,33 @@ struct _EFI_KMS_PROTOCOL {
   /// does not distinguish between predefined and used defined attributes, and therefore,
   /// predefined attributes not enumerated will still be processed to the KMS.
   ///
-  EFI_KMS_KEY_ATTRIBUTE             *KeyAttributes;
+  EFI_KMS_KEY_ATTRIBUTE    *KeyAttributes;
 };
 
-extern EFI_GUID gEfiKmsFormatGeneric128Guid;
-extern EFI_GUID gEfiKmsFormatGeneric160Guid;
-extern EFI_GUID gEfiKmsFormatGeneric256Guid;
-extern EFI_GUID gEfiKmsFormatGeneric512Guid;
-extern EFI_GUID gEfiKmsFormatGeneric1024Guid;
-extern EFI_GUID gEfiKmsFormatGeneric2048Guid;
-extern EFI_GUID gEfiKmsFormatGeneric3072Guid;
-extern EFI_GUID gEfiKmsFormatMd2128Guid;
-extern EFI_GUID gEfiKmsFormatMdc2128Guid;
-extern EFI_GUID gEfiKmsFormatMd4128Guid;
-extern EFI_GUID gEfiKmsFormatMdc4128Guid;
-extern EFI_GUID gEfiKmsFormatMd5128Guid;
-extern EFI_GUID gEfiKmsFormatMd5sha128Guid;
-extern EFI_GUID gEfiKmsFormatSha1160Guid;
-extern EFI_GUID gEfiKmsFormatSha256256Guid;
-extern EFI_GUID gEfiKmsFormatSha512512Guid;
-extern EFI_GUID gEfiKmsFormatAesxts128Guid;
-extern EFI_GUID gEfiKmsFormatAesxts256Guid;
-extern EFI_GUID gEfiKmsFormatAescbc128Guid;
-extern EFI_GUID gEfiKmsFormatAescbc256Guid;
-extern EFI_GUID gEfiKmsFormatRsasha11024Guid;
-extern EFI_GUID gEfiKmsFormatRsasha12048Guid;
-extern EFI_GUID gEfiKmsFormatRsasha2562048Guid;
-extern EFI_GUID gEfiKmsFormatRsasha2563072Guid;
-extern EFI_GUID gEfiKmsProtocolGuid;
+extern EFI_GUID  gEfiKmsFormatGeneric128Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric160Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric256Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric512Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric1024Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric2048Guid;
+extern EFI_GUID  gEfiKmsFormatGeneric3072Guid;
+extern EFI_GUID  gEfiKmsFormatMd2128Guid;
+extern EFI_GUID  gEfiKmsFormatMdc2128Guid;
+extern EFI_GUID  gEfiKmsFormatMd4128Guid;
+extern EFI_GUID  gEfiKmsFormatMdc4128Guid;
+extern EFI_GUID  gEfiKmsFormatMd5128Guid;
+extern EFI_GUID  gEfiKmsFormatMd5sha128Guid;
+extern EFI_GUID  gEfiKmsFormatSha1160Guid;
+extern EFI_GUID  gEfiKmsFormatSha256256Guid;
+extern EFI_GUID  gEfiKmsFormatSha512512Guid;
+extern EFI_GUID  gEfiKmsFormatAesxts128Guid;
+extern EFI_GUID  gEfiKmsFormatAesxts256Guid;
+extern EFI_GUID  gEfiKmsFormatAescbc128Guid;
+extern EFI_GUID  gEfiKmsFormatAescbc256Guid;
+extern EFI_GUID  gEfiKmsFormatRsasha11024Guid;
+extern EFI_GUID  gEfiKmsFormatRsasha12048Guid;
+extern EFI_GUID  gEfiKmsFormatRsasha2562048Guid;
+extern EFI_GUID  gEfiKmsFormatRsasha2563072Guid;
+extern EFI_GUID  gEfiKmsProtocolGuid;
 
 #endif

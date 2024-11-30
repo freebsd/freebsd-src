@@ -21,7 +21,7 @@
 //
 // Forward reference for pure ANSI compatability
 //
-typedef struct _EFI_UFS_DEVICE_CONFIG_PROTOCOL  EFI_UFS_DEVICE_CONFIG_PROTOCOL;
+typedef struct _EFI_UFS_DEVICE_CONFIG_PROTOCOL EFI_UFS_DEVICE_CONFIG_PROTOCOL;
 
 /**
   Read or write specified device descriptor of a UFS device.
@@ -48,7 +48,7 @@ typedef struct _EFI_UFS_DEVICE_CONFIG_PROTOCOL  EFI_UFS_DEVICE_CONFIG_PROTOCOL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_DESCRIPTOR) (
+(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_DESCRIPTOR)(
   IN EFI_UFS_DEVICE_CONFIG_PROTOCOL    *This,
   IN BOOLEAN                           Read,
   IN UINT8                             DescId,
@@ -78,7 +78,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_FLAG) (
+(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_FLAG)(
   IN EFI_UFS_DEVICE_CONFIG_PROTOCOL    *This,
   IN BOOLEAN                           Read,
   IN UINT8                             FlagId,
@@ -110,7 +110,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_ATTRIBUTE) (
+(EFIAPI *EFI_UFS_DEVICE_CONFIG_RW_ATTRIBUTE)(
   IN EFI_UFS_DEVICE_CONFIG_PROTOCOL    *This,
   IN BOOLEAN                           Read,
   IN UINT8                             AttrId,
@@ -132,6 +132,6 @@ struct _EFI_UFS_DEVICE_CONFIG_PROTOCOL {
 ///
 /// UFS Device Config Protocol GUID variable.
 ///
-extern EFI_GUID gEfiUfsDeviceConfigProtocolGuid;
+extern EFI_GUID  gEfiUfsDeviceConfigProtocolGuid;
 
 #endif

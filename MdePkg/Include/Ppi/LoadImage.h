@@ -16,8 +16,7 @@
 #define EFI_PEI_LOADED_IMAGE_PPI_GUID \
   { 0xc1fcd448, 0x6300, 0x4458, { 0xb8, 0x64, 0x28, 0xdf, 0x1, 0x53, 0x64, 0xbc } }
 
-
-typedef struct _EFI_PEI_LOADED_IMAGE_PPI  EFI_PEI_LOADED_IMAGE_PPI;
+typedef struct _EFI_PEI_LOADED_IMAGE_PPI EFI_PEI_LOADED_IMAGE_PPI;
 
 ///
 /// This interface is installed by the PEI Dispatcher after the image has been
@@ -28,19 +27,18 @@ struct _EFI_PEI_LOADED_IMAGE_PPI {
   ///
   /// Address of the image at the address where it will be executed.
   ///
-  EFI_PHYSICAL_ADDRESS  ImageAddress;
+  EFI_PHYSICAL_ADDRESS    ImageAddress;
   ///
   /// Size of the image as it will be executed.
   ///
-  UINT64                ImageSize;
+  UINT64                  ImageSize;
   ///
   /// File handle from which the image was loaded.
   /// Can be NULL, indicating the image was not loaded from a handle.
   ///
-  EFI_PEI_FILE_HANDLE   FileHandle;
+  EFI_PEI_FILE_HANDLE     FileHandle;
 };
 
-
-extern EFI_GUID gEfiPeiLoadedImagePpiGuid;
+extern EFI_GUID  gEfiPeiLoadedImagePpiGuid;
 
 #endif

@@ -46,11 +46,11 @@ struct _EFI_PEI_STALL_PPI {
   ///
   /// The resolution in microseconds of the stall services.
   ///
-  UINTN          Resolution;
+  UINTN            Resolution;
 
-  EFI_PEI_STALL  Stall;
+  EFI_PEI_STALL    Stall;
 };
 
-extern EFI_GUID gEfiPeiStallPpiGuid;
+extern EFI_GUID  gEfiPeiStallPpiGuid;
 
 #endif

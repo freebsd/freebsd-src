@@ -12,26 +12,26 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 ///
 /// Attributes of variable.
 ///
-#define EFI_VARIABLE_NON_VOLATILE                            0x00000001
-#define EFI_VARIABLE_BOOTSERVICE_ACCESS                      0x00000002
-#define EFI_VARIABLE_RUNTIME_ACCESS                          0x00000004
+#define EFI_VARIABLE_NON_VOLATILE        0x00000001
+#define EFI_VARIABLE_BOOTSERVICE_ACCESS  0x00000002
+#define EFI_VARIABLE_RUNTIME_ACCESS      0x00000004
 ///
 /// This attribute is identified by the mnemonic 'HR'
 /// elsewhere in this specification.
 ///
-#define EFI_VARIABLE_HARDWARE_ERROR_RECORD                   0x00000008
+#define EFI_VARIABLE_HARDWARE_ERROR_RECORD  0x00000008
 ///
 /// Attributes of Authenticated Variable
 ///
-#define EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS   0x00000020
-#define EFI_VARIABLE_APPEND_WRITE                            0x00000040
+#define EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS  0x00000020
+#define EFI_VARIABLE_APPEND_WRITE                           0x00000040
 ///
 /// NOTE: EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS is deprecated and should be considered reserved.
 ///
-#define EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS              0x00000010
+#define EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS  0x00000010
 
 #ifndef VFRCOMPILE
-#include <Guid/WinCertificate.h>
+  #include <Guid/WinCertificate.h>
 ///
 /// Enumeration of memory types introduced in UEFI.
 ///
@@ -103,7 +103,27 @@ typedef enum {
   /// however it happens to also support byte-addressable non-volatility.
   ///
   EfiPersistentMemory,
-  EfiMaxMemoryType
+  ///
+  /// A memory region that describes system memory that has not been accepted
+  /// by a corresponding call to the underlying isolation architecture.
+  ///
+  EfiUnacceptedMemoryType,
+  EfiMaxMemoryType,
+  //
+  // +---------------------------------------------------+
+  // | 0..(EfiMaxMemoryType - 1)    - Normal memory type |
+  // +---------------------------------------------------+
+  // | EfiMaxMemoryType..0x6FFFFFFF - Invalid            |
+  // +---------------------------------------------------+
+  // | 0x70000000..0x7FFFFFFF       - OEM reserved       |
+  // +---------------------------------------------------+
+  // | 0x80000000..0xFFFFFFFF       - OS reserved        |
+  // +---------------------------------------------------+
+  //
+  MEMORY_TYPE_OEM_RESERVED_MIN = 0x70000000,
+  MEMORY_TYPE_OEM_RESERVED_MAX = 0x7FFFFFFF,
+  MEMORY_TYPE_OS_RESERVED_MIN  = 0x80000000,
+  MEMORY_TYPE_OS_RESERVED_MAX  = 0xFFFFFFFF
 } EFI_MEMORY_TYPE;
 
 ///
@@ -148,27 +168,27 @@ typedef struct {
   /// Unique signatures have been generated for the EFI System Table,
   /// the EFI Boot Services Table, and the EFI Runtime Services Table.
   ///
-  UINT64  Signature;
+  UINT64    Signature;
   ///
   /// The revision of the EFI Specification to which this table
   /// conforms. The upper 16 bits of this field contain the major
   /// revision value, and the lower 16 bits contain the minor revision
   /// value. The minor revision values are limited to the range of 00..99.
   ///
-  UINT32  Revision;
+  UINT32    Revision;
   ///
   /// The size, in bytes, of the entire table including the EFI_TABLE_HEADER.
   ///
-  UINT32  HeaderSize;
+  UINT32    HeaderSize;
   ///
   /// The 32-bit CRC for the entire table. This value is computed by
   /// setting this field to 0, and computing the 32-bit CRC for HeaderSize bytes.
   ///
-  UINT32  CRC32;
+  UINT32    CRC32;
   ///
   /// Reserved field that must be set to 0.
   ///
-  UINT32  Reserved;
+  UINT32    Reserved;
 } EFI_TABLE_HEADER;
 
 ///
@@ -193,7 +213,7 @@ typedef struct {
   /// replay. Incremented during each
   /// "Write" access.
   ///
-  UINT64                      MonotonicCount;
+  UINT64    MonotonicCount;
   ///
   /// Provides the authorization for the variable
   /// access. It is a signature across the
@@ -202,7 +222,7 @@ typedef struct {
   /// associated with a public key that has been
   /// provisioned via the key exchange.
   ///
-  WIN_CERTIFICATE_UEFI_GUID   AuthInfo;
+  WIN_CERTIFICATE_UEFI_GUID    AuthInfo;
 } EFI_VARIABLE_AUTHENTICATION;
 
 ///
@@ -218,12 +238,12 @@ typedef struct {
   /// For the TimeStamp value, components Pad1, Nanosecond, TimeZone, Daylight and
   /// Pad2 shall be set to 0. This means that the time shall always be expressed in GMT.
   ///
-  EFI_TIME                    TimeStamp;
+  EFI_TIME                     TimeStamp;
   ///
   /// Only a CertType of  EFI_CERT_TYPE_PKCS7_GUID is accepted.
   ///
-  WIN_CERTIFICATE_UEFI_GUID   AuthInfo;
- } EFI_VARIABLE_AUTHENTICATION_2;
+  WIN_CERTIFICATE_UEFI_GUID    AuthInfo;
+} EFI_VARIABLE_AUTHENTICATION_2;
 #endif // VFRCOMPILE
 
 #endif

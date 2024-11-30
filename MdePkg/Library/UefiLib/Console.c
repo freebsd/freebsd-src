@@ -6,24 +6,22 @@
 
 **/
 
-
-
-
 #include "UefiLibInternal.h"
 
 typedef struct {
-  CHAR16  WChar;
-  UINT32  Width;
+  CHAR16    WChar;
+  UINT32    Width;
 } UNICODE_WIDTH_ENTRY;
 
-#define NARROW_CHAR         0xFFF0
-#define WIDE_CHAR           0xFFF1
+#define NARROW_CHAR  0xFFF0
+#define WIDE_CHAR    0xFFF1
 
-GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
+GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY  mUnicodeWidthTable[] = {
   //
   // General script area
   //
-  {(CHAR16)0x1FFF,  1},
+  { (CHAR16)0x1FFF, 1 },
+
   /*
    * Merge the blocks and replace them with the above entry as they fall to
    * the same category and they are all narrow glyph. This will reduce search
@@ -70,7 +68,8 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
   //
   // Symbol area
   //
-  {(CHAR16)0x2FFF,  1},
+  { (CHAR16)0x2FFF, 1 },
+
   /*
    * Merge the blocks and replace them with the above entry as they fall to
    * the same category and they are all narrow glyph. This will reduce search
@@ -102,7 +101,8 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
   //
   // CJK phonetics and symbol area
   //
-  {(CHAR16)0x33FF,  2},
+  { (CHAR16)0x33FF, 2 },
+
   /*
    * Merge the blocks and replace them with the above entry as they fall to
    * the same category and they are all wide glyph. This will reduce search
@@ -125,7 +125,8 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
   //
   // CJK ideograph area
   //
-  {(CHAR16)0x9FFF,  2},
+  { (CHAR16)0x9FFF, 2 },
+
   /*
    * Merge the blocks and replace them with the above entry as they fall to
    * the same category and they are all wide glyph. This will reduce search
@@ -142,12 +143,13 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
   //
   // Reserved
   //
-  {(CHAR16)0xABFF,  0},       // Reserved. 0xA000-0xA490 as Yi syllables. 0xA490-0xA4D0
+  { (CHAR16)0xABFF, 0 },       // Reserved. 0xA000-0xA490 as Yi syllables. 0xA490-0xA4D0
   // as Yi radicals in ver3.0. 0xA000-0xABFF
   //
   // Hangul syllables
   //
-  {(CHAR16)0xD7FF,  2},
+  { (CHAR16)0xD7FF, 2 },
+
   /*
    * Merge the blocks and replace them with the above entry as they fall to
    * the same category and they are all wide glyph. This will reduce search
@@ -163,26 +165,26 @@ GLOBAL_REMOVE_IF_UNREFERENCED CONST UNICODE_WIDTH_ENTRY mUnicodeWidthTable[] = {
   //
   // Surrogates area
   //
-  {(CHAR16)0xDFFF,  0},       // Surrogates, not used now. 0xD800-0xDFFF
+  { (CHAR16)0xDFFF, 0 },       // Surrogates, not used now. 0xD800-0xDFFF
 
   //
   // Private use area
   //
-  {(CHAR16)0xF8FF,  0},       // Private use area. 0xE000-0xF8FF
+  { (CHAR16)0xF8FF, 0 },       // Private use area. 0xE000-0xF8FF
 
   //
   // Compatibility area and specials
   //
-  {(CHAR16)0xFAFF,  2},       // CJK compatibility ideographs. 0xF900-0xFAFF
-  {(CHAR16)0xFB4F,  1},       // Alphabetic presentation forms. 0xFB00-0xFB4F
-  {(CHAR16)0xFDFF,  1},       // Arabic presentation forms-A. 0xFB50-0xFDFF
-  {(CHAR16)0xFE1F,  0},       // Reserved. As variation selectors in ver3.0. 0xFE00-0xFE1F
-  {(CHAR16)0xFE2F,  1},       // Combining half marks. 0xFE20-0xFE2F
-  {(CHAR16)0xFE4F,  2},       // CJK compatibility forms. 0xFE30-0xFE4F
-  {(CHAR16)0xFE6F,  1},       // Small Form Variants. 0xFE50-0xFE6F
-  {(CHAR16)0xFEFF,  1},       // Arabic presentation forms-B. 0xFE70-0xFEFF
-  {(CHAR16)0xFFEF,  1},       // Half width and full width forms. 0xFF00-0xFFEF
-  {(CHAR16)0xFFFF,  0},       // Speicials. 0xFFF0-0xFFFF
+  { (CHAR16)0xFAFF, 2 },       // CJK compatibility ideographs. 0xF900-0xFAFF
+  { (CHAR16)0xFB4F, 1 },       // Alphabetic presentation forms. 0xFB00-0xFB4F
+  { (CHAR16)0xFDFF, 1 },       // Arabic presentation forms-A. 0xFB50-0xFDFF
+  { (CHAR16)0xFE1F, 0 },       // Reserved. As variation selectors in ver3.0. 0xFE00-0xFE1F
+  { (CHAR16)0xFE2F, 1 },       // Combining half marks. 0xFE20-0xFE2F
+  { (CHAR16)0xFE4F, 2 },       // CJK compatibility forms. 0xFE30-0xFE4F
+  { (CHAR16)0xFE6F, 1 },       // Small Form Variants. 0xFE50-0xFE6F
+  { (CHAR16)0xFEFF, 1 },       // Arabic presentation forms-B. 0xFE70-0xFEFF
+  { (CHAR16)0xFFEF, 1 },       // Half width and full width forms. 0xFF00-0xFFEF
+  { (CHAR16)0xFFFF, 0 },       // Speicials. 0xFFF0-0xFFFF
 };
 
 /**
@@ -204,14 +206,14 @@ GetGlyphWidth (
   IN CHAR16  UnicodeChar
   )
 {
-  UINTN                     Index;
-  UINTN                     Low;
-  UINTN                     High;
-  CONST UNICODE_WIDTH_ENTRY *Item;
+  UINTN                      Index;
+  UINTN                      Low;
+  UINTN                      High;
+  CONST UNICODE_WIDTH_ENTRY  *Item;
 
-  Item  = NULL;
-  Low   = 0;
-  High  = (sizeof (mUnicodeWidthTable)) / (sizeof (UNICODE_WIDTH_ENTRY)) - 1;
+  Item = NULL;
+  Low  = 0;
+  High = (sizeof (mUnicodeWidthTable)) / (sizeof (UNICODE_WIDTH_ENTRY)) - 1;
   while (Low <= High) {
     Index = (Low + High) >> 1;
     Item  = &(mUnicodeWidthTable[Index]);
@@ -264,8 +266,8 @@ UnicodeStringDisplayLength (
   IN CONST CHAR16  *String
   )
 {
-  UINTN      Length;
-  UINTN      Width;
+  UINTN  Length;
+  UINTN  Width;
 
   if (String == NULL) {
     return 0;
@@ -304,32 +306,32 @@ UnicodeStringDisplayLength (
 **/
 UINTN
 UefiLibGetStringWidth (
-  IN  CHAR16               *String,
-  IN  BOOLEAN              LimitLen,
-  IN  UINTN                MaxWidth,
-  OUT UINTN                *Offset
+  IN  CHAR16   *String,
+  IN  BOOLEAN  LimitLen,
+  IN  UINTN    MaxWidth,
+  OUT UINTN    *Offset
   )
 {
-  UINTN Index;
-  UINTN Count;
-  UINTN IncrementValue;
+  UINTN  Index;
+  UINTN  Count;
+  UINTN  IncrementValue;
 
   if (String == NULL) {
     return 0;
   }
 
-  Index           = 0;
-  Count           = 0;
-  IncrementValue  = 1;
+  Index          = 0;
+  Count          = 0;
+  IncrementValue = 1;
 
   do {
     //
     // Advance to the null-terminator or to the first width directive
     //
-    for (;(String[Index] != NARROW_CHAR) && (String[Index] != WIDE_CHAR) && (String[Index] != 0); Index++) {
+    for ( ; (String[Index] != NARROW_CHAR) && (String[Index] != WIDE_CHAR) && (String[Index] != 0); Index++) {
       Count = Count + IncrementValue;
 
-      if (LimitLen && Count > MaxWidth) {
+      if (LimitLen && (Count > MaxWidth)) {
         break;
       }
     }
@@ -341,7 +343,7 @@ UefiLibGetStringWidth (
       break;
     }
 
-    if (LimitLen && Count > MaxWidth) {
+    if (LimitLen && (Count > MaxWidth)) {
       *Offset = Index;
       break;
     }
@@ -390,7 +392,7 @@ VOID
 EFIAPI
 CreatePopUp (
   IN  UINTN          Attribute,
-  OUT EFI_INPUT_KEY  *Key,      OPTIONAL
+  OUT EFI_INPUT_KEY  *Key       OPTIONAL,
   ...
   )
 {
@@ -415,12 +417,13 @@ CreatePopUp (
   // number of lines in the popup
   //
   VA_START (Args, Key);
-  MaxLength = 0;
+  MaxLength     = 0;
   NumberOfLines = 0;
   while ((String = VA_ARG (Args, CHAR16 *)) != NULL) {
     MaxLength = MAX (MaxLength, UefiLibGetStringWidth (String, FALSE, 0, NULL) / 2);
     NumberOfLines++;
   }
+
   VA_END (Args);
 
   //
@@ -474,7 +477,11 @@ CreatePopUp (
   // Allocate a buffer for a single line of the popup with borders and a Null-terminator
   //
   Line = AllocateZeroPool ((MaxLength + 3) * sizeof (CHAR16));
-  ASSERT (Line != NULL);
+
+  if (Line == NULL) {
+    ASSERT (Line != NULL);
+    return;
+  }
 
   //
   // Draw top of popup box
@@ -510,7 +517,12 @@ CreatePopUp (
       //
       UefiLibGetStringWidth (String, TRUE, MaxLength, &Length);
       TmpString = AllocateZeroPool ((Length + 1) * sizeof (CHAR16));
-      ASSERT (TmpString != NULL);
+
+      if (TmpString == NULL) {
+        ASSERT (TmpString != NULL);
+        break;
+      }
+
       StrnCpyS (TmpString, Length + 1, String, Length - 3);
       StrCatS (TmpString, Length + 1, L"...");
 
@@ -518,8 +530,10 @@ CreatePopUp (
       ConOut->OutputString (ConOut, TmpString);
       FreePool (TmpString);
     }
+
     NumberOfLines--;
   }
+
   VA_END (Args);
 
   //
@@ -540,9 +554,9 @@ CreatePopUp (
   //
   // Restore the cursor visibility, position, and attributes
   //
-  ConOut->EnableCursor      (ConOut, SavedConsoleMode.CursorVisible);
+  ConOut->EnableCursor (ConOut, SavedConsoleMode.CursorVisible);
   ConOut->SetCursorPosition (ConOut, SavedConsoleMode.CursorColumn, SavedConsoleMode.CursorRow);
-  ConOut->SetAttribute      (ConOut, SavedConsoleMode.Attribute);
+  ConOut->SetAttribute (ConOut, SavedConsoleMode.Attribute);
 
   //
   // Wait for a keystroke
@@ -560,6 +574,7 @@ CreatePopUp (
       if (Status != EFI_NOT_READY) {
         continue;
       }
+
       gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &EventIndex);
     }
   }

@@ -23,10 +23,9 @@
 ///
 /// Protocol Guid defined by UEFI2.1.
 ///
-#define LOAD_FILE2_PROTOCOL EFI_LOAD_FILE2_PROTOCOL_GUID
+#define LOAD_FILE2_PROTOCOL  EFI_LOAD_FILE2_PROTOCOL_GUID
 
 typedef struct _EFI_LOAD_FILE2_PROTOCOL EFI_LOAD_FILE2_PROTOCOL;
-
 
 /**
   Causes the driver to load a specified file.
@@ -71,9 +70,9 @@ EFI_STATUS
 /// The EFI_LOAD_FILE_PROTOCOL is a simple protocol used to obtain files from arbitrary devices.
 ///
 struct _EFI_LOAD_FILE2_PROTOCOL {
-  EFI_LOAD_FILE2 LoadFile;
+  EFI_LOAD_FILE2    LoadFile;
 };
 
-extern EFI_GUID gEfiLoadFile2ProtocolGuid;
+extern EFI_GUID  gEfiLoadFile2ProtocolGuid;
 
 #endif

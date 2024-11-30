@@ -16,9 +16,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // Declare bits for PcdReportStatusCodePropertyMask
 //
-#define REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED          0x00000001
-#define REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED             0x00000002
-#define REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED             0x00000004
+#define REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED  0x00000001
+#define REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED     0x00000002
+#define REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED     0x00000004
 
 /**
   Converts a status code to an 8-bit POST code value.
@@ -48,7 +48,6 @@ CodeTypeToPostCode (
   IN  EFI_STATUS_CODE_VALUE  Value,
   OUT UINT8                  *PostCode
   );
-
 
 /**
   Extracts ASSERT() information from a status code structure.
@@ -94,7 +93,6 @@ ReportStatusCodeExtractAssertInfo (
   OUT UINT32                     *LineNumber
   );
 
-
 /**
   Extracts DEBUG() information from a status code structure.
 
@@ -133,7 +131,6 @@ ReportStatusCodeExtractDebugInfo (
   OUT CHAR8                      **Format
   );
 
-
 /**
   Reports a status code.
 
@@ -161,7 +158,6 @@ ReportStatusCode (
   IN EFI_STATUS_CODE_TYPE   Type,
   IN EFI_STATUS_CODE_VALUE  Value
   );
-
 
 /**
   Reports a status code with a Device Path Protocol as the extended data.
@@ -199,7 +195,6 @@ ReportStatusCodeWithDevicePath (
   IN EFI_STATUS_CODE_VALUE           Value,
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
   );
-
 
 /**
   Reports a status code with an extended data buffer.
@@ -244,7 +239,6 @@ ReportStatusCodeWithExtendedData (
   IN CONST VOID             *ExtendedData,
   IN UINTN                  ExtendedDataSize
   );
-
 
 /**
   Reports a status code with full parameters.
@@ -300,7 +294,6 @@ ReportStatusCodeEx (
   IN UINTN                  ExtendedDataSize
   );
 
-
 /**
   Returns TRUE if status codes of type EFI_PROGRESS_CODE are enabled
 
@@ -318,7 +311,6 @@ EFIAPI
 ReportProgressCodeEnabled (
   VOID
   );
-
 
 /**
   Returns TRUE if status codes of type EFI_ERROR_CODE are enabled
@@ -338,7 +330,6 @@ ReportErrorCodeEnabled (
   VOID
   );
 
-
 /**
   Returns TRUE if status codes of type EFI_DEBUG_CODE are enabled
 
@@ -357,7 +348,6 @@ ReportDebugCodeEnabled (
   VOID
   );
 
-
 /**
   Reports a status code with minimal parameters if the status code type is enabled.
 
@@ -373,7 +363,7 @@ ReportDebugCodeEnabled (
   @retval  EFI_UNSUPPORTED   Report status code is not supported.
 
 **/
-#define REPORT_STATUS_CODE(Type,Value)                                                          \
+#define REPORT_STATUS_CODE(Type, Value)                                                          \
   (ReportProgressCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_PROGRESS_CODE) ?  \
   ReportStatusCode(Type,Value)                                                               :  \
   (ReportErrorCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_ERROR_CODE)       ?  \
@@ -381,7 +371,6 @@ ReportDebugCodeEnabled (
   (ReportDebugCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_DEBUG_CODE)       ?  \
   ReportStatusCode(Type,Value)                                                               :  \
   EFI_UNSUPPORTED
-
 
 /**
   Reports a status code with a Device Path Protocol as the extended data if the
@@ -404,7 +393,7 @@ ReportDebugCodeEnabled (
                                  is already in progress.
 
 **/
-#define REPORT_STATUS_CODE_WITH_DEVICE_PATH(Type,Value,DevicePathParameter)                     \
+#define REPORT_STATUS_CODE_WITH_DEVICE_PATH(Type, Value, DevicePathParameter)                     \
   (ReportProgressCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_PROGRESS_CODE) ?  \
   ReportStatusCodeWithDevicePath(Type,Value,DevicePathParameter)                             :  \
   (ReportErrorCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_ERROR_CODE)       ?  \
@@ -412,7 +401,6 @@ ReportDebugCodeEnabled (
   (ReportDebugCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_DEBUG_CODE)       ?  \
   ReportStatusCodeWithDevicePath(Type,Value,DevicePathParameter)                             :  \
   EFI_UNSUPPORTED
-
 
 /**
   Reports a status code with an extended data buffer if the status code type
@@ -437,7 +425,7 @@ ReportDebugCodeEnabled (
                                  is already in progress.
 
 **/
-#define REPORT_STATUS_CODE_WITH_EXTENDED_DATA(Type,Value,ExtendedData,ExtendedDataSize)         \
+#define REPORT_STATUS_CODE_WITH_EXTENDED_DATA(Type, Value, ExtendedData, ExtendedDataSize)         \
   (ReportProgressCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_PROGRESS_CODE) ?  \
   ReportStatusCodeWithExtendedData(Type,Value,ExtendedData,ExtendedDataSize)                 :  \
   (ReportErrorCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_ERROR_CODE)       ?  \
@@ -474,7 +462,7 @@ ReportDebugCodeEnabled (
                                  is already in progress.
 
 **/
-#define REPORT_STATUS_CODE_EX(Type,Value,Instance,CallerId,ExtendedDataGuid,ExtendedData,ExtendedDataSize)  \
+#define REPORT_STATUS_CODE_EX(Type, Value, Instance, CallerId, ExtendedDataGuid, ExtendedData, ExtendedDataSize)  \
   (ReportProgressCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_PROGRESS_CODE)             ?  \
   ReportStatusCodeEx(Type,Value,Instance,CallerId,ExtendedDataGuid,ExtendedData,ExtendedDataSize)        :  \
   (ReportErrorCodeEnabled() && ((Type) & EFI_STATUS_CODE_TYPE_MASK) == EFI_ERROR_CODE)                   ?  \

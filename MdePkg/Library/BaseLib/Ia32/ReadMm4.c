@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of 64-bit MMX Register #4 (MM4).
 
@@ -33,4 +30,3 @@ AsmReadMm4 (
     emms
   }
 }
-

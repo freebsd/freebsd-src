@@ -1,0 +1,247 @@
+## @file
+#  Base Library implementation for use with host based unit tests, and
+#  can also be used by emulation platforms such as EmulatorPkg.
+#
+#  Copyright (c) 2007 - 2022, Intel Corporation. All rights reserved.<BR>
+#  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+#  Portions copyright (c) 2011 - 2013, ARM Ltd. All rights reserved.<BR>
+#  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UnitTestHostBaseLib
+  MODULE_UNI_FILE                = UnitTestHostBaseLib.uni
+  FILE_GUID                      = 9555A0D3-09BA-46C4-A51A-45198E3C765E
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.1
+  LIBRARY_CLASS                  = BaseLib
+  LIBRARY_CLASS                  = UnitTestHostBaseLib|HOST_APPLICATION
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  CheckSum.c
+  SwitchStack.c
+  SwapBytes64.c
+  SwapBytes32.c
+  SwapBytes16.c
+  LongJump.c
+  SetJump.c
+  QuickSort.c
+  RShiftU64.c
+  RRotU64.c
+  RRotU32.c
+  MultU64x64.c
+  MultU64x32.c
+  MultS64x64.c
+  ModU64x32.c
+  LShiftU64.c
+  LRotU64.c
+  LRotU32.c
+  LowBitSet64.c
+  LowBitSet32.c
+  HighBitSet64.c
+  HighBitSet32.c
+  GetPowerOfTwo64.c
+  GetPowerOfTwo32.c
+  DivU64x64Remainder.c
+  DivU64x32Remainder.c
+  DivU64x32.c
+  DivS64x64Remainder.c
+  ARShiftU64.c
+  BitField.c
+  CpuDeadLoop.c
+  Cpu.c
+  LinkedList.c
+  SafeString.c
+  String.c
+  FilePaths.c
+  BaseLibInternals.h
+  UnitTestHost.c
+  UnitTestHost.h
+
+[Sources.Ia32]
+  Ia32/WriteMm7.c | MSFT
+  Ia32/WriteMm6.c | MSFT
+  Ia32/WriteMm5.c | MSFT
+  Ia32/WriteMm4.c | MSFT
+  Ia32/WriteMm3.c | MSFT
+  Ia32/WriteMm2.c | MSFT
+  Ia32/WriteMm1.c | MSFT
+  Ia32/WriteMm0.c | MSFT
+  Ia32/ReadMm7.c | MSFT
+  Ia32/ReadMm6.c | MSFT
+  Ia32/ReadMm5.c | MSFT
+  Ia32/ReadMm4.c | MSFT
+  Ia32/ReadMm3.c | MSFT
+  Ia32/ReadMm2.c | MSFT
+  Ia32/ReadMm1.c | MSFT
+  Ia32/ReadMm0.c | MSFT
+  Ia32/SwapBytes64.c | MSFT
+  Ia32/RRotU64.c | MSFT
+  Ia32/RShiftU64.c | MSFT
+  Ia32/ReadTsc.c | MSFT
+  Ia32/ReadEflags.c | MSFT
+  Ia32/ModU64x32.c | MSFT
+  Ia32/MultU64x64.c | MSFT
+  Ia32/MultU64x32.c | MSFT
+  Ia32/LShiftU64.c | MSFT
+  Ia32/LRotU64.c | MSFT
+  Ia32/FxRestore.c | MSFT
+  Ia32/FxSave.c | MSFT
+  Ia32/DivU64x32Remainder.c | MSFT
+  Ia32/DivU64x32.c | MSFT
+  Ia32/CpuPause.c | MSFT
+  Ia32/CpuBreakpoint.c | MSFT
+  Ia32/ARShiftU64.c | MSFT
+  Ia32/GccInline.c | GCC
+  Ia32/LongJump.nasm
+  Ia32/SetJump.nasm
+  Ia32/SwapBytes64.nasm| GCC
+  Ia32/DivU64x64Remainder.nasm
+  Ia32/DivU64x32Remainder.nasm| GCC
+  Ia32/ModU64x32.nasm| GCC
+  Ia32/DivU64x32.nasm| GCC
+  Ia32/MultU64x64.nasm| GCC
+  Ia32/MultU64x32.nasm| GCC
+  Ia32/RRotU64.nasm| GCC
+  Ia32/LRotU64.nasm| GCC
+  Ia32/ARShiftU64.nasm| GCC
+  Ia32/RShiftU64.nasm| GCC
+  Ia32/LShiftU64.nasm| GCC
+  Ia32/RdRand.nasm
+  Ia32/DivS64x64Remainder.c
+  Ia32/InternalSwitchStack.c | MSFT
+  Ia32/InternalSwitchStack.nasm | GCC
+  Ia32/Non-existing.c
+  Unaligned.c
+  X86MemoryFence.c | MSFT
+  X86FxSave.c
+  X86FxRestore.c
+  X86Msr.c
+  X86RdRand.c
+  X86SpeculationBarrier.c
+  X86UnitTestHost.c
+  IntelTdxNull.c
+
+[Sources.X64]
+  X64/LongJump.nasm
+  X64/SetJump.nasm
+  X64/SwitchStack.nasm
+  X64/CpuBreakpoint.c | MSFT
+  X64/CpuPause.nasm| MSFT
+  X64/ReadTsc.nasm| MSFT
+  X64/WriteMm7.nasm| MSFT
+  X64/WriteMm6.nasm| MSFT
+  X64/WriteMm5.nasm| MSFT
+  X64/WriteMm4.nasm| MSFT
+  X64/WriteMm3.nasm| MSFT
+  X64/WriteMm2.nasm| MSFT
+  X64/WriteMm1.nasm| MSFT
+  X64/WriteMm0.nasm| MSFT
+  X64/ReadMm7.nasm| MSFT
+  X64/ReadMm6.nasm| MSFT
+  X64/ReadMm5.nasm| MSFT
+  X64/ReadMm4.nasm| MSFT
+  X64/ReadMm3.nasm| MSFT
+  X64/ReadMm2.nasm| MSFT
+  X64/ReadMm1.nasm| MSFT
+  X64/ReadMm0.nasm| MSFT
+  X64/FxRestore.nasm| MSFT
+  X64/FxSave.nasm| MSFT
+  X64/ReadEflags.nasm| MSFT
+  X64/Non-existing.c
+  Math64.c
+  Unaligned.c
+  X86MemoryFence.c | MSFT
+  X86FxSave.c
+  X86FxRestore.c
+  X86Msr.c
+  X86RdRand.c
+  X86SpeculationBarrier.c
+  X64/GccInline.c | GCC
+  X64/RdRand.nasm
+  ChkStkGcc.c  | GCC
+  X86UnitTestHost.c
+  IntelTdxNull.c
+
+[Sources.EBC]
+  Ebc/CpuBreakpoint.c
+  Ebc/SetJumpLongJump.c
+  Ebc/SwitchStack.c
+  Ebc/SpeculationBarrier.c
+  Unaligned.c
+  Math64.c
+
+[Sources.ARM]
+  Arm/InternalSwitchStack.c
+  Arm/Unaligned.c
+  Math64.c                   | MSFT
+
+  Arm/SwitchStack.asm        | MSFT
+  Arm/SetJumpLongJump.asm    | MSFT
+  Arm/CpuPause.asm           | MSFT
+  Arm/CpuBreakpoint.asm      | MSFT
+  Arm/MemoryFence.asm        | MSFT
+  Arm/SpeculationBarrier.asm | MSFT
+
+  Arm/Math64.S                  | GCC
+  Arm/SwitchStack.S             | GCC
+  Arm/SetJumpLongJump.S         | GCC
+  Arm/CpuBreakpoint.S           | GCC
+  Arm/MemoryFence.S             | GCC
+  Arm/SpeculationBarrier.S      | GCC
+
+[Sources.AARCH64]
+  Arm/InternalSwitchStack.c
+  Arm/Unaligned.c
+  Math64.c
+
+  AArch64/MemoryFence.S             | GCC
+  AArch64/SwitchStack.S             | GCC
+  AArch64/SetJumpLongJump.S         | GCC
+  AArch64/CpuBreakpoint.S           | GCC
+  AArch64/SpeculationBarrier.S      | GCC
+
+  AArch64/MemoryFence.asm           | MSFT
+  AArch64/SwitchStack.asm           | MSFT
+  AArch64/SetJumpLongJump.asm       | MSFT
+  AArch64/CpuBreakpoint.asm         | MSFT
+  AArch64/SpeculationBarrier.asm    | MSFT
+
+[Sources.RISCV64]
+  Math64.c
+  Unaligned.c
+  RiscV64/InternalSwitchStack.c
+  RiscV64/CpuBreakpoint.c
+  RiscV64/CpuPause.c
+  RiscV64/RiscVSetJumpLongJump.S    | GCC
+  RiscV64/RiscVCpuBreakpoint.S      | GCC
+  RiscV64/RiscVCpuPause.S           | GCC
+  RiscV64/RiscVInterrupt.S          | GCC
+  RiscV64/FlushCache.S              | GCC
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PcdLib
+  DebugLib
+  BaseMemoryLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength      ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength     ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength   ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdControlFlowEnforcementPropertyMask   ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdSpeculationBarrierType       ## SOMETIMES_CONSUMES
+
+[FeaturePcd]
+  gEfiMdePkgTokenSpaceGuid.PcdVerifyNodeInList  ## CONSUMES

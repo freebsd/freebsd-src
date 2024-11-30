@@ -14,6 +14,6 @@
     0x60ff8964, 0xe906, 0x41d0, { 0xaf, 0xed, 0xf2, 0x41, 0xe9, 0x74, 0xe0, 0x8e } \
   }
 
-extern EFI_GUID gEfiDxeMmReadyToLockProtocolGuid;
+extern EFI_GUID  gEfiDxeMmReadyToLockProtocolGuid;
 
 #endif

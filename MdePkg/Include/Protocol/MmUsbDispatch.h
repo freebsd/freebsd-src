@@ -39,14 +39,14 @@ typedef struct {
   /// emulation event, such as port-trap on the PS/2* keyboard control registers, or to a
   /// USB wake event, such as resumption from a sleep state.
   ///
-  EFI_USB_MMI_TYPE          Type;
+  EFI_USB_MMI_TYPE            Type;
   ///
   /// The device path is part of the context structure and describes the location of the
   /// particular USB host controller in the system for which this register event will occur.
   /// This location is important because of the possible integration of several USB host
   /// controllers in a system.
   ///
-  EFI_DEVICE_PATH_PROTOCOL  *Device;
+  EFI_DEVICE_PATH_PROTOCOL    *Device;
 } EFI_MM_USB_REGISTER_CONTEXT;
 
 typedef struct _EFI_MM_USB_DISPATCH_PROTOCOL EFI_MM_USB_DISPATCH_PROTOCOL;
@@ -114,11 +114,10 @@ EFI_STATUS
 /// This protocol provides the parent dispatch service for the USB MMI source generator.
 ///
 struct _EFI_MM_USB_DISPATCH_PROTOCOL {
-  EFI_MM_USB_REGISTER    Register;
-  EFI_MM_USB_UNREGISTER  UnRegister;
+  EFI_MM_USB_REGISTER      Register;
+  EFI_MM_USB_UNREGISTER    UnRegister;
 };
 
-extern EFI_GUID gEfiMmUsbDispatchProtocolGuid;
+extern EFI_GUID  gEfiMmUsbDispatchProtocolGuid;
 
 #endif
-

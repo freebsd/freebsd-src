@@ -22,8 +22,8 @@
 //
 // GUID name defined in spec.
 //
-#define MPS_TABLE_GUID EFI_MPS_TABLE_GUID
+#define MPS_TABLE_GUID  EFI_MPS_TABLE_GUID
 
-extern EFI_GUID gEfiMpsTableGuid;
+extern EFI_GUID  gEfiMpsTableGuid;
 
 #endif

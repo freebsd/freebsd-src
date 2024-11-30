@@ -1,6 +1,6 @@
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+; Copyright (c) 2006 - 2022, Intel Corporation. All rights reserved.<BR>
 ; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
@@ -48,8 +48,8 @@ ASM_PFX(SetJump):
     jnc     CetDone
 
     mov     rax, 1
-    INCSSP_RAX                           ; to read original SSP
-    READSSP_RAX
+    incsspq rax                          ; to read original SSP
+    rdsspq  rax
     mov     [rcx + 0xF8], rax            ; save SSP
 
 CetDone:

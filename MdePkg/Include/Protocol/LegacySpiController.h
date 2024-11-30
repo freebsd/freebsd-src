@@ -23,7 +23,7 @@
     { 0xbf, 0x35, 0x0e, 0x78, 0xdd, 0xb5, 0x24, 0xfc }}
 
 typedef
-struct _EFI_LEGACY_SPI_CONTROLLER_PROTOCOL
+  struct _EFI_LEGACY_SPI_CONTROLLER_PROTOCOL
 EFI_LEGACY_SPI_CONTROLLER_PROTOCOL;
 
 /**
@@ -46,7 +46,7 @@ EFI_LEGACY_SPI_CONTROLLER_PROTOCOL;
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_ERASE_BLOCK_OPCODE) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_ERASE_BLOCK_OPCODE)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This,
   IN UINT8                                     EraseBlockOpcode
   );
@@ -71,7 +71,7 @@ typedef EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_WRITE_STATUS_PREFIX) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_WRITE_STATUS_PREFIX)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This,
   IN UINT8                                     WriteStatusPrefix
   );
@@ -96,7 +96,7 @@ EFI_STATUS
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_BIOS_BASE_ADDRESS) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_BIOS_BASE_ADDRESS)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This,
   IN UINT32 BiosBaseAddress
   );
@@ -116,7 +116,7 @@ typedef EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_CLEAR_SPI_PROTECT) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_CLEAR_SPI_PROTECT)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This
   );
 
@@ -137,7 +137,7 @@ EFI_STATUS
 **/
 typedef
 BOOLEAN
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_IS_RANGE_PROTECTED) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_IS_RANGE_PROTECTED)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This,
   IN UINT32                                    BiosAddress,
   IN UINT32                                    BlocksToProtect
@@ -170,7 +170,7 @@ BOOLEAN
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_PROTECT_NEXT_RANGE) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_PROTECT_NEXT_RANGE)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This,
   IN UINT32                                    BiosAddress,
   IN UINT32                                    BlocksToProtect
@@ -195,7 +195,7 @@ EFI_STATUS
 
 **/
 typedef EFI_STATUS
-(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_LOCK_CONTROLLER) (
+(EFIAPI *EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_LOCK_CONTROLLER)(
   IN CONST EFI_LEGACY_SPI_CONTROLLER_PROTOCOL  *This
   );
 
@@ -206,54 +206,54 @@ struct _EFI_LEGACY_SPI_CONTROLLER_PROTOCOL {
   ///
   /// Maximum offset from the BIOS base address that is able to be protected.
   ///
-  UINT32                                                 MaximumOffset;
+  UINT32                                                    MaximumOffset;
 
   ///
   /// Maximum number of bytes that can be protected by one range register.
   ///
-  UINT32                                                 MaximumRangeBytes;
+  UINT32                                                    MaximumRangeBytes;
 
   ///
   /// The number of registers available for protecting the BIOS.
   ///
-  UINT32                                                 RangeRegisterCount;
+  UINT32                                                    RangeRegisterCount;
 
   ///
   /// Set the erase block opcode.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_ERASE_BLOCK_OPCODE  EraseBlockOpcode;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_ERASE_BLOCK_OPCODE     EraseBlockOpcode;
 
   ///
   /// Set the write status prefix opcode.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_WRITE_STATUS_PREFIX WriteStatusPrefix;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_WRITE_STATUS_PREFIX    WriteStatusPrefix;
 
   ///
   /// Set the BIOS base address.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_BIOS_BASE_ADDRESS   BiosBaseAddress;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_BIOS_BASE_ADDRESS      BiosBaseAddress;
 
   ///
   /// Clear the SPI protect range registers.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_CLEAR_SPI_PROTECT   ClearSpiProtect;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_CLEAR_SPI_PROTECT      ClearSpiProtect;
 
   ///
   /// Determine if the SPI range is protected.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_IS_RANGE_PROTECTED  IsRangeProtected;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_IS_RANGE_PROTECTED     IsRangeProtected;
 
   ///
   /// Set the next protect range register.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_PROTECT_NEXT_RANGE  ProtectNextRange;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_PROTECT_NEXT_RANGE     ProtectNextRange;
 
   ///
   /// Lock the SPI controller configuration.
   ///
-  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_LOCK_CONTROLLER     LockController;
+  EFI_LEGACY_SPI_CONTROLLER_PROTOCOL_LOCK_CONTROLLER        LockController;
 };
 
-extern EFI_GUID gEfiLegacySpiControllerProtocolGuid;
+extern EFI_GUID  gEfiLegacySpiControllerProtocolGuid;
 
 #endif // __LEGACY_SPI_CONTROLLER_PROTOCOL_H__

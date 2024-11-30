@@ -42,20 +42,20 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 typedef struct _EFI_HASH2_PROTOCOL EFI_HASH2_PROTOCOL;
 
-typedef UINT8  EFI_MD5_HASH2[16];
-typedef UINT8  EFI_SHA1_HASH2[20];
-typedef UINT8  EFI_SHA224_HASH2[28];
-typedef UINT8  EFI_SHA256_HASH2[32];
-typedef UINT8  EFI_SHA384_HASH2[48];
-typedef UINT8  EFI_SHA512_HASH2[64];
+typedef UINT8 EFI_MD5_HASH2[16];
+typedef UINT8 EFI_SHA1_HASH2[20];
+typedef UINT8 EFI_SHA224_HASH2[28];
+typedef UINT8 EFI_SHA256_HASH2[32];
+typedef UINT8 EFI_SHA384_HASH2[48];
+typedef UINT8 EFI_SHA512_HASH2[64];
 
 typedef union {
-  EFI_MD5_HASH2     Md5Hash;
-  EFI_SHA1_HASH2    Sha1Hash;
-  EFI_SHA224_HASH2  Sha224Hash;
-  EFI_SHA256_HASH2  Sha256Hash;
-  EFI_SHA384_HASH2  Sha384Hash;
-  EFI_SHA512_HASH2  Sha512Hash;
+  EFI_MD5_HASH2       Md5Hash;
+  EFI_SHA1_HASH2      Sha1Hash;
+  EFI_SHA224_HASH2    Sha224Hash;
+  EFI_SHA256_HASH2    Sha256Hash;
+  EFI_SHA384_HASH2    Sha384Hash;
+  EFI_SHA512_HASH2    Sha512Hash;
 } EFI_HASH2_OUTPUT;
 
 /**
@@ -183,14 +183,14 @@ EFI_STATUS
 /// finalization are performed by the supporting driver.
 ///
 struct _EFI_HASH2_PROTOCOL {
-  EFI_HASH2_GET_HASH_SIZE          GetHashSize;
-  EFI_HASH2_HASH                   Hash;
-  EFI_HASH2_HASH_INIT              HashInit;
-  EFI_HASH2_HASH_UPDATE            HashUpdate;
-  EFI_HASH2_HASH_FINAL             HashFinal;
+  EFI_HASH2_GET_HASH_SIZE    GetHashSize;
+  EFI_HASH2_HASH             Hash;
+  EFI_HASH2_HASH_INIT        HashInit;
+  EFI_HASH2_HASH_UPDATE      HashUpdate;
+  EFI_HASH2_HASH_FINAL       HashFinal;
 };
 
-extern EFI_GUID gEfiHash2ServiceBindingProtocolGuid;
-extern EFI_GUID gEfiHash2ProtocolGuid;
+extern EFI_GUID  gEfiHash2ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiHash2ProtocolGuid;
 
 #endif

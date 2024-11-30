@@ -19,10 +19,10 @@
 typedef struct _EFI_GRAPHICS_OUTPUT_PROTOCOL EFI_GRAPHICS_OUTPUT_PROTOCOL;
 
 typedef struct {
-  UINT32            RedMask;
-  UINT32            GreenMask;
-  UINT32            BlueMask;
-  UINT32            ReservedMask;
+  UINT32    RedMask;
+  UINT32    GreenMask;
+  UINT32    BlueMask;
+  UINT32    ReservedMask;
 } EFI_PIXEL_BITMASK;
 
 typedef enum {
@@ -61,29 +61,29 @@ typedef struct {
   /// The version of this data structure. A value of zero represents the
   /// EFI_GRAPHICS_OUTPUT_MODE_INFORMATION structure as defined in this specification.
   ///
-  UINT32                     Version;
+  UINT32                       Version;
   ///
   /// The size of video screen in pixels in the X dimension.
   ///
-  UINT32                     HorizontalResolution;
+  UINT32                       HorizontalResolution;
   ///
   /// The size of video screen in pixels in the Y dimension.
   ///
-  UINT32                     VerticalResolution;
+  UINT32                       VerticalResolution;
   ///
   /// Enumeration that defines the physical format of the pixel. A value of PixelBltOnly
   /// implies that a linear frame buffer is not available for this mode.
   ///
-  EFI_GRAPHICS_PIXEL_FORMAT  PixelFormat;
+  EFI_GRAPHICS_PIXEL_FORMAT    PixelFormat;
   ///
   /// This bit-mask is only valid if PixelFormat is set to PixelPixelBitMask.
   /// A bit being set defines what bits are used for what purpose such as Red, Green, Blue, or Reserved.
   ///
-  EFI_PIXEL_BITMASK          PixelInformation;
+  EFI_PIXEL_BITMASK            PixelInformation;
   ///
   /// Defines the number of pixel elements per video memory line.
   ///
-  UINT32                     PixelsPerScanLine;
+  UINT32                       PixelsPerScanLine;
 } EFI_GRAPHICS_OUTPUT_MODE_INFORMATION;
 
 /**
@@ -129,15 +129,15 @@ EFI_STATUS
   );
 
 typedef struct {
-  UINT8 Blue;
-  UINT8 Green;
-  UINT8 Red;
-  UINT8 Reserved;
+  UINT8    Blue;
+  UINT8    Green;
+  UINT8    Red;
+  UINT8    Reserved;
 } EFI_GRAPHICS_OUTPUT_BLT_PIXEL;
 
 typedef union {
-  EFI_GRAPHICS_OUTPUT_BLT_PIXEL Pixel;
-  UINT32                        Raw;
+  EFI_GRAPHICS_OUTPUT_BLT_PIXEL    Pixel;
+  UINT32                           Raw;
 } EFI_GRAPHICS_OUTPUT_BLT_PIXEL_UNION;
 
 ///
@@ -210,7 +210,7 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_GRAPHICS_OUTPUT_PROTOCOL_BLT)(
   IN  EFI_GRAPHICS_OUTPUT_PROTOCOL            *This,
-  IN  EFI_GRAPHICS_OUTPUT_BLT_PIXEL           *BltBuffer,   OPTIONAL
+  IN  EFI_GRAPHICS_OUTPUT_BLT_PIXEL           *BltBuffer    OPTIONAL,
   IN  EFI_GRAPHICS_OUTPUT_BLT_OPERATION       BltOperation,
   IN  UINTN                                   SourceX,
   IN  UINTN                                   SourceY,
@@ -225,29 +225,29 @@ typedef struct {
   ///
   /// The number of modes supported by QueryMode() and SetMode().
   ///
-  UINT32                                 MaxMode;
+  UINT32                                  MaxMode;
   ///
   /// Current Mode of the graphics device. Valid mode numbers are 0 to MaxMode -1.
   ///
-  UINT32                                 Mode;
+  UINT32                                  Mode;
   ///
   /// Pointer to read-only EFI_GRAPHICS_OUTPUT_MODE_INFORMATION data.
   ///
-  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION   *Info;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION    *Info;
   ///
   /// Size of Info structure in bytes.
   ///
-  UINTN                                  SizeOfInfo;
+  UINTN                                   SizeOfInfo;
   ///
   /// Base address of graphics linear frame buffer.
   /// Offset zero in FrameBufferBase represents the upper left pixel of the display.
   ///
-  EFI_PHYSICAL_ADDRESS                   FrameBufferBase;
+  EFI_PHYSICAL_ADDRESS                    FrameBufferBase;
   ///
   /// Amount of frame buffer needed to support the active mode as defined by
   /// PixelsPerScanLine xVerticalResolution x PixelElementSize.
   ///
-  UINTN                                  FrameBufferSize;
+  UINTN                                   FrameBufferSize;
 } EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE;
 
 ///
@@ -256,15 +256,15 @@ typedef struct {
 /// frame buffer is also exposed so software can write directly to the video hardware.
 ///
 struct _EFI_GRAPHICS_OUTPUT_PROTOCOL {
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_QUERY_MODE  QueryMode;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_SET_MODE    SetMode;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_BLT         Blt;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_QUERY_MODE    QueryMode;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_SET_MODE      SetMode;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_BLT           Blt;
   ///
   /// Pointer to EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE data.
   ///
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE        *Mode;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE          *Mode;
 };
 
-extern EFI_GUID gEfiGraphicsOutputProtocolGuid;
+extern EFI_GUID  gEfiGraphicsOutputProtocolGuid;
 
 #endif

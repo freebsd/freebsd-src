@@ -1,0 +1,11 @@
+// /** @file
+// Base Library implementation for use with host based unit tests.
+//
+// Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#string STR_MODULE_ABSTRACT             #language en-US "Base Library implementation for use with host based unit tests."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Base Library implementation for use with host based unit tests."

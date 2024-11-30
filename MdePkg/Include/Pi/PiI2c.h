@@ -17,7 +17,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 /// I2C protocol stack to address the duplicated address space between 0
 //  and 127 in 10-bit mode.
 ///
-#define I2C_ADDRESSING_10_BIT     0x80000000
+#define I2C_ADDRESSING_10_BIT  0x80000000
 
 ///
 /// I2C controller capabilities
@@ -31,24 +31,24 @@ typedef struct {
   ///
   /// Length of this data structure in bytes
   ///
-  UINT32 StructureSizeInBytes;
+  UINT32    StructureSizeInBytes;
 
   ///
   /// The maximum number of bytes the I2C host controller is able to
   /// receive from the I2C bus.
   ///
-  UINT32 MaximumReceiveBytes;
+  UINT32    MaximumReceiveBytes;
 
   ///
   /// The maximum number of bytes the I2C host controller is able to send
   /// on the I2C  bus.
   ///
-  UINT32 MaximumTransmitBytes;
+  UINT32    MaximumTransmitBytes;
 
   ///
   /// The maximum number of bytes in the I2C bus transaction.
   ///
-  UINT32 MaximumTotalBytes;
+  UINT32    MaximumTotalBytes;
 } EFI_I2C_CONTROLLER_CAPABILITIES;
 
 ///
@@ -67,12 +67,12 @@ typedef struct {
   /// combines both the manufacture name and the I2C part number into
   /// a single value specified as a GUID.
   ///
-  CONST EFI_GUID *DeviceGuid;
+  CONST EFI_GUID    *DeviceGuid;
 
   ///
   /// Unique ID of the I2C part within the system
   ///
-  UINT32 DeviceIndex;
+  UINT32            DeviceIndex;
 
   ///
   /// Hardware revision - ACPI _HRV value.  See the Advanced
@@ -83,29 +83,29 @@ typedef struct {
   /// http://www.acpi.info/spec.htm
   /// http://msdn.microsoft.com/en-us/library/windows/hardware/jj131711(v=vs.85).aspx
   ///
-  UINT32 HardwareRevision;
+  UINT32          HardwareRevision;
 
   ///
   /// I2C bus configuration for the I2C device
   ///
-  UINT32 I2cBusConfiguration;
+  UINT32          I2cBusConfiguration;
 
   ///
   /// Number of slave addresses for the I2C device.
   ///
-  UINT32 SlaveAddressCount;
+  UINT32          SlaveAddressCount;
 
   ///
   /// Pointer to the array of slave addresses for the I2C device.
   ///
-  CONST UINT32 *SlaveAddressArray;
+  CONST UINT32    *SlaveAddressArray;
 } EFI_I2C_DEVICE;
 
 ///
 /// Define the I2C flags
 ///
 /// I2C read operation when set
-#define I2C_FLAG_READ               0x00000001
+#define I2C_FLAG_READ  0x00000001
 
 ///
 /// Define the flags for SMBus operation
@@ -116,7 +116,7 @@ typedef struct {
 ///
 
 /// SMBus operation
-#define I2C_FLAG_SMBUS_OPERATION    0x00010000
+#define I2C_FLAG_SMBUS_OPERATION  0x00010000
 
 /// SMBus block operation
 ///   The flag I2C_FLAG_SMBUS_BLOCK causes the I2C master protocol to update
@@ -127,19 +127,19 @@ typedef struct {
 ///   of LengthInBytes is to be read from the device.  The first byte
 ///   read contains the number of bytes remaining to be read, plus an
 ///   optional PEC value.
-#define I2C_FLAG_SMBUS_BLOCK        0x00020000
+#define I2C_FLAG_SMBUS_BLOCK  0x00020000
 
 /// SMBus process call operation
-#define I2C_FLAG_SMBUS_PROCESS_CALL 0x00040000
+#define I2C_FLAG_SMBUS_PROCESS_CALL  0x00040000
 
 /// SMBus use packet error code (PEC)
 ///   Note that the I2C master protocol may clear the I2C_FLAG_SMBUS_PEC bit
 ///   to indicate that the PEC value was checked by the hardware and is
 ///   not appended to the returned read data.
 ///
-#define I2C_FLAG_SMBUS_PEC          0x00080000
+#define I2C_FLAG_SMBUS_PEC  0x00080000
 
-//----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 ///
 /// QuickRead:          OperationCount=1,
 ///                     LengthInBytes=0,   Flags=I2C_FLAG_READ
@@ -238,7 +238,7 @@ typedef struct {
 ///                                            | I2C_FLAG_SMBUS_PEC
 ///                     LengthInBytes=34,  Flags=I2C_FLAG_READ
 ///
-//----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 
 ///
 /// I2C device operation
@@ -260,20 +260,20 @@ typedef struct {
   ///
   /// Flags to qualify the I2C operation.
   ///
-  UINT32 Flags;
+  UINT32    Flags;
 
   ///
   /// Number of bytes to send to or receive from the I2C device.  A ping
   /// (address only byte/bytes)  is indicated by setting the LengthInBytes
   /// to zero.
   ///
-  UINT32 LengthInBytes;
+  UINT32    LengthInBytes;
 
   ///
   /// Pointer to a buffer containing the data to send or to receive from
   /// the I2C device.  The Buffer must be at least LengthInBytes in size.
   ///
-  UINT8 *Buffer;
+  UINT8     *Buffer;
 } EFI_I2C_OPERATION;
 
 ///
@@ -290,12 +290,12 @@ typedef struct {
   ///
   /// Number of elements in the operation array
   ///
-  UINTN OperationCount;
+  UINTN                OperationCount;
 
   ///
   /// Description of the I2C operation
   ///
-  EFI_I2C_OPERATION Operation [1];
+  EFI_I2C_OPERATION    Operation[1];
 } EFI_I2C_REQUEST_PACKET;
 
-#endif  //  __PI_I2C_H__
+#endif //  __PI_I2C_H__

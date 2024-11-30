@@ -26,15 +26,15 @@
     0x8868e871, 0xe4f1, 0x11d3, {0xbc, 0x22, 0x0, 0x80, 0xc7, 0x3c, 0x88, 0x81 } \
   }
 
-#define ACPI_10_TABLE_GUID     ACPI_TABLE_GUID
+#define ACPI_10_TABLE_GUID  ACPI_TABLE_GUID
 
 //
 // ACPI 2.0 or newer tables should use EFI_ACPI_TABLE_GUID.
 //
-#define EFI_ACPI_20_TABLE_GUID EFI_ACPI_TABLE_GUID
+#define EFI_ACPI_20_TABLE_GUID  EFI_ACPI_TABLE_GUID
 
-extern EFI_GUID gEfiAcpiTableGuid;
-extern EFI_GUID gEfiAcpi10TableGuid;
-extern EFI_GUID gEfiAcpi20TableGuid;
+extern EFI_GUID  gEfiAcpiTableGuid;
+extern EFI_GUID  gEfiAcpi10TableGuid;
+extern EFI_GUID  gEfiAcpi20TableGuid;
 
 #endif

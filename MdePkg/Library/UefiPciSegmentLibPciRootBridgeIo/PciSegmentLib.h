@@ -9,7 +9,6 @@
 #ifndef __DXE_PCI_SEGMENT_LIB__
 #define __DXE_PCI_SEGMENT_LIB__
 
-
 #include <Protocol/PciRootBridgeIo.h>
 
 #include <Library/PciSegmentLib.h>
@@ -35,7 +34,7 @@ typedef struct {
   @param  M Additional bits to assert to be zero.
 
 **/
-#define ASSERT_INVALID_PCI_SEGMENT_ADDRESS(A,M) \
+#define ASSERT_INVALID_PCI_SEGMENT_ADDRESS(A, M) \
   ASSERT (((A) & (0xffff0000f0000000ULL | (M))) == 0)
 
 /**

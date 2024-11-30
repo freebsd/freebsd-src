@@ -27,7 +27,7 @@
   }
 
 typedef struct _EFI_MM_CONTROL_PROTOCOL  EFI_MM_CONTROL_PROTOCOL;
-typedef UINTN  EFI_MM_PERIOD;
+typedef UINTN                            EFI_MM_PERIOD;
 
 /**
   Invokes MMI activation from either the preboot or runtime environment.
@@ -83,18 +83,17 @@ EFI_STATUS
 /// these signals.
 ///
 struct _EFI_MM_CONTROL_PROTOCOL {
-  EFI_MM_ACTIVATE    Trigger;
-  EFI_MM_DEACTIVATE  Clear;
+  EFI_MM_ACTIVATE      Trigger;
+  EFI_MM_DEACTIVATE    Clear;
   ///
   /// Minimum interval at which the platform can set the period.  A maximum is not
   /// specified in that the MM infrastructure code can emulate a maximum interval that is
   /// greater than the hardware capabilities by using software emulation in the MM
   /// infrastructure code.
   ///
-  EFI_MM_PERIOD      MinimumTriggerPeriod;
+  EFI_MM_PERIOD        MinimumTriggerPeriod;
 };
 
-extern EFI_GUID gEfiMmControlProtocolGuid;
+extern EFI_GUID  gEfiMmControlProtocolGuid;
 
 #endif
-

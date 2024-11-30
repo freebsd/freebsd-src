@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Writes the current value of 64-bit MMX Register #3 (MM3).
 
@@ -21,7 +18,7 @@
 VOID
 EFIAPI
 AsmWriteMm3 (
-  IN UINT64   Value
+  IN UINT64  Value
   )
 {
   _asm {
@@ -29,4 +26,3 @@ AsmWriteMm3 (
     emms
   }
 }
-

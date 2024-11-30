@@ -2,18 +2,19 @@
   DMA Remapping Reporting (DMAR) ACPI table definition from Intel(R)
   Virtualization Technology for Directed I/O (VT-D) Architecture Specification.
 
-  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2016 - 2022, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
     - Intel(R) Virtualization Technology for Directed I/O (VT-D) Architecture
-      Specification v2.5, Dated November 2017.
-      http://www.intel.com/content/dam/www/public/us/en/documents/product-specifications/vt-directed-io-spec.pdf
+      Specification v4.0, Dated June 2022.
+      https://software.intel.com/content/dam/develop/external/us/en/documents/vt-directed-io-spec.pdf
 
   @par Glossary:
     - HPET - High Precision Event Timer
     - NUMA - Non-uniform Memory Access
 **/
+
 #ifndef _DMA_REMAPPING_REPORTING_TABLE_H_
 #define _DMA_REMAPPING_REPORTING_TABLE_H_
 
@@ -24,7 +25,7 @@
 ///
 /// DMA-Remapping Reporting Structure definitions from section 8.1
 ///@{
-#define EFI_ACPI_DMAR_REVISION                             0x01
+#define EFI_ACPI_DMAR_REVISION  0x01
 
 #define EFI_ACPI_DMAR_FLAGS_INTR_REMAP                     BIT0
 #define EFI_ACPI_DMAR_FLAGS_X2APIC_OPT_OUT                 BIT1
@@ -34,11 +35,13 @@
 ///
 /// Remapping Structure Types definitions from section 8.2
 ///@{
-#define EFI_ACPI_DMAR_TYPE_DRHD                   0x00
-#define EFI_ACPI_DMAR_TYPE_RMRR                   0x01
-#define EFI_ACPI_DMAR_TYPE_ATSR                   0x02
-#define EFI_ACPI_DMAR_TYPE_RHSA                   0x03
-#define EFI_ACPI_DMAR_TYPE_ANDD                   0x04
+#define EFI_ACPI_DMAR_TYPE_DRHD  0x00
+#define EFI_ACPI_DMAR_TYPE_RMRR  0x01
+#define EFI_ACPI_DMAR_TYPE_ATSR  0x02
+#define EFI_ACPI_DMAR_TYPE_RHSA  0x03
+#define EFI_ACPI_DMAR_TYPE_ANDD  0x04
+#define EFI_ACPI_DMAR_TYPE_SATC  0x05
+#define EFI_ACPI_DMAR_TYPE_SIDP  0x06
 ///@}
 
 ///
@@ -54,38 +57,45 @@
 #define EFI_ACPI_DEVICE_SCOPE_ENTRY_TYPE_IOAPIC                 0x03
 #define EFI_ACPI_DEVICE_SCOPE_ENTRY_TYPE_MSI_CAPABLE_HPET       0x04
 #define EFI_ACPI_DEVICE_SCOPE_ENTRY_TYPE_ACPI_NAMESPACE_DEVICE  0x05
+
+#define EFI_ACPI_DEVICE_SCOPE_REQ_WO_PASID_NESTED_NOTALLOWED  BIT0
+#define EFI_ACPI_DEVICE_SCOPE_REQ_WO_PASID_PWSNP_NOTALLOWED   BIT1
+#define EFI_ACPI_DEVICE_SCOPE_REQ_WO_PASID_PGSNP_NOTALLOWED   BIT2
+#define EFI_ACPI_DEVICE_SCOPE_REQ_WO_PASID_ATC_HARDENED       BIT3
+#define EFI_ACPI_DEVICE_SCOPE_REQ_WO_PASID_ATC_REQUIRED       BIT4
 ///@}
 
 ///
 /// Root Port ATS Capability Reporting Structure definitions from section 8.5
 ///
-#define EFI_ACPI_DMAR_ATSR_FLAGS_ALL_PORTS                      BIT0
+#define EFI_ACPI_DMAR_ATSR_FLAGS_ALL_PORTS  BIT0
 
 ///
 /// Definition for DMA Remapping Structure Header
 ///
 typedef struct {
-  UINT16        Type;
-  UINT16        Length;
+  UINT16    Type;
+  UINT16    Length;
 } EFI_ACPI_DMAR_STRUCTURE_HEADER;
 
 ///
 /// Definition for DMA-Remapping PCI Path
 ///
 typedef struct {
-  UINT8         Device;
-  UINT8         Function;
+  UINT8    Device;
+  UINT8    Function;
 } EFI_ACPI_DMAR_PCI_PATH;
 
 ///
 /// Device Scope Structure is defined in section 8.3.1
 ///
 typedef struct {
-  UINT8         Type;
-  UINT8         Length;
-  UINT16        Reserved2;
-  UINT8         EnumerationId;
-  UINT8         StartBusNumber;
+  UINT8    Type;
+  UINT8    Length;
+  UINT8    Flags;
+  UINT8    Reserved;
+  UINT8    EnumerationId;
+  UINT8    StartBusNumber;
 } EFI_ACPI_DMAR_DEVICE_SCOPE_STRUCTURE_HEADER;
 
 /**
@@ -95,7 +105,8 @@ typedef struct {
   for each PCI segment in the platform.
 **/
 typedef struct {
-  EFI_ACPI_DMAR_STRUCTURE_HEADER  Header;
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+
   /**
     - Bit[0]: INCLUDE_PCI_ALL
               - If Set, this remapping hardware unit has under its scope all
@@ -107,16 +118,23 @@ typedef struct {
                 through the DeviceScope field.
     - Bits[7:1] Reserved.
   **/
-  UINT8                           Flags;
-  UINT8                           Reserved;
+  UINT8     Flags;
+
+  /**
+    - Bits[3:0]: Indicates the size of the remapping hardware register set for
+                 this remapping unit. If the value in this field is N, the size
+                 of the register set is 2^N 4 KB pages
+    - Bits[7:4]: Reserved.
+  **/
+  UINT8     Size;
   ///
   /// The PCI Segment associated with this unit.
   ///
-  UINT16                          SegmentNumber;
+  UINT16    SegmentNumber;
   ///
   /// Base address of remapping hardware register-set for this unit.
   ///
-  UINT64                          RegisterBaseAddress;
+  UINT64    RegisterBaseAddress;
 } EFI_ACPI_DMAR_DRHD_HEADER;
 
 /**
@@ -126,24 +144,25 @@ typedef struct {
   reserved memory region.
 **/
 typedef struct {
-  EFI_ACPI_DMAR_STRUCTURE_HEADER  Header;
-  UINT8                           Reserved[2];
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+  UINT8                             Reserved[2];
   ///
   /// PCI Segment Number associated with devices identified through
   /// the Device Scope field.
   ///
-  UINT16                          SegmentNumber;
+  UINT16                            SegmentNumber;
   ///
   /// Base address of 4KB-aligned reserved memory region
   ///
-  UINT64                          ReservedMemoryRegionBaseAddress;
+  UINT64                            ReservedMemoryRegionBaseAddress;
+
   /**
     Last address of the reserved memory region. Value in this field must be
     greater than the value in Reserved Memory Region Base Address field.
     The reserved memory region size (Limit - Base + 1) must be an integer
     multiple of 4KB.
   **/
-  UINT64                          ReservedMemoryRegionLimitAddress;
+  UINT64                            ReservedMemoryRegionLimitAddress;
 } EFI_ACPI_DMAR_RMRR_HEADER;
 
 /**
@@ -157,7 +176,8 @@ typedef struct {
   ATS transactions.
 **/
 typedef struct {
-  EFI_ACPI_DMAR_STRUCTURE_HEADER  Header;
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+
   /**
     - Bit[0]: ALL_PORTS:
               - If Set, indicates all PCI Express Root Ports in the specified
@@ -166,12 +186,12 @@ typedef struct {
                 Root Ports identified through the Device Scope field.
     - Bits[7:1] Reserved.
   **/
-  UINT8                           Flags;
-  UINT8                           Reserved;
+  UINT8     Flags;
+  UINT8     Reserved;
   ///
   /// The PCI Segment associated with this ATSR structure
   ///
-  UINT16                          SegmentNumber;
+  UINT16    SegmentNumber;
 } EFI_ACPI_DMAR_ATSR_HEADER;
 
 /**
@@ -182,18 +202,18 @@ typedef struct {
   reported through DRHD structure.
 **/
 typedef struct {
-  EFI_ACPI_DMAR_STRUCTURE_HEADER  Header;
-  UINT8                           Reserved[4];
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+  UINT8                             Reserved[4];
   ///
   /// Register Base Address of this Remap hardware unit reported in the
   /// corresponding DRHD structure.
   ///
-  UINT64                          RegisterBaseAddress;
+  UINT64                            RegisterBaseAddress;
   ///
   /// Proximity Domain to which the Remap hardware unit identified by the
   /// Register Base Address field belongs.
   ///
-  UINT32                          ProximityDomain;
+  UINT32                            ProximityDomain;
 } EFI_ACPI_DMAR_RHSA_HEADER;
 
 /**
@@ -203,8 +223,9 @@ typedef struct {
   with Device-Scope entries of type ACPI_NAMESPACE_DEVICE.
 **/
 typedef struct {
-  EFI_ACPI_DMAR_STRUCTURE_HEADER  Header;
-  UINT8                           Reserved[3];
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+  UINT8                             Reserved[3];
+
   /**
     Each ACPI device enumerated through an ANDD structure must have a unique
     value for this field. To report an ACPI device with ACPI Device Number
@@ -213,8 +234,49 @@ typedef struct {
     The Start Bus Number and Path fields in the Device-Scope together
     provides the 16-bit source-id allocated by platform for the ACPI device.
   **/
-  UINT8                           AcpiDeviceNumber;
+  UINT8    AcpiDeviceNumber;
 } EFI_ACPI_DMAR_ANDD_HEADER;
+
+/**
+  An SoC Integrated Address Translation Cache (SATC) reporting structure is
+  defined in section 8.8.
+**/
+typedef struct {
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+
+  /**
+    - Bit[0]: ATC_REQUIRED:
+              - If Set, indicates that every SoC integrated device enumerated
+                in this table has a functional requirement to enable its ATC
+                (via the ATS capability) for device operation.
+              - If Clear, any device enumerated in this table can operate when
+                its respective ATC is not enabled (albeit with reduced
+                performance or functionality).
+    - Bits[7:1] Reserved.
+  **/
+  UINT8     Flags;
+  UINT8     Reserved;
+  ///
+  /// The PCI Segment associated with this SATC structure. All SoC integrated
+  /// devices within a PCI segment with same value for Flags field must be
+  /// enumerated in the same SATC structure.
+  ///
+  UINT16    SegmentNumber;
+} EFI_ACPI_DMAR_SATC_HEADER;
+
+/**
+  SoC Integrated Device Property (SIDP) Reporting Structure is defined in
+  section 8.9.
+**/
+typedef struct {
+  EFI_ACPI_DMAR_STRUCTURE_HEADER    Header;
+
+  UINT16                            Reserved;
+  ///
+  /// The PCI Segment associated with this SIDP structure.
+  ///
+  UINT16                            SegmentNumber;
+} EFI_ACPI_DMAR_SIDP_HEADER;
 
 /**
   DMA Remapping Reporting Structure Header as defined in section 8.1
@@ -224,12 +286,15 @@ typedef struct {
     - Root Port ATS Capability Reporting (ATSR)
     - Remapping Hardware Static Affinity (RHSA)
     - ACPI Name-space Device Declaration (ANDD)
+    - SoC Integrated Address Translation Cache reporting (SATC)
+    - SoC Integrated Device Property reporting (SIDP)
   These structure types must by reported in numerical order.
   i.e., All remapping structures of type 0 (DRHD) enumerated before remapping
   structures of type 1 (RMRR), and so forth.
 **/
 typedef struct {
-  EFI_ACPI_DESCRIPTION_HEADER     Header;
+  EFI_ACPI_DESCRIPTION_HEADER    Header;
+
   /**
     This field indicates the maximum DMA physical addressability supported by
     this platform. The system address map reported by the BIOS indicates what
@@ -239,7 +304,8 @@ typedef struct {
     For example, for a platform supporting 40 bits of physical addressability,
     the value of 100111b is reported in this field.
   **/
-  UINT8                           HostAddressWidth;
+  UINT8    HostAddressWidth;
+
   /**
     - Bit[0]:   INTR_REMAP - If Clear, the platform does not support interrupt
                 remapping. If Set, the platform supports interrupt remapping.
@@ -254,8 +320,8 @@ typedef struct {
                 such as on ExitBootServices().
     - Bits[7:3] Reserved.
   **/
-  UINT8                           Flags;
-  UINT8                           Reserved[10];
+  UINT8    Flags;
+  UINT8    Reserved[10];
 } EFI_ACPI_DMAR_HEADER;
 
 #pragma pack()

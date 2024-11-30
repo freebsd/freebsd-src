@@ -26,24 +26,24 @@
 //
 // Revision definition.
 //
-#define EFI_MM_MP_PROTOCOL_REVISION    0x00
+#define EFI_MM_MP_PROTOCOL_REVISION  0x00
 
 //
 // Attribute flags
 //
-#define EFI_MM_MP_TIMEOUT_SUPPORTED    0x01
+#define EFI_MM_MP_TIMEOUT_SUPPORTED  0x01
 
 //
 // Completion token
 //
-typedef VOID* MM_COMPLETION;
+typedef VOID *MM_COMPLETION;
 
 typedef struct {
-  MM_COMPLETION  Completion;
-  EFI_STATUS     Status;
+  MM_COMPLETION    Completion;
+  EFI_STATUS       Status;
 } MM_DISPATCH_COMPLETION_TOKEN;
 
-typedef struct _EFI_MM_MP_PROTOCOL  EFI_MM_MP_PROTOCOL;
+typedef struct _EFI_MM_MP_PROTOCOL EFI_MM_MP_PROTOCOL;
 
 /**
   Service to retrieves the number of logical processor in the platform.
@@ -57,11 +57,10 @@ typedef struct _EFI_MM_MP_PROTOCOL  EFI_MM_MP_PROTOCOL;
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_MM_GET_NUMBER_OF_PROCESSORS) (
+(EFIAPI *EFI_MM_GET_NUMBER_OF_PROCESSORS)(
   IN CONST EFI_MM_MP_PROTOCOL  *This,
   OUT      UINTN               *NumberOfProcessors
-);
-
+  );
 
 /**
   This service allows the caller to invoke a procedure one of the application processors (AP). This
@@ -124,7 +123,7 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_MM_DISPATCH_PROCEDURE) (
+(EFIAPI *EFI_MM_DISPATCH_PROCEDURE)(
   IN CONST EFI_MM_MP_PROTOCOL            *This,
   IN       EFI_AP_PROCEDURE2             Procedure,
   IN       UINTN                         CpuNumber,
@@ -132,7 +131,7 @@ EFI_STATUS
   IN OUT   VOID                          *ProcedureArguments OPTIONAL,
   IN OUT   MM_COMPLETION                 *Token,
   IN OUT   EFI_STATUS                    *CPUStatus
-);
+  );
 
 /**
   This service allows the caller to invoke a procedure on all running application processors (AP)
@@ -202,15 +201,14 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_MM_BROADCAST_PROCEDURE) (
+(EFIAPI *EFI_MM_BROADCAST_PROCEDURE)(
   IN CONST EFI_MM_MP_PROTOCOL            *This,
   IN       EFI_AP_PROCEDURE2             Procedure,
   IN       UINTN                         TimeoutInMicroseconds,
   IN OUT   VOID                          *ProcedureArguments OPTIONAL,
   IN OUT   MM_COMPLETION                 *Token,
   IN OUT   EFI_STATUS                    *CPUStatus
-);
-
+  );
 
 /**
   This service allows the caller to set a startup procedure that will be executed when an AP powers
@@ -238,11 +236,11 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_MM_SET_STARTUP_PROCEDURE) (
+(EFIAPI *EFI_MM_SET_STARTUP_PROCEDURE)(
   IN CONST EFI_MM_MP_PROTOCOL *This,
   IN       EFI_AP_PROCEDURE   Procedure,
   IN OUT   VOID               *ProcedureArguments OPTIONAL
-);
+  );
 
 /**
   When non-blocking execution of a procedure on an AP is invoked with DispatchProcedure,
@@ -274,10 +272,10 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_CHECK_FOR_PROCEDURE) (
+(EFIAPI *EFI_CHECK_FOR_PROCEDURE)(
   IN CONST EFI_MM_MP_PROTOCOL            *This,
   IN       MM_COMPLETION                 Token
-);
+  );
 
 /**
   When a non-blocking execution of a procedure on an AP is invoked via DispatchProcedure,
@@ -306,28 +304,26 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI *EFI_WAIT_FOR_PROCEDURE) (
+(EFIAPI *EFI_WAIT_FOR_PROCEDURE)(
   IN CONST EFI_MM_MP_PROTOCOL            *This,
   IN       MM_COMPLETION                 Token
-);
-
-
+  );
 
 ///
 /// The MM MP protocol provides a set of functions to allow execution of procedures on processors that
 /// have entered MM.
 ///
 struct _EFI_MM_MP_PROTOCOL {
-  UINT32                            Revision;
-  UINT32                            Attributes;
-  EFI_MM_GET_NUMBER_OF_PROCESSORS   GetNumberOfProcessors;
-  EFI_MM_DISPATCH_PROCEDURE         DispatchProcedure;
-  EFI_MM_BROADCAST_PROCEDURE        BroadcastProcedure;
-  EFI_MM_SET_STARTUP_PROCEDURE      SetStartupProcedure;
-  EFI_CHECK_FOR_PROCEDURE           CheckForProcedure;
-  EFI_WAIT_FOR_PROCEDURE            WaitForProcedure;
+  UINT32                             Revision;
+  UINT32                             Attributes;
+  EFI_MM_GET_NUMBER_OF_PROCESSORS    GetNumberOfProcessors;
+  EFI_MM_DISPATCH_PROCEDURE          DispatchProcedure;
+  EFI_MM_BROADCAST_PROCEDURE         BroadcastProcedure;
+  EFI_MM_SET_STARTUP_PROCEDURE       SetStartupProcedure;
+  EFI_CHECK_FOR_PROCEDURE            CheckForProcedure;
+  EFI_WAIT_FOR_PROCEDURE             WaitForProcedure;
 };
 
-extern EFI_GUID gEfiMmMpProtocolGuid;
+extern EFI_GUID  gEfiMmMpProtocolGuid;
 
 #endif

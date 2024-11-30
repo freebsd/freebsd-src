@@ -1,0 +1,37 @@
+## @file
+# Host OS based Application that Unit Tests the SafeIntLib using Google Test
+#
+# Copyright (c) 2022, Intel Corporation. All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION     = 0x00010005
+  BASE_NAME       = GoogleTestBaseSafeIntLib
+  MODULE_UNI_FILE = GoogleTestBaseSafeIntLib.uni
+  FILE_GUID       = 2D9C1796-B0D2-4DA7-9529-1F8D9CCC11D3
+  MODULE_TYPE     = HOST_APPLICATION
+  VERSION_STRING  = 1.0
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  TestBaseSafeIntLib.cpp
+
+[Sources.IA32]
+  SafeIntLibUintnIntnUnitTests32.cpp
+
+[Sources.X64]
+  SafeIntLibUintnIntnUnitTests64.cpp
+
+[Packages]
+  MdePkg/MdePkg.dec
+  UnitTestFrameworkPkg/UnitTestFrameworkPkg.dec
+
+[LibraryClasses]
+  GoogleTestLib
+  SafeIntLib

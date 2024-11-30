@@ -18,7 +18,7 @@
 /// The version of an HTTP message is indicated by an HTTP-Version field
 /// in the first line of the message.
 ///
-#define HTTP_VERSION        "HTTP/1.1"
+#define HTTP_VERSION  "HTTP/1.1"
 
 ///
 /// HTTP Request Method definitions
@@ -26,15 +26,15 @@
 /// The Method  token indicates the method to be performed on the
 /// resource identified by the Request-URI. The method is case-sensitive.
 ///
-#define HTTP_METHOD_OPTIONS "OPTIONS"
-#define HTTP_METHOD_GET     "GET"
-#define HTTP_METHOD_HEAD    "HEAD"
-#define HTTP_METHOD_POST    "POST"
-#define HTTP_METHOD_PUT     "PUT"
-#define HTTP_METHOD_DELETE  "DELETE"
-#define HTTP_METHOD_TRACE   "TRACE"
-#define HTTP_METHOD_CONNECT "CONNECT"
-#define HTTP_METHOD_PATCH   "PATCH"
+#define HTTP_METHOD_OPTIONS  "OPTIONS"
+#define HTTP_METHOD_GET      "GET"
+#define HTTP_METHOD_HEAD     "HEAD"
+#define HTTP_METHOD_POST     "POST"
+#define HTTP_METHOD_PUT      "PUT"
+#define HTTP_METHOD_DELETE   "DELETE"
+#define HTTP_METHOD_TRACE    "TRACE"
+#define HTTP_METHOD_CONNECT  "CONNECT"
+#define HTTP_METHOD_PATCH    "PATCH"
 
 ///
 /// Connect method has maximum length according to EFI_HTTP_METHOD defined in
@@ -49,8 +49,7 @@
 /// is specifically limited to a small set of desired types, as in the case of a request
 /// for an in-line image.
 ///
-#define HTTP_HEADER_ACCEPT             "Accept"
-
+#define HTTP_HEADER_ACCEPT  "Accept"
 
 ///
 /// Accept-Charset Request Header
@@ -59,7 +58,7 @@
 /// more comprehensive or special-purpose character sets to signal that capability to a
 /// server which is capable of representing documents in those character sets.
 ///
-#define HTTP_HEADER_ACCEPT_CHARSET     "Accept-Charset"
+#define HTTP_HEADER_ACCEPT_CHARSET  "Accept-Charset"
 
 ///
 /// Accept-Language Request Header
@@ -67,22 +66,21 @@
 /// but restricts the set of natural languages that are preferred
 /// as a response to the request.
 ///
-#define HTTP_HEADER_ACCEPT_LANGUAGE    "Accept-Language"
+#define HTTP_HEADER_ACCEPT_LANGUAGE  "Accept-Language"
 
 ///
 /// Accept-Ranges Request Header
 /// The Accept-Ranges response-header field allows the server to
 /// indicate its acceptance of range requests for a resource:
 ///
-#define HTTP_HEADER_ACCEPT_RANGES      "Accept-Ranges"
-
+#define HTTP_HEADER_ACCEPT_RANGES  "Accept-Ranges"
 
 ///
 /// Accept-Encoding Request Header
 /// The Accept-Encoding request-header field is similar to Accept,
 /// but restricts the content-codings that are acceptable in the response.
 ///
-#define HTTP_HEADER_ACCEPT_ENCODING    "Accept-Encoding"
+#define HTTP_HEADER_ACCEPT_ENCODING  "Accept-Encoding"
 
 ///
 /// Content-Encoding Header
@@ -93,18 +91,17 @@
 /// is primarily used to allow a document to be compressed without losing the identity
 /// of its underlying media type.
 ///
-#define HTTP_HEADER_CONTENT_ENCODING   "Content-Encoding"
+#define HTTP_HEADER_CONTENT_ENCODING  "Content-Encoding"
 
 ///
 /// HTTP Content-Encoding Compression types
 ///
 
-#define HTTP_CONTENT_ENCODING_IDENTITY "identity"  /// No transformation is used. This is the default value for content coding.
-#define HTTP_CONTENT_ENCODING_GZIP     "gzip"      /// Content-Encoding: GNU zip format (described in RFC 1952).
-#define HTTP_CONTENT_ENCODING_COMPRESS "compress"  /// encoding format produced by the common UNIX file compression program "compress".
-#define HTTP_CONTENT_ENCODING_DEFLATE  "deflate"   /// The "zlib" format defined in RFC 1950 in combination with the "deflate"
+#define HTTP_CONTENT_ENCODING_IDENTITY  "identity" /// No transformation is used. This is the default value for content coding.
+#define HTTP_CONTENT_ENCODING_GZIP      "gzip"     /// Content-Encoding: GNU zip format (described in RFC 1952).
+#define HTTP_CONTENT_ENCODING_COMPRESS  "compress" /// encoding format produced by the common UNIX file compression program "compress".
+#define HTTP_CONTENT_ENCODING_DEFLATE   "deflate"  /// The "zlib" format defined in RFC 1950 in combination with the "deflate"
                                                    /// compression mechanism described in RFC 1951.
-
 
 ///
 /// Content-Type Header
@@ -112,23 +109,22 @@
 /// the recipient or, in the case of the HEAD method, the media type that would have been sent
 /// had the request been a GET.
 ///
-#define HTTP_HEADER_CONTENT_TYPE       "Content-Type"
+#define HTTP_HEADER_CONTENT_TYPE  "Content-Type"
 //
 // Common Media Types defined in http://www.iana.org/assignments/media-types/media-types.xhtml
 //
 #define HTTP_CONTENT_TYPE_APP_JSON          "application/json"
 #define HTTP_CONTENT_TYPE_APP_OCTET_STREAM  "application/octet-stream"
 
-#define HTTP_CONTENT_TYPE_TEXT_HTML         "text/html"
-#define HTTP_CONTENT_TYPE_TEXT_PLAIN        "text/plain"
-#define HTTP_CONTENT_TYPE_TEXT_CSS          "text/css"
-#define HTTP_CONTENT_TYPE_TEXT_XML          "text/xml"
+#define HTTP_CONTENT_TYPE_TEXT_HTML   "text/html"
+#define HTTP_CONTENT_TYPE_TEXT_PLAIN  "text/plain"
+#define HTTP_CONTENT_TYPE_TEXT_CSS    "text/css"
+#define HTTP_CONTENT_TYPE_TEXT_XML    "text/xml"
 
-#define HTTP_CONTENT_TYPE_IMAGE_GIF         "image/gif"
-#define HTTP_CONTENT_TYPE_IMAGE_JPEG        "image/jpeg"
-#define HTTP_CONTENT_TYPE_IMAGE_PNG         "image/png"
-#define HTTP_CONTENT_TYPE_IMAGE_SVG_XML     "image/svg+xml"
-
+#define HTTP_CONTENT_TYPE_IMAGE_GIF      "image/gif"
+#define HTTP_CONTENT_TYPE_IMAGE_JPEG     "image/jpeg"
+#define HTTP_CONTENT_TYPE_IMAGE_PNG      "image/png"
+#define HTTP_CONTENT_TYPE_IMAGE_SVG_XML  "image/svg+xml"
 
 ///
 /// Content-Length Header
@@ -136,7 +132,7 @@
 /// in decimal number of OCTETs, sent to the recipient or, in the case of the HEAD
 /// method, the size of the entity-body that would have been sent had the request been a GET.
 ///
-#define HTTP_HEADER_CONTENT_LENGTH     "Content-Length"
+#define HTTP_HEADER_CONTENT_LENGTH  "Content-Length"
 
 ///
 /// Transfer-Encoding Header
@@ -145,8 +141,12 @@
 /// and the recipient. This differs from the content-coding in that the transfer-coding
 /// is a property of the message, not of the entity.
 ///
-#define HTTP_HEADER_TRANSFER_ENCODING  "Transfer-Encoding"
-
+#define HTTP_HEADER_TRANSFER_ENCODING                "Transfer-Encoding"
+#define HTTP_HEADER_TRANSFER_ENCODING_CHUNKED        "chunked"
+#define CHUNKED_TRANSFER_CODING_CR                   '\r'
+#define CHUNKED_TRANSFER_CODING_LF                   '\n'
+#define CHUNKED_TRANSFER_CODING_LAST_CHUNK           '0'
+#define CHUNKED_TRANSFER_CODING_EXTENSION_SEPARATOR  ';'
 
 ///
 /// User Agent Request Header
@@ -160,7 +160,7 @@
 /// By convention, the product tokens are listed in order of their significance for
 /// identifying the application.
 ///
-#define HTTP_HEADER_USER_AGENT         "User-Agent"
+#define HTTP_HEADER_USER_AGENT  "User-Agent"
 
 ///
 /// Host Request Header
@@ -168,7 +168,7 @@
 /// The Host request-header field specifies the Internet host and port number of the resource
 /// being requested, as obtained from the original URI given by the user or referring resource
 ///
-#define HTTP_HEADER_HOST              "Host"
+#define HTTP_HEADER_HOST  "Host"
 
 ///
 /// Location Response Header
@@ -179,7 +179,7 @@
 /// the request. For 3xx responses, the location SHOULD indicate the server's preferred URI for
 /// automatic redirection to the resource. The field value consists of a single absolute URI.
 ///
-#define HTTP_HEADER_LOCATION           "Location"
+#define HTTP_HEADER_LOCATION  "Location"
 
 ///
 /// The If-Match request-header field is used with a method to make it conditional.
@@ -191,8 +191,7 @@
 /// to prevent inadvertent modification of the wrong version of a resource.
 /// As a special case, the value "*" matches any current entity of the resource.
 ///
-#define HTTP_HEADER_IF_MATCH          "If-Match"
-
+#define HTTP_HEADER_IF_MATCH  "If-Match"
 
 ///
 /// The If-None-Match request-header field is used with a method to make it conditional.
@@ -203,9 +202,15 @@
 /// to prevent a method (e.g. PUT) from inadvertently modifying an existing resource when the
 /// client believes that the resource does not exist.
 ///
-#define HTTP_HEADER_IF_NONE_MATCH     "If-None-Match"
+#define HTTP_HEADER_IF_NONE_MATCH  "If-None-Match"
 
-
+///
+/// The WWW-Authenticate Response Header
+/// If a server receives a request for an access-protected object, and an
+/// acceptable Authorization header is not sent, the server responds with
+/// a "401 Unauthorized" status code, and a WWW-Authenticate header.
+///
+#define HTTP_HEADER_WWW_AUTHENTICATE  "WWW-Authenticate"
 
 ///
 /// Authorization Request Header
@@ -213,21 +218,21 @@
 /// containing the authentication information of the user agent for
 /// the realm of the resource being requested.
 ///
-#define HTTP_HEADER_AUTHORIZATION     "Authorization"
+#define HTTP_HEADER_AUTHORIZATION  "Authorization"
 
 ///
 /// ETAG Response Header
 /// The ETag response-header field provides the current value of the entity tag
 /// for the requested variant.
 ///
-#define HTTP_HEADER_ETAG              "ETag"
+#define HTTP_HEADER_ETAG  "ETag"
 
 ///
 /// Custom header field checked by the iLO web server to
 /// specify a client session key.
 /// Example:     X-Auth-Token: 24de6b1f8fa147ad59f6452def628798
 ///
-#define  HTTP_HEADER_X_AUTH_TOKEN      "X-Auth-Token"
+#define  HTTP_HEADER_X_AUTH_TOKEN  "X-Auth-Token"
 
 ///
 /// Expect Header
@@ -236,12 +241,40 @@
 /// order to properly handle this request. The only such expectation
 /// defined by this specification is 100-continue.
 ///
-#define  HTTP_HEADER_EXPECT            "Expect"
+#define  HTTP_HEADER_EXPECT  "Expect"
 
 ///
 /// Expect Header Value
 ///
-#define  HTTP_EXPECT_100_CONTINUE       "100-continue"
+#define  HTTP_EXPECT_100_CONTINUE  "100-continue"
+
+///
+/// Content-Range Response Header
+/// The Content-Range response HTTP header indicates where in a
+/// full body message a partial message belongs.
+///
+#define HTTP_HEADER_CONTENT_RANGE  "Content-Range"
+
+///
+/// Last-Modified Response Header
+/// The Last-Modified response HTTP header contains a date and time when
+/// the origin server believes the resource was last modified. It is used
+/// as a validator to determine if the resource is the same as the
+/// previously stored one. Less accurate than an ETag header,
+/// it is a fallback mechanism. Conditional requests containing
+/// If-Modified-Since or If-Unmodified-Since headers make use of this field.
+///
+#define HTTP_HEADER_LAST_MODIFIED  "Last-Modified"
+
+///
+/// If Unmodified Since Request Header
+/// Makes the request for the resource conditional: the server will send
+/// the requested resource or accept it in the case of a POST or another
+/// non-safe method only if the resource has not been modified after the
+/// date specified by this HTTP header. If the resource has been modified
+/// after the specified date, the response will be a 412 Precondition Failed error.
+///
+#define HTTP_HEADER_IF_UNMODIFIED_SINCE  "If-Unmodified-Since"
 
 #pragma pack()
 

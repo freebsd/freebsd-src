@@ -27,4 +27,3 @@ AsmEnableCache (
     mov     cr0, eax
   }
 }
-

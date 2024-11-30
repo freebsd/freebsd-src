@@ -9,7 +9,6 @@
 
 **/
 
-
 #ifndef _CAPSULE_REPORT_GUID_H__
 #define _CAPSULE_REPORT_GUID_H__
 
@@ -21,60 +20,56 @@
     0x39b68c46, 0xf7fb, 0x441b, {0xb6, 0xec, 0x16, 0xb0, 0xf6, 0x98, 0x21, 0xf3 } \
   }
 
-
 typedef struct {
-
   ///
   /// Size in bytes of the variable including any data beyond header as specified by CapsuleGuid
   ///
-  UINT32     VariableTotalSize;
+  UINT32        VariableTotalSize;
 
   ///
   /// For alignment
   ///
-  UINT32     Reserved;
+  UINT32        Reserved;
 
   ///
   /// Guid from EFI_CAPSULE_HEADER
   ///
-  EFI_GUID   CapsuleGuid;
+  EFI_GUID      CapsuleGuid;
 
   ///
   /// Timestamp using system time when processing completed
   ///
-  EFI_TIME   CapsuleProcessed;
+  EFI_TIME      CapsuleProcessed;
 
   ///
   /// Result of the capsule processing. Exact interpretation of any error code may depend
   /// upon type of capsule processed
   ///
-  EFI_STATUS CapsuleStatus;
+  EFI_STATUS    CapsuleStatus;
 } EFI_CAPSULE_RESULT_VARIABLE_HEADER;
 
-
 typedef struct {
-
   ///
   /// Version of this structure, currently 0x00000001
   ///
-  UINT16   Version;
+  UINT16      Version;
 
   ///
   /// The index of the payload within the FMP capsule which was processed to generate this report
   /// Starting from zero
   ///
-  UINT8    PayloadIndex;
+  UINT8       PayloadIndex;
 
   ///
   /// The UpdateImageIndex from EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER
   /// (after unsigned conversion from UINT8 to UINT16).
   ///
-  UINT8    UpdateImageIndex;
+  UINT8       UpdateImageIndex;
 
   ///
   /// The UpdateImageTypeId Guid from EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER.
   ///
-  EFI_GUID UpdateImageTypeId;
+  EFI_GUID    UpdateImageTypeId;
 
   ///
   /// In case of capsule loaded from disk, the zero-terminated array containing file name of capsule that was processed.
@@ -94,7 +89,6 @@ typedef struct {
 } EFI_CAPSULE_RESULT_VARIABLE_FMP;
 
 typedef struct {
-
   ///
   /// Version of this structure, currently 0x00000001
   ///
@@ -108,21 +102,21 @@ typedef struct {
   /// The JSON payload shall conform to a Redfish-defined JSON schema, see DMTF-Redfish
   /// Specification.
   ///
-  UINT32 CapsuleId;
+  UINT32    CapsuleId;
 
   ///
   /// The length of Resp in bytes.
   ///
-  UINT32 RespLength;
+  UINT32    RespLength;
 
   ///
   /// Variable length buffer containing the replied JSON payload to the caller who delivered JSON
   /// capsule to system. The definition of the JSON schema used in the replied payload is beyond
   /// the scope of this specification.
   ///
-  UINT8 Resp[];
- } EFI_CAPSULE_RESULT_VARIABLE_JSON;
+  UINT8     Resp[];
+} EFI_CAPSULE_RESULT_VARIABLE_JSON;
 
-extern EFI_GUID gEfiCapsuleReportGuid;
+extern EFI_GUID  gEfiCapsuleReportGuid;
 
 #endif

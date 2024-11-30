@@ -1,0 +1,29 @@
+## @file
+#  Null library of TraceHubDebugSysTLib.
+#
+#  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = TraceHubDebugSysTLibNull
+  FILE_GUID                      = 16196A4E-4196-4AF4-9A6B-F4D2ACC430A8
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = TraceHubDebugSysTLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+# VALID_ARCHITECTURES = IA32 X64
+#
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[Sources]
+  TraceHubDebugSysTLibNull.c

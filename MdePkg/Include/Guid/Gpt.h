@@ -30,8 +30,8 @@
     0x024dee41, 0x33e7, 0x11d3, {0x9d, 0x69, 0x00, 0x08, 0xc7, 0x81, 0xf3, 0x9f } \
   }
 
-extern EFI_GUID gEfiPartTypeUnusedGuid;
-extern EFI_GUID gEfiPartTypeSystemPartGuid;
-extern EFI_GUID gEfiPartTypeLegacyMbrGuid;
+extern EFI_GUID  gEfiPartTypeUnusedGuid;
+extern EFI_GUID  gEfiPartTypeSystemPartGuid;
+extern EFI_GUID  gEfiPartTypeLegacyMbrGuid;
 
 #endif

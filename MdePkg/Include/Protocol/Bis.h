@@ -29,32 +29,29 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
     0xedd35e31, 0x7b9, 0x11d2, { 0x83,0xa3,0x0,0xa0,0xc9,0x1f,0xad,0xcf } \
   }
 
-
-
-typedef struct _EFI_BIS_PROTOCOL  EFI_BIS_PROTOCOL;
-
+typedef struct _EFI_BIS_PROTOCOL EFI_BIS_PROTOCOL;
 
 //
 // Basic types
 //
-typedef VOID    *BIS_APPLICATION_HANDLE;
-typedef UINT16  BIS_ALG_ID;
-typedef UINT32  BIS_CERT_ID;
+typedef VOID   *BIS_APPLICATION_HANDLE;
+typedef UINT16 BIS_ALG_ID;
+typedef UINT32 BIS_CERT_ID;
 
 ///
 /// EFI_BIS_DATA instances obtained from BIS must be freed by calling Free( ).
 ///
 typedef struct {
-  UINT32  Length; ///< The length of Data in 8 bit bytes.
-  UINT8   *Data;  ///< 32 Bit Flat Address of data.
+  UINT32    Length; ///< The length of Data in 8 bit bytes.
+  UINT8     *Data;  ///< 32 Bit Flat Address of data.
 } EFI_BIS_DATA;
 
 ///
 /// EFI_BIS_VERSION type.
 ///
 typedef struct {
-  UINT32  Major;  ///< The major BIS version number.
-  UINT32  Minor;  ///< A minor BIS version number.
+  UINT32    Major; ///< The major BIS version number.
+  UINT32    Minor; ///< A minor BIS version number.
 } EFI_BIS_VERSION;
 
 //
@@ -63,16 +60,16 @@ typedef struct {
 // and to interpret results of Initialize.
 // ----------------------------------------------------//
 //
-#define BIS_CURRENT_VERSION_MAJOR BIS_VERSION_1
-#define BIS_VERSION_1             1
+#define BIS_CURRENT_VERSION_MAJOR  BIS_VERSION_1
+#define BIS_VERSION_1              1
 
 ///
 /// EFI_BIS_SIGNATURE_INFO type.
 ///
 typedef struct {
-  BIS_CERT_ID CertificateID;  ///< Truncated hash of platform Boot Object
-  BIS_ALG_ID  AlgorithmID;    ///< A signature algorithm number.
-  UINT16      KeyLength;      ///< The length of alg. keys in bits.
+  BIS_CERT_ID    CertificateID; ///< Truncated hash of platform Boot Object
+  BIS_ALG_ID     AlgorithmID;   ///< A signature algorithm number.
+  UINT16         KeyLength;     ///< The length of alg. keys in bits.
 } EFI_BIS_SIGNATURE_INFO;
 
 ///
@@ -80,13 +77,13 @@ typedef struct {
 /// The exact numeric values come from the
 ///    "Common Data Security Architecture (CDSA) Specification".
 ///
-#define BIS_ALG_DSA     (41)  // CSSM_ALGID_DSA
-#define BIS_ALG_RSA_MD5 (42)  // CSSM_ALGID_MD5_WITH_RSA
+#define BIS_ALG_DSA      (41) // CSSM_ALGID_DSA
+#define BIS_ALG_RSA_MD5  (42) // CSSM_ALGID_MD5_WITH_RSA
 ///
 /// values for EFI_BIS_SIGNATURE_INFO.CertificateId.
 ///
-#define BIS_CERT_ID_DSA     BIS_ALG_DSA     // CSSM_ALGID_DSA
-#define BIS_CERT_ID_RSA_MD5 BIS_ALG_RSA_MD5 // CSSM_ALGID_MD5_WITH_RSA
+#define BIS_CERT_ID_DSA      BIS_ALG_DSA     // CSSM_ALGID_DSA
+#define BIS_CERT_ID_RSA_MD5  BIS_ALG_RSA_MD5 // CSSM_ALGID_MD5_WITH_RSA
 ///
 /// The mask value that gets applied to the truncated hash of a
 /// platform  Boot Object Authorization Certificate to create the certificateID.
@@ -102,13 +99,13 @@ typedef struct {
 ///  elements are contained in a EFI_BIS_DATA struct pointed to
 ///  by the provided EFI_BIS_DATA*.
 ///
-#define BIS_GET_SIGINFO_COUNT(BisDataPtr) ((BisDataPtr)->Length / sizeof (EFI_BIS_SIGNATURE_INFO))
+#define BIS_GET_SIGINFO_COUNT(BisDataPtr)  ((BisDataPtr)->Length / sizeof (EFI_BIS_SIGNATURE_INFO))
 
 ///
 /// BIS_GET_SIGINFO_ARRAY - produces a EFI_BIS_SIGNATURE_INFO*
 ///  from a given EFI_BIS_DATA*.
 ///
-#define BIS_GET_SIGINFO_ARRAY(BisDataPtr) ((EFI_BIS_SIGNATURE_INFO *) (BisDataPtr)->Data)
+#define BIS_GET_SIGINFO_ARRAY(BisDataPtr)  ((EFI_BIS_SIGNATURE_INFO *) (BisDataPtr)->Data)
 
 ///
 /// Support an old name for backward compatibility.
@@ -427,19 +424,19 @@ EFI_STATUS
 /// certificate for the purpose of an integrity and authorization check.
 ///
 struct _EFI_BIS_PROTOCOL {
-  EFI_BIS_INITIALIZE                                  Initialize;
-  EFI_BIS_SHUTDOWN                                    Shutdown;
-  EFI_BIS_FREE                                        Free;
-  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_CERTIFICATE   GetBootObjectAuthorizationCertificate;
-  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_CHECKFLAG     GetBootObjectAuthorizationCheckFlag;
-  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_UPDATE_TOKEN  GetBootObjectAuthorizationUpdateToken;
-  EFI_BIS_GET_SIGNATURE_INFO                          GetSignatureInfo;
-  EFI_BIS_UPDATE_BOOT_OBJECT_AUTHORIZATION            UpdateBootObjectAuthorization;
-  EFI_BIS_VERIFY_BOOT_OBJECT                          VerifyBootObject;
-  EFI_BIS_VERIFY_OBJECT_WITH_CREDENTIAL               VerifyObjectWithCredential;
+  EFI_BIS_INITIALIZE                                    Initialize;
+  EFI_BIS_SHUTDOWN                                      Shutdown;
+  EFI_BIS_FREE                                          Free;
+  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_CERTIFICATE     GetBootObjectAuthorizationCertificate;
+  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_CHECKFLAG       GetBootObjectAuthorizationCheckFlag;
+  EFI_BIS_GET_BOOT_OBJECT_AUTHORIZATION_UPDATE_TOKEN    GetBootObjectAuthorizationUpdateToken;
+  EFI_BIS_GET_SIGNATURE_INFO                            GetSignatureInfo;
+  EFI_BIS_UPDATE_BOOT_OBJECT_AUTHORIZATION              UpdateBootObjectAuthorization;
+  EFI_BIS_VERIFY_BOOT_OBJECT                            VerifyBootObject;
+  EFI_BIS_VERIFY_OBJECT_WITH_CREDENTIAL                 VerifyObjectWithCredential;
 };
 
-extern EFI_GUID gEfiBisProtocolGuid;
-extern EFI_GUID gBootObjectAuthorizationParmsetGuid;
+extern EFI_GUID  gEfiBisProtocolGuid;
+extern EFI_GUID  gBootObjectAuthorizationParmsetGuid;
 
 #endif

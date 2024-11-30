@@ -27,151 +27,146 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 typedef struct _EFI_DHCP4_PROTOCOL EFI_DHCP4_PROTOCOL;
 
-
 #pragma pack(1)
 typedef struct {
   ///
   /// DHCP option code.
   ///
-  UINT8               OpCode;
+  UINT8    OpCode;
   ///
   /// Length of the DHCP option data. Not present if OpCode is 0 or 255.
   ///
-  UINT8               Length;
+  UINT8    Length;
   ///
   /// Start of the DHCP option data. Not present if OpCode is 0 or 255 or if Length is zero.
   ///
-  UINT8               Data[1];
+  UINT8    Data[1];
 } EFI_DHCP4_PACKET_OPTION;
 #pragma pack()
-
 
 #pragma pack(1)
 ///
 /// EFI_DHCP4_PACKET defines the format of DHCPv4 packets. See RFC 2131 for more information.
 ///
 typedef struct {
-  UINT8             OpCode;
-  UINT8             HwType;
-  UINT8             HwAddrLen;
-  UINT8             Hops;
-  UINT32            Xid;
-  UINT16            Seconds;
-  UINT16            Reserved;
-  EFI_IPv4_ADDRESS  ClientAddr;       ///< Client IP address from client.
-  EFI_IPv4_ADDRESS  YourAddr;         ///< Client IP address from server.
-  EFI_IPv4_ADDRESS  ServerAddr;       ///< IP address of next server in bootstrap.
-  EFI_IPv4_ADDRESS  GatewayAddr;      ///< Relay agent IP address.
-  UINT8             ClientHwAddr[16]; ///< Client hardware address.
-  CHAR8             ServerName[64];
-  CHAR8             BootFileName[128];
-}EFI_DHCP4_HEADER;
+  UINT8               OpCode;
+  UINT8               HwType;
+  UINT8               HwAddrLen;
+  UINT8               Hops;
+  UINT32              Xid;
+  UINT16              Seconds;
+  UINT16              Reserved;
+  EFI_IPv4_ADDRESS    ClientAddr;       ///< Client IP address from client.
+  EFI_IPv4_ADDRESS    YourAddr;         ///< Client IP address from server.
+  EFI_IPv4_ADDRESS    ServerAddr;       ///< IP address of next server in bootstrap.
+  EFI_IPv4_ADDRESS    GatewayAddr;      ///< Relay agent IP address.
+  UINT8               ClientHwAddr[16]; ///< Client hardware address.
+  CHAR8               ServerName[64];
+  CHAR8               BootFileName[128];
+} EFI_DHCP4_HEADER;
 #pragma pack()
-
 
 #pragma pack(1)
 typedef struct {
   ///
   /// Size of the EFI_DHCP4_PACKET buffer.
   ///
-  UINT32              Size;
+  UINT32    Size;
   ///
   /// Length of the EFI_DHCP4_PACKET from the first byte of the Header field
   /// to the last byte of the Option[] field.
   ///
-  UINT32              Length;
+  UINT32    Length;
 
   struct {
     ///
     /// DHCP packet header.
     ///
-    EFI_DHCP4_HEADER  Header;
+    EFI_DHCP4_HEADER    Header;
     ///
     /// DHCP magik cookie in network byte order.
     ///
-    UINT32            Magik;
+    UINT32              Magik;
     ///
     /// Start of the DHCP packed option data.
     ///
-    UINT8             Option[1];
+    UINT8               Option[1];
   } Dhcp4;
 } EFI_DHCP4_PACKET;
 #pragma pack()
-
 
 typedef enum {
   ///
   /// The EFI DHCPv4 Protocol driver is stopped.
   ///
-  Dhcp4Stopped        = 0x0,
+  Dhcp4Stopped = 0x0,
   ///
   /// The EFI DHCPv4 Protocol driver is inactive.
   ///
-  Dhcp4Init           = 0x1,
+  Dhcp4Init = 0x1,
   ///
   /// The EFI DHCPv4 Protocol driver is collecting DHCP offer packets from DHCP servers.
   ///
-  Dhcp4Selecting      = 0x2,
+  Dhcp4Selecting = 0x2,
   ///
   /// The EFI DHCPv4 Protocol driver has sent the request to the DHCP server and is waiting for a response.
   ///
-  Dhcp4Requesting     = 0x3,
+  Dhcp4Requesting = 0x3,
   ///
   /// The DHCP configuration has completed.
   ///
-  Dhcp4Bound          = 0x4,
+  Dhcp4Bound = 0x4,
   ///
   /// The DHCP configuration is being renewed and another request has
   /// been sent out, but it has not received a response from the server yet.
   ///
-  Dhcp4Renewing       = 0x5,
+  Dhcp4Renewing = 0x5,
   ///
   /// The DHCP configuration has timed out and the EFI DHCPv4
   /// Protocol driver is trying to extend the lease time.
   ///
-  Dhcp4Rebinding      = 0x6,
+  Dhcp4Rebinding = 0x6,
   ///
   /// The EFI DHCPv4 Protocol driver was initialized with a previously
   /// allocated or known IP address.
   ///
-  Dhcp4InitReboot     = 0x7,
+  Dhcp4InitReboot = 0x7,
   ///
   /// The EFI DHCPv4 Protocol driver is seeking to reuse the previously
   /// allocated IP address by sending a request to the DHCP server.
   ///
-  Dhcp4Rebooting      = 0x8
+  Dhcp4Rebooting = 0x8
 } EFI_DHCP4_STATE;
 
-
-typedef enum{
+typedef enum {
   ///
   /// The packet to start the configuration sequence is about to be sent.
   ///
-  Dhcp4SendDiscover   = 0x01,
+  Dhcp4SendDiscover = 0x01,
   ///
   /// A reply packet was just received.
   ///
-  Dhcp4RcvdOffer      = 0x02,
+  Dhcp4RcvdOffer = 0x02,
   ///
   /// It is time for Dhcp4Callback to select an offer.
   ///
-  Dhcp4SelectOffer    = 0x03,
+  Dhcp4SelectOffer = 0x03,
   ///
   /// A request packet is about to be sent.
   ///
-  Dhcp4SendRequest    = 0x04,
+  Dhcp4SendRequest = 0x04,
   ///
   /// A DHCPACK packet was received and will be passed to Dhcp4Callback.
   ///
-  Dhcp4RcvdAck        = 0x05,
+  Dhcp4RcvdAck = 0x05,
   ///
   /// A DHCPNAK packet was received and will be passed to Dhcp4Callback.
   ///
-  Dhcp4RcvdNak        = 0x06,
+  Dhcp4RcvdNak = 0x06,
   ///
   /// A decline packet is about to be sent.
   ///
-  Dhcp4SendDecline    = 0x07,
+  Dhcp4SendDecline = 0x07,
   ///
   /// The DHCP configuration process has completed. No packet is associated with this event.
   ///
@@ -180,7 +175,7 @@ typedef enum{
   /// It is time to enter the Dhcp4Renewing state and to contact the server
   /// that originally issued the network address. No packet is associated with this event.
   ///
-  Dhcp4EnterRenewing  = 0x09,
+  Dhcp4EnterRenewing = 0x09,
   ///
   /// It is time to enter the Dhcp4Rebinding state and to contact any server.
   /// No packet is associated with this event.
@@ -191,13 +186,13 @@ typedef enum{
   /// the user released the configuration, or a DHCPNAK packet was received in
   /// the Dhcp4Renewing or Dhcp4Rebinding state. No packet is associated with this event.
   ///
-  Dhcp4AddressLost    = 0x0b,
+  Dhcp4AddressLost = 0x0b,
   ///
   /// The DHCP process failed because a DHCPNAK packet was received or the user
   /// aborted the DHCP process at a time when the configuration was not available yet.
   /// No packet is associated with this event.
   ///
-  Dhcp4Fail           = 0x0c
+  Dhcp4Fail = 0x0c
 } EFI_DHCP4_EVENT;
 
 /**
@@ -249,25 +244,25 @@ typedef struct {
   /// event and waiting for a response during the Dhcp4RcvdOffer event.
   /// Set to zero to use the default try counts and timeout values.
   ///
-  UINT32                      DiscoverTryCount;
+  UINT32                     DiscoverTryCount;
   ///
   /// The maximum amount of time (in seconds) to wait for returned packets in each
   /// of the retries. Timeout values of zero will default to a timeout value
   /// of one second. Set to NULL to use default timeout values.
   ///
-  UINT32                      *DiscoverTimeout;
+  UINT32                     *DiscoverTimeout;
   ///
   /// The number of times to try sending a packet during the Dhcp4SendRequest event
   /// and waiting for a response during the Dhcp4RcvdAck event before accepting
   /// failure. Set to zero to use the default try counts and timeout values.
   ///
-  UINT32                      RequestTryCount;
+  UINT32                     RequestTryCount;
   ///
   /// The maximum amount of time (in seconds) to wait for return packets in each of the retries.
   /// Timeout values of zero will default to a timeout value of one second.
   /// Set to NULL to use default timeout values.
   ///
-  UINT32                      *RequestTimeout;
+  UINT32                     *RequestTimeout;
   ///
   /// For a DHCPDISCOVER, setting this parameter to the previously allocated IP
   /// address will cause the EFI DHCPv4 Protocol driver to enter the Dhcp4InitReboot state.
@@ -275,20 +270,20 @@ typedef struct {
   /// For a DHCPINFORM this parameter should be set to the client network address
   /// which was assigned to the client during a DHCPDISCOVER.
   ///
-  EFI_IPv4_ADDRESS            ClientAddress;
+  EFI_IPv4_ADDRESS           ClientAddress;
   ///
   /// The callback function to intercept various events that occurred in
   /// the DHCP configuration process. Set to NULL to ignore all those events.
   ///
-  EFI_DHCP4_CALLBACK          Dhcp4Callback;
+  EFI_DHCP4_CALLBACK         Dhcp4Callback;
   ///
   /// The pointer to the context that will be passed to Dhcp4Callback when it is called.
   ///
-  VOID                        *CallbackContext;
+  VOID                       *CallbackContext;
   ///
   /// Number of DHCP options in the OptionList.
   ///
-  UINT32                      OptionCount;
+  UINT32                     OptionCount;
   ///
   /// List of DHCP options to be included in every packet that is sent during the
   /// Dhcp4SendDiscover event. Pad options are appended automatically by DHCP driver
@@ -296,121 +291,117 @@ typedef struct {
   /// ignored by the driver. OptionList can be freed after EFI_DHCP4_PROTOCOL.Configure()
   /// returns. Ignored if OptionCount is zero.
   ///
-  EFI_DHCP4_PACKET_OPTION     **OptionList;
+  EFI_DHCP4_PACKET_OPTION    **OptionList;
 } EFI_DHCP4_CONFIG_DATA;
-
 
 typedef struct {
   ///
   /// The EFI DHCPv4 Protocol driver operating state.
   ///
-  EFI_DHCP4_STATE             State;
+  EFI_DHCP4_STATE          State;
   ///
   /// The configuration data of the current EFI DHCPv4 Protocol driver instance.
   ///
-  EFI_DHCP4_CONFIG_DATA       ConfigData;
+  EFI_DHCP4_CONFIG_DATA    ConfigData;
   ///
   /// The client IP address that was acquired from the DHCP server. If it is zero,
   /// the DHCP acquisition has not completed yet and the following fields in this structure are undefined.
   ///
-  EFI_IPv4_ADDRESS            ClientAddress;
+  EFI_IPv4_ADDRESS         ClientAddress;
   ///
   /// The local hardware address.
   ///
-  EFI_MAC_ADDRESS             ClientMacAddress;
+  EFI_MAC_ADDRESS          ClientMacAddress;
   ///
   /// The server IP address that is providing the DHCP service to this client.
   ///
-  EFI_IPv4_ADDRESS            ServerAddress;
+  EFI_IPv4_ADDRESS         ServerAddress;
   ///
   /// The router IP address that was acquired from the DHCP server.
   /// May be zero if the server does not offer this address.
   ///
-  EFI_IPv4_ADDRESS            RouterAddress;
+  EFI_IPv4_ADDRESS         RouterAddress;
   ///
   /// The subnet mask of the connected network that was acquired from the DHCP server.
   ///
-  EFI_IPv4_ADDRESS            SubnetMask;
+  EFI_IPv4_ADDRESS         SubnetMask;
   ///
   /// The lease time (in 1-second units) of the configured IP address.
   /// The value 0xFFFFFFFF means that the lease time is infinite.
   /// A default lease of 7 days is used if the DHCP server does not provide a value.
   ///
-  UINT32                      LeaseTime;
+  UINT32                   LeaseTime;
   ///
   /// The cached latest DHCPACK or DHCPNAK or BOOTP REPLY packet. May be NULL if no packet is cached.
   ///
-  EFI_DHCP4_PACKET            *ReplyPacket;
+  EFI_DHCP4_PACKET         *ReplyPacket;
 } EFI_DHCP4_MODE_DATA;
-
 
 typedef struct {
   ///
   /// Alternate listening address. It can be a unicast, multicast, or broadcast address.
   ///
-  EFI_IPv4_ADDRESS            ListenAddress;
+  EFI_IPv4_ADDRESS    ListenAddress;
   ///
   /// The subnet mask of above listening unicast/broadcast IP address.
   /// Ignored if ListenAddress is a multicast address.
   ///
-  EFI_IPv4_ADDRESS            SubnetMask;
+  EFI_IPv4_ADDRESS    SubnetMask;
   ///
   /// Alternate station source (or listening) port number.
   /// If zero, then the default station port number (68) will be used.
   ///
-  UINT16                      ListenPort;
+  UINT16              ListenPort;
 } EFI_DHCP4_LISTEN_POINT;
-
 
 typedef struct {
   ///
   /// The completion status of transmitting and receiving.
   ///
-  EFI_STATUS              Status;
+  EFI_STATUS                Status;
   ///
   /// If not NULL, the event that will be signaled when the collection process
   /// completes. If NULL, this function will busy-wait until the collection process competes.
   ///
-  EFI_EVENT               CompletionEvent;
+  EFI_EVENT                 CompletionEvent;
   ///
   /// The pointer to the server IP address. This address may be a unicast, multicast, or broadcast address.
   ///
-  EFI_IPv4_ADDRESS        RemoteAddress;
+  EFI_IPv4_ADDRESS          RemoteAddress;
   ///
   /// The server listening port number. If zero, the default server listening port number (67) will be used.
   ///
-  UINT16                  RemotePort;
+  UINT16                    RemotePort;
   ///
   /// The pointer to the gateway address to override the existing setting.
   ///
-  EFI_IPv4_ADDRESS        GatewayAddress;
+  EFI_IPv4_ADDRESS          GatewayAddress;
   ///
   /// The number of entries in ListenPoints. If zero, the default station address and port number 68 are used.
   ///
-  UINT32                  ListenPointCount;
+  UINT32                    ListenPointCount;
   ///
   /// An array of station address and port number pairs that are used as receiving filters.
   /// The first entry is also used as the source address and source port of the outgoing packet.
   ///
-  EFI_DHCP4_LISTEN_POINT  *ListenPoints;
+  EFI_DHCP4_LISTEN_POINT    *ListenPoints;
   ///
   /// The number of seconds to collect responses. Zero is invalid.
   ///
-  UINT32                  TimeoutValue;
+  UINT32                    TimeoutValue;
   ///
   /// The pointer to the packet to be transmitted.
   ///
-  EFI_DHCP4_PACKET        *Packet;
+  EFI_DHCP4_PACKET          *Packet;
   ///
   /// Number of received packets.
   ///
-  UINT32                  ResponseCount;
+  UINT32                    ResponseCount;
   ///
   /// The pointer to the allocated list of received packets.
   ///
-  EFI_DHCP4_PACKET        *ResponseList;
+  EFI_DHCP4_PACKET          *ResponseList;
 } EFI_DHCP4_TRANSMIT_RECEIVE_TOKEN;
-
 
 /**
   Returns the current operating mode and cached data packet for the EFI DHCPv4 Protocol driver.
@@ -486,7 +477,6 @@ EFI_STATUS
   IN EFI_DHCP4_PROTOCOL       *This,
   IN EFI_DHCP4_CONFIG_DATA    *Dhcp4CfgData  OPTIONAL
   );
-
 
 /**
   Starts the DHCP configuration process.
@@ -677,7 +667,6 @@ EFI_STATUS
   OUT EFI_DHCP4_PACKET        **NewPacket
   );
 
-
 /**
   Transmits a DHCP formatted packet and optionally waits for responses.
 
@@ -709,7 +698,6 @@ EFI_STATUS
   IN EFI_DHCP4_PROTOCOL                *This,
   IN EFI_DHCP4_TRANSMIT_RECEIVE_TOKEN  *Token
   );
-
 
 /**
   Parses the packed DHCP option data.
@@ -757,18 +745,18 @@ EFI_STATUS
 /// and to provide DHCPv4 server and PXE boot server discovery services.
 ///
 struct _EFI_DHCP4_PROTOCOL {
-  EFI_DHCP4_GET_MODE_DATA      GetModeData;
-  EFI_DHCP4_CONFIGURE          Configure;
-  EFI_DHCP4_START              Start;
-  EFI_DHCP4_RENEW_REBIND       RenewRebind;
-  EFI_DHCP4_RELEASE            Release;
-  EFI_DHCP4_STOP               Stop;
-  EFI_DHCP4_BUILD              Build;
-  EFI_DHCP4_TRANSMIT_RECEIVE   TransmitReceive;
-  EFI_DHCP4_PARSE              Parse;
+  EFI_DHCP4_GET_MODE_DATA       GetModeData;
+  EFI_DHCP4_CONFIGURE           Configure;
+  EFI_DHCP4_START               Start;
+  EFI_DHCP4_RENEW_REBIND        RenewRebind;
+  EFI_DHCP4_RELEASE             Release;
+  EFI_DHCP4_STOP                Stop;
+  EFI_DHCP4_BUILD               Build;
+  EFI_DHCP4_TRANSMIT_RECEIVE    TransmitReceive;
+  EFI_DHCP4_PARSE               Parse;
 };
 
-extern EFI_GUID gEfiDhcp4ProtocolGuid;
-extern EFI_GUID gEfiDhcp4ServiceBindingProtocolGuid;
+extern EFI_GUID  gEfiDhcp4ProtocolGuid;
+extern EFI_GUID  gEfiDhcp4ServiceBindingProtocolGuid;
 
 #endif

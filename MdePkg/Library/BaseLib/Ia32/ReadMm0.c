@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 /**
   Reads the current value of 64-bit MMX Register #0 (MM0).
 
@@ -33,4 +30,3 @@ AsmReadMm0 (
     emms
   }
 }
-

@@ -6,9 +6,6 @@
 
 **/
 
-
-
-
 #include "BaseLibInternals.h"
 
 /**
@@ -27,15 +24,17 @@
 INTN
 EFIAPI
 LowBitSet32 (
-  IN      UINT32                    Operand
+  IN      UINT32  Operand
   )
 {
-  INTN                              BitIndex;
+  INTN  BitIndex;
 
   if (Operand == 0) {
     return -1;
   }
 
-  for (BitIndex = 0; 0 == (Operand & 1); BitIndex++, Operand >>= 1);
+  for (BitIndex = 0; 0 == (Operand & 1); BitIndex++, Operand >>= 1) {
+  }
+
   return BitIndex;
 }

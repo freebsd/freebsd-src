@@ -15,7 +15,6 @@
 #include <Library/IoLib.h>
 #include <Library/S3BootScriptLib.h>
 
-
 /**
   Saves an I/O port value to the boot script.
 
@@ -32,11 +31,11 @@
 VOID
 InternalSaveIoWriteValueToBootScript (
   IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
-  IN UINTN                  Port,
-  IN VOID                   *Buffer
+  IN UINTN                     Port,
+  IN VOID                      *Buffer
   )
 {
-  RETURN_STATUS                Status;
+  RETURN_STATUS  Status;
 
   Status = S3BootScriptSaveIoWrite (
              Width,
@@ -63,8 +62,8 @@ InternalSaveIoWriteValueToBootScript (
 **/
 UINT8
 InternalSaveIoWrite8ValueToBootScript (
-  IN UINTN              Port,
-  IN UINT8              Value
+  IN UINTN  Port,
+  IN UINT8  Value
   )
 {
   InternalSaveIoWriteValueToBootScript (S3BootScriptWidthUint8, Port, &Value);
@@ -90,7 +89,7 @@ InternalSaveIoWrite8ValueToBootScript (
 UINT8
 EFIAPI
 S3IoRead8 (
-  IN UINTN              Port
+  IN UINTN  Port
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoRead8 (Port));
@@ -115,8 +114,8 @@ S3IoRead8 (
 UINT8
 EFIAPI
 S3IoWrite8 (
-  IN UINTN              Port,
-  IN UINT8              Value
+  IN UINTN  Port,
+  IN UINT8  Value
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoWrite8 (Port, Value));
@@ -144,8 +143,8 @@ S3IoWrite8 (
 UINT8
 EFIAPI
 S3IoOr8 (
-  IN UINTN              Port,
-  IN UINT8              OrData
+  IN UINTN  Port,
+  IN UINT8  OrData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoOr8 (Port, OrData));
@@ -173,8 +172,8 @@ S3IoOr8 (
 UINT8
 EFIAPI
 S3IoAnd8 (
-  IN UINTN              Port,
-  IN UINT8              AndData
+  IN UINTN  Port,
+  IN UINT8  AndData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoAnd8 (Port, AndData));
@@ -204,9 +203,9 @@ S3IoAnd8 (
 UINT8
 EFIAPI
 S3IoAndThenOr8 (
-  IN UINTN              Port,
-  IN UINT8              AndData,
-  IN UINT8              OrData
+  IN UINTN  Port,
+  IN UINT8  AndData,
+  IN UINT8  OrData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoAndThenOr8 (Port, AndData, OrData));
@@ -236,9 +235,9 @@ S3IoAndThenOr8 (
 UINT8
 EFIAPI
 S3IoBitFieldRead8 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoBitFieldRead8 (Port, StartBit, EndBit));
@@ -272,10 +271,10 @@ S3IoBitFieldRead8 (
 UINT8
 EFIAPI
 S3IoBitFieldWrite8 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              Value
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  Value
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoBitFieldWrite8 (Port, StartBit, EndBit, Value));
@@ -311,10 +310,10 @@ S3IoBitFieldWrite8 (
 UINT8
 EFIAPI
 S3IoBitFieldOr8 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              OrData
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  OrData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoBitFieldOr8 (Port, StartBit, EndBit, OrData));
@@ -350,10 +349,10 @@ S3IoBitFieldOr8 (
 UINT8
 EFIAPI
 S3IoBitFieldAnd8 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              AndData
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  AndData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoBitFieldAnd8 (Port, StartBit, EndBit, AndData));
@@ -392,11 +391,11 @@ S3IoBitFieldAnd8 (
 UINT8
 EFIAPI
 S3IoBitFieldAndThenOr8 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              AndData,
-  IN UINT8              OrData
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  AndData,
+  IN UINT8  OrData
   )
 {
   return InternalSaveIoWrite8ValueToBootScript (Port, IoBitFieldAndThenOr8 (Port, StartBit, EndBit, AndData, OrData));
@@ -418,8 +417,8 @@ S3IoBitFieldAndThenOr8 (
 **/
 UINT16
 InternalSaveIoWrite16ValueToBootScript (
-  IN UINTN              Port,
-  IN UINT16             Value
+  IN UINTN   Port,
+  IN UINT16  Value
   )
 {
   InternalSaveIoWriteValueToBootScript (S3BootScriptWidthUint16, Port, &Value);
@@ -445,7 +444,7 @@ InternalSaveIoWrite16ValueToBootScript (
 UINT16
 EFIAPI
 S3IoRead16 (
-  IN UINTN              Port
+  IN UINTN  Port
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoRead16 (Port));
@@ -470,8 +469,8 @@ S3IoRead16 (
 UINT16
 EFIAPI
 S3IoWrite16 (
-  IN UINTN              Port,
-  IN UINT16             Value
+  IN UINTN   Port,
+  IN UINT16  Value
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoWrite16 (Port, Value));
@@ -499,8 +498,8 @@ S3IoWrite16 (
 UINT16
 EFIAPI
 S3IoOr16 (
-  IN UINTN              Port,
-  IN UINT16             OrData
+  IN UINTN   Port,
+  IN UINT16  OrData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoOr16 (Port, OrData));
@@ -528,8 +527,8 @@ S3IoOr16 (
 UINT16
 EFIAPI
 S3IoAnd16 (
-  IN UINTN              Port,
-  IN UINT16             AndData
+  IN UINTN   Port,
+  IN UINT16  AndData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoAnd16 (Port, AndData));
@@ -559,9 +558,9 @@ S3IoAnd16 (
 UINT16
 EFIAPI
 S3IoAndThenOr16 (
-  IN UINTN              Port,
-  IN UINT16             AndData,
-  IN UINT16             OrData
+  IN UINTN   Port,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoAndThenOr16 (Port, AndData, OrData));
@@ -591,9 +590,9 @@ S3IoAndThenOr16 (
 UINT16
 EFIAPI
 S3IoBitFieldRead16 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoBitFieldRead16 (Port, StartBit, EndBit));
@@ -627,10 +626,10 @@ S3IoBitFieldRead16 (
 UINT16
 EFIAPI
 S3IoBitFieldWrite16 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             Value
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  Value
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoBitFieldWrite16 (Port, StartBit, EndBit, Value));
@@ -666,10 +665,10 @@ S3IoBitFieldWrite16 (
 UINT16
 EFIAPI
 S3IoBitFieldOr16 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  OrData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoBitFieldOr16 (Port, StartBit, EndBit, OrData));
@@ -705,10 +704,10 @@ S3IoBitFieldOr16 (
 UINT16
 EFIAPI
 S3IoBitFieldAnd16 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             AndData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoBitFieldAnd16 (Port, StartBit, EndBit, AndData));
@@ -748,11 +747,11 @@ S3IoBitFieldAnd16 (
 UINT16
 EFIAPI
 S3IoBitFieldAndThenOr16 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             AndData,
-  IN UINT16             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSaveIoWrite16ValueToBootScript (Port, IoBitFieldAndThenOr16 (Port, StartBit, EndBit, AndData, OrData));
@@ -774,8 +773,8 @@ S3IoBitFieldAndThenOr16 (
 **/
 UINT32
 InternalSaveIoWrite32ValueToBootScript (
-  IN UINTN              Port,
-  IN UINT32             Value
+  IN UINTN   Port,
+  IN UINT32  Value
   )
 {
   InternalSaveIoWriteValueToBootScript (S3BootScriptWidthUint32, Port, &Value);
@@ -801,7 +800,7 @@ InternalSaveIoWrite32ValueToBootScript (
 UINT32
 EFIAPI
 S3IoRead32 (
-  IN UINTN              Port
+  IN UINTN  Port
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoRead32 (Port));
@@ -826,8 +825,8 @@ S3IoRead32 (
 UINT32
 EFIAPI
 S3IoWrite32 (
-  IN UINTN              Port,
-  IN UINT32             Value
+  IN UINTN   Port,
+  IN UINT32  Value
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoWrite32 (Port, Value));
@@ -855,8 +854,8 @@ S3IoWrite32 (
 UINT32
 EFIAPI
 S3IoOr32 (
-  IN UINTN              Port,
-  IN UINT32             OrData
+  IN UINTN   Port,
+  IN UINT32  OrData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoOr32 (Port, OrData));
@@ -884,8 +883,8 @@ S3IoOr32 (
 UINT32
 EFIAPI
 S3IoAnd32 (
-  IN UINTN              Port,
-  IN UINT32             AndData
+  IN UINTN   Port,
+  IN UINT32  AndData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoAnd32 (Port, AndData));
@@ -915,9 +914,9 @@ S3IoAnd32 (
 UINT32
 EFIAPI
 S3IoAndThenOr32 (
-  IN UINTN              Port,
-  IN UINT32             AndData,
-  IN UINT32             OrData
+  IN UINTN   Port,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoAndThenOr32 (Port, AndData, OrData));
@@ -947,9 +946,9 @@ S3IoAndThenOr32 (
 UINT32
 EFIAPI
 S3IoBitFieldRead32 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoBitFieldRead32 (Port, StartBit, EndBit));
@@ -983,10 +982,10 @@ S3IoBitFieldRead32 (
 UINT32
 EFIAPI
 S3IoBitFieldWrite32 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             Value
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  Value
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoBitFieldWrite32 (Port, StartBit, EndBit, Value));
@@ -1022,10 +1021,10 @@ S3IoBitFieldWrite32 (
 UINT32
 EFIAPI
 S3IoBitFieldOr32 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  OrData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoBitFieldOr32 (Port, StartBit, EndBit, OrData));
@@ -1061,10 +1060,10 @@ S3IoBitFieldOr32 (
 UINT32
 EFIAPI
 S3IoBitFieldAnd32 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             AndData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoBitFieldAnd32 (Port, StartBit, EndBit, AndData));
@@ -1104,11 +1103,11 @@ S3IoBitFieldAnd32 (
 UINT32
 EFIAPI
 S3IoBitFieldAndThenOr32 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             AndData,
-  IN UINT32             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSaveIoWrite32ValueToBootScript (Port, IoBitFieldAndThenOr32 (Port, StartBit, EndBit, AndData, OrData));
@@ -1130,8 +1129,8 @@ S3IoBitFieldAndThenOr32 (
 **/
 UINT64
 InternalSaveIoWrite64ValueToBootScript (
-  IN UINTN              Port,
-  IN UINT64             Value
+  IN UINTN   Port,
+  IN UINT64  Value
   )
 {
   InternalSaveIoWriteValueToBootScript (S3BootScriptWidthUint64, Port, &Value);
@@ -1157,7 +1156,7 @@ InternalSaveIoWrite64ValueToBootScript (
 UINT64
 EFIAPI
 S3IoRead64 (
-  IN UINTN              Port
+  IN UINTN  Port
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoRead64 (Port));
@@ -1182,8 +1181,8 @@ S3IoRead64 (
 UINT64
 EFIAPI
 S3IoWrite64 (
-  IN UINTN              Port,
-  IN UINT64             Value
+  IN UINTN   Port,
+  IN UINT64  Value
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoWrite64 (Port, Value));
@@ -1211,8 +1210,8 @@ S3IoWrite64 (
 UINT64
 EFIAPI
 S3IoOr64 (
-  IN UINTN              Port,
-  IN UINT64             OrData
+  IN UINTN   Port,
+  IN UINT64  OrData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoOr64 (Port, OrData));
@@ -1240,8 +1239,8 @@ S3IoOr64 (
 UINT64
 EFIAPI
 S3IoAnd64 (
-  IN UINTN              Port,
-  IN UINT64             AndData
+  IN UINTN   Port,
+  IN UINT64  AndData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoAnd64 (Port, AndData));
@@ -1271,9 +1270,9 @@ S3IoAnd64 (
 UINT64
 EFIAPI
 S3IoAndThenOr64 (
-  IN UINTN              Port,
-  IN UINT64             AndData,
-  IN UINT64             OrData
+  IN UINTN   Port,
+  IN UINT64  AndData,
+  IN UINT64  OrData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoAndThenOr64 (Port, AndData, OrData));
@@ -1303,9 +1302,9 @@ S3IoAndThenOr64 (
 UINT64
 EFIAPI
 S3IoBitFieldRead64 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Port,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoBitFieldRead64 (Port, StartBit, EndBit));
@@ -1339,10 +1338,10 @@ S3IoBitFieldRead64 (
 UINT64
 EFIAPI
 S3IoBitFieldWrite64 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             Value
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  Value
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoBitFieldWrite64 (Port, StartBit, EndBit, Value));
@@ -1378,10 +1377,10 @@ S3IoBitFieldWrite64 (
 UINT64
 EFIAPI
 S3IoBitFieldOr64 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  OrData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoBitFieldOr64 (Port, StartBit, EndBit, OrData));
@@ -1417,10 +1416,10 @@ S3IoBitFieldOr64 (
 UINT64
 EFIAPI
 S3IoBitFieldAnd64 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             AndData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  AndData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoBitFieldAnd64 (Port, StartBit, EndBit, AndData));
@@ -1460,11 +1459,11 @@ S3IoBitFieldAnd64 (
 UINT64
 EFIAPI
 S3IoBitFieldAndThenOr64 (
-  IN UINTN              Port,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             AndData,
-  IN UINT64             OrData
+  IN UINTN   Port,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  AndData,
+  IN UINT64  OrData
   )
 {
   return InternalSaveIoWrite64ValueToBootScript (Port, IoBitFieldAndThenOr64 (Port, StartBit, EndBit, AndData, OrData));
@@ -1486,11 +1485,11 @@ S3IoBitFieldAndThenOr64 (
 VOID
 InternalSaveMmioWriteValueToBootScript (
   IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
-  IN UINTN                  Address,
-  IN VOID                   *Buffer
+  IN UINTN                     Address,
+  IN VOID                      *Buffer
   )
 {
-  RETURN_STATUS            Status;
+  RETURN_STATUS  Status;
 
   Status = S3BootScriptSaveMemWrite (
              Width,
@@ -1517,8 +1516,8 @@ InternalSaveMmioWriteValueToBootScript (
 **/
 UINT8
 InternalSaveMmioWrite8ValueToBootScript (
-  IN UINTN              Address,
-  IN UINT8              Value
+  IN UINTN  Address,
+  IN UINT8  Value
   )
 {
   InternalSaveMmioWriteValueToBootScript (S3BootScriptWidthUint8, Address, &Value);
@@ -1544,7 +1543,7 @@ InternalSaveMmioWrite8ValueToBootScript (
 UINT8
 EFIAPI
 S3MmioRead8 (
-  IN UINTN              Address
+  IN UINTN  Address
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioRead8 (Address));
@@ -1569,8 +1568,8 @@ S3MmioRead8 (
 UINT8
 EFIAPI
 S3MmioWrite8 (
-  IN UINTN              Address,
-  IN UINT8              Value
+  IN UINTN  Address,
+  IN UINT8  Value
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioWrite8 (Address, Value));
@@ -1598,8 +1597,8 @@ S3MmioWrite8 (
 UINT8
 EFIAPI
 S3MmioOr8 (
-  IN UINTN              Address,
-  IN UINT8              OrData
+  IN UINTN  Address,
+  IN UINT8  OrData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioOr8 (Address, OrData));
@@ -1627,8 +1626,8 @@ S3MmioOr8 (
 UINT8
 EFIAPI
 S3MmioAnd8 (
-  IN UINTN              Address,
-  IN UINT8              AndData
+  IN UINTN  Address,
+  IN UINT8  AndData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioAnd8 (Address, AndData));
@@ -1658,9 +1657,9 @@ S3MmioAnd8 (
 UINT8
 EFIAPI
 S3MmioAndThenOr8 (
-  IN UINTN              Address,
-  IN UINT8              AndData,
-  IN UINT8              OrData
+  IN UINTN  Address,
+  IN UINT8  AndData,
+  IN UINT8  OrData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioAndThenOr8 (Address, AndData, OrData));
@@ -1690,9 +1689,9 @@ S3MmioAndThenOr8 (
 UINT8
 EFIAPI
 S3MmioBitFieldRead8 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioBitFieldRead8 (Address, StartBit, EndBit));
@@ -1725,10 +1724,10 @@ S3MmioBitFieldRead8 (
 UINT8
 EFIAPI
 S3MmioBitFieldWrite8 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              Value
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  Value
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioBitFieldWrite8 (Address, StartBit, EndBit, Value));
@@ -1765,10 +1764,10 @@ S3MmioBitFieldWrite8 (
 UINT8
 EFIAPI
 S3MmioBitFieldOr8 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              OrData
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  OrData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioBitFieldOr8 (Address, StartBit, EndBit, OrData));
@@ -1805,10 +1804,10 @@ S3MmioBitFieldOr8 (
 UINT8
 EFIAPI
 S3MmioBitFieldAnd8 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              AndData
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  AndData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioBitFieldAnd8 (Address, StartBit, EndBit, AndData));
@@ -1848,11 +1847,11 @@ S3MmioBitFieldAnd8 (
 UINT8
 EFIAPI
 S3MmioBitFieldAndThenOr8 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT8              AndData,
-  IN UINT8              OrData
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit,
+  IN UINT8  AndData,
+  IN UINT8  OrData
   )
 {
   return InternalSaveMmioWrite8ValueToBootScript (Address, MmioBitFieldAndThenOr8 (Address, StartBit, EndBit, AndData, OrData));
@@ -1874,8 +1873,8 @@ S3MmioBitFieldAndThenOr8 (
 **/
 UINT16
 InternalSaveMmioWrite16ValueToBootScript (
-  IN UINTN              Address,
-  IN UINT16             Value
+  IN UINTN   Address,
+  IN UINT16  Value
   )
 {
   InternalSaveMmioWriteValueToBootScript (S3BootScriptWidthUint16, Address, &Value);
@@ -1901,7 +1900,7 @@ InternalSaveMmioWrite16ValueToBootScript (
 UINT16
 EFIAPI
 S3MmioRead16 (
-  IN UINTN              Address
+  IN UINTN  Address
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioRead16 (Address));
@@ -1927,8 +1926,8 @@ S3MmioRead16 (
 UINT16
 EFIAPI
 S3MmioWrite16 (
-  IN UINTN              Address,
-  IN UINT16             Value
+  IN UINTN   Address,
+  IN UINT16  Value
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioWrite16 (Address, Value));
@@ -1956,8 +1955,8 @@ S3MmioWrite16 (
 UINT16
 EFIAPI
 S3MmioOr16 (
-  IN UINTN              Address,
-  IN UINT16             OrData
+  IN UINTN   Address,
+  IN UINT16  OrData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioOr16 (Address, OrData));
@@ -1985,8 +1984,8 @@ S3MmioOr16 (
 UINT16
 EFIAPI
 S3MmioAnd16 (
-  IN UINTN              Address,
-  IN UINT16             AndData
+  IN UINTN   Address,
+  IN UINT16  AndData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioAnd16 (Address, AndData));
@@ -2016,9 +2015,9 @@ S3MmioAnd16 (
 UINT16
 EFIAPI
 S3MmioAndThenOr16 (
-  IN UINTN              Address,
-  IN UINT16             AndData,
-  IN UINT16             OrData
+  IN UINTN   Address,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioAndThenOr16 (Address, AndData, OrData));
@@ -2048,9 +2047,9 @@ S3MmioAndThenOr16 (
 UINT16
 EFIAPI
 S3MmioBitFieldRead16 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioBitFieldRead16 (Address, StartBit, EndBit));
@@ -2083,10 +2082,10 @@ S3MmioBitFieldRead16 (
 UINT16
 EFIAPI
 S3MmioBitFieldWrite16 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             Value
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  Value
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioBitFieldWrite16 (Address, StartBit, EndBit, Value));
@@ -2123,10 +2122,10 @@ S3MmioBitFieldWrite16 (
 UINT16
 EFIAPI
 S3MmioBitFieldOr16 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  OrData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioBitFieldOr16 (Address, StartBit, EndBit, OrData));
@@ -2163,10 +2162,10 @@ S3MmioBitFieldOr16 (
 UINT16
 EFIAPI
 S3MmioBitFieldAnd16 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             AndData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioBitFieldAnd16 (Address, StartBit, EndBit, AndData));
@@ -2206,11 +2205,11 @@ S3MmioBitFieldAnd16 (
 UINT16
 EFIAPI
 S3MmioBitFieldAndThenOr16 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT16             AndData,
-  IN UINT16             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT16  AndData,
+  IN UINT16  OrData
   )
 {
   return InternalSaveMmioWrite16ValueToBootScript (Address, MmioBitFieldAndThenOr16 (Address, StartBit, EndBit, AndData, OrData));
@@ -2232,8 +2231,8 @@ S3MmioBitFieldAndThenOr16 (
 **/
 UINT32
 InternalSaveMmioWrite32ValueToBootScript (
-  IN UINTN              Address,
-  IN UINT32             Value
+  IN UINTN   Address,
+  IN UINT32  Value
   )
 {
   InternalSaveMmioWriteValueToBootScript (S3BootScriptWidthUint32, Address, &Value);
@@ -2259,7 +2258,7 @@ InternalSaveMmioWrite32ValueToBootScript (
 UINT32
 EFIAPI
 S3MmioRead32 (
-  IN UINTN              Address
+  IN UINTN  Address
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioRead32 (Address));
@@ -2284,8 +2283,8 @@ S3MmioRead32 (
 UINT32
 EFIAPI
 S3MmioWrite32 (
-  IN UINTN              Address,
-  IN UINT32             Value
+  IN UINTN   Address,
+  IN UINT32  Value
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioWrite32 (Address, Value));
@@ -2313,8 +2312,8 @@ S3MmioWrite32 (
 UINT32
 EFIAPI
 S3MmioOr32 (
-  IN UINTN              Address,
-  IN UINT32             OrData
+  IN UINTN   Address,
+  IN UINT32  OrData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioOr32 (Address, OrData));
@@ -2342,8 +2341,8 @@ S3MmioOr32 (
 UINT32
 EFIAPI
 S3MmioAnd32 (
-  IN UINTN              Address,
-  IN UINT32             AndData
+  IN UINTN   Address,
+  IN UINT32  AndData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioAnd32 (Address, AndData));
@@ -2373,9 +2372,9 @@ S3MmioAnd32 (
 UINT32
 EFIAPI
 S3MmioAndThenOr32 (
-  IN UINTN              Address,
-  IN UINT32             AndData,
-  IN UINT32             OrData
+  IN UINTN   Address,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioAndThenOr32 (Address, AndData, OrData));
@@ -2405,9 +2404,9 @@ S3MmioAndThenOr32 (
 UINT32
 EFIAPI
 S3MmioBitFieldRead32 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioBitFieldRead32 (Address, StartBit, EndBit));
@@ -2440,10 +2439,10 @@ S3MmioBitFieldRead32 (
 UINT32
 EFIAPI
 S3MmioBitFieldWrite32 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             Value
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  Value
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioBitFieldWrite32 (Address, StartBit, EndBit, Value));
@@ -2480,10 +2479,10 @@ S3MmioBitFieldWrite32 (
 UINT32
 EFIAPI
 S3MmioBitFieldOr32 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  OrData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioBitFieldOr32 (Address, StartBit, EndBit, OrData));
@@ -2520,10 +2519,10 @@ S3MmioBitFieldOr32 (
 UINT32
 EFIAPI
 S3MmioBitFieldAnd32 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             AndData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioBitFieldAnd32 (Address, StartBit, EndBit, AndData));
@@ -2563,11 +2562,11 @@ S3MmioBitFieldAnd32 (
 UINT32
 EFIAPI
 S3MmioBitFieldAndThenOr32 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT32             AndData,
-  IN UINT32             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT32  AndData,
+  IN UINT32  OrData
   )
 {
   return InternalSaveMmioWrite32ValueToBootScript (Address, MmioBitFieldAndThenOr32 (Address, StartBit, EndBit, AndData, OrData));
@@ -2589,8 +2588,8 @@ S3MmioBitFieldAndThenOr32 (
 **/
 UINT64
 InternalSaveMmioWrite64ValueToBootScript (
-  IN UINTN              Address,
-  IN UINT64             Value
+  IN UINTN   Address,
+  IN UINT64  Value
   )
 {
   InternalSaveMmioWriteValueToBootScript (S3BootScriptWidthUint64, Address, &Value);
@@ -2616,7 +2615,7 @@ InternalSaveMmioWrite64ValueToBootScript (
 UINT64
 EFIAPI
 S3MmioRead64 (
-  IN UINTN              Address
+  IN UINTN  Address
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioRead64 (Address));
@@ -2641,8 +2640,8 @@ S3MmioRead64 (
 UINT64
 EFIAPI
 S3MmioWrite64 (
-  IN UINTN              Address,
-  IN UINT64             Value
+  IN UINTN   Address,
+  IN UINT64  Value
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioWrite64 (Address, Value));
@@ -2670,8 +2669,8 @@ S3MmioWrite64 (
 UINT64
 EFIAPI
 S3MmioOr64 (
-  IN UINTN              Address,
-  IN UINT64             OrData
+  IN UINTN   Address,
+  IN UINT64  OrData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioOr64 (Address, OrData));
@@ -2699,8 +2698,8 @@ S3MmioOr64 (
 UINT64
 EFIAPI
 S3MmioAnd64 (
-  IN UINTN              Address,
-  IN UINT64             AndData
+  IN UINTN   Address,
+  IN UINT64  AndData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioAnd64 (Address, AndData));
@@ -2730,9 +2729,9 @@ S3MmioAnd64 (
 UINT64
 EFIAPI
 S3MmioAndThenOr64 (
-  IN UINTN              Address,
-  IN UINT64             AndData,
-  IN UINT64             OrData
+  IN UINTN   Address,
+  IN UINT64  AndData,
+  IN UINT64  OrData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioAndThenOr64 (Address, AndData, OrData));
@@ -2762,9 +2761,9 @@ S3MmioAndThenOr64 (
 UINT64
 EFIAPI
 S3MmioBitFieldRead64 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit
+  IN UINTN  Address,
+  IN UINTN  StartBit,
+  IN UINTN  EndBit
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioBitFieldRead64 (Address, StartBit, EndBit));
@@ -2797,10 +2796,10 @@ S3MmioBitFieldRead64 (
 UINT64
 EFIAPI
 S3MmioBitFieldWrite64 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             Value
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  Value
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioBitFieldWrite64 (Address, StartBit, EndBit, Value));
@@ -2837,10 +2836,10 @@ S3MmioBitFieldWrite64 (
 UINT64
 EFIAPI
 S3MmioBitFieldOr64 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  OrData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioBitFieldOr64 (Address, StartBit, EndBit, OrData));
@@ -2877,10 +2876,10 @@ S3MmioBitFieldOr64 (
 UINT64
 EFIAPI
 S3MmioBitFieldAnd64 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             AndData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  AndData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioBitFieldAnd64 (Address, StartBit, EndBit, AndData));
@@ -2920,11 +2919,11 @@ S3MmioBitFieldAnd64 (
 UINT64
 EFIAPI
 S3MmioBitFieldAndThenOr64 (
-  IN UINTN              Address,
-  IN UINTN              StartBit,
-  IN UINTN              EndBit,
-  IN UINT64             AndData,
-  IN UINT64             OrData
+  IN UINTN   Address,
+  IN UINTN   StartBit,
+  IN UINTN   EndBit,
+  IN UINT64  AndData,
+  IN UINT64  OrData
   )
 {
   return InternalSaveMmioWrite64ValueToBootScript (Address, MmioBitFieldAndThenOr64 (Address, StartBit, EndBit, AndData, OrData));
@@ -2952,12 +2951,12 @@ S3MmioBitFieldAndThenOr64 (
 UINT8 *
 EFIAPI
 S3MmioReadBuffer8 (
-  IN  UINTN       StartAddress,
-  IN  UINTN       Length,
-  OUT UINT8       *Buffer
+  IN  UINTN  StartAddress,
+  IN  UINTN  Length,
+  OUT UINT8  *Buffer
   )
 {
-  UINT8       *ReturnBuffer;
+  UINT8          *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioReadBuffer8 (StartAddress, Length, Buffer);
@@ -2999,13 +2998,13 @@ S3MmioReadBuffer8 (
 UINT16 *
 EFIAPI
 S3MmioReadBuffer16 (
-  IN  UINTN       StartAddress,
-  IN  UINTN       Length,
-  OUT UINT16      *Buffer
+  IN  UINTN   StartAddress,
+  IN  UINTN   Length,
+  OUT UINT16  *Buffer
   )
 {
-  UINT16       *ReturnBuffer;
-  RETURN_STATUS   Status;
+  UINT16         *ReturnBuffer;
+  RETURN_STATUS  Status;
 
   ReturnBuffer = MmioReadBuffer16 (StartAddress, Length, Buffer);
 
@@ -3046,12 +3045,12 @@ S3MmioReadBuffer16 (
 UINT32 *
 EFIAPI
 S3MmioReadBuffer32 (
-  IN  UINTN       StartAddress,
-  IN  UINTN       Length,
-  OUT UINT32      *Buffer
+  IN  UINTN   StartAddress,
+  IN  UINTN   Length,
+  OUT UINT32  *Buffer
   )
 {
-  UINT32      *ReturnBuffer;
+  UINT32         *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioReadBuffer32 (StartAddress, Length, Buffer);
@@ -3093,12 +3092,12 @@ S3MmioReadBuffer32 (
 UINT64 *
 EFIAPI
 S3MmioReadBuffer64 (
-  IN  UINTN       StartAddress,
-  IN  UINTN       Length,
-  OUT UINT64      *Buffer
+  IN  UINTN   StartAddress,
+  IN  UINTN   Length,
+  OUT UINT64  *Buffer
   )
 {
-  UINT64      *ReturnBuffer;
+  UINT64         *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioReadBuffer64 (StartAddress, Length, Buffer);
@@ -3113,7 +3112,6 @@ S3MmioReadBuffer64 (
 
   return ReturnBuffer;
 }
-
 
 /**
   Copy data from system memory to MMIO region by using 8-bit access
@@ -3137,12 +3135,12 @@ S3MmioReadBuffer64 (
 UINT8 *
 EFIAPI
 S3MmioWriteBuffer8 (
-  IN  UINTN         StartAddress,
-  IN  UINTN         Length,
-  IN  CONST UINT8   *Buffer
+  IN  UINTN        StartAddress,
+  IN  UINTN        Length,
+  IN  CONST UINT8  *Buffer
   )
 {
-  UINT8       *ReturnBuffer;
+  UINT8          *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioWriteBuffer8 (StartAddress, Length, Buffer);
@@ -3185,12 +3183,12 @@ S3MmioWriteBuffer8 (
 UINT16 *
 EFIAPI
 S3MmioWriteBuffer16 (
-  IN  UINTN        StartAddress,
-  IN  UINTN        Length,
-  IN  CONST UINT16 *Buffer
+  IN  UINTN         StartAddress,
+  IN  UINTN         Length,
+  IN  CONST UINT16  *Buffer
   )
 {
-  UINT16      *ReturnBuffer;
+  UINT16         *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioWriteBuffer16 (StartAddress, Length, Buffer);
@@ -3205,7 +3203,6 @@ S3MmioWriteBuffer16 (
 
   return ReturnBuffer;
 }
-
 
 /**
   Copy data from system memory to MMIO region by using 32-bit access
@@ -3234,12 +3231,12 @@ S3MmioWriteBuffer16 (
 UINT32 *
 EFIAPI
 S3MmioWriteBuffer32 (
-  IN  UINTN        StartAddress,
-  IN  UINTN        Length,
-  IN  CONST UINT32 *Buffer
+  IN  UINTN         StartAddress,
+  IN  UINTN         Length,
+  IN  CONST UINT32  *Buffer
   )
 {
-  UINT32      *ReturnBuffer;
+  UINT32         *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioWriteBuffer32 (StartAddress, Length, Buffer);
@@ -3282,12 +3279,12 @@ S3MmioWriteBuffer32 (
 UINT64 *
 EFIAPI
 S3MmioWriteBuffer64 (
-  IN  UINTN        StartAddress,
-  IN  UINTN        Length,
-  IN  CONST UINT64 *Buffer
+  IN  UINTN         StartAddress,
+  IN  UINTN         Length,
+  IN  CONST UINT64  *Buffer
   )
 {
-  UINT64      *ReturnBuffer;
+  UINT64         *ReturnBuffer;
   RETURN_STATUS  Status;
 
   ReturnBuffer = MmioWriteBuffer64 (StartAddress, Length, Buffer);
@@ -3302,4 +3299,3 @@ S3MmioWriteBuffer64 (
 
   return ReturnBuffer;
 }
-

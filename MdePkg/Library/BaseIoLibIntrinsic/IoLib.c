@@ -1,12 +1,13 @@
 /** @file
   Common I/O Library routines.
 
-  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2021, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #include "BaseIoLibIntrinsicInternal.h"
+#include "IoLibTdx.h"
 
 /**
   Reads a 64-bit I/O port.
@@ -26,7 +27,7 @@
 UINT64
 EFIAPI
 IoRead64 (
-  IN      UINTN                     Port
+  IN      UINTN  Port
   )
 {
   ASSERT (FALSE);
@@ -52,14 +53,13 @@ IoRead64 (
 UINT64
 EFIAPI
 IoWrite64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    Value
+  IN      UINTN   Port,
+  IN      UINT64  Value
   )
 {
   ASSERT (FALSE);
   return 0;
 }
-
 
 /**
   Reads an 8-bit MMIO register.
@@ -70,6 +70,8 @@ IoWrite64 (
 
   If 8-bit MMIO register operations are not supported, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to read MMIO registers.
+
   @param  Address The MMIO register to read.
 
   @return The value read.
@@ -78,14 +80,26 @@ IoWrite64 (
 UINT8
 EFIAPI
 MmioRead8 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT8                             Value;
+  UINT8    Value;
+  BOOLEAN  Flag;
 
-  MemoryFence ();
-  Value = *(volatile UINT8*)Address;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoRead (FilterWidth8, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      Value = TdMmioRead8 (Address);
+    } else {
+      Value = *(volatile UINT8 *)Address;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoRead (FilterWidth8, Address, &Value);
 
   return Value;
 }
@@ -99,6 +113,8 @@ MmioRead8 (
 
   If 8-bit MMIO register operations are not supported, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to write MMIO registers.
+
   @param  Address The MMIO register to write.
   @param  Value   The value to write to the MMIO register.
 
@@ -108,13 +124,26 @@ MmioRead8 (
 UINT8
 EFIAPI
 MmioWrite8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     Value
+  IN      UINTN  Address,
+  IN      UINT8  Value
   )
 {
-  MemoryFence ();
-  *(volatile UINT8*)Address = Value;
-  MemoryFence ();
+  BOOLEAN  Flag;
+
+  Flag = FilterBeforeMmIoWrite (FilterWidth8, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      TdMmioWrite8 (Address, Value);
+    } else {
+      *(volatile UINT8 *)Address = Value;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoWrite (FilterWidth8, Address, &Value);
 
   return Value;
 }
@@ -129,6 +158,8 @@ MmioWrite8 (
   If 16-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 16-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to read MMIO registers.
+
   @param  Address The MMIO register to read.
 
   @return The value read.
@@ -137,16 +168,27 @@ MmioWrite8 (
 UINT16
 EFIAPI
 MmioRead16 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT16                            Value;
+  UINT16   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 1) == 0);
+  Flag = FilterBeforeMmIoRead (FilterWidth16, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
 
-  MemoryFence ();
-  Value = *(volatile UINT16*)Address;
-  MemoryFence ();
+    if (IsTdxGuest ()) {
+      Value = TdMmioRead16 (Address);
+    } else {
+      Value = *(volatile UINT16 *)Address;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoRead (FilterWidth16, Address, &Value);
 
   return Value;
 }
@@ -161,6 +203,8 @@ MmioRead16 (
   If 16-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 16-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to write MMIO registers.
+
   @param  Address The MMIO register to write.
   @param  Value   The value to write to the MMIO register.
 
@@ -170,15 +214,28 @@ MmioRead16 (
 UINT16
 EFIAPI
 MmioWrite16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    Value
+  IN      UINTN   Address,
+  IN      UINT16  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 1) == 0);
 
-  MemoryFence ();
-  *(volatile UINT16*)Address = Value;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoWrite (FilterWidth16, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      TdMmioWrite16 (Address, Value);
+    } else {
+      *(volatile UINT16 *)Address = Value;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoWrite (FilterWidth16, Address, &Value);
 
   return Value;
 }
@@ -193,6 +250,8 @@ MmioWrite16 (
   If 32-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 32-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to read MMIO registers.
+
   @param  Address The MMIO register to read.
 
   @return The value read.
@@ -201,16 +260,28 @@ MmioWrite16 (
 UINT32
 EFIAPI
 MmioRead32 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT32                            Value;
+  UINT32   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 3) == 0);
 
-  MemoryFence ();
-  Value = *(volatile UINT32*)Address;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoRead (FilterWidth32, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      Value = TdMmioRead32 (Address);
+    } else {
+      Value = *(volatile UINT32 *)Address;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoRead (FilterWidth32, Address, &Value);
 
   return Value;
 }
@@ -225,6 +296,8 @@ MmioRead32 (
   If 32-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 32-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to write MMIO registers.
+
   @param  Address The MMIO register to write.
   @param  Value   The value to write to the MMIO register.
 
@@ -234,15 +307,28 @@ MmioRead32 (
 UINT32
 EFIAPI
 MmioWrite32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    Value
+  IN      UINTN   Address,
+  IN      UINT32  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 3) == 0);
 
-  MemoryFence ();
-  *(volatile UINT32*)Address = Value;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoWrite (FilterWidth32, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      TdMmioWrite32 (Address, Value);
+    } else {
+      *(volatile UINT32 *)Address = Value;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoWrite (FilterWidth32, Address, &Value);
 
   return Value;
 }
@@ -257,6 +343,8 @@ MmioWrite32 (
   If 64-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 64-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to read MMIO registers.
+
   @param  Address The MMIO register to read.
 
   @return The value read.
@@ -265,16 +353,28 @@ MmioWrite32 (
 UINT64
 EFIAPI
 MmioRead64 (
-  IN      UINTN                     Address
+  IN      UINTN  Address
   )
 {
-  UINT64                            Value;
+  UINT64   Value;
+  BOOLEAN  Flag;
 
   ASSERT ((Address & 7) == 0);
 
-  MemoryFence ();
-  Value = *(volatile UINT64*)Address;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoRead (FilterWidth64, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      Value = TdMmioRead64 (Address);
+    } else {
+      Value = *(volatile UINT64 *)Address;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoRead (FilterWidth64, Address, &Value);
 
   return Value;
 }
@@ -289,6 +389,8 @@ MmioRead64 (
   If 64-bit MMIO register operations are not supported, then ASSERT().
   If Address is not aligned on a 64-bit boundary, then ASSERT().
 
+  For Td guest TDVMCALL_MMIO is invoked to write MMIO registers.
+
   @param  Address The MMIO register to write.
   @param  Value   The value to write to the MMIO register.
 
@@ -296,16 +398,28 @@ MmioRead64 (
 UINT64
 EFIAPI
 MmioWrite64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    Value
+  IN      UINTN   Address,
+  IN      UINT64  Value
   )
 {
+  BOOLEAN  Flag;
+
   ASSERT ((Address & 7) == 0);
 
-  MemoryFence ();
-  *(volatile UINT64*)Address = Value;
-  MemoryFence ();
+  Flag = FilterBeforeMmIoWrite (FilterWidth64, Address, &Value);
+  if (Flag) {
+    MemoryFence ();
+
+    if (IsTdxGuest ()) {
+      TdMmioWrite64 (Address, Value);
+    } else {
+      *(volatile UINT64 *)Address = Value;
+    }
+
+    MemoryFence ();
+  }
+
+  FilterAfterMmIoWrite (FilterWidth64, Address, &Value);
 
   return Value;
 }
-

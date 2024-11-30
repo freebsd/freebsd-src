@@ -30,7 +30,7 @@
   @return The encoded PCI address.
 
 **/
-#define S3_BOOT_SCRIPT_LIB_PCI_ADDRESS(Bus,Device,Function,Register)   \
+#define S3_BOOT_SCRIPT_LIB_PCI_ADDRESS(Bus, Device, Function, Register)   \
   (UINT64) ( \
   (((UINTN) Bus) << 24) | \
   (((UINTN) Device) << 16) | \
@@ -303,7 +303,7 @@ S3BootScriptSaveDispatch2 (
 RETURN_STATUS
 EFIAPI
 S3BootScriptSaveDispatch (
-  IN  VOID *EntryPoint
+  IN  VOID  *EntryPoint
   );
 
 /**
@@ -357,6 +357,7 @@ S3BootScriptSaveInformation (
   IN  UINT32  InformationLength,
   IN  VOID    *Information
   );
+
 /**
   Adds a record for I/O reads the I/O location and continues when the exit criteria
    is satisfied, or after a defined duration.
@@ -379,11 +380,11 @@ S3BootScriptSaveInformation (
 RETURN_STATUS
 EFIAPI
 S3BootScriptSaveIoPoll (
-  IN S3_BOOT_SCRIPT_LIB_WIDTH       Width,
-  IN UINT64                     Address,
+  IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
+  IN UINT64                    Address,
   IN VOID                      *Data,
   IN VOID                      *DataMask,
-  IN UINT64                     Delay
+  IN UINT64                    Delay
   );
 
 /**
@@ -409,12 +410,13 @@ S3BootScriptSaveIoPoll (
 RETURN_STATUS
 EFIAPI
 S3BootScriptSavePciPoll (
-   IN S3_BOOT_SCRIPT_LIB_WIDTH   Width,
-   IN UINT64                     Address,
-   IN VOID                      *Data,
-   IN VOID                      *DataMask,
-   IN UINT64                     Delay
+  IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
+  IN UINT64                    Address,
+  IN VOID                      *Data,
+  IN VOID                      *DataMask,
+  IN UINT64                    Delay
   );
+
 /**
   Adds a record for PCI configuration space reads and continues when the exit criteria
   is satisfied, or after a defined duration.
@@ -444,13 +446,14 @@ S3BootScriptSavePciPoll (
 RETURN_STATUS
 EFIAPI
 S3BootScriptSavePci2Poll (
-   IN S3_BOOT_SCRIPT_LIB_WIDTH      Width,
-   IN UINT16                        Segment,
-   IN UINT64                        Address,
-   IN VOID                         *Data,
-   IN VOID                         *DataMask,
-   IN UINT64                        Delay
+  IN S3_BOOT_SCRIPT_LIB_WIDTH  Width,
+  IN UINT16                    Segment,
+  IN UINT64                    Address,
+  IN VOID                      *Data,
+  IN VOID                      *DataMask,
+  IN UINT64                    Delay
   );
+
 /**
   Save ASCII string information specified by Buffer to boot script with opcode
   EFI_BOOT_SCRIPT_INFORMATION_OPCODE.
@@ -493,7 +496,7 @@ S3BootScriptSaveInformationAsciiString (
   @return the base address of the new copy of the boot script table.
 
 **/
-UINT8*
+UINT8 *
 EFIAPI
 S3BootScriptCloseTable (
   VOID
@@ -511,6 +514,7 @@ EFIAPI
 S3BootScriptExecute (
   VOID
   );
+
 /**
   Move the last boot script entry to the position
 
@@ -535,9 +539,10 @@ S3BootScriptExecute (
 RETURN_STATUS
 EFIAPI
 S3BootScriptMoveLastOpcode (
-  IN     BOOLEAN                        BeforeOrAfter,
-  IN OUT VOID                         **Position OPTIONAL
+  IN     BOOLEAN  BeforeOrAfter,
+  IN OUT VOID     **Position OPTIONAL
   );
+
 /**
   Find a label within the boot script table and, if not present, optionally create it.
 
@@ -565,11 +570,12 @@ S3BootScriptMoveLastOpcode (
 RETURN_STATUS
 EFIAPI
 S3BootScriptLabel (
-  IN       BOOLEAN                      BeforeOrAfter,
-  IN       BOOLEAN                      CreateIfNotFound,
-  IN OUT   VOID                       **Position OPTIONAL,
-  IN CONST CHAR8                       *Label
+  IN       BOOLEAN  BeforeOrAfter,
+  IN       BOOLEAN  CreateIfNotFound,
+  IN OUT   VOID     **Position OPTIONAL,
+  IN CONST CHAR8    *Label
   );
+
 /**
   Compare two positions in the boot script table and return their relative position.
   @param  Position1             The positions in the boot script table to compare
@@ -587,9 +593,9 @@ S3BootScriptLabel (
 RETURN_STATUS
 EFIAPI
 S3BootScriptCompare (
-  IN  UINT8                       *Position1,
-  IN  UINT8                       *Position2,
-  OUT UINTN                       *RelativePosition
+  IN  UINT8  *Position1,
+  IN  UINT8  *Position2,
+  OUT UINTN  *RelativePosition
   );
 
 #endif

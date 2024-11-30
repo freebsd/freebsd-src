@@ -19,8 +19,8 @@
     0xb91978df, 0x9fc1, 0x427d, { 0xbb, 0x5, 0x4c, 0x82, 0x84, 0x55, 0xca, 0x27 } \
   }
 
-typedef struct _EFI_SIO_CONTROL_PROTOCOL EFI_SIO_CONTROL_PROTOCOL;
-typedef struct _EFI_SIO_CONTROL_PROTOCOL *PEFI_SIO_CONTROL_PROTOCOL;
+typedef struct _EFI_SIO_CONTROL_PROTOCOL  EFI_SIO_CONTROL_PROTOCOL;
+typedef struct _EFI_SIO_CONTROL_PROTOCOL  *PEFI_SIO_CONTROL_PROTOCOL;
 
 /**
   Enable an ISA-style device.
@@ -70,17 +70,17 @@ struct _EFI_SIO_CONTROL_PROTOCOL {
   ///
   /// The version of this protocol.
   ///
-  UINT32                  Version;
+  UINT32                     Version;
   ///
   /// Enable a device.
   ///
-  EFI_SIO_CONTROL_ENABLE  EnableDevice;
+  EFI_SIO_CONTROL_ENABLE     EnableDevice;
   ///
   /// Disable a device.
   ///
-  EFI_SIO_CONTROL_DISABLE DisableDevice;
+  EFI_SIO_CONTROL_DISABLE    DisableDevice;
 };
 
-extern EFI_GUID gEfiSioControlProtocolGuid;
+extern EFI_GUID  gEfiSioControlProtocolGuid;
 
 #endif // __EFI_SUPER_IO_CONTROL_PROTOCOL_H__

@@ -38,11 +38,11 @@
 UINT8
 EFIAPI
 IoOr8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     OrData
+  IN      UINTN  Port,
+  IN      UINT8  OrData
   )
 {
-  return IoWrite8 (Port, (UINT8) (IoRead8 (Port) | OrData));
+  return IoWrite8 (Port, (UINT8)(IoRead8 (Port) | OrData));
 }
 
 /**
@@ -66,11 +66,11 @@ IoOr8 (
 UINT8
 EFIAPI
 IoAnd8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     AndData
+  IN      UINTN  Port,
+  IN      UINT8  AndData
   )
 {
-  return IoWrite8 (Port, (UINT8) (IoRead8 (Port) & AndData));
+  return IoWrite8 (Port, (UINT8)(IoRead8 (Port) & AndData));
 }
 
 /**
@@ -96,12 +96,12 @@ IoAnd8 (
 UINT8
 EFIAPI
 IoAndThenOr8 (
-  IN      UINTN                     Port,
-  IN      UINT8                     AndData,
-  IN      UINT8                     OrData
+  IN      UINTN  Port,
+  IN      UINT8  AndData,
+  IN      UINT8  OrData
   )
 {
-  return IoWrite8 (Port, (UINT8) ((IoRead8 (Port) & AndData) | OrData));
+  return IoWrite8 (Port, (UINT8)((IoRead8 (Port) & AndData) | OrData));
 }
 
 /**
@@ -127,9 +127,9 @@ IoAndThenOr8 (
 UINT8
 EFIAPI
 IoBitFieldRead8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead8 (IoRead8 (Port), StartBit, EndBit);
@@ -161,10 +161,10 @@ IoBitFieldRead8 (
 UINT8
 EFIAPI
 IoBitFieldWrite8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     Value
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  Value
   )
 {
   return IoWrite8 (
@@ -202,10 +202,10 @@ IoBitFieldWrite8 (
 UINT8
 EFIAPI
 IoBitFieldOr8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     OrData
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  OrData
   )
 {
   return IoWrite8 (
@@ -243,10 +243,10 @@ IoBitFieldOr8 (
 UINT8
 EFIAPI
 IoBitFieldAnd8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     AndData
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  AndData
   )
 {
   return IoWrite8 (
@@ -288,11 +288,11 @@ IoBitFieldAnd8 (
 UINT8
 EFIAPI
 IoBitFieldAndThenOr8 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     AndData,
-  IN      UINT8                     OrData
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  AndData,
+  IN      UINT8  OrData
   )
 {
   return IoWrite8 (
@@ -323,11 +323,11 @@ IoBitFieldAndThenOr8 (
 UINT16
 EFIAPI
 IoOr16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    OrData
+  IN      UINTN   Port,
+  IN      UINT16  OrData
   )
 {
-  return IoWrite16 (Port, (UINT16) (IoRead16 (Port) | OrData));
+  return IoWrite16 (Port, (UINT16)(IoRead16 (Port) | OrData));
 }
 
 /**
@@ -352,11 +352,11 @@ IoOr16 (
 UINT16
 EFIAPI
 IoAnd16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    AndData
+  IN      UINTN   Port,
+  IN      UINT16  AndData
   )
 {
-  return IoWrite16 (Port, (UINT16) (IoRead16 (Port) & AndData));
+  return IoWrite16 (Port, (UINT16)(IoRead16 (Port) & AndData));
 }
 
 /**
@@ -383,12 +383,12 @@ IoAnd16 (
 UINT16
 EFIAPI
 IoAndThenOr16 (
-  IN      UINTN                     Port,
-  IN      UINT16                    AndData,
-  IN      UINT16                    OrData
+  IN      UINTN   Port,
+  IN      UINT16  AndData,
+  IN      UINT16  OrData
   )
 {
-  return IoWrite16 (Port, (UINT16) ((IoRead16 (Port) & AndData) | OrData));
+  return IoWrite16 (Port, (UINT16)((IoRead16 (Port) & AndData) | OrData));
 }
 
 /**
@@ -415,9 +415,9 @@ IoAndThenOr16 (
 UINT16
 EFIAPI
 IoBitFieldRead16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead16 (IoRead16 (Port), StartBit, EndBit);
@@ -451,10 +451,10 @@ IoBitFieldRead16 (
 UINT16
 EFIAPI
 IoBitFieldWrite16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    Value
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  Value
   )
 {
   return IoWrite16 (
@@ -493,10 +493,10 @@ IoBitFieldWrite16 (
 UINT16
 EFIAPI
 IoBitFieldOr16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  OrData
   )
 {
   return IoWrite16 (
@@ -535,10 +535,10 @@ IoBitFieldOr16 (
 UINT16
 EFIAPI
 IoBitFieldAnd16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    AndData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  AndData
   )
 {
   return IoWrite16 (
@@ -581,11 +581,11 @@ IoBitFieldAnd16 (
 UINT16
 EFIAPI
 IoBitFieldAndThenOr16 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    AndData,
-  IN      UINT16                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  AndData,
+  IN      UINT16  OrData
   )
 {
   return IoWrite16 (
@@ -616,8 +616,8 @@ IoBitFieldAndThenOr16 (
 UINT32
 EFIAPI
 IoOr32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    OrData
+  IN      UINTN   Port,
+  IN      UINT32  OrData
   )
 {
   return IoWrite32 (Port, IoRead32 (Port) | OrData);
@@ -645,8 +645,8 @@ IoOr32 (
 UINT32
 EFIAPI
 IoAnd32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    AndData
+  IN      UINTN   Port,
+  IN      UINT32  AndData
   )
 {
   return IoWrite32 (Port, IoRead32 (Port) & AndData);
@@ -676,9 +676,9 @@ IoAnd32 (
 UINT32
 EFIAPI
 IoAndThenOr32 (
-  IN      UINTN                     Port,
-  IN      UINT32                    AndData,
-  IN      UINT32                    OrData
+  IN      UINTN   Port,
+  IN      UINT32  AndData,
+  IN      UINT32  OrData
   )
 {
   return IoWrite32 (Port, (IoRead32 (Port) & AndData) | OrData);
@@ -708,9 +708,9 @@ IoAndThenOr32 (
 UINT32
 EFIAPI
 IoBitFieldRead32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead32 (IoRead32 (Port), StartBit, EndBit);
@@ -744,10 +744,10 @@ IoBitFieldRead32 (
 UINT32
 EFIAPI
 IoBitFieldWrite32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    Value
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  Value
   )
 {
   return IoWrite32 (
@@ -786,10 +786,10 @@ IoBitFieldWrite32 (
 UINT32
 EFIAPI
 IoBitFieldOr32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  OrData
   )
 {
   return IoWrite32 (
@@ -828,10 +828,10 @@ IoBitFieldOr32 (
 UINT32
 EFIAPI
 IoBitFieldAnd32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    AndData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  AndData
   )
 {
   return IoWrite32 (
@@ -874,11 +874,11 @@ IoBitFieldAnd32 (
 UINT32
 EFIAPI
 IoBitFieldAndThenOr32 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    AndData,
-  IN      UINT32                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  AndData,
+  IN      UINT32  OrData
   )
 {
   return IoWrite32 (
@@ -909,8 +909,8 @@ IoBitFieldAndThenOr32 (
 UINT64
 EFIAPI
 IoOr64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    OrData
+  IN      UINTN   Port,
+  IN      UINT64  OrData
   )
 {
   return IoWrite64 (Port, IoRead64 (Port) | OrData);
@@ -938,8 +938,8 @@ IoOr64 (
 UINT64
 EFIAPI
 IoAnd64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    AndData
+  IN      UINTN   Port,
+  IN      UINT64  AndData
   )
 {
   return IoWrite64 (Port, IoRead64 (Port) & AndData);
@@ -969,9 +969,9 @@ IoAnd64 (
 UINT64
 EFIAPI
 IoAndThenOr64 (
-  IN      UINTN                     Port,
-  IN      UINT64                    AndData,
-  IN      UINT64                    OrData
+  IN      UINTN   Port,
+  IN      UINT64  AndData,
+  IN      UINT64  OrData
   )
 {
   return IoWrite64 (Port, (IoRead64 (Port) & AndData) | OrData);
@@ -1001,9 +1001,9 @@ IoAndThenOr64 (
 UINT64
 EFIAPI
 IoBitFieldRead64 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Port,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead64 (IoRead64 (Port), StartBit, EndBit);
@@ -1037,10 +1037,10 @@ IoBitFieldRead64 (
 UINT64
 EFIAPI
 IoBitFieldWrite64 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    Value
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  Value
   )
 {
   return IoWrite64 (
@@ -1079,10 +1079,10 @@ IoBitFieldWrite64 (
 UINT64
 EFIAPI
 IoBitFieldOr64 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  OrData
   )
 {
   return IoWrite64 (
@@ -1121,10 +1121,10 @@ IoBitFieldOr64 (
 UINT64
 EFIAPI
 IoBitFieldAnd64 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    AndData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  AndData
   )
 {
   return IoWrite64 (
@@ -1167,11 +1167,11 @@ IoBitFieldAnd64 (
 UINT64
 EFIAPI
 IoBitFieldAndThenOr64 (
-  IN      UINTN                     Port,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    AndData,
-  IN      UINT64                    OrData
+  IN      UINTN   Port,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  AndData,
+  IN      UINT64  OrData
   )
 {
   return IoWrite64 (
@@ -1201,11 +1201,11 @@ IoBitFieldAndThenOr64 (
 UINT8
 EFIAPI
 MmioOr8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     OrData
+  IN      UINTN  Address,
+  IN      UINT8  OrData
   )
 {
-  return MmioWrite8 (Address, (UINT8) (MmioRead8 (Address) | OrData));
+  return MmioWrite8 (Address, (UINT8)(MmioRead8 (Address) | OrData));
 }
 
 /**
@@ -1229,11 +1229,11 @@ MmioOr8 (
 UINT8
 EFIAPI
 MmioAnd8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     AndData
+  IN      UINTN  Address,
+  IN      UINT8  AndData
   )
 {
-  return MmioWrite8 (Address, (UINT8) (MmioRead8 (Address) & AndData));
+  return MmioWrite8 (Address, (UINT8)(MmioRead8 (Address) & AndData));
 }
 
 /**
@@ -1260,12 +1260,12 @@ MmioAnd8 (
 UINT8
 EFIAPI
 MmioAndThenOr8 (
-  IN      UINTN                     Address,
-  IN      UINT8                     AndData,
-  IN      UINT8                     OrData
+  IN      UINTN  Address,
+  IN      UINT8  AndData,
+  IN      UINT8  OrData
   )
 {
-  return MmioWrite8 (Address, (UINT8) ((MmioRead8 (Address) & AndData) | OrData));
+  return MmioWrite8 (Address, (UINT8)((MmioRead8 (Address) & AndData) | OrData));
 }
 
 /**
@@ -1291,9 +1291,9 @@ MmioAndThenOr8 (
 UINT8
 EFIAPI
 MmioBitFieldRead8 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead8 (MmioRead8 (Address), StartBit, EndBit);
@@ -1325,10 +1325,10 @@ MmioBitFieldRead8 (
 UINT8
 EFIAPI
 MmioBitFieldWrite8 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     Value
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  Value
   )
 {
   return MmioWrite8 (
@@ -1367,10 +1367,10 @@ MmioBitFieldWrite8 (
 UINT8
 EFIAPI
 MmioBitFieldOr8 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     OrData
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  OrData
   )
 {
   return MmioWrite8 (
@@ -1409,10 +1409,10 @@ MmioBitFieldOr8 (
 UINT8
 EFIAPI
 MmioBitFieldAnd8 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     AndData
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  AndData
   )
 {
   return MmioWrite8 (
@@ -1454,11 +1454,11 @@ MmioBitFieldAnd8 (
 UINT8
 EFIAPI
 MmioBitFieldAndThenOr8 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT8                     AndData,
-  IN      UINT8                     OrData
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit,
+  IN      UINT8  AndData,
+  IN      UINT8  OrData
   )
 {
   return MmioWrite8 (
@@ -1489,11 +1489,11 @@ MmioBitFieldAndThenOr8 (
 UINT16
 EFIAPI
 MmioOr16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    OrData
+  IN      UINTN   Address,
+  IN      UINT16  OrData
   )
 {
-  return MmioWrite16 (Address, (UINT16) (MmioRead16 (Address) | OrData));
+  return MmioWrite16 (Address, (UINT16)(MmioRead16 (Address) | OrData));
 }
 
 /**
@@ -1518,11 +1518,11 @@ MmioOr16 (
 UINT16
 EFIAPI
 MmioAnd16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    AndData
+  IN      UINTN   Address,
+  IN      UINT16  AndData
   )
 {
-  return MmioWrite16 (Address, (UINT16) (MmioRead16 (Address) & AndData));
+  return MmioWrite16 (Address, (UINT16)(MmioRead16 (Address) & AndData));
 }
 
 /**
@@ -1549,12 +1549,12 @@ MmioAnd16 (
 UINT16
 EFIAPI
 MmioAndThenOr16 (
-  IN      UINTN                     Address,
-  IN      UINT16                    AndData,
-  IN      UINT16                    OrData
+  IN      UINTN   Address,
+  IN      UINT16  AndData,
+  IN      UINT16  OrData
   )
 {
-  return MmioWrite16 (Address, (UINT16) ((MmioRead16 (Address) & AndData) | OrData));
+  return MmioWrite16 (Address, (UINT16)((MmioRead16 (Address) & AndData) | OrData));
 }
 
 /**
@@ -1581,9 +1581,9 @@ MmioAndThenOr16 (
 UINT16
 EFIAPI
 MmioBitFieldRead16 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead16 (MmioRead16 (Address), StartBit, EndBit);
@@ -1616,10 +1616,10 @@ MmioBitFieldRead16 (
 UINT16
 EFIAPI
 MmioBitFieldWrite16 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    Value
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  Value
   )
 {
   return MmioWrite16 (
@@ -1659,10 +1659,10 @@ MmioBitFieldWrite16 (
 UINT16
 EFIAPI
 MmioBitFieldOr16 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  OrData
   )
 {
   return MmioWrite16 (
@@ -1702,10 +1702,10 @@ MmioBitFieldOr16 (
 UINT16
 EFIAPI
 MmioBitFieldAnd16 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    AndData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  AndData
   )
 {
   return MmioWrite16 (
@@ -1748,11 +1748,11 @@ MmioBitFieldAnd16 (
 UINT16
 EFIAPI
 MmioBitFieldAndThenOr16 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT16                    AndData,
-  IN      UINT16                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT16  AndData,
+  IN      UINT16  OrData
   )
 {
   return MmioWrite16 (
@@ -1783,8 +1783,8 @@ MmioBitFieldAndThenOr16 (
 UINT32
 EFIAPI
 MmioOr32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    OrData
+  IN      UINTN   Address,
+  IN      UINT32  OrData
   )
 {
   return MmioWrite32 (Address, MmioRead32 (Address) | OrData);
@@ -1812,8 +1812,8 @@ MmioOr32 (
 UINT32
 EFIAPI
 MmioAnd32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    AndData
+  IN      UINTN   Address,
+  IN      UINT32  AndData
   )
 {
   return MmioWrite32 (Address, MmioRead32 (Address) & AndData);
@@ -1843,9 +1843,9 @@ MmioAnd32 (
 UINT32
 EFIAPI
 MmioAndThenOr32 (
-  IN      UINTN                     Address,
-  IN      UINT32                    AndData,
-  IN      UINT32                    OrData
+  IN      UINTN   Address,
+  IN      UINT32  AndData,
+  IN      UINT32  OrData
   )
 {
   return MmioWrite32 (Address, (MmioRead32 (Address) & AndData) | OrData);
@@ -1875,9 +1875,9 @@ MmioAndThenOr32 (
 UINT32
 EFIAPI
 MmioBitFieldRead32 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead32 (MmioRead32 (Address), StartBit, EndBit);
@@ -1910,10 +1910,10 @@ MmioBitFieldRead32 (
 UINT32
 EFIAPI
 MmioBitFieldWrite32 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    Value
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  Value
   )
 {
   return MmioWrite32 (
@@ -1953,10 +1953,10 @@ MmioBitFieldWrite32 (
 UINT32
 EFIAPI
 MmioBitFieldOr32 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  OrData
   )
 {
   return MmioWrite32 (
@@ -1996,10 +1996,10 @@ MmioBitFieldOr32 (
 UINT32
 EFIAPI
 MmioBitFieldAnd32 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    AndData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  AndData
   )
 {
   return MmioWrite32 (
@@ -2042,11 +2042,11 @@ MmioBitFieldAnd32 (
 UINT32
 EFIAPI
 MmioBitFieldAndThenOr32 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT32                    AndData,
-  IN      UINT32                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT32  AndData,
+  IN      UINT32  OrData
   )
 {
   return MmioWrite32 (
@@ -2077,8 +2077,8 @@ MmioBitFieldAndThenOr32 (
 UINT64
 EFIAPI
 MmioOr64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    OrData
+  IN      UINTN   Address,
+  IN      UINT64  OrData
   )
 {
   return MmioWrite64 (Address, MmioRead64 (Address) | OrData);
@@ -2106,8 +2106,8 @@ MmioOr64 (
 UINT64
 EFIAPI
 MmioAnd64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    AndData
+  IN      UINTN   Address,
+  IN      UINT64  AndData
   )
 {
   return MmioWrite64 (Address, MmioRead64 (Address) & AndData);
@@ -2137,9 +2137,9 @@ MmioAnd64 (
 UINT64
 EFIAPI
 MmioAndThenOr64 (
-  IN      UINTN                     Address,
-  IN      UINT64                    AndData,
-  IN      UINT64                    OrData
+  IN      UINTN   Address,
+  IN      UINT64  AndData,
+  IN      UINT64  OrData
   )
 {
   return MmioWrite64 (Address, (MmioRead64 (Address) & AndData) | OrData);
@@ -2169,9 +2169,9 @@ MmioAndThenOr64 (
 UINT64
 EFIAPI
 MmioBitFieldRead64 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit
+  IN      UINTN  Address,
+  IN      UINTN  StartBit,
+  IN      UINTN  EndBit
   )
 {
   return BitFieldRead64 (MmioRead64 (Address), StartBit, EndBit);
@@ -2204,10 +2204,10 @@ MmioBitFieldRead64 (
 UINT64
 EFIAPI
 MmioBitFieldWrite64 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    Value
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  Value
   )
 {
   return MmioWrite64 (
@@ -2247,10 +2247,10 @@ MmioBitFieldWrite64 (
 UINT64
 EFIAPI
 MmioBitFieldOr64 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  OrData
   )
 {
   return MmioWrite64 (
@@ -2290,10 +2290,10 @@ MmioBitFieldOr64 (
 UINT64
 EFIAPI
 MmioBitFieldAnd64 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    AndData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  AndData
   )
 {
   return MmioWrite64 (
@@ -2336,11 +2336,11 @@ MmioBitFieldAnd64 (
 UINT64
 EFIAPI
 MmioBitFieldAndThenOr64 (
-  IN      UINTN                     Address,
-  IN      UINTN                     StartBit,
-  IN      UINTN                     EndBit,
-  IN      UINT64                    AndData,
-  IN      UINT64                    OrData
+  IN      UINTN   Address,
+  IN      UINTN   StartBit,
+  IN      UINTN   EndBit,
+  IN      UINT64  AndData,
+  IN      UINT64  OrData
   )
 {
   return MmioWrite64 (

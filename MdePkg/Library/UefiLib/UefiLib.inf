@@ -56,6 +56,7 @@
 
 [Guids]
   gEfiEventReadyToBootGuid                      ## SOMETIMES_CONSUMES  ## Event
+  gEfiEventAfterReadyToBootGuid                 ## SOMETIMES_CONSUMES  ## Event
   gEfiEventLegacyBootGuid                       ## SOMETIMES_CONSUMES  ## Event
   gEfiGlobalVariableGuid                        ## SOMETIMES_CONSUMES  ## Variable
   gEfiAcpi20TableGuid                           ## SOMETIMES_CONSUMES  ## SystemTable
