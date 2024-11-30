@@ -29,9 +29,13 @@
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
 
+#include <sys/_interrupt.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
