@@ -28,10 +28,15 @@
 
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
+#ifdef	_KERNEL
 
+#include <sys/_interrupt.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
@@ -197,4 +202,5 @@ int	swi_add(struct intr_event **eventp, const char *name,
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
 
-#endif
+#endif	/* _KERNEL */
+#endif	/* !_SYS_INTERRUPT_H_ */
