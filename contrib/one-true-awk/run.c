@@ -2069,7 +2069,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	FILE *fp;
 	int status = 0;
 	time_t tv;
-	struct tm *tm;
+	struct tm *tm, tmbuf;
 	int estatus = 0;
 
 	t = ptoi(a[0]);
@@ -2222,6 +2222,26 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 			u = EOF;
 		else
 			u = fflush(fp);
+		break;
+	case FMKTIME:
+		memset(&tmbuf, 0, sizeof(tmbuf));
+		tm = &tmbuf;
+		t = sscanf(getsval(x), "%d %d %d %d %d %d %d",
+		    &tm->tm_year, &tm->tm_mon, &tm->tm_mday, &tm->tm_hour,
+		    &tm->tm_min, &tm->tm_sec, &tm->tm_isdst);
+		switch (t) {
+		case 6:
+			tm->tm_isdst = -1;	/* let mktime figure it out */
+			/* FALLTHROUGH */
+		case 7:
+			tm->tm_year -= 1900;
+			tm->tm_mon--;
+			u = mktime(tm);
+			break;
+		default:
+			u = -1;
+			break;
+		}
 		break;
 	case FSYSTIME:
 		u = time((time_t *) 0);

@@ -25,6 +25,11 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Jul 28, 2024
+	Fixed readcsvrec resize segfault when reading csv records longer
+	than 8k. Thanks to Ozan Yigit.
+	mktime() added to bsd-features branch. Thanks to Todd Miller.
+
 Jun 23, 2024
 	Fix signal for system-status test. Thanks to Tim van der Molen.
 	Rewrite if-else chain as switch. Thanks to Andrew Sukach.
