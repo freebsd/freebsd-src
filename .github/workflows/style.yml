@@ -6,6 +6,7 @@ on:
   pull_request: # maybe pull_request_target
     branches: [ main ]
     types: [ opened, reopened, edited, synchronize ]
+    paths: [ '**.S', '**.c', '**.cc', '**.cpp', '**.h', '**.hh', '**.hpp' ]
 
 permissions:
   contents: read
