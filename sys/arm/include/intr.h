@@ -40,10 +40,6 @@
 #define _MACHINE_INTR_H_
 
 #ifndef LOCORE
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#endif
-
 void arm_irq_memory_barrier(uintptr_t);
 #endif /* !LOCORE */
 
