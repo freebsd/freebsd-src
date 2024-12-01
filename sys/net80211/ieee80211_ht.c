@@ -2599,10 +2599,14 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 
 static int
 ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
+	const struct ieee80211_frame *wh __unused,
+	const uint8_t *frm, const uint8_t *efrm __unused)
 {
 	int chw;
+
+	/* If 20/40 is not supported the chw cannot change. */
+	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) == 0)
+		return (0);
 
 	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ?
 	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
