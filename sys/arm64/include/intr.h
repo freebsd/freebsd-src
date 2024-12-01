@@ -28,10 +28,6 @@
 #define	_MACHINE_INTR_H_
 
 #ifndef LOCORE
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#endif
-
 #include <sys/intr.h>
 
 static inline void

@@ -37,6 +37,11 @@
 #error "sys/intr.h included without architecture interrupt header!"
 #endif
 
+#include <sys/_cpuset.h>
+#include <sys/_interrupt.h>
+#include <sys/param.h>
+#include <sys/types.h>
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
@@ -99,6 +104,9 @@ struct intr_irqsrc {
 	/* Used by MSI interrupts to store the iommu details */
 	void *			isrc_iommu;
 };
+
+struct resource;
+struct trapframe;
 
 /* Intr interface for PIC. */
 int intr_isrc_deregister(struct intr_irqsrc *);
