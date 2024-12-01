@@ -1275,12 +1275,12 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			vif->bss_conf.chanreq.oper.center_freq1 =
 			    chanctx_conf->def.center_freq1;
 #ifdef LKPI_80211_HT
-			if (vif->bss_conf.chandef.width == NL80211_CHAN_WIDTH_40) {
+			if (vif->bss_conf.chanreq.oper.width == NL80211_CHAN_WIDTH_40) {
 				/* Note: it is 10 not 20. */
 				if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
-					vif->bss_conf.chandef.center_freq1 += 10;
+					vif->bss_conf.chanreq.oper.center_freq1 += 10;
 				else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
-					vif->bss_conf.chandef.center_freq1 -= 10;
+					vif->bss_conf.chanreq.oper.center_freq1 -= 10;
 			}
 #endif
 			vif->bss_conf.chanreq.oper.center_freq2 =
