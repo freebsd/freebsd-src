@@ -49,13 +49,28 @@ copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
 	if (*dir == '/')
 		dir++;
 
-	if (mkdirat(rootfd, dir, mode) != 0 && errno != EEXIST) {
-		warn("mkdir(%s)", dir);
-		return;
+	if (mkdirat(rootfd, dir, mode) != 0) {
+		mode_t pumask;
+
+		if (errno != EEXIST) {
+			warn("mkdir(%s)", dir);
+			return;
+		}
+
+		pumask = umask(0);
+		umask(pumask);
+
+		if (fchmodat(rootfd, dir, mode & ~pumask,
+		    AT_SYMLINK_NOFOLLOW) == -1)
+			warn("chmod(%s)", dir);
 	}
-	fchownat(rootfd, dir, uid, gid, AT_SYMLINK_NOFOLLOW);
-	if (flags > 0)
-		chflagsat(rootfd, dir, flags, AT_SYMLINK_NOFOLLOW);
+
+	if (fchownat(rootfd, dir, uid, gid, AT_SYMLINK_NOFOLLOW) == -1)
+		warn("chown(%s)", dir);
+
+	if (flags > 0 && chflagsat(rootfd, dir, flags,
+	    AT_SYMLINK_NOFOLLOW) == -1)
+		warn("chflags(%s)", dir);
 
 	if (skelfd == -1)
 		return;
