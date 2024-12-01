@@ -37,9 +37,15 @@
 #error "sys/intr.h included without architecture interrupt header!"
 #endif
 
+#include <sys/_cpuset.h>
+#include <sys/_types_interrupt.h>
+#include <sys/types.h>
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
+struct resource;
+struct trapframe;
 
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI = 0,
