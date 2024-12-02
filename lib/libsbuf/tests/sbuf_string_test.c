@@ -25,28 +25,33 @@
 
 #include <sys/param.h>
 #include <sys/sbuf.h>
+
+#include <atf-c.h>
 #include <errno.h>
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <atf-c.h>
-
 #include "sbuf_test_common.h"
 
-static char	test_string[] = "this is a test string";
-static char	test_whitespace_string[] = " \f\n\r\t\v ";
-static int	test_buffer[] = { 0, 1, 2, 3, 4, 5, };
+static char test_string[] = "this is a test string";
+static char test_whitespace_string[] = " \f\n\r\t\v ";
+static int test_buffer[] = {
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+};
 
 static void
 check_buffers_equal(const void *sb_buf, const void *test_buf, size_t len)
 {
-
 	if (memcmp(sb_buf, test_buf, len) != 0) {
 		printf("sbuf:\n");
-		hexdump(sb_buf, len, NULL, 0),
-		printf("test_buf:\n");
+		hexdump(sb_buf, len, NULL, 0), printf("test_buf:\n");
 		hexdump(test_buf, len, NULL, 0);
 		atf_tc_fail("contents of sbuf didn't match test_buf contents");
 	}
@@ -75,16 +80,16 @@ ATF_TC_BODY(sbuf_bcat_test, tc)
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)sizeof(test_buffer),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, sizeof(test_buffer));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    sizeof(test_buffer));
 
 	ATF_CHECK_MSG(sbuf_bcat(sb, test_buffer, sizeof(test_buffer)) == 0,
 	    "sbuf_bcat failed");
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)(2 * sizeof(test_buffer)),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, 2 * sizeof(test_buffer));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    2 * sizeof(test_buffer));
 
 	ATF_REQUIRE_MSG(sbuf_finish(sb) == 0, "sbuf_finish failed: %s",
 	    strerror(errno));
@@ -112,16 +117,16 @@ ATF_TC_BODY(sbuf_bcpy_test, tc)
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)sizeof(test_buffer),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, sizeof(test_buffer));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    sizeof(test_buffer));
 
 	ATF_CHECK_MSG(sbuf_bcpy(sb, test_buffer, sizeof(test_buffer)) == 0,
 	    "sbuf_bcpy failed");
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)sizeof(test_buffer),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, sizeof(test_buffer));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    sizeof(test_buffer));
 
 	ATF_REQUIRE_MSG(sbuf_finish(sb) == 0, "sbuf_finish failed: %s",
 	    strerror(errno));
@@ -149,15 +154,15 @@ ATF_TC_BODY(sbuf_cat_test, tc)
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)strlen(test_string),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, sizeof(test_string));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    sizeof(test_string));
 
 	ATF_CHECK_MSG(sbuf_cat(sb, test_string) == 0, "sbuf_cat failed");
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)strlen(test_string_tmp),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, strlen(test_string_tmp));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    strlen(test_string_tmp));
 
 	ATF_REQUIRE_MSG(sbuf_finish(sb) == 0, "sbuf_finish failed: %s",
 	    strerror(errno));
@@ -185,15 +190,15 @@ ATF_TC_BODY(sbuf_cpy_test, tc)
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)strlen(test_string),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, strlen(test_string));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    strlen(test_string));
 
 	ATF_CHECK_MSG(sbuf_cpy(sb, test_string) == 0, "sbuf_cpy failed");
 
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(test_sbuf_len == (ssize_t)strlen(test_string),
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, strlen(test_string));
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    strlen(test_string));
 
 	ATF_REQUIRE_MSG(sbuf_finish(sb) == 0, "sbuf_finish failed: %s",
 	    strerror(errno));
@@ -216,7 +221,7 @@ ATF_TC_BODY(sbuf_putc_test, tc)
 	ATF_REQUIRE_MSG(sb != NULL, "sbuf_new_auto failed: %s",
 	    strerror(errno));
 
-	for (i = 0; i <= strlen(test_string); i++) {	/* Include the NUL */
+	for (i = 0; i <= strlen(test_string); i++) { /* Include the NUL */
 		ATF_REQUIRE_MSG(sbuf_putc(sb, test_string[i]) == 0,
 		    "sbuf_putc failed");
 
@@ -256,8 +261,8 @@ ATF_TC_BODY(sbuf_trim_test, tc)
 	    strlen(test_whitespace_string));
 	test_sbuf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(exp_sbuf_len == test_sbuf_len,
-	    "sbuf_len(..) => %zd (actual) != %zu (expected)",
-	    test_sbuf_len, exp_sbuf_len);
+	    "sbuf_len(..) => %zd (actual) != %zu (expected)", test_sbuf_len,
+	    exp_sbuf_len);
 
 	ATF_REQUIRE_MSG(sbuf_trim(sb) == 0, "sbuf_trim failed");
 
@@ -273,7 +278,6 @@ ATF_TC_BODY(sbuf_trim_test, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, sbuf_bcat_test);
 	ATF_TP_ADD_TC(tp, sbuf_bcpy_test);
 	ATF_TP_ADD_TC(tp, sbuf_cat_test);
