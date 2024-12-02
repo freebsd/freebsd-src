@@ -322,12 +322,6 @@ ac97_rdcd(struct ac97_info *codec, int reg)
 		i[1] = AC97_READ(codec->methods, codec->devinfo, reg);
 		while (i[0] != i[1] && j)
 			i[j-- & 1] = AC97_READ(codec->methods, codec->devinfo, reg);
-#if 0
-		if (j < 100) {
-			device_printf(codec->dev, "%s(): Inconsistent register value at"
-					" 0x%08x (retry: %d)\n", __func__, reg, 100 - j);
-		}
-#endif
 		return i[!(j & 1)];
 	}
 	return AC97_READ(codec->methods, codec->devinfo, reg);
@@ -512,9 +506,6 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
-#if 0
-		printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable);
-#endif
 		return -1;
 	}
 }
@@ -737,10 +728,6 @@ ac97_initmixer(struct ac97_info *codec)
 				for (j = 0; k >> j; j++)
 					;
 				if (j != 0) {
-#if 0
-					device_printf(codec->dev, "%2d: [ac97_rdcd() = %d] [Testbit = %d] %d -> %d\n",
-						i, k, bit, codec->mix[i].bits, j);
-#endif
 					codec->mix[i].enable = 1;
 					codec->mix[i].bits = j;
 				} else if (reg == AC97_MIX_BEEP) {
@@ -756,9 +743,6 @@ ac97_initmixer(struct ac97_info *codec)
 				codec->mix[i].enable = 0;
 			ac97_wrcd(codec, reg, old);
 		}
-#if 0
-		printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits);
-#endif
 	}
 
 	device_printf(codec->dev, "<%s>\n",
@@ -1097,13 +1081,6 @@ ac97mix_init(struct snd_mixer *m)
 
 	if (pcm_getflags(codec->dev) & SD_F_SOFTPCMVOL)
 		ac97_wrcd(codec, AC97_MIX_PCM, 0);
-#if 0
-	/* XXX For the sake of debugging purposes */
-	mix_setparentchild(m, SOUND_MIXER_VOLUME,
-	    SOUND_MASK_PCM | SOUND_MASK_CD);
-	mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
-	ac97_wrcd(codec, AC97_MIX_MASTER, 0);
-#endif
 
 	mask = 0;
 	for (i = 0; i < AC97_MIXER_SIZE; i++)
