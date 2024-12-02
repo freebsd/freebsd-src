@@ -203,6 +203,38 @@ sctp_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "tos" "cleanup"
+tos_head()
+{
+	atf_set descr 'ToS translation test'
+	atf_set require.user root
+}
+
+tos_body()
+{
+	nat64_setup
+
+	# Ensure we can distinguish ToS on the destination
+	jexec dst pfctl -e
+	pft_set_rules dst \
+	    "pass" \
+	    "block in inet tos 8"
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 -z 4 64:ff9b::192.0.2.2
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 1 -z 8 64:ff9b::192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 -z 16 64:ff9b::192.0.2.2
+
+	jexec dst pfctl -sr -vv
+}
+
+tos_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
@@ -210,4 +242,5 @@ atf_init_test_cases()
 	atf_add_test_case "tcp"
 	atf_add_test_case "udp"
 	atf_add_test_case "sctp"
+	atf_add_test_case "tos"
 }
