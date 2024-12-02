@@ -405,23 +405,6 @@ chn_wrfeed(struct pcm_channel *c)
 		chn_wakeup(c);
 }
 
-#if 0
-static void
-chn_wrupdate(struct pcm_channel *c)
-{
-
-	CHN_LOCKASSERT(c);
-	KASSERT(c->direction == PCMDIR_PLAY, ("%s(): bad channel", __func__));
-
-	if ((c->flags & (CHN_F_MMAP | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
-		return;
-	chn_dmaupdate(c);
-	chn_wrfeed(c);
-	/* tell the driver we've updated the primary buffer */
-	chn_trigger(c, PCMTRIG_EMLDMAWR);
-}
-#endif
-
 static void
 chn_wrintr(struct pcm_channel *c)
 {
@@ -534,22 +517,6 @@ chn_rdfeed(struct pcm_channel *c)
 	if (sndbuf_getready(bs) > 0)
 		chn_wakeup(c);
 }
-
-#if 0
-static void
-chn_rdupdate(struct pcm_channel *c)
-{
-
-	CHN_LOCKASSERT(c);
-	KASSERT(c->direction == PCMDIR_REC, ("chn_rdupdate on bad channel"));
-
-	if ((c->flags & (CHN_F_MMAP | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
-		return;
-	chn_trigger(c, PCMTRIG_EMLDMARD);
-	chn_dmaupdate(c);
-	chn_rdfeed(c);
-}
-#endif
 
 /* read interrupt routine. Must be called with interrupts blocked. */
 static void
@@ -1980,12 +1947,6 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 		hblksz -= hblksz % sndbuf_getalign(b);
 
-#if 0
-		hblksz = sndbuf_getmaxsize(b) >> 1;
-		hblksz -= hblksz % sndbuf_getalign(b);
-		hblkcnt = 2;
-#endif
-
 		CHN_UNLOCK(c);
 		if (chn_usefrags == 0 ||
 		    CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
@@ -2015,14 +1976,6 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	if (limit > CHN_2NDBUFMAXSIZE)
 		limit = CHN_2NDBUFMAXSIZE;
-
-#if 0
-	while (limit > 0 && (sblksz * sblkcnt) > limit) {
-		if (sblkcnt < 4)
-			break;
-		sblkcnt >>= 1;
-	}
-#endif
 
 	while ((sblksz * sblkcnt) < limit)
 		sblkcnt <<= 1;
@@ -2139,12 +2092,6 @@ chn_setspeed(struct pcm_channel *c, uint32_t speed)
 {
 	uint32_t oldformat, oldspeed, format;
 	int ret;
-
-#if 0
-	/* XXX force 48k */
-	if (c->format & AFMT_PASSTHROUGH)
-		speed = AFMT_PASSTHROUGH_RATE;
-#endif
 
 	oldformat = c->format;
 	oldspeed = c->speed;

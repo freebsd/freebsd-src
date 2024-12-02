@@ -167,32 +167,6 @@ int feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *,
 int feeder_matrix_oss_set_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
 
-#if 0
-/* feeder_matrix */
-enum {
-	FEEDMATRIX_TYPE,
-	FEEDMATRIX_RESET,
-	FEEDMATRIX_CHANNELS_IN,
-	FEEDMATRIX_CHANNELS_OUT,
-	FEEDMATRIX_SET_MAP
-};
-
-enum {
-	FEEDMATRIX_TYPE_NONE,
-	FEEDMATRIX_TYPE_AUTO,
-	FEEDMATRIX_TYPE_2X1,
-	FEEDMATRIX_TYPE_1X2,
-	FEEDMATRIX_TYPE_2X2
-};
-
-#define FEEDMATRIX_TYPE_STEREO_TO_MONO	FEEDMATRIX_TYPE_2X1
-#define FEEDMATRIX_TYPE_MONO_TO_STEREO	FEEDMATRIX_TYPE_1X2
-#define FEEDMATRIX_TYPE_SWAP_STEREO	FEEDMATRIX_TYPE_2X2
-#define FEEDMATRIX_MAP(x, y)		((((x) & 0x3f) << 6) | ((y) & 0x3f))
-#define FEEDMATRIX_MAP_SRC(x)		((x) & 0x3f)
-#define FEEDMATRIX_MAP_DST(x)		(((x) >> 6) & 0x3f)
-#endif
-
 /*
  * By default, various feeders only deal with sign 16/32 bit native-endian
  * since it should provide the fastest processing path. Processing 8bit samples
