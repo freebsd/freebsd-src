@@ -117,6 +117,8 @@ struct pcm_channel {
 	 * lock.
 	 */
 	unsigned int inprog;
+	/* Incrememnt/decrement around cv_timedwait_sig() in chn_sleep(). */
+	unsigned int sleeping;
 	/**
 	 * Special channel operations should examine @c inprog after acquiring
 	 * lock.  If zero, operations may continue.  Else, thread should
@@ -242,11 +244,6 @@ struct pcm_channel {
 	(x)->parentchannel->bufhard != NULL) ?				\
 	(x)->parentchannel->bufhard : (y))
 
-#define CHN_BROADCAST(x)	do {					\
-	if ((x)->cv_waiters != 0)					\
-		cv_broadcastpri(x, PRIBIO);				\
-} while (0)
-
 #include "channel_if.h"
 
 int chn_reinit(struct pcm_channel *c);
@@ -319,6 +316,8 @@ int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
 #define CHN_TRYLOCK(c)		mtx_trylock((c)->lock)
 #define CHN_LOCKASSERT(c)	mtx_assert((c)->lock, MA_OWNED)
 #define CHN_UNLOCKASSERT(c)	mtx_assert((c)->lock, MA_NOTOWNED)
+
+#define CHN_BROADCAST(x)	cv_broadcastpri(x, PRIBIO)
 
 int snd_fmtvalid(uint32_t fmt, uint32_t *fmtlist);
 

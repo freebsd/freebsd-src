@@ -359,15 +359,7 @@ int	sound_oss_card_info(oss_card_info *);
 		    __func__, __LINE__);				\
 	if ((x)->flags & SD_F_BUSY) {					\
 		(x)->flags &= ~SD_F_BUSY;				\
-		if ((x)->cv.cv_waiters != 0) {				\
-			if ((x)->cv.cv_waiters > 1 && snd_verbose > 3)	\
-				device_printf((x)->dev,			\
-				    "%s(%d): [PCM RELEASE] "		\
-				    "cv_waiters=%d > 1!\n",		\
-				    __func__, __LINE__,			\
-				    (x)->cv.cv_waiters);		\
-			cv_broadcast(&(x)->cv);				\
-		}							\
+		cv_broadcast(&(x)->cv);					\
 	} else								\
 		panic("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",	\
 		    __func__, __LINE__);				\
@@ -459,8 +451,7 @@ int	sound_oss_card_info(oss_card_info *);
 	    ("%s(%d): [PCM RELEASE] Releasing non-BUSY cv!",		\
 	    __func__, __LINE__));					\
 	(x)->flags &= ~SD_F_BUSY;					\
-	if ((x)->cv.cv_waiters != 0)					\
-		cv_broadcast(&(x)->cv);					\
+	cv_broadcast(&(x)->cv);						\
 } while (0)
 
 /* Quick version, for shorter path. */
