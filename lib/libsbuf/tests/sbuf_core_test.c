@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/sbuf.h>
+
+#include <atf-c.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -33,12 +35,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
 #include "sbuf_test_common.h"
 
-static char	test_string[] = "this is a test string";
-#define	TEST_STRING_CHOP_COUNT	5
+static char test_string[] = "this is a test string";
+#define TEST_STRING_CHOP_COUNT 5
 _Static_assert(nitems(test_string) > TEST_STRING_CHOP_COUNT,
     "test_string is too short");
 
@@ -76,8 +76,8 @@ ATF_TC_BODY(sbuf_clear_test, tc)
 
 	buf_len = sbuf_len(sb);
 	ATF_REQUIRE_MSG(buf_len == 0, "sbuf_len (%zd) != 0", buf_len);
-	ATF_REQUIRE_STREQ_MSG(sbuf_data(sb), "",
-	    "sbuf (\"%s\") was not empty", sbuf_data(sb));
+	ATF_REQUIRE_STREQ_MSG(sbuf_data(sb), "", "sbuf (\"%s\") was not empty",
+	    sbuf_data(sb));
 
 	sbuf_delete(sb);
 }
@@ -104,7 +104,6 @@ ATF_TC_BODY(sbuf_done_and_sbuf_finish_test, tc)
 static int
 drain_ret0(void *arg, const char *data, int len)
 {
-
 	(void)arg;
 	(void)data;
 	(void)len;
@@ -145,10 +144,11 @@ ATF_TC_BODY(sbuf_len_test, tc)
 		buf_len = sbuf_len(sb);
 		ATF_REQUIRE_MSG(buf_len == (ssize_t)(i * test_string_len),
 		    "sbuf_len (%zd) != %zu", buf_len, i * test_string_len);
-		ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0, "sbuf_cat failed");
+		ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0,
+		    "sbuf_cat failed");
 	}
 
-#ifdef	HAVE_SBUF_SET_FLAGS
+#ifdef HAVE_SBUF_SET_FLAGS
 	sbuf_set_flags(sb, SBUF_INCLUDENUL);
 	ATF_REQUIRE_MSG((ssize_t)(i * test_string_len + 1) == sbuf_len(sb),
 	    "sbuf_len(..) didn't report the NUL char");
@@ -173,8 +173,8 @@ ATF_TC_BODY(sbuf_new_fixedlen, tc)
 
 	child_proc = atf_utils_fork();
 	if (child_proc == 0) {
-		ATF_REQUIRE_EQ_MSG(0, sbuf_finish(&sb), "sbuf_finish failed: %s",
-		    strerror(errno));
+		ATF_REQUIRE_EQ_MSG(0, sbuf_finish(&sb),
+		    "sbuf_finish failed: %s", strerror(errno));
 
 		sbuf_putbuf(&sb);
 		exit(0);
@@ -183,7 +183,8 @@ ATF_TC_BODY(sbuf_new_fixedlen, tc)
 
 	sbuf_putc(&sb, ' ');
 
-	ATF_CHECK_EQ_MSG(-1, sbuf_finish(&sb), "failed to return error on overflow");
+	ATF_CHECK_EQ_MSG(-1, sbuf_finish(&sb),
+	    "failed to return error on overflow");
 
 	sbuf_delete(&sb);
 }
@@ -244,7 +245,6 @@ ATF_TC_BODY(sbuf_setpos_test, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, sbuf_clear_test);
 	ATF_TP_ADD_TC(tp, sbuf_done_and_sbuf_finish_test);
 	ATF_TP_ADD_TC(tp, sbuf_drain_ret0_test);
@@ -252,15 +252,15 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sbuf_new_fixedlen);
 #if 0
 	/* TODO */
-#ifdef	HAVE_SBUF_CLEAR_FLAGS
+#ifdef HAVE_SBUF_CLEAR_FLAGS
 	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
 #endif
-#ifdef	HAVE_SBUF_GET_FLAGS
+#ifdef HAVE_SBUF_GET_FLAGS
 	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
 #endif
 	ATF_TP_ADD_TC(tp, sbuf_new_positive_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_negative_test);
-#ifdef	HAVE_SBUF_SET_FLAGS
+#ifdef HAVE_SBUF_SET_FLAGS
 	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
 #endif
 #endif
