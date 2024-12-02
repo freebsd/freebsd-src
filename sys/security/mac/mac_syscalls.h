@@ -23,6 +23,13 @@ int	mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
 	    char **const u_string);
 void	free_copied_label(const struct mac *const mac);
 
+#ifdef COMPAT_FREEBSD32
+struct mac32;
+
+int	mac_label_copyin32(const struct mac32 *const u_mac,
+	    struct mac *const mac, char **const u_string);
+#endif /* COMPAT_FREEBSD32 */
+
 int	mac_set_proc_prepare(struct thread *const td,
 	    const struct mac *const mac, void **const mac_set_proc_data);
 int	mac_set_proc_core(struct thread *const td, struct ucred *const newcred,

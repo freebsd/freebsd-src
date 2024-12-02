@@ -46,6 +46,7 @@
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/abi_compat.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -79,6 +80,13 @@ static int	kern___mac_get_path(struct thread *td, const char *path_p,
 static int	kern___mac_set_path(struct thread *td, const char *path_p,
 		    struct mac *mac_p, int follow);
 
+#ifdef COMPAT_FREEBSD32
+struct mac32 {
+	uint32_t	m_buflen;	/* size_t */
+	uint32_t	m_string;	/* char * */
+};
+#endif
+
 /*
  * Copyin a 'struct mac', including the string pointed to by 'm_string'.
  *
@@ -86,16 +94,30 @@ static int	kern___mac_set_path(struct thread *td, const char *path_p,
  * after use by calling free_copied_label() (which see).  On success, 'u_string'
  * if not NULL is filled with the userspace address for 'u_mac->m_string'.
  */
-int
-mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
-    char **const u_string)
+static int
+mac_label_copyin_impl(const void *const u_mac, struct mac *const mac,
+    char **const u_string, bool is_32bit)
 {
 	char *buffer;
 	int error;
 
-	error = copyin(u_mac, mac, sizeof(*mac));
-	if (error != 0)
-		return (error);
+#ifdef COMPAT_FREEBSD32
+	if (is_32bit) {
+		struct mac32 mac32;
+
+		error = copyin(u_mac, &mac32, sizeof(mac32));
+		if (error != 0)
+			return (error);
+
+		CP(mac32, *mac, m_buflen);
+		PTRIN_CP(mac32, *mac, m_string);
+	} else
+#endif
+	{
+		error = copyin(u_mac, mac, sizeof(*mac));
+		if (error != 0)
+			return (error);
+	}
 
 	error = mac_check_structmac_consistent(mac);
 	if (error != 0)
@@ -116,11 +138,27 @@ mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
 	return (0);
 }
 
+int
+mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
+    char **const u_string)
+{
+	return (mac_label_copyin_impl(u_mac, mac, u_string, false));
+}
+
 void
 free_copied_label(const struct mac *const mac)
 {
 	free(mac->m_string, M_MACTEMP);
 }
+
+#ifdef COMPAT_FREEBSD32
+int
+mac_label_copyin32(const struct mac32 *const u_mac,
+    struct mac *const mac, char **const u_string)
+{
+	return (mac_label_copyin_impl(u_mac, mac, u_string, true));
+}
+#endif
 
 int
 sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
