@@ -326,12 +326,10 @@ rtwn_sysctlattach(struct rtwn_softc *sc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
-#if 1
 	sc->sc_ht40 = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "ht40", CTLFLAG_RDTUN, &sc->sc_ht40,
 	    sc->sc_ht40, "Enable 40 MHz mode support");
-#endif
 
 #ifdef RTWN_DEBUG
 	SYSCTL_ADD_U32(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

@@ -171,9 +171,7 @@ struct rtwn_softc {
 	struct mbufq		sc_snd;
 	device_t		sc_dev;
 
-#if 1
 	int			sc_ht40;
-#endif
 	uint32_t		sc_debug;
 	int			sc_hwcrypto;
 	int			sc_ratectl_sysctl;
