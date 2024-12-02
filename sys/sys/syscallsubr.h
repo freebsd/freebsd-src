@@ -28,13 +28,14 @@
 #ifndef _SYS_SYSCALLSUBR_H_
 #define _SYS_SYSCALLSUBR_H_
 
-#include <sys/signal.h>
-#include <sys/socket.h>
-#include <sys/mac.h>
-#include <sys/mount.h>
+#include <sys/param.h>
 #include <sys/_cpuset.h>
 #include <sys/_domainset.h>
 #include <sys/_uio.h>
+#include <sys/mac.h>
+#include <sys/mount.h>
+#include <sys/signal.h>
+#include <sys/socket.h>
 
 struct __wrusage;
 struct cpuset_copy_cb;
