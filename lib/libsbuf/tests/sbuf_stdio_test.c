@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/sbuf.h>
+
+#include <atf-c.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -33,17 +35,15 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <atf-c.h>
-
 #include "sbuf_test_common.h"
 
-static char	test_string[] = "this is a test string";
+static char test_string[] = "this is a test string";
 
-#define	MESSAGE_FORMAT	"message: %s\n"
-#define	MESSAGE_SEPARATOR	';'
+#define MESSAGE_FORMAT	  "message: %s\n"
+#define MESSAGE_SEPARATOR ';'
 
 static int
-sbuf_vprintf_helper(struct sbuf *sb, const char * restrict format, ...)
+sbuf_vprintf_helper(struct sbuf *sb, const char *restrict format, ...)
 {
 	va_list ap;
 	int rc;
@@ -117,8 +117,8 @@ ATF_TC_BODY(sbuf_printf_test, tc)
 	struct sbuf *sb;
 	char *test_string_tmp;
 
-	asprintf(&test_string_tmp, "%s%c" MESSAGE_FORMAT,
-	    test_string, MESSAGE_SEPARATOR, test_string);
+	asprintf(&test_string_tmp, "%s%c" MESSAGE_FORMAT, test_string,
+	    MESSAGE_SEPARATOR, test_string);
 	ATF_REQUIRE_MSG(test_string_tmp != NULL, "asprintf failed");
 
 	sb = sbuf_new_auto();
@@ -177,8 +177,8 @@ ATF_TC_BODY(sbuf_vprintf_test, tc)
 	char *test_string_tmp;
 	int rc;
 
-	asprintf(&test_string_tmp, "%s%c" MESSAGE_FORMAT,
-	    test_string, MESSAGE_SEPARATOR, test_string);
+	asprintf(&test_string_tmp, "%s%c" MESSAGE_FORMAT, test_string,
+	    MESSAGE_SEPARATOR, test_string);
 	ATF_REQUIRE_MSG(test_string_tmp != NULL, "asprintf failed");
 
 	sb = sbuf_new_auto();
@@ -204,7 +204,6 @@ ATF_TC_BODY(sbuf_vprintf_test, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, sbuf_printf_drain_null_test);
 	ATF_TP_ADD_TC(tp, sbuf_printf_drain_test);
 	ATF_TP_ADD_TC(tp, sbuf_printf_test);
