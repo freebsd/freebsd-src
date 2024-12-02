@@ -36,9 +36,7 @@
 #include "opt_snd.h"
 #endif
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/pcm.h>
 #include <dev/sound/pcm/g711.h>
-#include <dev/sound/pcm/intpcm.h>
 #include "feeder_if.h"
 
 #define SND_USE_FXDIV
@@ -47,8 +45,6 @@
 
 #define FEEDFORMAT_RESERVOIR	(SND_CHN_MAX * PCM_32_BPS)
 
-INTPCM_DECLARE(intpcm_conv_tables)
-
 struct feed_format_info {
 	uint32_t ibps, obps;
 	uint32_t ialign, oalign, channels;
@@ -56,6 +52,107 @@ struct feed_format_info {
 	intpcm_write_t *write;
 	uint8_t reservoir[FEEDFORMAT_RESERVOIR];
 };
+
+#define INTPCM_DECLARE_OP_WRITE(SIGN, BIT, ENDIAN, SHIFT)		\
+static __inline void							\
+intpcm_write_##SIGN##BIT##ENDIAN(uint8_t *dst, intpcm_t v)		\
+{									\
+									\
+	_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v >> SHIFT);		\
+}
+
+#define INTPCM_DECLARE_OP_8(SIGN, ENDIAN)				\
+static __inline intpcm_t						\
+intpcm_read_##SIGN##8##ENDIAN(uint8_t *src)				\
+{									\
+									\
+	return (_PCM_READ_##SIGN##8##_##ENDIAN(src) << 24);		\
+}									\
+INTPCM_DECLARE_OP_WRITE(SIGN, 8, ENDIAN, 24)
+
+#define INTPCM_DECLARE_OP_16(SIGN, ENDIAN)				\
+static __inline intpcm_t						\
+intpcm_read_##SIGN##16##ENDIAN(uint8_t *src)				\
+{									\
+									\
+	return (_PCM_READ_##SIGN##16##_##ENDIAN(src) << 16);		\
+}									\
+INTPCM_DECLARE_OP_WRITE(SIGN, 16, ENDIAN, 16)
+
+#define INTPCM_DECLARE_OP_24(SIGN, ENDIAN)				\
+static __inline intpcm_t						\
+intpcm_read_##SIGN##24##ENDIAN(uint8_t *src)				\
+{									\
+									\
+	return (_PCM_READ_##SIGN##24##_##ENDIAN(src) << 8);		\
+}									\
+INTPCM_DECLARE_OP_WRITE(SIGN, 24, ENDIAN, 8)
+
+#define INTPCM_DECLARE_OP_32(SIGN, ENDIAN)				\
+static __inline intpcm_t						\
+intpcm_read_##SIGN##32##ENDIAN(uint8_t *src)				\
+{									\
+									\
+	return (_PCM_READ_##SIGN##32##_##ENDIAN(src));			\
+}									\
+									\
+static __inline void							\
+intpcm_write_##SIGN##32##ENDIAN(uint8_t *dst, intpcm_t v)		\
+{									\
+									\
+	_PCM_WRITE_##SIGN##32##_##ENDIAN(dst, v);			\
+}
+
+INTPCM_DECLARE_OP_8(S, NE)
+INTPCM_DECLARE_OP_16(S, LE)
+INTPCM_DECLARE_OP_16(S, BE)
+INTPCM_DECLARE_OP_24(S, LE)
+INTPCM_DECLARE_OP_24(S, BE)
+INTPCM_DECLARE_OP_32(S, LE)
+INTPCM_DECLARE_OP_32(S, BE)
+INTPCM_DECLARE_OP_8(U, NE)
+INTPCM_DECLARE_OP_16(U, LE)
+INTPCM_DECLARE_OP_16(U, BE)
+INTPCM_DECLARE_OP_24(U, LE)
+INTPCM_DECLARE_OP_24(U, BE)
+INTPCM_DECLARE_OP_32(U, LE)
+INTPCM_DECLARE_OP_32(U, BE)
+
+static const struct {
+	const uint8_t ulaw_to_u8[G711_TABLE_SIZE];
+	const uint8_t alaw_to_u8[G711_TABLE_SIZE];
+	const uint8_t u8_to_ulaw[G711_TABLE_SIZE];
+	const uint8_t u8_to_alaw[G711_TABLE_SIZE];
+} xlaw_conv_tables = {
+	ULAW_TO_U8,
+	ALAW_TO_U8,
+	U8_TO_ULAW,
+	U8_TO_ALAW
+};
+
+static __inline intpcm_t
+intpcm_read_ulaw(uint8_t *src)
+{
+	return (_G711_TO_INTPCM(xlaw_conv_tables.ulaw_to_u8, *src) << 24);
+}
+
+static __inline intpcm_t
+intpcm_read_alaw(uint8_t *src)
+{
+	return (_G711_TO_INTPCM(xlaw_conv_tables.alaw_to_u8, *src) << 24);
+}
+
+static __inline void
+intpcm_write_ulaw(uint8_t *dst, intpcm_t v)
+{
+	*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_ulaw, v >> 24);
+}
+
+static __inline void
+intpcm_write_alaw(uint8_t *dst, intpcm_t v)
+{
+	*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_alaw, v >> 24);
+}
 
 /*
  * dummy ac3/dts passthrough, etc.
@@ -269,7 +366,6 @@ static kobj_method_t feeder_format_methods[] = {
 
 FEEDER_DECLARE(feeder_format, NULL);
 
-/* Extern */
 intpcm_read_t *
 feeder_format_read_op(uint32_t format)
 {

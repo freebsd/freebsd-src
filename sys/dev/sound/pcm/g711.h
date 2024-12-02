@@ -176,15 +176,4 @@
 
 #define _INTPCM_TO_G711(t, v)	((t)[(uint8_t)((v) ^ 0x80)])
 
-#define G711_DECLARE_TABLE(t)						\
-static const struct {							\
-	const uint8_t ulaw_to_u8[G711_TABLE_SIZE];			\
-	const uint8_t alaw_to_u8[G711_TABLE_SIZE];			\
-	const uint8_t u8_to_ulaw[G711_TABLE_SIZE];			\
-	const uint8_t u8_to_alaw[G711_TABLE_SIZE];			\
-} t = {									\
-	ULAW_TO_U8, ALAW_TO_U8,						\
-	U8_TO_ULAW, U8_TO_ALAW						\
-}
-
 #endif	/* !_SND_G711_H_ */
