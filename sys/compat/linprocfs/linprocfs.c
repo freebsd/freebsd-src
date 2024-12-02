@@ -539,9 +539,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
 	    UIO_SYSSPACE, MNT_WAIT);
 	if (error != 0) {
-		free(buf, M_TEMP);
-		free(flep, M_TEMP);
-		return (error);
+		goto out;
 	}
 
 	for (sp = buf; count > 0; sp++, count--) {
@@ -561,6 +559,8 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		sbuf_printf(sb, " 0 0\n");
 	}
 
+	error = 0;
+out:
 	free(buf, M_TEMP);
 	free(flep, M_TEMP);
 	return (error);
