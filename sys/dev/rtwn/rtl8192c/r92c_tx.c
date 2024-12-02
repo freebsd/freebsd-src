@@ -66,8 +66,7 @@ r92c_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r92c_tx_desc *txd = (struct r92c_tx_desc *)buf;
 
-	if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+	if (ieee80211_ht_check_tx_ht40(ni)) {
 		int extc_offset;
 
 		extc_offset = r92c_tx_get_sco(sc, ni->ni_chan);

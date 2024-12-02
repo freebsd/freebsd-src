@@ -59,7 +59,7 @@
 static int
 r12a_get_primary_channel(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
-	/* XXX 80 MHz */
+	/* XXX VHT80; VHT40 */
 	if (IEEE80211_IS_CHAN_HT40U(c))
 		return (R12A_TXDW5_PRIM_CHAN_20_80_2);
 	else
@@ -71,9 +71,8 @@ r12a_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	/* XXX 80 Mhz */
-	if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+	/* XXX VHT80; VHT40; VHT20 */
+	if (ieee80211_ht_check_tx_ht40(ni)) {
 		int prim_chan;
 
 		prim_chan = r12a_get_primary_channel(sc, ni->ni_chan);
