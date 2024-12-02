@@ -381,8 +381,8 @@ enum {
 				"\002ABORTING"				\
 				"\003RUNNING"				\
 				"\004TRIGGERED"				\
-				/* \006 */				\
 				"\005NOTRIGGER"				\
+				/* \006 */				\
 				"\007NBIO"				\
 				"\010MMAP"				\
 				"\011BUSY"				\
