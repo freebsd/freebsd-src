@@ -83,7 +83,6 @@ struct snd_mixer;
 
 #include <dev/sound/pcm/buffer.h>
 #include <dev/sound/pcm/matrix.h>
-#include <dev/sound/pcm/matrix_map.h>
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/pcm.h>
 #include <dev/sound/pcm/feeder.h>
