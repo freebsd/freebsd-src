@@ -3460,6 +3460,7 @@ pf_translate_af(struct pf_pdesc *pd)
 		bzero(ip4, hlen);
 		ip4->ip_v = IPVERSION;
 		ip4->ip_hl = hlen >> 2;
+		ip4->ip_tos = pd->tos;
 		ip4->ip_len = htons(hlen + (pd->tot_len - pd->off));
 		ip_fillid(ip4);
 		ip4->ip_ttl = pd->ttl;
@@ -3473,6 +3474,7 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip6 = mtod(pd->m, struct ip6_hdr *);
 		bzero(ip6, hlen);
 		ip6->ip6_vfc = IPV6_VERSION;
+		ip6->ip6_flow |= htonl((u_int32_t)pd->tos << 20);
 		ip6->ip6_plen = htons(pd->tot_len - pd->off);
 		ip6->ip6_nxt = pd->proto;
 		if (!pd->ttl || pd->ttl > IPV6_DEFHLIM)
