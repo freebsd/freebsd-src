@@ -285,8 +285,18 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 		rxs.c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 
 	rxs.r_flags |= IEEE80211_R_TSF_START;	/* XXX undocumented */
-	rxs.r_flags |= IEEE80211_R_TSF64;
-	rxs.c_rx_tsf = rtwn_extend_rx_tsf(sc, stat);
+
+	/*
+	 * Doing the TSF64 extension on USB is expensive, especially
+	 * if it's being done on every MPDU in an AMPDU burst.
+	 */
+	if (sc->sc_ena_tsf64) {
+		rxs.r_flags |= IEEE80211_R_TSF64;
+		rxs.c_rx_tsf = rtwn_extend_rx_tsf(sc, stat);
+	} else {
+		rxs.r_flags |= IEEE80211_R_TSF32;
+		rxs.c_rx_tsf = le32toh(stat->tsf_low);
+	}
 
 	/* Get RSSI from PHY status descriptor. */
 	is_cck = (rxs.c_pktflags & IEEE80211_RX_F_CCK) != 0;

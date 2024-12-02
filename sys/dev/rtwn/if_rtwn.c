@@ -331,6 +331,11 @@ rtwn_sysctlattach(struct rtwn_softc *sc)
 	    "ht40", CTLFLAG_RDTUN, &sc->sc_ht40,
 	    sc->sc_ht40, "Enable 40 MHz mode support");
 
+	sc->sc_ena_tsf64 = 0;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "ena_tsf64", CTLFLAG_RWTUN, &sc->sc_ena_tsf64,
+	    sc->sc_ena_tsf64, "Enable/disable per-packet TSF64 reporting");
+
 #ifdef RTWN_DEBUG
 	SYSCTL_ADD_U32(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "debug", CTLFLAG_RWTUN, &sc->sc_debug, sc->sc_debug,
