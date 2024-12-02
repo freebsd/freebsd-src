@@ -329,7 +329,9 @@ chn_sleep(struct pcm_channel *c, int timeout)
 	if (c->flags & CHN_F_DEAD)
 		return (EINVAL);
 
+	c->sleeping++;
 	ret = cv_timedwait_sig(&c->intr_cv, c->lock, timeout);
+	c->sleeping--;
 
 	return ((c->flags & CHN_F_DEAD) ? EINVAL : ret);
 }
