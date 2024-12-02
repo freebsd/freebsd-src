@@ -1257,7 +1257,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-				/* XXX abusive DMA update: chn_wrupdate(wrch); */
 				a->bytes = sndbuf_getfree(bs);
 	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
 	        		a->fragstotal = sndbuf_getblkcnt(bs);
@@ -1275,7 +1274,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-				/* XXX abusive DMA update: chn_rdupdate(rdch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - rdch->blocks;
 	        		a->ptr = sndbuf_getfreeptr(bs);
@@ -1293,7 +1291,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        		struct snd_dbuf *bs = wrch->bufsoft;
 
 				CHN_LOCK(wrch);
-				/* XXX abusive DMA update: chn_wrupdate(wrch); */
 	        		a->bytes = sndbuf_gettotal(bs);
 	        		a->blocks = sndbuf_getblocks(bs) - wrch->blocks;
 	        		a->ptr = sndbuf_getreadyptr(bs);
@@ -1385,7 +1382,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	        	struct snd_dbuf *bs = wrch->bufsoft;
 
 			CHN_LOCK(wrch);
-			/* XXX abusive DMA update: chn_wrupdate(wrch); */
 			*arg_i = sndbuf_getready(bs);
 			CHN_UNLOCK(wrch);
 		} else
@@ -1582,14 +1578,8 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 
 			CHN_LOCK(chn);
 			bs = chn->bufsoft;
-#if 0
-			tmp = (sndbuf_getsize(b) + chn_getptr(chn) - sndbuf_gethwptr(b)) % sndbuf_getsize(b);
-			oc->samples = (sndbuf_gettotal(b) + tmp) / sndbuf_getalign(b);
-			oc->fifo_samples = (sndbuf_getready(b) - tmp) / sndbuf_getalign(b);
-#else
 			oc->samples = sndbuf_gettotal(bs) / sndbuf_getalign(bs);
 			oc->fifo_samples = sndbuf_getready(bs) / sndbuf_getalign(bs);
-#endif
 			CHN_UNLOCK(chn);
 		}
 		break;
@@ -1738,18 +1728,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	case SNDCTL_SETNAME:
 		ret = dsp_oss_setname(wrch, rdch, (oss_longname_t *)arg);
 		break;
-#if 0
-	/**
-	 * @note The S/PDIF interface ioctls, @c SNDCTL_DSP_READCTL and
-	 * @c SNDCTL_DSP_WRITECTL have been omitted at the suggestion of
-	 * 4Front Technologies.
-	 */
-	case SNDCTL_DSP_READCTL:
-	case SNDCTL_DSP_WRITECTL:
-		ret = EINVAL;
-		break;
-#endif	/* !0 (explicitly omitted ioctls) */
-
 #endif	/* !OSSV4_EXPERIMENT */
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
