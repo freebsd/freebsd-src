@@ -3107,7 +3107,6 @@ dev/sound/pci/hdspe.c		optional snd_hdspe pci
 dev/sound/pci/hdspe-pcm.c	optional snd_hdspe pci
 dev/sound/pcm/ac97.c		optional sound
 dev/sound/pcm/ac97_if.m		optional sound
-dev/sound/pcm/ac97_patch.c	optional sound
 dev/sound/pcm/buffer.c		optional sound	\
 	dependency	"snd_fxdiv_gen.h"
 dev/sound/pcm/channel.c		optional sound
