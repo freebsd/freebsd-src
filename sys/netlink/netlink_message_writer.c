@@ -73,22 +73,28 @@ nl_send_one(struct nl_writer *nw)
 }
 
 bool
-_nlmsg_get_unicast_writer(struct nl_writer *nw, int size, struct nlpcb *nlp)
+_nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
+    bool waitok)
 {
-	nw->nlp = nlp;
-	nw->cb = nl_send_one;
+	*nw = (struct nl_writer){
+		.nlp = nlp,
+		.cb = nl_send_one,
+	};
 
-	return (nlmsg_get_buf(nw, size, false));
+	return (nlmsg_get_buf(nw, size, waitok));
 }
 
 bool
-_nlmsg_get_group_writer(struct nl_writer *nw, int size, int protocol, int group_id)
+_nl_writer_group(struct nl_writer *nw, size_t size, uint16_t protocol,
+    uint16_t group_id, bool waitok)
 {
-	nw->group.proto = protocol;
-	nw->group.id = group_id;
-	nw->cb = nl_send_group;
+	*nw = (struct nl_writer){
+		.group.proto = protocol,
+		.group.id = group_id,
+		.cb = nl_send_group,
+	};
 
-	return (nlmsg_get_buf(nw, size, false));
+	return (nlmsg_get_buf(nw, size, waitok));
 }
 
 void

@@ -10,7 +10,6 @@ SRCS+=	opt_inet.h opt_inet6.h opt_route.h
 CFLAGS+=	-DNETLINK_MODULE
 
 EXPORT_SYMS=
-EXPORT_SYMS+=	nlmsg_get_chain_writer
 EXPORT_SYMS+=	nlmsg_refill_buffer
 EXPORT_SYMS+=	nlmsg_end
 EXPORT_SYMS+=	nlmsg_flush

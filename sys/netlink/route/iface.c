@@ -1363,7 +1363,7 @@ static void
 rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 {
 	struct nlmsghdr hdr = {};
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 	uint32_t group = 0;
 
 	switch (ifa->ifa_addr->sa_family) {
@@ -1386,7 +1386,7 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 	if (!nl_has_listeners(NETLINK_ROUTE, group))
 		return;
 
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_ROUTE, group)) {
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, group, false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
@@ -1401,13 +1401,14 @@ static void
 rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
 {
 	struct nlmsghdr hdr = { .nlmsg_type = nlmsg_type };
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 
 	if (!nl_has_listeners(NETLINK_ROUTE, RTNLGRP_LINK))
 		return;
 
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK)) {
-		NL_LOG(LOG_DEBUG, "error allocating mbuf");
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK,
+	    false)) {
+		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
 	dump_iface(&nw, ifp, &hdr, if_flags_mask);
