@@ -1807,7 +1807,8 @@ pflow_init(void)
 
 	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2, PFLOWNL_CMD_MAX);
 	MPASS(family_id != 0);
-	ret = genl_register_cmds(PFLOWNL_FAMILY_NAME, pflow_cmds, NL_ARRAY_LEN(pflow_cmds));
+	ret = genl_register_cmds(PFLOWNL_FAMILY_NAME, pflow_cmds,
+	    nitems(pflow_cmds));
 
 	return (ret ? 0 : ENODEV);
 }

@@ -61,7 +61,7 @@
 #ifndef _NETLINK_NETLINK_H_
 #define _NETLINK_NETLINK_H_
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 
 struct sockaddr_nl {
@@ -194,9 +194,6 @@ enum nlmsginfo_attrs {
 };
 
 
-#ifndef roundup2
-#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
-#endif
 #define	NL_ITEM_ALIGN_SIZE		sizeof(uint32_t)
 #define	NL_ITEM_ALIGN(_len)		roundup2(_len, NL_ITEM_ALIGN_SIZE)
 #define	NL_ITEM_DATA(_ptr, _off)	((void *)((char *)(_ptr) + _off))

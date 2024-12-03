@@ -2986,7 +2986,7 @@ carp_nl_register(void)
 	MPASS(family_id != 0);
 
 	ret = genl_register_cmds(CARP_NL_FAMILY_NAME, carp_cmds,
-	    NL_ARRAY_LEN(carp_cmds));
+	    nitems(carp_cmds));
 	MPASS(ret);
 }
 
