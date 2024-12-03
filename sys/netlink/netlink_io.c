@@ -58,6 +58,9 @@ nl_buf_alloc(size_t len, int mflag)
 {
 	struct nl_buf *nb;
 
+	KASSERT(len > 0 && len <= UINT_MAX, ("%s: invalid length %zu",
+	    __func__, len));
+
 	nb = malloc(sizeof(struct nl_buf) + len, M_NETLINK, mflag);
 	if (__predict_true(nb != NULL)) {
 		nb->buflen = len;
