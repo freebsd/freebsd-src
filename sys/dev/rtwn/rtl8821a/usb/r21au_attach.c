@@ -158,6 +158,11 @@ r21au_adj_devcaps(struct rtwn_softc *sc)
 	if (rs->rs_radar != 0)
 		ic->ic_caps |= IEEE80211_C_DFS;
 
+	ic->ic_htcaps |=
+	    IEEE80211_HTCAP_CHWIDTH40 /* 40 MHz channel width */
+	    | IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
+	    ;
+
 	/* TODO: VHT */
 }
 
@@ -276,6 +281,8 @@ r21au_attach(struct rtwn_usb_softc *uc)
 
 	sc->ntxchains			= 1;
 	sc->nrxchains			= 1;
+
+	sc->sc_ht40			= 1;
 
 	r21a_attach_private(sc);
 }
