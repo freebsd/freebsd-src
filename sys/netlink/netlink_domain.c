@@ -256,7 +256,7 @@ nl_send_group(struct nl_writer *nw)
 }
 
 bool
-nl_has_listeners(int netlink_family, uint32_t groups_mask)
+nl_has_listeners(uint16_t netlink_family, uint32_t groups_mask)
 {
 	return (V_nl_ctl != NULL);
 }

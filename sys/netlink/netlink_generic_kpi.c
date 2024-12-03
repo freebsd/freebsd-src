@@ -252,7 +252,7 @@ genl_register_group(const char *family_name, const char *group_name)
 
 /* accessors */
 struct genl_family *
-genl_get_family(uint32_t family_id)
+genl_get_family(uint16_t family_id)
 {
 	return ((family_id < MAX_FAMILIES) ? &families[family_id] : NULL);
 }
@@ -263,7 +263,7 @@ genl_get_family_name(const struct genl_family *gf)
 	return (gf->family_name);
 }
 
-uint32_t
+uint16_t
 genl_get_family_id(const struct genl_family *gf)
 {
 	return (gf->family_id);

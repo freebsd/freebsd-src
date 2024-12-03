@@ -159,7 +159,7 @@ struct genl_group {
 	const char		*group_name;
 };
 
-struct genl_family *genl_get_family(uint32_t family_id);
+struct genl_family *genl_get_family(uint16_t family_id);
 struct genl_group *genl_get_group(uint32_t group_id);
 
 #define	MAX_FAMILIES	20
