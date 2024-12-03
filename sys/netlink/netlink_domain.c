@@ -145,7 +145,7 @@ nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
 	if (!nlp_unconstrained_vnet(nlp))
 		return;
 
-	nlp->nl_groups[group_id / 64] |= (uint64_t)1 << (group_id % 64);
+	BIT_SET(NLP_MAX_GROUPS, group_id, &nlp->nl_groups);
 }
 
 static void
@@ -154,7 +154,7 @@ nl_del_group_locked(struct nlpcb *nlp, unsigned int group_id)
 	MPASS(group_id <= NLP_MAX_GROUPS);
 	--group_id;
 
-	nlp->nl_groups[group_id / 64] &= ~((uint64_t)1 << (group_id % 64));
+	BIT_CLR(NLP_MAX_GROUPS, group_id, &nlp->nl_groups);
 }
 
 static bool
@@ -163,7 +163,7 @@ nl_isset_group_locked(struct nlpcb *nlp, unsigned int group_id)
 	MPASS(group_id <= NLP_MAX_GROUPS);
 	--group_id;
 
-	return (nlp->nl_groups[group_id / 64] & ((uint64_t)1 << (group_id % 64)));
+	return (BIT_ISSET(NLP_MAX_GROUPS, group_id, &nlp->nl_groups));
 }
 
 static uint32_t
