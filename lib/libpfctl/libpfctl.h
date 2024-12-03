@@ -539,4 +539,7 @@ int	pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, str
 typedef int (*pfctl_get_srcnode_fn)(struct pfctl_src_node*, void *);
 int	pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg);
 
+int	pfctl_clear_tables(struct pfctl_handle *h, struct pfr_table *filter,
+	    int *ndel, int flags);
+
 #endif

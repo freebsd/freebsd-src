@@ -61,6 +61,7 @@ enum {
 	PFNL_CMD_GET_RULESETS = 23,
 	PFNL_CMD_GET_RULESET = 24,
 	PFNL_CMD_GET_SRCNODES = 25,
+	PFNL_CMD_CLEAR_TABLES = 26,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -420,6 +421,15 @@ enum pf_srcnodes_types_t {
 	PF_SN_EXPIRE		= 13, /* u64 */
 	PF_SN_CONNECTION_RATE	= 14, /* nested, pf_threshold */
 	PF_SN_NAF		= 15, /* u8 */
+};
+
+enum pf_tables_t {
+	PF_T_UNSPEC,
+	PF_T_ANCHOR		= 1, /* string */
+	PF_T_NAME		= 2, /* string */
+	PF_T_TABLE_FLAGS	= 3, /* u32 */
+	PF_T_FLAGS		= 4, /* u32 */
+	PF_T_NBR_DELETED	= 5, /* u32 */
 };
 
 #ifdef _KERNEL

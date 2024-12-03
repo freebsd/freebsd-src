@@ -3219,7 +3219,7 @@ main(int argc, char *argv[])
 			pfctl_flush_eth_rules(dev, opts, anchorname);
 			pfctl_flush_rules(dev, opts, anchorname);
 			pfctl_flush_nat(dev, opts, anchorname);
-			pfctl_clear_tables(anchorname, opts);
+			pfctl_do_clear_tables(anchorname, opts);
 			if (!*anchorname) {
 				pfctl_clear_altq(dev, opts);
 				pfctl_clear_iface_states(dev, ifaceopt, opts);
@@ -3233,7 +3233,7 @@ main(int argc, char *argv[])
 			pfctl_clear_fingerprints(dev, opts);
 			break;
 		case 'T':
-			pfctl_clear_tables(anchorname, opts);
+			pfctl_do_clear_tables(anchorname, opts);
 			break;
 		}
 	}
