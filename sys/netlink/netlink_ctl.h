@@ -95,7 +95,7 @@ struct genl_cmd {
 };
 
 uint32_t genl_register_family(const char *family_name, size_t hdrsize,
-    int family_version, int max_attr_idx);
+    uint16_t family_version, uint16_t max_attr_idx);
 bool genl_unregister_family(const char *family_name);
 bool genl_register_cmds(const char *family_name, const struct genl_cmd *cmds,
     int count);
