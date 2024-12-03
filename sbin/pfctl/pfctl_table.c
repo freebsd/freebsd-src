@@ -104,7 +104,7 @@ static const char	*istats_text[2][2][2] = {
 	} while(0)
 
 int
-pfctl_clear_tables(const char *anchor, int opts)
+pfctl_do_clear_tables(const char *anchor, int opts)
 {
 	return pfctl_table(0, NULL, NULL, "-F", NULL, anchor, opts);
 }
@@ -157,7 +157,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 	if (!strcmp(command, "-F")) {
 		if (argc || file != NULL)
 			usage();
-		RVTEST(pfr_clr_tables(&table, &ndel, flags));
+		RVTEST(pfctl_clear_tables(pfh, &table, &ndel, flags));
 		xprintf(opts, "%d tables deleted", ndel);
 	} else if (!strcmp(command, "-s")) {
 		b.pfrb_type = (opts & PF_OPT_VERBOSE2) ?

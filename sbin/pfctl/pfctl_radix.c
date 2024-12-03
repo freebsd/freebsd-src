@@ -74,22 +74,6 @@ pfr_report_error(struct pfr_table *tbl, struct pfioc_table *io,
 }
 
 int
-pfr_clr_tables(struct pfr_table *filter, int *ndel, int flags)
-{
-	struct pfioc_table io;
-
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	if (filter != NULL)
-		io.pfrio_table = *filter;
-	if (ioctl(dev, DIOCRCLRTABLES, &io))
-		return (-1);
-	if (ndel != NULL)
-		*ndel = io.pfrio_ndel;
-	return (0);
-}
-
-int
 pfr_add_tables(struct pfr_table *tbl, int size, int *nadd, int flags)
 {
 	struct pfioc_table io;

@@ -1793,6 +1793,53 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+#define _OUT(_field)	offsetof(struct pfioc_table, _field)
+static const struct nlattr_parser nla_p_table[] = {
+	{ .type = PF_T_ANCHOR, .off = _OUT(pfrio_table.pfrt_anchor), .arg = (void *)MAXPATHLEN, .cb = nlattr_get_chara },
+	{ .type = PF_T_NAME, .off = _OUT(pfrio_table.pfrt_name), .arg = (void *)PF_TABLE_NAME_SIZE, .cb = nlattr_get_chara },
+	{ .type = PF_T_TABLE_FLAGS, .off = _OUT(pfrio_table.pfrt_flags), .cb = nlattr_get_uint32 },
+	{ .type = PF_T_FLAGS, .off = _OUT(pfrio_flags), .cb = nlattr_get_uint32 },
+};
+static const struct nlfield_parser nlf_p_table[] = {};
+NL_DECLARE_PARSER(table_parser, struct genlmsghdr, nlf_p_table, nla_p_table);
+#undef _OUT
+static int
+pf_handle_clear_tables(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_table attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	int ndel = 0;
+	int error;
+
+	error = nl_parse_nlmsg(hdr, &table_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_RULES_WLOCK();
+	error = pfr_clr_tables(&attrs.pfrio_table, &ndel, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+	PF_RULES_WUNLOCK();
+	if (error != 0)
+		return (error);
+
+	if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr)))
+		return (ENOMEM);
+
+	ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+	ghdr_new->cmd = PFNL_CMD_CLEAR_TABLES;
+	ghdr_new->version = 0;
+	ghdr_new->reserved = 0;
+
+	nlattr_add_u32(nw, PF_T_NBR_DELETED, ndel);
+
+	if (!nlmsg_end(nw)) {
+		nlmsg_abort(nw);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -1806,6 +1853,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&pool_addr_parser,
 	&add_addr_parser,
 	&ruleset_parser,
+	&table_parser,
 };
 
 static int family_id;
@@ -1984,6 +2032,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "GET_SRCNODES",
 		.cmd_cb = pf_handle_get_srcnodes,
 		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_CLEAR_TABLES,
+		.cmd_name = "CLEAR_TABLES",
+		.cmd_cb = pf_handle_clear_tables,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
