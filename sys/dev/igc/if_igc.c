@@ -56,7 +56,7 @@ static const pci_vendor_info_t igc_vendor_info_array[] =
 	PVID(0x8086, IGC_DEV_ID_I225_K,
 	    "Intel(R) Ethernet Controller I225-K"),
 	PVID(0x8086, IGC_DEV_ID_I225_I,
-	    "Intel(R) Ethernet Controller I225-I"),
+	    "Intel(R) Ethernet Controller I225-IT"),
 	PVID(0x8086, IGC_DEV_ID_I220_V,
 	    "Intel(R) Ethernet Controller I220-V"),
 	PVID(0x8086, IGC_DEV_ID_I225_K2,
