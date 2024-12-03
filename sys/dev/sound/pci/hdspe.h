@@ -74,35 +74,43 @@
 #define	HDSPE_LAT_BYTES_MIN		(32 * 4)
 #define	hdspe_encode_latency(x)		(((x)<<1) & HDSPE_LAT_MASK)
 
-/* Gain */
-#define	HDSP_ADGain0			(1 << 25)
-#define	HDSP_ADGain1			(1 << 26)
-#define	HDSP_DAGain0			(1 << 27)
-#define	HDSP_DAGain1			(1 << 28)
-#define	HDSP_PhoneGain0			(1 << 29)
-#define	HDSP_PhoneGain1			(1 << 30)
-
-#define	HDSP_ADGainMask			(HDSP_ADGain0 | HDSP_ADGain1)
-#define	HDSP_ADGainMinus10dBV		(HDSP_ADGainMask)
-#define	HDSP_ADGainPlus4dBu		(HDSP_ADGain0)
-#define	HDSP_ADGainLowGain		0
-
-#define	HDSP_DAGainMask			(HDSP_DAGain0 | HDSP_DAGain1)
-#define	HDSP_DAGainHighGain		(HDSP_DAGainMask)
-#define	HDSP_DAGainPlus4dBu		(HDSP_DAGain0)
-#define	HDSP_DAGainMinus10dBV		0
-
-#define	HDSP_PhoneGainMask		(HDSP_PhoneGain0|HDSP_PhoneGain1)
-#define	HDSP_PhoneGain0dB		HDSP_PhoneGainMask
-#define	HDSP_PhoneGainMinus6dB		(HDSP_PhoneGain0)
-#define	HDSP_PhoneGainMinus12dB		0
-
-/* Settings */
+/* Register addresses */
 #define	HDSPE_SETTINGS_REG		0
 #define	HDSPE_CONTROL_REG		64
 #define	HDSPE_STATUS_REG		0
 #define	HDSPE_STATUS1_REG		64
 #define	HDSPE_STATUS2_REG		192
+
+/* Settings register flags */
+#define	HDSPE_SETTINGS_INPUT_GAIN0	(1 << 20)
+#define	HDSPE_SETTINGS_INPUT_GAIN1	(1 << 21)
+#define	HDSPE_SETTINGS_OUTPUT_GAIN0	(1 << 22)
+#define	HDSPE_SETTINGS_OUTPUT_GAIN1	(1 << 23)
+#define	HDSPE_SETTINGS_PHONES_GAIN0	(1 << 24)
+#define	HDSPE_SETTINGS_PHONES_GAIN1	(1 << 25)
+
+/* Analog input gain level */
+#define	HDSPE_INPUT_LEVEL_MASK		(HDSPE_SETTINGS_INPUT_GAIN0 | \
+					HDSPE_SETTINGS_INPUT_GAIN1)
+#define	HDSPE_INPUT_LEVEL_LOWGAIN	0
+#define	HDSPE_INPUT_LEVEL_PLUS4DBU	(HDSPE_SETTINGS_INPUT_GAIN0)
+#define	HDSPE_INPUT_LEVEL_MINUS10DBV	(HDSPE_SETTINGS_INPUT_GAIN1)
+
+/* Analog output gain level */
+#define	HDSPE_OUTPUT_LEVEL_MASK		(HDSPE_SETTINGS_OUTPUT_GAIN0 | \
+					HDSPE_SETTINGS_OUTPUT_GAIN1)
+#define	HDSPE_OUTPUT_LEVEL_HIGHGAIN	0
+#define	HDSPE_OUTPUT_LEVEL_PLUS4DBU	(HDSPE_SETTINGS_OUTPUT_GAIN0)
+#define	HDSPE_OUTPUT_LEVEL_MINUS10DBV	(HDSPE_SETTINGS_OUTPUT_GAIN1)
+
+/* Phones output gain level */
+#define	HDSPE_PHONES_LEVEL_MASK		(HDSPE_SETTINGS_PHONES_GAIN0 | \
+					HDSPE_SETTINGS_PHONES_GAIN1)
+#define	HDSPE_PHONES_LEVEL_HIGHGAIN	0
+#define	HDSPE_PHONES_LEVEL_PLUS4DBU	(HDSPE_SETTINGS_PHONES_GAIN0)
+#define	HDSPE_PHONES_LEVEL_MINUS10DBV	(HDSPE_SETTINGS_PHONES_GAIN1)
+
+/* Control register flags */
 #define	HDSPE_ENABLE			(1 << 0)
 
 /* Interrupts */
