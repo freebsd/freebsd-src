@@ -283,7 +283,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		if (IS_HT_RATE(rate)) {
 			rc[i].flags |= ATH_RC_HT_FLAG;
 
-			if (ni->ni_chw == 40)
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 				rc[i].flags |= ATH_RC_CW40_FLAG;
 
 			/*
@@ -295,13 +295,13 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * and doesn't return the fractional part, so
 			 * we are always "out" by some amount.
 			 */
-			if (ni->ni_chw == 40 &&
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40 &&
 			    ieee80211_ht_check_tx_shortgi_40(ni) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
 			}
 
-			if (ni->ni_chw == 20 &&
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40 &&
 			    ieee80211_ht_check_tx_shortgi_20(ni) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;

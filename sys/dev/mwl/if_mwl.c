@@ -4016,7 +4016,7 @@ mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
 		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
-		if (ni->ni_chw != 40)
+		if (ni->ni_chw != IEEE80211_STA_RX_BW_40)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
 	}
 	return pi;

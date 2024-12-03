@@ -109,6 +109,25 @@ enum ieee80211_mesh_mlstate {
 	"\20\1IDLE\2OPENSNT\2OPENRCV\3CONFIRMRCV\4ESTABLISHED\5HOLDING"
 
 /*
+ * This structure is shared with LinuxKPI 802.11 code describing up-to
+ * which channel width the station can receive.
+ * Rather than using hardcoded MHz values for the channel width use an enum with
+ * flags. This allows us to keep the uint8_t slot for ni_chw in
+ * struct ieee80211_node and means we do not have to sync to the value for
+ * LinuxKPI.
+ */
+enum ieee80211_sta_rx_bw {
+	IEEE80211_STA_RX_BW_20		= 0x01,
+	IEEE80211_STA_RX_BW_40		= 0x02,
+	IEEE80211_STA_RX_BW_80		= 0x04,
+	IEEE80211_STA_RX_BW_160		= 0x08,
+	IEEE80211_STA_RX_BW_320		= 0x10,
+} __packed;
+
+#define	IEEE80211_NI_CHW_BITS \
+	"\20\1BW_20\2BW_40\3BW_80\4BW_160\5BW_320"
+
+/*
  * Node specific information.  Note that drivers are expected
  * to derive from this structure to add device-specific per-node
  * state.  This is done by overriding the ic_node_* methods in
@@ -222,7 +241,7 @@ struct ieee80211_node {
 	uint8_t			ni_ht2ndchan;	/* HT 2nd channel */
 	uint8_t			ni_htopmode;	/* HT operating mode */
 	uint8_t			ni_htstbc;	/* HT */
-	uint8_t			ni_chw;		/* negotiated channel width */
+	enum ieee80211_sta_rx_bw ni_chw;	/* negotiated channel width */
 	struct ieee80211_htrateset ni_htrates;	/* negotiated ht rate set */
 	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
