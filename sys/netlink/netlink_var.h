@@ -53,9 +53,10 @@ struct nl_buf {
 
 #define	NLP_MAX_GROUPS		128
 
+BITSET_DEFINE(nl_groups, NLP_MAX_GROUPS);
 struct nlpcb {
         struct socket           *nl_socket;
-	uint64_t	        nl_groups[NLP_MAX_GROUPS / 64];
+	struct nl_groups	nl_groups;
 	uint32_t                nl_port;
 	uint32_t	        nl_flags;
 	uint32_t	        nl_process_id;
