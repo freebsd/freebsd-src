@@ -280,8 +280,6 @@ svm_modinit(int ipinum)
 static void
 svm_modsuspend(void)
 {
-
-	return;
 }
 
 static void
@@ -2814,6 +2812,7 @@ const struct vmm_ops vmm_ops_amd = {
 	.modinit	= svm_modinit,
 	.modcleanup	= svm_modcleanup,
 	.modresume	= svm_modresume,
+	.modsuspend	= svm_modsuspend,
 	.init		= svm_init,
 	.run		= svm_run,
 	.cleanup	= svm_cleanup,
