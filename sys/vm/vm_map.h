@@ -94,9 +94,9 @@ union vm_map_object {
  *	and user-exported inheritance and protection information.
  *	Also included is control information for virtual copy operations.
  *
- *	For stack gap map entries (MAP_ENTRY_GUARD | MAP_ENTRY_GROWS_DOWN
- *	or UP), the next_read member is reused as the stack_guard_page
- *	storage, and offset is the stack protection.
+ *	For stack gap map entries (MAP_ENTRY_GUARD | MAP_ENTRY_STACK_GAP),
+ *	the next_read member is reused as the stack_guard_page storage, and
+ *	offset is the stack protection.
  */
 struct vm_map_entry {
 	struct vm_map_entry *left;	/* left child or previous entry */
@@ -139,14 +139,14 @@ struct vm_map_entry {
 							   a core */
 #define	MAP_ENTRY_VN_EXEC		0x00000800	/* text vnode mapping */
 #define	MAP_ENTRY_GROWS_DOWN		0x00001000	/* top-down stacks */
-#define	MAP_ENTRY_GROWS_UP		0x00002000	/* bottom-up stacks */
+#define	MAP_ENTRY_UNUSED0		0x00002000
 
 #define	MAP_ENTRY_WIRE_SKIPPED		0x00004000
 #define	MAP_ENTRY_WRITECNT		0x00008000	/* tracked writeable
 							   mapping */
 #define	MAP_ENTRY_GUARD			0x00010000
 #define	MAP_ENTRY_STACK_GAP_DN		0x00020000
-#define	MAP_ENTRY_STACK_GAP_UP		0x00040000
+#define	MAP_ENTRY_UNUSED1		0x00040000
 #define	MAP_ENTRY_HEADER		0x00080000
 
 #define	MAP_ENTRY_SPLIT_BOUNDARY_MASK	0x00300000
@@ -377,10 +377,10 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_WRITECOUNT		0x00000400
 #define	MAP_REMAP		0x00000800
 #define	MAP_STACK_GROWS_DOWN	0x00001000
-#define	MAP_STACK_GROWS_UP	0x00002000
+#define	MAP_COW_UNUSED0		0x00002000
 #define	MAP_ACC_CHARGED		0x00004000
 #define	MAP_ACC_NO_CHARGE	0x00008000
-#define	MAP_CREATE_STACK_GAP_UP	0x00010000
+#define	MAP_COW_UNUSED1		0x00010000
 #define	MAP_CREATE_STACK_GAP_DN	0x00020000
 #define	MAP_VN_EXEC		0x00040000
 #define	MAP_SPLIT_BOUNDARY_MASK	0x00180000
