@@ -173,6 +173,11 @@ r12au_adj_devcaps(struct rtwn_softc *sc)
 				 IEEE80211_HTC_TXLDPC;
 	}
 
+	ic->ic_htcaps |=
+	    IEEE80211_HTCAP_CHWIDTH40 /* 40 MHz channel width */
+	    | IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
+	;
+
 	/* TODO: STBC, VHT etc */
 }
 
@@ -290,6 +295,8 @@ r12au_attach(struct rtwn_usb_softc *uc)
 
 	sc->ntxchains			= 2;
 	sc->nrxchains			= 2;
+
+	sc->sc_ht40			= 1;
 
 	r12a_attach_private(sc);
 }
