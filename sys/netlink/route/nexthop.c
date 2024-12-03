@@ -1119,5 +1119,5 @@ void
 rtnl_nexthops_init(void)
 {
 	NL_VERIFY_PARSERS(all_parsers);
-	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
+	rtnl_register_messages(cmd_handlers, nitems(cmd_handlers));
 }

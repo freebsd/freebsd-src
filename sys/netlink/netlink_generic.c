@@ -284,7 +284,7 @@ genl_load_all(void *u __unused)
 {
 	NL_VERIFY_PARSERS(all_parsers);
 	ctrl_family_id = genl_register_family(CTRL_FAMILY_NAME, 0, 2, CTRL_ATTR_MAX);
-	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, NL_ARRAY_LEN(nlctrl_cmds));
+	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, nitems(nlctrl_cmds));
 	ctrl_group_id = genl_register_group(CTRL_FAMILY_NAME, "notify");
 	family_event_tag = EVENTHANDLER_REGISTER(genl_family_event, nlctrl_notify, NULL,
 	    EVENTHANDLER_PRI_ANY);

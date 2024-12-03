@@ -589,7 +589,7 @@ print_nlmsg_link(struct nl_helper *h, struct nlmsghdr *hdr,
 
 	printf("iface#%u %s ", l.ifi_index, l.ifla_ifname);
 	printf("admin %s ", (l.ifi_flags & IFF_UP) ? "UP" : "DOWN");
-	if (l.ifla_operstate < NL_ARRAY_LEN(operstate))
+	if (l.ifla_operstate < nitems(operstate))
 		printf("oper %s ", operstate[l.ifla_operstate]);
 	if (l.ifla_mtu > 0)
 		printf("mtu %u ", l.ifla_mtu);
@@ -668,7 +668,7 @@ print_nlmsg_neigh(struct nl_helper *h, struct nlmsghdr *hdr,
 	struct snl_parsed_link_simple link = {};
 	get_ifdata(h, attrs.nda_ifindex, &link);
 
-	for (unsigned int i = 0; i < NL_ARRAY_LEN(nudstate); i++) {
+	for (unsigned int i = 0; i < nitems(nudstate); i++) {
 		if ((1 << i) & attrs.ndm_state) {
 			printf("state %s ", nudstate[i]);
 			break;
@@ -768,7 +768,7 @@ monitor_nl(int fib)
 	socklen_t optlen = sizeof(optval);
 	setsockopt(ss_event.fd, SOL_NETLINK, NETLINK_MSG_INFO, &optval, optlen);
 
-	for (unsigned int i = 0; i < NL_ARRAY_LEN(groups); i++) {
+	for (unsigned int i = 0; i < nitems(groups); i++) {
 		int error;
 		int optval = groups[i];
 		socklen_t optlen = sizeof(optval);

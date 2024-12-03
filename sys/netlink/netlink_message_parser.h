@@ -128,8 +128,8 @@ static const struct nlhdr_parser _name = {			\
 	.nl_hdr_off = sizeof(_t),				\
 	.fp = &((_fp)[0]),					\
 	.np = &((_np)[0]),					\
-	.fp_size = NL_ARRAY_LEN(_fp),				\
-	.np_size = NL_ARRAY_LEN(_np),				\
+	.fp_size = nitems(_fp),					\
+	.np_size = nitems(_np),					\
 	.sp = _sp,						\
 	.post_parse = _pp,					\
 }
@@ -146,14 +146,14 @@ static const struct nlhdr_parser _name = {		\
 	.out_hdr_off = sizeof(_o),			\
 	.fp = &((_fp)[0]),				\
 	.np = &((_np)[0]),				\
-	.fp_size = NL_ARRAY_LEN(_fp),			\
-	.np_size = NL_ARRAY_LEN(_np),			\
+	.fp_size = nitems(_fp),				\
+	.np_size = nitems(_np),				\
 }
 
 #define	NL_DECLARE_ATTR_PARSER_EXT(_name, _np, _pp)	\
 static const struct nlhdr_parser _name = {		\
 	.np = &((_np)[0]),				\
-	.np_size = NL_ARRAY_LEN(_np),			\
+	.np_size = nitems(_np),				\
 	.post_parse = (_pp)				\
 }
 
@@ -308,7 +308,7 @@ nl_verify_parsers(const struct nlhdr_parser **parser, int count)
 #endif
 }
 void nl_verify_parsers(const struct nlhdr_parser **parser, int count);
-#define	NL_VERIFY_PARSERS(_p)	nl_verify_parsers((_p), NL_ARRAY_LEN(_p))
+#define	NL_VERIFY_PARSERS(_p)	nl_verify_parsers((_p), nitems(_p))
 
 static inline int
 nl_parse_nlmsg(struct nlmsghdr *hdr, const struct nlhdr_parser *parser,

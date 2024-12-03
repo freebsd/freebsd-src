@@ -65,8 +65,6 @@ MALLOC_DECLARE(M_NETLINK);
 		((char *)NLA_NEXT(_attr) <= (char *)_end);	\
 		_attr = (_len -= NLA_ALIGN(_attr->nla_len), NLA_NEXT(_attr)))
 
-#define	NL_ARRAY_LEN(_a)	(sizeof(_a) / sizeof((_a)[0]))
-
 #include <netlink/netlink_message_writer.h>
 #include <netlink/netlink_message_parser.h>
 

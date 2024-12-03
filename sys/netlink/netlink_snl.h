@@ -31,6 +31,12 @@
  * Simple Netlink Library
  */
 
+#include <sys/param.h>
+#include <sys/socket.h>
+
+#include <netlink/netlink.h>
+#include <netlink/netlink_bitset.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <stdalign.h>
@@ -40,11 +46,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netlink/netlink.h>
-#include <netlink/netlink_bitset.h>
 
 #define _roundup2(x, y)         (((x)+((y)-1))&(~((y)-1)))
 
@@ -67,8 +68,6 @@
 		((char *)_attr < _NLA_END(_start, _len)) && \
 		((char *)NLA_NEXT(_attr) <= _NLA_END(_start, _len));	\
 		_attr =  NLA_NEXT(_attr))
-
-#define	NL_ARRAY_LEN(_a)	(sizeof(_a) / sizeof((_a)[0]))
 
 struct linear_buffer {
 	char			*base;	/* Base allocated memory pointer */
@@ -166,8 +165,8 @@ static const struct snl_hdr_parser _name = {				\
 	.out_size = _sz_out,						\
 	.fp = &((_fp)[0]),						\
 	.np = &((_np)[0]),						\
-	.fp_size = NL_ARRAY_LEN(_fp),					\
-	.np_size = NL_ARRAY_LEN(_np),					\
+	.fp_size = nitems(_fp),						\
+	.np_size = nitems(_np),						\
 	.cb_post = _cb,							\
 }
 
@@ -179,7 +178,7 @@ static const struct snl_hdr_parser _name = {				\
 	.in_hdr_size = _sz_h_in,					\
 	.out_size = _sz_out,						\
 	.fp = &((_fp)[0]),						\
-	.fp_size = NL_ARRAY_LEN(_fp),					\
+	.fp_size = nitems(_fp),						\
 	.cb_post = _cb,							\
 }
 
@@ -190,7 +189,7 @@ static const struct snl_hdr_parser _name = {				\
 static const struct snl_hdr_parser _name = {				\
 	.out_size = _sz_out,						\
 	.np = &((_np)[0]),						\
-	.np_size = NL_ARRAY_LEN(_np),					\
+	.np_size = nitems(_np),						\
 	.cb_post = _cb,							\
 }
 
@@ -418,7 +417,7 @@ snl_verify_parsers(const struct snl_hdr_parser **parser, int count)
 		}
 	}
 }
-#define	SNL_VERIFY_PARSERS(_p)	snl_verify_parsers((_p), NL_ARRAY_LEN(_p))
+#define	SNL_VERIFY_PARSERS(_p)	snl_verify_parsers((_p), nitems(_p))
 
 static const struct snl_attr_parser *
 find_parser(const struct snl_attr_parser *ps, int pslen, int key)
