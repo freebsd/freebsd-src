@@ -179,7 +179,7 @@ ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
 	const struct txschedule *sched = &sn->sched[rix0];
 	int max_pkt_length = 65530; // ATH_AGGR_MAXSIZE
 	// Note: this may not be true in all cases; need to check?
-	int is_ht40 = (an->an_node.ni_chw == 40);
+	int is_ht40 = (an->an_node.ni_chw == IEEE80211_STA_RX_BW_40);
 	// Note: not great, but good enough..
 	int idx = is_ht40 ? MCS_HT40 : MCS_HT20;
 
@@ -973,7 +973,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt;
-	int is_ht40 = (an->an_node.ni_chw == 40);
+	int is_ht40 = (an->an_node.ni_chw == IEEE80211_STA_RX_BW_40);
 	int pct;
 
 	if (!IS_RATE_DEFINED(sn, rix0))
@@ -1359,7 +1359,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				continue;
 			printf(" %d %s/%d", dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
-			        (ni->ni_chw == 40)));
+			        (ni->ni_chw == IEEE80211_STA_RX_BW_40)));
 		}
 		printf("\n");
 	}
@@ -1390,7 +1390,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			
 			sn->stats[y][rix].perfect_tx_time =
 			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
-			    (ni->ni_chw == 40));
+			    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}

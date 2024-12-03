@@ -387,14 +387,6 @@ enum ieee80211_sta_state {
 	IEEE80211_STA_AUTHORIZED	= 4,	/* 802.1x */
 };
 
-enum ieee80211_sta_rx_bw {
-	IEEE80211_STA_RX_BW_20,
-	IEEE80211_STA_RX_BW_40,
-	IEEE80211_STA_RX_BW_80,
-	IEEE80211_STA_RX_BW_160,
-	IEEE80211_STA_RX_BW_320,
-};
-
 enum ieee80211_tx_info_flags {
 	/* XXX TODO .. right shift numbers - not sure where that came from? */
 	IEEE80211_TX_CTL_AMPDU			= BIT(0),

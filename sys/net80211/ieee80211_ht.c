@@ -1473,7 +1473,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI20;
 	if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 		ni->ni_htcap |= IEEE80211_HTCAP_CHWIDTH40;
-		ni->ni_chw = 40;
+		ni->ni_chw = IEEE80211_STA_RX_BW_40;
 		if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
 			ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_ABOVE;
 		else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
@@ -1481,7 +1481,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40)
 			ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI40;
 	} else {
-		ni->ni_chw = 20;
+		ni->ni_chw = IEEE80211_STA_RX_BW_20;
 		ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_NONE;
 	}
 	ni->ni_htctlchan = ni->ni_chan->ic_ieee;
@@ -1577,7 +1577,7 @@ ieee80211_ht_node_join(struct ieee80211_node *ni)
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		vap->iv_ht_sta_assoc++;
-		if (ni->ni_chw == 40)
+		if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 			vap->iv_ht40_sta_assoc++;
 	}
 	htinfo_update(vap);
@@ -1595,7 +1595,7 @@ ieee80211_ht_node_leave(struct ieee80211_node *ni)
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		vap->iv_ht_sta_assoc--;
-		if (ni->ni_chw == 40)
+		if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 			vap->iv_ht40_sta_assoc--;
 	}
 	htinfo_update(vap);
@@ -1823,7 +1823,8 @@ htinfo_update_chw(struct ieee80211_node *ni, int htflags, int vhtflags)
 
 done:
 	/* update node's (11n) tx channel width */
-	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
+	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan) ?
+	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 	return (ret);
 }
 
@@ -2599,11 +2600,12 @@ ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
 {
 	int chw;
 
-	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ? 40 : 20;
+	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ?
+	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "%s: HT txchwidth, width %d%s",
-	    __func__, chw, ni->ni_chw != chw ? "*" : "");
+	    "%s: HT txchwidth, width %b%s",
+	    __func__, chw, IEEE80211_NI_CHW_BITS, ni->ni_chw != chw ? "*" : "");
 	if (chw != ni->ni_chw) {
 		/* XXX does this need to change the ht40 station count? */
 		ni->ni_chw = chw;
@@ -3742,5 +3744,5 @@ ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni)
 
 	return (IEEE80211_IS_CHAN_HT40(bss_chan) &&
 	    IEEE80211_IS_CHAN_HT40(ni->ni_chan) &&
-	    (ni->ni_chw == 40));
+	    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
 }
