@@ -426,6 +426,9 @@ pfi_kkif_match(struct pfi_kkif *rule_kif, struct pfi_kkif *packet_kif)
 
 	NET_EPOCH_ASSERT();
 
+	MPASS(packet_kif != NULL);
+	MPASS(packet_kif->pfik_ifp != NULL);
+
 	if (rule_kif == NULL || rule_kif == packet_kif)
 		return (1);
 
