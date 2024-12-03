@@ -363,11 +363,15 @@ nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz)
 }
 
 bool
-nlattr_add(struct nl_writer *nw, int attr_type, int attr_len, const void *data)
+nlattr_add(struct nl_writer *nw, uint16_t attr_type, uint16_t attr_len,
+    const void *data)
 {
 	struct nl_buf *nb = nw->buf;
 	struct nlattr *nla;
-	u_int required_len;
+	size_t required_len;
+
+	KASSERT(attr_len <= UINT16_MAX - sizeof(struct nlattr),
+	   ("%s: invalid attribute length %u", __func__, attr_len));
 
 	required_len = NLA_ALIGN(attr_len + sizeof(struct nlattr));
 	if (__predict_false(nb->datalen + required_len > nb->buflen)) {
