@@ -566,7 +566,7 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	struct nlpcb *nlp = sotonlpcb(so);
 	struct sockbuf *sb = &so->so_snd;
 	struct nl_buf *nb;
-	u_int len;
+	size_t len;
 	int error;
 
 	MPASS(m == NULL && uio != NULL);

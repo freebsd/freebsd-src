@@ -71,9 +71,9 @@ bool _nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t, bool);
 bool _nlmsg_flush(struct nl_writer *nw);
 void _nlmsg_ignore_limit(struct nl_writer *nw);
 
-bool _nlmsg_refill_buffer(struct nl_writer *nw, u_int required_len);
-bool _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
-    uint16_t flags, uint32_t len);
+bool _nlmsg_refill_buffer(struct nl_writer *nw, size_t required_len);
+bool _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq,
+    uint16_t type, uint16_t flags, uint32_t len);
 bool _nlmsg_end(struct nl_writer *nw);
 void _nlmsg_abort(struct nl_writer *nw);
 
@@ -107,7 +107,7 @@ nlmsg_ignore_limit(struct nl_writer *nw)
 }
 
 static inline bool
-nlmsg_refill_buffer(struct nl_writer *nw, int required_size)
+nlmsg_refill_buffer(struct nl_writer *nw, size_t required_size)
 {
 	return (_nlmsg_refill_buffer(nw, required_size));
 }
@@ -146,9 +146,9 @@ bool nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t,
 bool nlmsg_flush(struct nl_writer *nw);
 void nlmsg_ignore_limit(struct nl_writer *nw);
 
-bool nlmsg_refill_buffer(struct nl_writer *nw, int required_size);
-bool nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
-    uint16_t flags, uint32_t len);
+bool nlmsg_refill_buffer(struct nl_writer *nw, size_t required_size);
+bool nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq,
+    uint16_t type, uint16_t flags, uint32_t len);
 bool nlmsg_end(struct nl_writer *nw);
 void nlmsg_abort(struct nl_writer *nw);
 

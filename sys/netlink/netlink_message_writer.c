@@ -45,13 +45,13 @@
 _DECLARE_DEBUG(LOG_INFO);
 
 static bool
-nlmsg_get_buf(struct nl_writer *nw, u_int len, bool waitok)
+nlmsg_get_buf(struct nl_writer *nw, size_t len, bool waitok)
 {
 	const int mflag = waitok ? M_WAITOK : M_NOWAIT;
 
 	MPASS(nw->buf == NULL);
 
-	NL_LOG(LOG_DEBUG3, "Setting up nw %p len %u %s", nw, len,
+	NL_LOG(LOG_DEBUG3, "Setting up nw %p len %zu %s", nw, len,
 	    waitok ? "wait" : "nowait");
 
 	nw->buf = nl_buf_alloc(len, mflag);
@@ -139,17 +139,17 @@ _nlmsg_flush(struct nl_writer *nw)
  * Return true on success.
  */
 bool
-_nlmsg_refill_buffer(struct nl_writer *nw, u_int required_len)
+_nlmsg_refill_buffer(struct nl_writer *nw, size_t required_len)
 {
 	struct nl_buf *new;
-	u_int completed_len, new_len, last_len;
+	size_t completed_len, new_len, last_len;
 
 	MPASS(nw->buf != NULL);
 
 	if (nw->enomem)
 		return (false);
 
-	NL_LOG(LOG_DEBUG3, "no space at offset %u/%u (want %u), trying to "
+	NL_LOG(LOG_DEBUG3, "no space at offset %u/%u (want %zu), trying to "
 	    "reclaim", nw->buf->datalen, nw->buf->buflen, required_len);
 
 	/* Calculate new buffer size and allocate it. */
@@ -182,7 +182,7 @@ _nlmsg_refill_buffer(struct nl_writer *nw, u_int required_len)
 		new->datalen = last_len;
 	}
 
-	NL_LOG(LOG_DEBUG2, "completed: %u bytes, copied: %u bytes",
+	NL_LOG(LOG_DEBUG2, "completed: %zu bytes, copied: %zu bytes",
 	    completed_len, last_len);
 
 	if (completed_len > 0) {
@@ -204,7 +204,7 @@ _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
 {
 	struct nl_buf *nb = nw->buf;
 	struct nlmsghdr *hdr;
-	u_int required_len;
+	size_t required_len;
 
 	MPASS(nw->hdr == NULL);
 
