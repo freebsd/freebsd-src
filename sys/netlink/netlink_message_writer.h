@@ -214,93 +214,95 @@ _nlmsg_reserve_attr(struct nl_writer *nw, uint16_t nla_type, uint16_t sz)
 }
 #define	nlmsg_reserve_attr(_ns, _at, _t)	((_t *)_nlmsg_reserve_attr(_ns, _at, NLA_ALIGN(sizeof(_t))))
 
-bool nlattr_add(struct nl_writer *nw, int attr_type, int attr_len,
+bool nlattr_add(struct nl_writer *nw, uint16_t attr_type, uint16_t attr_len,
     const void *data);
 
 static inline bool
 nlattr_add_raw(struct nl_writer *nw, const struct nlattr *nla_src)
 {
-	int attr_len = nla_src->nla_len - sizeof(struct nlattr);
+	MPASS(nla_src->nla_len >= sizeof(struct nlattr));
 
-	MPASS(attr_len >= 0);
-
-	return (nlattr_add(nw, nla_src->nla_type, attr_len, (const void *)(nla_src + 1)));
+	return (nlattr_add(nw, nla_src->nla_type,
+	    nla_src->nla_len - sizeof(struct nlattr),
+	    (const void *)(nla_src + 1)));
 }
 
 static inline bool
-nlattr_add_bool(struct nl_writer *nw, int attrtype, bool value)
+nlattr_add_bool(struct nl_writer *nw, uint16_t attrtype, bool value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(bool), &value));
 }
 
 static inline bool
-nlattr_add_u8(struct nl_writer *nw, int attrtype, uint8_t value)
+nlattr_add_u8(struct nl_writer *nw, uint16_t attrtype, uint8_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(uint8_t), &value));
 }
 
 static inline bool
-nlattr_add_u16(struct nl_writer *nw, int attrtype, uint16_t value)
+nlattr_add_u16(struct nl_writer *nw, uint16_t attrtype, uint16_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(uint16_t), &value));
 }
 
 static inline bool
-nlattr_add_u32(struct nl_writer *nw, int attrtype, uint32_t value)
+nlattr_add_u32(struct nl_writer *nw, uint16_t attrtype, uint32_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(uint32_t), &value));
 }
 
 static inline bool
-nlattr_add_u64(struct nl_writer *nw, int attrtype, uint64_t value)
+nlattr_add_u64(struct nl_writer *nw, uint16_t attrtype, uint64_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(uint64_t), &value));
 }
 
 static inline bool
-nlattr_add_s8(struct nl_writer *nw, int attrtype, int8_t value)
+nlattr_add_s8(struct nl_writer *nw, uint16_t attrtype, int8_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(int8_t), &value));
 }
 
 static inline bool
-nlattr_add_s16(struct nl_writer *nw, int attrtype, int16_t value)
+nlattr_add_s16(struct nl_writer *nw, uint16_t attrtype, int16_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(int16_t), &value));
 }
 
 static inline bool
-nlattr_add_s32(struct nl_writer *nw, int attrtype, int32_t value)
+nlattr_add_s32(struct nl_writer *nw, uint16_t attrtype, int32_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(int32_t), &value));
 }
 
 static inline bool
-nlattr_add_s64(struct nl_writer *nw, int attrtype, int64_t value)
+nlattr_add_s64(struct nl_writer *nw, uint16_t attrtype, int64_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(int64_t), &value));
 }
 
 static inline bool
-nlattr_add_flag(struct nl_writer *nw, int attrtype)
+nlattr_add_flag(struct nl_writer *nw, uint16_t attrtype)
 {
 	return (nlattr_add(nw, attrtype, 0, NULL));
 }
 
 static inline bool
-nlattr_add_string(struct nl_writer *nw, int attrtype, const char *str)
+nlattr_add_string(struct nl_writer *nw, uint16_t attrtype, const char *str)
 {
 	return (nlattr_add(nw, attrtype, strlen(str) + 1, str));
 }
 
 static inline bool
-nlattr_add_in_addr(struct nl_writer *nw, int attrtype, const struct in_addr *in)
+nlattr_add_in_addr(struct nl_writer *nw, uint16_t attrtype,
+    const struct in_addr *in)
 {
 	return (nlattr_add(nw, attrtype, sizeof(*in), in));
 }
 
 static inline bool
-nlattr_add_in6_addr(struct nl_writer *nw, int attrtype, const struct in6_addr *in6)
+nlattr_add_in6_addr(struct nl_writer *nw, uint16_t attrtype,
+    const struct in6_addr *in6)
 {
 	return (nlattr_add(nw, attrtype, sizeof(*in6), in6));
 }
