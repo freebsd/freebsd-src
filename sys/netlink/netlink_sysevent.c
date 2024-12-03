@@ -80,9 +80,10 @@ static void
 sysevent_write(struct sysevent_group *se, const char *subsystem, const char *type,
     const char *data)
 {
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_GENERIC, se->id)) {
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_GENERIC, se->id,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}

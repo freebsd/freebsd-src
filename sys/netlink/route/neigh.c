@@ -552,6 +552,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 static void
 rtnl_lle_event(void *arg __unused, struct llentry *lle, int evt)
 {
+	struct nl_writer nw;
 	if_t ifp;
 	int family;
 
@@ -565,8 +566,8 @@ rtnl_lle_event(void *arg __unused, struct llentry *lle, int evt)
 
 	int nlmsgs_type = evt == LLENTRY_RESOLVED ? NL_RTM_NEWNEIGH : NL_RTM_DELNEIGH;
 
-	struct nl_writer nw = {};
-	if (!nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEIGH)) {
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEIGH,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}

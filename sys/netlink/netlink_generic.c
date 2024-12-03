@@ -256,14 +256,16 @@ nlctrl_notify(void *arg __unused, const struct genl_family *gf, int cmd)
 {
 	struct nlmsghdr hdr = {.nlmsg_type = NETLINK_GENERIC };
 	struct genlmsghdr ghdr = { .cmd = cmd };
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 
-	if (nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_GENERIC, ctrl_group_id)) {
-		dump_family(&hdr, &ghdr, gf, &nw);
-		nlmsg_flush(&nw);
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_GENERIC, ctrl_group_id,
+	    false)) {
+		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
-	NL_LOG(LOG_DEBUG, "error allocating group writer");
+
+	dump_family(&hdr, &ghdr, gf, &nw);
+	nlmsg_flush(&nw);
 }
 
 static const struct genl_cmd nlctrl_cmds[] = {

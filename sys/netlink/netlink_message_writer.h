@@ -66,8 +66,8 @@ struct nl_writer {
 #if defined(NETLINK) || defined(NETLINK_MODULE)
 /* Provide optimized calls to the functions inside the same linking unit */
 
-bool _nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
-bool _nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
+bool _nl_writer_unicast(struct nl_writer *, size_t, struct nlpcb *nlp, bool);
+bool _nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t, bool);
 bool _nlmsg_flush(struct nl_writer *nw);
 void _nlmsg_ignore_limit(struct nl_writer *nw);
 
@@ -81,15 +81,17 @@ bool _nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
 
 
 static inline bool
-nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp)
+nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
+    bool waitok)
 {
-	return (_nlmsg_get_unicast_writer(nw, expected_size, nlp));
+	return (_nl_writer_unicast(nw, size, nlp, waitok));
 }
 
 static inline bool
-nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id)
+nl_writer_group(struct nl_writer *nw, size_t size, uint16_t proto,
+    uint16_t group_id, bool waitok)
 {
-	return (_nlmsg_get_group_writer(nw, expected_size, proto, group_id));
+	return (_nl_writer_group(nw, size, proto, group_id, waitok));
 }
 
 static inline bool
@@ -138,9 +140,9 @@ nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 #else
 /* Provide access to the functions via netlink_glue.c */
 
-bool nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
-bool nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
-bool nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm);
+bool nl_writer_unicast(struct nl_writer *, size_t, struct nlpcb *, bool waitok);
+bool nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t,
+    bool waitok);
 bool nlmsg_flush(struct nl_writer *nw);
 void nlmsg_ignore_limit(struct nl_writer *nw);
 
