@@ -173,6 +173,7 @@
 /* Each hpts has its own p_mtx which is used for locking */
 #define	HPTS_MTX_ASSERT(hpts)	mtx_assert(&(hpts)->p_mtx, MA_OWNED)
 #define	HPTS_LOCK(hpts)		mtx_lock(&(hpts)->p_mtx)
+#define	HPTS_TRYLOCK(hpts)	mtx_trylock(&(hpts)->p_mtx)
 #define	HPTS_UNLOCK(hpts)	mtx_unlock(&(hpts)->p_mtx)
 struct tcp_hpts_entry {
 	/* Cache line 0x00 */
@@ -1503,7 +1504,7 @@ __tcp_set_hpts(struct tcpcb *tp, int32_t line)
 		if (failed == 0)
 			tp->t_flags2 |= TF2_HPTS_CPU_SET;
 	}
-	mtx_unlock(&hpts->p_mtx);
+	HPTS_UNLOCK(hpts);
 }
 
 static struct tcp_hpts_entry *
@@ -1560,7 +1561,7 @@ __tcp_run_hpts(void)
 		/* Already active */
 		return;
 	}
-	if (mtx_trylock(&hpts->p_mtx) == 0) {
+	if (!HPTS_TRYLOCK(hpts)) {
 		/* Someone else got the lock */
 		return;
 	}
@@ -1615,8 +1616,7 @@ __tcp_run_hpts(void)
 	}
 	hpts->p_hpts_active = 0;
 out_with_mtx:
-	HPTS_MTX_ASSERT(hpts);
-	mtx_unlock(&hpts->p_mtx);
+	HPTS_UNLOCK(hpts);
 	NET_EPOCH_EXIT(et);
 }
 
@@ -1630,7 +1630,7 @@ tcp_hpts_thread(void *ctx)
 	int ticks_ran;
 
 	hpts = (struct tcp_hpts_entry *)ctx;
-	mtx_lock(&hpts->p_mtx);
+	HPTS_LOCK(hpts);
 	if (hpts->p_direct_wake) {
 		/* Signaled by input or output with low occupancy count. */
 		callout_stop(&hpts->co);
@@ -1640,7 +1640,7 @@ tcp_hpts_thread(void *ctx)
 		counter_u64_add(hpts_wake_timeout, 1);
 		if (callout_pending(&hpts->co) ||
 		    !callout_active(&hpts->co)) {
-			mtx_unlock(&hpts->p_mtx);
+			HPTS_UNLOCK(hpts);
 			return;
 		}
 	}
@@ -1769,7 +1769,7 @@ back_to_sleep:
 			     hpts_timeout_swi, hpts, hpts->p_cpu,
 			     (C_DIRECT_EXEC | C_PREL(tcp_hpts_precision)));
 	NET_EPOCH_EXIT(et);
-	mtx_unlock(&hpts->p_mtx);
+	HPTS_UNLOCK(hpts);
 }
 
 #undef	timersub
