@@ -92,6 +92,62 @@ r12a_write_txpower_ht(struct rtwn_softc *sc, int chain,
 }
 
 static void
+r12a_write_txpower_vht(struct rtwn_softc *sc, int chain,
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+
+	/* 1SS, MCS 0..3 */
+	rtwn_bb_write(sc, R12A_TXAGC_NSS1IX3_1IX0(chain),
+	    SM(R12A_TXAGC_NSS1_MCS0, power[RTWN_RIDX_VHT_MCS(0, 0)]) |
+	    SM(R12A_TXAGC_NSS1_MCS1, power[RTWN_RIDX_VHT_MCS(0, 1)]) |
+	    SM(R12A_TXAGC_NSS1_MCS2, power[RTWN_RIDX_VHT_MCS(0, 2)]) |
+	    SM(R12A_TXAGC_NSS1_MCS3, power[RTWN_RIDX_VHT_MCS(0, 3)]));
+
+	/* 1SS, MCS 4..7 */
+	rtwn_bb_write(sc, R12A_TXAGC_NSS1IX7_1IX4(chain),
+	    SM(R12A_TXAGC_NSS1_MCS4, power[RTWN_RIDX_VHT_MCS(0, 4)]) |
+	    SM(R12A_TXAGC_NSS1_MCS5, power[RTWN_RIDX_VHT_MCS(0, 5)]) |
+	    SM(R12A_TXAGC_NSS1_MCS6, power[RTWN_RIDX_VHT_MCS(0, 6)]) |
+	    SM(R12A_TXAGC_NSS1_MCS7, power[RTWN_RIDX_VHT_MCS(0, 7)]));
+
+	/* 1SS, MCS 8,9 ; 2SS MCS0, 1 */
+	if (sc->ntxchains == 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX1_1IX8(chain),
+		    SM(R12A_TXAGC_NSS1_MCS8, power[RTWN_RIDX_VHT_MCS(0, 8)]) |
+		    SM(R12A_TXAGC_NSS1_MCS9, power[RTWN_RIDX_VHT_MCS(0, 9)]) |
+		    SM(R12A_TXAGC_NSS2_MCS0, 0) |
+		    SM(R12A_TXAGC_NSS2_MCS1, 0));
+	} else {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX1_1IX8(chain),
+		    SM(R12A_TXAGC_NSS1_MCS8, power[RTWN_RIDX_VHT_MCS(0, 8)]) |
+		    SM(R12A_TXAGC_NSS1_MCS9, power[RTWN_RIDX_VHT_MCS(0, 9)]) |
+		    SM(R12A_TXAGC_NSS2_MCS0, power[RTWN_RIDX_VHT_MCS(1, 0)]) |
+		    SM(R12A_TXAGC_NSS2_MCS1, power[RTWN_RIDX_VHT_MCS(1, 1)]));
+	}
+
+	/* 2SS MCS 2..5 */
+	if (sc->ntxchains > 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX5_2IX2(chain),
+		    SM(R12A_TXAGC_NSS2_MCS2, power[RTWN_RIDX_VHT_MCS(1, 2)]) |
+		    SM(R12A_TXAGC_NSS2_MCS3, power[RTWN_RIDX_VHT_MCS(1, 3)]) |
+		    SM(R12A_TXAGC_NSS2_MCS4, power[RTWN_RIDX_VHT_MCS(1, 4)]) |
+		    SM(R12A_TXAGC_NSS2_MCS5, power[RTWN_RIDX_VHT_MCS(1, 5)]));
+	}
+
+	/* 2SS MCS 6..9 */
+	if (sc->ntxchains > 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX9_2IX6(chain),
+		    SM(R12A_TXAGC_NSS2_MCS2, power[RTWN_RIDX_VHT_MCS(1, 6)]) |
+		    SM(R12A_TXAGC_NSS2_MCS3, power[RTWN_RIDX_VHT_MCS(1, 7)]) |
+		    SM(R12A_TXAGC_NSS2_MCS4, power[RTWN_RIDX_VHT_MCS(1, 8)]) |
+		    SM(R12A_TXAGC_NSS2_MCS5, power[RTWN_RIDX_VHT_MCS(1, 9)]));
+	}
+
+	/* TODO: 3SS, 4SS VHT rates */
+}
+
+
+static void
 r12a_write_txpower_cck(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
@@ -132,7 +188,7 @@ r12a_write_txpower(struct rtwn_softc *sc, int chain,
 	r12a_write_txpower_cck(sc, chain, c, power);
 	r12a_write_txpower_ofdm(sc, chain, c, power);
 	r12a_write_txpower_ht(sc, chain, c, power);
-	/* TODO: VHT rates */
+	r12a_write_txpower_vht(sc, chain, c, power);
 }
 
 static int
