@@ -2880,6 +2880,9 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 	m->m_flags |= ri->iri_flags;
 	m->m_pkthdr.ether_vtag = ri->iri_vtag;
 	m->m_pkthdr.flowid = ri->iri_flowid;
+#ifdef NUMA
+	m->m_pkthdr.numa_domain = if_getnumadomain(ri->iri_ifp);
+#endif
 	M_HASHTYPE_SET(m, ri->iri_rsstype);
 	m->m_pkthdr.csum_flags = ri->iri_csum_flags;
 	m->m_pkthdr.csum_data = ri->iri_csum_data;
