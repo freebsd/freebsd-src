@@ -8033,10 +8033,9 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			s->kif = kif;
 			s->orig_kif = oifp->if_pf_kif;
 		}
-	}
 
-	if (s)
 		PF_STATE_UNLOCK(s);
+	}
 
 	if (ifp == NULL) {
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
