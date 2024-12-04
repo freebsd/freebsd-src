@@ -334,6 +334,27 @@ rtwn_report_intr(struct rtwn_usb_softc *uc, struct usb_xfer *xfer,
 			rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
 #endif
 		break;
+	case RTWN_RX_TX_REPORT2:
+		if (sc->sc_ratectl != RTWN_RATECTL_NET80211) {
+			/* shouldn't happen */
+			device_printf(sc->sc_dev,
+			    "%s called while ratectl = %d!\n",
+			    __func__, sc->sc_ratectl);
+			break;
+		}
+
+		RTWN_NT_LOCK(sc);
+		rtwn_handle_tx_report2(sc, buf, len);
+		RTWN_NT_UNLOCK(sc);
+
+#ifdef IEEE80211_SUPPORT_SUPERG
+		/*
+		 * NB: this will executed only when 'report' bit is set.
+		 */
+		if (sc->sc_tx_n_active > 0 && --sc->sc_tx_n_active <= 1)
+			rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
+#endif
+		break;
 	case RTWN_RX_OTHER:
 		rtwn_handle_c2h_report(sc, buf, len);
 		break;

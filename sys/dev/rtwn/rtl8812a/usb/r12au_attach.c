@@ -205,6 +205,7 @@ r12au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r12au_classify_intr;
 	sc->sc_handle_tx_report		= r12a_ratectl_tx_complete;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= r12a_handle_c2h_report;
 	sc->sc_check_frame		= r12a_check_frame_checksum;
 	sc->sc_rf_write			= r12a_rf_write;
