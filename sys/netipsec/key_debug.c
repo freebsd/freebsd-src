@@ -191,11 +191,12 @@ kdebug_sadb(struct sadb_msg *base)
 		    ext->sadb_ext_len, ext->sadb_ext_type,
 		    kdebug_sadb_exttype(ext->sadb_ext_type));
 
-		if (ext->sadb_ext_len == 0) {
+		extlen = PFKEY_UNUNIT64(ext->sadb_ext_len);
+		if (extlen == 0) {
 			printf("%s: invalid ext_len=0 was passed.\n", __func__);
 			return;
 		}
-		if (ext->sadb_ext_len > tlen) {
+		if (extlen > tlen) {
 			printf("%s: ext_len too big (%u > %u).\n",
 				__func__, ext->sadb_ext_len, tlen);
 			return;
@@ -262,7 +263,6 @@ kdebug_sadb(struct sadb_msg *base)
 			return;
 		}
 
-		extlen = PFKEY_UNUNIT64(ext->sadb_ext_len);
 		tlen -= extlen;
 		ext = (struct sadb_ext *)((caddr_t)ext + extlen);
 	}
