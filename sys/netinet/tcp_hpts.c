@@ -239,7 +239,7 @@ static int tcp_bind_threads = 2;
 static int tcp_use_irq_cpu = 0;
 static int hpts_does_tp_logging = 0;
 
-static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout);
+static int32_t tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout);
 static void tcp_hpts_thread(void *ctx);
 
 int32_t tcp_min_hptsi_time = DEFAULT_MIN_SLEEP;
@@ -430,7 +430,7 @@ hpts_random_cpu(void)
 
 static void
 tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
-	     int slots_to_run, int idx, int from_callout)
+    int slots_to_run, int idx, bool from_callout)
 {
 	union tcp_log_stackspecific log;
 	/*
@@ -1075,7 +1075,7 @@ tcp_hpts_set_max_sleep(struct tcp_hpts_entry *hpts, int wrap_loop_cnt)
 }
 
 static int32_t
-tcp_hptsi(struct tcp_hpts_entry *hpts, int from_callout)
+tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 {
 	struct tcpcb *tp;
 	struct timeval tv;
@@ -1350,7 +1350,8 @@ again:
 			CURVNET_SET(inp->inp_vnet);
 			/* Lets do any logging that we might want to */
 			if (hpts_does_tp_logging && tcp_bblogging_on(tp)) {
-				tcp_hpts_log(hpts, tp, &tv, slots_to_run, i, from_callout);
+				tcp_hpts_log(hpts, tp, &tv, slots_to_run, i,
+				    from_callout);
 			}
 
 			if (tp->t_fb_ptr != NULL) {
@@ -1414,7 +1415,7 @@ no_one:
 	 */
 	hpts->p_prev_slot = hpts->p_cur_slot;
 	hpts->p_lasttick = hpts->p_curtick;
-	if ((from_callout == 0) || (loop_cnt > max_pacer_loops)) {
+	if (!from_callout || (loop_cnt > max_pacer_loops)) {
 		/*
 		 * Something is serious slow we have
 		 * looped through processing the wheel
@@ -1462,11 +1463,11 @@ no_run:
 	 * multiple times so the slots may not align either.
 	 */
 	KASSERT(((hpts->p_prev_slot == hpts->p_cur_slot) ||
-		 (wrap_loop_cnt >= 2) || (from_callout == 0)),
+		 (wrap_loop_cnt >= 2) || !from_callout),
 		("H:%p p_prev_slot:%u not equal to p_cur_slot:%u", hpts,
 		 hpts->p_prev_slot, hpts->p_cur_slot));
 	KASSERT(((hpts->p_lasttick == hpts->p_curtick)
-		 || (wrap_loop_cnt >= 2) || (from_callout == 0)),
+		 || (wrap_loop_cnt >= 2) || !from_callout),
 		("H:%p p_lasttick:%u not equal to p_curtick:%u", hpts,
 		 hpts->p_lasttick, hpts->p_curtick));
 	if (from_callout && (hpts->p_lasttick != hpts->p_curtick)) {
@@ -1476,7 +1477,7 @@ no_run:
 		goto again;
 	}
 
-	if (from_callout){
+	if (from_callout) {
 		tcp_hpts_set_max_sleep(hpts, wrap_loop_cnt);
 	}
 	if (seen_endpoint)
@@ -1566,7 +1567,7 @@ __tcp_run_hpts(void)
 	hpts->syscall_cnt++;
 	counter_u64_add(hpts_direct_call, 1);
 	hpts->p_hpts_active = 1;
-	ticks_ran = tcp_hptsi(hpts, 0);
+	ticks_ran = tcp_hptsi(hpts, false);
 	/* We may want to adjust the sleep values here */
 	if (hpts->p_on_queue_cnt >= conn_cnt_thresh) {
 		if (ticks_ran > ticks_indicate_less_sleep) {
@@ -1682,7 +1683,7 @@ tcp_hpts_thread(void *ctx)
 	}
 	hpts->sleeping = 0;
 	hpts->p_hpts_active = 1;
-	ticks_ran = tcp_hptsi(hpts, 1);
+	ticks_ran = tcp_hptsi(hpts, true);
 	tv.tv_sec = 0;
 	tv.tv_usec = hpts->p_hpts_sleep_time * HPTS_TICKS_PER_SLOT;
 	if ((hpts->p_on_queue_cnt > conn_cnt_thresh) && (hpts->hit_callout_thresh == 0)) {
