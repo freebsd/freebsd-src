@@ -341,7 +341,7 @@ diff2reviewers()
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
         echo '{
-        "constraints": {"phids": ['"$(echo "$userids" | tr '[:blank:]' ',')"']}
+        "constraints": {"phids": ['"$(echo $userids | tr '[:blank:]' ',')"']}
         }' |
         arc_call_conduit -- user.search |
         jq -r '.response.data[].fields.username'
