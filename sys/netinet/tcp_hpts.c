@@ -1086,7 +1086,10 @@ tcp_hptsi(struct tcp_hpts_entry *hpts, bool from_callout)
 	int32_t wrap_loop_cnt = 0;
 	int32_t slot_pos_of_endpoint = 0;
 	int32_t orig_exit_slot;
-	int8_t completed_measure = 0, seen_endpoint = 0;
+	bool completed_measure, seen_endpoint;
+
+	completed_measure = false;
+	seen_endpoint = false;
 
 	HPTS_MTX_ASSERT(hpts);
 	NET_EPOCH_ASSERT();
@@ -1251,11 +1254,11 @@ again:
 			}
 
 			/* For debugging */
-			if (seen_endpoint == 0) {
-				seen_endpoint = 1;
+			if (!seen_endpoint) {
+				seen_endpoint = true;
 				orig_exit_slot = slot_pos_of_endpoint =
 				    runningslot;
-			} else if (completed_measure == 0) {
+			} else if (!completed_measure) {
 				/* Record the new position */
 				orig_exit_slot = runningslot;
 			}
@@ -1398,7 +1401,7 @@ again:
 			 * is where we calculated the end of our cycle to
 			 * be when we first entered.
 			 */
-			completed_measure = 1;
+			completed_measure = true;
 		}
 		HPTS_LOCK(hpts);
 		hpts->p_runningslot++;
@@ -1436,7 +1439,7 @@ no_one:
 	}
 	hpts->p_curtick = tcp_gethptstick(&tv);
 	hpts->p_cur_slot = tick_to_wheel(hpts->p_curtick);
-	if (seen_endpoint == 0) {
+	if (!seen_endpoint) {
 		/* We saw no endpoint but we may be looping */
 		orig_exit_slot = hpts->p_cur_slot;
 	}
