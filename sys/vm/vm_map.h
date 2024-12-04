@@ -145,7 +145,7 @@ struct vm_map_entry {
 #define	MAP_ENTRY_WRITECNT		0x00008000	/* tracked writeable
 							   mapping */
 #define	MAP_ENTRY_GUARD			0x00010000
-#define	MAP_ENTRY_STACK_GAP_DN		0x00020000
+#define	MAP_ENTRY_STACK_GAP		0x00020000
 #define	MAP_ENTRY_UNUSED1		0x00040000
 #define	MAP_ENTRY_HEADER		0x00080000
 
@@ -381,7 +381,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_ACC_CHARGED		0x00004000
 #define	MAP_ACC_NO_CHARGE	0x00008000
 #define	MAP_COW_UNUSED1		0x00010000
-#define	MAP_CREATE_STACK_GAP_DN	0x00020000
+#define	MAP_CREATE_STACK_GAP	0x00020000
 #define	MAP_VN_EXEC		0x00040000
 #define	MAP_SPLIT_BOUNDARY_MASK	0x00180000
 #define	MAP_NO_HINT		0x00200000
