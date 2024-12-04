@@ -63,8 +63,9 @@ r88e_classify_intr(struct rtwn_softc *sc, void *buf, int len)
 	case R88E_RXDW3_RPT_RX:
 		return (RTWN_RX_DATA);
 	case R88E_RXDW3_RPT_TX1:	/* per-packet Tx report */
-	case R88E_RXDW3_RPT_TX2:	/* periodical Tx report */
 		return (RTWN_RX_TX_REPORT);
+	case R88E_RXDW3_RPT_TX2:	/* periodical Tx report */
+		return (RTWN_RX_TX_REPORT2);
 	case R88E_RXDW3_RPT_HIS:
 		return (RTWN_RX_OTHER);
 	default:			/* shut up the compiler */
