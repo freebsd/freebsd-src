@@ -22,6 +22,11 @@
 #define IF_RTWN_RIDX_H
 
 /* HW rate indices. */
+
+/*
+ * Note - these are also used as offsets into the TX power table
+ * array.
+ */
 #define RTWN_RIDX_CCK1		0
 #define RTWN_RIDX_CCK2		1
 #define RTWN_RIDX_CCK55		2
@@ -37,13 +42,34 @@
 
 #define RTWN_RIDX_HT_MCS_SHIFT	12
 #define RTWN_RIDX_HT_MCS(i)	(RTWN_RIDX_HT_MCS_SHIFT + (i))
+#define RTWN_RIDX_TO_MCS(ridx)	((ridx) - RTWN_RIDX_HT_MCS_SHIFT)
 
-#define RTWN_RIDX_COUNT		28
+/* HT supports up to MCS31, so goes from 12 -> 43 */
+
+#define RTWN_RIDX_LEGACY_HT_COUNT	44
+
+/*
+ * VHT supports MCS0..9 for up to 4 spatial streams, so
+ * goes from 44 -> 83.
+ */
+#define RTWN_RIDX_VHT_MCS_SHIFT	44
+#define RTWN_RIDX_VHT_MCS(s, i)	(RTWN_RIDX_VHT_MCS_SHIFT + ((10*s) + i))
+
+/*
+ * The total amount of rate indexes, CCK, OFDM, HT MCS0..31,
+ * VHT MCS0..9 for 1-4 streams.
+ */
+#define RTWN_RIDX_COUNT		84
+
 #define RTWN_RIDX_UNKNOWN	(uint8_t)-1
 
-#define RTWN_RATE_IS_CCK(rate)  ((rate) <= RTWN_RIDX_CCK11)
+#define RTWN_RATE_IS_CCK(rate)	((rate) <= RTWN_RIDX_CCK11)
 #define RTWN_RATE_IS_OFDM(rate) \
-	((rate) >= RTWN_RIDX_OFDM6 && (rate) != RTWN_RIDX_UNKNOWN)
+	((rate) >= RTWN_RIDX_OFDM6 && (rate) <= RTWN_RIDX_OFDM54)
+#define RTWN_RATE_IS_HT(rate) \
+	((rate) >= RTWN_RIDX_HT_MCS_SHIFT && (rate) < RTWN_RIDX_VHT_MCS_SHIFT)
+#define RTWN_RATE_IS_VHT(rate) \
+	((rate) >= RTWN_RIDX_VHT_MCS_SHIFT && (rate) <= RTWN_RIDX_COUNT)
 
 static const uint8_t ridx2rate[] =
 	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
@@ -80,8 +106,7 @@ rtwn_ctl_mcsrate(const struct ieee80211_rate_table *rt, uint8_t ridx)
 	uint8_t cix, rate;
 
 	/* Check if we are using MCS rate. */
-	KASSERT(ridx >= RTWN_RIDX_HT_MCS(0) && ridx != RTWN_RIDX_UNKNOWN,
-	    ("bad mcs rate index %d", ridx));
+	KASSERT(RTWN_RATE_IS_HT(ridx), ("bad mcs rate index %d", ridx));
 
 	rate = (ridx - RTWN_RIDX_HT_MCS(0)) | IEEE80211_RATE_MCS;
 	cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;

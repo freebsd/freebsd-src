@@ -97,13 +97,13 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 	/* XXX net80211 regulatory */
 
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
-	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
+	KASSERT(max_mcs <= RTWN_RIDX_LEGACY_HT_COUNT, ("increase ridx limit\n"));
 
 	if (rs->regulatory == 0) {
 		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base[chain].pwr[0][ridx];
 	}
-	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_COUNT; ridx++) {
+	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_LEGACY_HT_COUNT; ridx++) {
 		if (rs->regulatory == 3) {
 			power[ridx] = base[chain].pwr[0][ridx];
 			/* Apply vendor limits. */
