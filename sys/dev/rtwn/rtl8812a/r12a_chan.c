@@ -374,12 +374,20 @@ r12a_fix_spur(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		} else {
 			rtwn_bb_setbits(sc, R12A_RFMOD, 0x400, 0x800);
 
-			if (!IEEE80211_IS_CHAN_HT40(c) &&	/* 20 MHz */
+			if ((IEEE80211_IS_CHAN_B(c) ||
+			    IEEE80211_IS_CHAN_ANYG(c) ||
+			    IEEE80211_IS_CHAN_HT20(c)) &&	/* 2GHz, 20 MHz */
 			    (chan == 13 || chan == 14)) {
 				rtwn_bb_setbits(sc, R12A_RFMOD, 0, 0x300);
 				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
 				    0, 0x40000000);
-			} else {	/* !80 Mhz */
+			} else if (IEEE80211_IS_CHAN_HT40(c) ||
+			    IEEE80211_IS_CHAN_VHT40(c)) {
+				/* XXX double check! */
+				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
+				    0, 0x40000000);
+			} else if (IEEE80211_IS_CHAN_VHT80(c)) {
+				/* XXX double check! */
 				rtwn_bb_setbits(sc, R12A_RFMOD, 0x100, 0x200);
 				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
 				    0x40000000, 0);
@@ -387,7 +395,9 @@ r12a_fix_spur(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		}
 	} else {
 		/* Set ADC clock to 160M to resolve 2480 MHz spur. */
-		if (!IEEE80211_IS_CHAN_HT40(c) &&	/* 20 MHz */
+		if ((IEEE80211_IS_CHAN_B(c) ||
+		    IEEE80211_IS_CHAN_ANYG(c) ||
+		    IEEE80211_IS_CHAN_HT20(c)) &&	/* 2GHz, 20 MHz */
 		    (chan == 13 || chan == 14))
 			rtwn_bb_setbits(sc, R12A_RFMOD, 0, 0x300);
 		else if (IEEE80211_IS_CHAN_2GHZ(c))
@@ -489,16 +499,67 @@ r12a_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		rtwn_rf_setbits(sc, i, R92C_RF_CHNLBW, 0xff, chan);
 	}
 
-#ifdef notyet
-	if (IEEE80211_IS_CHAN_HT80(c)) {	/* 80 MHz */
-		rtwn_setbits_2(sc, R92C_WMAC_TRXPTCL_CTL, 0x80, 0x100);
+	if (IEEE80211_IS_CHAN_VHT80(c)) {	/* 80 MHz */
+		uint8_t ext20 = 0, ext40 = 0;
+		uint8_t txsc;
+		/* calculate ext20/ext40 */
+		if (c->ic_ieee > c->ic_vht_ch_freq1) {
+			if (c->ic_ieee - c->ic_vht_ch_freq1 == 2) {
+				ext20 = R12A_DATA_SEC_PRIM_UP_20;
+				ext40 = R12A_DATA_SEC_PRIM_UP_40;
+			} else {
+				ext20 = R12A_DATA_SEC_PRIM_UPPER_20;
+				ext40 = R12A_DATA_SEC_PRIM_UP_40;
+			}
+		} else {
+			if (c->ic_vht_ch_freq1 - c->ic_ieee == 2) {
+				ext20 = R12A_DATA_SEC_PRIM_DOWN_20;
+				ext40 = R12A_DATA_SEC_PRIM_DOWN_40;
+			} else {
+				ext20 = R12A_DATA_SEC_PRIM_LOWER_20;
+				ext40 = R12A_DATA_SEC_PRIM_DOWN_40;
+			}
+		}
+		/* Form txsc from sec20/sec40 config */
+		txsc = SM(R12A_DATA_SEC_TXSC_20M, ext20);
+		txsc |= SM(R12A_DATA_SEC_TXSC_40M, ext40);
 
-		/* TODO */
+		rtwn_setbits_2(sc, R92C_WMAC_TRXPTCL_CTL, 0x180, 0x100);
 
+		/* DATA_SEC, for ext20/ext40 */
+		rtwn_write_1(sc, R12A_DATA_SEC, txsc);
+
+		/* ADCCLK */
+		rtwn_bb_setbits(sc, R12A_RFMOD, 0x003003c3, 0x00300202);
+
+		/* ADC160 - Set bit 30 */
+		rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK, 0, 0x40000000);
+
+		/* ADCCLK, ext20 */
+		/* discard high 4 bits */
+		val = rtwn_bb_read(sc, R12A_RFMOD);
+		val = RW(val, R12A_RFMOD_EXT_CHAN, ext20);
+		rtwn_bb_write(sc, R12A_RFMOD, val);
+
+		/* CCA2ND, ext20 */
+		val = rtwn_bb_read(sc, R12A_CCA_ON_SEC);
+		val = RW(val, R12A_CCA_ON_SEC_EXT_CHAN, ext20);
+		rtwn_bb_write(sc, R12A_CCA_ON_SEC, val);
+
+		/* PEAK_TH */
+		if (rtwn_read_1(sc, 0x837) & 0x04)
+			val = 0x01400000;
+		else if (sc->nrxchains == 2 && sc->ntxchains == 2)
+			val = 0x01800000;
+		else
+			val = 0x01c00000;
+
+		rtwn_bb_setbits(sc, R12A_L1_PEAK_TH, 0x03c00000, val);
+		/* BWMASK */
 		val = 0x0;
-	} else
-#endif
-	if (IEEE80211_IS_CHAN_HT40(c)) {	/* 40 MHz */
+
+	} else if (IEEE80211_IS_CHAN_HT40(c) ||
+	    IEEE80211_IS_CHAN_VHT40(c)) {	/* 40 MHz */
 		uint8_t ext_chan;
 
 		if (IEEE80211_IS_CHAN_HT40U(c))
