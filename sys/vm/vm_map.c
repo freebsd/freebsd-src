@@ -1410,7 +1410,7 @@ vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
 		KASSERT(entry->end < root->end,
 		    ("%s: clip_start not within entry", __func__));
 		vm_map_splay_findprev(root, &llist);
-		if ((root->eflags & MAP_ENTRY_STACK_GAP_DN) == 0)
+		if ((root->eflags & MAP_ENTRY_STACK_GAP) == 0)
 			root->offset += entry->end - root->start;
 		root->start = entry->end;
 		max_free_left = vm_map_splay_merge_pred(header, entry, llist);
@@ -1427,7 +1427,7 @@ vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
 		KASSERT(entry->end == root->end,
 		    ("%s: clip_start not within entry", __func__));
 		vm_map_splay_findnext(root, &rlist);
-		if ((entry->eflags & MAP_ENTRY_STACK_GAP_DN) == 0)
+		if ((entry->eflags & MAP_ENTRY_STACK_GAP) == 0)
 			entry->offset += entry->start - root->start;
 		root->end = entry->start;
 		max_free_left = root->max_free = vm_size_max(
@@ -1462,7 +1462,7 @@ vm_map_entry_unlink(vm_map_t map, vm_map_entry_t entry,
 	vm_map_splay_findnext(root, &rlist);
 	if (op == UNLINK_MERGE_NEXT) {
 		rlist->start = root->start;
-		MPASS((rlist->eflags & MAP_ENTRY_STACK_GAP_DN) == 0);
+		MPASS((rlist->eflags & MAP_ENTRY_STACK_GAP) == 0);
 		rlist->offset = root->offset;
 	}
 	if (llist != header) {
@@ -1675,8 +1675,8 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_VN_EXEC;
 	if ((cow & MAP_CREATE_GUARD) != 0)
 		protoeflags |= MAP_ENTRY_GUARD;
-	if ((cow & MAP_CREATE_STACK_GAP_DN) != 0)
-		protoeflags |= MAP_ENTRY_STACK_GAP_DN;
+	if ((cow & MAP_CREATE_STACK_GAP) != 0)
+		protoeflags |= MAP_ENTRY_STACK_GAP;
 	if (cow & MAP_INHERIT_SHARE)
 		inheritance = VM_INHERIT_SHARE;
 	else
@@ -2322,7 +2322,7 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
  */
 #define	MAP_ENTRY_NOMERGE_MASK	(MAP_ENTRY_GROWS_DOWN | \
     MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_VN_EXEC | \
-    MAP_ENTRY_STACK_GAP_DN)
+    MAP_ENTRY_STACK_GAP)
 
 static bool
 vm_map_mergeable_neighbors(vm_map_entry_t prev, vm_map_entry_t entry)
@@ -2763,7 +2763,7 @@ vm_map_protect_guard(vm_map_entry_t entry, vm_prot_t new_prot,
 	vm_prot_t old_prot;
 
 	MPASS((entry->eflags & MAP_ENTRY_GUARD) != 0);
-	if ((entry->eflags & MAP_ENTRY_STACK_GAP_DN) == 0)
+	if ((entry->eflags & MAP_ENTRY_STACK_GAP) == 0)
 		return;
 
 	old_prot = PROT_EXTRACT(entry->offset);
@@ -2838,7 +2838,7 @@ again:
 		 * guard).
 		 */
 		while (!CONTAINS_BITS(first_entry->eflags,
-		    MAP_ENTRY_GUARD | MAP_ENTRY_STACK_GAP_DN) &&
+		    MAP_ENTRY_GUARD | MAP_ENTRY_STACK_GAP) &&
 		    first_entry != vm_map_entry_first(map))
 			first_entry = vm_map_entry_pred(first_entry);
 		start = first_entry->start;
@@ -2859,9 +2859,9 @@ again:
 			return (KERN_INVALID_ARGUMENT);
 		}
 		if ((entry->eflags & (MAP_ENTRY_GUARD |
-		    MAP_ENTRY_STACK_GAP_DN)) == MAP_ENTRY_GUARD)
+		    MAP_ENTRY_STACK_GAP)) == MAP_ENTRY_GUARD)
 			continue;
-		max_prot = (entry->eflags & MAP_ENTRY_STACK_GAP_DN) != 0 ?
+		max_prot = (entry->eflags & MAP_ENTRY_STACK_GAP) != 0 ?
 		    PROT_MAX_EXTRACT(entry->offset) : entry->max_protection;
 		if (!CONTAINS_BITS(max_prot, check_prot)) {
 			vm_map_unlock(map);
@@ -4645,12 +4645,12 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	if (gap_bot == gap_top)
 		return (KERN_SUCCESS);
 	rv = vm_map_insert1(map, NULL, 0, gap_bot, gap_top, VM_PROT_NONE,
-	    VM_PROT_NONE, MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP_DN,
+	    VM_PROT_NONE, MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP,
 	    &gap_entry);
 	if (rv == KERN_SUCCESS) {
 		KASSERT((gap_entry->eflags & MAP_ENTRY_GUARD) != 0,
 		    ("entry %p not gap %#x", gap_entry, gap_entry->eflags));
-		KASSERT((gap_entry->eflags & MAP_ENTRY_STACK_GAP_DN) != 0,
+		KASSERT((gap_entry->eflags & MAP_ENTRY_STACK_GAP) != 0,
 		    ("entry %p not stack gap %#x", gap_entry,
 		    gap_entry->eflags));
 
@@ -4717,7 +4717,7 @@ retry:
 		return (KERN_FAILURE);
 	if ((gap_entry->eflags & MAP_ENTRY_GUARD) == 0)
 		return (KERN_SUCCESS);
-	if ((gap_entry->eflags & MAP_ENTRY_STACK_GAP_DN) != 0) {
+	if ((gap_entry->eflags & MAP_ENTRY_STACK_GAP) != 0) {
 		stack_entry = vm_map_entry_succ(gap_entry);
 		if ((stack_entry->eflags & MAP_ENTRY_GROWS_DOWN) == 0 ||
 		    stack_entry->start != gap_entry->end)
@@ -4840,7 +4840,7 @@ retry:
 		if (gap_deleted) {
 			rv1 = vm_map_insert1(map, NULL, 0, gap_start,
 			    gap_end, VM_PROT_NONE, VM_PROT_NONE,
-			    MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP_DN,
+			    MAP_CREATE_GUARD | MAP_CREATE_STACK_GAP,
 			    &gap_entry);
 			MPASS(rv1 == KERN_SUCCESS);
 			gap_entry->next_read = sgp;
@@ -5023,7 +5023,7 @@ RetryLookupLocked:
 		fault_typea &= ~VM_PROT_FAULT_LOOKUP;
 		if (prot == VM_PROT_NONE && map != kernel_map &&
 		    (entry->eflags & MAP_ENTRY_GUARD) != 0 &&
-		    (entry->eflags & MAP_ENTRY_STACK_GAP_DN) != 0 &&
+		    (entry->eflags & MAP_ENTRY_STACK_GAP) != 0 &&
 		    vm_map_growstack(map, vaddr, entry) == KERN_SUCCESS)
 			goto RetryLookupLocked;
 	}
