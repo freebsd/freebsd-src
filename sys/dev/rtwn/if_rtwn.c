@@ -574,6 +574,7 @@ rtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* 802.11n parameters */
 	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
 	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	vap->iv_ampdu_limit = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	TIMEOUT_TASK_INIT(taskqueue_thread, &uvp->tx_beacon_csa, 0,
 	    rtwn_tx_beacon_csa, vap);
