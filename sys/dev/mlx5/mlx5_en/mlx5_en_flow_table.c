@@ -1626,7 +1626,7 @@ mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft_attr.max_fte = MLX5E_VLAN_TABLE_SIZE;
-	ft_attr.level = (priv->ipsec) ? 8 : 0;
+	ft_attr.level = (priv->ipsec) ? 9 : 0;
 	ft->t = mlx5_create_flow_table(priv->fts.ns, &ft_attr);
 
 	if (IS_ERR(ft->t)) {
@@ -2014,7 +2014,7 @@ mlx5e_create_vxlan_flow_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft_attr.max_fte = MLX5E_VXLAN_TABLE_SIZE;
-	ft_attr.level = (priv->ipsec) ? 9 : 1;
+	ft_attr.level = (priv->ipsec) ? 10 : 1;
 	ft->t = mlx5_create_flow_table(priv->fts.ns, &ft_attr);
 
 	if (IS_ERR(ft->t)) {

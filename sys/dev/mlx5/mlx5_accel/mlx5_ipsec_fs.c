@@ -138,6 +138,14 @@ struct mlx5e_ipsec_rx_roce {
 	struct mlx5_flow_namespace *ns_rdma;
 };
 
+struct mlx5e_ipsec_rx_ip_type {
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_namespace *ns;
+	struct mlx5_flow_handle *ipv4_rule;
+	struct mlx5_flow_handle *ipv6_rule;
+	struct mlx5e_ipsec_miss miss;
+};
+
 struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_ft ft;
 	struct mlx5e_ipsec_miss pol;
@@ -495,6 +503,16 @@ static void setup_fte_addr6(struct mlx5_flow_spec *spec, __be32 *saddr,
                             outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6), 0xff, 16);
         memset(MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
                             outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6), 0xff, 16);
+}
+
+static void
+setup_fte_ip_version(struct mlx5_flow_spec *spec, u8 family)
+{
+        spec->match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
+
+        MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.ip_version);
+        MLX5_SET(fte_match_param, spec->match_value, outer_headers.ip_version,
+                 family == AF_INET ? 4 : 6);
 }
 
 static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
@@ -1598,9 +1616,18 @@ static void ipsec_fs_rx_roce_table_destroy(struct mlx5e_ipsec_rx_roce *rx_roce)
 	mlx5_destroy_flow_table(rx_roce->ft);
 }
 
+static void
+ipsec_fs_rx_ip_type_catchall_rule_destroy(struct mlx5e_ipsec_rx_ip_type* rx_ip_type)
+{
+	mlx5_del_flow_rules(&rx_ip_type->ipv4_rule);
+	mlx5_del_flow_rules(&rx_ip_type->ipv6_rule);
+	mlx5_del_flow_rules(&rx_ip_type->miss.rule);
+	mlx5_destroy_flow_group(rx_ip_type->miss.group);
+	rx_ip_type->miss.group = NULL;
+}
+
 static void ipsec_fs_rx_table_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx)
 {
-	mutex_lock(&rx->ft.mutex);
 	if (rx->chains) {
 		ipsec_chains_destroy(rx->chains);
 	} else {
@@ -1610,7 +1637,6 @@ static void ipsec_fs_rx_table_destroy(struct mlx5_core_dev *mdev, struct mlx5e_i
 	mlx5_destroy_flow_table(rx->ft.sa);
 	mlx5_destroy_flow_table(rx->ft.status);
 	ipsec_fs_rx_roce_table_destroy(&rx->roce);
-	mutex_unlock(&rx->ft.mutex);
 }
 
 static void ipsec_roce_setup_udp_dport(struct mlx5_flow_spec *spec, u16 dport)
@@ -1831,6 +1857,90 @@ out:
 	return err;
 }
 
+static int
+ipsec_fs_rx_ip_type_catchall_rules_create(struct mlx5e_priv *priv,
+                                          struct mlx5_flow_destination *defdst)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	struct mlx5_flow_destination dst = {};
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		return -ENOMEM;
+	}
+	dst.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
+	/* Set rule for ipv4 packets */
+	dst.ft = ipsec->rx_ipv4->ft.pol;
+	setup_fte_ip_version(spec, AF_INET);
+	rule = mlx5_add_flow_rules(ipsec->rx_ip_type->ft, spec, &flow_act, &dst, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "Failed to add ipv4 rule to ip_type table err=%d\n",
+			      err);
+		goto out;
+	}
+	ipsec->rx_ip_type->ipv4_rule = rule;
+
+	/* Set rule for ipv6 packets */
+	dst.ft = ipsec->rx_ipv6->ft.pol;
+	setup_fte_ip_version(spec, AF_INET6);
+	rule = mlx5_add_flow_rules(ipsec->rx_ip_type->ft, spec, &flow_act, &dst, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "Failed to add ipv6 rule to ip_type table err=%d\n",
+			      err);
+		goto fail_add_ipv6_rule;
+	}
+	ipsec->rx_ip_type->ipv6_rule = rule;
+
+	/* set miss rule */
+	err = ipsec_miss_create(mdev, ipsec->rx_ip_type->ft, &ipsec->rx_ip_type->miss, defdst);
+	if (err) {
+		mlx5_core_err(mdev, "Failed to add miss rule to ip_type table err=%d\n",
+			          err);
+		goto fail_miss_rule;
+	}
+
+	goto out;
+
+fail_miss_rule:
+	mlx5_del_flow_rules(&ipsec->rx_ip_type->ipv6_rule);
+fail_add_ipv6_rule:
+	mlx5_del_flow_rules(&ipsec->rx_ip_type->ipv4_rule);
+out:
+	kvfree(spec);
+	return err;
+}
+
+static int
+ipsec_fs_rx_ip_type_table_create(struct mlx5e_priv *priv,
+                                 int level)
+{
+	struct mlx5e_ipsec *ipsec = priv->ipsec;
+	struct mlx5_flow_table *ft;
+	int err = 0;
+
+	/* Create rx ip type table */
+	ft = ipsec_rx_ft_create(ipsec->rx_ip_type->ns, level, 0, 1);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		goto out;
+	}
+	ipsec->rx_ip_type->ft = ft;
+
+	priv->fts.ipsec_ft = priv->ipsec->rx_ip_type->ft;
+
+out:
+	return err;
+}
+
 static int ipsec_fs_rx_table_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_rx *rx,
 				    int rx_init_level, int rdma_init_level)
 {
@@ -1996,6 +2106,7 @@ void mlx5e_accel_ipsec_fs_rx_catchall_rules_destroy(struct mlx5e_priv *priv)
 	if (!priv->ipsec)
 		return;
 
+	ipsec_fs_rx_ip_type_catchall_rule_destroy(priv->ipsec->rx_ip_type);
 	ipsec_fs_rx_catchall_rules_destroy(priv->mdev, priv->ipsec->rx_ipv4);
 	ipsec_fs_rx_catchall_rules_destroy(priv->mdev, priv->ipsec->rx_ipv6);
 }
@@ -2019,6 +2130,13 @@ int mlx5e_accel_ipsec_fs_rx_catchall_rules(struct mlx5e_priv *priv)
 	err = ipsec_fs_rx_catchall_rules(priv, ipsec->rx_ipv4, &dest);
 	if (err)
 		ipsec_fs_rx_catchall_rules_destroy(priv->mdev, priv->ipsec->rx_ipv6);
+
+	err = ipsec_fs_rx_ip_type_catchall_rules_create(priv, &dest);
+	if (err) {
+		ipsec_fs_rx_catchall_rules_destroy(priv->mdev, priv->ipsec->rx_ipv6);
+		ipsec_fs_rx_catchall_rules_destroy(priv->mdev, priv->ipsec->rx_ipv4);
+	}
+
 out:
 	return err;
 }
@@ -2032,6 +2150,7 @@ void mlx5e_accel_ipsec_fs_rx_tables_destroy(struct mlx5e_priv *priv)
 	if (!ipsec)
 		return;
 
+	mlx5_destroy_flow_table(ipsec->rx_ip_type->ft);
 	ipsec_fs_rx_table_destroy(mdev, ipsec->rx_ipv6);
 	ipsec_fs_rx_table_destroy(mdev, ipsec->rx_ipv4);
 }
@@ -2045,18 +2164,24 @@ int mlx5e_accel_ipsec_fs_rx_tables_create(struct mlx5e_priv *priv)
 	if (!ipsec)
 		return 0;
 
-	err = ipsec_fs_rx_table_create(ipsec->mdev, ipsec->rx_ipv4, 0, 0);
+	err = ipsec_fs_rx_ip_type_table_create(priv, 0);
 	if (err)
-		goto out;
+		return err;
 
-	err = ipsec_fs_rx_table_create(ipsec->mdev, ipsec->rx_ipv6, 4, 1);
-	if (err) {
-		ipsec_fs_rx_table_destroy(priv->mdev, ipsec->rx_ipv4);
-		goto out;
-	}
+	err = ipsec_fs_rx_table_create(ipsec->mdev, ipsec->rx_ipv4, 1, 0);
+	if (err)
+		goto err_ipv4_table;
 
-	priv->fts.ipsec_ft = priv->ipsec->rx_ipv4->ft.pol;
-out:
+	err = ipsec_fs_rx_table_create(ipsec->mdev, ipsec->rx_ipv6, 5, 1);
+	if (err)
+		goto err_ipv6_table;
+
+	return 0;
+
+err_ipv6_table:
+	ipsec_fs_rx_table_destroy(priv->mdev, ipsec->rx_ipv4);
+err_ipv4_table:
+	mlx5_destroy_flow_table(ipsec->rx_ip_type->ft);
 	return err;
 }
 
@@ -2067,6 +2192,7 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_ipsec *ipsec)
 	mutex_destroy(&ipsec->rx_ipv4->ft.mutex);
 	mutex_destroy(&ipsec->tx->ft.mutex);
 	ipsec_fs_destroy_counters(ipsec);
+	kfree(ipsec->rx_ip_type);
 	kfree(ipsec->rx_ipv6);
 	kfree(ipsec->rx_ipv4);
 	kfree(ipsec->tx);
@@ -2089,9 +2215,13 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 	if (!ipsec->tx)
 		return -ENOMEM;
 
+	ipsec->rx_ip_type = kzalloc(sizeof(*ipsec->rx_ip_type), GFP_KERNEL);
+	if (!ipsec->rx_ip_type)
+		goto err_tx;
+
 	ipsec->rx_ipv4 = kzalloc(sizeof(*ipsec->rx_ipv4), GFP_KERNEL);
 	if (!ipsec->rx_ipv4)
-		goto err_tx;
+		goto err_ip_type;
 
 	ipsec->rx_ipv6 = kzalloc(sizeof(*ipsec->rx_ipv6), GFP_KERNEL);
 	if (!ipsec->rx_ipv6)
@@ -2103,6 +2233,7 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 
 	ipsec->tx->ns = tns;
 	mutex_init(&ipsec->tx->ft.mutex);
+	ipsec->rx_ip_type->ns = rns;
 	ipsec->rx_ipv4->ns = rns;
 	ipsec->rx_ipv6->ns = rns;
 	mutex_init(&ipsec->rx_ipv4->ft.mutex);
@@ -2116,6 +2247,8 @@ err_rx_ipv6:
 	kfree(ipsec->rx_ipv6);
 err_rx_ipv4:
 	kfree(ipsec->rx_ipv4);
+err_ip_type:
+	kfree(ipsec->rx_ip_type);
 err_tx:
 	kfree(ipsec->tx);
 	return err;
