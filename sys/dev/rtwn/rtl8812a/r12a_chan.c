@@ -187,7 +187,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 	struct r12a_softc *rs = sc->sc_priv;
-	int i, ridx, group, max_mcs;
+	int i, ridx, group, max_mcs, max_vht_mcs;
 
 	/* Determine channel group. */
 	group = r12a_get_power_group(sc, c);
@@ -196,8 +196,8 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 		return;
 	}
 
-	/* TODO: VHT rates. */
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
+	max_vht_mcs = RTWN_RIDX_VHT_MCS(sc->ntxchains, 9) - 1;
 
 	/* XXX regulatory */
 	/* XXX net80211 regulatory */
@@ -215,13 +215,11 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			uint8_t min_mcs;
 			uint8_t pwr_diff;
 
-#ifdef notyet
-			if (IEEE80211_IS_CHAN_HT80(c)) {
+			if (IEEE80211_IS_CHAN_VHT80(c)) {
 				/* Vendor driver uses HT40 values here. */
 				pwr_diff = rs->bw40_tx_pwr_diff_2g[chain][i];
 			} else
-#endif
-			if (IEEE80211_IS_CHAN_HT40(c))
+			if (IEEE80211_IS_CHAN_HT40(c) || IEEE80211_IS_CHAN_VHT40(c))
 				pwr_diff = rs->bw40_tx_pwr_diff_2g[chain][i];
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
@@ -231,9 +229,14 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 				power[ridx] += pwr_diff;
 		}
 	} else {	/* 5GHz */
+		/* OFDM + HT */
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++)
 			power[ridx] = rs->ht40_tx_pwr_5g[chain][group];
+		/* VHT */
+		for (ridx = RTWN_RIDX_VHT_MCS_SHIFT; ridx <= max_vht_mcs; ridx++)
+			power[ridx] = rs->ht40_tx_pwr_5g[chain][group];
 
+		/* Add power for OFDM rates */
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
 			power[ridx] += rs->ofdm_tx_pwr_diff_5g[chain][0];
 
@@ -241,25 +244,37 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			uint8_t min_mcs;
 			uint8_t pwr_diff;
 
-#ifdef notyet
-			if (IEEE80211_IS_CHAN_HT80(c)) {
+			if (IEEE80211_IS_CHAN_VHT80(c)) {
 				/* TODO: calculate base value. */
 				pwr_diff = rs->bw80_tx_pwr_diff_5g[chain][i];
 			} else
-#endif
-			if (IEEE80211_IS_CHAN_HT40(c))
+			if (IEEE80211_IS_CHAN_HT40(c) || IEEE80211_IS_CHAN_VHT40(c))
 				pwr_diff = rs->bw40_tx_pwr_diff_5g[chain][i];
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_5g[chain][i];
 
+			/* Adjust HT rates */
 			min_mcs = RTWN_RIDX_HT_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
+
+			/* Adjust VHT rates */
+			for (ridx = RTWN_RIDX_VHT_MCS(i, 0);
+			    ridx <= RTWN_RIDX_VHT_MCS(i, 9);
+			    ridx++)
+				power[ridx] += pwr_diff;
+
 		}
 	}
 
 	/* Apply max limit. */
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {
+		if (power[ridx] > R92C_MAX_TX_PWR)
+			power[ridx] = R92C_MAX_TX_PWR;
+	}
+	for (ridx = RTWN_RIDX_VHT_MCS(0, 0);
+	    ridx <= RTWN_RIDX_VHT_MCS(3, 9);
+	    ridx++) {
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
@@ -270,6 +285,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 		printf("Tx power for chain %d:\n", chain);
 		for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
 			printf("Rate %d = %u\n", ridx, power[ridx]);
+		/* TODO: dump VHT 0..9 for each spatial stream */
 	}
 #endif
 }
