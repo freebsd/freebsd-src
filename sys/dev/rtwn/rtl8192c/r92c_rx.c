@@ -121,7 +121,7 @@ r92c_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 		rxs->c_pktflags |= IEEE80211_RX_F_AMPDU;
 	else if (rxdw1 & R92C_RXDW1_AMPDU_MORE)
 		rxs->c_pktflags |= IEEE80211_RX_F_AMPDU_MORE;
-	if ((rxdw3 & R92C_RXDW3_SPLCP) && rate >= RTWN_RIDX_HT_MCS(0))
+	if ((rxdw3 & R92C_RXDW3_SPLCP) && RTWN_RATE_IS_HT(rate))
 		rxs->c_pktflags |= IEEE80211_RX_F_SHORTGI;
 
 	if (rxdw3 & R92C_RXDW3_HT40)
@@ -131,13 +131,13 @@ r92c_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 
 	if (RTWN_RATE_IS_CCK(rate))
 		rxs->c_phytype = IEEE80211_RX_FP_11B;
-	else if (rate < RTWN_RIDX_HT_MCS(0))
+	else if (RTWN_RATE_IS_OFDM(rate))
 		rxs->c_phytype = IEEE80211_RX_FP_11G;
 	else
 		rxs->c_phytype = IEEE80211_RX_FP_11NG;
 
 	/* Map HW rate index to 802.11 rate. */
-	if (rate < RTWN_RIDX_HT_MCS(0)) {
+	if (RTWN_RATE_IS_CCK(rate) || RTWN_RATE_IS_OFDM(rate)) {
 		rxs->c_rate = ridx2rate[rate];
 		if (RTWN_RATE_IS_CCK(rate))
 			rxs->c_pktflags |= IEEE80211_RX_F_CCK;
@@ -145,7 +145,7 @@ r92c_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 			rxs->c_pktflags |= IEEE80211_RX_F_OFDM;
 	} else {	/* MCS0~15. */
 		rxs->c_rate =
-		    IEEE80211_RATE_MCS | (rate - RTWN_RIDX_HT_MCS_SHIFT);
+		    IEEE80211_RATE_MCS | (RTWN_RIDX_TO_MCS(rate));
 		rxs->c_pktflags |= IEEE80211_RX_F_HT;
 	}
 }

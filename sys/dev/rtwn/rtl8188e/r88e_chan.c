@@ -99,7 +99,7 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 	/* XXX net80211 regulatory */
 
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
-	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
+	KASSERT(max_mcs <= RTWN_RIDX_LEGACY_HT_COUNT, ("increase ridx limit\n"));
 
 	/* Compute per-CCK rate Tx power. */
 	cckpow = rt->cck_tx_pwr[group];
