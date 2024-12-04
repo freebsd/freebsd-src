@@ -4485,6 +4485,7 @@ static int
 umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
     struct umtx_shm_reg **res)
 {
+	struct shmfd *shm;
 	struct umtx_shm_reg *reg, *reg1;
 	struct ucred *cred;
 	int error;
@@ -4504,9 +4505,14 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 	cred = td->td_ucred;
 	if (!chgumtxcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_UMTXP)))
 		return (ENOMEM);
+	shm = shm_alloc(td->td_ucred, O_RDWR, false);
+	if (shm == NULL) {
+		chgumtxcnt(cred->cr_ruidinfo, -1, 0);
+		return (ENOMEM);
+	}
 	reg = uma_zalloc(umtx_shm_reg_zone, M_WAITOK | M_ZERO);
 	bcopy(key, &reg->ushm_key, sizeof(*key));
-	reg->ushm_obj = shm_alloc(td->td_ucred, O_RDWR, false);
+	reg->ushm_obj = shm;
 	reg->ushm_cred = crhold(cred);
 	error = shm_dotruncate(reg->ushm_obj, PAGE_SIZE);
 	if (error != 0) {
