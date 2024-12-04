@@ -1130,14 +1130,12 @@ displaysock(struct sock *s, int pos)
 		switch (s->family) {
 		case AF_INET:
 		case AF_INET6:
-			if (laddr != NULL) {
+			if (laddr != NULL)
 				pos += printaddr(&laddr->address);
-				if (s->family == AF_INET6 && pos >= 58)
-					pos += xprintf(" ");
-			}
 			offset += opt_w ? 46 : 22;
-			while (pos < offset)
+			do
 				pos += xprintf(" ");
+			while (pos < offset);
 			if (faddr != NULL)
 				pos += printaddr(&faddr->address);
 			offset += opt_w ? 46 : 22;
@@ -1209,8 +1207,9 @@ displaysock(struct sock *s, int pos)
 			abort();
 		}
 		if (opt_f) {
-			while (pos < offset)
+			do
 				pos += xprintf(" ");
+			while (pos < offset);
 			pos += xprintf("%d", s->fibnum);
 			offset += 7;
 		}
@@ -1221,12 +1220,14 @@ displaysock(struct sock *s, int pos)
 				sp = RB_FIND(socks_t, &socks, &(struct sock)
 				    { .socket = s->splice_socket });
 				if (sp != NULL) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					pos += printaddr(&sp->laddr->address);
 				} else {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					pos += xprintf("??");
 					offset += opt_w ? 46 : 22;
 				}
@@ -1236,8 +1237,9 @@ displaysock(struct sock *s, int pos)
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP ||
 			    s->proto == IPPROTO_UDP) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%" PRIu64, s->inp_gencnt);
 			}
 			offset += 9;
@@ -1251,8 +1253,9 @@ displaysock(struct sock *s, int pos)
 			     (s->proto == IPPROTO_TCP &&
 			      s->state != TCPS_CLOSED &&
 			      s->state != TCPS_LISTEN))) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%u",
 				    ntohs(faddr->encaps_port));
 			}
@@ -1264,8 +1267,9 @@ displaysock(struct sock *s, int pos)
 			    s->state != SCTP_CLOSED &&
 			    s->state != SCTP_BOUND &&
 			    s->state != SCTP_LISTEN) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%s",
 				    sctp_path_state(faddr->state));
 			}
@@ -1275,8 +1279,9 @@ displaysock(struct sock *s, int pos)
 			if (opt_s) {
 				if (s->proto == IPPROTO_SCTP ||
 				    s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					switch (s->proto) {
 					case IPPROTO_SCTP:
 						pos += xprintf("%s",
@@ -1296,8 +1301,9 @@ displaysock(struct sock *s, int pos)
 			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					pos += xprintf("%.*s",
 					    TCP_FUNCTION_NAME_LEN_MAX,
 					    s->stack);
@@ -1306,8 +1312,9 @@ displaysock(struct sock *s, int pos)
 			}
 			if (opt_C) {
 				if (s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					xprintf("%.*s", TCP_CA_NAME_MAX, s->cc);
 				}
 				offset += TCP_CA_NAME_MAX + 1;
@@ -1372,18 +1379,21 @@ display(void)
 			pos = 0;
 			if (opt_n ||
 			    (pwd = cap_getpwuid(cappwd, xf->xf_uid)) == NULL)
-				pos += xprintf("%lu ", (u_long)xf->xf_uid);
+				pos += xprintf("%lu", (u_long)xf->xf_uid);
 			else
-				pos += xprintf("%s ", pwd->pw_name);
-			while (pos < 9)
+				pos += xprintf("%s", pwd->pw_name);
+			do
 				pos += xprintf(" ");
+			while (pos < 9);
 			pos += xprintf("%.10s", getprocname(xf->xf_pid));
-			while (pos < 20)
+			do
 				pos += xprintf(" ");
-			pos += xprintf("%5lu ", (u_long)xf->xf_pid);
-			while (pos < 26)
+			while (pos < 20);
+			pos += xprintf("%5lu", (u_long)xf->xf_pid);
+			do
 				pos += xprintf(" ");
-			pos += xprintf("%-3d ", xf->xf_fd);
+			while (pos < 26);
+			pos += xprintf("%-3d", xf->xf_fd);
 			displaysock(s, pos);
 		}
 	}
@@ -1392,7 +1402,7 @@ display(void)
 	SLIST_FOREACH(s, &nosocks, socket_list) {
 		if (!check_ports(s))
 			continue;
-		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		pos = xprintf("%-8s %-10s %-5s %-3s",
 		    "?", "?", "?", "?");
 		displaysock(s, pos);
 	}
@@ -1401,7 +1411,7 @@ display(void)
 			continue;
 		if (!check_ports(s))
 			continue;
-		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		pos = xprintf("%-8s %-10s %-5s %-3s",
 		    "?", "?", "?", "?");
 		displaysock(s, pos);
 	}
