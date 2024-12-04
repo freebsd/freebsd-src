@@ -56,7 +56,7 @@ else
 	base_image=scratch
 fi
 
-c=$(buildah from ${base_image})
+c=$(buildah from --arch ${arch} ${base_image})
 m=$(buildah mount $c)
 oci_image_build
 buildah unmount $c
