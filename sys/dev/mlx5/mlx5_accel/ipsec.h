@@ -43,6 +43,7 @@ struct mlx5e_priv;
 struct mlx5e_tx_wqe;
 struct mlx5e_ipsec_tx;
 struct mlx5e_ipsec_rx;
+struct mlx5e_ipsec_rx_ip_type;
 
 struct aes_gcm_keymat {
 	u64   seq_iv;
@@ -128,6 +129,7 @@ struct mlx5e_ipsec {
 	struct mlx5e_ipsec_tx *tx;
 	struct mlx5e_ipsec_rx *rx_ipv4;
 	struct mlx5e_ipsec_rx *rx_ipv6;
+	struct mlx5e_ipsec_rx_ip_type *rx_ip_type;
 	struct mlx5e_ipsec_aso *aso;
 	u32 pdn;
 	u32 mkey;
