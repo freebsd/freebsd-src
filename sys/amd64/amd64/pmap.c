@@ -581,6 +581,11 @@ static pml4_entry_t *pti_pml4;
 static vm_pindex_t pti_pg_idx;
 static bool pti_finalized;
 
+static int pmap_growkernel_panic = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, growkernel_panic, CTLFLAG_RDTUN,
+    &pmap_growkernel_panic, 0,
+    "panic on failure to allocate kernel page table page");
+
 struct pmap_pkru_range {
 	struct rs_el	pkru_rs_el;
 	u_int		pkru_keyidx;
@@ -5120,17 +5125,19 @@ pmap_page_array_startup(long pages)
 /*
  * grow the number of kernel page table entries, if needed
  */
-void
-pmap_growkernel(vm_offset_t addr)
+static int
+pmap_growkernel_nopanic(vm_offset_t addr)
 {
 	vm_paddr_t paddr;
 	vm_page_t nkpg;
 	pd_entry_t *pde, newpdir;
 	pdp_entry_t *pdpe;
 	vm_offset_t end;
+	int rv;
 
 	TSENTER();
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
+	rv = KERN_SUCCESS;
 
 	/*
 	 * The kernel map covers two distinct regions of KVA: that used
@@ -5158,7 +5165,7 @@ pmap_growkernel(vm_offset_t addr)
 		end = KERNBASE + nkpt * NBPDR;
 		if (end == 0) {
 			TSEXIT();
-			return;
+			return (rv);
 		}
 	} else {
 		end = kernel_vm_end;
@@ -5173,7 +5180,7 @@ pmap_growkernel(vm_offset_t addr)
 		 * nothing to do.
 		 */
 		TSEXIT();
-		return;
+		return (rv);
 	}
 
 	kasan_shadow_map(end, addr - end);
@@ -5184,8 +5191,10 @@ pmap_growkernel(vm_offset_t addr)
 			nkpg = pmap_alloc_pt_page(kernel_pmap,
 			    pmap_pdpe_pindex(end), VM_ALLOC_WIRED |
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
-			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
+			if (nkpg == NULL) {
+				rv = KERN_RESOURCE_SHORTAGE;
+				break;
+			}
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 			*pdpe = (pdp_entry_t)(paddr | X86_PG_V | X86_PG_RW |
 			    X86_PG_A | X86_PG_M);
@@ -5203,8 +5212,11 @@ pmap_growkernel(vm_offset_t addr)
 
 		nkpg = pmap_alloc_pt_page(kernel_pmap, pmap_pde_pindex(end),
 		    VM_ALLOC_WIRED | VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
-		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
+		if (nkpg == NULL) {
+			rv = KERN_RESOURCE_SHORTAGE;
+			break;
+		}
+
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = paddr | X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
 		pde_store(pde, newpdir);
@@ -5221,6 +5233,18 @@ pmap_growkernel(vm_offset_t addr)
 	else
 		nkpt = howmany(end - KERNBASE, NBPDR);
 	TSEXIT();
+	return (rv);
+}
+
+int
+pmap_growkernel(vm_offset_t addr)
+{
+	int rv;
+
+	rv = pmap_growkernel_nopanic(addr);
+	if (rv != KERN_SUCCESS && pmap_growkernel_panic)
+		panic("pmap_growkernel: no memory to grow kernel");
+	return (rv);
 }
 
 /***************************************************

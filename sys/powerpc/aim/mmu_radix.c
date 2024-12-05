@@ -480,7 +480,7 @@ static void	mmu_radix_bootstrap(vm_offset_t, vm_offset_t);
 static void mmu_radix_copy_page(vm_page_t, vm_page_t);
 static void mmu_radix_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
-static void mmu_radix_growkernel(vm_offset_t);
+static int mmu_radix_growkernel(vm_offset_t);
 static void mmu_radix_init(void);
 static int mmu_radix_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
 static vm_offset_t mmu_radix_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
@@ -501,7 +501,7 @@ static struct pmap_funcs mmu_radix_methods = {
 	.copy_page = mmu_radix_copy_page,
 	.copy_pages = mmu_radix_copy_pages,
 	.cpu_bootstrap = mmu_radix_cpu_bootstrap,
-	.growkernel = mmu_radix_growkernel,
+	.growkernel_nopanic = mmu_radix_growkernel,
 	.init = mmu_radix_init,
 	.map =      		mmu_radix_map,
 	.mincore =      	mmu_radix_mincore,
@@ -3512,7 +3512,7 @@ mmu_radix_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (m);
 }
 
-static void
+static int
 mmu_radix_growkernel(vm_offset_t addr)
 {
 	vm_paddr_t paddr;
@@ -3523,7 +3523,7 @@ mmu_radix_growkernel(vm_offset_t addr)
 	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
 	if (VM_MIN_KERNEL_ADDRESS < addr &&
 		addr < (VM_MIN_KERNEL_ADDRESS + nkpt * L3_PAGE_SIZE))
-		return;
+		return (KERN_SUCCESS);
 
 	addr = roundup2(addr, L3_PAGE_SIZE);
 	if (addr - 1 >= vm_map_max(kernel_map))
@@ -3535,7 +3535,7 @@ mmu_radix_growkernel(vm_offset_t addr)
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
+				return (KERN_RESOURCE_SHORTAGE);
 			nkpg->pindex = kernel_vm_end >> L2_PAGE_SIZE_SHIFT;
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 			pde_store(l2e, paddr);
@@ -3554,7 +3554,7 @@ mmu_radix_growkernel(vm_offset_t addr)
 		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
+			return (KERN_RESOURCE_SHORTAGE);
 		nkpg->pindex = pmap_l3e_pindex(kernel_vm_end);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		pde_store(l3e, paddr);
@@ -3566,6 +3566,7 @@ mmu_radix_growkernel(vm_offset_t addr)
 		}
 	}
 	ptesync();
+	return (KERN_SUCCESS);
 }
 
 static MALLOC_DEFINE(M_RADIX_PGD, "radix_pgd", "radix page table root directory");
