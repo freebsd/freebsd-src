@@ -1667,7 +1667,7 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
-	if (cow & MAP_STACK_GROWS_DOWN)
+	if (cow & MAP_STACK_AREA)
 		protoeflags |= MAP_ENTRY_GROWS_DOWN;
 	if (cow & MAP_WRITECOUNT)
 		protoeflags |= MAP_ENTRY_WRITECNT;
@@ -1727,7 +1727,7 @@ charged:
 		}
 	} else if ((prev_entry->eflags & ~MAP_ENTRY_USER_WIRED) ==
 	    protoeflags &&
-	    (cow & (MAP_STACK_GROWS_DOWN | MAP_VN_EXEC)) == 0 &&
+	    (cow & (MAP_STACK_AREA | MAP_VN_EXEC)) == 0 &&
 	    prev_entry->end == start && (prev_entry->cred == cred ||
 	    (prev_entry->object.vm_object != NULL &&
 	    prev_entry->object.vm_object->cred == cred)) &&
@@ -1963,7 +1963,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	int result;
 
 	end = start + length;
-	KASSERT((cow & MAP_STACK_GROWS_DOWN) == 0 || object == NULL,
+	KASSERT((cow & MAP_STACK_AREA) == 0 || object == NULL,
 	    ("vm_map_fixed: non-NULL backing object for stack"));
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1972,7 +1972,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		if (result != KERN_SUCCESS)
 			goto out;
 	}
-	if ((cow & MAP_STACK_GROWS_DOWN) != 0) {
+	if ((cow & MAP_STACK_AREA) != 0) {
 		result = vm_map_stack_locked(map, start, length, sgrowsiz,
 		    prot, max, cow);
 	} else {
@@ -2131,10 +2131,10 @@ vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	int gap, pidx, rv, try;
 	bool cluster, en_aslr, update_anon;
 
-	KASSERT((cow & MAP_STACK_GROWS_DOWN) == 0 || object == NULL,
+	KASSERT((cow & MAP_STACK_AREA) == 0 || object == NULL,
 	    ("non-NULL backing object for stack"));
 	MPASS((cow & MAP_REMAP) == 0 || (find_space == VMFS_NO_SPACE &&
-	    (cow & MAP_STACK_GROWS_DOWN) == 0));
+	    (cow & MAP_STACK_AREA) == 0));
 	if (find_space == VMFS_OPTIMAL_SPACE && (object == NULL ||
 	    (object->flags & OBJ_COLORED) == 0))
 		find_space = VMFS_ANY_SPACE;
@@ -2147,7 +2147,7 @@ vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	update_anon = cluster = clustering_anon_allowed(*addr, cow) &&
 	    (map->flags & MAP_IS_SUB_MAP) == 0 && max_addr == 0 &&
 	    find_space != VMFS_NO_SPACE && object == NULL &&
-	    (cow & (MAP_INHERIT_SHARE | MAP_STACK_GROWS_DOWN)) == 0 &&
+	    (cow & (MAP_INHERIT_SHARE | MAP_STACK_AREA)) == 0 &&
 	    prot != PROT_NONE;
 	curr_min_addr = min_addr = *addr;
 	if (en_aslr && min_addr == 0 && !cluster &&
@@ -2262,7 +2262,7 @@ again:
 		if (rv != KERN_SUCCESS)
 			return (rv);
 	}
-	if ((cow & MAP_STACK_GROWS_DOWN) != 0) {
+	if ((cow & MAP_STACK_AREA) != 0) {
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
 		    max, cow);
 	} else {
@@ -4596,7 +4596,7 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_size_t init_ssize, sgp;
 	int rv;
 
-	KASSERT((cow & MAP_STACK_GROWS_DOWN) != 0,
+	KASSERT((cow & MAP_STACK_AREA) != 0,
 	    ("New mapping is not a stack"));
 
 	if (max_ssize == 0 ||
@@ -4835,7 +4835,7 @@ retry:
 		gap_deleted = false;
 	}
 	rv = vm_map_insert(map, NULL, 0, grow_start,
-	    grow_start + grow_amount, prot, max, MAP_STACK_GROWS_DOWN);
+	    grow_start + grow_amount, prot, max, MAP_STACK_AREA);
 	if (rv != KERN_SUCCESS) {
 		if (gap_deleted) {
 			rv1 = vm_map_insert1(map, NULL, 0, gap_start,
