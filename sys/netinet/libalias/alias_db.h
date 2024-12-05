@@ -208,12 +208,14 @@ static struct in_addr const ANY_ADDR = { INADDR_ANY };
     stored in the auxiliary space.  Pointers to unresolved
     fragments can also be stored.
 
-    The link records support two independent chainings.  Lookup
+    The link records support several independent chainings.  Lookup
     tables for input and out tables hold the initial pointers
     the link chains.  On input, the lookup table indexes on alias
     port and link type.  On output, the lookup table indexes on
     source address, destination address, source port, destination
-    port and link type.
+    port and link type. A internal_endpoint table is used for
+    endpoint-independent mapping, and indexes on source address,
+    source port and link type.
 */
 
 /* used to save changes to ACK/sequence numbers */
@@ -292,6 +294,7 @@ struct alias_link {
 		struct {
 			SPLAY_ENTRY(alias_link) out;
 			LIST_ENTRY (alias_link) in;
+			SPLAY_ENTRY(alias_link) internal_endpoint;
 		} all;
 		struct {
 			LIST_ENTRY (alias_link) list;
@@ -374,25 +377,38 @@ cmp_in(struct group_in *a, struct group_in *b) {
 }
 SPLAY_PROTOTYPE(splay_in, group_in, in, cmp_in);
 
+static inline int
+cmp_internal_endpoint(struct alias_link *a, struct alias_link *b) {
+	int i = a->link_type - b->link_type;
+	if (i != 0) return (i);
+	if (a->src_addr.s_addr > b->src_addr.s_addr) return (1);
+	if (a->src_addr.s_addr < b->src_addr.s_addr) return (-1);
+	i = a->src_port - b->src_port;
+	return (i);
+}
+SPLAY_PROTOTYPE(splay_internal_endpoint, alias_link, all.internal_endpoint,
+    cmp_internal_endpoint);
+
 /* Internal routines for finding, deleting and adding links
 
 Port Allocation:
-    GetNewPort()             -- find and reserve new alias port number
-    GetSocket()              -- try to allocate a socket for a given port
+    GetNewPort()                 -- find and reserve new alias port number
+    GetSocket()                  -- try to allocate a socket for a given port
 
 Link creation and deletion:
-    CleanupAliasData()      - remove all link chains from lookup table
-    CleanupLink()           - look for a stale link
-    DeleteLink()            - remove link
-    AddLink()               - add link
-    ReLink()                - change link
+    CleanupAliasData()           - remove all link chains from lookup table
+    CleanupLink()                - look for a stale link
+    DeleteLink()                 - remove link
+    AddLink()                    - add link
+    ReLink()                     - change link
 
 Link search:
-    FindLinkOut()           - find link for outgoing packets
-    FindLinkIn()            - find link for incoming packets
+    FindLinkOut()                - find link for outgoing packets
+    FindLinkIn()                 - find link for incoming packets
+    FindLinkByInternalEndpoint() - find link by a packet's internal endpoint
 
 Port search:
-    FindNewPortGroup()      - find an available group of ports
+    FindNewPortGroup()           - find an available group of ports
 */
 
 /* Local prototypes */
@@ -416,6 +432,9 @@ FindLinkOut(struct libalias *, struct in_addr, struct in_addr, u_short, u_short,
 
 static struct alias_link *
 FindLinkIn(struct libalias *, struct in_addr, struct in_addr, u_short, u_short, int, int);
+
+static struct alias_link *
+FindLinkByInternalEndpoint(struct libalias *, struct in_addr, u_short, int);
 
 static u_short _RandomPort(struct libalias *la);
 

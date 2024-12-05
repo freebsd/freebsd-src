@@ -41,6 +41,7 @@
 /* common ip ranges */
 struct in_addr masq = { htonl(0x01020304) };
 struct in_addr pub  = { htonl(0x0102dead) };
+struct in_addr pub2 = { htonl(0x0102beef) };
 struct in_addr prv1 = { htonl(0x0a00dead) };
 struct in_addr prv2 = { htonl(0xac10dead) };
 struct in_addr prv3 = { htonl(0xc0a8dead) };
