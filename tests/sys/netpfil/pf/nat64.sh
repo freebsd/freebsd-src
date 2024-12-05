@@ -235,6 +235,46 @@ tos_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "no_v4" "cleanup"
+no_v4_head()
+{
+	atf_set descr 'Test error handling when there is no IPv4 address to translate to'
+	atf_set require.user root
+}
+
+no_v4_body()
+{
+	pft_init
+
+	epair_link=$(vnet_mkepair)
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+	route -6 add default 2001:db8::1
+
+	vnet_mkjail rtr ${epair}b ${epair_link}a
+	jexec rtr ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+
+	vnet_mkjail dst ${epair_link}b
+	jexec dst ifconfig ${epair_link}b 192.0.2.2/24 up
+	jexec dst route add default 192.0.2.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
+
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 3 64:ff9b::192.0.2.2
+}
+
+no_v4_cleanup()
+{
+	pft_cleanup
+}
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
@@ -243,4 +283,5 @@ atf_init_test_cases()
 	atf_add_test_case "udp"
 	atf_add_test_case "sctp"
 	atf_add_test_case "tos"
+	atf_add_test_case "no_v4"
 }
