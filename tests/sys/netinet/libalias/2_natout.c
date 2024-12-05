@@ -359,6 +359,172 @@ ATF_TC_BODY(8_portrange, dummy)
 	LibAliasUninit(la);
 }
 
+ATF_TC_WITHOUT_HEAD(9_udp_eim_mapping);
+ATF_TC_BODY(9_udp_eim_mapping, dummy)
+{
+	struct libalias *la = LibAliasInit(NULL);
+	struct ip  *po, *po2, *po3;
+	struct udphdr *uo, *uo2, *uo3;
+	uint16_t sport = 0x1234;
+	uint16_t dport = 0x5678;
+	uint16_t dport2 = 0x6789;
+	uint16_t aport, aport2, aport3;
+
+	ATF_REQUIRE(la != NULL);
+	LibAliasSetAddress(la, masq);
+	LibAliasSetMode(la, PKT_ALIAS_UDP_EIM, ~0);
+
+	po = ip_packet(0, 64);
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+
+	/* Change of dst port shouldn't change alias port */
+	po2 = ip_packet(0, 64);
+	UDP_NAT_CHECK(po2, uo2, prv1, sport, ext, dport2, masq);
+	aport2 = ntohs(uo2->uh_sport);
+	ATF_CHECK_EQ_MSG(aport, aport2,
+	    "NAT uses address- and port-dependent mapping (%uh -> %uh)",
+	    aport, aport2);
+
+	/* Change of dst address shouldn't change alias port */
+	po3 = ip_packet(0, 64);
+	UDP_NAT_CHECK(po3, uo3, prv1, sport, pub, dport, masq);
+	aport3 = ntohs(uo3->uh_sport);
+	ATF_CHECK_EQ_MSG(aport, aport3, "NAT uses address-dependent mapping");
+
+	free(po);
+	free(po2);
+	free(po3);
+	LibAliasUninit(la);
+}
+
+ATF_TC_WITHOUT_HEAD(10_udp_eim_out_in);
+ATF_TC_BODY(10_udp_eim_out_in, dummy)
+{
+	struct libalias *la = LibAliasInit(NULL);
+	struct ip *po, *po2, *po3;
+	struct udphdr *uo, *uo2, *uo3;
+	uint16_t sport = 0x1234;
+	uint16_t dport = 0x5678;
+	uint16_t dport2 = 0x6789;
+	uint16_t aport;
+
+	ATF_REQUIRE(la != NULL);
+	LibAliasSetAddress(la, masq);
+	LibAliasSetMode(la, PKT_ALIAS_UDP_EIM, ~0);
+
+	po = ip_packet(0, 64);
+	UDP_NAT_CHECK(po, uo, prv1, sport, pub, dport, masq);
+	aport = ntohs(uo->uh_sport);
+
+	/* Accepts inbound packets from different port */
+	po2 = ip_packet(0, 64);
+	UDP_UNNAT_CHECK(po2, uo2, pub, dport2, masq, aport, prv1, sport);
+
+	/* Accepts inbound packets from differerent host and port */
+	po3 = ip_packet(0, 64);
+	UDP_UNNAT_CHECK(po3, uo3, pub2, dport2, masq, aport, prv1, sport);
+
+	free(po);
+	free(po2);
+	free(po3);
+	LibAliasUninit(la);
+}
+
+ATF_TC_WITHOUT_HEAD(11_udp_eim_with_deny_incoming);
+ATF_TC_BODY(11_udp_eim_with_deny_incoming, dummy)
+{
+	struct libalias *la = LibAliasInit(NULL);
+	struct ip *po, *po2, *po3, *po4;
+	struct udphdr *uo;
+	uint16_t sport = 0x1234;
+	uint16_t dport = 0x5678;
+	uint16_t dport2 = 0x6789;
+	uint16_t aport;
+	int ret;
+
+	ATF_REQUIRE(la != NULL);
+	LibAliasSetAddress(la, masq);
+	LibAliasSetMode(la,
+	    PKT_ALIAS_UDP_EIM | PKT_ALIAS_DENY_INCOMING,
+	    ~0);
+
+	po = ip_packet(0, 64);
+	UDP_NAT_CHECK(po, uo, prv1, sport, pub, dport, masq);
+	aport = ntohs(uo->uh_sport);
+
+	po2 = ip_packet(0, 64);
+	po2->ip_src = pub;
+	po2->ip_dst = masq;
+	set_udp(po2, dport, aport);
+	ret = LibAliasIn(la, po2, 64);
+	ATF_CHECK_EQ_MSG(PKT_ALIAS_OK, ret,
+	    "LibAliasIn failed with error %d\n", ret);
+
+	po3 = ip_packet(0, 64);
+	po3->ip_src = pub;
+	po3->ip_dst = masq;
+	set_udp(po3, dport2, aport);
+	ret = LibAliasIn(la, po3, 64);
+	ATF_CHECK_EQ_MSG(PKT_ALIAS_IGNORED, ret,
+	    "incoming packet from different port not ignored "
+	    "with PKT_ALIAS_DENY_INCOMING");
+
+	po4 = ip_packet(0, 64);
+	po4->ip_src = pub2;
+	po4->ip_dst = masq;
+	set_udp(po4, dport2, aport);
+	ret = LibAliasIn(la, po4, 64);
+	ATF_CHECK_EQ_MSG(PKT_ALIAS_IGNORED, ret,
+	    "incoming packet from different address and port not ignored "
+	    "with PKT_ALIAS_DENY_INCOMING");
+
+	free(po);
+	free(po2);
+	free(po3);
+	free(po4);
+	LibAliasUninit(la);
+}
+
+ATF_TC_WITHOUT_HEAD(12_udp_eim_hairpinning);
+ATF_TC_BODY(12_udp_eim_hairpinning, dummy)
+{
+	struct libalias *la = LibAliasInit(NULL);
+	struct ip *po, *po2, *po3;
+	struct udphdr *uo, *uo2, *uo3;
+	uint16_t sport1 = 0x1234;
+	uint16_t sport2 = 0x2345;
+	uint16_t dport = 0x5678;
+	uint16_t extport1, extport2;
+
+	ATF_REQUIRE(la != NULL);
+	LibAliasSetAddress(la, masq);
+	LibAliasSetMode(la, PKT_ALIAS_UDP_EIM, ~0);
+
+	/* prv1 sends out somewhere (eg. a STUN server) */
+	po = ip_packet(0, 64);
+	UDP_NAT_CHECK(po, uo, prv1, sport1, pub, dport, masq);
+	extport1 = ntohs(uo->uh_sport);
+
+	/* prv2, behind the same NAT as prv1, also sends out somewhere */
+	po2 = ip_packet(0, 64);
+	UDP_NAT_CHECK(po2, uo2, prv2, sport2, pub, dport, masq);
+	extport2 = ntohs(uo2->uh_sport);
+
+	/* hairpin: prv1 sends to prv2's external NAT mapping
+	 * (unaware it could address it internally instead).
+	 */
+	po3 = ip_packet(0, 64);
+	UDP_NAT_CHECK(po3, uo3, prv1, sport1, masq, extport2, masq);
+	UDP_UNNAT_CHECK(po3, uo3, masq, extport1, masq, extport2,
+	    prv2, sport2);
+
+	free(po);
+	free(po2);
+	free(po3);
+	LibAliasUninit(la);
+}
+
 ATF_TP_ADD_TCS(natout)
 {
 	/* Use "dd if=/dev/random bs=2 count=1 | od -x" to reproduce */
@@ -372,6 +538,10 @@ ATF_TP_ADD_TCS(natout)
 	ATF_TP_ADD_TC(natout, 6_cleartable);
 	ATF_TP_ADD_TC(natout, 7_stress);
 	ATF_TP_ADD_TC(natout, 8_portrange);
+	ATF_TP_ADD_TC(natout, 9_udp_eim_mapping);
+	ATF_TP_ADD_TC(natout, 10_udp_eim_out_in);
+	ATF_TP_ADD_TC(natout, 11_udp_eim_with_deny_incoming);
+	ATF_TP_ADD_TC(natout, 12_udp_eim_hairpinning);
 
 	return atf_no_error();
 }
