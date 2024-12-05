@@ -54,6 +54,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <machine/dump.h>
 #include <machine/ifunc.h>
@@ -84,6 +85,11 @@ SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled, CTLFLAG_RDTUN,
     &superpages_enabled, 0, "Enable support for transparent superpages");
+
+static int pmap_growkernel_panic = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, growkernel_panic, CTLFLAG_RDTUN,
+    &pmap_growkernel_panic, 0,
+    "panic on failure to allocate kernel page table page");
 
 #ifdef AIM
 int
@@ -161,7 +167,7 @@ DEFINE_PMAP_IFUNC(void, copy_page, (vm_page_t, vm_page_t));
 DEFINE_PMAP_IFUNC(void, copy_pages,
     (vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize));
-DEFINE_PMAP_IFUNC(void, growkernel, (vm_offset_t));
+DEFINE_PMAP_IFUNC(int, growkernel_nopanic, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, init, (void));
 DEFINE_PMAP_IFUNC(vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
 DEFINE_PMAP_IFUNC(int, pinit, (pmap_t));
@@ -258,4 +264,15 @@ void
 pmap_active_cpus(pmap_t pmap, cpuset_t *res)
 {
 	*res = pmap->pm_active;
+}
+
+int
+pmap_growkernel(vm_offset_t addr)
+{
+	int rv;
+
+	rv = pmap_growkernel_nopanic(addr);
+	if (rv != KERN_SUCCESS && pmap_growkernel_panic)
+		panic("pmap_growkernel: no memory to grow kernel");
+	return (rv);
 }

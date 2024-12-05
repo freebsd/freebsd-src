@@ -109,6 +109,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/pmap_base.h>
 
@@ -251,6 +252,11 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD,
     &pv_entry_spare, 0,
     "Current number of spare pv entries");
 #endif
+
+static int pmap_growkernel_panic = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, growkernel_panic, CTLFLAG_RDTUN,
+    &pmap_growkernel_panic, 0,
+    "panic on failure to allocate kernel page table page");
 
 struct pmap kernel_pmap_store;
 static struct pmap_methods *pmap_methods_ptr;
@@ -893,11 +899,15 @@ pmap_init_pat(void)
 	pmap_methods_ptr->pm_init_pat();
 }
 
-void
+int
 pmap_growkernel(vm_offset_t addr)
 {
+	int rv;
 
-	pmap_methods_ptr->pm_growkernel(addr);
+	rv = pmap_methods_ptr->pm_growkernel(addr);
+	if (rv != KERN_SUCCESS && pmap_growkernel_panic)
+		panic("pmap_growkernel: no memory to grow kernel");
+	return (rv);
 }
 
 void
