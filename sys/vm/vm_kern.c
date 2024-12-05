@@ -830,8 +830,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	vm_size_t quantum;
 	int domain;
 
-	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	kernel_map->system_map = 1;
+	vm_map_init_system(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
 	vm_map_lock(kernel_map);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	(void)vm_map_insert(kernel_map, NULL, 0,
