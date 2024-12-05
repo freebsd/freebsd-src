@@ -1240,7 +1240,7 @@ exec_map_stack(struct image_params *imgp)
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
 	    sv->sv_usrstack, find_space, stack_prot, VM_PROT_ALL,
-	    MAP_STACK_GROWS_DOWN);
+	    MAP_STACK_AREA);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
 		    "failed, mach error %d errno %d\n", (uintmax_t)ssiz,

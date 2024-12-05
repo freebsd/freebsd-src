@@ -376,7 +376,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_PREFAULT_MADVISE	0x00000200    /* from (user) madvise request */
 #define	MAP_WRITECOUNT		0x00000400
 #define	MAP_REMAP		0x00000800
-#define	MAP_STACK_GROWS_DOWN	0x00001000
+#define	MAP_STACK_AREA		0x00001000
 #define	MAP_COW_UNUSED0		0x00002000
 #define	MAP_ACC_CHARGED		0x00004000
 #define	MAP_ACC_NO_CHARGE	0x00008000
