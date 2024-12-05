@@ -136,7 +136,7 @@ void		 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
 vm_paddr_t	 pmap_extract(pmap_t pmap, vm_offset_t va);
 vm_page_t	 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va,
 		    vm_prot_t prot);
-void		 pmap_growkernel(vm_offset_t);
+int		 pmap_growkernel(vm_offset_t);
 void		 pmap_init(void);
 bool		 pmap_is_modified(vm_page_t m);
 bool		 pmap_is_prefaultable(pmap_t pmap, vm_offset_t va);

@@ -241,6 +241,11 @@ vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
 vm_offset_t dmap_max_addr;	/* The virtual address limit of the dmap */
 
+static int pmap_growkernel_panic = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, growkernel_panic, CTLFLAG_RDTUN,
+    &pmap_growkernel_panic, 0,
+    "panic on failure to allocate kernel page table page");
+
 /* This code assumes all L1 DMAP entries will be used */
 CTASSERT((DMAP_MIN_ADDRESS  & ~L1_OFFSET) == DMAP_MIN_ADDRESS);
 CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
@@ -1873,8 +1878,8 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
 /*
  * grow the number of kernel page table entries, if needed
  */
-void
-pmap_growkernel(vm_offset_t addr)
+static int
+pmap_growkernel_nopanic(vm_offset_t addr)
 {
 	vm_paddr_t paddr;
 	vm_page_t nkpg;
@@ -1894,7 +1899,8 @@ pmap_growkernel(vm_offset_t addr)
 			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("%s: no memory to grow kernel", __func__);
+				return (KERN_RESOURCE_SHORTAGE);
+
 			nkpg->pindex = pmap_l1_pindex(kernel_vm_end);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 
@@ -1920,7 +1926,7 @@ pmap_growkernel(vm_offset_t addr)
 		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 		    VM_ALLOC_NOFREE | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("%s: no memory to grow kernel", __func__);
+			return (KERN_RESOURCE_SHORTAGE);
 		nkpg->pindex = pmap_l2_pindex(kernel_vm_end);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 
@@ -1937,6 +1943,19 @@ pmap_growkernel(vm_offset_t addr)
 			break;                       
 		}
 	}
+
+	return (KERN_SUCCESS);
+}
+
+int
+pmap_growkernel(vm_offset_t addr)
+{
+	int rv;
+
+	rv = pmap_growkernel_nopanic(addr);
+	if (rv != KERN_SUCCESS && pmap_growkernel_panic)
+		panic("pmap_growkernel: no memory to grow kernel");
+	return (rv);
 }
 
 /***************************************************

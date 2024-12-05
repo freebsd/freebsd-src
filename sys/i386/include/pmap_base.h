@@ -107,7 +107,7 @@ struct pmap_methods {
 	void (*pm_remove_all)(vm_page_t);
 	void (*pm_init)(void);
 	void (*pm_init_pat)(void);
-	void (*pm_growkernel)(vm_offset_t);
+	int (*pm_growkernel)(vm_offset_t);
 	void (*pm_invalidate_page)(pmap_t, vm_offset_t);
 	void (*pm_invalidate_range)(pmap_t, vm_offset_t, vm_offset_t);
 	void (*pm_invalidate_all)(pmap_t);

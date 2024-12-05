@@ -1711,8 +1711,13 @@ vm_map_insert1(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 charged:
 	/* Expand the kernel pmap, if necessary. */
-	if (map == kernel_map && end > kernel_vm_end)
-		pmap_growkernel(end);
+	if (map == kernel_map && end > kernel_vm_end) {
+		int rv;
+
+		rv = pmap_growkernel(end);
+		if (rv != KERN_SUCCESS)
+			return (rv);
+	}
 	if (object != NULL) {
 		/*
 		 * OBJ_ONEMAPPING must be cleared unless this mapping
