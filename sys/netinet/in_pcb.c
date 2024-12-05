@@ -864,6 +864,93 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 
 #ifdef INET
 /*
+ * Determine whether the inpcb can be bound to the specified address/port tuple.
+ */
+static int
+in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
+    const u_short lport, int sooptions, int lookupflags, struct ucred *cred)
+{
+	int reuseport, reuseport_lb;
+
+	INP_LOCK_ASSERT(inp);
+	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
+
+	reuseport = (sooptions & SO_REUSEPORT);
+	reuseport_lb = (sooptions & SO_REUSEPORT_LB);
+
+	if (IN_MULTICAST(ntohl(laddr.s_addr))) {
+		/*
+		 * Treat SO_REUSEADDR as SO_REUSEPORT for multicast;
+		 * allow complete duplication of binding if
+		 * SO_REUSEPORT is set, or if SO_REUSEADDR is set
+		 * and a multicast address is bound on both
+		 * new and duplicated sockets.
+		 */
+		if ((sooptions & (SO_REUSEADDR | SO_REUSEPORT)) != 0)
+			reuseport = SO_REUSEADDR | SO_REUSEPORT;
+		/*
+		 * XXX: How to deal with SO_REUSEPORT_LB here?
+		 * Treat same as SO_REUSEPORT for now.
+		 */
+		if ((sooptions & (SO_REUSEADDR | SO_REUSEPORT_LB)) != 0)
+			reuseport_lb = SO_REUSEADDR | SO_REUSEPORT_LB;
+	} else if (!in_nullhost(laddr)) {
+		struct sockaddr_in sin;
+
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(sin);
+		sin.sin_addr = laddr;
+
+		/*
+		 * Is the address a local IP address?
+		 * If INP_BINDANY is set, then the socket may be bound
+		 * to any endpoint address, local or not.
+		 */
+		if ((inp->inp_flags & INP_BINDANY) == 0 &&
+		    ifa_ifwithaddr_check((const struct sockaddr *)&sin) == 0)
+			return (EADDRNOTAVAIL);
+	}
+
+	if (lport != 0) {
+		struct inpcb *t;
+
+		if (ntohs(lport) <= V_ipport_reservedhigh &&
+		    ntohs(lport) >= V_ipport_reservedlow &&
+		    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT))
+			return (EACCES);
+
+		if (!IN_MULTICAST(ntohl(laddr.s_addr)) &&
+		    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) != 0) {
+			t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
+			    INPLOOKUP_WILDCARD, cred);
+			if (t != NULL &&
+			    (inp->inp_socket->so_type != SOCK_STREAM ||
+			     in_nullhost(t->inp_faddr)) &&
+			    (!in_nullhost(laddr) ||
+			     !in_nullhost(t->inp_laddr) ||
+			     (t->inp_socket->so_options & SO_REUSEPORT) ||
+			     (t->inp_socket->so_options & SO_REUSEPORT_LB) == 0) &&
+			    (inp->inp_cred->cr_uid != t->inp_cred->cr_uid))
+				return (EADDRINUSE);
+		}
+		t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
+		    lookupflags, cred);
+		if (t != NULL && ((reuseport | reuseport_lb) &
+		    t->inp_socket->so_options) == 0) {
+#ifdef INET6
+			if (!in_nullhost(laddr) ||
+			    !in_nullhost(t->inp_laddr) ||
+			    (inp->inp_vflag & INP_IPV6PROTO) == 0 ||
+			    (t->inp_vflag & INP_IPV6PROTO) == 0)
+#endif
+				return (EADDRINUSE);
+		}
+	}
+	return (0);
+}
+
+/*
  * Set up a bind operation on a PCB, performing port allocation
  * as required, but do not actually modify the PCB. Callers can
  * either complete the bind by setting inp_laddr/inp_lport and
@@ -880,14 +967,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct in_addr laddr;
 	u_short lport = 0;
-	int lookupflags = 0, reuseport = (so->so_options & SO_REUSEPORT);
+	int lookupflags, sooptions;
 	int error;
-
-	/*
-	 * XXX: Maybe we could let SO_REUSEPORT_LB set SO_REUSEPORT bit here
-	 * so that we don't have to add to the (already messy) code below.
-	 */
-	int reuseport_lb = (so->so_options & SO_REUSEPORT_LB);
 
 	/*
 	 * No state changes, so read locks are sufficient here.
@@ -898,7 +979,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 	laddr.s_addr = *laddrp;
 	if (sin != NULL && laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT|SO_REUSEPORT_LB)) == 0)
+
+	lookupflags = 0;
+	sooptions = atomic_load_int(&so->so_options);
+	if ((sooptions & (SO_REUSEADDR | SO_REUSEPORT | SO_REUSEPORT_LB)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
 	if (sin == NULL) {
 		if ((error = prison_local_ip4(cred, &laddr)) != 0)
@@ -920,73 +1004,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 		}
 		laddr = sin->sin_addr;
 
-		/* NB: lport is left as 0 if the port isn't being changed. */
-		if (IN_MULTICAST(ntohl(laddr.s_addr))) {
-			/*
-			 * Treat SO_REUSEADDR as SO_REUSEPORT for multicast;
-			 * allow complete duplication of binding if
-			 * SO_REUSEPORT is set, or if SO_REUSEADDR is set
-			 * and a multicast address is bound on both
-			 * new and duplicated sockets.
-			 */
-			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
-				reuseport = SO_REUSEADDR|SO_REUSEPORT;
-			/*
-			 * XXX: How to deal with SO_REUSEPORT_LB here?
-			 * Treat same as SO_REUSEPORT for now.
-			 */
-			if ((so->so_options &
-			    (SO_REUSEADDR|SO_REUSEPORT_LB)) != 0)
-				reuseport_lb = SO_REUSEADDR|SO_REUSEPORT_LB;
-		} else if (!in_nullhost(laddr)) {
-			sin->sin_port = 0;		/* yech... */
-			bzero(&sin->sin_zero, sizeof(sin->sin_zero));
-			/*
-			 * Is the address a local IP address?
-			 * If INP_BINDANY is set, then the socket may be bound
-			 * to any endpoint address, local or not.
-			 */
-			if ((inp->inp_flags & INP_BINDANY) == 0 &&
-			    ifa_ifwithaddr_check(
-			    (const struct sockaddr *)sin) == 0)
-				return (EADDRNOTAVAIL);
-		}
-		if (lport) {
-			struct inpcb *t;
-
-			if (ntohs(lport) <= V_ipport_reservedhigh &&
-			    ntohs(lport) >= V_ipport_reservedlow &&
-			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT))
-				return (EACCES);
-
-			if (!IN_MULTICAST(ntohl(laddr.s_addr)) &&
-			    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) != 0) {
-				t = in_pcblookup_local(pcbinfo, laddr, lport,
-				    INPLOOKUP_WILDCARD, cred);
-				if (t != NULL &&
-				    (so->so_type != SOCK_STREAM ||
-				     in_nullhost(t->inp_faddr)) &&
-				    (!in_nullhost(laddr) ||
-				     !in_nullhost(t->inp_laddr) ||
-				     (t->inp_socket->so_options & SO_REUSEPORT) ||
-				     (t->inp_socket->so_options & SO_REUSEPORT_LB) == 0) &&
-				    (inp->inp_cred->cr_uid !=
-				     t->inp_cred->cr_uid))
-					return (EADDRINUSE);
-			}
-			t = in_pcblookup_local(pcbinfo, laddr, lport,
-			    lookupflags, cred);
-			if (t != NULL && ((reuseport | reuseport_lb) &
-			    t->inp_socket->so_options) == 0) {
-#ifdef INET6
-				if (!in_nullhost(laddr) ||
-				    !in_nullhost(t->inp_laddr) ||
-				    (inp->inp_vflag & INP_IPV6PROTO) == 0 ||
-				    (t->inp_vflag & INP_IPV6PROTO) == 0)
-#endif
-					return (EADDRINUSE);
-			}
-		}
+		/* See if this address/port combo is available. */
+		error = in_pcbbind_avail(inp, laddr, lport, sooptions,
+		    lookupflags, cred);
+		if (error != 0)
+			return (error);
 	}
 	if (*lportp != 0)
 		lport = *lportp;
