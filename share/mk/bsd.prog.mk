@@ -93,6 +93,10 @@ CXXFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-cl
 # bsd.sanitizer.mk is not installed, so don't require it (e.g. for ports).
 .sinclude "bsd.sanitizer.mk"
 
+.if ${MACHINE_ARCH:Mloongarch64*} && ${COMPILER_TYPE} == "clang"
+CFLAGS+= -ftls-model=initial-exec
+.endif
+
 .if ${MACHINE_CPUARCH} == "riscv" && ${LINKER_FEATURES:Mriscv-relaxations} == ""
 CFLAGS += -mno-relax
 .endif

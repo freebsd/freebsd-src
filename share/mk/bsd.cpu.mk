@@ -13,6 +13,8 @@ MACHINE_CPU = amd64 sse2 sse mmx
 MACHINE_CPU = arm
 . elif ${MACHINE_CPUARCH} == "i386"
 MACHINE_CPU = i486
+. elif ${MACHINE_CPUARCH} == "loongarch"
+MACHINE_CPU = loongarch
 . elif ${MACHINE_ARCH} == "powerpc"
 MACHINE_CPU = aim
 . elif ${MACHINE_ARCH} == "powerpc64"
@@ -280,6 +282,9 @@ MACHINE_CPU = ssse3 sse3
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
+########## loongarch
+. elif ${MACHINE_CPUARCH} == "loongarch"
+MACHINE_CPU = loongarch
 ########## powerpc
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
@@ -331,6 +336,10 @@ MACHINE_CPU += armv7
 # it was a transition tool from FreeBSD 10 to 11 and is a bit of an odd duck.
 CFLAGS += -mfloat-abi=softfp
 . endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "loongarch"
+CFLAGS += -march=loongarch64 -mabi=lp64d
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
