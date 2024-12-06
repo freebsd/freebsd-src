@@ -448,11 +448,10 @@ struct tmpfs_mount {
  * NFS code.
  */
 struct tmpfs_fid_data {
+	unsigned short		tfd_len;
 	ino_t			tfd_id;
 	unsigned long		tfd_gen;
-};
-_Static_assert(sizeof(struct tmpfs_fid_data) <= MAXFIDSZ,
-    "(struct tmpfs_fid_data) is larger than (struct fid).fid_data");
+} __packed;
 
 struct tmpfs_dir_cursor {
 	struct tmpfs_dirent	*tdc_current;
