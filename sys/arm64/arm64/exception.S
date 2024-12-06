@@ -31,6 +31,7 @@
 #include <machine/armreg.h>
 
 #include "assym.inc"
+#include <sys/intr.h>
 
 	.text
 
