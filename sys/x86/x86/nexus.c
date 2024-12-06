@@ -262,7 +262,7 @@ nexus_attach(device_t dev)
 {
 
 	nexus_init_resources();
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/*
 	 * Explicitly add the legacy0 device here.  Other platform

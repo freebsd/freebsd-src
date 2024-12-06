@@ -1624,11 +1624,7 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
-	rc = bus_generic_probe(dev);
-	if (rc != 0) {
-		device_printf(dev, "failed to probe child drivers: %d\n", rc);
-		goto done;
-	}
+	bus_identify_children(dev);
 
 	/*
 	 * Ensure thread-safe mailbox access (in debug builds).

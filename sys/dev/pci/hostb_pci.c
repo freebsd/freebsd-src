@@ -69,7 +69,7 @@ static int
 pci_hostb_attach(device_t dev)
 {
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/*
 	 * If AGP capabilities are present on this device, then create

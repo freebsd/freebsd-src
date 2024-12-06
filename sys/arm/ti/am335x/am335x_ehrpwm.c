@@ -517,7 +517,7 @@ am335x_ehrpwm_attach(device_t dev)
 		// This driver can still do things even without the bus child.
 	}
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	return (bus_generic_attach(dev));
 fail:
 	PWM_LOCK_DESTROY(sc);

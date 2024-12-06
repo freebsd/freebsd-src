@@ -314,7 +314,7 @@ fwohci_pci_attach(device_t self)
 	}
 
 	/* probe and attach a child device(firewire) */
-	bus_generic_probe(self);
+	bus_identify_children(self);
 	bus_generic_attach(self);
 
 	return 0;

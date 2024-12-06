@@ -286,7 +286,7 @@ nexus_acpi_attach(device_t dev)
 {
 
 	nexus_init_resources();
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	if (BUS_ADD_CHILD(dev, 10, "acpi", 0) == NULL)
 		panic("failed to add acpi0 device");
 

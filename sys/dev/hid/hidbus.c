@@ -267,7 +267,7 @@ hidbus_attach_children(device_t dev)
 	 * attach twice in that case.
 	 */
 	sc->nest++;
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	sc->nest--;
 	if (sc->nest != 0)
 		return (0);

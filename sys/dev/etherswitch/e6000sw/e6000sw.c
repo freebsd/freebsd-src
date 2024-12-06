@@ -642,7 +642,7 @@ e6000sw_attach(device_t dev)
 		device_printf(dev, "switch is ready.\n");
 	E6000SW_UNLOCK(sc);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_generic_attach(dev);
 
 	taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_tt, hz);

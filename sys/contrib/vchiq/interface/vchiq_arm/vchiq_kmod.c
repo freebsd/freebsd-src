@@ -192,7 +192,7 @@ bcm_vchiq_attach(device_t dev)
 
 	vchiq_init();
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_generic_attach(dev);
 
 	return (0);

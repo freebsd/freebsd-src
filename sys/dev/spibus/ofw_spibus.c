@@ -83,7 +83,7 @@ ofw_spibus_attach(device_t dev)
 
 	sc->dev = dev;
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
 	/*

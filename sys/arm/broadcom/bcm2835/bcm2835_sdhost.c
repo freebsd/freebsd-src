@@ -472,7 +472,7 @@ bcm_sdhost_attach(device_t dev)
 
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_generic_attach(dev);
 
 	sdhci_start_slot(&sc->sc_slot);

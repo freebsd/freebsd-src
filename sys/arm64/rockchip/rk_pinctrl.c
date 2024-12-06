@@ -1511,7 +1511,7 @@ rk_pinctrl_attach(device_t dev)
 
 	simplebus_init(dev, node);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/* Attach child devices */
 	for (node = OF_child(node), gpio_unit = 0; node > 0;

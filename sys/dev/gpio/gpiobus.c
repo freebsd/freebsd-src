@@ -560,7 +560,7 @@ gpiobus_attach(device_t dev)
 	/*
 	 * Get parent's pins and mark them as unmapped
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
 	return (bus_generic_attach(dev));
