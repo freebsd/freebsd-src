@@ -56,6 +56,7 @@
 #define	CPTR_TRAP_ALL		0xc01037ff /* Enable all traps */
 #define	CPTR_RES0		0x7fefc800
 #define	CPTR_RES1		0x000032ff
+#define	CPTR_TZ			0x00000100
 #define	CPTR_TFP		0x00000400
 #define	CPTR_TTA		0x00100000
 /* Valid if HCR_EL2.E2H == 1 */
