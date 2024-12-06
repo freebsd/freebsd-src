@@ -39,6 +39,7 @@
 #define	NIRQ			1024
 #endif
 
+#ifndef LOCORE
 enum {
 	IRQ_SOFTWARE_USER,
 	IRQ_SOFTWARE_SUPERVISOR,
@@ -53,5 +54,6 @@ enum {
 	IRQ_EXTERNAL_HYPERVISOR,
 	IRQ_EXTERNAL_MACHINE,
 };
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

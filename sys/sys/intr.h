@@ -33,13 +33,13 @@
 #error Need INTRNG for this file
 #endif
 
-#include <sys/systm.h>
-
 #include <machine/intr.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #define INTR_ROOT_IRQ	0
+
+#ifndef LOCORE
 
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI = 0,
@@ -170,5 +170,7 @@ void intr_ipi_dispatch(u_int ipi);
 
 /* Main interrupt handler called from asm on most archs except riscv. */
 void intr_irq_handler(struct trapframe *tf, uint32_t rootnum);
+
+#endif /* !LOCORE */
 
 #endif	/* _SYS_INTR_H */
