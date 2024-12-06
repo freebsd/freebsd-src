@@ -62,8 +62,6 @@ extern u_int num_msi_irqs;
  */
 #define	MSI_INTEL_ADDR_BASE		0xfee00000
 
-#ifndef LOCORE
-
 typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
@@ -165,6 +163,5 @@ int	msix_release(int irq);
 void	xen_intr_alloc_irqs(void);
 #endif
 
-#endif	/* !LOCORE */
 #endif	/* _KERNEL */
 #endif	/* !__X86_INTR_MACHDEP_H__ */
