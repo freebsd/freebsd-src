@@ -324,6 +324,7 @@ enum tokens {
 	TOK_SETMARK,
 
 	TOK_SKIPACTION,
+	TOK_UDP_EIM,
 };
 
 /*
