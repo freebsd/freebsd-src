@@ -842,12 +842,7 @@ usbhid_attach(device_t dev)
 	}
 
 	device_set_ivars(child, &sc->sc_hw);
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach child: %d\n", error);
-		usbhid_detach(dev);
-		return (error);
-	}
+	bus_attach_children(dev);
 
 	return (0);			/* success */
 }

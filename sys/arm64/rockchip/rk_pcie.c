@@ -1354,7 +1354,8 @@ rk_pcie_attach(device_t dev)
 
 	DELAY(250000);
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 out_full:
 	bus_teardown_intr(dev, sc->sys_irq_res, sc->sys_irq_cookie);

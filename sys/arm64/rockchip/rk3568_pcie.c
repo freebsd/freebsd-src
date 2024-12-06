@@ -362,7 +362,8 @@ rk3568_pcie_attach(device_t dev)
 		goto fail;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 fail:
 	rk3568_pcie_detach(dev);
 	return (ENXIO);

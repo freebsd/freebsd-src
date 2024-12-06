@@ -558,7 +558,8 @@ ow_attach(device_t ndev)
 	sc->dev = ndev;
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev), "ow", MTX_DEF);
 	ow_enumerate(ndev, ow_search_rom, ow_device_found);
-	return bus_generic_attach(ndev);
+	bus_attach_children(ndev);
+	return (0);
 }
 
 static int

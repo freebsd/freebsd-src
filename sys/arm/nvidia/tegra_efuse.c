@@ -481,7 +481,8 @@ tegra_efuse_attach(device_t dev)
 
 	if (bootverbose)
 		tegra_efuse_dump_sku();
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	dev_sc = NULL;

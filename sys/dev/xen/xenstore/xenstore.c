@@ -1069,7 +1069,7 @@ xs_attach_deferred(void *arg)
 {
 
 	bus_identify_children(xs.xs_dev);
-	bus_generic_attach(xs.xs_dev);
+	bus_attach_children(xs.xs_dev);
 
 	config_intrhook_disestablish(&xs.xs_attachcb);
 }
@@ -1080,7 +1080,7 @@ xs_attach_late(void *arg, int pending)
 
 	KASSERT((pending == 1), ("xs late attach queued several times"));
 	bus_identify_children(xs.xs_dev);
-	bus_generic_attach(xs.xs_dev);
+	bus_attach_children(xs.xs_dev);
 }
 
 /**

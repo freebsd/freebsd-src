@@ -127,7 +127,8 @@ ti_scm_attach(device_t dev)
 			device_probe_and_attach(cdev);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

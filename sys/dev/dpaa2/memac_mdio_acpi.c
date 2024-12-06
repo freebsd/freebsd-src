@@ -263,7 +263,7 @@ memac_mdio_acpi_attach(device_t dev)
 	    memac_mdio_acpi_probe_child, &ctx);
 	if (ctx.countok > 0) {
 		bus_identify_children(dev);
-		bus_generic_attach(dev);
+		bus_attach_children(dev);
 	}
 
 	return (0);

@@ -286,7 +286,7 @@ csa_attach(device_t dev)
 	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 	device_set_ivars(scp->midi, func);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 

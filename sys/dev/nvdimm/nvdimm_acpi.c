@@ -188,9 +188,7 @@ nvdimm_root_attach(device_t dev)
 	error = nvdimm_root_create_devs(dev, nfitbl);
 	if (error != 0)
 		return (error);
-	error = bus_generic_attach(dev);
-	if (error != 0)
-		return (error);
+	bus_attach_children(dev);
 	root = device_get_softc(dev);
 	error = nvdimm_root_create_spas(root, nfitbl);
 	AcpiPutTable(&nfitbl->Header);

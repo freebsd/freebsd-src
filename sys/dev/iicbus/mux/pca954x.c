@@ -214,7 +214,7 @@ pca954x_attach(device_t dev)
 	sc->descr = descr = pca954x_find_chip(dev);
 	error = iicmux_attach(dev, device_get_parent(dev), descr->numchannels);
 	if (error == 0)
-                bus_generic_attach(dev);
+                bus_attach_children(dev);
 
 	return (error);
 }

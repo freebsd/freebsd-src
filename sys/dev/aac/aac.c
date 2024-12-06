@@ -441,8 +441,7 @@ aac_startup(void *arg)
 	sc->aac_state &= ~AAC_STATE_SUSPEND;
 
 	/* poke the bus to actually attach the child devices */
-	if (bus_generic_attach(sc->aac_dev))
-		device_printf(sc->aac_dev, "bus_generic_attach failed\n");
+	bus_attach_children(sc->aac_dev);
 
 	/* disconnect ourselves from the intrhook chain */
 	config_intrhook_disestablish(&sc->aac_ich);
@@ -3324,7 +3323,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			if (added) {
 				mtx_unlock(&sc->aac_io_lock);
 				bus_topo_lock();
-				bus_generic_attach(sc->aac_dev);
+				bus_attach_children(sc->aac_dev);
 				bus_topo_unlock();
 				mtx_lock(&sc->aac_io_lock);
 			}
@@ -3808,5 +3807,5 @@ aac_get_bus_info(struct aac_softc *sc)
 	}
 
 	if (found)
-		bus_generic_attach(sc->aac_dev);
+		bus_attach_children(sc->aac_dev);
 }

@@ -338,7 +338,8 @@ rk_spi_attach(device_t dev)
 	RK_SPI_WRITE_4(sc, RK_SPI_TXFTLR, sc->fifo_size/2 - 1);
 	RK_SPI_WRITE_4(sc, RK_SPI_RXFTLR, sc->fifo_size/2 - 1);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	rk_spi_detach(dev);

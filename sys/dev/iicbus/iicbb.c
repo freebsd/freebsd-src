@@ -164,7 +164,7 @@ iicbb_attach(device_t dev)
 	    "io_latency", CTLFLAG_RWTUN, &sc->io_latency,
 	    0, "Estimate of pin toggling latency, microseconds");
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

@@ -64,7 +64,8 @@ ofw_regulator_bus_attach(device_t dev)
 		simplebus_add_device(dev, child, 0, NULL, -1, NULL);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_method_t ofw_regulator_bus_methods[] = {

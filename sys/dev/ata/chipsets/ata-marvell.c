@@ -128,7 +128,7 @@ ata_marvell_chipinit(device_t dev)
 		child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (child != NULL) {
 		    device_set_ivars(child, (void *)(intptr_t)-1);
-		    bus_generic_attach(dev);
+		    bus_attach_children(dev);
 		}
 	}
         ctlr->ch_attach = ata_marvell_ch_attach;

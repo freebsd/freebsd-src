@@ -429,7 +429,8 @@ qcom_spi_attach(device_t dev)
 	/* Register for debug sysctl */
 	qcom_spi_sysctl_attach(sc);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 error:
 	if (sc->sc_irq_h)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_h);

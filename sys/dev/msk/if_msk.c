@@ -1972,11 +1972,7 @@ mskc_attach(device_t dev)
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach port(s)\n");
-		goto fail;
-	}
+	bus_attach_children(dev);
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |

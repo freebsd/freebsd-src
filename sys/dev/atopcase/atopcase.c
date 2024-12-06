@@ -533,7 +533,8 @@ atopcase_init(struct atopcase_softc *sc)
 	if (sc->sc_tq != NULL)
 		taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_task, hz / 120);
 
-	return (bus_generic_attach(sc->sc_dev));
+	bus_attach_children(sc->sc_dev);
+	return (0);
 
 err:
 	return (err);

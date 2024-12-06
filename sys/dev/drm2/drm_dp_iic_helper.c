@@ -211,7 +211,7 @@ iic_dp_aux_attach(device_t idev)
 	if (aux_data->port == NULL)
 		return (ENXIO);
 	device_quiet(aux_data->port);
-	bus_generic_attach(idev);
+	bus_attach_children(idev);
 	return (0);
 }
 

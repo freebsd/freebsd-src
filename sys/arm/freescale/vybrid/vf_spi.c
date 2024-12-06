@@ -197,7 +197,8 @@ spi_attach(device_t dev)
 	WRITE4(sc, SPI_CTAR0, reg);
 
 	device_add_child(dev, "spibus", 0);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

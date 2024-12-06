@@ -1537,7 +1537,8 @@ rk_pinctrl_attach(device_t dev)
 
 	fdt_pinctrl_configure_tree(dev);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

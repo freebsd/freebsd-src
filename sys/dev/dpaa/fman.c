@@ -473,7 +473,8 @@ fman_attach(device_t dev)
 		goto err;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 err:
 	fman_detach(dev);

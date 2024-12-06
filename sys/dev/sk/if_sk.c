@@ -1718,11 +1718,7 @@ skc_attach(device_t dev)
 	/* Turn on the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach port(s)\n");
-		goto fail;
-	}
+	bus_attach_children(dev);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sk_res[1], INTR_TYPE_NET|INTR_MPSAFE,

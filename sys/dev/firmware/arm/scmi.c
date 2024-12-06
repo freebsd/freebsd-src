@@ -182,9 +182,9 @@ scmi_attach(device_t dev)
 	for (node = OF_child(node); node > 0; node = OF_peer(node))
 		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
 
-	error = bus_generic_attach(dev);
+	bus_attach_children(dev);
 
-	return (error);
+	return (0);
 }
 
 static int

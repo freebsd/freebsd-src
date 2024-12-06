@@ -260,9 +260,7 @@ adm6996fc_attach(device_t dev)
 
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		goto failed;
+	bus_attach_children(dev);
 	
 	callout_init(&sc->callout_tick, 0);
 

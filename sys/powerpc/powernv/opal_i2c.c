@@ -144,7 +144,8 @@ opal_i2c_attach(device_t dev)
 
 	I2C_LOCK_INIT(sc);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

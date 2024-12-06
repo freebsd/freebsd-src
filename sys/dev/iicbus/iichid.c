@@ -1199,11 +1199,8 @@ iichid_attach(device_t dev)
 	}
 
 	device_set_ivars(child, &sc->hw);
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach child: error %d\n", error);
-		iichid_detach(dev);
-	}
+	bus_attach_children(dev);
+	error = 0;
 done:
 	iicbus_request_bus(device_get_parent(dev), dev, IIC_WAIT);
 	if (!sc->open) {

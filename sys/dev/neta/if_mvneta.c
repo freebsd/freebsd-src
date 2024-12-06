@@ -807,8 +807,8 @@ mvneta_attach(device_t self)
 				mvneta_detach(self);
 				return (ENXIO);
 			}
-			bus_generic_attach(sc->dev);
-			bus_generic_attach(child);
+			bus_attach_children(sc->dev);
+			bus_attach_children(child);
 		}
 
 		/* Configure MAC media */

@@ -127,7 +127,7 @@ iicbus_attach_common(device_t dev, u_int bus_freq)
 #endif
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
         return (0);
 }
 

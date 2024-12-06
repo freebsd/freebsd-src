@@ -535,7 +535,8 @@ acpi_pcib_acpi_attach(device_t dev)
 	error = ENXIO;
 	goto errout;
     }
-    return (bus_generic_attach(dev));
+    bus_attach_children(dev);
+    return (0);
 
 errout:
     device_printf(device_get_parent(dev), "couldn't attach pci bus\n");

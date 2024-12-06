@@ -260,7 +260,8 @@ tegra_mc_attach(device_t dev)
 	/* Enable Interrupts */
 	WR4(sc, MC_INTMASK, MC_INT_INT_MASK);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->clk != NULL)

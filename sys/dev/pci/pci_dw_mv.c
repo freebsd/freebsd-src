@@ -306,7 +306,8 @@ pci_mv_attach(device_t dev)
 		goto out;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 out:
 	/* XXX Cleanup */
 	return (rv);

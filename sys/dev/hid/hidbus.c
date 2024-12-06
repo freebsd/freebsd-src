@@ -272,9 +272,10 @@ hidbus_attach_children(device_t dev)
 	if (sc->nest != 0)
 		return (0);
 
-	if (hid_is_keyboard(sc->rdesc.data, sc->rdesc.len) != 0)
-		error = bus_generic_attach(dev);
-	else
+	if (hid_is_keyboard(sc->rdesc.data, sc->rdesc.len) != 0) {
+		bus_attach_children(dev);
+		error = 0;
+	} else
 		error = bus_delayed_attach_children(dev);
 	if (error != 0)
 		device_printf(dev, "failed to attach child: error %d\n", error);

@@ -162,7 +162,7 @@ legacy_attach(device_t dev)
 	 * found.
 	 */
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/*
 	 * If we didn't see ISA on a PCI bridge, add a top-level bus.
@@ -343,7 +343,7 @@ static int
 cpu_attach(device_t dev)
 {
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

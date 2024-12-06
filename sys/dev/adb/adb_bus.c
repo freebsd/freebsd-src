@@ -182,7 +182,7 @@ adb_bus_enumerate(void *xdev)
 		}
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	config_intrhook_disestablish(&sc->enum_hook);
 }

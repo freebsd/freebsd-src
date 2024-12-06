@@ -193,7 +193,7 @@ vf_i2c_attach_common(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

@@ -641,8 +641,7 @@ cxgb_controller_attach(device_t dev)
 		sc->portdev[i] = child;
 		device_set_softc(child, pi);
 	}
-	if ((error = bus_generic_attach(dev)) != 0)
-		goto out;
+	bus_attach_children(dev);
 
 	/* initialize sge private state */
 	t3_sge_init_adapter(sc);

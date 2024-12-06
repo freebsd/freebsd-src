@@ -362,7 +362,8 @@ brcm_iproc_mdio_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 error:
 	brcm_iproc_mdio_detach(dev);

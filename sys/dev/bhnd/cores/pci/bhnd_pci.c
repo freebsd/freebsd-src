@@ -125,7 +125,6 @@ int
 bhnd_pci_generic_attach(device_t dev)
 {
 	struct bhnd_pci_softc	*sc;
-	int			 error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -141,16 +140,9 @@ bhnd_pci_generic_attach(device_t dev)
 	BHND_PCI_LOCK_INIT(sc);
 
 	/* Probe and attach children */
-	if ((error = bus_generic_attach(dev)))
-		goto cleanup;
+	bus_attach_children(dev);
 
 	return (0);
-
-cleanup:
-	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
-	BHND_PCI_LOCK_DESTROY(sc);
-
-	return (error);
 }
 
 int

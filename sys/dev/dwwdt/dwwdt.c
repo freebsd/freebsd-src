@@ -290,7 +290,8 @@ dwwdt_attach(device_t dev)
 	sc->sc_evtag = EVENTHANDLER_REGISTER(watchdog_list, dwwdt_event, sc, 0);
 	sc->sc_status = DWWDT_STOPPED;
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 err_no_freq:
 	clk_release(sc->sc_clk);

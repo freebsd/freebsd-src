@@ -722,7 +722,8 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus. */
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->irq_h != NULL)

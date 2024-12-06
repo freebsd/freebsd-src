@@ -182,7 +182,8 @@ simplebus_attach(device_t dev)
 	if (rv != 0)
 		return (rv);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 int

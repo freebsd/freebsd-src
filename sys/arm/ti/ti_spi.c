@@ -264,8 +264,9 @@ ti_spi_attach(device_t dev)
 #endif
 
 	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int

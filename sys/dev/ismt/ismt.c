@@ -607,11 +607,7 @@ ismt_attach(device_t dev)
 	sc->mmio_handle = rman_get_bushandle(sc->mmio_res);
 
 	/* Attach "smbus" child */
-	if ((err = bus_generic_attach(dev)) != 0) {
-		device_printf(dev, "failed to attach child: %d\n", err);
-		err = ENXIO;
-		goto fail;
-	}
+	bus_attach_children(dev);
 
 	bus_dma_tag_create(bus_get_dma_tag(dev), 4, PAGE_SIZE,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,

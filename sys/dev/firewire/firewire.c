@@ -455,7 +455,7 @@ firewire_attach(device_t dev)
 	bus_identify_children(dev);
 
 	/* launch attachement of the added children */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/* bus_reset */
 	FW_GLOCK(fc);

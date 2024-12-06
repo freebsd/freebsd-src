@@ -273,9 +273,7 @@ static int ips_diskdev_init(ips_softc_t *sc)
 			device_set_ivars(sc->diskdev[i],(void *)(uintptr_t) i);
 		}
 	}
-	if(bus_generic_attach(sc->dev)){
-		device_printf(sc->dev, "Attaching bus failed\n");
-	}
+	bus_attach_children(sc->dev);
 	return 0;
 }
 

@@ -517,7 +517,8 @@ pmu_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, pmu_shutdown, sc,
 	    SHUTDOWN_PRI_LAST);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int 

@@ -374,7 +374,7 @@ viapm_pro_attach(device_t dev)
 	viapm->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/* disable slave function */
 	VIAPM_OUTB(SMBSCTRL, VIAPM_INB(SMBSCTRL) & ~SMBSCTRL_ENABLE);
@@ -426,7 +426,7 @@ viapm_586b_attach(device_t dev)
 	if (!(viapm->iicbb = device_add_child(dev, "iicbb", -1)))
 		goto error;
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return 0;
 

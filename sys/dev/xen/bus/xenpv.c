@@ -127,10 +127,9 @@ xenpv_attach(device_t dev)
 	 * found.
 	 */
 	bus_identify_children(dev);
+	bus_attach_children(dev);
 
-	error = bus_generic_attach(dev);
-
-	return (error);
+	return (0);
 }
 
 static int

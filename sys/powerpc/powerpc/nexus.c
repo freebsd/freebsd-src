@@ -142,7 +142,7 @@ nexus_attach(device_t dev)
 
 	/* Now, probe children. */
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

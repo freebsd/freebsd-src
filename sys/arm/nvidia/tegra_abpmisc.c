@@ -151,7 +151,8 @@ tegra_abpmisc_attach(device_t dev)
 	}
 
 	dev_sc = sc;
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->abp_misc_res != NULL)

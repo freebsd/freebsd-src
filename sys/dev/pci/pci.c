@@ -4495,7 +4495,8 @@ pci_attach(device_t dev)
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	pci_add_children(dev, domain, busno);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 int

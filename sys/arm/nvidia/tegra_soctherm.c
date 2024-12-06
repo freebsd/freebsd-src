@@ -780,7 +780,8 @@ soctherm_attach(device_t dev)
 	}
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->irq_ih != NULL)

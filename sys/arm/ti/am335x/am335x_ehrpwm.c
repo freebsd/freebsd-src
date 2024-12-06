@@ -518,7 +518,8 @@ am335x_ehrpwm_attach(device_t dev)
 	}
 
 	bus_identify_children(dev);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 fail:
 	PWM_LOCK_DESTROY(sc);
 	if (sc->sc_mem_res)

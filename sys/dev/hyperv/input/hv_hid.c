@@ -443,9 +443,7 @@ hv_hid_attach(device_t dev)
 		goto out;
 	}
 	device_set_ivars(child, &sc->hdi);
-	ret = bus_generic_attach(dev);
-	if (ret != 0)
-		device_printf(sc->dev, "failed to attach hidbus\n");
+	bus_attach_children(dev);
 out:
 	if (ret != 0)
 		hv_hid_detach(dev);

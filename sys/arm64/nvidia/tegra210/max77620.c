@@ -435,7 +435,8 @@ max77620_attach(device_t dev)
 		goto fail;
 	}
 #endif
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->irq_h != NULL)

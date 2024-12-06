@@ -243,7 +243,7 @@ gic_acpi_attach(device_t dev)
 	/* If we have children probe and attach them */
 	if (arm_gic_add_children(dev)) {
 		bus_identify_children(dev);
-		return (bus_generic_attach(dev));
+		bus_attach_children(dev);
 	}
 
 	return (0);

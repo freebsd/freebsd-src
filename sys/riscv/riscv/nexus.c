@@ -172,7 +172,7 @@ nexus_attach(device_t dev)
 	nexus_add_child(dev, 2, "ofwbus", 0);
 
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

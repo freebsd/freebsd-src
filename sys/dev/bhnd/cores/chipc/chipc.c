@@ -211,13 +211,12 @@ chipc_attach(device_t dev)
 	 * response to ChipCommin API requests.
 	 * 
 	 * Since our children may need access to ChipCommon, this must be done
-	 * before attaching our children below (via bus_generic_attach).
+	 * before attaching our children below (via bus_attach_children).
 	 */
 	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
 		goto failed;
 
-	if ((error = bus_generic_attach(dev)))
-		goto failed;
+	bus_attach_children(dev);
 
 	return (0);
 
