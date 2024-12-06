@@ -239,7 +239,7 @@ static const char * const showopt_list[] = {
 
 static const char * const tblcmdopt_list[] = {
 	"kill", "flush", "add", "delete", "load", "replace", "show",
-	"test", "zero", "expire", NULL
+	"test", "zero", "expire", "reset", NULL
 };
 
 static const char * const debugopt_list[] = {

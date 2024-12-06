@@ -165,6 +165,85 @@ zero_one_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "reset_nonzero" "cleanup"
+reset_nonzero_head()
+{
+	atf_set descr 'Test zeroing an address with non-zero counters'
+	atf_set require.user root
+}
+
+reset_nonzero_body()
+{
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+	ifconfig ${epair_send}a inet alias 192.0.2.3/24
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.1, 192.0.2.3 }" \
+	    "table <bar> counters { }" \
+	    "block all" \
+	    "pass in from <foo> to any" \
+	    "pass out from any to <foo>" \
+	    "pass on notReallyAnIf from <bar> to <bar>" \
+	    "set skip on lo"
+
+	# Nonexisting table can't be reset, following `-T show`.
+	atf_check -o ignore \
+	    -s not-exit:0 \
+	    -e inline:"pfctl: Table does not exist.\n" \
+	    jexec alcatraz pfctl -t nonexistent -T reset
+
+	atf_check -o ignore \
+	    -s exit:0 \
+	    -e inline:"0/0 stats cleared.\n" \
+	    jexec alcatraz pfctl -t bar -T reset
+
+	# No-op is a valid operation.
+	atf_check -s exit:0 \
+	    -e inline:"0/2 stats cleared.\n" \
+	    jexec alcatraz pfctl -t foo -T reset
+
+	atf_check -s exit:0 -o ignore ping -c 3 -S 192.0.2.3 192.0.2.2
+
+	atf_check -s exit:0 -e ignore \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    jexec alcatraz pfctl -t foo -vvT show
+
+	local clrd uniq
+	clrd=`jexec alcatraz pfctl -t foo -vvT show | grep -c Cleared`
+	uniq=`jexec alcatraz pfctl -t foo -vvT show | sort -u | grep -c Cleared`
+	atf_check_equal "$clrd" 2
+	atf_check_equal "$uniq" 1 # time they were added
+
+	atf_check -s exit:0 -e ignore \
+	    -e inline:"1/2 stats cleared.\n" \
+	    jexec alcatraz pfctl -t foo -T reset
+
+	clrd=`jexec alcatraz pfctl -t foo -vvT show | grep -c Cleared`
+	uniq=`jexec alcatraz pfctl -t foo -vvT show | sort -u | grep -c Cleared`
+	atf_check_equal "$clrd" 2
+	atf_check_equal "$uniq" 2 # 192.0.2.3 should get new timestamp
+
+	atf_check -s exit:0 -e ignore \
+	    -o not-match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    -o not-match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
+	    -o match:'In/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    -o match:'Out/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
+	    jexec alcatraz pfctl -t foo -vvT show
+}
+
+reset_nonzero_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "pr251414" "cleanup"
 pr251414_head()
 {
@@ -381,6 +460,7 @@ atf_init_test_cases()
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
 	atf_add_test_case "zero_one"
+	atf_add_test_case "reset_nonzero"
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
 	atf_add_test_case "network"
