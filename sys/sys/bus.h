@@ -442,7 +442,8 @@ struct resource *
 				   rman_res_t count, u_int flags);
 int	bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
 			      rman_res_t *newstart);
-int	bus_generic_attach(device_t dev);
+int	bus_generic_attach(device_t dev)
+	__deprecated1("Use bus_attach_children instead");
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
 int	bus_generic_child_location(device_t dev, device_t child, struct sbuf *sb);
@@ -478,7 +479,8 @@ int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
-int	bus_generic_probe(device_t dev);
+int	bus_generic_probe(device_t dev)
+	__deprecated1("Use bus_identify_children instead");
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
 int	bus_generic_release_resource(device_t bus, device_t child,
