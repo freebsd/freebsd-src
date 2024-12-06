@@ -292,7 +292,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 {
 	struct pfioc_table io;
 
-	if (size < 0 || (size && !tbl) || addr == NULL) {
+	if (size < 0 || !tbl || (size && !addr)) {
 		errno = EINVAL;
 		return (-1);
 	}
