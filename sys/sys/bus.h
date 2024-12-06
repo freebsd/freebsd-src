@@ -595,9 +595,9 @@ int	bus_child_pnpinfo(device_t child, struct sbuf *sb);
 int	bus_child_location(device_t child, struct sbuf *sb);
 
 void	bus_attach_children(device_t dev);
+void	bus_delayed_attach_children(device_t bus);
 int	bus_detach_children(device_t dev);
 void	bus_enumerate_hinted_children(device_t bus);
-int	bus_delayed_attach_children(device_t bus);
 void	bus_identify_children(device_t dev);
 
 static __inline struct resource *

@@ -889,7 +889,7 @@ ti_i2c_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	err = bus_delayed_attach_children(dev);
+	bus_delayed_attach_children(dev);
 
 out:
 	if (err) {

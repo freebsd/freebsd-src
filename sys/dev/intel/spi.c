@@ -529,7 +529,8 @@ intelspi_attach(device_t dev)
 
 	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 
 error:
 	INTELSPI_LOCK_DESTROY(sc);
