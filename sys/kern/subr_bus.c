@@ -3402,6 +3402,22 @@ bus_generic_add_child(device_t dev, u_int order, const char *name, int unit)
 int
 bus_generic_probe(device_t dev)
 {
+	bus_identify_children(dev);
+	return (0);
+}
+
+/**
+ * @brief Ask drivers to add child devices of the given device.
+ *
+ * This function allows drivers for child devices of a bus to identify
+ * child devices and add them as children of the given device.  NB:
+ * The driver for @param dev must implement the BUS_ADD_CHILD method.
+ *
+ * @param dev		the parent device
+ */
+void
+bus_identify_children(device_t dev)
+{
 	devclass_t dc = dev->devclass;
 	driverlink_t dl;
 
@@ -3419,8 +3435,6 @@ bus_generic_probe(device_t dev)
 			continue;
 		DEVICE_IDENTIFY(dl->driver, dev);
 	}
-
-	return (0);
 }
 
 /**
@@ -3433,13 +3447,28 @@ bus_generic_probe(device_t dev)
 int
 bus_generic_attach(device_t dev)
 {
+	bus_attach_children(dev);
+	return (0);
+}
+
+/**
+ * @brief Probe and attach all children of the given device
+ *
+ * This function attempts to attach a device driver to each unattached
+ * child of the given device using device_probe_and_attach().  If an
+ * individual child fails to attach this function continues attaching
+ * other children.
+ *
+ * @param dev		the parent device
+ */
+void
+bus_attach_children(device_t dev)
+{
 	device_t child;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
 		device_probe_and_attach(child);
 	}
-
-	return (0);
 }
 
 /**
@@ -3453,7 +3482,7 @@ int
 bus_delayed_attach_children(device_t dev)
 {
 	/* Probe and attach the bus children when interrupts are available */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	config_intrhook_oneshot((ich_func_t)bus_attach_children, dev);
 
 	return (0);
 }
@@ -3467,6 +3496,32 @@ bus_delayed_attach_children(device_t dev)
  */
 int
 bus_generic_detach(device_t dev)
+{
+	int error;
+
+	error = bus_detach_children(dev);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+/**
+ * @brief Detach drivers from all children of a device
+ *
+ * This function attempts to detach a device driver from each attached
+ * child of the given device using device_detach().  If an individual
+ * child fails to detach this function stops and returns an error.
+ * NB: Children that were successfully detached are not re-attached if
+ * an error occurs.
+ *
+ * @param dev		the parent device
+ *
+ * @retval 0		success
+ * @retval non-zero	a device would not detach
+ */
+int
+bus_detach_children(device_t dev)
 {
 	device_t child;
 	int error;
