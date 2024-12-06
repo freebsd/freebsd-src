@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/acl.h>
 #include <sys/stat.h>
 
 #include <err.h>
