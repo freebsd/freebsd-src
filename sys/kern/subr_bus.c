@@ -3485,13 +3485,11 @@ bus_attach_children(device_t dev)
  * attach until after interrupts and/or timers are running.  This function
  * delays their attach until interrupts and timers are enabled.
  */
-int
+void
 bus_delayed_attach_children(device_t dev)
 {
 	/* Probe and attach the bus children when interrupts are available */
 	config_intrhook_oneshot((ich_func_t)bus_attach_children, dev);
-
-	return (0);
 }
 
 /**

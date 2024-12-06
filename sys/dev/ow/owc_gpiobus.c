@@ -134,7 +134,8 @@ owc_gpiobus_attach(device_t dev)
 	 * the system timecounter (which initializes after device attachments).
 	 */
 	device_add_child(sc->sc_dev, "ow", DEVICE_UNIT_ANY);
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

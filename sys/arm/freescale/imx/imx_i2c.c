@@ -469,7 +469,8 @@ no_recovery:
 	/* We don't do a hardware reset here because iicbus_attach() does it. */
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int
