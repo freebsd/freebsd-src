@@ -467,7 +467,7 @@ acpi_cpu_postattach(void *unused __unused)
     bus_topo_lock();
     CPU_FOREACH(i) {
 	if ((sc = cpu_softc[i]) != NULL)
-		bus_generic_probe(sc->cpu_dev);
+		bus_identify_children(sc->cpu_dev);
     }
     CPU_FOREACH(i) {
 	if ((sc = cpu_softc[i]) != NULL) {

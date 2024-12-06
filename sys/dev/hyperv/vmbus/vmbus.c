@@ -559,7 +559,7 @@ vmbus_scan(struct vmbus_softc *sc)
 	/*
 	 * Identify, probe and attach for non-channel devices.
 	 */
-	bus_generic_probe(sc->vmbus_dev);
+	bus_identify_children(sc->vmbus_dev);
 	bus_generic_attach(sc->vmbus_dev);
 
 	/*

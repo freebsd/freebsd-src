@@ -501,7 +501,7 @@ isa_probe_children(device_t dev)
 	 * Create all the non-hinted children by calling drivers'
 	 * identify methods.
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	if (device_get_children(dev, &children, &nchildren))
 		return;

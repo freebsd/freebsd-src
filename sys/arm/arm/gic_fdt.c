@@ -185,7 +185,7 @@ gic_fdt_attach(device_t dev)
 
 	/* If we have children probe and attach them */
 	if (arm_gic_add_children(dev)) {
-		bus_generic_probe(dev);
+		bus_identify_children(dev);
 		return (bus_generic_attach(dev));
 	}
 

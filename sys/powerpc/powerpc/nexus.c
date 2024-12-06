@@ -141,7 +141,7 @@ nexus_attach(device_t dev)
 	device_add_child(dev, "ofwbus", 0);
 
 	/* Now, probe children. */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_generic_attach(dev);
 
 	return (0);

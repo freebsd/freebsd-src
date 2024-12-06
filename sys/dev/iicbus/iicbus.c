@@ -125,7 +125,7 @@ iicbus_attach_common(device_t dev, u_int bus_freq)
 	}
 	printf("\n");
 #endif
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
         return (0);

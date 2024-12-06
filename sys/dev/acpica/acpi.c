@@ -2279,7 +2279,7 @@ acpi_probe_children(device_t bus)
 
     /* Create any static children by calling device identify methods. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
-    bus_generic_probe(bus);
+    bus_identify_children(bus);
 
     /* Probe/attach all children, created statically and from the namespace. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "acpi bus_generic_attach\n"));

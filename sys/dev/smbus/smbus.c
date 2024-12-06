@@ -67,7 +67,7 @@ smbus_attach(device_t dev)
 	struct smbus_softc *sc = device_get_softc(dev);
 
 	mtx_init(&sc->lock, device_get_nameunit(dev), "smbus", MTX_DEF);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
 

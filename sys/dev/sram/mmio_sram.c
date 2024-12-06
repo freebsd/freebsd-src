@@ -94,7 +94,7 @@ mmio_sram_attach(device_t dev)
 	/*
 	 * Allow devices to identify.
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/*
 	 * Now walk the OFW tree and attach top-level devices.

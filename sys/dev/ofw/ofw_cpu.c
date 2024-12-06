@@ -297,7 +297,7 @@ ofw_cpu_attach(device_t dev)
 	if (sc->sc_nominal_mhz != 0 && bootverbose)
 		device_printf(dev, "Nominal frequency %dMhz\n",
 		    sc->sc_nominal_mhz);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	return (bus_generic_attach(dev));
 }
 

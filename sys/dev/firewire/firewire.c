@@ -452,7 +452,7 @@ firewire_attach(device_t dev)
 	    0, 0, "fw%d_probe", unit);
 
 	/* Locate our children */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/* launch attachement of the added children */
 	bus_generic_attach(dev);

@@ -127,7 +127,7 @@ ofw_iicbus_attach(device_t dev)
 	
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
 	/*
