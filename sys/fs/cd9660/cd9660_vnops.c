@@ -761,6 +761,9 @@ cd9660_pathconf(struct vop_pathconf_args *ap)
 	/* NOTREACHED */
 }
 
+_Static_assert(sizeof(struct ifid) <= sizeof(struct fid),
+    "struct ifid must be no larger than struct fid");
+
 /*
  * Vnode pointer to File handle
  */
