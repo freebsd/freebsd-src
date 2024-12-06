@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# whitespace fixes for sys/sys/kernel.h
+5c623697d6011de63bc762560a648c09379e06d2
 # style fixes for iflib
 fa7045f99cdb2b699205653f42f3fe78597880a7
 # remove stray whitespaces from sys/amd64/
