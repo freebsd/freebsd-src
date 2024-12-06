@@ -74,7 +74,7 @@ struct tarfs_node {
 	struct timespec		 mtime;
 	struct timespec		 ctime;
 	struct timespec		 birthtime;
-	unsigned long		 gen;
+	uint32_t		 gen;
 
 	/* Block map */
 	size_t			 nblk;
@@ -161,11 +161,10 @@ struct tarfs_zio {
 };
 
 struct tarfs_fid {
-	u_short			 len;	/* length of data in bytes */
-	u_short			 data0;	/* force alignment */
-	ino_t			 ino;
-	unsigned long		 gen;
-} __packed;
+	u_short		 len;	/* length of data in bytes */
+	uint32_t	 gen;
+	ino_t		 ino;
+};
 
 #define	TARFS_NODE_LOCK(tnp) \
 	mtx_lock(&(tnp)->lock)
