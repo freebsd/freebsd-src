@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd November 20, 2024
+.Dd December 6, 2024
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -91,6 +91,11 @@ warn about it
 .It Sy __deprecated Ta Function interface has been deprecated, and clients
 should migrate to a new interface.
 A warning will be issued for clients of this interface.
+.It Sy __deprecated1(msg) Ta Function interface has been deprecated, and clients
+should migrate to a new interface.
+The string
+.Fa msg
+will be included in a warning issued for clients of this interface.
 .It Sy __packed Ta \&Do not have space between structure elements for natural alignment.
 Used when communicating with external protocols.
 .It Sy __aligned(x) Ta Specify in bytes the minimum alignment for the specified field, structure or variable
