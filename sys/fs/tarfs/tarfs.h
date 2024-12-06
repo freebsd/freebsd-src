@@ -165,7 +165,7 @@ struct tarfs_fid {
 	u_short			 data0;	/* force alignment */
 	ino_t			 ino;
 	unsigned long		 gen;
-};
+} __packed;
 
 #define	TARFS_NODE_LOCK(tnp) \
 	mtx_lock(&(tnp)->lock)

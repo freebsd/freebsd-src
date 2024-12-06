@@ -668,6 +668,8 @@ tarfs_vptofh(struct vop_vptofh_args *ap)
 {
 	struct tarfs_fid *tfp;
 	struct tarfs_node *tnp;
+	_Static_assert(sizeof(struct tarfs_fid) <= sizeof(struct fid),
+	    "struct tarfs_fid cannot be larger than struct fid");
 
 	tfp = (struct tarfs_fid *)ap->a_fhp;
 	tnp = VP_TO_TARFS_NODE(ap->a_vp);
