@@ -1,6 +1,6 @@
-/* $Id: mandocdb.c,v 1.269 2021/08/19 16:55:31 schwarze Exp $ */
+/* $Id: mandocdb.c,v 1.274 2024/05/14 21:19:12 schwarze Exp $ */
 /*
- * Copyright (c) 2011-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011-2021, 2024 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2016 Ed Maste <emaste@freebsd.org>
  *
@@ -173,7 +173,7 @@ static	void	 say(const char *, const char *, ...)
 			__attribute__((__format__ (__printf__, 2, 3)));
 static	int	 set_basedir(const char *, int);
 static	int	 treescan(void);
-static	size_t	 utf8(unsigned int, char [7]);
+static	size_t	 utf8(unsigned int, char[5]);
 
 static	int		 nodb; /* no database changes */
 static	int		 mparse_options; /* abort the parse early */
@@ -353,7 +353,7 @@ mandocdb(int argc, char *argv[])
 		goto usage; \
 	} while (/*CONSTCOND*/0)
 
-	mparse_options = MPARSE_VALIDATE;
+	mparse_options = MPARSE_UTF8 | MPARSE_LATIN1 | MPARSE_VALIDATE;
 	path_arg = NULL;
 	op = OP_DEFAULT;
 
@@ -532,6 +532,9 @@ out:
 	mpages_free();
 	ohash_delete(&mpages);
 	ohash_delete(&mlinks);
+#if DEBUG_MEMORY
+	mandoc_dbg_finish();
+#endif
 	return exitcode;
 usage:
 	progname = getprogname();
@@ -801,7 +804,7 @@ filescan(const char *infile)
 	 * We have to do lstat(2) before realpath(3) loses
 	 * the information whether this is a symbolic link.
 	 * We need to know that because for symbolic links,
-	 * we want to use the orginal file name, while for
+	 * we want to use the original file name, while for
 	 * regular files, we want to use the real path.
 	 */
 	if (lstat(infile, &st) == -1) {
@@ -1904,49 +1907,35 @@ putkeys(const struct mpage *mpage, char *cp, size_t sz, uint64_t v)
  * Take a Unicode codepoint and produce its UTF-8 encoding.
  * This isn't the best way to do this, but it works.
  * The magic numbers are from the UTF-8 packaging.
- * They're not as scary as they seem: read the UTF-8 spec for details.
+ * Read the UTF-8 spec or the utf8(7) manual page for details.
  */
 static size_t
-utf8(unsigned int cp, char out[7])
+utf8(unsigned int cp, char out[5])
 {
 	size_t		 rc;
 
-	rc = 0;
-	if (cp <= 0x0000007F) {
+	if (cp <= 0x7f) {
 		rc = 1;
 		out[0] = (char)cp;
-	} else if (cp <= 0x000007FF) {
+	} else if (cp <= 0x7ff) {
 		rc = 2;
 		out[0] = (cp >> 6  & 31) | 192;
 		out[1] = (cp       & 63) | 128;
-	} else if (cp <= 0x0000FFFF) {
+	} else if (cp >= 0xd800 && cp <= 0xdfff) {
+		rc = 0; /* reject UTF-16 surrogate */
+	} else if (cp <= 0xffff) {
 		rc = 3;
 		out[0] = (cp >> 12 & 15) | 224;
 		out[1] = (cp >> 6  & 63) | 128;
 		out[2] = (cp       & 63) | 128;
-	} else if (cp <= 0x001FFFFF) {
+	} else if (cp <= 0x10ffff) {
 		rc = 4;
 		out[0] = (cp >> 18 &  7) | 240;
 		out[1] = (cp >> 12 & 63) | 128;
 		out[2] = (cp >> 6  & 63) | 128;
 		out[3] = (cp       & 63) | 128;
-	} else if (cp <= 0x03FFFFFF) {
-		rc = 5;
-		out[0] = (cp >> 24 &  3) | 248;
-		out[1] = (cp >> 18 & 63) | 128;
-		out[2] = (cp >> 12 & 63) | 128;
-		out[3] = (cp >> 6  & 63) | 128;
-		out[4] = (cp       & 63) | 128;
-	} else if (cp <= 0x7FFFFFFF) {
-		rc = 6;
-		out[0] = (cp >> 30 &  1) | 252;
-		out[1] = (cp >> 24 & 63) | 128;
-		out[2] = (cp >> 18 & 63) | 128;
-		out[3] = (cp >> 12 & 63) | 128;
-		out[4] = (cp >> 6  & 63) | 128;
-		out[5] = (cp       & 63) | 128;
 	} else
-		return 0;
+		rc = 0;
 
 	out[rc] = '\0';
 	return rc;
@@ -2028,7 +2017,21 @@ render_string(char **public, size_t *psz)
 		 */
 
 		scp++;
-		if (mandoc_escape(&scp, &seq, &seqlen) != ESCAPE_SPECIAL)
+		switch (mandoc_escape(&scp, &seq, &seqlen)) {
+		case ESCAPE_UNICODE:
+			unicode = mchars_num2uc(seq + 1, seqlen - 1);
+			break;
+		case ESCAPE_NUMBERED:
+			unicode = mchars_num2char(seq, seqlen);
+			break;
+		case ESCAPE_SPECIAL:
+			unicode = mchars_spec2cp(seq, seqlen);
+			break;
+		default:
+			unicode = -1;
+			break;
+		}
+		if (unicode <= 0)
 			continue;
 
 		/*
@@ -2037,21 +2040,17 @@ render_string(char **public, size_t *psz)
 		 */
 
 		if (write_utf8) {
-			unicode = mchars_spec2cp(seq, seqlen);
-			if (unicode <= 0)
-				continue;
 			addsz = utf8(unicode, utfbuf);
 			if (addsz == 0)
 				continue;
 			addcp = utfbuf;
 		} else {
-			addcp = mchars_spec2str(seq, seqlen, &addsz);
+			addcp = mchars_uc2str(unicode);
 			if (addcp == NULL)
 				continue;
-			if (*addcp == ASCII_NBRSP) {
+			if (*addcp == ASCII_NBRSP)
 				addcp = " ";
-				addsz = 1;
-			}
+			addsz = strlen(addcp);
 		}
 
 		/* Copy the rendered glyph into the stream. */
@@ -2251,11 +2250,11 @@ dbwrite(struct dba *dba)
 		say(tfn, "&dba_write");
 		goto err;
 	}
-	if ((fd1 = open(MANDOC_DB, O_RDONLY, 0)) == -1) {
+	if ((fd1 = open(MANDOC_DB, O_RDONLY)) == -1) {
 		say(MANDOC_DB, "&open");
 		goto err;
 	}
-	if ((fd2 = open(tfn, O_RDONLY, 0)) == -1) {
+	if ((fd2 = open(tfn, O_RDONLY)) == -1) {
 		say(tfn, "&open");
 		goto err;
 	}

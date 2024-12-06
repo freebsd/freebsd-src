@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.82 2021/09/07 17:07:58 schwarze Exp $ */
+/*	$Id: out.c,v 1.85 2021/10/17 21:05:54 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015, 2017, 2018, 2019, 2021
@@ -123,6 +123,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 	const struct tbl_dat	*dp;
 	struct roffcol		*col;
 	struct tbl_colgroup	*first_group, **gp, *g;
+	size_t			*colwidth;
 	size_t			 ewidth, min1, min2, wanted, width, xwidth;
 	int			 done, icol, maxcol, necol, nxcol, quirkcol;
 
@@ -148,7 +149,6 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		 * to data cells in the data section.
 		 */
 
-		gp = &first_group;
 		for (dp = sp->first; dp != NULL; dp = dp->next) {
 			icol = dp->layout->col;
 			while (maxcol < icol + dp->hspans)
@@ -189,16 +189,16 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 				continue;
 
 			/*
-			 * Build an ordered, singly linked list
+			 * Build a singly linked list
 			 * of all groups of columns joined by spans,
 			 * recording the minimum width for each group.
 			 */
 
-			while (*gp != NULL && ((*gp)->startcol < icol ||
-			    (*gp)->endcol < icol + dp->hspans))
+			gp = &first_group;
+			while (*gp != NULL && ((*gp)->startcol != icol ||
+			    (*gp)->endcol != icol + dp->hspans))
 				gp = &(*gp)->next;
-			if (*gp == NULL || (*gp)->startcol > icol ||
-                            (*gp)->endcol > icol + dp->hspans) {
+			if (*gp == NULL) {
 				g = mandoc_malloc(sizeof(*g));
 				g->next = *gp;
 				g->wanted = width;
@@ -247,16 +247,28 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 				done = 1;
 				break;
 			} else
-				(*gp)->wanted -= width;
+				g->wanted -= width;
 		}
 		if (done) {
 			*gp = g->next;
 			free(g);
 		} else
-			gp = &(*gp)->next;
+			gp = &g->next;
 	}
 
+	colwidth = mandoc_reallocarray(NULL, maxcol + 1, sizeof(*colwidth));
 	while (first_group != NULL) {
+
+		/*
+		 * Rebuild the array of the widths of all columns
+		 * participating in spans that require expansion.
+		 */
+
+		for (icol = 0; icol <= maxcol; icol++)
+			colwidth[icol] = SIZE_MAX;
+		for (g = first_group; g != NULL; g = g->next)
+			for (icol = g->startcol; icol <= g->endcol; icol++)
+				colwidth[icol] = tbl->cols[icol].width;
 
 		/*
 		 * Find the smallest and second smallest column width
@@ -265,7 +277,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 
 		min1 = min2 = SIZE_MAX;
 		for (icol = 0; icol <= maxcol; icol++) {
-			width = tbl->cols[icol].width;
+			width = colwidth[icol];
 			if (min1 > width) {
 				min2 = min1;
 				min1 = width;
@@ -283,7 +295,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		for (g = first_group; g != NULL; g = g->next) {
 			necol = 0;
 			for (icol = g->startcol; icol <= g->endcol; icol++)
-				if (tbl->cols[icol].width == min1)
+				if (colwidth[icol] == min1)
 					necol++;
 			if (necol == 0)
 				continue;
@@ -300,7 +312,7 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 		while ((g = *gp) != NULL) {
 			done = 0;
 			for (icol = g->startcol; icol <= g->endcol; icol++) {
-				if (tbl->cols[icol].width != min1)
+				if (colwidth[icol] != min1)
 					continue;
 				if (g->wanted <= wanted - min1) {
 					tbl->cols[icol].width += g->wanted;
@@ -314,9 +326,10 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 				*gp = g->next;
 				free(g);
 			} else
-				gp = &(*gp)->next;
+				gp = &g->next;
 		}
 	}
+	free(colwidth);
 
 	/*
 	 * Align numbers with text.

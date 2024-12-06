@@ -1,7 +1,7 @@
-/*	$Id: mdoc_macro.c,v 1.234 2020/01/19 18:02:00 schwarze Exp $ */
+/* $Id: mdoc_macro.c,v 1.235 2022/04/14 16:43:44 schwarze Exp $ */
 /*
+ * Copyright (c) 2010, 2012-2021 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2020 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,6 +26,9 @@
 #include <string.h>
 #include <time.h>
 
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
 #include "mandoc.h"
 #include "roff.h"
 #include "mdoc.h"
@@ -1510,6 +1513,11 @@ in_line_eoln(MACRO_PROT_ARGS)
 		if (n->tok == MDOC_Nm)
 			rew_last(mdoc, n->parent);
 	}
+
+#if DEBUG_MEMORY
+	if (tok == MDOC_Dt)
+		mandoc_dbg_name(buf);
+#endif
 
 	if (buf[*pos] == '\0' &&
 	    (tok == MDOC_Fd || *roff_name[tok] == '%')) {

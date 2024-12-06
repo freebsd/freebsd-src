@@ -1,4 +1,4 @@
-/* $Id: mdoc_markdown.c,v 1.37 2021/08/10 12:55:03 schwarze Exp $ */
+/* $Id: mdoc_markdown.c,v 1.38 2024/08/13 12:44:00 schwarze Exp $ */
 /*
  * Copyright (c) 2017, 2018, 2020 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -750,7 +750,7 @@ md_pre_raw(struct roff_node *n)
 	if ((prefix = md_act(n->tok)->prefix) != NULL) {
 		md_rawword(prefix);
 		outflags &= ~MD_spc;
-		if (*prefix == '`')
+		if (strchr(prefix, '`') != NULL)
 			code_blocks++;
 	}
 	return 1;
@@ -764,7 +764,7 @@ md_post_raw(struct roff_node *n)
 	if ((suffix = md_act(n->tok)->suffix) != NULL) {
 		outflags &= ~(MD_spc | MD_nl);
 		md_rawword(suffix);
-		if (*suffix == '`')
+		if (strchr(suffix, '`') != NULL)
 			code_blocks--;
 	}
 }

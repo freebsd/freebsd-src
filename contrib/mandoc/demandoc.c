@@ -1,4 +1,4 @@
-/*	$Id: demandoc.c,v 1.33 2019/03/03 11:01:15 schwarze Exp $ */
+/* $Id: demandoc.c,v 1.34 2022/04/14 16:43:43 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -26,6 +26,10 @@
 #include <unistd.h>
 
 #include "mandoc.h"
+#if DEBUG_MEMORY
+#define DEBUG_NODEF
+#include "mandoc_dbg.h"
+#endif
 #include "roff.h"
 #include "man.h"
 #include "mdoc.h"
@@ -46,6 +50,10 @@ main(int argc, char *argv[])
 	struct mparse	*mp;
 	int		 ch, fd, i, list;
 	extern int	 optind;
+
+#if DEBUG_MEMORY
+	mandoc_dbg_init(argc, argv);
+#endif
 
 	if (argc < 1)
 		progname = "demandoc";
@@ -97,6 +105,9 @@ main(int argc, char *argv[])
 
 	mparse_free(mp);
 	mchars_free();
+#if DEBUG_MEMORY
+	mandoc_dbg_finish();
+#endif
 	return (int)MANDOCLEVEL_OK;
 }
 

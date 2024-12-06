@@ -1,4 +1,4 @@
-$Id: NEWS,v 1.40 2021/09/23 18:03:00 schwarze Exp $
+$Id: NEWS,v 1.41 2021/09/25 15:42:08 schwarze Exp $
 
 This file lists the most important changes in the mandoc.bsd.lv distribution.
 
@@ -195,7 +195,7 @@ Changes in version 1.14.6, released on September 23, 2021
    for an additional regression test
  * Michal Nowak for reporting several code style issues
  * TJ Townsend (OpenBSD) for help with CSS
- * Sevan Janiyan (NetBSD) and Robert Mustacchi (Illumos) 
+ * Sevan Janiyan (Viewpoint Linux) and Robert Mustacchi (Illumos) 
    for extensive release testing
  * Job Snijders, Kinichiro INOGUCHI, and Martijn van Duren (OpenBSD)
    for checking patches
