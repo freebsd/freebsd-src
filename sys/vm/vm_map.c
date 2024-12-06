@@ -292,7 +292,7 @@ vmspace_zinit(void *mem, int size, int flags)
 	vm = (struct vmspace *)mem;
 	map = &vm->vm_map;
 
-	memset(map, 0, sizeof(*map));	/* set map->system_map = false */
+	memset(map, 0, sizeof(*map));	/* set MAP_SYSTEM_MAP to false */
 	sx_init(&map->lock, "vm map (user)");
 	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
@@ -886,7 +886,6 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.eflags = MAP_ENTRY_HEADER;
-	map->needs_wakeup = FALSE;
 	map->pmap = pmap;
 	map->header.end = min;
 	map->header.start = max;
@@ -905,7 +904,6 @@ void
 vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, pmap, min, max);
-	map->system_map = false;
 	sx_init(&map->lock, "vm map (user)");
 }
 
@@ -913,7 +911,7 @@ void
 vm_map_init_system(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 	_vm_map_init(map, pmap, min, max);
-	map->system_map = true;
+	vm_map_modflags(map, MAP_SYSTEM_MAP, 0);
 	mtx_init(&map->system_mtx, "vm map (system)", NULL, MTX_DEF |
 	    MTX_DUPOK);
 }
