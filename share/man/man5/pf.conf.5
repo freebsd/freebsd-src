@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 2, 2024
+.Dd December 6, 2024
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1361,6 +1361,56 @@ and correctly direct return traffic for that connection.
 .Pp
 Various types of translation are possible with pf:
 .Bl -tag -width xxxx
+.It Ar af-to
+Translation between different address families (NAT64) is handled
+using
+.Ar af-to
+rules.
+Because address family translation overrides the routing table, it's
+only possible to use
+.Ar af-to
+on inbound rules, and a source address of the resulting translation
+must always be specified.
+.Pp
+The optional second argument is the host or subnet the original
+addresses are translated into for the destination.
+The lowest bits of the original destination address form the host
+part of the new destination address according to the specified subnet.
+It is possible to embed a complete IPv4 address into an IPv6 address
+using a network prefix of /96 or smaller.
+.Pp
+When a destination address is not specified it is assumed that the host
+part is 32-bit long.
+For IPv6 to IPv4 translation this would mean using only the lower 32
+bits of the original IPv6 destination address.
+For IPv4 to IPv6 translation the destination subnet defaults to the
+subnet of the new IPv6 source address with a prefix length of /96.
+See RFC 6052 Section 2.2 for details on how the prefix determines the
+destination address encoding.
+.Pp
+For example, the following rules are identical:
+.Bd -literal -offset indent
+pass in inet af-to inet6 from 2001:db8::1 to 2001:db8::/96
+pass in inet af-to inet6 from 2001:db8::1
+.Ed
+.Pp
+In the above example the matching IPv4 packets will be modified to
+have a source address of 2001:db8::1 and a destination address will
+get prefixed with 2001:db8::/96, e.g. 198.51.100.100 will be
+translated to 2001:db8::c633:6464.
+.Pp
+In the reverse case the following rules are identical:
+.Bd -literal -offset indent
+pass in inet6 af-to inet from 198.51.100.1 to 0.0.0.0/0
+pass in inet6 af-to inet from 198.51.100.1
+.Ed
+.Pp
+The destination IPv4 address is assumed to be embedded inside the
+original IPv6 destination address, e.g. 64:ff9b::c633:6464 will be
+translated to 198.51.100.100.
+.Pp
+The current implementation will only extract IPv4 addresses from the
+IPv6 addresses with a prefix length of /96 and greater.
 .It Ar binat
 A
 .Ar binat
@@ -1968,7 +2018,10 @@ if one flushes the state table.
 However, states created from such intermediate packets may be missing
 connection details such as the TCP window scaling factor.
 States which modify the packet flow, such as those affected by
-.Ar nat , binat No or Ar rdr
+.Ar af-to,
+.Ar nat,
+.Ar binat or
+.Ar rdr
 rules,
 .Ar modulate No or Ar synproxy state
 options, or scrubbed with
@@ -3184,6 +3237,20 @@ rdr on $ext_if inet proto tcp from \*(Ltspammers\*(Gt to port smtp \e
 block in on $ext_if
 pass in on $ext_if inet proto tcp tagged SPAMD
 .Ed
+.Pp
+In the example below, a router handling both address families
+translates an internal IPv4 subnet to IPv6 using the well-known
+64:ff9b::/96 prefix:
+.Bd -literal -offset 4n
+pass in on $v4_if inet af-to inet6 from ($v6_if) to 64:ff9b::/96
+.Ed
+.Pp
+Paired with the example above, the example below can be used on
+another router handling both address families to translate back
+to IPv4:
+.Bd -literal -offset 4n
+pass in on $v6_if inet6 to 64:ff9b::/96 af-to inet from ($v4_if)
+.Ed
 .Sh GRAMMAR
 Syntax for
 .Nm
@@ -3229,6 +3296,8 @@ etherfilteropt = "tag" string | "tagged" string | "queue" ( string ) |
 
 filteropt-list = filteropt-list filteropt | filteropt
 filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
+                 "af-to" af "from" ( redirhost | "{" redirhost-list "}" )
+                 [ "to" ( redirhost | "{" redirhost-list "}" ) ] |
                  ( "no" | "keep" | "modulate" | "synproxy" ) "state"
                  [ "(" state-opts ")" ] |
                  "fragment" | "no-df" | "min-ttl" number | "set-tos" tos |
