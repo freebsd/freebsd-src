@@ -185,7 +185,7 @@ nexus_attach(device_t dev)
 	 * Next, deal with the children we know about already.
 	 */
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

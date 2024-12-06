@@ -665,7 +665,8 @@ lbc_attach(device_t dev)
 	lbc_banks_enable(sc);
 
 	OF_prop_free(rangesptr);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	OF_prop_free(rangesptr);

@@ -195,8 +195,8 @@ fsl_espi_attach(device_t dev)
 	FSL_ESPI_WRITE(sc, ESPI_SPIM, 0);
 
 	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
-
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

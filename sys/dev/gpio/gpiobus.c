@@ -307,7 +307,7 @@ gpiobus_attach_bus(device_t dev)
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (busdev);
 }
@@ -563,7 +563,8 @@ gpiobus_attach(device_t dev)
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 /*
@@ -713,7 +714,7 @@ gpiobus_rescan(device_t dev)
 	 * hints or drivers have arrived since we last tried.
 	 */
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

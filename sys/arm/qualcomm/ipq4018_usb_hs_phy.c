@@ -200,7 +200,8 @@ ipq4018_usb_hs_usbphy_attach(device_t dev)
 	rv = ipq4018_usb_hs_usbphy_init_phy(sc, node);
 	if (rv != 0)
 		goto fail;
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	return (ENXIO);

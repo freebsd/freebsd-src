@@ -88,7 +88,7 @@ iicoc_attach(device_t dev)
 		mtx_destroy(&sc->sc_mtx);
 		return (-1);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

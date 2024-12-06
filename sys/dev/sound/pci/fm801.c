@@ -649,7 +649,7 @@ fm801_pci_attach(device_t dev)
 		goto oops;
 
 	fm801->radio = device_add_child(dev, "radio", DEVICE_UNIT_ANY);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return 0;
 

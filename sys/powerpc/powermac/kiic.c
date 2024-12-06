@@ -241,7 +241,8 @@ kiic_attach(device_t self)
 	/* Add the IIC bus layer */
 	sc->sc_iicbus = device_add_child(self, "iicbus", DEVICE_UNIT_ANY);
 
-	return (bus_generic_attach(self));
+	bus_attach_children(self);
+	return (0);
 }
 
 static void

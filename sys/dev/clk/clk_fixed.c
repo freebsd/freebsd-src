@@ -269,7 +269,8 @@ clk_fixed_attach(device_t dev)
 
 	OF_prop_free(__DECONST(char *, def.clkdef.name));
 	OF_prop_free(def.clkdef.parent_names);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	OF_prop_free(__DECONST(char *, def.clkdef.name));

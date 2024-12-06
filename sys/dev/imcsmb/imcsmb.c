@@ -99,9 +99,8 @@ imcsmb_attach(device_t dev)
 	}
 
 	/* Attach the smbus child. */
-	if ((rc = bus_generic_attach(dev)) != 0) {
-		device_printf(dev, "Failed to attach smbus: %d\n", rc);
-	}
+	bus_attach_children(dev);
+	rc = 0;
 
 out:
 	return (rc);

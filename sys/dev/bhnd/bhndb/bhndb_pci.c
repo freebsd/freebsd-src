@@ -458,8 +458,7 @@ bhndb_pci_attach(device_t dev)
 		goto cleanup;
 
 	/* Probe and attach our children */
-	if ((error = bus_generic_attach(dev)))
-		goto cleanup;
+	bus_attach_children(dev);
 
 	bhndb_pci_probe_free_core_table(cores);
 

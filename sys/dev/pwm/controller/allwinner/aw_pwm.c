@@ -190,7 +190,8 @@ skipcfg:
 
 	sc->busdev = device_add_child(dev, "pwmbus", DEVICE_UNIT_ANY);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	aw_pwm_detach(dev);

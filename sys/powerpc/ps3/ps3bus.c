@@ -479,7 +479,8 @@ ps3bus_attach(device_t self)
 
 	clock_register(self, 1000);
 
-	return (bus_generic_attach(self));
+	bus_attach_children(self);
+	return (0);
 }
 
 static int

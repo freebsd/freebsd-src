@@ -147,7 +147,8 @@ miibus_attach(device_t dev)
 	if_setcapenablebit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
 	LIST_INIT(&mii->mii_phys);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -520,16 +521,12 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 			rv = ENXIO;
 			goto fail;
 		}
-		rv = bus_generic_attach(dev);
-		if (rv != 0)
-			goto fail;
+		bus_attach_children(dev);
 
 		/* Attaching of the PHY drivers is done in miibus_attach(). */
 		return (0);
 	}
-	rv = bus_generic_attach(*miibus);
-	if (rv != 0)
-		goto fail;
+	bus_attach_children(*miibus);
 
 	return (0);
 

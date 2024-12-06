@@ -414,7 +414,7 @@ ppbus_attach(device_t dev)
 #endif /* !DONTPROBE_1284 */
 
 	/* launch attachment of the added children */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

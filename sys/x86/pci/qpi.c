@@ -155,7 +155,8 @@ qpi_attach(device_t dev)
 	for (bus = PCI_BUSMAX; bus >= 0; bus--)
 		qpi_probe_pcib(dev, bus);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -227,7 +228,8 @@ qpi_pcib_attach(device_t dev)
 {
 
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

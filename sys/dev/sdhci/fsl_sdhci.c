@@ -926,7 +926,7 @@ fsl_sdhci_attach(device_t dev)
 	sc->slot_init_done = true;
 
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	sdhci_start_slot(&sc->slot);
 

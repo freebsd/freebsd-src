@@ -1571,7 +1571,7 @@ vmbus_pcib_attach(device_t dev)
 		goto vmbus_close;
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	hbus->state = hv_pcibus_installed;
 

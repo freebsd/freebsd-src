@@ -69,7 +69,7 @@ smbus_attach(device_t dev)
 	mtx_init(&sc->lock, device_get_nameunit(dev), "smbus", MTX_DEF);
 	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

@@ -194,7 +194,8 @@ ofw_iicbus_attach(device_t dev)
 
 	/* Register bus */
 	OF_device_register_xref(OF_xref_from_node(node), dev);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_t

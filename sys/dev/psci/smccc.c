@@ -91,7 +91,8 @@ smccc_probe(device_t dev)
 static int
 smccc_attach(device_t dev)
 {
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 uint32_t

@@ -126,7 +126,7 @@ ata_pci_attach(device_t dev)
 	else
 	    device_set_ivars(child, (void *)(intptr_t)unit);
     }
-    bus_generic_attach(dev);
+    bus_attach_children(dev);
     return 0;
 }
 

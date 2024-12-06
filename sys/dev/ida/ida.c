@@ -333,7 +333,7 @@ ida_startup(void *arg)
 	config_intrhook_disestablish(&ida->ich);
 
 	bus_topo_lock();
-	bus_generic_attach(ida->dev);
+	bus_attach_children(ida->dev);
 	bus_topo_unlock();
 }
 

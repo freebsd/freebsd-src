@@ -530,7 +530,7 @@ hdacc_attach(device_t dev)
 		device_set_ivars(child, &codec->fgs[n]);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

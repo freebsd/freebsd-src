@@ -511,7 +511,7 @@ ntb_transport_attach(device_t dev)
 	if (enable_xeon_watchdog != 0)
 		callout_reset(&nt->link_watchdog, 0, xeon_link_watchdog_hb, nt);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 
 err:

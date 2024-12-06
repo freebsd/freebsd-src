@@ -239,7 +239,7 @@ atkbdc_isa_attach(device_t dev)
 	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
 
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return 0;
 }

@@ -188,10 +188,8 @@ imcsmb_pci_attach(device_t dev)
 	}
 
 	/* Attach the imcsmbX children. */
-	if ((rc = bus_generic_attach(dev)) != 0) {
-		device_printf(dev, "failed to attach children: %d\n", rc);
-		goto out;
-	}
+	bus_attach_children(dev);
+	rc = 0;
 
 out:
 	return (rc);

@@ -192,8 +192,8 @@ ti_prcm_attach(device_t dev)
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		simplebus_add_device(dev, child, 0, NULL, -1, NULL);
 	}
-
-	return (bus_generic_attach(sc->dev));
+	bus_attach_children(sc->dev);
+	return (0);
 }
 
 int

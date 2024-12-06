@@ -174,7 +174,8 @@ brcm_mdionexus_fdt_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static const struct ofw_bus_devinfo *

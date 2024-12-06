@@ -254,7 +254,8 @@ cuda_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, cuda_shutdown, sc,
 	    SHUTDOWN_PRI_LAST);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int cuda_detach(device_t dev) {

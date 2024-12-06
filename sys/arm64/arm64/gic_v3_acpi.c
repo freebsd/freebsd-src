@@ -464,7 +464,7 @@ gic_v3_acpi_bus_attach(device_t dev)
 
 	acpi_unmap_table(madt);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 }
 
 static struct resource_list *

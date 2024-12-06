@@ -400,7 +400,8 @@ smu_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, smu_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static const struct ofw_bus_devinfo *
@@ -1478,7 +1479,8 @@ smuiic_attach(device_t dev)
 	/* Add the IIC bus layer */
 	device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

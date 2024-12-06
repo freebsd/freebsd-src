@@ -755,12 +755,7 @@ t4vf_attach(device_t dev)
 		goto done;
 	}
 
-	rc = bus_generic_attach(dev);
-	if (rc != 0) {
-		device_printf(dev,
-		    "failed to attach all child ports: %d\n", rc);
-		goto done;
-	}
+	bus_attach_children(dev);
 
 	device_printf(dev,
 	    "%d ports, %d %s interrupt%s, %d eq, %d iq\n",

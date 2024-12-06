@@ -355,7 +355,8 @@ max77620_rtc_attach(device_t dev)
 
 	clock_register(sc->dev, 1000000);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	LOCK_DESTROY(sc);

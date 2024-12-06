@@ -1340,7 +1340,7 @@ cp2112iic_attach(device_t dev)
 		err = ENXIO;
 		goto detach;
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 
 detach:

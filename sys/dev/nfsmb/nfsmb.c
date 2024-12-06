@@ -202,7 +202,7 @@ nfsmbsub_attach(device_t dev)
 		return (EINVAL);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -265,7 +265,7 @@ nfsmb_attach(device_t dev)
 		break;
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

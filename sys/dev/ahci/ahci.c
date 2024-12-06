@@ -383,7 +383,7 @@ ahci_attach(device_t dev)
 		else
 			device_set_ivars(child, (void *)(intptr_t)AHCI_EM_UNIT);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

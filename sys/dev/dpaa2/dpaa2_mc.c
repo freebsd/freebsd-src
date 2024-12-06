@@ -269,7 +269,7 @@ dpaa2_mc_attach(device_t dev)
 		return (ENXIO);
 	}
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

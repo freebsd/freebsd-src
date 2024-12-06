@@ -3318,7 +3318,8 @@ emu_pci_attach(device_t dev)
 		device_set_ivars(sc->midi[1], func);
 	}
 #endif
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 bad:
 	/* XXX can we just call emu_pci_detach here? */

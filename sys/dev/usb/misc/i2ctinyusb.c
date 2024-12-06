@@ -173,7 +173,7 @@ i2ctinyusb_attach(device_t dev)
 		err = ENXIO;
 		goto detach;
 	}
-	err = bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 

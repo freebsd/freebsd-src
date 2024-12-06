@@ -643,7 +643,7 @@ e6000sw_attach(device_t dev)
 	E6000SW_UNLOCK(sc);
 
 	bus_identify_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_tt, hz);
 

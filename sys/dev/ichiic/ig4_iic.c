@@ -1069,11 +1069,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 			      "Unable to setup irq: error %d\n", error);
 	}
 
-	error = bus_generic_attach(sc->dev);
-	if (error) {
-		device_printf(sc->dev,
-			      "failed to attach child: error %d\n", error);
-	}
+	bus_attach_children(sc->dev);
 
 done:
 	return (error);

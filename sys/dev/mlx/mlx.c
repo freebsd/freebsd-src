@@ -522,7 +522,7 @@ mlx_startup(struct mlx_softc *sc)
 {
     struct mlx_enq_sys_drive	*mes;
     struct mlx_sysdrive		*dr;
-    int				i, error;
+    int				i;
 
     debug_called(1);
     
@@ -567,8 +567,7 @@ mlx_startup(struct mlx_softc *sc)
 	}
     }
     free(mes, M_DEVBUF);
-    if ((error = bus_generic_attach(sc->mlx_dev)) != 0)
-	device_printf(sc->mlx_dev, "bus_generic_attach returned %d", error);
+    bus_attach_children(sc->mlx_dev);
 
     /* mark controller back up */
     MLX_IO_LOCK(sc);

@@ -134,7 +134,8 @@ ofw_cpulist_attach(device_t dev)
 		device_set_ivars(cdev, dinfo);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static const struct ofw_bus_devinfo *
@@ -298,7 +299,8 @@ ofw_cpu_attach(device_t dev)
 		device_printf(dev, "Nominal frequency %dMhz\n",
 		    sc->sc_nominal_mhz);
 	bus_identify_children(dev);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

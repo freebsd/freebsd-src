@@ -1625,7 +1625,7 @@ hdac_attach2(void *arg)
 			sc->codecs[i].dev = child;
 		}
 	}
-	bus_generic_attach(sc->dev);
+	bus_attach_children(sc->dev);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,

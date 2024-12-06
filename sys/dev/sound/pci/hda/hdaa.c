@@ -6468,7 +6468,7 @@ hdaa_sysctl_reconfig(SYSCTL_HANDLER_ARGS)
 	hdaa_unconfigure(dev);
 	hdaa_configure(dev);
 	hdaa_unlock(devinfo);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reconfiguration done\n");
 	);
@@ -6674,7 +6674,7 @@ hdaa_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "init_clear", CTLFLAG_RW,
 	    &devinfo->init_clear, 1,"Clear initial pin widget configuration");
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

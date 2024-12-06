@@ -142,7 +142,7 @@ ntb_register_device(device_t dev)
 		i++;
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

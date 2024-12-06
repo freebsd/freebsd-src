@@ -919,7 +919,7 @@ mge_attach(device_t dev)
 	if (sc->switch_attached) {
 		MGE_WRITE(sc, MGE_REG_PHYDEV, MGE_SWITCH_PHYDEV);
 		device_add_child(dev, "mdio", DEVICE_UNIT_ANY);
-		bus_generic_attach(dev);
+		bus_attach_children(dev);
 	}
 
 	return (0);

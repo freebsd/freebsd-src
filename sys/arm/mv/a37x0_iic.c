@@ -237,7 +237,8 @@ a37x0_iic_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus. */
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

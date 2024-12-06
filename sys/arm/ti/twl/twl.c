@@ -417,7 +417,8 @@ twl_attach(device_t dev)
 	if ((sc->sc_clks = device_add_child(dev, "twl_clks", -1)) == NULL)
 		device_printf(dev, "could not allocate twl_clks instance\n");
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

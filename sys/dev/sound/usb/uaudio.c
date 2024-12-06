@@ -1135,10 +1135,7 @@ uaudio_attach(device_t dev)
 		    &sc->sc_sndcard_func);
 	}
 
-	if (bus_generic_attach(dev)) {
-		DPRINTF("child attach failed\n");
-		goto detach;
-	}
+	bus_attach_children(dev);
 
 	if (uaudio_handle_hid) {
 		if (uaudio_hid_probe(sc, uaa) == 0) {

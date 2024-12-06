@@ -239,7 +239,7 @@ i2c_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (IIC_NOERR);
 }
 static int

@@ -271,7 +271,7 @@ nexus_attach(device_t dev)
 	 */
 	if (BUS_ADD_CHILD(dev, 10, "legacy", 0) == NULL)
 		panic("legacy: could not attach");
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 
