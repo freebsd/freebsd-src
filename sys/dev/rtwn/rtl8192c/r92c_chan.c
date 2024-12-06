@@ -262,7 +262,8 @@ r92c_set_bw40(struct rtwn_softc *sc, uint8_t chan, int prichlo)
 	rtwn_bb_setbits(sc, R92C_FPGA0_ANAPARAM2,
 	    R92C_FPGA0_ANAPARAM2_CBW20, 0);
 
-	rtwn_bb_setbits(sc, 0x818, 0x0c000000, (prichlo ? 2 : 1) << 26);
+	rtwn_bb_setbits(sc, R92C_FPGA0_POWER_SAVE,
+	    R92C_FPGA0_POWER_SAVE_PS_MASK, (prichlo ? 2 : 1) << 26);
 
 	/* Select 40MHz bandwidth. */
 	rtwn_rf_write(sc, 0, R92C_RF_CHNLBW,
