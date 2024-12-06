@@ -185,11 +185,11 @@ struct indir {
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
-	uint16_t ufid_len;		/* Length of structure. */
-	uint16_t ufid_pad;		/* Force 32-bit alignment. */
-	ino_t	ufid_ino;		/* File number (ino). */
-	uint32_t ufid_gen;		/* Generation number. */
-} __packed;
+	uint16_t	ufid_len;	/* Length of structure. */
+	uint16_t	ufid_pad;	/* Force 32-bit alignment. */
+	uint32_t	ufid_gen;	/* Generation number. */
+	ino_t		ufid_ino;	/* File number (ino). */
+};
 #endif	/* _KERNEL */
 
 #endif	/* !_FS_EXT2FS_INODE_H_ */
