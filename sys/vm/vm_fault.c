@@ -1355,7 +1355,7 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
 	MPASS(status == FAULT_CONTINUE || status == FAULT_RESTART);
 	if (status == FAULT_RESTART)
 		return (status);
-	KASSERT(fs->vp == NULL || !fs->map->system_map,
+	KASSERT(fs->vp == NULL || !vm_map_is_system(fs->map),
 	    ("vm_fault: vnode-backed object mapped by system map"));
 
 	/*

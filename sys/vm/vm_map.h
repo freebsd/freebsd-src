@@ -278,6 +278,12 @@ vm_map_range_valid(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	return (true);
 }
 
+static inline bool
+vm_map_is_system(vm_map_t map)
+{
+	return ((map->system_map));
+}
+
 #endif	/* KLD_MODULE */
 #endif	/* _KERNEL */
 
