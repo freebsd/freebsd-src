@@ -93,8 +93,6 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr bss_vlimit;
     caddr_t bss_addr;
     Elf_Word stack_flags;
-    Elf_Addr relro_page;
-    size_t relro_size;
     Elf_Addr note_start;
     Elf_Addr note_end;
     char *note_map;
@@ -114,8 +112,6 @@ map_object(int fd, const char *path, const struct stat *sb)
     nsegs = -1;
     phdyn = phinterp = phtls = NULL;
     phdr_vaddr = 0;
-    relro_page = 0;
-    relro_size = 0;
     note_start = 0;
     note_end = 0;
     note_map = NULL;
@@ -159,11 +155,6 @@ map_object(int fd, const char *path, const struct stat *sb)
 
 	case PT_GNU_STACK:
 	    stack_flags = phdr->p_flags;
-	    break;
-
-	case PT_GNU_RELRO:
-	    relro_page = phdr->p_vaddr;
-	    relro_size = phdr->p_memsz;
 	    break;
 
 	case PT_NOTE:
@@ -323,9 +314,6 @@ map_object(int fd, const char *path, const struct stat *sb)
 	obj->tlsinit = mapbase + phtls->p_vaddr;
     }
     obj->stack_flags = stack_flags;
-    obj->relro_page = obj->relocbase + rtld_trunc_page(relro_page);
-    obj->relro_size = rtld_trunc_page(relro_page + relro_size) -
-      rtld_trunc_page(relro_page);
     if (note_start < note_end)
 	digest_notes(obj, note_start, note_end);
     if (note_map != NULL)
