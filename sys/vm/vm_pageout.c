@@ -1844,7 +1844,7 @@ vm_pageout_oom_pagecount(struct vmspace *vmspace)
 	long res;
 
 	map = &vmspace->vm_map;
-	KASSERT(!map->system_map, ("system map"));
+	KASSERT(!vm_map_is_system(map), ("system map"));
 	sx_assert(&map->lock, SA_LOCKED);
 	res = 0;
 	VM_MAP_ENTRY_FOREACH(entry, map) {
