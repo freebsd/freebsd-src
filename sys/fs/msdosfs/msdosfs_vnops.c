@@ -1962,6 +1962,8 @@ msdosfs_vptofh(struct vop_vptofh_args *ap)
 {
 	struct denode *dep;
 	struct defid *defhp;
+	_Static_assert(sizeof(struct defid) <= sizeof(struct fid),
+	    "struct defid cannot be larger than struct fid");
 
 	dep = VTODE(ap->a_vp);
 	defhp = (struct defid *)ap->a_fhp;
