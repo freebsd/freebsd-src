@@ -5893,6 +5893,7 @@ nextrule:
 		nat64 = pd->af != pd->naf;
 		if (nat64) {
 			struct pf_state_key	*_sk;
+			int			 ret;
 
 			if (sk == NULL)
 				sk = (*sm)->key[pd->dir == PF_IN ? PF_SK_STACK : PF_SK_WIRE];
@@ -5902,12 +5903,17 @@ nextrule:
 				_sk = sk;
 			else
 				_sk = nk;
-			rewrite += pf_translate(pd,
+
+			ret = pf_translate(pd,
 			    &_sk->addr[pd->didx],
 			    _sk->port[pd->didx],
 			    &_sk->addr[pd->sidx],
 			    _sk->port[pd->sidx],
 			    virtual_type, icmp_dir);
+			if (ret < 0)
+				goto cleanup;
+
+			rewrite += ret;
 		}
 	} else {
 		while ((ri = SLIST_FIRST(&match_rules))) {
@@ -6288,7 +6294,7 @@ pf_translate(struct pf_pdesc *pd, struct pf_addr *saddr, u_int16_t sport,
 
 		if (afto) {
 			if (pf_translate_icmp_af(AF_INET6, &pd->hdr.icmp))
-				return (0);
+				return (-1);
 			pd->proto = IPPROTO_ICMPV6;
 			rewrite = 1;
 		}
