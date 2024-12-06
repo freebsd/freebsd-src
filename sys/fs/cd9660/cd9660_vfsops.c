@@ -397,7 +397,7 @@ iso_mountfs(struct vnode *devvp, struct mount *mp)
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
-	isomp->im_fmask = isomp->im_dmask = ACCESSPERMS;
+	isomp->im_fmask = isomp->im_dmask = ALLPERMS;
 
 	vfs_flagopt(mp->mnt_optnew, "norrip", &isomp->im_flags, ISOFSMNT_NORRIP);
 	vfs_flagopt(mp->mnt_optnew, "gens", &isomp->im_flags, ISOFSMNT_GENS);
