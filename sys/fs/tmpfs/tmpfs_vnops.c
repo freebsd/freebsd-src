@@ -1709,6 +1709,8 @@ vop_vptofh {
 	struct tmpfs_fid_data tfd;
 	struct tmpfs_node *node;
 	struct fid *fhp;
+	_Static_assert(sizeof(struct tmpfs_fid_data) <= sizeof(struct fid),
+	    "struct tmpfs_fid_data cannot be larger than struct fid");
 
 	node = VP_TO_TMPFS_NODE(ap->a_vp);
 	fhp = ap->a_fhp;
