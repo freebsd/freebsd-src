@@ -269,7 +269,7 @@ struct ifid {
 	u_short		ifid_pad;
 	cd_ino_t	ifid_ino;
 	long		ifid_start;
-};
+} __packed;
 
 #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
 
