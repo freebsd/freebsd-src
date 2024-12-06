@@ -298,7 +298,7 @@ mi_startup(void)
 #if defined(VERBOSE_SYSINIT)
 		if (sip->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
-			printf("subsystem %x\n", last);
+			printf("subsystem %x\n", sip->subsystem);
 		}
 		if (verbose) {
 #if defined(DDB)
