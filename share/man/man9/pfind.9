@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 11, 2001
+.Dd December 3, 2024
 .Dt PFIND 9
 .Os
 .Sh NAME
@@ -34,7 +34,9 @@
 .Ft "struct proc *"
 .Fn pfind "pid_t pid"
 .Ft "struct proc *"
-.Fn zpfind "pid_t pid"
+.Fn pfind_any "pid_t pid"
+.Ft "struct proc *"
+.Fn pfind_any_locked "pid_t pid"
 .Sh DESCRIPTION
 .Fn pfind
 takes a
@@ -47,36 +49,39 @@ is on the
 .Va allproc
 list.
 .Pp
-.Fn zpfind
+.Fn pfind_any
 takes a
 .Fa pid
 as its argument.
-If
-.Fn zpfind
-finds a process whose PID is equal to that of argument
-and is a zombie process, meaning that it must reside on the
-.Va zombproc
-list,
-.Fn zpfind
-returns a pointer to that
-.Vt proc
-structure.
+.Fn pfind_any
+searches the
+.Va allproc
+list and returns the first process whose PID matches and whose state is
+.Va PRS_ZOMBIE .
 .Pp
-Both
-.Fn pfind
+.Fn pfind_any_locked
+is similar to
+.Fn pfind_any
+,but it does not lock the process hash bucket
+for the given
+.Vt pid .
+Instead, it asserts the corresponding process hash bucket is already locked.
+All three functions
+.Fn pfind ,
+.Fn pfind_any ,
 and
-.Fn zpfind
+.Fn pgfind_any_locked
 lock the
 .Vt proc
-structure that is returned using
-.Fn PROC_LOCK "p" .
+structure before returning.
 .Sh RETURN VALUES
-.Fn pfind
+.Fn pfind ,
+.Fn pfind_any ,
 and
-.Fn zpfind
-return a pointer to a
+.Fn pfind_any_locked
+return pointer to a
 .Vt proc
-structure on success and a
+structure on success or
 .Dv NULL
 on failure.
 .Sh SEE ALSO
