@@ -170,30 +170,6 @@ r92c_send_ra_cmd(struct rtwn_softc *sc, int macid, uint32_t rates,
 	uint8_t mode;
 	int error = 0;
 
-	/* XXX should be called directly from iv_newstate() for MACID_BC */
-	/* XXX joinbss, not send_ra_cmd() */
-#ifdef RTWN_TODO
-	/* NB: group addressed frames are done at 11bg rates for now */
-	if (ic->ic_curmode == IEEE80211_MODE_11B)
-		mode = R92C_RAID_11B;
-	else
-		mode = R92C_RAID_11BG;
-	/* XXX misleading 'mode' value here for unicast frames */
-	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
-	    "%s: mode 0x%x, rates 0x%08x, basicrates 0x%08x\n", __func__,
-	    mode, rates, basicrates);
-
-	/* Set rates mask for group addressed frames. */
-	cmd.macid = RTWN_MACID_BC | R92C_CMD_MACID_VALID;
-	cmd.mask = htole32(mode << 28 | basicrates);
-	error = rtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not set RA mask for broadcast station\n");
-		return (error);
-	}
-#endif
-
 	/* Set rates mask for unicast frames. */
 	if (RTWN_RATE_IS_HT(maxrate))
 		mode = R92C_RAID_11GN;
@@ -283,7 +259,6 @@ r92c_joinbss_rpt(struct rtwn_softc *sc, int macid)
 end:
 #endif
 
-	/* TODO: init rates for RTWN_MACID_BC. */
 	if (macid & RTWN_MACID_VALID)
 		r92c_init_ra(sc, macid & ~RTWN_MACID_VALID);
 }
