@@ -191,7 +191,7 @@ struct ufid {
 	uint16_t ufid_pad;		/* Force 32-bit alignment. */
 	ino_t	ufid_ino;		/* File number (ino). */
 	uint32_t ufid_gen;		/* Generation number. */
-};
+} __packed;
 #endif	/* _KERNEL */
 
 #endif	/* !_FS_EXT2FS_INODE_H_ */
