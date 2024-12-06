@@ -1,7 +1,7 @@
-/*	$Id: eqn_parse.h,v 1.3 2018/12/14 06:33:14 schwarze Exp $ */
+/* $Id: eqn_parse.h,v 1.4 2022/04/13 20:26:19 schwarze Exp $ */
 /*
+ * Copyright (c) 2014, 2017, 2018, 2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2017, 2018 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,6 +32,8 @@ struct	eqn_node {
 	size_t		  defsz;   /* Number of definitions. */
 	size_t		  sz;      /* Length of the source code. */
 	size_t		  toksz;   /* Length of the current token. */
+	int		  sublen;  /* End of rightmost substitution, so far. */
+	int		  subcnt;  /* Number of recursive substitutions. */
 	int		  gsize;   /* Default point size. */
 	int		  delim;   /* In-line delimiters enabled. */
 	char		  odelim;  /* In-line opening delimiter. */

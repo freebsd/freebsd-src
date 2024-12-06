@@ -1,6 +1,6 @@
-.\"	$Id: mandoc_headers.3,v 1.34 2021/08/10 12:55:03 schwarze Exp $
+.\" $Id: mandoc_headers.3,v 1.35 2022/04/14 16:43:44 schwarze Exp $
 .\"
-.\" Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014-2022 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 10 2021 $
+.Dd $Mdocdate: April 14 2022 $
 .Dt MANDOC_HEADERS 3
 .Os
 .Sh NAME
@@ -25,8 +25,8 @@ To support a cleaner coding style, the mandoc header files do not
 contain any include directives and do not guard against multiple
 inclusion.
 The application developer has to make sure that the headers are
-included in a proper order, and that no header is included more
-than once.
+included in the order shown in this manual page,
+and that no header is included more than once.
 .Pp
 The headers and functions form three major groups:
 .Sx Parser interface ,
@@ -83,6 +83,33 @@ for
 .Pp
 Provides the functions documented in
 .Xr mandoc_malloc 3 .
+.Pp
+When this header is included, the same file must not include
+.Qq Pa mandoc_dbg.h
+because
+.Qq Pa mandoc_aux.h
+automatically includes
+.Qq Pa mandoc_dbg.h
+if and only if the preprocessor symbol
+.Dv DEBUG_MEMORY
+is defined.
+.It Qq Pa mandoc_dbg.h
+Debugging utility functions and
+debugging wrappers around memory allocation functions.
+.Pp
+Requires
+.In sys/types.h
+for
+.Vt size_t .
+.Pp
+Provides the functions documented in
+.Xr mandoc_dbg_init 3 .
+.Pp
+This header must not be included unless the preprocessor symbol
+.Dv DEBUG_MEMORY
+is defined.
+When this header is included, the same file must not include
+.Qq Pa mandoc_aux.h .
 .It Qq Pa mandoc_ohash.h
 Hashing utility functions; can be used everywhere.
 .Pp

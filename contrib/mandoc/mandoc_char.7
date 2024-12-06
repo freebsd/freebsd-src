@@ -1,8 +1,9 @@
-.\"	$Id: mandoc_char.7,v 1.78 2020/10/31 11:45:16 schwarze Exp $
+.\" $Id: mandoc_char.7,v 1.79 2022/06/02 14:51:41 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011,2013,2015,2017-2020 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2013, 2015, 2017-2020, 2022
+.\"               Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 31 2020 $
+.Dd $Mdocdate: June 2 2022 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -220,13 +221,18 @@ where it introduces a
 request or a macro, and when appearing alone as a macro argument in
 .Xr mdoc 7 .
 In such situations, prepend a zero-width space
-.Pq Sq \e&.
+.Pq Sq \e&.\&
 to make it behave like normal text.
 .Pp
-Do not use the
+Do not use the character pair
 .Sq \e.
-escape sequence.
-It does not prevent special handling of the period.
+to escape a period because
+.Sq \e.
+is not a character escape sequence, does not prevent special handling
+of the period under normal circumstances, and is only intended to
+be used in the very special situation of defining a user-defined
+macro that, when called, defines another user-defined macro, which
+no manual page is ever supposed to do.
 .Ss Backslashes
 To include a literal backslash
 .Pq Sq \e
@@ -326,7 +332,6 @@ Punctuation:
 .It \e(en    Ta \(en        Ta en-dash
 .It \e(hy    Ta \(hy        Ta hyphen
 .It \ee      Ta \e          Ta back-slash
-.It \e.      Ta \.          Ta period
 .It \e(r!    Ta \(r!        Ta upside-down exclamation
 .It \e(r?    Ta \(r?        Ta upside-down question
 .El

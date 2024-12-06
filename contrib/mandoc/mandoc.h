@@ -1,6 +1,6 @@
-/* $Id: mandoc.h,v 1.274 2021/08/14 13:53:08 schwarze Exp $ */
+/* $Id: mandoc.h,v 1.282 2023/10/21 17:10:17 schwarze Exp $ */
 /*
- * Copyright (c) 2012-2021 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012-2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -20,8 +20,10 @@
  */
 
 #define ASCII_NBRSP	 31  /* non-breaking space */
-#define	ASCII_HYPH	 30  /* breakable hyphen */
-#define	ASCII_BREAK	 29  /* breakable zero-width space */
+#define ASCII_NBRZW	 30  /* non-breaking zero-width space */
+#define ASCII_BREAK	 29  /* breakable zero-width space */
+#define ASCII_HYPH	 28  /* breakable hyphen */
+#define ASCII_TABREF	 26  /* reset tab reference position */
 
 /*
  * Status level.  This refers to both internal status (i.e., whilst
@@ -165,13 +167,14 @@ enum	mandocerr {
 	MANDOCERR_SM_BAD, /* invalid Boolean argument: macro arg */
 	MANDOCERR_CHAR_FONT, /* argument contains two font escapes */
 	MANDOCERR_FT_BAD, /* unknown font, skipping request: ft font */
+	MANDOCERR_MC_DIST, /* ignoring distance argument: mc ... arg */
 	MANDOCERR_TR_ODD, /* odd number of characters in request: tr char */
 
 	/* related to plain text */
 	MANDOCERR_FI_BLANK, /* blank line in fill mode, using .sp */
 	MANDOCERR_FI_TAB, /* tab in filled text */
 	MANDOCERR_EOS, /* new sentence, new line */
-	MANDOCERR_ESC_BAD, /* invalid escape sequence: esc */
+	MANDOCERR_ESC_ARG, /* invalid escape sequence argument: esc */
 	MANDOCERR_ESC_UNDEF, /* undefined escape, printing literally: char */
 	MANDOCERR_STR_UNDEF, /* undefined string, using "": name */
 
@@ -215,11 +218,13 @@ enum	mandocerr {
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name: name */
 	MANDOCERR_ARG_UNDEF, /* using macro argument outside macro */
 	MANDOCERR_ARG_NONUM, /* argument number is not numeric */
+	MANDOCERR_ARG_NEG, /* negative argument, using 0: request arg */
 	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_BD_NOARG, /* skipping display without arguments: Bd */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
 	MANDOCERR_CE_NONUM, /* argument is not numeric, using 1: ce ... */
 	MANDOCERR_CHAR_ARG, /* argument is not a character: char ... */
+	MANDOCERR_MC_ESC, /* skipping unusable escape sequence: mc arg */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
 	MANDOCERR_ST_BAD, /* unknown standard specifier: St standard */
@@ -231,6 +236,12 @@ enum	mandocerr {
 	MANDOCERR_ARG_SKIP, /* skipping all arguments: macro args */
 	MANDOCERR_ARG_EXCESS, /* skipping excess arguments: macro ... args */
 	MANDOCERR_DIVZERO, /* divide by zero */
+
+	/* related to escape sequences */
+	MANDOCERR_ESC_INCOMPLETE, /* incomplete escape sequence: esc */
+	MANDOCERR_ESC_BADCHAR, /* invalid special character: esc */
+	MANDOCERR_ESC_UNKCHAR, /* unknown special character: esc */
+	MANDOCERR_ESC_DELIM, /* invalid escape argument delimiter: esc */
 
 	MANDOCERR_UNSUPP, /* ===== start of unsupported features ===== */
 
@@ -282,11 +293,12 @@ enum	mandocerr {
 };
 
 enum	mandoc_esc {
-	ESCAPE_ERROR = 0, /* bail! unparsable escape */
-	ESCAPE_UNSUPP, /* unsupported escape; ignore it */
-	ESCAPE_IGNORE, /* escape to be ignored */
-	ESCAPE_UNDEF, /* undefined escape; print literal character */
-	ESCAPE_SPECIAL, /* a regular special character */
+	ESCAPE_EXPAND = 0, /* interpolation and iterative call needed */
+	ESCAPE_ERROR, /* non-fatal error: unparsable escape */
+	ESCAPE_UNSUPP, /* unsupported escape: warn and ignore */
+	ESCAPE_IGNORE, /* valid escape to be ignored */
+	ESCAPE_UNDEF, /* undefined escape: print literal character */
+	ESCAPE_SPECIAL, /* special character escape */
 	ESCAPE_FONT, /* a generic font mode */
 	ESCAPE_FONTBOLD, /* bold font mode */
 	ESCAPE_FONTITALIC, /* italic font mode */

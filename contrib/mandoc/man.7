@@ -1,7 +1,7 @@
-.\"	$Id: man.7,v 1.148 2021/08/05 14:31:14 schwarze Exp $
+.\" $Id: man.7,v 1.150 2023/10/23 22:57:54 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011-2015,2017-2020,2023 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2017 Anthony Bentley <bentley@openbsd.org>
 .\" Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
 .\"
@@ -17,7 +17,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 5 2021 $
+.Dd $Mdocdate: October 23 2023 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -97,10 +97,11 @@ but can be found in the alphabetical reference below.
 .It Ic SH Ta section header (one line)
 .It Ic SS Ta subsection header (one line)
 .It Ic PP Ta start an undecorated paragraph (no arguments)
-.It Ic RS , RE Ta reset the left margin: Op Ar width
 .It Ic IP Ta indented paragraph: Op Ar head Op Ar width
 .It Ic TP Ta tagged paragraph: Op Ar width
 .It Ic PD Ta set vertical paragraph distance: Op Ar height
+.It Ic EX , EE Ta display an example (no arguments)
+.It Ic RS , RE Ta reset the left margin: Op Ar width
 .It Ic in Ta additional indent: Op Ar width
 .El
 .Ss Physical markup
@@ -162,7 +163,9 @@ This has no effect unless the tabulator positions were changed with the
 .Ic ta
 request.
 .It Ic EE
-This is a non-standard Version 9
+End an example block started with
+.Ic EX .
+This is a Version 9
 .At
 extension later adopted by GNU.
 In
@@ -172,7 +175,8 @@ it does the same as the
 .Ic fi
 request (switch to fill mode).
 .It Ic EX
-This is a non-standard Version 9
+Begin a block to display an example.
+This is a Version 9
 .At
 extension later adopted by GNU.
 In
@@ -234,10 +238,10 @@ A synonym for
 .It Ic ME
 End a mailto block started with
 .Ic MT .
-This is a non-standard GNU extension.
+This is a GNU extension.
 .It Ic MT
 Begin a mailto block.
-This is a non-standard GNU extension.
+This is a GNU extension.
 It has the following syntax:
 .Bd -unfilled -offset indent
 .Pf . Ic MT Ar address
@@ -246,7 +250,7 @@ link description to be shown
 .Ed
 .It Ic OP
 Optional command-line argument.
-This is a non-standard DWB extension.
+This is a rarely used DWB extension.
 It has the following syntax:
 .Pp
 .D1 Pf . Ic OP Ar key Op Ar value
@@ -373,8 +377,7 @@ Begin a synopsis block with the following syntax:
 .Pf . Ic YS
 .Ed
 .Pp
-This is a non-standard GNU extension
-and very rarely used even in GNU manual pages.
+This is a GNU extension and rarely used even in GNU manual pages.
 Formatting is similar to
 .Ic IP .
 .It Ic TH
@@ -437,8 +440,7 @@ unspecified, the saved or default width is used.
 Like
 .Ic TP ,
 except that no vertical spacing is inserted before the paragraph.
-This is a non-standard GNU extension
-and very rarely used even in GNU manual pages.
+This is a GNU extension.
 .It Ic UC
 Sets the volume for the footer for compatibility with man pages from
 .Bx
@@ -449,10 +451,10 @@ This macro is an extension that first appeared in
 .It Ic UE
 End a uniform resource identifier block started with
 .Ic UR .
-This is a non-standard GNU extension.
+This is a GNU extension.
 .It Ic UR
 Begin a uniform resource identifier block.
-This is a non-standard GNU extension.
+This is a GNU extension.
 It has the following syntax:
 .Bd -unfilled -offset indent
 .Pf . Ic UR Ar uri
@@ -462,7 +464,7 @@ link description to be shown
 .It Ic YS
 End a synopsis block started with
 .Ic SY .
-This is a non-standard GNU extension.
+This is a GNU extension.
 .It Ic in
 Indent relative to the current indentation:
 .Pp
