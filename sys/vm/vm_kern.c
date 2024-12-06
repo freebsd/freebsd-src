@@ -724,7 +724,7 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 			swap_release(size);
 			return (0);
 		}
-		map->needs_wakeup = TRUE;
+		vm_map_modflags(map, MAP_NEEDS_WAKEUP, 0);
 		vm_map_unlock_and_wait(map, 0);
 	}
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
@@ -745,8 +745,8 @@ kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
 
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	if (map->needs_wakeup) {
-		map->needs_wakeup = FALSE;
+	if ((map->flags & MAP_NEEDS_WAKEUP) != 0) {
+		vm_map_modflags(map, 0, MAP_NEEDS_WAKEUP);
 		vm_map_wakeup(map);
 	}
 	vm_map_unlock(map);

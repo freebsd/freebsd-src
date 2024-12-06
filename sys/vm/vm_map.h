@@ -210,9 +210,7 @@ struct vm_map {
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	u_int timestamp;		/* Version number */
-	u_char needs_wakeup;
-	u_char system_map;		/* (c) Am I a system map? */
-	vm_flags_t flags;		/* flags for this vm_map */
+	u_int flags;			/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
 	vm_offset_t anon_loc;
@@ -223,7 +221,7 @@ struct vm_map {
 };
 
 /*
- * vm_flags_t values
+ * vm_map flags values
  */
 #define	MAP_WIREFUTURE		0x00000001	/* wire all future pages */
 #define	MAP_BUSY_WAKEUP		0x00000002	/* thread(s) waiting on busy
@@ -236,6 +234,8 @@ struct vm_map {
 #define	MAP_WXORX		0x00000040	/* enforce W^X */
 #define	MAP_ASLR_STACK		0x00000080	/* stack location is
 						   randomized */
+#define	MAP_NEEDS_WAKEUP	0x40000000
+#define	MAP_SYSTEM_MAP		0x80000000
 
 #ifdef	_KERNEL
 #if defined(KLD_MODULE) && !defined(KLD_TIED)
@@ -266,7 +266,7 @@ vm_map_pmap(vm_map_t map)
 }
 
 static __inline void
-vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
+vm_map_modflags(vm_map_t map, u_int set, u_int clear)
 {
 	map->flags = (map->flags | set) & ~clear;
 }
@@ -284,7 +284,7 @@ vm_map_range_valid(vm_map_t map, vm_offset_t start, vm_offset_t end)
 static inline bool
 vm_map_is_system(vm_map_t map)
 {
-	return ((map->system_map));
+	return ((map->flags & MAP_SYSTEM_MAP) != 0);
 }
 
 #endif	/* KLD_MODULE */
