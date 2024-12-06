@@ -1,6 +1,6 @@
-/* $Id: mdoc_term.c,v 1.380 2020/04/06 10:16:17 schwarze Exp $ */
+/* $Id: mdoc_term.c,v 1.383 2023/11/13 19:13:01 schwarze Exp $ */
 /*
- * Copyright (c) 2010, 2012-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2020, 2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013 Franco Fichtner <franco@lastsummer.de>
  *
@@ -250,7 +250,6 @@ terminal_mdoc(void *arg, const struct roff_meta *mdoc)
 {
 	struct roff_node	*n, *nn;
 	struct termp		*p;
-	size_t			 save_defindent;
 
 	p = (struct termp *)arg;
 	p->tcol->rmargin = p->maxrmargin = p->defrmargin;
@@ -275,9 +274,6 @@ terminal_mdoc(void *arg, const struct roff_meta *mdoc)
 			print_mdoc_nodelist(p, NULL, mdoc, n);
 		term_newln(p);
 	} else {
-		save_defindent = p->defindent;
-		if (p->defindent == 0)
-			p->defindent = 5;
 		term_begin(p, print_mdoc_head, print_mdoc_foot, mdoc);
 		while (n != NULL &&
 		    (n->type == ROFFT_COMMENT ||
@@ -289,7 +285,6 @@ terminal_mdoc(void *arg, const struct roff_meta *mdoc)
 			print_mdoc_nodelist(p, NULL, mdoc, n);
 		}
 		term_end(p);
-		p->defindent = save_defindent;
 	}
 }
 
@@ -320,8 +315,11 @@ print_mdoc_node(DECL_ARGS)
 		    (p->flags & TERMP_NONEWLINE) == 0)
 			term_newln(p);
 		p->flags |= TERMP_BRNEVER;
-	} else
+	} else {
+		if (n->flags & NODE_LINE)
+			term_tab_ref(p);
 		p->flags &= ~TERMP_BRNEVER;
+	}
 
 	if (n->type == ROFFT_COMMENT || n->flags & NODE_NOPRT)
 		return;
@@ -566,8 +564,8 @@ a2width(const struct termp *p, const char *v)
 
 	end = a2roffsu(v, &su, SCALE_MAX);
 	if (end == NULL || *end != '\0') {
-		SCALE_HS_INIT(&su, term_strlen(p, v));
-		su.scale /= term_strlen(p, "0");
+		su.unit = SCALE_EN;
+		su.scale = term_strlen(p, v) / term_strlen(p, "0");
 	}
 	return term_hen(p, &su);
 }
@@ -703,9 +701,9 @@ termp_it_pre(DECL_ARGS)
 		for (i = 0, nn = n->prev;
 		    nn->prev && i < (int)ncols;
 		    nn = nn->prev, i++) {
-			SCALE_HS_INIT(&su,
-			    term_strlen(p, bl->norm->Bl.cols[i]));
-			su.scale /= term_strlen(p, "0");
+			su.unit = SCALE_EN;
+			su.scale = term_strlen(p, bl->norm->Bl.cols[i]) /
+			    term_strlen(p, "0");
 			offset += term_hen(p, &su) + dcol;
 		}
 
@@ -722,8 +720,9 @@ termp_it_pre(DECL_ARGS)
 		 * Use the declared column widths, extended as explained
 		 * in the preceding paragraph.
 		 */
-		SCALE_HS_INIT(&su, term_strlen(p, bl->norm->Bl.cols[i]));
-		su.scale /= term_strlen(p, "0");
+		su.unit = SCALE_EN;
+		su.scale = term_strlen(p, bl->norm->Bl.cols[i]) /
+		    term_strlen(p, "0");
 		width = term_hen(p, &su) + dcol;
 		break;
 	default:

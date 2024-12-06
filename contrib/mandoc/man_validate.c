@@ -1,6 +1,6 @@
-/* $Id: man_validate.c,v 1.156 2021/08/10 12:55:03 schwarze Exp $ */
+/* $Id: man_validate.c,v 1.159 2023/10/24 20:53:12 schwarze Exp $ */
 /*
- * Copyright (c) 2010, 2012-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2020, 2023 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -33,6 +33,7 @@
 
 #include "mandoc_aux.h"
 #include "mandoc.h"
+#include "mandoc_xr.h"
 #include "roff.h"
 #include "man.h"
 #include "libmandoc.h"
@@ -44,7 +45,6 @@
 
 typedef	void	(*v_check)(CHKARGS);
 
-static	void	  check_abort(CHKARGS) __attribute__((__noreturn__));
 static	void	  check_par(CHKARGS);
 static	void	  check_part(CHKARGS);
 static	void	  check_root(CHKARGS);
@@ -55,6 +55,7 @@ static	void	  post_AT(CHKARGS);
 static	void	  post_EE(CHKARGS);
 static	void	  post_EX(CHKARGS);
 static	void	  post_IP(CHKARGS);
+static	void	  post_MR(CHKARGS);
 static	void	  post_OP(CHKARGS);
 static	void	  post_SH(CHKARGS);
 static	void	  post_TH(CHKARGS);
@@ -69,9 +70,9 @@ static	const v_check man_valids[MAN_MAX - MAN_TH] = {
 	post_SH,    /* SS */
 	post_TP,    /* TP */
 	post_TP,    /* TQ */
-	check_abort,/* LP */
+	check_par,  /* LP */
 	check_par,  /* PP */
-	check_abort,/* P */
+	check_par,  /* P */
 	post_IP,    /* IP */
 	NULL,       /* HP */
 	NULL,       /* SM */
@@ -101,6 +102,7 @@ static	const v_check man_valids[MAN_MAX - MAN_TH] = {
 	NULL,       /* UE */
 	post_UR,    /* MT */
 	NULL,       /* ME */
+	post_MR,    /* MR */
 };
 
 
@@ -112,25 +114,11 @@ man_validate(struct roff_man *man)
 	const v_check	 *cp;
 
 	/*
-	 * Translate obsolete macros such that later code
-	 * does not need to look for them.
-	 */
-
-	n = man->last;
-	switch (n->tok) {
-	case MAN_LP:
-	case MAN_P:
-		n->tok = MAN_PP;
-		break;
-	default:
-		break;
-	}
-
-	/*
 	 * Iterate over all children, recursing into each one
 	 * in turn, depth-first.
 	 */
 
+	n = man->last;
 	man->last = man->last->child;
 	while (man->last != NULL) {
 		man_validate(man);
@@ -198,12 +186,6 @@ check_root(CHKARGS)
 		mandoc_msg(MANDOCERR_RCS_MISSING, 0, 0,
 		    man->meta.os_e == MANDOC_OS_OPENBSD ?
 		    "(OpenBSD)" : "(NetBSD)");
-}
-
-static void
-check_abort(CHKARGS)
-{
-	abort();
 }
 
 /*
@@ -340,7 +322,8 @@ post_SH(CHKARGS)
 		return;
 	}
 
-	if (nc->tok == MAN_PP && nc->body->child != NULL) {
+	if ((nc->tok == MAN_LP || nc->tok == MAN_PP || nc->tok == MAN_P) &&
+	    nc->body->child != NULL) {
 		while (nc->body->last != NULL) {
 			man->next = ROFF_NEXT_CHILD;
 			roff_node_relink(man, nc->body->last);
@@ -348,7 +331,8 @@ post_SH(CHKARGS)
 		}
 	}
 
-	if (nc->tok == MAN_PP || nc->tok == ROFF_sp || nc->tok == ROFF_br) {
+	if (nc->tok == MAN_LP || nc->tok == MAN_PP || nc->tok == MAN_P ||
+	    nc->tok == ROFF_sp || nc->tok == ROFF_br) {
 		mandoc_msg(MANDOCERR_PAR_SKIP, nc->line, nc->pos,
 		    "%s after %s", roff_name[nc->tok], roff_name[n->tok]);
 		roff_node_delete(man, nc);
@@ -373,13 +357,11 @@ post_UR(CHKARGS)
 	if (n->type == ROFFT_HEAD && n->child == NULL)
 		mandoc_msg(MANDOCERR_UR_NOHEAD, n->line, n->pos,
 		    "%s", roff_name[n->tok]);
-	check_part(man, n);
 }
 
 static void
 check_part(CHKARGS)
 {
-
 	if (n->type == ROFFT_BODY && n->child == NULL)
 		mandoc_msg(MANDOCERR_BLK_EMPTY, n->line, n->pos,
 		    "%s", roff_name[n->tok]);
@@ -565,6 +547,32 @@ post_TH(CHKARGS)
 	 * meta-data.
 	 */
 	roff_node_delete(man, man->last);
+}
+
+static void
+post_MR(CHKARGS)
+{
+	struct roff_node *nch;
+
+	if ((nch = n->child) == NULL) {
+		mandoc_msg(MANDOCERR_NM_NONAME, n->line, n->pos, "MR");
+		return;
+	}
+	if (nch->next == NULL) {
+		mandoc_msg(MANDOCERR_XR_NOSEC,
+		    n->line, n->pos, "MR %s", nch->string);
+		return;
+	}
+	if (mandoc_xr_add(nch->next->string, nch->string, nch->line, nch->pos))
+		mandoc_msg(MANDOCERR_XR_SELF, nch->line, nch->pos,
+		    "MR %s %s", nch->string, nch->next->string);
+	if ((nch = nch->next->next) == NULL || nch->next == NULL)
+		return;
+
+	mandoc_msg(MANDOCERR_ARG_EXCESS, nch->next->line, nch->next->pos,
+	    "MR ... %s", nch->next->string);
+	while (nch->next != NULL)
+		roff_node_delete(man, nch->next);
 }
 
 static void

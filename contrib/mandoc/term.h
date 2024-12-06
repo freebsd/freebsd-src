@@ -1,7 +1,7 @@
-/*	$Id: term.h,v 1.131 2019/01/04 03:21:02 schwarze Exp $ */
+/* $Id: term.h,v 1.134 2022/08/16 17:45:55 schwarze Exp $ */
 /*
+ * Copyright (c) 2011-2015,2017,2019,2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2015, 2017, 2019 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -56,6 +56,7 @@ struct	termp_col {
 	size_t		  col;		/* Byte in buf to be written. */
 	size_t		  rmargin;	/* Current right margin. */
 	size_t		  offset;	/* Current left margin. */
+	size_t		  taboff;	/* Offset for literal tabs. */
 };
 
 struct	termp {
@@ -149,7 +150,9 @@ size_t		  term_len(const struct termp *, size_t);
 
 void		  term_tab_set(const struct termp *, const char *);
 void		  term_tab_iset(size_t);
+void		  term_tab_ref(struct termp *);
 size_t		  term_tab_next(size_t);
+void		  term_tab_free(void);
 
 void		  term_fontpush(struct termp *, enum termfont);
 void		  term_fontpop(struct termp *);

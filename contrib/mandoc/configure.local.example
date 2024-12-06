@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.43 2021/09/20 13:25:42 schwarze Exp $
+# $Id: configure.local.example,v 1.45 2023/10/19 11:45:42 schwarze Exp $
 #
-# Copyright (c) 2014-2021 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014-2022 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -108,11 +108,15 @@ OSNAME="OpenBSD 7.0"
 # there is no need to copy the whole block.
 # Even if you set PREFIX to something else, the other variables
 # pick it up without copying them all over.
+# MISCDIR is only used for installing the file mandoc.css.
+# That is important because users of "mandoc -T html" often need it
+# even if they are not using man.cgi(8), see mandoc(1) for details.
 
 PREFIX="/usr/local"
 BINDIR="${PREFIX}/bin"
 SBINDIR="${PREFIX}/sbin"
 MANDIR="${PREFIX}/man"
+MISCDIR="${PREFIX}/share/misc"
 
 # If BINDIR and SBINDIR are not subdirectories of the same parent
 # directory or if the basename(1) of BINDIR differs from "bin",
@@ -311,6 +315,12 @@ BINM_CATMAN=mcatman		# default is "catman"
 # unchanged, and nothing will be added.
 
 CFLAGS="-g"
+
+# Hunt for memory leaks.
+# Do not use for production builds.
+# See mandoc_dbg_init(3) for more information.
+
+DEBUG_MEMORY=1
 
 # In rare cases, it may be required to skip individual automatic tests.
 # Each of the following variables can be set to 0 (test will not be run
