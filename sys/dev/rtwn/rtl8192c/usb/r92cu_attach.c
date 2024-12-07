@@ -213,6 +213,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_antsel		= r92c_init_antsel;
 	sc->sc_post_init		= r92cu_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= rtwn_nop_int_softc_vap;
 
 	sc->mac_prog			= &rtl8192cu_mac[0];
 	sc->mac_size			= nitems(rtl8192cu_mac);

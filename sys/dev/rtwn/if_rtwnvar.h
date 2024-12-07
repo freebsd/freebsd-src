@@ -366,6 +366,8 @@ struct rtwn_softc {
 	void		(*sc_init_antsel)(struct rtwn_softc *);
 	void		(*sc_post_init)(struct rtwn_softc *);
 	int		(*sc_init_bcnq1_boundary)(struct rtwn_softc *);
+	int		(*sc_set_tx_power)(struct rtwn_softc *,
+			    struct ieee80211vap *);
 
 	const uint8_t			*chan_list_5ghz[3];
 	int				chan_num_5ghz[3];
@@ -590,6 +592,8 @@ void	rtwn_suspend(struct rtwn_softc *);
 	(((_sc)->sc_post_init)((_sc)))
 #define rtwn_init_bcnq1_boundary(_sc) \
 	(((_sc)->sc_init_bcnq1_boundary)((_sc)))
+#define rtwn_set_tx_power(_sc, _vap) \
+	(((_sc)->sc_set_tx_power)((_sc), (_vap)))
 
 /*
  * Methods to access subfields in registers.
