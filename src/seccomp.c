@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.25 2022/12/26 18:57:29 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.29 2024/09/29 16:49:25 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
@@ -62,95 +62,7 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.25 2022/12/26 18:57:29 christos Exp $")
 static scmp_filter_ctx ctx;
 
 int
-enable_sandbox_basic(void)
-{
-
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1)
-		return -1;
-
-	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) == -1)
-		return -1;
-
-	// initialize the filter
-	ctx = seccomp_init(SCMP_ACT_ALLOW);
-	if (ctx == NULL)
-	    return 1;
-
-	DENY_RULE(_sysctl);
-	DENY_RULE(acct);
-	DENY_RULE(add_key);
-	DENY_RULE(adjtimex);
-	DENY_RULE(chroot);
-	DENY_RULE(clock_adjtime);
-	DENY_RULE(create_module);
-	DENY_RULE(delete_module);
-	DENY_RULE(fanotify_init);
-	DENY_RULE(finit_module);
-	DENY_RULE(get_kernel_syms);
-	DENY_RULE(get_mempolicy);
-	DENY_RULE(init_module);
-	DENY_RULE(io_cancel);
-	DENY_RULE(io_destroy);
-	DENY_RULE(io_getevents);
-	DENY_RULE(io_setup);
-	DENY_RULE(io_submit);
-	DENY_RULE(ioperm);
-	DENY_RULE(iopl);
-	DENY_RULE(ioprio_set);
-	DENY_RULE(kcmp);
-#ifdef __NR_kexec_file_load
-	DENY_RULE(kexec_file_load);
-#endif
-	DENY_RULE(kexec_load);
-	DENY_RULE(keyctl);
-	DENY_RULE(lookup_dcookie);
-	DENY_RULE(mbind);
-	DENY_RULE(nfsservctl);
-	DENY_RULE(migrate_pages);
-	DENY_RULE(modify_ldt);
-	DENY_RULE(mount);
-	DENY_RULE(move_pages);
-	DENY_RULE(name_to_handle_at);
-	DENY_RULE(open_by_handle_at);
-	DENY_RULE(perf_event_open);
-	DENY_RULE(pivot_root);
-	DENY_RULE(process_vm_readv);
-	DENY_RULE(process_vm_writev);
-	DENY_RULE(ptrace);
-	DENY_RULE(reboot);
-	DENY_RULE(remap_file_pages);
-	DENY_RULE(request_key);
-	DENY_RULE(set_mempolicy);
-	DENY_RULE(swapoff);
-	DENY_RULE(swapon);
-	DENY_RULE(sysfs);
-	DENY_RULE(syslog);
-	DENY_RULE(tuxcall);
-	DENY_RULE(umount2);
-	DENY_RULE(uselib);
-	DENY_RULE(vmsplice);
-
-	// blocking dangerous syscalls that file should not need
-	DENY_RULE (execve);
-	DENY_RULE (socket);
-	// ...
-
-
-	// applying filter...
-	if (seccomp_load (ctx) == -1)
-		goto out;
-	// free ctx after the filter has been loaded into the kernel
-	seccomp_release(ctx);
-	return 0;
-
-out:
-	seccomp_release(ctx);
-	return -1;
-}
-
-
-int
-enable_sandbox_full(void)
+enable_sandbox(void)
 {
 
 	// prevent child processes from getting more priv e.g. via setuid,
@@ -158,8 +70,10 @@ enable_sandbox_full(void)
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1)
 		return -1;
 
+#if 0
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) == -1)
 		return -1;
+#endif
 
 	// initialize the filter
 	ctx = seccomp_init(SCMP_ACT_KILL);
@@ -232,6 +146,7 @@ enable_sandbox_full(void)
 	ALLOW_RULE(sysinfo);
 	ALLOW_RULE(umask);	// Used in file_pipe2file()
 	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
+	ALLOW_RULE(getrandom);	// Used by glibc in file_pipe2file()
 	ALLOW_RULE(unlink);
 	ALLOW_RULE(utimes);
 	ALLOW_RULE(write);
@@ -273,6 +188,14 @@ enable_sandbox_full(void)
 	 if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(write), 1,
 	     SCMP_CMP(0, SCMP_CMP_EQ, 2)) == -1)
 		 goto out;
+#endif
+
+#if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
+	/* allow glibc to name malloc areas */
+	if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(prctl), 2,
+	    SCMP_CMP32(0, SCMP_CMP_EQ, PR_SET_VMA),
+	    SCMP_CMP64(1, SCMP_CMP_EQ, PR_SET_VMA_ANON_NAME)) == -1)
+		goto out;
 #endif
 
 	// applying filter...

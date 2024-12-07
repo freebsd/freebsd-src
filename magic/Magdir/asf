@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: asf,v 1.4 2022/10/31 13:22:26 christos Exp $
+# $File: asf,v 1.5 2024/09/04 19:06:12 christos Exp $
 # asf:  file(1) magic for Microsoft Advanced Systems Format (ASF) files
 # http://www.staroceans.org/e-book/ASF_Specification.pdf
 
@@ -10,13 +10,13 @@
 #>16	lequad	>0
 #>>(16.q)	use	asf-object
 # ASF_Simple_Index_Object
->0	guid	33000890-E5B1-11CF-89F4-00A0C90349CB
+#>0	guid	33000890-E5B1-11CF-89F4-00A0C90349CB
 >0	guid	D6E229D3-35DA-11D1-9034-00A0C90349BE ASF_Index_Object
 >0	guid	FEB103F8-12AD-4C64-840F-2A1D2F7AD48C ASF_Media_Object_Index_Object
 >0	guid	3CB73FD0-0C4A-4803-953D-EDF7B6228F0C ASF_Timecode_Index_Object
 
 # ASF_File_Properties_Object
->0	guid	8CABDCA1-A947-11CF-8EE4-00C00C205365 
+#>0	guid	8CABDCA1-A947-11CF-8EE4-00C00C205365 
 
 # ASF_Stream_Properties_Object
 >0	guid	B7DC0791-A9B7-11CF-8EE6-00C00C205365
@@ -52,15 +52,15 @@
 >>40	use	asf-name 
 >>0	lelong	x	\b)
 #ASF_Header_Extension_Object
->0	guid	5FBF03B5-A92E-11CF-8EE3-00C00C205365
+#>0	guid	5FBF03B5-A92E-11CF-8EE3-00C00C205365
 # ASF_Codec_List_Object
->0	guid	86D15240-311D-11D0-A3A4-00A0C90348F6
+#>0	guid	86D15240-311D-11D0-A3A4-00A0C90348F6
 >0	guid	1EFB1A30-0B62-11D0-A39B-00A0C90348F6 ASF_Script_Command_Object
 >0	guid	F487CD01-A951-11CF-8EE6-00C00C205365 ASF_Marker_Object
 >0	guid	D6E229DC-35DA-11D1-9034-00A0C90349BE ASF_Bitrate_Mutual_Exclusion_Object
 >0	guid	75B22635-668E-11CF-A6D9-00AA0062CE6C ASF_Error_Correction_Object
 # ASF_Content_Description_Object
->0	guid	75B22633-668E-11CF-A6D9-00AA0062CE6C
+#>0	guid	75B22633-668E-11CF-A6D9-00AA0062CE6C
 #>>24	leshort	title length %d
 #>>26	leshort	author length %d
 #>>28	leshort	copyright length %d
@@ -73,7 +73,7 @@
 >0	guid	298AE614-2622-4C17-B935-DAE07EE9289C ASF_Extended_Content_Encryption_Object
 >0	guid	2211B3FC-BD23-11D2-B4B7-00A0C955FC6E ASF_Digital_Signature_Object
 # ASF_Padding_Object
->0	guid	1806D474-CADF-4509-A4BA-9AABCB96AAE8
+#>0	guid	1806D474-CADF-4509-A4BA-9AABCB96AAE8
 >0	guid	14E6A5CB-C672-4332-8399-A96952065B5A ASF_Extended_Stream_Properties_Object
 >0	guid	A08649CF-4775-4670-8A16-6E35357566CD ASF_Advanced_Mutual_Exclusion_Object
 >0	guid	D1465A40-5A79-4338-B71B-E36B8FD6C249 ASF_Group_Mutual_Exclusion_Object

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.72 2023/06/16 19:24:06 christos Exp $
+# $File: console,v 1.80 2024/11/09 23:55:02 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -115,17 +115,18 @@
 # gameboy: file(1) magic for the Nintendo (Color) Gameboy raw ROM format
 # Reference: http://gbdev.gg8.se/wiki/articles/The_Cartridge_Header
 #
-0x104		bequad		0xCEED6666CC0D000B	Game Boy ROM image
-# TODO: application/x-gameboy-color-rom for GBC.
-!:mime		application/x-gameboy-rom
+
+# Title (16 chars for GB; 15 chars for CGB)
+0		name		gameboy-title
 >0x143		byte&0x80	0x80
 >>0x134		string		>\0			\b: "%.15s"
 >0x143		byte&0x80	!0x80
 >>0x134		string		>\0			\b: "%.16s"
 >0x14c		byte		x			(Rev.%02u)
 
-# Machine type. (SGB, CGB, SGB+CGB)
+# Machine type (SGB, CGB, SGB+CGB)
 # Old licensee code 0x33 is required for SGB, but not CGB.
+0		name		gameboy-machine-type
 >0x14b		byte		0x33
 >>0x146		byte		0x03
 >>>0x143	byte&0x80	0x80	[SGB+CGB]
@@ -137,53 +138,78 @@
 >>0x143		byte&0xC0	0x80	[CGB]
 >>0x143		byte&0xC0	0xC0	[CGB ONLY]
 
-# Mapper.
->0x147 byte 0x00  [ROM ONLY]
->0x147 byte 0x01  [MBC1]
->0x147 byte 0x02  [MBC1+RAM]
->0x147 byte 0x03  [MBC1+RAM+BATT]
->0x147 byte 0x05  [MBC2]
->0x147 byte 0x06  [MBC2+BATTERY]
->0x147 byte 0x08  [ROM+RAM]
->0x147 byte 0x09  [ROM+RAM+BATTERY]
->0x147 byte 0x0B  [MMM01]
->0x147 byte 0x0C  [MMM01+SRAM]
->0x147 byte 0x0D  [MMM01+SRAM+BATT]
->0x147 byte 0x0F  [MBC3+TIMER+BATT]
->0x147 byte 0x10  [MBC3+TIMER+RAM+BATT]
->0x147 byte 0x11  [MBC3]
->0x147 byte 0x12  [MBC3+RAM]
->0x147 byte 0x13  [MBC3+RAM+BATT]
->0x147 byte 0x19  [MBC5]
->0x147 byte 0x1A  [MBC5+RAM]
->0x147 byte 0x1B  [MBC5+RAM+BATT]
->0x147 byte 0x1C  [MBC5+RUMBLE]
->0x147 byte 0x1D  [MBC5+RUMBLE+SRAM]
->0x147 byte 0x1E  [MBC5+RUMBLE+SRAM+BATT]
->0x147 byte 0xFC  [Pocket Camera]
->0x147 byte 0xFD  [Bandai TAMA5]
->0x147 byte 0xFE  [Hudson HuC-3]
->0x147 byte 0xFF  [Hudson HuC-1]
+# Mapper
+0	name gameboy-mapper
+>0	byte 0x00  [ROM ONLY]
+>0	byte 0x01  [MBC1]
+>0	byte 0x02  [MBC1+RAM]
+>0	byte 0x03  [MBC1+RAM+BATT]
+>0	byte 0x05  [MBC2]
+>0	byte 0x06  [MBC2+BATTERY]
+>0	byte 0x08  [ROM+RAM]
+>0	byte 0x09  [ROM+RAM+BATTERY]
+>0	byte 0x0B  [MMM01]
+>0	byte 0x0C  [MMM01+SRAM]
+>0	byte 0x0D  [MMM01+SRAM+BATT]
+>0	byte 0x0F  [MBC3+TIMER+BATT]
+>0	byte 0x10  [MBC3+TIMER+RAM+BATT]
+>0	byte 0x11  [MBC3]
+>0	byte 0x12  [MBC3+RAM]
+>0	byte 0x13  [MBC3+RAM+BATT]
+>0	byte 0x19  [MBC5]
+>0	byte 0x1A  [MBC5+RAM]
+>0	byte 0x1B  [MBC5+RAM+BATT]
+>0	byte 0x1C  [MBC5+RUMBLE]
+>0	byte 0x1D  [MBC5+RUMBLE+SRAM]
+>0	byte 0x1E  [MBC5+RUMBLE+SRAM+BATT]
+>0	byte 0xFC  [Pocket Camera]
+>0	byte 0xFD  [Bandai TAMA5]
+>0	byte 0xFE  [Hudson HuC-3]
+>0	byte 0xFF  [Hudson HuC-1]
 
-# ROM size.
->0x148 byte 0     \b, ROM: 256Kbit
->0x148 byte 1     \b, ROM: 512Kbit
->0x148 byte 2     \b, ROM: 1Mbit
->0x148 byte 3     \b, ROM: 2Mbit
->0x148 byte 4     \b, ROM: 4Mbit
->0x148 byte 5     \b, ROM: 8Mbit
->0x148 byte 6     \b, ROM: 16Mbit
->0x148 byte 7     \b, ROM: 32Mbit
->0x148 byte 0x52  \b, ROM: 9Mbit
->0x148 byte 0x53  \b, ROM: 10Mbit
->0x148 byte 0x54  \b, ROM: 12Mbit
+# ROM size
+0	name gameboy-rom-size
+>0	byte 0     \b, ROM: 256Kbit
+>0	byte 1     \b, ROM: 512Kbit
+>0	byte 2     \b, ROM: 1Mbit
+>0	byte 3     \b, ROM: 2Mbit
+>0	byte 4     \b, ROM: 4Mbit
+>0	byte 5     \b, ROM: 8Mbit
+>0	byte 6     \b, ROM: 16Mbit
+>0	byte 7     \b, ROM: 32Mbit
+>0	byte 0x52  \b, ROM: 9Mbit
+>0	byte 0x53  \b, ROM: 10Mbit
+>0	byte 0x54  \b, ROM: 12Mbit
 
-# RAM size.
->0x149 byte 1     \b, RAM: 16Kbit
->0x149 byte 2     \b, RAM: 64Kbit
->0x149 byte 3     \b, RAM: 256Kbit
->0x149 byte 4     \b, RAM: 1Mbit
->0x149 byte 5     \b, RAM: 512Kbit
+# RAM size
+0	name	gameboy-ram-size
+>0	byte 1     \b, RAM: 16Kbit
+>0	byte 2     \b, RAM: 64Kbit
+>0	byte 3     \b, RAM: 256Kbit
+>0	byte 4     \b, RAM: 1Mbit
+>0	byte 5     \b, RAM: 512Kbit
+
+# Game Boy (Color)
+0x104		bequad		0xCEED6666CC0D000B
+>0x143		byte&0x80	0x80	Game Boy Color ROM image
+!:mime		application/x-gameboy-color-rom
+>0x143		byte&0x80	!0x80	Game Boy ROM image
+!:mime		application/x-gameboy-rom
+>0		use		gameboy-title
+>0		use		gameboy-machine-type
+>0x147		use		gameboy-mapper
+>0x148		use		gameboy-rom-size
+>0x149		use		gameboy-ram-size
+
+# Analogue Pocket
+0x104		bequad		0x0110CEEF000044AA
+>0		byte		x	Analogue Pocket ROM image
+!:mime		application/x-analogue-pocket-rom
+>0		use		gameboy-title
+>0		use		gameboy-machine-type
+>0x147		use		gameboy-mapper
+>0x148		use		gameboy-rom-size
+>0x149		use		gameboy-ram-size
 
 #------------------------------------------------------------------------------
 # genesis: file(1) magic for various Sega Mega Drive / Genesis ROM image and disc formats
@@ -210,45 +236,45 @@
 
 # TODO: Check for 32X CD?
 # Sega Mega CD disc images: 2048-byte sectors.
-0	string	SEGADISCSYSTEM\ \ 	Sega Mega CD disc image
+0	string	SEGADISCSYSTEM\040\040	Sega Mega CD disc image
 !:mime	application/x-sega-cd-rom
 >0	use	sega-mega-drive-header
 >0	byte	x			\b, 2048-byte sectors
-0	string	SEGABOOTDISC\ \ \ \ 	Sega Mega CD disc image
+0	string	SEGABOOTDISC\040\040\040\040	Sega Mega CD disc image
 !:mime	application/x-sega-cd-rom
 >0	use	sega-mega-drive-header
 >0	byte	x			\b, 2048-byte sectors
 # Sega Mega CD disc images: 2352-byte sectors.
-0x10	string	SEGADISCSYSTEM\ \ 	Sega Mega CD disc image
+0x10	string	SEGADISCSYSTEM\040\040	Sega Mega CD disc image
 !:mime	application/x-sega-cd-rom
 >0x10	use	sega-mega-drive-header
 >0	byte	x			\b, 2352-byte sectors
-0x10	string	SEGABOOTDISC\ \ \ \ 	Sega Mega CD disc image
+0x10	string	SEGABOOTDISC\040\040\040\040	Sega Mega CD disc image
 !:mime	application/x-sega-cd-rom
 >0x10	use	sega-mega-drive-header
 >0	byte	x			\b, 2352-byte sectors
 
 # Sega Mega Drive: Identify the system ID.
 0x100		string	SEGA
->0x3C0		string	MARS\ CHECK\ MODE	Sega 32X ROM image
+>0x3C0		string	MARS\040CHECK\040MODE	Sega 32X ROM image
 !:mime		application/x-genesis-32x-rom
 >>0		use	sega-mega-drive-header
->0x104		string	\ PICO			Sega Pico ROM image
+>0x104		string	\040PICO			Sega Pico ROM image
 !:mime		application/x-sega-pico-rom
 >>0		use	sega-mega-drive-header
->0x104		string	TOYS\ PICO		Sega Pico ROM image
+>0x104		string	TOYS\040PICO		Sega Pico ROM image
 !:mime		application/x-sega-pico-rom
 >>0		use	sega-mega-drive-header
->0x104		string	\ TOYS\ PICO		Sega Pico ROM image
+>0x104		string	\040TOYS\040PICO		Sega Pico ROM image
 !:mime		application/x-sega-pico-rom
 >>0		use	sega-mega-drive-header
->0x104		string	\ IAC			Sega Pico ROM image
+>0x104		string	\040IAC			Sega Pico ROM image
 !:mime		application/x-sega-pico-rom
 >>0		use	sega-mega-drive-header
->0x104		string	\ TERA68K		Sega Teradrive (68K) ROM image
+>0x104		string	\040TERA68K		Sega Teradrive (68K) ROM image
 !:mime		application/x-sega-teradrive-rom
 >>0		use	sega-mega-drive-header
->0x104		string	\ TERA286		Sega Teradrive (286) ROM image
+>0x104		string	\040TERA286		Sega Teradrive (286) ROM image
 !:mime		application/x-sega-teradrive-rom
 >>0		use	sega-mega-drive-header
 >0x180		string	BR			Sega Mega CD Boot ROM image
@@ -259,23 +285,23 @@
 >>0		use	sega-mega-drive-header
 
 # Sega Mega Drive: Some ROMs have "SEGA" at 0x101, not 0x100.
-0x100		string	\ SEGA			Sega Mega Drive / Genesis ROM image
+0x100		string	\040SEGA			Sega Mega Drive / Genesis ROM image
 >0		use	sega-mega-drive-header
 
 # Sega Pico ROMs that don't start with "SEGA".
-0x100		string	SAMSUNG\ PICO		Samsung Pico ROM image
+0x100		string	SAMSUNG\040PICO		Samsung Pico ROM image
 !:mime		application/x-sega-pico-rom
 >0		use	sega-mega-drive-header
-0x100		string	IMA\ IKUNOUJYUKU	Samsung Pico ROM image
+0x100		string	IMA\040IKUNOUJYUKU	Samsung Pico ROM image
 !:mime		application/x-sega-pico-rom
 >0		use	sega-mega-drive-header
-0x100		string	IMA IKUNOJYUKU		Samsung Pico ROM image
+0x100		string	IMA\040IKUNOJYUKU	Samsung Pico ROM image
 !:mime		application/x-sega-pico-rom
 >0		use	sega-mega-drive-header
 
 # Sega Picture Magic (modified 32X)
-0x100		string	Picture\ Magic
->0x3C0		string	PICTURE MAGIC-01	Sega 32X ROM image
+0x100		string	Picture\040Magic
+>0x3C0		string	PICTURE\040MAGIC-01	Sega 32X ROM image
 !:mime		application/x-genesis-32x-rom
 >>0		use	sega-mega-drive-header
 
@@ -314,59 +340,59 @@
 # The SMS boot ROM checks the header at three locations.
 0	name	sega-master-system-rom-header
 # Machine type.
->0x0F	byte&0xF0	0x30	Sega Master System
+>0x0F	ubyte&0xF0	0x30	Sega Master System
 !:mime	application/x-sms-rom
->0x0F	byte&0xF0	0x40	Sega Master System
+>0x0F	ubyte&0xF0	0x40	Sega Master System
 !:mime	application/x-sms-rom
->0x0F	byte&0xF0	0x50	Sega Game Gear
+>0x0F	ubyte&0xF0	0x50	Sega Game Gear
 !:mime	application/x-gamegear-rom
->0x0F	byte&0xF0	0x60	Sega Game Gear
+>0x0F	ubyte&0xF0	0x60	Sega Game Gear
 !:mime	application/x-gamegear-rom
->0x0F	byte&0xF0	0x70	Sega Game Gear
+>0x0F	ubyte&0xF0	0x70	Sega Game Gear
 !:mime	application/x-gamegear-rom
 >0x0F	default		x	Sega Master System / Game Gear
 !:mime	application/x-sms-rom
 >0	byte		x	ROM image:
 # Product code.
->0x0E	byte&0xF0	0x10	1
->0x0E	byte&0xF0	0x20	2
->0x0E	byte&0xF0	0x30	3
->0x0E	byte&0xF0	0x40	4
->0x0E	byte&0xF0	0x50	5
->0x0E	byte&0xF0	0x60	6
->0x0E	byte&0xF0	0x70	7
->0x0E	byte&0xF0	0x80	8
->0x0E	byte&0xF0	0x90	9
->0x0E	byte&0xF0	0xA0	10
->0x0E	byte&0xF0	0xB0	11
->0x0E	byte&0xF0	0xC0	12
->0x0E	byte&0xF0	0xD0	13
->0x0E	byte&0xF0	0xE0	14
->0x0E	byte&0xF0	0xF0	15
+>0x0E	ubyte&0xF0	0x10	1
+>0x0E	ubyte&0xF0	0x20	2
+>0x0E	ubyte&0xF0	0x30	3
+>0x0E	ubyte&0xF0	0x40	4
+>0x0E	ubyte&0xF0	0x50	5
+>0x0E	ubyte&0xF0	0x60	6
+>0x0E	ubyte&0xF0	0x70	7
+>0x0E	ubyte&0xF0	0x80	8
+>0x0E	ubyte&0xF0	0x90	9
+>0x0E	ubyte&0xF0	0xA0	10
+>0x0E	ubyte&0xF0	0xB0	11
+>0x0E	ubyte&0xF0	0xC0	12
+>0x0E	ubyte&0xF0	0xD0	13
+>0x0E	ubyte&0xF0	0xE0	14
+>0x0E	ubyte&0xF0	0xF0	15
 # If the product code is 5 digits, we'll need to backspace here.
->0x0E	byte&0xF0	!0
->>0x0C	leshort		x	\b%04x
->0x0E	byte&0xF0	0
->>0x0C	leshort		x	%04x
+>0x0E	ubyte&0xF0	!0
+>>0x0C	uleshort	x	\b%04x
+>0x0E	ubyte&0xF0	0
+>>0x0C	uleshort	x	%04x
 # Revision.
->0x0E	byte&0x0F	x	(Rev.%02d)
+>0x0E	ubyte&0x0F	x	(Rev.%02d)
 # ROM size. (Used for the boot ROM checksum routine.)
->0x0F	byte&0x0F	0x0A	(8 KB)
->0x0F	byte&0x0F	0x0B	(16 KB)
->0x0F	byte&0x0F	0x0C	(32 KB)
->0x0F	byte&0x0F	0x0D	(48 KB)
->0x0F	byte&0x0F	0x0E	(64 KB)
->0x0F	byte&0x0F	0x0F	(128 KB)
->0x0F	byte&0x0F	0x00	(256 KB)
->0x0F	byte&0x0F	0x01	(512 KB)
->0x0F	byte&0x0F	0x02	(1 MB)
+>0x0F	ubyte&0x0F	0x0A	(8 KB)
+>0x0F	ubyte&0x0F	0x0B	(16 KB)
+>0x0F	ubyte&0x0F	0x0C	(32 KB)
+>0x0F	ubyte&0x0F	0x0D	(48 KB)
+>0x0F	ubyte&0x0F	0x0E	(64 KB)
+>0x0F	ubyte&0x0F	0x0F	(128 KB)
+>0x0F	ubyte&0x0F	0x00	(256 KB)
+>0x0F	ubyte&0x0F	0x01	(512 KB)
+>0x0F	ubyte&0x0F	0x02	(1 MB)
 
 # SMS/GG header locations.
-0x7FF0	string	TMR\ SEGA
+0x7FF0	string	TMR\040SEGA
 >0x7FF0	use	sega-master-system-rom-header
-0x3FF0	string	TMR\ SEGA
+0x3FF0	string	TMR\040SEGA
 >0x3FF0	use	sega-master-system-rom-header
-0x1FF0	string	TMR\ SEGA
+0x1FF0	string	TMR\040SEGA
 >0x1FF0	use	sega-master-system-rom-header
 
 #------------------------------------------------------------------------------
@@ -384,12 +410,12 @@
 >>0x2A	byte	0	\b)
 
 # 2048-byte sector version.
-0	string	SEGA\ SEGASATURN\ 	Sega Saturn disc image
+0	string	SEGA\040SEGASATURN\040	Sega Saturn disc image
 !:mime	application/x-saturn-rom
 >0	use	sega-saturn-disc-header
 >0	byte	x			(2048-byte sectors)
 # 2352-byte sector version.
-0x10	string	SEGA\ SEGASATURN\ 	Sega Saturn disc image
+0x10	string	SEGA\040SEGASATURN\040	Sega Saturn disc image
 !:mime	application/x-saturn-rom
 >0x10	use	sega-saturn-disc-header
 >0	byte	x			(2352-byte sectors)
@@ -410,12 +436,12 @@
 >>0x4A	byte	0	\b)
 
 # 2048-byte sector version.
-0	string	SEGA\ SEGAKATANA\ 	Sega Dreamcast disc image
+0	string	SEGA\040SEGAKATANA\040	Sega Dreamcast disc image
 !:mime	application/x-dc-rom
 >0	use	sega-dreamcast-disc-header
 >0	byte	x			(2048-byte sectors)
 # 2352-byte sector version.
-0x10	string	SEGA\ SEGAKATANA\ 	Sega Dreamcast disc image
+0x10	string	SEGA\040SEGAKATANA\040	Sega Dreamcast disc image
 !:mime	application/x-dc-rom
 >0x10	use	sega-dreamcast-disc-header
 >0	byte	x			(2352-byte sectors)
@@ -509,7 +535,7 @@
 # - https://neogpc.googlecode.com/svn-history/r10/trunk/src/core/neogpc.cpp
 # - https://www.devrs.com/ngp/files/ngpctech.txt
 #
-0x0A	string		BY\ SNK\ CORPORATION	Neo Geo Pocket
+0x0A	string		BY\040SNK\040CORPORATION	Neo Geo Pocket
 !:mime	application/x-neo-geo-pocket-rom
 >0x23	byte		0x10			Color
 >0	byte		x			ROM image
@@ -524,7 +550,7 @@
 
 #------------------------------------------------------------------------------
 # Sony Playstation executables (Adam Sjoegren <asjo@diku.dk>) :
-0	string	PS-X\ EXE	Sony Playstation executable
+0	string	PS-X\040EXE	Sony Playstation executable
 >16	lelong	x		PC=%#08x,
 >20	lelong	!0		GP=%#08x,
 >24	lelong	!0		.text=[%#08x,
@@ -723,17 +749,54 @@
 
 # From: Alex Myczko <alex@aiei.ch>
 # From: David Pflug <david@pflug.email>
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Game_Boy_Sound
+#		http://en.wikipedia.org/wiki/Game_Boy_Sound_System
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/gbs.trid.xml
+# Note:		called "GameBoy Sound System dump" by TrID,
+#		"Gameboy GBS rom image" by X11 Gameboy sound player xgbsplay and
+#		verified by gbsplay `LANG=C gbsinfo /usr/share/doc/gbsplay/examples/nightmode.gbs`
 # is the offset 12 or the offset 16 correct?
 # GBS (Game Boy Sound) magic
-# ftp://ftp.modland.com/pub/documents/format_documentation/\
+# http://ftp.modland.com/pub/documents/format_documentation/\
 # Gameboy%20Sound%20System%20(.gbs).txt
-0	string		GBS		Nintendo Gameboy Music/Audio Data
-#12	string		GameBoy\ Music\ Module	Nintendo Gameboy Music Module
+# skip Grand Theft Auto 2 Style data (*.sty via sty-gta2.trid.xml) and Opera (*.patch) by check for valid "low" version
+0	string		GBS\001		Nintendo Gameboy Music/Audio Data
+!:mime		audio/x-nintendo-gbs
+# by gbsplay or xgbsplay tools
+#!:mime		audio/gbs
+#!:mime		audio/prs.gbs
+!:ext	gbs
+# fields are right null-filled; no terminating \0 if all bytes are used; if field unknown, should be set to a single ?
+# title string like: "Blues Brothers" "Bugs Bunny Crazy Castle 3"
+#12	string		GameBoy\040Music\040Module	Nintendo Gameboy Music Module
 >16	string		>\0	("%.32s" by
+# author string like: <?>, by Laxity, Justin Muir, 1993 Ocean
 >48	string		>\0	%.32s, copyright
->80	string		>\0	%.32s),
->3	byte		x	version %u,
->4	byte		x	%u tracks
+# copyright string like: empty "1991 Titus" "2001 Imagineer/KT.Kodansha/P&B" "2000 Newline, Ubisoft, D. Eclip."
+>80	string		>\0	%.32s
+# GBSVersion; 1 
+#>3	byte		!1	version %u,
+# number of songs (1-255)
+>4	ubyte		x	\b), %u track
+# plural s
+>4	ubyte		>1	\bs
+# default subsong; like: 1 (often) 2 29 60 79 82
+>5	ubyte		!1	\b, %u first
+# load address (400h-7fffh)
+>6	uleshort	x	\b, load address %#4.4x
+# init address (400h-7fffh)
+>8	uleshort	x	\b, init address %#4.4x
+# play address (400-7fffh)
+>10	uleshort	x	\b, play address %#4.4x
+# stack pointer; like: FFFEh (default) CFFFh DCFEh DDFEh DDFFh DEFFh E000h FFF4h
+>12	uleshort	x	\b, stack pointer %#4.4x
+# timer modulo; often 0
+>14	ubyte		!0	\b, timer modulo %#x
+# timer control; often 0
+>15	ubyte		!0	\b, timer control %#x
+# code and Data (see RST VECTORS)
+#>0x70	ubequad		x	\b, data %#16.16llx...
 
 # IPS Patch Files from: From: Thomas Klausner <tk@giga.or.at>
 # see https://zerosoft.zophar.net/ips.php
@@ -807,6 +870,37 @@
 !:ext   ciso/cso
 >>>>8           ulequad                 x               \b, original size %llu bytes
 >>>>16          ulelong                 x               \b, datablock size %u bytes
+# Type: Nintendo GameCube/Wii disc image (CISO format)
+# NOTE: This is NOT the same as Compact ISO or PSP CISO,
+# though it has the same magic number.
+# Other fields are used to determine what type of CISO this is:
+# - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
+# - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
+# - None of the above: Compact ISO.
+>4		lelong	0x200000
+>>8		byte	1
+>>>0x801C	belong	0xC2339F3D	Nintendo GameCube disc image (CISO format):
+!:mime	application/x-wii-rom
+>>>>0x8000	use	nintendo-gcn-disc-common
+>>>0x8018	belong	0x5D1C9EA3	Nintendo Wii disc image (CISO format):
+!:mime	application/x-wii-rom
+>>>>0x8000	use	nintendo-gcn-disc-common
+# .cso files
+# Reference: https://pismotec.com/ciso/ciso.h
+# NOTE: There are two other formats with the same magic but
+# completely incompatible specifications:
+# - GameCube/Wii CISO: https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/DiscIO/CISOBlob.h
+# - PSP CISO: https://github.com/jamie/ciso/blob/master/ciso.h
+# Other fields are used to determine what type of CISO this is:
+# - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
+# - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
+# - 0x10 == 0x00004000: For >2GB files using maxcso...
+# 			https://github.com/unknownbrackets/maxcso/issues/26
+# - None of the above: Compact ISO.
+>4	lelong	!0
+>>4	lelong	!0x200000
+>>>16	lelong	!0x800
+>>>>16	lelong	!0x4000		Compressed ISO CD image
 
 # From: Daniel Dawson <ddawson@icehouse.net>
 # SNES9x .smv "movie" file format.
@@ -918,22 +1012,6 @@
 !:mime	application/x-wii-rom
 >>0x200	use	nintendo-gcn-disc-common
 
-# Type: Nintendo GameCube/Wii disc image (CISO format)
-# NOTE: This is NOT the same as Compact ISO or PSP CISO,
-# though it has the same magic number.
-0		string	CISO
-# Other fields are used to determine what type of CISO this is:
-# - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
-# - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
-# - None of the above: Compact ISO.
->4		lelong	0x200000
->>8		byte	1
->>>0x801C	belong	0xC2339F3D	Nintendo GameCube disc image (CISO format):
-!:mime	application/x-wii-rom
->>>>0x8000	use	nintendo-gcn-disc-common
->>>0x8018	belong	0x5D1C9EA3	Nintendo Wii disc image (CISO format):
-!:mime	application/x-wii-rom
->>>>0x8000	use	nintendo-gcn-disc-common
 
 # Type: Nintendo GameCube/Wii disc image (GCZ format)
 # Due to zlib compression, we can't get the actual disc information.
@@ -1133,7 +1211,7 @@
 # The header is terminated with a 0, so that will
 # terminate the title as well.
 #
-0	string	g\ GCE	Vectrex ROM image
+0	string	g\040GCE	Vectrex ROM image
 >0x11	string	>\0	\b: "%.16s"
 
 #------------------------------------------------------------------------------
@@ -1213,8 +1291,8 @@
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 # References:
 # - https://problemkaputt.de/fullsnes.htm#snescartsufamiturbominicartridgeadaptor
-0	string		BANDAI\ SFC-ADX
->0x10	string		!SFC-ADX\ BACKUP	Sufami Turbo ROM image:
+0	string		BANDAI\040SFC-ADX
+>0x10	string		!SFC-ADX\040BACKUP	Sufami Turbo ROM image:
 >>0x10	string/T	x	"%.14s"
 >>0x30	byte		x	\b, ID %02X
 >>0x31	byte		x	\b%02X
@@ -1224,3 +1302,77 @@
 >>0x34	ubyte		1	[FastROM]
 >>0x35	ubyte		1	[SRAM]
 >>0x35	ubyte		3	[Special]
+
+#------------------------------------------------------------------------------
+# Type: Super NES ROM image
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# Reference: https://snes.nesdev.org/wiki/ROM_header
+0		name		snes-rom-hdr
+# cartridge title is encoded in JIS X 0201, 21 chars padded with spaces
+>0		ubyte-0x20	<0xC0
+>>1		ubyte-0x20	<0xC0
+>>>2		ubyte-0x20	<0xC0
+>>>>3		ubyte-0x20	<0xC0
+>>>>>4		ubyte-0x20	<0xC0
+>>>>>>5		ubyte-0x20	<0xC0
+>>>>>>>6	ubyte-0x20	<0xC0
+>>>>>>>>7	ubyte-0x20	<0xC0
+>>>>>>>>>8	ubyte-0x20	<0xC0
+>>>>>>>>>>9	ubyte-0x20	<0xC0
+>>>>>>>>>>>10	ubyte-0x20	<0xC0
+>>>>>>>>>>>>21	ubyte-0x20	<0xC0		Super NES ROM image
+>>>>>>>>>>>>>0	string/21/T	x		"%s"
+>>>>>>>>>>>>>25	byte		0		(Japan)
+>>>>>>>>>>>>>25	byte		1		(USA)
+>>>>>>>>>>>>>25	byte		2		(Europe)
+>>>>>>>>>>>>>25	byte		6		(France)
+>>>>>>>>>>>>>25	byte		7		(Netherlands)
+>>>>>>>>>>>>>25	byte		9		(Germany)
+>>>>>>>>>>>>>25	byte		10		(Brazil)
+>>>>>>>>>>>>>27	byte		>0		(Rev.%02u)
+>>>>>>>>>>>>>21	byte&0xF	0x0		\b, LoROM
+>>>>>>>>>>>>>21	byte&0xF	0x1		\b, HiROM
+>>>>>>>>>>>>>21	byte&0x10	0x10		\b, FastROM
+>>>>>>>>>>>>>23	byte		8		\b, ROM size: 256KB
+>>>>>>>>>>>>>23	byte		9		\b, ROM size: 512KB
+>>>>>>>>>>>>>23	byte		10		\b, ROM size: 1024KB
+>>>>>>>>>>>>>23	byte		11		\b, ROM size: 2048KB
+>>>>>>>>>>>>>23	byte		12		\b, ROM size: 4096KB
+>>>>>>>>>>>>>24	byte		0		\b, RAM size: 1KB
+>>>>>>>>>>>>>24	byte		1		\b, RAM size: 2KB
+>>>>>>>>>>>>>24	byte		2		\b, RAM size: 4KB
+>>>>>>>>>>>>>24	byte		3		\b, RAM size: 8KB
+>>>>>>>>>>>>>24	byte		4		\b, RAM size: 16KB
+>>>>>>>>>>>>>24	byte		5		\b, RAM size: 32KB
+>>>>>>>>>>>>>24	byte		6		\b, RAM size: 64KB
+
+# header position for LoROM: $007FC0
+32725		ubyte&0xEF	0x20
+# ROM is <=4096KB, RAM is <=64KB and country<=10
+>32727		ubyte		<13
+>>32728		ubyte		<7
+>>>32729	ubyte		<11
+>>>>32704	use		snes-rom-hdr
+
+# HiROM header at $00FFC0
+65493		ubyte&0xEF	0x21
+# ROM is <=4096KB, RAM is <=64KB and country<=10
+>65495		ubyte		<13
+>>65496		ubyte		<7
+>>>65497	ubyte		<11
+>>>>65472	use		snes-rom-hdr
+
+#------------------------------------------------------------------------------
+# ancast: file(1) magic for Wii U firmware images, aka "ancast" images.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://wiiubrew.org/wiki/Ancast_image
+0	ubelong	0xEFA282D9	Wii U firmware image:
+>0x20	ubelong	2		ARM
+>>0x1A4	ubelong	0x21		\b, NAND boot
+>>0x1A4	ubelong	0x22		\b, SD boot
+>>0x1A8	ubelong	1		\b, for devkits
+>>0x1A8	ubelong	2		\b, for retail
+>0x20	ubelong	1		PowerPC
+>>0xA4	ubelong	0x11		\b, Wii U mode
+>>0xA4	ubelong	0x12		\b, Wii mode

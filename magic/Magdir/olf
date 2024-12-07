@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: olf,v 1.4 2009/09/19 16:28:11 christos Exp $
+# $File: olf,v 1.5 2024/02/29 03:42:40 christos Exp $
 # olf:  file(1) magic for OLF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -43,11 +43,11 @@
 >>18	leshort		0		no machine,
 >>18	leshort		1		AT&T WE32100 - invalid byte order,
 >>18	leshort		2		SPARC - invalid byte order,
->>18	leshort		3		Intel 80386,
+>>18	leshort		3		Intel i386,
 >>18	leshort		4		Motorola 68000 - invalid byte order,
 >>18	leshort		5		Motorola 88000 - invalid byte order,
->>18	leshort		6		Intel 80486,
->>18	leshort		7		Intel 80860,
+>>18	leshort		6		Intel i486,
+>>18	leshort		7		Intel i860,
 >>18	leshort		8		MIPS R3000_BE - invalid byte order,
 >>18	leshort		9		Amdahl - invalid byte order,
 >>18	leshort		10		MIPS R3000_LE,
@@ -74,11 +74,11 @@
 >>18	beshort		0		no machine,
 >>18	beshort		1		AT&T WE32100,
 >>18	beshort		2		SPARC,
->>18	beshort		3		Intel 80386 - invalid byte order,
+>>18	beshort		3		Intel i386 - invalid byte order,
 >>18	beshort		4		Motorola 68000,
 >>18	beshort		5		Motorola 88000,
->>18	beshort		6		Intel 80486 - invalid byte order,
->>18	beshort		7		Intel 80860,
+>>18	beshort		6		Intel i486 - invalid byte order,
+>>18	beshort		7		Intel i860,
 >>18	beshort		8		MIPS R3000_BE,
 >>18	beshort		9		Amdahl,
 >>18	beshort		10		MIPS R3000_LE - invalid byte order,

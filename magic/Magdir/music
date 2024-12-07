@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------
-# $File: music,v 1.1 2011/11/25 03:28:17 christos Exp $
-# music:  file (1) magic for music formats
+# $File: music,v 1.2 2024/06/10 23:09:52 christos Exp $
+# music:  file(1) magic for music formats
 
 # BWW format used by Bagpipe Music Writer Gold by Robert MacNeil Musicworks
 # and Bagpipe Writer by Doug Wickstrom

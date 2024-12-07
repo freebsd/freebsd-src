@@ -24,5 +24,5 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-extern int der_offs(struct magic_set *, struct magic *, size_t);
-extern int der_cmp(struct magic_set *, struct magic *);
+file_protected int der_offs(struct magic_set *, struct magic *, size_t);
+file_protected int der_cmp(struct magic_set *, struct magic *);

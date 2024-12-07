@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: msx,v 1.12 2024/08/30 17:29:28 christos Exp $
 # msx:  file(1) magic for the MSX Home Computer
 # v1.3
 # Fabio R. Schmidlin <sd-snatcher@users.sourceforge.net>
@@ -202,21 +203,6 @@
 >>4	uleshort	>0			\b, stahdl=%#04x
 >>6	uleshort	>0			\b, devhdl=%#04x
 >>8	uleshort	>0			\b, bas=%#04x
-0	string/b		AB\0\0
->6	uleshort	0
->>4	uleshort	>0x400F			MSX-BASIC extension ROM
->>>4	uleshort	>0			\b, stahdl=%#04x
->>>6	uleshort	>0			\b, devhdl=%#04x
->>>0x1C		string		OPLL			\b, MSX-Music
->>>>0x18	string		PAC2			\b (external)
->>>>0x18	string		APRL			\b (internal)
-
-0	string/b		AB\0\0\0\0
->6	uleshort	>0x400F			MSX device BIOS
->>6	uleshort	>0			\b, devhdl=%#04x
-
-
-0	string/b		AB
 #>2	string		5JSuperLAYDOCK		MSX Super Laydock ROM
 #>3	string		@HYDLIDE3MSX		MSX Hydlide-3 ROM
 #>3	string		@3\x80IA862		Golvellius MSX1 ROM
@@ -241,6 +227,21 @@
 >>>>4	uleshort	0
 >>>>>6	uleshort	0
 >>>>>>8	uleshort	>0			MSX BASIC program in ROM, bas=%#04x
+
+0	string/b		AB\0\0
+>6	uleshort	0
+>>4	uleshort	>0x400F			MSX-BASIC extension ROM
+>>>4	uleshort	>0			\b, stahdl=%#04x
+>>>6	uleshort	>0			\b, devhdl=%#04x
+>>>0x1C		string		OPLL			\b, MSX-Music
+>>>>0x18	string		PAC2			\b (external)
+>>>>0x18	string		APRL			\b (internal)
+
+0	string/b		AB\0\0\0\0
+>6	uleshort	>0x400F			MSX device BIOS
+>>6	uleshort	>0			\b, devhdl=%#04x
+
+
 
 0x4000	string/b		AB
 >0x4002	uleshort	>0x400F
