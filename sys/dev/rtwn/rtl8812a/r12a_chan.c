@@ -181,6 +181,36 @@ r12a_write_txpower_ofdm(struct rtwn_softc *sc, int chain,
 }
 
 static void
+r12a_tx_power_training(struct rtwn_softc *sc, int chain,
+    const struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+	uint32_t write_data;
+	int32_t power_level;
+	int i;
+
+	write_data = 0;
+
+	power_level = (int32_t) power[RTWN_RIDX_HT_MCS(7)];
+	for (i = 0; i < 3; i++) {
+		if (i == 0)
+			power_level -= 10;
+		else if (i == 1)
+			power_level -= 8;
+		else
+			power_level -= 6;
+
+		/* Handle underflow and the minimum value (2) */
+		if (power_level < 2)
+			power_level = 2;
+
+		write_data |= ((power_level & 0xff) << (i * 8));
+	}
+
+	rtwn_bb_setbits(sc, R12A_TX_PWR_TRAINING(chain),
+	    0x00ffffff, write_data);
+}
+
+static void
 r12a_write_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
@@ -189,6 +219,8 @@ r12a_write_txpower(struct rtwn_softc *sc, int chain,
 	r12a_write_txpower_ofdm(sc, chain, c, power);
 	r12a_write_txpower_ht(sc, chain, c, power);
 	r12a_write_txpower_vht(sc, chain, c, power);
+
+	r12a_tx_power_training(sc, chain, c, power);
 }
 
 static int
