@@ -54,6 +54,12 @@ rtwn_nop_softc_vap(struct rtwn_softc *sc, struct ieee80211vap *vap)
 {
 }
 
+static __inline int
+rtwn_nop_int_softc_vap(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	return (0);
+}
+
 static __inline void
 rtwn_nop_softc_uint8_int(struct rtwn_softc *sc, uint8_t *buf, int len)
 {

@@ -237,6 +237,7 @@ r21au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_antsel		= r12a_init_antsel;
 	sc->sc_post_init		= r12au_post_init;
 	sc->sc_init_bcnq1_boundary	= r21a_init_bcnq1_boundary;
+	sc->sc_set_tx_power		= rtwn_nop_int_softc_vap;
 
 	sc->chan_list_5ghz[0]		= r12a_chan_5ghz_0;
 	sc->chan_list_5ghz[1]		= r12a_chan_5ghz_1;

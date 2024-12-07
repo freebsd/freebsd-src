@@ -232,6 +232,7 @@ rtwn_attach(struct rtwn_softc *sc)
 		| IEEE80211_C_WME		/* 802.11e */
 		| IEEE80211_C_SWAMSDUTX		/* Do software A-MSDU TX */
 		| IEEE80211_C_FF		/* Atheros fast-frames */
+		| IEEE80211_C_TXPMGT		/* TX power control */
 		;
 
 	if (sc->sc_hwcrypto != RTWN_CRYPTO_SW) {
@@ -695,6 +696,14 @@ rtwn_ioctl_reset(struct ieee80211vap *vap, u_long cmd)
 	case IEEE80211_IOC_HTPROTMODE:
 	case IEEE80211_IOC_LDPC:
 		error = 0;
+		break;
+	case IEEE80211_IOC_TXPOWER:
+		{
+			struct rtwn_softc *sc = vap->iv_ic->ic_softc;
+			RTWN_LOCK(sc);
+			error = rtwn_set_tx_power(sc, vap);
+			RTWN_UNLOCK(sc);
+		}
 		break;
 	default:
 		error = ENETRESET;
