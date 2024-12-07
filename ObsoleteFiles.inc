@@ -51,7 +51,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2024xxxx: Remove Altera DE4 drivers
+# 20241206: Remove Altera DE4 drivers
 OLD_FILES+=usr/share/man/man4/altera_atse.4.gz
 OLD_FILES+=usr/share/man/man4/altera_avgen.4.gz
 OLD_FILES+=usr/share/man/man4/altera_jtag_uart.4.gz
