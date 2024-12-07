@@ -633,6 +633,10 @@ static int t4_reset_on_fatal_err = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, reset_on_fatal_err, CTLFLAG_RWTUN,
     &t4_reset_on_fatal_err, 0, "reset adapter on fatal errors");
 
+static int t4_reset_method = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, reset_method, CTLFLAG_RWTUN, &t4_reset_method,
+    0, "reset method: 0 = PL_RST, 1 = PCIe secondary bus reset, 2 = PCIe link bounce");
+
 static int t4_clock_gate_on_suspend = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, clock_gate_on_suspend, CTLFLAG_RWTUN,
     &t4_clock_gate_on_suspend, 0, "gate the clock on suspend");
@@ -2536,39 +2540,134 @@ t4_reset_post(device_t dev, device_t child)
 }
 
 static int
-reset_adapter_with_pci_bus_reset(struct adapter *sc)
-{
-	int rc;
-
-	mtx_lock(&Giant);
-	rc = BUS_RESET_CHILD(device_get_parent(sc->dev), sc->dev, 0);
-	mtx_unlock(&Giant);
-	return (rc);
-}
-
-static int
 reset_adapter_with_pl_rst(struct adapter *sc)
 {
-	suspend_adapter(sc);
-
 	/* This is a t4_write_reg without the hw_off_limits check. */
 	MPASS(sc->error_flags & HW_OFF_LIMITS);
 	bus_space_write_4(sc->bt, sc->bh, A_PL_RST,
 			  F_PIORSTMODE | F_PIORST | F_AUTOPCIEPAUSE);
 	pause("pl_rst", 1 * hz);		/* Wait 1s for reset */
-
-	resume_adapter(sc);
-
 	return (0);
+}
+
+static int
+reset_adapter_with_pcie_sbr(struct adapter *sc)
+{
+	device_t pdev = device_get_parent(sc->dev);
+	device_t gpdev = device_get_parent(pdev);
+	device_t *children;
+	int rc, i, lcap, lsta, nchildren;
+	uint32_t v;
+
+	rc = pci_find_cap(gpdev, PCIY_EXPRESS, &v);
+	if (rc != 0) {
+		CH_ERR(sc, "%s: pci_find_cap(%s, pcie) failed: %d\n", __func__,
+		    device_get_nameunit(gpdev), rc);
+		return (ENOTSUP);
+	}
+	lcap = v + PCIER_LINK_CAP;
+	lsta = v + PCIER_LINK_STA;
+
+	nchildren = 0;
+	device_get_children(pdev, &children, &nchildren);
+	for (i = 0; i < nchildren; i++)
+		pci_save_state(children[i]);
+	v = pci_read_config(gpdev, PCIR_BRIDGECTL_1, 2);
+	pci_write_config(gpdev, PCIR_BRIDGECTL_1, v | PCIB_BCR_SECBUS_RESET, 2);
+	pause("pcie_sbr1", hz / 10);	/* 100ms */
+	pci_write_config(gpdev, PCIR_BRIDGECTL_1, v, 2);
+	pause("pcie_sbr2", hz);		/* Wait 1s before restore_state. */
+	v = pci_read_config(gpdev, lsta, 2);
+	if (pci_read_config(gpdev, lcap, 2) & PCIEM_LINK_CAP_DL_ACTIVE)
+		rc = v & PCIEM_LINK_STA_DL_ACTIVE ? 0 : ETIMEDOUT;
+	else if (v & (PCIEM_LINK_STA_TRAINING_ERROR | PCIEM_LINK_STA_TRAINING))
+		rc = ETIMEDOUT;
+	else
+		rc = 0;
+	if (rc != 0)
+		CH_ERR(sc, "%s: PCIe link is down after reset, LINK_STA 0x%x\n",
+		    __func__, v);
+	else {
+		for (i = 0; i < nchildren; i++)
+			pci_restore_state(children[i]);
+	}
+	free(children, M_TEMP);
+
+	return (rc);
+}
+
+static int
+reset_adapter_with_pcie_link_bounce(struct adapter *sc)
+{
+	device_t pdev = device_get_parent(sc->dev);
+	device_t gpdev = device_get_parent(pdev);
+	device_t *children;
+	int rc, i, lcap, lctl, lsta, nchildren;
+	uint32_t v;
+
+	rc = pci_find_cap(gpdev, PCIY_EXPRESS, &v);
+	if (rc != 0) {
+		CH_ERR(sc, "%s: pci_find_cap(%s, pcie) failed: %d\n", __func__,
+		    device_get_nameunit(gpdev), rc);
+		return (ENOTSUP);
+	}
+	lcap = v + PCIER_LINK_CAP;
+	lctl = v + PCIER_LINK_CTL;
+	lsta = v + PCIER_LINK_STA;
+
+	nchildren = 0;
+	device_get_children(pdev, &children, &nchildren);
+	for (i = 0; i < nchildren; i++)
+		pci_save_state(children[i]);
+	v = pci_read_config(gpdev, lctl, 2);
+	pci_write_config(gpdev, lctl, v | PCIEM_LINK_CTL_LINK_DIS, 2);
+	pause("pcie_lnk1", 100 * hz / 1000);	/* 100ms */
+	pci_write_config(gpdev, lctl, v | PCIEM_LINK_CTL_RETRAIN_LINK, 2);
+	pause("pcie_lnk2", hz);		/* Wait 1s before restore_state. */
+	v = pci_read_config(gpdev, lsta, 2);
+	if (pci_read_config(gpdev, lcap, 2) & PCIEM_LINK_CAP_DL_ACTIVE)
+		rc = v & PCIEM_LINK_STA_DL_ACTIVE ? 0 : ETIMEDOUT;
+	else if (v & (PCIEM_LINK_STA_TRAINING_ERROR | PCIEM_LINK_STA_TRAINING))
+		rc = ETIMEDOUT;
+	else
+		rc = 0;
+	if (rc != 0)
+		CH_ERR(sc, "%s: PCIe link is down after reset, LINK_STA 0x%x\n",
+		    __func__, v);
+	else {
+		for (i = 0; i < nchildren; i++)
+			pci_restore_state(children[i]);
+	}
+	free(children, M_TEMP);
+
+	return (rc);
 }
 
 static inline int
 reset_adapter(struct adapter *sc)
 {
-	if (vm_guest == 0)
-		return (reset_adapter_with_pci_bus_reset(sc));
-	else
-		return (reset_adapter_with_pl_rst(sc));
+	int rc;
+	const int reset_method = vm_guest == VM_GUEST_NO ? t4_reset_method : 0;
+
+	rc = suspend_adapter(sc);
+	if (rc != 0)
+		return (rc);
+
+	switch (reset_method) {
+	case 1:
+		rc = reset_adapter_with_pcie_sbr(sc);
+		break;
+	case 2:
+		rc = reset_adapter_with_pcie_link_bounce(sc);
+		break;
+	case 0:
+	default:
+		rc = reset_adapter_with_pl_rst(sc);
+		break;
+	}
+	if (rc == 0)
+		rc = resume_adapter(sc);
+	return (rc);
 }
 
 static void
