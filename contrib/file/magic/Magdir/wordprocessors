@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.34 2023/01/24 20:13:40 christos Exp $
+# $File: wordprocessors,v 1.39 2024/11/09 23:26:33 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -26,6 +26,28 @@
 # https://www.macdisk.com/macsigen.php
 !:apple	????AWWP
 !:ext	wps
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Publisher
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
+# Note:		older non OLE 2 (./ole2compounddocs) Compound based version
+0	ubelong		=0xE7AC2C00	Microsoft Publisher (1.0)
+#!:mime	application/x-mspublisher
+# Not registered at IANA but
+# https://web.archive.org/web/20200930085807/https://reposcope.com/mimetype/application/vnd.ms-publisher
+!:mime	application/vnd.ms-publisher
+!:ext	pub
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/COSMI_MultiMedia
+#		https://en.wikipedia.org/wiki/Cosmi_Corporation
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cosmi.trid.xml
+# Note:		called "COSMI document (generic)" by TrID
+0	string/b	LCP		COSMI document
+#!:mime		application/octet-stream
+!:mime	application/x-cosmi
+# BCD~Business Card Maker BRO~Brochure Magic CRD~Greeting Card Magic DTP~Print Perfect PUB~Desktop Publisher
+!:ext		bcd/bro/crd/dtp/pub/
 
 # Corel/WordPerfect
 # URL:		https://en.wikipedia.org/wiki/WordPerfect
@@ -541,15 +563,11 @@
 0	string		DOC
 >43	byte		0x14	Just System Word Processor Ichitaro v4
 !:mime	application/x-ichitaro4
->144	string	JDASH		application/x-ichitaro4
-
-0	string		DOC
 >43	byte		0x15	Just System Word Processor Ichitaro v5
 !:mime	application/x-ichitaro5
-
-0	string		DOC
 >43	byte		0x16	Just System Word Processor Ichitaro v6
 !:mime	application/x-ichitaro6
+>144	string	JDASH		application/x-ichitaro4
 
 # Type: Freemind mindmap documents
 # From: Jamie Thompson <debian-bugs@jamie-thompson.co.uk>
@@ -568,8 +586,23 @@
 !:mime	application/x-scribus
 
 # help files .hlp compiled from html and used by gfxboot added by Joerg Jenderek
+# URL: 		https://en.opensuse.org/Gfxboot
+# Reference:	https://github.com/openSUSE/gfxboot/blob/master/gfxboot
+#		http://mark0.net/download/triddefs_xml.7z/defs/h/hlp-gfxboot-main.trid.xml,hlp-gfxboot-opt.trid.xml
+# Note:		called "gfxboot compiled html help" (main),(opt) by TrID
+#		verified by command like `gfxboot --help-show en.hlp > en.html`
 # markups page=0x04,label=0x12, followed by strings like "opt" or "main" and title=0x14
-0	ulelong&0x8080FFFF	0x00001204	gfxboot compiled html help file
+0	ulelong&0x8080FFFF	0x00001204
+# display "gfxboot compiled html help file" (strength=70) after one "TeX font metric data" (tri10u.tfm strength=71=50+21) handled by ./tex
+#!:strength +0
+>2	regex			\^(main|opt)	gfxboot compiled html help file, label %s
+#!:mime	application/octet-stream
+!:mime	application/x-gfxboot-hlp
+!:ext	hlp
+# check for title token \x14
+>>&0	ubyte			0x14		\b, title
+# title text ends with \x10
+>>>&0	regex			\^[[:print:]]+	'%s'
 
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/StarOffice
@@ -628,3 +661,6 @@
 # inspect 1st GALLERY thumbnail magic by ./images with 1 space at end
 #>11	indirect	x	\b; contains 
 
+# Atari ST Hypertext files
+0	string	HDOC\0	ST-Guide file
+0	string	HREF\0	ST-Guide reference file

@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.157 2023/05/21 15:59:58 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.158 2024/11/10 16:52:27 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -46,6 +46,7 @@ FILE_RCSID("@(#)$File: compress.c,v 1.157 2023/05/21 15:59:58 christos Exp $")
 #ifdef HAVE_SPAWN_H
 #include <spawn.h>
 #endif
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -88,6 +89,13 @@ typedef void (*sig_t)(int);
 #if defined(HAVE_LZLIB_H) && defined(LZLIBSUPPORT)
 #define BUILTIN_LZLIB
 #include <lzlib.h>
+#endif
+
+#ifdef notyet
+#if defined(HAVE_LRZIP_H) && defined(LRZIPLIBSUPPORT)
+#define BUILTIN_LRZIP
+#include <Lrzip.h>
+#endif
 #endif
 
 #ifdef DEBUG
@@ -186,6 +194,7 @@ file_private const struct {
 #define METH_BZIP	7
 #define METH_XZ		9
 #define METH_LZIP	8
+#define METH_LRZIP	10
 #define METH_ZSTD	12
 #define METH_LZMA	13
 #define METH_ZLIB	14
@@ -243,6 +252,11 @@ file_private int uncompresszstd(const unsigned char *, unsigned char **, size_t,
 file_private int uncompresslzlib(const unsigned char *, unsigned char **, size_t,
     size_t *, int);
 #endif
+#ifdef BUILTIN_LRZIP
+file_private int uncompresslrzip(const unsigned char *, unsigned char **, size_t,
+    size_t *, int);
+#endif
+
 
 static int makeerror(unsigned char **, size_t *, const char *, ...)
     __attribute__((__format__(__printf__, 3, 4)));
@@ -829,6 +843,59 @@ err:
 }
 #endif
 
+#ifdef BUILTIN_LRZIP
+file_private int
+uncompresslrzip(const unsigned char *old, unsigned char **newch,
+    size_t bytes_max, size_t *n, int extra __attribute__((__unused__)))
+{
+	Lrzip *lr;
+	FILE *in, *out;
+	int res = OKDATA;
+
+	DPRINTF("builtin rlzip decompression\n");
+	lr = lrzip_new(LRZIP_MODE_DECOMPRESS);
+	if (lr == NULL) {
+		res = makeerror(newch, n, "unable to create an lrzip decoder");
+		goto out0;
+	}
+	lrzip_config_env(lr);
+	in = fmemopen(RCAST(void *, old), bytes_max, "r");
+	if (in == NULL) {
+		res = makeerror(newch, n, "unable to construct input file");
+		goto out1;
+	}
+	if (!lrzip_file_add(lr, in)) {
+		res = makeerror(newch, n, "unable to add input file");
+		goto out2;
+	}
+	*newch = calloc(*n = 2 * bytes_max, 1);
+	if (*newch == NULL) {
+		res = makeerror(newch, n, "unable to allocate output buffer");
+		goto out2;
+	}
+	out = fmemopen(*newch, *n, "w");
+	if (out == NULL) {
+		free(*newch);
+		res = makeerror(newch, n, "unable to allocate output file");
+		goto out2;
+	}
+	lrzip_outfile_set(lr, out);
+	if (lrzip_run(lr)) {
+		free(*newch);
+		res = makeerror(newch, n, "unable to decompress file");
+		goto out3;
+	}
+	*n = (size_t)ftell(out);
+out3:
+	fclose(out);
+out2:
+	fclose(in);
+out1:
+	lrzip_free(lr);
+out0:
+	return res;
+}
+#endif
 
 static int
 makeerror(unsigned char **buf, size_t *len, const char *fmt, ...)
@@ -1007,6 +1074,10 @@ methodname(size_t method)
 	case METH_LZIP:
 		return "lzlib";
 #endif
+#ifdef BUILTIN_LRZIP
+	case METH_LRZIP:
+		return "lrzip";
+#endif
 	default:
 		return compr[method].argv[0];
 	}
@@ -1039,6 +1110,10 @@ getdecompressor(size_t method))(const unsigned char *, unsigned char **, size_t,
 #ifdef BUILTIN_LZLIB
 	case METH_LZIP:
 		return uncompresslzlib;
+#endif
+#ifdef BUILTIN_LRZIP
+	case METH_LRZIP:
+		return uncompresslrzip;
 #endif
 	default:
 		return NULL;

@@ -1,5 +1,7 @@
 
 #------------------------------------------------------------------------------
+# $File: aria,v 1.2 2024/06/10 23:09:52 christos Exp $
+# aria:		file(1) magic for download manager aria
 # URL: 		https://de.wikipedia.org/wiki/Aria_(Software)
 # Reference:	https://github.com/aria2/aria2/blob/master/doc/manual-src/en/technical-notes.rst
 # From:		Joerg Jenderek

@@ -1,7 +1,8 @@
 
 #------------------------------------------------------------------------------
-# $File: pdp,v 1.11 2017/03/17 21:35:28 christos Exp $
+# $File: pdp,v 1.12 2024/02/29 03:40:37 christos Exp $
 # pdp:  file(1) magic for PDP-11 executable/object and APL workspace
+# URL: 	https://en.wikipedia.org/wiki/PDP-11
 #
 0	lelong		0101555		PDP-11 single precision APL workspace
 0	lelong		0101554		PDP-11 double precision APL workspace
@@ -12,13 +13,22 @@
 >8	leshort		>0		not stripped
 >15	byte		>0		- version %d
 
-# updated by Joerg Jenderek at Mar 2013
+# updated by Joerg Jenderek at Mar 2013, Feb 2024
 # GRR: line below too general as it catches also Windows precompiled setup information *.PNF
 0	leshort		0401
+# PDP-11 UNIX/RT ldp (strength=50=50+0) after D64 Image (strength=70=70+0 ./c64) and MMDF mailbox (strength=70=70+0 ./mmdf)
+#!:strength +0
 # skip *.PNF with WinDirPathOffset 58h
->68	ulelong		!0x00000058	PDP-11 UNIX/RT ldp
+>68	ulelong		!0x00000058
 # skip *.PNF with high byte of InfVersionDatumCount zero
 #>>15	byte		!0		PDP-11 UNIX/RT ldp
+# skip few Commodore D64 disc image like "The Great Gianna Sisters.d64" initialized with ^A and handled by ./c64 
+>>8	quad		!0x0101010101010101
+# skip MMDF mailbox like maillog.expected.2 with MBOX characteristic near the beginning handled by ./mmdf 
+>>>5	search/610/b	From\ 
+>>>5	default		x		PDP-11 UNIX/RT ldp
+#!:mime	application/octet-stream
+#!:ext	foo
 0	leshort		0405		PDP-11 old overlay
 
 0	leshort		0410		PDP-11 pure executable

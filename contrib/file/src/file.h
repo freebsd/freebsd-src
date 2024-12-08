@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.247 2023/07/27 19:40:22 christos Exp $
+ * @(#)$File: file.h,v 1.258 2024/11/27 15:37:00 christos Exp $
  */
 
 #ifndef __file_h__
@@ -107,16 +107,23 @@
 
 #define file_private static
 
-#if HAVE_VISIBILITY && !defined(WIN32)
-#define file_public  __attribute__ ((__visibility__("default")))
-#ifndef file_protected
-#define file_protected __attribute__ ((__visibility__("hidden")))
-#endif
+#if HAVE_VISIBILITY
+# if defined(WIN32)
+#  define file_public  __declspec(dllexport)
+#  ifndef file_protected
+#   define file_protected
+#  endif
+# else
+#  define file_public  __attribute__((__visibility__("default")))
+#  ifndef file_protected
+#   define file_protected __attribute__((__visibility__("hidden")))
+#  endif
+# endif
 #else
-#define file_public
-#ifndef file_protected
-#define file_protected
-#endif
+# define file_public
+# ifndef file_protected
+#  define file_protected
+# endif
 #endif
 
 #ifndef __arraycount
@@ -159,18 +166,21 @@
 /*
  * Dec 31, 23:59:59 9999
  * we need to make sure that we don't exceed 9999 because some libc
- * implementations like muslc crash otherwise
+ * implementations like muslc crash otherwise. If you are unlucky
+ * to be running on a system with a 32 bit time_t, then it is even less.
  */
-#define	MAX_CTIME	CAST(time_t, 0x3afff487cfULL)
+#define	MAX_CTIME \
+    CAST(time_t, sizeof(time_t) > 4 ? 0x3afff487cfULL : 0x7fffffffULL)
 
 #define FILE_BADSIZE CAST(size_t, ~0ul)
 #define MAXDESC	64		/* max len of text description/MIME type */
 #define MAXMIME	80		/* max len of text MIME type */
+#define MAXEXT	120		/* max len of text extensions */
 #define MAXstring 128		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	18
-#define FILE_MAGICSIZE	376
+#define VERSIONNO	20
+#define FILE_MAGICSIZE	432
 
 #define FILE_GUID_SIZE	sizeof("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
 
@@ -208,8 +218,7 @@ union VALUETYPE {
 
 struct magic {
 	/* Word 1 */
-	uint16_t cont_level;	/* level of ">" */
-	uint8_t flag;
+	uint16_t flag;
 #define INDIR		0x01	/* if '(...)' appears */
 #define OFFADD		0x02	/* if '>&' or '>...(&' appears */
 #define INDIROFFADD	0x04	/* if '>&(' appears */
@@ -219,7 +228,9 @@ struct magic {
 				   for top-level tests) */
 #define TEXTTEST	0x40	/* for passing to file_softmagic */
 #define OFFNEGATIVE	0x80	/* relative to the end of file */
+#define OFFPOSITIVE	0x100	/* relative to the beginning of file */
 
+	uint8_t cont_level;	/* level of ">" */
 	uint8_t factor;
 
 	/* Word 2 */
@@ -372,7 +383,7 @@ struct magic {
 	/* Words 61-62 */
 	char apple[8];		/* APPLE CREATOR/TYPE */
 	/* Words 63-78 */
-	char ext[64];		/* Popular extensions */
+	char ext[MAXEXT];	/* Popular extensions from old 64 raised by 56 for sqlite/sqlite3/... */
 };
 
 #define BIT(A)   (1 << (A))
@@ -467,9 +478,11 @@ struct magic_set {
 	int flags;			/* Control magic tests. */
 	int event_flags;		/* Note things that happened. */
 #define 		EVENT_HAD_ERR		0x01
+	char *fnamebuf;			/* holding the full path/buffer */
 	const char *file;
 	size_t line;			/* current magic line number */
 	mode_t mode;			/* copy of current stat mode */
+	uint16_t magwarn;		/* current number of warnings */
 
 	/* data for searches */
 	struct {
@@ -488,9 +501,10 @@ struct magic_set {
 	uint16_t elf_phnum_max;
 	uint16_t elf_notes_max;
 	uint16_t regex_max;
+	uint16_t magwarn_max;
 	size_t bytes_max;		/* number of bytes to read from file */
 	size_t encoding_max;		/* bytes to look for encoding */
-	size_t	elf_shsize_max;
+	size_t elf_shsize_max;
 #ifndef FILE_BYTES_MAX
 # define FILE_BYTES_MAX (7 * 1024 * 1024)/* how much of the file to look at */
 #endif /* above 0x6ab0f4 map offset for HelveticaNeue.dfont */
@@ -499,9 +513,10 @@ struct magic_set {
 #define	FILE_ELF_SHNUM_MAX		32768
 #define	FILE_ELF_SHSIZE_MAX		(128 * 1024 * 1024)
 #define	FILE_INDIR_MAX			50
-#define	FILE_NAME_MAX			50
+#define	FILE_NAME_MAX			100
 #define	FILE_REGEX_MAX			8192
 #define	FILE_ENCODING_MAX		(64 * 1024)
+#define	FILE_MAGWARN_MAX		64
 #if defined(HAVE_NEWLOCALE) && defined(HAVE_USELOCALE) && defined(HAVE_FREELOCALE)
 #define USE_C_LOCALE
 	locale_t c_lc_ctype;
@@ -583,6 +598,8 @@ file_protected void file_magerror(struct magic_set *, const char *, ...)
     __attribute__((__format__(__printf__, 2, 3)));
 file_protected void file_magwarn(struct magic_set *, const char *, ...)
     __attribute__((__format__(__printf__, 2, 3)));
+file_protected void file_magwarn1(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
 file_protected void file_mdump(struct magic *);
 file_protected void file_showstr(FILE *, const char *, size_t);
 file_protected size_t file_mbswidth(struct magic_set *, const char *);
@@ -628,8 +645,8 @@ file_protected file_pushbuf_t *file_push_buffer(struct magic_set *);
 file_protected char  *file_pop_buffer(struct magic_set *, file_pushbuf_t *);
 
 #ifndef COMPILE_ONLY
-extern const char *file_names[];
-extern const size_t file_nnames;
+extern file_protected const char *file_names[];
+extern file_protected const size_t file_nnames;
 #endif
 
 #ifndef HAVE_PREAD
@@ -676,15 +693,7 @@ const char *fmtcheck(const char *, const char *)
 #endif
 
 #ifdef HAVE_LIBSECCOMP
-// basic filter
-// this mode should not interfere with normal operations
-// only some dangerous syscalls are blacklisted
-int enable_sandbox_basic(void);
-
-// enhanced filter
-// this mode allows only the necessary syscalls used during normal operation
-// extensive testing required !!!
-int enable_sandbox_full(void);
+int enable_sandbox(void);
 #endif
 
 file_protected const char *file_getprogname(void);

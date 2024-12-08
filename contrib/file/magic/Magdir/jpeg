@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.38 2022/12/02 17:42:04 christos Exp $
+# $File: jpeg,v 1.40 2024/11/10 00:26:35 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -34,12 +34,12 @@
 >>13	byte		0		\b, aspect ratio
 >>13	byte		1		\b, resolution (DPI)
 >>13	byte		2		\b, resolution (DPCM)
->>14	beshort		x		\b, density %dx
->>16	beshort		x		\b%d
->>4	beshort		x		\b, segment length %d
+>>14	ubeshort	x		\b, density %ux
+>>16	ubeshort	x		\b%u
+>>4	ubeshort	x		\b, segment length %u
 # Next, show thumbnail info, if it exists:
->>18	byte		!0		\b, thumbnail %dx
->>>19	byte		x		\b%d
+>>18	byte		!0		\b, thumbnail %ux
+>>>19	byte		x		\b%u
 >6	string		Exif		\b, Exif standard: [
 >>12	indirect/r	x
 >>12	string		x		\b]
@@ -57,22 +57,22 @@
 >0	beshort		0xFFC0
 >>(2.S+2)	use			jpeg_segment
 >>4	byte		x		\b, baseline, precision %d
->>7	beshort		x		\b, %dx
->>5	beshort		x		\b%d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
 >>9	byte		x		\b, components %d
 
 >0	beshort		0xFFC1
 >>(2.S+2)	use			jpeg_segment
 >>4	byte		x		\b, extended sequential, precision %d
->>7	beshort		x		\b, %dx
->>5	beshort		x		\b%d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
 >>9	byte		x		\b, components %d
 
 >0	beshort		0xFFC2
 >>(2.S+2)	use			jpeg_segment
 >>4	byte		x		\b, progressive, precision %d
->>7	beshort		x		\b, %dx
->>5	beshort		x		\b%d
+>>7	ubeshort	x		\b, %ux
+>>5	ubeshort	x		\b%u
 >>9	byte		x		\b, components %d
 
 # Define Huffman Tables
@@ -165,25 +165,40 @@
 #45	beshort		0xff52
 
 # JPEG extended range
+# Update:	Joerg Jenderek 2023
 # URL:		http://fileformats.archiveteam.org/wiki/JPEG_XR
 # Reference:	https://www.itu.int/rec/T-REC-T.832
 #		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-wmp.trid.xml
-# Note:         called by TrID "JPEG XR bitmap"
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxr.trid.xml
+# Note:         called by TrID "JPEG XR bitmap" and "JPEG XR bitmap (WMPHOTO)"
+#		verified as "JPEG XR" by XnView `nconvert -fullinfo *.jxr *.wdp`
+#		partly by ImageMagick command `identify -verbose *.wdp`
+#		and libjxr-tools `JxrDecApp -v -i example.wdp -o example.tif`
 0	string		\x49\x49\xbc
-# FILE_VERSION_ID; shall be equal to 1; other values are reserved for future use
+# FILE_VERSION_ID; shall be equal to 1; other values are reserved for future use and are unlike to appear
 >3	byte		1
 # FIRST_IFD_OFFSET; shall be an integer multiple of 2; so skip DROID fmt-590-signature-id-931.wdp
->>4	lelong%2	0	JPEG-XR
+>>4	lelong%2	0	JPEG-XR Image
 #!:mime	image/vnd.ms-photo
 !:mime	image/jxr
 # NO example for HDP !
 !:ext	jxr/wdp/hdp
 # MAYBE also WMP ?
 #!:ext	jxr/wdp/hdp/wmp
-# moved from ./images (version 1.205 ), merged and
-# partly verified by XnView `nconvert -info abydos.jxr FLOWER.wdp`
-# example: https://web.archive.org/web/20160403012904/
+# moved from ./images (version 1.243 ) and merged
+# example:
 # http://shikino.co.jp/solution/upfile/FLOWER.wdp.zip
+# often GDI_SIGNATURE "WMPHOTO\0" at offset 90 like: FLOWER.wdp abydos.jxr SMALLTOMATO.wdp
+>90	bequad		0x574D50484F544F00
+>>0	use	jxr-info
+# seldom no GDI_SIGNATURE WMPHOTO\0 at offset 90 like: example.wdp MARKET-3361-ipm-bg-DE-treat[1].wdp
+>90	bequad		!0x574D50484F544F00
+# look for GDI_SIGNATURE WMPHOTO\0 at other offset
+>>4	search/3267/sb	WMPHOTO\0
+>>>&-90	use	jxr-info
+#
+0	name	jxr-info
+# check for GDI_SIGNATURE that corresponds to "WMPHOTO\0"
 >90	bequad		0x574D50484F544F00
 >>98	byte&0x08	=0x08			\b, hard tiling
 >>99	byte&0x80	=0x80			\b, tiling present
@@ -198,8 +213,8 @@
 >>99	byte&0x38	0x30			\bLT
 >>99	byte&0x38	0x38			\bLB
 >>100	byte&0x80	=0x80			\b, short header
->>>102	beshort+1	x			\b, %d
->>>104	beshort+1	x			\bx%d
+>>>102	beshort+1	x			\b, %u
+>>>104	beshort+1	x			\bx%u
 >>100	byte&0x80	=0x00			\b, long header
 >>>102	belong+1	x			\b, %x
 >>>106	belong+1	x			\bx%x

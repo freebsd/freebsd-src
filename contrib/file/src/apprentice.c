@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.342 2023/07/17 14:38:35 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.356 2024/11/27 15:37:00 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -107,17 +107,17 @@ struct magic_map {
 	uint32_t nmagic[MAGIC_SETS];
 };
 
-int file_formats[FILE_NAMES_SIZE];
-const size_t file_nformats = FILE_NAMES_SIZE;
-const char *file_names[FILE_NAMES_SIZE];
-const size_t file_nnames = FILE_NAMES_SIZE;
+file_private int file_formats[FILE_NAMES_SIZE];
+file_private const size_t file_nformats = FILE_NAMES_SIZE;
+file_protected const char *file_names[FILE_NAMES_SIZE];
+file_protected const size_t file_nnames = FILE_NAMES_SIZE;
 
 file_private int getvalue(struct magic_set *ms, struct magic *, const char **, int);
 file_private int hextoint(int);
 file_private const char *getstr(struct magic_set *, struct magic *, const char *,
     int);
 file_private int parse(struct magic_set *, struct magic_entry *, const char *,
-    size_t, int);
+    const char *, size_t, int);
 file_private void eatsize(const char **);
 file_private int apprentice_1(struct magic_set *, const char *, int);
 file_private ssize_t apprentice_magic_strength_1(const struct magic *);
@@ -496,7 +496,7 @@ apprentice_1(struct magic_set *ms, const char *fn, int action)
 	map = apprentice_map(ms, fn);
 	if (map == NULL) {
 		if (ms->flags & MAGIC_CHECK)
-			file_magwarn(NULL, "using regular magic file `%s'", fn);
+			file_magwarn(ms, "using regular magic file `%s'", fn);
 		map = apprentice_load(ms, fn, action);
 		if (map == NULL)
 			return -1;
@@ -540,6 +540,7 @@ file_ms_free(struct magic_set *ms)
 	free(ms->o.pbuf);
 	free(ms->o.buf);
 	free(ms->c.li);
+	free(ms->fnamebuf);
 #ifdef USE_C_LOCALE
 	freelocale(ms->c_lc_ctype);
 #endif
@@ -572,8 +573,10 @@ file_ms_alloc(int flags)
 	ms->error = -1;
 	for (i = 0; i < MAGIC_SETS; i++)
 		ms->mlist[i] = NULL;
+	ms->fnamebuf = NULL;
 	ms->file = "unknown";
 	ms->line = 0;
+	ms->magwarn = 0;
 	ms->indir_max = FILE_INDIR_MAX;
 	ms->name_max = FILE_NAME_MAX;
 	ms->elf_shnum_max = FILE_ELF_SHNUM_MAX;
@@ -583,6 +586,7 @@ file_ms_alloc(int flags)
 	ms->regex_max = FILE_REGEX_MAX;
 	ms->bytes_max = FILE_BYTES_MAX;
 	ms->encoding_max = FILE_ENCODING_MAX;
+	ms->magwarn_max = FILE_MAGWARN_MAX;
 #ifdef USE_C_LOCALE
 	ms->c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
 	assert(ms->c_lc_ctype != NULL);
@@ -733,7 +737,7 @@ fail:
 file_protected int
 file_apprentice(struct magic_set *ms, const char *fn, int action)
 {
-	char *p, *mfn;
+	char *p;
 	int fileerr, errs = -1;
 	size_t i, j;
 
@@ -744,7 +748,8 @@ file_apprentice(struct magic_set *ms, const char *fn, int action)
 
 	init_file_tables();
 
-	if ((mfn = strdup(fn)) == NULL) {
+	free(ms->fnamebuf);
+	if ((ms->fnamebuf = strdup(fn)) == NULL) {
 		file_oomem(ms, strlen(fn));
 		return -1;
 	}
@@ -757,11 +762,10 @@ file_apprentice(struct magic_set *ms, const char *fn, int action)
 				mlist_free(ms->mlist[j]);
 				ms->mlist[j] = NULL;
 			}
-			free(mfn);
 			return -1;
 		}
 	}
-	fn = mfn;
+	fn = ms->fnamebuf;
 
 	while (fn) {
 		p = CCAST(char *, strchr(fn, PATHSEP));
@@ -773,8 +777,6 @@ file_apprentice(struct magic_set *ms, const char *fn, int action)
 		errs = MAX(errs, fileerr);
 		fn = p;
 	}
-
-	free(mfn);
 
 	if (errs == -1) {
 		for (i = 0; i < MAGIC_SETS; i++) {
@@ -940,7 +942,7 @@ apprentice_magic_strength_1(const struct magic *m)
 	switch (m->type) {
 	case FILE_DEFAULT:	/* make sure this sorts last */
 		if (m->factor_op != FILE_FACTOR_OP_NONE) {
-			file_magwarn(NULL, "Usupported factor_op in default %d",
+			file_magwarn1("Unsupported factor_op in default %d",
 			    m->factor_op);
 		}
 		return 0;
@@ -1135,12 +1137,26 @@ apprentice_sort(const void *a, const void *b)
 	const struct magic_entry *mb = CAST(const struct magic_entry *, b);
 	size_t sa = file_magic_strength(ma->mp, ma->cont_count);
 	size_t sb = file_magic_strength(mb->mp, mb->cont_count);
-	if (sa == sb)
-		return 0;
-	else if (sa > sb)
-		return -1;
-	else
-		return 1;
+	if (sa == sb) {
+		struct magic mpa = *ma->mp;
+		struct magic mpb = *mb->mp;
+		mpa.lineno = mpb.lineno = 0;
+		int x = memcmp(&mpa, &mpb, sizeof(mpa));
+		if (x == 0) {
+			// Don't warn for DER
+			if (mpa.type == FILE_DER)
+				return 0;
+			file_magwarn1("Duplicate magic entry `%s'",
+			    ma->mp->desc);
+#ifndef	COMPILE_ONLY
+			file_mdump(ma->mp);
+			file_mdump(mb->mp);
+#endif
+			return 0;
+		}
+		return x > 0 ? -1 : 1;
+	}
+	return sa > sb ? -1 : 1;
 }
 
 /*
@@ -1330,6 +1346,8 @@ load_1(struct magic_set *ms, int action, const char *fn, int *errs,
 	/* read and parse this file */
 	for (ms->line = 1; (len = getline(&line, &llen, f)) != -1;
 	    ms->line++) {
+		if (ms->magwarn >= ms->magwarn_max)
+			break;
 		if (len == 0) /* null line, garbage, etc */
 			continue;
 		if (line[len - 1] == '\n') {
@@ -1374,7 +1392,7 @@ load_1(struct magic_set *ms, int action, const char *fn, int *errs,
 			/*FALLTHROUGH*/
 		default:
 		again:
-			switch (parse(ms, &me, line, lineno, action)) {
+			switch (parse(ms, &me, fn, line, lineno, action)) {
 			case 0:
 				continue;
 			case 1:
@@ -2013,8 +2031,8 @@ out:
  * parse one line from magic file, put into magic[index++] if valid
  */
 file_private int
-parse(struct magic_set *ms, struct magic_entry *me, const char *line,
-    size_t lineno, int action)
+parse(struct magic_set *ms, struct magic_entry *me, const char *file,
+    const char *line, size_t lineno, int action)
 {
 #ifdef ENABLE_CONDITIONALS
 	static uint32_t last_cont_level = 0;
@@ -2111,9 +2129,9 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 	}
 
 	/* get offset, then skip over it */
-	if (*l == '-') {
+	if (*l == '-' || *l == '+') {
 		++l;            /* step over */
-		m->flag |= OFFNEGATIVE;
+		m->flag |= l[-1] == '-' ? OFFNEGATIVE : OFFPOSITIVE;
 	}
 	m->offset = CAST(int32_t, strtol(l, &t, 0));
         if (l == t) {
@@ -2401,6 +2419,10 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 	}
 	for (i = 0; (m->desc[i++] = *l++) != '\0' && i < sizeof(m->desc); )
 		continue;
+	if (m->desc[0] == '\0') {
+		// Tuck in the filename for debugging.
+		strlcpy(m->desc + 1, file, sizeof(m->desc) - 1);
+	}
 	if (i == sizeof(m->desc)) {
 		m->desc[sizeof(m->desc) - 1] = '\0';
 		if (ms->flags & MAGIC_CHECK)
@@ -2554,7 +2576,7 @@ parse_apple(struct magic_set *ms, struct magic_entry *me, const char *line,
 {
 	return parse_extra(ms, me, line, len,
 	    CAST(off_t, offsetof(struct magic, apple)),
-	    sizeof(me->mp[0].apple), "APPLE", "!+-./?", 0);
+	    sizeof(me->mp[me->cont_count - 1].apple), "APPLE", "!+-./?", 0);
 }
 
 /*
@@ -2566,7 +2588,8 @@ parse_ext(struct magic_set *ms, struct magic_entry *me, const char *line,
 {
 	return parse_extra(ms, me, line, len,
 	    CAST(off_t, offsetof(struct magic, ext)),
-	    sizeof(me->mp[0].ext), "EXTENSION", ",!+-/@?_$&~", 0);
+	    sizeof(me->mp[me->cont_count - 1].ext), "EXTENSION", ",!+-/@?_$&~",
+	    0);
 	    /* & for b&w */
 	    /* ~ for journal~ */
 }
@@ -2581,7 +2604,8 @@ parse_mime(struct magic_set *ms, struct magic_entry *me, const char *line,
 {
 	return parse_extra(ms, me, line, len,
 	    CAST(off_t, offsetof(struct magic, mimetype)),
-	    sizeof(me->mp[0].mimetype), "MIME", "+-/.$?:{}", 1);
+	    sizeof(me->mp[me->cont_count - 1].mimetype), "MIME", "+-/.$?:{};=",
+	    1);
 }
 
 file_private int
@@ -3354,6 +3378,19 @@ check_buffer(struct magic_set *ms, struct magic_map *map, const char *dbname)
 	uint32_t version;
 	int i, needsbyteswap;
 
+	entries = CAST(uint32_t, map->len / sizeof(struct magic));
+	if (entries < MAGIC_SETS + 1) {
+		file_error(ms, 0, "Too few magic entries %u in `%s'",
+		    entries, dbname);
+		return -1;
+	}
+	if ((entries * sizeof(struct magic)) != map->len) {
+		file_error(ms, 0, "Size of `%s' %" SIZE_T_FORMAT "u is not "
+		    "a multiple of %" SIZE_T_FORMAT "u",
+		    dbname, map->len, sizeof(struct magic));
+		return -1;
+	}
+
 	ptr = CAST(uint32_t *, map->p);
 	if (*ptr != MAGICNO) {
 		if (swap4(*ptr) != MAGICNO) {
@@ -3371,13 +3408,6 @@ check_buffer(struct magic_set *ms, struct magic_map *map, const char *dbname)
 		file_error(ms, 0, "File %s supports only version %d magic "
 		    "files. `%s' is version %d", VERSION,
 		    VERSIONNO, dbname, version);
-		return -1;
-	}
-	entries = CAST(uint32_t, map->len / sizeof(struct magic));
-	if ((entries * sizeof(struct magic)) != map->len) {
-		file_error(ms, 0, "Size of `%s' %" SIZE_T_FORMAT "u is not "
-		    "a multiple of %" SIZE_T_FORMAT "u",
-		    dbname, map->len, sizeof(struct magic));
 		return -1;
 	}
 	map->magic[0] = CAST(struct magic *, map->p) + 1;
@@ -3482,8 +3512,8 @@ mkdbname(struct magic_set *ms, const char *fn, int strip)
 
 	/* Did not find .mgc, restore q */
 	if (p >= ext)
-		while (*q)
-			q++;
+		for (q = fn; *q; q++)
+			continue;
 
 	q++;
 	/* Compatibility with old code that looked in .mime */
