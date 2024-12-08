@@ -1599,7 +1599,7 @@ retry:
 		 * an incomplete fault.  Just remove and ignore.
 		 */
 		if (vm_page_none_valid(m)) {
-			if (vm_page_iter_remove(&pages))
+			if (vm_page_iter_remove(&pages, m))
 				vm_page_free(m);
 			continue;
 		}
@@ -1727,7 +1727,7 @@ vm_object_collapse_scan(vm_object_t object)
 
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (vm_page_iter_remove(&pages))
+			if (vm_page_iter_remove(&pages, p))
 				vm_page_free(p);
 			next = vm_radix_iter_step(&pages);
 			continue;
@@ -1736,7 +1736,7 @@ vm_object_collapse_scan(vm_object_t object)
 		if (!vm_page_all_valid(p)) {
 			KASSERT(!pmap_page_is_mapped(p),
 			    ("freeing mapped page %p", p));
-			if (vm_page_iter_remove(&pages))
+			if (vm_page_iter_remove(&pages, p))
 				vm_page_free(p);
 			next = vm_radix_iter_step(&pages);
 			continue;
@@ -1779,7 +1779,7 @@ vm_object_collapse_scan(vm_object_t object)
 			    ("freeing mapped page %p", p));
 			if (pp != NULL)
 				vm_page_xunbusy(pp);
-			if (vm_page_iter_remove(&pages))
+			if (vm_page_iter_remove(&pages, p))
 				vm_page_free(p);
 			next = vm_radix_iter_step(&pages);
 			continue;

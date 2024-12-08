@@ -268,7 +268,7 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 
 		vm_page_iter_init(&pages, object);
 		vm_page_iter_lookup(&pages, m->pindex);
-		cdev_mgtdev_pager_free_page(&pages);
+		cdev_mgtdev_pager_free_page(&pages, m);
 	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
 	else
@@ -277,10 +277,10 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 }
 
 void
-cdev_mgtdev_pager_free_page(struct pctrie_iter *pages)
+cdev_mgtdev_pager_free_page(struct pctrie_iter *pages, vm_page_t m)
 {
-	pmap_remove_all(vm_radix_iter_page(pages));
-	vm_page_iter_remove(pages);
+	pmap_remove_all(m);
+	vm_page_iter_remove(pages, m);
 }
 
 void
@@ -298,7 +298,7 @@ retry:
 			pctrie_iter_reset(&pages);
 			goto retry;
 		}
-		cdev_mgtdev_pager_free_page(&pages);
+		cdev_mgtdev_pager_free_page(&pages, m);
 	}
 	VM_OBJECT_WUNLOCK(object);
 }
