@@ -397,7 +397,8 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 		 * be abstracted out and properly handled.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if (best_rate_tt == 0 || ((tt * 10) <= (best_rate_tt * 10))) {
+			if (best_rate_tt == 0 ||
+			    ((tt * 9) <= (best_rate_tt * 10))) {
 				best_rate_tt = tt;
 				best_rate_rix = rix;
 				best_rate_pct = pct;
