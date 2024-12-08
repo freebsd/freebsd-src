@@ -1752,16 +1752,14 @@ vm_page_remove(vm_page_t m)
 /*
  *	vm_page_iter_remove:
  *
- *	Remove the current page, as identified by iterator, and remove it from the
+ *	Remove the current page, and use the iterator to remove it from the
  *	radix tree.
  */
 bool
-vm_page_iter_remove(struct pctrie_iter *pages)
+vm_page_iter_remove(struct pctrie_iter *pages, vm_page_t m)
 {
-	vm_page_t m;
 	bool dropped;
 
-	m = vm_radix_iter_page(pages);
 	vm_radix_iter_remove(pages);
 	vm_page_remove_radixdone(m);
 	dropped = (vm_page_drop(m, VPRC_OBJREF) == VPRC_OBJREF);
