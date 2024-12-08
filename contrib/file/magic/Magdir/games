@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.31 2023/03/29 22:57:27 christos Exp $
+# $File: games,v 1.35 2024/11/09 23:04:46 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -31,53 +31,6 @@
 24      string  LxD\ 203        Linuxdoom save
 >0      string  x       , name=%s
 >44     string  x       , world=%s
-
-# Quake
-
-# Update: Joerg Jenderek
-# URL: http://fileformats.archiveteam.org/wiki/PAK
-# reference: https://quakewiki.org/wiki/.pak
-# GRR: line below is too general as it matches also Acorn PackDir compressed Archive
-# and Git pack ./revision
-0       string  PACK    
-# real Quake examples like pak0.pak have only some hundreds like 150 files
-# So test for few files
->8	ulelong <0x01000000	
-# in file version 5.32 test for null terminator is only true for
-# offset ~< FILE_BYTES_MAX = 1 MB defined in ../../src/file.h 
-# look for null terminator of 1st entry name
->>(4.l+55)	ubyte	0	Quake I or II world or extension
-!:mime	application/x-dzip
-!:ext	pak
-#>>>8	ulelong	x	\b, table size %u
-# dividing this by entry size (64) gives number of files
->>>8	ulelong/64 x	\b, %u files
-# offset to the beginning of the file table
->>>4	ulelong	x	\b, offset %#x
-# 1st file entry
->>>(4.l)	use	pak-entry
-# 2nd file entry
-#>>>4	ulelong+64	x	\b, offset %#x
-#>>>(4.l+64)	use	pak-entry
-#
-#	display file table entry of Quake PAK archive
-0	name		pak-entry
-# normally entry start after header which implies offset 12 or higher
->56	ulelong	>11	
-# the offset from the beginning of pak to beginning of this entry file contents
->>56	ulelong	x	at %#x
-# the size of file for this entry 
->>60	ulelong	x	%u bytes
-# 56 byte null-terminated entry name string includes path like maps/e1m1.bsp
->>0	string	x	'%-.56s'
-# inspect entry content by jumping to entry offset
->>(56)	indirect x	\b: 
-
-#0       string  -1\x0a  Quake I demo
-#>30     string  x        version %.4s
-#>61     string  x        level %s
-
-#0       string  5\x0a   Quake I save
 
 # The levels
 
@@ -186,12 +139,12 @@
 
 # MAME input recordings
 
-0	string	MAMEINP\0		MAME input recording
->8	leqdate	x			at %s,
->16	leshort	x			format version %d.
->18	leshort	x			\b%d,
->20	string	x			%s driver,
->32	string	x			%s
+0	string		MAMEINP\0		MAME input recording
+>8	leqdate		x			at %s,
+>16	leshort		x			format version %d.
+>18	leshort		x			\b%d,
+>20	string/12	x			%s driver,
+>32	string/32	x			%s
 
 # doom - submitted by Jon Dowland
 
@@ -694,3 +647,20 @@
 # Big-endian version (such as PS3)
 >8	ubelong	<0x100	Wwise Audio Package (big-endian)
 !:ext	pck
+
+# RPG Maker MV/MZ encrypted assets. Version was only ever known to be 00030100.
+0	string	RPGMV\0\0\0
+>12	string	\0\0\0\0
+>>8	belong	x		RPG Maker MV encrypted asset, version %08x
+!:ext	png_/ogg_/m4a_/rpgmvp/rpgmvo/rpgmvm
+
+# https://arthran2.itch.io/encrypterator-3000
+0	string	ART\0ENCRYPTER100FREE\0VERSION\0\0\0\0	RPG Maker MV encrypted asset, Encrypterator 3000 variant.
+!:ext	png_/ogg_/m4a_/rpgmvp/rpgmvo/rpgmvm
+
+
+# http://www.shikadi.net/moddingwiki/PCX_Library
+0	string/b	pcxLib\0
+>122	ubyte		0x01	pcxLib archive
+>>144	uleshort	0	\b, uncompressed
+>>144	uleshort	!0	\b, compressed

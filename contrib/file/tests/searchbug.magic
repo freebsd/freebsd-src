@@ -1,0 +1,12 @@
+
+0	string		TEST	Testfmt
+>0	byte		x	(0)
+>>0	use		part2
+>0	byte		x	(64)
+>>64	use		part2
+
+0	name		part2
+>0	search/12	ABC	found_ABC
+>>&0	ubyte		x	followed_by 0x%02x
+>>&0	offset		x	at_offset %lld
+

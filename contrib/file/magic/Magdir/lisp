@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: lisp,v 1.27 2020/08/14 19:23:39 christos Exp $
+# $File: lisp,v 1.28 2024/05/30 15:32:20 christos Exp $
 # lisp:  file(1) magic for lisp programs
 #
 # various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -76,3 +76,13 @@
 # From: David Allouche <david@allouche.net>
 0	search/1	\<TeXmacs|	TeXmacs document text
 !:mime	text/texmacs
+
+# Chibi-Scheme
+0	string	\a\achibi\n			Chibi-Scheme memory image data
+>8	ubyte	=0				\b, big-endian
+>>9	ubyte	x				\b, format version %d
+>>11	ubyte	x				\b.%d
+>8	ubyte	>0				\b, little-endian
+>>8	ubyte	x				\b, format version %d
+>>10	ubyte	x				\b.%d
+>12	string	x				\b, ABI %s

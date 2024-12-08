@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sun,v 1.28 2019/04/19 00:42:27 christos Exp $
+# $File: sun,v 1.29 2024/03/31 15:06:56 christos Exp $
 # sun:  file(1) magic for Sun machines
 #
 # Values for big-endian Sun (MC680x0, SPARC) binaries on pre-5.x
@@ -9,13 +9,14 @@
 # are in aout, as they're indistinguishable from other big-endian
 # 32-bit a.out files.
 #
-0	belong&077777777	0600413		a.out SunOS SPARC demand paged
->0	byte		&0x80
->>20	belong		<4096		shared library
->>20	belong		=4096		dynamically linked executable
->>20	belong		>4096		dynamically linked executable
->0	byte		^0x80		executable
->16	belong		>0		not stripped
+# Note:		already handled as "SPARC demand paged" by ./bsdi
+#0	belong&077777777	0600413		a.out SunOS SPARC demand paged
+#>0	byte		&0x80
+#>>20	belong		<4096		shared library
+#>>20	belong		=4096		dynamically linked executable~
+#>>20	belong		>4096		dynamically linked executable
+#>0	byte		^0x80		executable
+#>16	belong		>0		not stripped
 
 0	belong&077777777	0600410		a.out SunOS SPARC pure
 >0	byte		&0x80		dynamically linked executable

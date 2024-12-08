@@ -1,5 +1,6 @@
 
 #--------------------------------------------------------------
+# $File: ctf,v 1.5 2024/06/10 23:09:52 christos Exp $
 # ctf:  file(1) magic for CTF (Common Trace Format) trace files
 #
 # Specs. available here: <https://www.efficios.com/ctf>

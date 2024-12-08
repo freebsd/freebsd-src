@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: digital,v 1.12 2021/07/03 14:01:46 christos Exp $
+# $File: digital,v 1.17 2024/08/30 16:53:22 christos Exp $
 #  Digital UNIX - Info
 #
 0	string	=!<arch>\n________64E	Alpha archive
@@ -10,7 +10,12 @@
 0	leshort		0603
 >24	leshort		0410		COFF format alpha pure
 >24	leshort		0413		COFF format alpha demand paged
+# TODO: use other subroutine (./coff) to display name+flags+variables for common object formatted files
+#>0	use				display-coff-foo
 >>22	leshort&030000	!020000		executable
+#!:mime	application/x-foo-executable
+# typically no file name suffix for executables like \DEC\HH\HYPERHLP
+!:ext	/
 >>22	leshort&020000	!0		dynamically linked
 >>16	lelong		!0		not stripped
 >>16	lelong		0		stripped
@@ -22,6 +27,19 @@
 >>27	byte		x		- version %d
 >>26	byte		x		\b.%d
 >>28	byte		x		\b-%d
+
+# Alpha COFF object file or executable
+0	leshort		0x0184
+>16	leshort		0
+>>0	use		display-coff
+# can be created by LINK.EXE /MACHINE:ALPHA /ROM
+>16	leshort		!0
+>>18	leshort		&0x0002
+>>>20	leshort		0x0107
+>>>>0	use		display-coff
+0	leshort		0x0284
+>16	leshort		0
+>>0	use		display-coff
 
 # Basic recognition of Digital UNIX core dumps - Mike Bremford <mike@opac.bl.uk>
 #

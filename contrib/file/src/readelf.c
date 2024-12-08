@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.190 2023/07/27 19:39:06 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.196 2024/11/11 15:49:11 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -60,7 +60,10 @@ file_private uint16_t getu16(int, uint16_t);
 file_private uint32_t getu32(int, uint32_t);
 file_private uint64_t getu64(int, uint64_t);
 
+#define NBUFSIZE 2024
 #define SIZE_UNKNOWN	CAST(off_t, -1)
+#define NAMEEQUALS(n, v) \
+    (namesz == sizeof(v) && memcmp(n, v, namesz) == 0)
 
 file_private int
 toomany(struct magic_set *ms, const char *name, uint16_t num)
@@ -340,8 +343,9 @@ file_private const char os_style_names[][8] = {
 #define FLAGS_DID_NETBSD_CMODEL		0x0100
 #define FLAGS_DID_NETBSD_EMULATION	0x0200
 #define FLAGS_DID_NETBSD_UNKNOWN	0x0400
-#define FLAGS_IS_CORE			0x0800
-#define FLAGS_DID_AUXV			0x1000
+#define FLAGS_DID_ANDROID_MEMTAG	0x0800
+#define FLAGS_IS_CORE			0x1000
+#define FLAGS_DID_AUXV			0x2000
 
 file_private int
 dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
@@ -350,7 +354,7 @@ dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 	Elf32_Phdr ph32;
 	Elf64_Phdr ph64;
 	size_t offset, len;
-	unsigned char nbuf[BUFSIZ];
+	unsigned char nbuf[NBUFSIZE];
 	ssize_t bufsize;
 	off_t ph_off = off, offs;
 	int ph_num = num;
@@ -550,7 +554,7 @@ do_bid_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     int swap __attribute__((__unused__)), uint32_t namesz, uint32_t descsz,
     size_t noff, size_t doff, int *flags)
 {
-	if (namesz == 4 && strcmp(RCAST(char *, &nbuf[noff]), "GNU") == 0 &&
+	if (NAMEEQUALS(RCAST(char *, &nbuf[noff]), "GNU") &&
 	    type == NT_GNU_BUILD_ID && (descsz >= 4 && descsz <= 20)) {
 		uint8_t desc[20];
 		const char *btype;
@@ -578,7 +582,7 @@ do_bid_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 			return -1;
 		return 1;
 	}
-	if (namesz == 4 && strcmp(RCAST(char *, &nbuf[noff]), "Go") == 0 &&
+	if (namesz == 4 && memcmp(RCAST(char *, &nbuf[noff]), "Go", 3) == 0 &&
 	    type == NT_GO_BUILD_ID && descsz < 128) {
 		char buf[256];
 		if (file_printf(ms, ", Go BuildID=%s",
@@ -597,8 +601,7 @@ do_os_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 {
 	const char *name = RCAST(const char *, &nbuf[noff]);
 
-	if (namesz == 5 && strcmp(name, "SuSE") == 0 &&
-		type == NT_GNU_VERSION && descsz == 2) {
+	if (NAMEEQUALS(name, "SuSE") && type == NT_GNU_VERSION && descsz == 2) {
 		*flags |= FLAGS_DID_OS_NOTE;
 		if (file_printf(ms, ", for SuSE %d.%d", nbuf[doff],
 		    nbuf[doff + 1]) == -1)
@@ -606,8 +609,7 @@ do_os_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 	    return 1;
 	}
 
-	if (namesz == 4 && strcmp(name, "GNU") == 0 &&
-	    type == NT_GNU_VERSION && descsz == 16) {
+	if (NAMEEQUALS(name, "GNU") && type == NT_GNU_VERSION && descsz == 16) {
 		uint32_t desc[4];
 		memcpy(desc, &nbuf[doff], sizeof(desc));
 
@@ -645,26 +647,24 @@ do_os_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		return 1;
 	}
 
-	if (namesz == 7 && strcmp(name, "NetBSD") == 0) {
-	    	if (type == NT_NETBSD_VERSION && descsz == 4) {
-			*flags |= FLAGS_DID_OS_NOTE;
-			if (do_note_netbsd_version(ms, swap, &nbuf[doff]) == -1)
-				return -1;
-			return 1;
-		}
+	if (NAMEEQUALS(name, "NetBSD") &&
+	    type == NT_NETBSD_VERSION && descsz == 4) {
+		*flags |= FLAGS_DID_OS_NOTE;
+		if (do_note_netbsd_version(ms, swap, &nbuf[doff]) == -1)
+			return -1;
+		return 1;
 	}
 
-	if (namesz == 8 && strcmp(name, "FreeBSD") == 0) {
-	    	if (type == NT_FREEBSD_VERSION && descsz == 4) {
-			*flags |= FLAGS_DID_OS_NOTE;
-			if (do_note_freebsd_version(ms, swap, &nbuf[doff])
-			    == -1)
-				return -1;
-			return 1;
-		}
+	if (NAMEEQUALS(name, "FreeBSD") &&
+	    type == NT_FREEBSD_VERSION && descsz == 4) {
+		*flags |= FLAGS_DID_OS_NOTE;
+		if (do_note_freebsd_version(ms, swap, &nbuf[doff])
+		    == -1)
+			return -1;
+		return 1;
 	}
 
-	if (namesz == 8 && strcmp(name, "OpenBSD") == 0 &&
+	if (NAMEEQUALS(name, "OpenBSD") &&
 	    type == NT_OPENBSD_VERSION && descsz == 4) {
 		*flags |= FLAGS_DID_OS_NOTE;
 		if (file_printf(ms, ", for OpenBSD") == -1)
@@ -673,7 +673,7 @@ do_os_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		return 1;
 	}
 
-	if (namesz == 10 && strcmp(name, "DragonFly") == 0 &&
+	if (NAMEEQUALS(name, "DragonFly") &&
 	    type == NT_DRAGONFLY_VERSION && descsz == 4) {
 		uint32_t desc;
 		*flags |= FLAGS_DID_OS_NOTE;
@@ -686,6 +686,28 @@ do_os_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 			return -1;
 		return 1;
 	}
+
+	if (NAMEEQUALS(name, "Android") &&
+	    type == NT_ANDROID_VERSION && descsz >= 4) {
+		uint32_t api_level;
+		*flags |= FLAGS_DID_OS_NOTE;
+		memcpy(&api_level, &nbuf[doff], sizeof(api_level));
+		api_level = elf_getu32(swap, api_level);
+		if (file_printf(ms, ", for Android %d", api_level) == -1)
+			return -1;
+		/*
+		 * NDK r14 and later also include details of the NDK that
+		 * built the binary. OS binaries (or binaries built by older
+		 * NDKs) don't have this. The NDK release and build number
+		 * are both 64-byte strings.
+		 */
+		if (descsz >= 4 + 64 + 64) {
+			if (file_printf(ms, ", built by NDK %.64s (%.64s)",
+			    &nbuf[doff + 4], &nbuf[doff + 4 + 64]) == -1)
+				return -1;
+		}
+	}
+
 	return 0;
 }
 
@@ -696,8 +718,7 @@ do_pax_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 {
 	const char *name = RCAST(const char *, &nbuf[noff]);
 
-	if (namesz == 4 && strcmp(name, "PaX") == 0 &&
-	    type == NT_NETBSD_PAX && descsz == 4) {
+	if (NAMEEQUALS(name, "PaX") && type == NT_NETBSD_PAX && descsz == 4) {
 		static const char *pax[] = {
 		    "+mprotect",
 		    "-mprotect",
@@ -730,6 +751,45 @@ do_pax_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 }
 
 file_private int
+do_memtag_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
+    int swap, uint32_t namesz, uint32_t descsz,
+    size_t noff, size_t doff, int *flags)
+{
+	const char *name = RCAST(const char *, &nbuf[noff]);
+
+	if (NAMEEQUALS(name, "Android") &&
+	    type == NT_ANDROID_MEMTAG && descsz == 4) {
+		static const char *memtag[] = {
+		    "none",
+		    "async",
+		    "sync",
+		    "heap",
+		    "stack",
+		};
+		uint32_t desc;
+		size_t i;
+		int did = 0;
+
+		*flags |= FLAGS_DID_ANDROID_MEMTAG;
+		memcpy(&desc, &nbuf[doff], sizeof(desc));
+		desc = elf_getu32(swap, desc);
+
+		if (desc && file_printf(ms, ", Android Memtag: ") == -1)
+			return -1;
+
+		for (i = 0; i < __arraycount(memtag); i++) {
+			if (((1 << CAST(int, i)) & desc) == 0)
+				continue;
+			if (file_printf(ms, "%s%s", did++ ? "," : "",
+			    memtag[i]) == -1)
+				return -1;
+		}
+		return 1;
+	}
+	return 0;
+}
+
+file_private int
 do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     int swap, uint32_t namesz, uint32_t descsz,
     size_t noff, size_t doff, int *flags, size_t size, int clazz)
@@ -753,17 +813,16 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 	 * doesn't include the terminating null in the
 	 * name....
 	 */
-	if ((namesz == 4 && strncmp(name, "CORE", 4) == 0) ||
-	    (namesz == 5 && strcmp(name, "CORE") == 0)) {
+	if ((namesz == 4 && memcmp(name, "CORE", 4) == 0) ||
+	    NAMEEQUALS(name, "CORE")) {
 		os_style = OS_STYLE_SVR4;
 	}
 
-	if ((namesz == 8 && strcmp(name, "FreeBSD") == 0)) {
+	if (NAMEEQUALS(name, "FreeBSD")) {
 		os_style = OS_STYLE_FREEBSD;
 	}
 
-	if ((namesz >= 11 && strncmp(name, "NetBSD-CORE", 11)
-	    == 0)) {
+	if ((namesz >= 11 && memcmp(name, "NetBSD-CORE", 11) == 0)) {
 		os_style = OS_STYLE_NETBSD;
 	}
 
@@ -1136,10 +1195,10 @@ dodynamic(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 
 	switch (xdh_tag) {
 	case DT_FLAGS_1:
-		*pie = 1;
-		if (xdh_val & DF_1_PIE)
+		if (xdh_val & DF_1_PIE) {
+			*pie = 1;
 			ms->mode |= 0111;
-		else
+		} else
 			ms->mode &= ~0111;
 		break;
 	case DT_NEEDED:
@@ -1239,6 +1298,11 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 		    namesz, descsz, noff, doff, flags))
 			return offset;
 	}
+	if ((*flags & FLAGS_DID_ANDROID_MEMTAG) == 0) {
+		if (do_memtag_note(ms, nbuf, xnh_type, swap,
+		    namesz, descsz, noff, doff, flags))
+			return offset;
+	}
 
 	if ((*flags & FLAGS_DID_CORE) == 0) {
 		if (do_core_note(ms, nbuf, xnh_type, swap,
@@ -1253,7 +1317,7 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 			return offset;
 	}
 
-	if (namesz == 7 && strcmp(RCAST(char *, &nbuf[noff]), "NetBSD") == 0) {
+	if (NAMEEQUALS(RCAST(char *, &nbuf[noff]), "NetBSD")) {
 		int descw, flag;
 		const char *str, *tag;
 		if (descsz > 100)
@@ -1507,6 +1571,8 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			for (;;) {
 				Elf32_Cap cap32;
 				Elf64_Cap cap64;
+				cap32.c_un.c_val = 0;
+				cap64.c_un.c_val = 0;
 				char cbuf[/*CONSTCOND*/
 				    MAX(sizeof(cap32), sizeof(cap64))];
 				if ((coff += xcap_sizeof) >
@@ -1659,9 +1725,8 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 	Elf32_Phdr ph32;
 	Elf64_Phdr ph64;
 	const char *linking_style;
-	unsigned char nbuf[BUFSIZ];
-	char ibuf[BUFSIZ];
-	char interp[BUFSIZ];
+	unsigned char nbuf[NBUFSIZE];
+	char interp[128];
 	ssize_t bufsize;
 	size_t offset, align, need = 0;
 	int pie = 0, dynamic = 0;
@@ -1804,7 +1869,8 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 		return -1;
 	if (interp[0])
 		if (file_printf(ms, ", interpreter %s", file_printable(ms,
-		    ibuf, sizeof(ibuf), interp, sizeof(interp))) == -1)
+		    CAST(char *, nbuf), sizeof(nbuf),
+		    interp, sizeof(interp))) == -1)
 			return -1;
 	return 0;
 }

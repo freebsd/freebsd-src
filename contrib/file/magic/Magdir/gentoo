@@ -1,34 +1,34 @@
 #------------------------------------------------------------------------------
-# $File: gentoo,v 1.5 2022/12/26 17:16:55 christos Exp $
+# $File: gentoo,v 1.6 2024/02/11 15:39:59 christos Exp $
 # gentoo:  file(1) magic for gentoo specific formats
 #
 # Summary: Gentoo ebuild Manifest files (GLEP 74)
 # Reference: https://www.gentoo.org/glep/glep-0074.html
 # Submitted by: Michal Gorny <mgorny@gentoo.org>
 # Start by doing a fast check for the most common tags.
-0	string	AUX
+0	string	AUX\040
 >0	use	gentoo-manifest
-0	string	DATA
+0	string	DATA\040
 >0	use	gentoo-manifest
-0	string	DIST
+0	string	DIST\040
 >0	use	gentoo-manifest
-0	string	EBUILD
+0	string	EBUILD\040
 >0	use	gentoo-manifest
-0	string	MANIFEST
+0	string	MANIFEST\040
 >0	use	gentoo-manifest
 
 # Manifest can be PGP-signed.
 0	string	-----BEGIN\040PGP\040SIGNED\040MESSAGE-----
 >34	search/32	\n\n
->>&0	string	AUX
+>>&0	string	AUX\040
 >>>&0	use	gentoo-manifest
->>&0	string	DATA
+>>&0	string	DATA\040
 >>>&0	use	gentoo-manifest
->>&0	string	DIST
+>>&0	string	DIST\040
 >>>&0	use	gentoo-manifest
->>&0	string	EBUILD
+>>&0	string	EBUILD\040
 >>>&0	use	gentoo-manifest
->>&0	string	MANIFEST
+>>&0	string	MANIFEST\040
 >>>&0	use	gentoo-manifest
 
 # Use a more detailed regex to verify that we were correct.

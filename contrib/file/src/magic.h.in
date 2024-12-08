@@ -97,7 +97,7 @@ b\13apple\0\
 b\14no_check_compress\0\
 b\15no_check_tar\0\
 b\16no_check_soft\0\
-b\17no_check_sapptype\0\
+b\17no_check_apptype\0\
 b\20no_check_elf\0\
 b\21no_check_text\0\
 b\22no_check_cdf\0\
@@ -154,7 +154,8 @@ int magic_errno(magic_t);
 #define MAGIC_PARAM_REGEX_MAX		5
 #define	MAGIC_PARAM_BYTES_MAX		6
 #define	MAGIC_PARAM_ENCODING_MAX	7
-#define	MAGIC_PARAM_ELF_SHSIZE_MAX		8
+#define	MAGIC_PARAM_ELF_SHSIZE_MAX	8
+#define	MAGIC_PARAM_MAGWARN_MAX		9
 
 int magic_setparam(magic_t, int, const void *);
 int magic_getparam(magic_t, int, void *);

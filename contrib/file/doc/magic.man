@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.103 2023/07/20 14:32:07 christos Exp $
-.Dd Arpil 18, 2023
+.\" $File: magic.man,v 1.110 2024/11/27 15:37:00 christos Exp $
+.Dd November 27, 2024
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -50,6 +50,10 @@ is a regular file.
 A continuation offset relative to the end of the last up-level field
 .Dv ( \*[Am] ) .
 .El
+If the offset starts with the symbol
+.Dq + ,
+then all offsets are interpreted as from the beginning of the file (the
+default).
 .It Dv type
 The type of the data to be tested.
 The possible values are:
@@ -146,6 +150,10 @@ An eight-byte value interpreted as a UNIX-style date, but interpreted as
 local time rather than UTC.
 .It Dv qwdate
 An eight-byte value interpreted as a Windows-style date.
+.It Dv msdosdate
+A two-byte value interpreted as FAT/DOS-style date.
+.It Dv msdostime
+A two-byte value interpreted as FAT/DOS-style time.
 .It Dv beid3
 A 32-bit ID3 length in big-endian byte order.
 .It Dv beshort
@@ -175,6 +183,12 @@ than UTC.
 .It Dv beqwdate
 An eight-byte value in big-endian byte order,
 interpreted as a Windows-style date.
+.It Dv bemsdosdate
+A two-byte value in big-endian byte order,
+interpreted as FAT/DOS-style date.
+.It Dv bemsdostime
+A two-byte value in big-endian byte order,
+interpreted as FAT/DOS-style time.
 .It Dv bestring16
 A two-byte unicode (UCS16) string in big-endian byte order.
 .It Dv leid3
@@ -206,6 +220,12 @@ than UTC.
 .It Dv leqwdate
 An eight-byte value in little-endian byte order,
 interpreted as a Windows-style date.
+.It Dv lemsdosdate
+A two-byte value in big-endian byte order,
+interpreted as FAT/DOS-style date.
+.It Dv lemsdostime
+A two-byte value in big-endian byte order,
+interpreted as FAT/DOS-style time.
 .It Dv lestring16
 A two-byte unicode (UCS16) string in little-endian byte order.
 .It Dv melong
@@ -359,7 +379,6 @@ For example the magic entries:
 .Ed
 .It Dv octal
 A string representing an octal number.
-.El
 .El
 .Pp
 For compatibility with the Single
@@ -610,9 +629,9 @@ with level
 For more complex files, one can use empty messages to get just the
 "if/then" effect, in the following way:
 .Bd -literal -offset indent
-0      string   MZ
-\*[Gt]0x18  leshort  \*[Lt]0x40   MS-DOS executable
-\*[Gt]0x18  leshort  \*[Gt]0x3f   extended PC executable (e.g., MS Windows)
+0      string    MZ
+\*[Gt]0x18  uleshort  \*[Lt]0x40   MS-DOS executable
+\*[Gt]0x18  uleshort  \*[Gt]0x3f   extended PC executable (e.g., MS Windows)
 .Ed
 .Pp
 Offsets do not need to be constant, but can also be read from the file
@@ -627,17 +646,17 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (( x [[.,][bBcCeEfFgGhHiIlmsSqQ]][+\-][ y ]) .
+.Em ( x [[.,][bBcCeEfFgGhHiIlmosSqQ]][+\-][ y ]) .
 The value of
 .Em x
 is used as an offset in the file.
 A byte, id3 length, short or long is read at that offset depending on the
-.Em [bBcCeEfFgGhHiIlmsSqQ]
+.Em [bBcCeEfFgGhHiIlLmsSqQ]
 type specifier.
 The value is treated as signed if
-.Dq ,
+.Dq \&,
 is specified or unsigned if
-.Dq .
+.Dq \&.
 is specified.
 The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpret the number as a little
@@ -652,13 +671,15 @@ The default type if one is not specified is long.
 The following types are recognized:
 .Bl -column -offset indent "Type" "Half/Short" "Little" "Size"
 .It Sy Type	Sy Mnemonic	Sy Endian	Sy Size
-.It bcBc	Byte/Char	N/A	1
+.It bcBC	Byte/Char	N/A	1
 .It efg	Double	Little	8
 .It EFG	Double	Big	8
 .It hs	Half/Short	Little	2
 .It HS	Half/Short	Big	2
 .It i	ID3	Little	4
 .It I	ID3	Big	4
+.It l	Long	Little	4
+.It L	Long	Big	4
 .It m	Middle	Middle	4
 .It o	Octal	Textual	Variable
 .It q	Quad	Little	8
@@ -668,12 +689,12 @@ The following types are recognized:
 That way variable length structures can be examined:
 .Bd -literal -offset indent
 # MS Windows executables are also valid MS-DOS executables
-0           string  MZ
-\*[Gt]0x18       leshort \*[Lt]0x40   MZ executable (MS-DOS)
+0           string   MZ
+\*[Gt]0x18       uleshort \*[Lt]0x40  MZ executable (MS-DOS)
 # skip the whole block below if it is not an extended executable
-\*[Gt]0x18       leshort \*[Gt]0x3f
-\*[Gt]\*[Gt](0x3c.l)  string  PE\e0\e0  PE executable (MS-Windows)
-\*[Gt]\*[Gt](0x3c.l)  string  LX\e0\e0  LX executable (OS/2)
+\*[Gt]0x18       uleshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)  string   PE\e0\e0 PE executable (MS-Windows)
+\*[Gt]\*[Gt](0x3c.l)  string   LX\e0\e0 LX executable (OS/2)
 .Ed
 .Pp
 This strategy of examining has a drawback: you must make sure that you
@@ -687,12 +708,12 @@ inside parentheses allows one to modify
 the value read from the file before it is used as an offset:
 .Bd -literal -offset indent
 # MS Windows executables are also valid MS-DOS executables
-0           string  MZ
+0           string   MZ
 # sometimes, the value at 0x18 is less that 0x40 but there's still an
 # extended executable, simply appended to the file
-\*[Gt]0x18       leshort \*[Lt]0x40
-\*[Gt]\*[Gt](4.s*512) leshort 0x014c  COFF executable (MS-DOS, DJGPP)
-\*[Gt]\*[Gt](4.s*512) leshort !0x014c MZ executable (MS-DOS)
+\*[Gt]0x18       uleshort \*[Lt]0x40
+\*[Gt]\*[Gt](4.s*512) leshort  0x014c  COFF executable (MS-DOS, DJGPP)
+\*[Gt]\*[Gt](4.s*512) leshort  !0x014c MZ executable (MS-DOS)
 .Ed
 .Pp
 Sometimes you do not know the exact offset as this depends on the length or
@@ -702,44 +723,45 @@ field using
 .Sq \*[Am]
 as a prefix to the offset:
 .Bd -literal -offset indent
-0           string  MZ
-\*[Gt]0x18       leshort \*[Gt]0x3f
-\*[Gt]\*[Gt](0x3c.l)  string  PE\e0\e0    PE executable (MS-Windows)
+0           string   MZ
+\*[Gt]0x18       uleshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)  string   PE\e0\e0    PE executable (MS-Windows)
 # immediately following the PE signature is the CPU type
-\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort 0x14c     for Intel 80386
-\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort 0x184     for DEC Alpha
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort  0x14c     for Intel 80386
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort  0x8664    for x86-64
+\*[Gt]\*[Gt]\*[Gt]\*[Am]0       leshort  0x184     for DEC Alpha
 .Ed
 .Pp
 Indirect and relative offsets can be combined:
 .Bd -literal -offset indent
-0             string  MZ
-\*[Gt]0x18         leshort \*[Lt]0x40
-\*[Gt]\*[Gt](4.s*512)   leshort !0x014c MZ executable (MS-DOS)
+0             string   MZ
+\*[Gt]0x18         uleshort \*[Lt]0x40
+\*[Gt]\*[Gt](4.s*512)   leshort  !0x014c MZ executable (MS-DOS)
 # if it's not COFF, go back 512 bytes and add the offset taken
 # from byte 2/3, which is yet another way of finding the start
 # of the extended executable
-\*[Gt]\*[Gt]\*[Gt]\*[Am](2.s-514) string  LE      LE executable (MS Windows VxD driver)
+\*[Gt]\*[Gt]\*[Gt]\*[Am](2.s-514) string   LE      LE executable (MS Windows VxD driver)
 .Ed
 .Pp
 Or the other way around:
 .Bd -literal -offset indent
-0                 string  MZ
-\*[Gt]0x18             leshort \*[Gt]0x3f
-\*[Gt]\*[Gt](0x3c.l)        string  LE\e0\e0  LE executable (MS-Windows)
+0                 string   MZ
+\*[Gt]0x18             uleshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)        string   LE\e0\e0  LE executable (MS-Windows)
 # at offset 0x80 (-4, since relative offsets start at the end
 # of the up-level match) inside the LE header, we find the absolute
 # offset to the code area, where we look for a specific signature
-\*[Gt]\*[Gt]\*[Gt](\*[Am]0x7c.l+0x26) string  UPX     \eb, UPX compressed
+\*[Gt]\*[Gt]\*[Gt](\*[Am]0x7c.l+0x26) string   UPX     \eb, UPX compressed
 .Ed
 .Pp
 Or even both!
 .Bd -literal -offset indent
-0                string  MZ
-\*[Gt]0x18            leshort \*[Gt]0x3f
-\*[Gt]\*[Gt](0x3c.l)       string  LE\e0\e0 LE executable (MS-Windows)
+0                string   MZ
+\*[Gt]0x18            uleshort \*[Gt]0x3f
+\*[Gt]\*[Gt](0x3c.l)       string   LE\e0\e0 LE executable (MS-Windows)
 # at offset 0x58 inside the LE header, we find the relative offset
 # to a data area where we look for a specific signature
-\*[Gt]\*[Gt]\*[Gt]\*[Am](\*[Am]0x54.l-3)  string  UNACE  \eb, ACE self-extracting archive
+\*[Gt]\*[Gt]\*[Gt]\*[Am](\*[Am]0x54.l-3)  string   UNACE  \eb, ACE self-extracting archive
 .Ed
 .Pp
 If you have to deal with offset/length pairs in your file, even the
@@ -749,7 +771,7 @@ Note that this additional indirect offset is always relative to the
 start of the main indirect offset.
 .Bd -literal -offset indent
 0                 string       MZ
-\*[Gt]0x18             leshort      \*[Gt]0x3f
+\*[Gt]0x18             uleshort     \*[Gt]0x3f
 \*[Gt]\*[Gt](0x3c.l)        string       PE\e0\e0 PE executable (MS-Windows)
 # search for the PE section called ".idata"...
 \*[Gt]\*[Gt]\*[Gt]\*[Am]0xf4          search/0x140 .idata
@@ -762,7 +784,7 @@ If you have a list of known values at a particular continuation level,
 and you want to provide a switch-like default case:
 .Bd -literal -offset indent
 # clear that continuation level match
-\*[Gt]18	clear
+\*[Gt]18	clear	x
 \*[Gt]18	lelong	1	one
 \*[Gt]18	lelong	2	two
 \*[Gt]18	default	x
@@ -828,3 +850,15 @@ to make it clearer that those types have specified widths.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
+.\"
+.\" For emacs editor
+.\" Local Variables:
+.\" eval: (add-hook 'before-save-hook 'time-stamp)
+.\" time-stamp-start: ".Dd "
+.\" time-stamp-end: "$"
+.\" time-stamp-format: "%:B %02d, %:Y"
+.\" time-stamp-time-zone: "UTC0"
+.\" system-time-locale: "C"
+.\" eval:(setq compile-command (concat "groff -Tlatin1 -m man " (buffer-file-name)) )
+.\" End:
+.\"

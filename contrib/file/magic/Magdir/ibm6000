@@ -1,10 +1,13 @@
 
 #------------------------------------------------------------------------------
-# $File: ibm6000,v 1.15 2021/07/03 14:01:46 christos Exp $
+# $File: ibm6000,v 1.16 2024/03/31 15:06:56 christos Exp $
 # ibm6000:  file(1) magic for RS/6000 and the RT PC.
 #
-0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module
->12	belong		>0		not stripped
+# Update:	Joerg Jenderek
+#0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module
+0	beshort		0x01df
+# use subroutine (./coff) to display name+flags+variables for common object formatted files
+>0	use				\^display-coff
 # Breaks sun4 statically linked execs.
 #0      beshort		0x0103		executable (RT Version 2) or obj module
 #>2	byte		0x50		pure

@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.140 2023/05/21 17:08:34 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.142 2023/07/30 14:41:14 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -673,6 +673,7 @@ check_regex(struct magic_set *ms, const char *pat)
 	char sbuf[512];
 	unsigned char oc = '\0';
 	const char *p;
+	unsigned long l;
 
 	for (p = pat; *p; p++) {
 		unsigned char c = *p;
@@ -685,6 +686,19 @@ check_regex(struct magic_set *ms, const char *pat)
 			    file_printable(ms, sbuf, sizeof(sbuf), pat, len));
 			return -1;
 		}
+		if (c == '{') {
+			char *ep, *eep;
+			errno = 0;
+			l = strtoul(p + 1, &ep, 10);
+			if (ep != p + 1 && l > 1000)
+				goto bounds;
+
+			if (*ep == ',') {
+				l = strtoul(ep + 1, &eep, 10);
+				if (eep != ep + 1 && l > 1000)
+					goto bounds;
+			}
+		}
 		oc = c;
 		if (isprint(c) || isspace(c) || c == '\b'
 		    || c == 0x8a) // XXX: apple magic fixme
@@ -696,6 +710,9 @@ check_regex(struct magic_set *ms, const char *pat)
 		return -1;
 	}
 	return 0;
+bounds:
+	file_magwarn(ms, "bounds too large %ld in regex `%s'", l, pat);
+	return -1;
 }
 
 file_protected int

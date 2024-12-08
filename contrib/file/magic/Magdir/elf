@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: elf,v 1.88 2023/01/08 17:09:18 christos Exp $
+# $File: elf,v 1.91 2024/11/09 23:52:23 christos Exp $
 # elf:  file(1) magic for ELF executables
 #
 # We have to check the byte order flag to see what byte order all the
@@ -82,15 +82,15 @@
 >18	leshort		0		no machine,
 >18	leshort		1		AT&T WE32100,
 >18	leshort		2		SPARC,
->18	leshort		3		Intel 80386,
+>18	leshort		3		Intel i386,
 >18	leshort		4		Motorola m68k,
 >>4	byte		1
 >>>36	lelong		&0x01000000	68000,
 >>>36	lelong		&0x00810000	CPU32,
 >>>36	lelong		0		68020,
 >18	leshort		5		Motorola m88k,
->18	leshort		6		Intel 80486,
->18	leshort		7		Intel 80860,
+>18	leshort		6		Intel i486,
+>18	leshort		7		Intel i860,
 # The official e_machine number for MIPS is now #8, regardless of endianness.
 # The second number (#10) will be deprecated later. For now, we still
 # say something if #10 is encountered, but only gory details for #8.
@@ -375,5 +375,29 @@
 >7	byte		16		(FenixOS)
 >7	byte		17		(Nuxi CloudABI)
 >7	byte		97		(ARM)
+>7	byte		102		(Cell LV2)
 >7	byte		202		(Cafe OS)
 >7	byte		255		(embedded)
+
+# SELF Signed ELF used on the playstation
+# https://www.psdevwiki.com/ps4/SELF_File_Format#make_fself_by_flatz
+# https://www.psdevwiki.com/ps3/SELF_-_SPRX
+0	lelong		0x4F153D1D
+>4	lelong		0x00010112	PS4 Signed ELF file
+>8	byte		1		\b, SELF/SPRX signed-elf/prx
+>8	byte		2		\b, SRVK signed-revoke-list
+>8	byte		3		\b, SPKG signed-package
+>8	byte		4		\b, SSPP signed-security-policy-profile
+>8	byte		5		\b, SDIFF signed-diff
+>8	byte		6		\b, SPSFO signed-param-sfo
+>9	byte&0xf0	x		\b, version %#x	
+>9	byte&0x0f	4		\b, game
+>9	byte&0x0f	5		\b, module
+>9	byte&0x0f	6		\b, video app
+>9	byte&0x0f	8		\b, System/EX application
+>9	byte&0x0f	9		\b, System/EX module/dll
+#>12	leshort		x		\b, header size %d
+#>14	leshort		x		\b, signature size %d
+#>16	lelong		x		\b, file size %d
+#>18	leshort		x		\b, number of segments %d
+#>20	leshort		22

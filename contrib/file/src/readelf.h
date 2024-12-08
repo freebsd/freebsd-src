@@ -365,6 +365,37 @@ typedef struct {
 #define NT_GO_BUILD_ID	4
 
 /*
+ * Android-specific note type: ident
+ * name: Android\0
+ * namesz: 8
+ * desc: 
+ *	uint32_t: api_version
+ *	string[64]: NDK Version
+ *	string[64]: version detail
+ * descsz: < 4+64+64 (4 for < r14)
+ */
+#define NT_ANDROID_VERSION	1
+
+#define NT_ANDROID_KUSER	3
+
+/*
+ * Android-specific note type: memory tag
+ * name: Android\0
+ * namesz: 8
+ * desc: 
+ *	uint32_t: bitmask
+ * descsz: 4
+ */
+#define NT_ANDROID_MEMTAG	4
+
+#define NT_ANDROID_MEMTAG_LEVEL_NONE	0
+#define NT_ANDROID_MEMTAG_LEVEL_ASYNC	1
+#define NT_ANDROID_MEMTAG_LEVEL_SYNC	2
+#define NT_ANDROID_MEMTAG_LEVEL_MASK	3
+#define NT_ANDROID_MEMTAG_HEAP		4
+#define NT_ANDROID_MEMTAG_STACK		8
+
+/*
  * FreeBSD specific notes
  */
 #define NT_FREEBSD_PROCSTAT_AUXV	16

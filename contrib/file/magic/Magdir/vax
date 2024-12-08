@@ -1,13 +1,13 @@
 
 #------------------------------------------------------------------------------
-# $File: vax,v 1.10 2019/10/04 18:07:46 christos Exp $
+# $File: vax,v 1.11 2024/02/29 03:42:40 christos Exp $
 # vax:  file(1) magic for VAX executable/object and APL workspace
 #
 0	lelong		0101557		VAX single precision APL workspace
 0	lelong		0101556		VAX double precision APL workspace
 
 #
-# VAX a.out (BSD; others collide with 386 and other 32-bit little-endian
+# VAX a.out (BSD; others collide with i386 and other 32-bit little-endian
 # executables, and are handled in aout)
 #
 0	lelong		0420		a.out VAX demand paged (first page unmapped) pure executable

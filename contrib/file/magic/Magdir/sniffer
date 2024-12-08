@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.34 2022/12/14 18:27:36 christos Exp $
+# $File: sniffer,v 1.36 2024/06/16 15:09:26 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -78,8 +78,8 @@
 #
 # "libpcap" capture files.
 # https://www.tcpdump.org/manpages/pcap-savefile.5.html
-# (We call them "tcpdump capture file(s)" for now, as "tcpdump" is
-# the main program that uses that format, but there are other programs
+# (We call them "libpcap capture file(s)", as "libpcap" is
+# the first library that uses that format, but there are other programs
 # that use "libpcap", or that use the same capture file format.)
 #
 0	name		pcap-be
@@ -198,7 +198,7 @@
 >20	belong&0x03FFFFFF		204		(PPP with direction pseudo-header
 >20	belong&0x03FFFFFF		205		(Cisco HDLC with direction pseudo-header
 >20	belong&0x03FFFFFF		206		(Frame Relay with direction pseudo-header
->20	belong&0x03FFFFFF		209		(Linux IPMB
+>20	belong&0x03FFFFFF		209		(Linux I2C
 >20	belong&0x03FFFFFF		215		(802.15.4 with non-ASK PHY header
 >20	belong&0x03FFFFFF		216		(Linux evdev events
 >20	belong&0x03FFFFFF		219		(MPLS with label as link-layer header

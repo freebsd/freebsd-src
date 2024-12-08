@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: meteorological,v 1.4 2022/12/09 18:02:09 christos Exp $
+# $File: meteorological,v 1.6 2024/11/10 17:05:08 christos Exp $
 # rinex:  file(1) magic for RINEX files
 # http://igscb.jpl.nasa.gov/igscb/data/format/rinex210.txt
 # ftp://cddis.gsfc.nasa.gov/pub/reports/formats/rinex300.pdf
@@ -44,10 +44,21 @@
 !:mime	rinex/observation
 
 # https://en.wikipedia.org/wiki/GRIB
+# https://www.iana.org/assignments/media-types/application/grib
 0	string	GRIB
 >7	byte 	=1	Gridded binary (GRIB) version 1
-!:mime	application/x-grib
+!:mime	application/grib;edition=1
 !:ext	grb/grib
 >7	byte	=2	Gridded binary (GRIB) version 2
-!:mime	application/x-grib2
+!:mime	application/grib;edition=2
 !:ext	grb2/grib2
+
+# BUFR is a meteorological data format for storing point or time series data.
+# https://www.iana.org/assignments/media-types/application/bufr
+0	string	BUFR
+>7	byte	=3	Binary Universal Form data (BUFR) Edition 3
+!:mime	application/bufr
+!:ext	bufr
+>7	byte	=4	Binary Universal Form data (BUFR) Edition 4
+!:mime	application/bufr
+!:ext	bufr

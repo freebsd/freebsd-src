@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.45 2022/07/24 23:59:37 christos Exp $
+# $File: python,v 1.47 2024/08/27 18:50:57 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -191,6 +191,7 @@
 
 # magic 3392+ implements PEP 552: Deterministic pycs
 0	name		pyc-pep552
+>0	uleshort	x	(magic: %04d),
 # the flag field determines how .pyc validity is checked
 >4	ulelong&1	0		timestamp-based,
 >>8	uledate		x		.py timestamp: %s UTC,
@@ -208,24 +209,28 @@
 >>1		ubyte		0x0d		Byte-compiled Python module for
 !:mime application/x-bytecode.python
 # now look at the magic number to determine the version
->>>0		uleshort	<3400		CPython 3.7,
+>>>0		uleshort	<3400		CPython 3.7
 >>>0		default		x
->>>>0		uleshort	<3420		CPython 3.8,
+>>>>0		uleshort	<3420		CPython 3.8
 >>>>0		default		x
->>>>>0		uleshort	<3430		CPython 3.9,
+>>>>>0		uleshort	<3430		CPython 3.9
 >>>>>0		default		x
->>>>>>0		uleshort	<3450		CPython 3.10,
+>>>>>>0		uleshort	<3450		CPython 3.10
 >>>>>>0		default		x
->>>>>>>0	uleshort	<3500		CPython 3.11,
->>>>>>>0	default		x		CPython 3.12 or newer,
+>>>>>>>0	uleshort	<3500		CPython 3.11
+>>>>>>>0	default		x
+>>>>>>>>0	uleshort	<3550		CPython 3.12
+>>>>>>>>0	default		x
+>>>>>>>>>0	uleshort	<3600		CPython 3.13
+>>>>>>>>>0	default		x		CPython 3.14 or newer
 >>>0		use		pyc-pep552
->>0		uleshort	240		Byte-compiled Python module for PyPy3.7,
+>>0		uleshort	240		Byte-compiled Python module for PyPy3.7
 !:mime application/x-bytecode.python
 >>>0		use		pyc-pep552
->>0		uleshort	256		Byte-compiled Python module for PyPy3.8,
+>>0		uleshort	256		Byte-compiled Python module for PyPy3.8
 !:mime application/x-bytecode.python
 >>>0		use		pyc-pep552
->>0		uleshort	336		Byte-compiled Python module for PyPy3.9,
+>>0		uleshort	336		Byte-compiled Python module for PyPy3.9
 !:mime application/x-bytecode.python
 >>>0		use		pyc-pep552
 
@@ -245,6 +250,9 @@
 >0	regex		\^from[\040\t]+([A-Za-z0-9_]|\\.)+[\040\t]+import.*$	Python script text executable
 !:strength + 15
 !:mime text/x-script.python
+>0	regex		\^import\ [_[:alpha:]]+\ as\ [[:alpha:]][[:space:]]*$ Python script text executable
+!:mime text/x-script.python
+
 
 # def __init__ (self, ...):
 0	search/4096	def\ __init__
@@ -257,11 +265,6 @@
 >&0 search/64 '__main__'	Python script text executable
 >&0 search/64 "__main__"	Python script text executable
 !:strength + 15
-!:mime text/x-script.python
-
-# import module [as abrev]
-0	search/8192	import
->0	regex	\^import\ [_[:alpha:]]+\ as\ [[:alpha:]][[:space:]]*$ Python script text executable
 !:mime text/x-script.python
 
 # comments
