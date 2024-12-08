@@ -196,7 +196,7 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 {
 	struct ieee80211_htrateset *rs_ht;
 	struct ieee80211_node *ni;
-	uint32_t rates;
+	uint32_t rates, htrates;
 	int maxrate;
 
 	RTWN_NT_LOCK(sc);
@@ -212,13 +212,20 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 		rs_ht = &ni->ni_htrates;
 	else
 		rs_ht = NULL;
-	/* XXX MACID_BC */
-	rtwn_get_rates(sc, &ni->ni_rates, rs_ht, &rates, &maxrate, 0);
+	/*
+	 * Note: this pushes the rate bitmap and maxrate into the
+	 * firmware; and for this chipset 2-stream 11n support is enough.
+	 */
+	rtwn_get_rates(sc, &ni->ni_rates, rs_ht, &rates, &htrates, &maxrate, 0);
 	RTWN_NT_UNLOCK(sc);
 
 #ifndef RTWN_WITHOUT_UCODE
 	if (sc->sc_ratectl == RTWN_RATECTL_FW) {
-		r92c_send_ra_cmd(sc, macid, rates, maxrate);
+		uint32_t fw_rates;
+		/* Add HT rates after normal rates; limit to MCS0..15 */
+		fw_rates = rates |
+		    ((htrates & 0xffff) << RTWN_RIDX_HT_MCS_SHIFT);
+		r92c_send_ra_cmd(sc, macid, fw_rates, maxrate);
 	}
 #endif
 

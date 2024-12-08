@@ -452,8 +452,9 @@ r12a_set_band(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	    !(rtwn_read_1(sc, R12A_CCK_CHECK) & R12A_CCK_CHECK_5GHZ))
 		return;
 
+	/* Note: this only fetches the basic rates, not the full rateset */
 	rtwn_get_rates(sc, ieee80211_get_suprates(ic, c), NULL, &basicrates,
-	    NULL, 1);
+	    NULL, NULL, 1);
 	if (IEEE80211_IS_CHAN_2GHZ(c)) {
 		rtwn_r12a_set_band_2ghz(sc, basicrates);
 		swing = rs->tx_bbswing_2g;
