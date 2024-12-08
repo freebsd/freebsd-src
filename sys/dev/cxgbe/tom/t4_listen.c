@@ -769,6 +769,8 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 
 	if (lctx->flags & LCTX_SETUP_IN_HW)
 		destroy_server(sc, lctx);
+	else
+		inp = release_lctx(sc, lctx);
 	return (0);
 }
 
