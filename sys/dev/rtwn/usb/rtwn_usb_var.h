@@ -30,7 +30,7 @@
 
 #define RTWN_IFACE_INDEX		0
 
-#define RTWN_USB_RX_LIST_COUNT		1
+#define RTWN_USB_RX_LIST_COUNT		16
 #define RTWN_USB_TX_LIST_COUNT		16
 
 struct rtwn_data {
