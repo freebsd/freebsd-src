@@ -132,15 +132,6 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
-
-#ifdef RTWN_DEBUG
-	if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
-		/* Dump per-rate Tx power values. */
-		printf("Tx power for chain %d:\n", chain);
-		for (ridx = RTWN_RIDX_CCK1; ridx < RTWN_RIDX_LEGACY_HT_COUNT; ridx++)
-			printf("Rate %d = %u\n", ridx, power[ridx]);
-	}
-#endif
 }
 
 static void
@@ -153,6 +144,8 @@ r92e_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		memset(power, 0, sizeof(power));
 		/* Compute per-rate Tx power values. */
 		r92e_get_txpower(sc, i, c, power);
+		/* Optionally print out the power table */
+		r92c_dump_txpower(sc, i, power);
 		/* Write per-rate Tx power values to hardware. */
 		r92c_write_txpower(sc, i, power);
 	}

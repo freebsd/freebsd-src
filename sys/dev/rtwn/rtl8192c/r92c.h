@@ -54,6 +54,7 @@ void	r92c_temp_measure(struct rtwn_softc *);
 uint8_t	r92c_temp_read(struct rtwn_softc *);
 
 /* r92c_chan.c */
+void	r92c_dump_txpower(struct rtwn_softc *, int, uint8_t[RTWN_RIDX_COUNT]);
 void	r92c_get_txpower(struct rtwn_softc *, int,
 	    struct ieee80211_channel *, uint8_t[RTWN_RIDX_COUNT]);
 void	r92c_write_txpower(struct rtwn_softc *, int,
