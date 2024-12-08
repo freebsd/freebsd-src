@@ -191,7 +191,7 @@ r88ee_attach(struct rtwn_pci_softc *pc)
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r88ee_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
-	sc->sc_set_tx_power		= rtwn_nop_int_softc_vap;
+	sc->sc_set_tx_power		= r92c_set_tx_power;
 
 	sc->mac_prog			= &rtl8188e_mac[0];
 	sc->mac_size			= nitems(rtl8188e_mac);
