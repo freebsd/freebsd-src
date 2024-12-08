@@ -1213,7 +1213,8 @@ rtwn_calc_basicrates(struct rtwn_softc *sc)
 			continue;
 
 		ni = ieee80211_ref_node(vap->iv_bss);
-		rtwn_get_rates(sc, &ni->ni_rates, NULL, &rates, NULL, 1);
+		/* Only fetches basic rates; no need to add HT/VHT here */
+		rtwn_get_rates(sc, &ni->ni_rates, NULL, &rates, NULL, NULL, 1);
 		basicrates |= rates;
 		ieee80211_free_node(ni);
 	}

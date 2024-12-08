@@ -52,12 +52,24 @@
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
+/*
+ * Get the driver rate set for the current operating rateset(s).
+ *
+ * rates_p is set to a mask of 11abg ridx values (not HW rate values.)
+ * htrates_p is set to a mask of 11n ridx values (not HW rate values),
+ *  starting at MCS0 == bit 0.
+ *
+ * maxrate_p is set to the ridx value.
+ *
+ * If basic_rates is 1 then only the 11abg basic rate logic will
+ * be applied; HT/VHT will be ignored.
+ */
 void
 rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
     const struct ieee80211_htrateset *rs_ht, uint32_t *rates_p,
-    int *maxrate_p, int basic_rates)
+    uint32_t *htrates_p, int *maxrate_p, int basic_rates)
 {
-	uint32_t rates;
+	uint32_t rates = 0, htrates = 0;
 	uint8_t ridx;
 	int i, maxrate;
 
@@ -65,7 +77,7 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	rates = 0;
 	maxrate = 0;
 
-	/* This is for 11bg */
+	/* This is for 11abg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
 		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
@@ -82,15 +94,15 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	/* If we're doing 11n, enable 11n rates */
 	if (rs_ht != NULL && !basic_rates) {
 		for (i = 0; i < rs_ht->rs_nrates; i++) {
+			/* Only do up to 2-stream rates for now */
 			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
 				continue;
-			/* 11n rates start at index 12 */
-			ridx = RTWN_RIDX_HT_MCS((rs_ht->rs_rates[i]) & 0xf);
-			rates |= (1 << ridx);
+			ridx = rs_ht->rs_rates[i] & 0xf;
+			htrates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
-			if (ridx > maxrate)
-				maxrate = ridx;
+			if (RTWN_RIDX_HT_MCS(ridx) > maxrate)
+				maxrate = RTWN_RIDX_HT_MCS(ridx);
 		}
 	}
 
@@ -99,6 +111,8 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 
 	if (rates_p != NULL)
 		*rates_p = rates;
+	if (htrates_p != NULL)
+		*htrates_p = htrates;
 	if (maxrate_p != NULL)
 		*maxrate_p = maxrate;
 }
