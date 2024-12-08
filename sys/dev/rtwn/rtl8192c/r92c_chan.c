@@ -53,6 +53,56 @@
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 
+void
+r92c_dump_txpower(struct rtwn_softc *sc, int chain,
+    uint8_t power[RTWN_RIDX_COUNT])
+{
+
+#ifdef RTWN_DEBUG
+	if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
+		int i;
+
+		/* Print CCK */
+		RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+		    "TX [%d]: CCK: 1M: %d 2M: %d 5.5M: %d 11M: %d\n",
+		    chain,
+		    power[RTWN_RIDX_CCK1],
+		    power[RTWN_RIDX_CCK2],
+		    power[RTWN_RIDX_CCK55],
+		    power[RTWN_RIDX_CCK11]);
+		/* Print OFDM */
+		RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+		    "TX [%d]: OFDM: 6M: %d 9M: %d 12M: %d 18M: %d 24M: %d "
+		    "36M: %d 48M: %d 54M: %d\n",
+		    chain,
+		    power[RTWN_RIDX_OFDM6],
+		    power[RTWN_RIDX_OFDM9],
+		    power[RTWN_RIDX_OFDM12],
+		    power[RTWN_RIDX_OFDM18],
+		    power[RTWN_RIDX_OFDM24],
+		    power[RTWN_RIDX_OFDM36],
+		    power[RTWN_RIDX_OFDM48],
+		    power[RTWN_RIDX_OFDM54]);
+		/* Print HT, 1 and 2 stream */
+		for (i = 0; i < sc->ntxchains; i++) {
+			RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+			    "TX [%d]: MCS%d-%d: %d %d %d %d %d %d %d %d\n",
+			    chain,
+			    i * 8,
+			    i * 8 + 7,
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 0)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 1)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 2)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 3)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 4)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 5)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 6)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 7)]);
+		}
+	}
+#endif
+}
+
 static int
 r92c_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
@@ -224,18 +274,8 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		memset(power, 0, sizeof(power));
 		/* Compute per-rate Tx power values. */
 		rtwn_r92c_get_txpower(sc, i, c, power);
-#ifdef RTWN_DEBUG
-		if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
-			int max_mcs, ridx;
-
-			max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
-
-			/* Dump per-rate Tx power values. */
-			printf("Tx power for chain %d:\n", i);
-			for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
-				printf("Rate %d = %u\n", ridx, power[ridx]);
-		}
-#endif
+		/* Optionally print out the power table */
+		r92c_dump_txpower(sc, i, power);
 		/* Write per-rate Tx power values to hardware. */
 		r92c_write_txpower(sc, i, power);
 	}
