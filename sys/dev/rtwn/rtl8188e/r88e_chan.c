@@ -84,6 +84,7 @@ void
 r88e_get_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
+	const struct ieee80211com *ic = &sc->sc_ic;
 	struct r92c_softc *rs = sc->sc_priv;
 	const struct rtwn_r88e_txpwr *rt = rs->rs_txpwr;
 	uint8_t cckpow, ofdmpow, bw20pow, htpow = 0;
@@ -96,15 +97,36 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 		return;
 	}
 
-	/* XXX net80211 regulatory */
+	/*
+	 * Treat the entries in 1/2 dBm resolution where 0 = 0dBm.
+	 * Apply the adjustments afterwards; assume that the vendor
+	 * driver is applying offsets to make up for the actual
+	 * target power in dBm.
+	 */
 
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 	KASSERT(max_mcs <= RTWN_RIDX_LEGACY_HT_COUNT, ("increase ridx limit\n"));
 
 	/* Compute per-CCK rate Tx power. */
-	cckpow = rt->cck_tx_pwr[group];
 	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++) {
-		power[ridx] = (ridx == RTWN_RIDX_CCK2) ? cckpow - 9 : cckpow;
+		/*
+		 * Note: the regulatory limit is applied to cckpow before
+		 * it's subtracted for CCK2.
+		 */
+		cckpow = rt->cck_tx_pwr[group];
+		if (cckpow > ic->ic_txpowlimit)
+			cckpow = ic->ic_txpowlimit;
+
+		/*
+		 * If it's CCK2 then we subtract the 9 (4.5dB?) offset
+		 * and make sure we aren't going to underflow.
+		 */
+		if (ridx == RTWN_RIDX_CCK2 && cckpow < 9)
+			cckpow = 0;
+		else if (ridx == RTWN_RIDX_CCK2)
+			cckpow = cckpow - 9;
+
+		power[ridx] = cckpow;
 	}
 
 	if (group < 5)
@@ -112,14 +134,18 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 
 	/* Compute per-OFDM rate Tx power. */
 	ofdmpow = htpow + rt->ofdm_tx_pwr_diff;
+	if (ofdmpow > ic->ic_txpowlimit)
+		ofdmpow = ic->ic_txpowlimit;
 	for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
 		power[ridx] = ofdmpow;
 
 	bw20pow = htpow + rt->bw20_tx_pwr_diff;
+	if (bw20pow > ic->ic_txpowlimit)
+		bw20pow = ic->ic_txpowlimit;
 	for (ridx = RTWN_RIDX_HT_MCS(0); ridx <= max_mcs; ridx++)
 		power[ridx] = bw20pow;
 
-	/* Apply max limit. */
+	/* Apply max limit */
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;

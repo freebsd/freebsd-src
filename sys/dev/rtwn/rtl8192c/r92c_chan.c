@@ -131,6 +131,7 @@ void
 r92c_get_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
+	const struct ieee80211com *ic = &sc->sc_ic;
 	struct r92c_softc *rs = sc->sc_priv;
 	struct rtwn_r92c_txpwr *rt = rs->rs_txpwr;
 	const struct rtwn_r92c_txagc *base = rs->rs_txagc;
@@ -144,7 +145,12 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 		return;
 	}
 
-	/* XXX net80211 regulatory */
+	/*
+	 * Treat the entries in 1/2 dBm resolution where 0 = 0dBm.
+	 * Apply the adjustments afterwards; assume that the vendor
+	 * driver is applying offsets to make up for the actual
+	 * target power in dBm.
+	 */
 
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 	KASSERT(max_mcs <= RTWN_RIDX_LEGACY_HT_COUNT, ("increase ridx limit\n"));
@@ -199,6 +205,10 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
+		/* Apply net80211 limits */
+		if (power[ridx] > ic->ic_txpowlimit)
+			power[ridx] = ic->ic_txpowlimit;
+
 	}
 }
 
@@ -279,6 +289,25 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		/* Write per-rate Tx power values to hardware. */
 		r92c_write_txpower(sc, i, power);
 	}
+}
+
+/*
+ * Only reconfigure the transmit power if there's a valid BSS node and
+ * channel.  Otherwise just let the next call to r92c_set_chan()
+ * configure the transmit power.
+ */
+int
+r92c_set_tx_power(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	if (vap->iv_bss == NULL)
+		return (EINVAL);
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return (EINVAL);
+
+	/* Set it for the current channel */
+	r92c_set_txpower(sc, vap->iv_bss->ni_chan);
+
+	return (0);
 }
 
 static void

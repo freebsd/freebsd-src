@@ -59,6 +59,7 @@ void	r92c_get_txpower(struct rtwn_softc *, int,
 	    struct ieee80211_channel *, uint8_t[RTWN_RIDX_COUNT]);
 void	r92c_write_txpower(struct rtwn_softc *, int,
 	    uint8_t power[RTWN_RIDX_COUNT]);
+int	r92c_set_tx_power(struct rtwn_softc *, struct ieee80211vap *);
 void	r92c_set_bw20(struct rtwn_softc *, uint8_t);
 void	r92c_set_chan(struct rtwn_softc *, struct ieee80211_channel *);
 void	r92c_set_gain(struct rtwn_softc *, uint8_t);

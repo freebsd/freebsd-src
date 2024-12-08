@@ -90,6 +90,7 @@ static void
 r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
     uint8_t power[RTWN_RIDX_COUNT])
 {
+	const struct ieee80211com *ic = &sc->sc_ic;
 	struct r92e_softc *rs = sc->sc_priv;
 	int i, ridx, group, max_mcs;
 
@@ -103,19 +104,32 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
 
 	/* XXX regulatory */
-	/* XXX net80211 regulatory */
 
-	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
+	for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++) {
 		power[ridx] = rs->cck_tx_pwr[chain][group];
-	for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++)
+		if (power[ridx] > ic->ic_txpowlimit)
+			power[ridx] = ic->ic_txpowlimit;
+	}
+	for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++) {
 		power[ridx] = rs->ht40_tx_pwr_2g[chain][group];
+		if (power[ridx] > ic->ic_txpowlimit)
+			power[ridx] = ic->ic_txpowlimit;
+	}
 
-	for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
-		power[ridx] += rs->ofdm_tx_pwr_diff_2g[chain][0];
+	for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++) {
+		/* Ensure we don't underflow if the power delta is -ve */
+		int8_t pwr;
+
+		pwr = power[ridx] + rs->ofdm_tx_pwr_diff_2g[chain][0];
+		if (pwr < 0)
+			pwr = 0;
+
+		power[ridx] = pwr;
+	}
 
 	for (i = 0; i < sc->ntxchains; i++) {
 		uint8_t min_mcs;
-		uint8_t pwr_diff;
+		int8_t pwr_diff, pwr;
 
 		if (IEEE80211_IS_CHAN_HT40(c))
 			pwr_diff = rs->bw40_tx_pwr_diff_2g[chain][i];
@@ -123,8 +137,13 @@ r92e_get_txpower(struct rtwn_softc *sc, int chain, struct ieee80211_channel *c,
 			pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
 
 		min_mcs = RTWN_RIDX_HT_MCS(i * 8);
-		for (ridx = min_mcs; ridx <= max_mcs; ridx++)
-			power[ridx] += pwr_diff;
+		for (ridx = min_mcs; ridx <= max_mcs; ridx++) {
+			/* Ensure we don't underflow */
+			pwr = power[ridx] + pwr_diff;
+			if (pwr < 0)
+				pwr = 0;
+			power[ridx] = pwr;
+		}
 	}
 
 	/* Apply max limit. */
@@ -149,6 +168,19 @@ r92e_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		/* Write per-rate Tx power values to hardware. */
 		r92c_write_txpower(sc, i, power);
 	}
+}
+
+int
+r92e_set_tx_power(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+
+	if (vap->iv_bss == NULL)
+		return (EINVAL);
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return (EINVAL);
+
+	r92e_set_txpower(sc, vap->iv_bss->ni_chan);
+	return (0);
 }
 
 static void
