@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.48 2023/05/01 14:20:21 christos Exp $
+# $File: apple,v 1.51 2024/09/04 19:06:12 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -17,8 +17,13 @@
 # Ref: https://applesaucefdc.com/a2r/
 0	string		A2R
 >3	string		\x31\xFF\x0A\x0D\x0A	Applesauce A2R 1.x Disk Image
+>>0	use		applesauce
 >3	string		\x32\xFF\x0A\x0D\x0A	Applesauce A2R 2.x Disk Image
+>>0	use		applesauce
 >3	string		\x33\xFF\x0A\x0D\x0A	Applesauce A2R 3.x Disk Image
+>>0	use		applesauce
+
+0	name		applesauce
 >8	string		INFO
 >>49	byte		01			\b, 5.25″ SS 40trk
 >>49	byte		02			\b, 3.5″ DS 80trk
@@ -36,7 +41,11 @@
 # Ref: https://applesaucefdc.com/woz/reference2/
 0	string		WOZ
 >3	string		\x31\xFF\x0A\x0D\x0A	Apple ][ WOZ 1.0 Disk Image
+>>0	use		applewoz
 >3	string		\x32\xFF\x0A\x0D\x0A	Apple ][ WOZ 2.0 Disk Image
+>>0	use		applewoz
+
+0	name		applewoz
 >12	string		INFO
 >>21	byte		01			\b, 5.25 inch
 >>21	byte		02			\b, 3.5 inch
@@ -49,13 +58,13 @@
 # Ref: https://applesaucefdc.com/moof-reference/
 0	string		MOOF
 >4	string		\xFF\x0A\x0D\x0A	Apple Macintosh MOOF Disk Image
->12	string		INFO
->>21	byte		01			\b, SSDD GCR (400K)
->>21	byte		02			\b, DSDD GCR (800K)
->>21	byte		03			\b, DSHD MFM (1.44M)
->>22	byte		01			\b, write protected
->>23	byte		01			\b, cross track synchronized
->>25	string/T	x			\b, %.32s
+>>12	string		INFO
+>>>21	byte		01			\b, SSDD GCR (400K)
+>>>21	byte		02			\b, DSDD GCR (800K)
+>>>21	byte		03			\b, DSHD MFM (1.44M)
+>>>22	byte		01			\b, write protected
+>>>23	byte		01			\b, cross track synchronized
+>>>25	string/T	x			\b, %.32s
 
 # Type: Apple Emulator disk images
 # From: Greg Wildman <greg@apple2.org.za>
@@ -192,11 +201,9 @@
 # Ref: https://github.com/peterferrie/qboot
 0	string	\x01\x4A\xA8\x69\x0F\x85\x27\xC9
 >8	string	\x12\xF0\x10\xE6\x3D\x86\xDA\x8A	Apple ][ QBoot Image
-
 # Type: Peter Ferrie 0Boot
 # From: Greg Wildman <greg@apple2.org.za>
 # Ref: https://github.com/peterferrie/0boot
-0	string	\x01\x4A\xA8\x69\x0F\x85\x27\xC9
 >8	string	\x12\xF0\x10\xE6\x3D\x86\xDA\x8A	Apple ][ 0Boot Image
 
 # Different proprietary boot sectors
@@ -438,22 +445,22 @@
 #  object is the first object (true for CoreFoundation implementation).
 # From: David Remahl <dremahl@apple.com>
 0		string	bplist
->6		byte	x	\bCoreFoundation binary property list data, version %#c
+>6		byte	x	CoreFoundation binary property list data, version %#c
 >>7		byte	x	\b%c
->6		string		00		\b
->>8		byte&0xF0	0x00	\b
->>>8	byte&0x0F	0x00	\b, root type: null
->>>8	byte&0x0F	0x08	\b, root type: false boolean
->>>8	byte&0x0F	0x09	\b, root type: true boolean
->>8		byte&0xF0	0x10	\b, root type: integer
->>8		byte&0xF0	0x20	\b, root type: real
->>8		byte&0xF0	0x30	\b, root type: date
->>8		byte&0xF0	0x40    \b, root type: data
->>8		byte&0xF0	0x50	\b, root type: ascii string
->>8		byte&0xF0	0x60	\b, root type: unicode string
->>8		byte&0xF0	0x80	\b, root type: uid (CORRUPT)
->>8		byte&0xF0	0xa0	\b, root type: array
->>8		byte&0xF0	0xd0	\b, root type: dictionary
+>>6		string		00		\b
+>>>8		byte&0xF0	0x00	\b
+>>>>8	byte&0x0F	0x00	\b, root type: null
+>>>>8	byte&0x0F	0x08	\b, root type: false boolean
+>>>>8	byte&0x0F	0x09	\b, root type: true boolean
+>>>8		byte&0xF0	0x10	\b, root type: integer
+>>>8		byte&0xF0	0x20	\b, root type: real
+>>>8		byte&0xF0	0x30	\b, root type: date
+>>>8		byte&0xF0	0x40    \b, root type: data
+>>>8		byte&0xF0	0x50	\b, root type: ascii string
+>>>8		byte&0xF0	0x60	\b, root type: unicode string
+>>>8		byte&0xF0	0x80	\b, root type: uid (CORRUPT)
+>>>8		byte&0xF0	0xa0	\b, root type: array
+>>>8		byte&0xF0	0xd0	\b, root type: dictionary
 
 # Apple/NeXT typedstream data
 #  Serialization format used by NeXT and Apple for various
@@ -478,7 +485,6 @@
 #
 0	string		caff		CoreAudio Format audio file
 >4	beshort		<10		version %d
->6	beshort		x
 
 
 #------------------------------------------------------------------------------

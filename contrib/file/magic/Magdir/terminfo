@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: terminfo,v 1.13 2022/11/21 22:25:37 christos Exp $
+# $File: terminfo,v 1.14 2024/09/04 19:06:12 christos Exp $
 # terminfo:  file(1) magic for terminfo
 #
 # URL: https://invisible-island.net/ncurses/man/term.5.html
@@ -48,12 +48,12 @@
 # Rather than SVr4, Solaris "xcurses" writes this header:
 0	regex		\^MAX=[0-9]+,[0-9]+$
 >1	regex		\^BEG=[0-9]+,[0-9]+$
->2	regex		\^SCROLL=[0-9]+,[0-9]+$
->3	regex		\^VMIN=[0-9]+$
->4	regex		\^VTIME=[0-9]+$
->5	regex		\^FLAGS=0x[[:xdigit:]]+$
->6	regex		\^FG=[0-9],[0-9]+$
->7	regex		\^BG=[0-9]+,[0-9]+,	Solaris xcurses screen image
+>>2	regex		\^SCROLL=[0-9]+,[0-9]+$
+>>>3	regex		\^VMIN=[0-9]+$
+>>>>4	regex		\^VTIME=[0-9]+$
+>>>>>5	regex		\^FLAGS=0x[[:xdigit:]]+$
+>>>>>>6	regex		\^FG=[0-9],[0-9]+$
+>>>>>>>7	regex		\^BG=[0-9]+,[0-9]+,	Solaris xcurses screen image
 #
 # ncurses5 (and before) did not use a magic number, making screen dumps "data".
 # ncurses6 (2015) uses this format, ignoring byte-order
