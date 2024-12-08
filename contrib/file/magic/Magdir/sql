@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.26 2023/04/29 17:26:58 christos Exp $
+# $File: sql,v 1.27 2023/08/19 15:33:04 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -100,6 +100,7 @@
 # URL:		https://en.wikipedia.org/wiki/SQLite
 # Reference:	https://www.sqlite.org/fileformat.html
 # Update:	Joerg Jenderek
+# TODO:		missing extensions for Bentley Systems and Esri Spatially-Enabled Database
 # Version 3 of SQLite allows applications to embed their own "user version"
 # number in the database at offset 60.  Later, SQLite added an "application id"
 # at offset 68 that is preferred over "user version" for indicating the
@@ -110,7 +111,6 @@
 >16 ubeshort >0                 SQLite 3.x
 # deprecated
 #!:mime	application/x-sqlite3
-!:mime	application/vnd.sqlite3
 # seldom found extension sqlite3 like in SyncData.sqlite3
 # db
 # db3 like: AddrBook.db3 cgipcrvp.db3
@@ -119,14 +119,88 @@
 # SQLite database weewx.sdb used by weather software weewx
 # https://www.weewx.com/docs/usersguide.htm
 # Avira Antivir use extension "dbe" like in avevtdb.dbe, avguard_tchk.dbe
+# ide is used in storage.ide
+# localstorage like in Enigma2 http_itv.ard.de_0.localstorage
+# xowa like in home-html.user.xowa		http://fileformats.archiveteam.org/wiki/XOWA
+# sqlar like in sqlar-src-4824e73896.sqlar	http://fileformats.archiveteam.org/wiki/SQLite_Archive
+# sketch					http://fileformats.archiveteam.org/wiki/Sketch
+# ftb						http://fileformats.archiveteam.org/wiki/MyHeritage_Family_Tree_Builder
+# lrcat						http://fileformats.archiveteam.org/wiki/Lightroom_catalog
+# without suffix like in "Diagnostic Data"
 # Unfortunately extension sqlite also used for other databases starting with string
 # "TTCONTAINER" like in tracks.sqlite contentconsumer.sqlite contentproducerrepository.sqlite
 # and with string "ZV-zlib" in like extra.sqlite
->>68 belong !0x5CDE09EF	database
-!:ext sqlite/sqlite3/db/db3/dbe/sdb/help
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/maple-sqlite.trid.xml
 >>68 belong =0x5CDE09EF  database
 # maple is used for Maple Workbook
 !:ext maple
+# From:		Joerg Jenderek
+# URL: 		https://en.wikipedia.org/wiki/Audacity_(audio_editor)
+#		http://fileformats.archiveteam.org/wiki/Audacity_Project_Format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/aup3.trid.xml
+# Note:		called "Audacity 3 Project" by TrID and "Audacity Project File" version 3.x by DROID via PUID fmt/1826
+#		with user version 03000000h whereas older versions *.AUP are not SQLite based
+>>68 belong =0x41554459  database
+!:mime	application/x-audacity-project+sqlite3
+!:ext	aup3
+# From:		Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/TeXnicard
+# Reference:	http://fileformats.archiveteam.org/wiki/TeXnicard_card_database
+# Note:		no examples found
+>>68 belong =0x6A035744  database
+!:mime	application/vnd.sqlite3
+!:ext	db
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_repository_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil.trid.xml 
+# Note:		called "Fossil repository data base" by TrID
+>>68 belong =0x0F055111  database
+!:mime	application/vnd.sqlite3
+!:ext	fossil/fsl
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_checkout_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil-checkout.trid.xml
+# Note:		called "Fossil checkout data base" by TrID
+>>68 belong =0x0F055112  database
+!:mime	application/vnd.sqlite3
+# name _FOSSIL_ on Windows or .fslckout else
+!:ext	/fslckout
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/Fossil_configuration_database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/fossil-config.trid.xml
+# Note:		called "Fossil configuration data base" by TrID
+>>68 belong =0x0F055113  database
+!:mime	application/vnd.sqlite3
+# %LOCALAPPDATA%\_fossil on Windows and ~/.fossil or fossil.db else
+!:ext	/fossil/db
+# Update:	Joerg Jenderek
+# URL: 		http://fileformats.archiveteam.org/wiki/GeoPackage
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/gpkg-v1.trid.xml
+# Note:		called "GeoPackage (v1)" by TrID and "OGC GeoPackage" version 1.0-1.31 by DROID via PUID fmt/1700
+#		with GP10 application id
+>>68 belong =0x47503130  database
+# https://www.iana.org/assignments/media-types/application/geopackage+sqlite3
+!:mime	application/geopackage+sqlite3
+# https://github.com/opengeospatial/ets-gpkg12/blob/master/src/test/resources/gpkg/bluemarble.gpkg
+!:ext	gpkg
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/g/gpkg-v12.trid.xml
+# Note:		called "GeoPackage (v1.2)" by TrID and "OGC GeoPackage" version 1.0-1.31 by DROID via PUID fmt/1700
+#		with GPKG application id
+>>68 belong =0x47504B47  database
+!:mime	application/geopackage+sqlite3
+!:ext	gpkg
+# Update:	Joerg Jenderek
+# URL: 		https://github.com/mapbox/mbtiles-spec/tree/master
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mbtiles-MPBX.trid.xml
+# Note:		called "MBTiles tileset (MPBX)" by TrID and many samples without application id MPBX like
+# https://ftp.gwdg.de/pub/misc/openstreetmap/openseamap/charts/mbtiles/OSM-OpenCPN2-MagellanStrait.mbtiles
+>>68 belong =0x4D504258  database
+!:mime	application/vnd.sqlite3
+!:ext	mbtiles
+>>68 default x           database
+!:mime	application/vnd.sqlite3
+# no examples found with s3db sl3 suffix
+!:ext	/sqlite/sqlite3/db/db3/dbe/sdb/help/ide/localstorage/sqlar/xowa/mbtiles
+# GRR: the line above only works if in ../../src/file.h FILE_MAGICSIZE ext[] are raised or you get
 >>60 belong =0x5f4d544e  (Monotone source repository)
 # if no known user version then check for Application IDs with default clause
 >>60 belong !0x5f4d544e
@@ -143,17 +217,24 @@
 >>>68 belong =0x4d504258 (MBTiles tileset)
 #	https://www.maplesoft.com/support/help/errors/view.aspx?path=Formats/Maple
 >>>68 belong =0x5CDE09EF (Maple Workbook)
+# AUDY	Audacity Project File
+>>>68 belong =0x41554459 (Audacity Project)
+>>>68 belong =0x6A035744 (TeXnicard card database)
 # unknown application ID
 >>>68 default x
 >>>>68 belong !0         \b, application id %u
 # The "user version" as read and set by the user_version pragma like:
-# 1 2 4 5 7 9 10 25 36 43 53 400 416 131073 131074 131075
+# 1 2 4 5 7 9 10 25 36 43 53 400 416 131073 131074 131075 50331648
 >>60 belong !0          \b, user version %d
-# SQLITE_VERSION_NUMBER like: 0 3008011 3016002 3007014 3017000 3022000 3028000 3031001
+# expressed as hexadecimal because some people mention version number in hexadecimal with marking that item
+>>>60 belong	x	(%#x)
+# SQLITE_VERSION_NUMBER like: 0 3007014 3008011 3016002 3017000 3022000 3028000 3031001 3032003 3035005
 >>96 belong  x           \b, last written using SQLite version %d
 # database page size in bytes; a power of two between 512 and 32768, or 1 for 65536
 # like: 512 1024 often 4096 32768
->>16 ubeshort !4096      \b, page size %u
+>>16 ubeshort !4096      \b, page size
+>>>16	ubeshort !1      %u
+>>>16	ubeshort =1      65536
 # File format write version. 1 for legacy; 2 for WAL; 0 for corruptDB.sqlite
 >>18 ubyte   !1          \b, writer version %u
 # File format read version. 1 for legacy; 2 for WAL; 4 for corruptDB.sqlite

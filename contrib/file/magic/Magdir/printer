@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: printer,v 1.34 2023/06/16 19:27:12 christos Exp $
+# $File: printer,v 1.36 2024/08/27 18:50:57 christos Exp $
 # printer:  file(1) magic for printer-formatted files
 #
 
@@ -86,19 +86,6 @@
 # (LANGUAGE and Language)
 # For example the LaserJet 5L driver puts the "PJL ENTER LANGUAGE" in line 10
 # From: Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>
-#
-0	string		\033%-12345X@PJL	HP Printer Job Language data
->&0	string		>\0			%s
->>&0	string		>\0			%s
->>>&0	string		>\0			%s
->>>>&0	string		>\0			%s
-#>15	string		\ ENTER\ LANGUAGE\ =
-#>31	string		PostScript		PostScript
-
-# From: Stefan Thurner <thurners@nicsys.de>
-0	string		\033%-12345X@PJL
->&0	search/10000	%!			PJL encapsulated PostScript document text
-
 # Rick Richardson <rickrich@gmail.com>
 
 # For Fuji-Xerox Printers - HBPL stands for Host Based Printer Language
@@ -106,13 +93,14 @@
 # For Konica Minolta Printers - LAVAFLOW
 # For Samsung Printers - QPDL
 # For HP Printers - ZJS stands for Zenographics ZJStream
-0	string		\033%-12345X@PJL	HP Printer Job Language data
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=HBPL	- HBPL
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=HIPERC	- Oki Data HIPERC
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=LAVAFLOW	- Konica Minolta LAVAFLOW
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=QPDL	- Samsung QPDL
 >0	search/10000	@PJL\ ENTER\ LANGUAGE\ =\ QPDL	- Samsung QPDL
 >0	search/10000	@PJL\ ENTER\ LANGUAGE=ZJS	- HP ZJS
+# From: Stefan Thurner <thurners@nicsys.de>
+>&0	search/10000	%!			PJL encapsulated PostScript document text
 # Summary:	Hewlett-Packard printer firmware update
 # From:		Joerg Jenderek
 # URL:		https://support.hp.com/us-en/drivers/selfservice/hp-envy-6000e-all-in-one-printer-series/2100187505/model/2100187513
@@ -230,8 +218,9 @@
 0	string	PS4
 >0		use		hpgl
 # la.hp
-0	string	BP
->0		use		hpgl
+# Too weak
+#0	string	BP
+#>0		use		hpgl
 # miter.hp
 # Plot Absolute x,y{,x,y{...}}; x and y in range between -32767 and 32768 like: PA4000,3000;
 0	string	PA
@@ -241,8 +230,9 @@
 #>2	regex	\^([-]{0,1}[0-9]{1,5})	COORDINATE=%s
 >>0		use		hpgl
 # pw.hpg	number of pens x
-0	string	NP
->0		use		hpgl
+# Too weak
+#0	string	NP
+#>0		use		hpgl
 # win_1.hp
 #0	string	\003INCA		WHAT_IS_THAT
 #>0		use		hpgl
