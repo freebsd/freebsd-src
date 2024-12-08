@@ -1749,7 +1749,20 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			goto out_unbind;
 		}
 	} else {
+#if defined(__linux__)
 		request_module_nowait("%s", op->name);
+#elif defined(__FreeBSD__)
+		/*
+		 * In FreeBSD if_iwlwifi contains all drv modules in a single
+		 * module.  SYSINIT will do the job later.  We cannot call
+		 * into kern_kldload() while being called from kern_kldload():
+		 * LinuxKPI request_module[_nowait] will hang hard.
+		 * Given this is request_module_nowait() we can simply skip it.
+		 */
+		if (bootverbose)
+		       printf("%s: module '%s' not yet available; will be"
+			   "initialized in a moment\n", __func__, op->name);
+#endif
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
