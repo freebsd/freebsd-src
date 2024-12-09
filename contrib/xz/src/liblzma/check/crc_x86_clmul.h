@@ -266,7 +266,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
 
 	__m128i v0, v1, v2;
 
-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
+	crc_simd_body(buf, size, &v0, &v1, vfold16,
 			_mm_cvtsi32_si128((int32_t)~crc));
 
 	v1 = _mm_xor_si128(
@@ -355,12 +355,12 @@ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
 	__m128i v0, v1, v2;
 
 #if defined(__i386__) || defined(_M_IX86)
-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
+	crc_simd_body(buf, size, &v0, &v1, vfold16,
 			_mm_set_epi64x(0, (int64_t)~crc));
 #else
 	// GCC and Clang would produce good code with _mm_set_epi64x
 	// but MSVC needs _mm_cvtsi64_si128 on x86-64.
-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
+	crc_simd_body(buf, size, &v0, &v1, vfold16,
 			_mm_cvtsi64_si128((int64_t)~crc));
 #endif
 
@@ -385,6 +385,9 @@ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
 #endif // BUILDING_CRC64_CLMUL
 
 
+// Even though this is an inline function, compile it only when needed.
+// This way it won't appear in E2K builds at all.
+#if defined(CRC32_GENERIC) || defined(CRC64_GENERIC)
 // Inlining this function duplicates the function body in crc32_resolve() and
 // crc64_resolve(), but this is acceptable because this is a tiny function.
 static inline bool
@@ -420,9 +423,10 @@ is_arch_extension_supported(void)
 	//   - ICC's _may_i_use_cpu_feature: the other methods should work too.
 	//   - GCC >= 6 / Clang / ICX __builtin_cpu_supports("pclmul")
 	//
-	// CPUID decding is needed with MSVC anyway and older GCC. This keeps
+	// CPUID decoding is needed with MSVC anyway and older GCC. This keeps
 	// the feature checks in the build system simpler too. The nice thing
 	// about __builtin_cpu_supports would be that it generates very short
 	// code as is it only reads a variable set at startup but a few bytes
 	// doesn't matter here.
 }
+#endif
