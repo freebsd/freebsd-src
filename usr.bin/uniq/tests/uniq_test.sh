@@ -53,7 +53,12 @@ count_repeated_head() {
 count_repeated_body() {
 	printf "a\na\nb\nb\na\n" >input
 	printf "   2 a\n   2 b\n" >expected
+	atf_check_uniq -cd
+	atf_check_uniq -c -d
+	atf_check_uniq -dc
+	atf_check_uniq -d -c
 	atf_check_uniq --count --repeated
+	atf_check_uniq --repeated --count
 }
 
 atf_test_case all_repeated
@@ -64,7 +69,15 @@ all_repeated_body() {
 	printf "a\na\nb\na\na\n" >input
 	printf "a\na\na\na\n" >expected
 	atf_check_uniq -D
+	atf_check_uniq -Dnone
 	atf_check_uniq --all-repeated
+	atf_check_uniq --all-repeated=none
+	printf "\na\na\n\na\na\n" >expected
+	atf_check_uniq -Dprepend
+	atf_check_uniq --all-repeated=prepend
+	printf "a\na\n\na\na\n" >expected
+	atf_check_uniq -Dseparate
+	atf_check_uniq --all-repeated=separate
 }
 
 atf_test_case skip_fields

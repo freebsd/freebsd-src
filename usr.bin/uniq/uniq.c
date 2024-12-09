@@ -366,7 +366,7 @@ obsolete(char *argv[])
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-"usage: uniq [-c | -d | -D | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
+	(void)fprintf(stderr, "usage: uniq [-cdiu] [-D[septype]] "
+	    "[-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }
