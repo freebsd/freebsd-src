@@ -418,7 +418,6 @@ ATOMIC_LOADSTORE(long);
 #undef ATOMIC_LOAD
 #undef ATOMIC_STORE
 #undef ATOMIC_LOADSTORE
-#ifndef WANT_FUNCTIONS
 
 /* Read the current value and store a new value in the destination. */
 #ifdef __GNUCLIKE_ASM
@@ -631,8 +630,6 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_long
 #define	atomic_swap_ptr		atomic_swap_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
-
-#endif /* !WANT_FUNCTIONS */
 
 #endif /* !SAN_NEEDS_INTERCEPTORS || SAN_RUNTIME */
 
