@@ -16,6 +16,7 @@ TESTS_SUBDIRS+=	rpc
 TESTS_SUBDIRS+=	setjmp
 TESTS_SUBDIRS+=	stdio
 TESTS_SUBDIRS+=	stdlib
+TESTS_SUBDIRS+=	stdtime
 TESTS_SUBDIRS+=	string
 TESTS_SUBDIRS+=	sys
 TESTS_SUBDIRS+=	termios

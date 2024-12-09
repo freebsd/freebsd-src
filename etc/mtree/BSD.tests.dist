@@ -358,6 +358,8 @@
             ..
             stdlib
             ..
+            stdtime
+            ..
             string
             ..
             sys
