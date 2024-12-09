@@ -1904,11 +1904,11 @@ isp_target_mark_aborted_early(ispsoftc_t *isp, int chan, tstate_t *tptr, uint32_
 	STAILQ_FOREACH_SAFE(ntp, &tptr->restart_queue, next, tmp) {
 		this_tag_id = ((at7_entry_t *)ntp->data)->at_rxid;
 		if ((uint64_t)tag_id == TAG_ANY || tag_id == this_tag_id) {
+			STAILQ_REMOVE(&tptr->restart_queue, ntp,
+			    inot_private_data, next);
 			isp_endcmd(isp, ntp->data, NIL_HANDLE, chan,
 			    ECMD_TERMINATE, 0);
 			isp_put_ntpd(isp, chan, ntp);
-			STAILQ_REMOVE(&tptr->restart_queue, ntp,
-			    inot_private_data, next);
 		}
 	}
 
