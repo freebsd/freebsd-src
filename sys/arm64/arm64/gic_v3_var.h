@@ -53,6 +53,12 @@ struct gic_redists {
 	struct resource **	regions;
 	/* Number of Re-Distributor regions */
 	u_int			nregions;
+	/*
+	 * Whether to treat each region as a single Re-Distributor page or a
+	 * series of contiguous pages (i.e. from each ACPI MADT GICC's GICR
+	 * Base Address field)
+	 */
+	bool			single;
 	/* Per-CPU Re-Distributor data */
 	struct redist_pcpu	*pcpu;
 };

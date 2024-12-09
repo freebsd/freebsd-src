@@ -1435,7 +1435,7 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 				    (GICR_VLPI_BASE_SIZE + GICR_RESERVED_SIZE);
 			}
 		} while (offset < rman_get_size(r_res) &&
-		    (typer & GICR_TYPER_LAST) == 0);
+		    !sc->gic_redists.single && (typer & GICR_TYPER_LAST) == 0);
 	}
 
 	device_printf(sc->dev, "No Re-Distributor found for CPU%u\n", cpuid);
