@@ -643,7 +643,7 @@ void if_setrcvif(struct mbuf *m, if_t ifp);
 void if_setvtag(struct mbuf *m, u_int16_t tag);
 u_int16_t if_getvtag(struct mbuf *m);
 int if_vlantrunkinuse(if_t ifp);
-caddr_t if_getlladdr(const if_t ifp);
+char *if_getlladdr(const if_t ifp);
 struct vnet *if_getvnet(const if_t ifp);
 void *if_gethandle(u_char);
 void if_vlancap(if_t ifp);
