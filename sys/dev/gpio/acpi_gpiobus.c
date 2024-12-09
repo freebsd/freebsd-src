@@ -203,8 +203,6 @@ acpi_gpiobus_enumerate_aei(ACPI_RESOURCE *res, void *context)
 
 	for (int i = 0; i < devi->gpiobus.npins; i++) {
 		if (GPIOBUS_PIN_SETFLAGS(bus, child, 0, devi->flags)) {
-			gpiobus_free_ivars(&devi->gpiobus);
-			free(devi, M_DEVBUF);
 			device_delete_child(bus, child);
 			return (AE_OK);
 		}
