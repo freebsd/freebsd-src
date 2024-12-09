@@ -86,9 +86,15 @@
 #elif defined(HAVE_SYS_ENDIAN_H)
 	// *BSDs and Darwin
 #	include <sys/endian.h>
-#	define byteswap16(num) bswap16(num)
-#	define byteswap32(num) bswap32(num)
-#	define byteswap64(num) bswap64(num)
+#	ifdef __OpenBSD__
+#		define byteswap16(num) swap16(num)
+#		define byteswap32(num) swap32(num)
+#		define byteswap64(num) swap64(num)
+#	else
+#		define byteswap16(num) bswap16(num)
+#		define byteswap32(num) bswap32(num)
+#		define byteswap64(num) bswap64(num)
+#	endif
 
 #elif defined(HAVE_SYS_BYTEORDER_H)
 	// Solaris
@@ -237,7 +243,7 @@
 // from the memcpy() method than from simple byte-by-byte shift-or code
 // when reading a 32-bit integer:
 //
-//     (1) It may be constructed on stack using using four 8-bit loads,
+//     (1) It may be constructed on stack using four 8-bit loads,
 //         four 8-bit stores to stack, and finally one 32-bit load from stack.
 //
 //     (2) Especially with -Os, an actual memcpy() call may be emitted.

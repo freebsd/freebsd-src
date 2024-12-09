@@ -124,7 +124,7 @@ version(void)
 static void
 parse_options(int argc, char **argv)
 {
-	static const char short_opts[] = "cdkM:hqQV";
+	static const char short_opts[] = "cdkhqQV";
 	static const struct option long_opts[] = {
 		{ "stdout",       no_argument,         NULL, 'c' },
 		{ "to-stdout",    no_argument,         NULL, 'c' },

@@ -149,8 +149,7 @@ lzmainfo(const char *name, FILE *f)
 		printf("Unknown");
 	else
 		printf("%" PRIu64 " MB (%" PRIu64 " bytes)",
-				(uncompressed_size + 512 * 1024)
-					/ (1024 * 1024),
+				(uncompressed_size / 1024 + 512) / 1024,
 				uncompressed_size);
 
 	lzma_options_lzma *opt = filter.options;
@@ -160,7 +159,7 @@ lzmainfo(const char *name, FILE *f)
 			"Literal context bits (lc):     %" PRIu32 "\n"
 			"Literal pos bits (lp):         %" PRIu32 "\n"
 			"Number of pos bits (pb):       %" PRIu32 "\n",
-			(opt->dict_size + 512 * 1024) / (1024 * 1024),
+			(opt->dict_size / 1024 + 512) / 1024,
 			my_log2(opt->dict_size), opt->lc, opt->lp, opt->pb);
 
 	free(opt);

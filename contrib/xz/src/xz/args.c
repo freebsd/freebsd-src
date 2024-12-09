@@ -252,7 +252,6 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "single-stream", no_argument,      NULL,  OPT_SINGLE_STREAM },
 		{ "no-sparse",    no_argument,       NULL,  OPT_NO_SPARSE },
 		{ "suffix",       required_argument, NULL,  'S' },
-		// { "recursive",      no_argument,       NULL,  'r' }, // TODO
 		{ "files",        optional_argument, NULL,  OPT_FILES },
 		{ "files0",       optional_argument, NULL,  OPT_FILES0 },
 

@@ -95,7 +95,7 @@ extern void
 mytime_sigtstp_handler(int sig lzma_attribute((__unused__)))
 {
 	// Measure how long the process stays in the stopped state and add
-	// that amount to start_time. This way the the progress indicator
+	// that amount to start_time. This way the progress indicator
 	// won't count the stopped time as elapsed time and the estimated
 	// remaining time won't be confused by the time spent in the
 	// stopped state.
