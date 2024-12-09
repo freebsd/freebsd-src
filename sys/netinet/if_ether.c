@@ -1506,7 +1506,7 @@ vnet_arp_init(void)
 #endif
 }
 VNET_SYSINIT(vnet_arp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND,
-    vnet_arp_init, 0);
+    vnet_arp_init, NULL);
 
 #ifdef VIMAGE
 /*
