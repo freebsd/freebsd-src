@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 643: 20 Jul 2023"
+.TH LESSKEY 1 "Version 668: 06 Oct 2024"
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
@@ -122,14 +122,15 @@ For example, see the "{" and ":t" commands in the example below.
 The extra string has a special meaning for the "quit" action:
 when
 .B less
-quits, the first character of the extra string is used as its exit status.
+quits, the ASCII value of the first character of the extra string 
+is used as its exit status.
 .
 .SH EXAMPLE
 The following input file describes the set of
 default command keys used by 
 .BR less .
 Documentation on each command can be found in the
-.less
+.B less
 man page, under the key sequence which invokes the command.
 .sp
 .RS 5m
@@ -181,8 +182,6 @@ g	goto-line
 \ee<	goto-line
 p	percent
 %	percent
-\ee[	left-scroll
-\ee]	right-scroll
 \ee(	left-scroll
 \ee)	right-scroll
 \ekl	left-scroll
@@ -213,11 +212,16 @@ n	repeat-search
 \een	repeat-search-all
 N	reverse-search
 \eeN	reverse-search-all
+^O^N	osc8-forw-search
+^On	osc8-forw-search
+^O^P	osc8-back-search
+^Op	osc8-back-search
+^O^O	osc8-open
 &	filter
 m	set-mark
 M	set-mark-bottom
 \eem	clear-mark
-'	goto-mark
+\&'	goto-mark
 ^X^X	goto-mark
 E	examine
 :e	examine
@@ -367,6 +371,24 @@ it should be appended to the end of the preceding line.
 (It cannot be added to the beginning of the += string because space after
 the equals sign is ignored, as noted above.)
 .
+.sp
+In the string after the = sign, a substring of the form ${NAME}
+is replaced with the value of the environment variable "NAME".
+The value of the variable may come from either the system environment,
+an earlier lesskey file, or an earlier definition in the current lesskey file.
+Simple text replacements can be performed by using 
+the syntax ${NAME/STRING/REPL}.
+This replaces all instances of "STRING" in the named 
+environment variable with the text "REPL".
+STRING is matched using a simple text comparison;
+no metacharacters are supported.
+An instance of slash or right curly bracket in STRING or REPL
+must be escaped by preceding it with \fItwo\fP backslashes.
+If REPL is an empty string, all instances of STRING are removed.
+A slash immediately before the right curly bracket may be omitted.
+Multiple replacements may be performed by using
+the syntax ${NAME/STRING1/REPL1/STRING2/REPL2} and so on.
+.
 .SH CONDITIONAL CONFIGURATION
 If a line begins with #version followed by a relational operator and a version number,
 the remainder of the line is parsed if and only if the running version of
@@ -410,7 +432,7 @@ In those older versions, all #version lines are ignored.
 .
 .SH EXAMPLE
 The following input file sets the \-i and \-S options when
-.less
+.B less
 is run and, on version 595 and higher, adds a \-\-color option.
 .sp
 .nf
@@ -430,7 +452,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2023  Mark Nudelman
+Copyright (C) 1984-2024  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

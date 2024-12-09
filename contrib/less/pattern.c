@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -20,7 +20,7 @@ extern int utf_mode;
 /*
  * Compile a search pattern, for future use by match_pattern.
  */
-static int compile_pattern2(char *pattern, int search_type, PATTERN_TYPE *comp_pattern, int show_error)
+static int compile_pattern2(constant char *pattern, int search_type, PATTERN_TYPE *comp_pattern, int show_error)
 {
 	if (search_type & SRCH_NO_REGEX)
 		return (0);
@@ -142,21 +142,20 @@ static int compile_pattern2(char *pattern, int search_type, PATTERN_TYPE *comp_p
 /*
  * Like compile_pattern2, but convert the pattern to lowercase if necessary.
  */
-public int compile_pattern(char *pattern, int search_type, int show_error, PATTERN_TYPE *comp_pattern)
+public int compile_pattern(constant char *pattern, int search_type, int show_error, PATTERN_TYPE *comp_pattern)
 {
-	char *cvt_pattern;
 	int result;
 
 	if (caseless != OPT_ONPLUS || (re_handles_caseless && !(search_type & SRCH_NO_REGEX)))
-		cvt_pattern = pattern;
-	else
 	{
-		cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
-		cvt_text(cvt_pattern, pattern, (int *)NULL, (int *)NULL, CVT_TO_LC);
-	}
-	result = compile_pattern2(cvt_pattern, search_type, comp_pattern, show_error);
-	if (cvt_pattern != pattern)
+		result = compile_pattern2(pattern, search_type, comp_pattern, show_error);
+	} else
+	{
+		char *cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
+		cvt_text(cvt_pattern, pattern, NULL, NULL, CVT_TO_LC);
+		result = compile_pattern2(cvt_pattern, search_type, comp_pattern, show_error);
 		free(cvt_pattern);
+	}
 	return (result);
 }
 
@@ -227,7 +226,7 @@ public int valid_pattern(char *pattern)
 /*
  * Is a compiled pattern null?
  */
-public int is_null_pattern(PATTERN_TYPE pattern)
+public lbool is_null_pattern(PATTERN_TYPE pattern)
 {
 #if HAVE_GNU_REGEX
 	return (pattern == NULL);
@@ -258,12 +257,14 @@ public int is_null_pattern(PATTERN_TYPE pattern)
  * Simple pattern matching function.
  * It supports no metacharacters like *, etc.
  */
-static int match(char *pattern, int pattern_len, char *buf, int buf_len, char ***sp, char ***ep, int nsubs)
+static int match(constant char *pattern, size_t pattern_len, constant char *buf, int buf_len, constant char ***sp, constant char ***ep, int nsubs)
 {
-	char *pp, *lp;
-	char *pattern_end = pattern + pattern_len;
-	char *buf_end = buf + buf_len;
+	constant char *pp;
+	constant char *lp;
+	constant char *pattern_end = pattern + pattern_len;
+	constant char *buf_end = buf + buf_len;
 
+	(void) nsubs;
 	for ( ;  buf < buf_end;  buf++)
 	{
 		for (pp = pattern, lp = buf;  ;  pp++, lp++)
@@ -294,9 +295,10 @@ static int match(char *pattern, int pattern_len, char *buf, int buf_len, char **
  * Set sp[i] and ep[i] to the start and end of the i-th matched subpattern.
  * Subpatterns are defined by parentheses in the regex language.
  */
-static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int line_len, char **sp, char **ep, int nsp, int notbol, int search_type)
+static int match_pattern1(PATTERN_TYPE pattern, constant char *tpattern, constant char *line, size_t aline_len, constant char **sp, constant char **ep, int nsp, int notbol, int search_type)
 {
 	int matched;
+	int line_len = (int) aline_len; /*{{type-issue}}*/
 
 #if NO_REGEX
 	search_type |= SRCH_NO_REGEX;
@@ -442,7 +444,7 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 	return (matched);
 }
 
-public int match_pattern(PATTERN_TYPE pattern, char *tpattern, char *line, int line_len, char **sp, char **ep, int nsp, int notbol, int search_type)
+public int match_pattern(PATTERN_TYPE pattern, constant char *tpattern, constant char *line, size_t line_len, constant char **sp, constant char **ep, int nsp, int notbol, int search_type)
 {
 	int matched = match_pattern1(pattern, tpattern, line, line_len, sp, ep, nsp, notbol, search_type);
 	int i;
@@ -457,7 +459,7 @@ public int match_pattern(PATTERN_TYPE pattern, char *tpattern, char *line, int l
 /*
  * Return the name of the pattern matching library.
  */
-public char * pattern_lib_name(void)
+public constant char * pattern_lib_name(void)
 {
 #if HAVE_GNU_REGEX
 	return ("GNU");

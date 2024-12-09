@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -137,20 +137,8 @@ extern int sc_height;
 
 #if MSDOS_COMPILER==WIN32C
 #define UTF8_MAX_LENGTH 4
-struct keyRecord
-{
-	WCHAR unicode;
-	int ascii;
-	int scan;
-} currentKey;
 
-static int keyCount = 0;
 static WORD curr_attr;
-static int pending_scancode = 0;
-static char x11mousebuf[] = "[M???";    /* Mouse report, after ESC */
-static int x11mousePos, x11mouseCount;
-static int win_unget_pending = FALSE;
-static int win_unget_data;
 
 static HANDLE con_out_save = INVALID_HANDLE_VALUE; /* previous console */
 static HANDLE con_out_ours = INVALID_HANDLE_VALUE; /* our own */
@@ -176,21 +164,30 @@ static void win32_deinit_term();
 #endif
 
 #if MSDOS_COMPILER
-public int nm_fg_color;         /* Color of normal text */
-public int nm_bg_color;
-public int bo_fg_color;         /* Color of bold text */
-public int bo_bg_color;
-public int ul_fg_color;         /* Color of underlined text */
-public int ul_bg_color;
-public int so_fg_color;         /* Color of standout text */
-public int so_bg_color;
-public int bl_fg_color;         /* Color of blinking text */
-public int bl_bg_color;
-static int sy_fg_color;         /* Color of system text (before less) */
+public int nm_fg_color = CV_ERROR; /* Color of normal text */
+public int nm_bg_color = CV_ERROR;
+public int nm_attr = 0;
+public int bo_fg_color = CV_ERROR; /* Color of bold text */
+public int bo_bg_color = CV_ERROR;
+public int bo_attr = 0;
+public int ul_fg_color = CV_ERROR; /* Color of underlined text */
+public int ul_bg_color = CV_ERROR;
+public int ul_attr = 0;
+public int so_fg_color = CV_ERROR; /* Color of standout text */
+public int so_bg_color = CV_ERROR;
+public int so_attr = 0;
+public int bl_fg_color = CV_ERROR; /* Color of blinking text */
+public int bl_bg_color = CV_ERROR;
+public int bl_attr = 0;
+static int sy_fg_color;            /* Color of system text (before less) */
 static int sy_bg_color;
 public int sgr_mode;            /* Honor ANSI sequences rather than using above */
 #if MSDOS_COMPILER==WIN32C
-static DWORD init_output_mode;  /* The initial console output mode */
+static DWORD init_console_output_mode;
+extern DWORD init_console_input_mode;
+extern DWORD curr_console_input_mode;
+extern DWORD base_console_input_mode;
+extern DWORD mouse_console_input_mode;
 public int vt_enabled = -1;     /* Is virtual terminal processing available? */
 #endif
 #else
@@ -198,7 +195,7 @@ public int vt_enabled = -1;     /* Is virtual terminal processing available? */
 /*
  * Strings passed to tputs() to do various terminal functions.
  */
-static char
+static constant char
 	*sc_pad,                /* Pad string */
 	*sc_home,               /* Cursor home */
 	*sc_addline,            /* Add line, scroll down following lines */
@@ -245,23 +242,20 @@ public int above_mem, below_mem;        /* Memory retained above/below screen */
 public int can_goto_line;               /* Can move cursor to any line */
 public int clear_bg;            /* Clear fills with background color */
 public int missing_cap = 0;     /* Some capability is missing */
-public char *kent = NULL;       /* Keypad ENTER sequence */
-public int term_init_done = FALSE;
-public int full_screen = TRUE;
+public constant char *kent = NULL;       /* Keypad ENTER sequence */
+public lbool term_init_done = FALSE;
+public lbool full_screen = TRUE;
 
 static int attrmode = AT_NORMAL;
 static int termcap_debug = -1;
 static int no_alt_screen;       /* sc_init does not switch to alt screen */
 extern int binattr;
 extern int one_screen;
-#if LESSTEST
-extern char *ttyin_name;
-#endif /*LESSTEST*/
 
 #if !MSDOS_COMPILER
-static char *cheaper(char *t1, char *t2, char *def);
-static void tmodes(char *incap, char *outcap, char **instr,
-    char **outstr, char *def_instr, char *def_outstr, char **spp);
+static constant char *cheaper(constant char *t1, constant char *t2, constant char *def);
+static void tmodes(constant char *incap, constant char *outcap, constant char **instr,
+    constant char **outstr, constant char *def_instr, constant char *def_outstr, char **spp);
 #endif
 
 /*
@@ -280,12 +274,9 @@ char PC_, *UP, *BC;
 extern int quiet;               /* If VERY_QUIET, use visual bell for bell */
 extern int no_vbell;
 extern int no_back_scroll;
-extern int swindow;
 extern int no_init;
 extern int no_keypad;
 extern int sigs;
-extern int wscroll;
-extern int screen_trashed;
 extern int top_scroll;
 extern int quit_if_one_screen;
 extern int oldbot;
@@ -296,12 +287,8 @@ extern int use_color;
 extern int hilite_search;
 #endif
 #if MSDOS_COMPILER==WIN32C
+extern int wscroll;
 extern HANDLE tty;
-extern DWORD console_mode;
-#ifndef ENABLE_EXTENDED_FLAGS
-#define ENABLE_EXTENDED_FLAGS 0x80
-#define ENABLE_QUICK_EDIT_MODE 0x40
-#endif
 #else
 extern int tty;
 #endif
@@ -392,7 +379,7 @@ public void raw_mode(int on)
 			return;
 	erase2_char = '\b'; /* in case OS doesn't know about erase2 */
 #if LESSTEST
-	if (ttyin_name != NULL)
+	if (is_lesstest())
 	{
 		/* {{ For consistent conditions when running tests. }} */
 		erase_char = '\b';
@@ -514,6 +501,9 @@ public void raw_mode(int on)
 #endif
 #ifdef VSTART
 			s.c_cc[VSTART] = 0;
+#endif
+#ifdef VDISCARD
+			s.c_cc[VDISCARD] = 0;
 #endif
 #if MUST_SET_LINE_DISCIPLINE
 			/*
@@ -721,7 +711,7 @@ public void raw_mode(int on)
  */
 static int hardcopy;
 
-static char * ltget_env(char *capname)
+static constant char * ltget_env(constant char *capname)
 {
 	char name[64];
 
@@ -745,9 +735,9 @@ static char * ltget_env(char *capname)
 	return (lgetenv(name));
 }
 
-static int ltgetflag(char *capname)
+static int ltgetflag(constant char *capname)
 {
-	char *s;
+	constant char *s;
 
 	if ((s = ltget_env(capname)) != NULL)
 		return (*s != '\0' && *s != '0');
@@ -756,9 +746,9 @@ static int ltgetflag(char *capname)
 	return (tgetflag(capname));
 }
 
-static int ltgetnum(char *capname)
+static int ltgetnum(constant char *capname)
 {
-	char *s;
+	constant char *s;
 
 	if ((s = ltget_env(capname)) != NULL)
 		return (atoi(s));
@@ -767,9 +757,9 @@ static int ltgetnum(char *capname)
 	return (tgetnum(capname));
 }
 
-static char * ltgetstr(char *capname, char **pp)
+static constant char * ltgetstr(constant char *capname, char **pp)
 {
-	char *s;
+	constant char *s;
 
 	if ((s = ltget_env(capname)) != NULL)
 		return (s);
@@ -782,9 +772,9 @@ static char * ltgetstr(char *capname, char **pp)
 /*
  * Get size of the output screen.
  */
-public void scrsize(void)
+static void scrsize(void)
 {
-	char *s;
+	constant char *s;
 	int sys_height;
 	int sys_width;
 #if !MSDOS_COMPILER
@@ -802,7 +792,7 @@ public void scrsize(void)
 	sys_width = sys_height = 0;
 
 #if LESSTEST
-	if (ttyin_name != NULL)
+	if (0) /* can't use is_lesstest(): ttyin_name may not be set by scan_option yet */
 #endif /*LESSTEST*/
 	{
 #if MSDOS_COMPILER==MSOFTC
@@ -921,6 +911,17 @@ public void scrsize(void)
 	}
 	if (sc_width <= 0)
 		sc_width = DEF_SC_WIDTH;
+	screen_size_changed();
+}
+
+/*
+ * Recalculate things that depend on the screen size.
+ */
+public void screen_size_changed(void)
+{
+	calc_jump_sline();
+	calc_shift_count();
+	calc_match_shift();
 }
 
 #if MSDOS_COMPILER==MSOFTC
@@ -969,10 +970,10 @@ static void delay(int msec)
 /*
  * Return the characters actually input by a "special" key.
  */
-public char * special_key_str(int key)
+public constant char * special_key_str(int key)
 {
 	static char tbuf[40];
-	char *s;
+	constant char *s;
 #if MSDOS_COMPILER || OS2
 	static char k_right[]           = { '\340', PCK_RIGHT, 0 };
 	static char k_left[]            = { '\340', PCK_LEFT, 0  };
@@ -1146,6 +1147,27 @@ public char * special_key_str(int key)
 	return (s);
 }
 
+#if MSDOS_COMPILER
+public void init_win_colors(void)
+{
+	if (nm_fg_color == CV_ERROR || nm_fg_color == CV_NOCHANGE) nm_fg_color = sy_fg_color;
+	if (nm_bg_color == CV_ERROR || nm_bg_color == CV_NOCHANGE) nm_bg_color = sy_bg_color;
+	if (bo_fg_color == CV_NOCHANGE) bo_fg_color = sy_fg_color; else if (bo_fg_color == CV_ERROR) bo_fg_color = sy_fg_color | 8;
+	if (bo_bg_color == CV_NOCHANGE) bo_bg_color = sy_bg_color; else if (bo_bg_color == CV_ERROR) bo_bg_color = sy_bg_color;
+	if (ul_fg_color == CV_NOCHANGE) ul_fg_color = sy_fg_color; else if (ul_fg_color == CV_ERROR) ul_fg_color = (sy_bg_color == 3 || sy_bg_color == 11) ? 0 : 11;
+	if (ul_bg_color == CV_NOCHANGE) ul_bg_color = sy_bg_color; else if (ul_bg_color == CV_ERROR) ul_bg_color = sy_bg_color;
+	if (so_fg_color == CV_NOCHANGE) so_fg_color = sy_fg_color; else if (so_fg_color == CV_ERROR) so_fg_color = sy_bg_color;
+	if (so_bg_color == CV_NOCHANGE) so_bg_color = sy_bg_color; else if (so_bg_color == CV_ERROR) so_bg_color = sy_fg_color;
+	if (bl_fg_color == CV_NOCHANGE) bl_fg_color = sy_fg_color; else if (bl_fg_color == CV_ERROR) bl_fg_color = ul_bg_color;
+	if (bl_bg_color == CV_NOCHANGE) bl_bg_color = sy_bg_color; else if (bl_bg_color == CV_ERROR) bl_bg_color = ul_fg_color;
+	nm_fg_color |= nm_attr;
+	bo_fg_color |= bo_attr;
+	ul_fg_color |= ul_attr;
+	so_fg_color |= so_attr;
+	bl_fg_color |= bl_attr;
+}
+#endif /* MSDOS_COMPILER */
+
 /*
  * Get terminal capabilities via termcap.
  */
@@ -1184,7 +1206,7 @@ public void get_term(void)
 	 * before any file operations have been done on fd0.
 	 */
 	SET_BINARY(0);
-	GetConsoleMode(con_out, &init_output_mode);
+	GetConsoleMode(con_out, &init_console_output_mode);
 	GetConsoleScreenBufferInfo(con_out, &scr);
 	curr_attr = scr.wAttributes;
 	sy_bg_color = (curr_attr & BG_COLORS) >> 4; /* normalize */
@@ -1193,17 +1215,7 @@ public void get_term(void)
 #endif
 #endif
 #endif
-	nm_fg_color = sy_fg_color;
-	nm_bg_color = sy_bg_color;
-	bo_fg_color = 11;
-	bo_bg_color = 0;
-	ul_fg_color = 9;
-	ul_bg_color = 0;
-	so_fg_color = 15;
-	so_bg_color = 9;
-	bl_fg_color = 15;
-	bl_bg_color = 0;
-	sgr_mode = 0;
+	init_win_colors();
 
 	/*
 	 * Get size of the screen.
@@ -1211,12 +1223,12 @@ public void get_term(void)
 	scrsize();
 	pos_init();
 
-
 #else /* !MSDOS_COMPILER */
 {
 	char *sp;
-	char *t1, *t2;
-	char *term;
+	constant char *t1;
+	constant char *t2;
+	constant char *term;
 	/*
 	 * Some termcap libraries assume termbuf is static
 	 * (accessible after tgetent returns).
@@ -1228,8 +1240,8 @@ public void get_term(void)
 	/*
 	 * Make sure the termcap database is available.
 	 */
-	sp = lgetenv("TERMCAP");
-	if (isnullenv(sp))
+	constant char *cp = lgetenv("TERMCAP");
+	if (isnullenv(cp))
 	{
 		char *termcap;
 		if ((sp = homefile("termcap.dat")) != NULL)
@@ -1466,7 +1478,7 @@ static int inc_costcount(int c)
 	return (c);
 }
 
-static int cost(char *t)
+static int cost(constant char *t)
 {
 	costcount = 0;
 	tputs(t, sc_height, inc_costcount);
@@ -1478,7 +1490,7 @@ static int cost(char *t)
  * The best, if both exist, is the one with the lower 
  * cost (see cost() function).
  */
-static char * cheaper(char *t1, char *t2, char *def)
+static constant char * cheaper(constant char *t1, constant char *t2, constant char *def)
 {
 	if (*t1 == '\0' && *t2 == '\0')
 	{
@@ -1494,7 +1506,7 @@ static char * cheaper(char *t1, char *t2, char *def)
 	return (t2);
 }
 
-static void tmodes(char *incap, char *outcap, char **instr, char **outstr, char *def_instr, char *def_outstr, char **spp)
+static void tmodes(constant char *incap, constant char *outcap, constant char **instr, constant char **outstr, constant char *def_instr, constant char *def_outstr, char **spp)
 {
 	*instr = ltgetstr(incap, spp);
 	if (*instr == NULL)
@@ -1578,14 +1590,13 @@ static void initcolor(void)
  */
 static void win32_init_vt_term(void)
 {
-	DWORD output_mode;
+	DWORD console_output_mode;
 
 	if (vt_enabled == 0 || (vt_enabled == 1 && con_out == con_out_ours))
 		return;
 
-	GetConsoleMode(con_out, &output_mode);
-	vt_enabled = SetConsoleMode(con_out,
-		       output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+	console_output_mode = init_console_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	vt_enabled = SetConsoleMode(con_out, console_output_mode);
 	if (vt_enabled)
 	{
 	    auto_wrap = 0;
@@ -1596,7 +1607,7 @@ static void win32_init_vt_term(void)
 static void win32_deinit_vt_term(void)
 {
 	if (vt_enabled == 1 && con_out == con_out_save)
-		SetConsoleMode(con_out, init_output_mode);
+		SetConsoleMode(con_out, init_console_output_mode);
 }
 
 /*
@@ -1649,10 +1660,10 @@ static void win32_deinit_term(void)
 #endif
 
 #if !MSDOS_COMPILER
-static void do_tputs(char *str, int affcnt, int (*f_putc)(int))
+static void do_tputs(constant char *str, int affcnt, int (*f_putc)(int))
 {
 #if LESSTEST
-	if (ttyin_name != NULL && f_putc == putchr)
+	if (is_lesstest() && f_putc == putchr)
 		putstr(str);
 	else
 #endif /*LESSTEST*/
@@ -1663,16 +1674,16 @@ static void do_tputs(char *str, int affcnt, int (*f_putc)(int))
  * Like tputs but we handle $<...> delay strings here because
  * some implementations of tputs don't perform delays correctly.
  */
-static void ltputs(char *str, int affcnt, int (*f_putc)(int))
+static void ltputs(constant char *str, int affcnt, int (*f_putc)(int))
 {
 	while (str != NULL && *str != '\0')
 	{
 #if HAVE_STRSTR
-		char *obrac = strstr(str, "$<");
+		constant char *obrac = strstr(str, "$<");
 		if (obrac != NULL)
 		{
 			char str2[64];
-			int slen = obrac - str;
+			size_t slen = ptr_diff(obrac, str);
 			if (slen < sizeof(str2))
 			{
 				int delay;
@@ -1682,7 +1693,7 @@ static void ltputs(char *str, int affcnt, int (*f_putc)(int))
 				do_tputs(str2, affcnt, f_putc);
 				str += slen + 2;
 				/* Perform the delay. */
-				delay = lstrtoi(str, &str, 10);
+				delay = lstrtoic(str, &str, 10);
 				if (*str == '*')
 					if (ckd_mul(&delay, delay, affcnt))
 						delay = INT_MAX;
@@ -1713,9 +1724,8 @@ public void init_mouse(void)
 	ltputs(sc_s_mousecap, sc_height, putchr);
 #else
 #if MSDOS_COMPILER==WIN32C
-	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT
-			    | ENABLE_EXTENDED_FLAGS /* disable quick edit */);
-
+	curr_console_input_mode = mouse_console_input_mode;
+	SetConsoleMode(tty, curr_console_input_mode);
 #endif
 #endif
 }
@@ -1730,8 +1740,8 @@ public void deinit_mouse(void)
 	ltputs(sc_e_mousecap, sc_height, putchr);
 #else
 #if MSDOS_COMPILER==WIN32C
-	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_EXTENDED_FLAGS
-			    | (console_mode & ENABLE_QUICK_EDIT_MODE));
+	curr_console_input_mode = base_console_input_mode;
+	SetConsoleMode(tty, curr_console_input_mode);
 #endif
 #endif
 }
@@ -2151,7 +2161,7 @@ public void check_winch(void)
 			SetConsoleScreenBufferSize(con_out, size);
 		pos_init();
 		wscroll = (sc_height + 1) / 2;
-		screen_trashed = 1;
+		screen_trashed();
 	}
 #endif
 }
@@ -2471,7 +2481,7 @@ static int parse_color4(char ch)
 /*
  * Parse a color as a decimal integer.
  */
-static int parse_color6(char **ps)
+static int parse_color6(constant char **ps)
 {
 	if (**ps == '-')
 	{
@@ -2479,24 +2489,25 @@ static int parse_color6(char **ps)
 		return CV_NOCHANGE;
 	} else
 	{
-		char *ops = *ps;
-		int color = lstrtoi(ops, ps, 10);
-		if (color < 0 || *ps == ops)
+		constant char *os = *ps;
+		int color = lstrtoic(os, ps, 10);
+		if (color < 0 || *ps == os)
 			return CV_ERROR;
 		return color;
 	}
 }
 
 /*
- * Parse a color pair and return the foreground/background values.
+ * Parse a color pair and return the foreground/background/attribute values.
  * Return type of color specifier:
  *  CV_4BIT: fg/bg values are OR of CV_{RGB} bits.
  *  CV_6BIT: fg/bg values are integers entered by user.
  */
-public COLOR_TYPE parse_color(char *str, int *p_fg, int *p_bg)
+public COLOR_TYPE parse_color(constant char *str, mutable int *p_fg, mutable int *p_bg, mutable CHAR_ATTR *p_cattr)
 {
 	int fg;
-	int bg;
+	int bg = CV_ERROR;
+	CHAR_ATTR cattr = CATTR_NULL;
 	COLOR_TYPE type = CT_NULL;
 
 	if (str == NULL || *str == '\0')
@@ -2504,19 +2515,57 @@ public COLOR_TYPE parse_color(char *str, int *p_fg, int *p_bg)
 	if (*str == '+')
 		str++; /* ignore leading + */
 
-	fg = parse_color4(str[0]);
-	bg = parse_color4((strlen(str) < 2) ? '-' : str[1]);
+	fg = parse_color4(*str);
+	if (fg != CV_ERROR)
+	{
+		if (str[1] == '\0' || strchr("*~_&dsul", str[1]) != NULL)
+		{
+			bg = CV_NOCHANGE;
+			str++; /* skip the fg char */
+		} else
+		{
+			bg = parse_color4(str[1]);
+			if (bg != CV_ERROR)
+				str += 2; /* skip both fg and bg chars */
+		}
+	}
 	if (fg != CV_ERROR && bg != CV_ERROR)
 		type = CT_4BIT;
 	else
 	{
-		fg = parse_color6(&str);
-		bg = (fg != CV_ERROR && *str++ == '.') ? parse_color6(&str) : CV_NOCHANGE;
+		fg = (*str == '.') ? CV_NOCHANGE : parse_color6(&str);
+		if (fg != CV_ERROR)
+		{
+			if (*str != '.')
+				bg = CV_NOCHANGE;
+			else
+			{
+				str++; /* skip the dot */
+				bg = parse_color6(&str);
+			}
+		}
 		if (fg != CV_ERROR && bg != CV_ERROR)
 			type = CT_6BIT;
 	}
-	if (p_fg != NULL) *p_fg = fg;
-	if (p_bg != NULL) *p_bg = bg;
+	if (type != CT_NULL)
+	{
+		for (;; str++)
+		{
+			if (*str == '*' || *str == 'd')
+				cattr |= CATTR_BOLD;
+			else if (*str == '~' || *str == 's')
+				cattr |= CATTR_STANDOUT;
+			else if (*str == '_' || *str == 'u')
+				cattr |= CATTR_UNDERLINE;
+			else if (*str == '&' || *str == 'l') /* can't use 'k' because of conflict with "black" */
+				cattr |= CATTR_BLINK;
+			else
+				break;
+		}
+		if (p_fg != NULL) *p_fg = fg;
+		if (p_bg != NULL) *p_bg = bg;
+		if (p_cattr != NULL) *p_cattr = cattr;
+	}
 	return type;
 }
 
@@ -2548,7 +2597,7 @@ static int sgr_color(int color)
 	}
 }
 
-static void tput_fmt(char *fmt, int color, int (*f_putc)(int))
+static void tput_fmt(constant char *fmt, int color, int (*f_putc)(int))
 {
 	char buf[INT_STRLEN_BOUND(int)+16];
 	if (color == attrcolor)
@@ -2558,10 +2607,23 @@ static void tput_fmt(char *fmt, int color, int (*f_putc)(int))
 	attrcolor = color;
 }
 
-static void tput_color(char *str, int (*f_putc)(int))
+static void tput_char_cattr(CHAR_ATTR cattr, int (*f_putc)(int))
+{
+	if (cattr & CATTR_UNDERLINE)
+		ltputs(sc_u_in, 1, f_putc);
+	if (cattr & CATTR_BOLD)
+		ltputs(sc_b_in, 1, f_putc);
+	if (cattr & CATTR_BLINK)
+		ltputs(sc_bl_in, 1, f_putc);
+	if (cattr & CATTR_STANDOUT)
+		ltputs(sc_s_in, 1, f_putc);
+}
+
+static void tput_color(constant char *str, int (*f_putc)(int))
 {
 	int fg;
 	int bg;
+	CHAR_ATTR cattr;
 
 	if (str != NULL && strcmp(str, "*") == 0)
 	{
@@ -2569,28 +2631,30 @@ static void tput_color(char *str, int (*f_putc)(int))
 		tput_fmt(ESCS"[m", -1, f_putc);
 		return;
 	}
-	switch (parse_color(str, &fg, &bg))
+	switch (parse_color(str, &fg, &bg, &cattr))
 	{
 	case CT_4BIT:
 		if (fg >= 0)
 			tput_fmt(ESCS"[%dm", sgr_color(fg), f_putc);
 		if (bg >= 0)
 			tput_fmt(ESCS"[%dm", sgr_color(bg)+10, f_putc);
+		tput_char_cattr(cattr, f_putc);
 		break;
 	case CT_6BIT:
 		if (fg >= 0)
 			tput_fmt(ESCS"[38;5;%dm", fg, f_putc);
 		if (bg >= 0)
 			tput_fmt(ESCS"[48;5;%dm", bg, f_putc);
+		tput_char_cattr(cattr, f_putc);
 		break;
 	default:
 		break;
 	}
 }
 
-static void tput_inmode(char *mode_str, int attr, int attr_bit, int (*f_putc)(int))
+static void tput_inmode(constant char *mode_str, int attr, int attr_bit, int (*f_putc)(int))
 {
-	char *color_str;
+	constant char *color_str;
 	if ((attr & attr_bit) == 0)
 		return;
 	color_str = get_color_map(attr_bit);
@@ -2604,7 +2668,7 @@ static void tput_inmode(char *mode_str, int attr, int attr_bit, int (*f_putc)(in
 	tput_color(color_str, f_putc);
 }
 
-static void tput_outmode(char *mode_str, int attr_bit, int (*f_putc)(int))
+static void tput_outmode(constant char *mode_str, int attr_bit, int (*f_putc)(int))
 {
 	if ((attrmode & attr_bit) == 0)
 		return;
@@ -2614,24 +2678,38 @@ static void tput_outmode(char *mode_str, int attr_bit, int (*f_putc)(int))
 #else /* MSDOS_COMPILER */
 
 #if MSDOS_COMPILER==WIN32C
-static int WIN32put_fmt(char *fmt, int color)
+static lbool WIN32put_fmt(constant char *fmt, int color)
 {
 	char buf[INT_STRLEN_BOUND(int)+16];
-	int len = SNPRINTF1(buf, sizeof(buf), fmt, color);
-	WIN32textout(buf, len);
+	int len = (size_t) SNPRINTF1(buf, sizeof(buf), fmt, color);
+	if (len > 0)
+		WIN32textout(buf, (size_t) len);
 	return TRUE;
+}
+
+static void win_set_cattr(CHAR_ATTR cattr)
+{
+	if (cattr & CATTR_UNDERLINE)
+		WIN32textout(ESCS"[4m", 4);
+	if (cattr & CATTR_BOLD)
+		WIN32textout(ESCS"[1m", 4);
+	if (cattr & CATTR_BLINK)
+		WIN32textout(ESCS"[5m", 4);
+	if (cattr & CATTR_STANDOUT)
+		WIN32textout(ESCS"[7m", 4);
 }
 #endif
 
-static int win_set_color(int attr)
+static lbool win_set_color(int attr)
 {
 	int fg;
 	int bg;
-	int out = FALSE;
-	char *str = get_color_map(attr);
+	CHAR_ATTR cattr;
+	lbool out = FALSE;
+	constant char *str = get_color_map(attr);
 	if (str == NULL || str[0] == '\0')
 		return FALSE;
-	switch (parse_color(str, &fg, &bg))
+	switch (parse_color(str, &fg, &bg, &cattr))
 	{
 	case CT_4BIT:
 		if (fg >= 0 && bg >= 0)
@@ -2647,6 +2725,10 @@ static int win_set_color(int attr)
 			SET_BG_COLOR(bg);
 			out = TRUE;
 		}
+#if MSDOS_COMPILER==WIN32C
+		if (vt_enabled)
+			win_set_cattr(cattr);
+#endif
 		break;
 #if MSDOS_COMPILER==WIN32C
 	case CT_6BIT:
@@ -2656,6 +2738,7 @@ static int win_set_color(int attr)
 				out = WIN32put_fmt(ESCS"[38;5;%dm", fg);
 			if (bg > 0)
 				out = WIN32put_fmt(ESCS"[48;5;%dm", bg);
+			win_set_cattr(cattr);
 		}
 		break;
 #endif
@@ -2731,7 +2814,7 @@ public void at_switch(int attr)
 	}
 }
 
-public int is_at_equiv(int attr1, int attr2)
+public lbool is_at_equiv(int attr1, int attr2)
 {
 	attr1 = apply_at_specials(attr1);
 	attr2 = apply_at_specials(attr2);
@@ -2793,193 +2876,303 @@ public void putbs(void)
 }
 
 #if MSDOS_COMPILER==WIN32C
+
+#define WIN32_MAX_REPEAT 3
+#define LAST_DOWN_COUNT 8
+static LWCHAR last_downs[LAST_DOWN_COUNT] = { 0 };
+static int last_down_index = 0;
+static LWCHAR hi_surr = 0;
+
+typedef struct XINPUT_RECORD {
+	INPUT_RECORD ir;
+	LWCHAR ichar; /* because ir...UnicodeChar is only 16 bits */
+} XINPUT_RECORD;
+
+typedef struct WIN32_CHAR {
+	struct WIN32_CHAR *wc_next;
+	char wc_ch;
+} WIN32_CHAR;
+
+static WIN32_CHAR *win32_queue = NULL;
+
+/*
+ * Is the win32_queue nonempty?
+ */
+static int win32_queued_char(void)
+{
+	return (win32_queue != NULL);
+}
+
+/*
+ * Push a char onto the back of the win32_queue.
+ */
+static void win32_enqueue(char ch)
+{
+	WIN32_CHAR *wch = (WIN32_CHAR *) ecalloc(1, sizeof(WIN32_CHAR));
+	wch->wc_ch = ch;
+	wch->wc_next = NULL;
+	if (win32_queue == NULL)
+		win32_queue = wch;
+	else
+	{
+		WIN32_CHAR *pch;
+		for (pch = win32_queue; pch->wc_next != NULL; pch = pch->wc_next)
+			continue;
+		pch->wc_next = wch;
+	}
+}
+
+/*
+ * Push a char onto the front of the win32_queue.
+ * Makes the next call to WIN32getch return ch.
+ */
+public void WIN32ungetch(int ch)
+{
+	WIN32_CHAR *wch = (WIN32_CHAR *) ecalloc(1, sizeof(WIN32_CHAR));
+	wch->wc_ch = ch;
+	wch->wc_next = win32_queue;
+	win32_queue = wch;
+}
+
+/*
+ * Get a char from the front of the win32_queue.
+ */
+static char win32_get_queue(void)
+{
+	WIN32_CHAR *wch = win32_queue;
+	char ch = wch->wc_ch;
+	win32_queue = wch->wc_next;
+	free(wch);
+	return ch;
+}
+
+/*
+ * Handle a mouse input event.
+ */
+static lbool win32_mouse_event(XINPUT_RECORD *xip)
+{
+	char b;
+
+	if (!mousecap || xip->ir.EventType != MOUSE_EVENT ||
+		xip->ir.Event.MouseEvent.dwEventFlags == MOUSE_MOVED)
+		return (FALSE);
+
+	/* Generate an X11 mouse sequence from the mouse event. */
+	/* TODO: switch to the 1006 protocol to allow specific-button-up reports */
+	switch (xip->ir.Event.MouseEvent.dwEventFlags)
+	{
+	case 0: /* press or release */
+		if (xip->ir.Event.MouseEvent.dwButtonState == 0)
+			b = X11MOUSE_OFFSET + X11MOUSE_BUTTON_REL;
+		else if (xip->ir.Event.MouseEvent.dwButtonState == 1)  /* leftmost */
+			b = X11MOUSE_OFFSET + X11MOUSE_BUTTON1;
+		else if (xip->ir.Event.MouseEvent.dwButtonState == 2)  /* rightmost */
+			b = X11MOUSE_OFFSET + X11MOUSE_BUTTON3;
+		else if (xip->ir.Event.MouseEvent.dwButtonState == 4)  /* middle ("next-to-leftmost") */
+			b = X11MOUSE_OFFSET + X11MOUSE_BUTTON2;
+		else  /* don't bother to figure out what changed */
+			return (FALSE);
+		break;
+	case MOUSE_WHEELED:
+		b = X11MOUSE_OFFSET + (((int)xip->ir.Event.MouseEvent.dwButtonState < 0) ? X11MOUSE_WHEEL_DOWN : X11MOUSE_WHEEL_UP);
+		break;
+	default:
+		return (FALSE);
+	}
+	/* {{ TODO: change to X11 1006 format. }} */
+	win32_enqueue(ESC);
+	win32_enqueue('[');
+	win32_enqueue('M');
+	win32_enqueue(b);
+	win32_enqueue(X11MOUSE_OFFSET + xip->ir.Event.MouseEvent.dwMousePosition.X + 1);
+	win32_enqueue(X11MOUSE_OFFSET + xip->ir.Event.MouseEvent.dwMousePosition.Y + 1);
+	return (TRUE);
+}
+
+static void set_last_down(LWCHAR ch)
+{
+	if (ch == 0) return;
+	last_downs[last_down_index] = ch;
+	if (++last_down_index >= LAST_DOWN_COUNT)
+		last_down_index = 0;
+}
+
+static LWCHAR *find_last_down(LWCHAR ch)
+{
+	int i;
+	for (i = 0; i < LAST_DOWN_COUNT; ++i)
+		if (last_downs[i] == ch)
+			return &last_downs[i];
+	return NULL;
+}
+
+/*
+ * Get an input char from an INPUT_RECORD and store in xip->ichar.
+ * Handles surrogate chars, and KeyUp without previous corresponding KeyDown.
+ */
+static lbool win32_get_ichar(XINPUT_RECORD *xip)
+{
+	LWCHAR ch = xip->ir.Event.KeyEvent.uChar.UnicodeChar;
+	xip->ichar = ch;
+	if (!is_ascii_char(ch))
+	{
+		int is_down = xip->ir.Event.KeyEvent.bKeyDown;
+		LWCHAR *last_down = find_last_down(ch);
+		if (last_down == NULL) { /* key was up */
+			if (is_down) { /* key was up, now is down */
+				set_last_down(ch);
+			} else { /* key up without previous down: pretend this is a down. */
+				xip->ir.Event.KeyEvent.bKeyDown = 1;
+			}
+		} else if (!is_down) { /* key was down, now is up */
+			*last_down = 0; /* use this last_down only once */
+		}
+
+		if (ch >= 0xD800 && ch < 0xDC00) { /* high surrogate */
+			hi_surr = 0x10000 + ((ch - 0xD800) << 10);
+			return (FALSE); /* get next input, which should be the low surrogate */
+		}
+		if (ch >= 0xDC00 && ch < 0xE000) { /* low surrogate */
+			xip->ichar = hi_surr + (ch - 0xDC00);
+			hi_surr = 0;
+		}
+	}
+	return (TRUE);
+}
+
+/*
+ * Handle a scan code (non-ASCII) key input.
+ */
+static lbool win32_scan_code(XINPUT_RECORD *xip)
+{
+	int scan = -1;
+	if (xip->ir.Event.KeyEvent.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED))
+	{
+		switch (xip->ir.Event.KeyEvent.wVirtualScanCode)
+		{
+		case PCK_RIGHT: /* right arrow */
+			scan = PCK_CTL_RIGHT;
+			break;
+		case PCK_LEFT: /* left arrow */
+			scan = PCK_CTL_LEFT;
+			break;
+		case PCK_DELETE: /* delete */
+			scan = PCK_CTL_DELETE;
+			break;
+		}
+	} else if (xip->ir.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
+	{
+		if (xip->ichar == '\t')
+			scan = PCK_SHIFT_TAB;
+	}
+	if (scan < 0 && xip->ichar == 0)
+		scan = xip->ir.Event.KeyEvent.wVirtualScanCode;
+	if (scan < 0)
+		return (FALSE);
+	/*
+	 * An extended key returns a 2 byte sequence consisting of
+	 * a zero byte followed by the scan code.
+	 */
+	win32_enqueue('\0');
+	win32_enqueue(scan);
+	return (TRUE);
+}
+
+/*
+ * Handle a key input event.
+ */
+static lbool win32_key_event(XINPUT_RECORD *xip)
+{
+	int repeat;
+	char utf8[UTF8_MAX_LENGTH];
+	char *up;
+
+	if (xip->ir.EventType != KEY_EVENT ||
+	    ((xip->ir.Event.KeyEvent.dwControlKeyState & (RIGHT_ALT_PRESSED|LEFT_CTRL_PRESSED)) == (RIGHT_ALT_PRESSED|LEFT_CTRL_PRESSED) && xip->ir.Event.KeyEvent.uChar.UnicodeChar == 0) ||
+	    (xip->ir.Event.KeyEvent.wVirtualScanCode == 0 && xip->ir.Event.KeyEvent.uChar.UnicodeChar == 0) ||
+	    xip->ir.Event.KeyEvent.wVirtualScanCode == PCK_CAPS_LOCK ||
+	    xip->ir.Event.KeyEvent.wVirtualScanCode == PCK_NUM_LOCK ||
+	    (xip->ir.Event.KeyEvent.wVirtualKeyCode == VK_MENU && xip->ir.Event.KeyEvent.uChar.UnicodeChar == 0) ||
+	    xip->ir.Event.KeyEvent.wVirtualKeyCode == VK_KANJI ||
+	    xip->ir.Event.KeyEvent.wVirtualKeyCode == VK_SHIFT ||
+	    xip->ir.Event.KeyEvent.wVirtualKeyCode == VK_CONTROL)
+		return (FALSE);
+
+	if (!win32_get_ichar(xip))
+		return (FALSE);
+	if (!xip->ir.Event.KeyEvent.bKeyDown)
+		return (FALSE);
+		
+	if (win32_scan_code(xip))
+		return (TRUE);
+
+	repeat = xip->ir.Event.KeyEvent.wRepeatCount;
+	if (repeat > WIN32_MAX_REPEAT)
+		repeat = WIN32_MAX_REPEAT;
+	up = utf8;
+	put_wchar(&up, xip->ichar);
+	for (; repeat > 0; --repeat)
+	{
+		constant char *p;
+		for (p = utf8; p < up; ++p)
+			 win32_enqueue(*p);
+	}
+	return (TRUE);
+}
+
 /*
  * Determine whether an input character is waiting to be read.
  */
-public int win32_kbhit(void)
+public lbool win32_kbhit(void)
 {
-	INPUT_RECORD ip;
-	DWORD read;
+	XINPUT_RECORD xip;
 
-	if (keyCount > 0 || win_unget_pending)
+	if (win32_queued_char())
 		return (TRUE);
 
-	currentKey.ascii = 0;
-	currentKey.scan = 0;
-
-	if (x11mouseCount > 0)
+	for (;;)
 	{
-		currentKey.ascii = x11mousebuf[x11mousePos++];
-		--x11mouseCount;
-		keyCount = 1;
-		return (TRUE);
-	}
-
-	/*
-	 * Wait for a real key-down event, but
-	 * ignore SHIFT and CONTROL key events.
-	 */
-	do
-	{
-		PeekConsoleInputW(tty, &ip, 1, &read);
-		if (read == 0)
+		DWORD nread;
+		DWORD console_input_mode;
+		/*
+		 * When an input pipe closes, cmd may reset the console mode,
+		 * so set the mode every time we read input.
+		 */
+		if (GetConsoleMode(tty, &console_input_mode) && console_input_mode != curr_console_input_mode)
+			SetConsoleMode(tty, curr_console_input_mode);
+		PeekConsoleInputW(tty, &xip.ir, 1, &nread);
+		if (nread == 0)
 			return (FALSE);
-		ReadConsoleInputW(tty, &ip, 1, &read);
-		/* generate an X11 mouse sequence from the mouse event */
-		if (mousecap && ip.EventType == MOUSE_EVENT &&
-		    ip.Event.MouseEvent.dwEventFlags != MOUSE_MOVED)
-		{
-			x11mousebuf[3] = X11MOUSE_OFFSET + ip.Event.MouseEvent.dwMousePosition.X + 1;
-			x11mousebuf[4] = X11MOUSE_OFFSET + ip.Event.MouseEvent.dwMousePosition.Y + 1;
-			switch (ip.Event.MouseEvent.dwEventFlags)
-			{
-			case 0: /* press or release */
-				if (ip.Event.MouseEvent.dwButtonState == 0)
-					x11mousebuf[2] = X11MOUSE_OFFSET + X11MOUSE_BUTTON_REL;
-				else if (ip.Event.MouseEvent.dwButtonState & (FROM_LEFT_3RD_BUTTON_PRESSED | FROM_LEFT_4TH_BUTTON_PRESSED))
-					continue;
-				else
-					x11mousebuf[2] = X11MOUSE_OFFSET + X11MOUSE_BUTTON1 + ((int)ip.Event.MouseEvent.dwButtonState << 1);
-				break;
-			case MOUSE_WHEELED:
-				x11mousebuf[2] = X11MOUSE_OFFSET + (((int)ip.Event.MouseEvent.dwButtonState < 0) ? X11MOUSE_WHEEL_DOWN : X11MOUSE_WHEEL_UP);
-				break;
-			default:
-				continue;
-			}
-			x11mousePos = 0;
-			x11mouseCount = 5;
-			currentKey.ascii = ESC;
-			keyCount = 1;
-			return (TRUE);
-		}
-	} while (ip.EventType != KEY_EVENT ||
-		ip.Event.KeyEvent.bKeyDown != TRUE ||
-		(ip.Event.KeyEvent.wVirtualScanCode == 0 && ip.Event.KeyEvent.uChar.UnicodeChar == 0) ||
-		((ip.Event.KeyEvent.dwControlKeyState & (RIGHT_ALT_PRESSED|LEFT_CTRL_PRESSED)) == (RIGHT_ALT_PRESSED|LEFT_CTRL_PRESSED) && ip.Event.KeyEvent.uChar.UnicodeChar == 0) ||
-		ip.Event.KeyEvent.wVirtualKeyCode == VK_KANJI ||
-		ip.Event.KeyEvent.wVirtualKeyCode == VK_SHIFT ||
-		ip.Event.KeyEvent.wVirtualKeyCode == VK_CONTROL ||
-		ip.Event.KeyEvent.wVirtualKeyCode == VK_MENU);
-		
-	currentKey.unicode = ip.Event.KeyEvent.uChar.UnicodeChar;
-	currentKey.ascii = ip.Event.KeyEvent.uChar.AsciiChar;
-	currentKey.scan = ip.Event.KeyEvent.wVirtualScanCode;
-	keyCount = ip.Event.KeyEvent.wRepeatCount;
-
-	if (ip.Event.KeyEvent.dwControlKeyState & 
-		(LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
-	{
-		switch (currentKey.scan)
-		{
-		case PCK_ALT_E:     /* letter 'E' */
-			currentKey.ascii = 0;
+		ReadConsoleInputW(tty, &xip.ir, 1, &nread);
+		if (nread == 0)
+			return (FALSE);
+		if (win32_mouse_event(&xip) || win32_key_event(&xip))
 			break;
-		}
-	} else if (ip.Event.KeyEvent.dwControlKeyState & 
-		(LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED))
-	{
-		switch (currentKey.scan)
-		{
-		case PCK_RIGHT: /* right arrow */
-			currentKey.scan = PCK_CTL_RIGHT;
-			break;
-		case PCK_LEFT: /* left arrow */
-			currentKey.scan = PCK_CTL_LEFT;
-			break;
-		case PCK_DELETE: /* delete */
-			currentKey.scan = PCK_CTL_DELETE;
-			break;
-		}
-	} else if (ip.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
-	{
-		switch (currentKey.scan)
-		{
-		case PCK_SHIFT_TAB: /* tab */
-			currentKey.ascii = 0;
-			break;
-		}
 	}
-
 	return (TRUE);
 }
 
 /*
  * Read a character from the keyboard.
- *
- * Known issues:
- * - WIN32getch API should be int like libc (with unsigned char values or -1).
- * - The unicode code below can return 0 - incorrectly indicating scan code.
- * - UTF16-LE surrogate pairs don't work (and return 0).
- * - If win32_kbhit returns true then WIN32getch should never block, but it
- *   will block till the next keypress if it's numlock/capslock scan code.
  */
 public char WIN32getch(void)
 {
-	char ascii;
-	static unsigned char utf8[UTF8_MAX_LENGTH];
-	static int utf8_size = 0;
-	static int utf8_next_byte = 0;
-
-	if (win_unget_pending)
+	while (!win32_kbhit())
 	{
-		win_unget_pending = FALSE;
-		return (char) win_unget_data;
+		Sleep(20);
+		if (ABORT_SIGS())
+			return ('\003');
 	}
-
-	// Return the rest of multibyte character from the prior call
-	if (utf8_next_byte < utf8_size)
-	{
-		ascii = utf8[utf8_next_byte++];
-		return ascii;
-	}
-	utf8_size = 0;
-
-	if (pending_scancode)
-	{
-		pending_scancode = 0;
-		return ((char)(currentKey.scan & 0x00FF));
-	}
-
-	do {
-		while (!win32_kbhit())
-		{
-			Sleep(20);
-			if (ABORT_SIGS())
-				return ('\003');
-		}
-		keyCount--;
-		// If multibyte character, return its first byte
-		if (currentKey.unicode > 0x7f)
-		{
-			utf8_size = WideCharToMultiByte(CP_UTF8, 0, &currentKey.unicode, 1, (LPSTR) &utf8, sizeof(utf8), NULL, NULL);
-			if (utf8_size == 0)
-				return '\0';
-			ascii = utf8[0];
-			utf8_next_byte = 1;
-		} else
-			ascii = currentKey.ascii;
-		/*
-		 * On PC's, the extended keys return a 2 byte sequence beginning 
-		 * with '00', so if the ascii code is 00, the next byte will be 
-		 * the lsb of the scan code.
-		 */
-		pending_scancode = (ascii == 0x00);
-	} while (pending_scancode &&
-		(currentKey.scan == PCK_CAPS_LOCK || currentKey.scan == PCK_NUM_LOCK));
-
-	return ascii;
+	return (win32_get_queue());
 }
 
-/*
- * Make the next call to WIN32getch return ch without changing the queue state.
- */
-public void WIN32ungetch(int ch)
+public void win32_getch_clear(void)
 {
-	win_unget_pending = TRUE;
-	win_unget_data = ch;
+	while (win32_kbhit())
+		(void) WIN32getch();
 }
-#endif
+
+#endif /* MSDOS_COMPILER==WIN32C */
 
 #if MSDOS_COMPILER
 /*
@@ -2991,7 +3184,7 @@ public void WIN32setcolors(int fg, int bg)
 
 /*
  */
-public void WIN32textout(char *text, int len)
+public void WIN32textout(constant char *text, size_t len)
 {
 #if MSDOS_COMPILER==WIN32C
 	DWORD written;
@@ -3000,19 +3193,22 @@ public void WIN32textout(char *text, int len)
 		/*
 		 * We've got UTF-8 text in a non-UTF-8 console.  Convert it to
 		 * wide and use WriteConsoleW.
+		 * Biggest input len is OUTBUF_SIZE of obuf from win_flush,
+		 * which is also the biggest output count if it's ASCII.
+		 * "static" wtext is not a state - only avoid 16K on stack.
 		 */
-		WCHAR wtext[1024];
-		len = MultiByteToWideChar(CP_UTF8, 0, text, len, wtext,
-					  sizeof(wtext)/sizeof(*wtext));
+		static WCHAR wtext[OUTBUF_SIZE];
+		len = MultiByteToWideChar(CP_UTF8, 0, text, len, wtext, countof(wtext));
 		WriteConsoleW(con_out, wtext, len, &written, NULL);
 	} else
 		WriteConsole(con_out, text, len, &written, NULL);
 #else
-	char c = text[len];
-	text[len] = '\0';
-	cputs(text);
-	text[len] = c;
+	char buf[2048];
+	if (len >= sizeof(buf))
+		len = sizeof(buf) - 1;
+	memcpy(buf, text, len);
+	buf[len] = 0;
+	cputs(buf);
 #endif
 }
 #endif
-

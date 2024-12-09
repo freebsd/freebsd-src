@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -41,6 +41,7 @@ public int force_open;          /* Open the file even if not regular file */
 public int swindow;             /* Size of scrolling window */
 public int jump_sline;          /* Screen line of "jump target" */
 public long jump_sline_fraction = -1;
+public int shift_count;         /* Number of positions to shift horizontally */
 public long shift_count_fraction = -1;
 public int chopline;            /* Truncate displayed lines at screen width */
 public int wordwrap;            /* Wrap lines at space */
@@ -48,14 +49,13 @@ public int no_init;             /* Disable sending ti/te termcap strings */
 public int no_keypad;           /* Disable sending ks/ke termcap strings */
 public int twiddle;             /* Show tildes after EOF */
 public int show_attn;           /* Hilite first unread line */
-public int shift_count;         /* Number of positions to shift horizontally */
 public int status_col;          /* Display a status column */
 public int use_lessopen;        /* Use the LESSOPEN filter */
 public int quit_on_intr;        /* Quit on interrupt */
 public int follow_mode;         /* F cmd Follows file desc or file name? */
 public int oldbot;              /* Old bottom of screen behavior {{REMOVE}} */
 public int opt_use_backslash;   /* Use backslash escaping in option parsing */
-public char rscroll_char;       /* Char which marks chopped lines with -S */
+public LWCHAR rscroll_char;     /* Char which marks chopped lines with -S */
 public int rscroll_attr;        /* Attribute of rscroll_char */
 public int no_hist_dups;        /* Remove dups from history list */
 public int mousecap;            /* Allow mouse for scrolling */
@@ -70,7 +70,8 @@ public int status_line;         /* Highlight entire marked lines */
 public int header_lines;        /* Freeze header lines at top of screen */
 public int header_cols;         /* Freeze header columns at left of screen */
 public int nonum_headers;       /* Don't give headers line numbers */
-public int nosearch_headers;    /* Don't search in header lines or columns */
+public int nosearch_header_lines = 0; /* Don't search in header lines */
+public int nosearch_header_cols = 0; /* Don't search in header columns */
 public int redraw_on_quit;      /* Redraw last screen after term deinit */
 public int def_search_type;     /* */
 public int exit_F_on_close;     /* Exit F command when input closes */
@@ -79,6 +80,8 @@ public int show_preproc_error;  /* Display msg when preproc exits with error */
 public int proc_backspace;      /* Special handling of backspace */
 public int proc_tab;            /* Special handling of tab */
 public int proc_return;         /* Special handling of carriage return */
+public int match_shift;         /* Extra horizontal shift on search match */
+public long match_shift_fraction = NUM_FRAC_DENOM/2; /* 1/2 of screen width */
 public char intr_char = CONTROL('X'); /* Char to interrupt reads */
 #if HILITE_SEARCH
 public int hilite_search;       /* Highlight matched search patterns? */
@@ -109,6 +112,7 @@ static struct optname J__optname     = { "status-column",        NULL };
 static struct optname k_optname      = { "lesskey-file",         NULL };
 #if HAVE_LESSKEYSRC 
 static struct optname ks_optname     = { "lesskey-src",          NULL };
+static struct optname kc_optname     = { "lesskey-content",      NULL };
 #endif /* HAVE_LESSKEYSRC */
 #endif
 static struct optname K__optname     = { "quit-on-intr",         NULL };
@@ -159,6 +163,8 @@ static struct optname status_line_optname = { "status-line",     NULL };
 static struct optname header_optname = { "header",               NULL };
 static struct optname nonum_headers_optname = { "no-number-headers", NULL };
 static struct optname nosearch_headers_optname = { "no-search-headers", NULL };
+static struct optname nosearch_header_lines_optname = { "no-search-header-lines", NULL };
+static struct optname nosearch_header_cols_optname = { "no-search-header-columns", NULL };
 static struct optname redraw_on_quit_optname = { "redraw-on-quit", NULL };
 static struct optname search_type_optname = { "search-options", NULL };
 static struct optname exit_F_on_close_optname = { "exit-follow-on-close", NULL };
@@ -170,6 +176,7 @@ static struct optname show_preproc_error_optname = { "show-preproc-errors", NULL
 static struct optname proc_backspace_optname = { "proc-backspace", NULL };
 static struct optname proc_tab_optname = { "proc-tab", NULL };
 static struct optname proc_return_optname = { "proc-return", NULL };
+static struct optname match_shift_optname = { "match-shift", NULL };
 #if LESSTEST
 static struct optname ttyin_name_optname = { "tty",              NULL };
 #endif /*LESSTEST*/
@@ -232,11 +239,7 @@ static struct loption option[] =
 	},
 	{ 'D', &D__optname,
 		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
-		{
-			"color desc: ", 
-			NULL,
-			NULL
-		}
+		{ "color desc: ", "s", NULL }
 	},
 	{ 'e', &e_optname,
 		TRIPLE, OPT_OFF, &quit_at_eof, NULL,
@@ -292,7 +295,7 @@ static struct loption option[] =
 		STRING, 0, NULL, opt_j,
 		{
 			"Target line: ",
-			"0123456789.-",
+			"-.d",
 			NULL
 		}
 	},
@@ -310,6 +313,10 @@ static struct loption option[] =
 		{ NULL, NULL, NULL }
 	},
 #if HAVE_LESSKEYSRC 
+	{ OLETTER_NONE, &kc_optname,
+		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_kc,
+		{ NULL, NULL, NULL }
+	},
 	{ OLETTER_NONE, &ks_optname,
 		STRING|NO_TOGGLE|NO_QUERY, 0, NULL, opt_ks,
 		{ NULL, NULL, NULL }
@@ -391,7 +398,7 @@ static struct loption option[] =
 		}
 	},
 	{ 'S', &S__optname,
-		BOOL|REPAINT, OPT_OFF, &chopline, NULL,
+		BOOL|REPAINT, OPT_OFF, &chopline, opt__S,
 		{
 			"Fold long lines",
 			"Chop long lines",
@@ -432,7 +439,7 @@ static struct loption option[] =
 		STRING|REPAINT, 0, NULL, opt_x,
 		{
 			"Tab stops: ",
-			"0123456789,",
+			"d,",
 			NULL
 		}
 	},
@@ -462,7 +469,7 @@ static struct loption option[] =
 	},
 	{ '"', &quote_optname,
 		STRING, 0, NULL, opt_quote,
-		{ "quotes: ", NULL, NULL }
+		{ "quotes: ", "s", NULL }
 	},
 	{ '~', &tilde_optname,
 		BOOL|REPAINT, OPT_ON, &twiddle, NULL,
@@ -480,7 +487,7 @@ static struct loption option[] =
 		STRING, 0, NULL, opt_shift,
 		{
 			"Horizontal shift: ",
-			"0123456789.",
+			".d",
 			NULL
 		}
 	},
@@ -518,7 +525,7 @@ static struct loption option[] =
 	},
 	{ OLETTER_NONE, &rscroll_optname,
 		STRING|REPAINT|INIT_HANDLER, 0, NULL, opt_rscroll,
-		{ "rscroll character: ", NULL, NULL }
+		{ "rscroll character: ", "s", NULL }
 	},
 	{ OLETTER_NONE, &nohistdups_optname,
 		BOOL, OPT_OFF, &no_hist_dups, NULL,
@@ -602,11 +609,7 @@ static struct loption option[] =
 	},
 	{ OLETTER_NONE, &header_optname,
 		STRING|REPAINT, 0, NULL, opt_header,
-		{
-			"Header lines: ",
-			NULL,
-			NULL
-		}
+		{ "Header lines: ", "d,", NULL }
 	},
 	{ OLETTER_NONE, &nonum_headers_optname,
 		BOOL|REPAINT, 0, &nonum_headers, NULL,
@@ -617,11 +620,21 @@ static struct loption option[] =
 		}
 	},
 	{ OLETTER_NONE, &nosearch_headers_optname,
-		BOOL|HL_REPAINT, 0, &nosearch_headers, NULL,
+		BOOL|HL_REPAINT, 0, NULL, opt_nosearch_headers,
 		{
-			"Search includes header lines",
-			"Search does not include header lines",
-			NULL
+			NULL, NULL, NULL
+		}
+	},
+	{ OLETTER_NONE, &nosearch_header_lines_optname,
+		BOOL|HL_REPAINT, 0, NULL, opt_nosearch_header_lines,
+		{
+			NULL, NULL, NULL
+		}
+	},
+	{ OLETTER_NONE, &nosearch_header_cols_optname,
+		BOOL|HL_REPAINT, 0, NULL, opt_nosearch_header_cols,
+		{
+			NULL, NULL, NULL
 		}
 	},
 	{ OLETTER_NONE, &redraw_on_quit_optname,
@@ -634,11 +647,7 @@ static struct loption option[] =
 	},
 	{ OLETTER_NONE, &search_type_optname,
 		STRING, 0, NULL, opt_search_type,
-		{
-			"Search options: ",
-			NULL,
-			NULL
-		}
+		{ "Search options: ", "s", NULL }
 	},
 	{ OLETTER_NONE, &exit_F_on_close_optname,
 		BOOL, OPT_OFF, &exit_F_on_close, NULL,
@@ -666,7 +675,7 @@ static struct loption option[] =
 	},
 	{ OLETTER_NONE, &intr_optname,
 		STRING, 0, NULL, opt_intr,
-		{ "interrupt character: ", NULL, NULL }
+		{ "interrupt character: ", "s", NULL }
 	},
 	{ OLETTER_NONE, &wordwrap_optname,
 		BOOL|REPAINT, OPT_OFF, &wordwrap, NULL,
@@ -708,6 +717,14 @@ static struct loption option[] =
 			"Print carriage return as ^M"
 		}
 	},
+	{ OLETTER_NONE, &match_shift_optname,
+		STRING|INIT_HANDLER, 0, NULL, opt_match_shift,
+		{
+			"Search match shift: ",
+			".d",
+			NULL
+		}
+	},
 #if LESSTEST
 	{ OLETTER_NONE, &ttyin_name_optname,
 		STRING|NO_TOGGLE, 0, NULL, opt_ttyin_name,
@@ -728,7 +745,7 @@ static struct loption option[] =
 public void init_option(void)
 {
 	struct loption *o;
-	char *p;
+	constant char *p;
 
 	p = lgetenv("LESS_IS_MORE");
 	if (!isnullenv(p))
@@ -766,15 +783,15 @@ public struct loption * findopt(int c)
 /*
  *
  */
-static int is_optchar(char c)
+static lbool is_optchar(char c)
 {
 	if (ASCII_IS_UPPER(c))
-		return 1;
+		return TRUE;
 	if (ASCII_IS_LOWER(c))
-		return 1;
+		return TRUE;
 	if (c == '-')
-		return 1;
-	return 0;
+		return TRUE;
+	return FALSE;
 }
 
 /*
@@ -783,18 +800,18 @@ static int is_optchar(char c)
  * is updated to point after the matched name.
  * p_oname if non-NULL is set to point to the full option name.
  */
-public struct loption * findopt_name(char **p_optname, char **p_oname, int *p_err)
+public struct loption * findopt_name(constant char **p_optname, constant char **p_oname, lbool *p_ambig)
 {
-	char *optname = *p_optname;
+	constant char *optname = *p_optname;
 	struct loption *o;
 	struct optname *oname;
-	int len;
+	size_t len;
 	int uppercase;
 	struct loption *maxo = NULL;
 	struct optname *maxoname = NULL;
-	int maxlen = 0;
-	int ambig = 0;
-	int exact = 0;
+	size_t maxlen = 0;
+	lbool ambig = FALSE;
+	lbool exact = FALSE;
 
 	/*
 	 * Check all options.
@@ -814,7 +831,7 @@ public struct loption * findopt_name(char **p_optname, char **p_oname, int *p_er
 			for (uppercase = 0;  uppercase <= 1;  uppercase++)
 			{
 				len = sprefix(optname, oname->oname, uppercase);
-				if (len <= 0 || is_optchar(optname[len]))
+				if (len == 0 || is_optchar(optname[len]))
 				{
 					/*
 					 * We didn't use all of the option name.
@@ -827,7 +844,7 @@ public struct loption * findopt_name(char **p_optname, char **p_oname, int *p_er
 					 * and now there's another one that
 					 * matches the same length.
 					 */
-					ambig = 1;
+					ambig = TRUE;
 				else if (len > maxlen)
 				{
 					/*
@@ -837,21 +854,21 @@ public struct loption * findopt_name(char **p_optname, char **p_oname, int *p_er
 					maxo = o;
 					maxoname = oname;
 					maxlen = len;
-					ambig = 0;
-					exact = (len == (int)strlen(oname->oname));
+					ambig = FALSE;
+					exact = (len == strlen(oname->oname));
 				}
 				if (!(o->otype & TRIPLE))
 					break;
 			}
 		}
 	}
+	if (p_ambig != NULL)
+		*p_ambig = ambig;
 	if (ambig)
 	{
 		/*
 		 * Name matched more than one option.
 		 */
-		if (p_err != NULL)
-			*p_err = OPT_AMBIG;
 		return (NULL);
 	}
 	*p_optname = optname + maxlen;

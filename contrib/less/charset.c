@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -120,8 +120,8 @@ struct cs_alias {
 #define IS_CONTROL_CHAR 02
 
 static char chardef[256];
-static char *binfmt = NULL;
-static char *utfbinfmt = NULL;
+static constant char *binfmt = NULL;
+static constant char *utfbinfmt = NULL;
 public int binattr = AT_STANDOUT|AT_COLOR_BIN;
 
 static struct xbuffer user_wide_array;
@@ -139,13 +139,13 @@ static struct wchar_range_table user_prt_table;
 static void wchar_range_table_set(struct wchar_range_table *tbl, struct xbuffer *arr)
 {
 	tbl->table = (struct wchar_range *) arr->data;
-	tbl->count = arr->end / sizeof(struct wchar_range);
+	tbl->count = (unsigned int) (arr->end / sizeof(struct wchar_range));
 }
 
 /*
  * Skip over a "U" or "U+" prefix before a hex codepoint.
  */
-static char * skip_uprefix(char *s)
+static constant char * skip_uprefix(constant char *s)
 {
 	if (*s == 'U' || *s == 'u')
 		if (*++s == '+') ++s;
@@ -155,14 +155,14 @@ static char * skip_uprefix(char *s)
 /*
  * Parse a dash-separated range of hex values.
  */
-static void wchar_range_get(char **ss, struct wchar_range *range)
+static void wchar_range_get(constant char **ss, struct wchar_range *range)
 {
-	char *s = skip_uprefix(*ss);
-	range->first = lstrtoul(s, &s, 16);
+	constant char *s = skip_uprefix(*ss);
+	range->first = lstrtoulc(s, &s, 16);
 	if (s[0] == '-')
 	{
 		s = skip_uprefix(&s[1]);
-		range->last = lstrtoul(s, &s, 16);
+		range->last = lstrtoulc(s, &s, 16);
 	} else 
 	{
 		range->last = range->first;
@@ -173,7 +173,7 @@ static void wchar_range_get(char **ss, struct wchar_range *range)
 /*
  * Parse the LESSUTFCHARDEF variable.
  */
-static void ichardef_utf(char *s)
+static void ichardef_utf(constant char *s)
 {
 	xbuf_init(&user_wide_array);
 	xbuf_init(&user_ubin_array);
@@ -241,7 +241,7 @@ static void ichardef_utf(char *s)
  *      b binary character
  *      c control character
  */
-static void ichardef(char *s)
+static void ichardef(constant char *s)
 {
 	char *cp;
 	int n;
@@ -298,7 +298,7 @@ static void ichardef(char *s)
  * Define a charset, given a charset name.
  * The valid charset names are listed in the "charsets" array.
  */
-static int icharset(char *name, int no_error)
+static int icharset(constant char *name, int no_error)
 {
 	struct charset *p;
 	struct cs_alias *a;
@@ -363,23 +363,8 @@ static void ilocale(void)
 /*
  * Define the printing format for control (or binary utf) chars.
  */
-public void setfmt(char *s, char **fmtvarptr, int *attrptr, char *default_fmt, int for_printf)
+public void setfmt(constant char *s, constant char **fmtvarptr, int *attrptr, constant char *default_fmt, lbool for_printf)
 {
-	if (s && utf_mode)
-	{
-		/* It would be too hard to account for width otherwise.  */
-		char constant *t = s;
-		while (*t)
-		{
-			if (*t < ' ' || *t > '~')
-			{
-				s = default_fmt;
-				goto attr;
-			}
-			t++;
-		}
-	}
-
 	if (s == NULL || *s == '\0')
 		s = default_fmt;
 	else if (for_printf &&
@@ -391,7 +376,6 @@ public void setfmt(char *s, char **fmtvarptr, int *attrptr, char *default_fmt, i
 	/*
 	 * Select the attributes if it starts with "*".
 	 */
- attr:
 	if (*s == '*' && s[1] != '\0')
 	{
 		switch (s[1])
@@ -412,16 +396,7 @@ public void setfmt(char *s, char **fmtvarptr, int *attrptr, char *default_fmt, i
  */
 static void set_charset(void)
 {
-	char *s;
-
-#if MSDOS_COMPILER==WIN32C
-	/*
-	 * If the Windows console is using UTF-8, we'll use it too.
-	 */
-	if (GetConsoleOutputCP() == CP_UTF8)
-		if (icharset("utf-8", 1))
-			return;
-#endif
+	constant char *s;
 
 	ichardef_utf(lgetenv("LESSUTFCHARDEF"));
 
@@ -476,15 +451,13 @@ static void set_charset(void)
 	ilocale();
 #else
 #if MSDOS_COMPILER
-	/*
-	 * Default to "dos".
-	 */
-	(void) icharset("dos", 1);
+#if MSDOS_COMPILER==WIN32C
+	(void) icharset("utf-8", 1);
 #else
-	/*
-	 * Default to "latin1".
-	 */
-	(void) icharset("latin1", 1);
+	(void) icharset("dos", 1);
+#endif
+#else
+	(void) icharset("utf-8", 1);
 #endif
 #endif
 }
@@ -494,7 +467,7 @@ static void set_charset(void)
  */
 public void init_charset(void)
 {
-	char *s;
+	constant char *s;
 
 #if HAVE_LOCALE
 	setlocale(LC_ALL, "");
@@ -512,20 +485,22 @@ public void init_charset(void)
 /*
  * Is a given character a "binary" character?
  */
-public int binary_char(LWCHAR c)
+public lbool binary_char(LWCHAR c)
 {
 	if (utf_mode)
 		return (is_ubin_char(c));
-	c &= 0377;
-	return (chardef[c] & IS_BINARY_CHAR);
+	if (c >= sizeof(chardef))
+		return TRUE;
+	return ((chardef[c] & IS_BINARY_CHAR) != 0);
 }
 
 /*
  * Is a given character a "control" character?
  */
-public int control_char(LWCHAR c)
+public lbool control_char(LWCHAR c)
 {
-	c &= 0377;
+	if (c >= sizeof(chardef))
+		return TRUE;
 	return (chardef[c] & IS_CONTROL_CHAR);
 }
 
@@ -533,12 +508,12 @@ public int control_char(LWCHAR c)
  * Return the printable form of a character.
  * For example, in the "ascii" charset '\3' is printed as "^C".
  */
-public char * prchar(LWCHAR c)
+public constant char * prchar(LWCHAR c)
 {
-	/* {{ This buffer can be overrun if LESSBINFMT is a long string. }} */
+	/* {{ Fixed buffer size means LESSBINFMT etc can be truncated. }} */
 	static char buf[MAX_PRCHAR_LEN+1];
 
-	c &= 0377;
+	c &= 0377; /*{{type-issue}}*/
 	if ((c < 128 || !utf_mode) && !control_char(c))
 		SNPRINTF1(buf, sizeof(buf), "%c", (int) c);
 	else if (c == ESC)
@@ -567,7 +542,7 @@ public char * prchar(LWCHAR c)
 /*
  * Return the printable form of a UTF-8 character.
  */
-public char * prutfchar(LWCHAR ch)
+public constant char * prutfchar(LWCHAR ch)
 {
 	static char buf[MAX_PRCHAR_LEN+1];
 
@@ -596,7 +571,7 @@ public char * prutfchar(LWCHAR ch)
 /*
  * Get the length of a UTF-8 character in bytes.
  */
-public int utf_len(int ch)
+public int utf_len(char ch)
 {
 	if ((ch & 0x80) == 0)
 		return 1;
@@ -606,10 +581,12 @@ public int utf_len(int ch)
 		return 3;
 	if ((ch & 0xF8) == 0xF0)
 		return 4;
+#if 0
 	if ((ch & 0xFC) == 0xF8)
 		return 5;
 	if ((ch & 0xFE) == 0xFC)
 		return 6;
+#endif
 	/* Invalid UTF-8 encoding. */
 	return 1;
 }
@@ -617,42 +594,41 @@ public int utf_len(int ch)
 /*
  * Does the parameter point to the lead byte of a well-formed UTF-8 character?
  */
-public int is_utf8_well_formed(char *ss, int slen)
+public lbool is_utf8_well_formed(constant char *ss, int slen)
 {
 	int i;
 	int len;
-	unsigned char *s = (unsigned char *) ss;
+	unsigned char s0 = (unsigned char) ss[0];
 
-	if (IS_UTF8_INVALID(s[0]))
-		return (0);
+	if (IS_UTF8_INVALID(s0))
+		return (FALSE);
 
-	len = utf_len(s[0]);
+	len = utf_len(ss[0]);
 	if (len > slen)
-		return (0);
+		return (FALSE);
 	if (len == 1)
-		return (1);
+		return (TRUE);
 	if (len == 2)
 	{
-		if (s[0] < 0xC2)
-		    return (0);
+		if (s0 < 0xC2)
+			return (FALSE);
 	} else
 	{
-		unsigned char mask;
-		mask = (~((1 << (8-len)) - 1)) & 0xFF;
-		if (s[0] == mask && (s[1] & mask) == 0x80)
-			return (0);
+		unsigned char mask = (unsigned char) (~((1 << (8-len)) - 1));
+		if (s0 == mask && (ss[1] & mask) == 0x80)
+			return (FALSE);
 	}
 
 	for (i = 1;  i < len;  i++)
-		if (!IS_UTF8_TRAIL(s[i]))
-			return (0);
-	return (1);
+		if (!IS_UTF8_TRAIL(ss[i]))
+			return (FALSE);
+	return (TRUE);
 }
 
 /*
  * Skip bytes until a UTF-8 lead byte (11xxxxxx) or ASCII byte (0xxxxxxx) is found.
  */
-public void utf_skip_to_lead(char **pp, char *limit)
+public void utf_skip_to_lead(constant char **pp, constant char *limit)
 {
 	do {
 		++(*pp);
@@ -663,9 +639,10 @@ public void utf_skip_to_lead(char **pp, char *limit)
 /*
  * Get the value of a UTF-8 character.
  */
-public LWCHAR get_wchar(constant char *p)
+public LWCHAR get_wchar(constant char *sp)
 {
-	switch (utf_len(p[0]))
+	constant unsigned char *p = (constant unsigned char *) sp;
+	switch (utf_len(sp[0]))
 	{
 	case 1:
 	default:
@@ -690,6 +667,7 @@ public LWCHAR get_wchar(constant char *p)
 			((p[1] & 0x3F) << 12) | 
 			((p[2] & 0x3F) << 6) | 
 			(p[3] & 0x3F));
+#if 0
 	case 5:
 		/* 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		return (LWCHAR) (
@@ -707,13 +685,14 @@ public LWCHAR get_wchar(constant char *p)
 			((p[3] & 0x3F) << 12) | 
 			((p[4] & 0x3F) << 6) | 
 			(p[5] & 0x3F));
+#endif
 	}
 }
 
 /*
  * Store a character into a UTF-8 string.
  */
-public void put_wchar(char **pp, LWCHAR ch)
+public void put_wchar(mutable char **pp, LWCHAR ch)
 {
 	if (!utf_mode || ch < 0x80) 
 	{
@@ -737,6 +716,7 @@ public void put_wchar(char **pp, LWCHAR ch)
 		*(*pp)++ = (char) (0x80 | ((ch >> 12) & 0x3F));
 		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
 		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+#if 0
 	} else if (ch < 0x4000000)
 	{
 		/* 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
@@ -754,17 +734,18 @@ public void put_wchar(char **pp, LWCHAR ch)
 		*(*pp)++ = (char) (0x80 | ((ch >> 12) & 0x3F));
 		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
 		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+#endif
 	}
 }
 
 /*
  * Step forward or backward one character in a string.
  */
-public LWCHAR step_char(char **pp, signed int dir, constant char *limit)
+public LWCHAR step_charc(constant char **pp, signed int dir, constant char *limit)
 {
 	LWCHAR ch;
 	int len;
-	char *p = *pp;
+	constant char *p = *pp;
 
 	if (!utf_mode)
 	{
@@ -798,6 +779,14 @@ public LWCHAR step_char(char **pp, signed int dir, constant char *limit)
 	return ch;
 }
 
+public LWCHAR step_char(char **pp, signed int dir, constant char *limit)
+{
+	constant char *p = (constant char *) *pp;
+	LWCHAR ch = step_charc(&p, dir, limit);
+	*pp = (char *) p;
+	return ch;
+}
+
 /*
  * Unicode characters data
  * Actual data is in the generated *.uni files.
@@ -806,7 +795,7 @@ public LWCHAR step_char(char **pp, signed int dir, constant char *limit)
 #define DECLARE_RANGE_TABLE_START(name) \
 	static struct wchar_range name##_array[] = {
 #define DECLARE_RANGE_TABLE_END(name) \
-	}; struct wchar_range_table name##_table = { name##_array, sizeof(name##_array)/sizeof(*name##_array) };
+	}; struct wchar_range_table name##_table = { name##_array, countof(name##_array) };
 
 DECLARE_RANGE_TABLE_START(compose)
 #include "compose.uni"
@@ -830,36 +819,36 @@ static struct wchar_range comb_table[] = {
 };
 
 
-static int is_in_table(LWCHAR ch, struct wchar_range_table *table)
+static lbool is_in_table(LWCHAR ch, struct wchar_range_table *table)
 {
-	int hi;
-	int lo;
+	unsigned int hi;
+	unsigned int lo;
 
 	/* Binary search in the table. */
 	if (table->table == NULL || table->count == 0 || ch < table->table[0].first)
-		return 0;
+		return FALSE;
 	lo = 0;
 	hi = table->count - 1;
 	while (lo <= hi)
 	{
-		int mid = (lo + hi) / 2;
+		unsigned int mid = (lo + hi) / 2;
 		if (ch > table->table[mid].last)
 			lo = mid + 1;
 		else if (ch < table->table[mid].first)
 			hi = mid - 1;
 		else
-			return 1;
+			return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 /*
  * Is a character a UTF-8 composing character?
  * If a composing character follows any char, the two combine into one glyph.
  */
-public int is_composing_char(LWCHAR ch)
+public lbool is_composing_char(LWCHAR ch)
 {
-	if (is_in_table(ch, &user_prt_table)) return 0;
+	if (is_in_table(ch, &user_prt_table)) return FALSE;
 	return is_in_table(ch, &user_compose_table) ||
 	       is_in_table(ch, &compose_table) ||
 	       (bs_mode != BS_CONTROL && is_in_table(ch, &fmt_table));
@@ -868,9 +857,9 @@ public int is_composing_char(LWCHAR ch)
 /*
  * Should this UTF-8 character be treated as binary?
  */
-public int is_ubin_char(LWCHAR ch)
+public lbool is_ubin_char(LWCHAR ch)
 {
-	if (is_in_table(ch, &user_prt_table)) return 0;
+	if (is_in_table(ch, &user_prt_table)) return FALSE;
 	return is_in_table(ch, &user_ubin_table) ||
 	       is_in_table(ch, &ubin_table) ||
 	       (bs_mode == BS_CONTROL && is_in_table(ch, &fmt_table));
@@ -879,7 +868,7 @@ public int is_ubin_char(LWCHAR ch)
 /*
  * Is this a double width UTF-8 character?
  */
-public int is_wide_char(LWCHAR ch)
+public lbool is_wide_char(LWCHAR ch)
 {
 	return is_in_table(ch, &user_wide_table) ||
 	       is_in_table(ch, &wide_table);
@@ -890,16 +879,16 @@ public int is_wide_char(LWCHAR ch)
  * A combining char acts like an ordinary char, but if it follows
  * a specific char (not any char), the two combine into one glyph.
  */
-public int is_combining_char(LWCHAR ch1, LWCHAR ch2)
+public lbool is_combining_char(LWCHAR ch1, LWCHAR ch2)
 {
 	/* The table is small; use linear search. */
 	int i;
-	for (i = 0;  i < sizeof(comb_table)/sizeof(*comb_table);  i++)
+	for (i = 0;  i < countof(comb_table);  i++)
 	{
 		if (ch1 == comb_table[i].first &&
 		    ch2 == comb_table[i].last)
-			return 1;
+			return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
