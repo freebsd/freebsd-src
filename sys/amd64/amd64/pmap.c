@@ -2182,6 +2182,7 @@ pmap_bootstrap_la57(void *arg __unused)
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
 		return;
+	la57 = 1;
 	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
 	if (!la57)
 		return;
