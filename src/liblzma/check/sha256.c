@@ -21,7 +21,7 @@
 static inline uint32_t
 rotr_32(uint32_t num, unsigned amount)
 {
-        return (num >> amount) | (num << (32 - amount));
+	return (num >> amount) | (num << (32 - amount));
 }
 
 #define blk0(i) (W[i] = conv32be(data[i]))
