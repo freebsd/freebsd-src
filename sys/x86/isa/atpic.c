@@ -54,6 +54,8 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
+#define	X86PIC_TYPE atpic
+
 #ifdef __amd64__
 #define	SDT_ATPIC	SDT_SYSIGT
 #define	GSEL_ATPIC	0
@@ -231,7 +233,7 @@ _atpic_eoi_slave(struct intsrc *isrc)
 static void
 atpic_register_sources(x86pic_t pic)
 {
-	struct atpic *ap = (struct atpic *)pic;
+	struct atpic *ap = X86PIC_PIC(pic);
 	struct atpic_intsrc *ai;
 	int i;
 
@@ -268,7 +270,7 @@ static void
 atpic_enable_source(struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
 
 	spinlock_enter();
 	if (ap->at_imen & IMEN_MASK(ai)) {
@@ -282,7 +284,7 @@ static void
 atpic_disable_source(struct intsrc *isrc, int eoi)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
 
 	spinlock_enter();
 	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
@@ -338,7 +340,7 @@ static int
 atpic_vector(struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
 
 	return (IRQ(ap, ai));
 }
@@ -347,7 +349,7 @@ static int
 atpic_source_pending(struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	struct atpic *ap = X86PIC_PIC(isrc->is_pic);
 
 	return (inb(ap->at_ioaddr) & IMEN_MASK(ai));
 }
@@ -355,7 +357,7 @@ atpic_source_pending(struct intsrc *isrc)
 static void
 atpic_resume(x86pic_t pic, bool suspend_cancelled)
 {
-	struct atpic *ap = (struct atpic *)pic;
+	struct atpic *ap = X86PIC_PIC(pic);
 
 	i8259_init(ap, ap == &atpics[SLAVE]);
 	if (ap == &atpics[SLAVE] && elcr_found)
@@ -488,7 +490,7 @@ atpic_startup(void)
 			continue;
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
-		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
+		setidt(X86PIC_PIC(ai->at_intsrc.is_pic)->at_intbase +
 		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
 		    SEL_KPL, GSEL_ATPIC);
 	}
@@ -566,7 +568,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
 		 * Read the ISR register to see if IRQ 7/15 is really
 		 * pending.  Reset read register back to IRR when done.
 		 */
-		port = ((struct atpic *)isrc->is_pic)->at_ioaddr;
+		port = X86PIC_PIC(isrc->is_pic)->at_ioaddr;
 		spinlock_enter();
 		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
 		isr = inb(port);
