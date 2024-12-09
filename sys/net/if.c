@@ -1799,13 +1799,16 @@ ifa_free(struct ifaddr *ifa)
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
  */
+static bool
+sa_dl_equal(const struct sockaddr *a, const struct sockaddr *b)
+{
+	const struct sockaddr_dl *sdl1 = (const struct sockaddr_dl *)a;
+	const struct sockaddr_dl *sdl2 = (const struct sockaddr_dl *)b;
 
-#define	sa_dl_equal(a1, a2)	\
-	((((const struct sockaddr_dl *)(a1))->sdl_len ==		\
-	 ((const struct sockaddr_dl *)(a2))->sdl_len) &&		\
-	 (bcmp(CLLADDR((const struct sockaddr_dl *)(a1)),		\
-	       CLLADDR((const struct sockaddr_dl *)(a2)),		\
-	       ((const struct sockaddr_dl *)(a1))->sdl_alen) == 0))
+	return (sdl1->sdl_len == sdl2->sdl_len &&
+	    bcmp(sdl1->sdl_data + sdl1->sdl_nlen,
+	    sdl2->sdl_data + sdl2->sdl_nlen, sdl1->sdl_alen) == 0);
+}
 
 /*
  * Locate an interface based on a complete address.
