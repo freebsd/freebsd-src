@@ -1,3 +1,1249 @@
+commit 9331ce4009ddc839f5191d234cc41b2d4797376d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-10-01 12:21:22 +0300
+
+    Bump version and soname for 5.6.3
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit f52857ffde768058db0e0e13f68a2660ca9f1330
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-10-01 12:17:39 +0300
+
+    Add NEWS for 5.6.3
+
+ NEWS | 125 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 125 insertions(+)
+
+commit b8f52990b5d47a50902bf33cd2305ce985457bac
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-10-01 12:10:23 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit 1ebbe915d4e0d877154261b5f8103719a6722975)
+
+ THANKS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 51f6f455873911894f155e6997bc23a9be8f42ba
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-10-01 12:10:23 +0300
+
+    Tests/Windows: Add the application manifest to the test programs
+    
+    This ensures that the test programs get executed the same way as
+    the binaries that are installed.
+    
+    (cherry picked from commit 74702ee00ecfd080d8ab11118cd25dbe6c437ec0)
+
+ CMakeLists.txt        | 14 ++++++++++----
+ tests/Makefile.am     | 10 ++++++++++
+ tests/tests.cmake     | 33 ++++++++++++++++++++++++++++++++-
+ tests/tests_w32res.rc | 18 ++++++++++++++++++
+ 4 files changed, 70 insertions(+), 5 deletions(-)
+
+commit bf518b9ba446327a062ddfe67e7e0a5baed2394f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-10-01 12:10:23 +0300
+
+    Windows: Embed an application manifest in the EXE files
+    
+    IMPORTANT: This includes a security fix to command line tool
+               argument handling.
+    
+    Some toolchains embed an application manifest by default to declare
+    UAC-compliance. Some also declare compatibility with Vista/8/8.1/10/11
+    to let the app access features newer than those of Vista.
+    
+    We want all the above but also two more things:
+    
+      - Declare that the app is long path aware to support paths longer
+        than 259 characters (this may also require a registry change).
+    
+      - Force the code page to UTF-8. This allows the command line tools
+        to access files whose names contain characters that don't exist
+        in the current legacy code page (except unpaired surrogates).
+        The UTF-8 code page also fixes security issues in command line
+        argument handling which can be exploited with malicious filenames.
+        See the new file w32_application.manifest.comments.txt.
+    
+    Thanks to Orange Tsai and splitline from DEVCORE Research Team
+    for discovering this issue.
+    
+    Thanks to Vijay Sarvepalli for reporting the issue to me.
+    
+    Thanks to Kelvin Lee for testing with MSVC and helping with
+    the required build system fixes.
+    
+    (cherry picked from commit 46ee0061629fb075d61d83839e14dd193337af59)
+
+ CMakeLists.txt                                   |  18 +++
+ src/Makefile.am                                  |   4 +-
+ src/common/common_w32res.rc                      |   5 +
+ src/common/w32_application.manifest              |  28 ++++
+ src/common/w32_application.manifest.comments.txt | 178 +++++++++++++++++++++++
+ 5 files changed, 232 insertions(+), 1 deletion(-)
+
+commit 5718ce932e6ad4262d5fffc9e2a7a838f963d7e5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-29 14:46:52 +0300
+
+    Windows: Set DLL name accurately in StringFileInfo on Cygwin and MSYS2
+    
+    Now the information in the "Details" tab in the file properties
+    dialog matches the naming convention of Cygwin and MSYS2. This
+    is only a cosmetic change.
+    
+    (cherry picked from commit dad153091552b52a41b95ec4981c6951f1cae487)
+
+ src/liblzma/liblzma_w32res.rc | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+commit e77c0ca61d12ebac433b7661840cb18d7031700a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-25 15:47:55 +0300
+
+    common_w32res.rc: White space edits
+    
+    LANGUAGE and VS_VERSION_INFO begin new statements so put an empty line
+    between them.
+    
+    (cherry picked from commit 8940ecb96fe9f0f2a9cfb8b66fe9ed31ffbea904)
+
+ src/common/common_w32res.rc | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+commit e0ba0f26d9f3f53cedc92fb13303924c39d00392
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-28 20:09:50 +0300
+
+    CMake: Add the resource files to the Cygwin and MSYS2 builds
+    
+    Autotools-based build has always done this so this is for consistency.
+    
+    However, the CMake build won't create the DEF file when building
+    for Cygwin or MSYS2 because in that context it should be useless.
+    (If Cygwin or MSYS2 is used to host building of normal Windows
+    binaries then the DEF file is still created.)
+    
+    (cherry picked from commit c3b9dad07d3fd9319f88386b7095019bcea45ce1)
+
+ CMakeLists.txt | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+commit 69637d0c323c0d7d9619cff637c7ce97dabc4f02
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-28 15:19:14 +0300
+
+    CMake: Fix Windows resource file dependencies
+    
+    If common_w32res.rc is modified, the resource files need to be rebuilt.
+    In contrast, the liblzma*.map files truly are link dependencies.
+    
+    (cherry picked from commit da4f275bd1c18b897e5c2dd0043546de3accce0a)
+
+ CMakeLists.txt | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+commit af8533459c60d7bc5b55f2f516251af4572169e4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-29 01:20:03 +0300
+
+    CMake: Checking for CYGWIN covers MSYS2 too
+    
+    On MSYS2, both CYGWIN and MSYS are set.
+    
+    (cherry picked from commit 1c673c0aac7f7dee8dda2c1140351c8417a71e47)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit eca08e4c204db404911e513f95110dcb0fb919bd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-28 09:37:30 +0300
+
+    Translations: Add the SPDX license identifier to pt_BR.po
+    
+    (cherry picked from commit 6aaa0173b839e28429d43a8b62d257ad2f3b4521)
+
+ po/pt_BR.po | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 85801c96c32456300177fbbad1506b07f5dd0a47
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-25 16:41:37 +0300
+
+    Windows/CMake: Use the correct resource file for lzmadec.exe
+    
+    CMakeLists.txt was using xzdec_w32res.rc for both xzdec and lzmadec.
+    
+    Fixes: 998d0b29536094a89cf385a3b894e157db1ccefe
+    (cherry picked from commit dc7b9f24b737e4e55bcbbdde6754883f991c2cfb)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit a341d19c835a8c10fcf561b00b548c53af43381e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-25 21:29:59 +0300
+
+    Translations: Update the Brazilian Portuguese translation
+    
+    (cherry picked from commit b834ae5f80911a3819d6cdb484f61b257174c544)
+
+ po/pt_BR.po | 144 ++++++++++++++++++++++--------------------------------------
+ 1 file changed, 53 insertions(+), 91 deletions(-)
+
+commit e69c0b9b2e00ade984393ef9cabac57342072328
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-17 01:21:15 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit eceb023d4c129fd63ee881a2d8696eaf52ad1532)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit aef9a25b3200457c16846b046222fb2c7967afe0
+Author: Tobias Stoeckmann <tobias@stoeckmann.org>
+Date:   2024-09-16 23:19:46 +0200
+
+    lzmainfo: Avoid integer overflow
+    
+    The MB output can overflow with huge numbers. Most likely these are
+    invalid .lzma files anyway, but let's avoid garbage output.
+    
+    lzmadec was adapted from LZMA Utils. The original code with this bug
+    was written in 2005, over 19 years ago.
+    
+    Co-authored-by: Lasse Collin <lasse.collin@tukaani.org>
+    Closes: https://github.com/tukaani-project/xz/pull/144
+    (cherry picked from commit 76cfd0a9bb33ae8e534b1f73f6359dc825589f2f)
+
+ src/lzmainfo/lzmainfo.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+commit 40a7f163f56aca6b3c8b83e9382f5e5cb4f8e93b
+Author: Tobias Stoeckmann <tobias@stoeckmann.org>
+Date:   2024-09-16 22:04:40 +0200
+
+    xzdec: Remove unused short option -M
+    
+    "xzdec -M123" exited with exit status 1 without printing
+    any messages. The "M:" entry should have been removed when
+    the memory usage limiter support was removed from xzdec.
+    
+    Fixes: 792331bdee706aa852a78b171040ebf814c6f3ae
+    Closes: https://github.com/tukaani-project/xz/pull/143
+    [ Lasse: Commit message edits ]
+    
+    (cherry picked from commit 78355aebb7fb654302e5e33692ba109909dacaff)
+
+ src/xzdec/xzdec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit c98714a57058ac381365c2ff1e1d1cd63a5742c4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-10 13:54:47 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit e5758db7bd75587a2499e0771907521a4aa86908)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 4ed449517817b3659b35d19f39703e3c460f46c2
+Author: Firas Khalil Khana <firasuke@gmail.com>
+Date:   2024-09-10 12:30:32 +0300
+
+    Build: Fix a typo in autogen.sh
+    
+    Fixes: e9be74f5b129fe8a5388d588e68b1b7f5168a310
+    Closes: https://github.com/tukaani-project/xz/pull/141
+    (cherry picked from commit 80ffa38f56657257ed4d90d76f6bd2f2bcb8163c)
+
+ autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 3b83577a1547e72cb78a905ad3d308a799ded485
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-02 20:08:40 +0300
+
+    Translations: Update Chinese (simplified) translation
+    
+    Differences to the zh_CN.po file from the Translation Project:
+    
+      - Two uses of \v were fixed.
+    
+      - Missing "OPTS" translation in --riscv[=OPTS] was copied from
+        previous lines.
+    
+      - "make update-po" was run to remove line numbers from comments.
+    
+    (cherry picked from commit 68c54e45d042add64a4cb44bfc87ca74d29b87e2)
+
+ po/zh_CN.po | 102 ++++++++++++++++++++++++------------------------------------
+ 1 file changed, 40 insertions(+), 62 deletions(-)
+
+commit 06f4c7edda0387eb6a2d6303804b59dcf4d3db1f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-09-02 19:40:50 +0300
+
+    Translations: Update the Catalan translation
+    
+    Differences to the ca.po file from the Translation Project:
+    
+      - An overlong line translating --filters-help was wrapped.
+    
+      - "make update-po" was used to remove line numbers from the comments
+        to match the changes in fccebe2b4fd513488fc920e4dac32562ed3c7637
+        and 093490b58271e9424ce38a7b1b38bcf61b9c86c6. xz.pot in the TP
+        is older than these commits.
+    
+    (cherry picked from commit 2230692aa1bcebb586100183831e3daf1714d60a)
+
+ po/ca.po | 171 ++++++++++++++++++++++++++-------------------------------------
+ 1 file changed, 69 insertions(+), 102 deletions(-)
+
+commit 406cb5b669e47c0e45c98f1afb7be998084a93d0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-08-22 11:01:07 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit 5e375987509fab484b7bef0b90be92f241c58c91)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 3a4a05d75eb41ddc41899324df0511670ceaaf1e
+Author: Yifeng Li <tomli@tomli.me>
+Date:   2024-08-22 02:18:49 +0000
+
+    liblzma: Fix x86-64 movzw compatibility in range_decoder.h
+    
+    Support for instruction "movzw" without suffix in "GNU as" was
+    added in commit [1] and stabilized in binutils 2.27, released
+    in August 2016. Earlier systems don't accept this instruction
+    without a suffix, making range_decoder.h's inline assembly
+    unable to build on old systems such as Ubuntu 16.04, creating
+    error messages like:
+    
+        lzma_decoder.c: Assembler messages:
+        lzma_decoder.c:371: Error: no such instruction: `movzw 2(%r11),%esi'
+        lzma_decoder.c:373: Error: no such instruction: `movzw 4(%r11),%edi'
+        lzma_decoder.c:388: Error: no such instruction: `movzw 6(%r11),%edx'
+        lzma_decoder.c:398: Error: no such instruction: `movzw (%r11,%r14,4),%esi'
+    
+    Change "movzw" to "movzwl" for compatibility.
+    
+    [1] https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=c07315e0c610e0e3317b4c02266f81793df253d2
+    
+    Suggested-by: Lasse Collin <lasse.collin@tukaani.org>
+    Tested-by: Yifeng Li <tomli@tomli.me>
+    Signed-off-by: Yifeng Li <tomli@tomli.me>
+    Fixes: 3182a330c1512cc1f5c87b5c5a272578e60a5158
+    Fixes: https://github.com/tukaani-project/xz/issues/121
+    Closes: https://github.com/tukaani-project/xz/pull/136
+    (cherry picked from commit 6cd7c8607843c337edfe2c472aa316602a393754)
+
+ src/liblzma/rangecoder/range_decoder.h | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+commit 4669f06d1a8d31de4b8b5861b5e8afd82cacd721
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-19 20:02:43 +0300
+
+    Build: Comment that elf_aux_info(3) will be available on OpenBSD >= 7.6
+    
+    (cherry picked from commit bf901dee5d4c46609645e50311c0cb2dfdcf9738)
+
+ CMakeLists.txt |  2 +-
+ configure.ac   | 17 +++++++++++------
+ 2 files changed, 12 insertions(+), 7 deletions(-)
+
+commit 9edddda5636d7b3504a033c31e8ea763e293fd35
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-13 22:10:37 +0300
+
+    liblzma: Tweak a comment
+    
+    (cherry picked from commit 7c292dd0bf23cefcdf4b1509f3666322e08a7ede)
+
+ src/liblzma/simple/arm64.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 1a93ab55d1563f5eb9b2c1b8240384046fe4bb97
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-11 22:17:56 +0300
+
+    CMake: Bump maximum policy version to 3.30
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit cfe4465742ad2963fb0d9795e258615d7c1cf32d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-09 14:27:51 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit 028185dd4889e3d6235ff13560160ebca6985021)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 0f47db18d04434203b350bde4909a5e468f197cc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-06 14:04:48 +0300
+
+    xz: Remove the TODO comment about --recursive
+    
+    It won't be implemented. find + xargs is more flexible, for example,
+    it allows compressing small files in parallel. An example for that
+    has been included in the xz man page since 2010.
+    
+    (cherry picked from commit baecfa142644eb5f5c6dd6f8e2f531c362fa3747)
+
+ src/xz/args.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 07f52c3528e43c4a925a3fc59a933c89f5604d92
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-03 20:45:48 +0300
+
+    CMake: Link xz against Threads::Threads if using pthreads
+    
+    The liblzma target was recently changed to link against Threads::Threads
+    with the PRIVATE keyword. I had forgotten that xz itself depends on
+    pthreads too due to pthread_sigmask(). Thus, the build broke when
+    building shared liblzma and pthread_sigmask() wasn't in libc.
+    
+    Thanks to Peter Seiderer for the bug report.
+    
+    Fixes: ac05f1b0d7cda1e7ae79775a8dfecc54601d7f1c
+    Fixes: https://github.com/tukaani-project/xz/issues/129#issuecomment-2204522994
+    (cherry picked from commit b3e53122f42796aaebd767bab920cf7bedf69966)
+
+ CMakeLists.txt | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+commit eccb4d258b01651d06a2a31b8b68be9b04b7998c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-07-02 22:49:33 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit 5742ec1fc7f2cf1c82cfe3477bb90594a4658374)
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit c9bd00327f064778babb014302718a18d65cf7d3
+Author: Sam James <sam@gentoo.org>
+Date:   2024-06-28 14:18:35 +0300
+
+    CI: Speed up Valgrind job by using --trace-children-skip-by-arg=...
+    
+    This addresses the issue I mentioned in
+    6c095a98fbec70b790253a663173ecdb669108c4 and speeds up the Valgrind
+    job a bit, because non-xz tools aren't run unnecessarily with
+    Valgrind by the script tests.
+    
+    (cherry picked from commit 7e99856f66c07852c4e0de7aa01951e9147d86b0)
+
+ .github/workflows/ci.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 495de6ec9d7834c4ef4d5286844ef7b784eb951b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-25 16:00:22 +0300
+
+    Build: Prepend, not append, PTHREAD_CFLAGS to LIBS
+    
+    It shouldn't make any difference because LIBS should be empty
+    at that point in configure. But prepending is the correct way
+    because in general the libraries being added might require other
+    libraries that come later on the command line.
+    
+    (cherry picked from commit 2402e8a1ae92676fa0d4cb1b761d7f62f005c098)
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 55bf3f49a812e20a21e42323e39526bb31d9341a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-25 14:24:29 +0300
+
+    Build: Use AC_LINK_IFELSE to handle implicit function declarations
+    
+    It's more robust in case the compiler allows pre-C99 implicit function
+    declarations. If an x86 intrinsic is missing and gets treated as
+    implicit function, the linking step will very probably fail. This
+    isn't the only way to workaround implicit function declarations but
+    it might be the simplest and cleanest.
+    
+    The problem hasn't been observed in the wild.
+    
+    There are a couple more AC_COMPILE_IFELSE uses in configure.ac.
+    Of these, Landlock check calls prctl() and in theory could have
+    the same problem. In practice it doesn't as the check program
+    looks for several other things too. However, it was changed to
+    AC_LINK_IFELSE still to look more correct.
+    
+    Similarly, m4/tuklib_cpucores.m4 and m4/tuklib_physmem.m4 were
+    updated although they haven't given any trouble either. They
+    have worked all these years because those check programs rely
+    on specific headers and types: if headers or types are missing,
+    compilation will fail. Using the linker makes these checks more
+    similar to the ones in cmake/tuklib_*.cmake which always link.
+    
+    (cherry picked from commit 7bb46f2b7b3989c1b589a247a251470f65e91cda)
+
+ configure.ac          |  8 ++++++--
+ m4/tuklib_cpucores.m4 |  8 ++++----
+ m4/tuklib_physmem.m4  | 17 +++++++++++------
+ 3 files changed, 21 insertions(+), 12 deletions(-)
+
+commit b45270d88f0de1b2e8bf510f0e370a5db4067e1f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 23:35:59 +0300
+
+    Build: Use AC_LINK_IFELSE instead of -Werror
+    
+    AC_COMPILE_IFELSE needed -Werror because Clang <= 14 would merely
+    warn about the unsupported attribute and implicit function declaration.
+    Changing to AC_LINK_IFELSE handles the implicit declaration because
+    the symbol __crc32d is unlikely to exist in libc.
+    
+    Note that the other part of the check is that #include <arm_acle.h>
+    must work. If the header is missing, most compilers give an error
+    and the linking step won't be attempted.
+    
+    Avoiding -Werror makes the check more robust in case CFLAGS contains
+    warning flags that break -Werror anyway (but this isn't the only check
+    in configure.ac that has this problem). Using AC_LINK_IFELSE also makes
+    the check more similar to how it is done in CMakeLists.txt.
+    
+    (cherry picked from commit 35eb57355ad1c415a838d26192d5af84abb7cf39)
+
+ configure.ac | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)
+
+commit 2c3e4cbbdcefe214ef3033a725049034b73e9756
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 23:34:34 +0300
+
+    Build: Sync the compile check changes from CMakeLists.txt
+    
+    It's nice to keep these in sync. The use of main() will later allow
+    AC_LINK_IFELSE usage too which may avoid the more fragile -Werror.
+    
+    (cherry picked from commit 5a728813c378cc3c4c9c95793762452418d08f1b)
+
+ configure.ac | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+commit 809e69f1f574dad3c9b00d4f01b9ef1a492319f3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-25 16:11:13 +0300
+
+    CMake: Use configure_file() to copy a file
+    
+    I had missed this simpler method before. It does create a dependency
+    so that if .in.h changes the copying is done again.
+    
+    (cherry picked from commit de215a0517645d16343f3a5336d3df884a4f665f)
+
+ CMakeLists.txt | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
+
+commit 52a8c87f37f4bd133f670722d2d4b73a74e352bc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-25 15:51:48 +0300
+
+    CMake: Always add pthread flags into CMAKE_REQUIRED_LIBRARIES
+    
+    It was weird to add CMAKE_THREAD_LIBS_INIT in CMAKE_REQUIRED_LIBRARIES
+    only if CLOCK_MONOTONIC is available. Alternative would be to remove
+    the thread libs from CMAKE_REQUIRED_LIBRARIES after the check for
+    pthread_condattr_setclock() but keeping the libs should be fine too.
+    Then it's ready in case more pthread functions were wanted some day.
+    
+    (cherry picked from commit e620f35097c0ad20cd76d8258750aa706758ced9)
+
+ CMakeLists.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 1591747bf692d10c3b2fd92c9dc8ba931626fd84
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 22:41:10 +0300
+
+    CMake: Fix three checks if building with -flto
+    
+    In CMake, check_c_source_compiles() always links too. With
+    link-time optimization, unused functions may get omitted if
+    main() doesn't depend on them. Consider the following which
+    tries to check if somefunction() is available when <someheader.h>
+    has been included:
+    
+        #include <someheader.h>
+        int foo(void) { return somefunction(); }
+        int main(void) { return 0; }
+    
+    LTO may omit foo() completely because the program as a whole doesn't
+    need it and then the program will link even if the symbol somefunction
+    isn't available in libc or other library being linked in, and then
+    the test may pass when it shouldn't.
+    
+    What happens if <someheader.h> doesn't declare somefunction()?
+    Shouldn't the test fail in the compilation phase already? It should
+    but many compilers don't follow the C99 and later standards that
+    prohibit implicit function declarations. Instead such compilers
+    assume that somefunction() exists, compilation succeeds (with a
+    warning), and then linker with LTO omits the call to somefunction().
+    
+    Change the tests so that they are part of main(). If compiler accepts
+    implicitly declared functions, LTO cannot omit them because it has to
+    assume that they might have side effects and thus linking will fail.
+    On the other hand, if the functions/intrinsics being used are supported,
+    they might get optimized away but in that case it's fine because they
+    really are supported.
+    
+    It is fine to use __attribute__((target(...))) for main(). At least
+    it works with GCC 4.9 to 14.1 on x86-64.
+    
+    Reported-by: Sam James <sam@gentoo.org>
+    (cherry picked from commit 114cba69dbb96003e676c8c87a2e9943b12d065f)
+
+ CMakeLists.txt | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
+
+commit cc386f4ff4b87ff895fbc30fd3b13ee6e6152ace
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 21:06:18 +0300
+
+    CMake: Improve the comment about LIBS
+    
+    (cherry picked from commit d3f20382fc1bd865eb70a65455d5022ed05caac8)
+
+ CMakeLists.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 65aaa0f87048f78a3f69c4ec0ad03723a2354fa7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 17:39:54 +0300
+
+    CI: Workaround buggy config.guess on Ubuntu 22.04LTS and 24.04LTS
+    
+    Check for the wrong triplet from config.guess and override it with
+    the --build option on the configure command line. Then i386 assembly
+    autodetection will work.
+    
+    These Ubuntu versions (and as of writing, also Debian unstable)
+    ship config.guess version 2022-01-09 which contains a bug that
+    was fixed in version 2022-05-08. It results in a wrong configure
+    triplet when using CC="gcc -m32" to build i386 binaries.
+    
+    Upstream fix:
+    https://git.savannah.gnu.org/cgit/config.git/commit/?id=f56a7140386d08a531bcfd444d632b28c61a6329
+    
+    More information:
+    https://mail.gnu.org/archive/html/config-patches/2022-05/msg00003.html
+    
+    (cherry picked from commit 1bf83cded2955282fe1a868f08c83d4e5d6dca4a)
+
+ build-aux/ci_build.bash | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+commit 810f1a8aee9edb3bff430559f4b832cd0ec50797
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 15:24:52 +0300
+
+    CI: Use CC="gcc -m32" to get i386 compiler on x86-64
+    
+    The old method put it in CFLAGS which is a wrong place because
+    config.guess doesn't read CFLAGS.
+    
+    (cherry picked from commit dbcdabf68fee9ed694b68c3a82e6adbeff20b679)
+
+ .github/workflows/ci.yml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit dde14ded9a3240fd524d9bc01c9ceeb4d7909e95
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-24 14:54:17 +0300
+
+    CI: Let CMake use the CC environment variable
+    
+    CC from environment is used to initialize CMAKE_C_COMPILER so
+    setting CMAKE_C_COMPILER explicitly isn't needed.
+    
+    The syntax in ci_build.bash was broken in case one wished to put
+    spaces in CC.
+    
+    (cherry picked from commit 0c1e6d900bac127464fb30a854776e1810ab5f16)
+
+ build-aux/ci_build.bash | 4 ----
+ 1 file changed, 4 deletions(-)
+
+commit 85a55e1120bebac2f3cd9af8965f4a6335eeeb9b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-20 18:12:21 +0300
+
+    CMake: Keep existing options in LIBS when adding -lrt
+    
+    This makes no difference yet because -lrt is currently the only option
+    that might be added to LIBS.
+    
+    (cherry picked from commit 75ce4797d49621710e6da95d8cb91541028c6d68)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e24a762f1be6bf379df73b7fe0a115ccae139a35
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-15 18:07:04 +0300
+
+    CMake: Fix indentation
+    
+    (cherry picked from commit c715dec8e800b65145918cfb0ee9bbc90faa8aad)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 99555b721b55263a6892b1093f2806f09a92e1fb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-15 23:34:29 +0300
+
+    CMake: Link Threads::Threads as PRIVATE to liblzma
+    
+    This way pthread options aren't passed to the linker when linking
+    against shared liblzma but they are still passed when linking against
+    static liblzma. (Also, one never needs the include path of the
+    threading library to use liblzma since liblzma's API headers
+    don't #include <pthread.h>. But <pthread.h> tends to be in the
+    default include path so here this change makes no difference.)
+    
+    One cannot mix target_link_libraries() calls that use the scope
+    (PRIVATE, PUBLIC, or INTERFACE) keyword and calls that don't use it.
+    The calls without the keyword are like PUBLIC except perhaps when
+    they aren't, or something like that... It seems best to always
+    specify a scope keyword as the meanings of those three keywords
+    at least are clear.
+    
+    (cherry picked from commit ac05f1b0d7cda1e7ae79775a8dfecc54601d7f1c)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 258bae30a2040138c783b5c380cef0ca603663ed
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-16 19:39:32 +0300
+
+    CMake: Add empty lines
+    
+    (cherry picked from commit 82986d8c691a294c78b48d8391303e5c428b5437)
+
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit a95a9601a109f0d0d059dea7a5a44efa87ef1401
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-16 19:37:36 +0300
+
+    CMake: Use CMAKE_THREAD_LIBS_INIT in liblzma.pc only with pthreads
+    
+    This shouldn't make much difference in practice as on Windows
+    no flags are needed anyway and unitialized variable (when threading
+    is disabled) expands to empty. But it's clearer this way.
+    
+    (cherry picked from commit 2aecffe0f0e14f3ef635e8cd7b405420f2385de2)
+
+ CMakeLists.txt | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+commit 65a10ddd439ad435d2c0176106b1e2d6b9c1b3a1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-17 18:20:14 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit 664918bd3635ea8e773f06022286ecb0c485166c)
+
+ THANKS | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 6ad5739094ac69ac448a84493f2c7ddfc6eb0688
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-16 19:25:07 +0300
+
+    CMake: Use native newlines in liblzma.pc
+    
+    vcpkg doesn't specify the newline type so it should be fine to
+    use native newlines in liblzma.pc on Windows.
+    
+    (cherry picked from commit 5ca96a93488d0f5a530c78b274cac317453807ff)
+
+ CMakeLists.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+commit 4107f2066764bb3a31d114852bc20722d582fd82
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-16 19:18:56 +0300
+
+    CMake: Use relative paths in liblzma.pc if possible
+    
+    Now liblzma.pc can be relocatable only if using CMake >= 3.20
+    but that should be OK as now we shouldn't get broken liblzma.pc
+    if CMAKE_INSTALL_LIBDIR or CMAKE_INSTALL_INCLUDEDIR contain an
+    absolute path.
+    
+    Thanks to Eli Schwartz.
+    
+    (cherry picked from commit ebd155c3a1b87411edae06d3bdaa9659ec057522)
+
+ CMakeLists.txt | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+commit ff697eb154361417d94284e0c569aa08cacf9031
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-16 13:39:37 +0300
+
+    liblzma: CRC CLMUL: Omit is_arch_extension_supported() when not needed
+    
+    On E2K the function compiles only due to compiler emulation but the
+    function is never used. It's cleaner to omit the function when it's
+    not needed even though it's a "static inline" function.
+    
+    Thanks to Ilya Kurdyukov.
+    
+    (cherry picked from commit 30a2d5d51006301a3ddab5ef1f5ff0a9d74dce6f)
+
+ src/liblzma/check/crc_x86_clmul.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 4e4a568f6a089c867891c2388a19624e312eb2f3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-12 14:26:44 +0300
+
+    CMake: Prefer C11 with a fallback to C99
+    
+    There is no need to make a similar change in configure.ac.
+    With Autoconf 2.72, the deprecated macro AC_PROG_CC_C99
+    is an alias for AC_PROG_CC which prefers a C11 compiler.
+    
+    (cherry picked from commit 2178acf8a4d40a93e970cfcf9b807d5ef6c8da92)
+
+ CMakeLists.txt | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+commit 849e757a8cce41bfd6acfaa7dd3b07324363de90
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-12 14:20:21 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit c97e9c12fef4d1093ee2a75236742481361f50f5)
+
+ THANKS | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 1305056a54e68895e052506bceb26274f52bbc9a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-11 11:15:49 +0300
+
+    Tests: Improve the CRC32 test
+    
+    A similar one was already there for CRC64 but nowadays also CRC32
+    has a CLMUL implementation, so it's good to test it better too.
+    
+    (cherry picked from commit 89e9f12e03324b8a186e807b268f34f92d1b2f41)
+
+ tests/test_check.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+commit a44493ec41edc98f24ed9933668e7372f5267a40
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-11 22:42:26 +0300
+
+    xz: Fix white space
+    
+    (cherry picked from commit c7164b1927e3fe7cdba70ee4687e1a590a81043b)
+
+ src/xz/list.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 5e74a6a8138b3c102193d731120139d5a854f2cf
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-11 21:59:09 +0300
+
+    liblzma: Fix a typo in a comment
+    
+    Thanks to Sam James for spotting it.
+    
+    Fixes: f644473a211394447824ea00518d0a214ff3f7f2
+    (cherry picked from commit 0a32d2072c598de281058b26dc08920fbf0cd2a1)
+
+ src/liblzma/check/crc_x86_clmul.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 3f7edc673cf21b3e4db3e2f11746905e0a393db7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-10 15:52:26 +0300
+
+    liblzma: Fix a comment indentation
+    
+    (cherry picked from commit afd9b4d282a10186808c3331dad4caf79c02d55f)
+
+ src/liblzma/check/crc_common.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 8a9cc7ca0867494f39990f0d4cbe0972042f6d59
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-09 22:09:12 +0300
+
+    liblzma: Fix white space
+    
+    (cherry picked from commit 50e6bff274568c568930e15094da8217e7d47d28)
+
+ src/liblzma/check/crc32_table.c   | 10 +++++-----
+ src/liblzma/check/crc_x86_clmul.h |  6 +++---
+ src/liblzma/check/sha256.c        |  2 +-
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+
+commit b29b13082fe578a3bb9384a5939c82055f796a34
+Author: RainRat <rainrat78@yahoo.ca>
+Date:   2024-06-05 15:21:49 -0700
+
+    Fix typos
+    
+    Closes: https://github.com/tukaani-project/xz/pull/124
+    (cherry picked from commit 9e73918a4f14be754a23f74dda45ca431939a4a0)
+
+ INSTALL                           | 2 +-
+ doc/examples/03_compress_custom.c | 2 +-
+ src/common/tuklib_integer.h       | 2 +-
+ src/liblzma/api/lzma/container.h  | 2 +-
+ src/xz/mytime.c                   | 2 +-
+ tests/test_filter_str.c           | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+
+commit 6f66155e01a6467e70db48cddbe790bdb8d87754
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-07 15:47:20 +0300
+
+    tuklib_integer: Fix building on OpenBSD/sparc64 that uses GCC 4.2
+    
+    GCC 4.2 doesn't have __builtin_bswap16() and friends so tuklib_integer.h
+    tries to use OS-specific byte swap methods instead. On OpenBSD those
+    macros are swap16/32/64 instead of bswap16/32/64 like on other *BSDs
+    and Darwin.
+    
+    An alternative to "#ifdef __OpenBSD__" could be "#ifdef swap16" as it
+    is a macro. But since OpenBSD seems to be a special case under this
+    special case of "*BSDs and Darwin", checking for __OpenBSD__ seems
+    the more conservative choice now.
+    
+    Thanks to Christian Weisgerber and Brad Smith who both submitted
+    the same patch a few hours apart.
+    
+    Co-authored-by: Christian Weisgerber <naddy@mips.inka.de>
+    Co-authored-by: Brad Smith <brad@comstyle.com>
+    Closes: https://github.com/tukaani-project/xz/pull/126
+    (cherry picked from commit 04b23addf3733873667675df2439725f076c2f36)
+
+ src/common/tuklib_integer.h | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+commit 5522759d31e0f1513fffbdf39a955f12d373f121
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-05 13:55:43 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit f5c2ae58ec68c665e62c790b842657afcb31474c)
+
+ THANKS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 45aed6f37f17e5fac215290204e03894965cf1d5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-05 13:30:28 +0300
+
+    CMake: Fix wrong version variable
+    
+    liblzma_VERSION has never existed in the repository. xz_VERSION from
+    the project() command was used for liblzma SOVERSION so use xz_VERSION
+    here too.
+    
+    The wrong variable did no harm in practice as PROJECT_VERSION
+    was used as the fallback. It has the same value as xz_VERSION.
+    
+    Fixes: 7e3493d40eac0c3fa3d5124097745a70e15c41f6
+    (cherry picked from commit 1d3c61575fda0be6b2d50c9e32a343349d5cd5c0)
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 198271a6ed0e6ac6820f8f44172a203aa44abe39
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-04 23:59:29 +0300
+
+    CMake: Fix liblzma filename in Windows environments
+    
+    This is a mess because liblzma DLL outside Cygwin and MSYS2
+    is liblzma.dll instead of lzma.dll to avoid a conflict with
+    lzma.dll from LZMA SDK.
+    
+    On Cygwin the name was "liblzma-5.dll" while "cyglzma-5.dll"
+    would have been correct (and match what Libtool produces).
+    MSYS2 likely was broken too as it uses the "msys-" prefix.
+    
+    This change has no effect with MinGW-w64 because with that
+    the "lib" prefix was correct already.
+    
+    With MSVC builds this is a small breaking change that requires developers
+    to adjust the library name when linking against liblzma. The liblzma.dll
+    name is kept as is but the import library and static library are now
+    lzma.lib instead of liblzma.lib. This is helpful when using pkgconf
+    because "pkgconf --msvc-syntax --libs liblzma" outputs "lzma.lib"
+    (it's converted from "-llzma" in liblzma.pc). It would be easy to
+    keep the liblzma.lib naming but the pkgconf compatibility seems worth
+    it in the long run. The lzma.lib name is compatible with MinGW-w64
+    too as -llzma will find also lzma.lib.
+    
+    vcpkg had been patching CMakeLists.txt this way since 2022 but I
+    learned this only recently. The reasoning for the patch makes sense,
+    and while this is a small breaking change with MSVC, it seems like
+    a decent compromise as it keeps the DLL name the same.
+    
+    2022 patch in vcpkg: https://github.com/microsoft/vcpkg/blob/0707a17ecf1466d64cf1a3c1ee18c8ff02aadb2d/ports/liblzma/win_output_name.patch
+    See the discussion: https://github.com/microsoft/vcpkg/pull/39024
+    
+    Thanks to Vincent Torri for confirming the naming issue on Cygwin.
+    
+    (cherry picked from commit e0d6d05ce0d464e966c0669bbf869202a43cc2f7)
+
+ CMakeLists.txt | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)
+
+commit 92e5425979199407080fd80e67c15f2cbf85392b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-03 16:55:03 +0300
+
+    Fix version.sh compatiblity with Solaris
+    
+    The ancient /bin/tr on Solaris doesn't support '\n'.
+    With /usr/xpg4/bin/tr it works but it might not be in PATH.
+    
+    Another problem was that sed was given input that didn't have a newline
+    at the end. Text files must end with a newline to be portable.
+    
+    Fix both problems:
+    
+      - Handle multiline input within sed itself to avoid one tr invocation.
+        The default sed even on Solaris does understand \n.
+    
+      - Use octals in tr -d. \012 works for ASCII "line feed", it's even
+        used as an example in the Solaris man page. But we must strip
+        also ASCII "carriage return" \015 and EBCDIC "next line" \025.
+        The EBCDIC case got handled with \n previously. Stripping \012
+        and \015 on EBCDIC system won't matter as those control chars
+        won't be present in the string in the first place.
+    
+    An awk-based solution could be an alternative but it might need
+    special casing on Solaris to used nawk instead of awk. The changes
+    in this commit are smaller and should have a smaller risk for
+    regressions. It's also possible that version.sh will be dropped
+    entirely at some point.
+    
+    (cherry picked from commit e7a42cda7c827e016619e8cab15e2faf5d4181ae)
+
+ build-aux/version.sh | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+commit 0c089a33a5b1f5b9451b332484c68e1d6f02631a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-03 17:07:11 +0300
+
+    CI: Don't require po4a on Solaris
+    
+    (cherry picked from commit a61c9ab4751f2710dcd5459c7d74bbf20781f0f9)
+
+ .github/workflows/solaris.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 83d3792711295656a3de69bbcd98dcb4b06be1c2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-03 15:08:15 +0300
+
+    CI: Use set -e on Solaris too
+    
+    (cherry picked from commit 5229bdf5335ce18ed54beb7e646e39927663be86)
+
+ .github/workflows/solaris.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 9c64d4fd787ea7bca3795be55367504a9f47a68c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-06-03 17:44:50 +0300
+
+    CMake: Install liblzma.pc even with MSVC
+    
+    I had misunderstood that it wouldn't be useful with MSVC.
+    vcpkg had been installing liblzma.pc with custom rules since 2020,
+    years before liblzma.pc support was added to CMakeLists.txt.
+    
+    See:
+    https://github.com/microsoft/vcpkg/blob/eb895b95aac6fd7485373702f29f508c42a180a0/ports/liblzma/portfile.cmake
+    https://github.com/microsoft/vcpkg/pull/39024#issuecomment-2145064670
+    (cherry picked from commit afa938e429c1ce07d26d02999352fb014b62ff3d)
+
+ CMakeLists.txt | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+commit 42754176bd84c4539db55a9e70bdcdd5700c709f
+Author: Sam James <sam@gentoo.org>
+Date:   2024-06-03 06:16:23 +0100
+
+    ci: don't pin official GH actions via commit, just tag
+    
+    There's no real value in doing it via commit for official GH actions. We
+    can keep using pinned commits for unofficial actions. It's hassle for no
+    gain.
+    
+    Maybe going forward we can limit this further by only being paranoid
+    for the jobs with any access to tokens.
+    
+    (cherry picked from commit 35f8649f08341639a627fd06350e938124ca3622)
+
+ .github/workflows/ci.yml         | 4 ++--
+ .github/workflows/freebsd.yml    | 2 +-
+ .github/workflows/netbsd.yml     | 2 +-
+ .github/workflows/openbsd.yml    | 2 +-
+ .github/workflows/solaris.yml    | 2 +-
+ .github/workflows/windows-ci.yml | 4 ++--
+ 6 files changed, 8 insertions(+), 8 deletions(-)
+
+commit 9a5fee7022eddffdfcee32a7e43f64635581b393
+Author: Christoph Junghans <christoph.junghans@gmail.com>
+Date:   2024-04-30 07:49:26 -0600
+
+    ci: set -e on openbsd
+    
+    Closes: https://github.com/tukaani-project/xz/pull/116
+    (cherry picked from commit e885dae37ff5b1dbc760dabc1e03e866a7302ef2)
+
+ .github/workflows/openbsd.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit a2d66de54f234999a7d42305988cf2c3e0b1b8f6
+Author: Christoph Junghans <christoph.junghans@gmail.com>
+Date:   2024-04-30 07:48:58 -0600
+
+    ci: set -e on netbsd
+    
+    (cherry picked from commit 21b02dd128cf9e8c76325ec124f70381862dcf19)
+
+ .github/workflows/netbsd.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 1bdc70176b59b0e22c0a580c518dc5d0f2fd0723
+Author: Christoph Junghans <christoph.junghans@gmail.com>
+Date:   2024-04-25 14:56:06 -0700
+
+    ci: actually fail on FreeBSD
+    
+    Without "set -e" the job will always be successful.
+    
+    See vmactions/freebsd-vm#72
+    
+    (cherry picked from commit 8641f0c24c041136670c975b23408184b45431bc)
+
+ .github/workflows/freebsd.yml | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 4132277103acdf1c01f8b5a4c12c0992c330ade4
+Author: Andrew Murray <radarhere@users.noreply.github.com>
+Date:   2024-04-25 09:24:46 +1000
+
+    Updated actions
+    
+    Closes: https://github.com/tukaani-project/xz/pull/115
+    (cherry picked from commit ef616683ef11f11ffdfbe0624da33905e28a70f9)
+
+ .github/workflows/ci.yml         | 4 ++--
+ .github/workflows/windows-ci.yml | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+commit 1575414636104773cefc62cf075726c6ee7ae37d
+Author: Sam James <sam@gentoo.org>
+Date:   2024-06-03 02:49:40 +0100
+
+    ci: add po4a
+    
+    (cherry picked from commit 57b440d316da9ac9cb312ee7e6890f5382556f10)
+
+ .github/workflows/netbsd.yml  | 2 +-
+ .github/workflows/openbsd.yml | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+commit c3e293037e1bb2bd9efedbb0e75387d1282cc03f
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-13 21:02:04 +0100
+
+    ci: add Solaris
+    
+    Inspired by https://github.com/RsyncProject/rsync/commit/3f2a38b01184cae9a931280b534acf5a3dae2e94.
+    
+    It runs on Solaris 5.11 via a VirtualBox VM.
+    
+    (cherry picked from commit 08cdf4be9a673d78efe393b53dd73bf43c81dd95)
+
+ .github/workflows/solaris.yml | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+commit dc6b6011b45b0d0ddd0650f4885e24c68b37fddf
+Author: Sam James <sam@gentoo.org>
+Date:   2024-04-14 08:08:00 +0100
+
+    xz: list: suppress -Wformat-nonliteral for Solaris
+    
+    Solaris' GCC can't understand that our use is fine, unlike modern compilers:
+    ```
+    list.c: In function 'print_totals_basic':
+    list.c:1191:4: error: format not a string literal, argument types not checked [-Werror=format-nonliteral]
+      uint64_to_str(totals.files, 0));
+      ^~~~~~~~~~~~~
+    cc1: all warnings being treated as errors
+    ```
+    
+    It's presumably because of older gettext missing format attributes.
+    
+    This is with `gcc (GCC) 7.3.0`.
+    
+    (cherry picked from commit b69768c8bd1a34fde311935c551d061ba52d9a3f)
+
+ src/xz/list.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit 7ce2ac795a812ecf1eb2d6b62f51b55ac799c2a5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2024-05-31 21:36:26 +0300
+
+    Update THANKS
+    
+    (cherry picked from commit b8d134e61ede9f4a296226d97f5c20721fb4e8e2)
+
+ THANKS | 3 +++
+ 1 file changed, 3 insertions(+)
+
 commit 3ec664d3f652133136587a51d4505b1abe1acdd7
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2024-05-29 18:03:51 +0300

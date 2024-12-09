@@ -1178,6 +1178,10 @@ print_totals_basic(void)
 				totals.uncompressed_size),
 			checks);
 
+#if defined(__sun) && (defined(__GNUC__) || defined(__clang__))
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
 	// Since we print totals only when there are at least two files,
 	// the English message will always use "%s files". But some other
 	// languages need different forms for different plurals so we
@@ -1189,6 +1193,9 @@ print_totals_basic(void)
 			totals.files <= ULONG_MAX ? totals.files
 				: (totals.files % 1000000) + 1000000),
 			uint64_to_str(totals.files, 0));
+#if defined(__sun) && (defined(__GNUC__) || defined(__clang__))
+#	pragma GCC diagnostic pop
+#endif
 
 	return;
 }

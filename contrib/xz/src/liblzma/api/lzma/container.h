@@ -306,7 +306,7 @@ extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
  *                      number and zero or more flags. Usually flags aren't
  *                      used, so preset is simply a number [0, 9] which match
  *                      the options -0 ... -9 of the xz command line tool.
- *                      Additional flags can be be set using bitwise-or with
+ *                      Additional flags can be set using bitwise-or with
  *                      the preset level number, e.g. 6 | LZMA_PRESET_EXTREME.
  * \param       check   Integrity check type to use. See check.h for available
  *                      checks. The xz command line tool defaults to
