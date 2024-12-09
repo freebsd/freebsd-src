@@ -232,7 +232,7 @@ in_pcbhashseed_init(void)
 	V_in_pcbhashseed = arc4random();
 }
 VNET_SYSINIT(in_pcbhashseed_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
-    in_pcbhashseed_init, 0);
+    in_pcbhashseed_init, NULL);
 
 #ifdef INET
 VNET_DEFINE_STATIC(int, connect_inaddr_wild) = 1;
