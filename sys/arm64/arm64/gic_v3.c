@@ -1315,7 +1315,8 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 			}
 
 			rman_set_bushandle(&r_res, r_bsh);
-		} while ((typer & GICR_TYPER_LAST) == 0);
+		} while (!sc->gic_redists.single &&
+		    (typer & GICR_TYPER_LAST) == 0);
 	}
 
 	device_printf(sc->dev, "No Re-Distributor found for CPU%u\n", cpuid);

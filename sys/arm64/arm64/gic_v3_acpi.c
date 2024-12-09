@@ -290,6 +290,7 @@ gic_v3_acpi_count_regions(device_t dev)
 		acpi_walk_subtables(madt + 1,
 		    (char *)madt + madt->Header.Length,
 		    madt_count_gicc_redistrib, sc);
+		sc->gic_redists.single = true;
 	}
 	acpi_unmap_table(madt);
 
