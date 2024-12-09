@@ -261,7 +261,7 @@ vnet_rts_init(void)
 #endif
 }
 VNET_SYSINIT(vnet_rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
-    vnet_rts_init, 0);
+    vnet_rts_init, NULL);
 
 #ifdef VIMAGE
 static void
@@ -271,7 +271,7 @@ vnet_rts_uninit(void)
 	netisr_unregister_vnet(&rtsock_nh);
 }
 VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
-    vnet_rts_uninit, 0);
+    vnet_rts_uninit, NULL);
 #endif
 
 static void
