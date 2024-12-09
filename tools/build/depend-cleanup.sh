@@ -167,6 +167,6 @@ f="$p"/arm_mve_builtin_sema.inc
 if [ -e "$f" ]; then
 	if grep -q SemaBuiltinConstantArgRange "$f"; then
 		echo "Removing pre-llvm19 clang-tblgen output"
-		rm -f "$p"/*.inc
+		run rm -f "$p"/*.inc
 	fi
 fi
