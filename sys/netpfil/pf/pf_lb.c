@@ -598,7 +598,6 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		else
 			rpool->cur = TAILQ_NEXT(rpool->cur, entries);
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
-			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
 			    &rpool->tblidx, &rpool->counter, af, NULL)) {
 				/* table contains no address of type 'af' */
