@@ -32,6 +32,7 @@ MDSRCS+= \
 	strlcat.c \
 	strlen.S \
 	timingsafe_bcmp.S \
+	timingsafe_memcmp.S \
 	bcopy.c \
 	bzero.c
 
