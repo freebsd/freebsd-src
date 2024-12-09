@@ -1,9 +1,17 @@
 # Makefile for authoring less.
+#
+# Targets:
+#   all             Make files needed to run Makefile (after configure).
+#   clean           Remove files that can be rebuilt.
+#   unicode-check   If newer Unicode files are available, download them.
+#   release         Make a numbered release, ready to upload to greenwoodsoftware.com.
+#   gnu-upload      Make files needed to upload a release to gnu.org.
+#
 
 EMAIL = bug-less@gnu.org
-HOMEPAGE = https://greenwoodsoftware.com/less
 SHELL = /bin/sh
 GIT = git
+GPG = gpg
 NROFF = nroff -t -man
 
 srcdir = .
@@ -17,7 +25,7 @@ endif
 
 SRC = \
 	main.c screen.c brac.c ch.c charset.c cmdbuf.c \
-	command.c cvt.c decode.c edit.c filename.c forwback.c \
+	command.c cvt.c decode.c edit.c evar.c filename.c forwback.c \
 	help.c ifile.c input.c jump.c line.c linenum.c \
 	lsystem.c mark.c optfunc.c option.c opttbl.c os.c \
 	output.c pattern.c position.c prompt.c search.c signal.c \
@@ -34,19 +42,19 @@ DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
 	configure.ac lesskey.c lesskey_parse.c lessecho.c scrsize.c \
-	charset.h cmd.h funcs.h lglob.h less.h lesskey.h option.h \
+	charset.h cmd.h funcs.h lang.h lglob.h less.h lesskey.h option.h \
 	pckeys.h pattern.h position.h xbuf.h \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
 	mkhelp.pl \
 	mkhelp.py \
-	mkutable $(UNICODE_FILES) \
+	mkutable ${UNICODE_FILES} \
 	$(shell ${MAKE} -s -f ${srcdir}/lesstest/Makefile echo_distfiles srcdir=${srcdir}/lesstest) \
 	${DISTFILES_W}
 
 
-all: help.c funcs.h $(UNICODE_FILES) ${srcdir}/configure 
+all: help.c funcs.h ${UNICODE_FILES} ${srcdir}/configure 
 
 release: .FORCE
 	@if ${srcdir}/ready_to_release -d ${srcdir}; then :; else exit 1; fi
@@ -145,7 +153,7 @@ dist: ${DISTFILES}
 	echo "Creating $$RELDIR/$$TARF" && \
 	tar -cf - $$LESSREL | gzip -c >$$RELDIR/$$TARF && \
 	echo "Signing $$RELDIR/$$TARF" && \
-	gpg --detach-sign $$RELDIR/$$TARF && \
+	${GPG} --detach-sign $$RELDIR/$$TARF && \
 	mv $$RELDIR/$$TARF.sig $$RELDIR/$$LESSREL.sig && \
 	echo "Creating $$RELDIR/$$ZIPF" && \
 	zip -rq $$RELDIR/$$ZIPF $$LESSREL && \
@@ -153,15 +161,16 @@ dist: ${DISTFILES}
 
 tagall:
 	echo "tagging v${REL}"; \
-	$(GIT) tag -a -f -m "v${REL}" "v${REL}"
+	${GIT} tag -a -f -m "v${REL}" "v${REL}"
 
-gnu_upload:
+gnu-upload:
 	@if [ -z "${REL}" ]; then echo "Please set REL=nnn"; exit 1; fi; \
 	LESSREL=less-${REL} && RELDIR=release/$$LESSREL && \
 	TARF=$$LESSREL.tar.gz && \
 	if [ ! -s $$RELDIR/$$TARF ]; then echo "$$RELDIR/$$TARF does not exist"; exit 1; fi; \
 	cd $$RELDIR && \
-	gpg -b $$TARF && \
+	${GPG} -b $$TARF && \
 	( echo "version: 1.2"; echo "directory: less"; echo "filename: $$TARF" ) > $$TARF.directive && \
-	gpg --clearsign $$TARF.directive && \
-	echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put $$TARF $$TARF.sig $$TARF.directive.asc" 
+	${GPG} --clearsign $$TARF.directive && \
+	echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put ... { $TARF, $$TARF.sig, $$TARF.directive.asc }" 
+

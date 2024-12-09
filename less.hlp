@@ -41,6 +41,9 @@
   N                 *  Repeat previous search in reverse direction.
   ESC-n             *  Repeat previous search, spanning files.
   ESC-N             *  Repeat previous search, reverse dir. & spanning files.
+  ^O^N  ^On         *  Search forward for (_N-th) OSC8 hyperlink.
+  ^O^P  ^Op         *  Search backward for (_N-th) OSC8 hyperlink.
+  ^O^L  ^Ol            Jump to the currently selected OSC8 hyperlink.
   ESC-u                Undo (toggle) search highlighting.
   ESC-U                Clear search highlighting.
   &_p_a_t_t_e_r_n          *  Display only matching lines.
@@ -53,6 +56,7 @@
         ^R       Don't use REGULAR EXPRESSIONS.
         ^S _n     Search for match in _n-th parenthesized subpattern.
         ^W       WRAP search if no match found.
+        ^L       Enter next character literally into pattern.
  ---------------------------------------------------------------------------
 
                            JJUUMMPPIINNGG
@@ -92,6 +96,7 @@
   :n                *  Examine the (_N-th) next file from the command line.
   :p                *  Examine the (_N-th) previous file from the command line.
   :x                *  Examine the first (or _N-th) file from the command line.
+  ^O^O                 Open the currently selected OSC8 hyperlink.
   :d                   Delete the current file from the command line list.
   =  ^G  :f            Print current file name.
  ---------------------------------------------------------------------------
@@ -155,8 +160,8 @@
                   Screen position of target lines.
   -J  ........  --status-column
                   Display a status column at left edge of screen.
-  -k [_f_i_l_e]  .  --lesskey-file=[_f_i_l_e]
-                  Use a lesskey file.
+  -k _f_i_l_e  ...  --lesskey-file=_f_i_l_e
+                  Use a compiled lesskey file.
   -K  ........  --quit-on-intr
                   Exit less in response to ctrl-C.
   -L  ........  --no-lessopen
@@ -167,11 +172,11 @@
                   Suppress line numbers in prompts and messages.
   -N .........  --LINE-NUMBERS
                   Display line number at start of each line.
-  -o [_f_i_l_e]  .  --log-file=[_f_i_l_e]
+  -o [_f_i_l_e] ..  --log-file=[_f_i_l_e]
                   Copy to log file (standard input only).
-  -O [_f_i_l_e]  .  --LOG-FILE=[_f_i_l_e]
+  -O [_f_i_l_e] ..  --LOG-FILE=[_f_i_l_e]
                   Copy to log file (unconditionally overwrite).
-  -p [_p_a_t_t_e_r_n]  --pattern=[_p_a_t_t_e_r_n]
+  -p _p_a_t_t_e_r_n .  --pattern=[_p_a_t_t_e_r_n]
                   Start at pattern (from command line).
   -P [_p_r_o_m_p_t]   --prompt=[_p_r_o_m_p_t]
                   Define new prompt.
@@ -183,7 +188,7 @@
                   Squeeze multiple blank lines.
   -S  ........  --chop-long-lines
                   Chop (truncate) long lines rather than wrapping.
-  -t [_t_a_g]  ..  --tag=[_t_a_g]
+  -t _t_a_g  ....  --tag=[_t_a_g]
                   Find a tag.
   -T [_t_a_g_s_f_i_l_e] --tag-file=[_t_a_g_s_f_i_l_e]
                   Use an alternate tags file.
@@ -209,21 +214,28 @@
                   Don't display tildes after end of file.
   -# [_N]  ....  --shift=[_N]
                   Set horizontal scroll amount (0 = one half screen width).
+
                 --exit-follow-on-close
                   Exit F command on a pipe when writer closes pipe.
                 --file-size
                   Automatically determine the size of the input file.
                 --follow-name
                   The F command changes files if the input file is renamed.
-                --header=[_N[,_M]]
-                  Use N lines and M columns to display file headers.
+                --header=[_L[,_C[,_N]]]
+                  Use _L lines (starting at line _N) and _C columns as headers.
                 --incsearch
                   Search file as each pattern character is typed in.
-                --intr=_C
+                --intr=[_C]
                   Use _C instead of ^X to interrupt a read.
-                --line-num-width=_N
+                --lesskey-context=_t_e_x_t
+                  Use lesskey source file contents.
+                --lesskey-src=_f_i_l_e
+                  Use a lesskey source file.
+                --line-num-width=[_N]
                   Set the width of the -N line number field to _N characters.
-                --modelines=_N
+                --match-shift=[_N]
+                  Show at least _N characters to the left of a search match.
+                --modelines=[_N]
                   Read _N lines from the input file and look for vim modelines.
                 --mouse
                   Enable mouse input.
@@ -233,13 +245,17 @@
                   Remove duplicates from command history.
                 --no-number-headers
                   Don't give line numbers to header lines.
+                --no-search-header-lines
+                  Searches do not include header lines.
+                --no-search-header-columns
+                  Searches do not include header columns.
                 --no-search-headers
-                  Don't search in header lines or columns.
+                  Searches do not include header lines or columns.
                 --no-vbell
                   Disable the terminal's visual bell.
                 --redraw-on-quit
                   Redraw final screen when quitting.
-                --rscroll=_C
+                --rscroll=[_C]
                   Set the character used to mark truncated lines.
                 --save-marks
                   Retain marks across invocations of less.
@@ -249,17 +265,17 @@
                   Display a message if preprocessor exits with an error status.
                 --proc-backspace
                   Process backspaces for bold/underline.
-                --SPECIAL-BACKSPACE
+                --PROC-BACKSPACE
                   Treat backspaces as control characters.
                 --proc-return
                   Delete carriage returns before newline.
-                --SPECIAL-RETURN
+                --PROC-RETURN
                   Treat carriage returns as control characters.
                 --proc-tab
                   Expand tabs to spaces.
-                --SPECIAL-TAB
+                --PROC-TAB
                   Treat tabs as control characters.
-                --status-col-width=_N
+                --status-col-width=[_N]
                   Set the width of the -J status column to _N characters.
                 --status-line
                   Highlight or color the entire line containing a mark.
@@ -267,7 +283,7 @@
                   Subsequent options use backslash as escape char.
                 --use-color
                   Enables colored text.
-                --wheel-lines=_N
+                --wheel-lines=[_N]
                   Each click of the mouse wheel moves _N lines.
                 --wordwrap
                   Wrap lines at spaces.

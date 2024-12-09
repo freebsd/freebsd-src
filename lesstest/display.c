@@ -94,11 +94,18 @@ void display_screen_debug(const byte* img, int imglen, int screen_width, int scr
 	int x = 0;
 	int y = 0;
 	int literal = 0;
+	int sol = 1;
 	while (imglen-- > 0) {
 		wchar ch = load_wchar(&img);
+		if (sol)
+		{
+			fprintf(stderr, "DATA: ");
+			sol = 0;
+		}
 		if (!literal) {
 			switch (ch) {
 			case '\\':
+				fprintf(stderr, "\\");
 				literal = 1;
 				continue;
 			case LTS_CHAR_ATTR:
@@ -112,12 +119,13 @@ void display_screen_debug(const byte* img, int imglen, int screen_width, int scr
 			}
 		}
 		literal = 0;
-		if (is_ascii(ch))
+		if (is_ascii(ch) && ch != '<' && ch != '>')
 			fwrite(&ch, 1, 1, stderr);
 		else
 			fprintf(stderr, "<%lx>", (unsigned long) ch);
 		if (++x >= screen_width) {
 			fprintf(stderr, "\n");
+			sol = 1;
 			x = 0;
 			if (++y >= screen_height)
 				break;

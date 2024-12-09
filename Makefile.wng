@@ -5,6 +5,8 @@
 #
 # Usage: mingw32-make -f Makefile.wng [REGEX_PACKAGE={posix|gnu|regcomp-local}]
 #
+# When cross compiling, add also: SHELL=sh CC=<mingw-cc>
+#
 # The optional command line parameter "REGEX_PACKAGE" is used to specify 
 # a regular expression package for compilation and linking.  This parameter
 # can assume one of three values.  
@@ -20,6 +22,17 @@
 # REGEX_PACKAGE == gnu
 #   This choice selects the GNU implementation and is provided by MingW.  
 #
+# REGEX_PACKAGE == none
+#   This choice disables regex, and instead uses smart plain text search.
+#
+# By default, the files help.c and funcs.h are generated using few posix
+# utilities (grep, sed, etc). On Windows, if the tools are missing, add:
+#   WINGEN=1
+# to compile a native C program which will be used instead of the posix tools.
+# NOTE: to cross compile with WINGEN=1, e.g. to arm, first run with native CC:
+#   make -f Makefile.wng CC=gcc buildgen.exe
+# and then compile `less` with the arm CC:
+#   make -f Makefile.wng WINGEN=1 CC=armv7...
 
 #### Start of system configuration section. ####
 
@@ -37,15 +50,17 @@ MINGW_ROOT_PATH = /mingw-w64/mingw64
 
 # Determine the regular expression package to be used.  
 #
-REGEX_PACKAGE ?= posix
+REGEX_PACKAGE ?= regcomp-local
 ifeq (${REGEX_PACKAGE},regcomp-local)
     MINGW_DEFINES += -DUSE_REGEXP_C
 else ifeq (${REGEX_PACKAGE},posix)
     MINGW_DEFINES += -DUSE_POSIX_REGCOMP
 else ifeq (${REGEX_PACKAGE},gnu)
     MINGW_DEFINES += -DUSE_GNU_REGEX
+else ifeq (${REGEX_PACKAGE},none)
+#    without specific regex package, defines.wn sets NO_REGEX=1
 else
-    $(error REGEX_PACKAGE must be posix, gnu or regcomp-local)
+    $(error REGEX_PACKAGE must be posix, gnu, regcomp-local or none)
 endif
 
 MINGW_REGEX_IPATH = -I${MINGW_ROOT_PATH}/opt/include
@@ -57,16 +72,31 @@ ifneq  (${REGEX_PACKAGE},regcomp-local)
 CFLAGS_MINGW += ${MINGW_REGEX_IPATH}
 endif
 
-# MingW may use sh.exe instead of cmd.exe.  
-# Make sure it does not.
+# MingW may use sh.exe instead of cmd.exe.
+# Default to cmd.exe, but allow sh.exe too, e.g. for cross compile.
 #
 SHELL = cmd.exe
+ifeq  (${SHELL},cmd.exe)
+    CP = copy
+    MV = move
+    RM = del
+    DIFF = comp /M
+else
+    CP = cp
+    MV = mv
+    RM = rm
+    DIFF = diff
+endif
 
 CFLAGS  = -O2 ${CFLAGS_MINGW}
+ifneq  (${REGEX_PACKAGE},none)
 ifneq  (${REGEX_PACKAGE},regcomp-local)
 LDFLAGS = ${MINGW_REGEX_LPATH}
 LIBS    = ${MINGW_REGEX_LIB}
 endif
+endif
+
+LIBS += -lshell32
 
 #### End of system configuration section. ####
 
@@ -76,7 +106,7 @@ endif
 	${CC} -c -I. ${CFLAGS} $<
 
 LESS_SRC = brac.c ch.c charset.c cmdbuf.c command.c		\
-           cvt.c decode.c edit.c filename.c forwback.c 		\
+           cvt.c decode.c edit.c evar.c filename.c forwback.c 		\
            ifile.c input.c jump.c line.c linenum.c 		\
            lsystem.c main.c mark.c optfunc.c option.c 		\
 	   opttbl.c os.c output.c pattern.c position.c 		\
@@ -88,7 +118,7 @@ endif
 
 OBJ = \
 	main.o screen.o brac.o ch.o charset.o cmdbuf.o \
-	command.o cvt.o decode.o edit.o filename.o forwback.o \
+	command.o cvt.o decode.o edit.o evar.o filename.o forwback.o \
 	help.o ifile.o input.o jump.o lesskey_parse.o line.o linenum.o \
 	lsystem.o mark.o optfunc.o option.o opttbl.o os.o \
 	output.o pattern.o position.o prompt.o search.o signal.o \
@@ -98,26 +128,41 @@ OBJ += regexp.o
 endif
 
 
-all: clean less lesskey lessecho
+all: less.exe lesskey.exe lessecho.exe
 
-less: ${OBJ}
+less.exe: ${OBJ}
 	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
 
-lesskey: lesskey.o lesskey_parse.o version.o xbuf.o
+lesskey.exe: lesskey.o lesskey_parse.o version.o xbuf.o
 	${CC} ${LDFLAGS} -o $@ lesskey.o lesskey_parse.o version.o xbuf.o
 
-lessecho: lessecho.o version.o
+lessecho.exe: lessecho.o version.o
 	${CC} ${LDFLAGS} -o $@ lessecho.o version.o
 
+lessecho.o version.o: less.h defines.h funcs.h
+
 defines.h: defines.wn
-	copy $< $@
+	${CP} $< $@
 
-funcs.h: ${LESS_SRC}
-	-move funcs.h funcs.h.old
-	grep -h "^public [^;]*$$" ${LESS_SRC} | sed "s/$$/;/" >funcs.h
+ifeq  (${WINGEN},1)
+    BUILDGEN = buildgen.exe
+    MKHELP = buildgen.exe help
+    MKFUNCS = type 2>NUL ${LESS_SRC} | buildgen.exe funcs
+else
+    MKHELP = (perl mkhelp.pl || sh mkhelp.sh)
+    MKFUNCS = grep -h "^public [^;]*$$" ${LESS_SRC} | sed "s/$$/;/"
+endif
 
-help.c: less.hlp
-	perl mkhelp.pl  < $<  > $@
+funcs.h: ${LESS_SRC} ${BUILDGEN}
+	-${CP} funcs.h funcs.h.old
+	${MKFUNCS} >funcs.h.tmp
+	${DIFF} funcs.h.tmp funcs.h || ${MV} funcs.h.tmp funcs.h
+
+help.c: less.hlp ${BUILDGEN}
+	${MKHELP}  < less.hlp > $@
+
+buildgen.exe: buildgen.c
+	${CC} $< -o $@
 
 ${OBJ}: less.h defines.h funcs.h
 
@@ -125,9 +170,4 @@ TAGS:
 	etags *.c *.h
 
 clean:
-	-del *.o
-	-del *.exe
-	-del defines.h
-	-del funcs.h
-	-del help.c
-	-if exist TAGS del TAGS
+	-${RM} *.o *.exe defines.h funcs.h help.c TAGS

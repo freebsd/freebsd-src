@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -22,7 +22,6 @@
 extern int squeeze;
 extern int hshift;
 extern int quit_if_one_screen;
-extern int sigs;
 extern int ignore_eoi;
 extern int status_col;
 extern int wordwrap;
@@ -30,7 +29,7 @@ extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 #if HILITE_SEARCH
 extern int hilite_search;
-extern int size_linebuf;
+extern size_t size_linebuf;
 extern int show_attn;
 #endif
 
@@ -47,7 +46,7 @@ static void init_status_col(POSITION base_pos, POSITION disp_pos, POSITION edisp
 {
 	int hl_before = (chop_line() && disp_pos != NULL_POSITION) ?
 	    is_hilited_attr(base_pos, disp_pos, TRUE, NULL) : 0;
-	int hl_after = (chop_line()) ?
+	int hl_after = (chop_line() && edisp_pos != NULL_POSITION) ?
 	    is_hilited_attr(edisp_pos, eol_pos, TRUE, NULL) : 0;
 	int attr;
 	char ch;
@@ -64,11 +63,14 @@ static void init_status_col(POSITION base_pos, POSITION disp_pos, POSITION edisp
 	{
 		attr = hl_after;
 		ch = '>';
-	} else 
+	} else if (disp_pos != NULL_POSITION)
 	{
-		attr = is_hilited_attr(base_pos, eol_pos, TRUE, NULL);
+		attr = is_hilited_attr(disp_pos, edisp_pos, TRUE, NULL);
 		ch = '*';
-	}
+	} else
+    {
+        attr = 0;
+    }
 	if (attr)
 		set_status_col(ch, attr);
 }
@@ -80,18 +82,18 @@ static void init_status_col(POSITION base_pos, POSITION disp_pos, POSITION edisp
  * a line.  The new position is the position of the first character
  * of the NEXT line.  The line obtained is the line starting at curr_pos.
  */
-public POSITION forw_line_seg(POSITION curr_pos, int skipeol, int rscroll, int nochop)
+public POSITION forw_line_seg(POSITION curr_pos, lbool skipeol, lbool rscroll, lbool nochop)
 {
 	POSITION base_pos;
 	POSITION new_pos;
 	POSITION edisp_pos;
 	int c;
-	int blankline;
-	int endline;
-	int chopped;
+	lbool blankline;
+	lbool endline;
+	lbool chopped;
 	int backchars;
 	POSITION wrap_pos;
-	int skipped_leading;
+	lbool skipped_leading;
 
 get_forw_line:
 	if (curr_pos == NULL_POSITION)
@@ -109,8 +111,7 @@ get_forw_line:
 		 * If we're not ignoring EOI, we *could* do the same, but
 		 * for efficiency we prepare several lines ahead at once.
 		 */
-		prep_hilite(curr_pos, curr_pos + 3*size_linebuf, 
-				ignore_eoi ? 1 : -1);
+		prep_hilite(curr_pos, curr_pos + (POSITION) (3*size_linebuf), ignore_eoi ? 1 : -1);
 		curr_pos = next_unfiltered(curr_pos);
 	}
 #endif
@@ -126,11 +127,6 @@ get_forw_line:
 	base_pos = curr_pos;
 	for (;;)
 	{
-		if (ABORT_SIGS())
-		{
-			null_line();
-			return (NULL_POSITION);
-		}
 		c = ch_back_get();
 		if (c == EOI)
 			break;
@@ -151,13 +147,13 @@ get_forw_line:
 	new_pos = base_pos;
 	while (new_pos < curr_pos)
 	{
-		if (ABORT_SIGS())
+		c = ch_forw_get();
+		if (c == EOI)
 		{
 			null_line();
 			return (NULL_POSITION);
 		}
-		c = ch_forw_get();
-		backchars = pappend(c, new_pos);
+		backchars = pappend((char) c, new_pos);
 		new_pos++;
 		if (backchars > 0)
 		{
@@ -167,7 +163,7 @@ get_forw_line:
 				do
 				{
 					new_pos++;
-					c = ch_forw_get();
+					c = ch_forw_get(); /* {{ what if c == EOI? }} */
 				} while (c == ' ' || c == '\t');
 				backchars = 1;
 			}
@@ -198,11 +194,6 @@ get_forw_line:
 	chopped = FALSE;
 	for (;;)
 	{
-		if (ABORT_SIGS())
-		{
-			null_line();
-			return (NULL_POSITION);
-		}
 		if (c == '\n' || c == EOI)
 		{
 			/*
@@ -220,12 +211,12 @@ get_forw_line:
 			break;
 		}
 		if (c != '\r')
-			blankline = 0;
+			blankline = FALSE;
 
 		/*
 		 * Append the char to the line and get the next char.
 		 */
-		backchars = pappend(c, ch_tell()-1);
+		backchars = pappend((char) c, ch_tell()-1);
 		if (backchars > 0)
 		{
 			/*
@@ -236,14 +227,9 @@ get_forw_line:
 			if (skipeol)
 			{
 				/* Read to end of line. */
-				edisp_pos = ch_tell();
+				edisp_pos = ch_tell() - backchars;
 				do
 				{
-					if (ABORT_SIGS())
-					{
-						null_line();
-						return (NULL_POSITION);
-					}
 					c = ch_forw_get();
 				} while (c != '\n' && c != EOI);
 				new_pos = ch_tell();
@@ -266,10 +252,10 @@ get_forw_line:
 						do
 						{
 							new_pos = ch_tell();
-							c = ch_forw_get();
+							c = ch_forw_get(); /* {{ what if c == EOI? }} */
 						} while (c == ' ' || c == '\t');
 						if (c == '\r')
-							c = ch_forw_get();
+							c = ch_forw_get(); /* {{ what if c == EOI? }} */
 						if (c == '\n')
 							new_pos = ch_tell();
 					} else if (wrap_pos == NULL_POSITION)
@@ -281,6 +267,7 @@ get_forw_line:
 					}
 				}
 				endline = FALSE;
+				edisp_pos = new_pos;
 			}
 			break;
 		}
@@ -302,8 +289,10 @@ get_forw_line:
 #if HILITE_SEARCH
 	if (blankline && show_attn)
 	{
-		/* Add spurious space to carry possible attn hilite. */
-		pappend(' ', ch_tell()-1);
+		/* Add spurious space to carry possible attn hilite.
+		 * Use pappend_b so that if line ended with \r\n,
+		 * we insert the space before the \r. */
+		pappend_b(' ', ch_tell()-1, TRUE);
 	}
 #endif
 	pdone(endline, rscroll && chopped, 1);
@@ -330,11 +319,7 @@ get_forw_line:
 		 * and pretend it is the one which we are returning.
 		 */
 		while ((c = ch_forw_get()) == '\n' || c == '\r')
-			if (ABORT_SIGS())
-			{
-				null_line();
-				return (NULL_POSITION);
-			}
+			continue;
 		if (c != EOI)
 			(void) ch_back_get();
 		new_pos = ch_tell();
@@ -363,11 +348,11 @@ public POSITION back_line(POSITION curr_pos)
 	POSITION edisp_pos;
 	POSITION begin_new_pos;
 	int c;
-	int endline;
-	int chopped;
+	lbool endline;
+	lbool chopped;
 	int backchars;
 	POSITION wrap_pos;
-	int skipped_leading;
+	lbool skipped_leading;
 
 get_back_line:
 	if (curr_pos == NULL_POSITION || curr_pos <= ch_zero())
@@ -377,8 +362,8 @@ get_back_line:
 	}
 #if HILITE_SEARCH
 	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col)
-		prep_hilite((curr_pos < 3*size_linebuf) ? 
-				0 : curr_pos - 3*size_linebuf, curr_pos, -1);
+		prep_hilite((curr_pos < (POSITION) (3*size_linebuf)) ? 0 : 
+		    curr_pos - (POSITION) (3*size_linebuf), curr_pos, -1);
 #endif
 	if (ch_seek(curr_pos-1))
 	{
@@ -393,6 +378,7 @@ get_back_line:
 		 */
 		(void) ch_forw_get();    /* Skip the newline */
 		c = ch_forw_get();       /* First char of "current" line */
+		/* {{ what if c == EOI? }} */
 		(void) ch_back_get();    /* Restore our position */
 		(void) ch_back_get();
 
@@ -404,11 +390,7 @@ get_back_line:
 			 * since we skipped them in forw_line().
 			 */
 			while ((c = ch_back_get()) == '\n' || c == '\r')
-				if (ABORT_SIGS())
-				{
-					null_line();
-					return (NULL_POSITION);
-				}
+				continue;
 			if (c == EOI)
 			{
 				null_line();
@@ -423,11 +405,6 @@ get_back_line:
 	 */
 	for (;;)
 	{
-		if (ABORT_SIGS())
-		{
-			null_line();
-			return (NULL_POSITION);
-		}
 		c = ch_back_get();
 		if (c == '\n')
 		{
@@ -478,7 +455,7 @@ get_back_line:
 	for (;;)
 	{
 		c = ch_forw_get();
-		if (c == EOI || ABORT_SIGS())
+		if (c == EOI)
 		{
 			null_line();
 			return (NULL_POSITION);
@@ -496,7 +473,7 @@ get_back_line:
 			edisp_pos = new_pos;
 			break;
 		}
-		backchars = pappend(c, ch_tell()-1);
+		backchars = pappend((char) c, ch_tell()-1);
 		if (backchars > 0)
 		{
 			/*
@@ -523,24 +500,28 @@ get_back_line:
 				{
 					for (;;)
 					{
-						c = ch_forw_get();
+						c = ch_forw_get(); /* {{ what if c == EOI? }} */
 						if (c == ' ' || c == '\t')
 							new_pos++;
 						else
 						{
 							if (c == '\r')
 							{
-								c = ch_forw_get();
+								c = ch_forw_get(); /* {{ what if c == EOI? }} */
 								if (c == '\n')
 									new_pos++;
 							}
 							if (c == '\n')
 								new_pos++;
+							edisp_pos = new_pos;
 							break;
 						}
 					}
 					if (new_pos >= curr_pos)
+					{
+						edisp_pos = new_pos;
 						break;
+					}
 					pshift_all();
 				} else
 				{

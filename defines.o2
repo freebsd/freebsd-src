@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -89,6 +89,12 @@
  * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
 #define	LOGFILE		(!SECURE)
+
+/*
+ * OSC8_SEARCH is 1 if you wish to allow the ^O^O and related commands
+ * (to open OSC8 hyperlinks).
+ */
+#define OSC8_LINK	1
 
 /*
  * GNU_OPTIONS is 1 if you wish to support the GNU-style command

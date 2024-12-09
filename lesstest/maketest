@@ -3,7 +3,7 @@ use strict;
 
 # Create a test file.
 # Wrapper for lesstest, using most common options.
-my $usage = "usage: maketest [-o lt-file] [-l less.exe] [-s lt_screen] [-t lesstest] [-w width] [-h height] [-O lesstest-opts] [-S lt_screen-opts] textfile\n";
+my $usage = "usage: maketest [-o lt-file] [-l less.exe] [-s lt_screen] [-t lesstest] [-w width] [-h height] [-O lesstest-opts] [-S lt_screen-opts] [-v] textfile\n";
 
 use Getopt::Std;
 
@@ -40,7 +40,7 @@ sub main {
 	}
 	if (not defined $ltfile) {
 		for (my $i = 0;; ++$i) {
-			my $suffix = $i ? $i : "";
+			my $suffix = $i ? "-$i" : "";
 			$ltfile = "lt/$textfile$suffix.lt";
 			last if not -e $ltfile;
 		}

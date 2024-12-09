@@ -42,9 +42,9 @@ static int parse_command(TestSetup* setup, const char* less, const char* line, i
 	return 1;
 }
 
-static int parse_textfile(TestSetup* setup, const char* line, int line_len, FILE* fd) {
+static int parse_textfile(TestSetup* setup, const char* line, int line_len, FILE* fd, int create_file) {
 	const char* filename = parse_qstring(&line);
-	if (access(filename, F_OK) == 0) {
+	if (create_file && access(filename, F_OK) == 0) {
 		fprintf(stderr, "%s already exists\n", filename);
 		return 0;
 	}
@@ -52,10 +52,13 @@ static int parse_textfile(TestSetup* setup, const char* line, int line_len, FILE
 	int len = strlen(filename)+1;
 	setup->textfile = malloc(len);
 	strcpy(setup->textfile, filename);
-	FILE* textfd = fopen(setup->textfile, "w");
-	if (textfd == NULL) {
-		fprintf(stderr, "cannot create %s\n", setup->textfile);
-		return 0;
+	FILE* textfd = NULL;
+	if (create_file) {
+		textfd = fopen(setup->textfile, "w");
+		if (textfd == NULL) {
+			fprintf(stderr, "cannot create %s\n", setup->textfile);
+			return 0;
+		}
 	}
 	int nread = 0;
 	while (nread < fsize) {
@@ -63,10 +66,10 @@ static int parse_textfile(TestSetup* setup, const char* line, int line_len, FILE
 		int chunk = fsize - nread;
 		if (chunk > sizeof(buf)) chunk = sizeof(buf);
 		size_t len = fread(buf, 1, chunk, fd);
-		fwrite(buf, 1, len, textfd);
+		if (textfd != NULL) fwrite(buf, 1, len, textfd);
 		nread += len;
 	}
-	fclose(textfd);
+	if (textfd != NULL) fclose(textfd);
 	return 1;
 }
 
@@ -131,13 +134,13 @@ TestSetup* read_test_setup(FILE* fd, const char* less) {
 			}
 			break;
 		case 'F': // text file
-			if (!parse_textfile(setup, line+1, line_len-1, fd)) {
+			if (!parse_textfile(setup, line+1, line_len-1, fd, less != NULL)) {
 				free_test_setup(setup);
 				return NULL;
 			}
 			break;
 		case 'A': // less cmd line parameters
-			if (!parse_command(setup, less, line+1, line_len-1)) {
+			if (less != NULL && !parse_command(setup, less, line+1, line_len-1)) {
 				free_test_setup(setup);
 				return NULL;
 			}
@@ -146,10 +149,61 @@ TestSetup* read_test_setup(FILE* fd, const char* less) {
 			break;
 		}
 	}
-	if (setup->textfile == NULL || setup->argv == NULL) {
+	if (less != NULL && (setup->textfile == NULL || setup->argv == NULL)) {
 		free_test_setup(setup);
 		return NULL;
 	}
 	if (verbose) { fprintf(stderr, "setup: textfile %s\n", setup->textfile); print_strings("argv:", setup->argv); }
 	return setup;
+}
+
+static TestDetails* new_test_details(void) {
+	TestDetails* td = (TestDetails*) malloc(sizeof(TestDetails));
+	td->textfile = NULL;
+	td->img_should = td->img_actual = NULL;
+	td->cmd_num = 0;
+	td->len_should = td->len_actual = 0;
+	return td;
+}
+
+void free_test_details(TestDetails* td) {
+	if (td->img_should != NULL) free(td->img_should);
+	if (td->img_actual != NULL) free(td->img_actual);
+	free(td);
+}
+
+TestDetails* read_test_details(FILE* fd) {
+	TestDetails* td = new_test_details();
+	for (;;) {
+		char line[10000];
+		int line_len = read_zline(fd, line, sizeof(line));
+		if (line_len < 0)
+			break;
+		if (line_len < 1)
+			continue;
+		char const* linep = line;
+		switch (*linep++) {
+		case '!':
+			break;
+		case 'F':
+			td->textfile = parse_qstring(&linep);
+			break;
+		case 'N':
+			td->cmd_num = parse_int(&linep);
+			break;
+		case '=':
+			td->len_should = line_len-1;
+			td->img_should = malloc(td->len_should);
+			memcpy(td->img_should, line+1, td->len_should);
+			break;
+		case '<':
+			td->len_actual = line_len-1;
+			td->img_actual = malloc(td->len_actual);
+			memcpy(td->img_actual, line+1, td->len_actual);
+			break;
+		default:
+			break;
+		}
+	}
+	return td;
 }

@@ -113,6 +113,7 @@ int setup_term(void) {
 	terminfo.backspace_key = (strlen(bs) == 1) ? *bs : '\b';
 	terminfo.cursor_move = ltgetstr("cm", &sp);
 	terminfo.clear_screen = ltgetstr("cl", &sp);
+	terminfo.clear_eos = ltgetstr("cd", &sp);
 	terminfo.init_term = ltgetstr("ti", &sp);
 	terminfo.deinit_term = ltgetstr("te", &sp);
 	terminfo.enter_keypad = ltgetstr("ks", &sp);

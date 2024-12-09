@@ -1,0 +1,569 @@
+#!/usr/bin/env perl
+use strict;
+use Getopt::Std;
+use IO::Stty;
+
+my $usage =
+    "usage: ltview [-cfr] [-w wide.uni] lt-file [error-file]\n" .
+    "       -c = use color\n" .
+    "       -f = use lt-file even if it does not fit on screen\n" .
+    "       -r = don't put terminal in raw mode\n" .
+    "       -w = list of Unicode wide chars\n" .
+    "       error-file is output from \"lesstest -D\"\n";
+
+my $help = <<_EOF_;
+
+Commands:
+[N]l   Go to (N-th) next lt state.
+[N]h   Go to (N-th) previous lt state.
+[N]g   Go to first (or N-th) lt state.
+[N]G   Go to last (or N-th) lt state.
+   j   Go to next error file state.
+   k   Go to previous error file state.
+   e   Go to lt state corresponding to error file state.
+   =   Print info about lt file and error file.
+   ?   Display this help.
+_EOF_
+
+my $ATTR_BOLD           = (1<<0);
+my $ATTR_UNDERLINE      = (1<<1);
+my $ATTR_STANDOUT       = (1<<2);
+my $ATTR_BLINK          = (1<<3);
+my $NULL_COLOR          = 0xFF;
+my $DIFF_ATTR_ON        = "\e[101m"; # blink
+my $DIFF_ATTR_OFF       = "\e[m";
+
+my %spec_chars = (
+    ord("\b") => '\\b',
+    ord("\e") => 'ESC',
+    ord("\n") => '\\n',
+    ord("\r") => '\\r',
+);
+
+my @show_expects = ('', 'expected', 'got');
+my %wides;
+my %opt;
+
+# ---------------------------------------------------------------------
+exit (main() ? 0 : 1);
+
+sub main {
+    die $usage if not getopts('cfrw:', \%opt);
+    my $ltfile = shift @ARGV;
+    my $errfile = shift @ARGV;
+    my $wide_file = ($opt{w} or "../wide.uni");
+    die $usage if not defined $ltfile or @ARGV;
+    parse_wides($wide_file);
+    my $lt = parse_ltfile($ltfile);
+    return 0 if not $lt;
+    my $lt_lines = $lt->{lines} + 2; # 2 lines for prompt at bottom of screen
+    if (not $opt{f} and ($lt_lines > $ENV{LINES} or $lt->{columns} > $ENV{COLUMNS})) {
+        print "Screen size used by $ltfile ($lt->{columns}x$lt_lines) does not fit on your screen ($ENV{COLUMNS}x$ENV{LINES}).\n";
+        print "Use -f to view it anyway (but it won't look correct).\n";
+        return 0;
+    }
+    my $errf = defined $errfile ? parse_errfile($errfile) : undef;
+    binmode(STDOUT, ":encoding(UTF-8)");
+    run($lt, $errf);
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub run {
+    my ($lt, $errf) = @_;
+    return if not @{$lt->{states}};
+    my $omode = IO::Stty::stty(\*STDIN, '-g');
+    IO::Stty::stty(\*STDIN, ('raw','-echo')) unless $opt{r};
+    run_loop($lt, $errf);
+    tgoto_bot($lt);
+    IO::Stty::stty(\*STDIN, $omode) unless $opt{r};
+}
+
+# ---------------------------------------------------------------------
+sub run_loop {
+    my ($lt, $errf) = @_;
+    my $param = '';
+    my %running = ( 'sindex' => 0, 'show_expect' => 0 );
+    for (;;) {
+        display_running($lt, $errf, $param, \%running);
+        my $ch = getc();
+        $ch = substr($ch,0,1);
+        last if $ch eq 'q';
+        if ($ch ge '0' and $ch le '9') {
+            $param .= $ch;
+        } else {
+            run_cmd($lt, $errf, $ch, $param, \%running);
+            $param = '';
+        }
+    }
+}
+
+# ---------------------------------------------------------------------
+sub display_running {
+    my ($lt, $errf, $param, $running) = @_;
+    my $states =  $lt->{states};
+    my ($prompt1, $prompt2, $prompt3, $img, $cmp_img);
+    my $filename;
+    my $failure = 0;
+    if ($running->{show_expect} > 0) {
+        my $exp = $show_expects[$running->{show_expect}];
+        $prompt1 = sprintf "[%d/%d] ", $errf->{fail_index}, scalar @$states;
+        $prompt2 = "($exp)";
+        $prompt3 = sprintf " next: %s", prchar($errf->{fail_char});
+        $filename = $errf->{filename};
+        $img = $errf->{$exp};
+        $cmp_img = ${$$states[$errf->{fail_index}]}{img};
+    } else {
+        $prompt1 = sprintf "[%d/%d] ", $running->{sindex}, scalar @$states;
+        $prompt2 = "(stored)";
+        $prompt3 = sprintf " next: %s", prchar(${$$states[$running->{sindex}]}{keystroke});
+        $filename = $lt->{filename};
+        $img = ${$$states[$running->{sindex}]}{img};
+        $failure = ($errf and $running->{sindex} == $errf->{fail_index});
+    }
+    display($img, $prompt1, $prompt2, $prompt3, $filename, $failure, $lt, $cmp_img);
+}
+
+# ---------------------------------------------------------------------
+sub prchar {
+    my ($ich) = @_;
+    my $spec = $spec_chars{$ich};
+    return "'$spec'" if $spec;
+    return ($ich >= 0x20 and $ich < 0x7f) ? sprintf("'%c'", $ich) : sprintf("(%02x)", $ich);
+}
+
+# ---------------------------------------------------------------------
+sub run_cmd {
+    my ($lt, $errf, $ch, $num, $running) = @_;
+    my $states = $lt->{states};
+    $num = 0 if $num !~ /^\d+$/ or $num <= 0;
+    if ($ch eq '?') {
+        tgoto_bot($lt);
+        print cr("\n" . $usage . $help);
+        press_to_continue();
+    } elsif ($ch eq '=') {
+        tgoto_bot($lt);
+        print_ltfile_info($lt);
+        print_errfile_info($errf);
+        press_to_continue();
+    } elsif ($ch eq 'l') {
+        $running->{show_expect} = 0;
+        $num = 1 if $num == 0;
+        $running->{sindex} = check_sindex($running->{sindex} + $num, $states);
+    } elsif ($ch eq 'h') {
+        $running->{show_expect} = 0;
+        $num = 1 if $num == 0;
+        $running->{sindex} = check_sindex($running->{sindex} - $num, $states);
+    } elsif ($ch eq 'g' or $ch eq 'G') {
+        $running->{show_expect} = 0;
+        $num = @$states-1 if $ch eq 'G' and $num == 0;
+        $running->{sindex} = check_sindex($num, $states);
+    } elsif ($ch eq 'e') {
+        if (not $errf) {
+            beep();
+        } else {
+            $running->{show_expect} = 0;
+            $running->{sindex} = check_sindex($errf->{fail_index}, $states);
+        }
+    } elsif ($ch eq 'j') {
+        if (not $errf) {
+            beep();
+        } else {
+            if (++$running->{show_expect} >= @show_expects) { $running->{show_expect} = 0; }
+        }
+    } elsif ($ch eq 'k') {
+        if (not $errf) {
+            beep();
+        } else {
+            if (--$running->{show_expect} < 0) { $running->{show_expect} = @show_expects-1; }
+        }
+    } else {
+        beep();
+    }
+}
+
+# ---------------------------------------------------------------------
+sub check_sindex {
+    my ($sindex, $states) = @_;
+    if ($sindex < 0) { beep(); $sindex = 0; }
+    if ($sindex >= @$states) { beep(); $sindex = @$states-1; }
+    return $sindex;
+}
+
+# ---------------------------------------------------------------------
+sub display {
+    my ($img, $prompt1, $prompt2, $prompt3, $filename, $failure, $lt, $cmp_img) = @_;
+    my $x = 0;
+    my $y = 0;
+    my $cursor_x = 0;
+    my $cursor_y = 0;
+    my $literal = 0;
+    my $curr_attr = 0;
+    my $curr_fg_color = $NULL_COLOR;
+    my $curr_bg_color = $NULL_COLOR;
+
+    tgoto(0,0);
+    tclear();
+    for (my $cpos = 0; $cpos < length $img; ) {
+        my $clen = utf8_len(substr($img, $cpos, 1));
+        my $ich = utf8_char(substr($img, $cpos, $clen));
+        my $cmp_ich = $cmp_img ? utf8_char(substr($cmp_img, $cpos, $clen)) : $ich;
+        $cpos += $clen;
+        if (not $literal) {
+            if ($ich eq ord '\\') { # escape
+                $literal = 1;
+                next;
+            }
+            if ($ich eq ord '@') { # attr
+                $curr_attr = hex substr($img, $cpos, 2);
+                display_attr_color($curr_attr, $curr_fg_color, $curr_bg_color);
+                $cpos += 2;
+                next;
+            }
+            if ($ich eq ord '$') { # fg color
+                $curr_fg_color = hex substr($img, $cpos, 2);
+                display_attr_color($curr_attr, $curr_fg_color, $curr_bg_color);
+                $cpos += 2;
+                next;
+            }
+            if ($ich eq ord '!') { # bg color
+                $curr_bg_color = hex substr($img, $cpos, 2);
+                display_attr_color($curr_attr, $curr_fg_color, $curr_bg_color);
+                $cpos += 2;
+                next;
+            }
+            if ($ich eq ord '#') { # cursor
+                $cursor_x = $x;
+                $cursor_y = $y;
+                next;
+            }
+        }
+        $literal = 0;
+        if ($ich > 0) {
+            my $diff = ($cmp_ich != $ich);
+            print $DIFF_ATTR_ON if $diff;
+            print chr($ich);
+            print $DIFF_ATTR_OFF if $diff;
+            $x += cwidth($ich);
+            if ($x >= $lt->{columns}) {
+                print "\r\n";
+                $x = 0;
+                ++$y;
+            }
+        }
+    }
+    my $sp = $lt->{columns} - length($prompt1) - length($prompt2) - length($prompt3) - length($filename) - 2;
+    $sp = 1 if $sp < 1;
+    my $p2 = ($prompt2 =~ /got/ or $failure) ? "go" : ($prompt2 =~ /stored/) ? "st" : "ex";
+    print "\r\n ",
+        attr_string("so"), $prompt1, attr_string(),
+        attr_string($p2), $prompt2, attr_string(),
+        attr_string("so"), $prompt3, attr_string(),
+        ' ' x $sp,
+        attr_string("so"), $filename, attr_string();
+    tgoto($cursor_x, $cursor_y);
+}
+
+# ---------------------------------------------------------------------
+sub parse_wides {
+    my ($wide_file) = @_;
+    my $wf;
+    if (not open $wf, '<', $wide_file) {
+        print ERR "cannot open $wide_file: $!\n";
+        return 0;
+    }
+    while (<$wf>) {
+        if (/^\s*\{\s*0x([\da-f]+)\s*,\s*0x([\da-f]+)/i) {
+            my $lo = hex $1;
+            my $hi = hex $2;
+            for (my $v = $lo; $v <= $hi; ++$v) {
+                $wides{$v} = 1;
+            }
+        }
+    }
+    close $wf;
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub cwidth {
+    my ($ich) = @_;
+    return 2 if $wides{$ich};
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub display_attr_color {
+    my ($attr, $fg_color, $bg_color) = @_;
+    print "\e[m";
+    print "\e[${fg_color}m" if ($fg_color != $NULL_COLOR);
+    print "\e[${bg_color}m" if ($bg_color != $NULL_COLOR);
+    print "\e[4m" if ($attr & $ATTR_UNDERLINE);
+    print "\e[1m" if ($attr & $ATTR_BOLD);
+    print "\e[5m" if ($attr & $ATTR_BLINK);
+    print "\e[7m" if ($attr & $ATTR_STANDOUT);
+}
+
+sub attr_string {
+    my ($mode) = @_;
+    return "\e[m" if not $mode;
+    return ($opt{c} ? "\e[100;97;1m" : "\e[7;1m") if $mode eq 'so'; # standout: black on cyan
+    return ($opt{c} ? "\e[97;44;1m"  : "\e[7;1m") if $mode eq 'st'; # stored white on blue
+    return ($opt{c} ? "\e[102;30;1m" : "\e[7;1m") if $mode eq 'ex'; # expected: black on green
+    return ($opt{c} ? "\e[101;97;1m" : "\e[7;1m") if $mode eq 'go'; # got: white on red
+    return "";
+}
+sub tgoto {
+    my ($x, $y) = @_;
+    printf "\e[%d;%dH", $y+1, $x+1;
+}
+sub tgoto_bot {
+    my ($lt) = @_;
+    tgoto(0, $lt->{lines}+2);
+    print "\r\n";
+}
+sub tclear {
+    print "\e[J";
+}
+sub beep {
+    print "\7";
+}
+sub cr {
+    my ($s) = @_;
+    $s =~ s|\n|\r\n|gs;
+    return $s;
+}
+sub press_to_continue {
+    print cr("\nPress any key to continue. ");
+    getc();
+}
+
+# ---------------------------------------------------------------------
+sub parse_ltfile {
+    my ($file) = @_;
+    my $fd;
+    if (not open $fd, '<', $file) {
+        print STDERR "cannot open $file: $!\n";
+        return undef;
+    }
+    my @states;
+    my %lt = ( 'filename' => $file, 'states' => \@states );
+    my $filetype = '';
+    my $linenum = 0;
+    while (<$fd>) {
+        ++$linenum;
+        chomp;
+        if ($linenum > 1 and $filetype ne 'lesstest') {
+            print STDERR "$file is not an lt file\n";
+            return undef;
+        }
+        my $type = substr $_,0,1;
+        next if not defined $type;
+        if ($type eq '!') { # file header
+            if (/^!([^!]+)!/) { $filetype = $1; }
+        } elsif ($type eq 'A') { # less cmd line parameters
+        } elsif ($type eq 'E') { # environment variable
+            parse_env($_, \%lt);
+        } elsif ($type eq 'F') { # text file
+            parse_filedesc($_, $fd, \%lt);
+        } elsif ($type eq 'Q') { # end of test
+            last;
+        } elsif ($type eq 'R') { # end of test header; start run
+        } elsif ($type eq 'T') { # test header
+        } elsif ($type eq '=') { # board image
+            parse_img($_, \%lt);
+        } elsif ($type eq '+') { # keystroke
+            parse_keystroke($_, \%lt);
+        } 
+    }
+    close $fd;
+    if (not $lt{lines} or not $lt{columns}) {
+        print STDERR "$file: missing geometry\n";
+        return undef;
+    }
+    return \%lt;
+}
+
+# ---------------------------------------------------------------------
+sub parse_env {
+    my ($line, $lt) = @_;
+    my ($ename, $evalue) = /^E \s* "(\w*)" \s* "([^"]*)" /x;
+    if ($ename eq "COLUMNS") {
+        $lt->{columns} = $evalue;
+    } elsif ($ename eq "LINES") {
+        $lt->{lines} = $evalue;
+    }
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub parse_filedesc {
+    my ($line, $fd, $lt) = @_;
+    my ($filename, $filesize) = $line =~ /^F \s* "([^"]*)" \s* (\d+)/x;
+    my $filedata;
+    my $nread = read $fd, $filedata, $filesize;
+    return 0 if not $nread or $nread != $filesize;
+    $lt->{filesize} = $filesize;
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub parse_img {
+    my ($line, $lt) = @_;
+    my $img = substr $line, 1;
+    my %state = ( 'img'=>$img );
+    my $states = $lt->{states};
+    if (@$states) {
+        my $last_state = ${$states}[@$states-1];
+        if (not $last_state->{img} or not $last_state->{keystroke}) {
+            print STDERR "incomplete state image ignored\n";
+            ## ?? pop @$states;
+        }
+    }
+    push @$states, \%state;
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub parse_errfile {
+    my ($errfile) = @_;
+    my $ef;
+    if (not open $ef, '<', $errfile) {
+        print STDERR "cannot open $errfile: $!\n";
+        return undef;
+    }
+    my %errf = ( 'filename' => $errfile );
+    my $expect;
+    my $datalines = 0;
+    my $linenum = 0;
+    while (<$ef>) {
+        ++$linenum;
+        chomp;
+        if (0) {
+        } elsif (/^INFO: mismatch: expect:/) {
+            $expect = 'expected';
+            $datalines = 1;
+        } elsif (/^INFO: got:/) {
+            $expect = 'got';
+            $datalines = 1;
+        } elsif (/^TEST\s+([^\s]+)/) {
+            $errf{name} = $1;
+        } elsif (/^DIFF\s+([^\s]+) on cmd #(\d+) \(.\s+(\w+)\s*\)/) {
+            $errf{fail_index} = $2; # FIXME why not $2-1?
+            $errf{fail_char} = hex $3;
+            $datalines = 0;
+        } elsif (/^FAIL:.*\((\d+) step/) {
+            $errf{steps} = $1;
+        } elsif (/^ERR\s+(.*)/) {
+            $errf{msg} = $1;
+        } elsif (/^RAN\s+(\d+) tests with (\d+) error/) {
+            $errf{tests} = $1;
+            $errf{errors} = $2;
+        } elsif (/^DATA: (.*)/) {
+            if ($datalines) {
+                $errf{$expect} .= parse_errline($1);
+            } else {
+                print STDERR "$errfile:$linenum: unexpected data line\n";
+            }
+        } else {
+            print STDERR "$errfile:$linenum: unrecognized line\n";
+        }
+    }
+    close $ef;
+    if (not defined $errf{expected} or not defined $errf{got} or not defined $errf{fail_index}) {
+        print STDERR "incomplete error file $errfile ignored\n";
+        return undef;
+    }
+    return \%errf;
+}
+
+# ---------------------------------------------------------------------
+sub parse_errline {
+    my ($line) = @_;
+    $line =~ s/<([\da-f]+)>/utf8_str($1)/eig;
+    return $line;
+}
+
+# ---------------------------------------------------------------------
+sub print_ltfile_info {
+    my ($lt) = @_;
+    printf "\r\nLT file:\r\n";
+    printf "  name    %s\r\n", $lt->{filename};
+    printf "  size    %d\r\n", $lt->{filesize};
+    printf "  states  %d\r\n", scalar @{$lt->{states}};
+    printf "  lines   %d\r\n", $lt->{lines};
+    printf "  columns %d\r\n", $lt->{columns};
+}
+
+# ---------------------------------------------------------------------
+sub print_errfile_info {
+    my ($errf) = @_;
+    return if not $errf;
+    printf "\r\nError file:\r\n";
+    printf "  name    %s\r\n", $errf->{name};
+    printf "  tests   %d\r\n", $errf->{tests};
+    printf "  errors  %d\r\n", $errf->{errors};
+    printf "  steps   %d\r\n", $errf->{steps};
+    printf "  cmd#    %d\r\n", $errf->{fail_index};
+    my $ch = $errf->{fail_char};
+    printf "  char    0x%02x", $ch;
+    printf " (%s)", chr($ch) if $ch >= 0x20 and $ch < 0x7f;
+    printf "\r\n";
+    printf "  msg     %s\r\n", $errf->{msg};
+}
+
+# ---------------------------------------------------------------------
+sub parse_keystroke {
+    my ($line, $lt) = @_;
+    my ($hex) = $line =~ /^\+ \s* (\w+)/x;
+    my $states = $lt->{states};
+    return 0 if not @$states;
+    ${$$states[@$states-1]}{keystroke} = hex $hex;
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub utf8_len {
+    my ($ch) = @_;
+    my $ich = ord $ch;
+    return 2 if ($ich & 0xE0) == 0xC0;
+    return 3 if ($ich & 0xF0) == 0xE0;
+    return 4 if ($ich & 0xF8) == 0xF0;
+    return 1;
+}
+
+# ---------------------------------------------------------------------
+sub utf8_char {
+    my ($ch) = @_;
+    my @ich;
+    for (my $i = 0; $i < length($ch); ++$i) {
+        push @ich, ord substr($ch, $i, 1);
+    }
+    if (@ich == 2) {
+        return (($ich[0] & 0x1F) << 6) | ($ich[1] & 0x3F);
+    }
+    if (@ich == 3) {
+        return (($ich[0] & 0x0F) << 12) | (($ich[1] & 0x3F) << 6) | ($ich[2] & 0x3F);
+    }
+    if (@ich == 4) {
+        return (($ich[0] & 0x07) << 18) | (($ich[1] & 0x3F) << 12) | (($ich[2] & 0x3F) << 6) | ($ich[3] & 0x3F);
+    }
+    die if @ich != 1;
+    return $ich[0];
+}
+
+# ---------------------------------------------------------------------
+sub utf8_str {
+    my ($xch) = @_;
+    my $ich = hex $xch;
+    if ($ich < 0x80) {
+        return chr($ich);
+    }
+    if ($ich < 0x800) {
+        return chr(0xC0 | (($ich >> 6) & 0x1F)) . chr(0x80 | ($ich & 0x3F));
+    }
+    if ($ich < 0x10000) {
+        return chr(0xE0 | (($ich >> 12) & 0x0F)) . chr(0x80 | (($ich >> 6) & 0x3F)) . chr(0x80 | ($ich & 0x3F));
+    }
+    return chr(0xF0 | (($ich >> 18) & 0x07)) . chr(0x80 | (($ich >> 12) & 0x3F)) . chr(0x80 | (($ich >> 6) & 0x3F)) . chr(0x80 | ($ich & 0x3F));
+}

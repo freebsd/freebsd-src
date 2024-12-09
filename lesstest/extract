@@ -1,0 +1,78 @@
+#!/usr/bin/env perl
+use strict;
+use Getopt::Std;
+
+# Extract all text files from an lt file.
+my $usage = <<_EOF_;
+usage: extract [-ckfv] [lt-file]...
+       -c = print text file to stdout
+       -f = overwrite existing text file
+       -k = print keystrokes to stdout
+       -v = verbose
+_EOF_
+
+my %opt;
+
+exit(main() ? 0 : 1);
+sub main() {
+    die $usage if not getopts('cfkv', \%opt);
+    foreach my $in_filename (@ARGV) {
+        my $in;
+        if (not open $in, '<', $in_filename) {
+            print STDERR "ERROR: cannot open $in_filename: $!\n";
+            return 0;
+        }
+        return 0 if not read_ltfile($in, $in_filename);
+        close $in;
+    }
+    return 1;
+}
+
+sub read_ltfile {
+    my ($in, $in_filename) = @_;
+    my $is_lt_file = 0;
+    while (<$in>) {
+        if (/^!lesstest!/) {
+            $is_lt_file = 1;
+        } else {
+            if (not $is_lt_file) {
+                print STDERR "WARNING: skipping $in_filename: not an lt file\n";
+                return 0;
+            }
+            if (/^F\s*"([^"]+)"\s*(\d+)/) {
+                return 0 if not create_text_file($1, $2, $in);
+            } elsif (/^\+([0-9a-fA-F]+)/) {
+                print "$1\n" if $opt{k};
+            }
+        }
+    }
+    return 1;
+}
+
+sub create_text_file {
+    my ($out_filename, $filelen, $in) = @_;
+    my $out;
+    if ($opt{k}) {
+        $out = undef;
+    } elsif ($opt{c}) {
+        $out = \*STDOUT;
+    } else {
+        if (-f $out_filename and not $opt{f}) {
+            print STDERR "WARNING: skipping existing file $out_filename (use -f to overwrite)\n";
+            return 0;
+        }
+        if (not open($out, '>', $out_filename)) {
+            print STDERR "ERROR: cannot create $out_filename: $!\n";
+            return 0;
+        }
+    }
+    my $buf;
+    my $nread = read $in, $buf, $filelen;
+    print STDERR "$out_filename: read $nread/$filelen\n" if $opt{v};
+    print STDERR "WARNING: read only $nread of $filelen bytes\n" if not $nread or $nread != $filelen;
+    if (not $opt{k}) {
+        print $out $buf;
+        close $out unless $opt{c};
+    }
+    return 1;
+}

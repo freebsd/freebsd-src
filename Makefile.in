@@ -48,7 +48,7 @@ SHELL = /bin/sh
 
 OBJ = \
 	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
-	command.${O} cvt.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
+	command.${O} cvt.${O} decode.${O} edit.${O} evar.${O} filename.${O} forwback.${O} \
 	help.${O} ifile.${O} input.${O} jump.${O} \
 	line.${O} linenum.${O} \
 	lsystem.${O} mark.${O} optfunc.${O} option.${O} opttbl.${O} os.${O} \
@@ -65,14 +65,14 @@ less$(EXEEXT): ${OBJ}
 	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
 
 lesskey$(EXEEXT): lesskey.${O} lesskey_parse.${O} xbuf.${O} version.${O}
-	${CC} ${LDFLAGS} -o $@ lesskey.${O} lesskey_parse.${O} xbuf.${O} version.${O}
+	${CC} ${LDFLAGS} -o $@ lesskey.${O} lesskey_parse.${O} xbuf.${O} version.${O} ${LIBS}
 
 lessecho$(EXEEXT): lessecho.${O} version.${O}
-	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O}
+	${CC} ${LDFLAGS} -o $@ lessecho.${O} version.${O} ${LIBS}
 
 charset.${O}: compose.uni ubin.uni wide.uni
 
-${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h 
+${OBJ}: ${srcdir}/less.h ${srcdir}/funcs.h defines.h lang.h pattern.h xbuf.h
 
 install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs
 	${INSTALL_PROGRAM} less$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}less$(EXEEXT)

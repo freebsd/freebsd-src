@@ -193,8 +193,8 @@ static int screen_read(int x, int y, int count) {
 }
 
 static int screen_move(int x, int y) {
-	screen.cx = x;
-	screen.cy = y;
+	screen.cx = screen_x(x);
+	screen.cy = screen_y(y);
 	return 1;
 }
 
@@ -259,6 +259,12 @@ static int screen_set_color(int color) {
 			screen.curr_fg_color = screen.curr_bg_color = NULL_COLOR;
 			screen.curr_attr = 0;
 			ret = 1;
+		} else if (color == 39) {
+			screen.curr_fg_color = NULL_COLOR;
+			ret = 1;
+		} else if (color == 49) {
+			screen.curr_bg_color = NULL_COLOR;
+			ret = 1;
 		} else if ((color >= 30 && color <= 37) || (color >= 90 && color <= 97)) {
 			screen.curr_fg_color = color;
 			ret = 1;
@@ -308,8 +314,6 @@ static int exec_esc(wchar ch) {
 	case 'j': // jump cursor to (N1,N2)
 		y = param_pop();
 		x = param_pop();
-		if (x < 0) x = 0;
-		if (y < 0) y = 0;
 		return screen_move(x, y);
 	case 'g': // visual bell 
 		return 0;
@@ -358,13 +362,11 @@ static int add_char(wchar ch) {
 				// The "shadow" is the second column used by a wide char.
 				screen_char_set(screen.cx, screen.cy, WIDESHADOW_CHAR, 0, NULL_COLOR, NULL_COLOR);
 				fits = screen_incr(&screen.cx, &screen.cy);
-			} else {
-				ScreenChar* sc = screen_char(screen.cx, screen.cy);
-				if (sc->ch == WIDESHADOW_CHAR) {
-					// We overwrote the first half of a wide character.
-					// Change the orphaned shadow to an error char.
-					screen_char_set(screen.cx, screen.cy, ERROR_CHAR, screen.curr_attr, NULL_COLOR, NULL_COLOR);
-				}
+			}
+			if (screen_char(screen.cx, screen.cy)->ch == WIDESHADOW_CHAR) {
+				// We overwrote the first half of a wide character.
+				// Change the orphaned shadow to an error char.
+				screen_char_set(screen.cx, screen.cy, ERROR_CHAR, screen.curr_attr, NULL_COLOR, NULL_COLOR);
 			}
 		}
 	}

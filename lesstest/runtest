@@ -2,9 +2,10 @@
 use strict;
 
 # Run one or more test files.
-my $usage = "usage: runtest [-eE] [-d lesstest-dir] [-l less.exe] [-r temp-dir] [-s lt_screen] [-t lesstest] [-O lesstest-opts] [file.lt | dir]...\n";
+my $usage = "usage: runtest [-eED] [-d lesstest-dir] [-l less.exe] [-r temp-dir] [-s lt_screen] [-t lesstest] [-O lesstest-opts] [file.lt | dir]...\n";
 
 use Getopt::Std;
+use File::Basename;
 use Cwd;
 
 my $rundir;
@@ -18,7 +19,7 @@ my $num_tests = 0;
 exit main();
 sub main {
 	my %opt;
-	die $usage if not getopts('d:eEl:O:r:s:t:', \%opt);
+	die $usage if not getopts('d:DeEl:O:r:s:t:', \%opt);
 	die $usage if not @ARGV;
 
 	my $cwd = getcwd();
@@ -40,7 +41,8 @@ sub main {
 
 	my $errs = 0;
 	foreach my $file (@ARGV) {
-		$errs += run(rfile($file, $cwd));
+		my $dopt = $opt{D} ? ('-D' . rfile(basename($file,'.lt'), $cwd) . '.dt') : '';
+		$errs += run(rfile($file, $cwd), $dopt);
 	}
 	system "rm -rf '$rundir'";
 	print STDERR "RAN  $num_tests tests with $errs errors\n" if $errs > 0 or $err_only != 2;
@@ -49,7 +51,7 @@ sub main {
 
 # Run a test as directed by a lt file.
 sub run {
-	my ($file) = @_;
+	my ($file, $opts) = @_;
 	if (-d $file) {
 		return run_dir($file);
 	}
@@ -67,7 +69,7 @@ sub run {
 		return 1;
 	}
 	print STDERR "TEST $basename\n" unless $err_only;
-	my $cmd = "$lesstest $lt_opts -s '$lt_screen' -t '$file' '$less'";
+	my $cmd = "$lesstest $lt_opts $opts -s '$lt_screen' -t '$file' '$less'";
 	my $err = system $cmd;
 	++$num_tests;
 	if ($err) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -18,13 +18,6 @@
 #if MSDOS_COMPILER==WIN32C
 #include <errno.h>
 #include <windows.h>
-#endif
-
-#if HAVE_PROCFS
-#include <sys/statfs.h>
-#if HAVE_LINUX_MAGIC_H
-#include <linux/magic.h>
-#endif
 #endif
 
 typedef POSITION BLOCKNUM;
@@ -46,7 +39,7 @@ struct bufnode {
 struct buf {
 	struct bufnode node;
 	BLOCKNUM block;
-	unsigned int datasize;
+	size_t datasize;
 	unsigned char data[LBUFSIZE];
 };
 #define bufnode_buf(bn)  ((struct buf *) bn)
@@ -64,7 +57,7 @@ struct filestate {
 	POSITION fpos;
 	int nbufs;
 	BLOCKNUM block;
-	unsigned int offset;
+	size_t offset;
 	POSITION fsize;
 };
 
@@ -122,15 +115,14 @@ struct filestate {
 	thisfile->hashtbl[h].hnext = (bn);
 
 static struct filestate *thisfile;
-static int ch_ungotchar = -1;
+static unsigned char ch_ungotchar;
+static lbool ch_have_ungotchar = FALSE;
 static int maxbufs = -1;
 
 extern int autobuf;
 extern int sigs;
-extern int secure;
-extern int screen_trashed;
 extern int follow_mode;
-extern int waiting_for_data;
+extern lbool waiting_for_data;
 extern constant char helpdata[];
 extern constant int size_helpdata;
 extern IFILE curr_ifile;
@@ -141,6 +133,13 @@ extern char *namelogfile;
 
 static int ch_addbuf();
 
+/*
+ * Return the file position corresponding to an offset within a block.
+ */
+static POSITION ch_position(BLOCKNUM block, size_t offset)
+{
+	return (block * LBUFSIZE) + (POSITION) offset;
+}
 
 /*
  * Get the character pointed to by the read pointer.
@@ -149,8 +148,8 @@ static int ch_get(void)
 {
 	struct buf *bp;
 	struct bufnode *bn;
-	int n;
-	int read_again;
+	ssize_t n;
+	lbool read_again;
 	int h;
 	POSITION pos;
 	POSITION len;
@@ -187,6 +186,8 @@ static int ch_get(void)
 			goto found;
 		}
 	}
+	if (ABORT_SIGS())
+		return (EOI);
 	if (bn == END_OF_HCHAIN(h))
 	{
 		/*
@@ -223,7 +224,7 @@ static int ch_get(void)
 
 	for (;;)
 	{
-		pos = (ch_block * LBUFSIZE) + bp->datasize;
+		pos = ch_position(ch_block, bp->datasize);
 		if ((len = ch_length()) != NULL_POSITION && pos >= len)
 			/*
 			 * At end of file.
@@ -239,7 +240,7 @@ static int ch_get(void)
 			 */
 			if (!(ch_flags & CH_CANSEEK))
 				return ('?');
-			if (lseek(ch_file, (off_t)pos, SEEK_SET) == BAD_LSEEK)
+			if (less_lseek(ch_file, (less_off_t)pos, SEEK_SET) == BAD_LSEEK)
 			{
 				error("seek error", NULL_PARG);
 				clear_eol();
@@ -253,19 +254,18 @@ static int ch_get(void)
 		 * If we read less than a full block, that's ok.
 		 * We use partial block and pick up the rest next time.
 		 */
-		if (ch_ungotchar != -1)
+		if (ch_have_ungotchar)
 		{
 			bp->data[bp->datasize] = ch_ungotchar;
 			n = 1;
-			ch_ungotchar = -1;
+			ch_have_ungotchar = FALSE;
 		} else if (ch_flags & CH_HELPFILE)
 		{
-			bp->data[bp->datasize] = helpdata[ch_fpos];
+			bp->data[bp->datasize] = (unsigned char) helpdata[ch_fpos];
 			n = 1;
 		} else
 		{
-			n = iread(ch_file, &bp->data[bp->datasize], 
-				(unsigned int)(LBUFSIZE - bp->datasize));
+			n = iread(ch_file, &bp->data[bp->datasize], LBUFSIZE - bp->datasize);
 		}
 
 		read_again = FALSE;
@@ -295,12 +295,15 @@ static int ch_get(void)
 		/*
 		 * If we have a log file, write the new data to it.
 		 */
-		if (!secure && logfile >= 0 && n > 0)
-			write(logfile, (char *) &bp->data[bp->datasize], n);
+		if (secure_allow(SF_LOGFILE))
+		{
+			if (logfile >= 0 && n > 0)
+				write(logfile, &bp->data[bp->datasize], (size_t) n);
+		}
 #endif
 
 		ch_fpos += n;
-		bp->datasize += n;
+		bp->datasize += (size_t) n;
 
 		if (n == 0)
 		{
@@ -323,7 +326,7 @@ static int ch_get(void)
 			if (ignore_eoi && follow_mode == FOLLOW_NAME && curr_ifile_changed())
 			{
 				/* screen_trashed=2 causes make_display to reopen the file. */
-				screen_trashed = 2;
+				screen_trashed_num(2);
 				return (EOI);
 			}
 			if (sigs)
@@ -363,9 +366,15 @@ static int ch_get(void)
  */
 public void ch_ungetchar(int c)
 {
-	if (c != -1 && ch_ungotchar != -1)
-		error("ch_ungetchar overrun", NULL_PARG);
-	ch_ungotchar = c;
+	if (c < 0)
+		ch_have_ungotchar = FALSE;
+	else
+	{
+		if (ch_have_ungotchar)
+			error("ch_ungetchar overrun", NULL_PARG);
+		ch_ungotchar = (unsigned char) c;
+		ch_have_ungotchar = TRUE;
+	}
 }
 
 #if LOGFILE
@@ -375,7 +384,7 @@ public void ch_ungetchar(int c)
  */
 public void end_logfile(void)
 {
-	static int tried = FALSE;
+	static lbool tried = FALSE;
 
 	if (logfile < 0)
 		return;
@@ -402,7 +411,7 @@ public void sync_logfile(void)
 {
 	struct buf *bp;
 	struct bufnode *bn;
-	int warned = FALSE;
+	lbool warned = FALSE;
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
 
@@ -411,13 +420,13 @@ public void sync_logfile(void)
 	nblocks = (ch_fpos + LBUFSIZE - 1) / LBUFSIZE;
 	for (block = 0;  block < nblocks;  block++)
 	{
-		int wrote = FALSE;
+		lbool wrote = FALSE;
 		FOR_BUFS(bn)
 		{
 			bp = bufnode_buf(bn);
 			if (bp->block == block)
 			{
-				write(logfile, (char *) bp->data, bp->datasize);
+				write(logfile, bp->data, bp->datasize);
 				wrote = TRUE;
 				break;
 			}
@@ -436,7 +445,7 @@ public void sync_logfile(void)
 /*
  * Determine if a specific block is currently in one of the buffers.
  */
-static int buffered(BLOCKNUM block)
+static lbool buffered(BLOCKNUM block)
 {
 	struct buf *bp;
 	struct bufnode *bn;
@@ -486,7 +495,7 @@ public int ch_seek(POSITION pos)
 	 * Set read pointer.
 	 */
 	ch_block = new_block;
-	ch_offset = pos % LBUFSIZE;
+	ch_offset = (size_t) (pos % LBUFSIZE);
 	return (0);
 }
 
@@ -533,7 +542,7 @@ public int ch_end_buffer_seek(void)
 	FOR_BUFS(bn)
 	{
 		bp = bufnode_buf(bn);
-		buf_pos = (bp->block * LBUFSIZE) + bp->datasize;
+		buf_pos = ch_position(bp->block, bp->datasize);
 		if (buf_pos > end_pos)
 			end_pos = buf_pos;
 	}
@@ -597,7 +606,7 @@ public POSITION ch_tell(void)
 {
 	if (thisfile == NULL)
 		return (NULL_POSITION);
-	return (ch_block * LBUFSIZE) + ch_offset;
+	return ch_position(ch_block, ch_offset);
 }
 
 /*
@@ -647,14 +656,14 @@ public int ch_back_get(void)
  * Set max amount of buffer space.
  * bufspace is in units of 1024 bytes.  -1 mean no limit.
  */
-public void ch_setbufspace(int bufspace)
+public void ch_setbufspace(ssize_t bufspace)
 {
 	if (bufspace < 0)
 		maxbufs = -1;
 	else
 	{
-		int lbufk = LBUFSIZE / 1024;
-		maxbufs = bufspace / lbufk + (bufspace % lbufk != 0);
+		size_t lbufk = LBUFSIZE / 1024;
+		maxbufs = (int) (bufspace / lbufk + (bufspace % lbufk != 0));
 		if (maxbufs < 1)
 			maxbufs = 1;
 	}
@@ -689,30 +698,22 @@ public void ch_flush(void)
 	}
 
 	/*
-	 * Figure out the size of the file, if we can.
-	 */
-	ch_fsize = filesize(ch_file);
-
-	/*
 	 * Seek to a known position: the beginning of the file.
 	 */
 	ch_fpos = 0;
 	ch_block = 0; /* ch_fpos / LBUFSIZE; */
 	ch_offset = 0; /* ch_fpos % LBUFSIZE; */
 
-	/*
-	 * This is a kludge to workaround a Linux kernel bug: files in
-	 * /proc have a size of 0 according to fstat() but have readable 
-	 * data.  They are sometimes, but not always, seekable.
-	 * Force them to be non-seekable here.
-	 */
-	if (ch_fsize == 0)
+	if (ch_flags & CH_NOTRUSTSIZE)
 	{
 		ch_fsize = NULL_POSITION;
 		ch_flags &= ~CH_CANSEEK;
+	} else
+	{
+		ch_fsize = (ch_flags & CH_HELPFILE) ? size_helpdata : filesize(ch_file);
 	}
 
-	if (lseek(ch_file, (off_t)0, SEEK_SET) == BAD_LSEEK)
+	if (less_lseek(ch_file, (less_off_t)0, SEEK_SET) == BAD_LSEEK)
 	{
 		/*
 		 * Warning only; even if the seek fails for some reason,
@@ -795,7 +796,7 @@ public int seekable(int f)
 		return (0);
 	}
 #endif
-	return (lseek(f, (off_t)1, SEEK_SET) != BAD_LSEEK);
+	return (less_lseek(f, (less_off_t)1, SEEK_SET) != BAD_LSEEK);
 }
 
 /*
@@ -812,7 +813,7 @@ public void ch_set_eof(void)
 /*
  * Initialize file state for a new file.
  */
-public void ch_init(int f, int flags)
+public void ch_init(int f, int flags, ssize_t nread)
 {
 	/*
 	 * See if we already have a filestate for this file.
@@ -843,6 +844,22 @@ public void ch_init(int f, int flags)
 	}
 	if (thisfile->file == -1)
 		thisfile->file = f;
+
+	/*
+	 * Figure out the size of the file, if we can.
+	 */
+	ch_fsize = (flags & CH_HELPFILE) ? size_helpdata : filesize(ch_file);
+
+	/*
+	 * This is a kludge to workaround a Linux kernel bug: files in some
+	 * pseudo filesystems like /proc and tracefs have a size of 0 according
+	 * to fstat() but have readable data.
+	 */
+	if (ch_fsize == 0 && nread > 0)
+	{
+		ch_flags |= CH_NOTRUSTSIZE;
+	}
+
 	ch_flush();
 }
 
@@ -851,7 +868,7 @@ public void ch_init(int f, int flags)
  */
 public void ch_close(void)
 {
-	int keepstate = FALSE;
+	lbool keepstate = FALSE;
 
 	if (thisfile == NULL)
 		return;

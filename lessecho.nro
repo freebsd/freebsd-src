@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "Version 643: 20 Jul 2023"
+.TH LESSECHO 1 "Version 668: 06 Oct 2024"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -9,6 +9,10 @@ lessecho \- expand metacharacters
 is a program that simply echos its arguments on standard output.
 But any metacharacter in the output is preceded by an "escape"
 character, which by default is a backslash.
+.B lessecho
+is invoked internally by
+.BR less ,
+and is not intended to be used directly by humans.
 .SH OPTIONS
 A summary of options is included below.
 .TP

@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-# Copyright (C) 1984-2023  Mark Nudelman
+# Copyright (C) 1984-2024  Mark Nudelman
 #
 # You may distribute under the terms of either the GNU General Public
 # License or the Less License, as specified in the README file.
@@ -206,8 +206,6 @@ AH_TEMPLATE([HAVE_CONST],
 	[Define HAVE_CONST if your compiler supports the "const" modifier.])
 AH_TEMPLATE([HAVE_STAT_INO],
 	[Define HAVE_STAT_INO if your struct stat has st_ino and st_dev.])
-AH_TEMPLATE([HAVE_PROCFS],
-	[Define HAVE_PROCFS if have have fstatfs with f_type and PROC_SUPER_MAGIC.])
 AH_TEMPLATE([HAVE_TIME_T],
 	[Define HAVE_TIME_T if your system supports the "time_t" type.])
 AH_TEMPLATE([HAVE_STRERROR],
@@ -251,11 +249,6 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]], [[time_t t = 0;]])],[A
 AC_MSG_CHECKING(for st_ino in struct stat)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #include <sys/stat.h>]], [[struct stat s; dev_t dev = s.st_dev; ino_t ino = s.st_ino;]])],[AC_MSG_RESULT(yes); AC_DEFINE(HAVE_STAT_INO)],[AC_MSG_RESULT(no)])
-AC_MSG_CHECKING(for procfs)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/statfs.h>
-#if HAVE_LINUX_MAGIC_H
-#include <linux/magic.h>
-#endif]], [[struct statfs s; s.f_type = PROC_SUPER_MAGIC; (void) fstatfs(0,&s); ]])],[AC_MSG_RESULT(yes); AC_DEFINE(HAVE_PROCFS)],[AC_MSG_RESULT(no)])
 
 # Checks for ANSI function prototypes.
 AC_MSG_CHECKING(for ANSI function prototypes)
@@ -559,6 +552,12 @@ AH_TOP([
  * LOGFILE is 1 if you wish to allow the -o option (to create log files).
  */
 #define	LOGFILE		(!SECURE)
+
+/*
+ * OSC8_SEARCH is 1 if you wish to allow the ^O^O and related commands
+ * (to open OSC8 hyperlinks).
+ */
+#define OSC8_LINK	1
 
 /*
  * GNU_OPTIONS is 1 if you wish to support the GNU-style command

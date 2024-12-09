@@ -1,0 +1,58 @@
+lesstest is a test suite for less. The lesstest program runs an
+instance of less, but less's normal tty input instead comes from
+a pipe leading from lesstest to less, and less's normal terminal
+output instead goes to a pipe leading from less to an instance
+of lt_screen. lt_screen simulates a terminal, but also has a
+separate "dump channel" which allows lesstest to read the contents
+of the simulated screen.
+
+                +---------<---------<----------<---------<---------+
+                |                                dump channel      |
+                |                                                  |
+                v (screen_out)                                     | (ttyout)
+    +------------------+          (tty) +------+ (outfd)        +-------------+
+    |     lesstest     |--------------->| less |--------------->|  lt_screen  |
+    +------------------+   simulated    +------+    simulated   +-------------+
+      ^ (stdin)     | ^     keyboard                 terminal
+      |             | |
+      | real        | |
+      | keybd       v | (testfile)
+ +------------+  +-----------+
+ |  developer |  |  LT file  |
+ | (maketest) |  | (runtest) |
+ +------------+  +-----------+
+
+lesstest runs in one of two modes: 
+
+In the "maketest" mode it reads single keystrokes from the developer 
+and sends them to less. After each keystroke it then reads the 
+lt_screen screen contents and logs the keystroke and the resulting 
+screen contents to a log file, called an lt file. 
+
+In the "runtest" mode, lesstest reads a previously-created lt file 
+and "replays" the session; that is, it first reads a keystroke from 
+the lt file and sends it to less. It then reads the lt_screen screen 
+contents and compares it to the logged screen contents from the lt file.
+If they differ, it reports an error.
+
+Tools:
+
+maketest creates a .lt file interactively by running an instance 
+of less on a text file.
+
+runtest tests an instance of less against a .lt file and reports errors.
+
+ltview interactively navigates the screens in a .lt file.
+Optionally, it can read error messages from a failed runtest
+and integrate the failed screen image into the view.
+To diagnose a failed test, do:
+  ./runtest -Od lt/xxx.lt > xxx.err 2>&1
+  ./ltview lt/xxx.lt xxx.err
+
+extract reads a .lt file and creates a copy of the text file which 
+was originally used to create the .lt file.
+It can also output the keystrokes that were used to create the .lt file.
+
+remaketest creates a .lt file using the same text file and keystroke
+inputs that were originally used to create the .lt file.
+This is useful if a benign change in less output causes a test to fail.

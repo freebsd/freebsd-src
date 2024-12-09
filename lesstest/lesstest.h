@@ -21,6 +21,21 @@ typedef struct TestSetup {
 	EnvBuf env;
 } TestSetup;
 
+typedef struct TestState {
+	byte* screen;
+	size_t screen_len;
+	wchar ch;
+} TestState;
+
+typedef struct TestDetails {
+	char* textfile;
+	int cmd_num;
+	byte* img_should;
+	byte* img_actual;
+	int len_should;
+	int len_actual;
+} TestDetails;
+
 typedef struct LessPipeline {
 	int less_in;
 	int screen_out;
@@ -45,6 +60,7 @@ typedef struct TermInfo {
 	char* enter_standout;
 	char* exit_standout;
 	char* clear_screen;
+	char* clear_eos;
 	char* cursor_move;
 	char* key_right;
 	char* key_left;
@@ -71,14 +87,17 @@ void destroy_less_pipeline(LessPipeline* pipeline);
 void print_strings(const char* title, char* const* strings);
 void free_test_setup(TestSetup* setup);
 TestSetup* read_test_setup(FILE* fd, char const* less);
+TestDetails* read_test_details(FILE* fd);
+void free_test_details(TestDetails* td);
 int read_zline(FILE* fd, char* line, int line_len);
 void raw_mode(int tty, int on);
 int setup_term(void);
 void display_screen(const byte* img, int imglen, int screen_width, int screen_height);
 void display_screen_debug(const byte* img, int imglen, int screen_width, int screen_height);
 const char* get_envp(char* const* envp, const char* name);
-int run_interactive(char* const* argv, int argc, char* const* envp);
+int run_interactive(char* const* argv, int argc, char* const* envp, const char* keyfile);
 int run_testfile(const char* testfile, const char* less);
+int explore_testfile(const char* testfile);
 void env_init(EnvBuf* env);
 void env_addpair(EnvBuf* env, const char* name, const char* value);
 char* const* less_envp(char* const* envp, int interactive);

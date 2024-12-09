@@ -1,27 +1,26 @@
-LESSECHO(1)                 General Commands Manual                LESSECHO(1)
-
-
+[4mLESSECHO[24m(1)                 General Commands Manual                [4mLESSECHO[24m(1)
 
 [1mNAME[0m
        lessecho - expand metacharacters
 
 [1mSYNOPSIS[0m
-       [1mlessecho [4m[22m[-ox][24m [4m[-cx][24m [4m[-pn][24m [4m[-dn][24m [4m[-mx][24m [4m[-nn][24m [4m[-ex][24m [4m[-a][24m [4mfile[24m [4m...[0m
+       [1mlessecho [4m[22m[‐ox][24m [4m[‐cx][24m [4m[‐pn][24m [4m[‐dn][24m [4m[‐mx][24m [4m[‐nn][24m [4m[‐ex][24m [4m[‐a][24m [4mfile[24m [4m...[0m
 
 [1mDESCRIPTION[0m
        [1mlessecho  [22mis a program that simply echos its arguments on standard out‐
        put.  But any metacharacter in the output is preceded  by  an  "escape"
-       character, which by default is a backslash.
+       character, which by default is a backslash.  [1mlessecho [22mis invoked inter‐
+       nally by [1mless[22m, and is not intended to be used directly by humans.
 
 [1mOPTIONS[0m
        A summary of options is included below.
 
        [1m-e[4m[22mx[24m    Specifies  "[4mx[24m", rather than backslash, to be the escape char for
-              metachars.  If [4mx[24m is "-", no escape char is  used  and  arguments
+              metachars.  If [4mx[24m is "‐", no escape char is  used  and  arguments
               containing metachars are surrounded by quotes instead.
 
-       [1m-o[4m[22mx[24m    Specifies  "[4mx[24m",  rather  than double-quote, to be the open quote
-              character, which is used if the -e- option is specified.
+       [1m-o[4m[22mx[24m    Specifies  "[4mx[24m",  rather  than double‐quote, to be the open quote
+              character, which is used if the -e‐ option is specified.
 
        [1m-c[4m[22mx[24m    Specifies "[4mx[24m" to be the close quote character.
 
@@ -49,6 +48,4 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
 
        Report bugs at https://github.com/gwsw/less/issues.
 
-
-
-                           Version 643: 20 Jul 2023                LESSECHO(1)
+                           Version 668: 06 Oct 2024                [4mLESSECHO[24m(1)
