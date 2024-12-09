@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" "
-.Dd October 2, 2014
+.Dd December 9, 2024
 .Dt STRPTIME 3
 .Os
 .Sh NAME
@@ -135,6 +135,11 @@ function has been contributed by Powerdog Industries.
 .Pp
 This man page was written by
 .An J\(:org Wunsch .
+.Sh CAVEATS
+The
+.Fn strptime
+function assumes the Gregorian calendar and will produce incorrect
+results for dates prior to its introduction.
 .Sh BUGS
 Both the
 .Fa %e

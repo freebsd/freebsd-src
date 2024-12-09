@@ -364,6 +364,8 @@
             ..
             stdlib
             ..
+            stdtime
+            ..
             string
             ..
             sys
