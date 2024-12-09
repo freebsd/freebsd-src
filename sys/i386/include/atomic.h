@@ -299,17 +299,6 @@ atomic_thread_fence_seq_cst(void)
 
 #ifdef _KERNEL
 
-#ifdef WANT_FUNCTIONS
-int		atomic_cmpset_64_i386(volatile uint64_t *, uint64_t, uint64_t);
-int		atomic_cmpset_64_i586(volatile uint64_t *, uint64_t, uint64_t);
-uint64_t	atomic_load_acq_64_i386(const volatile uint64_t *);
-uint64_t	atomic_load_acq_64_i586(const volatile uint64_t *);
-void		atomic_store_rel_64_i386(volatile uint64_t *, uint64_t);
-void		atomic_store_rel_64_i586(volatile uint64_t *, uint64_t);
-uint64_t	atomic_swap_64_i386(volatile uint64_t *, uint64_t);
-uint64_t	atomic_swap_64_i586(volatile uint64_t *, uint64_t);
-#endif
-
 /* I486 does not support SMP or CMPXCHG8B. */
 static __inline int
 atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
@@ -618,8 +607,6 @@ ATOMIC_LOADSTORE(long);
 #undef ATOMIC_STORE
 #undef ATOMIC_LOADSTORE
 
-#ifndef WANT_FUNCTIONS
-
 static __inline int
 atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 {
@@ -873,8 +860,6 @@ atomic_swap_long(volatile u_long *p, u_long v)
 	atomic_testandclear_int((volatile u_int *)(p), (val))
 #define	atomic_testandset_ptr(p, val) \
 	atomic_testandset_int((volatile u_int *)(p), (val))
-
-#endif /* !WANT_FUNCTIONS */
 
 #if defined(_KERNEL)
 #define	mb()	__mbk()
