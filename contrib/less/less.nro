@@ -1,7 +1,7 @@
 '\" t
-.TH LESS 1 "Version 643: 20 Jul 2023"
+.TH LESS 1 "Version 668: 06 Oct 2024"
 .SH NAME
-less \- opposite of more
+less \- display the contents of a file in a terminal
 .SH SYNOPSIS
 .B "less \-?"
 .br
@@ -27,10 +27,8 @@ less \- opposite of more
 .B Less
 is a program similar to
 .BR more (1),
-but which allows backward movement
-in the file as well as forward movement.
-Also,
-.B less
+but it has many more features.
+.B Less
 does not have to read the entire input file before starting,
 so with large input files it starts up faster than text editors like
 .BR vi (1).
@@ -253,6 +251,9 @@ That is, if the search reaches the end of the current file
 without finding a match, the search continues from the first line of the
 current file up to the line where it started.
 If the \(haW modifier is set, the \(haE modifier is ignored.
+.IP "\(haL"
+The next character is taken literally; that is, it becomes part of the pattern
+even if it is one of the above search modifier characters.
 .RE
 .IP ?pattern
 Search backward in the file for the N-th line containing the pattern.
@@ -376,6 +377,12 @@ Go to the next tag, if there were more than one matches for the current tag.
 See the \-t option for more details about tags.
 .IP "T"
 Go to the previous tag, if there were more than one matches for the current tag.
+.IP "\(haO\(haN or \(haOn"
+Search forward in the file for the N-th next OSC 8 hyperlink.
+.IP "\(haO\(haP or \(haOp"
+Search backward in the file for the N-th previous OSC 8 hyperlink.
+.IP "\(haO\(haL or \(haOl"
+Jump to the currently selected OSC 8 hyperlink.
 .IP "= or \(haG or :f"
 Prints some information about the file being viewed,
 including its name
@@ -443,7 +450,7 @@ Exits
 .BR less .
 .PP
 The following
-six
+seven
 commands may or may not be valid, depending on your particular installation.
 .
 .IP v
@@ -459,9 +466,11 @@ current file.
 A pound sign (#) is replaced by the name of the previously examined file.
 "!!" repeats the last shell command.
 "!" with no shell command simply invokes a shell.
+If a \(haP (CONTROL-P) is entered immediately after the !,
+no "done" message is printed after the shell command is executed.
 On Unix systems, the shell is taken from the environment variable SHELL,
 or defaults to "sh".
-On MS-DOS and OS/2 systems, the shell is the normal command processor.
+On MS-DOS, Windows, and OS/2 systems, the shell is the normal command processor.
 .IP "# shell-command"
 Similar to the "!" command, 
 except that the command is expanded in the same way as prompt strings.
@@ -475,9 +484,74 @@ The entire current screen is included, regardless of whether the
 marked position is before or after the current screen.
 <m> may also be \(ha or $ to indicate beginning or end of file respectively.
 If <m> is \&.\& or newline, the current screen is piped.
+If a \(haP (CONTROL-P) is entered immediately after the mark letter,
+no "done" message is printed after the shell command is executed.
 .IP "s filename"
 Save the input to a file.
 This works only if the input is a pipe, not an ordinary file.
+.IP "\(haO\(haO"
+.RS
+Run a shell command to open the URI in the current OSC 8 hyperlink,
+selected by a previous \(haO\(haN or \(haO\(haP command.
+To find the shell command,
+the environment variable named "LESS_OSC8_xxx" is read, 
+where "xxx" is the scheme from the URI (the part before the first colon),
+or is empty if there is no colon in the URI.
+The value of the environment variable is then expanded in the same way as 
+prompt strings (in particular, any instance of "%o" is replaced with the URI)
+to produce an OSC 8 "handler" shell command.
+The standard output from the handler is an "opener" shell command 
+which is then executed to open the URI.
+.PP
+There are two special cases:
+.RS
+.IP 1.
+If the URI begins with "#", the remainder of the URI is taken to be 
+the value of the id parameter in another OSC 8 link in the same file,
+and \(haO\(haO will simply jump to that link.
+.IP 2.
+If the opener begins with the characters ":e" followed by 
+whitespace and a filename,
+then instead of running the opener as a shell command,
+the specified filename is opened in the current instance of
+.BR less .
+.RE
+.PP
+In a simple case where the opener accepts the complete URI
+as a command line parameter, the handler may be as simple as
+.nf
+.sp
+echo mybrowser '%o'
+.sp
+.fi
+In other cases, the URI may need to be modified, so the handler
+may have to do some manipulation of the %o value.
+.PP
+If the LESS_OSC8_xxx variable is not set, the variable LESS_OSC8_ANY is tried. 
+If neither LESS_OSC8_xxx nor LESS_OSC8_ANY is set, 
+links using the "xxx" scheme cannot be opened. 
+However, there are default handlers for the 
+schemes "man" (used when LESS_OSC8_man is not set)
+and "file" (used when LESS_OSC8_file is not set),
+which should work on systems which provide the
+.BR sed (1)
+command and a shell with syntax compatible with the Bourne shell
+.BR sh (1).
+If you use LESS_OSC8_ANY to override LESS_OSC8_file, you must 
+set LESS_OSC8_file to "-" to indicate that the default value 
+should not be used, and likewise for LESS_OSC8_man.
+.PP
+The URI passed to an OSC8 handler via %o is guaranteed not to contain any single quote
+or double quote characters, but it may contain any other shell metacharacters
+such as semicolons, dollar signs, ampersands, etc.
+The handler should take care to appropriately quote parameters in the opener command,
+to prevent execution of unintended shell commands in the case of opening
+a URI which contains shell metacharacters.
+Also, since the handler command is expanded like a command prompt,
+any metacharacters interpreted by prompt expansion 
+(such as percent, dot, colon, backslash, etc.) must be escaped with a backslash
+(see the PROMPTS section for details).
+.RE
 .IP "\(haX"
 When the "Waiting for data" message is displayed,
 such as while in the F command, pressing \(haX
@@ -530,8 +604,9 @@ or if you use
 .sp
 LESS="\-options"; export LESS
 .sp
-On MS-DOS, you don't need the quotes, but you should replace any
-percent signs in the options string by double percent signs.
+On MS-DOS and Windows, you don't need the quotes, but you should 
+be careful that any percent signs in the options string are not
+interpreted as an environment variable expansion.
 .sp
 The environment variable is parsed before the command line,
 so command line options override the LESS environment variable.
@@ -543,7 +618,7 @@ Some options like \-k or \-D require a string to follow the option letter.
 The string for that option is considered to end when a dollar sign ($) is found.
 For example, you can set two \-D options like this:
 .sp
-LESS="Dn9.1$Ds4.1"
+LESS="Dnwb$Dsbw"
 .sp
 If the \-\-use-backslash option appears earlier in the options, then
 a dollar sign or backslash may be included literally in an option string
@@ -637,6 +712,8 @@ Prompts.
 The rscroll character.
 .IP "S"
 Search results.
+.IP "W"
+The highlight enabled via the \-w option.
 .IP "1-5"
 The text in a search result which matches
 the first through fifth parenthesized sub-pattern.
@@ -644,8 +721,6 @@ Sub-pattern coloring works only if
 .B less 
 is built with one of the regular expression libraries
 .BR posix ", " pcre ", or " pcre2 .
-.IP "W"
-The highlight enabled via the \-w option.
 .IP "d"
 Bold text.
 .IP "k"
@@ -655,7 +730,7 @@ Standout text.
 .IP "u"
 Underlined text.
 .RE
- 
+
 .RS
 The uppercase letters and digits can be used only when the \-\-use-color option is enabled.
 When text color is specified by both an uppercase letter and a lowercase letter,
@@ -663,9 +738,11 @@ the uppercase letter takes precedence.
 For example, error messages are normally displayed as standout text.
 So if both "s" and "E" are given a color, the "E" color applies
 to error messages, and the "s" color applies to other standout text.
-The "d" and "u" letters refer to bold and underline text formed by 
-overstriking with backspaces (see the \-U option), 
-not to text using ANSI escape sequences with the \-R option.
+The lowercase letters refer to bold and underline text formed by 
+overstriking with backspaces (see the \-U option) and to non-content
+text (such as line numbers and prompts), 
+but not to text formatted using ANSI escape sequences with the \-R option
+(but see the note below for different behavior on Windows and MS-DOS).
 .PP
 A lowercase letter may be followed by a + to indicate that
 the normal format change and the specified color should both be used.
@@ -675,7 +752,7 @@ But \-Du+g displays underlined text as both green and in underlined format.
 .PP
 \fIcolor\fP is either a 4-bit color string or an 8-bit color string:
 .PP
-A 4-bit color string is zero, one or two characters, where 
+A 4-bit color string is one or two characters, where 
 the first character specifies the foreground color and 
 the second specifies the background color as follows:
 .IP "b"
@@ -707,26 +784,62 @@ where the first integer specifies the foreground color and
 the second specifies the background color.
 Each integer is a value between 0 and 255 inclusive which selects
 a "CSI 38;5" color value (see
-.br
 .nh
-https://en.wikipedia.org/wiki/ANSI_escape_code#SGR)
+https://en.wikipedia.org/wiki/ANSI_escape_code#SGR).
 .hy
 If either integer is a "-" or is omitted,
 the corresponding color is set to that of normal text.
-On MS-DOS versions of 
-.BR less ,
-8-bit color is not supported; instead, decimal values are interpreted as 4-bit
-CHAR_INFO.Attributes values
-(see 
-.br
-.nh
-https://docs.microsoft.com/en-us/windows/console/char-info-str).
-.hy
 .PP
-On MS-DOS only, the \-Da option may be used to specify strict parsing of 
-ANSI color (SGR) sequences when the \-R option is used.
-Without this option, sequences that change text attributes 
-(bold, underline, etc.) may clear the text color.
+A 4-bit or 8-bit color string may be followed by one or more of the
+following characters to set text attributes in addition to the color.
+.IP "s or ~"
+Standout (reverse video)
+.IP "u or _"
+Underline
+.IP "d or *"
+Bold
+.IP "l or &"
+Blinking
+.PP
+On MS-DOS and Windows, the \-\-color option behaves
+differently from what is described above in these ways:
+.IP \(bu
+The bold (d and *) and blinking (l and &) text attributes
+at the end of a color string are not supported.
+.IP \(bu
+Lowercase color selector letters refer to text formatted by ANSI
+escape sequences with \-R,
+in addition to overstruck and non-content text (but see \-Da).
+.IP \(bu
+For historical reasons, when a lowercase color selector letter 
+is followed by a numeric color value,
+the number is not interpreted as an "CSI 38;5" color value as described above,
+but instead as a 4-bit 
+.nh
+CHAR_INFO.Attributes 
+.hy
+value, between 0 and 15 inclusive
+(see 
+.nh
+https://learn.microsoft.com/en-us/windows/console/char-info-str).
+.hy
+
+To avoid confusion, it is recommended that the equivalent letters rather than numbers
+be used after a lowercase color selector on MS-DOS/Windows.
+.IP \(bu
+Numeric color values ("CSI 38;5" color) following an uppercase color selector letter 
+are not supported on systems earlier than Windows 10.
+.IP \(bu
+Only a limited set of ANSI escape sequences to set color in the content work correctly.
+4-bit color sequences work, but "CSI 38;5" color sequences do not.
+.IP \(bu
+The \-Da option makes the behavior of \-\-color 
+more similar to its behavior on non-MS-DOS/Windows systems by (1)
+making lowercase color selector letters not affect text formatted
+with ANSI escape sequences, and (2)
+allowing "CSI 38;5" color sequences in the content
+work by passing them to the terminal (only on Windows 10 and later; on
+earlier Windows systems, such sequences do not work regardless of the setting of \-Da).
 .RE
 .IP "\-e or \-\-quit-at-eof"
 Causes
@@ -797,6 +910,13 @@ of the screen, starting with a decimal point: \&.5 is in the middle of the
 screen, \&.3 is three tenths down from the first line, and so on.
 If the line is specified as a fraction, the actual line number
 is recalculated if the terminal window is resized.
+If the \-\-header option is used and the target line specified by \-j
+would be obscured by the header, the target line is moved to the first
+line after the header.
+While the \-\-header option is active, the \-S option is ignored,
+and lines longer than the screen width are truncated.
+.RS
+.PP
 If any form of the \-j option is used,
 repeated forward searches (invoked with "n" or "N")
 begin at the line immediately after the target line,
@@ -807,6 +927,7 @@ fourth line on the screen, so forward searches begin at the fifth line
 on the screen.
 However nonrepeated searches (invoked with "/" or "?")
 always begin at the start or end of the current screen respectively.
+.RE
 .IP "\-J or \-\-status-column"
 Displays a status column at the left edge of the screen.
 The character displayed in the status column may be one of:
@@ -840,6 +961,7 @@ if a lesskey file is found in a standard place (see KEY BINDINGS),
 it is also used as a
 .B lesskey
 file.
+Note the warning under "\-\-lesskey-content" below.
 .IP "\-\-lesskey-src=\fIfilename\fP"
 Causes
 .B less
@@ -865,6 +987,26 @@ Newer versions of
 read the
 .I "lesskey source"
 file directly and ignore the binary file if the source file exists.
+Note the warning under "\-\-lesskey-content" below.
+.IP "\-\-lesskey-content=\fItext\fP"
+Causes less to interpret the specified text as the contents of a
+.BR lesskey (1)
+source file.
+In the text,
+.B lesskey
+lines may be separated by either newlines as usual, or by semicolons.
+A literal semicolon may be represented by a backslash followed by a semicolon.
+.sp
+Warning: certain environment variables such as 
+LESS, LESSSECURE, LESSCHARSET and others,
+which are used early in startup, 
+cannot be set in a file specified by a command line option
+(\-\-lesskey, \-\-lesskey-src or \-\-lesskey-content).  When using a
+.B lesskey
+file to set environment variables, it is safer to use the
+default lesskey file, or to specify the file using the
+LESSKEYIN or LESSKEY_CONTENT environment variables rather than using 
+a command line option.
 .IP "\-K or \-\-quit-on-intr"
 Causes
 .B less
@@ -1186,25 +1328,32 @@ If the reopen succeeds and the file is a different file from the original
 with the same name as the original (now renamed) file),
 .B less
 will display the contents of that new file.
-.IP "\-\-header=\fIN[,M]\fP"
+.IP "\-\-header=\fIL\fP,\fIC\fP,\fIN\fP"
+.RS
 Sets the number of header lines and columns displayed on the screen.
-The value may be of the form "N,M" where N and M are integers,
-to set the header lines to N and the header columns to M,
-or it may be a single integer "N" which sets the header lines to N 
-and the header columns to zero,
-or it may be ",M" which sets the header columns to M and the 
-header lines to zero.
-When N is nonzero, the first N lines at the top
-of the screen are replaced with the first N lines of the file,
-regardless of what part of the file are being viewed.
-When M is nonzero, the characters displayed at the 
-beginning of each line are replaced with the first M characters of the line,
+The number of header lines is set to \fIL\fP.
+If \fIL\fP is 0, header lines are disabled.
+If \fIL\fP is empty or missing, the number of header lines is unchanged.
+The number of header columns is set to \fIC\fP.
+If \fIC\fP is 0, header columns are disabled.
+If \fIC\fP is empty or missing, the number of header columns is unchanged.
+The first header line is set to line number \fIN\fP in the file.
+If \fIN\fP is empty or missing, it is taken to be 
+the number of the line currently displayed in the first line of the screen
+(if the \-\-header command has been issued from within
+.BR less "),"
+or 1 (if the \-\-header option has been given on the command line).
+The special form "\-\-header=\-" disables header lines and header columns, 
+and is equivalent to "\-\-header=0,0".
+.PP
+When \fIL\fP is nonzero, the first \fIL\fP lines at the top
+of the screen are replaced with the \fIL\fP lines of the file beginning at line \fIN\fP,
+regardless of what part of the file is being viewed.
+When header lines are displayed, any file contents before the header line cannot be viewed.
+When \fIC\fP is nonzero, the first \fIC\fP characters displayed at the 
+beginning of each line are replaced with the first \fIC\fP characters of the line,
 even if the rest of the line is scrolled horizontally.
-If either N or M is zero, 
-.B less
-stops displaying header lines or columns, respectively.
-(Note that it may be necessary to change the setting of the \-j option
-to ensure that the target line is not obscured by the header line(s).)
+.RE
 .IP "\-\-incsearch"
 Subsequent search commands will be "incremental"; that is,
 .B less
@@ -1221,6 +1370,21 @@ to specify a control character.
 Sets the minimum width of the line number field when the \-N option is in effect 
 to \fIn\fP characters.
 The default is 7.
+.IP "\-\-match-shift=\fIn\fP"
+When \-S is in effect, if a search match is not visible
+because it is shifted to the left or right of the currently
+visible screen, the text will horizontally shift 
+to ensure that the search match is visible.
+This option selects the column in which the first character
+of the search match will be placed after the shift.
+In other words, there will be \fIn\fP characters visible 
+to the left of the search match.
+
+Alternately, the number may be specified as a fraction of the width
+of the screen, starting with a decimal point: \&.5 is half of the
+screen width, \&.3 is three tenths of the screen width, and so on.
+If the number is specified as a fraction, the actual number of
+scroll positions is recalculated if the terminal window is resized.
 .IP "\-\-modelines=\fIn\fP"
 .RS
 Before displaying a file,
@@ -1252,8 +1416,12 @@ See the \-\-tabs description for acceptable values of \fIn\fP.
 Enables mouse input:
 scrolling the mouse wheel down moves forward in the file,
 scrolling the mouse wheel up moves backwards in the file,
-and clicking the mouse sets the "#" mark to the line
-where the mouse is clicked.
+left-click sets the "#" mark to the line where the mouse is clicked,
+and right-click (or any other) returns to the "#" mark position.
+If a left-click is performed with the mouse cursor on an OSC 8 hyperlink,
+the hyperlink is selected as if by the \(haO\(haN command.
+If a left-click is performed with the mouse cursor on an OSC 8 hyperlink
+which is already selected, the hyperlink is opened as if by the \(haO\(haO command.
 The number of lines to scroll when the wheel is moved
 can be set by the \-\-wheel-lines option.
 Mouse input works only on terminals which support X11 mouse reporting,
@@ -1276,6 +1444,10 @@ Normally, a string may appear multiple times.
 .IP "\-\-no-number-headers"
 Header lines (defined via the \-\-header option) are not assigned line numbers.
 Line number 1 is assigned to the first line after any header lines.
+.IP "\-\-no-search-header-lines"
+Searches do not include header lines, but still include header columns.
+.IP "\-\-no-search-header-columns"
+Searches do not include header columns, but still include header lines.
 .IP "\-\-no-search-headers"
 Searches do not include header lines or header columns.
 .IP "\-\-no-vbell"
@@ -1363,9 +1535,7 @@ This allows a dollar sign to be included in option strings.
 Enables colored text in various places.
 The \-D option can be used to change the colors.
 Colored text works only if the terminal supports 
-ANSI color escape sequences (as defined in ECMA-48 SGR;
-see 
-.br
+ANSI color escape sequences (as defined in 
 .nh
 https://www.ecma-international.org/publications-and-standards/standards/ecma-48).
 .hy
@@ -1449,7 +1619,7 @@ If it matches more than one filename, the first match
 is entered into the command line.
 Repeated TABs will cycle thru the other matching filenames.
 If the completed filename is a directory, a "/" is appended to the filename.
-(On MS-DOS systems, a "\e" is appended.)
+(On MS-DOS and Windows systems, a "\e" is appended.)
 The environment variable LESSSEPARATOR can be used to specify a
 different character to append to a directory name.
 .IP "BACKTAB [ ESC-TAB ]"
@@ -1458,7 +1628,7 @@ Like, TAB, but cycles in the reverse direction thru the matching filenames.
 Complete the partial filename to the left of the cursor.
 If it matches more than one filename, all matches are entered into
 the command line (if they fit).
-.IP "\(haU (Unix and OS/2) or ESC (MS-DOS)"
+.IP "\(haU (Unix and OS/2) or ESC (MS-DOS and Windows)"
 Delete the entire command line,
 or cancel the command if the command line is empty.
 If you have changed your line-kill character in Unix to something
@@ -1741,7 +1911,7 @@ Selects the UTF-8 encoding of the ISO 10646 character set.
 UTF-8 is special in that it supports multi-byte characters in the input file.
 It is the only character set that supports multi-byte characters.
 .IP windows
-Selects a character set appropriate for Microsoft Windows (cp 1251).
+Selects a character set appropriate for Microsoft Windows (cp 1252).
 .PP
 In rare cases, it may be desired to tailor
 .B less
@@ -1794,7 +1964,7 @@ variables.
 .PP
 Finally, if the
 .I setlocale
-interface is also not available, the default character set is latin1.
+interface is also not available, the default character set is utf-8.
 .PP
 Control and binary characters are displayed in standout (reverse video).
 Each such character is displayed in caret notation if possible
@@ -1924,6 +2094,10 @@ The line to be used is determined by the \fIX\fP, as with the %b option.
 Replaced by the line number of the last line in the input file.
 .IP "%m"
 Replaced by the total number of input files.
+.IP "%o"
+Replaced by the URI of the currently selected OSC 8 hyperlink,
+or a question mark if no hyperlink is selected.
+This is used by OSC 8 handlers as explained in the \(haO\(haO command description.
 .IP "%p\fIX\fP"
 Replaced by the percent into the current input file, based on byte offsets.
 The line used is determined by the \fIX\fP as with the %b option.
@@ -2015,7 +2189,7 @@ Notice how each question mark has a matching period,
 and how the % after the %pt
 is included literally by escaping it with a backslash.
 .sp
-?n?f%f\ .?m(%T %i of %m)\ ..?e(END)\ ?x-\ Next\e:\ %x..%t";
+?n?f%f\ .?m(%T %i of %m)\ ..?e(END)\ ?x-\ Next\e:\ %x..%t
 .sp
 This prints the filename if this is the first prompt in a file,
 followed by the "file N of N" message if there is more
@@ -2063,33 +2237,53 @@ changed to modify this default.
 When the environment variable LESSSECURE is set to 1,
 .B less
 runs in a "secure" mode.
-This means these features are disabled:
-.RS
-.IP "!"
-the shell command
-.IP "#"
-the pshell command
-.IP "|"
-the pipe command
-.IP ":e"
-the examine command.
-.IP "v"
-the editing command
-.IP "s  \-o"
-log files
-.IP "\-k"
-use of lesskey files
-.IP "\-t"
-use of tags files
-.IP
-metacharacters in filenames, such as *
-.IP
-filename completion (TAB, \(haL)
-.IP
+In this mode, these features are disabled:
+.IP "edit" 10
+the edit command (v)
+.IP "examine"
+the examine command (:e) 
+.IP "glob"
+metacharacters such as * in filenames,
+.br
+and filename completion (TAB, \(haL)
+.IP "history"
 history file
-.RE
+.IP "lesskey"
+use of lesskey files (-k and \-\-lesskey-src)
+.IP "lessopen"
+input preprocessor (LESSOPEN environment variable)
+.IP "logfile"
+log files (s and \-o)
+.IP "osc8"
+opening OSC 8 links (\(haO\(haO)
+.IP "pipe"
+the pipe command (|) 
+.IP "shell"
+the shell and pshell commands (! and #)
+.IP "stop"
+stopping
+.B less
+via a SIGSTOP signal
+.IP "tags"
+use of tags files (-t)
+.PP
+The LESSSECURE_ALLOW environment variable can be set to a comma-separated list
+of names of features which are selectively enabled when LESSSECURE is set.
+Each feature name is the first word in each line in the above list.
+A feature name may be abbreviated as long as the abbreviation is unambiguous.
+For example, if 
+.nh
+LESSSECURE=1
+.hy
+and
+.nh
+LESSSECURE_ALLOW=hist,edit
+.hy
+were set, all of the above features would be disabled 
+except for history files and the edit command.
 .PP
 Less can also be compiled to be permanently in "secure" mode.
+In that case, the LESSSECURE and LESSSECURE_ALLOW variables are ignored.
 .
 .SH "COMPATIBILITY WITH MORE"
 If the environment variable LESS_IS_MORE is set to 1,
@@ -2210,6 +2404,8 @@ file.
 Name of the default
 .I "lesskey binary"
 file. (Not used if "$LESSKEYIN" exists.)
+.IP LESSKEY_CONTENT
+The value is parsed as if it were the parameter of a \-\-lesskey-content option.
 .IP LESSKEYIN_SYSTEM
 Name of the default system-wide
 .I "lesskey source"
@@ -2229,6 +2425,9 @@ metacharacters will not be passed to the shell.
 Command line to invoke the (optional) input-preprocessor.
 .IP LESSSECURE
 Runs less in "secure" mode.
+See discussion under SECURITY.
+.IP LESSSECURE_ALLOW
+Enables individual features which are normally disabled by LESSSECURE.
 See discussion under SECURITY.
 .IP LESSSEPARATOR
 String to be appended to a directory name in filename completion.
@@ -2264,9 +2463,22 @@ The default is 4000 (4 seconds).
 Emulate the
 .BR more (1)
 command.
+.IP LESS_OSC8_xxx
+Where "xxx" is a URI scheme such as "http" or "file",
+sets an OSC 8 handler for opening OSC 8 links containing a URI with that scheme.
+.IP LESS_OSC8_ANY
+Sets an OSC 8 handler for opening OSC 8 links for which there is 
+no specific LESS_OSC8_xxx handler set for the "xxx" scheme.
 .IP LESS_TERMCAP_xx
 Where "xx" is any two characters, overrides the definition 
 of the termcap "xx" capability for the terminal.
+.IP LESS_UNSUPPORT
+A space-separated list of command line options.
+These options will be ignored (with no error message) if they appear 
+on the command line or in the LESS environment variable.
+Options listed in LESS_UNSUPPORT can still be changed by the \- and \-\- commands.
+Each option in LESS_UNSUPPORT is a dash followed by a single character 
+option letter, or two dashes followed by a long option name.
 .IP LINES
 Sets the number of lines on the screen.
 Takes precedence over the number of lines specified by the TERM variable.
@@ -2280,7 +2492,7 @@ automatically when running in
 .BR more "-compatible mode."
 .IP PATH
 User's search path (used to find a lesskey file
-on MS-DOS and OS/2 systems).
+on MS-DOS, Windows, and OS/2 systems).
 .IP SHELL
 The shell used to execute the !\& command, as well as to expand filenames.
 .IP TERM
@@ -2303,7 +2515,7 @@ Possible location of the history file; see the description of the LESSHISTFILE e
 .BR lessecho (1)
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2023  Mark Nudelman
+Copyright (C) 1984-2024  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -2328,8 +2540,13 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Report bugs at https://github.com/gwsw/less/issues.
+Report bugs at 
+.nh
+https://github.com/gwsw/less/issues.
+.hy
 .br
 For more information, see the less homepage at
 .br
-https://greenwoodsoftware.com/less
+.nh
+https://greenwoodsoftware.com/less.
+.hy

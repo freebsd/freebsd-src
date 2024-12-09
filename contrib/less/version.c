@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -40,7 +40,7 @@ v19    5/2/85   Got rid of "verbose" eq_message().
 v20    5/21/85  Fixed screen.c ioctls for System V.
 v21    5/23/85  Fixed some first_cmd bugs.
 v22    5/24/85  Added support for no RECOMP nor REGCMP.
-v23    5/25/85  Miscellanous changes and prettying up.
+v23    5/25/85  Miscellaneous changes and prettying up.
                 Posted to USENET.
 -----------------------------------------------------------------
 v24    6/3/85   Added ti,te terminal init & de-init.       
@@ -628,7 +628,7 @@ v373  1/14/02   Improve handling of filenames containing shell metachars.
 v374   2/7/02   Fix memory leak; fix bug in -x argument parsing.
 v375   4/7/02   Fix searching for SGR sequences; fix SECURE build;
                 add SGR support to DJGPP version (thanks to Eli Zaretskii).
-v376  6/10/02   Fix bug in overstriking mulitbyte UTF-8 characters
+v376  6/10/02   Fix bug in overstriking multibyte UTF-8 characters
                 (thanks to Jungshik Shin).
                 Posted to Web page.
 -----------------------------------------------------------------
@@ -993,6 +993,45 @@ v640  7/10/23   Add lesstest to release.
 v641  7/10/23   Fix release.
 v642  7/10/23   Fix release.
 v643  7/20/23   Fix crash on Windows with -o.
+v644  9/16/23   Improve ^C on non-terminated pipe; fix crash when files are
+                deleted; support large files and non-BMP chars on Windows; 
+                fix # bug; don't filter header lines; fix shifting long lines;
+                add --match-shift.
+v645  11/5/23   Default Windows charset is utf-8; update Unicode tables;
+                fix ESC-} bug; mouse right-click jumps to '#'; 
+                add LESSSECURE_ALLOW; add --lesskey-content & LESSKEY_CONTENT;
+                allow env var expansion in lesskey files; add LESS_UNSUPPORT.
+v646  11/6/23   Bug fixes.
+v647  11/16/23  Fix --+option; fix compiler warnings.
+v648  11/16/23  Add lang.h to release.
+v649  12/1/23   Add line number param to --header.
+v650  2/6/24    Add --no-search-header-lines and --no-search-header-columns;
+                add ^L search modifier; add ^P shell command modifier;
+                add search wrap message; add ^O^N, ^O^P, ^O^L and ^O^O commands.
+v651  3/4/24    Add --color attributes (*~_&); fix #/% substitution if name 
+                contains spaces; allow --rscroll with non-ASCII char.
+v652  3/11/24   Fix sleep_ms with usleep.
+v653  3/20/24   Make default charset utf-8.
+v654  4/28/24   Allow space to end parameter for some options; fix usleep bug;
+                fix bugs when filename contains control chars; fix DJGPP build.
+v655  5/16/24   Fix search history bug with --incsearch.
+v656  5/23/24   Fix bug using escape sequences in prompt.
+v657  5/31/24   Fix buffer overrun when using LESSOPEN.
+v658  6/13/24   Fix double-free in lesskey parser; fix crash using small value 
+                for --line-num-width.
+v659  6/20/24   Fix typo in help.
+v660  6/24/24   Fix bug in ixerror.
+v661  6/29/24   Simpler fix for ixerror bug.
+v662  8/8/24    Fix build with --with-secure; improve true colors on Windows;
+                fix crash with --header; fix crash with -S; fix #stop;
+                fix --shift with fractional parameter; fix EOF bug in R command;
+                fix --header with short file; fix ^X bug when output is not tty.
+v663  8/16/24   Fix ^X bug when output is not a tty.
+v664  8/28/24   Fix Windows compile error, fix output bug on Windows with -Da.
+v665  9/4/24    Fix ^Z bug.
+v666  9/21/24   Fix missing first byte from LESSOPEN if >0x7f.
+v667  9/26/24   Fix uninitialized variable in edit_ifile.
+v668  10/6/24   Fix UTF-8 chars in prompt.
 */
 
-char version[] = "643";
+char version[] = "668";
