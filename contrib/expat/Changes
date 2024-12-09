@@ -30,6 +30,37 @@
 !! THANK YOU!                        Sebastian Pipping -- Berlin, 2024-03-09 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+Release 2.6.4 Wed November 6 2024
+        Security fixes:
+            #915  CVE-2024-50602 -- Fix crash within function XML_ResumeParser
+                    from a NULL pointer dereference by disallowing function
+                    XML_StopParser to (stop or) suspend an unstarted parser.
+                    A new error code XML_ERROR_NOT_STARTED was introduced to
+                    properly communicate this situation.  // CWE-476 CWE-754
+
+        Other changes:
+            #903  CMake: Add alias target "expat::expat"
+            #905  docs: Document use via CMake >=3.18 with FetchContent
+                    and SOURCE_SUBDIR and its consequences
+            #902  tests: Reduce use of global parser instance
+            #904  tests: Resolve duplicate handler
+       #317 #918  tests: Improve tests on doctype closing (ex CVE-2019-15903)
+            #914  Fix signedness of format strings
+       #919 #920  Version info bumped from 10:3:9 (libexpat*.so.1.9.3)
+                    to 11:0:10 (libexpat*.so.1.10.0); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+            #907  CI: Upgrade Clang from 18 to 19
+            #913  CI: Drop macos-12 and add macos-15
+            #910  CI: Adapt to breaking changes in GitHub Actions
+            #898  Add missing entries to .gitignore
+
+        Special thanks to:
+            Hanno Böck
+            José Eduardo Gutiérrez Conejo
+            José Ricardo Cardona Quesada
+
 Release 2.6.3 Wed September 4 2024
         Security fixes:
        #887 #890  CVE-2024-45490 -- Calling function XML_ParseBuffer with

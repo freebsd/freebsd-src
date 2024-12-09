@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -51,6 +51,7 @@
 #include "chardata.h"
 #include "minicheck.h"
 #include "common.h"
+#include "handlers.h"
 
 /* Common test data */
 
@@ -221,30 +222,6 @@ _expect_failure(const char *text, enum XML_Error errorCode,
     _xml_failure(g_parser, file, lineno);
 }
 
-/* Character data support for handlers, built on top of the code in
- * chardata.c
- */
-void XMLCALL
-accumulate_characters(void *userData, const XML_Char *s, int len) {
-  CharData_AppendXMLChars((CharData *)userData, s, len);
-}
-
-void XMLCALL
-accumulate_attribute(void *userData, const XML_Char *name,
-                     const XML_Char **atts) {
-  CharData *storage = (CharData *)userData;
-  UNUSED_P(name);
-  /* Check there are attributes to deal with */
-  if (atts == NULL)
-    return;
-
-  while (storage->count < 0 && atts[0] != NULL) {
-    /* "accumulate" the value of the first attribute we see */
-    CharData_AppendXMLChars(storage, atts[1], -1);
-    atts += 2;
-  }
-}
-
 void
 _run_character_check(const char *text, const XML_Char *expected,
                      const char *file, int line) {
@@ -271,12 +248,6 @@ _run_attribute_check(const char *text, const XML_Char *expected,
       == XML_STATUS_ERROR)
     _xml_failure(g_parser, file, line);
   CharData_CheckXMLChars(&storage, expected);
-}
-
-void XMLCALL
-ext_accumulate_characters(void *userData, const XML_Char *s, int len) {
-  ExtTest *test_data = (ExtTest *)userData;
-  accumulate_characters(test_data->storage, s, len);
 }
 
 void
