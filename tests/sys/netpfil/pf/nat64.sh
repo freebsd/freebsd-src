@@ -341,6 +341,72 @@ pool_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "table_round_robin" "cleanup"
+table_round_robin_head()
+{
+	atf_set descr 'Use a table of IPv4 addresses in round-robin mode'
+	atf_set require.user root
+}
+
+table_round_robin_body()
+{
+	pft_init
+
+	epair_link=$(vnet_mkepair)
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+	route -6 add default 2001:db8::1
+
+	vnet_mkjail rtr ${epair}b ${epair_link}a
+	jexec rtr ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+	jexec rtr ifconfig ${epair_link}a 192.0.2.1/24 up
+	jexec rtr ifconfig ${epair_link}a inet alias 192.0.2.3/24 up
+	jexec rtr ifconfig ${epair_link}a inet alias 192.0.2.4/24 up
+
+	vnet_mkjail dst ${epair_link}b
+	jexec dst ifconfig ${epair_link}b 192.0.2.2/24 up
+	jexec dst route add default 192.0.2.1
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore \
+	    jexec dst ping -c 1 192.0.2.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "set reassemble yes" \
+	    "set state-policy if-bound" \
+	    "table <wanaddrs> { 192.0.2.1, 192.0.2.3, 192.0.2.4 }" \
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from <wanaddrs> round-robin"
+
+	# Use pf to count sources
+	jexec dst pfctl -e
+	pft_set_rules dst \
+	    "pass"
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	# Verify on dst that we saw different source addresses
+	atf_check -s exit:0 -o match:".*192.0.2.1.*" \
+	    jexec dst pfctl -ss
+	atf_check -s exit:0 -o match:".*192.0.2.3.*" \
+	    jexec dst pfctl -ss
+	atf_check -s exit:0 -o match:".*192.0.2.4.*" \
+	    jexec dst pfctl -ss
+}
+
+table_round_robin_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
@@ -351,4 +417,5 @@ atf_init_test_cases()
 	atf_add_test_case "tos"
 	atf_add_test_case "no_v4"
 	atf_add_test_case "pool"
+	atf_add_test_case "table_round_robin"
 }
