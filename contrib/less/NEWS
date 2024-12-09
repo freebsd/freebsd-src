@@ -11,6 +11,140 @@
 
 ======================================================================
 
+	Major changes between "less" versions 661 and 668
+
+* Make 256/true colors work better on Windows without -Da
+  (github #539, github #546, github #562).
+
+* Fix build using --with-secure (github #544).
+
+* Fix crash when using --header on command line (github #545).
+
+* Fix possible crash when scrolling left/right or toggling -S (github #547).
+
+* Fix bug when using #stop in a lesskey file (github #551).
+
+* Fix bug when using --shift or --match-shift on command line with
+  a parameter starting with '.' (github #554).
+
+* Fix bug in R command when file size changes (github #553).
+
+* Fix bug using --header when file does not fill screen (github #556).
+
+* Fix ^X bug when output is not a terminal (github #558).
+
+* Fix bug where ^Z is not handled immediately (github #563).
+
+* Fix bug where first byte from a LESSOPEN filter is deleted if it is
+  greater than 0x7F (github #568).
+
+* Fix uninitialized variable in edit_ifile (github #573).
+
+* Fix incorrect handling of UTF-8 chars in prompts (github #576).
+
+======================================================================
+
+	Major changes between "less" versions 643 and 661
+
+* Add ^O^N, ^O^P, ^O^L and ^O^O commands and mouse clicks (with --mouse)
+  to find and open OSC8 hyperlinks (github #251).
+
+* Add --match-shift option.
+
+* Add --lesskey-content option (github #447).
+
+* Add LESSKEY_CONTENT environment variable (github #447).
+
+* Add --no-search-header-lines and --no-search-header-columns options
+  (github #397).
+
+* Add ctrl-L search modifier (github #367).
+
+* A ctrl-P at the start of a shell command suppresses the "done" 
+  message (github #462).
+
+* Add attribute characters ('*', '~', '_', '&') to --color
+  parameter (github #471).
+
+* Allow expansion of environment variables in lesskey files.
+
+* Add LESSSECURE_ALLOW environment variable (github #449).
+
+* Add LESS_UNSUPPORT environment variable.
+
+* Add line number parameter to --header option (github #436).
+
+* Mouse right-click jumps to position marked by left-click (github #390).
+
+* Ensure that the target line is not obscured by a header line 
+  set by --header (github #444).
+
+* Change default character set to "utf-8", except remains "dos" on MS-DOS.
+
+* Add message when search with ^W wraps (github #459).
+
+* UCRT builds on Windows 10 and later now support Unicode file names
+  (github #438).
+
+* Improve behavior of interrupt while reading non-terminated pipe
+  (github #414).
+
+* Improve parsing of -j, -x and -# options (github #393).
+
+* Support files larger than 4GB on Windows (github #417).
+
+* Support entry of Unicode chars larger than U+FFFF on Windows (github #391).
+
+* Improve colors of bold, underline and standout text on Windows.
+
+* Allow --rscroll to accept non-ASCII characters (github #483).
+
+* Allow the parameter to certain options to be terminated with a
+  space (--color, --quotes, --rscroll, --search-options 
+  and --intr) (github #495).
+
+* Fix bug where # substitution failed after viewing help (github #420).
+
+* Fix crash if files are deleted while less is viewing them (github #404).
+
+* Workaround unreliable ReadConsoleInputW behavior on Windows
+  with non-ASCII input.
+
+* Fix -J display when searching for non-ASCII characters (github #422).
+
+* Don't filter header lines via the & command (github #423).
+
+* Fix bug when horizontally shifting long lines (github #425).
+
+* Add -x and -D options to lesstest, to make it easier to diagnose
+  a failed lesstest run.
+
+* Fix bug searching long lines with --incsearch and -S (github #428).
+
+* Fix bug that made ESC-} fail if top line on screen was empty (github #429).
+
+* Fix bug with --mouse on Windows when used with pipes (github #440).
+
+* Fix bug in --+OPTION command line syntax.
+
+* Fix display bug when using -w with an empty line with a CR/LF
+  line ending (github #474).
+
+* When substituting '#' or '%' with a filename, quote the filename
+  if it contains a space (github #480).
+
+* Fix wrong sleep time when system has usleep but not nanosleep (github #489).
+
+* Fix bug when file name contains a newline.
+
+* Fix bug when file name contains nonprintable characters (github #503).
+
+* Fix DJGPP build (github #497).
+
+* Update Unicode tables.
+
+======================================================================
+
 	Major changes between "less" versions 633 and 643
 
 * Fix problem when a program piping into less reads from the tty,

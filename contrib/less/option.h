@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,6 +23,7 @@
 #define HL_REPAINT      0200    /* Repaint hilites after toggling option */
 #define NO_QUERY        0400    /* Option cannot be queried with "_" cmd */
 #define INIT_HANDLER    01000   /* Call option handler function at startup */
+#define UNSUPPORTED     02000   /* Option is unsupported via LESS_UNSUPPORT */
 
 #define OTYPE           (BOOL|TRIPLE|NUMBER|STRING|NOVAR)
 
@@ -47,7 +48,7 @@
 
 struct optname
 {
-        char *oname;            /* Long (GNU-style) option name */
+        constant char *oname;   /* Long (GNU-style) option name */
         struct optname *onext;  /* List of synonymous option names */
 };
 
@@ -60,7 +61,7 @@ struct loption
         int otype;              /* Type of the option */
         int odefault;           /* Default value */
         int *ovar;              /* Pointer to the associated variable */
-        void (*ofunc)(int, char*); /* Pointer to special handling function */
-        char *odesc[3];         /* Description of each value */
+        void (*ofunc)(int, constant char*); /* Pointer to special handling function */
+        constant char *odesc[3]; /* Description of each value */
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,7 +23,6 @@ extern int sigs;
 extern int how_search;
 extern int caseless;
 extern int linenums;
-extern int sc_height;
 extern int jump_sline;
 extern int bs_mode;
 extern int proc_backspace;
@@ -34,22 +33,41 @@ extern void *ml_search;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
 extern int utf_mode;
-extern int screen_trashed;
 extern int sc_width;
 extern int sc_height;
 extern int hshift;
-extern int nosearch_headers;
+extern int match_shift;
+extern int nosearch_header_lines;
+extern int nosearch_header_cols;
 extern int header_lines;
 extern int header_cols;
+extern LWCHAR rscroll_char;
 #if HILITE_SEARCH
 extern int hilite_search;
-extern int size_linebuf;
-extern int squished;
+extern size_t size_linebuf;
+extern lbool squished;
 extern int can_goto_line;
-static int hide_hilite;
+extern lbool no_eof_bell;
+static lbool hide_hilite;
 static POSITION prep_startpos;
 static POSITION prep_endpos;
-extern POSITION xxpos;
+public POSITION header_start_pos = NULL_POSITION;
+static POSITION header_end_pos;
+public lbool search_wrapped = FALSE;
+#if OSC8_LINK
+public POSITION osc8_linepos = NULL_POSITION;
+public POSITION osc8_match_start = NULL_POSITION;
+public POSITION osc8_match_end = NULL_POSITION;
+public POSITION osc8_params_start = NULL_POSITION;
+public POSITION osc8_params_end = NULL_POSITION;
+public POSITION osc8_uri_start = NULL_POSITION;
+public POSITION osc8_uri_end = NULL_POSITION;
+public POSITION osc8_text_start = NULL_POSITION;
+public POSITION osc8_text_end = NULL_POSITION;
+char *osc8_path = NULL;
+char *osc8_uri = NULL;
+constant char *osc8_search_param = NULL;
+#endif
 
 /*
  * Structures for maintaining a set of ranges for hilites and filtered-out
@@ -85,8 +103,8 @@ struct hilite_node
 };
 struct hilite_storage
 {
-	int capacity;
-	int used;
+	size_t capacity;
+	size_t used;
 	struct hilite_storage *next;
 	struct hilite_node *nodes;
 };
@@ -114,7 +132,7 @@ struct pattern_info {
 	PATTERN_TYPE compiled;
 	char* text;
 	int search_type;
-	int is_ucase_pattern;
+	lbool is_ucase_pattern;
 	struct pattern_info *next;
 };
 
@@ -130,18 +148,18 @@ public int is_caseless;
 /*
  * Are there any uppercase letters in this string?
  */
-static int is_ucase(char *str)
+static lbool is_ucase(constant char *str)
 {
-	char *str_end = str + strlen(str);
+	constant char *str_end = str + strlen(str);
 	LWCHAR ch;
 
 	while (str < str_end)
 	{
-		ch = step_char(&str, +1, str_end);
+		ch = step_charc(&str, +1, str_end);
 		if (IS_UPPER(ch))
-			return (1);
+			return (TRUE);
 	}
-	return (0);
+	return (FALSE);
 }
 
 /*
@@ -160,7 +178,7 @@ static void clear_pattern(struct pattern_info *info)
 /*
  * Compile and save a search pattern.
  */
-static int set_pattern(struct pattern_info *info, char *pattern, int search_type, int show_error)
+static int set_pattern(struct pattern_info *info, constant char *pattern, int search_type, int show_error)
 {
 	/*
 	 * Ignore case if -I is set OR
@@ -209,7 +227,7 @@ public void init_search(void)
 /*
  * Determine which text conversions to perform before pattern matching.
  */
-static int get_cvt_ops(int search_type)
+public int get_cvt_ops(int search_type)
 {
 	int ops = 0;
 
@@ -242,11 +260,11 @@ static int prev_pattern(struct pattern_info *info)
  * Repaint each line which contains highlighted text.
  * If on==0, force all hilites off.
  */
-public void repaint_hilite(int on)
+public void repaint_hilite(lbool on)
 {
 	int sindex;
 	POSITION pos;
-	int save_hide_hilite;
+	lbool save_hide_hilite;
 
 	if (squished)
 		repaint();
@@ -256,7 +274,7 @@ public void repaint_hilite(int on)
 	{
 		if (hide_hilite)
 			return;
-		hide_hilite = 1;
+		hide_hilite = TRUE;
 	}
 
 	if (!can_goto_line)
@@ -335,9 +353,12 @@ public void clear_attn(void)
 /*
  * Toggle or clear search string highlighting.
  */
-public void undo_search(int clear)
+public void undo_search(lbool clear)
 {
 	clear_pattern(&search_info);
+#if OSC8_LINK
+	osc8_linepos = NULL_POSITION;
+#endif
 #if HILITE_SEARCH
 	if (clear)
 	{
@@ -351,7 +372,7 @@ public void undo_search(int clear)
 		}
 		hide_hilite = !hide_hilite;
 	}
-	repaint_hilite(1);
+	repaint_hilite(TRUE);
 #endif
 }
 
@@ -495,15 +516,44 @@ static int hilited_range_attr(POSITION pos, POSITION epos)
 	return n->r.hl_attr;
 }
 
+/*
+ * Set header parameters.
+ */
+public void set_header(POSITION pos)
+{
+	header_start_pos = (header_lines == 0) ? NULL_POSITION : pos;
+	if (header_start_pos != NULL_POSITION)
+	{
+		int ln;
+		for (ln = 0; ln < header_lines; ++ln)
+		{
+			pos = forw_raw_line(pos, NULL, NULL);
+			if (pos == NULL_POSITION) break;
+		}
+		header_end_pos = pos;
+	}
+}
+
+/*
+ * Is a position within the header lines?
+ */
+static int pos_in_header(POSITION pos)
+{
+	return (header_start_pos != NULL_POSITION &&
+	        pos >= header_start_pos && pos < header_end_pos);
+}
+
 /* 
  * Is a line "filtered" -- that is, should it be hidden?
  */
-public int is_filtered(POSITION pos)
+public lbool is_filtered(POSITION pos)
 {
 	struct hilite_node *n;
 
 	if (ch_getflags() & CH_HELPFILE)
-		return (0);
+		return (FALSE);
+	if (pos_in_header(pos))
+		return (FALSE);
 
 	n = hlist_find(&filter_anchor, pos);
 	return (n != NULL && pos >= n->r.hl_startpos);
@@ -518,6 +568,8 @@ public POSITION next_unfiltered(POSITION pos)
 	struct hilite_node *n;
 
 	if (ch_getflags() & CH_HELPFILE)
+		return (pos);
+	if (pos_in_header(pos))
 		return (pos);
 
 	n = hlist_find(&filter_anchor, pos);
@@ -539,6 +591,8 @@ public POSITION prev_unfiltered(POSITION pos)
 
 	if (ch_getflags() & CH_HELPFILE)
 		return (pos);
+	if (pos_in_header(pos))
+		return (pos);
 
 	n = hlist_find(&filter_anchor, pos);
 	while (n != NULL && pos >= n->r.hl_startpos)
@@ -552,6 +606,38 @@ public POSITION prev_unfiltered(POSITION pos)
 	return (pos);
 }
 
+/*
+ * Set the hshift for the line starting at line_pos so that the string 
+ * between start_off and end_off is visible on the screen.
+ */
+static void shift_visible(POSITION line_pos, size_t start_off, size_t end_off)
+{
+	POSITION start_pos = line_pos + start_off;
+	POSITION end_pos = line_pos + end_off;
+	int start_col = col_from_pos(line_pos, start_pos, NULL_POSITION, -1);
+	int end_col = col_from_pos(line_pos, end_pos, start_pos, start_col);
+	int swidth = sc_width - line_pfx_width() - (rscroll_char ? 1 : 0);
+	int new_hshift;
+	if (start_col < 0 || end_col < 0)
+		return;
+	if (end_col < swidth) /* whole string is in first screen */
+		new_hshift = 0;
+	else if (start_col > hshift && end_col < hshift + swidth)
+		new_hshift = hshift; /* already visible; leave hshift unchanged */
+	else 
+	{
+		int eol_col = col_from_pos(line_pos, NULL_POSITION, end_pos, end_col) - swidth;
+		if (start_col >= eol_col) /* whole string is in last screen */
+			new_hshift = eol_col;
+		else /* shift it to column match_shift */
+			new_hshift = (start_col < match_shift) ? 0 : start_col - match_shift;
+	}
+	if (new_hshift != hshift)
+	{
+		hshift = new_hshift;
+		screen_trashed();
+	}
+}
 
 /*
  * Should any characters in a specified range be highlighted?
@@ -567,11 +653,17 @@ public int is_hilited_attr(POSITION pos, POSITION epos, int nohide, int *p_match
 	if (!status_col &&
 	    start_attnpos != NULL_POSITION && 
 	    pos <= end_attnpos &&
-	     (epos == NULL_POSITION || epos >= start_attnpos))
+	     (epos == NULL_POSITION || epos > start_attnpos))
 		/*
 		 * The attn line overlaps this range.
 		 */
 		return (AT_HILITE|AT_COLOR_ATTN);
+
+#if OSC8_LINK
+	if (osc8_linepos != NULL_POSITION && 
+			pos <= osc8_text_end && (epos == NULL_POSITION || epos > osc8_text_start))
+		return (AT_HILITE|AT_COLOR_SEARCH);
+#endif
 
 	attr = hilited_range_attr(pos, epos);
 	if (attr == 0)
@@ -611,7 +703,7 @@ public int is_hilited_attr(POSITION pos, POSITION epos, int nohide, int *p_match
  */
 static struct hilite_storage * hlist_getstorage(struct hilite_tree *anchor)
 {
-	int capacity = 1;
+	size_t capacity = 1;
 	struct hilite_storage *s;
 
 	if (anchor->current)
@@ -884,12 +976,12 @@ static void add_hilite(struct hilite_tree *anchor, struct hilite *hl)
 /*
  * Highlight every character in a range of displayed characters.
  */
-static void create_hilites(POSITION linepos, char *line, char *sp, char *ep, int attr, int *chpos)
+static void create_hilites(POSITION linepos, constant char *line, constant char *sp, constant char *ep, int attr, int *chpos)
 {
-	int start_index = sp - line;
-	int end_index = ep - line;
+	size_t start_index = ptr_diff(sp, line); /*{{type-issue}}*/
+	size_t end_index = ptr_diff(ep, line);
 	struct hilite hl;
-	int i;
+	size_t i;
 
 	/* Start the first hilite. */
 	hl.hl_startpos = linepos + chpos[start_index];
@@ -923,10 +1015,10 @@ static void create_hilites(POSITION linepos, char *line, char *sp, char *ep, int
  * the current pattern.
  * sp,ep delimit the first match already found.
  */
-static void hilite_line(POSITION linepos, char *line, int line_len, int *chpos, char **sp, char **ep, int nsp, int cvt_ops)
+static void hilite_line(POSITION linepos, constant char *line, size_t line_len, int *chpos, constant char **sp, constant char **ep, int nsp)
 {
-	char *searchp;
-	char *line_end = line + line_len;
+	constant char *searchp;
+	constant char *line_end = line + line_len;
 
 	/*
 	 * sp[0] and ep[0] delimit the first match in the line.
@@ -942,7 +1034,7 @@ static void hilite_line(POSITION linepos, char *line, int line_len, int *chpos, 
 	 */
 	searchp = line;
 	do {
-		char *lep = sp[0];
+		constant char *lep = sp[0];
 		int i;
 		if (sp[0] == NULL || ep[0] == NULL)
 			break;
@@ -974,7 +1066,7 @@ static void hilite_line(POSITION linepos, char *line, int line_len, int *chpos, 
 		else /* end of line */
 			break;
 	} while (match_pattern(info_compiled(&search_info), search_info.text,
-			searchp, line_end - searchp, sp, ep, nsp, 1, search_info.search_type));
+			searchp, ptr_diff(line_end, searchp), sp, ep, nsp, 1, search_info.search_type));
 }
 #endif
 
@@ -990,7 +1082,7 @@ static void hilite_screen(void)
 	if (scrpos.pos == NULL_POSITION)
 		return;
 	prep_hilite(scrpos.pos, position(BOTTOM_PLUS_ONE), -1);
-	repaint_hilite(1);
+	repaint_hilite(TRUE);
 }
 
 /*
@@ -1002,7 +1094,7 @@ public void chg_hilite(void)
 	 * Erase any highlights currently on screen.
 	 */
 	clr_hilite();
-	hide_hilite = 0;
+	hide_hilite = FALSE;
 
 	if (hilite_search == OPT_ONPLUS)
 		/*
@@ -1044,7 +1136,7 @@ static POSITION search_pos(int search_type)
 		sindex = 0;
 	} else 
 	{
-		int add_one = 0;
+		lbool add_one = FALSE;
 
 		if (how_search == OPT_ON)
 		{
@@ -1073,11 +1165,11 @@ static POSITION search_pos(int search_type)
 			 */
 			sindex = sindex_from_sline(jump_sline);
 			if (search_type & SRCH_FORW) 
-				add_one = 1;
+				add_one = TRUE;
 		}
 		pos = position(sindex);
 		if (add_one)
-			pos = forw_raw_line(pos, (char **)NULL, (int *)NULL);
+			pos = forw_raw_line(pos, NULL, NULL);
 	}
 
 	/*
@@ -1108,7 +1200,7 @@ static POSITION search_pos(int search_type)
  * If so, add an entry to the filter list.
  */
 #if HILITE_SEARCH
-static int matches_filters(POSITION pos, char *cline, int line_len, int *chpos, POSITION linepos, char **sp, char **ep, int nsp)
+static int matches_filters(POSITION pos, char *cline, size_t line_len, int *chpos, POSITION linepos, constant char **sp, constant char **ep, int nsp)
 {
 	struct pattern_info *filter;
 
@@ -1152,46 +1244,276 @@ static POSITION get_lastlinepos(POSITION pos, POSITION tpos, int sheight)
 	}
 }
 
-/*
- * Get the segment index of tpos in the line starting at pos.
- * A segment is a string of printable chars that fills the screen width.
- */
-static int get_seg(POSITION pos, POSITION tpos)
-{
-	int seg;
+#if OSC8_LINK
 
-	for (seg = 0;;  seg++)
+/*
+ * osc8_parse_info points to the component fields in a parsed OSC8 sequence.
+ */
+struct osc8_parse_info {
+	constant char *osc8_start;
+	constant char *osc8_end;
+	constant char *params_start;
+	constant char *params_end;
+	constant char *uri_start;
+	constant char *uri_end;
+};
+
+/*
+ * Parse an OSC8 sequence in a string.
+ */
+static lbool osc8_parse(constant char *line, constant char *line_end, struct osc8_parse_info *pop)
+{
+	constant char *oline;
+	pop->osc8_start = pop->osc8_end = pop->uri_start = pop->uri_end = pop->params_start = pop->params_end = NULL;
+
+	oline = line;
+	LWCHAR ch = step_charc(&line, +1, line_end);
+	/* oline points to character ch, line points to the one after it. */
+	struct ansi_state *pansi = ansi_start(ch);
+	if (pansi == NULL)
+		return FALSE;
+	pop->osc8_start = oline; /* start at the ESC */
+	for (;;)
 	{
-		POSITION npos = forw_line_seg(pos, FALSE, FALSE, TRUE);
-		if (npos > tpos)
-			return seg;
-		pos = npos;
+		ansi_state astate = ansi_step(pansi, ch);
+		osc8_state ostate = ansi_osc8_state(pansi);
+		if (ostate == OSC8_NOT)
+			break;
+		switch (ostate)
+		{
+		case OSC8_PARAMS:
+			if (pop->params_start == NULL)
+				pop->params_start = line;
+			break;
+		case OSC8_URI:
+			if (pop->uri_start == NULL)
+			{
+				pop->params_end = oline;
+				pop->uri_start = line;
+			}
+			break;
+		case OSC8_ST_ESC:
+			if (pop->uri_end == NULL)
+				pop->uri_end = oline;
+			break;
+		case OSC8_END:
+			ansi_done(pansi);
+			pop->osc8_end = line;
+			if (pop->uri_end == NULL) /* happens when ST is "\7" */
+				pop->uri_end = oline;
+			if (pop->params_end == NULL) /* should not happen */
+				pop->params_end = oline;
+			return TRUE;
+		default:
+			break;
+		}
+		if (astate != ANSI_MID || line >= line_end)
+			break;
+		oline = line;
+		ch = step_charc(&line, +1, line_end);
 	}
+	ansi_done(pansi);
+	return FALSE;
 }
+
+/*
+ * Does an OSC8 sequence contain a specified parameter?
+ */
+static lbool osc8_param_match(POSITION linepos, constant char *line, constant struct osc8_parse_info *op1, constant struct osc8_parse_info *op2, constant char *param, POSITION clickpos)
+{
+	size_t param_len;
+	constant char *p;
+
+	if (clickpos != NULL_POSITION)
+	{
+		return clickpos >= linepos + ptr_diff(op1->osc8_start, line) &&
+		       clickpos < linepos + ptr_diff(op2->osc8_end, line);
+	}
+	if (param == NULL)
+		return TRUE;
+	param_len = strlen(param);
+	/* Parameters are separated by colons. */
+	for (p = op1->params_start;  p + param_len <= op1->params_end; )
+	{
+		if (strncmp(p, param, param_len) == 0)
+		{
+		    p += param_len;
+			if (p == op1->params_end || *p == ':')
+				return TRUE;
+		}
+		while (p < op1->params_end && *p != ':')
+			++p;
+		while (p < op1->params_end && *p == ':')
+			++p;
+	}
+	return FALSE;
+}
+
+/*
+ * Is the URI in an OSC8 sequence empty?
+ * "Empty" means zero length, or equal to "#".
+ */
+static lbool osc8_empty_uri(constant struct osc8_parse_info *op)
+{
+	return op->uri_end == op->uri_start ||
+	       (op->uri_end == op->uri_start+1 && op->uri_start[0] == '#');
+}
+
+/*
+ * Find the next OSC8 hyperlink in a line.
+ * A hyperlink is two OSC8 sequences (the first with a nonempty URI)
+ * plus the non-empty text between them.
+ * But if searching for a parameter, allow URI and/or text to be empty.
+ */
+typedef enum { OSC8_NO_MATCH, OSC8_MATCH, OSC8_ALREADY } osc8_match;
+
+static osc8_match osc8_search_line1(int search_type, POSITION linepos, POSITION spos, constant char *line, size_t line_len, constant char *param, POSITION clickpos)
+{
+	constant char *line_end = &line[line_len];
+	struct osc8_parse_info op1;
+	struct osc8_parse_info op2;
+	constant char *linep;
+	constant size_t min_osc8_size = 6; /* "\e]8;;\7" */
+
+	if (search_type & SRCH_FORW)
+	{
+		for (linep = line; ; linep++)
+		{
+			if (linep + min_osc8_size > line_end)
+				return OSC8_NO_MATCH;
+			/* Find the first OSC8 sequence in the line with a nonempty URI,
+			 * which begins the hypertext. */
+			if (osc8_parse(linep, line_end, &op1) &&
+			    (!osc8_empty_uri(&op1) || param != NULL))
+			{
+				/* Now find the next OSC8 sequence, which ends the hypertext. */
+				constant char *linep2;
+				for (linep2 = op1.osc8_end; linep2 < line_end; linep2++)
+				{
+					if (osc8_parse(linep2, line_end, &op2))
+						break;
+				}
+				if (linep2 == line_end)
+					op2.osc8_end = op2.osc8_start = line_end;
+				if ((op2.osc8_start > op1.osc8_end || param != NULL) &&
+				    osc8_param_match(linepos, line, &op1, &op2, param, clickpos))
+					break;
+			}
+		}
+	} else
+	{
+		op2.osc8_end = op2.osc8_start = line_end;
+		for (linep = line_end - min_osc8_size; ; linep--)
+		{
+			if (linep < line)
+				return OSC8_NO_MATCH;
+			if (osc8_parse(linep, line_end, &op1))
+			{
+				if (((!osc8_empty_uri(&op1) && op2.osc8_start > op1.osc8_end) || param != NULL) &&
+				    osc8_param_match(linepos, line, &op1, &op2, param, clickpos))
+					break;
+				op2 = op1;
+			}
+		}
+	}
+	if (param != NULL)
+		/* Don't set osc8 globals if we're just searching for a parameter. */
+		return OSC8_MATCH;
+
+	if (osc8_linepos == linepos && osc8_match_start == spos + ptr_diff(op1.osc8_start, line))
+		return OSC8_ALREADY; /* already selected */
+
+	osc8_linepos = linepos;
+	osc8_match_start  = spos + ptr_diff(op1.osc8_start,   line);
+	osc8_match_end    = spos + ptr_diff(op2.osc8_start,   line);
+	osc8_params_start = spos + ptr_diff(op1.params_start, line);
+	osc8_params_end   = spos + ptr_diff(op1.params_end,   line);
+	osc8_uri_start    = spos + ptr_diff(op1.uri_start,    line);
+	osc8_uri_end      = spos + ptr_diff(op1.uri_end,      line);
+	osc8_text_start   = spos + ptr_diff(op1.osc8_end,     line);
+	osc8_text_end     = spos + ptr_diff(op2.osc8_start,   line);
+
+	/* Save URI for message in prompt(). */
+	osc8_uri = saven(op1.uri_start, ptr_diff(op1.uri_end, op1.uri_start));
+	return OSC8_MATCH;
+}
+
+/*
+ * Find the N-th OSC8 hyperlink in a line.
+ */
+static osc8_match osc8_search_line(int search_type, POSITION linepos, constant char *line, size_t line_len, constant char *param, POSITION clickpos, int *matches)
+{
+	while (*matches > 0)
+	{
+		POSITION spos = linepos;
+		constant char *sline = line;
+		size_t sline_len = line_len;
+		osc8_match r;
+		if (linepos == osc8_linepos && clickpos == NULL_POSITION)
+		{
+			/*
+			 * Already have a hyperlink selected.
+			 * Search for the next/previous one in the same line.
+			 */
+			if (search_type & SRCH_FORW)
+			{
+				size_t off = (size_t) (osc8_match_end - linepos);
+				spos += off;
+				sline += off;
+				sline_len -= off;
+			} else
+			{
+				sline_len = (size_t) (osc8_match_start - linepos);
+			}
+		}
+		r = osc8_search_line1(search_type, linepos, spos, sline, sline_len, param, clickpos);
+		if (r == OSC8_NO_MATCH)
+			break;
+		if (--*matches <= 0)
+			return r;
+	}
+	return OSC8_NO_MATCH;
+}
+
+/*
+ * Shift display to make the currently selected OSC8 hyperlink visible.
+ */
+static void osc8_shift_visible(void)
+{
+	if (chop_line())
+	{
+		size_t start_off = (size_t)(osc8_match_start - osc8_linepos);
+		size_t end_off = (size_t)(osc8_match_end - osc8_linepos);
+		shift_visible(osc8_linepos, start_off, end_off);
+	}
+	/* {{ What about the (plastlinepos != NULL) case in search_range? }} */
+}
+
+#endif /* OSC8_LINK */
 
 /*
  * Search a subset of the file, specified by start/end position.
  */
 static int search_range(POSITION pos, POSITION endpos, int search_type, int matches, int maxlines, POSITION *plinepos, POSITION *pendpos, POSITION *plastlinepos)
 {
-	char *line;
+	constant char *line;
 	char *cline;
-	int line_len;
+	size_t line_len;
 	LINENUM linenum;
 	#define NSP (NUM_SEARCH_COLORS+2)
-	char *sp[NSP];
-	char *ep[NSP];
+	constant char *sp[NSP];
+	constant char *ep[NSP];
 	int line_match;
 	int cvt_ops;
-	int cvt_len;
+	size_t cvt_len;
 	int *chpos;
 	POSITION linepos, oldpos;
 	int skip_bytes = 0;
-	int swidth = sc_width - line_pfx_width();
-	int sheight = sc_height - sindex_from_sline(jump_sline);
+	size_t swidth = (size_t) (sc_width - line_pfx_width()); /*{{type-issue}}*/
+	size_t sheight = (size_t) (sc_height - sindex_from_sline(jump_sline));
 
 	linenum = find_linenum(pos);
-	if (nosearch_headers && linenum <= header_lines)
+	if (nosearch_header_lines && linenum <= header_lines)
 	{
 		linenum = header_lines + 1;
 		pos = find_pos(linenum);
@@ -1282,6 +1604,7 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 					 * the flag so we don't wrap again, and
 					 * continue the search at new pos.
 					 */
+					search_wrapped = TRUE;
 					search_type &= ~SRCH_WRAP;
 					linenum = find_linenum(pos);
 					continue;
@@ -1308,9 +1631,21 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 		if (is_filtered(linepos))
 			continue;
 #endif
-		if (nosearch_headers)
+		if (nosearch_header_cols)
 			skip_bytes = skip_columns(header_cols, &line, &line_len);
-
+#if OSC8_LINK
+		if (search_type & SRCH_OSC8)
+		{
+			if (osc8_search_line(search_type, linepos, line, line_len, osc8_search_param, NULL_POSITION, &matches) != OSC8_NO_MATCH)
+			{
+				if (plinepos != NULL)
+					*plinepos = linepos;
+				osc8_shift_visible();
+				return (0);
+			}
+			continue;
+		}
+#endif
 		/*
 		 * If it's a caseless search, convert the line to lowercase.
 		 * If we're doing backspace processing, delete backspaces.
@@ -1356,7 +1691,7 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 					 * Just add the matches in this line to the 
 					 * hilite list and keep searching.
 					 */
-					hilite_line(linepos + skip_bytes, cline, line_len, chpos, sp, ep, NSP, cvt_ops);
+					hilite_line(linepos + skip_bytes, cline, line_len, chpos, sp, ep, NSP);
 #endif
 				} else if (--matches <= 0)
 				{
@@ -1372,7 +1707,7 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 						 * the matches in this one line.
 						 */
 						clr_hilite();
-						hilite_line(linepos + skip_bytes, cline, line_len, chpos, sp, ep, NSP, cvt_ops);
+						hilite_line(linepos + skip_bytes, cline, line_len, chpos, sp, ep, NSP);
 					}
 #endif
 					if (chop_line())
@@ -1383,22 +1718,9 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 						 */
 						if (sp[0] != NULL && ep[0] != NULL)
 						{
-							int start_off = sp[0] - cline;
-							int end_off = ep[0] - cline;
-							int save_hshift = hshift;
-							int sshift;
-							int eshift;
-							hshift = 0; /* make get_seg count screen lines */
-							sshift = swidth * get_seg(linepos, linepos + chpos[start_off]);
-							eshift = swidth * get_seg(linepos, linepos + chpos[end_off]);
-							if (sshift >= save_hshift && eshift <= save_hshift)
-							{
-								hshift = save_hshift;
-							} else
-							{
-								hshift = sshift;
-								screen_trashed = 1;
-							}
+							size_t start_off = ptr_diff(sp[0], cline);
+							size_t end_off = ptr_diff(ep[0], cline);
+							shift_visible(linepos, chpos[start_off], chpos[end_off]);
 						}
 					} else if (plastlinepos != NULL)
 					{
@@ -1412,9 +1734,9 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 						 */
 						if (ep[0] != NULL)
 						{
-							int end_off = ep[0] - cline;
+							size_t end_off = ptr_diff(ep[0], cline);
 							if (end_off >= swidth * sheight / 4) /* heuristic */
-								*plastlinepos = get_lastlinepos(linepos, linepos + chpos[end_off], sheight);
+								*plastlinepos = get_lastlinepos(linepos, linepos + chpos[end_off], (int) sheight);
 						}
 					}
 					free(cline);
@@ -1430,13 +1752,247 @@ static int search_range(POSITION pos, POSITION endpos, int search_type, int matc
 	}
 }
 
+#if OSC8_LINK
+
+/*
+ * Search for and select the next OSC8 sequence, forward or backward.
+ */
+public void osc8_search(int search_type, constant char *param, int matches)
+{
+	POSITION pos;
+	int match;
+
+	if (osc8_linepos != NULL_POSITION)
+	{
+		/* Continue search in same line as current match. */
+		constant char *line;
+		size_t line_len;
+		pos = forw_raw_line(osc8_linepos, &line, &line_len);
+		if (pos != NULL_POSITION)
+		{
+			if (osc8_search_line(search_type, osc8_linepos, line, line_len, param, NULL_POSITION, &matches) != OSC8_NO_MATCH)
+			{
+				no_eof_bell = TRUE;
+				jump_loc(osc8_linepos, jump_sline);
+				no_eof_bell = FALSE;
+				osc8_shift_visible();
+#if HILITE_SEARCH
+				repaint_hilite(TRUE);
+#endif
+				return;
+			}
+		}
+		search_type |= SRCH_AFTER_TARGET;
+	}
+	pos = search_pos(search_type);
+	if (pos == NULL_POSITION)
+	{
+		error("Nothing to search", NULL_PARG);
+		return;
+	}
+	osc8_search_param = param;
+	match = search_range(pos, NULL_POSITION, search_type | SRCH_OSC8, matches, -1, &pos, NULL, NULL);
+	osc8_search_param = NULL;
+	if (match != 0)
+	{
+		error("OSC 8 link not found", NULL_PARG);
+		return;
+	}
+	jump_loc(pos, jump_sline);
+#if HILITE_SEARCH
+	repaint_hilite(TRUE);
+#endif
+}
+
+/*
+ * If a mouse click is on an OSC 8 link, select the link.
+ */
+public lbool osc8_click(int sindex, int col)
+{
+#if OSC8_LINK
+	POSITION linepos = position(sindex);
+	POSITION clickpos;
+	constant char *line;
+	size_t line_len;
+	int matches = 1;
+	int r;
+
+	if (linepos == NULL_POSITION)
+		return FALSE;
+	clickpos = pos_from_col(linepos, col, NULL_POSITION, -1);
+	if (clickpos == NULL_POSITION)
+		return FALSE;
+	if (forw_raw_line(linepos, &line, &line_len) == NULL_POSITION)
+		return FALSE;
+	r = osc8_search_line(SRCH_FORW|SRCH_OSC8, linepos, line, line_len, NULL, clickpos, &matches);
+	if (r != OSC8_NO_MATCH)
+	{
+#if HILITE_SEARCH
+		repaint_hilite(TRUE);
+#endif
+		if (r == OSC8_ALREADY)
+			osc8_open();
+		return TRUE;
+	}
+#else
+	(void) sindex; (void) col;
+#endif /* OSC8_LINK */
+	return FALSE;
+}
+
+/*
+ * Return the length of the scheme prefix in a URI.
+ */
+static int scheme_length(constant char *uri, size_t uri_len)
+{
+	size_t plen;
+	for (plen = 0;  plen < uri_len;  plen++)
+		if (uri[plen] == ':')
+			return plen;
+	return 0;
+}
+
+/*
+ * Does a URI contain any dangerous characters?
+ */
+static lbool bad_uri(constant char *uri, size_t uri_len)
+{
+	size_t i;
+	for (i = 0;  i < uri_len;  i++)
+		if (strchr("'\"", uri[i]) != NULL)
+			return TRUE;
+	return FALSE;
+}
+
+/*
+ * Re-read the line containing the selected OSC8 link.
+ */
+static lbool osc8_read_selected(struct osc8_parse_info *op)
+{
+	constant char *line;
+	size_t line_len;
+	POSITION pos;
+
+	pos = forw_raw_line(osc8_linepos, &line, &line_len);
+	if (pos == NULL_POSITION)
+		return FALSE;
+	op->osc8_start    = &line[osc8_match_start - osc8_linepos];
+	op->osc8_end      = &line[osc8_match_end - osc8_linepos];
+	op->params_start  = &line[osc8_params_start - osc8_linepos];
+	op->params_end    = &line[osc8_params_end - osc8_linepos];
+	op->uri_start     = &line[osc8_uri_start - osc8_linepos];
+	op->uri_end       = &line[osc8_uri_end - osc8_linepos];
+	return TRUE;
+}
+
+/*
+ * Open the currently selected OSC8 link.
+ */
+public void osc8_open(void)
+{
+	struct osc8_parse_info op;
+	char env_name[64];
+	size_t scheme_len;
+	constant char *handler;
+	char *open_cmd;
+	size_t uri_len;
+	FILE *hf;
+	static constant char *env_name_pfx = "LESS_OSC8_";
+
+	if (osc8_linepos == NULL_POSITION)
+	{
+		error("No OSC8 link selected", NULL_PARG);
+		return;
+	}
+	if (!osc8_read_selected(&op))
+	{
+		error("Cannot find OSC8 link", NULL_PARG);
+		return;
+	}
+	/*
+	 * Read a "handler" shell cmd from environment variable "LESS_OSC8_scheme".
+	 * pr_expand the handler cmd (to expand %o -> osc8_path) and execute it.
+	 * Handler's stdout is an "opener" shell cmd; execute opener to open the link.
+	 */
+	uri_len = ptr_diff(op.uri_end, op.uri_start);
+	scheme_len = scheme_length(op.uri_start, uri_len);
+	if (scheme_len == 0 && op.uri_start[0] == '#')
+	{
+		/* Link to "id=" in same file. */
+		char *param = ecalloc(uri_len+3, sizeof(char));
+		strcpy(param, "id=");
+		strncpy(param+3, op.uri_start+1, uri_len-1);
+		param[uri_len+2] = '\0';
+		osc8_search(SRCH_FORW|SRCH_WRAP, param, 1);
+		free(param);
+		return;
+	}
+#if HAVE_POPEN
+	if (bad_uri(op.uri_start, uri_len))
+	{
+		error("Cannot open link containing dangerous characters", NULL_PARG);
+		return;
+	}
+	SNPRINTF3(env_name, sizeof(env_name), "%s%.*s", env_name_pfx, (int) scheme_len, op.uri_start);
+	handler = lgetenv(env_name);
+	if (isnullenv(handler) || strcmp(handler, "-") == 0)
+        handler = lgetenv("LESS_OSC8_ANY");
+	if (isnullenv(handler))
+	{
+		PARG parg;
+		parg.p_string = env_name + strlen(env_name_pfx); /* {{ tricky }} */
+		error("No handler for \"%s\" link type", &parg);
+		return;
+	}
+	/* {{ ugly global osc8_path }} */
+	osc8_path = saven(op.uri_start, uri_len);
+	hf = popen(pr_expand(handler), "r");
+	free(osc8_path);
+	osc8_path = NULL;
+	if (hf == NULL)
+	{
+		PARG parg;
+		parg.p_string = env_name;
+		error("Cannot execute protocol handler in %s", &parg);
+		return;
+	}
+	open_cmd = readfd(hf);
+	pclose(hf);
+	if (strncmp(open_cmd, ":e", 2) == 0)
+	{
+		edit(skipsp(&open_cmd[2]));
+	} else
+	{
+		lsystem(open_cmd, "link done");
+	}
+	free(open_cmd);
+#else
+	error("Cannot open link because your system does not support popen", NULL_PARG);
+#endif /* HAVE_POPEN */
+}
+
+/*
+ * Jump to the currently selected OSC8 link.
+ */
+public void osc8_jump(void)
+{
+	if (osc8_linepos == NULL_POSITION)
+	{
+		error("No OSC8 link selected", NULL_PARG);
+		return;
+	}
+	jump_loc(osc8_linepos, jump_sline);
+}
+
+#endif /* OSC8_LINK */
+
 /*
  * search for a pattern in history. If found, compile that pattern.
  */
 static int hist_pattern(int search_type)
 {
 #if CMD_HISTORY
-	char *pattern;
+	constant char *pattern;
 
 	set_mlist(ml_search, 0);
 	pattern = cmd_lastpattern();
@@ -1494,7 +2050,7 @@ public void chg_caseless(void)
  * Caller may continue the search in another file 
  * if less than n matches are found in this file.
  */
-public int search(int search_type, char *pattern, int n)
+public int search(int search_type, constant char *pattern, int n)
 {
 	POSITION pos;
 	POSITION opos;
@@ -1527,7 +2083,7 @@ public int search(int search_type, char *pattern, int n)
 			 * Erase the highlights currently on screen.
 			 * If the search fails, we'll redisplay them later.
 			 */
-			repaint_hilite(0);
+			repaint_hilite(FALSE);
 		}
 		if (hilite_search == OPT_ONPLUS && hide_hilite)
 		{
@@ -1535,10 +2091,10 @@ public int search(int search_type, char *pattern, int n)
 			 * Highlight any matches currently on screen,
 			 * before we actually start the search.
 			 */
-			hide_hilite = 0;
+			hide_hilite = FALSE;
 			hilite_screen();
 		}
-		hide_hilite = 0;
+		hide_hilite = FALSE;
 #endif
 	} else
 	{
@@ -1555,8 +2111,8 @@ public int search(int search_type, char *pattern, int n)
 			 * Erase the highlights currently on screen.
 			 * Also permanently delete them from the hilite list.
 			 */
-			repaint_hilite(0);
-			hide_hilite = 0;
+			repaint_hilite(FALSE);
+			hide_hilite = FALSE;
 			clr_hilite();
 		}
 		if (hilite_search == OPT_ONPLUS || status_col)
@@ -1584,7 +2140,7 @@ public int search(int search_type, char *pattern, int n)
 			return (n);
 #if HILITE_SEARCH
 		if (hilite_search == OPT_ON || status_col)
-			repaint_hilite(1);
+			repaint_hilite(TRUE);
 #endif
 		error("Nothing to search", NULL_PARG);
 		return (-1);
@@ -1592,6 +2148,14 @@ public int search(int search_type, char *pattern, int n)
 
 	n = search_range(pos, NULL_POSITION, search_type, n, -1,
 			&pos, (POSITION*)NULL, &lastlinepos);
+	/*
+	 * This ABORT_SIGS check ensures that if the user presses interrupt,
+	 * we don't continue and complete the search.
+	 * That is, we leave the display unchanged.
+	 * {{ Is this true? Do we always want to abort the search on interrupt? }}
+	 */
+	if (ABORT_SIGS())
+		return (-1);
 	if (n != 0)
 	{
 		/*
@@ -1602,7 +2166,7 @@ public int search(int search_type, char *pattern, int n)
 			/*
 			 * Redisplay old hilites.
 			 */
-			repaint_hilite(1);
+			repaint_hilite(TRUE);
 #endif
 		return (n);
 	}
@@ -1623,7 +2187,7 @@ public int search(int search_type, char *pattern, int n)
 		/*
 		 * Display new hilites in the matching line.
 		 */
-		repaint_hilite(1);
+		repaint_hilite(TRUE);
 #endif
 	return (0);
 }
@@ -1648,11 +2212,11 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 	int result;
 	int i;
 
-/*
- * Search beyond where we're asked to search, so the prep region covers
- * more than we need.  Do one big search instead of a bunch of small ones.
- */
-#define SEARCH_MORE (3*size_linebuf)
+	/*
+	 * Search beyond where we're asked to search, so the prep region covers
+	 * more than we need.  Do one big search instead of a bunch of small ones.
+	 */
+	POSITION SEARCH_MORE = (POSITION) (3*size_linebuf);
 
 	if (!prev_pattern(&search_info) && !is_filtering())
 		return;
@@ -1661,7 +2225,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 	 * Make sure our prep region always starts at the beginning of
 	 * a line. (search_range takes care of the end boundary below.)
 	 */
-	spos = back_raw_line(spos+1, (char **)NULL, (int *)NULL);
+	spos = back_raw_line(spos+1, NULL, NULL);
 
 	/*
 	 * If we're limited to a max number of lines, figure out the
@@ -1673,7 +2237,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 	{
 		max_epos = spos;
 		for (i = 0;  i < maxlines;  i++)
-			max_epos = forw_raw_line(max_epos, (char **)NULL, (int *)NULL);
+			max_epos = forw_raw_line(max_epos, NULL, NULL);
 	}
 
 	/*
@@ -1774,7 +2338,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 				if (new_epos >= nprep_endpos && is_filtered(new_epos-1))
 				{
 					spos = nprep_endpos;
-					epos = forw_raw_line(nprep_endpos, (char **)NULL, (int *)NULL);
+					epos = forw_raw_line(nprep_endpos, NULL, NULL);
 					if (epos == NULL_POSITION)
 						break;
 					maxlines = 1;
@@ -1787,7 +2351,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 				if (nprep_startpos > 0 && is_filtered(nprep_startpos))
 				{
 					epos = nprep_startpos;
-					spos = back_raw_line(nprep_startpos, (char **)NULL, (int *)NULL);
+					spos = back_raw_line(nprep_startpos, NULL, NULL);
 					if (spos == NULL_POSITION)
 						break;
 					nprep_startpos = spos;
@@ -1805,7 +2369,7 @@ public void prep_hilite(POSITION spos, POSITION epos, int maxlines)
 /*
  * Set the pattern to be used for line filtering.
  */
-public void set_filter_pattern(char *pattern, int search_type)
+public void set_filter_pattern(constant char *pattern, int search_type)
 {
 	struct pattern_info *filter;
 
@@ -1834,16 +2398,16 @@ public void set_filter_pattern(char *pattern, int search_type)
 		filter->next = filter_infos;
 		filter_infos = filter;
 	}
-	screen_trashed = 1;
+	screen_trashed();
 }
 
 /*
  * Is there a line filter in effect?
  */
-public int is_filtering(void)
+public lbool is_filtering(void)
 {
 	if (ch_getflags() & CH_HELPFILE)
-		return (0);
+		return (FALSE);
 	return (filter_infos != NULL);
 }
 #endif
@@ -1855,7 +2419,7 @@ public int is_filtering(void)
  */
 public int reg_show_error = 1;
 
-void regerror(char *s)
+void regerror(constant char *s)
 {
 	PARG parg;
 

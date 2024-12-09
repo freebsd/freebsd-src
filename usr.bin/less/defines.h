@@ -89,6 +89,12 @@
 #define	LOGFILE		(!SECURE)
 
 /*
+ * OSC8_SEARCH is 1 if you wish to allow the ^O^O and related commands
+ * (to open OSC8 hyperlinks).
+ */
+#define OSC8_LINK	1
+
+/*
  * GNU_OPTIONS is 1 if you wish to support the GNU-style command
  * line options --help and --version.
  */
@@ -138,7 +144,7 @@
 /*
  * HAVE_ANSI_PROTOS	is 1 if your compiler supports ANSI function prototypes.
  */
-#define HAVE_ANSI_PROTOS	1
+#define HAVE_ANSI_PROTOS 1
 
 /*
  * HAVE_SYS_TYPES_H is 1 if your system has <sys/types.h>.
@@ -235,7 +241,7 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
 
-/* Define to 1 if you have the `fchmod' function. */
+/* Define to 1 if you have the 'fchmod' function. */
 #define HAVE_FCHMOD 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
@@ -244,7 +250,7 @@
 /* Define HAVE_FILENO if you have the fileno() macro. */
 #define HAVE_FILENO 1
 
-/* Define to 1 if you have the `fsync' function. */
+/* Define to 1 if you have the 'fsync' function. */
 #define HAVE_FSYNC 1
 
 /* GNU regex library */
@@ -262,7 +268,7 @@
 /* Define HAVE_LOCALE if you have locale.h and setlocale. */
 #define HAVE_LOCALE 1
 
-/* Define to 1 if you have the `nanosleep' function. */
+/* Define to 1 if you have the 'nanosleep' function. */
 #define HAVE_NANOSLEEP 1
 
 /* Define to 1 if you have the <ncursesw/termcap.h> header file. */
@@ -280,20 +286,16 @@
 /* PCRE2 (Perl-compatible regular expression) library */
 /* #undef HAVE_PCRE2 */
 
-/* Define to 1 if you have the `poll' function. */
+/* Define to 1 if you have the 'poll' function. */
 #define HAVE_POLL 1
 
-/* Define to 1 if you have the `popen' function. */
+/* Define to 1 if you have the 'popen' function. */
 #define HAVE_POPEN 1
 
 /* POSIX regcomp() and regex.h */
 #define HAVE_POSIX_REGCOMP 1
 
-/* Define HAVE_PROCFS if have have fstatfs with f_type and PROC_SUPER_MAGIC.
-   */
-/* #undef HAVE_PROCFS */
-
-/* Define to 1 if you have the `realpath' function. */
+/* Define to 1 if you have the 'realpath' function. */
 #define HAVE_REALPATH 1
 
 /* System V regcmp() */
@@ -308,19 +310,19 @@
 /* Define HAVE_SIGEMPTYSET if you have the sigemptyset macro. */
 #define HAVE_SIGEMPTYSET 1
 
-/* Define to 1 if you have the `sigprocmask' function. */
+/* Define to 1 if you have the 'sigprocmask' function. */
 #define HAVE_SIGPROCMASK 1
 
-/* Define to 1 if you have the `sigsetmask' function. */
+/* Define to 1 if you have the 'sigsetmask' function. */
 #define HAVE_SIGSETMASK 1
 
-/* Define to 1 if the system has the type `sigset_t'. */
+/* Define to 1 if the system has the type 'sigset_t'. */
 #define HAVE_SIGSET_T 1
 
-/* Define to 1 if you have the `snprintf' function. */
+/* Define to 1 if you have the 'snprintf' function. */
 #define HAVE_SNPRINTF 1
 
-/* Define to 1 if you have the `stat' function. */
+/* Define to 1 if you have the 'stat' function. */
 #define HAVE_STAT 1
 
 /* Define HAVE_STAT_INO if your struct stat has st_ino and st_dev. */
@@ -347,10 +349,10 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* Define to 1 if you have the `strsignal' function. */
+/* Define to 1 if you have the 'strsignal' function. */
 #define HAVE_STRSIGNAL 1
 
-/* Define to 1 if you have the `system' function. */
+/* Define to 1 if you have the 'system' function. */
 #define HAVE_SYSTEM 1
 
 /* Define HAVE_SYS_ERRLIST if you have the sys_errlist[] variable. */
@@ -389,7 +391,7 @@
 /* Define HAVE_TIME_T if your system supports the "time_t" type. */
 #define HAVE_TIME_T 1
 
-/* Define to 1 if you have the `ttyname' function. */
+/* Define to 1 if you have the 'ttyname' function. */
 #define HAVE_TTYNAME 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
@@ -398,7 +400,7 @@
 /* Define HAVE_UPPER_LOWER if you have isupper, islower, toupper, tolower. */
 #define HAVE_UPPER_LOWER 1
 
-/* Define to 1 if you have the `usleep' function. */
+/* Define to 1 if you have the 'usleep' function. */
 #define HAVE_USLEEP 1
 
 /* Henry Spencer V8 regcomp() and regexp.h */
@@ -416,7 +418,7 @@
 /* Define to 1 if you have the <wctype.h> header file. */
 #define HAVE_WCTYPE_H 1
 
-/* Define to 1 if you have the `_setjmp' function. */
+/* Define to 1 if you have the '_setjmp' function. */
 #define HAVE__SETJMP 1
 
 /* Define MUST_DEFINE_ERRNO if you have errno but it is not define in errno.h.
@@ -451,10 +453,10 @@
 /* Define SECURE_COMPILE=1 to build a secure version of less. */
 #define SECURE_COMPILE 0
 
-/* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
+/* Define to 1 if the 'S_IS*' macros in <sys/stat.h> do not work properly. */
 /* #undef STAT_MACROS_BROKEN */
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
@@ -462,14 +464,20 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
 
-/* Define for large files, on AIX-style hosts. */
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
 /* #undef _LARGE_FILES */
 
-/* Define to empty if `const' does not conform to ANSI C. */
+/* Number of bits in time_t, on hosts where this is settable. */
+/* #undef _TIME_BITS */
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+/* #undef __MINGW_USE_VC2005_COMPAT */
+
+/* Define to empty if 'const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define to `long int' if <sys/types.h> does not define. */
+/* Define to 'long int' if <sys/types.h> does not define. */
 /* #undef off_t */
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 /* #undef size_t */
