@@ -80,6 +80,25 @@ all_repeated_body() {
 	atf_check_uniq --all-repeated=separate
 }
 
+atf_test_case count_all_repeated
+count_all_repeated_head() {
+	atf_set descr "count and print every instance of repeated lines"
+}
+count_all_repeated_body() {
+	printf "a\na\nb\na\na\n" >input
+	printf "   1 a\n   2 a\n   1 a\n   2 a\n" >expected
+	atf_check_uniq -D -c
+	atf_check_uniq -Dnone -c
+	atf_check_uniq -cD
+	atf_check_uniq -cDnone
+	atf_check_uniq -c -D
+	atf_check_uniq -c -Dnone
+	atf_check_uniq --all-repeated --count
+	atf_check_uniq --all-repeated=none --count
+	atf_check_uniq --count --all-repeated
+	atf_check_uniq --count --all-repeated=none
+}
+
 atf_test_case skip_fields
 skip_fields_head() {
 	atf_set descr "skip fields"
@@ -196,6 +215,7 @@ atf_init_test_cases()
 	atf_add_test_case repeated
 	atf_add_test_case count_repeated
 	atf_add_test_case all_repeated
+	atf_add_test_case count_all_repeated
 	atf_add_test_case skip_fields
 	atf_add_test_case skip_fields_tab
 	atf_add_test_case ignore_case

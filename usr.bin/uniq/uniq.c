@@ -225,12 +225,13 @@ main (int argc, char *argv[])
 						fputc('\n', ofp);
 					show(ofp, prevline);
 				}
-				show(ofp, thisline);
 			} else if (dflag && !cflag) {
 				if (repeats == 0)
 					show(ofp, prevline);
 			}
 			++repeats;
+			if (Dflag)
+				show(ofp, thisline);
 		}
 	}
 	if (ferror(ifp))
