@@ -72,6 +72,7 @@ typedef struct pic x86pic_func_t;
 #define	X86PIC_FUNC(func, impl) .func = impl
 #define	X86PIC_END
 typedef struct pic *x86pic_t, x86pics_t;
+#define	X86PIC_PIC(pic) ((struct X86PIC_TYPE *)(pic))
 
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,
