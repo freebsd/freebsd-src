@@ -332,7 +332,7 @@ cuse_kern_uninit(void *arg)
 
 	mtx_destroy(&cuse_global_mtx);
 }
-SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, 0);
+SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, NULL);
 
 static int
 cuse_server_get(struct cuse_server **ppcs)
