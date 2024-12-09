@@ -128,6 +128,8 @@ struct pic {
 				((pic)->pic_reprogram_pin((isrc)));	\
 		} while(0)
 
+#define	X86PIC_PIC(type, pic)	((struct type *)(pic))
+
 /* Flags for pic_disable_source() */
 enum {
 	PIC_EOI,
