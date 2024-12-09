@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -28,13 +28,10 @@
 public int sigs;
 
 extern int sc_width, sc_height;
-extern int screen_trashed;
-extern int lnloop;
 extern int linenums;
 extern int wscroll;
 extern int reading;
 extern int quit_on_intr;
-extern int secure;
 extern long jump_sline_fraction;
 
 extern int less_is_more;
@@ -46,6 +43,7 @@ extern int less_is_more;
 	/* ARGSUSED*/
 static RETSIGTYPE u_interrupt(int type)
 {
+	(void) type;
 	bell();
 #if OS2
 	LSIGNAL(SIGINT, SIG_ACK);
@@ -78,6 +76,7 @@ static RETSIGTYPE u_interrupt(int type)
 	/* ARGSUSED*/
 static RETSIGTYPE stop(int type)
 {
+	(void) type;
 	LSIGNAL(SIGTSTP, stop);
 	sigs |= S_STOP;
 	if (reading)
@@ -101,6 +100,7 @@ static RETSIGTYPE stop(int type)
 	/* ARGSUSED*/
 public RETSIGTYPE winch(int type)
 {
+	(void) type;
 	LSIGNAL(SIG_LESSWINDOW, winch);
 	sigs |= S_WINCH;
 	if (reading)
@@ -135,6 +135,7 @@ static BOOL WINAPI wbreak_handler(DWORD dwCtrlType)
 
 static RETSIGTYPE terminate(int type)
 {
+	(void) type;
 	quit(15);
 }
 
@@ -154,7 +155,7 @@ public void init_signals(int on)
 		(void) LSIGNAL(SIGINT, u_interrupt);
 #endif
 #ifdef SIGTSTP
-		(void) LSIGNAL(SIGTSTP, secure ? SIG_IGN : stop);
+		(void) LSIGNAL(SIGTSTP, !secure_allow(SF_STOP) ? SIG_IGN : stop);
 #endif
 #ifdef SIGWINCH
 		(void) LSIGNAL(SIGWINCH, winch);
@@ -235,7 +236,7 @@ public void psignals(void)
 		LSIGNAL(SIGTSTP, stop);
 		raw_mode(1);
 		init();
-		screen_trashed = 1;
+		screen_trashed();
 		tsignals |= S_WINCH;
 	}
 #endif
@@ -252,15 +253,18 @@ public void psignals(void)
 		if (sc_width != old_width || sc_height != old_height)
 		{
 			wscroll = (sc_height + 1) / 2;
-			calc_jump_sline();
-			calc_shift_count();
+			screen_size_changed();
 		}
-		screen_trashed = 1;
+		screen_trashed();
 	}
 #endif
 	if (tsignals & S_INTERRUPT)
 	{
 		if (quit_on_intr)
 			quit(QUIT_INTERRUPT);
+		getcc_clear();
+#if MSDOS_COMPILER==WIN32C
+		win32_getch_clear();
+#endif
 	}
 }

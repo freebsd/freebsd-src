@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -133,13 +133,13 @@ static long lstrtol(char *s, char **pend, int radix)
 	return (n);
 }
 
-static void add_metachar(int ch)
+static void add_metachar(char ch)
 {
 	if (num_metachars+1 >= size_metachars)
 	{
 		char *p;
 		size_metachars = (size_metachars > 0) ? size_metachars*2 : 16;
-		p = (char *) malloc(size_metachars);
+		p = (char *) malloc((size_t) size_metachars);
 		if (p == NULL)
 			pr_error("Cannot allocate memory");
 
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 			closequote = *++arg;
 			break;
 		case 'd':
-			closequote = lstrtol(++arg, &s, 0);
+			closequote = (char) lstrtol(++arg, &s, 0);
 			if (s == arg)
 				pr_error("Missing number after -d");
 			break;
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 				meta_escape = arg;
 			break;
 		case 'f':
-			meta_escape_buf[0] = lstrtol(++arg, &s, 0);
+			meta_escape_buf[0] = (char) lstrtol(++arg, &s, 0);
 			meta_escape_buf[1] = '\0';
 			meta_escape = meta_escape_buf;
 			if (s == arg)
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 			openquote = *++arg;
 			break;
 		case 'p':
-			openquote = lstrtol(++arg, &s, 0);
+			openquote = (char) lstrtol(++arg, &s, 0);
 			if (s == arg)
 				pr_error("Missing number after -p");
 			break;
@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
 			add_metachar(*++arg);
 			break;
 		case 'n':
-			add_metachar(lstrtol(++arg, &s, 0));
+			add_metachar((char) lstrtol(++arg, &s, 0));
 			if (s == arg)
 				pr_error("Missing number after -n");
 			break;
@@ -245,6 +245,7 @@ int main(int argc, char *argv[])
 				return (0);
 			}
 			pr_error("Invalid option after --");
+			return (0);
 		default:
 			pr_error("Invalid option letter");
 		}

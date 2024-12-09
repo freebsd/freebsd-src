@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -32,7 +32,6 @@
 #endif
 #endif
 
-extern int screen_trashed;
 extern IFILE curr_ifile;
 
 
@@ -42,11 +41,11 @@ extern IFILE curr_ifile;
  * Pass the specified command to a shell to be executed.
  * Like plain "system()", but handles resetting terminal modes, etc.
  */
-public void lsystem(char *cmd, char *donemsg)
+public void lsystem(constant char *cmd, constant char *donemsg)
 {
 	int inp;
 #if HAVE_SHELL
-	char *shell;
+	constant char *shell;
 	char *p;
 #endif
 	IFILE save_ifile;
@@ -136,7 +135,7 @@ public void lsystem(char *cmd, char *donemsg)
 			char *esccmd = shell_quote(cmd);
 			if (esccmd != NULL)
 			{
-				int len = (int) (strlen(shell) + strlen(esccmd) + 5);
+				size_t len = strlen(shell) + strlen(esccmd) + 5;
 				p = (char *) ecalloc(len, sizeof(char));
 				SNPRINTF3(p, len, "%s %s %s", shell, shell_coption(), esccmd);
 				free(esccmd);
@@ -193,7 +192,7 @@ public void lsystem(char *cmd, char *donemsg)
 		flush();
 	}
 	init();
-	screen_trashed = 1;
+	screen_trashed();
 
 #if MSDOS_COMPILER && MSDOS_COMPILER!=WIN32C
 	/*
@@ -248,7 +247,7 @@ public void lsystem(char *cmd, char *donemsg)
  * If the mark is on the current screen, or if the mark is ".",
  * the whole current screen is piped.
  */
-public int pipe_mark(int c, char *cmd)
+public int pipe_mark(char c, constant char *cmd)
 {
 	POSITION mpos, tpos, bpos;
 
@@ -279,7 +278,7 @@ public int pipe_mark(int c, char *cmd)
  * Create a pipe to the given shell command.
  * Feed it the file contents between the positions spos and epos.
  */
-public int pipe_data(char *cmd, POSITION spos, POSITION epos)
+public int pipe_data(constant char *cmd, POSITION spos, POSITION epos)
 {
 	FILE *f;
 	int c;
@@ -353,7 +352,7 @@ public int pipe_data(char *cmd, POSITION spos, POSITION epos)
 	init_signals(1);
 	raw_mode(1);
 	init();
-	screen_trashed = 1;
+	screen_trashed();
 #if defined(SIGWINCH) || defined(SIGWIND)
 	/* {{ Probably don't need this here. }} */
 	winch(0);

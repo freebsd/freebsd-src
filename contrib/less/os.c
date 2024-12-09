@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -42,13 +42,13 @@
 
 #if HAVE_POLL && !MSDOS_COMPILER
 #define USE_POLL 1
-static int use_poll = TRUE;
+static lbool use_poll = TRUE;
 #else
 #define USE_POLL 0
 #endif
 #if USE_POLL
 #include <poll.h>
-static int any_data = FALSE;
+static lbool any_data = FALSE;
 #endif
 
 /*
@@ -67,7 +67,7 @@ static int any_data = FALSE;
 #endif
 
 public int reading;
-public int waiting_for_data;
+public lbool waiting_for_data;
 public int consecutive_nulls = 0;
 
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
@@ -80,16 +80,14 @@ extern int exit_F_on_close;
 extern int follow_mode;
 extern int scanning_eof;
 extern char intr_char;
+extern int is_tty;
 #if !MSDOS_COMPILER
 extern int tty;
 #endif
-#if LESSTEST
-extern char *ttyin_name;
-#endif /*LESSTEST*/
 
 public void init_poll(void)
 {
-	char *delay = lgetenv("LESS_DATA_DELAY");
+	constant char *delay = lgetenv("LESS_DATA_DELAY");
 	int idelay = (delay == NULL) ? 0 : atoi(delay);
 	if (idelay > 0)
 		waiting_for_data_delay = idelay;
@@ -125,16 +123,16 @@ static int check_poll(int fd, int tty)
 	}
 	poll(poller, 2, timeout);
 #if LESSTEST
-	if (ttyin_name == NULL) /* Check for ^X only on a real tty. */
+	if (!is_lesstest()) /* Check for ^X only on a real tty. */
 #endif /*LESSTEST*/
 	{
 		if (poller[1].revents & POLLIN) 
 		{
-			LWCHAR ch = getchr();
-			if (ch == intr_char)
+			int ch = getchr();
+			if (ch < 0 || ch == intr_char)
 				/* Break out of "waiting for data". */
 				return (READ_INTR);
-			ungetcc_back(ch);
+			ungetcc_back((char) ch);
 		}
 	}
 	if (ignore_eoi && exit_F_on_close && (poller[0].revents & (POLLHUP|POLLIN)) == POLLHUP)
@@ -150,11 +148,15 @@ static int check_poll(int fd, int tty)
 
 public int supports_ctrl_x(void)
 {
+#if MSDOS_COMPILER==WIN32C
+	return (TRUE);
+#else
 #if USE_POLL
 	return (use_poll);
 #else
 	return (FALSE);
 #endif /* USE_POLL */
+#endif /* MSDOS_COMPILER==WIN32C */
 }
 
 /*
@@ -162,9 +164,9 @@ public int supports_ctrl_x(void)
  * A call to intread() from a signal handler will interrupt
  * any pending iread().
  */
-public int iread(int fd, unsigned char *buf, unsigned int len)
+public ssize_t iread(int fd, unsigned char *buf, size_t len)
 {
-	int n;
+	ssize_t n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -188,7 +190,7 @@ start:
 		/*
 		 * We jumped here from intread.
 		 */
-		reading = 0;
+		reading = FALSE;
 #if HAVE_SIGPROCMASK
 		{
 		  sigset_t mask;
@@ -213,7 +215,7 @@ start:
 	}
 
 	flush();
-	reading = 1;
+	reading = TRUE;
 #if MSDOS_COMPILER==DJGPPC
 	if (isatty(fd))
 	{
@@ -230,20 +232,20 @@ start:
 		FD_SET(fd, &readfds);
 		if (select(fd+1, &readfds, 0, 0, 0) == -1)
 		{
-			reading = 0;
+			reading = FALSE;
 			return (READ_ERR);
 		}
 	}
 #endif
 #if USE_POLL
-	if (fd != tty && use_poll)
+	if (is_tty && fd != tty && use_poll)
 	{
 		int ret = check_poll(fd, tty);
 		if (ret != 0)
 		{
 			if (ret == READ_INTR)
 				sigs |= S_INTERRUPT;
-			reading = 0;
+			reading = FALSE;
 			return (ret);
 		}
 	}
@@ -257,7 +259,7 @@ start:
 		if (c == intr_char)
 		{
 			sigs |= S_INTERRUPT;
-			reading = 0;
+			reading = FALSE;
 			return (READ_INTR);
 		}
 		WIN32ungetch(c);
@@ -265,7 +267,7 @@ start:
 #endif
 #endif
 	n = read(fd, buf, len);
-	reading = 0;
+	reading = FALSE;
 #if 1
 	/*
 	 * This is a kludge to workaround a problem on some systems
@@ -355,11 +357,11 @@ static char * strerror(int err)
 /*
  * errno_message: Return an error message based on the value of "errno".
  */
-public char * errno_message(char *filename)
+public char * errno_message(constant char *filename)
 {
 	char *p;
 	char *m;
-	int len;
+	size_t len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
 	extern int errno;
@@ -368,7 +370,7 @@ public char * errno_message(char *filename)
 #else
 	p = "cannot open";
 #endif
-	len = (int) (strlen(filename) + strlen(p) + 3);
+	len = strlen(filename) + strlen(p) + 3;
 	m = (char *) ecalloc(len, sizeof(char));
 	SNPRINTF2(m, len, "%s: %s", filename, p);
 	return (m);
@@ -378,11 +380,11 @@ public char * errno_message(char *filename)
  * Return a description of a signal.
  * The return value is good until the next call to this function.
  */
-public char * signal_message(int sig)
+public constant char * signal_message(int sig)
 {
 	static char sigbuf[sizeof("Signal ") + INT_STRLEN_BOUND(sig) + 1];
 #if HAVE_STRSIGNAL
-	char *description = strsignal(sig);
+	constant char *description = strsignal(sig);
 	if (description)
 		return description;
 #endif
@@ -395,7 +397,7 @@ public char * signal_message(int sig)
  * and min(VAL, NUM) <= DEN so the result cannot overflow.
  * Round to the nearest integer, breaking ties by rounding to even.
  */
-public uintmax muldiv(uintmax val, uintmax num, uintmax den)
+public uintmax umuldiv(uintmax val, uintmax num, uintmax den)
 {
 	/*
 	 * Like round(val * (double) num / den), but without rounding error.
@@ -416,7 +418,7 @@ public uintmax muldiv(uintmax val, uintmax num, uintmax den)
  */
 public int percentage(POSITION num, POSITION den)
 {
-	return (int) muldiv(num,  (POSITION) 100, den);
+	return (int) muldiv(num, 100, den);
 }
 
 /*
@@ -433,7 +435,7 @@ public POSITION percent_pos(POSITION pos, int percent, long fraction)
 	 */
 	POSITION pctden = (percent * NUM_FRAC_DENOM) + fraction;
 
-	return (POSITION) muldiv(pos, pctden, 100 * (POSITION) NUM_FRAC_DENOM);
+	return (POSITION) muldiv(pos, pctden, 100 * NUM_FRAC_DENOM);
 }
 
 #if !HAVE_STRCHR
@@ -452,7 +454,7 @@ char * strchr(char *s, char c)
 #endif
 
 #if !HAVE_MEMCPY
-void * memcpy(void *dst, void *src, int len)
+void * memcpy(void *dst, void *src, size_t len)
 {
 	char *dstp = (char *) dst;
 	char *srcp = (char *) src;
@@ -498,7 +500,7 @@ public void sleep_ms(int ms)
 	nanosleep(&t, NULL);
 #else
 #if HAVE_USLEEP
-	usleep(ms);
+	usleep(ms * 1000);
 #else
 	sleep(ms / 1000 + (ms % 1000 != 0));
 #endif

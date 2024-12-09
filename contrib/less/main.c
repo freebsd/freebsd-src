@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -17,10 +17,19 @@
 #if MSDOS_COMPILER==WIN32C
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#if defined(MINGW) || defined(_MSC_VER)
+#include <locale.h>
+#include <shellapi.h>
 #endif
 
+public unsigned less_acp = CP_ACP;
+#endif
+
+#include "option.h"
+
 public char *   every_first_cmd = NULL;
-public int      new_file;
+public lbool    new_file;
 public int      is_tty;
 public IFILE    curr_ifile = NULL_IFILE;
 public IFILE    old_ifile = NULL_IFILE;
@@ -28,20 +37,21 @@ public struct scrpos initial_scrpos;
 public POSITION start_attnpos = NULL_POSITION;
 public POSITION end_attnpos = NULL_POSITION;
 public int      wscroll;
-public char *   progname;
+public constant char *progname;
 public int      quitting;
-public int      secure;
 public int      dohelp;
+public char *   init_header = NULL;
+static int      secure_allow_features;
 
 #if LOGFILE
 public int      logfile = -1;
-public int      force_logfile = FALSE;
+public lbool    force_logfile = FALSE;
 public char *   namelogfile = NULL;
 #endif
 
 #if EDITOR
-public char *   editor;
-public char *   editproto;
+public constant char *   editor;
+public constant char *   editproto;
 #endif
 
 #if TAGS
@@ -51,14 +61,13 @@ extern int      jump_sline;
 #endif
 
 #ifdef WIN32
-static char consoleTitle[256];
+static wchar_t consoleTitle[256];
 #endif
 
 public int      one_screen;
 extern int      less_is_more;
 extern int      missing_cap;
 extern int      know_dumb;
-extern int      pr_type;
 extern int      quit_if_one_screen;
 extern int      no_init;
 extern int      errmsgs;
@@ -66,13 +75,178 @@ extern int      redraw_on_quit;
 extern int      term_init_done;
 extern int      first_time;
 
+#if MSDOS_COMPILER==WIN32C && (defined(MINGW) || defined(_MSC_VER))
+/* malloc'ed 0-terminated utf8 of 0-terminated wide ws, or null on errors */
+static char *utf8_from_wide(constant wchar_t *ws)
+{
+	char *u8 = NULL;
+	int n = WideCharToMultiByte(CP_UTF8, 0, ws, -1, NULL, 0, NULL, NULL);
+	if (n > 0)
+	{
+		u8 = ecalloc(n, sizeof(char));
+		WideCharToMultiByte(CP_UTF8, 0, ws, -1, u8, n, NULL, NULL);
+	}
+	return u8;
+}
+
+/*
+ * similar to using UTF8 manifest to make the ANSI APIs UTF8, but dynamically
+ * with setlocale. unlike the manifest, argv and environ are already ACP, so
+ * make them UTF8. Additionally, this affects only the libc/crt API, and so
+ * e.g. fopen filename becomes UTF-8, but CreateFileA filename remains CP_ACP.
+ * CP_ACP remains the original codepage - use the dynamic less_acp instead.
+ * effective on win 10 1803 or later when compiled with ucrt, else no-op.
+ */
+static void try_utf8_locale(int *pargc, constant char ***pargv)
+{
+	char *locale_orig = strdup(setlocale(LC_ALL, NULL));
+	wchar_t **wargv = NULL, *wenv, *wp;
+	constant char **u8argv;
+	char *u8e;
+	int i, n;
+
+	if (!setlocale(LC_ALL, ".UTF8"))
+		goto cleanup;  /* not win10 1803+ or not ucrt */
+
+	/*
+	 * wargv is before glob expansion. some ucrt builds may expand globs
+	 * before main is entered, so n may be smaller than the original argc.
+	 * that's ok, because later code at main expands globs anyway.
+	 */
+	wargv = CommandLineToArgvW(GetCommandLineW(), &n);
+	if (!wargv)
+		goto bad_args;
+
+	u8argv = (constant char **) ecalloc(n + 1, sizeof(char *));
+	for (i = 0; i < n; ++i)
+	{
+		if (!(u8argv[i] = utf8_from_wide(wargv[i])))
+			goto bad_args;
+	}
+	u8argv[n] = 0;
+
+	less_acp = CP_UTF8;
+	*pargc = n;
+	*pargv = u8argv;  /* leaked on exit */
+
+	/* convert wide env to utf8 where we can, but don't abort on errors */
+	if ((wenv = GetEnvironmentStringsW()))
+	{
+		for (wp = wenv; *wp; wp += wcslen(wp) + 1)
+		{
+			if ((u8e = utf8_from_wide(wp)))
+				_putenv(u8e);
+			free(u8e);  /* windows putenv makes a copy */
+		}
+		FreeEnvironmentStringsW(wenv);
+	}
+
+	goto cleanup;
+
+bad_args:
+	error("WARNING: cannot use unicode arguments", NULL_PARG);
+	setlocale(LC_ALL, locale_orig);
+
+cleanup:
+	free(locale_orig);
+	LocalFree(wargv);
+}
+#endif
+
+static int security_feature_error(constant char *type, size_t len, constant char *name)
+{
+	PARG parg;
+	size_t msglen = len + strlen(type) + 64;
+	char *msg = ecalloc(msglen, sizeof(char));
+	SNPRINTF3(msg, msglen, "LESSSECURE_ALLOW: %s feature name \"%.*s\"", type, (int) len, name);
+	parg.p_string = msg;
+	error("%s", &parg);
+	free(msg);
+	return 0;
+}
+
+/*
+ * Return the SF_xxx value of a secure feature given the name of the feature.
+ */
+static int security_feature(constant char *name, size_t len)
+{
+	struct secure_feature { constant char *name; int sf_value; };
+	static struct secure_feature features[] = {
+		{ "edit",     SF_EDIT },
+		{ "examine",  SF_EXAMINE },
+		{ "glob",     SF_GLOB },
+		{ "history",  SF_HISTORY },
+		{ "lesskey",  SF_LESSKEY },
+		{ "lessopen", SF_LESSOPEN },
+		{ "logfile",  SF_LOGFILE },
+		{ "osc8",     SF_OSC8_OPEN },
+		{ "pipe",     SF_PIPE },
+		{ "shell",    SF_SHELL },
+		{ "stop",     SF_STOP },
+		{ "tags",     SF_TAGS },
+	};
+	int i;
+	int match = -1;
+
+	for (i = 0;  i < countof(features);  i++)
+	{
+		if (strncmp(features[i].name, name, len) == 0)
+		{
+			if (match >= 0) /* name is ambiguous */
+				return security_feature_error("ambiguous", len, name);
+			match = i;
+		}
+	}
+	if (match < 0)
+		return security_feature_error("invalid", len, name);
+	return features[match].sf_value;
+}
+
+/*
+ * Set the secure_allow_features bitmask, which controls
+ * whether certain secure features are allowed.
+ */
+static void init_secure(void)
+{
+#if SECURE
+	secure_allow_features = 0;
+#else
+	constant char *str = lgetenv("LESSSECURE");
+	if (isnullenv(str))
+		secure_allow_features = ~0; /* allow everything */
+	else
+		secure_allow_features = 0; /* allow nothing */
+
+	str = lgetenv("LESSSECURE_ALLOW");
+	if (!isnullenv(str))
+	{
+		for (;;)
+		{
+			constant char *estr;
+			while (*str == ' ' || *str == ',') ++str; /* skip leading spaces/commas */
+			if (*str == '\0') break;
+			estr = strchr(str, ',');
+			if (estr == NULL) estr = str + strlen(str);
+			while (estr > str && estr[-1] == ' ') --estr; /* trim trailing spaces */
+			secure_allow_features |= security_feature(str, ptr_diff(estr, str));
+			str = estr;
+		}
+	}
+#endif
+}
+
 /*
  * Entry point.
  */
-int main(int argc, char *argv[])
+int main(int argc, constant char *argv[])
 {
 	IFILE ifile;
-	char *s;
+	constant char *s;
+
+#if MSDOS_COMPILER==WIN32C && (defined(MINGW) || defined(_MSC_VER))
+	if (GetACP() != CP_UTF8)  /* not using a UTF-8 manifest */
+		try_utf8_locale(&argc, &argv);
+#endif
 
 #ifdef __EMX__
 	_response(&argc, &argv);
@@ -81,15 +255,7 @@ int main(int argc, char *argv[])
 
 	progname = *argv++;
 	argc--;
-
-#if SECURE
-	secure = 1;
-#else
-	secure = 0;
-	s = lgetenv("LESSSECURE");
-	if (!isnullenv(s))
-		secure = 1;
-#endif
+	init_secure();
 
 #ifdef WIN32
 	if (getenv("HOME") == NULL)
@@ -110,7 +276,8 @@ int main(int argc, char *argv[])
 			putenv(env);
 		}
 	}
-	GetConsoleTitle(consoleTitle, sizeof(consoleTitle)/sizeof(char));
+	/* on failure, consoleTitle is already a valid empty string */
+	GetConsoleTitleW(consoleTitle, countof(consoleTitle));
 #endif /* WIN32 */
 
 	/*
@@ -121,7 +288,6 @@ int main(int argc, char *argv[])
 	init_mark();
 	init_cmds();
 	init_poll();
-	get_term();
 	init_charset();
 	init_line();
 	init_cmdhist();
@@ -132,15 +298,14 @@ int main(int argc, char *argv[])
 	 * If the name of the executable program is "more",
 	 * act like LESS_IS_MORE is set.
 	 */
-	s = last_component(progname);
-	if (strcmp(s, "more") == 0)
+	if (strcmp(last_component(progname), "more") == 0) {
 		less_is_more = 1;
+		scan_option("-fG");
+	}
 
 	init_prompt();
 
-	if (less_is_more)
-		scan_option("-fG");
-
+	init_unsupport();
 	s = lgetenv(less_is_more ? "MORE" : "LESS");
 	if (s != NULL)
 		scan_option(s);
@@ -170,6 +335,7 @@ int main(int argc, char *argv[])
 	if (less_is_more)
 		no_init = TRUE;
 
+	get_term();
 	expand_cmd_tables();
 
 #if EDITOR
@@ -202,7 +368,7 @@ int main(int argc, char *argv[])
 		 * Expand the pattern and iterate over the expanded list.
 		 */
 		struct textlist tlist;
-		char *filename;
+		constant char *filename;
 		char *gfilename;
 		char *qfilename;
 		
@@ -294,6 +460,12 @@ int main(int argc, char *argv[])
 				one_screen = get_one_screen();
 		}
 	}
+	if (init_header != NULL)
+	{
+		opt_header(TOGGLE, init_header);
+		free(init_header);
+		init_header = NULL;
+	}
 
 	if (errmsgs > 0)
 	{
@@ -318,13 +490,17 @@ int main(int argc, char *argv[])
  * Copy a string to a "safe" place
  * (that is, to a buffer allocated by calloc).
  */
+public char * saven(constant char *s, size_t n)
+{
+	char *p = (char *) ecalloc(n+1, sizeof(char));
+	strncpy(p, s, n);
+	p[n] = '\0';
+	return (p);
+}
+
 public char * save(constant char *s)
 {
-	char *p;
-
-	p = (char *) ecalloc(strlen(s)+1, sizeof(char));
-	strcpy(p, s);
-	return (p);
+	return saven(s, strlen(s));
 }
 
 public void out_of_memory(void)
@@ -337,7 +513,7 @@ public void out_of_memory(void)
  * Allocate memory.
  * Like calloc(), but never returns an error (NULL).
  */
-public void * ecalloc(int count, unsigned int size)
+public void * ecalloc(size_t count, size_t size)
 {
 	void * p;
 
@@ -357,16 +533,24 @@ public char * skipsp(char *s)
 	return (s);
 }
 
+/* {{ There must be a better way. }} */
+public constant char * skipspc(constant char *s)
+{
+	while (*s == ' ' || *s == '\t')
+		s++;
+	return (s);
+}
+
 /*
  * See how many characters of two strings are identical.
  * If uppercase is true, the first string must begin with an uppercase
  * character; the remainder of the first string may be either case.
  */
-public int sprefix(char *ps, char *s, int uppercase)
+public size_t sprefix(constant char *ps, constant char *s, int uppercase)
 {
-	int c;
-	int sc;
-	int len = 0;
+	char c;
+	char sc;
+	size_t len = 0;
 
 	for ( ;  *s != '\0';  s++, ps++)
 	{
@@ -374,7 +558,7 @@ public int sprefix(char *ps, char *s, int uppercase)
 		if (uppercase)
 		{
 			if (len == 0 && ASCII_IS_LOWER(c))
-				return (-1);
+				return (0);
 			if (ASCII_IS_UPPER(c))
 				c = ASCII_TO_LOWER(c);
 		}
@@ -433,8 +617,16 @@ public void quit(int status)
 	close(2);
 #endif
 #ifdef WIN32
-	SetConsoleTitle(consoleTitle);
+	SetConsoleTitleW(consoleTitle);
 #endif
 	close_getchr();
 	exit(status);
+} 
+	
+/*
+ * Are all the features in the features mask allowed by security?
+ */
+public int secure_allow(int features)
+{
+	return ((secure_allow_features & features) == features);
 }

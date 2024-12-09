@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2024  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,8 +47,8 @@ extern int less_is_more;
 
 /* ---- RE_COMP  ---- */
 #if HAVE_RE_COMP
-char *re_comp(char*);
-int re_exec(char*);
+constant char *re_comp(constant char*);
+int re_exec(constant char*);
 #define PATTERN_TYPE             int
 #define SET_NULL_PATTERN(name)   name = 0
 #endif
