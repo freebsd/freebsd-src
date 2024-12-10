@@ -7797,7 +7797,7 @@ t4_sysctls(struct adapter *sc)
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
 		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
 
-		sc->tt.tls = 0;
+		sc->tt.tls = 1;
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls", CTLTYPE_INT |
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0, sysctl_tls, "I",
 		    "Inline TLS allowed");
