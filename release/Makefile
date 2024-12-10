@@ -79,6 +79,7 @@ PKG_ARGS+=	-o METALOG=METALOG
 PKG_ENV+=	ASSUME_ALWAYS_YES=yes
 PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
 PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install
+PKG_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} clean -a
 .endif
 
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
@@ -194,6 +195,7 @@ disc1: packagesystem
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
+	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
@@ -270,6 +272,7 @@ dvd: packagesystem
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
+	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
