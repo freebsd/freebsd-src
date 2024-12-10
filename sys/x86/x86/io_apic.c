@@ -917,10 +917,10 @@ ioapic_register(ioapic_drv_t io)
 	int i;
 
 	apic = io->io_addr;
+	intr_register_pic(io->io_pic);
 	mtx_lock_spin(&icu_lock);
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
-	mtx_unlock_spin(&icu_lock);
 	printf("ioapic%u <Version %u.%u> irqs %u-%u\n",
 	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
 	    io->io_intbase + io->io_numintr - 1);
@@ -929,9 +929,9 @@ ioapic_register(ioapic_drv_t io)
 	 * Reprogram pins to handle special case pins (such as NMI and
 	 * SMI) and disable normal pins until a handler is registered.
 	 */
-	intr_register_pic(X86PIC_PTR(io->io_pic));
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
-		ioapic_reprogram_intpin(X86PIC_PTR(io->io_pic), &pin->io_intsrc);
+		ioapic_program_intpin(pin);
+	mtx_unlock_spin(&icu_lock);
 }
 
 /*
