@@ -2827,11 +2827,19 @@ pfrule		: action dir logquick interface route af proto fromto
 					r.free_flags |= PFRULE_DN_IS_QUEUE;
 			}
 
-			if ($9.marker & FOM_AFTO)
+			if ($9.marker & FOM_AFTO) {
 				r.naf = $9.nat.af;
 
-			r.nat.opts = $9.nat.pool_opts.type;
-			r.nat.opts |= $9.nat.pool_opts.opts;
+				r.nat.opts = $9.nat.pool_opts.type;
+				r.nat.opts |= $9.nat.pool_opts.opts;
+
+				if ((r.nat.opts & PF_POOL_TYPEMASK) !=
+				    PF_POOL_ROUNDROBIN &&
+				    disallow_table($9.nat.rdr->host, "tables are only "
+				    "supported in round-robin pools"))
+					YYERROR;
+			}
+
 			expand_rule(&r, $4, $5.host, $9.nat.rdr ? $9.nat.rdr->host : NULL,
 			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
 			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec, "");

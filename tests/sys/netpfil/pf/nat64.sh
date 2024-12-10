@@ -341,6 +341,28 @@ pool_cleanup()
 	pft_cleanup
 }
 
+
+atf_test_case "table"
+table_head()
+{
+	atf_set descr 'Tables require round-robin'
+	atf_set require.user root
+}
+
+table_body()
+{
+	pft_init
+
+	echo "pass in on epair inet6 from any to 64:ff9b::/96 af-to inet from <wanaddr>" | \
+	    atf_check -s exit:1 \
+	    -e match:"tables are only supported in round-robin pools" \
+	    pfctl -f -
+}
+
+table_cleanup()
+{
+	pft_cleanup
+}
 atf_test_case "table_round_robin" "cleanup"
 table_round_robin_head()
 {
@@ -417,5 +439,6 @@ atf_init_test_cases()
 	atf_add_test_case "tos"
 	atf_add_test_case "no_v4"
 	atf_add_test_case "pool"
+	atf_add_test_case "table"
 	atf_add_test_case "table_round_robin"
 }
