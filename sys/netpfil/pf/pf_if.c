@@ -274,6 +274,13 @@ pf_kkif_free(struct pfi_kkif *kif)
 	if (! kif)
 		return;
 
+#ifdef INVARIANTS
+	if (kif->pfik_ifp) {
+		struct ifnet *ifp = kif->pfik_ifp;
+		MPASS(ifp->if_pf_kif == NULL || ifp->if_pf_kif == kif);
+	}
+#endif
+
 #ifdef PF_WANT_32_TO_64_COUNTER
 	wowned = PF_RULES_WOWNED();
 	if (!wowned)
@@ -378,6 +385,35 @@ pfi_kkif_remove_if_unref(struct pfi_kkif *kif)
 	    kif == V_pfi_all || kif->pfik_flags != 0)
 		return;
 
+	/*
+	 * We can get here in at least two distinct paths:
+	 * - when the struct ifnet is removed, via pfi_detach_ifnet_event()
+	 * - when a rule referencing us is removed, via pfi_kkif_unref().
+	 * These two events can race against each other, leading us to free this kif
+	 * twice. That leads to a loop in V_pfi_unlinked_kifs, and an eventual
+	 * deadlock.
+	 *
+	 * Avoid this by making sure we only ever insert the kif into
+	 * V_pfi_unlinked_kifs once.
+	 * If we don't find it in V_pfi_ifs it's already been removed. Check that it
+	 * exists in V_pfi_unlinked_kifs.
+	 */
+	if (! RB_FIND(pfi_ifhead, &V_pfi_ifs, kif)) {
+#ifdef INVARIANTS
+		struct pfi_kkif *tmp;
+		bool found = false;
+		mtx_lock(&pfi_unlnkdkifs_mtx);
+		LIST_FOREACH(tmp, &V_pfi_unlinked_kifs, pfik_list) {
+			if (tmp == kif) {
+				found = true;
+				break;
+			}
+		}
+		mtx_unlock(&pfi_unlnkdkifs_mtx);
+		MPASS(found);
+#endif
+		return;
+	}
 	RB_REMOVE(pfi_ifhead, &V_pfi_ifs, kif);
 
 	kif->pfik_flags |= PFI_IFLAG_REFS;
