@@ -83,6 +83,7 @@ device		rcons
 # pseudo devices
 device		clk
 device		hwreset
+device		nvmem
 device		phy
 device		regulator
 device		syscon
