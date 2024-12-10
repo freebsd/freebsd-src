@@ -318,15 +318,17 @@ static int t4_nofldtxq = -NOFLDTXQ;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldtxq, CTLFLAG_RDTUN, &t4_nofldtxq, 0,
     "Number of offload TX queues per port");
 
-#define NOFLDRXQ 2
-static int t4_nofldrxq = -NOFLDRXQ;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldrxq, CTLFLAG_RDTUN, &t4_nofldrxq, 0,
-    "Number of offload RX queues per port");
-
 #define NOFLDTXQ_VI 1
 static int t4_nofldtxq_vi = -NOFLDTXQ_VI;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldtxq_vi, CTLFLAG_RDTUN, &t4_nofldtxq_vi, 0,
     "Number of offload TX queues per VI");
+#endif
+
+#if defined(TCP_OFFLOAD)
+#define NOFLDRXQ 2
+static int t4_nofldrxq = -NOFLDRXQ;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldrxq, CTLFLAG_RDTUN, &t4_nofldrxq, 0,
+    "Number of offload RX queues per port");
 
 #define NOFLDRXQ_VI 1
 static int t4_nofldrxq_vi = -NOFLDRXQ_VI;
@@ -334,12 +336,12 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nofldrxq_vi, CTLFLAG_RDTUN, &t4_nofldrxq_vi, 0,
     "Number of offload RX queues per VI");
 
 #define TMR_IDX_OFLD 1
-int t4_tmr_idx_ofld = TMR_IDX_OFLD;
+static int t4_tmr_idx_ofld = TMR_IDX_OFLD;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, holdoff_timer_idx_ofld, CTLFLAG_RDTUN,
     &t4_tmr_idx_ofld, 0, "Holdoff timer index for offload queues");
 
 #define PKTC_IDX_OFLD (-1)
-int t4_pktc_idx_ofld = PKTC_IDX_OFLD;
+static int t4_pktc_idx_ofld = PKTC_IDX_OFLD;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, holdoff_pktc_idx_ofld, CTLFLAG_RDTUN,
     &t4_pktc_idx_ofld, 0, "holdoff packet counter index for offload queues");
 
@@ -686,9 +688,10 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, drop_pkts_with_l4_errors, CTLFLAG_RDTUN,
  * TOE tunables.
  */
 static int t4_cop_managed_offloading = 0;
-SYSCTL_INT(_hw_cxgbe, OID_AUTO, cop_managed_offloading, CTLFLAG_RDTUN,
+SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, cop_managed_offloading, CTLFLAG_RDTUN,
     &t4_cop_managed_offloading, 0,
     "COP (Connection Offload Policy) controls all TOE offload");
+TUNABLE_INT("hw.cxgbe.cop_managed_offloading", &t4_cop_managed_offloading);
 #endif
 
 #ifdef KERN_TLS
