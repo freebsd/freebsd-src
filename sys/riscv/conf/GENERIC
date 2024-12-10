@@ -152,6 +152,7 @@ device		axidma		# Xilinx AXI DMA Controller
 
 # GPIO
 device		gpio
+device		fdt_pinctrl
 
 # SPI
 device		spibus
