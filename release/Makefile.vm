@@ -239,8 +239,8 @@ cloud-install-BASIC-CLOUDINIT:
 .for _FS in ${BASIC-CLOUDINIT_FSLIST}
 . for _FMT in ${BASIC-CLOUDINIT_FORMAT}
 	cp -p ${.OBJDIR}/${BASIC-CLOUDINIT${_FS:tu}${_FMT:tu}IMAGE} \
-		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT.${_FS}.${_FMT}
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT.${_FS}.${_FMT}
+		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
+	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
 . endfor
 .endfor
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
