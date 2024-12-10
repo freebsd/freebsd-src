@@ -62,7 +62,7 @@
  * maxrate_p is set to the ridx value.
  *
  * If basic_rates is 1 then only the 11abg basic rate logic will
- * be applied; HT/VHT will be ignored.
+ * be applied; the HT rateset will be applied to 11n rates.
  */
 void
 rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
@@ -92,12 +92,19 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	}
 
 	/* If we're doing 11n, enable 11n rates */
-	if (rs_ht != NULL && !basic_rates) {
+	if (rs_ht != NULL) {
 		for (i = 0; i < rs_ht->rs_nrates; i++) {
+			uint8_t rate = rs_ht->rs_rates[i] & 0x7f;
+			bool is_basic = rs_ht->rs_rates[i] &
+			    IEEE80211_RATE_BASIC;
 			/* Only do up to 2-stream rates for now */
-			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
+			if ((rate) > 0xf)
 				continue;
-			ridx = rs_ht->rs_rates[i] & 0xf;
+
+			if (basic_rates && is_basic == false)
+				continue;
+
+			ridx = rate & 0xf;
 			htrates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
@@ -107,7 +114,8 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	}
 
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
-	    "%s: rates 0x%08X, maxrate %d\n", __func__, rates, maxrate);
+	    "%s: rates 0x%08X htrates 0x%08X, maxrate %d\n",
+	    __func__, rates, htrates, maxrate);
 
 	if (rates_p != NULL)
 		*rates_p = rates;
