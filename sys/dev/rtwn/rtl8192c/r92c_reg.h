@@ -519,6 +519,23 @@
 #define R92C_RRSR_RATE_BITMAP_M		0x000fffff
 #define R92C_RRSR_RATE_BITMAP_S		0
 #define R92C_RRSR_RATE_CCK_ONLY_1M	0xffff1
+/* Suitable low-rate defaults for 2/5GHz CTS/ACK/Block-ACK */
+/*
+ * Note: the RTL8192CU vendor driver disables 2M CCK as a
+ * basic rate due to "Low TXEVM" causing issues with other
+ * vendor devices.  Since we want to maximise basic rate
+ * reliability to prevent retries (due to missing RTS/CTS
+ * and ACK/Block-ACK), do the same here.
+ *
+ * And, unfortunately, enabling MCS rates for self-generated
+ * and management/control frames can result in the peer AP
+ * just plainly ignoring you.  This happened with older
+ * D-Link 802.11n era APs.  The masks will exclude MCS management
+ * rates, it's easy to add it to the mask in rtwn_set_basicrates().
+ * (Just |= 0x100, bit 12 == MCS 0.)
+ */
+#define R92C_RRSR_RATE_MASK_2GHZ	0x015d
+#define R92C_RRSR_RATE_MASK_5GHZ	0x0150
 #define R92C_RRSR_RATE_ALL		0xfffff
 #define R92C_RRSR_RSC_SUBCHNL_MASK	0x00600000
 #define R92C_RRSR_RSC_LOWSUBCHNL	0x00200000
@@ -534,6 +551,15 @@
 #define R92C_EDCA_PARAM_ECWMAX_S	12
 #define R92C_EDCA_PARAM_TXOP_M		0xffff0000
 #define R92C_EDCA_PARAM_TXOP_S		16
+
+/* Bits for R92C_INIRTS_RATE_SEL. */
+#define R92C_INIRTS_RATE_SEL_RATE_M	0x3f
+#define R92C_INIRTS_RATE_SEL_RATE_S	0
+
+/* Bits for R92C_INIDATA_RATE_SEL. */
+#define R92C_INIDATA_RATE_SEL_RATE_M	0x3f
+#define R92C_INIDATA_RATE_SEL_RATE_S	0
+#define R92C_INIDATA_RATE_SEL_SHORTGI	0x40
 
 /* Bits for R92C_HWSEQ_CTRL / R92C_TXPAUSE. */
 #define R92C_TX_QUEUE_VO		0x01
