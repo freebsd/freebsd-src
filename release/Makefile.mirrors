@@ -212,13 +212,13 @@ vm-images-stage:
 .    for VMFORMAT in ${${CW}_FORMAT}
 .     for FS in ${${CW}_FSLIST}
 	cd ${RELEASEDIR}/vmimages && \
-		mv ${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+		mv ${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
 	cd ${VM_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .     endfor
 .    endfor
 .   endif
@@ -250,8 +250,8 @@ vm-images-stage:
 .   if ${CW} == BASIC-CLOUDINIT
 .    for VMFORMAT in ${${CW}_FORMAT}
 .     for FS in ${${CW}_FSLIST}
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
-		${VM_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .     endfor
 .    endfor
 .   endif
@@ -277,12 +277,12 @@ ci-images-stage:
 .    for FS in ${${CW}_FSLIST}
 	cd ${RELEASEDIR}/ciimages && \
 		mv ${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
-	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
 	cd ${CI_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .    endfor
 .   endfor
 .  endif
@@ -307,7 +307,7 @@ ci-images-stage:
 .   for VMFORMAT in ${${CW}_FORMAT}
 .    for FS in ${${CW}_FSLIST}
 	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
-		${CI_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		${CI_DIR}/Latest/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .    endfor
 .   endfor
 .  endif
