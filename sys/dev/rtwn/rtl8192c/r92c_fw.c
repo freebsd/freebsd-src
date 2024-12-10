@@ -164,7 +164,7 @@ r92c_fw_download_enable(struct rtwn_softc *sc, int enable)
 #ifndef RTWN_WITHOUT_UCODE
 static int
 r92c_send_ra_cmd(struct rtwn_softc *sc, int macid, uint32_t rates,
-    int maxrate)
+    int maxrate, bool shortgi)
 {
 	struct r92c_fw_cmd_macid_cfg cmd;
 	uint8_t mode;
@@ -178,6 +178,8 @@ r92c_send_ra_cmd(struct rtwn_softc *sc, int macid, uint32_t rates,
 	else
 		mode = R92C_RAID_11B;
 	cmd.macid = macid | R92C_CMD_MACID_VALID;
+	if (shortgi)
+		cmd.macid |= R92C_CMD_MACID_SGI;
 	cmd.mask = htole32(mode << 28 | rates);
 	error = r92c_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
 	if (error != 0) {
@@ -222,10 +224,18 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 #ifndef RTWN_WITHOUT_UCODE
 	if (sc->sc_ratectl == RTWN_RATECTL_FW) {
 		uint32_t fw_rates;
+		bool shortgi;
 		/* Add HT rates after normal rates; limit to MCS0..15 */
 		fw_rates = rates |
 		    ((htrates & 0xffff) << RTWN_RIDX_HT_MCS_SHIFT);
-		r92c_send_ra_cmd(sc, macid, fw_rates, maxrate);
+		/* Re-calculate short-gi based on op mode */
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
+			shortgi = ieee80211_ht_check_tx_shortgi_40(ni);
+		else if (IEEE80211_IS_CHAN_HT20(ni->ni_chan))
+			shortgi = ieee80211_ht_check_tx_shortgi_20(ni);
+		else
+			shortgi = false;
+		r92c_send_ra_cmd(sc, macid, fw_rates, maxrate, shortgi);
 	}
 #endif
 
