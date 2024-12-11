@@ -493,14 +493,14 @@ enum {
 	TDA_KQUEUE,
 	TDA_RACCT,
 	TDA_MOD1,		/* For third party use, before signals are */
-	TAD_MOD2,		/* processed .. */
+	TDA_MOD2,		/* processed .. */
 	TDA_PSELECT,		/* For discarding temporary signal mask */
 	TDA_SIG,
 	TDA_KTRACE,
 	TDA_SUSPEND,
 	TDA_SIGSUSPEND,
 	TDA_MOD3,		/* .. and after */
-	TAD_MOD4,
+	TDA_MOD4,
 	TDA_MAX,
 };
 #define	TDAI(tda)		(1U << (tda))
