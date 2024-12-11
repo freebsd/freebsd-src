@@ -363,6 +363,13 @@
 #define	CSSELR_InD		0x00000001
 
 /* CTR_EL0 - Cache Type Register */
+#define	CTR_EL0			MRS_REG(CTR_EL0)
+#define	CTR_EL0_REG		MRS_REG_ALT_NAME(CTR_EL0)
+#define	CTR_EL0_op0		3
+#define	CTR_EL0_op1		3
+#define	CTR_EL0_CRn		0
+#define	CTR_EL0_CRm		0
+#define	CTR_EL0_op2		1
 #define	CTR_RES1		(1 << 31)
 #define	CTR_TminLine_SHIFT	32
 #define	CTR_TminLine_MASK	(UL(0x3f) << CTR_TminLine_SHIFT)
