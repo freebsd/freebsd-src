@@ -599,6 +599,7 @@ ucom_queue_command(struct ucom_softc *sc,
 {
 	struct ucom_super_softc *ssc = sc->sc_super;
 	struct ucom_param_task *task;
+	int error;
 
 	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
@@ -628,8 +629,15 @@ ucom_queue_command(struct ucom_softc *sc,
 	/*
 	 * Closing or opening the device should be synchronous.
 	 */
-	if (fn == ucom_cfg_close || fn == ucom_cfg_open)
-		usb_proc_mwait(&ssc->sc_tq, t0, t1);
+	if (fn == ucom_cfg_close || fn == ucom_cfg_open) {
+		error = usb_proc_mwait_sig(&ssc->sc_tq, t0, t1);
+
+		/* usb_proc_mwait_sig may have dropped the tty lock. */
+		if (error == 0 && sc->sc_tty != NULL && tty_gone(sc->sc_tty))
+			error = ENXIO;
+	} else {
+		error = 0;
+	}
 
 	/*
 	 * In case of multiple configure requests,
@@ -638,7 +646,7 @@ ucom_queue_command(struct ucom_softc *sc,
 	if (fn == ucom_cfg_start_transfers)
 		sc->sc_last_start_xfer = &task->hdr;
 
-	return (0);
+	return (error);
 }
 
 static void
