@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0e8a36a2ab12:
+	Add a new NFS mount option called "mountport" that may be used
+	to specify the port# for the NFS server's Mount protocol.
+	This permits a NFSv3 mount to be done without running rpcbind(8).
+
 b2f7c53430c3:
 	Kernel TLS is now enabled by default in kernels including KTLS
 	support.  KTLS is included in GENERIC kernels for aarch64,
