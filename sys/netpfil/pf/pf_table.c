@@ -2242,7 +2242,7 @@ int
 pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
     sa_family_t af, pf_addr_filter_func_t filter)
 {
-	struct pf_addr		 addr, cur, mask, umask_addr;
+	struct pf_addr		*addr, cur, mask, umask_addr;
 	union sockaddr_union	 uaddr, umask;
 	struct pfr_kentry	*ke, *ke2 = NULL;
 	int			 startidx, idx = -1, loop = 0, use_counter = 0;
@@ -2254,13 +2254,14 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 	case AF_INET:
 		uaddr.sin.sin_len = sizeof(struct sockaddr_in);
 		uaddr.sin.sin_family = AF_INET;
+		addr = (struct pf_addr *)&uaddr.sin.sin_addr;
 		break;
 	case AF_INET6:
 		uaddr.sin6.sin6_len = sizeof(struct sockaddr_in6);
 		uaddr.sin6.sin6_family = AF_INET6;
+		addr = (struct pf_addr *)&uaddr.sin6.sin6_addr;
 		break;
 	}
-	pfr_sockaddr_to_pf_addr(&uaddr, &addr);
 
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
 		kt = kt->pfrkt_root;
@@ -2302,19 +2303,19 @@ _next_block:
 			use_counter = 0;
 			goto _next_block;
 		}
-		PF_ACPY(&addr, counter, af);
+		PF_ACPY(addr, counter, af);
 	} else {
 		/* use first address of block */
-		PF_ACPY(&addr, &cur, af);
+		PF_ACPY(addr, &cur, af);
 	}
 
 	if (!KENTRY_NETWORK(ke)) {
 		/* this is a single IP address - no possible nested block */
-		if (filter && filter(af, &addr)) {
+		if (filter && filter(af, addr)) {
 			idx++;
 			goto _next_block;
 		}
-		PF_ACPY(counter, &addr, af);
+		PF_ACPY(counter, addr, af);
 		*pidx = idx;
 		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 		return (0);
@@ -2334,9 +2335,9 @@ _next_block:
 		/* no need to check KENTRY_RNF_ROOT() here */
 		if (ke2 == ke) {
 			/* lookup return the same block - perfect */
-			if (filter && filter(af, &addr))
+			if (filter && filter(af, addr))
 				goto _next_entry;
-			PF_ACPY(counter, &addr, af);
+			PF_ACPY(counter, addr, af);
 			*pidx = idx;
 			pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 			return (0);
@@ -2346,9 +2347,9 @@ _next_entry:
 		/* we need to increase the counter past the nested block */
 		pfr_prepare_network(&umask, AF_INET, ke2->pfrke_net);
 		pfr_sockaddr_to_pf_addr(&umask, &umask_addr);
-		PF_POOLMASK(&addr, &addr, &umask_addr, &pfr_ffaddr, af);
-		PF_AINC(&addr, af);
-		if (!PF_MATCHA(0, &cur, &mask, &addr, af)) {
+		PF_POOLMASK(addr, addr, &umask_addr, &pfr_ffaddr, af);
+		PF_AINC(addr, af);
+		if (!PF_MATCHA(0, &cur, &mask, addr, af)) {
 			/* ok, we reached the end of our main block */
 			/* go to next block in table */
 			idx++;
