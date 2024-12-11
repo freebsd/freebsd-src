@@ -108,6 +108,7 @@ static u_char *fh = NULL;
 static int fhsize = 0;
 static int secflavor = -1;
 static int got_principal = 0;
+static in_port_t mntproto_port = 0;
 
 static enum mountmode {
 	ANY,
@@ -360,6 +361,13 @@ main(int argc, char *argv[])
 					softintr = true;
 				} else if (strcmp(opt, "intr") == 0) {
 					softintr = true;
+				} else if (strcmp(opt, "mountport") == 0) {
+					num = strtol(val, &p, 10);
+					if (*p || num <= 0 || num > IPPORT_MAX)
+						errx(1, "illegal port num -- "
+						    "%s", val);
+					mntproto_port = num;
+					pass_flag_to_nmount=0;
 				}
 				if (pass_flag_to_nmount) {
 					build_iovec(&iov, &iovlen, opt,
@@ -900,11 +908,47 @@ tryagain:
 		return (TRYRET_SUCCESS);
 	}
 
+	/*
+	 * malloc() and copy the address, so that it can be used for
+	 * nfsargs below.
+	 */
+	addrlen = nfs_nb.len;
+	addr = malloc(addrlen);
+	if (addr == NULL)
+		err(1, "malloc");
+	bcopy(nfs_nb.buf, addr, addrlen);
+
 	/* Send the MOUNTPROC_MNT RPC to get the root filehandle. */
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	clp = clnt_tp_create(hostp, MOUNTPROG, mntvers, nconf_mnt);
+	if (mntproto_port != 0) {
+		struct sockaddr *sad;
+		struct sockaddr_in *sin;
+		struct sockaddr_in6 *sin6;
+
+		sad = (struct sockaddr *)nfs_nb.buf;
+		switch (sad->sa_family) {
+		case AF_INET:
+			sin = (struct sockaddr_in *)nfs_nb.buf;
+			sin->sin_port = htons(mntproto_port);
+			break;
+		case AF_INET6:
+			sin6 = (struct sockaddr_in6 *)nfs_nb.buf;
+			sin6->sin6_port = htons(mntproto_port);
+			break;
+		default:
+			snprintf(errbuf, sizeof(errbuf),
+			    "Mnt port bad addr family %d\n", sad->sa_family);
+			return (TRYRET_LOCALERR);
+		}
+		clp = clnt_tli_create(RPC_ANYFD, nconf_mnt, &nfs_nb, MOUNTPROG,
+		    mntvers, 0, 0);
+	} else {
+		/* Get the Mount protocol port# via rpcbind. */
+		clp = clnt_tp_create(hostp, MOUNTPROG, mntvers, nconf_mnt);
+	}
 	if (clp == NULL) {
+		free(addr);
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_spcreateerror("RPCMNT: clnt_create"));
 		return (returncode(rpc_createerr.cf_stat,
@@ -914,10 +958,10 @@ tryagain:
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
 	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
-			 (xdrproc_t)xdr_fh, &nfhret,
-	    try);
+	    (xdrproc_t)xdr_fh, &nfhret, try);
 	auth_destroy(clp->cl_auth);
 	if (clntstat != RPC_SUCCESS) {
+		free(addr);
 		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
@@ -932,6 +976,7 @@ tryagain:
 	clnt_destroy(clp);
 
 	if (nfhret.stat != 0) {
+		free(addr);
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, strerror(nfhret.stat));
 		return (TRYRET_REMOTEERR);
@@ -941,13 +986,10 @@ tryagain:
 	 * Store the filehandle and server address in nfsargsp, making
 	 * sure to copy any locally allocated structures.
 	 */
-	addrlen = nfs_nb.len;
-	addr = malloc(addrlen);
 	fhsize = nfhret.fhsize;
 	fh = malloc(fhsize);
-	if (addr == NULL || fh == NULL)
+	if (fh == NULL)
 		err(1, "malloc");
-	bcopy(nfs_nb.buf, addr, addrlen);
 	bcopy(nfhret.nfh, fh, fhsize);
 
 	build_iovec(iov, iovlen, "addr", addr, addrlen);
