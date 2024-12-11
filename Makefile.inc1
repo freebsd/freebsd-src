@@ -1001,6 +1001,9 @@ IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 .if make(distributeworld)
+.if ${DISTDIR:U/} == /
+.error DISTDIR must be set for make distributeworld and may not be the root directory.
+.endif
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
 .else
