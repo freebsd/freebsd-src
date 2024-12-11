@@ -219,6 +219,7 @@ init_secondary(uint64_t cpu)
 	pcpup = cpuid_to_pcpu[cpu];
 	pcpup->pc_midr = get_midr();
 	identify_cpu(cpu);
+	pmap_cpu_init();
 
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();

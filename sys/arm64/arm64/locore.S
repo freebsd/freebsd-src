@@ -940,20 +940,17 @@ LENTRY(start_mmu)
 	bfi	x2, x3, #(TCR_ASID_SHIFT), #(TCR_ASID_WIDTH)
 
 	/*
-	 * Check if the HW supports access flag and dirty state updates,
-	 * and set TCR_EL1.HA and TCR_EL1.HD accordingly.
+	 * Check if the HW supports access flag updates, and set
+	 * TCR_EL1.HA accordingly. The TCR_EL1.HD flag to enable
+	 * HW management of dirty state is set in C code as it may
+	 * need to be disabled because of CPU errata.
 	 */
 	mrs	x3, id_aa64mmfr1_el1
 	and	x3, x3, #(ID_AA64MMFR1_HAFDBS_MASK)
-	cmp	x3, #1
-	b.ne	1f
-	orr 	x2, x2, #(TCR_HA)
-	b	2f
+	cbz	x3, 1f
+	orr	x2, x2, #(TCR_HA)
 1:
-	cmp	x3, #2
-	b.ne	2f
-	orr 	x2, x2, #(TCR_HA | TCR_HD)
-2:
+
 	msr	tcr_el1, x2
 
 	/*
