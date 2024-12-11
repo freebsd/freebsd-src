@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 8, 2023
+.Dd November 29, 2024
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -196,6 +196,16 @@ This should be used for mounts on old servers that cannot handle a
 group list size of 16, as specified in RFC 1057.
 Try 8, if users in a lot of groups cannot get response from the mount
 point.
+.It Cm mountport Ns = Ns Aq Ar value
+Specify the port number to be used to communicate with
+.Xr mountd 8
+on the NFS server.
+This option allows an NFSv2 or NFSv3 mount to be done without
+the need to run the
+.Xr rpcbind 8
+service.
+This option is meaningless for an NFSv4 mount, since NFSv4
+does not use the Mount protocol.
 .It Cm mntudp
 Force the mount protocol to use UDP transport, even for TCP NFS mounts.
 (Necessary for some old
@@ -672,6 +682,7 @@ Same as
 .Xr mount 8 ,
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
+.Xr rpcbind 8 ,
 .Xr rpc.tlsclntd 8 ,
 .Xr showmount 8
 .Sh HISTORY
