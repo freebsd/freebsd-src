@@ -2261,7 +2261,7 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 
 	switch (type & MRS_TYPE_MASK) {
 	case MRS_EXACT_IF_DIFFERENT:
-		if (mrs_field_cmp(new_val, cur, shift, width, sign) != 0)
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) == 0)
 			break;
 		/* FALLTHROUGH */
 	case MRS_EXACT:
