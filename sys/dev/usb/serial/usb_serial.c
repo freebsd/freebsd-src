@@ -151,7 +151,7 @@ static int	ucom_unit_alloc(void);
 static void	ucom_unit_free(int);
 static int	ucom_attach_tty(struct ucom_super_softc *, struct ucom_softc *);
 static void	ucom_detach_tty(struct ucom_super_softc *, struct ucom_softc *);
-static void	ucom_queue_command(struct ucom_softc *,
+static int	ucom_queue_command(struct ucom_softc *,
 		    usb_proc_callback_t *, struct termios *pt,
 		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
 static void	ucom_shutdown(struct ucom_softc *);
@@ -592,7 +592,7 @@ ucom_set_usb_mode(struct ucom_super_softc *ssc, enum usb_hc_mode usb_mode)
 	}
 }
 
-static void
+static int
 ucom_queue_command(struct ucom_softc *sc,
     usb_proc_callback_t *fn, struct termios *pt,
     struct usb_proc_msg *t0, struct usb_proc_msg *t1)
@@ -604,7 +604,7 @@ ucom_queue_command(struct ucom_softc *sc,
 
 	if (usb_proc_is_gone(&ssc->sc_tq)) {
 		DPRINTF("proc is gone\n");
-		return;         /* nothing to do */
+		return (ENXIO);         /* nothing to do */
 	}
 	/* 
 	 * NOTE: The task cannot get executed before we drop the
@@ -637,6 +637,8 @@ ucom_queue_command(struct ucom_softc *sc,
 	 */
 	if (fn == ucom_cfg_start_transfers)
 		sc->sc_last_start_xfer = &task->hdr;
+
+	return (0);
 }
 
 static void
@@ -760,9 +762,8 @@ ucom_open(struct tty *tp)
 		 * example if the device is not present:
 		 */
 		error = (sc->sc_callback->ucom_pre_open) (sc);
-		if (error) {
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	}
 	sc->sc_flag |= UCOM_FLAG_HL_READY;
 
@@ -782,14 +783,18 @@ ucom_open(struct tty *tp)
 	sc->sc_jitterbuf_in = 0;
 	sc->sc_jitterbuf_out = 0;
 
-	ucom_queue_command(sc, ucom_cfg_open, NULL,
+	error = ucom_queue_command(sc, ucom_cfg_open, NULL,
 	    &sc->sc_open_task[0].hdr,
 	    &sc->sc_open_task[1].hdr);
+	if (error != 0)
+		goto out;
 
 	/* Queue transfer enable command last */
-	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
+	error = ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
+	    &sc->sc_start_task[0].hdr,
 	    &sc->sc_start_task[1].hdr);
+	if (error != 0)
+		goto out;
 
 	if (sc->sc_tty == NULL || (sc->sc_tty->t_termios.c_cflag & CNO_RTSDTR) == 0)
 		ucom_modem(tp, SER_DTR | SER_RTS, 0);
@@ -800,7 +805,8 @@ ucom_open(struct tty *tp)
 
 	ucom_status_change(sc);
 
-	return (0);
+out:
+	return (error);
 }
 
 static void
@@ -836,7 +842,7 @@ ucom_close(struct tty *tp)
 	}
 	ucom_shutdown(sc);
 
-	ucom_queue_command(sc, ucom_cfg_close, NULL,
+	(void)ucom_queue_command(sc, ucom_cfg_close, NULL,
 	    &sc->sc_close_task[0].hdr,
 	    &sc->sc_close_task[1].hdr);
 
@@ -1077,9 +1083,12 @@ ucom_line_state(struct ucom_softc *sc,
 	sc->sc_pls_set |= set_bits;
 	sc->sc_pls_clr |= clear_bits;
 
-	/* defer driver programming */
-	ucom_queue_command(sc, ucom_cfg_line_state, NULL,
-	    &sc->sc_line_state_task[0].hdr, 
+	/*
+	 * defer driver programming - we don't propagate any error from
+	 * this call because we'll catch such errors further up the call stack.
+	 */
+	(void)ucom_queue_command(sc, ucom_cfg_line_state, NULL,
+	    &sc->sc_line_state_task[0].hdr,
 	    &sc->sc_line_state_task[1].hdr);
 }
 
@@ -1236,7 +1245,7 @@ ucom_status_change(struct ucom_softc *sc)
 	}
 	DPRINTF("\n");
 
-	ucom_queue_command(sc, ucom_cfg_status_change, NULL,
+	(void)ucom_queue_command(sc, ucom_cfg_status_change, NULL,
 	    &sc->sc_status_task[0].hdr,
 	    &sc->sc_status_task[1].hdr);
 }
@@ -1310,14 +1319,18 @@ ucom_param(struct tty *tp, struct termios *t)
 	sc->sc_flag &= ~UCOM_FLAG_GP_DATA;
 
 	/* Queue baud rate programming command first */
-	ucom_queue_command(sc, ucom_cfg_param, t,
+	error = ucom_queue_command(sc, ucom_cfg_param, t,
 	    &sc->sc_param_task[0].hdr,
 	    &sc->sc_param_task[1].hdr);
+	if (error != 0)
+		goto done;
 
 	/* Queue transfer enable command last */
-	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
+	error = ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
+	    &sc->sc_start_task[0].hdr,
 	    &sc->sc_start_task[1].hdr);
+	if (error != 0)
+		goto done;
 
 	if (t->c_cflag & CRTS_IFLOW) {
 		sc->sc_flag |= UCOM_FLAG_RTS_IFLOW;
