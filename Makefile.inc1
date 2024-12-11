@@ -1004,6 +1004,9 @@ IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .if ${DISTDIR:U/} == /
 .error DISTDIR must be set for make distributeworld and may not be the root directory.
 .endif
+if !defined(NO_ROOT) || !defined(METALOG)
+.error NO_ROOT and METALOG must be set for make distributeworld.
+.endif
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
 .else
@@ -1501,7 +1504,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/${TESTSBASE} >/dev/null
 .endif
 .endif
-.if defined(NO_ROOT)
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
@@ -1515,7 +1517,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endfor
-.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH:Q} ${MAKE} \
@@ -1539,7 +1540,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -type d -empty -delete
 .endfor
-.if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .for path suffix in "" .meta /usr/lib/debug .debug.meta
 	@# For each file that exists in this dist, print the corresponding
@@ -1552,7 +1552,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    ${DESTDIR}/${DISTDIR}/${dist}${suffix}
 .endfor
 .endfor
-.endif
 .endif # make(distributeworld)
 
 packageworld: .PHONY
