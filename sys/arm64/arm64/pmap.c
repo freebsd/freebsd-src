@@ -1309,6 +1309,8 @@ pmap_bootstrap(vm_size_t kernlen)
 	vm_paddr_t start_pa, pa;
 	uint64_t tcr;
 
+	pmap_cpu_init();
+
 	tcr = READ_SPECIALREG(tcr_el1);
 
 	/* Verify that the ASID is set through TTBR0. */
@@ -1620,6 +1622,25 @@ pmap_init_pv_table(void)
 				pvd--;
 			}
 		}
+	}
+}
+
+void
+pmap_cpu_init(void)
+{
+	uint64_t id_aa64mmfr1, tcr;
+
+	/* Enable HAFDBS if supported */
+	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	if (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=ID_AA64MMFR1_HAFDBS_AF_DBS){
+		tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
+		WRITE_SPECIALREG(tcr_el1, tcr);
+		isb();
+		/* Flush the local TLB for the TCR_HD flag change */
+		dsb(nshst);
+		__asm __volatile("tlbi vmalle1");
+		dsb(nsh);
+		isb();
 	}
 }
 
