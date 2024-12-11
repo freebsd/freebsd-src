@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\"
-.Dd March 26, 2015
+.Dd December 11, 2024
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -174,10 +174,31 @@ it will be used instead of the real address mask when
 the system replies to an ICMP Address Mask Request packet.
 Defaults to 0.
 .It Va icmplim
-.Pq Vt integer
-Bandwidth limit for ICMP replies in packets/second.
+.Pq Vt unsigned integer
+Mean rate limit for replies in packets/second.
+The actual limit is
+.Va icmplim
+plus a random jitter limited by
+.Va icmplim_jitter .
 If set to zero, no limiting will occur.
 Defaults to 200.
+.It Va icmplim_jitter
+.Pq Vt unsigned integer
+A random jitter between the negative of
+.Va icmplim_jitter
+and
+.Va icmplim_jitter
+is applied to
+.Va icmplim
+for limiting the sending rate of replies.
+.Va icmplim_jitter
+must be smaller than
+.Va icmplim ,
+if
+.Va icmplim
+is not zero.
+If set to zero, no jitter will be applied.
+Defaults to 16.
 .It Va icmplim_output
 .Pq Vt boolean
 Enable/disable logging of ICMP replies bandwidth limiting.
