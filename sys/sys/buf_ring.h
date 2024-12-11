@@ -107,7 +107,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 		cons_tail = atomic_load_acq_32(&br->br_cons_tail);
 
 		if ((int32_t)(cons_tail + br->br_prod_size - prod_next) < 1) {
-			rmb();
 			if (prod_head == atomic_load_32(&br->br_prod_head) &&
 			    cons_tail == atomic_load_32(&br->br_cons_tail)) {
 				br->br_drops++;
