@@ -198,13 +198,18 @@ _GCC_BROKEN=boot code linker script issues.
 .endif
 
 .if ${.MAKE.OS} != "FreeBSD"
-CROSSBUILD_HOST=${.MAKE.OS}
+CROSSBUILD_HOST=${.MAKE.OS} # Unset for native FreeBSD builds
 .if ${.MAKE.OS} != "Linux" && ${.MAKE.OS} != "Darwin"
 .warning Unsupported crossbuild system: ${.MAKE.OS}. Build will probably fail!
 .endif
+.endif
 # We need to force NO_ROOT/DB_FROM_SRC builds when building on other operating
 # systems since the BSD.foo.dist specs contain users and groups that do not
-# exist by default on a Linux/MacOS system.
+# exist by default on a Linux/MacOS system.  The distribute* and package*
+# targets used for install media legacy distribution sets also always use and
+# require NO_ROOT mode.
+.if defined(CROSSBUILD_HOST) || make(distributeworld) || make(packageworld) || \
+    make(distributekernel) || make(packagekernel)
 NO_ROOT:=	1
 DB_FROM_SRC:=	1
 .export NO_ROOT
