@@ -525,6 +525,8 @@ struct usb_proc_msg {
 	usb_size_t pm_num;
 };
 
+#define	USB_PROC_MSG_ENQUEUED(msg)	((msg)->pm_qentry.tqe_prev != NULL)
+
 #define	USB_FIFO_TX 0
 #define	USB_FIFO_RX 1
 
