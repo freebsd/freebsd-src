@@ -9381,7 +9381,7 @@ pf_pdesc_to_dnflow(const struct pf_pdesc *pd, const struct pf_krule *r,
 
 	dnflow->f_id.proto = pd->proto;
 	dnflow->f_id.extra = dnflow->rule.info;
-	switch (pd->af) {
+	switch (pd->naf) {
 	case AF_INET:
 		dnflow->f_id.addr_type = 4;
 		dnflow->f_id.src_ip = ntohl(pd->src->v4.s_addr);
@@ -9490,7 +9490,7 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 
 		MPASS(sa != NULL);
 
-		switch (pd->af) {
+		switch (pd->naf) {
 		case AF_INET:
 			memcpy(&pd->pf_mtag->dst, sa,
 			    sizeof(struct sockaddr_in));
