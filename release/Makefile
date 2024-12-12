@@ -132,26 +132,24 @@ clean: beforeclean
 
 base.txz:
 	mkdir -p ${DISTDIR}
-	( cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT distributeworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	# Bootstrap etcupdate(8) database.
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
-	    -L /dev/null ${NO_ROOT:D-N}
-.if defined(NO_ROOT)
+	    -L /dev/null -N
 	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
 	sed -n 's,^\.,./var/db/etcupdate/current,p' ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG \
 	    >> ${.OBJDIR}/${DISTDIR}/base.meta
 	rm ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG
-.endif
 # Package all components
-	( cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/*.txz .
 
 kernel.txz:
 	mkdir -p ${DISTDIR}
-	( cd ${WORLDDIR} && ${IMAKE} distributekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
-	( cd ${WORLDDIR} && ${IMAKE} packagekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT distributekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT packagekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/kernel*.txz .
 
 src.txz:
