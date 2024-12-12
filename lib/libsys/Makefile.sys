@@ -311,6 +311,7 @@ MAN+=	abort2.2 \
 	semget.2 \
 	semop.2 \
 	send.2 \
+	setcred.2 \
 	setfib.2 \
 	sendfile.2 \
 	setgroups.2 \
