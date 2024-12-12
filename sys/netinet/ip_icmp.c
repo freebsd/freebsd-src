@@ -1148,7 +1148,7 @@ sysctl_icmplim_and_jitter(SYSCTL_HANDLER_ARGS)
 			}
 		}
 	}
-	MPASS(V_icmplim + V_icmplim_curr_jitter >= 0);
+	MPASS(V_icmplim == 0 || V_icmplim > V_icmplim_jitter);
 
 	return (error);
 }
