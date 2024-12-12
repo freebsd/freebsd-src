@@ -43,7 +43,7 @@
 				if ($1 ~ /^\/boot\//) {
 					if (kernel != "" && $1 ~ /^\/boot\/dtb\//)
 						pkgname="dtb"
-					else
+					else if ($1 !~ /^\/boot\/firmware\//)
 						pkgname="bootloader"
 				}
 				gsub(/package=/, "", pkgname)
