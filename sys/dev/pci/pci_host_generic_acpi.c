@@ -343,23 +343,16 @@ static int
 generic_pcie_acpi_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
-	struct generic_pcie_acpi_softc *sc;
+	ACPI_HANDLE handle;
 
-	sc = device_get_softc(dev);
-
-	if (index == PCIB_IVAR_BUS) {
-		*result = sc->base.bus_start;
+	switch (index) {
+	case ACPI_IVAR_HANDLE:
+		handle = acpi_get_handle(dev);
+		*result = (uintptr_t)handle;
 		return (0);
 	}
 
-	if (index == PCIB_IVAR_DOMAIN) {
-		*result = sc->base.ecam;
-		return (0);
-	}
-
-	if (bootverbose)
-		device_printf(dev, "ERROR: Unknown index %d.\n", index);
-	return (ENOENT);
+	return (generic_pcie_read_ivar(dev, child, index, result));
 }
 
 static int
