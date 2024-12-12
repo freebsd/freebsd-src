@@ -369,13 +369,11 @@ generic_pcie_read_ivar(device_t dev, device_t child, int index,
 	struct generic_pcie_core_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	if (index == PCIB_IVAR_BUS) {
+	switch (index) {
+	case PCIB_IVAR_BUS:
 		*result = sc->bus_start;
 		return (0);
-	}
-
-	if (index == PCIB_IVAR_DOMAIN) {
+	case PCIB_IVAR_DOMAIN:
 		*result = sc->ecam;
 		return (0);
 	}
