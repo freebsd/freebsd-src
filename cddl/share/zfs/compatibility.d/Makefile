@@ -14,7 +14,8 @@ FILES= \
 	freebsd-11.2 \
 	freebsd-11.3 \
 	freenas-9.10.2 \
-	grub2 \
+	grub2-2.06 \
+	grub2-2.12 \
 	openzfsonosx-1.7.0 \
 	openzfsonosx-1.8.1 \
 	openzfsonosx-1.9.3 \
@@ -47,6 +48,7 @@ LINKS= \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freebsd-12.4 \
 	${FILESDIR}/freebsd-11.3	${FILESDIR}/freenas-11.3 \
 	${FILESDIR}/freenas-11.0	${FILESDIR}/freenas-11.1 \
+	${FILESDIR}/grub2-2.12		${FILESDIR}/grub2 \
 	${FILESDIR}/openzfsonosx-1.9.3	${FILESDIR}/openzfsonosx-1.9.4 \
 	${FILESDIR}/openzfs-2.0-freebsd	${FILESDIR}/truenas-12.0 \
 	${FILESDIR}/zol-0.7		${FILESDIR}/ubuntu-18.04 \

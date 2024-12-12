@@ -96,17 +96,13 @@ vn_is_readonly(vnode_t *vp)
 static __inline void
 vn_flush_cached_data(vnode_t *vp, boolean_t sync)
 {
-#if __FreeBSD_version > 1300054
 	if (vm_object_mightbedirty(vp->v_object)) {
-#else
-	if (vp->v_object->flags & OBJ_MIGHTBEDIRTY) {
-#endif
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		if (sync)
 			vnode_pager_clean_sync(vp);
 		else
 			vnode_pager_clean_async(vp);
-		VOP_UNLOCK1(vp);
+		VOP_UNLOCK(vp);
 	}
 }
 #endif
