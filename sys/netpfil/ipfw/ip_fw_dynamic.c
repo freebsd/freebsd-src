@@ -920,7 +920,8 @@ print_dyn_rule_flags(const struct ipfw_flow_id *id, int dyn_type,
 #define	_SEQ_GE(a,b)	((int)((a)-(b)) >= 0)
 #define	BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define	BOTH_FIN	(TH_FIN | (TH_FIN << 8))
-#define	TCP_FLAGS	(TH_FLAGS | (TH_FLAGS << 8))
+#define	BOTH_RST	(TH_RST | (TH_RST << 8))
+#define	TCP_FLAGS	(BOTH_SYN | BOTH_FIN | BOTH_RST)
 #define	ACK_FWD		0x00010000	/* fwd ack seen */
 #define	ACK_REV		0x00020000	/* rev ack seen */
 #define	ACK_BOTH	(ACK_FWD | ACK_REV)
