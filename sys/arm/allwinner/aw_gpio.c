@@ -206,7 +206,7 @@ extern struct allwinner_padconf a83t_padconf;
 extern struct allwinner_padconf a83t_r_padconf;
 struct aw_gpio_conf a83t_gpio_conf = {
 	.padconf = &a83t_padconf,
-	.banks = "bcdefgh"
+	.banks = "bcdefgh",
 	.bank_size = 0x24,
 	.drv_pin_shift = 1,
 	.pul_offset = 0x1C,
