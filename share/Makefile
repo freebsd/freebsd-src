@@ -8,6 +8,7 @@ SUBDIR=	${_colldef} \
 	${_doc} \
 	${_dtrace} \
 	${_examples} \
+	${_firmwares} \
 	${_i18n} \
 	keys \
 	${_man} \
@@ -43,6 +44,10 @@ _dict=		dict
 
 .if ${MK_EXAMPLES} != "no"
 _examples=	examples
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_firmwares=	firmwares
 .endif
 
 .if ${MK_ICONV} != "no"
