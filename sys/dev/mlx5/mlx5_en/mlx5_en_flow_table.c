@@ -263,7 +263,7 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
 	u32 tt_vec;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mc;
 	u8 *mv;
@@ -474,7 +474,7 @@ mlx5e_add_main_vxlan_rules_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft = priv->fts.main_vxlan.t;
 	u32 *tirn = priv->tirn_inner_vxlan;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	int err = 0;
 	u8 *mc;
@@ -670,7 +670,7 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mv;
 	u8 *mc;
@@ -1671,7 +1671,7 @@ mlx5e_add_vxlan_rule_sub(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mc;
 	u8 *mv;
@@ -1808,7 +1808,7 @@ mlx5e_add_vxlan_catchall_rule_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 
 	spec->flow_context.flow_tag = MLX5_FS_ETH_FLOW_TAG;

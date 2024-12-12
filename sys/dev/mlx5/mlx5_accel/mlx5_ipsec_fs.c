@@ -321,9 +321,9 @@ static int ipsec_miss_create(struct mlx5_core_dev *mdev,
 	}
 
 	if (dest)
-		flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DEST;
+		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	else
-		flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DROP;
+		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	/* Create miss rule */
 	miss->rule = mlx5_add_flow_rules(ft, NULL, &flow_act, dest, 1);
 	if (IS_ERR(miss->rule)) {
