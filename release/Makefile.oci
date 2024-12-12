@@ -26,11 +26,7 @@ OCI_TARGETS+= container-image-${_IMG}.txz
 container-image-${_IMG}.txz: ${OCI_DEPS_${_IMG}}
 	# Adjust PATH so that we run pwd_mkdb from the bootstrap tools
 	env PATH=${OBJTOP}/tmp/legacy/bin:${PATH:Q} \
-	sh ${.CURDIR}/scripts/make-oci-image.sh ${.CURDIR} ${REVISION} ${BRANCH} ${TARGET_ARCH} ${_IMG}
-	skopeo copy \
-		containers-storage:localhost/freebsd${REVISION:R}-${_IMG}:latest \
-		oci-archive:${.OBJDIR}/container-image-${_IMG}.tar:freebsd${REVISION:R}-${_IMG}:${REVISION}-${BRANCH}-${TARGET_ARCH}
-	${XZ_CMD} < ${.OBJDIR}/container-image-${_IMG}.tar > ${.OBJDIR}/container-image-${_IMG}.txz
+	sh ${.CURDIR}/scripts/make-oci-image.sh ${.CURDIR} ${REVISION} ${BRANCH} ${TARGET_ARCH} ${_IMG} container-image-${_IMG}.txz
 .endfor
 
 oci-release: ${OCI_TARGETS}
