@@ -44,6 +44,9 @@
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
+void	_locore(__register_t a0, __register_t a1,  __register_t a2,
+	    __register_t a3);
+
 #define	VPECONF0_VPA	(1 << 0)
 #define	MVPCONTROL_VPC	(1 << 1)
 #define	MVPCONF0_PVPE_SHIFT	10
@@ -235,11 +238,8 @@ platform_start_ap(int cpuid)
 
 	set_thread_context(cpuid);
 
-	/*
-	 * Hint: how to set entry point.
-	 * reg = 0x80000000;
-	 * mttc0(2, 3, reg);
-	 */
+	/* Set entry point */
+	mttc0(2, 3, (register_t)&_locore);
 
 	/* Enable thread */
 	reg = mftc0(2, 1);
