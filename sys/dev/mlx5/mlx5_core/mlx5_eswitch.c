@@ -815,7 +815,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
 
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DROP;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	vport->ingress.drop_rule =
 		mlx5_add_flow_rules(vport->ingress.acl, spec,
@@ -867,7 +867,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->vlan);
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_ALLOW;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 
 	vport->egress.allowed_vlan =
 		mlx5_add_flow_rules(vport->egress.acl, spec,
@@ -879,7 +879,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		goto out;
 	}
 
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DROP;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	vport->egress.drop_rule =
 		mlx5_add_flow_rules(vport->egress.acl, NULL,
 				   &flow_act, NULL, 0);

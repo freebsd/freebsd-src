@@ -159,7 +159,7 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = tirn;
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DEST;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	flow = mlx5_add_flow_rules(ft->t, spec, &flow_act, &dest, 1);
 out:
@@ -175,7 +175,7 @@ accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv, int type)
 	struct mlx5e_accel_fs_tcp *fs_tcp;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 
 	fs_tcp = &priv->fts.accel_tcp;
