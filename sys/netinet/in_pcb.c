@@ -928,9 +928,7 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 			    (inp->inp_socket->so_type != SOCK_STREAM ||
 			     in_nullhost(t->inp_faddr)) &&
 			    (!in_nullhost(laddr) ||
-			     !in_nullhost(t->inp_laddr) ||
-			     (t->inp_socket->so_options & SO_REUSEPORT) ||
-			     (t->inp_socket->so_options & SO_REUSEPORT_LB) == 0) &&
+			     !in_nullhost(t->inp_laddr)) &&
 			    (inp->inp_cred->cr_uid != t->inp_cred->cr_uid))
 				return (EADDRINUSE);
 		}
