@@ -150,6 +150,7 @@ crypto/openssl/aarch64/vpaes-armv8.S		optional ossl		\
 
 dev/acpica/acpi_bus_if.m			optional acpi
 dev/acpica/acpi_if.m				optional acpi
+dev/acpica/acpi_pci.c				optional acpi pci
 dev/acpica/acpi_pci_link.c			optional acpi pci
 dev/acpica/acpi_pcib.c				optional acpi pci
 dev/acpica/acpi_pxm.c				optional acpi
