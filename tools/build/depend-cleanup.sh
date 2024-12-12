@@ -176,3 +176,8 @@ if [ -e "$f" ]; then
 		run rm -f "$p"/*.inc
 	fi
 fi
+
+# 20241212  2ec8b6948070   zfs: merge openzfs/zfs@e269af1b3 (zfs-2.2-release) into stable/14
+clean_dep   cddl/lib/libzpool abd_os c "linux/zfs/abd_os\.c"
+clean_dep   cddl/lib/libzpool arc_os c "linux/zfs/arc_os\.c"
+clean_dep   cddl/lib/libzpool zfs_debug c "linux/zfs/zfs_debug\.c"
