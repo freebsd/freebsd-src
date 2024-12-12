@@ -101,7 +101,6 @@ ntpd_precmd()
 	# by the admin, we don't add the option.  If the file exists in the old
 	# default location we use that, else we use the new default location.
 	if can_run_nonroot; then
-		_user="ntpd"
 		driftopt="-f ${_ntp_default_driftfile}"
 	elif grep -q "^[ \t]*driftfile" "${ntpd_config}" ||
 	     [ -n "${rc_flags}" ] &&
@@ -115,7 +114,13 @@ ntpd_precmd()
 	fi
 
 	# Set command_args based on the various config vars.
-	command_args="-p ${pidfile} -c ${ntpd_config} ${driftopt}"
+	command_args="-p ${pidfile} -c ${ntpd_config} ${driftopt} -u ${ntpd_user:=ntpd:ntpd}"
+
+	# Unset ntpd_user because rc.subr uses $${name}_user to determine
+	# whether to invoke su(1) to setuid() to $ntpd_user for us. We want
+	# ntpd to do the setuid() itself through the -u argument, above.
+	unset ntpd_user
+
 	if checkyesno ntpd_sync_on_start; then
 		command_args="${command_args} -g"
 	fi
