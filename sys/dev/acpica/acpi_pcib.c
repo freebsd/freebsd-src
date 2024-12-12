@@ -38,6 +38,7 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_pcibvar.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include "pcib_if.h"
 
@@ -276,4 +277,62 @@ acpi_pcib_get_cpus(device_t pcib, device_t dev, enum cpu_sets op,
 {
 
 	return (bus_get_cpus(pcib, op, setsize, cpuset));
+}
+
+int
+acpi_pcib_osc(device_t pcib, uint32_t *ap_osc_ctl, uint32_t osc_ctl)
+{
+	ACPI_STATUS status;
+	ACPI_HANDLE handle;
+	uint32_t cap_set[3];
+
+	static uint8_t pci_host_bridge_uuid[ACPI_UUID_LENGTH] = {
+		0x5b, 0x4d, 0xdb, 0x33, 0xf7, 0x1f, 0x1c, 0x40,
+		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
+	};
+
+	/*
+	 * Don't invoke _OSC if a control is already granted.
+	 * However, always invoke _OSC during attach when 0 is passed.
+	 */
+	if (osc_ctl != 0 && (*ap_osc_ctl & osc_ctl) == osc_ctl)
+		return (0);
+
+	/* Support Field: Extended PCI Config Space, PCI Segment Groups, MSI */
+	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
+	    PCIM_OSC_SUPPORT_SEG_GROUP | PCIM_OSC_SUPPORT_MSI;
+	/* Active State Power Management, Clock Power Management Capability */
+	if (pci_enable_aspm)
+		cap_set[PCI_OSC_SUPPORT] |= PCIM_OSC_SUPPORT_ASPM |
+		    PCIM_OSC_SUPPORT_CPMC;
+
+	/* Control Field */
+	cap_set[PCI_OSC_CTL] = *ap_osc_ctl | osc_ctl;
+
+	handle = acpi_get_handle(pcib);
+	status = acpi_EvaluateOSC(handle, pci_host_bridge_uuid, 1,
+	    nitems(cap_set), cap_set, cap_set, false);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND) {
+			*ap_osc_ctl |= osc_ctl;
+			return (0);
+		}
+		device_printf(pcib, "_OSC failed: %s\n",
+		    AcpiFormatException(status));
+		return (EIO);
+	}
+
+	/*
+	 * _OSC may return an error in the status word, but will
+	 * update the control mask always.  _OSC should not revoke
+	 * previously-granted controls.
+	 */
+	if ((cap_set[PCI_OSC_CTL] & *ap_osc_ctl) != *ap_osc_ctl)
+		device_printf(pcib, "_OSC revoked %#x\n",
+		    (cap_set[PCI_OSC_CTL] & *ap_osc_ctl) ^ *ap_osc_ctl);
+	*ap_osc_ctl = cap_set[PCI_OSC_CTL];
+	if ((*ap_osc_ctl & osc_ctl) != osc_ctl)
+		return (EIO);
+
+	return (0);
 }
