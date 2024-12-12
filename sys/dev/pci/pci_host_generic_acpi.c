@@ -287,6 +287,8 @@ pci_host_generic_acpi_init(device_t dev)
 	sc = device_get_softc(dev);
 	handle = acpi_get_handle(dev);
 
+	acpi_pcib_osc(dev, &sc->osc_ctl, 0);
+
 	/* Get Start bus number for the PCI host bus is from _BBN method */
 	status = acpi_GetInteger(handle, "_BBN", &sc->base.bus_start);
 	if (ACPI_FAILURE(status)) {
@@ -503,6 +505,30 @@ generic_pcie_acpi_get_id(device_t pci, device_t child, enum pci_id_type type,
 	return (pcib_get_id(pci, child, type, id));
 }
 
+static int
+generic_pcie_acpi_request_feature(device_t pcib, device_t dev,
+    enum pci_feature feature)
+{
+	struct generic_pcie_acpi_softc *sc;
+	uint32_t osc_ctl;
+
+	sc = device_get_softc(pcib);
+
+	switch (feature) {
+	case PCI_FEATURE_HP:
+		osc_ctl = PCIM_OSC_CTL_PCIE_HP;
+		break;
+	case PCI_FEATURE_AER:
+		osc_ctl = PCIM_OSC_CTL_PCIE_AER;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (acpi_pcib_osc(pcib, &sc->osc_ctl, osc_ctl));
+}
+
+
 static device_method_t generic_pcie_acpi_methods[] = {
 	DEVMETHOD(device_probe,		generic_pcie_acpi_probe),
 	DEVMETHOD(device_attach,	pci_host_generic_acpi_attach),
@@ -516,6 +542,7 @@ static device_method_t generic_pcie_acpi_methods[] = {
 	DEVMETHOD(pcib_release_msix,	generic_pcie_acpi_release_msix),
 	DEVMETHOD(pcib_map_msi,		generic_pcie_acpi_map_msi),
 	DEVMETHOD(pcib_get_id,		generic_pcie_acpi_get_id),
+	DEVMETHOD(pcib_request_feature,	generic_pcie_acpi_request_feature),
 
 	DEVMETHOD_END
 };
