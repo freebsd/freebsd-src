@@ -67,8 +67,6 @@ static uint32_t generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 static void generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, uint32_t val, int bytes);
 static int generic_pcie_maxslots(device_t dev);
-static int generic_pcie_read_ivar(device_t dev, device_t child, int index,
-    uintptr_t *result);
 static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
     uintptr_t value);
 
@@ -362,7 +360,7 @@ generic_pcie_maxslots(device_t dev)
 	return (31); /* max slots per bus acc. to standard */
 }
 
-static int
+int
 generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
