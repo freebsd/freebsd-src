@@ -40,6 +40,7 @@ int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     ACPI_BUFFER *prtbuf);
 int	acpi_pcib_power_for_sleep(device_t pcib, device_t dev,
     int *pstate);
+int	acpi_pcib_osc(device_t pcib, uint32_t *ap_osc_ctl, uint32_t osc_ctl);
 
 #endif /* _KERNEL */
 
