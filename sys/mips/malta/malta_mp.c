@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-void	_locore(__register_t a0, __register_t a1,  __register_t a2,
+void	_start(__register_t a0, __register_t a1,  __register_t a2,
 	    __register_t a3);
 
 #define	VPECONF0_VPA	(1 << 0)
@@ -243,7 +243,7 @@ platform_start_ap(int cpuid)
 	set_thread_context(cpuid);
 
 	/* Set entry point */
-	mttc0(2, 3, (register_t)&_locore);
+	mttc0(2, 3, (register_t)&_start);
 
 	/* Enable thread */
 	reg = mftc0(2, 1);
