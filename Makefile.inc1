@@ -1903,9 +1903,7 @@ distributekernel distributekernel.debug: .PHONY
 	false
 .endif
 	mkdir -p ${DESTDIR}/${DISTDIR}
-.if defined(NO_ROOT)
-	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
-.endif
+	rm -f ${DESTDIR}/${DISTDIR}/kernel.premeta
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} KERNEL=${INSTKERNNAME} \
@@ -1913,15 +1911,14 @@ distributekernel distributekernel.debug: .PHONY
 	    METALOG=${METALOG:S/METALOG/kernel.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	@sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
-	    ${DESTDIR}/${DISTDIR}/kernel.meta
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.meta
+	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta | \
+	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
-.if defined(NO_ROOT)
-	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
-.endif
+	rm -f ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} \
@@ -1930,9 +1927,10 @@ distributekernel distributekernel.debug: .PHONY
 	    METALOG=${METALOG:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	@sed -e "s|^./kernel.${_kernel}|.|" \
-	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
-	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	sed -e "s|^./kernel.${_kernel}|.|" \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta | \
+	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
 .endfor
 .endif
