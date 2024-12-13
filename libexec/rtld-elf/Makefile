@@ -37,6 +37,8 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
 LDFLAGS+=	-nostdlib -e _rtld_start
+.elif ${MACHINE_CPUARCH} == "mips"
+LDFLAGS+=	-nostdlib -e rtld_start
 .else
 LDFLAGS+=	-nostdlib -e .rtld_start
 .endif
