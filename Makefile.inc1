@@ -1441,7 +1441,11 @@ DEBUG_DISTRIBUTIONS=
 DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,tests,,}
 .endif
 
-MTREE_MAGIC?=	mtree 2.0
+MTREE_MAGIC?=		mtree 2.0
+.if ${MK_REPRODUCIBLE_BUILD} == "yes"
+MTREE_TIME=		time=${SOURCE_DATE_EPOCH}.000000000
+SED_REPLACE_TIME=	-e "s/ time=[[:digit:].]*/ ${MTREE_TIME}/"
+.endif
 
 distributeworld installworld stageworld: _installcheck_world .PHONY
 	mkdir -p ${INSTALLTMP}
@@ -1470,6 +1474,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .if defined(NO_ROOT)
 	-mkdir -p ${METALOG:H}
 	echo "#${MTREE_MAGIC}" > ${METALOG}
+	echo "/set ${MTREE_TIME}" >> ${METALOG}
 .endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
@@ -1548,7 +1553,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	    find ./${dist}${path} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	    awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
+	    awk 'BEGIN { print "#${MTREE_MAGIC}"; print "/set ${MTREE_TIME}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
 	    ${DESTDIR}/${DISTDIR}/${dist}${suffix}
 .endfor
 .endfor
@@ -1912,7 +1917,8 @@ distributekernel distributekernel.debug: .PHONY
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.meta
-	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta | \
+	echo "/set ${MTREE_TIME}" >> ${DESTDIR}/${DISTDIR}/kernel.meta
+	sed -e 's|^./kernel|.|' ${SED_REPLACE_TIME} ${DESTDIR}/${DISTDIR}/kernel.premeta | \
 	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
@@ -1928,7 +1934,8 @@ distributekernel distributekernel.debug: .PHONY
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
-	sed -e "s|^./kernel.${_kernel}|.|" \
+	echo "/set ${MTREE_TIME}" >> ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	sed -e "s|^./kernel.${_kernel}|.|" ${SED_REPLACE_TIME} \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta | \
 	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
