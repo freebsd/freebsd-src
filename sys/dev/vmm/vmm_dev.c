@@ -195,6 +195,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	 */
 	vm_slock_memsegs(sc->vm);
 
+	error = 0;
 	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
 	maxaddr = vmm_sysmem_maxaddr(sc->vm);
 	while (uio->uio_resid > 0 && error == 0) {
