@@ -39,6 +39,7 @@
  */
 /* r88e_beacon.c */
 void	r88e_beacon_enable(struct rtwn_softc *, int, int);
+void	r88e_sta_beacon_enable(struct rtwn_softc *, int, bool);
 
 /* r88e_calib.c */
 void	r88e_iq_calib(struct rtwn_softc *);
