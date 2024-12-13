@@ -231,3 +231,11 @@ clean_dep   lib/libcrypt crypt-md5    c
 clean_dep   lib/libcrypt crypt-nthash c
 clean_dep   lib/libcrypt crypt-sha256 c
 clean_dep   lib/libcrypt crypt-sha512 c
+
+# 20241213  b55f5e1c4ae3  jemalloc: Move generated jemalloc.3 into lib/libc tree
+if [ -e "$OBJTOP"/lib/libc/jemalloc.3 ]; then
+	# Have to cleanup the jemalloc.3 in the obj tree since make gets
+	# confused and won't use the one in lib/libc/malloc/jemalloc/jemalloc.3
+	echo "Removing stale jemalloc.3 object"
+	run rm -f "$OBJTOP"/lib/libc/jemalloc.3
+fi
