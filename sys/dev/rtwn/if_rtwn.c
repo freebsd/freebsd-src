@@ -968,6 +968,8 @@ rtwn_tsf_sync_enable(struct rtwn_softc *sc, struct ieee80211vap *vap)
 		/* Enable TSF synchronization. */
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 		    R92C_BCN_CTRL_DIS_TSF_UDT0, 0);
+		/* Enable TSF beacon handling, needed for RA */
+		rtwn_sta_beacon_enable(sc, uvp->id, true);
 		break;
 	case IEEE80211_M_IBSS:
 		ieee80211_runtask(ic, &uvp->tsf_sync_adhoc_task);
@@ -1109,6 +1111,7 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		/* Disable TSF synchronization / beaconing. */
 		rtwn_beacon_enable(sc, uvp->id, 0);
+		rtwn_sta_beacon_enable(sc, uvp->id, false);
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 		    0, R92C_BCN_CTRL_DIS_TSF_UDT0);
 

@@ -329,6 +329,8 @@ struct rtwn_softc {
 	uint8_t		(*sc_rx_radiotap_flags)(const void *);
 	void		(*sc_beacon_init)(struct rtwn_softc *, void *, int);
 	void		(*sc_beacon_enable)(struct rtwn_softc *, int, int);
+	void		(*sc_sta_beacon_enable)(struct rtwn_softc *, int,
+			    bool);
 	void		(*sc_beacon_set_rate)(void *, int);
 	void		(*sc_beacon_select)(struct rtwn_softc *, int);
 	void		(*sc_set_chan)(struct rtwn_softc *,
@@ -564,6 +566,8 @@ void	rtwn_suspend(struct rtwn_softc *);
 	(((_sc)->sc_beacon_init)((_sc), (_buf), (_id)))
 #define rtwn_beacon_enable(_sc, _id, _enable) \
 	(((_sc)->sc_beacon_enable)((_sc), (_id), (_enable)))
+#define rtwn_sta_beacon_enable(_sc, _id, _enable) \
+	(((_sc)->sc_sta_beacon_enable)((_sc), (_id), (_enable)))
 #define rtwn_beacon_set_rate(_sc, _buf, _is5ghz) \
 	(((_sc)->sc_beacon_set_rate)((_buf), (_is5ghz)))
 #define rtwn_beacon_select(_sc, _id) \

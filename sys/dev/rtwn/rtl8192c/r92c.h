@@ -46,6 +46,7 @@ void	r92c_read_chipid_vendor(struct rtwn_softc *, uint32_t);
 /* r92c_beacon.c */
 void	r92c_beacon_init(struct rtwn_softc *, void *, int);
 void	r92c_beacon_enable(struct rtwn_softc *, int, int);
+void	r92c_sta_beacon_enable(struct rtwn_softc *, int, bool);
 
 /* r92c_calib.c */
 void	r92c_iq_calib(struct rtwn_softc *);

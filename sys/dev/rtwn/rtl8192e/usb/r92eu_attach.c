@@ -150,6 +150,7 @@ r92eu_attach(struct rtwn_usb_softc *uc)
 #endif
 	sc->sc_beacon_init		= r12a_beacon_init;
 	sc->sc_beacon_enable		= r92c_beacon_enable;
+	sc->sc_sta_beacon_enable	= r92c_sta_beacon_enable;
 	sc->sc_beacon_set_rate		= rtwn_nop_void_int;
 	sc->sc_beacon_select		= r21a_beacon_select;
 	sc->sc_temp_measure		= r88e_temp_measure;
