@@ -192,10 +192,11 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 
 	/* Check to see if UserLocal register is implemented. */
 	if (cfg3 & MIPS_CONFIG3_ULR) {
-		/* UserLocal register is implemented, enable it. */
+		/*
+		 * UserLocal register is implemented, enable it later in
+		 * mips_hwrena_init.
+		 */
 		cpuinfo->userlocal_reg = true;
-		tmp = mips_rd_hwrena();
-		mips_wr_hwrena(tmp | MIPS_HWRENA_UL);
 	} else {
 		/*
 		 * UserLocal register is not implemented. Patch
@@ -328,10 +329,24 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 }
 
 void
+mips_hwrena_init(void)
+{
+	uint32_t reg;
+
+	reg = mips_rd_hwrena();
+
+	if (cpuinfo.userlocal_reg)
+		reg |= MIPS_HWRENA_UL;
+
+	mips_wr_hwrena(reg);
+}
+
+void
 mips_cpu_init(void)
 {
 	platform_cpu_init();
 	mips_get_identity(&cpuinfo);
+	mips_hwrena_init();
 	num_tlbentries = cpuinfo.tlb_nentries;
 	mips_wr_wired(0);
 	tlb_invalidate_all();
