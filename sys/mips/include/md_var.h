@@ -71,6 +71,7 @@ void	mips_wait(void);
 
 void	mips_vector_init(void);
 void	mips_cpu_init(void);
+void	mips_hwrena_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);

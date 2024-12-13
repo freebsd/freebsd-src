@@ -52,6 +52,7 @@
 #include <machine/intr_machdep.h>
 #include <machine/cache.h>
 #include <machine/tlb.h>
+#include <machine/md_var.h>
 
 struct pcb stoppcbs[MAXCPU];
 
@@ -275,6 +276,8 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
+
+	mips_hwrena_init();
 
 	/* TLB */
 	mips_wr_wired(0);
