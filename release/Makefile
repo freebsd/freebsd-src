@@ -139,8 +139,9 @@ base.txz:
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
 	    -L /dev/null -N
 	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
-	sed -n 's,^\.,./var/db/etcupdate/current,p' ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG \
-	    >> ${.OBJDIR}/${DISTDIR}/base.meta
+	sed -n 's,^\.,./var/db/etcupdate/current,p' \
+	    ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG | \
+	    env -i LC_COLLATE=C sort >> ${.OBJDIR}/${DISTDIR}/base.meta
 	rm ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG
 # Package all components
 	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
