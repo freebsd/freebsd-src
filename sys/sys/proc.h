@@ -1176,6 +1176,7 @@ int	p_canwait(struct thread *td, struct proc *p);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
+int	pgrp_calc_jobc(struct pgrp *pgrp);
 void	proc_add_orphan(struct proc *child, struct proc *parent);
 int	proc_get_binpath(struct proc *p, char *binname, char **fullpath,
 	    char **freepath);

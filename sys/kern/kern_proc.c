@@ -725,7 +725,7 @@ jobc_parent(struct proc *p, struct proc *p_exiting)
 	return (jobc_reaper(pp));
 }
 
-static int
+int
 pgrp_calc_jobc(struct pgrp *pgrp)
 {
 	struct proc *q;
