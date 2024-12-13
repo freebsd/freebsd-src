@@ -1182,6 +1182,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		    lvif, vap, vap->iv_bss, lvif->lvif_bss,
 		    (lvif->lvif_bss != NULL) ? lvif->lvif_bss->ni : NULL,
 		    lvif->lvif_bss_synched);
+		LKPI_80211_LVIF_UNLOCK(lvif);
+		ieee80211_free_node(ni);	/* Error handling for the local ni. */
 		return (EBUSY);
 	}
 	LKPI_80211_LVIF_UNLOCK(lvif);
