@@ -276,14 +276,10 @@ static struct pic xen_intr_pic = {
 void
 xen_arch_intr_init(void)
 {
-	int error;
 
 	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
 
-	error = intr_register_pic(&xen_intr_pic);
-	if (error != 0)
-		panic("%s(): failed registering Xen/x86 PIC, error=%d\n",
-		    __func__, error);
+	intr_register_pic(&xen_intr_pic);
 }
 
 /**
