@@ -321,11 +321,45 @@ rtwn_radiotap_attach(struct rtwn_softc *sc)
 	    &rxtap->wr_ihdr, sizeof(*rxtap), RTWN_RX_RADIOTAP_PRESENT);
 }
 
+#ifdef	RTWN_DEBUG
+static int
+rtwn_sysctl_reg_readwrite(SYSCTL_HANDLER_ARGS)
+{
+	struct rtwn_softc *sc = arg1;
+	int error;
+	uint32_t val;
+
+	if (sc->sc_reg_addr > 0xffff)
+		return (EINVAL);
+
+	RTWN_LOCK(sc);
+	val = rtwn_read_4(sc, sc->sc_reg_addr);
+	RTWN_UNLOCK(sc);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	RTWN_LOCK(sc);
+	rtwn_write_4(sc, sc->sc_reg_addr, val);
+	RTWN_UNLOCK(sc);
+	return (0);
+}
+#endif	/* RTWN_DEBUG */
+
 void
 rtwn_sysctlattach(struct rtwn_softc *sc)
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+
+	sc->sc_reg_addr = 0;
+#ifdef	RTWN_DEBUG
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "reg_addr", CTLFLAG_RW, &sc->sc_reg_addr,
+	    sc->sc_reg_addr, "debug register address");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	   "reg_val", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    rtwn_sysctl_reg_readwrite, "I", "debug register read/write");
+#endif	/* RTWN_DEBUG */
 
 	sc->sc_ht40 = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
