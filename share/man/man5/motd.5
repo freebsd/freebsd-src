@@ -2,7 +2,7 @@
 .\"
 .\" This file is in the public domain.
 .\"
-.Dd October 18, 2020
+.Dd December 14, 2024
 .Dt MOTD 5
 .Os
 .Sh NAME
@@ -25,9 +25,8 @@ and the contents are written to
 can be updated without a system reboot by manually restarting the
 motd service after updating
 .Pa /etc/motd.template :
-.Bd -literal -offset indent -compact
-service motd restart
-.Ed
+.Pp
+.Dl service motd restart
 .Pp
 Individual users may suppress the display of this file by
 creating a file named
@@ -35,7 +34,10 @@ creating a file named
 in their home directories or through
 .Xr login.conf 5 .
 .Sh FILES
-.Bl -tag -width $HOME/.hushlogin -compact
+.Bl -tag -width "/etc/motd.template" -compact
+.It Pa /etc/motd
+Symbolic link to
+.Pa /var/run/motd .
 .It Pa /etc/motd.template
 The template file that system administrators can edit.
 .It Pa /var/run/motd
