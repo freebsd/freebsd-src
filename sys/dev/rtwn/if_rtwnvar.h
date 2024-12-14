@@ -178,6 +178,7 @@ struct rtwn_softc {
 	int			sc_hwcrypto;
 	int			sc_ratectl_sysctl;
 	int			sc_ratectl;
+	uint32_t		sc_reg_addr;
 
 	uint8_t			sc_detached;
 	uint8_t			sc_flags;
