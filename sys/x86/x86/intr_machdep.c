@@ -140,20 +140,17 @@ intr_pic_registered(struct pic *pic)
  * sources.  This also allows controllers with no active sources (such as
  * 8259As in a system using the APICs) to participate in suspend and resume.
  */
-int
+void
 intr_register_pic(struct pic *pic)
 {
-	int error;
 
 	mtx_lock(&intrpic_lock);
-	if (intr_pic_registered(pic))
-		error = EBUSY;
-	else {
+	if (__predict_false(intr_pic_registered(pic)))
+		panic("ERROR: %s: called with already registered PIC",
+		    __func__);
+	else
 		TAILQ_INSERT_TAIL(&pics, pic, pics);
-		error = 0;
-	}
 	mtx_unlock(&intrpic_lock);
-	return (error);
 }
 
 /*
