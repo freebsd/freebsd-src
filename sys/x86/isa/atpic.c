@@ -494,14 +494,16 @@ atpic_startup(void)
 static void
 atpic_init(void *dummy __unused)
 {
+	int i;
 
 	/*
 	 * Register our PICs, even if we aren't going to use any of their
 	 * pins so that they are suspended and resumed.
 	 */
-	if (intr_register_pic(&atpics[0].at_pic) != 0 ||
-	    intr_register_pic(&atpics[1].at_pic) != 0)
-		panic("Unable to register ATPICs");
+	for (i = 0; i < nitems(atpics); ++i) {
+		struct atpic *ap = atpics + i;
+		intr_register_pic(&ap->at_pic);
+	}
 
 	if (num_io_irqs == 0)
 		num_io_irqs = NUM_ISA_IRQS;
