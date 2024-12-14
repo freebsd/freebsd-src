@@ -271,7 +271,7 @@ scanfiles(char *argv[], int cooked __unused)
 				    errno == EISDIR)
 					raw_cat(fd);
 				else
-					err(1, "stdout");
+					err(1, "%s", filename);
 			}
 #else
 			raw_cat(fd);
