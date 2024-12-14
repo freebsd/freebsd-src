@@ -145,7 +145,7 @@ void	intr_disable_all(void);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
-int	intr_register_pic(struct pic *pic);
+void	intr_register_pic(struct pic *pic);
 int	intr_register_source(unsigned int vector, struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
