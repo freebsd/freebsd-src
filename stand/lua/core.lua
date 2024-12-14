@@ -179,12 +179,14 @@ function core.setSafeMode(safe_mode)
 		loader.setenv("hw.ata.atapi_dma", "0")
 		loader.setenv("kern.eventtimer.periodic", "1")
 		loader.setenv("kern.geom.part.check_integrity", "0")
+		loader.setenv("boot_safe", "YES")
 	else
 		loader.unsetenv("kern.smp.disabled")
 		loader.unsetenv("hw.ata.ata_dma")
 		loader.unsetenv("hw.ata.atapi_dma")
 		loader.unsetenv("kern.eventtimer.periodic")
 		loader.unsetenv("kern.geom.part.check_integrity")
+		loader.unsetenv("boot_safe")
 	end
 	core.sm = safe_mode
 end
