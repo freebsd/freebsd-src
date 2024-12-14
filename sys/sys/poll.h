@@ -96,7 +96,7 @@ struct pollfd {
 
 #ifndef _KERNEL
 
-#if _POSIX_C_SOURCE >= 202405
+#if __BSD_VISIBLE
 #include <sys/_types.h>
 
 #include <sys/_sigset.h>
@@ -115,7 +115,7 @@ typedef	__sigset_t	sigset_t;
 
 __BEGIN_DECLS
 int	poll(struct pollfd _pfd[], nfds_t _nfds, int _timeout);
-#if _POSIX_C_SOURCE >= 202405
+#if __BSD_VISIBLE
 int	ppoll(struct pollfd _pfd[], nfds_t _nfds,
 	    const struct timespec *__restrict _timeout,
 	    const sigset_t *__restrict _newsigmask);
