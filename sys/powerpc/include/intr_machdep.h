@@ -28,6 +28,9 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#include <sys/_interrupt.h>
+#include <sys/types.h>
+
 #define	INTR_VECTORS	256
 
 #define	MAX_PICS		32
