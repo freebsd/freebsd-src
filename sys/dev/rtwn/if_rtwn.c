@@ -1621,6 +1621,14 @@ rtwn_getradiocaps(struct ieee80211com *ic,
 	/* XXX workaround add_channel_list() limitations */
 	setbit(bands, IEEE80211_MODE_11A);
 	setbit(bands, IEEE80211_MODE_11NA);
+
+	if (IEEE80211_CONF_VHT(ic)) {
+		setbit(bands, IEEE80211_MODE_VHT_5GHZ);
+		/* Only enable VHT80 if HT40/VHT40 is available */
+		if (sc->sc_ht40)
+			cbw_flags |= NET80211_CBW_FLAG_VHT80;
+	}
+
 	for (i = 0; i < nitems(sc->chan_num_5ghz); i++) {
 		if (sc->chan_num_5ghz[i] == 0)
 			continue;
