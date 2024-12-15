@@ -199,7 +199,7 @@ hash_x86_128(const void *key, const int len, uint32_t seed,
 		case  2: k1 ^= tail[ 1] << 8; JEMALLOC_FALLTHROUGH
 		case  1: k1 ^= tail[ 0] << 0;
 			k1 *= c1; k1 = hash_rotl_32(k1, 15); k1 *= c2; h1 ^= k1;
-      JEMALLOC_FALLTHROUGH
+			break;
 		}
 	}
 
