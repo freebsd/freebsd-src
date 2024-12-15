@@ -497,6 +497,30 @@ set_owner_group_mode_unpriv_body() {
 	atf_check_equal "$u:$g:10$cM" "$(stat -f"%u:%g:%p" testc)"
 }
 
+atf_test_case metalog_unpriv
+metalog_unpriv_head() {
+	atf_set "require.user" "unprivileged"
+}
+metalog_unpriv_body() {
+	printf "test" >testf
+
+	atf_check install -U -M METALOG -o root -g wheel -f arch testf testc
+	atf_check grep -q "testc .*uname=root gname=wheel .*flags=arch" METALOG
+
+	rm -f METALOG testc
+	atf_check -s exit:1 -e match:"unknown user no-such-user" install -U -o no-such-user testf testc
+	atf_check [ ! -f testc ]
+	atf_check [ ! -f METALOG ]
+
+	atf_check -s exit:1 -e match:"unknown group no-such-group" install -U -g no-such-group testf testc
+	atf_check [ ! -f testc ]
+	atf_check [ ! -f METALOG ]
+
+	atf_check -s exit:64 -e match:"nosuchflag: invalid flag" install -U -f nosuchflag testf testc
+	atf_check [ ! -f testc ]
+	atf_check [ ! -f METALOG ]
+}
+
 atf_test_case set_optional_exec
 set_optional_exec_head() {
 	atf_set "require.user" "unprivileged"
@@ -556,5 +580,6 @@ atf_init_test_cases() {
 	atf_add_test_case mkdir_simple
 	atf_add_test_case set_owner_group_mode
 	atf_add_test_case set_owner_group_mode_unpriv
+	atf_add_test_case metalog_unpriv
 	atf_add_test_case set_optional_exec
 }

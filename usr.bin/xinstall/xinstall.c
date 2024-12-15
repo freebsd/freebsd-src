@@ -324,7 +324,7 @@ main(int argc, char *argv[])
 	}
 
 	/* get group and owner id's */
-	if (group != NULL && !dounpriv) {
+	if (group != NULL) {
 		if (gid_from_group(group, &gid) == -1) {
 			id_t id;
 			if (!parseid(group, &id))
@@ -334,7 +334,7 @@ main(int argc, char *argv[])
 	} else
 		gid = (gid_t)-1;
 
-	if (owner != NULL && !dounpriv) {
+	if (owner != NULL) {
 		if (uid_from_user(owner, &uid) == -1) {
 			id_t id;
 			if (!parseid(owner, &id))
@@ -344,7 +344,7 @@ main(int argc, char *argv[])
 	} else
 		uid = (uid_t)-1;
 
-	if (fflags != NULL && !dounpriv) {
+	if (fflags != NULL) {
 		if (strtofflags(&fflags, &fset, NULL))
 			errx(EX_USAGE, "%s: invalid flag", fflags);
 		iflags |= SETFLAGS;
