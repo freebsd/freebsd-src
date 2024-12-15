@@ -30,7 +30,10 @@
 
 #ifdef _KERNEL
 
+#include <sys/_cpuset.h>
+#include <sys/_types_interrupt.h>
 #include <sys/kobj.h>
+#include <sys/types.h>
 
 DECLARE_CLASS(pic_base_class);
 
@@ -74,7 +77,7 @@ typedef void inthand_t(void);
 
 struct intsrc;
 
-typedef const device_method_t x86pic_func_t[];
+typedef const kobj_method_t x86pic_func_t[];
 #define	X86PIC_FUNC(func, impl) DEVMETHOD(func, impl)
 #define	X86PIC_END DEVMETHOD_END
 typedef device_t x86pic_t, x86pics_t;
@@ -134,7 +137,8 @@ int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
-device_t	intr_create_pic(const char *name, u_int unit, driver_t *driver);
+device_t	intr_create_pic(const char *name, u_int unit,
+		    struct kobj_class *driver);
 void	intr_register_pic(x86pic_t pic);
 int	intr_register_source(u_int vector, struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
