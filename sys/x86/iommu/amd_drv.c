@@ -80,12 +80,6 @@ static int amdiommu_enable = 0;
 static TAILQ_HEAD(, amdiommu_unit) amdiommu_units =
     TAILQ_HEAD_INITIALIZER(amdiommu_units);
 
-static u_int
-ivrs_info_to_unit_id(UINT32 info)
-{
-	return ((info & ACPI_IVHD_UNIT_ID_MASK) >> 8);
-}
-
 typedef bool (*amdiommu_itercc_t)(void *, void *);
 typedef bool (*amdiommu_iter40_t)(ACPI_IVRS_HARDWARE2 *, void *);
 typedef bool (*amdiommu_iter11_t)(ACPI_IVRS_HARDWARE2 *, void *);
