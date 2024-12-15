@@ -279,9 +279,22 @@ void
 r88eu_post_init(struct rtwn_softc *sc)
 {
 
-	/* Enable per-packet TX report. */
+	/* Enable per-packet TX report (RPT1) */
 	rtwn_setbits_1(sc, R88E_TX_RPT_CTRL, 0, R88E_TX_RPT1_ENA);
 
+#ifndef RTWN_WITHOUT_UCODE
+	/* Enable timer report (RPT2) if requested */
+	if (sc->macid_rpt2_max_num > 0) {
+		rtwn_setbits_1(sc, R88E_TX_RPT_CTRL, 0,
+		    R88E_TX_RPT2_ENA);
+
+		/* Configure how many TX RPT2 entries to populate */
+		rtwn_write_1(sc, R88E_TX_RPT_MACID_MAX,
+		    sc->macid_rpt2_max_num);
+		/* Enable periodic TX report; 32uS units */
+		rtwn_write_2(sc, R88E_TX_RPT_TIME, 0xcdf0);
+	}
+#endif
 	/* Disable Tx if MACID is not associated. */
 	rtwn_write_4(sc, R88E_MACID_NO_LINK, 0xffffffff);
 	rtwn_write_4(sc, R88E_MACID_NO_LINK + 4, 0xffffffff);
