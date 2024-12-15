@@ -248,6 +248,7 @@ pmc_md_initialize(void)
 				continue;
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 		}
+	nmi_register_handler(md->pmd_intr);
 
 	return (md);
 }
@@ -257,6 +258,7 @@ pmc_md_finalize(struct pmc_mdep *md)
 {
 
 	lapic_disable_pcint();
+	nmi_remove_handler(md->pmd_intr);
 	if (cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		pmc_amd_finalize(md);
