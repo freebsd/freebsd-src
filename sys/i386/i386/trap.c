@@ -428,7 +428,7 @@ user_trctrap_out:
 			}
 			return;
 #else /* !POWERFAIL_NMI */
-			nmi_handle_intr(type, frame);
+			nmi_handle_intr(frame);
 			return;
 #endif /* POWERFAIL_NMI */
 
@@ -685,7 +685,7 @@ kernel_trctrap:
 			}
 			return;
 #else /* !POWERFAIL_NMI */
-			nmi_handle_intr(type, frame);
+			nmi_handle_intr(frame);
 			return;
 #endif /* POWERFAIL_NMI */
 		}
