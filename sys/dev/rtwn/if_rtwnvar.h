@@ -401,6 +401,7 @@ struct rtwn_softc {
 	uint16_t			rx_dma_size;
 
 	int				macid_limit;
+	int				macid_rpt2_max_num;
 	int				cam_entry_limit;
 	int				fwsize_limit;
 	int				temp_delta;

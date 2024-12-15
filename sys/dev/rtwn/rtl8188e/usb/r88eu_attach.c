@@ -138,7 +138,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r88e_classify_intr;
 	sc->sc_handle_tx_report		= r88e_ratectl_tx_complete;
-	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
+	sc->sc_handle_tx_report2	= r88e_ratectl_tx_complete_periodic;
 	sc->sc_handle_c2h_report	= r88e_handle_c2h_report;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
 	sc->sc_rf_read			= r92c_rf_read;
@@ -212,6 +212,8 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->rx_dma_size			= R88E_RX_DMA_BUFFER_SIZE;
 
 	sc->macid_limit			= R88E_MACID_MAX + 1;
+	/* XXX this limit may be expanded to R88E_MACID_MAX */
+	sc->macid_rpt2_max_num		= 2;
 	sc->cam_entry_limit		= R92C_CAM_ENTRY_COUNT;
 	sc->fwsize_limit		= R92C_MAX_FW_SIZE;
 	sc->temp_delta			= R88E_CALIB_THRESHOLD;

@@ -236,6 +236,27 @@ r92c_calculate_tx_agg_window(struct rtwn_softc *sc,
 	return (wnd);
 }
 
+/*
+ * Check whether to enable the per-packet TX CCX report.
+ *
+ * For chipsets that do the RPT2 reports, enabling the TX
+ * CCX report results in the packet not being counted in
+ * the RPT2 counts.
+ */
+static bool
+r92c_check_enable_ccx_report(struct rtwn_softc *sc, int macid)
+{
+	if (sc->sc_ratectl != RTWN_RATECTL_NET80211)
+		return false;
+
+#ifndef RTWN_WITHOUT_UCODE
+	if ((sc->macid_rpt2_max_num != 0) &&
+	    (macid < sc->macid_rpt2_max_num))
+		return false;
+#endif
+	return true;
+}
+
 void
 r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
@@ -298,7 +319,7 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw6 |= htole32(SM(R92C_TXDW6_MAX_AGG,
 				    r92c_calculate_tx_agg_window(sc, ni, tid)));
 			}
-			if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
+			if (r92c_check_enable_ccx_report(sc, macid)) {
 				txd->txdw2 |= htole32(R92C_TXDW2_CCX_RPT);
 				sc->sc_tx_n_active++;
 #ifndef RTWN_WITHOUT_UCODE
