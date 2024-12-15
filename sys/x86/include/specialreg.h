@@ -123,6 +123,7 @@
 #define	XFEATURE_ENABLED_OPMASK		0x00000020
 #define	XFEATURE_ENABLED_ZMM_HI256	0x00000040
 #define	XFEATURE_ENABLED_HI16_ZMM	0x00000080
+#define	XFEATURE_ENABLED_PT		0x00000100
 #define	XFEATURE_ENABLED_PKRU		0x00000200
 #define	XFEATURE_ENABLED_TILECONFIG	0x00020000
 #define	XFEATURE_ENABLED_TILEDATA	0x00040000
@@ -213,6 +214,7 @@
 #define	CPUPT_MTC		(1 << 3)	/* MTC Supported */
 #define	CPUPT_PRW		(1 << 4)	/* PTWRITE Supported */
 #define	CPUPT_PWR		(1 << 5)	/* Power Event Trace Supported */
+#define	CPUPT_DIS_TNT		(1 << 8)	/* TNT disable supported */
 
 /* Leaf 0 ecx. */
 #define	CPUPT_TOPA		(1 << 0)	/* ToPA Output Supported */
@@ -654,6 +656,12 @@
 #define	MSR_PAT			0x277
 #define	MSR_MC0_CTL2		0x280
 #define	MSR_MTRRdefType		0x2ff
+#define	MSR_IA_GLOBAL_STATUS    0x38E
+#define	MSR_IA_GLOBAL_CTRL      0x38F
+#define	MSR_IA_GLOBAL_OVF_CTRL  0x390
+#define	MSR_IA_GLOBAL_STATUS_RESET	0x390
+#define	MSR_IA_GLOBAL_STATUS_SET	0x391
+#define	 GLOBAL_STATUS_FLAG_TRACETOPAPMI	(1ULL << 55)
 #define	MSR_MC0_CTL		0x400
 #define	MSR_MC0_STATUS		0x401
 #define	MSR_MC0_ADDR		0x402
@@ -781,6 +789,7 @@
 #define	 RTIT_CTL_ADDR2_CFG_M	(0xfULL << RTIT_CTL_ADDR2_CFG_S)
 #define	 RTIT_CTL_ADDR3_CFG_S	44
 #define	 RTIT_CTL_ADDR3_CFG_M	(0xfULL << RTIT_CTL_ADDR3_CFG_S)
+#define	RTIT_CTL_DIS_TNT	(1ULL << 55)
 #define	MSR_IA32_RTIT_STATUS		0x571	/* Tracing Status Register (R/W) */
 #define	 RTIT_STATUS_FILTEREN	(1 << 0)
 #define	 RTIT_STATUS_CONTEXTEN	(1 << 1)
