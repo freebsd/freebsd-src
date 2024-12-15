@@ -8,6 +8,10 @@ atf_test_case basic
 basic_body()
 {
 
+	if ! dmesg >/dev/null 2>&1; then
+		atf_skip "No dmesg(8) access"
+	fi
+
 	# SIGABRT carefully chosen to avoid issues when run under Kyua.  No
 	# matter the value of the global kern.logsigexit, these should force
 	# the messages as appropriate and we'll all be happy.
@@ -22,12 +26,9 @@ basic_body()
 	read enpid < enabled.out
 	read dispid < disabled.out
 
-	1>&2 echo "$enpid"
-	1>&2 echo "$dispid"
-
-	atf_check grep -Eq "$enpid.+exited on signal" /var/log/messages
-	atf_check -s not-exit:0 \
-	    grep -Eq "$dispid.+exited on signal" /var/log/messages
+	atf_check -o save:dmesg.out dmesg
+	atf_check grep -Eq "$enpid.+exited on signal" dmesg.out
+	atf_check -s not-exit:0 grep -Eq "$dispid.+exited on signal" dmesg.out
 }
 
 atf_init_test_cases()
