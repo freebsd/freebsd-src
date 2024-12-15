@@ -5,7 +5,7 @@
 # Copyright 2018 Allan Jude <allanjude@freebsd.org>
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted providing that the following conditions 
+# modification, are permitted providing that the following conditions
 # are met:
 # 1. Redistributions of source code must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
@@ -334,7 +334,7 @@ fi
 : ${METALOG:=${DESTDIR}/METALOG}
 INSTALLFLAGS=
 if "$UNPRIV" ; then
-	INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
+	INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR} -N ${DESTDIR}${DISTBASE}/etc -o root -g wheel"
 fi
 : ${LOCALBASE:=$(sysctl -n user.localbase)}
 : ${TRUSTPATH:=${DESTDIR}${DISTBASE}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
