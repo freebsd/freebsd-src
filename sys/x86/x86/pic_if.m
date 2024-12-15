@@ -26,11 +26,6 @@
 INTERFACE pic;
 
 HEADER {
-	#include <sys/_cpuset.h>
-	#include <sys/types.h>
-	#include <sys/bus.h>
-	#include <sys/kobj.h>
-
 	#include <machine/intr_machdep.h>
 };
 
