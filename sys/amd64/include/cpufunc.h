@@ -942,6 +942,29 @@ sgx_eremove(void *epc)
 	return (sgx_encls(SGX_EREMOVE, 0, (uint64_t)epc, 0));
 }
 
+static __inline void
+xrstors(uint8_t *save_area, uint64_t state_bitmap)
+{
+	uint32_t low, hi;
+
+	low = state_bitmap;
+	hi = state_bitmap >> 32;
+	__asm __volatile("xrstors %0" : : "m"(*save_area), "a"(low),
+	    "d"(hi));
+}
+
+static __inline void
+xsaves(uint8_t *save_area, uint64_t state_bitmap)
+{
+	uint32_t low, hi;
+
+	low = state_bitmap;
+	hi = state_bitmap >> 32;
+	__asm __volatile("xsaves %0" : "=m"(*save_area) : "a"(low),
+	    "d"(hi)
+	    : "memory");
+}
+
 void	reset_dbregs(void);
 
 #ifdef _KERNEL
