@@ -1051,7 +1051,7 @@ core_intr(struct trapframe *tf)
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	if (found_interrupt)
-		lapic_reenable_pmc();
+		lapic_reenable_pcint();
 
 	return (found_interrupt);
 }
@@ -1150,7 +1150,7 @@ core2_intr(struct trapframe *tf)
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	if (found_interrupt)
-		lapic_reenable_pmc();
+		lapic_reenable_pcint();
 
 	/*
 	 * Reenable all non-stalled PMCs.
