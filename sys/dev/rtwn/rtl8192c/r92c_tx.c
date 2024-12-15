@@ -272,7 +272,13 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (ismcast)
 		txd->flags0 |= R92C_FLAGS0_BMCAST;
 
+	if (IEEE80211_IS_QOSDATA(wh))
+		txd->txdw4 |= htole32(R92C_TXDW4_QOS);
+
 	if (!ismcast) {
+		struct rtwn_node *un = RTWN_NODE(ni);
+		macid = un->id;
+
 		/* Unicast frame, check if an ACK is expected. */
 		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
 		    IEEE80211_QOS_ACKPOLICY_NOACK) {
@@ -280,9 +286,6 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 			txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
 			    maxretry));
 		}
-
-		struct rtwn_node *un = RTWN_NODE(ni);
-		macid = un->id;
 
 		if (type == IEEE80211_FC0_TYPE_DATA) {
 			qsel = tid % RTWN_MAX_TID;
@@ -348,7 +351,6 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (!hasqos) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, uvp->id));
 	} else {
 		uint16_t seqno;
 
@@ -409,7 +411,6 @@ r92c_fill_tx_desc_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, uvp->id));
 	} else {
 		/* Set sequence number. */
 		txd->txdseq |= htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
@@ -438,7 +439,6 @@ r92c_fill_tx_desc_null(struct rtwn_softc *sc, void *buf, int is11b,
 
 	if (!qos) {
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, id));
 	}
 }
 
