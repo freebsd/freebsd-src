@@ -218,6 +218,12 @@ struct savefpu_ymm {
  */
 #define	fpu_enable()	clts()
 #define	fpu_disable()	load_cr0(rcr0() | CR0_TS)
+
+bool	xsave_extfeature_supported(uint64_t feature, bool supervisor);
+bool	xsave_extension_supported(uint64_t extension);
+size_t	xsave_area_hdr_offset(void);
+size_t	xsave_area_offset(uint64_t xstate_bv, uint64_t feature, bool compact);
+size_t	xsave_area_size(uint64_t xstate_bv, bool compact);
 #endif
 
 #endif /* !_X86_FPU_H_ */
