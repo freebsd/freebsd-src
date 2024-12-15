@@ -230,36 +230,20 @@ trap(struct trapframe *frame)
 	VM_CNT_INC(v_trap);
 	type = frame->tf_trapno;
 
-#ifdef SMP
-	/* Handler for NMI IPIs used for stopping CPUs. */
-	if (type == T_NMI && ipi_nmi_handler() == 0)
-		return;
-#endif
-
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
 		return;
 	}
 #endif
+	if (type == T_NMI) {
+		nmi_handle_intr(frame);
+		return;
+	}
 
 	if (type == T_RESERVED) {
 		trap_fatal(frame, 0);
 		return;
-	}
-
-	if (type == T_NMI) {
-#ifdef HWPMC_HOOKS
-		/*
-		 * CPU PMCs interrupt using an NMI.  If the PMC module is
-		 * active, pass the 'rip' value to the PMC module's interrupt
-		 * handler.  A non-zero return value from the handler means that
-		 * the NMI was consumed by it and we can return immediately.
-		 */
-		if (pmc_intr != NULL &&
-		    (*pmc_intr)(frame) != 0)
-			return;
-#endif
 	}
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
@@ -391,10 +375,6 @@ trap(struct trapframe *frame)
 			ucode = FPE_INTDIV;
 			signo = SIGFPE;
 			break;
-
-		case T_NMI:
-			nmi_handle_intr(type, frame);
-			return;
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF;
@@ -619,10 +599,6 @@ trap(struct trapframe *frame)
 				return;
 #endif
 			break;
-
-		case T_NMI:
-			nmi_handle_intr(type, frame);
-			return;
 		}
 
 		trap_fatal(frame, 0);

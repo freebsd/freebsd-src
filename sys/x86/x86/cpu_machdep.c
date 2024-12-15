@@ -76,6 +76,7 @@
 #include <machine/cputypes.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
+#include <machine/trap.h>
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
@@ -885,17 +886,105 @@ nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
 		panic("NMI");
 }
 
+/*
+ * Dynamically registered NMI handlers.
+ */
+struct nmi_handler {
+	int running;
+	int (*func)(struct trapframe *);
+	struct nmi_handler *next;
+};
+static struct nmi_handler *nmi_handlers_head = NULL;
+MALLOC_DEFINE(M_NMI, "NMI handlers",
+    "List entries for dynamically registered NMI handlers");
+
 void
-nmi_handle_intr(u_int type, struct trapframe *frame)
+nmi_register_handler(int (*handler)(struct trapframe *))
 {
+	struct nmi_handler *hp;
+	int (*hpf)(struct trapframe *);
+
+	hp = (struct nmi_handler *)atomic_load_acq_ptr(
+	    (uintptr_t *)&nmi_handlers_head);
+	while (hp != NULL) {
+		hpf = hp->func;
+		MPASS(hpf != handler);
+		if (hpf == NULL &&
+		    atomic_cmpset_ptr((volatile uintptr_t *)&hp->func,
+		    (uintptr_t)NULL, (uintptr_t)handler) != 0) {
+			hp->running = 0;
+			return;
+		}
+		hp = (struct nmi_handler *)atomic_load_acq_ptr(
+		    (uintptr_t *)&hp->next);
+	}
+	hp = malloc(sizeof(struct nmi_handler), M_NMI, M_WAITOK | M_ZERO);
+	hp->func = handler;
+	hp->next = nmi_handlers_head;
+	while (atomic_fcmpset_rel_ptr(
+	    (volatile uintptr_t *)&nmi_handlers_head,
+	    (uintptr_t *)&hp->next, (uintptr_t)hp) == 0)
+	        ;
+}
+
+void
+nmi_remove_handler(int (*handler)(struct trapframe *))
+{
+	struct nmi_handler *hp;
+
+	hp = (struct nmi_handler *)atomic_load_acq_ptr(
+	    (uintptr_t *)&nmi_handlers_head);
+	while (hp != NULL) {
+		if (hp->func == handler) {
+			hp->func = NULL;
+			/* Wait for the handler to exit before returning. */
+			while (atomic_load_int(&hp->running) != 0)
+				cpu_spinwait();
+			return;
+		}
+		hp = (struct nmi_handler *)atomic_load_acq_ptr(
+		    (uintptr_t *)&hp->next);
+	}
+
+	panic("%s: attempting to remove an unregistered NMI handler %p\n",
+	    __func__, handler);
+}
+
+void
+nmi_handle_intr(struct trapframe *frame)
+{
+	int (*func)(struct trapframe *);
+	struct nmi_handler *hp;
+	bool handled;
 
 #ifdef SMP
+	/* Handler for NMI IPIs used for stopping CPUs. */
+	if (ipi_nmi_handler() == 0)
+		return;
+#endif
+	handled = false;
+	hp = (struct nmi_handler *)atomic_load_acq_ptr(
+	    (uintptr_t *)&nmi_handlers_head);
+	while (hp != NULL) {
+		func = hp->func;
+		if (func != NULL) {
+			atomic_add_int(&hp->running, 1);
+			if (func(frame) != 0)
+				handled = true;
+			atomic_subtract_int(&hp->running, 1);
+		}
+		hp = (struct nmi_handler *)atomic_load_acq_ptr(
+		    (uintptr_t *)&hp->next);
+	}
+	if (handled)
+		return;
+#ifdef SMP
 	if (nmi_is_broadcast) {
-		nmi_call_kdb_smp(type, frame);
+		nmi_call_kdb_smp(T_NMI, frame);
 		return;
 	}
 #endif
-	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
+	nmi_call_kdb(PCPU_GET(cpuid), T_NMI, frame);
 }
 
 static int hw_ibrs_active;
