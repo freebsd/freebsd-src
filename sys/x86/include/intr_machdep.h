@@ -30,7 +30,10 @@
 
 #ifdef _KERNEL
 
+#include <sys/_cpuset.h>
+#include <sys/_types_interrupt.h>
 #include <sys/kobj.h>
+#include <sys/types.h>
 
 DECLARE_CLASS(pic_base_class);
 
