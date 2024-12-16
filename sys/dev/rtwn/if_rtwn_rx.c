@@ -532,7 +532,7 @@ rtwn_set_promisc(struct rtwn_softc *sc)
 	RTWN_ASSERT_LOCKED(sc);
 
 	mask_all = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
-	mask_min = R92C_RCR_APM | R92C_RCR_APPFCS;
+	mask_min = R92C_RCR_APM;
 
 	if (sc->bcn_vaps == 0)
 		mask_min |= R92C_RCR_CBSSID_BCN;
@@ -551,5 +551,12 @@ rtwn_set_promisc(struct rtwn_softc *sc)
 		sc->rcr &= ~mask_min;
 		sc->rcr |= mask_all;
 	}
+
+	/*
+	 * Add FCS, to work around occasional 4 byte truncation.
+	 * See the previous comment above R92C_RCR_APPFCS.
+	 */
+	sc->rcr |= R92C_RCR_APPFCS;
+
 	rtwn_rxfilter_set(sc);
 }
