@@ -436,6 +436,8 @@ void	rtwn_detach(struct rtwn_softc *);
 void	rtwn_resume(struct rtwn_softc *);
 void	rtwn_suspend(struct rtwn_softc *);
 
+void	rtwn_attach_vht_cap_info_mcs(struct rtwn_softc *);
+
 /* Interface-specific. */
 #define rtwn_write_1(_sc, _addr, _val) \
 	(((_sc)->sc_write_1)((_sc), (_addr), (_val)))

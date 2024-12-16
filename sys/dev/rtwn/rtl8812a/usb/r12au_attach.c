@@ -175,11 +175,24 @@ r12au_adj_devcaps(struct rtwn_softc *sc)
 	}
 
 	ic->ic_htcaps |=
-	    IEEE80211_HTCAP_CHWIDTH40 /* 40 MHz channel width */
-	    | IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
+	    IEEE80211_HTCAP_CHWIDTH40 | /* 40 MHz channel width */
+	    IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
 	;
 
-	/* TODO: STBC, VHT etc */
+	/* TODO: STBC */
+
+	/* VHT config */
+	ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
+	ic->ic_vht_cap.vht_cap_info =
+	    IEEE80211_VHTCAP_MAX_MPDU_LENGTH_11454 |
+	    IEEE80211_VHTCAP_SHORT_GI_80 |
+	    IEEE80211_VHTCAP_TXSTBC |
+	    IEEE80211_VHTCAP_RXSTBC_1 |
+	    IEEE80211_VHTCAP_HTC_VHT |
+	    _IEEE80211_SHIFTMASK(7,
+	      IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+
+	rtwn_attach_vht_cap_info_mcs(sc);
 }
 
 void

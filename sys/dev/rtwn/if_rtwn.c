@@ -436,6 +436,29 @@ rtwn_resume(struct rtwn_softc *sc)
 	ieee80211_resume_all(ic);
 }
 
+void
+rtwn_attach_vht_cap_info_mcs(struct rtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t rx_mcs = 0, tx_mcs = 0;
+
+	for (int i = 0 ; i < 8; i++) {
+		if (i < sc->ntxchains)
+			tx_mcs |= (IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2));
+		else
+			tx_mcs |= (IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2));
+
+		if (i < sc->nrxchains)
+			rx_mcs |= (IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2));
+		else
+			rx_mcs |= (IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2));
+	}
+	ic->ic_vht_cap.supp_mcs.rx_mcs_map = rx_mcs;
+	ic->ic_vht_cap.supp_mcs.rx_highest = 0;
+	ic->ic_vht_cap.supp_mcs.tx_mcs_map = tx_mcs;
+	ic->ic_vht_cap.supp_mcs.tx_highest = 0;
+}
+
 static void
 rtwn_vap_decrement_counters(struct rtwn_softc *sc,
     enum ieee80211_opmode opmode, int id)
