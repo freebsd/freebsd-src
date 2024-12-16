@@ -25,6 +25,9 @@
 # SUCH DAMAGE.
 
 import pytest
+import selectors
+import socket
+import sys
 from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
 
@@ -41,7 +44,44 @@ class TestNAT64(VnetTestTemplate):
     def vnet3_handler(self, vnet):
         ToolsHelper.print_output("/sbin/sysctl net.inet.ip.forwarding=1")
         ToolsHelper.print_output("/sbin/sysctl net.inet.ip.ttl=62")
-        ToolsHelper.print_output("echo foo | nc -l 1234 &")
+        ToolsHelper.print_output("/sbin/sysctl net.inet.udp.checksum=0")
+
+        sel = selectors.DefaultSelector()
+        t = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        t.bind(("0.0.0.0", 1234))
+        t.setblocking(False)
+        t.listen()
+        sel.register(t, selectors.EVENT_READ, data=None)
+
+        u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        u.bind(("0.0.0.0", 4444))
+        u.setblocking(False)
+        sel.register(u, selectors.EVENT_READ, data="UDP")
+
+        while True:
+            events = sel.select(timeout=20)
+            for key, mask in events:
+                sock = key.fileobj
+                if key.data is None:
+                    conn, addr = sock.accept()
+                    print(f"Accepted connection from {addr}")
+                    data = types.SimpleNamespace(addr=addr, inb=b"", outb=b"")
+                    events = selectors.EVENT_READ | selectors.EVENT_WRITE
+                    sel.register(conn, events, data=data)
+                elif key.data == "UDP":
+                    recv_data, addr = sock.recvfrom(1024)
+                    print(f"Received UDP {recv_data} from {addr}")
+                    sock.sendto(b"foo", addr)
+                else:
+                    if mask & selectors.EVENT_READ:
+                        recv_data = sock.recv(1024)
+                        print(f"Received TCP {recv_data}")
+                        sock.send(b"foo")
+                    else:
+                        print("Unknown event?")
+                        t.close()
+                        u.close()
+                        return
 
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
@@ -130,3 +170,22 @@ class TestNAT64(VnetTestTemplate):
         # Check the hop limit
         ip6 = reply.getlayer(sp.IPv6)
         assert ip6.hlim == 62
+
+    @pytest.mark.require_user("root")
+    def test_udp_checksum(self):
+        ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
+
+        import scapy.all as sp
+
+        # Send an outbound UDP packet to establish state
+        packet = sp.IPv6(dst="64:ff9b::192.0.2.2") \
+            / sp.UDP(sport=3333, dport=4444) / sp.Raw("foo")
+
+        # Get a reply
+        # We'll send the reply without UDP checksum on the IPv4 side
+        # but that's not valid for IPv6, so expect pf to update the checksum.
+        reply = sp.sr1(packet, timeout=5)
+
+        udp = reply.getlayer(sp.UDP)
+        assert udp
+        assert udp.chksum != 0

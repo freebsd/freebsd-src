@@ -3469,6 +3469,7 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip4->ip_dst = pd->ndaddr.v4;
 		pd->src = (struct pf_addr *)&ip4->ip_src;
 		pd->dst = (struct pf_addr *)&ip4->ip_dst;
+		pd->off = sizeof(struct ip);
 		break;
 	case AF_INET6:
 		ip6 = mtod(pd->m, struct ip6_hdr *);
@@ -3485,6 +3486,7 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip6->ip6_dst = pd->ndaddr.v6;
 		pd->src = (struct pf_addr *)&ip6->ip6_src;
 		pd->dst = (struct pf_addr *)&ip6->ip6_dst;
+		pd->off = sizeof(struct ip6_hdr);
 
 		/*
 		 * If we're dealing with a reassembled packet we need to adjust
@@ -9092,6 +9094,16 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		}
 
 		PF_STATE_UNLOCK(s);
+	}
+
+	if (pd->af != pd->naf) {
+		struct udphdr *uh = &pd->hdr.udp;
+
+		if (pd->proto == IPPROTO_UDP && uh->uh_sum == 0) {
+			uh->uh_sum = in6_cksum_pseudo(ip6,
+			    ntohs(uh->uh_ulen), IPPROTO_UDP, 0);
+			m_copyback(m0, pd->off, sizeof(*uh), pd->hdr.any);
+		}
 	}
 
 	if (ifp == NULL) {
