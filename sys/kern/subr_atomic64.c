@@ -77,7 +77,7 @@ static struct mtx a64_mtx_pool[A64_POOL_SIZE];
 
 #define ATOMIC64_EMU_UN(op, rt, block, ret) \
     rt \
-    atomic_##op##_64(volatile uint64_t *p) {			\
+    atomic_##op##_64(const volatile uint64_t *p) {		\
 	uint64_t tmp __unused;					\
 	LOCK_A64();						\
 	block;							\
