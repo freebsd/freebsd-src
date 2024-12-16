@@ -103,11 +103,17 @@ r12a_tx_protection(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		/* TODO: VHT */
-		if (RTWN_RATE_IS_HT(ridx))
+		/*
+		 * Note: this code assumes basic rates for protection for
+		 * both 802.11abg and 802.11n rates.
+		 */
+		if (RTWN_RATE_IS_VHT(ridx))
+			rate = rtwn_ctl_vhtrate(ic->ic_rt, ridx);
+		else if (RTWN_RATE_IS_HT(ridx))
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
+		/* Map basic rate back to ridx */
 		ridx = rate2ridx(IEEE80211_RV(rate));
 
 		txd->txdw4 |= htole32(SM(R12A_TXDW4_RTSRATE, ridx));
