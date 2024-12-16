@@ -1,7 +1,12 @@
 /*-
- * Copyright(c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
- *
  * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright(c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2024 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce.freebsd@certner.fr> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  */
 
 #include <sys/param.h>
