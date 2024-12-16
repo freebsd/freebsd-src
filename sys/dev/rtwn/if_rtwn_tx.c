@@ -117,6 +117,7 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	struct rtwn_tx_desc_common *txd;
 	struct rtwn_tx_buf buf;
 	uint8_t rate, ridx, type;
+	bool force_rate = false;
 	u_int cipher;
 	int ismcast;
 
@@ -129,13 +130,16 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	/* Choose a TX rate index. */
 	if (type == IEEE80211_FC0_TYPE_MGT ||
 	    type == IEEE80211_FC0_TYPE_CTL ||
-	    (m->m_flags & M_EAPOL) != 0)
+	    (m->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
-	else if (ismcast)
+		force_rate = true;
+	} else if (ismcast) {
+		force_rate = true;
 		rate = tp->mcastrate;
-	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
+	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		force_rate = true;
 		rate = tp->ucastrate;
-	else {
+	} else {
 		if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
 			/* XXX pass pktlen */
 			(void) ieee80211_ratectl_rate(ni, NULL, 0);
@@ -172,7 +176,7 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	memset(txd, 0, sc->txdesc_len);
 	txd->txdw1 = htole32(SM(RTWN_TXDW1_CIPHER, rtwn_get_cipher(cipher)));
 
-	rtwn_fill_tx_desc(sc, ni, m, txd, ridx, tp->maxretry);
+	rtwn_fill_tx_desc(sc, ni, m, txd, ridx, force_rate, tp->maxretry);
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rtwn_tx_radiotap_header *tap = &sc->sc_txtap;

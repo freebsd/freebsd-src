@@ -319,7 +319,7 @@ struct rtwn_softc {
 	void		(*sc_detach_private)(struct rtwn_softc *);
 	void		(*sc_fill_tx_desc)(struct rtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
-			    void *, uint8_t, int);
+			    void *, uint8_t, bool, int);
 	void		(*sc_fill_tx_desc_raw)(struct rtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    void *, const struct ieee80211_bpf_params *);
@@ -527,9 +527,9 @@ void	rtwn_suspend(struct rtwn_softc *);
 #define rtwn_detach_private(_sc) \
 	(((_sc)->sc_detach_private)((_sc)))
 #define rtwn_fill_tx_desc(_sc, _ni, _m, \
-	    _buf, _ridx, _maxretry) \
+	    _buf, _ridx, _force, _maxretry) \
 	(((_sc)->sc_fill_tx_desc)((_sc), (_ni), \
-	    (_m), (_buf), (_ridx), (_maxretry)))
+	    (_m), (_buf), (_ridx), (_force), (_maxretry)))
 #define rtwn_fill_tx_desc_raw(_sc, _ni, _m, \
 	    _buf, _params) \
 	(((_sc)->sc_fill_tx_desc_raw)((_sc), (_ni), \

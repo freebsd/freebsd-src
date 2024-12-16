@@ -259,7 +259,7 @@ r92c_check_enable_ccx_report(struct rtwn_softc *sc, int macid)
 
 void
 r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
+    struct mbuf *m, void *buf, uint8_t ridx, bool force_rate, int maxretry)
 {
 #ifndef RTWN_WITHOUT_UCODE
 	struct r92c_softc *rs = sc->sc_priv;
