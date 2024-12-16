@@ -27,6 +27,8 @@
  */
 
 #pragma D depends_on provider ipfw
+#pragma D depends_on module kernel
+#pragma D depends_on module ipfw.ko
 
 /* ipfw_chk() return values */
 #pragma D binding "1.0" IP_FW_PASS
