@@ -3697,8 +3697,6 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 			*pd->sport = sk->port[pd->sidx];
 		if (pd->dport)
 			*pd->dport = sk->port[pd->didx];
-		if (pd->proto_sum)
-			*pd->proto_sum = bproto_sum;
 		if (pd->ip_sum)
 			*pd->ip_sum = bip_sum;
 		m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
@@ -5010,7 +5008,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		switch (pd->proto) {
 		case IPPROTO_TCP:
 			bproto_sum = th->th_sum;
-			pd->proto_sum = &th->th_sum;
 
 			if (PF_ANEQ(saddr, &nk->addr[pd->sidx], pd->af) ||
 			    nk->port[pd->sidx] != sport) {
@@ -5033,7 +5030,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			break;
 		case IPPROTO_UDP:
 			bproto_sum = pd->hdr.udp.uh_sum;
-			pd->proto_sum = &pd->hdr.udp.uh_sum;
 
 			if (PF_ANEQ(saddr, &nk->addr[pd->sidx], pd->af) ||
 			    nk->port[pd->sidx] != sport) {
@@ -5584,8 +5580,6 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 				*pd->sport = skt->port[pd->sidx];
 			if (pd->dport)
 				*pd->dport = skt->port[pd->didx];
-			if (pd->proto_sum)
-				*pd->proto_sum = bproto_sum;
 			if (pd->ip_sum)
 				*pd->ip_sum = bip_sum;
 			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
@@ -8659,7 +8653,6 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->src = (struct pf_addr *)&h->ip_src;
 		pd->dst = (struct pf_addr *)&h->ip_dst;
 		pd->ip_sum = &h->ip_sum;
-		pd->proto_sum = NULL;
 		pd->virtual_proto = pd->proto = h->ip_p;
 		pd->tos = h->ip_tos;
 		pd->ttl = h->ip_ttl;
@@ -8704,7 +8697,6 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->src = (struct pf_addr *)&h->ip6_src;
 		pd->dst = (struct pf_addr *)&h->ip6_dst;
 		pd->ip_sum = NULL;
-		pd->proto_sum = NULL;
 		pd->tos = IPV6_DSCP(h);
 		pd->ttl = h->ip6_hlim;
 		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
