@@ -131,7 +131,7 @@ void	r12a_get_rx_stats(struct rtwn_softc *, struct ieee80211_rx_stats *,
 
 /* r12a_tx.c */
 void	r12a_fill_tx_desc(struct rtwn_softc *, struct ieee80211_node *,
-	    struct mbuf *, void *, uint8_t, int);
+	    struct mbuf *, void *, uint8_t, bool, int);
 void	r12a_fill_tx_desc_raw(struct rtwn_softc *, struct ieee80211_node *,
 	    struct mbuf *, void *, const struct ieee80211_bpf_params *);
 void	r12a_fill_tx_desc_null(struct rtwn_softc *, void *, int, int, int);

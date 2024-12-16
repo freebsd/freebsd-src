@@ -261,7 +261,7 @@ r12a_calculate_tx_agg_window(struct rtwn_softc *sc,
 
 void
 r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
+    struct mbuf *m, void *buf, uint8_t ridx, bool force_rate, int maxretry)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
