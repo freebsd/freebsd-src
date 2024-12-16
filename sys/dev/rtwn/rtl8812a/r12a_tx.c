@@ -56,14 +56,35 @@
 #include <dev/rtwn/rtl8812a/r12a.h>
 #include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
 
+/*
+ * This function actually handles the secondary channel mapping,
+ * not the primary channel mapping.  It hints to the MAC where
+ * to handle duplicate transmission of the RTS/CTS and payload
+ * frames when the requested transmit channel width is less than
+ * the configured channel width.
+ *
+ * Note: the vendor driver and linux rtw88 driver both leave this
+ * field currently set to 0.
+ *
+ * See the rtl8812au vendor driver, hal/rtl8812a_xmit.c:SCMapping_8812()
+ * and where it's used (and ignored.)
+ */
 static int
 r12a_get_primary_channel(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
+#if 0
 	/* XXX VHT80; VHT40 */
 	if (IEEE80211_IS_CHAN_HT40U(c))
 		return (R12A_TXDW5_PRIM_CHAN_20_80_2);
 	else
 		return (R12A_TXDW5_PRIM_CHAN_20_80_3);
+#endif
+
+	/*
+	 * For now just return the VHT_DATA_SC_DONOT_CARE value
+	 * from the reference driver.
+	 */
+	return (0);
 }
 
 static void
