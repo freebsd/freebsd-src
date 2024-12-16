@@ -692,6 +692,7 @@ lagg_capabilities(struct lagg_softc *sc)
 			ena2 &= lp->lp_ifp->if_capenable2;
 		}
 	} while (pena != ena || pena2 != ena2);
+	ena2 &= ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
 
 	/* Get other capabilities from the lagg ports */
 	cap = cap2 = ~0;
@@ -703,6 +704,7 @@ lagg_capabilities(struct lagg_softc *sc)
 		hwa &= lp->lp_ifp->if_hwassist;
 		if_hw_tsomax_common(lp->lp_ifp, &hw_tsomax);
 	}
+	cap2 &= ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
 	if (CK_SLIST_FIRST(&sc->sc_ports) == NULL)
 		cap = cap2 = hwa = 0;
 
