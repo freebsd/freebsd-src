@@ -2339,7 +2339,7 @@ _proc_set_cred(struct proc *p, struct ucred *newcred, bool enforce_proc_lim)
 void
 proc_set_cred(struct proc *p, struct ucred *newcred)
 {
-	bool success = _proc_set_cred(p, newcred, false);
+	bool success __diagused = _proc_set_cred(p, newcred, false);
 
 	MPASS(success);
 }
