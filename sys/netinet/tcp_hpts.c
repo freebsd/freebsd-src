@@ -1374,24 +1374,20 @@ again:
 			 * cause a call to output if it is needed so we do
 			 * not need a second call to tcp_output(). So we do
 			 * one or the other but not both.
+			 *
+			 * XXXGL: some KPI abuse here.  tfb_do_queued_segments
+			 * returns unlocked with positive error (always 1) and
+			 * tcp_output returns unlocked with negative error.
 			 */
 			tp->t_flags2 |= TF2_HPTS_CALLS;
 			if ((tp->t_flags2 & TF2_SUPPORTS_MBUFQ) &&
-			    !STAILQ_EMPTY(&tp->t_inqueue)) {
-				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
-				/*
-				 * A non-zero return for input queue processing
-				 * is the lock is released and most likely the
-				 * inp is gone.
-				 */
-				if (error)
-					goto skip_pacing;
-			} else
+			    !STAILQ_EMPTY(&tp->t_inqueue))
+				error = -(*tp->t_fb->tfb_do_queued_segments)(tp,
+				    0);
+			else
 				error = tcp_output(tp);
-			if (error < 0)
-				goto skip_pacing;
-			INP_WUNLOCK(inp);
-		skip_pacing:
+			if (__predict_true(error >= 0))
+				INP_WUNLOCK(inp);
 			CURVNET_RESTORE();
 		}
 		if (seen_endpoint) {
