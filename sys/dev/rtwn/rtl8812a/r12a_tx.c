@@ -47,6 +47,7 @@
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
@@ -87,12 +88,42 @@ r12a_get_primary_channel(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	return (0);
 }
 
+/*
+ * Configure VHT20/VHT40/VHT80 as appropriate.
+ *
+ * This is only called for VHT, not for HT.
+ */
+static void
+r12a_tx_set_vht_bw(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
+{
+	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
+	int prim_chan;
+
+	prim_chan = r12a_get_primary_channel(sc, ni->ni_chan);
+
+	if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_80)) {
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
+		    R12A_TXDW5_DATA_BW80));
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
+		    prim_chan));
+	} else if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_40)) {
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
+		    R12A_TXDW5_DATA_BW40));
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
+		    prim_chan));
+	}
+}
+
+/*
+ * Configure HT20/HT40 as appropriate.
+ *
+ * This is only called for HT, not for VHT.
+ */
 static void
 r12a_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	/* XXX VHT80; VHT40; VHT20 */
 	if (ieee80211_ht_check_tx_ht40(ni)) {
 		int prim_chan;
 
@@ -353,8 +384,12 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
 
 			prot = IEEE80211_PROT_NONE;
-			/* TODO: VHT */
-			if (RTWN_RATE_IS_HT(ridx)) {
+			if (RTWN_RATE_IS_VHT(ridx)) {
+				r12a_tx_set_vht_bw(sc, txd, ni);
+				/* XXX TODO: sgi */
+				/* XXX TODO: ldpc */
+				prot = ic->ic_htprotmode;
+			} else if (RTWN_RATE_IS_HT(ridx)) {
 				r12a_tx_set_ht40(sc, txd, ni);
 				r12a_tx_set_sgi(sc, txd, ni);
 				r12a_tx_set_ldpc(sc, txd, ni);
