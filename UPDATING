@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20241216:
+	The iwm(4) firmwares are no longer compiled as kernel modules but instead
+	shipped as raw files. For pkgbase users if you use iwm(4) you will need
+	to install the FreeBSD-firmware-iwm package.
+
 20241124:
 	The OpenBSD derived bc and dc implementations and the WITHOUT_GH_BC
 	option that allowed building them instead of the advanced version
