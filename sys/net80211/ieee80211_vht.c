@@ -873,3 +873,140 @@ ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
 {
 	printf("%s: called; TODO!\n", __func__);
 }
+
+/*
+ * Return true if VHT rates can be used for the given node.
+ */
+bool
+ieee80211_vht_check_tx_vht(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211_channel *bss_chan;
+
+	if (ni == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC ||
+	    ni->ni_vap == NULL || ni->ni_vap->iv_bss == NULL)
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	if (bss_chan == IEEE80211_CHAN_ANYC)
+		return (false);
+
+	return (IEEE80211_IS_CHAN_VHT(ni->ni_chan));
+}
+
+/*
+ * Return true if VHT40 rates can be transmitted to the given node.
+ *
+ * This verifies that the BSS is VHT40 capable and the current
+ * node channel width is 40MHz.
+ */
+static bool
+ieee80211_vht_check_tx_vht40(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211_channel *bss_chan;
+
+	if (!ieee80211_vht_check_tx_vht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	return (IEEE80211_IS_CHAN_VHT40(bss_chan) &&
+	    IEEE80211_IS_CHAN_VHT40(ni->ni_chan) &&
+	    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
+}
+
+/*
+ * Return true if VHT80 rates can be transmitted to the given node.
+ *
+ * This verifies that the BSS is VHT80 capable and the current
+ * node channel width is 80MHz.
+ */
+static bool
+ieee80211_vht_check_tx_vht80(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211_channel *bss_chan;
+
+	if (!ieee80211_vht_check_tx_vht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	return (IEEE80211_IS_CHAN_VHT80(bss_chan) &&
+	    IEEE80211_IS_CHAN_VHT80(ni->ni_chan) &&
+	    (ni->ni_chw == IEEE80211_STA_RX_BW_80));
+}
+
+/*
+ * Return true if VHT 160 rates can be transmitted to the given node.
+ *
+ * This verifies that the BSS is VHT80+80 or VHT160 capable and the current
+ * node channel width is 80+80MHz or 160MHz.
+ */
+static bool
+ieee80211_vht_check_tx_vht160(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211_channel *bss_chan;
+
+	if (!ieee80211_vht_check_tx_vht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	if (ni->ni_chw != IEEE80211_STA_RX_BW_160)
+		return (false);
+
+	if (IEEE80211_IS_CHAN_VHT160(bss_chan) &&
+	    IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
+		return (true);
+
+	if (IEEE80211_IS_CHAN_VHT80P80(bss_chan) &&
+	    IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
+		return (true);
+
+	return (false);
+}
+
+/**
+ * @brief Check if the given transmit bandwidth is available to the given node
+ *
+ * This checks that the node and BSS both allow the given bandwidth,
+ * and that the current node bandwidth (which can dynamically change)
+ * also allows said bandwidth.
+ *
+ * This relies on the channels having the flags for the narrower
+ * channels as well - eg a VHT160 channel will have the CHAN_VHT80,
+ * CHAN_VHT40, CHAN_VHT flags also set.
+ *
+ * @param ni		the ieee80211_node to check
+ * @param bw		the required bandwidth to check
+ *
+ * @returns true if it is allowed, false otherwise
+ */
+bool
+ieee80211_vht_check_tx_bw(const struct ieee80211_node *ni,
+    enum ieee80211_sta_rx_bw bw)
+{
+
+	switch (bw) {
+	case IEEE80211_STA_RX_BW_20:
+		return (ieee80211_vht_check_tx_vht(ni));
+	case IEEE80211_STA_RX_BW_40:
+		return (ieee80211_vht_check_tx_vht40(ni));
+	case IEEE80211_STA_RX_BW_80:
+		return (ieee80211_vht_check_tx_vht80(ni));
+	case IEEE80211_STA_RX_BW_160:
+		return (ieee80211_vht_check_tx_vht160(ni));
+	case IEEE80211_STA_RX_BW_320:
+		return (false);
+	default:
+		return (false);
+	}
+}
