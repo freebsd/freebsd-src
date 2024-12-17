@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2021 Andrew Turner
  * Copyright (c) 2022 Michael J. Karels <karels@freebsd.org>
  * Copyright (c) 2022 Kyle Evans <kevans@FreeBSD.org>
