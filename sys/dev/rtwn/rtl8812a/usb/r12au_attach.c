@@ -141,6 +141,7 @@ r12a_attach_private(struct rtwn_softc *sc)
 	rs->rs_iq_calib_sw		= r12a_iq_calib_sw;
 
 	rs->ampdu_max_time		= 0x70;
+	rs->ampdu_max_size		= 0x1ffff; /* 128k */
 
 	sc->sc_priv = rs;
 }

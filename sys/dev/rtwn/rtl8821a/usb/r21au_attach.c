@@ -141,6 +141,7 @@ r21a_attach_private(struct rtwn_softc *sc)
 	rs->rs_iq_calib_sw		= r21a_iq_calib_sw;
 
 	rs->ampdu_max_time		= 0x5e;
+	rs->ampdu_max_size		= 0xffff; /* 64k */
 
 	rs->ac_usb_dma_size		= 0x01;
 	rs->ac_usb_dma_time		= 0x10;
