@@ -473,9 +473,9 @@ struct {								\
 	(head1)->stqh_last = (head2)->stqh_last;			\
 	STAILQ_FIRST(head2) = swap_first;				\
 	(head2)->stqh_last = swap_last;					\
-	if (STAILQ_EMPTY(head1))					\
+	if (STAILQ_FIRST(head1) == NULL)				\
 		(head1)->stqh_last = &STAILQ_FIRST(head1);		\
-	if (STAILQ_EMPTY(head2))					\
+	if (STAILQ_FIRST(head2) == NULL)				\
 		(head2)->stqh_last = &STAILQ_FIRST(head2);		\
 } while (0)
 
