@@ -65,10 +65,10 @@
 	type sp##_atomic_readandclear_##name(volatile type *)
 
 #define	ATOMIC_SAN_LOAD(sp, name, type)					\
-	type sp##_atomic_load_##name(volatile type *)
+	type sp##_atomic_load_##name(const volatile type *)
 
 #define	ATOMIC_SAN_LOAD_ACQ(sp, name, type)				\
-	type sp##_atomic_load_acq_##name(volatile type *)
+	type sp##_atomic_load_acq_##name(const volatile type *)
 
 #define	ATOMIC_SAN_STORE(sp, name, type)				\
 	void sp##_atomic_store_##name(volatile type *, type)
