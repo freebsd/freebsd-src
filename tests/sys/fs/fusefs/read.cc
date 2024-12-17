@@ -89,9 +89,17 @@ virtual void SetUp() {
 };
 
 class AsyncRead: public AioRead {
+public:
 	virtual void SetUp() {
 		m_init_flags = FUSE_ASYNC_READ;
 		AioRead::SetUp();
+	}
+};
+
+class AsyncReadNoatime: public AsyncRead {
+	virtual void SetUp() {
+		m_noatime = true;
+		AsyncRead::SetUp();
 	}
 };
 
@@ -266,10 +274,10 @@ TEST_F(AioRead, async_read_disabled)
 }
 
 /* 
- * With the FUSE_ASYNC_READ mount option, fuse(4) may issue multiple
- * simultaneous read requests on the same file handle.
+ * With the FUSE_ASYNC_READ mount option and atime ignored, fuse(4) may issue
+ * multiple simultaneous read requests on the same file handle.
  */
-TEST_F(AsyncRead, async_read)
+TEST_F(AsyncReadNoatime, async_read)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";

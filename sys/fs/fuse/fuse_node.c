@@ -264,8 +264,16 @@ fuse_vnode_alloc(struct mount *mp,
 		*vpp = NULL;
 		return (err);
 	}
-	/* Disallow async reads for fifos because UFS does.  I don't know why */
-	if (data->dataflags & FSESS_ASYNC_READ && vtyp != VFIFO)
+	/*
+	 * Allow shared reads when the ASYNC_READ option is set.  But disallow
+	 * it when atime updates are required, because that requires an
+	 * exclusive vnode lock anyway.  And disallow it for fifos, because
+	 * nobody's yet done the work to ensure that shared reads of FIFOs work
+	 * in fusefs.
+	 */
+	if ((data->dataflags & FSESS_ASYNC_READ) &&
+	    (mp->mnt_flag & MNT_NOATIME) &&
+	    (vtyp != VFIFO))
 		VN_LOCK_ASHARE(*vpp);
 
 	vn_set_state(*vpp, VSTATE_CONSTRUCTED);
@@ -512,8 +520,6 @@ fuse_vnode_update(struct vnode *vp, int flags)
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct timespec ts;
 
-	ASSERT_VOP_ELOCKED(vp, __func__);
-
 	vfs_timestamp(&ts);
 
 	if (data->time_gran > 1)
@@ -522,14 +528,17 @@ fuse_vnode_update(struct vnode *vp, int flags)
 	if (mp->mnt_flag & MNT_NOATIME)
 		flags &= ~FN_ATIMECHANGE;
 
+	if (flags) {
+		ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->cached_attrs */
+		fvdat->flag |= flags;
+	}
+
 	if (flags & FN_ATIMECHANGE)
 		fvdat->cached_attrs.va_atime = ts;
 	if (flags & FN_MTIMECHANGE)
 		fvdat->cached_attrs.va_mtime = ts;
 	if (flags & FN_CTIMECHANGE)
 		fvdat->cached_attrs.va_ctime = ts;
-
-	fvdat->flag |= flags;
 }
 
 void
