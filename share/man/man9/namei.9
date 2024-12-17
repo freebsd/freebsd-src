@@ -31,7 +31,7 @@
 .\" If you integrate this manpage in another OS, I'd appreciate a note
 .\"	- eivind@FreeBSD.org
 .\"
-.Dd July 8, 2023
+.Dd December 17, 2024
 .Dt NAMEI 9
 .Os
 .Sh NAME
@@ -124,7 +124,6 @@ Lock vnode on return with
 unless
 .Dv LOCKSHARED
 is also set.
-The
 .Xr VOP_UNLOCK 9
 should be used
 to release the lock (or
@@ -153,8 +152,20 @@ and
 .Xr vrele 9 .
 .It Dv LOCKSHARED
 Lock vnode on return with
-.Dv LK_SHARED .
-The
+.Dv LK_SHARED ,
+if permitted by the file system that owns the vnode.
+The file system must explicitly permit this by setting
+.Dv MNTK_LOOKUP_SHARED
+in
+.Dv mp->mnt_kern_flag
+during mount and by calling
+.Fn VN_LOCK_ASHARE
+when allocating the vnode.
+If
+.Dv LOCKLEAF
+is specified but shared locking is not permitted, then the vnode will be
+returned with
+.Dv LK_EXCLUSIVE .
 .Xr VOP_UNLOCK 9
 should be used
 to release the lock (or
