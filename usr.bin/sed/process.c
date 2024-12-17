@@ -134,7 +134,7 @@ redirect:
 				psl = 0;
 				if (cp->a2 == NULL || lastaddr || lastline())
 					(void)fprintf(outfile, "%s", cp->t);
-				break;
+				goto new;
 			case 'd':
 				pd = 1;
 				goto new;
