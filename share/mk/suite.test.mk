@@ -46,6 +46,9 @@ KYUAFILE?= auto
 # unqualified TEST_METADATA variable.
 #TEST_METADATA.<test-program>+= key="value"
 
+# Test name to run with kyua debug instead of running all tests.
+#KYUADEBUG
+
 .if ${KYUAFILE:tl} != "no"
 ${PACKAGE}FILES+=	Kyuafile
 ${PACKAGE}FILESDIR_Kyuafile=	${TESTSDIR}
@@ -78,6 +81,11 @@ Kyuafile: Makefile
 
 KYUA?=	kyua
 
+KYUA_CMD=	${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile
+.if !empty(KYUADEBUG)
+KYUA_CMD=	${KYUA} debug -k ${DESTDIR}${TESTSDIR}/Kyuafile ${KYUADEBUG}
+.endif
+
 # Definition of the "make check" target and supporting variables.
 #
 # This target, by necessity, can only work for native builds (i.e. a FreeBSD
@@ -98,7 +106,7 @@ realcheck: .PHONY
 		echo "KYUA=\"${LOCALBASE}/bin/kyua\""; \
 		false; \
 	fi
-	@env ${TESTS_ENV:Q} ${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile
+	@env ${TESTS_ENV:Q} ${KYUA_CMD}
 
 MAKE_CHECK_SANDBOX_DIR=	checkdir
 CLEANDIRS+=	${MAKE_CHECK_SANDBOX_DIR}
