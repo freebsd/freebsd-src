@@ -1,0 +1,37 @@
+name: libecc
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  compilation_tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      #max-parallel: 10
+      matrix:
+        cc: [gcc, clang, g++, clang++]
+        blinding: [0, 1]
+        complete: [0, 1]
+        ladder: [0, 1]
+        cryptofuzz: [0, 1]
+        optflags: ["-O3", "-O2", "-O1"]
+    steps:
+      # Checkout repository
+      - name: checkout repository
+        uses: actions/checkout@v2
+      # Run actions
+      # libecc compilation tests using meson
+      - name: libecc meson compilation tests
+        shell: bash
+        run: |
+          sudo apt-get update;
+          sudo apt-get -y install python3-pip;
+          pip install meson;
+          pip install ninja;
+          pip install dunamai;
+          # Compilation tests of all cases
+          #
+          rm -rf builddir/ && meson setup -Dwith_wordsize=16 builddir && cd builddir && meson dist && cd -;
+          rm -rf builddir/ && meson setup -Dwith_wordsize=32 builddir && cd builddir && meson dist && cd -;
+          rm -rf builddir/ && meson setup -Dwith_wordsize=64 builddir && cd builddir && meson dist && cd -;
+        continue-on-error: false

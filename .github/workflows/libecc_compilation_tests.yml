@@ -1,0 +1,57 @@
+name: libecc
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  compilation_tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      #max-parallel: 10
+      matrix:
+        cc: [gcc, clang, g++, clang++]
+        blinding: [0, 1]
+        complete: [0, 1]
+        ladder: [0, 1]
+        cryptofuzz: [0, 1]
+        optflags: ["-O3", "-O2", "-O1"]
+    steps:
+      # Checkout repository
+      - name: checkout repository
+        uses: actions/checkout@v2
+      # Run actions
+      # libecc compilation tests
+      - name: libecc compilation tests
+        env:
+          CC: ${{ matrix.cc }}
+          BLINDING: ${{ matrix.blinding }}
+          COMPLETE: ${{ matrix.complete }}
+          LADDER: ${{ matrix.ladder }}
+          CRYPTOFUZZ: ${{ matrix.cryptofuzz }}
+          EXTRA_LIB_CFLAGS: ${{ matrix.optflags }}
+          EXTRA_BIN_CFLAGS: ${{ matrix.optflags }}
+        shell: bash
+        run: |
+          # Compilation tests of all cases
+          #
+          make && cd src/arithmetic_tests/ && make clean && make bin && make clean && cd -;
+          cd src/examples/ && make clean && make && cd - && make clean;
+          make 16;
+          cd src/examples/ && make clean && make 16 && cd - && make clean;
+          make 32;
+          cd src/examples/ && make clean && make 32 && cd - && make clean;
+          make 64;
+          cd src/examples/ && make clean && make 64 && cd - && make clean;
+          # We perform one test with the sanitizers
+          USE_SANITIZERS=1 make;
+          cd src/examples/ && make clean && USE_SANITIZERS=1 make && cd - && make clean;
+          #
+          make debug;
+          cd src/examples/ && make clean && make debug && cd - && make clean;
+          make debug16;
+          cd src/examples/ && make clean && make debug16 && cd - && make clean;
+          make debug32;
+          cd src/examples/ && make clean && make debug32 && cd - && make clean;
+          make debug64;
+          cd src/examples/ && make clean && make debug64 && cd - && make clean;
+        continue-on-error: false

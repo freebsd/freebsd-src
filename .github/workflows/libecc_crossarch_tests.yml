@@ -1,0 +1,55 @@
+name: libecc
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  cross_arch_tests:
+    runs-on: ubuntu-20.04
+    strategy:
+      #max-parallel: 10
+      matrix:
+        blinding: [0, 1]
+        complete: [1]
+        ladder: [1]
+        #cross_target: [arm-linux-gnueabi, arm-linux-gnueabihf, aarch64-linux-gnu, powerpc64le-linux-gnu, mipsel-linux-gnu, i686-w64-mingw32, x86_64-w64-mingw32, i386-apple-darwin, x86_64-apple-darwin, x86_64h-apple-darwin]
+        cross_target: [arm-linux-gnueabi, arm-linux-gnueabihf, aarch64-linux-gnu, powerpc64le-linux-gnu, mipsel-linux-gnu, i686-w64-mingw32, x86_64-w64-mingw32]
+        cross_size: [16, 32, 64]
+    steps:
+      # Add swap because of possible out of memory issues
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+      # Checkout repository
+      - name: checkout repository
+        uses: actions/checkout@v2
+      # Run actions
+      # Cross build and cross run tests
+      - name: libecc cross-arch tests
+        env:
+          BLINDING: ${{ matrix.blinding }}
+          COMPLETE: ${{ matrix.complete }}
+          LADDER: ${{ matrix.ladder }}
+          CROSS_TARGET: ${{ matrix.cross_target }}
+          CROSS_SIZE: ${{ matrix.cross_size }}
+          CRYPTOFUZZ: 1
+        shell: bash
+        run: |
+          # Install stuff
+          sudo apt-get update;
+          # This oddity is due to ubuntu (18.04 and 20.04) issue with wine32 in
+          # githbub actions runners ...
+          sudo apt-get -y install software-properties-common;
+          sudo apt-add-repository "ppa:ondrej/php" -y;
+          sudo dpkg --add-architecture i386;
+          sudo apt-get update;
+          sudo apt-get -y install qemu-user-static wine-stable wine32 wine64;
+          # Cross build jobs
+          docker pull multiarch/crossbuild;
+          sh scripts/crossbuild.sh -triplet "${CROSS_TARGET}" "${CROSS_SIZE}";
+          # Check for errors
+          [ ! -z "$(ls -A scripts/crossbuild_out/error_log/)" ] && exit -1;
+          # Test generated cross binaries through qemu-static;
+          sh scripts/crossrun.sh -triplet "${CROSS_TARGET}" "${CROSS_SIZE}";
+        continue-on-error: false
