@@ -99,6 +99,7 @@ struct r12a_softc {
 	int		ac_usb_dma_size;
 	int		ac_usb_dma_time;
 	int		ampdu_max_time;
+	int		ampdu_max_size;
 };
 #define	R12A_SOFTC(_sc)	((struct r12a_softc *)((_sc)->sc_priv))
 
