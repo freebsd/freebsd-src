@@ -84,7 +84,7 @@ set_single_reg(void *fdt, uint64_t start, uint64_t len)
 }
 
 static void
-add_cpu(void *fdt, int cpuid)
+add_cpu(void *fdt, int cpuid, const char *isa)
 {
 	char node_name[16];
 
@@ -94,7 +94,7 @@ add_cpu(void *fdt, int cpuid)
 	fdt_property_string(fdt, "device_type", "cpu");
 	fdt_property_string(fdt, "compatible", "riscv");
 	fdt_property_u32(fdt, "reg", cpuid);
-	fdt_property_string(fdt, "riscv,isa", "rv64imafdc_sstc");
+	fdt_property_string(fdt, "riscv,isa", isa);
 	fdt_property_string(fdt, "mmu-type", "riscv,sv39");
 	fdt_property_string(fdt, "clock-frequency", "1000000000");
 
@@ -110,7 +110,7 @@ add_cpu(void *fdt, int cpuid)
 }
 
 static void
-add_cpus(void *fdt, int ncpu)
+add_cpus(void *fdt, int ncpu, const char *isa)
 {
 	int cpuid;
 
@@ -120,14 +120,15 @@ add_cpus(void *fdt, int ncpu)
 	fdt_property_u32(fdt, "#size-cells", 0);
 	fdt_property_u32(fdt, "timebase-frequency", 10000000);
 
-	for (cpuid = 0; cpuid < ncpu; cpuid++) {
-		add_cpu(fdt, cpuid);
-	}
+	for (cpuid = 0; cpuid < ncpu; cpuid++)
+		add_cpu(fdt, cpuid, isa);
+
 	fdt_end_node(fdt);
 }
 
 int
-fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t fdtaddr, vm_size_t fdtsize)
+fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t fdtaddr, vm_size_t fdtsize,
+    const char *isa)
 {
 	void *fdt;
 	const char *bootargs;
@@ -162,7 +163,7 @@ fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t fdtaddr, vm_size_t fdtsize)
 	set_single_reg(fdt, vm_get_highmem_base(ctx), vm_get_highmem_size(ctx));
 	fdt_end_node(fdt);
 
-	add_cpus(fdt, ncpu);
+	add_cpus(fdt, ncpu, isa);
 
 	/* Finalized by fdt_finalized(). */
 	fdtroot = fdt;

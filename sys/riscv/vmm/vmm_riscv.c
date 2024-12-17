@@ -903,6 +903,10 @@ vmmops_getcap(void *vcpui, int num, int *retval)
 	ret = ENOENT;
 
 	switch (num) {
+	case VM_CAP_SSTC:
+		*retval = has_sstc;
+		ret = 0;
+		break;
 	case VM_CAP_UNRESTRICTED_GUEST:
 		*retval = 1;
 		ret = 0;

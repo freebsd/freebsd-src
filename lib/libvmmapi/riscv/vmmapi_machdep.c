@@ -40,6 +40,7 @@
 #include "internal.h"
 
 const char *vm_capstrmap[] = {
+	[VM_CAP_SSTC] = "sstc",
 	[VM_CAP_MAX] = NULL,
 };
 

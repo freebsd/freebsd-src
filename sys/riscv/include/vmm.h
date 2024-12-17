@@ -275,6 +275,7 @@ struct vre {
  */
 enum vm_cap_type {
 	VM_CAP_UNRESTRICTED_GUEST,
+	VM_CAP_SSTC,
 	VM_CAP_MAX
 };
 
