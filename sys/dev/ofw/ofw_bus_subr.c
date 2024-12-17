@@ -210,7 +210,7 @@ ofw_bus_node_status_okay(phandle_t node)
 
 	OF_getprop(node, "status", status, OFW_STATUS_LEN);
 	if ((len == 5 && (bcmp(status, "okay", len) == 0)) ||
-	    (len == 3 && (bcmp(status, "ok", len))))
+	    (len == 3 && (bcmp(status, "ok", len) == 0)))
 		return (1);
 
 	return (0);
