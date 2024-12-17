@@ -440,7 +440,7 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 	}
 
 #define	_CSAN_ATOMIC_FUNC_LOAD(name, type)				\
-	type kcsan_atomic_load_##name(volatile type *ptr)		\
+	type kcsan_atomic_load_##name(const volatile type *ptr)		\
 	{								\
 		kcsan_access((uintptr_t)ptr, sizeof(type), false, true,	\
 		    __RET_ADDR);					\

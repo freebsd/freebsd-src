@@ -1220,7 +1220,7 @@ kmsan_casueword(volatile u_long *base, u_long oldval, u_long *oldvalp,
 	}
 
 #define	_MSAN_ATOMIC_FUNC_LOAD(name, type)				\
-	type kmsan_atomic_load_##name(volatile type *ptr)		\
+	type kmsan_atomic_load_##name(const volatile type *ptr)		\
 	{								\
 		kmsan_check_arg(sizeof(ptr),				\
 		    "atomic_load_" #name "():args");			\
