@@ -539,6 +539,7 @@ arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
 	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 
 # Apple
+arm64/apple/apple_aic.c				optional soc_apple_t8103 fdt
 arm64/apple/apple_wdog.c			optional soc_apple_t8103 fdt
 
 # Broadcom
