@@ -1628,7 +1628,7 @@ grant_primary_group_from_flags(const flags_t flags)
  * - EJUSTRETURN:	Flags are agnostic.
  * - EPERM:		Access denied.
  */
-static int
+static int __unused
 grant_supplementary_group_from_flags(const flags_t flags)
 {
 	if ((flags & MDF_SUPP_MASK) != 0)
