@@ -122,6 +122,21 @@ xen_map_shared_info(void)
 C_SYSINIT(xen_shared_info, SI_SUB_HYPERVISOR, SI_ORDER_SECOND,
     (sysinit_cfunc_t)xen_map_shared_info, NULL);
 
+#ifdef SMP
+static void
+setup_vcpu(const void *unused __unused)
+{
+	cpuset_t procs = all_cpus;
+
+	CPU_CLR(0, &procs);
+	if (xen_domain() && mp_ncpus > 1)
+		smp_rendezvous_cpus(procs, smp_no_rendezvous_barrier,
+		    (void (*)(void *))xen_setup_vcpu_info,
+		    smp_no_rendezvous_barrier, NULL);
+}
+C_SYSINIT(setup_vcpu, SI_SUB_SMP, SI_ORDER_SECOND, setup_vcpu, NULL);
+#endif
+
 struct xen_softc {
 	struct resource		*intr;
 	void			*cookie;
