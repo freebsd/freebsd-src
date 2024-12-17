@@ -242,13 +242,13 @@ crypto session.
 .It Fa csp_auth_mlen
 The length in bytes of the digest.
 If zero, the full length of the digest is used.
-If non-zero, the first
+If nonzero, the first
 .Fa csp_auth_mlen
 bytes of the digest are used.
 .El
 .Sh RETURN VALUES
 .Fn crypto_newsession
-returns a non-zero value if an error occurs or zero on success.
+returns a nonzero value if an error occurs or zero on success.
 .Pp
 .Fn crypto_auth_hash
 and

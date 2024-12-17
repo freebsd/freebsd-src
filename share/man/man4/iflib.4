@@ -62,7 +62,7 @@ controllers.
 Requests that RX and TX queues not be paired on the same core.
 If this is zero or not set, an RX and TX queue pair will be assigned to each
 core.
-When set to a non-zero value, TX queues are assigned to cores following the
+When set to a nonzero value, TX queues are assigned to cores following the
 last RX queue.
 .El
 .Pp
@@ -78,7 +78,7 @@ task servicing the TX ring.
 This ensures that whenever there is a pending transmission,
 the transmit ring is being serviced.
 This results in higher transmit throughput.
-If set to a non-zero value, task returns immediately and the transmit
+If set to a nonzero value, task returns immediately and the transmit
 ring is serviced by a different task.
 This returns control to the caller faster and under high receive load,
 may result in fewer dropped RX frames.
@@ -91,7 +91,7 @@ There are also some global sysctls which can change behaviour for all drivers,
 and may be changed at any time.
 .Bl -tag -width indent
 .It Va net.iflib.min_tx_latency
-If this is set to a non-zero value, iflib will avoid any attempt to combine
+If this is set to a nonzero value, iflib will avoid any attempt to combine
 multiple transmits, and notify the hardware as quickly as possible of
 new descriptors.
 This will lower the maximum throughput, but will also lower transmit latency.
@@ -99,7 +99,7 @@ This will lower the maximum throughput, but will also lower transmit latency.
 Some NICs allow processing completed transmit descriptors in batches.
 Doing so usually increases the transmit throughput by reducing the number of
 transmit interrupts.
-Setting this to a non-zero value will disable the use of this feature.
+Setting this to a nonzero value will disable the use of this feature.
 .El
 .Pp
 These

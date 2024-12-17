@@ -321,7 +321,7 @@ every user call to
 .Xr write 2
 or
 .Xr writev 2 .
-When this option is set to a non-zero value,
+When this option is set to a nonzero value,
 .Tn TCP
 will delay sending any data at all until either the socket is closed,
 or the internal send buffer is filled.
@@ -526,12 +526,12 @@ the socket cannot be read).
 The timeout used here is
 .Va finwait2_timeout .
 .It Va fastopen.acceptany
-When non-zero, all client-supplied TFO cookies will be considered to be valid.
+When nonzero, all client-supplied TFO cookies will be considered to be valid.
 The default is 0.
 .It Va fastopen.autokey
 When this and
 .Va net.inet.tcp.fastopen.server_enable
-are non-zero, a new key will be automatically generated after this specified
+are nonzero, a new key will be automatically generated after this specified
 seconds.
 The default is 120.
 .It Va fastopen.ccache_bucket_limit
@@ -588,7 +588,7 @@ pressure before the disable period has elapsed.
 The default is
 .Dv TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT .
 .It Va fastopen.psk_enable
-When non-zero, pre-shared key (PSK) mode is enabled for all TFO servers.
+When nonzero, pre-shared key (PSK) mode is enabled for all TFO servers.
 On the transition from enabled to disabled, all installed pre-shared keys are
 removed.
 The default is 0.
@@ -598,7 +598,7 @@ On the transition from enabled to disabled, all installed keys and pre-shared
 keys are removed.
 On the transition from disabled to enabled, if
 .Va fastopen.autokey
-is non-zero and there are no keys installed, a new key will be generated
+is nonzero and there are no keys installed, a new key will be generated
 immediately.
 The transition from enabled to disabled does not affect any passive TFO
 connections in progress; it only prevents new ones from being established.
@@ -669,7 +669,7 @@ Time in seconds between pruning expired host cache entries.
 Defaults to 300 (5 minutes).
 .It Va hostcache.purge
 Expire all entries on next pruning of host cache entries.
-Any non-zero setting will be reset to zero, once the purge
+Any nonzero setting will be reset to zero, once the purge
 is running.
 .Bl -tag -compact
 .It 0

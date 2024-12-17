@@ -116,7 +116,7 @@ With the above considerations in mind, it is advised that code written using
 .Fn kern_yield
 be measured to confirm that its use has a positive effect on relevant
 performance or responsiveness metrics.
-Switching thread contexts has a non-zero cost, and thus yielding the processor
+Switching thread contexts has a nonzero cost, and thus yielding the processor
 too eagerly could have a negative impact on performance.
 .Pp
 Additionally, since yielding is a cooperative action, it is advised that the

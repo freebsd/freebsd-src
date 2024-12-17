@@ -68,7 +68,7 @@ and
 values.
 Upon match, if specified
 .Va tag_len
-is non-zero,
+is nonzero,
 .Va tag_data
 of tag is checked to be identical to that specified in the hook structure.
 Packets with matched tags are forwarded to
@@ -146,7 +146,7 @@ and
 respectively.
 If
 .Va strip
-flag is non-zero, then found tag is deleted from list of packet tags.
+flag is nonzero, then found tag is deleted from list of packet tags.
 .It Dv NGM_TAG_GET_HOOKIN Pq Ic gethookin
 This command takes an ASCII string argument, the hook name, and returns the
 corresponding
@@ -321,7 +321,7 @@ node type was implemented in
 .Sh AUTHORS
 .An Vadim Goncharov Aq Mt vadimnuclight@tpu.ru
 .Sh BUGS
-For manipulating any tags with data payload (that is, all tags with non-zero
+For manipulating any tags with data payload (that is, all tags with nonzero
 .Va tag_len )
 one should care about non-portable machine-dependent representation of
 tags on the low level as byte stream.

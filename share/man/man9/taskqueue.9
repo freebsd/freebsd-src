@@ -191,7 +191,7 @@ To add a task to the list of tasks queued on a taskqueue, call
 with pointers to the queue and task.
 If the task's
 .Va ta_pending
-field is non-zero,
+field is nonzero,
 then it is simply incremented to reflect the number of times the task
 was enqueued, up to a cap of USHRT_MAX.
 Otherwise,

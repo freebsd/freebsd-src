@@ -999,7 +999,7 @@ device's PBA
 to determine the pending status of the MSI-X message at table index
 .Fa index .
 If the indicated message is pending,
-this function returns a non-zero value;
+this function returns a nonzero value;
 otherwise,
 it returns zero.
 Passing an invalid
@@ -1047,7 +1047,7 @@ corresponding MSI-X table entry.
 If
 .Fn pci_remap_msix
 succeeds,
-each MSI-X table entry with a non-zero vector will have an associated
+each MSI-X table entry with a nonzero vector will have an associated
 .Dv SYS_RES_IRQ
 resource whose resource ID corresponds to the table index as described
 above for

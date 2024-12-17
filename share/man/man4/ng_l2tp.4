@@ -138,13 +138,13 @@ field different from
 are handled.
 If
 .Va match_id
-is non-zero, they will be dropped; otherwise, they will be dropped
-only if the tunnel ID is non-zero.
+is nonzero, they will be dropped; otherwise, they will be dropped
+only if the tunnel ID is nonzero.
 Typically
 .Va tunnel_id
 is set to the local tunnel ID as soon as it is known and
 .Va match_id
-is set to non-zero after receipt of the SCCRP or SCCCN control message.
+is set to nonzero after receipt of the SCCRP or SCCCN control message.
 .Pp
 The peer's tunnel ID should be set in
 .Va peer_id
@@ -160,7 +160,7 @@ AVP received from the peer.
 The default value for this field is one; zero is an invalid value.
 As long as
 .Va enabled
-is non-zero, this value may not be decreased.
+is nonzero, this value may not be decreased.
 .Pp
 The
 .Va rexmit_max
@@ -222,7 +222,7 @@ on incoming packets.
 .Pp
 If
 .Va control_dseq
-is non-zero, then the setting of
+is nonzero, then the setting of
 .Va enable_dseq
 will never change except by another
 .Dv NGM_L2TP_SET_SESS_CONFIG

@@ -505,7 +505,7 @@ which is a callback used to interact with the subsystem's stats template sample
 rates list.
 Subsystems can optionally specify the sysctl's
 .Fa arg2
-as non-zero, which causes a zero-initialized allocation of arg2-sized contextual
+as nonzero, which causes a zero-initialized allocation of arg2-sized contextual
 memory to be heap-allocated and passed in to all subsystem callbacks made during
 the operation of
 .Fn stats_tpl_sample_rates .
@@ -657,7 +657,7 @@ struct member to provide useful metadata about the iteration:
 .Dv SB_IT_NULLVOI
 and
 .Dv SB_IT_NULLVOISTAT .
-Returning a non-zero value from the callback function terminates the iteration.
+Returning a nonzero value from the callback function terminates the iteration.
 .Pp
 The
 .Fn stats_blob_tostr

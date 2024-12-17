@@ -90,7 +90,7 @@ This makes the vm_object lock a real busy interlock.
 .Pp
 The
 .Fn vm_page_busied
-function returns non-zero if the current thread busied
+function returns nonzero if the current thread busied
 .Fa m
 in either exclusive or shared mode.
 Returns zero otherwise.
@@ -126,7 +126,7 @@ is a string describing the sleep condition for userland tools.
 .Pp
 The
 .Fn vm_page_busied
-function returns non-zero if the current thread busied
+function returns nonzero if the current thread busied
 .Fa m
 in shared mode.
 Returns zero otherwise.
@@ -142,7 +142,7 @@ attempts to shared busy
 .Fa m .
 If the operation cannot immediately succeed
 .Fn vm_page_trysbusy
-returns 0, otherwise a non-zero value is returned.
+returns 0, otherwise a nonzero value is returned.
 .Pp
 The
 .Fn vm_page_tryxbusy
@@ -150,11 +150,11 @@ attempts to exclusive busy
 .Fa m .
 If the operation cannot immediately succeed
 .Fn vm_page_tryxbusy
-returns 0, otherwise a non-zero value is returned.
+returns 0, otherwise a nonzero value is returned.
 .Pp
 The
 .Fn vm_page_xbusied
-function returns non-zero if the current thread busied
+function returns nonzero if the current thread busied
 .Fa m
 in exclusive mode.
 Returns zero otherwise.

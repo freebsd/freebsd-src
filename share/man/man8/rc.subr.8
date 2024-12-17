@@ -549,7 +549,7 @@ and sets
 .Va rc_force Ns = Ns Li YES .
 This ignores
 .Ar argument Ns Va _precmd
-returning non-zero, and ignores any of the
+returning nonzero, and ignores any of the
 .Va required_*
 tests failing, and always returns a zero exit status.
 .It Li one
@@ -845,7 +845,7 @@ Shell commands to run just before running
 .Ar argument Ns Va _cmd
 or the default method for
 .Ar argument .
-If this returns a non-zero exit code, the main method is not performed.
+If this returns a nonzero exit code, the main method is not performed.
 If the default method is being executed, this check is performed after
 the
 .Va required_*
@@ -1115,7 +1115,7 @@ indicates a truth value, then a
 signal is sent to the parent
 process, which is assumed to be
 .Xr rc 8 .
-Otherwise, the shell exits with a non-zero status.
+Otherwise, the shell exits with a nonzero status.
 .It Ic vdot Ar file ...
 For reading in only verified files.
 .Pp

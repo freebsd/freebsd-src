@@ -86,7 +86,7 @@ function may lock the vnode.
 All three functions may sleep.
 .Pp
 The hold count for the vnode is always greater or equal to the usecount.
-Non-forced unmount fails when mount point owns a vnode that has non-zero
+Non-forced unmount fails when mount point owns a vnode that has nonzero
 usecount, see
 .Xr vflush 9 .
 .Sh SEE ALSO

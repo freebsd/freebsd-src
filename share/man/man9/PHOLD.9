@@ -41,7 +41,7 @@ macro increments the hold count of a process, and the
 .Fn PRELE
 macro decrements the hold count of a process.
 .Pp
-If a process with a non-zero hold count attempts to exit, it will sleep until
+If a process with a nonzero hold count attempts to exit, it will sleep until
 its hold count has reached zero before the kernel begins releasing resources
 associated with the process.
 Once a process has started exiting, it is invalid to increase its hold count.
@@ -49,7 +49,7 @@ Thus, callers must not attempt to hold a process that has the
 .Dv P_WEXIT
 flag set.
 The VM daemon will not swap out the kernel stack of a thread belonging to a
-process with a non-zero hold count.
+process with a nonzero hold count.
 .Pp
 The
 .Fn _PHOLD
