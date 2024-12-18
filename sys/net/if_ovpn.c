@@ -622,8 +622,20 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	}
 
 	/* Must be the same socket as for other peers on this interface. */
-	if (sc->so != NULL && so != sc->so)
-		goto error_locked;
+	if (sc->so != NULL && so != sc->so) {
+		if (! RB_EMPTY(&sc->peers)) {
+			ret = EBUSY;
+			goto error_locked;
+		}
+
+		/*
+		 * If we have no peers we can safely release the socket and accept
+		 * a new one.
+		 */
+		ret = udp_set_kernel_tunneling(sc->so, NULL, NULL, NULL);
+		sorele(sc->so);
+		sc->so = NULL;
+	}
 
 	if (sc->so == NULL) {
 		sc->so = so;
