@@ -367,7 +367,7 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred, pid_t pid)
 	struct fuse_setattr_in *fsai;
 	int err = 0;
 
-	ASSERT_VOP_ELOCKED(vp, "fuse_io_extend");
+	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	if (fuse_isdeadfs(vp)) {
 		return EBADF;
@@ -423,7 +423,7 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 	struct buf *bp = NULL;
 	int err = 0;
 
-	ASSERT_VOP_ELOCKED(vp, "fuse_vnode_setsize");
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->cached_attrs */
 
 	iosize = fuse_iosize(vp);
 	oldsize = fvdat->cached_attrs.va_size;
@@ -480,6 +480,8 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	int error = 0;
 
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->cached_attrs */
+
 	if (!(fvdat->flag & FN_SIZECHANGE) &&
 		(!fuse_vnode_attr_cache_valid(vp) ||
 		  fvdat->cached_attrs.va_size == VNOVAL)) 
@@ -509,6 +511,8 @@ fuse_vnode_update(struct vnode *vp, int flags)
 	struct mount *mp = vnode_mount(vp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	struct timespec ts;
+
+	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	vfs_timestamp(&ts);
 

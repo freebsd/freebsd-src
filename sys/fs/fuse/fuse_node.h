@@ -111,7 +111,10 @@ struct fuse_vnode_data {
 	uint32_t	flag;
 
 	/** meta **/
-	/* The monotonic time after which the attr cache is invalid */
+	/*
+	 * The monotonic time after which the attr cache is invalid, protected
+	 * by the vnode lock.
+	 */
 	struct bintime	attr_cache_timeout;
 	/* 
 	 * Monotonic time after which the entry is invalid.  Used for lookups
@@ -124,6 +127,7 @@ struct fuse_vnode_data {
 	 * unlocked accessor ops like VOP_LOOKUP.
 	 */
 	struct timespec	last_local_modify;
+	/* Cached file attributes, protected by the vnode lock */
 	struct vattr	cached_attrs;
 	uint64_t	nlookup;
 	__enum_uint8(vtype)	vtype;
@@ -149,6 +153,8 @@ fuse_vnode_attr_cache_valid(struct vnode *vp)
 {
 	struct bintime now;
 
+	ASSERT_VOP_LOCKED(vp, __func__);
+
 	getbinuptime(&now);
 	return (bintime_cmp(&(VTOFUD(vp)->attr_cache_timeout), &now, >));
 }
@@ -156,6 +162,8 @@ fuse_vnode_attr_cache_valid(struct vnode *vp)
 static inline struct vattr*
 VTOVA(struct vnode *vp)
 {
+	ASSERT_VOP_LOCKED(vp, __func__);
+
 	if (fuse_vnode_attr_cache_valid(vp))
 		return &(VTOFUD(vp)->cached_attrs);
 	else
@@ -165,6 +173,8 @@ VTOVA(struct vnode *vp)
 static inline void
 fuse_vnode_clear_attr_cache(struct vnode *vp)
 {
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
 	bintime_clear(&VTOFUD(vp)->attr_cache_timeout);
 }
 

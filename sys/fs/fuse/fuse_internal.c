@@ -262,7 +262,7 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
 
-	ASSERT_VOP_ELOCKED(vp, "fuse_internal_cache_attrs");
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->cached_attrs */
 
 	fuse_validity_2_bintime(attr_valid, attr_valid_nsec,
 		&fvdat->attr_cache_timeout);
@@ -453,10 +453,10 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 		return (0);
 
 	if (fnieo.parent == FUSE_ROOT_ID)
-		err = VFS_ROOT(mp, LK_SHARED, &dvp);
+		err = VFS_ROOT(mp, LK_EXCLUSIVE, &dvp);
 	else
 		err = fuse_internal_get_cached_vnode( mp, fnieo.parent,
-			LK_SHARED, &dvp);
+			LK_EXCLUSIVE, &dvp);
 	SDT_PROBE3(fusefs, , internal, invalidate_entry, dvp, &fnieo, name);
 	/* 
 	 * If dvp is not in the cache, then it must've been reclaimed.  And
@@ -500,8 +500,8 @@ fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
 	if (fniio.ino == FUSE_ROOT_ID)
 		err = VFS_ROOT(mp, LK_EXCLUSIVE, &vp);
 	else
-		err = fuse_internal_get_cached_vnode(mp, fniio.ino, LK_SHARED,
-			&vp);
+		err = fuse_internal_get_cached_vnode(mp, fniio.ino,
+			LK_EXCLUSIVE, &vp);
 	SDT_PROBE2(fusefs, , internal, invalidate_inode, vp, &fniio);
 	if (err != 0 || vp == NULL)
 		return (err);
@@ -695,6 +695,8 @@ fuse_internal_remove(struct vnode *dvp,
 	struct fuse_dispatcher fdi;
 	nlink_t nlink;
 	int err = 0;
+
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->cached_attrs */
 
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
 	fdisp_make_vp(&fdi, op, dvp, curthread, cnp->cn_cred);
@@ -900,7 +902,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	__enum_uint8(vtype) vtyp;
 	int err;
 
-	ASSERT_VOP_LOCKED(vp, __func__);
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->cached_attrs */
 
 	fdisp_init(&fdi, sizeof(*fgai));
 	fdisp_make_vp(&fdi, FUSE_GETATTR, vp, td, cred);
@@ -933,8 +935,36 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 		fao->attr.mtime = old_mtime.tv_sec;
 		fao->attr.mtimensec = old_mtime.tv_nsec;
 	}
-	fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
-		fao->attr_valid_nsec, vap, true);
+	if (vnode_isreg(vp) &&
+	    fvdat->cached_attrs.va_size != VNOVAL &&
+	    fao->attr.size != fvdat->cached_attrs.va_size) {
+		/*
+		 * The server changed the file's size even though we had it
+		 * cached!  That's a server bug.
+		 */
+		struct mount *mp = vnode_mount(vp);
+		struct fuse_data *data = fuse_get_mpdata(mp);
+
+		fuse_warn(data, FSESS_WARN_CACHE_INCOHERENT,
+		    "cache incoherent!  "
+		    "To prevent data corruption, disable the data cache "
+		    "by mounting with -o direct_io, or as directed "
+		    "otherwise by your FUSE server's documentation.");
+		int iosize = fuse_iosize(vp);
+		v_inval_buf_range(vp, 0, INT64_MAX, iosize);
+	}
+	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE) {
+		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+			fao->attr_valid_nsec, vap, true);
+	} else if (vn_lock(vp, LK_TRYUPGRADE) == 0) {
+		fuse_internal_cache_attrs(vp, &fao->attr, fao->attr_valid,
+			fao->attr_valid_nsec, vap, true);
+		vn_lock(vp, LK_DOWNGRADE);
+	} else {
+		/* We can't update the cache.  Too bad. */
+		SDT_PROBE2(fusefs, , internal, trace, 1,
+			"Failed to upgrade lock");
+	}
 	if (vtyp != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
@@ -1141,7 +1171,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	int err = 0;
 	__enum_uint8(vtype) vtyp;
 
-	ASSERT_VOP_ELOCKED(vp, __func__);
+	ASSERT_VOP_ELOCKED(vp, __func__); /* for fuse_internal_cache_attrs */
 
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);

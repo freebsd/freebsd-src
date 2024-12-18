@@ -344,6 +344,43 @@ TEST_F(AsyncRead, async_read)
 	leak(fd);
 }
 
+/*
+ * Regression test for a VFS locking bug: as of
+ * 22bb70a6b3bb7799276ab480e40665b7d6e4ce25 (17-December-2024), fusefs did not
+ * obtain an exclusive vnode lock before attempting to clear the attr cache
+ * after an unexpected eof.  The vnode lock would already be exclusive except
+ * when FUSE_ASYNC_READ is set.
+ */
+TEST_F(AsyncRead, eof)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	uint64_t offset = 100;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t partbufsize = 3 * bufsize / 4;
+	ssize_t r;
+	uint8_t buf[bufsize];
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, offset + bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino, 0, offset + bufsize, offset + partbufsize, CONTENTS);
+	expect_getattr(ino, offset + partbufsize);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	r = pread(fd, buf, bufsize, offset);
+	ASSERT_LE(0, r) << strerror(errno);
+	EXPECT_EQ(partbufsize, r) << strerror(errno);
+	ASSERT_EQ(0, fstat(fd, &sb));
+	EXPECT_EQ((off_t)(offset + partbufsize), sb.st_size);
+	leak(fd);
+}
+
 /* The kernel should update the cached atime attribute during a read */
 TEST_F(Read, atime)
 {

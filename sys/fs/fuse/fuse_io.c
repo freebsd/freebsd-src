@@ -823,7 +823,16 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 				 */
 				SDT_PROBE2(fusefs, , io, trace, 1,
 					"Short read of a clean file");
-				fuse_vnode_clear_attr_cache(vp);
+				if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE) {
+					fuse_vnode_clear_attr_cache(vp);
+				} else if (vn_lock(vp, LK_TRYUPGRADE) == 0) {
+					fuse_vnode_clear_attr_cache(vp);
+					vn_lock(vp, LK_DOWNGRADE);
+				} else {
+					/* We can't clear the attr cache. */
+					SDT_PROBE2(fusefs, , io, trace, 1,
+						"Failed to upgrade lock");
+				}
 			} else {
 				/*
 				 * If dirty writes _are_ cached beyond EOF,
@@ -856,6 +865,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		 * part of the file's buffers because VOP_STRATEGY is called
 		 * with them already locked.
 		 */
+		ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->cached_attrs */
 		filesize = fvdat->cached_attrs.va_size;
 		/* filesize must've been cached by fuse_vnop_open.  */
 		KASSERT(filesize != VNOVAL, ("filesize should've been cached"));

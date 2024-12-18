@@ -619,6 +619,8 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 	if (fsess_not_impl(mp, FUSE_FALLOCATE))
 		return (EINVAL);
 
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->cached_attrs */
+
 	io.uio_offset = *offset;
 	io.uio_resid = *len;
 	err = vn_rlimit_fsize(vp, &io, curthread);
@@ -697,6 +699,8 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	int *runb = ap->a_runb;
 	int error = 0;
 	int maxrun;
+
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->cached_attrs */
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
@@ -814,6 +818,7 @@ fuse_vnop_close(struct vop_close_args *ap)
 		}
 		if (access_e == 0) {
 			VATTR_NULL(&vap);
+			ASSERT_VOP_LOCKED(vp, __func__);
 			vap.va_atime = fvdat->cached_attrs.va_atime;
 			/*
 			 * Ignore errors setting when setting atime.  That
@@ -1612,6 +1617,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			if (err)
 				goto out;
 			*vpp = vp;
+			ASSERT_VOP_LOCKED(vp, __func__);
 			fvdat = VTOFUD(vp);
 
 			MPASS(feo != NULL);
@@ -2123,6 +2129,8 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 	return err;
 }
 
+SDT_PROBE_DEFINE4(fusefs, , vnops, erelookup, "struct vnode*",
+	"struct vnode*", "struct vnode*", "struct vnode*");
 /*
     struct vnop_rename_args {
 	struct vnode *a_fdvp;
@@ -2169,10 +2177,26 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	 */
 	data = fuse_get_mpdata(vnode_mount(tdvp));
 	if (data->dataflags & FSESS_DEFAULT_PERMISSIONS && isdir && newparent) {
-		err = fuse_internal_access(fvp, VWRITE,
-			curthread, tcnp->cn_cred);
-		if (err)
+		/*
+		 * Must use LK_NOWAIT to prevent LORs between fvp and tdvp or
+		 * tvp
+		 */
+		if (vn_lock(fvp, LK_SHARED | LK_NOWAIT) == 0) {
+			err = fuse_internal_access(fvp, VWRITE,
+				curthread, tcnp->cn_cred);
+			VOP_UNLOCK(fvp);
+			if (err)
+				goto out;
+		} else {
+			/*
+			 * Can't release tdvp or tvp to try releasing the LOR.
+			 * Must return instead.
+			 */
+			SDT_PROBE4(fusefs, , vnops, erelookup, fdvp, fvp, tdvp,
+				tvp);
+			err = ERELOOKUP;
 			goto out;
+		}
 	}
 	sx_xlock(&data->rename_lock);
 	err = fuse_internal_rename(fdvp, fcnp, tdvp, tcnp);
@@ -2474,6 +2498,8 @@ fuse_vnop_write(struct vop_write_args *ap)
 
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
+	/* vp should be ELOCKED, because we don't set MNTK_SHARED_WRITES */
+	ASSERT_VOP_ELOCKED(vp, __func__);
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
