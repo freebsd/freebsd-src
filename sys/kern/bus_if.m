@@ -63,7 +63,8 @@ CODE {
 	    int unit)
 	{
 
-		panic("bus_add_child is not implemented");
+		panic("%s: bus_add_child is not implemented, name '%s', "
+		    "unit %d", device_get_nameunit(bus), name, unit);
 	}
 
 	static int
