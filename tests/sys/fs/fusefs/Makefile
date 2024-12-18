@@ -4,6 +4,8 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/fs/fusefs
 
+ATF_TESTS_SH+=	ctl
+
 # We could simply link all of these files into a single executable.  But since
 # Kyua treats googletest programs as plain tests, it's better to separate them
 # out, so we get more granular reporting.
@@ -64,6 +66,9 @@ TEST_METADATA.default_permissions+=	required_user="unprivileged"
 TEST_METADATA.default_permissions_privileged+=	required_user="root"
 TEST_METADATA.mknod+=	required_user="root"
 TEST_METADATA.nfs+=	required_user="root"
+# ctl must be exclusive because it disables/enables camsim
+TEST_METADATA.ctl+=	is_exclusive="true"
+TEST_METADATA.ctl+=	required_user="root"
 
 TEST_METADATA+= timeout=10
 
