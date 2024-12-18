@@ -101,7 +101,10 @@ struct fuse_vnode_data {
 	uint64_t	parent_nid;
 
 	/** I/O **/
-	/* List of file handles for all of the vnode's open file descriptors */
+	/*
+	 * List of file handles for all of the vnode's open file descriptors.
+	 * Protected by the vnode lock.
+	 */
 	LIST_HEAD(, fuse_filehandle)	handles;
 
 	/** flags **/

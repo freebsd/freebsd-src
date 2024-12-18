@@ -1251,6 +1251,8 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 
 	int need_flush = 1;
 
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->handles */
+
 	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
 		if (need_flush && vp->v_type == VREG) {
 			if ((VTOFUD(vp)->flag & FN_SIZECHANGE) != 0) {
@@ -2058,6 +2060,7 @@ fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 	if (!fvdat) {
 		panic("FUSE: no vnode data during recycling");
 	}
+	ASSERT_VOP_ELOCKED(vp, __func__); /* For fvdat->handles */
 	LIST_FOREACH_SAFE(fufh, &fvdat->handles, next, fufh_tmp) {
 		printf("FUSE: vnode being reclaimed with open fufh "
 			"(type=%#x)", fufh->fufh_type);

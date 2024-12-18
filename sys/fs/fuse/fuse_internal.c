@@ -377,6 +377,8 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	int err = 0;
 
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->handles */
+
 	if (fsess_not_impl(vnode_mount(vp),
 	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
 		return 0;

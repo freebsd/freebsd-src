@@ -193,9 +193,10 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	struct mount *mp = vnode_mount(vp);
 	struct fuse_dispatcher fdi;
 	struct fuse_release_in *fri;
-
 	int err = 0;
 	int op = FUSE_RELEASE;
+
+	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	if (fuse_isdeadfs(vp)) {
 		goto out;
@@ -244,6 +245,8 @@ fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct fuse_filehandle *fufh;
 	fufh_type_t fufh_type = fflags_2_fufh_type(mode);
 
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->handles */
+
 	/* 
 	 * Unlike fuse_filehandle_get, we want to search for a filehandle with
 	 * the exact cred, and no fallback
@@ -278,6 +281,8 @@ fuse_filehandle_get(struct vnode *vp, int fflag,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 	fufh_type_t fufh_type;
+
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->handles */
 
 	fufh_type = fflags_2_fufh_type(fflag);
 	/* cred can be NULL for in-kernel clients */
@@ -315,6 +320,8 @@ fuse_filehandle_get_anyflags(struct vnode *vp,
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
+
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->handles */
 
 	if (cred == NULL)
 		goto fallback;
@@ -359,6 +366,8 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
+	ASSERT_VOP_LOCKED(vp, __func__); /* For fvdat->handles */
+
 	fufh = malloc(sizeof(struct fuse_filehandle), M_FUSE_FILEHANDLE,
 		M_WAITOK);
 	MPASS(fufh != NULL);
@@ -378,7 +387,6 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	counter_u64_add(fuse_fh_count, 1);
 
 	if (foo->open_flags & FOPEN_DIRECT_IO) {
-		ASSERT_VOP_ELOCKED(vp, __func__);
 		VTOFUD(vp)->flag |= FN_DIRECTIO;
 		fuse_io_invalbuf(vp, td);
 	} else {
