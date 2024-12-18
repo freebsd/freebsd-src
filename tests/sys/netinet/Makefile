@@ -40,7 +40,6 @@ TEST_METADATA.forward+=	required_programs="python"	\
 			execenv_jail_params="vnet allow.raw_sockets"
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
-TEST_METADATA.tcp6_v4mapped_bind_test+=	is_exclusive="true"
 
 PROGS=	udp_dontroute tcp_user_cookie
 
