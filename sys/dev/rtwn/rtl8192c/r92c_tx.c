@@ -257,6 +257,34 @@ r92c_check_enable_ccx_report(struct rtwn_softc *sc, int macid)
 	return true;
 }
 
+static void
+r92c_fill_tx_desc_datarate(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
+    uint8_t ridx, bool force_rate)
+{
+
+	/* Force this rate if needed. */
+	if (sc->sc_ratectl == RTWN_RATECTL_FW && !force_rate) {
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
+	} else {
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
+	}
+
+	/* Data rate fallback limit (max). */
+	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+}
+
+static void
+r92c_fill_tx_desc_shpreamble(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
+    uint8_t ridx, bool force_rate)
+{
+	const struct ieee80211com *ic = &sc->sc_ic;
+
+	if (RTWN_RATE_IS_CCK(ridx) && ridx != RTWN_RIDX_CCK1 &&
+	    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
+		txd->txdw4 |= htole32(R92C_TXDW4_DATA_SHPRE);
+}
+
 void
 r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m, void *buf, uint8_t ridx, bool force_rate, int maxretry)
@@ -327,9 +355,7 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 #endif
 			}
 
-			if (RTWN_RATE_IS_CCK(ridx) && ridx != RTWN_RIDX_CCK1 &&
-			    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-				txd->txdw4 |= htole32(R92C_TXDW4_DATA_SHPRE);
+			r92c_fill_tx_desc_shpreamble(sc, txd, ridx, force_rate);
 
 			prot = IEEE80211_PROT_NONE;
 			if (RTWN_RATE_IS_HT(ridx)) {
@@ -359,15 +385,12 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, qsel));
 
 	rtwn_r92c_tx_setup_macid(sc, txd, macid);
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
-	/* Data rate fallback limit (max). */
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+
+	/* Fill in data rate, data retry */
+	r92c_fill_tx_desc_datarate(sc, txd, ridx, force_rate);
+
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, uvp->id));
 	r92c_tx_raid(sc, txd, ni, ismcast);
-
-	/* Force this rate if needed. */
-	if (sc->sc_ratectl != RTWN_RATECTL_FW)
-		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 
 	if (!hasqos) {
 		/* Use HW sequence numbering for non-QoS frames. */
@@ -423,10 +446,8 @@ r92c_fill_tx_desc_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT));
 
 	/* Set TX rate index. */
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+	r92c_fill_tx_desc_datarate(sc, txd, ridx, true); /* force rate */
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, uvp->id));
-	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 	r92c_tx_raid(sc, txd, ni, ismcast);
 
 	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
