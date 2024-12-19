@@ -267,8 +267,9 @@ parseline(char *line, ip_t *ip, char **ifn, int *out)
 
 			__tcp_set_flags(tcp, 0);
 			for (s = *cpp; *s; s++)
-				if ((t  = strchr(myflagset, *s)))
-					__tcp_set_flags(tcp, __tcp_get_flags(tcp) | myflags[t-myflagset]);
+				if ((t = strchr(myflagset, *s)))
+					__tcp_set_flags(tcp, __tcp_get_flags(tcp) |
+							myflags[t-myflagset]);
 			if (__tcp_get_flags(tcp))
 				cpp++;
 		}
@@ -438,8 +439,9 @@ parseipv6(char **cpp, ip6_t *ip6, char **ifn, int *out)
 
 			__tcp_set_flags(tcp, 0);
 			for (s = *cpp; *s; s++)
-				if ((t  = strchr(myflagset, *s)))
-					__tcp_set_flags(tcp, __tcp_get_flags(tcp) | myflags[t-myflagset]);
+				if ((t = strchr(myflagset, *s)))
+					__tcp_set_flags(tcp, __tcp_get_flags(tcp) |
+							myflags[t-myflagset]);
 			if (__tcp_get_flags(tcp))
 				cpp++;
 		}

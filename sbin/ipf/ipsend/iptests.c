@@ -903,7 +903,6 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 	int	nfd, i;
 
 	t = (tcphdr_t *)((char *)ip + (IP_HL(ip) << 2));
-	t->th_x2 = 0;
 	TCP_OFF_A(t, 0);
 	t->th_sport = htons(1);
 	t->th_dport = htons(1);
@@ -920,7 +919,7 @@ ip_test5(char *dev, int mtu, ip_t *ip, struct  in_addr gwip, int ptest)
 
 	if (!ptest || (ptest == 1)) {
 		/*
-		 * Test 1: flags variations, 0 - 3f
+		 * Test 1: flags variations, 0 - 1ff
 		 */
 		TCP_OFF_A(t, sizeof(*t) >> 2);
 		printf("5.1 Test TCP flag combinations\n");
