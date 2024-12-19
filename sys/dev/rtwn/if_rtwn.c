@@ -1308,12 +1308,14 @@ rtwn_calc_basicrates(struct rtwn_softc *sc)
 		ieee80211_free_node(ni);
 	}
 
-
-	if (basicrates == 0)
+	if (basicrates == 0) {
+		device_printf(sc->sc_dev,
+		    "WARNING: no configured basic rates!\n");
 		return;
+	}
 
-	/* XXX also set initial RTS rate? */
 	rtwn_set_basicrates(sc, basicrates);
+	rtwn_set_rts_rate(sc, basicrates);
 }
 
 static int
