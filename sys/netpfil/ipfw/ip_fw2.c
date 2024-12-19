@@ -884,14 +884,15 @@ map_icmp_unreach(int code)
 }
 
 static void
-send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
+send_reject6(struct ip_fw_args *args, int code, u_int hlen,
+    const struct ip6_hdr *ip6)
 {
 	struct mbuf *m;
 
 	m = args->m;
 	if (code == ICMP6_UNREACH_RST && args->f_id.proto == IPPROTO_TCP) {
-		struct tcphdr *tcp;
-		tcp = (struct tcphdr *)((char *)ip6 + hlen);
+		const struct tcphdr * tcp;
+		tcp = (const struct tcphdr *)((const char *)ip6 + hlen);
 
 		if ((tcp_get_flags(tcp) & TH_RST) == 0) {
 			struct mbuf *m0;
@@ -906,19 +907,19 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 	} else if (code == ICMP6_UNREACH_ABORT &&
 	    args->f_id.proto == IPPROTO_SCTP) {
 		struct mbuf *m0;
-		struct sctphdr *sctp;
+		const struct sctphdr *sctp;
 		u_int32_t v_tag;
 		int reflected;
 
-		sctp = (struct sctphdr *)((char *)ip6 + hlen);
+		sctp = (const struct sctphdr *)((const char *)ip6 + hlen);
 		reflected = 1;
 		v_tag = ntohl(sctp->v_tag);
 		/* Investigate the first chunk header if available */
 		if (m->m_len >= hlen + sizeof(struct sctphdr) +
 		    sizeof(struct sctp_chunkhdr)) {
-			struct sctp_chunkhdr *chunk;
+			const struct sctp_chunkhdr *chunk;
 
-			chunk = (struct sctp_chunkhdr *)(sctp + 1);
+			chunk = (const struct sctp_chunkhdr *)(sctp + 1);
 			switch (chunk->chunk_type) {
 			case SCTP_INITIATION:
 				/*
@@ -939,9 +940,9 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 				if ((m->m_len >= hlen + sizeof(struct sctphdr) +
 				    sizeof(struct sctp_chunkhdr) +
 				    offsetof(struct sctp_init, a_rwnd))) {
-					struct sctp_init *init;
+					const struct sctp_init *init;
 
-					init = (struct sctp_init *)(chunk + 1);
+					init = (const struct sctp_init *)(chunk + 1);
 					v_tag = ntohl(init->initiate_tag);
 					reflected = 0;
 				}
@@ -993,18 +994,9 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, const ipfw_insn *cmd, int iplen,
-    struct ip *ip)
+send_reject(struct ip_fw_args *args, int code, uint16_t mtu, int iplen,
+    const struct ip *ip)
 {
-	int code, mtu;
-
-	code = cmd->arg1;
-	if (code == ICMP_UNREACH_NEEDFRAG &&
-	    cmd->len == F_INSN_SIZE(ipfw_insn_u16))
-		mtu = ((const ipfw_insn_u16 *)cmd)->ports[0];
-	else
-		mtu = 0;
-
 #if 0
 	/* XXX When ip is not guaranteed to be at mtod() we will
 	 * need to account for this */
@@ -1458,6 +1450,9 @@ ipfw_chk(struct ip_fw_args *args)
 	int done = 0;		/* flag to exit the outer loop */
 	IPFW_RLOCK_TRACKER;
 	bool mem;
+	bool need_send_reject = false;
+	int reject_code;
+	uint16_t reject_mtu;
 
 	if ((mem = (args->flags & IPFW_ARGS_LENMASK))) {
 		if (args->flags & IPFW_ARGS_ETHER) {
@@ -3077,8 +3072,16 @@ do {								\
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
-					send_reject(args, cmd, iplen, ip);
-					m = args->m;
+					KASSERT(!need_send_reject,
+					    ("o_reject - need_send_reject was set previously"));
+					if ((reject_code = cmd->arg1) == ICMP_UNREACH_NEEDFRAG &&
+					    cmd->len == F_INSN_SIZE(ipfw_insn_u16)) {
+						reject_mtu =
+						    ((ipfw_insn_u16 *)cmd)->ports[0];
+					} else {
+						reject_mtu = 0;
+					}
+					need_send_reject = true;
 				}
 				/* FALLTHROUGH */
 #ifdef INET6
@@ -3090,12 +3093,14 @@ do {								\
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN6_IS_ADDR_MULTICAST(
 					&args->f_id.dst_ip6)) {
-					send_reject6(args,
-					    cmd->opcode == O_REJECT ?
-					    map_icmp_unreach(cmd->arg1):
-					    cmd->arg1, hlen,
-					    (struct ip6_hdr *)ip);
-					m = args->m;
+					KASSERT(!need_send_reject,
+					    ("o_unreach6 - need_send_reject was set previously"));
+					reject_code = cmd->arg1;
+					if (cmd->opcode == O_REJECT) {
+						reject_code =
+						    map_icmp_unreach(reject_code);
+					}
+					need_send_reject = true;
 				}
 				/* FALLTHROUGH */
 #endif
@@ -3380,6 +3385,16 @@ do {								\
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	}
 	IPFW_PF_RUNLOCK(chain);
+	if (need_send_reject) {
+#ifdef INET6
+		if (is_ipv6)
+			send_reject6(args, reject_code, hlen,
+				     (struct ip6_hdr *)ip);
+		else
+#endif
+			send_reject(args, reject_code, reject_mtu,
+				    iplen, ip);
+	}
 #ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);
