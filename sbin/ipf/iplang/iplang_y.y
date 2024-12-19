@@ -1059,7 +1059,8 @@ void set_tcpflags(char **arg)
 			__tcp_set_flags(tcp, strtol(*arg, NULL, 0));
 			break;
 		} else
-			__tcp_set_flags(tcp, __tcp_get_flags(tcp) | flagv[t - flags]);
+			__tcp_set_flags(tcp, __tcp_get_flags(tcp) |
+					flagv[t - flags]);
 	free(*arg);
 	*arg = NULL;
 }

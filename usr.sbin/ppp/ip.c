@@ -829,13 +829,11 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "%s:%d", ncpaddr_ntoa(&dstaddr), ntohs(th->th_dport));
       loglen += strlen(logbuf + loglen);
-      n = 0;
-      for (mask = TH_FIN; mask <= TH_FLAGS; mask <<= 1) {
+      for (mask = TH_FIN, n = 0; mask <= TH_FLAGS; mask <<= 1, n++) {
         if (__tcp_get_flags(th) & mask) {
           snprintf(logbuf + loglen, sizeof logbuf - loglen, " %s", TcpFlags[n]);
           loglen += strlen(logbuf + loglen);
         }
-        n++;
       }
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "  seq:%lx  ack:%lx (%d/%d)",

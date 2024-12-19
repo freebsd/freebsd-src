@@ -399,7 +399,7 @@ main(int argc, char **argv)
 	printf("Source:  %s\n", inet_ntoa(ip->ip_src));
 	printf("Dest:    %s\n", inet_ntoa(ip->ip_dst));
 	printf("Gateway: %s\n", inet_ntoa(gwip));
-	if (ip->ip_p == IPPROTO_TCP && __tcp_get_flags(tcp))
+	if (ip->ip_p == IPPROTO_TCP && __tcp_get_flags(tcp) != 0)
 		printf("Flags:   %#x\n", __tcp_get_flags(tcp));
 	printf("mtu:     %d\n", mtu);
 

@@ -13,7 +13,6 @@
 # define	IP_OFFMASK	0x3fff
 #endif
 
-
 void
 printpacket(int dir, mb_t *m)
 {
@@ -83,7 +82,8 @@ printpacket(int dir, mb_t *m)
 	if (!(off & IP_OFFMASK)) {
 		if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
 			PRINTF(",%d", ntohs(tcp->th_dport));
-		if ((ip->ip_p == IPPROTO_TCP) && ((tcpflags = __tcp_get_flags(tcp)) != 0)) {
+		if ((ip->ip_p == IPPROTO_TCP) &&
+		    ((tcpflags = __tcp_get_flags(tcp)) != 0)) {
 			putchar(' ');
 			if (tcpflags & TH_FIN)
 				putchar('F');

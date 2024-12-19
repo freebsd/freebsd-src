@@ -50,7 +50,7 @@ dumppacket(ip_t *ip)
 	if (ip->ip_p == IPPROTO_TCP) {
 		printf(" seq %lu:%lu flags ",
 			(u_long)t->th_seq, (u_long)t->th_ack);
-		for (j = 0, i = 1; i < 256; i *= 2, j++)
+		for (j = 0, i = 1; i < TH_FLAGS; i <<= 1, j++)
 			if (__tcp_get_flags(t) & i)
 				printf("%c", "FSRPAUEWe"[j]);
 	}
