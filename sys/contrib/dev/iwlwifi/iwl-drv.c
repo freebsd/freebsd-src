@@ -1760,8 +1760,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		 * Given this is request_module_nowait() we can simply skip it.
 		 */
 		if (bootverbose)
-		       printf("%s: module '%s' not yet available; will be"
-			   "initialized in a moment\n", __func__, op->name);
+			printf("%s: module '%s' not yet available; will be initialized in a moment\n",
+			    __func__, op->name);
 #endif
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
