@@ -373,11 +373,7 @@ r92cu_post_init(struct rtwn_softc *sc)
 	if (sc->sc_flags & RTWN_FW_LOADED) {
 		struct r92c_softc *rs = sc->sc_priv;
 
-		if (sc->sc_ratectl_sysctl == RTWN_RATECTL_FW) {
-			/* XXX firmware RA does not work yet */
-			sc->sc_ratectl = RTWN_RATECTL_NET80211;
-		} else
-			sc->sc_ratectl = sc->sc_ratectl_sysctl;
+		sc->sc_ratectl = sc->sc_ratectl_sysctl;
 
 		/* Start C2H event handling. */
 		callout_reset(&rs->rs_c2h_report, rs->rs_c2h_timeout,
