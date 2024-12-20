@@ -9748,6 +9748,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		case 1:
 			p = "int";
 			break;
+		case 2:
+			p = "int";
+			break;
 		default:
 			break;
 		};
