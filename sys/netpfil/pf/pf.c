@@ -6760,8 +6760,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 	if (pf_icmp_mapping(pd, icmptype, &icmp_dir, &multi,
 	    &virtual_id, &virtual_type) == 0) {
 		/*
-		 * ICMP query/reply message not related to a TCP/UDP packet.
-		 * Search for an ICMP state.
+		 * ICMP query/reply message not related to a TCP/UDP/SCTP
+		 * packet. Search for an ICMP state.
 		 */
 		ret = pf_icmp_state_lookup(&key, pd, state, m, off, pd->dir,
 		    kif, virtual_id, virtual_type, icmp_dir, &iidx,
@@ -7165,6 +7165,93 @@ pf_test_state_icmp(struct pf_kstate **state, struct pfi_kkif *kif,
 			break;
 		}
 #ifdef INET
+		case IPPROTO_SCTP: {
+			struct sctphdr		sh;
+			struct pf_state_peer	*src;
+			int			 copyback = 0;
+
+			if (! pf_pull_hdr(m, off2, &sh, sizeof(sh), NULL, reason,
+			    pd2.af)) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: ICMP error message too short "
+				    "(sctp)\n"));
+				return (PF_DROP);
+			}
+
+			key.af = pd2.af;
+			key.proto = IPPROTO_SCTP;
+			PF_ACPY(&key.addr[pd2.sidx], pd2.src, key.af);
+			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
+			key.port[pd2.sidx] = sh.src_port;
+			key.port[pd2.didx] = sh.dest_port;
+
+			STATE_LOOKUP(kif, &key, *state, pd);
+
+			if (pd->dir == (*state)->direction) {
+				src = &(*state)->dst;
+			} else {
+				src = &(*state)->src;
+			}
+
+			if (src->scrub->pfss_v_tag != sh.v_tag) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: ICMP error message has incorrect "
+				    "SCTP v_tag\n"));
+				return (PF_DROP);
+			}
+
+			/* translate source/destination address, if necessary */
+			if ((*state)->key[PF_SK_WIRE] !=
+			    (*state)->key[PF_SK_STACK]) {
+				struct pf_state_key *nk =
+				    (*state)->key[pd->didx];
+
+				if (PF_ANEQ(pd2.src,
+				    &nk->addr[pd2.sidx], pd2.af) ||
+				    nk->port[pd2.sidx] != sh.src_port)
+					pf_change_icmp(pd2.src, &sh.src_port,
+					    daddr, &nk->addr[pd2.sidx],
+					    nk->port[pd2.sidx], NULL,
+					    pd2.ip_sum, icmpsum,
+					    pd->ip_sum, 0, pd2.af);
+
+				if (PF_ANEQ(pd2.dst,
+				    &nk->addr[pd2.didx], pd2.af) ||
+				    nk->port[pd2.didx] != sh.dest_port)
+					pf_change_icmp(pd2.dst, &sh.dest_port,
+					    saddr, &nk->addr[pd2.didx],
+					    nk->port[pd2.didx], NULL,
+					    pd2.ip_sum, icmpsum,
+					    pd->ip_sum, 0, pd2.af);
+				copyback = 1;
+			}
+
+			if (copyback) {
+				switch (pd2.af) {
+#ifdef INET
+				case AF_INET:
+					m_copyback(m, off, ICMP_MINLEN,
+					    (caddr_t )&pd->hdr.icmp);
+					m_copyback(m, ipoff2, sizeof(h2),
+					    (caddr_t )&h2);
+					break;
+#endif /* INET */
+#ifdef INET6
+				case AF_INET6:
+					m_copyback(m, off,
+					    sizeof(struct icmp6_hdr),
+					    (caddr_t )&pd->hdr.icmp6);
+					m_copyback(m, ipoff2, sizeof(h2_6),
+					    (caddr_t )&h2_6);
+					break;
+#endif /* INET6 */
+				}
+				m_copyback(m, off2, sizeof(sh), (caddr_t)&sh);
+			}
+
+			return (PF_PASS);
+			break;
+		}
 		case IPPROTO_ICMP: {
 			struct icmp	*iih = &pd2.hdr.icmp;
 
