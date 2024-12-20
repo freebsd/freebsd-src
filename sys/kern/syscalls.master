@@ -3473,7 +3473,8 @@
 608 AUE_NULL STD {
 		void osdb_sample(
 			int delay,
-			int max
+			int max,
+			int seconds
 		);
 	}
 609 AUE_NULL STD {

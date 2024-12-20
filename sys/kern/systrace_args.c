@@ -3633,7 +3633,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct osdb_sample_args *p = params;
 		iarg[a++] = p->delay; /* int */
 		iarg[a++] = p->max; /* int */
-		*n_args = 2;
+		iarg[a++] = p->seconds; /* int */
+		*n_args = 3;
 		break;
 	}
 	/* osdb_snapshot_clear */

@@ -1976,6 +1976,7 @@ struct osdb_column_name_args {
 struct osdb_sample_args {
 	char delay_l_[PADL_(int)]; int delay; char delay_r_[PADR_(int)];
 	char max_l_[PADL_(int)]; int max; char max_r_[PADR_(int)];
+	char seconds_l_[PADL_(int)]; int seconds; char seconds_r_[PADR_(int)];
 };
 struct osdb_snapshot_clear_args {
 	syscallarg_t dummy;
