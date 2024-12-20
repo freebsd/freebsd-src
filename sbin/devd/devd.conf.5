@@ -38,7 +38,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd March 6, 2024
+.Dd December 20, 2024
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -694,6 +694,26 @@ For example:
 // part of the previous comment.
 .Ed
 .Ss Notes on Variable Expansion
+Variables are expanded by preceding them by a
+.Dq $
+sign.
+Any text immediately following that sign, starting with a letter, a minus sign
+.Dq - ,
+an underscore
+.Dq _ ,
+or an asterisk
+.Dq *
+is considered an internal variable, and expanded accordingly.
+If that variable does not exist, it silently expands to an empty string.
+Consequently, if the intention is to pass a
+.Xr sh 1
+variable, it must be surrounded by braces to prevent it from being
+considered an internal variable.
+.Pp
+See
+.Sx EXAMPLES
+for a detailed example.
+.Pp
 To prevent issues with special shell characters, the following happens for each
 variable
 .Ic $foo .
@@ -711,6 +731,10 @@ The value of the
 .Ic foo
 variable is inserted into the buffer with all single quote characters
 prefixed by a backslash.
+.It
+A final
+.Dq '
+is inserted.
 .El
 .Pp
 See
@@ -821,6 +845,37 @@ detach 0 {
         action "/etc/pccard_ether $device-name stop";
 };
 .Ed
+.Pp
+The following example illustrates the difference betwen internal and shell variables:
+.Bd -literal
+attach 20 {
+        device-name             "umodem[0-9]+";
+        match "vendor"          "0x2047";
+        match "product"         "0x001(0|3|4)";
+        match "interface"       "0";
+        action "cd /dev; p=$product; dn=$device-name; \\
+                un=$(sysctl -n dev.umodem.${dn#umodem}.ttyname); \\
+                chmod 666 cua${un}; ln -sf cua${un} mspfet${p#0x}";
+};
+.Ed
+.Pp
+.Dq product ,
+and
+.Dq device-name
+are internal variables.
+Their contents are initially assigned to shell variables
+.Dq p ,
+and
+.Dq dn ,
+respectively.
+Then, variable
+.Dq dn
+is used inside a shell command substitution, assigning to shell variable
+.Dq un .
+Finally, this shell variable is used in two other shell statements, where
+it needs to be wrapped in braces in order to prevent it from being
+considered in internal variable to
+.Nm devd .
 .Pp
 The installed
 .Pa /etc/devd.conf
