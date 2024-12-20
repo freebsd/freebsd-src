@@ -140,10 +140,11 @@ ACPI_TABLE_HEADER *dsdt_load_file(char *);
 void	 dsdt_save_file(char *, ACPI_TABLE_HEADER *, ACPI_TABLE_HEADER *);
 
 /* Print out as many fixed tables as possible, given the RSD PTR */
-void	 sdt_print_all(ACPI_TABLE_HEADER *);
+void	 sdt_print_all(ACPI_TABLE_HEADER *, const char *);
 
 /* Disassemble the AML in the DSDT */
 void	 aml_disassemble(ACPI_TABLE_HEADER *, ACPI_TABLE_HEADER *);
+void	 aml_disassemble_separate(ACPI_TABLE_HEADER *, ACPI_TABLE_HEADER *);
 
 /* Routines for accessing tables in physical memory */
 ACPI_TABLE_RSDP *acpi_find_rsd_ptr(void);

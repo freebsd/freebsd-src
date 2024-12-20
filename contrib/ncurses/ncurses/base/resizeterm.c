@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -46,7 +46,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: resizeterm.c,v 1.50 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: resizeterm.c,v 1.53 2024/04/20 21:54:14 tom Exp $")
 
 /*
  * If we're trying to be reentrant, do not want any local statics.
@@ -210,7 +210,7 @@ parent_depth(WINDOW *cmp)
 }
 
 /*
- * FIXME: must adjust position so it's within the parent!
+ * FIXME: must adjust position so it is within the parent!
  */
 static int
 adjust_window(WINDOW *win, int ToLines, int ToCols, int stolen EXTRA_DCLS)
@@ -293,7 +293,7 @@ decrease_size(NCURSES_SP_DCLx int ToLines, int ToCols, int stolen EXTRA_DCLS)
 	for (each_window(SP_PARM, wp)) {
 	    WINDOW *win = &(wp->win);
 
-	    if (!(win->_flags & _ISPAD)) {
+	    if (!IS_PAD(win)) {
 		if (child_depth(win) == depth) {
 		    found = TRUE;
 		    if (adjust_window(win, ToLines, ToCols,
@@ -328,7 +328,7 @@ increase_size(NCURSES_SP_DCLx int ToLines, int ToCols, int stolen EXTRA_DCLS)
 	for (each_window(SP_PARM, wp)) {
 	    WINDOW *win = &(wp->win);
 
-	    if (!(win->_flags & _ISPAD)) {
+	    if (!IS_PAD(win)) {
 		if (parent_depth(win) == depth) {
 		    found = TRUE;
 		    if (adjust_window(win, ToLines, ToCols,
@@ -409,8 +409,8 @@ NCURSES_SP_NAME(resize_term) (NCURSES_SP_DCLx int ToLines, int ToCols)
 #ifdef USE_TERM_DRIVER
 	    CallDriver_2(SP_PARM, td_setsize, ToLines, ToCols);
 #else
-	    lines = (NCURSES_SIZE_T) ToLines;
-	    columns = (NCURSES_SIZE_T) ToCols;
+	    lines = (NCURSES_INT2) ToLines;
+	    columns = (NCURSES_INT2) ToCols;
 #endif
 
 	    SP_PARM->_lines_avail = (NCURSES_SIZE_T) (ToLines - was_stolen);

@@ -482,9 +482,9 @@ ar40xx_attach(device_t dev)
 	/* Attach PHYs */
 	ret = ar40xx_attach_phys(sc);
 
-	ret = bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	ret = bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/* Start timer */
 	callout_init_mtx(&sc->sc_phy_callout, &sc->sc_mtx, 0);

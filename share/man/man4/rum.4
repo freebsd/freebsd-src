@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
 .\"
 .\" Copyright (c) 2005-2007
 .\"	Damien Bergamini <damien.bergamini@free.fr>
@@ -14,12 +16,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd November 8, 2018
+.Dd November 10, 2024
 .Dt RUM 4
 .Os
 .Sh NAME
 .Nm rum
-.Nd Ralink Technology USB IEEE 802.11a/b/g wireless network device
+.Nd Ralink Technology USB IEEE 802.11a/b/g wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -125,20 +127,18 @@ including:
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Bd -literal -offset indent
-ifconfig wlan create wlandev rum0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Pp
+.Dl ifconfig wlan create wlandev rum0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev rum0 ssid my_net up"
+.Dl ifconfig wlan create wlandev rum0 ssid my_net up
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev rum0 ssid my_net \e
-	wepmode on wepkey 0x1234567890 weptxkey 1 up
+    wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
 Join a specific BSS network with 128-bit WEP encryption:
@@ -164,6 +164,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
+.Xr networking 7 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
@@ -171,7 +172,9 @@ This should not happen.
 The
 .Nm
 driver first appeared in
-.Ox 4.0 .
+.Ox 4.0
+and
+.Fx 7.0 .
 .Sh AUTHORS
 .An -nosplit
 The original

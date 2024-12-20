@@ -1,4 +1,3 @@
-
 SHLIB?=		val
 SHLIB_MAJOR=	0
 

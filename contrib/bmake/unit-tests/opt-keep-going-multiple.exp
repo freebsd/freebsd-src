@@ -5,5 +5,5 @@ false fail2
 true succeed
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "fail1 fail2 succeed" in unit-tests
 exit status 1

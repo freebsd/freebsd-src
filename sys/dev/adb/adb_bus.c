@@ -42,7 +42,6 @@
 
 static int adb_bus_probe(device_t dev);
 static int adb_bus_attach(device_t dev);
-static int adb_bus_detach(device_t dev);
 static void adb_bus_enumerate(void *xdev);
 static void adb_probe_nomatch(device_t dev, device_t child);
 static int adb_print_child(device_t dev, device_t child);
@@ -57,7 +56,7 @@ static device_method_t adb_bus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		adb_bus_probe),
 	DEVMETHOD(device_attach,	adb_bus_attach),
-	DEVMETHOD(device_detach,        adb_bus_detach),
+	DEVMETHOD(device_detach,        bus_generic_detach),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
         DEVMETHOD(device_suspend,       bus_generic_suspend),
         DEVMETHOD(device_resume,        bus_generic_resume),
@@ -178,19 +177,14 @@ adb_bus_enumerate(void *xdev)
 
 	for (i = 0; i < 16; i++) {
 		if (sc->devinfo[i].default_address) {
-			sc->children[i] = device_add_child(dev, NULL, -1);
+			sc->children[i] = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 			device_set_ivars(sc->children[i], &sc->devinfo[i]);
 		}
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	config_intrhook_disestablish(&sc->enum_hook);
-}
-
-static int adb_bus_detach(device_t dev)
-{
-	return (bus_generic_detach(dev));
 }
 
 static void

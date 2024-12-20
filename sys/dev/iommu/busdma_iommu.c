@@ -126,6 +126,12 @@ iommu_get_requester(device_t dev, uint16_t *rid)
 	pci_class = devclass_find("pci");
 	l = requester = dev;
 
+	pci = device_get_parent(dev);
+	if (pci == NULL || device_get_devclass(pci) != pci_class) {
+		*rid = 0;	/* XXXKIB: Could be ACPI HID */
+		return (requester);
+	}
+
 	*rid = pci_get_rid(dev);
 
 	/*
@@ -278,11 +284,7 @@ iommu_get_dev_ctx(device_t dev)
 	if (!unit->dma_enabled)
 		return (NULL);
 
-#if defined(__amd64__) || defined(__i386__)
-	dmar_quirks_pre_use(unit);
-	dmar_instantiate_rmrr_ctxs(unit);
-#endif
-
+	iommu_unit_pre_instantiate_ctx(unit);
 	return (iommu_instantiate_ctx(unit, dev, false));
 }
 
@@ -395,6 +397,8 @@ static int
 iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
 	struct bus_dma_tag_iommu *dmat;
+	struct iommu_unit *iommu;
+	struct iommu_ctx *ctx;
 	int error;
 
 	error = 0;
@@ -405,8 +409,12 @@ iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			error = EBUSY;
 			goto out;
 		}
-		if (dmat == dmat->ctx->tag)
-			iommu_free_ctx(dmat->ctx);
+		ctx = dmat->ctx;
+		if (dmat == ctx->tag) {
+			iommu = ctx->domain->iommu;
+			IOMMU_LOCK(iommu);
+			iommu_free_ctx_locked(iommu, dmat->ctx);
+		}
 		free(dmat->segments, M_IOMMU_DMAMAP);
 		free(dmat, M_DEVBUF);
 	}
@@ -963,10 +971,14 @@ iommu_init_busdma(struct iommu_unit *unit)
 {
 	int error;
 
-	unit->dma_enabled = 1;
+	unit->dma_enabled = 0;
 	error = TUNABLE_INT_FETCH("hw.iommu.dma", &unit->dma_enabled);
 	if (error == 0) /* compatibility */
 		TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
+	SYSCTL_ADD_INT(&unit->sysctl_ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(unit->dev)),
+	    OID_AUTO, "dma", CTLFLAG_RD, &unit->dma_enabled, 0,
+	    "DMA ops enabled");
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, iommu_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("iommu", M_WAITOK,

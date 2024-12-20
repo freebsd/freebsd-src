@@ -1,4 +1,3 @@
-
 PACKAGE=	bhyve
 FILESDIR=	${SHAREDIR}/bhyve/kbdlayout
 FILES=		default \

@@ -222,4 +222,4 @@ static struct g_class g_flashmap_class = {
 };
 
 DECLARE_GEOM_CLASS(g_flashmap_class, g_flashmap);
-MODULE_VERSION(g_flashmap, 0);
+MODULE_VERSION(geom_flashmap, 0);

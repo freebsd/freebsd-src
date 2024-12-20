@@ -27,6 +27,7 @@ _PRIVATELIBS=	\
 		gtest_main \
 		heimipcc \
 		heimipcs \
+		kldelf \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -79,6 +80,7 @@ _INTERNALLIBS=	\
 		wpaeapol_auth \
 		wpaeapol_supp \
 		wpal2_packet \
+		wpapasn \
 		wparadius \
 		wparsn_supp \
 		wpatls \
@@ -311,6 +313,7 @@ _DP_bsnmp=	crypto
 .endif
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
+_DP_kldelf=	elf
 _DP_kvm=	elf
 _DP_casper=	nv
 _DP_cap_dns=	nv
@@ -319,6 +322,7 @@ _DP_cap_grp=	nv
 _DP_cap_pwd=	nv
 _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
+_DP_crypt=	md
 .if ${MK_OFED} != "no"
 _DP_pcap=	ibverbs mlx5
 .endif
@@ -667,6 +671,9 @@ LIBWPAEAPOL_SUPP?=	${LIBWPAEAPOL_SUPPDIR}/libwpaeapol_supp${PIE_SUFFIX}.a
 
 LIBWPAL2_PACKETDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/l2_packet
 LIBWPAL2_PACKET?=	${LIBWPAL2_PACKETDIR}/libwpal2_packet${PIE_SUFFIX}.a
+
+LIBWPAPASNDIR=		${_LIB_OBJTOP}/usr.sbin/wpa/src/pasn
+LIBWPAPASN?=		${LIBWPAPASNDIR}/libwpapasn${PIE_SUFFIX}.a
 
 LIBWPARADIUSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/radius
 LIBWPARADIUS?=	${LIBWPARADIUSDIR}/libwparadius${PIE_SUFFIX}.a

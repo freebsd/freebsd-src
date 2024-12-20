@@ -28,8 +28,13 @@ static void fst_dump_mb_ies(const char *group_id, const char *ifname,
 	while (s >= 2) {
 		const struct multi_band_ie *mbie =
 			(const struct multi_band_ie *) p;
+		size_t len;
+
 		WPA_ASSERT(mbie->eid == WLAN_EID_MULTI_BAND);
 		WPA_ASSERT(2U + mbie->len >= sizeof(*mbie));
+		len = 2 + mbie->len;
+		if (len > s)
+			break;
 
 		fst_printf(MSG_WARNING,
 			   "%s: %s: mb_ctrl=%u band_id=%u op_class=%u chan=%u bssid="
@@ -45,8 +50,8 @@ static void fst_dump_mb_ies(const char *group_id, const char *ifname,
 			   mbie->mb_connection_capability,
 			   mbie->fst_session_tmout);
 
-		p += 2 + mbie->len;
-		s -= 2 + mbie->len;
+		p += len;
+		s -= len;
 	}
 }
 
@@ -359,8 +364,7 @@ fst_group_get_peer_other_connection_2(struct fst_iface *iface,
 				cur_mbie, this_band_id);
 			if (!this_peer_addr)
 				continue;
-			if (os_memcmp(this_peer_addr, peer_addr, ETH_ALEN) ==
-			    0) {
+			if (ether_addr_equal(this_peer_addr, peer_addr)) {
 				os_memcpy(other_peer_addr, cur_peer_addr,
 					  ETH_ALEN);
 				return other_iface;

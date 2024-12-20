@@ -211,13 +211,12 @@ chipc_attach(device_t dev)
 	 * response to ChipCommin API requests.
 	 * 
 	 * Since our children may need access to ChipCommon, this must be done
-	 * before attaching our children below (via bus_generic_attach).
+	 * before attaching our children below (via bus_attach_children).
 	 */
 	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
 		goto failed;
 
-	if ((error = bus_generic_attach(dev)))
-		goto failed;
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -270,7 +269,7 @@ chipc_add_children(struct chipc_softc *sc)
 	if (sc->caps.nvram_src == BHND_NVRAM_SRC_SPROM ||
 	    sc->caps.nvram_src == BHND_NVRAM_SRC_OTP)
 	{
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_nvram", -1);
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_nvram", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add nvram device\n");
 			return (ENXIO);
@@ -293,13 +292,13 @@ chipc_add_children(struct chipc_softc *sc)
 	 * attached directly to the bhnd(4) bus -- not chipc.
 	 */
 	if (sc->caps.pmu && !sc->caps.aob) {
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", -1);
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pmu", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add pmu\n");
 			return (ENXIO);
 		}
 	} else if (sc->caps.pwr_ctrl) {
-		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", -1);
+		child = BUS_ADD_CHILD(sc->dev, 0, "bhnd_pwrctl", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add pwrctl\n");
 			return (ENXIO);
@@ -307,7 +306,7 @@ chipc_add_children(struct chipc_softc *sc)
 	}
 
 	/* GPIO */
-	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", -1);
+	child = BUS_ADD_CHILD(sc->dev, 0, "gpio", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(sc->dev, "failed to add gpio\n");
 		return (ENXIO);
@@ -331,7 +330,7 @@ chipc_add_children(struct chipc_softc *sc)
 		irq_rid = 0;
 		mem_rid = 0;
 
-		child = BUS_ADD_CHILD(sc->dev, 0, "uart", -1);
+		child = BUS_ADD_CHILD(sc->dev, 0, "uart", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add uart%u\n", i);
 			return (ENXIO);
@@ -360,7 +359,7 @@ chipc_add_children(struct chipc_softc *sc)
 	if (flash_bus != NULL) {
 		int rid;
 
-		child = BUS_ADD_CHILD(sc->dev, 0, flash_bus, -1);
+		child = BUS_ADD_CHILD(sc->dev, 0, flash_bus, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->dev, "failed to add %s device\n",
 			    flash_bus);

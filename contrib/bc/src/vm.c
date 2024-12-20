@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,6 +66,9 @@
 #if BC_ENABLE_LIBRARY
 #include <library.h>
 #endif // BC_ENABLE_LIBRARY
+#if BC_ENABLE_OSSFUZZ
+#include <ossfuzz.h>
+#endif // BC_ENABLE_OSSFUZZ
 
 #if !BC_ENABLE_LIBRARY
 
@@ -358,6 +361,7 @@ bc_vm_handleError(BcErr e, size_t line, ...)
 #endif // BC_DEBUG
 {
 	BcStatus s;
+	BcStatus fout_s;
 	va_list args;
 	uchar id = bc_err_ids[e];
 	const char* err_type = vm->err_ids[id];
@@ -383,14 +387,9 @@ bc_vm_handleError(BcErr e, size_t line, ...)
 	BC_SIG_TRYLOCK(lock);
 
 	// Make sure all of stdout is written first.
-	s = bc_file_flushErr(&vm->fout, bc_flush_err);
+	fout_s = bc_file_flushErr(&vm->fout, bc_flush_err);
 
-	// Just jump out if the flush failed; there's nothing we can do.
-	if (BC_ERR(s == BC_STATUS_ERROR_FATAL))
-	{
-		vm->status = (sig_atomic_t) s;
-		BC_JMP;
-	}
+	// XXX: Keep the status for later.
 
 	// Print the error message.
 	va_start(args, line);
@@ -429,18 +428,40 @@ bc_vm_handleError(BcErr e, size_t line, ...)
 
 	bc_file_puts(&vm->ferr, bc_flush_none, "\n");
 
+	// If flushing to stdout failed, try to print *that* error, as long as that
+	// was not the error already.
+	if (fout_s == BC_STATUS_ERROR_FATAL && e != BC_ERR_FATAL_IO_ERR)
+	{
+		bc_file_putchar(&vm->ferr, bc_flush_none, '\n');
+		bc_file_puts(&vm->ferr, bc_flush_none,
+		             vm->err_ids[bc_err_ids[BC_ERR_FATAL_IO_ERR]]);
+		bc_file_putchar(&vm->ferr, bc_flush_none, ' ');
+		bc_file_puts(&vm->ferr, bc_flush_none,
+		             vm->err_msgs[BC_ERR_FATAL_IO_ERR]);
+	}
+
 	s = bc_file_flushErr(&vm->ferr, bc_flush_err);
 
 #if !BC_ENABLE_MEMCHECK
+
 	// Because this function is called by a BC_NORETURN function when fatal
 	// errors happen, we need to make sure to exit on fatal errors. This will
 	// be faster anyway. This function *cannot jump when a fatal error occurs!*
-	if (BC_ERR(id == BC_ERR_IDX_FATAL || s == BC_STATUS_ERROR_FATAL))
+	if (BC_ERR(id == BC_ERR_IDX_FATAL || fout_s == BC_STATUS_ERROR_FATAL ||
+	           s == BC_STATUS_ERROR_FATAL))
 	{
-		exit(bc_vm_atexit((int) BC_STATUS_ERROR_FATAL));
+		exit((int) BC_STATUS_ERROR_FATAL);
 	}
+
 #else // !BC_ENABLE_MEMCHECK
-	if (BC_ERR(s == BC_STATUS_ERROR_FATAL)) vm->status = (sig_atomic_t) s;
+	if (BC_ERR(fout_s == BC_STATUS_ERROR_FATAL))
+	{
+		vm->status = (sig_atomic_t) fout_s;
+	}
+	else if (BC_ERR(s == BC_STATUS_ERROR_FATAL))
+	{
+		vm->status = (sig_atomic_t) s;
+	}
 	else
 #endif // !BC_ENABLE_MEMCHECK
 	{
@@ -656,7 +677,7 @@ bc_vm_shutdown(void)
 #endif // BC_ENABLE_HISTORY
 #endif // !BC_ENABLE_LIBRARY
 
-#if BC_DEBUG
+#if BC_DEBUG || BC_ENABLE_MEMCHECK
 #if !BC_ENABLE_LIBRARY
 	bc_vec_free(&vm->env_args);
 	free(vm->env_args_buffer);
@@ -676,7 +697,7 @@ bc_vm_shutdown(void)
 #endif // !BC_ENABLE_LIBRARY
 
 	bc_vm_freeTemps();
-#endif // BC_DEBUG
+#endif // BC_DEBUG || BC_ENABLE_MEMCHECK
 
 #if !BC_ENABLE_LIBRARY
 	// We always want to flush.
@@ -1122,6 +1143,8 @@ err:
 	BC_LONGJMP_CONT(vm);
 }
 
+#if !BC_ENABLE_OSSFUZZ
+
 bool
 bc_vm_readLine(bool clear)
 {
@@ -1257,6 +1280,8 @@ err:
 
 	BC_LONGJMP_CONT(vm);
 }
+
+#endif // BC_ENABLE_OSSFUZZ
 
 bool
 bc_vm_readBuf(bool clear)
@@ -1477,6 +1502,8 @@ bc_vm_exec(void)
 	}
 #endif // BC_ENABLED
 
+	assert(!BC_ENABLE_OSSFUZZ || BC_EXPR_EXIT == 0);
+
 	// If there are expressions to execute...
 	if (vm->exprs.len)
 	{
@@ -1484,7 +1511,11 @@ bc_vm_exec(void)
 		bc_vm_exprs();
 
 		// Sometimes, executing expressions means we need to quit.
-		if (!vm->no_exprs && vm->exit_exprs && BC_EXPR_EXIT) return;
+		if (vm->status != BC_STATUS_SUCCESS ||
+		    (!vm->no_exprs && vm->exit_exprs && BC_EXPR_EXIT))
+		{
+			return;
+		}
 	}
 
 	// Process files.
@@ -1496,6 +1527,8 @@ bc_vm_exec(void)
 		has_file = true;
 #endif // DC_ENABLED
 		bc_vm_file(path);
+
+		if (vm->status != BC_STATUS_SUCCESS) return;
 	}
 
 #if BC_ENABLE_EXTRA_MATH
@@ -1524,12 +1557,25 @@ bc_vm_exec(void)
 	__AFL_INIT();
 #endif // BC_ENABLE_AFL
 
+#if BC_ENABLE_OSSFUZZ
+
+	if (BC_VM_RUN_STDIN(has_file))
+	{
+		// XXX: Yes, this is a hack to run the fuzzer for OSS-Fuzz, but it
+		// works.
+		bc_vm_load("<stdin>", (const char*) bc_fuzzer_data);
+	}
+
+#else // BC_ENABLE_OSSFUZZ
+
 	// Execute from stdin. bc always does.
 	if (BC_VM_RUN_STDIN(has_file)) bc_vm_stdin();
+
+#endif // BC_ENABLE_OSSFUZZ
 }
 
-void
-bc_vm_boot(int argc, char* argv[])
+BcStatus
+bc_vm_boot(int argc, const char* argv[])
 {
 	int ttyin, ttyout, ttyerr;
 	bool tty;
@@ -1572,8 +1618,8 @@ bc_vm_boot(int argc, char* argv[])
 #if BC_ENABLE_LINE_LIB
 
 	// Initialize the output file buffers.
-	bc_file_init(&vm->ferr, stderr);
-	bc_file_init(&vm->fout, stdout);
+	bc_file_init(&vm->ferr, stderr, true);
+	bc_file_init(&vm->fout, stdout, false);
 
 	// Set the input buffer.
 	vm->buf = output_bufs;
@@ -1583,8 +1629,9 @@ bc_vm_boot(int argc, char* argv[])
 	// Initialize the output file buffers. They each take portions of the global
 	// buffer. stdout gets more because it will probably have more data.
 	bc_file_init(&vm->ferr, STDERR_FILENO, output_bufs + BC_VM_STDOUT_BUF_SIZE,
-	             BC_VM_STDERR_BUF_SIZE);
-	bc_file_init(&vm->fout, STDOUT_FILENO, output_bufs, BC_VM_STDOUT_BUF_SIZE);
+	             BC_VM_STDERR_BUF_SIZE, true);
+	bc_file_init(&vm->fout, STDOUT_FILENO, output_bufs, BC_VM_STDOUT_BUF_SIZE,
+	             false);
 
 	// Set the input buffer to the rest of the global buffer.
 	vm->buf = output_bufs + BC_VM_STDOUT_BUF_SIZE + BC_VM_STDERR_BUF_SIZE;
@@ -1716,6 +1763,11 @@ bc_vm_boot(int argc, char* argv[])
 
 	// Start executing.
 	bc_vm_exec();
+
+	BC_SIG_LOCK;
+
+	// Exit.
+	return (BcStatus) vm->status;
 }
 #endif // !BC_ENABLE_LIBRARY
 
@@ -1786,11 +1838,11 @@ bc_vm_atexit(void)
 #endif // BC_DEBUG
 }
 #else // BC_ENABLE_LIBRARY
-int
-bc_vm_atexit(int status)
+BcStatus
+bc_vm_atexit(BcStatus status)
 {
 	// Set the status correctly.
-	int s = BC_STATUS_IS_ERROR(status) ? status : BC_STATUS_SUCCESS;
+	BcStatus s = BC_STATUS_IS_ERROR(status) ? status : BC_STATUS_SUCCESS;
 
 	bc_vm_shutdown();
 

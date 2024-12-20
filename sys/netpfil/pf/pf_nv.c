@@ -563,7 +563,7 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule *rule)
 	if (! nvlist_exists_nvlist(nvl, "rpool"))
 		ERROUT(EINVAL);
 	PFNV_CHK(pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"),
-	    &rule->rpool));
+	    &rule->rdr));
 
 	PFNV_CHK(pf_nvuint32(nvl, "os_fingerprint", &rule->os_fingerprint));
 
@@ -703,7 +703,7 @@ pf_krule_to_nvrule(struct pf_krule *rule)
 
 	for (int i = 0; i < PF_SKIP_COUNT; i++) {
 		nvlist_append_number_array(nvl, "skip",
-		    rule->skip[i].ptr ? rule->skip[i].ptr->nr : -1);
+		    rule->skip[i] ? rule->skip[i]->nr : -1);
 	}
 
 	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++) {
@@ -721,7 +721,7 @@ pf_krule_to_nvrule(struct pf_krule *rule)
 	nvlist_add_string(nvl, "match_tagname", rule->match_tagname);
 	nvlist_add_string(nvl, "overload_tblname", rule->overload_tblname);
 
-	tmp = pf_pool_to_nvpool(&rule->rpool);
+	tmp = pf_pool_to_nvpool(&rule->rdr);
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "rpool", tmp);
@@ -963,17 +963,17 @@ pf_state_to_nvstate(const struct pf_kstate *s)
 	nvlist_add_nvlist(nvl, "dst", tmp);
 	nvlist_destroy(tmp);
 
-	tmp = pf_addr_to_nvaddr(&s->rt_addr);
+	tmp = pf_addr_to_nvaddr(&s->act.rt_addr);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "rt_addr", tmp);
 	nvlist_destroy(tmp);
 
-	nvlist_add_number(nvl, "rule", s->rule.ptr ? s->rule.ptr->nr : -1);
+	nvlist_add_number(nvl, "rule", s->rule ? s->rule->nr : -1);
 	nvlist_add_number(nvl, "anchor",
-	    s->anchor.ptr ? s->anchor.ptr->nr : -1);
+	    s->anchor ? s->anchor->nr : -1);
 	nvlist_add_number(nvl, "nat_rule",
-	    s->nat_rule.ptr ? s->nat_rule.ptr->nr : -1);
+	    s->nat_rule ? s->nat_rule->nr : -1);
 	nvlist_add_number(nvl, "creation", s->creation / 1000);
 
 	expire = pf_state_expires(s);

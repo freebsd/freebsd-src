@@ -62,7 +62,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
@@ -104,7 +103,7 @@ prepare_ifmap_netlink(struct snl_state *ss, size_t *pifmap_size)
 		if (link.ifi_index >= ifmap_size) {
 			size_t size = roundup2(link.ifi_index + 1, 32) * sizeof(struct ifmap_entry);
 			if ((ifmap = realloc(ifmap, size)) == NULL)
-				errx(2, "realloc(%zu) failed", size);
+				xo_errx(EX_OSERR, "realloc(%zu) failed", size);
 			memset(&ifmap[ifmap_size], 0,
 			    size - ifmap_size *
 			    sizeof(struct ifmap_entry));

@@ -165,9 +165,6 @@ typedef struct Struct_Obj_Entry {
     size_t tlsalign;		/* Alignment of static TLS block */
     size_t tlspoffset;		/* p_offset of the static TLS block */
 
-    caddr_t relro_page;
-    size_t relro_size;
-
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */
@@ -352,6 +349,33 @@ typedef struct Struct_SymLook {
     struct Struct_RtldLockState *lockstate;
 } SymLook;
 
+enum {
+	LD_BIND_NOW = 0,
+	LD_PRELOAD,
+	LD_LIBMAP,
+	LD_LIBRARY_PATH,
+	LD_LIBRARY_PATH_FDS,
+	LD_LIBMAP_DISABLE,
+	LD_BIND_NOT,
+	LD_DEBUG,
+	LD_ELF_HINTS_PATH,
+	LD_LOADFLTR,
+	LD_LIBRARY_PATH_RPATH,
+	LD_PRELOAD_FDS,
+	LD_DYNAMIC_WEAK,
+	LD_TRACE_LOADED_OBJECTS,
+	LD_UTRACE,
+	LD_DUMP_REL_PRE,
+	LD_DUMP_REL_POST,
+	LD_TRACE_LOADED_OBJECTS_PROGNAME,
+	LD_TRACE_LOADED_OBJECTS_FMT1,
+	LD_TRACE_LOADED_OBJECTS_FMT2,
+	LD_TRACE_LOADED_OBJECTS_ALL,
+	LD_SHOW_AUXV,
+	LD_STATIC_TLS_EXTRA,
+	LD_NO_DL_ITERATE_PHDR_AFTER_FORK,
+};
+
 void _rtld_error(const char *, ...) __printflike(1, 2) __exported;
 void rtld_die(void) __dead2;
 const char *rtld_strerror(int);
@@ -373,6 +397,7 @@ void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 /*
  * Function declarations.
  */
+const char *ld_get_env_var(int idx);
 uintptr_t rtld_round_page(uintptr_t);
 uintptr_t rtld_trunc_page(uintptr_t);
 Elf32_Word elf_hash(const char *);
@@ -410,7 +435,7 @@ int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_iresolve_nonplt(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
-void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
+void ifunc_init(Elf_Auxinfo *[__min_size(AT_COUNT)]);
 void init_pltgot(Obj_Entry *);
 void allocate_initial_tls(Obj_Entry *);
 

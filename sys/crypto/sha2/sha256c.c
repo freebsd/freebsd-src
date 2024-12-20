@@ -391,8 +391,6 @@ __weak_reference(_libmd_SHA256_Init, SHA256_Init);
 __weak_reference(_libmd_SHA256_Update, SHA256_Update);
 #undef SHA256_Final
 __weak_reference(_libmd_SHA256_Final, SHA256_Final);
-#undef SHA256_Transform
-__weak_reference(_libmd_SHA256_Transform, SHA256_Transform);
 
 #undef SHA224_Init
 __weak_reference(_libmd_SHA224_Init, SHA224_Init);

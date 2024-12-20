@@ -208,7 +208,7 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcstrcmp(version_text, XCS("expat_2.6.0"))) /* needs bump on releases */
+  if (xcstrcmp(version_text, XCS("expat_2.6.4"))) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
 END_TEST
@@ -332,14 +332,15 @@ START_TEST(test_misc_deny_internal_entity_closing_doctype_issue_317) {
                                "<!ENTITY % e ']><d/>'>\n"
                                "\n"
                                "%e;";
-  const char *const inputTwo = "<!DOCTYPE d [\n"
-                               "<!ENTITY % e1 ']><d/>'><!ENTITY % e2 '&e1;'>\n"
-                               "\n"
-                               "%e2;";
+  const char *const inputTwo
+      = "<!DOCTYPE d [\n"
+        "<!ENTITY % e1 ']><d/>'><!ENTITY % e2 '&#37;e1;'>\n"
+        "\n"
+        "%e2;";
   const char *const inputThree = "<!DOCTYPE d [\n"
                                  "<!ENTITY % e ']><d'>\n"
                                  "\n"
-                                 "%e;";
+                                 "%e;/>";
   const char *const inputIssue317 = "<!DOCTYPE doc [\n"
                                     "<!ENTITY % foo ']>\n"
                                     "<doc>Hell<oc (#PCDATA)*>'>\n"
@@ -447,7 +448,7 @@ START_TEST(test_misc_general_entities_support) {
   XML_SetExternalEntityRefHandler(parser,
                                   external_entity_failer__if_not_xml_ge);
   XML_SetEntityDeclHandler(parser, accumulate_entity_decl);
-  XML_SetCharacterDataHandler(parser, accumulate_char_data);
+  XML_SetCharacterDataHandler(parser, accumulate_characters);
 
   if (_XML_Parse_SINGLE_BYTES(parser, doc, (int)strlen(doc), XML_TRUE)
       != XML_STATUS_OK) {
@@ -496,6 +497,28 @@ START_TEST(test_misc_char_handler_stop_without_leak) {
 }
 END_TEST
 
+START_TEST(test_misc_resumeparser_not_crashing) {
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_GetBuffer(parser, 1);
+  XML_StopParser(parser, /*resumable=*/XML_TRUE);
+  XML_ResumeParser(parser); // could crash here, previously
+  XML_ParserFree(parser);
+}
+END_TEST
+
+START_TEST(test_misc_stopparser_rejects_unstarted_parser) {
+  const XML_Bool cases[] = {XML_TRUE, XML_FALSE};
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    const XML_Bool resumable = cases[i];
+    XML_Parser parser = XML_ParserCreate(NULL);
+    assert_true(XML_GetErrorCode(parser) == XML_ERROR_NONE);
+    assert_true(XML_StopParser(parser, resumable) == XML_STATUS_ERROR);
+    assert_true(XML_GetErrorCode(parser) == XML_ERROR_NOT_STARTED);
+    XML_ParserFree(parser);
+  }
+}
+END_TEST
+
 void
 make_miscellaneous_test_case(Suite *s) {
   TCase *tc_misc = tcase_create("miscellaneous tests");
@@ -520,4 +543,6 @@ make_miscellaneous_test_case(Suite *s) {
                  test_misc_create_external_entity_parser_with_null_context);
   tcase_add_test(tc_misc, test_misc_general_entities_support);
   tcase_add_test(tc_misc, test_misc_char_handler_stop_without_leak);
+  tcase_add_test(tc_misc, test_misc_resumeparser_not_crashing);
+  tcase_add_test(tc_misc, test_misc_stopparser_rejects_unstarted_parser);
 }

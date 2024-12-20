@@ -104,7 +104,7 @@ static void
 vmbus_xact_free(struct vmbus_xact *xact)
 {
 
-	contigfree(xact->x_req, xact->x_ctx->xc_req_size, M_DEVBUF);
+	free(xact->x_req, M_DEVBUF);
 	free(xact->x_resp0, M_DEVBUF);
 	if (xact->x_priv != NULL)
 		free(xact->x_priv, M_DEVBUF);

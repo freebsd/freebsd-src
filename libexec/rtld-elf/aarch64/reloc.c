@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2014-2015 The FreeBSD Foundation
- * All rights reserved.
  *
  * Portions of this software were developed by Andrew Turner
  * under sponsorship from the FreeBSD Foundation.
@@ -453,7 +452,7 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 }
 
 void
-ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+ifunc_init(Elf_Auxinfo *aux_info[__min_size(AT_COUNT)] __unused)
 {
 
 }

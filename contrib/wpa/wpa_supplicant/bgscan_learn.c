@@ -57,7 +57,7 @@ static int bssid_in_array(u8 *array, size_t array_len, const u8 *bssid)
 		return 0;
 
 	for (i = 0; i < array_len; i++) {
-		if (os_memcmp(array + i * ETH_ALEN, bssid, ETH_ALEN) == 0)
+		if (ether_addr_equal(array + i * ETH_ALEN, bssid))
 			return 1;
 	}
 
@@ -70,7 +70,7 @@ static void bgscan_learn_add_neighbor(struct bgscan_learn_bss *bss,
 {
 	u8 *n;
 
-	if (os_memcmp(bss->bssid, bssid, ETH_ALEN) == 0)
+	if (ether_addr_equal(bss->bssid, bssid))
 		return;
 	if (bssid_in_array(bss->neigh, bss->num_neigh, bssid))
 		return;
@@ -91,7 +91,7 @@ static struct bgscan_learn_bss * bgscan_learn_get_bss(
 	struct bgscan_learn_bss *bss;
 
 	dl_list_for_each(bss, &data->bss, struct bgscan_learn_bss, list) {
-		if (os_memcmp(bss->bssid, bssid, ETH_ALEN) == 0)
+		if (ether_addr_equal(bss->bssid, bssid))
 			return bss;
 	}
 	return NULL;
@@ -305,7 +305,7 @@ static void bgscan_learn_timeout(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	wpa_printf(MSG_DEBUG, "bgscan learn: Request a background scan");
-	if (wpa_supplicant_trigger_scan(wpa_s, &params)) {
+	if (wpa_supplicant_trigger_scan(wpa_s, &params, true, false)) {
 		wpa_printf(MSG_DEBUG, "bgscan learn: Failed to trigger scan");
 		eloop_register_timeout(data->scan_interval, 0,
 				       bgscan_learn_timeout, data, NULL);
@@ -422,7 +422,7 @@ static void * bgscan_learn_init(struct wpa_supplicant *wpa_s,
 		/* Poll for signal info to set initial scan interval */
 		struct wpa_signal_info siginfo;
 		if (wpa_drv_signal_poll(wpa_s, &siginfo) == 0 &&
-		    siginfo.current_signal >= data->signal_threshold)
+		    siginfo.data.signal >= data->signal_threshold)
 			data->scan_interval = data->long_interval;
 	}
 

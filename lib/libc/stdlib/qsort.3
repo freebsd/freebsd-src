@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 19, 2023
+.Dd October 25, 2024
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -248,16 +248,8 @@ untrue.
 The
 .Fn qsort_s
 function behaves the same as
-.Fn qsort_r , except that:
-.Bl -dash
-.It
-The order of arguments is different
-.It
-The order of arguments to
-.Fa compar
-is different
-.It
-If
+.Fn qsort_r ,
+except that if
 .Fa nmemb
 or
 .Fa size
@@ -277,7 +269,6 @@ returns an error.
 Note that the handler is called before
 .Fn qsort_s
 returns the error, and the handler function might not return.
-.El
 .Sh RETURN VALUES
 The
 .Fn qsort
@@ -333,16 +324,21 @@ main(void)
 .Sh COMPATIBILITY
 The order of arguments for the comparison function used with
 .Fn qsort_r
-is different from the one used by
-.Fn qsort_s ,
+is historically different from the one used by
+.Fn qsort_s
 and the GNU libc implementation of
 .Fn qsort_r .
-When porting software written for GNU libc, it is usually possible
-to replace
+However, as of
+.Fx 14.0 ,
+the
 .Fn qsort_r
-with
-.Fn qsort_s
-to work around this problem.
+has been updated so that the
+.Fa thunk
+parameter appears last to match
+.St -p1003.1-2024 .
+Both the historical and the updated interfaces are now accepted
+via C11 generic selection and C++ polymorphism,
+but the updated interface is recommended for portable applications.
 .Pp
 .Fn qsort_s
 is part of the
@@ -426,11 +422,15 @@ were unable to allocate memory.
 .Sh STANDARDS
 The
 .Fn qsort
-function
-conforms to
+function conforms to
 .St -isoC .
+The
+.Fn qsort_r
+function conforms to
+.St -p1003.1-2024 .
+The
 .Fn qsort_s
-conforms to
+function conforms to
 .St -isoC-2011
 K.3.6.3.2.
 .Sh HISTORY
@@ -442,4 +442,5 @@ In
 .Fx 14.0 ,
 the prototype of
 .Fn qsort_r
-was updated to match POSIX.
+was updated to match
+.St -p1003.1-2024 .

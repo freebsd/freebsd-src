@@ -232,40 +232,48 @@ rangeset_remove(struct rangeset *rs, uint64_t start, uint64_t end)
 	return (rangeset_remove_pred(rs, start, end, rangeset_true_pred));
 }
 
+static void
+rangeset_remove_leaf(struct rs_el *r, void *rsv)
+{
+	struct rangeset *rs = rsv;
+
+	rs->rs_free_data(rs->rs_data_ctx, r);
+}
+
 void
 rangeset_remove_all(struct rangeset *rs)
 {
-	struct rs_el *r;
-
-	for (;;) {
-		r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, 0);
-		if (r == NULL)
-			break;
-		RANGESET_PCTRIE_REMOVE(&rs->rs_trie, r->re_start);
-		rs->rs_free_data(rs->rs_data_ctx, r);
-	}
+	RANGESET_PCTRIE_RECLAIM_CALLBACK(&rs->rs_trie,
+	    rangeset_remove_leaf, rs);
 }
 
 void *
-rangeset_lookup(struct rangeset *rs, uint64_t place)
+rangeset_containing(struct rangeset *rs, uint64_t place)
 {
 	struct rs_el *r;
 
 	rangeset_check(rs);
 	r = RANGESET_PCTRIE_LOOKUP_LE(&rs->rs_trie, place);
-	if (r == NULL)
-		return (NULL);
-	if (r->re_end <= place)
-		return (NULL);
-	return (r);
+	if (r != NULL && place < r->re_end)
+		return (r);
+	return (NULL);
+}
+
+bool
+rangeset_empty(struct rangeset *rs, uint64_t start, uint64_t end)
+{
+	struct rs_el *r;
+
+	r = RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, start + 1);
+	return (r == NULL || r->re_start >= end);
 }
 
 void *
-rangeset_next(struct rangeset *rs, uint64_t place)
+rangeset_beginning(struct rangeset *rs, uint64_t place)
 {
 
 	rangeset_check(rs);
-	return (RANGESET_PCTRIE_LOOKUP_GE(&rs->rs_trie, place));
+	return (RANGESET_PCTRIE_LOOKUP(&rs->rs_trie, place));
 }
 
 int

@@ -133,7 +133,7 @@ struct thread;
 
 void	pmap_activate_boot(pmap_t);
 void	pmap_activate_sw(struct thread *);
-void	pmap_bootstrap(vm_offset_t, vm_paddr_t, vm_size_t);
+void	pmap_bootstrap(vm_paddr_t, vm_size_t);
 int	pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
 void	pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode);
 void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);

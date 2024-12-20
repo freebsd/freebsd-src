@@ -7,6 +7,19 @@
  */
 
 #include "includes.h"
+#include <openssl/opensslv.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+
+/* OpenSSL 3.0 has deprecated the low-level SHA1 functions and does not
+ * include an upper layer interface that could be used to use the
+ * SHA1_Transform() function. Use the internal SHA-1 implementation instead
+ * as a workaround. */
+#include "sha1-internal.c"
+#include "fips_prf_internal.c"
+
+#else /* OpenSSL version >= 3.0 */
+
 #include <openssl/sha.h>
 
 #include "common.h"
@@ -97,3 +110,5 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 
 	return 0;
 }
+
+#endif /* OpenSSL version >= 3.0 */

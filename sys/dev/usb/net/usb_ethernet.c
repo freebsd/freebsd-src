@@ -220,11 +220,6 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	error = 0;
 	CURVNET_SET_QUIET(vnet0);
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(ue->ue_dev, "could not allocate ifnet\n");
-		goto fail;
-	}
-
 	if_setsoftc(ifp, ue);
 	if_initname(ifp, "ue", ue->ue_unit);
 	if (ue->ue_methods->ue_attach_post_sub != NULL) {

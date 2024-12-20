@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/hyperv/utilities
 
 KMOD=	hv_utils

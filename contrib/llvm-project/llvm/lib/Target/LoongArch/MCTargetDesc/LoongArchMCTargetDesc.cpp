@@ -55,7 +55,7 @@ static MCInstrInfo *createLoongArchMCInstrInfo() {
 static MCSubtargetInfo *
 createLoongArchMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   if (CPU.empty() || CPU == "generic")
-    CPU = TT.isArch64Bit() ? "la464" : "generic-la32";
+    CPU = TT.isArch64Bit() ? "generic-la64" : "generic-la32";
   return createLoongArchMCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
 }
 
@@ -193,10 +193,9 @@ namespace {
 MCStreamer *createLoongArchELFStreamer(const Triple &T, MCContext &Context,
                                        std::unique_ptr<MCAsmBackend> &&MAB,
                                        std::unique_ptr<MCObjectWriter> &&MOW,
-                                       std::unique_ptr<MCCodeEmitter> &&MCE,
-                                       bool RelaxAll) {
+                                       std::unique_ptr<MCCodeEmitter> &&MCE) {
   return createLoongArchELFStreamer(Context, std::move(MAB), std::move(MOW),
-                                    std::move(MCE), RelaxAll);
+                                    std::move(MCE));
 }
 } // end namespace
 

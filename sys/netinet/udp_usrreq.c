@@ -544,12 +544,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			char b[offsetof(struct ipovly, ih_src)];
 			struct ipovly *ipov = (struct ipovly *)ip;
 
-			bcopy(ipov, b, sizeof(b));
+			memcpy(b, ipov, sizeof(b));
 			bzero(ipov, sizeof(ipov->ih_x1));
 			ipov->ih_len = (proto == IPPROTO_UDP) ?
 			    uh->uh_ulen : htons(ip_len);
 			uh_sum = in_cksum(m, len + sizeof (struct ip));
-			bcopy(b, ipov, sizeof(b));
+			memcpy(ipov, b, sizeof(b));
 		}
 		if (uh_sum) {
 			UDPSTAT_INC(udps_badsum);
@@ -1648,7 +1648,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	NET_EPOCH_ENTER(et);
 	INP_HASH_WLOCK(pcbinfo);
-	error = in_pcbconnect(inp, sin, td->td_ucred, true);
+	error = in_pcbconnect(inp, sin, td->td_ucred);
 	INP_HASH_WUNLOCK(pcbinfo);
 	NET_EPOCH_EXIT(et);
 	if (error == 0)

@@ -2196,7 +2196,6 @@ determine_af_and_pullup(struct mbuf **m, sa_family_t *af)
 	return (0);
 }
 
-#ifdef DEV_NETMAP
 static int
 determine_ethertype_and_pullup(struct mbuf **m, int *etp)
 {
@@ -2258,6 +2257,7 @@ wg_transmit(if_t ifp, struct mbuf *m)
 	return (0);
 }
 
+#ifdef DEV_NETMAP
 /*
  * This should only be invoked by netmap, via nm_os_send_up(), to process
  * packets from the host TX ring.
@@ -2921,8 +2921,8 @@ wg_clone_create(struct if_clone *ifc, char *name, size_t len,
 	if_setinitfn(ifp, wg_init);
 	if_setreassignfn(ifp, wg_reassign);
 	if_setqflushfn(ifp, wg_qflush);
-#ifdef DEV_NETMAP
 	if_settransmitfn(ifp, wg_transmit);
+#ifdef DEV_NETMAP
 	if_setinputfn(ifp, wg_if_input);
 #endif
 	if_setoutputfn(ifp, wg_output);

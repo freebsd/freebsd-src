@@ -1,5 +1,9 @@
+#
 # FreeBSD system call object files.
+#
 # DO NOT EDIT-- this file is automatically @generated.
+#
+
 MIASM =  \
 	syscall.o \
 	exit.o \
@@ -192,7 +196,6 @@ MIASM =  \
 	aio_suspend.o \
 	aio_cancel.o \
 	aio_error.o \
-	yield.o \
 	mlockall.o \
 	munlockall.o \
 	__getcwd.o \
@@ -429,6 +432,9 @@ MIASM =  \
 	timerfd_gettime.o \
 	timerfd_settime.o \
 	kcmp.o \
+	getrlimitusage.o \
+	fchroot.o \
+	setcred.o \
 	osdb_exec.o \
 	osdb_prepare_v2.o \
 	osdb_step.o \

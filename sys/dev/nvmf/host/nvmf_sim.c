@@ -58,7 +58,7 @@ nvmf_ccb_done(union ccb *ccb)
 		xpt_done(ccb);
 	} else {
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done_direct(ccb);
+		xpt_done(ccb);
 	}
 }
 
@@ -125,8 +125,8 @@ nvmf_sim_io(struct nvmf_softc *sc, union ccb *ccb)
 		qp = sc->admin;
 	req = nvmf_allocate_request(qp, &nvmeio->cmd, nvmf_ccb_complete,
 	    ccb, M_NOWAIT);
+	mtx_unlock(&sc->sim_mtx);
 	if (req == NULL) {
-		mtx_unlock(&sc->sim_mtx);
 		nvmeio->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
 		return;
@@ -150,7 +150,6 @@ nvmf_sim_io(struct nvmf_softc *sc, union ccb *ccb)
 	    ("%s: incoming CCB is not in-progress", __func__));
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	nvmf_submit_request(req);
-	mtx_unlock(&sc->sim_mtx);
 }
 
 static void

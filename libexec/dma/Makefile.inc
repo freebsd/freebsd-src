@@ -1,4 +1,3 @@
-
 .sinclude "${.CURDIR:H:H}/Makefile.inc"
 DMA_SOURCES=	${SRCTOP}/contrib/dma
 .PATH:	${DMA_SOURCES}

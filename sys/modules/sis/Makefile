@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/sis
 
 KMOD=	if_sis

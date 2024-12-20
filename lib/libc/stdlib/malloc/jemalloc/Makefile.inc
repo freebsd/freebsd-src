@@ -1,10 +1,15 @@
+.PATH: ${LIBC_SRCTOP}/stdlib/malloc/jemalloc
+
 JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bitmap.c \
 	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hash.c hook.c \
 	large.c log.c malloc_io.c mutex.c mutex_pool.c nstime.c pages.c \
 	prng.c prof.c rtree.c safety_check.c sc.c stats.c sz.c tcache.c \
 	test_hooks.c ticker.c tsd.c witness.c
 
-CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include
+CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include -I${LIBC_SRCTOP}/stdlib/malloc/jemalloc/include
+.if ${MK_JEMALLOC_LG_VADDR_WIDE} != no
+CFLAGS+=-D_USE_LG_VADDR_WIDE
+.endif
 
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}
@@ -13,10 +18,7 @@ jemalloc_${src}: ${SRCTOP}/contrib/jemalloc/src/${src} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
-MAN+=jemalloc.3
-CLEANFILES+=jemalloc.3
-jemalloc.3: ${SRCTOP}/contrib/jemalloc/doc/jemalloc.3 .NOMETA
-	ln -sf ${.ALLSRC} ${.TARGET}
+MAN+=	jemalloc.3
 
 MLINKS+= \
 	jemalloc.3 malloc.3 \

@@ -1,4 +1,3 @@
-
 PROG=	stumbler
 BINDIR=	/usr/local/bin
 LIBADD=	pcap tinfow ncursesw

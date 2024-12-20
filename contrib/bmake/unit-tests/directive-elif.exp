@@ -17,5 +17,5 @@ make: "directive-elif.mk" line 143: 2-elsif
 make: "directive-elif.mk" line 149: if-less elif
 make: "directive-elif.mk" line 154: warning: extra elif
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

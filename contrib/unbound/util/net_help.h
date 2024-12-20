@@ -363,6 +363,14 @@ void addr_to_nat64(const struct sockaddr_storage* addr,
 int addr_is_ip4mapped(struct sockaddr_storage* addr, socklen_t addrlen);
 
 /**
+ * See if sockaddr is an ipv6 fe80::/10 link local address.
+ * @param addr: address
+ * @param addrlen: length of address
+ * @return true if so
+ */
+int addr_is_ip6linklocal(struct sockaddr_storage* addr, socklen_t addrlen);
+
+/**
  * See if sockaddr is 255.255.255.255.
  * @param addr: address
  * @param addrlen: length of address
@@ -563,5 +571,14 @@ int netblockdnametoaddr(uint8_t* dname, size_t dnamelen,
 char* sock_strerror(int errn);
 /** close the socket with close, or wsa closesocket */
 void sock_close(int socket);
+
+/**
+ * Convert binary data to a string of hexadecimal characters.
+ */
+ssize_t hex_ntop(uint8_t const *src, size_t srclength, char *target,
+		 size_t targsize);
+
+/** Convert hexadecimal data to binary. */
+ssize_t hex_pton(const char* src, uint8_t* target, size_t targsize);
 
 #endif /* NET_HELP_H */

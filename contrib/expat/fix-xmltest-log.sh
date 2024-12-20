@@ -7,6 +7,7 @@
 #                               |_| XML parser
 #
 # Copyright (c) 2019-2022 Sebastian Pipping <sebastian@pipping.org>
+# Copyright (c) 2024      Dag-Erling Smørgrav <des@des.dev>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -32,10 +33,10 @@ set -e
 
 filename="${1:-tests/xmltest.log}"
 
-dos2unix "${filename}"
-
-tempfile="$(mktemp)"
-sed \
+sed -i.bak \
+        -e '# convert DOS line endings to Unix without resorting to dos2unix' \
+        -e $'s/\r//' \
+        \
         -e 's/^wine: Call .* msvcrt\.dll\._wperror, aborting$/ibm49i02.dtd: No such file or directory/' \
         \
         -e '/^wine: /d' \
@@ -46,5 +47,4 @@ sed \
         -e '/^wine client error:/d' \
         -e '/^In ibm\/invalid\/P49\/: Unhandled exception: unimplemented .\+/d' \
         \
-        "${filename}" > "${tempfile}"
-mv "${tempfile}" "${filename}"
+        "${filename}"

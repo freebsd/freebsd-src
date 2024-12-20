@@ -741,7 +741,7 @@ dtrace_canstore_statvar(uint64_t addr, size_t sz, size_t *remain,
 		return (0);
 
 	maxglobalsize = dtrace_statvar_maxsize + sizeof (uint64_t);
-	maxlocalsize = maxglobalsize * NCPU;
+	maxlocalsize = maxglobalsize * (mp_maxid + 1);
 
 	for (i = 0; i < nsvars; i++) {
 		dtrace_statvar_t *svar = svars[i];
@@ -1744,7 +1744,7 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 	dtrace_dynvar_t **rinsep;
 	int i, j, work = 0;
 
-	for (i = 0; i < NCPU; i++) {
+	CPU_FOREACH(i) {
 		dcpu = &dstate->dtds_percpu[i];
 		rinsep = &dcpu->dtdsc_rinsing;
 
@@ -1782,7 +1782,7 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 			 * rinsing list -- and then we borrow this CPU to
 			 * rinse our dirty list.
 			 */
-			for (j = 0; j < NCPU; j++) {
+			CPU_FOREACH(j) {
 				dtrace_dstate_percpu_t *rinser;
 
 				rinser = &dstate->dtds_percpu[j];
@@ -1800,7 +1800,7 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 				break;
 			}
 
-			if (j == NCPU) {
+			if (j > mp_maxid) {
 				/*
 				 * We were unable to find another CPU that
 				 * could accept this dirty list -- we are
@@ -1841,7 +1841,7 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 
 	dtrace_sync();
 
-	for (i = 0; i < NCPU; i++) {
+	CPU_FOREACH(i) {
 		dcpu = &dstate->dtds_percpu[i];
 
 		if (dcpu->dtdsc_rinsing == NULL)
@@ -2190,7 +2190,7 @@ retry:
 				case DTRACE_DSTATE_CLEAN: {
 					void *sp = &dstate->dtds_state;
 
-					if (++cpu >= NCPU)
+					if (++cpu > mp_maxid)
 						cpu = 0;
 
 					if (dcpu->dtdsc_dirty != NULL &&
@@ -6504,7 +6504,7 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				size_t lim;
 
 				sz += sizeof (uint64_t);
-				ASSERT(svar->dtsv_size == NCPU * sz);
+				ASSERT(svar->dtsv_size == (mp_maxid + 1) * sz);
 				a += curcpu * sz;
 
 				if (*(uint8_t *)a == UINT8_MAX) {
@@ -6521,7 +6521,8 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				break;
 			}
 
-			ASSERT(svar->dtsv_size == NCPU * sizeof (uint64_t));
+			ASSERT(svar->dtsv_size ==
+			    (mp_maxid + 1) * sizeof (uint64_t));
 			tmp = (uint64_t *)(uintptr_t)svar->dtsv_data;
 			regs[rd] = tmp[curcpu];
 			break;
@@ -6544,7 +6545,7 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				size_t lim;
 
 				sz += sizeof (uint64_t);
-				ASSERT(svar->dtsv_size == NCPU * sz);
+				ASSERT(svar->dtsv_size == (mp_maxid + 1) * sz);
 				a += curcpu * sz;
 
 				if (regs[rd] == 0) {
@@ -6565,7 +6566,8 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				break;
 			}
 
-			ASSERT(svar->dtsv_size == NCPU * sizeof (uint64_t));
+			ASSERT(svar->dtsv_size ==
+			    (mp_maxid + 1) * sizeof (uint64_t));
 			tmp = (uint64_t *)(uintptr_t)svar->dtsv_data;
 			tmp[curcpu] = regs[rd];
 			break;
@@ -10678,10 +10680,11 @@ dtrace_difo_init(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 			svarp = &vstate->dtvs_locals;
 
 			if (v->dtdv_type.dtdt_flags & DIF_TF_BYREF)
-				dsize = NCPU * (v->dtdv_type.dtdt_size +
+				dsize = (mp_maxid + 1) *
+				    (v->dtdv_type.dtdt_size +
 				    sizeof (uint64_t));
 			else
-				dsize = NCPU * sizeof (uint64_t);
+				dsize = (mp_maxid + 1) * sizeof (uint64_t);
 
 			break;
 
@@ -12603,7 +12606,7 @@ dtrace_buffer_consumed(dtrace_buffer_t *bufs, hrtime_t when)
 {
 	int i;
 
-	for (i = 0; i < NCPU; i++) {
+	CPU_FOREACH(i) {
 		dtrace_buffer_t *buf = &bufs[i];
 
 		if (buf->dtb_size == 0)
@@ -12627,7 +12630,7 @@ dtrace_buffer_free(dtrace_buffer_t *bufs)
 {
 	int i;
 
-	for (i = 0; i < NCPU; i++) {
+	CPU_FOREACH(i) {
 		dtrace_buffer_t *buf = &bufs[i];
 
 		if (buf->dtb_tomax == NULL) {
@@ -14379,7 +14382,8 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	dstate->dtds_size = size;
 	dstate->dtds_base = base;
 	dstate->dtds_percpu = kmem_cache_alloc(dtrace_state_cache, KM_SLEEP);
-	bzero(dstate->dtds_percpu, NCPU * sizeof (dtrace_dstate_percpu_t));
+	bzero(dstate->dtds_percpu,
+	    (mp_maxid + 1) * sizeof (dtrace_dstate_percpu_t));
 
 	hashsize = size / (dstate->dtds_chunksize + sizeof (dtrace_dynhash_t));
 
@@ -14413,14 +14417,10 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	VERIFY((uintptr_t)start < limit);
 	VERIFY((uintptr_t)start >= (uintptr_t)base);
 
-	maxper = (limit - (uintptr_t)start) / NCPU;
+	maxper = (limit - (uintptr_t)start) / (mp_maxid + 1);
 	maxper = (maxper / dstate->dtds_chunksize) * dstate->dtds_chunksize;
 
-#ifndef illumos
 	CPU_FOREACH(i) {
-#else
-	for (i = 0; i < NCPU; i++) {
-#endif
 		dstate->dtds_percpu[i].dtdsc_free = dvar = start;
 
 		/*
@@ -14430,7 +14430,7 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 		 * whatever is left over.  In either case, we set the limit to
 		 * be the limit of the dynamic variable space.
 		 */
-		if (maxper == 0 || i == NCPU - 1) {
+		if (maxper == 0 || i == mp_maxid) {
 			limit = (uintptr_t)base + size;
 			start = NULL;
 		} else {
@@ -14603,7 +14603,7 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 	char c[30];
 	dtrace_state_t *state;
 	dtrace_optval_t *opt;
-	int bufsize = NCPU * sizeof (dtrace_buffer_t), i;
+	int bufsize = (mp_maxid + 1) * sizeof (dtrace_buffer_t), i;
 	int cpu_it;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
@@ -14651,12 +14651,6 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 	state->dts_dev = dev;
 #endif
 
-	/*
-	 * We allocate NCPU buffers.  On the one hand, this can be quite
-	 * a bit of memory per instance (nearly 36K on a Starcat).  On the
-	 * other hand, it saves an additional memory reference in the probe
-	 * path.
-	 */
 	state->dts_buffer = kmem_zalloc(bufsize, KM_SLEEP);
 	state->dts_aggbuffer = kmem_zalloc(bufsize, KM_SLEEP);
 
@@ -14666,12 +14660,12 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
          * assumed to be seeded at this point (if from Fortuna seed file).
 	 */
 	arc4random_buf(&state->dts_rstate[0], 2 * sizeof(uint64_t));
-	for (cpu_it = 1; cpu_it < NCPU; cpu_it++) {
+	for (cpu_it = 1; cpu_it <= mp_maxid; cpu_it++) {
 		/*
 		 * Each CPU is assigned a 2^64 period, non-overlapping
 		 * subsequence.
 		 */
-		dtrace_xoroshiro128_plus_jump(state->dts_rstate[cpu_it-1],
+		dtrace_xoroshiro128_plus_jump(state->dts_rstate[cpu_it - 1],
 		    state->dts_rstate[cpu_it]); 
 	}
 
@@ -14970,7 +14964,7 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	cyc_handler_t hdlr;
 	cyc_time_t when;
 #endif
-	int rval = 0, i, bufsize = NCPU * sizeof (dtrace_buffer_t);
+	int rval = 0, i, bufsize = (mp_maxid + 1) * sizeof (dtrace_buffer_t);
 	dtrace_icookie_t cookie;
 
 	mutex_enter(&cpu_lock);
@@ -15224,10 +15218,10 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 	 * We enable anonymous tracing before APs are started, so we must
 	 * activate buffers using the current CPU.
 	 */
-	if (state == dtrace_anon.dta_state)
-		for (int i = 0; i < NCPU; i++)
+	if (state == dtrace_anon.dta_state) {
+		CPU_FOREACH(i)
 			dtrace_buffer_activate_cpu(state, i);
-	else
+	} else
 		dtrace_xcall(DTRACE_CPUALL,
 		    (dtrace_xcall_t)dtrace_buffer_activate, state);
 #else
@@ -15410,7 +15404,7 @@ dtrace_state_destroy(dtrace_state_t *state)
 #ifdef illumos
 	minor_t minor = getminor(state->dts_dev);
 #endif
-	int i, bufsize = NCPU * sizeof (dtrace_buffer_t);
+	int i, bufsize = (mp_maxid + 1) * sizeof (dtrace_buffer_t);
 	dtrace_speculation_t *spec = state->dts_speculations;
 	int nspec = state->dts_nspeculations;
 	uint32_t match;
@@ -15724,7 +15718,7 @@ dtrace_helper_trace(dtrace_helper_action_t *helper,
 		if ((svar = vstate->dtvs_locals[i]) == NULL)
 			continue;
 
-		ASSERT(svar->dtsv_size >= NCPU * sizeof (uint64_t));
+		ASSERT(svar->dtsv_size >= (mp_maxid + 1) * sizeof (uint64_t));
 		ent->dtht_locals[i] =
 		    ((uint64_t *)(uintptr_t)svar->dtsv_data)[curcpu];
 	}
@@ -18446,7 +18440,6 @@ static struct cdevsw helper_cdevsw = {
 #include <dtrace_unload.c>
 #include <dtrace_vtime.c>
 #include <dtrace_hacks.c>
-#include <dtrace_isa.c>
 
 SYSINIT(dtrace_load, SI_SUB_DTRACE, SI_ORDER_FIRST, dtrace_load, NULL);
 SYSUNINIT(dtrace_unload, SI_SUB_DTRACE, SI_ORDER_FIRST, dtrace_unload, NULL);

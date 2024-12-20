@@ -20,6 +20,9 @@
  * THE SOFTWARE.
  */
 
+#include <sys/sysctl.h>
+#include <sys/wait.h>
+
 #include <err.h>
 #include <errno.h>
 #include <mixer.h>
@@ -40,7 +43,7 @@ static void printall(struct mixer *, int);
 static void printminfo(struct mixer *, int);
 static void printdev(struct mixer *, int);
 static void printrecsrc(struct mixer *, int); /* XXX: change name */
-static int set_dunit(struct mixer *, int);
+static int set_dunit(struct mixer *, int, char *);
 /* Control handlers */
 static int mod_volume(struct mix_dev *, void *);
 static int mod_mute(struct mix_dev *, void *);
@@ -54,13 +57,13 @@ main(int argc, char *argv[])
 {
 	struct mixer *m;
 	mix_ctl_t *cp;
-	char *name = NULL, buf[NAME_MAX];
+	char *name = NULL, buf[NAME_MAX], *vctl = NULL;
 	char *p, *q, *devstr, *ctlstr, *valstr = NULL;
 	int dunit, i, n, pall = 1, shorthand;
 	int aflag = 0, dflag = 0, oflag = 0, sflag = 0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "ad:f:hos")) != -1) {
+	while ((ch = getopt(argc, argv, "ad:f:hosV:")) != -1) {
 		switch (ch) {
 		case 'a':
 			aflag = 1;
@@ -82,6 +85,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			sflag = 1;
+			break;
+		case 'V':
+			vctl = optarg;
 			break;
 		case 'h': /* FALLTHROUGH */
 		case '?':
@@ -119,7 +125,7 @@ main(int argc, char *argv[])
 	initctls(m);
 
 	if (dflag) {
-		if (set_dunit(m, dunit) < 0)
+		if (set_dunit(m, dunit, vctl) < 0)
 			goto parse;
 		else {
 			/*
@@ -141,7 +147,9 @@ main(int argc, char *argv[])
 
 parse:
 	while (argc > 0) {
-		if ((p = strdup(*argv)) == NULL)
+		char *orig;
+
+		if ((orig = p = strdup(*argv)) == NULL)
 			err(1, "strdup(%s)", *argv);
 
 		/* Check if we're using the shorthand syntax for volume setting. */
@@ -194,7 +202,7 @@ parse:
 		/* Input: `dev.control=val`. */
 		cp->mod(cp->parent_dev, valstr);
 next:
-		free(p);
+		free(orig);
 		argc--;
 		argv++;
 	}
@@ -209,7 +217,8 @@ next:
 static void __dead2
 usage(void)
 {
-	fprintf(stderr, "usage: %1$s [-f device] [-d pcmN | N] [-os] [dev[.control[=value]]] ...\n"
+	fprintf(stderr, "usage: %1$s [-f device] [-d pcmN | N "
+	    "[-V voss_device:mode]] [-os] [dev[.control[=value]]] ...\n"
 	    "       %1$s [-os] -a\n"
 	    "       %1$s -h\n", getprogname());
 	exit(1);
@@ -322,9 +331,32 @@ printrecsrc(struct mixer *m, int oflag)
 }
 
 static int
-set_dunit(struct mixer *m, int dunit)
+set_dunit(struct mixer *m, int dunit, char *vctl)
 {
-	int n;
+	const char *opt;
+	char *dev, *mode;
+	char buf[32];
+	size_t size;
+	int n, rc;
+
+	/*
+	 * Issue warning in case of hw.snd.basename_clone being unset. Omit the
+	 * check and warning if the -V flag is used, since the user is most
+	 * likely to be aware of this, and the warning might be confusing.
+	 */
+	if (vctl == NULL) {
+		size = sizeof(int);
+		if (sysctlbyname("hw.snd.basename_clone", &n, &size,
+		    NULL, 0) < 0) {
+			warn("hw.snd.basename_clone failed");
+			return (-1);
+		}
+		if (n == 0) {
+			warnx("warning: hw.snd.basename_clone not set. "
+			    "/dev/dsp is managed externally and does not "
+			    "change with the default unit change here.");
+		}
+	}
 
 	if ((n = mixer_get_dunit()) < 0) {
 		warn("cannot get default unit");
@@ -335,6 +367,43 @@ set_dunit(struct mixer *m, int dunit)
 		return (-1);
 	}
 	printf("default_unit: %d -> %d\n", n, dunit);
+
+	/* Hot-swap in case virtual_oss exists and is running. */
+	if (vctl != NULL) {
+		dev = strsep(&vctl, ":");
+		mode = vctl;
+		if (dev == NULL || mode == NULL) {
+			warnx("voss_device:mode tuple incomplete");
+			return (-1);
+		}
+		if (strcmp(mode, "all") == 0)
+			opt = "-f";
+		else if (strcmp(mode, "play") == 0)
+			opt = "-P";
+		else if (strcmp(mode, "rec") == 0)
+			opt = "-R";
+		else {
+			warnx("please use one of the following modes: "
+			    "all, play, rec");
+			return (-1);
+		}
+		snprintf(buf, sizeof(buf), "/dev/dsp%d", dunit);
+		switch (fork()) {
+		case -1:
+			warn("fork");
+			break;
+		case 0:
+			rc = execl("/usr/local/sbin/virtual_oss_cmd",
+			    "virtual_oss_cmd", dev, opt, buf, NULL);
+			if (rc < 0)
+				warn("virtual_oss_cmd");
+			_exit(0);
+		default:
+			if (wait(NULL) < 0)
+				warn("wait");
+			break;
+		}
+	}
 
 	return (0);
 }
@@ -426,11 +495,14 @@ mod_mute(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_MUT);
 	val = p;
-	if (strncmp(val, "off", strlen(val)) == 0 || *val == '0')
+	if (strncmp(val, "off", strlen(val)) == 0 ||
+	    strncmp(val, "0", strlen(val)) == 0)
 		opt = MIX_UNMUTE;
-	else if (strncmp(val, "on", strlen(val)) == 0 || *val == '1')
+	else if (strncmp(val, "on", strlen(val)) == 0 ||
+	    strncmp(val, "1", strlen(val)) == 0)
 		opt = MIX_MUTE;
-	else if (strncmp(val, "toggle", strlen(val)) == 0 || *val == '^')
+	else if (strncmp(val, "toggle", strlen(val)) == 0 ||
+	    strncmp(val, "^", strlen(val)) == 0)
 		opt = MIX_TOGGLEMUTE;
 	else {
 		warnx("%s: no such modifier", val);
@@ -459,13 +531,17 @@ mod_recsrc(struct mix_dev *d, void *p)
 	m = d->parent_mixer;
 	cp = mixer_get_ctl(m->dev, C_SRC);
 	val = p;
-	if (strncmp(val, "add", strlen(val)) == 0 || *val == '+')
+	if (strncmp(val, "add", strlen(val)) == 0 ||
+	    strncmp(val, "+", strlen(val)) == 0)
 		opt = MIX_ADDRECSRC;
-	else if (strncmp(val, "remove", strlen(val)) == 0 || *val == '-')
+	else if (strncmp(val, "remove", strlen(val)) == 0 ||
+	    strncmp(val, "-", strlen(val)) == 0)
 		opt = MIX_REMOVERECSRC;
-	else if (strncmp(val, "set", strlen(val)) == 0 || *val == '=')
+	else if (strncmp(val, "set", strlen(val)) == 0 ||
+	    strncmp(val, "=", strlen(val)) == 0)
 		opt = MIX_SETRECSRC;
-	else if (strncmp(val, "toggle", strlen(val)) == 0 || *val == '^')
+	else if (strncmp(val, "toggle", strlen(val)) == 0 ||
+	    strncmp(val, "^", strlen(val)) == 0)
 		opt = MIX_TOGGLERECSRC;
 	else {
 		warnx("%s: no such modifier", val);

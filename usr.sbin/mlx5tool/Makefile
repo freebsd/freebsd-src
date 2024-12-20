@@ -1,4 +1,3 @@
-
 PACKAGE=	mlx-tools
 
 PROG=	mlx5tool

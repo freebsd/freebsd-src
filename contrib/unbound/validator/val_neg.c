@@ -823,7 +823,8 @@ void neg_insert_data(struct val_neg_cache* neg,
 			it <= neg->nsec3_max_iter &&
 			(h != zone->nsec3_hash || it != zone->nsec3_iter ||
 			slen != zone->nsec3_saltlen || 
-			memcmp(zone->nsec3_salt, s, slen) != 0)) {
+			(slen != 0 && zone->nsec3_salt && s
+			  && memcmp(zone->nsec3_salt, s, slen) != 0))) {
 
 			if(slen > 0) {
 				uint8_t* sa = memdup(s, slen);
@@ -1206,7 +1207,8 @@ neg_params_ok(struct val_neg_zone* zone, struct ub_packed_rrset_key* rrset)
 		return 0;
 	return (h == zone->nsec3_hash && it == zone->nsec3_iter &&
 		slen == zone->nsec3_saltlen &&
-		memcmp(zone->nsec3_salt, s, slen) == 0);
+		(slen != 0 && zone->nsec3_salt && s
+		  && memcmp(zone->nsec3_salt, s, slen) == 0));
 }
 
 /** get next closer for nsec3 proof */

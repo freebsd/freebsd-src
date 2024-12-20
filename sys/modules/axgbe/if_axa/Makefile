@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/dev/axgbe
 
 KMOD    = if_axa

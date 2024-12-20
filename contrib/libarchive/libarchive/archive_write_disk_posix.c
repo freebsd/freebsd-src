@@ -1991,7 +1991,7 @@ archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;
 
-	a = (struct archive_write_disk *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
@@ -2758,7 +2758,7 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 {
 	struct fixup_entry *fe;
 
-	fe = (struct fixup_entry *)calloc(1, sizeof(struct fixup_entry));
+	fe = calloc(1, sizeof(struct fixup_entry));
 	if (fe == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate memory for a fixup");
@@ -4196,7 +4196,7 @@ copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
 	}
 	for (xattr_i = 0; xattr_i < xattr_size;
 	    xattr_i += strlen(xattr_names + xattr_i) + 1) {
-		char *xattr_val_saved;
+		char *p;
 		ssize_t s;
 		int f;
 
@@ -4207,15 +4207,14 @@ copy_xattrs(struct archive_write_disk *a, int tmpfd, int dffd)
 			ret = ARCHIVE_WARN;
 			goto exit_xattr;
 		}
-		xattr_val_saved = xattr_val;
-		xattr_val = realloc(xattr_val, s);
-		if (xattr_val == NULL) {
+		p = realloc(xattr_val, s);
+		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Failed to get metadata(xattr)");
 			ret = ARCHIVE_WARN;
-			free(xattr_val_saved);
 			goto exit_xattr;
 		}
+		xattr_val = p;
 		s = fgetxattr(tmpfd, xattr_names + xattr_i, xattr_val, s, 0, 0);
 		if (s == -1) {
 			archive_set_error(&a->archive, errno,
@@ -4361,8 +4360,7 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 	 * silly dance of writing the data to disk just so that
 	 * copyfile() can read it back in again. */
 	archive_string_init(&tmp);
-	archive_strcpy(&tmp, pathname);
-	archive_strcat(&tmp, ".XXXXXX");
+	archive_strcpy(&tmp, "tar.mmd.XXXXXX");
 	fd = mkstemp(tmp.s);
 
 	if (fd < 0) {

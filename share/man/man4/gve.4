@@ -1,6 +1,6 @@
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
-.\" Copyright (c) 2023 Google LLC
+.\" Copyright (c) 2023-2024 Google LLC
 .\"
 .\" Redistribution and use in source and binary forms, with or without modification,
 .\" are permitted provided that the following conditions are met:
@@ -26,7 +26,7 @@
 .\" ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd April 26, 2023
+.Dd October 14, 2024
 .Dt GVE 4
 .Os
 .Sh NAME
@@ -127,7 +127,6 @@ Tx queue-specific allocation failures:
 .It "Failed to alloc desc ring for tx ring %d"
 .It "Failed to vmap fifo, qpl_id = %d"
 .El
-.El
 .Pp
 The following messages are recorded when the interface detach fails:
 .Bl -diag
@@ -193,22 +192,68 @@ These two messages correspond to the NIC alerting the driver to link state chang
 .Pp
 Apart from these messages, the driver exposes per-queue packet and error counters as sysctl nodes.
 Global (across queues) counters can be read using
-.Xr netstat 8 .
+.Xr netstat 1 .
+.Sh SYSCTL VARIABLES
+.Nm
+exposes the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width indent
+.It Va hw.gve.driver_version
+The driver version.
+This is read-only.
+.It Va hw.gve.queue_format
+The queue format in use.
+This is read-only.
+.It Va hw.gve.disable_hw_lro
+Setting this boot-time tunable to 1 disables Large Receive Offload (LRO) in the NIC.
+The default value is 0, which means hardware LRO is enabled by default.
+The software LRO stack in the kernel is always used.
+This sysctl variable needs to be set before loading the driver, using
+.Xr loader.conf 5 .
+.El
 .Sh LIMITATIONS
 .Nm
 does not support the transmission of VLAN-tagged packets.
 All VLAN-tagged traffic is dropped.
+.Sh QUEUE FORMATS
+.Nm
+features different datapath modes called queue formats:
+.Pp
+.Bl -bullet -compact
+.It
+GQI_QPL: "QPL" stands for "Queue Page List" and refers to the fact that
+hardware expects a fixed bounce buffer and cannot access arbitrary memory.
+GQI is the older descriptor format.
+The G in "GQI" refers to an older generation of hardware, and the "QI"
+stands for "Queue In-order" referring to the fact that the NIC sends
+Tx and Rx completions in the same order as the one in which the corresponding
+descriptors were posted by the driver.
+.It
+DQO_RDA: DQO is the descriptor format required to take full advantage of
+next generation VM shapes.
+"RDA" stands for "Raw DMA Addressing" and refers to the fact that hardware
+can work with DMA-ed packets and does not expect them to be copied into or
+out of a fixed bounce buffer.
+The D in "DQO" refers to a newer generation of hardware, and the "QO"
+stands for "Queue Out-of-order" referring to the fact that the NIC might
+send Tx and Rx completions in an order different from the one in which
+the corresponding descriptors were posted by the driver.
+.It
+DQO_QPL: The next generation descriptor format in the "QPL" mode.
+.El
 .Sh SUPPORT
 Please email gvnic-drivers@google.com with the specifics of the issue encountered.
-.El
 .Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr loader.conf 5 ,
 .Xr ifconfig 8 ,
-.Xr netstat 8
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 14.0 .
+.Fx 13.3 .
 .Sh AUTHORS
 The
 .Nm

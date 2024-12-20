@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
+.\"
 .\" Copyright (c) 2005-2010 Damien Bergamini <damien.bergamini@free.fr>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -12,12 +15,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd April 4, 2017
+.Dd November 10, 2024
 .Dt RAL 4
 .Os
 .Sh NAME
 .Nm ral
-.Nd "Ralink Technology IEEE 802.11a/g/n wireless network device"
+.Nd Ralink Technology IEEE 802.11a/g/n wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -119,7 +122,7 @@ The
 driver supports PCI/PCIe/CardBus wireless adapters based on Ralink Technology
 chipsets, including:
 .Pp
-.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "RT2561S" "CardBus"
+.Bl -column -offset indent -compact "Atlantis Land A02-PCM-W54" "RT2561S" "CardBus"
 .It Em Card Ta Em MAC/BBP Ta Em Bus
 .It "A-Link WL54H" Ta RT2560 Ta PCI
 .It "A-Link WL54PC" Ta RT2560 Ta CardBus
@@ -212,26 +215,25 @@ chipsets, including:
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
-.Dl "ifconfig wlan create wlandev ral0 inet 192.168.0.20 netmask 0xffffff00"
+.Dl ifconfig wlan create wlandev ral0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Bd -literal -offset indent
-ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
-    netmask 0xffffff00 ssid my_net
+ifconfig wlan create wlandev ral0 inet 192.0.2.20/24 \e
+    ssid my_net
 .Ed
 .Pp
 Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
-    netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890 weptxkey 1
+ifconfig wlan create wlandev ral0 inet 192.0.2.20/24 \e
+    ssid my_net wepmode on wepkey 0x1234567890 weptxkey 1
 .Ed
 .Pp
 Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig wlan create wlandev ral0 inet 192.168.0.20 \e
-    netmask 0xffffff00 ssid my_net \e
+ifconfig wlan create wlandev ral0 inet 192.0.2.20/24 \e
+    ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
@@ -254,6 +256,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
+.Xr networking 7 ,
 .Xr hostapd 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8

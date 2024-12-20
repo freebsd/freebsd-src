@@ -189,13 +189,13 @@ siis_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		child = device_add_child(dev, "siisch", -1);
+		child = device_add_child(dev, "siisch", DEVICE_UNIT_ANY);
 		if (child == NULL)
 			device_printf(dev, "failed to add channel device\n");
 		else
 			device_set_ivars(child, (void *)(intptr_t)unit);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return 0;
 }
 
@@ -1394,7 +1394,7 @@ completeall:
 	}
 	xpt_setup_ccb(&ccb->ccb_h, ch->hold[i]->ccb_h.path,
 	    ch->hold[i]->ccb_h.pinfo.priority);
-	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+	if (ch->hold[i]->ccb_h.func_code == XPT_ATA_IO) {
 		/* READ LOG */
 		ccb->ccb_h.recovery_type = RECOVERY_READ_LOG;
 		ccb->ccb_h.func_code = XPT_ATA_IO;

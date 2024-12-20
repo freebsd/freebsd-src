@@ -1,4 +1,3 @@
-
 SHLIB_NAME?=	padlock.so
 
 SRCS=	e_padlock.c

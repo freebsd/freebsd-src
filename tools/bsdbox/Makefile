@@ -1,4 +1,3 @@
-
 MAN=
 
 .include <bsd.own.mk>

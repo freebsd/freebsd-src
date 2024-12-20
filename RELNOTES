@@ -10,6 +10,70 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0e8a36a2ab12:
+	Add a new NFS mount option called "mountport" that may be used
+	to specify the port# for the NFS server's Mount protocol.
+	This permits a NFSv3 mount to be done without running rpcbind(8).
+
+b2f7c53430c3:
+	Kernel TLS is now enabled by default in kernels including KTLS
+	support.  KTLS is included in GENERIC kernels for aarch64,
+	amd64, powerpc64, and powerpc64le.
+
+f57efe95cc25:
+	New mididump(1) utility which dumps MIDI 1.0 events in real time.
+
+ddfc6f84f242:
+	Update unicode to 16.0.0 and CLDR to 45.0.0.
+
+b22be3bbb2de:
+	Basic Cloudinit images no longer generate RSA host keys by default for
+	SSH.
+
+000000000000:
+	RSA host keys for SSH are deprecated and will no longer be generated
+	by default in FreeBSD 16.
+
+0aabcd75dbc2:
+	EC2 AMIs no longer generate RSA host keys by default for SSH.  RSA
+	host key generation can be re-enabled by setting sshd_rsa_enable="YES"
+	in /etc/rc.conf if it is necessary to support very old SSH clients.
+
+a1da7dc1cdad:
+	The SO_SPLICE socket option was added.  It allows TCP connections to
+	be spliced together, enabling proxy-like functionality without the
+	need to copy data in and out of user memory.
+
+fc12c191c087:
+	grep(1) no longer follows symbolic links by default for
+	recursive searches.  This matches the documented behavior in
+	the manual page.
+
+e962b37bf0ff:
+	When running bhyve(8) guests with a boot ROM, i.e., bhyveload(8) is not
+	used, bhyve now assumes that the boot ROM will enable PCI BAR decoding.
+	This is incompatible with some boot ROMs, particularly outdated builds
+	of edk2-bhyve.  To restore the old behavior, add
+	"pci.enable_bars='true'" to your bhyve configuration.
+
+	Note in particular that the uefi-edk2-bhyve package has been renamed
+	to edk2-bhyve.
+
+43caa2e805c2:
+	amd64 bhyve(8)'s "lpc.bootrom" and "lpc.bootvars" options are
+	deprecated.  Use the top-level "bootrom" and "bootvars" options
+	instead.
+
+822ca3276345:
+	byacc was updated to 20240109.
+
+21817992b331:
+	ncurses was updated to 6.5.
+
+1687d77197c0:
+	Filesystem manual pages have been moved to section four.
+	Please check ports you are maintaining for crossreferences.
+
 8aac90f18aef:
 	new MAC/do policy and mdo(1) utility which enables a user to
 	become another user without the requirement of setuid root.

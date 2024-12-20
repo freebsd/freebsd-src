@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.71 2022/11/06 21:44:54 tom Exp $ */
+/* $Id: defs.h,v 1.74 2023/05/18 21:28:05 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -122,6 +122,7 @@ typedef enum
     ,NONPOSIX_DEBUG
 
     /* other bison "extensions", some useful */
+    ,HACK_DEFINE
     ,ERROR_VERBOSE
     ,EXPECT
     ,EXPECT_RR
@@ -187,7 +188,7 @@ SYM_CASES;
 
 #define DO_FREE(x)	if (x) { FREE(x); x = 0; }
 
-#define NO_SPACE(p)	if (p == 0) no_space(); assert(p != 0)
+#define NO_SPACE(p)	do { if (p == 0) on_error(); assert(p != 0); } while (0)
 
 /* messages */
 #define PLURAL(n) ((n) > 1 ? "s" : "")
@@ -470,41 +471,45 @@ struct ainfo
     char *a_cptr;
 };
 
-extern void arg_number_disagree_warning(int a_lineno, char *a_name);
-extern void arg_type_disagree_warning(int a_lineno, int i, char *a_name);
-extern GCC_NORETURN void at_error(int a_lineno, char *a_line, char *a_cptr);
+extern void arg_number_disagree_warning(int a_lineno, const char *a_name);
+extern void arg_type_disagree_warning(int a_lineno, int i, const char *a_name);
+extern GCC_NORETURN void at_error(int a_lineno, const char *a_line, const char *a_cptr);
 extern void at_warning(int a_lineno, int i);
 extern GCC_NORETURN void bad_formals(void);
-extern void default_action_warning(char *s);
+extern void default_action_warning(const char *s);
 extern void destructor_redeclared_warning(const struct ainfo *);
-extern GCC_NORETURN void dollar_error(int a_lineno, char *a_line, char *a_cptr);
+extern void dislocations_warning(void);
+extern GCC_NORETURN void dollar_error(int a_lineno, const char *a_line, const char *a_cptr);
 extern void dollar_warning(int a_lineno, int i);
 extern GCC_NORETURN void fatal(const char *msg);
-extern GCC_NORETURN void illegal_character(char *c_cptr);
-extern GCC_NORETURN void illegal_tag(int t_lineno, char *t_line, char *t_cptr);
+extern GCC_NORETURN void illegal_character(const char *c_cptr);
+extern GCC_NORETURN void illegal_tag(int t_lineno, const char *t_line, const char *t_cptr);
 extern GCC_NORETURN void missing_brace(void);
 extern GCC_NORETURN void no_grammar(void);
-extern GCC_NORETURN void no_space(void);
+extern GCC_NORETURN void on_error(void);
 extern GCC_NORETURN void open_error(const char *filename);
-extern GCC_NORETURN void over_unionized(char *u_cptr);
+extern GCC_NORETURN void over_unionized(const char *u_cptr);
 extern void prec_redeclared(void);
-extern void reprec_warning(char *s);
+extern void reprec_warning(const char *s);
 extern void restarted_warning(void);
-extern void retyped_warning(char *s);
-extern void revalued_warning(char *s);
-extern void start_requires_args(char *a_name);
-extern GCC_NORETURN void syntax_error(int st_lineno, char *st_line, char *st_cptr);
+extern void retyped_warning(const char *s);
+extern void revalued_warning(const char *s);
+extern void start_requires_args(const char *a_name);
+extern GCC_NORETURN void syntax_error(int st_lineno, const char *st_line, const char *st_cptr);
 extern GCC_NORETURN void terminal_lhs(int s_lineno);
-extern GCC_NORETURN void terminal_start(char *s);
-extern GCC_NORETURN void tokenized_start(char *s);
-extern GCC_NORETURN void undefined_goal(char *s);
-extern void undefined_symbol_warning(char *s);
+extern GCC_NORETURN void terminal_start(const char *s);
+extern GCC_NORETURN void tokenized_start(const char *s);
+extern GCC_NORETURN void undefined_goal(const char *s);
+extern void undefined_symbol_warning(const char *s);
 extern GCC_NORETURN void unexpected_EOF(void);
-extern void unknown_arg_warning(int d_lineno, const char *dlr_opt,
-				const char *d_arg, const char *d_line,
+extern void unknown_arg_warning(int d_lineno,
+				const char *dlr_opt,
+				const char *d_arg,
+				const char *d_line,
 				const char *d_cptr);
 extern GCC_NORETURN void unknown_rhs(int i);
 extern void unsupported_flag_warning(const char *flag, const char *details);
+extern GCC_NORETURN void unexpected_value(const struct ainfo *);
 extern GCC_NORETURN void unterminated_action(const struct ainfo *);
 extern GCC_NORETURN void unterminated_comment(const struct ainfo *);
 extern GCC_NORETURN void unterminated_string(const struct ainfo *);
@@ -512,11 +517,11 @@ extern GCC_NORETURN void unterminated_text(const struct ainfo *);
 extern GCC_NORETURN void unterminated_union(const struct ainfo *);
 extern void untyped_arg_warning(int a_lineno, const char *dlr_opt, const char *a_name);
 extern GCC_NORETURN void untyped_lhs(void);
-extern GCC_NORETURN void untyped_rhs(int i, char *s);
-extern GCC_NORETURN void used_reserved(char *s);
+extern GCC_NORETURN void untyped_rhs(int i, const char *s);
+extern GCC_NORETURN void used_reserved(const char *s);
 extern GCC_NORETURN void unterminated_arglist(const struct ainfo *);
 extern void wrong_number_args_warning(const char *which, const char *a_name);
-extern void wrong_type_for_arg_warning(int i, char *a_name);
+extern void wrong_type_for_arg_warning(int i, const char *a_name);
 
 /* graph.c */
 extern void graph(void);

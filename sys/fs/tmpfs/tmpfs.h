@@ -292,6 +292,15 @@ struct tmpfs_node {
 			 */
 			off_t			tn_readdir_lastn;
 			struct tmpfs_dirent *	tn_readdir_lastp;
+
+			/*
+			 * Total size of whiteout directory entries.  This
+			 * must be a multiple of sizeof(struct tmpfs_dirent)
+			 * and is used to determine whether a directory is
+			 * empty (excluding whiteout entries) during rename/
+			 * rmdir operations.
+			 */
+			off_t			tn_wht_size;	/* (v) */
 		} tn_dir;
 
 		/* Valid when tn_type == VLNK. */
@@ -484,6 +493,7 @@ int	tmpfs_dir_getdents(struct tmpfs_mount *, struct tmpfs_node *,
 	    struct uio *, int, uint64_t *, int *);
 int	tmpfs_dir_whiteout_add(struct vnode *, struct componentname *);
 void	tmpfs_dir_whiteout_remove(struct vnode *, struct componentname *);
+void	tmpfs_dir_clear_whiteouts(struct vnode *);
 int	tmpfs_reg_resize(struct vnode *, off_t, boolean_t);
 int	tmpfs_reg_punch_hole(struct vnode *vp, off_t *, off_t *);
 int	tmpfs_chflags(struct vnode *, u_long, struct ucred *, struct thread *);
@@ -533,6 +543,8 @@ tmpfs_update(struct vnode *vp)
 #define TMPFS_VALIDATE_DIR(node) do { \
 	MPASS((node)->tn_type == VDIR); \
 	MPASS((node)->tn_size % sizeof(struct tmpfs_dirent) == 0); \
+	MPASS((node)->tn_dir.tn_wht_size % sizeof(struct tmpfs_dirent) == 0); \
+	MPASS((node)->tn_dir.tn_wht_size <= (node)->tn_size); \
 } while (0)
 
 /*

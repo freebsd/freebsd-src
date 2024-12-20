@@ -392,7 +392,7 @@ macio_attach(device_t dev)
 			for (subchild = OF_child(child); subchild != 0;
 			    subchild = OF_peer(subchild))
 				macio_add_intr(subchild, dinfo);
-		cdev = device_add_child(dev, NULL, -1);
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 			    dinfo->mdi_obdinfo.obd_name);
@@ -461,7 +461,8 @@ macio_attach(device_t dev)
 	}
 #endif
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

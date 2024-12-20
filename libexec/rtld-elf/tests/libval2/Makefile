@@ -1,4 +1,3 @@
-
 LIBVAL=	${.CURDIR}/../libval
 
 # Just rebuild libval

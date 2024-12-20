@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/crypto/des \
 	${SRCTOP}/sys/crypto/des/arch/${MACHINE_CPUARCH} \
 	${SRCTOP}/sys/kern \

@@ -617,7 +617,8 @@ cdnc_i2c_attach(device_t dev)
 	cdnc_i2c_add_sysctls(dev);
 
 	/* Probe and attach iicbus when interrupts work. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

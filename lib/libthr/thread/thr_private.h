@@ -840,6 +840,8 @@ void	_thr_signal_postfork(void) __hidden;
 void	_thr_signal_postfork_child(void) __hidden;
 void	_thr_suspend_all_lock(struct pthread *) __hidden;
 void	_thr_suspend_all_unlock(struct pthread *) __hidden;
+void	_thr_suspend_all_np(void) __hidden;
+void	_thr_resume_all_np(void) __hidden;
 void	_thr_try_gc(struct pthread *, struct pthread *) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;
@@ -1103,6 +1105,7 @@ int __Tthr_mutex_trylock(pthread_mutex_t *);
 bool __thr_get_main_stack_base(char **base);
 bool __thr_get_main_stack_lim(size_t *lim);
 int _Tthr_sigqueue(pthread_t pthread, int sig, const union sigval value);
+void _thr_resolve_machdep(void);
 
 __END_DECLS
 __NULLABILITY_PRAGMA_POP

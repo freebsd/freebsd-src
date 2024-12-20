@@ -96,7 +96,7 @@ struct xrefinfo {
 
 static SLIST_HEAD(, xrefinfo) xreflist = SLIST_HEAD_INITIALIZER(xreflist);
 static struct mtx xreflist_lock;
-static boolean_t xref_init_done;
+static bool xref_init_done;
 
 #define	FIND_BY_XREF	0
 #define	FIND_BY_NODE	1
@@ -193,7 +193,7 @@ xrefinfo_add(phandle_t node, phandle_t xref, device_t dev)
  */
 SET_DECLARE(ofw_set, ofw_def_t);
 
-boolean_t
+bool
 OF_install(char *name, int prio)
 {
 	ofw_def_t *ofwp, **ofwpp;
@@ -202,7 +202,7 @@ OF_install(char *name, int prio)
 	/* Allow OF layer to be uninstalled */
 	if (name == NULL) {
 		ofw_def_impl = NULL;
-		return (FALSE);
+		return (false);
 	}
 
 	/*
@@ -216,11 +216,11 @@ OF_install(char *name, int prio)
 		    prio >= curr_prio) {
 			curr_prio = prio;
 			ofw_def_impl = ofwp;
-			return (TRUE);
+			return (true);
 		}
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 /* Initializer */

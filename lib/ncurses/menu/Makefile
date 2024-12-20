@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 .include "${.CURDIR:H}/config.mk"
 
@@ -135,9 +134,6 @@ SYMLINKS+=	libmenuw.a ${LIBDIR}/libmenu.a
 .endif
 .if !defined(NO_PIC)
 SYMLINKS+=	libmenuw.so ${LIBDIR}/libmenu.so
-.endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libmenuw_p.a ${LIBDIR}/libmenu_p.a
 .endif
 
 .include <bsd.lib.mk>

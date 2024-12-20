@@ -51,9 +51,9 @@ __NULLABILITY_PRAGMA_PUSH
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
-extern char version[];		/* system version */
-extern char compiler_version[];	/* compiler version */
-extern char copyright[];	/* system copyright */
+extern const char version[];	/* system version */
+extern const char compiler_version[];	/* compiler version */
+extern const char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
 
 extern u_long pagesizes[];	/* supported page sizes */
@@ -79,7 +79,7 @@ extern u_long maxphys;		/* max raw I/O transfer size */
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
 		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
-		VM_GUEST_PARALLELS, VM_GUEST_LAST };
+		VM_GUEST_PARALLELS, VM_GUEST_NVMM, VM_GUEST_LAST };
 
 #endif /* KERNEL */
 
@@ -109,7 +109,7 @@ extern bool scheduler_stopped;
  */
 #define	SCHEDULER_STOPPED()	__predict_false(scheduler_stopped)
 
-extern int osreldate;
+extern const int osreldate;
 
 extern const void *zero_region;	/* address space maps to a zeroed page	*/
 

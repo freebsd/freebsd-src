@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_ipacl
 
 KMOD=	mac_ipacl

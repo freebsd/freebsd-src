@@ -6,7 +6,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/ncurses/form \
 	lib/ncurses/ncurses \
 	lib/ncurses/tinfo \
 

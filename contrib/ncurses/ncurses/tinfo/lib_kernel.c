@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2022,2023 Thomas E. Dickey                                *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -49,7 +49,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_kernel.c,v 1.34 2020/11/21 22:05:58 tom Exp $")
+MODULE_ID("$Id: lib_kernel.c,v 1.36 2023/06/10 13:29:06 tom Exp $")
 
 #ifdef TERMIOS
 static int
@@ -59,7 +59,7 @@ _nc_vdisable(void)
 #if defined(_POSIX_VDISABLE) && HAVE_UNISTD_H
     value = _POSIX_VDISABLE;
 #endif
-#if defined(_PC_VDISABLE)
+#if defined(_PC_VDISABLE) && HAVE_FPATHCONF
     if (value == -1) {
 	value = (int) fpathconf(0, _PC_VDISABLE);
 	if (value == -1) {
@@ -148,34 +148,40 @@ killchar(void)
 }
 #endif
 
+static void
+flush_input(int fd)
+{
+#ifdef TERMIOS
+    tcflush(fd, TCIFLUSH);
+#else /* !TERMIOS */
+    errno = 0;
+    do {
+#if defined(EXP_WIN32_DRIVER)
+	_nc_console_flush(_nc_console_fd2handle(fd));
+#else
+	ioctl(fd, TIOCFLUSH, 0);
+#endif
+    } while
+	(errno == EINTR);
+#endif
+}
+
 /*
  *	flushinp()
  *
- *	Flush any input on cur_term->Filedes
- *
+ *	Flush any input on tty
  */
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(flushinp) (NCURSES_SP_DCL0)
 {
-    TERMINAL *termp = TerminalOf(SP_PARM);
-
     T((T_CALLED("flushinp(%p)"), (void *) SP_PARM));
 
-    if (termp != 0) {
-#ifdef TERMIOS
-	tcflush(termp->Filedes, TCIFLUSH);
-#else
-	errno = 0;
-	do {
-#if defined(EXP_WIN32_DRIVER)
-	    _nc_console_flush(_nc_console_fd2handle(termp->Filedes));
-#else
-	    ioctl(termp->Filedes, TIOCFLUSH, 0);
-#endif
-	} while
-	    (errno == EINTR);
-#endif
+    if (SP_PARM != 0) {
+	if (NC_ISATTY(SP_PARM->_ifd))
+	    flush_input(SP_PARM->_ifd);
+	else if (NC_ISATTY(SP_PARM->_ofd))
+	    flush_input(SP_PARM->_ofd);
 	if (SP_PARM) {
 	    SP_PARM->_fifohead = -1;
 	    SP_PARM->_fifotail = 0;

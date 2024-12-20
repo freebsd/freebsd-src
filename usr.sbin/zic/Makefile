@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/contrib/tzcode
 
 PROG=	zic

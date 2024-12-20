@@ -67,7 +67,7 @@
 #define	FREEBSD32_SYS_umask	60
 #define	FREEBSD32_SYS_chroot	61
 				/* 62 is old freebsd32_fstat */
-				/* 63 is obsolete ogetkerninfo */
+				/* 63 is obsolete getkerninfo */
 				/* 64 is old getpagesize */
 #define	FREEBSD32_SYS_msync	65
 #define	FREEBSD32_SYS_vfork	66
@@ -140,7 +140,7 @@
 #define	FREEBSD32_SYS_mkdir	136
 #define	FREEBSD32_SYS_rmdir	137
 #define	FREEBSD32_SYS_freebsd32_utimes	138
-				/* 139 is obsolete sigreturn */
+				/* 139 is obsolete freebsd32_sigreturn */
 #define	FREEBSD32_SYS_freebsd32_adjtime	140
 				/* 141 is old getpeername */
 				/* 142 is old gethostid */
@@ -507,22 +507,25 @@
 #define	FREEBSD32_SYS_freebsd32_timerfd_gettime	586
 #define	FREEBSD32_SYS_freebsd32_timerfd_settime	587
 #define	FREEBSD32_SYS_kcmp	588
-#define	FREEBSD32_SYS_osdb_exec	589
-#define	FREEBSD32_SYS_freebsd32_osdb_prepare_v2	590
-#define	FREEBSD32_SYS_osdb_step	591
-#define	FREEBSD32_SYS_osdb_finalize	592
-#define	FREEBSD32_SYS_osdb_column_blob	593
-#define	FREEBSD32_SYS_osdb_column_double	594
-#define	FREEBSD32_SYS_osdb_column_int	595
-#define	FREEBSD32_SYS_freebsd32_osdb_column_int64	596
-#define	FREEBSD32_SYS_osdb_column_text	597
-#define	FREEBSD32_SYS_osdb_column_text16	598
-#define	FREEBSD32_SYS_osdb_column_value	599
-#define	FREEBSD32_SYS_osdb_column_bytes	600
-#define	FREEBSD32_SYS_osdb_column_bytes16	601
-#define	FREEBSD32_SYS_osdb_column_type	602
-#define	FREEBSD32_SYS_osdb_column_count	603
-#define	FREEBSD32_SYS_osdb_column_name	604
-#define	FREEBSD32_SYS_osdb_sample	605
-#define	FREEBSD32_SYS_osdb_snapshot_clear	606
-#define	FREEBSD32_SYS_MAXSYSCALL	607
+#define	FREEBSD32_SYS_getrlimitusage	589
+#define	FREEBSD32_SYS_fchroot	590
+#define	FREEBSD32_SYS_freebsd32_setcred	591
+#define	FREEBSD32_SYS_osdb_exec	592
+#define	FREEBSD32_SYS_freebsd32_osdb_prepare_v2	593
+#define	FREEBSD32_SYS_osdb_step	594
+#define	FREEBSD32_SYS_osdb_finalize	595
+#define	FREEBSD32_SYS_osdb_column_blob	596
+#define	FREEBSD32_SYS_osdb_column_double	597
+#define	FREEBSD32_SYS_osdb_column_int	598
+#define	FREEBSD32_SYS_freebsd32_osdb_column_int64	599
+#define	FREEBSD32_SYS_osdb_column_text	600
+#define	FREEBSD32_SYS_osdb_column_text16	601
+#define	FREEBSD32_SYS_osdb_column_value	602
+#define	FREEBSD32_SYS_osdb_column_bytes	603
+#define	FREEBSD32_SYS_osdb_column_bytes16	604
+#define	FREEBSD32_SYS_osdb_column_type	605
+#define	FREEBSD32_SYS_osdb_column_count	606
+#define	FREEBSD32_SYS_osdb_column_name	607
+#define	FREEBSD32_SYS_osdb_sample	608
+#define	FREEBSD32_SYS_osdb_snapshot_clear	609
+#define	FREEBSD32_SYS_MAXSYSCALL	610

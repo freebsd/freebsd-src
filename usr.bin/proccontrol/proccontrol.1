@@ -1,5 +1,4 @@
-.\" Copyright (c) 2019 The FreeBSD Foundation, Inc.
-.\" All rights reserved.
+.\" Copyright (c) 2019 The FreeBSD Foundation
 .\"
 .\" This documentation was written by
 .\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
@@ -26,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 5, 2023
+.Dd December 14, 2024
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -35,9 +34,12 @@
 .Sh SYNOPSIS
 .Nm
 .Fl m Ar mode
-.Op Fl s Ar control
-.Op Fl q
+.Fl s Ar control
 .Fl p Ar pid | command
+.Nm
+.Fl m Ar mode
+.Fl q
+.Op Fl p Ar pid | command
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,7 +56,7 @@ parameter
 Possible values for
 .Ar mode
 are:
-.Bl -tag -width trapcap
+.Bl -tag -width logsigexit
 .It Ar aslr
 Control the Address Space Layout Randomization.
 Only applicable to the new process spawned.
@@ -77,6 +79,9 @@ Controls the KPTI enable, AMD64 only.
 .It Ar la48
 Control limiting usermode process address space to 48 bits of address,
 AMD64 only, on machines capable of 57-bit addressing.
+.It Ar logsigexit
+Controls the logging of exits due to a signal that would normally cause a core
+dump.
 .El
 .Pp
 The

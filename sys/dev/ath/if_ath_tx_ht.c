@@ -222,7 +222,6 @@ void
 ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = bf->bf_node;
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
@@ -284,7 +283,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		if (IS_HT_RATE(rate)) {
 			rc[i].flags |= ATH_RC_HT_FLAG;
 
-			if (ni->ni_chw == 40)
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 				rc[i].flags |= ATH_RC_CW40_FLAG;
 
 			/*
@@ -296,18 +295,14 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			 * and doesn't return the fractional part, so
 			 * we are always "out" by some amount.
 			 */
-			if (ni->ni_chw == 40 &&
-			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40 &&
-			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40 &&
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40 &&
+			    ieee80211_ht_check_tx_shortgi_40(ni) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
 			}
 
-			if (ni->ni_chw == 20 &&
-			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20 &&
-			    vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20 &&
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_40 &&
+			    ieee80211_ht_check_tx_shortgi_20(ni) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;
 			}
@@ -406,7 +401,6 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ieee80211_node *ni = first_bf->bf_node;
-	struct ieee80211vap *vap = ni->ni_vap;
 	int ndelim, mindelim = 0;
 	int mpdudensity;	/* in 1/100'th of a microsecond */
 	int peer_mpdudensity;	/* net80211 value */
@@ -418,17 +412,7 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	/*
 	 * Get the advertised density from the node.
 	 */
-	peer_mpdudensity =
-	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
-
-	/*
-	 * vap->iv_ampdu_density is a net80211 value, rather than the actual
-	 * density.  Larger values are longer A-MPDU density spacing values,
-	 * and we want to obey larger configured / negotiated density values
-	 * per station if we get it.
-	 */
-	if (vap->iv_ampdu_density > peer_mpdudensity)
-		peer_mpdudensity = vap->iv_ampdu_density;
+	peer_mpdudensity = ieee80211_ht_get_node_ampdu_density(ni);
 
 	/*
 	 * Convert the A-MPDU density net80211 value to a 1/100 microsecond
@@ -563,8 +547,6 @@ static int
 ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-
 	int amin = ATH_AGGR_MAXSIZE;
 	int i;
 
@@ -572,15 +554,9 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
 		amin = sc->sc_aggr_limit;
 
-	/* Check the vap configured transmit limit */
-	amin = MIN(amin, ath_rx_ampdu_to_byte(vap->iv_ampdu_limit));
-
-	/*
-	 * Check the HTCAP field for the maximum size the node has
-	 * negotiated.  If it's smaller than what we have, cap it there.
-	 */
-	amin = MIN(amin, ath_rx_ampdu_to_byte(
-	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU)));
+	/* Check the vap and node configured transmit limit */
+	amin = MIN(amin,
+	    ath_rx_ampdu_to_byte(ieee80211_ht_get_node_ampdu_limit(ni)));
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)
@@ -593,7 +569,7 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
 	    "peer maxrxampdu=%d, max frame len=%d\n",
 	    __func__,
 	    sc->sc_aggr_limit,
-	    vap->iv_ampdu_limit,
+	    ni->ni_vap->iv_ampdu_limit,
 	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU),
 	    amin);
 

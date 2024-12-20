@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <paths.h>
-#include <err.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -42,7 +41,6 @@
 #include <netlink/netlink_snl_route_compat.h>
 #include <netlink/netlink_snl_route_parsers.h>
 
-#include <libxo/xo.h>
 #include "ndp.h"
 
 #define RTF_ANNOUNCE	RTF_PROTO2
@@ -56,12 +54,12 @@ nl_init_socket(struct snl_state *ss)
 	if (modfind("netlink") == -1 && errno == ENOENT) {
 		/* Try to load */
 		if (kldload("netlink") == -1)
-			err(1, "netlink is not loaded and load attempt failed");
+			xo_err(1, "netlink is not loaded and load attempt failed");
 		if (snl_init(ss, NETLINK_ROUTE))
 			return;
 	}
 
-	err(1, "unable to open netlink socket");
+	xo_err(1, "unable to open netlink socket");
 }
 
 static bool
@@ -316,12 +314,24 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 	struct snl_state ss_req = {}, ss_cmd = {};
 	struct snl_parsed_link_simple link = {};
 	struct snl_writer nw;
+	struct nlmsghdr *hdr;
+	struct ndmsg *ndmsg;
 
 	nl_init_socket(&ss_req);
 	snl_init_writer(&ss_req, &nw);
 
-	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETNEIGH);
-	struct ndmsg *ndmsg = snl_reserve_msg_object(&nw, struct ndmsg);
+	/* Print header */
+	if (!opts.tflag && !cflag) {
+		char xobuf[200];
+		snprintf(xobuf, sizeof(xobuf),
+		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:/%%1s} {T:/%%5s}\n",
+		    W_ADDR, W_ADDR, W_LL, W_LL, W_IF, W_IF);
+		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
+	}
+
+again:
+	hdr = snl_create_msg_request(&nw, RTM_GETNEIGH);
+	ndmsg = snl_reserve_msg_object(&nw, struct ndmsg);
 	if (ndmsg != NULL) {
 		ndmsg->ndm_family = AF_INET6;
 		ndmsg->ndm_ifindex = ifindex;
@@ -337,14 +347,6 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 	int count = 0;
 	nl_init_socket(&ss_cmd);
 
-	/* Print header */
-	if (!opts.tflag && !cflag) {
-		char xobuf[200];
-		snprintf(xobuf, sizeof(xobuf),
-		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:%%1s} {T:%%5s}\n",
-		    W_ADDR, W_ADDR, W_LL, W_LL, W_IF, W_IF);
-		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
-	}
 	xo_open_list("neighbor-cache");
 
 	while ((hdr = snl_read_reply_multi(&ss_req, nlmsg_seq, &e)) != NULL) {
@@ -382,6 +384,12 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 
 		count++;
 		snl_clear_lb(&ss_req);
+	}
+	if (opts.repeat) {
+		xo_emit("\n");
+		xo_flush();
+		sleep(opts.repeat);
+		goto again;
 	}
 	xo_close_list("neighbor-cache");
 

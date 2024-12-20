@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/puc ${SRCTOP}/sys/dev/uart/
 
 KMOD=	puc

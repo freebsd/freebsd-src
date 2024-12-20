@@ -1,4 +1,3 @@
-
 LOADER_DISK_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
 LOADER_MSDOS_SUPPORT?=	no
@@ -25,11 +24,14 @@ SRCS=	\
 		hostdisk.c \
 		hostfs.c \
 		init.c \
-		kbootfdt.c \
 		main.c \
 		seg.c \
 		util.c \
 		vers.c
+
+.if ${MK_FDT} != "no"
+SRCS+=		kbootfdt.c
+.endif
 
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}

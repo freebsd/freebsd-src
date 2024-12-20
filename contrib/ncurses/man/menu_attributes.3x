@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,63 +27,67 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_attributes.3x,v 1.19 2020/10/17 23:58:58 tom Exp $
-.TH menu_attributes 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: menu_attributes.3x,v 1.36 2024/03/16 15:35:01 tom Exp $
+.TH menu_attributes 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
 .SH NAME
-\fBmenu_back\fR,
-\fBmenu_fore\fR,
-\fBmenu_grey\fR,
-\fBmenu_pad\fR,
-\fBset_menu_back\fR,
-\fBset_menu_fore\fR,
-\fBset_menu_grey\fR,
-\fBset_menu_pad\fR \- color and attribute control for menus
+\fBmenu_back\fP,
+\fBmenu_fore\fP,
+\fBmenu_grey\fP,
+\fBmenu_pad\fP,
+\fBset_menu_back\fP,
+\fBset_menu_fore\fP,
+\fBset_menu_grey\fP,
+\fBset_menu_pad\fP \-
+color and attribute control for menus
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_fore(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
-.br
-\fBchtype menu_fore(const MENU *\fP\fImenu\fP\fB);\fP
-.sp
-\fBint set_menu_back(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
-.br
-\fBchtype menu_back(const MENU *\fP\fImenu\fP\fB);\fP
-.sp
-\fBint set_menu_grey(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
-.br
-\fBchtype menu_grey(const MENU *\fP\fImenu\fP\fB);\fP
-.sp
-\fBint set_menu_pad(MENU *\fP\fImenu\fP\fB, int \fP\fIpad\fP\fB);\fP
-.br
-\fBint menu_pad(const MENU *\fP\fImenu\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_fore(MENU *\fImenu\fP, chtype \fIattr\fP);
+\fBchtype menu_fore(const MENU *\fImenu\fP);
+.PP
+\fBint set_menu_back(MENU *\fImenu\fP, chtype \fIattr\fP);
+\fBchtype menu_back(const MENU *\fImenu\fP);
+.PP
+\fBint set_menu_grey(MENU *\fImenu\fP, chtype \fIattr\fP);
+\fBchtype menu_grey(const MENU *\fImenu\fP);
+.PP
+\fBint set_menu_pad(MENU *\fImenu\fP, int \fIpad\fP);
+\fBint menu_pad(const MENU *\fImenu\fP);
+.fi
 .SH DESCRIPTION
-The function \fBset_menu_fore\fR sets the foreground attribute of
-\fImenu\fR. This is the highlight used for selected menu items.
-\fBmenu_fore\fR returns the foreground attribute.
+The function \fBset_menu_fore\fP sets the foreground attribute of
+\fImenu\fP. This is the highlight used for selected menu items.
+\fBmenu_fore\fP returns the foreground attribute.
 The default
-is \fBA_REVERSE\fR.
+is \fBA_REVERSE\fP.
 .PP
-The function \fBset_menu_back\fR sets the background attribute of
-\fImenu\fR. This is the highlight used for selectable (but not currently
+The function \fBset_menu_back\fP sets the background attribute of
+\fImenu\fP. This is the highlight used for selectable (but not currently
 selected) menu items.
-The function \fBmenu_back\fR returns the background
+The function \fBmenu_back\fP returns the background
 attribute.
-The default is \fBA_NORMAL\fR.
+The default is \fBA_NORMAL\fP.
 .PP
-The function \fBset_menu_grey\fR sets the grey attribute of \fImenu\fR. This is
+The function \fBset_menu_grey\fP sets the grey attribute of \fImenu\fP. This is
 the highlight used for un-selectable menu items in menus that permit more than
 one selection.
-The function \fBmenu_grey\fR returns the grey attribute.
-The default is \fBA_UNDERLINE\fR.
+The function \fBmenu_grey\fP returns the grey attribute.
+The default is \fBA_UNDERLINE\fP.
 .PP
-The function \fBset_menu_pad\fR sets the character used to fill the space
+The function \fBset_menu_pad\fP sets the character used to fill the space
 between the name and description parts of a menu item.
-\fBmenu_pad\fR returns
+\fBmenu_pad\fP returns
 the given menu's pad character.
 The default is a blank.
 .SH RETURN VALUE
@@ -94,16 +97,10 @@ These routines return one of the following:
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
+System error occurred (see \fBerrno\fP(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
-.SH SEE ALSO
-\fBcurses\fR(3X) and related pages whose names begin \*(``menu_\*('' for detailed
-descriptions of the entry points.
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -111,3 +108,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X) and related pages whose names begin \*(``menu_\*(''
+for detailed descriptions of the entry points.

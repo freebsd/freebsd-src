@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -430,11 +432,6 @@ usie_attach(device_t self)
 
 	/* setup ifnet (Direct IP) */
 	sc->sc_ifp = ifp = if_alloc(IFT_OTHER);
-
-	if (ifp == NULL) {
-		device_printf(self, "Could not allocate a network interface\n");
-		goto detach;
-	}
 	if_initname(ifp, "usie", device_get_unit(self));
 
 	if_setsoftc(ifp, sc);
@@ -1195,7 +1192,7 @@ usie_if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	switch (dst->sa_family) {
 #ifdef INET6
-	case AF_INET6;
+	case AF_INET6:
 	/* fall though */
 #endif
 	case AF_INET:

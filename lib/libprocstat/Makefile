@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 LIB=	procstat
@@ -65,8 +64,6 @@ zfs/zfs_defs.pico: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pico
 zfs/zfs_defs.pieo: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pieo
-zfs/zfs_defs.po: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.po
 .endif
 
 .include <bsd.lib.mk>

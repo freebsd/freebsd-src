@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2023, Intel Corporation
+/*  Copyright (c) 2024, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,24 @@
 #define ICE_DEV_ID_E823L_1GBE		0x124F
 /* Intel(R) Ethernet Connection E823-L for QSFP */
 #define ICE_DEV_ID_E823L_QSFP		0x151D
+/* Intel(R) Ethernet Controller E830-CC for backplane */
+#define ICE_DEV_ID_E830_BACKPLANE	0x12D1
+/* Intel(R) Ethernet Controller E830-CC for QSFP */
+#define ICE_DEV_ID_E830_QSFP56		0x12D2
+/* Intel(R) Ethernet Controller E830-CC for SFP */
+#define ICE_DEV_ID_E830_SFP		0x12D3
+/* Intel(R) Ethernet Controller E830-C for backplane */
+#define ICE_DEV_ID_E830C_BACKPLANE      0x12D5
+/* Intel(R) Ethernet Controller E830-L for backplane */
+#define ICE_DEV_ID_E830_L_BACKPLANE   0x12DC
+/* Intel(R) Ethernet Controller E830-C for QSFP */
+#define ICE_DEV_ID_E830C_QSFP           0x12D8
+/* Intel(R) Ethernet Controller E830-L for QSFP */
+#define ICE_DEV_ID_E830_L_QSFP        0x12DD
+/* Intel(R) Ethernet Controller E830-C for SFP */
+#define ICE_DEV_ID_E830C_SFP            0x12DA
+/* Intel(R) Ethernet Controller E830-L for SFP */
+#define ICE_DEV_ID_E830_L_SFP         0x12DE
 /* Intel(R) Ethernet Controller E810-C for backplane */
 #define ICE_DEV_ID_E810C_BACKPLANE	0x1591
 /* Intel(R) Ethernet Controller E810-C for QSFP */
@@ -52,11 +70,11 @@
 #define ICE_DEV_ID_E810C_SFP		0x1593
 #define ICE_SUBDEV_ID_E810T		0x000E
 #define ICE_SUBDEV_ID_E810T2		0x000F
-#define ICE_SUBDEV_ID_E810T3		0x02E9
-#define ICE_SUBDEV_ID_E810T4		0x02EA
-#define ICE_SUBDEV_ID_E810T5		0x0010
-#define ICE_SUBDEV_ID_E810T6		0x0012
-#define ICE_SUBDEV_ID_E810T7		0x0011
+#define ICE_SUBDEV_ID_E810T3		0x0010
+#define ICE_SUBDEV_ID_E810T4		0x0011
+#define ICE_SUBDEV_ID_E810T5		0x0012
+#define ICE_SUBDEV_ID_E810T6		0x02E9
+#define ICE_SUBDEV_ID_E810T7		0x02EA
 /* Intel(R) Ethernet Controller E810-XXV for backplane */
 #define ICE_DEV_ID_E810_XXV_BACKPLANE	0x1599
 /* Intel(R) Ethernet Controller E810-XXV for QSFP */
@@ -91,4 +109,12 @@
 #define ICE_DEV_ID_E822L_10G_BASE_T	0x1899
 /* Intel(R) Ethernet Connection E822-L 1GbE */
 #define ICE_DEV_ID_E822L_SGMII		0x189A
+/* Intel(R) Ethernet Connection E825-C for backplane */
+#define ICE_DEV_ID_E825C_BACKPLANE	0x579C
+/* Intel(R) Ethernet Connection E825-C for QSFP */
+#define ICE_DEV_ID_E825C_QSFP		0x579D
+/* Intel(R) Ethernet Connection E825-C for SFP */
+#define ICE_DEV_ID_E825C_SFP		0x579E
+/* Intel(R) Ethernet Connection E825-C 1GbE */
+#define ICE_DEV_ID_E825C_SGMII		0x579F
 #endif /* _ICE_DEVIDS_H_ */

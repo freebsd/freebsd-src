@@ -10,6 +10,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <dev/nvme/nvme.h>
 #include <dev/nvmf/nvmf.h>
 #include <dev/nvmf/nvmf_transport.h>
@@ -31,6 +32,7 @@ struct nvmf_host_qpair {
 	u_int	num_commands;
 	uint16_t sqhd;
 	uint16_t sqtail;
+	uint64_t submitted;
 
 	struct mtx lock;
 
@@ -41,6 +43,7 @@ struct nvmf_host_qpair {
 	struct nvmf_host_command **active_commands;
 
 	char	name[16];
+	struct sysctl_ctx_list sysctl_ctx;
 };
 
 struct nvmf_request *
@@ -112,7 +115,22 @@ nvmf_dispatch_command(struct nvmf_host_qpair *qp, struct nvmf_host_command *cmd)
 	struct nvmf_softc *sc = qp->sc;
 	struct nvme_command *sqe;
 	struct nvmf_capsule *nc;
+	uint16_t new_sqtail;
 	int error;
+
+	mtx_assert(&qp->lock, MA_OWNED);
+
+	qp->submitted++;
+
+	/*
+	 * Update flow control tracking.  This is just a sanity check.
+	 * Since num_commands == qsize - 1, there can never be too
+	 * many commands in flight.
+	 */
+	new_sqtail = (qp->sqtail + 1) % (qp->num_commands + 1);
+	KASSERT(new_sqtail != qp->sqhd, ("%s: qp %p is full", __func__, qp));
+	qp->sqtail = new_sqtail;
+	mtx_unlock(&qp->lock);
 
 	nc = cmd->req->nc;
 	sqe = nvmf_capsule_sqe(nc);
@@ -177,11 +195,23 @@ nvmf_receive_capsule(void *arg, struct nvmf_capsule *nc)
 		return;
 	}
 
+	/* Update flow control tracking. */
+	mtx_lock(&qp->lock);
+	if (qp->sq_flow_control) {
+		if (nvmf_sqhd_valid(nc))
+			qp->sqhd = le16toh(cqe->sqhd);
+	} else {
+		/*
+		 * If SQ FC is disabled, just advance the head for
+		 * each response capsule received.
+		 */
+		qp->sqhd = (qp->sqhd + 1) % (qp->num_commands + 1);
+	}
+
 	/*
 	 * If the queue has been shutdown due to an error, silently
 	 * drop the response.
 	 */
-	mtx_lock(&qp->lock);
 	if (qp->qp == NULL) {
 		device_printf(sc->dev,
 		    "received completion for CID %u on shutdown %s\n", cid,
@@ -212,7 +242,6 @@ nvmf_receive_capsule(void *arg, struct nvmf_capsule *nc)
 	} else {
 		cmd->req = STAILQ_FIRST(&qp->pending_requests);
 		STAILQ_REMOVE_HEAD(&qp->pending_requests, link);
-		mtx_unlock(&qp->lock);
 		nvmf_dispatch_command(qp, cmd);
 	}
 
@@ -221,9 +250,39 @@ nvmf_receive_capsule(void *arg, struct nvmf_capsule *nc)
 	nvmf_free_request(req);
 }
 
+static void
+nvmf_sysctls_qp(struct nvmf_softc *sc, struct nvmf_host_qpair *qp,
+    bool admin, u_int qid)
+{
+	struct sysctl_ctx_list *ctx = &qp->sysctl_ctx;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *list;
+	char name[8];
+
+	if (admin) {
+		oid = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
+		    "adminq", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Admin Queue");
+	} else {
+		snprintf(name, sizeof(name), "%u", qid);
+		oid = SYSCTL_ADD_NODE(ctx, sc->ioq_oid_list, OID_AUTO, name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "I/O Queue");
+	}
+	list = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "num_entries", CTLFLAG_RD,
+	    NULL, qp->num_commands + 1, "Number of entries in queue");
+	SYSCTL_ADD_U16(ctx, list, OID_AUTO, "sq_head", CTLFLAG_RD, &qp->sqhd,
+	    0, "Current head of submission queue (as observed by driver)");
+	SYSCTL_ADD_U16(ctx, list, OID_AUTO, "sq_tail", CTLFLAG_RD, &qp->sqtail,
+	    0, "Current tail of submission queue (as observed by driver)");
+	SYSCTL_ADD_U64(ctx, list, OID_AUTO, "num_cmds", CTLFLAG_RD,
+	    &qp->submitted, 0, "Number of commands submitted");
+}
+
 struct nvmf_host_qpair *
 nvmf_init_qp(struct nvmf_softc *sc, enum nvmf_trtype trtype,
-    struct nvmf_handoff_qpair_params *handoff, const char *name)
+    struct nvmf_handoff_qpair_params *handoff, const char *name, u_int qid)
 {
 	struct nvmf_host_command *cmd, *ncmd;
 	struct nvmf_host_qpair *qp;
@@ -236,6 +295,7 @@ nvmf_init_qp(struct nvmf_softc *sc, enum nvmf_trtype trtype,
 	qp->sqtail = handoff->sqtail;
 	strlcpy(qp->name, name, sizeof(qp->name));
 	mtx_init(&qp->lock, "nvmf qp", NULL, MTX_DEF);
+	(void)sysctl_ctx_init(&qp->sysctl_ctx);
 
 	/*
 	 * Allocate a spare command slot for each pending AER command
@@ -258,6 +318,7 @@ nvmf_init_qp(struct nvmf_softc *sc, enum nvmf_trtype trtype,
 	qp->qp = nvmf_allocate_qpair(trtype, false, handoff, nvmf_qp_error,
 	    qp, nvmf_receive_capsule, qp);
 	if (qp->qp == NULL) {
+		(void)sysctl_ctx_free(&qp->sysctl_ctx);
 		TAILQ_FOREACH_SAFE(cmd, &qp->free_commands, link, ncmd) {
 			TAILQ_REMOVE(&qp->free_commands, cmd, link);
 			free(cmd, M_NVMF);
@@ -267,6 +328,8 @@ nvmf_init_qp(struct nvmf_softc *sc, enum nvmf_trtype trtype,
 		free(qp, M_NVMF);
 		return (NULL);
 	}
+
+	nvmf_sysctls_qp(sc, qp, handoff->admin, qid);
 
 	return (qp);
 }
@@ -339,6 +402,7 @@ nvmf_destroy_qp(struct nvmf_host_qpair *qp)
 	struct nvmf_host_command *cmd, *ncmd;
 
 	nvmf_shutdown_qp(qp);
+	(void)sysctl_ctx_free(&qp->sysctl_ctx);
 
 	TAILQ_FOREACH_SAFE(cmd, &qp->free_commands, link, ncmd) {
 		TAILQ_REMOVE(&qp->free_commands, cmd, link);
@@ -381,6 +445,5 @@ nvmf_submit_request(struct nvmf_request *req)
 	    ("%s: CID already busy", __func__));
 	qp->active_commands[cmd->cid] = cmd;
 	cmd->req = req;
-	mtx_unlock(&qp->lock);
 	nvmf_dispatch_command(qp, cmd);
 }

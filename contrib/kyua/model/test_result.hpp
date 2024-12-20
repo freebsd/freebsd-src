@@ -34,10 +34,25 @@
 
 #include "model/test_result_fwd.hpp"
 
+#include <map>
 #include <ostream>
 #include <string>
 
 namespace model {
+
+
+/// Test result type metadata.
+struct test_result_type_desc {
+    enum test_result_type id;
+    std::string name;
+    bool is_run;
+    bool is_good;
+};
+
+
+/// Description of each test result type.
+extern const std::map<enum test_result_type,
+    const struct test_result_type_desc> test_result_types;
 
 
 /// Representation of a single test result.

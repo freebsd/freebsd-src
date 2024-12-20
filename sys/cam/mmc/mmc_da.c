@@ -88,9 +88,11 @@ typedef enum {
 	SDDA_STATE_PART_SWITCH,
 } sdda_state;
 
-#define	SDDA_FMT_BOOT		"sdda%dboot"
-#define	SDDA_FMT_GP		"sdda%dgp"
-#define	SDDA_FMT_RPMB		"sdda%drpmb"
+/* Purposefully ignore a '%d' argument to snprintf in SDDA_FMT! */
+#define	SDDA_FMT		"%s"
+#define	SDDA_FMT_BOOT		"%s%dboot"
+#define	SDDA_FMT_GP		"%s%dgp"
+#define	SDDA_FMT_RPMB		"%s%drpmb"
 #define	SDDA_LABEL_ENH		"enh"
 
 #define	SDDA_PART_NAMELEN	(16 + 1)
@@ -1480,7 +1482,7 @@ finish_hs_tests:
 		sdda_process_mmc_partitions(periph, start_ccb);
 	} else if (mmcp->card_features & CARD_FEATURE_MEMORY) {
 		/* For SD[HC] cards, just add one partition that is the whole card */
-		if (sdda_add_part(periph, 0, "sdda",
+		if (sdda_add_part(periph, 0, SDDA_FMT,
 		    periph->unit_number,
 		    mmc_get_media_size(periph),
 		    sdda_get_read_only(periph, start_ccb)) == false)
@@ -1525,7 +1527,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->type = type;
 	part->ro = ro;
 	part->sc = sc;
-	snprintf(part->name, sizeof(part->name), name, periph->unit_number);
+	snprintf(part->name, sizeof(part->name), name, "sdda", periph->unit_number);
 
 	/*
 	 * Due to the nature of RPMB partition it doesn't make much sense
@@ -1592,8 +1594,11 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_fwsectors = 0;
 	part->disk->d_fwheads = 0;
 
-	if (sdda_mmcsd_compat)
-		disk_add_alias(part->disk, "mmcsd");
+	if (sdda_mmcsd_compat) {
+		char cname[SDDA_PART_NAMELEN];	/* This equals the mmcsd namelen. */
+		snprintf(cname, sizeof(cname), name, "mmcsd", periph->unit_number);
+		disk_add_alias(part->disk, cname);
+	}
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
@@ -1682,7 +1687,7 @@ sdda_process_mmc_partitions(struct cam_periph *periph, union ccb *ccb)
 	 * data area in case partitions are supported.
 	 */
 	ro = sdda_get_read_only(periph, ccb);
-	sdda_add_part(periph, EXT_CSD_PART_CONFIG_ACC_DEFAULT, "sdda",
+	sdda_add_part(periph, EXT_CSD_PART_CONFIG_ACC_DEFAULT, SDDA_FMT,
 	    periph->unit_number, mmc_get_media_size(periph), ro);
 	sc->part_curr = EXT_CSD_PART_CONFIG_ACC_DEFAULT;
 

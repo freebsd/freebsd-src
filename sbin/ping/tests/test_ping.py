@@ -63,14 +63,14 @@ def build_response_packet(echo, ip, icmp, oip_ihl, special):
     if icmp.type in icmp_id_seq_types:
         pkt = ip / icmp / load
     else:
-        ip.options = ""
+        del ip.options
         pkt = ip / icmp / oip / oicmp / load
     return pkt
 
 
 def generate_ip_options(opts):
     if not opts:
-        return ""
+        return []
 
     routers = [
         "192.0.2.10",
@@ -85,11 +85,11 @@ def generate_ip_options(opts):
     ]
     routers_zero = [0, 0, 0, 0, 0, 0, 0, 0, 0]
     if opts == "EOL":
-        options = sc.IPOption(b"\x00")
+        options = sc.IPOption_EOL()
     elif opts == "NOP":
-        options = sc.IPOption(b"\x01")
+        options = sc.IPOption_NOP()
     elif opts == "NOP-40":
-        options = sc.IPOption(b"\x01" * 40)
+        options = sc.IPOption_NOP() * 40
     elif opts == "RR":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
         options = sc.IPOption_RR(pointer=40, routers=routers)
@@ -113,12 +113,12 @@ def generate_ip_options(opts):
         options = sc.IPOption_SSRR(length=3, routers=routers_zero)
     elif opts == "unk":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
-        options = sc.IPOption(b"\x9f")
+        options = b"\x9f"
     elif opts == "unk-40":
         ToolsHelper.set_sysctl("net.inet.ip.process_options", 0)
-        options = sc.IPOption(b"\x9f" * 40)
+        options = b"\x9f" * 40
     else:
-        options = ""
+        options = []
     return options
 
 
@@ -134,7 +134,7 @@ def pinger(
     icmp_code: sc.scapy.fields.MultiEnumField,
     # IP arguments
     ihl: Optional[sc.scapy.fields.BitField] = None,
-    flags: Optional[sc.scapy.fields.FlagsField] = None,
+    flags: Optional[sc.scapy.fields.FlagsField] = 0,
     opts: Optional[str] = None,
     oip_ihl: Optional[sc.scapy.fields.BitField] = None,
     special: Optional[str] = None,
@@ -169,7 +169,7 @@ def pinger(
 
     :keyword ihl: Internet Header Length, defaults to None
     :type ihl: class:`scapy.fields.BitField`, optional
-    :keyword flags: IP flags - one of `DF`, `MF` or `evil`, defaults to None
+    :keyword flags: IP flags - one of `DF`, `MF` or `evil`, defaults to 0
     :type flags: class:`scapy.fields.FlagsField`, optional
     :keyword opts: Include IP options - one of `EOL`, `NOP`, `NOP-40`, `unk`,
         `unk-40`, `RR`, `RR-same`, `RR-trunc`, `LSRR`, `LSRR-trunc`, `SSRR` or
@@ -270,15 +270,15 @@ def pinger(
 def redact(output):
     """Redact some elements of ping's output"""
     pattern_replacements = [
-        ("localhost \([0-9]{1,3}(\.[0-9]{1,3}){3}\)", "localhost"),
-        ("from [0-9]{1,3}(\.[0-9]{1,3}){3}", "from"),
+        (r"localhost \([0-9]{1,3}(\.[0-9]{1,3}){3}\)", "localhost"),
+        (r"from [0-9]{1,3}(\.[0-9]{1,3}){3}", "from"),
         ("hlim=[0-9]*", "hlim="),
         ("ttl=[0-9]*", "ttl="),
         ("time=[0-9.-]*", "time="),
         ("cp: .*", "cp: xx xx xx xx xx xx xx xx"),
         ("dp: .*", "dp: xx xx xx xx xx xx xx xx"),
-        ("\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
-        ("[0-9\.]+/[0-9.]+", "/"),
+        (r"\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
+        (r"[0-9\.]+/[0-9.]+", "/"),
     ]
     for pattern, repl in pattern_replacements:
         output = re.sub(pattern, repl, output)
@@ -724,6 +724,7 @@ PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
 
     @pytest.mark.parametrize("expected", testdata)
     @pytest.mark.require_user("root")
+    @pytest.mark.require_user("unprivileged")
     def test_ping(self, expected):
         """Test ping"""
         ping = subprocess.run(
@@ -753,6 +754,7 @@ PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
 
     @pytest.mark.parametrize("expected", ping46_testdata)
     @pytest.mark.require_user("root")
+    @pytest.mark.require_user("unprivileged")
     def test_ping_46(self, expected):
         """Test ping -4/ping -6"""
         for version in [4, 6]:

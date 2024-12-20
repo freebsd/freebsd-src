@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 .include "${.CURDIR:H}/config.mk"
 
@@ -166,9 +165,6 @@ SYMLINKS+=	libformw.a ${LIBDIR}/libform.a
 .endif
 .if !defined(NO_PIC)
 SYMLINKS+=	libformw.so ${LIBDIR}/libform.so
-.endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libformw_p.a ${LIBDIR}/libform_p.a
 .endif
 
 .include <bsd.lib.mk>

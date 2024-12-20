@@ -183,6 +183,7 @@ static const STRUCT_USB_HOST_ID uath_devs[] = {
 	UATH_DEV(UMEDIA,		AR5523_2),
 	UATH_DEV(WISTRONNEWEB,		AR5523_1),
 	UATH_DEV(WISTRONNEWEB,		AR5523_2),
+	UATH_DEV(WISTRONNEWEB,		AR5523_2_ALT),
 	UATH_DEV(ZCOM,			AR5523)
 #undef UATH_DEV
 };
@@ -1830,6 +1831,8 @@ uath_set_channel(struct ieee80211com *ic)
 		UATH_UNLOCK(sc);
 		return;
 	}
+	/* flush data & control requests into the target  */
+	(void)uath_flush(sc);
 	(void)uath_switch_channel(sc, ic->ic_curchan);
 	UATH_UNLOCK(sc);
 }
@@ -2014,6 +2017,8 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_AUTH:
+		/* flush data & control requests into the target  */
+		(void)uath_flush(sc);
 		/* XXX good place?  set RTS threshold  */
 		uath_config(sc, CFG_USER_RTS_THRESHOLD, vap->iv_rtsthreshold);
 		/* XXX bad place  */

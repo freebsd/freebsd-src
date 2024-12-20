@@ -4,9 +4,10 @@
 
 # PROVIDE: mail
 # REQUIRE: LOGIN FILESYSTEMS
-#	we make mail start late, so that things like .forward's are not
-#	processed until the system is fully operational
 # KEYWORD: shutdown
+#
+# We make mail start late, so that things like .forward's are not processed
+# until the system is fully operational.
 
 # XXX - Get together with sendmail mantainer to figure out how to
 #	better handle SENDMAIL_ENABLE and 3rd party MTAs.
@@ -41,11 +42,28 @@ esac
 if checkyesno sendmail_enable; then
 	sendmail_submit_enable="NO"
 	sendmail_outbound_enable="NO"
+	_sendmail_run=true
 fi
 
 # If sendmail_submit_enable=yes, don't need outbound daemon
 if checkyesno sendmail_submit_enable; then
+	name="sendmail_submit"
+	rcvar="sendmail_submit_enable"
 	sendmail_outbound_enable="NO"
+	_sendmail_run=true
+fi
+
+if checkyesno sendmail_outbound_enable; then
+	name="sendmail_outbound"
+	rcvar="sendmail_outbound_enable"
+	_sendmail_run=true
+fi
+
+if checkyesno sendmail_msp_queue_enable; then
+	_sendmail_msp_queue_run=true
+else
+	# Make sure run_rc_command is called at least once.
+	_sendmail_run=true
 fi
 
 sendmail_cert_create()
@@ -165,8 +183,8 @@ sendmail_precmd()
 	# Die if there's pre-8.10 custom configuration file.  This check is
 	# mandatory for smooth upgrade.  See NetBSD PR 10100 for details.
 	#
-	if checkyesno ${rcvar} && [ -f "/etc/${name}.cf" ]; then
-		if ! cmp -s "/etc/mail/${name}.cf" "/etc/${name}.cf"; then
+	if checkyesno ${rcvar} && [ -f "/etc/sendmail.cf" ]; then
+		if ! cmp -s "/etc/mail/sendmail.cf" "/etc/sendmail.cf"; then
 			warn \
     "${name} was not started; you have multiple copies of sendmail.cf."
 			return 1
@@ -204,27 +222,19 @@ sendmail_precmd()
 	fi
 }
 
-run_rc_command "$1"
-
-required_files=
-
-if checkyesno sendmail_submit_enable; then
-	name="sendmail_submit"
-	rcvar="sendmail_submit_enable"
-	_rc_restart_done=false
+if ${_sendmail_run:-false}; then
 	run_rc_command "$1"
 fi
+_ret=$?
 
-if checkyesno sendmail_outbound_enable; then
-	name="sendmail_outbound"
-	rcvar="sendmail_outbound_enable"
+if ${_sendmail_msp_queue_run:-false}; then
+	name="sendmail_msp_queue"
+	rcvar="sendmail_msp_queue_enable"
+	pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
+	required_files="/etc/mail/submit.cf"
 	_rc_restart_done=false
 	run_rc_command "$1"
+	_ret=$(( _ret > $? ? _ret : $? ))
 fi
 
-name="sendmail_msp_queue"
-rcvar="sendmail_msp_queue_enable"
-pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
-required_files="/etc/mail/submit.cf"
-_rc_restart_done=false
-run_rc_command "$1"
+(exit "$_ret")

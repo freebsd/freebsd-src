@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 .PATH: ${SRCTOP}/contrib/netcat

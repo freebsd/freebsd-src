@@ -99,6 +99,10 @@ int	uiomove_object(struct vm_object *obj, off_t obj_size, struct uio *uio);
 
 #else /* !_KERNEL */
 
+#if defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/uio.h>
+#endif
+
 __BEGIN_DECLS
 ssize_t	readv(int, const struct iovec *, int);
 ssize_t	writev(int, const struct iovec *, int);

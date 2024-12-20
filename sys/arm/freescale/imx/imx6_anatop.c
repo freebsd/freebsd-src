@@ -670,7 +670,7 @@ imx6_anatop_new_pass(device_t dev)
 	 * that attach on the CPU pass).
 	 */
 	sc = device_get_softc(dev);
-	if (!sc->cpu_init_done && bus_current_pass >= cpu_init_pass) {
+	if (!sc->cpu_init_done && bus_get_pass() >= cpu_init_pass) {
 		sc->cpu_init_done = true;
 		cpufreq_initialize(sc);
 		initialize_tempmon(sc);

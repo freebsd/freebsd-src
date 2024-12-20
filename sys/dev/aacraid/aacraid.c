@@ -335,7 +335,7 @@ aacraid_attach(struct aac_softc *sc)
 		aac_get_bus_info(sc);
 
 	/* poke the bus to actually attach the child devices */
-	bus_generic_attach(sc->aac_dev);
+	bus_attach_children(sc->aac_dev);
 
 	/* mark the controller up */
 	sc->aac_state &= ~AAC_STATE_SUSPEND;
@@ -3608,7 +3608,7 @@ aac_container_bus(struct aac_softc *sc)
 	    	"No memory to add container bus\n");
 		panic("Out of memory?!");
 	}
-	child = device_add_child(sc->aac_dev, "aacraidp", -1);
+	child = device_add_child(sc->aac_dev, "aacraidp", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(sc->aac_dev,
 	    	"device_add_child failed for container bus\n");
@@ -3631,7 +3631,7 @@ aac_container_bus(struct aac_softc *sc)
 	device_set_desc(child, aac_describe_code(aac_container_types,
 			mir->MntTable[0].VolType));
 	*/
-	bus_generic_attach(sc->aac_dev);
+	bus_attach_children(sc->aac_dev);
 }
 
 static void
@@ -3725,7 +3725,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			break;
 		}
 
-		child = device_add_child(sc->aac_dev, "aacraidp", -1);
+		child = device_add_child(sc->aac_dev, "aacraidp", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(sc->aac_dev,
 			    "device_add_child failed for passthrough bus %d\n",

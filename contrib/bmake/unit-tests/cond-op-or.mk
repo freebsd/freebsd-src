@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-or.mk,v 1.11 2023/12/17 09:44:00 rillig Exp $
+# $NetBSD: cond-op-or.mk,v 1.12 2024/07/06 21:21:10 rillig Exp $
 #
 # Tests for the || operator in .if conditions.
 
@@ -25,60 +25,75 @@
 .endif
 
 # When an outer condition makes the inner '||' condition irrelevant, neither
-# of its operands must be evaluated.  This had been wrong in cond.c 1.283 from
-# 2021-12-09 and was reverted in cond.c 1.284 an hour later.
+# of its operands is evaluated.
 .if 0 && (!defined(UNDEF) || ${UNDEF})
 .endif
 
 # Test combinations of outer '&&' with inner '||', to ensure that the operands
-# of the inner '||' is only evaluated if necessary.
+# of the inner '||' are only evaluated if necessary.
 DEF=	defined
-.if 0 && (${DEF} || ${UNDEF})
-.endif
-.if 0 && (!${DEF} || ${UNDEF})
-.endif
-.if 0 && (${UNDEF} || ${UNDEF})
-.endif
-.if 0 && (!${UNDEF} || ${UNDEF})
+# expect+1: Malformed conditional (1 && (!${DEF} || ${UNDEF}))
+.if 1 && (!${DEF} || ${UNDEF})
 .endif
 .if 1 && (${DEF} || ${UNDEF})
 .endif
-# expect+1: Malformed conditional (1 && (!${DEF} || ${UNDEF}))
-.if 1 && (!${DEF} || ${UNDEF})
+# expect+1: Malformed conditional (1 && (!${UNDEF} || ${UNDEF}))
+.if 1 && (!${UNDEF} || ${UNDEF})
 .endif
 # expect+1: Malformed conditional (1 && (${UNDEF} || ${UNDEF}))
 .if 1 && (${UNDEF} || ${UNDEF})
 .endif
-# expect+1: Malformed conditional (1 && (!${UNDEF} || ${UNDEF}))
-.if 1 && (!${UNDEF} || ${UNDEF})
+.if 0 && (!${DEF} || ${UNDEF})
+.endif
+.if 0 && (${DEF} || ${UNDEF})
+.endif
+.if 0 && (!${UNDEF} || ${UNDEF})
+.endif
+.if 0 && (${UNDEF} || ${UNDEF})
 .endif
 
 
 # The || operator may be abbreviated as |.  This is not widely known though
 # and is also not documented in the manual page.
 
+# expect+1: Unknown operator '|'
 .if 0 | 0
 .  error
+.else
+.  error
 .endif
+# expect+1: Unknown operator '|'
 .if !(1 | 0)
 .  error
-.endif
-.if !(0 | 1)
+.else
 .  error
 .endif
+# expect+1: Unknown operator '|'
+.if !(0 | 1)
+.  error
+.else
+.  error
+.endif
+# expect+1: Unknown operator '|'
 .if !(1 | 1)
+.  error
+.else
 .  error
 .endif
 
-# There is no operator |||.
-# expect+1: Malformed conditional (0 ||| 0)
+# There is no operator '|||'.  The first two '||' form an operator, the third
+# '|' forms the next (incomplete) token.
+# expect+1: Unknown operator '|'
 .if 0 ||| 0
+.  error
+.else
 .  error
 .endif
 
 # The '||' operator must be preceded by whitespace, otherwise it becomes part
-# of the preceding bare word.  The condition is parsed as '"1||" != "" || 0'.
-.if 1|| || 0
+# of the preceding bare word.  The condition starts with a digit and is thus
+# parsed as '"0||" != "" || 0'.
+.if 0|| || 0
 .else
 .  error
 .endif

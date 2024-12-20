@@ -78,7 +78,7 @@
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
  */
 #define	ALIGNED_POINTER(p, t)	1
 
@@ -154,7 +154,7 @@
 #define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
 
-#define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
+#define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
     || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))

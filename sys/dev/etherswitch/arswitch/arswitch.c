@@ -150,12 +150,6 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->sc_dev));
 	for (phy = 0; phy < sc->numphys; phy++) {
 		sc->ifp[phy] = if_alloc(IFT_ETHER);
-		if (sc->ifp[phy] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		if_setsoftc(sc->ifp[phy], sc);
 		if_setflagbits(sc->ifp[phy], IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX, 0);
@@ -655,14 +649,9 @@ arswitch_attach(device_t dev)
 		return (err);
 	}
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0) {
-		DPRINTF(sc, ARSWITCH_DBG_ANY,
-		    "%s: bus_generic_attach: err=%d\n", __func__, err);
-		return (err);
-	}
+	bus_attach_children(dev);
 	
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
 

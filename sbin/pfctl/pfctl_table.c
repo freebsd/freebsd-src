@@ -60,6 +60,7 @@ static void	print_table(struct pfr_table *, int, int);
 static void	print_tstats(struct pfr_tstats *, int);
 static int	load_addr(struct pfr_buffer *, int, char *[], char *, int);
 static void	print_addrx(struct pfr_addr *, struct pfr_addr *, int);
+static int 	nonzero_astats(struct pfr_astats *);
 static void	print_astats(struct pfr_astats *, int);
 static void	radix_perror(void);
 static void	xprintf(int, const char *, ...);
@@ -293,6 +294,36 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
 					print_addrx(a, NULL,
 					    opts & PF_OPT_USEDNS);
+	} else if (!strcmp(command, "reset")) {
+		struct pfr_astats 	*as;
+
+		b.pfrb_type = PFRB_ASTATS;
+		b2.pfrb_type = PFRB_ADDRS;
+		if (argc || file != NULL)
+			usage();
+		do {
+			pfr_buf_grow(&b, b.pfrb_size);
+			b.pfrb_size = b.pfrb_msize;
+			RVTEST(pfr_get_astats(&table, b.pfrb_caddr,
+			    &b.pfrb_size, flags));
+		} while (b.pfrb_size > b.pfrb_msize);
+		PFRB_FOREACH(as, &b) {
+			as->pfras_a.pfra_fback = 0;
+			if (nonzero_astats(as))
+				if (pfr_buf_add(&b2, &as->pfras_a))
+					err(1, "duplicate buffer");
+		}
+
+		if (opts & PF_OPT_VERBOSE)
+			flags |= PFR_FLAG_FEEDBACK;
+		RVTEST(pfr_clr_astats(&table, b2.pfrb_caddr, b2.pfrb_size,
+		    &nzero, flags));
+		xprintf(opts, "%d/%d stats cleared", nzero, b.pfrb_size);
+		if (opts & PF_OPT_VERBOSE)
+			PFRB_FOREACH(a, &b2)
+				if ((opts & PF_OPT_VERBOSE2) || a->pfra_fback)
+					print_addrx(a, NULL,
+					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "show")) {
 		b.pfrb_type = (opts & PF_OPT_VERBOSE) ?
 			PFRB_ASTATS : PFRB_ADDRS;
@@ -344,9 +375,22 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		}
 		if (nmatch < b.pfrb_size)
 			rv = 2;
+	} else if (!strcmp(command, "zero") && (argc || file != NULL)) {
+		b.pfrb_type = PFRB_ADDRS;
+		if (load_addr(&b, argc, argv, file, 0))
+			goto _error;
+		if (opts & PF_OPT_VERBOSE)
+			flags |= PFR_FLAG_FEEDBACK;
+		RVTEST(pfr_clr_astats(&table, b.pfrb_caddr, b.pfrb_size,
+		    &nzero, flags));
+		xprintf(opts, "%d/%d addresses cleared", nzero, b.pfrb_size);
+		if (opts & PF_OPT_VERBOSE)
+			PFRB_FOREACH(a, &b)
+				if (opts & PF_OPT_VERBOSE2 ||
+				    a->pfra_fback != PFR_FB_NONE)
+					print_addrx(a, NULL,
+					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "zero")) {
-		if (argc || file != NULL)
-			usage();
 		flags |= PFR_FLAG_ADDRSTOO;
 		RVTEST(pfr_clr_tstats(&table, 1, &nzero, flags));
 		xprintf(opts, "%d table/stats cleared", nzero);
@@ -469,6 +513,19 @@ print_addrx(struct pfr_addr *ad, struct pfr_addr *rad, int dns)
 			printf("\t(%s)", host);
 	}
 	printf("\n");
+}
+
+int
+nonzero_astats(struct pfr_astats *as)
+{
+	uint64_t s = 0;
+
+	for (int dir = 0; dir < PFR_DIR_MAX; dir++)
+		for (int op = 0; op < PFR_OP_ADDR_MAX; op++)
+			s |= as->pfras_packets[dir][op] |
+			     as->pfras_bytes[dir][op];
+
+	return (!!s);
 }
 
 void

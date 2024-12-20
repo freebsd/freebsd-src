@@ -2,7 +2,7 @@
 #
 
 # PROVIDE: nuageinit
-# REQUIRE: mountcritlocal zfs
+# REQUIRE: mountcritlocal zfs devmatch
 # BEFORE: NETWORKING
 # KEYWORD: firstboot
 
@@ -14,12 +14,24 @@ start_cmd="nuageinit_start"
 stop_cmd=":"
 rcvar="nuageinit_enable"
 
+fetch_openstack()
+{
+	cd /media/nuageinit/openstack/latest
+	for file in meta_data.json network_data.json user_data; do
+		fetch http://169.254.169.254/openstack/latest/$file || :
+	done
+	if [ -f user_data ]; then
+		chmod 755 user_data
+	fi
+	cd -
+}
+
 nuageinit_start()
 {
 	local citype
 	# detect cloud init provider
-	# according to the specification of the config drive
-	# it either formatted in vfat or iso9660 and labeled
+	# according to the specification, the config drive
+	# is either formatted in vfat or iso9660 and labeled
 	# config-2
 	for f in iso9660 msdosfs; do
 		drive="/dev/$f/[cC][oO][nN][fF][iI][gG]-2"
@@ -34,13 +46,28 @@ nuageinit_start()
 		fi
 		unset drive
 	done
-	if [ -z "$drive" ]; then
-		# try to detect networked based instance
-		err 1 "Impossible to find a cloud init provider"
+	if [ -n "$drive" ]; then
+		mkdir -p /media/nuageinit
+		fs=$(fstyp $drive 2> /dev/null)
+		mount -t $fs $drive /media/nuageinit
+	else
+		product=$(kenv smbios.system.product)
+		case "$product" in
+		OpenStack*)
+			mkdir -p /media/nuageinit/openstack/latest
+			ifaces=$(ifconfig -l ether)
+			set -- $ifaces
+			dhclient -p /tmp/ephemeraldhcp.pid $1
+			fetch_openstack
+			pkill -F /tmp/ephemeraldhcp.pid
+			citype=config-2
+			;;
+		*)
+			# try to detect networked based instance
+			err 1 "Impossible to find a cloud init provider"
+			;;
+		esac
 	fi
-	mkdir -p /media/nuageinit
-	fs=$(fstyp $drive)
-	mount -t $fs $drive /media/nuageinit
 	# according to the specification, the content is either
 	# in the openstack or ec2 directory
 	case "$citype" in
@@ -59,8 +86,10 @@ nuageinit_start()
 	esac
 	if [ -n "$drive" ]; then
 		umount /media/nuageinit
+		rmdir /media/nuageinit
+	else
+		rm -rf /media/nuageinit
 	fi
-	rmdir /media/nuageinit
 }
 
 load_rc_config $name

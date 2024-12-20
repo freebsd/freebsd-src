@@ -328,7 +328,8 @@ as3722_attach(device_t dev)
 		device_printf(dev, "Cannot setup interrupt.\n");
 		goto fail;
 	}
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->irq_h != NULL)
@@ -343,6 +344,11 @@ static int
 as3722_detach(device_t dev)
 {
 	struct as3722_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->irq_h != NULL)
@@ -351,7 +357,7 @@ as3722_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 	LOCK_DESTROY(sc);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static phandle_t

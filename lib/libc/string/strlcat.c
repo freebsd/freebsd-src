@@ -19,6 +19,8 @@
 #include <sys/types.h>
 #include <string.h>
 
+#undef strlcat	/* FORTIFY_SOURCE */
+
 /*
  * Appends src to string dst of size dsize (unlike strncat, dsize is the
  * full size of dst, not space left).  At most dsize-1 characters

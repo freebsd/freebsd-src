@@ -596,6 +596,12 @@ lzc_get_holds(const char *snapname, nvlist_t **holdsp)
 	return (lzc_ioctl(ZFS_IOC_GET_HOLDS, snapname, NULL, holdsp));
 }
 
+int
+lzc_get_props(const char *poolname, nvlist_t **props)
+{
+	return (lzc_ioctl(ZFS_IOC_POOL_GET_PROPS, poolname, NULL, props));
+}
+
 static unsigned int
 max_pipe_buffer(int infd)
 {
@@ -1624,6 +1630,26 @@ lzc_pool_checkpoint_discard(const char *pool)
 }
 
 /*
+ * Load the requested data type for the specified pool.
+ */
+int
+lzc_pool_prefetch(const char *pool, zpool_prefetch_type_t type)
+{
+	int error;
+	nvlist_t *result = NULL;
+	nvlist_t *args = fnvlist_alloc();
+
+	fnvlist_add_int32(args, ZPOOL_PREFETCH_TYPE, type);
+
+	error = lzc_ioctl(ZFS_IOC_POOL_PREFETCH, pool, args, &result);
+
+	fnvlist_free(args);
+	fnvlist_free(result);
+
+	return (error);
+}
+
+/*
  * Executes a read-only channel program.
  *
  * A read-only channel program works programmatically the same way as a
@@ -1900,4 +1926,26 @@ int
 lzc_get_bootenv(const char *pool, nvlist_t **outnvl)
 {
 	return (lzc_ioctl(ZFS_IOC_GET_BOOTENV, pool, NULL, outnvl));
+}
+
+/*
+ * Prune the specified amount from the pool's dedup table.
+ */
+int
+lzc_ddt_prune(const char *pool, zpool_ddt_prune_unit_t unit, uint64_t amount)
+{
+	int error;
+
+	nvlist_t *result = NULL;
+	nvlist_t *args = fnvlist_alloc();
+
+	fnvlist_add_int32(args, DDT_PRUNE_UNIT, unit);
+	fnvlist_add_uint64(args, DDT_PRUNE_AMOUNT, amount);
+
+	error = lzc_ioctl(ZFS_IOC_DDT_PRUNE, pool, args, &result);
+
+	fnvlist_free(args);
+	fnvlist_free(result);
+
+	return (error);
 }

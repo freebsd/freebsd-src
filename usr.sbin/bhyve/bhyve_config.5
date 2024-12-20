@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 20, 2023
+.Dd August 21, 2024
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -120,6 +120,17 @@ The value must be formatted as described in
 .Xr expand_number 3 .
 .It Va memory.wired Ta bool Ta false Ta
 Wire guest memory.
+.It Va bootrom Ta path Ta Ta
+Path to a boot ROM.
+During initialization of the guest, the contents of this file are copied into
+the guest's memory.
+If a boot ROM is present, a firmware interface device is
+also enabled for use by the boot ROM.
+.It Va bootvars Ta path Ta Ta
+Path to boot VARS.
+The contents of this file are copied beneath the boot ROM.
+Firmware can write to it to save variables.
+All variables will be persistent even on reboots of the guest.
 .It Va acpi_tables Ta bool Ta true Ta
 Generate ACPI tables.
 .It Va acpi_tables_in_memory Ta bool Ta true Ta
@@ -146,15 +157,9 @@ Specify the keyboard layout name with the file name in
 This value only works when loaded with UEFI mode for VNC, and
 used a VNC client that don't support QEMU Extended Key Event
 Message (e.g. TightVNC).
-.It Va tpm.path Ta string Ta Ta
-Path to the host TPM device.
-This is typically /dev/tpm0.
-.It Va tpm.type Ta string Ta Ta
-Type of the TPM device passed to the guest.
-Currently, only "passthru" is supported.
-.It Va tpm.version Ta string Ta 2.0 Ta
-Version of the TPM device according to the TCG specification.
-Currently, only version 2.0 is supported.
+.It Va pci.enable_bars Ta bool Ta Ta
+Enable and map PCI BARs before executing any guest code.
+This setting is false by default when using a boot ROM and true otherwise.
 .It Va rtc.use_localtime Ta bool Ta true Ta
 The real time clock uses the local time of the host.
 If this is set to false, the real time clock uses UTC.
@@ -261,7 +266,7 @@ All PCI device nodes must contain a configuration variable named
 .Dq device
 which specifies the device model to use.
 The following PCI device models are supported:
-.Bl -tag -indent
+.Bl -tag -width indent
 .It Li hostbridge
 Provide a simple PCI-Host bridge device.
 This is usually configured at pci0:0:0 and is required by most guest
@@ -274,9 +279,8 @@ Intel e82545 network interface.
 VGA framebuffer device attached to VNC server.
 .It Li lpc
 LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
-a boot ROM,
-an optional fwcfg type,
-and an optional debug/test device.
+a boot ROM, and, optionally, a TPM module, a fwcfg type,
+and a debug/test device.
 This device must be configured on bus 0.
 .It Li hda
 High Definition audio controller.
@@ -316,7 +320,7 @@ All USB device nodes must contain a configuration variable named
 .Dq device
 which specifies the device model to use.
 The following USB device models are supported:
-.Bl -tag -indent
+.Bl -tag -width indent
 .It Li tablet
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
@@ -446,6 +450,12 @@ Either the pathname of a character device or
 to use standard input and output of the
 .Xr bhyve 8
 process.
+.It Va tcp Ta Oo Ar IP Ns : Oc Ns Ar port Ta Ta
+TCP address to listen on for remote connections.
+The IP address must be given as a numeric address.
+IPv6 addresses must be enclosed in square brackets and
+supports scoped identifiers as described in
+.Xr getaddrinfo 3 .
 .El
 .Ss Host Bridge Settings
 .Bl -column "pcireg.*" "integer" "Default"
@@ -550,17 +560,6 @@ The following nodes are available under
 .Va lpc :
 .Bl -column "pc-testdev" "Format" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
-.It Va bootrom Ta path Ta Ta
-Path to a boot ROM.
-The contents of this file are copied into the guest's
-memory ending just before the 4GB physical address.
-If a boot ROM is present, a firmware interface device is
-also enabled for use by the boot ROM.
-.It Va bootvars Ta path Ta Ta
-Path to boot VARS.
-The contents of this file are copied beneath the boot ROM.
-Firmware can write to it to save variables.
-All variables will be persistent even on reboots of the guest.
 .It Va com1 Ta node Ta Ta
 Settings for the COM1 serial port device.
 .It Va com2 Ta node Ta Ta
@@ -592,6 +591,37 @@ This value is required for the Intel GOP driver to work properly.
 .It Va subvendor Ta 0
 .It Va subdevice Ta 0
 .El
+.El
+.Ss TPM Device Settings
+The TPM device stores its configuration under a top-level
+.Va tpm
+node rather than under the LPC TPM device's node.
+Only one TPM device is supported.
+The following nodes are available under
+.Va tpm :
+.Bl -column "tpm.version" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va tpm.path Ta string Ta Ta
+Path to the TPM backend.
+Depending on the
+.Va tpm.type ,
+this is either the host TPM device, typically
+.Pa /dev/tpm0 ,
+or any UNIX domain socket on which a
+.Cm swtpm
+process is listening.
+.It Va tpm.type Ta string Ta Ta
+Type of the TPM device passed to the guest.
+This can be either
+.Dq passthru
+to use the host TPM devices, or
+.Dq swtpm
+to connect to a running
+.Cm swtpm
+process.
+.It Va tpm.version Ta string Ta 2.0 Ta
+Version of the TPM device according to the TCG specification.
+Currently, only version 2.0 is supported.
 .El
 .Ss NVMe Controller Settings
 Each NVMe controller supports a single storage device.

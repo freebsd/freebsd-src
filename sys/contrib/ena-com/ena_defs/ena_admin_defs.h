@@ -98,12 +98,22 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_FEATURES_OPCODE_NUM               = 32,
 };
 
+/* feature version for the set/get ENA_ADMIN_LLQ feature admin commands */
+enum ena_admin_llq_feature_version {
+	/* legacy base version in older drivers */
+	ENA_ADMIN_LLQ_FEATURE_VERSION_0_LEGACY      = 0,
+	/* support entry_size recommendation by device */
+	ENA_ADMIN_LLQ_FEATURE_VERSION_1             = 1,
+};
+
 /* device capabilities */
 enum ena_admin_aq_caps_id {
 	ENA_ADMIN_ENI_STATS                         = 0,
 	/* ENA SRD customer metrics */
 	ENA_ADMIN_ENA_SRD_INFO                      = 1,
 	ENA_ADMIN_CUSTOMER_METRICS                  = 2,
+	ENA_ADMIN_EXTENDED_RESET_REASONS	    = 3,
+	ENA_ADMIN_CDESC_MBZ                         = 4,
 };
 
 enum ena_admin_placement_policy_type {
@@ -163,8 +173,14 @@ enum ena_admin_get_stats_scope {
 	ENA_ADMIN_ETH_TRAFFIC                       = 1,
 };
 
-enum ena_admin_get_phc_type {
-	ENA_ADMIN_PHC_TYPE_READLESS                 = 0,
+enum ena_admin_phc_feature_version {
+	/* Readless with error_bound */
+	ENA_ADMIN_PHC_FEATURE_VERSION_0             = 0,
+};
+
+enum ena_admin_phc_error_flags {
+	ENA_ADMIN_PHC_ERROR_FLAG_TIMESTAMP   = BIT(0),
+	ENA_ADMIN_PHC_ERROR_FLAG_ERROR_BOUND = BIT(1),
 };
 
 /* ENA SRD configuration for ENI */
@@ -464,6 +480,10 @@ struct ena_admin_basic_stats {
 	uint32_t tx_drops_low;
 
 	uint32_t tx_drops_high;
+
+	uint32_t rx_overruns_low;
+
+	uint32_t rx_overruns_high;
 };
 
 /* ENI Statistics Command. */
@@ -696,8 +716,17 @@ struct ena_admin_feature_llq_desc {
 	/* the stride control the driver selected to use */
 	uint16_t descriptors_stride_ctrl_enabled;
 
-	/* reserved */
-	uint32_t reserved1;
+	/* feature version of device resp to either GET/SET commands. */
+	uint8_t feature_version;
+
+	/* llq entry size recommended by the device,
+	 * values correlated to enum ena_admin_llq_ring_entry_size.
+	 * used only for GET command.
+	 */
+	uint8_t entry_size_recommended;
+
+	/* max depth of wide llq, or 0 for N/A */
+	uint16_t max_wide_llq_depth;
 
 	/* accelerated low latency queues requirement. driver needs to
 	 * support those requirements in order to use accelerated llq
@@ -933,19 +962,8 @@ struct ena_admin_feature_rss_flow_hash_input {
 	uint16_t enabled_input_sort;
 };
 
-enum ena_admin_os_type {
-	ENA_ADMIN_OS_LINUX                          = 1,
-	ENA_ADMIN_OS_WIN                            = 2,
-	ENA_ADMIN_OS_DPDK                           = 3,
-	ENA_ADMIN_OS_FREEBSD                        = 4,
-	ENA_ADMIN_OS_IPXE                           = 5,
-	ENA_ADMIN_OS_ESXI                           = 6,
-	ENA_ADMIN_OS_MACOS                          = 7,
-	ENA_ADMIN_OS_GROUPS_NUM                     = 7,
-};
-
 struct ena_admin_host_info {
-	/* defined in enum ena_admin_os_type */
+	/* Host OS type defined as ENA_ADMIN_OS_* */
 	uint32_t os_type;
 
 	/* os distribution string format */
@@ -992,7 +1010,9 @@ struct ena_admin_host_info {
 	 * 4 : rss_configurable_function_key
 	 * 5 : reserved
 	 * 6 : rx_page_reuse
-	 * 31:7 : reserved
+	 * 7 : tx_ipv6_csum_offload
+	 * 8 : phc
+	 * 31:9 : reserved
 	 */
 	uint32_t driver_supported_features;
 };
@@ -1078,10 +1098,10 @@ struct ena_admin_queue_ext_feature_desc {
 };
 
 struct ena_admin_feature_phc_desc {
-	/* PHC type as defined in enum ena_admin_get_phc_type,
-	 * used only for GET command.
+	/* PHC version as defined in enum ena_admin_phc_feature_version,
+	 * used only for GET command as max supported PHC version by the device.
 	 */
-	uint8_t type;
+	uint8_t version;
 
 	/* Reserved - MBZ */
 	uint8_t reserved1[3];
@@ -1221,7 +1241,9 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_NOTIFICATION                      = 3,
 	ENA_ADMIN_KEEP_ALIVE                        = 4,
 	ENA_ADMIN_REFRESH_CAPABILITIES              = 5,
-	ENA_ADMIN_AENQ_GROUPS_NUM                   = 6,
+	ENA_ADMIN_CONF_NOTIFICATIONS		    = 6,
+	ENA_ADMIN_DEVICE_REQUEST_RESET              = 7,
+	ENA_ADMIN_AENQ_GROUPS_NUM                   = 8,
 };
 
 enum ena_admin_aenq_notification_syndrome {
@@ -1252,6 +1274,18 @@ struct ena_admin_aenq_keep_alive_desc {
 	uint32_t tx_drops_low;
 
 	uint32_t tx_drops_high;
+
+	uint32_t rx_overruns_low;
+
+	uint32_t rx_overruns_high;
+};
+
+struct ena_admin_aenq_conf_notifications_desc {
+	struct ena_admin_aenq_common_desc aenq_common_desc;
+
+	uint64_t notifications_bitmap;
+
+	uint64_t reserved;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {
@@ -1264,13 +1298,23 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 };
 
 struct ena_admin_phc_resp {
+	/* Request Id, received from DB register */
 	uint16_t req_id;
 
 	uint8_t reserved1[6];
 
+	/* PHC timestamp (nsec) */
 	uint64_t timestamp;
 
-	uint8_t reserved2[48];
+	uint8_t reserved2[8];
+
+	/* Timestamp error limit (nsec) */
+	uint32_t error_bound;
+
+	/* Bit field of enum ena_admin_phc_error_flags */
+	uint32_t error_flags;
+
+	uint8_t reserved3[32];
 };
 
 /* aq_common_desc */
@@ -1371,6 +1415,10 @@ struct ena_admin_phc_resp {
 #define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK BIT(4)
 #define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT             6
 #define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK              BIT(6)
+#define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT      7
+#define ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK       BIT(7)
+#define ENA_ADMIN_HOST_INFO_PHC_SHIFT                       8
+#define ENA_ADMIN_HOST_INFO_PHC_MASK                        BIT(8)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
@@ -1842,6 +1890,16 @@ static inline void set_ena_admin_host_info_rx_page_reuse(struct ena_admin_host_i
 	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT) & ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK;
 }
 
+static inline uint32_t get_ena_admin_host_info_tx_ipv6_csum_offload(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK) >> ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_tx_ipv6_csum_offload(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_SHIFT) & ENA_ADMIN_HOST_INFO_TX_IPV6_CSUM_OFFLOAD_MASK;
+}
+
 static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const struct ena_admin_feature_rss_ind_table *p)
 {
 	return p->flags & ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK;
@@ -1850,6 +1908,16 @@ static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const
 static inline void set_ena_admin_feature_rss_ind_table_one_entry_update(struct ena_admin_feature_rss_ind_table *p, uint8_t val)
 {
 	p->flags |= val & ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_phc(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_PHC_MASK) >> ENA_ADMIN_HOST_INFO_PHC_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_phc(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_PHC_SHIFT) & ENA_ADMIN_HOST_INFO_PHC_MASK;
 }
 
 static inline uint8_t get_ena_admin_aenq_common_desc_phase(const struct ena_admin_aenq_common_desc *p)

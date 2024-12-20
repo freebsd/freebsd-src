@@ -320,8 +320,9 @@ gpioiic_attach(device_t dev)
 #endif
 
 	/* Add the bitbang driver as our only child; it will add iicbus. */
-	device_add_child(sc->dev, "iicbb", -1);
-	return (bus_generic_attach(dev));
+	device_add_child(sc->dev, "iicbb", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

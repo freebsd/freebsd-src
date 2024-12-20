@@ -1,11 +1,9 @@
-
 _spath=	${SRCTOP}/contrib/ofed/libibverbs
 .PATH: ${_spath} ${_spath}/man
 
 LIB=		ibverbs
 SHLIB_MAJOR=	1
 SHLIBDIR?=	/lib
-MK_PROFILE=	no
 VERSION_MAP=	${_spath}/libibverbs.map
 
 CFLAGS+= -I${_spath}

@@ -581,7 +581,7 @@ intx13:						# Prepare CHS parameters
  */
 prompt:
 #ifdef PXE
-		.ascii "\nF6 PXE\r"
+		.ascii "F6  PXE\r"
 #endif
 		.ascii "\nBoot:"
 item:		.ascii " ";	     .byte ' '|0x80

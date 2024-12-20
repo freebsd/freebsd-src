@@ -174,7 +174,12 @@ struct pfctl_rule {
 	char			 overload_tblname[PF_TABLE_NAME_SIZE];
 
 	TAILQ_ENTRY(pfctl_rule)	 entries;
-	struct pfctl_pool	 rpool;
+	struct pfctl_pool	 nat;
+	union {
+		/* Alias old and new names. */
+		struct pfctl_pool	 rpool;
+		struct pfctl_pool	 rdr;
+	};
 
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
@@ -220,6 +225,7 @@ struct pfctl_rule {
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
+	char			 rcv_ifname[IFNAMSIZ];
 
 	uint32_t		 rule_flag;
 	uint8_t			 action;
@@ -250,6 +256,7 @@ struct pfctl_rule {
 	uint8_t			 flush;
 	uint8_t			 prio;
 	uint8_t			 set_prio[2];
+	sa_family_t		 naf;
 
 	struct {
 		struct pf_addr		addr;
@@ -385,6 +392,29 @@ struct pfctl_syncookies {
 	uint32_t			halfopen_states;
 };
 
+struct pfctl_threshold {
+	uint32_t		limit;
+	uint32_t		seconds;
+	uint32_t		count;
+	uint32_t		last;
+};
+
+struct pfctl_src_node {
+	struct pf_addr		addr;
+	struct pf_addr		raddr;
+	int			rule;
+	uint64_t		bytes[2];
+	uint64_t		packets[2];
+	uint32_t		states;
+	uint32_t		conn;
+	sa_family_t		af;
+	sa_family_t		naf;
+	uint8_t			ruletype;
+	uint64_t		creation;
+	uint64_t		expire;
+	struct pfctl_threshold	conn_rate;
+};
+
 #define	PF_DEVICE	"/dev/pf"
 
 struct pfctl_handle;
@@ -498,5 +528,15 @@ int	pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *second
 int	pfctl_set_limit(struct pfctl_handle *h, const int index, const uint limit);
 int	pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit);
 int	pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket);
+int	pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which);
+int	pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
+	    uint8_t r_action, const char *anchor, uint32_t *nr, int which);
+int	pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
+	    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa,
+	    int which);
+int	pfctl_get_rulesets(struct pfctl_handle *h, const char *path, uint32_t *nr);
+int	pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct pfioc_ruleset *rs);
+typedef int (*pfctl_get_srcnode_fn)(struct pfctl_src_node*, void *);
+int	pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg);
 
 #endif

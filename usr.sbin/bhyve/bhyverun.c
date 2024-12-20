@@ -413,7 +413,8 @@ fbsdrun_addcpu(int vcpuid)
 
 	CPU_SET_ATOMIC(vcpuid, &cpumask);
 
-	vm_suspend_cpu(vi->vcpu);
+	error = vm_suspend_cpu(vi->vcpu);
+	assert(error == 0);
 
 	error = pthread_create(&thr, NULL, fbsdrun_start_thread, vi);
 	assert(error == 0);
@@ -520,46 +521,23 @@ do_open(const char *vmname)
 {
 	struct vmctx *ctx;
 	int error;
-	bool reinit, romboot;
+	bool romboot;
 
-	reinit = false;
+	romboot = bootrom_boot();
 
-#ifdef __amd64__
-	romboot = lpc_bootrom() != NULL;
-#else
-	romboot = true;
-#endif
-
-	error = vm_create(vmname);
-	if (error) {
-		if (errno == EEXIST) {
-			if (romboot) {
-				reinit = true;
-			} else {
-				/*
-				 * The virtual machine has been setup by the
-				 * userspace bootloader.
-				 */
-			}
-		} else {
-			perror("vm_create");
-			exit(4);
-		}
-	} else {
-		if (!romboot) {
-			/*
-			 * If the virtual machine was just created then a
-			 * bootrom must be configured to boot it.
-			 */
-			fprintf(stderr, "virtual machine cannot be booted\n");
-			exit(4);
-		}
-	}
-
-	ctx = vm_open(vmname);
+	/*
+	 * If we don't have a boot ROM, the guest context must have been
+	 * initialized by bhyveload(8) or equivalent.
+	 */
+	ctx = vm_openf(vmname, romboot ? VMMAPI_OPEN_REINIT : 0);
 	if (ctx == NULL) {
-		perror("vm_open");
-		exit(4);
+		if (errno != ENOENT)
+			err(4, "vm_openf");
+		if (!romboot)
+			errx(4, "no bootrom was configured");
+		ctx = vm_openf(vmname, VMMAPI_OPEN_CREATE);
+		if (ctx == NULL)
+			err(4, "vm_openf");
 	}
 
 #ifndef WITHOUT_CAPSICUM
@@ -567,13 +545,6 @@ do_open(const char *vmname)
 		err(EX_OSERR, "vm_limit_rights");
 #endif
 
-	if (reinit) {
-		error = vm_reinit(ctx);
-		if (error) {
-			perror("vm_reinit");
-			exit(4);
-		}
-	}
 	error = vm_set_topology(ctx, cpu_sockets, cpu_cores, cpu_threads, 0);
 	if (error)
 		errx(EX_OSERR, "vm_set_topology");

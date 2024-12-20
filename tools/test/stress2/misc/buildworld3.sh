@@ -62,6 +62,7 @@ mkdir $TMPDIR $MAKEOBJDIRPREFIX
 chmod 0777 $TMPDIR $MAKEOBJDIRPREFIX
 
 p=$((`sysctl -n hw.ncpu`+ 1))
+[ $p -gt 32 ] && p=32  # Arbitrary cap
 su $testuser -c \
     "make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 \
     TARGET_ARCH=amd64 > /dev/null" &

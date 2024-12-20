@@ -2292,10 +2292,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         if_t		ifp;
 
         ifp = ha->ifp = if_alloc(IFT_ETHER);
-
-        if (ifp == NULL)
-                panic("%s: cannot if_alloc()\n", device_get_nameunit(dev));
-
         if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	device_id = pci_get_device(ha->pci_dev);
@@ -2628,6 +2624,7 @@ static int
 qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	int		ret = 0, mask;
+	int		flags;
 	struct ifreq	*ifr = (struct ifreq *)data;
 #ifdef INET
 	struct ifaddr	*ifa = (struct ifaddr *)data;
@@ -2681,15 +2678,16 @@ qlnx_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4(ha, "SIOCSIFFLAGS (0x%lx)\n", cmd);
 
 		QLNX_LOCK(ha);
+		flags = if_getflags(ifp);
 
-		if (if_getflags(ifp) & IFF_UP) {
+		if (flags & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				if ((if_getflags(ifp) ^ ha->if_flags) &
+				if ((flags ^ ha->if_flags) &
 					IFF_PROMISC) {
-					ret = qlnx_set_promisc(ha, ifp->if_flags & IFF_PROMISC);
+					ret = qlnx_set_promisc(ha, flags & IFF_PROMISC);
 				} else if ((if_getflags(ifp) ^ ha->if_flags) &
 					IFF_ALLMULTI) {
-					ret = qlnx_set_allmulti(ha, ifp->if_flags & IFF_ALLMULTI);
+					ret = qlnx_set_allmulti(ha, flags & IFF_ALLMULTI);
 				}
 			} else {
 				ha->max_frame_size = if_getmtu(ifp) +
@@ -7059,8 +7057,19 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 {
 	int	rc = 0;
 	uint8_t	filter;
+	const if_t ifp = ha->ifp;
+	const struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 
-	rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
+	ifa = if_getifaddr(ifp);
+	if (if_gettype(ifp) == IFT_ETHER && ifa != NULL &&
+			ifa->ifa_addr != NULL) {
+		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+
+		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, LLADDR(sdl));
+	} else {
+		rc = qlnx_set_ucast_rx_mac(ha, ECORE_FILTER_REPLACE, ha->primary_mac);
+	}
         if (rc)
                 return rc;
 
@@ -7072,10 +7081,10 @@ qlnx_set_rx_mode(qlnx_host_t *ha)
 			ECORE_ACCEPT_MCAST_MATCHED |
 			ECORE_ACCEPT_BCAST;
 
-	if (qlnx_vf_device(ha) == 0 || (ha->ifp->if_flags & IFF_PROMISC)) {
+	if (qlnx_vf_device(ha) == 0 || (if_getflags(ha->ifp) & IFF_PROMISC)) {
 		filter |= ECORE_ACCEPT_UCAST_UNMATCHED;
 		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
-	} else if (ha->ifp->if_flags & IFF_ALLMULTI) {
+	} else if (if_getflags(ha->ifp) & IFF_ALLMULTI) {
 		filter |= ECORE_ACCEPT_MCAST_UNMATCHED;
 	}
 	ha->filter = filter;

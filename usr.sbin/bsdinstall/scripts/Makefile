@@ -1,4 +1,3 @@
-
 SCRIPTS=auto \
 	adduser \
 	bootconfig \
@@ -8,6 +7,7 @@ SCRIPTS=auto \
 	entropy \
 	fetchmissingdists \
 	finalconfig \
+	firmware \
 	hardening \
 	hostname \
 	jail \

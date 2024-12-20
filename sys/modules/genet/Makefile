@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/arm64/broadcom/genet
 
 KMOD=	if_genet

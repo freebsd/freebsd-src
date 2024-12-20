@@ -58,6 +58,9 @@ nl_buf_alloc(size_t len, int mflag)
 {
 	struct nl_buf *nb;
 
+	KASSERT(len > 0 && len <= UINT_MAX, ("%s: invalid length %zu",
+	    __func__, len));
+
 	nb = malloc(sizeof(struct nl_buf) + len, M_NETLINK, mflag);
 	if (__predict_true(nb != NULL)) {
 		nb->buflen = len;
@@ -317,13 +320,13 @@ npt_clear(struct nl_pstate *npt)
 static bool
 nl_process_nbuf(struct nl_buf *nb, struct nlpcb *nlp)
 {
+	struct nl_writer nw;
 	struct nlmsghdr *hdr;
 	int error;
 
 	NL_LOG(LOG_DEBUG3, "RX netlink buf %p on %p", nb, nlp->nl_socket);
 
-	struct nl_writer nw = {};
-	if (!nlmsg_get_unicast_writer(&nw, NLMSG_SMALL, nlp)) {
+	if (!nl_writer_unicast(&nw, NLMSG_SMALL, nlp, false)) {
 		NL_LOG(LOG_DEBUG, "error allocating socket writer");
 		return (true);
 	}

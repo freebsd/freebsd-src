@@ -26,7 +26,7 @@
 .\" distributed with 4.3BSD Unix.
 .\" $Id: $
 .\"
-.Dd March 6, 2022
+.Dd August 30, 2024
 .Dt VALE 4
 .Os
 .Sh NAME
@@ -100,7 +100,8 @@ qemu -net nic -net netmap,ifname=vale2:c ... &
 qemu -net nic -net netmap,ifname=vale2:d ... &
 .Ed
 .Sh SEE ALSO
-.Xr netmap 4
+.Xr netmap 4 ,
+.Xr valectl 8
 .Pp
 Luigi Rizzo, Giuseppe Lettieri: VALE, a switched ethernet for virtual machines,
 June 2012, http://info.iet.unipi.it/~luigi/vale/

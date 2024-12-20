@@ -178,6 +178,9 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		else
 			reply_len = 2;
 	} else {
+		sockaddr_print(wpas_ctrl_cmd_debug_level(buf),
+			       "Control interface recv command from:",
+			       &from, fromlen);
 		reply_buf = wpa_supplicant_ctrl_iface_process(wpa_s, buf,
 							      &reply_len);
 		reply = reply_buf;

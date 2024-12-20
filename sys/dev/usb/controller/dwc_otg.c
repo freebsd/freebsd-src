@@ -3856,7 +3856,7 @@ dwc_otg_init(struct dwc_otg_softc *sc)
 		return (ENOMEM);
 	}
 
-	sc->sc_bus.bdev = device_add_child(sc->sc_bus.parent, "usbus", -1);
+	sc->sc_bus.bdev = device_add_child(sc->sc_bus.parent, "usbus", DEVICE_UNIT_ANY);
 	if (sc->sc_bus.bdev == NULL)
 		return (ENXIO);
 

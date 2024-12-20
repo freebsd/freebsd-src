@@ -145,7 +145,7 @@ atpic_isa_identify(driver_t *drv, device_t parent)
 {
 	device_t child;
 
-	child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE, drv->name, -1);
+	child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE, drv->name, DEVICE_UNIT_ANY);
 	device_set_driver(child, drv);
 	isa_set_logicalid(child, atpic_ids[0].ip_id);
 	isa_set_vendorid(child, atpic_ids[0].ip_id);

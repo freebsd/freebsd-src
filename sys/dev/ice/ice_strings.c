@@ -179,13 +179,13 @@ _ice_aq_str(enum ice_aq_err aq_err)
  * Otherwise, use the scratch space to format the status code into a number.
  */
 struct ice_str_buf
-_ice_status_str(enum ice_status status)
+_ice_status_str(int status)
 {
 	struct ice_str_buf buf = { .str = "" };
 	const char *str = NULL;
 
 	switch (status) {
-	case ICE_SUCCESS:
+	case 0:
 		str = "OK";
 		break;
 	case ICE_ERR_PARAM:
@@ -1052,6 +1052,8 @@ ice_state_to_str(enum ice_state state)
 		return "DO_CREATE_MIRR_INTFC";
 	case ICE_STATE_DO_DESTROY_MIRR_INTFC:
 		return "DO_DESTROY_MIRR_INTFC";
+	case ICE_STATE_PHY_FW_INIT_PENDING:
+		return "PHY_FW_INIT_PENDING";
 	case ICE_STATE_LAST:
 		return NULL;
 	}

@@ -217,7 +217,7 @@ static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
 }
 #endif
 
-#ifdef __amd64__
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 static bool
 is_kernphys_relocatable(elf_file_t ef)
 {
@@ -491,10 +491,10 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/* Load OK, return module pointer */
 	*result = (struct preloaded_file *)fp;
 	err = 0;
-#ifdef __amd64__
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	fp->f_kernphys_relocatable = multiboot || is_kernphys_relocatable(&ef);
 #endif
-#ifdef __i386__
+#if defined(__i386__) && !defined(EFI)
 	fp->f_tg_kernel_support = is_tg_kernel_support(fp, &ef);
 #endif
 	goto out;

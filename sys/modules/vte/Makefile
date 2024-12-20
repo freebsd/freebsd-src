@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/vte
 
 KMOD=	if_vte

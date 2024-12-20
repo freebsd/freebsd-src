@@ -1,4 +1,3 @@
-
 SUBDIR= beastie \
 	blank \
 	daemon \

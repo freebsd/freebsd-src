@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 LIB=	proc
@@ -24,7 +23,7 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
-CFLAGS+= -DHAVE_ISSETUGID -DHAVE_BOOLEAN
+CFLAGS+= -DHAVE_ISSETUGID -DHAVE_BOOLEAN -DHAVE_STRLCAT -DHAVE_STRLCPY
 CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libctf/common \
 		-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common \
 		-I${SRCTOP}/sys/cddl/compat/opensolaris

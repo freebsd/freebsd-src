@@ -797,7 +797,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					!LIST_EMPTY(&clp->lc_deleg))
 					nfsrv_writestable(clp->lc_id,
 					    clp->lc_idlen, NFSNST_REVOKE, p);
-				    nfsrv_cleanclient(clp, p);
+				    nfsrv_cleanclient(clp, p, false, NULL);
 				    nfsrv_freedeleglist(&clp->lc_deleg);
 				    nfsrv_freedeleglist(&clp->lc_olddeleg);
 				    LIST_REMOVE(clp, lc_hash);
@@ -1422,13 +1422,11 @@ static struct ucred *
 nfsrv_createrootcred(void)
 {
 	struct ucred *cr;
-	gid_t grp;
 
 	cr = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = UID_ROOT;
-	grp = GID_WHEEL;
-	crsetgroups(cr, 1, &grp);
-	cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+	crsetgroups_fallback(cr, 0, NULL, GID_WHEEL);
+	cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);
 #ifdef MAC

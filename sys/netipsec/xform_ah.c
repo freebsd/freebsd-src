@@ -731,7 +731,7 @@ ah_input_cb(struct cryptop *crp)
 		error = crp->crp_etype;
 		goto bad;
 	} else {
-		AHSTAT_INC(ahs_hist[sav->alg_auth]);
+		AHSTAT_INC2(ahs_hist, sav->alg_auth);
 		crypto_freereq(crp);		/* No longer needed. */
 		crp = NULL;
 	}
@@ -1137,7 +1137,7 @@ ah_output_cb(struct cryptop *crp)
 
 	free(xd, M_AH);
 	crypto_freereq(crp);
-	AHSTAT_INC(ahs_hist[sav->alg_auth]);
+	AHSTAT_INC2(ahs_hist, sav->alg_auth);
 #ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (V_ipsec_integrity) {

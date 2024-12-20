@@ -90,7 +90,7 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 {
 	struct ae_xattr	*xp;
 
-	if ((xp = (struct ae_xattr *)malloc(sizeof(struct ae_xattr))) == NULL)
+	if ((xp = malloc(sizeof(struct ae_xattr))) == NULL)
 		__archive_errx(1, "Out of memory");
 
 	if ((xp->name = strdup(name)) == NULL)

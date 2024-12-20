@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/gpio
 KMOD=	bytgpio
 SRCS=	bytgpio.c

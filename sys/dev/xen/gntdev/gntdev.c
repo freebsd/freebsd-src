@@ -563,7 +563,6 @@ notify_unmap_cleanup(struct gntdev_gmap *gmap)
 {
 	uint32_t i;
 	int error, count;
-	vm_page_t m;
 	struct gnttab_unmap_grant_ref *unmap_ops;
 
 	unmap_ops = malloc(sizeof(struct gnttab_unmap_grant_ref) * gmap->count,
@@ -592,17 +591,7 @@ notify_unmap_cleanup(struct gntdev_gmap *gmap)
 	}
 
 	/* Free the pages. */
-	VM_OBJECT_WLOCK(gmap->map->mem);
-retry:
-	for (i = 0; i < gmap->count; i++) {
-		m = vm_page_lookup(gmap->map->mem, i);
-		if (m == NULL)
-			continue;
-		if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
-			goto retry;
-		cdev_pager_free_page(gmap->map->mem, m);
-	}
-	VM_OBJECT_WUNLOCK(gmap->map->mem);
+	cdev_mgtdev_pager_free_pages(gmap->map->mem);
 
 	/* Perform unmap hypercall. */
 	error = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,

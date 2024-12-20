@@ -30,6 +30,7 @@
  */
 
 
+#include <sys/elf_common.h>
 #include <machine/asm.h>
 #include <machine/hypervisor.h>
 
@@ -145,29 +146,6 @@
 	b	handle_\name
 .endm
 
-	.section ".vmm_vectors","ax"
-	.align 11
-hyp_init_vectors:
-	vempty		/* Synchronous EL2t */
-	vempty		/* IRQ EL2t */
-	vempty		/* FIQ EL2t */
-	vempty		/* Error EL2t */
-
-	vempty		/* Synchronous EL2h */
-	vempty		/* IRQ EL2h */
-	vempty		/* FIQ EL2h */
-	vempty		/* Error EL2h */
-
-	vector hyp_init	/* Synchronous 64-bit EL1 */
-	vempty		/* IRQ 64-bit EL1 */
-	vempty		/* FIQ 64-bit EL1 */
-	vempty		/* Error 64-bit EL1 */
-
-	vempty		/* Synchronous 32-bit EL1 */
-	vempty		/* IRQ 32-bit EL1 */
-	vempty		/* FIQ 32-bit EL1 */
-	vempty		/* Error 32-bit EL1 */
-
 	.text
 	.align 11
 hyp_vectors:
@@ -191,50 +169,6 @@ hyp_vectors:
 	vempty			/* FIQ 32-bit EL1 */
 	vempty			/* Error 32-bit EL1 */
 
-/*
- * Initialize the hypervisor mode with a new exception vector table, translation
- * table and stack.
- *
- * Expecting:
- * x0 - translation tables physical address
- * x1 - stack top virtual address
- * x2 - TCR_EL2 value
- * x3 - SCTLR_EL2 value
- * x4 - VTCR_EL2 value
- */
-LENTRY(handle_hyp_init)
-	/* Install the new exception vectors */
-	adrp	x6, hyp_vectors
-	add	x6, x6, :lo12:hyp_vectors
-	msr	vbar_el2, x6
-	/* Set the stack top address */
-	mov	sp, x1
-	/* Use the host VTTBR_EL2 to tell the host and the guests apart */
-	mov	x9, #VTTBR_HOST
-	msr	vttbr_el2, x9
-	/* Load the base address for the translation tables */
-	msr	ttbr0_el2, x0
-	/* Invalidate the TLB */
-	dsb	ish
-	tlbi	alle2
-	dsb	ishst
-	isb
-	/* Use the same memory attributes as EL1 */
-	mrs	x9, mair_el1
-	msr	mair_el2, x9
-	/* Configure address translation */
-	msr	tcr_el2, x2
-	isb
-	/* Set the system control register for EL2 */
-	msr	sctlr_el2, x3
-	/* Set the Stage 2 translation control register */
-	msr	vtcr_el2, x4
-	/* Return success */
-	mov	x0, #0
-	/* MMU is up and running */
-	ERET
-LEND(handle_hyp_init)
-
 .macro do_world_switch_to_host
 	save_guest_registers
 	restore_host_registers
@@ -242,10 +176,15 @@ LEND(handle_hyp_init)
 	/* Restore host VTTBR */
 	mov	x9, #VTTBR_HOST
 	msr	vttbr_el2, x9
+
+#ifdef VMM_VHE
+	msr	vbar_el1, x1
+#endif
 .endm
 
 
 .macro handle_el2_excp type
+#ifndef VMM_VHE
 	/* Save registers before modifying so we can restore them */
 	str	x9, [sp, #-16]!
 
@@ -256,15 +195,18 @@ LEND(handle_hyp_init)
 
 	/* We got the exception while the guest was running */
 	ldr	x9, [sp], #16
+#endif /* !VMM_VHE */
 	do_world_switch_to_host
 	mov	x0, \type
 	ret
 
+#ifndef VMM_VHE
 1:
 	/* We got the exception while the host was running */
 	ldr	x9, [sp], #16
 	mov	x0, \type
 	ERET
+#endif /* !VMM_VHE */
 .endm
 
 
@@ -286,6 +228,7 @@ LEND(handle_el2_el2h_error)
 
 
 LENTRY(handle_el2_el1_sync64)
+#ifndef VMM_VHE
 	/* Save registers before modifying so we can restore them */
 	str	x9, [sp, #-16]!
 
@@ -308,7 +251,9 @@ LENTRY(handle_el2_el1_sync64)
 	ldr	lr, [sp], #16
 	ERET
 
-1:	/* Guest exception taken to EL2 */
+1:
+#endif
+	/* Guest exception taken to EL2 */
 	do_world_switch_to_host
 	mov	x0, #EXCP_TYPE_EL1_SYNC
 	ret
@@ -349,12 +294,20 @@ LEND(handle_el2_el1_error64)
 
 /*
  * Usage:
- * uint64_t vmm_enter_guest(struct hypctx *hypctx)
+ * uint64_t vmm_do_call_guest(struct hypctx *hypctx)
  *
  * Expecting:
  * x0 - hypctx address
  */
-ENTRY(vmm_enter_guest)
+ENTRY(VMM_HYP_FUNC(do_call_guest))
+#ifdef VMM_VHE
+	mrs	x1, vbar_el1
+	adrp	x2, hyp_vectors
+	add	x2, x2, :lo12:hyp_vectors
+	msr	vbar_el1, x2
+	isb
+#endif
+
 	/* Save hypctx address */
 	msr	tpidr_el2, x0
 
@@ -363,25 +316,6 @@ ENTRY(vmm_enter_guest)
 
 	/* Enter guest */
 	ERET
-END(vmm_enter_guest)
+END(VMM_HYP_FUNC(do_call_guest))
 
-/*
- * Usage:
- * void vmm_cleanup(uint64_t handle, void *hyp_stub_vectors)
- *
- * Expecting:
- * x1 - physical address of hyp_stub_vectors
- */
-LENTRY(vmm_cleanup)
-	/* Restore the stub vectors */
-	msr	vbar_el2, x1
-
-	/* Disable the MMU */
-	dsb	sy
-	mrs	x2, sctlr_el2
-	bic	x2, x2, #SCTLR_EL2_M
-	msr	sctlr_el2, x2
-	isb
-
-	ERET
-LEND(vmm_cleanup)
+GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

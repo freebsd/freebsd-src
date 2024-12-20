@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2012 James Gritton
 .\" All rights reserved.
 .\"
@@ -22,34 +25,34 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2023
+.Dd September 21, 2024
 .Dt JAIL.CONF 5
 .Os
 .Sh NAME
 .Nm jail.conf
-.Nd configuration file for
-.Xr jail 8
+.Nd configuration file for system jails
 .Sh DESCRIPTION
-A
+The
+.Nm
+file consists of one or more jail definitions statements for use by the
 .Xr jail 8
-configuration file consists of one or more jail definitions statements,
-and parameter or variable statements within those jail definitions.
-A jail definition statement looks something like a C compound statement.
-A parameter statement looks like a C assignment,
-including a terminating semicolon.
+management program.
+A jail definition statement consists of a single word, the name of the jail,
+an opening curly brace, a list of at least two parameter assignments,
+and a closing curly brace.
+A parameter assignment consists of a single word, the parameter name,
+an equals sign, a value enclosed in double quotes, and a terminating semicolon.
 .Pp
-The general syntax of a jail definition is:
-.Bd -literal -offset indent
-jailname {
-	parameter = "value";
-	parameter = "value";
-	...
-}
+The syntax of a jail definition is as follows:
+.Bd -unfilled
+. Ar jailname Cm \&{
+.Bd -unfilled -offset indent -compact
+.Ar parameter Cm = Qq Ar value ;
+\&...
+.Ed
+.Cm \&}
 .Ed
 .Pp
-Each jail is required to have a
-.Va name
-at the front of its definition.
 This is used by
 .Xr jail 8
 to specify a jail on the command line and report the jail status,
@@ -95,7 +98,7 @@ parameter is implicitly set to the name in the jail definition.
 .Ss String format
 Parameter values, including jail names, can be single tokens or quoted
 strings.
-A token is any sequence of characters that aren't considered special in
+A token is any sequence of characters that are not considered special in
 the syntax of the configuration file (such as a semicolon or
 whitespace).
 If a value contains anything more than letters, numbers, dots, dashes
@@ -143,7 +146,7 @@ definition.
 .Pp
 Variable substitution is done on a per-jail basis, even when that
 substitution is for a parameter defined in a wildcard section.
-This is useful for wildcard parameters based on e.g. a jail's name.
+This is useful for wildcard parameters based on e.g., a jail's name.
 .Pp
 Later definitions in the configuration file supersede earlier ones, so a
 wildcard section placed before (above) a jail definition defines
@@ -169,17 +172,17 @@ A line of the form
 .Pp
 will include another file (or files) in the configuration.
 The filename should be either absolute, or relative to the
-configuration file's directory.  It cannot contain variable
-expansions, but may contain
+configuration file's directory.
+It cannot contain variable expansions, but may contain
 .Xr glob 3
 patterns.
 .Pp
 The included file must exist, though a filename glob may match zero or
-more files.  This allows inclusion of any/all files in a directory,
-such as
-.Dq /etc/jail.conf.d/*.conf ,
+more files.
+This allows inclusion of any/all files in a directory, such as
+.Dq Pa /etc/jail.conf.d/*.conf ,
 or conditional inclusion of a single file, such as
-.Dq jail.foo[.]conf .
+.Dq Pa jail.foo[.]conf .
 .Ss Comments
 The configuration file may contain comments in the common C, C++, and
 shell formats:
@@ -193,7 +196,7 @@ shell formats:
 #  This is a shell style comment.
 .Ed
 .Pp
-Comments are legal wherever whitespace is allowed, i.e. anywhere except
+Comments are legal wherever whitespace is allowed, i.e., anywhere except
 in the middle of a string or a token.
 .Sh FILES
 .Bl -tag -width "indent" -compact
@@ -238,10 +241,19 @@ bar {
 \[char46]include "/usr/local/etc/jail.*.conf";
 .Ed
 .Sh SEE ALSO
-.Xr jail_set 2 ,
+.Xr jail 2 ,
+.Xr jail 3 ,
+.Xr jail 3lua ,
 .Xr rc.conf 5 ,
 .Xr jail 8 ,
-.Xr jls 8
+.Xr jexec 8 ,
+.Xr jls 8 ,
+.Xr zfs-jail 8
+.Pp
+The
+.Dq Jails and Containers
+chapter of the
+.%B FreeBSD Handbook .
 .Sh HISTORY
 The
 .Xr jail 8

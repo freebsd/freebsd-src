@@ -3211,120 +3211,72 @@ emu_pci_attach(device_t dev)
 		sc->pcm[i] = NULL;
 
 	/* FRONT */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL) {
-		error = ENOMEM;
-		goto bad;
-	}
-	pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (pcminfo == NULL) {
-		error = ENOMEM;
-		goto bad;
-	}
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+	pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 	pcminfo->card = sc;
 	pcminfo->route = RT_FRONT;
 
 	func->func = SCF_PCM;
 	func->varinfo = pcminfo;
-	sc->pcm[RT_FRONT] = device_add_child(dev, "pcm", -1);
+	sc->pcm[RT_FRONT] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 	device_set_ivars(sc->pcm[RT_FRONT], func);
 
 	if (!(sc->mch_disabled)) {
 		/* REAR */
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (func == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
-		pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (pcminfo == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+		pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		pcminfo->card = sc;
 		pcminfo->route = RT_REAR;
 
 		func->func = SCF_PCM;
 		func->varinfo = pcminfo;
-		sc->pcm[RT_REAR] = device_add_child(dev, "pcm", -1);
+		sc->pcm[RT_REAR] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->pcm[RT_REAR], func);
 		if (sc->has_51) {
 			/* CENTER */
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (func == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
-			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (pcminfo == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
+			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 			pcminfo->card = sc;
 			pcminfo->route = RT_CENTER;
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_CENTER] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_CENTER] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_CENTER], func);
 			/* SUB */
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (func == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
-			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (pcminfo == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
+			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 			pcminfo->card = sc;
 			pcminfo->route = RT_SUB;
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_SUB] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_SUB] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_SUB], func);
 		}
 		if (sc->has_71) {
 			/* SIDE */
-			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (func == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
-			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (pcminfo == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
+			func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+			pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 			pcminfo->card = sc;
 			pcminfo->route = RT_SIDE;
 
 			func->func = SCF_PCM;
 			func->varinfo = pcminfo;
-			sc->pcm[RT_SIDE] = device_add_child(dev, "pcm", -1);
+			sc->pcm[RT_SIDE] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 			device_set_ivars(sc->pcm[RT_SIDE], func);
 		}
 	} /* mch_disabled */
 
 	if (sc->mch_rec) {
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (func == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
-		pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (pcminfo == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+		pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		pcminfo->card = sc;
 		pcminfo->route = RT_MCHRECORD;
 
 		func->func = SCF_PCM;
 		func->varinfo = pcminfo;
-		sc->pcm[RT_MCHRECORD] = device_add_child(dev, "pcm", -1);
+		sc->pcm[RT_MCHRECORD] = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->pcm[RT_MCHRECORD], func);
 	} /*mch_rec */
 
@@ -3335,16 +3287,8 @@ emu_pci_attach(device_t dev)
 #if 0
 	/* Midi Interface 1: Live!, Audigy, Audigy 2 */
 	if ((sc->is_emu10k1) || (sc->is_emu10k2) || (sc->is_ca0102)) {
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (func == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
-		midiinfo = malloc(sizeof(struct emu_midiinfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (midiinfo == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+		midiinfo = malloc(sizeof(struct emu_midiinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		midiinfo->card = sc;
 		if (sc->is_emu10k2 || (sc->is_ca0102)) {
 			midiinfo->port = EMU_A_MUDATA1;
@@ -3356,21 +3300,13 @@ emu_pci_attach(device_t dev)
 		}
 		func->func = SCF_MIDI;
 		func->varinfo = midiinfo;
-		sc->midi[0] = device_add_child(dev, "midi", -1);
+		sc->midi[0] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->midi[0], func);
 	}
 	/* Midi Interface 2: Audigy, Audigy 2 (on AudigyDrive) */
 	if (sc->is_emu10k2 || (sc->is_ca0102)) {
-		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (func == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
-		midiinfo = malloc(sizeof(struct emu_midiinfo), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (midiinfo == NULL) {
-			error = ENOMEM;
-			goto bad;
-		}
+		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
+		midiinfo = malloc(sizeof(struct emu_midiinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		midiinfo->card = sc;
 
 		midiinfo->port = EMU_A_MUDATA2;
@@ -3378,11 +3314,12 @@ emu_pci_attach(device_t dev)
 
 		func->func = SCF_MIDI;
 		func->varinfo = midiinfo;
-		sc->midi[1] = device_add_child(dev, "midi", -1);
+		sc->midi[1] = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 		device_set_ivars(sc->midi[1], func);
 	}
 #endif
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 bad:
 	/* XXX can we just call emu_pci_detach here? */
@@ -3401,11 +3338,22 @@ bad:
 	return (error);
 }
 
+static void
+emu_pci_child_deleted(device_t dev, device_t child)
+{
+	struct sndcard_func *func;
+
+	func = device_get_ivars(child);
+	if (func != NULL) {
+		free(func->varinfo, M_DEVBUF);
+		free(func, M_DEVBUF);
+	}
+}
+
 static int
 emu_pci_detach(device_t dev)
 {
 	struct emu_sc_info *sc;
-	struct sndcard_func *func;
 	int devcount, i;
 	device_t *childlist;
 	int r = 0;
@@ -3414,35 +3362,17 @@ emu_pci_detach(device_t dev)
 
 	for (i = 0; i < RT_COUNT; i++) {
 		if (sc->pcm[i] != NULL) {
-			func = device_get_ivars(sc->pcm[i]);
-			if (func != NULL && func->func == SCF_PCM) {
-				device_set_ivars(sc->pcm[i], NULL);
-				free(func->varinfo, M_DEVBUF);
-				free(func, M_DEVBUF);
-			}
 			r = device_delete_child(dev, sc->pcm[i]);
 			if (r)	return (r);
 		}
 	}
 
 	if (sc->midi[0] != NULL) {
-		func = device_get_ivars(sc->midi[0]);
-		if (func != NULL && func->func == SCF_MIDI) {
-			device_set_ivars(sc->midi[0], NULL);
-			free(func->varinfo, M_DEVBUF);
-			free(func, M_DEVBUF);
-		}
 		r = device_delete_child(dev, sc->midi[0]);
 		if (r)	return (r);
 	}
 
 	if (sc->midi[1] != NULL) {
-		func = device_get_ivars(sc->midi[1]);
-		if (func != NULL && func->func == SCF_MIDI) {
-			device_set_ivars(sc->midi[1], NULL);
-			free(func->varinfo, M_DEVBUF);
-			free(func, M_DEVBUF);
-		}
 		r = device_delete_child(dev, sc->midi[1]);
 		if (r)	return (r);
 	}
@@ -3450,12 +3380,6 @@ emu_pci_detach(device_t dev)
 	if (device_get_children(dev, &childlist, &devcount) == 0)
 		for (i = 0; i < devcount - 1; i++) {
 			device_printf(dev, "removing stale child %d (unit %d)\n", i, device_get_unit(childlist[i]));
-			func = device_get_ivars(childlist[i]);
-			if (func != NULL && (func->func == SCF_MIDI || func->func == SCF_PCM)) {
-				device_set_ivars(childlist[i], NULL);
-				free(func->varinfo, M_DEVBUF);
-				free(func, M_DEVBUF);
-			}
 			device_delete_child(dev, childlist[i]);
 		}
 	if (childlist != NULL)
@@ -3488,6 +3412,7 @@ static device_method_t emu_methods[] = {
 	DEVMETHOD(device_attach, emu_pci_attach),
 	DEVMETHOD(device_detach, emu_pci_detach),
 	/* Bus methods */
+	DEVMETHOD(bus_child_deleted, emu_pci_child_deleted),
 	DEVMETHOD(bus_read_ivar, emu_read_ivar),
 	DEVMETHOD(bus_write_ivar, emu_write_ivar),
 

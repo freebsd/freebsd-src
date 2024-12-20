@@ -32,13 +32,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-#include <sys/acl.h>
 #include <sys/param.h>
+#include <sys/acl.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -62,18 +61,16 @@ static int	copy(const char *, const char *);
 static int	do_move(const char *, const char *);
 static int	fastcopy(const char *, const char *, struct stat *);
 static void	usage(void);
-static void	preserve_fd_acls(int source_fd, int dest_fd, const char *source_path,
-		    const char *dest_path);
+static void	preserve_fd_acls(int, int, const char *, const char *);
 
 int
 main(int argc, char *argv[])
 {
-	size_t baselen, len;
-	int rval;
-	char *p, *endp;
-	struct stat sb;
-	int ch;
 	char path[PATH_MAX];
+	struct stat sb;
+	char *p, *endp;
+	size_t baselen, len;
+	int ch, rval;
 
 	while ((ch = getopt(argc, argv, "fhinv")) != -1)
 		switch (ch) {
@@ -161,9 +158,10 @@ main(int argc, char *argv[])
 static int
 do_move(const char *from, const char *to)
 {
+	char path[PATH_MAX], modep[15];
+	struct statfs sfs;
 	struct stat sb;
 	int ask, ch, first;
-	char modep[15];
 
 	/*
 	 * Check access.  If interactive and file exists, ask user if it
@@ -171,9 +169,8 @@ do_move(const char *from, const char *to)
 	 * make sure the user wants to clobber it.
 	 */
 	if (!fflg && !access(to, F_OK)) {
-
 		/* prompt only if source exists */
-	        if (lstat(from, &sb) == -1) {
+		if (lstat(from, &sb) == -1) {
 			warn("%s", from);
 			return (1);
 		}
@@ -217,9 +214,6 @@ do_move(const char *from, const char *to)
 	}
 
 	if (errno == EXDEV) {
-		struct statfs sfs;
-		char path[PATH_MAX];
-
 		/*
 		 * If the source is a symbolic link and is on another
 		 * filesystem, it can be recreated at the destination.
@@ -262,18 +256,19 @@ static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
 	struct timespec ts[2];
-	static u_int blen = MAXPHYS;
-	static char *bp = NULL;
-	mode_t oldmode;
-	int nread, from_fd, to_fd;
 	struct stat tsb;
+	static char *bp = NULL;
+	static size_t blen = MAXPHYS;
+	ssize_t nread;
+	int from_fd, to_fd;
+	mode_t oldmode;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("fastcopy: open() failed (from): %s", from);
 		return (1);
 	}
-	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
-		warnx("malloc(%u) failed", blen);
+	if (bp == NULL && (bp = malloc(blen)) == NULL) {
+		warnx("malloc(%zu) failed", blen);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -285,7 +280,7 @@ fastcopy(const char *from, const char *to, struct stat *sbp)
 		(void)close(from_fd);
 		return (1);
 	}
-	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
+	while ((nread = read(from_fd, bp, blen)) > 0)
 		if (write(to_fd, bp, (size_t)nread) != nread) {
 			warn("fastcopy: write() failed: %s", to);
 			goto err;
@@ -304,8 +299,8 @@ err:		if (unlink(to))
 		warn("%s: set owner/group (was: %lu/%lu)", to,
 		    (u_long)sbp->st_uid, (u_long)sbp->st_gid);
 		if (oldmode & (S_ISUID | S_ISGID)) {
-			warnx(
-"%s: owner/group changed; clearing suid/sgid (mode was 0%03o)",
+			warnx("%s: owner/group changed; "
+			    "clearing suid/sgid (mode was 0%03o)",
 			    to, oldmode);
 			sbp->st_mode &= ~(S_ISUID | S_ISGID);
 		}
@@ -493,9 +488,8 @@ preserve_fd_acls(int source_fd, int dest_fd, const char *source_path,
 static void
 usage(void)
 {
-
 	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i | -n] [-hv] source target",
-		      "       mv [-f | -i | -n] [-v] source ... directory");
+	    "usage: mv [-f | -i | -n] [-hv] source target",
+	    "       mv [-f | -i | -n] [-v] source ... directory");
 	exit(EX_USAGE);
 }

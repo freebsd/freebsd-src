@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 SYSDIR?=${SRCTOP}/sys

@@ -592,7 +592,7 @@ main(int argc, char *argv[])
 		while (argc--)
 			gnu_check(*argv++);
 		argc = 0;
-		argv = calloc(sizeof(char *), numrecs + 1);
+		argv = calloc(numrecs + 1, sizeof(char *));
 		for (rec = head; rec != NULL; rec = rec->next) {
 			argv[argc] = rec->filename;
 			argc++;

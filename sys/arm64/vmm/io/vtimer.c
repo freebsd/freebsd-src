@@ -129,14 +129,42 @@ vtimer_vminit(struct hyp *hyp)
 {
 	uint64_t now;
 
+	hyp->vtimer.cnthctl_el2 = cnthctl_el2_reg;
+
 	/*
 	 * Configure the Counter-timer Hypervisor Control Register for the VM.
-	 *
-	 * CNTHCTL_EL1PCEN: trap access to CNTP_{CTL, CVAL, TVAL}_EL0 from EL1
-	 * CNTHCTL_EL1PCTEN: trap access to CNTPCT_EL0
 	 */
-	hyp->vtimer.cnthctl_el2 = cnthctl_el2_reg & ~CNTHCTL_EL1PCEN;
-	hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_EL1PCTEN;
+	if (in_vhe()) {
+		/*
+		 * CNTHCTL_E2H_EL0PCTEN: trap EL0 access to CNTP{CT,CTSS}_EL0
+		 * CNTHCTL_E2H_EL1VCTEN: don't trap EL0 access to
+		 *                       CNTV{CT,CTSS}_EL0
+		 * CNTHCTL_E2H_EL0VTEN: don't trap EL0 access to
+		 *                      CNTV_{CTL,CVAL,TVAL}_EL0
+		 * CNTHCTL_E2H_EL0PTEN: trap EL0 access to
+		 *                      CNTP_{CTL,CVAL,TVAL}_EL0
+		 * CNTHCTL_E2H_EL1PCEN: trap EL1 access to
+		                        CNTP_{CTL,CVAL,TVAL}_EL0
+		 * CNTHCTL_E2H_EL1PCTEN: trap access to CNTPCT_EL0
+		 *
+		 * TODO: Don't trap when FEAT_ECV is present
+		 */
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL0PCTEN;
+		hyp->vtimer.cnthctl_el2 |= CNTHCTL_E2H_EL0VCTEN;
+		hyp->vtimer.cnthctl_el2 |= CNTHCTL_E2H_EL0VTEN;
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL0PTEN;
+
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL1PTEN;
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_E2H_EL1PCTEN;
+	} else {
+		/*
+		 * CNTHCTL_EL1PCEN: trap access to CNTP_{CTL, CVAL, TVAL}_EL0
+		 *                  from EL1
+		 * CNTHCTL_EL1PCTEN: trap access to CNTPCT_EL0
+		 */
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_EL1PCEN;
+		hyp->vtimer.cnthctl_el2 &= ~CNTHCTL_EL1PCTEN;
+	}
 
 	now = READ_SPECIALREG(cntpct_el0);
 	hyp->vtimer.cntvoff_el2 = now;

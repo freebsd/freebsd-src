@@ -181,7 +181,7 @@ static void
 free_ddp_rcv_buffer(struct toepcb *toep, struct ddp_rcv_buffer *drb)
 {
 	t4_free_page_pods(&drb->prsv);
-	contigfree(drb->buf, drb->len, M_CXGBE);
+	free(drb->buf, M_CXGBE);
 	free(drb, M_CXGBE);
 	counter_u64_add(toep->ofld_rxq->ddp_buffer_free, 1);
 	free_toepcb(toep);
@@ -242,7 +242,7 @@ alloc_ddp_rcv_buffer(struct toepcb *toep, int how)
 
 	error = t4_alloc_page_pods_for_rcvbuf(&td->pr, drb);
 	if (error != 0) {
-		contigfree(drb->buf, drb->len, M_CXGBE);
+		free(drb->buf, M_CXGBE);
 		free(drb, M_CXGBE);
 		return (NULL);
 	}
@@ -250,7 +250,7 @@ alloc_ddp_rcv_buffer(struct toepcb *toep, int how)
 	error = t4_write_page_pods_for_rcvbuf(sc, toep->ctrlq, toep->tid, drb);
 	if (error != 0) {
 		t4_free_page_pods(&drb->prsv);
-		contigfree(drb->buf, drb->len, M_CXGBE);
+		free(drb->buf, M_CXGBE);
 		free(drb, M_CXGBE);
 		return (NULL);
 	}
@@ -2653,8 +2653,8 @@ sbcopy:
 	 * which will keep it open and keep the TCP PCB attached until
 	 * after the job is completed.
 	 */
-	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, &ps->prsv, ps->len,
-	    job->aio_received, ddp_flags, ddp_flags_mask);
+	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, &ps->prsv,
+	    job->aio_received, ps->len, ddp_flags, ddp_flags_mask);
 	if (wr == NULL) {
 		recycle_pageset(toep, ps);
 		aio_ddp_requeue_one(toep, job);
@@ -2820,6 +2820,14 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 		return (EOPNOTSUPP);
 	}
 
+	if ((toep->ddp.flags & DDP_AIO) == 0) {
+		toep->ddp.flags |= DDP_AIO;
+		TAILQ_INIT(&toep->ddp.cached_pagesets);
+		TAILQ_INIT(&toep->ddp.aiojobq);
+		TASK_INIT(&toep->ddp.requeue_task, 0, aio_ddp_requeue_task,
+		    toep);
+	}
+
 	/*
 	 * XXX: Think about possibly returning errors for ENOTCONN,
 	 * etc.  Perhaps the caller would only queue the request
@@ -2833,14 +2841,6 @@ t4_aio_queue_ddp(struct socket *so, struct kaiocb *job)
 		panic("new job was cancelled");
 	TAILQ_INSERT_TAIL(&toep->ddp.aiojobq, job, list);
 	toep->ddp.waiting_count++;
-
-	if ((toep->ddp.flags & DDP_AIO) == 0) {
-		toep->ddp.flags |= DDP_AIO;
-		TAILQ_INIT(&toep->ddp.cached_pagesets);
-		TAILQ_INIT(&toep->ddp.aiojobq);
-		TASK_INIT(&toep->ddp.requeue_task, 0, aio_ddp_requeue_task,
-		    toep);
-	}
 
 	/*
 	 * Try to handle this request synchronously.  If this has

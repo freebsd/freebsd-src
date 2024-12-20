@@ -51,7 +51,7 @@
 
 device_t *ivhd_devs;			/* IVHD or AMD-Vi device list. */
 int	ivhd_count;			/* Number of IVHD header. */
-/* 
+/*
  * Cached IVHD header list.
  * Single entry for each IVHD, filtered the legacy one.
  */
@@ -225,7 +225,7 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 			break;
 
 		default:
-			device_printf(softc->dev, 
+			device_printf(softc->dev,
 				"unknown type: 0x%x\n", ivhd->Header.Type);
 			return (-1);
 	}
@@ -366,7 +366,7 @@ ivhd_identify(driver_t *driver, device_t parent)
 	ivrs_ivinfo = ivrs->Info;
 	printf("AMD-Vi: IVRS Info VAsize = %d PAsize = %d GVAsize = %d"
 	       " flags:%b\n",
-		REG_BITS(ivrs_ivinfo, 21, 15), REG_BITS(ivrs_ivinfo, 14, 8), 
+		REG_BITS(ivrs_ivinfo, 21, 15), REG_BITS(ivrs_ivinfo, 14, 8),
 		REG_BITS(ivrs_ivinfo, 7, 5), REG_BITS(ivrs_ivinfo, 22, 22),
 		"\020\001EFRSup");
 
@@ -439,7 +439,7 @@ ivhd_probe(device_t dev)
 		return (ENXIO);
 
 	unit = device_get_unit(dev);
-	KASSERT((unit < ivhd_count), 
+	KASSERT((unit < ivhd_count),
 		("ivhd unit %d > count %d", unit, ivhd_count));
 	ivhd = ivhd_hdrs[unit];
 	KASSERT(ivhd, ("ivhd is NULL"));
@@ -506,7 +506,7 @@ ivhd_print_flag(device_t dev, enum IvrsType ivhd_type, uint8_t flag)
  * Feature in legacy IVHD type(0x10) and attribute in newer type(0x11 and 0x40).
  */
 static void
-ivhd_print_feature(device_t dev, enum IvrsType ivhd_type, uint32_t feature) 
+ivhd_print_feature(device_t dev, enum IvrsType ivhd_type, uint32_t feature)
 {
 	switch (ivhd_type) {
 	case IVRS_TYPE_HARDWARE_LEGACY:
@@ -639,7 +639,7 @@ ivhd_attach(device_t dev)
 	int status, unit;
 
 	unit = device_get_unit(dev);
-	KASSERT((unit < ivhd_count), 
+	KASSERT((unit < ivhd_count),
 		("ivhd unit %d > count %d", unit, ivhd_count));
 	/* Make sure its same device for which attach is called. */
 	KASSERT((ivhd_devs[unit] == dev),
@@ -658,12 +658,12 @@ ivhd_attach(device_t dev)
 	softc->pci_seg = ivhd->PciSegmentGroup;
 	softc->pci_rid = ivhd->Header.DeviceId;
 	softc->ivhd_flag = ivhd->Header.Flags;
-	/* 
+	/*
 	 * On lgeacy IVHD type(0x10), it is documented as feature
 	 * but in newer type it is attribute.
 	 */
 	softc->ivhd_feature = ivhd->FeatureReporting;
-	/* 
+	/*
 	 * PCI capability has more capabilities that are not part of IVRS.
 	 */
 	softc->cap_off = ivhd->CapabilityOffset;
@@ -694,7 +694,7 @@ ivhd_attach(device_t dev)
 
 	status = amdvi_setup_hw(softc);
 	if (status != 0) {
-		device_printf(dev, "couldn't be initialised, error=%d\n", 
+		device_printf(dev, "couldn't be initialised, error=%d\n",
 		    status);
 		goto fail;
 	}

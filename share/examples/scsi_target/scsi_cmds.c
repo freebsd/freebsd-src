@@ -102,10 +102,6 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 
 static struct scsi_inquiry_data inq_data;
 static struct initiator_state istates[MAX_INITIATORS];
-extern int		debug;
-extern off_t		volume_size;
-extern u_int		sector_size;
-extern size_t		buf_size;
 
 cam_status
 tcmd_init(u_int16_t req_inq_flags, u_int16_t sim_inq_flags)
@@ -553,7 +549,7 @@ tcmd_rdwr_decode(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 		tcmd_illegal_req(atio, ctio);
 		return (0);
 	}
-	if (blkno + count > volume_size) {
+	if (((off_t)(blkno + count)) > volume_size) {
 		warnx("Attempt to access past end of volume");
 		tcmd_sense(ctio->init_id, ctio,
 			   SSD_KEY_ILLEGAL_REQUEST, 0x21, 0);

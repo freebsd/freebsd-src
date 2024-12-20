@@ -457,7 +457,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	if (IS_27XX(isp)) {
 		switch (isp_load_risc(isp, 0)) {
 		case ISP_ABORTED:
-			/* download ispfw(4) as it's newer than flash */
+			/*
+			 * download ispfw(4) as it's newer than flash, or
+			 * the user requested it.
+			 */
 			dodnld = 1;
 			break;
 		case ISP_SUCCESS:
@@ -1539,7 +1542,15 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 	    chan, id, pdb->portid, un.bill.pdb_flags,
 	    un.bill.pdb_curstate, un.bill.pdb_laststate);
 
-	if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
+	/*
+	 * XXX KDM this is broken for NVMe.  Need to determine whether this
+	 * is an NVMe target, and if so, check the NVMe status bits. We are
+	 * probably missing more bits for proper NVMe support, though.
+	 */
+	if (((un.bill.pdb_curstate & PDB2400_STATE_FCP_MASK) <
+	      PDB2400_STATE_PLOGI_DONE)
+	 || ((un.bill.pdb_curstate & PDB2400_STATE_FCP_MASK) >
+	      PDB2400_STATE_LOGGED_IN)) {
 		mbs.param[0] = MBOX_NOT_LOGGED_IN;
 		return (mbs.param[0]);
 	}
@@ -3088,6 +3099,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY)
 			return (0);
 		isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, tgt, ab->abrt_nphdl);
+		break;
 	}
 	case ISPCTL_FCLINK_TEST:
 	{
@@ -5214,7 +5226,20 @@ isp_load_risc_flash(ispsoftc_t *isp, uint32_t *srisc_addr, uint32_t faddr)
 
 		/* If ispfw(4) is loaded compare versions and use the newest */
 		if (isp->isp_osinfo.ispfw != NULL) {
+			int ispfw_newer = 0;
+
 			if (ISP_FW_NEWER_THANX(fcp->fw_ispfwrev, fcp->fw_flashrev)) {
+				ispfw_newer = 1;
+			}
+
+			if (isp->isp_confopts & ISP_CFG_FWLOAD_FORCE) {
+				isp_prt(isp, ISP_LOGCONFIG,
+				    "Loading RISC with %s ispfw(4) firmware %s",
+				    (ispfw_newer == 0) ? "older" : "newer",
+				    "because fwload_force is set");
+				return (ISP_ABORTED);
+			}
+			if (ispfw_newer != 0) {
 				isp_prt(isp, ISP_LOGCONFIG,
 				    "Loading RISC with newer ispfw(4) firmware");
 				return (ISP_ABORTED);

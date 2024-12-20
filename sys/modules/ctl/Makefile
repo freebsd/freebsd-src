@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/cam/ctl
 
 KMOD=	ctl

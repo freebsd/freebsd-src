@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/bhnd/bcma
 
 KMOD=	bcma

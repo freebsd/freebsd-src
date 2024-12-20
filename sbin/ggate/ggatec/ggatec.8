@@ -34,6 +34,7 @@
 .Op Fl n
 .Op Fl v
 .Op Fl o Cm ro | wo | rw
+.Op Fl o Cm direct
 .Op Fl p Ar port
 .Op Fl q Ar queue_size
 .Op Fl R Ar rcvbuf
@@ -48,6 +49,7 @@
 .Op Fl n
 .Op Fl v
 .Op Fl o Cm ro | wo | rw
+.Op Fl o Cm direct
 .Op Fl p Ar port
 .Op Fl R Ar rcvbuf
 .Op Fl S Ar sndbuf
@@ -108,13 +110,21 @@ provider (cancels all pending requests).
 Do not use
 .Dv TCP_NODELAY
 option on TCP sockets.
-.It Fl o Cm ro | wo | rw
-Specify permissions to use when opening the file or device: read-only
-.Pq Cm ro ,
+.It Fl o Ar option
+Specify permissions and options to use when opening the file or device.
+.Bl -tag -width indent
+.It Cm ro
+read-only
+.It Cm wo
 write-only
-.Pq Cm wo ,
-or read-write
-.Pq Cm rw .
+.It Cm rw
+read-write
+.It Cm direct
+open with
+.Dv O_DIRECT
+option on the file
+.El
+.Pp
 Default is
 .Cm rw .
 .It Fl p Ar port
@@ -160,11 +170,14 @@ Use a CD-ROM device on a remote host.
 .Bd -literal -offset indent
 server# cat /etc/gg.exports
 client RO /dev/cd0
+client RW /tmp/image
 server# ggated
 
 client# ggatec create -o ro server /dev/cd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
+client# ggatec create -o rw -o direct server /tmp/image
+ggate1
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,

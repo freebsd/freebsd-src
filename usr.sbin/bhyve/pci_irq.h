@@ -36,6 +36,8 @@ struct pci_devinst;
 #include "amd64/pci_irq_machdep.h"
 #elif defined(__aarch64__)
 #include "aarch64/pci_irq_machdep.h"
+#elif defined(__riscv)
+#include "riscv/pci_irq_machdep.h"
 #else
 #error Unsupported platform
 #endif

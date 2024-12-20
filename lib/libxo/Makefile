@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 HAS_TESTS=

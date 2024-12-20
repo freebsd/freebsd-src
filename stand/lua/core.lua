@@ -65,7 +65,13 @@ end
 -- message on failure.
 function try_include(module)
 	if module:sub(1, 1) ~= "/" then
-		module = loader.lua_path .. "/" .. module
+		local lua_path = loader.lua_path
+		-- XXX Temporary compat shim; this should be removed once the
+		-- loader.lua_path export has sufficiently spread.
+		if lua_path == nil then
+			lua_path = "/boot/lua"
+		end
+		module = lua_path .. "/" .. module
 		-- We only attempt to append an extension if an absolute path
 		-- wasn't specified.  This assumes that the caller either wants
 		-- to treat this like it would require() and specify just the
@@ -173,12 +179,14 @@ function core.setSafeMode(safe_mode)
 		loader.setenv("hw.ata.atapi_dma", "0")
 		loader.setenv("kern.eventtimer.periodic", "1")
 		loader.setenv("kern.geom.part.check_integrity", "0")
+		loader.setenv("boot_safe", "YES")
 	else
 		loader.unsetenv("kern.smp.disabled")
 		loader.unsetenv("hw.ata.ata_dma")
 		loader.unsetenv("hw.ata.atapi_dma")
 		loader.unsetenv("kern.eventtimer.periodic")
 		loader.unsetenv("kern.geom.part.check_integrity")
+		loader.unsetenv("boot_safe")
 	end
 	core.sm = safe_mode
 end
@@ -363,7 +371,8 @@ end
 function core.loadEntropy()
 	if core.isUEFIBoot() then
 		if (loader.getenv("entropy_efi_seed") or "no"):lower() == "yes" then
-			loader.perform("efi-seed-entropy")
+			local seedsize = loader.getenv("entropy_efi_seed_size") or "2048"
+			loader.perform("efi-seed-entropy " .. seedsize)
 		end
 	end
 end
@@ -534,6 +543,36 @@ function core.nextConsoleChoice()
 			loader.setenv("boot_serial", "YES")
 		end
 	end
+end
+
+-- The graphical-enabled loaders have unicode drawing character support. The
+-- text-only ones do not. We check the old and new bindings for term_drawrect as
+-- a proxy for unicode support, which will work on older boot loaders as well
+-- as be future proof for when we remove the old binding. This also abstracts
+-- out the test to one spot in case we start to export this notion more directly.
+function core.hasUnicode()
+	 return gfx.term_drawrect ~= nil or loader.term_drawrect ~= nil
+end
+
+-- Sanity check the boot loader revision
+-- Loaders with version 3.0 have everything that we need without backwards
+-- compatible hacks. Warn users that still have old versions to upgrade so
+-- that we can remove the backwards compatible hacks in the future since
+-- they have been there a long time.
+local loader_major = 3
+
+function core.loaderTooOld()
+	return loader.version == nil or loader.version < loader_major * 1000
+end
+
+if core.loaderTooOld() then
+	print("**********************************************************************")
+	print("**********************************************************************")
+	print("*****                                                            *****")
+	print("*****           BOOT LOADER IS TOO OLD. PLEASE UPGRADE.          *****")
+	print("*****                                                            *****")
+	print("**********************************************************************")
+	print("**********************************************************************")
 end
 
 recordDefaults()

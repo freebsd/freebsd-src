@@ -1,4 +1,3 @@
-
 SUBDIR=	lib .WAIT \
 	libexec tools usr.bin usr.sbin
 SUBDIR_PARALLEL=

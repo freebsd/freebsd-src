@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_page.c,v 1.14 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: frm_page.c,v 1.15 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_form_page(FORM * form,int  page)
-|   
+|
 |   Description   :  Set the page number of the form.
 |
 |   Return Values :  E_OK              - success
@@ -88,9 +88,9 @@ set_form_page(FORM *form, int page)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int form_page(const FORM * form)
-|   
+|
 |   Description   :  Return the current page of the form.
 |
 |   Return Values :  >= 0  : current page number

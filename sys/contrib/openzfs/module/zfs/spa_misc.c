@@ -1588,6 +1588,34 @@ spa_generate_guid(spa_t *spa)
 	return (guid);
 }
 
+static boolean_t
+spa_load_guid_exists(uint64_t guid)
+{
+	avl_tree_t *t = &spa_namespace_avl;
+
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+
+	for (spa_t *spa = avl_first(t); spa != NULL; spa = AVL_NEXT(t, spa)) {
+		if (spa_load_guid(spa) == guid)
+			return (B_TRUE);
+	}
+
+	return (arc_async_flush_guid_inuse(guid));
+}
+
+uint64_t
+spa_generate_load_guid(void)
+{
+	uint64_t guid;
+
+	do {
+		(void) random_get_pseudo_bytes((void *)&guid,
+		    sizeof (guid));
+	} while (guid == 0 || spa_load_guid_exists(guid));
+
+	return (guid);
+}
+
 void
 snprintf_blkptr(char *buf, size_t buflen, const blkptr_t *bp)
 {
@@ -1870,13 +1898,7 @@ spa_get_slop_space(spa_t *spa)
 	if (spa->spa_dedup_dspace == ~0ULL)
 		spa_update_dspace(spa);
 
-	/*
-	 * spa_get_dspace() includes the space only logically "used" by
-	 * deduplicated data, so since it's not useful to reserve more
-	 * space with more deduplicated data, we subtract that out here.
-	 */
-	space =
-	    spa_get_dspace(spa) - spa->spa_dedup_dspace - brt_get_dspace(spa);
+	space = spa->spa_rdspace;
 	slop = MIN(space >> spa_slop_shift, spa_max_slop);
 
 	/*
@@ -1912,8 +1934,7 @@ spa_get_checkpoint_space(spa_t *spa)
 void
 spa_update_dspace(spa_t *spa)
 {
-	spa->spa_dspace = metaslab_class_get_dspace(spa_normal_class(spa)) +
-	    ddt_get_dedup_dspace(spa) + brt_get_dspace(spa);
+	spa->spa_rdspace = metaslab_class_get_dspace(spa_normal_class(spa));
 	if (spa->spa_nonallocating_dspace > 0) {
 		/*
 		 * Subtract the space provided by all non-allocating vdevs that
@@ -1933,9 +1954,11 @@ spa_update_dspace(spa_t *spa)
 		 * doesn't matter that the data we are moving may be
 		 * allocated twice (on the old device and the new device).
 		 */
-		ASSERT3U(spa->spa_dspace, >=, spa->spa_nonallocating_dspace);
-		spa->spa_dspace -= spa->spa_nonallocating_dspace;
+		ASSERT3U(spa->spa_rdspace, >=, spa->spa_nonallocating_dspace);
+		spa->spa_rdspace -= spa->spa_nonallocating_dspace;
 	}
+	spa->spa_dspace = spa->spa_rdspace + ddt_get_dedup_dspace(spa) +
+	    brt_get_dspace(spa);
 }
 
 /*
@@ -1996,13 +2019,31 @@ spa_dedup_class(spa_t *spa)
 	return (spa->spa_dedup_class);
 }
 
+boolean_t
+spa_special_has_ddt(spa_t *spa)
+{
+	return (zfs_ddt_data_is_special &&
+	    spa->spa_special_class->mc_groups != 0);
+}
+
 /*
  * Locate an appropriate allocation class
  */
 metaslab_class_t *
-spa_preferred_class(spa_t *spa, uint64_t size, dmu_object_type_t objtype,
-    uint_t level, uint_t special_smallblk)
+spa_preferred_class(spa_t *spa, const zio_t *zio)
 {
+	const zio_prop_t *zp = &zio->io_prop;
+
+	/*
+	 * Override object type for the purposes of selecting a storage class.
+	 * Primarily for DMU_OTN_ types where we can't explicitly control their
+	 * storage class; instead, choose a static type most closely matches
+	 * what we want.
+	 */
+	dmu_object_type_t objtype =
+	    zp->zp_storage_type == DMU_OT_NONE ?
+	    zp->zp_type : zp->zp_storage_type;
+
 	/*
 	 * ZIL allocations determine their class in zio_alloc_zil().
 	 */
@@ -2020,14 +2061,15 @@ spa_preferred_class(spa_t *spa, uint64_t size, dmu_object_type_t objtype,
 	}
 
 	/* Indirect blocks for user data can land in special if allowed */
-	if (level > 0 && (DMU_OT_IS_FILE(objtype) || objtype == DMU_OT_ZVOL)) {
+	if (zp->zp_level > 0 &&
+	    (DMU_OT_IS_FILE(objtype) || objtype == DMU_OT_ZVOL)) {
 		if (has_special_class && zfs_user_indirect_is_special)
 			return (spa_special_class(spa));
 		else
 			return (spa_normal_class(spa));
 	}
 
-	if (DMU_OT_IS_METADATA(objtype) || level > 0) {
+	if (DMU_OT_IS_METADATA(objtype) || zp->zp_level > 0) {
 		if (has_special_class)
 			return (spa_special_class(spa));
 		else
@@ -2040,7 +2082,7 @@ spa_preferred_class(spa_t *spa, uint64_t size, dmu_object_type_t objtype,
 	 * zfs_special_class_metadata_reserve_pct exclusively for metadata.
 	 */
 	if (DMU_OT_IS_FILE(objtype) &&
-	    has_special_class && size <= special_smallblk) {
+	    has_special_class && zio->io_size <= zp->zp_zpl_smallblk) {
 		metaslab_class_t *special = spa_special_class(spa);
 		uint64_t alloc = metaslab_class_get_alloc(special);
 		uint64_t space = metaslab_class_get_space(special);
@@ -2571,6 +2613,7 @@ spa_init(spa_mode_t mode)
 	scan_init();
 	qat_init();
 	spa_import_progress_init();
+	zap_init();
 }
 
 void
@@ -2597,6 +2640,7 @@ spa_fini(void)
 	scan_fini();
 	qat_fini();
 	spa_import_progress_destroy();
+	zap_fini();
 
 	avl_destroy(&spa_namespace_avl);
 	avl_destroy(&spa_spare_avl);
@@ -2658,6 +2702,12 @@ spa_mode_t
 spa_mode(spa_t *spa)
 {
 	return (spa->spa_mode);
+}
+
+uint64_t
+spa_get_last_scrubbed_txg(spa_t *spa)
+{
+	return (spa->spa_scrubbed_last_txg);
 }
 
 uint64_t
@@ -3101,7 +3151,6 @@ ZFS_MODULE_PARAM(zfs, zfs_, ddt_data_is_special, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, user_indirect_is_special, INT, ZMOD_RW,
 	"Place user data indirect blocks into the special class");
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM_CALL(zfs_deadman, zfs_deadman_, failmode,
 	param_set_deadman_failmode, param_get_charp, ZMOD_RW,
 	"Failmode for deadman timer");
@@ -3117,7 +3166,6 @@ ZFS_MODULE_PARAM_CALL(zfs_deadman, zfs_deadman_, ziotime_ms,
 ZFS_MODULE_PARAM(zfs, zfs_, special_class_metadata_reserve_pct, UINT, ZMOD_RW,
 	"Small file blocks in special vdevs depends on this much "
 	"free space available");
-/* END CSTYLED */
 
 ZFS_MODULE_PARAM_CALL(zfs_spa, spa_, slop_shift, param_set_slop_shift,
 	param_get_uint, ZMOD_RW, "Reserved free space in pool");

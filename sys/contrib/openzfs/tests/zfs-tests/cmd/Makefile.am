@@ -24,7 +24,7 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/badsend
 
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/btree_test
-%C%_btree_test_CPPFLAGS = $(AM_CPPFLAGS) $(FORCEDEBUG_CPPFLAGS)
+%C%_btree_test_CPPFLAGS = $(AM_CPPFLAGS) $(LIBZPOOL_CPPFLAGS)
 %C%_btree_test_LDADD = \
 	libzpool.la \
 	libzfs_core.la
@@ -60,6 +60,8 @@ scripts_zfs_tests_bin_PROGRAMS += %D%/libzfs_input_check
 	libzfs_core.la \
 	libnvpair.la
 
+scripts_zfs_tests_bin_PROGRAMS += %D%/manipulate_user_buffer
+%C%_manipulate_user_buffer_LDADD = -lpthread
 
 scripts_zfs_tests_bin_PROGRAMS += %D%/mkbusy %D%/mkfile %D%/mkfiles %D%/mktree
 %C%_mkfile_LDADD = $(LTLIBINTL)

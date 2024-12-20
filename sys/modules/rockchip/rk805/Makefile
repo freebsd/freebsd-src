@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/iicbus/pmic/rockchip
 
 KMOD=	rk805

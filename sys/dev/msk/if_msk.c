@@ -252,6 +252,7 @@ static const char *model_name[] = {
 
 static int mskc_probe(device_t);
 static int mskc_attach(device_t);
+static void mskc_child_deleted(device_t, device_t);
 static int mskc_detach(device_t);
 static int mskc_shutdown(device_t);
 static int mskc_setup_rambuffer(struct msk_softc *);
@@ -335,6 +336,7 @@ static device_method_t mskc_methods[] = {
 	DEVMETHOD(device_resume,	mskc_resume),
 	DEVMETHOD(device_shutdown,	mskc_shutdown),
 
+	DEVMETHOD(bus_child_deleted,	mskc_child_deleted),
 	DEVMETHOD(bus_get_dma_tag,	mskc_get_dma_tag),
 
 	DEVMETHOD_END
@@ -1564,7 +1566,6 @@ static int
 msk_probe(device_t dev)
 {
 	struct msk_softc *sc;
-	char desc[100];
 
 	sc = device_get_softc(device_get_parent(dev));
 	/*
@@ -1573,11 +1574,10 @@ msk_probe(device_t dev)
 	 * mskc_attach() will create a second device instance
 	 * for us.
 	 */
-	snprintf(desc, sizeof(desc),
+	device_set_descf(dev,
 	    "Marvell Technology Group Ltd. %s Id 0x%02x Rev 0x%02x",
 	    model_name[sc->msk_hw_id - CHIP_ID_YUKON_XL], sc->msk_hw_id,
 	    sc->msk_hw_rev);
-	device_set_desc_copy(dev, desc);
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -1625,11 +1625,6 @@ msk_attach(device_t dev)
 	msk_rx_dma_jalloc(sc_if);
 
 	ifp = sc_if->msk_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(sc_if->msk_if_dev, "can not if_alloc()\n");
-		error = ENOSPC;
-		goto fail;
-	}
 	if_setsoftc(ifp, sc_if);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -1943,7 +1938,7 @@ mskc_attach(device_t dev)
 	if ((error = mskc_setup_rambuffer(sc)) != 0)
 		goto fail;
 
-	sc->msk_devs[MSK_PORT_A] = device_add_child(dev, "msk", -1);
+	sc->msk_devs[MSK_PORT_A] = device_add_child(dev, "msk", DEVICE_UNIT_ANY);
 	if (sc->msk_devs[MSK_PORT_A] == NULL) {
 		device_printf(dev, "failed to add child for PORT_A\n");
 		error = ENXIO;
@@ -1960,7 +1955,7 @@ mskc_attach(device_t dev)
 	device_set_ivars(sc->msk_devs[MSK_PORT_A], mmd);
 
 	if (sc->msk_num_port > 1) {
-		sc->msk_devs[MSK_PORT_B] = device_add_child(dev, "msk", -1);
+		sc->msk_devs[MSK_PORT_B] = device_add_child(dev, "msk", DEVICE_UNIT_ANY);
 		if (sc->msk_devs[MSK_PORT_B] == NULL) {
 			device_printf(dev, "failed to add child for PORT_B\n");
 			error = ENXIO;
@@ -1977,11 +1972,7 @@ mskc_attach(device_t dev)
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach port(s)\n");
-		goto fail;
-	}
+	bus_attach_children(dev);
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
@@ -2053,6 +2044,12 @@ msk_detach(device_t dev)
 	return (0);
 }
 
+static void
+mskc_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 static int
 mskc_detach(device_t dev)
 {
@@ -2063,13 +2060,9 @@ mskc_detach(device_t dev)
 
 	if (device_is_alive(dev)) {
 		if (sc->msk_devs[MSK_PORT_A] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_A]),
-			    M_DEVBUF);
 			device_delete_child(dev, sc->msk_devs[MSK_PORT_A]);
 		}
 		if (sc->msk_devs[MSK_PORT_B] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_B]),
-			    M_DEVBUF);
 			device_delete_child(dev, sc->msk_devs[MSK_PORT_B]);
 		}
 		bus_generic_detach(dev);

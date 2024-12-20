@@ -287,6 +287,29 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 }
 
 int
+pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
+    int *nzero, int flags)
+{
+	struct pfioc_table io;
+
+	if (size < 0 || !tbl || (size && !addr)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	bzero(&io, sizeof io);
+	io.pfrio_flags = flags;
+	io.pfrio_table = *tbl;
+	io.pfrio_buffer = addr;
+	io.pfrio_esize = sizeof(*addr);
+	io.pfrio_size = size;
+	if (ioctl(dev, DIOCRCLRASTATS, &io) == -1)
+		return (-1);
+	if (nzero)
+		*nzero = io.pfrio_nzero;
+	return (0);
+}
+
+int
 pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
 {
 	struct pfioc_table io;
@@ -534,8 +557,8 @@ pfr_next_token(char buf[BUF_SIZE], FILE *fp)
 		/* skip spaces */
 		while (isspace(next_ch) && !feof(fp))
 			next_ch = fgetc(fp);
-		/* remove from '#' until end of line */
-		if (next_ch == '#')
+		/* remove from '#' or ';' until end of line */
+		if (next_ch == '#' || next_ch == ';')
 			while (!feof(fp)) {
 				next_ch = fgetc(fp);
 				if (next_ch == '\n')

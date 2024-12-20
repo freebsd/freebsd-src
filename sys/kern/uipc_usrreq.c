@@ -112,6 +112,7 @@ static int		unp_rights;	/* (g) File descriptors in flight. */
 static struct unp_head	unp_shead;	/* (l) List of stream sockets. */
 static struct unp_head	unp_dhead;	/* (l) List of datagram sockets. */
 static struct unp_head	unp_sphead;	/* (l) List of seqpacket sockets. */
+static struct mtx_pool	*unp_vp_mtxpool;
 
 struct unp_defer {
 	SLIST_ENTRY(unp_defer) ud_link;
@@ -483,6 +484,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 	refcount_init(&unp->unp_refcount, 1);
+	unp->unp_mode = ACCESSPERMS;
 
 	if ((locked = UNP_LINK_WOWNED()) == false)
 		UNP_LINK_WLOCK();
@@ -525,6 +527,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct mount *mp;
 	cap_rights_t rights;
 	char *buf;
+	mode_t mode;
 
 	if (nam->sa_family != AF_UNIX)
 		return (EAFNOSUPPORT);
@@ -557,6 +560,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EALREADY);
 	}
 	unp->unp_flags |= UNP_BINDING;
+	mode = unp->unp_mode & ~td->td_proc->p_pd->pd_cmask;
 	UNP_PCB_UNLOCK(unp);
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
@@ -589,7 +593,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_pd->pd_cmask);
+	vattr.va_mode = mode;
 #ifdef MAC
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -679,7 +683,7 @@ uipc_close(struct socket *so)
 
 	vplock = NULL;
 	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 		mtx_lock(vplock);
 	}
 	UNP_PCB_LOCK(unp);
@@ -699,6 +703,27 @@ uipc_close(struct socket *so)
 		mtx_unlock(vplock);
 		vrele(vp);
 	}
+}
+
+static int
+uipc_chmod(struct socket *so, mode_t mode, struct ucred *cred __unused,
+    struct thread *td __unused)
+{
+	struct unpcb *unp;
+	int error;
+
+	if ((mode & ~ACCESSPERMS) != 0)
+		return (EINVAL);
+
+	error = 0;
+	unp = sotounpcb(so);
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_vnode != NULL || (unp->unp_flags & UNP_BINDING) != 0)
+		error = EINVAL;
+	else
+		unp->unp_mode = mode;
+	UNP_PCB_UNLOCK(unp);
+	return (error);
 }
 
 static int
@@ -748,7 +773,7 @@ uipc_detach(struct socket *so)
 	UNP_PCB_UNLOCK_ASSERT(unp);
  restart:
 	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(mtxpool_sleep, vp);
+		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 		mtx_lock(vplock);
 	}
 	UNP_PCB_LOCK(unp);
@@ -1953,7 +1978,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
 
-	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp2);
 	if (unp2 == NULL) {
@@ -2561,6 +2586,7 @@ unp_init(void *arg __unused)
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
 	UNP_DEFERRED_LOCK_INIT();
+	unp_vp_mtxpool = mtx_pool_create("unp vp mtxpool", 32, MTX_DEF);
 }
 SYSINIT(unp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, unp_init, NULL);
 
@@ -3355,6 +3381,7 @@ static struct protosw streamproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		soreceive_generic,
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct protosw dgramproto = {
@@ -3378,6 +3405,7 @@ static struct protosw dgramproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		uipc_soreceive_dgram,
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct protosw seqpacketproto = {
@@ -3409,6 +3437,7 @@ static struct protosw seqpacketproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		soreceive_generic,	/* XXX: or...? */
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct domain localdomain = {
@@ -3441,7 +3470,7 @@ vfs_unp_reclaim(struct vnode *vp)
 	    ("vfs_unp_reclaim: vp->v_type != VSOCK"));
 
 	active = 0;
-	vplock = mtx_pool_find(mtxpool_sleep, vp);
+	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp);
 	if (unp == NULL)

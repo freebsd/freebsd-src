@@ -345,6 +345,10 @@ typedef void vd_bitblt_bmp_t(struct vt_device *vd, const struct vt_window *vw,
     const uint8_t *pattern, const uint8_t *mask,
     unsigned int width, unsigned int height,
     unsigned int x, unsigned int y, term_color_t fg, term_color_t bg);
+typedef int vd_bitblt_argb_t(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *argb,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -368,6 +372,7 @@ struct vt_driver {
 	vd_bitblt_text_t *vd_bitblt_text;
 	vd_invalidate_text_t *vd_invalidate_text;
 	vd_bitblt_bmp_t	*vd_bitblt_bmp;
+	vd_bitblt_argb_t *vd_bitblt_argb;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;

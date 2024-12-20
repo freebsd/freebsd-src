@@ -598,12 +598,12 @@ zy7_qspi_attach(device_t dev)
 		return (err);
 	}
 
-	sc->child = device_add_child(dev, "spibus", -1);
+	sc->child = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
 	zy7_qspi_add_sysctls(dev);
 
 	/* Attach spibus driver as a child later when interrupts work. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 }

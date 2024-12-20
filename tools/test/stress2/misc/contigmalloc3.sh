@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# contigmalloc(9) / contigfree(9) test scenario.
+# contigmalloc(9) / free(9) test scenario.
 # Test allocation with 1GB
 
 # "panic: Bad link elm 0x6766fbc next->prev != elm" seen:
@@ -91,7 +91,7 @@ test(int argc, char *argv[])
 
 	res = syscall(no, TFREE, &cp, &size);
 #if defined(TEST)
-	fprintf(stderr, "contigfree(%lu pages) %luMB\n",
+	fprintf(stderr, "free(%lu pages) %luMB\n",
 	    size / ps, size / 1024 / 1024);
 #endif
 }
@@ -166,10 +166,8 @@ cmalloc(struct thread *td, struct cmalloc_args *uap)
 	switch (uap->a_op) {
 	case TFREE:
 		error = copyin(uap->a_ptr, &p, sizeof(p));
-		if (error == 0) {
-			if (p != NULL)
-				contigfree(p, size, M_TEMP);
-		}
+		if (error == 0)
+			free(p, M_TEMP);
 		return (error);
 
 	case TALLOC:

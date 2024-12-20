@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.71 2021/01/23 20:42:08 tom Exp $
+# $Id: Makefile.in,v 1.72 2021/07/03 15:45:33 tom Exp $
 ##############################################################################
 # Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
@@ -134,6 +134,19 @@ AUTO_SRC	= \
 		../include/form.h
 
 ################################################################################
+
+@MAKE_PHONY@.PHONY :	all
+@MAKE_PHONY@.PHONY :	clean
+@MAKE_PHONY@.PHONY :	distclean
+@MAKE_PHONY@.PHONY :	install
+@MAKE_PHONY@.PHONY :	install.libs
+@MAKE_PHONY@.PHONY :	libs
+@MAKE_PHONY@.PHONY :	mostlyclean
+@MAKE_PHONY@.PHONY :	realclean
+@MAKE_PHONY@.PHONY :	sources
+@MAKE_PHONY@.PHONY :	uninstall
+@MAKE_PHONY@.PHONY :	uninstall.libs
+
 all \
 libs \
 install ::	$(AUTO_SRC) $(LIBRARIES)

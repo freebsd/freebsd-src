@@ -18,12 +18,18 @@
 
 static const float
 one =  1.0000000000e+00, /* 0x3F800000 */
-huge =  1.000e+30,
-	/* coefficient for R(x^2) */
-pS0 =  1.6666586697e-01,
-pS1 = -4.2743422091e-02,
-pS2 = -8.6563630030e-03,
-qS1 = -7.0662963390e-01;
+huge =  1.000e+30;
+
+/*
+ * The coefficients for the rational approximation were generated over
+ *  0x1p-12f <= x <= 0.5f.  The maximum error satisfies log2(e) < -30.084.
+ */
+static const float
+pS0 =  1.66666672e-01f, /* 0x3e2aaaab */
+pS1 = -1.19510300e-01f, /* 0xbdf4c1d1 */
+pS2 =  5.47002675e-03f, /* 0x3bb33de9 */
+qS1 = -1.16706085e+00f, /* 0xbf956240 */
+qS2 =  2.90115148e-01f; /* 0x3e9489f9 */
 
 static const double
 pio2 =  1.570796326794896558e+00;
@@ -46,7 +52,7 @@ asinf(float x)
 	    }
 	    t = x*x;
 	    p = t*(pS0+t*(pS1+t*pS2));
-	    q = one+t*qS1;
+	    q = one+t*(qS1+t*qS2);
 	    w = p/q;
 	    return x+x*w;
 	}
@@ -54,7 +60,7 @@ asinf(float x)
 	w = one-fabsf(x);
 	t = w*(float)0.5;
 	p = t*(pS0+t*(pS1+t*pS2));
-	q = one+t*qS1;
+	q = one+t*(qS1+t*qS2);
 	s = sqrt(t);
 	w = p/q;
 	t = pio2-2.0*(s+s*w);

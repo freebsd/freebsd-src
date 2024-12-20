@@ -102,17 +102,17 @@
 .Fc
 .Ft struct voistatspec
 .Fo "STATS_VSS_CRHIST<32|64>_USR"
-.Fa Sy "HBKTS" Ns Pq Sy "CRBKT" Ns ( Em "lb" ) , "..." Pc ,
+.Fa Sy "HBKTS" Ns Pq Sy "CRBKT" Ns ( Em "lb" ) , "..." ,
 .Fa "vsdflags"
 .Fc
 .Ft struct voistatspec
 .Fo "STATS_VSS_DRHIST<32|64>_USR"
-.Fa Sy "HBKTS" Ns Pq Sy "DRBKT" Ns ( Em "lb" , "ub" ) , "..." Pc ,
+.Fa Sy "HBKTS" Ns Pq Sy "DRBKT" Ns ( Em "lb" , "ub" ) , "..." ,
 .Fa "vsdflags"
 .Fc
 .Ft struct voistatspec
 .Fo "STATS_VSS_DVHIST<32|64>_USR"
-.Fa Sy "HBKTS" Ns Pq Sy "DVBKT" Ns ( Em "val" ) , "..." Pc ,
+.Fa Sy "HBKTS" Ns Pq Sy "DVBKT" Ns ( Em "val" ) , "..." ,
 .Fa "vsdflags"
 .Fc
 .Ft struct voistatspec
@@ -316,16 +316,16 @@ The maximum VOI value.
 The minimum VOI value.
 .It Dv VS_STYPE_HIST
 A static bucket histogram of VOI values, including a count of
-.Dq out-of-band/bucket Dc
+.Dq out-of-band/bucket
 values which did not match any bucket.
 Histograms can be specified as
-.Dq Em C Ns ontinuous Em R Ns ange Dc
-.Pq CRHIST Pc ,
-.Dq Em D Ns iscrete Em R Ns ange Dc
-.Pq DRHIST Pc
+.Dq Em C Ns ontinuous Em R Ns ange
+.Pq CRHIST ,
+.Dq Em D Ns iscrete Em R Ns ange
+.Pq DRHIST
 or
-.Dq Em D Ns iscrete Em V Ns alue Dc
-.Pq DVHIST Pc ,
+.Dq Em D Ns iscrete Em V Ns alue
+.Pq DVHIST ,
 with 32 or 64 bit bucket counters, depending on the VOI semantics.
 .It Dv VS_STYPE_TDGST
 A dynamic bucket histogram of VOI values based on the t-digest method
@@ -433,15 +433,15 @@ Where templates need to be referenced via textual means, for example via a MIB
 variable, the following string based template spec formats can be used:
 .Bl -enum
 .It
-.Qq <tplname> Qc Ns
+.Qq <tplname> Ns
 :<tplhash>
 .Ns , for example
-.Qq TCP_DEFAULT Qc Ns
+.Qq TCP_DEFAULT Ns
 :1731235399
 .It
-.Qq <tplname> Qc
+.Qq <tplname>
 .Ns , for example
-.Qq TCP_DEFAULT Qc
+.Qq TCP_DEFAULT
 .It
 :<tplhash>
 .Ns , for example

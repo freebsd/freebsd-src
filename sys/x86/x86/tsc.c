@@ -420,7 +420,7 @@ probe_tsc_freq_late(void)
 	} else {
 		/*
 		 * Calibrate against a timecounter or the 8254 PIT.  This
-		 * estimate will be refined later in tsc_calib().
+		 * estimate will be refined later in tsc_calibrate().
 		 */
 		tsc_freq_tc(&tsc_freq);
 		if (bootverbose)

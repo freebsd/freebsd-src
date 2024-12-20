@@ -42,29 +42,27 @@
 /*********************************************************************
  *  Local Function prototypes
  *********************************************************************/
-static int igb_isc_txd_encap(void *arg, if_pkt_info_t pi);
-static void igb_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
-static int igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
+static int igb_isc_txd_encap(void *, if_pkt_info_t);
+static void igb_isc_txd_flush(void *, uint16_t, qidx_t);
+static int igb_isc_txd_credits_update(void *, uint16_t, bool);
 
-static void igb_isc_rxd_refill(void *arg, if_rxd_update_t iru);
+static void igb_isc_rxd_refill(void *, if_rxd_update_t);
 
-static void igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
-    qidx_t pidx);
-static int igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
-    qidx_t budget);
+static void igb_isc_rxd_flush(void *, uint16_t, uint8_t, qidx_t);
+static int igb_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
 
 static int igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-static int igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
-static int igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
+static int igb_tx_ctx_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
+static int igb_tso_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
 
-static void igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype);
-static int igb_determine_rsstype(uint16_t pkt_info);
+static void igb_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
+static int igb_determine_rsstype(uint16_t);
 
-extern void igb_if_enable_intr(if_ctx_t ctx);
-extern int em_intr(void *arg);
+extern void igb_if_enable_intr(if_ctx_t);
+extern int em_intr(void *);
 
 struct if_txrx igb_txrx = {
 	.ift_txd_encap = igb_isc_txd_encap,
@@ -104,14 +102,15 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 		break;
 	default:
 		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
-		      __func__, ntohs(pi->ipi_etype));
+		    __func__, ntohs(pi->ipi_etype));
 		break;
 	}
 
-	TXD = (struct e1000_adv_tx_context_desc *) &txr->tx_base[pi->ipi_pidx];
+	TXD = (struct e1000_adv_tx_context_desc *)&txr->tx_base[pi->ipi_pidx];
 
 	/* This is used in the transmit desc in encap */
-	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen - pi->ipi_tcp_hlen;
+	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen -
+	    pi->ipi_tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (pi->ipi_mflags & M_VLANTAG) {
@@ -149,8 +148,8 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
  *
  **********************************************************************/
 static int
-igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
-    uint32_t *olinfo_status)
+igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
+    uint32_t *cmd_type_len, uint32_t *olinfo_status)
 {
 	struct e1000_adv_tx_context_desc *TXD;
 	struct e1000_softc *sc = txr->sc;
@@ -166,7 +165,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 	*olinfo_status |= pi->ipi_len << E1000_ADVTXD_PAYLEN_SHIFT;
 
 	/* Now ready a context descriptor */
-	TXD = (struct e1000_adv_tx_context_desc *) &txr->tx_base[pi->ipi_pidx];
+	TXD = (struct e1000_adv_tx_context_desc *)&txr->tx_base[pi->ipi_pidx];
 
 	/*
 	** In advanced descriptors the vlan tag must
@@ -248,8 +247,8 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 
 	pidx_last = olinfo_status = 0;
 	/* Basic descriptor defines */
-	cmd_type_len = (E1000_ADVTXD_DTYP_DATA |
-			E1000_ADVTXD_DCMD_IFCS | E1000_ADVTXD_DCMD_DEXT);
+	cmd_type_len = (E1000_ADVTXD_DTYP_DATA | E1000_ADVTXD_DCMD_IFCS |
+	    E1000_ADVTXD_DCMD_DEXT);
 
 	if (pi->ipi_mflags & M_VLANTAG)
 		cmd_type_len |= E1000_ADVTXD_DCMD_VLE;
@@ -292,15 +291,19 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd->read.cmd_type_len |= htole32(E1000_TXD_CMD_EOP | txd_flags);
 	pi->ipi_new_pidx = i;
 
+	/* Sent data accounting for AIM */
+	txr->tx_bytes += pi->ipi_len;
+	++txr->tx_packets;
+
 	return (0);
 }
 
 static void
 igb_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct e1000_softc *sc	= arg;
-	struct em_tx_queue *que	= &sc->tx_queues[txqid];
-	struct tx_ring *txr	= &que->txr;
+	struct e1000_softc *sc = arg;
+	struct em_tx_queue *que = &sc->tx_queues[txqid];
+	struct tx_ring *txr = &que->txr;
 
 	E1000_WRITE_REG(&sc->hw, E1000_TDT(txr->me), pidx);
 }
@@ -349,7 +352,8 @@ igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 		if (rs_cidx  == txr->tx_rs_pidx)
 			break;
 		cur = txr->tx_rsq[rs_cidx];
-		status = ((union e1000_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
+		status = ((union e1000_adv_tx_desc *)
+		    &txr->tx_base[cur])->wb.status;
 	} while ((status & E1000_TXD_STAT_DD));
 
 	txr->tx_rs_cidx = rs_cidx;
@@ -385,7 +389,8 @@ igb_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 }
 
 static void
-igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
+igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
+    qidx_t pidx)
 {
 	struct e1000_softc *sc = arg;
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
@@ -451,7 +456,8 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		MPASS ((staterr & E1000_RXD_STAT_DD) != 0);
 
 		len = le16toh(rxd->wb.upper.length);
-		ptype = le32toh(rxd->wb.lower.lo_dword.data) &  IGB_PKTTYPE_MASK;
+		ptype =
+		    le32toh(rxd->wb.lower.lo_dword.data) &  IGB_PKTTYPE_MASK;
 
 		ri->iri_len += len;
 		rxr->rx_bytes += ri->iri_len;
@@ -460,7 +466,8 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		eop = ((staterr & E1000_RXD_STAT_EOP) == E1000_RXD_STAT_EOP);
 
 		/* Make sure bad packets are discarded */
-		if (eop && ((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0)) {
+		if (eop &&
+		    ((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0)) {
 			sc->dropped_pkts++;
 			++rxr->rx_discarded;
 			return (EBADMSG);
@@ -522,7 +529,8 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 		return;
 
 	/* If there is a layer 3 or 4 error we are done */
-	if (__predict_false(errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
+	if (__predict_false(errors &
+	    (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
 		return;
 
 	/* IP Checksum Good */
@@ -533,11 +541,13 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 	if (__predict_true(status &
 	    (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))) {
 		/* SCTP header present */
-		if (__predict_false((ptype & E1000_RXDADV_PKTTYPE_ETQF) == 0 &&
+		if (__predict_false(
+		    (ptype & E1000_RXDADV_PKTTYPE_ETQF) == 0 &&
 		    (ptype & E1000_RXDADV_PKTTYPE_SCTP) != 0)) {
 			ri->iri_csum_flags |= CSUM_SCTP_VALID;
 		} else {
-			ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			ri->iri_csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			ri->iri_csum_data = htons(0xffff);
 		}
 	}

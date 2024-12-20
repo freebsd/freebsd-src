@@ -189,7 +189,7 @@ static __inline int
 mask_width(u_int x)
 {
 
-	return (x == 0 ? -1 : fls(x - 1));
+	return (x == 0 ? -1 : order_base_2(x));
 }
 
 /*
@@ -1590,6 +1590,11 @@ cpususpend_handler(void)
 	u_int cpu;
 
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
+
+#ifdef __amd64__
+	if (vmm_suspend_p)
+		vmm_suspend_p();
+#endif
 
 	cpu = PCPU_GET(cpuid);
 

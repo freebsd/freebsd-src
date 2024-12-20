@@ -49,8 +49,12 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/string.h>
+#endif
+
 __BEGIN_DECLS
-#if __XSI_VISIBLE >= 600
+#if __XSI_VISIBLE >= 600 || __ISO_C_VISIBLE >= 2023
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 #endif
 void	*memchr(const void *, int, size_t) __pure;
@@ -58,23 +62,26 @@ void	*memchr(const void *, int, size_t) __pure;
 void	*memrchr(const void *, int, size_t) __pure;
 #endif
 int	 memcmp(const void *, const void *, size_t) __pure;
-void	*memcpy(void * __restrict, const void * __restrict, size_t);
+void	*(memcpy)(void * __restrict, const void * __restrict, size_t);
 #if __BSD_VISIBLE
 void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
-void	*memmove(void *, const void *, size_t);
+void	*(memmove)(void *, const void *, size_t);
 #if __BSD_VISIBLE
-void	*mempcpy(void * __restrict, const void * __restrict, size_t);
+void	*(mempcpy)(void * __restrict, const void * __restrict, size_t);
 #endif
-void	*memset(void *, int, size_t);
+void	*(memset)(void *, int, size_t);
+#if __BSD_VISIBLE || __ISO_C_VISIBLE >= 2023
+void	*memset_explicit(void *, int, size_t);
+#endif
 #if __POSIX_VISIBLE >= 200809
-char	*stpcpy(char * __restrict, const char * __restrict);
-char	*stpncpy(char * __restrict, const char * __restrict, size_t);
+char	*(stpcpy)(char * __restrict, const char * __restrict);
+char	*(stpncpy)(char * __restrict, const char * __restrict, size_t);
 #endif
 #if __BSD_VISIBLE
 char	*strcasestr(const char *, const char *) __pure;
 #endif
-char	*strcat(char * __restrict, const char * __restrict);
+char	*(strcat)(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int) __pure;
 #if __BSD_VISIBLE
 char	*strchrnul(const char*, int) __pure;
@@ -82,9 +89,9 @@ int	 strverscmp(const char *, const char *) __pure;
 #endif
 int	 strcmp(const char *, const char *) __pure;
 int	 strcoll(const char *, const char *);
-char	*strcpy(char * __restrict, const char * __restrict);
+char	*(strcpy)(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char *, const char *) __pure;
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE || __ISO_C_VISIBLE >= 2023
 char	*strdup(const char *) __malloc_like;
 #endif
 char	*strerror(int);
@@ -92,8 +99,8 @@ char	*strerror(int);
 int	 strerror_r(int, char *, size_t);
 #endif
 #if __BSD_VISIBLE
-size_t	 strlcat(char * __restrict, const char * __restrict, size_t);
-size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
+size_t	 (strlcat)(char * __restrict, const char * __restrict, size_t);
+size_t	 (strlcpy)(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
@@ -105,11 +112,13 @@ typedef	__mode_t	mode_t;
 
 void	 strmode(mode_t, char *);
 #endif
-char	*strncat(char * __restrict, const char * __restrict, size_t);
+char	*(strncat)(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
-char	*strncpy(char * __restrict, const char * __restrict, size_t);
-#if __POSIX_VISIBLE >= 200809
+char	*(strncpy)(char * __restrict, const char * __restrict, size_t);
+#if __POSIX_VISIBLE >= 200809 || __ISO_C_VISIBLE >= 2023
 char	*strndup(const char *, size_t) __malloc_like;
+#endif
+#if __POSIX_VISIBLE >= 200809
 size_t	 strnlen(const char *, size_t) __pure;
 #endif
 #if __BSD_VISIBLE
@@ -168,7 +177,4 @@ errno_t memset_s(void *, rsize_t, int, rsize_t);
 #endif /* __EXT1_VISIBLE */
 __END_DECLS
 
-#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
-#include <ssp/string.h>
-#endif
 #endif /* _STRING_H_ */

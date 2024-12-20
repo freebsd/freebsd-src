@@ -368,7 +368,6 @@ main(int argc, char **argv)
 					optarg);
 			break;
 		case OPT_NO_DEREFERENCE:
-			rflag = true;
 			noderef = true;
 			break;
 		case OPT_VERSION:
@@ -630,7 +629,7 @@ usage(void)
 	    "       diff [-aBbdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--tabsize] [-I pattern] [-L label]\n"
 	    "            [-F pattern] [-S name] [-X file] [-x pattern] dir1 dir2\n"
-	    "       diff [-aBbditwW] [--expand-tabs] [--ignore-all-blanks]\n"
+	    "       diff [-aBbditwW] [--expand-tabs] [--ignore-all-space]\n"
 	    "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
 	    "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
 	    "            [--suppress-common-lines] [--tabsize] [--text] [--width]\n"

@@ -44,6 +44,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/splash.h>
 #include <sys/power.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -118,7 +119,7 @@ static const struct terminal_class vt_termclass = {
 
 /* Bell pitch/duration. */
 #define	VT_BELLDURATION	(SBT_1S / 20)
-#define	VT_BELLPITCH	(1193182 / 800) /* Approx 1491Hz */
+#define	VT_BELLPITCH	800
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -130,6 +131,9 @@ static VT_SYSCTL_INT(enable_bell, 0, "Enable bell");
 static VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 static VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 static VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+
+/* Slow down and dont rely on timers and interrupts */
+static VT_SYSCTL_INT(slow_down, 0, "Non-zero make console slower and synchronous.");
 
 /* Allow to disable some keyboard combinations. */
 static VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
@@ -1134,6 +1138,13 @@ vtterm_bell(struct terminal *tm)
 	sysbeep(vw->vw_bell_pitch, vw->vw_bell_duration);
 }
 
+/*
+ * Beep with user-provided frequency and duration as specified by a KDMKTONE
+ * ioctl (compatible with Linux).  The frequency is specified as a 8254 PIT
+ * divisor for a 1.19MHz clock.
+ *
+ * See https://tldp.org/LDP/lpg/node83.html.
+ */
 static void
 vtterm_beep(struct terminal *tm, u_int param)
 {
@@ -1147,6 +1158,7 @@ vtterm_beep(struct terminal *tm, u_int param)
 		return;
 	}
 
+	/* XXX period unit is supposed to be "timer ticks." */
 	period = ((param >> 16) & 0xffff) * SBT_1MS;
 	freq = 1193182 / (param & 0xffff);
 
@@ -1648,6 +1660,12 @@ vtterm_done(struct terminal *tm)
 		}
 		vd->vd_flags &= ~VDF_SPLASH;
 		vt_flush(vd);
+	} else if (vt_slow_down > 0) {
+		int i, j;
+		for (i = 0; i < vt_slow_down; i++) {
+			for (j = 0; j < 1000; j++)
+				vt_flush(vd);
+		}
 	} else if (!(vd->vd_flags & VDF_ASYNC)) {
 		vt_flush(vd);
 	}
@@ -1657,18 +1675,32 @@ vtterm_done(struct terminal *tm)
 static void
 vtterm_splash(struct vt_device *vd)
 {
+	caddr_t kmdp;
+	struct splash_info *si;
+	uintptr_t image;
 	vt_axis_t top, left;
 
-	/* Display a nice boot splash. */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	si = MD_FETCH(kmdp, MODINFOMD_SPLASH, struct splash_info *);
 	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
-		top = (vd->vd_height - vt_logo_height) / 2;
-		left = (vd->vd_width - vt_logo_width) / 2;
-		switch (vt_logo_depth) {
-		case 1:
-			/* XXX: Unhardcode colors! */
+		if (si == NULL) {
+			top = (vd->vd_height - vt_logo_height) / 2;
+			left = (vd->vd_width - vt_logo_width) / 2;
 			vd->vd_driver->vd_bitblt_bmp(vd, vd->vd_curwindow,
 			    vt_logo_image, NULL, vt_logo_width, vt_logo_height,
 			    left, top, TC_WHITE, TC_BLACK);
+		} else {
+			if (si->si_depth != 4)
+				return;
+			image = (uintptr_t)si + sizeof(struct splash_info);
+			image = roundup2(image, 8);
+			top = (vd->vd_height - si->si_height) / 2;
+			left = (vd->vd_width - si->si_width) / 2;
+			vd->vd_driver->vd_bitblt_argb(vd, vd->vd_curwindow,
+			    (unsigned char *)image, si->si_width, si->si_height,
+			    left, top);
 		}
 		vd->vd_flags |= VDF_SPLASH;
 	}

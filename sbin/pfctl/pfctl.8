@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 20, 2023
+.Dd November 25, 2024
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -506,8 +506,13 @@ Automatically create a nonexisting table.
 Show the content (addresses) of a table.
 .It Fl T Cm test
 Test if the given addresses match a table.
-.It Fl T Cm zero
-Clear all the statistics of a table.
+.It Fl T Cm zero Op Ar address ...
+Clear all the statistics of a table, or only for specified addresses.
+.It Fl T Cm reset
+Clear statistics only for addresses with non-zero statistics. Addresses
+with counter values at zero and their
+.Dq Cleared
+timestamp are left untouched.
 .It Fl T Cm load
 Load only the table definitions from
 .Xr pf.conf 5 .
@@ -531,6 +536,8 @@ line and/or in an unformatted text file, using the
 flag.
 Comments starting with a
 .Sq #
+or
+.Sq \;
 are allowed in the text file.
 With these commands, the
 .Fl v

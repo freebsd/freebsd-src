@@ -47,48 +47,7 @@
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-/*
- * Page-directory and page-table entries follow this format, with a few
- * of the fields not present here and there, depending on a lot of things.
- */
-				/* ---- Intel Nomenclature ---- */
-#define	X86_PG_V	0x001	/* P	Valid			*/
-#define	X86_PG_RW	0x002	/* R/W	Read/Write		*/
-#define	X86_PG_U	0x004	/* U/S  User/Supervisor		*/
-#define	X86_PG_NC_PWT	0x008	/* PWT	Write through		*/
-#define	X86_PG_NC_PCD	0x010	/* PCD	Cache disable		*/
-#define	X86_PG_A	0x020	/* A	Accessed		*/
-#define	X86_PG_M	0x040	/* D	Dirty			*/
-#define	X86_PG_PS	0x080	/* PS	Page size (0=4k,1=2M)	*/
-#define	X86_PG_PTE_PAT	0x080	/* PAT	PAT index		*/
-#define	X86_PG_G	0x100	/* G	Global			*/
-#define	X86_PG_AVAIL1	0x200	/*    /	Available for system	*/
-#define	X86_PG_AVAIL2	0x400	/*   <	programmers use		*/
-#define	X86_PG_AVAIL3	0x800	/*    \				*/
-#define	X86_PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
-#define	X86_PG_PKU(idx)	((pt_entry_t)idx << 59)
-#define	X86_PG_NX	(1ul<<63) /* No-execute */
-#define	X86_PG_AVAIL(x)	(1ul << (x))
-
-/* Page level cache control fields used to determine the PAT type */
-#define	X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
-#define	X86_PG_PTE_CACHE (X86_PG_PTE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
-
-/* Protection keys indexes */
-#define	PMAP_MAX_PKRU_IDX	0xf
-#define	X86_PG_PKU_MASK		X86_PG_PKU(PMAP_MAX_PKRU_IDX)
-
-/*
- * Intel extended page table (EPT) bit definitions.
- */
-#define	EPT_PG_READ		0x001	/* R	Read		*/
-#define	EPT_PG_WRITE		0x002	/* W	Write		*/
-#define	EPT_PG_EXECUTE		0x004	/* X	Execute		*/
-#define	EPT_PG_IGNORE_PAT	0x040	/* IPAT	Ignore PAT	*/
-#define	EPT_PG_PS		0x080	/* PS	Page size	*/
-#define	EPT_PG_A		0x100	/* A	Accessed	*/
-#define	EPT_PG_M		0x200	/* D	Dirty		*/
-#define	EPT_PG_MEMORY_TYPE(x)	((x) << 3) /* MT Memory Type	*/
+#include <machine/pte.h>
 
 /*
  * Define the PG_xx macros in terms of the bits on x86 PTEs.
@@ -117,9 +76,6 @@
 #define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
 #define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
 #define	PG_PROMOTED	X86_PG_AVAIL(54)	/* PDE only */
-#define	PG_FRAME	(0x000ffffffffff000ul)
-#define	PG_PS_FRAME	(0x000fffffffe00000ul)
-#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul)
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
@@ -129,18 +85,6 @@
 	    PG_M | PG_U | PG_RW | PG_V | PG_PKU_MASK)
 
 /*
- * Page Protection Exception bits
- */
-
-#define PGEX_P		0x01	/* Protection violation vs. not present */
-#define PGEX_W		0x02	/* during a Write cycle */
-#define PGEX_U		0x04	/* access from User mode (UPL) */
-#define PGEX_RSV	0x08	/* reserved PTE field is non-zero */
-#define PGEX_I		0x10	/* during an instruction fetch */
-#define	PGEX_PK		0x20	/* protection key violation */
-#define	PGEX_SGX	0x8000	/* SGX-related */
-
-/* 
  * undef the PG_xx macros that define bits in the regular x86 PTEs that
  * have a different position in nested PTEs. This is done when compiling
  * code that needs to be aware of the differences between regular x86 and
@@ -424,6 +368,8 @@ extern vm_offset_t virtual_end;
 extern vm_paddr_t dmaplimit;
 extern int pmap_pcid_enabled;
 extern int invpcid_works;
+extern int invlpgb_works;
+extern int invlpgb_maxcnt;
 extern int pmap_pcid_invlpg_workaround;
 extern int pmap_pcid_invlpg_workaround_uena;
 

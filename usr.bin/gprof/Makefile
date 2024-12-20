@@ -1,4 +1,3 @@
-
 PROG=	gprof
 SRCS=	gprof.c arcs.c dfn.c elf.c lookup.c hertz.c \
 	printgprof.c printlist.c kernel.c

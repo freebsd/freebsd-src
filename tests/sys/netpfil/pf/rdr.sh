@@ -92,7 +92,7 @@ tcp_v6_body()
 	    jexec ${j}a ping -6 -c 1 2001:db8:b::2
 
 	# capture packets on c so we can look for incorrect checksums
-	jexec ${j}c tcpdump --immediate-mode -w ${j}.pcap tcp and port 8000 &
+	jexec ${j}c tcpdump --immediate-mode -w ${PWD}/${j}.pcap tcp and port 8000 &
 	tcpdumppid=$!
 
 	# start a web server and give it a second to start
@@ -112,7 +112,7 @@ tcp_v6_body()
 
 	# Check for 'incorrect' in packet capture, this should tell us if
 	# checksums are bad with rdr rules
-	count=$(jexec ${j}c tcpdump -vvvv -r ${j}.pcap | grep incorrect | wc -l)
+	count=$(jexec ${j}c tcpdump -vvvv -r ${PWD}/${j}.pcap | grep incorrect | wc -l)
 	atf_check_equal "       0" "$count"
 }
 
@@ -121,7 +121,107 @@ tcp_v6_cleanup()
 	pft_cleanup
 }
 
+
+atf_test_case "srcport" "cleanup"
+srcport_head()
+{
+	atf_set descr 'TCP rdr srcport modulation'
+	atf_set require.user root
+	atf_set require.progs python3
+	atf_set timeout 9999
+}
+
+#
+# Test that rdr works for multiple TCP with same srcip and srcport.
+#
+# Four jails, a, b, c, d, are used:
+# - jail d runs a server on port 8888,
+# - jail a makes connections to the server, routed through jails b and c,
+# - jail b uses NAT to rewrite source addresses and ports to the same 2-tuple,
+#   avoiding the need to use SO_REUSEADDR in jail a,
+# - jail c uses a redirect rule to map the destination address to the same
+#   address and port, resulting in a NAT state conflict.
+#
+# In this case, the rdr rule should also rewrite the source port (again) to
+# resolve the state conflict.
+#
+srcport_body()
+{
+	pft_init
+
+	j="rdr:srcport"
+	epair1=$(vnet_mkepair)
+	epair2=$(vnet_mkepair)
+	epair3=$(vnet_mkepair)
+
+	echo $epair_one
+	echo $epair_two
+
+	vnet_mkjail ${j}a ${epair1}a
+	vnet_mkjail ${j}b ${epair1}b ${epair2}a
+	vnet_mkjail ${j}c ${epair2}b ${epair3}a
+	vnet_mkjail ${j}d ${epair3}b
+
+	# configure addresses for a
+	jexec ${j}a ifconfig lo0 up
+	jexec ${j}a ifconfig ${epair1}a inet 198.51.100.50/24 up
+	jexec ${j}a ifconfig ${epair1}a inet alias 198.51.100.51/24
+	jexec ${j}a ifconfig ${epair1}a inet alias 198.51.100.52/24
+
+	# configure addresses for b
+	jexec ${j}b ifconfig lo0 up
+	jexec ${j}b ifconfig ${epair1}b inet 198.51.100.1/24 up
+	jexec ${j}b ifconfig ${epair2}a inet 198.51.101.2/24 up
+
+	# configure addresses for c
+	jexec ${j}c ifconfig lo0 up
+	jexec ${j}c ifconfig ${epair2}b inet 198.51.101.3/24 up
+	jexec ${j}c ifconfig ${epair2}b inet alias 198.51.101.4/24
+	jexec ${j}c ifconfig ${epair2}b inet alias 198.51.101.5/24
+	jexec ${j}c ifconfig ${epair3}a inet 203.0.113.1/24 up
+
+	# configure addresses for d
+	jexec ${j}d ifconfig lo0 up
+	jexec ${j}d ifconfig ${epair3}b inet 203.0.113.50/24 up
+
+	jexec ${j}b sysctl net.inet.ip.forwarding=1
+	jexec ${j}c sysctl net.inet.ip.forwarding=1
+	jexec ${j}b pfctl -e
+	jexec ${j}c pfctl -e
+
+	pft_set_rules ${j}b \
+		"set debug misc" \
+		"nat on ${epair2}a inet from 198.51.100.0/24 to any -> ${epair2}a static-port"
+
+	pft_set_rules ${j}c \
+		"set debug misc" \
+		"rdr on ${epair2}b proto tcp from any to ${epair2}b port 7777 -> 203.0.113.50 port 8888"
+
+	jexec ${j}a route add default 198.51.100.1
+	jexec ${j}c route add 198.51.100.0/24 198.51.101.2
+	jexec ${j}d route add 198.51.101.0/24 203.0.113.1
+
+	jexec ${j}d python3 $(atf_get_srcdir)/rdr-srcport.py &
+        sleep 1
+
+	echo a | jexec ${j}a nc -w 3 -s 198.51.100.50 -p 1234 198.51.101.3 7777 > port1
+
+	jexec ${j}a nc -s 198.51.100.51 -p 1234 198.51.101.4 7777 > port2 &
+	jexec ${j}a nc -s 198.51.100.52 -p 1234 198.51.101.5 7777 > port3 &
+	sleep 1
+
+	atf_check -o inline:"1234" cat port1
+	atf_check -o match:"[0-9]+" -o not-inline:"1234" cat port2
+	atf_check -o match:"[0-9]+" -o not-inline:"1234" cat port3
+}
+
+srcport_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "tcp_v6"
+	atf_add_test_case "srcport"
 }

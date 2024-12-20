@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2023 Thomas E. Dickey                                *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -74,7 +74,7 @@ AUTHOR
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: hashmap.c,v 1.69 2020/05/31 17:50:48 tom Exp $")
+MODULE_ID("$Id: hashmap.c,v 1.71 2023/09/16 16:28:53 tom Exp $")
 
 #ifdef HASHDEBUG
 
@@ -318,8 +318,11 @@ NCURSES_SP_NAME(_nc_hash_map) (NCURSES_SP_DCL0)
 	if (newhash(SP_PARM) == 0)
 	    newhash(SP_PARM) = typeCalloc(unsigned long,
 					    (size_t) screen_lines(SP_PARM));
-	if (!oldhash(SP_PARM) || !newhash(SP_PARM))
+	if (!oldhash(SP_PARM) || !newhash(SP_PARM)) {
+	    FreeAndNull(oldhash(SP_PARM));
+	    FreeAndNull(newhash(SP_PARM));
 	    return;		/* malloc failure */
+	}
 	for (i = 0; i < screen_lines(SP_PARM); i++) {
 	    newhash(SP_PARM)[i] = hash(SP_PARM, NEWTEXT(SP_PARM, i));
 	    oldhash(SP_PARM)[i] = hash(SP_PARM, OLDTEXT(SP_PARM, i));
@@ -403,7 +406,7 @@ NCURSES_SP_NAME(_nc_hash_map) (NCURSES_SP_DCL0)
 	       && OLDNUM(SP_PARM, i) - i == shift)
 	    i++;
 	size = i - start;
-	if (size < 3 || size + min(size / 8, 2) < abs(shift)) {
+	if (size < 3 || size + Min(size / 8, 2) < abs(shift)) {
 	    while (start < i) {
 		OLDNUM(SP_PARM, start) = _NEWINDEX;
 		start++;

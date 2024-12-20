@@ -207,11 +207,11 @@ iic_dp_aux_attach(device_t idev)
 	struct iic_dp_aux_data *aux_data;
 
 	aux_data = device_get_softc(idev);
-	aux_data->port = device_add_child(idev, "iicbus", -1);
+	aux_data->port = device_add_child(idev, "iicbus", DEVICE_UNIT_ANY);
 	if (aux_data->port == NULL)
 		return (ENXIO);
 	device_quiet(aux_data->port);
-	bus_generic_attach(idev);
+	bus_attach_children(idev);
 	return (0);
 }
 

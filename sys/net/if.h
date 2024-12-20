@@ -160,7 +160,7 @@ struct if_data {
 #define	IFF_STICKYARP	0x100000	/* (n) sticky ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-#define	IFF_SPARE	0x800000
+#define	IFF_PALLMULTI	0x800000	/* (n) user-requested allmulti mode */
 #define	IFF_NETLINK_1	0x1000000	/* (n) used by netlink */
 
 /*
@@ -255,7 +255,8 @@ struct if_data {
 #define	IFCAP_B_TXTLS_RTLMT	31 /* can do TLS with rate limiting */
 #define	IFCAP_B_RXTLS4		32 /* can to TLS receive for TCP */
 #define	IFCAP_B_RXTLS6		33 /* can to TLS receive for TCP6 */
-#define	__IFCAP_B_SIZE		34
+#define	IFCAP_B_IPSEC_OFFLOAD	34 /* inline IPSEC offload */
+#define	__IFCAP_B_SIZE		35
 
 #define	IFCAP_B_MAX	(__IFCAP_B_MAX - 1)
 #define	IFCAP_B_SIZE	(__IFCAP_B_SIZE)
@@ -298,6 +299,7 @@ struct if_data {
 /* IFCAP2_* are integers, not bits. */
 #define	IFCAP2_RXTLS4		(IFCAP_B_RXTLS4 - 32)
 #define	IFCAP2_RXTLS6		(IFCAP_B_RXTLS6 - 32)
+#define	IFCAP2_IPSEC_OFFLOAD	(IFCAP_B_IPSEC_OFFLOAD - 32)
 
 #define	IFCAP2_BIT(x)		(1UL << (x))
 

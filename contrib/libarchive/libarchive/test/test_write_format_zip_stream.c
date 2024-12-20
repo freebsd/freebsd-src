@@ -71,7 +71,11 @@ DEFINE_TEST(test_write_format_zip_stream)
 	unsigned long crc;
 	unsigned long compressed_size = 0;
 	int file_perm = 00644;
+#ifdef HAVE_ZLIB_H
 	int zip_version = 20;
+#else
+	int zip_version = 10;
+#endif
 	int zip_compression = 8;
 	short file_uid = 10, file_gid = 20;
 	unsigned char *buff, *buffend, *p;
@@ -82,6 +86,7 @@ DEFINE_TEST(test_write_format_zip_stream)
 	const char *file_name = "file";
 
 #ifndef HAVE_ZLIB_H
+	zip_version = 10;
 	zip_compression = 0;
 #endif
 

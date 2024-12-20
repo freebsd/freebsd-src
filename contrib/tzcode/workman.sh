@@ -7,8 +7,7 @@
 if (type nroff && type perl) >/dev/null 2>&1; then
 
   # Tell groff not to emit SGR escape sequences (ANSI color escapes).
-  GROFF_NO_SGR=1
-  export GROFF_NO_SGR
+  export GROFF_NO_SGR=1
 
   echo ".am TH
 .hy 0

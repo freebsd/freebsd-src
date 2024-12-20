@@ -60,6 +60,10 @@ L_CFLAGS += -DEAP_TLS_OPENSSL
 
 L_CFLAGS += -Wno-unused-parameter
 
+ifeq ($(shell test $(PLATFORM_VERSION_LAST_STABLE) -ge 8 ; echo $$?), 0)
+L_CFLAGS += -DCONFIG_ANDROID_LOG
+L_CFLAGS += -DANDROID_LOG_NAME='"hs20-osu-client"'
+endif
 
 ########################
 include $(CLEAR_VARS)
@@ -68,9 +72,15 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := libc libcutils
 LOCAL_SHARED_LIBRARIES += libcrypto libssl
+ifeq ($(shell test $(PLATFORM_VERSION_LAST_STABLE) -ge 8 ; echo $$?), 0)
+LOCAL_VENDOR_MODULE := true
+LOCAL_SHARED_LIBRARIES += libxml2
+LOCAL_SHARED_LIBRARIES += liblog
+else
 #LOCAL_SHARED_LIBRARIES += libxml2
 LOCAL_STATIC_LIBRARIES += libxml2
 LOCAL_SHARED_LIBRARIES += libicuuc
+endif # End of check for platform version
 LOCAL_SHARED_LIBRARIES += libcurl
 
 LOCAL_CFLAGS := $(L_CFLAGS)

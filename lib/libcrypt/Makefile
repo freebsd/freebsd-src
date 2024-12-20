@@ -1,6 +1,3 @@
-#
-#
-
 SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
@@ -10,12 +7,11 @@ PACKAGE=	runtime
 SHLIB_MAJOR=	5
 LIB=		crypt
 
-.PATH:		${SRCTOP}/lib/libmd ${SRCTOP}/sys/crypto/sha2
 SRCS=		crypt.c misc.c \
-		crypt-md5.c md5c.c \
-		crypt-nthash.c md4c.c \
-		crypt-sha256.c sha256c.c \
-		crypt-sha512.c sha512c.c
+		crypt-md5.c \
+		crypt-nthash.c \
+		crypt-sha256.c \
+		crypt-sha512.c
 MAN=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_r.3 \
 		crypt.3 crypt_set_format.3
@@ -29,22 +25,29 @@ SRCS+=		crypt-des.c crypt-blowfish.c blowfish.c
 CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
 .endif
 
-.for sym in MD4Init MD4Final MD4Update MD4Pad \
-	    MD5Init MD5Final MD5Update MD5Pad \
-	    SHA224_Init SHA224_Final SHA224_Update \
-	    SHA256_Init SHA256_Final SHA256_Update \
-	    SHA512_224_Init SHA512_224_Final SHA512_224_Update \
-	    SHA512_256_Init SHA512_256_Final SHA512_256_Update \
-	    SHA384_Init SHA384_Final SHA384_Update \
-	    SHA512_Init SHA512_Final SHA512_Update
-CFLAGS+=	-D${sym}=__${sym}
-.endfor
-
 WARNS?=		2
 
 PRECIOUSLIB=
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
+
+LIBADD+=	md
+SHLIB_LDSCRIPT=	libcrypt.ldscript
+STATIC_LDSCRIPT= libcrypt.aldscript
+CLEANFILES+=	libcrypt.ald
+
+libcrypt.ald: ${.CURDIR}/${STATIC_LDSCRIPT}
+	sed -e 's,@@LIB@@,${LIB},g' \
+	    -e 's,@@STATICLIB_SUFFIX@@,${_STATICLIB_SUFFIX},g' \
+	    ${.ALLSRC} > ${.TARGET}
+
+all: ${STATIC_LDSCRIPT} libcrypt.ald
+
+install-libcrypt.a: libcrypt.ald
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} libcrypt.ald ${DESTDIR}${_LIBDIR}/lib${LIB}.a
+
+realinstall: install-libcrypt.a
 
 .include <bsd.lib.mk>

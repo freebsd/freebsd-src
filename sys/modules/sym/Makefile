@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/sym
 
 KMOD=	sym

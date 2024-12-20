@@ -1423,10 +1423,7 @@ m3_pci_attach(device_t dev)
 
 	m3_enable_ints(sc);
 
-	if (pcm_register(dev, sc, dacn, adcn)) {
-		device_printf(dev, "pcm_register error\n");
-		goto bad;
-	}
+	pcm_init(dev, sc);
 	for (i=0 ; i<dacn ; i++) {
 		if (pcm_addchan(dev, PCMDIR_PLAY, &m3_pch_class, sc)) {
 			device_printf(dev, "pcm_addchan (play) error\n");
@@ -1443,8 +1440,8 @@ m3_pci_attach(device_t dev)
 	    (sc->regtype == SYS_RES_IOPORT)? "port" : "mem",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
-	if (pcm_setstatus(dev, status)) {
-		device_printf(dev, "attach: pcm_setstatus error\n");
+	if (pcm_register(dev, status)) {
+		device_printf(dev, "pcm_register error\n");
 		goto bad;
 	}
 
@@ -1453,7 +1450,7 @@ m3_pci_attach(device_t dev)
 	/* Create the buffer for saving the card state during suspend */
 	len = sizeof(u_int16_t) * (REV_B_CODE_MEMORY_LENGTH +
 	    REV_B_DATA_MEMORY_LENGTH);
-	sc->savemem = (u_int16_t*)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->savemem = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	return 0;
 

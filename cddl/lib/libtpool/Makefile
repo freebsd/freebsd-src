@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libtpool
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 

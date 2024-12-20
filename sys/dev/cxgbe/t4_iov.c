@@ -29,8 +29,12 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/iov.h>
 #include <dev/pci/pcivar.h>
+#include <net/if.h>
+#include <net/if_vlan_var.h>
 
 #ifdef PCI_IOV
 #include <sys/nv.h>
@@ -95,15 +99,15 @@ struct {
 	{0x6002, "Chelsio T6225-SO-CR"},	/* 2 x 10/25G, nomem */
 	{0x6003, "Chelsio T6425-CR"},		/* 4 x 10/25G */
 	{0x6004, "Chelsio T6425-SO-CR"},	/* 4 x 10/25G, nomem */
-	{0x6005, "Chelsio T6225-OCP-SO"},	/* 2 x 10/25G, nomem */
-	{0x6006, "Chelsio T62100-OCP-SO"},	/* 2 x 40/50/100G, nomem */
+	{0x6005, "Chelsio T6225-SO-OCP3"},	/* 2 x 10/25G, nomem */
+	{0x6006, "Chelsio T6225-OCP3"},		/* 2 x 10/25G */
 	{0x6007, "Chelsio T62100-LP-CR"},	/* 2 x 40/50/100G */
 	{0x6008, "Chelsio T62100-SO-CR"},	/* 2 x 40/50/100G, nomem */
 	{0x6009, "Chelsio T6210-BT"},		/* 2 x 10GBASE-T */
 	{0x600d, "Chelsio T62100-CR"},		/* 2 x 40/50/100G */
 	{0x6010, "Chelsio T6-DBG-100"},		/* 2 x 40/50/100G, debug */
 	{0x6011, "Chelsio T6225-LL-CR"},	/* 2 x 10/25G */
-	{0x6014, "Chelsio T61100-OCP-SO"},	/* 1 x 40/50/100G, nomem */
+	{0x6014, "Chelsio T62100-SO-OCP3"},	/* 2 x 40/50/100G, nomem */
 	{0x6015, "Chelsio T6201-BT"},		/* 2 x 1000BASE-T */
 
 	/* Custom */
@@ -257,6 +261,7 @@ t4iov_attach_child(device_t dev)
 	pf_schema = pci_iov_schema_alloc_node();
 	vf_schema = pci_iov_schema_alloc_node();
 	pci_iov_schema_add_unicast_mac(vf_schema, "mac-addr", 0, NULL);
+	pci_iov_schema_add_vlan(vf_schema, "vlan", 0, 0);
 	error = pci_iov_attach_name(dev, pf_schema, vf_schema, "%s",
 	    device_get_nameunit(pdev));
 	if (error) {
@@ -336,14 +341,15 @@ t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 	size_t size;
 	int rc;
 
+	sc = device_get_softc(dev);
+	MPASS(sc->sc_attached);
+	MPASS(sc->sc_main != NULL);
+	adap = device_get_softc(sc->sc_main);
+
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", &size);
 		bcopy(mac, ma, ETHER_ADDR_LEN);
 
-		sc = device_get_softc(dev);
-		MPASS(sc->sc_attached);
-		MPASS(sc->sc_main != NULL);
-		adap = device_get_softc(sc->sc_main);
 		if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
 		    "t4vfma") != 0)
 			return (ENXIO);
@@ -354,6 +360,29 @@ t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 			    "Failed to set VF%d MAC address to "
 			    "%02x:%02x:%02x:%02x:%02x:%02x, rc = %d\n", vfnum,
 			    ma[0], ma[1], ma[2], ma[3], ma[4], ma[5], rc);
+			return (rc);
+		}
+	}
+
+	if (nvlist_exists_number(config, "vlan")) {
+		uint16_t vlan = nvlist_get_number(config, "vlan");
+
+		/* We can't restrict to VID 0 */
+		if (vlan == DOT1Q_VID_NULL)
+			return (ENOTSUP);
+
+		if (vlan == VF_VLAN_TRUNK)
+			vlan = DOT1Q_VID_NULL;
+
+		if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
+		    "t4vfvl") != 0)
+			return (ENXIO);
+		rc = t4_set_vlan_acl(adap, sc->pf, vfnum + 1, vlan);
+		end_synchronized_op(adap, 0);
+		if (rc != 0) {
+			device_printf(dev,
+			    "Failed to set VF%d VLAN to %d, rc = %d\n",
+			    vfnum, vlan, rc);
 			return (rc);
 		}
 	}

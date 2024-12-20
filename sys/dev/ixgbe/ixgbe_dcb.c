@@ -293,7 +293,7 @@ void ixgbe_dcb_unpack_map_cee(struct ixgbe_dcb_config *cfg, int direction,
 }
 
 /**
- * ixgbe_dcb_config - Struct containing DCB settings.
+ * ixgbe_dcb_check_config_cee - Struct containing DCB settings.
  * @dcb_config: Pointer to DCB config structure
  *
  * This function checks DCB rules for DCB settings.

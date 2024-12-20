@@ -30,6 +30,7 @@
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  * Copyright (c) 2019 Datto Inc.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #include <assert.h>
@@ -2828,7 +2829,12 @@ zfs_send_one_cb_impl(zfs_handle_t *zhp, const char *from, int fd,
 		case EROFS:
 			zfs_error_aux(hdl, "%s", zfs_strerror(errno));
 			return (zfs_error(hdl, EZFS_BADBACKUP, errbuf));
-
+		case ZFS_ERR_STREAM_LARGE_MICROZAP:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "source snapshot contains large microzaps, "
+			    "need -L (--large-block) or -w (--raw) to "
+			    "generate stream"));
+			return (zfs_error(hdl, EZFS_BADBACKUP, errbuf));
 		default:
 			return (zfs_standard_error(hdl, errno, errbuf));
 		}
@@ -4952,7 +4958,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	if (flags->verbose) {
 		(void) printf("%s %s%s stream of %s into %s\n",
 		    flags->dryrun ? "would receive" : "receiving",
-		    flags->heal ? " corrective" : "",
+		    flags->heal ? "corrective " : "",
 		    drrb->drr_fromguid ? "incremental" : "full",
 		    drrb->drr_toname, destsnap);
 		(void) fflush(stdout);

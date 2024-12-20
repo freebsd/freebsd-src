@@ -826,7 +826,7 @@ static int
 xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
 {
 	uint32_t crc;
-	uint16_t vid;
+	size_t vid;
 	uint16_t vlan_hash_table = 0;
 	__le16 vid_le = 0;
 
@@ -834,14 +834,13 @@ xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
 	    XGMAC_IOREAD(pdata, MAC_VLANHTR));
  
 	/* Generate the VLAN Hash Table value */
-	for_each_set_bit(vid, pdata->active_vlans, VLAN_NVID) {
-
+	bit_foreach(pdata->active_vlans, VLAN_NVID, vid) {
 		/* Get the CRC32 value of the VLAN ID */
 		vid_le = cpu_to_le16(vid);
 		crc = bitrev32(~xgbe_vid_crc32_le(vid_le)) >> 28;
 
 		vlan_hash_table |= (1 << crc);
-		axgbe_printf(1, "%s: vid 0x%x vid_le 0x%x crc 0x%x "
+		axgbe_printf(1, "%s: vid 0x%lx vid_le 0x%x crc 0x%x "
 		    "vlan_hash_table 0x%x\n", __func__, vid, vid_le, crc,
 		    vlan_hash_table);
 	}
@@ -971,7 +970,7 @@ xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int pr_mode, am_mode;
 
-	pr_mode = ((if_getflags(pdata->netdev) & IFF_PPROMISC) != 0);
+	pr_mode = ((if_getflags(pdata->netdev) & IFF_PROMISC) != 0);
 	am_mode = ((if_getflags(pdata->netdev) & IFF_ALLMULTI) != 0);
 
 	xgbe_set_promiscuous_mode(pdata, pr_mode);

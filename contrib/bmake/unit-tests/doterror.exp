@@ -4,6 +4,6 @@ and now: sad
 *** Error code 1
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 .ERROR: Looks like 'sad' is upset.
 exit status 1

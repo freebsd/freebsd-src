@@ -808,7 +808,7 @@ void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 void		 mb_free_extpg(struct mbuf *);
 void		 mb_free_mext_pgs(struct mbuf *);
-struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t);
+struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t, int);
 struct mbuf	*mb_alloc_ext_plus_pages(int, int);
 struct mbuf	*mb_mapped_to_unmapped(struct mbuf *, int, int, int,
 		    struct mbuf **);
@@ -1386,6 +1386,8 @@ extern bool		mb_use_ext_pgs;	/* Use ext_pgs for sendfile */
 #define	PACKET_TAG_IPSEC_NAT_T_PORTS		29 /* two uint16_t */
 #define	PACKET_TAG_ND_OUTGOING			30 /* ND outgoing */
 #define	PACKET_TAG_PF_REASSEMBLED		31
+#define	PACKET_TAG_IPSEC_ACCEL_OUT		32  /* IPSEC accel out */
+#define	PACKET_TAG_IPSEC_ACCEL_IN		33  /* IPSEC accel in */
 
 /* Specific cookies and tags. */
 

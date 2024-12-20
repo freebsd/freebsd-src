@@ -4,6 +4,7 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

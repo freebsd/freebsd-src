@@ -1877,6 +1877,19 @@ struct kcmp_args {
 	char idx1_l_[PADL_(uintptr_t)]; uintptr_t idx1; char idx1_r_[PADR_(uintptr_t)];
 	char idx2_l_[PADL_(uintptr_t)]; uintptr_t idx2; char idx2_r_[PADR_(uintptr_t)];
 };
+struct getrlimitusage_args {
+	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char res_l_[PADL_(rlim_t *)]; rlim_t * res; char res_r_[PADR_(rlim_t *)];
+};
+struct fchroot_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+};
+struct setcred_args {
+	char flags_l_[PADL_(u_int)]; u_int flags; char flags_r_[PADR_(u_int)];
+	char wcred_l_[PADL_(const struct setcred *)]; const struct setcred * wcred; char wcred_r_[PADR_(const struct setcred *)];
+	char size_l_[PADL_(size_t)]; size_t size; char size_r_[PADR_(size_t)];
+};
 struct osdb_exec_args {
 	char query_l_[PADL_(const char *)]; const char * query; char query_r_[PADR_(const char *)];
 	char querylen_l_[PADL_(int)]; int querylen; char querylen_r_[PADR_(int)];
@@ -1963,7 +1976,6 @@ struct osdb_column_name_args {
 struct osdb_sample_args {
 	char delay_l_[PADL_(int)]; int delay; char delay_r_[PADR_(int)];
 	char max_l_[PADL_(int)]; int max; char max_r_[PADR_(int)];
-	char seconds_l_[PADL_(int)]; int seconds; char seconds_r_[PADR_(int)];
 };
 struct osdb_snapshot_clear_args {
 	syscallarg_t dummy;
@@ -2367,6 +2379,9 @@ int	sys_timerfd_create(struct thread *, struct timerfd_create_args *);
 int	sys_timerfd_gettime(struct thread *, struct timerfd_gettime_args *);
 int	sys_timerfd_settime(struct thread *, struct timerfd_settime_args *);
 int	sys_kcmp(struct thread *, struct kcmp_args *);
+int	sys_getrlimitusage(struct thread *, struct getrlimitusage_args *);
+int	sys_fchroot(struct thread *, struct fchroot_args *);
+int	sys_setcred(struct thread *, struct setcred_args *);
 int	sys_osdb_exec(struct thread *, struct osdb_exec_args *);
 int	sys_osdb_prepare_v2(struct thread *, struct osdb_prepare_v2_args *);
 int	sys_osdb_step(struct thread *, struct osdb_step_args *);
@@ -3364,6 +3379,9 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_timerfd_gettime	AUE_TIMERFD
 #define	SYS_AUE_timerfd_settime	AUE_TIMERFD
 #define	SYS_AUE_kcmp	AUE_NULL
+#define	SYS_AUE_getrlimitusage	AUE_NULL
+#define	SYS_AUE_fchroot	AUE_NULL
+#define	SYS_AUE_setcred	AUE_SETCRED
 #define	SYS_AUE_osdb_exec	AUE_NULL
 #define	SYS_AUE_osdb_prepare_v2	AUE_NULL
 #define	SYS_AUE_osdb_step	AUE_NULL

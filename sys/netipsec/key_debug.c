@@ -155,6 +155,8 @@ kdebug_sadb_exttype(uint16_t type)
 	X_NAME(SA_REPLAY);
 	X_NAME(NEW_ADDRESS_SRC);
 	X_NAME(NEW_ADDRESS_DST);
+	X_NAME(LFT_CUR_SW_OFFL);
+	X_NAME(LFT_CUR_HW_OFFL);
 	default:
 		return ("UNKNOWN");
 	};
@@ -189,11 +191,12 @@ kdebug_sadb(struct sadb_msg *base)
 		    ext->sadb_ext_len, ext->sadb_ext_type,
 		    kdebug_sadb_exttype(ext->sadb_ext_type));
 
-		if (ext->sadb_ext_len == 0) {
+		extlen = PFKEY_UNUNIT64(ext->sadb_ext_len);
+		if (extlen == 0) {
 			printf("%s: invalid ext_len=0 was passed.\n", __func__);
 			return;
 		}
-		if (ext->sadb_ext_len > tlen) {
+		if (extlen > tlen) {
 			printf("%s: ext_len too big (%u > %u).\n",
 				__func__, ext->sadb_ext_len, tlen);
 			return;
@@ -251,13 +254,15 @@ kdebug_sadb(struct sadb_msg *base)
 		case SADB_X_EXT_NAT_T_DPORT:
 			kdebug_sadb_x_natt(ext);
 			break;
+		case SADB_X_EXT_LFT_CUR_SW_OFFL:
+		case SADB_X_EXT_LFT_CUR_HW_OFFL:
+			kdebug_sadb_lifetime(ext);
 		default:
 			printf("%s: invalid ext_type %u\n", __func__,
 			    ext->sadb_ext_type);
 			return;
 		}
 
-		extlen = PFKEY_UNUNIT64(ext->sadb_ext_len);
 		tlen -= extlen;
 		ext = (struct sadb_ext *)((caddr_t)ext + extlen);
 	}

@@ -1,4 +1,3 @@
-
 .if empty(BEARSSL)
 .include "../libbearssl/Makefile.inc"
 .endif

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -30,10 +30,11 @@
  */
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.0.1\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.1\n"
 #define GVE_VERSION_MAJOR 1
-#define GVE_VERSION_MINOR 0
+#define GVE_VERSION_MINOR 3
 #define GVE_VERSION_SUB 1
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
@@ -124,9 +125,11 @@ gve_up(struct gve_priv *priv)
 	if (if_getcapenable(ifp) & IFCAP_TSO6)
 		if_sethwassistbits(ifp, CSUM_IP6_TSO, 0);
 
-	err = gve_register_qpls(priv);
-	if (err != 0)
-		goto reset;
+	if (gve_is_qpl(priv)) {
+		err = gve_register_qpls(priv);
+		if (err != 0)
+			goto reset;
+	}
 
 	err = gve_create_rx_rings(priv);
 	if (err != 0)
@@ -174,10 +177,13 @@ gve_down(struct gve_priv *priv)
 	if (gve_destroy_tx_rings(priv) != 0)
 		goto reset;
 
-	if (gve_unregister_qpls(priv) != 0)
-		goto reset;
+	if (gve_is_qpl(priv)) {
+		if (gve_unregister_qpls(priv) != 0)
+			goto reset;
+	}
 
-	gve_mask_all_queue_irqs(priv);
+	if (gve_is_gqi(priv))
+		gve_mask_all_queue_irqs(priv);
 	gve_clear_state_flag(priv, GVE_STATE_FLAG_QUEUES_UP);
 	priv->interface_down_cnt++;
 	return;
@@ -352,18 +358,13 @@ gve_get_counter(if_t ifp, ift_counter cnt)
 	}
 }
 
-static int
+static void
 gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 {
 	int caps = 0;
 	if_t ifp;
 
 	ifp = priv->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(priv->dev, "Failed to allocate ifnet struct\n");
-		return (ENXIO);
-	}
-
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setsoftc(ifp, priv);
 	if_setdev(ifp, dev);
@@ -371,6 +372,18 @@ gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 	if_setioctlfn(ifp, gve_ioctl);
 	if_settransmitfn(ifp, gve_xmit_ifp);
 	if_setqflushfn(ifp, gve_qflush);
+
+	/*
+	 * Set TSO limits, must match the arguments to bus_dma_tag_create
+	 * when creating tx->dqo.buf_dmatag. Only applies to the RDA mode
+	 * because in QPL we copy the entire pakcet into the bounce buffer
+	 * and thus it does not matter how fragmented the mbuf is.
+	 */
+	if (!gve_is_gqi(priv) && !gve_is_qpl(priv)) {
+		if_sethwtsomaxsegcount(ifp, GVE_TX_MAX_DATA_DESCS_DQO);
+		if_sethwtsomaxsegsize(ifp, GVE_TX_MAX_BUF_SIZE_DQO);
+	}
+	if_sethwtsomax(ifp, GVE_TSO_MAXSIZE_DQO);
 
 #if __FreeBSD_version >= 1400086
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -401,8 +414,6 @@ gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO);
-
-	return (0);
 }
 
 static int
@@ -456,7 +467,8 @@ gve_free_rings(struct gve_priv *priv)
 	gve_free_irqs(priv);
 	gve_free_tx_rings(priv);
 	gve_free_rx_rings(priv);
-	gve_free_qpls(priv);
+	if (gve_is_qpl(priv))
+		gve_free_qpls(priv);
 }
 
 static int
@@ -464,9 +476,11 @@ gve_alloc_rings(struct gve_priv *priv)
 {
 	int err;
 
-	err = gve_alloc_qpls(priv);
-	if (err != 0)
-		goto abort;
+	if (gve_is_qpl(priv)) {
+		err = gve_alloc_qpls(priv);
+		if (err != 0)
+			goto abort;
+	}
 
 	err = gve_alloc_rx_rings(priv);
 	if (err != 0)
@@ -506,6 +520,11 @@ gve_deconfigure_resources(struct gve_priv *priv)
 
 	gve_free_irq_db_array(priv);
 	gve_free_counter_array(priv);
+
+	if (priv->ptype_lut_dqo) {
+		free(priv->ptype_lut_dqo, M_GVE);
+		priv->ptype_lut_dqo = NULL;
+	}
 }
 
 static int
@@ -530,6 +549,18 @@ gve_configure_resources(struct gve_priv *priv)
 			      err);
 		err = (ENXIO);
 		goto abort;
+	}
+
+	if (!gve_is_gqi(priv)) {
+		priv->ptype_lut_dqo = malloc(sizeof(*priv->ptype_lut_dqo), M_GVE,
+		    M_WAITOK | M_ZERO);
+
+		err = gve_adminq_get_ptype_map_dqo(priv, priv->ptype_lut_dqo);
+		if (err != 0) {
+			device_printf(priv->dev, "Failed to configure ptype lut: err=%d\n",
+			    err);
+			goto abort;
+		}
 	}
 
 	gve_set_state_flag(priv, GVE_STATE_FLAG_RESOURCES_OK);
@@ -749,6 +780,9 @@ gve_attach(device_t dev)
 	int rid;
 	int err;
 
+	snprintf(gve_version, sizeof(gve_version), "%d.%d.%d",
+	    GVE_VERSION_MAJOR, GVE_VERSION_MINOR, GVE_VERSION_SUB);
+
 	priv = device_get_softc(dev);
 	priv->dev = dev;
 	GVE_IFACE_LOCK_INIT(priv->gve_iface_lock);
@@ -794,9 +828,7 @@ gve_attach(device_t dev)
 	if (err != 0)
 		goto abort;
 
-	err = gve_setup_ifnet(dev, priv);
-	if (err != 0)
-		goto abort;
+	gve_setup_ifnet(dev, priv);
 
 	priv->rx_copybreak = GVE_DEFAULT_RX_COPYBREAK;
 
@@ -829,6 +861,11 @@ gve_detach(device_t dev)
 {
 	struct gve_priv *priv = device_get_softc(dev);
 	if_t ifp = priv->ifp;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	ether_ifdetach(ifp);
 
@@ -845,7 +882,7 @@ gve_detach(device_t dev)
 	taskqueue_free(priv->service_tq);
 
 	if_free(ifp);
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t gve_methods[] = {

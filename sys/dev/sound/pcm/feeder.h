@@ -58,10 +58,10 @@ u_int32_t snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t snd_fmtbest(u_int32_t fmt, u_int32_t *fmts);
 
-int chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc,
+int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
     struct pcm_feederdesc *desc);
-int chn_removefeeder(struct pcm_channel *c);
-struct pcm_feeder *chn_findfeeder(struct pcm_channel *c, u_int32_t type);
+void feeder_remove(struct pcm_channel *c);
+struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
 void feeder_printchain(struct pcm_feeder *head);
 int feeder_chain(struct pcm_channel *);
 
@@ -161,37 +161,18 @@ int feeder_matrix_setup(struct pcm_feeder *, struct pcmchan_matrix *,
     struct pcmchan_matrix *);
 int feeder_matrix_compare(struct pcmchan_matrix *, struct pcmchan_matrix *);
 
+/* feeder_format */
+typedef intpcm_t intpcm_read_t(uint8_t *);
+typedef void intpcm_write_t(uint8_t *, intpcm_t);
+
+intpcm_read_t *feeder_format_read_op(uint32_t);
+intpcm_write_t *feeder_format_write_op(uint32_t);
+
 /* 4Front OSS stuffs */
 int feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
 int feeder_matrix_oss_set_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
-
-#if 0
-/* feeder_matrix */
-enum {
-	FEEDMATRIX_TYPE,
-	FEEDMATRIX_RESET,
-	FEEDMATRIX_CHANNELS_IN,
-	FEEDMATRIX_CHANNELS_OUT,
-	FEEDMATRIX_SET_MAP
-};
-
-enum {
-	FEEDMATRIX_TYPE_NONE,
-	FEEDMATRIX_TYPE_AUTO,
-	FEEDMATRIX_TYPE_2X1,
-	FEEDMATRIX_TYPE_1X2,
-	FEEDMATRIX_TYPE_2X2
-};
-
-#define FEEDMATRIX_TYPE_STEREO_TO_MONO	FEEDMATRIX_TYPE_2X1
-#define FEEDMATRIX_TYPE_MONO_TO_STEREO	FEEDMATRIX_TYPE_1X2
-#define FEEDMATRIX_TYPE_SWAP_STEREO	FEEDMATRIX_TYPE_2X2
-#define FEEDMATRIX_MAP(x, y)		((((x) & 0x3f) << 6) | ((y) & 0x3f))
-#define FEEDMATRIX_MAP_SRC(x)		((x) & 0x3f)
-#define FEEDMATRIX_MAP_DST(x)		(((x) >> 6) & 0x3f)
-#endif
 
 /*
  * By default, various feeders only deal with sign 16/32 bit native-endian

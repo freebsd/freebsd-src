@@ -1,4 +1,4 @@
-# $NetBSD: recursive.mk,v 1.7 2023/10/19 18:24:33 rillig Exp $
+# $NetBSD: recursive.mk,v 1.8 2024/06/02 15:31:26 rillig Exp $
 #
 # In -dL mode, a variable may get expanded before it makes sense.
 # This would stop make from doing anything since the "recursive" error
@@ -6,7 +6,7 @@
 #
 # The purpose of evaluating that variable early was just to detect
 # whether there are unclosed variables.  The variable value is therefore
-# parsed with VARE_PARSE_ONLY for that purpose.
+# parsed with VARE_PARSE for that purpose.
 #
 
 .MAKEFLAGS: -dL

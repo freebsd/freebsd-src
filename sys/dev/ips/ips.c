@@ -269,13 +269,11 @@ static int ips_diskdev_init(ips_softc_t *sc)
 			ips_diskdev_statename(sc->drives[i].state));
 		if(sc->drives[i].state == IPS_LD_OKAY ||
 		   sc->drives[i].state == IPS_LD_DEGRADED){
-			sc->diskdev[i] = device_add_child(sc->dev, NULL, -1);
+			sc->diskdev[i] = device_add_child(sc->dev, NULL, DEVICE_UNIT_ANY);
 			device_set_ivars(sc->diskdev[i],(void *)(uintptr_t) i);
 		}
 	}
-	if(bus_generic_attach(sc->dev)){
-		device_printf(sc->dev, "Attaching bus failed\n");
-	}
+	bus_attach_children(sc->dev);
 	return 0;
 }
 

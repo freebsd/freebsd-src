@@ -265,6 +265,10 @@ main(int argc, char *argv[])
 	int	partition = -1;
 	struct	dos_partition *partp;
 
+	fprintf(stderr,
+	    "WARNING: fdisk is deprecated and is not available in FreeBSD 15 or later.\n"
+	    "Please use gpart instead.\n\n");
+
 	while ((c = getopt(argc, argv, "BIab:f:ipqstuv1234")) != -1)
 		switch (c) {
 		case 'B':
@@ -380,7 +384,8 @@ main(int argc, char *argv[])
 	printf("******* Working on device %s *******\n",disk);
 
 	if (I_flag) {
-		read_s0();
+		if (read_s0())
+			warnx("Ignoring bad existing MBR.");
 		reset_boot();
 		partp = &mboot.parts[0];
 		partp->dp_typ = DOSPTYP_386BSD;
@@ -410,8 +415,10 @@ main(int argc, char *argv[])
 	    else
 		print_params();
 
-	    if (read_s0())
+	    if (read_s0()) {
+		printf("Will replace existing bad MBR\n");
 		init_sector0(dos_sectors);
+	    }
 
 	    printf("Media sector size is %d\n", secsize);
 	    printf("Warning: BIOS sector numbering starts with sector 1\n");

@@ -310,6 +310,13 @@ INCS+=		iconv.h
 LSUBDIRS+=	dev/usb
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "riscv"
+.if ${MK_BHYVE} != "no"
+LSUBDIRS+=	dev/vmm
+.endif
+.endif
+
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif

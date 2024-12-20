@@ -17,7 +17,7 @@ ParseDependency(.a.c: ${.PREFIX}.dependency)
 defining transformation from `.a' to `.c'
 inserting ".a" (1) at end of list
 inserting ".c" (3) at end of list
-# LinkSource: added child .a.c - ${.PREFIX}.dependency
+Target ".a.c" depends on "${.PREFIX}.dependency"
 # .a.c, unmade, type OP_DEPENDS|OP_TRANSFORM, flags none
 # ${.PREFIX}.dependency, unmade, type none, flags none
 Parsing line 23: .DEFAULT:

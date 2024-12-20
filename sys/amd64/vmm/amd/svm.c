@@ -54,9 +54,10 @@
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
-#include "vmm_ktr.h"
 #include "vmm_ioport.h"
 #include "vatpic.h"
 #include "vlapic.h"
@@ -277,11 +278,16 @@ svm_modinit(int ipinum)
 }
 
 static void
+svm_modsuspend(void)
+{
+}
+
+static void
 svm_modresume(void)
 {
 
 	svm_enable(NULL);
-}		
+}
 
 #ifdef BHYVE_SNAPSHOT
 void
@@ -300,14 +306,14 @@ svm_set_tsc_offset(struct svm_vcpu *vcpu, uint64_t offset)
 #endif
 
 /* Pentium compatible MSRs */
-#define MSR_PENTIUM_START 	0	
+#define MSR_PENTIUM_START 	0
 #define MSR_PENTIUM_END 	0x1FFF
 /* AMD 6th generation and Intel compatible MSRs */
-#define MSR_AMD6TH_START 	0xC0000000UL	
-#define MSR_AMD6TH_END 		0xC0001FFFUL	
+#define MSR_AMD6TH_START 	0xC0000000UL
+#define MSR_AMD6TH_END 		0xC0001FFFUL
 /* AMD 7th and 8th generation compatible MSRs */
-#define MSR_AMD7TH_START 	0xC0010000UL	
-#define MSR_AMD7TH_END 		0xC0011FFFUL	
+#define MSR_AMD7TH_START 	0xC0010000UL
+#define MSR_AMD7TH_END 		0xC0011FFFUL
 
 /*
  * Get the index and bit position for a MSR in permission bitmap.
@@ -327,12 +333,12 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 		return (0);
 	}
 
-	base += (MSR_PENTIUM_END - MSR_PENTIUM_START + 1); 
+	base += (MSR_PENTIUM_END - MSR_PENTIUM_START + 1);
 	if (msr >= MSR_AMD6TH_START && msr <= MSR_AMD6TH_END) {
-		off = (msr - MSR_AMD6TH_START); 
+		off = (msr - MSR_AMD6TH_START);
 		*index = (off + base) / 4;
 		return (0);
-	} 
+	}
 
 	base += (MSR_AMD6TH_END - MSR_AMD6TH_START + 1);
 	if (msr >= MSR_AMD7TH_START && msr <= MSR_AMD7TH_END) {
@@ -851,7 +857,7 @@ svm_npf_emul_fault(uint64_t exitinfo1)
 		return (false);
 	}
 
-	return (true);	
+	return (true);
 }
 
 static void
@@ -892,7 +898,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	default:
 		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
-		break;	
+		break;
 	}
 
 	/*
@@ -993,7 +999,7 @@ svm_save_intinfo(struct svm_softc *svm_sc, struct svm_vcpu *vcpu)
 	uint64_t intinfo;
 
 	ctrl = svm_get_vmcb_ctrl(vcpu);
-	intinfo = ctrl->exitintinfo;	
+	intinfo = ctrl->exitintinfo;
 	if (!VMCB_EXITINTINFO_VALID(intinfo))
 		return;
 
@@ -1532,7 +1538,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 		eax = state->rax;
 		ecx = ctx->sctx_rcx;
 		edx = ctx->sctx_rdx;
-		retu = false;	
+		retu = false;
 
 		if (info1) {
 			vmm_stat_incr(vcpu->vcpu, VMEXIT_WRMSR, 1);
@@ -1666,7 +1672,7 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 	default:
 		vmm_stat_incr(vcpu->vcpu, VMEXIT_UNKNOWN, 1);
 		break;
-	}	
+	}
 
 	SVM_CTR4(vcpu, "%s %s vmexit at %#lx/%d",
 	    handled ? "handled" : "unhandled", exit_reason_to_str(code),
@@ -2230,7 +2236,7 @@ svm_run(void *vcpui, register_t rip, pmap_t pmap, struct vm_eventinfo *evinfo)
 		/* Restore host LDTR. */
 		lldt(ldt_sel);
 
-		/* #VMEXIT disables interrupts so re-enable them here. */ 
+		/* #VMEXIT disables interrupts so re-enable them here. */
 		enable_gintr();
 
 		/* Update 'nextrip' */
@@ -2259,8 +2265,8 @@ svm_cleanup(void *vmi)
 {
 	struct svm_softc *sc = vmi;
 
-	contigfree(sc->iopm_bitmap, SVM_IO_BITMAP_SIZE, M_SVM);
-	contigfree(sc->msr_bitmap, SVM_MSR_BITMAP_SIZE, M_SVM);
+	free(sc->iopm_bitmap, M_SVM);
+	free(sc->msr_bitmap, M_SVM);
 	free(sc, M_SVM);
 }
 
@@ -2806,6 +2812,7 @@ const struct vmm_ops vmm_ops_amd = {
 	.modinit	= svm_modinit,
 	.modcleanup	= svm_modcleanup,
 	.modresume	= svm_modresume,
+	.modsuspend	= svm_modsuspend,
 	.init		= svm_init,
 	.run		= svm_run,
 	.cleanup	= svm_cleanup,

@@ -65,6 +65,16 @@
 #define LOW_MEM_LIMIT	0
 #endif
 
+/*
+ * Memory ranges available for creating external mappings (foreign or grant
+ * pages for example).
+ */
+static struct rman unpopulated_mem = {
+	.rm_end = ~0,
+	.rm_type = RMAN_ARRAY,
+	.rm_descr = "Xen scratch memory",
+};
+
 static void
 xenpv_identify(driver_t *driver, device_t parent)
 {
@@ -91,23 +101,43 @@ xenpv_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+/* Dummy init for arches that don't have a specific implementation. */
+int __weak_symbol
+xen_arch_init_physmem(device_t dev, struct rman *mem)
+{
+
+	return (0);
+}
+
 static int
 xenpv_attach(device_t dev)
 {
-	int error;
+	int error = rman_init(&unpopulated_mem);
+
+	if (error != 0)
+		return (error);
+
+	error = xen_arch_init_physmem(dev, &unpopulated_mem);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Let our child drivers identify any child devices that they
 	 * can find.  Once that is done attach any devices that we
 	 * found.
 	 */
-	error = bus_generic_probe(dev);
-	if (error)
-		return (error);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
-	error = bus_generic_attach(dev);
+	return (0);
+}
 
-	return (error);
+static int
+release_unpopulated_mem(device_t dev, struct resource *res)
+{
+
+	return (rman_is_region_manager(res, &unpopulated_mem) ?
+	    rman_release_resource(res) : bus_release_resource(dev, res));
 }
 
 static struct resource *
@@ -117,17 +147,48 @@ xenpv_alloc_physmem(device_t dev, device_t child, int *res_id, size_t size)
 	vm_paddr_t phys_addr;
 	void *virt_addr;
 	int error;
+	const unsigned int flags = RF_ACTIVE | RF_UNMAPPED |
+	    RF_ALIGNMENT_LOG2(PAGE_SHIFT);
 
-	res = bus_alloc_resource(child, SYS_RES_MEMORY, res_id, LOW_MEM_LIMIT,
-	    ~0, size, RF_ACTIVE | RF_UNMAPPED);
-	if (res == NULL)
+	KASSERT((size & PAGE_MASK) == 0, ("unaligned size requested"));
+	size = round_page(size);
+
+	/* Attempt to allocate from arch resource manager. */
+	res = rman_reserve_resource(&unpopulated_mem, 0, ~0, size, flags,
+	    child);
+	if (res != NULL) {
+		rman_set_rid(res, *res_id);
+		rman_set_type(res, SYS_RES_MEMORY);
+	} else {
+		static bool warned = false;
+
+		/* Fallback to generic MMIO allocator. */
+		if (__predict_false(!warned)) {
+			warned = true;
+			device_printf(dev,
+			    "unable to allocate from arch specific routine, "
+			    "fall back to unused memory areas\n");
+		}
+		res = bus_alloc_resource(child, SYS_RES_MEMORY, res_id,
+		    LOW_MEM_LIMIT, ~0, size, flags);
+	}
+
+	if (res == NULL) {
+		device_printf(dev,
+		    "failed to allocate Xen unpopulated memory\n");
 		return (NULL);
+	}
 
 	phys_addr = rman_get_start(res);
 	error = vm_phys_fictitious_reg_range(phys_addr, phys_addr + size,
 	    VM_MEMATTR_XEN);
 	if (error) {
-		bus_release_resource(child, SYS_RES_MEMORY, *res_id, res);
+		int error = release_unpopulated_mem(child, res);
+
+		if (error != 0)
+			device_printf(dev, "failed to release resource: %d\n",
+			    error);
+
 		return (NULL);
 	}
 	virt_addr = pmap_mapdev_attr(phys_addr, size, VM_MEMATTR_XEN);
@@ -150,7 +211,8 @@ xenpv_free_physmem(device_t dev, device_t child, int res_id, struct resource *re
 
 	pmap_unmapdev(virt_addr, size);
 	vm_phys_fictitious_unreg_range(phys_addr, phys_addr + size);
-	return (bus_release_resource(child, SYS_RES_MEMORY, res_id, res));
+
+	return (release_unpopulated_mem(child, res));
 }
 
 static device_method_t xenpv_methods[] = {

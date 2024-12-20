@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 
 				lc = login_getpwclass(pw);
 				if (setusercontext(lc, pw, pw->pw_uid,
-				    LOGIN_SETALL) != 0)
+				    LOGIN_SETALL & ~LOGIN_SETLOGIN) != 0)
 					errx(1, "setusercontext");
 				setenv("HOME", pw->pw_dir, 1);
 				cal();

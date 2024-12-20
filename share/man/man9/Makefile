@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MAN=	accept_filter.9 \
@@ -62,6 +61,7 @@ MAN=	accept_filter.9 \
 	callout.9 \
 	casuword.9 \
 	cd.9 \
+	cdefs.9 \
 	cnv.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -218,7 +218,6 @@ MAN=	accept_filter.9 \
 	mbchain.9 \
 	mbuf.9 \
 	mbuf_tags.9 \
-	MD5.9 \
 	mdchain.9 \
 	memcchr.9 \
 	memguard.9 \
@@ -885,8 +884,7 @@ MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_drain.9 \
 	config_intrhook.9 config_intrhook_establish.9 \
 	config_intrhook.9 config_intrhook_oneshot.9
-MLINKS+=contigmalloc.9 contigmalloc_domainset.9 \
-	contigmalloc.9 contigfree.9
+MLINKS+=contigmalloc.9 contigmalloc_domainset.9
 MLINKS+=casuword.9 casueword.9 \
 	casuword.9 casueword32.9 \
 	casuword.9 casuword32.9
@@ -1336,7 +1334,6 @@ MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 ifa_ifwithnet.9 \
 	ifnet.9 ifa_ref.9 \
 	ifnet.9 ifaddr.9 \
-	ifnet.9 ifaddr_byindex.9 \
 	ifnet.9 ifaof_ifpforaddr.9 \
 	ifnet.9 ifioctl.9 \
 	ifnet.9 ifpromisc.9 \
@@ -1431,9 +1428,14 @@ MLINKS+=lock.9 lockdestroy.9 \
 	lock.9 lockmgr_args_rw.9 \
 	lock.9 lockmgr_assert.9 \
 	lock.9 lockmgr_disown.9 \
+	lock.9 lockmgr_disowned.9 \
+	lock.9 lockmgr_lock_flags.9 \
 	lock.9 lockmgr_printinfo.9 \
 	lock.9 lockmgr_recursed.9 \
 	lock.9 lockmgr_rw.9 \
+	lock.9 lockmgr_slock.9 \
+	lock.9 lockmgr_unlock.9 \
+	lock.9 lockmgr_xlock.9 \
 	lock.9 lockstatus.9
 MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
 MLINKS+=make_dev.9 destroy_dev.9 \
@@ -1542,8 +1544,6 @@ MLINKS+=\
 	mbuf_tags.9 m_tag_next.9 \
 	mbuf_tags.9 m_tag_prepend.9 \
 	mbuf_tags.9 m_tag_unlink.9
-MLINKS+=MD5.9 MD5Init.9 \
-	MD5.9 MD5Transform.9
 MLINKS+=mdchain.9 md_append_record.9 \
 	mdchain.9 md_done.9 \
 	mdchain.9 md_get_int64.9 \
@@ -2244,6 +2244,7 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 taskqueue_drain_timeout.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
 	taskqueue.9 taskqueue_enqueue_timeout.9 \
+	taskqueue.9 taskqueue_enqueue_timeout_sbt.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
@@ -2378,8 +2379,6 @@ MLINKS+=vm_page_alloc.9 vm_page_alloc_after.9 \
 	vm_page_alloc.9 vm_page_alloc_contig_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_domain_after.9 \
-	vm_page_alloc.9 vm_page_alloc_freelist.9 \
-	vm_page_alloc.9 vm_page_alloc_freelist_domain.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig.9 \
 	vm_page_alloc.9 vm_page_alloc_noobj_contig_domain.9 \

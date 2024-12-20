@@ -1326,9 +1326,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 		*(uint16_t *)wh->i_dur = htole16(dur);
 
 		/* tell hardware to add timestamp in probe responses */
-		if ((wh->i_fc[0] &
-		    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-		    (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+		if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 			flags |= RT2661_TX_TIMESTAMP;
 	}
 

@@ -386,8 +386,8 @@ tegra_sdhci_attach(device_t dev)
 
 	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	sdhci_start_slot(&sc->slot);
 

@@ -113,6 +113,8 @@ libc_malloc_aligned(size_t size, size_t align)
 		align = sizeof(void *);
 
 	mem = __je_bootstrap_malloc(size + sizeof(void *) + align - 1);
+	if (mem == NULL)
+		return (NULL);
 	res = (void *)roundup2((uintptr_t)mem + sizeof(void *), align);
 	*(void **)((uintptr_t)res - sizeof(void *)) = mem;
 	return (res);

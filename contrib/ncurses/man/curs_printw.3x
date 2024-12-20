@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,128 +27,179 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_printw.3x,v 1.28 2020/10/24 09:22:45 tom Exp $
-.TH curs_printw 3X ""
-.ie \n(.g .ds `` \(lq
-.el       .ds `` ``
-.ie \n(.g .ds '' \(rq
-.el       .ds '' ''
+.\" $Id: curs_printw.3x,v 1.53 2024/04/20 19:18:18 tom Exp $
+.TH curs_printw 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
-.na
-.hy 0
 .SH NAME
-\fBprintw\fR,
-\fBwprintw\fR,
-\fBmvprintw\fR,
-\fBmvwprintw\fR,
-\fBvwprintw\fR, \fBvw_printw\fR \- print formatted output in \fBcurses\fR windows
-.ad
-.hy
+\fB\%printw\fP,
+\fB\%wprintw\fP,
+\fB\%mvprintw\fP,
+\fB\%mvwprintw\fP,
+\fB\%vwprintw\fP,
+\fB\%vw_printw\fP \-
+write formatted output to a \fIcurses\fR window
 .SH SYNOPSIS
-\fB#include <curses.h>\fR
-.sp
-\fBint printw(const char *\fP\fIfmt\fP\fB, ...);\fR
-.br
-\fBint wprintw(WINDOW *\fP\fIwin\fP\fB, const char *\fP\fIfmt\fP\fB, ...);\fR
-.br
-\fBint mvprintw(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIfmt\fP\fB, ...);\fR
-.br
-\fBint mvwprintw(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIfmt\fP\fB, ...);\fR
-.br
-\fBint vw_printw(WINDOW *\fP\fIwin\fP\fB, const char *\fP\fIfmt\fP\fB, va_list \fP\fIvarglist\fP\fB);\fR
-.sp
-/* obsolete */
-.br
-\fBint vwprintw(WINDOW *\fP\fIwin\fP\fB, const char *\fP\fIfmt\fP\fB, va_list \fP\fIvarglist\fP\fB);\fR
+.nf
+\fB#include <curses.h>
+.PP
+\fBint printw(const char *\fIfmt\fP, ...);
+\fBint wprintw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, ...);
+\fBint mvprintw(int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+\fBint mvwprintw(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const char *\fIfmt\fP, ...);
+.PP
+\fBint vw_printw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.PP
+\fI/* obsolete */\fP
+\fBint vwprintw(WINDOW *\fIwin\fP, const char *\fIfmt\fP, va_list \fIvarglist\fP);
+.fi
 .SH DESCRIPTION
-The \fBprintw\fR, \fBwprintw\fR, \fBmvprintw\fR and \fBmvwprintw\fR
-routines are analogous to \fBprintf\fR [see \fBprintf\fR(3)].
-In
-effect, the string that would be output by \fBprintf\fR is output
-instead as though \fBwaddstr\fR were used on the given window.
+\fB\%printw\fP,
+\fB\%wprintw\fP,
+\fB\%mvprintw\fP,
+and
+\fB\%mvwprintw\fP
+are analogous to \fI\%printf\fP(3).
+In effect,
+the string that would be output by \fI\%printf\fP(3) is instead output
+as though \fB\%waddstr\fP(3X) were used with
+.I win
+(or
+.BR \%stdscr )
+as its first argument.
 .PP
-The \fBvwprintw\fR and \fBvw_printw\fR routines are analogous
-to \fBvprintf\fR [see \fBprintf\fR(3)]
-and perform a \fBwprintw\fR using a variable argument list.
-The third argument is a \fBva_list\fR, a pointer to a
-list of arguments, as defined in \fB<stdarg.h>\fR.
+\fB\%vwprintw\fP
+and
+\fB\%vw_printw\fP are analogous to \fI\%vprintf\fP(3),
+and perform a \fB\%wprintw\fP using a variable argument list.
+The third argument is a \fI\%va_list\fP,
+a pointer to a list of arguments,
+as defined in \fI\%stdarg.h\fP.
 .SH RETURN VALUE
-Routines that return an integer return \fBERR\fR upon failure and \fBOK\fR
-(SVr4 only specifies "an integer value other than \fBERR\fR") upon successful
-completion.
+These functions return
+.B ERR
+upon failure and
+.B OK
+upon success.
 .PP
-X/Open defines no error conditions.
-In this implementation,
-an error may be returned if it cannot allocate enough memory for the
-buffer used to format the results.
-It will return an error if the window pointer is null.
+In
+.IR \%ncurses ,
+failure occurs if the library cannot allocate enough memory for the
+buffer into which the output is formatted,
+or if the window pointer
+.I win
+is null.
 .PP
-Functions with a \*(``mv\*('' prefix first perform a cursor movement using
-\fBwmove\fP, and return an error if the position is outside the window,
-or if the window pointer is null.
+Functions prefixed with \*(``mv\*('' first perform cursor movement and
+fail if the position
+.RI ( y ,
+.IR x )
+is outside the window boundaries.
+.SH NOTES
+No wide character counterpart functions are defined by the
+\*(``wide\*(''
+.I \%ncurses
+configuration nor by any standard.
+To format and write a wide-character string to a
+.I curses
+window,
+consider using \fI\%swprintf\fP(3) and \fB\%waddwstr\fP(3X) or similar.
+.SH PORTABILITY
+X/Open Curses,
+Issue 4 describes these functions.
+It specifies no error conditions for them.
+.PP
+.I \%ncurses
+defines \fB\%vw_printw\fP and \fB\%vwprintw\fP identically to support
+legacy applications.
+However,
+the latter is obsolete.
+.bP
+X/Open Curses,
+Issue 4 Version 2 (1996),
+marked \fB\%vwprintw\fP as requiring \fI\%varargs.h\fP and
+\*(``TO BE WITHDRAWN\*('',
+and specified \fB\%vw_printw\fP using the \fI\%stdarg.h\fP interface.
+.bP
+X/Open Curses, Issue 5, Draft 2
+(December 2007) marked \fBvwprintw\fP (along with
+\fBvwscanw\fP and the \fItermcap\fP interface) as withdrawn.
+After incorporating review comments,
+this became
+X/Open Curses, Issue 7 (2009).
+.bP
+.I \%ncurses
+provides \fB\%vwprintw\fP,
+but marks it as deprecated.
 .SH HISTORY
-While \fBprintw\fP was implemented in 4BSD,
-it was unused until 4.2BSD (which used it in games).
-That early version of curses was before the ANSI C standard.
-It did not use <varargs.h>, though that was available.
-In 1991 (a couple of years after SVr4 was generally available,
+While \fB\%printw\fP was implemented in 4BSD
+(November 1980),
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/\
+.\"   libcurses/printw.c
+it was unused until 4.2BSD
+(August 1983),
+which employed it for games.
+That early version of
+.I curses
+preceded the ANSI C standard of 1989.
+It did not use \fI\%varargs.h\fP,
+though that had been available since Seventh Edition Unix (1979).
+.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=V7/usr/include/\
+.\"  varargs.h
+In 1991
+(a couple of years after SVr4 was generally available,
 and after the C standard was published),
 other developers updated the library,
-using <stdarg.h> internally in 4.4BSD curses.
+using \fI\%stdarg.h\fP internally in 4.4BSD
+.IR curses .
 Even with this improvement,
-BSD curses did not use function prototypes (or even declare
-functions) in the <curses.h> header until 1992.
+BSD
+.I curses
+did not use function prototypes
+(nor even declare functions)
+in \fI\%curses.h\fP until 1992.
 .PP
-SVr2 documented
-\fBprintw\fP,
-\fBwprintw\fP
-tersely as \*(``printf on \fIstdscr\fP\*('' and
-tersely as \*(``printf on \fIwin\fP\*('', respectively.
+SVr2 (1984) documented \fB\%printw\fP and \fB\%wprintw\fP tersely as
+\*(``printf on \fB\%stdscr\fP\*('' and
+\*(``printf on \fIwin\fP\*('',
+respectively.
 .PP
-SVr3 added
-\fBmvprintw\fP, and
-\fBmvwprintw\fP, with a three-line summary saying that they were analogous
-to \fBprintf\fP(3),
-explaining that the string which would be output from \fBprintf\fP(3) would
-instead be output using \fBwaddstr\fP on the given window.
-SVr3 also added \fBvwprintw\fP, saying that the third parameter
-is a \fBva_list\fP, defined in <varargs.h>,
-and referring the reader to the manual pages for \fIvarargs\fP and
-\fIvprintf\fP for detailed descriptions.
+SVr3 (1987) added \fB\%mvprintw\fP and \fB\%mvwprintw\fP,
+with a three-line summary asserting that they were analogous to
+\fI\%printf\fP(3),
+explaining that the string that \fI\%printf\fP(3) would write to the
+standard output stream would instead be output using \fB\%waddstr\fP to
+the given window.
+SVr3 also implemented \fB\%vwprintw\fP,
+describing its third parameter as a \fI\%va_list\fP,
+defined in \fI\%varargs.h\fP,
+and referred the reader to the manual pages for \fI\%varargs\fP and
+\fI\%vprintf\fP for detailed descriptions.
 .PP
-SVr4 added no new variations of \fBprintw\fP,
-but provided for using <varargs.h> or <stdarg.h> to define the \fBva_list\fP
-type.
+SVr4 (1989) introduced no new variations of \fI\%printw\fP,
+but provided for using either \fI\%varargs.h\fP or \fI\%stdarg.h\fP to
+define the \fI\%va_list\fP type.
+.\" either header declares "va_list", but only one can be used
 .PP
-X/Open Curses added \fBvw_printw\fP to replace \fBvwprintw\fP,
-stating that its \fBva_list\fP definition requires <stdarg.h>.
-.SH PORTABILITY
-In this implementation, \fBvw_printw\fP and \fBvwprintw\fP are equivalent,
-to support legacy applications.
-However, the latter (\fBvwprintw\fP) is obsolete:
-.bP
-The XSI Curses standard, Issue 4 described these functions.
-The function
-\fBvwprintw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
-\fBvw_printw\fR using the \fB<stdarg.h>\fR interface.
-.bP
-The Single Unix Specification, Version 2 states that
-\fBvw_printw\fR  is preferred to \fBvwprintw\fR since the latter requires
-including \fB<varargs.h>\fR, which
-cannot be used in the same file as \fB<stdarg.h>\fR.
-This implementation uses \fB<stdarg.h>\fR for both,
-because that header is included in \fB<curses.h\fR>.
-.bP
-X/Open Curses, Issue 5 (December 2007) marked \fBvwprintw\fP (along with
-\fBvwscanw\fP and the termcap interface) as withdrawn.
+X/Open Curses, Issue 4 (1995),
+defined \fB\%vw_printw\fP to replace \fB\%vwprintw\fP,
+stating that its \fI\%va_list\fP type is defined in \fI\%stdarg.h\fP.
 .SH SEE ALSO
-.na
-\fBcurses\fR(3X),
-\fBcurs_addstr\fR(3X),
-\fBcurs_scanw\fR(3X),
-\fBcurs_termcap\fP(3X),
-\fBprintf\fR(3),
-\fBvprintf\fR(3).
+\fB\%curses\fP(3X),
+\fB\%curs_addstr\fP(3X),
+\fB\%curs_scanw\fP(3X),
+\fB\%printf\fP(3),
+\fB\%vprintf\fP(3)

@@ -8,6 +8,7 @@ DIRDEPS = \
 	lib/libcapsicum \
 	lib/libcasper/libcasper \
 	lib/libcompiler_rt \
+	lib/msun \
 
 
 .include <dirdeps.mk>

@@ -1,4 +1,3 @@
-
 # This is to include src/lib/Makefile.inc
 
 WARNS?=	3

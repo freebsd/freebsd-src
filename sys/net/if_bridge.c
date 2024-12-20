@@ -193,7 +193,7 @@
  * List of capabilities to possibly mask on the member interface.
  */
 #define	BRIDGE_IFCAPS_MASK		(IFCAP_TOE|IFCAP_TSO|IFCAP_TXCSUM|\
-					 IFCAP_TXCSUM_IPV6)
+					 IFCAP_TXCSUM_IPV6|IFCAP_MEXTPG)
 
 /*
  * List of capabilities to strip
@@ -754,10 +754,6 @@ bridge_clone_create(struct if_clone *ifc, char *name, size_t len,
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		free(sc, M_DEVBUF);
-		return (ENOSPC);
-	}
 
 	BRIDGE_LOCK_INIT(sc);
 	sc->sc_brtmax = BRIDGE_RTABLE_MAX;

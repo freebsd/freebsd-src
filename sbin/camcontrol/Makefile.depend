@@ -7,6 +7,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcam \
 	lib/libcompiler_rt \
+	lib/libnvmf \
 	lib/libsbuf \
 	lib/libutil \
 

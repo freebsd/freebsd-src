@@ -19,14 +19,17 @@
 #ifndef TH_CWR
 # define	TH_CWR  0x80
 #endif
+#ifndef TH_AE
+# define	TH_AE  0x100
+#endif
 
-extern	char	flagset[];
-extern	u_char	flags[];
+extern	char	 flagset[];
+extern	uint16_t flags[];
 
 
-u_char tcpflags(char *flgs)
+uint16_t tcpflags(char *flgs)
 {
-	u_char tcpf = 0;
+	uint16_t tcpf = 0;
 	char *s, *t;
 
 	for (s = flgs; *s; s++) {

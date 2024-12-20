@@ -80,39 +80,47 @@
 #define	HDSP_LAT_BYTES_MIN		(32 * 4)
 #define	hdsp_encode_latency(x)		(((x)<<1) & HDSP_LAT_MASK)
 
-/* Gain */
-#define	HDSP_ADGain0			(1 << 25)
-#define	HDSP_ADGain1			(1 << 26)
-#define	HDSP_DAGain0			(1 << 27)
-#define	HDSP_DAGain1			(1 << 28)
-#define	HDSP_PhoneGain0			(1 << 29)
-#define	HDSP_PhoneGain1			(1 << 30)
-
-#define	HDSP_ADGainMask			(HDSP_ADGain0 | HDSP_ADGain1)
-#define	HDSP_ADGainMinus10dBV		(HDSP_ADGainMask)
-#define	HDSP_ADGainPlus4dBu		(HDSP_ADGain0)
-#define	HDSP_ADGainLowGain		0
-
-#define	HDSP_DAGainMask			(HDSP_DAGain0 | HDSP_DAGain1)
-#define	HDSP_DAGainHighGain		(HDSP_DAGainMask)
-#define	HDSP_DAGainPlus4dBu		(HDSP_DAGain0)
-#define	HDSP_DAGainMinus10dBV		0
-
-#define	HDSP_PhoneGainMask		(HDSP_PhoneGain0|HDSP_PhoneGain1)
-#define	HDSP_PhoneGain0dB		HDSP_PhoneGainMask
-#define	HDSP_PhoneGainMinus6dB		(HDSP_PhoneGain0)
-#define	HDSP_PhoneGainMinus12dB		0
-
-/* Settings */
+/* Register addresses */
 #define	HDSP_RESET_POINTER		0
 #define	HDSP_CONTROL_REG		64
 #define	HDSP_CONTROL2_REG		256
 #define	HDSP_STATUS_REG			0
 #define	HDSP_STATUS2_REG		192
 
+/* Control register flags */
 #define	HDSP_ENABLE			(1 << 0)
 #define	HDSP_CONTROL_SPDIF_COAX		(1 << 14)
 #define	HDSP_CONTROL_LINE_OUT		(1 << 24)
+#define	HDSP_CONTROL_INPUT_GAIN0	(1 << 25)
+#define	HDSP_CONTROL_INPUT_GAIN1	(1 << 26)
+#define	HDSP_CONTROL_OUTPUT_GAIN0	(1 << 27)
+#define	HDSP_CONTROL_OUTPUT_GAIN1	(1 << 28)
+#define	HDSP_CONTROL_PHONES_GAIN0	(1 << 29)
+#define	HDSP_CONTROL_PHONES_GAIN1	(1 << 30)
+
+/* Analog input gain level */
+#define	HDSP_INPUT_LEVEL_MASK		(HDSP_CONTROL_INPUT_GAIN0 | \
+					HDSP_CONTROL_INPUT_GAIN1)
+#define	HDSP_INPUT_LEVEL_LOWGAIN	0
+#define	HDSP_INPUT_LEVEL_PLUS4DBU	(HDSP_CONTROL_INPUT_GAIN0)
+#define	HDSP_INPUT_LEVEL_MINUS10DBV	(HDSP_CONTROL_INPUT_GAIN0 | \
+					HDSP_CONTROL_INPUT_GAIN1)
+
+/* Analog output gain level */
+#define	HDSP_OUTPUT_LEVEL_MASK		(HDSP_CONTROL_OUTPUT_GAIN0 | \
+					HDSP_CONTROL_OUTPUT_GAIN1)
+#define	HDSP_OUTPUT_LEVEL_MINUS10DBV	0
+#define	HDSP_OUTPUT_LEVEL_PLUS4DBU	(HDSP_CONTROL_OUTPUT_GAIN0)
+#define	HDSP_OUTPUT_LEVEL_HIGHGAIN	(HDSP_CONTROL_OUTPUT_GAIN0 | \
+					HDSP_CONTROL_OUTPUT_GAIN1)
+
+/* Phones output gain level */
+#define	HDSP_PHONES_LEVEL_MASK		(HDSP_CONTROL_PHONES_GAIN0 | \
+					HDSP_CONTROL_PHONES_GAIN1)
+#define	HDSP_PHONES_LEVEL_MINUS12DB	0
+#define	HDSP_PHONES_LEVEL_MINUS6DB	(HDSP_CONTROL_PHONES_GAIN0)
+#define	HDSP_PHONES_LEVEL_0DB		(HDSP_CONTROL_PHONES_GAIN0 | \
+					HDSP_CONTROL_PHONES_GAIN1)
 
 /* Interrupts */
 #define	HDSP_AUDIO_IRQ_PENDING		(1 << 0)
@@ -130,10 +138,11 @@
 #define	HDSP_CHAN_9632_ADAT		(1 << 0)
 #define	HDSP_CHAN_9632_SPDIF		(1 << 1)
 #define	HDSP_CHAN_9632_LINE		(1 << 2)
+#define	HDSP_CHAN_9632_EXT		(1 << 3) /* Extension boards */
 #define	HDSP_CHAN_9632_ALL		(HDSP_CHAN_9632_ADAT | \
 					HDSP_CHAN_9632_SPDIF | \
-					HDSP_CHAN_9632_LINE)
-#define	HDSP_CHAN_9632_EXT_BOARD	(1 << 3)
+					HDSP_CHAN_9632_LINE | \
+					HDSP_CHAN_9632_EXT)
 
 #define	HDSP_CHAN_9652_ADAT1		(1 << 5)
 #define	HDSP_CHAN_9652_ADAT2		(1 << 6)

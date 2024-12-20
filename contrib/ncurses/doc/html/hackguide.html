@@ -1,7 +1,7 @@
 <!--
-  $Id: hackguide.html,v 1.33 2020/02/02 23:34:34 tom Exp $
+  $Id: hackguide.html,v 1.36 2022/11/26 19:31:56 tom Exp $
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2020,2022 Thomas E. Dickey                                *
   * Copyright 2000-2013,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -30,12 +30,10 @@
   ****************************************************************************
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-
 <html>
 <head>
   <meta name="generator" content=
-  "HTML Tidy for HTML5 for Linux version 5.2.0">
-
+  "HTML Tidy for HTML5 for Linux version 5.6.0">
   <title>A Hacker's Guide to Ncurses Internals</title>
   <link rel="author" href="mailto:bugs-ncurses@gnu.org">
   <meta http-equiv="Content-Type" content=
@@ -45,70 +43,70 @@ the ncurses-intro.html document, expected to be in the same directory with
 this one.
 -->
 </head>
-
 <body>
-  <h1>A Hacker's Guide to NCURSES</h1>
+  <h1 class="no-header">A Hacker's Guide to NCURSES</h1>
 
-  <h1>Contents</h1>
+  <h2>A Hacker's Guide to NCURSES</h2>
 
-  <ul>
-    <li><a href="#abstract">Abstract</a></li>
+  <div class="nav">
+    <h2>Contents</h2>
 
-    <li>
-      <a href="#objective">Objective of the Package</a>
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
 
-      <ul>
-        <li><a href="#whysvr4">Why System V Curses?</a></li>
+      <li>
+        <a href="#objective">Objective of the Package</a>
+        <ul>
+          <li><a href="#whysvr4">Why System V Curses?</a></li>
 
-        <li><a href="#extensions">How to Design Extensions</a></li>
-      </ul>
-    </li>
+          <li><a href="#extensions">How to Design Extensions</a></li>
+        </ul>
+      </li>
 
-    <li><a href="#portability">Portability and Configuration</a></li>
+      <li><a href="#portability">Portability and Configuration</a></li>
 
-    <li><a href="#documentation">Documentation Conventions</a></li>
+      <li><a href="#documentation">Documentation Conventions</a></li>
 
-    <li><a href="#bugtrack">How to Report Bugs</a></li>
+      <li><a href="#bugtrack">How to Report Bugs</a></li>
 
-    <li>
-      <a href="#ncurslib">A Tour of the Ncurses Library</a>
+      <li>
+        <a href="#ncurslib">A Tour of the Ncurses Library</a>
+        <ul>
+          <li><a href="#loverview">Library Overview</a></li>
 
-      <ul>
-        <li><a href="#loverview">Library Overview</a></li>
+          <li><a href="#engine">The Engine Room</a></li>
 
-        <li><a href="#engine">The Engine Room</a></li>
+          <li><a href="#input">Keyboard Input</a></li>
 
-        <li><a href="#input">Keyboard Input</a></li>
+          <li><a href="#mouse">Mouse Events</a></li>
 
-        <li><a href="#mouse">Mouse Events</a></li>
+          <li><a href="#output">Output and Screen Updating</a></li>
+        </ul>
+      </li>
 
-        <li><a href="#output">Output and Screen Updating</a></li>
-      </ul>
-    </li>
+      <li><a href="#fmnote">The Forms and Menu Libraries</a></li>
 
-    <li><a href="#fmnote">The Forms and Menu Libraries</a></li>
+      <li>
+        <a href="#tic">A Tour of the Terminfo Compiler</a>
+        <ul>
+          <li><a href="#nonuse">Translation of
+          Non-<strong>use</strong> Capabilities</a></li>
 
-    <li>
-      <a href="#tic">A Tour of the Terminfo Compiler</a>
+          <li><a href="#uses">Use Capability Resolution</a></li>
 
-      <ul>
-        <li><a href="#nonuse">Translation of
-        Non-<strong>use</strong> Capabilities</a></li>
+          <li><a href="#translation">Source-Form Translation</a></li>
+        </ul>
+      </li>
 
-        <li><a href="#uses">Use Capability Resolution</a></li>
+      <li><a href="#utils">Other Utilities</a></li>
 
-        <li><a href="#translation">Source-Form Translation</a></li>
-      </ul>
-    </li>
+      <li><a href="#style">Style Tips for Developers</a></li>
 
-    <li><a href="#utils">Other Utilities</a></li>
+      <li><a href="#port">Porting Hints</a></li>
+    </ul>
+  </div>
 
-    <li><a href="#style">Style Tips for Developers</a></li>
-
-    <li><a href="#port">Porting Hints</a></li>
-  </ul>
-
-  <h1><a name="abstract" id="abstract">Abstract</a></h1>
+  <h2><a name="abstract" id="abstract">Abstract</a></h2>
 
   <p>This document is a hacker's tour of the
   <strong>ncurses</strong> library and utilities. It discusses
@@ -117,8 +115,8 @@ this one.
   anyone who is interested in porting, extending or improving the
   package.</p>
 
-  <h1><a name="objective" id="objective">Objective of the
-  Package</a></h1>
+  <h2><a name="objective" id="objective">Objective of the
+  Package</a></h2>
 
   <p>The objective of the <strong>ncurses</strong> package is to
   provide a free software API for character-cell terminals and
@@ -144,7 +142,7 @@ this one.
   &mdash; we cannot add features if it means breaking the portion
   of the API corresponding to historical curses versions.</p>
 
-  <h2><a name="whysvr4" id="whysvr4">Why System V Curses?</a></h2>
+  <h3><a name="whysvr4" id="whysvr4">Why System V Curses?</a></h3>
 
   <p>We used System V curses as a model, reverse-engineering their
   API, in order to fulfill the first two objectives.</p>
@@ -158,8 +156,8 @@ this one.
   So conformance with System V took us most of the way to
   base-level XSI conformance.</p>
 
-  <h2><a name="extensions" id="extensions">How to Design
-  Extensions</a></h2>
+  <h3><a name="extensions" id="extensions">How to Design
+  Extensions</a></h3>
 
   <p>The third objective (standards conformance) requires that it
   be easy to condition source code using <strong>ncurses</strong>
@@ -177,8 +175,8 @@ this one.
   library header. You can use this to condition the calls to the
   mouse API calls.</p>
 
-  <h1><a name="portability" id="portability">Portability and
-  Configuration</a></h1>
+  <h2><a name="portability" id="portability">Portability and
+  Configuration</a></h2>
 
   <p>Code written for <strong>ncurses</strong> may assume an
   ANSI-standard C compiler and POSIX-compatible OS interface. It
@@ -208,8 +206,8 @@ this one.
   (configure.in and aclocal.m4) to set up a new feature macro,
   which you then use to condition your code.</p>
 
-  <h1><a name="documentation" id="documentation">Documentation
-  Conventions</a></h1>
+  <h2><a name="documentation" id="documentation">Documentation
+  Conventions</a></h2>
 
   <p>There are three kinds of documentation associated with this
   package. Each has a different preferred format:</p>
@@ -226,7 +224,7 @@ this one.
 
   <ol>
     <li><strong>Maintain package-internal files in plain
-    text.</strong> The expected viewer for them <em>more(1)</em> or
+    text.</strong> The expected viewer for them is <em>more(1)</em> or
     an editor window; there is no point in elaborate mark-up.</li>
 
     <li><strong>Mark up manual pages in the man macros.</strong>
@@ -249,7 +247,7 @@ this one.
   course, it make exporting things like the announcement document
   to WWW pretty trivial.</p>
 
-  <h1><a name="bugtrack" id="bugtrack">How to Report Bugs</a></h1>
+  <h2><a name="bugtrack" id="bugtrack">How to Report Bugs</a></h2>
 
   <p>The <a name="bugreport" id="bugreport">reporting address for
   bugs</a> is <a href=
@@ -258,10 +256,9 @@ this one.
   <code>bug-ncurses-request@gnu.org</code> with a message
   containing the line:</p>
 
-  <pre>
+  <pre class="code-block">
              subscribe &lt;name&gt;@&lt;host.domain&gt;
 </pre>
-
   <p>The <code>ncurses</code> code is maintained by a small group
   of volunteers. While we try our best to fix bugs promptly, we
   simply do not have a lot of hours to spend on elementary
@@ -276,8 +273,7 @@ this one.
   tail end and have to wait a while.</p>
 
   <ol>
-    <li>Develop a recipe to reproduce the bug.
-
+    <li><p>Develop a recipe to reproduce the bug.
       <p>Bugs we can reproduce are likely to be fixed very quickly,
       often within days. The most effective single thing you can do
       to get a quick fix is develop a way we can duplicate the bad
@@ -287,8 +283,7 @@ this one.
       with the distribution.)</p>
     </li>
 
-    <li>Try to reproduce the bug on a different terminal type.
-
+    <li><p>Try to reproduce the bug on a different terminal type.
       <p>In our experience, most of the behaviors people report as
       library bugs are actually due to subtle problems in terminal
       descriptions. This is especially likely to be true if you are
@@ -309,8 +304,7 @@ this one.
       triggered or masked by these.</p>
     </li>
 
-    <li>Generate and examine a trace file for the broken behavior.
-
+    <li><p>Generate and examine a trace file for the broken behavior.
       <p>Recompile your program with the debugging versions of the
       libraries. Insert a <code>trace()</code> call with the
       argument set to <code>TRACE_UPDATE</code>. (See <a href=
@@ -341,8 +335,7 @@ this one.
       screen-update logic quite exactly.</p>
     </li>
 
-    <li>Report details and symptoms, not just interpretations.
-
+    <li><p>Report details and symptoms, not just interpretations.
       <p>If you do the preceding two steps, it is very likely that
       you will discover the nature of the problem yourself and be
       able to send us a fix. This will create happy feelings all
@@ -397,10 +390,10 @@ this one.
   out. You can also test the hardware-scrolling optimization
   separately with <code>hardscroll</code>.</p>
 
-  <h1><a name="ncurslib" id="ncurslib">A Tour of the Ncurses
-  Library</a></h1>
+  <h2><a name="ncurslib" id="ncurslib">A Tour of the Ncurses
+  Library</a></h2>
 
-  <h2><a name="loverview" id="loverview">Library Overview</a></h2>
+  <h3><a name="loverview" id="loverview">Library Overview</a></h3>
 
   <p>Most of the library is superstructure &mdash; fairly trivial
   convenience interfaces to a small set of basic functions and data
@@ -495,9 +488,9 @@ this one.
 
   <p>We will discuss these in the compiler tour.</p>
 
-  <h2><a name="engine" id="engine">The Engine Room</a></h2>
+  <h3><a name="engine" id="engine">The Engine Room</a></h3>
 
-  <h3><a name="input" id="input">Keyboard Input</a></h3>
+  <h4><a name="input" id="input">Keyboard Input</a></h4>
 
   <p>All <code>ncurses</code> input funnels through the function
   <code>wgetch()</code>, defined in <code>lib_getch.c</code>. This
@@ -523,7 +516,7 @@ this one.
   The function <code>timed_wait()</code> effectively simulates a
   System V select.</p>
 
-  <h3><a name="mouse" id="mouse">Mouse Events</a></h3>
+  <h4><a name="mouse" id="mouse">Mouse Events</a></h4>
 
   <p>If the mouse interface is active, <code>wgetch()</code> polls
   for mouse events each call, before it goes to the keyboard for
@@ -568,7 +561,7 @@ this one.
   reports (low-level events) into a gesture (a high-level or
   composite event).</p>
 
-  <h3><a name="output" id="output">Output and Screen Updating</a></h3>
+  <h4><a name="output" id="output">Output and Screen Updating</a></h4>
 
   <p>With the single exception of character echoes during a
   <code>wgetnstr()</code> call (which simulates cooked-mode line
@@ -630,7 +623,7 @@ this one.
   <code>include/curses.h.in</code> for mask values, near the
   end.</p>
 
-  <h1><a name="fmnote" id="fmnote">The Forms and Menu Libraries</a></h1>
+  <h2><a name="fmnote" id="fmnote">The Forms and Menu Libraries</a></h2>
 
   <p>The forms and menu libraries should work reliably in any
   environment you can port ncurses to. The only portability issue
@@ -647,7 +640,7 @@ this one.
   This version has been slightly cleaned up for
   <code>ncurses</code>.</p>
 
-  <h1><a name="tic" id="tic">A Tour of the Terminfo Compiler</a></h1>
+  <h2><a name="tic" id="tic">A Tour of the Terminfo Compiler</a></h2>
 
   <p>The <strong>ncurses</strong> implementation of
   <strong>tic</strong> is rather complex internally; it has to do a
@@ -664,8 +657,8 @@ this one.
   values; the grammar above it is trivial, just "parse entries till
   you run out of file".</p>
 
-  <h2><a name="nonuse" id="nonuse">Translation of
-  Non-<strong>use</strong> Capabilities</a></h2>
+  <h3><a name="nonuse" id="nonuse">Translation of
+  Non-<strong>use</strong> Capabilities</a></h3>
 
   <p>Translation of most things besides <strong>use</strong>
   capabilities is pretty straightforward. The lexical analyzer's
@@ -689,7 +682,7 @@ this one.
   file. We will have more to say about this in the section on
   <a href="#translation">Source-Form Translation</a>.</p>
 
-  <h2><a name="uses" id="uses">Use Capability Resolution</a></h2>
+  <h3><a name="uses" id="uses">Use Capability Resolution</a></h3>
 
   <p>The background problem that makes <strong>tic</strong> tricky
   is not the capability translation itself, it is the resolution of
@@ -744,8 +737,8 @@ this one.
   overwriting entries newly made during the <strong>tic</strong>
   run, but not about overwriting ones that predate it.</p>
 
-  <h2><a name="translation" id="translation">Source-Form
-  Translation</a></h2>
+  <h3><a name="translation" id="translation">Source-Form
+  Translation</a></h3>
 
   <p>Another use of <strong>tic</strong> is to do source
   translation between various termcap and terminfo formats. There
@@ -773,7 +766,7 @@ this one.
   where the AIX <strong>box1</strong> capability get translated to
   an <strong>acsc</strong> string.</p>
 
-  <h1><a name="utils" id="utils">Other Utilities</a></h1>
+  <h2><a name="utils" id="utils">Other Utilities</a></h2>
 
   <p>The <strong>infocmp</strong> utility is just a wrapper around
   the same entry-dumping code used by <strong>tic</strong> for
@@ -787,7 +780,7 @@ this one.
   just do an entry load followed by a <code>tputs()</code> of a
   selected capability.</p>
 
-  <h1><a name="style" id="style">Style Tips for Developers</a></h1>
+  <h2><a name="style" id="style">Style Tips for Developers</a></h2>
 
   <p>See the TO-DO file in the top-level directory of the source
   distribution for additions that would be particularly useful.</p>
@@ -816,7 +809,7 @@ this one.
 
   <p>Have fun!</p>
 
-  <h1><a name="port" id="port">Porting Hints</a></h1>
+  <h2><a name="port" id="port">Porting Hints</a></h2>
 
   <p>The following notes are intended to be a first step towards
   DOS and Macintosh ports of the ncurses libraries.</p>

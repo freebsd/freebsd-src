@@ -1,4 +1,3 @@
-
 PROG=	newgrp
 
 LIBADD=	crypt util

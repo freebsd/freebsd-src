@@ -3595,9 +3595,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	wh = mtod(m, struct ieee80211_frame *);
 
 	/* tell hardware to add timestamp for probe responses */
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+	if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 		wflags |= RT2860_TX_TS;
 	else if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		xflags |= RT2860_TX_ACK;

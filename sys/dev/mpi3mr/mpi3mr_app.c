@@ -2079,7 +2079,7 @@ mpi3mr_get_adpinfo(struct mpi3mr_softc *sc,
 	adpinfo.pci_dev_hw_rev = pci_read_config(sc->mpi3mr_dev, PCIR_REVID, 1);
 	adpinfo.pci_subsys_dev_id = pci_get_subdevice(sc->mpi3mr_dev);
 	adpinfo.pci_subsys_ven_id = pci_get_subvendor(sc->mpi3mr_dev);
-	adpinfo.pci_bus = pci_get_bus(sc->mpi3mr_dev);;
+	adpinfo.pci_bus = pci_get_bus(sc->mpi3mr_dev);
 	adpinfo.pci_dev = pci_get_slot(sc->mpi3mr_dev);
 	adpinfo.pci_func = pci_get_function(sc->mpi3mr_dev);
 	adpinfo.pci_seg_id = pci_get_domain(sc->mpi3mr_dev);

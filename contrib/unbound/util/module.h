@@ -143,7 +143,7 @@
  * also contain an rcode that is nonzero, but in this case additional
  * information (query, additional) can be passed along.
  *
- * The rcode and dns_msg are used to pass the result from the the rightmost
+ * The rcode and dns_msg are used to pass the result from the rightmost
  * module towards the leftmost modules and then towards the user.
  *
  * If you want to avoid recursion-cycles where queries need other queries
@@ -319,13 +319,15 @@ typedef int inplace_cb_query_response_func_type(struct module_qstate* qstate,
 /**
  * Function called when looking for (expired) cached answers during the serve
  * expired logic.
- * Called as func(qstate, lookup_qinfo)
+ * Called as func(qstate, lookup_qinfo, &is_expired)
  * Where:
  *	qstate: the query state.
  *	lookup_qinfo: the qinfo to lookup for.
+ *      is_expired: set if the cached answer is expired.
  */
 typedef struct dns_msg* serve_expired_lookup_func_type(
-	struct module_qstate* qstate, struct query_info* lookup_qinfo);
+	struct module_qstate* qstate, struct query_info* lookup_qinfo,
+	int* is_expired);
 
 /**
  * Module environment.
@@ -696,6 +698,8 @@ struct module_qstate {
 	/** Extended result of response-ip action processing, mainly
 	 *  for logging purposes. */
 	struct respip_action_info* respip_action_info;
+	/** if the query has been modified by rpz processing. */
+	int rpz_applied;
 	/** if the query is rpz passthru, no further rpz processing for it */
 	int rpz_passthru;
 	/* Flag tcp required. */
@@ -712,8 +716,29 @@ struct module_func_block {
 	/** text string name of module */
 	const char* name;
 
-	/** 
-	 * init the module. Called once for the global state.
+	/**
+	 * Set up the module for start. This is called only once at startup.
+	 * Privileged operations like opening device files may be done here.
+	 * The function ptr can be NULL, if it is not used.
+	 * @param env: module environment.
+	 * @param id: module id number.
+	 * return: 0 on error
+	 */
+	int (*startup)(struct module_env* env, int id);
+
+	/**
+	 * Close down the module for stop. This is called only once before
+	 * shutdown to free resources allocated during startup().
+	 * Closing privileged ports or files must be done here.
+	 * The function ptr can be NULL, if it is not used.
+	 * @param env: module environment.
+	 * @param id: module id number.
+	 */
+	void (*destartup)(struct module_env* env, int id);
+
+	/**
+	 * Initialise the module. Called when restarting or reloading the
+	 * daemon.
 	 * This is the place to apply settings from the config file.
 	 * @param env: module environment.
 	 * @param id: module id number.
@@ -722,7 +747,8 @@ struct module_func_block {
 	int (*init)(struct module_env* env, int id);
 
 	/**
-	 * de-init, delete, the module. Called once for the global state.
+	 * Deinitialise the module, undo stuff done during init().
+	 * Called before reloading the daemon.
 	 * @param env: module environment.
 	 * @param id: module id number.
 	 */

@@ -140,7 +140,8 @@ bool GCNDPPCombine::isShrinkable(MachineInstr &MI) const {
   if (!hasNoImmOrEqual(MI, AMDGPU::OpName::src0_modifiers, 0, Mask) ||
       !hasNoImmOrEqual(MI, AMDGPU::OpName::src1_modifiers, 0, Mask) ||
       !hasNoImmOrEqual(MI, AMDGPU::OpName::clamp, 0) ||
-      !hasNoImmOrEqual(MI, AMDGPU::OpName::omod, 0)) {
+      !hasNoImmOrEqual(MI, AMDGPU::OpName::omod, 0) ||
+      !hasNoImmOrEqual(MI, AMDGPU::OpName::byte_sel, 0)) {
     LLVM_DEBUG(dbgs() << "  Inst has non-default modifiers\n");
     return false;
   }
@@ -368,8 +369,7 @@ MachineInstr *GCNDPPCombine::createDPPInst(MachineInstr &OrigMI,
       }
       // Validate OP_SEL has to be set to all 0 and OP_SEL_HI has to be set to
       // all 1.
-      if (auto *OpSelOpr =
-              TII->getNamedOperand(OrigMI, AMDGPU::OpName::op_sel)) {
+      if (TII->getNamedOperand(OrigMI, AMDGPU::OpName::op_sel)) {
         int64_t OpSel = 0;
         OpSel |= (Mod0 ? (!!(Mod0->getImm() & SISrcMods::OP_SEL_0) << 0) : 0);
         OpSel |= (Mod1 ? (!!(Mod1->getImm() & SISrcMods::OP_SEL_0) << 1) : 0);
@@ -385,8 +385,7 @@ MachineInstr *GCNDPPCombine::createDPPInst(MachineInstr &OrigMI,
         if (AMDGPU::hasNamedOperand(DPPOp, AMDGPU::OpName::op_sel))
           DPPInst.addImm(OpSel);
       }
-      if (auto *OpSelHiOpr =
-              TII->getNamedOperand(OrigMI, AMDGPU::OpName::op_sel_hi)) {
+      if (TII->getNamedOperand(OrigMI, AMDGPU::OpName::op_sel_hi)) {
         int64_t OpSelHi = 0;
         OpSelHi |= (Mod0 ? (!!(Mod0->getImm() & SISrcMods::OP_SEL_1) << 0) : 0);
         OpSelHi |= (Mod1 ? (!!(Mod1->getImm() & SISrcMods::OP_SEL_1) << 1) : 0);
@@ -410,6 +409,11 @@ MachineInstr *GCNDPPCombine::createDPPInst(MachineInstr &OrigMI,
       auto *NegHiOpr = TII->getNamedOperand(OrigMI, AMDGPU::OpName::neg_hi);
       if (NegHiOpr && AMDGPU::hasNamedOperand(DPPOp, AMDGPU::OpName::neg_hi)) {
         DPPInst.addImm(NegHiOpr->getImm());
+      }
+      auto *ByteSelOpr = TII->getNamedOperand(OrigMI, AMDGPU::OpName::byte_sel);
+      if (ByteSelOpr &&
+          AMDGPU::hasNamedOperand(DPPOp, AMDGPU::OpName::byte_sel)) {
+        DPPInst.addImm(ByteSelOpr->getImm());
       }
     }
     DPPInst.add(*TII->getNamedOperand(MovMI, AMDGPU::OpName::dpp_ctrl));

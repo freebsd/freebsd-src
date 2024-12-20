@@ -9,6 +9,7 @@
 #include "includes.h"
 
 #include "common.h"
+#include "utils/base64.h"
 #include "crypto/sha256.h"
 #include "crypto/crypto.h"
 #include "crypto/random.h"
@@ -109,7 +110,29 @@ static int eap_aka_check_identity_reauth(struct eap_sm *sm,
 		return 0;
 	}
 
-	wpa_printf(MSG_DEBUG, "EAP-AKA: Using fast re-authentication");
+	if (data->reauth->counter > sm->cfg->eap_sim_aka_fast_reauth_limit) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-AKA: Too many fast re-authentication attemps - fall back to full authentication");
+		if (sm->cfg->eap_sim_id & 0x04) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-AKA: Permanent identity recognized - skip AKA-Identity exchange");
+			os_strlcpy(data->permanent, data->reauth->permanent,
+				   sizeof(data->permanent));
+			os_strlcpy(sm->sim_aka_permanent,
+				   data->reauth->permanent,
+				   sizeof(sm->sim_aka_permanent));
+			eap_sim_db_remove_reauth(sm->cfg->eap_sim_db_priv,
+						 data->reauth);
+			data->reauth = NULL;
+			eap_aka_fullauth(sm, data);
+			return 1;
+		}
+		return 0;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "EAP-AKA: Using fast re-authentication (counter=%d)",
+		   data->reauth->counter);
 	os_strlcpy(data->permanent, data->reauth->permanent,
 		   sizeof(data->permanent));
 	data->counter = data->reauth->counter;
@@ -133,10 +156,17 @@ static void eap_aka_check_identity(struct eap_sm *sm,
 				   struct eap_aka_data *data)
 {
 	char *username;
+	const u8 *identity = sm->identity;
+	size_t identity_len = sm->identity_len;
+
+	if (sm->sim_aka_permanent[0]) {
+		identity = (const u8 *) sm->sim_aka_permanent;
+		identity_len = os_strlen(sm->sim_aka_permanent);
+	}
 
 	/* Check if we already know the identity from EAP-Response/Identity */
 
-	username = sim_get_username(sm->identity, sm->identity_len);
+	username = sim_get_username(identity, identity_len);
 	if (username == NULL)
 		return;
 
@@ -146,6 +176,16 @@ static void eap_aka_check_identity(struct eap_sm *sm,
 		 * Since re-auth username was recognized, skip AKA/Identity
 		 * exchange.
 		 */
+		return;
+	}
+
+	if (sm->sim_aka_permanent[0] && data->state == IDENTITY) {
+		/* Skip AKA/Identity exchange since the permanent identity
+		 * was recognized. */
+		os_free(username);
+		os_strlcpy(data->permanent, sm->sim_aka_permanent,
+			   sizeof(data->permanent));
+		eap_aka_fullauth(sm, data);
 		return;
 	}
 
@@ -737,11 +777,8 @@ static void eap_aka_determine_identity(struct eap_sm *sm,
 			  sm->identity, sm->identity_len);
 
 	username = sim_get_username(sm->identity, sm->identity_len);
-	if (username == NULL) {
-		data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
-		eap_aka_state(data, NOTIFICATION);
-		return;
-	}
+	if (!username)
+		goto fail;
 
 	if (eap_aka_check_identity_reauth(sm, data, username) > 0) {
 		os_free(username);
@@ -785,16 +822,87 @@ static void eap_aka_determine_identity(struct eap_sm *sm,
 			   username);
 		os_strlcpy(data->permanent, username, sizeof(data->permanent));
 		os_free(username);
+#ifdef CRYPTO_RSA_OAEP_SHA256
+	} else if (sm->identity_len > 1 && sm->identity[0] == '\0') {
+		char *enc_id, *pos, *end;
+		size_t enc_id_len;
+		u8 *decoded_id;
+		size_t decoded_id_len;
+		struct wpabuf *enc, *dec;
+		u8 *new_id;
+
+		os_free(username);
+		if (!sm->cfg->imsi_privacy_key) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-AKA: Received encrypted identity, but no IMSI privacy key configured to decrypt it");
+			goto fail;
+		}
+
+		enc_id = (char *) &sm->identity[1];
+		end = (char *) &sm->identity[sm->identity_len];
+		for (pos = enc_id; pos < end; pos++) {
+			if (*pos == ',')
+				break;
+		}
+		enc_id_len = pos - enc_id;
+
+		wpa_hexdump_ascii(MSG_DEBUG,
+				  "EAP-AKA: Encrypted permanent identity",
+				  enc_id, enc_id_len);
+		decoded_id = base64_decode(enc_id, enc_id_len, &decoded_id_len);
+		if (!decoded_id) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-AKA: Could not base64 decode encrypted identity");
+			goto fail;
+		}
+		wpa_hexdump(MSG_DEBUG,
+			    "EAP-AKA: Decoded encrypted permanent identity",
+			    decoded_id, decoded_id_len);
+		enc = wpabuf_alloc_copy(decoded_id, decoded_id_len);
+		os_free(decoded_id);
+		if (!enc)
+			goto fail;
+		dec = crypto_rsa_oaep_sha256_decrypt(sm->cfg->imsi_privacy_key,
+						     enc);
+		wpabuf_free(enc);
+		if (!dec) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-AKA: Failed to decrypt encrypted identity");
+			goto fail;
+		}
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-AKA: Decrypted permanent identity",
+				  wpabuf_head(dec), wpabuf_len(dec));
+		username = sim_get_username(wpabuf_head(dec), wpabuf_len(dec));
+		if (!username) {
+			wpabuf_free(dec);
+			goto fail;
+		}
+		new_id = os_memdup(wpabuf_head(dec), wpabuf_len(dec));
+		if (!new_id) {
+			wpabuf_free(dec);
+			goto fail;
+		}
+		os_free(sm->identity);
+		sm->identity = new_id;
+		sm->identity_len = wpabuf_len(dec);
+		wpabuf_free(dec);
+		os_strlcpy(data->permanent, username, sizeof(data->permanent));
+		os_free(username);
+#endif /* CRYPTO_RSA_OAEP_SHA256 */
 	} else {
 		wpa_printf(MSG_DEBUG, "EAP-AKA: Unrecognized username '%s'",
 			   username);
 		os_free(username);
-		data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
-		eap_aka_state(data, NOTIFICATION);
+		goto fail;
 		return;
 	}
 
 	eap_aka_fullauth(sm, data);
+	return;
+
+fail:
+	data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+	eap_aka_state(data, NOTIFICATION);
 }
 
 

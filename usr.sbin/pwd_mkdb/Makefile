@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/lib/libc/gen		# for pw_scan.c
 
 PACKAGE=	runtime

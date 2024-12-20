@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfs_core
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/zfs
@@ -21,6 +20,7 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzfs_core/common
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzpool/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/zfs
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include

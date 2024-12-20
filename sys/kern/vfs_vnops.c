@@ -106,7 +106,7 @@ static fo_mmap_t	vn_mmap;
 static fo_fallocate_t	vn_fallocate;
 static fo_fspacectl_t	vn_fspacectl;
 
-struct 	fileops vnops = {
+const struct fileops vnops = {
 	.fo_read = vn_io_fault,
 	.fo_write = vn_io_fault,
 	.fo_truncate = vn_truncate,

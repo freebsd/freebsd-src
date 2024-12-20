@@ -21,7 +21,6 @@ struct element {
 struct hostapd_hw_modes;
 
 #define MAX_NOF_MB_IES_SUPPORTED 5
-#define MAX_NUM_FRAG_IES_SUPPORTED 3
 
 struct mb_ies_info {
 	struct {
@@ -31,19 +30,10 @@ struct mb_ies_info {
 	u8 nof_ies;
 };
 
-struct frag_ies_info {
-	struct {
-		u8 eid;
-		u8 eid_ext;
-		const u8 *ie;
-		u8 ie_len;
-	} frags[MAX_NUM_FRAG_IES_SUPPORTED];
-
-	u8 n_frags;
-
-	/* the last parsed element ID and element extension ID */
-	u8 last_eid;
-	u8 last_eid_ext;
+struct multi_ap_params {
+	u8 capability;
+	u8 profile;
+	u16 vlanid;
 };
 
 /* Parsed Information Elements */
@@ -71,7 +61,7 @@ struct ieee802_11_elems {
 	const u8 *peer_mgmt;
 	const u8 *vht_capabilities;
 	const u8 *vht_operation;
-	const u8 *vht_opmode_notif;
+	const u8 *opmode_notif;
 	const u8 *vendor_ht_cap;
 	const u8 *vendor_vht;
 	const u8 *p2p;
@@ -117,6 +107,15 @@ struct ieee802_11_elems {
 	const u8 *sae_pk;
 	const u8 *s1g_capab;
 	const u8 *pasn_params;
+	const u8 *eht_capabilities;
+	const u8 *eht_operation;
+	const u8 *basic_mle;
+	const u8 *probe_req_mle;
+	const u8 *reconf_mle;
+	const u8 *tdls_mle;
+	const u8 *prior_access_mle;
+	const u8 *mbssid_known_bss;
+	const u8 *mbssid;
 
 	u8 ssid_len;
 	u8 supp_rates_len;
@@ -155,10 +154,10 @@ struct ieee802_11_elems {
 	u8 dils_len;
 	u8 fils_req_params_len;
 	u8 fils_key_confirm_len;
-	u8 fils_hlp_len;
+	size_t fils_hlp_len;
 	u8 fils_ip_addr_assign_len;
 	u8 key_delivery_len;
-	u8 wrapped_data_len;
+	size_t wrapped_data_len;
 	u8 fils_pk_len;
 	u8 owe_dh_len;
 	u8 power_capab_len;
@@ -171,9 +170,25 @@ struct ieee802_11_elems {
 	u8 short_ssid_list_len;
 	u8 sae_pk_len;
 	u8 pasn_params_len;
+	u8 eht_capabilities_len;
+	u8 eht_operation_len;
+	size_t basic_mle_len;
+	size_t probe_req_mle_len;
+	size_t reconf_mle_len;
+	size_t tdls_mle_len;
+	size_t prior_access_mle_len;
+	u8 mbssid_known_bss_len;
+	u8 mbssid_len;
 
 	struct mb_ies_info mb_ies;
-	struct frag_ies_info frag_ies;
+
+	size_t fte_defrag_len;
+
+	/*
+	 * The number of fragment elements to be skipped after a known
+	 * fragmented element.
+	 */
+	unsigned int num_frag_elems;
 };
 
 typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
@@ -181,6 +196,14 @@ typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
 ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 				struct ieee802_11_elems *elems,
 				int show_errors);
+void ieee802_11_elems_clear_ids(struct ieee802_11_elems *elems,
+				const u8 *ids, size_t num);
+void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
+				    const u8 *ids, size_t num);
+ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
+					 struct ieee802_11_elems *elems,
+					 struct wpabuf *mlbuf,
+					 u8 link_id, bool show_errors);
 int ieee802_11_ie_count(const u8 *ies, size_t ies_len);
 struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
 					    u32 oui_type);
@@ -211,14 +234,16 @@ int hostapd_config_tx_queue(struct hostapd_tx_queue_params queue[],
 			    const char *name, const char *val);
 enum hostapd_hw_mode ieee80211_freq_to_chan(int freq, u8 *channel);
 int ieee80211_chan_to_freq(const char *country, u8 op_class, u8 chan);
-enum hostapd_hw_mode ieee80211_freq_to_channel_ext(unsigned int freq,
-						   int sec_channel, int vht,
-						   u8 *op_class, u8 *channel);
+enum hostapd_hw_mode
+ieee80211_freq_to_channel_ext(unsigned int freq, int sec_channel,
+			      enum oper_chan_width chanwidth,
+			      u8 *op_class, u8 *channel);
 int ieee80211_chaninfo_to_channel(unsigned int freq, enum chan_width chanwidth,
 				  int sec_channel, u8 *op_class, u8 *channel);
 int ieee80211_is_dfs(int freq, const struct hostapd_hw_modes *modes,
 		     u16 num_modes);
 int is_dfs_global_op_class(u8 op_class);
+bool is_80plus_op_class(u8 op_class);
 enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht);
 
 int supp_rates_11b_only(struct ieee802_11_elems *elems);
@@ -237,7 +262,7 @@ struct oper_class_map {
 	u8 max_chan;
 	u8 inc;
 	enum { BW20, BW40PLUS, BW40MINUS, BW40, BW80, BW2160, BW160, BW80P80,
-	       BW4320, BW6480, BW8640} bw;
+	       BW320, BW4320, BW6480, BW8640} bw;
 	enum { P2P_SUPP, NO_P2P_SUPP } p2p;
 };
 
@@ -250,7 +275,10 @@ const u8 * get_vendor_ie(const u8 *ies, size_t len, u32 vendor_type);
 
 size_t mbo_add_ie(u8 *buf, size_t len, const u8 *attr, size_t attr_len);
 
-size_t add_multi_ap_ie(u8 *buf, size_t len, u8 value);
+u16 check_multi_ap_ie(const u8 *multi_ap_ie, size_t multi_ap_len,
+		      struct multi_ap_params *multi_ap);
+size_t add_multi_ap_ie(u8 *buf, size_t len,
+		       const struct multi_ap_params *multi_ap);
 
 struct country_op_class {
 	u8 country_op_class;
@@ -267,6 +295,10 @@ bool is_6ghz_op_class(u8 op_class);
 bool is_6ghz_psc_frequency(int freq);
 int get_6ghz_sec_channel(int channel);
 
+bool is_same_band(int freq1, int freq2);
+#define IS_2P4GHZ(n) (n >= 2412 && n <= 2484)
+#define IS_5GHZ(n) (n > 4000 && n < 5895)
+
 int ieee802_11_parse_candidate_list(const char *pos, u8 *nei_rep,
 				    size_t nei_rep_len);
 
@@ -275,7 +307,8 @@ bool ieee802_11_rsnx_capab_len(const u8 *rsnxe, size_t rsnxe_len,
 			       unsigned int capab);
 bool ieee802_11_rsnx_capab(const u8 *rsnxe, unsigned int capab);
 int op_class_to_bandwidth(u8 op_class);
-int op_class_to_ch_width(u8 op_class);
+enum oper_chan_width op_class_to_ch_width(u8 op_class);
+int chwidth_freq2_to_ch_width(int chwidth, int freq2);
 
 /* element iteration helpers */
 #define for_each_element(_elem, _data, _datalen)			\
@@ -333,10 +366,8 @@ void hostapd_encode_edmg_chan(int edmg_enable, u8 edmg_channel,
 int ieee802_edmg_is_allowed(struct ieee80211_edmg_config allowed,
 			    struct ieee80211_edmg_config requested);
 
-struct wpabuf * ieee802_11_defrag_data(struct ieee802_11_elems *elems,
-				       u8 eid, u8 eid_ext,
-				       const u8 *data, u8 len);
-struct wpabuf * ieee802_11_defrag(struct ieee802_11_elems *elems,
-				  u8 eid, u8 eid_ext);
+struct wpabuf * ieee802_11_defrag(const u8 *data, size_t len, bool ext_elem);
+const u8 * get_ml_ie(const u8 *ies, size_t len, u8 type);
+const u8 * get_basic_mle_mld_addr(const u8 *buf, size_t len);
 
 #endif /* IEEE802_11_COMMON_H */

@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd April 14, 2022
+.Dd December 10, 2024
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -531,7 +531,9 @@ List all filters programmed into the hardware.
 Install the firmware configuration file contained in
 .Ar fw-config.txt
 to the card.
-Set hw.cxgbe.config_file="flash" in loader.conf to get
+Set
+.Cm hw.cxgbe.config_file="flash"
+in loader.conf to get
 .Xr cxgbe 4
 to use the on-flash configuration.
 .It Cm loadcfg Cm clear
@@ -553,7 +555,7 @@ Install the Connection Offload Policy (COP) in
 A COP offers fine-grained control over which connections get offloaded and with
 what parameters.
 Set
-.Cm hw.cxgbe.cop_managed_offloading="1"
+.Cm hw.cxgbe.toe.cop_managed_offloading="1"
 in loader.conf to ensure that t4_tom will not offload any connection before a
 COP is installed.
 Note that t4_tom must be loaded and operational (IFCAP_TOE enabled) as always

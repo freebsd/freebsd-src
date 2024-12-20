@@ -928,8 +928,8 @@ amdvi_teardown_hw(struct amdvi_softc *softc)
 
 	dev = softc->dev;
 
-	/* 
-	 * Called after disable, h/w is stopped by now, free all the resources. 
+	/*
+	 * Called after disable, h/w is stopped by now, free all the resources.
 	 */
 	amdvi_free_evt_intr_res(dev);
 

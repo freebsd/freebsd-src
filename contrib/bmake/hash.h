@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.48 2023/12/19 19:33:39 rillig Exp $	*/
+/*	$NetBSD: hash.h,v 1.51 2024/07/07 09:37:00 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -92,7 +92,6 @@ typedef struct HashTable {
 	unsigned int bucketsSize;
 	unsigned int numEntries;
 	unsigned int bucketsMask; /* Used to select the bucket for a hash. */
-	unsigned int maxchain;	/* Maximum length of chain seen. */
 } HashTable;
 
 /* State of an iteration over all entries in a table. */
@@ -138,9 +137,9 @@ void *HashTable_FindValueBySubstringHash(HashTable *, Substring, unsigned int)
 HashEntry *HashTable_CreateEntry(HashTable *, const char *, bool *);
 void HashTable_Set(HashTable *, const char *, void *);
 void HashTable_DeleteEntry(HashTable *, HashEntry *);
-void HashTable_DebugStats(HashTable *, const char *);
+void HashTable_DebugStats(const HashTable *, const char *);
 
-HashEntry *HashIter_Next(HashIter *);
+bool HashIter_Next(HashIter *) MAKE_ATTR_USE;
 
 MAKE_INLINE void
 HashSet_Init(HashSet *set)

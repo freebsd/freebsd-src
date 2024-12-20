@@ -869,7 +869,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		to_fd = create_tempfile(to_name, tempfile,
 		    sizeof(tempfile));
 		if (to_fd < 0)
-			err(EX_OSERR, "%s", tempfile);
+			err(EX_OSERR, "%s", dirname(tempfile));
 		if (!devnull) {
 			if (dostrip) {
 				stripped = strip(tempfile, to_fd, from_name,

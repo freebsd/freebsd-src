@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 CONFDIR=	/etc/rc.d
@@ -287,7 +286,7 @@ NTP+=		ntpd \
 NTPPACKAGE=	ntp
 .endif
 
-.if ${MK_OFED} != "no"
+.if ${MK_OFED_EXTRA} != "no"
 _opensm=	opensm
 .endif
 

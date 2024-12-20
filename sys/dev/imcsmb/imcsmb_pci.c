@@ -174,7 +174,7 @@ imcsmb_pci_attach(device_t dev)
 
 	/* Create the imcsmbX children */
 	for (unit = 0; unit < 2; unit++) {
-		child = device_add_child(dev, "imcsmb", -1);
+		child = device_add_child(dev, "imcsmb", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			/* Nothing has been allocated, so there's no cleanup. */
 			device_printf(dev, "Child imcsmb not added\n");
@@ -188,10 +188,8 @@ imcsmb_pci_attach(device_t dev)
 	}
 
 	/* Attach the imcsmbX children. */
-	if ((rc = bus_generic_attach(dev)) != 0) {
-		device_printf(dev, "failed to attach children: %d\n", rc);
-		goto out;
-	}
+	bus_attach_children(dev);
+	rc = 0;
 
 out:
 	return (rc);

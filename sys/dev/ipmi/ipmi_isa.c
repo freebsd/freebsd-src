@@ -70,7 +70,7 @@ ipmi_isa_identify(driver_t *driver, device_t parent)
 		if (devid != 0xffffffff &&
 		    ipmi_pci_match(devid & 0xffff, devid >> 16) != NULL)
 			return;
-		BUS_ADD_CHILD(parent, 0, "ipmi", -1);
+		BUS_ADD_CHILD(parent, 0, "ipmi", DEVICE_UNIT_ANY);
 	}
 }
 

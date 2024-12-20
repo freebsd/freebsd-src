@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,39 +27,33 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_requestname.3x,v 1.16 2020/12/12 16:37:14 tom Exp $
-.TH form_requestname 3X ""
+.\" $Id: form_requestname.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH form_requestname 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBform_request_by_name\fP,
-\fBform_request_name\fR \- handle printable form request names
+\fBform_request_name\fP \-
+handle printable form request names
 .SH SYNOPSIS
-\fB#include <form.h>\fR
-.sp
-\fBconst char *form_request_name(int \fP\fIrequest\fP\fB);\fP
-.br
-\fBint form_request_by_name(const char *\fP\fIname\fP\fB);\fP
-.br
+.nf
+\fB#include <form.h>
+.PP
+\fBconst char *form_request_name(int \fIrequest\fP);
+\fBint form_request_by_name(const char *\fIname\fP);
+.fi
 .SH DESCRIPTION
-.SS form_request_name
-The function \fBform_request_name\fR returns the printable name of a form
+The function \fBform_request_name\fP returns the printable name of a form
 request code.
-.SS form_request_name_by_name
-The function \fBform_request_by_name\fR searches in the name-table for a request
+The function \fBform_request_by_name\fP searches in the name-table for a request
 with the given name and returns its request code.
 Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
-\fBform_request_name\fR returns \fBNULL\fR on error and sets \fBerrno\fP
-to \fBE_BAD_ARGUMENT\fR.
+\fBform_request_name\fP returns \fBNULL\fP on error and sets \fBerrno\fP
+to \fBE_BAD_ARGUMENT\fP.
 .PP
-\fBform_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
+\fBform_request_by_name\fP returns \fBE_NO_MATCH\fP on error.
 It does not set \fBerrno\fP.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBform\fR(3X).
-.SH NOTES
-The header file \fB<form.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
-These routines are specific to ncurses.
+These routines are specific to \fI\%ncurses\fP.
 They were not supported on
 Version 7, BSD or System V implementations.
 It is recommended that
@@ -68,3 +61,6 @@ any code depending on them be conditioned using NCURSES_VERSION.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%form\fP(3X)

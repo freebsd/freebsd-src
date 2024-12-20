@@ -1,4 +1,3 @@
-
 DIALOG=	${SRCTOP}/contrib/dialog
 PROG=   dialog
 

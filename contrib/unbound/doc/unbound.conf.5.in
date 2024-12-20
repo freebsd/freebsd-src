@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "May  8, 2024" "NLnet Labs" "unbound 1.20.0"
+.TH "unbound.conf" "5" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -511,7 +511,7 @@ configured value if the number of free buffers falls below 35% of the
 total number configured, and finally to 0 if the number of free buffers
 falls below 20% of the total number configured. A minimum timeout of
 200 milliseconds is observed regardless of the option value used.
-It will be overriden by \fBedns\-tcp\-keepalive\-timeout\fR if
+It will be overridden by \fBedns\-tcp\-keepalive\-timeout\fR if
 \fBedns\-tcp\-keepalive\fR is enabled.
 .TP
 .B tcp-reuse-timeout: \fI<msec>\fR
@@ -566,6 +566,9 @@ tls\-system\-cert to load CA certs, otherwise the connections cannot be
 authenticated. This option enables TLS for all of them, but if you do not set
 this you can configure TLS specifically for some forward zones with
 forward\-tls\-upstream.  And also with stub\-tls\-upstream.
+If the tls\-upstream option is enabled, it is for all the forwards and stubs,
+where the forward\-tls\-upstream and stub\-tls\-upstream options are ignored,
+as if they had been set to yes.
 .TP
 .B ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
@@ -716,6 +719,18 @@ PROXYv2 is supported for UDP and TCP/TLS listening interfaces.
 There is no support for PROXYv2 on a DoH or DNSCrypt listening interface.
 Can list multiple, each on a new statement.
 .TP
+.B quic\-port: \fI<number>
+The port number on which to provide DNS-over-QUIC service, default 853, only
+interfaces configured with that port number as @number get the QUIC service.
+The interface uses QUIC for the UDP traffic on that port number.
+.TP
+.B quic\-size: \fI<size in bytes>
+Maximum number of bytes for all QUIC buffers and data combined. Default is 8
+megabytes. A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes,
+megabytes or gigabytes (1024*1024 bytes in a megabyte). New connections receive
+connection refused when the limit is exceeded. New streams are reset when the
+limit is exceeded.
+.TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
 Default is no.
@@ -788,7 +803,8 @@ transports, regardless of the presence of an DNS Cookie and regardless of the
 UDP queries without a DNS Cookie receive REFUSED responses with the TC flag set,
 that may trigger fall back to TCP for those clients.
 .IP
-By default only localhost is \fIallow\fRed, the rest is \fIrefuse\fRd.
+By default only localhost (the 127.0.0.0/8 IP netblock, not the loopback
+interface) is implicitly \fIallow\fRed, the rest is \fIrefuse\fRd.
 The default is \fIrefuse\fRd, because that is protocol\-friendly. The DNS
 protocol is not designed to handle dropped packets due to policy, and
 dropping may result in (possibly excessive) retried queries.
@@ -824,8 +840,12 @@ Similar to \fBaccess\-control:\fR but for interfaces.
 .IP
 The action is the same as the ones defined under \fBaccess\-control:\fR.
 Interfaces are \fIrefuse\fRd by default.
-By default only localhost (the IP netblock, not the loopback interface) is
-\fIallow\fRed through the default \fBaccess\-control:\fR behavior.
+By default only localhost (the 127.0.0.0/8 IP netblock, not the loopback
+interface) is implicitly \fIallow\fRed through the default
+\fBaccess\-control:\fR behavior.
+This also means that any attempt to use the \fBinterface-*:\fR options for the
+loopback interface will not work as they will be overridden by the implicit
+default "\fBaccess\-control:\fR 127.0.0.0/8 allow" option.
 .IP
 Note that the interface needs to be already specified with \fBinterface:\fR
 and that any \fBaccess-control*:\fR setting overrides all \fBinterface-*:\fR
@@ -930,6 +950,10 @@ distinguished against.
 Sets logfile lines to use a timestamp in UTC ascii. Default is no, which
 prints the seconds since 1970 in brackets. No effect if using syslog, in
 that case syslog formats the timestamp printed into the log files.
+.TP
+.B log\-time\-iso:\fR <yes or no>
+Log time in ISO8601 format, if \fBlog\-time\-ascii:\fR yes is also set.
+Default is no.
 .TP
 .B log\-queries: \fI<yes or no>
 Prints one line per query to the log, with the log timestamp and IP address,
@@ -1042,6 +1066,11 @@ payload is very large.
 .TP
 .B harden\-glue: \fI<yes or no>
 Will trust glue only if it is within the servers authority. Default is yes.
+.TP
+.B harden\-unverified\-glue: \fI<yes or no>
+Will trust only in-zone glue. Will try to resolve all out of zone
+(\fI<unverfied>) glue. Will fallback to the original glue if unable to resolve.
+Default is no.
 .TP
 .B harden\-dnssec\-stripped: \fI<yes or no>
 Require DNSSEC data for trust\-anchored zones, if such data is absent,
@@ -1166,10 +1195,11 @@ IP6 ::1 and IP4 127.0.0.1/8. If no, then localhost can be used to send
 queries to. Default is yes.
 .TP
 .B prefetch: \fI<yes or no>
-If yes, message cache elements are prefetched before they expire to
-keep the cache up to date.  Default is no.  Turning it on gives about
-10 percent more traffic and load on the machine, but popular items do
-not expire from the cache.
+If yes, cache hits on message cache elements that are on their last 10 percent
+of their TTL value trigger a prefetch to keep the cache up to date.
+Default is no.
+Turning it on gives about 10 percent more traffic and load on the machine, but
+popular items do not expire from the cache.
 .TP
 .B prefetch\-key: \fI<yes or no>
 If yes, fetch the DNSKEYs earlier in the validation process, when a DS
@@ -1189,12 +1219,13 @@ from the query ID, for speed and thread safety).  Default is yes.
 .B minimal-responses: \fI<yes or no>
 If yes, Unbound does not insert authority/additional sections into response
 messages when those sections are not required.  This reduces response
-size significantly, and may avoid TCP fallback for some responses.
-This may cause a slight speedup.  The default is yes, even though the DNS
+size significantly, and may avoid TCP fallback for some responses which may
+cause a slight speedup.  The default is yes, even though the DNS
 protocol RFCs mandate these sections, and the additional content could
-be of use and save roundtrips for clients.  Because they are not used,
-and the saved roundtrips are easier saved with prefetch, whilst this is
-faster.
+save roundtrips for clients that use the additional content.
+However these sections are hardly used by clients.
+Enabling prefetch can benefit clients that need the additional content
+by trying to keep that content fresh in the cache.
 .TP
 .B disable-dnssec-lame-check: \fI<yes or no>
 If true, disables the DNSSEC lameness check in the iterator.  This check
@@ -1952,6 +1983,23 @@ Changing this value needs caution as it can allow long CNAME chains to be
 accepted, where Unbound needs to verify (resolve) each link individually.
 Default is 11.
 .TP 5
+.B iter\-scrub\-ns: \fI<number>
+Limit on the number of NS records allowed in an rrset of type NS, from the
+iterator scrubber. This protects the internals of the resolver from overly
+large NS sets. Default is 20.
+.TP 5
+.B iter\-scrub\-cname: \fI<number>
+Limit on the number of CNAME, DNAME records in an answer, from the iterator
+scrubber. This protects the internals of the resolver from overly long
+indirection chains. Clips off the remainder of the reply packet at that point.
+Default is 11.
+.TP 5
+.B max\-global\-quota: \fI<number>
+Limit on the number of upstream queries sent out for an incoming query and
+its subqueries from recursion. It is not reset during the resolution. When
+it is exceeded the query is failed and the lookup process stops.
+Default is 128.
+.TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
 0 turns the feature off.  A value of 900 would pick from the fastest
@@ -1978,6 +2026,20 @@ Useful to explicitly set for servers in an anycast deployment that need to
 share the secret in order to verify each other's Server Cookies.
 An example hex string would be "000102030405060708090a0b0c0d0e0f".
 Default is a 128 bits random secret generated at startup time.
+This option is ignored if a \fBcookie\-secret\-file\fR is
+present.  In that case the secrets from that file are used in DNS Cookie
+calculations.
+.TP 5
+.B cookie\-secret\-file: \fI<filename>
+File from which the secrets are read used in DNS Cookie calculations. When this
+file exists, the secrets in this file are used and the secret specified by the
+\fBcookie-secret\fR option is ignored.
+Enable it by setting a filename, like "/usr/local/etc/unbound_cookiesecrets.txt".
+The content of this file must be manipulated with the \fBadd_cookie_secret\fR,
+\fBdrop_cookie_secret\fR and \fBactivate_cookie_secret\fR commands to the
+\fIunbound\-control\fR(8) tool. Please see that manpage on how to perform a
+safe cookie secret rollover.
+Default is "" (disabled).
 .TP 5
 .B edns\-client\-string: \fI<IP netblock> <string>
 Include an EDNS0 option containing configured ascii string in queries with
@@ -2769,6 +2831,14 @@ if the Redis server does not have the requested data, and will try to
 re-establish a new connection later.
 This option defaults to 100 milliseconds.
 .TP
+.B redis-command-timeout: \fI<msec>\fR
+The timeout to use for redis commands, in milliseconds. If 0, it uses the
+redis\-timeout value. The default is 0.
+.TP
+.B redis-connect-timeout: \fI<msec>\fR
+The timeout to use for redis connection set up, in milliseconds. If 0, it
+uses the redis\-timeout value. The default is 0.
+.TP
 .B redis-expire-records: \fI<yes or no>
 If Redis record expiration is enabled.  If yes, Unbound sets timeout for Redis
 records so that Redis can evict keys that have expired automatically.  If
@@ -2847,6 +2917,13 @@ Default is "".
 The version to send with messages, if "" the package version is used.
 Default is "".
 .TP
+.B dnstap-sample-rate: \fI<number>
+The sample rate for log of messages, it logs only 1/N messages. With 0 it
+is disabled. Default is 0. This is useful in a high volume environment,
+where log functionality would otherwise not be reliable. For example 10
+would spend only 1/10th time on logging, and 100 would only spend a
+hundredth of the time on logging.
+.TP
 .B dnstap-log-resolver-query-messages: \fI<yes or no>
 Enable to log resolver query messages.  Default is no.
 These are messages from Unbound to upstream servers.
@@ -2871,9 +2948,11 @@ Enable to log forwarder response messages.  Default is no.
 .SS Response Policy Zone Options
 .LP
 Response Policy Zones are configured with \fBrpz:\fR, and each one must have a
-\fBname:\fR. There can be multiple ones, by listing multiple rpz clauses, each
-with a different name. RPZ clauses are applied in order of configuration. The
-\fBrespip\fR module needs to be added to the \fBmodule-config\fR, e.g.:
+\fBname:\fR. There can be multiple ones, by listing multiple RPZ clauses, each
+with a different name. RPZ clauses are applied in order of configuration and
+any match from an earlier RPZ zone will terminate the RPZ lookup. Note that a
+PASSTHRU action is still considered a match.
+The \fBrespip\fR module needs to be added to the \fBmodule-config\fR, e.g.:
 \fBmodule-config: "respip validator iterator"\fR.
 .P
 QNAME, Response IP Address, nsdname, nsip and clientip triggers are supported.
@@ -2881,12 +2960,13 @@ Supported actions are: NXDOMAIN, NODATA, PASSTHRU, DROP, Local Data, tcp\-only
 and drop.  RPZ QNAME triggers are applied after \fBlocal\-zones\fR and
 before \fBauth\-zones\fR.
 .P
-The rpz zone is formatted with a SOA start record as usual.  The items in
-the zone are entries, that specify what to act on (the trigger) and what to
-do (the action).  The trigger to act on is recorded in the name, the action
-to do is recorded as the resource record.  The names all end in the zone
-name, so you could type the trigger names without a trailing dot in the
-zonefile.
+The RPZ zone is a regular DNS zone formatted with a SOA start record as usual.
+The items in the zone are entries, that specify what to act on (the trigger)
+and what to do (the action).
+The trigger to act on is recorded in the name, the action to do is recorded as
+the resource record.
+The names all end in the zone name, so you could type the trigger names without
+a trailing dot in the zonefile.
 .P
 An example RPZ record, that answers example.com with NXDOMAIN
 .nf
@@ -2986,7 +3066,7 @@ externally blocked. Default is no.
 If enabled the zone is authoritatively answered for and queries for the RPZ
 zone information are answered to downstream clients. This is useful for
 monitoring scripts, that can then access the SOA information to check if
-the rpz information is up to date. Default is no.
+the RPZ information is up to date. Default is no.
 .TP
 .B tags: \fI<list of tags>
 Limit the policies from this RPZ clause to clients with a matching tag. Tags

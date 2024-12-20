@@ -1,4 +1,3 @@
-
 PACKAGE=	yp
 PROG=	ypset
 MAN=	ypset.8

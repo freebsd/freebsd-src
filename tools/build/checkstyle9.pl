@@ -12,7 +12,7 @@ use Term::ANSIColor qw(:constants);
 my $P = $0;
 $P =~ s@.*/@@g;
 
-our $SrcFile    = qr{\.(?:h|c|cpp|s|S|pl|py|sh)$};
+our $SrcFile    = qr{\.(?:h|c|cpp|hpp|hh|cc|S|sh)$};
 
 my $V = '0.31';
 
@@ -1439,7 +1439,7 @@ sub process {
 # Check for incorrect file permissions
 		if ($line =~ /^new (file )?mode.*[7531]\d{0,2}$/) {
 			my $permhere = $here . "FILE: $realfile\n";
-			if ($realfile =~ /(\bMakefile(?:\.objs)?|\.c|\.cc|\.cpp|\.h|\.mak|\.[sS])$/) {
+			if ($realfile =~ /(\bMakefile(?:\.objs)?|\.c|\.cc|\.cpp|\.h|\.hpp|\.mak|\.[sS])$/) {
 				ERROR("do not set execute permissions for source files\n" . $permhere);
 			}
 		}
@@ -1572,7 +1572,7 @@ sub process {
 		}
 
 # check we are in a valid C source file if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp)$/);
+		next if ($realfile !~ /\.(h|hpp|c|cpp|cc|hh)$/);
 
 # Block comment styles
 
@@ -1971,7 +1971,7 @@ sub process {
 			{
 
 			# Ignore 'catch (...)' in C++
-			} elsif ($name =~ /^catch$/ && $realfile =~ /(\.cpp|\.h)$/) {
+			} elsif ($name =~ /^catch$/ && $realfile =~ /\.(cpp|h|hpp|hh|cc)$/) {
 
 			# cpp #define statements have non-optional spaces, ie
 			# if there is a space between the name and the open
@@ -2068,7 +2068,7 @@ sub process {
 
 				# Ignore : used in class declaration in C++
 				} elsif ($opv eq ':B' && $ctx =~ /Wx[WE]/ &&
-						 $line =~ /class/ && $realfile =~ /(\.cpp|\.h)$/) {
+						 $line =~ /class/ && $realfile =~ /\.(cpp|h|hpp|hh|cc)$/) {
 
 				# No spaces for:
 				#   ->
@@ -2096,7 +2096,7 @@ sub process {
 				} elsif ($op eq '!' || $op eq '~' ||
 					 $opv eq '*U' || $opv eq '-U' ||
 					 $opv eq '&U' || $opv eq '&&U') {
-					if ($op eq '~' && $ca =~ /::$/ && $realfile =~ /(\.cpp|\.h)$/) {
+					if ($op eq '~' && $ca =~ /::$/ && $realfile =~ /\.(cpp|h|hpp|cc|hh)$/) {
 						# '~' used as a name of Destructor
 
 					} elsif ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
@@ -2133,7 +2133,7 @@ sub process {
 				} elsif ($ctx !~ /[EWC]x[CWE]/) {
 					my $ok = 0;
 
-					if ($realfile =~ /\.cpp|\.h$/) {
+					if ($realfile =~ /\.(cpp|h|hpp|cc|hh)$/) {
 						# Ignore template arguments <...> in C++
 						if (($op eq '<' || $op eq '>') && $line =~ /<.*>/) {
 							$ok = 1;

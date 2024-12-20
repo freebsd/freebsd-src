@@ -120,25 +120,13 @@ privcmd_pg_dtor(void *handle)
 	struct privcmd_map *map = handle;
 	int error __diagused;
 	vm_size_t i;
-	vm_page_t m;
 
 	/*
 	 * Remove the mappings from the used pages. This will remove the
 	 * underlying p2m bindings in Xen second stage translation.
 	 */
 	if (map->mapped == true) {
-		VM_OBJECT_WLOCK(map->mem);
-retry:
-		for (i = 0; i < map->size; i++) {
-			m = vm_page_lookup(map->mem, i);
-			if (m == NULL)
-				continue;
-			if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
-				goto retry;
-			cdev_pager_free_page(map->mem, m);
-		}
-		VM_OBJECT_WUNLOCK(map->mem);
-
+		cdev_mgtdev_pager_free_pages(map->mem);
 		for (i = 0; i < map->size; i++) {
 			rm.gpfn = atop(map->phys_base_addr) + i;
 			HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &rm);

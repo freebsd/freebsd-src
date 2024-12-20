@@ -39,7 +39,6 @@
 static MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
 #define MAXFEEDERS 	256
-#undef FEEDER_DEBUG
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
@@ -49,96 +48,44 @@ struct feedertab_entry {
 	int idx;
 };
 static SLIST_HEAD(, feedertab_entry) feedertab;
+static int feedercnt = 0;
 
 /*****************************************************************************/
+
+static void
+feeder_register_root(void *p)
+{
+	struct feeder_class *fc = p;
+	struct feedertab_entry *fte;
+
+	MPASS(feedercnt == 0);
+	KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
+
+	SLIST_INIT(&feedertab);
+	fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
+	fte->feederclass = fc;
+	fte->desc = NULL;
+	fte->idx = feedercnt;
+	SLIST_INSERT_HEAD(&feedertab, fte, link);
+	feedercnt++;
+}
 
 void
 feeder_register(void *p)
 {
-	static int feedercnt = 0;
-
 	struct feeder_class *fc = p;
 	struct feedertab_entry *fte;
 	int i;
 
-	if (feedercnt == 0) {
-		KASSERT(fc->desc == NULL, ("first feeder not root: %s", fc->name));
-
-		SLIST_INIT(&feedertab);
-		fte = malloc(sizeof(*fte), M_FEEDER, M_NOWAIT | M_ZERO);
-		if (fte == NULL) {
-			printf("can't allocate memory for root feeder: %s\n",
-			    fc->name);
-
-			return;
-		}
-		fte->feederclass = fc;
-		fte->desc = NULL;
-		fte->idx = feedercnt;
-		SLIST_INSERT_HEAD(&feedertab, fte, link);
-		feedercnt++;
-
-		/* initialize global variables */
-
-		if (snd_verbose < 0 || snd_verbose > 4)
-			snd_verbose = 1;
-
-		if (snd_unit < 0)
-			snd_unit = -1;
-		
-		if (snd_maxautovchans < 0 ||
-		    snd_maxautovchans > SND_MAXVCHANS)
-			snd_maxautovchans = 0;
-
-		if (chn_latency < CHN_LATENCY_MIN ||
-		    chn_latency > CHN_LATENCY_MAX)
-			chn_latency = CHN_LATENCY_DEFAULT;
-
-		if (chn_latency_profile < CHN_LATENCY_PROFILE_MIN ||
-		    chn_latency_profile > CHN_LATENCY_PROFILE_MAX)
-			chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
-
-		if (feeder_rate_min < FEEDRATE_MIN ||
-			    feeder_rate_max < FEEDRATE_MIN ||
-			    feeder_rate_min > FEEDRATE_MAX ||
-			    feeder_rate_max > FEEDRATE_MAX ||
-			    !(feeder_rate_min < feeder_rate_max)) {
-			feeder_rate_min = FEEDRATE_RATEMIN;
-			feeder_rate_max = FEEDRATE_RATEMAX;
-		}
-
-		if (feeder_rate_round < FEEDRATE_ROUNDHZ_MIN ||
-		    	    feeder_rate_round > FEEDRATE_ROUNDHZ_MAX)
-			feeder_rate_round = FEEDRATE_ROUNDHZ;
-
-		if (bootverbose)
-			printf("%s: snd_unit=%d snd_maxautovchans=%d "
-			    "latency=%d "
-			    "feeder_rate_min=%d feeder_rate_max=%d "
-			    "feeder_rate_round=%d\n",
-			    __func__, snd_unit, snd_maxautovchans,
-			    chn_latency,
-			    feeder_rate_min, feeder_rate_max,
-			    feeder_rate_round);
-
-		/* we've got our root feeder so don't veto pcm loading anymore */
-		pcm_veto_load = 0;
-
-		return;
-	}
-
 	KASSERT(fc->desc != NULL, ("feeder '%s' has no descriptor", fc->name));
 
-	/* beyond this point failure is non-fatal but may result in some translations being unavailable */
+	/*
+	 * beyond this point failure is non-fatal but may result in some
+	 * translations being unavailable
+	 */
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
-		/* printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out); */
-		fte = malloc(sizeof(*fte), M_FEEDER, M_NOWAIT | M_ZERO);
-		if (fte == NULL) {
-			printf("can't allocate memory for feeder '%s', %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out);
-
-			return;
-		}
+		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
 		fte->idx = feedercnt;
@@ -147,8 +94,10 @@ feeder_register(void *p)
 		i++;
 	}
 	feedercnt++;
-	if (feedercnt >= MAXFEEDERS)
-		printf("MAXFEEDERS (%d >= %d) exceeded\n", feedercnt, MAXFEEDERS);
+	if (feedercnt >= MAXFEEDERS) {
+		printf("MAXFEEDERS (%d >= %d) exceeded\n",
+		    feedercnt, MAXFEEDERS);
+	}
 }
 
 static void
@@ -232,7 +181,7 @@ feeder_getclass(struct pcm_feederdesc *desc)
 }
 
 int
-chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
+feeder_add(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc)
 {
 	struct pcm_feeder *nf;
 
@@ -249,22 +198,20 @@ chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederd
 	return 0;
 }
 
-int
-chn_removefeeder(struct pcm_channel *c)
+void
+feeder_remove(struct pcm_channel *c)
 {
 	struct pcm_feeder *f;
 
-	if (c->feeder == NULL)
-		return -1;
-	f = c->feeder;
-	c->feeder = c->feeder->source;
-	feeder_destroy(f);
-
-	return 0;
+	while (c->feeder != NULL) {
+		f = c->feeder;
+		c->feeder = c->feeder->source;
+		feeder_destroy(f);
+	}
 }
 
 struct pcm_feeder *
-chn_findfeeder(struct pcm_channel *c, u_int32_t type)
+feeder_find(struct pcm_channel *c, u_int32_t type)
 {
 	struct pcm_feeder *f;
 
@@ -515,5 +462,10 @@ static struct feeder_class feeder_root_class = {
 	.desc =		NULL,
 	.data =		NULL,
 };
-SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root_class);
+/*
+ * Register the root feeder first so that pcm_addchan() and subsequent
+ * functions can use it.
+ */
+SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register_root,
+    &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);

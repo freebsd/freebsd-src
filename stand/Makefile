@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 # For amd64 we have to build 32 and 64 bit versions of things. For
@@ -38,9 +37,7 @@ INTERP_DEPENDS+=	lua
 .include <bsd.arch.inc.mk>
 
 S.${MK_EFI}+=		efi
-.if ${MK_FDT} != "no"
 S.${MK_LOADER_KBOOT}+=	kboot
-.endif
 S.${MK_LOADER_UBOOT}+=	uboot
 
 .if defined(LIB32LIST)
@@ -67,6 +64,7 @@ SUBDIR_DEPEND_${MACHINE}+=	libofw
 SUBDIR+=${_x}
 .if defined(LIB32LIST) && ${LIB32LIST:M${_x}}
 SUBDIR+=${_x}32
+INTERP_DEPENDS+=${_x}32
 .endif
 .if ${_x} != "libsa"
 SUBDIR_DEPEND_${_x}+=	libsa

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_ntpd
 
 KMOD=	mac_ntpd

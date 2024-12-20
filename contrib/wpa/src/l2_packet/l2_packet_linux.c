@@ -179,7 +179,7 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		 * authorization has been completed (in dormant state).
 		 */
 		if (l2->num_rx_br <= 1 &&
-		    (os_memcmp(eth->h_dest, l2->own_addr, ETH_ALEN) == 0 ||
+		    (ether_addr_equal(eth->h_dest, l2->own_addr) ||
 		     is_multicast_ether_addr(eth->h_dest))) {
 			wpa_printf(MSG_DEBUG,
 				   "l2_packet_receive: Main packet socket for %s seems to have working RX - close workaround bridge socket",
@@ -241,7 +241,7 @@ static void l2_packet_receive_br(int sock, void *eloop_ctx, void *sock_ctx)
 	wpa_printf(MSG_DEBUG, "%s: src=" MACSTR " len=%d",
 		   __func__, MAC2STR(ll.sll_addr), (int) res);
 
-	if (os_memcmp(ll.sll_addr, l2->own_addr, ETH_ALEN) == 0) {
+	if (ether_addr_equal(ll.sll_addr, l2->own_addr)) {
 		wpa_printf(MSG_DEBUG, "%s: Drop RX of own frame", __func__);
 		return;
 	}

@@ -61,6 +61,7 @@ void sta_ip6addr_del(struct hostapd_data *hapd, struct sta_info *sta)
 	dl_list_for_each_safe(ip6addr, prev, &sta->ip6addr, struct ip6addr,
 			      list) {
 		hostapd_drv_br_delete_ip_neigh(hapd, 6, (u8 *) &ip6addr->addr);
+		dl_list_del(&ip6addr->list);
 		os_free(ip6addr);
 	}
 }

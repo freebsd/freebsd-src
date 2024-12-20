@@ -1391,7 +1391,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 		case 0xc8:
 			i_name = "monitor";
 			i_size = NONE;
-			i_mode = 0;			
+			i_mode = 0;
 			break;
 		case 0xc9:
 			i_name = "mwait";

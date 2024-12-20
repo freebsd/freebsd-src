@@ -113,8 +113,12 @@ inthand_t
 	}
 
 #define	INTSRC(irq)							\
-	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
-	    IDTVEC(atpic_intr ## irq ## _pti), (irq) % 8 }
+	{								\
+		.at_intsrc = { &atpics[(irq) / 8].at_pic },		\
+		.at_intr = IDTVEC(atpic_intr ## irq ),			\
+		.at_intr_pti = IDTVEC(atpic_intr ## irq ## _pti),	\
+		.at_irq = (irq) % 8,					\
+	}
 
 struct atpic {
 	struct pic at_pic;
@@ -599,10 +603,6 @@ static device_method_t atpic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atpic_probe),
 	DEVMETHOD(device_attach,	atpic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 

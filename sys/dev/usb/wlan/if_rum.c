@@ -1468,8 +1468,7 @@ rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni,
 		flags |= RT2573_TX_CIP_MODE(mode);
 
 		/* Do not trust GROUP flag */
-		if (!(k >= &vap->iv_nw_keys[0] &&
-		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]))
+		if (ieee80211_is_key_unicast(vap, k))
 			flags |= RT2573_TX_KEY_PAIR;
 		else
 			pos += 0 * RT2573_SKEY_MAX;	/* vap id */
@@ -1527,9 +1526,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
-		if (type == IEEE80211_FC0_TYPE_MGT &&
-		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
-		    IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+		if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 			flags |= RT2573_TX_TIMESTAMP;
 	}
 
@@ -3006,8 +3003,7 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	struct rum_softc *sc = vap->iv_ic->ic_softc;
 	uint8_t i;
 
-	if (!(&vap->iv_nw_keys[0] <= k &&
-	     k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
+	if (ieee80211_is_key_unicast(vap, k)) {
 		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
 			RUM_LOCK(sc);
 			for (i = 0; i < RT2573_ADDR_MAX; i++) {
@@ -3044,7 +3040,7 @@ rum_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		return 1;
 	}
 
-	group = k >= &vap->iv_nw_keys[0] && k < &vap->iv_nw_keys[IEEE80211_WEP_NKID];
+	group = ieee80211_is_key_global(vap, k);
 
 	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0,
 		   group ? rum_group_key_set_cb : rum_pair_key_set_cb);
@@ -3061,7 +3057,7 @@ rum_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		return 1;
 	}
 
-	group = k >= &vap->iv_nw_keys[0] && k < &vap->iv_nw_keys[IEEE80211_WEP_NKID];
+	group = ieee80211_is_key_global(vap, k);
 
 	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0,
 		   group ? rum_group_key_del_cb : rum_pair_key_del_cb);

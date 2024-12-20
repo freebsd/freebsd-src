@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/xz
 .PATH:	${SRCTOP}/sys/contrib/xz-embedded/freebsd
 .PATH:	${SRCTOP}/sys/contrib/xz-embedded/linux/lib/xz

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_mvwin.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_mvwin.c,v 1.20 2021/10/23 18:57:41 tom Exp $")
 
 NCURSES_EXPORT(int)
 mvwin(WINDOW *win, int by, int bx)
@@ -54,7 +54,7 @@ mvwin(WINDOW *win, int by, int bx)
 
     T((T_CALLED("mvwin(%p,%d,%d)"), (void *) win, by, bx));
 
-    if (!win || (win->_flags & _ISPAD))
+    if (!win || IS_PAD(win))
 	returnCode(ERR);
 
     /*
@@ -63,7 +63,7 @@ mvwin(WINDOW *win, int by, int bx)
      */
 #if 0
     /* Copying subwindows is allowed, but it is expensive... */
-    if (win->_flags & _SUBWIN) {
+    if (IS_SUBWIN(win)) {
 	int err = ERR;
 	WINDOW *parent = win->_parent;
 	if (parent) {		/* Now comes the complicated and costly part, you should really

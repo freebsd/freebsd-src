@@ -1,6 +1,6 @@
 /*
  * RADIUS message processing
- * Copyright (c) 2002-2009, 2012, 2014-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2009, 2012, 2014-2022, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -46,7 +46,15 @@ struct radius_attr_hdr {
 	/* followed by length-2 octets of attribute value */
 } STRUCT_PACKED;
 
+struct radius_attr_hdr_ext {
+	u8 type;
+	u8 length; /* including this header */
+	u8 ext_type;
+	/* followed by length-3 octets of attribute value */
+} STRUCT_PACKED;
+
 #define RADIUS_MAX_ATTR_LEN (255 - sizeof(struct radius_attr_hdr))
+#define RADIUS_MAX_EXT_ATTR_LEN (255 - sizeof(struct radius_attr_hdr_ext))
 
 enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_USER_PASSWORD = 2,
@@ -54,6 +62,7 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_NAS_PORT = 5,
        RADIUS_ATTR_SERVICE_TYPE = 6,
        RADIUS_ATTR_FRAMED_IP_ADDRESS = 8,
+       RADIUS_ATTR_FILTER_ID = 11,
        RADIUS_ATTR_FRAMED_MTU = 12,
        RADIUS_ATTR_REPLY_MESSAGE = 18,
        RADIUS_ATTR_STATE = 24,
@@ -113,6 +122,18 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_WLAN_GROUP_CIPHER = 187,
        RADIUS_ATTR_WLAN_AKM_SUITE = 188,
        RADIUS_ATTR_WLAN_GROUP_MGMT_CIPHER = 189,
+       RADIUS_ATTR_EXT_TYPE_1 = 241,
+       RADIUS_ATTR_EXT_TYPE_2 = 242,
+       RADIUS_ATTR_EXT_TYPE_3 = 243,
+       RADIUS_ATTR_EXT_TYPE_4 = 244,
+       RADIUS_ATTR_LONG_EXT_TYPE_1 = 245,
+       RADIUS_ATTR_LONG_EXT_TYPE_2 = 246,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_1 = (241 << 8) | 26,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_2 = (242 << 8) | 26,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_3 = (243 << 8) | 26,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_4 = (244 << 8) | 26,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_5 = (245 << 8) | 26,
+       RADIUS_ATTR_EXT_VENDOR_SPECIFIC_6 = (246 << 8) | 26,
 };
 
 
@@ -188,6 +209,13 @@ enum { RADIUS_VENDOR_ATTR_MS_MPPE_SEND_KEY = 16,
        RADIUS_VENDOR_ATTR_MS_MPPE_RECV_KEY = 17
 };
 
+/* FreeRADIUS vendor-specific attributes */
+#define RADIUS_VENDOR_ID_FREERADIUS 11344
+/* Extended-Vendor-Specific-5 (245.26; long extended header) */
+enum {
+	RADIUS_VENDOR_ATTR_FREERADIUS_802_1X_ANONCE = 1,
+	RADIUS_VENDOR_ATTR_FREERADIUS_802_1X_EAPOL_KEY_MSG = 2,
+};
 
 /* Hotspot 2.0 - WFA Vendor-specific RADIUS Attributes */
 #define RADIUS_VENDOR_ID_WFA 40808
@@ -240,6 +268,7 @@ struct wpabuf * radius_msg_get_buf(struct radius_msg *msg);
 struct radius_msg * radius_msg_new(u8 code, u8 identifier);
 void radius_msg_free(struct radius_msg *msg);
 void radius_msg_dump(struct radius_msg *msg);
+u8 * radius_msg_add_msg_auth(struct radius_msg *msg);
 int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
 		      size_t secret_len);
 int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
@@ -257,7 +286,7 @@ int radius_msg_verify_acct_req(struct radius_msg *msg, const u8 *secret,
 int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
 			      size_t secret_len,
 			      int require_message_authenticator);
-struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u8 type,
+struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u16 type,
 					     const u8 *data, size_t data_len);
 struct radius_msg * radius_msg_parse(const u8 *data, size_t len);
 int radius_msg_add_eap(struct radius_msg *msg, const u8 *data,
@@ -284,6 +313,8 @@ int radius_msg_add_mppe_keys(struct radius_msg *msg,
 			     const u8 *recv_key, size_t recv_key_len);
 int radius_msg_add_wfa(struct radius_msg *msg, u8 subtype, const u8 *data,
 		       size_t len);
+int radius_msg_add_ext_vs(struct radius_msg *msg, u16 type, u32 vendor_id,
+			  u8 vendor_type, const u8 *data, size_t len);
 int radius_user_password_hide(struct radius_msg *msg,
 			      const u8 *data, size_t data_len,
 			      const u8 *secret, size_t secret_len,

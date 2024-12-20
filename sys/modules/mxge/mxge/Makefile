@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/mxge
 
 KMOD=	if_mxge

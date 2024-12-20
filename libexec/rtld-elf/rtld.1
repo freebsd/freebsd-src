@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 28, 2024
+.Dd July 24, 2024
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -138,6 +138,15 @@ all the environment variables listed below, but is being prefixed with
 for example:
 .Ev LD_32_TRACE_LOADED_OBJECTS .
 If the activated image is setuid or setgid, the variables are ignored.
+.Pp
+The run-time linker is able to access the environment provided
+at process startup.
+After startup, environment variables are maintained by higher-level
+libraries and are not accessible by the run-time linker.
+At run-time, effective settings can be queried using
+.Xr rtld_get_var 3 ,
+and some of them can be changed with
+.Xr rtld_set_var 3 .
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
 .It Ev LD_DUMP_REL_POST
 If set,
@@ -329,6 +338,14 @@ The static TLS extra space is used when loading objects compiled for
 initial-exec TLS code model with
 .Xr dlopen 3 .
 The minimum value that can be specified is \'128\'.
+.It Ev LD_NO_DL_ITERATE_PHDR_AFTER_FORK
+Allow
+.Xr dl_iterate_phdr 3
+to block in callback, without causing deadlock with the
+.Xr fork 2 .
+The drawback is that the image started in this mode cannot use
+.Xr dl_iterate_phdr 3
+after fork.
 .El
 .Sh DIRECT EXECUTION MODE
 .Nm
@@ -352,7 +369,7 @@ The syntax of the direct invocation is
 .Op Fl b Ar exe
 .Op Fl d
 .Op Fl f Ar fd
-.Op Fl o Ar OPT=NAME
+.Op Fl o Ar OPT=VALUE
 .Op Fl p
 .Op Fl u
 .Op Fl v
@@ -519,6 +536,7 @@ The libmap configuration file for 32-bit binaries on 64-bit system.
 .Xr ld 1 ,
 .Xr ldd 1 ,
 .Xr dlinfo 3 ,
+.Xr rtld_get_var 3 ,
 .Xr capsicum 4 ,
 .Xr elf 5 ,
 .Xr libmap.conf 5 ,

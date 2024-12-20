@@ -103,6 +103,7 @@ enum g_part_alias {
 	G_PART_ALIAS_SOLARIS_HOME,	/* A Solaris /home partition entry. */
 	G_PART_ALIAS_SOLARIS_ALTSEC,	/* A Solaris alternate sector partition entry. */
 	G_PART_ALIAS_SOLARIS_RESERVED,	/* A Solaris reserved partition entry. */
+	G_PART_ALIAS_U_BOOT_ENV,	/* A U-Boot environment partition entry. */
 	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
@@ -117,8 +118,9 @@ const char *g_part_alias_name(enum g_part_alias);
 struct g_part_scheme {
 	KOBJ_CLASS_FIELDS;
 	size_t		gps_entrysz;
-	int		gps_minent;
-	int		gps_maxent;
+	int		gps_minent;		/* Minimum number of entries possible */
+	int		gps_defent;		/* Default number of entries to create */
+	int		gps_maxent;		/* Maximum number of entries possible */
 	int		gps_bootcodesz;
 	TAILQ_ENTRY(g_part_scheme) scheme_list;
 };

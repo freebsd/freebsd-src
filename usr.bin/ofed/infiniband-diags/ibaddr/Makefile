@@ -1,4 +1,3 @@
-
 PROG=	ibaddr
 SRCS=	ibaddr.c
 MAN=	ibaddr.8

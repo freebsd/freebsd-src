@@ -588,16 +588,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	 */
 	ETHER_BPF_MTAP(ifp, m);
 
-	/*
-	 * If the CRC is still on the packet, trim it off. We do this once
-	 * and once only in case we are re-entered. Nothing else on the
-	 * Ethernet receive path expects to see the FCS.
-	 */
-	if (m->m_flags & M_HASFCS) {
-		m_adj(m, -ETHER_CRC_LEN);
-		m->m_flags &= ~M_HASFCS;
-	}
-
 	if (!(ifp->if_capenable & IFCAP_HWSTATS))
 		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 

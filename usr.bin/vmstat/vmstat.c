@@ -49,7 +49,6 @@
 
 #include <ctype.h>
 #include <devstat.h>
-#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <kvm.h>
@@ -66,7 +65,7 @@
 #include <libutil.h>
 #include <libxo/xo.h>
 
-#define VMSTAT_XO_VERSION "1"
+#define VMSTAT_XO_VERSION "2"
 
 static char da[] = "da";
 
@@ -142,6 +141,7 @@ static struct __vmmeter {
 	u_int v_free_count;
 	u_int v_wire_count;
 	u_long v_user_wire_count;
+	u_int v_nofree_count;
 	u_int v_active_count;
 	u_int v_inactive_target;
 	u_int v_inactive_count;
@@ -282,6 +282,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	xo_set_version(VMSTAT_XO_VERSION);
+	xo_open_container("vmstat");
 	if (!hflag)
 		xo_set_options(NULL, "no-humanize");
 	if (todo == 0)
@@ -336,8 +337,9 @@ retry_nlist:
 			xo_error("undefined symbols:\n", buf);
 		} else
 			xo_warnx("kvm_nlist: %s", kvm_geterr(kd));
-		xo_finish();
-		exit(1);
+		if (xo_finish() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
+		exit(EXIT_FAILURE);
 	}
 nlist_ok:
 	if (kd && Pflag)
@@ -383,8 +385,10 @@ nlist_ok:
 		dointr(interval, reps);
 	if (todo & VMSTAT)
 		dovmstat(interval, reps);
-	xo_finish();
-	exit(0);
+	xo_close_container("vmstat");
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
+	exit(EXIT_SUCCESS);
 }
 
 static int
@@ -556,6 +560,7 @@ fill_vmmeter(struct __vmmeter *vmmp)
 		GET_VM_STATS(vm, v_free_count);
 		GET_VM_STATS(vm, v_wire_count);
 		GET_VM_STATS(vm, v_user_wire_count);
+		GET_VM_STATS(vm, v_nofree_count);
 		GET_VM_STATS(vm, v_active_count);
 		GET_VM_STATS(vm, v_inactive_target);
 		GET_VM_STATS(vm, v_inactive_count);
@@ -792,7 +797,8 @@ dovmstat(unsigned int interval, int reps)
 		else
 			cpustats();
 		xo_emit("\n");
-		xo_flush();
+		if (xo_flush() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
 		if (reps >= 0 && --reps <= 0)
 			break;
 		osum = sum;
@@ -1002,6 +1008,8 @@ dosum(void)
 	    sum.v_wire_count);
 	xo_emit("{:virtual-user-wired-pages/%9lu} {N:virtual user pages wired "
 	    "down}\n", sum.v_user_wire_count);
+	xo_emit("{:nofree-pages/%9u} {N:permanently allocated pages}\n",
+	    sum.v_nofree_count);
 	xo_emit("{:free-pages/%9u} {N:pages free}\n",
 	    sum.v_free_count);
 	xo_emit("{:bytes-per-page/%9u} {N:bytes per page}\n", sum.v_page_size);
@@ -1103,7 +1111,7 @@ percent(const char *name, long pctv, int *over)
 {
 	char fmt[64];
 
-	snprintf(fmt, sizeof(fmt), " {:%s/%%%ulld/%%lld}", name,
+	snprintf(fmt, sizeof(fmt), " {:%s/%%%uld/%%ld}", name,
 	    (*over && pctv <= 9) ? 1 : 2);
 	xo_emit(fmt, pctv);
 	if (*over && pctv <= 9)
@@ -1186,7 +1194,7 @@ read_intrcnts(unsigned long **intrcnts)
 	if (kd != NULL) {
 		kread(X_SINTRCNT, &intrcntlen, sizeof(intrcntlen));
 		if ((*intrcnts = malloc(intrcntlen)) == NULL)
-			err(1, "malloc()");
+			xo_err(1, "malloc()");
 		if (namelist[X_NINTRCNT].n_type == 0)
 			kread(X_INTRCNT, *intrcnts, intrcntlen);
 		else {
@@ -1197,7 +1205,7 @@ read_intrcnts(unsigned long **intrcnts)
 		for (*intrcnts = NULL, intrcntlen = 1024; ; intrcntlen *= 2) {
 			*intrcnts = reallocf(*intrcnts, intrcntlen);
 			if (*intrcnts == NULL)
-				err(1, "reallocf()");
+				xo_err(1, "reallocf()");
 			if (mysysctl("hw.intrcnt", *intrcnts, &intrcntlen) == 0)
 				break;
 		}
@@ -1305,7 +1313,8 @@ dointr(unsigned int interval, int reps)
 
 		print_intrcnts(intrcnts, old_intrcnts, intrnames, nintr,
 		    istrnamlen, period_ms);
-		xo_flush();
+		if (xo_flush() < 0)
+			xo_err(EXIT_FAILURE, "stdout");
 
 		free(old_intrcnts);
 		old_intrcnts = intrcnts;
@@ -1455,6 +1464,7 @@ display_object(struct kinfo_vmobject *kvo)
 	xo_emit("{:resident/%5ju} ", (uintmax_t)kvo->kvo_resident);
 	xo_emit("{:active/%5ju} ", (uintmax_t)kvo->kvo_active);
 	xo_emit("{:inactive/%5ju} ", (uintmax_t)kvo->kvo_inactive);
+	xo_emit("{:laundry/%5ju} ", (uintmax_t)kvo->kvo_laundry);
 	xo_emit("{:refcount/%3d} ", kvo->kvo_ref_count);
 	xo_emit("{:shadowcount/%3d} ", kvo->kvo_shadow_count);
 
@@ -1537,6 +1547,11 @@ display_object(struct kinfo_vmobject *kvo)
 		break;
 	}
 	xo_emit("{:type/%-2s} ", str);
+	if ((kvo->kvo_flags & KVMO_FLAG_SYSVSHM) != 0)
+		xo_emit("{:sysvshm/sysvshm(%ju:%u)} ",
+		    (uintmax_t)kvo->kvo_vn_fileid, kvo->kvo_vn_fsid_freebsd11);
+	if ((kvo->kvo_flags & KVMO_FLAG_POSIXSHM) != 0)
+		xo_emit("{:posixshm/posixshm@/posixshm}");
 	xo_emit("{:path/%-s}\n", kvo->kvo_path);
 	xo_close_instance("object");
 }
@@ -1552,8 +1567,8 @@ doobjstat(void)
 		xo_warn("Failed to fetch VM object list");
 		return;
 	}
-	xo_emit("{T:RES/%5s} {T:ACT/%5s} {T:INACT/%5s} {T:REF/%3s} {T:SHD/%3s} "
-	    "{T:CM/%3s} {T:TP/%2s} {T:PATH/%s}\n");
+	xo_emit("{T:RES/%5s} {T:ACT/%5s} {T:INACT/%5s} {T:LAUND/%5s} "
+	    "{T:REF/%3s} {T:SHD/%3s} {T:CM/%2s} {T:TP/%3s} {T:PATH/%s}\n");
 	xo_open_list("object");
 	for (i = 0; i < cnt; i++)
 		display_object(&kvo[i]);
@@ -1605,6 +1620,7 @@ usage(void)
 	xo_error("%s%s",
 	    "usage: vmstat [-afHhimoPsz] [-M core [-N system]] [-c count] [-n devs]\n",
 	    "              [-p type,if,pass] [-w wait] [disks] [wait [count]]\n");
-	xo_finish();
-	exit(1);
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
+	exit(EXIT_FAILURE);
 }

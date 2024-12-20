@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_ifoff
 
 KMOD=	mac_ifoff

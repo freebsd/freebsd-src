@@ -1177,6 +1177,35 @@ vtblk_request_error(struct vtblk_request *req)
 	return (error);
 }
 
+static struct bio *
+vtblk_queue_complete_one(struct vtblk_softc *sc, struct vtblk_request *req)
+{
+	struct bio *bp;
+
+	if (sc->vtblk_req_ordered != NULL) {
+		MPASS(sc->vtblk_req_ordered == req);
+		sc->vtblk_req_ordered = NULL;
+	}
+
+	bp = req->vbr_bp;
+	if (req->vbr_mapp != NULL) {
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
+			break;
+		case BIO_WRITE:
+			bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->vtblk_dmat, req->vbr_mapp);
+			break;
+		}
+	}
+	bp->bio_error = vtblk_request_error(req);
+	return (bp);
+}
+
 static void
 vtblk_queue_completed(struct vtblk_softc *sc, struct bio_queue *queue)
 {
@@ -1184,31 +1213,9 @@ vtblk_queue_completed(struct vtblk_softc *sc, struct bio_queue *queue)
 	struct bio *bp;
 
 	while ((req = virtqueue_dequeue(sc->vtblk_vq, NULL)) != NULL) {
-		if (sc->vtblk_req_ordered != NULL) {
-			MPASS(sc->vtblk_req_ordered == req);
-			sc->vtblk_req_ordered = NULL;
-		}
+		bp = vtblk_queue_complete_one(sc, req);
 
-		bp = req->vbr_bp;
-		if (req->vbr_mapp != NULL) {
-			switch (bp->bio_cmd) {
-			case BIO_READ:
-				bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(sc->vtblk_dmat,
-				    req->vbr_mapp);
-				break;
-			case BIO_WRITE:
-				bus_dmamap_sync(sc->vtblk_dmat, req->vbr_mapp,
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->vtblk_dmat,
-				    req->vbr_mapp);
-				break;
-			}
-		}
-		bp->bio_error = vtblk_request_error(req);
 		TAILQ_INSERT_TAIL(queue, bp, bio_queue);
-
 		vtblk_request_enqueue(sc, req);
 	}
 }
@@ -1412,8 +1419,6 @@ vtblk_ident(struct vtblk_softc *sc)
 	error = vtblk_poll_request(sc, req);
 	VTBLK_UNLOCK(sc);
 
-	vtblk_request_enqueue(sc, req);
-
 	if (error) {
 		device_printf(sc->vtblk_dev,
 		    "error getting device identifier: %d\n", error);
@@ -1423,7 +1428,9 @@ vtblk_ident(struct vtblk_softc *sc)
 static int
 vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
+	struct vtblk_request *req1 __diagused;
 	struct virtqueue *vq;
+	struct bio *bp;
 	int error;
 
 	vq = sc->vtblk_vq;
@@ -1436,13 +1443,18 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 		return (error);
 
 	virtqueue_notify(vq);
-	virtqueue_poll(vq, NULL);
+	req1 = virtqueue_poll(vq, NULL);
+	KASSERT(req == req1,
+	    ("%s: polling completed %p not %p", __func__, req1, req));
 
-	error = vtblk_request_error(req);
+	bp = vtblk_queue_complete_one(sc, req);
+	error = bp->bio_error;
 	if (error && bootverbose) {
 		device_printf(sc->vtblk_dev,
 		    "%s: IO error: %d\n", __func__, error);
 	}
+	if (req != &sc->vtblk_dump_request)
+		vtblk_request_enqueue(sc, req);
 
 	return (error);
 }

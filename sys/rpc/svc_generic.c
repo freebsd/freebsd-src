@@ -164,10 +164,10 @@ svc_tp_create(
 		bind.addr = *taddr;
 		free(taddr, M_RPC);
 		bind.qlen = -1;
-		xprt = svc_tli_create(pool, NULL, nconf, &bind, 0, 0);
+		xprt = svc_tli_create(pool, nconf, &bind, 0, 0);
 		free(bind.addr.buf, M_RPC);
 	} else {
-		xprt = svc_tli_create(pool, NULL, nconf, NULL, 0, 0);
+		xprt = svc_tli_create(pool, nconf, NULL, 0, 0);
 	}
 	if (xprt == NULL) {
 		return (NULL);
@@ -199,70 +199,52 @@ svc_tp_create(
 SVCXPRT *
 svc_tli_create(
 	SVCPOOL *pool,
-	struct socket *so,		/* Connection end point */
 	const struct netconfig *nconf,	/* Netconfig struct for nettoken */
 	const struct t_bind *bindaddr,	/* Local bind address */
 	size_t sendsz,			/* Max sendsize */
 	size_t recvsz)			/* Max recvsize */
 {
+	struct socket *so;
 	SVCXPRT *xprt = NULL;		/* service handle */
-	bool_t madeso = FALSE;		/* whether so opened here  */
 	struct __rpc_sockinfo si;
 	struct sockaddr_storage ss;
 
-	if (!so) {
-		if (nconf == NULL) {
-			printf("svc_tli_create: invalid netconfig\n");
-			return (NULL);
-		}
-		so = __rpc_nconf2socket(nconf);
-		if (!so) {
-			printf(
-			    "svc_tli_create: could not open connection for %s\n",
-					nconf->nc_netid);
-			return (NULL);
-		}
-		__rpc_nconf2sockinfo(nconf, &si);
-		madeso = TRUE;
-	} else {
-		/*
-		 * It is an open socket. Get the transport info.
-		 */
-		if (!__rpc_socket2sockinfo(so, &si)) {
-			printf(
-		"svc_tli_create: could not get transport information\n");
-			return (NULL);
-		}
+	if (nconf == NULL) {
+		printf("svc_tli_create: invalid netconfig\n");
+		return (NULL);
 	}
+	so = __rpc_nconf2socket(nconf);
+	if (!so) {
+		printf(
+		    "svc_tli_create: could not open connection for %s\n",
+				nconf->nc_netid);
+		return (NULL);
+	}
+	__rpc_nconf2sockinfo(nconf, &si);
 
-	/*
-	 * If the socket is unbound, try to bind it.
-	 */
-	if (madeso || !__rpc_sockisbound(so)) {
-		if (bindaddr == NULL) {
-			if (bindresvport(so, NULL)) {
-				memset(&ss, 0, sizeof ss);
-				ss.ss_family = si.si_af;
-				ss.ss_len = si.si_alen;
-				if (sobind(so, (struct sockaddr *)&ss,
-					curthread)) {
-					printf(
-			"svc_tli_create: could not bind to anonymous port\n");
-					goto freedata;
-				}
-			}
-			solisten(so, -1, curthread);
-		} else {
-			if (bindresvport(so,
-				(struct sockaddr *)bindaddr->addr.buf)) {
+	if (bindaddr == NULL) {
+		if (bindresvport(so, NULL)) {
+			memset(&ss, 0, sizeof ss);
+			ss.ss_family = si.si_af;
+			ss.ss_len = si.si_alen;
+			if (sobind(so, (struct sockaddr *)&ss,
+				curthread)) {
 				printf(
-		"svc_tli_create: could not bind to requested address\n");
+		"svc_tli_create: could not bind to anonymous port\n");
 				goto freedata;
 			}
-			solisten(so, (int)bindaddr->qlen, curthread);
 		}
-			
+		solisten(so, -1, curthread);
+	} else {
+		if (bindresvport(so,
+			(struct sockaddr *)bindaddr->addr.buf)) {
+			printf(
+	"svc_tli_create: could not bind to requested address\n");
+			goto freedata;
+		}
+		solisten(so, (int)bindaddr->qlen, curthread);
 	}
+
 	/*
 	 * call transport specific function.
 	 */
@@ -310,12 +292,8 @@ svc_tli_create(
 	return (xprt);
 
 freedata:
-	if (madeso)
-		(void)soclose(so);
-	if (xprt) {
-		if (!madeso) /* so that svc_destroy doesnt close fd */
-			xprt->xp_socket = NULL;
+	(void)soclose(so);
+	if (xprt)
 		xprt_unregister(xprt);
-	}
 	return (NULL);
 }

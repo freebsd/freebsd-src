@@ -45,19 +45,19 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mount -t tmpfs tmpfs $mntpoint
-echo "Testing tmpfs(5)"
+echo "Testing tmpfs(4)"
 cp -a /usr/include $mntpoint
 /tmp/readdir $mntpoint
 umount $mntpoint
 
-echo "Testing fdescfs(5)"
+echo "Testing fdescfs(4)"
 kldstat -v | grep -q fdescfs || { kldload fdescfs.ko; loaded=1; }
 mount -t fdescfs null /dev/fd
 /tmp/readdir /dev/fd
 umount /dev/fd
 [ $unload ] && kldunload fdescfs.ko
 
-echo "Testing procfs(5)"
+echo "Testing procfs(4)"
 mount -t procfs procfs $mntpoint
 /tmp/readdir $mntpoint
 umount $mntpoint
@@ -89,7 +89,7 @@ umount $mntpoint
 mdconfig -d -u $mdstart
 
 mount -t nullfs /bin $mntpoint
-echo "Testing nullfs(5)"
+echo "Testing nullfs(4)"
 /tmp/readdir $mntpoint
 umount $mntpoint
 

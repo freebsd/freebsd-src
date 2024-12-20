@@ -74,6 +74,7 @@ const Keyword keywords[] = {	/* keep sorted: binary searched */
 	{ "log",	FLOG,		BLTIN },
 	{ "lshift",	FLSHIFT,	BLTIN },
 	{ "match",	MATCHFCN,	MATCHFCN },
+	{ "mktime",	FMKTIME,	BLTIN },
 	{ "next",	NEXT,		NEXT },
 	{ "nextfile",	NEXTFILE,	NEXTFILE },
 	{ "or",		FFOR,		BLTIN },
@@ -225,7 +226,7 @@ int yylex(void)
 				;
 			unput(c);
 			/*
-			 * Next line is a hack, itcompensates for
+			 * Next line is a hack, it compensates for
 			 * unput's treatment of \n.
 			 */
 			lineno++;

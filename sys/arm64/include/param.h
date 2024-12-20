@@ -97,7 +97,7 @@
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 
-#define	MAXPAGESIZES	3		/* maximum number of supported page sizes */
+#define	MAXPAGESIZES	4		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
 #if defined(KASAN) || defined(KMSAN)

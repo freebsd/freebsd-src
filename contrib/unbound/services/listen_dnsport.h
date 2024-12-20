@@ -43,9 +43,15 @@
 #define LISTEN_DNSPORT_H
 
 #include "util/netevent.h"
+#include "util/rbtree.h"
+#include "util/locks.h"
 #include "daemon/acl_list.h"
 #ifdef HAVE_NGHTTP2_NGHTTP2_H
 #include <nghttp2/nghttp2.h>
+#endif
+#ifdef HAVE_NGTCP2
+#include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #endif
 struct listen_list;
 struct config_file;
@@ -100,7 +106,9 @@ enum listen_type {
 	/** udp ipv6 (v4mapped) for use with ancillary data + dnscrypt*/
 	listen_type_udpancil_dnscrypt,
 	/** HTTP(2) over TLS over TCP */
-	listen_type_http
+	listen_type_http,
+	/** DNS over QUIC */
+	listen_type_doq
 };
 
 /*
@@ -188,6 +196,11 @@ int resolve_interface_names(char** ifs, int num_ifs,
  * @param tcp_conn_limit: TCP connection limit info.
  * @param sslctx: nonNULL if ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
+ * @param doq_table: the doq connection table, with shared information.
+ * @param rnd: random state.
+ * @param ssl_service_key: the SSL service key file.
+ * @param ssl_service_pem: the SSL service pem file.
+ * @param cfg: config file struct.
  * @param cb: callback function when a request arrives. It is passed
  *	  the packet and user argument. Return true to send a reply.
  * @param cb_arg: user data argument for callback function.
@@ -198,8 +211,10 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
 	int harden_large_queries, uint32_t http_max_streams,
 	char* http_endpoint, int http_notls, struct tcl_list* tcp_conn_limit,
-	void* sslctx, struct dt_env* dtenv, comm_point_callback_type* cb,
-	void *cb_arg);
+	void* sslctx, struct dt_env* dtenv, struct doq_table* doq_table,
+	struct ub_randstate* rnd, const char* ssl_service_key,
+	const char* ssl_service_pem, struct config_file* cfg,
+	comm_point_callback_type* cb, void *cb_arg);
 
 /**
  * delete the listening structure
@@ -278,11 +293,12 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * @param freebind: set IP_FREEBIND socket option.
  * @param use_systemd: if true, fetch sockets from systemd.
  * @param dscp: DSCP to use.
+ * @param additional: additional log information for the socket type.
  * @return: the socket. -1 on error.
  */
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	int* reuseport, int transparent, int mss, int nodelay, int freebind,
-	int use_systemd, int dscp);
+	int use_systemd, int dscp, const char* additional);
 
 /**
  * Create and bind local listening socket
@@ -452,6 +468,377 @@ int http2_submit_dns_response(struct http2_session* h2_session);
 int http2_submit_dns_response(void* v);
 #endif /* HAVE_NGHTTP2 */
 
+#ifdef HAVE_NGTCP2
+struct doq_conid;
+struct doq_server_socket;
+
+/**
+ * DoQ shared connection table. This is the connections for the host.
+ * And some config parameter values for connections. The host has to
+ * respond on that ip,port for those connections, so they are shared
+ * between threads.
+ */
+struct doq_table {
+	/** the lock on the tree and config elements. insert and deletion,
+	 * also lookup in the tree needs to hold the lock. */
+	lock_rw_type lock;
+	/** rbtree of doq_conn, the connections to different destination
+	 * addresses, and can be found by dcid. */
+	struct rbtree_type* conn_tree;
+	/** lock for the conid tree, needed for the conid tree and also
+	 * the conid elements */
+	lock_rw_type conid_lock;
+	/** rbtree of doq_conid, connections can be found by their
+	 * connection ids. Lookup by connection id, finds doq_conn. */
+	struct rbtree_type* conid_tree;
+	/** the server scid length */
+	int sv_scidlen;
+	/** the static secret for the server */
+	uint8_t* static_secret;
+	/** length of the static secret */
+	size_t static_secret_len;
+	/** the idle timeout in nanoseconds */
+	uint64_t idle_timeout;
+	/** the list of write interested connections, hold the doq_table.lock
+	 * to change them */
+	struct doq_conn* write_list_first, *write_list_last;
+	/** rbtree of doq_timer. */
+	struct rbtree_type* timer_tree;
+	/** lock on the current_size counter. */
+	lock_basic_type size_lock;
+	/** current use, in bytes, of QUIC buffers.
+	 * The doq_conn ngtcp2_conn structure, SSL structure and conid structs
+	 * are not counted. */
+	size_t current_size;
+};
+
+/** create doq table */
+struct doq_table* doq_table_create(struct config_file* cfg,
+	struct ub_randstate* rnd);
+
+/** delete doq table */
+void doq_table_delete(struct doq_table* table);
+
+/**
+ * Timer information for doq timer.
+ */
+struct doq_timer {
+	/** The rbnode in the tree sorted by timeout value. Key this struct. */
+	struct rbnode_type node;
+	/** The timeout value. Absolute time value. */
+	struct timeval time;
+	/** If the timer is in the time tree, with the node. */
+	int timer_in_tree;
+	/** If there are more timers with the exact same timeout value,
+	 * they form a set of timers. The rbnode timer has a link to the list
+	 * with the other timers in the set. The rbnode timer is not a
+	 * member of the list with the other timers. The other timers are not
+	 * linked into the tree. */
+	struct doq_timer* setlist_first, *setlist_last;
+	/** If the timer is on the setlist. */
+	int timer_in_list;
+	/** If in the setlist, the next and prev element. */
+	struct doq_timer* setlist_next, *setlist_prev;
+	/** The connection that is timeouted. */
+	struct doq_conn* conn;
+	/** The worker that is waiting for the timeout event.
+	 * Set for the rbnode tree linked element. If a worker is waiting
+	 * for the event. If NULL, no worker is waiting for this timeout. */
+	struct doq_server_socket* worker_doq_socket;
+};
+
+/**
+ * Key information that makes a doq_conn node in the tree lookup.
+ */
+struct doq_conn_key {
+	/** the remote endpoint and local endpoint and ifindex */
+	struct doq_pkt_addr paddr;
+	/** the doq connection dcid */
+	uint8_t* dcid;
+	/** length of dcid */
+	size_t dcidlen;
+};
+
+/**
+ * DoQ connection, for DNS over QUIC. One connection to a remote endpoint
+ * with a number of streams in it. Every stream is like a tcp stream with
+ * a uint16_t length, query read, and a uint16_t length and answer written.
+ */
+struct doq_conn {
+	/** rbtree node, key is addresses and dcid */
+	struct rbnode_type node;
+	/** lock on the connection */
+	lock_basic_type lock;
+	/** the key information, with dcid and address endpoint */
+	struct doq_conn_key key;
+	/** the doq server socket for inside callbacks */
+	struct doq_server_socket* doq_socket;
+	/** the doq table this connection is part of */
+	struct doq_table* table;
+	/** if the connection is about to be deleted. */
+	uint8_t is_deleted;
+	/** the version, the client chosen version of QUIC */
+	uint32_t version;
+	/** the ngtcp2 connection, a server connection */
+	struct ngtcp2_conn* conn;
+	/** the connection ids that are associated with this doq_conn.
+	 * There can be a number, that can change. They are linked here,
+	 * so that upon removal, the list of actually associated conid
+	 * elements can be removed as well. */
+	struct doq_conid* conid_list;
+	/** the ngtcp2 last error for the connection */
+#ifdef HAVE_NGTCP2_CCERR_DEFAULT
+	struct ngtcp2_ccerr ccerr;
+#else
+	struct ngtcp2_connection_close_error last_error;
+#endif
+	/** the recent tls alert error code */
+	uint8_t tls_alert;
+	/** the ssl context, SSL* */
+	void* ssl;
+#ifdef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
+	/** the connection reference for ngtcp2_conn and userdata in ssl */
+	struct ngtcp2_crypto_conn_ref conn_ref;
+#endif
+	/** closure packet, if any */
+	uint8_t* close_pkt;
+	/** length of closure packet. */
+	size_t close_pkt_len;
+	/** closure ecn */
+	uint32_t close_ecn;
+	/** the streams for this connection, of type doq_stream */
+	struct rbtree_type stream_tree;
+	/** the streams that want write, they have something to write.
+	 * The list is ordered, the last have to wait for the first to
+	 * get their data written. */
+	struct doq_stream* stream_write_first, *stream_write_last;
+	/** the conn has write interest if true, no write interest if false. */
+	uint8_t write_interest;
+	/** if the conn is on the connection write list */
+	uint8_t on_write_list;
+	/** the connection write list prev and next, if on the write list */
+	struct doq_conn* write_prev, *write_next;
+	/** The timer for the connection. If unused, it is not in the tree
+	 * and not in the list. It is alloced here, so that it is prealloced.
+	 * It has to be set after every read and write on the connection, so
+	 * this improves performance, but also the allocation does not fail. */
+	struct doq_timer timer;
+};
+
+/**
+ * Connection ID and the doq_conn that is that connection. A connection
+ * has an original dcid, and then more connection ids associated.
+ */
+struct doq_conid {
+	/** rbtree node, key is the connection id. */
+	struct rbnode_type node;
+	/** the next and prev in the list of conids for the doq_conn */
+	struct doq_conid* next, *prev;
+	/** key to the doq_conn that is the connection */
+	struct doq_conn_key key;
+	/** the connection id, byte string */
+	uint8_t* cid;
+	/** the length of cid */
+	size_t cidlen;
+};
+
+/**
+ * DoQ stream, for DNS over QUIC.
+ */
+struct doq_stream {
+	/** the rbtree node for the stream, key is the stream_id */
+	rbnode_type node;
+	/** the stream id */
+	int64_t stream_id;
+	/** if the stream is closed */
+	uint8_t is_closed;
+	/** if the query is complete */
+	uint8_t is_query_complete;
+	/** the number of bytes read on the stream, up to querylen+2. */
+	size_t nread;
+	/** the length of the input query bytes */
+	size_t inlen;
+	/** the input bytes */
+	uint8_t* in;
+	/** does the stream have an answer to send */
+	uint8_t is_answer_available;
+	/** the answer bytes sent, up to outlen+2. */
+	size_t nwrite;
+	/** the length of the output answer bytes */
+	size_t outlen;
+	/** the output length in network wireformat */
+	uint16_t outlen_wire;
+	/** the output packet bytes */
+	uint8_t* out;
+	/** if the stream is on the write list */
+	uint8_t on_write_list;
+	/** the prev and next on the write list, if on the list */
+	struct doq_stream* write_prev, *write_next;
+};
+
+/** doq application error code that is sent when a stream is closed */
+#define DOQ_APP_ERROR_CODE 1
+
+/**
+ * Create the doq connection.
+ * @param c: the comm point for the listening doq socket.
+ * @param paddr: with remote and local address and ifindex for the
+ * 	connection destination. This is where packets are sent.
+ * @param dcid: the dcid, Destination Connection ID.
+ * @param dcidlen: length of dcid.
+ * @param version: client chosen version.
+ * @return new doq connection or NULL on allocation failure.
+ */
+struct doq_conn* doq_conn_create(struct comm_point* c,
+	struct doq_pkt_addr* paddr, const uint8_t* dcid, size_t dcidlen,
+	uint32_t version);
+
+/**
+ * Delete the doq connection structure.
+ * @param conn: to delete.
+ * @param table: with memory size.
+ */
+void doq_conn_delete(struct doq_conn* conn, struct doq_table* table);
+
+/** compare function of doq_conn */
+int doq_conn_cmp(const void* key1, const void* key2);
+
+/** compare function of doq_conid */
+int doq_conid_cmp(const void* key1, const void* key2);
+
+/** compare function of doq_timer */
+int doq_timer_cmp(const void* key1, const void* key2);
+
+/** compare function of doq_stream */
+int doq_stream_cmp(const void* key1, const void* key2);
+
+/** setup the doq_socket server tls context */
+int doq_socket_setup_ctx(struct doq_server_socket* doq_socket);
+
+/** setup the doq connection callbacks, and settings. */
+int doq_conn_setup(struct doq_conn* conn, uint8_t* scid, size_t scidlen,
+	uint8_t* ocid, size_t ocidlen, const uint8_t* token, size_t tokenlen);
+
+/** fill a buffer with random data */
+void doq_fill_rand(struct ub_randstate* rnd, uint8_t* buf, size_t len);
+
+/** delete a doq_conid */
+void doq_conid_delete(struct doq_conid* conid);
+
+/** add a connection id to the doq_conn.
+ * caller must hold doq_table.conid_lock. */
+int doq_conn_associate_conid(struct doq_conn* conn, uint8_t* data,
+	size_t datalen);
+
+/** remove a connection id from the doq_conn.
+ * caller must hold doq_table.conid_lock. */
+void doq_conn_dissociate_conid(struct doq_conn* conn, const uint8_t* data,
+	size_t datalen);
+
+/** initial setup to link current connection ids to the doq_conn */
+int doq_conn_setup_conids(struct doq_conn* conn);
+
+/** remove the connection ids from the doq_conn.
+ * caller must hold doq_table.conid_lock. */
+void doq_conn_clear_conids(struct doq_conn* conn);
+
+/** find a conid in the doq_conn connection.
+ * caller must hold table.conid_lock. */
+struct doq_conid* doq_conid_find(struct doq_table* doq_table,
+	const uint8_t* data, size_t datalen);
+
+/** receive a packet for a connection */
+int doq_conn_recv(struct comm_point* c, struct doq_pkt_addr* paddr,
+	struct doq_conn* conn, struct ngtcp2_pkt_info* pi, int* err_retry,
+	int* err_drop);
+
+/** send packets for a connection */
+int doq_conn_write_streams(struct comm_point* c, struct doq_conn* conn,
+	int* err_drop);
+
+/** send the close packet for the connection, perhaps again. */
+int doq_conn_send_close(struct comm_point* c, struct doq_conn* conn);
+
+/** delete doq stream */
+void doq_stream_delete(struct doq_stream* stream);
+
+/** doq read a connection key from repinfo. It is not malloced, but points
+ * into the repinfo for the dcid. */
+void doq_conn_key_from_repinfo(struct doq_conn_key* key,
+	struct comm_reply* repinfo);
+
+/** doq find a stream in the connection */
+struct doq_stream* doq_stream_find(struct doq_conn* conn, int64_t stream_id);
+
+/** doq shutdown the stream. */
+int doq_stream_close(struct doq_conn* conn, struct doq_stream* stream,
+	int send_shutdown);
+
+/** send reply for a connection */
+int doq_stream_send_reply(struct doq_conn* conn, struct doq_stream* stream,
+	struct sldns_buffer* buf);
+
+/** the connection has write interest, wants to write packets */
+void doq_conn_write_enable(struct doq_conn* conn);
+
+/** the connection has no write interest, does not want to write packets */
+void doq_conn_write_disable(struct doq_conn* conn);
+
+/** set the connection on or off the write list, depending on write interest */
+void doq_conn_set_write_list(struct doq_table* table, struct doq_conn* conn);
+
+/** doq remove the connection from the write list */
+void doq_conn_write_list_remove(struct doq_table* table,
+	struct doq_conn* conn);
+
+/** doq get the first conn from the write list, if any, popped from list.
+ * Locks the conn that is returned. */
+struct doq_conn* doq_table_pop_first(struct doq_table* table);
+
+/**
+ * doq check if the timer for the conn needs to be changed.
+ * @param conn: connection, caller must hold lock on it.
+ * @param tv: time value, absolute time, returned.
+ * @return true if timer needs to be set to tv, false if no change is needed
+ * 	to the timer. The timer is already set to the right time in that case.
+ */
+int doq_conn_check_timer(struct doq_conn* conn, struct timeval* tv);
+
+/** doq remove timer from tree */
+void doq_timer_tree_remove(struct doq_table* table, struct doq_timer* timer);
+
+/** doq remove timer from list */
+void doq_timer_list_remove(struct doq_table* table, struct doq_timer* timer);
+
+/** doq unset the timer if it was set. */
+void doq_timer_unset(struct doq_table* table, struct doq_timer* timer);
+
+/** doq set the timer and add it. */
+void doq_timer_set(struct doq_table* table, struct doq_timer* timer,
+	struct doq_server_socket* worker_doq_socket, struct timeval* tv);
+
+/** doq find a timeout in the timer tree */
+struct doq_timer* doq_timer_find_time(struct doq_table* table,
+	struct timeval* tv);
+
+/** doq handle timeout for a connection. Pass conn locked. Returns false for
+ * deletion. */
+int doq_conn_handle_timeout(struct doq_conn* conn);
+
+/** doq add size to the current quic buffer counter */
+void doq_table_quic_size_add(struct doq_table* table, size_t add);
+
+/** doq subtract size from the current quic buffer counter */
+void doq_table_quic_size_subtract(struct doq_table* table, size_t subtract);
+
+/** doq check if mem is available for quic. */
+int doq_table_quic_size_available(struct doq_table* table,
+	struct config_file* cfg, size_t mem);
+
+/** doq get the quic size value */
+size_t doq_table_quic_size_get(struct doq_table* table);
+#endif /* HAVE_NGTCP2 */
+
 char* set_ip_dscp(int socket, int addrfamily, int ds);
 
 /** for debug and profiling purposes only
@@ -459,4 +846,14 @@ char* set_ip_dscp(int socket, int addrfamily, int ds);
  */
 void verbose_print_unbound_socket(struct unbound_socket* ub_sock);
 
+/** event callback for testcode/doqclient */
+void doq_client_event_cb(int fd, short event, void* arg);
+
+/** timer event callback for testcode/doqclient */
+void doq_client_timer_cb(int fd, short event, void* arg);
+
+#ifdef HAVE_NGTCP2
+/** get a timestamp in nanoseconds */
+ngtcp2_tstamp doq_get_timestamp_nanosec(void);
+#endif
 #endif /* LISTEN_DNSPORT_H */

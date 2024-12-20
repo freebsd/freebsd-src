@@ -1,4 +1,3 @@
-
 LIB=	calendar
 
 SRCS=	calendar.c easter.c

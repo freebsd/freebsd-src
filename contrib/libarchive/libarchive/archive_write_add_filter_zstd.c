@@ -372,8 +372,7 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		}
 		data->out.size = bs;
 		data->out.pos = 0;
-		data->out.dst
-		    = (unsigned char *)malloc(data->out.size);
+		data->out.dst = malloc(data->out.size);
 		if (data->out.dst == NULL) {
 			archive_set_error(f->archive, ENOMEM,
 			    "Can't allocate data for compression buffer");

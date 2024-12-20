@@ -91,8 +91,10 @@ zfs_prep_opts(fsinfo_t *fsopts)
 		  0, 0, "Prefix for all dataset mount points" },
 		{ '\0', "ashift", &zfs->ashift, OPT_INT32,
 		  MINBLOCKSHIFT, MAXBLOCKSHIFT, "ZFS pool ashift" },
+		{ '\0', "verify-txgs", &zfs->verify_txgs, OPT_BOOL,
+		  0, 0, "Make OpenZFS verify data upon import" },
 		{ '\0', "nowarn", &zfs->nowarn, OPT_BOOL,
-		  0, 0, "Suppress warning about experimental ZFS support" },
+		  0, 0, "Provided for backwards compatibility, ignored" },
 		{ .name = NULL }
 	};
 
@@ -594,7 +596,18 @@ pool_labels_write(zfs_opt_t *zfs)
 		ub = (uberblock_t *)(&label->vl_uberblock[0] + uoff);
 		ub->ub_magic = UBERBLOCK_MAGIC;
 		ub->ub_version = SPA_VERSION;
+
+		/*
+		 * Upon import, OpenZFS will perform metadata verification of
+		 * the last TXG by default.  If all data is written in the same
+		 * TXG, it'll all get verified, which can be painfully slow in
+		 * some cases, e.g., initial boot in a cloud environment with
+		 * slow storage.  So, fabricate additional TXGs to avoid this
+		 * overhead, unless the user requests otherwise.
+		 */
 		ub->ub_txg = TXG;
+		if (!zfs->verify_txgs)
+			ub->ub_txg += TXG_SIZE;
 		ub->ub_guid_sum = zfs->poolguid + zfs->vdevguid;
 		ub->ub_timestamp = 0;
 
@@ -778,12 +791,6 @@ zfs_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	srandom(1729);
 
 	zfs_check_opts(fsopts);
-
-	if (!zfs->nowarn) {
-		fprintf(stderr,
-		    "ZFS support is currently considered experimental. "
-		    "Do not use it for anything critical.\n");
-	}
 
 	dirfd = open(dir, O_DIRECTORY | O_RDONLY);
 	if (dirfd < 0)

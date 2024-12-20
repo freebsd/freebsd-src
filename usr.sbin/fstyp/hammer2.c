@@ -220,6 +220,8 @@ read_label(FILE *fp, char *label, size_t size)
 		broot.data_off = (i * HAMMER2_ZONE_BYTES64) | HAMMER2_PBUFRADIX;
 		vols[i] = read_buf(fp, broot.data_off & ~HAMMER2_OFF_MASK_RADIX,
 		    sizeof(*vols[i]));
+		if (vols[i] == NULL)
+			errx(1, "failed to read volume header");
 		broot.mirror_tid = vols[i]->voldata.mirror_tid;
 		if (best_i < 0 || best.mirror_tid < broot.mirror_tid) {
 			best_i = i;

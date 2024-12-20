@@ -15,6 +15,7 @@
 #include "utils/common.h"
 #include "utils/eloop.h"
 #include "utils/uuid.h"
+#include "crypto/crypto.h"
 #include "crypto/random.h"
 #include "crypto/tls.h"
 #include "common/version.h"
@@ -157,14 +158,50 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 	struct hostapd_bss_config *conf = hapd->conf;
 	u8 *b = conf->bssid;
 	struct wpa_driver_capa capa;
+#ifdef CONFIG_IEEE80211BE
+	struct hostapd_data *h_hapd = NULL;
+#endif /* CONFIG_IEEE80211BE */
 
 	if (hapd->driver == NULL || hapd->driver->hapd_init == NULL) {
 		wpa_printf(MSG_ERROR, "No hostapd driver wrapper available");
 		return -1;
 	}
 
+#ifdef CONFIG_IEEE80211BE
+	if (conf->mld_ap)
+		h_hapd = hostapd_mld_get_first_bss(hapd);
+
+	if (h_hapd) {
+		hapd->drv_priv = h_hapd->drv_priv;
+		hapd->interface_added = h_hapd->interface_added;
+
+		/*
+		 * All interfaces participating in the AP MLD would have
+		 * the same MLD address, which is the interface hardware
+		 * address, while the interface address would be
+		 * derived from the original interface address if BSSID
+		 * is not configured, and otherwise it would be the
+		 * configured BSSID.
+		 */
+		if (is_zero_ether_addr(b)) {
+			os_memcpy(hapd->own_addr, h_hapd->mld->mld_addr,
+				  ETH_ALEN);
+			random_mac_addr_keep_oui(hapd->own_addr);
+		} else {
+			os_memcpy(hapd->own_addr, b, ETH_ALEN);
+		}
+
+		hostapd_mld_add_link(hapd);
+		wpa_printf(MSG_DEBUG,
+			   "Setup of non first link (%d) BSS of MLD %s",
+			   hapd->mld_link_id, hapd->conf->iface);
+
+		goto setup_mld;
+	}
+#endif /* CONFIG_IEEE80211BE */
+
 	/* Initialize the driver interface */
-	if (!(b[0] | b[1] | b[2] | b[3] | b[4] | b[5]))
+	if (is_zero_ether_addr(b))
 		b = NULL;
 
 	os_memset(&params, 0, sizeof(params));
@@ -188,6 +225,19 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 		break;
 	}
 	params.bssid = b;
+#ifdef CONFIG_IEEE80211BE
+	/*
+	 * Use the configured MLD MAC address as the interface hardware address
+	 * if this AP is a part of an AP MLD.
+	 */
+	if (hapd->conf->mld_ap) {
+		if (!is_zero_ether_addr(hapd->conf->mld_addr))
+			params.bssid = hapd->conf->mld_addr;
+		else
+			params.bssid = NULL;
+	}
+#endif /* CONFIG_IEEE80211BE */
+
 	params.ifname = hapd->conf->iface;
 	params.driver_params = hapd->iconf->driver_params;
 	params.use_pae_group_addr = hapd->conf->use_pae_group_addr;
@@ -213,12 +263,36 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 		return -1;
 	}
 
+#ifdef CONFIG_IEEE80211BE
+	/*
+	 * This is the first interface added to the AP MLD, so have the
+	 * interface hardware address be the MLD address, while the link address
+	 * would be derived from the original interface address if BSSID is not
+	 * configured, and otherwise it would be the configured BSSID.
+	 */
+	if (hapd->conf->mld_ap) {
+		os_memcpy(hapd->mld->mld_addr, hapd->own_addr, ETH_ALEN);
+
+		if (!b)
+			random_mac_addr_keep_oui(hapd->own_addr);
+		else
+			os_memcpy(hapd->own_addr, b, ETH_ALEN);
+
+		hostapd_mld_add_link(hapd);
+		wpa_printf(MSG_DEBUG, "Setup of first link (%d) BSS of MLD %s",
+			   hapd->mld_link_id, hapd->conf->iface);
+	}
+
+setup_mld:
+#endif /* CONFIG_IEEE80211BE */
+
 	if (hapd->driver->get_capa &&
 	    hapd->driver->get_capa(hapd->drv_priv, &capa) == 0) {
 		struct wowlan_triggers *triggs;
 
 		iface->drv_flags = capa.flags;
 		iface->drv_flags2 = capa.flags2;
+		iface->drv_rrm_flags = capa.rrm_flags;
 		iface->probe_resp_offloads = capa.probe_resp_offloads;
 		/*
 		 * Use default extended capa values from per-radio information
@@ -234,13 +308,40 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
 		 */
 		hostapd_get_ext_capa(iface);
 
+		hostapd_get_mld_capa(iface);
+
 		triggs = wpa_get_wowlan_triggers(conf->wowlan_triggers, &capa);
 		if (triggs && hapd->driver->set_wowlan) {
 			if (hapd->driver->set_wowlan(hapd->drv_priv, triggs))
 				wpa_printf(MSG_ERROR, "set_wowlan failed");
 		}
 		os_free(triggs);
+
+		iface->mbssid_max_interfaces = capa.mbssid_max_interfaces;
+		iface->ema_max_periodicity = capa.ema_max_periodicity;
 	}
+
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		if (!(iface->drv_flags2 & WPA_DRIVER_FLAGS2_MLO)) {
+			wpa_printf(MSG_INFO,
+				   "MLD: Not supported by the driver");
+			return -1;
+		}
+
+		/* Initialize the BSS parameter change to 1 */
+		hapd->eht_mld_bss_param_change = 1;
+
+		wpa_printf(MSG_DEBUG,
+			   "MLD: Set link_id=%u, mld_addr=" MACSTR
+			   ", own_addr=" MACSTR,
+			   hapd->mld_link_id, MAC2STR(hapd->mld->mld_addr),
+			   MAC2STR(hapd->own_addr));
+
+		hostapd_drv_link_add(hapd, hapd->mld_link_id,
+				     hapd->own_addr);
+	}
+#endif /* CONFIG_IEEE80211BE */
 
 	return 0;
 }
@@ -454,7 +555,7 @@ static void show_version(void)
 		"hostapd v%s\n"
 		"User space daemon for IEEE 802.11 AP management,\n"
 		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
-		"Copyright (c) 2002-2022, Jouni Malinen <j@w1.fi> "
+		"Copyright (c) 2002-2024, Jouni Malinen <j@w1.fi> "
 		"and contributors\n",
 		VERSION_STR);
 }
@@ -465,7 +566,7 @@ static void usage(void)
 	show_version();
 	fprintf(stderr,
 		"\n"
-		"usage: hostapd [-hdBKtv] [-P <PID file>] [-e <entropy file>] "
+		"usage: hostapd [-hdBKtvq] [-P <PID file>] [-e <entropy file>] "
 		"\\\n"
 		"         [-g <global ctrl_iface>] [-G <group>]\\\n"
 		"         [-i <comma-separated list of interface names>]\\\n"
@@ -493,7 +594,8 @@ static void usage(void)
 #endif /* CONFIG_DEBUG_SYSLOG */
 		"   -S   start all the interfaces synchronously\n"
 		"   -t   include timestamps in some debug messages\n"
-		"   -v   show hostapd version\n");
+		"   -v   show hostapd version\n"
+		"   -q   show less debug messages (-qq for even less)\n");
 
 	exit(1);
 }
@@ -634,6 +736,29 @@ static void hostapd_periodic(void *eloop_ctx, void *timeout_ctx)
 }
 
 
+static void hostapd_global_cleanup_mld(struct hapd_interfaces *interfaces)
+{
+#ifdef CONFIG_IEEE80211BE
+	size_t i;
+
+	if (!interfaces || !interfaces->mld)
+		return;
+
+	for (i = 0; i < interfaces->mld_count; i++) {
+		if (!interfaces->mld[i])
+			continue;
+
+		os_free(interfaces->mld[i]);
+		interfaces->mld[i] = NULL;
+	}
+
+	os_free(interfaces->mld);
+	interfaces->mld = NULL;
+	interfaces->mld_count = 0;
+#endif /* CONFIG_IEEE80211BE */
+}
+
+
 int main(int argc, char *argv[])
 {
 	struct hapd_interfaces interfaces;
@@ -684,7 +809,7 @@ int main(int argc, char *argv[])
 #endif /* CONFIG_DPP */
 
 	for (;;) {
-		c = getopt(argc, argv, "b:Bde:f:hi:KP:sSTtu:vg:G:");
+		c = getopt(argc, argv, "b:Bde:f:hi:KP:sSTtu:vg:G:q");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -723,7 +848,6 @@ int main(int argc, char *argv[])
 		case 'v':
 			show_version();
 			exit(1);
-			break;
 		case 'g':
 			if (hostapd_get_global_ctrl_iface(&interfaces, optarg))
 				return -1;
@@ -757,6 +881,9 @@ int main(int argc, char *argv[])
 			if (hostapd_get_interface_names(&if_names,
 							&if_names_size, optarg))
 				goto out;
+			break;
+		case 'q':
+			wpa_debug_level++;
 			break;
 		default:
 			usage();
@@ -912,6 +1039,8 @@ int main(int argc, char *argv[])
 	interfaces.iface = NULL;
 	interfaces.count = 0;
 
+	hostapd_global_cleanup_mld(&interfaces);
+
 #ifdef CONFIG_DPP
 	dpp_global_deinit(interfaces.dpp);
 #endif /* CONFIG_DPP */
@@ -934,6 +1063,7 @@ int main(int argc, char *argv[])
 
 	fst_global_deinit();
 
+	crypto_unload();
 	os_program_deinit();
 
 	return ret;

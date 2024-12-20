@@ -1,4 +1,3 @@
-
 PROG=	athradar
 
 .include <../Makefile.inc>

@@ -2400,7 +2400,9 @@ extern int dtrace_mach_aframes(void);
 
 #if defined(__i386) || defined(__amd64)
 extern int dtrace_instr_size_isa(uint8_t *, model_t, int *);
+#ifdef __i386
 extern void dtrace_invop_callsite(void);
+#endif
 #endif
 extern void dtrace_invop_add(int (*)(uintptr_t, struct trapframe *, uintptr_t));
 extern void dtrace_invop_remove(int (*)(uintptr_t, struct trapframe *,

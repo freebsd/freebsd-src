@@ -169,7 +169,7 @@ static inline int sleepq_check_timeout(void);
 static void	sleepq_dtor(void *mem, int size, void *arg);
 #endif
 static int	sleepq_init(void *mem, int size, int flags);
-static int	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
+static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
 		    int pri, int srqflags);
 static void	sleepq_remove_thread(struct sleepqueue *sq, struct thread *td);
 static void	sleepq_switch(const void *wchan, int pri);
@@ -539,7 +539,8 @@ sleepq_catch_signals(const void *wchan, int pri)
 
 /*
  * Switches to another thread if we are still asleep on a sleep queue.
- * Returns with thread lock.
+ *
+ * The thread lock is required on entry and is no longer held on return.
  */
 static void
 sleepq_switch(const void *wchan, int pri)
@@ -731,13 +732,12 @@ sleepq_type(const void *wchan)
 }
 
 /*
- * Removes a thread from a sleep queue and makes it
- * runnable.
+ * Removes a thread from a sleep queue and makes it runnable.
  *
  * Requires the sc chain locked on entry.  If SRQ_HOLD is specified it will
  * be locked on return.  Returns without the thread lock held.
  */
-static int
+static void
 sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri,
     int srqflags)
 {
@@ -788,12 +788,11 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri,
 	if (TD_IS_SLEEPING(td)) {
 		MPASS(!drop);
 		TD_CLR_SLEEPING(td);
-		return (setrunnable(td, srqflags));
+		setrunnable(td, srqflags);
+	} else {
+		MPASS(drop);
+		thread_unlock(td);
 	}
-	MPASS(drop);
-	thread_unlock(td);
-
-	return (0);
 }
 
 static void
@@ -922,14 +921,13 @@ sleepq_init(void *mem, int size, int flags)
 /*
  * Find thread sleeping on a wait channel and resume it.
  */
-int
+void
 sleepq_signal(const void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
 	struct threadqueue *head;
 	struct thread *td, *besttd;
-	int wakeup_swapper;
 
 	CTR2(KTR_PROC, "sleepq_signal(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
@@ -938,7 +936,7 @@ sleepq_signal(const void *wchan, int flags, int pri, int queue)
 	if (sq == NULL) {
 		if (flags & SLEEPQ_DROP)
 			sleepq_release(wchan);
-		return (0);
+		return;
 	}
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
@@ -972,9 +970,8 @@ sleepq_signal(const void *wchan, int flags, int pri, int queue)
 		}
 	}
 	MPASS(besttd != NULL);
-	wakeup_swapper = sleepq_resume_thread(sq, besttd, pri,
+	sleepq_resume_thread(sq, besttd, pri,
 	    (flags & SLEEPQ_DROP) ? 0 : SRQ_HOLD);
-	return (wakeup_swapper);
 }
 
 static bool
@@ -987,7 +984,7 @@ match_any(struct thread *td __unused)
 /*
  * Resume all threads sleeping on a specified wait channel.
  */
-int
+void
 sleepq_broadcast(const void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
@@ -996,23 +993,22 @@ sleepq_broadcast(const void *wchan, int flags, int pri, int queue)
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
 	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 	sq = sleepq_lookup(wchan);
-	if (sq == NULL)
-		return (0);
-	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
-	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
+	if (sq != NULL) {
+		KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
+		    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
-	return (sleepq_remove_matching(sq, queue, match_any, pri));
+		sleepq_remove_matching(sq, queue, match_any, pri);
+	}
 }
 
 /*
  * Resume threads on the sleep queue that match the given predicate.
  */
-int
+void
 sleepq_remove_matching(struct sleepqueue *sq, int queue,
     bool (*matches)(struct thread *), int pri)
 {
 	struct thread *td, *tdn;
-	int wakeup_swapper;
 
 	/*
 	 * The last thread will be given ownership of sq and may
@@ -1020,14 +1016,10 @@ sleepq_remove_matching(struct sleepqueue *sq, int queue,
 	 * so we must cache the "next" queue item at the beginning
 	 * of the final iteration.
 	 */
-	wakeup_swapper = 0;
 	TAILQ_FOREACH_SAFE(td, &sq->sq_blocked[queue], td_slpq, tdn) {
 		if (matches(td))
-			wakeup_swapper |= sleepq_resume_thread(sq, td, pri,
-			    SRQ_HOLD);
+			sleepq_resume_thread(sq, td, pri, SRQ_HOLD);
 	}
-
-	return (wakeup_swapper);
 }
 
 /*
@@ -1041,7 +1033,6 @@ sleepq_timeout(void *arg)
 	struct sleepqueue *sq;
 	struct thread *td;
 	const void *wchan;
-	int wakeup_swapper;
 
 	td = arg;
 	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %ld, %s)",
@@ -1064,9 +1055,7 @@ sleepq_timeout(void *arg)
 		sq = sleepq_lookup(wchan);
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
-		wakeup_swapper = sleepq_resume_thread(sq, td, 0, 0);
-		if (wakeup_swapper)
-			kick_proc0();
+		sleepq_resume_thread(sq, td, 0, 0);
 		return;
 	} else if (TD_ON_SLEEPQ(td)) {
 		/*
@@ -1089,7 +1078,6 @@ sleepq_remove(struct thread *td, const void *wchan)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
-	int wakeup_swapper;
 
 	/*
 	 * Look up the sleep queue for this wait channel, then re-check
@@ -1114,9 +1102,7 @@ sleepq_remove(struct thread *td, const void *wchan)
 	sq = sleepq_lookup(wchan);
 	MPASS(sq != NULL);
 	MPASS(td->td_wchan == wchan);
-	wakeup_swapper = sleepq_resume_thread(sq, td, 0, 0);
-	if (wakeup_swapper)
-		kick_proc0();
+	sleepq_resume_thread(sq, td, 0, 0);
 }
 
 /*
@@ -1125,7 +1111,7 @@ sleepq_remove(struct thread *td, const void *wchan)
  *
  * Requires thread lock on entry, releases on return.
  */
-int
+void
 sleepq_abort(struct thread *td, int intrval)
 {
 	struct sleepqueue *sq;
@@ -1143,7 +1129,7 @@ sleepq_abort(struct thread *td, int intrval)
 	 */
 	if (td->td_flags & TDF_TIMEOUT) {
 		thread_unlock(td);
-		return (0);
+		return;
 	}
 
 	CTR3(KTR_PROC, "sleepq_abort: thread %p (pid %ld, %s)",
@@ -1157,7 +1143,7 @@ sleepq_abort(struct thread *td, int intrval)
 	 */
 	if (!TD_IS_SLEEPING(td)) {
 		thread_unlock(td);
-		return (0);
+		return;
 	}
 	wchan = td->td_wchan;
 	MPASS(wchan != NULL);
@@ -1165,7 +1151,7 @@ sleepq_abort(struct thread *td, int intrval)
 	MPASS(sq != NULL);
 
 	/* Thread is asleep on sleep queue sq, so wake it up. */
-	return (sleepq_resume_thread(sq, td, 0, 0));
+	sleepq_resume_thread(sq, td, 0, 0);
 }
 
 void
@@ -1173,24 +1159,18 @@ sleepq_chains_remove_matching(bool (*matches)(struct thread *))
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq, *sq1;
-	int i, wakeup_swapper;
+	int i;
 
-	wakeup_swapper = 0;
 	for (sc = &sleepq_chains[0]; sc < sleepq_chains + SC_TABLESIZE; ++sc) {
 		if (LIST_EMPTY(&sc->sc_queues)) {
 			continue;
 		}
 		mtx_lock_spin(&sc->sc_lock);
 		LIST_FOREACH_SAFE(sq, &sc->sc_queues, sq_hash, sq1) {
-			for (i = 0; i < NR_SLEEPQS; ++i) {
-				wakeup_swapper |= sleepq_remove_matching(sq, i,
-				    matches, 0);
-			}
+			for (i = 0; i < NR_SLEEPQS; ++i)
+				sleepq_remove_matching(sq, i, matches, 0);
 		}
 		mtx_unlock_spin(&sc->sc_lock);
-	}
-	if (wakeup_swapper) {
-		kick_proc0();
 	}
 }
 

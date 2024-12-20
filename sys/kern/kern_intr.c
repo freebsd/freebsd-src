@@ -541,14 +541,10 @@ intr_event_destroy(struct intr_event *ie)
 		return (EBUSY);
 	}
 	TAILQ_REMOVE(&event_list, ie, ie_list);
-#ifndef notyet
-	if (ie->ie_thread != NULL) {
-		ithread_destroy(ie->ie_thread);
-		ie->ie_thread = NULL;
-	}
-#endif
-	mtx_unlock(&ie->ie_lock);
 	mtx_unlock(&event_lock);
+	if (ie->ie_thread != NULL)
+		ithread_destroy(ie->ie_thread);
+	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
 	free(ie, M_ITHREAD);
 	return (0);
@@ -581,10 +577,16 @@ ithread_create(const char *name)
 static void
 ithread_destroy(struct intr_thread *ithread)
 {
+	struct intr_event *ie;
 	struct thread *td;
 
-	CTR2(KTR_INTR, "%s: killing %s", __func__, ithread->it_event->ie_name);
 	td = ithread->it_thread;
+	ie = ithread->it_event;
+
+	mtx_assert(&ie->ie_lock, MA_OWNED);
+
+	CTR2(KTR_INTR, "%s: killing %s", __func__, ie->ie_name);
+
 	thread_lock(td);
 	ithread->it_flags |= IT_DEAD;
 	if (TD_AWAITING_INTR(td)) {
@@ -592,6 +594,8 @@ ithread_destroy(struct intr_thread *ithread)
 		sched_wakeup(td, SRQ_INTR);
 	} else
 		thread_unlock(td);
+	while (ie->ie_thread != NULL)
+		msleep(ithread, &ie->ie_lock, 0, "ithd_dth", 0);
 }
 
 int
@@ -851,9 +855,6 @@ intr_event_remove_handler(void *cookie)
 	struct intr_event *ie;
 	struct intr_handler *ih;
 	struct intr_handler **prevptr;
-#ifdef notyet
-	int dead;
-#endif
 
 	if (handler == NULL)
 		return (EINVAL);
@@ -874,53 +875,30 @@ intr_event_remove_handler(void *cookie)
 		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
 	}
 
-	/*
-	 * If there is no ithread, then directly remove the handler.  Note that
-	 * intr_event_handle() iterates ie_handlers in a lock-less fashion, so
-	 * care needs to be taken to keep ie_handlers consistent and to free
-	 * the removed handler only when ie_handlers is quiescent.
-	 */
 	if (ie->ie_thread == NULL) {
+		/*
+		 * If there is no ithread, then directly remove the handler.
+		 * Note that intr_event_handle() iterates ie_handlers in a
+		 * lock-less fashion, so care needs to be taken to keep
+		 * ie_handlers consistent and to free the removed handler only
+		 * when ie_handlers is quiescent.
+		 */
 		CK_SLIST_REMOVE_PREVPTR(prevptr, ih, ih_next);
 		intr_event_barrier(ie);
-		intr_event_update(ie);
-		mtx_unlock(&ie->ie_lock);
-		free(handler, M_ITHREAD);
-		return (0);
+	} else {
+		/*
+		 * Let the interrupt thread do the job.  The interrupt source is
+		 * disabled when the interrupt thread is running, so it does not
+		 * have to worry about interaction with intr_event_handle().
+		 */
+		KASSERT((handler->ih_flags & IH_DEAD) == 0,
+		    ("duplicate handle remove"));
+		handler->ih_flags |= IH_DEAD;
+		intr_event_schedule_thread(ie, NULL);
+		while (handler->ih_flags & IH_DEAD)
+			msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	}
-
-	/*
-	 * Let the interrupt thread do the job.
-	 * The interrupt source is disabled when the interrupt thread is
-	 * running, so it does not have to worry about interaction with
-	 * intr_event_handle().
-	 */
-	KASSERT((handler->ih_flags & IH_DEAD) == 0,
-	    ("duplicate handle remove"));
-	handler->ih_flags |= IH_DEAD;
-	intr_event_schedule_thread(ie, NULL);
-	while (handler->ih_flags & IH_DEAD)
-		msleep(handler, &ie->ie_lock, 0, "iev_rmh", 0);
 	intr_event_update(ie);
-
-#ifdef notyet
-	/*
-	 * XXX: This could be bad in the case of ppbus(8).  Also, I think
-	 * this could lead to races of stale data when servicing an
-	 * interrupt.
-	 */
-	dead = 1;
-	CK_SLIST_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (ih->ih_handler != NULL) {
-			dead = 0;
-			break;
-		}
-	}
-	if (dead) {
-		ithread_destroy(ie->ie_thread);
-		ie->ie_thread = NULL;
-	}
-#endif
 	mtx_unlock(&ie->ie_lock);
 	free(handler, M_ITHREAD);
 	return (0);
@@ -1229,8 +1207,9 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * number of back to back interrupts exceeds the storm threshold,
 	 * then enter storming mode.
 	 */
-	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold &&
-	    !(ie->ie_flags & IE_SOFT)) {
+	if (__predict_false(intr_storm_threshold != 0 &&
+	    ie->ie_count >= intr_storm_threshold &&
+	    (ie->ie_flags & IE_SOFT) == 0)) {
 		/* Report the message only once every second. */
 		if (ppsratecheck(&ie->ie_warntm, &ie->ie_warncnt, 1)) {
 			printf(
@@ -1260,7 +1239,7 @@ ithread_loop(void *arg)
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
-	int wake, epoch_count;
+	int epoch_count;
 	bool needs_epoch;
 
 	td = curthread;
@@ -1270,7 +1249,6 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
-	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1280,9 +1258,14 @@ ithread_loop(void *arg)
 		/*
 		 * If we are an orphaned thread, then just die.
 		 */
-		if (ithd->it_flags & IT_DEAD) {
+		if (__predict_false((ithd->it_flags & IT_DEAD) != 0)) {
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, td->td_name);
+			mtx_lock(&ie->ie_lock);
+			ie->ie_thread = NULL;
+			wakeup(ithd);
+			mtx_unlock(&ie->ie_lock);
+
 			free(ithd, M_ITHREAD);
 			kthread_exit();
 		}
@@ -1327,17 +1310,12 @@ ithread_loop(void *arg)
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT);
-		} else {
-			if (ithd->it_flags & IT_WAIT) {
-				wake = 1;
-				ithd->it_flags &= ~IT_WAIT;
-			}
+		} else if ((ithd->it_flags & IT_WAIT) != 0) {
+			ithd->it_flags &= ~IT_WAIT;
 			thread_unlock(td);
-		}
-		if (wake) {
 			wakeup(ithd);
-			wake = 0;
-		}
+		} else
+			thread_unlock(td);
 	}
 }
 

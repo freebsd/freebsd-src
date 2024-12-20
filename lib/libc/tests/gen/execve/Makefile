@@ -1,4 +1,3 @@
-
 .include <bsd.own.mk>
 
 NETBSD_ATF_TESTS_C=	execve_test

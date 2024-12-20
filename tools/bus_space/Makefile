@@ -1,4 +1,3 @@
-
 SUBDIR=	\
 	C \
 	Python

@@ -342,14 +342,15 @@ bcm_bsc_attach(device_t dev)
 	bcm_bsc_reset(sc);
 	BCM_BSC_UNLOCK(sc);
 
-	sc->sc_iicbus = device_add_child(dev, "iicbus", -1);
+	sc->sc_iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->sc_iicbus == NULL) {
 		bcm_bsc_detach(dev);
 		return (ENXIO);
 	}
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

@@ -1,8 +1,9 @@
-MANIFEST for byacc, version t20230201
+MANIFEST for byacc, version t20240109
 --------------------------------------------------------------------------------
 MANIFEST                        this file
 ACKNOWLEDGEMENTS                original version of byacc - 1993
 AUTHORS                         nicknames for some contributors (see CHANGES for details)
+CHANGES                         generated changelog
 LICENSE                         summary of byacc's license
 Makefile.old                    renamed from Makefile
 NEW_FEATURES                    original version of byacc - 1993
@@ -63,7 +64,7 @@ package/pkgsrc/Makefile         scripts from NetBSD pkgsrc, for test-builds
 package/pkgsrc/PLIST            scripts from NetBSD pkgsrc, for test-builds
 package/pkgsrc/distinfo         scripts from NetBSD pkgsrc, for test-builds
 test                            subdirectory
-test/README                     describe contents of "test" subdirectory
+test/README                     summary of "test" directory
 test/btyacc                     subdirectory
 test/btyacc/big_b.error         exercise -L/-B options
 test/btyacc/big_b.output        exercise -L/-B options

@@ -45,6 +45,7 @@ enum {
 };
 int bootrom_alloc(struct vmctx *ctx, size_t len, int prot, int flags,
     char **region_out, uint64_t *gpa_out);
-int bootrom_loadrom(struct vmctx *ctx, const nvlist_t *nvl);
+bool bootrom_boot(void);
+int bootrom_loadrom(struct vmctx *ctx);
 
 #endif

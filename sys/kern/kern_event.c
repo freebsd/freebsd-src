@@ -127,7 +127,7 @@ static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
 static fo_fill_kinfo_t	kqueue_fill_kinfo;
 
-static struct fileops kqueueops = {
+static const struct fileops kqueueops = {
 	.fo_read = invfo_rdwr,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
@@ -173,30 +173,30 @@ static int	filt_user(struct knote *kn, long hint);
 static void	filt_usertouch(struct knote *kn, struct kevent *kev,
 		    u_long type);
 
-static struct filterops file_filtops = {
+static const struct filterops file_filtops = {
 	.f_isfd = 1,
 	.f_attach = filt_fileattach,
 };
-static struct filterops kqread_filtops = {
+static const struct filterops kqread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_kqdetach,
 	.f_event = filt_kqueue,
 };
 /* XXX - move to kern_proc.c?  */
-static struct filterops proc_filtops = {
+static const struct filterops proc_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_procattach,
 	.f_detach = filt_procdetach,
 	.f_event = filt_proc,
 };
-static struct filterops timer_filtops = {
+static const struct filterops timer_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_timerattach,
 	.f_detach = filt_timerdetach,
 	.f_event = filt_timer,
 	.f_touch = filt_timertouch,
 };
-static struct filterops user_filtops = {
+static const struct filterops user_filtops = {
 	.f_attach = filt_userattach,
 	.f_detach = filt_userdetach,
 	.f_event = filt_user,
@@ -327,14 +327,14 @@ filt_nullattach(struct knote *kn)
 	return (ENXIO);
 };
 
-struct filterops null_filtops = {
+static const struct filterops null_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_nullattach,
 };
 
 /* XXX - make SYSINIT to add these, and move into respective modules. */
-extern struct filterops sig_filtops;
-extern struct filterops fs_filtops;
+extern const struct filterops sig_filtops;
+extern const struct filterops fs_filtops;
 
 /*
  * Table for all system-defined filters.
@@ -346,19 +346,19 @@ static struct {
 	int for_nolock;
 	int for_refcnt;
 } sysfilt_ops[EVFILT_SYSCOUNT] = {
-	{ &file_filtops, 1 },			/* EVFILT_READ */
-	{ &file_filtops, 1 },			/* EVFILT_WRITE */
-	{ &null_filtops },			/* EVFILT_AIO */
-	{ &file_filtops, 1 },			/* EVFILT_VNODE */
-	{ &proc_filtops, 1 },			/* EVFILT_PROC */
-	{ &sig_filtops, 1 },			/* EVFILT_SIGNAL */
-	{ &timer_filtops, 1 },			/* EVFILT_TIMER */
-	{ &file_filtops, 1 },			/* EVFILT_PROCDESC */
-	{ &fs_filtops, 1 },			/* EVFILT_FS */
-	{ &null_filtops },			/* EVFILT_LIO */
-	{ &user_filtops, 1 },			/* EVFILT_USER */
-	{ &null_filtops },			/* EVFILT_SENDFILE */
-	{ &file_filtops, 1 },                   /* EVFILT_EMPTY */
+	[~EVFILT_READ] = { &file_filtops, 1 },
+	[~EVFILT_WRITE] = { &file_filtops, 1 },
+	[~EVFILT_AIO] = { &null_filtops },
+	[~EVFILT_VNODE] = { &file_filtops, 1 },
+	[~EVFILT_PROC] = { &proc_filtops, 1 },
+	[~EVFILT_SIGNAL] = { &sig_filtops, 1 },
+	[~EVFILT_TIMER] = { &timer_filtops, 1 },
+	[~EVFILT_PROCDESC] = { &file_filtops, 1 },
+	[~EVFILT_FS] = { &fs_filtops, 1 },
+	[~EVFILT_LIO] = { &null_filtops },
+	[~EVFILT_USER] = { &user_filtops, 1 },
+	[~EVFILT_SENDFILE] = { &null_filtops },
+	[~EVFILT_EMPTY] = { &file_filtops, 1 },
 };
 
 /*

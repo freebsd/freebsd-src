@@ -1,0 +1,46 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024, Baptiste Daroussin <bapt@FreeBSD.org>
+.\"
+.Dd September 6, 2024
+.Dt FREEBSD.SYS.LINKER 3lua
+.Os
+.Sh NAME
+.Nm freebsd.sys.linker
+.Nd Lua binding to
+.Fx 's
+Linker functions
+.Sh SYNOPSIS
+.Bd -literal
+local linker = require('freebsd.sys.linker')
+.Ed
+.Pp
+.Bl -tag -width XXXX -compact
+.It Dv fileid, err, errno = linker.kldload(name)
+.It Dv ok, err, errno = linker.kldunload(fileid|name)
+.El
+.Sh DESCRIPTION
+The
+.Nm
+module is a binding to the
+.Fx 's
+linker functions.
+List of functions:
+.Bl -tag -width XXXX
+.It Dv fileid, err = freebsd.sys.linker.kldload(name)
+Load the kernel module named
+.Fa name
+and return the identifier
+.Pq fileid
+as an interger.
+.It Dv ok, err, errno = freebsd.sys.linker.kldunload(fileid|name)
+Unload the kernel module identifier either by
+.Fa name
+as a string, or
+.Fa fileid
+as an integer.
+.El
+.Sh SEE ALSO
+.Xr kldload 2 ,
+.Xr kldunload 2

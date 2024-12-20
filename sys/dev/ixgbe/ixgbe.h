@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
   SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2001-2017, Intel Corporation
@@ -30,7 +30,7 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-******************************************************************************/
+*****************************************************************************/
 
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
@@ -433,6 +433,10 @@ struct ixgbe_softc {
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;
+
+	/* Firmware error check */
+	int			recovery_mode;
+	struct callout		fw_mode_timer;
 
 	/* Misc stats maintained by the driver */
 	unsigned long		dropped_pkts;

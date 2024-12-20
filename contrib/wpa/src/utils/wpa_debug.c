@@ -596,13 +596,21 @@ int wpa_debug_open_file(const char *path)
 }
 
 
-void wpa_debug_close_file(void)
+void wpa_debug_stop_log(void)
 {
 #ifdef CONFIG_DEBUG_FILE
 	if (!out_file)
 		return;
 	fclose(out_file);
 	out_file = NULL;
+#endif /* CONFIG_DEBUG_FILE */
+}
+
+
+void wpa_debug_close_file(void)
+{
+#ifdef CONFIG_DEBUG_FILE
+	wpa_debug_stop_log();
 	os_free(last_path);
 	last_path = NULL;
 #endif /* CONFIG_DEBUG_FILE */

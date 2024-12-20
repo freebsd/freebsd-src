@@ -1,7 +1,8 @@
-/*	$Id: tbl_html.c,v 1.38 2021/09/09 16:52:52 schwarze Exp $ */
+/* $Id: tbl_html.c,v 1.41 2022/04/23 14:02:17 schwarze Exp $ */
 /*
+ * Copyright (c) 2014, 2015, 2017, 2018, 2021, 2022
+ *               Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014,2015,2017,2018,2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
 #include "mandoc.h"
 #include "roff.h"
 #include "tbl.h"
@@ -134,7 +138,7 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 	 */
 
 	if (sp->pos != TBL_SPAN_DATA)
-		return;
+		goto out;
 
 	/* Inhibit printing of spaces: we do padding ourselves. */
 
@@ -247,7 +251,9 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 		if (dp->layout->pos == TBL_CELL_HORIZ ||
 		    dp->layout->pos == TBL_CELL_DHORIZ ||
 		    dp->pos == TBL_DATA_HORIZ ||
-		    dp->pos == TBL_DATA_DHORIZ)
+		    dp->pos == TBL_DATA_NHORIZ ||
+		    dp->pos == TBL_DATA_DHORIZ ||
+		    dp->pos == TBL_DATA_NDHORIZ)
 			print_otag(h, TAG_HR, "");
 		else if (dp->string != NULL) {
 			save_font = h->metac;
@@ -284,6 +290,7 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 
 	h->flags &= ~HTML_NONOSPACE;
 
+out:
 	if (sp->next == NULL) {
 		assert(h->tbl.cols);
 		free(h->tbl.cols);

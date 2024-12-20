@@ -800,6 +800,21 @@ s_flag_body()
 	done
 }
 
+atf_test_case scomma_flag
+scomma_flag_head()
+{
+	atf_set "descr" "Verify that -s, prints out the size with ',' delimiters"
+}
+
+scomma_flag_body()
+{
+	export LC_ALL=en_US.UTF-8
+	atf_check -e ignore dd if=/dev/urandom of=file bs=65536 count=64
+	blocks=$(stat -f "%b" file)
+	cblocks=$(printf "%'d" $blocks)
+	atf_check -e empty -o match:"$cblocks[[:space:]]+file" ls -s, file
+}
+
 atf_test_case t_flag
 t_flag_head()
 {
@@ -972,6 +987,7 @@ atf_init_test_cases()
 	atf_add_test_case q_flag_and_w_flag
 	atf_add_test_case r_flag
 	atf_add_test_case s_flag
+	atf_add_test_case scomma_flag
 	atf_add_test_case t_flag
 	atf_add_test_case u_flag
 	atf_add_test_case v_flag

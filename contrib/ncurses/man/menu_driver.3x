@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,22 +27,24 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.28 2020/12/19 21:33:37 tom Exp $
-.TH menu_driver 3X ""
+.\" $Id: menu_driver.3x,v 1.47 2024/03/16 15:35:01 tom Exp $
+.TH menu_driver 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
 ..
 .SH NAME
-\fBmenu_driver\fR \- command-processing loop of the menu system
+\fBmenu_driver\fP \-
+command-processing loop of the menu system
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint menu_driver(MENU *\fP\fImenu\fP\fB, int \fP\fIc\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint menu_driver(MENU *\fImenu\fP, int \fIc\fP);
+.fi
 .SH DESCRIPTION
 Once a menu has been posted (displayed), you should funnel input events to it
-through \fBmenu_driver\fR.  This routine has three major input cases:
+through \fBmenu_driver\fP.  This routine has three major input cases:
 .bP
 The input is a form navigation request.
 Navigation request codes are constants defined in \fB<form.h>\fP,
@@ -111,13 +113,12 @@ Move to the previous item matching the pattern match.
 If the second argument is a printable character, the code appends
 it to the pattern buffer and attempts to move to the next item matching
 the new pattern.
-If there is no such match, \fBmenu_driver\fR returns
-\fBE_NO_MATCH\fR and deletes the appended character from the buffer.
+If there is no such match, \fBmenu_driver\fP returns
+\fBE_NO_MATCH\fP and deletes the appended character from the buffer.
 .PP
 If the second argument is one of the above pre-defined requests, the
 corresponding action is performed.
-.SS MOUSE HANDLING
-.PP
+.SS "Mouse Handling"
 If the second argument is the KEY_MOUSE special key, the associated
 mouse event is translated into one of the above pre-defined requests.
 Currently only clicks in the user window (e.g., inside the menu display
@@ -144,7 +145,7 @@ If you click at an item inside the display area of the menu:
 the menu cursor is positioned to that item.
 .bP
 If you double-click an item a REQ_TOGGLE_ITEM
-is generated and \fBE_UNKNOWN_COMMAND\fR is returned.
+is generated and \fBE_UNKNOWN_COMMAND\fP is returned.
 This return value makes sense,
 because a double click usually means that an item-specific action should
 be returned.
@@ -152,27 +153,26 @@ It is exactly the purpose of this return value to signal that an
 application specific command should be executed.
 .bP
 If a translation
-into a request was done, \fBmenu_driver\fR returns the result of this request.
+into a request was done, \fBmenu_driver\fP returns the result of this request.
 .PP
 If you clicked outside the user window
 or the mouse event could not be translated
-into a menu request an \fBE_REQUEST_DENIED\fR is returned.
-.SS APPLICATION-DEFINED COMMANDS
-.PP
+into a menu request an \fBE_REQUEST_DENIED\fP is returned.
+.SS "Application-defined Commands"
 If the second argument is neither printable nor one of the above
 pre-defined menu requests or KEY_MOUSE,
 the drive assumes it is an application-specific
-command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
-should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
+command and returns \fBE_UNKNOWN_COMMAND\fP.  Application-defined commands
+should be defined relative to \fBMAX_COMMAND\fP, the maximum value of these
 pre-defined requests.
 .SH RETURN VALUE
-\fBmenu_driver\fR return one of the following error codes:
+\fBmenu_driver\fP return one of the following error codes:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
+System error occurred (see \fBerrno\fP(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
@@ -191,18 +191,15 @@ Character failed to match.
 .TP 5
 .B E_REQUEST_DENIED
 The menu driver could not process the request.
-.SH SEE ALSO
-\fBcurses\fR(3X),
-\fBgetch\fR(3X),
-\fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header files
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
 Version 7 or BSD versions.
-The support for mouse events is ncurses specific.
+The support for mouse events is \fI\%ncurses\fP specific.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%getch\fP(3X),
+\fB\%menu\fP(3X)

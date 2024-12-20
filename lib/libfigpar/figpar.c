@@ -27,7 +27,6 @@
 #include <sys/param.h>
 
 #include <ctype.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <stdlib.h>
@@ -161,11 +160,11 @@ parse_config(struct figpar_config options[], const char *path,
 		}
 
 		/* Get the current offset */
-		curpos = lseek(fd, 0, SEEK_CUR) - 1;
-		if (curpos == -1) {
+		if ((curpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 			close(fd);
 			return (-1);
 		}
+		curpos--;
 
 		/* Find the length of the directive */
 		for (n = 0; r != 0; n++) {
@@ -187,8 +186,7 @@ parse_config(struct figpar_config options[], const char *path,
 		}
 
 		/* Go back to the beginning of the directive */
-		error = (int)lseek(fd, curpos, SEEK_SET);
-		if (error == (curpos - 1)) {
+		if (lseek(fd, curpos, SEEK_SET) == -1) {
 			close(fd);
 			return (-1);
 		}
@@ -246,11 +244,11 @@ parse_config(struct figpar_config options[], const char *path,
 		}
 
 		/* Get the current offset */
-		curpos = lseek(fd, 0, SEEK_CUR) - 1;
-		if (curpos == -1) {
+		if ((curpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 			close(fd);
 			return (-1);
 		}
+		curpos--;
 
 		/* Find the end of the value */
 		quote = 0;
@@ -268,19 +266,18 @@ parse_config(struct figpar_config options[], const char *path,
 			 */
 
 			/* Get the current offset */
-			charpos = lseek(fd, 0, SEEK_CUR) - 1;
-			if (charpos == -1) {
+			if ((charpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 				close(fd);
 				return (-1);
 			}
+			charpos--;
 
 			/*
 			 * Go back so we can read the character before the key
 			 * to check if the character is escaped (which means we
 			 * should continue).
 			 */
-			error = (int)lseek(fd, -2, SEEK_CUR);
-			if (error == -3) {
+			if (lseek(fd, -2, SEEK_CUR) == -1) {
 				close(fd);
 				return (-1);
 			}
@@ -292,8 +289,7 @@ parse_config(struct figpar_config options[], const char *path,
 			 */
 			for (n = 1; *p == '\\'; n++) {
 				/* Move back another offset to read */
-				error = (int)lseek(fd, -2, SEEK_CUR);
-				if (error == -3) {
+				if (lseek(fd, -2, SEEK_CUR) == -1) {
 					close(fd);
 					return (-1);
 				}
@@ -301,8 +297,7 @@ parse_config(struct figpar_config options[], const char *path,
 			}
 
 			/* Move offset back to the key and read it */
-			error = (int)lseek(fd, charpos, SEEK_SET);
-			if (error == (charpos - 1)) {
+			if (lseek(fd, charpos, SEEK_SET) == -1) {
 				close(fd);
 				return (-1);
 			}
@@ -353,8 +348,7 @@ parse_config(struct figpar_config options[], const char *path,
 		}
 
 		/* Get the current offset */
-		charpos = lseek(fd, 0, SEEK_CUR) - 1;
-		if (charpos == -1) {
+		if ((charpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 			close(fd);
 			return (-1);
 		}
@@ -365,8 +359,7 @@ parse_config(struct figpar_config options[], const char *path,
 			n--;
 
 		/* Move offset back to the beginning of the value */
-		error = (int)lseek(fd, curpos, SEEK_SET);
-		if (error == (curpos - 1)) {
+		if (lseek(fd, curpos, SEEK_SET) == -1) {
 			close(fd);
 			return (-1);
 		}

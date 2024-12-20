@@ -84,7 +84,6 @@ struct pcm_channel {
 	kobj_t methods;
 
 	pid_t pid;
-	int refcount;
 	struct pcm_feeder *feeder;
 	u_int32_t align;
 
@@ -118,6 +117,8 @@ struct pcm_channel {
 	 * lock.
 	 */
 	unsigned int inprog;
+	/* Incrememnt/decrement around cv_timedwait_sig() in chn_sleep(). */
+	unsigned int sleeping;
 	/**
 	 * Special channel operations should examine @c inprog after acquiring
 	 * lock.  If zero, operations may continue.  Else, thread should
@@ -167,8 +168,6 @@ struct pcm_channel {
 
 	int16_t volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
   	int8_t muted[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
-
-	void *data1, *data2;
 };
 
 #define CHN_HEAD(x, y)			&(x)->y.head
@@ -225,7 +224,8 @@ struct pcm_channel {
 #define CHN_INSERT_SORT(w, x, y, z)		do {			\
 	struct pcm_channel *t, *a = NULL;				\
 	CHN_FOREACH(t, x, z) {						\
-		if ((y)->type w t->type)				\
+		if (((y)->type w t->type) ||				\
+		    (((y)->type == t->type) && ((y)->unit w t->unit)))	\
 			a = t;						\
 		else							\
 			break;						\
@@ -236,18 +236,13 @@ struct pcm_channel {
 		CHN_INSERT_HEAD(x, y, z);				\
 } while (0)
 
-#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>=, x, y, z)
+#define CHN_INSERT_SORT_ASCEND(x, y, z)		CHN_INSERT_SORT(>, x, y, z)
 #define CHN_INSERT_SORT_DESCEND(x, y, z)	CHN_INSERT_SORT(<, x, y, z)
 
 #define CHN_BUF_PARENT(x, y)						\
 	(((x) != NULL && (x)->parentchannel != NULL &&			\
 	(x)->parentchannel->bufhard != NULL) ?				\
 	(x)->parentchannel->bufhard : (y))
-
-#define CHN_BROADCAST(x)	do {					\
-	if ((x)->cv_waiters != 0)					\
-		cv_broadcastpri(x, PRIBIO);				\
-} while (0)
 
 #include "channel_if.h"
 
@@ -259,12 +254,12 @@ int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
+char *chn_mkname(char *buf, size_t len, struct pcm_channel *c);
 struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
     kobj_class_t cls, int dir, void *devinfo);
 void chn_kill(struct pcm_channel *c);
 void chn_shutdown(struct pcm_channel *c);
 int chn_release(struct pcm_channel *c);
-int chn_ref(struct pcm_channel *c, int ref);
 int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
@@ -322,6 +317,8 @@ int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
 #define CHN_LOCKASSERT(c)	mtx_assert((c)->lock, MA_OWNED)
 #define CHN_UNLOCKASSERT(c)	mtx_assert((c)->lock, MA_NOTOWNED)
 
+#define CHN_BROADCAST(x)	cv_broadcastpri(x, PRIBIO)
+
 int snd_fmtvalid(uint32_t fmt, uint32_t *fmtlist);
 
 uint32_t snd_str2afmt(const char *);
@@ -334,10 +331,12 @@ extern int chn_latency_profile;
 extern int report_soft_formats;
 extern int report_soft_matrix;
 
-#define PCMDIR_PLAY		1
-#define PCMDIR_PLAY_VIRTUAL	2
-#define PCMDIR_REC		-1
-#define PCMDIR_REC_VIRTUAL	-2
+enum {
+	PCMDIR_PLAY = 1,
+	PCMDIR_PLAY_VIRTUAL,
+	PCMDIR_REC,
+	PCMDIR_REC_VIRTUAL,
+};
 
 #define PCMTRIG_START 1
 #define PCMTRIG_EMLDMAWR 2
@@ -354,7 +353,7 @@ extern int report_soft_matrix;
 #define CHN_F_RUNNING		0x00000004  /* dma is running */
 #define CHN_F_TRIGGERED		0x00000008
 #define CHN_F_NOTRIGGER		0x00000010
-#define CHN_F_SLEEPING		0x00000020
+/* unused			0x00000020 */
 
 #define CHN_F_NBIO              0x00000040  /* do non-blocking i/o */
 #define CHN_F_MMAP		0x00000080  /* has been mmap()ed */
@@ -362,7 +361,7 @@ extern int report_soft_matrix;
 #define CHN_F_BUSY              0x00000100  /* has been opened 	*/
 #define CHN_F_DIRTY		0x00000200  /* need re-config */
 #define CHN_F_DEAD		0x00000400  /* too many errors, dead, mdk */
-#define CHN_F_SILENCE		0x00000800  /* silence, nil, null, yada */
+/* unused			0x00000800 */
 
 #define	CHN_F_HAS_SIZE		0x00001000  /* user set block size */
 #define CHN_F_HAS_VCHAN		0x00002000  /* vchan master */
@@ -382,13 +381,13 @@ extern int report_soft_matrix;
 				"\003RUNNING"				\
 				"\004TRIGGERED"				\
 				"\005NOTRIGGER"				\
-				"\006SLEEPING"				\
+				/* \006 */				\
 				"\007NBIO"				\
 				"\010MMAP"				\
 				"\011BUSY"				\
 				"\012DIRTY"				\
 				"\013DEAD"				\
-				"\014SILENCE"				\
+				/* \014 */				\
 				"\015HAS_SIZE"				\
 				"\016HAS_VCHAN"				\
 				"\017VCHAN_PASSTHROUGH"			\

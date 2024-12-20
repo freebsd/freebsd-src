@@ -1,4 +1,3 @@
-
 PROG=	iblinkinfo
 SRCS=	iblinkinfo.c
 LIBADD= ibnetdisc

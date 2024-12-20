@@ -147,10 +147,11 @@ static __inline void
 chd_window_decrease(struct cc_var *ccv)
 {
 	unsigned long win;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
-	win = min(CCV(ccv, snd_wnd), CCV(ccv, snd_cwnd)) / CCV(ccv, t_maxseg);
+	win = min(CCV(ccv, snd_wnd), CCV(ccv, snd_cwnd)) / mss;
 	win -= max((win / 2), 1);
-	CCV(ccv, snd_ssthresh) = max(win, 2) * CCV(ccv, t_maxseg);
+	CCV(ccv, snd_ssthresh) = max(win, 2) * mss;
 }
 
 /*
@@ -190,6 +191,7 @@ chd_window_increase(struct cc_var *ccv, int new_measurement)
 {
 	struct chd *chd_data;
 	int incr;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	chd_data = ccv->cc_data;
 	incr = 0;
@@ -201,23 +203,22 @@ chd_window_increase(struct cc_var *ccv, int new_measurement)
 			if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max)) {
 				/* Not due to RTO. */
 				incr = min(ccv->bytes_this_ack,
-				    V_tcp_abc_l_var * CCV(ccv, t_maxseg));
+				    V_tcp_abc_l_var * mss);
 			} else {
 				/* Due to RTO. */
-				incr = min(ccv->bytes_this_ack,
-				    CCV(ccv, t_maxseg));
+				incr = min(ccv->bytes_this_ack, mss);
 			}
 		} else
-			incr = CCV(ccv, t_maxseg);
+			incr = mss;
 
 	} else { /* Congestion avoidance. */
 		if (V_tcp_do_rfc3465) {
 			if (ccv->flags & CCF_ABC_SENTAWND) {
 				ccv->flags &= ~CCF_ABC_SENTAWND;
-				incr = CCV(ccv, t_maxseg);
+				incr = mss;
 			}
 		} else if (new_measurement)
-			incr = CCV(ccv, t_maxseg);
+			incr = mss;
 	}
 
 	if (chd_data->shadow_w > 0) {
@@ -322,7 +323,7 @@ chd_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct chd *chd_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		chd_data = malloc(sizeof(struct chd), M_CC_MEM, M_NOWAIT);
 		if (chd_data == NULL)
@@ -380,8 +381,9 @@ chd_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 		}
 
 		if (chd_data->shadow_w > 0) {
+			uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 			chd_data->shadow_w = max(chd_data->shadow_w /
-			    CCV(ccv, t_maxseg) / 2, 2) * CCV(ccv, t_maxseg);
+			    mss / 2, 2) * mss;
 		}
 		ENTER_FASTRECOVERY(CCV(ccv, t_flags));
 		break;

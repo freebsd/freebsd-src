@@ -27,9 +27,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dtrace_impl.h>
 #include <sys/kernel.h>
+#include <sys/msan.h>
 #include <sys/stack.h>
 #include <sys/pcpu.h>
+
+#include <cddl/dev/dtrace/dtrace_cddl.h>
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -70,6 +74,8 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	frame = (struct amd64_frame *)rbp;
 	td = curthread;
 	while (depth < pcstack_limit) {
+		kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 		if (!kstack_contains(curthread, (vm_offset_t)frame,
 		    sizeof(*frame)))
 			break;
@@ -96,6 +102,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	for (; depth < pcstack_limit; depth++) {
 		pcstack[depth] = 0;
 	}
+	kmsan_check(pcstack, pcstack_limit * sizeof(*pcstack), "dtrace");
 }
 
 static int
@@ -354,6 +361,7 @@ zero:
 uint64_t
 dtrace_getarg(int arg, int aframes)
 {
+	struct thread *td;
 	uintptr_t val;
 	struct amd64_frame *fp = (struct amd64_frame *)dtrace_getfp();
 	uintptr_t *stack;
@@ -365,55 +373,39 @@ dtrace_getarg(int arg, int aframes)
 	 */
 	int inreg = 5;
 
-	for (i = 1; i <= aframes; i++) {
-		fp = fp->f_frame;
+	/*
+	 * Did we arrive here via dtrace_invop()?  We can simply fetch arguments
+	 * from the trap frame if so.
+	 */
+	td = curthread;
+	if (td->t_dtrace_trapframe != NULL) {
+		struct trapframe *tf = td->t_dtrace_trapframe;
 
-		if (P2ROUNDUP(fp->f_retaddr, 16) ==
-		    (long)dtrace_invop_callsite) {
-			/*
-			 * In the case of amd64, we will use the pointer to the
-			 * regs structure that was pushed when we took the
-			 * trap.  To get this structure, we must increment
-			 * beyond the frame structure, and then again beyond
-			 * the calling RIP stored in dtrace_invop().  If the
-			 * argument that we're seeking is passed on the stack,
-			 * we'll pull the true stack pointer out of the saved
-			 * registers and decrement our argument by the number
-			 * of arguments passed in registers; if the argument
-			 * we're seeking is passed in registers, we can just
-			 * load it directly.
-			 */
-			struct trapframe *tf = (struct trapframe *)&fp[1];
-
-			if (arg <= inreg) {
-				switch (arg) {
-				case 0:
-					stack = (uintptr_t *)&tf->tf_rdi;
-					break;
-				case 1:
-					stack = (uintptr_t *)&tf->tf_rsi;
-					break;
-				case 2:
-					stack = (uintptr_t *)&tf->tf_rdx;
-					break;
-				case 3:
-					stack = (uintptr_t *)&tf->tf_rcx;
-					break;
-				case 4:
-					stack = (uintptr_t *)&tf->tf_r8;
-					break;
-				case 5:
-					stack = (uintptr_t *)&tf->tf_r9;
-					break;
-				}
-				arg = 0;
-			} else {
-				stack = (uintptr_t *)(tf->tf_rsp);
-				arg -= inreg;
+		if (arg <= inreg) {
+			switch (arg) {
+			case 0:
+				return (tf->tf_rdi);
+			case 1:
+				return (tf->tf_rsi);
+			case 2:
+				return (tf->tf_rdx);
+			case 3:
+				return (tf->tf_rcx);
+			case 4:
+				return (tf->tf_r8);
+			case 5:
+				return (tf->tf_r9);
 			}
-			goto load;
 		}
 
+		arg -= inreg;
+		stack = (uintptr_t *)tf->tf_rsp;
+		goto load;
+	}
+
+	for (i = 1; i <= aframes; i++) {
+		kmsan_mark(fp, sizeof(*fp), KMSAN_STATE_INITED);
+		fp = fp->f_frame;
 	}
 
 	/*
@@ -444,6 +436,8 @@ load:
 	val = stack[arg];
 	DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 
+	kmsan_mark(&val, sizeof(val), KMSAN_STATE_INITED);
+
 	return (val);
 }
 
@@ -458,10 +452,13 @@ dtrace_getstackdepth(int aframes)
 	rbp = dtrace_getfp();
 	frame = (struct amd64_frame *)rbp;
 	depth++;
-	for(;;) {
+	for (;;) {
+		kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 		if (!kstack_contains(curthread, (vm_offset_t)frame,
 		    sizeof(*frame)))
 			break;
+
 		depth++;
 		if (frame->f_frame <= frame)
 			break;
@@ -588,76 +585,100 @@ void
 dtrace_copyin(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
 		dtrace_copy(uaddr, kaddr, size);
+		kmsan_mark((void *)kaddr, size, KMSAN_STATE_INITED);
+	}
 }
 
 void
 dtrace_copyout(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		kmsan_check((void *)kaddr, size, "dtrace_copyout");
 		dtrace_copy(kaddr, uaddr, size);
+	}
 }
 
 void
 dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
 		dtrace_copystr(uaddr, kaddr, size, flags);
+		kmsan_mark((void *)kaddr, size, KMSAN_STATE_INITED);
+	}
 }
 
 void
 dtrace_copyoutstr(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		kmsan_check((void *)kaddr, size, "dtrace_copyoutstr");
 		dtrace_copystr(kaddr, uaddr, size, flags);
+	}
 }
 
 uint8_t
 dtrace_fuword8(void *uaddr)
 {
+	uint8_t val;
+
 	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword8_nocheck(uaddr));
+	val = dtrace_fuword8_nocheck(uaddr);
+	kmsan_mark(&val, sizeof(val), KMSAN_STATE_INITED);
+	return (val);
 }
 
 uint16_t
 dtrace_fuword16(void *uaddr)
 {
+	uint16_t val;
+
 	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword16_nocheck(uaddr));
+	val = dtrace_fuword16_nocheck(uaddr);
+	kmsan_mark(&val, sizeof(val), KMSAN_STATE_INITED);
+	return (val);
 }
 
 uint32_t
 dtrace_fuword32(void *uaddr)
 {
+	uint32_t val;
+
 	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword32_nocheck(uaddr));
+	val = dtrace_fuword32_nocheck(uaddr);
+	kmsan_mark(&val, sizeof(val), KMSAN_STATE_INITED);
+	return (val);
 }
 
 uint64_t
 dtrace_fuword64(void *uaddr)
 {
+	uint64_t val;
+
 	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword64_nocheck(uaddr));
+	val = dtrace_fuword64_nocheck(uaddr);
+	kmsan_mark(&val, sizeof(val), KMSAN_STATE_INITED);
+	return (val);
 }
 
 /*

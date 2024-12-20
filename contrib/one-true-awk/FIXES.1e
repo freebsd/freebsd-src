@@ -224,7 +224,7 @@ January 9, 2020:
 	mere warnings. Thanks to Martijn Dekker <martijn@inlv.org>.
 
 January 5, 2020:
-	Fix a bug in the concatentation of two string constants into
+	Fix a bug in the concatenation of two string constants into
 	one done in the grammar.  Fixes GitHub issue #61.  Thanks
 	to GitHub user awkfan77 for pointing out the direction for
 	the fix.  New test T.concat added to the test suite.
@@ -866,7 +866,7 @@ Jan 13, 1999:
 	added a few (int) casts to silence useless compiler warnings.
 	e.g., errorflag= in run.c jump().
 
-	added proctab.c to the bundle outout; one less thing
+	added proctab.c to the bundle output; one less thing
 	to have to compile out of the box.
 
 	added calls to _popen and _pclose to the win95 stub for

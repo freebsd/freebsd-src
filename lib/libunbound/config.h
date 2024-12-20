@@ -1,6 +1,9 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* apply the fallthrough attribute. */
+#define ATTR_FALLTHROUGH __attribute__((fallthrough));
+
 /* apply the noreturn attribute to a function that exits the program */
 #define ATTR_NORETURN __attribute__((__noreturn__))
 
@@ -32,9 +35,6 @@
 /* Deprecate RSA 1024 bit length, makes that an unsupported key */
 /* #undef DEPRECATE_RSA_1024 */
 
-/* Deprecate RSA 1024 bit length, makes that an unsupported key */
-/* #undef DEPRECATE_RSA_1024 */
-
 /* Define this to enable kernel based UDP source port randomization. */
 /* #undef DISABLE_EXPLICIT_PORT_RANDOMISATION */
 
@@ -60,6 +60,9 @@
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
+
+/* Whether the C compiler accepts the "fallthrough" attribute */
+#define HAVE_ATTR_FALLTHROUGH 1
 
 /* Whether the C compiler accepts the "format" attribute */
 #define HAVE_ATTR_FORMAT 1
@@ -793,7 +796,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.20.0"
+#define PACKAGE_STRING "unbound 1.22.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -802,7 +805,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.20.0"
+#define PACKAGE_VERSION "1.22.0"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -825,7 +828,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,20,0,0
+#define RSRC_PACKAGE_VERSION 1,22,0,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -1536,6 +1539,8 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 #define UNBOUND_DNS_OVER_TLS_PORT 853
 /** default port for DNS over HTTPS traffic. */
 #define UNBOUND_DNS_OVER_HTTPS_PORT 443
+/** default port for DNS over QUIC traffic. */
+#define UNBOUND_DNS_OVER_QUIC_PORT 853
 /** default port for unbound control traffic, registered port with IANA,
     ub-dns-control  8953/tcp    unbound dns nameserver control */
 #define UNBOUND_CONTROL_PORT 8953

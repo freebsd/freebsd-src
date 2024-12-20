@@ -74,7 +74,7 @@ static struct cdevsw log_cdevsw = {
 static int	logkqread(struct knote *note, long hint);
 static void	logkqdetach(struct knote *note);
 
-static struct filterops log_read_filterops = {
+static const struct filterops log_read_filterops = {
 	.f_isfd =	1,
 	.f_attach =	NULL,
 	.f_detach =	logkqdetach,

@@ -626,8 +626,9 @@ isp_free_pcmd(ispsoftc_t *isp, union ccb *ccb)
  */
 #ifdef	ISP_TARGET_MODE
 static ISP_INLINE tstate_t *get_lun_statep(ispsoftc_t *, int, lun_id_t);
-static atio_private_data_t *isp_get_atpd(ispsoftc_t *, int, uint32_t);
+static atio_private_data_t *isp_get_atpd(ispsoftc_t *, int, uint32_t, void *);
 static atio_private_data_t *isp_find_atpd(ispsoftc_t *, int, uint32_t);
+static atio_private_data_t *isp_find_atpd_ccb(ispsoftc_t *, int, uint32_t, void *);
 static void isp_put_atpd(ispsoftc_t *, int, atio_private_data_t *);
 static inot_private_data_t *isp_get_ntpd(ispsoftc_t *, int);
 static inot_private_data_t *isp_find_ntpd(ispsoftc_t *, int, uint32_t, uint32_t);
@@ -715,7 +716,7 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 }
 
 static atio_private_data_t *
-isp_get_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
+isp_get_atpd(ispsoftc_t *isp, int chan, uint32_t tag, void *ccb)
 {
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	atio_private_data_t *atp;
@@ -723,6 +724,7 @@ isp_get_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 	atp = LIST_FIRST(&fc->atfree);
 	if (atp) {
 		LIST_REMOVE(atp, next);
+		atp->ccb = ccb;
 		atp->tag = tag;
 		LIST_INSERT_HEAD(&fc->atused[ATPDPHASH(tag)], atp, next);
 	}
@@ -737,6 +739,23 @@ isp_find_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 
 	LIST_FOREACH(atp, &fc->atused[ATPDPHASH(tag)], next) {
 		if (atp->tag == tag)
+			return (atp);
+	}
+	return (NULL);
+}
+
+/*
+ * Similar to above, but in addition to tag searches for opaque CCB pointer,
+ * It can be used in situations when the tag alone may already be reused.
+ */
+static atio_private_data_t *
+isp_find_atpd_ccb(ispsoftc_t *isp, int chan, uint32_t tag, void *ccb)
+{
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+	atio_private_data_t *atp;
+
+	LIST_FOREACH(atp, &fc->atused[ATPDPHASH(tag)], next) {
+		if (atp->tag == tag && atp->ccb == ccb)
 			return (atp);
 	}
 	return (NULL);
@@ -963,16 +982,6 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] cannot find private data adjunct in %s", __func__, cso->tag_id, __func__);
 			isp_dump_atpd(isp, XS_CHANNEL(ccb));
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
-			continue;
-		}
-
-		/*
-		 * Is this command a dead duck?
-		 */
-		if (atp->dead) {
-			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] not sending a CTIO for a dead command", __func__, cso->tag_id);
-			ccb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(ccb);
 			continue;
 		}
@@ -1378,7 +1387,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		 */
 		goto noresrc;
 	}
-	atp = isp_get_atpd(isp, chan, aep->at_rxid);
+	atp = isp_get_atpd(isp, chan, aep->at_rxid, atiop);
 	if (atp == NULL) {
 		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
 		isp_endcmd(isp, aep, nphdl, chan, SCSI_BUSY, 0);
@@ -1733,32 +1742,8 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_
 	/*
 	 * This case is for a responding to an ABTS frame
 	 */
-	if (mp->nt_lreserved && ((isphdr_t *)mp->nt_lreserved)->rqs_entry_type == RQSTYPE_ABTS_RCVD) {
-
-		/*
-		 * Overload nt_need_ack here to mark whether we've terminated the associated command.
-		 */
-		if (mp->nt_need_ack) {
-			abts_t *abts = (abts_t *)mp->nt_lreserved;
-
-			ISP_MEMZERO(cto, sizeof (ct7_entry_t));
-			isp_prt(isp, ISP_LOGTDEBUG0, "%s: [%x] terminating after ABTS received", __func__, abts->abts_rxid_task);
-			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
-			cto->ct_header.rqs_entry_count = 1;
-			cto->ct_nphdl = mp->nt_nphdl;
-			cto->ct_rxid = abts->abts_rxid_task;
-			cto->ct_iid_lo = mp->nt_sid;
-			cto->ct_iid_hi = mp->nt_sid >> 16;
-			cto->ct_oxid = abts->abts_ox_id;
-			cto->ct_vpidx = mp->nt_channel;
-			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
-			if (isp_send_entry(isp, cto)) {
-				return (ENOMEM);
-			}
-			mp->nt_need_ack = 0;
-		}
-		return (isp_acknak_abts(isp, mp->nt_lreserved, 0));
-	}
+	if (mp->nt_lreserved && ((isphdr_t *)mp->nt_lreserved)->rqs_entry_type == RQSTYPE_ABTS_RCVD)
+		return (isp_acknak_abts(isp, mp->nt_lreserved, (rsp == 0) ? 0 : EINVAL));
 
 	/*
 	 * General purpose acknowledgement
@@ -1890,36 +1875,24 @@ bad:
 	}
 }
 
+/*
+ * Clean aborted commands pending restart
+ */
 static void
 isp_target_mark_aborted_early(ispsoftc_t *isp, int chan, tstate_t *tptr, uint32_t tag_id)
 {
-	struct isp_fc *fc = ISP_FC_PC(isp, chan);
-	atio_private_data_t *atp;
 	inot_private_data_t *ntp, *tmp;
 	uint32_t this_tag_id;
 
-	/*
-	 * First, clean any commands pending restart
-	 */
 	STAILQ_FOREACH_SAFE(ntp, &tptr->restart_queue, next, tmp) {
 		this_tag_id = ((at7_entry_t *)ntp->data)->at_rxid;
 		if ((uint64_t)tag_id == TAG_ANY || tag_id == this_tag_id) {
+			STAILQ_REMOVE(&tptr->restart_queue, ntp,
+			    inot_private_data, next);
 			isp_endcmd(isp, ntp->data, NIL_HANDLE, chan,
 			    ECMD_TERMINATE, 0);
 			isp_put_ntpd(isp, chan, ntp);
-			STAILQ_REMOVE(&tptr->restart_queue, ntp,
-			    inot_private_data, next);
 		}
-	}
-
-	/*
-	 * Now mark other ones dead as well.
-	 */
-	for (atp = fc->atpool; atp < &fc->atpool[ATPDPSIZE]; atp++) {
-		if (atp->lun != tptr->ts_lun)
-			continue;
-		if ((uint64_t)tag_id == TAG_ANY || atp->tag == tag_id)
-			atp->dead = 1;
 	}
 }
 #endif
@@ -2283,6 +2256,25 @@ isp_kthread(void *arg)
 }
 
 #ifdef	ISP_TARGET_MODE
+static int
+isp_abort_atpd(ispsoftc_t *isp, int chan, atio_private_data_t *atp)
+{
+	uint8_t storage[QENTRY_LEN];
+	ct7_entry_t *cto = (ct7_entry_t *) storage;
+
+	ISP_MEMZERO(cto, sizeof (ct7_entry_t));
+	cto->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
+	cto->ct_header.rqs_entry_count = 1;
+	cto->ct_nphdl = atp->nphdl;
+	cto->ct_vpidx = chan;
+	cto->ct_iid_lo = atp->sid;
+	cto->ct_iid_hi = atp->sid >> 16;
+	cto->ct_rxid = atp->tag;
+	cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
+	cto->ct_oxid = atp->oxid;
+	return (isp_send_entry(isp, cto));
+}
+
 static void
 isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 {
@@ -2308,30 +2300,16 @@ isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 	}
 
 	/* Search for the ATIO among running. */
-	atp = isp_find_atpd(isp, XS_CHANNEL(accb), accb->atio.tag_id);
+	atp = isp_find_atpd_ccb(isp, XS_CHANNEL(accb), accb->atio.tag_id, accb);
 	if (atp != NULL) {
-		/* Send TERMINATE to firmware. */
-		if (!atp->dead) {
-			uint8_t storage[QENTRY_LEN];
-			ct7_entry_t *cto = (ct7_entry_t *) storage;
-
-			ISP_MEMZERO(cto, sizeof (ct7_entry_t));
-			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
-			cto->ct_header.rqs_entry_count = 1;
-			cto->ct_nphdl = atp->nphdl;
-			cto->ct_rxid = atp->tag;
-			cto->ct_iid_lo = atp->sid;
-			cto->ct_iid_hi = atp->sid >> 16;
-			cto->ct_oxid = atp->oxid;
-			cto->ct_vpidx = XS_CHANNEL(accb);
-			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
-			isp_send_entry(isp, cto);
+		if (isp_abort_atpd(isp, XS_CHANNEL(accb), atp)) {
+			ccb->ccb_h.status = CAM_UA_ABORT;
+			return;
 		}
 		isp_put_atpd(isp, XS_CHANNEL(accb), atp);
-		ccb->ccb_h.status = CAM_REQ_CMP;
-	} else {
-		ccb->ccb_h.status = CAM_UA_ABORT;
 	}
+
+	ccb->ccb_h.status = CAM_REQ_CMP;
 }
 
 static void
@@ -2504,6 +2482,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_NOTIFY_ACKNOWLEDGE:		/* notify ack */
 	{
+		atio_private_data_t *atp;
 		inot_private_data_t *ntp;
 
 		/*
@@ -2522,8 +2501,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		if (isp_handle_platform_target_notify_ack(isp, &ntp->nt,
-		    (ccb->ccb_h.flags & CAM_SEND_STATUS) ? ccb->cna2.arg : 0)) {
+
+		/*
+		 * Target should abort all affected CCBs before ACK-ing INOT,
+		 * but if/since it doesn't, add this hack to allow tag reuse.
+		 */
+		uint32_t rsp = (ccb->ccb_h.flags & CAM_SEND_STATUS) ? ccb->cna2.arg : 0;
+		if (ntp->nt.nt_ncode == NT_ABORT_TASK && (rsp & 0xff) == 0 &&
+		    (atp = isp_find_atpd(isp, XS_CHANNEL(ccb), ccb->cna2.seq_id)) != NULL) {
+			if (isp_abort_atpd(isp, XS_CHANNEL(ccb), atp) == 0)
+				isp_put_atpd(isp, XS_CHANNEL(ccb), atp);
+		}
+
+		if (isp_handle_platform_target_notify_ack(isp, &ntp->nt, rsp)) {
 			cam_freeze_devq(ccb->ccb_h.path);
 			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 10, 0);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;

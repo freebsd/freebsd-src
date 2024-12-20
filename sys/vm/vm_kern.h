@@ -69,7 +69,6 @@ extern struct vm_map exec_map_store;
 extern struct vm_map pipe_map_store;
 #define	pipe_map	(&pipe_map_store)
 extern struct vmem *kernel_arena;
-extern struct vmem *kmem_arena;
 extern struct vmem *buffer_arena;
 extern struct vmem *transient_arena;
 extern struct vmem *memguard_arena;

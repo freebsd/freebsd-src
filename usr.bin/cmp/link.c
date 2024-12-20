@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -36,13 +37,14 @@
 
 #include "extern.h"
 
-void
+int
 c_link(const char *file1, off_t skip1, const char *file2, off_t skip2,
     off_t limit)
 {
 	char buf1[PATH_MAX], *p1;
 	char buf2[PATH_MAX], *p2;
-	int dfound, len1, len2;
+	ssize_t len1, len2;
+	int dfound;
 	off_t byte;
 	u_char ch;
 
@@ -85,15 +87,17 @@ c_link(const char *file1, off_t skip1, const char *file2, off_t skip2,
 				else
 					(void)printf("%6lld %3o %3o\n",
 					    (long long)byte, ch, *p2);
-			} else
+			} else {
 				diffmsg(file1, file2, byte, 1, ch, *p2);
-				/* NOTREACHED */
+				return (DIFF_EXIT);
+			}
 		}
 		byte++;
 	}
 
-	if (*p1 || *p2)
+	if (*p1 || *p2) {
 		eofmsg (*p1 ? file2 : file1);
-	if (dfound)
-		exit(DIFF_EXIT);
+		return (DIFF_EXIT);
+	}
+	return (dfound ? DIFF_EXIT : 0);
 }

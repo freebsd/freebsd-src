@@ -67,9 +67,7 @@ struct acpi_hpcib_softc {
     int			ap_addr;	/* device/func of PCI-Host bridge */
 
     ACPI_BUFFER		ap_prt;		/* interrupt routing table */
-#ifdef NEW_PCIB
     struct pcib_host_resources ap_host_res;
-#endif
 };
 
 static int		acpi_pcib_acpi_probe(device_t bus);
@@ -95,19 +93,15 @@ static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    device_t child, int type, int *rid,
 			    rman_res_t start, rman_res_t end, rman_res_t count,
 			    u_int flags);
-#ifdef NEW_PCIB
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 			    device_t child, struct resource *r,
 			    rman_res_t start, rman_res_t end);
-#ifdef PCI_RES_BUS
 static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    device_t child, struct resource *r);
 static int		acpi_pcib_acpi_activate_resource(device_t dev,
 			    device_t child, struct resource *r);
 static int		acpi_pcib_acpi_deactivate_resource(device_t dev,
 			    device_t child, struct resource *r);
-#endif
-#endif
 static int		acpi_pcib_request_feature(device_t pcib, device_t dev,
 			    enum pci_feature feature);
 static bus_dma_tag_t	acpi_pcib_get_dma_tag(device_t bus, device_t child);
@@ -124,20 +118,10 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
-#ifdef NEW_PCIB
     DEVMETHOD(bus_adjust_resource,	acpi_pcib_acpi_adjust_resource),
-#else
-    DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-#endif
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     DEVMETHOD(bus_release_resource,	acpi_pcib_acpi_release_resource),
     DEVMETHOD(bus_activate_resource,	acpi_pcib_acpi_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	acpi_pcib_acpi_deactivate_resource),
-#else
-    DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-    DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-    DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
-#endif
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_get_cpus,		acpi_pcib_get_cpus),
@@ -183,7 +167,6 @@ acpi_pcib_acpi_probe(device_t dev)
     return (0);
 }
 
-#ifdef NEW_PCIB
 static ACPI_STATUS
 acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 {
@@ -252,11 +235,9 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 		case ACPI_IO_RANGE:
 			type = SYS_RES_IOPORT;
 			break;
-#ifdef PCI_RES_BUS
 		case ACPI_BUS_NUMBER_RANGE:
 			type = PCI_RES_BUS;
 			break;
-#endif
 		default:
 			return (AE_OK);
 		}
@@ -290,9 +271,7 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 	}
 	return (AE_OK);
 }
-#endif
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static bool
 get_decoded_bus_range(struct acpi_hpcib_softc *sc, rman_res_t *startp,
     rman_res_t *endp)
@@ -306,63 +285,6 @@ get_decoded_bus_range(struct acpi_hpcib_softc *sc, rman_res_t *startp,
 	*endp = rle->end;
 	return (true);
 }
-#endif
-
-static int
-acpi_pcib_osc(struct acpi_hpcib_softc *sc, uint32_t osc_ctl)
-{
-	ACPI_STATUS status;
-	uint32_t cap_set[3];
-
-	static uint8_t pci_host_bridge_uuid[ACPI_UUID_LENGTH] = {
-		0x5b, 0x4d, 0xdb, 0x33, 0xf7, 0x1f, 0x1c, 0x40,
-		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
-	};
-
-	/*
-	 * Don't invoke _OSC if a control is already granted.
-	 * However, always invoke _OSC during attach when 0 is passed.
-	 */
-	if (osc_ctl != 0 && (sc->ap_osc_ctl & osc_ctl) == osc_ctl)
-		return (0);
-
-	/* Support Field: Extended PCI Config Space, PCI Segment Groups, MSI */
-	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
-	    PCIM_OSC_SUPPORT_SEG_GROUP | PCIM_OSC_SUPPORT_MSI;
-	/* Active State Power Management, Clock Power Management Capability */
-	if (pci_enable_aspm)
-		cap_set[PCI_OSC_SUPPORT] |= PCIM_OSC_SUPPORT_ASPM |
-		    PCIM_OSC_SUPPORT_CPMC;
-
-	/* Control Field */
-	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl | osc_ctl;
-
-	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
-	    nitems(cap_set), cap_set, cap_set, false);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
-			sc->ap_osc_ctl |= osc_ctl;
-			return (0);
-		}
-		device_printf(sc->ap_dev, "_OSC failed: %s\n",
-		    AcpiFormatException(status));
-		return (EIO);
-	}
-
-	/*
-	 * _OSC may return an error in the status word, but will
-	 * update the control mask always.  _OSC should not revoke
-	 * previously-granted controls.
-	 */
-	if ((cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) != sc->ap_osc_ctl)
-		device_printf(sc->ap_dev, "_OSC revoked %#x\n",
-		    (cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) ^ sc->ap_osc_ctl);
-	sc->ap_osc_ctl = cap_set[PCI_OSC_CTL];
-	if ((sc->ap_osc_ctl & osc_ctl) != osc_ctl)
-		return (EIO);
-
-	return (0);
-}
 
 static int
 acpi_pcib_acpi_attach(device_t dev)
@@ -371,11 +293,9 @@ acpi_pcib_acpi_attach(device_t dev)
     ACPI_STATUS			status;
     static int bus0_seen = 0;
     u_int slot, func, busok;
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     struct resource *bus_res;
     rman_res_t end, start;
     int rid;
-#endif
     int error, domain;
     uint8_t busno;
 
@@ -391,7 +311,7 @@ acpi_pcib_acpi_attach(device_t dev)
     if (!acpi_DeviceIsPresent(dev))
 	return (ENXIO);
 
-    acpi_pcib_osc(sc, 0);
+    acpi_pcib_osc(dev, &sc->ap_osc_ctl, 0);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -421,7 +341,6 @@ acpi_pcib_acpi_attach(device_t dev)
 	sc->ap_addr = -1;
     }
 
-#ifdef NEW_PCIB
     /*
      * Determine which address ranges this bridge decodes and setup
      * resource managers for those ranges.
@@ -435,7 +354,6 @@ acpi_pcib_acpi_attach(device_t dev)
 	    device_printf(sc->ap_dev, "failed to parse resources: %s\n",
 		AcpiFormatException(status));
     }
-#endif
 
     /*
      * Get our base bus number by evaluating _BBN.
@@ -491,7 +409,6 @@ acpi_pcib_acpi_attach(device_t dev)
 	}
     }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     /*
      * If nothing else worked, hope that ACPI at least lays out the
      * Host-PCI bridges in order and that as a result the next free
@@ -536,18 +453,6 @@ acpi_pcib_acpi_attach(device_t dev)
 		    }
 	    }
     }
-#else
-    /*
-     * If nothing else worked, hope that ACPI at least lays out the
-     * host-PCI bridges in order and that as a result our unit number
-     * is actually our bus number.  There are several reasons this
-     * might not be true.
-     */
-    if (busok == 0) {
-	sc->ap_bus = device_get_unit(dev);
-	device_printf(dev, "trying bus number %d\n", sc->ap_bus);
-    }
-#endif
 
     /* If this is bus 0 on segment 0, note that it has been seen already. */
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
@@ -567,20 +472,19 @@ acpi_pcib_acpi_attach(device_t dev)
     /* Don't fail to attach if the domain can't be queried or set. */
     error = 0;
 
-    bus_generic_probe(dev);
+    bus_identify_children(dev);
     if (device_add_child(dev, "pci", -1) == NULL) {
 	bus_dma_tag_destroy(sc->ap_dma_tag);
 	sc->ap_dma_tag = NULL;
 	error = ENXIO;
 	goto errout;
     }
-    return (bus_generic_attach(dev));
+    bus_attach_children(dev);
+    return (0);
 
 errout:
     device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     pcib_host_res_free(dev, &sc->ap_host_res);
-#endif
     return (error);
 }
 
@@ -704,22 +608,17 @@ struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-#ifdef NEW_PCIB
     struct acpi_hpcib_softc *sc;
     struct resource *res;
-#endif
 
 #if defined(__i386__) || defined(__amd64__)
     start = hostb_alloc_start(type, start, end, count);
 #endif
 
-#ifdef NEW_PCIB
     sc = device_get_softc(dev);
-#ifdef PCI_RES_BUS
     if (type == PCI_RES_BUS)
 	return (pci_domain_alloc_bus(sc->ap_segment, child, rid, start, end,
 	    count, flags));
-#endif
     res = pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
 	count, flags);
 
@@ -734,13 +633,8 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	res = bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags);
     return (res);
-#else
-    return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	count, flags));
-#endif
 }
 
-#ifdef NEW_PCIB
 int
 acpi_pcib_acpi_adjust_resource(device_t dev, device_t child,
     struct resource *r, rman_res_t start, rman_res_t end)
@@ -748,15 +642,12 @@ acpi_pcib_acpi_adjust_resource(device_t dev, device_t child,
 	struct acpi_hpcib_softc *sc;
 
 	sc = device_get_softc(dev);
-#ifdef PCI_RES_BUS
 	if (rman_get_type(r) == PCI_RES_BUS)
 		return (pci_domain_adjust_bus(sc->ap_segment, child, r, start,
 		    end));
-#endif
 	return (pcib_host_res_adjust(&sc->ap_host_res, child, r, start, end));
 }
 
-#ifdef PCI_RES_BUS
 int
 acpi_pcib_acpi_release_resource(device_t dev, device_t child,
     struct resource *r)
@@ -792,8 +683,6 @@ acpi_pcib_acpi_deactivate_resource(device_t dev, device_t child,
 		return (pci_domain_deactivate_bus(sc->ap_segment, child, r));
 	return (bus_generic_deactivate_resource(dev, child, r));
 }
-#endif
-#endif
 
 static int
 acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
@@ -814,7 +703,7 @@ acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
 		return (EINVAL);
 	}
 
-	return (acpi_pcib_osc(sc, osc_ctl));
+	return (acpi_pcib_osc(dev, &sc->ap_osc_ctl, osc_ctl));
 }
 
 static bus_dma_tag_t

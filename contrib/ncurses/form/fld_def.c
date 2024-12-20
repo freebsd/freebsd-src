@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.43 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.44 2021/03/27 23:49:53 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field =
@@ -86,14 +86,13 @@ FORM_EXPORT(TypeArgument *)
 _nc_Make_Argument(const FIELDTYPE *typ, va_list *ap, int *err)
 {
   TypeArgument *res = (TypeArgument *)0;
-  TypeArgument *p;
 
   if (typ != 0 && (typ->status & _HAS_ARGS) != 0)
     {
       assert(err != 0 && ap != (va_list *)0);
       if ((typ->status & _LINKED_TYPE) != 0)
 	{
-	  p = typeMalloc(TypeArgument, 1);
+	  TypeArgument *p = typeMalloc(TypeArgument, 1);
 
 	  if (p != 0)
 	    {
@@ -134,14 +133,13 @@ FORM_EXPORT(TypeArgument *)
 _nc_Copy_Argument(const FIELDTYPE *typ, const TypeArgument *argp, int *err)
 {
   TypeArgument *res = (TypeArgument *)0;
-  TypeArgument *p;
 
   if (typ != 0 && (typ->status & _HAS_ARGS) != 0)
     {
       assert(err != 0 && argp != 0);
       if ((typ->status & _LINKED_TYPE) != 0)
 	{
-	  p = typeMalloc(TypeArgument, 1);
+	  TypeArgument *p = typeMalloc(TypeArgument, 1);
 
 	  if (p != 0)
 	    {

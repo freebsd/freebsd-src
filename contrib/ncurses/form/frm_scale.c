@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2004,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,12 +33,12 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_scale.c,v 1.12 2020/05/24 01:40:20 anonymous.maarten Exp $")
+MODULE_ID("$Id: frm_scale.c,v 1.13 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int scale_form( const FORM *form, int *rows, int *cols )
-|   
+|
 |   Description   :  Retrieve size of form
 |
 |   Return Values :  E_OK              - no error

@@ -42,11 +42,10 @@ get_uefi_bootname() {
 }
 
 make_esp_file() {
-    local file sizekb loader device stagedir fatbits efibootname
+    local file sizekb device stagedir fatbits efibootname
 
     file=$1
     sizekb=$2
-    loader=$3
 
     if [ "$sizekb" -ge "$fat32min" ]; then
         fatbits=32
@@ -58,8 +57,25 @@ make_esp_file() {
 
     stagedir=$(mktemp -d /tmp/stand-test.XXXXXX)
     mkdir -p "${stagedir}/EFI/BOOT"
-    efibootname=$(get_uefi_bootname)
-    cp "${loader}" "${stagedir}/EFI/BOOT/${efibootname}.efi"
+
+    # Allow multiple files to be copied.
+    # We do this in pairs, e.g:
+    # make_esp_file ... loader1.efi bootx64 loader2.efi bootia32
+    #
+    # If the second argument is left out,
+    # determine it automatically.
+    shift; shift # Skip $file and $sizekb
+    while [ ! -z $1 ]; do
+        if [ ! -z $2 ]; then
+            efibootname=$2
+        else
+            efibootname=$(get_uefi_bootname)
+        fi
+        cp "$1" "${stagedir}/EFI/BOOT/${efibootname}.efi"
+
+        shift; shift || : # Ignore failure to shift
+    done
+
     makefs -t msdos \
 	-o fat_type=${fatbits} \
 	-o sectors_per_cluster=1 \
@@ -70,13 +86,20 @@ make_esp_file() {
 }
 
 make_esp_device() {
-    local dev file mntpt fstype efibootname kbfree loadersize efibootfile
+    local dev file dst mntpt fstype efibootname kbfree loadersize efibootfile
     local isboot1 existingbootentryloaderfile bootorder bootentry
 
     # ESP device node
     dev=$1
     file=$2
+    # Allow caller to override the default
+    if [ ! -z $3 ]; then
+	    efibootname=$3
+    else
+	    efibootname=$(get_uefi_bootname)
+    fi
 
+    dst=$(basename ${file%.efi})
     mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
 
     # See if we're using an existing (formatted) ESP
@@ -93,7 +116,6 @@ make_esp_device() {
 
     echo "Mounted ESP ${dev} on ${mntpt}"
 
-    efibootname=$(get_uefi_bootname)
     kbfree=$(df -k "${mntpt}" | tail -1 | cut -w -f 4)
     loadersize=$(stat -f %z "${file}")
     loadersize=$((loadersize / 1024))
@@ -114,7 +136,7 @@ make_esp_device() {
         fi
     fi
 
-    if [ ! -f "${mntpt}/EFI/freebsd/loader.efi" ] && [ "$kbfree" -lt "$loadersize" ]; then
+    if [ ! -f "${mntpt}/EFI/freebsd/${dst}.efi" ] && [ "$kbfree" -lt "$loadersize" ]; then
         umount "${mntpt}"
 	rmdir "${mntpt}"
         echo "Failed to update the EFI System Partition ${dev}"
@@ -126,24 +148,26 @@ make_esp_device() {
     mkdir -p "${mntpt}/EFI/freebsd"
 
     # Keep a copy of the existing loader.efi in case there's a problem with the new one
-    if [ -f "${mntpt}/EFI/freebsd/loader.efi" ] && [ "$kbfree" -gt "$((loadersize * 2))" ]; then
-        cp "${mntpt}/EFI/freebsd/loader.efi" "${mntpt}/EFI/freebsd/loader-old.efi"
+    if [ -f "${mntpt}/EFI/freebsd/${dst}.efi" ] && [ "$kbfree" -gt "$((loadersize * 2))" ]; then
+        cp "${mntpt}/EFI/freebsd/${dst}.efi" "${mntpt}/EFI/freebsd/${dst}-old.efi"
     fi
 
     echo "Copying loader to /EFI/freebsd on ESP"
-    cp "${file}" "${mntpt}/EFI/freebsd/loader.efi"
+    cp "${file}" "${mntpt}/EFI/freebsd/${dst}.efi"
 
-    if [ -n "${updatesystem}" ]; then
-        existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}//EFI/freebsd/loader.efi")
+    # efibootmgr won't work on systems with ia32 UEFI firmware
+    # since we only use it to boot the 64-bit kernel
+    if [ -n "${updatesystem}" ] && [ ${efibootname} != "bootia32" ]; then
+        existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}//EFI/freebsd/${dst}.efi")
 
         if [ -z "$existingbootentryloaderfile" ]; then
             # Try again without the double forward-slash in the path
-            existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}/EFI/freebsd/loader.efi")
+            existingbootentryloaderfile=$(efibootmgr -v | grep "${mntpt}/EFI/freebsd/${dst}.efi")
         fi
 
         if [ -z "$existingbootentryloaderfile" ]; then
             echo "Creating UEFI boot entry for FreeBSD"
-            efibootmgr --create --label FreeBSD --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+            efibootmgr --create --label FreeBSD --loader "${mntpt}/EFI/freebsd/${dst}.efi" > /dev/null
             if [ $? -ne 0 ]; then
                 die "Failed to create new boot entry"
             fi

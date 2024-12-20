@@ -55,6 +55,7 @@ mkdir $TMPDIR
 chmod 0777 $TMPDIR
 
 p=$((`sysctl -n hw.ncpu`+ 1))
+[ $p -gt 32 ] && p=32  # Arbitrary cap
 timeout 20m make -i -j $p buildworld  DESTDIR=$mntpoint TARGET=amd64 \
     TARGET_ARCH=amd64 > /dev/null
 

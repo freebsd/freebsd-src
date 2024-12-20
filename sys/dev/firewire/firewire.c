@@ -314,7 +314,7 @@ fw_asystart(struct fw_xfer *xfer)
 static void
 firewire_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "firewire", -1);
+	BUS_ADD_CHILD(parent, 0, "firewire", DEVICE_UNIT_ANY);
 }
 
 static int
@@ -452,10 +452,10 @@ firewire_attach(device_t dev)
 	    0, 0, "fw%d_probe", unit);
 
 	/* Locate our children */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/* launch attachement of the added children */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/* bus_reset */
 	FW_GLOCK(fc);

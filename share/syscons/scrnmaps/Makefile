@@ -1,4 +1,3 @@
-
 PACKAGE=	syscons-data
 
 SCRMAPS = armscii8-2haik8.scm \

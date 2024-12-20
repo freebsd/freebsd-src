@@ -244,22 +244,6 @@ exit_bad_op(void)
 	return(-EINVAL);
 }
 
-static inline unsigned
-fls_long(unsigned long l)
-{
-
-	if (sizeof(l) == 4)
-		return (fls(l));
-	return (fls64(l));
-}
-
-static inline __attribute__((const))
-unsigned long __rounddown_pow_of_two(unsigned long n)
-{
-
-	return (1UL << (fls_long(n) - 1));
-}
-
 static inline int
 get_ubuf(struct sysctl_req *req, char *ubuf)
 {
@@ -1049,12 +1033,12 @@ sysctl_ringparam_handler(SYSCTL_HANDLER_ARGS)
 			return (-EINVAL);
 		}
 
-		rx = __rounddown_pow_of_two(sys_op->rx_pending);
+		rx = rounddown_pow_of_two(sys_op->rx_pending);
 		if (rx != sys_op->rx_pending)
 			axgbe_printf(1,	"rx ring param rounded to power of 2: %u\n",
 			    rx);
 
-		tx = __rounddown_pow_of_two(sys_op->tx_pending);
+		tx = rounddown_pow_of_two(sys_op->tx_pending);
 		if (tx != sys_op->tx_pending)
 			axgbe_printf(1, "tx ring param rounded to power of 2: %u\n",
 			    tx);

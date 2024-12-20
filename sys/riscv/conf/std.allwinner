@@ -2,6 +2,14 @@
 # Allwinner SoC support
 #
 
+# SoC support
+options 	SOC_ALLWINNER_D1
+
+device		aw_ccu		# Allwinner clock controller
+device		aw_gpio		# Allwinner GPIO controller
+device		aw_rtc		# Allwinner Real-time Clock
+device		aw_sid		# Allwinner Secure ID EFUSE
 device		aw_wdog		# Allwinner Watchdog
+device		awg		# Allwinner EMAC Gigabit Ethernet
 
 files		"../allwinner/files.allwinner"

@@ -40,6 +40,7 @@ static void _pmksa_cache_free_entry(struct rsn_pmksa_cache_entry *entry)
 {
 	os_free(entry->vlan_desc);
 	os_free(entry->identity);
+	os_free(entry->dpp_pkhash);
 	wpabuf_free(entry->cui);
 #ifndef CONFIG_NO_RADIUS
 	radius_free_class(&entry->radius_class);
@@ -55,7 +56,9 @@ void pmksa_cache_free_entry(struct rsn_pmksa_cache *pmksa,
 	unsigned int hash;
 
 	pmksa->pmksa_count--;
-	pmksa->free_cb(entry, pmksa->ctx);
+
+	if (pmksa->free_cb)
+		pmksa->free_cb(entry, pmksa->ctx);
 
 	/* unlink from hash list */
 	hash = PMKID_HASH(entry->pmkid);
@@ -331,6 +334,10 @@ pmksa_cache_auth_create_entry(const u8 *pmk, size_t pmk_len, const u8 *pmkid,
 		return NULL;
 	os_memcpy(entry->pmk, pmk, pmk_len);
 	entry->pmk_len = pmk_len;
+	if (kck && kck_len && kck_len < WPA_KCK_MAX_LEN) {
+		os_memcpy(entry->kck, kck, kck_len);
+		entry->kck_len = kck_len;
+	}
 	if (pmkid)
 		os_memcpy(entry->pmkid, pmkid, PMKID_LEN);
 	else if (akmp == WPA_KEY_MGMT_IEEE8021X_SUITE_B_192)
@@ -480,14 +487,14 @@ pmksa_cache_auth_get(struct rsn_pmksa_cache *pmksa,
 		for (entry = pmksa->pmkid[PMKID_HASH(pmkid)]; entry;
 		     entry = entry->hnext) {
 			if ((spa == NULL ||
-			     os_memcmp(entry->spa, spa, ETH_ALEN) == 0) &&
+			     ether_addr_equal(entry->spa, spa)) &&
 			    os_memcmp(entry->pmkid, pmkid, PMKID_LEN) == 0)
 				return entry;
 		}
 	} else {
 		for (entry = pmksa->pmksa; entry; entry = entry->next) {
 			if (spa == NULL ||
-			    os_memcmp(entry->spa, spa, ETH_ALEN) == 0)
+			    ether_addr_equal(entry->spa, spa))
 				return entry;
 		}
 	}
@@ -514,7 +521,7 @@ struct rsn_pmksa_cache_entry * pmksa_cache_get_okc(
 	u8 new_pmkid[PMKID_LEN];
 
 	for (entry = pmksa->pmksa; entry; entry = entry->next) {
-		if (os_memcmp(entry->spa, spa, ETH_ALEN) != 0)
+		if (!ether_addr_equal(entry->spa, spa))
 			continue;
 		if (wpa_key_mgmt_sae(entry->akmp) ||
 		    wpa_key_mgmt_fils(entry->akmp)) {
@@ -522,8 +529,17 @@ struct rsn_pmksa_cache_entry * pmksa_cache_get_okc(
 				return entry;
 			continue;
 		}
-		rsn_pmkid(entry->pmk, entry->pmk_len, aa, spa, new_pmkid,
-			  entry->akmp);
+		if (entry->akmp == WPA_KEY_MGMT_IEEE8021X_SUITE_B_192 &&
+		    entry->kck_len > 0)
+			rsn_pmkid_suite_b_192(entry->kck, entry->kck_len,
+					      aa, spa, new_pmkid);
+		else if (wpa_key_mgmt_suite_b(entry->akmp) &&
+			 entry->kck_len > 0)
+		rsn_pmkid_suite_b(entry->kck, entry->kck_len, aa, spa,
+				  new_pmkid);
+		else
+			rsn_pmkid(entry->pmk, entry->pmk_len, aa, spa,
+				  new_pmkid, entry->akmp);
 		if (os_memcmp(new_pmkid, pmkid, PMKID_LEN) == 0)
 			return entry;
 	}
@@ -559,7 +575,7 @@ static int das_attr_match(struct rsn_pmksa_cache_entry *entry,
 	int match = 0;
 
 	if (attr->sta_addr) {
-		if (os_memcmp(attr->sta_addr, entry->spa, ETH_ALEN) != 0)
+		if (!ether_addr_equal(attr->sta_addr, entry->spa))
 			return 0;
 		match++;
 	}
@@ -701,7 +717,7 @@ int pmksa_cache_auth_list_mesh(struct rsn_pmksa_cache *pmksa, const u8 *addr,
 	 * <BSSID> <PMKID> <PMK> <expiration in seconds>
 	 */
 	for (entry = pmksa->pmksa; entry; entry = entry->next) {
-		if (addr && os_memcmp(entry->spa, addr, ETH_ALEN) != 0)
+		if (addr && !ether_addr_equal(entry->spa, addr))
 			continue;
 
 		ret = os_snprintf(pos, end - pos, MACSTR " ",

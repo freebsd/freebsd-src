@@ -265,7 +265,8 @@ miiproxy_attach(device_t dev)
 	 * The ethernet interface needs to call mii_attach_proxy() to pass
 	 * the relevant parameters for rendezvous with the MDIO target.
 	 */
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -331,7 +332,7 @@ static void
 mdioproxy_identify(driver_t *driver, device_t parent)
 {
 	if (device_find_child(parent, driver->name, -1) == NULL) {
-		BUS_ADD_CHILD(parent, 0, driver->name, -1);
+		BUS_ADD_CHILD(parent, 0, driver->name, DEVICE_UNIT_ANY);
 	}
 }
 
@@ -348,7 +349,8 @@ mdioproxy_attach(device_t dev)
 {
 
 	rendezvous_register_target(dev, mdioproxy_rendezvous_callback);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -368,7 +370,6 @@ device_t
 mii_attach_proxy(device_t dev)
 {
 	struct miiproxy_softc *sc;
-	int		error;
 	const char	*name;
 	device_t	miiproxy;
 
@@ -380,12 +381,8 @@ mii_attach_proxy(device_t dev)
 		return (NULL);
 	}
 
-	miiproxy = device_add_child(dev, miiproxy_driver.name, -1);
-	error = bus_generic_attach(dev);
-	if (error != 0) {
-		device_printf(dev, "can't attach miiproxy\n");
-		return (NULL);
-	}
+	miiproxy = device_add_child(dev, miiproxy_driver.name, DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
 	sc = device_get_softc(miiproxy);
 	sc->parent = dev;
 	sc->proxy = miiproxy;

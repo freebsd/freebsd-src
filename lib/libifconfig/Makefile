@@ -1,4 +1,3 @@
-
 PACKAGE=	lib${LIB}
 LIB=		ifconfig
 INTERNALLIB=	true

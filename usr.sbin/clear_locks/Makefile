@@ -1,4 +1,3 @@
-
 PACKAGE=	nfs
 
 PROG=	clear_locks

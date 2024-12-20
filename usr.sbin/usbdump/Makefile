@@ -1,4 +1,3 @@
-
 PROG=	usbdump
 SRCS=	usbdump.c
 MAN=	usbdump.8

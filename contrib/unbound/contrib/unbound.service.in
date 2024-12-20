@@ -42,8 +42,8 @@
 [Unit]
 Description=Validating, recursive, and caching DNS resolver
 Documentation=man:unbound(8)
-After=network.target
-Before=network-online.target nss-lookup.target
+After=network-online.target
+Before=nss-lookup.target
 
 [Install]
 WantedBy=multi-user.target

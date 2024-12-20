@@ -37,6 +37,7 @@ __RCSID("$NetBSD: wcslcpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif
 #include <sys/types.h>
 #include <wchar.h>
+#include <ssp/ssp.h>
 
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
@@ -44,7 +45,7 @@ __RCSID("$NetBSD: wcslcpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
  * Returns wcslen(src); if retval >= siz, truncation occurred.
  */
 size_t
-wcslcpy(wchar_t *dst, const wchar_t *src, size_t siz)
+__ssp_real(wcslcpy)(wchar_t *dst, const wchar_t *src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;

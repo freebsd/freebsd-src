@@ -1,4 +1,3 @@
-
 SUBDIR= include
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig/130.security

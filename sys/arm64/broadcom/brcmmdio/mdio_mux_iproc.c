@@ -342,7 +342,7 @@ brcm_iproc_mdio_attach(device_t dev)
 		ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
 
 		/* Add newbus device for this FDT node */
-		child = device_add_child(dev, NULL, -1);
+		child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			printf("Failed to add child\n");
 			resource_list_free(&di->di_rl);
@@ -362,7 +362,8 @@ brcm_iproc_mdio_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 error:
 	brcm_iproc_mdio_detach(dev);

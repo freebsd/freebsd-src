@@ -149,7 +149,16 @@ efifb_from_gop(struct efi_fb *efifb, EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode,
 {
 	int result;
 
-	efifb->fb_addr = mode->FrameBufferBase;
+	/*
+	 * The Asus EEEPC 1025C, and possibly others,
+	 * require the address to be masked.
+	 */
+	efifb->fb_addr =
+#ifdef __i386__
+	    mode->FrameBufferBase & 0xffffffff;
+#else
+	    mode->FrameBufferBase;
+#endif
 	efifb->fb_size = mode->FrameBufferSize;
 	efifb->fb_height = info->VerticalResolution;
 	efifb->fb_width = info->HorizontalResolution;
@@ -555,6 +564,7 @@ efi_has_gop(void)
 int
 efi_find_framebuffer(teken_gfx_t *gfx_state)
 {
+	EFI_PHYSICAL_ADDRESS ptr;
 	EFI_HANDLE *hlist;
 	UINTN nhandles, i, hsize;
 	struct efi_fb efifb;
@@ -651,16 +661,15 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	    efifb.fb_mask_blue | efifb.fb_mask_reserved);
 
 	if (gfx_state->tg_shadow_fb != NULL)
-		BS->FreePages((EFI_PHYSICAL_ADDRESS)gfx_state->tg_shadow_fb,
+		BS->FreePages((uintptr_t)gfx_state->tg_shadow_fb,
 		    gfx_state->tg_shadow_sz);
 	gfx_state->tg_shadow_sz =
 	    EFI_SIZE_TO_PAGES(efifb.fb_height * efifb.fb_width *
 	    sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
-	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
-	    gfx_state->tg_shadow_sz,
-	    (EFI_PHYSICAL_ADDRESS *)&gfx_state->tg_shadow_fb);
-	if (status != EFI_SUCCESS)
-		gfx_state->tg_shadow_fb = NULL;
+	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+	    gfx_state->tg_shadow_sz, &ptr);
+	gfx_state->tg_shadow_fb = status == EFI_SUCCESS ?
+	    (uint32_t *)(uintptr_t)ptr : NULL;
 
 	return (0);
 }

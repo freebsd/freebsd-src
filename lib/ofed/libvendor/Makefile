@@ -1,11 +1,9 @@
-
 _spath=	${SRCTOP}/contrib/ofed/opensm/libvendor
 .PATH: ${_spath}
 
 SHLIBDIR?=	/usr/lib
 LIB=		osmvendor
 SHLIB_MAJOR=	4
-MK_PROFILE=	no
 
 SRCS= \
 osm_vendor_ibumad.c \

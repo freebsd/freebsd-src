@@ -1,11 +1,9 @@
-
 _spath=	${SRCTOP}/contrib/ofed/libibmad
 .PATH: ${_spath}
 
 SHLIBDIR?=	/usr/lib
 LIB=		ibmad
 SHLIB_MAJOR=	5
-MK_PROFILE=	no
 
 SRCS= \
 bm.c \

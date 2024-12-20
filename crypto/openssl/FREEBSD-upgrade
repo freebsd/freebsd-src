@@ -9,14 +9,14 @@
 01) Switch to the vendor branch:
 
     $ cd src/freebsd/main
-    $ git worktree add ../vendor/openssl-X.Y freebsd/vendor/openssl-X.Y
+    $ git worktree add -b vendor/openssl-X.Y ../vendor/openssl-X.Y freebsd/vendor/openssl-X.Y
     $ cd ../vendor/openssl-X.Y
 
 02) Download the latest OpenSSL tarball and signature from the official
     website (https://www.openssl.org/source/).
 
-    $ (cd .. && fetch https://openssl.org/source/openssl-X.Y.Z.tar.gz)
-    $ (cd .. && fetch https://openssl.org/source/openssl-X.Y.Z.tar.gz.asc)
+    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-X.Y.Z/openssl-X.Y.Z.tar.gz)
+    $ (cd .. && fetch https://github.com/openssl/openssl/releases/download/openssl-X.Y.Z/openssl-X.Y.Z.tar.gz.asc)
 
 03) Verify the signature:
 
@@ -24,11 +24,11 @@
 
 04) Unpack the OpenSSL tarball to the parent directory:
 
-    $ tar -x -X FREEBSD-Xlist -f ../openssl-X.Y.Z.tar.gz -C ..
+    $ tar xf ../openssl-X.Y.Z.tar.gz -C ..
 
 05) Copy to the vendor branch:
 
-    $ rsync --exclude FREEBSD.* --delete -av ../openssl-X.Y.Z/* .
+    $ rsync --exclude .git --delete -av ../openssl-X.Y.Z/ .
 
 06) Take care of added / deleted files:
 
@@ -112,19 +112,11 @@
 
 16) Build and install world, reboot, test.
 
-17) Test the legacy and fips providers as well: (here with "test" as the password)
+17) Test the legacy provider as well: (here with "test" as the password)
 
     $ echo test | openssl rc4 -provider legacy -e -a -pbkdf2
     enter RC4 encryption password:
     Verifying - enter RC4 encryption password:
     U2FsdGVkX1+JvhqxLMOvlxvTi1/h
 
-    # openssl fipsinstall -out /etc/ssl/fipsmodule.cnf -module /usr/lib/ossl-modules/fips.so
-    INSTALL PASSED
-    # vi /etc/ssl/openssl.cnf
-    [enable the FIPS module]
-    # echo test | openssl aes-256-cbc -provider fips -e -a -pbkdf2
-    U2FsdGVkX19lTexiYsnMX83ZLSojBOFwv7GB0Plhgmw=
-
 18) Commit and hope you did not miss anything.
-

@@ -119,7 +119,7 @@ iicoc_attach(device_t dev)
 	sc->i2cfreq = XLP_I2C_FREQ;
 	iicoc_init(dev);
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "Could not allocate iicbus instance.\n");
 		error = ENXIO;
@@ -127,7 +127,7 @@ iicoc_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 

@@ -162,7 +162,7 @@ x86bios_free(void *addr, size_t size)
 			x86bios_vmc.npages--;
 	}
 	mtx_unlock(&x86bios_lock);
-	contigfree(addr, size, M_DEVBUF);
+	free(addr, M_DEVBUF);
 }
 
 void
@@ -564,7 +564,7 @@ x86bios_free(void *addr, size_t size)
 	bzero(x86bios_map + paddr / X86BIOS_PAGE_SIZE,
 	    sizeof(*x86bios_map) * howmany(size, X86BIOS_PAGE_SIZE));
 	mtx_unlock(&x86bios_lock);
-	contigfree(addr, size, M_DEVBUF);
+	free(addr, M_DEVBUF);
 }
 
 void
@@ -669,7 +669,7 @@ x86bios_unmap_mem(void)
 	if (x86bios_rom != NULL)
 		pmap_unmapdev(x86bios_rom, X86BIOS_ROM_SIZE);
 	if (x86bios_seg != NULL) {
-		contigfree(x86bios_seg, X86BIOS_SEG_SIZE, M_DEVBUF);
+		free(x86bios_seg, M_DEVBUF);
 		x86bios_seg = NULL;
 	}
 }

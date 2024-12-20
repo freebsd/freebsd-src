@@ -160,7 +160,7 @@ static int
 isab_pci_attach(device_t dev)
 {
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	return (isab_attach(dev));
 }
 

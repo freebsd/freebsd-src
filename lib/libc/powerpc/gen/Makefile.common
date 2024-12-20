@@ -1,4 +1,3 @@
-
 .PATH: ${LIBC_SRCTOP}/powerpc/gen
 
 SRCS += _ctx_start.S eabi.S infinity.c ldexp.c makecontext.c \

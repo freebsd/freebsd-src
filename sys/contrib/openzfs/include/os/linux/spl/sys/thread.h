@@ -42,7 +42,7 @@
 #define	TS_ZOMB				EXIT_ZOMBIE
 #define	TS_STOPPED			TASK_STOPPED
 
-typedef void (*thread_func_t)(void *);
+typedef void (*thread_func_t)(void *) __attribute__((noreturn));
 
 #define	thread_create_named(name, stk, stksize, func, arg, len,	\
     pp, state, pri)	\
@@ -79,12 +79,5 @@ typedef kernel_siginfo_t spl_kernel_siginfo_t;
 #else
 typedef siginfo_t spl_kernel_siginfo_t;
 #endif
-
-#ifdef HAVE_SET_SPECIAL_STATE
-#define	spl_set_special_state(x) set_special_state((x))
-#else
-#define	spl_set_special_state(x) __set_current_state((x))
-#endif
-
 
 #endif  /* _SPL_THREAD_H */

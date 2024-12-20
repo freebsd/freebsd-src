@@ -45,6 +45,7 @@
 #include <disk.h>
 #include <dev_net.h>
 #include <net.h>
+#include <machine/_inttypes.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -55,6 +56,9 @@
 
 #include <bootstrap.h>
 #include <smbios.h>
+
+#include <dev/random/fortuna.h>
+#include <geom/eli/pkcs5v2.h>
 
 #include "efizfs.h"
 #include "framebuffer.h"
@@ -105,6 +109,11 @@ UINT16 boot_current;
  * Image that we booted from.
  */
 EFI_LOADED_IMAGE *boot_img;
+
+/*
+ * RSDP base table.
+ */
+ACPI_TABLE_RSDP *rsdp;
 
 static bool
 has_keyboard(void)
@@ -719,14 +728,209 @@ setenv_int(const char *key, int val)
 	setenv(key, buf, 1);
 }
 
+static void *
+acpi_map_sdt(vm_offset_t addr)
+{
+	/* PA == VA */
+	return ((void *)addr);
+}
+
+static int
+acpi_checksum(void *p, size_t length)
+{
+	uint8_t *bp;
+	uint8_t sum;
+
+	bp = p;
+	sum = 0;
+	while (length--)
+		sum += *bp++;
+
+	return (sum);
+}
+
+static void *
+acpi_find_table(uint8_t *sig)
+{
+	int entries, i, addr_size;
+	ACPI_TABLE_HEADER *sdp;
+	ACPI_TABLE_RSDT *rsdt;
+	ACPI_TABLE_XSDT *xsdt;
+	vm_offset_t addr;
+
+	if (rsdp == NULL)
+		return (NULL);
+
+	rsdt = (ACPI_TABLE_RSDT *)(uintptr_t)rsdp->RsdtPhysicalAddress;
+	xsdt = (ACPI_TABLE_XSDT *)(uintptr_t)rsdp->XsdtPhysicalAddress;
+	if (rsdp->Revision < 2) {
+		sdp = (ACPI_TABLE_HEADER *)rsdt;
+		addr_size = sizeof(uint32_t);
+	} else {
+		sdp = (ACPI_TABLE_HEADER *)xsdt;
+		addr_size = sizeof(uint64_t);
+	}
+	entries = (sdp->Length - sizeof(ACPI_TABLE_HEADER)) / addr_size;
+	for (i = 0; i < entries; i++) {
+		if (addr_size == 4)
+			addr = le32toh(rsdt->TableOffsetEntry[i]);
+		else
+			addr = le64toh(xsdt->TableOffsetEntry[i]);
+		if (addr == 0)
+			continue;
+		sdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(addr);
+		if (acpi_checksum(sdp, sdp->Length)) {
+			printf("RSDT entry %d (sig %.4s) is corrupt", i,
+			    sdp->Signature);
+			continue;
+		}
+		if (memcmp(sig, sdp->Signature, 4) == 0)
+			return (sdp);
+	}
+	return (NULL);
+}
+
 /*
- * Parse ConOut (the list of consoles active) and see if we can find a
- * serial port and/or a video port. It would be nice to also walk the
- * ACPI name space to map the UID for the serial port to a port. The
- * latter is especially hard. Also check for ConIn as well. This will
- * be enough to determine if we have serial, and if we don't, we default
- * to video. If there's a dual-console situation with ConIn, this will
- * currently fail.
+ * Convert the InterfaceType in the SPCR. These are encoded the same for DBG2
+ * tables as well (though we don't parse those here).
+ */
+static const char *
+acpi_uart_type(UINT8 t)
+{
+	static const char *types[] = {
+		[0] = "ns8250",		/* Full 16550 */
+		[1] = "ns8250",		/* DBGP Rev 1 16550 subset */
+		[3] = "pl011",		/* Arm PL011 */
+		[5] = "ns8250",		/* Nvidia 16550 */
+		[0x12] = "ns8250",	/* 16550 defined in SerialPort */
+	};
+
+	if (t >= nitems(types))
+		return (NULL);
+	return (types[t]);
+}
+
+static int
+acpi_uart_baud(UINT8 b)
+{
+	static int baud[] = { 0, -1, -1, 9600, 19200, -1, 57600, 115200 };
+
+	if (b > 7)
+		return (-1);
+	return (baud[b]);
+}
+
+static int
+acpi_uart_regionwidth(UINT8 rw)
+{
+	if (rw == 0)
+		return (1);
+	if (rw > 4)
+		return (-1);
+	return (1 << (rw - 1));
+}
+
+static const char *
+acpi_uart_parity(UINT8 p)
+{
+	/* Some of these SPCR entires get this wrong, hard wire none */
+	return ("none");
+}
+
+/*
+ * See if we can find a SPCR ACPI table in the static tables. If so, then it
+ * describes the serial console that's been redirected to, so we know that at
+ * least there's a serial console. this is most important for embedded systems
+ * that don't have traidtional PC serial ports.
+ *
+ * All the two letter variables in this function correspond to their usage in
+ * the uart(4) console string. We use io == -1 to select between I/O ports and
+ * memory mapped addresses. Set both hw.uart.console and hw.uart.consol.extra
+ * to communicate settings from SPCR to the kernel.
+ */
+static int
+check_acpi_spcr(void)
+{
+	ACPI_TABLE_SPCR *spcr;
+	int br, db, io, rs, rw, sb, xo, pv, pd;
+	uintmax_t mm;
+	const char *dt, *pa;
+	char *val = NULL;
+
+	spcr = acpi_find_table(ACPI_SIG_SPCR);
+	if (spcr == NULL)
+		return (0);
+	dt = acpi_uart_type(spcr->InterfaceType);
+	if (dt == NULL)	{ 	/* Kernel can't use unknown types */
+		printf("UART Type %d not known\n", spcr->InterfaceType);
+		return (0);
+	}
+
+	/* I/O vs Memory mapped vs PCI device */
+	io = -1;
+	pv = spcr->PciVendorId;
+	pd = spcr->PciDeviceId;
+	if (pv == 0xffff && pd == 0xffff) {
+		if (spcr->SerialPort.SpaceId == 1)
+			io = spcr->SerialPort.Address;
+		else {
+			mm = spcr->SerialPort.Address;
+			rs = ffs(spcr->SerialPort.BitWidth) - 4;
+			rw = acpi_uart_regionwidth(spcr->SerialPort.AccessWidth);
+		}
+	} else {
+		/* XXX todo: bus:device:function + flags and segment */
+	}
+
+	/* Uart settings */
+	pa = acpi_uart_parity(spcr->Parity);
+	sb = spcr->StopBits;
+	db = 8;
+
+	/*
+	 * UartClkFreq is 3 and newer. We always use it then (it's only valid if
+	 * it isn't 0, but if it is 0, we want to use 0 to have the kernel
+	 * guess).
+	 */
+	if (spcr->Header.Revision <= 2)
+		xo = 0;
+	else
+		xo = spcr->UartClkFreq;
+
+	/*
+	 * PreciseBaudrate, when non-zero, is to be preferred. It's only valid,
+	 * though, for rev 4 and newer. So when it's 0 or the version is too
+	 * old, we do the old-style table lookup. Otherwise we believe it.
+	 */
+	if (spcr->Header.Revision <= 3 || spcr->PreciseBaudrate == 0)
+		br = acpi_uart_baud(spcr->BaudRate);
+	else
+		br = spcr->PreciseBaudrate;
+
+	if (io != -1) {
+		asprintf(&val, "db:%d,dt:%s,io:%#x,pa:%s,br:%d,xo=%d",
+		    db, dt, io, pa, br, xo);
+	} else if (pv != 0xffff && pd != 0xffff) {
+		asprintf(&val, "db:%d,dt:%s,pv:%#x,pd:%#x,pa:%s,br:%d,xo=%d",
+		    db, dt, pv, pd, pa, br, xo);
+	} else {
+		asprintf(&val, "db:%d,dt:%s,mm:%#jx,rs:%d,rw:%d,pa:%s,br:%d,xo=%d",
+		    db, dt, mm, rs, rw, pa, br, xo);
+	}
+	env_setenv("hw.uart.console", EV_VOLATILE, val, NULL, NULL);
+	free(val);
+
+	return (RB_SERIAL);
+}
+
+
+/*
+ * Parse ConOut (the list of consoles active) and see if we can find a serial
+ * port and/or a video port. It would be nice to also walk the ACPI DSDT to map
+ * the UID for the serial port to a port since there's no standard mapping. Also
+ * check for ConIn as well. This will be enough to determine if we have serial,
+ * and if we don't, we default to video. If there's a dual-console situation
+ * with only ConIn defined, this will currently fail.
  */
 int
 parse_uefi_con_out(void)
@@ -740,7 +944,12 @@ parse_uefi_con_out(void)
 	UART_DEVICE_PATH  *uart;
 	bool pci_pending;
 
-	how = 0;
+	/*
+	 * A SPCR in the ACPI fixed tables documents a serial port used for the
+	 * console. It may mirror a video console, or may be stand alone. If it
+	 * is present, we return RB_SERIAL and will use it for the kernel.
+	 */
+	how = check_acpi_spcr();
 	sz = sizeof(buf);
 	rv = efi_global_getenv("ConOut", buf, &sz);
 	if (rv != EFI_SUCCESS)
@@ -749,18 +958,18 @@ parse_uefi_con_out(void)
 		rv = efi_global_getenv("ConIn", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/*
-		 * If we don't have any ConOut default to both. If we have GOP
-		 * make video primary, otherwise just make serial primary. In
-		 * either case, try to use both the 'efi' console which will use
-		 * the GOP, if present and serial. If there's an EFI BIOS that
-		 * omits this, but has a serial port redirect, we'll
-		 * unavioidably get doubled characters (but we'll be right in
-		 * all the other more common cases).
+		 * If we don't have any Con* variable use both. If we have GOP
+		 * make video primary, otherwise set serial primary. In either
+		 * case, try to use both the 'efi' console which will use the
+		 * GOP, if present and serial. If there's an EFI BIOS that omits
+		 * this, but has a serial port redirect, we'll unavioidably get
+		 * doubled characters, but we'll be right in all the other more
+		 * common cases.
 		 */
 		if (efi_has_gop())
-			how = RB_MULTIPLE;
+			how |= RB_MULTIPLE;
 		else
-			how = RB_MULTIPLE | RB_SERIAL;
+			how |= RB_MULTIPLE | RB_SERIAL;
 		setenv("console", "efi,comconsole", 1);
 		goto out;
 	}
@@ -911,7 +1120,6 @@ ptov(uintptr_t x)
 static void
 acpi_detect(void)
 {
-	ACPI_TABLE_RSDP *rsdp;
 	char buf[24];
 	int revision;
 
@@ -920,7 +1128,7 @@ acpi_detect(void)
 		if ((rsdp = efi_get_table(&acpi)) == NULL)
 			return;
 
-	sprintf(buf, "0x%016llx", (unsigned long long)rsdp);
+	sprintf(buf, "0x%016"PRIxPTR, (uintptr_t)rsdp);
 	setenv("acpi.rsdp", buf, 1);
 	revision = rsdp->Revision;
 	if (revision == 0)
@@ -963,7 +1171,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_getdev = efi_getdev;
 	archsw.arch_copyin = efi_copyin;
 	archsw.arch_copyout = efi_copyout;
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 	archsw.arch_hypervisor = x86_hypervisor;
 #endif
 	archsw.arch_readin = efi_readin;
@@ -1249,11 +1457,27 @@ command_seed_entropy(int argc, char *argv[])
 {
 	EFI_STATUS status;
 	EFI_RNG_PROTOCOL *rng;
-	unsigned int size = 2048;
+	unsigned int size_efi = RANDOM_FORTUNA_DEFPOOLSIZE * RANDOM_FORTUNA_NPOOLS;
+	unsigned int size = RANDOM_FORTUNA_DEFPOOLSIZE * RANDOM_FORTUNA_NPOOLS;
+	void *buf_efi;
 	void *buf;
 
 	if (argc > 1) {
-		size = strtol(argv[1], NULL, 0);
+		size_efi = strtol(argv[1], NULL, 0);
+
+		/* Don't *compress* the entropy we get from EFI. */
+		if (size_efi > size)
+			size = size_efi;
+
+		/*
+		 * If the amount of entropy we get from EFI is less than the
+		 * size of a single Fortuna pool -- i.e. not enough to ensure
+		 * that Fortuna is safely seeded -- don't expand it since we
+		 * don't want to trick Fortuna into thinking that it has been
+		 * safely seeded when it has not.
+		 */
+		if (size_efi < RANDOM_FORTUNA_DEFPOOLSIZE)
+			size = size_efi;
 	}
 
 	status = BS->LocateProtocol(&rng_guid, NULL, (VOID **)&rng);
@@ -1267,18 +1491,34 @@ command_seed_entropy(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
-	status = rng->GetRNG(rng, NULL, size, (UINT8 *)buf);
+	if ((buf_efi = malloc(size_efi)) == NULL) {
+		free(buf);
+		command_errmsg = "out of memory";
+		return (CMD_ERROR);
+	}
+
+	TSENTER2("rng->GetRNG");
+	status = rng->GetRNG(rng, NULL, size_efi, (UINT8 *)buf_efi);
+	TSEXIT();
 	if (status != EFI_SUCCESS) {
+		free(buf_efi);
 		free(buf);
 		command_errmsg = "GetRNG failed";
 		return (CMD_ERROR);
 	}
+	if (size_efi < size)
+		pkcs5v2_genkey_raw(buf, size, "", 0, buf_efi, size_efi, 1);
+	else
+		memcpy(buf, buf_efi, size);
 
 	if (file_addbuf("efi_rng_seed", "boot_entropy_platform", size, buf) != 0) {
+		free(buf_efi);
 		free(buf);
 		return (CMD_ERROR);
 	}
 
+	explicit_bzero(buf_efi, size_efi);
+	free(buf_efi);
 	free(buf);
 	return (CMD_OK);
 }
@@ -1720,6 +1960,7 @@ command_chain(int argc, char *argv[])
 
 COMMAND_SET(chain, "chain", "chain load file", command_chain);
 
+#if defined(LOADER_NET_SUPPORT)
 extern struct in_addr servip;
 static int
 command_netserver(int argc, char *argv[])
@@ -1750,3 +1991,4 @@ command_netserver(int argc, char *argv[])
 
 COMMAND_SET(netserver, "netserver", "change or display netserver URI",
     command_netserver);
+#endif

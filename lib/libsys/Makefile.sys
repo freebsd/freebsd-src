@@ -49,8 +49,6 @@ STATICOBJS+=	auxv.o
 STATICOBJS+=	interposing_table.o
 .endif
 
-NOASM=	yield.o
-
 PSEUDO= \
 	clock_gettime \
 	exit \
@@ -129,12 +127,7 @@ SYM_MAPS+=	${LIBSYS_SRCTOP}/${LIBC_ARCH}/Symbol.sys.map
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
-.else
-NOTE_GNU_STACK=''
-.endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 FEATURE_NOTE='\#include <sys/elf_common.h>\nGNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)\n'
 .else
@@ -223,6 +216,7 @@ MAN+=	abort2.2 \
 	getpriority.2 \
 	getrandom.2 \
 	getrlimit.2 \
+	getrlimitusage.2 \
 	getrusage.2 \
 	getsid.2 \
 	getsockname.2 \
@@ -250,6 +244,7 @@ MAN+=	abort2.2 \
 	listen.2 \
 	lseek.2 \
 	madvise.2 \
+	membarrier.2 \
 	mincore.2 \
 	minherit.2 \
 	mkdir.2 \
@@ -304,6 +299,7 @@ MAN+=	abort2.2 \
 	rmdir.2 \
 	rtprio.2 \
 	sched_get_priority_max.2 \
+	sched_getcpu.3 \
 	sched_setparam.2 \
 	sched_setscheduler.2 \
 	sched_yield.2 \
@@ -315,6 +311,7 @@ MAN+=	abort2.2 \
 	semget.2 \
 	semop.2 \
 	send.2 \
+	setcred.2 \
 	setfib.2 \
 	sendfile.2 \
 	setgroups.2 \
@@ -403,6 +400,7 @@ MLINKS+=chmod.2 fchmod.2 \
 MLINKS+=chown.2 fchown.2 \
 	chown.2 fchownat.2 \
 	chown.2 lchown.2
+MLINKS+=chroot.2 fchroot.2
 MLINKS+=clock_gettime.2 clock_getres.2 \
 	clock_gettime.2 clock_settime.2
 MLINKS+=closefrom.2 close_range.2
@@ -487,6 +485,7 @@ MLINKS+=read.2 pread.2 \
 	read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 \
+	recv.2 recvmmsg.2 \
 	recv.2 recvmsg.2
 MLINKS+=rename.2 renameat.2
 MLINKS+=rtprio.2 rtprio_thread.2
@@ -499,7 +498,8 @@ MLINKS+=select.2 FD_CLR.3 \
 	select.2 FD_ISSET.3 \
 	select.2 FD_SET.3 \
 	select.2 FD_ZERO.3
-MLINKS+=send.2 sendmsg.2 \
+MLINKS+=send.2 sendmmsg.2 \
+	send.2 sendmsg.2 \
 	send.2 sendto.2
 MLINKS+=setpgid.2 setpgrp.2
 MLINKS+=setresuid.2 getresgid.2 \

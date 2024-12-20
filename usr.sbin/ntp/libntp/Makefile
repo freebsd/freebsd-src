@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/contrib/ntp/libntp \
 	${SRCTOP}/contrib/ntp/libntp/lib/isc \
 	${SRCTOP}/contrib/ntp/libntp/lib/isc/nls \

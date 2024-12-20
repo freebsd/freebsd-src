@@ -59,7 +59,7 @@ static int	debug = 0;
 
 static char	hostname[MAXHOSTNAMELEN];
 
-static void	jkfprintf(FILE *, char[], char[], off_t);
+static void	jkfprintf(FILE *, char[], off_t);
 static void	mailfor(char *);
 static void	notify(struct utmpx *, char[], off_t, int);
 static void	reapchildren(int);
@@ -147,6 +147,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 	FILE *tp;
 	struct stat stb;
 	struct termios tio;
+	struct passwd *p;
 	char tty[20];
 	const char *s = utp->ut_line;
 
@@ -180,6 +181,14 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 	}
 	(void)tcgetattr(fileno(tp), &tio);
 	cr = ((tio.c_oflag & (OPOST|ONLCR)) == (OPOST|ONLCR)) ?  "\n" : "\n\r";
+
+	/* Set uid/gid/groups to user's in case mail drop is on nfs */
+	if ((p = getpwnam(utp->ut_user)) == NULL ||
+	    initgroups(p->pw_name, p->pw_gid) == -1 ||
+	    setgid(p->pw_gid) == -1 ||
+	    setuid(p->pw_uid) == -1)
+		return;
+
 	switch (stb.st_mode & (S_IXUSR | S_IXGRP)) {
 	case S_IXUSR:
 	case (S_IXUSR | S_IXGRP):
@@ -188,7 +197,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 		    cr, utp->ut_user, (int)sizeof(hostname), hostname,
 		    folder ? cr : "", folder ? "to " : "", folder ? file : "",
 		    cr, cr);
-		jkfprintf(tp, utp->ut_user, file, offset);
+		jkfprintf(tp, file, offset);
 		break;
 	case S_IXGRP:
 		(void)fprintf(tp, "\007");
@@ -204,17 +213,12 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 }
 
 static void
-jkfprintf(FILE *tp, char user[], char file[], off_t offset)
+jkfprintf(FILE *tp, char file[], off_t offset)
 {
 	unsigned char *cp, ch;
 	FILE *fi;
 	int linecnt, charcnt, inheader;
-	struct passwd *p;
 	unsigned char line[BUFSIZ];
-
-	/* Set effective uid to user in case mail drop is on nfs */
-	if ((p = getpwnam(user)) != NULL)
-		(void) setuid(p->pw_uid);
 
 	if ((fi = fopen(file, "r")) == NULL)
 		return;

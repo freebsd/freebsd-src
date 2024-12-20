@@ -701,6 +701,9 @@ PLAIN_TESTS_C	The names of the plain (legacy) programs to build.
 
 PLAIN_TESTS_CXX	The names of the plain (legacy) test programs to build.
 
+PLAIN_TESTS_PORCH	The names of the plain (legacy) porch(1)-based
+		test programs to build.
+
 PLAIN_TESTS_SH	The names of the plain (legacy) test programs to build.
 
 TAP_PERL_INTERPRETER

@@ -369,36 +369,49 @@ int quoted(const uschar **pp)	/* pick up next thing after a \\ */
 
 /* BUG: should advance by utf-8 char even if makes no sense */
 
-	if ((c = *p++) == 't') {
+	switch ((c = *p++)) {
+	case 't':
 		c = '\t';
-	} else if (c == 'n') {
+		break;
+	case 'n':
 		c = '\n';
-	} else if (c == 'f') {
+		break;
+	case 'f':
 		c = '\f';
-	} else if (c == 'r') {
+		break;
+	case 'r':
 		c = '\r';
-	} else if (c == 'b') {
+		break;
+	case 'b':
 		c = '\b';
-	} else if (c == 'v') {
+		break;
+	case 'v':
 		c = '\v';
-	} else if (c == 'a') {
+		break;
+	case 'a':
 		c = '\a';
-	} else if (c == '\\') {
+		break;
+	case '\\':
 		c = '\\';
-	} else if (c == 'x') {	/* 2 hex digits follow */
-		c = hexstr(&p, 2);	/* this adds a null if number is invalid */
-	} else if (c == 'u') {	/* unicode char number up to 8 hex digits */
+		break;
+	case 'x': /* 2 hex digits follow */
+		c = hexstr(&p, 2); /* this adds a null if number is invalid */
+		break;
+	case 'u': /* unicode char number up to 8 hex digits */
 		c = hexstr(&p, 8);
-	} else if (isoctdigit(c)) {	/* \d \dd \ddd */
-		int n = c - '0';
-		if (isoctdigit(*p)) {
-			n = 8 * n + *p++ - '0';
-			if (isoctdigit(*p))
+		break;
+	default:
+		if (isoctdigit(c)) { /* \d \dd \ddd */
+			int n = c - '0';
+			if (isoctdigit(*p)) {
 				n = 8 * n + *p++ - '0';
+				if (isoctdigit(*p))
+					n = 8 * n + *p++ - '0';
+			}
+			c = n;
 		}
-		c = n;
-	} /* else */
-		/* c = c; */
+	}
+
 	*pp = p;
 	return c;
 }
@@ -603,7 +616,7 @@ static void resize_gototab(fa *f, int state)
 	if (p == NULL)
 		overflo(__func__);
 
-	// need to initialized the new memory to zero
+	// need to initialize the new memory to zero
 	size_t orig_size = f->gototab[state].allocated;		// 2nd half of new mem is this size
 	memset(p + orig_size, 0, orig_size * sizeof(gtte));	// clean it out
 
@@ -645,7 +658,7 @@ static int set_gototab(fa *f, int state, int ch, int val) /* hide gototab implem
 		f->gototab[state].entries[0].state = val;
 		f->gototab[state].inuse++;
 		return val;
-	} else if (ch > f->gototab[state].entries[f->gototab[state].inuse-1].ch) {
+	} else if ((unsigned)ch > f->gototab[state].entries[f->gototab[state].inuse-1].ch) {
 		// not seen yet, insert and return
 		gtt *tab = & f->gototab[state];
 		if (tab->inuse + 1 >= tab->allocated)
@@ -869,7 +882,7 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 		 * Call u8_rune with at least awk_mb_cur_max ahead in
 		 * the buffer until EOF interferes.
 		 */
-		if (k - j < awk_mb_cur_max) {
+		if (k - j < (int)awk_mb_cur_max) {
 			if (k + awk_mb_cur_max > buf + bufsize) {
 				char *obuf = buf;
 				adjbuf((char **) &buf, &bufsize,

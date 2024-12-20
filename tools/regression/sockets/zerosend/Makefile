@@ -1,4 +1,3 @@
-
 PROG=	zerosend
 MAN=
 

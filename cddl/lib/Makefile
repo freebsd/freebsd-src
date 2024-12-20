@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 .if ${MK_DTRACE} == yes || ${MK_ZFS} == yes

@@ -153,6 +153,7 @@ pp2_write_to_buf(uint8_t* buf, size_t buflen,
 		break;
 #endif /* INET6 */
 	case AF_UNIX:
+		ATTR_FALLTHROUGH
 		/* fallthrough */
 	default:
 		return 0;

@@ -9,12 +9,15 @@
 #ifndef WPA_COMMON_H
 #define WPA_COMMON_H
 
+#include "common/defs.h"
+
 /* IEEE 802.11i */
 #define PMKID_LEN 16
 #define PMK_LEN 32
 #define PMK_LEN_SUITE_B_192 48
 #define PMK_LEN_MAX 64
 #define WPA_REPLAY_COUNTER_LEN 8
+#define RSN_PN_LEN 6
 #define WPA_NONCE_LEN 32
 #define WPA_KEY_RSC_LEN 8
 #define WPA_GMK_LEN 32
@@ -81,8 +84,14 @@ WPA_CIPHER_BIP_CMAC_256)
 #define RSN_AUTH_KEY_MGMT_FT_FILS_SHA256 RSN_SELECTOR(0x00, 0x0f, 0xac, 16)
 #define RSN_AUTH_KEY_MGMT_FT_FILS_SHA384 RSN_SELECTOR(0x00, 0x0f, 0xac, 17)
 #define RSN_AUTH_KEY_MGMT_OWE RSN_SELECTOR(0x00, 0x0f, 0xac, 18)
-
+#define RSN_AUTH_KEY_MGMT_FT_PSK_SHA384 RSN_SELECTOR(0x00, 0x0f, 0xac, 19)
+#define RSN_AUTH_KEY_MGMT_PSK_SHA384 RSN_SELECTOR(0x00, 0x0f, 0xac, 20)
 #define RSN_AUTH_KEY_MGMT_PASN RSN_SELECTOR(0x00, 0x0f, 0xac, 21)
+#define RSN_AUTH_KEY_MGMT_FT_802_1X_SHA384_UNRESTRICTED \
+	RSN_SELECTOR(0x00, 0x0f, 0xac, 22)
+#define RSN_AUTH_KEY_MGMT_802_1X_SHA384 RSN_SELECTOR(0x00, 0x0f, 0xac, 23)
+#define RSN_AUTH_KEY_MGMT_SAE_EXT_KEY RSN_SELECTOR(0x00, 0x0f, 0xac, 24)
+#define RSN_AUTH_KEY_MGMT_FT_SAE_EXT_KEY RSN_SELECTOR(0x00, 0x0f, 0xac, 25)
 
 #define RSN_AUTH_KEY_MGMT_CCKM RSN_SELECTOR(0x00, 0x40, 0x96, 0x00)
 #define RSN_AUTH_KEY_MGMT_OSEN RSN_SELECTOR(0x50, 0x6f, 0x9a, 0x01)
@@ -126,6 +135,10 @@ WPA_CIPHER_BIP_CMAC_256)
 #define RSN_KEY_DATA_MULTIBAND_KEYID RSN_SELECTOR(0x00, 0x0f, 0xac, 12)
 #define RSN_KEY_DATA_OCI RSN_SELECTOR(0x00, 0x0f, 0xac, 13)
 #define RSN_KEY_DATA_BIGTK RSN_SELECTOR(0x00, 0x0f, 0xac, 14)
+#define RSN_KEY_DATA_MLO_GTK RSN_SELECTOR(0x00, 0x0f, 0xac, 16)
+#define RSN_KEY_DATA_MLO_IGTK RSN_SELECTOR(0x00, 0x0f, 0xac, 17)
+#define RSN_KEY_DATA_MLO_BIGTK RSN_SELECTOR(0x00, 0x0f, 0xac, 18)
+#define RSN_KEY_DATA_MLO_LINK RSN_SELECTOR(0x00, 0x0f, 0xac, 19)
 
 #define WFA_KEY_DATA_IP_ADDR_REQ RSN_SELECTOR(0x50, 0x6f, 0x9a, 4)
 #define WFA_KEY_DATA_IP_ADDR_ALLOC RSN_SELECTOR(0x50, 0x6f, 0x9a, 5)
@@ -176,6 +189,18 @@ WPA_CIPHER_BIP_CMAC_256)
 #define FT_R1KH_ID_LEN 6
 #define WPA_PMK_NAME_LEN 16
 
+/* FTE - MIC Control - RSNXE Used */
+#define FTE_MIC_CTRL_RSNXE_USED BIT(0)
+#define FTE_MIC_CTRL_MIC_LEN_MASK (BIT(1) | BIT(2) | BIT(3))
+#define FTE_MIC_CTRL_MIC_LEN_SHIFT 1
+
+/* FTE - MIC Length subfield values */
+enum ft_mic_len_subfield {
+	FTE_MIC_LEN_16 = 0,
+	FTE_MIC_LEN_24 = 1,
+	FTE_MIC_LEN_32 = 2,
+};
+
 
 /* IEEE 802.11, 8.5.2 EAPOL-Key frames */
 #define WPA_KEY_INFO_TYPE_MASK ((u16) (BIT(0) | BIT(1) | BIT(2)))
@@ -222,6 +247,7 @@ struct wpa_eapol_key {
 #define FILS_FT_MAX_LEN 48
 #define WPA_PASN_KCK_LEN 32
 #define WPA_PASN_MIC_MAX_LEN 24
+#define WPA_LTF_KEYSEED_MAX_LEN 48
 
 /**
  * struct wpa_ptk - WPA Pairwise Transient Key
@@ -234,12 +260,14 @@ struct wpa_ptk {
 	u8 kck2[WPA_KCK_MAX_LEN]; /* FT reasoc Key Confirmation Key (KCK2) */
 	u8 kek2[WPA_KEK_MAX_LEN]; /* FT reassoc Key Encryption Key (KEK2) */
 	u8 kdk[WPA_KDK_MAX_LEN]; /* Key Derivation Key */
+	u8 ltf_keyseed[WPA_LTF_KEYSEED_MAX_LEN]; /* LTF Key seed */
 	size_t kck_len;
 	size_t kek_len;
 	size_t tk_len;
 	size_t kck2_len;
 	size_t kek2_len;
 	size_t kdk_len;
+	size_t ltf_keyseed_len;
 	int installed; /* 1 if key has already been installed to driver */
 };
 
@@ -311,24 +339,60 @@ struct rsn_ie_hdr {
 } STRUCT_PACKED;
 
 
+#define KDE_HDR_LEN (1 + 1 + RSN_SELECTOR_LEN)
+
 struct rsn_error_kde {
 	be16 mui;
 	be16 error_type;
 } STRUCT_PACKED;
 
-#define WPA_IGTK_KDE_PREFIX_LEN (2 + 6)
+#define WPA_IGTK_KDE_PREFIX_LEN (2 + RSN_PN_LEN)
 struct wpa_igtk_kde {
 	u8 keyid[2];
-	u8 pn[6];
+	u8 pn[RSN_PN_LEN];
 	u8 igtk[WPA_IGTK_MAX_LEN];
 } STRUCT_PACKED;
 
-#define WPA_BIGTK_KDE_PREFIX_LEN (2 + 6)
+#define WPA_BIGTK_KDE_PREFIX_LEN (2 + RSN_PN_LEN)
 struct wpa_bigtk_kde {
 	u8 keyid[2];
-	u8 pn[6];
+	u8 pn[RSN_PN_LEN];
 	u8 bigtk[WPA_BIGTK_MAX_LEN];
 } STRUCT_PACKED;
+
+#define RSN_MLO_GTK_KDE_PREFIX_LENGTH		(1 + RSN_PN_LEN)
+#define RSN_MLO_GTK_KDE_PREFIX0_KEY_ID_MASK	0x03
+#define RSN_MLO_GTK_KDE_PREFIX0_TX		0x04
+#define RSN_MLO_GTK_KDE_PREFIX0_LINK_ID_SHIFT	4
+#define RSN_MLO_GTK_KDE_PREFIX0_LINK_ID_MASK	0xF0
+
+#define RSN_MLO_IGTK_KDE_PREFIX_LENGTH		(2 + RSN_PN_LEN + 1)
+#define RSN_MLO_IGTK_KDE_PREFIX8_LINK_ID_SHIFT	4
+#define RSN_MLO_IGTK_KDE_PREFIX8_LINK_ID_MASK	0xF0
+struct rsn_mlo_igtk_kde {
+	u8 keyid[2];
+	u8 pn[RSN_PN_LEN];
+	u8 prefix8;
+	u8 igtk[WPA_IGTK_MAX_LEN];
+} STRUCT_PACKED;
+
+#define RSN_MLO_BIGTK_KDE_PREFIX_LENGTH		(2 + RSN_PN_LEN + 1)
+#define RSN_MLO_BIGTK_KDE_PREFIX8_LINK_ID_SHIFT	4
+#define RSN_MLO_BIGTK_KDE_PREFIX8_LINK_ID_MASK	0xF0
+struct rsn_mlo_bigtk_kde {
+	u8 keyid[2];
+	u8 pn[RSN_PN_LEN];
+	u8 prefix8;
+	u8 bigtk[WPA_BIGTK_MAX_LEN];
+} STRUCT_PACKED;
+
+#define RSN_MLO_LINK_KDE_FIXED_LENGTH		(1 + ETH_ALEN)
+#define RSN_MLO_LINK_KDE_LINK_INFO_INDEX	0
+#define RSN_MLO_LINK_KDE_LI_LINK_ID_SHIFT	0
+#define RSN_MLO_LINK_KDE_LI_LINK_ID_MASK	0x0F
+#define RSN_MLO_LINK_KDE_LI_RSNE_INFO		0x10
+#define RSN_MLO_LINK_KDE_LI_RSNXE_INFO		0x20
+#define RSN_MLO_LINK_KDE_LINK_MAC_INDEX		1
 
 struct rsn_mdie {
 	u8 mobility_domain[MOBILITY_DOMAIN_ID_LEN];
@@ -354,12 +418,23 @@ struct rsn_ftie_sha384 {
 	/* followed by optional parameters */
 } STRUCT_PACKED;
 
+struct rsn_ftie_sha512 {
+	u8 mic_control[2];
+	u8 mic[32];
+	u8 anonce[WPA_NONCE_LEN];
+	u8 snonce[WPA_NONCE_LEN];
+	/* followed by optional parameters */
+} STRUCT_PACKED;
+
 #define FTIE_SUBELEM_R1KH_ID 1
 #define FTIE_SUBELEM_GTK 2
 #define FTIE_SUBELEM_R0KH_ID 3
 #define FTIE_SUBELEM_IGTK 4
 #define FTIE_SUBELEM_OCI 5
 #define FTIE_SUBELEM_BIGTK 6
+#define FTIE_SUBELEM_MLO_GTK 8
+#define FTIE_SUBELEM_MLO_IGTK 9
+#define FTIE_SUBELEM_MLO_BIGTK 10
 
 struct rsn_rdie {
 	u8 id;
@@ -408,21 +483,23 @@ int fils_key_auth_sk(const u8 *ick, size_t ick_len, const u8 *snonce,
 		     size_t *key_auth_len);
 
 #ifdef CONFIG_IEEE80211R
-int wpa_ft_mic(const u8 *kck, size_t kck_len, const u8 *sta_addr,
+int wpa_ft_mic(int key_mgmt, const u8 *kck, size_t kck_len, const u8 *sta_addr,
 	       const u8 *ap_addr, u8 transaction_seqnum,
 	       const u8 *mdie, size_t mdie_len,
 	       const u8 *ftie, size_t ftie_len,
 	       const u8 *rsnie, size_t rsnie_len,
 	       const u8 *ric, size_t ric_len,
 	       const u8 *rsnxe, size_t rsnxe_len,
+	       const struct wpabuf *extra,
 	       u8 *mic);
 int wpa_derive_pmk_r0(const u8 *xxkey, size_t xxkey_len,
 		      const u8 *ssid, size_t ssid_len,
 		      const u8 *mdid, const u8 *r0kh_id, size_t r0kh_id_len,
 		      const u8 *s0kh_id, u8 *pmk_r0, u8 *pmk_r0_name,
-		      int use_sha384);
+		      int key_mgmt);
 int wpa_derive_pmk_r1_name(const u8 *pmk_r0_name, const u8 *r1kh_id,
-			   const u8 *s1kh_id, u8 *pmk_r1_name, int use_sha384);
+			   const u8 *s1kh_id, u8 *pmk_r1_name,
+			   size_t pmk_r1_len);
 int wpa_derive_pmk_r1(const u8 *pmk_r0, size_t pmk_r0_len,
 		      const u8 *pmk_r0_name,
 		      const u8 *r1kh_id, const u8 *s1kh_id,
@@ -483,7 +560,7 @@ u32 wpa_akm_to_suite(int akm);
 int wpa_compare_rsn_ie(int ft_initial_assoc,
 		       const u8 *ie1, size_t ie1len,
 		       const u8 *ie2, size_t ie2len);
-int wpa_insert_pmkid(u8 *ies, size_t *ies_len, const u8 *pmkid);
+int wpa_insert_pmkid(u8 *ies, size_t *ies_len, const u8 *pmkid, bool replace);
 
 struct wpa_ft_ies {
 	const u8 *mdie;
@@ -497,6 +574,10 @@ struct wpa_ft_ies {
 	size_t r0kh_id_len;
 	const u8 *fte_anonce;
 	const u8 *fte_snonce;
+	bool fte_rsnxe_used;
+	unsigned int fte_elem_count;
+	const u8 *fte_mic;
+	size_t fte_mic_len;
 	const u8 *rsn;
 	size_t rsn_len;
 	u16 rsn_capab;
@@ -517,6 +598,17 @@ struct wpa_ft_ies {
 	int pairwise_cipher;
 	const u8 *rsnxe;
 	size_t rsnxe_len;
+	u16 valid_mlo_gtks; /* bitmap of valid link GTK subelements */
+	const u8 *mlo_gtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_gtk_len[MAX_NUM_MLD_LINKS];
+	u16 valid_mlo_igtks; /* bitmap of valid link IGTK subelements */
+	const u8 *mlo_igtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_igtk_len[MAX_NUM_MLD_LINKS];
+	u16 valid_mlo_bigtks; /* bitmap of valid link BIGTK subelements */
+	const u8 *mlo_bigtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_bigtk_len[MAX_NUM_MLD_LINKS];
+
+	struct wpabuf *fte_buf;
 };
 
 /* IEEE P802.11az/D2.6 - 9.4.2.303 PASN Parameters element */
@@ -552,7 +644,8 @@ struct wpa_pasn_params_data {
 #define WPA_PASN_PUBKEY_UNCOMPRESSED 0x04
 
 int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse,
-		     int use_sha384);
+		     int key_mgmt, bool reassoc_resp);
+void wpa_ft_parse_ies_free(struct wpa_ft_ies *parse);
 
 struct wpa_eapol_ie_parse {
 	const u8 *wpa_ie;
@@ -564,7 +657,6 @@ struct wpa_eapol_ie_parse {
 	const u8 *gtk;
 	size_t gtk_len;
 	const u8 *mac_addr;
-	size_t mac_addr_len;
 	const u8 *igtk;
 	size_t igtk_len;
 	const u8 *bigtk;
@@ -600,14 +692,30 @@ struct wpa_eapol_ie_parse {
 	const u8 *he_capabilities;
 	size_t he_capab_len;
 	const u8 *he_6ghz_capabilities;
+	const u8 *eht_capabilities;
+	size_t eht_capab_len;
 	const u8 *supp_channels;
 	size_t supp_channels_len;
 	const u8 *supp_oper_classes;
 	size_t supp_oper_classes_len;
+	const u8 *ssid;
+	size_t ssid_len;
 	u8 qosinfo;
 	u16 aid;
 	const u8 *wmm;
 	size_t wmm_len;
+	u16 valid_mlo_gtks; /* bitmap of valid link GTK KDEs */
+	const u8 *mlo_gtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_gtk_len[MAX_NUM_MLD_LINKS];
+	u16 valid_mlo_igtks; /* bitmap of valid link IGTK KDEs */
+	const u8 *mlo_igtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_igtk_len[MAX_NUM_MLD_LINKS];
+	u16 valid_mlo_bigtks; /* bitmap of valid link BIGTK KDEs */
+	const u8 *mlo_bigtk[MAX_NUM_MLD_LINKS];
+	size_t mlo_bigtk_len[MAX_NUM_MLD_LINKS];
+	u16 valid_mlo_links; /* bitmap of valid MLO link KDEs */
+	const u8 *mlo_link[MAX_NUM_MLD_LINKS];
+	size_t mlo_link_len[MAX_NUM_MLD_LINKS];
 };
 
 int wpa_parse_kde_ies(const u8 *buf, size_t len, struct wpa_eapol_ie_parse *ie);
@@ -638,6 +746,7 @@ int wpa_use_cmac(int akmp);
 int wpa_use_aes_key_wrap(int akmp);
 int fils_domain_name_hash(const char *domain, u8 *hash);
 
+bool pasn_use_sha384(int akmp, int cipher);
 int pasn_pmk_to_ptk(const u8 *pmk, size_t pmk_len,
 		    const u8 *spa, const u8 *bssid,
 		    const u8 *dhss, size_t dhss_len,
@@ -650,6 +759,8 @@ int pasn_mic(const u8 *kck, int akmp, int cipher,
 	     const u8 *addr1, const u8 *addr2,
 	     const u8 *data, size_t data_len,
 	     const u8 *frame, size_t frame_len, u8 *mic);
+
+int wpa_ltf_keyseed(struct wpa_ptk *ptk, int akmp, int cipher);
 
 int pasn_auth_frame_hash(int akmp, int cipher, const u8 *data, size_t len,
 			 u8 *hash);
@@ -674,5 +785,6 @@ int wpa_pasn_parse_parameter_ie(const u8 *data, u8 len, bool from_ap,
 				struct wpa_pasn_params_data *pasn_params);
 
 void wpa_pasn_add_rsnxe(struct wpabuf *buf, u16 capab);
+int wpa_pasn_add_extra_ies(struct wpabuf *buf, const u8 *extra_ies, size_t len);
 
 #endif /* WPA_COMMON_H */

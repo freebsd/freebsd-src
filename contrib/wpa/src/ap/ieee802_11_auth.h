@@ -1,6 +1,6 @@
 /*
  * hostapd / IEEE 802.11 authentication (ACL)
- * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2022, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -36,5 +36,8 @@ void hostapd_free_psk_list(struct hostapd_sta_wpa_psk_short *psk);
 void hostapd_acl_expire(struct hostapd_data *hapd);
 void hostapd_copy_psk_list(struct hostapd_sta_wpa_psk_short **psk,
 			   struct hostapd_sta_wpa_psk_short *src);
+void hostapd_acl_req_radius_psk(struct hostapd_data *hapd, const u8 *addr,
+				int key_mgmt, const u8 *anonce,
+				const u8 *eapol, size_t eapol_len);
 
 #endif /* IEEE802_11_AUTH_H */

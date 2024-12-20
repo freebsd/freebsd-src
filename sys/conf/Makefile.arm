@@ -27,7 +27,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include -I$$/dts/include
+INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include -I$S/dts/include
 
 LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
 CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
@@ -64,25 +64,6 @@ SYSTEM_LD= \
 	    --strip-symbol='$$[adt]*' \
 	    ${.TARGET}
 
-# Generate the .bin (no elf headers) kernel as an extra build output.
-# We must relink to generate the .bin kernel, because without headers the
-# location of everything changes.  We also strip the ARM marker symbols.
-${KERNEL_KO}.bin: ${SYSTEM_DEP} vers.o
-	@echo "linking ${.TARGET}"
-	@${SYSTEM_LD_BASECMD} \
-	    --defsym='text_start=kernbase' \
-	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o
-	${SIZE} ${.TARGET}
-	@${OBJCOPY} \
-	    --wildcard \
-	    --strip-symbol='$$[adt]*' \
-	    --output-target=binary \
-	    ${.TARGET}
-	@chmod 755 ${.TARGET}
-
-# hack because genassym.c includes sys/bus.h which includes these.
-genassym.o: bus_if.h device_if.h
-
 %BEFORE_DEPEND
 
 %OBJS
@@ -98,3 +79,22 @@ genassym.o: bus_if.h device_if.h
 %RULES
 	
 .include "$S/conf/kern.post.mk"
+
+# Generate the .bin (no elf headers) kernel
+# Copy the kernel to directly executable format (the elf headers are
+# stripped and a binary head blob with jump to kernel start address is
+# prepended), saving the output in a temp file.
+# We also strip arm "marker" symbols which are used only by elf toolchains. Read
+# the symbols from kernel.full and pass  them to arm_kernel_boothdr.awk, which
+# generates a binary header blob that goes on the front of the stripped kernel.
+# Cat the header blob and the temp file together to make the kernel.bin file.
+${KERNEL_KO}.bin: ${FULLKERNEL}
+	@${OBJCOPY} --wildcard --strip-symbol='$$[adtx]*' \
+	    --output-target=binary ${FULLKERNEL} ${.TARGET}.temp
+	@{ ${NM} ${FULLKERNEL} | \
+	    LC_ALL=C \
+	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v7jump && \
+	    cat ${.TARGET}.temp; \
+	 } > ${.TARGET}
+	@rm ${.TARGET}.temp
+	@echo "created ${.TARGET} from ${.ALLSRC}"

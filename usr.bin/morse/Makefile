@@ -1,4 +1,3 @@
-
 PROG=	morse
 MAN=	morse.6
 

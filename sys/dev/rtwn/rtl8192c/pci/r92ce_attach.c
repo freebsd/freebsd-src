@@ -175,6 +175,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_get_rssi_ofdm		= r92c_get_rssi_ofdm;
 	sc->sc_classify_intr		= r92c_classify_intr;
 	sc->sc_handle_tx_report		= rtwn_nop_softc_uint8_int;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= rtwn_nop_softc_uint8_int;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
 	sc->sc_rf_read			= r92c_rf_read;
@@ -220,6 +221,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r92ce_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= r92c_set_tx_power;
 
 	sc->mac_prog			= &rtl8192ce_mac[0];
 	sc->mac_size			= nitems(rtl8192ce_mac);

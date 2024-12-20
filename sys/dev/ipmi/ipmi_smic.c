@@ -388,7 +388,7 @@ smic_startup(struct ipmi_softc *sc)
 }
 
 static int
-smic_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+smic_driver_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 	int i, ok;
 

@@ -1,4 +1,3 @@
-
 PACKAGE=ssh
 LIB=	cbor
 PRIVATELIB=

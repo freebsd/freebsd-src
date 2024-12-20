@@ -474,7 +474,6 @@ void
 sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 {
 	uintptr_t x;
-	int wakeup_swapper;
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -516,17 +515,13 @@ sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	 * Preserve SX_LOCK_EXCLUSIVE_WAITERS while downgraded to a single
 	 * shared lock.  If there are any shared waiters, wake them up.
 	 */
-	wakeup_swapper = 0;
 	x = sx->sx_lock;
 	atomic_store_rel_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) |
 	    (x & SX_LOCK_EXCLUSIVE_WAITERS));
 	if (x & SX_LOCK_SHARED_WAITERS)
-		wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX,
-		    0, SQ_SHARED_QUEUE);
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0,
+		    SQ_SHARED_QUEUE);
 	sleepq_release(&sx->lock_object);
-
-	if (wakeup_swapper)
-		kick_proc0();
 
 out:
 	curthread->td_sx_slocks++;
@@ -587,9 +582,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+	uintptr_t state = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 	int extra_work = 0;
@@ -605,13 +600,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 		extra_work = 1;
 		doing_lockprof = 1;
 		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
 	}
+	state = x;
 #endif
 #ifdef LOCK_PROFILING
 	extra_work = 1;
 	doing_lockprof = 1;
-	state = x;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -920,7 +914,7 @@ void
 _sx_xunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 {
 	uintptr_t tid, setx;
-	int queue, wakeup_swapper;
+	int queue;
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -977,14 +971,11 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 		    __func__, sx, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
 
-	wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0,
-	    queue);
+	sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0, queue);
 	sleepq_release(&sx->lock_object);
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
-static bool __always_inline
+static __always_inline bool
 __sx_can_read(struct thread *td, uintptr_t x, bool fp)
 {
 
@@ -996,7 +987,7 @@ __sx_can_read(struct thread *td, uintptr_t x, bool fp)
 	return (false);
 }
 
-static bool __always_inline
+static __always_inline bool
 __sx_slock_try(struct sx *sx, struct thread *td, uintptr_t *xp, bool fp
     LOCK_FILE_LINE_ARG_DEF)
 {
@@ -1042,8 +1033,6 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
-#endif
-#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	uintptr_t state = 0;
 #endif
 	int extra_work __sdt_used = 0;
@@ -1056,12 +1045,11 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 			goto out_lockstat;
 		extra_work = 1;
 		all_time -= lockstat_nsecs(&sx->lock_object);
-		state = x;
 	}
+	state = x;
 #endif
 #ifdef LOCK_PROFILING
 	extra_work = 1;
-	state = x;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -1306,7 +1294,7 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 	return (_sx_slock_int(sx, opts LOCK_FILE_LINE_ARG));
 }
 
-static bool __always_inline
+static __always_inline bool
 _sx_sunlock_try(struct sx *sx, struct thread *td, uintptr_t *xp)
 {
 
@@ -1333,7 +1321,6 @@ static void __noinline
 _sx_sunlock_hard(struct sx *sx, struct thread *td, uintptr_t x
     LOCK_FILE_LINE_ARG_DEF)
 {
-	int wakeup_swapper = 0;
 	uintptr_t setx, queue;
 
 	if (SCHEDULER_STOPPED())
@@ -1366,14 +1353,11 @@ _sx_sunlock_hard(struct sx *sx, struct thread *td, uintptr_t x
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p waking up all thread on"
 			    "exclusive queue", __func__, sx);
-		wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX,
-		    0, queue);
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, 0, queue);
 		td->td_sx_slocks--;
 		break;
 	}
 	sleepq_release(&sx->lock_object);
-	if (wakeup_swapper)
-		kick_proc0();
 out_lockstat:
 	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 }

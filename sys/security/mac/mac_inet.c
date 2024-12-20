@@ -485,6 +485,7 @@ mac_syncache_init(struct label **label)
 			MAC_POLICY_PERFORM_NOSLEEP(syncache_destroy_label,
 			    *label);
 			mac_labelzone_free(*label);
+			*label = NULL;
 		}
 		return (error);
 	} else

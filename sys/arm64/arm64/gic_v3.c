@@ -1093,7 +1093,7 @@ gic_v3_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static void
-gic_v3_init_secondary(device_t dev)
+gic_v3_init_secondary(device_t dev, uint32_t rootnum)
 {
 	struct gic_v3_setup_periph_args pargs;
 	device_t child;
@@ -1140,7 +1140,7 @@ gic_v3_init_secondary(device_t dev)
 
 	for (i = 0; i < sc->gic_nchildren; i++) {
 		child = sc->gic_children[i];
-		PIC_INIT_SECONDARY(child);
+		PIC_INIT_SECONDARY(child, rootnum);
 	}
 }
 
@@ -1434,7 +1434,7 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 				    (GICR_VLPI_BASE_SIZE + GICR_RESERVED_SIZE);
 			}
 		} while (offset < rman_get_size(r_res) &&
-		    (typer & GICR_TYPER_LAST) == 0);
+		    !sc->gic_redists.single && (typer & GICR_TYPER_LAST) == 0);
 	}
 
 	device_printf(sc->dev, "No Re-Distributor found for CPU%u\n", cpuid);

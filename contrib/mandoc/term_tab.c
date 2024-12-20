@@ -1,6 +1,6 @@
-/* $Id: term_tab.c,v 1.6 2020/06/22 19:20:40 schwarze Exp $ */
+/* $Id: term_tab.c,v 1.7 2021/10/04 18:56:31 schwarze Exp $ */
 /*
- * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2017, 2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +19,8 @@
 #include <sys/types.h>
 
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "mandoc_aux.h"
 #include "out.h"
@@ -33,6 +35,7 @@ struct tablist {
 static struct {
 	struct tablist	 a;	/* All tab positions for lookup. */
 	struct tablist	 p;	/* Periodic tab positions to add. */
+	struct tablist	*r;	/* Tablist currently being recorded. */
 	size_t		 d;	/* Default tab width in units of n. */
 } tabs;
 
@@ -40,8 +43,6 @@ static struct {
 void
 term_tab_set(const struct termp *p, const char *arg)
 {
-	static int	 recording_period;
-
 	struct roffsu	 su;
 	struct tablist	*tl;
 	size_t		 pos;
@@ -51,7 +52,7 @@ term_tab_set(const struct termp *p, const char *arg)
 
 	if (arg == NULL) {
 		tabs.a.n = tabs.p.n = 0;
-		recording_period = 0;
+		tabs.r = &tabs.a;
 		if (tabs.d == 0) {
 			a2roffsu(".8i", &su, SCALE_IN);
 			tabs.d = term_hen(p, &su);
@@ -59,7 +60,7 @@ term_tab_set(const struct termp *p, const char *arg)
 		return;
 	}
 	if (arg[0] == 'T' && arg[1] == '\0') {
-		recording_period = 1;
+		tabs.r = &tabs.p;
 		return;
 	}
 
@@ -75,7 +76,7 @@ term_tab_set(const struct termp *p, const char *arg)
 
 	/* Select the list, and extend it if it is full. */
 
-	tl = recording_period ? &tabs.p : &tabs.a;
+	tl = tabs.r;
 	if (tl->n >= tl->s) {
 		tl->s += 8;
 		tl->t = mandoc_reallocarray(tl->t, tl->s, sizeof(*tl->t));
@@ -127,4 +128,13 @@ term_tab_next(size_t prev)
 		if (prev < tabs.a.t[i])
 			return tabs.a.t[i];
 	}
+}
+
+void
+term_tab_free(void)
+{
+	free(tabs.a.t);
+	free(tabs.p.t);
+	memset(&tabs, 0, sizeof(tabs));
+	tabs.r = &tabs.a;
 }

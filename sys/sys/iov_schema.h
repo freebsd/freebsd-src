@@ -48,5 +48,6 @@ void	pci_iov_schema_add_uint64(nvlist_t *schema, const char *name,
 	    uint32_t flags, uint64_t defaultVal);
 void	pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
 	    uint32_t flags, const uint8_t * defaultVal);
-
+void	pci_iov_schema_add_vlan(nvlist_t *schema, const char *name,
+	    uint32_t flags, const uint16_t defaultVal);
 #endif

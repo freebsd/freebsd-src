@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2024 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -83,6 +83,7 @@ enum mcast_filter_flags {
 	FIF_OTHER_BSS			= BIT(4),
 	FIF_PSPOLL			= BIT(5),
 	FIF_CONTROL			= BIT(6),
+	FIF_MCAST_ACTION		= BIT(7),
 };
 
 enum ieee80211_bss_changed {
@@ -117,6 +118,9 @@ enum ieee80211_bss_changed {
 	BSS_CHANGED_TWT			= BIT(28),
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = BIT(30),
 	BSS_CHANGED_EHT_PUNCTURING	= BIT(31),
+	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(32),
+	BSS_CHANGED_MLD_TTLM		= BIT_ULL(33),
+	BSS_CHANGED_TPE			= BIT_ULL(34),
 };
 
 /* 802.11 Figure 9-256 Suite selector format. [OUI(3), SUITE TYPE(1)] */
@@ -167,12 +171,23 @@ enum ieee80211_bss_changed {
 #define	TKIP_PN_TO_IV16(_x)		((uint16_t)(_x & 0xffff))
 #define	TKIP_PN_TO_IV32(_x)		((uint32_t)((_x >> 16) & 0xffffffff))
 
-struct ieee80211_sta;
+enum ieee80211_neg_ttlm_res {
+	NEG_TTLM_RES_ACCEPT,
+	NEG_TTLM_RES_REJECT,
+};
+
+#define	IEEE80211_TTLM_NUM_TIDS	8
+struct ieee80211_neg_ttlm {
+	uint16_t downlink[IEEE80211_TTLM_NUM_TIDS];
+	uint16_t uplink[IEEE80211_TTLM_NUM_TIDS];
+};
 
 /* 802.11-2020 9.4.2.55.3 A-MPDU Parameters field */
 #define	IEEE80211_HT_AMPDU_PARM_FACTOR		0x3
 #define	IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT	2
 #define	IEEE80211_HT_AMPDU_PARM_DENSITY		(0x7 << IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT)
+
+struct ieee80211_sta;
 
 struct ieee80211_ampdu_params {
 	struct ieee80211_sta			*sta;
@@ -217,11 +232,13 @@ struct mac80211_fils_discovery {
 };
 
 struct ieee80211_chanctx_conf {
-	/* TODO FIXME */
-	int		rx_chains_dynamic, rx_chains_static;
-	bool					radar_enabled;
 	struct cfg80211_chan_def		def;
 	struct cfg80211_chan_def		min_def;
+	struct cfg80211_chan_def		ap;
+
+	uint8_t					rx_chains_dynamic;
+	uint8_t					rx_chains_static;
+	bool					radar_enabled;
 
 	/* Must stay last. */
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
@@ -240,12 +257,39 @@ struct ieee80211_ema_beacons {
 	} bcn[0];
 };
 
+struct ieee80211_chanreq {
+	struct cfg80211_chan_def oper;
+};
+
 #define	WLAN_MEMBERSHIP_LEN			(8)
 #define	WLAN_USER_POSITION_LEN			(16)
+
+/*
+ * 802.11ac-2013, 8.4.2.164 VHT Transmit Power Envelope element
+ * 802.11-???? ?
+ */
+struct ieee80211_parsed_tpe_eirp {
+	int8_t					power[5];
+	uint8_t					count;
+	bool					valid;
+};
+struct ieee80211_parsed_tpe_psd {
+	int8_t					power[16];
+	uint8_t					count;
+	bool					valid;
+};
+struct ieee80211_parsed_tpe {
+	/* We see access to [0] so assume at least 2. */
+	struct ieee80211_parsed_tpe_eirp	max_local[2];
+	struct ieee80211_parsed_tpe_eirp	max_reg_client[2];
+	struct ieee80211_parsed_tpe_psd		psd_local[2];
+	struct ieee80211_parsed_tpe_psd		psd_reg_client[2];
+};
 
 struct ieee80211_bss_conf {
 	/* TODO FIXME */
 	struct ieee80211_vif			*vif;
+	struct cfg80211_bss			*bss;
 	const uint8_t				*bssid;
 	uint8_t					addr[ETH_ALEN];
 	uint8_t					link_id;
@@ -253,7 +297,7 @@ struct ieee80211_bss_conf {
 	uint8_t					transmitter_bssid[ETH_ALEN];
 	struct ieee80211_ftm_responder_params	*ftmr_params;
 	struct ieee80211_p2p_noa_attr		p2p_noa_attr;
-	struct cfg80211_chan_def		chandef;
+	struct ieee80211_chanreq		chanreq;
 	__be32					arp_addr_list[1];	/* XXX TODO */
 	struct ieee80211_rate			*beacon_rate;
 	struct {
@@ -303,11 +347,12 @@ struct ieee80211_bss_conf {
 	int16_t					txpower;
 	uint32_t				basic_rates;
 	int					mcast_rate[NUM_NL80211_BANDS];
-	enum ieee80211_reg_ap_power 		power_type;
+	enum ieee80211_ap_reg_power 		power_type;
 	struct cfg80211_bitrate_mask		beacon_tx_rate;
 	struct mac80211_fils_discovery		fils_discovery;
 	struct ieee80211_chanctx_conf		*chanctx_conf;
 	struct ieee80211_vif			*mbssid_tx_vif;
+	struct ieee80211_parsed_tpe		tpe;
 
 	int		ack_enabled, bssid_index, bssid_indicator, cqm_rssi_hyst, cqm_rssi_thold, ema_ap, frame_time_rts_th, ftm_responder;
 	int		htc_trig_based_pkt_ext;
@@ -322,6 +367,7 @@ struct ieee80211_bss_conf {
 struct ieee80211_channel_switch {
 	/* TODO FIXME */
 	int		block_tx, count, delay, device_timestamp, timestamp;
+	uint8_t					link_id;
 	struct cfg80211_chan_def		chandef;
 };
 
@@ -444,6 +490,10 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_TX_ENCAP_OFFLOAD,
 	IEEE80211_HW_SUPPORTS_RC_TABLE,
 	IEEE80211_HW_DETECTS_COLOR_COLLISION,
+	IEEE80211_HW_DISALLOW_PUNCTURING,
+	IEEE80211_HW_DISALLOW_PUNCTURING_5GHZ,
+	IEEE80211_HW_TX_STATUS_NO_AMPDU_LEN,
+	IEEE80211_HW_HANDLES_QUIET_CSA,
 
 	/* Keep last. */
 	NUM_IEEE80211_HW_FLAGS
@@ -500,6 +550,7 @@ enum ieee802111_key_flag {
 	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(6),
 	IEEE80211_KEY_FLAG_GENERATE_MMIE	= BIT(7),
 	IEEE80211_KEY_FLAG_RESERVE_TAILROOM	= BIT(8),
+	IEEE80211_KEY_FLAG_SPP_AMSDU		= BIT(9),
 };
 
 struct ieee80211_key_conf {
@@ -569,6 +620,9 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_SKIP_MONITOR		= BIT(26),
 	RX_FLAG_8023			= BIT(27),
 	RX_FLAG_RADIOTAP_TLV_AT_END	= BIT(28),
+	RX_FLAG_MACTIME			= BIT(29),
+	RX_FLAG_MACTIME_IS_RTAP_TS64	= BIT(30),
+	RX_FLAG_FAILED_PLCP_CRC		= BIT(31),
 };
 
 enum mac80211_rx_encoding {
@@ -742,7 +796,11 @@ enum ieee80211_vif_driver_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
 	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
 	IEEE80211_VIF_SUPPORTS_UAPSD		= BIT(2),
-	IEEE80211_VIF_DISABLE_SMPS_OVERRIDE	= BIT(3),
+#if defined(LINUXKPI_VERSION) && (LINUXKPI_VERSION < 60600)	/* v6.6 */
+	IEEE80211_VIF_DISABLE_SMPS_OVERRIDE	= BIT(3),	/* Renamed to IEEE80211_VIF_EML_ACTIVE. */
+#endif
+	IEEE80211_VIF_EML_ACTIVE		= BIT(4),
+	IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW	= BIT(5),
 };
 
 #define	IEEE80211_BSS_ARP_ADDR_LIST_LEN		4
@@ -799,6 +857,8 @@ struct ieee80211_vif_chanctx_switch {
 struct ieee80211_prep_tx_info {
 	u16				duration;
 	bool				success;
+	bool				was_assoc;
+	int				link_id;
 };
 
 /* XXX-BZ too big, over-reduce size to u8, and array sizes to minuimum to fit in skb->cb. */
@@ -813,6 +873,7 @@ struct ieee80211_tx_info {
 		struct {
 			struct ieee80211_tx_rate	rates[4];
 			bool				use_rts;
+			uint8_t				antennas:2;
 			struct ieee80211_vif		*vif;
 			struct ieee80211_key_conf	*hw_key;
 			enum ieee80211_tx_control_flags	flags;
@@ -911,7 +972,7 @@ enum ieee80211_offload_flags {
 struct ieee80211_ops {
 	/* TODO FIXME */
 	int  (*start)(struct ieee80211_hw *);
-	void (*stop)(struct ieee80211_hw *);
+	void (*stop)(struct ieee80211_hw *, bool);
 
 	int  (*config)(struct ieee80211_hw *, u32);
 	void (*reconfig_complete)(struct ieee80211_hw *, enum ieee80211_reconfig_type);
@@ -934,7 +995,7 @@ struct ieee80211_ops {
 
 	void (*mgd_prepare_tx)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_prep_tx_info *);
 	void (*mgd_complete_tx)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_prep_tx_info *);
-	void (*mgd_protect_tdls_discover)(struct ieee80211_hw *, struct ieee80211_vif *);
+	void (*mgd_protect_tdls_discover)(struct ieee80211_hw *, struct ieee80211_vif *, unsigned int);
 
 	void (*flush)(struct ieee80211_hw *, struct ieee80211_vif *, u32, bool);
 	void (*flush_sta)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *);
@@ -965,10 +1026,10 @@ struct ieee80211_ops {
 	bool (*can_aggregate_in_amsdu)(struct ieee80211_hw *, struct sk_buff *, struct sk_buff *);
 
 	int  (*pre_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_channel_switch *);
-	int  (*post_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *);
+	int  (*post_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *);
 	void (*channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_channel_switch *);
 	void (*channel_switch_beacon)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_chan_def *);
-	void (*abort_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *);
+	void (*abort_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *);
 	void (*channel_switch_rx_beacon)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_channel_switch *);
 	int  (*tdls_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, u8, struct cfg80211_chan_def *, struct sk_buff *, u32);
 	void (*tdls_cancel_channel_switch)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *);
@@ -1044,6 +1105,8 @@ struct ieee80211_ops {
 
 	int (*change_vif_links)(struct ieee80211_hw *, struct ieee80211_vif *, u16, u16, struct ieee80211_bss_conf *[IEEE80211_MLD_MAX_NUM_LINKS]);
 	int (*change_sta_links)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, u16, u16);
+	bool (*can_activate_links)(struct ieee80211_hw *, struct ieee80211_vif *, u16);
+	enum ieee80211_neg_ttlm_res (*can_neg_ttlm)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_neg_ttlm *);
 
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
@@ -1261,353 +1324,12 @@ ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif)
 /* -------------------------------------------------------------------------- */
 
 static __inline bool
-ieee80211_is_action(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_ACTION | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_probe_resp(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_PROBE_RESP | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_auth(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_AUTH | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_assoc_req(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_ASSOC_REQ | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_assoc_resp(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_ASSOC_RESP | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_reassoc_req(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_REASSOC_REQ | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_reassoc_resp(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_REASSOC_RESP | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_disassoc(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_DISASSOC | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_data_present(__le16 fc)
-{
-	__le16 v;
-
-	/* If it is a data frame and NODATA is not present. */
-	fc &= htole16(IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_NODATA);
-	v = htole16(IEEE80211_FC0_TYPE_DATA);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_deauth(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_DEAUTH | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_beacon(__le16 fc)
-{
-	__le16 v;
-
-	/*
-	 * For as much as I get it this comes in LE and unlike FreeBSD
-	 * where we get the entire frame header and u8[], here we get the
-	 * 9.2.4.1 Frame Control field only. Mask and compare.
-	 */
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_BEACON | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-
-static __inline bool
-ieee80211_is_probe_req(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_PROBE_REQ | IEEE80211_FC0_TYPE_MGT);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_has_protected(__le16 fc)
-{
-
-	return (fc & htole16(IEEE80211_FC1_PROTECTED << 8));
-}
-
-static __inline bool
-ieee80211_is_back_req(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_BAR | IEEE80211_FC0_TYPE_CTL);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
-{
-	struct ieee80211_mgmt *mgmt;
-	__le16 fc;
-
-	mgmt = (struct ieee80211_mgmt *)skb->data;
-	fc = mgmt->frame_control;
-
-	/* 11.2.2 Bufferable MMPDUs, 80211-2020. */
-	/* XXX we do not care about IBSS yet. */
-
-	if (!ieee80211_is_mgmt(fc))
-		return (false);
-	if (ieee80211_is_action(fc))		/* XXX FTM? */
-		return (true);			/* XXX false? */
-	if (ieee80211_is_disassoc(fc))
-		return (true);
-	if (ieee80211_is_deauth(fc))
-		return (true);
-
-	TODO();
-
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_nullfunc(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_NODATA | IEEE80211_FC0_TYPE_DATA);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_qos_nullfunc(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_QOS_NULL | IEEE80211_FC0_TYPE_DATA);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_is_any_nullfunc(__le16 fc)
-{
-
-	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
-}
-
-static inline bool
-ieee80211_is_pspoll(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16(IEEE80211_FC0_SUBTYPE_MASK | IEEE80211_FC0_TYPE_MASK);
-	v = htole16(IEEE80211_FC0_SUBTYPE_PS_POLL | IEEE80211_FC0_TYPE_CTL);
-
-	return (fc == v);
-}
-
-static __inline bool
 ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
 	TODO();
 	return (false);
 }
 
-static __inline bool
-ieee80211_is_frag(struct ieee80211_hdr *hdr)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_first_frag(__le16 fc)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_ftm(struct sk_buff *skb)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_is_timing_measurement(struct sk_buff *skb)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_has_pm(__le16 fc)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-ieee80211_has_a4(__le16 fc)
-{
-	__le16 v;
-
-	fc &= htole16((IEEE80211_FC1_DIR_TODS | IEEE80211_FC1_DIR_FROMDS) << 8);
-	v = htole16((IEEE80211_FC1_DIR_TODS | IEEE80211_FC1_DIR_FROMDS) << 8);
-
-	return (fc == v);
-}
-
-static __inline bool
-ieee80211_has_order(__le16 fc)
-{
-
-	return (fc & htole16(IEEE80211_FC1_ORDER << 8));
-}
-
-static __inline bool
-ieee80211_has_retry(__le16 fc)
-{
-
-	return (fc & htole16(IEEE80211_FC1_RETRY << 8));
-}
-
-
-static __inline bool
-ieee80211_has_fromds(__le16 fc)
-{
-
-	return (fc & htole16(IEEE80211_FC1_DIR_FROMDS << 8));
-}
-
-static __inline bool
-ieee80211_has_tods(__le16 fc)
-{
-
-	return (fc & htole16(IEEE80211_FC1_DIR_TODS << 8));
-}
-
-static __inline uint8_t *
-ieee80211_get_SA(struct ieee80211_hdr *hdr)
-{
-
-	if (ieee80211_has_a4(hdr->frame_control))
-		return (hdr->addr4);
-	if (ieee80211_has_fromds(hdr->frame_control))
-		return (hdr->addr3);
-	return (hdr->addr2);
-}
-
-static __inline uint8_t *
-ieee80211_get_DA(struct ieee80211_hdr *hdr)
-{
-
-	if (ieee80211_has_tods(hdr->frame_control))
-		return (hdr->addr3);
-	return (hdr->addr1);
-}
-
-static __inline bool
-ieee80211_has_morefrags(__le16 fc)
-{
-
-	fc &= htole16(IEEE80211_FC1_MORE_FRAG << 8);
-	return (fc != 0);
-}
-
-static __inline u8 *
-ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
-{
-        if (ieee80211_has_a4(hdr->frame_control))
-                return (u8 *)hdr + 30;
-        else
-                return (u8 *)hdr + 24;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Receive functions (air/driver to mac80211/net80211). */
@@ -1841,7 +1563,7 @@ ieee80211_beacon_loss(struct ieee80211_vif *vif)
 }
 
 static __inline void
-ieee80211_chswitch_done(struct ieee80211_vif *vif, bool t)
+ieee80211_chswitch_done(struct ieee80211_vif *vif, bool t, uint32_t link_id)
 {
 	TODO();
 }
@@ -1867,7 +1589,7 @@ ieee80211_csa_update_counter(struct ieee80211_vif *vif)
 }
 
 static __inline void
-ieee80211_csa_finish(struct ieee80211_vif *vif)
+ieee80211_csa_finish(struct ieee80211_vif *vif, uint32_t link_id)
 {
 	TODO();
 }
@@ -2077,6 +1799,32 @@ ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 	TODO();
 }
 
+/* -------------------------------------------------------------------------- */
+
+static inline bool
+ieee80211_sn_less(uint16_t sn1, uint16_t sn2)
+{
+	return (IEEE80211_SEQ_BA_BEFORE(sn1, sn2));
+}
+
+static inline uint16_t
+ieee80211_sn_inc(uint16_t sn)
+{
+	return (IEEE80211_SEQ_INC(sn));
+}
+
+static inline uint16_t
+ieee80211_sn_add(uint16_t sn, uint16_t a)
+{
+	return (IEEE80211_SEQ_ADD(sn, a));
+}
+
+static inline uint16_t
+ieee80211_sn_sub(uint16_t sa, uint16_t sb)
+{
+	return (IEEE80211_SEQ_SUB(sa, sb));
+}
+
 static __inline void
 ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *sta, uint8_t tid,
     uint32_t ssn, uint64_t bitmap, uint16_t received_mpdu)
@@ -2084,32 +1832,34 @@ ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *sta, uint8_t tid,
 	TODO();
 }
 
-static __inline bool
-ieee80211_sn_less(uint16_t sn1, uint16_t sn2)
-{
-	TODO();
-	return (false);
-}
-
-static __inline uint16_t
-ieee80211_sn_inc(uint16_t sn)
-{
-	TODO();
-	return (sn + 1);
-}
-
-static __inline uint16_t
-ieee80211_sn_add(uint16_t sn, uint16_t a)
-{
-	TODO();
-	return (sn + a);
-}
-
 static __inline void
 ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, uint32_t x, uint8_t *addr)
 {
 	TODO();
 }
+
+static __inline void
+ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
+    uint8_t tid)
+{
+	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
 
 static __inline void
 ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint32_t f1, uint32_t f2)
@@ -2144,24 +1894,9 @@ ieee80211_unreserve_tid(struct ieee80211_sta *sta, uint8_t tid)
 }
 
 static __inline void
-ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_send_eosp_nullfunc(struct ieee80211_sta *sta, uint8_t tid)
 {
 	TODO();
-}
-
-static __inline uint16_t
-ieee80211_sn_sub(uint16_t sa, uint16_t sb)
-{
-
-	return ((sa - sb) &
-	    (IEEE80211_SEQ_SEQ_MASK >> IEEE80211_SEQ_SEQ_SHIFT));
 }
 
 static __inline void
@@ -2378,9 +2113,8 @@ ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *w)
 }
 
 static __inline void
-ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+ieee80211_tx_status_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-
 	linuxkpi_ieee80211_tx_status(hw, skb);
 }
 
@@ -2388,14 +2122,14 @@ static __inline void
 ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	IMPROVE();
-	ieee80211_tx_status(hw, skb);
+	linuxkpi_ieee80211_tx_status(hw, skb);
 }
 
 static __inline void
 ieee80211_tx_status_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	IMPROVE();
-	ieee80211_tx_status(hw, skb);
+	linuxkpi_ieee80211_tx_status(hw, skb);
 }
 
 static __inline void
@@ -2460,20 +2194,6 @@ ieee80211_report_low_ack(struct ieee80211_sta *sta, int x)
 }
 
 static __inline void
-ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
-    uint8_t tid)
-{
-	TODO();
-}
-
-static __inline void
 ieee80211_tx_rate_update(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
     struct ieee80211_tx_info *info)
 {
@@ -2507,7 +2227,7 @@ ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
 }
 
 static __inline int
-ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif)
+ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif, uint32_t link_id)
 {
 	TODO();
 	return (-1);
@@ -2522,7 +2242,7 @@ ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *vht_cap, uint32_t chanwidth,
 }
 
 static __inline bool
-ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif)
+ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif, uint32_t link_id)
 {
 	TODO();
 	return (true);
@@ -2712,7 +2432,102 @@ ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *band,
 	return (NULL);
 }
 
+static inline uint32_t
+ieee80211_vif_usable_links(const struct ieee80211_vif *vif)
+{
+	TODO();
+	return (1);
+}
+
+static inline bool
+ieee80211_vif_link_active(const struct ieee80211_vif *vif, uint8_t link_id)
+{
+	if (ieee80211_vif_is_mld(vif))
+		return (vif->active_links & BIT(link_id));
+	return (link_id == 0);
+}
+
+static inline void
+ieee80211_set_active_links_async(struct ieee80211_vif *vif,
+    uint32_t new_active_links)
+{
+	TODO();
+}
+
+static inline int
+ieee80211_set_active_links(struct ieee80211_vif *vif,
+    uint32_t active_links)
+{
+	TODO();
+	return (-ENXIO);
+}
+
+static inline void
+ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp __unused)
+{
+	IMPROVE("we notify user space by a vap state change eventually");
+	linuxkpi_ieee80211_beacon_loss(vif);
+}
+
 #define	ieee80211_send_bar(_v, _r, _t, _s)				\
     linuxkpi_ieee80211_send_bar(_v, _r, _t, _s)
+
+/* -------------------------------------------------------------------------- */
+
+int lkpi_80211_update_chandef(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
+
+static inline int
+ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf)
+{
+	int error;
+
+	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
+	error = lkpi_80211_update_chandef(hw, chanctx_conf);
+	return (error);
+}
+
+static inline void
+ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf __unused)
+{
+	hw->conf.radar_enabled = false;
+	lkpi_80211_update_chandef(hw, NULL);
+}
+
+static inline void
+ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf, uint32_t changed __unused)
+{
+	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
+	lkpi_80211_update_chandef(hw, chanctx_conf);
+}
+
+static inline int
+ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
+    struct ieee80211_vif_chanctx_switch *vifs, int n_vifs,
+    enum ieee80211_chanctx_switch_mode mode __unused)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	int error;
+
+	/* Sanity check. */
+	if (n_vifs <= 0)
+		return (-EINVAL);
+	if (vifs == NULL || vifs[0].new_ctx == NULL)
+		return (-EINVAL);
+
+	/*
+	 * What to do if n_vifs > 1?
+	 * Does that make sense for drivers not supporting chanctx?
+	 */
+	hw->conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
+	chanctx_conf = vifs[0].new_ctx;
+	error = lkpi_80211_update_chandef(hw, chanctx_conf);
+	return (error);
+}
+
+/* -------------------------------------------------------------------------- */
 
 #endif	/* _LINUXKPI_NET_MAC80211_H */

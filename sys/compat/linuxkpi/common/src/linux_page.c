@@ -277,8 +277,8 @@ get_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 }
 
 long
-get_user_pages(unsigned long start, unsigned long nr_pages,
-    unsigned int gup_flags, struct page **pages, struct vm_area_struct **vmas)
+lkpi_get_user_pages(unsigned long start, unsigned long nr_pages,
+    unsigned int gup_flags, struct page **pages)
 {
 	vm_map_t map;
 
@@ -418,27 +418,13 @@ lkpi_io_mapping_map_user(struct io_mapping *iomap,
  */
 void
 lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
-    loff_t const holelen, int even_cows __unused)
+    loff_t const holelen __unused, int even_cows __unused)
 {
 	vm_object_t devobj;
-	vm_page_t page;
-	int i, page_count;
 
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
-		page_count = OFF_TO_IDX(holelen);
-
-		VM_OBJECT_WLOCK(devobj);
-retry:
-		for (i = 0; i < page_count; i++) {
-			page = vm_page_lookup(devobj, i);
-			if (page == NULL)
-				continue;
-			if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
-				goto retry;
-			cdev_pager_free_page(devobj, page);
-		}
-		VM_OBJECT_WUNLOCK(devobj);
+		cdev_mgtdev_pager_free_pages(devobj);
 		vm_object_deallocate(devobj);
 	}
 }

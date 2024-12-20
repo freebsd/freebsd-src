@@ -114,10 +114,8 @@ hdspe_port_first_row(uint32_t ports)
 	uint32_t ends;
 
 	/* Restrict ports to one set with contiguous slots. */
-	if (ports & HDSPE_CHAN_AIO_LINE)
-		ports = HDSPE_CHAN_AIO_LINE;	/* Gap in the AIO slots here. */
-	else if (ports & HDSPE_CHAN_AIO_ALL)
-		ports &= HDSPE_CHAN_AIO_ALL;	/* Rest of the AIO slots. */
+	if (ports & HDSPE_CHAN_AIO_ALL)
+		ports &= HDSPE_CHAN_AIO_ALL;	/* All AIO slots. */
 	else if (ports & HDSPE_CHAN_RAY_ALL)
 		ports &= HDSPE_CHAN_RAY_ALL;	/* All RayDAT slots. */
 
@@ -136,6 +134,8 @@ hdspe_channel_count(uint32_t ports, uint32_t adat_width)
 		/* AIO ports. */
 		if (ports & HDSPE_CHAN_AIO_LINE)
 			count += 2;
+		if (ports & HDSPE_CHAN_AIO_EXT)
+			count += 4;
 		if (ports & HDSPE_CHAN_AIO_PHONE)
 			count += 2;
 		if (ports & HDSPE_CHAN_AIO_AES)
@@ -189,6 +189,8 @@ hdspe_port_slot_offset(uint32_t port, unsigned int adat_width)
 	/* AIO ports */
 	case HDSPE_CHAN_AIO_LINE:
 		return (0);
+	case HDSPE_CHAN_AIO_EXT:
+		return (2);
 	case HDSPE_CHAN_AIO_PHONE:
 		return (6);
 	case HDSPE_CHAN_AIO_AES:
@@ -650,6 +652,35 @@ clean(struct sc_chinfo *ch)
 }
 
 /* Channel interface. */
+static int
+hdspechan_free(kobj_t obj, void *data)
+{
+	struct sc_pcminfo *scp;
+	struct sc_chinfo *ch;
+	struct sc_info *sc;
+
+	ch = data;
+	scp = ch->parent;
+	sc = scp->sc;
+
+#if 0
+	device_printf(scp->dev, "hdspechan_free()\n");
+#endif
+
+	snd_mtxlock(sc->lock);
+	if (ch->data != NULL) {
+		free(ch->data, M_HDSPE);
+		ch->data = NULL;
+	}
+	if (ch->caps != NULL) {
+		free(ch->caps, M_HDSPE);
+		ch->caps = NULL;
+	}
+	snd_mtxunlock(sc->lock);
+
+	return (0);
+}
+
 static void *
 hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
     struct pcm_channel *c, int dir)
@@ -702,6 +733,7 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
 		device_printf(scp->dev, "Can't setup sndbuf.\n");
+		hdspechan_free(obj, ch);
 		return (NULL);
 	}
 
@@ -772,35 +804,6 @@ hdspechan_getptr(kobj_t obj, void *data)
 	pos *= AFMT_CHANNEL(ch->format); /* Hardbuf with multiple channels. */
 
 	return (pos);
-}
-
-static int
-hdspechan_free(kobj_t obj, void *data)
-{
-	struct sc_pcminfo *scp;
-	struct sc_chinfo *ch;
-	struct sc_info *sc;
-
-	ch = data;
-	scp = ch->parent;
-	sc = scp->sc;
-
-#if 0
-	device_printf(scp->dev, "hdspechan_free()\n");
-#endif
-
-	snd_mtxlock(sc->lock);
-	if (ch->data != NULL) {
-		free(ch->data, M_HDSPE);
-		ch->data = NULL;
-	}
-	if (ch->caps != NULL) {
-		free(ch->caps, M_HDSPE);
-		ch->caps = NULL;
-	}
-	snd_mtxunlock(sc->lock);
-
-	return (0);
 }
 
 static int
@@ -1061,13 +1064,10 @@ hdspe_pcm_attach(device_t dev)
 		pcm_flags |= SD_F_BITPERFECT;
 	pcm_setflags(dev, pcm_flags);
 
+	pcm_init(dev, scp);
+
 	play = (hdspe_channel_play_ports(scp->hc)) ? 1 : 0;
 	rec = (hdspe_channel_rec_ports(scp->hc)) ? 1 : 0;
-	err = pcm_register(dev, scp, play, rec);
-	if (err) {
-		device_printf(dev, "Can't register pcm.\n");
-		return (ENXIO);
-	}
 
 	scp->chnum = 0;
 	if (play) {
@@ -1084,7 +1084,11 @@ hdspe_pcm_attach(device_t dev)
 	    rman_get_start(scp->sc->cs),
 	    rman_get_start(scp->sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	err = pcm_register(dev, status);
+	if (err) {
+		device_printf(dev, "Can't register pcm.\n");
+		return (ENXIO);
+	}
 
 	mixer_init(dev, &hdspemixer_class, scp);
 

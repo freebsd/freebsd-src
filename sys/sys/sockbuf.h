@@ -48,7 +48,8 @@
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
 #define	SB_STOP		0x1000		/* backpressure indicator */
 #define	SB_AIO_RUNNING	0x2000		/* AIO operation running */
-#define	SB_UNUSED	0x4000		/* previously used for SB_TLS_IFNET */
+#define	SB_SPLICED	0x4000		/* socket buffer is spliced;
+					   previously used for SB_TLS_IFNET */
 #define	SB_TLS_RX_RESYNC 0x8000		/* KTLS RX lost HW sync */
 
 #define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
@@ -128,7 +129,8 @@ struct sockbuf {
 			struct	mbuf *sb_mtls;	/*  TLS mbuf chain */
 			struct	mbuf *sb_mtlstail; /* last mbuf in TLS chain */
 			uint64_t sb_tls_seqno;	/* TLS seqno */
-			struct	ktls_session *sb_tls_info; /* TLS state */
+			/* TLS state, locked by sockbuf and sock I/O mutexes. */
+			struct	ktls_session *sb_tls_info;
 		};
 		/*
 		 * PF_UNIX/SOCK_DGRAM

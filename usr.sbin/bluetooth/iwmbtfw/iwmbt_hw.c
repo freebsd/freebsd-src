@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Future Crew LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,15 +30,19 @@
 #include <sys/endian.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <libusb.h>
+
+#include <netgraph/bluetooth/include/ng_hci.h>
 
 #include "iwmbt_fw.h"
 #include "iwmbt_hw.h"
@@ -93,6 +98,7 @@ static int
 iwmbt_hci_command(struct libusb_device_handle *hdl, struct iwmbt_hci_cmd *cmd,
     void *event, int size, int *transferred, int timeout)
 {
+	struct timespec to, now, remains;
 	int ret;
 
 	ret = libusb_control_transfer(hdl,
@@ -110,18 +116,47 @@ iwmbt_hci_command(struct libusb_device_handle *hdl, struct iwmbt_hci_cmd *cmd,
 		return (ret);
 	}
 
-	ret = libusb_interrupt_transfer(hdl,
-	    IWMBT_INTERRUPT_ENDPOINT_ADDR,
-	    event,
-	    size,
-	    transferred,
-	    timeout);
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	to = IWMBT_MSEC2TS(timeout);
+	timespecadd(&to, &now, &to);
 
-	if (ret < 0)
-		iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
-		    libusb_strerror(ret));
+	do {
+		timespecsub(&to, &now, &remains);
+		ret = libusb_interrupt_transfer(hdl,
+		    IWMBT_INTERRUPT_ENDPOINT_ADDR,
+		    event,
+		    size,
+		    transferred,
+		    IWMBT_TS2MSEC(remains) + 1);
 
-	return (ret);
+		if (ret < 0) {
+			iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
+			    libusb_strerror(ret));
+			return (ret);
+		}
+
+		switch (((struct iwmbt_hci_event *)event)->header.event) {
+		case NG_HCI_EVENT_COMMAND_COMPL:
+			if (*transferred <
+			    (int)offsetof(struct iwmbt_hci_event_cmd_compl, data))
+				break;
+			if (cmd->opcode !=
+			    ((struct iwmbt_hci_event_cmd_compl *)event)->opcode)
+				break;
+			/* FALLTHROUGH */
+		case 0xFF:
+			return (0);
+		default:
+			break;
+		}
+		iwmbt_debug("Stray HCI event: %x",
+		    ((struct iwmbt_hci_event *)event)->header.event);
+	} while (timespeccmp(&to, &now, >));
+
+	iwmbt_err("libusb_interrupt_transfer() failed: err=%s",
+	    libusb_strerror(LIBUSB_ERROR_TIMEOUT));
+
+	return (LIBUSB_ERROR_TIMEOUT);
 }
 
 int
@@ -267,16 +302,6 @@ iwmbt_patch_fwfile(struct libusb_device_handle *hdl,
 	return (activate_patch);
 }
 
-int
-iwmbt_load_fwfile(struct libusb_device_handle *hdl,
-    const struct iwmbt_firmware *fw, uint32_t *boot_param)
-{
-	int ready = 0, sent = 0;
-	int ret, transferred;
-	struct iwmbt_hci_cmd *cmd;
-	struct iwmbt_hci_event *event;
-	uint8_t buf[IWMBT_HCI_MAX_EVENT_SIZE];
-
 #define	IWMBT_SEND_FRAGMENT(fragment_type, size, msg)	do {		\
 	iwmbt_debug("transferring %d bytes, offset %d", size, sent);	\
 									\
@@ -293,12 +318,11 @@ iwmbt_load_fwfile(struct libusb_device_handle *hdl,
 	sent += size;							\
 } while (0)
 
-	if (fw->len < 644) {
-		iwmbt_err("Invalid size of firmware file (%d)", fw->len);
-		return (-1);
-	}
-
-	iwmbt_debug("file=%s, size=%d", fw->fwname, fw->len);
+int
+iwmbt_load_rsa_header(struct libusb_device_handle *hdl,
+    const struct iwmbt_firmware *fw)
+{
+	int ret, sent = 0;
 
 	IWMBT_SEND_FRAGMENT(0x00, 0x80, "CCS segment");
 	IWMBT_SEND_FRAGMENT(0x03, 0x80, "public key / part 1");
@@ -309,6 +333,32 @@ iwmbt_load_fwfile(struct libusb_device_handle *hdl,
 
 	IWMBT_SEND_FRAGMENT(0x02, 0x80, "signature / part 1");
 	IWMBT_SEND_FRAGMENT(0x02, 0x80, "signature / part 2");
+
+	return (0);
+}
+
+int
+iwmbt_load_ecdsa_header(struct libusb_device_handle *hdl,
+    const struct iwmbt_firmware *fw)
+{
+	int ret, sent = ECDSA_OFFSET;
+
+	IWMBT_SEND_FRAGMENT(0x00, 0x80, "CCS segment");
+	IWMBT_SEND_FRAGMENT(0x03, 0x60, "public key");
+	IWMBT_SEND_FRAGMENT(0x02, 0x60, "signature");
+
+	return (0);
+}
+
+int
+iwmbt_load_fwfile(struct libusb_device_handle *hdl,
+    const struct iwmbt_firmware *fw, uint32_t *boot_param, int offset)
+{
+	int ready = 0, sent = offset;
+	int ret, transferred;
+	struct iwmbt_hci_cmd *cmd;
+	struct iwmbt_hci_event *event;
+	uint8_t buf[IWMBT_HCI_MAX_EVENT_SIZE];
 
 	/*
 	 * Send firmware chunks. Chunk len must be 4 byte aligned.
@@ -461,6 +511,140 @@ iwmbt_get_version(struct libusb_device_handle *hdl,
 }
 
 int
+iwmbt_get_version_tlv(struct libusb_device_handle *hdl,
+    struct iwmbt_version_tlv *version)
+{
+	int ret, transferred;
+	struct iwmbt_hci_event_cmd_compl *event;
+	static struct iwmbt_hci_cmd cmd = {
+		.opcode = htole16(0xfc05),
+		.length = 1,
+		.data = { 0xff },
+	};
+	uint8_t status, datalen, type, len;
+	uint8_t *data;
+	uint8_t buf[255];
+
+	memset(buf, 0, sizeof(buf));
+
+	ret = iwmbt_hci_command(hdl,
+	    &cmd,
+	    buf,
+	    sizeof(buf),
+	    &transferred,
+	    IWMBT_HCI_CMD_TIMEOUT);
+
+	if (ret < 0 || transferred < (int)IWMBT_HCI_EVT_COMPL_SIZE(uint16_t)) {
+		 iwmbt_debug("Can't get version: code=%d, size=%d",
+		     ret,
+		     transferred);
+		 return (-1);
+	}
+
+	event = (struct iwmbt_hci_event_cmd_compl *)buf;
+	memcpy(version, event->data, sizeof(struct iwmbt_version));
+
+	datalen = event->header.length - IWMBT_HCI_EVENT_COMPL_HEAD_SIZE;
+	data = event->data;
+	status = *data++;
+	if (status != 0)
+		return (-1);
+	datalen--;
+
+	while (datalen >= 2) {
+		type = *data++;
+		len = *data++;
+		datalen -= 2;
+
+		if (datalen < len)
+			return (-1);
+
+		switch (type) {
+		case IWMBT_TLV_CNVI_TOP:
+			assert(len == 4);
+			version->cnvi_top = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVR_TOP:
+			assert(len == 4);
+			version->cnvr_top = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVI_BT:
+			assert(len == 4);
+			version->cnvi_bt = le32dec(data);
+			break;
+		case IWMBT_TLV_CNVR_BT:
+			assert(len == 4);
+			version->cnvr_bt = le32dec(data);
+			break;
+		case IWMBT_TLV_DEV_REV_ID:
+			assert(len == 2);
+			version->dev_rev_id = le16dec(data);
+			break;
+		case IWMBT_TLV_IMAGE_TYPE:
+			assert(len == 1);
+			version->img_type = *data;
+			break;
+		case IWMBT_TLV_TIME_STAMP:
+			assert(len == 2);
+			version->min_fw_build_cw = data[0];
+			version->min_fw_build_yy = data[1];
+			version->timestamp = le16dec(data);
+			break;
+		case IWMBT_TLV_BUILD_TYPE:
+			assert(len == 1);
+			version->build_type = *data;
+			break;
+		case IWMBT_TLV_BUILD_NUM:
+			assert(len == 4);
+			version->min_fw_build_nn = *data;
+			version->build_num = le32dec(data);
+			break;
+		case IWMBT_TLV_SECURE_BOOT:
+			assert(len == 1);
+			version->secure_boot = *data;
+			break;
+		case IWMBT_TLV_OTP_LOCK:
+			assert(len == 1);
+			version->otp_lock = *data;
+			break;
+		case IWMBT_TLV_API_LOCK:
+			assert(len == 1);
+			version->api_lock = *data;
+			break;
+		case IWMBT_TLV_DEBUG_LOCK:
+			assert(len == 1);
+			version->debug_lock = *data;
+			break;
+		case IWMBT_TLV_MIN_FW:
+			assert(len == 3);
+			version->min_fw_build_nn = data[0];
+			version->min_fw_build_cw = data[1];
+			version->min_fw_build_yy = data[2];
+			break;
+		case IWMBT_TLV_LIMITED_CCE:
+			assert(len == 1);
+			version->limited_cce = *data;
+			break;
+		case IWMBT_TLV_SBE_TYPE:
+			assert(len == 1);
+			version->sbe_type = *data;
+			break;
+		case IWMBT_TLV_OTP_BDADDR:
+			memcpy(&version->otp_bd_addr, data, sizeof(bdaddr_t));
+			break;
+		default:
+			/* Ignore other types */
+			break;
+		}
+
+		datalen -= len;
+		data += len;
+	}
+
+	return (0);
+}
+
+int
 iwmbt_get_boot_params(struct libusb_device_handle *hdl,
     struct iwmbt_boot_params *params)
 {
@@ -540,6 +724,7 @@ iwmbt_load_ddc(struct libusb_device_handle *hdl,
 	int size, sent = 0;
 	int ret, transferred;
 	uint8_t buf[IWMBT_HCI_MAX_CMD_SIZE];
+	uint8_t evt[IWMBT_HCI_MAX_CMD_SIZE];
 	struct iwmbt_hci_cmd *cmd = (struct iwmbt_hci_cmd *)buf;
 
 	size = ddc->len;
@@ -562,8 +747,8 @@ iwmbt_load_ddc(struct libusb_device_handle *hdl,
 
 		ret = iwmbt_hci_command(hdl,
 		    cmd,
-		    buf,
-		    sizeof(buf),
+		    evt,
+		    sizeof(evt),
 		    &transferred,
 		    IWMBT_HCI_CMD_TIMEOUT);
 

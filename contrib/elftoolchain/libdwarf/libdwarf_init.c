@@ -302,7 +302,7 @@ _dwarf_alloc(Dwarf_Debug *ret_dbg, int mode, Dwarf_Error *error)
 {
 	Dwarf_Debug dbg;
 
-	if ((dbg = calloc(sizeof(struct _Dwarf_Debug), 1)) == NULL) {
+	if ((dbg = calloc(1, sizeof(struct _Dwarf_Debug))) == NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
 		return (DW_DLE_MEMORY);
 	}

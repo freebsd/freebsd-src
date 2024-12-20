@@ -673,7 +673,7 @@ sendit:
 			error = ENOBUFS;
 			goto bad;
 		}
-		if ((error = IPSEC_OUTPUT(ipv4, m, inp)) != 0) {
+		if ((error = IPSEC_OUTPUT(ipv4, ifp, m, inp, mtu)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
 			goto done;

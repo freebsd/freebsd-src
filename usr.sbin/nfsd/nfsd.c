@@ -68,6 +68,7 @@
 #include <getopt.h>
 
 static int	debug = 0;
+static int	nofork = 0;
 
 #define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
 #define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
@@ -170,10 +171,10 @@ main(int argc, char **argv)
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-	getopt_shortopts = "ah:n:rdtuep:m:V:";
+	getopt_shortopts = "ah:n:rdtuep:m:V:N";
 	getopt_usage =
 	    "usage:\n"
-	    "  nfsd [-ardtue] [-h bindip]\n"
+	    "  nfsd [-ardtueN] [-h bindip]\n"
 	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n"
 	    "       [-p/--pnfs dsserver0:/dsserver0-mounted-on-dir,...,"
 	    "dsserverN:/dsserverN-mounted-on-dir] [-m mirrorlevel]\n"
@@ -229,6 +230,9 @@ main(int argc, char **argv)
 				errx(1, "Mirror level out of range 2<-->%d",
 				    NFSDEV_MAXMIRRORS);
 			nfsdargs.mirrorcnt = i;
+			break;
+		case 'N':
+			nofork = 1;
 			break;
 		case 0:
 			lopt = longopts[longindex].name;
@@ -411,7 +415,7 @@ main(int argc, char **argv)
 		}
 		exit (0);
 	}
-	if (debug == 0) {
+	if (debug == 0 && nofork == 0) {
 		daemon(0, 0);
 		(void)signal(SIGHUP, SIG_IGN);
 		(void)signal(SIGINT, SIG_IGN);
@@ -546,18 +550,24 @@ main(int argc, char **argv)
 				nfsd_exit(1);
 			}
 			nconf_udp = getnetconfigent("udp");
-			if (nconf_udp == NULL)
-				err(1, "getnetconfigent udp failed");
+			if (nconf_udp == NULL) {
+				syslog(LOG_ERR, "getnetconfigent udp failed");
+				nfsd_exit(1);
+			}
 			nb_udp.buf = ai_udp->ai_addr;
 			nb_udp.len = nb_udp.maxlen = ai_udp->ai_addrlen;
 			if (nfs_minvers == NFS_VER2)
 				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp,
-				    &nb_udp))
-					err(1, "rpcb_set udp failed");
+				    &nb_udp)) {
+					syslog(LOG_ERR, "rpcb_set udp failed");
+					nfsd_exit(1);
+				}
 			if (nfs_minvers <= NFS_VER3)
 				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp,
-				    &nb_udp))
-					err(1, "rpcb_set udp failed");
+				    &nb_udp)) {
+					syslog(LOG_ERR, "rpcb_set udp failed");
+					nfsd_exit(1);
+				}
 			freeaddrinfo(ai_udp);
 		}
 	}
@@ -620,20 +630,26 @@ main(int argc, char **argv)
 				nfsd_exit(1);
 			}
 			nconf_udp6 = getnetconfigent("udp6");
-			if (nconf_udp6 == NULL)
-				err(1, "getnetconfigent udp6 failed");
+			if (nconf_udp6 == NULL) {
+				syslog(LOG_ERR, "getnetconfigent udp6 failed");
+				nfsd_exit(1);
+			}
 			nb_udp6.buf = ai_udp6->ai_addr;
 			nb_udp6.len = nb_udp6.maxlen = ai_udp6->ai_addrlen;
 			if (nfs_minvers == NFS_VER2)
 				if (!rpcb_set(NFS_PROGRAM, 2, nconf_udp6,
-				    &nb_udp6))
-					err(1,
+				    &nb_udp6)) {
+					syslog(LOG_ERR,
 					    "rpcb_set udp6 failed");
+					nfsd_exit(1);
+				}
 			if (nfs_minvers <= NFS_VER3)
 				if (!rpcb_set(NFS_PROGRAM, 3, nconf_udp6,
-				    &nb_udp6))
-					err(1,
+				    &nb_udp6)) {
+					syslog(LOG_ERR,
 					    "rpcb_set udp6 failed");
+					nfsd_exit(1);
+				}
 			freeaddrinfo(ai_udp6);
 		}
 	}
@@ -692,18 +708,24 @@ main(int argc, char **argv)
 				nfsd_exit(1);
 			}
 			nconf_tcp = getnetconfigent("tcp");
-			if (nconf_tcp == NULL)
-				err(1, "getnetconfigent tcp failed");
+			if (nconf_tcp == NULL) {
+				syslog(LOG_ERR, "getnetconfigent tcp failed");
+				nfsd_exit(1);
+			}
 			nb_tcp.buf = ai_tcp->ai_addr;
 			nb_tcp.len = nb_tcp.maxlen = ai_tcp->ai_addrlen;
 			if (nfs_minvers == NFS_VER2)
 				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp,
-				    &nb_tcp))
-					err(1, "rpcb_set tcp failed");
+				    &nb_tcp)) {
+					syslog(LOG_ERR, "rpcb_set tcp failed");
+					nfsd_exit(1);
+				}
 			if (nfs_minvers <= NFS_VER3)
 				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp,
-				    &nb_tcp))
-					err(1, "rpcb_set tcp failed");
+				    &nb_tcp)) {
+					syslog(LOG_ERR, "rpcb_set tcp failed");
+					nfsd_exit(1);
+				}
 			freeaddrinfo(ai_tcp);
 		}
 	}
@@ -770,18 +792,24 @@ main(int argc, char **argv)
 				nfsd_exit(1);
 			}
 			nconf_tcp6 = getnetconfigent("tcp6");
-			if (nconf_tcp6 == NULL)
-				err(1, "getnetconfigent tcp6 failed");
+			if (nconf_tcp6 == NULL) {
+				syslog(LOG_ERR, "getnetconfigent tcp6 failed");
+				nfsd_exit(1);
+			}
 			nb_tcp6.buf = ai_tcp6->ai_addr;
 			nb_tcp6.len = nb_tcp6.maxlen = ai_tcp6->ai_addrlen;
 			if (nfs_minvers == NFS_VER2)
 				if (!rpcb_set(NFS_PROGRAM, 2, nconf_tcp6,
-				    &nb_tcp6))
-					err(1, "rpcb_set tcp6 failed");
+				    &nb_tcp6)) {
+					syslog(LOG_ERR, "rpcb_set tcp6 failed");
+					nfsd_exit(1);
+				}
 			if (nfs_minvers <= NFS_VER3)
 				if (!rpcb_set(NFS_PROGRAM, 3, nconf_tcp6,
-				    &nb_tcp6))
-					err(1, "rpcb_set tcp6 failed");
+				    &nb_tcp6)) {
+					syslog(LOG_ERR, "rpcb_set tcp6 failed");
+					nfsd_exit(1);
+				}
 			freeaddrinfo(ai_tcp6);
 		}
 	}

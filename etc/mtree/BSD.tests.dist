@@ -91,6 +91,10 @@
         ..
         usr.sbin
             dtrace
+                amd64
+                    arrays
+                    ..
+                ..
                 common
                     aggs
                     ..
@@ -269,10 +273,6 @@
                     ustack
                     ..
                 ..
-                amd64
-                    arrays
-                    ..
-                ..
             ..
             zfsd
             ..
@@ -372,6 +372,8 @@
             ..
             rpc
             ..
+            secure
+            ..
             setjmp
             ..
             ssp
@@ -379,6 +381,8 @@
             stdio
             ..
             stdlib
+            ..
+            stdtime
             ..
             string
             ..
@@ -424,6 +428,8 @@
         libexecinfo
         ..
         libkvm
+        ..
+        libmd
         ..
         libmp
         ..
@@ -501,6 +507,8 @@
         ..
         route
         ..
+        savecore
+        ..
         sysctl
         ..
     ..
@@ -538,6 +546,10 @@
         audit
         ..
         auditpipe
+        ..
+        cam
+            ctl
+            ..
         ..
         capsicum
         ..
@@ -846,6 +858,8 @@
             ..
             pipe
             ..
+            tty
+            ..
         ..
         kqueue
             libkqueue
@@ -936,6 +950,8 @@
         posixshm
         ..
         ses
+        ..
+        sound
         ..
         sys
         ..
@@ -1079,8 +1095,6 @@
         ..
         cut
         ..
-        dc
-        ..
         diff
         ..
         diff3
@@ -1088,6 +1102,8 @@
         dirname
         ..
         du
+        ..
+        env
         ..
         factor
         ..
@@ -1199,11 +1215,11 @@
         ..
         tsort
         ..
-        units
-        ..
         unifdef
         ..
         uniq
+        ..
+        units
         ..
         unzip
         ..
@@ -1238,6 +1254,8 @@
         jail
         ..
         makefs
+        ..
+        mixer
         ..
         newsyslog
         ..

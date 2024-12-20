@@ -1,4 +1,3 @@
-
 LIB=	wdc
 SRCS=	wdc.c
 

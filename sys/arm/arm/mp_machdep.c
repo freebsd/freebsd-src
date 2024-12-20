@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -51,7 +52,6 @@
 #include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
-#include <machine/intr.h>
 #include <machine/vmparam.h>
 #ifdef VFP
 #include <machine/vfp.h>
@@ -169,9 +169,7 @@ init_secondary(int cpu)
 
 	/* Spin until the BSP releases the APs */
 	while (!atomic_load_acq_int(&aps_ready)) {
-#if __ARM_ARCH >= 7
 		__asm __volatile("wfe");
-#endif
 	}
 
 	/* Initialize curthread */

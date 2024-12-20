@@ -172,7 +172,10 @@ struct dhcp_packet {
 #define DHO_DHCP_USER_CLASS_ID		77
 #define	DHO_URL				114
 #define	DHO_DOMAIN_SEARCH		119
+#define DHO_SIP_SERVERS			120
 #define DHO_CLASSLESS_ROUTES		121
+#define DHO_V_I_VENDOR_CLASS		124
+#define DHO_V_I_VENDOR_OPTS		125
 #define DHO_END				255
 
 /* DHCP message types. */

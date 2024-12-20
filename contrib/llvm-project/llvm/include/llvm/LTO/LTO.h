@@ -75,6 +75,8 @@ void computeLTOCacheKey(
 
 namespace lto {
 
+StringLiteral getThinLTODefaultCPU(const Triple &TheTriple);
+
 /// Given the original \p Path to an output file, replace any path
 /// prefix matching \p OldPrefix with \p NewPrefix. Also, create the
 /// resulting directory if it does not yet exist.
@@ -299,7 +301,7 @@ public:
 
   /// Static method that returns a list of libcall symbols that can be generated
   /// by LTO but might not be visible from bitcode symbol table.
-  static ArrayRef<const char*> getRuntimeLibcallSymbols();
+  static SmallVector<const char *> getRuntimeLibcallSymbols(const Triple &TT);
 
 private:
   Config Conf;

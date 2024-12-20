@@ -31,7 +31,7 @@
 #include <linux/rbtree.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 #include <dev/mlx5/mlx5_core/fs_core.h>
-#include <dev/mlx5/mlx5_core/mlx5_fc_cmd.h>
+#include <dev/mlx5/mlx5_core/fs_cmd.h>
 
 #define MLX5_FC_STATS_PERIOD msecs_to_jiffies(1000)
 #define MLX5_FC_BULK_QUERY_ALLOC_PERIOD msecs_to_jiffies(180 * 1000)

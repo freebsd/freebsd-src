@@ -1439,14 +1439,16 @@ m_apply(struct mbuf *m, int off, int len,
 	KASSERT(off >= 0, ("m_apply, negative off %d", off));
 	KASSERT(len >= 0, ("m_apply, negative len %d", len));
 	while (off > 0) {
-		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
+		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain "
+		    "(%d extra)", off));
 		if (off < m->m_len)
 			break;
 		off -= m->m_len;
 		m = m->m_next;
 	}
 	while (len > 0) {
-		KASSERT(m != NULL, ("m_apply, offset > size of mbuf chain"));
+		KASSERT(m != NULL, ("m_apply, length > size of mbuf chain "
+		    "(%d extra)", len));
 		count = min(m->m_len - off, len);
 		rval = m_apply_one(m, off, count, f, arg);
 		if (rval)
@@ -1885,7 +1887,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 * ciphersuites.
 	 */
 	if (__predict_false(total == 0)) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			return (NULL);
 		mb->m_epg_flags = EPG_FLAG_ANON;
@@ -1897,7 +1899,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 */
 	m = NULL;
 	while (total > 0) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			goto failed;
 		if (m == NULL)

@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2023,2024 Thomas E. Dickey                                  #
 # Copyright 2001-2015,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.uwin,v 1.13 2020/10/17 21:30:19 tom Exp $
+# $Id: Caps.uwin,v 1.23 2024/04/20 21:05:02 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with U/Win's terminfo.
@@ -48,7 +48,7 @@
 #
 # Column 1: terminfo variable name
 # Column 2: terminfo capability name
-# Column 3: capability type (boolean, numeric, or string)
+# Column 3: capability type (Boolean, numeric, or string)
 # Column 4: termcap capability name
 # Column 5: KEY_xxx name, if any, `-' otherwise
 # Column 6: value for KEY_xxx name, if any, `-' otherwise
@@ -58,7 +58,7 @@
 #
 # The codes following [Y-] in column 7 describe the versions of termcap which
 # use the given capability.  This information is not used by the curses library
-# proper; rather, it's there to help the terminfo maintainer avoid emitting
+# proper; rather, it is there to help the terminfo maintainer avoid emitting
 # termcap entry translations that are more than 1023 bytes long (and tank a
 # lot of old termcap-using programs).  The codes read as follows:
 #	B = mentioned in the BSD man page for 4.4BSD curses
@@ -98,8 +98,8 @@
 # 3. List it in the standard table.  You almost certainly do *not* want
 # to do this -- the capabilities in that one, and their order, have been
 # carefully chosen to be SVr4-binary-compatible when they're written out
-# as a terminfo object, and breaking this would be bad.  It's up to the ncurses
-# library what to do with the terminfo data after it's read in.
+# as a terminfo object, and breaking this would be bad.  It is up to the ncurses
+# library what to do with the terminfo data after it is read in.
 #
 # 4. List it in the aliases table with an IGNORE target field.  If you
 # do this, the capability will be ignored on input (though the user will
@@ -108,7 +108,7 @@
 # 5. List it in the extensions table. If you do this, the compiler will
 # silently accept the capability, but the curses library proper will never
 # see it (because it won't be written out as part of the terminfo object
-# format).  It's up to you what you have the compiler do with it.
+# format).  It is up to you what you have the compiler do with it.
 #
 # There are two opposite reasons to choose option 5.  One is when you want
 # to eat the capability silently and discard it when doing translations
@@ -153,67 +153,103 @@
 # to buy space for non-essentials Emacs is still using.  Capabilities high
 # on that hit list: rc, sc, uc.
 #
+# FORMATTING THE TABLES
+#
+# We manually specify a (minimum) column width for the capability name
+# and terminfo code columns in the tables to achieve a consistent
+# arrangement; as used here, tbl(1) cannot know the width required by
+# one table's data while formatting another's.
+#
+# The longest capability names (C variable) is
+# "hue_lightness_saturation" (24n), and the longest terminfo code is
+# "colornm" (7n).
+#
+# The tables are a tight fit on traditional man(7) implementations that
+# use a line length of 65n, and the "Description" column has little room
+# within which the formatter can make breaking or adjustment decisions.
+# Words like "micro_..._address" and "parm_..._micro" don't break.
+# Reducing the inter-column gaps to 2 ens gives them enough room.  --GBR
+#
 #############################################################################
 #
 # STANDARD CAPABILITIES
 #
-#%The following is a complete table of the capabilities included in a
-#%terminfo description block and available to terminfo-using code.  In each
-#%line of the table,
-#%
-#%The \fBvariable\fR is the name by which the programmer (at the terminfo level)
-#%accesses the capability.
-#%
-#%The \fBcapname\fR is the short name used in the text of the database,
-#%and is used by a person updating the database.
-#%Whenever possible, capnames are chosen to be the same as or similar to
-#%the ANSI X3.64-1979 standard (now superseded by ECMA-48, which uses
-#%identical or very similar names).  Semantics are also intended to match
-#%those of the specification.
-#%
-#%The termcap code is the old
-#%.B termcap
-#%capability name (some capabilities are new, and have names which termcap
-#%did not originate).
-#%.P
-#%Capability names have no hard length limit, but an informal limit of 5
-#%characters has been adopted to keep them short and to allow the tabs in
-#%the source file
-#%.B Caps
-#%to line up nicely.
-#%
-#%Finally, the description field attempts to convey the semantics of the
-#%capability.  You may find some codes in the description field:
-#%.TP
-#%(P)
-#%indicates that padding may be specified
-#%.TP
-#%#[1-9]
-#%in the description field indicates that the string is passed
-#%through \fBtparm\fP(3X) with parameters as given (#\fIi\fP).
+#%Tables of capabilities
+#%.I \%ncurses
+#%recognizes in a
+#%.I \%term\%info
+#%terminal type description and available to
+#%.IR \%term\%info -using
+#%code follow.
+#%.bP
+#%The capability name identifies the symbol by which the programmer
+#%using the
+#%.I \%term\%info
+#%API accesses the capability.
+#%.bP
+#%The TI
+#%.RI ( \%term\%info )
+#%code is the short name used by a person composing or updating a
+#%terminal type entry.
 #%.IP
-#%If no parameters are listed in the description,
-#%passing the string through \fBtparm\fP(3X) may give unexpected results,
-#%e.g., if it contains percent (%%) signs.
-#%.TP
-#%(P*)
-#%indicates that padding may vary in proportion to the number of
-#%lines affected
-#%.TP
-#%(#\d\fIi\fP\u)
-#%indicates the \fIi\fP\uth\d parameter.
-#%
+#%Whenever possible,
+#%these codes are the same as or similar to those of the ANSI X3.64-1979
+#%standard
+#%(now superseded by ECMA-48,
+#%which uses identical or very similar names).
+#%Semantics are also intended to match those of the specification.
+#%.IP
+#%.I \%term\%info
+#%codes have no hard length limit,
+#%but
+#%.I \%ncurses
+#%maintains an informal one of 5 characters to keep them short and to
+#%allow the tabs in the source file
+#%.I Caps
+#%to line up nicely.
+#%(Some standard codes exceed this limit regardless.)
+#%.bP
+#%The TC
+#%.RI ( termcap )
+#%code is that used by the corresponding API of
+#%.IR \%ncurses .
+#%(Some capabilities are new,
+#%and have names that BSD
+#%.I termcap
+#%did not originate.)
+#%.bP
+#%The description field attempts to convey the capability's semantics.
 #%.PP
-#% These are the boolean capabilities:
-#%
-#%.na
-#%.TS H
-#%center expand;
-#%c l l c
-#%c l l c
-#%lw25 lw6 lw2 lw20.
-#%\fBVariable	Cap-	TCap	Description\fR
-#%\fBBooleans	name	Code\fR
+#%The description field employs a handful of notations.
+#%.TP
+#%.B (P)
+#%indicates that padding may be specified.
+#%.TP
+#%.B (P*)
+#%indicates that padding may vary in proportion to the number of output
+#%lines affected.
+#%.TP
+#%.BI # i
+#%indicates the
+#%.IR i th
+#%parameter of a string capability;
+#%the programmer should pass the string to \fB\%tparm\fP(3X) with the
+#%parameters listed.
+#%.IP
+#%If the description lists no parameters,
+#%passing the string to \fB\%tparm\fP(3X) may produce unexpected
+#%behavior,
+#%for instance if the string contains percent signs.
+#%.
+#%.PP
+#%.TS
+#%center;
+#%Lb        Cb       S   Lb
+#%Lb        Lb       Lb  Lb
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%\&	Code	\&
+#%Boolean Capability Name	TI	TC	Description
+#%_
 auto_left_margin		bw	bool	bw	-	-	YB-G-	cub1 wraps from column 0 to last column
 auto_right_margin		am	bool	am	-	-	YBCGE	terminal has automatic margins
 no_esc_ctlc			xsb	bool	xb	-	-	YBCG-	beehive (f1=escape, f2=ctrl C)
@@ -245,18 +281,16 @@ back_color_erase		bce	bool	ut	-	-	-----	screen erased with background color
 can_change			ccc	bool	cc	-	-	-----	terminal can re-define existing colors
 hue_lightness_saturation	hls	bool	hl	-	-	-----	terminal uses only HLS color notation (Tektronix)
 #%.TE
-#%.ad
-#%
-#%These are the numeric capabilities:
-#%
-#%.na
-#%.TS H
-#%center expand;
-#%c l l c
-#%c l l c
-#%lw25 lw6 lw2 lw20.
-#%\fBVariable	Cap-	TCap	Description\fR
-#%\fBNumeric	name	Code\fR
+#%.PP
+#%.
+#%.TS
+#%center;
+#%Lb        Cb       S   Lb
+#%Lb        Lb       Lb  Lb
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%\&	Code	\&
+#%Numeric Capability Name	TI	TC	Description
+#%_
 columns				cols	num	co	-	-	YBCGE	number of columns in a line
 init_tabs			it	num	it	-	-	YB-G-	tabs initially every # spaces
 lines				lines	num	li	-	-	YBCGE	number of lines on screen or page
@@ -276,24 +310,16 @@ max_colors			colors	num	Co	-	-	-----	maximum number of colors on screen
 max_pairs			pairs	num	pa	-	-	-----	maximum number of color-pairs on the screen
 no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with colors
 #%.TE
-#%.ad
-#%
-#%The following numeric capabilities are present in the SVr4.0 term structure,
-#%but are not yet documented in the man page.  They came in with SVr4's
-#%printer support.
-#%
-#%.na
-#%
-#%These are the string capabilities:
-#%
-#%.na
-#%.TS H
-#%center expand;
-#%c l l c
-#%c l l c
-#%lw25 lw6 lw2 lw20.
-#%\fBVariable	Cap-	TCap	Description\fR
-#%\fBString	name	Code\fR
+#%.PP
+#%.
+#%.TS
+#%center;
+#%Lb        Cb       S   Lb
+#%Lb        Lb       Lb  Lb
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
+#%\&	Code	\&
+#%String Capability Name	TI	TC	Description
+#%_
 back_tab			cbt	str	bt	-		-	YBCGE	back tab (P)
 bell				bel	str	bl	-		-	YB-GE	audible signal (bell) (P)
 carriage_return			cr	str	cr	-		-	YBCGE	carriage return (P*) (P*)
@@ -356,6 +382,10 @@ key_ctab			kctab	str	kt	KEY_CTAB	0525	-B-G-*	clear-tab key
 key_dc				kdch1	str	kD	KEY_DC		0512	YB-G-	delete-character key
 key_dl				kdl1	str	kL	KEY_DL		0510	-B-G-*	delete-line key
 key_down			kcud1	str	kd	KEY_DOWN	0402	YBCGE	down-arrow key
+#%.TE
+#%.TS
+#%center;
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
 key_eic				krmir	str	kM	KEY_EIC		0514	-B-G-*	sent by rmir or smir in insert mode
 key_eol				kel	str	kE	KEY_EOL		0517	-B-G-*	clear-to-end-of-line key
 key_eos				ked	str	kS	KEY_EOS		0516	-B-G-*	clear-to-end-of-screen key
@@ -418,6 +448,10 @@ prtr_on				mc5	str	po	-		-	-B-G-*	turn on printer
 repeat_char			rep	str	rp	-		-	YB-GE	repeat char #1 #2 times (P*)
 reset_1string			rs1	str	r1	-		-	-B---	reset string
 reset_2string			rs2	str	r2	-		-	-B---	reset string
+#%.TE
+#%.TS
+#%center;
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
 reset_3string			rs3	str	r3	-		-	-B---	reset string
 reset_file			rf	str	rf	-		-	-B---	name of reset file
 restore_cursor			rc	str	rc	-		-	YBCG-	restore cursor to position of last save_cursor
@@ -484,6 +518,10 @@ key_resume			kres	str	&5	KEY_RESUME	0570	-----	resume key
 key_save			ksav	str	&6	KEY_SAVE	0571	-----	save key
 key_suspend			kspd	str	&7	KEY_SUSPEND	0627	-----	suspend key
 key_undo			kund	str	&8	KEY_UNDO	0630	-----	undo key
+#%.TE
+#%.TS
+#%center;
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
 key_sbeg			kBEG	str	&9	KEY_SBEG	0572	-----	shifted begin key
 key_scancel			kCAN	str	&0	KEY_SCANCEL	0573	-----	shifted cancel key
 key_scommand			kCMD	str	*1	KEY_SCOMMAND	0574	-----	shifted command key
@@ -546,6 +584,10 @@ key_f39				kf39	str	FT	KEY_F(39)	-	----E	F39 function key
 key_f40				kf40	str	FU	KEY_F(40)	-	----E	F40 function key
 key_f41				kf41	str	FV	KEY_F(41)	-	----E	F41 function key
 key_f42				kf42	str	FW	KEY_F(42)	-	----E	F42 function key
+#%.TE
+#%.TS
+#%center;
+#%Lbw(24n)2 Lbw(7n)2 Lb2 Lx.
 key_f43				kf43	str	FX	KEY_F(43)	-	----E	F43 function key
 key_f44				kf44	str	FY	KEY_F(44)	-	----E	F44 function key
 key_f45				kf45	str	FZ	KEY_F(45)	-	----E	F45 function key
@@ -569,7 +611,7 @@ key_f62				kf62	str	Fq	KEY_F(62)	-	----E	F62 function key
 key_f63				kf63	str	Fr	KEY_F(63)	-	----E	F63 function key
 clr_bol				el1	str	cb	-		-	-----	Clear to beginning of line
 clear_margins			mgc	str	MC	-		-	-----	clear right and left soft margins
-set_left_margin			smgl	str	ML	-		-	-----	set left soft margin at current column.	 See smgl. (ML is not in BSD termcap).
+set_left_margin			smgl	str	ML	-		-	-----	set left soft margin at current column (not in BSD \fItermcap\fP)
 set_right_margin		smgr	str	MR	-		-	-----	set right soft margin at current column
 device_type			devt	str	dv	-		-	-----	Indicate language/codeset support
 code_set_init			csin	str	ci	-		-	-----	Init sequence for multiple codesets
@@ -593,7 +635,6 @@ set_background			setb	str	Sb	-		-	-----	Set background color #1
 set_color_pair			scp	str	sp	-		-	-----	Set current color pair to #1
 set_foreground			setf	str	Sf	-		-	-----	Set foreground color #1
 #%.TE
-#%.ad
 #%
 # The magic token below tells the tic compiler-generator code that all the caps
 # past it should be ignored (not written out) when dumping terminfo objects. It
@@ -707,7 +748,7 @@ has_hardware_tabs		OTpt	bool	pt	-		-	YB---	has 8-char tabs invoked with ^I
 return_does_clr_eol		OTxr	bool	xr	-		-	YB---	return clears the line
 # tek_4025_insert_line		OTxx	bool	xx	-		-	-BC--	Tektronix 4025 insert-line glitch
 #
-# mytinfo described this as a termcap capability, but it's not listed in the
+# mytinfo described this as a termcap capability, but it is not listed in the
 # 4.4BSD man pages, and not found in the 4.4BSD termcap file.  The ncurses
 # package, like System V, behaves as though it is always true.
 #

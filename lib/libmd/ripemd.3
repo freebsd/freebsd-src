@@ -8,7 +8,7 @@
 .\"
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\"
-.Dd July 20, 2018
+.Dd March 8, 2022
 .Dt RIPEMD 3
 .Os
 .Sh NAME
@@ -16,6 +16,8 @@
 .Nm RIPEMD160_Update ,
 .Nm RIPEMD160_Final ,
 .Nm RIPEMD160_End ,
+.Nm RIPEMD160_Fd ,
+.Nm RIPEMD160_FdChunk ,
 .Nm RIPEMD160_File ,
 .Nm RIPEMD160_FileChunk ,
 .Nm RIPEMD160_Data
@@ -33,6 +35,10 @@
 .Fn RIPEMD160_Final "unsigned char digest[20]" "RIPEMD160_CTX *context"
 .Ft "char *"
 .Fn RIPEMD160_End "RIPEMD160_CTX *context" "char *buf"
+.Ft "char *"
+.Fn RIPEMD160_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn RIPEMD160_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn RIPEMD160_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -105,6 +111,19 @@ The
 function calculates the digest of a chunk of data in memory, and uses
 .Fn RIPEMD160_End
 to return the result.
+.Pp
+The
+.Fn RIPEMD160_Fd
+and
+.Fn RIPEMD160_FdChunk
+functions are identical to their
+.Fn RIPEMD160_File
+and
+.Fn RIPEMD160_FileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn RIPEMD160_End ,

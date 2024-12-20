@@ -41,6 +41,7 @@
 #include <sys/ptrace.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/priv.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>

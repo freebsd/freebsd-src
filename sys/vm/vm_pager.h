@@ -300,6 +300,8 @@ vm_object_t cdev_pager_allocate(void *handle, enum obj_type tp,
     vm_ooffset_t foff, struct ucred *cred);
 vm_object_t cdev_pager_lookup(void *handle);
 void cdev_pager_free_page(vm_object_t object, vm_page_t m);
+void cdev_mgtdev_pager_free_page(struct pctrie_iter *pages, vm_page_t m);
+void cdev_mgtdev_pager_free_pages(vm_object_t object);
 
 struct phys_pager_ops {
 	int (*phys_pg_getpages)(vm_object_t vm_obj, vm_page_t *m, int count,

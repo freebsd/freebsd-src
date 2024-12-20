@@ -173,22 +173,12 @@ adm6996fc_attach_phys(struct adm6996fc_softc *sc)
 		sc->ifpport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		if (sc->ifp[port] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[port]->if_softc = sc;
 		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;
 		if_initname(sc->ifp[port], name, port);
 		sc->miibus[port] = malloc(sizeof(device_t), M_ADM6996FC,
 		    M_WAITOK | M_ZERO);
-		if (sc->miibus[port] == NULL) {
-			err = ENOMEM;
-			goto failed;
-		}
 		err = mii_attach(sc->sc_dev, sc->miibus[port], sc->ifp[port],
 		    adm6996fc_ifmedia_upd, adm6996fc_ifmedia_sts, \
 		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
@@ -261,12 +251,6 @@ adm6996fc_attach(device_t dev)
 	sc->portphy = malloc(sizeof(int) * sc->numports, M_ADM6996FC,
 	    M_WAITOK | M_ZERO);
 
-	if (sc->ifp == NULL || sc->ifname == NULL || sc->miibus == NULL ||
-	    sc->portphy == NULL) {
-		err = ENOMEM;
-		goto failed;
-	}
-
 	/*
 	 * Attach the PHYs and complete the bus enumeration.
 	 */
@@ -274,11 +258,9 @@ adm6996fc_attach(device_t dev)
 	if (err != 0)
 		goto failed;
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		goto failed;
+	bus_attach_children(dev);
 	
 	callout_init(&sc->callout_tick, 0);
 
@@ -287,14 +269,10 @@ adm6996fc_attach(device_t dev)
 	return (0);
 
 failed:
-	if (sc->portphy != NULL)
-		free(sc->portphy, M_ADM6996FC);
-	if (sc->miibus != NULL)
-		free(sc->miibus, M_ADM6996FC);
-	if (sc->ifname != NULL)
-		free(sc->ifname, M_ADM6996FC);
-	if (sc->ifp != NULL)
-		free(sc->ifp, M_ADM6996FC);
+	free(sc->portphy, M_ADM6996FC);
+	free(sc->miibus, M_ADM6996FC);
+	free(sc->ifname, M_ADM6996FC);
+	free(sc->ifp, M_ADM6996FC);
 
 	return (err);
 }

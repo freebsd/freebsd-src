@@ -1,4 +1,3 @@
-
 PROG=	mwldebug
 BINDIR=	/usr/local/bin
 MAN=

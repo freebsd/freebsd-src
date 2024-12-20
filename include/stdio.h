@@ -48,10 +48,13 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.3.2 */
 #ifndef _RSIZE_T_DEFINED
 #define _RSIZE_T_DEFINED
 typedef size_t rsize_t;
 #endif
+#endif /* __EXT1_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200809
 #ifndef _OFF_T_DECLARED
@@ -238,6 +241,21 @@ __END_DECLS
 #define	stdout	__stdoutp
 #define	stderr	__stderrp
 
+/*
+ * Functions defined in all versions of POSIX 1003.1.
+ */
+#if __BSD_VISIBLE || (__POSIX_VISIBLE && __POSIX_VISIBLE <= 199506)
+#define	L_cuserid	17	/* size for cuserid(3); MAXLOGNAME, legacy */
+#endif
+
+#if __POSIX_VISIBLE
+#define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
+#endif /* __POSIX_VISIBLE */
+
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/stdio.h>
+#endif
+
 __BEGIN_DECLS
 #ifdef _XLOCALE_H_
 #include <xlocale/_stdio.h>
@@ -252,7 +270,7 @@ int	 ferror(FILE *);
 int	 fflush(FILE *);
 int	 fgetc(FILE *);
 int	 fgetpos(FILE * __restrict, fpos_t * __restrict);
-char	*fgets(char * __restrict, int, FILE * __restrict);
+char	*(fgets)(char * __restrict, int, FILE * __restrict);
 FILE	*fopen(const char * __restrict, const char * __restrict);
 int	 fprintf(FILE * __restrict, const char * __restrict, ...);
 int	 fputc(int, FILE *);
@@ -280,7 +298,7 @@ void	 rewind(FILE *);
 int	 scanf(const char * __restrict, ...);
 void	 setbuf(FILE * __restrict, char * __restrict);
 int	 setvbuf(FILE * __restrict, char * __restrict, int, size_t);
-int	 sprintf(char * __restrict, const char * __restrict, ...);
+int	 (sprintf)(char * __restrict, const char * __restrict, ...);
 int	 sscanf(const char * __restrict, const char * __restrict, ...);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
@@ -288,13 +306,13 @@ int	 ungetc(int, FILE *);
 int	 vfprintf(FILE * __restrict, const char * __restrict,
 	    __va_list);
 int	 vprintf(const char * __restrict, __va_list);
-int	 vsprintf(char * __restrict, const char * __restrict,
+int	 (vsprintf)(char * __restrict, const char * __restrict,
 	    __va_list);
 
 #if __ISO_C_VISIBLE >= 1999 || __POSIX_VISIBLE >= 199506
-int	 snprintf(char * __restrict, size_t, const char * __restrict,
+int	 (snprintf)(char * __restrict, size_t, const char * __restrict,
 	    ...) __printflike(3, 4);
-int	 vsnprintf(char * __restrict, size_t, const char * __restrict,
+int	 (vsnprintf)(char * __restrict, size_t, const char * __restrict,
 	    __va_list) __printflike(3, 0);
 #endif
 #if __ISO_C_VISIBLE >= 1999
@@ -305,16 +323,7 @@ int	 vsscanf(const char * __restrict, const char * __restrict, __va_list)
 	    __scanflike(2, 0);
 #endif
 
-/*
- * Functions defined in all versions of POSIX 1003.1.
- */
-#if __BSD_VISIBLE || (__POSIX_VISIBLE && __POSIX_VISIBLE <= 199506)
-#define	L_cuserid	17	/* size for cuserid(3); MAXLOGNAME, legacy */
-#endif
-
 #if __POSIX_VISIBLE
-#define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
-
 char	*ctermid(char *);
 FILE	*fdopen(int, const char *);
 int	 fileno(FILE *);
@@ -497,10 +506,6 @@ extern int __isthreaded;
 #define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))
 #define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : (clearerr)(p))
 
-#if __POSIX_VISIBLE
-#define	fileno(p)	(!__isthreaded ? __sfileno(p) : (fileno)(p))
-#endif
-
 #define	getc(fp)	(!__isthreaded ? __sgetc(fp) : (getc)(fp))
 #define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : (putc)(x, fp))
 
@@ -530,7 +535,4 @@ extern int __isthreaded;
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
-#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
-#include <ssp/stdio.h>
-#endif
 #endif /* !_STDIO_H_ */

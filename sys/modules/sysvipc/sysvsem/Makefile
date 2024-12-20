@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/kern
 
 KMOD=	sysvsem

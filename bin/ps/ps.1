@@ -159,9 +159,6 @@ does not imply
 but works well with it.
 .It Fl e
 Display the environment as well.
-.It Fl f
-Show command-line and environment information about swapped out processes.
-This option is honored only if the UID of the user is 0.
 .It Fl G
 Display information about processes which are running with the specified
 real group IDs.
@@ -331,36 +328,34 @@ The flags associated with the process as in
 the include file
 .In sys/proc.h :
 .Bl -column P_SINGLE_BOUNDARY 0x40000000
-.It Dv "P_ADVLOCK" Ta No "0x00001" Ta "Process may hold a POSIX advisory lock"
-.It Dv "P_CONTROLT" Ta No "0x00002" Ta "Has a controlling terminal"
-.It Dv "P_KPROC" Ta No "0x00004" Ta "Kernel process"
-.It Dv "P_PPWAIT" Ta No "0x00010" Ta "Parent is waiting for child to exec/exit"
-.It Dv "P_PROFIL" Ta No "0x00020" Ta "Has started profiling"
-.It Dv "P_STOPPROF" Ta No "0x00040" Ta "Has thread in requesting to stop prof"
-.It Dv "P_HADTHREADS" Ta No "0x00080" Ta "Has had threads (no cleanup shortcuts)"
-.It Dv "P_SUGID" Ta No "0x00100" Ta "Had set id privileges since last exec"
-.It Dv "P_SYSTEM" Ta No "0x00200" Ta "System proc: no sigs, stats or swapping"
-.It Dv "P_SINGLE_EXIT" Ta No "0x00400" Ta "Threads suspending should exit, not wait"
-.It Dv "P_TRACED" Ta No "0x00800" Ta "Debugged process being traced"
-.It Dv "P_WAITED" Ta No "0x01000" Ta "Someone is waiting for us"
-.It Dv "P_WEXIT" Ta No "0x02000" Ta "Working on exiting"
-.It Dv "P_EXEC" Ta No "0x04000" Ta "Process called exec"
-.It Dv "P_WKILLED" Ta No "0x08000" Ta "Killed, shall go to kernel/user boundary ASAP"
-.It Dv "P_CONTINUED" Ta No "0x10000" Ta "Proc has continued from a stopped state"
-.It Dv "P_STOPPED_SIG" Ta No "0x20000" Ta "Stopped due to SIGSTOP/SIGTSTP"
-.It Dv "P_STOPPED_TRACE" Ta No "0x40000" Ta "Stopped because of tracing"
-.It Dv "P_STOPPED_SINGLE" Ta No "0x80000" Ta "Only one thread can continue"
-.It Dv "P_PROTECTED" Ta No "0x100000" Ta "Do not kill on memory overcommit"
-.It Dv "P_SIGEVENT" Ta No "0x200000" Ta "Process pending signals changed"
-.It Dv "P_SINGLE_BOUNDARY" Ta No "0x400000" Ta "Threads should suspend at user boundary"
-.It Dv "P_HWPMC" Ta No "0x800000" Ta "Process is using HWPMCs"
-.It Dv "P_JAILED" Ta No "0x1000000" Ta "Process is in jail"
-.It Dv "P_TOTAL_STOP" Ta No "0x2000000" Ta "Stopped for system suspend"
-.It Dv "P_INEXEC" Ta No "0x4000000" Ta Process is in Xr execve 2
-.It Dv "P_STATCHILD" Ta No "0x8000000" Ta "Child process stopped or exited"
-.It Dv "P_INMEM" Ta No "0x10000000" Ta "Loaded into memory"
-.It Dv "P_SWAPPINGOUT" Ta No "0x20000000" Ta "Process is being swapped out"
-.It Dv "P_SWAPPINGIN" Ta No "0x40000000" Ta "Process is being swapped in"
+.It Dv "P_ADVLOCK" Ta No "0x00000001" Ta "Process may hold a POSIX advisory lock"
+.It Dv "P_CONTROLT" Ta No "0x00000002" Ta "Has a controlling terminal"
+.It Dv "P_KPROC" Ta No "0x00000004" Ta "Kernel process"
+.It Dv "P_PPWAIT" Ta No "0x00000010" Ta "Parent is waiting for child to exec/exit"
+.It Dv "P_PROFIL" Ta No "0x00000020" Ta "Has started profiling"
+.It Dv "P_STOPPROF" Ta No "0x00000040" Ta "Has thread in requesting to stop prof"
+.It Dv "P_HADTHREADS" Ta No "0x00000080" Ta "Has had threads (no cleanup shortcuts)"
+.It Dv "P_SUGID" Ta No "0x00000100" Ta "Had set id privileges since last exec"
+.It Dv "P_SYSTEM" Ta No "0x00000200" Ta "System proc: no sigs, stats or swapping"
+.It Dv "P_SINGLE_EXIT" Ta No "0x00000400" Ta "Threads suspending should exit, not wait"
+.It Dv "P_TRACED" Ta No "0x00000800" Ta "Debugged process being traced"
+.It Dv "P_WAITED" Ta No "0x00001000" Ta "Someone is waiting for us"
+.It Dv "P_WEXIT" Ta No "0x00002000" Ta "Working on exiting"
+.It Dv "P_EXEC" Ta No "0x00004000" Ta "Process called exec"
+.It Dv "P_WKILLED" Ta No "0x00008000" Ta "Killed, shall go to kernel/user boundary ASAP"
+.It Dv "P_CONTINUED" Ta No "0x00010000" Ta "Proc has continued from a stopped state"
+.It Dv "P_STOPPED_SIG" Ta No "0x00020000" Ta "Stopped due to SIGSTOP/SIGTSTP"
+.It Dv "P_STOPPED_TRACE" Ta No "0x00040000" Ta "Stopped because of tracing"
+.It Dv "P_STOPPED_SINGLE" Ta No "0x00080000" Ta "Only one thread can continue"
+.It Dv "P_PROTECTED" Ta No "0x00100000" Ta "Do not kill on memory overcommit"
+.It Dv "P_SIGEVENT" Ta No "0x00200000" Ta "Process pending signals changed"
+.It Dv "P_SINGLE_BOUNDARY" Ta No "0x00400000" Ta "Threads should suspend at user boundary"
+.It Dv "P_HWPMC" Ta No "0x00800000" Ta "Process is using HWPMCs"
+.It Dv "P_JAILED" Ta No "0x01000000" Ta "Process is in jail"
+.It Dv "P_TOTAL_STOP" Ta No "0x02000000" Ta "Stopped for system suspend"
+.It Dv "P_INEXEC" Ta No "0x04000000" Ta Process is in Xr execve 2
+.It Dv "P_STATCHILD" Ta No "0x08000000" Ta "Child process stopped or exited"
+.It Dv "P_INMEM" Ta No "0x10000000" Ta "Always set, unused"
 .It Dv "P_PPTRACE" Ta No "0x80000000" Ta "Vforked child issued ptrace(PT_TRACEME)"
 .El
 .It Cm flags2
@@ -375,6 +370,24 @@ the include file
 .It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta Keep P2_NOPTRACE on Xr execve 2
 .It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
 .It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
+.It Dv "P2_TRAPCAP" Ta No "0x00000020" Ta "SIGTRAP on ENOTCAPABLE"
+.It Dv "P2_ASLR_ENABLE" Ta No "0x00000040" Ta "Force enable ASLR"
+.It Dv "P2_ASLR_DISABLE" Ta No "0x00000080" Ta "Force disable ASLR"
+.It Dv "P2_ASLR_IGNSTART" Ta No "0x00000100" Ta "Enable ASLR to consume sbrk area"
+.It Dv "P2_PROTMAX_ENABLE" Ta No "0x00000200" Ta "Force enable implied PROT_MAX"
+.It Dv "P2_PROTMAX_DISABLE" Ta No "0x00000400" Ta "Force disable implied PROT_MAX"
+.It Dv "P2_STKGAP_DISABLE" Ta No "0x00000800" Ta "Disable stack gap for MAP_STACK"
+.It Dv "P2_STKGAP_DISABLE_EXEC" Ta No "0x00001000" Ta "Stack gap disabled after exec"
+.It Dv "P2_ITSTOPPED" Ta No "0x00002000" Ta "itimers stopped (as part of process stop)"
+.It Dv "P2_PTRACEREQ" Ta No "0x00004000" Ta "Active ptrace req"
+.It Dv "P2_NO_NEW_PRIVS" Ta No "0x00008000" Ta "Ignore setuid on exec"
+.It Dv "P2_WXORX_DISABLE" Ta No "0x00010000" Ta "WX mappings enabled"
+.It Dv "P2_WXORX_ENABLE_EXEC" Ta No "0x00020000" Ta "WxorX enabled after exec"
+.It Dv "P2_WEXIT" Ta No "0x00040000" Ta "Internal exit early state"
+.It Dv "P2_REAPKILLED" Ta No "0x00080000" Ta "REAP_KILL pass handled the process"
+.It Dv "P2_MEMBAR_PRIVE" Ta No "0x00100000" Ta "membarrier private expedited registered"
+.It Dv "P2_MEMBAR_PRIVE_SYNCORE" Ta No "0x00200000" Ta "membarrier private expedited sync core registered"
+.It Dv "P2_MEMBAR_GLOBE" Ta No "0x00400000" Ta "membar global expedited registered"
 .El
 .It Cm label
 The MAC label of the process.
@@ -473,8 +486,6 @@ The process is a session leader.
 The process' parent is suspended during a
 .Xr vfork 2 ,
 waiting for the process to exec or exit.
-.It Li W
-The process is swapped out.
 .It Li X
 The process is being traced or debugged.
 .El

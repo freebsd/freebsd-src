@@ -4,6 +4,7 @@
 #define _LINUX_MMZONE_H
 
 #include <linux/mm_types.h>
+#include <linux/numa.h>
 #include <linux/page-flags.h>
 
 #define MAX_ORDER	11

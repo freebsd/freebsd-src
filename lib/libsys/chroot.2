@@ -25,11 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 29, 2020
+.Dd July 15, 2024
 .Dt CHROOT 2
 .Os
 .Sh NAME
-.Nm chroot
+.Nm chroot ,
+.Nm fchroot
 .Nd change root directory
 .Sh LIBRARY
 .Lb libc
@@ -37,6 +38,8 @@
 .In unistd.h
 .Ft int
 .Fn chroot "const char *dirname"
+.Ft int
+.Fn fchroot "int fd"
 .Sh DESCRIPTION
 The
 .Fa dirname
@@ -92,6 +95,12 @@ will bypass the check for open directories,
 mimicking the historic insecure behavior of
 .Fn chroot
 still present on other systems.
+.Pp
+The
+.Fn fchroot
+system call is identical to
+.Fn chroot
+except it takes a file descriptor instead of path.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -124,6 +133,29 @@ An I/O error occurred while reading from or writing to the file system.
 .It Bq Er EINTEGRITY
 Corrupted data was detected while reading from the file system.
 .El
+.Pp
+The
+.Fn fchroot
+system call
+will fail and the root directory will be unchanged if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Search permission is denied for the directory referenced by the
+file descriptor.
+.It Bq Er EBADF
+The argument
+.Fa fd
+is not a valid file descriptor.
+.It Bq Er EIO
+An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
+.It Bq Er ENOTDIR
+The file descriptor does not reference a directory.
+.It Bq Er EPERM
+The effective user ID is not the super-user, or one or more
+filedescriptors are open directories.
+.El
 .Sh SEE ALSO
 .Xr chdir 2 ,
 .Xr jail 2
@@ -137,6 +169,10 @@ It was marked as
 in
 .St -susv2 ,
 and was removed in subsequent standards.
+The
+.Fn fchroot
+system call first appeared in
+.Fx 15.0 .
 .Sh BUGS
 If the process is able to change its working directory to the target
 directory, but another access control check fails (such as a check for

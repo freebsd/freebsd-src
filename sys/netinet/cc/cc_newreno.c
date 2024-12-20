@@ -135,7 +135,7 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 
 	if (hystart_bblogs == 0)
 		return;
-	tp = ccv->ccvc.tcp;
+	tp = ccv->tp;
 	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
@@ -175,7 +175,7 @@ newreno_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct newreno *nreno;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		ccv->cc_data = malloc(sizeof(struct newreno), M_CC_MEM, M_NOWAIT);
 		if (ccv->cc_data == NULL)
@@ -215,12 +215,13 @@ static void
 newreno_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct newreno *nreno;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	nreno = ccv->cc_data;
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED)) {
 		u_int cw = CCV(ccv, snd_cwnd);
-		u_int incr = CCV(ccv, t_maxseg);
+		u_int incr = mss;
 
 		/*
 		 * Regular in-order ACK, open the congestion window.
@@ -324,10 +325,9 @@ newreno_ack_received(struct cc_var *ccv, ccsignal_t type)
 			}
 			if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
 				incr = min(ccv->bytes_this_ack,
-				    ccv->nsegs * abc_val *
-				    CCV(ccv, t_maxseg));
+				    ccv->nsegs * abc_val * mss);
 			else
-				incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+				incr = min(ccv->bytes_this_ack, mss);
 
 			/* Only if Hystart is enabled will the flag get set */
 			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) {
@@ -369,9 +369,9 @@ newreno_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	uint32_t beta, beta_ecn, cwin, factor, mss, pipe;
 
 	cwin = CCV(ccv, snd_cwnd);
-	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
+	mss = tcp_fixed_maxseg(ccv->tp);
 	nreno = ccv->cc_data;
-	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;;
+	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;
 	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
 	/*
 	 * Note that we only change the backoff for ECN if the
@@ -429,7 +429,7 @@ newreno_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	case CC_RTO:
 		if (CCV(ccv, t_rxtshift) == 1) {
 			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+				pipe = tcp_compute_pipe(ccv->tp);
 			} else {
 				pipe = CCV(ccv, snd_max) -
 					CCV(ccv, snd_fack) +
@@ -456,7 +456,7 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 	if (sopt->sopt_valsize != sizeof(struct cc_newreno_opts))
 		return (EMSGSIZE);
 
-	if (CC_ALGO(ccv->ccvc.tcp) != &newreno_cc_algo)
+	if (CC_ALGO(ccv->tp) != &newreno_cc_algo)
 		return (ENOPROTOOPT);
 
 	nreno = (struct newreno *)ccv->cc_data;

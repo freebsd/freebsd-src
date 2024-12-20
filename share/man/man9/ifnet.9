@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 24, 2022
+.Dd Nov 12, 2024
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -74,8 +74,6 @@
 .Fn if_up "struct ifnet *ifp"
 .\"
 .Ss "Interface Address Functions"
-.Ft "struct ifaddr *"
-.Fn ifaddr_byindex "u_short idx"
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
@@ -196,8 +194,6 @@ address
 .Xr link_addr 3 )
 describing the link layer implemented by the interface (if any)
 is accessed by the
-.Fn ifaddr_byindex
-function or
 .Va if_addr
 structure.
 (Some trivial interfaces do not provide any link layer addresses;
@@ -612,6 +608,10 @@ This interface is in the permanently promiscuous mode (implies
 .It Dv IFF_ALLMULTI
 .Aq D*
 This interface is in all-multicasts mode (used by multicast routers).
+.It Dv IFF_PALLMULTI
+.Aq D
+This interface is in the permanently all-multicasts mode (implies
+.Dv IFF_ALLMULTI) .
 .It Dv IFF_DRV_OACTIVE
 .Aq D*
 The interface's hardware output queue (if any) is full; output packets
@@ -1183,9 +1183,7 @@ structure to be the first element in that list.
 (A pointer to
 this address structure is saved in the
 .Vt ifnet
-structure and is accessed by the
-.Fn ifaddr_byindex
-function.)
+structure.)
 The
 .Fa ifp
 must have been allocated by
@@ -1501,10 +1499,6 @@ point-to-point, only an interface address whose remote address is
 precisely
 .Fa addr
 will be returned.
-.Pp
-.Fn ifaddr_byindex
-returns the link-level address of the interface with the given index
-.Fa idx .
 .Pp
 All of these functions return a null pointer if no such address can be
 found.

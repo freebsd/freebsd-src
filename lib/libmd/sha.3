@@ -8,7 +8,7 @@
 .\"
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\"
-.Dd February 6, 2023
+.Dd February 12, 2023
 .Dt SHA 3
 .Os
 .Sh NAME
@@ -16,6 +16,8 @@
 .Nm SHA_Update ,
 .Nm SHA_Final ,
 .Nm SHA_End ,
+.Nm SHA_Fd ,
+.Nm SHA_FdChunk ,
 .Nm SHA_File ,
 .Nm SHA_FileChunk ,
 .Nm SHA_Data ,
@@ -23,6 +25,8 @@
 .Nm SHA1_Update ,
 .Nm SHA1_Final ,
 .Nm SHA1_End ,
+.Nm SHA1_Fd ,
+.Nm SHA1_FdChunk ,
 .Nm SHA1_File ,
 .Nm SHA1_FileChunk ,
 .Nm SHA1_Data
@@ -41,6 +45,10 @@
 .Ft "char *"
 .Fn SHA_End "SHA_CTX *context" "char *buf"
 .Ft "char *"
+.Fn SHA_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
 .Fn SHA_File "const char *filename" "char *buf"
 .Ft "char *"
 .Fn SHA_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
@@ -54,6 +62,10 @@
 .Fn SHA1_Final "unsigned char digest[20]" "SHA_CTX *context"
 .Ft "char *"
 .Fn SHA1_End "SHA_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA1_Fd "int fd" "char *buf"
+.Ft "char *"
+.Fn SHA1_FdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA1_File "const char *filename" "char *buf"
 .Ft "char *"
@@ -129,6 +141,19 @@ to the end of file.
 calculates the digest of a chunk of data in memory, and uses
 .Fn SHA1_End
 to return the result.
+.Pp
+The
+.Fn SHA1_Fd
+and
+.Fn SHA1_FdChunk
+functions are identical to their
+.Fn SHA1_File
+and
+.Fn SHA1_FileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn SHA1_End ,

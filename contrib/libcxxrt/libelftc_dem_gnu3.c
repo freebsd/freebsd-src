@@ -200,9 +200,9 @@ vector_str_find(const struct vector_str *v, const char *o, size_t l)
 static char *
 vector_str_get_flat(const struct vector_str *v, size_t *l)
 {
-	ssize_t elem_pos, elem_size, rtn_size;
 	size_t i;
-	char *rtn;
+	char *rtn, *p;
+	ssize_t rtn_size;
 
 	if (v == NULL || v->size == 0)
 		return (NULL);
@@ -213,16 +213,9 @@ vector_str_get_flat(const struct vector_str *v, size_t *l)
 	if ((rtn = malloc(sizeof(char) * (rtn_size + 1))) == NULL)
 		return (NULL);
 
-	elem_pos = 0;
-	for (i = 0; i < v->size; ++i) {
-		elem_size = strlen(v->container[i]);
-
-		memcpy(rtn + elem_pos, v->container[i], elem_size);
-
-		elem_pos += elem_size;
-	}
-
-	rtn[rtn_size] = '\0';
+	p = rtn;
+	for (i = 0; i < v->size; ++i)
+		p = stpcpy(p, v->container[i]);
 
 	if (l != NULL)
 		*l = rtn_size;
@@ -306,6 +299,21 @@ vector_str_pop(struct vector_str *v)
 }
 
 /**
+ * @brief Implements strlcpy() without result.
+ */
+static void
+copy_string(char *dst, const char *src, size_t dsize)
+{
+	size_t remain;
+	if ((remain = dsize))
+		while (--remain)
+			if (!(*dst++ = *src++))
+				break;
+	if (!remain && dsize)
+                *dst = 0;
+}
+
+/**
  * @brief Push back string to vector.
  * @return false at failed, true at success.
  */
@@ -322,7 +330,7 @@ vector_str_push(struct vector_str *v, const char *str, size_t len)
 	if ((v->container[v->size] = malloc(sizeof(char) * (len + 1))) == NULL)
 		return (false);
 
-	snprintf(v->container[v->size], len + 1, "%s", str);
+	copy_string(v->container[v->size], str, len + 1);
 
 	++v->size;
 
@@ -420,8 +428,8 @@ static char *
 vector_str_substr(const struct vector_str *v, size_t begin, size_t end,
     size_t *r_len)
 {
-	size_t cur, i, len;
-	char *rtn;
+	char *rtn, *p;
+	size_t i, len;
 
 	if (v == NULL || begin > end)
 		return (NULL);
@@ -436,13 +444,9 @@ vector_str_substr(const struct vector_str *v, size_t begin, size_t end,
 	if (r_len != NULL)
 		*r_len = len;
 
-	cur = 0;
-	for (i = begin; i < end + 1; ++i) {
-		len = strlen(v->container[i]);
-		memcpy(rtn + cur, v->container[i], len);
-		cur += len;
-	}
-	rtn[cur] = '\0';
+	p = rtn;
+	for (i = begin; i < end + 1; ++i)
+		p = stpcpy(p, v->container[i]);
 
 	return (rtn);
 }
@@ -2510,61 +2514,56 @@ cpp_demangle_read_subst(struct cpp_demangle_data *ddata)
 		return (1);
 
 	case SIMPLE_HASH('S', 'd'):
-		/* std::basic_iostream<char, std::char_traits<char> > */
+		/* std::basic_iostream<char, std::char_traits<char>> */
 		if (!DEM_PUSH_STR(ddata, "std::basic_iostream<char, "
-		    "std::char_traits<char> >"))
+		    "std::char_traits<char>>"))
 			return (0);
 		ddata->last_sname = "basic_iostream";
 		ddata->cur += 2;
 		if (*ddata->cur == 'I')
 			return (cpp_demangle_read_subst_stdtmpl(ddata,
 			    "std::basic_iostream<char, std::char_traits"
-				"<char> >"));
+				"<char>>"));
 		return (1);
 
 	case SIMPLE_HASH('S', 'i'):
-		/* std::basic_istream<char, std::char_traits<char> > */
+		/* std::basic_istream<char, std::char_traits<char>> */
 		if (!DEM_PUSH_STR(ddata, "std::basic_istream<char, "
-		    "std::char_traits<char> >"))
+		    "std::char_traits<char>>"))
 			return (0);
 		ddata->last_sname = "basic_istream";
 		ddata->cur += 2;
 		if (*ddata->cur == 'I')
 			return (cpp_demangle_read_subst_stdtmpl(ddata,
 			    "std::basic_istream<char, std::char_traits"
-				"<char> >"));
+				"<char>>"));
 		return (1);
 
 	case SIMPLE_HASH('S', 'o'):
-		/* std::basic_ostream<char, std::char_traits<char> > */
+		/* std::basic_ostream<char, std::char_traits<char>> */
 		if (!DEM_PUSH_STR(ddata, "std::basic_ostream<char, "
-		    "std::char_traits<char> >"))
+		    "std::char_traits<char>>"))
 			return (0);
 		ddata->last_sname = "basic_ostream";
 		ddata->cur += 2;
 		if (*ddata->cur == 'I')
 			return (cpp_demangle_read_subst_stdtmpl(ddata,
 			    "std::basic_ostream<char, std::char_traits"
-				"<char> >"));
+				"<char>>"));
 		return (1);
 
 	case SIMPLE_HASH('S', 's'):
 		/*
-		 * std::basic_string<char, std::char_traits<char>,
-		 * std::allocator<char> >
-		 *
-		 * a.k.a std::string
+		 * std::string for consistency with libcxxabi
 		 */
-		if (!DEM_PUSH_STR(ddata, "std::basic_string<char, "
-		    "std::char_traits<char>, std::allocator<char> >"))
-			return (0);
+		if (!DEM_PUSH_STR(ddata, "std::string"))
+			return 0;
 		ddata->last_sname = "string";
 		ddata->cur += 2;
 		if (*ddata->cur == 'I')
-			return (cpp_demangle_read_subst_stdtmpl(ddata,
-			    "std::basic_string<char, std::char_traits<char>,"
-				" std::allocator<char> >"));
-		return (1);
+			return cpp_demangle_read_subst_stdtmpl(ddata,
+				"std::string");
+		return 1;
 
 	case SIMPLE_HASH('S', 't'):
 		/* std:: */
@@ -2740,7 +2739,7 @@ static int
 cpp_demangle_read_tmpl_args(struct cpp_demangle_data *ddata)
 {
 	struct vector_str *v;
-	size_t arg_len, idx, limit, size;
+	size_t arg_len, idx, limit;
 	char *arg;
 
 	if (ddata == NULL || *ddata->cur == '\0')
@@ -2773,12 +2772,7 @@ cpp_demangle_read_tmpl_args(struct cpp_demangle_data *ddata)
 
 		if (*ddata->cur == 'E') {
 			++ddata->cur;
-			size = v->size;
-			assert(size > 0);
-			if (!strncmp(v->container[size - 1], ">", 1)) {
-				if (!DEM_PUSH_STR(ddata, " >"))
-					return (0);
-			} else if (!DEM_PUSH_STR(ddata, ">"))
+			if (!DEM_PUSH_STR(ddata, ">"))
 				return (0);
 			ddata->is_tmpl = true;
 			break;

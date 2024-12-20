@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 1, 2024
+.Dd October 28, 2024
 .Dt SND_HDSP 4
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ driver supports the following audio devices:
 .Pp
 .Bl -bullet -compact
 .It
-RME HDSP 9632
+RME HDSP 9632 (optional AO4S-192 and AIS-192 extension boards)
 .It
 RME HDSP 9652
 .El
@@ -86,7 +86,7 @@ For resulting channel numbers consult the following table:
 .Bl -column "Sound Card" "Single Speed" "Double Speed" "Quad Speed"
 .Sy "Sound Card" Ta Sy "Single Speed" Ta Sy "Double Speed" Ta Sy "Quad Speed"
 .It "" Ta "Play | Rec" Ta "Play | Rec" Ta "Play | Rec"
-.It HDSP 9632 Ta " 12  |  12" Ta "  8  |   8" Ta "  4  |   4"
+.It HDSP 9632 Ta " 16  |  16" Ta " 12  |  12" Ta "  8  |   8"
 .It HDSP 9652 Ta " 26  |  26" Ta " 14  |  14" Ta "  -  |   -"
 .El
 .Sh SYSCTL TUNABLES
@@ -132,6 +132,28 @@ for when a valid signal is present, and
 .Ql sync
 for accurately synchronized signals (required for recording digital
 audio).
+.El
+.Pp
+The following tunables are applicable to HDSP 9632 devices only:
+.Bl -tag -width indent
+.It Va dev.hdsp.0.input_level
+Select the sensitivity of the analog line input.
+Available reference levels for the input signal are
+.Ql LowGain ,
+.Ql +4dBu
+and
+.Ql -10dBV .
+.It Va dev.hdsp.0.output_level
+Select the gain level of the analog line output.
+Available reference levels for the output signal are
+.Ql HighGain ,
+.Ql +4dBu
+and
+.Ql -10dBV .
+.It Va dev.hdsp.0.phones_level
+Adjust the gain level of the phones output, separately from the analog line
+output.
+The signal can be lowered by 6 or 12 dB.
 .El
 .Pp
 Where appropriate these sysctl values are modeled after official RME software on

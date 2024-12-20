@@ -1119,7 +1119,7 @@ ipw_fix_channel(struct ipw_softc *sc, struct mbuf *m)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_MGT)
+	if (!IEEE80211_IS_MGMT(wh))
 		return;
 
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;

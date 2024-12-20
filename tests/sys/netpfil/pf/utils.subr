@@ -83,6 +83,8 @@ pfsynct_init()
 
 pflog_init()
 {
+	pft_init
+
 	if ! kldstat -q -m pflog; then
 		atf_skip "This test requires pflog"
 	fi
@@ -213,8 +215,9 @@ setup_router_server_ipv4()
 	vnet_mkjail server ${epair_server}b
 	jexec server ifconfig ${epair_server}b ${net_server_host_server}/${net_server_mask} up
 	jexec server route add -net ${net_tester} ${net_server_host_router}
-	jexec server nc -4l 666 &
-	sleep 1 # Give nc time to start and listen
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp nowait root internal" > $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
 # Create a bare router jail.
@@ -266,8 +269,9 @@ setup_router_server_ipv6()
 	vnet_mkjail server ${epair_server}b
 	jexec server ifconfig ${epair_server}b inet6 ${net_server_host_server}/${net_server_mask} up no_dad
 	jexec server route add -6 ${net_tester} ${net_server_host_router}
-	jexec server nc -6l 666 &
-	sleep 1 # Give nc time to start and listen
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp6 nowait root internal" > $inetd_conf
+	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
 # Ping the dummy static NDP target.
@@ -296,4 +300,14 @@ ping_server_check_reply()
 	    --to ${net_server_host_server} \
 	    --replyif ${epair_tester}a \
 	$params
+}
+
+normalize_pfctl_s()
+{
+	# `pfctl -s[rsS]` output is divided into sections. Each rule, state or
+	# source node starts with the beginning of a line and next lines with leading
+	# spaces are various parameters of said rule, state or source node.
+	# Convert it into a single line per entry, and remove multiple spaces,
+	# so that regular expressions for matching them in tests can be simpler.
+	awk '{ if ($0 ~ /^[^ ]/ && NR > 1) print(""); gsub(/ +/, " ", $0); printf("%s", $0); } END {print("");}'
 }

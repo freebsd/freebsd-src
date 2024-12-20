@@ -133,6 +133,7 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 	mac->ops.init_uta_tables = NULL;
 	mac->ops.enable_rx = ixgbe_enable_rx_generic;
 	mac->ops.disable_rx = ixgbe_disable_rx_generic;
+	mac->ops.toggle_txdctl = ixgbe_toggle_txdctl_generic;
 
 	/* Flow Control */
 	mac->ops.fc_enable = ixgbe_fc_enable_generic;
@@ -171,7 +172,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber_qsfp:
 	case ixgbe_media_type_fiber:
-		/* flow control autoneg black list */
+		/* flow control autoneg block list */
 		switch (hw->device_id) {
 		case IXGBE_DEV_ID_X550EM_A_SFP:
 		case IXGBE_DEV_ID_X550EM_A_SFP_N:
@@ -268,8 +269,8 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 		if (ret_val != IXGBE_SUCCESS)
 			goto out;
 
-		/* only backplane uses autoc */
-		/* FALLTHROUGH */
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+		break;
 	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber_qsfp:
 	case ixgbe_media_type_fiber:
@@ -713,7 +714,7 @@ s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 		return ret_val;
 	}
 
-	if (length == 0xFFFF || length == 0) {
+	if (length == 0xFFFF || length == 0 || length > hw->eeprom.word_size) {
 		DEBUGOUT("NVM PBA number section invalid length\n");
 		return IXGBE_ERR_PBA_SECTION;
 	}
@@ -1146,10 +1147,10 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	msec_delay(2);
 
 	/*
-	 * Prevent the PCI-E bus from hanging by disabling PCI-E master
+	 * Prevent the PCI-E bus from hanging by disabling PCI-E primary
 	 * access and verify no pending requests
 	 */
-	return ixgbe_disable_pcie_master(hw);
+	return ixgbe_disable_pcie_primary(hw);
 }
 
 /**
@@ -3208,32 +3209,32 @@ static u32 ixgbe_pcie_timeout_poll(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_disable_pcie_master - Disable PCI-express master access
+ * ixgbe_disable_pcie_primary - Disable PCI-express primary access
  * @hw: pointer to hardware structure
  *
- * Disables PCI-Express master access and verifies there are no pending
- * requests. IXGBE_ERR_MASTER_REQUESTS_PENDING is returned if master disable
- * bit hasn't caused the master requests to be disabled, else IXGBE_SUCCESS
- * is returned signifying master requests disabled.
+ * Disables PCI-Express primary access and verifies there are no pending
+ * requests. IXGBE_ERR_PRIMARY_REQUESTS_PENDING is returned if primary disable
+ * bit hasn't caused the primary requests to be disabled, else IXGBE_SUCCESS
+ * is returned signifying primary requests disabled.
  **/
-s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
+s32 ixgbe_disable_pcie_primary(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_SUCCESS;
 	u32 i, poll;
 	u16 value;
 
-	DEBUGFUNC("ixgbe_disable_pcie_master");
+	DEBUGFUNC("ixgbe_disable_pcie_primary");
 
 	/* Always set this bit to ensure any future transactions are blocked */
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, IXGBE_CTRL_GIO_DIS);
 
-	/* Exit if master requests are blocked */
+	/* Exit if primary requests are blocked */
 	if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO) ||
 	    IXGBE_REMOVED(hw->hw_addr))
 		goto out;
 
-	/* Poll for master request bit to clear */
-	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
+	/* Poll for primary request bit to clear */
+	for (i = 0; i < IXGBE_PCI_PRIMARY_DISABLE_TIMEOUT; i++) {
 		usec_delay(100);
 		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO))
 			goto out;
@@ -3241,13 +3242,13 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	/*
 	 * Two consecutive resets are required via CTRL.RST per datasheet
-	 * 5.2.5.3.2 Master Disable.  We set a flag to inform the reset routine
-	 * of this need.  The first reset prevents new master requests from
+	 * 5.2.5.3.2 Primary Disable.  We set a flag to inform the reset routine
+	 * of this need. The first reset prevents new primary requests from
 	 * being issued by our device.  We then must wait 1usec or more for any
 	 * remaining completions from the PCIe bus to trickle in, and then reset
 	 * again to clear out any effects they may have had on our device.
 	 */
-	DEBUGOUT("GIO Master Disable bit didn't clear - requesting resets\n");
+	DEBUGOUT("GIO Primary Disable bit didn't clear - requesting resets\n");
 	hw->mac.flags |= IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
 
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -3269,7 +3270,7 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 
 	ERROR_REPORT1(IXGBE_ERROR_POLLING,
 		     "PCIe transaction pending bit also did not clear.\n");
-	status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
+	status = IXGBE_ERR_PRIMARY_REQUESTS_PENDING;
 
 out:
 	return status;
@@ -3866,14 +3867,15 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 }
 
 /**
+ * ixgbe_set_vmdq_san_mac_generic - Associate default VMDq pool index with
+ * a rx address
+ * @hw: pointer to hardware struct
+ * @vmdq: VMDq pool index
+ *
  * This function should only be involved in the IOV mode.
  * In IOV mode, Default pool is next pool after the number of
  * VFs advertized and not 0.
  * MPSAR table needs to be updated for SAN_MAC RAR [hw->mac.san_mac_rar_index]
- *
- * ixgbe_set_vmdq_san_mac - Associate default VMDq pool index with a rx address
- * @hw: pointer to hardware struct
- * @vmdq: VMDq pool index
  **/
 s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
 {
@@ -4132,6 +4134,62 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 		IXGBE_WRITE_REG(hw, IXGBE_VLVF(offset), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2 + 1), 0);
+	}
+
+	return IXGBE_SUCCESS;
+}
+
+
+/**
+ * ixgbe_toggle_txdctl_generic - Toggle VF's queues
+ * @hw: pointer to hardware structure
+ * @vf_number: VF index
+ *
+ * Enable and disable each queue in VF.
+ */
+s32 ixgbe_toggle_txdctl_generic(struct ixgbe_hw *hw, u32 vf_number)
+{
+	u8  queue_count, i;
+	u32 offset, reg;
+
+	if (vf_number > 63)
+		return IXGBE_ERR_PARAM;
+
+	/*
+	 * Determine number of queues by checking
+	 * number of virtual functions
+	 */
+	reg = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
+	switch (reg & IXGBE_GCR_EXT_VT_MODE_MASK) {
+	case IXGBE_GCR_EXT_VT_MODE_64:
+		queue_count = 2;
+		break;
+	case IXGBE_GCR_EXT_VT_MODE_32:
+		queue_count = 4;
+		break;
+	case IXGBE_GCR_EXT_VT_MODE_16:
+		queue_count = 8;
+		break;
+	default:
+		return IXGBE_ERR_CONFIG;
+	}
+
+	/* Toggle queues */
+	for (i = 0; i < queue_count; ++i) {
+		/* Calculate offset of current queue */
+		offset = queue_count * vf_number + i;
+
+		/* Enable queue */
+		reg = IXGBE_READ_REG(hw, IXGBE_PVFTXDCTL(offset));
+		reg |= IXGBE_TXDCTL_ENABLE;
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTXDCTL(offset), reg);
+		IXGBE_WRITE_FLUSH(hw);
+
+		/* Disable queue */
+		reg = IXGBE_READ_REG(hw, IXGBE_PVFTXDCTL(offset));
+		reg &= ~IXGBE_TXDCTL_ENABLE;
+		IXGBE_WRITE_REG(hw, IXGBE_PVFTXDCTL(offset), reg);
+		IXGBE_WRITE_FLUSH(hw);
 	}
 
 	return IXGBE_SUCCESS;
@@ -4778,8 +4836,10 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb, u32 headroom,
 		rxpktsize <<= IXGBE_RXPBSIZE_SHIFT;
 		for (; i < (num_pb / 2); i++)
 			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
-		/* configure remaining packet buffers */
-		/* FALLTHROUGH */
+		rxpktsize = (pbsize / (num_pb - i)) << IXGBE_RXPBSIZE_SHIFT;
+		for (; i < num_pb; i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+		break;
 	case PBA_STRATEGY_EQUAL:
 		rxpktsize = (pbsize / (num_pb - i)) << IXGBE_RXPBSIZE_SHIFT;
 		for (; i < num_pb; i++)
@@ -4880,7 +4940,7 @@ static const u8 ixgbe_emc_therm_limit[4] = {
 };
 
 /**
- * ixgbe_get_thermal_sensor_data - Gathers thermal sensor data
+ * ixgbe_get_thermal_sensor_data_generic - Gathers thermal sensor data
  * @hw: pointer to hardware structure
  *
  * Returns the thermal sensor data structure
@@ -5148,15 +5208,14 @@ s32 ixgbe_bypass_rw_generic(struct ixgbe_hw *hw, u32 cmd, u32 *status)
 
 /**
  * ixgbe_bypass_valid_rd_generic - Verify valid return from bit-bang.
+ * @in_reg: The register cmd for the bit-bang read.
+ * @out_reg: The register returned from a bit-bang read.
  *
  * If we send a write we can't be sure it took until we can read back
  * that same register.  It can be a problem as some of the fields may
  * for valid reasons change inbetween the time wrote the register and
  * we read it again to verify.  So this function check everything we
  * can check and then assumes it worked.
- *
- * @u32 in_reg - The register cmd for the bit-bang read.
- * @u32 out_reg - The register returned from a bit-bang read.
  **/
 bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
 {
@@ -5207,7 +5266,7 @@ bool ixgbe_bypass_valid_rd_generic(u32 in_reg, u32 out_reg)
  * ixgbe_bypass_set_generic - Set a bypass field in the FW CTRL Regiter.
  *
  * @hw: pointer to hardware structure
- * @cmd: The control word we are setting.
+ * @ctrl: The control word we are setting.
  * @event: The event we are setting in the FW.  This also happens to
  *	    be the mask for the event we are setting (handy)
  * @action: The action we set the event to in the FW. This is in a
@@ -5392,6 +5451,103 @@ void ixgbe_get_etk_id(struct ixgbe_hw *hw, struct ixgbe_nvm_version *nvm_ver)
 	}
 }
 
+/**
+ * ixgbe_get_nvm_version - Return version of NVM and its components
+ *
+ * @hw: pointer to hardware structure
+ * @nvm_ver: pointer to output structure
+ *
+ * irrelevant component fields will return 0, read errors will return 0xff
+ **/
+void ixgbe_get_nvm_version(struct ixgbe_hw *hw,
+			struct ixgbe_nvm_version *nvm_ver)
+{
+	u16 word, phy_ver;
+
+	DEBUGFUNC("ixgbe_get_nvm_version");
+
+	memset(nvm_ver, 0, sizeof(struct ixgbe_nvm_version));
+
+	/* eeprom version is mac-type specific */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_82598, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = ((word & NVM_EEP_MINOR_MASK)
+				      >> NVM_EEP_MIN_SHIFT);
+		nvm_ver->nvm_id = (word & NVM_EEP_ID_MASK);
+		break;
+	case ixgbe_mac_X540:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = ((word & NVM_EEP_MINOR_MASK)
+				      >> NVM_EEP_MIN_SHIFT);
+		nvm_ver->nvm_id = (word & NVM_EEP_ID_MASK);
+		break;
+
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_X550EM_a:
+		/* version of eeprom section */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_OFFSET_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->nvm_major = ((word & NVM_EEP_MAJOR_MASK)
+				      >> NVM_EEP_MAJ_SHIFT);
+		nvm_ver->nvm_minor = (word & NVM_EEP_X550_MINOR_MASK);
+
+		break;
+	default:
+		break;
+	}
+
+	/* phy version is mac-type specific */
+	switch (hw->mac.type) {
+	case ixgbe_mac_X540:
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_X550EM_a:
+		/* intel phy firmware version */
+		if (ixgbe_read_eeprom(hw, NVM_EEP_PHY_OFF_X540, &word))
+			word = NVM_VER_INVALID;
+		nvm_ver->phy_fw_maj = ((word & NVM_PHY_MAJOR_MASK)
+				       >> NVM_PHY_MAJ_SHIFT);
+		nvm_ver->phy_fw_min = ((word & NVM_PHY_MINOR_MASK)
+				       >> NVM_PHY_MIN_SHIFT);
+		nvm_ver->phy_fw_id = (word & NVM_PHY_ID_MASK);
+		break;
+	default:
+		break;
+	}
+
+	ixgbe_get_etk_id(hw, nvm_ver);
+
+	/* devstarter image */
+	if (ixgbe_read_eeprom(hw, NVM_DS_OFFSET, &word))
+		word = NVM_VER_INVALID;
+	nvm_ver->devstart_major = ((word & NVM_DS_MAJOR_MASK) >> NVM_DS_SHIFT);
+	nvm_ver->devstart_minor = (word & NVM_DS_MINOR_MASK);
+
+	/* OEM customization word */
+	if (ixgbe_read_eeprom(hw, NVM_OEM_OFFSET, &nvm_ver->oem_specific))
+		nvm_ver->oem_specific = NVM_VER_INVALID;
+
+	/* vendor (not intel) phy firmware version */
+	if (ixgbe_get_phy_firmware_version(hw, &phy_ver))
+		phy_ver = NVM_VER_INVALID;
+	nvm_ver->phy_vend_maj = ((phy_ver & NVM_PHYVEND_MAJOR_MASK)
+				 >> NVM_PHYVEND_SHIFT);
+	nvm_ver->phy_vend_min = (phy_ver & NVM_PHYVEND_MINOR_MASK);
+
+	/* Option Rom may or may not be present.  Start with pointer */
+	ixgbe_get_orom_version(hw, nvm_ver);
+	return;
+}
 
 /**
  * ixgbe_dcb_get_rtrup2tc_generic - read rtrup2tc reg

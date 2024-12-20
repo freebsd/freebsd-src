@@ -35,6 +35,7 @@
 #include <stdexcept>
 
 #include "engine/exceptions.hpp"
+#include "engine/execenv/execenv.hpp"
 #include "utils/config/exceptions.hpp"
 #include "utils/config/parser.hpp"
 #include "utils/config/tree.ipp"
@@ -43,6 +44,7 @@
 #include "utils/text/operations.ipp"
 
 namespace config = utils::config;
+namespace execenv = engine::execenv;
 namespace fs = utils::fs;
 namespace passwd = utils::passwd;
 namespace text = utils::text;
@@ -59,6 +61,7 @@ static void
 init_tree(config::tree& tree)
 {
     tree.define< config::string_node >("architecture");
+    tree.define< config::strings_set_node >("execenvs");
     tree.define< config::positive_int_node >("parallelism");
     tree.define< config::string_node >("platform");
     tree.define< engine::user_node >("unprivileged_user");
@@ -74,6 +77,14 @@ static void
 set_defaults(config::tree& tree)
 {
     tree.set< config::string_node >("architecture", KYUA_ARCHITECTURE);
+
+    std::set< std::string > supported;
+    for (auto em : execenv::execenvs())
+        if (em->is_supported())
+            supported.insert(em->name());
+    supported.insert(execenv::default_execenv_name);
+    tree.set< config::strings_set_node >("execenvs", supported);
+
     // TODO(jmmv): Automatically derive this from the number of CPUs in the
     // machine and forcibly set to a value greater than 1.  Still testing
     // the new parallel implementation as of 2015-02-27 though.
@@ -229,6 +240,13 @@ engine::empty_config(void)
 {
     config::tree tree(false);
     init_tree(tree);
+
+    // Tests of Kyua itself tend to use an empty config, i.e. default
+    // execution environment is used. Let's allow it.
+    std::set< std::string > supported;
+    supported.insert(engine::execenv::default_execenv_name);
+    tree.set< config::strings_set_node >("execenvs", supported);
+
     return tree;
 }
 

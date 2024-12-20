@@ -308,10 +308,18 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 				break;
 			}
 		}
-		intr_enable();
+		if (td->td_md.md_spinlock_count == 0 &&
+		    (frame->tf_spsr & PSR_DAIF_INTR) != PSR_DAIF_INTR) {
+			MPASS((frame->tf_spsr & PSR_DAIF_INTR) == 0);
+			intr_enable();
+		}
 		map = kernel_map;
 	} else {
-		intr_enable();
+		if (td->td_md.md_spinlock_count == 0 &&
+		    (frame->tf_spsr & PSR_DAIF_INTR) != PSR_DAIF_INTR) {
+			MPASS((frame->tf_spsr & PSR_DAIF_INTR) == 0);
+			intr_enable();
+		}
 		map = &td->td_proc->p_vmspace->vm_map;
 		if (map == NULL)
 			map = kernel_map;
@@ -338,8 +346,9 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		    td->td_md.md_spinlock_count);
 	}
 #endif
-	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
-	    WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
+	if ((td->td_pflags & TDP_NOFAULTING) == 0 &&
+	    (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
+	    WARN_GIANTOK, NULL, "Kernel page fault") != 0)) {
 		print_registers(frame);
 		print_gp_register("far", far);
 		printf(" esr: 0x%.16lx\n", esr);
@@ -375,7 +384,6 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 bad_far:
 			if (td->td_intr_nesting_level == 0 &&
 			    pcb->pcb_onfault != 0) {
-				frame->tf_x[0] = error;
 				frame->tf_elr = pcb->pcb_onfault;
 				return;
 			}
@@ -639,8 +647,10 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVE:
-		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_elr,
-		    exception);
+		/* Returns true if this thread can use SVE */
+		if (!sve_restore_state(td))
+			call_trapsignal(td, SIGILL, ILL_ILLTRP,
+			    (void *)frame->tf_elr, exception);
 		userret(td, frame);
 		break;
 	case EXCP_SVC32:
@@ -734,7 +744,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		break;
 	}
 
-	KASSERT((td->td_pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+	KASSERT(
+	    (td->td_pcb->pcb_fpflags & ~(PCB_FP_USERMASK|PCB_FP_SVEVALID)) == 0,
 	    ("Kernel VFP flags set while entering userspace"));
 	KASSERT(
 	    td->td_pcb->pcb_fpusaved == &td->td_pcb->pcb_fpustate,

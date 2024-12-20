@@ -84,20 +84,24 @@ _thr_atfork(void (*prepare)(void), void (*parent)(void),
 	struct pthread *curthread;
 	struct pthread_atfork *af;
 
-	_thr_check_init();
-
 	if ((af = malloc(sizeof(struct pthread_atfork))) == NULL)
 		return (ENOMEM);
 
-	curthread = _get_curthread();
 	af->prepare = prepare;
 	af->parent = parent;
 	af->child = child;
-	THR_CRITICAL_ENTER(curthread);
-	_thr_rwl_wrlock(&_thr_atfork_lock);
-	TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
-	_thr_rwl_unlock(&_thr_atfork_lock);
-	THR_CRITICAL_LEAVE(curthread);
+
+	if (_thr_initial != NULL) {
+		curthread = _get_curthread();
+		THR_CRITICAL_ENTER(curthread);
+		_thr_rwl_wrlock(&_thr_atfork_lock);
+		TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
+		_thr_rwl_unlock(&_thr_atfork_lock);
+		THR_CRITICAL_LEAVE(curthread);
+	} else {
+		TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
+	}
+
 	return (0);
 }
 

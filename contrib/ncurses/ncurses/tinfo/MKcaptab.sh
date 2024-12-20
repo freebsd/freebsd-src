@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2023 Thomas E. Dickey                                  #
 # Copyright 2007-2010,2011 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -27,7 +27,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcaptab.sh,v 1.19 2020/02/02 23:34:34 tom Exp $
+# $Id: MKcaptab.sh,v 1.20 2023/04/22 15:12:57 tom Exp $
 
 if test $# != 0
 then
@@ -153,7 +153,6 @@ _nc_get_table(bool termcap)
     return termcap ? build_names(cap) : build_names(info);
 }
 
-/* entrypoint used by tack 1.07 */
 NCURSES_EXPORT(const HashValue *)
 _nc_get_hash_table(bool termcap)
 {

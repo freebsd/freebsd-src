@@ -77,14 +77,22 @@ acpi_get_root_from_memory(void)
 	return (0);
 }
 
+void
+acpi_set_root(vm_paddr_t addr)
+{
+
+	KASSERT(acpi_root_phys == 0, ("ACPI root pointer already set"));
+	acpi_root_phys = addr;
+}
+
 ACPI_PHYSICAL_ADDRESS
 AcpiOsGetRootPointer(void)
 {
 
 	if (acpi_root_phys == 0) {
-		acpi_root_phys = acpi_get_root_from_loader();
+		acpi_set_root(acpi_get_root_from_loader());
 		if (acpi_root_phys == 0)
-			acpi_root_phys = acpi_get_root_from_memory();
+			acpi_set_root(acpi_get_root_from_memory());
 	}
 
 	return (acpi_root_phys);

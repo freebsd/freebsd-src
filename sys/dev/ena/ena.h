@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2024 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 #include "ena-com/ena_eth_com.h"
 
 #define ENA_DRV_MODULE_VER_MAJOR	2
-#define ENA_DRV_MODULE_VER_MINOR	7
+#define ENA_DRV_MODULE_VER_MINOR	8
 #define ENA_DRV_MODULE_VER_SUBMINOR	0
 
 #define ENA_DRV_MODULE_NAME		"ena"
@@ -146,6 +146,8 @@
 /* Max number of timeouted packets before device reset */
 #define ENA_DEFAULT_TX_CMP_THRESHOLD	(128)
 
+#define ENA_ADMIN_POLL_DELAY_US 100
+
 /*
  * Supported PCI vendor and devices IDs
  */
@@ -169,6 +171,15 @@ enum ena_flags_t {
 	ENA_FLAG_DEV_UP_BEFORE_RESET,
 	ENA_FLAG_RSS_ACTIVE,
 	ENA_FLAGS_NUMBER = ENA_FLAG_RSS_ACTIVE
+};
+
+enum ena_llq_header_size_policy_t {
+	/* Policy for Regular LLQ entry size (128B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_REGULAR,
+	/* Policy for Large LLQ entry size (256B) */
+	ENA_LLQ_HEADER_SIZE_POLICY_LARGE,
+	/* Policy for device recommended LLQ entry size */
+	ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT
 };
 
 BITSET_DEFINE(_ena_state, ENA_FLAGS_NUMBER);
@@ -325,6 +336,7 @@ struct ena_ring {
 	};
 
 	uint8_t first_interrupt;
+	uint8_t cleanup_running;
 	uint16_t no_interrupt_event_cnt;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
@@ -381,6 +393,19 @@ struct ena_stats_dev {
 	counter_u64_t interface_up;
 	counter_u64_t interface_down;
 	counter_u64_t admin_q_pause;
+	counter_u64_t total_resets;
+	counter_u64_t os_trigger;
+	counter_u64_t missing_tx_cmpl;
+	counter_u64_t bad_rx_req_id;
+	counter_u64_t bad_tx_req_id;
+	counter_u64_t bad_rx_desc_num;
+	counter_u64_t invalid_state;
+	counter_u64_t missing_intr;
+	counter_u64_t tx_desc_malformed;
+	counter_u64_t rx_desc_malformed;
+	counter_u64_t missing_admin_interrupt;
+	counter_u64_t admin_to;
+	counter_u64_t device_request_reset;
 };
 
 struct ena_hw_stats {
@@ -442,6 +467,8 @@ struct ena_adapter {
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
+
+	uint8_t llq_policy;
 
 	ena_state_t flags;
 
@@ -519,6 +546,33 @@ struct ena_adapter {
 
 extern struct sx ena_global_lock;
 
+#define ENA_RESET_STATS_ENTRY(reset_reason, stat) \
+	[reset_reason] = { \
+	.stat_offset = offsetof(struct ena_stats_dev, stat) / sizeof(u64), \
+	.has_counter = true \
+}
+
+struct ena_reset_stats_offset {
+	int stat_offset;
+	bool has_counter;
+};
+
+static const struct ena_reset_stats_offset resets_to_stats_offset_map[ENA_REGS_RESET_LAST] = {
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_KEEP_ALIVE_TO, wd_expired),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_ADMIN_TO, admin_to),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_OS_TRIGGER, os_trigger),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_TX_CMPL, missing_tx_cmpl),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_RX_REQ_ID, bad_rx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_INV_TX_REQ_ID, bad_tx_req_id),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TOO_MANY_RX_DESCS, bad_rx_desc_num),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DRIVER_INVALID_STATE, invalid_state),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISS_INTERRUPT, missing_intr),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_TX_DESCRIPTOR_MALFORMED, tx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED, rx_desc_malformed),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_MISSING_ADMIN_INTERRUPT, missing_admin_interrupt),
+	ENA_RESET_STATS_ENTRY(ENA_REGS_RESET_DEVICE_REQUEST, device_request_reset),
+};
+
 int	ena_up(struct ena_adapter *adapter);
 void	ena_down(struct ena_adapter *adapter);
 int	ena_restore_device(struct ena_adapter *adapter);
@@ -531,6 +585,7 @@ int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 int	ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num);
 int     ena_update_base_cpu(struct ena_adapter *adapter, int new_num);
 int     ena_update_cpu_stride(struct ena_adapter *adapter, uint32_t new_num);
+int     validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id, int tx_req_id_rc);
 static inline int
 ena_mbuf_count(struct mbuf *mbuf)
 {
@@ -540,6 +595,23 @@ ena_mbuf_count(struct mbuf *mbuf)
 		++count;
 
 	return count;
+}
+
+static inline void
+ena_increment_reset_counter(struct ena_adapter *adapter)
+{
+	enum ena_regs_reset_reason_types reset_reason = adapter->reset_reason;
+	const struct ena_reset_stats_offset *ena_reset_stats_offset =
+	    &resets_to_stats_offset_map[reset_reason];
+
+	if (ena_reset_stats_offset->has_counter) {
+		uint64_t *stat_ptr = (uint64_t *)&adapter->dev_stats +
+		    ena_reset_stats_offset->stat_offset;
+
+		counter_u64_add((counter_u64_t)(*stat_ptr), 1);
+	}
+
+	counter_u64_add(adapter->dev_stats.total_resets, 1);
 }
 
 static inline void

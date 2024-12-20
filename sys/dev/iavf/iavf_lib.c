@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2024, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -511,7 +511,7 @@ iavf_get_vsi_res_from_vf_res(struct iavf_sc *sc)
 
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
 		/* XXX: We only use the first VSI we find */
-		if (sc->vf_res->vsi_res[i].vsi_type == IAVF_VSI_SRIOV)
+		if (sc->vf_res->vsi_res[i].vsi_type == VIRTCHNL_VSI_SRIOV)
 			sc->vsi_res = &sc->vf_res->vsi_res[i];
 	}
 	if (!sc->vsi_res) {
@@ -1479,10 +1479,11 @@ iavf_update_msix_devinfo(device_t dev)
 {
 	struct pci_devinfo *dinfo;
 	u32 msix_ctrl;
+	u8 msix_location;
 
 	dinfo = (struct pci_devinfo *)device_get_ivars(dev);
-	/* We can hardcode this offset since we know the device */
-	msix_ctrl = pci_read_config(dev, 0x70 + PCIR_MSIX_CTRL, 2);
+	msix_location = dinfo->cfg.msix.msix_location;
+	msix_ctrl = pci_read_config(dev, msix_location + PCIR_MSIX_CTRL, 2);
 	dinfo->cfg.msix.msix_ctrl = msix_ctrl;
 	dinfo->cfg.msix.msix_msgnum = (msix_ctrl & PCIM_MSIXCTRL_TABLE_SIZE) + 1;
 }

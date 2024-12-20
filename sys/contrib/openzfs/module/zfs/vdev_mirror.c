@@ -765,6 +765,27 @@ vdev_mirror_io_done(zio_t *zio)
 	ASSERT(zio->io_type == ZIO_TYPE_READ);
 
 	/*
+	 * Any Direct I/O read that has a checksum error must be treated as
+	 * suspicious as the contents of the buffer could be getting
+	 * manipulated while the I/O is taking place. The checksum verify error
+	 * will be reported to the top-level Mirror VDEV.
+	 *
+	 * There will be no attampt at reading any additional data copies. If
+	 * the buffer is still being manipulated while attempting to read from
+	 * another child, there exists a possibly that the checksum could be
+	 * verified as valid. However, the buffer contents could again get
+	 * manipulated after verifying the checksum. This would lead to bad data
+	 * being written out during self healing.
+	 */
+	if ((zio->io_flags & ZIO_FLAG_DIO_READ) &&
+	    (zio->io_flags & ZIO_FLAG_DIO_CHKSUM_ERR)) {
+		zio_dio_chksum_verify_error_report(zio);
+		zio->io_error = vdev_mirror_worst_error(mm);
+		ASSERT3U(zio->io_error, ==, ECKSUM);
+		return;
+	}
+
+	/*
 	 * If we don't have a good copy yet, keep trying other children.
 	 */
 	if (good_copies == 0 && (c = vdev_mirror_child_select(zio)) != -1) {
@@ -1026,12 +1047,10 @@ ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_inc, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_seek_inc, INT,
 	ZMOD_RW, "Rotating media load increment for seeking I/Os");
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_seek_offset, INT,
 	ZMOD_RW,
 	"Offset in bytes from the last I/O which triggers "
 	"a reduced rotating media seek increment");
-/* END CSTYLED */
 
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, non_rotating_inc, INT,
 	ZMOD_RW, "Non-rotating media load increment for non-seeking I/Os");

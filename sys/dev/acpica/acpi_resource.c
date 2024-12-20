@@ -72,19 +72,33 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 {
     struct lookup_irq_request *req;
     size_t len;
-    u_int irqnum, irq, trig, pol;
+    u_int irqnum, trig, pol;
+    bool found;
+
+    found = false;
+    req = (struct lookup_irq_request *)context;
 
     switch (res->Type) {
     case ACPI_RESOURCE_TYPE_IRQ:
 	irqnum = res->Data.Irq.InterruptCount;
-	irq = res->Data.Irq.Interrupts[0];
+	for (int i = 0; i < irqnum; i++) {
+	    if (res->Data.Irq.Interrupts[i] == req->irq) {
+		found = true;
+		break;
+	    }
+	}
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_IRQ);
 	trig = res->Data.Irq.Triggering;
 	pol = res->Data.Irq.Polarity;
 	break;
     case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	irqnum = res->Data.ExtendedIrq.InterruptCount;
-	irq = res->Data.ExtendedIrq.Interrupts[0];
+	for (int i = 0; i < irqnum; i++) {
+	    if (res->Data.ExtendedIrq.Interrupts[i] == req->irq) {
+		found = true;
+		break;
+	    }
+	}
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_EXTENDED_IRQ);
 	trig = res->Data.ExtendedIrq.Triggering;
 	pol = res->Data.ExtendedIrq.Polarity;
@@ -92,18 +106,13 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
     default:
 	return (AE_OK);
     }
-    if (irqnum != 1)
+    if (!found)
 	return (AE_OK);
-    req = (struct lookup_irq_request *)context;
     if (req->checkrid) {
 	if (req->counter != req->rid) {
 	    req->counter++;
 	    return (AE_OK);
 	}
-	KASSERT(irq == req->irq, ("IRQ resources do not match"));
-    } else {
-	if (req->irq != irq)
-	    return (AE_OK);
     }
     req->found = 1;
     req->pol = pol;
@@ -159,14 +168,11 @@ acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
     }
 
 #if defined(__amd64__) || defined(__i386__)
-    /*
-     * XXX: Certain BIOSes have buggy AML that specify an IRQ that is
-     * edge-sensitive and active-lo.  However, edge-sensitive IRQs
-     * should be active-hi.  Force IRQs with an ISA IRQ value to be
-     * active-hi instead.
-     */
-    if (irq < 16 && trig == ACPI_EDGE_SENSITIVE && pol == ACPI_ACTIVE_LOW)
+    if (irq < 16 && trig == ACPI_EDGE_SENSITIVE && pol == ACPI_ACTIVE_LOW &&
+	acpi_override_isa_irq_polarity) {
+	device_printf(dev, "forcing active-hi polarity for IRQ %u\n", irq);
 	pol = ACPI_ACTIVE_HIGH;
+    }
 #endif
     BUS_CONFIG_INTR(dev, irq, (trig == ACPI_EDGE_SENSITIVE) ?
 	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?

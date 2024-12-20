@@ -264,6 +264,16 @@ struct ktr_struct_array {
 };
 
 /*
+ * KTR_ARGS - arguments of execve()
+ */
+#define KTR_ARGS 16
+
+/*
+ * KTR_ENVS - environment variables of execve()
+ */
+#define KTR_ENVS 17
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -295,6 +305,8 @@ struct ktr_struct_array {
 #define KTRFAC_FAULT	(1<<KTR_FAULT)
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
 #define	KTRFAC_STRUCT_ARRAY (1<<KTR_STRUCT_ARRAY)
+#define KTRFAC_ARGS     (1<<KTR_ARGS)
+#define KTRFAC_ENVS     (1<<KTR_ENVS)
 
 /*
  * trace flags (also in p_traceflags)
@@ -335,6 +347,7 @@ void	ktrstruct(const char *, const void *, size_t);
 void	ktrstruct_error(const char *, const void *, size_t, int);
 void	ktrstructarray(const char *, enum uio_seg, const void *, int, size_t);
 void	ktrcapfail(enum ktr_cap_violation, const void *);
+void	ktrdata(int, const void *, size_t);
 #define ktrcaprights(s) \
 	ktrstruct("caprights", (s), sizeof(cap_rights_t))
 #define	ktritimerval(s) \
@@ -347,6 +360,8 @@ void	ktrcapfail(enum ktr_cap_violation, const void *);
 	ktrstruct_error("stat", (s), sizeof(struct stat), error)
 #define ktrcpuset(s, l) \
 	ktrstruct("cpuset_t", (s), l)
+#define	ktrsplice(s) \
+	ktrstruct("splice", (s), sizeof(struct splice))
 extern u_int ktr_geniosize;
 #ifdef	KTRACE
 extern int ktr_filesize_limit_signal;

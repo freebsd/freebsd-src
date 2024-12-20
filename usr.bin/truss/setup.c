@@ -160,7 +160,7 @@ setup_and_wait(struct trussinfo *info, char *command[])
 
 	/* Only in the parent here */
 	if (waitpid(pid, NULL, 0) < 0)
-		err(1, "unexpect stop in waitpid");
+		err(1, "unexpected stop in waitpid");
 
 	new_proc(info, pid, 0);
 }
@@ -179,10 +179,10 @@ start_tracing(struct trussinfo *info, pid_t pid)
 		usleep(200);
 	} while (ret && retry-- > 0);
 	if (ret)
-		err(1, "can not attach to target process");
+		err(1, "Cannot attach to target process");
 
 	if (waitpid(pid, NULL, 0) < 0)
-		err(1, "Unexpect stop in waitpid");
+		err(1, "Unexpected stop in waitpid");
 
 	new_proc(info, pid, 0);
 }

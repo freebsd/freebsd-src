@@ -1014,7 +1014,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 
 		ref_inc++;
 		m_extadd(m_new, (char *)sf_buf_kva(sf), PAGE_SIZE,
-		    mb_unmapped_free_mext, sf, mref, M_RDONLY, EXT_SFBUF);
+		    mb_unmapped_free_mext, sf, mref, m->m_flags & M_RDONLY,
+		    EXT_SFBUF);
 		m_new->m_data += segoff;
 		m_new->m_len = seglen;
 
@@ -1119,7 +1120,7 @@ mb_unmapped_to_ext(struct mbuf *top)
  * freed.
  */
 struct mbuf *
-mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
+mb_alloc_ext_pgs(int how, m_ext_free_t ext_free, int flags)
 {
 	struct mbuf *m;
 
@@ -1137,7 +1138,7 @@ mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 	m->m_epg_tls = NULL;
 	m->m_epg_so = NULL;
 	m->m_data = NULL;
-	m->m_flags |= (M_EXT | M_RDONLY | M_EXTPG);
+	m->m_flags |= M_EXT | M_EXTPG | flags;
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
 	m->m_ext.ext_size = 0;
@@ -1709,7 +1710,7 @@ mb_alloc_ext_plus_pages(int len, int how)
 	vm_page_t pg;
 	int i, npgs;
 
-	m = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+	m = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 	if (m == NULL)
 		return (NULL);
 	m->m_epg_flags |= EPG_FLAG_ANON;

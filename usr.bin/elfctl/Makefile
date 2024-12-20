@@ -1,4 +1,3 @@
-
 ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 
 PROG=	elfctl

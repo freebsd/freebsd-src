@@ -12,6 +12,8 @@
 
 #include <dbus/dbus.h>
 
+struct wpa_signal_info;
+
 typedef DBusMessage * (*WPADBusMethodHandler)(DBusMessage *message,
 					      void *user_data);
 typedef void (*WPADBusArgumentFreeFunction)(void *handler_arg);
@@ -150,5 +152,8 @@ DBusMessage *wpas_dbus_reply_new_from_error(DBusMessage *message,
 					    DBusError *error,
 					    const char *fallback_name,
 					    const char *fallback_string);
+
+int wpas_dbus_new_from_signal_information(DBusMessageIter *iter,
+					  struct wpa_signal_info *si);
 
 #endif /* WPA_DBUS_CTRL_H */

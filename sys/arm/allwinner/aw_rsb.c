@@ -442,14 +442,14 @@ rsb_attach(device_t dev)
 	/* Set the PMIC into RSB mode as ATF might have leave it in I2C mode */
 	RSB_WRITE(sc, RSB_PMCR, RSB_PMCR_REG(PMIC_MODE_REG) | RSB_PMCR_DATA(PMIC_MODE_RSB) | RSB_PMCR_START);
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "cannot add iicbus child device\n");
 		error = ENXIO;
 		goto fail;
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 

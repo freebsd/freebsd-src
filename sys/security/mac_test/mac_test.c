@@ -78,8 +78,6 @@
 
 #include <security/mac/mac_policy.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, test,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_test policy controls");
@@ -257,6 +255,32 @@ test_cred_check_setauid(struct ucred *cred, uid_t auid)
 	COUNTER_INC(cred_check_setauid);
 
 	return (0);
+}
+
+COUNTER_DECL(cred_setcred_enter);
+static void
+test_cred_setcred_enter(void)
+{
+	COUNTER_INC(cred_setcred_enter);
+}
+
+COUNTER_DECL(cred_check_setcred);
+static int
+test_cred_check_setcred(u_int flags, const struct ucred *old_cred,
+    struct ucred *new_cred)
+{
+	LABEL_CHECK(old_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(new_cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setcred);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_setcred_exit);
+static void
+test_cred_setcred_exit(void)
+{
+	COUNTER_INC(cred_setcred_exit);
 }
 
 COUNTER_DECL(cred_check_setegid);
@@ -3035,6 +3059,9 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_check_setaudit = test_cred_check_setaudit,
 	.mpo_cred_check_setaudit_addr = test_cred_check_setaudit_addr,
 	.mpo_cred_check_setauid = test_cred_check_setauid,
+	.mpo_cred_setcred_enter = test_cred_setcred_enter,
+	.mpo_cred_check_setcred = test_cred_check_setcred,
+	.mpo_cred_setcred_exit = test_cred_setcred_exit,
 	.mpo_cred_check_seteuid = test_cred_check_seteuid,
 	.mpo_cred_check_setegid = test_cred_check_setegid,
 	.mpo_cred_check_setgid = test_cred_check_setgid,

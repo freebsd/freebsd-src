@@ -47,11 +47,6 @@
 
 /* Invalidate D cache to PoC. (aka all cache levels)*/
 ASENTRY_NP(dcache_inv_poc_all)
-#if __ARM_ARCH == 6
-	mcr	CP15_DCIALL
-	DSB
-	bx	lr
-#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	mov	r0, r0, lsr #23		/* Get LoC 'naturally' aligned for */
@@ -97,16 +92,10 @@ ASENTRY_NP(dcache_inv_poc_all)
 	mcr	CP15_CSSELR(r0)
 	isb
 	bx	lr
-#endif /* __ARM_ARCH == 6 */
 END(dcache_inv_poc_all)
 
 /* Invalidate D cache to PoU. (aka L1 cache only)*/
 ASENTRY_NP(dcache_inv_pou_all)
-#if __ARM_ARCH == 6
-	mcr	CP15_DCIALL
-	DSB
-	bx	lr
-#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x38000000
 	mov	r0, r0, lsr #26		/* Get LoUU (naturally aligned) */
@@ -151,16 +140,10 @@ ASENTRY_NP(dcache_inv_pou_all)
 	mov	r0, #0
 	mcr	CP15_CSSELR(r0)
 	bx	lr
-#endif
 END(dcache_inv_pou_all)
 
 /* Write back and Invalidate D cache to PoC. */
 ASENTRY_NP(dcache_wbinv_poc_all)
-#if __ARM_ARCH == 6
-	mcr	CP15_DCCIALL
-	DSB
-	bx	lr
-#else
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	beq	4f
@@ -208,7 +191,6 @@ ASENTRY_NP(dcache_wbinv_poc_all)
 	mov	r0, #0
 	mcr	CP15_CSSELR(r0)
 	bx	lr
-#endif /* __ARM_ARCH == 6 */
 END(dcache_wbinv_poc_all)
 
 ASENTRY_NP(dcache_wb_pou_checked)

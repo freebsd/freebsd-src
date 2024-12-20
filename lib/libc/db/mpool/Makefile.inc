@@ -1,4 +1,3 @@
-
 .PATH: ${LIBC_SRCTOP}/db/mpool
 
 SRCS+=	mpool.c \

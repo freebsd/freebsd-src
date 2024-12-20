@@ -1,2 +1,1 @@
-
 BINDIR?=	/usr/bin

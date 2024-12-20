@@ -276,10 +276,6 @@ cbb_print_config(device_t dev)
 static int
 cbb_pci_attach(device_t brdev)
 {
-#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
-	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
-	uint32_t pribus;
-#endif
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
@@ -293,13 +289,8 @@ cbb_pci_attach(device_t brdev)
 	sc->cbdev = NULL;
 	sc->domain = pci_get_domain(brdev);
 	sc->pribus = pcib_get_bus(parent);
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 	pcib_setup_secbus(brdev, &sc->bus, 1);
-#else
-	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
-	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
-#endif
 	SLIST_INIT(&sc->rl);
 
 	rid = CBBR_SOCKBASE;
@@ -315,7 +306,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	/* attach children */
-	sc->cbdev = device_add_child(brdev, "cardbus", -1);
+	sc->cbdev = device_add_child(brdev, "cardbus", DEVICE_UNIT_ANY);
 	if (sc->cbdev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add cardbus bus.\n"));
 	else if (device_probe_and_attach(sc->cbdev) != 0)
@@ -349,32 +340,6 @@ cbb_pci_attach(device_t brdev)
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 1 open");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "io2",
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 2 open");
-#endif
-
-#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
-	/*
-	 * This is a gross hack.  We should be scanning the entire pci
-	 * tree, assigning bus numbers in a way such that we (1) can
-	 * reserve 1 extra bus just in case and (2) all sub buses
-	 * are in an appropriate range.
-	 */
-	DEVPRINTF((brdev, "Secondary bus is %d\n", sc->bus.sec));
-	pribus = pci_read_config(brdev, PCIR_PRIBUS_2, 1);
-	if (sc->bus.sec == 0 || sc->pribus != pribus) {
-		if (curr_bus_number <= sc->pribus)
-			curr_bus_number = sc->pribus + 1;
-		if (pribus != sc->pribus) {
-			DEVPRINTF((brdev, "Setting primary bus to %d\n",
-			    sc->pribus));
-			pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
-		}
-		sc->bus.sec = curr_bus_number++;
-		sc->bus.sub = curr_bus_number++;
-		DEVPRINTF((brdev, "Secondary bus set to %d subbus %d\n",
-		    sc->bus.sec, sc->bus.sub));
-		pci_write_config(brdev, PCIR_SECBUS_2, sc->bus.sec, 1);
-		pci_write_config(brdev, PCIR_SUBBUS_2, sc->bus.sub, 1);
-	}
 #endif
 
 	/* Map and establish the interrupt. */
@@ -429,16 +394,12 @@ err:
 static int
 cbb_pci_detach(device_t brdev)
 {
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	struct cbb_softc *sc = device_get_softc(brdev);
-#endif
 	int error;
 
 	error = cbb_detach(brdev);
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	if (error == 0)
 		pcib_free_secbus(brdev, &sc->bus);
-#endif
 	return (error);
 }
 
@@ -787,7 +748,6 @@ cbb_pci_filt(void *arg)
 	return retval;
 }
 
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static struct resource *
 cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
@@ -836,7 +796,6 @@ cbb_pci_release_resource(device_t bus, device_t child, struct resource *r)
 	}
 	return (cbb_release_resource(bus, child, r));
 }
-#endif
 
 /************************************************************************/
 /* PCI compat methods							*/
@@ -931,14 +890,9 @@ static device_method_t cbb_methods[] = {
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
 	DEVMETHOD(bus_write_ivar,		cbb_write_ivar),
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	DEVMETHOD(bus_alloc_resource,		cbb_pci_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		cbb_pci_adjust_resource),
 	DEVMETHOD(bus_release_resource,		cbb_pci_release_resource),
-#else
-	DEVMETHOD(bus_alloc_resource,		cbb_alloc_resource),
-	DEVMETHOD(bus_release_resource,		cbb_release_resource),
-#endif
 	DEVMETHOD(bus_activate_resource,	cbb_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	cbb_deactivate_resource),
 	DEVMETHOD(bus_driver_added,		cbb_driver_added),

@@ -32,12 +32,13 @@
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vatpic.h"
 #include "vatpit.h"
 #include "vpmtmr.h"
 #include "vrtc.h"
 #include "vmm_ioport.h"
-#include "vmm_ktr.h"
 
 #define	MAX_IOPORTS		1280
 
@@ -100,7 +101,7 @@ static int
 emulate_inout_port(struct vcpu *vcpu, struct vm_exit *vmexit, bool *retu)
 {
 	ioport_handler_func_t handler;
-	uint32_t mask, val;
+	uint32_t mask, val = 0;
 	int error;
 
 	/*

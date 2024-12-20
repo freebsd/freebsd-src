@@ -731,7 +731,7 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	strlcpy(rule->overload_tblname, nvlist_get_string(nvl, "overload_tblname"),
 	    PF_TABLE_NAME_SIZE);
 
-	pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"), &rule->rpool);
+	pf_nvpool_to_pool(nvlist_get_nvlist(nvl, "rpool"), &rule->rdr);
 
 	rule->evaluations = nvlist_get_number(nvl, "evaluations");
 	pf_nvuint_64_array(nvl, "packets", 2, rule->packets, NULL);
@@ -1106,6 +1106,19 @@ snl_add_msg_attr_addr_wrap(struct snl_writer *nw, uint32_t type, const struct pf
 }
 
 static void
+snl_add_msg_attr_pool_addr(struct snl_writer *nw, uint32_t type, const struct pf_pooladdr *pa)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_string(nw, PF_PA_IFNAME, pa->ifname);
+	snl_add_msg_attr_addr_wrap(nw, PF_PA_ADDR, &pa->addr);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
 snl_add_msg_attr_rule_addr(struct snl_writer *nw, uint32_t type, const struct pf_rule_addr *addr)
 {
 	int off;
@@ -1213,13 +1226,15 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_string(nw, PF_RT_TAGNAME, r->tagname);
 	snl_add_msg_attr_string(nw, PF_RT_MATCH_TAGNAME, r->match_tagname);
 	snl_add_msg_attr_string(nw, PF_RT_OVERLOAD_TBLNAME, r->overload_tblname);
-	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL, &r->rpool);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RDR, &r->rdr);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_NAT, &r->nat);
 	snl_add_msg_attr_u32(nw, PF_RT_OS_FINGERPRINT, r->os_fingerprint);
 	snl_add_msg_attr_u32(nw, PF_RT_RTABLEID, r->rtableid);
 	snl_add_msg_attr_timeouts(nw, PF_RT_TIMEOUT, r->timeout);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_STATES, r->max_states);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_NODES, r->max_src_nodes);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_STATES, r->max_src_states);
+	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN, r->max_src_conn);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_LIMIT, r->max_src_conn_rate.limit);
 	snl_add_msg_attr_u32(nw, PF_RT_MAX_SRC_CONN_RATE_SECS, r->max_src_conn_rate.seconds);
 
@@ -1239,6 +1254,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 
 	snl_add_msg_attr_uid(nw, PF_RT_UID, &r->uid);
 	snl_add_msg_attr_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&r->gid);
+	snl_add_msg_attr_string(nw, PF_RT_RCV_IFNAME, r->rcv_ifname);
 
 	snl_add_msg_attr_u32(nw, PF_RT_RULE_FLAG, r->rule_flag);
 	snl_add_msg_attr_u8(nw, PF_RT_ACTION, r->action);
@@ -1269,6 +1285,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_u8(nw, PF_RT_PRIO, r->prio);
 	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO, r->set_prio[0]);
 	snl_add_msg_attr_u8(nw, PF_RT_SET_PRIO_REPLY, r->set_prio[1]);
+	snl_add_msg_attr_u8(nw, PF_RT_NAF, r->naf);
 
 	snl_add_msg_attr_ip6(nw, PF_RT_DIVERT_ADDRESS, &r->divert.addr.v6);
 	snl_add_msg_attr_u16(nw, PF_RT_DIVERT_PORT, r->divert.port);
@@ -1581,7 +1598,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_TAGNAME, .off = _OUT(r.tagname), .arg = (void *)PF_TAG_NAME_SIZE, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_MATCH_TAGNAME, .off = _OUT(r.match_tagname), .arg = (void *)PF_TAG_NAME_SIZE, .cb = snl_attr_copy_string },
 	{ .type = PF_RT_OVERLOAD_TBLNAME, .off = _OUT(r.overload_tblname), .arg = (void *)PF_TABLE_NAME_SIZE, .cb = snl_attr_copy_string },
-	{ .type = PF_RT_RPOOL, .off = _OUT(r.rpool), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_RPOOL_RDR, .off = _OUT(r.rdr), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_OS_FINGERPRINT, .off = _OUT(r.os_fingerprint), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_RTABLEID, .off = _OUT(r.rtableid), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_TIMEOUT, .off = _OUT(r.timeout), .arg = &timeout_parser, .cb = snl_attr_get_nested_timeouts },
@@ -1643,6 +1660,10 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_STATES_TOTAL, .off = _OUT(r.states_tot), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_SRC_NODES, .off = _OUT(r.src_nodes), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_ANCHOR_CALL, .off = _OUT(anchor_call), .arg = (void*)MAXPATHLEN, .cb = snl_attr_copy_string },
+	{ .type = PF_RT_RCV_IFNAME, .off = _OUT(r.rcv_ifname), .arg = (void*)IFNAMSIZ, .cb = snl_attr_copy_string },
+	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(r.max_src_conn), .cb = snl_attr_get_uint32 },
+	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
 };
 static struct snl_field_parser fp_getrule[] = {};
 #undef _OUT
@@ -1847,12 +1868,14 @@ static const struct snl_attr_parser nla_p_speer[] = {
 SNL_DECLARE_ATTR_PARSER(speer_parser, nla_p_speer);
 #undef _OUT
 
-#define	_OUT(_field)	offsetof(struct pf_state_key_export, _field)
+#define	_OUT(_field)	offsetof(struct pfctl_state_key, _field)
 static const struct snl_attr_parser nla_p_skey[] = {
 	{ .type = PF_STK_ADDR0, .off = _OUT(addr[0]), .cb = snl_attr_get_pfaddr },
 	{ .type = PF_STK_ADDR1, .off = _OUT(addr[1]), .cb = snl_attr_get_pfaddr },
 	{ .type = PF_STK_PORT0, .off = _OUT(port[0]), .cb = snl_attr_get_uint16 },
 	{ .type = PF_STK_PORT1, .off = _OUT(port[1]), .cb = snl_attr_get_uint16 },
+	{ .type = PF_STK_AF, .off = _OUT(af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_STK_PROTO, .off = _OUT(proto), .cb = snl_attr_get_uint16 },
 };
 SNL_DECLARE_ATTR_PARSER(skey_parser, nla_p_skey);
 #undef _OUT
@@ -1878,8 +1901,6 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_PACKETS1, .off = _OUT(packets[1]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_ST_BYTES0, .off = _OUT(bytes[0]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_ST_BYTES1, .off = _OUT(bytes[1]), .cb = snl_attr_get_uint64 },
-	{ .type = PF_ST_AF, .off = _OUT(key[0].af), .cb = snl_attr_get_uint8 },
-	{ .type = PF_ST_PROTO, .off = _OUT(key[0].proto), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_DIRECTION, .off = _OUT(direction), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_LOG, .off = _OUT(log), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_STATE_FLAGS, .off = _OUT(state_flags), .cb = snl_attr_get_uint16 },
@@ -1939,9 +1960,6 @@ pfctl_get_states_nl(struct pfctl_state_filter *filter, struct snl_state *ss, pfc
 		bzero(&s, sizeof(s));
 		if (!snl_parse_nlmsg(ss, hdr, &state_parser, &s))
 			continue;
-
-		s.key[1].af = s.key[0].af;
-		s.key[1].proto = s.key[0].proto;
 
 		ret = f(&s, arg);
 		if (ret != 0)
@@ -2149,8 +2167,12 @@ pfctl_clear_rules(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 int
@@ -2184,9 +2206,14 @@ pfctl_clear_nat(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
+
 int
 pfctl_clear_eth_rules(int dev, const char *anchorname)
 {
@@ -2208,8 +2235,12 @@ pfctl_clear_eth_rules(int dev, const char *anchorname)
 
 	ret = ioctl(dev, DIOCXBEGIN, &trans);
 	if (ret != 0)
-		return (ret);
-	return ioctl(dev, DIOCXCOMMIT, &trans);
+		return (errno);
+	ret = ioctl(dev, DIOCXCOMMIT, &trans);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 static int
@@ -2263,7 +2294,10 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 	ret = ioctl(dev, DIOCSETSYNCOOKIES, &nv);
 
 	free(nv.data);
-	return (ret);
+	if (ret != 0)
+		return (errno);
+
+	return (0);
 }
 
 int
@@ -2371,7 +2405,7 @@ pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
 	io.pfrio_size = size;
 	io.pfrio_size2 = (size2 != NULL) ? *size2 : 0;
 	if (ioctl(dev, DIOCRSETADDRS, &io))
-		return (-1);
+		return (errno);
 	if (nadd != NULL)
 		*nadd = io.pfrio_nadd;
 	if (ndel != NULL)
@@ -2399,7 +2433,7 @@ int pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr *addr,
 	io.pfrio_esize = sizeof(*addr);
 	io.pfrio_size = *size;
 	if (ioctl(dev, DIOCRGETADDRS, &io))
-		return (-1);
+		return (errno);
 	*size = io.pfrio_size;
 	return (0);
 }
@@ -2737,3 +2771,304 @@ pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
 	return (e.error);
 }
 
+int
+pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int which)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_ADD_ADDR);
+
+	snl_add_msg_attr_u32(&nw, PF_AA_ACTION, pa->action);
+	snl_add_msg_attr_u32(&nw, PF_AA_TICKET, pa->ticket);
+	snl_add_msg_attr_u32(&nw, PF_AA_NR, pa->nr);
+	snl_add_msg_attr_u32(&nw, PF_AA_R_NUM, pa->r_num);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, pa->r_action);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_LAST, pa->r_last);
+	snl_add_msg_attr_u8(&nw, PF_AA_AF, pa->af);
+	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, pa->anchor);
+	snl_add_msg_attr_pool_addr(&nw, PF_AA_ADDR, &pa->addr);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+	}
+
+	return (e.error);
+}
+
+static const struct snl_attr_parser ap_get_addrs[] = {
+	{ .type = PF_AA_NR, .off = 0, .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser fp_get_addrs[] = {};
+SNL_DECLARE_PARSER(get_addrs_parser, struct genlmsghdr, fp_get_addrs, ap_get_addrs);
+
+int
+pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
+    uint8_t r_action, const char *anchor, uint32_t *nr, int which)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_ADDRS);
+
+	snl_add_msg_attr_u32(&nw, PF_AA_TICKET, ticket);
+	snl_add_msg_attr_u32(&nw, PF_AA_R_NUM, r_num);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, r_action);
+	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, anchor);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &get_addrs_parser, nr))
+			continue;
+	}
+
+	return (e.error);
+}
+
+#define _OUT(_field)	offsetof(struct pf_pooladdr, _field)
+static const struct snl_attr_parser ap_pool_addr[] = {
+	{ .type = PF_PA_ADDR, .off = _OUT(addr), .arg = &addr_wrap_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_PA_IFNAME, .off = _OUT(ifname), .arg_u32 = IFNAMSIZ, .cb = snl_attr_copy_string },
+};
+SNL_DECLARE_ATTR_PARSER(pool_addr_parser, ap_pool_addr);
+#undef _OUT
+
+#define _OUT(_field)	offsetof(struct pfioc_pooladdr, _field)
+static const struct snl_attr_parser ap_get_addr[] = {
+	{ .type = PF_AA_ACTION, .off = _OUT(action), .cb = snl_attr_get_uint32 },
+	{ .type = PF_AA_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
+	{ .type = PF_AA_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
+	{ .type = PF_AA_R_NUM, .off = _OUT(r_num), .cb = snl_attr_get_uint32 },
+	{ .type = PF_AA_R_ACTION, .off = _OUT(r_action), .cb = snl_attr_get_uint8 },
+	{ .type = PF_AA_R_LAST, .off = _OUT(r_last), .cb = snl_attr_get_uint8 },
+	{ .type = PF_AA_AF, .off = _OUT(af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_AA_ANCHOR, .off = _OUT(anchor), .arg_u32 = MAXPATHLEN, .cb = snl_attr_copy_string },
+	{ .type = PF_AA_ADDR, .off = _OUT(addr), .arg = &pool_addr_parser, .cb = snl_attr_get_nested },
+};
+static struct snl_field_parser fp_get_addr[] = {};
+SNL_DECLARE_PARSER(get_addr_parser, struct genlmsghdr, fp_get_addr, ap_get_addr);
+#undef _OUT
+
+int
+pfctl_get_addr(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
+    uint8_t r_action, const char *anchor, uint32_t nr, struct pfioc_pooladdr *pa,
+    int which)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id =snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_ADDR);
+
+	snl_add_msg_attr_u32(&nw, PF_AA_TICKET, ticket);
+	snl_add_msg_attr_u32(&nw, PF_AA_R_NUM, r_num);
+	snl_add_msg_attr_u8(&nw, PF_AA_R_ACTION, r_action);
+	snl_add_msg_attr_string(&nw, PF_AA_ANCHOR, anchor);
+	snl_add_msg_attr_u32(&nw, PF_AA_NR, nr);
+	snl_add_msg_attr_u32(&nw, PF_AA_WHICH, which);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &get_addr_parser, pa))
+			continue;
+	}
+
+	return (e.error);
+}
+
+#define _OUT(_field)	offsetof(struct pfioc_ruleset, _field)
+static const struct snl_attr_parser ap_ruleset[] = {
+	{ .type = PF_RS_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
+	{ .type = PF_RS_NAME, .off = _OUT(name), .arg = (void *)PF_ANCHOR_NAME_SIZE, .cb = snl_attr_copy_string },
+};
+static struct snl_field_parser fp_ruleset[] = {};
+SNL_DECLARE_PARSER(ruleset_parser, struct genlmsghdr, fp_ruleset, ap_ruleset);
+#undef _OUT
+
+int
+pfctl_get_rulesets(struct pfctl_handle *h, const char *path, uint32_t *nr)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	struct pfioc_ruleset rs = {};
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_RULESETS);
+
+	snl_add_msg_attr_string(&nw, PF_RS_PATH, path);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &ruleset_parser, &rs))
+			continue;
+	}
+
+	*nr = rs.nr;
+
+	return (e.error);
+}
+
+int
+pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct pfioc_ruleset *rs)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_RULESET);
+
+	snl_add_msg_attr_string(&nw, PF_RS_PATH, path);
+	snl_add_msg_attr_u32(&nw, PF_RS_NR, nr);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (! snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (! snl_parse_nlmsg(&h->ss, hdr, &ruleset_parser, rs))
+			continue;
+	}
+
+	return (e.error);
+}
+
+#define	_OUT(_field)	offsetof(struct pfctl_threshold, _field)
+static const struct snl_attr_parser ap_pfctl_threshold[] = {
+	{ .type = PF_TH_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_SECONDS, .off = _OUT(seconds), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_COUNT, .off = _OUT(count), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_LAST, .off = _OUT(last), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(pfctl_threshold_parser, ap_pfctl_threshold);
+#undef _OUT
+
+#define	_OUT(_field)	offsetof(struct pfctl_src_node, _field)
+static struct snl_attr_parser ap_srcnode[] = {
+	{ .type = PF_SN_ADDR, .off = _OUT(addr), .cb = snl_attr_get_in6_addr },
+	{ .type = PF_SN_RADDR, .off = _OUT(raddr), .cb = snl_attr_get_in6_addr },
+	{ .type = PF_SN_RULE_NR, .off = _OUT(rule), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_BYTES_IN, .off = _OUT(bytes[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_BYTES_OUT, .off = _OUT(bytes[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_PACKETS_IN, .off = _OUT(packets[0]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_PACKETS_OUT, .off = _OUT(packets[1]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_STATES, .off = _OUT(states), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_CONNECTIONS, .off = _OUT(conn), .cb = snl_attr_get_uint32 },
+	{ .type = PF_SN_AF, .off = _OUT(af), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_RULE_TYPE, .off = _OUT(ruletype), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_CREATION, .off = _OUT(creation), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
+	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
+};
+static struct snl_field_parser fp_srcnode[] = {};
+#undef _OUT
+SNL_DECLARE_PARSER(srcnode_parser, struct genlmsghdr, fp_srcnode, ap_srcnode);
+
+int
+pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg)
+{
+	struct snl_writer nw;
+	struct pfctl_src_node sn;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+	int ret;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_SRCNODES);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (!snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		if (!snl_parse_nlmsg(&h->ss, hdr, &srcnode_parser, &sn))
+			continue;
+
+		ret = fn(&sn, arg);
+		if (ret != 0)
+			return (ret);
+	}
+
+	return (e.error);
+}

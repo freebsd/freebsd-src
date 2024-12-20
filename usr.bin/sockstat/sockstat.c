@@ -82,6 +82,8 @@ static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_C;		/* Show congestion control */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_f;		/* Show FIB numbers */
+static int	 opt_I;		/* Show spliced socket addresses */
 static int	 opt_i;		/* Show inp_gencnt */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
@@ -132,12 +134,14 @@ struct sock {
 	RB_ENTRY(sock) pcb_tree;
 	kvaddr_t socket;
 	kvaddr_t pcb;
+	kvaddr_t splice_socket;
 	uint64_t inp_gencnt;
 	int shown;
 	int vflag;
 	int family;
 	int proto;
 	int state;
+	int fibnum;
 	const char *protoname;
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char cc[TCP_CA_NAME_MAX];
@@ -766,8 +770,10 @@ gather_inet(int proto)
 		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
+		sock->splice_socket = so->so_splice_so;
 		sock->proto = proto;
 		sock->inp_gencnt = xip->inp_gencnt;
+		sock->fibnum = so->so_fibnum;
 		if (xip->inp_vflag & INP_IPV4) {
 			sock->family = AF_INET;
 			sockaddr(&laddr->address, sock->family,
@@ -1123,14 +1129,12 @@ displaysock(struct sock *s, int pos)
 		switch (s->family) {
 		case AF_INET:
 		case AF_INET6:
-			if (laddr != NULL) {
+			if (laddr != NULL)
 				pos += printaddr(&laddr->address);
-				if (s->family == AF_INET6 && pos >= 58)
-					pos += xprintf(" ");
-			}
 			offset += opt_w ? 46 : 22;
-			while (pos < offset)
+			do
 				pos += xprintf(" ");
+			while (pos < offset);
 			if (faddr != NULL)
 				pos += printaddr(&faddr->address);
 			offset += opt_w ? 46 : 22;
@@ -1164,8 +1168,11 @@ displaysock(struct sock *s, int pos)
 					f = RB_FIND(files_t, &ftree,
 					    &(struct file){ .xf_data =
 					    p->socket });
-					pos += xprintf("[%lu %d]",
-					    (u_long)f->xf_pid, f->xf_fd);
+					if (f != NULL) {
+						pos += xprintf("[%lu %d]",
+						    (u_long)f->xf_pid,
+						    f->xf_fd);
+					}
 				} else
 					pos += printaddr(&p->laddr->address);
 			}
@@ -1183,9 +1190,12 @@ displaysock(struct sock *s, int pos)
 					f = RB_FIND(files_t, &ftree,
 					    &(struct file){ .xf_data =
 					    p->socket });
-					pos += xprintf("%s[%lu %d]",
-					    fref ? "" : ",",
-					    (u_long)f->xf_pid, f->xf_fd);
+					if (f != NULL) {
+						pos += xprintf("%s[%lu %d]",
+						    fref ? "" : ",",
+						    (u_long)f->xf_pid,
+						    f->xf_fd);
+					}
 					ref = p->faddr->nextref;
 					fref = false;
 				}
@@ -1195,11 +1205,40 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (opt_f) {
+			do
+				pos += xprintf(" ");
+			while (pos < offset);
+			pos += xprintf("%d", s->fibnum);
+			offset += 7;
+		}
+		if (opt_I) {
+			if (s->splice_socket != 0) {
+				struct sock *sp;
+
+				sp = RB_FIND(socks_t, &socks, &(struct sock)
+				    { .socket = s->splice_socket });
+				if (sp != NULL) {
+					do
+						pos += xprintf(" ");
+					while (pos < offset);
+					pos += printaddr(&sp->laddr->address);
+				} else {
+					do
+						pos += xprintf(" ");
+					while (pos < offset);
+					pos += xprintf("??");
+					offset += opt_w ? 46 : 22;
+				}
+			}
+			offset += opt_w ? 46 : 22;
+		}
 		if (opt_i) {
 			if (s->proto == IPPROTO_TCP ||
 			    s->proto == IPPROTO_UDP) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%" PRIu64, s->inp_gencnt);
 			}
 			offset += 9;
@@ -1213,8 +1252,9 @@ displaysock(struct sock *s, int pos)
 			     (s->proto == IPPROTO_TCP &&
 			      s->state != TCPS_CLOSED &&
 			      s->state != TCPS_LISTEN))) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%u",
 				    ntohs(faddr->encaps_port));
 			}
@@ -1226,8 +1266,9 @@ displaysock(struct sock *s, int pos)
 			    s->state != SCTP_CLOSED &&
 			    s->state != SCTP_BOUND &&
 			    s->state != SCTP_LISTEN) {
-				while (pos < offset)
+				do
 					pos += xprintf(" ");
+				while (pos < offset);
 				pos += xprintf("%s",
 				    sctp_path_state(faddr->state));
 			}
@@ -1237,8 +1278,9 @@ displaysock(struct sock *s, int pos)
 			if (opt_s) {
 				if (s->proto == IPPROTO_SCTP ||
 				    s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					switch (s->proto) {
 					case IPPROTO_SCTP:
 						pos += xprintf("%s",
@@ -1258,8 +1300,9 @@ displaysock(struct sock *s, int pos)
 			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					pos += xprintf("%.*s",
 					    TCP_FUNCTION_NAME_LEN_MAX,
 					    s->stack);
@@ -1268,8 +1311,9 @@ displaysock(struct sock *s, int pos)
 			}
 			if (opt_C) {
 				if (s->proto == IPPROTO_TCP) {
-					while (pos < offset)
+					do
 						pos += xprintf(" ");
+					while (pos < offset);
 					xprintf("%.*s", TCP_CA_NAME_MAX, s->cc);
 				}
 				offset += TCP_CA_NAME_MAX + 1;
@@ -1301,6 +1345,11 @@ display(void)
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_f)
+			/* RT_MAXFIBS is 65535. */
+			printf(" %-6s", "FIB");
+		if (opt_I)
+			printf(" %-*s", opt_w ? 45 : 21, "SPLICE ADDRESS");
 		if (opt_i)
 			printf(" %-8s", "ID");
 		if (opt_U)
@@ -1329,18 +1378,21 @@ display(void)
 			pos = 0;
 			if (opt_n ||
 			    (pwd = cap_getpwuid(cappwd, xf->xf_uid)) == NULL)
-				pos += xprintf("%lu ", (u_long)xf->xf_uid);
+				pos += xprintf("%lu", (u_long)xf->xf_uid);
 			else
-				pos += xprintf("%s ", pwd->pw_name);
-			while (pos < 9)
+				pos += xprintf("%s", pwd->pw_name);
+			do
 				pos += xprintf(" ");
+			while (pos < 9);
 			pos += xprintf("%.10s", getprocname(xf->xf_pid));
-			while (pos < 20)
+			do
 				pos += xprintf(" ");
-			pos += xprintf("%5lu ", (u_long)xf->xf_pid);
-			while (pos < 26)
+			while (pos < 20);
+			pos += xprintf("%5lu", (u_long)xf->xf_pid);
+			do
 				pos += xprintf(" ");
-			pos += xprintf("%-3d ", xf->xf_fd);
+			while (pos < 26);
+			pos += xprintf("%-3d", xf->xf_fd);
 			displaysock(s, pos);
 		}
 	}
@@ -1349,7 +1401,7 @@ display(void)
 	SLIST_FOREACH(s, &nosocks, socket_list) {
 		if (!check_ports(s))
 			continue;
-		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		pos = xprintf("%-8s %-10s %-5s %-3s",
 		    "?", "?", "?", "?");
 		displaysock(s, pos);
 	}
@@ -1358,7 +1410,7 @@ display(void)
 			continue;
 		if (!check_ports(s))
 			continue;
-		pos = xprintf("%-8s %-10s %-5s %-2s ",
+		pos = xprintf("%-8s %-10s %-5s %-3s",
 		    "?", "?", "?", "?");
 		displaysock(s, pos);
 	}
@@ -1423,9 +1475,8 @@ jail_getvnet(int jid)
 static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: sockstat [-46CciLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
-	exit(1);
+	errx(1,
+    "usage: sockstat [-46CcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
 }
 
 int
@@ -1439,7 +1490,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46Ccij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46CcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1452,6 +1503,12 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'f':
+			opt_f = 1;
+			break;
+		case 'I':
+			opt_I = 1;
 			break;
 		case 'i':
 			opt_i = 1;

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2013 Adrian Chadd <adrian@freebsd.org>
  * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Future Crew LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,71 +51,63 @@
 int	iwmbt_do_debug = 0;
 int	iwmbt_do_info = 0;
 
+enum iwmbt_device {
+	IWMBT_DEVICE_UNKNOWN,
+	IWMBT_DEVICE_7260,
+	IWMBT_DEVICE_8260,
+	IWMBT_DEVICE_9260,
+};
+
 struct iwmbt_devid {
 	uint16_t product_id;
 	uint16_t vendor_id;
+	enum iwmbt_device device;
 };
 
-static struct iwmbt_devid iwmbt_list_72xx[] = {
+static struct iwmbt_devid iwmbt_list[] = {
 
-	/* Intel Wireless 7260/7265 and successors */
-	{ .vendor_id = 0x8087, .product_id = 0x07dc },
-	{ .vendor_id = 0x8087, .product_id = 0x0a2a },
-	{ .vendor_id = 0x8087, .product_id = 0x0aa7 },
+    /* Intel Wireless 7260/7265 and successors */
+    { .vendor_id = 0x8087, .product_id = 0x07dc, .device = IWMBT_DEVICE_7260 },
+    { .vendor_id = 0x8087, .product_id = 0x0a2a, .device = IWMBT_DEVICE_7260 },
+    { .vendor_id = 0x8087, .product_id = 0x0aa7, .device = IWMBT_DEVICE_7260 },
+
+    /* Intel Wireless 8260/8265 and successors */
+    { .vendor_id = 0x8087, .product_id = 0x0a2b, .device = IWMBT_DEVICE_8260 },
+    { .vendor_id = 0x8087, .product_id = 0x0aaa, .device = IWMBT_DEVICE_8260 },
+    { .vendor_id = 0x8087, .product_id = 0x0025, .device = IWMBT_DEVICE_8260 },
+    { .vendor_id = 0x8087, .product_id = 0x0026, .device = IWMBT_DEVICE_8260 },
+    { .vendor_id = 0x8087, .product_id = 0x0029, .device = IWMBT_DEVICE_8260 },
+
+    /* Intel Wireless 9260/9560 and successors */
+    { .vendor_id = 0x8087, .product_id = 0x0032, .device = IWMBT_DEVICE_9260 },
+    { .vendor_id = 0x8087, .product_id = 0x0033, .device = IWMBT_DEVICE_9260 },
 };
 
-static struct iwmbt_devid iwmbt_list_82xx[] = {
-
-	/* Intel Wireless 8260/8265 and successors */
-	{ .vendor_id = 0x8087, .product_id = 0x0a2b },
-	{ .vendor_id = 0x8087, .product_id = 0x0aaa },
-	{ .vendor_id = 0x8087, .product_id = 0x0025 },
-	{ .vendor_id = 0x8087, .product_id = 0x0026 },
-	{ .vendor_id = 0x8087, .product_id = 0x0029 },
-};
-
-static int
-iwmbt_is_7260(struct libusb_device_descriptor *d)
+static enum iwmbt_device
+iwmbt_is_supported(struct libusb_device_descriptor *d)
 {
 	int i;
 
 	/* Search looking for whether it's an 7260/7265 */
-	for (i = 0; i < (int) nitems(iwmbt_list_72xx); i++) {
-		if ((iwmbt_list_72xx[i].product_id == d->idProduct) &&
-		    (iwmbt_list_72xx[i].vendor_id == d->idVendor)) {
-			iwmbt_info("found 7260/7265");
-			return (1);
+	for (i = 0; i < (int) nitems(iwmbt_list); i++) {
+		if ((iwmbt_list[i].product_id == d->idProduct) &&
+		    (iwmbt_list[i].vendor_id == d->idVendor)) {
+			iwmbt_info("found iwmbtfw compatible");
+			return (iwmbt_list[i].device);
 		}
 	}
 
 	/* Not found */
-	return (0);
-}
-
-static int
-iwmbt_is_8260(struct libusb_device_descriptor *d)
-{
-	int i;
-
-	/* Search looking for whether it's an 8260/8265 */
-	for (i = 0; i < (int) nitems(iwmbt_list_82xx); i++) {
-		if ((iwmbt_list_82xx[i].product_id == d->idProduct) &&
-		    (iwmbt_list_82xx[i].vendor_id == d->idVendor)) {
-			iwmbt_info("found 8260/8265");
-			return (1);
-		}
-	}
-
-	/* Not found */
-	return (0);
+	return (IWMBT_DEVICE_UNKNOWN);
 }
 
 static libusb_device *
 iwmbt_find_device(libusb_context *ctx, int bus_id, int dev_id,
-    int *iwmbt_use_old_method)
+    enum iwmbt_device *iwmbt_device)
 {
 	libusb_device **list, *dev = NULL, *found = NULL;
 	struct libusb_device_descriptor d;
+	enum iwmbt_device device;
 	ssize_t cnt, i;
 	int r;
 
@@ -141,20 +134,13 @@ iwmbt_find_device(libusb_context *ctx, int bus_id, int dev_id,
 			}
 
 			/* Match on the vendor/product id */
-			if (iwmbt_is_7260(&d)) {
+			device = iwmbt_is_supported(&d);
+			if (device != IWMBT_DEVICE_UNKNOWN) {
 				/*
 				 * Take a reference so it's not freed later on.
 				 */
 				found = libusb_ref_device(dev);
-				*iwmbt_use_old_method = 1;
-				break;
-			} else
-			if (iwmbt_is_8260(&d)) {
-				/*
-				 * Take a reference so it's not freed later on.
-				 */
-				found = libusb_ref_device(dev);
-				*iwmbt_use_old_method = 0;
+				*iwmbt_device = device;
 				break;
 			}
 		}
@@ -200,6 +186,44 @@ iwmbt_dump_boot_params(struct iwmbt_boot_params *params)
 	    params->otp_bdaddr[0]);
 }
 
+static void
+iwmbt_dump_version_tlv(struct iwmbt_version_tlv *ver)
+{
+	iwmbt_info("cnvi_top     0x%08x", ver->cnvi_top);
+	iwmbt_info("cnvr_top     0x%08x", ver->cnvr_top);
+	iwmbt_info("cnvi_bt      0x%08x", ver->cnvi_bt);
+	iwmbt_info("cnvr_bt      0x%08x", ver->cnvr_bt);
+	iwmbt_info("dev_rev_id   0x%04x", ver->dev_rev_id);
+	iwmbt_info("img_type     0x%02x", ver->img_type);
+	iwmbt_info("timestamp    0x%04x", ver->timestamp);
+	iwmbt_info("build_type   0x%02x", ver->build_type);
+	iwmbt_info("build_num    0x%08x", ver->build_num);
+	iwmbt_info("Secure Boot:  %s", ver->secure_boot ? "on" : "off");
+	iwmbt_info("OTP lock:     %s", ver->otp_lock    ? "on" : "off");
+	iwmbt_info("API lock:     %s", ver->api_lock    ? "on" : "off");
+	iwmbt_info("Debug lock:   %s", ver->debug_lock  ? "on" : "off");
+	iwmbt_info("Minimum firmware build %u week %u year %u",
+	    ver->min_fw_build_nn,
+	    ver->min_fw_build_cw,
+	    2000 + ver->min_fw_build_yy);
+	iwmbt_info("limited_cce  0x%02x", ver->limited_cce);
+	iwmbt_info("sbe_type     0x%02x", ver->sbe_type);
+	iwmbt_info("OTC BD_ADDR:  %02x:%02x:%02x:%02x:%02x:%02x",
+	    ver->otp_bd_addr.b[5],
+	    ver->otp_bd_addr.b[4],
+	    ver->otp_bd_addr.b[3],
+	    ver->otp_bd_addr.b[2],
+	    ver->otp_bd_addr.b[1],
+	    ver->otp_bd_addr.b[0]);
+	if (ver->img_type == 0x01 || ver->img_type == 0x03)
+		iwmbt_info("%s timestamp %u.%u buildtype %u build %u",
+		    ver->img_type == 0x01 ? "Bootloader" : "Firmware",
+		    2000 + (ver->timestamp >> 8),
+		    ver->timestamp & 0xff,
+		    ver->build_type,
+		    ver->build_num);
+}
+
 static int
 iwmbt_patch_firmware(libusb_device_handle *hdl, const char *firmware_path)
 {
@@ -227,10 +251,10 @@ iwmbt_patch_firmware(libusb_device_handle *hdl, const char *firmware_path)
 
 static int
 iwmbt_init_firmware(libusb_device_handle *hdl, const char *firmware_path,
-    uint32_t *boot_param)
+    uint32_t *boot_param, uint8_t hw_variant, uint8_t sbe_type)
 {
 	struct iwmbt_firmware fw;
-	int ret;
+	int header_len, ret = -1;
 
 	iwmbt_debug("loading %s", firmware_path);
 
@@ -240,12 +264,76 @@ iwmbt_init_firmware(libusb_device_handle *hdl, const char *firmware_path,
 		return (-1);
 	}
 
-	/* Load in the firmware */
-	ret = iwmbt_load_fwfile(hdl, &fw, boot_param);
-	if (ret < 0)
-		iwmbt_debug("Loading firmware file failed");
+	iwmbt_debug("Firmware file size=%d", fw.len);
 
-	/* free it */
+	if (hw_variant <= 0x14) {
+		/*
+		 * Hardware variants 0x0b, 0x0c, 0x11 - 0x14 .sfi file have
+		 * a RSA header of 644 bytes followed by Command Buffer.
+		 */
+		header_len = RSA_HEADER_LEN;
+		if (fw.len < header_len) {
+			iwmbt_err("Invalid size of firmware file (%d)", fw.len);
+			ret = -1;
+			goto exit;
+		}
+
+		/* Check if the CSS Header version is RSA(0x00010000) */
+		if (le32dec(fw.buf + CSS_HEADER_OFFSET) != 0x00010000) {
+			iwmbt_err("Invalid CSS Header version");
+			ret = -1;
+			goto exit;
+		}
+
+		/* Only RSA secure boot engine supported */
+		if (sbe_type != 0x00) {
+			iwmbt_err("Invalid SBE type for hardware variant (%d)",
+			    hw_variant);
+			ret = -1;
+			goto exit;
+		}
+
+	} else if (hw_variant >= 0x17) {
+		/*
+		 * Hardware variants 0x17, 0x18 onwards support both RSA and
+		 * ECDSA secure boot engine. As a result, the corresponding sfi
+		 * file will have RSA header of 644, ECDSA header of 320 bytes
+		 * followed by Command Buffer.
+		 */
+		header_len = ECDSA_OFFSET + ECDSA_HEADER_LEN;
+		if (fw.len < header_len) {
+			iwmbt_err("Invalid size of firmware file (%d)", fw.len);
+			ret = -1;
+			goto exit;
+		}
+
+		/* Check if CSS header for ECDSA follows the RSA header */
+		if (fw.buf[ECDSA_OFFSET] != 0x06) {
+			ret = -1;
+			goto exit;
+		}
+
+		/* Check if the CSS Header version is ECDSA(0x00020000) */
+		if (le32dec(fw.buf + ECDSA_OFFSET + CSS_HEADER_OFFSET) != 0x00020000) {
+			iwmbt_err("Invalid CSS Header version");
+			ret = -1;
+			goto exit;
+		}
+	}
+
+	/* Load in the CSS header */
+	if (sbe_type == 0x00)
+		ret = iwmbt_load_rsa_header(hdl, &fw);
+	else if (sbe_type == 0x01)
+		ret = iwmbt_load_ecdsa_header(hdl, &fw);
+	if (ret < 0)
+		goto exit;
+
+	/* Load in the Command Buffer */
+	ret = iwmbt_load_fwfile(hdl, &fw, boot_param, header_len);
+
+exit:
+	/* free firmware */
 	iwmbt_fw_free(&fw);
 
 	return (ret);
@@ -318,6 +406,7 @@ main(int argc, char *argv[])
 	libusb_device *dev = NULL;
 	libusb_device_handle *hdl = NULL;
 	static struct iwmbt_version ver;
+	static struct iwmbt_version_tlv ver_tlv;
 	static struct iwmbt_boot_params params;
 	uint32_t boot_param;
 	int r;
@@ -327,7 +416,7 @@ main(int argc, char *argv[])
 	char *firmware_dir = NULL;
 	char *firmware_path = NULL;
 	int retcode = 1;
-	int iwmbt_use_old_method = 0;
+	enum iwmbt_device iwmbt_device;
 
 	/* Parse command line arguments */
 	while ((n = getopt(argc, argv, "Dd:f:hIm:p:v:")) != -1) {
@@ -372,7 +461,7 @@ main(int argc, char *argv[])
 	iwmbt_debug("opening dev %d.%d", (int) bus_id, (int) dev_id);
 
 	/* Find a device based on the bus/dev id */
-	dev = iwmbt_find_device(ctx, bus_id, dev_id, &iwmbt_use_old_method);
+	dev = iwmbt_find_device(ctx, bus_id, dev_id, &iwmbt_device);
 	if (dev == NULL) {
 		iwmbt_err("device not found");
 		goto shutdown;
@@ -401,16 +490,16 @@ main(int argc, char *argv[])
 		goto shutdown;
 	}
 
-	/* Get Intel version */
-	r = iwmbt_get_version(hdl, &ver);
-	if (r < 0) {
-		iwmbt_debug("iwmbt_get_version() failed code %d", r);
-		goto shutdown;
-	}
-	iwmbt_dump_version(&ver);
-	iwmbt_debug("fw_variant=0x%02x", (int) ver.fw_variant);
+	if (iwmbt_device == IWMBT_DEVICE_7260) {
 
-	if (iwmbt_use_old_method) {
+		/* Get Intel version */
+		r = iwmbt_get_version(hdl, &ver);
+		if (r < 0) {
+			iwmbt_debug("iwmbt_get_version() failed code %d", r);
+			goto shutdown;
+		}
+		iwmbt_dump_version(&ver);
+		iwmbt_debug("fw_patch_num=0x%02x", (int) ver.fw_patch_num);
 
 		/* fw_patch_num = >0 operational mode */
 		if (ver.fw_patch_num > 0x00) {
@@ -469,7 +558,16 @@ main(int argc, char *argv[])
 			iwmbt_info("Intel Event Mask is set");
 		(void)iwmbt_exit_manufacturer(hdl, 0x00);
 
-	} else {
+	} else if (iwmbt_device == IWMBT_DEVICE_8260) {
+
+		/* Get Intel version */
+		r = iwmbt_get_version(hdl, &ver);
+		if (r < 0) {
+			iwmbt_debug("iwmbt_get_version() failed code %d", r);
+			goto shutdown;
+		}
+		iwmbt_dump_version(&ver);
+		iwmbt_debug("fw_variant=0x%02x", (int) ver.fw_variant);
 
 		/* fw_variant = 0x06 bootloader mode / 0x23 operational mode */
 		if (ver.fw_variant == 0x23) {
@@ -509,7 +607,7 @@ main(int argc, char *argv[])
 		iwmbt_debug("firmware_path = %s", firmware_path);
 
 		/* Download firmware and parse it for magic Intel Reset parameter */
-		r = iwmbt_init_firmware(hdl, firmware_path, &boot_param);
+		r = iwmbt_init_firmware(hdl, firmware_path, &boot_param, 0, 0);
 		free(firmware_path);
 		if (r < 0)
 			goto shutdown;
@@ -546,6 +644,93 @@ main(int argc, char *argv[])
 		r = iwmbt_set_event_mask(hdl);
 		if (r == 0)
 			iwmbt_info("Intel Event Mask is set");
+
+	} else {
+
+		/* Get Intel version */
+		r = iwmbt_get_version_tlv(hdl, &ver_tlv);
+		if (r < 0) {
+			iwmbt_debug("iwmbt_get_version_tlv() failed code %d", r);
+			goto shutdown;
+		}
+		iwmbt_dump_version_tlv(&ver_tlv);
+		iwmbt_debug("img_type=0x%02x", (int) ver_tlv.img_type);
+
+		/* img_type = 0x01 bootloader mode / 0x03 operational mode */
+		if (ver_tlv.img_type == 0x03) {
+			iwmbt_info("Firmware has already been downloaded");
+			retcode = 0;
+			goto reset;
+		}
+
+		if (ver_tlv.img_type != 0x01){
+			iwmbt_err("unknown img_type 0x%02x", (int) ver_tlv.img_type);
+			goto shutdown;
+		}
+
+		/* Check if firmware fragments are ACKed with a cmd complete event */
+		if (ver_tlv.limited_cce != 0x00) {
+			iwmbt_err("Unsupported Intel firmware loading method (%u)",
+			   ver_tlv.limited_cce);
+			goto shutdown;
+		}
+
+		/* Check if secure boot engine is supported: 1 (ECDSA) or 0 (RSA) */
+		if (ver_tlv.sbe_type > 0x01) {
+			iwmbt_err("Unsupported secure boot engine (%u)",
+			   ver_tlv.sbe_type);
+			goto shutdown;
+		}
+
+		/* Default the firmware path */
+		if (firmware_dir == NULL)
+			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
+
+		firmware_path = iwmbt_get_fwname_tlv(&ver_tlv, firmware_dir, "sfi");
+		if (firmware_path == NULL)
+			goto shutdown;
+
+		iwmbt_debug("firmware_path = %s", firmware_path);
+
+		/* Download firmware and parse it for magic Intel Reset parameter */
+		r = iwmbt_init_firmware(hdl, firmware_path, &boot_param,
+		    ver_tlv.cnvi_bt >> 16 & 0x3f, ver_tlv.sbe_type);
+		free(firmware_path);
+		if (r < 0)
+			goto shutdown;
+
+		r = iwmbt_intel_reset(hdl, boot_param);
+		if (r < 0) {
+			iwmbt_debug("iwmbt_intel_reset() failed!");
+			goto shutdown;
+		}
+
+		iwmbt_info("Firmware operational");
+
+		/* Once device is running in operational mode we can ignore failures */
+		retcode = 0;
+
+		/* Execute Read Intel Version one more time */
+		r = iwmbt_get_version(hdl, &ver);
+		if (r == 0)
+			iwmbt_dump_version(&ver);
+
+		/* Apply the device configuration (DDC) parameters */
+		firmware_path = iwmbt_get_fwname_tlv(&ver_tlv, firmware_dir, "ddc");
+		iwmbt_debug("ddc_path = %s", firmware_path);
+		if (firmware_path != NULL) {
+			r = iwmbt_init_ddc(hdl, firmware_path);
+			if (r == 0)
+				iwmbt_info("DDC download complete");
+			free(firmware_path);
+		}
+
+		/* Set Intel Event mask */
+		r = iwmbt_set_event_mask(hdl);
+		if (r == 0)
+			iwmbt_info("Intel Event Mask is set");
+
+		iwmbt_info("Firmware download complete");
 	}
 
 reset:

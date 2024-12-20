@@ -525,6 +525,29 @@ invpcid(struct invpcid_descr *d, int type)
 	    : : "r" (d), "r" ((u_long)type) : "memory");
 }
 
+#define	INVLPGB_VA		0x0001
+#define	INVLPGB_PCID		0x0002
+#define	INVLPGB_ASID		0x0004
+#define	INVLPGB_GLOB		0x0008
+#define	INVLPGB_FIN		0x0010
+#define	INVLPGB_NEST		0x0020
+
+#define	INVLPGB_DESCR(asid, pcid)	(((pcid) << 16) | (asid))
+
+#define	INVLPGB_2M_CNT		(1u << 31)
+
+static __inline void
+invlpgb(uint64_t rax, uint32_t edx, uint32_t ecx)
+{
+	__asm __volatile("invlpgb" : : "a" (rax), "d" (edx), "c" (ecx));
+}
+
+static __inline void
+tlbsync(void)
+{
+	__asm __volatile("tlbsync");
+}
+
 static __inline u_short
 rfs(void)
 {
@@ -917,6 +940,29 @@ sgx_eremove(void *epc)
 {
 
 	return (sgx_encls(SGX_EREMOVE, 0, (uint64_t)epc, 0));
+}
+
+static __inline void
+xrstors(uint8_t *save_area, uint64_t state_bitmap)
+{
+	uint32_t low, hi;
+
+	low = state_bitmap;
+	hi = state_bitmap >> 32;
+	__asm __volatile("xrstors %0" : : "m"(*save_area), "a"(low),
+	    "d"(hi));
+}
+
+static __inline void
+xsaves(uint8_t *save_area, uint64_t state_bitmap)
+{
+	uint32_t low, hi;
+
+	low = state_bitmap;
+	hi = state_bitmap >> 32;
+	__asm __volatile("xsaves %0" : "=m"(*save_area) : "a"(low),
+	    "d"(hi)
+	    : "memory");
 }
 
 void	reset_dbregs(void);

@@ -404,7 +404,7 @@ ppbus_attach(device_t dev)
 	}
 
 	/* Locate our children */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 #ifndef DONTPROBE_1284
 	/* detect IEEE1284 compliant devices */
@@ -414,7 +414,7 @@ ppbus_attach(device_t dev)
 #endif /* !DONTPROBE_1284 */
 
 	/* launch attachment of the added children */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

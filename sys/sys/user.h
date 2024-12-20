@@ -225,7 +225,7 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
  *  Legacy PS_ flag.  This moved to p_flag but is maintained for
  *  compatibility.
  */
-#define	PS_INMEM	0x00001		/* Loaded into memory. */
+#define	PS_INMEM	0x00001		/* Loaded into memory, always true. */
 
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */
@@ -506,6 +506,9 @@ struct kinfo_lockf {
 #define	KVME_PROT_READ		0x00000001
 #define	KVME_PROT_WRITE		0x00000002
 #define	KVME_PROT_EXEC		0x00000004
+#define	KVME_MAX_PROT_READ	0x00010000
+#define	KVME_MAX_PROT_WRITE	0x00020000
+#define	KVME_MAX_PROT_EXEC	0x00040000
 
 #define	KVME_FLAG_COW		0x00000001
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
@@ -514,6 +517,8 @@ struct kinfo_lockf {
 #define	KVME_FLAG_GROWS_UP	0x00000010
 #define	KVME_FLAG_GROWS_DOWN	0x00000020
 #define	KVME_FLAG_USER_WIRED	0x00000040
+#define	KVME_FLAG_SYSVSHM	0x00000080
+#define	KVME_FLAG_POSIXSHM	0x00000100
 
 #if defined(__amd64__)
 #define	KINFO_OVMENTRY_SIZE	1168
@@ -576,6 +581,9 @@ struct kinfo_vmentry {
 #define	kve_vn_fsid	kve_type_spec._kve_vn_fsid
 #define	kve_obj		kve_type_spec._kve_obj
 
+#define	KVMO_FLAG_SYSVSHM	0x0001
+#define	KVMO_FLAG_POSIXSHM	0x0002
+
 /*
  * The "vm.objects" sysctl provides a list of all VM objects in the system
  * via an array of these entries.
@@ -597,9 +605,11 @@ struct kinfo_vmobject {
 		uint64_t _kvo_backing_obj;	/* Handle for the backing obj */
 	} kvo_type_spec;			/* Type-specific union */
 	uint64_t kvo_me;			/* Uniq handle for anon obj */
-	uint64_t _kvo_qspare[6];
+	uint64_t kvo_laundry;			/* Number of laundry pages. */
+	uint64_t _kvo_qspare[5];
 	uint32_t kvo_swapped;			/* Number of swapped pages */
-	uint32_t _kvo_ispare[7];
+	uint32_t kvo_flags;
+	uint32_t _kvo_ispare[6];
 	char	kvo_path[PATH_MAX];		/* Pathname, if any. */
 };
 #define	kvo_vn_fsid	kvo_type_spec._kvo_vn_fsid
@@ -613,7 +623,7 @@ struct kinfo_vmobject {
 #define	KKST_MAXLEN	1024
 
 #define	KKST_STATE_STACKOK	0		/* Stack is valid. */
-#define	KKST_STATE_SWAPPED	1		/* Stack swapped out. */
+#define	KKST_STATE_SWAPPED	1		/* Stack swapped out, obsolete. */
 #define	KKST_STATE_RUNNING	2		/* Stack ephemeral. */
 
 #if defined(__amd64__) || defined(__i386__)

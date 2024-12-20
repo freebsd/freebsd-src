@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 		setenv("HOME", pwd->pw_dir, 1);
 		setenv("SHELL",
 		    *pwd->pw_shell ? pwd->pw_shell : _PATH_BSHELL, 1);
-		if (clean && chdir(pwd->pw_dir) < 0)
+		if (clean && username && chdir(pwd->pw_dir) < 0)
 			err(1, "chdir: %s", pwd->pw_dir);
 		endpwent();
 	}

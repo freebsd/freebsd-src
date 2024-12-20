@@ -103,7 +103,7 @@ archive_read_support_format_ar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_ar");
 
-	ar = (struct ar *)calloc(1, sizeof(*ar));
+	ar = calloc(1, sizeof(*ar));
 	if (ar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate ar data");
@@ -368,7 +368,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 			return (ARCHIVE_FATAL);
 		}
 		/* Store it in the entry. */
-		p = (char *)malloc(bsd_name_length + 1);
+		p = malloc(bsd_name_length + 1);
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate fname buffer");
@@ -439,9 +439,9 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	if ((header_data = __archive_read_ahead(a, 60, NULL)) == NULL)
 		/* Broken header. */
 		return (ARCHIVE_EOF);
-	
+
 	unconsumed = 60;
-	
+
 	ret = _ar_read_header(a, entry, ar, (const char *)header_data, &unconsumed);
 
 	if (unconsumed)
@@ -458,7 +458,6 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	uint64_t n;
 
 	/* Copy remaining header */
-	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_mtime(entry,
 	    (time_t)ar_atol10(h + AR_date_offset, AR_date_size), 0L);
 	archive_entry_set_uid(entry,
@@ -467,6 +466,7 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	    (gid_t)ar_atol10(h + AR_gid_offset, AR_gid_size));
 	archive_entry_set_mode(entry,
 	    (mode_t)ar_atol8(h + AR_mode_offset, AR_mode_size));
+	archive_entry_set_filetype(entry, AE_IFREG);
 	n = ar_atol10(h + AR_size_offset, AR_size_size);
 
 	ar->entry_offset = 0;

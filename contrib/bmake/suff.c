@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.382 2024/07/07 07:50:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.378 2024/02/07 06:43:02 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.382 2024/07/07 07:50:57 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -979,7 +979,6 @@ Candidate_New(char *name, char *prefix, Suffix *suff, Candidate *parent,
 }
 
 /* Add a new candidate to the list. */
-/*ARGSUSED*/
 static void
 CandidateList_Add(CandidateList *list, char *srcName, Candidate *targ,
 		  Suffix *suff, const char *debug_tag MAKE_ATTR_UNUSED)
@@ -1223,6 +1222,7 @@ ExpandWildcards(GNodeListNode *cln, GNode *pgn)
 
 		DEBUG1(SUFF, "%s...", name);
 		gn = Targ_GetNode(name);
+		free(name);
 
 		/* Insert gn before the original child. */
 		Lst_InsertBefore(&pgn->children, cln, gn);
@@ -1273,7 +1273,7 @@ ExpandChildrenRegular(char *p, GNode *pgn, GNodeList *members)
 		} else if (*p == '$') {
 			/* Skip over the expression. */
 			const char *nested_p = p;
-			FStr junk = Var_Parse(&nested_p, pgn, VARE_PARSE_ONLY);
+			FStr junk = Var_Parse(&nested_p, pgn, VARE_PARSE);
 			/* TODO: handle errors */
 			if (junk.str == var_Error) {
 				Parse_Error(PARSE_FATAL,
@@ -1343,7 +1343,7 @@ ExpandChildren(GNodeListNode *cln, GNode *pgn)
 	}
 
 	DEBUG1(SUFF, "Expanding \"%s\"...", cgn->name);
-	expanded = Var_Subst(cgn->name, pgn, VARE_UNDEFERR);
+	expanded = Var_Subst(cgn->name, pgn, VARE_EVAL_DEFINED);
 	/* TODO: handle errors */
 
 	{
@@ -2041,11 +2041,11 @@ Suff_Init(void)
 	Suff_ClearSuffixes();
 }
 
+#ifdef CLEANUP
 /* Clean up the suffixes module. */
 void
 Suff_End(void)
 {
-#ifdef CLEANUP
 	SuffixListNode *ln;
 
 	for (ln = sufflist.first; ln != NULL; ln = ln->next)
@@ -2057,8 +2057,8 @@ Suff_End(void)
 	if (nullSuff != NULL)
 		Suffix_Free(nullSuff);
 	Lst_Done(&transforms);
-#endif
 }
+#endif
 
 
 static void

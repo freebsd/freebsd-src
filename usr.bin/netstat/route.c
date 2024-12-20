@@ -57,7 +57,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
@@ -124,14 +123,14 @@ routepr(int fibnum, int af)
 	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
 	if (fibnum < 0 || fibnum > numfibs - 1)
-		errx(EX_USAGE, "%d: invalid fib", fibnum);
+		xo_errx(EX_USAGE, "%d: invalid fib", fibnum);
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
 	 * directly we should do rt_expire --> expire_time conversion.
 	 */
 	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
-		err(EX_OSERR, "clock_gettime() failed");
+		xo_err(EX_OSERR, "clock_gettime() failed");
 
 	xo_open_container("route-information");
 	xo_emit("{T:Routing tables}");
@@ -259,12 +258,12 @@ p_rtable_sysctl(int fibnum, int af)
 	mib[5] = 0;
 	mib[6] = fibnum;
 	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
-		err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
 		    fibnum);
 	if ((buf = malloc(needed)) == NULL)
-		errx(2, "malloc(%lu)", (unsigned long)needed);
+		xo_errx(EX_OSERR, "malloc(%lu)", (unsigned long)needed);
 	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
-		err(1, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
 	lim  = buf + needed;
 	xo_open_container("route-table");
 	xo_open_list("rt-family");
@@ -579,7 +578,7 @@ netname4(in_addr_t in, in_addr_t mask)
 	struct netent *np = 0;
 	in_addr_t i;
 
-	if (in == INADDR_ANY && mask == 0) {
+	if (!numeric_addr && in == INADDR_ANY && mask == 0) {
 		strlcpy(line, "default", sizeof(line));
 		return (line);
 	}
@@ -674,7 +673,8 @@ netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 	else
 		masklen = 128;
 
-	if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
+	if (!numeric_addr && masklen == 0 &&
+	    IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
 		return("default");
 
 	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, nline, sizeof(nline),
@@ -700,13 +700,11 @@ void
 rt_stats(void)
 {
 	struct rtstat rtstat;
-	u_long rtsaddr;
 
-	if ((rtsaddr = nl[N_RTSTAT].n_value) == 0) {
-		xo_emit("{W:rtstat: symbol not in namelist}\n");
+	if (fetch_stats("net.route.stats", nl[N_RTSTAT].n_value, &rtstat,
+	    sizeof(rtstat), kread_counters) != 0)
 		return;
-	}
-	kread_counters(rtsaddr, (char *)&rtstat, sizeof (rtstat));
+
 	xo_emit("{T:routing}:\n");
 
 #define	p(f, m) if (rtstat.f || sflag <= 1) \

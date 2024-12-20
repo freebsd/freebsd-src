@@ -248,15 +248,14 @@ opal_ipmi_startup(struct ipmi_softc *sc)
 }
 
 static int
-opal_ipmi_driver_request(struct ipmi_softc *isc, struct ipmi_request *req,
-    int timo)
+opal_ipmi_driver_request(struct ipmi_softc *isc, struct ipmi_request *req)
 {
 	struct opal_ipmi_softc *sc = (struct opal_ipmi_softc *)isc;
 	int i, err;
 
 	for (i = 0; i < 3; i++) {
 		IPMI_LOCK(&sc->ipmi);
-		err = opal_ipmi_polled_request(sc, req, timo);
+		err = opal_ipmi_polled_request(sc, req, 0);
 		IPMI_UNLOCK(&sc->ipmi);
 		if (err == 0)
 			break;

@@ -9,6 +9,7 @@ FILESNAME=	LC_MONETARY
 .src.out:
 	grep -v -E '^(#$$|#[ ])' < ${.IMPSRC} > ${.TARGET}
 
+LOCALES+=	af_ZA.UTF-8
 LOCALES+=	am_ET.UTF-8
 LOCALES+=	ar_AE.UTF-8
 LOCALES+=	ar_EG.UTF-8
@@ -49,7 +50,6 @@ LOCALES+=	ja_JP.UTF-8
 LOCALES+=	kk_KZ.UTF-8
 LOCALES+=	ko_KR.UTF-8
 LOCALES+=	mn_MN.UTF-8
-LOCALES+=	nb_NO.UTF-8
 LOCALES+=	nl_NL.UTF-8
 LOCALES+=	pl_PL.UTF-8
 LOCALES+=	pt_BR.UTF-8
@@ -69,7 +69,6 @@ LOCALES+=	zh_TW.UTF-8
 
 
 
-SAME+=		en_ZA.UTF-8 af_ZA.UTF-8
 SAME+=		it_IT.UTF-8 es_ES.UTF-8
 SAME+=		it_IT.UTF-8 el_GR.UTF-8
 SAME+=		it_IT.UTF-8 de_DE.UTF-8
@@ -89,8 +88,9 @@ SAME+=		sl_SI.UTF-8 eu_ES.UTF-8
 SAME+=		fr_FR.UTF-8 fr_BE.UTF-8
 SAME+=		sk_SK.UTF-8 pt_PT.UTF-8
 SAME+=		sk_SK.UTF-8 lv_LV.UTF-8
-SAME+=		nl_NL.UTF-8 nl_BE.UTF-8
 SAME+=		se_NO.UTF-8 nn_NO.UTF-8
+SAME+=		se_NO.UTF-8 nb_NO.UTF-8
+SAME+=		nl_NL.UTF-8 nl_BE.UTF-8
 SAME+=		sr_RS.UTF-8@latin sr_RS.UTF-8
 
 FILES=		${LOCALES:S/$/.out/}

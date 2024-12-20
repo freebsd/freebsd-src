@@ -472,7 +472,7 @@ logodefs = {
 brand_position = {x = 2, y = 1}
 logo_position = {x = 46, y = 4}
 menu_position = {x = 5, y = 10}
-frame_size = {w = 42, h = 13}
+frame_size = {w = 42, h = 14}
 default_shift = {x = 0, y = 0}
 shift = default_shift
 
@@ -506,23 +506,45 @@ drawer.frame_styles = {
 		top_right	= "+",
 		bottom_right	= "+",
 	},
-	["single"] = {
+}
+
+if core.hasUnicode() then
+	-- unicode based framing characters
+	drawer.frame_styles["single"] = {
 		horizontal	= "\xE2\x94\x80",
 		vertical	= "\xE2\x94\x82",
 		top_left	= "\xE2\x94\x8C",
 		bottom_left	= "\xE2\x94\x94",
 		top_right	= "\xE2\x94\x90",
 		bottom_right	= "\xE2\x94\x98",
-	},
-	["double"] = {
+	}
+	drawer.frame_styles["double"] = {
 		horizontal	= "\xE2\x95\x90",
 		vertical	= "\xE2\x95\x91",
 		top_left	= "\xE2\x95\x94",
 		bottom_left	= "\xE2\x95\x9A",
 		top_right	= "\xE2\x95\x97",
 		bottom_right	= "\xE2\x95\x9D",
-	},
-}
+	}
+else
+	-- non-unicode cons25-style framing characters
+	drawer.frame_styles["single"] = {
+		horizontal	= "\xC4",
+		vertical	= "\xB3",
+		top_left	= "\xDA",
+		bottom_left	= "\xC0",
+		top_right	= "\xBF",
+		bottom_right	= "\xD9",
+        }
+	drawer.frame_styles["double"] = {
+		horizontal	= "\xCD",
+		vertical	= "\xBA",
+		top_left	= "\xC9",
+		bottom_left	= "\xC8",
+		top_right	= "\xBB",
+		bottom_right	= "\xBC",
+	}
+end
 
 function drawer.drawscreen(menudef)
 	-- drawlogo() must go first.

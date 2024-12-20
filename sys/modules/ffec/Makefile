@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/ffec
 
 KMOD=	if_ffec

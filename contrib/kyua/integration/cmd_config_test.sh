@@ -42,6 +42,7 @@ all_body() {
     cat >"${HOME}/.kyua/kyua.conf" <<EOF
 syntax(2)
 architecture = "my-architecture"
+execenvs = "my-env1 my-env2"
 parallelism = 256
 platform = "my-platform"
 unprivileged_user = "$(id -u -n)"
@@ -51,6 +52,7 @@ EOF
 
     cat >expout <<EOF
 architecture = my-architecture
+execenvs = my-env1 my-env2
 parallelism = 256
 platform = my-platform
 test_suites.suite1.the_variable = value1

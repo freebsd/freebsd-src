@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2000,2001 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-/* $Id: termcap.h.in,v 1.19 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: termcap.h.in,v 1.20 2021/06/17 21:26:02 tom Exp $ */
 
 #ifndef NCURSES_TERMCAP_H_incl
 #define NCURSES_TERMCAP_H_incl	1
@@ -49,13 +49,13 @@ extern "C"
 
 #include <sys/types.h>
 
-#undef  NCURSES_OSPEED 
-#define NCURSES_OSPEED @NCURSES_OSPEED@ 
+#undef  NCURSES_OSPEED
+#define NCURSES_OSPEED @NCURSES_OSPEED@
 
 extern NCURSES_EXPORT_VAR(char) PC;
 extern NCURSES_EXPORT_VAR(char *) UP;
 extern NCURSES_EXPORT_VAR(char *) BC;
-extern NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed; 
+extern NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed;
 
 #if !defined(NCURSES_TERM_H_incl)
 extern NCURSES_EXPORT(char *) tgetstr (const char *, char **);

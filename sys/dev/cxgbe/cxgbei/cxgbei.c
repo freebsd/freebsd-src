@@ -842,9 +842,6 @@ cxgbei_activate(struct adapter *sc)
 
 	/* per-adapter softc for iSCSI */
 	ci = malloc(sizeof(*ci), M_CXGBE, M_ZERO | M_WAITOK);
-	if (ci == NULL)
-		return (ENOMEM);
-
 	rc = cxgbei_init(sc, ci);
 	if (rc != 0) {
 		free(ci, M_CXGBE);
@@ -901,9 +898,8 @@ cxgbei_deactivate_all(struct adapter *sc, void *arg __unused)
 }
 
 static struct uld_info cxgbei_uld_info = {
-	.uld_id = ULD_ISCSI,
-	.activate = cxgbei_activate,
-	.deactivate = cxgbei_deactivate,
+	.uld_activate = cxgbei_activate,
+	.uld_deactivate = cxgbei_deactivate,
 };
 
 static int
@@ -916,7 +912,7 @@ cxgbei_mod_load(void)
 	t4_register_cpl_handler(CPL_RX_ISCSI_DDP, do_rx_iscsi_ddp);
 	t4_register_cpl_handler(CPL_RX_ISCSI_CMP, do_rx_iscsi_cmp);
 
-	rc = t4_register_uld(&cxgbei_uld_info);
+	rc = t4_register_uld(&cxgbei_uld_info, ULD_ISCSI);
 	if (rc != 0)
 		return (rc);
 
@@ -931,7 +927,7 @@ cxgbei_mod_unload(void)
 
 	t4_iterate(cxgbei_deactivate_all, NULL);
 
-	if (t4_unregister_uld(&cxgbei_uld_info) == EBUSY)
+	if (t4_unregister_uld(&cxgbei_uld_info, ULD_ISCSI) == EBUSY)
 		return (EBUSY);
 
 	t4_register_cpl_handler(CPL_ISCSI_HDR, NULL);

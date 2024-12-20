@@ -52,6 +52,7 @@
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#include <machine/thead.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -59,10 +60,10 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-char machine[] = "riscv";
+const char machine[] = "riscv";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD, machine, 0,
-    "Machine class");
+SYSCTL_CONST_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
+    machine, "Machine class");
 
 /* Hardware implementation info. These values may be empty. */
 register_t mvendorid;	/* The CPU's JEDEC vendor ID */
@@ -72,8 +73,10 @@ register_t mimpid;	/* The implementation ID */
 u_int mmu_caps;
 
 /* Supervisor-mode extension support. */
+bool has_hyp;
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
+bool has_svpbmt;
 
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
@@ -244,9 +247,11 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 	while (i < len) {
 		switch(isa[i]) {
 		case 'a':
+		case 'b':
 		case 'c':
 		case 'd':
 		case 'f':
+		case 'h':
 		case 'i':
 		case 'm':
 			desc->isa_extensions |= HWCAP_ISA_BIT(isa[i]);
@@ -412,8 +417,10 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	UPDATE_CAP(mmu_caps, desc->mmu_caps);
 
 	/* Supervisor-mode extension support. */
+	UPDATE_CAP(has_hyp, (desc->isa_extensions & HWCAP_ISA_H) != 0);
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
+	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
 
 #undef UPDATE_CAP
 }
@@ -457,6 +464,38 @@ identify_cpu_ids(struct cpu_desc *desc)
 	}
 }
 
+static void
+handle_thead_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	if (cpu != 0)
+		return;
+
+	/*
+	 * For now, it is assumed that T-HEAD CPUs have both marchid and mimpid
+	 * values of zero (although we leave this unchecked). It is true in
+	 * practice for the early generations of this hardware (C906, C910,
+	 * C920). In the future, the identity checks may need to become more
+	 * granular, but until then all known T-HEAD quirks are applied
+	 * indiscriminantly.
+	 *
+	 * Note: any changes in this function relating to has_errata_thead_pbmt
+	 * may need to be applied to get_pte_fixup_bits (in locore.S) as well.
+	 */
+
+	has_errata_thead_pbmt = true;
+	thead_setup_cache();
+}
+
+static void
+handle_cpu_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	switch (mvendorid) {
+	case MVENDORID_THEAD:
+		handle_thead_quirks(cpu, desc);
+		break;
+	}
+}
+
 void
 identify_cpu(u_int cpu)
 {
@@ -466,6 +505,7 @@ identify_cpu(u_int cpu)
 	identify_cpu_features(cpu, desc);
 
 	update_global_capabilities(cpu, desc);
+	handle_cpu_quirks(cpu, desc);
 }
 
 void
@@ -511,6 +551,7 @@ printcpuinfo(u_int cpu)
 		    "\03Compressed"
 		    "\04Double"
 		    "\06Float"
+		    "\10Hypervisor"
 		    "\15Mult/Div");
 	}
 

@@ -164,7 +164,7 @@ pcf_isa_attach(device_t dev)
 		device_printf(dev, "could not allocate iicbus instance\n");
 
 	/* probe and attach the iicbus */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 

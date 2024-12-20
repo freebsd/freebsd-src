@@ -67,9 +67,6 @@ unsigned int	arm_dcache_align_mask;
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
 #endif
-#if defined(CPU_ARM1176)
-static void arm11x6_setup(void);
-#endif
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 static void cortexa_setup(void);
 #endif
@@ -91,22 +88,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 };
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_ARM1176)
-struct cpu_functions arm1176_cpufuncs = {
-	/* Cache operations */
-	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
-	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
-	.cf_l2cache_inv_range = (void *)cpufunc_nullop,
-	.cf_l2cache_wb_range = (void *)cpufunc_nullop,
-	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
-
-	/* Other functions */
-	.cf_sleep = arm11x6_sleep, 
-
-	/* Soft functions */
-	.cf_setup = arm11x6_setup
-};
-#endif /*CPU_ARM1176 */
 
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
@@ -210,13 +191,6 @@ set_cpufuncs(void)
 	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
-#if defined(CPU_ARM1176)
-	if (cputype == CPU_ID_ARM1176JZS) {
-		cpufuncs = arm1176_cpufuncs;
-		get_cachetype_cp15();
-		goto out;
-	}
-#endif /* CPU_ARM1176 */
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	switch(cputype & CPU_ID_SCHEME_MASK) {
 	case CPU_ID_CORTEXA5:
@@ -262,9 +236,7 @@ out:
  */
 
 
-#if defined(CPU_ARM1176) \
- || defined(CPU_MV_PJ4B) \
- || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 static __inline void
 cpu_scc_setup_ccnt(void)
 {
@@ -277,10 +249,6 @@ cpu_scc_setup_ccnt(void)
 	/* Set PMUSERENR[0] to allow userland access */
 	cp15_pmuserenr_set(1);
 #endif
-#if defined(CPU_ARM1176)
-	/* Set PMCR[2,0] to enable counters and reset CCNT */
-	cp15_pmcr_set(5);
-#else
 	/* Set up the PMCCNTR register as a cyclecounter:
 	 * Set PMINTENCLR to 0xFFFFFFFF to block interrupts
 	 * Set PMCR[2,0] to enable counters and reset CCNT
@@ -288,41 +256,9 @@ cpu_scc_setup_ccnt(void)
 	cp15_pminten_clr(0xFFFFFFFF);
 	cp15_pmcr_set(5);
 	cp15_pmcnten_set(0x80000000);
-#endif
 }
 #endif
 
-#if defined(CPU_ARM1176)
-static void
-arm11x6_setup(void)
-{
-	uint32_t auxctrl, auxctrl_wax;
-	uint32_t tmp, tmp2;
-	uint32_t cpuid;
-
-	cpuid = cp15_midr_get();
-
-	auxctrl = 0;
-	auxctrl_wax = ~0;
-
-	/*
-	 * Enable an errata workaround
-	 */
-	if ((cpuid & CPU_ID_CPU_MASK) == CPU_ID_ARM1176JZS) { /* ARM1176JZSr0 */
-		auxctrl = ARM1176_AUXCTL_PHD;
-		auxctrl_wax = ~ARM1176_AUXCTL_PHD;
-	}
-
-	tmp = cp15_actlr_get();
-	tmp2 = tmp;
-	tmp &= auxctrl_wax;
-	tmp |= auxctrl;
-	if (tmp != tmp2)
-		cp15_actlr_set(tmp);
-
-	cpu_scc_setup_ccnt();
-}
-#endif  /* CPU_ARM1176 */
 
 #ifdef CPU_MV_PJ4B
 static void

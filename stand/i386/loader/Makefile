@@ -4,8 +4,8 @@ LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	yes
-LOADER_EXT2FS_SUPPORT?=	yes
-LOADER_MSDOS_SUPPORT?=	yes
+LOADER_EXT2FS_SUPPORT?=	no
+LOADER_MSDOS_SUPPORT?=	no
 LOADER_UFS_SUPPORT?=	yes
 LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	yes
@@ -32,7 +32,12 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 #
 # will tell you how many kiB of lomem are available.
 #
-LOADERSIZE?=	560000		# Largest known safe size for loader.bin
+# We further reduce this to 500k, though, to give PXE an additional 64k of space
+# so pxeloader will fit. If you have special needs that do not include pxeboot,
+# you can safely set this as high as 560000 generally, or a bit higher if you
+# have tight control over the machines you are booting on.
+#
+LOADERSIZE?=	500000		# Largest known safe size for loader.bin
 
 .PATH:		${BOOTSRC}/i386/loader
 
@@ -125,8 +130,8 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # Note: crt0.o needs to be first for pxeboot(8) to work. It assumes that the
 # startup code is located at the start of the loader and will jump
 # there. Although btx is more flexible than this, the emulated boot2 environment
-# that pxeldr provides has none of that flexibility assumes an entry point of
-# 0. In addition, pxeldr and cdboot assume that it is loading an a.out file.
+# that pxeldr provides has none of that flexibility and assumes the entry point
+# is 0. Finally, both pxeldr and cdboot assume they are loading an a.out file.
 #
 # We must add it to the LDFLAGS instead of the OBJS because the former won't try
 # to clean it. When it is in OBJS, this cleaning can lead to races where

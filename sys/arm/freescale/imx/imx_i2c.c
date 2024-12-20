@@ -413,7 +413,7 @@ i2c_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child");
 		return (ENXIO);
@@ -469,7 +469,8 @@ no_recovery:
 	/* We don't do a hardware reset here because iicbus_attach() does it. */
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

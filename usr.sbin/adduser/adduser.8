@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1995-1996 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
 .\" All rights reserved.
 .\" Copyright (c) 2002-2004 Michael Telahun Makonnen <mtm@FreeBSD.org>
@@ -24,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 11, 2024
+.Dd December 1, 2024
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -243,7 +246,9 @@ file can reference the internal variables of the
 script.
 .It Fl M Ar mode
 Create the home directory with permissions set to
-.Ar mode .
+.Ar mode ,
+modified by the current
+.Xr umask 2 .
 .It Fl N
 Do not read the default configuration file.
 .It Fl q
@@ -427,7 +432,7 @@ message file for
 .Nm
 .It Pa /usr/share/skel
 skeletal login directory
-.It Pa /var/log/adduser
+.It Pa /var/log/userlog
 logfile for
 .Nm
 .El

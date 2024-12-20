@@ -85,6 +85,26 @@ int secy_cp_control_replay(struct ieee802_1x_kay *kay, bool enabled, u32 win)
 }
 
 
+int secy_cp_control_offload(struct ieee802_1x_kay *kay, u8 offload)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->set_offload) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy set_offload operation not supported");
+		return -1;
+	}
+
+	return ops->set_offload(ops->ctx, offload);
+}
+
+
 int secy_cp_control_current_cipher_suite(struct ieee802_1x_kay *kay, u64 cs)
 {
 	struct ieee802_1x_kay_ctx *ops;

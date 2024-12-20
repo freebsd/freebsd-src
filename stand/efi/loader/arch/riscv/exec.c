@@ -40,8 +40,6 @@
 #include "bootstrap.h"
 #include "loader_efi.h"
 
-extern int bi_load(char *, vm_offset_t *, vm_offset_t *, bool);
-
 static int
 __elfN(exec)(struct preloaded_file *fp)
 {

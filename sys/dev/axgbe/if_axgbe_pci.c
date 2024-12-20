@@ -36,6 +36,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -560,11 +561,6 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* create the workqueue */
 	pdata->dev_workqueue = taskqueue_create("axgbe", M_WAITOK,
 	    taskqueue_thread_enqueue, &pdata->dev_workqueue);
-	if (pdata->dev_workqueue == NULL) {
-		axgbe_error("Unable to allocate workqueue\n");
-		ret = ENOMEM;
-		goto free_channels;
-	}
 	ret = taskqueue_start_threads(&pdata->dev_workqueue, 1, PI_NET,
 	    "axgbe dev taskq");
 	if (ret) {
@@ -580,8 +576,6 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 
 free_task_queue:
 	taskqueue_free(pdata->dev_workqueue);
-
-free_channels:
 	axgbe_free_channels(sc);
 
 release_bus_resource:
@@ -610,8 +604,6 @@ axgbe_set_counts(if_ctx_t ctx)
 	struct axgbe_if_softc *sc = iflib_get_softc(ctx);
 	struct xgbe_prv_data *pdata = &sc->pdata;
 	cpuset_t lcpus;
-	int cpu_count, err;
-	size_t len;
 
 	/* Set all function pointers */
 	xgbe_init_all_fptrs(pdata);
@@ -638,21 +630,12 @@ axgbe_set_counts(if_ctx_t ctx)
 	 *   number of Rx queues or maximum allowed
 	 */
 
-	/* Get cpu count from sysctl */
-	len = sizeof(cpu_count);
-	err = kernel_sysctlbyname(curthread, "hw.ncpu", &cpu_count, &len, NULL,
-	    0, NULL, 0);
-	if (err) {
-		axgbe_error("Unable to fetch number of cpus\n");
-		cpu_count = 1;
-	}
-
 	if (bus_get_cpus(pdata->dev, INTR_CPUS, sizeof(lcpus), &lcpus) != 0) {
                 axgbe_error("Unable to fetch CPU list\n");
                 /* TODO - handle CPU_COPY(&all_cpus, &lcpus); */
         }
 
-	DBGPR("ncpu %d intrcpu %d\n", cpu_count, CPU_COUNT(&lcpus));
+	DBGPR("ncpu %d intrcpu %d\n", mp_ncpus, CPU_COUNT(&lcpus));
 
 	pdata->tx_ring_count = min(CPU_COUNT(&lcpus), pdata->hw_feat.tx_ch_cnt);
 	pdata->tx_ring_count = min(pdata->tx_ring_count,
@@ -2380,11 +2363,11 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 	axgbe_printf(1, "%s: MAC_PFR 0x%x drv_flags 0x%x if_flags 0x%x\n",
 	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), if_getdrvflags(ifp),
-	    if_getflags(ifp));
+	    flags);
 
-	if (if_getflags(ifp) & IFF_PPROMISC) {
+	if (flags & IFF_PROMISC) {
 
-		axgbe_printf(1, "User requested to enter promisc mode\n");
+		axgbe_printf(1, "Requested to enter promisc mode\n");
 
 		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 1) {
 			axgbe_printf(1, "Already in promisc mode\n");
@@ -2393,10 +2376,11 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 		axgbe_printf(1, "Entering promisc mode\n");
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 1);
+		/* Disable VLAN filtering */
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
 	} else {
 
-		axgbe_printf(1, "User requested to leave promisc mode\n");
+		axgbe_printf(1, "Requested to leave promisc mode\n");
 
 		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 0) {
 			axgbe_printf(1, "Already not in promisc mode\n");
@@ -2405,6 +2389,7 @@ axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 
 		axgbe_printf(1, "Leaving promisc mode\n");
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 0);
+		/* Enable VLAN filtering */
 		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
 	}
 

@@ -2813,22 +2813,17 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 		plcp = IEEE80211_RV(rate) | IWN_RFLAG_MCS;
 
 		/*
-		 * XXX the following should only occur if both
-		 * the local configuration _and_ the remote node
-		 * advertise these capabilities.  Thus this code
-		 * may need fixing!
-		 */
-
-		/*
 		 * Set the channel width and guard interval.
+		 *
+		 * Take into account the local configuration and
+		 * the node/peer advertised abilities.
 		 */
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 			plcp |= IWN_RFLAG_HT40;
-			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			if (ieee80211_ht_check_tx_shortgi_40(ni))
 				plcp |= IWN_RFLAG_SGI;
-		} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) {
+		} else if (ieee80211_ht_check_tx_shortgi_20(ni))
 			plcp |= IWN_RFLAG_SGI;
-		}
 
 		/*
 		 * Ensure the selected rate matches the link quality
@@ -4485,7 +4480,7 @@ iwn_tx_rate_to_linkq_offset(struct iwn_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Figure out if we're using 11n or not here.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0)
+	if (ieee80211_ht_check_tx_ht(ni))
 		is_11n = 1;
 	else
 		is_11n = 0;
@@ -4624,9 +4619,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		    IEEE80211_QOS_ACKPOLICY_NOACK)
 			flags |= IWN_TX_NEED_ACK;
 	}
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_BAR))
+	if (IEEE80211_IS_CTL_BAR(wh))
 		flags |= IWN_TX_IMM_BA;		/* Cannot happen yet. */
 
 	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG)
@@ -5365,7 +5358,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	 * 11n _and_ we have some 11n rates, or don't
 	 * try.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0) {
+	if (ieee80211_ht_check_tx_ht(ni)) {
 		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
 		is_11n = 1;
 	} else {

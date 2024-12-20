@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2008-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,10 +28,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Author: Juergen Pfeifer, 2008-on                                         * 
+ * Author: Juergen Pfeifer, 2008-on                                         *
  ****************************************************************************/
 
-/* $Id: ncurses_mingw.h,v 1.6 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: ncurses_mingw.h,v 1.7 2021/06/17 21:26:02 tom Exp $ */
 
 /*
  * This is a placeholder up to now and describes what needs to be implemented
@@ -67,14 +67,14 @@ struct termios
 };
 
 extern NCURSES_EXPORT(int)  _nc_mingw_tcsetattr(
-    int fd, 
-    int optional_actions, 
+    int fd,
+    int optional_actions,
     const struct termios* arg);
 extern NCURSES_EXPORT(int)  _nc_mingw_tcgetattr(
-    int fd, 
+    int fd,
     struct termios* arg);
 extern NCURSES_EXPORT(int)  _nc_mingw_tcflush(
-    int fd, 
+    int fd,
     int queue);
 extern NCURSES_EXPORT(void) _nc_set_term_driver(void* term);
 

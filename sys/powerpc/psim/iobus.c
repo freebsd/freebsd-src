@@ -225,7 +225,7 @@ iobus_attach(device_t dev)
         for (child = OF_child(root); child != 0; child = OF_peer(child)) {
                 OF_getprop_alloc(child, "name", (void **)&name);
 
-                cdev = device_add_child(dev, NULL, -1);
+                cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
                 if (cdev != NULL) {
                         dinfo = malloc(sizeof(*dinfo), M_IOBUS, M_WAITOK);
 			memset(dinfo, 0, sizeof(*dinfo));
@@ -240,7 +240,8 @@ iobus_attach(device_t dev)
                 }
         }
 
-        return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

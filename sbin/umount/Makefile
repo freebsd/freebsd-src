@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	umount
 SRCS=	umount.c vfslist.c mounttab.c

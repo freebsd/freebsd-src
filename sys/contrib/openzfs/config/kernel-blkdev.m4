@@ -396,7 +396,6 @@ AC_DEFUN([ZFS_AC_KERNEL_BLKDEV_INVALIDATE_BDEV], [
 dnl #
 dnl # 5.11 API, lookup_bdev() takes dev_t argument.
 dnl # 2.6.27 API, lookup_bdev() was first exported.
-dnl # 4.4.0-6.21 API, lookup_bdev() on Ubuntu takes mode argument.
 dnl #
 AC_DEFUN([ZFS_AC_KERNEL_SRC_BLKDEV_LOOKUP_BDEV], [
 	ZFS_LINUX_TEST_SRC([lookup_bdev_devt], [
@@ -418,15 +417,6 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BLKDEV_LOOKUP_BDEV], [
 
 		bdev = lookup_bdev(path);
 	])
-
-	ZFS_LINUX_TEST_SRC([lookup_bdev_mode], [
-		#include <linux/fs.h>
-	], [
-		struct block_device *bdev __attribute__ ((unused));
-		const char path[] = "/example/path";
-
-		bdev = lookup_bdev(path, FMODE_READ);
-	])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BLKDEV_LOOKUP_BDEV], [
@@ -446,17 +436,7 @@ AC_DEFUN([ZFS_AC_KERNEL_BLKDEV_LOOKUP_BDEV], [
 			AC_DEFINE(HAVE_1ARG_LOOKUP_BDEV, 1,
 			    [lookup_bdev() wants 1 arg])
 		], [
-			AC_MSG_RESULT(no)
-
-			AC_MSG_CHECKING([whether lookup_bdev() wants mode arg])
-			ZFS_LINUX_TEST_RESULT_SYMBOL([lookup_bdev_mode],
-			    [lookup_bdev], [fs/block_dev.c], [
-				AC_MSG_RESULT(yes)
-				AC_DEFINE(HAVE_MODE_LOOKUP_BDEV, 1,
-				    [lookup_bdev() wants mode arg])
-			], [
-				ZFS_LINUX_TEST_ERROR([lookup_bdev()])
-			])
+			ZFS_LINUX_TEST_ERROR([lookup_bdev()])
 		])
 	])
 ])
@@ -529,6 +509,30 @@ AC_DEFUN([ZFS_AC_KERNEL_BLKDEV_BDEV_WHOLE], [
 	ZFS_LINUX_TEST_RESULT([bdev_whole], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_BDEV_WHOLE, 1, [bdev_whole() is available])
+	],[
+		AC_MSG_RESULT(no)
+	])
+])
+
+dnl #
+dnl # 5.16 API change
+dnl # Added bdev_nr_bytes() helper.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_SRC_BLKDEV_BDEV_NR_BYTES], [
+	ZFS_LINUX_TEST_SRC([bdev_nr_bytes], [
+		#include <linux/blkdev.h>
+	],[
+		struct block_device *bdev = NULL;
+		loff_t nr_bytes __attribute__ ((unused)) = 0;
+		nr_bytes = bdev_nr_bytes(bdev);
+	])
+])
+
+AC_DEFUN([ZFS_AC_KERNEL_BLKDEV_BDEV_NR_BYTES], [
+	AC_MSG_CHECKING([whether bdev_nr_bytes() is available])
+	ZFS_LINUX_TEST_RESULT([bdev_nr_bytes], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_BDEV_NR_BYTES, 1, [bdev_nr_bytes() is available])
 	],[
 		AC_MSG_RESULT(no)
 	])
@@ -747,6 +751,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BLKDEV], [
 	ZFS_AC_KERNEL_SRC_BLKDEV_CHECK_DISK_CHANGE
 	ZFS_AC_KERNEL_SRC_BLKDEV_BDEV_CHECK_MEDIA_CHANGE
 	ZFS_AC_KERNEL_SRC_BLKDEV_BDEV_WHOLE
+	ZFS_AC_KERNEL_SRC_BLKDEV_BDEV_NR_BYTES
 	ZFS_AC_KERNEL_SRC_BLKDEV_BDEVNAME
 	ZFS_AC_KERNEL_SRC_BLKDEV_ISSUE_DISCARD
 	ZFS_AC_KERNEL_SRC_BLKDEV_BDEV_KOBJ
@@ -767,6 +772,7 @@ AC_DEFUN([ZFS_AC_KERNEL_BLKDEV], [
 	ZFS_AC_KERNEL_BLKDEV_CHECK_DISK_CHANGE
 	ZFS_AC_KERNEL_BLKDEV_BDEV_CHECK_MEDIA_CHANGE
 	ZFS_AC_KERNEL_BLKDEV_BDEV_WHOLE
+	ZFS_AC_KERNEL_BLKDEV_BDEV_NR_BYTES
 	ZFS_AC_KERNEL_BLKDEV_BDEVNAME
 	ZFS_AC_KERNEL_BLKDEV_GET_ERESTARTSYS
 	ZFS_AC_KERNEL_BLKDEV_ISSUE_DISCARD

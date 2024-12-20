@@ -67,9 +67,9 @@ smbus_attach(device_t dev)
 	struct smbus_softc *sc = device_get_softc(dev);
 
 	mtx_init(&sc->lock, device_get_nameunit(dev), "smbus", MTX_DEF);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -110,6 +110,12 @@ smbus_add_child(device_t dev, u_int order, const char *name, int unit)
 	}
 	device_set_ivars(child, devi);
 	return (child);
+}
+
+static void
+smbus_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
 }
 
 static void
@@ -222,6 +228,7 @@ static device_method_t smbus_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	smbus_add_child),
+	DEVMETHOD(bus_child_deleted,	smbus_child_deleted),
 	DEVMETHOD(bus_hinted_child,	smbus_hinted_child),
 	DEVMETHOD(bus_probe_nomatch,	smbus_probe_nomatch),
 	DEVMETHOD(bus_child_location,	smbus_child_location),

@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2020,2021 Thomas E. Dickey                                *
+dnl Copyright 2018-2023,2024 Thomas E. Dickey                                *
 dnl Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: configure.in,v 1.729 2021/01/09 11:20:52 tom Exp $
+dnl $Id: configure.in,v 1.779 2024/04/10 08:04:00 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl For additional information, see
@@ -38,7 +38,7 @@ dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.52.20210101)
-AC_REVISION($Revision: 1.729 $)
+AC_REVISION($Revision: 1.779 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -60,6 +60,9 @@ cf_user_CFLAGS="$CFLAGS"
 CF_CFG_DEFAULTS
 ### Defaults for ncurses ABI
 CF_ABI_DEFAULTS
+
+### override ABI version, e.g., packagers
+CF_WITH_ABI_ALTERED
 
 ###	Checks for programs.
 AC_ARG_WITH(ada,
@@ -183,22 +186,6 @@ AC_ARG_WITH(progs,
 	[cf_with_progs=yes])
 AC_MSG_RESULT($cf_with_progs)
 
-if test -f "$srcdir/tack/tack.h" ; then
-	if test "x$cross_compiling" = xyes ; then
-		CF_VERBOSE(ignoring tack because we are cross-compiling)
-		cf_with_tack=no
-	else
-		AC_MSG_CHECKING(if you want to build the tack program)
-		AC_ARG_WITH(tack,
-			[  --without-tack          suppress build/install with tack program],
-			[cf_with_tack=$withval],
-			[cf_with_tack=$cf_with_progs])
-		AC_MSG_RESULT($cf_with_tack)
-	fi
-else
-	cf_with_tack=no
-fi
-
 AC_MSG_CHECKING(if you want to build test-programs)
 AC_ARG_WITH(tests,
 	[  --without-tests         suppress build/install with test-programs],
@@ -215,7 +202,6 @@ AC_MSG_RESULT($with_curses_h)
 
 modules_to_build="ncurses"
 test "X$cf_with_progs" != Xno && modules_to_build="$modules_to_build progs"
-test "X$cf_with_tack"  != Xno && modules_to_build="$modules_to_build tack"
 modules_to_build="$modules_to_build panel menu form"
 
 AC_ARG_PROGRAM
@@ -231,7 +217,7 @@ AC_SYS_LONG_FILE_NAMES
 # of package conflict.
 cf_config_suffix=
 AC_ARG_WITH(config-suffix,
-	[  --with-config-suffix=X  suffixes ncursesXX-config file],
+	[  --with-config-suffix=X  name ncurses*X-config file with X],
 	[case "x$withval" in
 	(xyes|xno)
 		AC_MSG_WARN(expected a value for config-suffix option)
@@ -247,9 +233,9 @@ CF_WITH_PKG_CONFIG_LIBDIR
 CF_ENABLE_PC_FILES
 if test -z "$MAKE_PC_FILES"
 then
-	AC_MSG_CHECKING(for suffix to add to pc-files)
+	AC_MSG_CHECKING(for suffix to add to pkg-config files)
 AC_ARG_WITH(pc-suffix,
-	[  --with-pc-suffix        suffixes pc-files],
+	[[  --with-pc-suffix[=XXX]  suffix pkg-config files with XXX]],
 	[case "x$withval" in
 	(xyes|xno)
 		PC_MODULE_SUFFIX=
@@ -280,6 +266,7 @@ fi
 
 # do this after mixed-case option (tags/TAGS is not as important as tic).
 AC_PROG_MAKE_SET
+CF_MAKE_PHONY
 CF_MAKE_TAGS
 CF_MAKEFLAGS
 
@@ -293,16 +280,16 @@ CF_AR_FLAGS
 dnl Special option for use by system-builders: the install-prefix is used to
 dnl adjust the location into which the actual install is done, so that an
 dnl archive can be built without modifying the host system's configuration.
-AC_MSG_CHECKING(if you have specified an install-prefix)
+AC_MSG_CHECKING(for an installation directory prefix)
 AC_ARG_WITH(install-prefix,
-	[  --with-install-prefix   prefixes actual install-location ($DESTDIR)],
+	[  --with-install-prefix=DESTDIR use DESTDIR as installation directory prefix],
 	[case "x$withval" in
 	(xyes|xno)
 		;;
 	(*)	DESTDIR="$withval"
 		;;
 	esac])
-AC_MSG_RESULT($DESTDIR)
+AC_MSG_RESULT([${DESTDIR:-(none)}])
 AC_SUBST(DESTDIR)
 
 ###############################################################################
@@ -419,6 +406,10 @@ LIB_SUFFIX=
 AC_SUBST(LIB_SUFFIX)
 CF_PATHSEP
 
+# headers needed for checks...
+AC_CHECK_DECL(exit)
+AC_HEADER_DIRENT
+
 ###############################################################################
 
 AC_MSG_CHECKING(if you want to build a separate terminfo library)
@@ -458,7 +449,7 @@ case "$DFT_LWR_MODEL" in
 (shared)  LD_MODEL=''   ;;
 esac
 AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
-AC_MSG_RESULT($LD_MODEL)
+AC_MSG_RESULT([${LD_MODEL:-(none)}])
 
 case "$DFT_LWR_MODEL" in
 (shared)
@@ -553,7 +544,7 @@ fi
 ### Depending on the system, someone may use rpath to build ncurses but not
 # want users of the package to rely upon that feature.  Give those people an
 # option to suppress that detail from EXTRA_LDFLAGS.
-EXTRA_PKG_LDFLAGS="$EXTRA_LDFLAGS"
+EXTRA_PKG_LDFLAGS="$LDFLAGS $EXTRA_LDFLAGS"
 if test -n "$EXTRA_PKG_LDFLAGS"
 then
 	AC_MSG_CHECKING(if you want to disable extra LDFLAGS for package-scripts)
@@ -571,10 +562,10 @@ AC_SUBST(EXTRA_PKG_LDFLAGS)
 CF_HELP_MESSAGE(Fine-Tuning Your Configuration:)
 
 ###	use option --with-extra-suffix to append suffix to headers and libraries
-AC_MSG_CHECKING(if you wish to append extra suffix to header/library paths)
+AC_MSG_CHECKING(for extra suffix to append to header/library paths)
 EXTRA_SUFFIX=
 AC_ARG_WITH(extra-suffix,
-	[  --with-extra-suffix=X   append extra suffix to header/library paths],
+	[[  --with-extra-suffix[=X] append extra suffix X to header/library paths]],
 	[case x$withval in
 	(xno)
 		;;
@@ -586,7 +577,7 @@ AC_ARG_WITH(extra-suffix,
 		;;
 	esac
 	])
-AC_MSG_RESULT($EXTRA_SUFFIX)
+AC_MSG_RESULT([${EXTRA_SUFFIX:-(none)}])
 AC_SUBST(EXTRA_SUFFIX)
 
 ###	use option --disable-overwrite to leave out the link to -lcurses
@@ -634,12 +625,12 @@ else
 fi
 AC_SUBST(NCURSES_USE_DATABASE)
 
-AC_MSG_CHECKING(for list of fallback descriptions)
+AC_MSG_CHECKING(for list of fallback terminal descriptions)
 AC_ARG_WITH(fallbacks,
 	[  --with-fallbacks=XXX    specify list of fallback terminal descriptions],
 	[with_fallback=$withval],
 	[with_fallback=])
-AC_MSG_RESULT($with_fallback)
+AC_MSG_RESULT([${with_fallback:-(none)}])
 
 case ".$with_fallback" in
 (.|.no)
@@ -692,17 +683,29 @@ AC_MSG_RESULT($with_xterm_new)
 WHICH_XTERM=$with_xterm_new
 AC_SUBST(WHICH_XTERM)
 
+case $host_os in
+(*linux-gnu|*cygwin|*mingw32|*msys)
+	want_xterm_kbs=DEL
+	;;
+(*)
+	want_xterm_kbs=BS
+	;;
+esac
+
 AC_MSG_CHECKING(if xterm backspace sends BS or DEL)
 AC_ARG_WITH(xterm-kbs,
-	[  --with-xterm-kbs=XXX    specify if xterm backspace sends BS or DEL],
+	[[  --with-xterm-kbs[=XXX]  specify if xterm backspace sends BS or DEL]],
 	[with_xterm_kbs=$withval],
-	[with_xterm_kbs=BS])
+	[with_xterm_kbs=auto])
 case x$with_xterm_kbs in
 (xyes|xno|xBS|xbs|x8)
 	with_xterm_kbs=BS
 	;;
 (xDEL|xdel|x127)
 	with_xterm_kbs=DEL
+	;;
+(xauto)
+	with_xterm_kbs=$want_xterm_kbs
 	;;
 (*)
 	with_xterm_kbs=$withval
@@ -711,6 +714,11 @@ esac
 AC_MSG_RESULT($with_xterm_kbs)
 XTERM_KBS=$with_xterm_kbs
 AC_SUBST(XTERM_KBS)
+
+if test "x$with_xterm_kbs" != "x$want_xterm_kbs"
+then
+	AC_MSG_WARN([expected --with-xterm-kbs=$want_xterm_kbs for $host_os, have $with_xterm_kbs])
+fi
 
 MAKE_TERMINFO=
 if test "$use_database" = no ; then
@@ -757,7 +765,7 @@ AC_ARG_ENABLE(big-core,
 	[AC_TRY_RUN([
 #include <stdlib.h>
 #include <string.h>
-int main() {
+int main(void) {
 	unsigned long n = 6000000L;
 	char *s = malloc(n);
 	if (s != 0)
@@ -844,13 +852,29 @@ AC_ARG_ENABLE(home-terminfo,
 AC_MSG_RESULT($with_home_terminfo)
 test "x$with_home_terminfo" = "xyes" && AC_DEFINE(USE_HOME_TERMINFO,1,[Define to 1 if $HOME/.terminfo feature is wanted])
 
-AC_MSG_CHECKING(if you want to use restricted environment when running as root)
+AC_MSG_CHECKING(if you want to permit root to use ncurses environment variables)
 AC_ARG_ENABLE(root-environ,
-	[  --disable-root-environ  restrict environment when running as root],
+	[  --disable-root-environ  restrict root use of ncurses environment variables],
 	[with_root_environ=$enableval],
 	[with_root_environ=yes])
 AC_MSG_RESULT($with_root_environ)
-test "x$with_root_environ" = xyes && AC_DEFINE(USE_ROOT_ENVIRON,1,[Define to 1 if environment should be restricted for root user])
+test "x$with_root_environ" = xyes && AC_DEFINE(USE_ROOT_ENVIRON,1,[Define to 1 if root/setuid application is allowed to use ncurses environment])
+
+AC_MSG_CHECKING(if you want to permit setuid programs to access all files)
+AC_ARG_ENABLE(root-access,
+	[  --disable-root-access   restrict file-access when running setuid],
+	[with_root_access=$enableval],
+	[with_root_access=yes])
+AC_MSG_RESULT($with_root_access)
+test "x$with_root_access" = xyes && AC_DEFINE(USE_ROOT_ACCESS,1,[Define to 1 if setuid is allowed all file-access])
+
+AC_MSG_CHECKING(if you want to permit setuid use of ncurses environment variables)
+AC_ARG_ENABLE(setuid-environ,
+	[  --disable-setuid-environ restrict setuid use of ncurses environment variables],
+	[with_setuid_environ=$enableval],
+	[with_setuid_environ=$with_root_environ])
+AC_MSG_RESULT($with_setuid_environ)
+test "x$with_setuid_environ" = xyes && AC_DEFINE(USE_SETUID_ENVIRON,1,[Define to 1 if setuid/setgid application is allowed to use ncurses environment])
 
 ###   Use option --enable-symlinks to make tic use symlinks, not hard links
 ###   to reduce storage requirements for the terminfo database.
@@ -923,9 +947,9 @@ NCURSES_OK_WINT_T=
 
 AC_MSG_CHECKING(if you want wide-character code)
 AC_ARG_ENABLE(widec,
-	[  --enable-widec          compile with wide-char/UTF-8 code],
+	[  --disable-widec         compile without wide character and UTF-8 support],
 	[with_widec=$enableval],
-	[with_widec=no])
+	[with_widec=$cf_dft_widec])
 AC_MSG_RESULT($with_widec)
 
 NCURSES_WCWIDTH_GRAPHICS=1
@@ -935,8 +959,17 @@ if test "x$with_widec" = xyes ; then
 	if test "x$disable_lib_suffixes" = xno ; then
 		LIB_SUFFIX="w${LIB_SUFFIX}"
 	fi
-	AC_DEFINE(USE_WIDEC_SUPPORT,1,[Define to 1 to compile with wide-char/UTF-8 code])
-	AC_DEFINE(NCURSES_WIDECHAR,1,[Define to 1 to compile with wide-char/UTF-8 code])
+	AC_DEFINE(USE_WIDEC_SUPPORT,1,[Define to 1 to compile with wide character and UTF-8 support])
+	AC_DEFINE(NCURSES_WIDECHAR,1,[Define to 1 to compile with wide character and UTF-8 support])
+	case "$CPPFLAGS" in
+	(*_XOPEN_SOURCE=*)
+		;;
+	(*)
+		AC_MSG_WARN(_XOPEN_SOURCE feature test macro appears to be predefined)
+		# CPPFLAGS="$CPPFLAGS -DNCURSES_WIDECHAR"
+		CPPFLAGS_after_XOPEN="$CPPFLAGS_after_XOPEN -DNCURSES_WIDECHAR"
+		;;
+	esac
 
 	CF_CHECK_WCHAR_H
 	CF_CHECK_WCWIDTH_GRAPHICS
@@ -944,7 +977,7 @@ if test "x$with_widec" = xyes ; then
 
 	# with_overwrite=no
 	NCURSES_CH_T=cchar_t
-	AC_CHECK_FUNCS(putwc btowc wctob mbtowc wctomb mblen mbrlen mbrtowc wcsrtombs mbsrtowcs wcstombs mbstowcs)
+	AC_CHECK_FUNCS(putwc btowc wctob wmemchr mbtowc wctomb mblen mbrlen mbrtowc wcsrtombs mbsrtowcs wcstombs mbstowcs)
 	if test "x$ac_cv_func_putwc" != xyes ; then
 		CF_UTF8_LIB
 		if test "$cf_cv_utf8_lib" != no ; then
@@ -1010,72 +1043,66 @@ else
 	with_tic_depends=no
 fi
 
-###   use option --disable-wattr-macros to suppress wattr* macros from curses.h
-AC_MSG_CHECKING(if you want to suppress wattr* macros to help with ncurses5/ncurses6 transition)
+###   use option --enable-wattr-macros to enable wattr* macros in curses.h
+AC_MSG_CHECKING(if you want to enable wattr* macros)
 AC_ARG_ENABLE(wattr-macros,
-	[  --disable-wattr-macros  suppress wattr* macros to help with ncurses5/ncurses6 transition],
+	[  --enable-wattr-macros   enable wattr* macros],
 	[with_wattr_macros=$enableval],
-	[with_wattr_macros=yes])
+	[with_wattr_macros=no])
 if [[ "x$with_wattr_macros" != xyes ]]; then
 	NCURSES_WATTR_MACROS=0
-	AC_MSG_RESULT(yes)
+	AC_MSG_RESULT(no)
 else
 	NCURSES_WATTR_MACROS=1
-	AC_MSG_RESULT(no)
+	AC_MSG_RESULT(yes)
 fi
 AC_SUBST(NCURSES_WATTR_MACROS)
 
 CF_WITH_X11_RGB
 
 ###   use option --with-bool to override bool's type
-AC_MSG_CHECKING(for type of bool)
-AC_ARG_WITH(bool,
-	[  --with-bool=TYPE        override fallback type of bool variable],
-	[NCURSES_BOOL="$withval"],
-	[NCURSES_BOOL=auto])
-AC_MSG_RESULT($NCURSES_BOOL)
-AC_SUBST(NCURSES_BOOL)
+CF_WITH_TYPE(bool,
+	[  --with-bool=TYPE        fall back to TYPE for curses 'bool' typedef],
+	NCURSES_BOOL,
+	auto)
 
 AC_MSG_CHECKING(for alternate terminal capabilities file)
 AC_ARG_WITH(caps,
 	[  --with-caps=alt         compile with alternate Caps file],
 	[TERMINFO_CAPS=Caps.$withval],
 	[TERMINFO_CAPS=Caps])
-test -f "${srcdir}/include/${TERMINFO_CAPS}" || TERMINFO_CAPS=Caps
+if test ! -f "${srcdir}/include/${TERMINFO_CAPS}"
+then
+	AC_MSG_WARN(file not found: "${srcdir}/include/${TERMINFO_CAPS}")
+	TERMINFO_CAPS=Caps
+fi
 AC_MSG_RESULT($TERMINFO_CAPS)
 AC_SUBST(TERMINFO_CAPS)
 
 ###   use option --with-chtype to override chtype's type
-AC_MSG_CHECKING(for type of chtype)
-AC_ARG_WITH(chtype,
+CF_WITH_TYPE(chtype,
 	[  --with-chtype=TYPE      override type of chtype],
-	[NCURSES_CHTYPE="$withval"],
-	[NCURSES_CHTYPE=$cf_dft_chtype])
-AC_MSG_RESULT($NCURSES_CHTYPE)
+	NCURSES_CHTYPE,
+	$cf_dft_chtype)
 
 ###   use option --with-ospeed to override ospeed's type
-AC_MSG_CHECKING(for type of ospeed)
-AC_ARG_WITH(ospeed,
+CF_WITH_TYPE(ospeed,
 	[  --with-ospeed=TYPE      override type of ospeed variable],
-	[NCURSES_OSPEED="$withval"],
-	[NCURSES_OSPEED=short])
-AC_MSG_RESULT($NCURSES_OSPEED)
-AC_SUBST(NCURSES_OSPEED)
+	NCURSES_OSPEED,
+	short)
 
 ###   use option --with-mmask-t to override mmask_t's type
-AC_MSG_CHECKING(for type of mmask_t)
-AC_ARG_WITH(mmask-t,
+CF_WITH_TYPE(mmask-t,
 	[  --with-mmask-t=TYPE     override type of mmask_t],
-	[NCURSES_MMASK_T="$withval"],
-	[NCURSES_MMASK_T=$cf_dft_mmask_t])
-AC_MSG_RESULT($NCURSES_MMASK_T)
+	NCURSES_MMASK_T,
+	$cf_dft_mmask_t)
 
 ###   use option --with-ccharw-max to override CCHARW_MAX size
 AC_MSG_CHECKING(for size CCHARW_MAX)
 AC_ARG_WITH(ccharw-max,
 	[  --with-ccharw-max=XXX   override size CCHARW_MAX],
 	[NCURSES_CCHARW_MAX="$withval"],
-	[NCURSES_CCHARW_MAX=5])
+	[NCURSES_CCHARW_MAX=$cf_dft_ccharw_max])
 AC_MSG_RESULT($NCURSES_CCHARW_MAX)
 AC_SUBST(NCURSES_CCHARW_MAX)
 
@@ -1085,23 +1112,20 @@ if test "$ac_cv_sizeof_signed_char" = 1 ; then
 else
 	NCURSES_SBOOL="char"
 fi
-AC_MSG_CHECKING(if you want to use signed Boolean array in term.h)
+AC_MSG_CHECKING(whether to use signed chars for Boolean array in term.h)
 AC_ARG_ENABLE(signed-char,
-	[  --enable-signed-char    compile using signed Boolean's in term.h],
+	[  --enable-signed-char    use signed chars for Boolean array in term.h],
 	[with_signed_char=$enableval],
-	[with_signed_char=no])
+	[with_signed_char=$cf_dft_signed_char])
 AC_MSG_RESULT($with_signed_char)
 test "x$with_signed_char" != xyes && NCURSES_SBOOL="char"
 AC_SUBST(NCURSES_SBOOL)
 
 ###   use option --with-tparm-arg to override tparm's argument type
-AC_MSG_CHECKING(for type of tparm args)
-AC_ARG_WITH(tparm-arg,
+CF_WITH_TYPE(tparm-arg,
 	[  --with-tparm-arg=TYPE   override parameter type of tparm],
-	[NCURSES_TPARM_ARG="$withval"],
-	[NCURSES_TPARM_ARG=$cf_dft_tparm_arg])
-AC_MSG_RESULT($NCURSES_TPARM_ARG)
-AC_SUBST(NCURSES_TPARM_ARG)
+	NCURSES_TPARM_ARG,
+	$cf_dft_tparm_arg)
 
 ### Enable compiling-in rcs id's
 AC_MSG_CHECKING(if RCS identifiers should be compiled-in)
@@ -1135,7 +1159,6 @@ if test "x$with_ext_funcs" = xyes ; then
 	AC_DEFINE(HAVE_RESIZE_TERM,1,[Define to 1 to enable resize_term() function in test-programs])
 	AC_DEFINE(HAVE_TERM_ENTRY_H,1,[Define to 1 to enable term_entry() function in test-programs])
 	AC_DEFINE(HAVE_USE_DEFAULT_COLORS,1,[Define to 1 to enable use_default_colors() function in test-programs])
-	AC_DEFINE(HAVE_USE_EXTENDED_NAMES,1,[Define to 1 to enable use_extended_names() function in test-programs])
 	AC_DEFINE(HAVE_USE_SCREEN,1,[Define to 1 to enable use_screen() function in test-programs])
 	AC_DEFINE(HAVE_USE_WINDOW,1,[Define to 1 to enable use_window() function in test-programs])
 	AC_DEFINE(HAVE_WRESIZE,1,[Define to 1 to enable wresize() function in test-programs])
@@ -1225,11 +1248,18 @@ AC_ARG_ENABLE(ext-mouse,
 	[with_ext_mouse=$enableval],
 	[with_ext_mouse=$cf_dft_ext_mouse])
 AC_MSG_RESULT($with_ext_mouse)
-NCURSES_MOUSE_VERSION=1
 if test "x$with_ext_mouse" = xyes ; then
-	NCURSES_MOUSE_VERSION=2
 	CF_NCURSES_ABI_6
 fi
+
+if test $cf_cv_abi_default -le 5 ; then
+	NCURSES_MOUSE_VERSION=1
+elif test $cf_cv_abi_default -le 6 ; then
+	NCURSES_MOUSE_VERSION=2
+else
+	NCURSES_MOUSE_VERSION=3
+fi
+
 AC_SUBST(NCURSES_MOUSE_VERSION)
 
 ###   use option --enable-ext-putwin to turn on extended screendumps
@@ -1258,7 +1288,14 @@ AC_ARG_ENABLE(sigwinch,
 	[with_sigwinch=$enableval],
 	[with_sigwinch=$with_ext_funcs])
 AC_MSG_RESULT($with_sigwinch)
-test "x$with_sigwinch" = xyes && AC_DEFINE(USE_SIGWINCH,1,[Define to 1 to compile with SIGWINCH handler])
+if test "x$with_sigwinch" = xyes
+then
+	AC_DEFINE(USE_SIGWINCH,1,[Define to 1 to compile with SIGWINCH handler])
+	cf_cv_enable_sigwinch=1
+else
+	cf_cv_enable_sigwinch=0
+fi
+AC_SUBST(cf_cv_enable_sigwinch)
 
 ###   use option --enable-tcap-names to allow user to define new capabilities
 AC_MSG_CHECKING(if you want user-definable terminal capabilities like termcap)
@@ -1268,7 +1305,10 @@ AC_ARG_ENABLE(tcap-names,
 	[with_tcap_names=$with_ext_funcs])
 AC_MSG_RESULT($with_tcap_names)
 NCURSES_XNAMES=0
-test "x$with_tcap_names" = xyes && NCURSES_XNAMES=1
+if test "x$with_tcap_names" = xyes; then
+	NCURSES_XNAMES=1
+	AC_DEFINE(NCURSES_XNAMES,1,[Define to 1 to compile with user-definable terminal capabilities])
+fi
 AC_SUBST(NCURSES_XNAMES)
 
 ##############################################################################
@@ -1358,19 +1398,19 @@ if test "x$with_reentrant" = xyes ; then
 else
 	cf_cv_enable_reentrant=0
 	cf_cv_enable_opaque="NCURSES_OPAQUE"
-	NCURSES_SIZE_T=short
+	NCURSES_SIZE_T=$cf_dft_ordinate_type
 fi
 AC_SUBST(cf_cv_enable_reentrant)
 AC_SUBST(cf_cv_enable_opaque)
 
 AC_SUBST(NCURSES_SIZE_T)
 
-AC_MSG_CHECKING(if you want opaque curses-library structures)
-CF_ARG_ENABLE(opaque-curses,
-	[  --enable-opaque-curses  make curses WINDOW, etc., "opaque"],
-	[enable_opaque_curses=yes],[
+AC_MSG_CHECKING(whether curses library structures should be opaque)
+CF_ARG_DISABLE(opaque-curses,
+	[  --disable-opaque-curses do not make WINDOW, etc., structures opaque],
+	[enable_opaque_curses=no],[
 	 test "$cf_cv_enable_reentrant" = 1 && enable_opaque_curses=yes
-	 test "$cf_cv_enable_reentrant" = 1 || enable_opaque_curses=no
+	 test "$cf_cv_enable_reentrant" = 1 || enable_opaque_curses=$cf_dft_opaque_curses
 	])
 AC_MSG_RESULT($enable_opaque_curses)
 
@@ -1378,22 +1418,22 @@ test "$cf_cv_enable_reentrant" = 1 && \
 test "$enable_opaque_curses" = no && \
 AC_MSG_ERROR(reentrant configuration requires opaque library)
 
-AC_MSG_CHECKING(if you want opaque form-library structures)
-AC_ARG_ENABLE(opaque-form,
-	[  --enable-opaque-form    make form-library structures "opaque"],
-	[enable_opaque_form=yes],[enable_opaque_form=no])
+AC_MSG_CHECKING(whether form library structures should be opaque)
+CF_ARG_DISABLE(opaque-form,
+	[  --disable-opaque-form   do not make form library structures opaque],
+	[enable_opaque_form=no],[enable_opaque_form=$cf_dft_opaque_curses])
 AC_MSG_RESULT($enable_opaque_form)
 
-AC_MSG_CHECKING(if you want opaque menu-library structures)
-AC_ARG_ENABLE(opaque-menu,
-	[  --enable-opaque-menu    make menu-library structures "opaque"],
-	[enable_opaque_menu=yes],[enable_opaque_menu=no])
+AC_MSG_CHECKING(whether menu library structures should be opaque)
+CF_ARG_DISABLE(opaque-menu,
+	[  --disable-opaque-menu   do not make menu library structures opaque],
+	[enable_opaque_menu=no],[enable_opaque_menu=$cf_dft_opaque_curses])
 AC_MSG_RESULT($enable_opaque_menu)
 
-AC_MSG_CHECKING(if you want opaque panel-library structures)
-AC_ARG_ENABLE(opaque-panel,
-	[  --enable-opaque-panel   make panel-library structures "opaque"],
-	[enable_opaque_panel=yes],[enable_opaque_panel=no])
+AC_MSG_CHECKING(whether panel library structures should be opaque)
+CF_ARG_DISABLE(opaque-panel,
+	[  --disable-opaque-panel  do not make panel library structures opaque],
+	[enable_opaque_panel=no],[enable_opaque_panel=$cf_dft_opaque_curses])
 AC_MSG_RESULT($enable_opaque_panel)
 
 NCURSES_OPAQUE=0;		test "$enable_opaque_curses" = yes && NCURSES_OPAQUE=1
@@ -1429,6 +1469,14 @@ AC_ARG_WITH(develop,
 	[with_develop=$withval],
 	[with_develop=no])
 AC_MSG_RESULT($with_develop)
+
+###   use option --enable-check-size to detect screensize with CPR
+AC_MSG_CHECKING(if you want to check screensize of serial terminals)
+AC_ARG_ENABLE(check-size,
+	[  --enable-check-size     compile-in code to detect screensize of serial terminals],,
+	[enable_check_size=$with_develop])
+AC_MSG_RESULT($enable_check_size)
+test "x$enable_check_size" = xyes && AC_DEFINE(USE_CHECK_SIZE,1,[Define to 1 to compile-in code to detect screensize])
 
 ###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
 AC_MSG_CHECKING(if you want hard-tabs code)
@@ -1616,7 +1664,7 @@ AC_SUBST(INSTALL_OPT_P)
 CF_ENABLE_WARNINGS(Wno-unknown-pragmas Wswitch-enum,yes)
 
 if test "x$enable_warnings" = "xyes"; then
- 	CF_ADD_ADAFLAGS(-gnatg)
+ 	CF_ADD_ADAFLAGS(-gnatwa -gnatyg)
 	if test "x$cf_with_cxx" = xyes ; then
 		CF_GXX_WARNINGS(Wno-unused)
 	fi
@@ -1687,20 +1735,15 @@ CF_DISABLE_GNAT_PROJECTS
 ###	Checks for libraries.
 case "$cf_cv_system_name" in
 (*mingw32*|*mingw64*)
-	if test "x$with_exp_win32" = xyes ; then
-	CPPFLAGS="$CPPFLAGS -DWINVER=0x0600 -DWIN32_LEAN_AND_MEAN"
-	else
-	CPPFLAGS="$CPPFLAGS -DWINVER=0x0501 -DWIN32_LEAN_AND_MEAN"
-	fi
 	# Note: WINVER may be a problem with Windows 10
+	if test "x$with_exp_win32" = xyes ; then
+		CPPFLAGS="$CPPFLAGS -DWINVER=0x0600 -DWIN32_LEAN_AND_MEAN"
+	else
+		CPPFLAGS="$CPPFLAGS -DWINVER=0x0501 -DWIN32_LEAN_AND_MEAN"
+	fi
+	CF_CHECK_LIBSSP
 	;;
 (*)
-AC_CHECK_FUNC(gettimeofday,
-	AC_DEFINE(HAVE_GETTIMEOFDAY,1,[Define to 1 if we have gettimeofday function]),[
-
-AC_CHECK_LIB(bsd, gettimeofday,
-	AC_DEFINE(HAVE_GETTIMEOFDAY,1,[Define to 1 if we have gettimeofday function])
-	CF_ADD_LIB(bsd))])dnl CLIX: bzero, select, gettimeofday
 	;;
 esac
 
@@ -1708,8 +1751,6 @@ CF_MATH_LIB(MATH_LIB,pow(sin(x),x))
 AC_SUBST(MATH_LIB)
 
 ###	Checks for header files.
-AC_STDC_HEADERS
-AC_HEADER_DIRENT
 AC_HEADER_TIME
 CF_REGEX
 
@@ -1721,13 +1762,13 @@ limits.h \
 locale.h \
 math.h \
 poll.h \
+sys/auxv.h \
 sys/ioctl.h \
 sys/param.h \
 sys/poll.h \
 sys/select.h \
 sys/time.h \
 sys/times.h \
-ttyent.h \
 unistd.h \
 wctype.h \
 )
@@ -1777,21 +1818,23 @@ CF_ERRNO
 CF_LINK_DATAONLY
 
 ###	Checks for library functions.
+CF_FUNC_GETTIME
 AC_CHECK_FUNCS( \
+fpathconf \
 getcwd \
+getauxval \
 getegid \
 geteuid \
 getopt \
-getttynam \
+getuid \
 issetugid \
 localeconv \
 poll \
-putenv \
 remove \
 select \
 setbuf \
 setbuffer \
-setenv \
+setfsuid \
 setvbuf \
 sigaction \
 sigvec \
@@ -1804,6 +1847,8 @@ times \
 tsearch \
 vsnprintf \
 )
+
+CF_FUNC_GETTTYNAM
 
 if test "x$ac_cv_func_getopt" = xno && \
    test "x$cf_with_progs$cf_with_tests" != xnono; then
@@ -1846,6 +1891,7 @@ CF_TYPE_SIGACTION
 CF_SIZECHANGE
 CF_FUNC_MEMMOVE
 CF_FUNC_POLL
+CF_MB_LEN_MAX
 CF_VA_COPY
 AC_FUNC_VFORK
 CF_FOPEN_BIN_R
@@ -1899,6 +1945,7 @@ if test -n "$CXX" ; then
 	CF_BOOL_DECL
 	CF_BOOL_SIZE
 	CF_ETIP_DEFINES
+	CF_CPP_OVERRIDE
 	CF_CPP_PARAM_INIT
 	CF_CPP_STATIC_CAST
 	CF_CXX_AR_FLAGS
@@ -2293,14 +2340,11 @@ AC_SUBST(TICS_LIST)
 AC_SUBST(TINFO_LIST)
 AC_SUBST(SHLIB_LIST)
 
-# used to separate tack out of the tree
-NCURSES_TREE=
-AC_SUBST(NCURSES_TREE)
-
 ### predefined stuff for the test programs
 AC_DEFINE(HAVE_SLK_COLOR,1,[Define to 1 if we have slk_color for test-programs])
 
 # pkgsrc uses these
+CF_HELP_MESSAGE(Library basenames for pkgsrc:)
 CF_WITH_LIB_BASENAME(FORM_NAME,form)
 CF_WITH_LIB_BASENAME(MENU_NAME,menu)
 CF_WITH_LIB_BASENAME(PANEL_NAME,panel)
@@ -2382,7 +2426,7 @@ esac
 
 # Help to automatically enable the extended curses features when using either
 # the *-config or the ".pc" files by adding defines.
-AC_MSG_CHECKING(for defines to add to ncurses${USE_CFG_SUFFIX}-config script)
+AC_MSG_CHECKING(for defines to add to ncurses${USE_CFG_SUFFIX}${cf_config_suffix}-config script)
 PKG_CFLAGS=
 for cf_loop1 in $CPPFLAGS_after_XOPEN
 do
@@ -2457,7 +2501,7 @@ cf_filter_syms=no
 if test -n "$RESULTING_SYMS"
 then
 	cf_filter_syms=$cf_dft_filter_syms
-	CF_VERBOSE(will map symbols to ABI=$cf_cv_abi_version)
+	CF_VERBOSE(will map symbols to ABI=$cf_cv_abi_default)
 fi
 
 if test "x$WILDCARD_SYMS" = xno
@@ -2488,20 +2532,20 @@ AC_SUBST(PRIVATE_LIBS)
 # This is used for the *-config script and *.pc data files.
 CF_LD_SEARCHPATH
 
-AC_DEFINE(HAVE_CURSES_DATA_BOOLNAMES,1,[definition needed for in-tree build of tack])
-
 AC_OUTPUT( \
 	include/MKterm.h.awk \
 	include/curses.head:include/curses.h.in \
 	include/ncurses_dll.h \
 	include/termcap.h \
 	include/unctrl.h \
+	man/man_db.renames \
 	$SUB_MAKEFILES \
 	Makefile,[
 if test "x$cf_with_tests" != xno ; then
 	CF_PRG_RULES(["$srcdir/test/mk-test.awk" INSTALL=no ECHO_LINK="$ECHO_LD"], test)
 fi
 CF_LIB_RULES($SRC_SUBDIRS)
+CF_OUTPUT_MANPAGE_RENAMES
 
 if test "x$cf_with_ada" = "xyes" && test "x$cf_cv_prog_gnat_correct" = "xyes"; then
 if test -z "$USE_OLD_MAKERULES" ; then
@@ -2529,6 +2573,7 @@ LIB_SUFFIX="$LIB_SUFFIX"
 LIB_TRACING="$LIB_TRACING"
 LN_S="$LN_S"
 MAKE_TERMINFO="$MAKE_TERMINFO"
+MANPAGE_RENAMES="$MANPAGE_RENAMES"
 MENU_NAME="$MENU_NAME"
 NCURSES_MAJOR="$NCURSES_MAJOR"
 NCURSES_MINOR="$NCURSES_MINOR"
@@ -2558,12 +2603,14 @@ WITH_OVERWRITE="$with_overwrite"
 cf_LIST_MODELS="$cf_list_models"
 cf_cv_VERSION_GNATMAKE=$cf_cv_VERSION_GNATMAKE
 cf_cv_VERSION_GPRBUILD=$cf_cv_VERSION_GPRBUILD
+cf_cv_abi_default="$cf_cv_abi_default"
 cf_cv_abi_version="$cf_cv_abi_version"
 cf_cv_do_relink="$cf_cv_do_relink"
 cf_cv_do_reranlib="$cf_cv_do_reranlib"
 cf_cv_do_symlinks="$cf_cv_do_symlinks"
 cf_cv_enable_lp64="$cf_cv_enable_lp64"
 cf_cv_enable_opaque="$cf_cv_enable_opaque"
+cf_cv_make_PHONY="$cf_cv_make_PHONY"
 cf_cv_prog_CC_c_o=$cf_cv_prog_CC_c_o
 cf_cv_prog_CXX_c_o=$cf_cv_prog_CXX_c_o
 cf_cv_prog_gnat_correct=$cf_cv_prog_gnat_correct
@@ -2581,6 +2628,7 @@ cf_with_manpages="$cf_with_manpages"
 cf_with_tests="$cf_with_tests"
 host="$host"
 target="$target"
+verbose="$verbose"
 with_shared_cxx="$with_shared_cxx"
 
 ],cat)dnl

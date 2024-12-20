@@ -350,10 +350,10 @@ static void
 report_operation(uint32_t fibnum, struct rib_cmd_info *rc,
     struct nlpcb *nlp, struct nlmsghdr *hdr)
 {
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 	uint32_t group_id = family_to_group(rt_get_family(rc->rc_rt));
 
-	if (nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id)) {
+	if (nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id, false)) {
 		struct route_nhop_data rnd = {
 			.rnd_nhop = rc_get_nhop(rc),
 			.rnd_weight = rc->rc_nh_weight,
@@ -475,6 +475,7 @@ struct nl_parsed_route {
 	uint32_t		rta_nh_id;
 	uint32_t		rta_weight;
 	uint32_t		rtax_mtu;
+	uint8_t			rtm_table;
 	uint8_t			rtm_family;
 	uint8_t			rtm_dst_len;
 	uint8_t			rtm_protocol;
@@ -507,6 +508,7 @@ static const struct nlfield_parser nlf_p_rtmsg[] = {
 	{ .off_in = _IN(rtm_dst_len), .off_out = _OUT(rtm_dst_len), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_protocol), .off_out = _OUT(rtm_protocol), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_type), .off_out = _OUT(rtm_type), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_table), .off_out = _OUT(rtm_table), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_flags), .off_out = _OUT(rtm_flags), .cb = nlf_get_u32 },
 };
 #undef _IN
@@ -937,7 +939,10 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (EINVAL);
 	}
 
-	if (attrs.rta_table >= V_rt_numfibs) {
+	if (attrs.rtm_table > 0 && attrs.rta_table == 0) {
+		/* pre-2.6.19 Linux API compatibility */
+		attrs.rta_table = attrs.rtm_table;
+	} else if (attrs.rta_table >= V_rt_numfibs) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}
@@ -1038,7 +1043,7 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 void
 rtnl_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 {
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 	int family, nlm_flags = 0;
 
 	family = rt_get_family(rc->rc_rt);
@@ -1077,7 +1082,8 @@ rtnl_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 	};
 
 	uint32_t group_id = family_to_group(family);
-	if (!nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id)) {
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating event buffer");
 		return;
 	}
@@ -1113,5 +1119,5 @@ void
 rtnl_routes_init(void)
 {
 	NL_VERIFY_PARSERS(all_parsers);
-	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
+	rtnl_register_messages(cmd_handlers, nitems(cmd_handlers));
 }

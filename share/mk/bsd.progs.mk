@@ -155,6 +155,7 @@ $p.$t: .PHONY .MAKE ${_PROGS_COMMON_OBJS}
 	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
 	    ${_PROG_MK.${t}} PROG=$p ${x.$p} ${@:E})
 .endfor
+.ORDER: installdirs $p.install
 .endfor
 
 # Depend main pseudo targets on all PROG.pseudo targets too.

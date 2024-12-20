@@ -39,6 +39,7 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 
 .if ${group} == "FILES"
 FILESPACKAGE?=	${PACKAGE:Uutilities}
+FILESTAGS+=	${TAGS}
 .endif
 
 .if defined(NO_ROOT)

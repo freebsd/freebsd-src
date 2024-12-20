@@ -89,11 +89,12 @@ run()
 # $1 directory
 # $2 source filename w/o extension
 # $3 source extension
+# $4 optional regex for egrep -w
 clean_dep()
 {
 	for libcompat in "" $ALL_libcompats; do
 		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		if egrep -qw "$2\.$3" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
+		if egrep -qw "${4:-$2\.$3}" "$OBJTOP"/$dirprfx$1/.depend.$2.*o 2>/dev/null; then
 			echo "Removing stale ${libcompat:+lib${libcompat} }dependencies and objects for $2.$3"
 			run rm -f \
 			    "$OBJTOP"/$dirprfx$1/.depend.$2.* \
@@ -103,57 +104,6 @@ clean_dep()
 }
 
 # Date      Rev      Description
-# 20200310  r358851  rename of openmp's ittnotify_static.c to .cpp
-clean_dep lib/libomp ittnotify_static c
-# 20200414  r359930  closefrom
-clean_dep lib/libc   closefrom S
-
-# 20200826  r364746  OpenZFS merge, apply a big hammer (remove whole tree)
-if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
-    egrep -qw "cddl/contrib/opensolaris/lib/libzfs/common/libzfs_changelist.c" \
-    "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o; then
-	echo "Removing old ZFS tree"
-	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		run rm -rf "$OBJTOP"/${dirprfx}cddl
-	done
-fi
-
-# 20200916  WARNS bumped, need bootstrapped crunchgen stubs
-if [ -e "$OBJTOP"/rescue/rescue/rescue.c ] && \
-    ! grep -q 'crunched_stub_t' "$OBJTOP"/rescue/rescue/rescue.c; then
-	echo "Removing old rescue(8) tree"
-	run rm -rf "$OBJTOP"/rescue/rescue
-fi
-
-# 20210105  fda7daf06301   pfctl gained its own version of pf_ruleset.c
-if [ -e "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o ] && \
-    egrep -qw "sys/netpfil/pf/pf_ruleset.c" \
-    "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o; then
-	echo "Removing old pf_ruleset dependecy file"
-	run rm -rf "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o
-fi
-
-# 20210108  821aa63a0940   non-widechar version of ncurses removed
-if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
-	echo "Removing stale ncurses objects"
-	for libcompat in "" $ALL_libcompats; do
-		dirprfx=${libcompat:+obj-lib${libcompat}/}
-		run rm -rf "$OBJTOP"/${dirprfx}lib/ncurses
-	done
-fi
-
-# 20210608  f20893853e8e    move from atomic.S to atomic.c
-clean_dep   cddl/lib/libspl atomic S
-# 20211207  cbdec8db18b5    switch to libthr-friendly pdfork
-clean_dep   lib/libc        pdfork S
-
-# 20211230  5e6a2d6eb220    libc++.so.1 path changed in ldscript
-if [ -e "$OBJTOP"/lib/libc++/libc++.ld ] && \
-    fgrep -q "/usr/lib/libc++.so" "$OBJTOP"/lib/libc++/libc++.ld; then
-	echo "Removing old libc++ linker script"
-	run rm -f "$OBJTOP"/lib/libc++/libc++.ld
-fi
 
 # 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
 if [ "$MACHINE_ARCH" = "amd64" ]; then
@@ -222,16 +172,70 @@ clean_dep   lib/libc        statfs        c
 # 20240308  e6ffc7669a56    Remove pointless MD syscall(2)
 # 20240308  0ee0ae237324    Remove pointless MD syscall(2)
 # 20240308  7b3836c28188    Remove pointless MD syscall(2)
-if [ ${MACHINE} != i386 -a -f "$OBJTOP"/lib/libsys/.depend.syscall.o ] && \
-    grep -q -e 'libsys/[^ /]*/syscall.S' "$OBJTOP"/lib/libsys/.depend.syscall.*; then
-	echo "Removing stale <arch>/syscall.S depends"
-	clean_dep   lib/libsys  syscall S
-	clean_dep   lib/libc    syscall S
+if [ ${MACHINE} != i386 ]; then
+	libcompats=
+	for libcompat in $ALL_libcompats; do
+		if [ $MACHINE = amd64 ] && [ $libcompat = 32 ]; then
+			continue
+		fi
+		libcompats="${libcompats+$libcompats }$libcompat"
+	done
+	ALL_libcompats="$libcompats" clean_dep   lib/libsys  syscall S ".*/syscall\.S"
+	ALL_libcompats="$libcompats" clean_dep   lib/libc    syscall S ".*/syscall\.S"
 fi
 
 # 20240416  2fda3ab0ac19    WITH_NVME: Remove from broken
 if [ -f "$OBJTOP"/rescue/rescue/rescue.mk ] && \
-    grep -q -v 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
+    ! grep -q 'nvme_util.o' "$OBJTOP"/rescue/rescue/rescue.mk; then
 	echo "removing rescue.mk without nvme_util.o"
-	rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+	run rm -f "$OBJTOP"/rescue/rescue/rescue.mk
+fi
+
+# 20240910  e2df9bb44109
+clean_dep   cddl/lib/libzpool abd_os c "linux/zfs/abd_os\.c"
+
+# 20241007
+clean_dep   cddl/lib/libzpool zfs_debug c "linux/zfs/zfs_debug\.c"
+
+# 20241011
+clean_dep   cddl/lib/libzpool arc_os c "linux/zfs/arc_os\.c"
+
+# 20241018  1363acbf25de    libc/csu: Support IFUNCs on riscv
+if [ ${MACHINE} = riscv ]; then
+	for f in "$OBJTOP"/lib/libc/.depend.libc_start1.*o; do
+		if [ ! -f "$f" ]; then
+			continue
+		fi
+		if ! grep -q 'lib/libc/csu/riscv/reloc\.c' "$f"; then
+			echo "Removing stale dependencies and objects for libc_start1.c"
+			run rm -f \
+			    "$OBJTOP"/lib/libc/.depend.libc_start1.* \
+			    "$OBJTOP"/lib/libc/libc_start1.*o
+			break
+		fi
+	done
+fi
+
+# 20241018  5deeebd8c6ca   Merge llvm-project release/19.x llvmorg-19.1.2-0-g7ba7d8e2f7b6
+p="$OBJTOP"/lib/clang/libclang/clang/Basic
+f="$p"/arm_mve_builtin_sema.inc
+if [ -e "$f" ]; then
+	if grep -q SemaBuiltinConstantArgRange "$f"; then
+		echo "Removing pre-llvm19 clang-tblgen output"
+		run rm -f "$p"/*.inc
+	fi
+fi
+
+# 20241025  cb5e41b16083  Unbundle hash functions fom lib/libcrypt
+clean_dep   lib/libcrypt crypt-md5    c
+clean_dep   lib/libcrypt crypt-nthash c
+clean_dep   lib/libcrypt crypt-sha256 c
+clean_dep   lib/libcrypt crypt-sha512 c
+
+# 20241213  b55f5e1c4ae3  jemalloc: Move generated jemalloc.3 into lib/libc tree
+if [ -h "$OBJTOP"/lib/libc/jemalloc.3 ]; then
+	# Have to cleanup the jemalloc.3 in the obj tree since make gets
+	# confused and won't use the one in lib/libc/malloc/jemalloc/jemalloc.3
+	echo "Removing stale jemalloc.3 object"
+	run rm -f "$OBJTOP"/lib/libc/jemalloc.3
 fi

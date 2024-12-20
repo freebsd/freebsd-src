@@ -1,4 +1,3 @@
-
 MAKESRCPATH=	${SRCTOP}/sys/dev/aic7xxx/aicasm
 
 install:

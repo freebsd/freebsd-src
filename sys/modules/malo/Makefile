@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/malo
 
 KMOD    = if_malo

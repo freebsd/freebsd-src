@@ -1014,7 +1014,7 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m,
 
 	/* NB: m_len known to be sufficient */
 	wh = mtod(m, struct ieee80211_qosframe *);
-	if (wh->i_fc[0] != IEEE80211_FC0_QOSDATA) {
+	if (!IEEE80211_IS_QOSDATA(wh)) {
 		/*
 		 * Not QoS data, shouldn't get here but just
 		 * return it to the caller for processing.
@@ -1473,7 +1473,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI20;
 	if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
 		ni->ni_htcap |= IEEE80211_HTCAP_CHWIDTH40;
-		ni->ni_chw = 40;
+		ni->ni_chw = IEEE80211_STA_RX_BW_40;
 		if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
 			ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_ABOVE;
 		else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))
@@ -1481,7 +1481,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		if (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40)
 			ni->ni_htcap |= IEEE80211_HTCAP_SHORTGI40;
 	} else {
-		ni->ni_chw = 20;
+		ni->ni_chw = IEEE80211_STA_RX_BW_20;
 		ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_NONE;
 	}
 	ni->ni_htctlchan = ni->ni_chan->ic_ieee;
@@ -1577,7 +1577,7 @@ ieee80211_ht_node_join(struct ieee80211_node *ni)
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		vap->iv_ht_sta_assoc++;
-		if (ni->ni_chw == 40)
+		if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 			vap->iv_ht40_sta_assoc++;
 	}
 	htinfo_update(vap);
@@ -1595,7 +1595,7 @@ ieee80211_ht_node_leave(struct ieee80211_node *ni)
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		vap->iv_ht_sta_assoc--;
-		if (ni->ni_chw == 40)
+		if (ni->ni_chw == IEEE80211_STA_RX_BW_40)
 			vap->iv_ht40_sta_assoc--;
 	}
 	htinfo_update(vap);
@@ -1823,7 +1823,8 @@ htinfo_update_chw(struct ieee80211_node *ni, int htflags, int vhtflags)
 
 done:
 	/* update node's (11n) tx channel width */
-	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
+	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan) ?
+	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 	return (ret);
 }
 
@@ -2594,16 +2595,21 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 
 static int
 ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
+	const struct ieee80211_frame *wh __unused,
+	const uint8_t *frm, const uint8_t *efrm __unused)
 {
 	int chw;
 
-	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ? 40 : 20;
+	/* If 20/40 is not supported the chw cannot change. */
+	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) == 0)
+		return (0);
+
+	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ?
+	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "%s: HT txchwidth, width %d%s",
-	    __func__, chw, ni->ni_chw != chw ? "*" : "");
+	    "%s: HT txchwidth, width %b%s",
+	    __func__, chw, IEEE80211_NI_CHW_BITS, ni->ni_chw != chw ? "*" : "");
 	if (chw != ni->ni_chw) {
 		/* XXX does this need to change the ht40 station count? */
 		ni->ni_chw = chw;
@@ -3603,4 +3609,144 @@ ieee80211_add_htinfo_vendor(uint8_t *frm, struct ieee80211_node *ni)
 	frm[4] = (BCM_OUI >> 16) & 0xff;
 	frm[5] = BCM_OUI_HTINFO;
 	return ieee80211_add_htinfo_body(frm + 6, ni);
+}
+
+/*
+ * Get the HT density for the given 802.11n node.
+ *
+ * Take into account the density advertised from the peer.
+ * Larger values are longer A-MPDU density spacing values, and
+ * we want to obey them per station if we get them.
+ */
+int
+ieee80211_ht_get_node_ampdu_density(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	int peer_mpdudensity;
+
+	vap = ni->ni_vap;
+	peer_mpdudensity =
+	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+	if (vap->iv_ampdu_density > peer_mpdudensity)
+		peer_mpdudensity = vap->iv_ampdu_density;
+	return (peer_mpdudensity);
+}
+
+/*
+ * Get the transmit A-MPDU limit for the given 802.11n node.
+ *
+ * Take into account the limit advertised from the peer.
+ * Smaller values indicate smaller maximum A-MPDU sizes, and
+ * should be used when forming an A-MPDU to the given peer.
+ */
+int
+ieee80211_ht_get_node_ampdu_limit(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	int peer_mpdulimit;
+
+	vap = ni->ni_vap;
+	peer_mpdulimit =
+	    _IEEE80211_MASKSHIFT(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
+
+	return (MIN(vap->iv_ampdu_limit, peer_mpdulimit));
+}
+
+/*
+ * Return true if short-GI is available when transmitting to
+ * the given node at 20MHz.
+ *
+ * Ensure it's configured and available in the VAP / driver as
+ * well as the node.
+ */
+bool
+ieee80211_ht_check_tx_shortgi_20(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211com *ic;
+
+	if (! ieee80211_ht_check_tx_ht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	ic = ni->ni_ic;
+
+	return ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20));
+}
+
+/*
+ * Return true if short-GI is available when transmitting to
+ * the given node at 40MHz.
+ *
+ * Ensure it's configured and available in the VAP / driver as
+ * well as the node and BSS.
+ */
+bool
+ieee80211_ht_check_tx_shortgi_40(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211com *ic;
+
+	if (! ieee80211_ht_check_tx_ht40(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	ic = ni->ni_ic;
+
+	return ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40) &&
+	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40));
+}
+
+/*
+ * Return true if HT rates can be used for the given node.
+ *
+ * There are some situations seen in the wild, wild past where
+ * HT APs would announce HT but no HT rates.
+ */
+bool
+ieee80211_ht_check_tx_ht(const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap;
+	const struct ieee80211_channel *bss_chan;
+
+	if (ni == NULL || ni->ni_chan == IEEE80211_CHAN_ANYC ||
+	    ni->ni_vap == NULL || ni->ni_vap->iv_bss == NULL)
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	if (bss_chan == IEEE80211_CHAN_ANYC)
+		return (false);
+
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
+	    ni->ni_htrates.rs_nrates == 0)
+		return (false);
+	return (IEEE80211_IS_CHAN_HT(ni->ni_chan));
+}
+
+/*
+ * Return true if HT40 rates can be transmitted to the given node.
+ *
+ * This verifies that the BSS is HT40 capable and the current
+ * node channel width is 40MHz.
+ */
+bool
+ieee80211_ht_check_tx_ht40(const struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211_channel *bss_chan;
+
+	if (! ieee80211_ht_check_tx_ht(ni))
+		return (false);
+
+	vap = ni->ni_vap;
+	bss_chan = vap->iv_bss->ni_chan;
+
+	return (IEEE80211_IS_CHAN_HT40(bss_chan) &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan) &&
+	    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
 }

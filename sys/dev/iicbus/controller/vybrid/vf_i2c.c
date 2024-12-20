@@ -184,7 +184,7 @@ vf_i2c_attach_common(device_t dev)
 
 	mtx_unlock(&sc->mutex);
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child");
@@ -193,7 +193,7 @@ vf_i2c_attach_common(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -207,13 +207,6 @@ i2c_detach(device_t dev)
 	sc = device_get_softc(dev);
 	vf_i2c_dbg(sc, "i2c detach\n");
 
-	mtx_lock(&sc->mutex);
-
-	if (sc->freq == 0) {
-		vf_i2c_dbg(sc, "Writing 0x00 to clock divider register\n");
-		WRITE1(sc, I2C_IBFD, 0x00);
-	}
-
 	error = bus_generic_detach(dev);
 	if (error != 0) {
 		device_printf(dev, "cannot detach child devices.\n");
@@ -224,6 +217,13 @@ i2c_detach(device_t dev)
 	if (error != 0) {
 		device_printf(dev, "could not delete iicbus child.\n");
 		return (error);
+	}
+
+	mtx_lock(&sc->mutex);
+
+	if (sc->freq == 0) {
+		vf_i2c_dbg(sc, "Writing 0x00 to clock divider register\n");
+		WRITE1(sc, I2C_IBFD, 0x00);
 	}
 
 	bus_release_resources(dev, i2c_spec, sc->res);

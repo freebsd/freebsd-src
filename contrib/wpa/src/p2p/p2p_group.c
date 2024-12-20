@@ -579,7 +579,7 @@ static int p2p_group_remove_member(struct p2p_group *group, const u8 *addr)
 	m = group->members;
 	prev = NULL;
 	while (m) {
-		if (os_memcmp(m->addr, addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(m->addr, addr))
 			break;
 		prev = m;
 		m = m->next;
@@ -785,11 +785,11 @@ int p2p_group_match_dev_id(struct p2p_group *group, struct wpabuf *p2p)
 	if (!msg.device_id)
 		return 1; /* No filter on Device ID */
 
-	if (os_memcmp(msg.device_id, group->p2p->cfg->dev_addr, ETH_ALEN) == 0)
+	if (ether_addr_equal(msg.device_id, group->p2p->cfg->dev_addr))
 		return 1; /* Match with our P2P Device Address */
 
 	for (m = group->members; m; m = m->next) {
-		if (os_memcmp(msg.device_id, m->dev_addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(msg.device_id, m->dev_addr))
 			return 1; /* Match with group client P2P Device Address */
 	}
 
@@ -844,7 +844,7 @@ static struct p2p_group_member * p2p_group_get_client(struct p2p_group *group,
 	struct p2p_group_member *m;
 
 	for (m = group->members; m; m = m->next) {
-		if (os_memcmp(dev_id, m->dev_addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(dev_id, m->dev_addr))
 			return m;
 	}
 
@@ -872,7 +872,7 @@ static struct p2p_group_member * p2p_group_get_client_iface(
 	struct p2p_group_member *m;
 
 	for (m = group->members; m; m = m->next) {
-		if (os_memcmp(interface_addr, m->addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(interface_addr, m->addr))
 			return m;
 	}
 
@@ -1038,7 +1038,7 @@ int p2p_group_is_client_connected(struct p2p_group *group, const u8 *dev_addr)
 	struct p2p_group_member *m;
 
 	for (m = group->members; m; m = m->next) {
-		if (os_memcmp(m->dev_addr, dev_addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(m->dev_addr, dev_addr))
 			return 1;
 	}
 
@@ -1051,7 +1051,7 @@ int p2p_group_is_group_id_match(struct p2p_group *group, const u8 *group_id,
 {
 	if (group_id_len != ETH_ALEN + group->cfg->ssid_len)
 		return 0;
-	if (os_memcmp(group_id, group->p2p->cfg->dev_addr, ETH_ALEN) != 0)
+	if (!ether_addr_equal(group_id, group->p2p->cfg->dev_addr))
 		return 0;
 	return os_memcmp(group_id + ETH_ALEN, group->cfg->ssid,
 			 group->cfg->ssid_len) == 0;

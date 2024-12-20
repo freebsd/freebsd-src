@@ -34,9 +34,14 @@ ${CC} -x assembler-with-cpp -DLOCORE -fPIC -nostdinc -c -m32 \
    -o ia32_sigtramp.pico -I. -I"${S}" -include opt_global.h \
    "${S}"/amd64/ia32/ia32_sigtramp.S
 
+if ${LD} --version | ${AWK} '/^GNU ld/{exit 1}' ; then
+    RODYNAMIC="-z rodynamic"
+else
+    RODYNAMIC=""
+fi
 ${LD} --shared -Bsymbolic -soname="elf-vdso32.so.1" \
    -T "${S}"/conf/vdso_amd64_ia32.ldscript \
-   --eh-frame-hdr --no-undefined -z rodynamic -z norelro -nmagic \
+   --eh-frame-hdr --no-undefined ${RODYNAMIC} -z norelro -nmagic \
    --hash-style=sysv --fatal-warnings --strip-all \
    -o elf-vdso32.so.1 ia32_sigtramp.pico
 

@@ -120,13 +120,13 @@ static int fuse_device_filt_read(struct knote *kn, long hint);
 static int fuse_device_filt_write(struct knote *kn, long hint);
 static void fuse_device_filt_detach(struct knote *kn);
 
-struct filterops fuse_device_rfiltops = {
+static const struct filterops fuse_device_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = fuse_device_filt_detach,
 	.f_event = fuse_device_filt_read,
 };
 
-struct filterops fuse_device_wfiltops = {
+static const struct filterops fuse_device_wfiltops = {
 	.f_isfd = 1,
 	.f_event = fuse_device_filt_write,
 };
@@ -439,7 +439,6 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	err = devfs_get_cdevpriv((void **)&data);
 	if (err != 0)
 		return (err);
-	mp = data->mp;
 
 	if (uio->uio_resid < sizeof(struct fuse_out_header)) {
 		SDT_PROBE2(fusefs, , device, trace, 1,
@@ -542,6 +541,13 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 	} else if (ohead.unique == 0){
 		/* unique == 0 means asynchronous notification */
 		SDT_PROBE1(fusefs, , device, fuse_device_write_notify, &ohead);
+		mp = data->mp;
+		vfs_ref(mp);
+		err = vfs_busy(mp, 0);
+		vfs_rel(mp);
+		if (err)
+			return (err);
+
 		switch (ohead.error) {
 		case FUSE_NOTIFY_INVAL_ENTRY:
 			err = fuse_internal_invalidate_entry(mp, uio);
@@ -566,6 +572,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			/* Not implemented */
 			err = ENOSYS;
 		}
+		vfs_unbusy(mp);
 	} else {
 		/* no callback at all! */
 		SDT_PROBE1(fusefs, , device, fuse_device_write_missing_ticket, 

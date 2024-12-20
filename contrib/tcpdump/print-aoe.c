@@ -31,9 +31,7 @@
  * https://web.archive.org/web/20161025044402/http://brantleycoilecompany.com/AoEr11.pdf
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 

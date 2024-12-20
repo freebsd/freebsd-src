@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 26, 2024
+.Dd August 21, 2024
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -435,7 +435,7 @@ PCI 16550 serial device.
 .It Cm lpc
 LPC PCI-ISA bridge with COM1, COM2, COM3, and COM4 16550 serial ports,
 a boot ROM, and,
-optionally, a fwcfg type, and the debug/test device.
+optionally, a TPM module, a fwcfg type, and the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
 .It Cm fbuf
 Raw framebuffer device attached to VNC server.
@@ -620,6 +620,13 @@ the
 process.
 .It Ar /dev/xxx
 Use the host TTY device for serial port I/O.
+.It Ar tcp=ip:port
+Use the TCP server for serial port I/O.
+Configuring this option will start a TCP server that waits for connections.
+Only one connection is allowed at any time. Other connection try to connect
+to TCP server will be disconnected immediately. Note that this feature
+allows unprivileged users to access the guest console, so ensure that
+access is appropriately restricted.
 .El
 .Ss TPM device backends
 .Bl -bullet
@@ -629,17 +636,25 @@ Use the host TTY device for serial port I/O.
 .Sm on
 .El
 .Pp
-Emulate a TPM device. The argument
-.Ar path
-needs to point to a valid TPM device path, i.e.
-.Pa /dev/tpm0 .
-.El
-.Pp
+Emulate a TPM device.
 Supported options for
 .Ar type :
 .Bl -tag -width 10n
 .It Cm passthru
-pass a physical TPM device through to the guest
+Use a physical TPM device.
+The argument
+.Ar path
+needs to point to a valid TPM device path, i.e.
+.Pa /dev/tpm0 .
+.It Cm swtpm
+Connect to a running
+.Cm swtpm
+instance.
+The argument
+.Ar path
+needs to point to a UNIX domain socket that a
+.Cm swtpm
+process is listening on.
 .El
 .Pp
 The
@@ -649,7 +664,8 @@ are:
 .It Cm version= Ns Ar version
 Version of the TPM device according to the TCG specification.
 Defaults to
-.Cm 2.0
+.Cm 2.0 ,
+which is the only version currently supported.
 .El
 .Ss Boot ROM device backends
 .Sm off
@@ -1118,7 +1134,8 @@ cd:/images/install.iso \\
 .Ed
 .Pp
 Run a UEFI virtual machine with a display resolution of 800 by 600 pixels
-that can be accessed via VNC at: 0.0.0.0:5900.
+that can be accessed via VNC at: 0.0.0.0:5900 or via serial console over
+TCP at: 127.0.0.1:1234 (unsafe if you expose serial console without protection).
 .Bd -literal -offset indent
 bhyve -c 2 -m 4G -w -H \\
   -s 0,hostbridge \\
@@ -1127,13 +1144,14 @@ bhyve -c 2 -m 4G -w -H \\
   -s 5,virtio-net,tap0 \\
   -s 29,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \\
   -s 30,xhci,tablet \\
-  -s 31,lpc -l com1,stdio \\
+  -s 31,lpc -l com1,tcp=127.0.0.1:1234 \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
    uefivm
 .Ed
 .Pp
 Run a UEFI virtual machine with a VNC display that is bound to all IPv6
-addresses on port 5900.
+addresses on port 5900 and a serial I/O port bound to TCP port 1234 of
+loopback address (unsafe if you expose serial console without protection).
 .Bd -literal -offset indent
 bhyve -c 2 -m 4G -w -H \\
   -s 0,hostbridge \\
@@ -1141,7 +1159,7 @@ bhyve -c 2 -m 4G -w -H \\
   -s 5,virtio-net,tap0 \\
   -s 29,fbuf,tcp=[::]:5900,w=800,h=600 \\
   -s 30,xhci,tablet \\
-  -s 31,lpc -l com1,stdio \\
+  -s 31,lpc -l com1,tcp=[::1]:1234 \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
    uefivm
 .Ed
@@ -1166,7 +1184,7 @@ for a virtual machine, use
 .Fl o
 .Ar config.dump=1 :
 .Bd -literal -offset indent
-/usr/sbin/bhyve -c 2 -m 256 -A -H -P \\
+/usr/sbin/bhyve -c 2 -m 256 -H -P \\
   -s 0:0,hostbridge -s 1:0,virtio-net,tap0 \\
   -s 2:0,ahci-hd,./vm0.img \\
   -s 31,lpc -l com1,stdio \\

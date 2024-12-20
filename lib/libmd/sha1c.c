@@ -79,7 +79,7 @@
 #undef SHA1_ASM
 #endif
 
-char *SHA1_version="SHA1 part of SSLeay 0.9.0b 11-Oct-1998";
+static char *SHA1_version="SHA1 part of SSLeay 0.9.0b 11-Oct-1998";
 
 /* Implemented from SHA-1 document - The Secure Hash Algorithm
  */
@@ -270,7 +270,7 @@ SHA1_Update(SHA_CTX *c, const void *in, size_t len)
 	p[sw]=l;
 	}
 
-void SHA1_Transform(SHA_CTX *c, unsigned char *b)
+static void SHA1_Transform(SHA_CTX *c, unsigned char *b)
 	{
 	u_int32_t p[16];
 #if BYTE_ORDER != BIG_ENDIAN
@@ -483,22 +483,10 @@ __weak_reference(_libmd_SHA_Init, SHA_Init);
 __weak_reference(_libmd_SHA_Update, SHA_Update);
 #undef SHA_Final
 __weak_reference(_libmd_SHA_Final, SHA_Final);
-#undef SHA_Transform
-__weak_reference(_libmd_SHA_Transform, SHA_Transform);
-#undef SHA_version
-__weak_reference(_libmd_SHA_version, SHA_version);
-#undef sha_block
-__weak_reference(_libmd_sha_block, sha_block);
 #undef SHA1_Init
 __weak_reference(_libmd_SHA1_Init, SHA1_Init);
 #undef SHA1_Update
 __weak_reference(_libmd_SHA1_Update, SHA1_Update);
 #undef SHA1_Final
 __weak_reference(_libmd_SHA1_Final, SHA1_Final);
-#undef SHA1_Transform
-__weak_reference(_libmd_SHA1_Transform, SHA1_Transform);
-#undef SHA1_version
-__weak_reference(_libmd_SHA1_version, SHA1_version);
-#undef sha1_block
-__weak_reference(_libmd_sha1_block, sha1_block);
 #endif

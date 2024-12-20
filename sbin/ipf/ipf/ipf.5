@@ -2,7 +2,6 @@
 .SH NAME
 ipf, ipf.conf \- IPFilter firewall rules file format
 .SH DESCRIPTION
-.PP
 The ipf.conf file is used to specify rules for the firewall, packet
 authentication and packet accounting components of IPFilter. To load rules
 specified in the ipf.conf file, the ipf(8) program is used.
@@ -29,7 +28,6 @@ the direction of the packet (in or out)
 address patterns or "all" to match any address information
 .RE
 .SS Long lines
-.PP
 For rules lines that are particularly long, it is possible to split
 them over multiple lines implicitly like this:
 .PP
@@ -45,7 +43,6 @@ pass in on bgeo proto tcp from 1.1.1.1 port > 1000 \\
     to 2.2.2.2 port < 5000 flags S keep state
 .fi
 .SS Comments
-.PP
 Comments in the ipf.conf file are indicated by the use of the '#' character.
 This can either be at the start of the line, like this:
 .PP
@@ -60,7 +57,6 @@ Or at the end of a like, like this:
 pass in proto icmp from any to any # Allow all ICMP packets in
 .fi
 .SH Firewall rules
-.PP
 This section goes into detail on how to construct firewall rules that
 are placed in the ipf.conf file.
 .PP
@@ -69,7 +65,6 @@ firewall rule set or which packets should be blocked or allowed in.
 Some suggestions will be provided but further reading is expected to
 fully understand what is safe and unsafe to allow in/out.
 .SS Filter rule keywords
-.PP
 The first word found in any filter rule describes what the eventual outcome
 of a packet that matches it will be. Descriptions of the many and various
 sections that can be used to match on the contents of packet headers will
@@ -131,7 +126,6 @@ rule to match a packet is a pass, if there is a later matching rule
 that is a block and no further rules match the packet, then it will
 be blocked.
 .SS Matching Network Interfaces
-.PP
 On systems with more than one network interface, it is necessary
 to be able to specify different filter rules for each of them.
 In the first instance, this is because different networks will send us
@@ -158,7 +152,6 @@ block in on bge0 all
 pass out on bge0 all
 .fi
 .SS Address matching (basic)
-.PP
 The first and most basic part of matching for filtering rules is to
 specify IP addresses and TCP/UDP port numbers. The source address
 information is matched by the "from" information in a filter rule
@@ -197,7 +190,6 @@ is processing that part of the configuration file, leading to long
 delays, if not errors, in loading the filter rules.
 .RE
 .SS Protocol Matching
-.PP
 To match packets based on TCP/UDP port information, it is first necessary
 to indicate which protocol the packet must be. This is done using the
 "proto" keyword, followed by either the protocol number or a name which
@@ -209,7 +201,6 @@ block out proto udp from any to 10.1.1.1
 pass in proto icmp from any to 192.168.0.0/16
 .fi
 .SS Sending back error packets
-.PP
 When a packet is just discarded using a block rule, there is no feedback given
 to the host that sent the packet. This is both good and bad. If this is the
 desired behaviour and it is not desirable to send any feedback about packets
@@ -223,7 +214,7 @@ To address this problem, a block rule can be qualified in two ways.
 The first of these is specific to TCP and instructs IPFilter to send back
 a reset (RST) packet. This packet indicates to the remote system that the
 packet it sent has been rejected and that it shouldn't make any further
-attempts( to send packets to that port. Telling IPFilter to return a TCP);
+attempts to send packets to that port. Telling IPFilter to return a TCP
 RST packet in response to something that has been received is achieved
 with the return-rst keyword like this:
 .PP
@@ -239,18 +230,18 @@ For all of the other protocols handled by the IP protocol suite, to send
 back an error indicating that the received packet was dropped requires
 sending back an ICMP error packet. Whilst these can also be used for TCP,
 the sending host may not treat the received ICMP error as a hard error
-in( the same way as it does the TCP RST packet. To return an ICMP error);
+in the same way as it does the TCP RST packet. To return an ICMP error
 it is necessary to place return-icmp after the block keyword like this:
 .PP
 .nf
 block return-icmp in proto udp from any to 192.168.0.1/24
 .fi
 .PP
-When( electing to return an ICMP error packet, it is also possible to);
+When electing to return an ICMP error packet, it is also possible to
 select what type of ICMP error is returned. Whilst the full compliment
 of ICMP unreachable codes can be used by specifying a number instead of
 the string below, only the following should be used in conjunction with
-return-icmp.( Which return code to use is a choice to be made when);
+return-icmp. Which return code to use is a choice to be made when
 weighing up the pro's and con's. Using some of the codes may make it
 more obvious that a firewall is being used rather than just the host
 not responding.
@@ -295,7 +286,7 @@ proto-unr
 (protocol unreachable)
 the IP protocol specified in the packet is not available to receive
 packets.
-.DE
+.RE
 .PP
 An example that shows how to send back a port unreachable packet for
 UDP packets to 192.168.1.0/24 is as follows:
@@ -317,7 +308,6 @@ block return-icmp-as-dest(port-unr) in proto udp \\
     from any to 192.168.1.0/24
 .fi
 .SS TCP/UDP Port Matching
-.PP
 Having specified which protocol is being matched, it is then possible to
 indicate which port numbers a packet must have in order to match the rule.
 Due to port numbers being used differently to addresses, it is therefore
@@ -361,7 +351,6 @@ If there is no desire to mention any specific source or destintion
 information in a filter rule then the word "all" can be used to
 indicate that all addresses are considered to match the rule.
 .SS IPv4 or IPv6
-.PP
 If a filter rule is constructed without any addresses then IPFilter
 will attempt to match both IPv4 and IPv6 packets with it. In the
 next list of rules, each one can be applied to either network protocol
@@ -399,13 +388,11 @@ protocol family qualifier:
 pass in family inet6 proto udp from any to any port = 53
 .fi
 .SS First match vs last match
-.PP
 To change the default behaviour from being the last matched rule decides
 the outcome to being the first matched rule, the word "quick" is inserted
 to the rule.
 .SH Extended Packet Matching
 .SS Beyond using plain addresses
-.PP
 On firewalls that are working with large numbers of hosts and networks
 or simply trying to filter discretely against various hosts, it can
 be an easier administration task to define a pool of addresses and have
@@ -475,7 +462,6 @@ with.
 pass in proto icmp from any to (bge0)/32
 .fi
 .SS Using address pools
-.PP
 Rather than list out multiple rules that either allow or deny specific
 addresses, it is possible to create a single object, call an address
 pool, that contains all of those addresses and reference that in the
@@ -505,7 +491,6 @@ There are different operational characteristics with each, so there
 may be some situations where a pool works better than hash and vice
 versa.
 .SS Matching TCP flags
-.PP
 The TCP header contains a field of flags that is used to decide if the
 packet is a connection request, connection termination, data, etc.
 By matching on the flags in conjunction with port numbers, it is
@@ -548,10 +533,10 @@ When matching TCP flags, it is normal to just list the flag that you
 wish to be set. By default the set of flags it is compared against
 is "FSRPAU". Rules that say "flags S" will be displayed by ipfstat(8)
 as having "flags S/FSRPAU". This is normal.
-The last two flags, "C" and "E", are optional - they
+The last three flags, "E", "W" and "e", are optional - they
 may or may not be used by an end host and have no bearing on either
 the acceptance of data nor control of the connection. Masking them
-out with "flags S/FSRPAUCE" may cause problems for remote hosts
+out with "flags S/FSRPAUEWe" may cause problems for remote hosts
 making a successful connection.
 .PP
 .nf
@@ -562,7 +547,6 @@ pass out quick proto tcp from any port = 22 to any flags SA
 By itself, filtering based on the TCP flags becomes more work but when
 combined with stateful filtering (see below), the situation changes.
 .SS Matching on ICMP header information
-.PP
 The TCP and UDP are not the only protocols for which filtering beyond
 just the IP header is possible, extended matching on ICMP packets is
 also available. The list of valid ICMP types is different for IPv4
@@ -627,7 +611,6 @@ unreach (unreachable,
 whoreq (WRU request),
 whorep (WRU reply).
 .SH Stateful Packet Filtering
-.PP
 Stateful packet filtering is where IPFilter remembers some information from
 one or more packets that it has seen and is able to apply it to future
 packets that it receives from the network.
@@ -694,7 +677,6 @@ use of these protocols being more for query-response than for ongoing
 connections.  For all other protocols the
 timeout is 60 seconds in both directions.
 .SS Stateful filtering options
-.PP
 The following options can be used with stateful filtering:
 .HP
 limit
@@ -812,7 +794,6 @@ If there is no IP protocol implied by addresses or other features of
 the rule, IPFilter will assume that no netmask is an all ones netmask
 for both IPv4 and IPv6.
 .SS Tieing down a connection
-.PP
 For any connection that transits a firewall, each packet will be seen
 twice: once going in and once going out. Thus a connection has 4 flows
 of packets:
@@ -851,7 +832,6 @@ pass in on bge0,bge1 out-via bge1,bge0 proto tcp \\
     from any to any port = 22 flags S keep state
 .fi
 .SS Working with packet fragments
-.PP
 Fragmented packets result in 1 packet containing all of the layer 3 and 4
 header information whilst the data is split across a number of other packets.
 .PP
@@ -883,7 +863,6 @@ An example of how this is done is as follows:
 pass in proto udp from any port = 2049 to any with frags keep frags
 .fi
 .SH Building a tree of rules
-.PP
 Writing your filter rules as one long list of rules can be both inefficient
 in terms of processing the rules and difficult to understand. To make the
 construction of filter rules easier, it is possible to place them in groups.
@@ -947,7 +926,6 @@ to deliver spam, I could load the following rule to complement the above:
 block in quick from 10.1.1.1 to any group spammers
 .fi
 .SS Decapsulation
-.PP
 Rule groups also form a different but vital role for decapsulation rules.
 With the following simple rule, if IPFilter receives an IP packet that has
 an AH header as its layer 4 payload, IPFilter would adjust its view of the
@@ -982,7 +960,6 @@ It is possible to construct a decapsulate rule without the group
 head at the end that ipf(8) will accept but such rules will not
 result in anything happening.
 .SS Policy Based Routing
-.PP
 With firewalls being in the position they often are, at the boundary
 of different networks connecting together and multiple connections that
 have different properties, it is often desirable to have packets flow
@@ -1034,7 +1011,6 @@ pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \\
     to any port = 80 flags S keep state
 .fi
 .SS Matching IPv4 options
-.PP
 The design for IPv4 allows for the header to be upto 64 bytes long,
 however most traffic only uses the basic header which is 20 bytes long.
 The other 44 bytes can be used to store IP options. These options are
@@ -1115,7 +1091,6 @@ ump (Upstream Multicast Packet),
 visa (Experimental Access Control)
 and zsu (Experimental Measurement).
 .SS Security with CIPSO and IPSO
-.PP
 IPFilter supports filtering on IPv4 packets using security attributes embedded
 in the IP options part of the packet. These options are usually only used on
 networks and systems that are using lablled security. Unless you know that
@@ -1139,7 +1114,6 @@ block in quick all with opt sec-class unclass
 pass in all with opt sec-class secret
 .fi
 .SS Matching IPv6 extension headers
-.PP
 Just as it is possible to filter on the various IPv4 header options,
 so too it is possible to filter on the IPv6 extension headers that are
 placed between the IPv6 header and the transport protocol header.
@@ -1153,7 +1127,6 @@ mobility (IP mobility),
 none,
 routing.
 .SS Logging
-.PP
 There are two ways in which packets can be logged with IPFilter. The
 first is with a rule that specifically says log these types of packets
 and the second is a qualifier to one of the other keywords. Thus it is
@@ -1211,7 +1184,6 @@ pass in log level local1.info proto tcp \\
 ipfstat(8) reports how many packets have been successfully logged and how
 many failed attempts to log a packet there were.
 .SS Filter rule comments
-.PP
 If there is a desire to associate a text string, be it an administrative
 comment or otherwise, with an IPFilter rule, this can be achieved by giving
 the filter rule a comment.  The comment is loaded with the rule into the
@@ -1224,7 +1196,6 @@ pass out quick proto tcp from any port = 80 \\
     to any comment "all web server traffic is ok"
 .fi
 .SS Tags
-.PP
 To enable filtering and NAT to correctly match up packets with rules,
 tags can be added at with NAT (for inbound packets) and filtering (for
 outbound packets.) This allows a filter to be correctly mated with its
@@ -1249,7 +1220,6 @@ such as grep, extracting log records of interest is simplified.
 block in quick log ... set-tag(log=33)
 .fi
 .SH Filter Rule Expiration
-.PP
 IPFilter allows rules to be added into the kernel that it will remove after
 a specific period of time by specifying rule-ttl at the end of a rule.
 When listing rules in the kernel using ipfstat(8), rules that are going
@@ -1264,7 +1234,6 @@ pass in on fxp0 proto tcp from any \\
     to port = 22 flags S keep state rule-ttl 30
 .fi
 .SH Internal packet attributes
-.PP
 In addition to being able to filter on very specific network and transport
 header fields, it is possible to filter on other attributes that IPFilter
 attaches to a packet. These attributes are placed in a rule after the
@@ -1332,7 +1301,6 @@ block in all
 pass in all with not bad
 .fi
 .SH Tuning IPFilter
-.PP
 The ipf.conf file can also be used to tune the behaviour of IPFilter,
 allowing, for example, timeouts for the NAT/state table(s) to be set
 along with their sizes. The presence and names of tunables may change
@@ -1543,7 +1511,6 @@ update_ipid
 when set, turns on changing the IP id field in NAT'd packets to a random
 number.
 .SS Table of visible variables
-.PP
 A list of all of the tunables, their minimum, maximum and current
 values is as follows.
 .PP
@@ -1602,7 +1569,6 @@ udp_timeout		1	MAXINT	240
 update_ipid		0	1	0
 .fi
 .SH Calling out to internal functions
-.PP
 IPFilter provides a pair of functions that can be called from a rule
 that allow for a single rule to jump out to a group rather than walk
 through a list of rules to find the group. If you've got multiple
@@ -1637,7 +1603,6 @@ group-map in role=ipf number=1010
     { 1.1.1.1 group = 1020, 3.3.0.0/16 group = 1030; };
 .fi
 .SS IPFilter matching expressions
-.PP
 An experimental feature that has been added to filter rules is to use
 the same expression matching that is available with various commands
 to flush and list state/NAT table entries. The use of such an expression
@@ -1647,7 +1612,6 @@ precludes the filter rule from using the normal IP header matching.
 pass in exp { "tcp.sport 23 or tcp.sport 50" } keep state
 .fi
 .SS Filter rules with BPF
-.PP
 On platforms that have the BPF built into the kernel, IPFilter can be
 built to allow BPF expressions in filter rules. This allows for packet
 matching to be on arbitrary data in the packt. The use of a BPF expression
@@ -1665,7 +1629,6 @@ accurately reconstruct the original text filter. The end result is that
 while ipf.conf() can be easy to read, understanding the output from
 ipfstat might not be.
 .SH VARIABLES
-.PP
 This configuration file, like all others used with IPFilter, supports the
 use of variable substitution throughout the text.
 .PP

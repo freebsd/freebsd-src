@@ -862,13 +862,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
-		printf("ndaregister: Unable to probe new device. "
-		       "Unable to allocate iosched memory\n");
-		free(softc, M_DEVBUF);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	/* ident_data parsing */
 
 	periph->softc = softc;
@@ -891,7 +884,6 @@ ndaregister(struct cam_periph *periph, void *arg)
 	quirks = softc->quirks;
 	TUNABLE_INT_FETCH(announce_buf, &quirks);
 	softc->quirks = quirks;
-	cam_iosched_set_sort_queue(softc->cam_iosched, 0);
 	softc->disk = disk = disk_alloc();
 	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	disk->d_open = ndaopen;
@@ -953,6 +945,16 @@ ndaregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT | XPORT_DEVSTAT_TYPE(cpi.transport),
 	    DEVSTAT_PRIORITY_DISK);
+
+	if (cam_iosched_init(&softc->cam_iosched, periph, disk,
+	    ndaschedule) != 0) {
+		printf("ndaregister: Unable to probe new device. "
+		       "Unable to allocate iosched memory\n");
+		free(softc, M_DEVBUF);
+		return(CAM_REQ_CMP_ERR);
+	}
+	cam_iosched_set_sort_queue(softc->cam_iosched, 0);
+
 	/*
 	 * Add alias for older nvd drives to ease transition.
 	 */

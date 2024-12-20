@@ -36,6 +36,7 @@
 #define	CONFIG_PCI_MSI
 
 #include <linux/types.h>
+#include <linux/device/driver.h>
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -232,10 +233,14 @@ extern const char *pci_power_names[6];
 #define	PCI_L1SS_CTL1			0x8
 #define	PCI_L1SS_CTL1_L1SS_MASK		0xf
 
-#define	PCI_IRQ_LEGACY			0x01
+#define	PCI_IRQ_INTX			0x01
 #define	PCI_IRQ_MSI			0x02
 #define	PCI_IRQ_MSIX			0x04
-#define	PCI_IRQ_ALL_TYPES		(PCI_IRQ_MSIX|PCI_IRQ_MSI|PCI_IRQ_LEGACY)
+#define	PCI_IRQ_ALL_TYPES		(PCI_IRQ_MSIX|PCI_IRQ_MSI|PCI_IRQ_INTX)
+
+#if defined(LINUXKPI_VERSION) && (LINUXKPI_VERSION >= 60800)
+#define	PCI_IRQ_LEGACY			PCI_IRQ_INTX
+#endif
 
 struct pci_dev;
 
@@ -274,24 +279,8 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
-#define module_pci_driver(_driver)					\
-									\
-static inline int							\
-_pci_init(void)								\
-{									\
-									\
-	return (linux_pci_register_driver(&_driver));			\
-}									\
-									\
-static inline void							\
-_pci_exit(void)								\
-{									\
-									\
-	linux_pci_unregister_driver(&_driver);				\
-}									\
-									\
-module_init(_pci_init);							\
-module_exit(_pci_exit)
+#define	module_pci_driver(_drv)						\
+    module_driver(_drv, linux_pci_register_driver, linux_pci_unregister_driver)
 
 struct msi_msg {
 	uint32_t			data;
@@ -362,6 +351,8 @@ bool pci_device_is_present(struct pci_dev *pdev);
 
 int linuxkpi_pcim_enable_device(struct pci_dev *pdev);
 void __iomem **linuxkpi_pcim_iomap_table(struct pci_dev *pdev);
+void *linuxkpi_pci_iomap_range(struct pci_dev *pdev, int mmio_bar,
+    unsigned long mmio_off, unsigned long mmio_size);
 void *linuxkpi_pci_iomap(struct pci_dev *pdev, int mmio_bar, int mmio_size);
 void linuxkpi_pci_iounmap(struct pci_dev *pdev, void *res);
 int linuxkpi_pcim_iomap_regions(struct pci_dev *pdev, uint32_t mask,
@@ -379,6 +370,9 @@ struct pci_dev *lkpi_pci_get_device(uint16_t, uint16_t, struct pci_dev *);
 struct msi_desc *lkpi_pci_msi_desc_alloc(int);
 struct device *lkpi_pci_find_irq_dev(unsigned int irq);
 int _lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec);
+
+#define	pci_err(pdev, fmt, ...)						\
+    dev_err(&(pdev)->dev, fmt, __VA_ARGS__)
 
 static inline bool
 dev_is_pci(struct device *dev)
@@ -774,6 +768,8 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 {
 }
 
+#define	pci_iomap_range(pdev, mmio_bar, mmio_off, mmio_size) \
+	linuxkpi_pci_iomap_range(pdev, mmio_bar, mmio_off, mmio_size)
 #define	pci_iomap(pdev, mmio_bar, mmio_size) \
 	linuxkpi_pci_iomap(pdev, mmio_bar, mmio_size)
 #define	pci_iounmap(pdev, res)	linuxkpi_pci_iounmap(pdev, res)
@@ -1266,6 +1262,29 @@ pci_dev_present(const struct pci_device_id *cur)
 		cur++;
 	}
 	return (0);
+}
+
+static inline const struct pci_device_id *
+pci_match_id(const struct pci_device_id *ids, struct pci_dev *pdev)
+{
+	if (ids == NULL)
+		return (NULL);
+
+	for (;
+	     ids->vendor != 0 || ids->subvendor != 0 || ids->class_mask != 0;
+	     ids++)
+		if ((ids->vendor == PCI_ANY_ID ||
+		     ids->vendor == pdev->vendor) &&
+		    (ids->device == PCI_ANY_ID ||
+		     ids->device == pdev->device) &&
+		    (ids->subvendor == PCI_ANY_ID ||
+		     ids->subvendor == pdev->subsystem_vendor) &&
+		    (ids->subdevice == PCI_ANY_ID ||
+		     ids->subdevice == pdev->subsystem_device) &&
+		    ((ids->class ^ pdev->class) & ids->class_mask) == 0)
+			return (ids);
+
+	return (NULL);
 }
 
 struct pci_dev *lkpi_pci_get_domain_bus_and_slot(int domain,

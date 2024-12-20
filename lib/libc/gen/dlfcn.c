@@ -35,6 +35,7 @@
 #include <sys/mman.h>
 #include <machine/atomic.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <link.h>
 #include <stddef.h>
 #include <string.h>
@@ -202,9 +203,12 @@ dl_init_phdr_info(void)
 }
 #endif
 
-#pragma weak dl_iterate_phdr
+#pragma weak _dl_iterate_phdr_locked
+int _dl_iterate_phdr_locked(int (*callback)(struct dl_phdr_info *,
+    size_t, void *), void *data);
 int
-dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
+_dl_iterate_phdr_locked(
+    int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
     void *data __unused)
 {
 #if defined IN_LIBDL
@@ -226,12 +230,27 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
 	ti.ti_module = 1;
 	ti.ti_offset = 0;
-	mutex_lock(&dl_phdr_info_lock);
 	phdr_info.dlpi_tls_data = __tls_get_addr(&ti);
 	ret = callback(&phdr_info, sizeof(phdr_info), data);
-	mutex_unlock(&dl_phdr_info_lock);
 	return (ret);
 #endif
+}
+
+#pragma weak dl_iterate_phdr
+int
+dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
+    void *data __unused)
+{
+	int error;
+
+#if !defined(IN_LIBDL) && !defined(PIC)
+	mutex_lock(&dl_phdr_info_lock);
+#endif
+	error = _dl_iterate_phdr_locked(callback, data);
+#if !defined(IN_LIBDL) && !defined(PIC)
+	mutex_unlock(&dl_phdr_info_lock);
+#endif
+	return (error);
 }
 
 #pragma weak fdlopen
@@ -335,6 +354,22 @@ _rtld_is_dlopened(void *arg __unused)
 {
 
 	return (0);
+}
+
+#pragma weak rtld_get_var
+const char *
+rtld_get_var(const char *name __unused)
+{
+	_rtld_error(sorry);
+	return (NULL);
+}
+
+#pragma weak rtld_set_var
+int
+rtld_set_var(const char *name __unused, const char *val __unused)
+{
+	_rtld_error(sorry);
+	return (EINVAL);
 }
 
 #endif /* !defined(IN_LIBDL) || defined(PIC) */

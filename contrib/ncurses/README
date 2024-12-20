@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2020 Thomas E. Dickey                                           --
+-- Copyright 2020-2021,2023 Thomas E. Dickey                                 --
 -- Copyright 1998-2012,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README,v 1.28 2020/02/02 23:34:34 tom Exp $
+-- $Id: README,v 1.31 2023/10/28 14:49:04 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -35,18 +35,19 @@ See the file INSTALL for instructions on how to build and install ncurses.
 See the file NEWS for a release history and bug-fix notes.
 See the file TO-DO for things that still need doing, including known bugs.
 
-Browse the file misc/ncurses-intro.html for narrative descriptions of how
+Browse the file doc/html/ncurses-intro.html for narrative descriptions of how
 to use ncurses and the panel, menu, and form libraries.
- 
+
 Browse the file doc/html/hackguide.html for a tour of the package internals.
+
+Find plain text versions of both of these documents in doc/.
 
 ROADMAP AND PACKAGE OVERVIEW:
 
 You should be reading this file in a directory called:  ncurses-d.d, where d.d
 is the current version number (see the dist.mk file in this directory for
 that).  There should be a number of subdirectories, including `c++', `form',
-`man', `menu', `misc', `ncurses', `panel', `progs', `test', 'tack' and `Ada95'. 
-(The 'tack' program may be distributed separately).
+`man', `menu', `misc', `ncurses', `panel', `progs', `test', and `Ada95'.
 
 A full build/install of this package typically installs several libraries, a
 handful of utilities, and a database hierarchy.  Here is an inventory of the
@@ -81,7 +82,7 @@ version.
 
 If you configure using the --enable-reentrant option, a "t" is appended to the
 library names (e.g., libncursest.a) and the resulting libraries have a
-different binary interface which makes the ncurses interface more "opaque".
+different binary interface, making the ncurses interface more opaque.
 
 The ncurses libraries implement the curses API.  The panel, menu and forms
 libraries implement clones of the SVr4 panel, menu and forms APIs.  The source
@@ -89,9 +90,9 @@ code for these lives in the `ncurses', `panel', `menu', and `form' directories
 respectively.
 
 In the `c++' directory, you'll find code that defines an interface to the
-curses, forms, menus and panels library packaged as C++ classes, and a demo program in C++
-to test it.  These class definition modules are not installed by the 'make
-install.libs' rule as libncurses++.
+curses, forms, menus and panels library packaged as C++ classes, and a demo
+program in C++ to test it.  These class definition modules are not installed
+by the 'make install.libs' rule as libncurses++.
 
 In the `Ada95' directory, you'll find code and documentation for an
 Ada95 binding of the curses API, to be used with the GNAT compiler.
@@ -102,8 +103,8 @@ for documentation of the binding.
 
 To do its job, the ncurses code needs your terminal type to be set in the
 environment variable TERM (normally set by your OS; under UNIX, getty(1)
-typically does this, but you can override it in your .profile); and, it needs a
-database of terminal descriptions in which to look up your terminal type's
+typically does this, but you can override it in your .profile); and, it needs
+a database of terminal descriptions in which to look up your terminal type's
 capabilities.
 
 In older (V7/BSD) versions of curses, the database was a flat text file,
@@ -117,10 +118,10 @@ second form.
 In the `misc' directory, there is a text file terminfo.src, in editable
 terminfo format, which can be used to generate the terminfo binaries (that's
 what make install.data does).  If the package was built with the
---enable-termcap option enabled, and the ncurses library cannot find a terminfo
-description for your terminal, it will fall back to the termcap file supplied
-with your system (which the ncurses package installation leaves strictly
-alone).
+--enable-termcap option enabled, and the ncurses library cannot find a
+terminfo description for your terminal, it will fall back to the termcap file
+supplied with your system (which the ncurses package installation leaves
+strictly alone).
 
 The utilities are as follows:
 
@@ -149,7 +150,7 @@ help you systematically exercise the library functions.
 
 AUTHORS:
 
-Pavel Curtis: 
+Pavel Curtis:
 	wrote the original ncurses
 
 Zeyd M. Ben-Halim:
@@ -176,8 +177,8 @@ Eric S. Raymond:
 	xterm mouse support, and the ncurses test program.
 
 Juergen Pfeifer
-	The menu and form libraries, C++ bindings for ncurses, menus, forms and
-	panels, as well as the Ada95 binding.  Ongoing support for panel.
+	The menu and form libraries, C++ bindings for ncurses, menus, forms
+	and panels, as well as the Ada95 binding.  Ongoing support for panel.
 
 CONTRIBUTORS:
 
@@ -216,3 +217,5 @@ BUGS:
 	See the INSTALL file for bug and developer-list addresses.
 	The Hacker's Guide in the doc directory includes some guidelines
 	on how to report bugs in ways that will get them fixed most quickly.
+
+-- vile:txtmode fc=78

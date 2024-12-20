@@ -72,7 +72,7 @@ enum eap_type {
 	EAP_TYPE_MD5 = 4, /* RFC 3748 */
 	EAP_TYPE_OTP = 5 /* RFC 3748 */,
 	EAP_TYPE_GTC = 6, /* RFC 3748 */
-	EAP_TYPE_TLS = 13 /* RFC 2716 */,
+	EAP_TYPE_TLS = 13 /* RFC 5216 */,
 	EAP_TYPE_LEAP = 17 /* Cisco proprietary */,
 	EAP_TYPE_SIM = 18 /* RFC 4186 */,
 	EAP_TYPE_TTLS = 21 /* RFC 5281 */,

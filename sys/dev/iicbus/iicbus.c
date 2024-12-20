@@ -125,9 +125,9 @@ iicbus_attach_common(device_t dev, u_int bus_freq)
 	}
 	printf("\n");
 #endif
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
         return (0);
 }
 
@@ -249,6 +249,18 @@ iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 }
 
 static void
+iicbus_child_deleted(device_t dev, device_t child)
+{
+	struct iicbus_ivar *devi;
+
+	devi = device_get_ivars(child);
+	if (devi == NULL)
+		return;
+	resource_list_free(&devi->rl);
+	free(devi, M_DEVBUF);
+}
+
+static void
 iicbus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	device_t child;
@@ -360,6 +372,7 @@ static device_method_t iicbus_methods[] = {
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource_list, iicbus_get_resource_list),
 	DEVMETHOD(bus_add_child,	iicbus_add_child),
+	DEVMETHOD(bus_child_deleted,	iicbus_child_deleted),
 	DEVMETHOD(bus_print_child,	iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),

@@ -67,12 +67,13 @@
 #include <x86/ifunc.h>
 
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_ioport.h"
-#include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
@@ -231,6 +232,7 @@ vmmops_panic(void)
 
 DEFINE_VMMOPS_IFUNC(int, modinit, (int ipinum))
 DEFINE_VMMOPS_IFUNC(int, modcleanup, (void))
+DEFINE_VMMOPS_IFUNC(void, modsuspend, (void))
 DEFINE_VMMOPS_IFUNC(void, modresume, (void))
 DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
 DEFINE_VMMOPS_IFUNC(int, run, (void *vcpui, register_t rip, struct pmap *pmap,
@@ -296,6 +298,29 @@ static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
 
+/* global statistics */
+VMM_STAT(VCPU_MIGRATIONS, "vcpu migration across host cpus");
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_EXTINT, "vm exits due to external interrupt");
+VMM_STAT(VMEXIT_HLT, "number of times hlt was intercepted");
+VMM_STAT(VMEXIT_CR_ACCESS, "number of times %cr access was intercepted");
+VMM_STAT(VMEXIT_RDMSR, "number of times rdmsr was intercepted");
+VMM_STAT(VMEXIT_WRMSR, "number of times wrmsr was intercepted");
+VMM_STAT(VMEXIT_MTRAP, "number of monitor trap exits");
+VMM_STAT(VMEXIT_PAUSE, "number of times pause was intercepted");
+VMM_STAT(VMEXIT_INTR_WINDOW, "vm exits due to interrupt window opening");
+VMM_STAT(VMEXIT_NMI_WINDOW, "vm exits due to nmi window opening");
+VMM_STAT(VMEXIT_INOUT, "number of times in/out was intercepted");
+VMM_STAT(VMEXIT_CPUID, "number of times cpuid was intercepted");
+VMM_STAT(VMEXIT_NESTED_FAULT, "vm exits due to nested page fault");
+VMM_STAT(VMEXIT_INST_EMUL, "vm exits for instruction emulation");
+VMM_STAT(VMEXIT_UNKNOWN, "number of vm exits for unknown reason");
+VMM_STAT(VMEXIT_ASTPENDING, "number of times astpending at exit");
+VMM_STAT(VMEXIT_REQIDLE, "number of times idle requested at exit");
+VMM_STAT(VMEXIT_USERSPACE, "number of vm exits handled in userspace");
+VMM_STAT(VMEXIT_RENDEZVOUS, "number of times rendezvous pending at exit");
+VMM_STAT(VMEXIT_EXCEPTION, "number of vm exits due to exceptions");
+
 /*
  * Upper limit on vm_maxcpu.  Limited by use of uint16_t types for CPU
  * counts as well as range of vpid values for VT-x and by the capacity
@@ -331,7 +356,7 @@ vcpu_cleanup(struct vcpu *vcpu, bool destroy)
 	vmmops_vcpu_cleanup(vcpu->cookie);
 	vcpu->cookie = NULL;
 	if (destroy) {
-		vmm_stat_free(vcpu->stats);	
+		vmm_stat_free(vcpu->stats);
 		fpu_save_area_free(vcpu->guestfpu);
 		vcpu_lock_destroy(vcpu);
 		free(vcpu, M_VM);
@@ -428,6 +453,7 @@ vmm_init(void)
 	if (error)
 		return (error);
 
+	vmm_suspend_p = vmmops_modsuspend;
 	vmm_resume_p = vmmops_modresume;
 
 	return (vmmops_modinit(vmm_ipinum));
@@ -441,7 +467,9 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		if (vmm_is_hw_supported()) {
-			vmmdev_init();
+			error = vmmdev_init();
+			if (error != 0)
+				break;
 			error = vmm_init();
 			if (error == 0)
 				vmm_initialized = 1;
@@ -453,6 +481,7 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (vmm_is_hw_supported()) {
 			error = vmmdev_cleanup();
 			if (error == 0) {
+				vmm_suspend_p = NULL;
 				vmm_resume_p = NULL;
 				iommu_cleanup();
 				if (vmm_ipinum != IPI_AST)
@@ -487,8 +516,9 @@ static moduledata_t vmm_kmod = {
  *
  * - VT-x initialization requires smp_rendezvous() and therefore must happen
  *   after SMP is fully functional (after SI_SUB_SMP).
+ * - vmm device initialization requires an initialized devfs.
  */
-DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 static void
@@ -535,7 +565,8 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	if (vcpuid < 0 || vcpuid >= vm_get_maxcpus(vm))
 		return (NULL);
 
-	vcpu = atomic_load_ptr(&vm->vcpu[vcpuid]);
+	vcpu = (struct vcpu *)
+	    atomic_load_acq_ptr((uintptr_t *)&vm->vcpu[vcpuid]);
 	if (__predict_true(vcpu != NULL))
 		return (vcpu);
 
@@ -1771,7 +1802,7 @@ vm_handle_db(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 	int error, fault;
 	uint64_t rsp;
 	uint64_t rflags;
-	struct vm_copyinfo copyinfo;
+	struct vm_copyinfo copyinfo[2];
 
 	*retu = true;
 	if (!vme->u.dbg.pushf_intercept || vme->u.dbg.tf_shadow_val != 0) {
@@ -1780,21 +1811,21 @@ vm_handle_db(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 
 	vm_get_register(vcpu, VM_REG_GUEST_RSP, &rsp);
 	error = vm_copy_setup(vcpu, &vme->u.dbg.paging, rsp, sizeof(uint64_t),
-	    VM_PROT_RW, &copyinfo, 1, &fault);
+	    VM_PROT_RW, copyinfo, nitems(copyinfo), &fault);
 	if (error != 0 || fault != 0) {
 		*retu = false;
 		return (EINVAL);
 	}
 
 	/* Read pushed rflags value from top of stack. */
-	vm_copyin(&copyinfo, &rflags, sizeof(uint64_t));
+	vm_copyin(copyinfo, &rflags, sizeof(uint64_t));
 
 	/* Clear TF bit. */
 	rflags &= ~(PSL_T);
 
 	/* Write updated value back to memory. */
-	vm_copyout(&rflags, &copyinfo, sizeof(uint64_t));
-	vm_copy_teardown(&copyinfo, 1);
+	vm_copyout(&rflags, copyinfo, sizeof(uint64_t));
+	vm_copy_teardown(copyinfo, nitems(copyinfo));
 
 	return (0);
 }
@@ -2434,7 +2465,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 				found = true;
 				break;
 			}
-		
+
 			if (cp2 != NULL)
 				*cp2++ = ' ';
 
@@ -2786,7 +2817,8 @@ vm_copy_setup(struct vcpu *vcpu, struct vm_guest_paging *paging,
 	nused = 0;
 	remaining = len;
 	while (remaining > 0) {
-		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
+		if (nused >= num_copyinfo)
+			return (EFAULT);
 		error = vm_gla2gpa(vcpu, paging, gla, prot, &gpa, fault);
 		if (error || *fault)
 			return (error);
@@ -2863,7 +2895,7 @@ vm_get_rescnt(struct vcpu *vcpu, struct vmm_stat_type *stat)
 	if (vcpu->vcpuid == 0) {
 		vmm_stat_set(vcpu, VMM_MEM_RESIDENT, PAGE_SIZE *
 		    vmspace_resident_count(vcpu->vm->vmspace));
-	}	
+	}
 }
 
 static void
@@ -2873,7 +2905,7 @@ vm_get_wiredcnt(struct vcpu *vcpu, struct vmm_stat_type *stat)
 	if (vcpu->vcpuid == 0) {
 		vmm_stat_set(vcpu, VMM_MEM_WIRED, PAGE_SIZE *
 		    pmap_wired_count(vmspace_pmap(vcpu->vm->vmspace)));
-	}	
+	}
 }
 
 VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);

@@ -1,4 +1,3 @@
-
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
 SCRIPTS=vgrind.sh

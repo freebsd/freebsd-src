@@ -1,4 +1,3 @@
-
 VOLUME=		usd/11.edit
 SRCS=		edittut.ms
 MACROS=		-ms

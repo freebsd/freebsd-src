@@ -124,9 +124,15 @@ static void p2ps_add_pd_req_attrs(struct p2p_data *p2p, struct p2p_device *dev,
 		}
 
 		if (shared_group ||
-		    (prov->conncap & (P2PS_SETUP_CLIENT | P2PS_SETUP_NEW)))
+		    (prov->conncap & (P2PS_SETUP_CLIENT | P2PS_SETUP_NEW))) {
+			bool is_6ghz_capab;
+
+			is_6ghz_capab = is_p2p_6ghz_capable(p2p) &&
+				p2p_is_peer_6ghz_capab(
+					p2p, dev->info.p2p_device_addr);
 			p2p_buf_add_channel_list(buf, p2p->cfg->country,
-						 &p2p->channels);
+						 &p2p->channels, is_6ghz_capab);
+		}
 
 		if ((shared_group && !is_zero_ether_addr(intended_addr)) ||
 		    (prov->conncap & (P2PS_SETUP_GROUP_OWNER | P2PS_SETUP_NEW)))
@@ -356,9 +362,15 @@ static struct wpabuf * p2p_build_prov_disc_resp(struct p2p_data *p2p,
 		}
 
 		if (persist ||
-		    (conncap & (P2PS_SETUP_CLIENT | P2PS_SETUP_GROUP_OWNER)))
+		    (conncap & (P2PS_SETUP_CLIENT | P2PS_SETUP_GROUP_OWNER))) {
+			bool is_6ghz_capab;
+
+			is_6ghz_capab = is_p2p_6ghz_capable(p2p) && dev &&
+				p2p_is_peer_6ghz_capab(
+					p2p, dev->info.p2p_device_addr);
 			p2p_buf_add_channel_list(buf, p2p->cfg->country,
-						 &p2p->channels);
+						 &p2p->channels, is_6ghz_capab);
+		}
 
 		if (!persist && conncap)
 			p2p_buf_add_connection_capability(buf, conncap);
@@ -532,7 +544,7 @@ do { \
 	if (msg->persistent_dev) {
 		channel_list = 1;
 		config_timeout = 1;
-		if (os_memcmp(msg->persistent_dev, addr, ETH_ALEN) == 0) {
+		if (ether_addr_equal(msg->persistent_dev, addr)) {
 			intended_addr = 1;
 			operating_channel = 1;
 		}
@@ -606,6 +618,8 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 		wpabuf_free(dev->info.wfd_subelems);
 		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
 	}
+
+	p2p_update_peer_6ghz_capab(dev, &msg);
 
 	if (!msg.adv_id) {
 		allowed_config_methods |= WPS_CONFIG_PUSHBUTTON;
@@ -716,7 +730,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	if (!msg.status) {
 		unsigned int forced_freq, pref_freq;
 
-		if (os_memcmp(p2p->cfg->dev_addr, msg.adv_mac, ETH_ALEN)) {
+		if (!ether_addr_equal(p2p->cfg->dev_addr, msg.adv_mac)) {
 			p2p_dbg(p2p,
 				"P2PS PD adv mac does not match the local one");
 			reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
@@ -878,14 +892,14 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 		goto out;
 
 	if (p2p->p2ps_prov->adv_id != adv_id ||
-	    os_memcmp(p2p->p2ps_prov->adv_mac, msg.adv_mac, ETH_ALEN)) {
+	    !ether_addr_equal(p2p->p2ps_prov->adv_mac, msg.adv_mac)) {
 		p2p_dbg(p2p,
 			"P2PS Follow-on PD with mismatch Advertisement ID/MAC");
 		goto out;
 	}
 
 	if (p2p->p2ps_prov->session_id != session_id ||
-	    os_memcmp(p2p->p2ps_prov->session_mac, msg.session_mac, ETH_ALEN)) {
+	    !ether_addr_equal(p2p->p2ps_prov->session_mac, msg.session_mac)) {
 		p2p_dbg(p2p, "P2PS Follow-on PD with mismatch Session ID/MAC");
 		goto out;
 	}
@@ -1225,8 +1239,7 @@ static int p2p_validate_p2ps_pd_resp(struct p2p_data *p2p,
 		return -1;
 	}
 
-	if (os_memcmp(p2p->p2ps_prov->session_mac, msg->session_mac,
-		      ETH_ALEN)) {
+	if (!ether_addr_equal(p2p->p2ps_prov->session_mac, msg->session_mac)) {
 		p2p_dbg(p2p,
 			"Ignore PD Response with unexpected Session MAC");
 		return -1;
@@ -1238,7 +1251,7 @@ static int p2p_validate_p2ps_pd_resp(struct p2p_data *p2p,
 		return -1;
 	}
 
-	if (os_memcmp(p2p->p2ps_prov->adv_mac, msg->adv_mac, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(p2p->p2ps_prov->adv_mac, msg->adv_mac)) {
 		p2p_dbg(p2p,
 			"Ignore PD Response with unexpected Advertisement MAC");
 		return -1;
@@ -1355,6 +1368,8 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
 	}
 
+	p2p_update_peer_6ghz_capab(dev, &msg);
+
 	if (dev->dialog_token != msg.dialog_token) {
 		p2p_dbg(p2p, "Ignore Provision Discovery Response with unexpected Dialog Token %u (expected %u)",
 			msg.dialog_token, dev->dialog_token);
@@ -1380,7 +1395,7 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 	 * was sent earlier, we reset that state info here.
 	 */
 	if (p2p->user_initiated_pd &&
-	    os_memcmp(p2p->pending_pd_devaddr, sa, ETH_ALEN) == 0)
+	    ether_addr_equal(p2p->pending_pd_devaddr, sa))
 		p2p_reset_pending_pd(p2p);
 
 	if (msg.wps_config_methods != req_config_methods) {
@@ -1742,8 +1757,8 @@ void p2p_reset_pending_pd(struct p2p_data *p2p)
 	struct p2p_device *dev;
 
 	dl_list_for_each(dev, &p2p->devices, struct p2p_device, list) {
-		if (os_memcmp(p2p->pending_pd_devaddr,
-			      dev->info.p2p_device_addr, ETH_ALEN))
+		if (!ether_addr_equal(p2p->pending_pd_devaddr,
+				      dev->info.p2p_device_addr))
 			continue;
 		if (!dev->req_config_methods)
 			continue;

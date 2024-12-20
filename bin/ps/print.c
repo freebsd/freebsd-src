@@ -40,7 +40,6 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
-#include <err.h>
 #include <grp.h>
 #include <jail.h>
 #include <langinfo.h>
@@ -254,8 +253,6 @@ state(KINFO *k, VARENT *ve __unused)
 		*cp = '?';
 	}
 	cp++;
-	if (!(flag & P_INMEM))
-		*cp++ = 'W';
 	if (k->ki_p->ki_nice < NZERO || k->ki_p->ki_pri.pri_class == PRI_REALTIME)
 		*cp++ = '<';
 	else if (k->ki_p->ki_nice > NZERO || k->ki_p->ki_pri.pri_class == PRI_IDLE)
@@ -268,7 +265,7 @@ state(KINFO *k, VARENT *ve __unused)
 		*cp++ = 'V';
 	if ((flag & P_SYSTEM) || k->ki_p->ki_lock > 0)
 		*cp++ = 'L';
-	if ((k->ki_p->ki_cr_flags & CRED_FLAG_CAPMODE) != 0)
+	if ((k->ki_p->ki_cr_flags & KI_CRF_CAPABILITY_MODE) != 0)
 		*cp++ = 'C';
 	if (k->ki_p->ki_kiflag & KI_SLEADER)
 		*cp++ = 's';
@@ -634,7 +631,7 @@ getpcpu(const KINFO *k)
 #define	fxtofl(fixpt)	((double)(fixpt) / fscale)
 
 	/* XXX - I don't like this */
-	if (k->ki_p->ki_swtime == 0 || (k->ki_p->ki_flag & P_INMEM) == 0)
+	if (k->ki_p->ki_swtime == 0)
 		return (0.0);
 	if (rawcpu)
 		return (100.0 * fxtofl(k->ki_p->ki_pctcpu));
@@ -662,8 +659,6 @@ getpmem(KINFO *k)
 	if (failure)
 		return (0.0);
 
-	if ((k->ki_p->ki_flag & P_INMEM) == 0)
-		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	/* XXX don't have info about shared */
 	fracmem = ((double)k->ki_p->ki_rssize) / mempages;

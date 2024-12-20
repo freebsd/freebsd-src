@@ -124,7 +124,7 @@ enum x2apic_state {
 /*
  * The VM name has to fit into the pathname length constraints of devfs,
  * governed primarily by SPECNAMELEN.  The length is the total number of
- * characters in the full path, relative to the mount point and not 
+ * characters in the full path, relative to the mount point and not
  * including any leading '/' characters.
  * A prefix and a suffix are added to the name specified by the user.
  * The prefix is usually "vmm/" or "vmm.io/", but can be a few characters
@@ -144,6 +144,8 @@ enum x2apic_state {
     (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
 
 #ifdef _KERNEL
+#include <sys/kassert.h>
+
 CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
 
 struct vm;
@@ -168,6 +170,7 @@ struct vm_eventinfo {
 
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
+typedef void	(*vmm_suspend_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vcpui, register_t rip,
@@ -192,6 +195,7 @@ typedef int	(*vmi_restore_tsc_t)(void *vcpui, uint64_t now);
 struct vmm_ops {
 	vmm_init_func_t		modinit;	/* module wide initialization */
 	vmm_cleanup_func_t	modcleanup;
+	vmm_resume_func_t	modsuspend;
 	vmm_resume_func_t	modresume;
 
 	vmi_init_func_t		init;		/* vm-specific initialization */
@@ -463,7 +467,7 @@ struct vm_copyinfo {
 /*
  * Set up 'copyinfo[]' to copy to/from guest linear address space starting
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
- * a copyin or PROT_WRITE for a copyout. 
+ * a copyin or PROT_WRITE for a copyout.
  *
  * retval	is_fault	Interpretation
  *   0		   0		Success

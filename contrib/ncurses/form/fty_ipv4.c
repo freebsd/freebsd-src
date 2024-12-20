@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2006,2009 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,14 +35,14 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_ipv4.c,v 1.14 2020/12/12 01:15:37 tom Exp $")
+MODULE_ID("$Id: fty_ipv4.c,v 1.16 2021/06/17 21:11:08 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static bool Check_IPV4_Field(
 |                                      FIELD * field,
 |                                      const void * argp)
-|   
+|
 |   Description   :  Validate buffer content to be a valid IP number (Ver. 4)
 |
 |   Return Values :  TRUE  - field is valid
@@ -53,7 +53,7 @@ Check_IPV4_Field(FIELD *field, const void *argp GCC_UNUSED)
 {
   char *bp = field_buffer(field, 0);
   int num = 0, len;
-  unsigned int d1, d2, d3, d4;
+  unsigned int d1 = 0, d2 = 0, d3 = 0, d4 = 0;
 
   if (isdigit(UChar(*bp)))	/* Must start with digit */
     {
@@ -70,11 +70,11 @@ Check_IPV4_Field(FIELD *field, const void *argp GCC_UNUSED)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static bool Check_IPV4_Character(
-|                                      int c, 
+|                                      int c,
 |                                      const void *argp )
-|   
+|
 |   Description   :  Check a character for unsigned type or period.
 |
 |   Return Values :  TRUE  - character is valid

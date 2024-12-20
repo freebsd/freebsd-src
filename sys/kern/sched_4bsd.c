@@ -998,8 +998,6 @@ sched_sleep(struct thread *td, int pri)
 	td_get_sched(td)->ts_slptime = 0;
 	if (pri != 0 && PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
-	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
-		td->td_flags |= TDF_CANSWAP;
 }
 
 void
@@ -1137,7 +1135,6 @@ sched_wakeup(struct thread *td, int srqflags)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td_get_sched(td);
-	td->td_flags &= ~TDF_CANSWAP;
 	if (ts->ts_slptime > 1) {
 		updatepri(td);
 		resetpriority(td);

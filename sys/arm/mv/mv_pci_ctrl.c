@@ -149,7 +149,8 @@ mv_pcib_ctrl_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -185,7 +186,7 @@ mv_pcib_ofw_bus_attach(device_t dev)
 				continue;
 			}
 
-			child = device_add_child(dev, NULL, -1);
+			child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 			if (child == NULL) {
 				if (bootverbose) {
 					device_printf(dev,

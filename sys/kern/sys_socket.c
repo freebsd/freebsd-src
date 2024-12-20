@@ -90,12 +90,13 @@ static fo_poll_t soo_poll;
 extern fo_kqfilter_t soo_kqfilter;
 static fo_stat_t soo_stat;
 static fo_close_t soo_close;
+static fo_chmod_t soo_chmod;
 static fo_fill_kinfo_t soo_fill_kinfo;
 static fo_aio_queue_t soo_aio_queue;
 
 static void	soo_aio_cancel(struct kaiocb *job);
 
-struct fileops	socketops = {
+const struct fileops socketops = {
 	.fo_read = soo_read,
 	.fo_write = soo_write,
 	.fo_truncate = invfo_truncate,
@@ -104,7 +105,7 @@ struct fileops	socketops = {
 	.fo_kqfilter = soo_kqfilter,
 	.fo_stat = soo_stat,
 	.fo_close = soo_close,
-	.fo_chmod = invfo_chmod,
+	.fo_chmod = soo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = soo_fill_kinfo,
@@ -350,6 +351,20 @@ soo_close(struct file *fp, struct thread *td)
 
 	if (so)
 		error = soclose(so);
+	return (error);
+}
+
+static int
+soo_chmod(struct file *fp, mode_t mode, struct ucred *cred, struct thread *td)
+{
+	struct socket *so;
+	int error;
+
+	so = fp->f_data;
+	if (so->so_proto->pr_chmod != NULL)
+		error = so->so_proto->pr_chmod(so, mode, cred, td);
+	else
+		error = EINVAL;
 	return (error);
 }
 

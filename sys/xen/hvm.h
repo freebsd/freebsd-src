@@ -87,7 +87,7 @@ enum {
 };
 #define HVM_CALLBACK_VECTOR(vector) \
     (((uint64_t)HVM_CB_TYPE_VECTOR << HVM_CB_TYPE_SHIFT) \
-   | (((vector) & HVM_CB_GSI_GSI_MASK) << HVM_CB_GSI_GSI_SHIFT))
+   | (((vector) & HVM_CB_VECTOR_VECTOR_MASK) << HVM_CB_VECTOR_VECTOR_SHIFT))
 
 enum xen_hvm_init_type {
 	XEN_HVM_INIT_EARLY,

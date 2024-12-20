@@ -1,4 +1,3 @@
-
 PROG=	vipw
 MAN=	vipw.8
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -200,8 +200,13 @@ bc_file_flush(BcFile* restrict f, BcFlushType type)
 			BC_SIG_TRYUNLOCK(lock);
 			BC_JMP;
 		}
+		// Make sure to handle non-fatal I/O properly.
+		else if (!f->errors_fatal)
+		{
+			bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+		}
 		// Blow up on fatal error. Okay, not blow up, just quit.
-		else bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+		else exit(BC_STATUS_ERROR_FATAL);
 	}
 
 	BC_SIG_TRYUNLOCK(lock);
@@ -238,8 +243,13 @@ bc_file_write(BcFile* restrict f, BcFlushType type, const char* buf, size_t n)
 				BC_SIG_TRYUNLOCK(lock);
 				BC_JMP;
 			}
+			// Make sure to handle non-fatal I/O properly.
+			else if (!f->errors_fatal)
+			{
+				bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+			}
 			// Blow up on fatal error. Okay, not blow up, just quit.
-			else bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+			else exit(BC_STATUS_ERROR_FATAL);
 		}
 	}
 	else
@@ -291,7 +301,15 @@ bc_file_vprintf(BcFile* restrict f, const char* fmt, va_list args)
 		// Just print and propagate the error.
 		if (BC_ERR(r < 0))
 		{
-			bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+			// Make sure to handle non-fatal I/O properly.
+			if (!f->errors_fatal)
+			{
+				bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+			}
+			else
+			{
+				exit(BC_STATUS_ERROR_FATAL);
+			}
 		}
 	}
 
@@ -418,7 +436,7 @@ bc_file_putchar(BcFile* restrict f, BcFlushType type, uchar c)
 		// This is here to prevent a stack overflow from unbounded recursion.
 		if (f->f == stderr) exit(BC_STATUS_ERROR_FATAL);
 
-		bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+		bc_err(BC_ERR_FATAL_IO_ERR);
 	}
 
 #else // BC_ENABLE_LINE_LIB
@@ -438,16 +456,17 @@ bc_file_putchar(BcFile* restrict f, BcFlushType type, uchar c)
 #if BC_ENABLE_LINE_LIB
 
 void
-bc_file_init(BcFile* f, FILE* file)
+bc_file_init(BcFile* f, FILE* file, bool errors_fatal)
 {
 	BC_SIG_ASSERT_LOCKED;
 	f->f = file;
+	f->errors_fatal = errors_fatal;
 }
 
 #else // BC_ENABLE_LINE_LIB
 
 void
-bc_file_init(BcFile* f, int fd, char* buf, size_t cap)
+bc_file_init(BcFile* f, int fd, char* buf, size_t cap, bool errors_fatal)
 {
 	BC_SIG_ASSERT_LOCKED;
 
@@ -455,6 +474,7 @@ bc_file_init(BcFile* f, int fd, char* buf, size_t cap)
 	f->buf = buf;
 	f->len = 0;
 	f->cap = cap;
+	f->errors_fatal = errors_fatal;
 }
 
 #endif // BC_ENABLE_LINE_LIB

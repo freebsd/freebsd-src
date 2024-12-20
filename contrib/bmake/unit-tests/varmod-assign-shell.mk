@@ -1,4 +1,4 @@
-# $NetBSD: varmod-assign-shell.mk,v 1.5 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: varmod-assign-shell.mk,v 1.8 2024/07/04 17:47:54 rillig Exp $
 #
 # Tests for the variable modifier '::!=', which assigns the output of a shell
 # command to the variable, but only if the command exited successfully.  This
@@ -15,21 +15,15 @@
 # error message instead of the command that was executed.  That's where the
 # counterintuitive error message 'make: "previous" returned non-zero status'
 # comes from.
-#
-# BUGS
-#	Even though the variable modifier '::!=' produces an error message,
-#	the exit status of make is still 0.
-#
-#	Having an error message instead of a warning like for the variable
-#	assignment operator '!=' is another unnecessary inconsistency.
 
 DIRECT=		previous
-# expect+1: warning: "echo output; false" returned non-zero status
-DIRECT!=	echo output; false
+# expect+1: warning: Command "echo output; (exit 13)" exited with status 13
+DIRECT!=	echo output; (exit 13)
 
 ASSIGNED=	previous
-.MAKEFLAGS: -dv			# to see the actual command
-_:=		${ASSIGNED::!=echo output; ${:Ufalse}}
+.MAKEFLAGS: -dv			# to see the "Capturing" debug output
+# expect+1: warning: while evaluating variable "ASSIGNED" with value "previous": Command "echo output; (exit 13)" exited with status 13
+_:=		${ASSIGNED::!=echo output; ${:U(exit 13)}}
 .MAKEFLAGS: -d0
 
 all:

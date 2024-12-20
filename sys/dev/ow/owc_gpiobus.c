@@ -133,8 +133,9 @@ owc_gpiobus_attach(device_t dev)
 	 * interrupts work, because we can't do IO for them until we can read
 	 * the system timecounter (which initializes after device attachments).
 	 */
-	device_add_child(sc->sc_dev, "ow", -1);
-	return (bus_delayed_attach_children(dev));
+	device_add_child(sc->sc_dev, "ow", DEVICE_UNIT_ANY);
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

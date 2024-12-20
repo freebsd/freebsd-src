@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.36 2020/12/12 01:15:37 tom Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.37 2021/03/27 23:49:58 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -188,12 +188,10 @@ Check_This_Field(FIELD *field, const void *argp)
   int prec = argn->precision;
   unsigned char *bp = (unsigned char *)field_buffer(field, 0);
   char *s = (char *)bp;
-  double val = 0.0;
   struct lconv *L = argn->L;
-  char buf[64];
   bool result = FALSE;
 
-  while (*bp && *bp == ' ')
+  while (*bp == ' ')
     bp++;
   if (*bp)
     {
@@ -202,14 +200,15 @@ Check_This_Field(FIELD *field, const void *argp)
 #if USE_WIDEC_SUPPORT
       if (*bp)
 	{
-	  bool blank = FALSE;
-	  int state = 0;
 	  int len;
-	  int n;
 	  wchar_t *list = _nc_Widen_String((char *)bp, &len);
 
 	  if (list != 0)
 	    {
+	      bool blank = FALSE;
+	      int state = 0;
+	      int n;
+
 	      result = TRUE;
 	      for (n = 0; n < len; ++n)
 		{
@@ -265,7 +264,8 @@ Check_This_Field(FIELD *field, const void *argp)
 #endif
       if (result)
 	{
-	  val = atof(s);
+	  double val = atof(s);
+
 	  if (low < high)
 	    {
 	      if (val < low || val > high)
@@ -273,6 +273,8 @@ Check_This_Field(FIELD *field, const void *argp)
 	    }
 	  if (result)
 	    {
+	      char buf[64];
+
 	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
 			  "%.*f", (prec > 0 ? prec : 0), val);
 	      set_field_buffer(field, 0, buf);

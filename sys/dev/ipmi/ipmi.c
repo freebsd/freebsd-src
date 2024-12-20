@@ -360,7 +360,7 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 		kreq->ir_request[req->msg.data_len + 7] =
 		    ipmi_ipmb_checksum(&kreq->ir_request[4],
 		    req->msg.data_len + 3);
-		error = ipmi_submit_driver_request(sc, kreq, MAX_TIMEOUT);
+		error = ipmi_submit_driver_request(sc, kreq);
 		if (error != 0)
 			return (error);
 
@@ -565,11 +565,10 @@ ipmi_complete_request(struct ipmi_softc *sc, struct ipmi_request *req)
 
 /* Perform an internal driver request. */
 int
-ipmi_submit_driver_request(struct ipmi_softc *sc, struct ipmi_request *req,
-    int timo)
+ipmi_submit_driver_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 
-	return (sc->ipmi_driver_request(sc, req, timo));
+	return (sc->ipmi_driver_request(sc, req));
 }
 
 /*
@@ -636,7 +635,7 @@ ipmi_reset_watchdog(struct ipmi_softc *sc)
 
 	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_RESET_WDOG, 0, 0);
-	error = ipmi_submit_driver_request(sc, req, 0);
+	error = ipmi_submit_driver_request(sc, req);
 	if (error) {
 		device_printf(sc->ipmi_dev, "Failed to reset watchdog\n");
 	} else if (req->ir_compcode == 0x80) {
@@ -677,7 +676,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 		req->ir_request[4] = 0;
 		req->ir_request[5] = 0;
 	}
-	error = ipmi_submit_driver_request(sc, req, 0);
+	error = ipmi_submit_driver_request(sc, req);
 	if (error) {
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
 	} else if (req->ir_compcode != 0) {
@@ -812,7 +811,7 @@ ipmi_power_cycle(void *arg, int howto)
 	    IPMI_CHASSIS_CONTROL, 1, 0);
 	req->ir_request[0] = IPMI_CC_POWER_CYCLE;
 
-	ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
+	ipmi_submit_driver_request(sc, req);
 
 	if (req->ir_error != 0 || req->ir_compcode != 0) {
 		device_printf(sc->ipmi_dev, "Power cycling via IPMI failed code %#x %#x\n",
@@ -859,7 +858,7 @@ ipmi_startup(void *arg)
 	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_GET_DEVICE_ID, 0, 15);
 
-	error = ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
+	error = ipmi_submit_driver_request(sc, req);
 	if (error == EWOULDBLOCK) {
 		device_printf(dev, "Timed out waiting for GET_DEVICE_ID\n");
 		return;
@@ -888,7 +887,7 @@ ipmi_startup(void *arg)
 	IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_CLEAR_FLAGS, 1, 0);
 
-	ipmi_submit_driver_request(sc, req, 0);
+	ipmi_submit_driver_request(sc, req);
 
 	/* XXX: Magic numbers */
 	if (req->ir_compcode == 0xc0) {
@@ -903,7 +902,7 @@ ipmi_startup(void *arg)
 		    IPMI_GET_CHANNEL_INFO, 1, 0);
 		req->ir_request[0] = i;
 
-		error = ipmi_submit_driver_request(sc, req, 0);
+		error = ipmi_submit_driver_request(sc, req);
 
 		if (error != 0 || req->ir_compcode != 0)
 			break;
@@ -918,7 +917,7 @@ ipmi_startup(void *arg)
 		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 		    IPMI_GET_WDOG, 0, 0);
 
-		error = ipmi_submit_driver_request(sc, req, 0);
+		error = ipmi_submit_driver_request(sc, req);
 
 		if (error == 0 && req->ir_compcode == 0x00) {
 			device_printf(dev, "Attached watchdog\n");

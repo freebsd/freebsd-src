@@ -1,4 +1,3 @@
-
 LIB=		mixer
 SRCS=		${LIB}.c
 INCS=		${LIB}.h

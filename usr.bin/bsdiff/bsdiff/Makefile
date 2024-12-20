@@ -1,4 +1,3 @@
-
 PROG=		bsdiff
 
 # libdivsufsort configured with:

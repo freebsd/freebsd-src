@@ -46,6 +46,7 @@
 #include <machine/resource.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_bus_if.h"
@@ -55,6 +56,9 @@
 #include "dpaa2_mcp.h"
 #include "dpaa2_mc.h"
 #include "dpaa2_mc_if.h"
+
+#define	_COMPONENT	ACPI_BUS
+ACPI_MODULE_NAME("DPAA2_MC")
 
 struct dpaa2_mac_dev_softc {
 	int			uid;

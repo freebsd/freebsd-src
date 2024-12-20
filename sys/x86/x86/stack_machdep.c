@@ -109,8 +109,6 @@ stack_save_td(struct stack *st, struct thread *td)
 	bool done;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(!TD_IS_SWAPPED(td),
-	    ("stack_save_td: thread %p is swapped", td));
 	if (TD_IS_RUNNING(td) && td != curthread)
 		PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 

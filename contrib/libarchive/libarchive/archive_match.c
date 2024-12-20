@@ -220,7 +220,7 @@ archive_match_new(void)
 {
 	struct archive_match *a;
 
-	a = (struct archive_match *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_MATCH_MAGIC;

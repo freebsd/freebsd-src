@@ -198,7 +198,9 @@ msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname
 	switch (unix2dosfn((const u_char *)cnp->cn_nameptr, dosfilename,
 	    cnp->cn_namelen, 0, pmp)) {
 	case 0:
-		return (EINVAL);
+		if (nameiop == CREATE || nameiop == RENAME)
+			return (EINVAL);
+		return (ENOENT);
 	case 1:
 		break;
 	case 2:

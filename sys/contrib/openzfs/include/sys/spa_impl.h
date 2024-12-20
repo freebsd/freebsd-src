@@ -146,6 +146,7 @@ struct spa_aux_vdev {
 	vdev_t		**sav_vdevs;		/* devices */
 	int		sav_count;		/* number devices */
 	boolean_t	sav_sync;		/* sync the device list */
+	boolean_t	sav_label_sync;		/* sync aux labels */
 	nvlist_t	**sav_pending;		/* pending device additions */
 	uint_t		sav_npending;		/* # pending devices */
 };
@@ -317,6 +318,7 @@ struct spa {
 	uint64_t	spa_scan_pass_scrub_spent_paused; /* total paused */
 	uint64_t	spa_scan_pass_exam;	/* examined bytes per pass */
 	uint64_t	spa_scan_pass_issued;	/* issued bytes per pass */
+	uint64_t	spa_scrubbed_last_txg;	/* last txg scrubbed */
 
 	/* error scrub pause time in milliseconds */
 	uint64_t	spa_scan_pass_errorscrub_pause;
@@ -411,7 +413,12 @@ struct spa {
 	uint64_t	spa_dedup_dspace;	/* Cache get_dedup_dspace() */
 	uint64_t	spa_dedup_checksum;	/* default dedup checksum */
 	uint64_t	spa_dspace;		/* dspace in normal class */
-	struct brt	*spa_brt;		/* in-core BRT */
+	uint64_t	spa_rdspace;		/* raw (non-dedup) --//-- */
+	boolean_t	spa_active_ddt_prune;	/* ddt prune process active */
+	brt_vdev_t	**spa_brt_vdevs;	/* array of per-vdev BRTs */
+	uint64_t	spa_brt_nvdevs;		/* number of vdevs in BRT */
+	uint64_t	spa_brt_rangesize;	/* pool's BRT range size */
+	krwlock_t	spa_brt_lock;		/* Protects brt_vdevs/nvdevs */
 	kmutex_t	spa_vdev_top_lock;	/* dueling offline/remove */
 	kmutex_t	spa_proc_lock;		/* protects spa_proc* */
 	kcondvar_t	spa_proc_cv;		/* spa_proc_state transitions */
@@ -465,6 +472,9 @@ struct spa {
 	boolean_t	spa_waiters_cancel;	/* waiters should return */
 
 	char		*spa_compatibility;	/* compatibility file(s) */
+	uint64_t	spa_dedup_table_quota;	/* property DDT maximum size */
+	uint64_t	spa_dedup_dsize;	/* cached on-disk size of DDT */
+	uint64_t	spa_dedup_class_full_txg; /* txg dedup class was full */
 
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements

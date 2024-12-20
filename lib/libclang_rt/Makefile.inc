@@ -1,4 +1,3 @@
-
 .include <bsd.compiler.mk>
 
 PACKAGE=	clang
@@ -11,7 +10,6 @@ LIBDIR=		${SANITIZER_LIBDIR}
 SHLIBDIR=	${LIBDIR}
 
 NO_PIC=
-MK_PROFILE=	no
 MK_ASAN:=	no
 MK_SSP=		no
 MK_UBSAN:=	no

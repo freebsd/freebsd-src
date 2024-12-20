@@ -1,4 +1,3 @@
-
 SCRIPTS= man.sh
 LINKS=	${BINDIR}/man ${BINDIR}/manpath
 

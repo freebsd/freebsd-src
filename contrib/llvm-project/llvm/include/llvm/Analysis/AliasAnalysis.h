@@ -41,6 +41,7 @@
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ModRef.h"
@@ -243,12 +244,23 @@ class AAQueryInfo {
 public:
   using LocPair = std::pair<AACacheLoc, AACacheLoc>;
   struct CacheEntry {
+    /// Cache entry is neither an assumption nor does it use a (non-definitive)
+    /// assumption.
+    static constexpr int Definitive = -2;
+    /// Cache entry is not an assumption itself, but may be using an assumption
+    /// from higher up the stack.
+    static constexpr int AssumptionBased = -1;
+
     AliasResult Result;
-    /// Number of times a NoAlias assumption has been used.
-    /// 0 for assumptions that have not been used, -1 for definitive results.
+    /// Number of times a NoAlias assumption has been used, 0 for assumptions
+    /// that have not been used. Can also take one of the Definitive or
+    /// AssumptionBased values documented above.
     int NumAssumptionUses;
+
     /// Whether this is a definitive (non-assumption) result.
-    bool isDefinitive() const { return NumAssumptionUses < 0; }
+    bool isDefinitive() const { return NumAssumptionUses == Definitive; }
+    /// Whether this is an assumption that has not been proven yet.
+    bool isAssumption() const { return NumAssumptionUses >= 0; }
   };
 
   // Alias analysis result aggregration using which this query is performed.
@@ -308,7 +320,7 @@ class AAResults {
 public:
   // Make these results default constructable and movable. We have to spell
   // these out because MSVC won't synthesize them.
-  AAResults(const TargetLibraryInfo &TLI) : TLI(TLI) {}
+  AAResults(const TargetLibraryInfo &TLI);
   AAResults(AAResults &&Arg);
   ~AAResults();
 
@@ -566,8 +578,6 @@ public:
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
                     AAQueryInfo &AAQI, const Instruction *CtxI = nullptr);
 
-  bool pointsToConstantMemory(const MemoryLocation &Loc, AAQueryInfo &AAQI,
-                              bool OrLocal = false);
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc, AAQueryInfo &AAQI,
                                bool IgnoreLocals = false);
   ModRefInfo getModRefInfo(const Instruction *I, const CallBase *Call2,
@@ -635,7 +645,7 @@ public:
     return AA.alias(LocA, LocB, AAQI);
   }
   bool pointsToConstantMemory(const MemoryLocation &Loc, bool OrLocal = false) {
-    return AA.pointsToConstantMemory(Loc, AAQI, OrLocal);
+    return isNoModRef(AA.getModRefInfoMask(Loc, AAQI, OrLocal));
   }
   ModRefInfo getModRefInfoMask(const MemoryLocation &Loc,
                                bool IgnoreLocals = false) {

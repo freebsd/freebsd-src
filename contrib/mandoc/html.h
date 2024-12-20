@@ -1,4 +1,4 @@
-/* $Id: html.h,v 1.109 2021/09/09 14:47:24 schwarze Exp $ */
+/* $Id: html.h,v 1.112 2022/07/06 14:34:59 schwarze Exp $ */
 /*
  * Copyright (c) 2017, 2018, 2019, 2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -27,8 +27,10 @@ enum	htmltag {
 	TAG_STYLE,
 	TAG_TITLE,
 	TAG_BODY,
+	TAG_MAIN,
 	TAG_DIV,
 	TAG_SECTION,
+	TAG_NAV,
 	TAG_TABLE,
 	TAG_TR,
 	TAG_TD,
@@ -38,8 +40,8 @@ enum	htmltag {
 	TAG_DL,
 	TAG_DT,
 	TAG_DD,
-	TAG_H1,
 	TAG_H2,
+	TAG_H3,
 	TAG_P,
 	TAG_PRE,
 	TAG_A,

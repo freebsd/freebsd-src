@@ -136,7 +136,9 @@ struct linear_buffer {
 };
 #define	SCRATCH_BUFFER_SIZE	1024
 
-#define	RTS_PID_LOG(_l, _fmt, ...)	RT_LOG_##_l(_l, "PID %d: " _fmt, curproc ? curproc->p_pid : 0, ## __VA_ARGS__)
+#define	RTS_PID_LOG(_l, _fmt, ...)					\
+	RT_LOG_##_l(_l, "PID %d: " _fmt, curproc ? curproc->p_pid : 0,	\
+	    ## __VA_ARGS__)
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -259,7 +261,7 @@ vnet_rts_init(void)
 #endif
 }
 VNET_SYSINIT(vnet_rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
-    vnet_rts_init, 0);
+    vnet_rts_init, NULL);
 
 #ifdef VIMAGE
 static void
@@ -269,7 +271,7 @@ vnet_rts_uninit(void)
 	netisr_unregister_vnet(&rtsock_nh);
 }
 VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
-    vnet_rts_uninit, 0);
+    vnet_rts_uninit, NULL);
 #endif
 
 static void
@@ -919,8 +921,10 @@ update_rtm_from_info(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 		 */
 	}
 
-	w.w_tmem = (caddr_t)rtm;
-	w.w_tmemsize = alloc_len;
+	w = (struct walkarg ){
+		.w_tmem = (caddr_t)rtm,
+		.w_tmemsize = alloc_len,
+	};
 	rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
 	rtm->rtm_addrs = info->rti_addrs;
 
@@ -1772,7 +1776,10 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	struct sockaddr_in6 *sin6;
 #endif
 #ifdef COMPAT_FREEBSD32
-	bool compat32 = false;
+	bool compat32;
+
+	compat32 = w != NULL && w->w_req != NULL &&
+	    (w->w_req->flags & SCTL_MASK32);
 #endif
 
 	switch (type) {
@@ -1780,10 +1787,9 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 	case RTM_NEWADDR:
 		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
 #ifdef COMPAT_FREEBSD32
-			if (w->w_req->flags & SCTL_MASK32) {
+			if (compat32)
 				len = sizeof(struct ifa_msghdrl32);
-				compat32 = true;
-			} else
+			else
 #endif
 				len = sizeof(struct ifa_msghdrl);
 		} else
@@ -1791,20 +1797,21 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 		break;
 
 	case RTM_IFINFO:
+		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
 #ifdef COMPAT_FREEBSD32
-		if (w != NULL && w->w_req->flags & SCTL_MASK32) {
-			if (w->w_op == NET_RT_IFLISTL)
+			if (compat32)
 				len = sizeof(struct if_msghdrl32);
 			else
-				len = sizeof(struct if_msghdr32);
-			compat32 = true;
-			break;
-		}
 #endif
-		if (w != NULL && w->w_op == NET_RT_IFLISTL)
-			len = sizeof(struct if_msghdrl);
-		else
-			len = sizeof(struct if_msghdr);
+				len = sizeof(struct if_msghdrl);
+		} else {
+#ifdef COMPAT_FREEBSD32
+			if (compat32)
+				len = sizeof(struct if_msghdr32);
+			else
+#endif
+				len = sizeof(struct if_msghdr);
+		}
 		break;
 
 	case RTM_NEWMADDR:

@@ -634,11 +634,13 @@ struct mlx5_priv {
 #endif
 	struct mlx5_pme_stats pme_stats;
 
+	struct mlx5_flow_steering *steering;
 	struct mlx5_eswitch	*eswitch;
 
 	struct mlx5_bfreg_data		bfregs;
 	struct mlx5_uars_page	       *uar;
 	struct mlx5_fc_stats		fc_stats;
+	struct mlx5_ft_pool             *ft_pool;
 };
 
 enum mlx5_device_state {
@@ -721,13 +723,18 @@ struct mlx5_core_dev {
 	u32			vsc_addr;
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;
-	unsigned int module_status[MLX5_MAX_PORTS];
+	unsigned int module_status;
+	unsigned int module_num;
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
 	struct mlx5_flow_root_namespace *esw_egress_root_ns;
 	struct mlx5_flow_root_namespace *esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace *sniffer_rx_root_ns;
 	struct mlx5_flow_root_namespace *sniffer_tx_root_ns;
+	struct mlx5_flow_root_namespace *nic_tx_root_ns;
+	struct mlx5_flow_root_namespace *rdma_tx_root_ns;
+	struct mlx5_flow_root_namespace *rdma_rx_root_ns;
+
 	u32 num_q_counter_allocated[MLX5_INTERFACE_NUMBER];
 	struct mlx5_crspace_regmap *dump_rege;
 	uint32_t *dump_data;
@@ -756,6 +763,7 @@ struct mlx5_core_dev {
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device	*fpga;
 #endif
+	struct xarray ipsec_sadb;
 };
 
 enum {

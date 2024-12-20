@@ -43,29 +43,26 @@
 /*********************************************************************
  *  Local Function prototypes
  *********************************************************************/
-static int em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi,
-    uint32_t *txd_upper, uint32_t *txd_lower);
-static int em_transmit_checksum_setup(struct e1000_softc *sc,
-    if_pkt_info_t pi, uint32_t *txd_upper, uint32_t *txd_lower);
-static int em_isc_txd_encap(void *arg, if_pkt_info_t pi);
-static void em_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
-static int em_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
-static void em_isc_rxd_refill(void *arg, if_rxd_update_t iru);
-static void em_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
-    qidx_t pidx);
-static int em_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
-    qidx_t budget);
-static int em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
+static int em_tso_setup(struct e1000_softc *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
+static int em_transmit_checksum_setup(struct e1000_softc *, if_pkt_info_t,
+    uint32_t *, uint32_t *);
+static int em_isc_txd_encap(void *, if_pkt_info_t);
+static void em_isc_txd_flush(void *, uint16_t, qidx_t);
+static int em_isc_txd_credits_update(void *, uint16_t, bool);
+static void em_isc_rxd_refill(void *, if_rxd_update_t);
+static void em_isc_rxd_flush(void *, uint16_t, uint8_t, qidx_t);
+static int em_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
+static int em_isc_rxd_pkt_get(void *, if_rxd_info_t);
 
-static void lem_isc_rxd_refill(void *arg, if_rxd_update_t iru);
+static void lem_isc_rxd_refill(void *, if_rxd_update_t);
 
-static int lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
-   qidx_t budget);
-static int lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
+static int lem_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
+static int lem_isc_rxd_pkt_get(void *, if_rxd_info_t);
 
 static void em_receive_checksum(uint16_t, uint8_t, if_rxd_info_t);
-static int em_determine_rsstype(uint32_t pkt_info);
-extern int em_intr(void *arg);
+static int em_determine_rsstype(uint32_t);
+extern int em_intr(void *);
 
 struct if_txrx em_txrx = {
 	.ift_txd_encap = em_isc_txd_encap,
@@ -111,16 +108,19 @@ em_dump_rs(struct e1000_softc *sc)
 			cur = txr->tx_rsq[rs_cidx];
 			status = txr->tx_base[cur].upper.fields.status;
 			if (!(status & E1000_TXD_STAT_DD))
-				printf("qid[%d]->tx_rsq[%d]: %d clear ", qid, rs_cidx, cur);
+				printf("qid[%d]->tx_rsq[%d]: %d clear ",
+				    qid, rs_cidx, cur);
 		} else {
 			rs_cidx = (rs_cidx-1)&(ntxd-1);
 			cur = txr->tx_rsq[rs_cidx];
-			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ", qid, rs_cidx, cur);
+			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ",
+			    qid, rs_cidx, cur);
 		}
 		printf("cidx_prev=%d rs_pidx=%d ",txr->tx_cidx_processed,
 		    txr->tx_rs_pidx);
 		for (i = 0; i < ntxd; i++) {
-			if (txr->tx_base[i].upper.fields.status & E1000_TXD_STAT_DD)
+			if (txr->tx_base[i].upper.fields.status &
+			    E1000_TXD_STAT_DD)
 				printf("%d set ", i);
 		}
 		printf("\n");
@@ -146,8 +146,8 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 
 	hdr_len = pi->ipi_ehdrlen + pi->ipi_ip_hlen + pi->ipi_tcp_hlen;
 	*txd_lower = (E1000_TXD_CMD_DEXT |	/* Extended descr type */
-		      E1000_TXD_DTYP_D |	/* Data descr type */
-		      E1000_TXD_CMD_TSE);	/* Do TSE on this packet */
+	    E1000_TXD_DTYP_D |			/* Data descr type */
+	    E1000_TXD_CMD_TSE);			/* Do TSE on this packet */
 
 	cur = pi->ipi_pidx;
 	TXD = (struct e1000_context_desc *)&txr->tx_base[cur];
@@ -160,7 +160,8 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	switch(pi->ipi_etype) {
 	case ETHERTYPE_IP:
 		/* IP and/or TCP header checksum calculation and insertion. */
-		*txd_upper = (E1000_TXD_POPTS_IXSM | E1000_TXD_POPTS_TXSM) << 8;
+		*txd_upper =
+		    (E1000_TXD_POPTS_IXSM | E1000_TXD_POPTS_TXSM) << 8;
 
 		TXD->lower_setup.ip_fields.ipcse =
 		    htole16(pi->ipi_ehdrlen + pi->ipi_ip_hlen - 1);
@@ -186,7 +187,8 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	TXD->upper_setup.tcp_fields.tucss = pi->ipi_ehdrlen + pi->ipi_ip_hlen;
 	TXD->upper_setup.tcp_fields.tucse = 0;
 	TXD->upper_setup.tcp_fields.tucso =
-	    pi->ipi_ehdrlen + pi->ipi_ip_hlen + offsetof(struct tcphdr, th_sum);
+	    pi->ipi_ehdrlen + pi->ipi_ip_hlen +
+	    offsetof(struct tcphdr, th_sum);
 
 	/*
 	 * Payload size per packet w/o any headers.
@@ -214,8 +216,8 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	if (++cur == scctx->isc_ntxd[0]) {
 		cur = 0;
 	}
-	DPRINTF(iflib_get_dev(sc->ctx), "%s: pidx: %d cur: %d\n", __FUNCTION__,
-	    pi->ipi_pidx, cur);
+	DPRINTF(iflib_get_dev(sc->ctx), "%s: pidx: %d cur: %d\n",
+	    __FUNCTION__, pi->ipi_pidx, cur);
 	return (cur);
 }
 
@@ -280,8 +282,8 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 	 * ipcse - End offset for header checksum calculation.
 	 * ipcso - Offset of place to put the checksum.
 	 *
-	 * We set ipcsX values regardless of IP version to work around HW issues
-	 * and ipcse must be 0 for IPv6 per "PCIe GbE SDM 2.5" page 61.
+	 * We set ipcsX values regardless of IP version to work around HW
+	 * issues and ipcse must be 0 for IPv6 per "PCIe GbE SDM 2.5" page 61.
 	 * IXSM controls whether it's inserted.
 	 */
 	TXD->lower_setup.ip_fields.ipcss = pi->ipi_ehdrlen;
@@ -299,7 +301,8 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 	 * tucse - End offset for payload checksum calculation.
 	 * tucso - Offset of place to put the checksum.
 	 */
-	if (csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP | CSUM_IP6_UDP)) {
+	if (csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP |
+	    CSUM_IP6_UDP)) {
 		uint8_t tucso;
 
 		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
@@ -329,7 +332,8 @@ em_transmit_checksum_setup(struct e1000_softc *sc, if_pkt_info_t pi,
 		cur = 0;
 	}
 	DPRINTF(iflib_get_dev(sc->ctx),
-	    "checksum_setup csum_flags=%x txd_upper=%x txd_lower=%x hdr_len=%d cmd=%x\n",
+	    "checksum_setup csum_flags=%x txd_upper=%x txd_lower=%x"
+	    " hdr_len=%d cmd=%x\n",
 	    csum_flags, *txd_upper, *txd_lower, hdr_len, cmd);
 	return (cur);
 }
@@ -375,7 +379,8 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 		i = em_tso_setup(sc, pi, &txd_upper, &txd_lower);
 		tso_desc = true;
 	} else if (csum_flags & EM_CSUM_OFFLOAD) {
-		i = em_transmit_checksum_setup(sc, pi, &txd_upper, &txd_lower);
+		i = em_transmit_checksum_setup(sc, pi, &txd_upper,
+		    &txd_lower);
 	}
 
 	if (pi->ipi_mflags & M_VLANTAG) {
@@ -417,7 +422,8 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 			/* Now make the sentinel */
 			ctxd = &txr->tx_base[i];
 			ctxd->buffer_addr = htole64(seg_addr + seg_len);
-			ctxd->lower.data = htole32(cmd | txd_lower | TSO_WORKAROUND);
+			ctxd->lower.data =
+			    htole32(cmd | txd_lower | TSO_WORKAROUND);
 			ctxd->upper.data = htole32(txd_upper);
 			pidx_last = i;
 			if (++i == scctx->isc_ntxd[0])
@@ -432,7 +438,8 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 			pidx_last = i;
 			if (++i == scctx->isc_ntxd[0])
 				i = 0;
-			DPRINTF(iflib_get_dev(sc->ctx), "pidx_last=%d i=%d ntxd[0]=%d\n",
+			DPRINTF(iflib_get_dev(sc->ctx),
+			    "pidx_last=%d i=%d ntxd[0]=%d\n",
 			    pidx_last, i, scctx->isc_ntxd[0]);
 		}
 	}
@@ -452,8 +459,13 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	}
 	ctxd->lower.data |= htole32(E1000_TXD_CMD_EOP | txd_flags);
 	DPRINTF(iflib_get_dev(sc->ctx),
-	    "tx_buffers[%d]->eop = %d ipi_new_pidx=%d\n", first, pidx_last, i);
+	    "tx_buffers[%d]->eop = %d ipi_new_pidx=%d\n",
+	    first, pidx_last, i);
 	pi->ipi_new_pidx = i;
+
+	/* Sent data accounting for AIM */
+	txr->tx_bytes += pi->ipi_len;
+	++txr->tx_packets;
 
 	return (0);
 }
@@ -507,8 +519,8 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 			delta += ntxd;
 		MPASS(delta > 0);
 		DPRINTF(iflib_get_dev(sc->ctx),
-			      "%s: cidx_processed=%u cur=%u clear=%d delta=%d\n",
-			      __FUNCTION__, prev, cur, clear, delta);
+		    "%s: cidx_processed=%u cur=%u clear=%d delta=%d\n",
+		    __FUNCTION__, prev, cur, clear, delta);
 
 		processed += delta;
 		prev  = cur;
@@ -669,6 +681,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->length);
 		ri->iri_len += len;
+		rxr->rx_bytes += ri->iri_len;
 
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
@@ -690,12 +703,15 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
+	rxr->rx_packets++;
+
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(status, errors, ri);
 
 	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
 	    status & E1000_RXD_STAT_VP) {
-		ri->iri_vtag = le16toh(rxd->special & E1000_RXD_SPC_VLAN_MASK);
+		ri->iri_vtag =
+		    le16toh(rxd->special & E1000_RXD_SPC_VLAN_MASK);
 		ri->iri_flags |= M_VLANTAG;
 	}
 
@@ -732,6 +748,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->wb.upper.length);
 		ri->iri_len += len;
+		rxr->rx_bytes += ri->iri_len;
 
 		eop = (staterr & E1000_RXD_STAT_EOP) != 0;
 
@@ -751,6 +768,8 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 			cidx = 0;
 		i++;
 	} while (!eop);
+
+	rxr->rx_packets++;
 
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
 		em_receive_checksum(staterr, staterr >> 24, ri);
@@ -782,7 +801,8 @@ em_receive_checksum(uint16_t status, uint8_t errors, if_rxd_info_t ri)
 		return;
 
 	/* If there is a layer 3 or 4 error we are done */
-	if (__predict_false(errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
+	if (__predict_false(errors & (E1000_RXD_ERR_IPE |
+	    E1000_RXD_ERR_TCPE)))
 		return;
 
 	/* IP Checksum Good */

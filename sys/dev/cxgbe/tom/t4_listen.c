@@ -72,9 +72,9 @@
 #include "tom/t4_tom.h"
 
 /* stid services */
-static int alloc_stid(struct adapter *, struct listen_ctx *, int);
+static int alloc_stid(struct adapter *, bool, void *);
 static struct listen_ctx *lookup_stid(struct adapter *, int);
-static void free_stid(struct adapter *, struct listen_ctx *);
+static void free_stid(struct adapter *, int , bool);
 
 /* lctx services */
 static struct listen_ctx *alloc_lctx(struct adapter *, struct inpcb *,
@@ -88,75 +88,206 @@ static struct inpcb *release_lctx(struct adapter *, struct listen_ctx *);
 
 static void send_abort_rpl_synqe(struct toedev *, struct synq_entry *, int);
 
-static int
-alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
+static int create_server6(struct adapter *, struct listen_ctx *);
+static int create_server(struct adapter *, struct listen_ctx *);
+
+int
+alloc_stid_tab(struct adapter *sc)
 {
 	struct tid_info *t = &sc->tids;
-	u_int stid, n, f, mask;
-	struct stid_region *sr = &lctx->stid_region;
 
-	/*
-	 * An IPv6 server needs 2 naturally aligned stids (1 stid = 4 cells) in
-	 * the TCAM.  The start of the stid region is properly aligned (the chip
-	 * requires each region to be 128-cell aligned).
-	 */
-	n = isipv6 ? 2 : 1;
-	mask = n - 1;
-	KASSERT((t->stid_base & mask) == 0 && (t->nstids & mask) == 0,
-	    ("%s: stid region (%u, %u) not properly aligned.  n = %u",
-	    __func__, t->stid_base, t->nstids, n));
+	MPASS(t->nstids > 0);
+	MPASS(t->stid_tab == NULL);
+
+	t->stid_tab = malloc(t->nstids * sizeof(*t->stid_tab), M_CXGBE,
+	    M_ZERO | M_NOWAIT);
+	if (t->stid_tab == NULL)
+		return (ENOMEM);
+	t->stid_bitmap = bit_alloc(t->nstids, M_CXGBE, M_NOWAIT);
+	if (t->stid_bitmap == NULL) {
+		free(t->stid_tab, M_CXGBE);
+		t->stid_tab = NULL;
+		return (ENOMEM);
+	}
+	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
+	t->stids_in_use = 0;
+
+	return (0);
+}
+
+void
+free_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+
+	KASSERT(t->stids_in_use == 0,
+	    ("%s: %d tids still in use.", __func__, t->stids_in_use));
+
+	if (mtx_initialized(&t->stid_lock))
+		mtx_destroy(&t->stid_lock);
+	free(t->stid_tab, M_CXGBE);
+	t->stid_tab = NULL;
+	free(t->stid_bitmap, M_CXGBE);
+	t->stid_bitmap = NULL;
+}
+
+void
+stop_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+	struct tom_data *td = sc->tom_softc;
+	struct listen_ctx *lctx;
+	struct synq_entry *synqe;
+	int i, ntids;
 
 	mtx_lock(&t->stid_lock);
-	if (n > t->nstids - t->stids_in_use) {
-		mtx_unlock(&t->stid_lock);
-		return (-1);
-	}
-
-	if (t->nstids_free_head >= n) {
-		/*
-		 * This allocation will definitely succeed because the region
-		 * starts at a good alignment and we just checked we have enough
-		 * stids free.
-		 */
-		f = t->nstids_free_head & mask;
-		t->nstids_free_head -= n + f;
-		stid = t->nstids_free_head;
-		TAILQ_INSERT_HEAD(&t->stids, sr, link);
-	} else {
-		struct stid_region *s;
-
-		stid = t->nstids_free_head;
-		TAILQ_FOREACH(s, &t->stids, link) {
-			stid += s->used + s->free;
-			f = stid & mask;
-			if (s->free >= n + f) {
-				stid -= n + f;
-				s->free -= n + f;
-				TAILQ_INSERT_AFTER(&t->stids, s, sr, link);
-				goto allocated;
-			}
-		}
-
-		if (__predict_false(stid != t->nstids)) {
-			panic("%s: stids TAILQ (%p) corrupt."
-			    "  At %d instead of %d at the end of the queue.",
-			    __func__, &t->stids, stid, t->nstids);
-		}
-
-		mtx_unlock(&t->stid_lock);
-		return (-1);
-	}
-
-allocated:
-	sr->used = n;
-	sr->free = f;
-	t->stids_in_use += n;
-	t->stid_tab[stid] = lctx;
+	t->stid_tab_stopped = true;
 	mtx_unlock(&t->stid_lock);
 
-	KASSERT(((stid + t->stid_base) & mask) == 0,
-	    ("%s: EDOOFUS.", __func__));
-	return (stid + t->stid_base);
+	mtx_lock(&td->lctx_hash_lock);
+	for (i = 0; i <= td->listen_mask; i++) {
+		LIST_FOREACH(lctx, &td->listen_hash[i], link)
+			lctx->flags &= ~(LCTX_RPL_PENDING | LCTX_SETUP_IN_HW);
+	}
+	mtx_unlock(&td->lctx_hash_lock);
+
+	mtx_lock(&td->toep_list_lock);
+	TAILQ_FOREACH(synqe, &td->synqe_list, link) {
+		MPASS(sc->incarnation == synqe->incarnation);
+		MPASS(synqe->tid >= 0);
+		MPASS(synqe == lookup_tid(sc, synqe->tid));
+		/* Remove tid from the lookup table immediately. */
+		CTR(KTR_CXGBE, "%s: tid %d@%d STRANDED, removed from table",
+		    __func__, synqe->tid, synqe->incarnation);
+		ntids = synqe->lctx->inp->inp_vflag & INP_IPV6 ? 2 : 1;
+		remove_tid(sc, synqe->tid, ntids);
+#if 0
+		/* synqe->tid is stale now but left alone for debug. */
+		synqe->tid = -1;
+#endif
+	}
+	MPASS(TAILQ_EMPTY(&td->stranded_synqe));
+	TAILQ_CONCAT(&td->stranded_synqe, &td->synqe_list, link);
+	MPASS(TAILQ_EMPTY(&td->synqe_list));
+	mtx_unlock(&td->toep_list_lock);
+}
+
+void
+restart_stid_tab(struct adapter *sc)
+{
+	struct tid_info *t = &sc->tids;
+	struct tom_data *td = sc->tom_softc;
+	struct listen_ctx *lctx;
+	int i;
+
+	mtx_lock(&td->lctx_hash_lock);
+	for (i = 0; i <= td->listen_mask; i++) {
+		LIST_FOREACH(lctx, &td->listen_hash[i], link) {
+			MPASS((lctx->flags & (LCTX_RPL_PENDING | LCTX_SETUP_IN_HW)) == 0);
+			lctx->flags |= LCTX_RPL_PENDING;
+			if (lctx->inp->inp_vflag & INP_IPV6)
+				create_server6(sc, lctx);
+			else
+				create_server(sc, lctx);
+		}
+	}
+	mtx_unlock(&td->lctx_hash_lock);
+
+	mtx_lock(&t->stid_lock);
+	t->stid_tab_stopped = false;
+	mtx_unlock(&t->stid_lock);
+
+}
+
+static int
+alloc_stid(struct adapter *sc, bool isipv6, void *ctx)
+{
+	struct tid_info *t = &sc->tids;
+	const u_int n = isipv6 ? 2 : 1;
+	int stid, pair_stid;
+	u_int i;
+	ssize_t val;
+
+	mtx_lock(&t->stid_lock);
+	MPASS(t->stids_in_use <= t->nstids);
+	if (n > t->nstids - t->stids_in_use || t->stid_tab_stopped) {
+		mtx_unlock(&t->stid_lock);
+		return (-1);
+	}
+
+	stid = -1;
+	if (isipv6) {
+		/*
+		 * An IPv6 server needs 2 naturally aligned stids (1 stid = 4
+		 * cells) in the TCAM.  We know that the start of the stid
+		 * region is properly aligned already (the chip requires each
+		 * region to be 128-cell aligned).
+		 */
+		for (i = 0; i + 1 < t->nstids; i = roundup2(val + 1, 2)) {
+			bit_ffc_area_at(t->stid_bitmap, i, t->nstids, 2, &val);
+			if (val == -1)
+				break;
+			if ((val & 1) == 0) {
+				stid = val;
+				break;
+			}
+		}
+	} else {
+		/*
+		 * An IPv4 server needs one stid without any alignment
+		 * requirements.  But we try extra hard to find an available
+		 * stid adjacent to a used stid so that free "stid-pairs" are
+		 * left intact for IPv6.
+		 */
+		bit_ffc_at(t->stid_bitmap, 0, t->nstids, &val);
+		while (val != -1) {
+			if (stid == -1) {
+				/*
+				 * First usable stid.  Look no further if it's
+				 * an ideal fit.
+				 */
+				stid = val;
+				if (val & 1 || bit_test(t->stid_bitmap, val + 1))
+					break;
+			} else {
+				/*
+				 * We have an unused stid already but are now
+				 * looking for in-use stids because we'd prefer
+				 * to grab an unused stid adjacent to one that's
+				 * in use.
+				 *
+				 * Odd stids pair with the previous stid and
+				 * even ones pair with the next stid.
+				 */
+				pair_stid = val & 1 ? val - 1 : val + 1;
+				if (bit_test(t->stid_bitmap, pair_stid) == 0) {
+					stid = pair_stid;
+					break;
+				}
+			}
+			val = roundup2(val + 1, 2);
+			if (val >= t->nstids)
+				break;
+			bit_ffs_at(t->stid_bitmap, val, t->nstids, &val);
+		}
+	}
+
+	if (stid >= 0) {
+		MPASS(stid + n - 1 < t->nstids);
+		MPASS(bit_ntest(t->stid_bitmap, stid, stid + n - 1, 0));
+		bit_nset(t->stid_bitmap, stid, stid + n - 1);
+		t->stids_in_use += n;
+		t->stid_tab[stid] = ctx;
+#ifdef INVARIANTS
+		if (n == 2) {
+			MPASS((stid & 1) == 0);
+			t->stid_tab[stid + 1] = NULL;
+		}
+#endif
+		stid += t->stid_base;
+	}
+	mtx_unlock(&t->stid_lock);
+	return (stid);
 }
 
 static struct listen_ctx *
@@ -168,25 +299,28 @@ lookup_stid(struct adapter *sc, int stid)
 }
 
 static void
-free_stid(struct adapter *sc, struct listen_ctx *lctx)
+free_stid(struct adapter *sc, int stid, bool isipv6)
 {
 	struct tid_info *t = &sc->tids;
-	struct stid_region *sr = &lctx->stid_region;
-	struct stid_region *s;
-
-	KASSERT(sr->used > 0, ("%s: nonsense free (%d)", __func__, sr->used));
+	const u_int n = isipv6 ? 2 : 1;
 
 	mtx_lock(&t->stid_lock);
-	s = TAILQ_PREV(sr, stid_head, link);
-	if (s != NULL)
-		s->free += sr->used + sr->free;
-	else
-		t->nstids_free_head += sr->used + sr->free;
-	KASSERT(t->stids_in_use >= sr->used,
-	    ("%s: stids_in_use (%u) < stids being freed (%u)", __func__,
-	    t->stids_in_use, sr->used));
-	t->stids_in_use -= sr->used;
-	TAILQ_REMOVE(&t->stids, sr, link);
+	MPASS(stid >= t->stid_base);
+	stid -= t->stid_base;
+	MPASS(stid + n - 1 < t->nstids);
+	MPASS(t->stids_in_use <= t->nstids);
+	MPASS(t->stids_in_use >= n);
+	MPASS(t->stid_tab[stid] != NULL);
+#ifdef INVARIANTS
+	if (n == 2) {
+		MPASS((stid & 1) == 0);
+		MPASS(t->stid_tab[stid + 1] == NULL);
+	}
+#endif
+	MPASS(bit_ntest(t->stid_bitmap, stid, stid + n - 1, 1));
+	bit_nclear(t->stid_bitmap, stid, stid + n - 1);
+	t->stid_tab[stid] = NULL;
+	t->stids_in_use -= n;
 	mtx_unlock(&t->stid_lock);
 }
 
@@ -201,13 +335,14 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	if (lctx == NULL)
 		return (NULL);
 
-	lctx->stid = alloc_stid(sc, lctx, inp->inp_vflag & INP_IPV6);
+	lctx->isipv6 = inp->inp_vflag & INP_IPV6;
+	lctx->stid = alloc_stid(sc, lctx->isipv6, lctx);
 	if (lctx->stid < 0) {
 		free(lctx, M_CXGBE);
 		return (NULL);
 	}
 
-	if (inp->inp_vflag & INP_IPV6 &&
+	if (lctx->isipv6 &&
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
 		lctx->ce = t4_get_clip_entry(sc, &inp->in6p_laddr, true);
 		if (lctx->ce == NULL) {
@@ -243,7 +378,7 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 
 	if (lctx->ce)
 		t4_release_clip_entry(sc, lctx->ce);
-	free_stid(sc, lctx);
+	free_stid(sc, lctx->stid, lctx->isipv6);
 	free(lctx, M_CXGBE);
 
 	return (in_pcbrele_wlocked(inp));
@@ -632,12 +767,15 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 		return (EINPROGRESS);
 	}
 
-	destroy_server(sc, lctx);
+	if (lctx->flags & LCTX_SETUP_IN_HW)
+		destroy_server(sc, lctx);
+	else
+		inp = release_lctx(sc, lctx);
 	return (0);
 }
 
 static inline struct synq_entry *
-alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
+alloc_synqe(struct adapter *sc, struct listen_ctx *lctx, int flags)
 {
 	struct synq_entry *synqe;
 
@@ -647,6 +785,7 @@ alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
 	synqe = malloc(sizeof(*synqe), M_CXGBE, flags);
 	if (__predict_true(synqe != NULL)) {
 		synqe->flags = TPF_SYNQE;
+		synqe->incarnation = sc->incarnation;
 		refcount_init(&synqe->refcnt, 1);
 		synqe->lctx = lctx;
 		hold_lctx(lctx);	/* Every synqe has a ref on its lctx. */
@@ -761,8 +900,9 @@ do_pass_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	    __func__, stid, status, lctx->flags);
 
 	lctx->flags &= ~LCTX_RPL_PENDING;
-
-	if (status != CPL_ERR_NONE)
+	if (status == CPL_ERR_NONE)
+		lctx->flags |= LCTX_SETUP_IN_HW;
+	else
 		log(LOG_ERR, "listener (stid %u) failed: %d\n", stid, status);
 
 #ifdef INVARIANTS
@@ -849,16 +989,22 @@ do_close_server_rpl(struct sge_iq *iq, const struct rss_header *rss,
 static void
 done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
+	struct tom_data *td = sc->tom_softc;
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->params.l2t_idx];
 	int ntids;
 
 	INP_WLOCK_ASSERT(inp);
-	ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
 
-	remove_tid(sc, synqe->tid, ntids);
-	release_tid(sc, synqe->tid, lctx->ctrlq);
+	if (synqe->tid != -1) {
+		ntids = inp->inp_vflag & INP_IPV6 ? 2 : 1;
+		remove_tid(sc, synqe->tid, ntids);
+		mtx_lock(&td->toep_list_lock);
+		TAILQ_REMOVE(&td->synqe_list, synqe, link);
+		mtx_unlock(&td->toep_list_lock);
+		release_tid(sc, synqe->tid, lctx->ctrlq);
+	}
 	t4_l2t_release(e);
 	inp = release_synqe(sc, synqe);
 	if (inp)
@@ -866,10 +1012,8 @@ done_with_synqe(struct adapter *sc, struct synq_entry *synqe)
 }
 
 void
-synack_failure_cleanup(struct adapter *sc, int tid)
+synack_failure_cleanup(struct adapter *sc, struct synq_entry *synqe)
 {
-	struct synq_entry *synqe = lookup_tid(sc, tid);
-
 	INP_WLOCK(synqe->lctx->inp);
 	done_with_synqe(sc, synqe);
 }
@@ -961,6 +1105,7 @@ void
 t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 {
 	struct adapter *sc = tod->tod_softc;
+	struct tom_data *td = sc->tom_softc;
 	struct synq_entry *synqe = arg;
 	struct inpcb *inp = sotoinpcb(so);
 	struct toepcb *toep = synqe->toep;
@@ -976,6 +1121,12 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	toep->flags |= TPF_CPL_PENDING;
 	update_tid(sc, synqe->tid, toep);
 	synqe->flags |= TPF_SYNQE_EXPANDED;
+	mtx_lock(&td->toep_list_lock);
+	/* Remove synqe from its list and add the TOE PCB to the active list. */
+	TAILQ_REMOVE(&td->synqe_list, synqe, link);
+	TAILQ_INSERT_TAIL(&td->toep_list, toep, link);
+	toep->flags |= TPF_IN_TOEP_LIST;
+	mtx_unlock(&td->toep_list_lock);
 	inp->inp_flowtype = (inp->inp_vflag & INP_IPV6) ?
 	    M_HASHTYPE_RSS_TCP_IPV6 : M_HASHTYPE_RSS_TCP_IPV4;
 	inp->inp_flowid = synqe->rss_hash;
@@ -1177,6 +1328,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
+	struct tom_data *td = sc->tom_softc;
 	struct toedev *tod;
 	const struct cpl_pass_accept_req *cpl = mtod(m, const void *);
 	unsigned int stid = G_PASS_OPEN_TID(be32toh(cpl->tos_stid));
@@ -1374,15 +1526,20 @@ found:
 		synqe->tid = tid;
 		synqe->syn = m;
 		m = NULL;
+		mtx_lock(&td->toep_list_lock);
+		TAILQ_INSERT_TAIL(&td->synqe_list, synqe, link);
+		mtx_unlock(&td->toep_list_lock);
 
 		if (send_synack(sc, synqe, opt0, opt2, tid) != 0) {
 			remove_tid(sc, tid, ntids);
 			m = synqe->syn;
 			synqe->syn = NULL;
+			mtx_lock(&td->toep_list_lock);
+			TAILQ_REMOVE(&td->synqe_list, synqe, link);
+			mtx_unlock(&td->toep_list_lock);
 			NET_EPOCH_EXIT(et);
 			REJECT_PASS_ACCEPT_REQ(true);
 		}
-
 		CTR6(KTR_CXGBE,
 		    "%s: stid %u, tid %u, synqe %p, opt0 %#016lx, opt2 %#08x",
 		    __func__, stid, tid, synqe, be64toh(opt0), be32toh(opt2));
@@ -1437,7 +1594,7 @@ synqe_to_protohdrs(struct adapter *sc, struct synq_entry *synqe,
 	pass_accept_req_to_protohdrs(sc, synqe->syn, inc, th, &iptos);
 
 	/* modify parts to make it look like the ACK to our SYN|ACK */
-	th->th_flags = TH_ACK;
+	tcp_set_flags(th, TH_ACK);
 	th->th_ack = synqe->iss + 1;
 	th->th_seq = be32toh(cpl->rcv_isn);
 	bzero(to, sizeof(*to));

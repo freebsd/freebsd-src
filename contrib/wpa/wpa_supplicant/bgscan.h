@@ -51,7 +51,7 @@ extern const struct bgscan_ops bgscan_learn_ops;
 #else /* CONFIG_BGSCAN */
 
 static inline int bgscan_init(struct wpa_supplicant *wpa_s,
-			      struct wpa_ssid *ssid, const char name)
+			      struct wpa_ssid *ssid, const char *name)
 {
 	return 0;
 }

@@ -123,7 +123,6 @@ struct vmbus_channel {
 	struct vmbus_channel		*ch_prichan;	/* owner primary chan */
 
 	void				*ch_bufring;	/* TX+RX bufrings */
-	size_t				ch_bufring_size;
 	uint32_t			ch_bufring_gpadl;
 
 	struct task			ch_attach_task;	/* run in ch_mgmt_tq */

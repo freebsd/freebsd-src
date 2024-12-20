@@ -146,6 +146,20 @@ static const enum intparam cleancommands[] = {
     IP__NULL
 };
 
+static const struct {
+	const char *name;
+	enum intparam param;
+} listparams[] = {
+#ifdef INET
+	{ "ip4.addr", KP_IP4_ADDR },
+#endif
+#ifdef INET6
+	{ "ip6.addr", KP_IP6_ADDR },
+#endif
+	{ "vnet.interface", IP_VNET_INTERFACE },
+	{ "zfs.dataset", IP_ZFS_DATASET },
+};
+
 int
 main(int argc, char **argv)
 {
@@ -330,6 +344,8 @@ main(int argc, char **argv)
 			usage();
 		docf = 0;
 		for (i = 0; i < argc; i++) {
+			size_t l;
+
 			if (!strncmp(argv[i], "command", 7) &&
 			    (argv[i][7] == '\0' || argv[i][7] == '=')) {
 				if (argv[i][7]  == '=')
@@ -338,32 +354,32 @@ main(int argc, char **argv)
 				for (i++; i < argc; i++)
 					add_param(NULL, NULL, IP_COMMAND,
 					    argv[i]);
+				continue;
 			}
-#ifdef INET
-			else if (!strncmp(argv[i], "ip4.addr=", 9)) {
-				for (cs = argv[i] + 9;; cs = ncs + 1) {
+
+			/*
+			 * Is this parameter a list?
+			 */
+			for (l = 0; l < nitems(listparams); l++) {
+				size_t len;
+
+				len = strlen(listparams[l].name);
+				if (strncmp(argv[i], listparams[l].name, len) ||
+				    argv[i][len] != '=')
+					continue;
+
+				for (cs = argv[i] + len + 1;; cs = ncs + 1) {
 					ncs = strchr(cs, ',');
 					if (ncs)
 						*ncs = '\0';
-					add_param(NULL, NULL, KP_IP4_ADDR, cs);
+					add_param(NULL, NULL,
+					    listparams[l].param, cs);
 					if (!ncs)
 						break;
 				}
+				break;
 			}
-#endif
-#ifdef INET6
-			else if (!strncmp(argv[i], "ip6.addr=", 9)) {
-				for (cs = argv[i] + 9;; cs = ncs + 1) {
-					ncs = strchr(cs, ',');
-					if (ncs)
-						*ncs = '\0';
-					add_param(NULL, NULL, KP_IP6_ADDR, cs);
-					if (!ncs)
-						break;
-				}
-			}
-#endif
-			else
+			if (l == nitems(listparams))
 				add_param(NULL, NULL, 0, argv[i]);
 		}
 	} else {

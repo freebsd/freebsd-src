@@ -292,6 +292,7 @@ libworker_do_cmd(struct libworker* w, uint8_t* msg, uint32_t len)
 			log_err("unknown command for bg worker %d", 
 				(int)context_serial_getcmd(msg, len));
 			/* and fall through to quit */
+			ATTR_FALLTHROUGH
 			/* fallthrough */
 		case UB_LIBCMD_QUIT:
 			free(msg);
@@ -1052,6 +1053,22 @@ void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
 
 #ifdef USE_DNSTAP
 void dtio_mainfdcallback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+#endif
+
+#ifdef HAVE_NGTCP2
+void doq_client_event_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+#endif
+
+#ifdef HAVE_NGTCP2
+void doq_client_timer_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
 	void* ATTR_UNUSED(arg))
 {
 	log_assert(0);

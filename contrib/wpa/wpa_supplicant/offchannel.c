@@ -23,12 +23,12 @@ wpas_get_tx_interface(struct wpa_supplicant *wpa_s, const u8 *src)
 {
 	struct wpa_supplicant *iface;
 
-	if (os_memcmp(src, wpa_s->own_addr, ETH_ALEN) == 0) {
+	if (ether_addr_equal(src, wpa_s->own_addr)) {
 #ifdef CONFIG_P2P
 		if (wpa_s->p2p_mgmt && wpa_s != wpa_s->parent &&
 		    wpa_s->parent->ap_iface &&
-		    os_memcmp(wpa_s->parent->own_addr,
-			      wpa_s->own_addr, ETH_ALEN) == 0 &&
+		    ether_addr_equal(wpa_s->parent->own_addr,
+				     wpa_s->own_addr) &&
 		    wpabuf_len(wpa_s->pending_action_tx) >= 2 &&
 		    *wpabuf_head_u8(wpa_s->pending_action_tx) !=
 		    WLAN_ACTION_PUBLIC) {
@@ -52,7 +52,7 @@ wpas_get_tx_interface(struct wpa_supplicant *wpa_s, const u8 *src)
 	 */
 	iface = wpa_s->global->ifaces;
 	while (iface) {
-		if (os_memcmp(src, iface->own_addr, ETH_ALEN) == 0)
+		if (ether_addr_equal(src, iface->own_addr))
 			break;
 		iface = iface->next;
 	}
@@ -186,7 +186,7 @@ void offchannel_send_action_tx_status(
 		return;
 	}
 
-	if (os_memcmp(dst, wpa_s->pending_action_dst, ETH_ALEN) != 0) {
+	if (!ether_addr_equal(dst, wpa_s->pending_action_dst)) {
 		wpa_printf(MSG_DEBUG, "Off-channel: Ignore Action TX status - "
 			   "unknown destination address");
 		return;

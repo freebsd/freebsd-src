@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,39 +27,40 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_mark.3x,v 1.18 2020/10/24 08:59:04 tom Exp $
-.TH menu_mark 3X ""
+.\" $Id: menu_mark.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH menu_mark 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_mark\fP,
-\fBmenu_mark\fR \- get and set the menu mark string
+\fBmenu_mark\fP \-
+get and set the menu mark string
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_mark(MENU *\fP\fImenu\fP\fB, const char *\fP\fImark\fP\fB);\fP
-.br
-\fBconst char *menu_mark(const MENU *\fP\fImenu\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_mark(MENU *\fImenu\fP, const char *\fImark\fP);
+\fBconst char *menu_mark(const MENU *\fImenu\fP);
+.fi
 .SH DESCRIPTION
 In order to make menu selections visible on older terminals without
 highlighting or color capability, the menu library marks selected items
 in a menu with a prefix string.
 .PP
-The function \fBset_menu_mark\fR sets the mark string for the given menu.
-Calling \fBset_menu_mark\fR with a null menu item will abolish the mark string.
+The function \fBset_menu_mark\fP sets the mark string for the given menu.
+Calling \fBset_menu_mark\fP with a null menu item will abolish the mark string.
 Note that changing the length of the mark string for a menu while the
 menu is posted is likely to produce unhelpful behavior.
 .PP
 The default string is "\-" (a dash).
-Calling \fBset_menu_mark\fR with
-a non-\fBNULL\fR menu argument will change this default.
+Calling \fBset_menu_mark\fP with
+a non-\fBNULL\fP menu argument will change this default.
 .PP
-The function \fBmenu_mark\fR returns the menu's mark string (or \fBNULL\fR if
+The function \fBmenu_mark\fP returns the menu's mark string (or \fBNULL\fP if
 there is none).
 .SH RETURN VALUE
-The function \fBmenu_mark\fR returns a pointer (which may be \fBNULL\fR).
+The function \fBmenu_mark\fP returns a pointer (which may be \fBNULL\fP).
 It does not set \fBerrno\fP.
 .PP
-The function \fBset_menu_mark\fR may return the following error codes:
+The function \fBset_menu_mark\fP may return the following error codes:
 .TP 5
 .B E_OK
 The routine succeeded.
@@ -69,12 +69,7 @@ The routine succeeded.
 Routine detected an incorrect or out-of-range argument.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
+System error occurred (see \fBerrno\fP(3)).
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -82,3 +77,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

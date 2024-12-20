@@ -56,6 +56,7 @@
 #define IXGBE_FEATURE_EEE                       (u32)(1 << 11)
 #define IXGBE_FEATURE_LEGACY_IRQ                (u32)(1 << 12)
 #define IXGBE_FEATURE_NEEDS_CTXD                (u32)(1 << 13)
+#define IXGBE_FEATURE_RECOVERY_MODE             (u32)(1 << 15)
 
 /* Check for OS support.  Undefine features if not included in the OS */
 #ifndef PCI_IOV

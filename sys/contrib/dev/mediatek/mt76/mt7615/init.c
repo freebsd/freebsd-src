@@ -15,6 +15,7 @@
 #include "mcu.h"
 #include "eeprom.h"
 
+#if defined(__linux__)
 static ssize_t mt7615_thermal_show_temp(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -64,6 +65,7 @@ int mt7615_thermal_init(struct mt7615_dev *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt7615_thermal_init);
+#endif
 
 static void
 mt7615_phy_init(struct mt7615_dev *dev)
@@ -566,7 +568,11 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	 * Make the secondary PHY MAC address local without overlapping with
 	 * the usual MAC address allocation scheme on multiple virtual interfaces
 	 */
+#if defined(__linux__)
 	memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+#elif defined(__FreeBSD__)
+	memcpy(mphy->macaddr, (u8 *)dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+#endif
 	       ETH_ALEN);
 	mphy->macaddr[0] |= 2;
 	mphy->macaddr[0] ^= BIT(7);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_def.c,v 1.29 2020/12/11 23:47:16 tom Exp $")
+MODULE_ID("$Id: frm_def.c,v 1.30 2021/03/27 23:49:58 tom Exp $")
 
 /* this can't be readonly */
 static FORM default_form =
@@ -158,7 +158,6 @@ Connect_Fields(FORM *form, FIELD **fields)
 {
   int field_cnt, j;
   int page_nr;
-  int maximum_row_in_field, maximum_col_in_field;
   _PAGE *pg;
 
   T((T_CALLED("Connect_Fields(%p,%p)"), (void *)form, (void *)fields));
@@ -199,6 +198,9 @@ Connect_Fields(FORM *form, FIELD **fields)
      size of the form */
   for (j = 0; j < field_cnt; j++)
     {
+      int maximum_row_in_field;
+      int maximum_col_in_field;
+
       if (j == 0)
 	pg->pmin = (short)j;
       else

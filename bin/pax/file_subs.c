@@ -555,7 +555,12 @@ chk_path( char *name, uid_t st_uid, gid_t st_gid)
 		 * work forward from the first / and check each part of the path
 		 */
 		spt = strchr(spt, '/');
-		if (spt == NULL)
+
+		/*
+		 * skip creating a leaf dir (with an ending '/') as we only want
+		 * to create parents here
+		 */
+		if ((spt == NULL) || (*(spt + 1) == '\0'))
 			break;
 		*spt = '\0';
 

@@ -1,0 +1,290 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright © 2024 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Olivier Certner <olce.freebsd@certner.fr>
+.\" at Kumacom SARL under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd December 19, 2024
+.Dt SETCRED 2
+.Os
+.Sh NAME
+.Nm setcred
+.Nd set current process credentials atomically
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/ucred.h
+.Ft int
+.Fn setcred "u_int flags" "const struct setcred *wcred" "size_t size"
+.Sh DESCRIPTION
+The
+.Fn setcred
+system call can set any combination of user-accessible credentials of the
+current process in an atomic manner.
+.Pp
+This system call is normally permitted only for processes having the ID of the
+super-user (0) as their effective user ID, or not at all if the
+.Xr sysctl 8
+variable
+.Va security.bsd.suser_enabled
+is zero or some active MAC policy specifically denies these processes.
+.Pp
+Some MAC policies, such as
+.Xr mac_do 4 ,
+may also allow unprivileged users to call it successfully, possibly depending on
+the exact credentials transition requested, once again unless any active MAC
+policy specifically denies that.
+.Pp
+The
+.Fa flags
+argument serves to indicate which process credentials should be changed by the
+call.
+Allowed flags are:
+.Pp
+.Bl -tag -width "SETCREDF_SUPP_GROUPS   " -compact
+.It Fa SETCREDF_UID
+Set the effective user ID.
+.It Fa SETCREDF_RUID
+Set the real user ID.
+.It Fa SETCREDF_SVUID
+Set the saved user ID.
+.It Fa SETCREDF_GID
+Set the effective group ID.
+.It Fa SETCREDF_RGID
+Set the real group ID.
+.It Fa SETCREDF_SVGID
+Set the saved group ID.
+.It Fa SETCREDF_SUPP_GROUPS
+Set the supplementary group list.
+.It Fa SETCREDF_MAC_LABEL
+Set the MAC label.
+.El
+.Pp
+The
+.Vt struct setcred
+structure is currently defined as:
+.Bd -literal
+struct setcred {
+	uid_t	 sc_uid;		/* effective user id */
+	uid_t	 sc_ruid;		/* real user id */
+	uid_t	 sc_svuid;		/* saved user id */
+	gid_t	 sc_gid;		/* effective group id */
+	gid_t	 sc_rgid;		/* real group id */
+	gid_t	 sc_svgid;		/* saved group id */
+	u_int	 sc_pad;		/* padding, unused */
+	u_int	 sc_supp_groups_nb;	/* supplementary groups number */
+	gid_t	*sc_supp_groups;	/* supplementary groups */
+	struct mac *sc_label;		/* MAC label */
+};
+.Ed
+.Pp
+Its fields are:
+.Pp
+.Bl -tag -width "sc_supp_groups_nb   " -compact
+.It Fa sc_uid
+The ID to set the effective user to, if flag
+.Dv SETCREDF_UID
+is specified.
+.It Fa sc_ruid
+The ID to set the real user to, if flag
+.Dv SETCREDF_RUID
+is specified.
+.It Fa sc_svuid
+The ID to set the saved user to, if flag
+.Dv SETCREDF_SVUID
+is specified.
+.It Fa sc_gid
+The ID to set the effective group to, if flag
+.Dv SETCREDF_GID
+is specified.
+.It Fa sc_rgid
+The ID to set the real group to, if flag
+.Dv SETCREDF_RGID
+is specified.
+.It Fa sc_svgid
+The ID to set the saved group to, if flag
+.Dv SETCREDF_SVGID
+is specified.
+.It Fa sc_supp_groups_nb
+The size of array
+.Fa sc_supp_groups ,
+if flag
+.Dv SETCREDF_SUPP_GROUPS
+is specified.
+It must be less than or equal to
+.Dv {NGROUPS_MAX} .
+.It Fa sc_supp_groups
+An array of IDs to set the supplementary groups to, if flag
+.Dv SETCREDF_SUPP_GROUPS
+is specified.
+Note that all groups in this array will be set as supplementary groups only, in
+contrast to
+.Xr setgroups 2
+which treats the first element specially as the new effective group, not adding
+it to supplementary groups.
+.It Fa sc_label
+A pointer to a valid MAC label structure, e.g., built with the
+.Xr mac_from_text 3
+function, if flag
+.Dv SETCREDF_MAC_LABEL
+is specified.
+.El
+.Pp
+For forward compatibility and security reasons, it is recommended that users
+always initialize objects of type
+.Vt struct setcred
+with the provided initializer:
+.Dv SETCRED_INITIALIZER .
+.Pp
+The
+.Fa size
+argument must be the size of the passed
+.Fa wcred
+structure.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn setcred
+system call will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+Unrecognized flags were passed in
+.Fa flags ,
+or the
+.Fa size
+parameter does not match the size of
+.Vt struct setcred ,
+or the field
+.Fa sc_supp_group_nb
+has a value strictly greater than
+.Dv {NGROUPS_MAX}
+.Po if flag
+.Dv SETCREDF_SUPP_GROUPS
+was supplied
+.Pc ,
+or the MAC label pointed to by field
+.Fa sc_label
+is invalid
+.Po if flag
+.Dv SETCREDF_MAC_LABEL
+was supplied
+.Pc .
+.It Bq Er EFAULT
+The
+.Fa wcred
+pointer, or pointers in fields
+.Fa sc_supp_groups
+.Po if flag
+.Dv SETCREDF_SUPP_GROUPS
+was supplied
+.Pc
+or
+.Fa sc_label
+.Po if flag
+.Dv SETCREDF_MAC_LABEL
+was supplied
+.Pc
+point to invalid locations.
+.It Bq Er EPERM
+The user is not the super-user and/or the requested credentials transition is
+not allowed by the system or MAC modules.
+.It Bq Er EOPNOTSUPP
+Some of the requested credentials have a type that the system does not support.
+This currently can occur only if the kernel has been compiled without MAC and
+.Dv SETCREDF_MAC_LABEL
+has been passed.
+.El
+.Sh SEE ALSO
+.Xr issetugid 2 ,
+.Xr setregid 2 ,
+.Xr setreuid 2 ,
+.Xr setuid 2 ,
+.Xr mac_text 3 ,
+.Xr mac 4 ,
+.Xr mac_do 4 ,
+.Xr maclabel 7
+.Sh STANDARDS
+The
+.Fn setcred
+system call is specific to
+.Fx .
+.Pp
+A call to
+.Fn setcred
+usually changes process credentials that are listed by POSIX/SUS standards.
+The changed values then produce the effects with respect to the rest of the
+system that are described in these standards, as if these changes had resulted
+from calling standard or traditional credentials-setting functions.
+Currently, all flags but
+.Dv SETCREDF_MAC_LABEL
+lead to modifying standard credentials.
+.Pp
+The only differences in using
+.Fn setcred
+to change standard credentials instead of standard or traditional functions are:
+.Pp
+.Bl -bullet -compact
+.It
+All requested changes are performed atomically.
+.It
+Only the super-user or an unprivileged user authorized by some MAC module can
+successfully call
+.Fn setcred ,
+even if the standard system calls would have authorized any unprivileged user to
+effect the same changes.
+For example,
+.Fn seteuid
+allows any unprivileged user to change the effective user ID to either the real
+or saved ones, while
+.Fn setcred
+called with flag
+.Dv SETCREDF_UID
+does not.
+.El
+.Sh HISTORY
+The
+.Fn setcred
+system call appeared in
+.Fx 15.0 .
+.Pp
+Traditionally in UNIX, all credential changes beyond shuffles of effective, real
+and saved IDs have been done by setuid binaries that successively call multiple
+credentials-setting system calls and in a specific order.
+For example, to change all user IDs to that of some unprivileged user,
+.Fn setuid
+must be called last so that all other credentials-changing calls can be
+performed successfully beforehand, as they require super-user privileges.
+.Pp
+This piecewise approach causes such a process to transiently hold high privilege
+credentials that are neither the original nor necessarily the desired final
+ones.
+Besides opening a transition window where possible vulnerabilities could have
+catastrophic consequences, it makes it impossible for the kernel to enforce that
+only certain transitions of credentials are allowed.
+.Pp
+The necessity of an atomic, global approach to changing credentials clearly
+appeared while working on extending
+.Xr mac_do 4
+to allow rules to authorize only specific changes of primary or supplementary
+groups, which prompted the addition of
+.Fn setcred .
+.Sh AUTHORS
+The
+.Fn setcred
+system call and this manual page were written by
+.An Olivier Certner Aq Mt olce.freebsd@certner.fr .
+.Sh SECURITY CONSIDERATIONS
+The same considerations as those of standard or traditional credentials-setting
+system calls apply to
+.Fn setcred ,
+except for the lack of atomicity of successive such calls.
+.Pp
+In particular, please consult section
+.Sy SECURITY CONSIDERATIONS
+of the
+.Xr setuid 2
+manual page about the absence of effect of changing standard credentials on
+already open files.

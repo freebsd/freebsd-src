@@ -121,15 +121,18 @@ main(int argc, char *argv[])
 	struct passwd	*nobody;
 	const char	*chuser = "nobody";
 	char		recvbuffer[MAXPKTSIZE];
-	int		allow_ro = 1, allow_wo = 1, on = 1;
+	int		allow_ro = 1, allow_wo = 1, block = 0, on = 1;
 	pid_t		pid;
 
 	tzset();			/* syslog in localtime */
 	acting_as_client = 0;
 
 	tftp_openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cCd::F:lnoOp:s:Su:U:wW")) != -1) {
+	while ((ch = getopt(argc, argv, "bcCd::F:lnoOp:s:Su:U:wW")) != -1) {
 		switch (ch) {
+		case 'b':
+			block = 1;
+			break;
 		case 'c':
 			ipchroot = 1;
 			break;
@@ -213,14 +216,9 @@ main(int argc, char *argv[])
 
 	umask(mask);
 
-	if (ioctl(0, FIONBIO, &on) < 0) {
-		tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
-		exit(1);
-	}
-
 	/* Find out who we are talking to and what we are going to do */
 	peerlen = sizeof(peer_sock);
-	n = recvfrom(0, recvbuffer, MAXPKTSIZE, 0,
+	n = recvfrom(0, recvbuffer, MAXPKTSIZE, block ? 0 : MSG_DONTWAIT,
 	    (struct sockaddr *)&peer_sock, &peerlen);
 	if (n < 0) {
 		tftp_log(LOG_ERR, "recvfrom: %s", strerror(errno));
@@ -231,6 +229,11 @@ main(int argc, char *argv[])
 	if ((size_t)n < 4 /* tftphdr */) {
 		tftp_log(LOG_ERR, "Rejecting %zd-byte request from %s",
 		    n, peername);
+		exit(1);
+	}
+
+	if (ioctl(0, FIONBIO, &on) < 0) {
+		tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
 		exit(1);
 	}
 
@@ -680,28 +683,27 @@ find_next_name(char *filename, int *fd)
 int
 validate_access(int peer, char **filep, int mode)
 {
-	struct stat stbuf;
-	int	fd;
-	int	error;
-	struct dirlist *dirp;
 	static char pathname[MAXPATHLEN];
+	struct stat sb;
+	struct dirlist *dirp;
 	char *filename = *filep;
+	int	err, fd;
 
 	/*
 	 * Prevent tricksters from getting around the directory restrictions
 	 */
-	if (strstr(filename, "/../"))
+	if (strncmp(filename, "../", 3) == 0 ||
+	    strstr(filename, "/../") != NULL)
 		return (EACCESS);
 
 	if (*filename == '/') {
 		/*
-		 * Allow the request if it's in one of the approved locations.
-		 * Special case: check the null prefix ("/") by looking
-		 * for length = 1 and relying on the arg. processing that
-		 * it's a /.
+		 * Absolute file name: allow the request if it's in one of the
+		 * approved locations.
 		 */
 		for (dirp = dirs; dirp->name != NULL; dirp++) {
 			if (dirp->len == 1)
+				/* Only "/" can have len 1 */
 				break;
 			if (strncmp(filename, dirp->name, dirp->len) == 0 &&
 			    filename[dirp->len] == '/')
@@ -710,30 +712,20 @@ validate_access(int peer, char **filep, int mode)
 		/* If directory list is empty, allow access to any file */
 		if (dirp->name == NULL && dirp != dirs)
 			return (EACCESS);
-		if (stat(filename, &stbuf) < 0)
+		if (stat(filename, &sb) != 0)
 			return (errno == ENOENT ? ENOTFOUND : EACCESS);
-		if ((stbuf.st_mode & S_IFMT) != S_IFREG)
+		if (!S_ISREG(sb.st_mode))
 			return (ENOTFOUND);
 		if (mode == RRQ) {
-			if ((stbuf.st_mode & S_IROTH) == 0)
+			if ((sb.st_mode & S_IROTH) == 0)
 				return (EACCESS);
 		} else {
-			if (check_woth && ((stbuf.st_mode & S_IWOTH) == 0))
+			if (check_woth && (sb.st_mode & S_IWOTH) == 0)
 				return (EACCESS);
 		}
 	} else {
-		int err;
-
 		/*
 		 * Relative file name: search the approved locations for it.
-		 * Don't allow write requests that avoid directory
-		 * restrictions.
-		 */
-
-		if (!strncmp(filename, "../", 3))
-			return (EACCESS);
-
-		/*
 		 * If the file exists in one of the directories and isn't
 		 * readable, continue looking. However, change the error code
 		 * to give an indication that the file exists.
@@ -741,18 +733,20 @@ validate_access(int peer, char **filep, int mode)
 		err = ENOTFOUND;
 		for (dirp = dirs; dirp->name != NULL; dirp++) {
 			snprintf(pathname, sizeof(pathname), "%s/%s",
-				dirp->name, filename);
-			if (stat(pathname, &stbuf) == 0 &&
-			    (stbuf.st_mode & S_IFMT) == S_IFREG) {
-				if (mode == RRQ) {
-					if ((stbuf.st_mode & S_IROTH) != 0)
-						break;
-				} else {
-					if (!check_woth || ((stbuf.st_mode & S_IWOTH) != 0))
-						break;
-				}
-				err = EACCESS;
+			    dirp->name, filename);
+			if (stat(pathname, &sb) != 0)
+				continue;
+			if (!S_ISREG(sb.st_mode))
+				continue;
+			err = EACCESS;
+			if (mode == RRQ) {
+				if ((sb.st_mode & S_IROTH) == 0)
+					continue;
+			} else {
+				if (check_woth && (sb.st_mode & S_IWOTH) == 0)
+					continue;
 			}
+			break;
 		}
 		if (dirp->name != NULL)
 			*filep = filename = pathname;
@@ -766,27 +760,27 @@ validate_access(int peer, char **filep, int mode)
 	 * This option is handled here because it (might) require(s) the
 	 * size of the file.
 	 */
-	option_tsize(peer, NULL, mode, &stbuf);
+	option_tsize(peer, NULL, mode, &sb);
 
-	if (mode == RRQ)
+	if (mode == RRQ) {
 		fd = open(filename, O_RDONLY);
-	else {
-		if (create_new) {
-			if (increase_name) {
-				error = find_next_name(filename, &fd);
-				if (error > 0)
-					return (error + 100);
-			} else
-				fd = open(filename,
-				    O_WRONLY | O_TRUNC | O_CREAT,
-				    S_IRUSR | S_IWUSR | S_IRGRP |
-				    S_IWGRP | S_IROTH | S_IWOTH );
-		} else
-			fd = open(filename, O_WRONLY | O_TRUNC);
+	} else if (create_new) {
+		if (increase_name) {
+			err = find_next_name(filename, &fd);
+			if (err > 0)
+				return (err + 100);
+		} else {
+			fd = open(filename,
+			    O_WRONLY | O_TRUNC | O_CREAT,
+			    S_IRUSR | S_IWUSR | S_IRGRP |
+			    S_IWGRP | S_IROTH | S_IWOTH );
+		}
+	} else {
+		fd = open(filename, O_WRONLY | O_TRUNC);
 	}
 	if (fd < 0)
 		return (errno + 100);
-	file = fdopen(fd, (mode == RRQ)? "r":"w");
+	file = fdopen(fd, mode == RRQ ? "r" : "w");
 	if (file == NULL) {
 		close(fd);
 		return (errno + 100);

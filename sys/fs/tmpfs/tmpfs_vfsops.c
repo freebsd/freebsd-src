@@ -208,7 +208,7 @@ again:
 			continue;
 		}
 		vm = vmspace_acquire_ref(p);
-		_PHOLD_LITE(p);
+		_PHOLD(p);
 		PROC_UNLOCK(p);
 		if (vm == NULL) {
 			PRELE(p);

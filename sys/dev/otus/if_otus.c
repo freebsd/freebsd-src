@@ -1686,8 +1686,7 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	 * with invalid frame control values here.  Just toss them
 	 * rather than letting net80211 get angry and log.
 	 */
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0) {
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0)) {
 		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
 		    "%s: invalid 802.11 fc version (firmware bug?)\n",
 		        __func__);

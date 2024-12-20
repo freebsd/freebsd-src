@@ -443,6 +443,10 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	 */
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0032, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0033, 0) },
+
+	/* MediaTek MT7925 */
+	{ USB_VPI(USB_VENDOR_AZUREWAVE, 0x3602, 0) },
+	{ USB_VPI(USB_VENDOR_AZUREWAVE, 0x3604, 0) },
 };
 
 /* List of supported bluetooth devices */
@@ -530,6 +534,7 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
  * Size of both command and response buffers are passed in length field of
  * corresponding structures in "Parameter Total Length" format i.e.
  * not including HCI packet headers.
+ * Expected event code must be placed into "Event code" of the response buffer.
  *
  * Must not be used after USB transfers have been configured in attach routine.
  */
@@ -567,6 +572,12 @@ ubt_do_hci_request(struct usb_device *udev, struct ubt_hci_cmd *cmd,
 
 	if (evt == NULL)
 		return (USB_ERR_NORMAL_COMPLETION);
+
+	/* Save operation code if we expect completion event in response */
+	if(((struct ubt_hci_event *)evt)->header.event ==
+	    NG_HCI_EVENT_COMMAND_COMPL)
+		((struct ubt_hci_event_command_compl *)evt)->opcode =
+		  cmd->opcode;
 
 	/* Initialize INTR endpoint xfer and wait for response */
 	mtx_init(&mtx, "ubt pb", NULL, MTX_DEF | MTX_NEW);
@@ -613,6 +624,9 @@ ubt_probe(device_t dev)
 
 	if (usbd_lookup_id_by_uaa(ubt_ignore_devs,
 			sizeof(ubt_ignore_devs), uaa) == 0)
+		return (ENXIO);
+	if (usbd_lookup_id_by_uaa(ubt_rtl_devs,
+			ubt_rtl_devs_sizeof, uaa) == 0)
 		return (ENXIO);
 
 	id = usbd_lookup_id_by_info(ubt_devs,
@@ -838,6 +852,8 @@ ubt_probe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ubt_hci_event	*evt = usbd_xfer_softc(xfer);
 	struct usb_page_cache	*pc;
 	int			actlen;
+	struct ubt_hci_evhdr	evhdr;
+	uint16_t		opcode;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -845,7 +861,25 @@ ubt_probe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		if (actlen > UBT_HCI_EVENT_SIZE(evt))
 			actlen = UBT_HCI_EVENT_SIZE(evt);
+		if (actlen < sizeof(evhdr))
+			goto submit_next;
 		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, &evhdr, sizeof(evhdr));
+		/* Check for expected event code */
+		if (evt->header.event != 0 &&
+		    (evt->header.event != evhdr.event))
+			goto submit_next;
+		/* For completion events check operation code as well */
+		if (evt->header.event == NG_HCI_EVENT_COMMAND_COMPL) {
+			if (actlen < sizeof(struct ubt_hci_event_command_compl))
+				goto submit_next;
+			usbd_copy_out(pc,
+			    offsetof(struct ubt_hci_event_command_compl, opcode),
+			    &opcode, sizeof(opcode));
+			if (opcode !=
+			    ((struct ubt_hci_event_command_compl *)evt)->opcode)
+				goto submit_next;
+		}
 		usbd_copy_out(pc, 0, evt, actlen);
 		/* OneShot mode */
 		wakeup(evt);

@@ -161,7 +161,8 @@ gic_v3_fdt_attach(device_t dev)
 	/* Register xref */
 	OF_device_register_xref(xref, dev);
 
-	if (intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc) != 0) {
+	err = intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc, INTR_ROOT_IRQ);
+	if (err != 0) {
 		err = ENXIO;
 		goto error;
 	}
@@ -339,7 +340,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 			/* Should not have any interrupts, so don't add any */
 
 			/* Add newbus device for this FDT node */
-			child = device_add_child(dev, NULL, -1);
+			child = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 			if (!child) {
 				if (bootverbose) {
 					device_printf(dev,
@@ -375,7 +376,8 @@ gic_v3_ofw_bus_attach(device_t dev)
 		}
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static struct resource_list *

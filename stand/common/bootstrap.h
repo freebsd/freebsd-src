@@ -239,10 +239,10 @@ struct preloaded_file
 	size_t f_size;		/* file size */
 	struct kernel_module	*f_modules;	/* list of modules if any */
 	struct preloaded_file	*f_next;	/* next file */
-#ifdef __amd64__
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	bool			f_kernphys_relocatable;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) && !defined(EFI)
 	bool			f_tg_kernel_support;
 #endif
 };
@@ -282,6 +282,7 @@ int tslog_init(void);
 int tslog_publish(void);
 
 vm_offset_t build_font_module(vm_offset_t);
+vm_offset_t build_splash_module(vm_offset_t);
 
 /* MI module loaders */
 #ifdef __elfN

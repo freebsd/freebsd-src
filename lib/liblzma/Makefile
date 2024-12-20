@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 LIB=		lzma
 LZMADIR=	${SRCTOP}/contrib/xz/src/liblzma

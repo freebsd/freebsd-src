@@ -71,7 +71,6 @@ TSLOGSIZE	opt_global.h
 
 # Miscellaneous options.
 ALQ
-ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h
 ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
@@ -106,13 +105,11 @@ CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 EXPERIMENTAL	opt_global.h
 DIRECTIO
-FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 GZIO		opt_gzio.h
 IMGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
-GEOM_BDE	opt_geom.h
 GEOM_CACHE	opt_geom.h
 GEOM_CONCAT	opt_geom.h
 GEOM_ELI	opt_geom.h
@@ -145,7 +142,7 @@ GEOM_ZERO	opt_geom.h
 IFLIB		opt_iflib.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
-KDTRACE_NO_MIB_SDT	opt_global.h
+KDTRACE_MIB_SDT	opt_global.h
 KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
@@ -187,7 +184,6 @@ MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
 MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
-NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
@@ -284,6 +280,7 @@ TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
 ZFS		opt_dontuse.h
+P9FS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
@@ -466,6 +463,7 @@ IPFIREWALL_PMOD		opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
 IPSEC_SUPPORT		opt_ipsec.h
+IPSEC_OFFLOAD		opt_ipsec.h
 IPSTEALTH
 KERN_TLS
 KRPC
@@ -630,7 +628,6 @@ VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
-NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
 MALLOC_DEBUG_MAXZONES	opt_vm.h
@@ -839,12 +836,6 @@ AH_INTERRUPT_DEBUGGING	opt_ah.h
 # AR5416 and later interrupt mitigation
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
-
-# options for the Altera mSGDMA driver (altera_msgdma)
-ALTERA_MSGDMA_DESC_STD		opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_EXT		opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_PF_STD	opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_PF_EXT	opt_altera_msgdma.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h

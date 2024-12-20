@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2021-2023 The FreeBSD Foundation
+.\" Copyright (c) 2021-2024 The FreeBSD Foundation
 .\"
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 21, 2023
+.Dd October 12, 2024
 .Dt iwlwififw 4
 .Os
 .Sh NAME
@@ -43,11 +43,16 @@ models supported by the
 .Xr iwlwifi 4
 driver.
 .Pp
+One can use
+.Xr fwget 8
+to install the correct firmware package.
+.Pp
 .Bl -column -compact "Vendor" "Device" "Subv. " "Subd. " "Firmware-Prefix"
 .It Ar Name
 .It Ar Vendor Ta Ar Device Ta Ar Subv. Ta Ar Subd. Ta Ar Firmware-Prefix
 .% ---------------------------------------------------------------------
-.% This list is manually generated from a sysctl and post-processing.
+.% This list is manually generated from a sysctl and post-processing
+.% by sys/contrib/dev/iwlwifi/zzz_fw_ports_fwget.sh generating the list.
 .% Edits will be overwritten on next update.
 .% ---------------------------------------------------------------------
 .It ""
@@ -735,6 +740,198 @@ driver.
 .It Intel(R) Dual Band Wireless AC 8265
 .It 0x8086 Ta 0x24fd Ta any Ta 0x9074 Ta iwlwifi-8265
 .It ""
+.It (unknown)
+.It 0x8086 Ta 0x2526 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x271b Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x271c Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x30dc Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x31dc Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x9df0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa370 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x02f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x06f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x34f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x3df0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x4df0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x43f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa0f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x2723 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x2725 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x7a70 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x7af0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x51f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x51f1 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x54f0 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x7f70 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x2729 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x7e40 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x2727 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x272d Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x272b Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 000000 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0090 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0094 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0098 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x009c Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00c0 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00c4 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e0 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e4 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00e8 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x00ec Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0100 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0110 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0114 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0118 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x011c Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0310 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0314 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0510 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x0a10 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1671 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1672 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1771 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1772 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1791 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x1792 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4090 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x40c4 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x40e0 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4110 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xa840 Ta any Ta 0x4314 Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x7740 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x4d40 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xe440 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xe340 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0xd340 Ta any Ta any Ta (unknown)
+.It ""
+.It (unknown)
+.It 0x8086 Ta 0x6e70 Ta any Ta any Ta (unknown)
+.It ""
 .It Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz
 .It 0x8086 Ta 0x2526 Ta any Ta 0x1550 Ta iwlwifi-9260-th-b0-jf-b0
 .It ""
@@ -1290,9 +1487,6 @@ driver.
 .It Intel(R) Wi-Fi 6E AX211 160MHz
 .It 0x8086 Ta any Ta any Ta any Ta (null)
 .It ""
-.It Intel(R) Wi-Fi 6E AX221 160MHz
-.It 0x8086 Ta any Ta any Ta any Ta (null)
-.It ""
 .It Intel(R) Wi-Fi 6E AX231 160MHz
 .It 0x8086 Ta any Ta any Ta any Ta (null)
 .It ""
@@ -1310,9 +1504,6 @@ driver.
 .It ""
 .It Intel(R) Wi-Fi 6E AX411 160MHz
 .It 0x8086 Ta any Ta any Ta any Ta iwlwifi-so-a0-gf4-a0
-.It ""
-.It Intel(R) TBD Bz device
-.It 0x8086 Ta any Ta any Ta any Ta (null)
 .It ""
 .It Intel(R) Wireless-AC 9560 160MHz
 .It 0x8086 Ta any Ta any Ta any Ta iwlwifi-so-a0-jf-b0
@@ -1332,15 +1523,24 @@ driver.
 .It Intel(R) Wireless-AC 9462
 .It 0x8086 Ta any Ta any Ta any Ta iwlwifi-so-a0-jf-b0
 .It ""
-.It Intel(R) Wi-Fi 6 AX204 160MHz
-.It 0x8086 Ta any Ta any Ta any Ta iwlwifi-so-a0-mr-a0
+.It Intel(R) Wi-Fi 7 BE201 320MHz
+.It 0x8086 Ta any Ta any Ta any Ta (null)
 .It ""
-.It Intel(R) Wi-Fi 6 AX204 160MHz
+.It Intel(R) Wi-Fi 7 BE200 320MHz
+.It 0x8086 Ta any Ta any Ta any Ta (null)
+.It ""
+.It Intel(R) Wi-Fi 7 BE202 160MHz
 .It 0x8086 Ta any Ta any Ta any Ta (null)
 .It ""
 .It Intel(R) TBD Sc device
 .It 0x8086 Ta any Ta any Ta any Ta (null)
-.% ---------------------------------------------------------------------
+.It ""
+.It Intel(R) TBD Sc2 device
+.It 0x8086 Ta any Ta any Ta any Ta (null)
+.It ""
+.It Intel(R) TBD Sc2f device
+.It 0x8086 Ta any Ta any Ta any Ta (null)
+.\" ---------------------------------------------------------------------
 .El
 .Pp
 .Em Note:
@@ -1350,10 +1550,14 @@ in the above listing).
 .Sh FILES
 A copy of the
 .Xr iwlwifi 4
-firmware license is installed at
-.Em /usr/share/doc/legal/intel_iwlwifi_firmware.LICENCE .
+firmware license is installed along with the
+.Pa wifi-firmware-iwlwifi-kmod
+package or the
+.Pa ports/net/wifi-firmware-iwlwifi-kmod
+port (or each of its flavors).
 .Sh SEE ALSO
 .Xr iwlwifi 4 ,
+.Xr fwget 8 ,
 .Xr firmware 9
 .Sh HISTORY
 The

@@ -500,7 +500,7 @@ xgbe_phy_i2c_write(struct xgbe_prv_data *pdata, unsigned int target, void *val,
 
 	retry = 1;
 again:
-	/* Write the specfied register */
+	/* Write the specified register */
 	i2c_op.cmd = XGBE_I2C_CMD_WRITE;
 	i2c_op.target = target;
 	i2c_op.len = val_len;
@@ -539,7 +539,7 @@ again1:
 
 	retry = 1;
 again2:
-	/* Read the specfied register */
+	/* Read the specified register */
 	i2c_op.cmd = XGBE_I2C_CMD_READ;
 	i2c_op.target = target;
 	i2c_op.len = val_len;
@@ -3771,8 +3771,6 @@ xgbe_phy_init(struct xgbe_prv_data *pdata)
 		return (ret);
 
 	phy_data = malloc(sizeof(*phy_data), M_AXGBE, M_WAITOK | M_ZERO);
-	if (!phy_data)
-		return (-ENOMEM);
 	pdata->phy_data = phy_data;
 
 	phy_data->port_mode = XP_GET_BITS(pdata->pp0, XP_PROP_0, PORT_MODE);

@@ -73,10 +73,8 @@ namespace std
 
 
 #if __cplusplus < 201103L
-#define NOEXCEPT throw()
 #define BADALLOC throw(std::bad_alloc)
 #else
-#define NOEXCEPT noexcept
 #define BADALLOC
 #endif
 
@@ -138,14 +136,14 @@ void* operator new(size_t size) BADALLOC
 
 
 __attribute__((weak))
-void* operator new(size_t size, const std::nothrow_t &) NOEXCEPT
+void* operator new(size_t size, const std::nothrow_t &) _LIBCXXRT_NOEXCEPT
 {
 	return noexcept_new<(::operator new)>(size);
 }
 
 
 __attribute__((weak))
-void operator delete(void * ptr) NOEXCEPT
+void operator delete(void * ptr) _LIBCXXRT_NOEXCEPT
 {
 	free(ptr);
 }
@@ -159,14 +157,14 @@ void * operator new[](size_t size) BADALLOC
 
 
 __attribute__((weak))
-void * operator new[](size_t size, const std::nothrow_t &) NOEXCEPT
+void * operator new[](size_t size, const std::nothrow_t &) _LIBCXXRT_NOEXCEPT
 {
 	return noexcept_new<(::operator new[])>(size);
 }
 
 
 __attribute__((weak))
-void operator delete[](void * ptr) NOEXCEPT
+void operator delete[](void * ptr) _LIBCXXRT_NOEXCEPT
 {
 	::operator delete(ptr);
 }
@@ -176,14 +174,14 @@ void operator delete[](void * ptr) NOEXCEPT
 #if __cplusplus >= 201402L
 
 __attribute__((weak))
-void operator delete(void * ptr, size_t) NOEXCEPT
+void operator delete(void * ptr, size_t) _LIBCXXRT_NOEXCEPT
 {
 	::operator delete(ptr);
 }
 
 
 __attribute__((weak))
-void operator delete[](void * ptr, size_t) NOEXCEPT
+void operator delete[](void * ptr, size_t) _LIBCXXRT_NOEXCEPT
 {
 	::operator delete(ptr);
 }

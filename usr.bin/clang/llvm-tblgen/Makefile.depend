@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libzstd \
 	lib/msun \
 	lib/ncurses/tinfo \
+	usr.bin/clang/llvm-min-tblgen.host \
 
 
 .include <dirdeps.mk>

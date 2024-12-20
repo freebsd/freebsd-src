@@ -273,6 +273,7 @@ static struct mtx siftr_pkt_queue_mtx;
 static struct mtx siftr_pkt_mgr_mtx;
 static struct thread *siftr_pkt_manager_thr = NULL;
 static char direction[2] = {'i','o'};
+static eventhandler_tag siftr_shutdown_tag;
 
 /* Required function prototypes. */
 static int siftr_sysctl_enabled_handler(SYSCTL_HANDLER_ARGS);
@@ -595,9 +596,6 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
     uint16_t dport, int dir, struct siftr_stats *ss)
 {
 	struct inpcb *inp;
-
-	/* We need the tcbinfo lock. */
-	INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 
 	if (dir == PFIL_IN)
 		inp = (ipver == INP_IPV4 ?
@@ -1310,6 +1308,7 @@ static int
 deinit_siftr(void)
 {
 	/* Cleanup. */
+	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, siftr_shutdown_tag);
 	siftr_manage_ops(SIFTR_DISABLE);
 	hashdestroy(counter_hash, M_SIFTR, siftr_hashmask);
 	mtx_destroy(&siftr_pkt_queue_mtx);
@@ -1324,8 +1323,8 @@ deinit_siftr(void)
 static int
 init_siftr(void)
 {
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, siftr_shutdown_handler, NULL,
-	    SHUTDOWN_PRI_FIRST);
+	siftr_shutdown_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    siftr_shutdown_handler, NULL, SHUTDOWN_PRI_FIRST);
 
 	/* Initialise our flow counter hash table. */
 	counter_hash = hashinit(SIFTR_EXPECTED_MAX_TCP_FLOWS, M_SIFTR,

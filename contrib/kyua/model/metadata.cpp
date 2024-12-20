@@ -30,6 +30,7 @@
 
 #include <memory>
 
+#include "engine/execenv/execenv.hpp"
 #include "model/exceptions.hpp"
 #include "model/types.hpp"
 #include "utils/config/exceptions.hpp"
@@ -247,6 +248,8 @@ init_tree(config::tree& tree)
     tree.define< config::strings_set_node >("allowed_platforms");
     tree.define_dynamic("custom");
     tree.define< config::string_node >("description");
+    tree.define< config::string_node >("execenv");
+    tree.define< config::string_node >("execenv_jail_params");
     tree.define< config::bool_node >("has_cleanup");
     tree.define< config::bool_node >("is_exclusive");
     tree.define< config::strings_set_node >("required_configs");
@@ -270,6 +273,8 @@ set_defaults(config::tree& tree)
     tree.set< config::strings_set_node >("allowed_platforms",
                                          model::strings_set());
     tree.set< config::string_node >("description", "");
+    tree.set< config::string_node >("execenv", "");
+    tree.set< config::string_node >("execenv_jail_params", "");
     tree.set< config::bool_node >("has_cleanup", false);
     tree.set< config::bool_node >("is_exclusive", false);
     tree.set< config::strings_set_node >("required_configs",
@@ -464,6 +469,36 @@ model::metadata::description(void) const
 }
 
 
+/// Returns execution environment name.
+///
+/// \return Name of configured execution environment.
+const std::string&
+model::metadata::execenv(void) const
+{
+    if (_pimpl->props.is_set("execenv")) {
+        return _pimpl->props.lookup< config::string_node >("execenv");
+    } else {
+        return get_defaults().lookup< config::string_node >("execenv");
+    }
+}
+
+
+/// Returns execenv jail(8) parameters string to run a test with.
+///
+/// \return String of jail parameters.
+const std::string&
+model::metadata::execenv_jail_params(void) const
+{
+    if (_pimpl->props.is_set("execenv_jail_params")) {
+        return _pimpl->props.lookup< config::string_node >(
+            "execenv_jail_params");
+    } else {
+        return get_defaults().lookup< config::string_node >(
+            "execenv_jail_params");
+    }
+}
+
+
 /// Returns whether the test has a cleanup part or not.
 ///
 /// \return True if there is a cleanup part; false otherwise.
@@ -475,6 +510,17 @@ model::metadata::has_cleanup(void) const
     } else {
         return get_defaults().lookup< config::bool_node >("has_cleanup");
     }
+}
+
+
+/// Returns whether the test has a specific execenv apart from default one.
+///
+/// \return True if there is a non-host execenv configured; false otherwise.
+bool
+model::metadata::has_execenv(void) const
+{
+    const std::string& name = execenv();
+    return !name.empty() && name != engine::execenv::default_execenv_name;
 }
 
 
@@ -886,6 +932,36 @@ model::metadata_builder&
 model::metadata_builder::set_description(const std::string& description)
 {
     set< config::string_node >(_pimpl->props, "description", description);
+    return *this;
+}
+
+
+/// Sets execution environment name.
+///
+/// \param name Execution environment name.
+///
+/// \return A reference to this builder.
+///
+/// \throw model::error If the value is invalid.
+model::metadata_builder&
+model::metadata_builder::set_execenv(const std::string& name)
+{
+    set< config::string_node >(_pimpl->props, "execenv", name);
+    return *this;
+}
+
+
+/// Sets execenv jail(8) parameters string to run the test with.
+///
+/// \param params String of jail parameters.
+///
+/// \return A reference to this builder.
+///
+/// \throw model::error If the value is invalid.
+model::metadata_builder&
+model::metadata_builder::set_execenv_jail_params(const std::string& params)
+{
+    set< config::string_node >(_pimpl->props, "execenv_jail_params", params);
     return *this;
 }
 

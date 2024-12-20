@@ -737,12 +737,20 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
 #define	IEEE80211_FVHT_USEVHT160	0x000000008	/* CONF: Use VHT160 */
 #define	IEEE80211_FVHT_USEVHT80P80	0x000000010	/* CONF: Use VHT 80+80 */
-#define	IEEE80211_FVHT_MASK						\
+#define	IEEE80211_FVHT_STBC_TX	0x00000020	/* CONF: STBC tx enabled */
+#define	IEEE80211_FVHT_STBC_RX	0x00000040	/* CONF: STBC rx enabled */
+
+#define	IEEE80211_FVHT_CHANWIDTH_MASK					\
 	(IEEE80211_FVHT_VHT | IEEE80211_FVHT_USEVHT40 |			\
 	IEEE80211_FVHT_USEVHT80 | IEEE80211_FVHT_USEVHT160 |		\
 	IEEE80211_FVHT_USEVHT80P80)
+
+#define	IEEE80211_FVHT_MASK						\
+	(IEEE80211_FVHT_CHANWIDTH_MASK |				\
+	IEEE80211_FVHT_STBC_TX | IEEE80211_FVHT_STBC_RX)
+
 #define	IEEE80211_VFHT_BITS \
-	"\20\1VHT\2VHT40\3VHT80\4VHT160\5VHT80P80"
+	"\20\1VHT\2VHT40\3VHT80\4VHT160\5VHT80P80\6STBC_TX\7STBC_RX"
 
 #define	IEEE80211_COM_DETACHED	0x00000001	/* ieee80211_ifdetach called */
 #define	IEEE80211_COM_REF_ADD	0x00000002	/* add / remove reference */
@@ -823,6 +831,11 @@ char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
 #define	ieee80211_get_current_channel(_ic)	((_ic)->ic_curchan)
 #define	ieee80211_get_home_channel(_ic)		((_ic)->ic_bsschan)
 #define	ieee80211_get_vap_desired_channel(_iv)	((_iv)->iv_des_chan)
+
+bool	ieee80211_is_key_global(const struct ieee80211vap *vap,
+	    const struct ieee80211_key *key);
+bool	ieee80211_is_key_unicast(const struct ieee80211vap *vap,
+	    const struct ieee80211_key *key);
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,

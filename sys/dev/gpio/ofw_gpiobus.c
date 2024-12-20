@@ -157,7 +157,7 @@ ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 	/*
 	 * Set up the GPIO child and OFW bus layer devinfo and add it to bus.
 	 */
-	childdev = device_add_child(bus, drvname, -1);
+	childdev = device_add_child(bus, drvname, DEVICE_UNIT_ANY);
 	if (childdev == NULL)
 		return (NULL);
 	dinfo = ofw_gpiobus_setup_devinfo(bus, childdev, child);
@@ -425,7 +425,7 @@ ofw_gpiobus_attach(device_t dev)
 	err = gpiobus_init_softc(dev);
 	if (err != 0)
 		return (err);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	/*
 	 * Attach the children represented in the device tree.
@@ -440,7 +440,8 @@ ofw_gpiobus_attach(device_t dev)
 			continue;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_t

@@ -139,7 +139,7 @@ archive_read_support_filter_program_signature(struct archive *_a,
 	/*
 	 * Allocate our private state.
 	 */
-	state = (struct program_bidder *)calloc(1, sizeof (*state));
+	state = calloc(1, sizeof (*state));
 	if (state == NULL)
 		goto memerr;
 	state->cmd = strdup(cmd);
@@ -398,8 +398,8 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	size_t l;
 
 	l = strlen(prefix) + strlen(cmd) + 1;
-	state = (struct program_filter *)calloc(1, sizeof(*state));
-	out_buf = (char *)malloc(out_buf_len);
+	state = calloc(1, sizeof(*state));
+	out_buf = malloc(out_buf_len);
 	if (state == NULL || out_buf == NULL ||
 	    archive_string_ensure(&state->description, l) == NULL) {
 		archive_set_error(&self->archive->archive, ENOMEM,

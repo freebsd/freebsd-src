@@ -38,6 +38,7 @@
 #include <vmmapi.h>
 
 #include "acpi.h"
+#include "bootrom.h"
 #include "inout.h"
 #include "ioapic.h"
 #include "pci_emul.h"
@@ -205,7 +206,7 @@ pirq_alloc_pin(struct pci_devinst *pi)
 
 	pirq_cold = 0;
 
-	if (lpc_bootrom()) {
+	if (bootrom_boot()) {
 		/* For external bootrom use fixed mapping. */
 		best_pin = (4 + pi->pi_slot + pi->pi_lintr.pin) % 8;
 	} else {

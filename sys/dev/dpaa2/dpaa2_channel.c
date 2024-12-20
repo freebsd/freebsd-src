@@ -146,12 +146,6 @@ dpaa2_chan_setup(device_t dev, device_t iodev, device_t condev, device_t bpdev,
 	}
 
 	ch = malloc(sizeof(struct dpaa2_channel), M_DPAA2_CH, M_WAITOK | M_ZERO);
-	if (ch == NULL) {
-		device_printf(dev, "%s: malloc() failed\n", __func__);
-		error = ENOMEM;
-		goto fail_malloc;
-	}
-
 	ch->ni_dev = dev;
 	ch->io_dev = iodev;
 	ch->con_dev = condev;
@@ -281,7 +275,6 @@ fail_dma_setup:
 	/* 	taskqueue_drain(ch->cleanup_tq, &ch->cleanup_task); */
 	/* } */
 	/* taskqueue_free(ch->cleanup_tq); */
-fail_malloc:
 	(void)DPAA2_CMD_CON_DISABLE(dev, child, DPAA2_CMD_TK(&cmd, contk));
 fail_con_enable:
 	(void)DPAA2_CMD_CON_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, contk));

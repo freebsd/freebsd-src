@@ -58,10 +58,11 @@
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
 
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
-#include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "vatpic.h"
 #include "vlapic.h"
@@ -648,11 +649,19 @@ vmx_enable(void *arg __unused)
 }
 
 static void
+vmx_modsuspend(void)
+{
+
+	if (vmxon_enabled[curcpu])
+		vmx_disable(NULL);
+}
+
+static void
 vmx_modresume(void)
 {
 
 	if (vmxon_enabled[curcpu])
-		vmxon(&vmxon_region[curcpu * PAGE_SIZE]);
+		vmx_enable(NULL);
 }
 
 static int
@@ -3664,7 +3673,7 @@ vmx_setcap(void *vcpui, int type, int val)
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
 		break;
-	case VM_CAP_MASK_HWINTR:		
+	case VM_CAP_MASK_HWINTR:
 		retval = 0;
 		break;
 	default:
@@ -4270,6 +4279,7 @@ vmx_restore_tsc(void *vcpui, uint64_t offset)
 const struct vmm_ops vmm_ops_intel = {
 	.modinit	= vmx_modinit,
 	.modcleanup	= vmx_modcleanup,
+	.modsuspend	= vmx_modsuspend,
 	.modresume	= vmx_modresume,
 	.init		= vmx_init,
 	.run		= vmx_run,

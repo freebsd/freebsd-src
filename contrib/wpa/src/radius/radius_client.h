@@ -1,6 +1,6 @@
 /*
  * RADIUS client
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2024, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -36,6 +36,11 @@ struct hostapd_radius_server {
 	int port;
 
 	/**
+	 * tls - Whether to use RADIUS/TLS instead of RADIUS/UDP
+	 */
+	bool tls;
+
+	/**
 	 * shared_secret - Shared secret for authenticating RADIUS messages
 	 */
 	u8 *shared_secret;
@@ -44,6 +49,26 @@ struct hostapd_radius_server {
 	 * shared_secret_len - Length of shared_secret in octets
 	 */
 	size_t shared_secret_len;
+
+	/**
+	 * ca_cert - Path to trusted CA certificate(s) for RADIUS/TLS
+	 */
+	char *ca_cert;
+
+	/**
+	 * client_cert - Path to client certificate for RADIUS/TLS
+	 */
+	char *client_cert;
+
+	/**
+	 * private_key - Path to clienbt private key for RADIUS/TLS
+	 */
+	char *private_key;
+
+	/**
+	 * private_key_passwd - Password for the private key for RADIUS/TLS
+	 */
+	char *private_key_passwd;
 
 	/* Dynamic (not from configuration file) MIB data */
 

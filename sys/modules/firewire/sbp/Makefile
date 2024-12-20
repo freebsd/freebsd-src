@@ -1,4 +1,3 @@
-
 # Makefile for the SBP-II (Serial Bus Protocol 2/SCSI over IEEE1394)
 
 .PATH: ${SRCTOP}/sys/dev/firewire

@@ -67,7 +67,7 @@ struct syncache {
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int16_t	sc_flags;
-#if defined(TCP_OFFLOAD) || !defined(TCP_OFFLOAD_DISABLE)
+#if defined(TCP_OFFLOAD)
 	struct toedev	*sc_tod;		/* entry added by this TOE */
 	void		*sc_todctx;		/* TOE driver context */
 #endif
@@ -127,7 +127,9 @@ struct tcp_syncache {
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	uint32_t hash_secret;
+#ifdef VIMAGE
 	struct vnet *vnet;
+#endif
 	struct syncookie_secret secret;
 	struct mtx pause_mtx;
 	struct callout pause_co;

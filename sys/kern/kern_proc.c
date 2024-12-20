@@ -38,10 +38,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitstring.h>
+#include <sys/conf.h>
 #include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -60,6 +62,7 @@
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
+#include <sys/shm.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/stat.h>
@@ -409,7 +412,7 @@ pidhash_sunlockall(void)
 }
 
 /*
- * Similar to pfind_any(), this function finds zombies.
+ * Similar to pfind(), this function locate a process by number.
  */
 struct proc *
 pfind_any_locked(pid_t pid)
@@ -722,7 +725,7 @@ jobc_parent(struct proc *p, struct proc *p_exiting)
 	return (jobc_reaper(pp));
 }
 
-static int
+int
 pgrp_calc_jobc(struct pgrp *pgrp)
 {
 	struct proc *q;
@@ -1140,20 +1143,15 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 
 		kp->ki_size = vm->vm_map.size;
 		kp->ki_rssize = vmspace_resident_count(vm); /*XXX*/
-		FOREACH_THREAD_IN_PROC(p, td0) {
-			if (!TD_IS_SWAPPED(td0))
-				kp->ki_rssize += td0->td_kstack_pages;
-		}
+		FOREACH_THREAD_IN_PROC(p, td0)
+			kp->ki_rssize += td0->td_kstack_pages;
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
 		kp->ki_dsize = vm->vm_dsize;
 		kp->ki_ssize = vm->vm_ssize;
 	} else if (p->p_state == PRS_ZOMBIE)
 		kp->ki_stat = SZOMB;
-	if (kp->ki_flag & P_INMEM)
-		kp->ki_sflag = PS_INMEM;
-	else
-		kp->ki_sflag = 0;
+	kp->ki_sflag = PS_INMEM;
 	/* Calculate legacy swtime as seconds since 'swtick'. */
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
@@ -2542,6 +2540,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 	vm_offset_t addr;
 	vm_paddr_t pa;
 	vm_pindex_t pi, pi_adv, pindex;
+	int incore;
 
 	*super = false;
 	*resident_count = 0;
@@ -2577,10 +2576,15 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		}
 		m_adv = NULL;
 		if (m->psind != 0 && addr + pagesizes[1] <= entry->end &&
-		    (addr & (pagesizes[1] - 1)) == 0 &&
-		    (pmap_mincore(map->pmap, addr, &pa) & MINCORE_SUPER) != 0) {
+		    (addr & (pagesizes[1] - 1)) == 0 && (incore =
+		    pmap_mincore(map->pmap, addr, &pa) & MINCORE_SUPER) != 0) {
 			*super = true;
-			pi_adv = atop(pagesizes[1]);
+			/*
+			 * The virtual page might be smaller than the physical
+			 * page, so we use the page size reported by the pmap
+			 * rather than m->psind.
+			 */
+			pi_adv = atop(pagesizes[incore >> MINCORE_PSIND_SHIFT]);
 		} else {
 			/*
 			 * We do not test the found page on validity.
@@ -2611,9 +2615,13 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
+	struct cdev *cdev;
+	struct cdevsw *csw;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
-	int error;
+	int error, ref;
+	key_t key;
+	unsigned short seq;
 	bool guard, super;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2673,6 +2681,12 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_protection |= KVME_PROT_WRITE;
 		if (entry->protection & VM_PROT_EXECUTE)
 			kve->kve_protection |= KVME_PROT_EXEC;
+		if (entry->max_protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_MAX_PROT_READ;
+		if (entry->max_protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_MAX_PROT_WRITE;
+		if (entry->max_protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_MAX_PROT_EXEC;
 
 		if (entry->eflags & MAP_ENTRY_COW)
 			kve->kve_flags |= KVME_FLAG_COW;
@@ -2680,8 +2694,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
-		if (entry->eflags & MAP_ENTRY_GROWS_UP)
-			kve->kve_flags |= KVME_FLAG_GROWS_UP;
 		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
 			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
 		if (entry->eflags & MAP_ENTRY_USER_WIRED)
@@ -2703,7 +2715,32 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
+			if ((obj->type == OBJT_DEVICE ||
+			    obj->type == OBJT_MGTDEVICE) &&
+			    (obj->flags & OBJ_CDEVH) != 0) {
+				cdev = obj->un_pager.devp.handle;
+				if (cdev != NULL) {
+					csw = dev_refthread(cdev, &ref);
+					if (csw != NULL) {
+						strlcpy(kve->kve_path,
+						    cdev->si_name, sizeof(
+						    kve->kve_path));
+						dev_relthread(cdev, ref);
+					}
+				}
+			}
 			VM_OBJECT_RUNLOCK(obj);
+			if ((lobj->flags & OBJ_SYSVSHM) != 0) {
+				kve->kve_flags |= KVME_FLAG_SYSVSHM;
+				shmobjinfo(lobj, &key, &seq);
+				kve->kve_vn_fileid = key;
+				kve->kve_vn_fsid_freebsd11 = seq;
+			}
+			if ((lobj->flags & OBJ_POSIXSHM) != 0) {
+				kve->kve_flags |= KVME_FLAG_POSIXSHM;
+				shm_get_path(lobj, kve->kve_path,
+				    sizeof(kve->kve_path));
+			}
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
@@ -2723,6 +2760,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
+				strlcpy(kve->kve_path, fullpath, sizeof(
+				    kve->kve_path));
+				free(freepath, M_TEMP);
 			}
 		} else {
 			kve->kve_type = guard ? KVME_TYPE_GUARD :
@@ -2730,10 +2770,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_ref_count = 0;
 			kve->kve_shadow_count = 0;
 		}
-
-		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
-		if (freepath != NULL)
-			free(freepath, M_TEMP);
 
 		/* Pack record size down */
 		if ((flags & KERN_VMMAP_PACK_KINFO) != 0)
@@ -2863,9 +2899,7 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
 		thread_lock(td);
 		kkstp->kkst_tid = td->td_tid;
-		if (TD_IS_SWAPPED(td))
-			kkstp->kkst_state = KKST_STATE_SWAPPED;
-		else if (stack_save_td(st, td) == 0)
+		if (stack_save_td(st, td) == 0)
 			kkstp->kkst_state = KKST_STATE_STACKOK;
 		else
 			kkstp->kkst_state = KKST_STATE_RUNNING;

@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20240422";
+const char	*version = "version 20240728";
 
 #define DEBUG
 #include <stdio.h>
@@ -62,22 +62,42 @@ static noreturn void fpecatch(int n
 )
 {
 #ifdef SA_SIGINFO
-	static const char *emsg[] = {
-		[0] = "Unknown error",
-		[FPE_INTDIV] = "Integer divide by zero",
-		[FPE_INTOVF] = "Integer overflow",
-		[FPE_FLTDIV] = "Floating point divide by zero",
-		[FPE_FLTOVF] = "Floating point overflow",
-		[FPE_FLTUND] = "Floating point underflow",
-		[FPE_FLTRES] = "Floating point inexact result",
-		[FPE_FLTINV] = "Invalid Floating point operation",
-		[FPE_FLTSUB] = "Subscript out of range",
-	};
+	const char *mesg = NULL;
+
+	switch (si->si_code) {
+	case FPE_INTDIV:
+		mesg = "Integer divide by zero";
+		break;
+	case FPE_INTOVF:
+		mesg = "Integer overflow";
+		break;
+	case FPE_FLTDIV:
+		mesg = "Floating point divide by zero";
+		break;
+	case FPE_FLTOVF:
+		mesg = "Floating point overflow";
+		break;
+	case FPE_FLTUND:
+		mesg = "Floating point underflow";
+		break;
+	case FPE_FLTRES:
+		mesg = "Floating point inexact result";
+		break;
+	case FPE_FLTINV:
+		mesg = "Invalid Floating point operation";
+		break;
+	case FPE_FLTSUB:
+		mesg = "Subscript out of range";
+		break;
+	case 0:
+	default:
+		mesg = "Unknown error";
+		break;
+	}
 #endif
 	FATAL("floating point exception"
 #ifdef SA_SIGINFO
-		": %s", (size_t)si->si_code < sizeof(emsg) / sizeof(emsg[0]) &&
-		emsg[si->si_code] ? emsg[si->si_code] : emsg[0]
+		": %s", mesg
 #endif
 	    );
 }

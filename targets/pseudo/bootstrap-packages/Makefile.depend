@@ -1,0 +1,5 @@
+# Makes this a valid top-level target
+
+DIRDEPS=
+
+.include <dirdeps.mk>

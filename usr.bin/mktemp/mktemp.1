@@ -59,7 +59,7 @@ any file name with some number of
 .Ql X Ns s
 appended
 to it, for example
-.Pa /tmp/temp.XXXX .
+.Pa /tmp/temp.XXXXXXXXXX .
 The trailing
 .Ql X Ns s
 are replaced with the current process number and/or a
@@ -196,7 +196,7 @@ where the script should quit if it cannot get a safe
 temporary file.
 .Bd -literal -offset indent
 tempfoo=`basename $0`
-TMPFILE=`mktemp /tmp/${tempfoo}.XXXXXX` || exit 1
+TMPFILE=`mktemp /tmp/${tempfoo}.XXXXXXXXXX` || exit 1
 echo "program output" >> $TMPFILE
 .Ed
 .Pp
@@ -210,7 +210,7 @@ echo "program output" >> $TMPFILE
 In this case, we want the script to catch the error itself.
 .Bd -literal -offset indent
 tempfoo=`basename $0`
-TMPFILE=`mktemp -q /tmp/${tempfoo}.XXXXXX`
+TMPFILE=`mktemp -q /tmp/${tempfoo}.XXXXXXXXXX`
 if [ $? -ne 0 ]; then
 	echo "$0: Can't create temp file, exiting..."
 	exit 1

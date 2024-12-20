@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 2014,2015 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,7 +33,7 @@
 
 #include <tparm_type.h>
 
-MODULE_ID("$Id: tparm_type.c,v 1.4 2020/10/24 17:30:32 tom Exp $")
+MODULE_ID("$Id: tparm_type.c,v 1.5 2023/04/08 15:57:01 tom Exp $")
 
 /*
  * Lookup the type of call we should make to tparm().  This ignores the actual
@@ -47,6 +47,7 @@ tparm_type(const char *name)
     	{code, {longname} }, \
 	{code, {ti} }, \
 	{code, {tc} }
+#define XD(code, onlyname) TD(code, onlyname, onlyname, onlyname)
     TParams result = Numbers;
     /* *INDENT-OFF* */
     static const struct {
@@ -58,6 +59,10 @@ tparm_type(const char *name)
 	TD(Num_Str,	"pkey_xmit",	"pfx",		"px"),
 	TD(Num_Str,	"plab_norm",	"pln",		"pn"),
 	TD(Num_Str_Str, "pkey_plab",	"pfxl",		"xl"),
+#if NCURSES_XNAMES
+	XD(Str,		"Cs"),
+	XD(Str_Str,	"Ms"),
+#endif
     };
     /* *INDENT-ON* */
 
@@ -80,12 +85,16 @@ guess_tparm_type(int nparam, char **p_is_s)
     case 1:
 	if (!p_is_s[0])
 	    result = Numbers;
+	if (p_is_s[0])
+	    result = Str;
 	break;
     case 2:
 	if (!p_is_s[0] && !p_is_s[1])
 	    result = Numbers;
 	if (!p_is_s[0] && p_is_s[1])
 	    result = Num_Str;
+	if (p_is_s[0] && p_is_s[1])
+	    result = Str_Str;
 	break;
     case 3:
 	if (!p_is_s[0] && !p_is_s[1] && !p_is_s[2])

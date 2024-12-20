@@ -1,7 +1,9 @@
 /*
  * FreeBSD system call symbols.
- *  DO NOT EDIT-- this file is automatically @generated.
+ *
+ * DO NOT EDIT-- this file is automatically @generated.
  */
+
 FBSDprivate_1.0 {
 	_syscall;
 	__sys_syscall;
@@ -801,6 +803,12 @@ FBSDprivate_1.0 {
 	__sys_timerfd_settime;
 	_kcmp;
 	__sys_kcmp;
+	_getrlimitusage;
+	__sys_getrlimitusage;
+	_fchroot;
+	__sys_fchroot;
+	_setcred;
+	__sys_setcred;
 	_osdb_exec;
 	__sys_osdb_exec;
 	_osdb_prepare_v2;

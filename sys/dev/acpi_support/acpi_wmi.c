@@ -296,8 +296,8 @@ acpi_wmi_attach(device_t dev)
 	}
 		
 	if (ret == 0) {
-		bus_generic_probe(dev);
-		ret = bus_generic_attach(dev);
+		bus_identify_children(dev);
+		bus_attach_children(dev);
 	}
 
 	return (ret);

@@ -378,6 +378,63 @@ START_TEST(test_helper_unsigned_char_to_printable) {
     fail("unsignedCharToPrintable result mistaken");
 }
 END_TEST
+
+START_TEST(test_amplification_isolated_external_parser) {
+  // NOTE: Length 44 is precisely twice the length of "<!ENTITY a SYSTEM 'b'>"
+  // (22) that is used in function accountingGetCurrentAmplification in
+  // xmlparse.c.
+  //                  1.........1.........1.........1.........1..4 => 44
+  const char doc[] = "<!ENTITY % p1 '123456789_123456789_1234567'>";
+  const int docLen = (int)sizeof(doc) - 1;
+  const float maximumToleratedAmplification = 2.0f;
+
+  struct TestCase {
+    int offsetOfThreshold;
+    enum XML_Status expectedStatus;
+  };
+
+  struct TestCase cases[] = {
+      {-2, XML_STATUS_ERROR}, {-1, XML_STATUS_ERROR}, {0, XML_STATUS_ERROR},
+      {+1, XML_STATUS_OK},    {+2, XML_STATUS_OK},
+  };
+
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+    const int offsetOfThreshold = cases[i].offsetOfThreshold;
+    const enum XML_Status expectedStatus = cases[i].expectedStatus;
+    const unsigned long long activationThresholdBytes
+        = docLen + offsetOfThreshold;
+
+    set_subtest("offsetOfThreshold=%d, expectedStatus=%d", offsetOfThreshold,
+                expectedStatus);
+
+    XML_Parser parser = XML_ParserCreate(NULL);
+    assert_true(parser != NULL);
+
+    assert_true(XML_SetBillionLaughsAttackProtectionMaximumAmplification(
+                    parser, maximumToleratedAmplification)
+                == XML_TRUE);
+    assert_true(XML_SetBillionLaughsAttackProtectionActivationThreshold(
+                    parser, activationThresholdBytes)
+                == XML_TRUE);
+
+    XML_Parser ext_parser = XML_ExternalEntityParserCreate(parser, NULL, NULL);
+    assert_true(ext_parser != NULL);
+
+    const enum XML_Status actualStatus
+        = _XML_Parse_SINGLE_BYTES(ext_parser, doc, docLen, XML_TRUE);
+
+    assert_true(actualStatus == expectedStatus);
+    if (actualStatus != XML_STATUS_OK) {
+      assert_true(XML_GetErrorCode(ext_parser)
+                  == XML_ERROR_AMPLIFICATION_LIMIT_BREACH);
+    }
+
+    XML_ParserFree(ext_parser);
+    XML_ParserFree(parser);
+  }
+}
+END_TEST
+
 #endif // XML_GE == 1
 
 void
@@ -390,6 +447,8 @@ make_accounting_test_case(Suite *s) {
   tcase_add_test(tc_accounting, test_accounting_precision);
   tcase_add_test(tc_accounting, test_billion_laughs_attack_protection_api);
   tcase_add_test(tc_accounting, test_helper_unsigned_char_to_printable);
+  tcase_add_test__ifdef_xml_dtd(tc_accounting,
+                                test_amplification_isolated_external_parser);
 #else
   UNUSED_P(s);
 #endif /* XML_GE == 1 */

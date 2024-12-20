@@ -151,9 +151,9 @@ static int	ucom_unit_alloc(void);
 static void	ucom_unit_free(int);
 static int	ucom_attach_tty(struct ucom_super_softc *, struct ucom_softc *);
 static void	ucom_detach_tty(struct ucom_super_softc *, struct ucom_softc *);
-static void	ucom_queue_command(struct ucom_softc *,
+static int	ucom_queue_command(struct ucom_softc *,
 		    usb_proc_callback_t *, struct termios *pt,
-		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
+		    struct usb_proc_msg *t0, struct usb_proc_msg *t1, bool wait);
 static void	ucom_shutdown(struct ucom_softc *);
 static void	ucom_ring(struct ucom_softc *, uint8_t);
 static void	ucom_break(struct ucom_softc *, uint8_t);
@@ -593,18 +593,52 @@ ucom_set_usb_mode(struct ucom_super_softc *ssc, enum usb_hc_mode usb_mode)
 }
 
 static void
-ucom_queue_command(struct ucom_softc *sc,
-    usb_proc_callback_t *fn, struct termios *pt,
-    struct usb_proc_msg *t0, struct usb_proc_msg *t1)
+ucom_command_barrier_cb(struct usb_proc_msg *msg __unused)
+{
+	/* NOP */
+}
+
+/*
+ * ucom_command_barrier inserts a dummy task and waits for it so that we can be
+ * certain that previously enqueued tasks are finished before returning back to
+ * the tty layer.
+ */
+static int
+ucom_command_barrier(struct ucom_softc *sc)
 {
 	struct ucom_super_softc *ssc = sc->sc_super;
-	struct ucom_param_task *task;
+	struct usb_proc_msg dummy = { .pm_callback = ucom_command_barrier_cb };
+	struct usb_proc_msg *task;
+	int error;
 
 	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (usb_proc_is_gone(&ssc->sc_tq)) {
 		DPRINTF("proc is gone\n");
-		return;         /* nothing to do */
+		return (ENXIO);         /* nothing to do */
+	}
+
+	task = usb_proc_msignal(&ssc->sc_tq, &dummy, &dummy);
+	error = usb_proc_mwait_sig(&ssc->sc_tq, task, task);
+	if (error == 0 && sc->sc_tty != NULL && tty_gone(sc->sc_tty))
+		error = ENXIO;
+	return (error);
+}
+
+static int
+ucom_queue_command(struct ucom_softc *sc,
+    usb_proc_callback_t *fn, struct termios *pt,
+    struct usb_proc_msg *t0, struct usb_proc_msg *t1, bool wait)
+{
+	struct ucom_super_softc *ssc = sc->sc_super;
+	struct ucom_param_task *task;
+	int error;
+
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
+
+	if (usb_proc_is_gone(&ssc->sc_tq)) {
+		DPRINTF("proc is gone\n");
+		return (ENXIO);         /* nothing to do */
 	}
 	/* 
 	 * NOTE: The task cannot get executed before we drop the
@@ -628,8 +662,15 @@ ucom_queue_command(struct ucom_softc *sc,
 	/*
 	 * Closing or opening the device should be synchronous.
 	 */
-	if (fn == ucom_cfg_close || fn == ucom_cfg_open)
-		usb_proc_mwait(&ssc->sc_tq, t0, t1);
+	if (wait) {
+		error = usb_proc_mwait_sig(&ssc->sc_tq, t0, t1);
+
+		/* usb_proc_mwait_sig may have dropped the tty lock. */
+		if (error == 0 && sc->sc_tty != NULL && tty_gone(sc->sc_tty))
+			error = ENXIO;
+	} else {
+		error = 0;
+	}
 
 	/*
 	 * In case of multiple configure requests,
@@ -637,6 +678,8 @@ ucom_queue_command(struct ucom_softc *sc,
 	 */
 	if (fn == ucom_cfg_start_transfers)
 		sc->sc_last_start_xfer = &task->hdr;
+
+	return (error);
 }
 
 static void
@@ -760,9 +803,8 @@ ucom_open(struct tty *tp)
 		 * example if the device is not present:
 		 */
 		error = (sc->sc_callback->ucom_pre_open) (sc);
-		if (error) {
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	}
 	sc->sc_flag |= UCOM_FLAG_HL_READY;
 
@@ -782,14 +824,21 @@ ucom_open(struct tty *tp)
 	sc->sc_jitterbuf_in = 0;
 	sc->sc_jitterbuf_out = 0;
 
-	ucom_queue_command(sc, ucom_cfg_open, NULL,
+	error = ucom_queue_command(sc, ucom_cfg_open, NULL,
 	    &sc->sc_open_task[0].hdr,
-	    &sc->sc_open_task[1].hdr);
+	    &sc->sc_open_task[1].hdr, true);
+	if (error != 0)
+		goto out;
 
-	/* Queue transfer enable command last */
-	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
-	    &sc->sc_start_task[1].hdr);
+	/*
+	 * Queue transfer enable command last, we'll have a barrier later so we
+	 * don't need to wait on this to complete specifically.
+	 */
+	error = ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
+	    &sc->sc_start_task[0].hdr,
+	    &sc->sc_start_task[1].hdr, true);
+	if (error != 0)
+		goto out;
 
 	if (sc->sc_tty == NULL || (sc->sc_tty->t_termios.c_cflag & CNO_RTSDTR) == 0)
 		ucom_modem(tp, SER_DTR | SER_RTS, 0);
@@ -800,7 +849,9 @@ ucom_open(struct tty *tp)
 
 	ucom_status_change(sc);
 
-	return (0);
+	error = ucom_command_barrier(sc);
+out:
+	return (error);
 }
 
 static void
@@ -836,9 +887,9 @@ ucom_close(struct tty *tp)
 	}
 	ucom_shutdown(sc);
 
-	ucom_queue_command(sc, ucom_cfg_close, NULL,
+	(void)ucom_queue_command(sc, ucom_cfg_close, NULL,
 	    &sc->sc_close_task[0].hdr,
-	    &sc->sc_close_task[1].hdr);
+	    &sc->sc_close_task[1].hdr, true);
 
 	sc->sc_flag &= ~(UCOM_FLAG_HL_READY | UCOM_FLAG_RTS_IFLOW);
 
@@ -919,11 +970,15 @@ ucom_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 #endif
 	case TIOCSBRK:
 		ucom_break(sc, 1);
-		error = 0;
+		error = ucom_command_barrier(sc);
+		if (error == ENXIO)
+			error = ENODEV;
 		break;
 	case TIOCCBRK:
 		ucom_break(sc, 0);
-		error = 0;
+		error = ucom_command_barrier(sc);
+		if (error == ENXIO)
+			error = ENODEV;
 		break;
 	default:
 		if (sc->sc_callback->ucom_ioctl) {
@@ -1077,10 +1132,13 @@ ucom_line_state(struct ucom_softc *sc,
 	sc->sc_pls_set |= set_bits;
 	sc->sc_pls_clr |= clear_bits;
 
-	/* defer driver programming */
-	ucom_queue_command(sc, ucom_cfg_line_state, NULL,
-	    &sc->sc_line_state_task[0].hdr, 
-	    &sc->sc_line_state_task[1].hdr);
+	/*
+	 * defer driver programming - we don't propagate any error from
+	 * this call because we'll catch such errors further up the call stack.
+	 */
+	(void)ucom_queue_command(sc, ucom_cfg_line_state, NULL,
+	    &sc->sc_line_state_task[0].hdr,
+	    &sc->sc_line_state_task[1].hdr, false);
 }
 
 static void
@@ -1236,9 +1294,9 @@ ucom_status_change(struct ucom_softc *sc)
 	}
 	DPRINTF("\n");
 
-	ucom_queue_command(sc, ucom_cfg_status_change, NULL,
+	(void)ucom_queue_command(sc, ucom_cfg_status_change, NULL,
 	    &sc->sc_status_task[0].hdr,
-	    &sc->sc_status_task[1].hdr);
+	    &sc->sc_status_task[1].hdr, true);
 }
 
 static void
@@ -1310,14 +1368,18 @@ ucom_param(struct tty *tp, struct termios *t)
 	sc->sc_flag &= ~UCOM_FLAG_GP_DATA;
 
 	/* Queue baud rate programming command first */
-	ucom_queue_command(sc, ucom_cfg_param, t,
+	error = ucom_queue_command(sc, ucom_cfg_param, t,
 	    &sc->sc_param_task[0].hdr,
-	    &sc->sc_param_task[1].hdr);
+	    &sc->sc_param_task[1].hdr, true);
+	if (error != 0)
+		goto done;
 
 	/* Queue transfer enable command last */
-	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
-	    &sc->sc_start_task[1].hdr);
+	error = ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
+	    &sc->sc_start_task[0].hdr,
+	    &sc->sc_start_task[1].hdr, true);
+	if (error != 0)
+		goto done;
 
 	if (t->c_cflag & CRTS_IFLOW) {
 		sc->sc_flag |= UCOM_FLAG_RTS_IFLOW;
@@ -1325,6 +1387,8 @@ ucom_param(struct tty *tp, struct termios *t)
 		sc->sc_flag &= ~UCOM_FLAG_RTS_IFLOW;
 		ucom_modem(tp, SER_RTS, 0);
 	}
+
+	error = ucom_command_barrier(sc);
 done:
 	if (error) {
 		if (opened) {

@@ -53,13 +53,14 @@ mount /dev/md$mdstart $mntpoint
 set +e
 
 u1=`swapinfo | tail -1 | awk '{print $3}'`
-(nice $odir/../testcases/swap/swap -t 10m -i 30 -h -l 100) &
-while [ $((`swapinfo | tail -1 | awk '{print $3}'` - $u1)) -le 100 ]; do
+(nice $odir/../testcases/swap/swap -t 10m -i 30 -h -l 100) > /dev/null &
+for i in `jot 120`; do
+	u2=`swapinfo | tail -1 | awk '{print $3}'`
+	[ $u2 -lt $u1 ] && u1=$u2
+	[ $((u2 - $u1)) -gt 100 ] && break
 	sleep 1
 done
-
-$dir/mmap40
-s=0
+/usr/bin/timeout 10m $dir/mmap40; s=$?
 while pkill swap; do :; done
 wait
 [ -f mmap40.core -a $s -eq 0 ] &&

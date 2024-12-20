@@ -449,7 +449,7 @@ buildipv6:
 		oc = c;
 
 		if (prior == YY_NUMBER && c == ':') {
-			snprintf(s, sizeof(s), "%d", priornum);
+			snprintf(s, sizeof(ipv6buf), "%d", priornum);
 			s += strlen(s);
 		}
 

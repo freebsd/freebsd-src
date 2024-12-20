@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/nfe
 
 KMOD=	if_nfe

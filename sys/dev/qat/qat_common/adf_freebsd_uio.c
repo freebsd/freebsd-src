@@ -199,10 +199,6 @@ adf_alloc_bundle(struct adf_accel_dev *accel_dev, int bundle_nr)
 
 	accel = accel_dev->accel;
 	handle = malloc(sizeof(*handle), M_QAT, M_WAITOK | M_ZERO);
-	if (!handle) {
-		printf("ERROR in adf_alloc_bundle %d\n", __LINE__);
-		return ENOMEM;
-	}
 	handle->accel = accel;
 	handle->bundle = bundle_nr;
 
@@ -294,10 +290,6 @@ adf_uio_mmap_single(struct cdev *dev,
 	/* Adding pid to bundle list */
 	instance_rings =
 	    malloc(sizeof(*instance_rings), M_QAT, M_WAITOK | M_ZERO);
-	if (!instance_rings) {
-		printf("QAT: Memory allocation error - line: %d\n", __LINE__);
-		return -ENOMEM;
-	}
 	instance_rings->user_pid = curproc->p_pid;
 	instance_rings->ring_mask = 0;
 	mutex_lock(&bundle->list_lock);

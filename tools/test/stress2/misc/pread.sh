@@ -46,13 +46,13 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mount -t tmpfs tmpfs $mntpoint
 cp -a /usr/include $mntpoint
-echo "Testing tmpfs(5)"
+echo "Testing tmpfs(4)"
 /tmp/pread $mntpoint
 while mount | grep -q "on $mntpoint "; do
 	umount $mntpoint || sleep 1
 done
 
-echo "Testing fdescfs(5)"
+echo "Testing fdescfs(4)"
 mount -t fdescfs null /dev/fd
 for i in `jot 100`; do
 	/tmp/pread /dev/fd
@@ -62,7 +62,7 @@ while mount | grep -q "on /dev/fd "; do
 	umount /dev/fd || sleep 1
 done
 
-echo "Testing procfs(5)"
+echo "Testing procfs(4)"
 mount -t procfs procfs $mntpoint
 /tmp/pread $mntpoint
 while mount | grep -q "on $mntpoint "; do
@@ -81,13 +81,13 @@ done
 mdconfig -d -u $mdstart
 
 mount -t nullfs /bin $mntpoint
-echo "Testing nullfs(5)"
+echo "Testing nullfs(4)"
 /tmp/pread $mntpoint
 while mount | grep -q "on $mntpoint "; do
 	umount $mntpoint || sleep 1
 done
 
-echo "Testing procfs(5)"
+echo "Testing procfs(4)"
 mount -t procfs procfs $mntpoint
 /tmp/pread $mntpoint
 while mount | grep -q "on $mntpoint "; do

@@ -968,8 +968,8 @@ swi_net(void *arg)
 	nwsp->nws_flags |= NWS_RUNNING;
 	nwsp->nws_flags &= ~NWS_SCHEDULED;
 	while ((bits = nwsp->nws_pendingbits) != 0) {
-		while ((prot = ffs(bits)) != 0) {
-			prot--;
+		while (bits != 0) {
+			prot = ffs(bits) - 1;
 			bits &= ~(1 << prot);
 			(void)netisr_process_workstream_proto(nwsp, prot);
 		}

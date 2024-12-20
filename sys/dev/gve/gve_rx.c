@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -30,15 +30,12 @@
  */
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 static void
-gve_rx_free_ring(struct gve_priv *priv, int i)
+gve_rx_free_ring_gqi(struct gve_priv *priv, int i)
 {
 	struct gve_rx_ring *rx = &priv->rx[i];
-	struct gve_ring_com *com = &rx->com;
-
-        /* Safe to call even if never allocated */
-	gve_free_counters((counter_u64_t *)&rx->stats, NUM_RX_STATS);
 
 	if (rx->page_info != NULL) {
 		free(rx->page_info, M_GVE);
@@ -54,6 +51,21 @@ gve_rx_free_ring(struct gve_priv *priv, int i)
 		gve_dma_free_coherent(&rx->desc_ring_mem);
 		rx->desc_ring = NULL;
 	}
+}
+
+static void
+gve_rx_free_ring(struct gve_priv *priv, int i)
+{
+	struct gve_rx_ring *rx = &priv->rx[i];
+	struct gve_ring_com *com = &rx->com;
+
+        /* Safe to call even if never allocated */
+	gve_free_counters((counter_u64_t *)&rx->stats, NUM_RX_STATS);
+
+	if (gve_is_gqi(priv))
+		gve_rx_free_ring_gqi(priv, i);
+	else
+		gve_rx_free_ring_dqo(priv, i);
 
 	if (com->q_resources != NULL) {
 		gve_dma_free_coherent(&com->q_resources_mem);
@@ -83,6 +95,52 @@ gve_prefill_rx_slots(struct gve_rx_ring *rx)
 }
 
 static int
+gve_rx_alloc_ring_gqi(struct gve_priv *priv, int i)
+{
+	struct gve_rx_ring *rx = &priv->rx[i];
+	struct gve_ring_com *com = &rx->com;
+	int err;
+
+	err = gve_dma_alloc_coherent(priv,
+	    sizeof(struct gve_rx_desc) * priv->rx_desc_cnt,
+	    CACHE_LINE_SIZE, &rx->desc_ring_mem);
+	if (err != 0) {
+		device_printf(priv->dev,
+		    "Failed to alloc desc ring for rx ring %d", i);
+		goto abort;
+	}
+
+	rx->mask = priv->rx_pages_per_qpl - 1;
+	rx->desc_ring = rx->desc_ring_mem.cpu_addr;
+
+	com->qpl = &priv->qpls[priv->tx_cfg.max_queues + i];
+	if (com->qpl == NULL) {
+		device_printf(priv->dev, "No QPL left for rx ring %d", i);
+		return (ENOMEM);
+	}
+
+	rx->page_info = malloc(priv->rx_desc_cnt * sizeof(*rx->page_info),
+	    M_GVE, M_WAITOK | M_ZERO);
+
+	err = gve_dma_alloc_coherent(priv,
+	    sizeof(union gve_rx_data_slot) * priv->rx_desc_cnt,
+	    CACHE_LINE_SIZE, &rx->data_ring_mem);
+	if (err != 0) {
+		device_printf(priv->dev,
+		    "Failed to alloc data ring for rx ring %d", i);
+		goto abort;
+	}
+	rx->data_ring = rx->data_ring_mem.cpu_addr;
+
+	gve_prefill_rx_slots(rx);
+	return (0);
+
+abort:
+	gve_rx_free_ring_gqi(priv, i);
+	return (err);
+}
+
+static int
 gve_rx_alloc_ring(struct gve_priv *priv, int i)
 {
 	struct gve_rx_ring *rx = &priv->rx[i];
@@ -92,46 +150,24 @@ gve_rx_alloc_ring(struct gve_priv *priv, int i)
 	com->priv = priv;
 	com->id = i;
 
-	rx->mask = priv->rx_pages_per_qpl - 1;
-
-	com->qpl = &priv->qpls[priv->tx_cfg.max_queues + i];
-	if (com->qpl == NULL) {
-		device_printf(priv->dev, "No QPL left for rx ring %d", i);
-		return (ENOMEM);
-	}
-
-	rx->page_info = malloc(priv->rx_desc_cnt * sizeof(*rx->page_info), M_GVE,
-	    M_WAITOK | M_ZERO);
-
 	gve_alloc_counters((counter_u64_t *)&rx->stats, NUM_RX_STATS);
 
 	err = gve_dma_alloc_coherent(priv, sizeof(struct gve_queue_resources),
 	    PAGE_SIZE, &com->q_resources_mem);
 	if (err != 0) {
-		device_printf(priv->dev, "Failed to alloc queue resources for rx ring %d", i);
+		device_printf(priv->dev,
+		    "Failed to alloc queue resources for rx ring %d", i);
 		goto abort;
 	}
 	com->q_resources = com->q_resources_mem.cpu_addr;
 
-	err = gve_dma_alloc_coherent(priv,
-	    sizeof(struct gve_rx_desc) * priv->rx_desc_cnt,
-	    CACHE_LINE_SIZE, &rx->desc_ring_mem);
-	if (err != 0) {
-		device_printf(priv->dev, "Failed to alloc desc ring for rx ring %d", i);
+	if (gve_is_gqi(priv))
+		err = gve_rx_alloc_ring_gqi(priv, i);
+	else
+		err = gve_rx_alloc_ring_dqo(priv, i);
+	if (err != 0)
 		goto abort;
-	}
-	rx->desc_ring = rx->desc_ring_mem.cpu_addr;
 
-	err = gve_dma_alloc_coherent(priv,
-	    sizeof(union gve_rx_data_slot) * priv->rx_desc_cnt,
-	    CACHE_LINE_SIZE, &rx->data_ring_mem);
-	if (err != 0) {
-		device_printf(priv->dev, "Failed to alloc data ring for rx ring %d", i);
-		goto abort;
-	}
-	rx->data_ring = rx->data_ring_mem.cpu_addr;
-
-	gve_prefill_rx_slots(rx);
 	return (0);
 
 abort:
@@ -217,6 +253,11 @@ gve_clear_rx_ring(struct gve_priv *priv, int i)
 {
 	struct gve_rx_ring *rx = &priv->rx[i];
 
+	if (!gve_is_gqi(priv)) {
+		gve_clear_rx_ring_dqo(priv, i);
+		return;
+	}
+
 	rx->seq_no = 1;
 	rx->cnt = 0;
 	rx->fill_cnt = 0;
@@ -238,14 +279,21 @@ gve_start_rx_ring(struct gve_priv *priv, int i)
 		rx->lro.ifp = priv->ifp;
 	}
 
-	NET_TASK_INIT(&com->cleanup_task, 0, gve_rx_cleanup_tq, rx);
+	if (gve_is_gqi(priv))
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_rx_cleanup_tq, rx);
+	else
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_rx_cleanup_tq_dqo, rx);
 	com->cleanup_tq = taskqueue_create_fast("gve rx", M_WAITOK,
 	    taskqueue_thread_enqueue, &com->cleanup_tq);
 
 	taskqueue_start_threads(&com->cleanup_tq, 1, PI_NET,
 	    "%s rxq %d", device_get_nameunit(priv->dev), i);
 
-	gve_db_bar_write_4(priv, com->db_offset, rx->fill_cnt);
+	if (gve_is_gqi(priv)) {
+		/* GQ RX bufs are prefilled at ring alloc time */
+		gve_db_bar_write_4(priv, com->db_offset, rx->fill_cnt);
+	} else
+		gve_rx_prefill_buffers_dqo(rx);
 }
 
 int
@@ -358,24 +406,6 @@ gve_set_rss_type(__be16 flag, struct mbuf *mbuf)
 		else
 			M_HASHTYPE_SET(mbuf, M_HASHTYPE_RSS_IPV6);
 		return;
-	}
-}
-
-static void
-gve_mextadd_free(struct mbuf *mbuf)
-{
-	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
-	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
-
-	/*
-	 * Free the page only if this is the last ref.
-	 * The interface might no longer exist by the time
-	 * this callback is called, see gve_free_qpl.
-	 */
-	if (__predict_false(vm_page_unwire_noq(page))) {
-		pmap_qremove(va, 1);
-		kva_free(va, PAGE_SIZE);
-		vm_page_free(page);
 	}
 }
 

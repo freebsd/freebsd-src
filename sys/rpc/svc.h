@@ -804,10 +804,9 @@ extern void *clnt_bck_create(struct socket *, const rpcprog_t, const rpcvers_t);
 /*
  * Generic TLI create routine
  */
-extern SVCXPRT *svc_tli_create(SVCPOOL *, struct socket *,
-    const struct netconfig *, const struct t_bind *, const size_t, const size_t);
+extern SVCXPRT *svc_tli_create(SVCPOOL *, const struct netconfig *,
+    const struct t_bind *, const size_t, const size_t);
 /*
- *      struct socket * so;             -- connection end point
  *      const struct netconfig *nconf;  -- netconfig structure for network
  *      const struct t_bind *bindaddr;  -- local bind address
  *      const size_t sendsz;             -- max sendsize

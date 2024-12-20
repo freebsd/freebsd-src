@@ -469,7 +469,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 */
 			bcopy(resinfo, &logical_id, 4);
 			pnp_check_quirks(p->vendor_id, logical_id, ldn, NULL);
-			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
+			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, DEVICE_UNIT_ANY);
 			if (desc)
 				device_set_desc_copy(dev, desc);
 			else

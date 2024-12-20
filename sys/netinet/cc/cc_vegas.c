@@ -129,6 +129,7 @@ vegas_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 	struct ertt *e_t;
 	struct vegas *vegas_data;
 	long actual_tx_rate, expected_tx_rate, ndiff;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	e_t = khelp_get_osd(&CCV(ccv, t_osd), ertt_id);
 	vegas_data = ccv->cc_data;
@@ -139,7 +140,7 @@ vegas_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 			actual_tx_rate = e_t->bytes_tx_in_marked_rtt /
 			    e_t->markedpkt_rtt;
 			ndiff = (expected_tx_rate - actual_tx_rate) *
-			    e_t->minrtt / CCV(ccv, t_maxseg);
+			    e_t->minrtt / mss;
 
 			if (ndiff < V_vegas_alpha) {
 				if (CCV(ccv, snd_cwnd) <=
@@ -150,8 +151,7 @@ vegas_ack_received(struct cc_var *ccv, ccsignal_t ack_type)
 				} else {
 					vegas_data->slow_start_toggle = 0;
 					CCV(ccv, snd_cwnd) =
-					    min(CCV(ccv, snd_cwnd) +
-					    CCV(ccv, t_maxseg),
+					    min(CCV(ccv, snd_cwnd) + mss,
 					    TCP_MAXWIN << CCV(ccv, snd_scale));
 				}
 			} else if (ndiff > V_vegas_beta) {
@@ -184,7 +184,7 @@ vegas_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct vegas *vegas_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		vegas_data = malloc(sizeof(struct vegas), M_CC_MEM, M_NOWAIT);
 		if (vegas_data == NULL)
@@ -207,6 +207,7 @@ vegas_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 {
 	struct vegas *vegas_data;
 	int presignalrecov;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	vegas_data = ccv->cc_data;
 
@@ -218,8 +219,8 @@ vegas_cong_signal(struct cc_var *ccv, ccsignal_t signal_type)
 	switch((int)signal_type) {
 	case CC_VEGAS_RATE:
 		if (!IN_RECOVERY(CCV(ccv, t_flags))) {
-			CCV(ccv, snd_cwnd) = max(2 * CCV(ccv, t_maxseg),
-			    CCV(ccv, snd_cwnd) - CCV(ccv, t_maxseg));
+			CCV(ccv, snd_cwnd) = max(2 * mss,
+			    CCV(ccv, snd_cwnd) - mss);
 			if (CCV(ccv, snd_cwnd) < CCV(ccv, snd_ssthresh))
 				/* Exit slow start. */
 				CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd);

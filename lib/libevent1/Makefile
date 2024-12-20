@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 .PATH:	${SRCTOP}/contrib/pf/libevent
 

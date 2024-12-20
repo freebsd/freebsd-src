@@ -34,8 +34,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.It vm/vm_param.h
-.It vm/swap_pager.h
+.In vm/vm_param.h
+.In vm/swap_pager.h
+.Pp
 .In unistd.h
 .Ft int
 .Fn swapon "const char *special"
@@ -66,7 +67,7 @@ is made available for other purposes.
 The
 .Fa special
 argument points to the name of the device or file used for swapping.
-.The
+The
 .Va flags
 argument takes the following flags:
 .Bl -tag -width SWAPOFF_FORCE

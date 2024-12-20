@@ -89,16 +89,81 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 }
 
 static void
-devlist(const struct cmd *f, int argc, char *argv[])
+scan_namespace(int fd, int ctrlr, uint32_t nsid)
+{
+	struct nvme_namespace_data 	nsdata;
+	char				name[64];
+	uint8_t				buf[7];
+	uint64_t			size;
+
+	if (read_namespace_data(fd, nsid, &nsdata) != 0)
+		return;
+	if (nsdata.nsze == 0)
+		return;
+	snprintf(name, sizeof(name), "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
+	    NVME_NS_PREFIX, nsid);
+	size = nsdata.nsze * (uint64_t)ns_get_sector_size(&nsdata);
+	if (opt.human) {
+		humanize_number(buf, sizeof(buf), size, "B",
+		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		printf("  %10s (%s)\n", name, buf);
+	} else {
+		printf("  %10s (%juMB)\n", name, (uintmax_t)size / 1024 / 1024);
+	}
+}
+
+static bool
+scan_controller(int ctrlr)
 {
 	struct nvme_controller_data	cdata;
-	struct nvme_namespace_data	nsdata;
+	struct nvme_ns_list		nslist;
 	char				name[64];
 	uint8_t				mn[64];
-	uint8_t				buf[7];
-	uint32_t			i;
-	uint64_t			size;
-	int				ctrlr, fd, found, ret;
+	uint32_t			nsid;
+	int				fd, ret;
+
+	snprintf(name, sizeof(name), "%s%d", NVME_CTRLR_PREFIX, ctrlr);
+
+	ret = open_dev(name, &fd, 0, 0);
+
+	if (ret == EACCES) {
+		warnx("could not open "_PATH_DEV"%s\n", name);
+		return (false);
+	} else if (ret != 0)
+		return (false);
+
+	if (read_controller_data(fd, &cdata) != 0) {
+		close(fd);
+		return (true);
+	}
+
+	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
+	printf("%6s: %s\n", name, mn);
+
+	nsid = 0;
+	for (;;) {
+		if (read_active_namespaces(fd, nsid, &nslist) != 0)
+			break;
+		for (u_int i = 0; i < nitems(nslist.ns); i++) {
+			nsid = nslist.ns[i];
+			if (nsid == 0) {
+				break;
+			}
+
+			scan_namespace(fd, ctrlr, nsid);
+		}
+		if (nsid == 0 || nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
+			break;
+	}
+
+	close(fd);
+	return (true);
+}
+
+static void
+devlist(const struct cmd *f, int argc, char *argv[])
+{
+	int				ctrlr, found;
 
 	if (arg_parse(argc, argv, f))
 		return;
@@ -108,41 +173,8 @@ devlist(const struct cmd *f, int argc, char *argv[])
 
 	while (ctrlr < NVME_MAX_UNIT) {
 		ctrlr++;
-		sprintf(name, "%s%d", NVME_CTRLR_PREFIX, ctrlr);
-
-		ret = open_dev(name, &fd, 0, 0);
-
-		if (ret == EACCES) {
-			warnx("could not open "_PATH_DEV"%s\n", name);
-			continue;
-		} else if (ret != 0)
-			continue;
-
-		found++;
-		if (read_controller_data(fd, &cdata))
-			continue;
-		nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
-		printf("%6s: %s\n", name, mn);
-
-		for (i = 0; i < cdata.nn; i++) {
-			if (read_namespace_data(fd, i + 1, &nsdata))
-				continue;
-			if (nsdata.nsze == 0)
-				continue;
-			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
-			    NVME_NS_PREFIX, i + 1);
-			size = nsdata.nsze * (uint64_t)ns_get_sector_size(&nsdata);
-			if (opt.human) {
-				humanize_number(buf, sizeof(buf), size, "B",
-				    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-				printf("  %10s (%s)\n", name, buf);
-
-			} else {
-				printf("  %10s (%juMB)\n", name, (uintmax_t)size / 1024 / 1024);
-			}
-		}
-
-		close(fd);
+		if (scan_controller(ctrlr))
+			found++;
 	}
 
 	if (found == 0) {

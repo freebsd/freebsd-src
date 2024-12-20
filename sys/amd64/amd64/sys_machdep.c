@@ -46,6 +46,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 
@@ -284,7 +285,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
-		if (!error) {
+		if (error == 0) {
 			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
@@ -298,7 +299,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
-		if (!error) {
+		if (error == 0) {
 			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_gsbase = i386base;
 			td->td_frame->tf_gs = _ugssel;
@@ -310,11 +311,11 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = copyout(&pcb->pcb_fsbase, uap->parms,
 		    sizeof(pcb->pcb_fsbase));
 		break;
-		
+
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
-		if (!error) {
-			if (a64base < VM_MAXUSER_ADDRESS) {
+		if (error == 0) {
+			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
 				pcb->pcb_fsbase = a64base;
 				td->td_frame->tf_fs = _ufssel;
@@ -331,8 +332,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
-		if (!error) {
-			if (a64base < VM_MAXUSER_ADDRESS) {
+		if (error == 0) {
+			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
 				pcb->pcb_gsbase = a64base;
 				td->td_frame->tf_gs = _ugssel;

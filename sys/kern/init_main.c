@@ -138,7 +138,6 @@ SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
  * - 1, 'compiled in but verbose by default' (default)
  */
 int	verbose_sysinit = VERBOSE_SYSINIT;
-TUNABLE_INT("debug.verbose_sysinit", &verbose_sysinit);
 #endif
 
 #ifdef INVARIANTS
@@ -256,7 +255,6 @@ symbol_name(vm_offset_t va, db_strategy_t strategy)
 void
 mi_startup(void)
 {
-
 	struct sysinit *sip;
 	int last;
 #if defined(VERBOSE_SYSINIT)
@@ -271,8 +269,9 @@ mi_startup(void)
 	/* Construct and sort sysinit list. */
 	sysinit_mklist(&sysinit_list, SET_BEGIN(sysinit_set), SET_LIMIT(sysinit_set));
 
-	last = SI_SUB_COPYRIGHT;
+	last = SI_SUB_DUMMY;
 #if defined(VERBOSE_SYSINIT)
+	TUNABLE_INT_FETCH("debug.verbose_sysinit", &verbose_sysinit);
 	verbose = 0;
 #if !defined(DDB)
 	printf("VERBOSE_SYSINIT: DDB not enabled, symbol lookups disabled.\n");
@@ -299,7 +298,7 @@ mi_startup(void)
 #if defined(VERBOSE_SYSINIT)
 		if (sip->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
-			printf("subsystem %x\n", last);
+			printf("subsystem %x\n", sip->subsystem);
 		}
 		if (verbose) {
 #if defined(DDB)
@@ -339,20 +338,22 @@ mi_startup(void)
 	mtx_unlock(&Giant);
 
 	/*
-	 * Now hand over this thread to swapper.
+	 * We can't free our thread structure since it is statically allocated.
+	 * Just sleep forever.  This thread could be repurposed for something if
+	 * the need arises.
 	 */
-	swapper();
-	/* NOTREACHED*/
+	for (;;)
+		tsleep(__builtin_frame_address(0), PNOLOCK, "parked", 0);
 }
 
 static void
-print_caddr_t(void *data)
+print_caddr_t(const void *data)
 {
-	printf("%s", (char *)data);
+	printf("%s", (const char *)data);
 }
 
 static void
-print_version(void *data __unused)
+print_version(const void *data __unused)
 {
 	int len;
 
@@ -364,36 +365,36 @@ print_version(void *data __unused)
 	printf("%s\n", compiler_version);
 }
 
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
+C_SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
     copyright);
-SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
+C_SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
     trademark);
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
+C_SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
-static char wit_warn[] =
+static const char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
-SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH,
+C_SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH,
    print_caddr_t, wit_warn);
-SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH,
+C_SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH,
    print_caddr_t, wit_warn);
 #endif
 
 #ifdef DIAGNOSTIC
-static char diag_warn[] =
+static const char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
-SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
+C_SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, diag_warn);
-SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
+C_SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
     print_caddr_t, diag_warn);
 #endif
 
 #if __SIZEOF_LONG__ == 4
-static char ilp32_warn[] =
+static const char ilp32_warn[] =
     "WARNING: 32-bit kernels are deprecated and may be removed in FreeBSD 15.0.\n";
-SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
+C_SYSINIT(ilp32warn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
-SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
+C_SYSINIT(ilp32warn2, SI_SUB_LAST, SI_ORDER_FIFTH,
     print_caddr_t, ilp32_warn);
 #endif
 

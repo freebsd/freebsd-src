@@ -146,19 +146,18 @@ vchan_trigger(kobj_t obj, void *data, int go)
 	int ret, otrigger;
 
 	info = data;
+	c = info->channel;
+	p = c->parentchannel;
 
+	CHN_LOCKASSERT(c);
 	if (!PCMTRIG_COMMON(go) || go == info->trigger)
 		return (0);
 
-	c = info->channel;
-	p = c->parentchannel;
-	otrigger = info->trigger;
-	info->trigger = go;
-
-	CHN_LOCKASSERT(c);
-
 	CHN_UNLOCK(c);
 	CHN_LOCK(p);
+
+	otrigger = info->trigger;
+	info->trigger = go;
 
 	switch (go) {
 	case PCMTRIG_START:
@@ -508,8 +507,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		return (ret);
 	}
 
-	if (newspd < 1 || newspd < feeder_rate_min ||
-	    newspd > feeder_rate_max) {
+	if (newspd < feeder_rate_min || newspd > feeder_rate_max) {
 		PCM_RELEASE_QUICK(d);
 		return (EINVAL);
 	}
@@ -674,8 +672,11 @@ vchan_create(struct pcm_channel *parent)
 	struct pcm_channel *ch;
 	struct pcmchan_caps *parent_caps;
 	uint32_t vchanfmt, vchanspd;
-	int ret, direction, r, save;
+	int ret, direction, r;
+	bool save;
 
+	ret = 0;
+	save = false;
 	d = parent->parentsnddev;
 
 	PCM_BUSYASSERT(d);
@@ -687,8 +688,6 @@ vchan_create(struct pcm_channel *parent)
 	if (!(parent->direction == PCMDIR_PLAY ||
 	    parent->direction == PCMDIR_REC))
 		return (EINVAL);
-
-	d = parent->parentsnddev;
 
 	CHN_UNLOCK(parent);
 	PCM_LOCK(d);
@@ -710,9 +709,6 @@ vchan_create(struct pcm_channel *parent)
 		CHN_LOCK(parent);
 		return (ENODEV);
 	}
-
-	/* add us to our grandparent's channel list */
-	pcm_chn_add(d, ch);
 	PCM_UNLOCK(d);
 
 	CHN_LOCK(parent);
@@ -728,14 +724,13 @@ vchan_create(struct pcm_channel *parent)
 
 	parent->flags |= CHN_F_HAS_VCHAN;
 
-	ret = 0;
 	parent_caps = chn_getcaps(parent);
-	if (parent_caps == NULL)
+	if (parent_caps == NULL) {
 		ret = EINVAL;
+		goto fail;
+	}
 
-	save = 0;
-
-	if (ret == 0 && vchanfmt == 0) {
+	if (vchanfmt == 0) {
 		const char *vfmt;
 
 		CHN_UNLOCK(parent);
@@ -752,10 +747,10 @@ vchan_create(struct pcm_channel *parent)
 		}
 		if (vchanfmt == 0)
 			vchanfmt = VCHAN_DEFAULT_FORMAT;
-		save = 1;
+		save = true;
 	}
 
-	if (ret == 0 && vchanspd == 0) {
+	if (vchanspd == 0) {
 		/*
 		 * This is very sad. Few soundcards advertised as being
 		 * able to do (insanely) higher/lower speed, but in
@@ -768,49 +763,30 @@ vchan_create(struct pcm_channel *parent)
 		    &vchanspd);
 		CHN_LOCK(parent);
 		if (r != 0) {
-			/*
-			 * No saved value, no hint, NOTHING.
-			 *
-			 * Workaround for sb16 running
-			 * poorly at 45k / 49k.
-			 */
-			switch (parent_caps->maxspeed) {
-			case 45000:
-			case 49000:
-				vchanspd = 44100;
-				break;
-			default:
-				vchanspd = VCHAN_DEFAULT_RATE;
-				if (vchanspd > parent_caps->maxspeed)
-					vchanspd = parent_caps->maxspeed;
-				break;
-			}
-			if (vchanspd < parent_caps->minspeed)
-				vchanspd = parent_caps->minspeed;
-		}
-		save = 1;
-	}
-
-	if (ret == 0) {
-		/*
-		 * Limit the speed between feeder_rate_min <-> feeder_rate_max.
-		 */
-		if (vchanspd < feeder_rate_min)
-			vchanspd = feeder_rate_min;
-		if (vchanspd > feeder_rate_max)
-			vchanspd = feeder_rate_max;
-
-		if (feeder_rate_round) {
+			/* No saved value, no hint, NOTHING. */
+			vchanspd = VCHAN_DEFAULT_RATE;
 			RANGE(vchanspd, parent_caps->minspeed,
 			    parent_caps->maxspeed);
-			vchanspd = CHANNEL_SETSPEED(parent->methods,
-			    parent->devinfo, vchanspd);
 		}
-
-		ret = chn_reset(parent, vchanfmt, vchanspd);
+		save = true;
 	}
 
-	if (ret == 0 && save) {
+	/*
+	 * Limit the speed between feeder_rate_min <-> feeder_rate_max.
+	 */
+	RANGE(vchanspd, feeder_rate_min, feeder_rate_max);
+
+	if (feeder_rate_round) {
+		RANGE(vchanspd, parent_caps->minspeed,
+		    parent_caps->maxspeed);
+		vchanspd = CHANNEL_SETSPEED(parent->methods,
+		    parent->devinfo, vchanspd);
+	}
+
+	if ((ret = chn_reset(parent, vchanfmt, vchanspd)) != 0)
+		goto fail;
+
+	if (save) {
 		/*
 		 * Save new value.
 		 */
@@ -827,23 +803,19 @@ vchan_create(struct pcm_channel *parent)
 	 * If the parent channel supports digital format,
 	 * enable passthrough mode.
 	 */
-	if (ret == 0 && snd_fmtvalid(AFMT_PASSTHROUGH, parent_caps->fmtlist)) {
+	if (snd_fmtvalid(AFMT_PASSTHROUGH, parent_caps->fmtlist)) {
 		parent->flags &= ~CHN_F_VCHAN_DYNAMIC;
 		parent->flags |= CHN_F_VCHAN_PASSTHROUGH;
 	}
 
-	if (ret != 0) {
-		CHN_REMOVE(parent, ch, children);
-		parent->flags &= ~CHN_F_HAS_VCHAN;
-		CHN_UNLOCK(parent);
-		PCM_LOCK(d);
-		if (pcm_chn_remove(d, ch) == 0) {
-			PCM_UNLOCK(d);
-			chn_kill(ch);
-		} else
-			PCM_UNLOCK(d);
-		CHN_LOCK(parent);
-	}
+	return (ret);
+
+fail:
+	CHN_REMOVE(parent, ch, children);
+	parent->flags &= ~CHN_F_HAS_VCHAN;
+	CHN_UNLOCK(parent);
+	chn_kill(ch);
+	CHN_LOCK(parent);
 
 	return (ret);
 }
@@ -852,8 +824,6 @@ int
 vchan_destroy(struct pcm_channel *c)
 {
 	struct pcm_channel *parent;
-	struct snddev_info *d;
-	int ret;
 
 	KASSERT(c != NULL && c->parentchannel != NULL &&
 	    c->parentsnddev != NULL, ("%s(): invalid channel=%p",
@@ -861,10 +831,9 @@ vchan_destroy(struct pcm_channel *c)
 
 	CHN_LOCKASSERT(c);
 
-	d = c->parentsnddev;
 	parent = c->parentchannel;
 
-	PCM_BUSYASSERT(d);
+	PCM_BUSYASSERT(c->parentsnddev);
 	CHN_LOCKASSERT(parent);
 
 	CHN_UNLOCK(c);
@@ -885,18 +854,12 @@ vchan_destroy(struct pcm_channel *c)
 
 	CHN_UNLOCK(parent);
 
-	/* remove us from our grandparent's channel list */
-	PCM_LOCK(d);
-	ret = pcm_chn_remove(d, c);
-	PCM_UNLOCK(d);
-
 	/* destroy ourselves */
-	if (ret == 0)
-		chn_kill(c);
+	chn_kill(c);
 
 	CHN_LOCK(parent);
 
-	return (ret);
+	return (0);
 }
 
 int
@@ -922,14 +885,9 @@ vchan_sync(struct pcm_channel *c)
 		c->flags |= CHN_F_DIRTY;
 
 #ifdef SND_DEBUG
-	if (snd_passthrough_verbose != 0) {
-		char *devname, buf[CHN_NAMELEN];
-
-		devname = dsp_unit2name(buf, sizeof(buf), c);
-		device_printf(c->dev,
-		    "%s(%s/%s) %s() -> re-sync err=%d\n",
-		    __func__, (devname != NULL) ? devname : "dspX", c->comm,
-		    caller, ret);
+	if (snd_passthrough_verbose) {
+		device_printf(c->dev, "%s(%s/%s) %s() -> re-sync err=%d\n",
+		    __func__, c->name, c->comm, caller, ret);
 	}
 #endif
 
@@ -963,16 +921,12 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 		return (EINVAL);
 
 	if (newcnt > vcnt) {
-		KASSERT((newcnt - 1) == vcnt,
-		    ("bogus vchan_create() request newcnt=%d vcnt=%d",
-		    newcnt, vcnt));
 		/* add new vchans - find a parent channel first */
 		ch = NULL;
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
 			if (c->direction == direction &&
 			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
-			    c->refcount < 1 &&
 			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL))))) {
 				/*
 				 * Reuse hw channel with vchans already
@@ -1031,12 +985,11 @@ vchan_setnew(struct snddev_info *d, int direction, int newcnt)
 			}
 			CHN_FOREACH_SAFE(ch, c, nch, children) {
 				CHN_LOCK(ch);
-				if (vcnt == 1 && c->refcount > 0) {
+				if (vcnt == 1 && ch->flags & CHN_F_BUSY) {
 					CHN_UNLOCK(ch);
 					break;
 				}
-				if (!(ch->flags & CHN_F_BUSY) &&
-				    ch->refcount < 1) {
+				if (!(ch->flags & CHN_F_BUSY)) {
 					err = vchan_destroy(ch);
 					if (err == 0)
 						vcnt--;

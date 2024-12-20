@@ -249,8 +249,8 @@ static const char *skip_comparitors_names[PF_SKIP_COUNT];
     { "af", PF_SKIP_AF, skip_cmp_af },			\
     { "proto", PF_SKIP_PROTO, skip_cmp_proto },		\
     { "saddr", PF_SKIP_SRC_ADDR, skip_cmp_src_addr },	\
-    { "sport", PF_SKIP_SRC_PORT, skip_cmp_src_port },	\
     { "daddr", PF_SKIP_DST_ADDR, skip_cmp_dst_addr },	\
+    { "sport", PF_SKIP_SRC_PORT, skip_cmp_src_port },	\
     { "dport", PF_SKIP_DST_PORT, skip_cmp_dst_port }	\
 }
 

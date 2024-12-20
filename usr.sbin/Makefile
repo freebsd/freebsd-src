@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 SUBDIR=	adduser \
@@ -39,7 +38,6 @@ SUBDIR=	adduser \
 	mailwrapper \
 	makefs \
 	memcontrol \
-	mergemaster \
 	mfiutil \
 	mixer \
 	mlxcontrol \

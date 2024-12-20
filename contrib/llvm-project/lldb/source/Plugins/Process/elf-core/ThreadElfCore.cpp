@@ -37,6 +37,7 @@
 #include "RegisterContextPOSIXCore_mips64.h"
 #include "RegisterContextPOSIXCore_powerpc.h"
 #include "RegisterContextPOSIXCore_ppc64le.h"
+#include "RegisterContextPOSIXCore_riscv64.h"
 #ifdef LLDB_ENABLE_ALL
 #include "RegisterContextPOSIXCore_s390x.h"
 #endif // LLDB_ENABLE_ALL
@@ -174,7 +175,8 @@ ThreadElfCore::CreateRegisterContextForFrame(StackFrame *frame) {
     }
 
     if (!reg_interface && arch.GetMachine() != llvm::Triple::aarch64 &&
-        arch.GetMachine() != llvm::Triple::arm) {
+        arch.GetMachine() != llvm::Triple::arm &&
+        arch.GetMachine() != llvm::Triple::riscv64) {
       LLDB_LOGF(log, "elf-core::%s:: Architecture(%d) or OS(%d) not supported",
                 __FUNCTION__, arch.GetMachine(), arch.GetTriple().getOS());
       assert(false && "Architecture or OS not supported");
@@ -189,6 +191,10 @@ ThreadElfCore::CreateRegisterContextForFrame(StackFrame *frame) {
       m_thread_reg_ctx_sp = std::make_shared<RegisterContextCorePOSIX_arm>(
           *this, std::make_unique<RegisterInfoPOSIX_arm>(arch), m_gpregset_data,
           m_notes);
+      break;
+    case llvm::Triple::riscv64:
+      m_thread_reg_ctx_sp = RegisterContextCorePOSIX_riscv64::Create(
+          *this, arch, m_gpregset_data, m_notes);
       break;
     case llvm::Triple::mipsel:
     case llvm::Triple::mips:

@@ -130,6 +130,7 @@ struct g_part_alias_list {
         { "solaris-home", G_PART_ALIAS_SOLARIS_HOME },
         { "solaris-altsec", G_PART_ALIAS_SOLARIS_ALTSEC },
 	{ "solaris-reserved", G_PART_ALIAS_SOLARIS_RESERVED },
+	{ "u-boot-env", G_PART_ALIAS_U_BOOT_ENV },
 	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
@@ -1004,7 +1005,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	table->gpt_gp = gp;
 	table->gpt_scheme = gpp->gpp_scheme;
 	table->gpt_entries = (gpp->gpp_parms & G_PART_PARM_ENTRIES) ?
-	    gpp->gpp_entries : scheme->gps_minent;
+	    gpp->gpp_entries : scheme->gps_defent;
 	LIST_INIT(&table->gpt_entry);
 	if (null == NULL) {
 		cp = g_new_consumer(gp);

@@ -142,10 +142,10 @@ enum Ar9300EepromTemplate
 #define OSPREY_EEPMISC_WOW           0x02
 #define OSPREY_CUSTOMER_DATA_SIZE    20
 
-#define FREQ2FBIN(x,y) \
-    (u_int8_t)(((y) == HAL_FREQ_BAND_2GHZ) ? ((x) - 2300) : (((x) - 4800) / 5))
-#define FBIN2FREQ(x,y) \
-    (((y) == HAL_FREQ_BAND_2GHZ) ? (2300 + x) : (4800 + 5 * x))
+#define FREQ2FBIN(freq,is_2ghz) \
+    (u_int8_t)((is_2ghz) ? ((freq) - 2300) : (((freq) - 4800) / 5))
+#define FBIN2FREQ(freq,is_2ghz) \
+    ((is_2ghz) ? (2300 + freq) : (4800 + 5 * freq))
 #define OSPREY_MAX_CHAINS            3
 #define OSPREY_ANT_16S               25
 #define OSPREY_FUTURE_MODAL_SZ       6

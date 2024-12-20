@@ -1471,6 +1471,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 	m = *mp;
 	ifp = m->m_pkthdr.rcvif;
 	*mp = NULL;
+	M_ASSERTMAPPED(m);
 
 	IGMPSTAT_INC(igps_rcv_total);
 

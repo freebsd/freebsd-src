@@ -1,4 +1,3 @@
-
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/tls/${.CURDIR:T}
 
 LIB=		h_tls_dlopen

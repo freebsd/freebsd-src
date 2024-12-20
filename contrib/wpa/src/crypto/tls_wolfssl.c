@@ -26,6 +26,10 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#ifdef CONFIG_FIPS
+#include <wolfssl/wolfcrypt/fips_test.h>
+#endif /* CONFIG_FIPS */
+
 #if !defined(CONFIG_FIPS) &&                             \
     (defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) ||   \
      defined(EAP_SERVER_FAST))
@@ -58,6 +62,7 @@ struct tls_context {
 	void *cb_ctx;
 	int cert_in_cb;
 	char *ocsp_stapling_response;
+	unsigned int tls_session_lifetime;
 };
 
 static struct tls_context *tls_global = NULL;
@@ -94,6 +99,7 @@ struct tls_connection {
 	WOLFSSL_X509 *peer_cert;
 	WOLFSSL_X509 *peer_issuer;
 	WOLFSSL_X509 *peer_issuer_issuer;
+	char *peer_subject; /* peer subject info for authenticated peer */
 };
 
 
@@ -190,6 +196,33 @@ static void remove_session_cb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
 }
 
 
+#if defined(CONFIG_FIPS) && defined(HAVE_FIPS)
+static void wcFipsCb(int ok, int err, const char *hash)
+{
+	wpa_printf(MSG_INFO,
+		   "wolfFIPS: wolfCrypt Fips error callback, ok = %d, err = %d",
+		   ok, err);
+	wpa_printf(MSG_INFO, "wolfFIPS: message = %s", wc_GetErrorString(err));
+	wpa_printf(MSG_INFO, "wolfFIPS: hash = %s", hash);
+	if (err == IN_CORE_FIPS_E) {
+		wpa_printf(MSG_ERROR,
+			   "wolfFIPS: In core integrity hash check failure, copy above hash");
+		wpa_printf(MSG_ERROR, "wolfFIPS: into verifyCore[] in fips_test.c and rebuild");
+	}
+}
+#endif /* CONFIG_FIPS && HAVE_FIPS */
+
+
+#ifdef DEBUG_WOLFSSL
+static void wolfSSL_logging_cb(const int log_level,
+			       const char * const log_message)
+{
+	(void) log_level;
+	wpa_printf(MSG_DEBUG, "wolfSSL log:%s", log_message);
+}
+#endif /* DEBUG_WOLFSSL */
+
+
 void * tls_init(const struct tls_config *conf)
 {
 	WOLFSSL_CTX *ssl_ctx;
@@ -197,6 +230,7 @@ void * tls_init(const struct tls_config *conf)
 	const char *ciphers;
 
 #ifdef DEBUG_WOLFSSL
+	wolfSSL_SetLoggingCb(wolfSSL_logging_cb);
 	wolfSSL_Debugging_ON();
 #endif /* DEBUG_WOLFSSL */
 
@@ -209,7 +243,9 @@ void * tls_init(const struct tls_config *conf)
 
 		if (wolfSSL_Init() < 0)
 			return NULL;
-		/* wolfSSL_Debugging_ON(); */
+#if defined(CONFIG_FIPS) && defined(HAVE_FIPS)
+		wolfCrypt_SetCb_fips(wcFipsCb);
+#endif /* CONFIG_FIPS && HAVE_FIPS */
 	}
 
 	tls_ref_count++;
@@ -227,23 +263,28 @@ void * tls_init(const struct tls_config *conf)
 	}
 	wolfSSL_SetIORecv(ssl_ctx, wolfssl_receive_cb);
 	wolfSSL_SetIOSend(ssl_ctx, wolfssl_send_cb);
+	context->tls_session_lifetime = conf->tls_session_lifetime;
 	wolfSSL_CTX_set_ex_data(ssl_ctx, 0, context);
 
 	if (conf->tls_session_lifetime > 0) {
+		wolfSSL_CTX_set_session_id_context(ssl_ctx,
+						   (const unsigned char *)
+						   "hostapd", 7);
 		wolfSSL_CTX_set_quiet_shutdown(ssl_ctx, 1);
 		wolfSSL_CTX_set_session_cache_mode(ssl_ctx,
-						   SSL_SESS_CACHE_SERVER);
+						   WOLFSSL_SESS_CACHE_SERVER);
 		wolfSSL_CTX_set_timeout(ssl_ctx, conf->tls_session_lifetime);
 		wolfSSL_CTX_sess_set_remove_cb(ssl_ctx, remove_session_cb);
 	} else {
 		wolfSSL_CTX_set_session_cache_mode(ssl_ctx,
-						   SSL_SESS_CACHE_CLIENT);
+						   WOLFSSL_SESS_CACHE_OFF);
 	}
 
 	if (conf && conf->openssl_ciphers)
 		ciphers = conf->openssl_ciphers;
 	else
 		ciphers = "ALL";
+	wpa_printf(MSG_DEBUG, "wolfSSL: cipher suites: %s", ciphers);
 	if (wolfSSL_CTX_set_cipher_list(ssl_ctx, ciphers) != 1) {
 		wpa_printf(MSG_ERROR,
 			   "wolfSSL: Failed to set cipher string '%s'",
@@ -336,6 +377,7 @@ void tls_connection_deinit(void *tls_ctx, struct tls_connection *conn)
 	os_free(conn->alt_subject_match);
 	os_free(conn->suffix_match);
 	os_free(conn->domain_match);
+	os_free(conn->peer_subject);
 
 	/* self */
 	os_free(conn);
@@ -369,10 +411,13 @@ int tls_connection_shutdown(void *tls_ctx, struct tls_connection *conn)
 	wolfSSL_set_quiet_shutdown(conn->ssl, 1);
 	wolfSSL_shutdown(conn->ssl);
 
-	session = wolfSSL_get_session(conn->ssl);
-	if (wolfSSL_clear(conn->ssl) != 1)
+	session = wolfSSL_get1_session(conn->ssl);
+	if (wolfSSL_clear(conn->ssl) != 1) {
+		wolfSSL_SESSION_free(session);
 		return -1;
+	}
 	wolfSSL_set_session(conn->ssl, session);
+	wolfSSL_SESSION_free(session);
 
 	return 0;
 }
@@ -420,44 +465,6 @@ static int tls_connection_set_subject_match(struct tls_connection *conn,
 }
 
 
-static int tls_connection_dh(struct tls_connection *conn, const char *dh_file,
-			     const u8 *dh_blob, size_t blob_len)
-{
-	if (!dh_file && !dh_blob)
-		return 0;
-
-	wolfSSL_set_accept_state(conn->ssl);
-
-	if (dh_blob) {
-		if (wolfSSL_SetTmpDH_buffer(conn->ssl, dh_blob, blob_len,
-					    SSL_FILETYPE_ASN1) < 0) {
-			wpa_printf(MSG_INFO, "SSL: use DH DER blob failed");
-			return -1;
-		}
-		wpa_printf(MSG_DEBUG, "SSL: use DH blob OK");
-		return 0;
-	}
-
-	if (dh_file) {
-		wpa_printf(MSG_INFO, "SSL: use DH PEM file: %s", dh_file);
-		if (wolfSSL_SetTmpDH_file(conn->ssl, dh_file,
-					  SSL_FILETYPE_PEM) < 0) {
-			wpa_printf(MSG_INFO, "SSL: use DH PEM file failed");
-			if (wolfSSL_SetTmpDH_file(conn->ssl, dh_file,
-						  SSL_FILETYPE_ASN1) < 0) {
-				wpa_printf(MSG_INFO,
-					   "SSL: use DH DER file failed");
-				return -1;
-			}
-		}
-		wpa_printf(MSG_DEBUG, "SSL: use DH file OK");
-		return 0;
-	}
-
-	return 0;
-}
-
-
 static int tls_connection_client_cert(struct tls_connection *conn,
 				      const char *client_cert,
 				      const u8 *client_cert_blob,
@@ -472,7 +479,13 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 			    SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use client cert DER blob failed");
-			return -1;
+			if (wolfSSL_use_certificate_chain_buffer_format(
+				    conn->ssl, client_cert_blob, blob_len,
+				    SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+				wpa_printf(MSG_INFO,
+					   "SSL: use client cert PEM blob failed");
+				return -1;
+			}
 		}
 		wpa_printf(MSG_DEBUG, "SSL: use client cert blob OK");
 		return 0;
@@ -534,23 +547,35 @@ static int tls_connection_private_key(void *tls_ctx,
 	if (private_key_blob) {
 		if (wolfSSL_use_PrivateKey_buffer(conn->ssl,
 						  private_key_blob, blob_len,
-						  SSL_FILETYPE_ASN1) <= 0) {
+						  SSL_FILETYPE_ASN1) !=
+		    SSL_SUCCESS) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use private DER blob failed");
+			if (wolfSSL_use_PrivateKey_buffer(
+				    conn->ssl,
+				    private_key_blob, blob_len,
+				    SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+				wpa_printf(MSG_INFO,
+					   "SSL: use private PEM blob failed");
+			} else {
+				ok = 1;
+			}
 		} else {
-			wpa_printf(MSG_DEBUG, "SSL: use private key blob OK");
 			ok = 1;
 		}
+		if (ok)
+			wpa_printf(MSG_DEBUG, "SSL: use private key blob OK");
 	}
 
 	if (!ok && private_key) {
 		if (wolfSSL_use_PrivateKey_file(conn->ssl, private_key,
-						SSL_FILETYPE_PEM) <= 0) {
+						SSL_FILETYPE_PEM) !=
+		    SSL_SUCCESS) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use private key PEM file failed");
 			if (wolfSSL_use_PrivateKey_file(conn->ssl, private_key,
-							SSL_FILETYPE_ASN1) <= 0)
-			{
+							SSL_FILETYPE_ASN1) !=
+			    SSL_SUCCESS) {
 				wpa_printf(MSG_INFO,
 					   "SSL: use private key DER file failed");
 			} else {
@@ -721,8 +746,7 @@ static int tls_match_suffix_helper(WOLFSSL_X509 *cert, const char *match,
 		WOLFSSL_X509_NAME_ENTRY *e;
 		WOLFSSL_ASN1_STRING *cn;
 
-		i = wolfSSL_X509_NAME_get_index_by_NID(name, ASN_COMMON_NAME,
-						       i);
+		i = wolfSSL_X509_NAME_get_index_by_NID(name, NID_commonName, i);
 		if (i == -1)
 			break;
 		e = wolfSSL_X509_NAME_get_entry(name, i);
@@ -1134,6 +1158,11 @@ static int tls_verify_cb(int preverify_ok, WOLFSSL_X509_STORE_CTX *x509_ctx)
 		context->event_cb(context->cb_ctx,
 				  TLS_CERT_CHAIN_SUCCESS, NULL);
 
+	if (depth == 0 && preverify_ok) {
+		os_free(conn->peer_subject);
+		conn->peer_subject = os_strdup(buf);
+	}
+
 	return preverify_ok;
 }
 
@@ -1194,8 +1223,14 @@ static int tls_connection_ca_cert(void *tls_ctx, struct tls_connection *conn,
 		if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert_blob, blob_len,
 						   SSL_FILETYPE_ASN1) !=
 		    SSL_SUCCESS) {
-			wpa_printf(MSG_INFO, "SSL: failed to load CA blob");
-			return -1;
+			wpa_printf(MSG_INFO, "SSL: failed to load DER CA blob");
+			if (wolfSSL_CTX_load_verify_buffer(
+				    ctx, ca_cert_blob, blob_len,
+				    SSL_FILETYPE_PEM) != SSL_SUCCESS) {
+				wpa_printf(MSG_INFO,
+					   "SSL: failed to load PEM CA blob");
+				return -1;
+			}
 		}
 		wpa_printf(MSG_DEBUG, "SSL: use CA cert blob OK");
 		return 0;
@@ -1238,10 +1273,8 @@ static int tls_connection_ca_cert(void *tls_ctx, struct tls_connection *conn,
 static void tls_set_conn_flags(WOLFSSL *ssl, unsigned int flags)
 {
 #ifdef HAVE_SESSION_TICKET
-#if 0
 	if (!(flags & TLS_CONN_DISABLE_SESSION_TICKET))
 		wolfSSL_UseSessionTicket(ssl);
-#endif
 #endif /* HAVE_SESSION_TICKET */
 
 	if (flags & TLS_CONN_DISABLE_TLSv1_0)
@@ -1250,6 +1283,8 @@ static void tls_set_conn_flags(WOLFSSL *ssl, unsigned int flags)
 		wolfSSL_set_options(ssl, SSL_OP_NO_TLSv1_1);
 	if (flags & TLS_CONN_DISABLE_TLSv1_2)
 		wolfSSL_set_options(ssl, SSL_OP_NO_TLSv1_2);
+	if (flags & TLS_CONN_DISABLE_TLSv1_3)
+		wolfSSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
 }
 
 
@@ -1289,12 +1324,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-	if (tls_connection_dh(conn, params->dh_file, params->dh_blob,
-			      params->dh_blob_len) < 0) {
-		wpa_printf(MSG_INFO, "Error setting DH");
-		return -1;
-	}
-
+	wpa_printf(MSG_DEBUG, "wolfSSL: cipher suites: %s",
+		   params->openssl_ciphers ? params->openssl_ciphers : "N/A");
 	if (params->openssl_ciphers &&
 	    wolfSSL_set_cipher_list(conn->ssl, params->openssl_ciphers) != 1) {
 		wpa_printf(MSG_INFO,
@@ -1311,7 +1342,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 					    WOLFSSL_CSR_OCSP_USE_NONCE) !=
 		    SSL_SUCCESS)
 			return -1;
-		wolfSSL_CTX_EnableOCSP(tls_ctx, 0);
+		if (wolfSSL_EnableOCSPStapling(conn->ssl) != SSL_SUCCESS)
+			return -1;
 	}
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -1320,7 +1352,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 					      WOLFSSL_CSR2_OCSP_MULTI, 0) !=
 		    SSL_SUCCESS)
 			return -1;
-		wolfSSL_CTX_EnableOCSP(tls_ctx, 0);
+		if (wolfSSL_EnableOCSPStapling(conn->ssl) != SSL_SUCCESS)
+			return -1;
 	}
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 #if !defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
@@ -1427,24 +1460,9 @@ static int tls_global_private_key(void *ssl_ctx, const char *private_key,
 }
 
 
-static int tls_global_dh(void *ssl_ctx, const char *dh_file,
-			 const u8 *dh_blob, size_t blob_len)
+static int tls_global_dh(void *ssl_ctx, const char *dh_file)
 {
 	WOLFSSL_CTX *ctx = ssl_ctx;
-
-	if (!dh_file && !dh_blob)
-		return 0;
-
-	if (dh_blob) {
-		if (wolfSSL_CTX_SetTmpDH_buffer(ctx, dh_blob, blob_len,
-						SSL_FILETYPE_ASN1) < 0) {
-			wpa_printf(MSG_INFO,
-				   "SSL: global use DH DER blob failed");
-			return -1;
-		}
-		wpa_printf(MSG_DEBUG, "SSL: global use DH blob OK");
-		return 0;
-	}
 
 	if (dh_file) {
 		if (wolfSSL_CTX_SetTmpDH_file(ctx, dh_file, SSL_FILETYPE_PEM) <
@@ -1532,13 +1550,14 @@ int tls_global_set_params(void *tls_ctx,
 		return -1;
 	}
 
-	if (tls_global_dh(tls_ctx, params->dh_file, params->dh_blob,
-			  params->dh_blob_len) < 0) {
+	if (tls_global_dh(tls_ctx, params->dh_file) < 0) {
 		wpa_printf(MSG_INFO, "SSL: Failed to load DH file '%s'",
 			   params->dh_file);
 		return -1;
 	}
 
+	wpa_printf(MSG_DEBUG, "wolfSSL: cipher suites: %s",
+		   params->openssl_ciphers ? params->openssl_ciphers : "N/A");
 	if (params->openssl_ciphers &&
 	    wolfSSL_CTX_set_cipher_list(tls_ctx,
 					params->openssl_ciphers) != 1) {
@@ -1590,6 +1609,9 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 			      int verify_peer, unsigned int flags,
 			      const u8 *session_ctx, size_t session_ctx_len)
 {
+	static int counter = 0;
+	struct tls_context *context;
+
 	if (!conn)
 		return -1;
 
@@ -1606,6 +1628,22 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 	}
 
 	wolfSSL_set_accept_state(conn->ssl);
+
+	context = wolfSSL_CTX_get_ex_data((WOLFSSL_CTX *) ssl_ctx, 0);
+	if (context && context->tls_session_lifetime == 0) {
+		/*
+		 * Set session id context to a unique value to make sure
+		 * session resumption cannot be used either through session
+		 * caching or TLS ticket extension.
+		 */
+		counter++;
+		wolfSSL_set_session_id_context(conn->ssl,
+					       (const unsigned char *) &counter,
+					       sizeof(counter));
+	} else {
+		wolfSSL_set_session_id_context(conn->ssl, session_ctx,
+					       session_ctx_len);
+	}
 
 	/* TODO: do we need to fake a session like OpenSSL does here? */
 
@@ -1632,20 +1670,31 @@ static struct wpabuf * wolfssl_handshake(struct tls_connection *conn,
 		wpa_printf(MSG_DEBUG, "SSL: wolfSSL_connect: %d", res);
 	}
 
-	if (res != 1) {
+	if (res != WOLFSSL_SUCCESS) {
 		int err = wolfSSL_get_error(conn->ssl, res);
 
-		if (err == SSL_ERROR_WANT_READ) {
+		if (err == WOLFSSL_ERROR_NONE) {
 			wpa_printf(MSG_DEBUG,
-				   "SSL: wolfSSL_connect - want more data");
-		} else if (err == SSL_ERROR_WANT_WRITE) {
+				   "SSL: %s - WOLFSSL_ERROR_NONE (%d)",
+				   server ? "wolfSSL_accept" :
+				   "wolfSSL_connect", res);
+		} else if (err == WOLFSSL_ERROR_WANT_READ) {
 			wpa_printf(MSG_DEBUG,
-				   "SSL: wolfSSL_connect - want to write");
+				   "SSL: %s - want more data",
+				   server ? "wolfSSL_accept" :
+				   "wolfSSL_connect");
+		} else if (err == WOLFSSL_ERROR_WANT_WRITE) {
+			wpa_printf(MSG_DEBUG,
+				   "SSL: %s - want to write",
+				   server ? "wolfSSL_accept" :
+				   "wolfSSL_connect");
 		} else {
 			char msg[80];
 
 			wpa_printf(MSG_DEBUG,
-				   "SSL: wolfSSL_connect - failed %s",
+				   "SSL: %s - failed %s",
+				   server ? "wolfSSL_accept" :
+				   "wolfSSL_connect",
 				   wolfSSL_ERR_error_string(err, msg));
 			conn->failed++;
 		}
@@ -1997,10 +2046,20 @@ int tls_connection_export_key(void *tls_ctx, struct tls_connection *conn,
 			      const char *label, const u8 *context,
 			      size_t context_len, u8 *out, size_t out_len)
 {
-	if (context)
+	if (!conn)
 		return -1;
-	if (!conn || wolfSSL_make_eap_keys(conn->ssl, out, out_len, label) != 0)
+#if LIBWOLFSSL_VERSION_HEX >= 0x04007000
+	if (wolfSSL_export_keying_material(conn->ssl, out, out_len,
+					   label, os_strlen(label),
+					   context, context_len,
+					   context != NULL) != WOLFSSL_SUCCESS)
 		return -1;
+	return 0;
+#else
+	if (context ||
+	    wolfSSL_make_eap_keys(conn->ssl, out, out_len, label) != 0)
+		return -1;
+#endif
 	return 0;
 }
 
@@ -2046,9 +2105,15 @@ int tls_connection_get_eap_fast_key(void *tls_ctx, struct tls_connection *conn,
 			       _out, skip + out_len);
 		ret = 0;
 	} else {
+#ifdef CONFIG_FIPS
+		wpa_printf(MSG_ERROR,
+			   "wolfSSL: Can't use sha1_md5 in FIPS build");
+		ret = -1;
+#else /* CONFIG_FIPS */
 		ret = tls_prf_sha1_md5(master_key, master_key_len,
 				       "key expansion", seed, sizeof(seed),
 				       _out, skip + out_len);
+#endif /* CONFIG_FIPS */
 	}
 
 	forced_memzero(master_key, master_key_len);
@@ -2160,6 +2225,39 @@ void tls_connection_remove_session(struct tls_connection *conn)
 }
 
 
+int tls_get_tls_unique(struct tls_connection *conn, u8 *buf, size_t max_len)
+{
+	size_t len;
+	int reused;
+
+	reused = wolfSSL_session_reused(conn->ssl);
+	if ((wolfSSL_is_server(conn->ssl) && !reused) ||
+	    (!wolfSSL_is_server(conn->ssl) && reused))
+		len = wolfSSL_get_peer_finished(conn->ssl, buf, max_len);
+	else
+		len = wolfSSL_get_finished(conn->ssl, buf, max_len);
+
+	if (len == 0 || len > max_len)
+		return -1;
+
+	return len;
+}
+
+
+u16 tls_connection_get_cipher_suite(struct tls_connection *conn)
+{
+	return (u16) wolfSSL_get_current_cipher_suite(conn->ssl);
+}
+
+
+const char * tls_connection_get_peer_subject(struct tls_connection *conn)
+{
+	if (conn)
+		return conn->peer_subject;
+	return NULL;
+}
+
+
 void tls_connection_set_success_data(struct tls_connection *conn,
 				     struct wpabuf *data)
 {
@@ -2205,4 +2303,12 @@ tls_connection_get_success_data(struct tls_connection *conn)
 	if (!sess)
 		return NULL;
 	return wolfSSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
+}
+
+
+bool tls_connection_get_own_cert_used(struct tls_connection *conn)
+{
+	if (conn)
+		return wolfSSL_get_certificate(conn->ssl) != NULL;
+	return false;
 }

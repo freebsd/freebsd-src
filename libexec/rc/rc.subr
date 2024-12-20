@@ -982,7 +982,8 @@ startmsg()
 #
 #	${name}_limits	n	limits(1) to apply to ${command}.
 #
-#	${name}_offcmd	n	If set, run if a service is not enabled.
+#	${name}_offcmd	n	If set, run during start
+#				if a service is not enabled.
 #
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
@@ -1219,6 +1220,7 @@ run_rc_command()
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_cmd_options=""
 
+		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
 			case "$_svcj_option" in
 				mlock)
@@ -1243,7 +1245,12 @@ run_rc_command()
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
 					;;
 				sysvipc)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
 					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
+					;;
+				sysvipcnew)
+					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
+					_svcj_cmd_options="sysvmsg=new sysvsem=new sysvshm=new ${_svcj_cmd_options}"
 					;;
 				vmm)
 					_svcj_cmd_options="allow.vmm ${_svcj_cmd_options}"
@@ -1253,6 +1260,11 @@ run_rc_command()
 					;;
 			esac
 		done
+		if [ ${_svcj_sysvipc_x} -gt 1 ]; then
+			echo -n "ERROR: more than one sysvipc option is "
+			echo "specified in ${name}_svcj_options: $_svcj_options"
+			return 1
+		fi
 	fi
 
 	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
@@ -1321,11 +1333,28 @@ run_rc_command()
 				start)
 					if [ "${_rc_svcj}" != jailing ]; then
 						_return=1
-						$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
-						    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
-						    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
-						    exec.consolelog="/var/log/svcj_${name}_console.log" \
-						    name=svcj-${name} && _return=0
+						_do_jailing=1
+
+						if check_jail jailed; then
+							if [ $(${SYSCTL_N} security.jail.children.max) -eq 0 ]; then
+								echo ERROR: jail parameter children.max is set to 0, can not create a new service jail.
+								_do_jailing=0
+							else
+								_free_jails=$(($(${SYSCTL_N} security.jail.children.max) - $(${SYSCTL_N} security.jail.children.cur)))
+								if [ ${_free_jails} -eq 0 ]; then
+									echo ERROR: max number of jail children reached, can not create a new service jail.
+									_do_jailing=0
+
+								fi
+							fi
+						fi
+						if [ ${_do_jailing} -eq 1 ]; then
+							$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
+							    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
+							    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+							    exec.consolelog="/var/log/svcj_${name}_console.log" \
+							    name=svcj-${name} && _return=0
+						fi
 					else
 						_run_rc_doit "$_cpusetcmd $_cmd $rc_extra_args" || _return=1
 					fi
@@ -1380,8 +1409,8 @@ run_rc_command()
 
 		delete)
 			_files=
-			for _file in $(sysrc -lEs "$name"); do
-				_out=$(sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
+			for _file in $(/usr/sbin/sysrc -lEs "$name"); do
+				_out=$(/usr/sbin/sysrc -Fif $_file "$rcvar") && _files="$_files $_file"
 			done
 			/usr/sbin/sysrc -x "$rcvar" && echo "$rcvar deleted in ${_files# }"
 				# delete file in rc.conf.d if desired and empty.
@@ -1421,6 +1450,18 @@ run_rc_command()
 
 			if checkyesno ${name}_svcj; then
 				if [ "${_rc_svcj}" != jailing ]; then
+					if check_jail jailed; then
+						if [ $(${SYSCTL_N} security.jail.children.max) -eq 0 ]; then
+							echo ERROR: jail parameter children.max is set to 0, can not create a new service jail.
+							return 1
+						else
+							_free_jails=$(($(${SYSCTL_N} security.jail.children.max) - $(${SYSCTL_N} security.jail.children.cur)))
+							if [ ${_free_jails} -eq 0 ]; then
+								echo ERROR: max number of jail children reached, can not create a new service jail.
+								return 1
+							fi
+						fi
+					fi
 					$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options\
 					    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
 					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
@@ -1757,9 +1798,6 @@ _run_rc_killcmd()
 #	return value from the script.
 #	If `file' ends with `.sh' and lives in /etc/rc.d, ignore it as it's
 #	an old-style startup file.
-#	If `file' ends with `.sh' and does not live in /etc/rc.d, it's sourced
-#	into the current environment if $rc_fast_and_loose is set; otherwise
-#	it is run as a child process.
 #	If `file' appears to be a backup or scratch file, ignore it.
 #	Otherwise if it is executable run as a child process.
 #
@@ -1795,15 +1833,13 @@ run_rc_script()
 
 			if [ -n "$rc_boottrace" ]; then
 				boottrace_fn "$_file" "$_arg"
-			elif [ -n "$rc_fast_and_loose" ]; then
-				set $_arg; . $_file
 			else
 				( trap "echo Script $_file interrupted >&2 ; kill -QUIT $$" 3
 				  trap "echo Script $_file interrupted >&2 ; exit 1" 2
 				  trap "echo Script $_file running >&2" 29
 				  set $_arg; . $_file )
 			fi
-			DebugOff $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
+			DebugOff rc=$? $_file $_file:$_arg rc:${_file##*/} rc:${_file##*/}:$_arg ${_file##*/} ${_file##*/}:$_arg
 		fi
 		;;
 	esac
@@ -1868,19 +1904,8 @@ boottrace_fn()
 	_file=$1
 	_arg=$2
 
-	if [ -n "$rc_fast_and_loose" ]; then
-		boottrace_sysctl "$_file start"
-		set $_arg; . $_file
-		boottrace_sysctl "$_file done"
-	else
-		_boot="${_boot}" rc_fast="${rc_fast}" autoboot="${autoboot}" \
-		    $boottrace_cmd "$_file" "$_arg"
-	fi
-}
-
-boottrace_sysctl()
-{
-	${SYSCTL} kern.boottrace.boottrace="$1"
+	_boot="${_boot}" rc_fast="${rc_fast}" autoboot="${autoboot}" \
+	    $boottrace_cmd "$_file" "$_arg"
 }
 
 #
@@ -2726,13 +2751,21 @@ $_DEBUG_SH vdot /libexec/debug.sh
 
 # Ensure we can still operate if debug.sh and
 # safe_eval.sh are not found.
-if have DebugOn; then
-	# allow DEBUG_SH to be set from loader prompt
-	DEBUG_SH=${DEBUG_SH:-$(kenv -q DEBUG_SH)}
-else
+if ! have DebugOn; then
 	DebugOn() { return 0; }
-	DebugOff() { return 0; }
+	DebugOff() {
+		local _rc=0
+		while :
+		do
+			case "$1" in
+			-[eo]) shift;; # ignore it
+			rc=*) eval "_$1"; shift;;
+			*) break;;
+			esac
+		done
+		return $_rc
+	}
 fi
-if ! have save_dot; then
+if ! have safe_dot; then
 	safe_dot() { dot "$@"; }
 fi

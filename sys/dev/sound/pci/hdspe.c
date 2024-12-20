@@ -78,6 +78,7 @@ static struct hdspe_clock_source hdspe_clock_source_table_aio[] = {
 
 static struct hdspe_channel chan_map_aio[] = {
 	{ HDSPE_CHAN_AIO_LINE,    "line" },
+	{ HDSPE_CHAN_AIO_EXT,      "ext" },
 	{ HDSPE_CHAN_AIO_PHONE,  "phone" },
 	{ HDSPE_CHAN_AIO_AES,      "aes" },
 	{ HDSPE_CHAN_AIO_SPDIF, "s/pdif" },
@@ -243,6 +244,198 @@ hdspe_map_dmabuf(struct sc_info *sc)
 		hdspe_write_4(sc, HDSPE_PAGE_ADDR_BUF_IN + 4 * i,
                     raddr + i * 4096);
 	}
+}
+
+static const char *
+hdspe_settings_input_level(uint32_t settings)
+{
+	switch (settings & HDSPE_INPUT_LEVEL_MASK) {
+	case HDSPE_INPUT_LEVEL_LOWGAIN:
+		return ("LowGain");
+	case HDSPE_INPUT_LEVEL_PLUS4DBU:
+		return ("+4dBu");
+	case HDSPE_INPUT_LEVEL_MINUS10DBV:
+		return ("-10dBV");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdspe_sysctl_input_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t settings;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSPE AIO. */
+	if (sc->type != HDSPE_AIO)
+		return (ENXIO);
+
+	/* Extract current input level from settings register. */
+	settings = sc->settings_register & HDSPE_INPUT_LEVEL_MASK;
+	label = hdspe_settings_input_level(settings);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find input level matching the sysctl string. */
+	label = hdspe_settings_input_level(HDSPE_INPUT_LEVEL_LOWGAIN);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_INPUT_LEVEL_LOWGAIN;
+	label = hdspe_settings_input_level(HDSPE_INPUT_LEVEL_PLUS4DBU);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_INPUT_LEVEL_PLUS4DBU;
+	label = hdspe_settings_input_level(HDSPE_INPUT_LEVEL_MINUS10DBV);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_INPUT_LEVEL_MINUS10DBV;
+
+	/* Set input level in settings register. */
+	settings &= HDSPE_INPUT_LEVEL_MASK;
+	if (settings != (sc->settings_register & HDSPE_INPUT_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->settings_register &= ~HDSPE_INPUT_LEVEL_MASK;
+		sc->settings_register |= settings;
+		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
+static const char *
+hdspe_settings_output_level(uint32_t settings)
+{
+	switch (settings & HDSPE_OUTPUT_LEVEL_MASK) {
+	case HDSPE_OUTPUT_LEVEL_HIGHGAIN:
+		return ("HighGain");
+	case HDSPE_OUTPUT_LEVEL_PLUS4DBU:
+		return ("+4dBu");
+	case HDSPE_OUTPUT_LEVEL_MINUS10DBV:
+		return ("-10dBV");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdspe_sysctl_output_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t settings;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSPE AIO. */
+	if (sc->type != HDSPE_AIO)
+		return (ENXIO);
+
+	/* Extract current output level from settings register. */
+	settings = sc->settings_register & HDSPE_OUTPUT_LEVEL_MASK;
+	label = hdspe_settings_output_level(settings);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find output level matching the sysctl string. */
+	label = hdspe_settings_output_level(HDSPE_OUTPUT_LEVEL_HIGHGAIN);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_OUTPUT_LEVEL_HIGHGAIN;
+	label = hdspe_settings_output_level(HDSPE_OUTPUT_LEVEL_PLUS4DBU);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_OUTPUT_LEVEL_PLUS4DBU;
+	label = hdspe_settings_output_level(HDSPE_OUTPUT_LEVEL_MINUS10DBV);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_OUTPUT_LEVEL_MINUS10DBV;
+
+	/* Set output level in settings register. */
+	settings &= HDSPE_OUTPUT_LEVEL_MASK;
+	if (settings != (sc->settings_register & HDSPE_OUTPUT_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->settings_register &= ~HDSPE_OUTPUT_LEVEL_MASK;
+		sc->settings_register |= settings;
+		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
+}
+
+static const char *
+hdspe_settings_phones_level(uint32_t settings)
+{
+	switch (settings & HDSPE_PHONES_LEVEL_MASK) {
+	case HDSPE_PHONES_LEVEL_HIGHGAIN:
+		return ("HighGain");
+	case HDSPE_PHONES_LEVEL_PLUS4DBU:
+		return ("+4dBu");
+	case HDSPE_PHONES_LEVEL_MINUS10DBV:
+		return ("-10dBV");
+	default:
+		return (NULL);
+	}
+}
+
+static int
+hdspe_sysctl_phones_level(SYSCTL_HANDLER_ARGS)
+{
+	struct sc_info *sc;
+	const char *label;
+	char buf[16] = "invalid";
+	int error;
+	uint32_t settings;
+
+	sc = oidp->oid_arg1;
+
+	/* Only available on HDSPE AIO. */
+	if (sc->type != HDSPE_AIO)
+		return (ENXIO);
+
+	/* Extract current phones level from settings register. */
+	settings = sc->settings_register & HDSPE_PHONES_LEVEL_MASK;
+	label = hdspe_settings_phones_level(settings);
+	if (label != NULL)
+		strlcpy(buf, label, sizeof(buf));
+
+	/* Process sysctl string request. */
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/* Find phones level matching the sysctl string. */
+	label = hdspe_settings_phones_level(HDSPE_PHONES_LEVEL_HIGHGAIN);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_PHONES_LEVEL_HIGHGAIN;
+	label = hdspe_settings_phones_level(HDSPE_PHONES_LEVEL_PLUS4DBU);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_PHONES_LEVEL_PLUS4DBU;
+	label = hdspe_settings_phones_level(HDSPE_PHONES_LEVEL_MINUS10DBV);
+	if (strncasecmp(buf, label, sizeof(buf)) == 0)
+		settings = HDSPE_PHONES_LEVEL_MINUS10DBV;
+
+	/* Set phones level in settings register. */
+	settings &= HDSPE_PHONES_LEVEL_MASK;
+	if (settings != (sc->settings_register & HDSPE_PHONES_LEVEL_MASK)) {
+		snd_mtxlock(sc->lock);
+		sc->settings_register &= ~HDSPE_PHONES_LEVEL_MASK;
+		sc->settings_register |= settings;
+		hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
+		snd_mtxunlock(sc->lock);
+	}
+	return (0);
 }
 
 static int
@@ -528,6 +721,15 @@ hdspe_init(struct sc_info *sc)
 
 	/* Other settings. */
 	sc->settings_register = 0;
+
+	/* Default gain levels. */
+	sc->settings_register &= ~HDSPE_INPUT_LEVEL_MASK;
+	sc->settings_register |= HDSPE_INPUT_LEVEL_LOWGAIN;
+	sc->settings_register &= ~HDSPE_OUTPUT_LEVEL_MASK;
+	sc->settings_register |= HDSPE_OUTPUT_LEVEL_MINUS10DBV;
+	sc->settings_register &= ~HDSPE_PHONES_LEVEL_MASK;
+	sc->settings_register |= HDSPE_PHONES_LEVEL_MINUS10DBV;
+
 	hdspe_write_4(sc, HDSPE_SETTINGS_REG, sc->settings_register);
 
 	return (0);
@@ -577,10 +779,10 @@ hdspe_attach(device_t dev)
 		return (ENXIO);
 
 	for (i = 0; i < HDSPE_MAX_CHANS && chan_map[i].descr != NULL; i++) {
-		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		scp->hc = &chan_map[i];
 		scp->sc = sc;
-		scp->dev = device_add_child(dev, "pcm", -1);
+		scp->dev = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(scp->dev, scp);
 	}
 
@@ -622,7 +824,34 @@ hdspe_attach(device_t dev)
 	    sc, 0, hdspe_sysctl_sample_rate, "A",
 	    "Force sample rate (32000, 44100, 48000, ... 192000)");
 
-	return (bus_generic_attach(dev));
+	if (sc->type == HDSPE_AIO) {
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "phones_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdspe_sysctl_phones_level, "A",
+		    "Phones output level ('HighGain', '+4dBU', '-10dBV')");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "output_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdspe_sysctl_output_level, "A",
+		    "Analog output level ('HighGain', '+4dBU', '-10dBV')");
+
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "input_level", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    sc, 0, hdspe_sysctl_input_level, "A",
+		    "Analog input level ('LowGain', '+4dBU', '-10dBV')");
+	}
+
+	bus_attach_children(dev);
+	return (0);
+}
+
+static void
+hdspe_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
 }
 
 static void
@@ -672,6 +901,7 @@ static device_method_t hdspe_methods[] = {
 	DEVMETHOD(device_probe,     hdspe_probe),
 	DEVMETHOD(device_attach,    hdspe_attach),
 	DEVMETHOD(device_detach,    hdspe_detach),
+	DEVMETHOD(bus_child_deleted, hdspe_child_deleted),
 	{ 0, 0 }
 };
 

@@ -2538,6 +2538,13 @@ sendfile_sendfile(struct thread *td, struct file *fp, l_int out,
 		current_offset = *offset;
 	error = fo_sendfile(fp, out, NULL, NULL, current_offset, count,
 	    sbytes, 0, td);
+	if (error == EAGAIN && *sbytes > 0) {
+		/*
+		 * The socket is non-blocking and we didn't finish sending.
+		 * Squash the error, since that's what Linux does.
+		 */
+		error = 0;
+	}
 	if (error == 0) {
 		current_offset += *sbytes;
 		if (offset != NULL)

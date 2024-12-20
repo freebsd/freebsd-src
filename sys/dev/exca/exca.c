@@ -643,7 +643,7 @@ exca_init(struct exca_softc *sc, device_t dev,
 	sc->flags = 0;
 	sc->getb = exca_mem_getb;
 	sc->putb = exca_mem_putb;
-	sc->pccarddev = device_add_child(dev, "pccard", -1);
+	sc->pccarddev = device_add_child(dev, "pccard", DEVICE_UNIT_ANY);
 	if (sc->pccarddev == NULL)
 		DEVPRINTF(brdev, "WARNING: cannot add pccard bus.\n");
 	else if (device_probe_and_attach(sc->pccarddev) != 0)

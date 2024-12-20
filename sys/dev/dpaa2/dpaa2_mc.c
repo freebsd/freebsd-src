@@ -268,8 +268,8 @@ dpaa2_mc_attach(device_t dev)
 		dpaa2_mc_detach(dev);
 		return (ENXIO);
 	}
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -281,7 +281,9 @@ dpaa2_mc_detach(device_t dev)
 	struct dpaa2_devinfo *dinfo = NULL;
 	int error;
 
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->rcdev)
@@ -291,10 +293,6 @@ dpaa2_mc_detach(device_t dev)
 	dinfo = device_get_ivars(dev);
 	if (dinfo)
 		free(dinfo, M_DPAA2_MC);
-
-	error = bus_generic_detach(dev);
-	if (error != 0)
-		return (error);
 
 	return (device_delete_children(dev));
 }
@@ -462,8 +460,6 @@ dpaa2_mc_manage_dev(device_t mcdev, device_t dpaa2_dev, uint32_t flags)
 		return (EINVAL);
 
 	di = malloc(sizeof(*di), M_DPAA2_MC, M_WAITOK | M_ZERO);
-	if (!di)
-		return (ENOMEM);
 	di->dpaa2_dev = dpaa2_dev;
 	di->flags = flags;
 	di->owners = 0;

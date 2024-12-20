@@ -27,6 +27,57 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20241216:
+	The iwm(4) firmwares are no longer compiled as kernel modules but instead
+	shipped as raw files. For pkgbase users if you use iwm(4) you will need
+	to install the FreeBSD-firmware-iwm package.
+
+20241124:
+	The OpenBSD derived bc and dc implementations and the WITHOUT_GH_BC
+	option that allowed building them instead of the advanced version
+	imported more than 4 years ago have been removed.
+
+20241025:
+	The support for the rc_fast_and_loose variable has been removed from
+	rc.subr(8). Users setting rc_fast_and_loose on their systems are
+	advised to make sure their customizations to rc service scripts
+	do not depend on having a single shell environment shared across
+	all the rc service scripts during booting and shutdown.
+
+20241013:
+	The ciss driver was updated to cope better with hotplug events that
+	caused it to panic before, and to support more than 48 drives attached
+	to the card. These changes were made w/o benefit of hardware for testing
+	and ciss(4) users should be on the lookout for regressions.
+
+20240729:
+	The build now defaults to WITHOUT_CLEAN - i.e., no automatic clean
+	is performed at the beginning of buildworld or buildkernel.  The
+	WITH_CLEAN src.conf(5) knob can be used to restore the previous
+	behaviour.
+
+	If you encounter incremental build issues, please report them to the
+	freebsd-current mailing list so that a special-case dependency can be
+	added, if necessary.
+
+20240715:
+	We now lean more heavily on ACPI enumeration for some traditional
+	devices. uart has moved from isa to acpi so the hints act as wiring
+	instead of device enumeration. Hints for parallel port, floppy, etc
+	have been removed.  Before upgrading, grep your dmesg for lines like:
+		uart1: non-PNP ISA device will be removed from GENERIC in FreeBSD 15.
+	to see if you need to start including hints for the device on isa
+	in your loader.conf or device.hints file. APU1 (but not APU2) boards
+	are known to be affected, but there may be others.
+
+20240712:
+	Support for armv6 has been disconnected and is being removed.
+
+20240617:
+	ifconfig now treats IPv4 addresses without a width or mask as an error.
+	Specify the desired mask or width along with the IP address on the
+	ifconfig command line and in rc.conf.
+
 20240428:
 	OpenBSM auditing runtime (auditd, etc.) has been moved into the new
 	package FreeBSD-audit.  If you use OpenBSM auditing and pkgbase, you
@@ -36,6 +87,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	cron, lpr, and ntpd have been moved from FreeBSD-utilities into their
 	own packages.  If you use pkgbase, you should install the relevant
 	packages: FreeBSD-cron, FreeBSD-lp, or FreeBSD-ntp.
+
+20240406:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 18.1.6. It is important that you run `make delete-old`
+	as described in the COMMON ITEMS section, otherwise several libc++
+	headers that are obsolete and need to be removed can cause compilation
+	errors in C++ programs.
 
 20240205:
 	For dynamically linked programs, system calls are now made from
@@ -1997,6 +2055,8 @@ COMMON ITEMS:
 	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
 	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
 
+	If you are running kernel modules from ports, see FOOTNOTE [1].
+
 	To test a kernel once
 	---------------------
 	If you just want to boot a kernel once (because you are not sure
@@ -2013,8 +2073,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
-							[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2032,7 +2091,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	<boot into -stable>
 	make buildworld
-	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
 	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
@@ -2051,8 +2110,7 @@ COMMON ITEMS:
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE
-							[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2072,8 +2130,10 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	[1] If you have third party modules, such as vmware, you should disable
-	them at this point so they don't crash your system on
+FOOTNOTES:
+
+	[1] If you have third party modules, such as drm-kmod or vmware, you
+	should disable them at this point so they don't crash your system on
 	reboot. Alternatively, you should rebuild all the modules you have in
 	your system and install them as well.  If you are running -current, you
 	should seriously consider placing all sources to all the modules for

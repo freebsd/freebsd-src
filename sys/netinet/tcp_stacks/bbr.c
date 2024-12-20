@@ -2356,11 +2356,11 @@ bbr_log_to_event(struct tcp_bbr *bbr, uint32_t cts, int32_t to_num)
 		log.u_bbr.flex1 = bbr->bbr_timer_src;
 		log.u_bbr.flex2 = 0;
 		log.u_bbr.flex3 = bbr->r_ctl.rc_hpts_flags;
-		ar = (uint64_t)(bbr->r_ctl.rc_resend);
+		ar = (uintptr_t)(bbr->r_ctl.rc_resend);
 		ar >>= 32;
 		ar &= 0x00000000ffffffff;
 		log.u_bbr.flex4 = (uint32_t)ar;
-		ar = (uint64_t)bbr->r_ctl.rc_resend;
+		ar = (uintptr_t)bbr->r_ctl.rc_resend;
 		ar &= 0x00000000ffffffff;
 		log.u_bbr.flex5 = (uint32_t)ar;
 		log.u_bbr.flex6 = TICKS_2_USEC(bbr->rc_tp->t_rxtcur);
@@ -2718,12 +2718,13 @@ bbr_type_log_hdwr_pacing(struct tcp_bbr *bbr, const struct ifnet *ifp,
 {
 	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
+		uint64_t ifp64 = (uintptr_t)ifp;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
 		log.u_bbr.flex1 = ((hw_rate >> 32) & 0x00000000ffffffff);
 		log.u_bbr.flex2 = (hw_rate & 0x00000000ffffffff);
-		log.u_bbr.flex3 = (((uint64_t)ifp  >> 32) & 0x00000000ffffffff);
-		log.u_bbr.flex4 = ((uint64_t)ifp & 0x00000000ffffffff);
+		log.u_bbr.flex3 = ((ifp64  >> 32) & 0x00000000ffffffff);
+		log.u_bbr.flex4 = (ifp64 & 0x00000000ffffffff);
 		log.u_bbr.bw_inuse = rate;
 		log.u_bbr.flex5 = line;
 		log.u_bbr.flex6 = error;
@@ -7710,6 +7711,43 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	lost = bbr->r_ctl.rc_lost;
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
+	if (SEQ_GEQ(tp->snd_una, tp->iss + (65535 << tp->snd_scale))) {
+		/* Checking SEG.ACK against ISS is definitely redundant. */
+		tp->t_flags2 |= TF2_NO_ISS_CHECK;
+	}
+	if (!V_tcp_insecure_ack) {
+		tcp_seq seq_min;
+		bool ghost_ack_check;
+
+		if (tp->t_flags2 & TF2_NO_ISS_CHECK) {
+			/* Check for too old ACKs (RFC 5961, Section 5.2). */
+			seq_min = tp->snd_una - tp->max_sndwnd;
+			ghost_ack_check = false;
+		} else {
+			if (SEQ_GT(tp->iss + 1, tp->snd_una - tp->max_sndwnd)) {
+				/* Checking for ghost ACKs is stricter. */
+				seq_min = tp->iss + 1;
+				ghost_ack_check = true;
+			} else {
+				/*
+				 * Checking for too old ACKs (RFC 5961,
+				 * Section 5.2) is stricter.
+				 */
+				seq_min = tp->snd_una - tp->max_sndwnd;
+				ghost_ack_check = false;
+			}
+		}
+		if (SEQ_LT(th->th_ack, seq_min)) {
+			if (ghost_ack_check)
+				TCPSTAT_INC(tcps_rcvghostack);
+			else
+				TCPSTAT_INC(tcps_rcvacktooold);
+			/* Send challenge ACK. */
+			ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
+			bbr->r_wanted_output = 1;
+			return (1);
+		}
+	}
 	if (SEQ_GT(th->th_ack, tp->snd_max)) {
 		ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
 		bbr->r_wanted_output = 1;
@@ -7785,7 +7823,7 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    (int)(ticks - tp->t_badrxtwin) < 0)
 			bbr_cong_signal(tp, th, CC_RTO_ERR, NULL);
 	}
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	acked_amount = min(acked, (int)sbavail(&so->so_snd));
 	tp->snd_wnd -= acked_amount;
 	mfree = sbcut_locked(&so->so_snd, acked_amount);
@@ -8257,7 +8295,7 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			thflags = tcp_get_flags(th) & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
-			SOCKBUF_LOCK(&so->so_rcv);
+			SOCK_RECVBUF_LOCK(so);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
 			else
@@ -8490,7 +8528,7 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	newsize = tcp_autorcvbuf(m, th, so, tp, tlen);
 
 	/* Add data to socket buffer. */
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		m_freem(m);
 	} else {
@@ -12100,7 +12138,7 @@ again:
 	len = 0;
 	rsm = NULL;
 	if (flags & TH_RST) {
-		SOCKBUF_LOCK(sb);
+		SOCK_SENDBUF_LOCK(so);
 		goto send;
 	}
 recheck_resend:
@@ -12167,7 +12205,7 @@ recheck_resend:
 			} else {
 				/* Retransmitting SYN */
 				rsm = NULL;
-				SOCKBUF_LOCK(sb);
+				SOCK_SENDBUF_LOCK(so);
 				goto send;
 			}
 		} else
@@ -12266,7 +12304,7 @@ recheck_resend:
 			kern_prefetch(end_rsm, &prefetch_rsm);
 		prefetch_rsm = 1;
 	}
-	SOCKBUF_LOCK(sb);
+	SOCK_SENDBUF_LOCK(so);
 	/*
 	 * If snd_nxt == snd_max and we have transmitted a FIN, the
 	 * sb_offset will be > 0 even if so_snd.sb_cc is 0, resulting in a
@@ -12581,7 +12619,6 @@ recheck_resend:
 	    (len > maxseg) &&
 	    (tp->t_port == 0) &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-	    tp->rcv_numsacks == 0 &&
 	    ipoptlen == 0)
 		tso = 1;
 
@@ -12684,7 +12721,7 @@ recheck_resend:
 	 * No reason to send a segment, just return.
 	 */
 just_return:
-	SOCKBUF_UNLOCK(sb);
+	SOCK_SENDBUF_UNLOCK(so);
 just_return_nolock:
 	if (tot_len)
 		slot = bbr_get_pacing_delay(bbr, bbr->r_ctl.rc_bbr_hptsi_gain, tot_len, cts, 0);
@@ -12792,7 +12829,7 @@ send:
 			len--;
 		}
 	}
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_SENDBUF_LOCK_ASSERT(so);
 	if (len > 0) {
 		if ((tp->snd_una == tp->snd_max) &&
 		    (bbr_calc_time(cts, bbr->r_ctl.rc_went_idle_time) >= bbr_rtt_probe_time)) {
@@ -12908,7 +12945,7 @@ send:
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 			return (EHOSTUNREACH);
 		}
 		hdrlen += sizeof(struct udphdr);
@@ -12999,7 +13036,7 @@ send:
 				 * byte of the payload can be put into the
 				 * TCP segment.
 				 */
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 				error = EMSGSIZE;
 				sack_rxmit = 0;
 				goto out;
@@ -13069,7 +13106,7 @@ send:
 		if (m == NULL) {
 			BBR_STAT_INC(bbr_failed_mbuf_aloc);
 			bbr_log_enobuf_jmp(bbr, len, cts, __LINE__, len, 0, 0);
-			SOCKBUF_UNLOCK(sb);
+			SOCK_SENDBUF_UNLOCK(so);
 			error = ENOBUFS;
 			sack_rxmit = 0;
 			goto out;
@@ -13113,7 +13150,7 @@ send:
 					 * is the only thing to do.
 					 */
 					BBR_STAT_INC(bbr_offset_drop);
-					SOCKBUF_UNLOCK(sb);
+					SOCK_SENDBUF_UNLOCK(so);
 					(void)m_free(m);
 					return (-EFAULT); /* tcp_drop() */
 				}
@@ -13173,7 +13210,7 @@ send:
 				tso = 0;
 			}
 			if (m->m_next == NULL) {
-				SOCKBUF_UNLOCK(sb);
+				SOCK_SENDBUF_UNLOCK(so);
 				(void)m_free(m);
 				error = ENOBUFS;
 				sack_rxmit = 0;
@@ -13209,9 +13246,9 @@ send:
 		    !(flags & TH_SYN)) {
 			flags |= TH_PUSH;
 		}
-		SOCKBUF_UNLOCK(sb);
+		SOCK_SENDBUF_UNLOCK(so);
 	} else {
-		SOCKBUF_UNLOCK(sb);
+		SOCK_SENDBUF_UNLOCK(so);
 		if (tp->t_flags & TF_ACKNOW)
 			KMOD_TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN | TH_FIN | TH_RST))
@@ -13237,7 +13274,7 @@ send:
 			m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 	}
-	SOCKBUF_UNLOCK_ASSERT(sb);
+	SOCK_SENDBUF_UNLOCK_ASSERT(so);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
@@ -13729,7 +13766,7 @@ nomore:
 		 * Everything else will just have to retransmit with the timer
 		 * (no pacer).
 		 */
-		SOCKBUF_UNLOCK_ASSERT(sb);
+		SOCK_SENDBUF_UNLOCK_ASSERT(so);
 		BBR_STAT_INC(bbr_saw_oerr);
 		/* Clear all delay/early tracks */
 		bbr->r_ctl.rc_hptsi_agg_delay = 0;
@@ -13829,6 +13866,7 @@ nomore:
 		case ENETUNREACH:
 			if (TCPS_HAVERCVDSYN(tp->t_state)) {
 				tp->t_softerror = error;
+				error = 0;
 			}
 			/* FALLTHROUGH */
 		default:
@@ -14143,7 +14181,7 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
 	.tfb_pru_options = bbr_pru_options,
 	.tfb_switch_failed = bbr_switch_failed,
-	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
+	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP | TCP_FUNC_DEFAULT_OK,
 };
 
 /*
@@ -14176,10 +14214,8 @@ bbr_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 	case TCP_BBR_ALGORITHM:
 	case TCP_BBR_TSLIMITS:
 	case TCP_BBR_IWINTSO:
-	case TCP_BBR_RECFORCE:
 	case TCP_BBR_STARTUP_PG:
 	case TCP_BBR_DRAIN_PG:
-	case TCP_BBR_RWND_IS_APP:
 	case TCP_BBR_PROBE_RTT_INT:
 	case TCP_BBR_PROBE_RTT_GAIN:
 	case TCP_BBR_PROBE_RTT_LEN:

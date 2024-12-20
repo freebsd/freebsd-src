@@ -845,6 +845,10 @@ struct ub_server_stats {
 	long long qtls_resume;
 	/** RPZ action stats */
 	long long rpz_action[UB_STATS_RPZ_ACTION_NUM];
+	/** number of bytes in QUIC buffers */
+	long long mem_quic;
+	/** number of queries over (DNS over) QUIC */
+	long long qquic;
 };
 
 /**

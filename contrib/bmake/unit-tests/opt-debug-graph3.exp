@@ -87,5 +87,5 @@ MFLAGS           =   -r -k -d g3
 #*** Transformations:
 
 Stop.
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

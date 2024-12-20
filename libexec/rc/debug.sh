@@ -9,6 +9,7 @@
 #	DebugOn [-eo] "tag" ...
 #	DebugOff [-eo] [rc="rc"] "tag" ...
 #	Debugging
+#	DebugAdd "tag"
 #	DebugEcho ...
 #	DebugLog ...
 #	DebugShell "tag" ...
@@ -30,6 +31,11 @@
 #	If the '-o' flag is given, tracing is turned off unless there
 #	was a matched "tag", useful for functions too noisy to tace.
 #
+#	Further; when we set "DEBUG_ON" if we find
+#	"$DEBUG_ON:debug_add:tag" in "DEBUG_SH" we will 
+#	add the new "tag" to "DEBUG_SH" so it only has effect after that
+#	point.
+#	
 #	DebugOff turns tracing on if any "tag" matches "DEBUG_OFF" or
 #	off if any "tag" matches "DEBUG_ON". This allows nested
 #	functions to not interfere with each other.
@@ -38,6 +44,9 @@
 #	The optional "rc" value will be returned rather than the
 #	default of 0. Thus if DebugOff is the last operation in a
 #	function, "rc" will be the return code of that function.
+#
+#	DebugAdd allows adding a "tag" to "DEBUG_SH" to influence
+#	later events, possibly in a child process.
 #
 #	DebugEcho is just shorthand for:
 #.nf
@@ -74,7 +83,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.35 2024/02/03 19:04:47 sjg Exp $
+#	$Id: debug.sh,v 1.42 2024/10/30 18:23:19 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -98,38 +107,175 @@ DEBUG_DO=:
 DEBUG_SKIP=
 export DEBUGGING DEBUG_DO DEBUG_SKIP
 
+case "$isPOSIX_SHELL,$local" in
+:,:|:,local|false,:) ;;		# sane
+*)	# this is the bulk of isposix-shell.sh
+	if (echo ${PATH%:*}) > /dev/null 2>&1; then
+		# true should be a builtin, : certainly is
+		isPOSIX_SHELL=:
+		# you need to eval $local var
+		local=local
+		: KSH_VERSION=$KSH_VERSION
+		case "$KSH_VERSION" in
+		Version*) local=: ;; # broken
+		esac
+	else
+		isPOSIX_SHELL=false
+		local=:
+		false() {
+			return 1
+		}
+	fi
+	;;
+esac
+
+is_posix_shell() {
+	$isPOSIX_SHELL
+	return
+}
+
+    
+##
+# _debugAdd match
+#
+# Called from _debugOn when $match also appears in $DEBUG_SH with
+# a suffix of :debug_add:tag we will add tag to DEBUG_SH
+#
+_debugAdd() {
+	eval $local tag
+
+	for tag in `IFS=,; echo $DEBUG_SH`
+	do
+		: tag=$tag
+		case "$tag" in
+		$1:debug_add:*)
+			if is_posix_shell; then
+				tag=${tag#$1:debug_add:}
+			else
+				tag=`expr $tag : '.*:debug_add:\(.*\)'`
+			fi
+			case ",$DEBUG_SH," in
+			*,$tag,*) ;;
+			*)	set -x
+				: _debugAdd $1
+				DEBUG_SH=$DEBUG_SH,$tag
+				set +x
+				;;
+			esac
+			;;
+		esac
+	done
+	export DEBUG_SH
+}
+
+
+##
+# _debugOn match first
+#
+# Actually turn on tracing, set $DEBUG_ON=$match
+#
+# Check if $DEBUG_SH contains $match:debug_add:* and call _debugAdd
+# to add the suffix to DEBUG_SH.  This useful when we only want
+# to trace some script when run under specific circumstances.
+#
+# If we have included hooks.sh $_HOOKS_SH will be set
+# and if $first (the first arg to DebugOn) is suitable as a variable
+# name we will run ${first}_debugOn_hooks.
+#
+# We disable tracing for hooks_run itself but functions can trace
+# if they want based on DEBUG_DO
+#
 _debugOn() {
 	DEBUG_OFF=
 	DEBUG_DO=
 	DEBUG_SKIP=:
 	DEBUG_X=-x
+	# do this firt to reduce noise
+	case ",$DEBUG_SH," in
+	*,$1:debug_add:*) _debugAdd $1;;
+	*,$2:debug_add:*) _debugAdd $2;;
+	esac
 	set -x
 	DEBUG_ON=$1
+	case "$_HOOKS_SH,$2" in
+	,*|:,|:,*[${CASE_CLASS_NEG:-!}A-Za-z0-9_]*) ;;
+	*)	# avoid noise from hooks_run
+		set +x
+		hooks_run ${2}_debugOn_hooks
+		set -x
+		;;
+	esac
 }
 
+##
+# _debugOff match $DEBUG_ON $first
+#
+# Actually turn off tracing, set $DEBUG_OFF=$match
+#
+# If we have included hooks.sh $_HOOKS_SH will be set
+# and if $first (the first arg to DebugOff) is suitable as a variable
+# name we will run ${first}_debugOff_hooks.
+#
+# We do hooks_run after turning off tracing, but before resetting
+# DEBUG_DO so functions can trace if they want
+#
 _debugOff() {
 	DEBUG_OFF=$1
 	set +x
+	case "$_HOOKS_SH,$3" in
+	,*|:,|:,*[${CASE_CLASS_NEG:-!}A-Za-z0-9_]*) ;;
+	*)	hooks_run ${3}_debugOff_hooks;;
+	esac
+	set +x			# just to be sure
 	DEBUG_ON=$2
 	DEBUG_DO=:
 	DEBUG_SKIP=
 	DEBUG_X=
 }
 
+##
+# DebugAdd tag
+#
+# Add tag to DEBUG_SH
+#
+DebugAdd() {
+        DEBUG_SH=${DEBUG_SH:+$DEBUG_SH,}$1
+        export DEBUG_SH
+}
+
+##
+# DebugEcho message
+#
+# Output message if we are debugging
+#
 DebugEcho() {
 	$DEBUG_DO echo "$@"
 }
 
+##
+# Debugging
+#
+# return 0 if we are debugging.
+#
 Debugging() {
 	test "$DEBUG_SKIP"
 }
 
+##
+# DebugLog message
+#
+# Outout message with timestamp if we are debugging
+#
 DebugLog() {
 	$DEBUG_SKIP return 0
 	echo `date '+@ %s [%Y-%m-%d %H:%M:%S %Z]'` "$@"
 }
 
-# something hard to miss when wading through huge -x output
+##
+# DebugTrace message
+#
+# Something hard to miss when wading through huge -x output
+#
 DebugTrace() {
 	$DEBUG_SKIP return 0
 	set +x
@@ -139,8 +285,13 @@ DebugTrace() {
 	set -x
 }
 
-# Turn on debugging if appropriate
+##
+# DebugOn [-e] [-o] match ...
+#
+# Turn on debugging if any $match is found in $DEBUG_SH.
+#
 DebugOn() {
+	eval ${local:-:} _e _match _off _rc
 	_rc=0			# avoid problems with set -e
 	_off=:
 	while :
@@ -170,14 +321,14 @@ DebugOn() {
 		*,!$_e,*|*,!$Myname:$_e,*)
 			# only turn it off if it was on
 			_rc=0
-			$DEBUG_DO _debugOff $_e $DEBUG_ON
+			$DEBUG_DO _debugOff $_e $DEBUG_ON $1
 			break
 			;;
 		*,$_e,*|*,$Myname:$_e,*)
 			# only turn it on if it was off
 			_rc=0
 			_match=$_e
-			$DEBUG_SKIP _debugOn $_e
+			$DEBUG_SKIP _debugOn $_e $1
 			break
 			;;
 		esac
@@ -185,7 +336,7 @@ DebugOn() {
 	if test -z "$_off$_match"; then
 		# off unless explicit match, but
 		# only turn it off if it was on
-		$DEBUG_DO _debugOff $_e $DEBUG_ON
+		$DEBUG_DO _debugOff $_e $DEBUG_ON $1
 	fi
 	DEBUGGING=$DEBUG_SKIP	# backwards compatability
 	$DEBUG_DO set -x	# back on if needed
@@ -193,11 +344,20 @@ DebugOn() {
 	return $_rc
 }
 
+##
+# DebugOff [-e] [-o] [rc=$?] match ...
+#
 # Only turn debugging off if one of our args was the reason it
 # was turned on.
+#
 # We normally return 0, but caller can pass rc=$? as first arg
 # so that we preserve the status of last statement.
+#
+# The options '-e' and '-o' are ignored, they just make it easier to
+# keep DebugOn and DebugOff lines in sync.
+#
 DebugOff() {
+	eval ${local:-:} _e _rc
 	case ",${DEBUG_SH:-$DEBUG}," in
 	*,[Dd]ebug,*) ;;
 	*) $DEBUG_DO set +x;;		# reduce the noise
@@ -216,7 +376,7 @@ DebugOff() {
 		: $_e==$DEBUG_OFF DEBUG_OFF
 		case "$DEBUG_OFF" in
 		"")	break;;
-		$_e)	_debugOn $DEBUG_ON; return $_rc;;
+		$_e)	_debugOn $DEBUG_ON $1; return $_rc;;
 		esac
 	done
 	for _e in $*
@@ -224,7 +384,7 @@ DebugOff() {
 		: $_e==$DEBUG_ON DEBUG_ON
 		case "$DEBUG_ON" in
 		"")	break;;
-		$_e)	_debugOff; return $_rc;;
+		$_e)	_debugOff "" "" $1; return $_rc;;
 		esac
 	done
 	DEBUGGING=$DEBUG_SKIP	# backwards compatability
@@ -237,6 +397,7 @@ _TTY=${_TTY:-`test -t 0 && tty`}; export _TTY
 
 # override this if you like
 _debugShell() {
+	test "x$_TTY" != x || return 0
 	{
 		echo DebugShell "$@"
 		echo "Type 'exit' to continue..."
@@ -247,6 +408,7 @@ _debugShell() {
 # Run an interactive shell if appropriate
 # Note: you can use $DEBUG_SKIP DebugShell ... to skip unless debugOn
 DebugShell() {
+	eval ${local:-:} _e
 	case "$_TTY%${DEBUG_INTERACTIVE}" in
 	*%|%*) return 0;;	# no tty or no spec
 	esac

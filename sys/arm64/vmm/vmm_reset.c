@@ -136,6 +136,9 @@ reset_vm_el2_regs(void *vcpu)
 	 */
 	el2ctx->hcr_el2 = HCR_RW | HCR_TID3 | HCR_TWI | HCR_BSU_IS | HCR_FB |
 	    HCR_AMO | HCR_IMO | HCR_FMO | HCR_SWIO | HCR_VM;
+	if (in_vhe()) {
+		el2ctx->hcr_el2 |= HCR_E2H;
+	}
 
 	/* TODO: Trap all extensions we don't support */
 	el2ctx->mdcr_el2 = 0;
@@ -166,7 +169,11 @@ reset_vm_el2_regs(void *vcpu)
 	 * Don't trap accesses to CPACR_EL1, trace, SVE, Advanced SIMD
 	 * and floating point functionality to EL2.
 	 */
-	el2ctx->cptr_el2 = CPTR_RES1;
+	if (in_vhe())
+		el2ctx->cptr_el2 = CPTR_E2H_TRAP_ALL | CPTR_E2H_FPEN;
+	else
+		el2ctx->cptr_el2 = CPTR_TRAP_ALL & ~CPTR_TFP;
+	el2ctx->cptr_el2 &= ~CPTR_TCPAC;
 	/*
 	 * Disable interrupts in the guest. The guest OS will re-enable
 	 * them.

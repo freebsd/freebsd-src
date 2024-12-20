@@ -76,9 +76,9 @@
 // NOTE: Keep this and the next check in sync with the macro
 //       NO_CRC32_TABLE in crc32_table.c
 #if defined(HAVE_ARM64_CRC32) && !defined(WORDS_BIGENDIAN)
-// Allow ARM64 CRC32 instruction without a runtime check if
-// __ARM_FEATURE_CRC32 is defined. GCC and Clang only define this if the
-// proper compiler options are used.
+	// Allow ARM64 CRC32 instruction without a runtime check if
+	// __ARM_FEATURE_CRC32 is defined. GCC and Clang only define
+	// this if the proper compiler options are used.
 #	if defined(__ARM_FEATURE_CRC32)
 #		define CRC32_ARCH_OPTIMIZED 1
 #		define CRC32_ARM64 1

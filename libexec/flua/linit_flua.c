@@ -36,7 +36,6 @@
 #include "lfs.h"
 #include "lposix.h"
 #include "lfbsd.h"
-#include "lua_ucl.h"
 
 /*
 ** these libs are loaded by lua.c and are readily available to any Lua
@@ -58,9 +57,13 @@ static const luaL_Reg loadedlibs[] = {
 #endif
   /* FreeBSD Extensions */
   {"lfs", luaopen_lfs},
+  {"posix.fnmatch", luaopen_posix_fnmatch},
+  {"posix.libgen", luaopen_posix_libgen},
+  {"posix.stdlib", luaopen_posix_stdlib},
   {"posix.sys.stat", luaopen_posix_sys_stat},
+  {"posix.sys.utsname", luaopen_posix_sys_utsname},
+  {"posix.sys.wait", luaopen_posix_sys_wait},
   {"posix.unistd", luaopen_posix_unistd},
-  {"ucl", luaopen_ucl},
   {"fbsd", luaopen_fbsd},
   {NULL, NULL}
 };

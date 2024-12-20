@@ -202,6 +202,9 @@ aw_wdog_attach(device_t dev)
 	EVENTHANDLER_REGISTER(shutdown_final, aw_wdog_shutdown_fn, sc,
 	    SHUTDOWN_PRI_LAST - 1);
 
+	/* Disable watchdog for now. */
+	WRITE(sc, sc->wdog_mode, sc->wdog_mode_key);
+
 	return (0);
 }
 

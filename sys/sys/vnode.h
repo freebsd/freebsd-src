@@ -132,7 +132,7 @@ struct vnode {
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
 	u_int	v_hash;
-	struct	vop_vector *v_op;		/* u vnode operations vector */
+	const struct vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
 	/*
@@ -231,6 +231,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 /*
  * Vnode flags.
  *	VI flags are protected by interlock and live in v_iflag
+ *	VIRF flags are protected by interlock and live in v_irflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  *
  *	VIRF_DOOMED is doubly protected by the interlock and vnode lock.  Both
@@ -833,18 +834,15 @@ void	vn_seqc_write_end(struct vnode *vp);
 #define	vn_seqc_consistent(vp, seq)	seqc_consistent(&(vp)->v_seqc, seq)
 
 #define	vn_rangelock_unlock(vp, cookie)					\
-	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
-#define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
-	rangelock_unlock_range(&(vp)->v_rl, (cookie), (start), (end), 	\
-	    VI_MTX(vp))
+	rangelock_unlock(&(vp)->v_rl, (cookie))
 #define	vn_rangelock_rlock(vp, start, end)				\
-	rangelock_rlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_rlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_tryrlock(vp, start, end)				\
-	rangelock_tryrlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_tryrlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_wlock(vp, start, end)				\
-	rangelock_wlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_wlock(&(vp)->v_rl, (start), (end))
 #define	vn_rangelock_trywlock(vp, start, end)				\
-	rangelock_trywlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
+	rangelock_trywlock(&(vp)->v_rl, (start), (end))
 
 #define	vn_irflag_read(vp)	atomic_load_short(&(vp)->v_irflag)
 void	vn_irflag_set_locked(struct vnode *vp, short toset);

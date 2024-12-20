@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/fs/ext2fs
 KMOD=	ext2fs
 SRCS=	opt_ddb.h opt_directio.h opt_quota.h opt_suiddir.h vnode_if.h \

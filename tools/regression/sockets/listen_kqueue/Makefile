@@ -1,4 +1,3 @@
-
 PROG=	listen_kqueue
 MAN=
 

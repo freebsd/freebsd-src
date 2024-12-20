@@ -1020,16 +1020,17 @@ spa_ld_log_sm_metadata(spa_t *spa)
 	}
 
 	zap_cursor_t zc;
-	zap_attribute_t za;
+	zap_attribute_t *za = zap_attribute_alloc();
 	for (zap_cursor_init(&zc, spa_meta_objset(spa), spacemap_zap);
-	    (error = zap_cursor_retrieve(&zc, &za)) == 0;
+	    (error = zap_cursor_retrieve(&zc, za)) == 0;
 	    zap_cursor_advance(&zc)) {
-		uint64_t log_txg = zfs_strtonum(za.za_name, NULL);
+		uint64_t log_txg = zfs_strtonum(za->za_name, NULL);
 		spa_log_sm_t *sls =
-		    spa_log_sm_alloc(za.za_first_integer, log_txg);
+		    spa_log_sm_alloc(za->za_first_integer, log_txg);
 		avl_add(&spa->spa_sm_logs_by_txg, sls);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(za);
 	if (error != ENOENT) {
 		spa_load_failed(spa, "spa_ld_log_sm_metadata(): failed at "
 		    "zap_cursor_retrieve(spacemap_zap) [error %d]",
@@ -1363,7 +1364,6 @@ spa_ld_log_spacemaps(spa_t *spa)
 	return (error);
 }
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs, zfs_, unflushed_max_mem_amt, U64, ZMOD_RW,
 	"Specific hard-limit in memory that ZFS allows to be used for "
 	"unflushed changes");
@@ -1382,8 +1382,8 @@ ZFS_MODULE_PARAM(zfs, zfs_, unflushed_log_block_min, U64, ZMOD_RW,
 	"log spacemap (see zfs_unflushed_log_block_max)");
 
 ZFS_MODULE_PARAM(zfs, zfs_, unflushed_log_txg_max, U64, ZMOD_RW,
-    "Hard limit (upper-bound) in the size of the space map log "
-    "in terms of dirty TXGs.");
+	"Hard limit (upper-bound) in the size of the space map log "
+	"in terms of dirty TXGs.");
 
 ZFS_MODULE_PARAM(zfs, zfs_, unflushed_log_block_pct, UINT, ZMOD_RW,
 	"Tunable used to determine the number of blocks that can be used for "
@@ -1398,7 +1398,6 @@ ZFS_MODULE_PARAM(zfs, zfs_, max_log_walking, U64, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, keep_log_spacemaps_at_export, INT, ZMOD_RW,
 	"Prevent the log spacemaps from being flushed and destroyed "
 	"during pool export/destroy");
-/* END CSTYLED */
 
 ZFS_MODULE_PARAM(zfs, zfs_, max_logsm_summary_length, U64, ZMOD_RW,
 	"Maximum number of rows allowed in the summary of the spacemap log");

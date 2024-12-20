@@ -928,16 +928,6 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		}
 	}
 
-	/*
-	 * This keeps the kernel stack of current thread from getting
-	 * swapped.  In low-memory situations where the kernel stack might
-	 * otherwise get swapped out, this holds it and allows the thread
-	 * to make progress and release the kernel mapped pages sooner.
-	 *
-	 * XXX KDM should I use P_NOSWAP instead?
-	 */
-	PHOLD(curproc);
-
 	for (i = 0; i < numbufs; i++) {
 		/* Save the user's data address. */
 		mapinfo->orig[i] = *data_ptrs[i];
@@ -1005,7 +995,6 @@ fail:
 			free(*data_ptrs[i], M_CAMPERIPH);
 		*data_ptrs[i] = mapinfo->orig[i];
 	}
-	PRELE(curproc);
 	return(EACCES);
 }
 
@@ -1115,9 +1104,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* Set the user's pointer back to the original value */
 		*data_ptrs[i] = mapinfo->orig[i];
 	}
-
-	/* allow ourselves to be swapped once again */
-	PRELE(curproc);
 
 	return (error);
 }
@@ -2180,9 +2166,9 @@ cam_periph_devctl_notify(union ccb *ccb)
 	{
 		struct ccb_nvmeio *n = &ccb->nvmeio;
 
-		sbuf_printf(&sb, "sc=\"%02x\" sct=\"%02x\" cdw0=\"%08x\" ",
-		    NVME_STATUS_GET_SC(n->cpl.status),
-		    NVME_STATUS_GET_SCT(n->cpl.status), n->cpl.cdw0);
+		sbuf_printf(&sb, "sct=\"%02x\" sc=\"%02x\" cdw0=\"%08x\" ",
+		    NVME_STATUS_GET_SCT(n->cpl.status),
+		    NVME_STATUS_GET_SC(n->cpl.status), n->cpl.cdw0);
 		type = "error";
 		break;
 	}

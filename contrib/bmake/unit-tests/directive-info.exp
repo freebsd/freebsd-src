@@ -11,5 +11,5 @@ make: "directive-info.mk" line 36: Unknown directive "info-message"
 make: "directive-info.mk" line 38: no-target: no-source
 make: "directive-info.mk" line 47: expect line 35 for multi-line message
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making ".info.man" in unit-tests
 exit status 1

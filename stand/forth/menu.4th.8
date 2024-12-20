@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 6, 2013
+.Dd October 4, 2024
 .Dt MENU.4TH 8
 .Os
 .Sh NAME
@@ -210,8 +210,8 @@ is enabled
 When set to a number
 .Dq Li x
 associated with a given menuitem, that menuitem will only appear when
-running on i386-compatible hardware,
-.Va hint.acpi.0.rsdp
+running on ACPI-compatible hardware,
+.Va acpi.rsdp
 is set (indicating the presence of hardware ACPI support as detected by
 .Xr loader 8 ) ,
 and
@@ -224,10 +224,10 @@ but continue to function as expected.
 On i386-compatible hardware lacking ACPI support (as detected by
 .Xr loader 8 ) ,
 subsequent menuitems will retain their associated numbers.
-.It Va hint.acpi.0.rsdp
+.It Va acpi.rsdp
 Set automatically by
 .Xr loader 8
-on i386-compatible hardware when ACPI support is detected at boot time.
+on ACPI-compatible hardware when ACPI support is detected at boot time.
 Effects the display of the
 .Dq Li menu_acpi
 menuitem (if configured).

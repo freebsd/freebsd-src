@@ -1,11 +1,11 @@
-CLANG_SUBDIR=clang/18
+CLANG_SUBDIR=clang/19
 CLANGDIR=	/usr/lib/${CLANG_SUBDIR}
 SANITIZER_LIBDIR=		${CLANGDIR}/lib/freebsd
 SANITIZER_SHAREDIR=		${CLANGDIR}/share
 
 # armv[67] is a bit special since we allow a soft-floating version via
 # CPUTYPE matching *soft*. This variant may not actually work though.
-.if ${MACHINE_ARCH:Marmv[67]*} != "" && \
+.if ${MACHINE_CPUARCH} == "arm" && \
     (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 CRTARCH?=	armhf
 .else

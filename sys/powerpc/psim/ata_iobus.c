@@ -111,8 +111,9 @@ ata_iobus_attach(device_t dev)
 	 * Add a single child per controller. Should be able
 	 * to add two
 	 */
-	device_add_child(dev, "ata", -1);
-	return (bus_generic_attach(dev));
+	device_add_child(dev, "ata", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

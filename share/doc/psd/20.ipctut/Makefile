@@ -1,4 +1,3 @@
-
 VOLUME=		psd/20.ipctut
 SRCS=		tutor.me
 MACROS=		-me

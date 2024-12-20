@@ -1,4 +1,3 @@
-
 TESTSDIR=	${TESTSBASE}/sys/mac
 
 TESTS_SUBDIRS+=	bsdextended

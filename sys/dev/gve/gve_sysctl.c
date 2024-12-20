@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -29,6 +29,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "gve.h"
+
+static SYSCTL_NODE(_hw, OID_AUTO, gve, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "GVE driver parameters");
+
+bool gve_disable_hw_lro = false;
+SYSCTL_BOOL(_hw_gve, OID_AUTO, disable_hw_lro, CTLFLAG_RDTUN,
+    &gve_disable_hw_lro, 0, "Controls if hardware LRO is used");
+
+char gve_queue_format[8];
+SYSCTL_STRING(_hw_gve, OID_AUTO, queue_format, CTLFLAG_RD,
+    &gve_queue_format, 0, "Queue format being used by the iface");
+
+char gve_version[8];
+SYSCTL_STRING(_hw_gve, OID_AUTO, driver_version, CTLFLAG_RD,
+    &gve_version, 0, "Driver version");
 
 static void
 gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
@@ -69,9 +84,21 @@ gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->rx_dropped_pkt_desc_err,
 	    "Packets dropped due to descriptor error");
 	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_dropped_pkt_buf_post_fail", CTLFLAG_RD,
+	    &stats->rx_dropped_pkt_buf_post_fail,
+	    "Packets dropped due to failure to post enough buffers");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
 	    "rx_dropped_pkt_mbuf_alloc_fail", CTLFLAG_RD,
 	    &stats->rx_dropped_pkt_mbuf_alloc_fail,
 	    "Packets dropped due to failed mbuf allocation");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_mbuf_dmamap_err", CTLFLAG_RD,
+	    &stats->rx_mbuf_dmamap_err,
+	    "Number of rx mbufs which couldnt be dma mapped");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_mbuf_mclget_null", CTLFLAG_RD,
+	    &stats->rx_mbuf_mclget_null,
+	    "Number of times when there were no cluster mbufs");
 	SYSCTL_ADD_U32(ctx, list, OID_AUTO,
 	    "rx_completed_desc", CTLFLAG_RD,
 	    &rxq->cnt, 0, "Number of descriptors completed");
@@ -113,9 +140,9 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_bytes", CTLFLAG_RD,
 	    &stats->tbytes, "Bytes transmitted");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-	    "tx_dropped_pkt_nospace_device", CTLFLAG_RD,
-	    &stats->tx_dropped_pkt_nospace_device,
-	    "Packets dropped due to no space in device");
+	    "tx_delayed_pkt_nospace_device", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_device,
+	    "Packets delayed due to no space in device");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_dropped_pkt_nospace_bufring", CTLFLAG_RD,
 	    &stats->tx_dropped_pkt_nospace_bufring,
@@ -124,6 +151,42 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_dropped_pkt_vlan", CTLFLAG_RD,
 	    &stats->tx_dropped_pkt_vlan,
 	    "Dropped VLAN packets");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_descring", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_descring,
+	    "Packets delayed due to no space in desc ring");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_compring", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_compring,
+	    "Packets delayed due to no space in comp ring");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_qpl_bufs", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_qpl_bufs,
+	    "Packets delayed due to not enough qpl bufs");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_tsoerr", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_tsoerr,
+	    "TSO packets delayed due to err in prep errors");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_collpase", CTLFLAG_RD,
+	    &stats->tx_mbuf_collapse,
+	    "tx mbufs that had to be collpased");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_defrag", CTLFLAG_RD,
+	    &stats->tx_mbuf_defrag,
+	    "tx mbufs that had to be defragged");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_defrag_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_defrag_err,
+	    "tx mbufs that failed defrag");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_dmamap_enomem_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_dmamap_enomem_err,
+	    "tx mbufs that could not be dma-mapped due to low mem");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_dmamap_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_dmamap_err,
+	    "tx mbufs that could not be dma-mapped");
 }
 
 static void
@@ -185,6 +248,9 @@ gve_setup_adminq_stat_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "adminq_destroy_rx_queue_cnt",
 	    CTLFLAG_RD, &priv->adminq_destroy_rx_queue_cnt, 0,
 	    "adminq_destroy_rx_queue_cnt");
+	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "adminq_get_ptype_map_cnt",
+	    CTLFLAG_RD, &priv->adminq_get_ptype_map_cnt, 0,
+	    "adminq_get_ptype_map_cnt");
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO,
 	    "adminq_dcfg_device_resources_cnt", CTLFLAG_RD,
 	    &priv->adminq_dcfg_device_resources_cnt, 0,

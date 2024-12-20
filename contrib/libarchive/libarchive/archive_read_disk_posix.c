@@ -451,7 +451,7 @@ archive_read_disk_new(void)
 {
 	struct archive_read_disk *a;
 
-	a = (struct archive_read_disk *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_READ_DISK_MAGIC;

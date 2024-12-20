@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 PROG=	crt0.o

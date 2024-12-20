@@ -315,7 +315,7 @@ puc_bfe_attach(device_t dev)
 			goto fail;
 		port->p_rclk = res;
 
-		port->p_dev = device_add_child(dev, NULL, -1);
+		port->p_dev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 		if (port->p_dev != NULL)
 			device_set_ivars(port->p_dev, (void *)port);
 	}

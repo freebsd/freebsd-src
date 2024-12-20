@@ -157,14 +157,14 @@ dev/iommu/busdma_iommu.c	optional	acpi iommu pci
 dev/iommu/iommu_gas.c		optional	acpi iommu pci
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
-dev/ipmi/ipmi_isa.c		optional	ipmi isa
 dev/ipmi/ipmi_bt.c		optional	ipmi
+dev/ipmi/ipmi_isa.c		optional	ipmi isa
 dev/ipmi/ipmi_kcs.c		optional	ipmi
-dev/ipmi/ipmi_smic.c		optional	ipmi
-dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
-dev/ipmi/ipmi_smbios.c		optional	ipmi
-dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/ipmi/ipmi_smbios.c		optional	ipmi
+dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
+dev/ipmi/ipmi_smic.c		optional	ipmi
+dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/isci/isci.c							optional isci \
 	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/isci_controller.c					optional isci
@@ -344,6 +344,12 @@ x86/cpufreq/hwpstate_amd.c	optional	cpufreq
 x86/cpufreq/hwpstate_intel.c	optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/cpufreq/powernow.c		optional	cpufreq
+x86/iommu/amd_cmd.c		optional	acpi iommu pci
+x86/iommu/amd_ctx.c		optional	acpi iommu pci
+x86/iommu/amd_drv.c		optional	acpi iommu pci
+x86/iommu/amd_event.c		optional	acpi iommu pci
+x86/iommu/amd_idpgtbl.c		optional	acpi iommu pci
+x86/iommu/amd_intrmap.c		optional	acpi iommu pci
 x86/iommu/intel_ctx.c		optional	acpi iommu pci
 x86/iommu/intel_drv.c		optional	acpi iommu pci
 x86/iommu/intel_fault.c		optional	acpi iommu pci
@@ -377,6 +383,7 @@ x86/x86/x86_mem.c		optional	mem
 x86/x86/mp_x86.c		optional	smp
 x86/x86/nexus.c			standard
 x86/x86/pvclock.c		optional	kvm_clock | xenhvm
+x86/x86/sdt_machdep.c		optional	kdtrace_hooks
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/ucode.c			standard

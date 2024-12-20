@@ -366,23 +366,16 @@ static int
 vga_pci_attach(device_t dev)
 {
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/* Always create a drmn child for now to make it easier on drm. */
-	device_add_child(dev, "drmn", -1);
-	bus_generic_attach(dev);
+	device_add_child(dev, "drmn", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
 
 	if (vga_pci_is_boot_display(dev))
 		device_printf(dev, "Boot video device\n");
 
 	return (0);
-}
-
-static int
-vga_pci_suspend(device_t dev)
-{
-
-	return (bus_generic_suspend(dev));
 }
 
 static int
@@ -394,13 +387,6 @@ vga_pci_detach(device_t dev)
 	if (error == 0)
 		error = device_delete_children(dev);
 	return (error);
-}
-
-static int
-vga_pci_resume(device_t dev)
-{
-
-	return (bus_generic_resume(dev));
 }
 
 /* Bus interface. */
@@ -732,9 +718,9 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(device_probe,		vga_pci_probe),
 	DEVMETHOD(device_attach,	vga_pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	vga_pci_suspend),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_detach,	vga_pci_detach),
-	DEVMETHOD(device_resume,	vga_pci_resume),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	vga_pci_read_ivar),

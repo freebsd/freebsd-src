@@ -262,7 +262,7 @@ nexus_attach(device_t dev)
 {
 
 	nexus_init_resources();
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/*
 	 * Explicitly add the legacy0 device here.  Other platform
@@ -271,7 +271,7 @@ nexus_attach(device_t dev)
 	 */
 	if (BUS_ADD_CHILD(dev, 10, "legacy", 0) == NULL)
 		panic("legacy: could not attach");
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -761,10 +761,6 @@ static device_method_t sysresource_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sysresource_probe),
 	DEVMETHOD(device_attach,	sysresource_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	DEVMETHOD_END
 };

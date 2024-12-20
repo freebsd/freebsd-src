@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 .include <bsd.own.mk>

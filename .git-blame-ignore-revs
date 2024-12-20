@@ -8,6 +8,16 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# whitespace fixes for sys/sys/kernel.h
+5c623697d6011de63bc762560a648c09379e06d2
+# style fixes for iflib
+fa7045f99cdb2b699205653f42f3fe78597880a7
+# remove stray whitespaces from sys/amd64/
+f3754afd5901857787271e73f9c34d3b9069a03f
+# style and whitespace fixes for bpf
+1baf6164e4d671ca1547a3096d8ce8fe69ed4e5c
+# whitespace fixes in sys/mman.h
+b5c95c93fdd47c0764219b8bf293ce54369caf27
 # sort OptionalObsoleteFiles.inc blocks
 c90d0600ee000e7874a55e3015953bd670574093
 2b3bf27da41f1481b2025445c6adf27f0d50de99

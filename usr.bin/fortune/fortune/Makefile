@@ -1,4 +1,3 @@
-
 PROG=	fortune
 MAN=	fortune.6
 CFLAGS+=-DDEBUG -I${FORTUNE_SRC}/strfile

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
  * Copyright 2016 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: reset_cmd.h,v 1.8 2020/02/02 23:34:34 tom Exp $
+ * $Id: reset_cmd.h,v 1.11 2024/04/08 17:29:34 tom Exp $
  *
  * Utility functions for resetting terminal.
  */
@@ -51,12 +51,12 @@ extern bool send_init_strings(int /* fd */, TTY * /* old_settings */);
 extern void print_tty_chars(TTY * /* old_settings */, TTY * /* new_settings */);
 extern void reset_flush(void);
 extern void reset_start(FILE * /* fp */, bool /* is_reset */, bool /* is_init */ );
-extern void reset_tty_settings(int /* fd */, TTY * /* tty_settings */);
+extern void reset_tty_settings(int /* fd */, TTY * /* tty_settings */, int /* noset */);
 extern void set_control_chars(TTY * /* tty_settings */, int /* erase */, int /* intr */, int /* kill */);
 extern void set_conversions(TTY * /* tty_settings */);
 
 #if HAVE_SIZECHANGE
-extern void set_window_size(int /* fd */, short * /* high */, short * /* wide */);
+extern void set_window_size(int /* fd */, NCURSES_INT2 * /* high */, NCURSES_INT2 * /* wide */);
 #endif
 
 extern const char *_nc_progname;

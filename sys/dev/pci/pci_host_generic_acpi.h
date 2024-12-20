@@ -35,6 +35,7 @@
 struct generic_pcie_acpi_softc {
 	struct generic_pcie_core_softc base;
 	int segment;
+	uint32_t		osc_ctl;
 	ACPI_BUFFER		ap_prt;		/* interrupt routing table */
 };
 

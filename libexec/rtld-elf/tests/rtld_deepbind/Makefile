@@ -1,4 +1,3 @@
-
 TESTSDIR?=	${TESTSBASE}/libexec/rtld-elf/rtld_deepbind
 ATF_TESTS_C=	rtld_deepbind
 

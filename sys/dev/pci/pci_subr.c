@@ -131,7 +131,6 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 	return 1;
 }
 
-#ifdef NEW_PCIB
 /*
  * Return a pointer to a pretty name for a PCI device.  If the device
  * has a driver attached, the device's name is used, otherwise a name
@@ -284,7 +283,6 @@ pcib_host_res_adjust(struct pcib_host_resources *hr, device_t dev,
 	return (ERANGE);
 }
 
-#ifdef PCI_RES_BUS
 struct pci_domain {
 	int	pd_domain;
 	struct rman pd_bus_rman;
@@ -412,6 +410,3 @@ pci_domain_deactivate_bus(int domain, device_t dev, struct resource *r)
 #endif
 	return (rman_deactivate_resource(r));
 }
-#endif /* PCI_RES_BUS */
-
-#endif /* NEW_PCIB */

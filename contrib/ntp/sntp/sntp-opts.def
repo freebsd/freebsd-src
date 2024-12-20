@@ -6,7 +6,7 @@ autogen definitions options;
 #include copyright.def
 
 prog-name      = "sntp";
-prog-title	= "standard Simple Network Time Protocol client program";
+prog-title	= "reference Simple Network Time Protocol client";
 argument	= '[ hostname-or-IP ...]';
 
 #include homerc.def

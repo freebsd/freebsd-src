@@ -256,14 +256,16 @@ nlctrl_notify(void *arg __unused, const struct genl_family *gf, int cmd)
 {
 	struct nlmsghdr hdr = {.nlmsg_type = NETLINK_GENERIC };
 	struct genlmsghdr ghdr = { .cmd = cmd };
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 
-	if (nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_GENERIC, ctrl_group_id)) {
-		dump_family(&hdr, &ghdr, gf, &nw);
-		nlmsg_flush(&nw);
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_GENERIC, ctrl_group_id,
+	    false)) {
+		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
-	NL_LOG(LOG_DEBUG, "error allocating group writer");
+
+	dump_family(&hdr, &ghdr, gf, &nw);
+	nlmsg_flush(&nw);
 }
 
 static const struct genl_cmd nlctrl_cmds[] = {
@@ -282,7 +284,7 @@ genl_load_all(void *u __unused)
 {
 	NL_VERIFY_PARSERS(all_parsers);
 	ctrl_family_id = genl_register_family(CTRL_FAMILY_NAME, 0, 2, CTRL_ATTR_MAX);
-	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, NL_ARRAY_LEN(nlctrl_cmds));
+	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, nitems(nlctrl_cmds));
 	ctrl_group_id = genl_register_group(CTRL_FAMILY_NAME, "notify");
 	family_event_tag = EVENTHANDLER_REGISTER(genl_family_event, nlctrl_notify, NULL,
 	    EVENTHANDLER_PRI_ANY);

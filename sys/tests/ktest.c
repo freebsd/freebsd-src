@@ -370,7 +370,8 @@ ktest_nl_register(void)
 	family_id = genl_register_family(KTEST_FAMILY_NAME, 0, 1, KTEST_CMD_MAX);
 	MPASS(family_id != 0);
 
-	ret = genl_register_cmds(KTEST_FAMILY_NAME, ktest_cmds, NL_ARRAY_LEN(ktest_cmds));
+	ret = genl_register_cmds(KTEST_FAMILY_NAME, ktest_cmds,
+	    nitems(ktest_cmds));
 	MPASS(ret);
 }
 

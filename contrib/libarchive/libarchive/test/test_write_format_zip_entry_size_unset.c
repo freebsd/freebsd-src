@@ -205,7 +205,7 @@ static void verify_contents(const char *zip_buff, size_t size)
 	assertEqualInt(i4(data_descriptor + 4), crc);
 	/* Check compressed size */
 	assertEqualInt(i4(data_descriptor + 8), sizeof(file_data1) + sizeof(file_data2));
-	/* Chcek uncompresed size */
+	/* Check uncompressed size */
 	assertEqualInt(i4(data_descriptor + 12), sizeof(file_data1) + sizeof(file_data2));
 
 	/* Get folder entry in central directory */

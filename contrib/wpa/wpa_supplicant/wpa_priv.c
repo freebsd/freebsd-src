@@ -187,7 +187,10 @@ static void wpa_priv_get_scan_results2(struct wpa_priv_interface *iface,
 	int val;
 	size_t i;
 
-	res = iface->driver->get_scan_results2(iface->drv_priv);
+	if (iface->driver->get_scan_results)
+		res = iface->driver->get_scan_results(iface->drv_priv, NULL);
+	else
+		res = iface->driver->get_scan_results2(iface->drv_priv);
 	if (res == NULL)
 		goto fail;
 
@@ -231,7 +234,7 @@ static void wpa_priv_cmd_get_scan_results(struct wpa_priv_interface *iface,
 	if (iface->drv_priv == NULL)
 		return;
 
-	if (iface->driver->get_scan_results2)
+	if (iface->driver->get_scan_results || iface->driver->get_scan_results2)
 		wpa_priv_get_scan_results2(iface, from, fromlen);
 	else
 		sendto(iface->fd, "", 0, 0, (struct sockaddr *) from, fromlen);
@@ -414,6 +417,7 @@ static void wpa_priv_cmd_set_key(struct wpa_priv_interface *iface,
 	p.key = params->key_len ? params->key : NULL;
 	p.key_len = params->key_len;
 	p.key_flag = params->key_flag;
+	p.link_id = -1;
 
 	res = iface->driver->set_key(iface->drv_priv, &p);
 	wpa_printf(MSG_DEBUG, "drv->set_key: res=%d", res);
@@ -1134,7 +1138,8 @@ void wpa_supplicant_event_global(void *ctx, enum wpa_event_type event,
 
 
 void wpa_supplicant_rx_eapol(void *ctx, const u8 *src_addr,
-			     const u8 *buf, size_t len)
+			     const u8 *buf, size_t len,
+			     enum frame_encryption encrypted)
 {
 	struct wpa_priv_interface *iface = ctx;
 	struct msghdr msg;

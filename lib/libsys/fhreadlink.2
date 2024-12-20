@@ -36,7 +36,6 @@
 .In sys/mount.h
 .Ft int
 .Fn fhreadlink "fhandle_t *fhp" "char *buf" "size_t bufsize"
-.Fc
 .Sh DESCRIPTION
 The
 .Fn fhreadlink
@@ -61,7 +60,7 @@ code in the global variable
 .Va errno .
 .Sh ERRORS
 The
-.Fn readlink
+.Fn fhreadlink
 system call
 will fail if:
 .Bl -tag -width Er
@@ -86,10 +85,10 @@ The file handle
 .Fa fhp
 is no longer valid
 .El
-.El
 .Sh SEE ALSO
-.Xr fhstat 2 ,
 .Xr fhlink 2 ,
+.Xr fhstat 2 ,
+.Xr readlink 2
 .Sh HISTORY
 The
 .Fn fhreadlink

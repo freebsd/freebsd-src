@@ -40,10 +40,12 @@
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_snl.h>
 #include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_sysevent.h>
 
 static int monitor_mcast(int argc, char **argv);
 static int list_families(int argc, char **argv);
 static void parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr);
+static void parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr);
 static void parser_fallback(struct snl_state *ss, struct nlmsghdr *hdr);
 
 static struct commands {
@@ -51,7 +53,7 @@ static struct commands {
 	const char *usage;
 	int (*cmd)(int argc, char **argv);
 } cmds[] = {
-	{ "monitor", "monitor <family> <multicast group>", monitor_mcast },
+	{ "monitor", "monitor <family> [multicast group]", monitor_mcast },
 	{ "list", "list", list_families },
 };
 
@@ -60,7 +62,24 @@ static struct mcast_parsers {
 	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
 } mcast_parsers [] = {
 	{ "nlctrl", parser_nlctrl_notify },
+	{ "nlsysevent", parser_nlsysevent },
 };
+
+struct nlevent {
+	const char *name;
+	const char *subsystem;
+	const char *type;
+	const char *data;
+};
+#define _OUT(_field) offsetof(struct nlevent, _field)
+static struct snl_attr_parser ap_nlevent_get[] = {
+	{ .type = NLSE_ATTR_SYSTEM, .off = _OUT(name), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_SUBSYSTEM, .off = _OUT(subsystem), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_TYPE, .off = _OUT(type), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_DATA, .off = _OUT(data), .cb = snl_attr_get_string },
+};
+#undef _OUT
+SNL_DECLARE_GENL_PARSER(nlevent_get_parser, ap_nlevent_get);
 
 struct genl_ctrl_op {
 	uint32_t id;
@@ -184,6 +203,20 @@ parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr)
 }
 
 void
+parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr)
+{
+	struct nlevent ne = {};
+	if (snl_parse_nlmsg(ss, hdr, &nlevent_get_parser, &ne)) {
+		printf("system=%s subsystem=%s type=%s", ne.name, ne.subsystem, ne.type);
+		if (ne.data) {
+			printf(" %s", ne.data);
+			if (ne.data[strlen(ne.data) -1] != '\n')
+				printf("\n");
+		}
+	}
+}
+
+void
 parser_fallback(struct snl_state *ss __unused, struct nlmsghdr *hdr __unused)
 {
 	printf("New unknown message\n");
@@ -197,6 +230,7 @@ monitor_mcast(int argc __unused, char **argv)
 	struct _getfamily_attrs attrs;
 	struct pollfd pfd;
 	bool found = false;
+	bool all = false;
 	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
 
 	parser = parser_fallback;
@@ -204,28 +238,32 @@ monitor_mcast(int argc __unused, char **argv)
 	if (!snl_init(&ss, NETLINK_GENERIC))
 		err(EXIT_FAILURE, "snl_init()");
 
-	if (argc != 2) {
+	if (argc < 1 || argc > 2) {
 		usage();
 		return (EXIT_FAILURE);
 	}
+
 	if (!snl_get_genl_family_info(&ss, argv[0], &attrs))
 		errx(EXIT_FAILURE, "Unknown family '%s'", argv[0]);
-	for (uint32_t i = 0; i < attrs.mcast_groups.num_groups; i++) {
-		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+	if (argc == 1)
+		all = true;
+	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
+		if (all || strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
 		    argv[1]) == 0) {
 			found = true;
 			if (setsockopt(ss.fd, SOL_NETLINK,
 			    NETLINK_ADD_MEMBERSHIP,
-			    (void *)&attrs.mcast_groups.groups[i]->mcast_grp_id,
+			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
 			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
 			    == -1)
 				err(EXIT_FAILURE, "Cannot subscribe to command "
 				    "notify");
-			break;
+			if (!all)
+				break;
 		}
 	}
 	if (!found)
-		errx(EXIT_FAILURE, "No such multicat group '%s'"
+		errx(EXIT_FAILURE, "No such multicast group '%s'"
 		    " in family '%s'", argv[1], argv[0]);
 	for (size_t i= 0; i < nitems(mcast_parsers); i++) {
 		if (strcmp(mcast_parsers[i].family, argv[0]) == 0) {

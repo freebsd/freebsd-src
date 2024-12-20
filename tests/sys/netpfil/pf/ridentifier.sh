@@ -45,7 +45,7 @@ basic_body()
 	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig lo0 up
 	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
-	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid $(atf_get_srcdir)/echo_inetd.conf
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid $(atf_get_srcdir)/echo_inetd.conf
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
@@ -56,7 +56,7 @@ basic_body()
 		"pass in log" \
 		"pass in log proto tcp ridentifier 1234"
 
-	jexec alcatraz tcpdump --immediate-mode -n -e -i pflog0 > tcpdump.log &
+	jexec alcatraz tcpdump --immediate-mode -n -e -i pflog0 > ${PWD}/tcpdump.log &
 	sleep 1
 
 	echo "test" | nc -N 192.0.2.2 7
@@ -67,17 +67,17 @@ basic_body()
 
 	# Make sure we spotted the ridentifier
 	atf_check -s exit:0 -o ignore \
-	    grep 'rule 1/0.*ridentifier 1234' tcpdump.log
+	    grep 'rule 1/0.*ridentifier 1234' ${PWD}/tcpdump.log
 	# But not on the !TCP traffic
 	atf_check -s exit:1 -o ignore \
-	    grep 'rule 0/0.*ridentifier' tcpdump.log
+	    grep 'rule 0/0.*ridentifier' ${PWD}/tcpdump.log
 
 	# Now try with antispoof rules
 	pft_set_rules alcatraz \
 		"pass in log" \
 		"antispoof log for ${epair}b ridentifier 4321"
 
-	jexec alcatraz tcpdump --immediate-mode -n -e -i pflog0 > tcpdump.log &
+	jexec alcatraz tcpdump --immediate-mode -n -e -i pflog0 > ${PWD}/tcpdump.log &
 	sleep 1
 
 	# Without explicit rules for lo0 we're going to drop packets to ourself
@@ -87,18 +87,16 @@ basic_body()
 	sleep 1
 	jexec alcatraz killall tcpdump
 
-	cat tcpdump.log
+	cat ${PWD}/tcpdump.log
 
 	# Make sure we spotted the ridentifier
 	atf_check -s exit:0 -o ignore \
-	    grep 'rule 2/0.*ridentifier 4321' tcpdump.log
+	    grep 'rule 2/0.*ridentifier 4321' ${PWD}/tcpdump.log
 }
 
 basic_cleanup()
 {
 	pft_cleanup
-	rm -f inetd-alcatraz.pid
-	rm -f tcpdump.log
 }
 
 atf_init_test_cases()

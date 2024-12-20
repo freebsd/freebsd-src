@@ -268,7 +268,7 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 		PCM_ACQUIRE(d);
 		CHN_FOREACH(c, d, channels.pcm) {
 			CHN_LOCK(c);
-			f = chn_findfeeder(c, FEEDER_RATE);
+			f = feeder_find(c, FEEDER_RATE);
 			if (f == NULL || f->data == NULL || CHN_STARTED(c)) {
 				CHN_UNLOCK(c);
 				continue;
@@ -431,11 +431,6 @@ z_roundpow2(int32_t v)
 static void
 z_feed_zoh(struct z_info *info, uint8_t *dst)
 {
-#if 0
-	z_copy(info->z_delay +
-	    (info->z_start * info->channels * info->bps), dst,
-	    info->channels * info->bps);
-#else
 	uint32_t cnt;
 	uint8_t *src;
 
@@ -449,7 +444,6 @@ z_feed_zoh(struct z_info *info, uint8_t *dst)
 	do {
 		*dst++ = *src++;
 	} while (--cnt != 0);
-#endif
 }
 
 /*
@@ -1171,14 +1165,6 @@ z_setup_adaptive_sinc:
 			info->z_scale = Z_ONE;
 		}
 
-#if 0
-#define Z_SCALE_DIV	10000
-#define Z_SCALE_LIMIT(s, v)						\
-	((((uint64_t)(s) * (v)) + (Z_SCALE_DIV >> 1)) / Z_SCALE_DIV)
-
-		info->z_scale = Z_SCALE_LIMIT(info->z_scale, 9780);
-#endif
-
 		/* Smallest drift increment. */
 		info->z_dx = info->z_dy / info->z_gy;
 
@@ -1672,12 +1658,6 @@ z_resampler_feed_internal(struct pcm_feeder *f, struct pcm_channel *c,
 			 */
 			do {
 				info->z_resample(info, dst);
-#if 0
-				startdrift = z_gy2gx(info, 1);
-				alphadrift = z_drift(info, startdrift, 1);
-				info->z_start += startdrift;
-				info->z_alpha += alphadrift;
-#else
 				info->z_alpha += alphadrift;
 				if (info->z_alpha < info->z_gy)
 					info->z_start += startdrift;
@@ -1685,7 +1665,6 @@ z_resampler_feed_internal(struct pcm_feeder *f, struct pcm_channel *c,
 					info->z_start += startdrift - 1;
 					info->z_alpha -= info->z_gy;
 				}
-#endif
 				dst += align;
 #ifdef Z_DIAGNOSTIC
 				info->z_cycle++;

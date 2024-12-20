@@ -37,8 +37,6 @@ __RCSID("$NetBSD: strncpy_chk.c,v 1.6 2015/05/09 15:42:21 christos Exp $");
 #include <ssp/string.h>
 #undef strncpy
 
-#include "ssp_internal.h"
-
 char *
 __strncpy_chk(char * __restrict dst, const char * __restrict src, size_t len,
     size_t slen)

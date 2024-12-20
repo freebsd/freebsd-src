@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/ocs_fc
 KMOD = ocs_fc
 

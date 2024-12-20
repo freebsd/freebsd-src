@@ -127,6 +127,7 @@ struct wps_data {
 	struct wps_nfc_pw_token *nfc_pw_token;
 
 	int multi_ap_backhaul_sta;
+	int multi_ap_profile;
 };
 
 

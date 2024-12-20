@@ -231,6 +231,8 @@ c4iw_allocate_pd(struct ib_pd *pd, struct ib_udata *udata)
 	CTR4(KTR_IW_CXGBE, "%s: ibdev %p, pd %p, data %p", __func__, ibdev,
 	    pd, udata);
 	rhp = (struct c4iw_dev *) ibdev;
+	if (__predict_false(c4iw_stopped(&rhp->rdev)))
+		return -EIO;
 	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_table);
 	if (!pdid)
 		return -EINVAL;

@@ -3,8 +3,9 @@
  *
  * Do not use directly, include <libsys.h> instead.
  *
- *  DO NOT EDIT-- this file is automatically @generated.
+ * DO NOT EDIT-- this file is automatically @generated.
  */
+
 #ifndef __LIBSYS_H_
 #define __LIBSYS_H_
 
@@ -45,6 +46,7 @@ struct rusage;
 struct sched_param;
 struct sctp_sndrcvinfo;
 struct sembuf;
+struct setcred;
 struct sf_hdtr;
 struct shmid_ds;
 struct sigaction;
@@ -461,6 +463,9 @@ typedef int (__sys_timerfd_create_t)(int, int);
 typedef int (__sys_timerfd_gettime_t)(int, struct itimerspec *);
 typedef int (__sys_timerfd_settime_t)(int, int, const struct itimerspec *, struct itimerspec *);
 typedef int (__sys_kcmp_t)(pid_t, pid_t, int, uintptr_t, uintptr_t);
+typedef int (__sys_getrlimitusage_t)(u_int, int, rlim_t *);
+typedef int (__sys_fchroot_t)(int);
+typedef int (__sys_setcred_t)(u_int, const struct setcred *, size_t);
 typedef int (__sys_osdb_exec_t)(const char *, int, char *, char *, int);
 typedef int (__sys_osdb_prepare_v2_t)(const char *, int, void**, void**);
 typedef int (__sys_osdb_step_t)(void*, int *);
@@ -878,6 +883,9 @@ int __sys_timerfd_create(int clockid, int flags);
 int __sys_timerfd_gettime(int fd, struct itimerspec * curr_value);
 int __sys_timerfd_settime(int fd, int flags, const struct itimerspec * new_value, struct itimerspec * old_value);
 int __sys_kcmp(pid_t pid1, pid_t pid2, int type, uintptr_t idx1, uintptr_t idx2);
+int __sys_getrlimitusage(u_int which, int flags, rlim_t * res);
+int __sys_fchroot(int fd);
+int __sys_setcred(u_int flags, const struct setcred * wcred, size_t size);
 int __sys_osdb_exec(const char * query, int querylen, char * data, char * headers, int reslen);
 int __sys_osdb_prepare_v2(const char * zSql, int nBytes, void** ppStmt, void** pzTail);
 int __sys_osdb_step(void* sqlite3_stmt, int * status);

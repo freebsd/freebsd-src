@@ -128,8 +128,8 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 {
 	struct packed_rrset_data* newd = (struct packed_rrset_data*)nd;
 	struct packed_rrset_data* cached = (struct packed_rrset_data*)cd;
-	/*	o if new data is expired, current data is better */
-	if( newd->ttl < timenow && cached->ttl >= timenow)
+	/*	o if new data is expired, cached data is better */
+	if( newd->ttl < timenow && timenow <= cached->ttl)
 		return 0;
 	/* 	o store if rrset has been validated 
 	 *  		everything better than bogus data 
@@ -140,9 +140,9 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 	if( cached->security == sec_status_bogus && 
 		newd->security != sec_status_bogus && !equal)
 		return 1;
-        /*      o if current RRset is more trustworthy - insert it */
+        /*      o if new RRset is more trustworthy - insert it */
         if( newd->trust > cached->trust ) {
-		/* if the cached rrset is bogus, and this one equal,
+		/* if the cached rrset is bogus, and new is equal,
 		 * do not update the TTL - let it expire. */
 		if(equal && cached->ttl >= timenow && 
 			cached->security == sec_status_bogus)
@@ -155,7 +155,7 @@ need_to_update_rrset(void* nd, void* cd, time_t timenow, int equal, int ns)
 	/*  o same trust, but different in data - insert it */
 	if( newd->trust == cached->trust && !equal ) {
 		/* if this is type NS, do not 'stick' to owner that changes
-		 * the NS RRset, but use the old TTL for the new data, and
+		 * the NS RRset, but use the cached TTL for the new data, and
 		 * update to fetch the latest data. ttl is not expired, because
 		 * that check was before this one. */
 		if(ns) {

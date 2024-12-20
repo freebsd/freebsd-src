@@ -817,7 +817,7 @@ twsi_attach(device_t dev)
 		twsi_detach(dev);
 		return (ENXIO);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	config_intrhook_oneshot(twsi_intr_start, dev);
 

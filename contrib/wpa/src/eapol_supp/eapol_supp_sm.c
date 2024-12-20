@@ -1281,11 +1281,12 @@ int eapol_sm_get_mib(struct eapol_sm *sm, char *buf, size_t buflen)
  * @src: Source MAC address of the EAPOL packet
  * @buf: Pointer to the beginning of the EAPOL data (EAPOL header)
  * @len: Length of the EAPOL frame
+ * @encrypted: Whether the frame was encrypted
  * Returns: 1 = EAPOL frame processed, 0 = not for EAPOL state machine,
  * -1 failure
  */
 int eapol_sm_rx_eapol(struct eapol_sm *sm, const u8 *src, const u8 *buf,
-		      size_t len)
+		      size_t len, enum frame_encryption encrypted)
 {
 	const struct ieee802_1x_hdr *hdr;
 	const struct ieee802_1x_eapol_key *key;
@@ -1295,6 +1296,14 @@ int eapol_sm_rx_eapol(struct eapol_sm *sm, const u8 *src, const u8 *buf,
 
 	if (sm == NULL)
 		return 0;
+
+	if (encrypted == FRAME_NOT_ENCRYPTED && sm->ctx->encryption_required &&
+	    sm->ctx->encryption_required(sm->ctx->ctx)) {
+		wpa_printf(MSG_DEBUG,
+			   "EAPOL: Discard unencrypted EAPOL frame when encryption since encryption was expected");
+		return 0;
+	}
+
 	sm->dot1xSuppEapolFramesRx++;
 	if (len < sizeof(*hdr)) {
 		sm->dot1xSuppInvalidEapolFramesRx++;
@@ -2127,9 +2136,15 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 	sm->authPeriod = 30;
 
 	os_memset(&conf, 0, sizeof(conf));
+#ifndef CONFIG_OPENSC_ENGINE_PATH
 	conf.opensc_engine_path = ctx->opensc_engine_path;
+#endif /* CONFIG_OPENSC_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_ENGINE_PATH
 	conf.pkcs11_engine_path = ctx->pkcs11_engine_path;
+#endif /* CONFIG_PKCS11_ENGINE_PATH */
+#ifndef CONFIG_PKCS11_MODULE_PATH
 	conf.pkcs11_module_path = ctx->pkcs11_module_path;
+#endif /* CONFIG_PKCS11_MODULE_PATH */
 	conf.openssl_ciphers = ctx->openssl_ciphers;
 	conf.wps = ctx->wps;
 	conf.cert_in_cb = ctx->cert_in_cb;

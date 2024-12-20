@@ -154,7 +154,7 @@ utility ignores any leading and trailing lines.
 .Pp
 The following options are available for
 .Nm uuencode :
-.Bl -tag -width ident
+.Bl -tag -width indent
 .It Fl m
 Use the Base64 method of encoding, rather than the traditional
 .Nm uuencode
@@ -169,7 +169,7 @@ instead of standard output.
 .Pp
 The following options are available for
 .Nm uudecode :
-.Bl -tag -width ident
+.Bl -tag -width indent
 .It Fl c
 Decode more than one uuencoded file from
 .Ar file
@@ -214,7 +214,7 @@ reasons.
 Additionally,
 .Nm b64encode
 accepts the following option:
-.Bl -tag -width ident
+.Bl -tag -width indent
 .It Fl w Ar column
 Wrap encoded output after
 .Ar column .
@@ -229,13 +229,14 @@ through a dedicated program:
 .Nm qp
 is a quoted-printable converter
 and accepts the following options:
-.Bl -tag -width ident
+.Bl -tag -width indent
 .It Fl u
 Decode.
 .It Fl o Ar output_file
 Output to
 .Ar output_file
 instead of standard output.
+.El
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.

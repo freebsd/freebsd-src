@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
 
   Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
@@ -29,7 +29,7 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-******************************************************************************/
+*****************************************************************************/
 
 
 #include "opt_inet.h"
@@ -58,13 +58,18 @@ static const char ixv_driver_version[] = "2.0.1-k";
  ************************************************************************/
 static const pci_vendor_info_t ixv_vendor_info_array[] =
 {
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF, "Intel(R) X520 82599 Virtual Function"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF, "Intel(R) X540 Virtual Function"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF, "Intel(R) X550 Virtual Function"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF, "Intel(R) X552 Virtual Function"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF, "Intel(R) X553 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF,
+	    "Intel(R) X520 82599 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF,
+	    "Intel(R) X540 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF,
+	    "Intel(R) X550 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF,
+	    "Intel(R) X552 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF,
+	    "Intel(R) X553 Virtual Function"),
 	/* required last entry */
-PVID_END
+	PVID_END
 };
 
 /************************************************************************
@@ -76,8 +81,10 @@ static int      ixv_if_attach_post(if_ctx_t);
 static int      ixv_if_detach(if_ctx_t);
 
 static int      ixv_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
-static int      ixv_if_tx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
-static int      ixv_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
+static int      ixv_if_tx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int,
+    int);
+static int      ixv_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int,
+    int);
 static void     ixv_if_queues_free(if_ctx_t);
 static void     ixv_identify_hardware(if_ctx_t);
 static void     ixv_init_device_features(struct ixgbe_softc *);
@@ -239,17 +246,17 @@ ixv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
     int ntxqs, int ntxqsets)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	if_softc_ctx_t     scctx = sc->shared;
+	if_softc_ctx_t scctx = sc->shared;
 	struct ix_tx_queue *que;
-	int                i, j, error;
+	int i, j, error;
 
 	MPASS(sc->num_tx_queues == ntxqsets);
 	MPASS(ntxqs == 1);
 
 	/* Allocate queue structure memory */
 	sc->tx_queues =
-	    (struct ix_tx_queue *)malloc(sizeof(struct ix_tx_queue) * ntxqsets,
-	                                 M_DEVBUF, M_NOWAIT | M_ZERO);
+	    (struct ix_tx_queue *)malloc(sizeof(struct ix_tx_queue) *
+	    ntxqsets, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!sc->tx_queues) {
 		device_printf(iflib_get_dev(ctx),
 		    "Unable to allocate TX ring memory\n");
@@ -263,13 +270,14 @@ ixv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		txr->sc =  que->sc = sc;
 
 		/* Allocate report status array */
-		if (!(txr->tx_rsq = (qidx_t *)malloc(sizeof(qidx_t) * scctx->isc_ntxd[0], M_DEVBUF, M_NOWAIT | M_ZERO))) {
+		if (!(txr->tx_rsq = (qidx_t *)malloc(sizeof(qidx_t) *
+		    scctx->isc_ntxd[0], M_DEVBUF, M_NOWAIT | M_ZERO))) {
 			error = ENOMEM;
 			goto fail;
 		}
 		for (j = 0; j < scctx->isc_ntxd[0]; j++)
 			txr->tx_rsq[j] = QIDX_INVALID;
-		/* get the virtual and physical address of the hardware queues */
+		/* get virtual and physical address of the hardware queues */
 		txr->tail = IXGBE_VFTDT(txr->me);
 		txr->tx_base = (union ixgbe_adv_tx_desc *)vaddrs[i*ntxqs];
 		txr->tx_paddr = paddrs[i*ntxqs];
@@ -299,15 +307,15 @@ ixv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ix_rx_queue *que;
-	int                i, error;
+	int i, error;
 
 	MPASS(sc->num_rx_queues == nrxqsets);
 	MPASS(nrxqs == 1);
 
 	/* Allocate queue structure memory */
 	sc->rx_queues =
-	    (struct ix_rx_queue *)malloc(sizeof(struct ix_rx_queue) * nrxqsets,
-	                                 M_DEVBUF, M_NOWAIT | M_ZERO);
+	    (struct ix_rx_queue *)malloc(sizeof(struct ix_rx_queue) *
+	    nrxqsets, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!sc->rx_queues) {
 		device_printf(iflib_get_dev(ctx),
 		    "Unable to allocate TX ring memory\n");
@@ -348,7 +356,7 @@ ixv_if_queues_free(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ix_tx_queue *que = sc->tx_queues;
-	int                i;
+	int i;
 
 	if (que == NULL)
 		goto free;
@@ -382,11 +390,11 @@ free:
 static int
 ixv_if_attach_pre(if_ctx_t ctx)
 {
-	struct ixgbe_softc  *sc;
-	device_t        dev;
-	if_softc_ctx_t  scctx;
+	struct ixgbe_softc *sc;
+	device_t dev;
+	if_softc_ctx_t scctx;
 	struct ixgbe_hw *hw;
-	int             error = 0;
+	int error = 0;
 
 	INIT_DEBUGOUT("ixv_attach: begin");
 
@@ -458,7 +466,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	/* Check if VF was disabled by PF */
 	error = hw->mac.ops.get_link_state(hw, &sc->link_enabled);
 	if (error) {
-		/* PF is not capable of controlling VF state. Enable the link. */
+		/* PF is not capable of controlling VF state. Enable link. */
 		sc->link_enabled = true;
 	}
 
@@ -522,8 +530,8 @@ static int
 ixv_if_attach_post(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	device_t       dev = iflib_get_dev(ctx);
-	int            error = 0;
+	device_t dev = iflib_get_dev(ctx);
+	int error = 0;
 
 	/* Setup OS specific network interface */
 	error = ixv_setup_interface(ctx);
@@ -568,7 +576,7 @@ ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	int            error = 0;
+	int error = 0;
 
 	IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
 	if (mtu > IXGBE_MAX_FRAME_SIZE - IXGBE_MTU_HDR) {
@@ -596,9 +604,9 @@ ixv_if_init(if_ctx_t ctx)
 {
 	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	device_t        dev = iflib_get_dev(ctx);
+	device_t dev = iflib_get_dev(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
-	int             error = 0;
+	int error = 0;
 
 	INIT_DEBUGOUT("ixv_if_init: begin");
 	hw->adapter_stopped = false;
@@ -670,8 +678,8 @@ static inline void
 ixv_enable_queue(struct ixgbe_softc *sc, u32 vector)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u32             queue = 1 << vector;
-	u32             mask;
+	u32 queue = 1 << vector;
+	u32 mask;
 
 	mask = (IXGBE_EIMS_RTX_QUEUE & queue);
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
@@ -684,8 +692,8 @@ static inline void
 ixv_disable_queue(struct ixgbe_softc *sc, u32 vector)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u64             queue = (u64)(1 << vector);
-	u32             mask;
+	u64 queue = (u64)(1 << vector);
+	u32 mask;
 
 	mask = (IXGBE_EIMS_RTX_QUEUE & queue);
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMC, mask);
@@ -699,7 +707,7 @@ static int
 ixv_msix_que(void *arg)
 {
 	struct ix_rx_queue *que = arg;
-	struct ixgbe_softc     *sc = que->sc;
+	struct ixgbe_softc *sc = que->sc;
 
 	ixv_disable_queue(sc, que->msix);
 	++que->irqs;
@@ -713,9 +721,9 @@ ixv_msix_que(void *arg)
 static int
 ixv_msix_mbx(void *arg)
 {
-	struct ixgbe_softc  *sc = arg;
+	struct ixgbe_softc *sc = arg;
 	struct ixgbe_hw *hw = &sc->hw;
-	u32             reg;
+	u32 reg;
 
 	++sc->link_irq;
 
@@ -811,11 +819,13 @@ static int
 ixv_negotiate_api(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	int             mbx_api[] = { ixgbe_mbox_api_12,
-	                              ixgbe_mbox_api_11,
-	                              ixgbe_mbox_api_10,
-	                              ixgbe_mbox_api_unknown };
-	int             i = 0;
+	int mbx_api[] = {
+		ixgbe_mbox_api_12,
+		ixgbe_mbox_api_11,
+		ixgbe_mbox_api_10,
+		ixgbe_mbox_api_unknown
+	};
+	int i = 0;
 
 	while (mbx_api[i] != ixgbe_mbox_api_unknown) {
 		if (ixgbevf_negotiate_api_version(hw, mbx_api[i]) == 0)
@@ -830,7 +840,8 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 static u_int
 ixv_if_multi_set_cb(void *cb_arg, struct sockaddr_dl *addr, u_int cnt)
 {
-	bcopy(LLADDR(addr), &((u8 *)cb_arg)[cnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
+	bcopy(LLADDR(addr),
+	    &((u8 *)cb_arg)[cnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
 	    IXGBE_ETH_LENGTH_OF_ADDRESS);
 
 	return (++cnt);
@@ -844,11 +855,11 @@ ixv_if_multi_set_cb(void *cb_arg, struct sockaddr_dl *addr, u_int cnt)
 static void
 ixv_if_multi_set(if_ctx_t ctx)
 {
-	u8       mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
-	struct ixgbe_softc     *sc = iflib_get_softc(ctx);
-	u8                 *update_ptr;
-	if_t               ifp = iflib_get_ifp(ctx);
-	int                mcnt = 0;
+	u8 mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	u8 *update_ptr;
+	if_t ifp = iflib_get_ifp(ctx);
+	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("ixv_if_multi_set: begin");
 
@@ -908,8 +919,8 @@ static void
 ixv_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	device_t       dev = iflib_get_dev(ctx);
-	s32            status;
+	device_t dev = iflib_get_dev(ctx);
+	s32 status;
 
 	sc->hw.mac.get_link_status = true;
 
@@ -955,7 +966,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 static void
 ixv_if_stop(if_ctx_t ctx)
 {
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 
 	INIT_DEBUGOUT("ixv_stop: begin\n");
@@ -981,8 +992,8 @@ ixv_if_stop(if_ctx_t ctx)
 static void
 ixv_identify_hardware(if_ctx_t ctx)
 {
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
-	device_t        dev = iflib_get_dev(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	device_t dev = iflib_get_dev(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 
 	/* Save off the information about this board */
@@ -1023,22 +1034,24 @@ static int
 ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	device_t           dev = iflib_get_dev(ctx);
+	device_t dev = iflib_get_dev(ctx);
 	struct ix_rx_queue *rx_que = sc->rx_queues;
 	struct ix_tx_queue *tx_que;
-	int                error, rid, vector = 0;
-	char               buf[16];
+	int error, rid, vector = 0;
+	char buf[16];
 
 	for (int i = 0; i < sc->num_rx_queues; i++, vector++, rx_que++) {
 		rid = vector + 1;
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RXTX, ixv_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RXTX, ixv_msix_que, rx_que, rx_que->rxr.me,
+		    buf);
 
 		if (error) {
 			device_printf(iflib_get_dev(ctx),
-			    "Failed to allocate que int %d err: %d", i, error);
+			    "Failed to allocate que int %d err: %d",
+			    i, error);
 			sc->num_rx_queues = i + 1;
 			goto fail;
 		}
@@ -1073,11 +1086,15 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	 */
 	if (sc->hw.mac.type == ixgbe_mac_82599_vf) {
 		int msix_ctrl;
-		pci_find_cap(dev, PCIY_MSIX, &rid);
-		rid += PCIR_MSIX_CTRL;
-		msix_ctrl = pci_read_config(dev, rid, 2);
-		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-		pci_write_config(dev, rid, msix_ctrl, 2);
+		if (pci_find_cap(dev, PCIY_MSIX, &rid)) {
+			device_printf(dev,
+			    "Finding MSIX capability failed\n");
+		} else {
+			rid += PCIR_MSIX_CTRL;
+			msix_ctrl = pci_read_config(dev, rid, 2);
+			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+			pci_write_config(dev, rid, msix_ctrl, 2);
+		}
 	}
 
 	return (0);
@@ -1098,21 +1115,21 @@ static int
 ixv_allocate_pci_resources(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	device_t       dev = iflib_get_dev(ctx);
-	int            rid;
+	device_t dev = iflib_get_dev(ctx);
+	int rid;
 
 	rid = PCIR_BAR(0);
 	sc->pci_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
 	if (!(sc->pci_mem)) {
-		device_printf(dev, "Unable to allocate bus resource: memory\n");
+		device_printf(dev,
+		    "Unable to allocate bus resource: memory\n");
 		return (ENXIO);
 	}
 
 	sc->osdep.mem_bus_space_tag = rman_get_bustag(sc->pci_mem);
-	sc->osdep.mem_bus_space_handle =
-	    rman_get_bushandle(sc->pci_mem);
+	sc->osdep.mem_bus_space_handle = rman_get_bushandle(sc->pci_mem);
 	sc->hw.hw_addr = (u8 *)&sc->osdep.mem_bus_space_handle;
 
 	return (0);
@@ -1126,7 +1143,7 @@ ixv_free_pci_resources(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ix_rx_queue *que = sc->rx_queues;
-	device_t           dev = iflib_get_dev(ctx);
+	device_t dev = iflib_get_dev(ctx);
 
 	/* Release all MSI-X queue resources */
 	if (sc->intr_type == IFLIB_INTR_MSIX)
@@ -1153,7 +1170,7 @@ ixv_setup_interface(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = sc->shared;
-	if_t           ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	INIT_DEBUGOUT("ixv_setup_interface: begin");
 
@@ -1175,7 +1192,7 @@ static uint64_t
 ixv_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	if_t           ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	switch (cnt) {
 	case IFCOUNTER_IPACKETS:
@@ -1219,16 +1236,16 @@ static void
 ixv_initialize_transmit_units(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	struct ixgbe_hw    *hw = &sc->hw;
-	if_softc_ctx_t     scctx = sc->shared;
+	struct ixgbe_hw *hw = &sc->hw;
+	if_softc_ctx_t scctx = sc->shared;
 	struct ix_tx_queue *que = sc->tx_queues;
-	int                i;
+	int i;
 
 	for (i = 0; i < sc->num_tx_queues; i++, que++) {
 		struct tx_ring *txr = &que->txr;
-		u64            tdba = txr->tx_paddr;
-		u32            txctrl, txdctl;
-		int            j = txr->me;
+		u64 tdba = txr->tx_paddr;
+		u32 txctrl, txdctl;
+		int j = txr->me;
 
 		/* Set WTHRESH to 8, burst writeback */
 		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(j));
@@ -1278,10 +1295,10 @@ static void
 ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u32             reta = 0, mrqc, rss_key[10];
-	int             queue_id;
-	int             i, j;
-	u32             rss_hash_config;
+	u32 reta = 0, mrqc, rss_key[10];
+	int queue_id;
+	int i, j;
+	u32 rss_hash_config;
 
 	if (sc->feat_en & IXGBE_FEATURE_RSS) {
 		/* Fetch the configured RSS key */
@@ -1348,22 +1365,25 @@ ixv_initialize_rss_mapping(struct ixgbe_softc *sc)
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
-		device_printf(sc->dev, "%s: RSS_HASHTYPE_RSS_IPV6_EX defined, but not supported\n",
-		    __func__);
+		device_printf(sc->dev,
+		    "%s: RSS_HASHTYPE_RSS_IPV6_EX defined,"
+		    " but not supported\n", __func__);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
-		device_printf(sc->dev, "%s: RSS_HASHTYPE_RSS_TCP_IPV6_EX defined, but not supported\n",
-		    __func__);
+		device_printf(sc->dev,
+		    "%s: RSS_HASHTYPE_RSS_TCP_IPV6_EX defined,"
+		    " but not supported\n", __func__);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
-		device_printf(sc->dev, "%s: RSS_HASHTYPE_RSS_UDP_IPV6_EX defined, but not supported\n",
-		    __func__);
+		device_printf(sc->dev,
+		    "%s: RSS_HASHTYPE_RSS_UDP_IPV6_EX defined,"
+		    " but not supported\n", __func__);
 	IXGBE_WRITE_REG(hw, IXGBE_VFMRQC, mrqc);
 } /* ixv_initialize_rss_mapping */
 
-
+#define BSIZEPKT_ROUNDUP ((1<<IXGBE_SRRCTL_BSIZEPKT_SHIFT)-1)
 /************************************************************************
  * ixv_initialize_receive_units - Setup receive registers and features.
  ************************************************************************/
@@ -1371,22 +1391,22 @@ static void
 ixv_initialize_receive_units(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	if_softc_ctx_t     scctx;
-	struct ixgbe_hw    *hw = &sc->hw;
-	if_t               ifp = iflib_get_ifp(ctx);
+	if_softc_ctx_t scctx;
+	struct ixgbe_hw *hw = &sc->hw;
+#ifdef DEV_NETMAP
+	if_t ifp = iflib_get_ifp(ctx);
+#endif
 	struct ix_rx_queue *que = sc->rx_queues;
-	u32                bufsz, psrtype;
+	u32 bufsz, psrtype;
 
-	if (if_getmtu(ifp) > ETHERMTU)
-		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	else
-		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	bufsz = (sc->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >>
+	    IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 
-	psrtype = IXGBE_PSRTYPE_TCPHDR
-	        | IXGBE_PSRTYPE_UDPHDR
-	        | IXGBE_PSRTYPE_IPV4HDR
-	        | IXGBE_PSRTYPE_IPV6HDR
-	        | IXGBE_PSRTYPE_L2HDR;
+	psrtype = IXGBE_PSRTYPE_TCPHDR |
+	    IXGBE_PSRTYPE_UDPHDR |
+	    IXGBE_PSRTYPE_IPV4HDR |
+	    IXGBE_PSRTYPE_IPV6HDR |
+	    IXGBE_PSRTYPE_L2HDR;
 
 	if (sc->num_rx_queues > 1)
 		psrtype |= 1 << 29;
@@ -1395,15 +1415,18 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 
 	/* Tell PF our max_frame size */
 	if (ixgbevf_rlpml_set_vf(hw, sc->max_frame_size) != 0) {
-		device_printf(sc->dev, "There is a problem with the PF setup.  It is likely the receive unit for this VF will not function correctly.\n");
+		device_printf(sc->dev,
+		    "There is a problem with the PF setup.  It is likely the"
+		    " receive unit for this VF will not function correctly."
+		    "\n");
 	}
 	scctx = sc->shared;
 
 	for (int i = 0; i < sc->num_rx_queues; i++, que++) {
 		struct rx_ring *rxr = &que->rxr;
-		u64            rdba = rxr->rx_paddr;
-		u32            reg, rxdctl;
-		int            j = rxr->me;
+		u64 rdba = rxr->rx_paddr;
+		u32 reg, rxdctl;
+		int j = rxr->me;
 
 		/* Disable the queue */
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
@@ -1494,10 +1517,10 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 static void
 ixv_setup_vlan_support(if_ctx_t ctx)
 {
-	if_t            ifp = iflib_get_ifp(ctx);
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
-	u32             ctrl, vid, vfta, retry;
+	u32 ctrl, vid, vfta, retry;
 
 	/*
 	 * We get here thru if_init, meaning
@@ -1568,7 +1591,7 @@ static void
 ixv_if_register_vlan(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16            index, bit;
+	u16 index, bit;
 
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
@@ -1586,7 +1609,7 @@ static void
 ixv_if_unregister_vlan(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16            index, bit;
+	u16 index, bit;
 
 	index = (vtag >> 5) & 0x7F;
 	bit = vtag & 0x1F;
@@ -1600,10 +1623,10 @@ ixv_if_unregister_vlan(if_ctx_t ctx, u16 vtag)
 static void
 ixv_if_enable_intr(if_ctx_t ctx)
 {
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ix_rx_queue *que = sc->rx_queues;
-	u32             mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
+	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
 
@@ -1635,7 +1658,7 @@ ixv_if_disable_intr(if_ctx_t ctx)
 static int
 ixv_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 {
-	struct ixgbe_softc	*sc = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ix_rx_queue *que = &sc->rx_queues[rxqid];
 
 	ixv_enable_queue(sc, que->rxr.me);
@@ -1655,7 +1678,7 @@ static void
 ixv_set_ivar(struct ixgbe_softc *sc, u8 entry, u8 vector, s8 type)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	u32             ivar, index;
+	u32 ivar, index;
 
 	vector |= IXGBE_IVAR_ALLOC_VAL;
 
@@ -1805,18 +1828,18 @@ ixv_update_stats(struct ixgbe_softc *sc)
 static void
 ixv_add_stats_sysctls(struct ixgbe_softc *sc)
 {
-	device_t                dev = sc->dev;
-	struct ix_tx_queue      *tx_que = sc->tx_queues;
-	struct ix_rx_queue      *rx_que = sc->rx_queues;
-	struct sysctl_ctx_list  *ctx = device_get_sysctl_ctx(dev);
-	struct sysctl_oid       *tree = device_get_sysctl_tree(dev);
-	struct sysctl_oid_list  *child = SYSCTL_CHILDREN(tree);
+	device_t dev = sc->dev;
+	struct ix_tx_queue *tx_que = sc->tx_queues;
+	struct ix_rx_queue *rx_que = sc->rx_queues;
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 	struct ixgbevf_hw_stats *stats = &sc->stats.vf;
-	struct sysctl_oid       *stat_node, *queue_node;
-	struct sysctl_oid_list  *stat_list, *queue_list;
+	struct sysctl_oid *stat_node, *queue_node;
+	struct sysctl_oid_list *stat_list, *queue_list;
 
 #define QUEUE_NAME_LEN 32
-	char                    namebuf[QUEUE_NAME_LEN];
+	char namebuf[QUEUE_NAME_LEN];
 
 	/* Driver Statistics */
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
@@ -1919,9 +1942,9 @@ ixv_sysctl_debug(SYSCTL_HANDLER_ARGS)
 static void
 ixv_init_device_features(struct ixgbe_softc *sc)
 {
-	sc->feat_cap = IXGBE_FEATURE_NETMAP
-				    | IXGBE_FEATURE_VF
-				    | IXGBE_FEATURE_LEGACY_TX;
+	sc->feat_cap = IXGBE_FEATURE_NETMAP |
+	    IXGBE_FEATURE_VF |
+	    IXGBE_FEATURE_LEGACY_TX;
 
 	/* A tad short on feature flags for VFs, atm. */
 	switch (sc->hw.mac.type) {

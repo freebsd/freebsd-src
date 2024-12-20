@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -33,13 +33,13 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_page.c,v 1.15 2020/12/11 23:15:26 tom Exp $")
+MODULE_ID("$Id: fld_page.c,v 1.16 2021/06/17 21:20:30 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_new_page(FIELD *field, bool new_page_flag)
-|   
-|   Description   :  Marks the field as the beginning of a new page of 
+|
+|   Description   :  Marks the field as the beginning of a new page of
 |                    the form.
 |
 |   Return Values :  E_OK         - success
@@ -63,9 +63,9 @@ set_new_page(FIELD *field, bool new_page_flag)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  bool new_page(const FIELD *field)
-|   
+|
 |   Description   :  Retrieve the information whether or not the field starts
 |                    a new page on the form.
 |

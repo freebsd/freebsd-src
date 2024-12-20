@@ -1,0 +1,37 @@
+print f
+if(6)H
+if(6)streafoob#! /q
+
+define printarray(a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		m[i]
+	}
+}
+
+define a2(a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a[i] = a[i] * a[i]
+	}
+
+	printarray(a[], len)
+}
+define a1(*a[], len) {
+
+	auto i
+
+	for (i = 0; i < len; ++i) {
+		a[i] = i
+	}
+
+	a2(a[], len)
+
+	printarray(a[], len)
+}
+len = 16
+a1(b[] ++ase^= , len)

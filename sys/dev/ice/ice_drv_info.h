@@ -62,16 +62,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "1.39.13-k";
+const char ice_driver_version[] = "1.43.2-k";
 const uint8_t ice_major_version = 1;
-const uint8_t ice_minor_version = 39;
-const uint8_t ice_patch_version = 13;
+const uint8_t ice_minor_version = 43;
+const uint8_t ice_patch_version = 2;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 1.39.13-k")
+	PVID(vendor, devid, name " - 1.43.2-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.39.13-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.43.2-k")
 
 /**
  * @var ice_vendor_info_array
@@ -190,6 +190,45 @@ static const pci_vendor_info_t ice_vendor_info_array[] = {
 		"Intel(R) Ethernet Network Adapter E810-XXV-2 for OCP 3.0"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810_XXV_SFP,
 		"Intel(R) Ethernet Controller E810-XXV for SFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_BACKPLANE,
+		"Intel(R) Ethernet Connection E830-CC for backplane"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_QSFP56,
+		  ICE_INTEL_VENDOR_ID, 0x0002, 0,
+		  "Intel(R) Ethernet Network Adapter E830-C-Q2 for OCP 3.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_QSFP56,
+		  ICE_INTEL_VENDOR_ID, 0x0004, 0,
+		  "Intel(R) Ethernet Network Adapter E830-CC-Q1 for OCP 3.0"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_QSFP56,
+		"Intel(R) Ethernet Connection E830-CC for QSFP56"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
+		  ICE_INTEL_VENDOR_ID, 0x0001, 0,
+		  "Intel(R) Ethernet Network Adapter E830-XXV-2 for OCP 3.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
+		  ICE_INTEL_VENDOR_ID, 0x0003, 0,
+		  "Intel(R) Ethernet Network Adapter E830-XXV-2"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
+		  ICE_INTEL_VENDOR_ID, 0x0004, 0,
+		  "Intel(R) Ethernet Network Adapter E830-XXV-4 for OCP 3.0"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
+		"Intel(R) Ethernet Connection E830-CC for SFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830C_BACKPLANE,
+		"Intel(R) Ethernet Connection E830-C for backplane"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830C_QSFP,
+		"Intel(R) Ethernet Connection E830-C for QSFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830C_SFP,
+		"Intel(R) Ethernet Connection E830-C for SFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_BACKPLANE,
+		"Intel(R) Ethernet Connection E830-L for backplane"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_QSFP,
+		"Intel(R) Ethernet Connection E830-L for QSFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_SFP,
+		"Intel(R) Ethernet Connection E830-L for SFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E825C_BACKPLANE,
+		"Intel(R) Ethernet Connection E825-C for backplane"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E825C_QSFP,
+		"Intel(R) Ethernet Connection E825-C for QSFP"),
+	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E825C_SFP,
+		"Intel(R) Ethernet Connection E825-C for SFP"),
 	PVID_END
 };
 

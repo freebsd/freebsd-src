@@ -252,11 +252,14 @@ int dladdr(const void *, Dl_info *) __exported;
 void dllockinit(void *, void *(*)(void *), void (*)(void *), void (*)(void *),
     void (*)(void *), void (*)(void *), void (*)(void *)) __exported;
 int dlinfo(void *, int , void *) __exported;
+int _dl_iterate_phdr_locked(__dl_iterate_hdr_callback, void *) __exported;
 int dl_iterate_phdr(__dl_iterate_hdr_callback, void *) __exported;
 int _rtld_addr_phdr(const void *, struct dl_phdr_info *) __exported;
 int _rtld_get_stack_prot(void) __exported;
 int _rtld_is_dlopened(void *) __exported;
 void _rtld_error(const char *, ...) __exported;
+const char *rtld_get_var(const char *name) __exported;
+int rtld_set_var(const char *name, const char *val) __exported;
 
 /* Only here to fix -Wmissing-prototypes warnings */
 int __getosreldate(void);
@@ -343,67 +346,49 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 	utrace(&ut, sizeof(ut));
 }
 
-enum {
-	LD_BIND_NOW = 0,
-	LD_PRELOAD,
-	LD_LIBMAP,
-	LD_LIBRARY_PATH,
-	LD_LIBRARY_PATH_FDS,
-	LD_LIBMAP_DISABLE,
-	LD_BIND_NOT,
-	LD_DEBUG,
-	LD_ELF_HINTS_PATH,
-	LD_LOADFLTR,
-	LD_LIBRARY_PATH_RPATH,
-	LD_PRELOAD_FDS,
-	LD_DYNAMIC_WEAK,
-	LD_TRACE_LOADED_OBJECTS,
-	LD_UTRACE,
-	LD_DUMP_REL_PRE,
-	LD_DUMP_REL_POST,
-	LD_TRACE_LOADED_OBJECTS_PROGNAME,
-	LD_TRACE_LOADED_OBJECTS_FMT1,
-	LD_TRACE_LOADED_OBJECTS_FMT2,
-	LD_TRACE_LOADED_OBJECTS_ALL,
-	LD_SHOW_AUXV,
-	LD_STATIC_TLS_EXTRA,
-};
-
 struct ld_env_var_desc {
 	const char * const n;
 	const char *val;
-	const bool unsecure;
+	const bool unsecure:1;
+	const bool can_update:1;
+	const bool debug:1;
+	bool owned:1;
 };
-#define LD_ENV_DESC(var, unsec) \
-    [LD_##var] = { .n = #var, .unsecure = unsec }
+#define LD_ENV_DESC(var, unsec, ...)		\
+	[LD_##var] = {				\
+	    .n = #var,				\
+	    .unsecure = unsec,			\
+	    __VA_ARGS__				\
+	}
 
 static struct ld_env_var_desc ld_env_vars[] = {
 	LD_ENV_DESC(BIND_NOW, false),
 	LD_ENV_DESC(PRELOAD, true),
 	LD_ENV_DESC(LIBMAP, true),
-	LD_ENV_DESC(LIBRARY_PATH, true),
-	LD_ENV_DESC(LIBRARY_PATH_FDS, true),
+	LD_ENV_DESC(LIBRARY_PATH, true, .can_update = true),
+	LD_ENV_DESC(LIBRARY_PATH_FDS, true, .can_update = true),
 	LD_ENV_DESC(LIBMAP_DISABLE, true),
 	LD_ENV_DESC(BIND_NOT, true),
-	LD_ENV_DESC(DEBUG, true),
+	LD_ENV_DESC(DEBUG, true, .can_update = true, .debug = true),
 	LD_ENV_DESC(ELF_HINTS_PATH, true),
 	LD_ENV_DESC(LOADFLTR, true),
-	LD_ENV_DESC(LIBRARY_PATH_RPATH, true),
+	LD_ENV_DESC(LIBRARY_PATH_RPATH, true, .can_update = true),
 	LD_ENV_DESC(PRELOAD_FDS, true),
-	LD_ENV_DESC(DYNAMIC_WEAK, true),
+	LD_ENV_DESC(DYNAMIC_WEAK, true, .can_update = true),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS, false),
-	LD_ENV_DESC(UTRACE, false),
-	LD_ENV_DESC(DUMP_REL_PRE, false),
-	LD_ENV_DESC(DUMP_REL_POST, false),
+	LD_ENV_DESC(UTRACE, false, .can_update = true),
+	LD_ENV_DESC(DUMP_REL_PRE, false, .can_update = true),
+	LD_ENV_DESC(DUMP_REL_POST, false, .can_update = true),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_PROGNAME, false),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT1, false),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT2, false),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_ALL, false),
 	LD_ENV_DESC(SHOW_AUXV, false),
 	LD_ENV_DESC(STATIC_TLS_EXTRA, false),
+	LD_ENV_DESC(NO_DL_ITERATE_PHDR_AFTER_FORK, false),
 };
 
-static const char *
+const char *
 ld_get_env_var(int idx)
 {
 	return (ld_env_vars[idx].val);
@@ -929,7 +914,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
-    ifunc_init(aux);
+    ifunc_init(aux_info);
 
     /*
      * Setup TLS for main thread.  This must be done after the
@@ -1687,12 +1672,6 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->stack_flags = ph->p_flags;
 	    break;
 
-	case PT_GNU_RELRO:
-	    obj->relro_page = obj->relocbase + rtld_trunc_page(ph->p_vaddr);
-	    obj->relro_size = rtld_trunc_page(ph->p_vaddr + ph->p_memsz) -
-	      rtld_trunc_page(ph->p_vaddr);
-	    break;
-
 	case PT_NOTE:
 	    note_start = (Elf_Addr)obj->relocbase + ph->p_vaddr;
 	    note_end = note_start + ph->p_filesz;
@@ -2384,11 +2363,6 @@ parse_rtld_phdr(Obj_Entry *obj)
 		case PT_GNU_STACK:
 			obj->stack_flags = ph->p_flags;
 			break;
-		case PT_GNU_RELRO:
-			obj->relro_page = obj->relocbase +
-			    rtld_trunc_page(ph->p_vaddr);
-			obj->relro_size = rtld_round_page(ph->p_memsz);
-			break;
 		case PT_NOTE:
 			note_start = (Elf_Addr)obj->relocbase + ph->p_vaddr;
 			note_end = note_start + ph->p_filesz;
@@ -2411,11 +2385,6 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     const Elf_Dyn *dyn_rpath;
     const Elf_Dyn *dyn_soname;
     const Elf_Dyn *dyn_runpath;
-
-#ifdef RTLD_INIT_PAGESIZES_EARLY
-    /* The page size is required by the dynamic memory allocator. */
-    init_pagesizes(aux_info);
-#endif
 
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
@@ -2451,10 +2420,8 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
 
-#ifndef RTLD_INIT_PAGESIZES_EARLY
     /* The page size is required by the dynamic memory allocator. */
     init_pagesizes(aux_info);
-#endif
 
     if (aux_info[AT_OSRELDATE] != NULL)
 	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
@@ -3350,7 +3317,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	    lockstate) == -1)
 		return (-1);
 
-	if (!obj->mainprog && obj_enforce_relro(obj) == -1)
+	if (obj != rtldobj && !obj->mainprog && obj_enforce_relro(obj) == -1)
 		return (-1);
 
 	/*
@@ -4215,6 +4182,29 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 	    obj->tlsindex, 0, true) + TLS_DTV_OFFSET;
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
+}
+
+/*
+ * It's completely UB to actually use this, so extreme caution is advised.  It's
+ * probably not what you want.
+ */
+int
+_dl_iterate_phdr_locked(__dl_iterate_hdr_callback callback, void *param)
+{
+	struct dl_phdr_info phdr_info;
+	Obj_Entry *obj;
+	int error;
+
+	for (obj = globallist_curr(TAILQ_FIRST(&obj_list)); obj != NULL;
+	    obj = globallist_next(obj)) {
+		rtld_fill_dl_phdr_info(obj, &phdr_info);
+		error = callback(&phdr_info, sizeof(phdr_info), param);
+		if (error != 0)
+			return (error);
+	}
+
+	rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
+	return (callback(&phdr_info, sizeof(phdr_info), param));
 }
 
 int
@@ -5908,12 +5898,26 @@ _rtld_is_dlopened(void *arg)
 static int
 obj_remap_relro(Obj_Entry *obj, int prot)
 {
+	const Elf_Phdr *ph;
+	caddr_t relro_page;
+	size_t relro_size;
 
-	if (obj->relro_size > 0 && mprotect(obj->relro_page, obj->relro_size,
-	    prot) == -1) {
-		_rtld_error("%s: Cannot set relro protection to %#x: %s",
-		    obj->path, prot, rtld_strerror(errno));
-		return (-1);
+	for (ph = obj->phdr;  (const char *)ph < (const char *)obj->phdr +
+	    obj->phsize; ph++) {
+		switch (ph->p_type) {
+		case PT_GNU_RELRO:
+			relro_page = obj->relocbase +
+			    rtld_trunc_page(ph->p_vaddr);
+			relro_size =
+			    rtld_round_page(ph->p_vaddr + ph->p_memsz) -
+			    rtld_trunc_page(ph->p_vaddr);
+			if (mprotect(relro_page, relro_size, prot) == -1) {
+				_rtld_error("%s: Cannot set relro protection to %#x: %s",
+				    obj->path, prot, rtld_strerror(errno));
+				return (-1);
+			}
+			break;
+		}
 	}
 	return (0);
 }
@@ -6349,6 +6353,46 @@ dump_auxv(Elf_Auxinfo **aux_info)
 		}
 		rtld_fdprintf(STDOUT_FILENO, "\n");
 	}
+}
+
+const char *
+rtld_get_var(const char *name)
+{
+	const struct ld_env_var_desc *lvd;
+	u_int i;
+
+	for (i = 0; i < nitems(ld_env_vars); i++) {
+		lvd = &ld_env_vars[i];
+		if (strcmp(lvd->n, name) == 0)
+			return (lvd->val);
+	}
+	return (NULL);
+}
+
+int
+rtld_set_var(const char *name, const char *val)
+{
+	struct ld_env_var_desc *lvd;
+	u_int i;
+
+	for (i = 0; i < nitems(ld_env_vars); i++) {
+		lvd = &ld_env_vars[i];
+		if (strcmp(lvd->n, name) != 0)
+			continue;
+		if (!lvd->can_update || (lvd->unsecure && !trust))
+			return (EPERM);
+		if (lvd->owned)
+			free(__DECONST(char *, lvd->val));
+		if (val != NULL)
+			lvd->val = xstrdup(val);
+		else
+			lvd->val = NULL;
+		lvd->owned = true;
+		if (lvd->debug)
+			debug = lvd->val != NULL && *lvd->val != '\0';
+		return (0);
+	}
+	return (ENOENT);
 }
 
 /*

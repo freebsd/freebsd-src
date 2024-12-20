@@ -1,4 +1,3 @@
-
 # We exclude several subdirectories: nfs and sysevent do not compile on
 # FreeBSD, and docsExamples doesn't seem amenable to automated testing.
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2024 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -149,7 +149,7 @@ bc_args_redefine(const char* keyword)
 #endif // BC_ENABLED
 
 void
-bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
+bc_args(int argc, const char* argv[], bool exit_exprs, BcBigDig* scale,
         BcBigDig* ibase, BcBigDig* obase)
 {
 	int c;
@@ -157,7 +157,7 @@ bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
 	bool do_exit = false, version = false;
 	BcOpt opts;
 #if BC_ENABLE_EXTRA_MATH
-	char* seed = NULL;
+	const char* seed = NULL;
 #endif // BC_ENABLE_EXTRA_MATH
 
 	BC_SIG_ASSERT_LOCKED;

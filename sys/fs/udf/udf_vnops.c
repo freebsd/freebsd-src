@@ -800,8 +800,6 @@ udf_readdir(struct vop_readdir_args *a)
 		 */
 		ncookies = uio->uio_resid / 8;
 		cookies = malloc(sizeof(*cookies) * ncookies, M_TEMP, M_WAITOK);
-		if (cookies == NULL)
-			return (ENOMEM);
 		uiodir.ncookies = ncookies;
 		uiodir.cookies = cookies;
 		uiodir.acookies = 0;
@@ -1276,6 +1274,8 @@ udf_vptofh(struct vop_vptofh_args *a)
 {
 	struct udf_node *node;
 	struct ifid *ifhp;
+	_Static_assert(sizeof(struct ifid) <= sizeof(struct fid),
+	    "struct ifid cannot be larger than struct fid");
 
 	node = VTON(a->a_vp);
 	ifhp = (struct ifid *)a->a_fhp;

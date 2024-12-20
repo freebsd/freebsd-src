@@ -30,8 +30,13 @@
  */
 #define GREAT_SNR 25
 
-#define IS_2P4GHZ(n) (n >= 2412 && n <= 2484)
-#define IS_5GHZ(n) (n > 4000 && n < 5895)
+/*
+ * IEEE Sts 802.11ax-2021, 9.4.2.161 (Transmit Power Envelope element) indicates
+ * no max TX power limit if Maximum Transmit Power field is 63.5 dBm.
+ * The default TX power if it is not constrained by Transmit Power Envelope
+ * element.
+ */
+#define TX_POWER_NO_CONSTRAINT 64
 
 int wpa_supplicant_enabled_networks(struct wpa_supplicant *wpa_s);
 void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec);
@@ -45,12 +50,16 @@ void wpa_supplicant_notify_scanning(struct wpa_supplicant *wpa_s,
 				    int scanning);
 struct wpa_driver_scan_params;
 int wpa_supplicant_trigger_scan(struct wpa_supplicant *wpa_s,
-				struct wpa_driver_scan_params *params);
+				struct wpa_driver_scan_params *params,
+				bool default_ies, bool next);
 struct wpa_scan_results *
 wpa_supplicant_get_scan_results(struct wpa_supplicant *wpa_s,
-				struct scan_info *info, int new_scan);
-int wpa_supplicant_update_scan_results(struct wpa_supplicant *wpa_s);
+				struct scan_info *info, int new_scan,
+				const u8 *bssid);
+int wpa_supplicant_update_scan_results(struct wpa_supplicant *wpa_s,
+				       const u8 *bssid);
 const u8 * wpa_scan_get_ie(const struct wpa_scan_res *res, u8 ie);
+const u8 * wpa_scan_get_ml_ie(const struct wpa_scan_res *res, u8 type);
 const u8 * wpa_scan_get_vendor_ie(const struct wpa_scan_res *res,
 				  u32 vendor_type);
 const u8 * wpa_scan_get_vendor_ie_beacon(const struct wpa_scan_res *res,
@@ -79,18 +88,21 @@ int wpas_mac_addr_rand_scan_set(struct wpa_supplicant *wpa_s,
 int wpas_mac_addr_rand_scan_get_mask(struct wpa_supplicant *wpa_s,
 				     unsigned int type, u8 *mask);
 int wpas_abort_ongoing_scan(struct wpa_supplicant *wpa_s);
-void filter_scan_res(struct wpa_supplicant *wpa_s,
-		     struct wpa_scan_results *res);
 void scan_snr(struct wpa_scan_res *res);
 void scan_est_throughput(struct wpa_supplicant *wpa_s,
 			 struct wpa_scan_res *res);
 unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
 			      const u8 *ies, size_t ies_len, int rate,
-			      int snr, int freq);
+			      int snr, int freq, enum chan_width *max_cw);
 void wpa_supplicant_set_default_scan_ies(struct wpa_supplicant *wpa_s);
 int wpa_add_scan_freqs_list(struct wpa_supplicant *wpa_s,
 			    enum hostapd_hw_mode band,
 			    struct wpa_driver_scan_params *params,
-			    bool is_6ghz);
+			    bool is_6ghz, bool only_6ghz_psc,
+			    bool exclude_radar);
+int wpas_channel_width_rssi_bump(const u8 *ies, size_t ies_len,
+				 enum chan_width cw);
+int wpas_adjust_snr_by_chanwidth(const u8 *ies, size_t ies_len,
+				 enum chan_width max_cw, int snr);
 
 #endif /* SCAN_H */

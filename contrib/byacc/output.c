@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.100 2022/01/09 18:03:56 tom Exp $ */
+/* $Id: output.c,v 1.101 2023/05/16 21:19:48 tom Exp $ */
 
 #include "defs.h"
 
@@ -1623,21 +1623,14 @@ output_pure_parser(FILE * fp)
     if (fp == code_file)
 	++outline;
     fprintf(fp, "#define YYPURE %d\n", pure_parser);
-    putc_code(fp, '\n');
-}
-
 #if defined(YY_NO_LEAKS)
-static void
-output_no_leaks(FILE * fp)
-{
-    putc_code(fp, '\n');
-
     if (fp == code_file)
 	++outline;
     fputs("#define YY_NO_LEAKS 1\n", fp);
+#else
     putc_code(fp, '\n');
-}
 #endif
+}
 
 static void
 output_trailing_text(void)
@@ -2092,9 +2085,6 @@ output(void)
 
     output_prefix(fp);
     output_pure_parser(fp);
-#if defined(YY_NO_LEAKS)
-    output_no_leaks(fp);
-#endif
     output_stored_text(fp);
     output_stype(fp);
 #if defined(YYBTYACC)

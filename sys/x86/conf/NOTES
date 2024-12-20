@@ -6,7 +6,7 @@
 # Enable the kernel DTrace hooks which are required to load the DTrace
 # kernel modules.
 #
-options 	KDTRACE_HOOKS
+#options 	KDTRACE_HOOKS
 
 # DTrace core
 # NOTE: introduces CDDL-licensed components into the kernel
@@ -171,6 +171,9 @@ device		acpi_ibm
 
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
+
+# ACPI SBL Firmware Update
+device		acpi_sbl_wmi
 
 # ACPI Sony extra (LCD brightness)
 device		acpi_sony

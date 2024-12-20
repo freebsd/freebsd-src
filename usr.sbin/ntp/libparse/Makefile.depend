@@ -4,6 +4,7 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
+	lib/libmd \
 	lib/msun \
 	secure/lib/libcrypto \
 

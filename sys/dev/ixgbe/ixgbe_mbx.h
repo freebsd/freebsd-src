@@ -35,10 +35,43 @@
 #ifndef _IXGBE_MBX_H_
 #define _IXGBE_MBX_H_
 
-#include "ixgbe_type.h"
+struct ixgbe_hw;
+
+struct ixgbe_mbx_operations {
+	void (*init_params)(struct ixgbe_hw *hw);
+	void (*release)(struct ixgbe_hw *hw, u16 mbx_id);
+	s32  (*read)(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+	s32  (*write)(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+	s32  (*check_for_msg)(struct ixgbe_hw *hw, u16 vf_number);
+	s32  (*check_for_ack)(struct ixgbe_hw *hw, u16 vf_number);
+	s32  (*check_for_rst)(struct ixgbe_hw *hw, u16 vf_number);
+	s32  (*clear)(struct ixgbe_hw *hw, u16 vf_number);
+};
+
+struct ixgbe_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct ixgbe_mbx_info {
+	/*
+	 * PF: One set of operations for each VF to handle various API versions
+	 *     at the same time
+	 * VF: Only the very first (0) set should be used
+	 */
+	struct ixgbe_mbx_operations ops[64];
+	struct ixgbe_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u32 vf_mailbox;
+	u16 size;
+};
 
 #define IXGBE_VFMAILBOX_SIZE	16 /* 16 32 bit words - 64 bytes */
-#define IXGBE_ERR_MBX		-100
 
 #define IXGBE_VFMAILBOX		0x002FC
 #define IXGBE_VFMBMEM		0x00200
@@ -60,22 +93,22 @@
 #define IXGBE_PFMAILBOX_PFU	0x00000008 /* PF owns the mailbox buffer */
 #define IXGBE_PFMAILBOX_RVFU	0x00000010 /* Reset VFU - used when VF stuck */
 
-#define IXGBE_MBVFICR_VFREQ_MASK	0x0000FFFF /* bits for VF messages */
-#define IXGBE_MBVFICR_VFREQ_VF1		0x00000001 /* bit for VF 1 message */
-#define IXGBE_MBVFICR_VFACK_MASK	0xFFFF0000 /* bits for VF acks */
-#define IXGBE_MBVFICR_VFACK_VF1		0x00010000 /* bit for VF 1 ack */
+#define IXGBE_PFMBICR_VFREQ_MASK	0x0000FFFF /* bits for VF messages */
+#define IXGBE_PFMBICR_VFREQ_VF1		0x00000001 /* bit for VF 1 message */
+#define IXGBE_PFMBICR_VFACK_MASK	0xFFFF0000 /* bits for VF acks */
+#define IXGBE_PFMBICR_VFACK_VF1		0x00010000 /* bit for VF 1 ack */
 
 
 /* If it's a IXGBE_VF_* msg then it originates in the VF and is sent to the
  * PF.  The reverse is true if it is IXGBE_PF_*.
- * Message ACK's are the value or'd with 0xF0000000
+ * Message results are the value or'd with 0xF0000000
  */
-#define IXGBE_VT_MSGTYPE_ACK	0x80000000 /* Messages below or'd with
-					    * this are the ACK */
-#define IXGBE_VT_MSGTYPE_NACK	0x40000000 /* Messages below or'd with
-					    * this are the NACK */
-#define IXGBE_VT_MSGTYPE_CTS	0x20000000 /* Indicates that VF is still
-					    * clear to send requests */
+#define IXGBE_VT_MSGTYPE_SUCCESS	0x80000000 /* Messages or'd with this
+						    * have succeeded */
+#define IXGBE_VT_MSGTYPE_FAILURE	0x40000000 /* Messages or'd with this
+						    * have failed */
+#define IXGBE_VT_MSGTYPE_CTS		0x20000000 /* Indicates that VF is still
+						    * clear to send requests */
 #define IXGBE_VT_MSGINFO_SHIFT	16
 /* bits 23:16 are used for extra info for certain messages */
 #define IXGBE_VT_MSGINFO_MASK	(0xFF << IXGBE_VT_MSGINFO_SHIFT)
@@ -92,6 +125,9 @@ enum ixgbe_pfvf_api_rev {
 	ixgbe_mbox_api_11,	/* API version 1.1, linux/freebsd VF driver */
 	ixgbe_mbox_api_12,	/* API version 1.2, linux/freebsd VF driver */
 	ixgbe_mbox_api_13,	/* API version 1.3, linux/freebsd VF driver */
+	/* API 1.4 is being used in the upstream for IPsec */
+	ixgbe_mbox_api_14,	/* API version 1.4, linux/freebsd VF driver */
+	ixgbe_mbox_api_15,	/* API version 1.5, linux/freebsd VF driver */
 	/* This value should always be last */
 	ixgbe_mbox_api_unknown,	/* indicates that API version is not known */
 };
@@ -153,15 +189,17 @@ enum ixgbevf_xcast_modes {
 #define IXGBE_VF_MBX_INIT_TIMEOUT	2000 /* number of retries on mailbox */
 #define IXGBE_VF_MBX_INIT_DELAY		500  /* microseconds between retries */
 
-s32 ixgbe_read_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_read_posted_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_write_posted_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
-void ixgbe_init_mbx_ops_generic(struct ixgbe_hw *hw);
-void ixgbe_init_mbx_params_vf(struct ixgbe_hw *);
-void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
+s32 ixgbe_read_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 ixgbe_poll_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 ixgbe_check_for_msg(struct ixgbe_hw *hw, u16 mbx_id);
+s32 ixgbe_check_for_ack(struct ixgbe_hw *hw, u16 mbx_id);
+s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id);
+s32 ixgbe_clear_mbx(struct ixgbe_hw *hw, u16 vf_number);
+void ixgbe_init_mbx_params_vf(struct ixgbe_hw *hw);
+void ixgbe_upgrade_mbx_params_vf(struct ixgbe_hw *hw);
+void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw);
+void ixgbe_init_mbx_params_pf_id(struct ixgbe_hw *hw, u16 vf_id);
+void ixgbe_upgrade_mbx_params_pf(struct ixgbe_hw *hw, u16 vf_id);
 
 #endif /* _IXGBE_MBX_H_ */

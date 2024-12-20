@@ -465,7 +465,6 @@ minidumpsys(struct dumperinfo *di, bool livedump)
 	struct minidumpstate state;
 	struct msgbuf mb_copy;
 	char *msg_ptr;
-	size_t sz;
 	int error;
 
 	if (livedump) {
@@ -510,9 +509,10 @@ minidumpsys(struct dumperinfo *di, bool livedump)
 		msgbuf_duplicate(msgbufp, &mb_copy, msg_ptr);
 		state.msgbufp = &mb_copy;
 
-		sz = BITSET_SIZE(vm_page_dump_pages);
-		state.dump_bitset = malloc(sz, M_TEMP, M_WAITOK);
-		BIT_COPY_STORE_REL(sz, vm_page_dump, state.dump_bitset);
+		state.dump_bitset = BITSET_ALLOC(vm_page_dump_pages, M_TEMP,
+		    M_WAITOK);
+		BIT_COPY_STORE_REL(vm_page_dump_pages, vm_page_dump,
+		    state.dump_bitset);
 	} else {
 		KASSERT(dumping, ("minidump invoked outside of doadump()"));
 
@@ -524,7 +524,7 @@ minidumpsys(struct dumperinfo *di, bool livedump)
 	error = cpu_minidumpsys(di, &state);
 	if (livedump) {
 		free(msg_ptr, M_TEMP);
-		free(state.dump_bitset, M_TEMP);
+		BITSET_FREE(state.dump_bitset, M_TEMP);
 	}
 
 	return (error);

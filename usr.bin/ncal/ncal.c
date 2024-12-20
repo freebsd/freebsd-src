@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
@@ -157,11 +158,12 @@ static char jdaystr[] = "       1   2   3   4   5   6   7   8   9"
 			" 350 351 352 353 354 355 356 357 358 359"
 			" 360 361 362 363 364 365 366";
 
-static int flag_nohighlight;	/* user doesn't want a highlighted today */
+static int flag_highlight;	/* highlighted today */
 static int flag_weeks;		/* user wants number of week */
 static int nswitch;		/* user defined switch date */
 static int nswitchb;		/* switch date for backward compatibility */
 static int highlightdate;
+static bool flag_monday;	/* user wants week starts on Monday */
 
 static char	*center(char *s, char *t, int w);
 static wchar_t *wcenter(wchar_t *s, wchar_t *t, int w);
@@ -214,8 +216,9 @@ main(int argc, char *argv[])
 	int	before, after;
 	const char    *locale;		/* locale to get country code */
 
-	flag_nohighlight = 0;
+	flag_highlight = isatty(STDOUT_FILENO);
 	flag_weeks = 0;
+	flag_monday = false;
 
 	/*
 	 * Use locale to determine the country code,
@@ -256,7 +259,7 @@ main(int argc, char *argv[])
 
 	before = after = -1;
 
-	while ((ch = getopt(argc, argv, "3A:B:Cd:eH:hjJm:Nops:wy")) != -1)
+	while ((ch = getopt(argc, argv, "3A:B:Cd:eH:hjJm:Nops:wyM")) != -1)
 		switch (ch) {
 		case '3':
 			flag_3months = 1;
@@ -296,7 +299,7 @@ main(int argc, char *argv[])
 			flag_highlightdate = optarg;
 			break;
 		case 'h':
-			flag_nohighlight = 1;
+			flag_highlight = !flag_highlight;
 			break;
 		case 'e':
 			if (flag_backward)
@@ -305,6 +308,9 @@ main(int argc, char *argv[])
 			break;
 		case 'j':
 			flag_julian_day = 1;
+			break;
+		case 'M':
+			flag_monday = true;
 			break;
 		case 'm':
 			if (flag_specifiedmonth)
@@ -509,7 +515,7 @@ usage(void)
 "       cal [general options] [-hj] [-m month] [year]\n"
 "       ncal [general options] [-hJjpwy] [-s country_code] [[month] year]\n"
 "       ncal [general options] [-hJeo] [year]\n"
-"General options: [-NC3] [-A months] [-B months]\n"
+"General options: [-NCM3] [-A months] [-B months]\n"
 "For debug the highlighting: [-H yyyy-mm-dd] [-d yyyy-mm]\n",
 	    stderr);
 	exit(EX_USAGE);
@@ -652,10 +658,13 @@ monthrangeb(int y, int m, int jd_flag, int before, int after)
 		/* Day of the week names. */
 		for (i = 0; i < count; i++) {
 			wprintf(L"%s%ls%s%ls%s%ls%s%ls%s%ls%s%ls%s%ls ",
-				wdss, wds.names[6], wdss, wds.names[0],
-				wdss, wds.names[1], wdss, wds.names[2],
-				wdss, wds.names[3], wdss, wds.names[4],
-				wdss, wds.names[5]);
+				wdss, wds.names[flag_monday ? 0 : 6],
+				wdss, wds.names[flag_monday ? 1 : 0],
+				wdss, wds.names[flag_monday ? 2 : 1],
+				wdss, wds.names[flag_monday ? 3 : 2],
+				wdss, wds.names[flag_monday ? 4 : 3],
+				wdss, wds.names[flag_monday ? 5 : 4],
+				wdss, wds.names[flag_monday ? 6 : 5]);
 		}
 		printf("\n");
 
@@ -825,8 +834,7 @@ mkmonthr(int y, int m, int jd_flag, struct monthlines *mlines)
 					dt.d = j - jan1 + 1;
 				else
 					sdater(j, &dt);
-				if (j == highlightdate && !flag_nohighlight
-				 && isatty(STDOUT_FILENO))
+				if (j == highlightdate && flag_highlight)
 					highlight(mlines->lines[i] + k,
 					    ds + dt.d * dw, dw, &l);
 				else
@@ -860,7 +868,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	date    dt;		/* handy date */
 	int     dw;		/* width of numbers */
 	int     first;		/* first day of month */
-	int     firsts;		/* sunday of first week of month */
+	int     firstsm;	/* sunday or monday of first week of month */
 	int     i, j, k, l;	/* just indices */
 	int     jan1 = 0;	/* the first day of this year */
 	int     last;		/* the first day of next month */
@@ -911,10 +919,13 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	}
 
 	/*
-	 * Set firsts to the day number of sunday of the first week of
-	 * this month. (This might be in the last month)
+	 * Set firstsm to the day number of sunday or monday of the first week
+	 * of this month. (This might be in the last month)
 	 */
-	firsts = first - (weekday(first)+1) % 7;
+	if (flag_monday)
+		firstsm = first - weekday(first);
+	else
+		firstsm = first - (weekday(first) + 1) % 7;
 
 	/*
 	 * Fill the lines with day of month or day of year (Julian day)
@@ -923,15 +934,14 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	 */
 	for (i = 0; i != 6; i++) {
 		l = 0;
-		for (j = firsts + 7 * i, k = 0; j < last && k != dw * 7;
+		for (j = firstsm + 7 * i, k = 0; j < last && k != dw * 7;
 		    j++, k += dw) {
 			if (j >= first) {
 				if (jd_flag)
 					dt.d = j - jan1 + 1;
 				else
 					sdateb(j, &dt);
-				if (j == highlightdate && !flag_nohighlight
-				 && isatty(STDOUT_FILENO))
+				if (j == highlightdate && flag_highlight)
 					highlight(mlines->lines[i] + k,
 					    ds + dt.d * dw, dw, &l);
 				else
@@ -1131,7 +1141,7 @@ highlight(char *dst, char *src, int len, int *extralen)
 	 * This check is not necessary, should have been handled before calling
 	 * this function.
 	 */
-	if (flag_nohighlight) {
+	if (!flag_highlight) {
 		memcpy(dst, src, len);
 		return;
 	}

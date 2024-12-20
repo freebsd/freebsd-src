@@ -1,4 +1,3 @@
-
 .if ${MK_ICONV} == "yes"
 LIBC_NONSHARED_SRCS+=	\
 	__iconv.c __iconv_free_list.c __iconv_get_list.c \

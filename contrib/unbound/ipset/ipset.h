@@ -37,7 +37,7 @@ extern "C" {
 #endif
 
 struct ipset_env {
-    void* mnl;
+	void* dev;
 
 	int v4_enabled;
 	int v6_enabled;
@@ -50,6 +50,10 @@ struct ipset_qstate {
 	int dummy;
 };
 
+/** Startup the ipset module */
+int ipset_startup(struct module_env* env, int id);
+/** Destartup the ipset module */
+void ipset_destartup(struct module_env* env, int id);
 /** Init the ipset module */
 int ipset_init(struct module_env* env, int id);
 /** Deinit the ipset module */

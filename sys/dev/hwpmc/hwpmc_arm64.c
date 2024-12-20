@@ -34,6 +34,7 @@
 
 #include <machine/pmc_mdep.h>
 #include <machine/cpu.h>
+#include <machine/machdep.h>
 
 #include "opt_acpi.h"
 
@@ -163,7 +164,7 @@ static int
 arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
   const struct pmc_op_pmcallocate *a)
 {
-	uint32_t config;
+	uint64_t config;
 	enum pmc_event pe;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -186,10 +187,18 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	switch (a->pm_caps & (PMC_CAP_SYSTEM | PMC_CAP_USER)) {
 	case PMC_CAP_SYSTEM:
+		/* Exclude EL0 */
 		config |= PMEVTYPER_U;
+		if (in_vhe()) {
+			/* If in VHE we need to include EL2 and exclude EL1 */
+			config |= PMEVTYPER_NSH | PMEVTYPER_P;
+		}
 		break;
 	case PMC_CAP_USER:
+		/* Exclude EL1 */
 		config |= PMEVTYPER_P;
+		/* Exclude EL2 */
+		config &= ~PMEVTYPER_NSH;
 		break;
 	default:
 		/*
@@ -197,11 +206,16 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		 * (default setting) or if both flags are specified
 		 * (user explicitly requested both qualifiers).
 		 */
+		if (in_vhe()) {
+			/* If in VHE we need to include EL2 */
+			config |= PMEVTYPER_NSH;
+		}
 		break;
 	}
 
 	pm->pm_md.pm_arm64.pm_arm64_evsel = config;
-	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%lx", ri,
+	    config);
 
 	return (0);
 }
@@ -299,7 +313,7 @@ arm64_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 arm64_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	uint32_t config;
+	uint64_t config;
 
 	config = pm->pm_md.pm_arm64.pm_arm64_evsel;
 

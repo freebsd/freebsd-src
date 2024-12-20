@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: edit_cfg.sh,v 1.14 2020/02/02 23:34:34 tom Exp $
+# $Id: edit_cfg.sh,v 1.16 2022/07/16 18:02:32 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2022 Thomas E. Dickey                                       #
 # Copyright 1998-2001,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -39,15 +39,16 @@
 #
 BAK=save$$
 TMP=edit$$
-trap "rm -f $BAK $TMP" 0 1 2 3 15
+trap "rm -f $BAK $TMP; exit 1" 1 2 3 15
+trap "rm -f $BAK $TMP" 0
 for name in \
 	HAVE_TCGETATTR \
 	HAVE_TERMIOS_H \
 	HAVE_TERMIO_H \
 	BROKEN_LINKER
 do
-	mv $2 $BAK
-	if ( grep "[ 	]$name[ 	]" $1 2>&1 >$TMP )
+	mv "$2" "$BAK"
+	if ( grep "[ 	]${name}[ 	]" "$1" >$TMP 2>&1 )
 	then
 		value=1
 	else
@@ -58,11 +59,11 @@ do
 		-e "s@#define ${name}.*\$@#define $name $value@" \
 		-e "s@#if $name\$@#if $value /* $name */@" \
 		-e "s@#if !$name\$@#if $value /* !$name */@" \
-		$BAK >$2
-	if (cmp -s $2 $BAK)
+		"$BAK" >"$2"
+	if (cmp -s "$2" "$BAK")
 	then
-		mv $BAK $2
+		mv "$BAK" "$2"
 	else
-		rm -f $BAK
+		rm -f "$BAK"
 	fi
 done

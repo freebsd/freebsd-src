@@ -114,7 +114,7 @@ dtrace_invop_calltrap_addr:
 	movq	$0,TF_ADDR(%rsp)
 	movq	$0,TF_ERR(%rsp)
 	jmp	alltraps_noen_u
-	
+
 	.globl	X\l
 	.type	X\l,@function
 X\l:

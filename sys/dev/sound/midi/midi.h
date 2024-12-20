@@ -39,19 +39,23 @@ MALLOC_DECLARE(M_MIDI);
 #define M_RXEN		0x04
 #define M_TXEN		0x08
 
-#define MIDI_TYPE unsigned char
-
 struct snd_midi;
+
+void	midistat_lock(void);
+void	midistat_unlock(void);
+void	midistat_lockassert(void);
 
 struct snd_midi *
 midi_init(kobj_class_t _mpu_cls, int _unit, int _channel, void *cookie);
 int	midi_uninit(struct snd_midi *_m);
-int	midi_out(struct snd_midi *_m, MIDI_TYPE *_buf, int _size);
-int	midi_in(struct snd_midi *_m, MIDI_TYPE *_buf, int _size);
+int	midi_out(struct snd_midi *_m, uint8_t *_buf, int _size);
+int	midi_in(struct snd_midi *_m, uint8_t *_buf, int _size);
 
 kobj_t	midimapper_addseq(void *arg1, int *unit, void **cookie);
+int	midimapper_open_locked(void *arg1, void **cookie);
 int	midimapper_open(void *arg1, void **cookie);
 int	midimapper_close(void *arg1, void *cookie);
+kobj_t	midimapper_fetch_synth_locked(void *arg, void *cookie, int unit);
 kobj_t	midimapper_fetch_synth(void *arg, void *cookie, int unit);
 
 #endif

@@ -94,7 +94,7 @@ orm_identify(driver_t* driver, device_t parent)
 	if (resource_disabled("orm", 0))
 		return;
 
-	child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE, "orm", -1);
+	child = BUS_ADD_CHILD(parent, ISA_ORDER_SENSITIVE, "orm", DEVICE_UNIT_ANY);
 	device_set_driver(child, driver);
 	isa_set_logicalid(child, ORM_ID);
 	isa_set_vendorid(child, ORM_ID);

@@ -300,6 +300,7 @@ gic_v3_acpi_count_regions(device_t dev)
 		acpi_walk_subtables(madt + 1,
 		    (char *)madt + madt->Header.Length,
 		    madt_count_gicc_redistrib, sc);
+		sc->gic_redists.single = true;
 	}
 	acpi_unmap_table(madt);
 
@@ -345,8 +346,9 @@ gic_v3_acpi_attach(device_t dev)
 		}
 	}
 
-	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc)
-	    != 0) {
+	err = intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
+	    INTR_ROOT_IRQ);
+	if (err != 0) {
 		err = ENXIO;
 		goto error;
 	}
@@ -406,7 +408,7 @@ gic_v3_add_children(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			return;
 		}
 
-		child = device_add_child(dev, "its", -1);
+		child = device_add_child(dev, "its", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			free(di, M_GIC_V3);
 			return;
@@ -463,7 +465,7 @@ gic_v3_acpi_bus_attach(device_t dev)
 
 	acpi_unmap_table(madt);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 }
 
 static struct resource_list *

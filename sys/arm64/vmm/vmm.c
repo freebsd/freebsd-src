@@ -60,13 +60,13 @@
 #include <machine/vm.h>
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 
 #include <dev/pci/pcireg.h>
+#include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_stat.h>
 
-#include "vmm_ktr.h"
-#include "vmm_stat.h"
 #include "arm64.h"
 #include "mmu.h"
 
@@ -141,6 +141,7 @@ struct vm {
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	volatile cpuset_t debug_cpus;		/* (i) vcpus stopped for debug */
 	int		suspend;		/* (i) stop VM execution */
+	bool		dying;			/* (o) is dying */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
 	volatile cpuset_t halted_cpus;		/* (x) cpus in a hard halt */
 	struct mem_map	mem_maps[VM_MAX_MEMMAPS]; /* (i) guest address space */
@@ -237,6 +238,23 @@ SYSCTL_UINT(_hw_vmm, OID_AUTO, maxcpu, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 static void vm_free_memmap(struct vm *vm, int ident);
 static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu);
+
+/* global statistics */
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_UNKNOWN, "number of vmexits for the unknown exception");
+VMM_STAT(VMEXIT_WFI, "number of times wfi was intercepted");
+VMM_STAT(VMEXIT_WFE, "number of times wfe was intercepted");
+VMM_STAT(VMEXIT_HVC, "number of times hvc was intercepted");
+VMM_STAT(VMEXIT_MSR, "number of times msr/mrs was intercepted");
+VMM_STAT(VMEXIT_DATA_ABORT, "number of vmexits for a data abort");
+VMM_STAT(VMEXIT_INSN_ABORT, "number of vmexits for an instruction abort");
+VMM_STAT(VMEXIT_UNHANDLED_SYNC, "number of vmexits for an unhandled synchronous exception");
+VMM_STAT(VMEXIT_IRQ, "number of vmexits for an irq");
+VMM_STAT(VMEXIT_FIQ, "number of vmexits for an interrupt");
+VMM_STAT(VMEXIT_BRK, "number of vmexits for a breakpoint exception");
+VMM_STAT(VMEXIT_SS, "number of vmexits for a single-step exception");
+VMM_STAT(VMEXIT_UNHANDLED_EL2, "number of vmexits for an unhandled EL2 exception");
+VMM_STAT(VMEXIT_UNHANDLED, "number of vmexits for an unhandled exception");
 
 /*
  * Upper limit on vm_maxcpu. We could increase this to 28 bits, but this
@@ -344,7 +362,9 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		/* TODO: if (vmm_is_hw_supported()) { */
-		vmmdev_init();
+		error = vmmdev_init();
+		if (error != 0)
+			break;
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = true;
@@ -376,8 +396,9 @@ static moduledata_t vmm_kmod = {
  *
  * - HYP initialization requires smp_rendezvous() and therefore must happen
  *   after SMP is fully functional (after SI_SUB_SMP).
+ * - vmm device initialization requires an initialized devfs.
  */
-DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 static void
@@ -405,6 +426,14 @@ vm_init(struct vm *vm, bool create)
 	}
 }
 
+void
+vm_disable_vcpu_creation(struct vm *vm)
+{
+	sx_xlock(&vm->vcpus_init_lock);
+	vm->dying = true;
+	sx_xunlock(&vm->vcpus_init_lock);
+}
+
 struct vcpu *
 vm_alloc_vcpu(struct vm *vm, int vcpuid)
 {
@@ -417,13 +446,14 @@ vm_alloc_vcpu(struct vm *vm, int vcpuid)
 	if (vcpuid >= vgic_max_cpu_count(vm->cookie))
 		return (NULL);
 
-	vcpu = atomic_load_ptr(&vm->vcpu[vcpuid]);
+	vcpu = (struct vcpu *)
+	    atomic_load_acq_ptr((uintptr_t *)&vm->vcpu[vcpuid]);
 	if (__predict_true(vcpu != NULL))
 		return (vcpu);
 
 	sx_xlock(&vm->vcpus_init_lock);
 	vcpu = vm->vcpu[vcpuid];
-	if (vcpu == NULL/* && !vm->dying*/) {
+	if (vcpu == NULL && !vm->dying) {
 		vcpu = vcpu_alloc(vm, vcpuid);
 		vcpu_init(vcpu);
 

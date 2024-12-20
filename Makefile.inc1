@@ -146,7 +146,6 @@ TARGET_TRIPLE_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/}-${TARGET_TRIPLE_ABI}-freebsd${OS_REVISION}
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
-		armv6/arm \
 		armv7/arm \
 		i386 \
 		powerpc \
@@ -572,22 +571,27 @@ VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDA
 .endif
 MAJOR_REVISION=	${_REVISION:R}
 
-.if !defined(PKG_VERSION)
 _PKG_REVISION=	${_REVISION}
 _STRTIMENOW=	%Y%m%d%H%M%S
 _TIMENOW=	${_STRTIMENOW:gmtime}
+BRANCH_EXT=
 .if ${_BRANCH:MCURRENT*} || ${_BRANCH:MSTABLE*} || ${_BRANCH:MPRERELEASE*}
-_PKG_REVISION=	${MAJOR_REVISION}
+_PKG_REVISION:= ${MAJOR_REVISION}
+BRANCH_EXT=	${MAJOR_REVISION}.snap
 EXTRA_REVISION=	.snap${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
-EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	alpha
+EXTRA_REVISION=	.${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MBETA*}
-EXTRA_REVISION=	.b${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
+BRANCH_EXT=	beta
+EXTRA_REVISION=	.${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MRC*}
+BRANCH_EXT=	rc
 EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:M*-p*}
 EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
+.if !defined(PKG_VERSION)
 PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
 .endif	# !defined(PKG_VERSION)
@@ -766,7 +770,6 @@ BSARGS= 	DESTDIR= \
 		MK_CLANG_FULL=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_RETPOLINE=no \
 		MK_SSP=no \
 		MK_TESTS=no \
@@ -833,7 +836,6 @@ KTMAKE=		${TIME_ENV} \
 		MK_CTF=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_SSP=no \
 		MK_RETPOLINE=no \
 		MK_WERROR=no
@@ -999,6 +1001,12 @@ IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
 .if make(distributeworld)
+.if ${DISTDIR:U/} == /
+.error DISTDIR must be set for make distributeworld and may not be the root directory.
+.endif
+.if !defined(NO_ROOT) || !defined(METALOG)
+.error NO_ROOT and METALOG must be set for make distributeworld.
+.endif
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
 .else
@@ -1203,7 +1211,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
+	    MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
 	    libraries
 everything: .PHONY
 	@echo
@@ -1236,10 +1244,18 @@ WMAKE_TGTS+=	build${libcompat}
 .endif
 WMAKE_TGTS+=	everything
 
-# record buildworld time in seconds
+# record buildworld / install time in seconds
 .if make(buildworld)
 _BUILDWORLD_START!= date '+%s'
 .export _BUILDWORLD_START
+.endif
+.if make(reinstall) || make(restage)
+_INSTALLWORLD_START!= date '+%s'
+.export _INSTALLWORLD_START
+.endif
+.if make(*installkernel*)
+_INSTALLKERNEL_START!= date '+%s'
+.export _INSTALLKERNEL_START
 .endif
 
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
@@ -1308,11 +1324,11 @@ kernel-toolchain: ${KERNEL_TOOLCHAIN_TGTS} .PHONY
 installcheck: _installcheck_world _installcheck_kernel .PHONY
 _installcheck_world: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check world"
+	@echo ">>> Install check world started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 _installcheck_kernel: .PHONY
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Install check kernel"
+	@echo ">>> Install check kernel started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 
 #
@@ -1488,7 +1504,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/${TESTSBASE} >/dev/null
 .endif
 .endif
-.if defined(NO_ROOT)
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
@@ -1502,7 +1517,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endfor
-.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH:Q} ${MAKE} \
@@ -1526,28 +1540,18 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -type d -empty -delete
 .endfor
-.if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.for path suffix in "" .meta /usr/lib/debug .debug.meta
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
-	${DESTDIR}/${DISTDIR}/${dist}.meta
+	    find ./${dist}${path} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
+	    awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
+	    ${DESTDIR}/${DISTDIR}/${dist}${suffix}
 .endfor
-.for dist in ${DEBUG_DISTRIBUTIONS}
-	@# For each file that exists in this dist, print the corresponding
-	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediately before
-	@# the relevant mtree line.
-	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist}/usr/lib/debug | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
-	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
-.endif
 .endif # make(distributeworld)
 
 packageworld: .PHONY
@@ -1636,6 +1640,8 @@ restage reinstall: .MAKE .PHONY
 .endfor
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything completed on `LC_ALL=C date`"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLWORLD_START})); \
+	  echo ">>> Install world completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 redistribute: .MAKE .PHONY
@@ -1868,6 +1874,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${INSTALLKERNEL} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${INSTALLKERNEL} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
@@ -1882,6 +1891,9 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel .PHONY
 	@echo ">>> Installing kernel ${_kernel} completed on $$(LC_ALL=C date)"
 	@echo "--------------------------------------------------------------"
 .endfor
+	@seconds=$$(($$(date '+%s') - ${_INSTALLKERNEL_START})); \
+	  echo ">>> Install kernel(s) ${BUILDKERNELS} completed in $$seconds seconds, ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
+	@echo "--------------------------------------------------------------"
 .endif
 
 distributekernel distributekernel.debug: .PHONY
@@ -1987,8 +1999,14 @@ KSTAGEDIR?=	${OBJTOP}/kernelstage
 SSTAGEDIR?=	${OBJTOP}/sourcestage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	tzst
+PKG_LEVEL?=	-1
+PKG_CLEVEL?=	${"${PKG_FORMAT:Mtar}" != "":?:-l ${PKG_LEVEL}}
 PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
+PKG_ABI_FILE?=	${WSTAGEDIR}/usr/bin/uname
+.if make(create-*-packages*) || make(real-update-packages) || make(real-sign-packages)
+PKG_ABI!=	${PKG_CMD} -o ABI_FILE=${PKG_ABI_FILE} config ABI
+.endif
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
@@ -2001,12 +2019,6 @@ _pkgbootstrap: .PHONY
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-#
-# Determine PKG_ABI from newvers.sh if not already set.
-#
-.if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make (create-source-packages) || make(sign-packages))
-PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
-.endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
     awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
 .if ${PKG_BIN_VERSION} < 11700
@@ -2016,14 +2028,33 @@ PKG_EXT=	pkg
 .endif
 
 .if !defined(PKG_VERSION_FROM) && make(real-update-packages)
-.if defined(PKG_ABI)
-.if exists(${REPODIR}/${PKG_ABI})
+.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
+# Determine the name of the branch base on the version
+# X.bY => beta
+# X.aY => alpha
+# X.rcY => rc
+# X.snap => snap
+# all others mean release
+#
+# This will be used when comparing to the branch that we are building
+# to decide if we keep old packages or new packages when only their
+# version differs
+BRANCH_EXT_FROM=
+.if ${PKG_VERSION_FROM:M*.snap*}
+BRANCH_EXT_FROM=	${PKG_VERSION_FROM:C/.snap.*$//}.snap
+.elif ${PKG_VERSION_FROM:M*.b*}
+BRANCH_EXT_FROM=	beta
+.elif ${PKG_VERSION_FROM:M*.rc*}
+BRANCH_EXT_FROM=	rc
+.elif ${PKG_VERSION_FROM:M*.a*}
+BRANCH_EXT_FROM=	alpha
+.endif
 .else
 PKG_VERSION_FROM=
 PKG_VERSION_FROM_DIR=
-.endif
+BRANCH_EXT_FROM=
 .endif
 .endif
 
@@ -2060,7 +2091,7 @@ real-update-packages: stage-packages .PHONY
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
-	  if [ "$${oldsum}" == "$${newsum}" ]; then \
+	  if [ "${BRANCH_EXT_FROM}" = "${BRANCH_EXT}" -a "$${oldsum}" = "$${newsum}" ]; then \
 	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_EXT}" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
@@ -2116,17 +2147,13 @@ create-packages-source:	_pkgbootstrap _repodir .PHONY
 
 create-packages: .PHONY create-packages-world create-packages-kernel create-packages-source
 
-create-source-packages: _pkgbootstrap .PHONY
-	rm -f ${SSTAGEDIR}/*.plist 2>/dev/null || :
+create-source-src-package: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/src.plist 2>/dev/null || :
 .if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
 	@cd ${SRCDIR}; \
 		( echo "@override_prefix /usr/src" ;  \
 		${GIT_CMD} ls-files --recurse-submodules ":!:sys/" ) \
 		> ${SSTAGEDIR}/src.plist
-	@cd ${SRCDIR}; \
-		( echo "@override_prefix /usr/src" ; \
-		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
-		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src" \
 		PKGGENNAME "src" \
@@ -2138,6 +2165,22 @@ create-source-packages: _pkgbootstrap .PHONY
 		PKG_WWW "${PKG_WWW}" \
 		${SRCDIR}/release/packages/template.ucl \
 		${SSTAGEDIR}/src.ucl
+	${PKG_CMD} -o ABI=${PKG_ABI} \
+		-o OSVERSION="${SRCRELDATE}" \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
+		-M ${SSTAGEDIR}/src.ucl \
+		-p ${SSTAGEDIR}/src.plist \
+		-r ${SRCDIR} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
+.endif
+
+create-source-src-sys-package: _pkgbootstrap .PHONY
+	rm -f ${SSTAGEDIR}/src-sys.plist 2>/dev/null || :
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+	@cd ${SRCDIR}; \
+		( echo "@override_prefix /usr/src" ; \
+		${GIT_CMD} ls-files --recurse-submodules "sys/" ) \
+		> ${SSTAGEDIR}/src-sys.plist
 	${SRCDIR}/release/packages/generate-ucl.lua \
 		PKGNAME "src-sys" \
 		PKGGENNAME "src" \
@@ -2151,19 +2194,14 @@ create-source-packages: _pkgbootstrap .PHONY
 		${SSTAGEDIR}/src-sys.ucl
 	${PKG_CMD} -o ABI=${PKG_ABI} \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
-		-M ${SSTAGEDIR}/src.ucl \
-		-p ${SSTAGEDIR}/src.plist \
-		-r ${SRCDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
-	${PKG_CMD} -o ABI=${PKG_ABI} \
-		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${SSTAGEDIR}/src-sys.ucl \
 		-p ${SSTAGEDIR}/src-sys.plist \
 		-r ${SRCDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endif
+
+create-source-packages: .PHONY _pkgbootstrap create-source-src-package create-source-src-sys-package
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
@@ -2197,9 +2235,10 @@ create-world-package-${pkgname}: .PHONY
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
+		-M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
@@ -2229,7 +2268,7 @@ create-dtb-package:
 		${KSTAGEDIR}/${DISTDIR}/dtb.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/${DISTDIR}/dtb.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/dtb.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
@@ -2261,7 +2300,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
@@ -2299,9 +2338,9 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI=${PKG_ABI} -o ALLOW_BASE_SHLIBS=yes \
 		-o OSVERSION="${SRCRELDATE}" \
-		create -f ${PKG_FORMAT} \
+		create -f ${PKG_FORMAT} ${PKG_CLEVEL} \
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
@@ -2311,21 +2350,22 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 . endfor
 .endif
 
-sign-packages:	_pkgbootstrap .PHONY
+sign-packages:	.PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} real-sign-packages
+
+real-sign-packages:	_pkgbootstrap .PHONY
 	printf "version = 2;\n" > ${WSTAGEDIR}/meta
 .if ${PKG_BIN_VERSION} < 11700
 	printf "packing_format = \"${PKG_FORMAT}\";\n" >> ${WSTAGEDIR}/meta
 .endif
-	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
-		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
-		-o OSVERSION="${SRCRELDATE}" \
+	@${PKG_CMD} -o ABI=${PKG_ABI} repo -o OSVERSION="${SRCRELDATE}" \
 		-m ${WSTAGEDIR}/meta \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
+		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
+		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${PKG_REPO_SIGNING_KEY} ; \
-	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
-	ln -s ${PKG_OUTPUT_DIR} latest
+	cd ${REPODIR}/${PKG_ABI}; \
+	ln -hfs ${PKG_OUTPUT_DIR} latest
 
 #
 #
@@ -2478,15 +2518,19 @@ ${_bt}-lib/libdwarf: ${_bt_m4_depend}
 _bt_libelf_depend=${_bt}-lib/libelf
 .endif
 
+_libkldelf=	lib/libkldelf
+${_bt}-lib/libkldelf: ${_bt_libelf_depend}
+_bt_libkldelf_depend=${_bt}-lib/libkldelf
+
 _kldxref=	usr.sbin/kldxref
-${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend}
+${_bt}-usr.sbin/kldxref: ${_bt_libelf_depend} ${_bt_libkldelf_depend}
 
 # flua is required to regenerate syscall files.  It first appeared during the
 # 13.0-CURRENT cycle, thus needs to be built on -older releases and stable
 # branches.
 .if ${BOOTSTRAPPING} < 1300059
-${_bt}-libexec/flua: ${_bt}-lib/liblua ${_bt}-lib/libucl
-_flua= lib/liblua lib/libucl libexec/flua
+${_bt}-libexec/flua: ${_bt}-lib/liblua
+_flua= lib/liblua libexec/flua
 .endif
 
 # r245440 mtree -N support added
@@ -2742,6 +2786,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_cat} \
     ${_kbdcontrol} \
     ${_elftoolchain_libs} \
+    ${_libkldelf} \
     ${_kldxref} \
     lib/libopenbsd \
     usr.bin/mandoc \
@@ -3033,7 +3078,6 @@ NXBMAKEARGS+= \
 	MK_MAN_UTILS=yes \
 	MK_OFED=no \
 	MK_OPENSSH=no \
-	MK_PROFILE=no \
 	MK_RETPOLINE=no \
 	MK_SENDMAIL=no \
 	MK_SSP=no \
@@ -3169,6 +3213,7 @@ lib/libc__L: lib/libsys__L
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
 lib/libcxxrt__L: lib/libgcc_s__L
+lib/libcrypt__L: lib/libmd__L
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhdb} \
@@ -3185,7 +3230,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libfigpar \
 		${_lib_libgssapi} \
 		lib/libjail \
-		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
+		lib/libkiconv lib/libkldelf lib/libkvm \
+		lib/liblzma lib/libmd lib/libnv \
 		lib/libzstd \
 		${_lib_casper} \
 		lib/ncurses/tinfo \
@@ -3220,6 +3266,7 @@ _prebuild_libs+= lib/libregex
 .endif
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
+lib/libkldelf__L: lib/libelf__L
 lib/libkvm__L: lib/libelf__L
 
 .if ${MK_RADIUS_SUPPORT} != "no"
@@ -3395,9 +3442,9 @@ ${_lib}__PL: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -3700,7 +3747,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
-	MK_MAN=no MK_NLS=no MK_PROFILE=no \
+	MK_MAN=no MK_NLS=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}

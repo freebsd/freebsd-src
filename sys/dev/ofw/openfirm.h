@@ -83,8 +83,8 @@ MALLOC_DECLARE(M_OFWPROP);
  * interface as the Open Firmware access mechanism, OF_init initializes it.
  */
 
-boolean_t	OF_install(char *name, int prio);
-int		OF_init(void *cookie);
+bool	OF_install(char *name, int prio);
+int	OF_init(void *cookie);
 
 /*
  * Known Open Firmware interface names

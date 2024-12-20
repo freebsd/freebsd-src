@@ -138,7 +138,7 @@ static Bool Ppmd7_Alloc(CPpmd7 *p, UInt32 size)
       #else
         4 - (size & 3);
       #endif
-    if ((p->Base = (Byte *)malloc(p->AlignOffset + size
+    if ((p->Base = malloc(p->AlignOffset + size
         #ifndef PPMD_32BIT
         + UNIT_SIZE
         #endif

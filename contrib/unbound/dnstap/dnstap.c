@@ -86,6 +86,31 @@ dt_pack(const Dnstap__Dnstap *d, void **buf, size_t *sz)
 	return 1;
 }
 
+/** See if the message is sent due to dnstap sample rate */
+static int
+dt_sample_rate_limited(struct dt_env* env)
+{
+	lock_basic_lock(&env->sample_lock);
+	/* Sampling is every [n] packets. Where n==1, every packet is sent */
+	if(env->sample_rate > 1) {
+		int submit = 0;
+		/* if sampling is engaged... */
+		if (env->sample_rate_count > env->sample_rate) {
+			/* once the count passes the limit */
+			/* submit the message */
+			submit = 1;
+			/* and reset the count */
+			env->sample_rate_count = 0;
+		}
+		/* increment count regardless */
+		env->sample_rate_count++;
+		lock_basic_unlock(&env->sample_lock);
+		return !submit;
+	}
+	lock_basic_unlock(&env->sample_lock);
+	return 0;
+}
+
 static void
 dt_send(const struct dt_env *env, void *buf, size_t len_buf)
 {
@@ -146,6 +171,7 @@ dt_create(struct config_file* cfg)
 	env = (struct dt_env *) calloc(1, sizeof(struct dt_env));
 	if (!env)
 		return NULL;
+	lock_basic_init(&env->sample_lock);
 
 	env->dtio = dt_io_thread_create();
 	if(!env->dtio) {
@@ -241,6 +267,12 @@ dt_apply_cfg(struct dt_env *env, struct config_file *cfg)
 	{
 		verbose(VERB_OPS, "dnstap Message/FORWARDER_RESPONSE enabled");
 	}
+	lock_basic_lock(&env->sample_lock);
+	if((env->sample_rate = (unsigned int)cfg->dnstap_sample_rate))
+	{
+		verbose(VERB_OPS, "dnstap SAMPLE_RATE enabled and set to \"%d\"", (int)env->sample_rate);
+	}
+	lock_basic_unlock(&env->sample_lock);
 }
 
 int
@@ -273,6 +305,7 @@ dt_delete(struct dt_env *env)
 	if (!env)
 		return;
 	dt_io_thread_delete(env->dtio);
+	lock_basic_destroy(&env->sample_lock);
 	free(env->identity);
 	free(env->version);
 	free(env);
@@ -409,6 +442,9 @@ dt_msg_send_client_query(struct dt_env *env,
 	struct dt_msg dm;
 	struct timeval qtime;
 
+	if(dt_sample_rate_limited(env))
+		return;
+
 	if(tstamp)
 		memcpy(&qtime, tstamp, sizeof(qtime));
 	else 	gettimeofday(&qtime, NULL);
@@ -447,6 +483,9 @@ dt_msg_send_client_response(struct dt_env *env,
 	struct dt_msg dm;
 	struct timeval rtime;
 
+	if(dt_sample_rate_limited(env))
+		return;
+
 	gettimeofday(&rtime, NULL);
 
 	/* type */
@@ -483,6 +522,9 @@ dt_msg_send_outside_query(struct dt_env *env,
 	struct dt_msg dm;
 	struct timeval qtime;
 	uint16_t qflags;
+
+	if(dt_sample_rate_limited(env))
+		return;
 
 	gettimeofday(&qtime, NULL);
 	qflags = sldns_buffer_read_u16_at(qmsg, 2);
@@ -536,6 +578,9 @@ dt_msg_send_outside_response(struct dt_env *env,
 {
 	struct dt_msg dm;
 	uint16_t qflags;
+
+	if(dt_sample_rate_limited(env))
+		return;
 
 	(void)qbuf_len; log_assert(qbuf_len >= sizeof(qflags));
 	memcpy(&qflags, qbuf, sizeof(qflags));

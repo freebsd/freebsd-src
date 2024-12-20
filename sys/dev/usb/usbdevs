@@ -1141,10 +1141,38 @@ product AOX USB101		0x0008	Ethernet
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
+/* PowerBooks Feb 2005, iBooks G4 */
+product APPLE FOUNTAIN_ANSI		0x020e	Apple Internal Keyboard/Trackpad
+product APPLE FOUNTAIN_ISO		0x020f	Apple Internal Keyboard/Trackpad
+/* 17 inch PowerBook */
+product APPLE GEYSER_17		0x020d	Apple Internal Keyboard/Trackpad
+/* PowerBooks Oct 2005 */
+product APPLE GEYSER_ANSI	0x0214	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER_ISO	0x0215	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER_JIS	0x0216	Apple Internal Keyboard/Trackpad
+/* Core Duo MacBook & MacBook Pro */
+product APPLE GEYSER3_ANSI	0x0217	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER3_ISO	0x0218	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER3_JIS	0x0219	Apple Internal Keyboard/Trackpad
+/* Core2 Duo MacBook & MacBook Pro */
+product APPLE GEYSER4_ANSI	0x021a	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_ISO	0x021b	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_JIS	0x021c	Apple Internal Keyboard/Trackpad
+/* External */
+product APPLE ALU_MINI_ANSI	0x021d	Apple Keyboard/Trackpad
+product APPLE ALU_MINI_ISO	0x021e	Apple Keyboard/Trackpad
+product APPLE ALU_MINI_JIS	0x021f	Apple Keyboard/Trackpad
+product APPLE ALU_ANSI	0x0220	Apple Keyboard/Trackpad
+product APPLE ALU_ISO	0x0221	Apple Keyboard/Trackpad
+product APPLE ALU_JIS	0x0222	Apple Keyboard/Trackpad
 /* MacbookAir, aka wellspring */
 product APPLE WELLSPRING_ANSI	0x0223	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING_ISO	0x0224	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING_JIS	0x0225	Apple Internal Keyboard/Trackpad
+/* Core2 Duo MacBook3,1 */
+product APPLE GEYSER4_HF_ANSI	0x0229	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_HF_ISO	0x022a	Apple Internal Keyboard/Trackpad
+product APPLE GEYSER4_HF_JIS	0x022b	Apple Internal Keyboard/Trackpad
 /* MacbookProPenryn, aka wellspring2 */
 product APPLE WELLSPRING2_ANSI	0x0230	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING2_ISO	0x0231	Apple Internal Keyboard/Trackpad
@@ -1173,6 +1201,10 @@ product APPLE WELLSPRING6A_JIS	0x024b	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_ANSI	0x024c	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_ISO	0x024d	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING6_JIS	0x024e	Apple Internal Keyboard/Trackpad
+/* External */
+product APPLE ALU_REVB_ANSI		0x024f	Apple Keyboard/Trackpad
+product APPLE ALU_REVB_ISO		0x0250	Apple Keyboard/Trackpad
+product APPLE ALU_REVB_JIS		0x0251	Apple Keyboard/Trackpad
 /* Macbook8,2 (unibody) */
 product APPLE WELLSPRING5A_ANSI	0x0252	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING5A_ISO	0x0253	Apple Internal Keyboard/Trackpad
@@ -1193,6 +1225,16 @@ product APPLE WELLSPRING8_JIS	0x0292	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_ANSI	0x0272	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_ISO	0x0273	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING9_JIS	0x0274	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J140K	0x027a	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J132	0x027b	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J680	0x027c	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J213	0x027d	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J214K	0x027e	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J223	0x027f	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J230K	0x0280	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRINGT2_J152F	0x0340	Apple Internal Keyboard/Trackpad
+product APPLE MAGIC_KEYBOARD_2021	0x029c	Apple Internal Keyboard/Trackpad
+product APPLE MAGIC_KEYBOARD_FINGERPRINT_2021	0x029a	Apple Keyboard/Trackpad
 product APPLE MAGIC_TRACKPAD2	0x0265	Apple Magic Trackpad 2
 product APPLE MOUSE		0x0301	Mouse M4848
 product APPLE OPTMOUSE		0x0302	Optical mouse
@@ -1419,8 +1461,26 @@ product BILLIONTON USBE100	0x8511	USBE100
 product BILLIONTON USB2AR	0x90ff	USB2AR Ethernet
 
 /* Brainboxes Limited products */
+product BRAINBOXES US101	0x1011	US-101 USB2Serial 1xRS232
+product BRAINBOXES US159	0x1021	US-159 USB2Serial 1xRS232
+product BRAINBOXES US235	0x1017	US-235 USB2Serial 1xRS232
 product BRAINBOXES US257	0x5001	US-257 USB2Serial 2xRS232
 product BRAINBOXES US25701	0x5002	US-25701 USB2Serial 2xRS232
+product BRAINBOXES US279_12	0x2021	US-279 USB2Serial 8xRS232 (Port 1 and 2)
+product BRAINBOXES US279_34	0x2022	US-279 USB2Serial 8xRS232 (Port 3 and 4)
+product BRAINBOXES US279_56	0x2023	US-279 USB2Serial 8xRS232 (Port 5 and 6)
+product BRAINBOXES US279_78	0x2024	US-279 USB2Serial 8xRS232 (Port 7 and 8)
+product BRAINBOXES US313	0x6001	US-313 USB2Serial 2xRS422/485
+product BRAINBOXES US320	0x1019	US-320 USB2Serial 1xRS422/485
+product BRAINBOXES US324	0x1013	US-324 USB2Serial 1xRS422/485
+product BRAINBOXES US346_12	0x3011	US-346 USB2Serial 4xRS422/485 (Port 1 and 2)
+product BRAINBOXES US346_34	0x3012	US-346 USB2Serial 4xRS422/485 (Port 3 and 4)
+product BRAINBOXES US701_12	0x2011	US-701 USB2Serial 4xRS232 (Port 1 and 2)
+product BRAINBOXES US701_34	0x2012	US-701 USB2Serial 4xRS232 (Port 3 and 4)
+product BRAINBOXES US842_12	0x8001	US-842 USB2Serial 8xRS-422/485 (Port 1 and 2)
+product BRAINBOXES US842_34	0x8002	US-842 USB2Serial 8xRS-422/485 (Port 3 and 4)
+product BRAINBOXES US842_56	0x8003	US-842 USB2Serial 8xRS-422/485 (Port 5 and 6)
+product BRAINBOXES US842_78	0x8004	US-842 USB2Serial 8xRS-422/485 (Port 7 and 8)
 
 /* Broadcom products */
 product BROADCOM BCM2033	0x2033	BCM2033 Bluetooth USB dongle
@@ -1729,6 +1789,7 @@ product DLINK DWA180A1		0x3316	DWA-180 rev A1
 product DLINK DWA172A1		0x3318	DWA-172 rev A1
 product DLINK DWA131E1		0x3319	DWA-131 rev E1
 product DLINK DWA182D1		0x331c	DWA-182 rev D1
+product DLINK DWA181A1		0x331e	DWA-181 rev A1
 product DLINK DWL122		0x3700	DWL-122
 product DLINK DWLG120		0x3701	DWL-G120
 product DLINK DWL120F		0x3702	DWL-120 rev F
@@ -2827,6 +2888,7 @@ product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
 product LENOVO RTL8153		0x7205	USB 3.0 Ethernet
 product LENOVO ONELINK		0x720a	USB 3.0 Ethernet
 product LENOVO RTL8153_04	0x720c	USB 3.0 Ethernet
+product LENOVO ONELINKPLUS	0x3054	LAN port in Thinkpad OneLink+ dock
 product LENOVO TBT3LAN		0x3069	LAN port in Thinkpad TB3 dock
 product LENOVO USBCLAN		0x3062	LAN port in Thinkpad USB-C dock
 product LENOVO TBT3LANGEN2	0x3082  LAN port in Thinkpad TB3 dock gen2 
@@ -3986,21 +4048,21 @@ product QUANTA GLE		0xea06	HSDPA modem
 product QUANTA RW6815R		0xf003	HP iPAQ rw6815 RNDIS
 
 /* Quectel products */
+product QUECTEL EC21		0x0121	Quectel EC21
 product QUECTEL EC25		0x0125	Quectel EC20(MDM9x07)/EC25/EG25
 product QUECTEL EM05		0x0127	Quectel EM05
-product QUECTEL EC21		0x0121	Quectel EC21
 product QUECTEL EG91		0x0191	Quectel EG91
 product QUECTEL EG95		0x0195	Quectel EG95
+product QUECTEL BG96		0x0296	Quectel BG96
 product QUECTEL EP06		0x0306	Quectel EG06/EP06/EM06
 product QUECTEL EG065K		0x030B	Quectel EG065K/EG060K
-product QUECTEL EM12		0x0512	Quectel EG12/EP12/EM12/EG16/EG18
-product QUECTEL BG96		0x0296	Quectel BG96
-product QUECTEL BG95		0x0700	Quectel BG95/BG77/BG600L-M3/BC69
-product QUECTEL AG35		0x0435	Quectel AG35
 product QUECTEL AG15		0x0415	Quectel AG15
+product QUECTEL AG35		0x0435	Quectel AG35
 product QUECTEL AG520		0x0452	Quectel AG520
 product QUECTEL AG550		0x0455	Quectel AG550
+product QUECTEL EM12		0x0512	Quectel EG12/EP12/EM12/EG16/EG18
 product QUECTEL EM160R		0x0620	Quectel EM160R/EG20
+product QUECTEL BG95		0x0700	Quectel BG95/BG77/BG600L-M3/BC69
 product QUECTEL RG500		0x0800	Quectel RG500/RM500/RG510/RM510
 product QUECTEL RG520		0x0801	Quectel RG520/RM520/SG520
 product QUECTEL EC200		0x6000	Quectel EC200/UC200
@@ -4356,6 +4418,7 @@ product SIERRA E6893		0x6893	E6893
 product SIERRA MC8700		0x68A3	MC8700
 product SIERRA MC7354		0x68C0	MC7354
 product SIERRA MC7355		0x9041	MC7355
+product SIERRA AC340U		0x9051	Sierra Wireless AirCard 340U
 product SIERRA MC7430		0x9071	Sierra Wireless MC7430 Qualcomm Snapdragon X7 LTE-A
 product SIERRA AC313U		0x68aa	Sierra Wireless AirCard 313U
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
@@ -4761,6 +4824,7 @@ product TOSHIBA HSDPA		0x1302	G450 modem
 product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 
 /* TP-Link products */
+product TPLINK RTL8192CU	0x0100	RTL8192CU
 product TPLINK T4U		0x0101	Archer T4U
 product TPLINK WN821NV5		0x0107	TL-WN821N v5
 product TPLINK WN822NV4		0x0108	TL-WN822N v4
@@ -4962,7 +5026,8 @@ product WISTRONNEWEB UR055G	0x0711	UR055G
 product WISTRONNEWEB O8494	0x0804	ORiNOCO 802.11n
 product WISTRONNEWEB AR5523_1	0x0826	AR5523
 product WISTRONNEWEB AR5523_1_NF	0x0827	AR5523 (no firmware)
-product WISTRONNEWEB AR5523_2	0x082a	AR5523
+product WISTRONNEWEB AR5523_2	0x0828	AR5523
+product WISTRONNEWEB AR5523_2_ALT	0x082a	AR5523
 product WISTRONNEWEB AR5523_2_NF	0x0829	AR5523 (no firmware)
 
 /* Xerox products */

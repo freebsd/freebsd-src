@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/sound/usb
 
 KMOD=	snd_uaudio

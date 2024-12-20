@@ -57,6 +57,9 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
+_Static_assert(nitems(rlimit_ident) == RLIM_NLIMITS,
+    "resource.h RLIMIT_IDENT needs update");
+
 int
 procfs_doprocrlimit(PFS_FILL_ARGS)
 {

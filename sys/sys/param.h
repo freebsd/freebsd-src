@@ -73,7 +73,7 @@
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1500019
+#define __FreeBSD_version 1500029
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -150,11 +150,9 @@
 #endif
 #endif
 
-#ifndef _KERNEL
-#ifndef LOCORE
+#if !defined(_KERNEL) && !defined(_STANDALONE) && !defined(LOCORE)
 /* Signals. */
 #include <sys/signal.h>
-#endif
 #endif
 
 /* Machine type dependent parameters. */

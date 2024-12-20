@@ -43,6 +43,7 @@
 #include <vm/vm.h>
 
 #include "nvme_private.h"
+#include "nvme_linux.h"
 
 #define B4_CHK_RDY_DELAY_MS	2300		/* work around controller bug */
 
@@ -231,7 +232,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 }
 
 static void
-nvme_ctrlr_fail(struct nvme_controller *ctrlr)
+nvme_ctrlr_fail(struct nvme_controller *ctrlr, bool admin_also)
 {
 	int i;
 
@@ -241,7 +242,10 @@ nvme_ctrlr_fail(struct nvme_controller *ctrlr)
 	 * a different error, though when we fail, that hardly matters).
 	 */
 	ctrlr->is_failed = true;
-	nvme_qpair_fail(&ctrlr->adminq);
+	if (admin_also) {
+		ctrlr->is_failed_admin = true;
+		nvme_qpair_fail(&ctrlr->adminq);
+	}
 	if (ctrlr->ioq != NULL) {
 		for (i = 0; i < ctrlr->num_io_queues; i++) {
 			nvme_qpair_fail(&ctrlr->ioq[i]);
@@ -414,6 +418,7 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	TSENTER();
 
+	ctrlr->is_failed_admin = true;
 	nvme_ctrlr_disable_qpairs(ctrlr);
 
 	err = nvme_ctrlr_disable(ctrlr);
@@ -422,6 +427,8 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 
 	err = nvme_ctrlr_enable(ctrlr);
 out:
+	if (err == 0)
+		ctrlr->is_failed_admin = false;
 
 	TSEXIT();
 	return (err);
@@ -434,11 +441,10 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 
 	cmpset = atomic_cmpset_32(&ctrlr->is_resetting, 0, 1);
 
-	if (cmpset == 0 || ctrlr->is_failed)
+	if (cmpset == 0)
 		/*
-		 * Controller is already resetting or has failed.  Return
-		 *  immediately since there is no need to kick off another
-		 *  reset in these cases.
+		 * Controller is already resetting.  Return immediately since
+		 * there is no need to kick off another reset.
 		 */
 		return;
 
@@ -814,7 +820,13 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 	struct nvme_request *req;
 
 	aer->ctrlr = ctrlr;
-	req = nvme_allocate_request_null(nvme_ctrlr_async_event_cb, aer);
+	/*
+	 * XXX-MJ this should be M_WAITOK but we might be in a non-sleepable
+	 * callback context.  AER completions should be handled on a dedicated
+	 * thread.
+	 */
+	req = nvme_allocate_request_null(M_NOWAIT, nvme_ctrlr_async_event_cb,
+	    aer);
 	aer->req = req;
 
 	/*
@@ -1089,7 +1101,7 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 		return;
 
 	if (resetting && nvme_ctrlr_identify(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
@@ -1104,7 +1116,7 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 	if (resetting) {
 		old_num_io_queues = ctrlr->num_io_queues;
 		if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
-			nvme_ctrlr_fail(ctrlr);
+			nvme_ctrlr_fail(ctrlr, false);
 			return;
 		}
 
@@ -1122,12 +1134,12 @@ nvme_ctrlr_start(void *ctrlr_arg, bool resetting)
 		nvme_ctrlr_hmb_enable(ctrlr, true, true);
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
 	if (nvme_ctrlr_construct_namespaces(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, false);
 		return;
 	}
 
@@ -1146,9 +1158,8 @@ nvme_ctrlr_start_config_hook(void *arg)
 
 	TSENTER();
 
-	if (nvme_ctrlr_hw_reset(ctrlr) != 0) {
-fail:
-		nvme_ctrlr_fail(ctrlr);
+	if (nvme_ctrlr_hw_reset(ctrlr) != 0 || ctrlr->fail_on_reset != 0) {
+		nvme_ctrlr_fail(ctrlr, true);
 		config_intrhook_disestablish(&ctrlr->config_hook);
 		return;
 	}
@@ -1161,13 +1172,15 @@ fail:
 	    nvme_ctrlr_construct_io_qpairs(ctrlr) == 0)
 		nvme_ctrlr_start(ctrlr, false);
 	else
-		goto fail;
+		nvme_ctrlr_fail(ctrlr, false);
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
 
-	ctrlr->is_initialized = 1;
-	nvme_notify_new_controller(ctrlr);
+	if (!ctrlr->is_failed) {
+		ctrlr->is_initialized = true;
+		nvme_notify_new_controller(ctrlr);
+	}
 	TSEXIT();
 }
 
@@ -1184,7 +1197,7 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 		nvme_ctrlr_start(ctrlr, true);
 	} else {
 		nvme_ctrlr_devctl_log(ctrlr, "RESET", "event=\"timed_out\"");
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, true);
 	}
 
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
@@ -1258,24 +1271,19 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			return EIO;
 		}
 		if (is_user_buffer) {
-			/*
-			 * Ensure the user buffer is wired for the duration of
-			 *  this pass-through command.
-			 */
-			PHOLD(curproc);
 			buf = uma_zalloc(pbuf_zone, M_WAITOK);
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
 			if (vmapbuf(buf, pt->buf, pt->len, 1) < 0) {
 				ret = EFAULT;
 				goto err;
 			}
-			req = nvme_allocate_request_vaddr(buf->b_data, pt->len, 
-			    nvme_pt_done, pt);
+			req = nvme_allocate_request_vaddr(buf->b_data, pt->len,
+			    M_WAITOK, nvme_pt_done, pt);
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
-			    nvme_pt_done, pt);
+			    M_WAITOK, nvme_pt_done, pt);
 	} else
-		req = nvme_allocate_request_null(nvme_pt_done, pt);
+		req = nvme_allocate_request_null(M_WAITOK, nvme_pt_done, pt);
 
 	/* Assume user space already converted to little-endian */
 	req->cmd.opc = pt->cmd.opc;
@@ -1308,7 +1316,99 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		vunmapbuf(buf);
 err:
 		uma_zfree(pbuf_zone, buf);
-		PRELE(curproc);
+	}
+
+	return (ret);
+}
+
+static void
+nvme_npc_done(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_passthru_cmd *npc = arg;
+	struct mtx *mtx = (void *)(uintptr_t)npc->metadata;
+
+	npc->result = cpl->cdw0;	/* cpl in host order by now */
+	mtx_lock(mtx);
+	npc->metadata = 0;
+	wakeup(npc);
+	mtx_unlock(mtx);
+}
+
+/* XXX refactor? */
+
+int
+nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
+    struct nvme_passthru_cmd *npc, uint32_t nsid, bool is_user, bool is_admin)
+{
+	struct nvme_request	*req;
+	struct mtx		*mtx;
+	struct buf		*buf = NULL;
+	int			ret = 0;
+
+	/*
+	 * We don't support metadata.
+	 */
+	if (npc->metadata != 0 || npc->metadata_len != 0)
+		return (EIO);
+
+	if (npc->data_len > 0 && npc->addr != 0) {
+		if (npc->data_len > ctrlr->max_xfer_size) {
+			nvme_printf(ctrlr,
+			    "npc->data_len (%d) exceeds max_xfer_size (%d)\n",
+			    npc->data_len, ctrlr->max_xfer_size);
+			return (EIO);
+		}
+		/* We only support data out or data in commands, but not both at once. */
+		if ((npc->opcode & 0x3) == 0 || (npc->opcode & 0x3) == 3)
+			return (EINVAL);
+		if (is_user) {
+			buf = uma_zalloc(pbuf_zone, M_WAITOK);
+			buf->b_iocmd = npc->opcode & 1 ? BIO_WRITE : BIO_READ;
+			if (vmapbuf(buf, (void *)(uintptr_t)npc->addr,
+			    npc->data_len, 1) < 0) {
+				ret = EFAULT;
+				goto err;
+			}
+			req = nvme_allocate_request_vaddr(buf->b_data,
+			    npc->data_len, M_WAITOK, nvme_npc_done, npc);
+		} else
+			req = nvme_allocate_request_vaddr(
+			    (void *)(uintptr_t)npc->addr, npc->data_len,
+			    M_WAITOK, nvme_npc_done, npc);
+	} else
+		req = nvme_allocate_request_null(M_WAITOK, nvme_npc_done, npc);
+
+	req->cmd.opc = npc->opcode;
+	req->cmd.fuse = npc->flags;
+	req->cmd.rsvd2 = htole16(npc->cdw2);
+	req->cmd.rsvd3 = htole16(npc->cdw3);
+	req->cmd.cdw10 = htole32(npc->cdw10);
+	req->cmd.cdw11 = htole32(npc->cdw11);
+	req->cmd.cdw12 = htole32(npc->cdw12);
+	req->cmd.cdw13 = htole32(npc->cdw13);
+	req->cmd.cdw14 = htole32(npc->cdw14);
+	req->cmd.cdw15 = htole32(npc->cdw15);
+
+	req->cmd.nsid = htole32(nsid);
+
+	mtx = mtx_pool_find(mtxpool_sleep, npc);
+	npc->metadata = (uintptr_t) mtx;
+
+	/* XXX no timeout passed down */
+	if (is_admin)
+		nvme_ctrlr_submit_admin_request(ctrlr, req);
+	else
+		nvme_ctrlr_submit_io_request(ctrlr, req);
+
+	mtx_lock(mtx);
+	while (npc->metadata != 0)
+		mtx_sleep(npc, mtx, PRIBIO, "nvme_npc", 0);
+	mtx_unlock(mtx);
+
+	if (buf != NULL) {
+		vunmapbuf(buf);
+err:
+		uma_zfree(pbuf_zone, buf);
 	}
 
 	return (ret);
@@ -1324,6 +1424,7 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	ctrlr = cdev->si_drv1;
 
 	switch (cmd) {
+	case NVME_IOCTL_RESET: /* Linux compat */
 	case NVME_RESET_CONTROLLER:
 		nvme_ctrlr_reset(ctrlr);
 		break;
@@ -1342,6 +1443,19 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = ctrlr->max_xfer_size;
 		break;
+	/* Linux Compatible (see nvme_linux.h) */
+	case NVME_IOCTL_ID:
+		td->td_retval[0] = 0xfffffffful;
+		return (0);
+
+	case NVME_IOCTL_ADMIN_CMD:
+	case NVME_IOCTL_IO_CMD: {
+		struct nvme_passthru_cmd *npc = (struct nvme_passthru_cmd *)arg;
+
+		return (nvme_ctrlr_linux_passthru_cmd(ctrlr, npc, npc->nsid, true,
+		    cmd == NVME_IOCTL_ADMIN_CMD));
+	}
+
 	default:
 		return (ENOTTY);
 	}
@@ -1465,7 +1579,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	taskqueue_start_threads(&ctrlr->taskqueue, 2, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
-	ctrlr->is_initialized = 0;
+	ctrlr->is_initialized = false;
 	ctrlr->notification_sent = 0;
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 	STAILQ_INIT(&ctrlr->fail_req);
@@ -1486,6 +1600,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	return (0);
 }
 
+/*
+ * Called on detach, or on error on attach. The nvme_controller won't be used
+ * again once we return, so we have to tear everything down (so nothing
+ * references this, no callbacks, etc), but don't need to reset all the state
+ * since nvme_controller will be freed soon.
+ */
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
@@ -1504,7 +1624,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	 */
 	gone = (nvme_mmio_read_4(ctrlr, csts) == NVME_GONE);
 	if (gone)
-		nvme_ctrlr_fail(ctrlr);
+		nvme_ctrlr_fail(ctrlr, true);
 	else
 		nvme_notify_fail_consumers(ctrlr);
 
@@ -1634,7 +1754,9 @@ nvme_ctrlr_suspend(struct nvme_controller *ctrlr)
 	int to = hz;
 
 	/*
-	 * Can't touch failed controllers, so it's already suspended.
+	 * Can't touch failed controllers, so it's already suspended. User will
+	 * need to do an explicit reset to bring it back, if that's even
+	 * possible.
 	 */
 	if (ctrlr->is_failed)
 		return (0);
@@ -1688,7 +1810,8 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 	/*
 	 * Now that we've reset the hardware, we can restart the controller. Any
 	 * I/O that was pending is requeued. Any admin commands are aborted with
-	 * an error. Once we've restarted, take the controller out of reset.
+	 * an error. Once we've restarted, stop flagging the controller as being
+	 * in the reset phase.
 	 */
 	nvme_ctrlr_start(ctrlr, true);
 	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
@@ -1701,7 +1824,7 @@ fail:
 	 * itself, due to questionable APIs.
 	 */
 	nvme_printf(ctrlr, "Failed to reset on resume, failing.\n");
-	nvme_ctrlr_fail(ctrlr);
+	nvme_ctrlr_fail(ctrlr, true);
 	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 	return (0);
 }

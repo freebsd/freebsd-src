@@ -1,4 +1,3 @@
-
 PROG_CXX=	llvm-pdbutil
 
 SRCDIR=		llvm/tools/llvm-pdbutil

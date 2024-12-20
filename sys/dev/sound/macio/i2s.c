@@ -241,10 +241,8 @@ i2s_attach(device_t self)
 	 * Register a hook for delayed attach in order to allow
 	 * the I2C controller to attach.
 	 */
-	if ((i2s_delayed_attach = malloc(sizeof(struct intr_config_hook), 
-	    M_TEMP, M_WAITOK | M_ZERO)) == NULL)
-		return (ENOMEM);
-
+	i2s_delayed_attach = malloc(sizeof(struct intr_config_hook),
+	    M_TEMP, M_WAITOK | M_ZERO);
 	i2s_delayed_attach->ich_func = i2s_postattach;
 	i2s_delayed_attach->ich_arg = sc;
 

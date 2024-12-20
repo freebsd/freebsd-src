@@ -87,19 +87,25 @@
 	ldr	tmp, =has_pan;			/* Get the addr of has_pan */ \
 	ldr	reg, [tmp];			/* Read it */		\
 	cbz	reg, 997f;			/* If no PAN skip */	\
-	.inst	0xd500409f | (0 << 8);		/* Clear PAN */		\
+	.arch_extension pan;						\
+	msr pan, #0;				/* Disable PAN checks */ \
+	.arch_extension nopan;						\
 	997:
 
 #define	EXIT_USER_ACCESS(reg)						\
 	cbz	reg, 998f;			/* If no PAN skip */	\
-	.inst	0xd500409f | (1 << 8);		/* Set PAN */		\
+	.arch_extension pan;						\
+	msr pan, #1;				/* Enable PAN checks */ \
+	.arch_extension nopan;						\
 	998:
 
 #define	EXIT_USER_ACCESS_CHECK(reg, tmp)				\
 	ldr	tmp, =has_pan;			/* Get the addr of has_pan */ \
 	ldr	reg, [tmp];			/* Read it */		\
 	cbz	reg, 999f;			/* If no PAN skip */	\
-	.inst	0xd500409f | (1 << 8);		/* Set PAN */		\
+	.arch_extension pan;						\
+	msr pan, #1;				/* Enable PAN checks */ \
+	.arch_extension nopan;						\
 	999:
 
 /*

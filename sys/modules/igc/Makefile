@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/dev/igc
 
 KMOD	= if_igc

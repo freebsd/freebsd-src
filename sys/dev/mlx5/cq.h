@@ -111,6 +111,12 @@ struct mlx5_cq_modify_params {
 	} params;
 };
 
+enum {
+	CQE_STRIDE_64 = 0,
+	CQE_STRIDE_128 = 1,
+	CQE_STRIDE_128_PAD = 2,
+};
+
 static inline int cqe_sz_to_mlx_sz(u8 size)
 {
 	return size == 64 ? CQE_SIZE_64 : CQE_SIZE_128;

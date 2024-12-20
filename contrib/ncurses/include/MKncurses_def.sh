@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: MKncurses_def.sh,v 1.4 2020/02/02 23:34:34 tom Exp $
+# $Id: MKncurses_def.sh,v 1.5 2022/07/16 17:03:59 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2022 Thomas E. Dickey                                       #
 # Copyright 2000,2003 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -56,7 +56,7 @@ cat <<EOF
 
 EOF
 
-${AWK-awk} <$DEFS '
+"${AWK-awk}" <"$DEFS" '
 !/^[@#]/ {
 	if ( NF == 1 )
 	{

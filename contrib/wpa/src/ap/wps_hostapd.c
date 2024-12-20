@@ -288,7 +288,7 @@ static int hostapd_wps_lookup_pskfile_cb(void *ctx, const u8 *mac_addr,
 			any_psk = wpa_psk->psk;
 
 		if (mac_addr && !dev_psk &&
-		    os_memcmp(mac_addr, wpa_psk->addr, ETH_ALEN) == 0) {
+		    ether_addr_equal(mac_addr, wpa_psk->addr)) {
 			dev_psk = wpa_psk->psk;
 			break;
 		}
@@ -1069,10 +1069,11 @@ static void hostapd_free_wps(struct wps_context *wps)
 	for (i = 0; i < MAX_WPS_VENDOR_EXTENSIONS; i++)
 		wpabuf_free(wps->dev.vendor_ext[i]);
 	wps_device_data_free(&wps->dev);
-	os_free(wps->network_key);
+	bin_clear_free(wps->network_key, wps->network_key_len);
 	hostapd_wps_nfc_clear(wps);
 	wpabuf_free(wps->dh_pubkey);
 	wpabuf_free(wps->dh_privkey);
+	forced_memzero(wps->psk, sizeof(wps->psk));
 	os_free(wps);
 }
 

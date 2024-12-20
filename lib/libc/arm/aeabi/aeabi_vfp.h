@@ -65,7 +65,7 @@
  * C Helper macros
  */
 
-#if __ARM_ARCH >= 6 && !defined(SOFTFLOAT_FOR_GCC)
+#if !defined(SOFTFLOAT_FOR_GCC)
 /*
  * Generate a function that will either call into the VFP implementation,
  * or the soft float version for a given __aeabi_* helper. The function

@@ -1,4 +1,3 @@
-
 PROG=	pppoed
 LIBADD=	netgraph
 MAN=	pppoed.8

@@ -446,7 +446,8 @@ static int wpa_config_read_networks(struct wpa_config *config, HKEY hk)
 }
 
 
-struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp)
+struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
+				    bool ro)
 {
 	TCHAR buf[256];
 	int errors = 0;
@@ -905,7 +906,6 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	STR(client_cert);
 	STR(private_key);
 	STR(private_key_passwd);
-	STR(dh_file);
 	STR(subject_match);
 	STR(check_cert_subject);
 	STR(altsubject_match);
@@ -914,7 +914,6 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	STR(client_cert2);
 	STR(private_key2);
 	STR(private_key2_passwd);
-	STR(dh_file2);
 	STR(subject_match2);
 	STR(check_cert_subject2);
 	STR(altsubject_match2);

@@ -95,10 +95,6 @@ spl_assert(const char *buf, const char *file, const char *func, int line)
 #ifndef expect
 #define	expect(expr, value) (__builtin_expect((expr), (value)))
 #endif
-#ifndef __linux__
-#define	likely(expr)   expect((expr) != 0, 1)
-#define	unlikely(expr) expect((expr) != 0, 0)
-#endif
 
 #define	PANIC(fmt, a...)						\
 	spl_panic(__FILE__, __FUNCTION__, __LINE__, fmt, ## a)
@@ -109,7 +105,7 @@ spl_assert(const char *buf, const char *file, const char *func, int line)
 	    __FILE__, __FUNCTION__, __LINE__))
 
 #define	VERIFYF(cond, str, ...)		do {				\
-		if (unlikely(!cond))					\
+		if (unlikely(!(cond)))					\
 		    spl_panic(__FILE__, __FUNCTION__, __LINE__,		\
 		    "VERIFY(" #cond ") failed " str "\n", __VA_ARGS__);\
 	} while (0)
@@ -205,7 +201,7 @@ spl_assert(const char *buf, const char *file, const char *func, int line)
 		    "failed (%lld " #OP " %lld) " STR "\n",		\
 		    (long long)(_verify3_left),				\
 		    (long long)(_verify3_right),			\
-		    __VA_ARGS);						\
+		    __VA_ARGS__);					\
 	} while (0)
 
 #define	VERIFY3UF(LEFT, OP, RIGHT, STR, ...)	do {			\
@@ -217,7 +213,7 @@ spl_assert(const char *buf, const char *file, const char *func, int line)
 		    "failed (%llu " #OP " %llu) " STR "\n",		\
 		    (unsigned long long)(_verify3_left),		\
 		    (unsigned long long)(_verify3_right),		\
-		    __VA_ARGS);						\
+		    __VA_ARGS__);					\
 	} while (0)
 
 #define	VERIFY3PF(LEFT, OP, RIGHT, STR, ...)	do {			\

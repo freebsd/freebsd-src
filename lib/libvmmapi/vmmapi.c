@@ -37,6 +37,7 @@
 #include <sys/cpuset.h>
 
 #include <capsicum_helpers.h>
+#include <err.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -50,10 +51,11 @@
 
 #include <vm/vm.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #ifdef WITH_VMMAPI_SNAPSHOT
 #include <machine/vmm_snapshot.h>
 #endif
+
+#include <dev/vmm/vmm_dev.h>
 
 #include "vmmapi.h"
 #include "internal.h"
@@ -78,58 +80,104 @@
 #define	PROT_RW		(PROT_READ | PROT_WRITE)
 #define	PROT_ALL	(PROT_READ | PROT_WRITE | PROT_EXEC)
 
-#define	CREATE(x)  sysctlbyname("hw.vmm.create", NULL, NULL, (x), strlen((x)))
-#define	DESTROY(x) sysctlbyname("hw.vmm.destroy", NULL, NULL, (x), strlen((x)))
-
 static int
 vm_device_open(const char *name)
 {
-	int fd, len;
-	char *vmfile;
+	char devpath[PATH_MAX];
 
-	len = strlen("/dev/vmm/") + strlen(name) + 1;
-	vmfile = malloc(len);
-	assert(vmfile != NULL);
-	snprintf(vmfile, len, "/dev/vmm/%s", name);
+	assert(strlen(name) <= VM_MAX_NAMELEN);
+	(void)snprintf(devpath, sizeof(devpath), "/dev/vmm/%s", name);
+	return (open(devpath, O_RDWR));
+}
 
-	/* Open the device file */
-	fd = open(vmfile, O_RDWR, 0);
+static int
+vm_ctl_create(const char *name, int ctlfd)
+{
+	struct vmmctl_vm_create vmc;
 
-	free(vmfile);
-	return (fd);
+	memset(&vmc, 0, sizeof(vmc));
+	if (strlcpy(vmc.name, name, sizeof(vmc.name)) >= sizeof(vmc.name)) {
+		errno = ENAMETOOLONG;
+		return (-1);
+	}
+	return (ioctl(ctlfd, VMMCTL_VM_CREATE, &vmc));
 }
 
 int
 vm_create(const char *name)
 {
+	int error, fd;
+
 	/* Try to load vmm(4) module before creating a guest. */
-	if (modfind("vmm") < 0)
-		kldload("vmm");
-	return (CREATE(name));
+	if (modfind("vmm") < 0) {
+		error = kldload("vmm");
+		if (error != 0)
+			return (-1);
+	}
+
+	fd = open("/dev/vmmctl", O_RDWR, 0);
+	if (fd < 0)
+		return (fd);
+	error = vm_ctl_create(name, fd);
+	if (error != 0) {
+		error = errno;
+		(void)close(fd);
+		errno = error;
+		return (-1);
+	}
+	(void)close(fd);
+	return (0);
 }
 
 struct vmctx *
 vm_open(const char *name)
 {
+	return (vm_openf(name, 0));
+}
+
+struct vmctx *
+vm_openf(const char *name, int flags)
+{
 	struct vmctx *vm;
 	int saved_errno;
+	bool created;
+
+	created = false;
 
 	vm = malloc(sizeof(struct vmctx) + strlen(name) + 1);
 	assert(vm != NULL);
 
-	vm->fd = -1;
+	vm->fd = vm->ctlfd = -1;
 	vm->memflags = 0;
 	vm->name = (char *)(vm + 1);
 	strcpy(vm->name, name);
 	memset(vm->memsegs, 0, sizeof(vm->memsegs));
 
-	if ((vm->fd = vm_device_open(vm->name)) < 0)
+	if ((vm->ctlfd = open("/dev/vmmctl", O_RDWR, 0)) < 0)
+		goto err;
+
+	vm->fd = vm_device_open(vm->name);
+	if (vm->fd < 0 && errno == ENOENT) {
+		if (flags & VMMAPI_OPEN_CREATE) {
+			if (vm_ctl_create(vm->name, vm->ctlfd) != 0)
+				goto err;
+			vm->fd = vm_device_open(vm->name);
+			created = true;
+		}
+	}
+	if (vm->fd < 0)
+		goto err;
+
+	if (!created && (flags & VMMAPI_OPEN_REINIT) != 0 && vm_reinit(vm) != 0)
 		goto err;
 
 	return (vm);
 err:
 	saved_errno = errno;
-	free(vm);
+	if (created)
+		vm_destroy(vm);
+	else
+		vm_close(vm);
 	errno = saved_errno;
 	return (NULL);
 }
@@ -139,20 +187,24 @@ vm_close(struct vmctx *vm)
 {
 	assert(vm != NULL);
 
-	close(vm->fd);
+	if (vm->fd >= 0)
+		(void)close(vm->fd);
+	if (vm->ctlfd >= 0)
+		(void)close(vm->ctlfd);
 	free(vm);
 }
 
 void
 vm_destroy(struct vmctx *vm)
 {
-	assert(vm != NULL);
+	struct vmmctl_vm_destroy vmd;
 
-	if (vm->fd >= 0)
-		close(vm->fd);
-	DESTROY(vm->name);
+	memset(&vmd, 0, sizeof(vmd));
+	(void)strlcpy(vmd.name, vm->name, sizeof(vmd.name));
+	if (ioctl(vm->ctlfd, VMMCTL_VM_DESTROY, &vmd) != 0)
+		warn("ioctl(VMMCTL_VM_DESTROY)");
 
-	free(vm);
+	vm_close(vm);
 }
 
 struct vcpu *

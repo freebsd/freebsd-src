@@ -1,5 +1,5 @@
 .\" Copyright (c) 2005 Robert N. M. Watson
-.\" Copyright (c) 2014,2015,2021 The FreeBSD Foundation, Inc.
+.\" Copyright (c) 2014,2015,2021 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
 .\" Part of this documentation was written by
@@ -217,7 +217,7 @@ recycle it at any moment, making this sysctl less useful than it sounds.
 .It Dv kern.ipc.umtx_max_robust
 The maximal number of robust mutexes allowed for one thread.
 The kernel will not unlock more mutexes than specified, see
-.Xr _umtx_op
+.Xr _umtx_op 2
 for more details.
 The default value is large enough for most useful applications.
 .It Dv debug.umtx.robust_faults_verbose
@@ -325,15 +325,15 @@ anyway.
 .Sh SEE ALSO
 .Xr ktrace 1 ,
 .Xr ld-elf.so.1 1 ,
-.Xr getrlimit 2 ,
+.Xr _umtx_op 2 ,
 .Xr errno 2 ,
+.Xr getrlimit 2 ,
 .Xr thr_exit 2 ,
 .Xr thr_kill 2 ,
 .Xr thr_kill2 2 ,
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2 ,
 .Xr dlclose 3 ,
 .Xr dlopen 3 ,
 .Xr getenv 3 ,

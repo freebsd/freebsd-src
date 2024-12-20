@@ -1,4 +1,3 @@
-
 TESTNUM=	sys
 
 CLEANFILES+= test.c

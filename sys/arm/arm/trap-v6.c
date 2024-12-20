@@ -291,11 +291,7 @@ abort_handler(struct trapframe *tf, int prefetch)
 	td = curthread;
 
 	fsr = (prefetch) ? cp15_ifsr_get(): cp15_dfsr_get();
-#if __ARM_ARCH >= 7
 	far = (prefetch) ? cp15_ifar_get() : cp15_dfar_get();
-#else
-	far = (prefetch) ? TRAPF_PC(tf) : cp15_dfar_get();
-#endif
 
 	idx = FSR_TO_FAULT(fsr);
 	usermode = TRAPF_USERMODE(tf);	/* Abort came from user mode? */

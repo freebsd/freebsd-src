@@ -17,5 +17,5 @@ make: "cond-op.mk" line 129: Malformed conditional (0 &&)
 make: "cond-op.mk" line 138: Malformed conditional (1 ||)
 make: "cond-op.mk" line 148: Malformed conditional (0 ||)
 make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
+make: stopped making "all" in unit-tests
 exit status 1

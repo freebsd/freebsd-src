@@ -1,4 +1,3 @@
-
 PROG=	wake
 MAN=	wake.8
 

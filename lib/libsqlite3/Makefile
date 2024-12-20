@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 PRIVATELIB=	yes
 LIB=	sqlite3

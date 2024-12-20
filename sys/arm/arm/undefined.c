@@ -279,7 +279,6 @@ undefinedinstruction(struct trapframe *frame)
 				coprocessor = COPROC_VFP; /* vfp / simd */
 		}
 	} else {
-#if __ARM_ARCH >= 7
 		fault_instruction = *(uint16_t *)fault_pc;
 		if (THUMB_32BIT_INSN(fault_instruction)) {
 			fault_instruction <<= 16;
@@ -294,18 +293,6 @@ undefinedinstruction(struct trapframe *frame)
 					coprocessor = COPROC_VFP; /* SIMD */
 			}
 		}
-#else
-		/*
-		 * No support for Thumb-2 on this cpu
-		 */
-		ksiginfo_init_trap(&ksi);
-		ksi.ksi_signo = SIGILL;
-		ksi.ksi_code = ILL_ILLADR;
-		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
-		trapsignal(td, &ksi);
-		userret(td, frame);
-		return;
-#endif
 	}
 
 	if ((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE) {

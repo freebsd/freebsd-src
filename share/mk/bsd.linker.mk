@@ -11,9 +11,11 @@
 # LINKER_FEATURES may contain one or more of the following, based on
 # linker support for that feature:
 #
-# - build-id:  support for generating a Build-ID note
-# - retpoline: support for generating PLT with retpoline speculative
-#              execution vulnerability mitigation
+# - build-id:   support for generating a Build-ID note
+# - retpoline:  support for generating PLT with retpoline speculative
+#               execution vulnerability mitigation
+# - bti-report: support for specifying how to report the missing
+#               Branch Target Identification (BTI) property (AArch64)
 #
 # LINKER_FREEBSD_VERSION is the linker's internal source version.
 #
@@ -111,6 +113,9 @@ ${X_}LINKER_FEATURES+=	retpoline
 .endif
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 90000
 ${X_}LINKER_FEATURES+=	ifunc-noplt
+.endif
+.if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 140000
+${X_}LINKER_FEATURES+=	bti-report
 .endif
 .endif
 .else

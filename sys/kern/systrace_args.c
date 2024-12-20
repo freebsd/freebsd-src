@@ -1,8 +1,9 @@
 /*
- * System call argument to DTrace register array converstion.
+ * System call argument to DTrace register array conversion.
+ *
+ * This file is part of the DTrace syscall provider.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * This file is part of the DTrace syscall provider.
  */
 
 static void
@@ -3455,8 +3456,33 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* osdb_exec */
+	/* getrlimitusage */
 	case 589: {
+		struct getrlimitusage_args *p = params;
+		uarg[a++] = p->which; /* u_int */
+		iarg[a++] = p->flags; /* int */
+		uarg[a++] = (intptr_t)p->res; /* rlim_t * */
+		*n_args = 3;
+		break;
+	}
+	/* fchroot */
+	case 590: {
+		struct fchroot_args *p = params;
+		iarg[a++] = p->fd; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* setcred */
+	case 591: {
+		struct setcred_args *p = params;
+		uarg[a++] = p->flags; /* u_int */
+		uarg[a++] = (intptr_t)p->wcred; /* const struct setcred * */
+		uarg[a++] = p->size; /* size_t */
+		*n_args = 3;
+		break;
+	}
+	/* osdb_exec */
+	case 592: {
 		struct osdb_exec_args *p = params;
 		uarg[a++] = (intptr_t)p->query; /* const char * */
 		iarg[a++] = p->querylen; /* int */
@@ -3467,7 +3493,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_prepare_v2 */
-	case 590: {
+	case 593: {
 		struct osdb_prepare_v2_args *p = params;
 		uarg[a++] = (intptr_t)p->zSql; /* const char * */
 		iarg[a++] = p->nBytes; /* int */
@@ -3477,7 +3503,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_step */
-	case 591: {
+	case 594: {
 		struct osdb_step_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		uarg[a++] = (intptr_t)p->status; /* int * */
@@ -3485,14 +3511,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_finalize */
-	case 592: {
+	case 595: {
 		struct osdb_finalize_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		*n_args = 1;
 		break;
 	}
 	/* osdb_column_blob */
-	case 593: {
+	case 596: {
 		struct osdb_column_blob_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3502,7 +3528,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_double */
-	case 594: {
+	case 597: {
 		struct osdb_column_double_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3511,7 +3537,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_int */
-	case 595: {
+	case 598: {
 		struct osdb_column_int_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3520,7 +3546,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_int64 */
-	case 596: {
+	case 599: {
 		struct osdb_column_int64_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3529,7 +3555,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_text */
-	case 597: {
+	case 600: {
 		struct osdb_column_text_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3539,7 +3565,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_text16 */
-	case 598: {
+	case 601: {
 		struct osdb_column_text16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3549,7 +3575,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_value */
-	case 599: {
+	case 602: {
 		struct osdb_column_value_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3559,7 +3585,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_bytes */
-	case 600: {
+	case 603: {
 		struct osdb_column_bytes_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3568,7 +3594,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_bytes16 */
-	case 601: {
+	case 604: {
 		struct osdb_column_bytes16_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3577,7 +3603,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_type */
-	case 602: {
+	case 605: {
 		struct osdb_column_type_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->iCol; /* int */
@@ -3586,7 +3612,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_count */
-	case 603: {
+	case 606: {
 		struct osdb_column_count_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		uarg[a++] = (intptr_t)p->count; /* int * */
@@ -3594,7 +3620,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_column_name */
-	case 604: {
+	case 607: {
 		struct osdb_column_name_args *p = params;
 		uarg[a++] = (intptr_t)p->sqlite3_stmt; /* void* */
 		iarg[a++] = p->N; /* int */
@@ -3603,7 +3629,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_sample */
-	case 605: {
+	case 608: {
 		struct osdb_sample_args *p = params;
 		iarg[a++] = p->delay; /* int */
 		iarg[a++] = p->max; /* int */
@@ -3611,7 +3637,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		break;
 	}
 	/* osdb_snapshot_clear */
-	case 606: {
+	case 609: {
 		*n_args = 0;
 		break;
 	}
@@ -9405,8 +9431,50 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* osdb_exec */
+	/* getrlimitusage */
 	case 589:
+		switch (ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "userland rlim_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchroot */
+	case 590:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setcred */
+	case 591:
+		switch (ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "userland const struct setcred *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* osdb_exec */
+	case 592:
 		switch (ndx) {
 		case 0:
 			p = "userland const char *";
@@ -9428,7 +9496,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_prepare_v2 */
-	case 590:
+	case 593:
 		switch (ndx) {
 		case 0:
 			p = "userland const char *";
@@ -9447,7 +9515,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_step */
-	case 591:
+	case 594:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9460,7 +9528,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_finalize */
-	case 592:
+	case 595:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9470,7 +9538,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_blob */
-	case 593:
+	case 596:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9489,7 +9557,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_double */
-	case 594:
+	case 597:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9505,7 +9573,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_int */
-	case 595:
+	case 598:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9521,7 +9589,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_int64 */
-	case 596:
+	case 599:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9537,7 +9605,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_text */
-	case 597:
+	case 600:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9556,7 +9624,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_text16 */
-	case 598:
+	case 601:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9575,7 +9643,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_value */
-	case 599:
+	case 602:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9594,7 +9662,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_bytes */
-	case 600:
+	case 603:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9610,7 +9678,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_bytes16 */
-	case 601:
+	case 604:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9626,7 +9694,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_type */
-	case 602:
+	case 605:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9642,7 +9710,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_count */
-	case 603:
+	case 606:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9655,7 +9723,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_column_name */
-	case 604:
+	case 607:
 		switch (ndx) {
 		case 0:
 			p = "userland void*";
@@ -9671,7 +9739,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_sample */
-	case 605:
+	case 608:
 		switch (ndx) {
 		case 0:
 			p = "int";
@@ -9684,7 +9752,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		};
 		break;
 	/* osdb_snapshot_clear */
-	case 606:
+	case 609:
 		break;
 	default:
 		break;
@@ -11659,93 +11727,108 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_exec */
+	/* getrlimitusage */
 	case 589:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_prepare_v2 */
+	/* fchroot */
 	case 590:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_step */
+	/* setcred */
 	case 591:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_finalize */
+	/* osdb_exec */
 	case 592:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_blob */
+	/* osdb_prepare_v2 */
 	case 593:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_double */
+	/* osdb_step */
 	case 594:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_int */
+	/* osdb_finalize */
 	case 595:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_int64 */
+	/* osdb_column_blob */
 	case 596:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text */
+	/* osdb_column_double */
 	case 597:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_text16 */
+	/* osdb_column_int */
 	case 598:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_value */
+	/* osdb_column_int64 */
 	case 599:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes */
+	/* osdb_column_text */
 	case 600:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_bytes16 */
+	/* osdb_column_text16 */
 	case 601:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_type */
+	/* osdb_column_value */
 	case 602:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_count */
+	/* osdb_column_bytes */
 	case 603:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_column_name */
+	/* osdb_column_bytes16 */
 	case 604:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* osdb_sample */
+	/* osdb_column_type */
 	case 605:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_column_count */
+	case 606:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_column_name */
+	case 607:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* osdb_sample */
+	case 608:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
 	/* osdb_snapshot_clear */
-	case 606:
+	case 609:
 	default:
 		break;
 	};

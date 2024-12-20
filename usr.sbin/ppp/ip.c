@@ -371,14 +371,14 @@ FilterCheck(const unsigned char *packet,
             }
             sport = ntohs(th->th_sport);
             dport = ntohs(th->th_dport);
-            estab = (th->th_flags & TH_ACK);
-            syn = (th->th_flags & TH_SYN);
-            finrst = (th->th_flags & (TH_FIN|TH_RST));
+            estab = __tcp_get_flags(th) & TH_ACK;
+            syn = __tcp_get_flags(th) & TH_SYN;
+            finrst = __tcp_get_flags(th) & (TH_FIN|TH_RST);
             if (log_IsKept(LogDEBUG)) {
               if (!estab)
                 snprintf(dbuff, sizeof dbuff,
-                         "flags = %02x, sport = %d, dport = %d",
-                         th->th_flags, sport, dport);
+                         "flags = %03x, sport = %d, dport = %d",
+                         __tcp_get_flags(th), sport, dport);
               else
                 *dbuff = '\0';
             }
@@ -561,7 +561,7 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
 {
   char logbuf[200];
   static const char *const TcpFlags[] = {
-    "FIN", "SYN", "RST", "PSH", "ACK", "URG"
+    "FIN", "SYN", "RST", "PSH", "ACK", "URG", "ECE", "CWR", "AE"
   };
   const struct tcphdr *th;
   const struct udphdr *uh;
@@ -829,19 +829,17 @@ PacketCheck(struct bundle *bundle, u_int32_t family,
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "%s:%d", ncpaddr_ntoa(&dstaddr), ntohs(th->th_dport));
       loglen += strlen(logbuf + loglen);
-      n = 0;
-      for (mask = TH_FIN; mask != 0x40; mask <<= 1) {
-        if (th->th_flags & mask) {
+      for (mask = TH_FIN, n = 0; mask <= TH_FLAGS; mask <<= 1, n++) {
+        if (__tcp_get_flags(th) & mask) {
           snprintf(logbuf + loglen, sizeof logbuf - loglen, " %s", TcpFlags[n]);
           loglen += strlen(logbuf + loglen);
         }
-        n++;
       }
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "  seq:%lx  ack:%lx (%d/%d)",
                (u_long)ntohl(th->th_seq), (u_long)ntohl(th->th_ack), len, nb);
       loglen += strlen(logbuf + loglen);
-      if ((th->th_flags & TH_SYN) && nb > 40) {
+      if ((__tcp_get_flags(th) & TH_SYN) && nb > 40) {
         const u_short *sp;
 
         sp = (const u_short *)(payload + 20);

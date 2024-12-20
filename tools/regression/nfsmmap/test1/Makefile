@@ -1,4 +1,3 @@
-
 PROG= test1
 MAN=
 NFSSERVER?= herring.nlsystems.com

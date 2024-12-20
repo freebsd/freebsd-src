@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=	mount
 SRCS=	mount.c mount_fs.c getmntopts.c vfslist.c

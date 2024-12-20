@@ -152,7 +152,7 @@ typedef struct Decl {
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #line 36 "btyacc_demo.y"
-typedef union {
+typedef union YYSTYPE {
     Scope	*scope;
     Expr	*expr;
     Expr_List	*elist;

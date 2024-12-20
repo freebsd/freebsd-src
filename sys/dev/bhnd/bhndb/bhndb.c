@@ -558,7 +558,7 @@ bhndb_attach(device_t dev, struct bhnd_chipid *cid,
 	}
 
 	/* Add our bridged bus device */
-	sc->bus_dev = BUS_ADD_CHILD(dev, BHND_PROBE_BUS, "bhnd", -1);
+	sc->bus_dev = BUS_ADD_CHILD(dev, BHND_PROBE_BUS, "bhnd", DEVICE_UNIT_ANY);
 	if (sc->bus_dev == NULL) {
 		error = ENXIO;
 		goto failed;

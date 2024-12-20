@@ -105,7 +105,7 @@ Following variables may be used to reconfigure the QAT device.\&
 For configuration persistence those variables may be set before loading the driver, either via
 .Xr kenv 1
 or
-.Xr loader.conf(5).
+.Xr loader.conf 5 .
 The device specific configuration options are prefixed with
 .Va dev.qat.X\&.
 where X is the device number.
@@ -148,7 +148,7 @@ QAT firmware revision number.
 Summary of device specific configuration.
 .It Va heartbeat
 QAT device heartbeat status. Value '1' indicates that the device is operational.
-'0' value means that the device is not responsive. Device requires restart.
+Value '0' means that the device is not responsive. Device requires restart.
 .It Va heartbeat_failed
 Number of QAT heartbeat failures received.
 .It Va heartbeat_sent

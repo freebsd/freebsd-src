@@ -246,7 +246,8 @@ tegra_rtc_attach(device_t dev)
 	 */
 	/* clock_register(dev, 1000000); */
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->clk != NULL)
@@ -266,6 +267,11 @@ static int
 tegra_rtc_detach(device_t dev)
 {
 	struct tegra_rtc_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->irq_h != NULL)
@@ -276,7 +282,7 @@ tegra_rtc_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
 
 	LOCK_DESTROY(sc);
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t tegra_rtc_methods[] = {

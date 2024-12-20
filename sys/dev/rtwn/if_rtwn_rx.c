@@ -52,12 +52,24 @@
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
+/*
+ * Get the driver rate set for the current operating rateset(s).
+ *
+ * rates_p is set to a mask of 11abg ridx values (not HW rate values.)
+ * htrates_p is set to a mask of 11n ridx values (not HW rate values),
+ *  starting at MCS0 == bit 0.
+ *
+ * maxrate_p is set to the ridx value.
+ *
+ * If basic_rates is 1 then only the 11abg basic rate logic will
+ * be applied; the HT rateset will be applied to 11n rates.
+ */
 void
 rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
     const struct ieee80211_htrateset *rs_ht, uint32_t *rates_p,
-    int *maxrate_p, int basic_rates)
+    uint32_t *htrates_p, int *maxrate_p, int basic_rates)
 {
-	uint32_t rates;
+	uint32_t rates = 0, htrates = 0;
 	uint8_t ridx;
 	int i, maxrate;
 
@@ -65,7 +77,7 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	rates = 0;
 	maxrate = 0;
 
-	/* This is for 11bg */
+	/* This is for 11abg */
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
 		ridx = rate2ridx(IEEE80211_RV(rs->rs_rates[i]));
@@ -80,25 +92,35 @@ rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
 	}
 
 	/* If we're doing 11n, enable 11n rates */
-	if (rs_ht != NULL && !basic_rates) {
+	if (rs_ht != NULL) {
 		for (i = 0; i < rs_ht->rs_nrates; i++) {
-			if ((rs_ht->rs_rates[i] & 0x7f) > 0xf)
+			uint8_t rate = rs_ht->rs_rates[i] & 0x7f;
+			bool is_basic = rs_ht->rs_rates[i] &
+			    IEEE80211_RATE_BASIC;
+			/* Only do up to 2-stream rates for now */
+			if ((rate) > 0xf)
 				continue;
-			/* 11n rates start at index 12 */
-			ridx = RTWN_RIDX_HT_MCS((rs_ht->rs_rates[i]) & 0xf);
-			rates |= (1 << ridx);
+
+			if (basic_rates && is_basic == false)
+				continue;
+
+			ridx = rate & 0xf;
+			htrates |= (1 << ridx);
 
 			/* Guard against the rate table being oddly ordered */
-			if (ridx > maxrate)
-				maxrate = ridx;
+			if (RTWN_RIDX_HT_MCS(ridx) > maxrate)
+				maxrate = RTWN_RIDX_HT_MCS(ridx);
 		}
 	}
 
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
-	    "%s: rates 0x%08X, maxrate %d\n", __func__, rates, maxrate);
+	    "%s: rates 0x%08X htrates 0x%08X, maxrate %d\n",
+	    __func__, rates, htrates, maxrate);
 
 	if (rates_p != NULL)
 		*rates_p = rates;
+	if (htrates_p != NULL)
+		*htrates_p = htrates;
 	if (maxrate_p != NULL)
 		*maxrate_p = maxrate;
 }
@@ -285,8 +307,18 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 		rxs.c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 
 	rxs.r_flags |= IEEE80211_R_TSF_START;	/* XXX undocumented */
-	rxs.r_flags |= IEEE80211_R_TSF64;
-	rxs.c_rx_tsf = rtwn_extend_rx_tsf(sc, stat);
+
+	/*
+	 * Doing the TSF64 extension on USB is expensive, especially
+	 * if it's being done on every MPDU in an AMPDU burst.
+	 */
+	if (sc->sc_ena_tsf64) {
+		rxs.r_flags |= IEEE80211_R_TSF64;
+		rxs.c_rx_tsf = rtwn_extend_rx_tsf(sc, stat);
+	} else {
+		rxs.r_flags |= IEEE80211_R_TSF32;
+		rxs.c_rx_tsf = le32toh(stat->tsf_low);
+	}
 
 	/* Get RSSI from PHY status descriptor. */
 	is_cck = (rxs.c_pktflags & IEEE80211_RX_F_CCK) != 0;
@@ -317,6 +349,10 @@ rtwn_rx_common(struct rtwn_softc *sc, struct mbuf *m, void *desc)
 
 	/* Drop PHY descriptor. */
 	m_adj(m, infosz + shift);
+
+	/* If APPFCS, drop FCS */
+	if (sc->rcr & R92C_RCR_APPFCS)
+		m_adj(m, -IEEE80211_CRC_LEN);
 
 	return (ni);
 }
@@ -456,6 +492,15 @@ rtwn_rxfilter_init(struct rtwn_softc *sc)
 	    R92C_RCR_HTC_LOC_CTRL | R92C_RCR_APP_PHYSTS |
 	    R92C_RCR_APP_ICV | R92C_RCR_APP_MIC;
 
+	/*
+	 * Add FCS, to work around occasional 4 byte truncation
+	 * with some frames.  This is more problematic on RTL8812/
+	 * RTL8821 because they're also doing L3/L4 checksum offload
+	 * and hardware encryption, so both are tagged as "passed"
+	 * before the frame is truncated.
+	 */
+	sc->rcr |= R92C_RCR_APPFCS;
+
 	/* Update dynamic Rx filter parts. */
 	rtwn_rxfilter_update(sc);
 }
@@ -487,7 +532,7 @@ rtwn_set_promisc(struct rtwn_softc *sc)
 	RTWN_ASSERT_LOCKED(sc);
 
 	mask_all = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
-	mask_min = R92C_RCR_APM;
+	mask_min = R92C_RCR_APM | R92C_RCR_APPFCS;
 
 	if (sc->bcn_vaps == 0)
 		mask_min |= R92C_RCR_CBSSID_BCN;

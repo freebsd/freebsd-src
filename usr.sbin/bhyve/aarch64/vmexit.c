@@ -43,6 +43,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <vmmapi.h>
 
@@ -132,6 +133,11 @@ vmexit_debug(struct vmctx *ctx __unused, struct vcpu *vcpu,
     struct vm_run *vmrun __unused)
 {
 	gdb_cpu_suspend(vcpu);
+	/*
+	 * XXX-MJ sleep for a short period to avoid chewing up the CPU in the
+	 * window between activation of the vCPU thread and the STARTUP IPI.
+	 */
+	usleep(1000);
 	return (VMEXIT_CONTINUE);
 }
 
@@ -243,7 +249,8 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 			how = VM_SUSPEND_POWEROFF;
 		else
 			how = VM_SUSPEND_RESET;
-		vm_suspend(ctx, how);
+		error = vm_suspend(ctx, how);
+		assert(error == 0 || errno == EALREADY);
 		break;
 	default:
 		break;
@@ -256,15 +263,15 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 }
 
 static int
-vmexit_hyp(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
-    struct vm_run *vmrun)
+vmexit_hyp(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_run *vmrun)
 {
-	struct vm_exit *vme;
+	/* Raise an unknown reason exception */
+	if (vm_inject_exception(vcpu,
+	    (EXCP_UNKNOWN << ESR_ELx_EC_SHIFT) | ESR_ELx_IL,
+	    vmrun->vm_exit->u.hyp.far_el2) != 0)
+		return (VMEXIT_ABORT);
 
-	vme = vmrun->vm_exit;
-	printf("unhandled exception: esr %#lx, far %#lx\n",
-	    vme->u.hyp.esr_el2, vme->u.hyp.far_el2);
-	return (VMEXIT_ABORT);
+	return (VMEXIT_CONTINUE);
 }
 
 static int

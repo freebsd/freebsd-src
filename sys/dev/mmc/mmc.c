@@ -1915,7 +1915,7 @@ child_common:
 			mmc_log_card(sc->dev, ivar, newcard);
 		if (newcard) {
 			/* Add device. */
-			child = device_add_child(sc->dev, NULL, -1);
+			child = device_add_child(sc->dev, NULL, DEVICE_UNIT_ANY);
 			if (child != NULL) {
 				device_set_ivars(child, ivar);
 				sc->child_list = realloc(sc->child_list,
@@ -2457,7 +2457,7 @@ mmc_scan(struct mmc_softc *sc)
 		device_printf(dev, "Failed to release bus after scanning\n");
 		return;
 	}
-	(void)bus_generic_attach(dev);
+	bus_attach_children(dev);
 }
 
 static int

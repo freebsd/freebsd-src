@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2023 Thomas E. Dickey                                     *
  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -148,7 +148,7 @@ AUTHOR
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: hardscroll.c,v 1.54 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: hardscroll.c,v 1.58 2023/09/09 16:04:08 Nicholas.Marriott Exp $")
 
 #if defined(SCROLLDEBUG) || defined(HASHDEBUG)
 
@@ -204,13 +204,19 @@ NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_DCL0)
 	int *new_oldnums = typeRealloc(int,
 				       (size_t) need_lines,
 				       oldnums(SP_PARM));
-	if (!new_oldnums)
+	if (!new_oldnums) {
+	    TR(TRACE_ICALLS, (T_RETURN("")));
 	    return;
+	}
 	oldnums(SP_PARM) = new_oldnums;
 	OLDNUM_SIZE(SP_PARM) = need_lines;
     }
     /* calculate the indices */
     NCURSES_SP_NAME(_nc_hash_map) (NCURSES_SP_ARG);
+    if (SP_PARM->hashtab_len < screen_lines(SP_PARM)) {
+	TR(TRACE_ICALLS, (T_RETURN("")));
+	return;
+    }
 #endif
 #endif /* !defined(SCROLLDEBUG) && !defined(HASHDEBUG) */
 
@@ -301,20 +307,27 @@ NCURSES_EXPORT(void)
 NCURSES_SP_NAME(_nc_linedump) (NCURSES_SP_DCL0)
 /* dump the state of the real and virtual oldnum fields */
 {
-    char *buf = 0;
-    size_t want = ((size_t) screen_lines(SP_PARM) + 1) * 4;
-    (void) SP_PARM;
+    if (USE_TRACEF(TRACE_UPDATE | TRACE_MOVE)) {
+	char *buf = 0;
+	size_t want = ((size_t) screen_lines(SP_PARM) + 1) * 4;
+	(void) SP_PARM;
 
-    if ((buf = typeMalloc(char, want)) != 0) {
-	int n;
+	if ((buf = typeMalloc(char, want)) != 0) {
+	    int n;
 
-	*buf = '\0';
-	for (n = 0; n < screen_lines(SP_PARM); n++)
-	    _nc_SPRINTF(buf + strlen(buf),
-			_nc_SLIMIT(want - strlen(buf))
-			" %02d", OLDNUM(SP_PARM, n));
-	TR(TRACE_UPDATE | TRACE_MOVE, ("virt %s", buf));
-	free(buf);
+	    *buf = '\0';
+	    for (n = 0; n < screen_lines(SP_PARM); n++) {
+		int number = OLDNUM(SP_PARM, n);
+		if (number >= -99 && number < 999) {
+		    _nc_SPRINTF(buf + strlen(buf),
+				_nc_SLIMIT(want - strlen(buf))
+				" %02d", number);
+		} else {
+		    _nc_STRCAT(buf, " ??", want - strlen(buf));
+		}
+	    }
+	    free(buf);
+	}
     }
 }
 

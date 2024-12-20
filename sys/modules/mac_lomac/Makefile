@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/security/mac_lomac
 
 KMOD=	mac_lomac

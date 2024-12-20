@@ -72,10 +72,10 @@ static int sdhci_debug = 0;
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0,
     "Debug level");
 u_int sdhci_quirk_clear = 0;
-SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_clear, CTLFLAG_RWTUN, &sdhci_quirk_clear,
+SYSCTL_UINT(_hw_sdhci, OID_AUTO, quirk_clear, CTLFLAG_RWTUN, &sdhci_quirk_clear,
     0, "Mask of quirks to clear");
 u_int sdhci_quirk_set = 0;
-SYSCTL_INT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
+SYSCTL_UINT(_hw_sdhci, OID_AUTO, quirk_set, CTLFLAG_RWTUN, &sdhci_quirk_set, 0,
     "Mask of quirks to set");
 
 #define	RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))
@@ -700,7 +700,7 @@ sdhci_card_task(void *arg, int pending __unused)
 			mmccam_start_discovery(slot->sim);
 			SDHCI_UNLOCK(slot);
 #else
-			d = slot->dev = device_add_child(slot->bus, "mmc", -1);
+			d = slot->dev = device_add_child(slot->bus, "mmc", DEVICE_UNIT_ANY);
 			SDHCI_UNLOCK(slot);
 			if (d) {
 				device_set_ivars(d, slot);
@@ -1148,6 +1148,9 @@ no_tuning:
 	node_oid = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, node_name, CTLFLAG_RW, 0, "slot specific node");
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev), SYSCTL_CHILDREN(node_oid),
+	    OID_AUTO, "quirks", CTLFLAG_RD, &slot->quirks, 0, "Slot quirks");
 
 	node_oid = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(node_oid), OID_AUTO, "debug", CTLFLAG_RW, 0,

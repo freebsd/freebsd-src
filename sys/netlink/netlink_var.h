@@ -53,9 +53,10 @@ struct nl_buf {
 
 #define	NLP_MAX_GROUPS		128
 
+BITSET_DEFINE(nl_groups, NLP_MAX_GROUPS);
 struct nlpcb {
         struct socket           *nl_socket;
-	uint64_t	        nl_groups[NLP_MAX_GROUPS / 64];
+	struct nl_groups	nl_groups;
 	uint32_t                nl_port;
 	uint32_t	        nl_flags;
 	uint32_t	        nl_process_id;
@@ -159,7 +160,7 @@ struct genl_group {
 	const char		*group_name;
 };
 
-struct genl_family *genl_get_family(uint32_t family_id);
+struct genl_family *genl_get_family(uint16_t family_id);
 struct genl_group *genl_get_group(uint32_t group_id);
 
 #define	MAX_FAMILIES	20
@@ -178,14 +179,15 @@ struct nl_pstate;
 struct nl_function_wrapper {
 	bool (*nlmsg_add)(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
 	    uint16_t flags, uint32_t len);
-	bool (*nlmsg_refill_buffer)(struct nl_writer *nw, int required_len);
+	bool (*nlmsg_refill_buffer)(struct nl_writer *nw, size_t required_len);
 	bool (*nlmsg_flush)(struct nl_writer *nw);
 	bool (*nlmsg_end)(struct nl_writer *nw);
 	void (*nlmsg_abort)(struct nl_writer *nw);
 	void (*nlmsg_ignore_limit)(struct nl_writer *nw);
-	bool (*nlmsg_get_unicast_writer)(struct nl_writer *nw, int size, struct nlpcb *nlp);
-	bool (*nlmsg_get_group_writer)(struct nl_writer *nw, int size, int protocol, int group_id);
-	bool (*nlmsg_get_chain_writer)(struct nl_writer *nw, int size, struct mbuf **pm);
+	bool (*nl_writer_unicast)(struct nl_writer *nw, size_t size,
+	    struct nlpcb *nlp, bool waitok);
+	bool (*nl_writer_group)(struct nl_writer *nw, size_t size,
+	    uint16_t protocol, uint16_t group_id, bool waitok);
 	bool (*nlmsg_end_dump)(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
 	int (*nl_modify_ifp_generic)(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	    const struct nlattr_bmask *bm, struct nl_pstate *npt);

@@ -59,6 +59,7 @@ __read_mostly cap_rights_t cap_fchdir_rights;
 __read_mostly cap_rights_t cap_fchflags_rights;
 __read_mostly cap_rights_t cap_fchmod_rights;
 __read_mostly cap_rights_t cap_fchown_rights;
+__read_mostly cap_rights_t cap_fchroot_rights;
 __read_mostly cap_rights_t cap_fcntl_rights;
 __read_mostly cap_rights_t cap_fexecve_rights;
 __read_mostly cap_rights_t cap_flock_rights;
@@ -108,6 +109,7 @@ cap_rights_sysinit(void *arg)
 	cap_rights_init_one(&cap_fchflags_rights, CAP_FCHFLAGS);
 	cap_rights_init_one(&cap_fchmod_rights, CAP_FCHMOD);
 	cap_rights_init_one(&cap_fchown_rights, CAP_FCHOWN);
+	cap_rights_init_one(&cap_fchroot_rights, CAP_FCHROOT);
 	cap_rights_init_one(&cap_fcntl_rights, CAP_FCNTL);
 	cap_rights_init_one(&cap_fexecve_rights, CAP_FEXECVE);
 	cap_rights_init_one(&cap_flock_rights, CAP_FLOCK);

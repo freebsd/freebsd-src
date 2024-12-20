@@ -1,6 +1,10 @@
 .\"-
 .\" Copyright (c) 2011-2013 Nathan Whitehorn <nwhitehorn@FreeBSD.org> All rights reserved.
 .\" Copyright (c) 2018 Roberto Fernandez Cueto <roberfern@gmail.com>
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Björn Zeeb
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 18, 2023
+.Dd November 4, 2024
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -240,6 +244,12 @@ Extracts the distributions listed in
 .Ev DISTRIBUTIONS
 into
 .Ev BSDINSTALL_CHROOT .
+.It Cm firmware
+executes
+.Xr fwget 8
+inside the
+.Ev BSDINSTALL_CHROOT
+to install any needed and available firmware for the new system.
 .It Cm rootpass
 Interactively invokes
 .Xr passwd 1
@@ -323,6 +333,13 @@ Default:
 Path to a log file for the installation.
 Default:
 .Dq Pa $TMPDIR/bsdinstall_log
+.It Ev BSDINSTALL_SKIP_FIRMWARE
+If not empty, the
+.Cm auto
+target
+will not invoke the
+.Cm firmware
+target.
 .It Ev BSDINSTALL_SKIP_HARDENING
 If not empty, the
 .Cm auto

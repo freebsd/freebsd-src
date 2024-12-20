@@ -223,6 +223,8 @@ static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	{"allow.nfsd", "allow.nonfsd", PR_ALLOW_NFSD},
 #endif
 	{"allow.extattr", "allow.noextattr", PR_ALLOW_EXTATTR},
+	{"allow.adjtime", "allow.noadjtime", PR_ALLOW_ADJTIME},
+	{"allow.settime", "allow.nosettime", PR_ALLOW_SETTIME},
 };
 static unsigned pr_allow_all = PR_ALLOW_ALL_STATIC;
 const size_t pr_flag_allow_size = sizeof(pr_flag_allow);
@@ -3083,8 +3085,7 @@ prison_proc_iterate(struct prison *pr, void (*cb)(struct proc *, void *),
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state != PRS_NEW && p->p_ucred != NULL) {
-			for (ppr = p->p_ucred->cr_prison;
-			    ppr != &prison0;
+			for (ppr = p->p_ucred->cr_prison; ppr != NULL;
 			    ppr = ppr->pr_parent) {
 				if (ppr == pr) {
 					cb(p, cbarg);
@@ -3954,6 +3955,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 * Allow jailed processes to manipulate process UNIX
 		 * credentials in any way they see fit.
 		 */
+	case PRIV_CRED_SETCRED:
 	case PRIV_CRED_SETUID:
 	case PRIV_CRED_SETEUID:
 	case PRIV_CRED_SETGID:
@@ -4166,6 +4168,28 @@ prison_priv_check(struct ucred *cred, int priv)
 		if (cred->cr_prison->pr_allow & PR_ALLOW_READ_MSGBUF)
 			return (0);
 		return (EPERM);
+
+		/*
+		 * Conditionally allow privileged process in the jail adjust
+		 * machine time.
+		 */
+	case PRIV_ADJTIME:
+	case PRIV_NTP_ADJTIME:
+		if (cred->cr_prison->pr_allow &
+		    (PR_ALLOW_ADJTIME | PR_ALLOW_SETTIME)) {
+			return (0);
+		}
+		return (EPERM);
+
+		/*
+		 * Conditionally allow privileged process in the jail set
+		 * machine time.
+		 */
+	case PRIV_CLOCK_SETTIME:
+		if (cred->cr_prison->pr_allow & PR_ALLOW_SETTIME)
+			return (0);
+		else
+			return (EPERM);
 
 	default:
 		/*
@@ -4631,6 +4655,10 @@ SYSCTL_JAIL_PARAM(_allow, nfsd, CTLTYPE_INT | CTLFLAG_RW,
 #endif
 SYSCTL_JAIL_PARAM(_allow, extattr, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set system-level filesystem extended attributes");
+SYSCTL_JAIL_PARAM(_allow, adjtime, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may adjust system time");
+SYSCTL_JAIL_PARAM(_allow, settime, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may set system time");
 
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,

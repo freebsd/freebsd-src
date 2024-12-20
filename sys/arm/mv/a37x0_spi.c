@@ -214,10 +214,11 @@ a37x0_spi_attach(device_t dev)
 		maxfreq = 0;
 	sc->sc_maxfreq = maxfreq;
 
-	device_add_child(dev, "spibus", -1);
+	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
 	/* Probe and attach the spibus when interrupts are available. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

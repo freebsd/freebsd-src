@@ -921,12 +921,12 @@ tr_pci_attach(device_t dev)
 		 rman_get_start(tr->reg), rman_get_start(tr->irq),
 		 device_get_nameunit(device_get_parent(dev)));
 
-	if (pcm_register(dev, tr, dacn, 1))
-		goto bad;
+	pcm_init(dev, tr);
 	pcm_addchan(dev, PCMDIR_REC, &trrchan_class, tr);
 	for (i = 0; i < dacn; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &trpchan_class, tr);
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 
 	return 0;
 

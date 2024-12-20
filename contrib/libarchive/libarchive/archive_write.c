@@ -98,7 +98,7 @@ archive_write_new(void)
 	struct archive_write *a;
 	unsigned char *nulls;
 
-	a = (struct archive_write *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_WRITE_MAGIC;
@@ -114,7 +114,7 @@ archive_write_new(void)
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
-	nulls = (unsigned char *)calloc(a->null_length, sizeof(unsigned char));
+	nulls = calloc(a->null_length, sizeof(unsigned char));
 	if (nulls == NULL) {
 		free(a);
 		return (NULL);
@@ -132,12 +132,17 @@ archive_write_set_bytes_per_block(struct archive *_a, int bytes_per_block)
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_bytes_per_block");
+
+	if (bytes_per_block < 0) {
+		// Do nothing if the bytes_per_block is negative
+		return 0;
+	}
 	a->bytes_per_block = bytes_per_block;
 	return (ARCHIVE_OK);
 }
 
 /*
- * Get the current block size.  -1 if it has never been set.
+ * Get the current block size.
  */
 int
 archive_write_get_bytes_per_block(struct archive *_a)
@@ -145,6 +150,10 @@ archive_write_get_bytes_per_block(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_ANY, "archive_write_get_bytes_per_block");
+	if (a->bytes_per_block < 0) {
+		// Don't return a negative value
+		return 1;
+	}
 	return (a->bytes_per_block);
 }
 
@@ -358,8 +367,8 @@ archive_write_client_open(struct archive_write_filter *f)
 	    archive_write_get_bytes_in_last_block(f->archive);
 	buffer_size = f->bytes_per_block;
 
-	state = (struct archive_none *)calloc(1, sizeof(*state));
-	buffer = (char *)malloc(buffer_size);
+	state = calloc(1, sizeof(*state));
+	buffer = malloc(buffer_size);
 	if (state == NULL || buffer == NULL) {
 		free(state);
 		free(buffer);

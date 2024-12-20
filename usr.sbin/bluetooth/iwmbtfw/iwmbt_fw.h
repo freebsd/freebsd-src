@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2013 Adrian Chadd <adrian@freebsd.org>
  * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Future Crew LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +29,15 @@
 
 #ifndef	__IWMBT_FW_H__
 #define	__IWMBT_FW_H__
+
+#include <sys/types.h>
+#define	L2CAP_SOCKET_CHECKED
+#include <bluetooth.h>
+
+#define	RSA_HEADER_LEN		644
+#define	ECDSA_HEADER_LEN	320
+#define	ECDSA_OFFSET		RSA_HEADER_LEN
+#define	CSS_HEADER_OFFSET	8
 
 struct iwmbt_version {
 	uint8_t status;
@@ -62,6 +72,65 @@ struct iwmbt_boot_params {
 	uint8_t unlocked_state;
 } __attribute__ ((packed));
 
+enum {
+	IWMBT_TLV_CNVI_TOP = 0x10,
+	IWMBT_TLV_CNVR_TOP,
+	IWMBT_TLV_CNVI_BT,
+	IWMBT_TLV_CNVR_BT,
+	IWMBT_TLV_CNVI_OTP,
+	IWMBT_TLV_CNVR_OTP,
+	IWMBT_TLV_DEV_REV_ID,
+	IWMBT_TLV_USB_VENDOR_ID,
+	IWMBT_TLV_USB_PRODUCT_ID,
+	IWMBT_TLV_PCIE_VENDOR_ID,
+	IWMBT_TLV_PCIE_DEVICE_ID,
+	IWMBT_TLV_PCIE_SUBSYSTEM_ID,
+	IWMBT_TLV_IMAGE_TYPE,
+	IWMBT_TLV_TIME_STAMP,
+	IWMBT_TLV_BUILD_TYPE,
+	IWMBT_TLV_BUILD_NUM,
+	IWMBT_TLV_FW_BUILD_PRODUCT,
+	IWMBT_TLV_FW_BUILD_HW,
+	IWMBT_TLV_FW_STEP,
+	IWMBT_TLV_BT_SPEC,
+	IWMBT_TLV_MFG_NAME,
+	IWMBT_TLV_HCI_REV,
+	IWMBT_TLV_LMP_SUBVER,
+	IWMBT_TLV_OTP_PATCH_VER,
+	IWMBT_TLV_SECURE_BOOT,
+	IWMBT_TLV_KEY_FROM_HDR,
+	IWMBT_TLV_OTP_LOCK,
+	IWMBT_TLV_API_LOCK,
+	IWMBT_TLV_DEBUG_LOCK,
+	IWMBT_TLV_MIN_FW,
+	IWMBT_TLV_LIMITED_CCE,
+	IWMBT_TLV_SBE_TYPE,
+	IWMBT_TLV_OTP_BDADDR,
+	IWMBT_TLV_UNLOCKED_STATE
+};
+
+struct iwmbt_version_tlv {
+	uint32_t cnvi_top;
+	uint32_t cnvr_top;
+	uint32_t cnvi_bt;
+	uint32_t cnvr_bt;
+	uint16_t dev_rev_id;
+	uint8_t img_type;
+	uint16_t timestamp;
+	uint8_t build_type;
+	uint32_t build_num;
+	uint8_t secure_boot;
+	uint8_t otp_lock;
+	uint8_t api_lock;
+	uint8_t debug_lock;
+	uint8_t min_fw_build_nn;
+	uint8_t min_fw_build_cw;
+	uint8_t min_fw_build_yy;
+	uint8_t limited_cce;
+	uint8_t sbe_type;
+	bdaddr_t otp_bd_addr;
+};
+
 struct iwmbt_firmware {
 	char *fwname;
 	int len;
@@ -73,5 +142,7 @@ extern	void iwmbt_fw_free(struct iwmbt_firmware *fw);
 extern	char *iwmbt_get_fwname(struct iwmbt_version *ver,
 	struct iwmbt_boot_params *params, const char *prefix,
 	const char *suffix);
+extern	char *iwmbt_get_fwname_tlv(struct iwmbt_version_tlv *ver,
+	const char *prefix, const char *suffix);
 
 #endif

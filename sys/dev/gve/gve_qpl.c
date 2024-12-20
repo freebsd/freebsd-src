@@ -32,13 +32,14 @@
 
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 static MALLOC_DEFINE(M_GVE_QPL, "gve qpl", "gve qpl allocations");
 
 static uint32_t
 gve_num_tx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return (0);
 
 	return (priv->tx_cfg.max_queues);
@@ -47,7 +48,7 @@ gve_num_tx_qpls(struct gve_priv *priv)
 static uint32_t
 gve_num_rx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return (0);
 
 	return (priv->rx_cfg.max_queues);
@@ -182,12 +183,14 @@ gve_free_qpls(struct gve_priv *priv)
 		for (i = 0; i < num_qpls; i++)
 			gve_free_qpl(priv, i);
 		free(priv->qpls, M_GVE_QPL);
+		priv->qpls = NULL;
 	}
 }
 
 int gve_alloc_qpls(struct gve_priv *priv)
 {
 	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	int num_pages;
 	int err;
 	int i;
 
@@ -197,15 +200,19 @@ int gve_alloc_qpls(struct gve_priv *priv)
 	priv->qpls = malloc(num_qpls * sizeof(*priv->qpls), M_GVE_QPL,
 	    M_WAITOK | M_ZERO);
 
+	num_pages = gve_is_gqi(priv) ?
+	    priv->tx_desc_cnt / GVE_QPL_DIVISOR :
+	    GVE_TX_NUM_QPL_PAGES_DQO;
 	for (i = 0; i < gve_num_tx_qpls(priv); i++) {
-		err = gve_alloc_qpl(priv, i, priv->tx_desc_cnt / GVE_QPL_DIVISOR,
+		err = gve_alloc_qpl(priv, i, num_pages,
 		    /*single_kva=*/true);
 		if (err != 0)
 			goto abort;
 	}
 
+	num_pages = gve_is_gqi(priv) ? priv->rx_desc_cnt : GVE_RX_NUM_QPL_PAGES_DQO;
 	for (; i < num_qpls; i++) {
-		err = gve_alloc_qpl(priv, i, priv->rx_desc_cnt, /*single_kva=*/false);
+		err = gve_alloc_qpl(priv, i, num_pages, /*single_kva=*/false);
 		if (err != 0)
 			goto abort;
 	}
@@ -281,4 +288,22 @@ gve_unregister_qpls(struct gve_priv *priv)
 
 	gve_clear_state_flag(priv, GVE_STATE_FLAG_QPLREG_OK);
 	return (0);
+}
+
+void
+gve_mextadd_free(struct mbuf *mbuf)
+{
+	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
+	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
+
+	/*
+	 * Free the page only if this is the last ref.
+	 * The interface might no longer exist by the time
+	 * this callback is called, see gve_free_qpl.
+	 */
+	if (__predict_false(vm_page_unwire_noq(page))) {
+		pmap_qremove(va, 1);
+		kva_free(va, PAGE_SIZE);
+		vm_page_free(page);
+	}
 }

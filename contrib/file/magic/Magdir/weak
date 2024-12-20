@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: weak,v 1.3 2024/06/10 23:09:52 christos Exp $
 # weak:  file(1) magic for very weak magic entries, disabled by default
 #
 # These entries are so weak that they might interfere identification of

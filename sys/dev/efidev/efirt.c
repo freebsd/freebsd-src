@@ -309,6 +309,9 @@ efi_enter(void)
 		fpu_kern_leave(td, NULL);
 		mtx_unlock(&efi_lock);
 		PMAP_UNLOCK(curpmap);
+	} else {
+		MPASS((td->td_pflags & TDP_EFIRT) == 0);
+		td->td_pflags |= TDP_EFIRT;
 	}
 	return (error);
 }
@@ -319,10 +322,13 @@ efi_leave(void)
 	struct thread *td;
 	pmap_t curpmap;
 
+	td = curthread;
+	MPASS((td->td_pflags & TDP_EFIRT) != 0);
+	td->td_pflags &= ~TDP_EFIRT;
+
 	efi_arch_leave();
 
 	curpmap = &curproc->p_vmspace->vm_pmap;
-	td = curthread;
 	fpu_kern_leave(td, NULL);
 	mtx_unlock(&efi_lock);
 	PMAP_UNLOCK(curpmap);

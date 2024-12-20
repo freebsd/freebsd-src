@@ -1,4 +1,3 @@
-
 .include <bsd.init.mk>
 
 MAN+=	beastie.4th.8 \

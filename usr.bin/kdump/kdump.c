@@ -59,6 +59,7 @@
 #endif
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netlink/netlink.h>
 #include <ctype.h>
 #include <capsicum_helpers.h>
 #include <err.h>
@@ -105,6 +106,7 @@ void ktruser(int, void *);
 void ktrcaprights(cap_rights_t *);
 void ktritimerval(struct itimerval *it);
 void ktrsockaddr(struct sockaddr *);
+void ktrsplice(struct splice *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
@@ -116,6 +118,7 @@ void ktrstructarray(struct ktr_struct_array *, size_t);
 void ktrbitset(char *, struct bitset *, size_t);
 void ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
     int *resnarg, char *resc, u_int sv_flags);
+void ktrexecve(char *, int);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -514,6 +517,10 @@ main(int argc, char *argv[])
 		case KTR_STRUCT_ARRAY:
 			ktrstructarray((struct ktr_struct_array *)m, ktrlen);
 			break;
+		case KTR_ARGS:
+		case KTR_ENVS:
+			ktrexecve(m, ktrlen);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -698,6 +705,12 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 	case KTR_FAULTEND:
 		type = "PRET";
 		break;
+	case KTR_ARGS:
+	        type = "ARGS";
+	        break;
+	case KTR_ENVS:
+	        type = "ENVS";
+	        break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
 		type = unknown;
@@ -1646,6 +1659,21 @@ ktrnamei(char *cp, int len)
 }
 
 void
+ktrexecve(char *m, int len)
+{
+	int i = 0;
+
+	while (i < len) {
+		printf("\"%s\"", m + i);
+		i += strlen(m + i) + 1;
+		if (i != len) {
+			printf(", ");
+		}
+	}
+	printf("\n");
+}
+
+void
 hexdump(char *p, int len, int screenwidth)
 {
 	int n, i;
@@ -1917,10 +1945,27 @@ ktrsockaddr(struct sockaddr *sa)
 		printf("%.*s", (int)sizeof(sa_un.sun_path), sa_un.sun_path);
 		break;
 	}
+	case AF_NETLINK: {
+		struct sockaddr_nl sa_nl;
+
+		memset(&sa_nl, 0, sizeof(sa_nl));
+		memcpy(&sa_nl, sa, sa->sa_len);
+		printf("netlink[pid=%u, groups=0x%x]",
+		    sa_nl.nl_pid, sa_nl.nl_groups);
+		break;
+	}
 	default:
 		printf("unknown address family");
 	}
 	printf(" }\n");
+}
+
+void
+ktrsplice(struct splice *sp)
+{
+	printf("struct splice { fd=%d, max=%#jx, idle=%jd.%06jd }\n",
+	    sp->sp_fd, (uintmax_t)sp->sp_max, (intmax_t)sp->sp_idle.tv_sec,
+	    (intmax_t)sp->sp_idle.tv_usec);
 }
 
 void
@@ -2111,6 +2156,13 @@ ktrstruct(char *buf, size_t buflen)
 		memcpy(set, data, datalen);
 		ktrbitset(name, set, datalen);
 		free(set);
+	} else if (strcmp(name, "splice") == 0) {
+		struct splice sp;
+
+		if (datalen != sizeof(sp))
+			goto invalid;
+		memcpy(&sp, data, datalen);
+		ktrsplice(&sp);
 	} else {
 #ifdef SYSDECODE_HAVE_LINUX
 		if (ktrstruct_linux(name, data, datalen) == false)

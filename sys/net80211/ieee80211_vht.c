@@ -439,8 +439,7 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 		    IEEE80211_VHTCAP_RXSTBC_MASK);
 	}
 	val = MIN(val1, val2);
-	/* XXX For now, use the 11n config flag */
-	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_TX) == 0)
+	if ((vap->iv_vht_flags & IEEE80211_FVHT_STBC_TX) == 0)
 		val = 0;
 	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_TXSTBC);
 
@@ -453,8 +452,7 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 		   IEEE80211_VHTCAP_TXSTBC);
 	}
 	val = MIN(val1, val2);
-	/* XXX For now, use the 11n config flag */
-	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
+	if ((vap->iv_vht_flags & IEEE80211_FVHT_STBC_RX) == 0)
 		val = 0;
 	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_RXSTBC_MASK);
 

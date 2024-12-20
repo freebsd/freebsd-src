@@ -50,6 +50,8 @@
 #undef calloc
 #undef free
 #undef realloc
+#undef reallocarray
+#undef strdup
 #endif
 #ifdef UNBOUND_ALLOC_LITE
 #undef malloc
@@ -492,7 +494,11 @@ int main(int argc, char* argv[])
 		if(strcmp(use_syslog, "yes") == 0) /* disable use-syslog */
 			check_ub_res(ub_ctx_set_option(ctx, 
 				"use-syslog:", "no"));
+#ifdef UNBOUND_ALLOC_STATS
+		unbound_stat_free_log(use_syslog, __FILE__, __LINE__, __func__);
+#else
 		free(use_syslog);
+#endif
 	}
 	argc -= optind;
 	argv += optind;

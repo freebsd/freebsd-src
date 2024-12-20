@@ -1,7 +1,7 @@
-/*	$Id: tbl_term.c,v 1.75 2021/08/10 12:55:04 schwarze Exp $ */
+/* $Id: tbl_term.c,v 1.79 2022/08/28 10:58:31 schwarze Exp $ */
 /*
+ * Copyright (c) 2011-2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011-2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,6 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
 #include "mandoc.h"
 #include "tbl.h"
 #include "out.h"
@@ -290,6 +293,7 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 			}
 			tp->tcol++;
 			tp->col = 0;
+			tp->flags &= ~(TERMP_BACKAFTER | TERMP_BACKBEFORE);
 			tbl_data(tp, sp->opts, cp, dp, tp->tbl.cols + ic);
 			if (dp != NULL &&
 			    (ic || sp->layout->first->pos != TBL_CELL_SPAN)) {
@@ -545,15 +549,11 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 	tp->flags &= ~TERMP_MULTICOL;
 	tp->tcol->rmargin = tp->maxrmargin;
 	if (sp->next == NULL) {
-		if (sp->opts->opts & (TBL_OPT_DBOX | TBL_OPT_BOX)) {
+		if (sp->opts->opts & (TBL_OPT_DBOX | TBL_OPT_BOX))
 			tbl_hrule(tp, sp, sp, NULL, TBL_OPT_BOX);
-			tp->skipvsp = 1;
-		}
 		if (tp->enc == TERMENC_ASCII &&
-		    sp->opts->opts & TBL_OPT_DBOX) {
+		    sp->opts->opts & TBL_OPT_DBOX)
 			tbl_hrule(tp, sp, sp, NULL, TBL_OPT_DBOX);
-			tp->skipvsp = 2;
-		}
 		assert(tp->tbl.cols);
 		free(tp->tbl.cols);
 		tp->tbl.cols = NULL;
@@ -820,8 +820,11 @@ tbl_literal(struct termp *tp, const struct tbl_dat *dp,
 	width = col->width;
 	ic = dp->layout->col;
 	hspans = dp->hspans;
-	while (hspans--)
-		width += tp->tbl.cols[++ic].width + 3;
+	while (hspans--) {
+		width += tp->tbl.cols[ic].spacing;
+		ic++;
+		width += tp->tbl.cols[ic].width;
+	}
 
 	padr = width > len ? width - len : 0;
 	padl = 0;

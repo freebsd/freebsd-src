@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\" Copyright (c) 2022-2024 Bjoern A. Zeeb
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 22, 2023
+.Dd September 30, 2024
 .Dt ATH10K 4
 .Os
 .Sh NAME
@@ -47,18 +47,7 @@ It is discouraged to load the driver from
 .Sh DESCRIPTION
 The
 .Nm
-driver is derived from Qualcomm Atheros' Linux ath10k driver and
-provides support for the following PCI chipsets:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It QCA6174
-.It QCA9377
-.It QCA9887
-.It QCA9888
-.It QCA988X
-.It QCA9984
-.It QCA99X0
-.El
+driver is derived from Qualcomm Atheros' Linux ath10k driver
 .Pp
 This driver requires firmware to be loaded before it will work.
 The package
@@ -87,6 +76,20 @@ While
 supports all 802.11 a/b/g/n and ac
 the compatibility code currently only supports 802.11 a/b/g modes.
 Support for 802.11 n/ac is to come.
+.Sh HARDWARE
+The
+.Nm
+driver supports PCIe devices with the following chipsets:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It QCA6174
+.It QCA9377
+.It QCA9887
+.It QCA9888
+.It QCA988X
+.It QCA9984
+.It QCA99X0
+.El
 .Sh SEE ALSO
 .Xr wlan 4 ,
 .Xr ifconfig 8 ,

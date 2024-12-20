@@ -202,7 +202,7 @@ static struct cdevsw pass_cdevsw = {
 	.d_name =	"pass",
 };
 
-static struct filterops passread_filtops = {
+static const struct filterops passread_filtops = {
 	.f_isfd	=	1,
 	.f_detach =	passreadfiltdetach,
 	.f_event =	passreadfilt

@@ -134,12 +134,14 @@ int algo_needs_missing(struct algo_needs* n);
 
 /**
  * Format error reason for algorithm missing.
- * @param env: module env with scratch for temp storage of string.
  * @param alg: DNSKEY-algorithm missing.
  * @param reason: destination.
  * @param s: string, appended with 'with algorithm ..'.
+ * @param reasonbuf: buffer to use for fail reason string print.
+ * @param reasonlen: length of reasonbuf.
  */
-void algo_needs_reason(struct module_env* env, int alg, char** reason, char* s);
+void algo_needs_reason(int alg, char** reason, char* s, char* reasonbuf,
+	size_t reasonlen);
 
 /** 
  * Check if dnskey matches a DS digest 
@@ -261,6 +263,8 @@ uint16_t dnskey_get_flags(struct ub_packed_rrset_key* k, size_t idx);
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
  * @param verified: if not NULL the number of RRSIG validations is returned.
+ * @param reasonbuf: buffer to use for fail reason string print.
+ * @param reasonlen: length of reasonbuf.
  * @return SECURE if one key in the set verifies one rrsig.
  *	UNCHECKED on allocation errors, unsupported algorithms, malformed data,
  *	and BOGUS on verification failures (no keys match any signatures).
@@ -269,8 +273,8 @@ enum sec_status dnskeyset_verify_rrset(struct module_env* env,
 	struct val_env* ve, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, uint8_t* sigalg,
 	char** reason, sldns_ede_code *reason_bogus,
-	sldns_pkt_section section, struct module_qstate* qstate, int* verified);
-
+	sldns_pkt_section section, struct module_qstate* qstate, int* verified,
+	char* reasonbuf, size_t reasonlen);
 
 /** 
  * verify rrset against one specific dnskey (from rrset) 

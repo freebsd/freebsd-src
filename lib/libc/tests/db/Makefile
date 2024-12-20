@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 BINDIR=		${TESTSDIR}

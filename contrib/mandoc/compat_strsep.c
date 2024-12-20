@@ -1,4 +1,4 @@
-/*	$Id: compat_strsep.c,v 1.5 2020/06/15 01:37:15 schwarze Exp $	*/
+/*	$Id: compat_strsep.c,v 1.6 2022/06/21 10:34:14 schwarze Exp $	*/
 /*	$OpenBSD: strsep.c,v 1.8 2015/08/31 02:53:57 guenther Exp $	*/
 
 /*-
@@ -30,6 +30,8 @@
  * SUCH DAMAGE.
  */
 #include "config.h"
+
+#include <stddef.h>
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty

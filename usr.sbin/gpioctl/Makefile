@@ -1,4 +1,3 @@
-
 PROG=	gpioctl
 MAN=	gpioctl.8
 

@@ -38,8 +38,7 @@ extern const char *panicstr;	/* panic message */
 #define	KERNEL_PANICKED()	__predict_false(panicstr != NULL)
 
 /*
- * Trap accesses going through a pointer. Moreover if kasan is available trap
- * reading the pointer itself.
+ * Trap accesses going through a pointer.
  *
  * Sample usage: you have a struct with numerous fields and by API contract
  * only some of them get populated, even if the implementation temporary writes
@@ -48,20 +47,15 @@ extern const char *panicstr;	/* panic message */
  *
  * DEBUG_POISON_POINTER(obj->ptr);
  * ....
- * if (obj->ptr != NULL) // traps with kasan, does not trap otherwise
- * ....
- * if (obj->ptr->field) // traps with and without kasan
+ * if (obj->ptr->field) // traps
  */
 #ifdef	INVARIANTS
-
-#include <sys/asan.h>
 
 extern caddr_t poisoned_buf;
 #define DEBUG_POISON_POINTER_VALUE poisoned_buf
 
 #define DEBUG_POISON_POINTER(x) ({				\
 	x = (void *)(DEBUG_POISON_POINTER_VALUE);		\
-	kasan_mark(&x, 0, sizeof(x), KASAN_GENERIC_REDZONE);	\
 })
 
 #else

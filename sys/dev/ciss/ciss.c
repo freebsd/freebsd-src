@@ -242,15 +242,46 @@ static struct cdevsw ciss_cdevsw = {
 	.d_name =	"ciss",
 };
 
+SYSCTL_NODE(_hw, OID_AUTO, ciss, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CISS sysctl tunables");
+
+/*
+ * This tunable can be used to force a specific initiator id
+ */
+static int ciss_initiator_id = CAM_TARGET_WILDCARD;
+SYSCTL_INT(_hw_ciss, OID_AUTO, initiator_id, CTLFLAG_RDTUN,
+	   &ciss_initiator_id, 0,
+	   "force a specific initiator id");
+
+/*
+ * This tunable can be used to force a specific initiator id
+ */
+static int ciss_base_transfer_speed = 132 * 1024;
+SYSCTL_INT(_hw_ciss, OID_AUTO, base_transfer_speed, CTLFLAG_RDTUN,
+	   &ciss_base_transfer_speed, 0,
+	   "force a specific base transfer_speed");
+
+/*
+ * This tunable can be set to make the driver be more verbose
+ */
+static int ciss_verbose = 0;
+SYSCTL_INT(_hw_ciss, OID_AUTO, verbose, CTLFLAG_RWTUN, &ciss_verbose, 0,
+	   "enable verbose messages");
+
 /*
  * This tunable can be set at boot time and controls whether physical devices
  * that are marked hidden by the firmware should be exposed anyways.
  */
 static unsigned int ciss_expose_hidden_physical = 0;
 TUNABLE_INT("hw.ciss.expose_hidden_physical", &ciss_expose_hidden_physical);
+SYSCTL_INT(_hw_ciss, OID_AUTO, expose_hidden_physical, CTLFLAG_RWTUN,
+	   &ciss_expose_hidden_physical, 0,
+	   "expose hidden physical drives");
 
 static unsigned int ciss_nop_message_heartbeat = 0;
 TUNABLE_INT("hw.ciss.nop_message_heartbeat", &ciss_nop_message_heartbeat);
+SYSCTL_INT(_hw_ciss, OID_AUTO, nop_message_heartbeat, CTLFLAG_RWTUN,
+	   &ciss_nop_message_heartbeat, 0,
+	   "nop heartbeat messages");
 
 /*
  * This tunable can force a particular transport to be used:
@@ -260,6 +291,9 @@ TUNABLE_INT("hw.ciss.nop_message_heartbeat", &ciss_nop_message_heartbeat);
  */
 static int ciss_force_transport = 0;
 TUNABLE_INT("hw.ciss.force_transport", &ciss_force_transport);
+SYSCTL_INT(_hw_ciss, OID_AUTO, force_transport, CTLFLAG_RDTUN,
+	   &ciss_force_transport, 0,
+	   "use default (0), force simple (1) or force performant (2) transport");
 
 /*
  * This tunable can force a particular interrupt delivery method to be used:
@@ -269,6 +303,9 @@ TUNABLE_INT("hw.ciss.force_transport", &ciss_force_transport);
  */
 static int ciss_force_interrupt = 0;
 TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
+SYSCTL_INT(_hw_ciss, OID_AUTO, force_interrupt, CTLFLAG_RDTUN,
+	   &ciss_force_interrupt, 0,
+	   "use default (0), force INTx (1) or force MSIx(2) interrupts");
 
 /************************************************************************
  * CISS adapters amazingly don't have a defined programming interface
@@ -904,7 +941,7 @@ ciss_setup_msix(struct ciss_softc *sc)
     }
 
     sc->ciss_msi = val;
-    if (bootverbose)
+    if (bootverbose || ciss_verbose)
 	ciss_printf(sc, "Using %d MSIX interrupt%s\n", val,
 	    (val != 1) ? "s" : "");
 
@@ -1122,7 +1159,7 @@ ciss_init_requests(struct ciss_softc *sc)
 
     debug_called(1);
 
-    if (bootverbose)
+    if (bootverbose || ciss_verbose)
 	ciss_printf(sc, "using %d of %d available commands\n",
 		    sc->ciss_max_requests, sc->ciss_cfg->max_outstanding_commands);
 
@@ -1254,12 +1291,21 @@ ciss_identify_adapter(struct ciss_softc *sc)
     if (sc->ciss_cfg->max_physical_supported == 0) 
 	sc->ciss_cfg->max_physical_supported = CISS_MAX_PHYSICAL;
     /* print information */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "  %d logical drive%s configured\n",
 		    sc->ciss_id->configured_logical_drives,
 		    (sc->ciss_id->configured_logical_drives == 1) ? "" : "s");
 	ciss_printf(sc, "  firmware %4.4s\n", sc->ciss_id->running_firmware_revision);
 	ciss_printf(sc, "  %d SCSI channels\n", sc->ciss_id->scsi_chip_count);
+
+	if (ciss_verbose > 1) {
+	  ciss_printf(sc, "  %d FC channels\n", sc->ciss_id->fibre_chip_count);
+	  ciss_printf(sc, "  %d enclosures\n", sc->ciss_id->bEnclosureCount);
+	  ciss_printf(sc, "  %d expanders\n", sc->ciss_id->bExpanderCount);
+	  ciss_printf(sc, "  maximum blocks: %d\n", sc->ciss_id->maximum_blocks);
+	  ciss_printf(sc, "  controller clock: %d\n", sc->ciss_id->controller_clock);
+	  ciss_printf(sc, "  %d MB controller memory\n", sc->ciss_id->total_controller_mem_mb);
+	}
 
 	ciss_printf(sc, "  signature '%.4s'\n", sc->ciss_cfg->signature);
 	ciss_printf(sc, "  valence %d\n", sc->ciss_cfg->valence);
@@ -1426,7 +1472,7 @@ ciss_init_logical(struct ciss_softc *sc)
     /*
      * Save logical drive information.
      */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "%d logical drive%s\n",
 	    ndrives, (ndrives > 1 || ndrives == 0) ? "s" : "");
     }
@@ -1501,10 +1547,13 @@ ciss_init_physical(struct ciss_softc *sc)
 
     nphys = (ntohl(cll->list_size) / sizeof(union ciss_device_address));
 
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "%d physical device%s\n",
 	    nphys, (nphys > 1 || nphys == 0) ? "s" : "");
     }
+
+    /* Per-controller highest target number seen */
+    sc->ciss_max_physical_target = 0;
 
     /*
      * Figure out the bus mapping.
@@ -1588,6 +1637,8 @@ ciss_init_physical(struct ciss_softc *sc)
     }
 
     ciss_filter_physical(sc, cll);
+    if (bootverbose || ciss_verbose)
+	ciss_printf(sc, "max physical target id: %d\n", sc->ciss_max_physical_target);
 
 out:
     if (cll != NULL)
@@ -1637,6 +1688,10 @@ ciss_filter_physical(struct ciss_softc *sc, struct ciss_lun_report *cll)
 	target = CISS_EXTRA_TARGET2(ea);
 	sc->ciss_physical[bus][target].cp_address = cll->lun[i];
 	sc->ciss_physical[bus][target].cp_online = 1;
+
+	if ((target > sc->ciss_max_physical_target) &&
+	    (cll->lun[i].physical.mode != CISS_HDR_ADDRESS_MODE_MASK_PERIPHERAL))
+		sc->ciss_max_physical_target = target;
     }
 
     return (0);
@@ -1769,7 +1824,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     /*
      * Print the drive's basic characteristics.
      */
-    if (bootverbose) {
+    if (bootverbose || ciss_verbose) {
 	ciss_printf(sc, "logical drive (b%dt%d): %s, %dMB ",
 		    CISS_LUN_TO_BUS(ld->cl_address.logical.lun),
 		    CISS_LUN_TO_TARGET(ld->cl_address.logical.lun),
@@ -2299,13 +2354,14 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 
     /*
      * We don't consider data under/overrun an error for the Report
-     * Logical/Physical LUNs commands.
+     * Logical/Physical LUNs, INQUIRY & RECEIVE_DIAGNOSTIC commands.
      */
     if ((cc->header.host_tag & CISS_HDR_HOST_TAG_ERROR) &&
 	((ce->command_status == CISS_CMD_STATUS_DATA_OVERRUN) ||
 	 (ce->command_status == CISS_CMD_STATUS_DATA_UNDERRUN)) &&
 	((cc->cdb.cdb[0] == CISS_OPCODE_REPORT_LOGICAL_LUNS) ||
 	 (cc->cdb.cdb[0] == CISS_OPCODE_REPORT_PHYSICAL_LUNS) ||
+	 (cc->cdb.cdb[0] == RECEIVE_DIAGNOSTIC) ||
 	 (cc->cdb.cdb[0] == INQUIRY))) {
 	cc->header.host_tag &= ~CISS_HDR_HOST_TAG_ERROR;
 	debug(2, "ignoring irrelevant under/overrun error");
@@ -2333,10 +2389,13 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 		*scsi_status = -1;
 	    }
 	}
-	if (bootverbose && ce->command_status != CISS_CMD_STATUS_DATA_UNDERRUN)
-	    ciss_printf(cr->cr_sc, "command status 0x%x (%s) scsi status 0x%x\n",
+	if ((bootverbose || ciss_verbose > 3 || (ciss_verbose > 2 && ce->scsi_status != 0)) &&
+	    (ce->command_status != CISS_CMD_STATUS_DATA_UNDERRUN)) {
+	    ciss_printf(cr->cr_sc, "command status 0x%x (%s) scsi status 0x%x (opcode 0x%02x)\n",
 			ce->command_status, ciss_name_command_status(ce->command_status),
-			ce->scsi_status);
+			ce->scsi_status,
+			cc->cdb.cdb[0]);
+        }
 	if (ce->command_status == CISS_CMD_STATUS_INVALID_COMMAND) {
 	    ciss_printf(cr->cr_sc, "invalid command, offense size %d at %d, value 0x%x, function %s\n",
 			ce->additional_error_info.invalid_command.offense_size,
@@ -3020,15 +3079,18 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->hba_inquiry = PI_TAG_ABLE;	/* XXX is this correct? */
 	cpi->target_sprt = 0;
 	cpi->hba_misc = 0;
-	cpi->max_target = sc->ciss_cfg->max_logical_supported;
+	cpi->max_target = MAX(sc->ciss_max_physical_target, sc->ciss_cfg->max_logical_supported);
 	cpi->max_lun = 0;		/* 'logical drive' channel only */
-	cpi->initiator_id = sc->ciss_cfg->max_logical_supported;
+	if (ciss_initiator_id != CAM_TARGET_WILDCARD)
+		cpi->initiator_id = ciss_initiator_id;
+	else
+		cpi->initiator_id = sc->ciss_cfg->max_logical_supported;
 	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 	strlcpy(cpi->hba_vid, "CISS", HBA_IDLEN);
 	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
-	cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
+	cpi->base_transfer_speed = ciss_base_transfer_speed;
 	cpi->transport = XPORT_SPI;
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
@@ -4145,8 +4207,20 @@ ciss_notify_thread(void *arg)
 
 	cr = ciss_dequeue_notify(sc);
 
-	if (cr == NULL)
-		panic("cr null");
+	if (cr == NULL) {
+		/*
+		 * We get a NULL message sometimes when unplugging/replugging
+		 * stuff But this indicates a bug, since we only wake this thread
+		 * when we (a) set the THREAD_SHUT flag, or (b) we have enqueued
+		 * something. Since it's reported around errors, it may be a
+		 * locking bug related to ciss_flags being modified in multiple
+		 * threads some without ciss_mtx held. Or there's some other
+		 * way we either fail to sleep or corrupt the ciss_flags.
+		 */
+		ciss_printf(sc, "Driver bug: NULL notify event received\n");
+		continue;
+	}
+
 	cn = (struct ciss_notify *)cr->cr_data;
 
 	switch (cn->class) {

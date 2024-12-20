@@ -158,7 +158,7 @@ test_read_format_mtree1(void)
 	/* TODO: Mtree reader should probably return ARCHIVE_WARN for this. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString(archive_entry_pathname(ae), "dir2/toosmallfile");
-	assertEqualInt(archive_entry_size(ae), -1);
+	assertEqualInt(archive_entry_size(ae), 0);
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 

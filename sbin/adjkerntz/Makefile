@@ -1,4 +1,3 @@
-
 PACKAGE=runtime
 PROG=   adjkerntz
 MAN=	adjkerntz.8

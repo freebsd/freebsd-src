@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2023 Thomas E. Dickey                                *
  * Copyright 2009,2014 Free Software Foundation, Inc.                       *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -26,7 +26,7 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
-/* $Id: ncurses_dll.h.in,v 1.17 2020/09/05 17:58:47 juergen Exp $ */
+/* $Id: ncurses_dll.h.in,v 1.18 2023/05/06 20:12:43 tom Exp $ */
 
 #ifndef NCURSES_DLL_H_incl
 #define NCURSES_DLL_H_incl 1
@@ -92,7 +92,11 @@
 # define NCURSES_API __cdecl
 #else
 # define NCURSES_EXPORT_GENERAL_IMPORT
-# define NCURSES_EXPORT_GENERAL_EXPORT
+# if (__GNUC__ >= 4) && !defined(__cplusplus)
+#   define NCURSES_EXPORT_GENERAL_EXPORT __attribute__((visibility ("default")))
+# else
+#   define NCURSES_EXPORT_GENERAL_EXPORT
+# endif
 # define NCURSES_API /* FIXME: __attribute__ ((cdecl)) is only available on x86 */
 #endif
 

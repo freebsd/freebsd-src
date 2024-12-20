@@ -339,7 +339,7 @@ kbd_maxkey(void)
 int32_t
 kbd_process_keys(bthid_session_p s)
 {
-	bitstr_t	diff[bitstr_size(xsize)];
+	bitstr_t	bit_decl(diff, xsize);
 	int32_t		f1, f2, i;
 
 	assert(s != NULL);

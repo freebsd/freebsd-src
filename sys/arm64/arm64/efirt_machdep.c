@@ -50,6 +50,7 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -214,7 +215,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			    p->md_phys, mode, p->md_pages);
 		}
 
-		l3_attr = ATTR_DEFAULT | ATTR_S1_IDX(mode) |
+		l3_attr = ATTR_AF | pmap_sh_attr | ATTR_S1_IDX(mode) |
 		    ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_nG | L3_PAGE;
 		if (mode == VM_MEMATTR_DEVICE || p->md_attr & EFI_MD_ATTR_XP)
 			l3_attr |= ATTR_S1_XN;
@@ -239,6 +240,7 @@ efi_arch_enter(void)
 {
 
 	CRITICAL_ASSERT(curthread);
+	curthread->td_md.md_efirt_dis_pf = vm_fault_disable_pagefaults();
 
 	/*
 	 * Temporarily switch to EFI's page table.  However, we leave curpmap
@@ -269,11 +271,6 @@ efi_arch_leave(void)
 	set_ttbr0(pmap_to_ttbr0(PCPU_GET(curpmap)));
 	if (PCPU_GET(bcast_tlbi_workaround) != 0)
 		invalidate_local_icache();
+	vm_fault_enable_pagefaults(curthread->td_md.md_efirt_dis_pf);
 }
 
-int
-efi_rt_arch_call(struct efirt_callinfo *ec)
-{
-
-	panic("not implemented");
-}

@@ -1,4 +1,4 @@
-/* $Id: term_ascii.c,v 1.66 2020/09/09 13:45:05 schwarze Exp $ */
+/* $Id: term_ascii.c,v 1.69 2023/11/13 19:13:01 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014,2015,2017,2018,2020 Ingo Schwarze <schwarze@openbsd.org>
@@ -72,6 +72,7 @@ ascii_init(enum termenc enc, const struct manoutput *outopts)
 	p->maxtcol = 1;
 
 	p->line = 1;
+	p->defindent = 5;
 	p->defrmargin = p->lastrmargin = 78;
 	p->fontq = mandoc_reallocarray(NULL,
 	     (p->fontsz = 8), sizeof(*p->fontq));
@@ -122,10 +123,8 @@ ascii_init(enum termenc enc, const struct manoutput *outopts)
 	}
 #endif
 
-	if (outopts->mdoc) {
+	if (outopts->mdoc)
 		p->mdocstyle = 1;
-		p->defindent = 5;
-	}
 	if (outopts->indent)
 		p->defindent = outopts->indent;
 	if (outopts->width)
@@ -196,7 +195,7 @@ terminal_sepline(void *arg)
 static size_t
 ascii_width(const struct termp *p, int c)
 {
-	return c != ASCII_BREAK;
+	return c != ASCII_BREAK && c != ASCII_NBRZW && c != ASCII_TABREF;
 }
 
 void

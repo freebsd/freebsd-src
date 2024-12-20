@@ -37,11 +37,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
@@ -63,7 +64,6 @@
 #include <machine/pcpu.h>
 
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -73,8 +73,6 @@
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 #endif
-
-void intr_irq_handler(struct trapframe *tf);
 
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 
@@ -229,11 +227,6 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	pcb = td->td_pcb;
 	stval = frame->tf_stval;
 
-	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
-	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
-	    "Kernel page fault") != 0)
-		goto fatal;
-
 	if (usermode) {
 		if (!VIRT_IS_VALID(stval)) {
 			call_trapsignal(td, SIGSEGV, SEGV_MAPERR, (void *)stval,
@@ -246,7 +239,8 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		 * Enable interrupts for the duration of the page fault. For
 		 * user faults this was done already in do_trap_user().
 		 */
-		intr_enable();
+		if ((frame->tf_sstatus & SSTATUS_SIE) != 0)
+			intr_enable();
 
 		if (stval >= VM_MIN_KERNEL_ADDRESS) {
 			map = kernel_map;
@@ -269,6 +263,11 @@ page_fault_handler(struct trapframe *frame, int usermode)
 
 	if (VIRT_IS_VALID(va) && pmap_fault(map->pmap, va, ftype))
 		goto done;
+
+	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
+	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+	    "Kernel page fault") != 0)
+		goto fatal;
 
 	error = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL, &sig, &ucode);
 	if (error != KERN_SUCCESS) {
@@ -319,7 +318,7 @@ do_trap_supervisor(struct trapframe *frame)
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
-		intr_irq_handler(frame);
+		intr_irq_handler(frame, INTR_ROOT_IRQ);
 		return;
 	}
 
@@ -400,7 +399,7 @@ do_trap_user(struct trapframe *frame)
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
-		intr_irq_handler(frame);
+		intr_irq_handler(frame, INTR_ROOT_IRQ);
 		return;
 	}
 	intr_enable();

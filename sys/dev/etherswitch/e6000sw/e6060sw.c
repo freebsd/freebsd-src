@@ -214,12 +214,6 @@ e6060sw_attach_phys(struct e6060sw_softc *sc)
 		sc->ifpport[phy] = port;
 		sc->portphy[port] = phy;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
-		if (sc->ifp[port] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[port]->if_softc = sc;
 		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;
@@ -312,11 +306,9 @@ e6060sw_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 	
 	callout_init(&sc->callout_tick, 0);
 

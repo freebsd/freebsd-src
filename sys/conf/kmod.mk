@@ -109,7 +109,8 @@ LINUXKPI_GENSRCS+= \
 
 LINUXKPI_INCLUDES+= \
 	-I${SYSDIR}/compat/linuxkpi/common/include \
-	-I${SYSDIR}/compat/linuxkpi/dummy/include
+	-I${SYSDIR}/compat/linuxkpi/dummy/include \
+	-include ${SYSDIR}/compat/linuxkpi/common/include/linux/kconfig.h
 
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
@@ -405,8 +406,10 @@ ${_src}:
 .endfor
 .endif
 
-# Add the sanitizer C flags
-CFLAGS+=	${SAN_CFLAGS}
+KASAN_ENABLED=	${KERN_OPTS:MKASAN}
+KCSAN_ENABLED=	${KERN_OPTS:MKCSAN}
+KMSAN_ENABLED=	${KERN_OPTS:MKMSAN}
+KUBSAN_ENABLED=	${KERN_OPTS:MKUBSAN}
 
 # Add the gcov flags
 CFLAGS+=	${GCOV_CFLAGS}
@@ -526,13 +529,13 @@ assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c offset.inc
 genassym.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} -fcommon \
+	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon \
 	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 offset.inc: ${SYSDIR}/kern/genoffset.sh genoffset.o
 	sh ${SYSDIR}/kern/genoffset.sh genoffset.o > ${.TARGET}
 genoffset.o: ${SYSDIR}/kern/genoffset.c
 genoffset.o: ${SRCS:Mopt_*.h}
-	${CC} -c ${CFLAGS:N-flto*:N-fno-common:N-fsanitize*:N-fno-sanitize*} -fcommon \
+	${CC} -c ${NOSAN_CFLAGS:N-flto*:N-fno-common} -fcommon \
 	    ${SYSDIR}/kern/genoffset.c
 
 CLEANDEPENDFILES+=	${_ILINKS}

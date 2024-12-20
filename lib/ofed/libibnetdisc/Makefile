@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 _spath=	${SRCTOP}/contrib/ofed/libibnetdisc
@@ -7,7 +6,6 @@ _spath=	${SRCTOP}/contrib/ofed/libibnetdisc
 SHLIBDIR?=	/usr/lib
 LIB_CXX=	ibnetdisc
 SHLIB_MAJOR=	5
-MK_PROFILE=	no
 
 SRCS= \
 chassis.c \

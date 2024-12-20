@@ -224,21 +224,23 @@ aplic_intr(void *arg)
 {
 	struct aplic_softc *sc;
 	struct trapframe *tf;
-	u_int claimi, prio, irq;
+	uint32_t claimi;
+	u_int prio, irq;
 	int cpu;
 
 	sc = arg;
 	cpu = PCPU_GET(cpuid);
 
-	/* Claim any pending interrupt. */
-	claimi = aplic_read(sc, APLIC_IDC_CLAIMI(sc, cpu));
-	prio = APLIC_IDC_CLAIMI_PRIO(claimi);
-	irq = APLIC_IDC_CLAIMI_IRQ(claimi);
+	/* Claim all pending interrupts. */
+	while ((claimi = aplic_read(sc, APLIC_IDC_CLAIMI(sc, cpu))) != 0) {
+		prio = APLIC_IDC_CLAIMI_PRIO(claimi);
+		irq = APLIC_IDC_CLAIMI_IRQ(claimi);
 
-	KASSERT((irq != 0), ("Invalid IRQ 0"));
+		KASSERT((irq != 0), ("Invalid IRQ 0"));
 
-	tf = curthread->td_intr_frame;
-	aplic_irq_dispatch(sc, irq, prio, tf);
+		tf = curthread->td_intr_frame;
+		aplic_irq_dispatch(sc, irq, prio, tf);
+	}
 
 	return (FILTER_HANDLED);
 }
@@ -321,6 +323,7 @@ aplic_setup_direct_mode(device_t dev)
 	int error = ENXIO;
 	u_int irq;
 	int cpu, hartid, rid, i, nintr, idc;
+	device_t rootdev;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
@@ -407,7 +410,8 @@ aplic_setup_direct_mode(device_t dev)
 		    APLIC_IDC_ITHRESHOLD_DISABLE);
 	}
 
-	iparent = OF_xref_from_node(ofw_bus_get_node(intr_irq_root_dev));
+	rootdev = intr_irq_root_device(INTR_ROOT_IRQ);
+	iparent = OF_xref_from_node(ofw_bus_get_node(rootdev));
 	cell = IRQ_EXTERNAL_SUPERVISOR;
 	irq = ofw_bus_map_intr(dev, iparent, 1, &cell);
 	error = bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);

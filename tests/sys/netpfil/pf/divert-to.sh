@@ -51,8 +51,6 @@
 #         > outbound > diverted > outbound | network terminated
 #
 # Test case naming legend:
-# ipfwon - with ipfw enabled
-# ipfwoff - with ipfw disabled
 # in - inbound
 # div - diverted
 # out - outbound
@@ -76,40 +74,21 @@ dummynet_init()
 	fi
 }
 
-ipfw_init()
-{
-	if ! kldstat -q -m ipfw; then
-		atf_skip "This test requires ipfw"
-	fi
-}
-
-assert_ipfw_is_off()
-{
-	if kldstat -q -m ipfw; then
-		atf_skip "This test is for the case when ipfw is not loaded"
-	fi
-}
-
-atf_test_case "ipfwoff_in_div" "cleanup"
-ipfwoff_in_div_head()
+atf_test_case "in_div" "cleanup"
+in_div_head()
 {
 	atf_set descr 'Test inbound > diverted | divapp terminated'
 	atf_set require.user root
 }
-ipfwoff_in_div_body()
+in_div_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
 	ifconfig ${epair}a 192.0.2.1/24 up
 	jexec div ifconfig ${epair}b 192.0.2.2/24 up
-	test $ipfwon && jexec div ipfw add 65534 allow all from any to any
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
@@ -119,56 +98,36 @@ ipfwoff_in_div_body()
 		"pass all" \
 		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000"
 
-	jexec div $(atf_get_srcdir)/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
 
 	# divapp is expected to "eat" the packet
-	atf_check -s not-exit:0 -o ignore ping -c1 192.0.2.2
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
 
 	wait $divapp_pid
 }
-ipfwoff_in_div_cleanup()
+in_div_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_in_div" "cleanup"
-ipfwon_in_div_head()
-{
-	atf_set descr 'Test inbound > diverted | divapp terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_in_div_body()
-{
-	ipfwoff_in_div_body "ipfwon"
-}
-ipfwon_in_div_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwoff_in_div_in" "cleanup"
-ipfwoff_in_div_in_head()
+atf_test_case "in_div_in" "cleanup"
+in_div_in_head()
 {
 	atf_set descr 'Test inbound > diverted > inbound | host terminated'
 	atf_set require.user root
 }
-ipfwoff_in_div_in_body()
+in_div_in_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
 	ifconfig ${epair}a 192.0.2.1/24 up
 	jexec div ifconfig ${epair}b 192.0.2.2/24 up
-	test $ipfwon && jexec div ipfw add 65534 allow all from any to any
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
@@ -178,7 +137,7 @@ ipfwoff_in_div_in_body()
 		"pass all" \
 		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -188,46 +147,26 @@ ipfwoff_in_div_in_body()
 
 	wait $divapp_pid
 }
-ipfwoff_in_div_in_cleanup()
+in_div_in_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_in_div_in" "cleanup"
-ipfwon_in_div_in_head()
-{
-	atf_set descr 'Test inbound > diverted > inbound | host terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_in_div_in_body()
-{
-	ipfwoff_in_div_in_body "ipfwon"
-}
-ipfwon_in_div_in_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwoff_out_div" "cleanup"
-ipfwoff_out_div_head()
+atf_test_case "out_div" "cleanup"
+out_div_head()
 {
 	atf_set descr 'Test outbound > diverted | divapp terminated'
 	atf_set require.user root
 }
-ipfwoff_out_div_body()
+out_div_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
 	ifconfig ${epair}a 192.0.2.1/24 up
 	jexec div ifconfig ${epair}b 192.0.2.2/24 up
-	test $ipfwon && jexec div ipfw add 65534 allow all from any to any
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
@@ -238,56 +177,36 @@ ipfwoff_out_div_body()
 		"pass in inet proto icmp icmp-type echoreq no state" \
 		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/divapp 2000 &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
 
 	# divapp is expected to "eat" the packet
-	atf_check -s not-exit:0 -o ignore ping -c1 192.0.2.2
+	atf_check -s not-exit:0 -o ignore ping -c1 -t1 192.0.2.2
 
 	wait $divapp_pid
 }
-ipfwoff_out_div_cleanup()
+out_div_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_out_div" "cleanup"
-ipfwon_out_div_head()
-{
-	atf_set descr 'Test outbound > diverted | divapp terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_out_div_body()
-{
-	ipfwoff_out_div_body "ipfwon"
-}
-ipfwon_out_div_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwoff_out_div_out" "cleanup"
-ipfwoff_out_div_out_head()
+atf_test_case "out_div_out" "cleanup"
+out_div_out_head()
 {
 	atf_set descr 'Test outbound > diverted > outbound | network terminated'
 	atf_set require.user root
 }
-ipfwoff_out_div_out_body()
+out_div_out_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail div ${epair}b
 	ifconfig ${epair}a 192.0.2.1/24 up
 	jexec div ifconfig ${epair}b 192.0.2.2/24 up
-	test $ipfwon && jexec div ipfw add 65534 allow all from any to any
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
@@ -298,7 +217,7 @@ ipfwoff_out_div_out_body()
 		"pass in inet proto icmp icmp-type echoreq no state" \
 		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2000 no state"
 
-	jexec div $(atf_get_srcdir)/divapp 2000 divert-back &
+	jexec div $(atf_get_srcdir)/../common/divapp 2000 divert-back &
 	divapp_pid=$!
 	# Wait for the divapp to be ready
 	sleep 1
@@ -308,40 +227,21 @@ ipfwoff_out_div_out_body()
 
 	wait $divapp_pid
 }
-ipfwoff_out_div_out_cleanup()
+out_div_out_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_out_div_out" "cleanup"
-ipfwon_out_div_out_head()
-{
-	atf_set descr 'Test outbound > diverted > outbound | network terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_out_div_out_body()
-{
-	ipfwoff_out_div_out_body "ipfwon"
-}
-ipfwon_out_div_out_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwoff_in_div_in_fwd_out_div_out" "cleanup"
-ipfwoff_in_div_in_fwd_out_div_out_head()
+atf_test_case "in_div_in_fwd_out_div_out" "cleanup"
+in_div_in_fwd_out_div_out_head()
 {
 	atf_set descr 'Test inbound > diverted > inbound > forwarded > outbound > diverted > outbound | network terminated'
 	atf_set require.user root
 }
-ipfwoff_in_div_in_fwd_out_div_out_body()
+in_div_in_fwd_out_div_out_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	# host <a--epair0--b> router <a--epair1--b> site
 	epair0=$(vnet_mkepair)
@@ -352,12 +252,10 @@ ipfwoff_in_div_in_fwd_out_div_out_body()
 	jexec router sysctl net.inet.ip.forwarding=1
 	jexec router ifconfig ${epair0}b 192.0.2.2/24 up
 	jexec router ifconfig ${epair1}a 198.51.100.1/24 up
-	test $ipfwon && jexec router ipfw add 65534 allow all from any to any
 
 	vnet_mkjail site ${epair1}b
 	jexec site ifconfig ${epair1}b 198.51.100.2/24 up
 	jexec site route add default 198.51.100.1
-	test $ipfwon && jexec site ipfw add 65534 allow all from any to any
 
 	route add -net 198.51.100.0/24 192.0.2.2
 
@@ -373,9 +271,9 @@ ipfwoff_in_div_in_fwd_out_div_out_body()
 		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
 		"pass out inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2002 no state"
 
-	jexec router $(atf_get_srcdir)/divapp 2001 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2001 divert-back &
 	indivapp_pid=$!
-	jexec router $(atf_get_srcdir)/divapp 2002 divert-back &
+	jexec router $(atf_get_srcdir)/../common/divapp 2002 divert-back &
 	outdivapp_pid=$!
 	# Wait for the divappS to be ready
 	sleep 1
@@ -385,48 +283,28 @@ ipfwoff_in_div_in_fwd_out_div_out_body()
 
 	wait $indivapp_pid && wait $outdivapp_pid
 }
-ipfwoff_in_div_in_fwd_out_div_out_cleanup()
+in_div_in_fwd_out_div_out_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "ipfwon_in_div_in_fwd_out_div_out" "cleanup"
-ipfwon_in_div_in_fwd_out_div_out_head()
-{
-	atf_set descr 'Test inbound > diverted > inbound > forwarded > outbound > diverted > outbound | network terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_in_div_in_fwd_out_div_out_body()
-{
-	ipfwoff_in_div_in_fwd_out_div_out_body "ipfwon"
-}
-ipfwon_in_div_in_fwd_out_div_out_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwoff_in_dn_in_div_in_out_div_out_dn_out" "cleanup"
-ipfwoff_in_dn_in_div_in_out_div_out_dn_out_head()
+atf_test_case "in_dn_in_div_in_out_div_out_dn_out" "cleanup"
+in_dn_in_div_in_out_div_out_dn_out_head()
 {
 	atf_set descr 'Test inbound > delayed+diverted > outbound > diverted+delayed > outbound | network terminated'
 	atf_set require.user root
 }
-ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body()
+in_dn_in_div_in_out_div_out_dn_out_body()
 {
-	local ipfwon
-
 	pft_init
 	divert_init
 	dummynet_init
-	test "$1" == "ipfwon" && ipfwon="yes"
-	test $ipfwon && ipfw_init || assert_ipfw_is_off
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail alcatraz ${epair}b
 	ifconfig ${epair}a 192.0.2.1/24 up
 	ifconfig ${epair}a ether 02:00:00:00:00:01
 	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
-	test $ipfwon && jexec alcatraz ipfw add 65534 allow all from any to any
 
 	# Sanity check
 	atf_check -s exit:0 -o ignore ping -c3 192.0.2.2
@@ -444,9 +322,9 @@ ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body()
 		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 1001 no state" \
 		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 1002 no state"
 
-	jexec alcatraz $(atf_get_srcdir)/divapp 1001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1001 divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/divapp 1002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 1002 divert-back &
 	outdivapp_pid=$!
 	# Wait for the divappS to be ready
 	sleep 1
@@ -473,9 +351,9 @@ ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body()
 		"pass in inet proto icmp icmp-type echoreq divert-to 127.0.0.1 port 2001 no state" \
 		"pass out inet proto icmp icmp-type echorep divert-to 127.0.0.1 port 2002 no state"
 
-	jexec alcatraz $(atf_get_srcdir)/divapp 2001 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2001 divert-back &
 	indivapp_pid=$!
-	jexec alcatraz $(atf_get_srcdir)/divapp 2002 divert-back &
+	jexec alcatraz $(atf_get_srcdir)/../common/divapp 2002 divert-back &
 	outdivapp_pid=$!
 	# Wait for the divappS to be ready
 	sleep 1
@@ -489,41 +367,20 @@ ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body()
 
 	# }
 }
-ipfwoff_in_dn_in_div_in_out_div_out_dn_out_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "ipfwon_in_dn_in_div_in_out_div_out_dn_out" "cleanup"
-ipfwon_in_dn_in_div_in_out_div_out_dn_out_head()
-{
-	atf_set descr 'Test inbound > delayed+diverted > outbound > diverted+delayed > outbound | network terminated, with ipfw enabled'
-	atf_set require.user root
-}
-ipfwon_in_dn_in_div_in_out_div_out_dn_out_body()
-{
-	ipfwoff_in_dn_in_div_in_out_div_out_dn_out_body "ipfwon"
-}
-ipfwon_in_dn_in_div_in_out_div_out_dn_out_cleanup()
+in_dn_in_div_in_out_div_out_dn_out_cleanup()
 {
 	pft_cleanup
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "ipfwoff_in_div"
-	atf_add_test_case "ipfwoff_in_div_in"
-	atf_add_test_case "ipfwon_in_div"
-	atf_add_test_case "ipfwon_in_div_in"
+	atf_add_test_case "in_div"
+	atf_add_test_case "in_div_in"
 
-	atf_add_test_case "ipfwoff_out_div"
-	atf_add_test_case "ipfwoff_out_div_out"
-	atf_add_test_case "ipfwon_out_div"
-	atf_add_test_case "ipfwon_out_div_out"
+	atf_add_test_case "out_div"
+	atf_add_test_case "out_div_out"
 
-	atf_add_test_case "ipfwoff_in_div_in_fwd_out_div_out"
-	atf_add_test_case "ipfwon_in_div_in_fwd_out_div_out"
+	atf_add_test_case "in_div_in_fwd_out_div_out"
 
-	atf_add_test_case "ipfwoff_in_dn_in_div_in_out_div_out_dn_out"
-	atf_add_test_case "ipfwon_in_dn_in_div_in_out_div_out_dn_out"
+	atf_add_test_case "in_dn_in_div_in_out_div_out_dn_out"
 }

@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/contrib/libb2
 .PATH:	${SRCTOP}/sys/crypto/blake2
 .PATH:	${SRCTOP}/sys/opencrypto

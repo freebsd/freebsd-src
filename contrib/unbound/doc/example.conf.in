@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.20.0.
+# See unbound.conf(5) man page, version 1.22.0.
 #
 # this is a comment.
 
@@ -187,6 +187,15 @@ server:
 	# query upon encountering a CNAME record.
 	# max-query-restarts: 11
 
+	# Limit on number of NS records in NS RRset for incoming packets.
+	# iter-scrub-ns: 20
+
+	# Limit on number of CNAME, DNAME records for incoming packets.
+	# iter-scrub-cname: 11
+
+	# Limit on upstream queries for an incoming query and its recursion.
+	# max-global-quota: 128
+
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
 	# unknown-server-time-limit: 376
@@ -228,7 +237,7 @@ server:
 
 	# the time to live (TTL) value lower bound, in seconds. Default 0.
 	# For negative responses in the cache. If disabled, default,
-	# cache-min-tll applies if configured.
+	# cache-min-ttl applies if configured.
 	# cache-min-negative-ttl: 0
 
 	# the time to live (TTL) value for cached roundtrip times, lameness and
@@ -452,6 +461,10 @@ server:
 	# print UTC timestamp in ascii to logfile, default is epoch in seconds.
 	# log-time-ascii: no
 
+	# log timestamp in ISO8601 format if also log-time-ascii is enabled.
+	# (y-m-dTh:m:s.msec[+-]tzhours:tzminutes)
+	# log-time-iso: no
+
 	# print one line with time, IP, name, type, class for every query.
 	# log-queries: no
 
@@ -523,6 +536,9 @@ server:
 
 	# Harden against out of zone rrsets, to avoid spoofing attempts.
 	# harden-glue: yes
+
+	# Harden against unverified (outside-zone, including sibling zone) glue rrsets
+	# harden-unverified-glue: no
 
 	# Harden against receiving dnssec-stripped data. If you turn it
 	# off, failing to validate dnskey data for a trustanchor will
@@ -904,6 +920,7 @@ server:
 	# tls-service-pem: "path/to/publiccertfile.pem"
 	# tls-port: 853
 	# https-port: 443
+	# quic-port: 853
 
 	# cipher setting for TLSv1.2
 	# tls-ciphers: "DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256"
@@ -967,6 +984,9 @@ server:
 
 	# Disable TLS for DNS-over-HTTP downstream service.
 	# http-notls-downstream: no
+
+	# Maximum number of bytes used for QUIC buffers.
+	# quic-size: 8m
 
 	# The interfaces that use these listed port numbers will support and
 	# expect PROXYv2. For UDP and TCP/TLS interfaces.
@@ -1043,6 +1063,11 @@ server:
 	# useful for anycast deployments.
 	# example value "000102030405060708090a0b0c0d0e0f".
 	# cookie-secret: <128 bit random hex string>
+
+	# File with cookie secrets, the 'cookie-secret:' option is ignored
+	# and the file can be managed to have staging and active secrets
+	# with remote control commands. Disabled with "". Default is "".
+	# cookie-secret-file: "/usr/local/etc/unbound_cookiesecrets.txt"
 
 	# Enable to attach Extended DNS Error codes (RFC8914) to responses.
 	# ede: no
@@ -1284,6 +1309,10 @@ remote-control:
 #     # redis-server-password: ""
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
+#     # timeout (in ms) for commands, if 0, uses redis-timeout.
+#     redis-command-timeout: 0
+#     # timeout (in ms) for connection set up, if 0, uses redis-timeout.
+#     redis-connect-timeout: 0
 #     # set timeout on redis records based on DNS response TTL
 #     redis-expire-records: no
 #     # redis logical database to use, 0 is the default database.
@@ -1329,6 +1358,8 @@ remote-control:
 # 	dnstap-identity: ""
 # 	# if "" it uses the package version.
 # 	dnstap-version: ""
+# 	# log only 1/N messages, if 0 it is disabled. default 0.
+# 	dnstap-sample-rate: 0
 # 	dnstap-log-resolver-query-messages: no
 # 	dnstap-log-resolver-response-messages: no
 # 	dnstap-log-client-query-messages: no
@@ -1337,7 +1368,8 @@ remote-control:
 # 	dnstap-log-forwarder-response-messages: no
 
 # Response Policy Zones
-# RPZ policies. Applied in order of configuration. QNAME, Response IP
+# RPZ policies. Applied in order of configuration. Any match from an earlier
+# RPZ zone will terminate the RPZ lookup. QNAME, Response IP
 # Address, nsdname, nsip and clientip triggers are supported. Supported
 # actions are: NXDOMAIN, NODATA, PASSTHRU, DROP, Local Data, tcp-only
 # and drop.  Policies can be loaded from a file, or using zone

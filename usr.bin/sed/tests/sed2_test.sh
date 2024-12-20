@@ -147,6 +147,18 @@ bracket_y_body()
 	    echo 'bra[ke]' | sed 'y[\[][ct['
 }
 
+atf_test_case minus_e
+minus_e_head()
+{
+	atf_set "descr" "Verify that -e and implicit arg do the same thing"
+}
+minus_e_body()
+{
+	printf "ab\n" > a
+	atf_check -o 'inline:--\nab\n' sed -e $'1 i\\\n--' a
+	atf_check -o 'inline:--\nab\n' sed    $'1 i\\\n--' a
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case inplace_command_q
@@ -156,4 +168,5 @@ atf_init_test_cases()
 	atf_add_test_case commands_on_stdin
 	atf_add_test_case hex_subst
 	atf_add_test_case bracket_y
+	atf_add_test_case minus_e
 }

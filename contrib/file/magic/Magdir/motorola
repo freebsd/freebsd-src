@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: motorola,v 1.12 2021/04/26 15:56:00 christos Exp $
+# $File: motorola,v 1.13 2024/02/11 21:25:17 christos Exp $
 # motorola:  file(1) magic for Motorola 68K and 88K binaries
 #
 # 68K
@@ -18,6 +18,12 @@
 >12	belong		>0		not stripped
 0	beshort		0522		mc68k executable (shared demand paged)
 >12	belong		>0		not stripped
+
+# Motorola 68000 COFF object file
+0	leshort		0x0268
+>16	leshort		0
+>>0	use		display-coff
+
 #
 # Motorola/UniSoft 68K Binary Compatibility Standard (BCS)
 #

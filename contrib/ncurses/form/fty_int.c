@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2010,2012 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_int.c,v 1.31 2020/12/12 01:15:37 tom Exp $")
+MODULE_ID("$Id: fty_int.c,v 1.33 2021/06/17 21:11:08 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define isDigit(c) (iswdigit((wint_t)(c)) || isdigit(UChar(c)))
@@ -62,9 +62,9 @@ typedef struct
 integerPARM;
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void *Generic_This_Type( void * arg )
-|   
+|
 |   Description   :  Allocate structure for integer type argument.
 |
 |   Return Values :  Pointer to argument structure or NULL on error
@@ -89,9 +89,9 @@ Generic_This_Type(void *arg)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void *Make_This_Type( va_list * ap )
-|   
+|
 |   Description   :  Allocate structure for integer type argument.
 |
 |   Return Values :  Pointer to argument structure or NULL on error
@@ -109,10 +109,10 @@ Make_This_Type(va_list *ap)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void *Copy_This_Type(const void * argp)
-|   
-|   Description   :  Copy structure for integer type argument.  
+|
+|   Description   :  Copy structure for integer type argument.
 |
 |   Return Values :  Pointer to argument structure or NULL on error.
 +--------------------------------------------------------------------------*/
@@ -136,9 +136,9 @@ Copy_This_Type(const void *argp)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void Free_This_Type(void * argp)
-|   
+|
 |   Description   :  Free structure for integer type argument.
 |
 |   Return Values :  -
@@ -151,11 +151,11 @@ Free_This_Type(void *argp)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static bool Check_This_Field(
 |                                                 FIELD * field,
 |                                                 const void * argp)
-|   
+|
 |   Description   :  Validate buffer content to be a valid integer value
 |
 |   Return Values :  TRUE  - field is valid
@@ -170,11 +170,9 @@ Check_This_Field(FIELD *field, const void *argp)
   int prec = argi->precision;
   unsigned char *bp = (unsigned char *)field_buffer(field, 0);
   char *s = (char *)bp;
-  long val;
-  char buf[100];
   bool result = FALSE;
 
-  while (*bp && *bp == ' ')
+  while (*bp == ' ')
     bp++;
   if (*bp)
     {
@@ -183,13 +181,14 @@ Check_This_Field(FIELD *field, const void *argp)
 #if USE_WIDEC_SUPPORT
       if (*bp)
 	{
-	  bool blank = FALSE;
 	  int len;
-	  int n;
 	  wchar_t *list = _nc_Widen_String((char *)bp, &len);
 
 	  if (list != 0)
 	    {
+	      bool blank = FALSE;
+	      int n;
+
 	      result = TRUE;
 	      for (n = 0; n < len; ++n)
 		{
@@ -227,7 +226,8 @@ Check_This_Field(FIELD *field, const void *argp)
 #endif
       if (result)
 	{
-	  val = atol(s);
+	  long val = atol(s);
+
 	  if (low < high)
 	    {
 	      if (val < low || val > high)
@@ -235,6 +235,8 @@ Check_This_Field(FIELD *field, const void *argp)
 	    }
 	  if (result)
 	    {
+	      char buf[100];
+
 	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
 			  "%.*ld", (prec > 0 ? prec : 0), val);
 	      set_field_buffer(field, 0, buf);
@@ -245,11 +247,11 @@ Check_This_Field(FIELD *field, const void *argp)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static bool Check_This_Character(
 |                                      int c,
 |                                      const void * argp)
-|   
+|
 |   Description   :  Check a character for the integer type.
 |
 |   Return Values :  TRUE  - character is valid

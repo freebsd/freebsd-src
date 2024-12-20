@@ -473,7 +473,7 @@ __poly1305_mul:
 
 .align	5
 __poly1305_blocks_vsx:
-	stwu	1,-384(1)
+	stwu	1,-368(1)
 	mflr	0
 	li	10,167
 	li	11,183
@@ -484,12 +484,12 @@ __poly1305_blocks_vsx:
 	addi	11,11,32
 	stvx	22,10,1
 	addi	10,10,32
-	stvx	23,10,1
-	addi	10,10,32
-	stvx	24,11,1
+	stvx	23,11,1
 	addi	11,11,32
-	stvx	25,10,1
+	stvx	24,10,1
 	addi	10,10,32
+	stvx	25,11,1
+	addi	11,11,32
 	stvx	26,10,1
 	addi	10,10,32
 	stvx	27,11,1
@@ -500,15 +500,15 @@ __poly1305_blocks_vsx:
 	addi	11,11,32
 	stvx	30,10,1
 	stvx	31,11,1
-	stw	12,360(1)
+	stw	12,344(1)
 	li	12,-1
 	mtspr	256,12
-	stw	27,364(1)
-	stw	28,368(1)
-	stw	29,372(1)
-	stw	30,376(1)
-	stw	31,380(1)
-	stw	0,388(1)
+	stw	27,348(1)
+	stw	28,352(1)
+	stw	29,356(1)
+	stw	30,360(1)
+	stw	31,364(1)
+	stw	0,372(1)
 
 	bl	.LPICmeup
 
@@ -1209,7 +1209,7 @@ __poly1305_blocks_vsx:
 
 .align	4
 .Ldone_vsx:
-	lwz	0,388(1)
+	lwz	0,372(1)
 	li	27,4
 	li	28,8
 	li	29,12
@@ -1220,39 +1220,39 @@ __poly1305_blocks_vsx:
 	.long	0x7C7D1919
 	.long	0x7C9E1919
 
-	lwz	12,360(1)
+	lwz	12,344(1)
 	mtlr	0
 	li	10,167
 	li	11,183
 	mtspr	256,12
 	lvx	20,10,1
 	addi	10,10,32
-	lvx	21,10,1
-	addi	10,10,32
-	lvx	22,11,1
+	lvx	21,11,1
 	addi	11,11,32
-	lvx	23,10,1
+	lvx	22,10,1
 	addi	10,10,32
-	lvx	24,11,1
+	lvx	23,11,1
 	addi	11,11,32
-	lvx	25,10,1
+	lvx	24,10,1
 	addi	10,10,32
-	lvx	26,11,1
+	lvx	25,11,1
 	addi	11,11,32
-	lvx	27,10,1
+	lvx	26,10,1
 	addi	10,10,32
-	lvx	28,11,1
+	lvx	27,11,1
 	addi	11,11,32
-	lvx	29,10,1
+	lvx	28,10,1
 	addi	10,10,32
-	lvx	30,11,1
-	lvx	31,10,1
-	lwz	27,364(1)
-	lwz	28,368(1)
-	lwz	29,372(1)
-	lwz	30,376(1)
-	lwz	31,380(1)
-	addi	1,1,384
+	lvx	29,11,1
+	addi	11,11,32
+	lvx	30,10,1
+	lvx	31,11,1
+	lwz	27,348(1)
+	lwz	28,352(1)
+	lwz	29,356(1)
+	lwz	30,360(1)
+	lwz	31,364(1)
+	addi	1,1,368
 	blr	
 .long	0
 .byte	0,12,0x04,1,0x80,5,4,0

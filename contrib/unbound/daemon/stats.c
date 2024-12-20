@@ -346,6 +346,12 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 		(long long)http2_get_query_buffer_size();
 	s->svr.mem_http2_response_buffer =
 		(long long)http2_get_response_buffer_size();
+#ifdef HAVE_NGTCP2
+	s->svr.mem_quic = (long long)doq_table_quic_size_get(
+		worker->daemon->doq_table);
+#else
+	s->svr.mem_quic = 0;
+#endif /* HAVE_NGTCP2 */
 
 	/* Set neg cache usage numbers */
 	set_neg_cache_stats(worker, &s->svr, reset);
@@ -391,6 +397,13 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
 	else 	worker_send_cmd(who, worker_cmd_stats_noreset);
 	verbose(VERB_ALGO, "wait for stats reply");
 	if(tube_wait_timeout(worker->cmd, STATS_THREAD_WAIT) == 0) {
+#if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
+#  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
+		unsigned long pthid = 0;
+		if(verbosity >= VERB_OPS)
+			memcpy(&pthid, &who->thr_id, sizeof(unsigned long));
+#  endif
+#endif
 		verbose(VERB_OPS, "no response from thread %d"
 #ifdef HAVE_GETTID
 			" LWP %u"
@@ -407,7 +420,7 @@ void server_stats_obtain(struct worker* worker, struct worker* who,
 #endif
 #if defined(HAVE_PTHREAD) && defined(SIZEOF_PTHREAD_T) && defined(SIZEOF_UNSIGNED_LONG)
 #  if SIZEOF_PTHREAD_T == SIZEOF_UNSIGNED_LONG
-			, (unsigned long)*((unsigned long*)&who->thr_id)
+			, pthid
 #  endif
 #endif
 			);
@@ -467,6 +480,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.qtls += a->svr.qtls;
 		total->svr.qtls_resume += a->svr.qtls_resume;
 		total->svr.qhttps += a->svr.qhttps;
+		total->svr.qquic += a->svr.qquic;
 		total->svr.qipv6 += a->svr.qipv6;
 		total->svr.qbit_QR += a->svr.qbit_QR;
 		total->svr.qbit_AA += a->svr.qbit_AA;
@@ -526,7 +540,8 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 	else	stats->qclass_big++;
 	stats->qopcode[ LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ]++;
 	if(c->type != comm_udp) {
-		stats->qtcp++;
+		if(c->type != comm_doq)
+			stats->qtcp++;
 		if(c->ssl != NULL) {
 			stats->qtls++;
 #ifdef HAVE_SSL
@@ -535,6 +550,10 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 #endif
 			if(c->type == comm_http)
 				stats->qhttps++;
+#ifdef HAVE_NGTCP2
+			else if(c->type == comm_doq)
+				stats->qquic++;
+#endif
 		}
 	}
 	if(repinfo && addr_is_ip6(&repinfo->remote_addr, repinfo->remote_addrlen))

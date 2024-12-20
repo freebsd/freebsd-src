@@ -118,7 +118,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask);
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask);
-s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
+s32 ixgbe_disable_pcie_primary(struct ixgbe_hw *hw);
 
 s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *, u32 *reg_val);
 s32 prot_autoc_write_generic(struct ixgbe_hw *hw, u32 reg_val, bool locked);
@@ -141,6 +141,7 @@ s32 ixgbe_set_vlvf_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			   bool vlvf_bypass);
 s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);
 s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan, bool vlvf_bypass);
+s32 ixgbe_toggle_txdctl_generic(struct ixgbe_hw *hw, u32 vind);
 
 s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
 			       ixgbe_link_speed *speed,
@@ -195,6 +196,8 @@ void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
 				struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_get_orom_version(struct ixgbe_hw *hw,
 			    struct ixgbe_nvm_version *nvm_ver);
+void ixgbe_get_nvm_version(struct ixgbe_hw *hw,
+		struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_disable_rx_generic(struct ixgbe_hw *hw);
 void ixgbe_enable_rx_generic(struct ixgbe_hw *hw);
 s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,

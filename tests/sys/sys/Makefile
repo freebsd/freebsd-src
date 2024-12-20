@@ -1,4 +1,3 @@
-
 .include <bsd.compiler.mk>
 
 TESTSDIR=	${TESTSBASE}/sys/sys
@@ -6,6 +5,7 @@ TESTSDIR=	${TESTSBASE}/sys/sys
 ATF_TESTS_C=	arb_test \
 		bitset_test \
 		bitstring_test \
+		buf_ring_test \
 		qmath_test \
 		rb_test \
 		splay_test \

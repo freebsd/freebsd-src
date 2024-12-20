@@ -648,8 +648,16 @@ enum nvme_critical_warning_state {
 	NVME_CRIT_WARN_ST_PERSISTENT_MEMORY_REGION	= 0x20,
 };
 #define NVME_CRIT_WARN_ST_RESERVED_MASK			(0xC0)
-#define	NVME_ASYNC_EVENT_NS_ATTRIBUTE			(0x100)
-#define	NVME_ASYNC_EVENT_FW_ACTIVATE			(0x200)
+#define	NVME_ASYNC_EVENT_NS_ATTRIBUTE			(1U << 8)
+#define	NVME_ASYNC_EVENT_FW_ACTIVATE			(1U << 9)
+#define	NVME_ASYNC_EVENT_TELEMETRY_LOG			(1U << 10)
+#define	NVME_ASYNC_EVENT_ASYM_NS_ACC			(1U << 11)
+#define	NVME_ASYNC_EVENT_PRED_LAT_DELTA			(1U << 12)
+#define	NVME_ASYNC_EVENT_LBA_STATUS			(1U << 13)
+#define	NVME_ASYNC_EVENT_ENDURANCE_DELTA		(1U << 14)
+#define	NVME_ASYNC_EVENT_NVM_SHUTDOWN			(1U << 15)
+#define	NVME_ASYNC_EVENT_ZONE_DELTA			(1U << 27)
+#define	NVME_ASYNC_EVENT_DISCOVERY_DELTA		(1U << 31)
 
 /* slot for current FW */
 #define NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT		(0)
@@ -1902,6 +1910,7 @@ struct thread;
 struct nvme_namespace;
 struct nvme_controller;
 struct nvme_consumer;
+struct nvme_passthru_cmd;
 
 typedef void (*nvme_cb_fn_t)(void *, const struct nvme_completion *);
 
@@ -1920,6 +1929,11 @@ int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				   struct nvme_pt_command *pt,
 				   uint32_t nsid, int is_user_buffer,
 				   int is_admin_cmd);
+
+int	nvme_ctrlr_linux_passthru_cmd(struct nvme_controller *ctrlr,
+				      struct nvme_passthru_cmd *npc,
+				      uint32_t nsid, bool is_user,
+				      bool is_admin);
 
 /* Admin functions */
 void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,

@@ -39,6 +39,8 @@
 #include <contrib/xen/xen.h>
 
 #ifndef __ASSEMBLY__
+#include <sys/rman.h>
+
 #include <xen/hvm.h>
 #include <contrib/xen/event_channel.h>
 
@@ -157,6 +159,9 @@ void xc_printf(const char *, ...) __printflike(1, 2);
  * instead.
  */
 void xen_emergency_print(const char *str, size_t size);
+
+/* Arch-specific helper to init scratch mapping space. */
+int xen_arch_init_physmem(device_t dev, struct rman *mem);
 
 #ifndef xen_mb
 #define xen_mb() mb()

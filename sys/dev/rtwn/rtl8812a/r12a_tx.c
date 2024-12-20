@@ -59,7 +59,7 @@
 static int
 r12a_get_primary_channel(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
-	/* XXX 80 MHz */
+	/* XXX VHT80; VHT40 */
 	if (IEEE80211_IS_CHAN_HT40U(c))
 		return (R12A_TXDW5_PRIM_CHAN_20_80_2);
 	else
@@ -71,9 +71,8 @@ r12a_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	/* XXX 80 Mhz */
-	if (ni->ni_chan != IEEE80211_CHAN_ANYC &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+	/* XXX VHT80; VHT40; VHT20 */
+	if (ieee80211_ht_check_tx_ht40(ni)) {
 		int prim_chan;
 
 		prim_chan = r12a_get_primary_channel(sc, ni->ni_chan);
@@ -104,7 +103,8 @@ r12a_tx_protection(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		if (ridx >= RTWN_RIDX_HT_MCS(0))
+		/* TODO: VHT */
+		if (RTWN_RATE_IS_HT(ridx))
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
@@ -147,6 +147,9 @@ r12a_tx_raid(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 		case IEEE80211_MODE_11NG:
 			mode = IEEE80211_MODE_11G;
 			break;
+		case IEEE80211_MODE_VHT_5GHZ:
+			mode = IEEE80211_MODE_VHT_5GHZ;
+			break;
 		default:
 			device_printf(sc->sc_dev, "unknown mode(1) %d!\n",
 			    ic->ic_curmode);
@@ -186,8 +189,13 @@ r12a_tx_raid(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 				raid = R12A_RAID_11BGN_2;
 		}
 		break;
+	case IEEE80211_MODE_VHT_5GHZ:
+		if (sc->ntxchains == 1)
+			raid = R12A_RAID_11AC_1;
+		else
+			raid = R12A_RAID_11AC_2;
+		break;
 	default:
-		/* TODO: 80 MHz / 11ac */
 		device_printf(sc->sc_dev, "unknown mode(2) %d!\n", mode);
 		return;
 	}
@@ -199,16 +207,23 @@ static void
 r12a_tx_set_sgi(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
-	struct ieee80211vap *vap = ni->ni_vap;
 
-	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) &&	/* HT20 */
-	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20))
-		txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
-	else if (ni->ni_chan != IEEE80211_CHAN_ANYC &&		/* HT40 */
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan) &&
-	    (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40))
-		txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
+	/* TODO: VHT 20/40/80 checks */
+
+	/*
+	 * Only enable short-GI if we're transmitting in that
+	 * width to that node.
+	 *
+	 * Specifically, do not enable shortgi for 20MHz if
+	 * we're attempting to transmit at 40MHz.
+	 */
+	if (ieee80211_ht_check_tx_ht40(ni)) {
+		if (ieee80211_ht_check_tx_shortgi_40(ni))
+			txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
+	} else if (ieee80211_ht_check_tx_ht(ni)) {
+		if (ieee80211_ht_check_tx_shortgi_20(ni))
+			txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
+	}
 }
 
 static void
@@ -220,6 +235,28 @@ r12a_tx_set_ldpc(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 	if ((vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX) &&
 	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
 		txd->txdw5 |= htole32(R12A_TXDW5_DATA_LDPC);
+}
+
+static int
+r12a_calculate_tx_agg_window(struct rtwn_softc *sc,
+    const struct ieee80211_node *ni, int tid)
+{
+	const struct ieee80211_tx_ampdu *tap;
+	int wnd;
+
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/*
+	 * BAW is (MAX_AGG * 2) + 1, hence the /2 here.
+	 * Ensure we don't send 0 or more than 64.
+	 */
+	wnd = tap->txa_wnd / 2;
+	if (wnd == 0)
+		wnd = 1;
+	else if (wnd > 0x1f)
+		wnd = 0x1f;
+
+	return (wnd);
 }
 
 void
@@ -273,9 +310,9 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 			if (m->m_flags & M_AMPDU_MPDU) {
 				txd->txdw2 |= htole32(R12A_TXDW2_AGGEN);
 				txd->txdw2 |= htole32(SM(R12A_TXDW2_AMPDU_DEN,
-				    vap->iv_ampdu_density));
+				    ieee80211_ht_get_node_ampdu_density(ni)));
 				txd->txdw3 |= htole32(SM(R12A_TXDW3_MAX_AGG,
-				    0x1f));	/* XXX */
+				    r12a_calculate_tx_agg_window(sc, ni, tid)));
 			} else
 				txd->txdw2 |= htole32(R12A_TXDW2_AGGBK);
 
@@ -289,7 +326,8 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
 
 			prot = IEEE80211_PROT_NONE;
-			if (ridx >= RTWN_RIDX_HT_MCS(0)) {
+			/* TODO: VHT */
+			if (RTWN_RATE_IS_HT(ridx)) {
 				r12a_tx_set_ht40(sc, txd, ni);
 				r12a_tx_set_sgi(sc, txd, ni);
 				r12a_tx_set_ldpc(sc, txd, ni);

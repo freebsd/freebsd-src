@@ -3033,8 +3033,7 @@ hdaa_audio_ctl_parse(struct hdaa_devinfo *devinfo)
 	if (max < 1)
 		return;
 
-	ctls = (struct hdaa_audio_ctl *)malloc(
-	    sizeof(*ctls) * max, M_HDAA, M_ZERO | M_NOWAIT);
+	ctls = malloc(sizeof(*ctls) * max, M_HDAA, M_ZERO | M_NOWAIT);
 
 	if (ctls == NULL) {
 		/* Blekh! */
@@ -3186,8 +3185,7 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 	if (max < 1)
 		return;
 
-	as = (struct hdaa_audio_as *)malloc(
-	    sizeof(*as) * max, M_HDAA, M_ZERO | M_NOWAIT);
+	as = malloc(sizeof(*as) * max, M_HDAA, M_ZERO | M_NOWAIT);
 
 	if (as == NULL) {
 		/* Blekh! */
@@ -4077,8 +4075,7 @@ hdaa_audio_bind_as(struct hdaa_devinfo *devinfo)
 			cnt += as[j].num_chans;
 	}
 	if (devinfo->num_chans == 0) {
-		devinfo->chans = (struct hdaa_chan *)malloc(
-		    sizeof(struct hdaa_chan) * cnt,
+		devinfo->chans = malloc(sizeof(struct hdaa_chan) * cnt,
 		    M_HDAA, M_ZERO | M_NOWAIT);
 		if (devinfo->chans == NULL) {
 			device_printf(devinfo->dev,
@@ -5490,10 +5487,8 @@ hdaa_prepare_pcms(struct hdaa_devinfo *devinfo)
 	}
 	devinfo->num_devs =
 	    max(ardev, apdev) + max(drdev, dpdev);
-	devinfo->devs =
-	    (struct hdaa_pcm_devinfo *)malloc(
-	    devinfo->num_devs * sizeof(struct hdaa_pcm_devinfo),
-	    M_HDAA, M_ZERO | M_NOWAIT);
+	devinfo->devs = malloc(devinfo->num_devs *
+	    sizeof(struct hdaa_pcm_devinfo), M_HDAA, M_ZERO | M_NOWAIT);
 	if (devinfo->devs == NULL) {
 		device_printf(devinfo->dev,
 		    "Unable to allocate memory for devices\n");
@@ -5542,7 +5537,7 @@ hdaa_create_pcms(struct hdaa_devinfo *devinfo)
 	for (i = 0; i < devinfo->num_devs; i++) {
 		struct hdaa_pcm_devinfo *pdevinfo = &devinfo->devs[i];
 
-		pdevinfo->dev = device_add_child(devinfo->dev, "pcm", -1);
+		pdevinfo->dev = device_add_child(devinfo->dev, "pcm", DEVICE_UNIT_ANY);
 		device_set_ivars(pdevinfo->dev, (void *)pdevinfo);
 	}
 }
@@ -6473,7 +6468,7 @@ hdaa_sysctl_reconfig(SYSCTL_HANDLER_ARGS)
 	hdaa_unconfigure(dev);
 	hdaa_configure(dev);
 	hdaa_unlock(devinfo);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reconfiguration done\n");
 	);
@@ -6625,9 +6620,8 @@ hdaa_attach(device_t dev)
 	);
 
 	if (devinfo->nodecnt > 0)
-		devinfo->widget = (struct hdaa_widget *)malloc(
-		    sizeof(*(devinfo->widget)) * devinfo->nodecnt, M_HDAA,
-		    M_WAITOK | M_ZERO);
+		devinfo->widget = malloc(sizeof(*(devinfo->widget)) *
+		    devinfo->nodecnt, M_HDAA, M_WAITOK | M_ZERO);
 	else
 		devinfo->widget = NULL;
 
@@ -6680,7 +6674,7 @@ hdaa_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "init_clear", CTLFLAG_RW,
 	    &devinfo->init_clear, 1,"Clear initial pin widget configuration");
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -7059,9 +7053,7 @@ hdaa_pcm_attach(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
 	);
-	if (pcm_register(dev, pdevinfo, (pdevinfo->playas >= 0)?1:0,
-	    (pdevinfo->recas >= 0)?1:0) != 0)
-		device_printf(dev, "Can't register PCM\n");
+	pcm_init(dev, pdevinfo);
 
 	pdevinfo->registered++;
 
@@ -7114,9 +7106,8 @@ hdaa_pcm_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
 
-	return (0);
+	return (pcm_register(dev, status));
 }
 
 static int

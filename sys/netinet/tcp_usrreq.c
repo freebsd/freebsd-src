@@ -172,7 +172,7 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		goto out;
 	inp = sotoinpcb(so);
-	tp = tcp_newtcpcb(inp);
+	tp = tcp_newtcpcb(inp, NULL);
 	if (tp == NULL) {
 		error = ENOBUFS;
 		in_pcbfree(inp);
@@ -685,7 +685,6 @@ tcp_usr_disconnect(struct socket *so)
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	struct epoch_tracker et;
-	int error = 0;
 
 	NET_EPOCH_ENTER(et);
 	inp = sotoinpcb(so);
@@ -702,11 +701,11 @@ tcp_usr_disconnect(struct socket *so)
 		goto out;
 	tcp_disconnect(tp);
 out:
-	tcp_bblog_pru(tp, PRU_DISCONNECT, error);
+	tcp_bblog_pru(tp, PRU_DISCONNECT, 0);
 	TCP_PROBE2(debug__user, tp, PRU_DISCONNECT);
 	INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
-	return (error);
+	return (0);
 }
 
 #ifdef INET
@@ -1125,9 +1124,9 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		/*
 		 * XXXRW: PRUS_EOF not implemented with PRUS_OOB?
 		 */
-		SOCKBUF_LOCK(&so->so_snd);
+		SOCK_SENDBUF_LOCK(so);
 		if (sbspace(&so->so_snd) < -512) {
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 			error = ENOBUFS;
 			goto out;
 		}
@@ -1142,7 +1141,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		if (tp->t_acktime == 0)
 			tp->t_acktime = ticks;
 		sbappendstream_locked(&so->so_snd, m, flags);
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 		m = NULL;
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
@@ -1237,9 +1236,9 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	}
 	tp = intotcpcb(inp);
 
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	error = sbready(&so->so_snd, m, count);
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 	if (error) {
 		INP_WUNLOCK(inp);
 		return (error);
@@ -1471,7 +1470,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 		return (EISCONN);
 
 	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in_pcbconnect(inp, sin, td->td_ucred, true);
+	error = in_pcbconnect(inp, sin, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error != 0)
 		return (error);
@@ -1957,7 +1956,7 @@ no_mem_needed:
 	tp = intotcpcb(inp);
 	if (ptr != NULL)
 		memset(ptr, 0, mem_sz);
-	cc_mem.ccvc.tcp = tp;
+	cc_mem.tp = tp;
 	/*
 	 * We once again hold a write lock over the tcb so it's
 	 * safe to do these things without ordering concerns.
@@ -2876,6 +2875,14 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_PREVVALID", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags & TF_WAKESOR) {
+		db_printf("%sTF_WAKESOR", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_GPUTINPROG) {
+		db_printf("%sTF_GPUTINPROG", comma ? ", " : "");
+		comma = 1;
+	}
 	if (t_flags & TF_MORETOCOME) {
 		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
 		comma = 1;
@@ -2896,16 +2903,8 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
-	if (t_flags & TF_CONGRECOVERY) {
-		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
 	if (t_flags & TF_WASFRECOVERY) {
 		db_printf("%sTF_WASFRECOVERY", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_WASCRECOVERY) {
-		db_printf("%sTF_WASCRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_SIGNATURE) {
@@ -2918,6 +2917,30 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_TSO) {
 		db_printf("%sTF_TSO", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_TOE) {
+		db_printf("%sTF_TOE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CLOSED) {
+		db_printf("%sTF_CLOSED", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_SENTSYN) {
+		db_printf("%sTF_SENTSYN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_LRD) {
+		db_printf("%sTF_LRD", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_CONGRECOVERY) {
+		db_printf("%sTF_CONGRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_WASCRECOVERY) {
+		db_printf("%sTF_WASCRECOVERY", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_FASTOPEN) {
@@ -2968,8 +2991,60 @@ db_print_tflags2(u_int t_flags2)
 		db_printf("%sTF2_ACE_PERMIT", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags2 & TF2_HPTS_CPU_SET) {
+		db_printf("%sTF2_HPTS_CPU_SET", comma ? ", " : "");
+		comma = 1;
+	}
 	if (t_flags2 & TF2_FBYTES_COMPLETE) {
 		db_printf("%sTF2_FBYTES_COMPLETE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_ECN_USE_ECT1) {
+		db_printf("%sTF2_ECN_USE_ECT1", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_TCP_ACCOUNTING) {
+		db_printf("%sTF2_TCP_ACCOUNTING", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_HPTS_CALLS) {
+		db_printf("%sTF2_HPTS_CALLS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_L_ACKS) {
+		db_printf("%sTF2_MBUF_L_ACKS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_ACKCMP) {
+		db_printf("%sTF2_MBUF_ACKCMP", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_SUPPORTS_MBUFQ) {
+		db_printf("%sTF2_SUPPORTS_MBUFQ", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_MBUF_QUEUE_READY) {
+		db_printf("%sTF2_MBUF_QUEUE_READY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_DONT_SACK_QUEUE) {
+		db_printf("%sTF2_DONT_SACK_QUEUE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_CANNOT_DO_ECN) {
+		db_printf("%sTF2_CANNOT_DO_ECN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_PROC_SACK_PROHIBIT) {
+		db_printf("%sTF2_PROC_SACK_PROHIBIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_IPSEC_TSO) {
+		db_printf("%sTF2_IPSEC_TSO", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags2 & TF2_NO_ISS_CHECK) {
+		db_printf("%sTF2_NO_ISS_CHECK", comma ? ", " : "");
 		comma = 1;
 	}
 }

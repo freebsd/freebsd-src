@@ -105,15 +105,15 @@ struct {
 	{0x6802, "Chelsio T6225-SO-CR VF"},	/* 2 x 10/25G, nomem */
 	{0x6803, "Chelsio T6425-CR VF"},	/* 4 x 10/25G */
 	{0x6804, "Chelsio T6425-SO-CR VF"},	/* 4 x 10/25G, nomem */
-	{0x6805, "Chelsio T6225-OCP-SO VF"},	/* 2 x 10/25G, nomem */
-	{0x6806, "Chelsio T62100-OCP-SO VF"},	/* 2 x 40/50/100G, nomem */
+	{0x6805, "Chelsio T6225-SO-OCP3 VF"},	/* 2 x 10/25G, nomem */
+	{0x6806, "Chelsio T6225-OCP3 VF"},	/* 2 x 10/25G */
 	{0x6807, "Chelsio T62100-LP-CR VF"},	/* 2 x 40/50/100G */
 	{0x6808, "Chelsio T62100-SO-CR VF"},	/* 2 x 40/50/100G, nomem */
 	{0x6809, "Chelsio T6210-BT VF"},	/* 2 x 10GBASE-T */
 	{0x680d, "Chelsio T62100-CR VF"},	/* 2 x 40/50/100G */
 	{0x6810, "Chelsio T6-DBG-100 VF"},	/* 2 x 40/50/100G, debug */
 	{0x6811, "Chelsio T6225-LL-CR VF"},	/* 2 x 10/25G */
-	{0x6814, "Chelsio T61100-OCP-SO VF"},	/* 1 x 40/50/100G, nomem */
+	{0x6814, "Chelsio T62100-SO-OCP3 VF"},	/* 2 x 40/50/100G, nomem */
 	{0x6815, "Chelsio T6201-BT VF"},	/* 2 x 1000BASE-T */
 
 	/* Custom */
@@ -589,6 +589,10 @@ t4vf_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
+	rc = t4_adj_doorbells(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
+
 	rc = t4_create_dma_tag(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
@@ -656,6 +660,8 @@ t4vf_attach(device_t dev)
 			t4_os_set_hw_addr(pi, mac);
 		pmask &= ~(1 << p);
 
+		sc->vlan_id = t4vf_get_vf_vlan(sc);
+
 		/* No t4_link_start. */
 
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
@@ -667,7 +673,7 @@ t4vf_attach(device_t dev)
 		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
 		    cxgbe_media_status);
 
-		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, -1);
+		pi->dev = device_add_child(dev, sc->names->vf_ifnet_name, DEVICE_UNIT_ANY);
 		if (pi->dev == NULL) {
 			device_printf(dev,
 			    "failed to add device for port %d.\n", i);
@@ -749,12 +755,7 @@ t4vf_attach(device_t dev)
 		goto done;
 	}
 
-	rc = bus_generic_attach(dev);
-	if (rc != 0) {
-		device_printf(dev,
-		    "failed to attach all child ports: %d\n", rc);
-		goto done;
-	}
+	bus_attach_children(dev);
 
 	device_printf(dev,
 	    "%d ports, %d %s interrupt%s, %d eq, %d iq\n",

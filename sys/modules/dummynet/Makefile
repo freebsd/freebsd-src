@@ -1,4 +1,3 @@
-
 .PATH:  ${SRCTOP}/sys/netpfil/ipfw
 KMOD=   dummynet
 SRCS=   ip_dummynet.c

@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/aacraid
 
 .if ${MACHINE_CPUARCH} == "i386"

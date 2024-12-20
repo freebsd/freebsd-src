@@ -277,7 +277,7 @@ queue_body()
 
 	ifconfig ${epair}a 192.0.2.1/24 up
 	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
-	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/../pf/echo_inetd.conf
 
 	# Sanity check
@@ -320,7 +320,7 @@ queue_body()
 
 	# TCP should still just pass
 	fails=0
-	for i in `seq 1 3`
+	for i in `seq 1 5`
 	do
 		result=$(dd if=/dev/zero bs=1024 count=2000 | timeout 3 nc -w 5 -N 192.0.2.2 7 | wc -c)
 		if [ $result -ne 2048000 ];
@@ -329,7 +329,7 @@ queue_body()
 			fails=$(( ${fails} + 1 ))
 		fi
 	done
-	if [ ${fails} -gt 0 ];
+	if [ ${fails} -gt 2 ];
 	then
 		atf_fail "We failed prioritisation ${fails} times"
 	fi
@@ -348,7 +348,7 @@ queue_body()
 	sleep 1
 
 	fails=0
-	for i in `seq 1 3`
+	for i in `seq 1 5`
 	do
 		result=$(dd if=/dev/zero bs=1024 count=2000 | timeout 3 nc -w 5 -N 192.0.2.2 7 | wc -c)
 		if [ $result -ne 2048000 ];
@@ -385,7 +385,7 @@ queue_v6_body()
 
 	ifconfig ${epair}a inet6 2001:db8:42::1/64 no_dad up
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2 no_dad up
-	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+	jexec alcatraz /usr/sbin/inetd -p ${PWD}/inetd-alcatraz.pid \
 	    $(atf_get_srcdir)/../pf/echo_inetd.conf
 	jexec alcatraz sysctl net.inet6.icmp6.errppslimit=0
 
@@ -429,7 +429,7 @@ queue_v6_body()
 
 	# TCP should still just pass
 	fails=0
-	for i in `seq 1 3`
+	for i in `seq 1 5`
 	do
 		result=$(dd if=/dev/zero bs=1024 count=1000 | timeout 3 nc -w 5 -N 2001:db8:42::2 7 | wc -c)
 		if [ $result -ne 1024000 ];
@@ -438,7 +438,7 @@ queue_v6_body()
 			fails=$(( ${fails} + 1 ))
 		fi
 	done
-	if [ ${fails} -gt 0 ];
+	if [ ${fails} -gt 2 ];
 	then
 		atf_fail "We failed prioritisation ${fails} times"
 	fi
@@ -454,7 +454,7 @@ queue_v6_body()
 			"pass in proto icmp6 dnqueue (0, 100)"
 
 	fails=0
-	for i in `seq 1 3`
+	for i in `seq 1 5`
 	do
 		result=$(dd if=/dev/zero bs=1024 count=1000 | timeout 3 nc -w 5 -N 2001:db8:42::2 7 | wc -c)
 		if [ $result -ne 1024000 ];

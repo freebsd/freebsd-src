@@ -46,6 +46,7 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <netdb.h>
@@ -68,6 +69,8 @@ u_int p_natt_type;
 struct addrinfo *p_natt_oai, *p_natt_oar;
 int p_natt_sport, p_natt_dport;
 int p_natt_fraglen;
+bool esn;
+vchar_t p_hwif;
 
 static int p_aiflags = 0, p_aifamily = PF_UNSPEC;
 
@@ -115,6 +118,7 @@ extern void yyerror(const char *);
 %token SPDADD SPDDELETE SPDDUMP SPDFLUSH
 %token F_POLICY PL_REQUESTS
 %token F_AIFLAGS F_NATT F_NATT_MTU
+%token F_ESN F_HWIF
 %token TAGGED
 
 %type <num> prefix protocol_spec upper_spec
@@ -539,12 +543,21 @@ extension
 		{
 			p_natt_fraglen = $2;
 		}
+	|	F_ESN
+		{
+			esn = true;
+			p_ext |= SADB_X_SAFLAGS_ESN;
+		}
+	|	F_HWIF STRING
+		{
+			p_hwif = $2;
+		}
 	;
 
 	/* definition about command for SPD management */
 	/* spdadd */
 spdadd_command
-	:	SPDADD ipaddropts STRING prefix portstr STRING prefix portstr upper_spec upper_misc_spec policy_spec EOT
+	:	SPDADD ipaddropts STRING prefix portstr STRING prefix portstr upper_spec upper_misc_spec policy_spec spd_hwif EOT
 		{
 			int status;
 			struct addrinfo *src, *dst;
@@ -646,6 +659,14 @@ spdflush_command:
 ipaddropts
 	:	/* nothing */
 	|	ipaddropts ipaddropt
+	;
+
+spd_hwif
+	:
+	|	F_HWIF STRING
+		{
+			p_hwif = $2;
+		}
 	;
 
 ipaddropt
@@ -831,6 +852,7 @@ setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
 	char buf[BUFSIZ];
 	int l, l0;
 	struct sadb_address m_addr;
+	struct sadb_x_if_hw_offl m_if_hw;
 	struct addrinfo *s, *d;
 	int n;
 	int plen;
@@ -848,6 +870,20 @@ setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
 
 	memcpy(buf + l, policy->buf, policy->len);
 	l += policy->len;
+
+	if (p_hwif.len != 0) {
+		l0 = sizeof(struct sadb_x_if_hw_offl);
+		m_if_hw.sadb_x_if_hw_offl_len = PFKEY_UNIT64(l0);
+		m_if_hw.sadb_x_if_hw_offl_exttype = SADB_X_EXT_IF_HW_OFFL;
+		m_if_hw.sadb_x_if_hw_offl_flags = 0;
+		memset(&m_if_hw.sadb_x_if_hw_offl_if[0], 0,
+		    sizeof(m_if_hw.sadb_x_if_hw_offl_if));
+		strlcpy(&m_if_hw.sadb_x_if_hw_offl_if[0], p_hwif.buf,
+		    sizeof(m_if_hw.sadb_x_if_hw_offl_if));
+
+		memcpy(buf + l, &m_if_hw, l0);
+		l += l0;
+	}
 
 	l0 = l;
 	n = 0;
@@ -1040,6 +1076,7 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 	struct sadb_x_nat_t_type m_natt_type;
 	struct sadb_x_nat_t_port m_natt_port;
 	struct sadb_x_nat_t_frag m_natt_frag;
+	struct sadb_x_if_hw_offl m_if_hw;
 	int n;
 	int plen;
 	struct sockaddr *sa;
@@ -1256,6 +1293,20 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 		}
 	}
 
+	if (p_hwif.len != 0) {
+		len = sizeof(struct sadb_x_if_hw_offl);
+		m_if_hw.sadb_x_if_hw_offl_len = PFKEY_UNIT64(len);
+		m_if_hw.sadb_x_if_hw_offl_exttype = SADB_X_EXT_IF_HW_OFFL;
+		m_if_hw.sadb_x_if_hw_offl_flags = 0;
+		memset(&m_if_hw.sadb_x_if_hw_offl_if[0], 0,
+		    sizeof(m_if_hw.sadb_x_if_hw_offl_if));
+		strlcpy(&m_if_hw.sadb_x_if_hw_offl_if[0], p_hwif.buf,
+		    sizeof(m_if_hw.sadb_x_if_hw_offl_if));
+
+		memcpy(buf + l, &m_if_hw, len);
+		l += len;
+	}
+
 	if (n == 0)
 		return -1;
 	else
@@ -1355,6 +1406,10 @@ parse_init(void)
 	p_natt_oai = p_natt_oar = NULL;
 	p_natt_sport = p_natt_dport = 0;
 	p_natt_fraglen = -1;
+
+	esn = false;
+	p_hwif.len = 0;
+	p_hwif.buf = NULL;
 }
 
 void

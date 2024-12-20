@@ -132,7 +132,6 @@ struct ctl_be_ramdisk_softc {
 };
 
 static struct ctl_be_ramdisk_softc rd_softc;
-extern struct ctl_softc *control_softc;
 
 static int ctl_backend_ramdisk_init(void);
 static int ctl_backend_ramdisk_shutdown(void);

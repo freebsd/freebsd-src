@@ -202,6 +202,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	intr_suspend();
 
+	if (vmm_suspend_p != NULL)
+		vmm_suspend_p();
+
 	pcb = &susppcbs[0]->sp_pcb;
 	if (savectx(pcb)) {
 		fpususpend(susppcbs[0]->sp_fpususpend);
@@ -361,8 +364,7 @@ acpi_alloc_wakeup_handler(void **wakeaddr,
 	return;
 
 freepages:
-	if (*wakeaddr != NULL)
-		contigfree(*wakeaddr, PAGE_SIZE, M_DEVBUF);
+	free(*wakeaddr, M_DEVBUF);
 	for (i = 0; i < ACPI_WAKEPT_PAGES; i++) {
 		if (wakept_m[i] != NULL)
 			vm_page_free(wakept_m[i]);

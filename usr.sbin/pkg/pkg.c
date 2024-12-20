@@ -855,7 +855,11 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 	goto cleanup;
 
 fetchfail:
-	warnx("Error fetching %s: %s", url, fetchLastErrString);
+	for (int j = 0; bootstrap_names[j] != NULL; j++) {
+		warnx("Attempted to fetch %s/Latest/%s", packagesite,
+		    bootstrap_names[j]);
+	}
+	warnx("Error: %s", fetchLastErrString);
 	if (fetchLastErrCode == FETCH_RESOLV) {
 		fprintf(stderr, "Address resolution failed for %s.\n", packagesite);
 		fprintf(stderr, "Consider changing PACKAGESITE.\n");
@@ -895,7 +899,7 @@ static const char args_bootstrap_message[] =
 
 static const char args_add_message[] =
 "Too many arguments\n"
-"Usage: pkg add [-f] [-y] {pkg.txz}\n";
+"Usage: pkg add [-f] [-y] {pkg.pkg}\n";
 
 static int
 pkg_query_yes_no(void)
@@ -1167,7 +1171,7 @@ main(int argc, char *argv[])
 
 		if (add_pkg) {
 			if (pkgarg == NULL) {
-				fprintf(stderr, "Path to pkg.txz required\n");
+				fprintf(stderr, "Path to pkg.pkg required\n");
 				exit(EXIT_FAILURE);
 			}
 			if (access(pkgarg, R_OK) == -1) {

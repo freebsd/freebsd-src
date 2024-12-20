@@ -57,7 +57,8 @@ spibus_attach(device_t dev)
 
 	sc->dev = dev;
 	bus_enumerate_hinted_children(dev);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 /*
@@ -198,6 +199,18 @@ spibus_add_child_common(device_t dev, u_int order, const char *name, int unit,
 	return (child);
 }
 
+void
+spibus_child_deleted(device_t dev, device_t child)
+{
+	struct spibus_ivar *devi;
+
+	devi = device_get_ivars(child);
+	if (devi == NULL)
+		return;
+	resource_list_free(&devi->rl);
+	free(devi, M_DEVBUF);
+}
+
 static device_t
 spibus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
@@ -262,6 +275,7 @@ static device_method_t spibus_methods[] = {
 	DEVMETHOD(bus_get_resource_list, spibus_get_resource_list),
 
 	DEVMETHOD(bus_add_child,	spibus_add_child),
+	DEVMETHOD(bus_child_deleted,	spibus_child_deleted),
 	DEVMETHOD(bus_print_child,	spibus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	spibus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	spibus_read_ivar),

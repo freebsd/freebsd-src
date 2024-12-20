@@ -4,8 +4,14 @@
 [![Downloads SourceForge](https://img.shields.io/sourceforge/dt/expat?label=Downloads%20SourceForge)](https://sourceforge.net/projects/expat/files/)
 [![Downloads GitHub](https://img.shields.io/github/downloads/libexpat/libexpat/total?label=Downloads%20GitHub)](https://github.com/libexpat/libexpat/releases)
 
+> [!CAUTION]
+>
+> Expat is **understaffed** and without funding.
+> There is a [call for help with details](https://github.com/libexpat/libexpat/blob/master/expat/Changes)
+> at the top of the `Changes` file.
 
-# Expat, Release 2.6.0
+
+# Expat, Release 2.6.4
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
@@ -20,7 +26,7 @@ Expat supports the following compilers:
 
 - GNU GCC >=4.5
 - LLVM Clang >=3.5
-- Microsoft Visual Studio >=15.0/2017 (rolling `${today} minus 5 years`)
+- Microsoft Visual Studio >=16.0/2019 (rolling `${today} minus 5 years`)
 
 Windows users can use the
 [`expat-win32bin-*.*.*.{exe,zip}` download](https://github.com/libexpat/libexpat/releases),
@@ -37,9 +43,9 @@ This license is the same as the MIT/X Consortium license.
 
 ## Using libexpat in your CMake-Based Project
 
-There are two ways of using libexpat with CMake:
+There are three documented ways of using libexpat with CMake:
 
-### a) Module Mode
+### a) `find_package` with Module Mode
 
 This approach leverages CMake's own [module `FindEXPAT`](https://cmake.org/cmake/help/latest/module/FindEXPAT.html).
 
@@ -64,7 +70,7 @@ target_include_directories(hello PRIVATE ${EXPAT_INCLUDE_DIRS})
 target_link_libraries(hello PUBLIC ${EXPAT_LIBRARIES})
 ```
 
-### b) Config Mode
+### b) `find_package` with Config Mode
 
 This approach requires files from…
 
@@ -90,6 +96,45 @@ add_executable(hello
 )
 
 target_link_libraries(hello PUBLIC expat::expat)
+```
+
+### c) The `FetchContent` module
+
+This approach — as demonstrated below — requires CMake >=3.18 for both the
+[`FetchContent` module](https://cmake.org/cmake/help/latest/module/FetchContent.html)
+and its support for the `SOURCE_SUBDIR` option to be available.
+
+Please note that:
+- Use of the `FetchContent` module with *non-release* SHA1s or `master`
+  of libexpat is neither advised nor considered officially supported.
+- Pinning to a specific commit is great for robust CI.
+- Pinning to a specific commit needs updating every time there is a new
+  release of libexpat — either manually or through automation —,
+  to not miss out on libexpat security updates.
+
+For an example that pulls in libexpat via Git:
+
+```cmake
+cmake_minimum_required(VERSION 3.18)
+
+include(FetchContent)
+
+project(hello VERSION 1.0.0)
+
+FetchContent_Declare(
+    expat
+    GIT_REPOSITORY https://github.com/libexpat/libexpat/
+    GIT_TAG        000000000_GIT_COMMIT_SHA1_HERE_000000000  # i.e. Git tag R_0_Y_Z
+    SOURCE_SUBDIR  expat/
+)
+
+FetchContent_MakeAvailable(expat)
+
+add_executable(hello
+    hello.c
+)
+
+target_link_libraries(hello PUBLIC expat)
 ```
 
 
@@ -158,10 +203,10 @@ support this mode of compilation (yet):
 
 1. Mass-patch `Makefile.am` files to use `libexpatw.la` for a library name:
    <br/>
-   `find -name Makefile.am -exec sed
+   `find . -name Makefile.am -exec sed
        -e 's,libexpat\.la,libexpatw.la,'
        -e 's,libexpat_la,libexpatw_la,'
-       -i {} +`
+       -i.bak {} +`
 
 1. Run `automake` to re-write `Makefile.in` files:<br/>
    `automake`

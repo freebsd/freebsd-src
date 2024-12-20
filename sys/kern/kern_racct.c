@@ -332,12 +332,6 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 
 	ASSERT_RACCT_ENABLED();
 
-	/*
-	 * If the process is swapped out, we count its %cpu usage as zero.
-	 * This behaviour is consistent with the userland ps(1) tool.
-	 */
-	if ((p->p_flag & P_INMEM) == 0)
-		return (0);
 	swtime = (ticks - p->p_swtick) / hz;
 
 	/*

@@ -94,9 +94,6 @@ static int hpt_attach(device_t dev)
 
 	size = him->get_adapter_size(&pci_id);
 	hba->ldm_adapter.him_handle = malloc(size, M_DEVBUF, M_WAITOK);
-	if (!hba->ldm_adapter.him_handle)
-		return ENXIO;
-
 	hba->pcidev = dev;
 	hba->pciaddr.tree = 0;
 	hba->pciaddr.bus = pci_get_bus(dev);
@@ -114,10 +111,6 @@ static int hpt_attach(device_t dev)
 	if (!ldm_register_adapter(&hba->ldm_adapter)) {
 		size = ldm_get_vbus_size();
 		vbus_ext = malloc(sizeof(VBUS_EXT) + size, M_DEVBUF, M_WAITOK);
-		if (!vbus_ext) {
-			free(hba->ldm_adapter.him_handle, M_DEVBUF);
-			return ENXIO;
-		}
 		memset(vbus_ext, 0, sizeof(VBUS_EXT));
 		vbus_ext->ext_type = EXT_TYPE_VBUS;
 		ldm_create_vbus((PVBUS)vbus_ext->vbus, vbus_ext);
@@ -146,9 +139,9 @@ static __inline void *__get_free_pages(int order)
 			M_DEVBUF, M_WAITOK, BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 }
 
-static __inline void free_pages(void *p, int order)
+static __inline void free_pages(void *p)
 {
-	contigfree(p, PAGE_SIZE<<order, M_DEVBUF);
+	free(p, M_DEVBUF);
 }
 
 static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
@@ -168,7 +161,6 @@ static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
 			f->tag, f->count, f->size, f->count*f->size));
 		for (i=0; i<f->count; i++) {
 			p = (void **)malloc(f->size, M_DEVBUF, M_WAITOK);
-			if (!p)	return (ENXIO);
 			*p = f->head;
 			f->head = p;
 		}
@@ -230,7 +222,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	for (i=0; i<os_max_cache_pages; i++) {
 		p = dmapool_get_page((PVBUS)vbus_ext->vbus, &bus);
 		HPT_ASSERT(p);
-		free_pages(p, 0);
+		free_pages(p);
 	}
 
 	for (f=vbus_ext->freelist_dma_head; f; f=f->next) {
@@ -244,7 +236,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 
 		while ((p=freelist_get_dma(f, &bus))) {
 			if (order)
-				free_pages(p, order);
+				free_pages(p);
 			else {
 			/* can't free immediately since other blocks in this page may still be in the list */
 				if (((HPT_UPTR)p & (PAGE_SIZE-1))==0)
@@ -254,7 +246,7 @@ static void hpt_free_mem(PVBUS_EXT vbus_ext)
 	}
 	
 	while ((p = dmapool_get_page((PVBUS)vbus_ext->vbus, &bus)))
-		free_pages(p, 0);
+		free_pages(p);
 }
 
 static int hpt_init_vbus(PVBUS_EXT vbus_ext)
@@ -1109,10 +1101,6 @@ static void hpt_final_init(void *dummy)
 
 		for (i=0; i<os_max_queue_comm; i++) {
 			POS_CMDEXT ext = (POS_CMDEXT)malloc(sizeof(OS_CMDEXT), M_DEVBUF, M_WAITOK);
-			if (!ext) {
-				os_printk("Can't alloc cmdext(%d)", i);
-				return ;
-			}
 			ext->vbus_ext = vbus_ext;
 			ext->next = vbus_ext->cmdext_list;
 			vbus_ext->cmdext_list = ext;
@@ -1327,18 +1315,13 @@ static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, stru
 
 		if (ioctl_args.nInBufferSize) {
 			ioctl_args.lpInBuffer = malloc(ioctl_args.nInBufferSize, M_DEVBUF, M_WAITOK);
-			if (!ioctl_args.lpInBuffer)
-				goto invalid;
 			if (copyin((void*)piop->lpInBuffer,
 					ioctl_args.lpInBuffer, piop->nInBufferSize))
 				goto invalid;
 		}
 	
-		if (ioctl_args.nOutBufferSize) {
+		if (ioctl_args.nOutBufferSize)
 			ioctl_args.lpOutBuffer = malloc(ioctl_args.nOutBufferSize, M_DEVBUF, M_WAITOK | M_ZERO);
-			if (!ioctl_args.lpOutBuffer)
-				goto invalid;
-		}
 
 		hpt_do_ioctl(&ioctl_args);
 

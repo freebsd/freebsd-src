@@ -104,7 +104,7 @@ static d_poll_t		targpoll;
 static d_kqfilter_t	targkqfilter;
 static void		targreadfiltdetach(struct knote *kn);
 static int		targreadfilt(struct knote *kn, long hint);
-static struct filterops targread_filtops = {
+static const struct filterops targread_filtops = {
 	.f_isfd = 1,
 	.f_detach = targreadfiltdetach,
 	.f_event = targreadfilt,

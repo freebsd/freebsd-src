@@ -260,9 +260,11 @@ extern const	char *yyfile;
 extern STAILQ_HEAD(file_list_head, file_list) ftab;
 
 extern STAILQ_HEAD(files_name_head, files_name) fntab;
+extern STAILQ_HEAD(options_files_name_head, files_name) optfntab;
 
 extern int	debugging;
 extern int	found_defaults;
+extern int	verbose;
 
 extern int	maxusers;
 extern int	versreq;

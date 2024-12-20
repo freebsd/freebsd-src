@@ -207,7 +207,7 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int readmode, u_
         struct fw_asyreq *asyreq;
 	u_int32_t *qld, res;
 
-        asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
+	asyreq = malloc(sizeof(*asyreq));
 	if (asyreq == NULL)
 		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 16;
@@ -262,7 +262,7 @@ send_phy_config(int fd, int root_node, int gap_count)
 {
         struct fw_asyreq *asyreq;
 
-	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 12);
+	asyreq = malloc(sizeof(*asyreq));
 	if (asyreq == NULL)
 		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 12;
@@ -289,7 +289,7 @@ link_on(int fd, int node)
 {
         struct fw_asyreq *asyreq;
 
-	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 12);
+	asyreq = malloc(sizeof(*asyreq));
 	if (asyreq == NULL)
 		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 12;
@@ -308,7 +308,7 @@ reset_start(int fd, int node)
 {
         struct fw_asyreq *asyreq;
 
-	asyreq = (struct fw_asyreq *)malloc(sizeof(struct fw_asyreq_t) + 16);
+	asyreq = malloc(sizeof(*asyreq));
 	if (asyreq == NULL)
 		err(EX_SOFTWARE, "%s:asyreq malloc", __func__);
 	asyreq->req.len = 16;

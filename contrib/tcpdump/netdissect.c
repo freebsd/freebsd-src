@@ -22,9 +22,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include "netdissect-stdinc.h"
 #include "netdissect.h"
@@ -298,4 +296,18 @@ nd_pop_all_packet_info(netdissect_options *ndo)
 {
 	while (ndo->ndo_packet_info_stack != NULL)
 		nd_pop_packet_info(ndo);
+}
+
+NORETURN void
+nd_trunc_longjmp(netdissect_options *ndo)
+{
+	longjmp(ndo->ndo_early_end, ND_TRUNCATED);
+#ifdef _AIX
+	/*
+	 * In AIX <setjmp.h> decorates longjmp() with "#pragma leaves", which tells
+	 * XL C that the function is noreturn, but GCC remains unaware of that and
+	 * yields a "'noreturn' function does return" warning.
+	 */
+	ND_UNREACHABLE
+#endif /* _AIX */
 }

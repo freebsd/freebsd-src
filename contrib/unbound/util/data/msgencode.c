@@ -62,6 +62,10 @@
 #define RETVAL_TRUNC	-4
 /** return code that means all is peachy keen. Equal to DNS rcode NOERROR */
 #define RETVAL_OK	0
+/** Max compressions we are willing to perform; more than that will result
+ *  in semi-compressed messages, or truncated even on TCP for huge messages, to
+ *  avoid locking the CPU for long */
+#define MAX_COMPRESSION_PER_MESSAGE 120
 
 /**
  * Data structure to help domain name compression in outgoing messages.
@@ -284,15 +288,17 @@ write_compressed_dname(sldns_buffer* pkt, uint8_t* dname, int labs,
 
 /** compress owner name of RR, return RETVAL_OUTMEM RETVAL_TRUNC */
 static int
-compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt, 
-	struct regional* region, struct compress_tree_node** tree, 
-	size_t owner_pos, uint16_t* owner_ptr, int owner_labs)
+compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
+	struct regional* region, struct compress_tree_node** tree,
+	size_t owner_pos, uint16_t* owner_ptr, int owner_labs,
+	size_t* compress_count)
 {
 	struct compress_tree_node* p;
 	struct compress_tree_node** insertpt = NULL;
 	if(!*owner_ptr) {
 		/* compress first time dname */
-		if((p = compress_tree_lookup(tree, key->rk.dname, 
+		if(*compress_count < MAX_COMPRESSION_PER_MESSAGE &&
+			(p = compress_tree_lookup(tree, key->rk.dname,
 			owner_labs, &insertpt))) {
 			if(p->labs == owner_labs) 
 				/* avoid ptr chains, since some software is
@@ -301,6 +307,7 @@ compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			if(!write_compressed_dname(pkt, key->rk.dname, 
 				owner_labs, p))
 				return RETVAL_TRUNC;
+			(*compress_count)++;
 			/* check if typeclass+4 ttl + rdatalen is available */
 			if(sldns_buffer_remaining(pkt) < 4+4+2)
 				return RETVAL_TRUNC;
@@ -313,7 +320,8 @@ compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			if(owner_pos <= PTR_MAX_OFFSET)
 				*owner_ptr = htons(PTR_CREATE(owner_pos));
 		}
-		if(!compress_tree_store(key->rk.dname, owner_labs, 
+		if(*compress_count < MAX_COMPRESSION_PER_MESSAGE &&
+			!compress_tree_store(key->rk.dname, owner_labs,
 			owner_pos, region, p, insertpt))
 			return RETVAL_OUTMEM;
 	} else {
@@ -333,20 +341,24 @@ compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 
 /** compress any domain name to the packet, return RETVAL_* */
 static int
-compress_any_dname(uint8_t* dname, sldns_buffer* pkt, int labs, 
-	struct regional* region, struct compress_tree_node** tree)
+compress_any_dname(uint8_t* dname, sldns_buffer* pkt, int labs,
+	struct regional* region, struct compress_tree_node** tree,
+	size_t* compress_count)
 {
 	struct compress_tree_node* p;
 	struct compress_tree_node** insertpt = NULL;
 	size_t pos = sldns_buffer_position(pkt);
-	if((p = compress_tree_lookup(tree, dname, labs, &insertpt))) {
+	if(*compress_count < MAX_COMPRESSION_PER_MESSAGE &&
+		(p = compress_tree_lookup(tree, dname, labs, &insertpt))) {
 		if(!write_compressed_dname(pkt, dname, labs, p))
 			return RETVAL_TRUNC;
+		(*compress_count)++;
 	} else {
 		if(!dname_buffer_write(pkt, dname))
 			return RETVAL_TRUNC;
 	}
-	if(!compress_tree_store(dname, labs, pos, region, p, insertpt))
+	if(*compress_count < MAX_COMPRESSION_PER_MESSAGE &&
+		!compress_tree_store(dname, labs, pos, region, p, insertpt))
 		return RETVAL_OUTMEM;
 	return RETVAL_OK;
 }
@@ -364,9 +376,9 @@ type_rdata_compressable(struct ub_packed_rrset_key* key)
 
 /** compress domain names in rdata, return RETVAL_* */
 static int
-compress_rdata(sldns_buffer* pkt, uint8_t* rdata, size_t todolen, 
-	struct regional* region, struct compress_tree_node** tree, 
-	const sldns_rr_descriptor* desc)
+compress_rdata(sldns_buffer* pkt, uint8_t* rdata, size_t todolen,
+	struct regional* region, struct compress_tree_node** tree,
+	const sldns_rr_descriptor* desc, size_t* compress_count)
 {
 	int labs, r, rdf = 0;
 	size_t dname_len, len, pos = sldns_buffer_position(pkt);
@@ -380,8 +392,8 @@ compress_rdata(sldns_buffer* pkt, uint8_t* rdata, size_t todolen,
 		switch(desc->_wireformat[rdf]) {
 		case LDNS_RDF_TYPE_DNAME:
 			labs = dname_count_size_labels(rdata, &dname_len);
-			if((r=compress_any_dname(rdata, pkt, labs, region, 
-				tree)) != RETVAL_OK)
+			if((r=compress_any_dname(rdata, pkt, labs, region,
+				tree, compress_count)) != RETVAL_OK)
 				return r;
 			rdata += dname_len;
 			todolen -= dname_len;
@@ -449,7 +461,8 @@ static int
 packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt, 
 	uint16_t* num_rrs, time_t timenow, struct regional* region,
 	int do_data, int do_sig, struct compress_tree_node** tree,
-	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
+	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset,
+	size_t* compress_count)
 {
 	size_t i, j, owner_pos;
 	int r, owner_labs;
@@ -477,9 +490,9 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 		for(i=0; i<data->count; i++) {
 			/* rrset roundrobin */
 			j = (i + rr_offset) % data->count;
-			if((r=compress_owner(key, pkt, region, tree, 
-				owner_pos, &owner_ptr, owner_labs))
-				!= RETVAL_OK)
+			if((r=compress_owner(key, pkt, region, tree,
+				owner_pos, &owner_ptr, owner_labs,
+				compress_count)) != RETVAL_OK)
 				return r;
 			sldns_buffer_write(pkt, &key->rk.type, 2);
 			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
@@ -489,8 +502,8 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			else	sldns_buffer_write_u32(pkt, data->rr_ttl[j]-adjust);
 			if(c) {
 				if((r=compress_rdata(pkt, data->rr_data[j],
-					data->rr_len[j], region, tree, c))
-					!= RETVAL_OK)
+					data->rr_len[j], region, tree, c,
+					compress_count)) != RETVAL_OK)
 					return r;
 			} else {
 				if(sldns_buffer_remaining(pkt) < data->rr_len[j])
@@ -510,9 +523,9 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 					return RETVAL_TRUNC;
 				sldns_buffer_write(pkt, &owner_ptr, 2);
 			} else {
-				if((r=compress_any_dname(key->rk.dname, 
-					pkt, owner_labs, region, tree))
-					!= RETVAL_OK)
+				if((r=compress_any_dname(key->rk.dname,
+					pkt, owner_labs, region, tree,
+					compress_count)) != RETVAL_OK)
 					return r;
 				if(sldns_buffer_remaining(pkt) < 
 					4+4+data->rr_len[i])
@@ -544,7 +557,8 @@ static int
 insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 	sldns_buffer* pkt, size_t rrsets_before, time_t timenow, 
 	struct regional* region, struct compress_tree_node** tree,
-	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
+	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset,
+	size_t* compress_count)
 {
 	int r;
 	size_t i, setstart;
@@ -560,7 +574,7 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 1, 1, tree,
-				s, qtype, dnssec, rr_offset))
+				s, qtype, dnssec, rr_offset, compress_count))
 				!= RETVAL_OK) {
 				/* Bad, but if due to size must set TC bit */
 				/* trim off the rrset neatly. */
@@ -573,7 +587,7 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 1, 0, tree,
-				s, qtype, dnssec, rr_offset))
+				s, qtype, dnssec, rr_offset, compress_count))
 				!= RETVAL_OK) {
 				sldns_buffer_set_position(pkt, setstart);
 				return r;
@@ -584,7 +598,7 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 0, 1, tree,
-				s, qtype, dnssec, rr_offset))
+				s, qtype, dnssec, rr_offset, compress_count))
 				!= RETVAL_OK) {
 				sldns_buffer_set_position(pkt, setstart);
 				return r;
@@ -677,6 +691,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 	struct compress_tree_node* tree = 0;
 	int r;
 	size_t rr_offset;
+	size_t compress_count=0;
 
 	sldns_buffer_clear(buffer);
 	if(udpsize < sldns_buffer_limit(buffer))
@@ -723,7 +738,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 		arep.rrsets = &qinfo->local_alias->rrset;
 		if((r=insert_section(&arep, 1, &ancount, buffer, 0,
 			timezero, region, &tree, LDNS_SECTION_ANSWER,
-			qinfo->qtype, dnssec, rr_offset)) != RETVAL_OK) {
+			qinfo->qtype, dnssec, rr_offset, &compress_count)) != RETVAL_OK) {
 			if(r == RETVAL_TRUNC) {
 				/* create truncated message */
 				sldns_buffer_write_u16_at(buffer, 6, ancount);
@@ -738,7 +753,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 	/* insert answer section */
 	if((r=insert_section(rep, rep->an_numrrsets, &ancount, buffer,
 		0, timenow, region, &tree, LDNS_SECTION_ANSWER, qinfo->qtype,
-		dnssec, rr_offset)) != RETVAL_OK) {
+		dnssec, rr_offset, &compress_count)) != RETVAL_OK) {
 		if(r == RETVAL_TRUNC) {
 			/* create truncated message */
 			sldns_buffer_write_u16_at(buffer, 6, ancount);
@@ -756,7 +771,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 		if((r=insert_section(rep, rep->ns_numrrsets, &nscount, buffer,
 			rep->an_numrrsets, timenow, region, &tree,
 			LDNS_SECTION_AUTHORITY, qinfo->qtype,
-			dnssec, rr_offset)) != RETVAL_OK) {
+			dnssec, rr_offset, &compress_count)) != RETVAL_OK) {
 			if(r == RETVAL_TRUNC) {
 				/* create truncated message */
 				sldns_buffer_write_u16_at(buffer, 8, nscount);
@@ -773,7 +788,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 			if((r=insert_section(rep, rep->ar_numrrsets, &arcount, buffer,
 				rep->an_numrrsets + rep->ns_numrrsets, timenow, region,
 				&tree, LDNS_SECTION_ADDITIONAL, qinfo->qtype,
-				dnssec, rr_offset)) != RETVAL_OK) {
+				dnssec, rr_offset, &compress_count)) != RETVAL_OK) {
 				if(r == RETVAL_TRUNC) {
 					/* no need to set TC bit, this is the additional */
 					sldns_buffer_write_u16_at(buffer, 10, arcount);

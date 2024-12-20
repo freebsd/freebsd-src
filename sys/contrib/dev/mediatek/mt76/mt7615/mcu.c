@@ -232,9 +232,13 @@ void mt7622_trigger_hif_int(struct mt7615_dev *dev, bool en)
 	if (!is_mt7622(&dev->mt76))
 		return;
 
+#if defined(__linux__)
 	regmap_update_bits(dev->infracfg, MT_INFRACFG_MISC,
 			   MT_INFRACFG_MISC_AP2CONN_WAKE,
 			   !en * MT_INFRACFG_MISC_AP2CONN_WAKE);
+#elif defined(__FreeBSD__)
+	panic("%s: LinuxKPI needs regmap\n", __func__);
+#endif
 }
 EXPORT_SYMBOL_GPL(mt7622_trigger_hif_int);
 

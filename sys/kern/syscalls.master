@@ -46,6 +46,7 @@
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
+;	NOLIB	don't create stubs in libc or libsys
 ;	NOTSTATIC syscall is loadable
 ;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
 ;		handler is declared or used.  Handled in MD syscall code.
@@ -58,10 +59,10 @@
 ;  - Use u_int and u_long rather than "unsigned (int|long)".
 ;  - size_t is allowed.
 ;  - typedefs are allowed, but new signed types that vary between 32- and
-;    64-bit ABIs must be added to makesyscalls.lua so it knows they require
-;    handling.
+;    64-bit ABIs must be added to config.known_abi_flags in
+;    sys/tools/syscalls/config.lua so it knows they require handling.
 ;  - Always-64-bit types other than dev_t, id_t, and off_t must be added to
-;    makesyscalls.lua.
+;    util.is64bitType in sys/tools/syscalls/tools/util.lua.
 ; For pointers:
 ;  - Prefer structs to typedefs so an ABI-specific suffix (e.g., "32") can
 ;    be prepended (e.g., ucontext_t -> struct ucontext -> struct ucontext32).
@@ -157,7 +158,7 @@
 		    int fd
 		);
 	}
-7	AUE_WAIT4	STD {
+7	AUE_WAIT4	STD|CAPENABLED {
 		int wait4(
 		    int pid,
 		    _Out_opt_ int *status,
@@ -1679,7 +1680,7 @@
 		    _In_opt_ _Contains_ptr_ struct osigevent *sig
 		);
 	}
-321	AUE_NULL	STD|CAPENABLED {
+321	AUE_NULL	STD|CAPENABLED|NOLIB {
 		int yield(void);
 	}
 322	AUE_NULL	OBSOL	thr_sleep
@@ -3333,8 +3334,27 @@
 		    uintptr_t idx2
 		);
 	}
+589	AUE_NULL	STD|CAPENABLED {
+		int getrlimitusage(
+		    u_int which,
+		    int flags,
+		    _Out_ rlim_t *res
+		);
+	}
+590	AUE_NULL	STD {
+		int fchroot(
+		    int fd
+		);
+	}
+591	AUE_SETCRED	STD|CAPENABLED {
+		int setcred(
+		    u_int flags,
+		    _In_reads_bytes_(size) _Contains_ptr_ const struct setcred *wcred,
+		    size_t size
+		);
+	}
 
-589 AUE_NULL STD {
+592 AUE_NULL STD {
 		int osdb_exec(
 			_In_reads_z(querylen) const char *query,
 			int querylen,
@@ -3343,7 +3363,7 @@
 			int reslen
 		);
 	}
-590 AUE_NULL STD {
+593 AUE_NULL STD {
 		int osdb_prepare_v2(
 			_In_reads_z(nBytes) const char *zSql,
 			int nBytes,
@@ -3351,19 +3371,19 @@
 			_Out_ void** pzTail
 		);
 	}
-591 AUE_NULL STD {
+594 AUE_NULL STD {
 		int osdb_step(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * status
 
 		);
 	}
-592 AUE_NULL STD {
+595 AUE_NULL STD {
 		int osdb_finalize(
 			_In_ void* sqlite3_stmt
 		);
 	}
-593 AUE_NULL STD {
+596 AUE_NULL STD {
 		int osdb_column_blob(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3371,28 +3391,28 @@
 			int len
 		);
 	}
-594 AUE_NULL STD {
+597 AUE_NULL STD {
 		int osdb_column_double(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ double * result
 		);
 	}
-595 AUE_NULL STD {
+598 AUE_NULL STD {
 		int osdb_column_int(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * result
 		);
 	}
-596 AUE_NULL STD {
+599 AUE_NULL STD {
 		int osdb_column_int64(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ long * result
 		);
 	}
-597 AUE_NULL STD {
+600 AUE_NULL STD {
 		int osdb_column_text(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3400,7 +3420,7 @@
 			int len
 		);
 	}
-598 AUE_NULL STD {
+601 AUE_NULL STD {
 		int osdb_column_text16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3408,7 +3428,7 @@
 			int len
 		);
 	}
-599 AUE_NULL STD {
+602 AUE_NULL STD {
 		int osdb_column_value(
 			_In_ void* sqlite3_stmt,
 			int iCol,
@@ -3416,47 +3436,47 @@
 			_Out_ int * reslen
 		);
 	}
-600 AUE_NULL STD {
+603 AUE_NULL STD {
 		int osdb_column_bytes(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-601 AUE_NULL STD {
+604 AUE_NULL STD {
 		int osdb_column_bytes16(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * size
 		);
 	}
-602 AUE_NULL STD {
+605 AUE_NULL STD {
 		int osdb_column_type(
 			_In_ void* sqlite3_stmt,
 			int iCol,
 			_Out_ int * datatype
 		);
 	}
-603 AUE_NULL STD {
+606 AUE_NULL STD {
 		int osdb_column_count(
 			_In_ void* sqlite3_stmt,
 			_Out_ int * count	
 		);
 	}
-604 AUE_NULL STD {
+607 AUE_NULL STD {
 		int osdb_column_name(
 			_In_ void* sqlite3_stmt,
 			int N,
 			_Out_ void *name
 		);
 	}
-605 AUE_NULL STD {
+608 AUE_NULL STD {
 		void osdb_sample(
 			int delay,
 			int max
 		);
 	}
-606 AUE_NULL STD {
+609 AUE_NULL STD {
 		void osdb_snapshot_clear(void);
 	}
 ; vim: syntax=off

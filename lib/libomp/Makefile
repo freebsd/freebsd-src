@@ -1,4 +1,3 @@
-
 # z_Linux_asm.S is missing BTI support
 MK_BRANCH_PROTECTION=no
 

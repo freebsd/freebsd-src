@@ -147,16 +147,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 }
 
 void
-cpu_thread_swapin(struct thread *td)
-{
-}
-
-void
-cpu_thread_swapout(struct thread *td)
-{
-}
-
-void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
 	struct trapframe *frame;
@@ -172,11 +162,9 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/*
 		 * Reconstruct the pc to point at the swi.
 		 */
-#if __ARM_ARCH >= 7
 		if ((frame->tf_spsr & PSR_T) != 0)
 			frame->tf_pc -= THUMB_INSN_SIZE;
 		else
-#endif
 			frame->tf_pc -= INSN_SIZE;
 		break;
 	case EJUSTRETURN:

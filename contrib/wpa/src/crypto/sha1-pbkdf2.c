@@ -50,6 +50,8 @@ static int pbkdf2_sha1_f(const char *passphrase, const u8 *ssid,
 		for (j = 0; j < SHA1_MAC_LEN; j++)
 			digest[j] ^= tmp2[j];
 	}
+	forced_memzero(tmp, SHA1_MAC_LEN);
+	forced_memzero(tmp2, SHA1_MAC_LEN);
 
 	return 0;
 }
@@ -87,6 +89,7 @@ int pbkdf2_sha1(const char *passphrase, const u8 *ssid, size_t ssid_len,
 		pos += plen;
 		left -= plen;
 	}
+	forced_memzero(digest, SHA1_MAC_LEN);
 
 	return 0;
 }

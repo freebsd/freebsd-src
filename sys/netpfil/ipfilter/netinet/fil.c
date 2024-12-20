@@ -1330,8 +1330,8 @@ ipf_pr_tcpcommon(fr_info_t *fin)
 		return (1);
 	}
 
-	flags = tcp->th_flags;
-	fin->fin_tcpf = tcp->th_flags;
+	flags = tcp_get_flags(tcp);
+	fin->fin_tcpf = tcp_get_flags(tcp);
 
 	/*
 	 * If the urgent flag is set, then the urgent pointer must

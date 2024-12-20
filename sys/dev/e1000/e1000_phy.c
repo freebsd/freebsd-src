@@ -1037,7 +1037,7 @@ static s32 e1000_set_master_slave_mode(struct e1000_hw *hw)
 		break;
 	case e1000_ms_auto:
 		phy_data &= ~CR_1000T_MS_ENABLE;
-		/* FALLTHROUGH */
+		break;
 	default:
 		break;
 	}
@@ -1707,9 +1707,10 @@ s32 e1000_setup_copper_link_generic(struct e1000_hw *hw)
 		 * autonegotiation.
 		 */
 		ret_val = e1000_copper_link_autoneg(hw);
-		if (ret_val)
+		if (ret_val && !hw->mac.forced_speed_duplex)
 			return ret_val;
-	} else {
+	}
+	if (!hw->mac.autoneg || (ret_val && hw->mac.forced_speed_duplex)) {
 		/* PHY will be set to 10H, 10F, 100H or 100F
 		 * depending on user settings.
 		 */

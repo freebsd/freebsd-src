@@ -1,4 +1,3 @@
-
 TESTNUM=	2
 
 .include <../Makefile.inc>

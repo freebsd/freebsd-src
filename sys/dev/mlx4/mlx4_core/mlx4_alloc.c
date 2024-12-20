@@ -173,7 +173,7 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 reserved_top)
 {
 	/* num must be a power of 2 */
-	if (num != roundup_pow_of_two(num))
+	if (!is_power_of_2(num))
 		return -EINVAL;
 
 	bitmap->last = 0;

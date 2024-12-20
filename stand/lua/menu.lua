@@ -122,7 +122,7 @@ menu.boot_environments = {
 				if is_default then
 					name_color = color.escapefg(color.GREEN)
 				else
-					name_color = color.escapefg(color.BLUE)
+					name_color = color.escapefg(color.CYAN)
 				end
 				bootenv_name = bootenv_name .. name_color ..
 				    choice .. color.resetfg()
@@ -263,6 +263,10 @@ menu.welcome = {
 			menu_entries.boot_envs,
 			menu_entries.chainload,
 			menu_entries.vendor,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			menu_entries.loader_needs_upgrade,
 		}
 	end,
 	all_entries = {
@@ -338,7 +342,7 @@ menu.welcome = {
 					name_color = color.escapefg(color.GREEN)
 					kernel_name = "default/"
 				else
-					name_color = color.escapefg(color.BLUE)
+					name_color = color.escapefg(color.CYAN)
 				end
 				kernel_name = kernel_name .. name_color ..
 				    choice .. color.resetfg()
@@ -410,6 +414,15 @@ menu.welcome = {
 				return loader.getenv('chain_disk') ~= nil
 			end,
 			alias = {"l", "L"},
+		},
+		loader_needs_upgrade = {
+			entry_type = core.MENU_SEPARATOR,
+			name = function()
+				return color.highlight("Loader needs to be updated")
+			end,
+			visible = function()
+				return core.loaderTooOld()
+			end
 		},
 		vendor = {
 			entry_type = core.MENU_ENTRY,
@@ -517,12 +530,13 @@ function menu.run()
 	drawn_menu = nil
 
 	screen.defcursor()
+	-- We explicitly want the newline print adds
 	print("Exiting menu!")
 end
 
 function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
-	local y = loader.getenv("loader_menu_timeout_y") or 23
+	local y = loader.getenv("loader_menu_timeout_y") or 24
 	local endtime = loader.time() + delay
 	local time
 	local last
@@ -531,7 +545,7 @@ function menu.autoboot(delay)
 		if last == nil or last ~= time then
 			last = time
 			screen.setcursor(x, y)
-			print("Autoboot in " .. time ..
+			printc("Autoboot in " .. time ..
 			    " seconds. [Space] to pause ")
 			screen.defcursor()
 		end
@@ -540,9 +554,12 @@ function menu.autoboot(delay)
 			if ch == core.KEY_ENTER then
 				break
 			else
-				-- erase autoboot msg
-				screen.setcursor(0, y)
-				print(string.rep(" ", 80))
+				-- Erase autoboot msg.  While real VT100s
+				-- wouldn't scroll when receiving a char with
+				-- the cursor at (79, 24), bad emulators do.
+				-- Avoid the issue by stopping at 79.
+				screen.setcursor(1, y)
+				printc(string.rep(" ", 79))
 				screen.defcursor()
 				return ch
 			end

@@ -1,4 +1,3 @@
-
 SHLIB_MAJOR=	6
 PACKAGE=	bsnmp
 

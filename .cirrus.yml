@@ -4,7 +4,7 @@ compute_engine_instance:
   # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
   platform: freebsd
   image_project: freebsd-org-cloud-dev
-  image: freebsd-13-2-release-amd64
+  image: freebsd-13-3-release-amd64
   cpu: 8
   memory: 8G
   disk: 40
@@ -31,11 +31,19 @@ task:
       TOOLCHAIN: llvm17
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
   - name: amd64-llvm18 World and kernel build and boot smoke test
-    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
       TOOLCHAIN: llvm18
+      TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
+  - name: amd64-llvm19 World and kernel build and boot smoke test
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+      TOOLCHAIN: llvm19
       TOOLCHAIN_PKG: ${TOOLCHAIN}-lite
   - name: arm64-llvm16 World and kernel build and boot smoke test
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
@@ -60,6 +68,14 @@ task:
       TARGET: arm64
       TARGET_ARCH: aarch64
       TOOLCHAIN: llvm18
+      TOOLCHAIN_PKG: ${TOOLCHAIN}
+  - name: arm64-llvm19 World and kernel build and boot smoke test
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
+      TOOLCHAIN: llvm19
       TOOLCHAIN_PKG: ${TOOLCHAIN}
   - name: amd64-gcc12 World and kernel build and boot smoke test (manual)
     only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'

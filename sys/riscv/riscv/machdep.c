@@ -113,10 +113,6 @@ int cold = 1;
 
 struct kva_md_info kmi;
 
-int64_t dcache_line_size;	/* The minimum D cache line size */
-int64_t icache_line_size;	/* The minimum I cache line size */
-int64_t idcache_line_size;	/* The minimum cache line size */
-
 #define BOOT_HART_INVALID	0xffffffff
 uint32_t boot_hart = BOOT_HART_INVALID;	/* The hart we booted on. */
 
@@ -321,24 +317,13 @@ try_load_dtb(caddr_t kmdp)
 		return;
 	}
 
-	if (OF_install(OFW_FDT, 0) == FALSE)
+	if (!OF_install(OFW_FDT, 0))
 		panic("Cannot install FDT");
 
 	if (OF_init((void *)dtbp) != 0)
 		panic("OF_init failed with the found device tree");
 }
 #endif
-
-static void
-cache_setup(void)
-{
-
-	/* TODO */
-
-	dcache_line_size = 0;
-	icache_line_size = 0;
-	idcache_line_size = 0;
-}
 
 /*
  * Fake up a boot descriptor table.
@@ -380,13 +365,16 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
 	PRELOAD_PUSH_VALUE(uint64_t, (size_t)((vm_offset_t)&end - KERNBASE));
 
-	/* Copy the DTB to KVA space. */
+	/*
+	 * Copy the DTB to KVA space. We are able to dereference the physical
+	 * address due to the identity map created in locore.
+	 */
 	lastaddr = roundup(lastaddr, sizeof(int));
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_DTBP);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
 	PRELOAD_PUSH_VALUE(vm_offset_t, lastaddr);
-	dtb_size = fdt_totalsize(rvbp->dtbp_virt);
-	memmove((void *)lastaddr, (const void *)rvbp->dtbp_virt, dtb_size);
+	dtb_size = fdt_totalsize(rvbp->dtbp_phys);
+	memmove((void *)lastaddr, (const void *)rvbp->dtbp_phys, dtb_size);
 	lastaddr = roundup(lastaddr + dtb_size, sizeof(int));
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_KERNEND);
@@ -547,12 +535,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Do basic tuning, hz etc */
 	init_param1();
 
-	cache_setup();
-
-	/* Bootstrap enough of pmap to enter the kernel proper */
-	kernlen = (lastaddr - KERNBASE);
-	pmap_bootstrap(rvbp->kern_l1pt, rvbp->kern_phys, kernlen);
-
 #ifdef FDT
 	/*
 	 * XXX: Unconditionally exclude the lowest 2MB of physical memory, as
@@ -565,6 +547,11 @@ initriscv(struct riscv_bootparams *rvbp)
 	physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
 	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
+
+	/* Bootstrap enough of pmap to enter the kernel proper */
+	kernlen = (lastaddr - KERNBASE);
+	pmap_bootstrap(rvbp->kern_phys, kernlen);
+
 	physmem_init_kernel_globals();
 
 	/* Establish static device mappings */

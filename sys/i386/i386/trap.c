@@ -237,12 +237,6 @@ trap(struct trapframe *frame)
 	KASSERT((read_eflags() & PSL_I) == 0,
 	    ("trap: interrupts enabled, type %d frame %p", type, frame));
 
-#ifdef SMP
-	/* Handler for NMI IPIs used for stopping CPUs. */
-	if (type == T_NMI && ipi_nmi_handler() == 0)
-		return;
-#endif /* SMP */
-
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
@@ -251,24 +245,14 @@ trap(struct trapframe *frame)
 #endif
 	trap_check_kstack();
 
-	if (type == T_RESERVED) {
-		trap_fatal(frame, 0);
+	if (type == T_NMI) {
+		nmi_handle_intr(frame);
 		return;
 	}
 
-	if (type == T_NMI) {
-#ifdef HWPMC_HOOKS
-		/*
-		 * CPU PMCs interrupt using an NMI so we check for that first.
-		 * If the HWPMC module is active, 'pmc_hook' will point to
-		 * the function to be called.  A non-zero return value from the
-		 * hook means that the NMI was consumed by it and that we can
-		 * return immediately.
-		 */
-		if (pmc_intr != NULL &&
-		    (*pmc_intr)(frame) != 0)
-			return;
-#endif
+	if (type == T_RESERVED) {
+		trap_fatal(frame, 0);
+		return;
 	}
 
 	if (type == T_MCHK) {
@@ -444,7 +428,7 @@ user_trctrap_out:
 			}
 			return;
 #else /* !POWERFAIL_NMI */
-			nmi_handle_intr(type, frame);
+			nmi_handle_intr(frame);
 			return;
 #endif /* POWERFAIL_NMI */
 
@@ -701,7 +685,7 @@ kernel_trctrap:
 			}
 			return;
 #else /* !POWERFAIL_NMI */
-			nmi_handle_intr(type, frame);
+			nmi_handle_intr(frame);
 			return;
 #endif /* POWERFAIL_NMI */
 		}

@@ -1,5 +1,5 @@
 /*
- * hostapd / EAP-TLS (RFC 2716)
+ * hostapd / EAP-TLS (RFC 5216, RFC 9190)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
@@ -306,6 +306,14 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 
 	wpa_printf(MSG_DEBUG,
 		   "EAP-TLS: Resuming previous session");
+
+	if (data->ssl.tls_v13 && data->ssl.tls_out) {
+		wpa_hexdump_buf(MSG_DEBUG,
+				"EAP-TLS: Additional data to be sent for TLS 1.3",
+				data->ssl.tls_out);
+		return;
+	}
+
 	eap_tls_state(data, SUCCESS);
 	tls_connection_set_success_data_resumed(data->ssl.conn);
 	/* TODO: Cache serial number with session and update EAP user

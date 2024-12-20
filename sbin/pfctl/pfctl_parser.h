@@ -55,8 +55,6 @@
 #define PF_OPT_RECURSE		0x4000
 #define PF_OPT_KILLMATCH	0x8000
 
-#define PF_TH_ALL		0xFF
-
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
 
@@ -136,6 +134,8 @@ struct node_host {
 	struct node_host	*next;
 	struct node_host	*tail;
 };
+
+void	freehostlist(struct node_host *);
 
 struct node_mac {
 	u_int8_t	 mac[ETHER_ADDR_LEN];
@@ -281,7 +281,7 @@ int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
 int	pfctl_append_eth_rule(struct pfctl *, struct pfctl_eth_rule *,
 	    const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
-int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, sa_family_t);
+int	pfctl_add_pool(struct pfctl *, struct pfctl_pool *, sa_family_t, int);
 void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
@@ -300,7 +300,7 @@ int	parse_flags(char *);
 int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
 
 void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, sa_family_t, int);
-void	print_src_node(struct pf_src_node *, int);
+void	print_src_node(struct pfctl_src_node *, int);
 void	print_eth_rule(struct pfctl_eth_rule *, const char *, int);
 void	print_rule(struct pfctl_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);

@@ -106,9 +106,8 @@ static const struct {
 	{ HDA_INTEL_CMLKS,   "Intel Comet Lake-S",	0, 0 },
 	{ HDA_INTEL_CNLK,    "Intel Cannon Lake",	0, 0 },
 	{ HDA_INTEL_ICLK,    "Intel Ice Lake",		0, 0 },
-	{ HDA_INTEL_CMLKLP,  "Intel Comet Lake-LP",	0, 0 },
-	{ HDA_INTEL_CMLKH,   "Intel Comet Lake-H",	0, 0 },
 	{ HDA_INTEL_TGLK,    "Intel Tiger Lake",	0, 0 },
+	{ HDA_INTEL_TGLKH,   "Intel Tiger Lake-H",	0, 0 },
 	{ HDA_INTEL_GMLK,    "Intel Gemini Lake",	0, 0 },
 	{ HDA_INTEL_ALLK,    "Intel Alder Lake",	0, 0 },
 	{ HDA_INTEL_ALLKM,   "Intel Alder Lake-M",	0, 0 },
@@ -1616,7 +1615,7 @@ hdac_attach2(void *arg)
 			    HDA_PARAM_REVISION_ID_REVISION_ID(revisionid);
 			sc->codecs[i].stepping_id =
 			    HDA_PARAM_REVISION_ID_STEPPING_ID(revisionid);
-			child = device_add_child(sc->dev, "hdacc", -1);
+			child = device_add_child(sc->dev, "hdacc", DEVICE_UNIT_ANY);
 			if (child == NULL) {
 				device_printf(sc->dev,
 				    "Failed to add CODEC device\n");
@@ -1626,7 +1625,7 @@ hdac_attach2(void *arg)
 			sc->codecs[i].dev = child;
 		}
 	}
-	bus_generic_attach(sc->dev);
+	bus_attach_children(sc->dev);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,

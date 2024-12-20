@@ -1,6 +1,6 @@
-# $Id: headers,v 1.15 2020/08/29 18:51:13 tom Exp $
+# $Id: headers,v 1.16 2023/04/22 12:09:09 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2023 Thomas E. Dickey                                       #
 # Copyright 1998-2012,2013 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -39,11 +39,9 @@ ncurses_dll.h
 term.h
 termcap.h
 
-# Headers used only for tic, other programs using internal interfaces
+# Header used by tack 1.08
 @ ticlib
-$(srcdir)/tic.h
 $(srcdir)/term_entry.h
-$(srcdir)/nc_tparm.h
 
 # Porting
 @ port_win32con

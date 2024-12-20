@@ -177,8 +177,9 @@ gpio_spi_attach(device_t dev)
 
 	gpio_spi_chip_deactivate(sc, -1);
 
-	device_add_child(dev, "spibus", -1);
-	return (bus_generic_attach(dev));
+	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -396,5 +397,5 @@ static driver_t gpio_spi_driver = {
 
 DRIVER_MODULE(gpiospi, gpiobus, gpio_spi_driver, 0, 0);
 DRIVER_MODULE(spibus, gpiospi, spibus_driver, 0, 0);
-MODULE_DEPEND(spi, gpiospi, 1, 1, 1);
-MODULE_DEPEND(gpiobus, gpiospi, 1, 1, 1);
+MODULE_DEPEND(gpiospi, spibus, 1, 1, 1);
+MODULE_DEPEND(gpiospi, gpiobus, 1, 1, 1);

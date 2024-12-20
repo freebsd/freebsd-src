@@ -226,12 +226,9 @@ enum {
 	MWL_DEBUG_AMPDU		= 0x00004000,	/* BA stream handling */
 	MWL_DEBUG_ANY		= 0xffffffff
 };
-#define	IS_BEACON(wh) \
-    ((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) == \
-	 (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_BEACON))
 #define	IFF_DUMPPKTS_RECV(sc, wh) \
     ((sc->sc_debug & MWL_DEBUG_RECV) && \
-      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IS_BEACON(wh)))
+      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IEEE80211_IS_MGMT_BEACON(wh)))
 #define	IFF_DUMPPKTS_XMIT(sc) \
 	(sc->sc_debug & MWL_DEBUG_XMIT)
 
@@ -1519,8 +1516,7 @@ mwl_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 
 	if (k->wk_keyix != IEEE80211_KEYIX_NONE ||
 	    (k->wk_flags & IEEE80211_KEY_GROUP)) {
-		if (!(&vap->iv_nw_keys[0] <= k &&
-		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
+		if (!ieee80211_is_key_global(vap, k)) {
 			/* should not happen */
 			DPRINTF(sc, MWL_DEBUG_KEYCACHE,
 				"%s: bogus group key\n", __func__);
@@ -2554,7 +2550,7 @@ mwl_anyhdrsize(const void *data)
 {
 	const struct ieee80211_frame *wh = data;
 
-	if ((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
+	if (IEEE80211_IS_CTL(wh)) {
 		switch (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 		case IEEE80211_FC0_SUBTYPE_CTS:
 		case IEEE80211_FC0_SUBTYPE_ACK:
@@ -4020,7 +4016,7 @@ mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
 		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
-		if (ni->ni_chw != 40)
+		if (ni->ni_chw != IEEE80211_STA_RX_BW_40)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
 	}
 	return pi;

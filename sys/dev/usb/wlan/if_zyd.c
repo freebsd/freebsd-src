@@ -2505,9 +2505,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		}
 	} else
 		desc->flags |= ZYD_TX_FLAG_MULTICAST;
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
+	if (IEEE80211_IS_CTL_PS_POLL(wh))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
 	/* actual transmit length (XXX why +10?) */

@@ -1,4 +1,3 @@
-
 PROG=   pirtool
 SRCS=   pirtool.c
 MAN=

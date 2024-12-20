@@ -1,4 +1,3 @@
-
 SUBDIR =
 SUBDIR += sound
 SUBDIR += driver

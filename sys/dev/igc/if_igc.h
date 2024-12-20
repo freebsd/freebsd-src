@@ -1,9 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * All rights reserved.
- * Copyright (c) 2021 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2021-2024 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -132,65 +132,6 @@
 #define IGC_MAX_RXD		4096
 
 /*
- * IGC_TIDV_VAL - Transmit Interrupt Delay Value
- * Valid Range: 0-65535 (0=off)
- * Default Value: 64
- *   This value delays the generation of transmit interrupts in units of
- *   1.024 microseconds. Transmit interrupt reduction can improve CPU
- *   efficiency if properly tuned for specific network traffic. If the
- *   system is reporting dropped transmits, this value may be set too high
- *   causing the driver to run out of available transmit descriptors.
- */
-#define IGC_TIDV_VAL		64
-
-/*
- * IGC_TADV_VAL - Transmit Absolute Interrupt Delay Value
- * Valid Range: 0-65535 (0=off)
- * Default Value: 64
- *   This value, in units of 1.024 microseconds, limits the delay in which a
- *   transmit interrupt is generated. Useful only if IGC_TIDV is non-zero,
- *   this value ensures that an interrupt is generated after the initial
- *   packet is sent on the wire within the set amount of time.  Proper tuning,
- *   along with IGC_TIDV_VAL, may improve traffic throughput in specific
- *   network conditions.
- */
-#define IGC_TADV_VAL		64
-
-/*
- * IGC_RDTR_VAL - Receive Interrupt Delay Timer (Packet Timer)
- * Valid Range: 0-65535 (0=off)
- * Default Value: 0
- *   This value delays the generation of receive interrupts in units of 1.024
- *   microseconds.  Receive interrupt reduction can improve CPU efficiency if
- *   properly tuned for specific network traffic. Increasing this value adds
- *   extra latency to frame reception and can end up decreasing the throughput
- *   of TCP traffic. If the system is reporting dropped receives, this value
- *   may be set too high, causing the driver to run out of available receive
- *   descriptors.
- *
- *   CAUTION: When setting IGC_RDTR to a value other than 0, adapters
- *            may hang (stop transmitting) under certain network conditions.
- *            If this occurs a WATCHDOG message is logged in the system
- *            event log. In addition, the controller is automatically reset,
- *            restoring the network connection. To eliminate the potential
- *            for the hang ensure that IGC_RDTR is set to 0.
- */
-#define IGC_RDTR_VAL		0
-
-/*
- * Receive Interrupt Absolute Delay Timer
- * Valid Range: 0-65535 (0=off)
- * Default Value: 64
- *   This value, in units of 1.024 microseconds, limits the delay in which a
- *   receive interrupt is generated. Useful only if IGC_RDTR is non-zero,
- *   this value ensures that an interrupt is generated after the initial
- *   packet is received within the set amount of time.  Proper tuning,
- *   along with IGC_RDTR, may improve traffic throughput in specific network
- *   conditions.
- */
-#define IGC_RADV_VAL		64
-
-/*
  * This parameter controls whether or not autonegotation is enabled.
  *              0 - Disable autonegotiation
  *              1 - Enable  autonegotiation
@@ -221,6 +162,17 @@
 
 #define IGC_TX_PTHRESH			8
 #define IGC_TX_HTHRESH			1
+
+/* Define the interrupt rates and EITR helpers */
+#define IGC_INTS_4K		4000
+#define IGC_INTS_20K		20000
+#define IGC_INTS_70K		70000
+#define IGC_INTS_DEFAULT	8000
+#define IGC_EITR_DIVIDEND	1000000
+#define IGC_EITR_SHIFT		2
+#define IGC_QVECTOR_MASK	0x7FFC
+#define IGC_INTS_TO_EITR(i)	(((IGC_EITR_DIVIDEND/i) & IGC_QVECTOR_MASK) << \
+				    IGC_EITR_SHIFT)
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -254,10 +206,10 @@
 				 CSUM_IP_SCTP | CSUM_IP6_UDP | CSUM_IP6_TCP | \
 				 CSUM_IP6_SCTP)	/* Offload bits in mbuf flag */
 
-struct igc_adapter;
+struct igc_softc;
 
 struct igc_int_delay_info {
-	struct igc_adapter *adapter;	/* Back-pointer to the adapter struct */
+	struct igc_softc *sc;	/* Back-pointer to the softc struct */
 	int offset;			/* Register offset to read/write */
 	int value;			/* Current value in usecs */
 };
@@ -266,9 +218,9 @@ struct igc_int_delay_info {
  * The transmit ring, one per tx queue
  */
 struct tx_ring {
-        struct igc_adapter	*adapter;
+	struct igc_softc	*sc;
 	struct igc_tx_desc	*tx_base;
-	uint64_t                tx_paddr;
+	uint64_t		tx_paddr;
 	qidx_t			*tx_rsq;
 	uint8_t			me;
 	qidx_t			tx_rs_cidx;
@@ -277,7 +229,12 @@ struct tx_ring {
 	/* Interrupt resources */
 	void                    *tag;
 	struct resource         *res;
-        unsigned long		tx_irq;
+
+	/* Soft stats */
+	unsigned long		tx_irq;
+	unsigned long		tx_packets;
+	unsigned long		tx_bytes;
+
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
@@ -296,7 +253,7 @@ struct tx_ring {
  * The Receive ring, one per rx queue
  */
 struct rx_ring {
-        struct igc_adapter      *adapter;
+        struct igc_softc        *sc;
         struct igc_rx_queue     *que;
         u32                     me;
         u32                     payload;
@@ -312,28 +269,32 @@ struct rx_ring {
         unsigned long		rx_discarded;
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
+
+        /* Next requested EITR latency */
+        u8			rx_nextlatency;
 };
 
 struct igc_tx_queue {
-	struct igc_adapter      *adapter;
-        u32                     msix;
-	u32			eims;		/* This queue's EIMS bit */
-	u32                     me;
-	struct tx_ring          txr;
+	struct igc_softc      *sc;
+	u32                   msix;
+	u32                   eims;		/* This queue's EIMS bit */
+	u32                   me;
+	struct tx_ring        txr;
 };
 
 struct igc_rx_queue {
-	struct igc_adapter     *adapter;
+	struct igc_softc       *sc;
 	u32                    me;
 	u32                    msix;
 	u32                    eims;
+	u32                    eitr_setting;
 	struct rx_ring         rxr;
 	u64                    irqs;
 	struct if_irq          que_irq;
 };
 
-/* Our adapter structure */
-struct igc_adapter {
+/* Our softc structure */
+struct igc_softc {
 	if_t		ifp;
 	struct igc_hw	hw;
 
@@ -374,6 +335,8 @@ struct igc_adapter {
 
 	u32		rx_mbuf_sz;
 
+	int		enable_aim;
+
 	/* Management and WOL features */
 	u32		wol;
 
@@ -387,9 +350,12 @@ struct igc_adapter {
 	u16		link_duplex;
 	u32		smartspeed;
 	u32		dmac;
+	u32		pba;
 	int		link_mask;
 
 	u64		que_mask;
+
+	struct igc_fw_version	fw_ver;
 
 	struct igc_int_delay_info tx_int_delay;
 	struct igc_int_delay_info tx_abs_int_delay;
@@ -407,7 +373,7 @@ struct igc_adapter {
 	u16		vf_ifp;
 };
 
-void igc_dump_rs(struct igc_adapter *);
+void igc_dump_rs(struct igc_softc *);
 
 #define IGC_RSSRK_SIZE	4
 #define IGC_RSSRK_VAL(key, i)		(key[(i) * IGC_RSSRK_SIZE] | \

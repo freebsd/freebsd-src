@@ -7,7 +7,6 @@ text file which fits the grammar described below.  The purpose of this
 grammar is to allow IP packets to be described in an arbitary way which
 also allows encapsulation to be so done to an arbitary level.
 .SH GRAMMAR
-.LP
 .nf
 line ::= iface | arp | send | defrouter | ipv4line .
 
@@ -80,7 +79,6 @@ databodyopts ::= "len" number | "value" string | "file" filename .
 icmpechoopts ::= "icmpseq" number | "icmpid" number .
 .fi
 .SH COMMANDS
-.PP
 Before sending any packets or defining any packets, it is necessary to
 describe the interface(s) which will be used to send packets out.
 .TP
@@ -252,7 +250,8 @@ unset, it defaults to 0 and is automatically calculated.
 .TP
 .B flags <tcp-flags>
 sets the TCP flags field to match the flags specified.  Valid flags are
-"S" (SYN), "A" (ACK), "R" (RST), "F" (FIN), "U" (URG), "P" (PUSH).
+"S" (SYN), "A" (ACK), "R" (RST), "F" (FIN), "U" (URG), "P" (PUSH),
+"E" (ECE), "W" (CWR), "e" (AE).
 .TP
 .B opt
 indicates that TCP header options follow.  As TCP options are added to the

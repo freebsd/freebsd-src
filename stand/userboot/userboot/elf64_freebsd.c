@@ -31,9 +31,10 @@
 #ifdef DEBUG
 #include <machine/_inttypes.h>
 #endif
-#include <string.h>
-#include <i386/include/bootinfo.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <machine/elf.h>
+#include <machine/segments.h>
 #include <stand.h>
 
 #include "bootstrap.h"
@@ -45,35 +46,21 @@ static int	elf64_obj_exec(struct preloaded_file *amp);
 struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
 struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 
-#define MSR_EFER        0xc0000080
-#define EFER_LME        0x00000100
-#define	EFER_LMA 	0x00000400	/* Long mode active (R) */
-#define CR4_PAE         0x00000020
-#define	CR4_VMXE	(1UL << 13)
-#define CR4_PSE         0x00000010
-#define CR0_PG          0x80000000
-#define	CR0_PE		0x00000001	/* Protected mode Enable */
-#define	CR0_NE		0x00000020	/* Numeric Error enable (EX16 vs IRQ13) */
-
-#define PG_V	0x001
-#define PG_RW	0x002
-#define PG_PS	0x080
-
-typedef uint64_t p4_entry_t;
-typedef uint64_t p3_entry_t;
-typedef uint64_t p2_entry_t;
-
 #define	GUEST_NULL_SEL		0
 #define	GUEST_CODE_SEL		1
 #define	GUEST_DATA_SEL		2
 #define	GUEST_GDTR_LIMIT	(3 * 8 - 1)
 
 static void
-setup_freebsd_gdt(uint64_t *gdtr)
+setup_freebsd_gdt(struct user_segment_descriptor *gdt)
 {
-	gdtr[GUEST_NULL_SEL] = 0;
-	gdtr[GUEST_CODE_SEL] = 0x0020980000000000;
-	gdtr[GUEST_DATA_SEL] = 0x0000900000000000;
+	gdt[GUEST_NULL_SEL] = (struct user_segment_descriptor) { 0 };
+	gdt[GUEST_CODE_SEL] = (struct user_segment_descriptor) {
+	    .sd_p = 1, .sd_long = 1, .sd_type = SDT_MEME
+	};
+	gdt[GUEST_DATA_SEL] = (struct user_segment_descriptor) {
+	    .sd_p = 1, .sd_type = SDT_MEMRO
+	};
 }
 
 /*
@@ -90,10 +77,10 @@ elf64_exec(struct preloaded_file *fp)
 	int			err;
 	int			i;
 	uint32_t		stack[1024];
-	p4_entry_t		PT4[512];
-	p3_entry_t		PT3[512];
-	p2_entry_t		PT2[512];
-	uint64_t		gdtr[3];
+	pml4_entry_t		PT4[512];
+	pdp_entry_t		PT3[512];
+	pd_entry_t		PT2[512];
+	struct user_segment_descriptor gdt[3];
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return(EFTYPE);
@@ -122,11 +109,11 @@ elf64_exec(struct preloaded_file *fp)
 	 */
 	for (i = 0; i < 512; i++) {
 		/* Each slot of the level 4 pages points to the same level 3 page */
-		PT4[i] = (p4_entry_t) 0x3000;
+		PT4[i] = (pml4_entry_t) 0x3000;
 		PT4[i] |= PG_V | PG_RW;
 
 		/* Each slot of the level 3 pages points to the same level 2 page */
-		PT3[i] = (p3_entry_t) 0x4000;
+		PT3[i] = (pdp_entry_t) 0x4000;
 		PT3[i] |= PG_V | PG_RW;
 
 		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
@@ -154,9 +141,9 @@ elf64_exec(struct preloaded_file *fp)
 	CALLBACK(setcr, 3, 0x2000);
 	CALLBACK(setcr, 0, CR0_PG | CR0_PE | CR0_NE);
 
-	setup_freebsd_gdt(gdtr);
-	CALLBACK(copyin, gdtr, 0x5000, sizeof(gdtr));
-        CALLBACK(setgdt, 0x5000, sizeof(gdtr));
+	setup_freebsd_gdt(gdt);
+	CALLBACK(copyin, gdt, 0x5000, sizeof(gdt));
+	CALLBACK(setgdt, 0x5000, sizeof(gdt));
 
 	CALLBACK(exec, ehdr->e_entry);
 

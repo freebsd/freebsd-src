@@ -2237,7 +2237,7 @@ set_str_utf16be(struct archive_write *a, unsigned char *p, const char *s,
 	int onepad;
 
 	if (s == NULL)
-		s = "";
+		s = "\0\0";
 	if (l & 0x01) {
 		onepad = 1;
 		l &= ~1;

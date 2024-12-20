@@ -714,7 +714,7 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* Attach the iicbus. */
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "Could not allocate iicbus instance.\n");
 		rv = ENXIO;
@@ -722,7 +722,8 @@ tegra_i2c_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus. */
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->irq_h != NULL)
@@ -740,6 +741,11 @@ static int
 tegra_i2c_detach(device_t dev)
 {
 	struct tegra_i2c_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	tegra_i2c_hw_init(sc);
@@ -753,7 +759,7 @@ tegra_i2c_detach(device_t dev)
 	LOCK_DESTROY(sc);
 	if (sc->iicbus)
 		device_delete_child(dev, sc->iicbus);
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static phandle_t

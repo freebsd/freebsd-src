@@ -170,18 +170,6 @@ find_first_zero_bit(const unsigned long *p, unsigned long max)
 	return (max);
 }
 
-static inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-	return (1UL << flsl(x - 1));
-}
-
-static inline int
-is_power_of_2(unsigned long n)
-{
-	return (n == roundup_pow_of_two(n));
-}
-
 struct completion {
 	unsigned int done;
 	struct mtx lock;

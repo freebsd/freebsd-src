@@ -48,7 +48,9 @@
 #define __cond_lock(x,c)		(c)
 #define	__bitwise
 #define __devinitdata
+#ifndef	__deprecated
 #define	__deprecated
+#endif
 #define __init
 #define	__initconst
 #define	__devinit
@@ -88,6 +90,10 @@
 #define	__must_check			__result_use_check
 
 #define	__printf(a,b)			__printflike(a,b)
+
+#define __diag_push()
+#define __diag_pop()
+#define __diag_ignore_all(...)
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
 

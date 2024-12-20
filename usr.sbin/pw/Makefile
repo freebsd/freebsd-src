@@ -1,4 +1,3 @@
-
 PACKAGE= runtime
 PROG=	pw
 MAN=	pw.conf.5 pw.8

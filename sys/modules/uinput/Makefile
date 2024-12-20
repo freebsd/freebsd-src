@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/evdev
 
 KMOD=	uinput

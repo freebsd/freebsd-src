@@ -657,7 +657,7 @@ handle_event_moddone(struct module_qstate* qstate, int id)
 		qstate->return_msg->rep &&
 		!dns_cache_store(
 			qstate->env, &qstate->qinfo, qstate->return_msg->rep,
-			0, 0, 0, NULL,
+			0, qstate->prefetch_leeway, 0, NULL,
 			qstate->query_flags, qstate->qstarttime))
 		log_err("out of memory");
 
@@ -701,6 +701,7 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 			iq->state = DNS64_NEW_QUERY;
 			iq->started_no_cache_store = qstate->no_cache_store;
 			qstate->no_cache_store = 1;
+			ATTR_FALLTHROUGH
   			/* fallthrough */
 		case module_event_pass:
 			qstate->ext_state[id] = handle_event_pass(qstate, id);
@@ -846,6 +847,7 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 	 */
 	cp = construct_reply_info_base(super->region, rep->flags, rep->qdcount,
 		rep->ttl, rep->prefetch_ttl, rep->serve_expired_ttl,
+		rep->serve_expired_norec_ttl,
 		rep->an_numrrsets, rep->ns_numrrsets, rep->ar_numrrsets,
 		rep->rrset_count, rep->security, LDNS_EDE_NONE);
 	if(!cp)
@@ -1006,7 +1008,7 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 	/* Store the generated response in cache. */
 	if ( (!super_dq || !super_dq->started_no_cache_store) &&
 		!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
-		0, 0, 0, NULL, super->query_flags, qstate->qstarttime))
+		0, super->prefetch_leeway, 0, NULL, super->query_flags, qstate->qstarttime))
 		log_err("out of memory");
 }
 
@@ -1044,8 +1046,8 @@ dns64_get_mem(struct module_env* env, int id)
  */
 static struct module_func_block dns64_block = {
 	"dns64",
-	&dns64_init, &dns64_deinit, &dns64_operate, &dns64_inform_super,
-	&dns64_clear, &dns64_get_mem
+	NULL, NULL, &dns64_init, &dns64_deinit, &dns64_operate,
+	&dns64_inform_super, &dns64_clear, &dns64_get_mem
 };
 
 /**

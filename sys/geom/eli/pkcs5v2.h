@@ -30,6 +30,9 @@
 #define	_PKCS5V2_H_
 void pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
     size_t saltsize, const char *passphrase, u_int iterations);
+void pkcs5v2_genkey_raw(uint8_t *key, unsigned keylen, const uint8_t *salt,
+    size_t saltsize, const uint8_t *passphrase, size_t passlen,
+    u_int iterations);
 #ifndef _KERNEL
 int pkcs5v2_calculate(int usecs);
 #endif

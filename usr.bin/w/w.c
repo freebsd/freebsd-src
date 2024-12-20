@@ -108,6 +108,8 @@ static struct entry {
 
 #define	debugproc(p) *(&((struct kinfo_proc *)p)->ki_udata)
 
+#define	W_XO_VERSION	"1"
+
 #define	W_DISPUSERSIZE	10
 #define	W_DISPLINESIZE	8
 #define	W_MAXHOSTSIZE	40
@@ -133,14 +135,16 @@ main(int argc, char *argv[])
 	char buf[MAXHOSTNAMELEN], fn[MAXHOSTNAMELEN];
 	char *dot;
 
-	(void)setlocale(LC_ALL, "");
-	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
-	use_comma = (*nl_langinfo(RADIXCHAR) != ',');
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
 		exit(1);
 
+	if (xo_get_style(NULL) == XO_STYLE_TEXT) {
+		setlocale(LC_ALL, "");
+	}
+	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
+	use_comma = (*nl_langinfo(RADIXCHAR) != ',');
 	/* Are we w(1) or uptime(1)? */
 	if (strcmp(basename(argv[0]), "uptime") == 0) {
 		wcmd = 0;
@@ -317,6 +321,7 @@ main(int argc, char *argv[])
 	if (fromwidth > W_MAXHOSTSIZE)
 		fromwidth = W_MAXHOSTSIZE;
 
+	xo_set_version(W_XO_VERSION);
 	xo_open_container("uptime-information");
 
 	if (header || wcmd == 0) {

@@ -149,7 +149,8 @@ p2sb_attach(device_t dev)
 	for (i = 0; i < nitems(lbg_communities); ++i)
 		device_add_child(dev, "lbggpiocm", i);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 /* Detach device. */

@@ -408,7 +408,7 @@ glxiic_attach(device_t dev)
 	glxiic_smb_enable(sc, IIC_FASTEST, 0);
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	error = bus_delayed_attach_children(dev);
+	bus_delayed_attach_children(dev);
 
 out:
 	if (error != 0) {

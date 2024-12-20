@@ -39,12 +39,12 @@
 #include <sys/systm.h>
 
 #include <x86/apicreg.h>
-#include <dev/ic/i8259.h>
-
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
-#include "vmm_ktr.h"
+#include <dev/ic/i8259.h>
+#include <dev/vmm/vmm_ktr.h>
+
 #include "vmm_lapic.h"
 #include "vioapic.h"
 #include "vatpic.h"

@@ -595,6 +595,8 @@ zfs_ereport_start(nvlist_t **ereport_out, nvlist_t **detector_out,
 			    DATA_TYPE_UINT64, vs->vs_checksum_errors,
 			    FM_EREPORT_PAYLOAD_ZFS_VDEV_DELAYS,
 			    DATA_TYPE_UINT64, vs->vs_slow_ios,
+			    FM_EREPORT_PAYLOAD_ZFS_VDEV_DIO_VERIFY_ERRORS,
+			    DATA_TYPE_UINT64, vs->vs_dio_verify_errors,
 			    NULL);
 		}
 
@@ -645,7 +647,7 @@ zfs_ereport_start(nvlist_t **ereport_out, nvlist_t **detector_out,
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_ERR,
 		    DATA_TYPE_INT32, zio->io_error, NULL);
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_FLAGS,
-		    DATA_TYPE_INT32, zio->io_flags, NULL);
+		    DATA_TYPE_UINT64, zio->io_flags, NULL);
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_STAGE,
 		    DATA_TYPE_UINT32, zio->io_stage, NULL);
 		fm_payload_set(ereport, FM_EREPORT_PAYLOAD_ZFS_ZIO_PIPELINE,

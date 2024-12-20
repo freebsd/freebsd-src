@@ -301,7 +301,7 @@ ida_setup(struct ida_softc *ida)
 	mtx_unlock(&ida->lock);
 
 	for (i = 0; i < cinfo.num_drvs; i++) {
-		child = device_add_child(ida->dev, /*"idad"*/NULL, -1);
+		child = device_add_child(ida->dev, /*"idad"*/NULL, DEVICE_UNIT_ANY);
 		if (child != NULL)
 			device_set_ivars(child, (void *)(intptr_t)i);
 	}
@@ -333,7 +333,7 @@ ida_startup(void *arg)
 	config_intrhook_disestablish(&ida->ich);
 
 	bus_topo_lock();
-	bus_generic_attach(ida->dev);
+	bus_attach_children(ida->dev);
 	bus_topo_unlock();
 }
 

@@ -56,7 +56,7 @@ static int	archive_acl_add_entry_len_l(struct archive_acl *acl,
 		    int type, int permset, int tag, int id, const char *name,
 		    size_t len, struct archive_string_conv *sc);
 static int	archive_acl_text_want_type(struct archive_acl *acl, int flags);
-static ssize_t	archive_acl_text_len(struct archive_acl *acl, int want_type,
+static size_t	archive_acl_text_len(struct archive_acl *acl, int want_type,
 		    int flags, int wide, struct archive *a,
 		    struct archive_string_conv *sc);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
@@ -76,7 +76,7 @@ static int	is_nfs4_flags(const char *start, const char *end,
 		    int *result);
 static int	is_nfs4_perms(const char *start, const char *end,
 		    int *result);
-static void	next_field(const char **p, const char **start,
+static void	next_field(const char **p, size_t *l, const char **start,
 		    const char **end, char *sep);
 static void	append_entry(char **p, const char *prefix, int type,
 		    int tag, int flags, const char *name, int perm, int id);
@@ -346,7 +346,7 @@ acl_new_entry(struct archive_acl *acl,
 	}
 
 	/* Add a new entry to the end of the list. */
-	ap = (struct archive_acl_entry *)calloc(1, sizeof(*ap));
+	ap = calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	if (aq == NULL)
@@ -528,14 +528,14 @@ archive_acl_text_want_type(struct archive_acl *acl, int flags)
 /*
  * Calculate ACL text string length
  */
-static ssize_t
+static size_t
 archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
     int wide, struct archive *a, struct archive_string_conv *sc) {
 	struct archive_acl_entry *ap;
 	const char *name;
 	const wchar_t *wname;
 	int count, idlen, tmp, r;
-	ssize_t length;
+	size_t length;
 	size_t len;
 
 	count = 0;
@@ -664,7 +664,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive *a)
 {
 	int count;
-	ssize_t length;
+	size_t length;
 	size_t len;
 	const wchar_t *wname;
 	const wchar_t *prefix;
@@ -693,7 +693,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = L'\n';
 
 	/* Now, allocate the string and actually populate it. */
-	wp = ws = (wchar_t *)malloc(length * sizeof(wchar_t));
+	wp = ws = malloc(length * sizeof(*wp));
 	if (wp == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");
@@ -755,7 +755,7 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 
 	len = wcslen(ws);
 
-	if ((ssize_t)len > (length - 1))
+	if (len > length - 1)
 		__archive_errx(1, "Buffer overrun");
 
 	if (text_len != NULL)
@@ -897,7 +897,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive_string_conv *sc)
 {
 	int count;
-	ssize_t length;
+	size_t length;
 	size_t len;
 	const char *name;
 	const char *prefix;
@@ -926,7 +926,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		separator = '\n';
 
 	/* Now, allocate the string and actually populate it. */
-	p = s = (char *)malloc(length * sizeof(char));
+	p = s = malloc(length * sizeof(*p));
 	if (p == NULL) {
 		if (errno == ENOMEM)
 			__archive_errx(1, "No memory");
@@ -990,7 +990,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 
 	len = strlen(s);
 
-	if ((ssize_t)len > (length - 1))
+	if (len > length - 1)
 		__archive_errx(1, "Buffer overrun");
 
 	if (text_len != NULL)
@@ -1620,6 +1620,13 @@ int
 archive_acl_from_text_l(struct archive_acl *acl, const char *text,
     int want_type, struct archive_string_conv *sc)
 {
+	return archive_acl_from_text_nl(acl, text, strlen(text), want_type, sc);
+}
+
+int
+archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
+    size_t length, int want_type, struct archive_string_conv *sc)
+{
 	struct {
 		const char *start;
 		const char *end;
@@ -1649,7 +1656,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 	ret = ARCHIVE_OK;
 	types = 0;
 
-	while (text != NULL &&  *text != '\0') {
+	while (text != NULL && length > 0 && *text != '\0') {
 		/*
 		 * Parse the fields out of the next entry,
 		 * advance 'text' to start of next entry.
@@ -1657,7 +1664,7 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 		fields = 0;
 		do {
 			const char *start, *end;
-			next_field(&text, &start, &end, &sep);
+			next_field(&text, &length, &start, &end, &sep);
 			if (fields < numfields) {
 				field[fields].start = start;
 				field[fields].end = end;
@@ -2047,7 +2054,7 @@ is_nfs4_flags(const char *start, const char *end, int *permset)
 }
 
 /*
- * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
+ * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *p is updated
  * to point to just after the separator.  *start points to the first
  * character of the matched text and *end just after the last
  * character of the matched identifier.  In particular *end - *start
@@ -2055,42 +2062,42 @@ is_nfs4_flags(const char *start, const char *end, int *permset)
  * whitespace.
  */
 static void
-next_field(const char **p, const char **start,
+next_field(const char **p, size_t *l, const char **start,
     const char **end, char *sep)
 {
 	/* Skip leading whitespace to find start of field. */
-	while (**p == ' ' || **p == '\t' || **p == '\n') {
+	while (*l > 0 && (**p == ' ' || **p == '\t' || **p == '\n')) {
 		(*p)++;
+		(*l)--;
 	}
 	*start = *p;
 
-	/* Scan for the separator. */
-	while (**p != '\0' && **p != ',' && **p != ':' && **p != '\n' &&
-	    **p != '#') {
+	/* Locate end of field, trim trailing whitespace if necessary */
+	while (*l > 0 && **p != ' ' && **p != '\t' && **p != '\n' && **p != ',' && **p != ':' && **p != '#') {
 		(*p)++;
+		(*l)--;
+	}
+	*end = *p;
+
+	/* Scan for the separator. */
+	while (*l > 0 && **p != ',' && **p != ':' && **p != '\n' && **p != '#') {
+		(*p)++;
+		(*l)--;
 	}
 	*sep = **p;
 
-	/* Locate end of field, trim trailing whitespace if necessary */
-	if (*p == *start) {
-		*end = *p;
-	} else {
-		*end = *p - 1;
-		while (**end == ' ' || **end == '\t' || **end == '\n') {
-			(*end)--;
-		}
-		(*end)++;
-	}
-
 	/* Handle in-field comments */
 	if (*sep == '#') {
-		while (**p != '\0' && **p != ',' && **p != '\n') {
+		while (*l > 0 && **p != ',' && **p != '\n') {
 			(*p)++;
+			(*l)--;
 		}
 		*sep = **p;
 	}
 
-	/* Adjust scanner location. */
-	if (**p != '\0')
+	/* Skip separator. */
+	if (*l > 0) {
 		(*p)++;
+		(*l)--;
+	}
 }

@@ -87,11 +87,8 @@ db_show_threads(db_expr_t addr, bool hasaddr, db_expr_t cnt, char *mod)
 		    (void *)thr->td_kstack);
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
-			if (thr->td_proc->p_flag & P_INMEM) {
-				if (db_trace_thread(thr, 1) != 0)
-					db_printf("***\n");
-			} else
-				db_printf("*** swapped out\n");
+			if (db_trace_thread(thr, 1) != 0)
+				db_printf("***\n");
 		}
 		kdb_jmpbuf(prev_jb);
 		thr = kdb_thr_next(thr);

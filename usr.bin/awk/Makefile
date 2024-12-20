@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 AWKSRC=	${SRCTOP}/contrib/one-true-awk

@@ -415,6 +415,9 @@ zfs_dirlook(znode_t *dzp, char *name, znode_t **zpp, int flags,
 			*zpp = zp;
 		rw_exit(&dzp->z_parent_lock);
 	} else if (zfs_has_ctldir(dzp) && strcmp(name, ZFS_CTLDIR_NAME) == 0) {
+		if (ZTOZSB(dzp)->z_show_ctldir == ZFS_SNAPDIR_DISABLED) {
+			return (SET_ERROR(ENOENT));
+		}
 		ip = zfsctl_root(dzp);
 		*zpp = ITOZ(ip);
 	} else {
@@ -476,7 +479,7 @@ zfs_unlinked_drain_task(void *arg)
 {
 	zfsvfs_t *zfsvfs = arg;
 	zap_cursor_t	zc;
-	zap_attribute_t zap;
+	zap_attribute_t *zap = zap_attribute_alloc();
 	dmu_object_info_t doi;
 	znode_t		*zp;
 	int		error;
@@ -487,7 +490,7 @@ zfs_unlinked_drain_task(void *arg)
 	 * Iterate over the contents of the unlinked set.
 	 */
 	for (zap_cursor_init(&zc, zfsvfs->z_os, zfsvfs->z_unlinkedobj);
-	    zap_cursor_retrieve(&zc, &zap) == 0 && !zfsvfs->z_drain_cancel;
+	    zap_cursor_retrieve(&zc, zap) == 0 && !zfsvfs->z_drain_cancel;
 	    zap_cursor_advance(&zc)) {
 
 		/*
@@ -495,7 +498,7 @@ zfs_unlinked_drain_task(void *arg)
 		 */
 
 		error = dmu_object_info(zfsvfs->z_os,
-		    zap.za_first_integer, &doi);
+		    zap->za_first_integer, &doi);
 		if (error != 0)
 			continue;
 
@@ -505,7 +508,7 @@ zfs_unlinked_drain_task(void *arg)
 		 * We need to re-mark these list entries for deletion,
 		 * so we pull them back into core and set zp->z_unlinked.
 		 */
-		error = zfs_zget(zfsvfs, zap.za_first_integer, &zp);
+		error = zfs_zget(zfsvfs, zap->za_first_integer, &zp);
 
 		/*
 		 * We may pick up znodes that are already marked for deletion.
@@ -532,6 +535,7 @@ zfs_unlinked_drain_task(void *arg)
 
 	zfsvfs->z_draining = B_FALSE;
 	zfsvfs->z_drain_task = TASKQID_INVALID;
+	zap_attribute_free(zap);
 }
 
 /*
@@ -589,7 +593,7 @@ static int
 zfs_purgedir(znode_t *dzp)
 {
 	zap_cursor_t	zc;
-	zap_attribute_t	zap;
+	zap_attribute_t	*zap = zap_attribute_alloc();
 	znode_t		*xzp;
 	dmu_tx_t	*tx;
 	zfsvfs_t	*zfsvfs = ZTOZSB(dzp);
@@ -598,10 +602,10 @@ zfs_purgedir(znode_t *dzp)
 	int error;
 
 	for (zap_cursor_init(&zc, zfsvfs->z_os, dzp->z_id);
-	    (error = zap_cursor_retrieve(&zc, &zap)) == 0;
+	    (error = zap_cursor_retrieve(&zc, zap)) == 0;
 	    zap_cursor_advance(&zc)) {
 		error = zfs_zget(zfsvfs,
-		    ZFS_DIRENT_OBJ(zap.za_first_integer), &xzp);
+		    ZFS_DIRENT_OBJ(zap->za_first_integer), &xzp);
 		if (error) {
 			skipped += 1;
 			continue;
@@ -612,7 +616,7 @@ zfs_purgedir(znode_t *dzp)
 
 		tx = dmu_tx_create(zfsvfs->z_os);
 		dmu_tx_hold_sa(tx, dzp->z_sa_hdl, B_FALSE);
-		dmu_tx_hold_zap(tx, dzp->z_id, FALSE, zap.za_name);
+		dmu_tx_hold_zap(tx, dzp->z_id, FALSE, zap->za_name);
 		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, B_FALSE);
 		dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 		/* Is this really needed ? */
@@ -627,7 +631,7 @@ zfs_purgedir(znode_t *dzp)
 		}
 		memset(&dl, 0, sizeof (dl));
 		dl.dl_dzp = dzp;
-		dl.dl_name = zap.za_name;
+		dl.dl_name = zap->za_name;
 
 		error = zfs_link_destroy(&dl, xzp, tx, 0, NULL);
 		if (error)
@@ -637,6 +641,7 @@ zfs_purgedir(znode_t *dzp)
 		zfs_zrele_async(xzp);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(zap);
 	if (error != ENOENT)
 		skipped += 1;
 	return (skipped);
@@ -843,6 +848,15 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 			drop_nlink(ZTOI(zp));
 		mutex_exit(&zp->z_lock);
 		return (error);
+	}
+
+	/*
+	 * If we added a longname activate the SPA_FEATURE_LONGNAME.
+	 */
+	if (strlen(dl->dl_name) >= ZAP_MAXNAMELEN) {
+		dsl_dataset_t *ds = dmu_objset_ds(zfsvfs->z_os);
+		ds->ds_feature_activation[SPA_FEATURE_LONGNAME] =
+		    (void *)B_TRUE;
 	}
 
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_PARENT(zfsvfs), NULL,

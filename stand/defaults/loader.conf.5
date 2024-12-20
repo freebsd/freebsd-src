@@ -21,7 +21,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd February 2, 2024
+.Dd July 8, 2024
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -331,8 +331,8 @@ replacing it with
 character (useful for embedded products and such).
 .It Va screen.font
 Set font size for framebuffer mode.
-Default font size is selected based on screen resolution, to achieve
-terminal dimensions 80x24.
+The default font size is selected based on screen resolution.
+Note that the terminal's size may vary.
 .It Va screen.textmode
 Value
 .Dq 0

@@ -78,6 +78,7 @@ char 	srcdir[MAXPATHLEN];
 int	debugging;
 int	found_defaults;
 int	incignore;
+int	verbose;
 
 /*
  * Preserve old behaviour in INCLUDE_CONFIG_FILE handling (files are included
@@ -130,7 +131,8 @@ main(int argc, char **argv)
 	STAILQ_INIT(&ftab);
 	STAILQ_INIT(&hints);
 	STAILQ_INIT(&envvars);
-	while ((ch = getopt(argc, argv, "Cd:gI:mps:Vx:")) != -1)
+	STAILQ_INIT(&optfntab);
+	while ((ch = getopt(argc, argv, "Cd:gI:mps:Vvx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
@@ -165,6 +167,9 @@ main(int argc, char **argv)
 		case 'V':
 			printf("%d\n", CONFIGVERS);
 			exit(0);
+		case 'v':
+			verbose++;
+			break;
 		case 'x':
 			kernfile = optarg;
 			break;

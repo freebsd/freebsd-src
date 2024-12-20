@@ -1,7 +1,7 @@
-.\"	$Id: roff.7,v 1.116 2021/09/18 12:23:06 schwarze Exp $
+.\" $Id: roff.7,v 1.121 2023/10/23 20:25:02 schwarze Exp $
 .\"
+.\" Copyright (c) 2010-2019, 2022-2023 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010-2019 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 18 2021 $
+.Dd $Mdocdate: October 23 2023 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -2021,8 +2021,23 @@ End conditional input; see
 Paddable non-breaking space character.
 .It Ic \e0
 Digit width space character.
-.It Ic \eA\(aq Ns Ar string Ns Ic \(aq
-Anchor definition; ignored by
+.It Ic \eA\(aq Ns Ar name Ns Ic \(aq
+Interpolate
+.Sq 1
+if
+.Ar name
+is a syntactically valid identifier that can be used
+as a name for a macro or user-defined string, or
+.Sq 0
+otherwise.
+This is a thoroughly non-portable groff extension.
+Heirloom troff uses the same escape sequence with the same syntax
+for a completely different purpose,
+defining a hyperlink target position, also called an
+.Dq anchor ,
+with the given
+.Ar name .
+The Heirloom semantics is not supported by
 .Xr mandoc 1 .
 .It Ic \ea
 Leader character; ignored by
@@ -2085,7 +2100,8 @@ defaults to
 .Ic \efP .
 .It Ic \eg[ Ns Ar name Ns Ic \&]
 Interpolate the format of a number register; ignored by
-.Xr mandoc 1 .
+.Xr mandoc 1 ,
+which interpolates an empty string instead.
 For short names, there are variants
 .Ic \eg Ns Ar c
 and
@@ -2166,8 +2182,8 @@ Break the output line at the end of the current word.
 Set number register; ignored by
 .Xr mandoc 1 .
 .It Ic \er
-Move up by one line; ignored by
-.Xr mandoc 1 .
+Reverse line feed: move up by one output line.
+Currently unsupported.
 .It Ic \eS\(aq Ns Ar number Ns Ic \(aq
 Slant output; ignored by
 .Xr mandoc 1 .
@@ -2188,12 +2204,16 @@ Horizontal tab; ignored by
 Move up by half a line; ignored by
 .Xr mandoc 1 .
 .It Ic \eV[ Ns Ar name Ns Ic \&]
-Interpolate an environment variable; ignored by
-.Xr mandoc 1 .
+Interpolate an environment variable.
 For short names, there are variants
 .Ic \eV Ns Ar c
 and
 .Ic \eV( Ns Ar cc .
+This escape sequence is intentionally unsupported;
+.Xr mandoc 1
+prints the string
+.Dq Pf $ Brq Ar name
+instead of inspecting the environment.
 .It Ic \ev\(aq Ns Ar number Ns Ic \(aq
 Vertical motion; ignored by
 .Xr mandoc 1 .
@@ -2204,7 +2224,8 @@ The
 .Xr mandoc 1
 implementation assumes that after expansion of user-defined strings, the
 .Ar string
-only contains normal characters, no escape sequences, and that each
+only contains normal characters, characters expressed as escape sequences,
+and zero-width escape sequences, and that each
 character has a width of 24 basic units.
 .It Ic \eX\(aq Ns Ar string Ns Ic \(aq
 Output

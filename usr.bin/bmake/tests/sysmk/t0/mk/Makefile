@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/sysmk/t0/mk

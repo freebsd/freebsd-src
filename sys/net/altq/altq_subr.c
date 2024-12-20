@@ -1327,12 +1327,7 @@ acc_add_filter(classifier, filter, class, phandle)
 		return (EINVAL);
 #endif
 
-	afp = malloc(sizeof(struct acc_filter),
-	       M_DEVBUF, M_WAITOK);
-	if (afp == NULL)
-		return (ENOMEM);
-	bzero(afp, sizeof(struct acc_filter));
-
+	afp = malloc(sizeof(*afp), M_DEVBUF, M_WAITOK | M_ZERO);
 	afp->f_filter = *filter;
 	afp->f_class = class;
 

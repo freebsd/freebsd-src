@@ -161,6 +161,7 @@ struct ieee80211_qosframe_addr4 {
 /* 0001-0011 Reserved				0x10-0x30 */	/* Were: CF_ACK, CF_POLL, CF_ACPL */
 #define	IEEE80211_FC0_SUBTYPE_NODATA		0x40	/* Null */
 /* 0101-0111 Reserved				0x50-0x70 */	/* Were: CFACK, CFPOLL, CF_ACK_CF_ACK */
+#define	IEEE80211_FC0_SUBTYPE_QOS_MASK_ANY	0x80	/* QoS mask - matching any subtypes 8..15 */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA		0x80	/* QoS Data */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA_CFACK	0x90	/* QoS Data +CF-Ack */
 #define	IEEE80211_FC0_SUBTYPE_QOS_DATA_CFPOLL	0xa0	/* QoS Data +CF-Poll */
@@ -190,24 +191,98 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_CTL_EXT_TDD_BF		0x0b	/* TDD Beamforming, 80211ay-2021 */
 /* 1100-1111 Reserved				0xc-0xf */
 
-#define	IEEE80211_IS_MGMT(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_MGT))
+/* Check the version field */
+#define	IEEE80211_IS_FC0_CHECK_VER(wh, v)			\
+	(((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))
+
+/* Check the version and type field */
+#define	IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, v, t)			\
+	(((((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))) &&	\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == (t)))
+
+/* Check the version, type and subtype field */
+#define	IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh, v, t, st)		\
+	(((((wh)->i_fc[0] & IEEE80211_FC0_VERSION_MASK) == (v))) &&	\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == (t)) &&		\
+	  (((wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) == (st)))
+
+#define	IEEE80211_IS_MGMT(wh)						\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_MGT))
 #define	IEEE80211_IS_CTL(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_CTL))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_CTL))
 #define	IEEE80211_IS_DATA(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_DATA))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_DATA))
 #define	IEEE80211_IS_EXT(wh)					\
-	(!! (((wh)->i_fc[0] & IEEE80211_FC0_TYPE_MASK)		\
-	    == IEEE80211_FC0_TYPE_EXT))
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_EXT))
 
-#define	IEEE80211_FC0_QOSDATA \
-	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS_DATA|IEEE80211_FC0_VERSION_0)
+/* Management frame types */
 
-#define	IEEE80211_IS_QOSDATA(wh) \
-	((wh)->i_fc[0] == IEEE80211_FC0_QOSDATA)
+#define	IEEE80211_IS_MGMT_BEACON(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_MGT,			\
+	 IEEE80211_FC0_SUBTYPE_BEACON))
+
+#define	IEEE80211_IS_MGMT_PROBE_RESP(wh)		\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_MGT,			\
+	 IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+
+#define	IEEE80211_IS_MGMT_ACTION(wh)		\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_MGT,			\
+	 IEEE80211_FC0_SUBTYPE_ACTION))
+
+/* Control frame types */
+
+#define	IEEE80211_IS_CTL_PS_POLL(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_CTL,			\
+	 IEEE80211_FC0_SUBTYPE_PS_POLL))
+
+#define	IEEE80211_IS_CTL_BAR(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_CTL,			\
+	 IEEE80211_FC0_SUBTYPE_BAR))
+
+/* Data frame types */
+
+/*
+ * Return true if the frame is any of the QOS frame types, not just
+ * data frames.  Matching on the IEEE80211_FC0_SUBTYPE_QOS_ANY bit
+ * being set also matches on subtypes 8..15.
+ */
+#define	IEEE80211_IS_QOS_ANY(wh)					\
+	((IEEE80211_IS_FC0_CHECK_VER_TYPE(wh, IEEE80211_FC0_VERSION_0,	\
+	 IEEE80211_FC0_TYPE_DATA)) &&					\
+	 ((wh)->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS_MASK_ANY))
+
+/*
+ * Return true if this frame is QOS data, and only QOS data.
+ */
+#define	IEEE80211_IS_QOSDATA(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_DATA,			\
+	 IEEE80211_FC0_SUBTYPE_QOS_DATA))
+
+/*
+ * Return true if this frame is a QoS NULL data frame.
+ */
+#define	IEEE80211_IS_QOS_NULL(wh)			\
+	(IEEE80211_IS_FC0_CHECK_VER_TYPE_SUBTYPE(wh,	\
+	 IEEE80211_FC0_VERSION_0,			\
+	 IEEE80211_FC0_TYPE_DATA,			\
+	 IEEE80211_FC0_SUBTYPE_QOS_NULL))
+
 
 #define	IEEE80211_FC1_DIR_MASK			0x03
 #define	IEEE80211_FC1_DIR_NODS			0x00	/* STA->STA */
@@ -421,7 +496,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_BA			3	/* 9.6.4 Block Ack */
 #define	IEEE80211_ACTION_CAT_PUBLIC		4	/* 9.6.7 Public */
 #define	IEEE80211_ACTION_CAT_RADIO_MEASUREMENT	5	/* 9.6.6 Radio Measurement */
-#define	IEEE80211_ACTION_CAT_FAST_BBS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
+#define	IEEE80211_ACTION_CAT_FAST_BSS_TRANSITION 6	/* 9.6.8 Fast BSS Transition */
 #define	IEEE80211_ACTION_CAT_HT			7	/* 9.6.11 HT */
 #define	IEEE80211_ACTION_CAT_SA_QUERY		8	/* 9.6.9 SA Query */
 #define	IEEE80211_ACTION_CAT_PROTECTED_DUAL_OF_PUBLIC_ACTION 9 /* 9.6.10 Protected Dual of Public Action */
@@ -856,6 +931,7 @@ enum ieee80211_vht_mcs_support {
 	IEEE80211_VHT_MCS_NOT_SUPPORTED		= 3	/* not supported */
 };
 
+/* 802.11ac-2013, 8.4.2.160.3 Supported VHT-MCS and NSS Set field */
 struct ieee80211_vht_mcs_info {
 	uint16_t rx_mcs_map;
 	uint16_t rx_highest;
@@ -898,7 +974,7 @@ struct ieee80211_vht_operation {
 
 #define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK	0x0000000C
 #define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK_S	2
-#define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_NONE		0
+#define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_NO160		0
 #define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160MHZ		1
 #define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160_80P80MHZ	2
 #define	IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_RESERVED	3
@@ -1017,6 +1093,8 @@ struct ieee80211_ie_vht_txpwrenv {
 
 /*
  * Management information element payloads.
+ *
+ * 802.11-2016 Table 9-77 (Element IDs).
  */
 
 enum {
@@ -1058,6 +1136,7 @@ enum {
 	IEEE80211_ELEMID_COEX_2040	= 72,
 	IEEE80211_ELEMID_INTOL_CHN_REPORT	= 73,
 	IEEE80211_ELEMID_OVERLAP_BSS_SCAN_PARAM = 74,
+	IEEE80211_ELEMID_MMIC		= 76,
 	IEEE80211_ELEMID_TSF_REQ	= 91,
 	IEEE80211_ELEMID_TSF_RESP	= 92,
 	IEEE80211_ELEMID_WNM_SLEEP_MODE	= 93,

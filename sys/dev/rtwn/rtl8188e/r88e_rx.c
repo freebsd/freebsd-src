@@ -63,8 +63,9 @@ r88e_classify_intr(struct rtwn_softc *sc, void *buf, int len)
 	case R88E_RXDW3_RPT_RX:
 		return (RTWN_RX_DATA);
 	case R88E_RXDW3_RPT_TX1:	/* per-packet Tx report */
-	case R88E_RXDW3_RPT_TX2:	/* periodical Tx report */
 		return (RTWN_RX_TX_REPORT);
+	case R88E_RXDW3_RPT_TX2:	/* periodical Tx report */
+		return (RTWN_RX_TX_REPORT2);
 	case R88E_RXDW3_RPT_HIS:
 		return (RTWN_RX_OTHER);
 	default:			/* shut up the compiler */
@@ -119,9 +120,8 @@ r88e_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY |
 			    IEEE80211_RATECTL_STATUS_FINAL_RATE;
 		txs.long_retries = ntries;
-		if (rpt->final_rate > RTWN_RIDX_OFDM54) {	/* MCS */
-			txs.final_rate =
-			    rpt->final_rate - RTWN_RIDX_HT_MCS_SHIFT;
+		if (RTWN_RATE_IS_HT(rpt->final_rate)) {	/* MCS */
+			txs.final_rate = RTWN_RIDX_TO_MCS(rpt->final_rate);
 			txs.final_rate |= IEEE80211_RATE_MCS;
 		} else
 			txs.final_rate = ridx2rate[rpt->final_rate];

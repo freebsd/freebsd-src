@@ -45,7 +45,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
@@ -209,12 +208,12 @@ dump_nhgrp_sysctl(int fibnum, int af, struct nhops_dump *nd)
 	mib[5] = 0;
 	mib[6] = fibnum;
 	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
-		err(EX_OSERR, "sysctl: net.route.0.%d.nhgrpdump.%d estimate",
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.nhgrpdump.%d estimate",
 		    af, fibnum);
 	if ((buf = malloc(needed)) == NULL)
-		errx(2, "malloc(%lu)", (unsigned long)needed);
+		xo_errx(EX_OSERR, "malloc(%lu)", (unsigned long)needed);
 	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
-		err(1, "sysctl: net.route.0.%d.nhgrpdump.%d", af, fibnum);
+		xo_err(EX_OSERR, "sysctl: net.route.0.%d.nhgrpdump.%d", af, fibnum);
 	lim  = buf + needed;
 
 	/*
@@ -337,7 +336,7 @@ nhgrp_print(int fibnum, int af)
 	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
 	if (fibnum < 0 || fibnum > numfibs - 1)
-		errx(EX_USAGE, "%d: invalid fib", fibnum);
+		xo_errx(EX_USAGE, "%d: invalid fib", fibnum);
 
 	ifmap = prepare_ifmap(&ifmap_size);
 	prepare_nh_map(fibnum, af);

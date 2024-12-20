@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/dev/amdgpio
 KMOD=  amdgpio
 SRCS=  amdgpio.c

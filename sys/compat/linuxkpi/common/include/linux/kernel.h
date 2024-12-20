@@ -50,7 +50,6 @@
 #include <linux/minmax.h>
 #include <linux/stringify.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/typecheck.h>
 #include <linux/jiffies.h>
@@ -342,7 +341,7 @@ static inline bool
 mac_pton(const char *macin, uint8_t *macout)
 {
 	const char *s, *d;
-	uint8_t mac[6], hx, lx;;
+	uint8_t mac[6], hx, lx;
 	int i;
 
 	if (strlen(macin) < (3 * 6 - 1))

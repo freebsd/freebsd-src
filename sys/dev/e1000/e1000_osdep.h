@@ -79,9 +79,11 @@ ms_scale(int x) {
 	}
 }
 
+extern int e1000_use_pause_delay;
+
 static inline void
 safe_pause_us(int x) {
-	if (cold) {
+	if (!e1000_use_pause_delay) {
 		DELAY(x);
 	} else {
 		pause("e1000_delay", max(1,  x/(1000000/hz)));
@@ -90,7 +92,7 @@ safe_pause_us(int x) {
 
 static inline void
 safe_pause_ms(int x) {
-	if (cold) {
+	if (!e1000_use_pause_delay) {
 		DELAY(x*1000);
 	} else {
 		pause("e1000_delay", ms_scale(x));

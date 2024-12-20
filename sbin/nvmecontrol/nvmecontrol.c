@@ -143,6 +143,30 @@ read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 }
 
 int
+read_active_namespaces(int fd, uint32_t nsid, struct nvme_ns_list *nslist)
+{
+	struct nvme_pt_command	pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.cmd.opc = NVME_OPC_IDENTIFY;
+	pt.cmd.nsid = htole32(nsid);
+	pt.cmd.cdw10 = htole32(2);
+	pt.buf = nslist;
+	pt.len = sizeof(*nslist);
+	pt.is_read = 1;
+
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		return (errno);
+
+	/* Convert data to host endian */
+	nvme_ns_list_swapbytes(nslist);
+
+	if (nvme_completion_is_error(&pt.cpl))
+		return (EIO);
+	return (0);
+}
+
+int
 open_dev(const char *str, int *fd, int write, int exit_on_error)
 {
 	char		full_path[MAXPATHLEN];

@@ -1,4 +1,3 @@
-
 SUBDIR_PARALLEL=	yes
 
 # Firmware may not be able to handle branch protection failures

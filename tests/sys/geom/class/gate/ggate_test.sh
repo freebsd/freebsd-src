@@ -1,7 +1,5 @@
-
 PIDFILE=ggated.pid
 PLAINFILES=plainfiles
-PORT=33080
 CONF=gg.exports
 
 atf_test_case ggatec_trim cleanup
@@ -17,13 +15,14 @@ ggatec_trim_body()
 {
 	load_ggate
 
+	port=33080
 	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	atf_check -e ignore -o ignore dd if=/dev/random of=/dev/$work bs=1m count=1 conv=notrunc
 	echo $CONF >> $PLAINFILES
 	echo "localhost RW /dev/$work" > $CONF
-	atf_check ggated -p $PORT -F $PIDFILE $CONF
-	atf_check ggatec create -p $PORT -u $us localhost /dev/$work
+	atf_check ggated -p $port -F $PIDFILE $CONF
+	atf_check ggatec create -p $port -u $us localhost /dev/$work
 	ggate_dev=/dev/ggate${us}
 	wait_for_ggate_device ${ggate_dev}
 
@@ -55,6 +54,7 @@ ggated_body()
 
 	load_ggate
 
+	port=33081
 	us=$(alloc_ggate_dev)
 	work=$(alloc_md)
 	src=$(alloc_md)
@@ -67,8 +67,8 @@ ggated_body()
 	echo $CONF >> $PLAINFILES
 	echo "127.0.0.1 RW /dev/$work" > $CONF
 
-	atf_check ggated -p $PORT -F $PIDFILE $CONF
-	atf_check ggatec create -p $PORT -u $us 127.0.0.1 /dev/$work
+	atf_check ggated -p $port -F $PIDFILE $CONF
+	atf_check ggatec create -p $port -u $us 127.0.0.1 /dev/$work
 
 	ggate_dev=/dev/ggate${us}
 

@@ -1,4 +1,3 @@
-
 PACKAGE=	runtime
 
 SHLIBDIR?=	/lib

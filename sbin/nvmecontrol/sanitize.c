@@ -130,8 +130,11 @@ sanitize(const struct cmd *f, int argc, char *argv[])
 			sanact = 3;
 		else if (strcmp(opt.sanact, "crypto") == 0)
 			sanact = 4;
+		else if ((sanact = (int)strtol(opt.sanact, NULL, 10) != 0)
+		    && (sanact >= 1 && sanact <= 4))
+			; /* compat with nvme sanitize -a number */
 		else {
-			fprintf(stderr, "Incorrect Sanitize Action value\n");
+			fprintf(stderr, "Incorrect Sanitize Action value: %s\n", opt.sanact);
 			arg_help(argc, argv, f);
 		}
 	}

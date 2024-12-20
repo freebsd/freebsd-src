@@ -522,7 +522,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
  * then we'll transmit a probe request.
  */
 static void
-ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, int force)
+ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, bool force __unused)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
@@ -569,7 +569,7 @@ scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 	    maxdwell);
 	IEEE80211_LOCK(ic);
 	if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
-		ieee80211_probe_curchan(vap, 0);
+		ieee80211_probe_curchan(vap, false);
 	taskqueue_enqueue_timeout(ic->ic_tq,
 	    &SCAN_PRIVATE(ss)->ss_scan_curchan, maxdwell);
 	IEEE80211_UNLOCK(ic);

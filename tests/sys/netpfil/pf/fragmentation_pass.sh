@@ -155,6 +155,75 @@ v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_route_to" "cleanup"
+v6_route_to_head()
+{
+	atf_set descr 'Test IPv6 reassembly combined with route-to'
+	atf_set require.user root
+}
+
+v6_route_to_body()
+{
+	pft_init
+}
+
+v6_route_to_cleanup()
+{
+	pft_cleanup
+
+	epair_send=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_link}a
+	vnet_mkjail singsing ${epair_link}b
+
+	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 no_dad up
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 2001:db8:42::2/64 no_dad up
+	jexec alcatraz ifconfig ${epair_link}a inet6 2001:db8:43::2/64 no_dad up
+	jexec alcatraz sysctl net.inet6.ip6.forwarding=1
+
+	jexec singsing ifconfig ${epair_link}b inet6 2001:db8:43::3/64 no_dad up
+	jexec singsing route add -6 2001:db8:42::/64 2001:db8:43::2
+	route add -6 2001:db8:43::/64 2001:db8:42::2
+
+	jexec alcatraz ifconfig ${epair_send}b inet6 -ifdisabled
+	jexec alcatraz ifconfig ${epair_link}a inet6 -ifdisabled
+	jexec singsing ifconfig ${epair_link}b inet6 -ifdisabled
+	ifconfig ${epair_send}a inet6 -ifdisabled
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set reassemble yes" \
+		"pass" \
+		"pass in route-to (${epair_link}a 2001:db8:43::3) inet6 proto icmp6 from any to 2001:db8:43::3 keep state"
+
+	# Forwarding test
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 -s 4500 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore\
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+
+	# Now test this without fragmentation
+	pft_set_rules alcatraz \
+		"set reassemble no" \
+		"pass" \
+		"pass in route-to (${epair_link}a 2001:db8:43::3) inet6 proto icmp6 from any to 2001:db8:43::3 keep state"
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore \
+		ping -6 -c 1 -s 4500 2001:db8:43::3
+
+	atf_check -s exit:0 -o ignore\
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+}
+
 atf_test_case "mtu_diff" "cleanup"
 mtu_diff_head()
 {
@@ -344,61 +413,6 @@ no_df_body()
 {
 	setup_router_server_ipv4
 
-	ifconfig ${epair_tester}a mtu 9000
-	jexec router ifconfig ${epair_tester}b mtu 9000
-	jexec router ifconfig ${epair_server}a mtu 1500
-	jexec server ifconfig ${epair_server}b mtu 1500
-
-	# Sanity check.
-	ping_server_check_reply exit:0 --ping-type=icmp
-
-	pft_set_rules router \
-		"set reassemble no" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with normal, fragmentable packets.
-	ping_server_check_reply exit:1 --ping-type=icmp --send-length=2000
-
-	pft_set_rules router \
-		"set reassemble yes" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with normal, fragmentable packets.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000
-
-	# Ping with non-fragmentable packets.
-	ping_server_check_reply exit:1 --ping-type=icmp --send-length=2000 --send-flags DF
-
-	pft_set_rules router \
-		"set reassemble yes no-df" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with non-fragmentable packets again.
-	# This time pf will strip the DF flag.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
-}
-no_df_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "no_df" "cleanup"
-no_df_head()
-{
-	atf_set descr 'Test removing of DF flag'
-	atf_set require.user root
-}
-
-no_df_body()
-{
-	setup_router_server_ipv4
-
 	# Tester can send long packets which will get fragmented by the router.
 	# Replies from server will come in fragments which might get
 	# reassembled resulting in a long reply packet sent back to tester.
@@ -420,6 +434,7 @@ no_df_body()
 	# getting properly forwarded.
 	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
 }
+
 no_df_cleanup()
 {
 	pft_cleanup
@@ -553,10 +568,52 @@ dummynet_nat_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "dummynet_fragmented" "cleanup"
+dummynet_fragmented_head()
+{
+	atf_set descr 'Test dummynet on NATed fragmented traffic'
+	atf_set require.user root
+}
+
+dummynet_fragmented_body()
+{
+	pft_init
+	dummynet_init
+
+	# No test for IPv6. IPv6 fragment reassembly can't be disabled.
+	setup_router_dummy_ipv4
+
+	jexec router dnctl pipe 1 config delay 1
+
+	pft_set_rules router \
+		"set reassemble no" \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  on ${epair_tester}b inet  proto udp dnpipe (1, 1)" \
+		"pass out on ${epair_server}a inet  proto udp" \
+
+	ping_dummy_check_request exit:0 --ping-type=udp --send-length=10000 --send-frag-length=1280
+
+	rules=$(mktemp) || exit 1
+	jexec router pfctl -qvsr | normalize_pfctl_s > $rules
+
+	# Count that fragmented packets have hit the rule only once and that
+	# they have not created states. There is no stateful firewall support
+	# for fragmented packets.
+	grep -qE 'pass in on epair0b inet proto udp all keep state dnpipe\(1, 1\) .* Packets: 8 Bytes: 10168 States: 0 ' $rules ||
+		atf_fail "Fragmented packets not counted correctly"
+}
+
+dummynet_fragmented_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
 	atf_add_test_case "v6"
+	atf_add_test_case "v6_route_to"
 	atf_add_test_case "mtu_diff"
 	atf_add_test_case "overreplace"
 	atf_add_test_case "overindex"
@@ -566,4 +623,5 @@ atf_init_test_cases()
 	atf_add_test_case "reassemble_slowpath"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "dummynet_nat"
+	atf_add_test_case "dummynet_fragmented"
 }

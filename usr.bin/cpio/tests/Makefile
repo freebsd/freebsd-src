@@ -1,4 +1,3 @@
-
 PACKAGE=	tests
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
@@ -34,6 +33,7 @@ TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
 	test_cmdline.c				\
+	test_extract_cpio_absolute_paths.c	\
 	test_extract_cpio_Z.c			\
 	test_extract_cpio_bz2.c			\
 	test_extract_cpio_grz.c			\

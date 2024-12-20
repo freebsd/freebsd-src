@@ -97,7 +97,7 @@ inline uint16_t TH_ECE =	0x40;
 #pragma D binding "1.6.3" TH_CWR
 inline uint16_t TH_CWR =	0x80;
 #pragma D binding "1.6.3" TH_AE
-inline uint16_t TH_AE =		0x100;
+inline uint16_t TH_AE  =	0x100;
 
 /* TCP connection state strings. */
 #pragma D binding "1.6.3" tcp_state_string
@@ -332,7 +332,7 @@ inline string tcpflag_string[uint16_t flags] =
 	flags & TH_URG ?	"URG" :
 	flags & TH_ECE ?	"ECE" :
 	flags & TH_CWR ?	"CWR" :
-	flags & TH_AE ? 	"AE" :
+	flags & TH_AE  ?	"AE" :
 	"unknown" ;
 
 #pragma D binding "1.12.1" PRU_ATTACH

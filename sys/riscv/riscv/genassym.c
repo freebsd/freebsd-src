@@ -38,7 +38,6 @@
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
-#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -51,15 +50,17 @@
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
 #include <machine/pte.h>
-#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/vmparam.h>
+
+#include <riscv/vmm/riscv.h>
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(VM_MAX_KERNEL_ADDRESS, VM_MAX_KERNEL_ADDRESS);
-ASSYM(VM_EARLY_DTB_ADDRESS, VM_EARLY_DTB_ADDRESS);
 ASSYM(PMAP_MAPDEV_EARLY_SIZE, PMAP_MAPDEV_EARLY_SIZE);
+
+ASSYM(PM_SATP, offsetof(struct pmap, pm_satp));
 
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
@@ -97,11 +98,41 @@ ASSYM(TF_STVAL, offsetof(struct trapframe, tf_stval));
 ASSYM(TF_SCAUSE, offsetof(struct trapframe, tf_scause));
 ASSYM(TF_SSTATUS, offsetof(struct trapframe, tf_sstatus));
 
+ASSYM(HYP_H_RA, offsetof(struct hypctx, host_regs.hyp_ra));
+ASSYM(HYP_H_SP, offsetof(struct hypctx, host_regs.hyp_sp));
+ASSYM(HYP_H_GP, offsetof(struct hypctx, host_regs.hyp_gp));
+ASSYM(HYP_H_TP, offsetof(struct hypctx, host_regs.hyp_tp));
+ASSYM(HYP_H_T, offsetof(struct hypctx, host_regs.hyp_t));
+ASSYM(HYP_H_S, offsetof(struct hypctx, host_regs.hyp_s));
+ASSYM(HYP_H_A, offsetof(struct hypctx, host_regs.hyp_a));
+ASSYM(HYP_H_SEPC, offsetof(struct hypctx, host_regs.hyp_sepc));
+ASSYM(HYP_H_SSTATUS, offsetof(struct hypctx, host_regs.hyp_sstatus));
+ASSYM(HYP_H_HSTATUS, offsetof(struct hypctx, host_regs.hyp_hstatus));
+ASSYM(HYP_H_SSCRATCH, offsetof(struct hypctx, host_sscratch));
+ASSYM(HYP_H_STVEC, offsetof(struct hypctx, host_stvec));
+ASSYM(HYP_H_SCOUNTEREN, offsetof(struct hypctx, host_scounteren));
+
+ASSYM(HYP_G_RA, offsetof(struct hypctx, guest_regs.hyp_ra));
+ASSYM(HYP_G_SP, offsetof(struct hypctx, guest_regs.hyp_sp));
+ASSYM(HYP_G_GP, offsetof(struct hypctx, guest_regs.hyp_gp));
+ASSYM(HYP_G_TP, offsetof(struct hypctx, guest_regs.hyp_tp));
+ASSYM(HYP_G_T, offsetof(struct hypctx, guest_regs.hyp_t));
+ASSYM(HYP_G_S, offsetof(struct hypctx, guest_regs.hyp_s));
+ASSYM(HYP_G_A, offsetof(struct hypctx, guest_regs.hyp_a));
+ASSYM(HYP_G_SEPC, offsetof(struct hypctx, guest_regs.hyp_sepc));
+ASSYM(HYP_G_SSTATUS, offsetof(struct hypctx, guest_regs.hyp_sstatus));
+ASSYM(HYP_G_HSTATUS, offsetof(struct hypctx, guest_regs.hyp_hstatus));
+ASSYM(HYP_G_SCOUNTEREN, offsetof(struct hypctx, guest_scounteren));
+
+ASSYM(HYP_TRAP_SEPC, offsetof(struct hyptrap, sepc));
+ASSYM(HYP_TRAP_SCAUSE, offsetof(struct hyptrap, scause));
+ASSYM(HYP_TRAP_STVAL, offsetof(struct hyptrap, stval));
+ASSYM(HYP_TRAP_HTVAL, offsetof(struct hyptrap, htval));
+ASSYM(HYP_TRAP_HTINST, offsetof(struct hyptrap, htinst));
+
 ASSYM(RISCV_BOOTPARAMS_SIZE, sizeof(struct riscv_bootparams));
-ASSYM(RISCV_BOOTPARAMS_KERN_L1PT, offsetof(struct riscv_bootparams, kern_l1pt));
 ASSYM(RISCV_BOOTPARAMS_KERN_PHYS, offsetof(struct riscv_bootparams, kern_phys));
 ASSYM(RISCV_BOOTPARAMS_KERN_STACK, offsetof(struct riscv_bootparams,
     kern_stack));
-ASSYM(RISCV_BOOTPARAMS_DTBP_VIRT, offsetof(struct riscv_bootparams, dtbp_virt));
 ASSYM(RISCV_BOOTPARAMS_DTBP_PHYS, offsetof(struct riscv_bootparams, dtbp_phys));
 ASSYM(RISCV_BOOTPARAMS_MODULEP, offsetof(struct riscv_bootparams, modulep));

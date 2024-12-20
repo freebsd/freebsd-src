@@ -1,4 +1,3 @@
-
 PACKAGE=ipf
 FILES=	README
 

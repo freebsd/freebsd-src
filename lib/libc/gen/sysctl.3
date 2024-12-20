@@ -325,6 +325,7 @@ information.
 .Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
 .It Sy Second Level Name Ta Sy Type Ta Sy Changeable
 .It Dv KERN_ARGMAX Ta integer Ta no
+.It Dv KERN_ARND Ta integer Ta no
 .It Dv KERN_BOOTFILE Ta string Ta yes
 .It Dv KERN_BOOTTIME Ta struct timeval Ta no
 .It Dv KERN_CLOCKRATE Ta struct clockinfo Ta no
@@ -332,9 +333,13 @@ information.
 .It Dv KERN_HOSTID Ta integer Ta yes
 .It Dv KERN_HOSTUUID Ta string Ta yes
 .It Dv KERN_HOSTNAME Ta string Ta yes
+.It Dv KERN_IOV_MAX Ta integer Ta yes
 .It Dv KERN_JOB_CONTROL Ta integer Ta no
+.It Dv KERN_LOCKF Ta struct kinfo_lockf Ta no
+.It Dv KERN_LOGSIGEXIT Ta integer Ta yes
 .It Dv KERN_MAXFILES Ta integer Ta yes
 .It Dv KERN_MAXFILESPERPROC Ta integer Ta yes
+.It Dv KERN_MAXPHYS Ta integer Ta no
 .It Dv KERN_MAXPROC Ta integer Ta no
 .It Dv KERN_MAXPROCPERUID Ta integer Ta yes
 .It Dv KERN_MAXVNODES Ta integer Ta yes
@@ -346,16 +351,28 @@ information.
 .It Dv KERN_OSTYPE Ta string Ta no
 .It Dv KERN_POSIX1 Ta integer Ta no
 .It Dv KERN_PROC Ta node Ta not applicable
-.It Dv KERN_QUANTUM Ta integer Ta yes
+.It Dv KERN_PS_STRINGS Ta integer Ta no
 .It Dv KERN_SAVED_IDS Ta integer Ta no
 .It Dv KERN_SECURELVL Ta integer Ta raise only
 .It Dv KERN_UPDATEINTERVAL Ta integer Ta no
+.It Dv KERN_USRSTACK Ta integer Ta no
 .It Dv KERN_VERSION Ta string Ta no
 .El
 .Bl -tag -width 6n
 .It Li KERN_ARGMAX
 The maximum bytes of argument to
 .Xr execve 2 .
+.It Li KERN_ARND
+.Xr arc4rand 9
+Fills the buffer with random bytes from in-kernel random data generator.
+This is an alternative interface for
+.Xr read 2
+of
+.Xr random 4
+device, which does not depend on accessibility and correct mounting options
+of the
+.Xr devfs 4
+node.
 .It Li KERN_BOOTFILE
 The full pathname of the file from which the kernel was loaded.
 .It Li KERN_BOOTTIME
@@ -380,8 +397,18 @@ Get or set the host ID.
 Get or set the host's universally unique identifier (UUID).
 .It Li KERN_HOSTNAME
 Get or set the hostname.
+.It Li KERN_IOV_MAX
+The maximum accepted number of elements in an input-output vector (iovec),
+see
+.Xr readv 2
+and
+.Xr writev 2 .
 .It Li KERN_JOB_CONTROL
 Return 1 if job control is available on this system, otherwise 0.
+.It Li KERN_LOCKF
+Returns the list of the file advisory locks currently known to kernel.
+.It Li KERN_LOGSIGEXIT
+Controls logging of process exit due to untrapped signals.
 .It Li KERN_MAXFILES
 The maximum number of files that may be open in the system.
 .It Li KERN_MAXFILESPERPROC
@@ -390,6 +417,10 @@ This limit only applies to processes with an effective uid of nonzero
 at the time of the open request.
 Files that have already been opened are not affected if the limit
 or the effective uid is changed.
+.It Li KERN_MAXPHYS
+Specifies the maximum block I/O size.
+Can be changed by the tunable
+.Ev kern.maxphys .
 .It Li KERN_MAXPROC
 The maximum number of concurrent processes the system will allow.
 .It Li KERN_MAXPROCPERUID
@@ -446,41 +477,126 @@ whose size depends on the current number of such objects in the system.
 .It Dv KERN_PROC_ALL Ta None
 .It Dv KERN_PROC_PID Ta A process ID
 .It Dv KERN_PROC_PGRP Ta A process group
+.It Dv KERN_PROC_SESSION Ta A session
 .It Dv KERN_PROC_TTY Ta A tty device
-.It Dv KERN_PROC_UID Ta A user ID
+.It Dv KERN_PROC_UID Ta An effective user ID
 .It Dv KERN_PROC_RUID Ta A real user ID
+.It Dv KERN_PROC_GID Ta An effective group ID
+.It Dv KERN_PROC_RGID Ta A real group ID
 .El
 .Pp
-If the third level name is
-.Dv KERN_PROC_ARGS
-then the command line argument
+For the following names, the miscellaneous information about the target
+process, which is specified by the fourth level of the oid name,
+is returned.
+A process ID of
+.Li \-1
+specifies the current process.
+.Bl -column "Third Level NameXXXXXX" "TypeXXXXXX" -offset indent
+.It Sy Third Level Name Ta Sy Fourth Level
+.It Dv KERN_PROC_ARGS Ta "Set of strings"
+.It Dv KERN_PROC_PATHNAME Ta "String"
+.It Dv KERN_PROC_KSTACK Ta "struct kinfo_stack []"
+.It Dv KERN_PROC_VMMAP Ta "struct kinfo_vmentry []"
+.It Dv KERN_PROC_FILEDESC Ta "struct kinfo_file []"
+.It Dv KERN_PROC_GROUPS Ta "gid_t []"
+.It Dv KERN_PROC_ENV Ta "Set of strings"
+.It Dv KERN_PROC_AUXV Ta "Elf_Auxinfo []"
+.It Dv KERN_PROC_RLIMIT Ta "Integer"
+.It Dv KERN_PROC_RLIMIT_USAGE Ta "rlim_t []"
+.It Dv KERN_PROC_PS_STRINGS Ta "Integer"
+.It Dv KERN_PROC_UMASK Ta "Integer/short"
+.It Dv KERN_PROC_OSREL Ta "Integer"
+.It Dv KERN_PROC_SIGTRAMP Ta "Integer"
+.It Dv KERN_PROC_CWD Ta "String"
+.It Dv KERN_PROC_NFDS Ta "Integer"
+.It Dv KERN_PROC_SIGFASTBLK Ta "Integer"
+.It Dv KERN_PROC_VM_LAYOUT Ta "struct kinfo_vm_layout"
+.El
+.Pp
+.Bl -tag -compact
+.It Dv KERN_PROC_ARGS
+The command line argument
 array is returned in a flattened form, i.e., zero-terminated arguments
 follow each other.
 The total size of array is returned.
 It is also possible for a process to set its own process title this way.
-If the third level name is
-.Dv KERN_PROC_PATHNAME ,
-the path of the
-process' text file is stored.
-For
-.Dv KERN_PROC_PATHNAME ,
-a process ID of
+.It Dv KERN_PROC_PATHNAME
+The path of the process' text file is returned.
+.It Dv KERN_PROC_KSTACK
+The in-kernel call stacks for the threads of the specified process.
+.It Dv KERN_PROC_VMMAP
+The description of the map entries for the process.
+.It Dv KERN_PROC_FILEDESC
+The file descriptors for files opened in the specified process.
+.It Dv KERN_PROC_GROUPS
+Groups associated with the process.
+.It Dv KERN_PROC_ENV
+The set of strings representing the environment of the specified process.
+.Pp
+Note that from the kernel point of view, environment exists only at the
+time of
+.Xr execve 2
+system call.
+This node method tries to reconstruct the environment from the known
+breadcrumbs left in the process address space, but it is not guaranteed
+to succeed or to represent the current value as maintained by the program.
+.It Dv KERN_PROC_AUXV
+The set of ELF auxv entries.
+See the note above about environment, which is also applicable to auxv.
+.It Dv KERN_PROC_RLIMIT
+Additinal OID name element must be supplied, specifiing the resource name
+as in
+.Xr getrlimit 2 .
+The call returns the given resource limit for the process.
+.It Dv KERN_PROC_RLIMIT_USAGE
+Like
+.Dv KERN_PROC_RLIMIT ,
+but instead of the limit, returns the accounted resource usage.
+For resources which do not have a meaningful current value,
 .Li \-1
-implies the current process.
-.Bl -column "Third Level NameXXXXXX" "Fourth LevelXXXXXX" -offset indent
-.It Sy Third Level Name Ta Sy Fourth Level
-.It Dv KERN_PROC_ARGS Ta "A process ID"
-.It Dv KERN_PROC_PATHNAME Ta "A process ID"
+is returned.
+.It Dv KERN_PROC_PS_STRINGS
+Returns the location of the
+.Vt ps_strings
+structure at the time of the last call to
+.Xr execve 2
+in the specified process.
+.It Dv KERN_PROC_UMASK
+The current umask value, see
+.Xr umask 2 .
+.It Dv KERN_PROC_OSREL
+The value of osrel for the process, that is the osrel the currently executed
+image was compiled for.
+Read from the note of the elf executable at
+.Xr execve 2
+time.
+Might be modified by the process.
+.It Dv KERN_PROC_SIGTRAMP
+Address of the signal trampoline in the process address space,
+where, simplifying, the kernel passes control for signal delivery.
+.It Dv KERN_PROC_CWD
+Returns the current working directory for the process.
+.It Dv KERN_PROC_NFDS
+Returns the total number of opened file descriptors for the process.
+.It Dv KERN_PROC_SIGFASTBLK
+Returns the address of the
+.Xr sigfastblock 2
+location, if active.
+.It Dv KERN_PROC_VM_LAYOUT
+Fills a structure describing process virtual address space layout.
 .El
-.It Li KERN_QUANTUM
-The maximum period of time, in microseconds, for which a process is allowed
-to run without being preempted if other processes are in the run queue.
+.It Li KERN_PS_STRINGS
+Reports the location of the process
+.Vt ps_strings
+structure after exec, for the ABI of the querying process.
 .It Li KERN_SAVED_IDS
 Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
 The system security level.
 This level may be raised by processes with appropriate privilege.
 It may not be lowered.
+.It Li KERN_USRSTACK
+Reports the top of the main thread user stack for the current process.
 .It Li KERN_VERSION
 The system version string.
 .El

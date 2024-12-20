@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 22, 2024
+.Dd October 14, 2024
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -103,9 +103,8 @@ and
 will be loaded.
 If
 .Ao Ar dir Ac Ns Pa /rc.conf.d/ Ns Ao Ar name Ac
-is a directory,
-all of the files in the directory will be loaded.
-Also see the
+is a directory then all of the files in the directory will be loaded.
+See also the
 .Va rc_conf_files
 variable below.
 .Pp
@@ -618,6 +617,15 @@ When specified, this variable overrides the
 variable for interface
 .Ar iface
 only.
+.It Va dhclient_arpwait
+.Pq Vt bool
+Set to
+.Dq Li NO
+to stop
+.Xr dhclient 8
+from waiting for ARP resolution, to make the system boot faster.
+This may be done on networks where the DHCP server is certain to
+know whether an address is available.
 .It Va synchronous_dhclient
 .Pq Vt bool
 Set to
@@ -4977,8 +4985,11 @@ to them.
 .It nfsd
 Allows to run nfsd and affiliated daemons.
 .It sysvipc
-Allows access to SysV semaphores, SysV shared memory and
-SysV messages.
+Inherits the SysV semaphores, SysV shared memory and
+SysV messages from the host or the parent jail.
+.It sysvipcnew
+Creates a new namespace for SysV semaphores, SysV shared memory
+and SysV messages for this particular service jail.
 .It vmm
 Allows access to
 .Xr vmm 4 .
@@ -4988,6 +4999,7 @@ is enabled in the kernel.
 .El
 
 All non-network options can be combined with all other options.
+From the SysV options only one option can be specified.
 
 If the
 .Ao Ar name Ac Ns Va _svcj
@@ -4995,7 +5007,7 @@ variable is set to
 .Dq Li YES ,
 this particular service is started in a
 service jail named
-.Va svcj- Ns Ar name Ac .
+.Va svcj- Ns Ar name .
 
 The
 .Va svcj_all_enable
@@ -5026,7 +5038,6 @@ but can be enabled via setting
 .Va sshd_svcj
 to
 .Dq Li YES .
-.El
 .Sh FILES
 .Bl -tag -width "/etc/defaults/rc.conf" -compact
 .It Pa /etc/defaults/rc.conf

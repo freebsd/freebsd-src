@@ -1,4 +1,3 @@
-
 SYSDIR?=	${SRCTOP}/sys
 
 .PATH:		${SYSDIR}/fs/nfsclient

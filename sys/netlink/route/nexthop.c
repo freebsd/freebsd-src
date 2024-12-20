@@ -506,7 +506,7 @@ static int
 delete_unhop(struct unhop_ctl *ctl, struct nlmsghdr *hdr, uint32_t uidx)
 {
 	struct user_nhop *unhop_ret, *unhop_base, *unhop_chain;
-
+	struct nl_writer nw;
 	struct user_nhop key = { .un_idx = uidx };
 
 	UN_WLOCK(ctl);
@@ -553,8 +553,8 @@ delete_unhop(struct unhop_ctl *ctl, struct nlmsghdr *hdr, uint32_t uidx)
 		.hdr.nlmsg_type = NL_RTM_DELNEXTHOP,
 	};
 
-	struct nl_writer nw = {};
-	if (!nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP)) {
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating message writer");
 		return (ENOMEM);
 	}
@@ -881,6 +881,7 @@ static int
 rtnl_handle_newnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
     struct nl_pstate *npt)
 {
+	struct nl_writer nw;
 	struct user_nhop *unhop;
 	int error;
 
@@ -947,8 +948,8 @@ rtnl_handle_newnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		.hdr.nlmsg_type = NL_RTM_NEWNEXTHOP,
 	};
 
-	struct nl_writer nw = {};
-	if (!nlmsg_get_group_writer(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP)) {
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating message writer");
 		return (ENOMEM);
 	}
@@ -1118,5 +1119,5 @@ void
 rtnl_nexthops_init(void)
 {
 	NL_VERIFY_PARSERS(all_parsers);
-	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
+	rtnl_register_messages(cmd_handlers, nitems(cmd_handlers));
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,7 +35,7 @@
  ****************************************************************************/
 
 /*
- * $Id: curses.priv.h,v 1.639 2020/11/14 23:37:54 tom Exp $
+ * $Id: curses.priv.h,v 1.687 2024/04/23 22:28:25 tom Exp $
  *
  *	curses.priv.h
  *
@@ -72,12 +72,6 @@ extern "C" {
 #include <unistd.h>
 #endif
 
-#if HAVE_LIMITS_H
-# include <limits.h>
-#elif HAVE_SYS_PARAM_H
-# include <sys/param.h>
-#endif
-
 #include <assert.h>
 #include <stdio.h>
 
@@ -87,16 +81,6 @@ extern "C" {
 #  ifndef EILSEQ
 #    define EILSEQ 47
 #  endif
-#endif
-
-#ifndef PATH_MAX
-# if defined(_POSIX_PATH_MAX)
-#  define PATH_MAX _POSIX_PATH_MAX
-# elif defined(MAXPATHLEN)
-#  define PATH_MAX MAXPATHLEN
-# else
-#  define PATH_MAX 255	/* the Posix minimum path-size */
-# endif
 #endif
 
 #if DECL_ERRNO
@@ -139,6 +123,20 @@ extern int errno;
 # if HAVE_STDINT_H
 #  include <stdint.h>
 # endif
+#endif
+
+#if (defined(__USE_MINGW_ANSI_STDIO) && __USE_MINGW_ANSI_STDIO != 0) && (defined(__GNUC__) && (__GNUC__ < 12))
+# undef PRIxPTR		/* gcc bug fixed in 12.x */
+# define PRIxPTR	"lX"
+# define CASTxPTR(n)    (unsigned long)(intptr_t)(void*)(n)
+#else
+# define CASTxPTR(n)    (intptr_t)(n)
+#endif
+
+#ifndef PRIxPTR
+# define PRIxPTR	"lx"
+# undef CASTxPTR
+# define CASTxPTR(n)    (long)(void*)(n)
 #endif
 
 /* include signal.h before curses.h to work-around defect in glibc 2.1.3 */
@@ -207,14 +205,21 @@ extern int errno;
 #endif
 
 /*
- * If desired, one can configure this, disabling environment variables that
- * point to custom terminfo/termcap locations.
+ * When the standard handles have been redirected (such as inside a text editor
+ * or the less utility), keystrokes must be read from the console rather than
+ * the redirected handle.  The standard output handle suffers from a similar
+ * problem.  Both handles are not closed once opened.  The console shall be
+ * considered reachable throughout the process.
  */
-#ifdef USE_ROOT_ENVIRON
-#define use_terminfo_vars() 1
-#else
-#define use_terminfo_vars() _nc_env_access()
-extern NCURSES_EXPORT(int) _nc_env_access (void);
+#if defined(_NC_WINDOWS)
+#define GetDirectHandle(fileName, shareMode) \
+	CreateFile(TEXT(fileName), \
+		   GENERIC_READ | GENERIC_WRITE, \
+		   shareMode, \
+		   0, \
+		   OPEN_EXISTING, \
+		   0, \
+		   0)
 #endif
 
 /*
@@ -292,7 +297,6 @@ extern NCURSES_EXPORT(void *) _nc_memmove (void *, const void *, size_t);
 #define NO_TERMINAL "unknown"
 #define USE_SP_RIPOFF     1
 #define USE_SP_TERMTYPE   1
-#define USE_SP_WINDOWLIST 1
 #else
 #define NO_TERMINAL 0
 #endif
@@ -302,6 +306,12 @@ extern NCURSES_EXPORT(void *) _nc_memmove (void *, const void *, size_t);
 		     ? term_env \
 		     : no_terminal), \
 	 NonEmpty(term_env))
+
+/*
+ * Originally a terminal-driver option, the window-list is per-screen to allow
+ * freeing memory used for windows when a screen is deleted.
+ */
+#define USE_SP_WINDOWLIST 1
 
 /*
  * Note:  ht/cbt expansion flakes out randomly under Linux 1.1.47, but only
@@ -325,6 +335,11 @@ typedef TRIES {
  */
 #define StringOf(ch) {ch, 0}
 
+#define CSI_CHR 0x9b
+#define ESC_CHR 0x1b
+
+#define L_BLOCK '['
+#define R_BLOCK ']'
 #define L_BRACE '{'
 #define R_BRACE '}'
 #define S_QUOTE '\''
@@ -407,7 +422,7 @@ typedef union {
 
 #include <nc_panel.h>
 
-#include <term.h>
+#include <term.priv.h>
 #include <nc_termios.h>
 
 #define IsPreScreen(sp)      (((sp) != 0) && sp->_prescreen)
@@ -554,10 +569,10 @@ extern NCURSES_EXPORT(void)     _nc_set_no_padding(SCREEN *);
 #define SET_SCREEN_PAIR(s,p)	SetPair(SCREEN_ATTRS(s), p)
 
 #if USE_REENTRANT || NCURSES_SP_FUNCS
-NCURSES_EXPORT(int *)        _nc_ptr_Lines (SCREEN *);
-NCURSES_EXPORT(int *)        _nc_ptr_Cols (SCREEN *);
-NCURSES_EXPORT(int *)        _nc_ptr_Tabsize (SCREEN *);
-NCURSES_EXPORT(int *)        _nc_ptr_Escdelay (SCREEN *);
+extern NCURSES_EXPORT(int *)    _nc_ptr_Lines (SCREEN *);
+extern NCURSES_EXPORT(int *)    _nc_ptr_Cols (SCREEN *);
+extern NCURSES_EXPORT(int *)    _nc_ptr_Tabsize (SCREEN *);
+extern NCURSES_EXPORT(int *)    _nc_ptr_Escdelay (SCREEN *);
 #endif
 
 #if USE_REENTRANT
@@ -585,6 +600,10 @@ NCURSES_EXPORT(int *)        _nc_ptr_Escdelay (SCREEN *);
 #define SET_ESCDELAY(value)  ESCDELAY = value
 
 #endif
+
+#define IS_SUBWIN(w)         ((w)->_flags & _SUBWIN)
+#define IS_PAD(w)            ((w)->_flags & _ISPAD)
+#define IS_WRAPPED(w)        ((w)->_flags & _WRAPPED)
 
 #define HasHardTabs()	(NonEmpty(clear_all_tabs) && NonEmpty(set_tab))
 
@@ -679,8 +698,13 @@ extern NCURSES_EXPORT(int) _nc_sigprocmask(int, const sigset_t *, sigset_t *);
 #define _nc_lock_global(name)	/* nothing */
 #define _nc_try_global(name)    0
 #define _nc_unlock_global(name)	/* nothing */
-
 #endif /* USE_PTHREADS */
+
+#if USE_PTHREADS_EINTR
+extern NCURSES_EXPORT(void) _nc_set_read_thread(bool);
+#else
+#define _nc_set_read_thread(enable)	/* nothing */
+#endif
 
 /*
  * When using sp-funcs, locks are targeted to SCREEN-level granularity.
@@ -712,9 +736,18 @@ extern NCURSES_EXPORT(int) _nc_sigprocmask(int, const sigset_t *, sigset_t *);
 
 #endif
 
-#if HAVE_GETTIMEOFDAY
+#if HAVE_CLOCK_GETTIME
 # define PRECISE_GETTIME 1
+# define GetClockTime(t) clock_gettime(CLOCK_REALTIME, t)
+# define TimeType struct timespec
+# define TimeScale 1000000000L		/* 1e9 */
+# define sub_secs tv_nsec
+#elif HAVE_GETTIMEOFDAY
+# define PRECISE_GETTIME 1
+# define GetClockTime(t) gettimeofday(t, 0)
 # define TimeType struct timeval
+# define TimeScale 1000000L		/* 1e6 */
+# define sub_secs tv_usec
 #else
 # define PRECISE_GETTIME 0
 # define TimeType time_t
@@ -810,12 +843,6 @@ typedef struct _SLK {
 
 #endif	/* USE_TERMLIB */
 
-typedef	struct {
-	WINDOW *win;		/* the window used in the hook      */
-	int	line;		/* lines to take, < 0 => from bottom*/
-	int	(*hook)(WINDOW *, int); /* callback for user	    */
-} ripoff_t;
-
 #if USE_GPM_SUPPORT
 #undef buttons			/* term.h defines this, and gpm uses it! */
 #include <gpm.h>
@@ -843,15 +870,11 @@ typedef int (*TYPE_Gpm_GetEvent) (Gpm_Event *);
 #endif /* HAVE_LIBDL */
 #endif /* USE_GPM_SUPPORT */
 
-typedef struct {
-    long sequence;
-    bool last_used;
-    char *fix_sgr0;		/* this holds the filtered sgr0 string */
-    char *last_bufp;		/* help with fix_sgr0 leak */
-    TERMINAL *last_term;
-} TGETENT_CACHE;
-
-#define TGETENT_MAX 4
+/*
+ * Limit delay-times to 30 seconds, which is consistent with signed 16-bit
+ * numbers in legacy terminfo.
+ */
+#define MAX_DELAY_MSECS 30000
 
 /*
  * When converting from terminfo to termcap, check for cases where we can trim
@@ -862,46 +885,6 @@ typedef struct {
 #define MIN_TC_FIXUPS	4
 
 #define isoctal(c) ((c) >= '0' && (c) <= '7')
-
-/*
- * State of tparm().
- */
-#define STACKSIZE 20
-
-typedef struct {
-	union {
-		int	num;
-		char	*str;
-	} data;
-	bool num_type;
-} STACK_FRAME;
-
-#define NUM_VARS 26
-
-typedef struct {
-	const char	*tparam_base;
-
-	STACK_FRAME	stack[STACKSIZE];
-	int		stack_ptr;
-
-	char		*out_buff;
-	size_t		out_size;
-	size_t		out_used;
-
-	char		*fmt_buff;
-	size_t		fmt_size;
-
-	int		dynamic_var[NUM_VARS];
-	int		static_vars[NUM_VARS];
-#ifdef TRACE
-	const char	*tname;
-#endif
-} TPARM_STATE;
-
-typedef struct {
-    char *text;
-    size_t size;
-} TRACEBUF;
 
 /*
  * The filesystem database normally uses a single-letter for the lower level
@@ -923,6 +906,7 @@ typedef struct {
  * string is less than 80 columns, but this buffer size is an absolute
  * limit.
  */
+#define TRACECHR_BUF	40
 #define TRACEMSE_MAX	(80 + (5 * 10) + (32 * 15))
 #define TRACEMSE_FMT	"id %2d  at (%2d, %2d, %2d) state %4lx = {" /* } */
 
@@ -933,131 +917,7 @@ struct DriverTCB; /* Terminal Control Block forward declaration */
 #define INIT_TERM_DRIVER()	/* nothing */
 #endif
 
-typedef struct {
-    const char *name;
-    char *value;
-} ITERATOR_VARS;
-
-/*
- * Global data which is not specific to a screen.
- */
-typedef struct {
-	SIG_ATOMIC_T	have_sigtstp;
-	SIG_ATOMIC_T	have_sigwinch;
-	SIG_ATOMIC_T	cleanup_nested;
-
-	bool		init_signals;
-	bool		init_screen;
-
-	char		*comp_sourcename;
-	char		*comp_termtype;
-
-	bool		have_tic_directory;
-	bool		keep_tic_directory;
-	const char	*tic_directory;
-
-	char		*dbi_list;
-	int		dbi_size;
-
-	char		*first_name;
-	char		**keyname_table;
-	int		init_keyname;
-
-	int		slk_format;
-
-	int		getstr_limit;	/* getstr_limit based on POSIX LINE_MAX */
-
-	char		*safeprint_buf;
-	size_t		safeprint_used;
-
-	TGETENT_CACHE	tgetent_cache[TGETENT_MAX];
-	int		tgetent_index;
-	long		tgetent_sequence;
-
-	char		*dbd_blob;	/* string-heap for dbd_list[] */
-	char		**dbd_list;	/* distinct places to look for data */
-	int		dbd_size;	/* length of dbd_list[] */
-	time_t		dbd_time;	/* cache last updated */
-	ITERATOR_VARS	dbd_vars[dbdLAST];
-
-#if HAVE_TSEARCH
-	void		*cached_tparm;
-	int		count_tparm;
-#endif /* HAVE_TSEARCH */
-
-#ifdef USE_TERM_DRIVER
-	int		(*term_driver)(struct DriverTCB*, const char*, int*);
-#endif
-
-#ifndef USE_SP_WINDOWLIST
-	WINDOWLIST	*_nc_windowlist;
-#define WindowList(sp)	_nc_globals._nc_windowlist
-#endif
-
-#if USE_HOME_TERMINFO
-	char		*home_terminfo;
-#endif
-
-#if !USE_SAFE_SPRINTF
-	int		safeprint_cols;
-	int		safeprint_rows;
-#endif
-
-#ifdef USE_PTHREADS
-	pthread_mutex_t	mutex_curses;
-	pthread_mutex_t	mutex_prescreen;
-	pthread_mutex_t	mutex_screen;
-	pthread_mutex_t	mutex_update;
-	pthread_mutex_t	mutex_tst_tracef;
-	pthread_mutex_t	mutex_tracef;
-	int		nested_tracef;
-	int		use_pthreads;
-#define _nc_use_pthreads	_nc_globals.use_pthreads
-#if USE_PTHREADS_EINTR
-	pthread_t	read_thread;		/* The reading thread */
-#endif
-#endif
-#if USE_WIDEC_SUPPORT
-	char		key_name[MB_LEN_MAX + 1];
-#endif
-
-#ifdef TRACE
-	bool		trace_opened;
-	char		trace_fname[PATH_MAX];
-	int		trace_level;
-	FILE		*trace_fp;
-	int		trace_fd;
-
-	char		*tracearg_buf;
-	size_t		tracearg_used;
-
-	TRACEBUF	*tracebuf_ptr;
-	size_t		tracebuf_used;
-
-	char		tracechr_buf[40];
-
-	char		*tracedmp_buf;
-	size_t		tracedmp_used;
-
-	unsigned char	*tracetry_buf;
-	size_t		tracetry_used;
-
-	char		traceatr_color_buf[2][80];
-	int		traceatr_color_sel;
-	int		traceatr_color_last;
-#if !defined(USE_PTHREADS) && USE_REENTRANT
-	int		nested_tracef;
-#endif
-#endif	/* TRACE */
-
-#if NO_LEAKS
-	bool		leak_checking;
-#endif
-} NCURSES_GLOBALS;
-
 extern NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals;
-
-#define N_RIPS 5
 
 /* The limit reserves one byte for a terminating NUL */
 #define my_getstr_limit	(_nc_globals.getstr_limit - 1)
@@ -1067,54 +927,6 @@ extern NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals;
 	 : (((n) > my_getstr_limit) \
 	    ? my_getstr_limit \
 	    : (n)))
-
-#ifdef USE_PTHREADS
-typedef struct _prescreen_list {
-	struct _prescreen_list *next;
-	pthread_t id;
-	struct screen *sp;
-} PRESCREEN_LIST;
-#endif
-
-/*
- * Global data which can be swept up into a SCREEN when one is created.
- * It may be modified before the next SCREEN is created.
- */
-typedef struct {
-#ifdef USE_PTHREADS
-	PRESCREEN_LIST *allocated;
-#else
-	struct screen * allocated;
-#endif
-	bool		use_env;
-	bool		filter_mode;
-	attr_t		previous_attr;
-	TPARM_STATE	tparm_state;
-	TTY		*saved_tty;	/* savetty/resetty information	    */
-	bool		use_tioctl;
-	NCURSES_SP_OUTC	_outch;		/* output handler if not putc */
-#ifndef USE_SP_RIPOFF
-	ripoff_t	rippedoff[N_RIPS];
-	ripoff_t	*rsp;
-#endif
-#if NCURSES_NO_PADDING
-	bool		_no_padding;	/* flag to set if padding disabled  */
-#endif
-#if BROKEN_LINKER || USE_REENTRANT
-	chtype		*real_acs_map;
-	int		_LINES;
-	int		_COLS;
-	int		_TABSIZE;
-	int		_ESCDELAY;
-	TERMINAL	*_cur_term;
-#endif
-#ifdef TRACE
-#if BROKEN_LINKER || USE_REENTRANT
-	long		_outchars;
-	const char	*_tputs_trace;
-#endif
-#endif
-} NCURSES_PRESCREEN;
 
 /*
  * Use screen-specific ripoff data (for softkeys) rather than global.
@@ -1130,16 +942,29 @@ typedef struct {
 extern NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen;
 
 typedef enum {
-    ewInitial = 0,
+    ewUnknown = 0,
+    ewInitial,
     ewRunning,
     ewSuspend
 } ENDWIN;
 
+typedef struct {
+	int		_nl;		/* True if NL -> CR/NL is on	    */
+	int		_raw;		/* True if in raw mode		    */
+	int		_cbreak;	/* 1 if in cbreak mode		    */
+					/* > 1 if in halfdelay mode	    */
+	int		_echo;		/* True if echo on		    */
+} TTY_FLAGS;
+
+#define IsNl(sp)        (sp)->_tty_flags._nl
+#define IsRaw(sp)       (sp)->_tty_flags._raw
+#define IsCbreak(sp)    (sp)->_tty_flags._cbreak
+#define IsEcho(sp)      (sp)->_tty_flags._echo
+
 /*
  * The SCREEN structure.
  */
-
-struct screen {
+typedef struct screen {
 	int		_ifd;		/* input file descriptor for screen */
 	int		_ofd;		/* output file descriptor for screen */
 	FILE		*_ofp;		/* output file ptr for screen	    */
@@ -1186,11 +1011,7 @@ struct screen {
 	int		_cursrow;	/* physical cursor row		    */
 	int		_curscol;	/* physical cursor column	    */
 	bool		_notty;		/* true if we cannot switch non-tty */
-	int		_nl;		/* True if NL -> CR/NL is on	    */
-	int		_raw;		/* True if in raw mode		    */
-	int		_cbreak;	/* 1 if in cbreak mode		    */
-					/* > 1 if in halfdelay mode	    */
-	int		_echo;		/* True if echo on		    */
+	TTY_FLAGS	_tty_flags;
 	int		_use_meta;	/* use the meta key?		    */
 	struct _SLK	*_slk;		/* ptr to soft key struct / NULL    */
 	int		slk_format;	/* selected format for this screen  */
@@ -1416,14 +1237,15 @@ struct screen {
 #endif
 
 #ifdef TRACE
-	char		tracechr_buf[40];
+	char		tracechr_buf[TRACECHR_BUF];
 	char		tracemse_buf[TRACEMSE_MAX];
 #if USE_REENTRANT
 	long		_outchars;
 	const char	*_tputs_trace;
 #endif
 #endif
-};
+#undef SCREEN
+} SCREEN;
 
 extern NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain;
 extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
@@ -1449,18 +1271,18 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #endif
 
 #define SP_PRE_INIT(sp)                         \
-    sp->_cursrow = -1;                          \
-    sp->_curscol = -1;                          \
-    sp->_nl = TRUE;                             \
-    sp->_raw = FALSE;                           \
-    sp->_cbreak = 0;                            \
-    sp->_echo = TRUE;                           \
-    sp->_fifohead = -1;                         \
-    sp->_endwin = ewSuspend;                    \
-    sp->_cursor = -1;                           \
+    sp->_cursrow           = -1;                \
+    sp->_curscol           = -1;                \
+    IsNl(sp)               = TRUE;              \
+    IsRaw(sp)              = FALSE;             \
+    IsCbreak(sp)           = 0;                 \
+    IsEcho(sp)             = TRUE;              \
+    sp->_fifohead          = -1;                \
+    sp->_endwin            = ewSuspend;         \
+    sp->_cursor            = -1;                \
     SP_INIT_WINDOWLIST(sp);                     \
-    sp->_outch = NCURSES_OUTC_FUNC;             \
-    sp->jump = 0                                \
+    sp->_outch             = NCURSES_OUTC_FUNC; \
+    sp->jump               = 0                  \
 
 /* usually in <limits.h> */
 #ifndef UCHAR_MAX
@@ -1473,12 +1295,12 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 /* Checks for isprint() should be done on 8-bit characters (non-wide) */
 #define is8bits(c)	((unsigned)(c) <= UCHAR_MAX)
 
-#ifndef min
-#define min(a,b)	((a) > (b)  ?  (b)  :  (a))
+#ifndef Min
+#define Min(a,b)	((a) > (b)  ?  (b)  :  (a))
 #endif
 
-#ifndef max
-#define max(a,b)	((a) < (b)  ?  (b)  :  (a))
+#ifndef Max
+#define Max(a,b)	((a) < (b)  ?  (b)  :  (a))
 #endif
 
 /* usually in <unistd.h> */
@@ -1542,14 +1364,11 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 
 #define TR_PUTC(c)	TR(TRACE_CHARPUT, ("PUTC %#x", UChar(c)))
 
-#ifndef MB_LEN_MAX
-#define MB_LEN_MAX 8 /* should be >= MB_CUR_MAX, but that may be a function */
-#endif
-
 #if USE_WIDEC_SUPPORT /* { */
+/* true if the status/errno indicate an illegal multibyte sequence */
 #define isEILSEQ(status) (((size_t)status == (size_t)-1) && (errno == EILSEQ))
 
-#define init_mb(state)	memset(&state, 0, sizeof(state))
+#define init_mb(state)	memset(&(state), 0, sizeof(state))
 
 #if NCURSES_EXT_COLORS
 #define NulColor	, 0
@@ -1557,7 +1376,20 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #define NulColor	/* nothing */
 #endif
 
-#define NulChar		0,0,0,0	/* FIXME: see CCHARW_MAX */
+#if CCHARW_MAX > 6
+#define NulChar		0,0,0,0,0
+#elif CCHARW_MAX > 5
+#define NulChar		0,0,0,0		/* ncurses7 */
+#elif CCHARW_MAX > 4
+#define NulChar		0,0,0		/* ncurses6 */
+#elif CCHARW_MAX > 3
+#define NulChar		0,0
+#elif CCHARW_MAX > 2
+#define NulChar		0
+#else
+#define NulChar		/* nothing */
+#endif
+
 #define CharOf(c)	((c).chars[0])
 #define AttrOf(c)	((c).attr)
 
@@ -1568,29 +1400,25 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #define NewChar2(c,a)	{ a, { c, NulChar } NulColor }
 #define NewChar(ch)	NewChar2(ChCharOf(ch), ChAttrOf(ch))
 
-#if CCHARW_MAX == 5
+#if CCHARW_MAX > 1
 #define CharEq(a,b)	(((a).attr == (b).attr) \
-		       && (a).chars[0] == (b).chars[0] \
-		       && (a).chars[1] == (b).chars[1] \
-		       && (a).chars[2] == (b).chars[2] \
-		       && (a).chars[3] == (b).chars[3] \
-		       && (a).chars[4] == (b).chars[4] \
+			 && !memcmp((a).chars, \
+				    (b).chars, \
+				    CCHARW_MAX * sizeof((b).chars[0])) \
 			if_EXT_COLORS(&& (a).ext_color == (b).ext_color))
-#elif CCHARW_MAX > 0
-#error Inconsistent values for CCHARW_MAX
 #else
 #define CharEq(a,b)	(!memcmp(&(a), &(b), sizeof(a)))
 #endif
 
 #define SetChar(ch,c,a) do {							    \
-			    NCURSES_CH_T *_cp = &ch;				    \
+			    NCURSES_CH_T *_cp = &(ch);				    \
 			    memset(_cp, 0, sizeof(ch));				    \
 			    _cp->chars[0] = (wchar_t) (c);			    \
 			    _cp->attr = (a);					    \
 			    if_EXT_COLORS(SetPair(ch, PairNumber(a)));		    \
 			} while (0)
-#define CHREF(wch)	(&wch)
-#define CHDEREF(wch)	(*wch)
+#define CHREF(wch)	(&(wch))
+#define CHDEREF(wch)	(*(wch))
 #define ARG_CH_T	NCURSES_CH_T *
 #define CARG_CH_T	const NCURSES_CH_T *
 #define PUTC_DATA	char PUTC_buf[MB_LEN_MAX]; int PUTC_i, PUTC_n; \
@@ -1678,7 +1506,7 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #define isWidecExt(ch)	(0)
 #define if_WIDEC(code) /* nothing */
 
-#define Charable(ch)	((ch) >= ' ' && (ch) <= '~')
+#define Charable(ch)	(CharOf(ch) >= ' ' && CharOf(ch) <= '~')
 #define L(ch)		ch
 #endif /* } */
 
@@ -1720,6 +1548,9 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 
 #define SIZEOF(v) (sizeof(v)/sizeof(v[0]))
 
+#include <nc_alloc.h>
+#include <nc_access.h>
+
 #define FreeIfNeeded(p)  if ((p) != 0) free(p)
 
 /* FreeAndNull() is not a comma-separated expression because some compilers
@@ -1727,7 +1558,18 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
  */
 #define FreeAndNull(p)   do { free(p); p = 0; } while (0)
 
-#include <nc_alloc.h>
+#ifdef EXP_OOM_TESTING
+extern NCURSES_EXPORT(void *)	_nc_oom_malloc(size_t size);
+extern NCURSES_EXPORT(void *)	_nc_oom_calloc(size_t nmemb, size_t size);
+extern NCURSES_EXPORT(void *)	_nc_oom_realloc(void *ptr, size_t size);
+extern NCURSES_EXPORT(void)	_nc_oom_free(void *ptr);
+extern NCURSES_EXPORT(char *)	_nc_oom_strdup(const char *ptr);
+#define malloc(size)		_nc_oom_malloc(size)
+#define calloc(nmemb, size)	_nc_oom_calloc(nmemb, size)
+#define realloc(ptr, size)	_nc_oom_realloc(ptr, size)
+#define free(ptr)		_nc_oom_free(ptr)
+#define strdup(ptr)		_nc_oom_strdup(ptr)
+#endif
 
 /*
  * Use these for tic/infocmp malloc failures.  Generally the ncurses library
@@ -1736,6 +1578,13 @@ extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 #define TYPE_MALLOC(type, size, name) \
 	do { \
 	    name = typeMalloc(type, size); \
+	    if (name == 0) \
+		_nc_err_abort(MSG_NO_MEMORY); \
+	} while (0)
+
+#define TYPE_CALLOC(type, size, name) \
+	do { \
+	    name = typeCalloc(type, size); \
 	    if (name == 0) \
 		_nc_err_abort(MSG_NO_MEMORY); \
 	} while (0)
@@ -1848,11 +1697,13 @@ typedef void VoidFunc(void);
 #define returnMMask(code)	TRACE_RETURN_SP(code,mmask_t)
 #define returnPtr(code)		TRACE_RETURN1(code,ptr)
 #define returnSP(code)		TRACE_RETURN1(code,sp)
-#define returnVoid		T((T_RETURN(""))); return
+#define returnVoid		{ T((T_RETURN(""))); return; }
 #define returnVoidPtr(code)	TRACE_RETURN1(code,void_ptr)
 #define returnWin(code)		TRACE_RETURN1(code,win)
 
 #define returnDB(rc)		do { TR(TRACE_DATABASE,(T_RETURN("code %d"), (rc))); return (rc); } while (0)
+#define returnPtrDB(rc)		do { TR(TRACE_DATABASE,(T_RETURN("%p"), (rc))); return (rc); } while (0)
+#define returnVoidDB		do { TR(TRACE_DATABASE,(T_RETURN(""))); return; } while (0)
 
 extern NCURSES_EXPORT(NCURSES_BOOL)     _nc_retrace_bool (int);
 extern NCURSES_EXPORT(NCURSES_CONST void *) _nc_retrace_cvoid_ptr (NCURSES_CONST void *);
@@ -1927,6 +1778,8 @@ extern NCURSES_EXPORT(const char *) _nc_viscbuf (const NCURSES_CH_T *, int);
 #define returnWin(code)		return code
 
 #define returnDB(code)		return code
+#define returnPtrDB(rc)		return rc
+#define returnVoidDB		return
 
 #endif /* TRACE/!TRACE */
 
@@ -2132,11 +1985,11 @@ extern NCURSES_EXPORT(void) _nc_linedump (void);
 
 /* lib_acs.c */
 extern NCURSES_EXPORT(void) _nc_init_acs (void); /* corresponds to traditional 'init_acs()' */
-extern NCURSES_EXPORT(int)  _nc_msec_cost (const char *const, int);  /* used by 'tack' program */
+extern NCURSES_EXPORT(int)  _nc_msec_cost (const char *const, int);
 
 /* lib_addch.c */
 #if USE_WIDEC_SUPPORT
-NCURSES_EXPORT(int) _nc_build_wch(WINDOW *win, ARG_CH_T ch);
+extern NCURSES_EXPORT(int) _nc_build_wch(WINDOW *win, ARG_CH_T ch);
 #endif
 
 /* lib_addstr.c */
@@ -2249,7 +2102,7 @@ typedef struct {
 /* strings.c */
 extern NCURSES_EXPORT(string_desc *) _nc_str_init (string_desc *, char *, size_t);
 extern NCURSES_EXPORT(string_desc *) _nc_str_null (string_desc *, size_t);
-extern NCURSES_EXPORT(string_desc *) _nc_str_copy (string_desc *, string_desc *);
+extern NCURSES_EXPORT(string_desc *) _nc_str_copy (string_desc *, const string_desc *);
 extern NCURSES_EXPORT(bool) _nc_safe_strcat (string_desc *, const char *);
 extern NCURSES_EXPORT(bool) _nc_safe_strcpy (string_desc *, const char *);
 
@@ -2278,7 +2131,6 @@ extern NCURSES_EXPORT(char *) _nc_tracemouse (SCREEN *, MEVENT const *);
 extern NCURSES_EXPORT(char *) _nc_trace_mmask_t (SCREEN *, mmask_t);
 extern NCURSES_EXPORT(int) _nc_access (const char *, int);
 extern NCURSES_EXPORT(int) _nc_baudrate (int);
-extern NCURSES_EXPORT(ENTRY *) _nc_delink_entry (ENTRY *, TERMTYPE2 *);
 extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *);
 extern NCURSES_EXPORT(int) _nc_getenv_num (const char *);
 extern NCURSES_EXPORT(int) _nc_keypad (SCREEN *, int);
@@ -2291,6 +2143,7 @@ extern NCURSES_EXPORT(int) _nc_read_termcap_entry (const char *const, TERMTYPE2 
 extern NCURSES_EXPORT(int) _nc_setup_tinfo(const char *, TERMTYPE2 *);
 extern NCURSES_EXPORT(int) _nc_setupscreen (int, int, FILE *, int, int);
 extern NCURSES_EXPORT(int) _nc_timed_wait (SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
+extern NCURSES_EXPORT(int) _nc_trans_string (char *, const char *);
 extern NCURSES_EXPORT(void) _nc_init_termtype (TERMTYPE2 *const);
 extern NCURSES_EXPORT(void) _nc_do_color (int, int, int, NCURSES_OUTC);
 extern NCURSES_EXPORT(void) _nc_flush (void);
@@ -2300,6 +2153,7 @@ extern NCURSES_EXPORT(void) _nc_hash_map (void);
 extern NCURSES_EXPORT(void) _nc_init_keytry (SCREEN *);
 extern NCURSES_EXPORT(void) _nc_keep_tic_dir (const char *);
 extern NCURSES_EXPORT(void) _nc_make_oldhash (int i);
+extern NCURSES_EXPORT(void) _nc_reset_input (FILE *, char *);
 extern NCURSES_EXPORT(void) _nc_scroll_oldhash (int n, int top, int bot);
 extern NCURSES_EXPORT(void) _nc_scroll_optimize (void);
 extern NCURSES_EXPORT(void) _nc_set_buffer (FILE *, int);
@@ -2313,6 +2167,8 @@ extern NCURSES_EXPORT(const TERMTYPE2 *) _nc_fallback2 (const char *);
 #else
 #define _nc_fallback2(tp) _nc_fallback(tp)
 #endif
+
+extern NCURSES_EXPORT(void) _nc_copy_termtype(TERMTYPE *, const TERMTYPE *);
 
 #if NCURSES_EXT_NUMBERS
 extern NCURSES_EXPORT(void) _nc_copy_termtype2 (TERMTYPE2 *, const TERMTYPE2 *);
@@ -2336,7 +2192,7 @@ extern NCURSES_EXPORT(void) _nc_comp_userdefs_leaks(void);
 extern NCURSES_EXPORT(void) _nc_db_iterator_leaks(void);
 extern NCURSES_EXPORT(void) _nc_keyname_leaks(void);
 extern NCURSES_EXPORT(void) _nc_names_leaks(void);
-extern NCURSES_EXPORT(void) _nc_tgetent_leak(TERMINAL *);
+extern NCURSES_EXPORT(void) _nc_tgetent_leak(const TERMINAL *);
 extern NCURSES_EXPORT(void) _nc_tgetent_leaks(void);
 #endif
 
@@ -2392,17 +2248,23 @@ extern int __MINGW_NOTHROW _nc_mblen(const char *, size_t);
 
 #endif /* _NC_WINDOWS && !_NC_MSC */
 
+#if defined(_NC_WINDOWS) || defined(_NC_MINGW)
+/* see wcwidth.c */
+extern NCURSES_EXPORT(int) mk_wcwidth(wchar_t);
+#define wcwidth(ucs) _nc_wcwidth(ucs)
+#endif
+
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) IGNORE_RC(mblen(NULL, (size_t) 0)), IGNORE_RC(mbtowc(NULL, NULL, (size_t) 0))
 #define count_mbytes(buffer,length,state) mblen(buffer,length)
 #define check_mbytes(wch,buffer,length,state) \
-	(int) mbtowc(&wch, buffer, length)
+	(int) mbtowc(&(wch), buffer, length)
 #define state_unused
 #elif HAVE_MBRTOWC && HAVE_MBRLEN
 #define reset_mbytes(state) init_mb(state)
-#define count_mbytes(buffer,length,state) mbrlen(buffer,length,&state)
+#define count_mbytes(buffer,length,state) mbrlen(buffer,length,&(state))
 #define check_mbytes(wch,buffer,length,state) \
-	(int) mbrtowc(&wch, buffer, length, &state)
+	(int) mbrtowc(&(wch), buffer, length, &(state))
 #else
 make an error
 #endif
@@ -2451,7 +2313,7 @@ extern NCURSES_EXPORT_VAR(SCREEN *) SP;
 
 /*
  * We don't want to use the lines or columns capabilities internally, because
- * if the application is running multiple screens under X, it's quite possible
+ * if the application is running multiple screens under X, it is quite possible
  * they could all have type xterm but have different sizes!  So...
  */
 #define screen_lines(sp)        (sp)->_lines
@@ -2669,13 +2531,21 @@ extern NCURSES_EXPORT_VAR(TERM_DRIVER) _nc_TINFO_DRIVER;
 #define NC_ISATTY(fd) isatty(fd)
 #endif
 
+/*
+ * Perhaps not "real" but possibly not "fake".
+ */
+#define IsRealTty(fd,value) \
+	(NC_ISATTY(fd) \
+	 && (value = ttyname(fd)) != NULL \
+	 && strncmp(value, "/dev/pts/", 9))
+
 #ifdef USE_TERM_DRIVER
 #  define IsTermInfo(sp)       ((TCBOf(sp) != 0) && ((TCBOf(sp)->drv->isTerminfo)))
 #  define HasTInfoTerminal(sp) ((0 != TerminalOf(sp)) && IsTermInfo(sp))
 #  if defined(EXP_WIN32_DRIVER)
-#    define IsTermInfoOnConsole(sp) (IsTermInfo(sp)&&_nc_console_test(TerminalOf(sp)->Filedes))
+#    define IsTermInfoOnConsole(sp) (IsTermInfo(sp) && _nc_console_test(TerminalOf(sp)->Filedes))
 #  elif defined(USE_WIN32CON_DRIVER)
-#    define IsTermInfoOnConsole(sp) (IsTermInfo(sp)&&_nc_mingw_isconsole(TerminalOf(sp)->Filedes))
+#    define IsTermInfoOnConsole(sp) (IsTermInfo(sp) && _nc_mingw_isconsole(TerminalOf(sp)->Filedes))
 #  else
 #    define IsTermInfoOnConsole(sp) FALSE
 #  endif
@@ -2734,7 +2604,7 @@ extern NCURSES_EXPORT(int)      NCURSES_SP_NAME(_nc_tgetent)(SCREEN*,char*,const
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_do_color)(SCREEN*, int, int, int, NCURSES_SP_OUTC);
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_do_xmc_glitch)(SCREEN*, attr_t);
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_flush)(SCREEN*);
-extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_free_and_exit)(SCREEN*, int) GCC_NORETURN;
+extern GCC_NORETURN NCURSES_EXPORT(void) NCURSES_SP_NAME(_nc_free_and_exit)(SCREEN*, int);
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_freeall)(SCREEN*);
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_hash_map)(SCREEN*);
 extern NCURSES_EXPORT(void)     NCURSES_SP_NAME(_nc_init_acs)(SCREEN*);
@@ -2780,8 +2650,8 @@ extern NCURSES_EXPORT(NCURSES_CONST char *) _nc_unctrl (SCREEN *, chtype);
 #endif
 
 #ifdef EXP_XTERM_1005
-NCURSES_EXPORT(int) _nc_conv_to_utf8(unsigned char *, unsigned, unsigned);
-NCURSES_EXPORT(int) _nc_conv_to_utf32(unsigned *, const char *, unsigned);
+extern NCURSES_EXPORT(int) _nc_conv_to_utf8(unsigned char *, unsigned, unsigned);
+extern NCURSES_EXPORT(int) _nc_conv_to_utf32(unsigned *, const char *, unsigned);
 #endif
 
 #ifdef __cplusplus

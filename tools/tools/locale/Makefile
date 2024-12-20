@@ -7,7 +7,7 @@
 # Modified by John Marino to suit DragonFly needs
 #
 
-CLDRVERSION=	43.0
+CLDRVERSION=	45.0
 UCDVERSION=	15.0.0
 
 .if ${.CURDIR} == ${.OBJDIR}

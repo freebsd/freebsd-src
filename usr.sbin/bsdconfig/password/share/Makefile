@@ -1,4 +1,3 @@
-
 FILESDIR=	${SHAREDIR}/bsdconfig/password
 FILES=		password.subr
 

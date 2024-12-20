@@ -144,7 +144,7 @@ iicbb_attach(device_t dev)
 {
 	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (!sc->iicbus)
 		return (ENXIO);
 
@@ -164,7 +164,7 @@ iicbb_attach(device_t dev)
 	    "io_latency", CTLFLAG_RWTUN, &sc->io_latency,
 	    0, "Estimate of pin toggling latency, microseconds");
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

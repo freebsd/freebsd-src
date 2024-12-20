@@ -186,7 +186,7 @@ quicc_bfe_attach(device_t dev)
 	rle = resource_list_find(&qd->qd_rlist, SYS_RES_IRQ, 0);
 	rle->res = sc->sc_ires;
 
-	qd->qd_dev = device_add_child(dev, NULL, -1);
+	qd->qd_dev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
 	device_set_ivars(qd->qd_dev, (void *)qd);
 	error = device_probe_and_attach(qd->qd_dev);
 

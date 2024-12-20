@@ -138,8 +138,9 @@ MALLOC_DEFINE(M_DPAA2_TXB, "dpaa2_txb", "DPAA2 DMA-mapped buffer (Tx)");
 #define DPNI_IRQ_LINK_CHANGED	1 /* Link state changed */
 #define DPNI_IRQ_EP_CHANGED	2 /* DPAA2 endpoint dis/connected */
 
-/* Default maximum frame length. */
-#define DPAA2_ETH_MFL		(ETHER_MAX_LEN - ETHER_CRC_LEN)
+/* Default maximum RX frame length w/o CRC. */
+#define	DPAA2_ETH_MFL		(ETHER_MAX_LEN_JUMBO + ETHER_VLAN_ENCAP_LEN - \
+    ETHER_CRC_LEN)
 
 /* Minimally supported version of the DPNI API. */
 #define DPNI_VER_MAJOR		7
@@ -548,11 +549,6 @@ dpaa2_ni_attach(device_t dev)
 
 	/* Allocate network interface */
 	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "%s: failed to allocate network interface\n",
-		    __func__);
-		goto err_exit;
-	}
 	sc->ifp = ifp;
 	if_initname(ifp, DPAA2_NI_IFNAME, device_get_unit(sc->dev));
 
@@ -593,11 +589,6 @@ dpaa2_ni_attach(device_t dev)
 	/* Create a taskqueue thread to release new buffers to the pool. */
 	sc->bp_taskq = taskqueue_create(tq_name, M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->bp_taskq);
-	if (sc->bp_taskq == NULL) {
-		device_printf(dev, "%s: failed to allocate task queue: %s\n",
-		    __func__, tq_name);
-		goto close_ni;
-	}
 	taskqueue_start_threads(&sc->bp_taskq, 1, PI_NET, "%s", tq_name);
 
 	/* sc->cleanup_taskq = taskqueue_create("dpaa2_ch cleanup", M_WAITOK, */
@@ -1344,21 +1335,11 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_ni_fq *fq)
 		for (uint64_t j = 0; j < DPAA2_NI_BUFS_PER_TX; j++) {
 			buf = malloc(sizeof(struct dpaa2_buf), M_DPAA2_TXB,
 			    M_WAITOK);
-			if (buf == NULL) {
-				device_printf(dev, "%s: malloc() failed (buf)\n",
-				    __func__);
-				return (ENOMEM);
-			}
 			/* Keep DMA tag and Tx ring linked to the buffer */
 			DPAA2_BUF_INIT_TAGOPT(buf, ch->tx_dmat, tx);
 
 			buf->sgt = malloc(sizeof(struct dpaa2_buf), M_DPAA2_TXB,
 			    M_WAITOK);
-			if (buf->sgt == NULL) {
-				device_printf(dev, "%s: malloc() failed (sgt)\n",
-				    __func__);
-				return (ENOMEM);
-			}
 			/* Link SGT to DMA tag and back to its Tx buffer */
 			DPAA2_BUF_INIT_TAGOPT(buf->sgt, ch->sgt_dmat, buf);
 
@@ -2581,8 +2562,10 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 		DPNI_UNLOCK(sc);
 
 		/* Update maximum frame length. */
-		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd,
-		    mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+		mtu += ETHER_HDR_LEN;
+		if (if_getcapenable(ifp) & IFCAP_VLAN_MTU)
+			mtu += ETHER_VLAN_ENCAP_LEN;
+		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd, mtu);
 		if (error) {
 			device_printf(dev, "%s: failed to update maximum frame "
 			    "length: error=%d\n", __func__, error);
@@ -2952,6 +2935,8 @@ dpaa2_ni_tx(struct dpaa2_ni_softc *sc, struct dpaa2_channel *ch,
 	KASSERT(buf->opt == tx, ("%s: unexpected Tx ring", __func__));
 	KASSERT(btx->fq->chan == ch, ("%s: unexpected channel", __func__));
 #endif /* INVARIANTS */
+
+	BPF_MTAP(sc->ifp, m);
 
 	error = bus_dmamap_load_mbuf_sg(buf->dmat, buf->dmap, m, segs, &nsegs,
 	    BUS_DMA_NOWAIT);

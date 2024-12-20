@@ -64,6 +64,12 @@ static void * eap_mschapv2_init(struct eap_sm *sm)
 		return NULL;
 	data->state = CHALLENGE;
 
+	wpa_printf(MSG_DEBUG, "EAP-%sMSCHAPv2 init%s%s",
+		   sm->eap_fast_mschapv2 ? "FAST-" : "",
+		   sm->peer_challenge && sm->auth_challenge ?
+		   " with preset challenges" : "",
+		   sm->init_phase2 ? " for Phase 2" : "");
+
 	if (sm->auth_challenge) {
 		os_memcpy(data->auth_challenge, sm->auth_challenge,
 			  CHALLENGE_LEN);
@@ -542,6 +548,7 @@ static u8 * eap_mschapv2_getKey(struct eap_sm *sm, void *priv, size_t *len)
 {
 	struct eap_mschapv2_data *data = priv;
 	u8 *key;
+	bool first_is_send;
 
 	if (data->state != SUCCESS || !data->master_key_valid)
 		return NULL;
@@ -550,11 +557,26 @@ static u8 * eap_mschapv2_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	key = os_malloc(*len);
 	if (key == NULL)
 		return NULL;
+	/*
+	 * [MS-CHAP], 3.1.5.1 (Master Session Key (MSK) Derivation
+	 * MSK = MasterReceiveKey + MasterSendKey + 32 bytes zeros (padding)
+	 * On an Authenticator:
+	 * MS-MPPE-Recv-Key = MasterReceiveKey
+	 * MS-MPPE-Send-Key = MasterSendKey
+	 *
+	 * RFC 5422, 3.2.3 (Authenticating Using EAP-FAST-MSCHAPv2)
+	 * MSK = MasterSendKey + MasterReceiveKey
+	 * (i.e., reverse order and no padding)
+	 *
+	 * On Peer, EAP-MSCHAPv2 starts with Send key and EAP-FAST-MSCHAPv2
+	 * starts with Receive key.
+	 */
+	first_is_send = sm->eap_fast_mschapv2;
 	/* MSK = server MS-MPPE-Recv-Key | MS-MPPE-Send-Key */
-	if (get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN, 0,
-				    1) < 0 ||
+	if (get_asymetric_start_key(data->master_key, key, MSCHAPV2_KEY_LEN,
+				    first_is_send, 1) < 0 ||
 	    get_asymetric_start_key(data->master_key, key + MSCHAPV2_KEY_LEN,
-				    MSCHAPV2_KEY_LEN, 1, 1) < 0) {
+				    MSCHAPV2_KEY_LEN, !first_is_send, 1) < 0) {
 		os_free(key);
 		return NULL;
 	}

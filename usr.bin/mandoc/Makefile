@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 MANDOCDIR=	${SRCTOP}/contrib/mandoc
@@ -34,6 +33,7 @@ LIBMDOC_SRCS=	arch.c \
 
 LIBROFF_SRCS=	eqn.c \
 		roff.c \
+		roff_escape.c \
 		roff_html.c \
 		roff_term.c \
 		roff_validate.c \
@@ -48,6 +48,7 @@ LIB_SRCS=	${LIBMAN_SRCS} \
 		chars.c \
 		mandoc.c \
 		mandoc_aux.c \
+		mandoc_dbg.c \
 		mandoc_msg.c \
 		mandoc_ohash.c \
 		mandoc_xr.c \

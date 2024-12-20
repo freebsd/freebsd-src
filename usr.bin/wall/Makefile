@@ -1,4 +1,3 @@
-
 PROG=	wall
 SRCS=	ttymsg.c wall.c
 BINGRP=	tty

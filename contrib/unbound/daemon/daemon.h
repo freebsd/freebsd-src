@@ -58,6 +58,8 @@ struct ub_randstate;
 struct daemon_remote;
 struct respip_set;
 struct shm_main_info;
+struct doq_table;
+struct cookie_secrets;
 
 #include "dnstap/dnstap_config.h"
 #ifdef USE_DNSTAP
@@ -115,6 +117,8 @@ struct daemon {
 	struct module_env* env;
 	/** stack of module callbacks */
 	struct module_stack mods;
+	/** The module stack has been inited */
+	int mods_inited;
 	/** access control, which client IPs are allowed to connect */
 	struct acl_list* acl;
 	/** access control, which interfaces are allowed to connect */
@@ -144,8 +148,12 @@ struct daemon {
 	/** the dnscrypt environment */
 	struct dnsc_env* dnscenv;
 #endif
+	/** the doq connection table */
+	struct doq_table* doq_table;
 	/** reuse existing cache on reload if other conditions allow it. */
 	int reuse_cache;
+	/** the EDNS cookie secrets from the cookie-secret-file */
+	struct cookie_secrets* cookie_secrets;
 };
 
 /**
@@ -161,6 +169,15 @@ struct daemon* daemon_init(void);
  * @return: false on error.
  */
 int daemon_open_shared_ports(struct daemon* daemon);
+
+/**
+ * Do daemon setup that needs privileges
+ * like opening privileged ports or opening device files.
+ * The cfg member pointer must have been set for the daemon.
+ * @param daemon: the daemon.
+ * @return: false on error.
+ */
+int daemon_privileged(struct daemon* daemon);
 
 /**
  * Fork workers and start service.

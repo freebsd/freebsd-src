@@ -56,6 +56,10 @@
 
 static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
 static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
+#else
+/* Usually provided by loader_efi.h */
+extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
 #endif
 
 #ifdef EFI
@@ -63,9 +67,6 @@ static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
 #else
 #define LOADER_PAGE_SIZE PAGE_SIZE
 #endif
-
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
 
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
@@ -120,8 +121,6 @@ static pd_entry_t *PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
 #ifdef EFI
 static pdp_entry_t *PT3;
 static pd_entry_t *PT2;
-
-extern EFI_PHYSICAL_ADDRESS staging;
 
 static void (*trampoline)(uint64_t stack, void *copy_finish, uint64_t kernend,
     uint64_t modulep, pml4_entry_t *pagetable, uint64_t entry);
@@ -210,8 +209,7 @@ elf64_exec(struct preloaded_file *fp)
 
 #ifdef EFI
 	trampcode = copy_staging == COPY_STAGING_ENABLE ?
-	    (vm_offset_t)0x0000000040000000 /* 1G */ :
-	    (vm_offset_t)0x0000000100000000; /* 4G */;
+	    (vm_offset_t)G(1) : (vm_offset_t)G(4);
 	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 1,
 	    (EFI_PHYSICAL_ADDRESS *)&trampcode);
 	if (EFI_ERROR(err)) {
@@ -235,7 +233,7 @@ elf64_exec(struct preloaded_file *fp)
 
 #ifdef EFI
 	if (copy_staging == COPY_STAGING_ENABLE) {
-		PT4 = (pml4_entry_t *)0x0000000040000000; /* 1G */
+		PT4 = (pml4_entry_t *)G(1);
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 3,
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {
@@ -272,11 +270,11 @@ elf64_exec(struct preloaded_file *fp)
 			/*
 			 * The L2 page slots are mapped with 2MB pages for 1GB.
 			 */
-			PT2[i] = (pd_entry_t)i * (2 * 1024 * 1024);
+			PT2[i] = (pd_entry_t)i * M(2);
 			PT2[i] |= PG_V | PG_RW | PG_PS;
 		}
 	} else {
-		PT4 = (pml4_entry_t *)0x0000000100000000; /* 4G */
+		PT4 = (pml4_entry_t *)G(4);
 		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 9,
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {

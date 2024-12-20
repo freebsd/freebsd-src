@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 # RCSid:
-#	$Id: safe_eval.sh,v 1.12 2023/10/12 18:46:53 sjg Exp $
+#	$Id: safe_eval.sh,v 1.20 2024/08/16 00:57:58 sjg Exp $
 #
-#	@(#) Copyright (c) 2023 Simon J. Gerraty
+#	@(#) Copyright (c) 2023-2024 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -38,21 +38,50 @@ safe_eval() {
 }
 
 ##
+# safe_eval_export [file]
+#
+# eval variable assignments only from file
+# taking care to eliminate any shell meta chars
+# export any variables thus set
+#
+safe_eval_export() {
+    eval `cat "$@" | safe_set | ${SED:-sed} 's/^\([^=]*\)=.*/&; export \1/'`
+}
+
+##
 # safe_dot file [...]
 #
 # feed all "file" that exist to safe_eval
 #
 safe_dot() {
-    local ef= f
-
+    eval ${local:-:} ef ex f rc
+    ef=
+    ex=
+    rc=1
+    while :
+    do
+        case "$1" in
+        --export) ex=_export; shift;;
+        *) break;;
+        esac
+    done
     for f in "$@"
     do
-        test -s $f || continue
+        test -s "$f" -a -f "$f" || continue
+        : check for space or tab in "$f"
+        case "$f" in
+        *[[:space:]]*|*" "*|*"	"*) # we cannot do this efficiently
+            dotted="$dotted $f"
+            safe_eval$ex "$f"
+            rc=$?
+            continue
+            ;;
+        esac
         ef="${ef:+$ef }$f"
         dotted="$dotted $f"
     done
-    test -z "$ef" && return 1
-    safe_eval $ef
+    test -z "$ef" && return $rc
+    safe_eval$ex $ef
     return 0
 }
 

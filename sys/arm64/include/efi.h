@@ -44,7 +44,7 @@
 #define	EFI_TIME_UNLOCK()
 #define	EFI_TIME_OWNED()
 
-#define	EFI_RT_HANDLE_FAULTS_DEFAULT	0
+#define	EFI_RT_HANDLE_FAULTS_DEFAULT	1
 #endif
 
 struct efirt_callinfo {

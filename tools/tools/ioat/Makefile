@@ -1,4 +1,3 @@
-
 PROG=	ioatcontrol
 MAN=	ioatcontrol.8
 BINDIR?=	/usr/bin

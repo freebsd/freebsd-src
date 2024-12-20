@@ -488,12 +488,12 @@ pts_kqops_write_event(struct knote *kn, long hint)
 	}
 }
 
-static struct filterops pts_kqops_read = {
+static const struct filterops pts_kqops_read = {
 	.f_isfd = 1,
 	.f_detach = pts_kqops_read_detach,
 	.f_event = pts_kqops_read_event,
 };
-static struct filterops pts_kqops_write = {
+static const struct filterops pts_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = pts_kqops_write_detach,
 	.f_event = pts_kqops_write_event,
@@ -597,7 +597,7 @@ ptsdev_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);
 }
 
-static struct fileops ptsdev_ops = {
+static const struct fileops ptsdev_ops = {
 	.fo_read	= ptsdev_read,
 	.fo_write	= ptsdev_write,
 	.fo_truncate	= invfo_truncate,

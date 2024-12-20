@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: iff,v 1.18 2022/03/21 19:57:18 christos Exp $
+# $File: iff,v 1.20 2024/02/09 00:44:31 christos Exp $
 # iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
 #
 # Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
@@ -10,11 +10,25 @@
 # IFF files begin with an 8 byte FORM header, followed by a 4 character
 # FORM type, which is followed by the first chunk in the FORM.
 
+# URL:		http://fileformats.archiveteam.org/wiki/IFF
+#		https://en.wikipedia.org/wiki/Interchange_File_Format
+# Reference:	https://wiki.amigaos.net/wiki/IFF_FORM_and_Chunk_Registry
+# Note:		called "Interchange File" by DROID via PUID x-fmt/157 and
+#		"IFF file" or as alias expanded "Interchange File Format" by shared MIME-info database from freedesktop.org
 0	string		FORM		IFF data
 #>4	belong		x		\b, FORM is %d bytes long
 # audio formats
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/AIFF
+#		https://en.wikipedia.org/wiki/Audio_Interchange_File_Format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/audio-aiff.trid.xml
+# Note:		called "AIFF Audio Interchange File Format" by TrID and
+#		"Audio Interchange File Format" by DROID via PUID fmt/414
 >8	string		AIFF		\b, AIFF audio
 !:mime	audio/x-aiff
+# not officially registered
+#!:mime	audio/aiff
+!:ext	aiff/aif/aff
 >8	string		AIFC		\b, AIFF-C compressed audio
 !:mime	audio/x-aiff
 >8	string		8SVX		\b, 8SVX 8-bit sampled sound voice
@@ -51,7 +65,14 @@
 >8	string		CTLG		\b, CTLG message catalog
 >8	string		PREF		\b, PREF preferences
 >8	string		DTYP		\b, DTYP datatype description
+# Update:	Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/iff-pch.trid.xml
+# Note:		called "IFF binary Patch" by TrID
 >8	string		PTCH		\b, PTCH binary patch
+#!:mime		application/octet-stream
+#!:mime		application/x-iff
+#!:mime		application/x-amiga-patch
+!:ext		patch/pch
 >8	string		AMFF		\b, AMFF AmigaMetaFile format
 >8	string		WZRD		\b, WZRD StormWIZARD resource
 >8	string		DOC\040		\b, DOC desktop publishing document

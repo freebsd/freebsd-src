@@ -1,4 +1,3 @@
-
 INCS=	capsicum_helpers.h
 
 MAN+=	capsicum_helpers.3

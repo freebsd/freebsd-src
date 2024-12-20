@@ -22,6 +22,6 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	virtio pci network block balloon scsi random console
+SUBDIR=	virtio pci network block balloon scsi random console p9fs
 
 .include <bsd.subdir.mk>

@@ -450,7 +450,7 @@ ds3231_start(void *xdev)
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temp_conv",
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds3231_conv_sysctl, "IU",
-	    "DS3231 start a new temperature converstion");
+	    "DS3231 start a new temperature conversion");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "bbsqw",
 	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ds3231_bbsqw_sysctl, "IU",

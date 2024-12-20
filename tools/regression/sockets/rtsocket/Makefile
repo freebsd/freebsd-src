@@ -1,4 +1,3 @@
-
 PROG=	rtsocket
 MAN=
 

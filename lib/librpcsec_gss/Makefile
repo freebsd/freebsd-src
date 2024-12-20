@@ -1,4 +1,3 @@
-
 PACKAGE=lib${LIB}
 LIB=	rpcsec_gss
 SHLIB_MAJOR= 1
@@ -12,7 +11,6 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 CFLAGS+= -I${SRCTOP}/include
 CFLAGS+= -I${SRCTOP}/lib/libc_rpc
-MK_PROFILE=	no
 
 MAN=	rpcsec_gss.3
 MAN+=	rpc_gss_seccreate.3

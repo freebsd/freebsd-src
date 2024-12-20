@@ -210,7 +210,7 @@ ofw_bus_node_status_okay(phandle_t node)
 
 	OF_getprop(node, "status", status, OFW_STATUS_LEN);
 	if ((len == 5 && (bcmp(status, "okay", len) == 0)) ||
-	    (len == 3 && (bcmp(status, "ok", len))))
+	    (len == 3 && (bcmp(status, "ok", len) == 0)))
 		return (1);
 
 	return (0);
@@ -641,7 +641,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	phandle_t iparent;
 	uint32_t icells, *intr;
 	int err, i, irqnum, nintr, rid;
-	boolean_t extended;
+	bool extended;
 
 	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
@@ -707,7 +707,7 @@ ofw_bus_intr_by_rid(device_t dev, phandle_t node, int wanted_rid,
 	phandle_t iparent;
 	uint32_t icells, *intr;
 	int err, i, nintr, rid;
-	boolean_t extended;
+	bool extended;
 
 	nintr = OF_getencprop_alloc_multi(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);

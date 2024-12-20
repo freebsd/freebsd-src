@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #include <sys/dmu.h>
@@ -575,7 +576,6 @@ dmu_tx_hold_zap_impl(dmu_tx_hold_t *txh, const char *name)
 	dmu_tx_t *tx = txh->txh_tx;
 	dnode_t *dn = txh->txh_dnode;
 	int err;
-	extern int zap_micro_max_size;
 
 	ASSERT(tx->tx_txg == 0);
 
@@ -591,7 +591,7 @@ dmu_tx_hold_zap_impl(dmu_tx_hold_t *txh, const char *name)
 	 *    - 2 grown ptrtbl blocks
 	 */
 	(void) zfs_refcount_add_many(&txh->txh_space_towrite,
-	    zap_micro_max_size, FTAG);
+	    zap_get_micro_max_size(tx->tx_pool->dp_spa), FTAG);
 
 	if (dn == NULL)
 		return;
@@ -799,6 +799,14 @@ dmu_tx_dirty_buf(dmu_tx_t *tx, dmu_buf_impl_t *db)
 				break;
 			case THT_CLONE:
 				if (blkid >= beginblk && blkid <= endblk)
+					match_offset = TRUE;
+				/*
+				 * They might have to increase nlevels,
+				 * thus dirtying the new TLIBs.  Or the
+				 * might have to change the block size,
+				 * thus dirying the new lvl=0 blk=0.
+				 */
+				if (blkid == 0)
 					match_offset = TRUE;
 				break;
 			default:
@@ -1377,6 +1385,13 @@ dmu_tx_pool(dmu_tx_t *tx)
 	return (tx->tx_pool);
 }
 
+/*
+ * Register a callback to be executed at the end of a TXG.
+ *
+ * Note: This currently exists for outside consumers, specifically the ZFS OSD
+ * for Lustre. Please do not remove before checking that project. For examples
+ * on how to use this see `ztest_commit_callback`.
+ */
 void
 dmu_tx_callback_register(dmu_tx_t *tx, dmu_tx_callback_func_t *func, void *data)
 {
@@ -1520,11 +1535,8 @@ dmu_tx_hold_sa(dmu_tx_t *tx, sa_handle_t *hdl, boolean_t may_grow)
 		ASSERT(tx->tx_txg == 0);
 		dmu_tx_hold_spill(tx, object);
 	} else {
-		dnode_t *dn;
-
 		DB_DNODE_ENTER(db);
-		dn = DB_DNODE(db);
-		if (dn->dn_have_spill) {
+		if (DB_DNODE(db)->dn_have_spill) {
 			ASSERT(tx->tx_txg == 0);
 			dmu_tx_hold_spill(tx, object);
 		}

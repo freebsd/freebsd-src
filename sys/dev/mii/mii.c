@@ -58,7 +58,7 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
-static bus_child_detached_t miibus_child_detached;
+static bus_child_deleted_t miibus_child_deleted;
 static bus_child_location_t miibus_child_location;
 static bus_child_pnpinfo_t miibus_child_pnpinfo;
 static device_detach_t miibus_detach;
@@ -84,7 +84,7 @@ static device_method_t miibus_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	miibus_print_child),
 	DEVMETHOD(bus_read_ivar,	miibus_read_ivar),
-	DEVMETHOD(bus_child_detached,	miibus_child_detached),
+	DEVMETHOD(bus_child_deleted,	miibus_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo,	miibus_child_pnpinfo),
 	DEVMETHOD(bus_child_location,	miibus_child_location),
 	DEVMETHOD(bus_hinted_child,	miibus_hinted_child),
@@ -147,7 +147,8 @@ miibus_attach(device_t dev)
 	if_setcapenablebit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
 	LIST_INIT(&mii->mii_phys);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -167,7 +168,7 @@ miibus_detach(device_t dev)
 }
 
 static void
-miibus_child_detached(device_t dev, device_t child)
+miibus_child_deleted(device_t dev, device_t child)
 {
 	struct mii_attach_args *args;
 
@@ -407,7 +408,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		ivars->ifmedia_upd = ifmedia_upd;
 		ivars->ifmedia_sts = ifmedia_sts;
 		ivars->mii_flags = flags;
-		*miibus = device_add_child(dev, "miibus", -1);
+		*miibus = device_add_child(dev, "miibus", DEVICE_UNIT_ANY);
 		if (*miibus == NULL) {
 			rv = ENXIO;
 			goto fail;
@@ -496,7 +497,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		if (args == NULL)
 			goto skip;
 		bcopy((char *)&ma, (char *)args, sizeof(ma));
-		phy = device_add_child(*miibus, NULL, -1);
+		phy = device_add_child(*miibus, NULL, DEVICE_UNIT_ANY);
 		if (phy == NULL) {
 			free(args, M_DEVBUF);
 			goto skip;
@@ -520,16 +521,12 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 			rv = ENXIO;
 			goto fail;
 		}
-		rv = bus_generic_attach(dev);
-		if (rv != 0)
-			goto fail;
+		bus_attach_children(dev);
 
 		/* Attaching of the PHY drivers is done in miibus_attach(). */
 		return (0);
 	}
-	rv = bus_generic_attach(*miibus);
-	if (rv != 0)
-		goto fail;
+	bus_attach_children(*miibus);
 
 	return (0);
 

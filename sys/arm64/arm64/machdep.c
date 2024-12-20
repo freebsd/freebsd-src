@@ -131,7 +131,6 @@ static struct trapframe proc0_tf;
 int early_boot = 1;
 int cold = 1;
 static int boot_el;
-static uint64_t hcr_el2;
 
 struct kva_md_info kmi;
 
@@ -188,11 +187,6 @@ pan_enable(void)
 {
 
 	/*
-	 * The LLVM integrated assembler doesn't understand the PAN
-	 * PSTATE field. Because of this we need to manually create
-	 * the instruction in an asm block. This is equivalent to:
-	 * msr pan, #1
-	 *
 	 * This sets the PAN bit, stopping the kernel from accessing
 	 * memory when userspace can also access it unless the kernel
 	 * uses the userspace load/store instructions.
@@ -200,19 +194,17 @@ pan_enable(void)
 	if (has_pan) {
 		WRITE_SPECIALREG(sctlr_el1,
 		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
-		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
+		__asm __volatile(
+		    ".arch_extension pan	\n"
+		    "msr pan, #1		\n"
+		    ".arch_extension nopan	\n");
 	}
 }
 
 bool
 has_hyp(void)
 {
-
-	/*
-	 * XXX The E2H check is wrong, but it's close enough for now.  Needs to
-	 * be re-evaluated once we're running regularly in EL2.
-	 */
-	return (boot_el == CURRENTEL_EL_EL2 && (hcr_el2 & HCR_E2H) == 0);
+	return (boot_el == CURRENTEL_EL_EL2);
 }
 
 bool
@@ -754,7 +746,7 @@ try_load_dtb(caddr_t kmdp)
 		return;
 	}
 
-	if (OF_install(OFW_FDT, 0) == FALSE)
+	if (!OF_install(OFW_FDT, 0))
 		panic("Cannot install FDT");
 
 	if (OF_init((void *)dtbp) != 0)
@@ -807,10 +799,10 @@ bus_probe(void)
 	}
 	/* If no order or an invalid order was set use the default */
 	if (arm64_bus_method == ARM64_BUS_NONE) {
-		if (has_fdt)
-			arm64_bus_method = ARM64_BUS_FDT;
-		else if (has_acpi)
+		if (has_acpi)
 			arm64_bus_method = ARM64_BUS_ACPI;
+		else if (has_fdt)
+			arm64_bus_method = ARM64_BUS_FDT;
 	}
 
 	/*
@@ -905,9 +897,8 @@ initarm(struct arm64_bootparams *abp)
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
 	boot_el = abp->boot_el;
-	hcr_el2 = abp->hcr_el2;
 
-	/* Parse loader or FDT boot parametes. Determine last used address. */
+	/* Parse loader or FDT boot parameters. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
 
 	/* Find the kernel address */

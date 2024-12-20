@@ -17,3 +17,12 @@ FBSD_1.0 {
 FBSD_1.3 {
 	fdlopen;
 };
+
+FBSD_1.8 {
+	rtld_get_var;
+	rtld_set_var;
+};
+
+FBSDprivate_1.0 {
+	_dl_iterate_phdr_locked;
+};

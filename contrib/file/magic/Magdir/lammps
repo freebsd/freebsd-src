@@ -1,7 +1,6 @@
-#------------------------------------------------------------------------------
-# $File: lammps,v 1.1 2021/03/14 16:24:18 christos Exp $
-#
 
+#------------------------------------------------------------------------------
+# $File: lammps,v 1.2 2024/06/10 23:09:52 christos Exp $
 # Magic file patterns for use with file(1) for the
 # LAMMPS molecular dynamics simulation software.
 # https://lammps.sandia.gov

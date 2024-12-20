@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 1998,2000 Free Software Foundation, Inc.                         #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -30,7 +30,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: tdlint,v 1.7 2020/02/02 23:34:34 tom Exp $
+# $Id: tdlint,v 1.8 2021/09/04 15:55:29 tom Exp $
 #
 # Lint-script that allows user's own lint libraries, in addition to the ones
 # installed in the system.
@@ -45,16 +45,16 @@ if test -z "$ARCH" ; then
 	exit 1
 else
 	case $ARCH in
-	AIX)	set - $* -Nn4000
+	AIX)	set - "$@" -Nn4000
 		;;
-	IRIX)	set - $* -n -lc
+	IRIX)	set - "$@" -n -lc
 		;;
-	FreeBSD) set - $* -g -p -u -v -z
+	FreeBSD) set - "$@" -g -p -u -v -z
 		;;
 	SunOS)
 		case `uname -r` in
 		5.*)	ARCH=Solaris
-			set - $* -n -lc
+			set - "$@" -n -lc
 			;;
 		esac
 		;;
@@ -63,7 +63,7 @@ fi
 # LIBDIR=$HOME/lib/$ARCH/lint ;export LIBDIR
 for p in $HOME/lib/$ARCH/lint /usr/lib/lint /usr/lib
 do
-	if [ -d $p ]
+	if [ -d "$p" ]
 	then
 		DIRS="$DIRS $p"
 	fi
@@ -74,15 +74,15 @@ do
 	case $1 in
 	-D*\"*)	;;
 	-L*)
-		DIRS="`echo $1|sed -e 's/^-L//'` $DIRS"
+		DIRS="`echo "$1"|sed -e 's/^-L//'` $DIRS"
 		;;
 	-l*)
-		lib="llib-l`echo $1 | sed -e 's/^-l//'`.ln"
+		lib="llib-l`echo "$1" | sed -e 's/^-l//'`.ln"
 		found=no
 		for p in $DIRS
 		do
-			echo -n testing $p/$lib
-			if [ -f $p/$lib ]
+			printf "testing %s" "$p/$lib"
+			if [ -f "$p/$lib" ]
 			then
 				LIBS="$LIBS $p/$lib"
 				echo " (ok)"
@@ -111,4 +111,4 @@ do
 	shift
 done
 #
-eval lint $OPT $FILES $LIBS
+exec lint $OPT $FILES $LIBS

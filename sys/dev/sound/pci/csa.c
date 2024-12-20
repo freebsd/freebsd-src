@@ -108,46 +108,25 @@ static int
 clkrun_hack(int run)
 {
 #ifdef __i386__
-	devclass_t		pci_devclass;
-	device_t		*pci_devices, *pci_children, *busp, *childp;
-	int			pci_count = 0, pci_childcount = 0;
-	int			i, j, port;
+	device_t		child;
+	int			port;
 	u_int16_t		control;
 	bus_space_tag_t		btag;
 
-	if ((pci_devclass = devclass_find("pci")) == NULL) {
-		return ENXIO;
-	}
+	child = pci_find_device(0x8086, 0x7113);
+	if (child == NULL)
+		return (ENXIO);
 
-	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
+	port = (pci_read_config(child, 0x41, 1) << 8) + 0x10;
+	/* XXX */
+	btag = X86_BUS_SPACE_IO;
 
-	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
-		pci_childcount = 0;
-		if (device_get_children(*busp, &pci_children, &pci_childcount))
-			continue;
-		for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
-			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
-				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
-				/* XXX */
-				btag = X86_BUS_SPACE_IO;
-
-				control = bus_space_read_2(btag, 0x0, port);
-				control &= ~0x2000;
-				control |= run? 0 : 0x2000;
-				bus_space_write_2(btag, 0x0, port, control);
-				free(pci_devices, M_TEMP);
-				free(pci_children, M_TEMP);
-				return 0;
-			}
-		}
-		free(pci_children, M_TEMP);
-	}
-
-	free(pci_devices, M_TEMP);
-	return ENXIO;
-#else
-	return 0;
+	control = bus_space_read_2(btag, 0x0, port);
+	control &= ~0x2000;
+	control |= run? 0 : 0x2000;
+	bus_space_write_2(btag, 0x0, port, control);
 #endif
+	return (0);
 }
 
 static struct csa_card cards_4610[] = {
@@ -294,28 +273,20 @@ csa_attach(device_t dev)
 	/* Attach the children. */
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL) {
-		error = ENOMEM;
-		goto err_teardown;
-	}
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
 	func->varinfo = &scp->binfo;
 	func->func = SCF_PCM;
-	scp->pcm = device_add_child(dev, "pcm", -1);
+	scp->pcm = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 	device_set_ivars(scp->pcm, func);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL) {
-		error = ENOMEM;
-		goto err_teardown;
-	}
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
 	func->varinfo = &scp->binfo;
 	func->func = SCF_MIDI;
-	scp->midi = device_add_child(dev, "midi", -1);
+	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 	device_set_ivars(scp->midi, func);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -330,34 +301,33 @@ err_io:
 	return (error);
 }
 
+static void
+csa_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 static int
 csa_detach(device_t dev)
 {
 	csa_res *resp;
 	sc_p scp;
-	struct sndcard_func *func;
 	int err;
 
 	scp = device_get_softc(dev);
 	resp = &scp->res;
 
 	if (scp->midi != NULL) {
-		func = device_get_ivars(scp->midi);
 		err = device_delete_child(dev, scp->midi);
 		if (err != 0)
 			return err;
-		if (func != NULL)
-			free(func, M_DEVBUF);
 		scp->midi = NULL;
 	}
 
 	if (scp->pcm != NULL) {
-		func = device_get_ivars(scp->pcm);
 		err = device_delete_child(dev, scp->pcm);
 		if (err != 0)
 			return err;
-		if (func != NULL)
-			free(func, M_DEVBUF);
 		scp->pcm = NULL;
 	}
 
@@ -1081,6 +1051,7 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	csa_child_deleted),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),

@@ -635,9 +635,6 @@ static device_method_t attimer_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		attimer_probe),
 	DEVMETHOD(device_attach,	attimer_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	attimer_resume),
 	{ 0, 0 }
 };

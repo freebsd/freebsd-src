@@ -81,13 +81,29 @@ driver supports the following models:
 .Pp
 .Bl -bullet -compact
 .It
+I220-V
+.It
+I221-V
+.It
 I225-LM
+.It
+I225-LMvP(2)
 .It
 I225-V
 .It
-I225-IT
+I225-IT, I225-IT(2)
 .It
-I225-K
+I225-K, I225-K(2)
+.It
+I226-LM
+.It
+I226-LMvP
+.It
+I226-V
+.It
+I226-IT
+.It
+I226-K
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -100,21 +116,6 @@ Disable or enable hardware stripping of CRC field.
 This is mostly useful on BMC/IPMI shared interfaces where stripping the
 CRC causes remote access over IPMI to fail.
 Default 0 (enabled).
-.It Va hw.igc.rx_int_delay
-This value delays the generation of receive interrupts in units
-of 1.024 microseconds.
-The default value is 0, since adapters may hang with this feature being
-enabled.
-.It Va hw.igc.rx_abs_int_delay
-If hw.igc.rx_int_delay is non-zero, this tunable limits the
-maximum delay in which a receive interrupt is generated.
-.It Va hw.igc.tx_int_delay
-This value delays the generation of transmit interrupts in units
-of 1.024 microseconds.
-The default value is 64.
-.It Va hw.igc.tx_abs_int_delay
-If hw.igc.tx_int_delay is non-zero, this tunable limits the
-maximum delay in which a transmit interrupt is generated.
 .It Va hw.igc.sbp
 Show bad packets when in promiscuous mode.
 Default is false.

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
  */
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
 
@@ -48,6 +49,22 @@ gve_tx_fifo_init(struct gve_priv *priv, struct gve_tx_ring *tx)
 }
 
 static void
+gve_tx_free_ring_gqi(struct gve_priv *priv, int i)
+{
+	struct gve_tx_ring *tx = &priv->tx[i];
+
+	if (tx->desc_ring != NULL) {
+		gve_dma_free_coherent(&tx->desc_ring_mem);
+		tx->desc_ring = NULL;
+	}
+
+	if (tx->info != NULL) {
+		free(tx->info, M_GVE);
+		tx->info = NULL;
+	}
+}
+
+static void
 gve_tx_free_ring(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
@@ -56,28 +73,61 @@ gve_tx_free_ring(struct gve_priv *priv, int i)
 	/* Safe to call even if never alloced */
 	gve_free_counters((counter_u64_t *)&tx->stats, NUM_TX_STATS);
 
-	if (tx->br != NULL) {
-		buf_ring_free(tx->br, M_DEVBUF);
-		tx->br = NULL;
-	}
-
 	if (mtx_initialized(&tx->ring_mtx))
 		mtx_destroy(&tx->ring_mtx);
-
-	if (tx->info != NULL) {
-		free(tx->info, M_GVE);
-		tx->info = NULL;
-	}
-
-	if (tx->desc_ring != NULL) {
-		gve_dma_free_coherent(&tx->desc_ring_mem);
-		tx->desc_ring = NULL;
-	}
 
 	if (com->q_resources != NULL) {
 		gve_dma_free_coherent(&com->q_resources_mem);
 		com->q_resources = NULL;
 	}
+
+	if (tx->br != NULL) {
+		buf_ring_free(tx->br, M_DEVBUF);
+		tx->br = NULL;
+	}
+
+	if (gve_is_gqi(priv))
+		gve_tx_free_ring_gqi(priv, i);
+	else
+		gve_tx_free_ring_dqo(priv, i);
+}
+
+static int
+gve_tx_alloc_ring_gqi(struct gve_priv *priv, int i)
+{
+	struct gve_tx_ring *tx = &priv->tx[i];
+	struct gve_ring_com *com = &tx->com;
+	int err;
+
+	err = gve_dma_alloc_coherent(priv,
+	    sizeof(union gve_tx_desc) * priv->tx_desc_cnt,
+	    CACHE_LINE_SIZE, &tx->desc_ring_mem);
+	if (err != 0) {
+		device_printf(priv->dev,
+		    "Failed to alloc desc ring for tx ring %d", i);
+		goto abort;
+	}
+	tx->desc_ring = tx->desc_ring_mem.cpu_addr;
+
+	com->qpl = &priv->qpls[i];
+	if (com->qpl == NULL) {
+		device_printf(priv->dev, "No QPL left for tx ring %d\n", i);
+		err = ENOMEM;
+		goto abort;
+	}
+
+	err = gve_tx_fifo_init(priv, tx);
+	if (err != 0)
+		goto abort;
+
+	tx->info = malloc(
+	    sizeof(struct gve_tx_buffer_state) * priv->tx_desc_cnt,
+	    M_GVE, M_WAITOK | M_ZERO);
+	return (0);
+
+abort:
+	gve_tx_free_ring_gqi(priv, i);
+	return (err);
 }
 
 static int
@@ -91,18 +141,12 @@ gve_tx_alloc_ring(struct gve_priv *priv, int i)
 	com->priv = priv;
 	com->id = i;
 
-	com->qpl = &priv->qpls[i];
-	if (com->qpl == NULL) {
-		device_printf(priv->dev, "No QPL left for tx ring %d\n", i);
-		return (ENOMEM);
-	}
-
-	err = gve_tx_fifo_init(priv, tx);
+	if (gve_is_gqi(priv))
+		err = gve_tx_alloc_ring_gqi(priv, i);
+	else
+		err = gve_tx_alloc_ring_dqo(priv, i);
 	if (err != 0)
 		goto abort;
-
-	tx->info = malloc(sizeof(struct gve_tx_buffer_state) * priv->tx_desc_cnt,
-	    M_GVE, M_WAITOK | M_ZERO);
 
 	sprintf(mtx_name, "gvetx%d", i);
 	mtx_init(&tx->ring_mtx, mtx_name, NULL, MTX_DEF);
@@ -115,19 +159,11 @@ gve_tx_alloc_ring(struct gve_priv *priv, int i)
 	err = gve_dma_alloc_coherent(priv, sizeof(struct gve_queue_resources),
 	    PAGE_SIZE, &com->q_resources_mem);
 	if (err != 0) {
-		device_printf(priv->dev, "Failed to alloc queue resources for tx ring %d", i);
+		device_printf(priv->dev,
+		    "Failed to alloc queue resources for tx ring %d", i);
 		goto abort;
 	}
 	com->q_resources = com->q_resources_mem.cpu_addr;
-
-	err = gve_dma_alloc_coherent(priv,
-	    sizeof(union gve_tx_desc) * priv->tx_desc_cnt,
-	    CACHE_LINE_SIZE, &tx->desc_ring_mem);
-	if (err != 0) {
-		device_printf(priv->dev, "Failed to alloc desc ring for tx ring %d", i);
-		goto abort;
-	}
-	tx->desc_ring = tx->desc_ring_mem.cpu_addr;
 
 	return (0);
 
@@ -204,12 +240,15 @@ gve_clear_tx_ring(struct gve_priv *priv, int i)
 }
 
 static void
-gve_start_tx_ring(struct gve_priv *priv, int i)
+gve_start_tx_ring(struct gve_priv *priv, int i,
+    void (cleanup) (void *arg, int pending))
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
 	struct gve_ring_com *com = &tx->com;
 
-	NET_TASK_INIT(&com->cleanup_task, 0, gve_tx_cleanup_tq, tx);
+	atomic_store_bool(&tx->stopped, false);
+
+	NET_TASK_INIT(&com->cleanup_task, 0, cleanup, tx);
 	com->cleanup_tq = taskqueue_create_fast("gve tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &com->cleanup_tq);
 	taskqueue_start_threads(&com->cleanup_tq, 1, PI_NET, "%s txq %d",
@@ -233,8 +272,12 @@ gve_create_tx_rings(struct gve_priv *priv)
 	if (gve_get_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK))
 		return (0);
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++)
-		gve_clear_tx_ring(priv, i);
+	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+		if (gve_is_gqi(priv))
+			gve_clear_tx_ring(priv, i);
+		else
+			gve_clear_tx_ring_dqo(priv, i);
+	}
 
 	err = gve_adminq_create_tx_queues(priv, priv->tx_cfg.num_queues);
 	if (err != 0)
@@ -254,7 +297,10 @@ gve_create_tx_rings(struct gve_priv *priv)
 		com->db_offset = 4 * be32toh(com->q_resources->db_index);
 		com->counter_idx = be32toh(com->q_resources->counter_index);
 
-		gve_start_tx_ring(priv, i);
+		if (gve_is_gqi(priv))
+			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq);
+		else
+			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq_dqo);
 	}
 
 	gve_set_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK);
@@ -382,6 +428,11 @@ gve_tx_cleanup_tq(void *arg, int pending)
 	if (todo != 0) {
 		gve_db_bar_write_4(priv, tx->com.irq_db_offset, GVE_IRQ_MASK);
 		taskqueue_enqueue(tx->com.cleanup_tq, &tx->com.cleanup_task);
+	}
+
+	if (atomic_load_bool(&tx->stopped) && space_freed) {
+		atomic_store_bool(&tx->stopped, false);
+		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
 	}
 }
 
@@ -627,8 +678,7 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	bytes_required = gve_fifo_bytes_required(tx, first_seg_len, pkt_len);
 	if (__predict_false(!gve_can_tx(tx, bytes_required))) {
 		counter_enter();
-		counter_u64_add_protected(tx->stats.tx_dropped_pkt_nospace_device, 1);
-		counter_u64_add_protected(tx->stats.tx_dropped_pkt, 1);
+		counter_u64_add_protected(tx->stats.tx_delayed_pkt_nospace_device, 1);
 		counter_exit();
 		return (ENOBUFS);
 	}
@@ -689,19 +739,86 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 	return (0);
 }
 
+static int
+gve_xmit_mbuf(struct gve_tx_ring *tx,
+    struct mbuf **mbuf)
+{
+	if (gve_is_gqi(tx->com.priv))
+		return (gve_xmit(tx, *mbuf));
+
+	if (gve_is_qpl(tx->com.priv))
+		return (gve_xmit_dqo_qpl(tx, *mbuf));
+
+	/*
+	 * gve_xmit_dqo might attempt to defrag the mbuf chain.
+	 * The reference is passed in so that in the case of
+	 * errors, the new mbuf chain is what's put back on the br.
+	 */
+	return (gve_xmit_dqo(tx, mbuf));
+}
+
+/*
+ * Has the side-effect of stopping the xmit queue by setting tx->stopped
+ */
+static int
+gve_xmit_retry_enobuf_mbuf(struct gve_tx_ring *tx,
+    struct mbuf **mbuf)
+{
+	int err;
+
+	atomic_store_bool(&tx->stopped, true);
+
+	/*
+	 * Room made in the queue BEFORE the barrier will be seen by the
+	 * gve_xmit_mbuf retry below.
+	 *
+	 * If room is made in the queue AFTER the barrier, the cleanup tq
+	 * iteration creating the room will either see a tx->stopped value
+	 * of 0 or the 1 we just wrote:
+	 *
+	 *   If it sees a 1, then it would enqueue the xmit tq. Enqueue
+	 *   implies a retry on the waiting pkt.
+	 *
+	 *   If it sees a 0, then that implies a previous iteration overwrote
+	 *   our 1, and that iteration would enqueue the xmit tq. Enqueue
+	 *   implies a retry on the waiting pkt.
+	 */
+	atomic_thread_fence_seq_cst();
+
+	err = gve_xmit_mbuf(tx, mbuf);
+	if (err == 0)
+		atomic_store_bool(&tx->stopped, false);
+
+	return (err);
+}
+
 static void
 gve_xmit_br(struct gve_tx_ring *tx)
 {
 	struct gve_priv *priv = tx->com.priv;
 	struct ifnet *ifp = priv->ifp;
 	struct mbuf *mbuf;
+	int err;
 
 	while ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
 	    (mbuf = drbr_peek(ifp, tx->br)) != NULL) {
+		err = gve_xmit_mbuf(tx, &mbuf);
 
-		if (__predict_false(gve_xmit(tx, mbuf) != 0)) {
-			drbr_putback(ifp, tx->br, mbuf);
-			taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
+		/*
+		 * We need to stop this taskqueue when we can't xmit the pkt due
+		 * to lack of space in the NIC ring (ENOBUFS). The retry exists
+		 * to guard against a TOCTTOU bug that could end up freezing the
+		 * queue forever.
+		 */
+		if (__predict_false(mbuf != NULL && err == ENOBUFS))
+			err = gve_xmit_retry_enobuf_mbuf(tx, &mbuf);
+
+		if (__predict_false(err != 0 && mbuf != NULL)) {
+			if (err == EINVAL) {
+				drbr_advance(ifp, tx->br);
+				m_freem(mbuf);
+			} else
+				drbr_putback(ifp, tx->br, mbuf);
 			break;
 		}
 
@@ -710,7 +827,12 @@ gve_xmit_br(struct gve_tx_ring *tx)
 
 		bus_dmamap_sync(tx->desc_ring_mem.tag, tx->desc_ring_mem.map,
 		    BUS_DMASYNC_PREWRITE);
-		gve_db_bar_write_4(priv, tx->com.db_offset, tx->req);
+
+		if (gve_is_gqi(priv))
+			gve_db_bar_write_4(priv, tx->com.db_offset, tx->req);
+		else
+			gve_db_bar_dqo_write_4(priv, tx->com.db_offset,
+			    tx->dqo.desc_tail);
 	}
 }
 
@@ -763,7 +885,8 @@ gve_xmit_ifp(if_t ifp, struct mbuf *mbuf)
 	is_br_empty = drbr_empty(ifp, tx->br);
 	err = drbr_enqueue(ifp, tx->br, mbuf);
 	if (__predict_false(err != 0)) {
-		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
+		if (!atomic_load_bool(&tx->stopped))
+			taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
 		counter_enter();
 		counter_u64_add_protected(tx->stats.tx_dropped_pkt_nospace_bufring, 1);
 		counter_u64_add_protected(tx->stats.tx_dropped_pkt, 1);
@@ -778,9 +901,8 @@ gve_xmit_ifp(if_t ifp, struct mbuf *mbuf)
 	if (is_br_empty && (GVE_RING_TRYLOCK(tx) != 0)) {
 		gve_xmit_br(tx);
 		GVE_RING_UNLOCK(tx);
-	} else {
+	} else if (!atomic_load_bool(&tx->stopped))
 		taskqueue_enqueue(tx->xmit_tq, &tx->xmit_task);
-	}
 
 	return (0);
 }

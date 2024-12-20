@@ -28,9 +28,6 @@
 
 struct mlx5_core_dev;
 
-int mlx5_encryption_key_create(struct mlx5_core_dev *mdev, u32 pdn,
-    const void *p_key, u32 key_len, u32 * p_obj_id);
-int mlx5_encryption_key_destroy(struct mlx5_core_dev *mdev, u32 oid);
 int mlx5_tls_open_tis(struct mlx5_core_dev *mdev, int tc, int tdn, int pdn, u32 *p_tisn);
 void mlx5_tls_close_tis(struct mlx5_core_dev *mdev, u32 tisn);
 int mlx5_tls_open_tir(struct mlx5_core_dev *mdev, int tdn, int rqtn, u32 *p_tirn);

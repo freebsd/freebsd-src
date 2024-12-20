@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2010,2015 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,26 +27,27 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_new.3x,v 1.18 2020/10/24 08:57:51 tom Exp $
-.TH menu_new 3X ""
+.\" $Id: menu_new.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH menu_new 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBnew_menu\fP,
-\fBfree_menu\fR \- create and destroy menus
+\fBfree_menu\fP \-
+create and destroy menus
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBMENU *new_menu(ITEM **\fP\fIitems\fP\fB);\fP
-.br
-\fBint free_menu(MENU *\fP\fImenu\fP\fB);\fP
-.br
-.SH DESCRIPTION
-The function \fBnew_menu\fR creates a new menu connected to a specified item
-pointer array (which must be \fBNULL\fR-terminated).
+.nf
+\fB#include <menu.h>
 .PP
-The function \fBfree_menu\fR disconnects \fImenu\fR from its item array
+\fBMENU *new_menu(ITEM **\fIitems\fP);
+\fBint free_menu(MENU *\fImenu\fP);
+.fi
+.SH DESCRIPTION
+The function \fBnew_menu\fP creates a new menu connected to a specified item
+pointer array (which must be \fBNULL\fP-terminated).
+.PP
+The function \fBfree_menu\fP disconnects \fImenu\fP from its item array
 and frees the storage allocated for the menu.
 .SH RETURN VALUE
-The function \fBnew_menu\fR returns \fBNULL\fR on error.
+The function \fBnew_menu\fP returns \fBNULL\fP on error.
 It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_NOT_CONNECTED
@@ -56,24 +56,19 @@ No items are connected to the menu.
 .B E_SYSTEM_ERROR
 System error occurred, e.g., malloc failure.
 .PP
-The function \fBfree_menu\fR returns one of the following:
+The function \fBfree_menu\fP returns one of the following:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
+System error occurred (see \fBerrno\fP(3)).
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
 .B E_POSTED
 The menu has already been posted.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -81,3 +76,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

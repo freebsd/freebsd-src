@@ -1625,7 +1625,8 @@ relock:
 		 */
 		if ((tip->i_mode & IFMT) == IFDIR) {
 			if ((tip->i_effnlink > 2) ||
-			    !ufs_dirempty(tip, tdp->i_number, tcnp->cn_cred)) {
+			    !ufs_dirempty(tip, tdp->i_number, tcnp->cn_cred,
+			    (tcnp->cn_flags & IGNOREWHITEOUT) != 0)) {
 				error = ENOTEMPTY;
 				goto bad;
 			}
@@ -2281,7 +2282,8 @@ ufs_rmdir(
 		error = EINVAL;
 		goto out;
 	}
-	if (!ufs_dirempty(ip, dp->i_number, cnp->cn_cred)) {
+	if (!ufs_dirempty(ip, dp->i_number, cnp->cn_cred,
+	    (cnp->cn_flags & IGNOREWHITEOUT) != 0)) {
 		error = ENOTEMPTY;
 		goto out;
 	}

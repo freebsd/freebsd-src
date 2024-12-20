@@ -93,10 +93,9 @@ find_empty_family_id(const char *family_name)
 }
 
 uint32_t
-genl_register_family(const char *family_name, size_t hdrsize, int family_version,
-    int max_attr_idx)
+genl_register_family(const char *family_name, size_t hdrsize,
+    uint16_t family_version, uint16_t max_attr_idx)
 {
-	uint32_t family_id = 0;
 
 	MPASS(family_name != NULL);
 	if (find_family(family_name) != NULL)
@@ -111,13 +110,13 @@ genl_register_family(const char *family_name, size_t hdrsize, int family_version
 	gf->family_version = family_version;
 	gf->family_hdrsize = hdrsize;
 	gf->family_attr_max = max_attr_idx;
-	NL_LOG(LOG_DEBUG2, "Registered family %s id %d", gf->family_name, gf->family_id);
-	family_id = gf->family_id;
+	NL_LOG(LOG_DEBUG2, "Registered family %s id %d", gf->family_name,
+	    gf->family_id);
 	EVENTHANDLER_INVOKE(genl_family_event, gf, CTRL_CMD_NEWFAMILY);
 
 	GENL_UNLOCK();
 
-	return (family_id);
+	return (gf->family_id);
 }
 
 static void
@@ -252,7 +251,7 @@ genl_register_group(const char *family_name, const char *group_name)
 
 /* accessors */
 struct genl_family *
-genl_get_family(uint32_t family_id)
+genl_get_family(uint16_t family_id)
 {
 	return ((family_id < MAX_FAMILIES) ? &families[family_id] : NULL);
 }
@@ -263,7 +262,7 @@ genl_get_family_name(const struct genl_family *gf)
 	return (gf->family_name);
 }
 
-uint32_t
+uint16_t
 genl_get_family_id(const struct genl_family *gf)
 {
 	return (gf->family_id);

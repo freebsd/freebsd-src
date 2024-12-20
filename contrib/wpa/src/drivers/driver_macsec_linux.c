@@ -32,6 +32,10 @@
 
 #define UNUSED_SCI 0xffffffffffffffff
 
+#if LIBNL_VER_NUM >= LIBNL_VER(3, 6)
+#define LIBNL_HAS_OFFLOAD
+#endif
+
 struct cb_arg {
 	struct macsec_drv_data *drv;
 	u32 *pn;
@@ -73,10 +77,18 @@ struct macsec_drv_data {
 	bool replay_protect;
 	bool replay_protect_set;
 
+#ifdef LIBNL_HAS_OFFLOAD
+	enum macsec_offload offload;
+	bool offload_set;
+#endif /* LIBNL_HAS_OFFLOAD */
+
 	u32 replay_window;
 
 	u8 encoding_sa;
 	bool encoding_sa_set;
+
+	u64 cipher_suite;
+	bool cipher_suite_set;
 };
 
 
@@ -224,6 +236,15 @@ static int try_commit(struct macsec_drv_data *drv)
 			rtnl_link_macsec_set_window(drv->link,
 						    drv->replay_window);
 	}
+
+#ifdef LIBNL_HAS_OFFLOAD
+	if (drv->offload_set) {
+		wpa_printf(MSG_DEBUG, DRV_PREFIX
+			   "%s: try_commit offload=%d",
+			   drv->ifname, drv->offload);
+		rtnl_link_macsec_set_offload(drv->link, drv->offload);
+	}
+#endif /* LIBNL_HAS_OFFLOAD */
 
 	if (drv->encoding_sa_set) {
 		wpa_printf(MSG_DEBUG, DRV_PREFIX
@@ -453,6 +474,36 @@ static int macsec_drv_set_replay_protect(void *priv, bool enabled,
 
 
 /**
+ * macsec_drv_set_offload - Set offload status
+ * @priv: Private driver interface data
+ * @offload: 0 = MACSEC_OFFLOAD_OFF
+ *           1 = MACSEC_OFFLOAD_PHY
+ *           2 = MACSEC_OFFLOAD_MAC
+ * Returns: 0 on success, -1 on failure (or if not supported)
+ */
+static int macsec_drv_set_offload(void *priv, u8 offload)
+{
+#ifdef LIBNL_HAS_OFFLOAD
+	struct macsec_drv_data *drv = priv;
+
+	wpa_printf(MSG_DEBUG, "%s -> %02" PRIx8, __func__, offload);
+
+	drv->offload_set = true;
+	drv->offload = offload;
+
+	return try_commit(drv);
+#else /* LIBNL_HAS_OFFLOAD */
+	if (offload == 0)
+		return 0;
+	wpa_printf(MSG_INFO,
+		   "%s: libnl version does not include support for MACsec offload",
+		   __func__);
+	return -1;
+#endif /* LIBNL_HAS_OFFLOAD */
+}
+
+
+/**
  * macsec_drv_set_current_cipher_suite - Set current cipher suite
  * @priv: Private driver interface data
  * @cs: EUI64 identifier
@@ -460,8 +511,14 @@ static int macsec_drv_set_replay_protect(void *priv, bool enabled,
  */
 static int macsec_drv_set_current_cipher_suite(void *priv, u64 cs)
 {
+	struct macsec_drv_data *drv = priv;
+
 	wpa_printf(MSG_DEBUG, "%s -> %016" PRIx64, __func__, cs);
-	return 0;
+
+	drv->cipher_suite_set = true;
+	drv->cipher_suite = cs;
+
+	return try_commit(drv);
 }
 
 
@@ -1063,7 +1120,8 @@ static int macsec_drv_disable_receive_sa(void *priv, struct receive_sa *sa)
 }
 
 
-static struct rtnl_link * lookup_sc(struct nl_cache *cache, int parent, u64 sci)
+static struct rtnl_link * lookup_sc(struct nl_cache *cache, int parent, u64 sci,
+				    u64 cs)
 {
 	struct rtnl_link *needle;
 	void *match;
@@ -1074,6 +1132,8 @@ static struct rtnl_link * lookup_sc(struct nl_cache *cache, int parent, u64 sci)
 
 	rtnl_link_set_link(needle, parent);
 	rtnl_link_macsec_set_sci(needle, sci);
+	if (cs)
+		rtnl_link_macsec_set_cipher_suite(needle, cs);
 
 	match = nl_cache_find(cache, (struct nl_object *) needle);
 	rtnl_link_put(needle);
@@ -1098,6 +1158,7 @@ static int macsec_drv_create_transmit_sc(
 	char *ifname;
 	u64 sci;
 	int err;
+	u64 cs = 0;
 
 	wpa_printf(MSG_DEBUG, DRV_PREFIX
 		   "%s: create_transmit_sc -> " SCISTR " (conf_offset=%d)",
@@ -1122,6 +1183,12 @@ static int macsec_drv_create_transmit_sc(
 
 	drv->created_link = true;
 
+	if (drv->cipher_suite_set) {
+		cs = drv->cipher_suite;
+		drv->cipher_suite_set = false;
+		rtnl_link_macsec_set_cipher_suite(link, cs);
+	}
+
 	err = rtnl_link_add(drv->sk, link, NLM_F_CREATE);
 	if (err == -NLE_BUSY) {
 		wpa_printf(MSG_INFO,
@@ -1137,7 +1204,7 @@ static int macsec_drv_create_transmit_sc(
 	rtnl_link_put(link);
 
 	nl_cache_refill(drv->sk, drv->link_cache);
-	link = lookup_sc(drv->link_cache, drv->parent_ifi, sci);
+	link = lookup_sc(drv->link_cache, drv->parent_ifi, sci, cs);
 	if (!link) {
 		wpa_printf(MSG_ERROR, DRV_PREFIX "couldn't find link");
 		return -1;
@@ -1573,7 +1640,7 @@ static void macsec_drv_hapd_deinit(void *priv)
 
 static int macsec_drv_send_eapol(void *priv, const u8 *addr,
 				 const u8 *data, size_t data_len, int encrypt,
-				 const u8 *own_addr, u32 flags)
+				 const u8 *own_addr, u32 flags, int link_id)
 {
 	struct macsec_drv_data *drv = priv;
 	struct ieee8023_hdr *hdr;
@@ -1629,6 +1696,7 @@ const struct wpa_driver_ops wpa_driver_macsec_linux_ops = {
 	.enable_protect_frames = macsec_drv_enable_protect_frames,
 	.enable_encrypt = macsec_drv_enable_encrypt,
 	.set_replay_protect = macsec_drv_set_replay_protect,
+	.set_offload = macsec_drv_set_offload,
 	.set_current_cipher_suite = macsec_drv_set_current_cipher_suite,
 	.enable_controlled_port = macsec_drv_enable_controlled_port,
 	.get_receive_lowest_pn = macsec_drv_get_receive_lowest_pn,

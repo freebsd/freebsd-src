@@ -929,6 +929,7 @@ struct adapter {
 	u_int vxlan_refcount;
 	int rawf_base;
 	int nrawf;
+	u_int vlan_id;
 
 	struct taskqueue *tq[MAX_NPORTS];	/* General purpose taskqueues */
 	struct port_info *port[MAX_NPORTS];
@@ -1121,9 +1122,17 @@ forwarding_intr_to_fwq(struct adapter *sc)
 static inline bool
 hw_off_limits(struct adapter *sc)
 {
-	int off_limits = atomic_load_int(&sc->error_flags) & HW_OFF_LIMITS;
+	const int off_limits = atomic_load_int(&sc->error_flags) & HW_OFF_LIMITS;
 
 	return (__predict_false(off_limits != 0));
+}
+
+static inline bool
+adapter_stopped(struct adapter *sc)
+{
+	const int stopped = atomic_load_int(&sc->error_flags) & ADAP_STOPPED;
+
+	return (__predict_false(stopped != 0));
 }
 
 static inline int
@@ -1364,6 +1373,7 @@ void t4_add_adapter(struct adapter *);
 int t4_detach_common(device_t);
 int t4_map_bars_0_and_4(struct adapter *);
 int t4_map_bar_2(struct adapter *);
+int t4_adj_doorbells(struct adapter *);
 int t4_setup_intr_handlers(struct adapter *);
 void t4_sysctls(struct adapter *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
@@ -1382,6 +1392,9 @@ void release_tid(struct adapter *, int, struct sge_wrq *);
 int cxgbe_media_change(if_t);
 void cxgbe_media_status(if_t, struct ifmediareq *);
 void t4_os_cim_err(struct adapter *);
+int suspend_adapter(struct adapter *);
+int resume_adapter(struct adapter *);
+int toe_capability(struct vi_info *, bool);
 
 #ifdef KERN_TLS
 /* t6_kern_tls.c */
@@ -1551,7 +1564,10 @@ t4_wrq_tx(struct adapter *sc, struct wrqe *wr)
 	struct sge_wrq *wrq = wr->wrq;
 
 	TXQ_LOCK(wrq);
-	t4_wrq_tx_locked(sc, wrq, wr);
+	if (__predict_true(wrq->eq.flags & EQ_HW_ALLOCATED))
+		t4_wrq_tx_locked(sc, wrq, wr);
+	else
+		free(wr, M_CXGBE);
 	TXQ_UNLOCK(wrq);
 }
 

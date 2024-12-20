@@ -1,4 +1,3 @@
-
 PROG=	sort_bench
 MAN=
 

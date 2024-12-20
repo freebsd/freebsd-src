@@ -121,12 +121,6 @@ mtkswitch_attach_phys(struct mtkswitch_softc *sc)
 			continue;
 		}
 		sc->ifp[phy] = if_alloc(IFT_ETHER);
-		if (sc->ifp[phy] == NULL) {
-			device_printf(sc->sc_dev, "couldn't allocate ifnet structure\n");
-			err = ENOMEM;
-			break;
-		}
-
 		sc->ifp[phy]->if_softc = sc;
 		sc->ifp[phy]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;
@@ -237,12 +231,9 @@ mtkswitch_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	DPRINTF(dev, "%s: bus_generic_attach: err=%d\n", __func__, err);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
 

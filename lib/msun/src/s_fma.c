@@ -222,17 +222,17 @@ fma(double x, double y, double z)
 		case FE_TONEAREST:
 			return (z);
 		case FE_TOWARDZERO:
-			if (x > 0.0 ^ y < 0.0 ^ z < 0.0)
+			if ((x > 0.0) ^ (y < 0.0) ^ (z < 0.0))
 				return (z);
 			else
 				return (nextafter(z, 0));
 		case FE_DOWNWARD:
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (z);
 			else
 				return (nextafter(z, -INFINITY));
 		default:	/* FE_UPWARD */
-			if (x > 0.0 ^ y < 0.0)
+			if ((x > 0.0) ^ (y < 0.0))
 				return (nextafter(z, INFINITY));
 			else
 				return (z);
@@ -244,7 +244,7 @@ fma(double x, double y, double z)
 		zs = copysign(DBL_MIN, zs);
 
 	fesetround(FE_TONEAREST);
-	/* work around clang bug 8100 */
+	/* work around clang issue #8472 */
 	volatile double vxs = xs;
 
 	/*
@@ -260,16 +260,14 @@ fma(double x, double y, double z)
 
 	spread = ex + ey;
 
-	if (r.hi == 0.0) {
+	if (r.hi == 0.0 && xy.lo == 0) {
 		/*
 		 * When the addends cancel to 0, ensure that the result has
 		 * the correct sign.
 		 */
 		fesetround(oround);
 		volatile double vzs = zs; /* XXX gcc CSE bug workaround */
-		xs = ldexp(xy.lo, spread);
-		xy.hi += vzs;
-		return (xy.hi == 0 ? xs : xy.hi + xs);
+		return (xy.hi + vzs);
 	}
 
 	if (oround != FE_TONEAREST) {
@@ -278,7 +276,7 @@ fma(double x, double y, double z)
 		 * rounding modes.
 		 */
 		fesetround(oround);
-		/* work around clang bug 8100 */
+		/* work around clang issue #8472 */
 		volatile double vrlo = r.lo;
 		adj = vrlo + xy.lo;
 		return (ldexp(r.hi + adj, spread));

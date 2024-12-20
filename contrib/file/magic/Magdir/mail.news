@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.30 2022/10/31 13:22:26 christos Exp $
+# $File: mail.news,v 1.32 2024/11/10 16:59:38 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -26,6 +26,12 @@
 !:mime	message/rfc822
 0	string/t		Date:		news or mail text
 !:mime	message/rfc822
+0	string/t		Subject:	news or mail text
+!:mime	message/rfc822
+0	string/t		Cc:		news or mail text
+!:mime	message/rfc822
+0	string/t		To:		news or mail text
+!:mime	message/rfc822
 0	string/t		Article 	saved news text
 !:mime	message/news
 # Reference:	http://quimby.gnus.org/notes/BABYL
@@ -42,6 +48,20 @@
 !:mime	message/rfc822
 0	string/t		MIME-Version:	MIME entity text
 #0	string/t		Content-	MIME entity text
+
+# From:		Joerg Jenderek
+# URL:		https://tools.ietf.org/rfc/rfc4155.txt
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mbox.trid.xml
+# Note:		called "Standard Unix Mailbox" by TrID and
+#		"mailbox file" by shared MIME-info database
+#https://gitlab.freedesktop.org/xdg/shared-mime-info/-/blob/master/data/freedesktop.org.xml.in?ref_type=heads
+0	string			From\040	Mailbox text
+#!:mime	text/plain
+!:mime	application/mbox
+# like: INBOX 1.mbox
+!:ext	/mbox
+# For control reasons show first line like: "From - Tue May 30 21:55:54 2023" "From noreply@unitymedia.info  Thu Oct 13 17:23:38 2016"
+>0	string		x	\b, 1st line "%s"
 
 # TNEF files...
 # URL:		http://fileformats.archiveteam.org/wiki/Transport_Neutral_Encapsulation_Format

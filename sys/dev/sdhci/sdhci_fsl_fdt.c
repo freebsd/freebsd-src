@@ -995,7 +995,8 @@ sdhci_fsl_fdt_attach(device_t dev)
 	sc->slot_init_done = true;
 	sdhci_start_slot(&sc->slot);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 err_free_gpio:
 	sdhci_fdt_gpio_teardown(sc->gpio);

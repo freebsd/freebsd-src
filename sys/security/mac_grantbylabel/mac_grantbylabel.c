@@ -49,7 +49,6 @@
 
 #define MAC_GRANTBYLABEL_FULLNAME   "MAC/grantbylabel"
 
-SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, grantbylabel, CTLFLAG_RW, 0,
     "MAC/grantbylabel policy controls");
 
@@ -218,6 +217,7 @@ mac_grantbylabel_priv_grant(struct ucred *cred, int priv)
 		return rc;		/* not interested */
 
 	switch (priv) {
+	case PRIV_PROC_MEM_WRITE:
 	case PRIV_KMEM_READ:
 	case PRIV_KMEM_WRITE:
 		break;
@@ -244,6 +244,7 @@ mac_grantbylabel_priv_grant(struct ucred *cred, int priv)
 		if (label & GBL_IPC)
 			rc = 0;
 		break;
+	case PRIV_PROC_MEM_WRITE:
 	case PRIV_KMEM_READ:
 	case PRIV_KMEM_WRITE:
 		if (label & GBL_KMEM)

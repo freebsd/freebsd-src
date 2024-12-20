@@ -1584,12 +1584,6 @@ alc_attach(device_t dev)
 	alc_get_macaddr(sc);
 
 	ifp = sc->alc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "cannot allocate ifnet structure.\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -1645,12 +1639,6 @@ alc_attach(device_t dev)
 	/* Create local taskq. */
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->alc_tq);
-	if (sc->alc_tq == NULL) {
-		device_printf(dev, "could not create taskqueue.\n");
-		ether_ifdetach(ifp);
-		error = ENXIO;
-		goto fail;
-	}
 	taskqueue_start_threads(&sc->alc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->alc_dev));
 

@@ -834,7 +834,7 @@ usbhid_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "usbhid lock", NULL, MTX_DEF);
 
-	child = device_add_child(dev, "hidbus", -1);
+	child = device_add_child(dev, "hidbus", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "Could not add hidbus device\n");
 		usbhid_detach(dev);
@@ -842,12 +842,7 @@ usbhid_attach(device_t dev)
 	}
 
 	device_set_ivars(child, &sc->sc_hw);
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach child: %d\n", error);
-		usbhid_detach(dev);
-		return (error);
-	}
+	bus_attach_children(dev);
 
 	return (0);			/* success */
 }

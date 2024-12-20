@@ -158,7 +158,6 @@ struct its_dev {
 	struct lpi_chunk	lpis;
 	/* Virtual address of ITT */
 	void			*itt;
-	size_t			itt_size;
 };
 
 /*
@@ -445,7 +444,7 @@ gicv3_its_table_page_size(struct gicv3_its_softc *sc, int table)
 	reg = gic_its_read_8(sc, GITS_BASER(table));
 
 	while (1) {
-		reg &= GITS_BASER_PSZ_MASK;
+		reg &= ~GITS_BASER_PSZ_MASK;
 		switch (page_size) {
 		case PAGE_SIZE_4K:	/* 4KB */
 			reg |= GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
@@ -587,11 +586,20 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			its_tbl_size = l1_esize * l1_nidents;
 			its_tbl_size = roundup2(its_tbl_size, page_size);
 			break;
-		case GITS_BASER_TYPE_VP:
 		case GITS_BASER_TYPE_PP: /* Undocumented? */
 		case GITS_BASER_TYPE_IC:
 			its_tbl_size = page_size;
 			break;
+		case GITS_BASER_TYPE_VP:
+			/*
+			 * If GITS_TYPER.SVPET != 0, the pending table is
+			 * shared amongst the redistibutors and ther other
+			 * ITSes. Requiring sharing across the ITSes when none
+			 * of the redistributors have GICR_VPROPBASER.Valid==1
+			 * isn't specified in the architecture, but that's how
+			 * the GIC-700 behaves. We don't handle vPE tables at
+			 * all yet, so just skip this base register.
+			 */
 		default:
 			if (bootverbose)
 				device_printf(dev, "Unhandled table type %lx\n",
@@ -1285,7 +1293,7 @@ gicv3_its_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 #ifdef SMP
 static void
-gicv3_its_init_secondary(device_t dev)
+gicv3_its_init_secondary(device_t dev, uint32_t rootnum)
 {
 	struct gicv3_its_softc *sc;
 
@@ -1412,7 +1420,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	struct gicv3_its_softc *sc;
 	struct its_dev *its_dev;
 	vmem_addr_t irq_base;
-	size_t esize;
+	size_t esize, itt_size;
 
 	sc = device_get_softc(dev);
 
@@ -1450,8 +1458,8 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	 * Allocate ITT for this device.
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
-	its_dev->itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
-	its_dev->itt = contigmalloc_domainset(its_dev->itt_size,
+	itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
+	its_dev->itt = contigmalloc_domainset(itt_size,
 	    M_GICV3_ITS, sc->sc_ds, M_NOWAIT | M_ZERO, 0,
 	    LPI_INT_TRANS_TAB_MAX_ADDR, LPI_INT_TRANS_TAB_ALIGN, 0);
 	if (its_dev->itt == NULL) {
@@ -1462,7 +1470,7 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 
 	/* Make sure device sees zeroed ITT. */
 	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0)
-		cpu_dcache_wb_range(its_dev->itt, its_dev->itt_size);
+		cpu_dcache_wb_range(its_dev->itt, itt_size);
 
 	mtx_lock_spin(&sc->sc_its_dev_lock);
 	TAILQ_INSERT_TAIL(&sc->sc_its_dev_list, its_dev, entry);
@@ -1494,7 +1502,7 @@ its_device_release(device_t dev, struct its_dev *its_dev)
 
 	/* Free ITT */
 	KASSERT(its_dev->itt != NULL, ("Invalid ITT in valid ITS device"));
-	contigfree(its_dev->itt, its_dev->itt_size, M_GICV3_ITS);
+	free(its_dev->itt, M_GICV3_ITS);
 
 	/* Free the IRQ allocation */
 	vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base,

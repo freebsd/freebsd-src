@@ -137,6 +137,13 @@ fbt_excluded(const char *name)
 		return (1);
 
 	/*
+	 * The KMSAN runtime can't be instrumented safely.
+	 */
+	if (strncmp(name, "__msan", 6) == 0 ||
+	    strncmp(name, "kmsan_", 6) == 0)
+		return (1);
+
+	/*
 	 * Stack unwinders may be called from probe context on some
 	 * platforms.
 	 */

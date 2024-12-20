@@ -96,15 +96,16 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 	/* SG LIST ??? */
 	if ((nvmeio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
 		req = nvme_allocate_request_bio((struct bio *)payload,
-		    nvme_sim_nvmeio_done, ccb);
+		    M_NOWAIT, nvme_sim_nvmeio_done, ccb);
 	else if ((nvmeio->ccb_h.flags & CAM_DATA_SG) == CAM_DATA_SG)
-		req = nvme_allocate_request_ccb(ccb, nvme_sim_nvmeio_done, ccb);
-	else if (payload == NULL)
-		req = nvme_allocate_request_null(nvme_sim_nvmeio_done, ccb);
-	else
-		req = nvme_allocate_request_vaddr(payload, size,
+		req = nvme_allocate_request_ccb(ccb, M_NOWAIT,
 		    nvme_sim_nvmeio_done, ccb);
-
+	else if (payload == NULL)
+		req = nvme_allocate_request_null(M_NOWAIT, nvme_sim_nvmeio_done,
+		    ccb);
+	else
+		req = nvme_allocate_request_vaddr(payload, size, M_NOWAIT,
+		    nvme_sim_nvmeio_done, ccb);
 	if (req == NULL) {
 		nvmeio->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
@@ -268,11 +269,22 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_NVME_IO:		/* Execute the requested I/O operation */
-	case XPT_NVME_ADMIN:		/* or Admin operation */
 		if (ctrlr->is_failed) {
 			/*
 			 * I/O came in while we were failing the drive, so drop
 			 * it. Once falure is complete, we'll be destroyed.
+			 */
+			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			break;
+		}
+		nvme_sim_nvmeio(sim, ccb);
+		return;			/* no done */
+	case XPT_NVME_ADMIN:		/* or Admin operation */
+		if (ctrlr->is_failed_admin) {
+			/*
+			 * Admin request came in when we can't send admin
+			 * commands, so drop it. Once falure is complete, we'll
+			 * be destroyed.
 			 */
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 			break;

@@ -29,7 +29,9 @@
 
 #include <machine/asm.h>
 #include <machine/armreg.h>
+
 #include "assym.inc"
+#include <sys/intr.h>
 
 	.text
 
@@ -169,7 +171,7 @@
 .macro	do_ast
 	mrs	x19, daif
 	/* Make sure the IRQs are enabled before calling ast() */
-	bic	x19, x19, #PSR_I
+	bic	x19, x19, #(PSR_I | PSR_F)
 1:
 	/*
 	 * Mask interrupts while checking the ast pending flag
@@ -232,11 +234,23 @@ ENTRY(handle_el1h_irq)
 	save_registers 1
 	KMSAN_ENTER
 	mov	x0, sp
+	mov	x1, #INTR_ROOT_IRQ
 	bl	intr_irq_handler
 	KMSAN_LEAVE
 	restore_registers 1
 	ERET
 END(handle_el1h_irq)
+
+ENTRY(handle_el1h_fiq)
+	save_registers 1
+	KMSAN_ENTER
+	mov	x0, sp
+	mov	x1, #INTR_ROOT_FIQ
+	bl	intr_irq_handler
+	KMSAN_LEAVE
+	restore_registers 1
+	ERET
+END(handle_el1h_fiq)
 
 ENTRY(handle_el1h_serror)
 	save_registers 1
@@ -252,9 +266,11 @@ ENTRY(handle_el0_sync)
 	KMSAN_ENTER
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
+	mov	x22, x0
 	str	x1, [x0, #TD_FRAME]
 	bl	do_el0_sync
 	do_ast
+	str	xzr, [x22, #TD_FRAME]
 	KMSAN_LEAVE
 	restore_registers 0
 	ERET
@@ -264,12 +280,25 @@ ENTRY(handle_el0_irq)
 	save_registers 0
 	KMSAN_ENTER
 	mov	x0, sp
+	mov	x1, #INTR_ROOT_IRQ
 	bl	intr_irq_handler
 	do_ast
 	KMSAN_LEAVE
 	restore_registers 0
 	ERET
 END(handle_el0_irq)
+
+ENTRY(handle_el0_fiq)
+	save_registers 0
+	KMSAN_ENTER
+	mov	x0, sp
+	mov	x1, #INTR_ROOT_FIQ
+	bl	intr_irq_handler
+	do_ast
+	KMSAN_LEAVE
+	restore_registers 0
+	ERET
+END(handle_el0_fiq)
 
 ENTRY(handle_el0_serror)
 	save_registers 0
@@ -313,17 +342,17 @@ exception_vectors:
 
 	vector el1h_sync 1	/* Synchronous EL1h */
 	vector el1h_irq 1	/* IRQ EL1h */
-	vempty 1		/* FIQ EL1h */
+	vector el1h_fiq 1	/* FIQ EL1h */
 	vector el1h_serror 1	/* Error EL1h */
 
 	vector el0_sync 0	/* Synchronous 64-bit EL0 */
 	vector el0_irq 0	/* IRQ 64-bit EL0 */
-	vempty 0		/* FIQ 64-bit EL0 */
+	vector el0_fiq 0	/* FIQ 64-bit EL0 */
 	vector el0_serror 0	/* Error 64-bit EL0 */
 
 	vector el0_sync 0	/* Synchronous 32-bit EL0 */
 	vector el0_irq 0	/* IRQ 32-bit EL0 */
-	vempty 0		/* FIQ 32-bit EL0 */
+	vector el0_fiq 0	/* FIQ 32-bit EL0 */
 	vector el0_serror 0	/* Error 32-bit EL0 */
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)

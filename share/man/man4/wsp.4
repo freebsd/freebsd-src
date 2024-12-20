@@ -65,6 +65,17 @@ Pointer sensitivity can be controlled using the sysctl tunable
 Tap to left-click can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.enable_single_tap_clicks ,
 set to 0 to disable single tap clicks or 1 to enable them (default).
+Movement on the trackpad following a partially-released click can be
+controlled using the sysctl tunable
+.Nm hw.usb.wsp.enable_single_tap_movement ,
+set to 0 to disable the movement on the trackpad until a full release
+or 1 to allow the continued movement (default).
+.Nm hw.usb.wsp.max_finger_area
+defines the maximum area on the trackpad which is registered as a
+finger (lower for greater palm detection).
+.Nm hw.usb.wsp.max_double_tap_distance
+defines the maximum distance between two finger clicks or taps which may
+register as a double-click.
 Z-Axis sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.z_factor .
 Z-Axis inversion can be controlled using the sysctl tunable

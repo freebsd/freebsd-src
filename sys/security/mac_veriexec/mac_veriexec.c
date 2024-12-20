@@ -81,8 +81,6 @@ static int sysctl_mac_veriexec_state(SYSCTL_HANDLER_ARGS);
 static int sysctl_mac_veriexec_db(SYSCTL_HANDLER_ARGS);
 static struct mac_policy_ops mac_veriexec_ops;
 
-SYSCTL_DECL(_security_mac);
-
 SYSCTL_NODE(_security_mac, OID_AUTO, veriexec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "MAC/veriexec policy controls");
 
@@ -435,6 +433,7 @@ mac_veriexec_priv_check(struct ucred *cred, int priv)
 	error = 0;
 	switch (priv) {
 	case PRIV_KMEM_WRITE:
+	case PRIV_PROC_MEM_WRITE:
 	case PRIV_VERIEXEC_CONTROL:
 		/*
 		 * Do not allow writing to memory or manipulating veriexec,

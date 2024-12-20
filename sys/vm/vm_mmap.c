@@ -1407,6 +1407,9 @@ vm_mmap_cdev(struct thread *td, vm_size_t objsize, vm_prot_t prot,
 	    td->td_ucred);
 	if (obj == NULL)
 		return (EINVAL);
+	VM_OBJECT_WLOCK(obj);
+	vm_object_set_flag(obj, OBJ_CDEVH);
+	VM_OBJECT_WUNLOCK(obj);
 	*objp = obj;
 	*flagsp = flags;
 	return (0);
@@ -1566,7 +1569,7 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (flags & MAP_STACK) {
 		if (object != NULL)
 			return (EINVAL);
-		docow |= MAP_STACK_GROWS_DOWN;
+		docow |= MAP_STACK_AREA;
 	}
 	if ((flags & MAP_EXCL) != 0)
 		docow |= MAP_CHECK_EXCL;

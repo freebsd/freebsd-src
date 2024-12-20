@@ -1,4 +1,6 @@
 .\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -29,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 14, 2022
+.Dd November 20, 2024
 .Dt SH 1
 .Os
 .Sh NAME
@@ -37,14 +39,14 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Oo
 .Ar script
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl c Ar string
 .Oo
@@ -52,7 +54,7 @@
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefhIimnPpTuVvx
+.Op Fl /+abCEefhIilmnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl s
 .Op Ar arg ...
@@ -251,6 +253,8 @@ Ignore
 from input when in interactive mode.
 .It Fl i Li interactive
 Force the shell to behave interactively.
+.It Fl l
+Force the shell to act as if it has been invoked as a login shell.
 .It Fl m Li monitor
 Turn on job control (set automatically when interactive).
 A new process group is created for each pipeline (called a job).
@@ -1072,15 +1076,14 @@ or the end of the
 command.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
-.Pp
 .Sm off
-.Bd -literal -offset -ident
+.Bd -literal -offset indent
 .Po Ar list Pc
 .Ed
 .Sm on
 .Pp
 or
-.Bd -literal -offset -ident
+.Bd -literal -offset indent
 .No { Ar list ; }
 .Ed
 .Pp
@@ -2921,7 +2924,9 @@ This version of
 was rewritten in 1989 under the
 .Bx
 license after the Bourne shell from
-.At V.4 .
+.At V.4
+and first appeared in
+.Bx 4.3 Net/2 .
 .Sh AUTHORS
 This version of
 .Nm

@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 #
 
-# tmpfs(5) option nonc test scenario
+# tmpfs(4) option nonc test scenario
 
 . ../default.cfg
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1

@@ -112,7 +112,7 @@ int	 binbehave = BINFILE_BIN;	/* -aIU: handling of binary files */
 int	 filebehave = FILE_STDIO;
 int	 devbehave = DEV_READ;		/* -D: handling of devices */
 int	 dirbehave = DIR_READ;		/* -dRr: handling of directories */
-int	 linkbehave = LINK_READ;	/* -OpS: handling of symlinks */
+int	 linkbehave = LINK_SKIP;	/* -OpS: handling of symlinks */
 
 bool	 dexclude, dinclude;	/* --exclude-dir and --include-dir */
 bool	 fexclude, finclude;	/* --exclude and --include */

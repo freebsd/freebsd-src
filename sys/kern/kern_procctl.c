@@ -337,7 +337,7 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 		PROC_UNLOCK(p2);
 		return;
 	}
-	_PHOLD_LITE(p2);
+	_PHOLD(p2);
 	PROC_UNLOCK(p2);
 	t = malloc(sizeof(struct reap_kill_tracker), M_TEMP, M_WAITOK);
 	t->parent = p2;
@@ -463,7 +463,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 			} else {
 				PROC_LOCK(p2);
 				if ((p2->p_flag2 & P2_WEXIT) == 0) {
-					_PHOLD_LITE(p2);
+					_PHOLD(p2);
 					p2->p_flag2 |= P2_REAPKILLED;
 					PROC_UNLOCK(p2);
 					w->target = p2;
@@ -573,17 +573,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		w.rk = rk;
 		w.error = &error;
 		TASK_INIT(&w.t, 0, reap_kill_proc_work, &w);
-
-		/*
-		 * Prevent swapout, since w, ksi, and possibly rk, are
-		 * allocated on the stack.  We sleep in
-		 * reap_kill_subtree_once() waiting for task to
-		 * complete single-threading.
-		 */
-		PHOLD(td->td_proc);
-
 		reap_kill_subtree(td, p, reaper, &w);
-		PRELE(td->td_proc);
 		crfree(w.cr);
 	}
 	PROC_LOCK(p);
@@ -955,6 +945,46 @@ pdeathsig_status(struct thread *td, struct proc *p, void *data)
 	return (0);
 }
 
+static int
+logsigexit_ctl(struct thread *td, struct proc *p, void *data)
+{
+	int state;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	state = *(int *)data;
+
+	switch (state) {
+	case PROC_LOGSIGEXIT_CTL_NOFORCE:
+		p->p_flag2 &= ~(P2_LOGSIGEXIT_CTL | P2_LOGSIGEXIT_ENABLE);
+		break;
+	case PROC_LOGSIGEXIT_CTL_FORCE_ENABLE:
+		p->p_flag2 |= P2_LOGSIGEXIT_CTL | P2_LOGSIGEXIT_ENABLE;
+		break;
+	case PROC_LOGSIGEXIT_CTL_FORCE_DISABLE:
+		p->p_flag2 |= P2_LOGSIGEXIT_CTL;
+		p->p_flag2 &= ~P2_LOGSIGEXIT_ENABLE;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+logsigexit_status(struct thread *td, struct proc *p, void *data)
+{
+	int state;
+
+	if ((p->p_flag2 & P2_LOGSIGEXIT_CTL) == 0)
+		state = PROC_LOGSIGEXIT_CTL_NOFORCE;
+	else if ((p->p_flag2 & P2_LOGSIGEXIT_ENABLE) != 0)
+		state = PROC_LOGSIGEXIT_CTL_FORCE_ENABLE;
+	else
+		state = PROC_LOGSIGEXIT_CTL_FORCE_DISABLE;
+	*(int *)data = state;
+	return (0);
+}
+
 enum {
 	PCTL_SLOCKED,
 	PCTL_XLOCKED,
@@ -1110,6 +1140,18 @@ static const struct procctl_cmd_info procctl_cmds_info[] = {
 	      .need_candebug = false,
 	      .copyin_sz = 0, .copyout_sz = sizeof(int),
 	      .exec = wxmap_status, .copyout_on_error = false, },
+	[PROC_LOGSIGEXIT_CTL] =
+	    { .lock_tree = PCTL_SLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = true,
+	      .copyin_sz = sizeof(int), .copyout_sz = 0,
+	      .exec = logsigexit_ctl, .copyout_on_error = false, },
+	[PROC_LOGSIGEXIT_STATUS] =
+	    { .lock_tree = PCTL_UNLOCKED, .one_proc = true,
+	      .esrch_is_einval = false, .no_nonnull_data = false,
+	      .need_candebug = false,
+	      .copyin_sz = 0, .copyout_sz = sizeof(int),
+	      .exec = logsigexit_status, .copyout_on_error = false, },
 };
 
 int

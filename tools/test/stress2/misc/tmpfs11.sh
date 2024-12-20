@@ -28,7 +28,7 @@
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
-# Test with two tmpfs(5) file systems mounted.
+# Test with two tmpfs(4) file systems mounted.
 
 . ../default.cfg
 

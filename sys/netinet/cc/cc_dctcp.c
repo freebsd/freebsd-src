@@ -108,6 +108,7 @@ dctcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct dctcp *dctcp_data;
 	int bytes_acked = 0;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	dctcp_data = ccv->cc_data;
 
@@ -125,7 +126,7 @@ dctcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 			newreno_cc_ack_received(ccv, type);
 
 		if (type == CC_DUPACK)
-			bytes_acked = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+			bytes_acked = min(ccv->bytes_this_ack, mss);
 
 		if (type == CC_ACK)
 			bytes_acked = ccv->bytes_this_ack;
@@ -138,16 +139,16 @@ dctcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 			//XXRMS: For fluid-model DCTCP, update
 			//cwnd here during for RTT fairness
 			if (!dctcp_data->ece_prev
-			    && bytes_acked > CCV(ccv, t_maxseg)) {
+			    && bytes_acked > mss) {
 				dctcp_data->bytes_ecn +=
-				    (bytes_acked - CCV(ccv, t_maxseg));
+				    (bytes_acked - mss);
 			} else
 				dctcp_data->bytes_ecn += bytes_acked;
 			dctcp_data->ece_prev = 1;
 		} else {
 			if (dctcp_data->ece_prev
-			    && bytes_acked > CCV(ccv, t_maxseg))
-				dctcp_data->bytes_ecn += CCV(ccv, t_maxseg);
+			    && bytes_acked > mss)
+				dctcp_data->bytes_ecn += mss;
 			dctcp_data->ece_prev = 0;
 		}
 		dctcp_data->ece_curr = 0;
@@ -201,7 +202,7 @@ dctcp_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct dctcp *dctcp_data;
 
-	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->tp));
 	if (ptr == NULL) {
 		dctcp_data = malloc(sizeof(struct dctcp), M_CC_MEM, M_NOWAIT|M_ZERO);
 		if (dctcp_data == NULL)
@@ -245,7 +246,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 	if (CCV(ccv, t_flags2) & TF2_ECN_PERMIT) {
 		dctcp_data = ccv->cc_data;
 		cwin = CCV(ccv, snd_cwnd);
-		mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
+		mss = tcp_fixed_maxseg(ccv->tp);
 
 		switch (type) {
 		case CC_NDUPACK:
@@ -294,7 +295,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 		case CC_RTO:
 			if (CCV(ccv, t_rxtshift) == 1) {
 				if (V_tcp_do_newsack) {
-					pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+					pipe = tcp_compute_pipe(ccv->tp);
 				} else {
 					pipe = CCV(ccv, snd_max) -
 						CCV(ccv, snd_fack) +
@@ -305,7 +306,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 			}
 			CCV(ccv, snd_cwnd) = mss;
 			dctcp_update_alpha(ccv);
-			dctcp_data->save_sndnxt += CCV(ccv, t_maxseg);
+			dctcp_data->save_sndnxt += mss;
 			dctcp_data->num_cong_events++;
 			break;
 		default:

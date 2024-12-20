@@ -1,4 +1,3 @@
-
 .include <src.opts.mk>
 
 # Directory into which the Kyuafile provided by this directory will be

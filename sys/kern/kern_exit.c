@@ -1000,11 +1000,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	PROC_UNLOCK(q);
 
 	/*
-	 * Decrement the count of procs running with this uid.
-	 */
-	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
-
-	/*
 	 * Destroy resource accounting information associated with the process.
 	 */
 #ifdef RACCT
@@ -1017,9 +1012,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	racct_proc_exit(p);
 
 	/*
-	 * Free credentials, arguments, and sigacts.
+	 * Free credentials, arguments, and sigacts, and decrement the count of
+	 * processes running with this uid.
 	 */
-	proc_unset_cred(p);
+	proc_unset_cred(p, true);
 	pargs_drop(p->p_args);
 	p->p_args = NULL;
 	sigacts_free(p->p_sigacts);
@@ -1328,6 +1324,18 @@ loop_locked:
 		else if (ret != 1) {
 			td->td_retval[0] = pid;
 			return (0);
+		}
+
+		/*
+		 * When running in capsicum(4) mode, make wait(2) ignore
+		 * processes created with pdfork(2).  This is because one can
+		 * disown them - by passing their process descriptor to another
+		 * process - which means it needs to be prevented from touching
+		 * them afterwards.
+		 */
+		if (IN_CAPABILITY_MODE(td) && p->p_procdesc != NULL) {
+			PROC_UNLOCK(p);
+			continue;
 		}
 
 		nfound++;

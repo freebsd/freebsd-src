@@ -882,6 +882,11 @@ static struct da_quirk_entry da_quirk_table[] =
 		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
 	{
+		/* ADATA USB sticks lie on RC16. */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ADATA", "USB Flash Drive*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
+	},
+	{
 		/*
 		 * I-O Data USB Flash Disk
 		 * PR: usb/211716
@@ -2188,16 +2193,19 @@ daasync(void *callback_arg, uint32_t code,
 		    scsi_extract_sense_ccb(ccb,
 		     &error_code, &sense_key, &asc, &ascq)) {
 			if (asc == 0x2A && ascq == 0x09) {
+				/* 2a/9: CAPACITY DATA HAS CHANGED */
 				xpt_print(ccb->ccb_h.path,
 				    "Capacity data has changed\n");
 				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_PROBED;
 				dareprobe(periph);
 			} else if (asc == 0x28 && ascq == 0x00) {
+				/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_PROBED;
 				disk_media_changed(softc->disk, M_NOWAIT);
 			} else if (asc == 0x3F && ascq == 0x03) {
+				/* 3f/3: INQUIRY DATA HAS CHANGED */
 				xpt_print(ccb->ccb_h.path,
 				    "INQUIRY data has changed\n");
 				cam_periph_assert(periph, MA_OWNED);
@@ -2804,13 +2812,6 @@ daregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
-		printf("daregister: Unable to probe new device. "
-		       "Unable to allocate iosched memory\n");
-		free(softc, M_DEVBUF);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	LIST_INIT(&softc->pending_ccbs);
 	softc->state = DA_STATE_PROBE_WP;
 	bioq_init(&softc->delete_run_queue);
@@ -2979,7 +2980,14 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_hba_subdevice = cpi.hba_subdevice;
 	snprintf(softc->disk->d_attachment, sizeof(softc->disk->d_attachment),
 	    "%s%d", cpi.dev_name, cpi.unit_number);
-	cam_periph_lock(periph);
+
+	if (cam_iosched_init(&softc->cam_iosched, periph, softc->disk,
+	    daschedule) != 0) {
+		printf("daregister: Unable to probe new device. "
+		       "Unable to allocate iosched memory\n");
+		free(softc, M_DEVBUF);
+		return(CAM_REQ_CMP_ERR);
+	}
 
 	/*
 	 * Add async callbacks for events of interest.
@@ -2988,6 +2996,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * fine without them and the only alternative
 	 * would be to not attach the device on failure.
 	 */
+	cam_periph_lock(periph);
 	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE |
 	    AC_ADVINFO_CHANGED | AC_SCSI_AEN | AC_UNIT_ATTENTION |
 	    AC_INQ_CHANGED, daasync, periph, periph->path);
@@ -4950,15 +4959,18 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			}
 
 			/*
-			 * Attach to anything that claims to be a
-			 * direct access or optical disk device,
-			 * as long as it doesn't return a "Logical
-			 * unit not supported" (0x25) error.
-			 * "Internal Target Failure" (0x44) is also
-			 * special and typically means that the
-			 * device is a SATA drive behind a SATL
-			 * translation that's fallen into a
+			 * Attach to anything that claims to be a direct access
+			 * or optical disk device, as long as it doesn't return
+			 * a "Logical unit not supported" (25/0) error.
+			 * "Internal Target Failure" (44/0) is also special and
+			 * typically means that the device is a SATA drive
+			 * behind a SATL translation that's fallen into a
 			 * terminally fatal state.
+			 *
+			 * 25/0: LOGICAL UNIT NOT SUPPORTED
+			 * 44/0: INTERNAL TARGET FAILURE
+			 * 44/1: PERSISTENT RESERVATION INFORMATION LOST
+			 * 44/71: ATA DEVICE FAILED SET FEATURES
 			 */
 			if ((have_sense)
 			 && (asc != 0x25) && (asc != 0x44)
@@ -5994,22 +6006,30 @@ daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 		 */
 		else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
 		    asc == 0x2A && ascq == 0x09) {
+			/* 2a/9: CAPACITY DATA HAS CHANGED */
 			xpt_print(periph->path, "Capacity data has changed\n");
 			softc->flags &= ~DA_FLAG_PROBED;
 			dareprobe(periph);
 			sense_flags |= SF_NO_PRINT;
 		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
 		    asc == 0x28 && ascq == 0x00) {
+			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			softc->flags &= ~DA_FLAG_PROBED;
 			disk_media_changed(softc->disk, M_NOWAIT);
 		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
 		    asc == 0x3F && ascq == 0x03) {
+			/* 3f/3: INQUIRY DATA HAS CHANGED */
 			xpt_print(periph->path, "INQUIRY data has changed\n");
 			softc->flags &= ~DA_FLAG_PROBED;
 			dareprobe(periph);
 			sense_flags |= SF_NO_PRINT;
 		} else if (sense_key == SSD_KEY_NOT_READY &&
 		    asc == 0x3a && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+			/* 3a/0: MEDIUM NOT PRESENT */
+			/* 3a/1: MEDIUM NOT PRESENT - TRAY CLOSED */
+			/* 3a/2: MEDIUM NOT PRESENT - TRAY OPEN */
+			/* 3a/3: MEDIUM NOT PRESENT - LOADABLE */
+			/* 3a/4: MEDIUM NOT PRESENT - MEDIUM AUXILIARY MEMORY ACCESSIBLE */
 			softc->flags |= DA_FLAG_PACK_INVALID;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}

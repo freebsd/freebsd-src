@@ -212,8 +212,6 @@ iser_create_device_ib_res(struct iser_device *device)
 
 	device->comps = malloc(device->comps_used * sizeof(*device->comps),
 		M_ISER_VERBS, M_WAITOK | M_ZERO);
-	if (!device->comps)
-		goto comps_err;
 
 	max_cqe = min(ISER_MAX_CQ_LEN, ib_dev->attrs.max_cqe);
 
@@ -280,7 +278,6 @@ cq_err:
 	ib_dealloc_pd(device->pd);
 pd_err:
 	free(device->comps, M_ISER_VERBS);
-comps_err:
 	ISER_ERR("failed to allocate an IB resource");
 	return (1);
 }
@@ -343,11 +340,6 @@ iser_create_fastreg_desc(struct ib_device *ib_device, struct ib_pd *pd)
 	int ret;
 
 	desc = malloc(sizeof(*desc), M_ISER_VERBS, M_WAITOK | M_ZERO);
-	if (!desc) {
-		ISER_ERR("Failed to allocate a new fastreg descriptor");
-		return (NULL);
-	}
-
 	ret = iser_alloc_reg_res(ib_device, pd, &desc->rsc);
 	if (ret) {
 		ISER_ERR("failed to allocate reg_resources");
@@ -509,9 +501,6 @@ iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 			goto inc_refcnt;
 
 	device = malloc(sizeof *device, M_ISER_VERBS, M_WAITOK | M_ZERO);
-	if (device == NULL)
-		goto out;
-
 	/* assign this device to the device */
 	device->ib_device = cma_id->device;
 	/* init the device and link it into ig device list */

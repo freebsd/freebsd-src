@@ -1,6 +1,5 @@
-'\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2023,2024 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,35 +27,35 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_opts.3x,v 1.18 2020/10/17 23:46:35 tom Exp $
-.TH menu_opts 3X ""
+.\" $Id: menu_opts.3x,v 1.35 2024/03/16 15:35:01 tom Exp $
+.TH menu_opts 3X 2024-03-16 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
 .SH NAME
 \fBset_menu_opts\fP,
 \fBmenu_opts_on\fP,
 \fBmenu_opts_off\fP,
-\fBmenu_opts\fR \- set and get menu options
+\fBmenu_opts\fP \-
+set and get menu options
 .SH SYNOPSIS
-\fB#include <menu.h>\fR
-.sp
-\fBint set_menu_opts(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
-.br
-\fBMenu_Options menu_opts(const MENU *\fP\fImenu\fP\fB);\fP
-.sp
-\fBint menu_opts_on(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
-.br
-\fBint menu_opts_off(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
-.br
+.nf
+\fB#include <menu.h>
+.PP
+\fBint set_menu_opts(MENU *\fImenu\fP, Menu_Options \fIopts\fP);
+\fBMenu_Options menu_opts(const MENU *\fImenu\fP);
+.PP
+\fBint menu_opts_on(MENU *\fImenu\fP, Menu_Options \fIopts\fP);
+\fBint menu_opts_off(MENU *\fImenu\fP, Menu_Options \fIopts\fP);
+.fi
 .SH DESCRIPTION
-The function \fBset_menu_opts\fR sets all the given menu's option bits (menu
+The function \fBset_menu_opts\fP sets all the given menu's option bits (menu
 option bits may be logically-OR'ed together).
 .PP
-The function \fBmenu_opts_on\fR turns on the given option bits, and leaves
+The function \fBmenu_opts_on\fP turns on the given option bits, and leaves
 others alone.
 .PP
-The function \fBmenu_opts_off\fR turns off the given option bits, and leaves
+The function \fBmenu_opts_off\fP turns off the given option bits, and leaves
 others alone.
 .PP
-The function \fBmenu_opts\fR returns the menu's current option bits.
+The function \fBmenu_opts\fP returns the menu's current option bits.
 .PP
 The following options are defined (all are on by default):
 .TP 5
@@ -85,21 +84,16 @@ and it does not fall on the currently active menu,
 push \fBKEY_MOUSE\fP and the \fBMEVENT\fP data
 back on the queue to allow processing in another part of the calling program.
 .SH RETURN VALUE
-Except for \fBmenu_opts\fR, each routine returns one of the following:
+Except for \fBmenu_opts\fP, each routine returns one of the following:
 .TP 5
 .B E_OK
 The routine succeeded.
 .TP 5
 .B E_SYSTEM_ERROR
-System error occurred (see \fBerrno\fR(3)).
+System error occurred (see \fBerrno\fP(3)).
 .TP 5
 .B E_POSTED
 The menu is already posted.
-.SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
-.SH NOTES
-The header file \fB<menu.h>\fR automatically includes the header file
-\fB<curses.h>\fR.
 .SH PORTABILITY
 These routines emulate the System V menu library.
 They were not supported on
@@ -107,3 +101,6 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.
 Manual pages and adaptation for new curses by Eric S. Raymond.
+.SH SEE ALSO
+\fB\%curses\fP(3X),
+\fB\%menu\fP(3X)

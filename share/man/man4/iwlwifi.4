@@ -1,5 +1,7 @@
 .\"-
-.\" Copyright (c) 2021-2023 The FreeBSD Foundation
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2021-2024 The FreeBSD Foundation
 .\"
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
@@ -25,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 21, 2023
+.Dd November 10, 2024
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
@@ -54,16 +56,63 @@ It is discouraged to load the driver from
 .Sh DESCRIPTION
 The
 .Nm
-driver is derived from Intel's Linux iwlwifi driver and provides support for
-all chipsets supported by the
-.Em mvm
-part of that driver.
+driver provides support for Intel Wireless network devices.
+.Pp
+.Nm
+is derived from Intel's Linux iwlwifi driver, will be a successor to
+.Xr iwm 4 ,
+and may supersede that driver in the future.
+It still complements the
+.Xr iwn 4
+driver which supports older chipsets.
+.Pp
+The driver uses the
+.\" No LinuxKPI man pages so no .Xr here.
+.Sy linuxkpi_wlan
+and
+.Sy linuxkpi
+compat framework to bridge between the Linux and
+native
+.Fx
+driver code as well as to the native
+.Xr net80211 4
+wireless stack.
+.Sh HARDWARE
+The
+.Nm
+driver supports PCIe devices from the
+.Sy mvm
+sub-driver with the following chipset generations:
+.Pp
+.\" awk -F\\t '{ print $5 }' ~/tmp/iwlwifi_pci_ids_name.txt | \
+.\" grep -v undefined | sort -V | uniq | grep -v ^$ | \
+.\" awk '{ printf ".It\n%s\n", $0 }'
+.Bl -bullet -compact
+.It
+7000
+.It
+8000
+.It
+9000
+.It
+22000
+.It
+AX210
+.It
+BZ
+.It
+SC
+.El
+.Pp
+These chipset generations match the following common device names:
 .Pp
 .Bl -bullet -compact
-.\" ---------------------------------------------------------------------
+.\" --------------------------------------------------------------------
 .\" This list is manually generated from a sysctl and post-processing.
 .\" Edits will be overwritten on next update.
-.\" ---------------------------------------------------------------------
+.\" awk -F\\t '{ if ($2 == "") { next; } if (seen[$2]) { next; } \
+.\" seen[$2]=1; printf ".It\n%s\n", $2; }' iwlwifi_pci_ids_name.txt
+.\" --------------------------------------------------------------------
 .It
 Intel(R) Dual Band Wireless AC 7260
 .It
@@ -171,50 +220,28 @@ Intel(R) Wi-Fi 6 AX101
 .It
 Intel(R) Wi-Fi 6 AX203
 .It
-Intel(R) Wi-Fi 6E AX221 160MHz
-.It
 Intel(R) Wi-Fi 6E AX231 160MHz
 .It
-Intel(R) TBD Bz device
+Intel(R) Wi-Fi 7 BE201 320MHz
 .It
-Intel(R) Wi-Fi 6 AX204 160MHz
+Intel(R) Wi-Fi 7 BE200 320MHz
+.It
+Intel(R) Wi-Fi 7 BE202 160MHz
 .It
 Intel(R) TBD Sc device
-.\" ---------------------------------------------------------------------
+.It
+Intel(R) TBD Sc2 device
+.It
+Intel(R) TBD Sc2f device
+.\" --------------------------------------------------------------------
 .El
-.Pp
-.Nm
-will be a successor to
-.Xr iwm 4
-and may supersede that driver in the future.
-It still complements the
-.Xr iwn 4
-driver which supports older chipsets.
-.Pp
-The driver uses the
-.\" No LinuxKPI man pages so no .Xr here.
-.Em linuxkpi_wlan
-and
-.Em linuxkpi
-compat framework to bridge between the Linux and
-native
-.Fx
-driver code as well as to the native
-.Xr net80211 4
-wireless stack.
-.Pp
-While
-.Nm
-supports all 802.11 a/b/g/n/ac/ax
-the compatibility code currently only supports 802.11 a/b/g modes.
-Support for 802.11 n/ac is to come. 802.11ax and 6Ghz support are planned.
-.Sh BUGS
-Certainly.
 .Sh SEE ALSO
 .Xr iwlwififw 4 ,
 .Xr iwm 4 ,
 .Xr iwn 4 ,
 .Xr wlan 4 ,
+.Xr networking 7 ,
+.Xr fwget 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Sh HISTORY
@@ -222,3 +249,12 @@ The
 .Nm
 driver first appeared in
 .Fx 13.1 .
+.Sh BUGS
+Certainly.
+.Pp
+While
+.Nm
+supports 802.11a/b/g/n/ac/ax modes,
+the compatibility code currently only supports 802.11a/b/g modes.
+Support for 802.11n/ac/ax is yet to come.
+802.11ax and 6Ghz support are planned.

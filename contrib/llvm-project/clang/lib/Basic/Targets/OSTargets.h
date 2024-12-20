@@ -337,6 +337,10 @@ protected:
       Builder.defineMacro("_GNU_SOURCE");
     if (this->HasFloat128)
       Builder.defineMacro("__FLOAT128__");
+    if (Triple.isTime64ABI()) {
+      Builder.defineMacro("_FILE_OFFSET_BITS", "64");
+      Builder.defineMacro("_TIME_BITS", "64");
+    }
   }
 
 public:
@@ -868,6 +872,7 @@ protected:
 public:
   FuchsiaTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : OSTargetInfo<Target>(Triple, Opts) {
+    this->WIntType = TargetInfo::UnsignedInt;
     this->MCountName = "__mcount";
     this->TheCXXABI.set(TargetCXXABI::Fuchsia);
   }

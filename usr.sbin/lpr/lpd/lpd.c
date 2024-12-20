@@ -314,7 +314,7 @@ main(int argc, char **argv)
 	sigaddset(&nmask, SIGTERM);
 	sigprocmask(SIG_BLOCK, &nmask, &omask);
 
-	(void) umask(07);
+	(void) umask(077);
 	signal(SIGHUP, mcleanup);
 	signal(SIGINT, mcleanup);
 	signal(SIGQUIT, mcleanup);

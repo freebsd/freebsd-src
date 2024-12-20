@@ -226,7 +226,7 @@ hidbus_enumerate_children(device_t dev, const void* data, hid_size_t len)
 	while (hid_get_item(hd, &hi)) {
 		if (hi.kind != hid_collection || hi.collevel != 1)
 			continue;
-		child = BUS_ADD_CHILD(dev, 0, NULL, -1);
+		child = BUS_ADD_CHILD(dev, 0, NULL, DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Could not add HID device\n");
 			continue;
@@ -267,19 +267,17 @@ hidbus_attach_children(device_t dev)
 	 * attach twice in that case.
 	 */
 	sc->nest++;
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	sc->nest--;
 	if (sc->nest != 0)
 		return (0);
 
 	if (hid_is_keyboard(sc->rdesc.data, sc->rdesc.len) != 0)
-		error = bus_generic_attach(dev);
+		bus_attach_children(dev);
 	else
-		error = bus_delayed_attach_children(dev);
-	if (error != 0)
-		device_printf(dev, "failed to attach child: error %d\n", error);
+		bus_delayed_attach_children(dev);
 
-	return (error);
+	return (0);
 }
 
 static int
@@ -525,14 +523,12 @@ hidbus_set_desc(device_t child, const char *suffix)
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hid_device_info *devinfo = device_get_ivars(bus);
 	struct hidbus_ivars *tlc = device_get_ivars(child);
-	char buf[80];
 
 	/* Do not add NULL suffix or if device name already contains it. */
 	if (suffix != NULL && strcasestr(devinfo->name, suffix) == NULL &&
-	    (sc->nauto > 1 || (tlc->flags & HIDBUS_FLAG_AUTOCHILD) == 0)) {
-		snprintf(buf, sizeof(buf), "%s %s", devinfo->name, suffix);
-		device_set_desc_copy(child, buf);
-	} else
+	    (sc->nauto > 1 || (tlc->flags & HIDBUS_FLAG_AUTOCHILD) == 0))
+		device_set_descf(child, "%s %s", devinfo->name, suffix);
+	else
 		device_set_desc(child, devinfo->name);
 }
 

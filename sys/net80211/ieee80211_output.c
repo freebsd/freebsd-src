@@ -603,8 +603,7 @@ ieee80211_validate_frame(struct mbuf *m,
 		return (EINVAL);
 
 	wh = mtod(m, struct ieee80211_frame *);
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0)
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0))
 		return (EINVAL);
 
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;

@@ -146,7 +146,7 @@ struct netmap_mem_d* netmap_mem_private_new( u_int txr, u_int txd, u_int rxr, u_
 #define netmap_mem_get(d) __netmap_mem_get(d, __FUNCTION__, __LINE__)
 #define netmap_mem_put(d) __netmap_mem_put(d, __FUNCTION__, __LINE__)
 struct netmap_mem_d* __netmap_mem_get(struct netmap_mem_d *, const char *, int);
-struct netmap_mem_d* netmap_mem_get_iommu(struct netmap_adapter *);
+struct netmap_mem_d* netmap_mem_get_allocator(struct netmap_adapter *);
 void __netmap_mem_put(struct netmap_mem_d *, const char *, int);
 struct netmap_mem_d* netmap_mem_find(nm_memid_t);
 unsigned netmap_mem_bufsize(struct netmap_mem_d *nmd);

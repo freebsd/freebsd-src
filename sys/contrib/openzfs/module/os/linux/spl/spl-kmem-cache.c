@@ -21,7 +21,8 @@
  *  with the SPL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/percpu_compat.h>
+#define	SPL_KMEM_CACHE_IMPLEMENTING
+
 #include <sys/kmem.h>
 #include <sys/kmem_cache.h>
 #include <sys/taskq.h>
@@ -32,16 +33,6 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/prefetch.h>
-
-/*
- * Within the scope of spl-kmem.c file the kmem_cache_* definitions
- * are removed to allow access to the real Linux slab allocator.
- */
-#undef kmem_cache_destroy
-#undef kmem_cache_create
-#undef kmem_cache_alloc
-#undef kmem_cache_free
-
 
 /*
  * Linux 3.16 replaced smp_mb__{before,after}_{atomic,clear}_{dec,inc,bit}()
@@ -57,7 +48,6 @@
 #define	smp_mb__after_atomic(x) smp_mb__after_clear_bit(x)
 #endif
 
-/* BEGIN CSTYLED */
 /*
  * Cache magazines are an optimization designed to minimize the cost of
  * allocating memory.  They do this by keeping a per-cpu cache of recently
@@ -106,7 +96,6 @@ static unsigned int spl_kmem_cache_kmem_threads = 4;
 module_param(spl_kmem_cache_kmem_threads, uint, 0444);
 MODULE_PARM_DESC(spl_kmem_cache_kmem_threads,
 	"Number of spl_kmem_cache threads");
-/* END CSTYLED */
 
 /*
  * Slab allocation interfaces
@@ -152,6 +141,8 @@ kv_alloc(spl_kmem_cache_t *skc, int size, int flags)
 	gfp_t lflags = kmem_flags_convert(flags);
 	void *ptr;
 
+	if (skc->skc_flags & KMC_RECLAIMABLE)
+		lflags |= __GFP_RECLAIMABLE;
 	ptr = spl_vmalloc(size, lflags | __GFP_HIGHMEM);
 
 	/* Resulting allocated memory will be page aligned */
@@ -432,6 +423,8 @@ spl_emergency_alloc(spl_kmem_cache_t *skc, int flags, void **obj)
 	if (!empty)
 		return (-EEXIST);
 
+	if (skc->skc_flags & KMC_RECLAIMABLE)
+		lflags |= __GFP_RECLAIMABLE;
 	ske = kmalloc(sizeof (*ske), lflags);
 	if (ske == NULL)
 		return (-ENOMEM);
@@ -671,6 +664,7 @@ spl_magazine_destroy(spl_kmem_cache_t *skc)
  *	KMC_KVMEM       Force kvmem backed SPL cache
  *	KMC_SLAB        Force Linux slab backed cache
  *	KMC_NODEBUG	Disable debugging (unsupported)
+ *	KMC_RECLAIMABLE	Memory can be freed under pressure
  */
 spl_kmem_cache_t *
 spl_kmem_cache_create(const char *name, size_t size, size_t align,
@@ -731,8 +725,7 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	skc->skc_obj_emergency = 0;
 	skc->skc_obj_emergency_max = 0;
 
-	rc = percpu_counter_init_common(&skc->skc_linux_alloc, 0,
-	    GFP_KERNEL);
+	rc = percpu_counter_init(&skc->skc_linux_alloc, 0, GFP_KERNEL);
 	if (rc != 0) {
 		kfree(skc);
 		return (NULL);
@@ -788,25 +781,11 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 		if (size > spl_kmem_cache_slab_limit)
 			goto out;
 
-#if defined(SLAB_USERCOPY)
-		/*
-		 * Required for PAX-enabled kernels if the slab is to be
-		 * used for copying between user and kernel space.
-		 */
-		slabflags |= SLAB_USERCOPY;
-#endif
+		if (skc->skc_flags & KMC_RECLAIMABLE)
+			slabflags |= SLAB_RECLAIM_ACCOUNT;
 
-#if defined(HAVE_KMEM_CACHE_CREATE_USERCOPY)
-		/*
-		 * Newer grsec patchset uses kmem_cache_create_usercopy()
-		 * instead of SLAB_USERCOPY flag
-		 */
 		skc->skc_linux_cache = kmem_cache_create_usercopy(
 		    skc->skc_name, size, align, slabflags, 0, size, NULL);
-#else
-		skc->skc_linux_cache = kmem_cache_create(
-		    skc->skc_name, size, align, slabflags, NULL);
-#endif
 		if (skc->skc_linux_cache == NULL)
 			goto out;
 	}
@@ -1024,7 +1003,7 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 	 * then return so the local magazine can be rechecked for new objects.
 	 */
 	if (test_bit(KMC_BIT_REAPING, &skc->skc_flags)) {
-		rc = spl_wait_on_bit(&skc->skc_flags, KMC_BIT_REAPING,
+		rc = wait_on_bit(&skc->skc_flags, KMC_BIT_REAPING,
 		    TASK_UNINTERRUPTIBLE);
 		return (rc ? rc : -EAGAIN);
 	}

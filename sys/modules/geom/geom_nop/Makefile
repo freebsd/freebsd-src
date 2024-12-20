@@ -1,4 +1,3 @@
-
 .PATH: ${SRCTOP}/sys/geom/nop
 
 KMOD=	geom_nop

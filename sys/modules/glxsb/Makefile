@@ -1,4 +1,3 @@
-
 .PATH:	${SRCTOP}/sys/dev/glxsb
 KMOD	= glxsb
 SRCS	= glxsb.c glxsb_hash.c glxsb.h 

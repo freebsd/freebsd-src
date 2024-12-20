@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.166 2024/01/05 23:16:34 sjg Exp $
+# $Id: dirdeps.mk,v 1.171 2024/09/30 21:21:25 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -139,7 +139,7 @@
 # DIRDEPS_EXPORT_VARS (DEP_EXPORT_VARS)
 #	It is discouraged, but sometimes necessary for a
 #	Makefile.depend file to influence the environment.
-#	Doing this is correctly (especially if using DIRDEPS_CACHE) is
+#	Doing this correctly (especially if using DIRDEPS_CACHE) is
 #	tricky so a Makefile.depend file can set DIRDEPS_EXPORT_VARS
 #	and dirdeps.mk will do the deed:
 #
@@ -581,6 +581,7 @@ BUILD_DIRDEPS_MAKEFILE ?= -f dirdeps.mk
 
 # these should generally do
 BUILD_DIRDEPS_MAKEFILE ?=
+BUILD_DIRDEPS_OVERRIDES ?=
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
 
 .if ${DIRDEPS_CACHE} != ${STATIC_DIRDEPS_CACHE:Uno} && ${DIRDEPS_CACHE:M${SRCTOP}/*} == ""
@@ -600,7 +601,9 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	TARGET_SPEC=${TARGET_SPEC} \
 	MAKEFLAGS= ${DIRDEP_CACHE_MAKE:U${.MAKE}} -C ${_CURDIR} \
 	${BUILD_DIRDEPS_MAKEFILE} \
-	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
+	${BUILD_DIRDEPS_TARGETS} \
+	${BUILD_DIRDEPS_OVERRIDES} \
+	BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
 	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
 	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
@@ -692,9 +695,22 @@ DEP_DIRDEPS_FILTER = \
 	${DIRDEPS_FILTER.${DEP_TARGET_SPEC}:U} \
 	${TARGET_SPEC_VARS:@v@${DIRDEPS_FILTER.${DEP_$v}:U}@} \
 	${DIRDEPS_FILTER:U}
+
 .if empty(DEP_DIRDEPS_FILTER)
 # something harmless
-DEP_DIRDEPS_FILTER = U
+DEP_DIRDEPS_FILTER = u
+.endif
+
+# this is applied after we have computed build dirs
+# so everything is fully qualified and starts with ${SRCTOP}/
+DEP_DIRDEPS_BUILD_DIR_FILTER = \
+	${DIRDEPS_BUILD_DIR_FILTER.${DEP_TARGET_SPEC}:U} \
+	${TARGET_SPEC_VARS:@v@${DIRDEPS_BUILD_DIR_FILTER.${DEP_$v}:U}@} \
+	${DIRDEPS_BUILD_DIR_FILTER:U}
+
+.if empty(DEP_DIRDEPS_BUILD_DIR_FILTER)
+# something harmless
+DEP_DIRDEPS_BUILD_DIR_FILTER = u
 .endif
 
 # this is what we start with
@@ -714,6 +730,7 @@ __qual_depdirs += ${__hostdpadd}
 
 .if ${_debug_reldir}
 .info DEP_DIRDEPS_FILTER=${DEP_DIRDEPS_FILTER:ts:}
+.info DEP_DIRDEPS_BUILD_DIR_FILTER=${DEP_DIRDEPS_BUILD_DIR_FILTER:ts:}
 .info depdirs=${__depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .info qualified=${__qual_depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .info unqualified=${__unqual_depdirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
@@ -733,7 +750,8 @@ _build_dirs += \
 # make sure we do not mess with qualifying "host" entries
 _build_dirs := ${_build_dirs:M*.host*:${M_dep_qual_fixes.host:ts:}} \
 	${_build_dirs:N*.host*:${M_dep_qual_fixes:ts:}}
-_build_dirs := ${_build_dirs:O:u}
+# some filters can only be applied now
+_build_dirs := ${_build_dirs:${DEP_DIRDEPS_BUILD_DIR_FILTER:ts:}:O:u}
 .if ${_debug_reldir}
 .info _build_dirs=${_build_dirs:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
 .endif
@@ -742,6 +760,11 @@ _build_dirs := ${_build_dirs:O:u}
 
 _build_all_dirs += ${_build_dirs} ${_build_xtra_dirs}
 _build_all_dirs := ${_build_all_dirs:O:u}
+
+# we prefer DIRDEPS_EXPORT_VARS
+.if empty(DIRDEPS_EXPORT_VARS) && !empty(DEP_EXPORT_VARS)
+DIRDEPS_EXPORT_VARS = ${DEP_EXPORT_VARS}
+.endif
 
 # Normally if doing make -V something,
 # we do not want to waste time chasing DIRDEPS
@@ -754,10 +777,9 @@ _cache_script = echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}';
 # guard against _new_dirdeps being too big for a single command line
 _new_dirdeps := ${_build_all_dirs:@x@${target($x):?:$x}@:S,^${SRCTOP}/,,}
 _cache_xtra_deps := ${_build_xtra_dirs:S,^${SRCTOP}/,,}
-.if !empty(DIRDEPS_EXPORT_VARS) || !empty(DEP_EXPORT_VARS)
+.if !empty(DIRDEPS_EXPORT_VARS)
 # Discouraged, but there are always exceptions.
 # Handle it here rather than explain how.
-DIRDEPS_EXPORT_VARS ?= ${DEP_EXPORT_VARS}
 _cache_xvars := echo; ${DIRDEPS_EXPORT_VARS:@v@echo '$v = ${$v}';@} echo '.export ${DIRDEPS_EXPORT_VARS}'; echo;
 _cache_script += ${_cache_xvars}
 .endif
@@ -769,12 +791,6 @@ ${_build_all_dirs}:	_DIRDEP_USE
 
 .if ${_debug_reldir}
 .info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: needs: ${_build_dirs:S,^${SRCTOP}/,,:${DEBUG_DIRDEPS_LIST_FILTER:U:N/:ts:}}
-.endif
-
-.if !empty(DIRDEPS_EXPORT_VARS) || !empty(DEP_EXPORT_VARS)
-.export ${DIRDEPS_EXPORT_VARS} ${DEP_EXPORT_VARS}
-DIRDEPS_EXPORT_VARS =
-DEP_EXPORT_VARS =
 .endif
 
 # this builds the dependency graph
@@ -832,6 +848,15 @@ ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 
 .endif
 
+.if !empty(DIRDEPS_EXPORT_VARS)
+.if ${BUILD_DIRDEPS_CACHE} == "no"
+.export ${DIRDEPS_EXPORT_VARS}
+.endif
+# Reset these, we are done with them for this iteration.
+DIRDEPS_EXPORT_VARS =
+DEP_EXPORT_VARS =
+.endif
+
 # Now find more dependencies - and recurse.
 .for d in ${_build_all_dirs}
 .if !target(_dirdeps_checked.$d)
@@ -862,16 +887,13 @@ _m := ${.MAKE.DEPENDFILE_PREFERENCE:T:S;${TARGET_SPEC}$;${d:E};:C;${MACHINE}((,.
 .if !empty(_m)
 # M_dep_qual_fixes isn't geared to Makefile.depend
 _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes.${d:E}:U${M_dep_qual_fixes}:ts:}}
-.if ${_debug_search}
-.info Looking for ${_qm}
-.endif
 # set this "just in case"
 # we can skip :tA since we computed the path above
 DEP_RELDIR := ${_m:H:S,^${SRCTOP}/,,}
 # and reset this
 DIRDEPS =
-.if ${_debug_reldir} && ${_qm} != ${_m}
-.info loading ${_m:S,${SRCTOP}/,,} for ${_dr}
+.if ${_debug_search} || ${_debug_reldir}
+.info Loading ${_m:S,${SRCTOP}/,,} for ${_dr}
 .endif
 .include <${_m}>
 .else

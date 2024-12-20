@@ -116,6 +116,7 @@ r92eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r12au_classify_intr;
 	sc->sc_handle_tx_report		= r12a_ratectl_tx_complete;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= r92e_handle_c2h_report;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
 	sc->sc_rf_read			= r92e_rf_read;
@@ -163,6 +164,7 @@ r92eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r92eu_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= r92e_set_tx_power;
 
 	sc->mac_prog			= &rtl8192eu_mac[0];
 	sc->mac_size			= nitems(rtl8192eu_mac);

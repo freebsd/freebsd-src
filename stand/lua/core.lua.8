@@ -218,6 +218,10 @@ If there are no elements, this returns nil and nil.
 If there is one element, this returns the front element and an empty table.
 This will not operate on truly associative tables; numeric indices are
 required.
+.It Fn core.loaderTooOld
+Returns true if the loader is too old.
+Specifically, this means, is the loader old enough to require one or more
+workarounds in the current lua base modules.
 .El
 .Sh SEE ALSO
 .Xr loader.conf 5 ,

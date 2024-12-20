@@ -180,6 +180,14 @@ nvmf_capsule_cqe(struct nvmf_capsule *nc)
 	return (&nc->nc_cqe);
 }
 
+bool
+nvmf_sqhd_valid(struct nvmf_capsule *nc)
+{
+	KASSERT(nc->nc_qe_len == sizeof(struct nvme_completion),
+	    ("%s: capsule %p is not a response capsule", __func__, nc));
+	return (nc->nc_sqhd_valid);
+}
+
 uint8_t
 nvmf_validate_command_capsule(struct nvmf_capsule *nc)
 {

@@ -159,6 +159,7 @@ struct devreq {
 /* Flags for DEV_RESET */
 #define	DEVF_RESET_DETACH	0x0000001	/* Detach drivers vs suspend
 						   device */
+#define DEVICE_UNIT_ANY		(-1)
 
 #ifdef _KERNEL
 
@@ -441,7 +442,8 @@ struct resource *
 				   rman_res_t count, u_int flags);
 int	bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
 			      rman_res_t *newstart);
-int	bus_generic_attach(device_t dev);
+int	bus_generic_attach(device_t dev)
+	__deprecated1("Use bus_attach_children instead");
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
 int	bus_generic_child_location(device_t dev, device_t child, struct sbuf *sb);
@@ -477,7 +479,8 @@ int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
-int	bus_generic_probe(device_t dev);
+int	bus_generic_probe(device_t dev)
+	__deprecated1("Use bus_identify_children instead");
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
 int	bus_generic_release_resource(device_t bus, device_t child,
@@ -590,8 +593,12 @@ void	bus_delete_resource(device_t dev, int type, int rid);
 int	bus_child_present(device_t child);
 int	bus_child_pnpinfo(device_t child, struct sbuf *sb);
 int	bus_child_location(device_t child, struct sbuf *sb);
+
+void	bus_attach_children(device_t dev);
+void	bus_delayed_attach_children(device_t bus);
+int	bus_detach_children(device_t dev);
 void	bus_enumerate_hinted_children(device_t bus);
-int	bus_delayed_attach_children(device_t bus);
+void	bus_identify_children(device_t dev);
 
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
@@ -817,9 +824,7 @@ void	bus_data_generation_update(void);
 #define BUS_LOCATOR_UEFI	"UEFI"
 #define BUS_LOCATOR_OFW		"OFW"
 
-extern int bus_current_pass;
-
-void	bus_set_pass(int pass);
+int	bus_get_pass(void);
 
 /**
  * Routines to lock / unlock the newbus lock.
@@ -923,6 +928,14 @@ device_location_cache_t *dev_wired_cache_init(void);
 void dev_wired_cache_fini(device_location_cache_t *dcp);
 bool dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
 
+#define	DEV_PROP_NAME_IOMMU	"iommu-unit"
+typedef void (*device_prop_dtr_t)(device_t dev, const char *name, void *val,
+    void *dtr_ctx);
+int device_set_prop(device_t dev, const char *name, void *val,
+    device_prop_dtr_t dtr, void *dtr_ctx);
+int device_get_prop(device_t dev, const char *name, void **valp);
+int device_clear_prop(device_t dev, const char *name);
+void device_clear_prop_alldev(const char *name);
 
 /**
  * Shorthand macros, taking resource argument

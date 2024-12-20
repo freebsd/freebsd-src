@@ -31,6 +31,7 @@
 #include <dev/mlx5/mlx5_en/en.h>
 
 #include <dev/mlx5/tls.h>
+#include <dev/mlx5/crypto.h>
 
 #include <linux/delay.h>
 #include <sys/ktls.h>
@@ -80,17 +81,57 @@ static const char *mlx5e_tls_stats_desc[] = {
 
 static void mlx5e_tls_work(struct work_struct *);
 
+/*
+ * Expand the tls tag UMA zone in a sleepable context
+ */
+
+static void
+mlx5e_prealloc_tags(struct mlx5e_priv *priv, int nitems)
+{
+	struct mlx5e_tls_tag **tags;
+	int i;
+
+	tags = malloc(sizeof(tags[0]) * nitems,
+	    M_MLX5E_TLS, M_WAITOK);
+	for (i = 0; i < nitems; i++)
+		tags[i] = uma_zalloc(priv->tls.zone, M_WAITOK);
+	__compiler_membar();
+	for (i = 0; i < nitems; i++)
+		uma_zfree(priv->tls.zone, tags[i]);
+	free(tags, M_MLX5E_TLS);
+}
+
 static int
 mlx5e_tls_tag_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct mlx5e_tls_tag *ptag;
-	int i;
+	struct mlx5e_priv *priv = arg;
+	int err, i;
+
+	/*
+	 * mlx5_tls_open_tis() sleeps on a firmware command, so
+	 * zone allocations must be done from a sleepable context.
+	 * Note that the uma_zalloc() in mlx5e_tls_snd_tag_alloc()
+	 * is done with M_NOWAIT so that hitting the zone limit does
+	 * not cause the allocation to pause forever.
+	 */
 
 	for (i = 0; i != cnt; i++) {
 		ptag = malloc_domainset(sizeof(*ptag), M_MLX5E_TLS,
 		    mlx5_dev_domainset(arg), flags | M_ZERO);
+		if (ptag == NULL)
+			return (i);
+		ptag->tls = &priv->tls;
 		mtx_init(&ptag->mtx, "mlx5-tls-tag-mtx", NULL, MTX_DEF);
 		INIT_WORK(&ptag->work, mlx5e_tls_work);
+		err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
+		    priv->pdn, &ptag->tisn);
+		if (err) {
+			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
+			free(ptag, M_MLX5E_TLS);
+			return (i);
+		}
+
 		store[i] = ptag;
 	}
 	return (i);
@@ -113,7 +154,6 @@ mlx5e_tls_tag_release(void *arg, void **store, int cnt)
 
 		if (ptag->tisn != 0) {
 			mlx5_tls_close_tis(priv->mdev, ptag->tisn);
-			atomic_add_32(&ptls->num_resources, -1U);
 		}
 
 		mtx_destroy(&ptag->mtx);
@@ -135,12 +175,29 @@ mlx5e_tls_tag_zfree(struct mlx5e_tls_tag *ptag)
 	/* avoid leaking keys */
 	memset(ptag->crypto_params, 0, sizeof(ptag->crypto_params));
 
-	/* update number of TIS contexts */
-	if (ptag->tisn == 0)
-		atomic_add_32(&ptag->tls->num_resources, -1U);
-
 	/* return tag to UMA */
 	uma_zfree(ptag->tls->zone, ptag);
+}
+
+static int
+mlx5e_max_tag_proc(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = (struct mlx5e_priv *)arg1;
+	struct mlx5e_tls *ptls = &priv->tls;
+	int err;
+	unsigned int max_tags;
+
+	max_tags = ptls->zone_max;
+	err = sysctl_handle_int(oidp, &max_tags, arg2, req);
+	if (err != 0 || req->newptr == NULL )
+		return err;
+	if (max_tags == ptls->zone_max)
+		return 0;
+	if (max_tags > priv->tls.max_resources || max_tags == 0)
+		return (EINVAL);
+	ptls->zone_max = max_tags;
+	uma_zone_set_max(ptls->zone, ptls->zone_max);
+	return 0;
 }
 
 int
@@ -148,7 +205,8 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tls *ptls = &priv->tls;
 	struct sysctl_oid *node;
-	uint32_t x;
+	uint32_t max_dek, max_tis, x;
+	int zone_max = 0, prealloc_tags = 0;
 
 	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0 ||
 	    MLX5_CAP_GEN(priv->mdev, log_max_dek) == 0)
@@ -163,13 +221,31 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	snprintf(ptls->zname, sizeof(ptls->zname),
 	    "mlx5_%u_tls", device_get_unit(priv->mdev->pdev->dev.bsddev));
 
+
+	TUNABLE_INT_FETCH("hw.mlx5.tls_max_tags", &zone_max);
+	TUNABLE_INT_FETCH("hw.mlx5.tls_prealloc_tags", &prealloc_tags);
+
 	ptls->zone = uma_zcache_create(ptls->zname,
 	     sizeof(struct mlx5e_tls_tag), NULL, NULL, NULL, NULL,
-	     mlx5e_tls_tag_import, mlx5e_tls_tag_release, priv->mdev,
-	     UMA_ZONE_UNMANAGED);
+	     mlx5e_tls_tag_import, mlx5e_tls_tag_release, priv,
+	     UMA_ZONE_UNMANAGED | (prealloc_tags ? UMA_ZONE_NOFREE : 0));
 
 	/* shared between RX and TX TLS */
-	ptls->max_resources = 1U << (MLX5_CAP_GEN(priv->mdev, log_max_dek) - 1);
+	max_dek = 1U << (MLX5_CAP_GEN(priv->mdev, log_max_dek) - 1);
+	max_tis = 1U << (MLX5_CAP_GEN(priv->mdev, log_max_tis) - 1);
+	ptls->max_resources = MIN(max_dek, max_tis);
+
+	if (zone_max != 0) {
+		ptls->zone_max = zone_max;
+		if (ptls->zone_max > priv->tls.max_resources)
+			ptls->zone_max = priv->tls.max_resources;
+	} else {
+		ptls->zone_max = priv->tls.max_resources;
+	}
+
+	uma_zone_set_max(ptls->zone, ptls->zone_max);
+	if (prealloc_tags != 0)
+		mlx5e_prealloc_tags(priv, ptls->zone_max);
 
 	for (x = 0; x != MLX5E_TLS_STATS_NUM; x++)
 		ptls->stats.arg[x] = counter_u64_alloc(M_WAITOK);
@@ -181,6 +257,10 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	    "tls", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "Hardware TLS offload");
 	if (node == NULL)
 		return (0);
+
+	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO, "tls_max_tag",
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, priv, 0, mlx5e_max_tag_proc,
+	    "IU", "Max number of TLS offload session tags");
 
 	mlx5e_create_counter_stats(&ptls->ctx,
 	    SYSCTL_CHILDREN(node), "stats",
@@ -205,11 +285,47 @@ mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 	uma_zdestroy(ptls->zone);
 	destroy_workqueue(ptls->wq);
 
-	/* check if all resources are freed */
-	MPASS(priv->tls.num_resources == 0);
-
 	for (x = 0; x != MLX5E_TLS_STATS_NUM; x++)
 		counter_u64_free(ptls->stats.arg[x]);
+}
+
+
+static int
+mlx5e_tls_st_init(struct mlx5e_priv *priv, struct mlx5e_tls_tag *ptag)
+{
+	int err;
+
+	/* try to open TIS, if not present */
+	if (ptag->tisn == 0) {
+		err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
+		    priv->pdn, &ptag->tisn);
+		if (err) {
+			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
+			return (-err);
+		}
+	}
+	MLX5_SET(sw_tls_cntx, ptag->crypto_params, progress.pd, ptag->tisn);
+
+	/* try to allocate a DEK context ID */
+	err = mlx5_encryption_key_create(priv->mdev, priv->pdn,
+	    MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS,
+	    MLX5_ADDR_OF(sw_tls_cntx, ptag->crypto_params, key.key_data),
+	    MLX5_GET(sw_tls_cntx, ptag->crypto_params, key.key_len),
+	    &ptag->dek_index);
+	if (err) {
+		MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
+		return (-err);
+	}
+
+	MLX5_SET(sw_tls_cntx, ptag->crypto_params, param.dek_index, ptag->dek_index);
+
+	ptag->dek_index_ok = 1;
+
+	MLX5E_TLS_TAG_LOCK(ptag);
+	if (ptag->state == MLX5E_TLS_ST_INIT)
+		ptag->state = MLX5E_TLS_ST_SETUP;
+	MLX5E_TLS_TAG_UNLOCK(ptag);
+	return (0);
 }
 
 static void
@@ -217,48 +333,19 @@ mlx5e_tls_work(struct work_struct *work)
 {
 	struct mlx5e_tls_tag *ptag;
 	struct mlx5e_priv *priv;
-	int err;
 
 	ptag = container_of(work, struct mlx5e_tls_tag, work);
 	priv = container_of(ptag->tls, struct mlx5e_priv, tls);
 
 	switch (ptag->state) {
 	case MLX5E_TLS_ST_INIT:
-		/* try to open TIS, if not present */
-		if (ptag->tisn == 0) {
-			err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
-			    priv->pdn, &ptag->tisn);
-			if (err) {
-				MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-				break;
-			}
-		}
-		MLX5_SET(sw_tls_cntx, ptag->crypto_params, progress.pd, ptag->tisn);
-
-		/* try to allocate a DEK context ID */
-		err = mlx5_encryption_key_create(priv->mdev, priv->pdn,
-		    MLX5_ADDR_OF(sw_tls_cntx, ptag->crypto_params, key.key_data),
-		    MLX5_GET(sw_tls_cntx, ptag->crypto_params, key.key_len),
-		    &ptag->dek_index);
-		if (err) {
-			MLX5E_TLS_STAT_INC(ptag, tx_error, 1);
-			break;
-		}
-
-		MLX5_SET(sw_tls_cntx, ptag->crypto_params, param.dek_index, ptag->dek_index);
-
-		ptag->dek_index_ok = 1;
-
-		MLX5E_TLS_TAG_LOCK(ptag);
-		if (ptag->state == MLX5E_TLS_ST_INIT)
-			ptag->state = MLX5E_TLS_ST_SETUP;
-		MLX5E_TLS_TAG_UNLOCK(ptag);
+		(void)mlx5e_tls_st_init(priv, ptag);
 		break;
 
 	case MLX5E_TLS_ST_RELEASE:
 		/* try to destroy DEK context by ID */
 		if (ptag->dek_index_ok)
-			err = mlx5_encryption_key_destroy(priv->mdev, ptag->dek_index);
+			(void)mlx5_encryption_key_destroy(priv->mdev, ptag->dek_index);
 
 		/* free tag */
 		mlx5e_tls_tag_zfree(ptag);
@@ -307,8 +394,7 @@ mlx5e_tls_set_params(void *ctx, const struct tls_session_params *en)
 CTASSERT(MLX5E_TLS_ST_INIT == 0);
 
 int
-mlx5e_tls_snd_tag_alloc(if_t ifp,
-    union if_snd_tag_alloc_params *params,
+mlx5e_tls_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **ppmt)
 {
 	union if_snd_tag_alloc_params rl_params;
@@ -323,30 +409,16 @@ mlx5e_tls_snd_tag_alloc(if_t ifp,
 	if (priv->gone != 0 || priv->tls.init == 0)
 		return (EOPNOTSUPP);
 
-	/* allocate new tag from zone, if any */
 	ptag = uma_zalloc(priv->tls.zone, M_NOWAIT);
-	if (ptag == NULL)
-		return (ENOMEM);
+ 	if (ptag == NULL)
+ 		return (ENOMEM);
 
 	/* sanity check default values */
 	MPASS(ptag->dek_index == 0);
 	MPASS(ptag->dek_index_ok == 0);
 
-	/* setup TLS tag */
-	ptag->tls = &priv->tls;
-
 	/* check if there is no TIS context */
-	if (ptag->tisn == 0) {
-		uint32_t value;
-
-		value = atomic_fetchadd_32(&priv->tls.num_resources, 1U);
-
-		/* check resource limits */
-		if (value >= priv->tls.max_resources) {
-			error = ENOMEM;
-			goto failure;
-		}
-	}
+	KASSERT(ptag->tisn != 0, ("ptag %p w/0 tisn", ptag));
 
 	en = &params->tls.tls->params;
 
@@ -439,8 +511,9 @@ mlx5e_tls_snd_tag_alloc(if_t ifp,
 	/* reset state */
 	ptag->state = MLX5E_TLS_ST_INIT;
 
-	queue_work(priv->tls.wq, &ptag->work);
-	flush_work(&ptag->work);
+	error = mlx5e_tls_st_init(priv, ptag);
+	if (error != 0)
+		goto failure;
 
 	return (0);
 
