@@ -745,6 +745,91 @@ timeout_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "related_icmp" "cleanup"
+related_icmp_head()
+{
+	atf_set descr 'Verify that ICMP messages related to an SCTP connection are allowed'
+	atf_set require.user root
+}
+
+related_icmp_body()
+{
+	sctp_init
+
+	epair_cl=$(vnet_mkepair)
+	epair_rtr=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	ifconfig ${epair_cl}a 192.0.2.1/24 up
+	route add default 192.0.2.2
+
+	vnet_mkjail rtr ${epair_cl}b ${epair_rtr}a
+	jexec rtr ifconfig ${epair_cl}b 192.0.2.2/24 up
+	jexec rtr ifconfig ${epair_rtr}a 198.51.100.1/24 up
+	jexec rtr sysctl net.inet.ip.forwarding=1
+	jexec rtr route add default 198.51.100.2
+
+	vnet_mkjail rtr2 ${epair_rtr}b ${epair_srv}a
+	jexec rtr2 ifconfig ${epair_rtr}b 198.51.100.2/24 up
+	jexec rtr2 ifconfig ${epair_srv}a 203.0.113.1/24 up
+	jexec rtr2 ifconfig ${epair_srv}a mtu 1300
+	jexec rtr2 sysctl net.inet.ip.forwarding=1
+	jexec rtr2 route add default 198.51.100.1
+
+	vnet_mkjail srv ${epair_srv}b
+	jexec srv ifconfig ${epair_srv}b 203.0.113.2/24 up
+	jexec srv ifconfig ${epair_srv}b mtu 1300
+	jexec srv route add default 203.0.113.1
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.2
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 203.0.113.2
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "block proto icmp" \
+	    "pass proto sctp"
+
+	# Make sure SCTP traffic passes
+	echo "foo" | jexec srv nc --sctp -N -l 1234 &
+	sleep 1
+
+	out=$(nc --sctp -N -w 3 203.0.113.2 1234)
+	if [ "$out" != "foo" ]; then
+		jexec rtr pfctl -ss -vv
+		jexec rtr pfctl -sr -vv
+		atf_fail "SCTP connection failed"
+	fi
+
+	# Do we see ICMP traffic if we send overly large traffic?
+	echo "foo" | jexec srv nc --sctp -N -l 1234 >/dev/null &
+	sleep 1
+
+	atf_check -s exit:0 -o not-match:".*destination unreachable:.*" \
+	    netstat -s -p icmp
+
+	# Generate traffic that will be fragmented by rtr2, and will provoke an
+	# ICMP unreachable - need to frag (mtu 1300) message
+	dd if=/dev/random bs=1600 count=1 | nc --sctp -N -w 3 203.0.113.2 1234
+
+	# We'd expect to see an ICMP message
+	atf_check -s exit:0 -o match:".*destination unreachable: 1" \
+	    netstat -s -p icmp
+}
+
+related_icmp_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
@@ -757,4 +842,5 @@ atf_init_test_cases()
 	atf_add_test_case "rdr_v4"
 	atf_add_test_case "pfsync"
 	atf_add_test_case "timeout"
+	atf_add_test_case "related_icmp"
 }
