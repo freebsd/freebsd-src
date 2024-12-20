@@ -2341,16 +2341,6 @@ from modifying the source port on TCP and UDP packets.
 With
 .Ar nat
 rules, the
-.It Ar endpoint-independent
-With
-.Ar nat
-rules, the
-.Ar endpoint-independent
-option caues
-.Xr pf 4
-to always map connections from a UDP source address and port to the same
-NAT address and port.
-This feature implements "full-cone" NAT behavior.
 .Ar map-e-portset
 option enables the source port translation of MAP-E (RFC 7597) Customer Edge.
 In order to make the host act as a MAP-E Customer Edge, setting up a tunneling
@@ -2364,6 +2354,16 @@ nat on $gif_mape_if from $int_if:network to any \e
 .Ed
 .Pp
 sets PSID offset 6, PSID length 8, PSID 0x34.
+.It Ar endpoint-independent
+With
+.Ar nat
+rules, the
+.Ar endpoint-independent
+option caues
+.Xr pf 4
+to always map connections from a UDP source address and port to the same
+NAT address and port.
+This feature implements "full-cone" NAT behavior.
 .El
 .Pp
 Additionally, the
