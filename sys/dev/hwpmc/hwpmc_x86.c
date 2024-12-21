@@ -230,7 +230,7 @@ struct pmc_mdep *
 pmc_md_initialize(void)
 {
 	int i;
-	struct pmc_mdep *md;
+	struct pmc_mdep *md = NULL;
 
 	/* determine the CPU kind */
 	if (cpu_vendor_id == CPU_VENDOR_AMD ||
@@ -238,17 +238,18 @@ pmc_md_initialize(void)
 		md = pmc_amd_initialize();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		md = pmc_intel_initialize();
-	else
+
+	if (md == NULL)
 		return (NULL);
 
+	nmi_register_handler(md->pmd_intr);
 	/* disallow sampling if we do not have an LAPIC */
-	if (md != NULL && !lapic_enable_pcint())
+	if (!lapic_enable_pcint())
 		for (i = 0; i < md->pmd_nclass; i++) {
 			if (i == PMC_CLASS_INDEX_SOFT)
 				continue;
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 		}
-	nmi_register_handler(md->pmd_intr);
 
 	return (md);
 }
@@ -256,9 +257,10 @@ pmc_md_initialize(void)
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
-
-	lapic_disable_pcint();
-	nmi_remove_handler(md->pmd_intr);
+	if (md != NULL) {
+		lapic_disable_pcint();
+		nmi_remove_handler(md->pmd_intr);
+	}
 	if (cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_HYGON)
 		pmc_amd_finalize(md);
