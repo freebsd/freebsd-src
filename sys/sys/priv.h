@@ -211,6 +211,7 @@
 #define	PRIV_SYSCTL_DEBUG	240	/* Can invoke sysctl.debug. */
 #define	PRIV_SYSCTL_WRITE	241	/* Can write sysctls. */
 #define	PRIV_SYSCTL_WRITEJAIL	242	/* Can write sysctls, jail permitted. */
+#define	PRIV_SYSCTL_MEMLOCK	243	/* Large requests are not serialized. */
 
 /*
  * TTY privileges.

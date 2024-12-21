@@ -2516,8 +2516,9 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
     size_t *oldlenp, int inkernel, const void *new, size_t newlen,
     size_t *retval, int flags)
 {
-	int error = 0, memlocked;
 	struct sysctl_req req;
+	int error = 0;
+	bool memlocked;
 
 	bzero(&req, sizeof req);
 
@@ -2549,9 +2550,10 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (KTRPOINT(curthread, KTR_SYSCTL))
 		ktrsysctl(name, namelen);
 #endif
-	memlocked = 0;
-	if (req.oldptr && req.oldlen > 4 * PAGE_SIZE) {
-		memlocked = 1;
+	memlocked = false;
+	if (priv_check(td, PRIV_SYSCTL_MEMLOCK) != 0 &&
+	    req.oldptr != NULL && req.oldlen > 4 * PAGE_SIZE) {
+		memlocked = true;
 		sx_xlock(&sysctlmemlock);
 	}
 	CURVNET_SET(TD_TO_VNET(td));
