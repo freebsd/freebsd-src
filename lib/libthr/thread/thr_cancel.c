@@ -99,9 +99,9 @@ _thr_setcancelstate(int state, int *oldstate)
 		return (EINVAL);
 	}
 
-	if (oldstate) {
+	if (oldstate != NULL) {
 		*oldstate = oldval ? PTHREAD_CANCEL_ENABLE :
-			PTHREAD_CANCEL_DISABLE;
+		    PTHREAD_CANCEL_DISABLE;
 	}
 	return (0);
 }
@@ -125,9 +125,9 @@ _thr_setcanceltype(int type, int *oldtype)
 		return (EINVAL);
 	}
 
-	if (oldtype) {
+	if (oldtype != NULL) {
 		*oldtype = oldval ? PTHREAD_CANCEL_ASYNCHRONOUS :
-		 	PTHREAD_CANCEL_DEFERRED;
+		    PTHREAD_CANCEL_DEFERRED;
 	}
 	return (0);
 }
