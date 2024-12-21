@@ -34,6 +34,7 @@
 #include <sys/limits.h>
 #include <sys/mutex.h>
 
+#include <linux/radix-tree.h>
 #include <linux/gpf.h>
 #include <linux/types.h>
 
