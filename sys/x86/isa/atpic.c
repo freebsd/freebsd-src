@@ -94,8 +94,6 @@ inthand_t
 	IDTVEC(atpic_intr12_pti), IDTVEC(atpic_intr13_pti),
 	IDTVEC(atpic_intr14_pti), IDTVEC(atpic_intr15_pti);
 
-#define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
-
 #define	ATPIC(io, base) {						\
 		.at_ioaddr = (io),					\
 		.at_irqbase = (base),					\
@@ -136,7 +134,6 @@ static void atpic_disable_source(x86pic_t pic, struct intsrc *isrc);
 static void atpic_eoi(x86pic_t pic, struct intsrc *isrc);
 static void atpic_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void atpic_disable_intr(x86pic_t pic, struct intsrc *isrc);
-static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
 static int atpic_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int atpic_config_intr(x86pic_t pic, struct intsrc *isrc,
@@ -346,15 +343,6 @@ atpic_disable_intr(x86pic_t pic, struct intsrc *isrc)
 }
 
 static int
-atpic_vector(struct intsrc *isrc)
-{
-	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = X86PIC_PIC(isrc->is_event.ie_pic);
-
-	return (IRQ(ap, ai));
-}
-
-static int
 atpic_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
@@ -378,14 +366,14 @@ atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	u_int vector;
+	struct atpic *ap = device_get_softc(isrc->is_event.ie_pic);
+	const u_int vector = ap->at_irqbase + ai->at_irq;
 
 	/* Map conforming values to edge/hi and sanity check the values. */
 	if (trig == INTR_TRIGGER_CONFORM)
 		trig = INTR_TRIGGER_EDGE;
 	if (pol == INTR_POLARITY_CONFORM)
 		pol = INTR_POLARITY_HIGH;
-	vector = atpic_vector(isrc);
 	if ((trig == INTR_TRIGGER_EDGE && pol == INTR_POLARITY_LOW) ||
 	    (trig == INTR_TRIGGER_LEVEL && pol == INTR_POLARITY_HIGH)) {
 		printf(
@@ -423,7 +411,7 @@ atpic_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
 		printf("atpic: Programming IRQ%u as %s\n", vector,
 		    trig == INTR_TRIGGER_EDGE ? "edge/high" : "level/low");
 	spinlock_enter();
-	elcr_write_trigger(atpic_vector(isrc), trig);
+	elcr_write_trigger(vector, trig);
 	ai->at_trigger = trig;
 	spinlock_exit();
 	return (0);
