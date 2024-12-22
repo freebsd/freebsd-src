@@ -31,6 +31,12 @@
 #include <linux/kernel.h>	/* pr_debug */
 
 static inline int
+num_online_nodes(void)
+{
+	return (1);
+}
+
+static inline int
 num_possible_nodes(void)
 {
 	pr_debug("%s: TODO\n", __func__);
