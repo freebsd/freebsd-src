@@ -401,6 +401,24 @@ lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 }
 
 struct pci_dev *
+lkpi_pci_get_base_class(unsigned int baseclass, struct pci_dev *from)
+{
+	device_t dev;
+	device_t devfrom = NULL;
+	struct pci_dev *pdev;
+
+	if (from != NULL)
+		devfrom = from->dev.bsddev;
+
+	dev = pci_find_base_class_from(baseclass, devfrom);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = lkpinew_pci_dev(dev);
+	return (pdev);
+}
+
+struct pci_dev *
 lkpi_pci_get_domain_bus_and_slot(int domain, unsigned int bus,
     unsigned int devfn)
 {
