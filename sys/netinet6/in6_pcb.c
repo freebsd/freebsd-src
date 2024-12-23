@@ -239,13 +239,20 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 		if (!IN6_IS_ADDR_MULTICAST(laddr) &&
 		    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) !=
 		    0) {
+			/*
+			 * If a socket owned by a different user is already
+			 * bound to this port, fail.  In particular, SO_REUSE*
+			 * can only be used to share a port among sockets owned
+			 * by the same user.
+			 *
+			 * However, we can share a port with a connected socket
+			 * which has a unique 4-tuple.
+			 */
 			t = in6_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
 			    INPLOOKUP_WILDCARD, cred);
 			if (t != NULL &&
 			    (inp->inp_socket->so_type != SOCK_STREAM ||
 			     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
-			    (!IN6_IS_ADDR_UNSPECIFIED(laddr) ||
-			     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr)) &&
 			    (inp->inp_cred->cr_uid != t->inp_cred->cr_uid))
 				return (EADDRINUSE);
 
