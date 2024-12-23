@@ -159,6 +159,19 @@ minus_e_body()
 	atf_check -o 'inline:--\nab\n' sed    $'1 i\\\n--' a
 }
 
+atf_test_case command_D
+command_D_head()
+{
+	atf_set "descr" "Test handling of an empty pattern space"
+}
+command_D_body()
+{
+	printf "hello\n\nworld\n" > a
+
+	atf_check -o file:a sed -e 's/^//;P;D' a
+	atf_check -o file:a sed -e 's/^//;$!N;P;D' a
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case inplace_command_q
@@ -169,4 +182,5 @@ atf_init_test_cases()
 	atf_add_test_case hex_subst
 	atf_add_test_case bracket_y
 	atf_add_test_case minus_e
+	atf_add_test_case command_D
 }
