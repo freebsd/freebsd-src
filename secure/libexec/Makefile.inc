@@ -1,5 +1,5 @@
 
 BINDIR?=	/usr/libexec
-PACKAGE=	ssh
+PACKAGE?=	ssh
 
 .include "../Makefile.inc"
