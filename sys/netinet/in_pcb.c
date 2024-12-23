@@ -919,13 +919,20 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 
 		if (!IN_MULTICAST(ntohl(laddr.s_addr)) &&
 		    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) != 0) {
+			/*
+			 * If a socket owned by a different user is already
+			 * bound to this port, fail.  In particular, SO_REUSE*
+			 * can only be used to share a port among sockets owned
+			 * by the same user.
+			 *
+			 * However, we can share a port with a connected socket
+			 * which has a unique 4-tuple.
+			 */
 			t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
 			    INPLOOKUP_WILDCARD, cred);
 			if (t != NULL &&
 			    (inp->inp_socket->so_type != SOCK_STREAM ||
 			     in_nullhost(t->inp_faddr)) &&
-			    (!in_nullhost(laddr) ||
-			     !in_nullhost(t->inp_laddr)) &&
 			    (inp->inp_cred->cr_uid != t->inp_cred->cr_uid))
 				return (EADDRINUSE);
 		}
