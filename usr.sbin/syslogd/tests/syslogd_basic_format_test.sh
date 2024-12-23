@@ -63,6 +63,25 @@ O_flag_rfc3164_basic_cleanup()
     syslogd_stop
 }
 
+atf_test_case "O_flag_rfc3164strict_basic" "cleanup"
+O_flag_rfc3164strict_basic_head()
+{
+    atf_set descr "rfc3164-strict format test on local syslog message"
+}
+O_flag_rfc3164strict_basic_body()
+{
+    local format="rfc3164-strict"
+    local logfile="${PWD}/O_flag_${format}_basic.log"
+
+    setup_basic_format_test "${format}" "${logfile}"
+
+    atf_check -s exit:0 -o match:"${REGEX_RFC3164_LOGFILE}" cat "${logfile}"
+}
+O_flag_rfc3164strict_basic_cleanup()
+{
+    syslogd_stop
+}
+
 atf_test_case "O_flag_syslog_basic" "cleanup"
 O_flag_syslog_basic_head()
 {
@@ -105,6 +124,7 @@ atf_init_test_cases()
 {
     atf_add_test_case "O_flag_bsd_basic"
     atf_add_test_case "O_flag_rfc3164_basic"
+    atf_add_test_case "O_flag_rfc3164strict_basic"
     atf_add_test_case "O_flag_syslog_basic"
     atf_add_test_case "O_flag_rfc5424_basic"
 }
