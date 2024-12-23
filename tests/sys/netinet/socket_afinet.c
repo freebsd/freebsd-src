@@ -337,7 +337,8 @@ ATF_TC_BODY(socket_afinet_bindany, tc)
  * Returns true if the bind succeeded, and false if it failed with EADDRINUSE.
  */
 static bool
-child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt, bool unpriv)
+child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt,
+    bool unpriv)
 {
 	const char *user;
 	pid_t child;
@@ -483,16 +484,8 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
 				/*
 				 * Multi-binding is only allowed when both
 				 * sockets have the same owner.
-				 * 
-				 * XXX-MJ we for some reason permit this when
-				 * binding to the unspecified address, but I
-				 * don't think that's right
 				 */
-				if (flags[flagi] && opts[opti] != 0 &&
-				    opts[opti] != SO_REUSEADDR && opti == optj)
-					ATF_REQUIRE(res);
-				else
-					ATF_REQUIRE(!res);
+				ATF_REQUIRE(!res);
 			}
 			ATF_REQUIRE(close(s) == 0);
 		}
@@ -517,6 +510,78 @@ ATF_TC_BODY(socket_afinet_multibind, tc)
 	multibind_test(tc, AF_INET6, SOCK_DGRAM);
 }
 
+static void
+bind_connected_port_test(const atf_tc_t *tc, int domain)
+{
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr *sinp;
+	int error, sd[3], tmp;
+	bool res;
+
+	/*
+	 * Create a connected socket pair.
+	 */
+	sd[0] = socket(domain, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(sd[0] >= 0, "socket failed: %s", strerror(errno));
+	sd[1] = socket(domain, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(sd[1] >= 0, "socket failed: %s", strerror(errno));
+	if (domain == PF_INET) {
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(sin);
+		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_port = htons(0);
+		sinp = (struct sockaddr *)&sin;
+	} else {
+		ATF_REQUIRE(domain == PF_INET6);
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_len = sizeof(sin6);
+		sin6.sin6_addr = in6addr_any;
+		sin6.sin6_port = htons(0);
+		sinp = (struct sockaddr *)&sin6;
+	}
+
+	error = bind(sd[0], sinp, sinp->sa_len);
+	ATF_REQUIRE_MSG(error == 0, "bind failed: %s", strerror(errno));
+	error = listen(sd[0], 1);
+	ATF_REQUIRE_MSG(error == 0, "listen failed: %s", strerror(errno));
+
+	error = getsockname(sd[0], sinp, &(socklen_t){ sinp->sa_len });
+	ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s", strerror(errno));
+
+	error = connect(sd[1], sinp, sinp->sa_len);
+	ATF_REQUIRE_MSG(error == 0, "connect failed: %s", strerror(errno));
+	tmp = accept(sd[0], NULL, NULL);
+	ATF_REQUIRE_MSG(tmp >= 0, "accept failed: %s", strerror(errno));
+	ATF_REQUIRE(close(sd[0]) == 0);
+	sd[0] = tmp;
+
+	/* bind() should succeed even from an unprivileged user. */
+	res = child_bind(tc, SOCK_STREAM, sinp, 0, false);
+	ATF_REQUIRE(!res);
+	res = child_bind(tc, SOCK_STREAM, sinp, 0, true);
+	ATF_REQUIRE(!res);
+}
+
+/*
+ * Normally bind() prevents port stealing by a different user, even when
+ * SO_REUSE* are specified.  However, if the port is bound by a connected
+ * socket, then it's fair game.
+ */
+ATF_TC(socket_afinet_bind_connected_port);
+ATF_TC_HEAD(socket_afinet_bind_connected_port, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+	atf_tc_set_md_var(tc, "require.config", "unprivileged_user");
+}
+ATF_TC_BODY(socket_afinet_bind_connected_port, tc)
+{
+	bind_connected_port_test(tc, AF_INET);
+	bind_connected_port_test(tc, AF_INET6);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, socket_afinet);
@@ -527,6 +592,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, socket_afinet_stream_reconnect);
 	ATF_TP_ADD_TC(tp, socket_afinet_bindany);
 	ATF_TP_ADD_TC(tp, socket_afinet_multibind);
+	ATF_TP_ADD_TC(tp, socket_afinet_bind_connected_port);
 
 	return atf_no_error();
 }
