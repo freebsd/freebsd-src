@@ -462,7 +462,7 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
     fsinfo_t *fsopts)
 {
 	int64_t startoffset;
-	int numDirectories;
+	int ret, numDirectories;
 	uint64_t pathTableSectors;
 	int64_t firstAvailableSector;
 	int64_t totalSpace;
@@ -604,7 +604,7 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
 	if (diskStructure->include_padding_areas)
 		diskStructure->totalSectors += 150;
 
-	cd9660_write_image(diskStructure, image);
+	ret = cd9660_write_image(diskStructure, image);
 
 	if (diskStructure->verbose_level > 1) {
 		debug_print_volume_descriptor_information(diskStructure);
@@ -616,7 +616,10 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
 	cd9660_free_structure(real_root);
 
 	if (diskStructure->verbose_level > 0)
-		printf("%s: done\n", __func__);
+		printf("%s: done ret = %d\n", __func__, ret);
+
+	if (ret == 0)	/* cd9660_write_image() failed */
+		exit(1);
 }
 
 /* Generic function pointer - implement later */
