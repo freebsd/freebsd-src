@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)close.2	8.2 (Berkeley) 4/19/94
 .\"
-.Dd December 1, 2017
+.Dd December 18, 2024
 .Dt CLOSE 2
 .Os
 .Sh NAME
@@ -113,9 +113,6 @@ is not an active descriptor.
 An interrupt was received.
 .It Bq Er ENOSPC
 The underlying object did not fit, cached data was lost.
-.It Bq Er ECONNRESET
-The underlying object was a stream socket that was shut down by the peer
-before all pending data was delivered.
 .El
 .Pp
 In case of any error except
