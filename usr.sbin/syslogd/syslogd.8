@@ -269,14 +269,21 @@ The values
 .Ar bsd
 and
 .Ar rfc3164
-are used to generate RFC 3164 log messages.
+are used to generate legacy RFC 3164 log messages.
+The value
+.Ar rfc3164-strict
+is used to generate log messages using the RFC 3164 recommended format,
+where messages sent over the network include the hostname,
+and messages forwarded by a relay exclude the
+.Dq Forwarded from
+field.
 The values
 .Ar syslog
 and
 .Ar rfc5424
 are used to generate RFC 5424 log messages,
 having RFC 3339 timestamps with microsecond precision.
-The default is to generate RFC 3164 log messages.
+The default is to generate legacy RFC 3164 log messages.
 .It Fl o
 Prefix kernel messages with the full kernel boot file as determined by
 .Xr getbootfile 3 .
