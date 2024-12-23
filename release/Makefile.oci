@@ -24,6 +24,8 @@ OCI_DEPS_minimal= container-image-dynamic.txz
 .for _IMG in ${OCI_IMAGES}
 OCI_TARGETS+= container-image-${_IMG}.txz
 container-image-${_IMG}.txz: ${OCI_DEPS_${_IMG}}
+	# Adjust PATH so that we run pwd_mkdb from the bootstrap tools
+	env PATH=${OBJTOP}/tmp/legacy/bin:${PATH:Q} \
 	sh ${.CURDIR}/scripts/make-oci-image.sh ${.CURDIR} ${REVISION} ${BRANCH} ${TARGET_ARCH} ${_IMG}
 	skopeo copy \
 		containers-storage:localhost/freebsd${REVISION:R}-${_IMG}:latest \
