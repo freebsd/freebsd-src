@@ -144,6 +144,36 @@ TEST_F(Fhstat, lookup_dot)
 	EXPECT_EQ(mode, sb.st_mode);
 }
 
+/* Gracefully handle failures to lookup ".". */
+TEST_F(Fhstat, lookup_dot_error)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/.";
+	const char RELDIRPATH[] = "some_dir";
+	fhandle_t fhp;
+	struct stat sb;
+	const uint64_t ino = 42;
+	const mode_t mode = S_IFDIR | 0755;
+	const uid_t uid = 12345;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDIRPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.generation = 1;
+		out.body.entry.attr.uid = uid;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = 0;
+	})));
+
+	EXPECT_LOOKUP(ino, ".")
+	.WillOnce(Invoke(ReturnErrno(EDOOFUS)));
+
+	ASSERT_EQ(0, getfh(FULLPATH, &fhp)) << strerror(errno);
+	ASSERT_EQ(-1, fhstat(&fhp, &sb));
+	EXPECT_EQ(EDOOFUS, errno);
+}
+
 /* Use a file handle whose entry is still cached */
 TEST_F(Fhstat, cached)
 {

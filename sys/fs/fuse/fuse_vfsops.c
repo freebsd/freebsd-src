@@ -565,7 +565,7 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	error = fdisp_wait_answ(&fdi);
 
 	if (error)
-		return error;
+		goto out;
 
 	feo = (struct fuse_entry_out *)fdi.answ;
 	if (feo->nodeid == 0) {
