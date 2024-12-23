@@ -83,22 +83,22 @@ int
 _thr_setcancelstate(int state, int *oldstate)
 {
 	struct pthread *curthread = _get_curthread();
-	int oldval;
+	int oldval, val;
 
-	oldval = curthread->cancel_enable;
 	switch (state) {
 	case PTHREAD_CANCEL_DISABLE:
-		curthread->cancel_enable = 0;
+		val = 0;
 		break;
 	case PTHREAD_CANCEL_ENABLE:
-		curthread->cancel_enable = 1;
-		if (curthread->cancel_async)
-			testcancel(curthread);
+		val = 1;
 		break;
 	default:
 		return (EINVAL);
 	}
 
+	oldval = atomic_swap_int(&curthread->cancel_enable, val);
+	if (state == PTHREAD_CANCEL_ENABLE && curthread->cancel_async)
+		testcancel(curthread);
 	if (oldstate != NULL) {
 		*oldstate = oldval ? PTHREAD_CANCEL_ENABLE :
 		    PTHREAD_CANCEL_DISABLE;
