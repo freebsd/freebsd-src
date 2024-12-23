@@ -562,8 +562,12 @@ struct pthread {
 
 	/* Deferred threads from pthread_cond_signal. */
 	unsigned int 		*defer_waiters[MAX_DEFER_WAITERS];
-#define _pthread_endzero	wake_addr
 
+	/* rtld thread-local dlerror message and seen control */
+	char			dlerror_msg[512];
+	int			dlerror_seen;
+
+#define _pthread_endzero	wake_addr
 	struct wake_addr	*wake_addr;
 #define WAKE_ADDR(td)           ((td)->wake_addr)
 
@@ -572,10 +576,6 @@ struct pthread {
 
 	/* pthread_set/get_name_np */
 	char			*name;
-
-	/* rtld thread-local dlerror message and seen control */
-	char			dlerror_msg[512];
-	int			dlerror_seen;
 };
 
 #define THR_SHOULD_GC(thrd) 						\
