@@ -1,6 +1,7 @@
 PACKAGE=	tests
 
 ATF_TESTS_SH=	syslogd_basic_format_test \
+		syslogd_forwarded_format_test \
 		syslogd_test
 
 # Run in jail with new vnet so we don't need to worry about address conflicts

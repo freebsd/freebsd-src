@@ -4,7 +4,6 @@
 # Copyright (c) 2024 Michal Scigocki <michal.os@hotmail.com>
 #
 
-. $(atf_get_srcdir)/syslogd_test_common.sh
 . $(atf_get_srcdir)/syslogd_format_test_common.sh
 
 # Basic format tests
