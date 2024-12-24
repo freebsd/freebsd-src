@@ -64,6 +64,7 @@ ATF_TEST_CASE_BODY(parse_atf_metadata__override_all)
     model::properties_map properties;
     properties["descr"] = "Some text";
     properties["has.cleanup"] = "true";
+    properties["is.exclusive"] = "true";
     properties["require.arch"] = "i386 x86_64";
     properties["require.config"] = "var1 var2 var3";
     properties["require.files"] = "/file1 /dir/file2";
@@ -93,6 +94,7 @@ ATF_TEST_CASE_BODY(parse_atf_metadata__override_all)
         .add_required_program(fs::path("svn"))
         .set_description("Some text")
         .set_has_cleanup(true)
+        .set_is_exclusive(true)
         .set_required_memory(units::bytes::parse("1m"))
         .set_required_user("root")
         .set_timeout(datetime::delta(123, 0))
@@ -261,6 +263,36 @@ ATF_TEST_CASE_BODY(parse_atf_list__many_test_cases)
 }
 
 
+ATF_TEST_CASE_WITHOUT_HEAD(parse_atf_list__is_exclusive_support);
+ATF_TEST_CASE_BODY(parse_atf_list__is_exclusive_support)
+{
+    const std::string text =
+        "Content-Type: application/X-atf-tp; version=\"1\"\n"
+        "\n"
+        "ident: first\n"
+        "is.exclusive: false\n"
+        "descr: This is the descr\n"
+        "\n"
+        "ident: second\n"
+        "is.exclusive: true\n"
+        "\n"
+        "ident: third\n";
+    std::istringstream input(text);
+    const model::test_cases_map tests = engine::parse_atf_list(input);
+
+    const model::test_cases_map exp_tests = model::test_cases_map_builder()
+        .add("first", model::metadata_builder()
+             .set_description("This is the descr")
+             .build())
+        .add("second", model::metadata_builder()
+             .set_is_exclusive(true)
+             .build())
+        .add("third")
+        .build();
+    ATF_REQUIRE_EQ(exp_tests, tests);
+}
+
+
 ATF_INIT_TEST_CASES(tcs)
 {
     ATF_ADD_TEST_CASE(tcs, parse_atf_metadata__defaults);
@@ -275,4 +307,5 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__one_test_case_invalid_syntax);
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__one_test_case_invalid_properties);
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__many_test_cases);
+    ATF_ADD_TEST_CASE(tcs, parse_atf_list__is_exclusive_support);
 }
