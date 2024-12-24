@@ -117,7 +117,7 @@ static platform_method_t rk32xx_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	rk32xx_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	rk32xx_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF2(rk32xx, rk3288,  "RK3288",  0, "rockchip,rk3288",  200);
 FDT_PLATFORM_DEF2(rk32xx, rk3288w, "RK3288W", 0, "rockchip,rk3288w", 200);

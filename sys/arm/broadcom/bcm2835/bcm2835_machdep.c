@@ -117,7 +117,7 @@ static platform_method_t bcm2836_methods[] = {
 	PLATFORMMETHOD(platform_mp_setmaxid,	bcm2836_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF2(bcm2836, bcm2836_legacy, "bcm2836 (legacy)", 0, "brcm,bcm2709", 100);
 FDT_PLATFORM_DEF2(bcm2836, bcm2836, "bcm2836", 0, "brcm,bcm2836", 100);

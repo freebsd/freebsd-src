@@ -498,11 +498,8 @@ static device_method_t bcm_pwm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_pwm_driver = {
-	"pwm",
-	bcm_pwm_methods,
-	sizeof(struct bcm_pwm_softc),
-};
+PRIVATE_DEFINE_CLASSN(pwm, bcm_pwm_driver, bcm_pwm_methods,
+    sizeof(struct bcm_pwm_softc));
 
 DRIVER_MODULE(bcm2835_pwm, simplebus, bcm_pwm_driver, 0, 0);
 MODULE_DEPEND(bcm2835_pwm, bcm2835_clkman, 1, 1, 1);

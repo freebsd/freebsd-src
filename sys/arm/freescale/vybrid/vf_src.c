@@ -133,13 +133,10 @@ src_attach(device_t dev)
 static device_method_t src_methods[] = {
 	DEVMETHOD(device_probe,		src_probe),
 	DEVMETHOD(device_attach,	src_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t src_driver = {
-	"src",
-	src_methods,
-	sizeof(struct src_softc),
-};
+PRIVATE_DEFINE_CLASSN(src, src_driver, src_methods, sizeof(struct src_softc));
 
 DRIVER_MODULE(src, simplebus, src_driver, 0, 0);

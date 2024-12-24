@@ -410,11 +410,8 @@ static device_method_t mv_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_pcib_driver = {
-	"pcib",
-	mv_pcib_methods,
-	sizeof(struct mv_pcib_softc),
-};
+PRIVATE_DEFINE_CLASSN(pcib, mv_pcib_driver, mv_pcib_methods,
+    sizeof(struct mv_pcib_softc));
 
 DRIVER_MODULE(mv_pcib, ofwbus, mv_pcib_driver, 0, 0);
 DRIVER_MODULE(mv_pcib, pcib_ctrl, mv_pcib_driver, 0, 0);

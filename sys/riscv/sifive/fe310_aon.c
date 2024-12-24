@@ -304,10 +304,7 @@ static device_method_t feaon_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t feaon_driver = {
-	"fe310aon",
-	feaon_methods,
-	sizeof(struct feaon_softc)
-};
+PRIVATE_DEFINE_CLASSN(fe310aon, feaon_driver, feaon_methods,
+    sizeof(struct feaon_softc));
 
 DRIVER_MODULE(fe310aon, simplebus, feaon_driver, 0, 0);

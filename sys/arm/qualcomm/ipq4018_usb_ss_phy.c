@@ -199,10 +199,11 @@ static device_method_t ipq4018_usb_ss_usbphy_methods[] = {
 	DEVMETHOD(device_probe,			ipq4018_usb_ss_usbphy_probe),
 	DEVMETHOD(device_attach,		ipq4018_usb_ss_usbphy_attach),
 	DEVMETHOD(device_detach,		ipq4018_usb_ss_usbphy_detach),
+
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(ipq4018_usb_ss_usbphy, ipq4018_usb_ss_usbphy_driver,
+PRIVATE_DEFINE_CLASSN(ipq4018_usb_ss_usbphy, ipq4018_usb_ss_usbphy_driver,
     ipq4018_usb_ss_usbphy_methods,
     sizeof(struct ipq4018_usb_ss_phy_softc));
 EARLY_DRIVER_MODULE(ipq4018_usb_ss_usbphy, simplebus,

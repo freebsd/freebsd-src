@@ -226,7 +226,7 @@ static platform_method_t ipq4018_methods[] = {
 	PLATFORMMETHOD(platform_mp_setmaxid,    ipq4018_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF2(ipq4018, ipq4018_ac58u, "ASUS RT-AC58U", 0,

@@ -109,13 +109,11 @@ mscm_attach(device_t dev)
 static device_method_t mscm_methods[] = {
 	DEVMETHOD(device_probe,		mscm_probe),
 	DEVMETHOD(device_attach,	mscm_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mscm_driver = {
-	"mscm",
-	mscm_methods,
-	sizeof(struct mscm_softc),
-};
+PRIVATE_DEFINE_CLASSN(mscm, mscm_driver, mscm_methods,
+    sizeof(struct mscm_softc));
 
 DRIVER_MODULE(mscm, simplebus, mscm_driver, 0, 0);

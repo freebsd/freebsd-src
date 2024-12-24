@@ -255,10 +255,7 @@ static device_method_t rcons_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rcons_driver = {
-	"rcons",
-	rcons_methods,
-	sizeof(struct rcons_softc)
-};
+PRIVATE_DEFINE_CLASSN(rcons, rcons_driver, rcons_methods,
+    sizeof(struct rcons_softc));
 
 DRIVER_MODULE(rcons, nexus, rcons_driver, 0, 0);

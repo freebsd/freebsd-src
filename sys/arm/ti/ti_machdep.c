@@ -145,7 +145,7 @@ static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_pl310_write_ctrl, omap4_pl310_write_ctrl),
 	PLATFORMMETHOD(platform_pl310_write_debug, omap4_pl310_write_debug),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 #endif
@@ -156,7 +156,7 @@ static platform_method_t am335x_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am33xx", 200);

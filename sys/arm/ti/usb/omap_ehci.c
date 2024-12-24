@@ -454,13 +454,11 @@ static device_method_t ehci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(struct omap_ehci_softc),
-};
+PRIVATE_DEFINE_CLASSN(ehci, ehci_driver, ehci_methods,
+    sizeof(struct omap_ehci_softc));
 
 DRIVER_MODULE(omap_ehci, omap_uhh, ehci_driver, 0, 0);

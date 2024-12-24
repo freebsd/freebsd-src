@@ -262,14 +262,12 @@ riscv_timer_attach(device_t dev)
 static device_method_t riscv_timer_methods[] = {
 	DEVMETHOD(device_probe,		riscv_timer_probe),
 	DEVMETHOD(device_attach,	riscv_timer_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t riscv_timer_driver = {
-	"timer",
-	riscv_timer_methods,
-	sizeof(struct riscv_timer_softc),
-};
+PRIVATE_DEFINE_CLASSN(timer, riscv_timer_driver, riscv_timer_methods,
+    sizeof(struct riscv_timer_softc));
 
 EARLY_DRIVER_MODULE(timer, nexus, riscv_timer_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);

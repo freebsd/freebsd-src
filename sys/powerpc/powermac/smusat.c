@@ -68,7 +68,8 @@ static device_method_t  smusat_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		smusat_probe),
 	DEVMETHOD(device_attach,	smusat_attach),
-	{ 0, 0 },
+
+	DEVMETHOD_END
 };
 
 struct smusat_softc {
@@ -79,11 +80,8 @@ struct smusat_softc {
 	time_t	sc_last_update;
 };
 
-static driver_t smusat_driver = {
-	"smusat",
-	smusat_methods,
-	sizeof(struct smusat_softc)
-};
+PRIVATE_DEFINE_CLASSN(smusat, smusat_driver, smusat_methods,
+    sizeof(struct smusat_softc));
 
 DRIVER_MODULE(smusat, iicbus, smusat_driver, 0, 0);
 

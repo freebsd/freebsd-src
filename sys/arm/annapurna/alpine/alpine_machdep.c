@@ -154,6 +154,6 @@ static platform_method_t alpine_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	alpine_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	alpine_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(alpine, "alpine", 0, "annapurna,alpine", 200);

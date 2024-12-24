@@ -59,14 +59,12 @@ static device_method_t al_ccu_methods[] = {
 	DEVMETHOD(device_probe,		al_ccu_probe),
 	DEVMETHOD(device_attach,	al_ccu_attach),
 	DEVMETHOD(device_detach,	al_ccu_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t al_ccu_driver = {
-	"ccu",
-	al_ccu_methods,
-	sizeof(struct al_ccu_softc)
-};
+PRIVATE_DEFINE_CLASSN(ccu, al_ccu_driver, al_ccu_methods,
+    sizeof(struct al_ccu_softc));
 
 EARLY_DRIVER_MODULE(al_ccu, simplebus, al_ccu_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);

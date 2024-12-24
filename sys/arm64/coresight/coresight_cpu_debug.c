@@ -145,14 +145,12 @@ static device_method_t debug_methods[] = {
 
 	/* Coresight interface */
 	DEVMETHOD(coresight_init,	debug_init),
+
 	DEVMETHOD_END
 };
 
-static driver_t debug_driver = {
-	"debug",
-	debug_methods,
-	sizeof(struct debug_softc),
-};
+PRIVATE_DEFINE_CLASSN(debug, debug_driver, debug_methods,
+    sizeof(struct debug_softc));
 
 EARLY_DRIVER_MODULE(debug, simplebus, debug_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_LATE);

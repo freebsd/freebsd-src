@@ -263,13 +263,11 @@ static device_method_t mambodisk_methods[] = {
 	DEVMETHOD(device_probe,		mambodisk_probe),
 	DEVMETHOD(device_attach,	mambodisk_attach),
 	DEVMETHOD(device_detach,	mambodisk_detach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t mambodisk_driver = {
-	"mambodisk",
-	mambodisk_methods,
-	sizeof(struct mambodisk_softc),
-};
+PRIVATE_DEFINE_CLASSN(mambodisk, mambodisk_driver, mambodisk_methods,
+    sizeof(struct mambodisk_softc));
 
 DRIVER_MODULE(mambodisk, mambo, mambodisk_driver, 0, 0);

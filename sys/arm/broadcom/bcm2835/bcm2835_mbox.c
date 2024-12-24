@@ -283,11 +283,8 @@ static device_method_t bcm_mbox_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_mbox_driver = {
-	"mbox",
-	bcm_mbox_methods,
-	sizeof(struct bcm_mbox_softc),
-};
+PRIVATE_DEFINE_CLASSN(mbox, bcm_mbox_driver, bcm_mbox_methods,
+    sizeof(struct bcm_mbox_softc));
 
 EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

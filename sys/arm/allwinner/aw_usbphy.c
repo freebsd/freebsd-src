@@ -521,11 +521,8 @@ static device_method_t awusbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t awusbphy_driver = {
-	"awusbphy",
-	awusbphy_methods,
-	sizeof(struct awusbphy_softc)
-};
+PRIVATE_DEFINE_CLASSN(awusbphy, awusbphy_driver, awusbphy_methods,
+    sizeof(struct awusbphy_softc));
 
 /* aw_usbphy needs to come up after regulators/gpio/etc, but before ehci/ohci */
 EARLY_DRIVER_MODULE(awusbphy, simplebus, awusbphy_driver, 0, 0,

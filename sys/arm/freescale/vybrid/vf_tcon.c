@@ -118,13 +118,11 @@ tcon_attach(device_t dev)
 static device_method_t tcon_methods[] = {
 	DEVMETHOD(device_probe,		tcon_probe),
 	DEVMETHOD(device_attach,	tcon_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t tcon_driver = {
-	"tcon",
-	tcon_methods,
-	sizeof(struct tcon_softc),
-};
+PRIVATE_DEFINE_CLASSN(tcon, tcon_driver, tcon_methods,
+    sizeof(struct tcon_softc));
 
 DRIVER_MODULE(tcon, simplebus, tcon_driver, 0, 0);

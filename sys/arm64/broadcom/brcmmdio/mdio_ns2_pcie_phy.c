@@ -63,9 +63,6 @@ static device_method_t ns2_pcie_phy_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ns2_pcie_phy, ns2_pcie_phy_fdt_driver, ns2_pcie_phy_fdt_methods,
-    sizeof(struct ns2_pcie_phy_softc));
-
 static driver_t ns2_pcie_phy_driver = {
         "ns2_pcie_phy",
 	ns2_pcie_phy_fdt_methods,
