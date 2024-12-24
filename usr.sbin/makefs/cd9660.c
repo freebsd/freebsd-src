@@ -1664,12 +1664,8 @@ cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 			else if (isupper((unsigned char)*oldname) ||
 			    isdigit((unsigned char)*oldname))
 				*newname++ = *oldname;
-			else if (diskStructure->allow_multidot &&
-			    *oldname == '.') {
-				*newname++ = '.';
-			} else {
+			else
 				*newname++ = '_';
-			}
 
 			if (found_ext)
 				extlen++;
