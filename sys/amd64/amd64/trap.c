@@ -107,6 +107,7 @@ void trap_check(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, bool, int *, int *);
+static void trap_diag(struct trapframe *, vm_offset_t);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 #ifdef KDTRACE_HOOKS
 static bool trap_user_dtrace(struct trapframe *,
@@ -149,6 +150,13 @@ static const char *const trap_msg[] = {
 	[31] =			UNKNOWN,			/* reserved */
 	[T_DTRACE_RET] =	"DTrace pid return trap",
 };
+
+static const char *
+traptype_to_msg(u_int type)
+{
+	return (type < nitems(trap_msg) ? trap_msg[type] :
+	    "unknown/reserved trap");
+}
 
 static int uprintf_signal;
 SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
@@ -857,15 +865,12 @@ after_vmfault:
 }
 
 static void
-trap_fatal(struct trapframe *frame, vm_offset_t eva)
+trap_diag(struct trapframe *frame, vm_offset_t eva)
 {
 	int code, ss;
 	u_int type;
 	struct soft_segment_descriptor softseg;
 	struct user_segment_descriptor *gdt;
-#ifdef KDB
-	bool handled;
-#endif
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
@@ -925,8 +930,20 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 	printf("r13: %016lx r14: %016lx r15: %016lx\n", frame->tf_r13,
 	    frame->tf_r14, frame->tf_r15);
 
+	printf("trap number		= %d\n", type);
+}
+
+static void
+trap_fatal(struct trapframe *frame, vm_offset_t eva)
+{
+	u_int type;
+
+	type = frame->tf_trapno;
+	trap_diag(frame, eva);
 #ifdef KDB
 	if (debugger_on_trap) {
+		bool handled;
+
 		kdb_why = KDB_WHY_TRAP;
 		handled = kdb_trap(type, 0, frame);
 		kdb_why = KDB_WHY_UNSET;
@@ -934,9 +951,7 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 			return;
 	}
 #endif
-	printf("trap number		= %d\n", type);
-	panic("%s", type < nitems(trap_msg) ? trap_msg[type] :
-	    "unknown/reserved trap");
+	panic("%s", traptype_to_msg(type));
 }
 
 #ifdef KDTRACE_HOOKS
