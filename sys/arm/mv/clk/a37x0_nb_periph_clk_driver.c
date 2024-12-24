@@ -126,11 +126,8 @@ static device_method_t a37x0_nb_periph_clk_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t a37x0_nb_periph_driver = {
-	"a37x0_nb_periph_driver",
-	a37x0_nb_periph_clk_methods,
-	sizeof(struct a37x0_periph_clk_softc)
-};
+PRIVATE_DEFINE_CLASSN(a37x0_nb_periph_driver, a37x0_nb_periph_driver,
+    a37x0_nb_periph_clk_methods, sizeof(struct a37x0_periph_clk_softc));
 
 EARLY_DRIVER_MODULE(a37x0_nb_periph, simplebus, a37x0_nb_periph_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_LATE);

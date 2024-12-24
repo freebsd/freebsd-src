@@ -221,11 +221,8 @@ static device_method_t snvs_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t snvs_driver = {
-	"snvs",
-	snvs_methods,
-	sizeof(struct snvs_softc),
-};
+PRIVATE_DEFINE_CLASSN(snvs, snvs_driver, snvs_methods,
+    sizeof(struct snvs_softc));
 
 DRIVER_MODULE(snvs, simplebus, snvs_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

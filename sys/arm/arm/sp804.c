@@ -298,14 +298,12 @@ sp804_timer_attach(device_t dev)
 static device_method_t sp804_timer_methods[] = {
 	DEVMETHOD(device_probe,		sp804_timer_probe),
 	DEVMETHOD(device_attach,	sp804_timer_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t sp804_timer_driver = {
-	"timer",
-	sp804_timer_methods,
-	sizeof(struct sp804_timer_softc),
-};
+PRIVATE_DEFINE_CLASSN(timer, sp804_timer_driver, sp804_timer_methods,
+    sizeof(struct sp804_timer_softc));
 
 DRIVER_MODULE(sp804_timer, simplebus, sp804_timer_driver, 0, 0);
 

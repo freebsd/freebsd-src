@@ -111,14 +111,11 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(iicbus_write,			i2c_write),
 	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
 	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t i2c_driver = {
-	"iichb",
-	i2c_methods,
-	sizeof(struct i2c_softc),
-};
+PRIVATE_DEFINE_CLASSN(iichb, i2c_driver, i2c_methods, sizeof(struct i2c_softc));
 
 DRIVER_MODULE(i2c, simplebus, i2c_driver, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, 0, 0);

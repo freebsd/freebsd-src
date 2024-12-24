@@ -89,9 +89,6 @@ static device_method_t brcm_mdionexus_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(brcm_mdionexus, brcm_mdionexus_fdt_driver, brcm_mdionexus_fdt_methods,
-    sizeof(struct brcm_mdionexus_softc));
-
 static driver_t brcm_mdionexus_driver = {
         "brcm_mdionexus",
 	brcm_mdionexus_fdt_methods,

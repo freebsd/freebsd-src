@@ -284,14 +284,12 @@ mv_hardclock(void *arg)
 static device_method_t mv_timer_methods[] = {
 	DEVMETHOD(device_probe, mv_timer_probe),
 	DEVMETHOD(device_attach, mv_timer_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mv_timer_driver = {
-	"timer",
-	mv_timer_methods,
-	sizeof(struct mv_timer_softc),
-};
+PRIVATE_DEFINE_CLASSN(timer, mv_timer_driver, mv_timer_methods,
+    sizeof(struct mv_timer_softc));
 
 DRIVER_MODULE(timer_mv, simplebus, mv_timer_driver, 0, 0);
 

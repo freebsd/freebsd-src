@@ -1088,11 +1088,8 @@ static device_method_t am335x_lcd_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t am335x_lcd_driver = {
-	"fb",
-	am335x_lcd_methods,
-	sizeof(struct am335x_lcd_softc),
-};
+PRIVATE_DEFINE_CLASSN(fb, am335x_lcd_driver, am335x_lcd_methods,
+    sizeof(struct am335x_lcd_softc));
 
 DRIVER_MODULE(am335x_lcd, simplebus, am335x_lcd_driver, 0, 0);
 MODULE_VERSION(am335x_lcd, 1);

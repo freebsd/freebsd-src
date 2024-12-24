@@ -267,7 +267,8 @@ static kobj_method_t vf_uart_methods[] = {
 	KOBJMETHOD(uart_receive,	vf_uart_bus_receive),
 	KOBJMETHOD(uart_setsig,		vf_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	vf_uart_bus_transmit),
-	{ 0, 0 }
+
+	KOBJMETHOD_END
 };
 
 static struct uart_class uart_vybrid_class = {

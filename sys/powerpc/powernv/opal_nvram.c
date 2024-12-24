@@ -82,14 +82,12 @@ static device_method_t	opal_nvram_methods[] = {
 	DEVMETHOD(device_probe,		opal_nvram_probe),
 	DEVMETHOD(device_attach,	opal_nvram_attach),
 	DEVMETHOD(device_detach,	opal_nvram_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t	opal_nvram_driver = {
-	"opal_nvram",
-	opal_nvram_methods,
-	sizeof(struct opal_nvram_softc)
-};
+PRIVATE_DEFINE_CLASSN(opal_nvram, opal_nvram_driver, opal_nvram_methods,
+    sizeof(struct opal_nvram_softc));
 
 DRIVER_MODULE(opal_nvram, opal, opal_nvram_driver, 0, 0);
 

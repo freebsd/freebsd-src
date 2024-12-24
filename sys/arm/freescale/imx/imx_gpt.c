@@ -385,11 +385,8 @@ static device_method_t imx_gpt_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t imx_gpt_driver = {
-	"imx_gpt",
-	imx_gpt_methods,
-	sizeof(struct imx_gpt_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_gpt, imx_gpt_driver, imx_gpt_methods,
+    sizeof(struct imx_gpt_softc));
 
 EARLY_DRIVER_MODULE(imx_gpt, simplebus, imx_gpt_driver, 0, 0, BUS_PASS_TIMER);
 

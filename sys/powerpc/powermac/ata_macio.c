@@ -126,6 +126,7 @@ static device_method_t ata_macio_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,		ata_macio_setmode),
+
 	DEVMETHOD_END
 };
 
@@ -141,11 +142,8 @@ struct ata_macio_softc {
 	uint32_t pioconf[2];
 };
 
-static driver_t ata_macio_driver = {
-	"ata",
-	ata_macio_methods,
-	sizeof(struct ata_macio_softc),
-};
+PRIVATE_DEFINE_CLASSN(ata, ata_macio_driver, ata_macio_methods,
+    sizeof(struct ata_macio_softc));
 
 DRIVER_MODULE(ata, macio, ata_macio_driver, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);

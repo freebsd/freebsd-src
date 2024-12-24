@@ -93,11 +93,8 @@ static device_method_t am335x_ecap_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t am335x_ecap_driver = {
-	"am335x_ecap",
-	am335x_ecap_methods,
-	sizeof(struct am335x_ecap_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_ecap, am335x_ecap_driver, am335x_ecap_methods,
+    sizeof(struct am335x_ecap_softc));
 
 /*
  * API function to set period/duty cycles for ECAPx

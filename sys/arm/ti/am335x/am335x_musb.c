@@ -448,11 +448,8 @@ static device_method_t musbotg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t musbotg_driver = {
-	.name = "musbotg",
-	.methods = musbotg_methods,
-	.size = sizeof(struct musbotg_super_softc),
-};
+PRIVATE_DEFINE_CLASSN(musbotg, musbotg_driver, musbotg_methods,
+    sizeof(struct musbotg_super_softc));
 
 DRIVER_MODULE(musbotg, ti_sysc, musbotg_driver, 0, 0);
 MODULE_DEPEND(musbotg, ti_sysc, 1, 1, 1);

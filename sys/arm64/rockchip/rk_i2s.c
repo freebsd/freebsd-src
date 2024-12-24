@@ -639,11 +639,8 @@ static device_method_t rk_i2s_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_i2s_driver = {
-	"i2s",
-	rk_i2s_methods,
-	sizeof(struct rk_i2s_softc),
-};
+PRIVATE_DEFINE_CLASSN(i2s, rk_i2s_driver, rk_i2s_methods,
+    sizeof(struct rk_i2s_softc));
 
 DRIVER_MODULE(rk_i2s, simplebus, rk_i2s_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

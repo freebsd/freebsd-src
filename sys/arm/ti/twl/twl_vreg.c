@@ -1013,14 +1013,11 @@ static device_method_t twl_vreg_methods[] = {
 	DEVMETHOD(device_attach,	twl_vreg_attach),
 	DEVMETHOD(device_detach,	twl_vreg_detach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t twl_vreg_driver = {
-	"twl_vreg",
-	twl_vreg_methods,
-	sizeof(struct twl_vreg_softc),
-};
+PRIVATE_DEFINE_CLASSN(twl_vreg, twl_vreg_driver, twl_vreg_methods,
+    sizeof(struct twl_vreg_softc));
 
 DRIVER_MODULE(twl_vreg, twl, twl_vreg_driver, 0, 0);
 MODULE_VERSION(twl_vreg, 1);

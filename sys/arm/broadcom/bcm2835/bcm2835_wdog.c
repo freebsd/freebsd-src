@@ -249,10 +249,7 @@ static device_method_t bcmwd_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcmwd_driver = {
-	"bcmwd",
-	bcmwd_methods,
-	sizeof(struct bcmwd_softc),
-};
+PRIVATE_DEFINE_CLASSN(bcmwd, bcmwd_driver, bcmwd_methods,
+    sizeof(struct bcmwd_softc));
 
 DRIVER_MODULE(bcmwd, simplebus, bcmwd_driver, 0, 0);
