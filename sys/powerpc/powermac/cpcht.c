@@ -113,7 +113,7 @@ static device_method_t	cpcht_methods[] = {
 struct cpcht_irq {
 	enum {
 	    IRQ_NONE, IRQ_HT, IRQ_MSI, IRQ_INTERNAL
-	}		irq_type; 
+	}		irq_type;
 
 	int		ht_source;
 
@@ -287,7 +287,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 
 			sc->htirq_map[irq].irq_type = IRQ_HT;
 			sc->htirq_map[irq].ht_source = i;
-			sc->htirq_map[irq].ht_base = sc->sc_data + 
+			sc->htirq_map[irq].ht_base = sc->sc_data +
 			    (((((s & 0x1f) << 3) | (f & 0x07)) << 8) | (ptr));
 
 			PCIB_WRITE_CONFIG(dev, b, s, f,
@@ -298,13 +298,13 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 
 			/*
 			 * Apple uses a non-compliant IO/APIC that differs
-			 * in how we signal EOIs. Check if this device was 
+			 * in how we signal EOIs. Check if this device was
 			 * made by Apple, and act accordingly.
 			 */
 			vend = PCIB_READ_CONFIG(dev, b, s, f,
 			    PCIR_DEVVENDOR, 4);
 			if ((vend & 0xffff) == 0x106b)
-				sc->htirq_map[irq].apple_eoi = 
+				sc->htirq_map[irq].apple_eoi =
 				 (sc->htirq_map[irq].ht_base - ptr) + 0x60;
 		}
 	}
@@ -318,7 +318,7 @@ cpcht_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	vm_offset_t	caoff;
 
 	sc = device_get_softc(dev);
-	caoff = sc->sc_data + 
+	caoff = sc->sc_data +
 		(((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
 
 	if (bus == 0 && (!(sc->sc_populated_slots & (1 << slot)) || func > 0))
@@ -350,7 +350,7 @@ cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	vm_offset_t	caoff;
 
 	sc = device_get_softc(dev);
-	caoff = sc->sc_data + 
+	caoff = sc->sc_data +
 		(((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
 
 	if (bus == 0 && (!(sc->sc_populated_slots & (1 << slot)) || func > 0))
@@ -520,16 +520,11 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(device_attach,	openpic_cpcht_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_cpcht_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_cpcht_enable),
 	DEVMETHOD(pic_eoi,		openpic_cpcht_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 struct openpic_cpcht_softc {
@@ -538,11 +533,8 @@ struct openpic_cpcht_softc {
 	struct mtx sc_ht_mtx;
 };
 
-static driver_t openpic_cpcht_driver = {
-	"htpic",
-	openpic_cpcht_methods,
-	sizeof(struct openpic_cpcht_softc),
-};
+PRIVATE_DEFINE_CLASSN(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
+    sizeof(struct openpic_cpcht_softc), openpic_class);
 
 EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
     BUS_PASS_INTERRUPT);
@@ -553,7 +545,7 @@ openpic_cpcht_probe(device_t dev)
 	const char *type = ofw_bus_get_type(dev);
 
 	if (strcmp(type, "open-pic") != 0)
-                return (ENXIO);
+		return (ENXIO);
 
 	device_set_desc(dev, OPENPIC_DEVSTR);
 	return (0);
@@ -565,6 +557,7 @@ openpic_cpcht_attach(device_t dev)
 	struct openpic_cpcht_softc *sc;
 	phandle_t node;
 	int err, irq;
+	pic_config_t *openpic_config;
 
 	node = ofw_bus_get_node(dev);
 	err = openpic_common_attach(dev, node);
@@ -582,10 +575,11 @@ openpic_cpcht_attach(device_t dev)
 	 * Interrupts 0-3 are internally sourced and are level triggered
 	 * active low. Interrupts 4-123 are connected to a pulse generator
 	 * and should be programmed as edge triggered low-to-high.
-	 * 
+	 *
 	 * IBM CPC945 Manual, Section 9.3.
 	 */
 
+	openpic_config = KOBJOPLOOKUP(openpic_class.ops, pic_config);
 	for (irq = 0; irq < 4; irq++)
 		openpic_config(dev, irq, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	for (irq = 4; irq < 124; irq++)
@@ -631,7 +625,7 @@ openpic_cpcht_config(device_t dev, u_int irq, enum intr_trigger trig,
 
 		/* Mask the IRQ while we fiddle settings */
 		out32rb(cpcht_irqmap[irq].ht_base + 4, ht_irq | HTAPIC_MASK);
-		
+
 		/* Program the interrupt sense */
 		ht_irq &= ~(HTAPIC_TRIGGER_LEVEL | HTAPIC_REQUEST_EOI);
 		if (trig == INTR_TRIGGER_EDGE) {
@@ -652,7 +646,7 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_enable(dev, irq, vec, priv);
+	KOBJOPLOOKUP(openpic_class.ops, pic_enable)(dev, irq, vec, priv);
 
 	sc = device_get_softc(dev);
 
@@ -671,7 +665,7 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 
 		mtx_unlock_spin(&sc->sc_ht_mtx);
 	}
-		
+
 	openpic_cpcht_eoi(dev, irq, *priv);
 }
 
@@ -681,7 +675,7 @@ openpic_cpcht_unmask(device_t dev, u_int irq, void *priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_unmask(dev, irq, priv);
+	KOBJOPLOOKUP(openpic_class.ops, pic_unmask)(dev, irq, priv);
 
 	sc = device_get_softc(dev);
 
@@ -735,5 +729,5 @@ openpic_cpcht_eoi(device_t dev, u_int irq, void *priv)
 		}
 	}
 
-	openpic_eoi(dev, irq, priv);
+	KOBJOPLOOKUP(openpic_class.ops, pic_eoi)(dev, irq, priv);
 }
