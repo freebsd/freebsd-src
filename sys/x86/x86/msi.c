@@ -132,7 +132,6 @@ static void	msi_enable_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void	msi_disable_intr(x86pic_t pic, struct intsrc *isrc);
-static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
 static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
 
@@ -145,7 +144,6 @@ x86pic_func_t msi_methods = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_intr,		msi_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		msi_disable_intr),
-	X86PIC_FUNC(pic_source_pending,		msi_source_pending),
 	X86PIC_FUNC(pic_assign_cpu,		msi_assign_cpu),
 
 	X86PIC_END
@@ -220,13 +218,6 @@ msi_disable_intr(x86pic_t pic, struct intsrc *isrc)
 		for (u_int i = 0; i < msi->msi_count; i++)
 			apic_disable_vector(msi->msi_cpu, msi->msi_vector + i);
 	}
-}
-
-static int
-msi_source_pending(x86pic_t pic, struct intsrc *isrc)
-{
-
-	return (0);
 }
 
 static int
