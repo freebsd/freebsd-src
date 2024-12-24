@@ -353,9 +353,11 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 	 *    on getting a signal before it agrees to return.
  	 */
 	if (curthread->cancel_point) {
-		if (curthread->in_sigsuspend && ucp != NULL) {
-			SIGADDSET(ucp->uc_sigmask, SIGCANCEL);
-			curthread->unblock_sigcancel = 1;
+		if (curthread->in_sigsuspend) {
+			if (ucp != NULL) {
+				SIGADDSET(ucp->uc_sigmask, SIGCANCEL);
+				curthread->unblock_sigcancel = 1;
+			}
 			_thr_send_sig(curthread, SIGCANCEL);
 		} else
 			thr_wake(curthread->tid);
