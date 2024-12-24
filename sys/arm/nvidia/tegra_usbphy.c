@@ -842,7 +842,7 @@ static device_method_t tegra_usbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(usbphy, tegra_usbphy_driver, tegra_usbphy_methods,
+PRIVATE_DEFINE_CLASSN(usbphy, tegra_usbphy_driver, tegra_usbphy_methods,
     sizeof(struct usbphy_softc));
 EARLY_DRIVER_MODULE(tegra_usbphy, simplebus, tegra_usbphy_driver, NULL, NULL,
     79);

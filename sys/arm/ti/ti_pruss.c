@@ -153,11 +153,8 @@ static device_method_t ti_pruss_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_pruss_driver = {
-	"ti_pruss",
-	ti_pruss_methods,
-	sizeof(struct ti_pruss_softc)
-};
+PRIVATE_DEFINE_CLASSN(ti_pruss, ti_pruss_driver, ti_pruss_methods,
+    sizeof(struct ti_pruss_softc));
 
 DRIVER_MODULE(ti_pruss, simplebus, ti_pruss_driver, 0, 0);
 MODULE_DEPEND(ti_pruss, ti_sysc, 1, 1, 1);

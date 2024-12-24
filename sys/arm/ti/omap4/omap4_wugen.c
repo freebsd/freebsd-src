@@ -119,7 +119,7 @@ omap4_wugen_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->sc_parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->sc_parent, isrc);
 }
 
 static void
@@ -127,7 +127,7 @@ omap4_wugen_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->sc_parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->sc_parent, isrc);
 }
 
 static void
@@ -135,7 +135,7 @@ omap4_wugen_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->sc_parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->sc_parent, isrc);
 }
 
 #ifdef SMP
@@ -222,6 +222,11 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(device_attach,	omap4_wugen_attach),
 	DEVMETHOD(device_detach,	omap4_wugen_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	omap4_wugen_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	omap4_wugen_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	omap4_wugen_post_filter),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	omap4_wugen_activate_intr),
 	DEVMETHOD(pic_disable_intr,	omap4_wugen_disable_intr),
@@ -230,16 +235,15 @@ static device_method_t omap4_wugen_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	omap4_wugen_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	omap4_wugen_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	omap4_wugen_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	omap4_wugen_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	omap4_wugen_post_ithread),
-	DEVMETHOD(pic_post_filter,	omap4_wugen_post_filter),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	omap4_wugen_bind_intr),
 #endif
+
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(omap4_wugen, omap4_wugen_driver, omap4_wugen_methods,
-    sizeof(struct omap4_wugen_sc));
+PRIVATE_DEFINE_CLASSN(omap4_wugen, omap4_wugen_driver, omap4_wugen_methods,
+    sizeof(struct omap4_wugen_sc), pic_base_class);
+
 EARLY_DRIVER_MODULE(omap4_wugen, simplebus, omap4_wugen_driver, NULL, NULL,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

@@ -737,11 +737,8 @@ static device_method_t zy7_qspi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t zy7_qspi_driver = {
-	"zy7_qspi",
-	zy7_qspi_methods,
-	sizeof(struct zy7_qspi_softc),
-};
+PRIVATE_DEFINE_CLASSN(zy7_qspi, zy7_qspi_driver, zy7_qspi_methods,
+    sizeof(struct zy7_qspi_softc));
 
 DRIVER_MODULE(zy7_qspi, simplebus, zy7_qspi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, zy7_qspi, ofw_spibus_driver, 0, 0);

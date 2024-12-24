@@ -190,11 +190,8 @@ static device_method_t usbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t usbphy_driver = {
-	"usbphy",
-	usbphy_methods,
-	sizeof(struct usbphy_softc)
-};
+PRIVATE_DEFINE_CLASSN(usbphy, usbphy_driver, usbphy_methods,
+    sizeof(struct usbphy_softc));
 
 /*
  * This driver needs to start before the ehci driver, but later than the usual

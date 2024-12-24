@@ -1256,11 +1256,7 @@ static device_method_t ipu_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ipu_driver = {
-	"fb",
-	ipu_methods,
-	sizeof(struct ipu_softc),
-};
+PRIVATE_DEFINE_CLASSN(fb, ipu_driver, ipu_methods, sizeof(struct ipu_softc));
 
 DRIVER_MODULE(ipu, simplebus, ipu_driver, 0, 0);
 MODULE_VERSION(ipu, 1);

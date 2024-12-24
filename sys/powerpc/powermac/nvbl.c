@@ -67,14 +67,12 @@ static device_method_t nvbl_methods[] = {
 	DEVMETHOD(device_identify, nvbl_identify),
 	DEVMETHOD(device_probe, nvbl_probe),
 	DEVMETHOD(device_attach, nvbl_attach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t	nvbl_driver = {
-	"backlight",
-	nvbl_methods,
-	sizeof(struct nvbl_softc)
-};
+PRIVATE_DEFINE_CLASSN(backlight, nvbl_driver, nvbl_methods,
+    sizeof(struct nvbl_softc));
 
 DRIVER_MODULE(nvbl, vgapci, nvbl_driver, 0, 0);
 

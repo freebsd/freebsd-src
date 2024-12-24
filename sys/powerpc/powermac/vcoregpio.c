@@ -51,14 +51,11 @@ static device_method_t  vcoregpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		vcoregpio_probe),
 	DEVMETHOD(device_attach,	vcoregpio_attach),
-	{ 0, 0 },
+
+	DEVMETHOD_END
 };
 
-static driver_t vcoregpio_driver = {
-	"vcoregpio",
-	vcoregpio_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(vcoregpio, vcoregpio_driver, vcoregpio_methods, 0);
 
 DRIVER_MODULE(vcoregpio, macgpio, vcoregpio_driver, 0, 0);
 

@@ -232,13 +232,11 @@ port_attach(device_t dev)
 static device_method_t port_methods[] = {
 	DEVMETHOD(device_probe,		port_probe),
 	DEVMETHOD(device_attach,	port_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t port_driver = {
-	"port",
-	port_methods,
-	sizeof(struct port_softc),
-};
+PRIVATE_DEFINE_CLASSN(port, port_driver, port_methods,
+    sizeof(struct port_softc));
 
 DRIVER_MODULE(port, simplebus, port_driver, 0, 0);

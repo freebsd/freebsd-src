@@ -140,13 +140,11 @@ static device_method_t audmux_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		audmux_probe),
 	DEVMETHOD(device_attach,	audmux_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t audmux_driver = {
-	"audmux",
-	audmux_methods,
-	sizeof(struct audmux_softc),
-};
+PRIVATE_DEFINE_CLASSN(audmux, audmux_driver, audmux_methods,
+    sizeof(struct audmux_softc));
 
 DRIVER_MODULE(audmux, simplebus, audmux_driver, 0, 0);

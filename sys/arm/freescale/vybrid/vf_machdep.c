@@ -79,7 +79,7 @@ static platform_method_t vf_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	vf_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	vf_cpu_reset),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF(vf, "vybrid", 0, "freescale,vybrid", 200);

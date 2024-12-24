@@ -66,14 +66,12 @@ static device_method_t pmsu_methods[] = {
 	DEVMETHOD(device_probe,		pmsu_probe),
 	DEVMETHOD(device_attach,	pmsu_attach),
 	DEVMETHOD(device_detach,	pmsu_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t pmsu_driver = {
-	"pmsu",
-	pmsu_methods,
-	sizeof(struct pmsu_softc)
-};
+PRIVATE_DEFINE_CLASSN(pmsu, pmsu_driver, pmsu_methods,
+    sizeof(struct pmsu_softc));
 
 DRIVER_MODULE(pmsu, simplebus, pmsu_driver, 0, 0);
 DRIVER_MODULE(pmsu, ofwbus, pmsu_driver, 0, 0);

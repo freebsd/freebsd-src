@@ -190,7 +190,7 @@ static device_method_t tegra_abpmisc_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(abpmisc, tegra_abpmisc_driver, tegra_abpmisc_methods,
+PRIVATE_DEFINE_CLASSN(abpmisc, tegra_abpmisc_driver, tegra_abpmisc_methods,
     sizeof(struct tegra_abpmisc_softc));
 EARLY_DRIVER_MODULE(tegra_abpmisc, simplebus, tegra_abpmisc_driver, NULL, NULL,
     BUS_PASS_TIMER);

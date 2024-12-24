@@ -693,14 +693,12 @@ static device_method_t ps3cdrom_methods[] = {
 	DEVMETHOD(device_probe,		ps3cdrom_probe),
 	DEVMETHOD(device_attach,	ps3cdrom_attach),
 	DEVMETHOD(device_detach,	ps3cdrom_detach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t ps3cdrom_driver = {
-	"ps3cdrom",
-	ps3cdrom_methods,
-	sizeof(struct ps3cdrom_softc),
-};
+PRIVATE_DEFINE_CLASSN(ps3cdrom, ps3cdrom_driver, ps3cdrom_methods,
+    sizeof(struct ps3cdrom_softc));
 
 DRIVER_MODULE(ps3cdrom, ps3bus, ps3cdrom_driver, 0, 0);
 MODULE_DEPEND(ps3cdrom, cam, 1, 1, 1);

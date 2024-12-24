@@ -111,14 +111,12 @@ static device_method_t macgpio_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t macgpio_pci_driver = {
-        "macgpio",
-        macgpio_methods,
-	sizeof(struct macgpio_softc)
-};
+PRIVATE_DEFINE_CLASSN(macgpio, macgpio_pci_driver, macgpio_methods,
+    sizeof(struct macgpio_softc));
 
 EARLY_DRIVER_MODULE(macgpio, macio, macgpio_pci_driver, 0, 0, BUS_PASS_BUS);
 

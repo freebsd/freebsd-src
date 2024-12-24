@@ -1194,11 +1194,8 @@ static device_method_t a10codec_pcm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t a10codec_pcm_driver = {
-	"pcm",
-	a10codec_pcm_methods,
-	PCM_SOFTC_SIZE,
-};
+PRIVATE_DEFINE_CLASSN(pcm, a10codec_pcm_driver, a10codec_pcm_methods,
+    PCM_SOFTC_SIZE);
 
 DRIVER_MODULE(a10codec, simplebus, a10codec_pcm_driver, 0, 0);
 MODULE_DEPEND(a10codec, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);

@@ -255,11 +255,8 @@ static device_method_t	vscsi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t vscsi_driver = {
-	"vscsi",
-	vscsi_methods,
-	sizeof(struct vscsi_softc)
-};
+PRIVATE_DEFINE_CLASSN(vscsi, vscsi_driver, vscsi_methods,
+    sizeof(struct vscsi_softc));
 
 DRIVER_MODULE(vscsi, vdevice, vscsi_driver, 0, 0);
 MALLOC_DEFINE(M_VSCSI, "vscsi", "CAM device queue for VSCSI");

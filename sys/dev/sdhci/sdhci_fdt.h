@@ -53,6 +53,8 @@ struct sdhci_fdt_softc {
 	struct syscon	*syscon;	/* Handle to the syscon */
 };
 
+DECLARE_CLASS(sdhci_fdt_driver);
+
 int sdhci_fdt_attach(device_t dev);
 int sdhci_fdt_detach(device_t dev);
 int sdhci_get_syscon(struct sdhci_fdt_softc *sc);
