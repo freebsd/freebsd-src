@@ -222,4 +222,16 @@ intr_event_is_valid(struct intr_event *ie)
 	return (ie != NULL ? intr_event_is_valid_(ie) : false);
 }
 
+static inline bool
+intr_event_has_handlers_(struct intr_event *ie)
+{
+	return (!CK_SLIST_EMPTY(&ie->ie_handlers));
+}
+
+static inline bool
+intr_event_has_handlers(struct intr_event *ie)
+{
+	return (ie != NULL ? intr_event_has_handlers_(ie) : false);
+}
+
 #endif
