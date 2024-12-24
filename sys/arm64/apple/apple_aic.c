@@ -152,9 +152,9 @@ static pic_enable_intr_t apple_aic_enable_intr;
 static pic_map_intr_t apple_aic_map_intr;
 static pic_setup_intr_t apple_aic_setup_intr;
 static pic_teardown_intr_t apple_aic_teardown_intr;
-static pic_post_filter_t apple_aic_post_filter;
-static pic_post_ithread_t apple_aic_post_ithread;
-static pic_pre_ithread_t apple_aic_pre_ithread;
+static intr_event_post_filter_t apple_aic_post_filter;
+static intr_event_post_ithread_t apple_aic_post_ithread;
+static intr_event_pre_ithread_t apple_aic_pre_ithread;
 #ifdef SMP
 static pic_bind_intr_t apple_aic_bind_intr;
 static pic_init_secondary_t apple_aic_init_secondary;
@@ -753,15 +753,17 @@ static device_method_t apple_aic_methods[] = {
 	DEVMETHOD(device_probe,		apple_aic_probe),
 	DEVMETHOD(device_attach,	apple_aic_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_pre_ithread,	apple_aic_pre_ithread),
+	DEVMETHOD(intr_event_post_ithread,	apple_aic_post_ithread),
+	DEVMETHOD(intr_event_post_filter,	apple_aic_post_filter),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	apple_aic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	apple_aic_enable_intr),
 	DEVMETHOD(pic_map_intr,		apple_aic_map_intr),
 	DEVMETHOD(pic_setup_intr,	apple_aic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	apple_aic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	apple_aic_post_filter),
-	DEVMETHOD(pic_post_ithread,	apple_aic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	apple_aic_pre_ithread),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	apple_aic_bind_intr),
 	DEVMETHOD(pic_init_secondary,	apple_aic_init_secondary),
@@ -773,8 +775,8 @@ static device_method_t apple_aic_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(aic, apple_aic_driver, apple_aic_methods,
-    sizeof(struct apple_aic_softc));
+PRIVATE_DEFINE_CLASSN(aic, apple_aic_driver, apple_aic_methods,
+    sizeof(struct apple_aic_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aic, simplebus, apple_aic_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

@@ -556,6 +556,11 @@ static device_method_t pl061_methods[] = {
 	DEVMETHOD(device_attach,	pl061_attach),
 	DEVMETHOD(device_detach,	pl061_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	pl061_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	pl061_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	pl061_pic_pre_ithread),
+
 	/* Bus interface */
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -577,11 +582,9 @@ static device_method_t pl061_methods[] = {
 	DEVMETHOD(pic_map_intr,		pl061_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	pl061_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	pl061_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	pl061_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	pl061_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	pl061_pic_pre_ithread),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(gpio, pl061_driver, pl061_methods, sizeof(struct pl061_softc));
+PUBLIC_DEFINE_CLASSN(gpio, pl061_driver, pl061_methods,
+    sizeof(struct pl061_softc), pic_base_class);

@@ -857,15 +857,17 @@ static device_method_t tegra_gpio_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	tegra_gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	tegra_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	tegra_gpio_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	tegra_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	tegra_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		tegra_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	tegra_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	tegra_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	tegra_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	tegra_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	tegra_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		tegra_gpio_get_bus),
@@ -885,6 +887,7 @@ static device_method_t tegra_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gpio, tegra_gpio_driver, tegra_gpio_methods,
-    sizeof(struct tegra_gpio_softc));
+PRIVATE_DEFINE_CLASSN(gpio, tegra_gpio_driver, tegra_gpio_methods,
+    sizeof(struct tegra_gpio_softc), pic_base_class);
+
 EARLY_DRIVER_MODULE(tegra_gpio, simplebus, tegra_gpio_driver, NULL, NULL, 70);
