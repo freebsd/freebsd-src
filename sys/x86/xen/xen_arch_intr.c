@@ -196,16 +196,6 @@ xen_intr_pic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	xen_intr_disable_intr((struct xenisrc *)isrc);
 }
 
-/**
- * Prepare this PIC for system suspension.
- */
-static void
-xen_intr_pic_suspend(x86pic_t pic)
-{
-
-	/* Nothing to do on suspend */
-}
-
 static void
 xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 {
@@ -237,7 +227,6 @@ static const device_method_t xen_intr_methods[] = {
 	/* Interrupt controller interface */
 	X86PIC_FUNC(pic_enable_intr,		xen_intr_pic_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		xen_intr_pic_disable_intr),
-	X86PIC_FUNC(pic_suspend,		xen_intr_pic_suspend),
 	X86PIC_FUNC(pic_resume,			xen_intr_pic_resume),
 	X86PIC_FUNC(pic_assign_cpu,		xen_intr_pic_assign_cpu),
 
