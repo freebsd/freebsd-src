@@ -181,10 +181,13 @@ static device_method_t cpsw_methods[] = {
 	DEVMETHOD(device_shutdown,	cpsw_shutdown),
 	DEVMETHOD(device_suspend,	cpsw_suspend),
 	DEVMETHOD(device_resume,	cpsw_resume),
+
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
+
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	cpsw_get_node),
+
 #ifdef CPSW_ETHERSWITCH
 	/* etherswitch interface */
 	DEVMETHOD(etherswitch_getinfo,	cpsw_getinfo),
@@ -198,14 +201,12 @@ static device_method_t cpsw_methods[] = {
 	DEVMETHOD(etherswitch_setvgroup,	cpsw_setvgroup),
 	DEVMETHOD(etherswitch_getconf,	cpsw_getconf),
 #endif
+
 	DEVMETHOD_END
 };
 
-static driver_t cpsw_driver = {
-	"cpswss",
-	cpsw_methods,
-	sizeof(struct cpsw_softc),
-};
+PRIVATE_DEFINE_CLASSN(cpswss, cpsw_driver, cpsw_methods,
+    sizeof(struct cpsw_softc));
 
 DRIVER_MODULE(cpswss, simplebus, cpsw_driver, 0, 0);
 
@@ -215,18 +216,17 @@ static device_method_t cpswp_methods[] = {
 	DEVMETHOD(device_probe,		cpswp_probe),
 	DEVMETHOD(device_attach,	cpswp_attach),
 	DEVMETHOD(device_detach,	cpswp_detach),
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cpswp_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	cpswp_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	cpswp_miibus_statchg),
+
 	DEVMETHOD_END
 };
 
-static driver_t cpswp_driver = {
-	"cpsw",
-	cpswp_methods,
-	sizeof(struct cpswp_softc),
-};
+PRIVATE_DEFINE_CLASSN(cpsw, cpswp_driver, cpswp_methods,
+    sizeof(struct cpswp_softc));
 
 #ifdef CPSW_ETHERSWITCH
 DRIVER_MODULE(etherswitch, cpswss, etherswitch_driver, 0, 0);

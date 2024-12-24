@@ -66,11 +66,7 @@ static device_method_t  mambobus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mambobus_driver = {
-	"mambo",
-	mambobus_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(mambo, mambobus_driver, mambobus_methods, 0);
 
 DRIVER_MODULE(mambo, ofwbus, mambobus_driver, 0, 0);
 

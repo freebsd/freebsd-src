@@ -358,11 +358,8 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(struct ehci_softc),
-};
+PRIVATE_DEFINE_CLASSN(ehci, ehci_driver, ehci_methods,
+    sizeof(struct ehci_softc));
 
 DRIVER_MODULE(zy7_ehci, simplebus, ehci_driver, NULL, NULL);
 MODULE_DEPEND(zy7_ehci, usb, 1, 1, 1);

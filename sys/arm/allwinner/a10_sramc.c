@@ -98,14 +98,12 @@ a10_sramc_attach(device_t dev)
 static device_method_t a10_sramc_methods[] = {
 	DEVMETHOD(device_probe,		a10_sramc_probe),
 	DEVMETHOD(device_attach,	a10_sramc_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t a10_sramc_driver = {
-	"a10_sramc",
-	a10_sramc_methods,
-	sizeof(struct a10_sramc_softc),
-};
+PRIVATE_DEFINE_CLASSN(a10_sramc, a10_sramc_driver, a10_sramc_methods,
+    sizeof(struct a10_sramc_softc));
 
 EARLY_DRIVER_MODULE(a10_sramc, simplebus, a10_sramc_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);

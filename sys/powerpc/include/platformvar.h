@@ -40,7 +40,8 @@
  *	PLATFORMMETHOD(platform_mem_regions,	ofw_mem_regions),
  *  ...
  *	PLATFORMMETHOD(platform_smp_first_cpu,	chrp_smp_first_cpu),
- *	{ 0, 0 }
+ *
+ *	PLATFORMMETHOD_END
  * };
  *
  * static platform_def_t chrp_platform = {

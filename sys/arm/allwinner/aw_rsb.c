@@ -490,11 +490,7 @@ static device_method_t rsb_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rsb_driver = {
-	"iichb",
-	rsb_methods,
-	sizeof(struct rsb_softc),
-};
+PRIVATE_DEFINE_CLASSN(iichb, rsb_driver, rsb_methods, sizeof(struct rsb_softc));
 
 EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

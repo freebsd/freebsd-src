@@ -59,14 +59,11 @@ static device_method_t dfs_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	dfs_get),
 	DEVMETHOD(cpufreq_drv_type,	dfs_type),
 	DEVMETHOD(cpufreq_drv_settings,	dfs_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t dfs_driver = {
-	"dfs",
-	dfs_methods,
-	sizeof(struct dfs_softc)
-};
+PRIVATE_DEFINE_CLASSN(dfs, dfs_driver, dfs_methods, sizeof(struct dfs_softc));
 
 DRIVER_MODULE(dfs, cpu, dfs_driver, 0, 0);
 

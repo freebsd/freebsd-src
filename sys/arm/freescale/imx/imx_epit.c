@@ -477,10 +477,7 @@ static device_method_t epit_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t epit_driver = {
-	"imx_epit",
-	epit_methods,
-	sizeof(struct epit_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_epit, epit_driver, epit_methods,
+    sizeof(struct epit_softc));
 
 EARLY_DRIVER_MODULE(imx_epit, simplebus, epit_driver, 0, 0, BUS_PASS_TIMER);

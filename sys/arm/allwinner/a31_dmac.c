@@ -545,10 +545,7 @@ static device_method_t a31dmac_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t a31dmac_driver = {
-	"a31dmac",
-	a31dmac_methods,
-	sizeof(struct a31dmac_softc)
-};
+PRIVATE_DEFINE_CLASSN(a31dmac, a31dmac_driver, a31dmac_methods,
+    sizeof(struct a31dmac_softc));
 
 DRIVER_MODULE(a31dmac, simplebus, a31dmac_driver, 0, 0);

@@ -784,14 +784,12 @@ static device_method_t tda_methods[] = {
 	/* CRTC methods */
 	DEVMETHOD(crtc_get_edid,	tda19988_get_edid),
 	DEVMETHOD(crtc_set_videomode,	tda19988_set_videomode),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t tda_driver = {
-	"tda",
-	tda_methods,
-	sizeof(struct tda19988_softc),
-};
+PRIVATE_DEFINE_CLASSN(tda, tda_driver, tda_methods,
+    sizeof(struct tda19988_softc));
 
 DRIVER_MODULE(tda, iicbus, tda_driver, 0, 0);
 MODULE_VERSION(tda, 1);

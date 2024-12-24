@@ -786,7 +786,7 @@ static device_method_t tegra_pinmux_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(pinmux, tegra_pinmux_driver, tegra_pinmux_methods,
+PRIVATE_DEFINE_CLASSN(pinmux, tegra_pinmux_driver, tegra_pinmux_methods,
     sizeof(struct pinmux_softc));
 EARLY_DRIVER_MODULE(tegra_pinmux, simplebus, tegra_pinmux_driver, NULL, NULL,
     71);

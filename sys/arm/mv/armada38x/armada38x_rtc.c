@@ -127,14 +127,11 @@ static device_method_t mv_rtc_methods[] = {
 	DEVMETHOD(clock_gettime,	mv_rtc_gettime),
 	DEVMETHOD(clock_settime,	mv_rtc_settime),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t mv_rtc_driver = {
-	"rtc",
-	mv_rtc_methods,
-	sizeof(struct mv_rtc_softc),
-};
+PRIVATE_DEFINE_CLASSN(rtc, mv_rtc_driver, mv_rtc_methods,
+    sizeof(struct mv_rtc_softc));
 
 #define  RTC_A38X	1
 #define  RTC_A8K	2

@@ -712,11 +712,8 @@ static device_method_t bcm_bsc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_bsc_driver = {
-	"iichb",
-	bcm_bsc_methods,
-	sizeof(struct bcm_bsc_softc),
-};
+PRIVATE_DEFINE_CLASSN(iichb, bcm_bsc_driver, bcm_bsc_methods,
+    sizeof(struct bcm_bsc_softc));
 
 DRIVER_MODULE(iicbus, bcm2835_bsc, iicbus_driver, 0, 0);
 DRIVER_MODULE(bcm2835_bsc, simplebus, bcm_bsc_driver, 0, 0);

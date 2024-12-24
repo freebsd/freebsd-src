@@ -291,11 +291,8 @@ static device_method_t rk_iodomain_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_iodomain_driver = {
-	"rk_iodomain",
-	rk_iodomain_methods,
-	sizeof(struct rk_iodomain_softc),
-};
+PRIVATE_DEFINE_CLASSN(rk_iodomain, rk_iodomain_driver, rk_iodomain_methods,
+    sizeof(struct rk_iodomain_softc));
 
 EARLY_DRIVER_MODULE(rk_iodomain, simplebus, rk_iodomain_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

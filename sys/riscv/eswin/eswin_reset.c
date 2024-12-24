@@ -180,11 +180,8 @@ static device_method_t eswin_rst_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t eswin_rst_driver = {
-	"eswin_rst",
-	eswin_rst_methods,
-	sizeof(struct eswin_rst_softc)
-};
+PRIVATE_DEFINE_CLASSN(eswin_rst, eswin_rst_driver, eswin_rst_methods,
+    sizeof(struct eswin_rst_softc));
 
 EARLY_DRIVER_MODULE(eswin_rst, simplebus, eswin_rst_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_LATE);

@@ -488,11 +488,8 @@ static device_method_t zy7_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t zy7_gpio_driver = {
-	"gpio",
-	zy7_gpio_methods,
-	sizeof(struct zy7_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, zy7_gpio_driver, zy7_gpio_methods,
+    sizeof(struct zy7_gpio_softc));
 
 EARLY_DRIVER_MODULE(zy7_gpio, simplebus, zy7_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
