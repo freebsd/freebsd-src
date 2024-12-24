@@ -169,7 +169,8 @@ void	db_dump_intr_event(struct intr_event *ie, int handlers);
 u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
-	    u_char pri, enum intr_type flags, void **cookiep);	    
+	    u_char pri, enum intr_type flags, void **cookiep)
+	    __result_use_check;
 int	intr_event_bind(struct intr_event *ie, int cpu);
 int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
 int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
@@ -212,5 +213,11 @@ intr_event_is_valid(struct intr_event *ie)
 	return (mtx_initialized(&ie->ie_lock));
 }
 #endif
+
+static inline bool
+intr_event_has_handlers(struct intr_event *ie)
+{
+	return (!CK_SLIST_EMPTY(&ie->ie_handlers));
+}
 
 #endif

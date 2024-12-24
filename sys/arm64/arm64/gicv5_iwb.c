@@ -107,13 +107,18 @@ static pic_enable_intr_t gicv5_iwb_enable_intr;
 static pic_map_intr_t gicv5_iwb_map_intr;
 static pic_setup_intr_t gicv5_iwb_setup_intr;
 static pic_teardown_intr_t gicv5_iwb_teardown_intr;
-static pic_post_filter_t gicv5_iwb_post_filter;
-static pic_post_ithread_t gicv5_iwb_post_ithread;
-static pic_pre_ithread_t gicv5_iwb_pre_ithread;
+static intr_event_post_filter_t gicv5_iwb_post_filter;
+static intr_event_post_ithread_t gicv5_iwb_post_ithread;
+static intr_event_pre_ithread_t gicv5_iwb_pre_ithread;
 
 static device_method_t gicv5_iwb_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(device_attach,	gicv5_iwb_attach),
+
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gicv5_iwb_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gicv5_iwb_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gicv5_iwb_pre_ithread),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gicv5_iwb_disable_intr),
@@ -121,9 +126,6 @@ static device_method_t gicv5_iwb_methods[] = {
 	DEVMETHOD(pic_map_intr,		gicv5_iwb_map_intr),
 	DEVMETHOD(pic_setup_intr,	gicv5_iwb_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gicv5_iwb_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gicv5_iwb_post_filter),
-	DEVMETHOD(pic_post_ithread,	gicv5_iwb_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gicv5_iwb_pre_ithread),
 
 	/* End */
 	DEVMETHOD_END

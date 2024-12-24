@@ -132,9 +132,9 @@ static pic_enable_intr_t gicv5_enable_intr;
 static pic_map_intr_t gicv5_map_intr;
 static pic_setup_intr_t gicv5_setup_intr;
 static pic_teardown_intr_t gicv5_teardown_intr;
-static pic_post_filter_t gicv5_post_filter;
-static pic_post_ithread_t gicv5_post_ithread;
-static pic_pre_ithread_t gicv5_pre_ithread;
+static intr_event_post_filter_t gicv5_post_filter;
+static intr_event_post_ithread_t gicv5_post_ithread;
+static intr_event_pre_ithread_t gicv5_pre_ithread;
 static pic_bind_intr_t gicv5_bind_intr;
 #ifdef SMP
 static pic_init_secondary_t gicv5_init_secondary;
@@ -157,15 +157,17 @@ static device_method_t gicv5_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gicv5_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gicv5_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gicv5_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gicv5_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gicv5_enable_intr),
 	DEVMETHOD(pic_map_intr,		gicv5_map_intr),
 	DEVMETHOD(pic_setup_intr,	gicv5_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gicv5_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gicv5_post_filter),
-	DEVMETHOD(pic_post_ithread,	gicv5_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gicv5_pre_ithread),
 	DEVMETHOD(pic_bind_intr,	gicv5_bind_intr),
 #ifdef SMP
 	DEVMETHOD(pic_init_secondary,	gicv5_init_secondary),
@@ -177,7 +179,8 @@ static device_method_t gicv5_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(gic, gicv5_driver, gicv5_methods, sizeof(struct gicv5_softc));
+PUBLIC_DEFINE_CLASSN("gic", gicv5_driver, gicv5_methods,
+    sizeof(struct gicv5_softc), pic_base_class);
 
 static int
 gicv5_wait_for_op(struct gicv5_irs *irs, bus_size_t reg, uint32_t mask,
