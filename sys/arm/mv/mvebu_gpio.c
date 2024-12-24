@@ -843,15 +843,17 @@ static device_method_t mvebu_gpio_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mvebu_gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mvebu_gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mvebu_gpio_pic_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	mvebu_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	mvebu_gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		mvebu_gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	mvebu_gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mvebu_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mvebu_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mvebu_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mvebu_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		mvebu_gpio_get_bus),
@@ -871,7 +873,8 @@ static device_method_t mvebu_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gpio, mvebu_gpio_driver, mvebu_gpio_methods,
-    sizeof(struct mvebu_gpio_softc));
+PRIVATE_DEFINE_CLASSN(gpio, mvebu_gpio_driver, mvebu_gpio_methods,
+    sizeof(struct mvebu_gpio_softc), pic_base_class);
+
 EARLY_DRIVER_MODULE(mvebu_gpio, simplebus, mvebu_gpio_driver, NULL, NULL,
      BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
