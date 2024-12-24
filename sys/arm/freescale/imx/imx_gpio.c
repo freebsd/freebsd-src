@@ -917,6 +917,11 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_attach,	imx51_gpio_attach),
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gpio_pic_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gpio_pic_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gpio_pic_pre_ithread),
+
 #ifdef INTRNG
 	/* Bus interface */
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
@@ -928,9 +933,6 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(pic_map_intr,		gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gpio_pic_pre_ithread),
 #endif
 
 	/* OFW methods */
@@ -948,14 +950,12 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_toggle,	imx51_gpio_pin_toggle),
 	DEVMETHOD(gpio_pin_access_32,	imx51_gpio_pin_access_32),
 	DEVMETHOD(gpio_pin_config_32,	imx51_gpio_pin_config_32),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t imx51_gpio_driver = {
-	"gpio",
-	imx51_gpio_methods,
-	sizeof(struct imx51_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, imx51_gpio_driver, imx51_gpio_methods,
+    sizeof(struct imx51_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

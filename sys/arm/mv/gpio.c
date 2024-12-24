@@ -77,7 +77,7 @@ struct mv_gpio_softc {
 	int			mem_rid;
 	struct resource	*	irq_res[GPIO_MAX_INTR_COUNT];
 	int			irq_rid[GPIO_MAX_INTR_COUNT];
-	struct intr_event *	gpio_events[MV_GPIO_MAX_NPINS];
+	struct intr_irqsrc *	gpio_isrcs[MV_GPIO_MAX_NPINS];
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
@@ -103,11 +103,15 @@ static int	mv_gpio_probe(device_t);
 static int	mv_gpio_attach(device_t);
 static int	mv_gpio_intr(device_t, void *);
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void	mv_gpio_double_edge_init(device_t, int);
+#endif
 
 static int	mv_gpio_debounce_setup(device_t, int);
 static int	mv_gpio_debounce_prepare(device_t, int);
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static int	mv_gpio_debounce_init(device_t, int);
+#endif
 static void	mv_gpio_debounce_start(device_t, int);
 static void	mv_gpio_debounce(void *);
 static void	mv_gpio_debounced_state_set(device_t, int, uint8_t);
@@ -122,23 +126,35 @@ static void	mv_gpio_reg_clear(device_t, uint32_t, uint32_t);
 
 static void	mv_gpio_blink(device_t, uint32_t, uint8_t);
 static void	mv_gpio_polarity(device_t, uint32_t, uint8_t, uint8_t);
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void	mv_gpio_level(device_t, uint32_t, uint8_t);
+#endif
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void	mv_gpio_edge(device_t, uint32_t, uint8_t);
+#endif
 static void	mv_gpio_out_en(device_t, uint32_t, uint8_t);
 static void	mv_gpio_int_ack(struct mv_gpio_pindev *);
 static void	mv_gpio_value_set(device_t, uint32_t, uint8_t);
 static uint32_t	mv_gpio_value_get(device_t, uint32_t, uint8_t);
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void	mv_gpio_intr_mask(struct mv_gpio_pindev *);
+#endif
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void	mv_gpio_intr_unmask(struct mv_gpio_pindev *);
+#endif
 
-void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
-int mv_gpio_setup_intrhandler(device_t, const char *,
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
+static void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
+#endif
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
+static int mv_gpio_setup_intrhandler(device_t, const char *,
     driver_filter_t *, void (*)(void *), void *,
     int, int, void **);
-int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
-void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
-uint8_t mv_gpio_in(device_t, uint32_t);
+#endif
+static int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
+static void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
+static uint8_t mv_gpio_in(device_t, uint32_t);
 
 /*
  * GPIO interface
@@ -178,11 +194,8 @@ static device_method_t mv_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_gpio_driver = {
-	"gpio",
-	mv_gpio_methods,
-	sizeof(struct mv_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, mv_gpio_driver, mv_gpio_methods,
+    sizeof(struct mv_gpio_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
@@ -386,7 +399,8 @@ mv_gpio_intr(device_t dev, void *arg)
  * GPIO interrupt handling
  */
 
-void
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
+static void
 mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 {
 	/* When we acheive full interrupt support
@@ -400,8 +414,10 @@ mv_gpio_finish_intrhandler(struct mv_gpio_pindev *s)
 	 */
 	free(s, M_DEVBUF);
 }
+#endif
 
-int
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
+static int
 mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
     void (*hand)(void *), void *arg, int pin, int flags, void **cookiep)
 {
@@ -426,6 +442,7 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 		} else if (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_IRQ_DOUBLE_EDGE)
 			mv_gpio_double_edge_init(dev, pin);
 		MV_GPIO_UNLOCK();
+#error "This is wrong as it violates INTRNG's interface"
 		error = intr_event_create(&event, (void *)s, 0, pin,
 		    (void (*)(void *))mv_gpio_intr_mask,
 		    (void (*)(void *))mv_gpio_intr_unmask,
@@ -441,7 +458,9 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 	    intr_priority(flags), flags, cookiep);
 	return (0);
 }
+#endif
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void
 mv_gpio_intr_mask(struct mv_gpio_pindev *s)
 {
@@ -471,7 +490,9 @@ mv_gpio_intr_mask(struct mv_gpio_pindev *s)
 
 	return;
 }
+#endif
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void
 mv_gpio_intr_unmask(struct mv_gpio_pindev *s)
 {
@@ -493,6 +514,7 @@ mv_gpio_intr_unmask(struct mv_gpio_pindev *s)
 
 	return;
 }
+#endif
 
 static void
 mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
@@ -523,15 +545,21 @@ mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
 static void
 mv_gpio_intr_handler(device_t dev, int pin)
 {
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 	struct intr_irqsrc isrc;
 	struct mv_gpio_softc *sc;
+#else
+	struct mv_gpio_softc *sc __diagused;
+#endif
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
 	MV_GPIO_ASSERT_LOCKED();
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 #ifdef INTR_SOLO
 	isrc.isrc_filter = NULL;
 #endif
+#error "No known invoked functions modify ->gpio_events, therefore NOP."
 	isrc.isrc_event = sc->gpio_events[pin];
 
 	if (isrc.isrc_event == NULL ||
@@ -539,9 +567,10 @@ mv_gpio_intr_handler(device_t dev, int pin)
 		return;
 
 	intr_isrc_dispatch(&isrc, NULL);
+#endif
 }
 
-int
+static int
 mv_gpio_configure(device_t dev, uint32_t pin, uint32_t flags, uint32_t mask)
 {
 	int error;
@@ -597,6 +626,7 @@ mv_gpio_configure(device_t dev, uint32_t pin, uint32_t flags, uint32_t mask)
 	return (0);
 }
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void
 mv_gpio_double_edge_init(device_t dev, int pin)
 {
@@ -613,6 +643,7 @@ mv_gpio_double_edge_init(device_t dev, int pin)
 	else
 		mv_gpio_polarity(dev, pin, 0, 0);
 }
+#endif
 
 static int
 mv_gpio_debounce_setup(device_t dev, int pin)
@@ -657,6 +688,7 @@ mv_gpio_debounce_prepare(device_t dev, int pin)
 	return (0);
 }
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static int
 mv_gpio_debounce_init(device_t dev, int pin)
 {
@@ -682,6 +714,7 @@ mv_gpio_debounce_init(device_t dev, int pin)
 
 	return (0);
 }
+#endif
 
 static void
 mv_gpio_debounce_start(device_t dev, int pin)
@@ -820,7 +853,7 @@ mv_gpio_debounced_state_get(device_t dev, int pin)
 	return (*state & (1 << pin));
 }
 
-void
+static void
 mv_gpio_out(device_t dev, uint32_t pin, uint8_t val, uint8_t enable)
 {
 	struct mv_gpio_softc *sc;
@@ -834,7 +867,7 @@ mv_gpio_out(device_t dev, uint32_t pin, uint8_t val, uint8_t enable)
 	MV_GPIO_UNLOCK();
 }
 
-uint8_t
+static uint8_t
 mv_gpio_in(device_t dev, uint32_t pin)
 {
 	uint8_t state;
@@ -957,6 +990,7 @@ mv_gpio_polarity(device_t dev, uint32_t pin, uint8_t enable, uint8_t toggle)
 		mv_gpio_reg_clear(dev, reg, pin);
 }
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void
 mv_gpio_level(device_t dev, uint32_t pin, uint8_t enable)
 {
@@ -974,7 +1008,9 @@ mv_gpio_level(device_t dev, uint32_t pin, uint8_t enable)
 	else
 		mv_gpio_reg_clear(dev, reg, pin);
 }
+#endif
 
+#ifdef MV_GPIO_INTERRUPTS_BROKEN
 static void
 mv_gpio_edge(device_t dev, uint32_t pin, uint8_t enable)
 {
@@ -992,6 +1028,7 @@ mv_gpio_edge(device_t dev, uint32_t pin, uint8_t enable)
 	else
 		mv_gpio_reg_clear(dev, reg, pin);
 }
+#endif
 
 static void
 mv_gpio_int_ack(struct mv_gpio_pindev *s)
