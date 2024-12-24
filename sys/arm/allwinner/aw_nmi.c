@@ -393,24 +393,23 @@ static device_method_t aw_nmi_methods[] = {
 	DEVMETHOD(device_probe,		aw_nmi_probe),
 	DEVMETHOD(device_attach,	aw_nmi_attach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	aw_nmi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	aw_nmi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	aw_nmi_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	aw_nmi_disable_intr),
 	DEVMETHOD(pic_enable_intr,	aw_nmi_enable_intr),
 	DEVMETHOD(pic_map_intr,		aw_nmi_map_intr),
 	DEVMETHOD(pic_setup_intr,	aw_nmi_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	aw_nmi_teardown_intr),
-	DEVMETHOD(pic_post_filter,	aw_nmi_post_filter),
-	DEVMETHOD(pic_post_ithread,	aw_nmi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	aw_nmi_pre_ithread),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t aw_nmi_driver = {
-	"aw_nmi",
-	aw_nmi_methods,
-	sizeof(struct aw_nmi_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_nmi, aw_nmi_driver, aw_nmi_methods,
+    sizeof(struct aw_nmi_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
