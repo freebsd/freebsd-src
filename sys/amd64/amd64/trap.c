@@ -445,6 +445,20 @@ trap(struct trapframe *frame)
 
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
+
+		/*
+		 * Most likely, EFI RT faulted.  This check prevents
+		 * kdb from handling breakpoints set on the BIOS text,
+		 * if such option is ever needed.
+		 */
+		if ((td->td_pflags2 & TDP2_EFIRT) != 0 &&
+		    curpcb->pcb_onfault != NULL && type != T_PAGEFLT) {
+			trap_diag(frame, 0);
+			printf("EFI RT fault %s\n", traptype_to_msg(type));
+			frame->tf_rip = (long)curpcb->pcb_onfault;
+			return;
+		}
+
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
 			(void)trap_pfault(frame, false, NULL, NULL);
@@ -608,18 +622,6 @@ trap(struct trapframe *frame)
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
 		case T_BPTFLT:
-			/*
-			 * Most likely, EFI RT hitting INT3.  This
-			 * check prevents kdb from handling
-			 * breakpoints set on the BIOS text, if such
-			 * option is ever needed.
-			 */
-			if ((td->td_pflags2 & TDP2_EFIRT) != 0 &&
-			    curpcb->pcb_onfault != NULL) {
-				frame->tf_rip = (long)curpcb->pcb_onfault;
-				return;
-			}
-
 			/*
 			 * If KDB is enabled, let it handle the debugger trap.
 			 * Otherwise, debugger traps "can't happen".
@@ -883,6 +885,10 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 after_vmfault:
 	if (td->td_intr_nesting_level == 0 &&
 	    curpcb->pcb_onfault != NULL) {
+		if ((td->td_pflags2 & TDP2_EFIRT) != 0) {
+			trap_diag(frame, eva);
+			printf("EFI RT page fault\n");
+		}
 		frame->tf_rip = (long)curpcb->pcb_onfault;
 		return (0);
 	}
