@@ -70,7 +70,7 @@
 
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 

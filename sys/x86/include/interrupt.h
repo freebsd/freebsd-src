@@ -34,6 +34,12 @@
 #include <sys/_interrupt.h>
 #include <sys/types.h>
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 /*
  * Values used in determining the allocation of IRQ values among
  * different types of I/O interrupts.  These values are used as
@@ -69,8 +75,6 @@ extern u_int num_msi_irqs;
 typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
-
-struct intsrc;
 
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,
