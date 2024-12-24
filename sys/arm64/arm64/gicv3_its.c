@@ -350,9 +350,9 @@ static pic_disable_intr_t gicv3_its_disable_intr;
 static pic_enable_intr_t gicv3_its_enable_intr;
 static pic_map_intr_t gicv3_its_map_intr;
 static pic_setup_intr_t gicv3_its_setup_intr;
-static pic_post_filter_t gicv3_its_post_filter;
-static pic_post_ithread_t gicv3_its_post_ithread;
-static pic_pre_ithread_t gicv3_its_pre_ithread;
+static intr_event_post_filter_t gicv3_its_post_filter;
+static intr_event_post_ithread_t gicv3_its_post_ithread;
+static intr_event_pre_ithread_t gicv3_its_pre_ithread;
 static pic_bind_intr_t gicv3_its_bind_intr;
 #ifdef SMP
 static pic_init_secondary_t gicv3_its_init_secondary;
@@ -378,14 +378,16 @@ static device_method_t gicv3_its_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_detach,	gicv3_its_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	gicv3_its_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	gicv3_its_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	gicv3_its_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gicv3_its_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gicv3_its_enable_intr),
 	DEVMETHOD(pic_map_intr,		gicv3_its_map_intr),
 	DEVMETHOD(pic_setup_intr,	gicv3_its_setup_intr),
-	DEVMETHOD(pic_post_filter,	gicv3_its_post_filter),
-	DEVMETHOD(pic_post_ithread,	gicv3_its_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gicv3_its_pre_ithread),
 #ifdef SMP
 	DEVMETHOD(pic_bind_intr,	gicv3_its_bind_intr),
 	DEVMETHOD(pic_init_secondary,	gicv3_its_init_secondary),
@@ -406,8 +408,8 @@ static device_method_t gicv3_its_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gic, gicv3_its_driver, gicv3_its_methods,
-    sizeof(struct gicv3_its_softc));
+PRIVATE_DEFINE_CLASSN(gic, gicv3_its_driver, gicv3_its_methods,
+    sizeof(struct gicv3_its_softc), pic_base_class);
 
 /* Limit maximum address for memory mapped tables and buffers */
 static vm_paddr_t

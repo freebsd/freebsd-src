@@ -193,7 +193,7 @@ ithread_update(struct intr_thread *ithd)
 	mtx_assert(&ie->ie_lock, MA_OWNED);
 
 	/* Determine the overall priority of this event. */
-	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+	if (!intr_event_has_handlers_(ie))
 		pri = PRI_MAX_ITHD;
 	else
 		pri = CK_SLIST_FIRST(&ie->ie_handlers)->ih_pri;
@@ -637,7 +637,7 @@ intr_event_shutdown_(struct intr_event *ie)
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers_(ie)) {
 		mtx_unlock(&ie->ie_lock);
 		mtx_unlock(&event_lock);
 		return (EBUSY);
@@ -761,7 +761,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 
 	/* We can only have one exclusive or sleepable handler in a event. */
 	mtx_lock(&ie->ie_lock);
-	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
+	if (intr_event_has_handlers_(ie)) {
 		if ((flags & (INTR_EXCL | INTR_SLEEPABLE)) ||
 		    (CK_SLIST_FIRST(&ie->ie_handlers)->ih_flags & IH_EXCLUSIVE)) {
 			mtx_unlock(&ie->ie_lock);
@@ -1082,7 +1082,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
 	 */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers) ||
+	if (!intr_event_has_handlers(ie) ||
 	    ie->ie_thread == NULL)
 		return (EINVAL);
 
@@ -1139,16 +1139,37 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 }
 
 /*
+ * Pseudo-PIC implementation for SWIs swi_add().  Lower overhead than
+ * intr_event_create()'s full implementation.
+ */
+
+static void
+swi_event_func(device_t pic, interrupt_t *intr)
+{
+}
+
+/*
  * Allow interrupt event binding for software interrupt handlers -- a no-op,
  * since interrupts are generated in software rather than being directed by
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, int cpu)
+swi_event_assign(device_t pic, interrupt_t *intr, u_int cpu)
 {
 
 	return (0);
 }
+
+static device_method_t swi_event_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_filter,	swi_event_func),
+	DEVMETHOD(intr_event_assign_cpu,	swi_event_assign),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN(swi_event, swi_event_class, swi_event_methods, 0);
 
 /*
  * Add a software interrupt handler to a specified event.  If a given event
@@ -1170,10 +1191,22 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
-		if (error)
+		static device_t handler = NULL;
+
+		if (__predict_false(handler == NULL)) {
+			handler = bus_generic_add_child(root_bus,
+			    BUS_PASS_ORDER_FIRST, "swi-event", 0);
+			device_set_driver(handler, &swi_event_class);
+		}
+
+		ie = malloc(sizeof(struct intr_event), M_ITHREAD,
+		    M_WAITOK | M_ZERO);
+		error = intr_event_init_(ie, handler, 0, IE_SOFT, "swi%d:",
+		    pri);
+		if (error) {
+			free(ie, M_ITHREAD);
 			return (error);
+		}
 		if (eventp != NULL)
 			*eventp = ie;
 	}
@@ -1487,7 +1520,7 @@ intr_event_handle_(struct intr_event *ie, struct trapframe *frame)
 	MPASS(ie != NULL);
 
 	/* An interrupt with no handlers is a stray interrupt. */
-	if (CK_SLIST_EMPTY(&ie->ie_handlers))
+	if (!intr_event_has_handlers_(ie))
 		return (EINVAL);
 
 	/*
@@ -1723,7 +1756,7 @@ DB_SHOW_COMMAND_FLAGS(intr, db_show_intr, DB_CMD_MEMSAFE)
 	verbose = strchr(modif, 'v') != NULL;
 	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
-		if (!all && CK_SLIST_EMPTY(&ie->ie_handlers))
+		if (!all && !intr_event_has_handlers_(ie))
 			continue;
 		db_dump_intr_event(ie, verbose);
 		if (db_pager_quit)
