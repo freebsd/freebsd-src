@@ -33,6 +33,8 @@
 #include <sys/rman.h>
 #include <sys/smp.h>
 
+#include <machine/interrupt.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

@@ -58,7 +58,6 @@
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
-#include <machine/intr_machdep.h>
 #include <machine/pci_cfgreg.h>
 #include <x86/cputypes.h>
 #include <x86/x86_var.h>
