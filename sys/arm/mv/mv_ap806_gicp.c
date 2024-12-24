@@ -311,7 +311,7 @@ mv_ap806_gicp_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_PRE_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_PRE_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -321,7 +321,7 @@ mv_ap806_gicp_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_ITHREAD(sc->parent, isrc);
+	INTR_EVENT_POST_ITHREAD(sc->parent, isrc);
 }
 
 static void
@@ -331,7 +331,7 @@ mv_ap806_gicp_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	PIC_POST_FILTER(sc->parent, isrc);
+	INTR_EVENT_POST_FILTER(sc->parent, isrc);
 }
 
 static int
@@ -370,7 +370,7 @@ mv_ap806_gicp_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		if (ret != 0)
 			goto fail;
 
-		srcs[i]->isrc_dev = dev;
+		srcs[i]->isrc_event.ie_pic = dev;
 	}
 
 	return (0);
@@ -390,7 +390,7 @@ mv_ap806_gicp_release_msi(device_t dev, device_t child, int count,
 
 	for (i = 0; i < count; i++) {
 		BIT_SET(sc->msi_bitmap_size,
-		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_irq),
+		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_event.ie_irq),
 		    sc->msi_bitmap);
 	}
 
@@ -406,7 +406,7 @@ mv_ap806_gicp_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 
 	*addr = rman_get_start(sc->res);
-	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_irq);
+	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_event.ie_irq);
 
 	return (0);
 }
@@ -417,6 +417,11 @@ static device_method_t mv_ap806_gicp_methods[] = {
 	DEVMETHOD(device_attach,	mv_ap806_gicp_attach),
 	DEVMETHOD(device_detach,	mv_ap806_gicp_detach),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	mv_ap806_gicp_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	mv_ap806_gicp_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	mv_ap806_gicp_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_activate_intr,	mv_ap806_gicp_activate_intr),
 	DEVMETHOD(pic_disable_intr,	mv_ap806_gicp_disable_intr),
@@ -425,9 +430,6 @@ static device_method_t mv_ap806_gicp_methods[] = {
 	DEVMETHOD(pic_deactivate_intr,	mv_ap806_gicp_deactivate_intr),
 	DEVMETHOD(pic_setup_intr,	mv_ap806_gicp_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	mv_ap806_gicp_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_ap806_gicp_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_ap806_gicp_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_ap806_gicp_pre_ithread),
 
 	/* MSI interface */
 	DEVMETHOD(msi_alloc_msi,	mv_ap806_gicp_alloc_msi),
@@ -437,11 +439,8 @@ static device_method_t mv_ap806_gicp_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_ap806_gicp_driver = {
-	"mv_ap806_gicp",
-	mv_ap806_gicp_methods,
-	sizeof(struct mv_ap806_gicp_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_ap806_gicp, mv_ap806_gicp_driver,
+    mv_ap806_gicp_methods, sizeof(struct mv_ap806_gicp_softc), pic_base_class);
 
 EARLY_DRIVER_MODULE(mv_ap806_gicp, simplebus, mv_ap806_gicp_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
