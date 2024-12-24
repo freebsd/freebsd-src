@@ -98,14 +98,11 @@ static device_method_t atpic_isa_methods[] = {
 
 	DEVMETHOD(pic_translate_code,	atpic_ofw_translate_code),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t atpic_isa_driver = {
-	"atpic",
-	atpic_isa_methods,
-	sizeof(struct atpic_softc)
-};
+PRIVATE_DEFINE_CLASSN(atpic, atpic_isa_driver, atpic_isa_methods,
+    sizeof(struct atpic_softc), pic_base_class);
 
 static struct isa_pnp_id atpic_ids[] = {
 	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" },
