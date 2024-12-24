@@ -43,7 +43,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 

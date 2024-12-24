@@ -58,7 +58,7 @@
 #include <machine/cpu.h>
 #include <machine/cpu_feat.h>
 #include <machine/debug_monitor.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #ifdef VFP

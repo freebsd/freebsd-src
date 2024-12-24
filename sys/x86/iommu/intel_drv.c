@@ -75,7 +75,7 @@
 
 #ifdef DEV_APIC
 #include "pcib_if.h"
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif
