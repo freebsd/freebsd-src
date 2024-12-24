@@ -72,7 +72,7 @@ static device_method_t gicv5_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(gic, gicv5_fdt_driver, gicv5_fdt_methods,
+PRIVATE_DEFINE_CLASSN("gic", gicv5_fdt_driver, gicv5_fdt_methods,
     sizeof(struct gicv5_softc), gicv5_driver);
 
 EARLY_DRIVER_MODULE(gicv5, simplebus, gicv5_fdt_driver, 0, 0,

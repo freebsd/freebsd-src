@@ -736,7 +736,7 @@ jh7110_pcie_attach(device_t dev)
 	phandle_t xref;
 	uint32_t val;
 	int i, err, rid, irq, win_idx = 0;
-	char name[INTR_ISRC_NAMELEN];
+	char name[MAXCOMLEN + 1];
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -954,8 +954,7 @@ jh7110_pcie_attach(device_t dev)
 	sc->isrcs = malloc(sizeof(*sc->isrcs) * MSI_COUNT, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
-	snprintf(name, INTR_ISRC_NAMELEN, "%s, MSI",
-	    device_get_nameunit(sc->dev));
+	snprintf(name, sizeof(name), "%s, MSI", device_get_nameunit(sc->dev));
 
 	for (irq = 0; irq < MSI_COUNT; irq++) {
 		sc->isrcs[irq].irq = irq;
@@ -1015,12 +1014,14 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD(msi_release_msix,	jh7110_pcie_msi_release_msix),
 	DEVMETHOD(msi_map_msi,		jh7110_pcie_msi_map_msi),
 
+	/* Interrupt event interface */
+	DEVMETHOD(intr_event_post_filter,	jh7110_pcie_msi_post_filter),
+	DEVMETHOD(intr_event_post_ithread,	jh7110_pcie_msi_post_ithread),
+	DEVMETHOD(intr_event_pre_ithread,	jh7110_pcie_msi_pre_ithread),
+
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_enable_intr,	jh7110_pcie_msi_enable_intr),
 	DEVMETHOD(pic_disable_intr,	jh7110_pcie_msi_disable_intr),
-	DEVMETHOD(pic_post_filter,	jh7110_pcie_msi_post_filter),
-	DEVMETHOD(pic_post_ithread,	jh7110_pcie_msi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	jh7110_pcie_msi_pre_ithread),
 
 	/* OFW bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -1032,6 +1033,7 @@ static device_method_t jh7110_pcie_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pcib, jh7110_pcie_driver, jh7110_pcie_methods,
-    sizeof(struct jh7110_pcie_softc), ofw_pcib_driver);
+PRIVATE_DEFINE_CLASSN("pcib", jh7110_pcie_driver, jh7110_pcie_methods,
+    sizeof(struct jh7110_pcie_softc), pic_base_class, ofw_pcib_driver);
+
 DRIVER_MODULE(jh7110_pcie, simplebus, jh7110_pcie_driver, NULL, NULL);
