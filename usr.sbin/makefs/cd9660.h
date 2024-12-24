@@ -72,8 +72,7 @@
 
 /*30 for name and extension, as well as version number and padding bit*/
 #define ISO_FILENAME_MAXLENGTH_BEFORE_VERSION 30
-#define ISO_FILENAME_MAXLENGTH	36
-#define ISO_FILENAME_MAXLENGTH_WITH_PADDING 37
+#define ISO_FILENAME_MAXLENGTH	38
 
 #define ISO_FLAG_CLEAR 0x00
 #define ISO_FLAG_HIDDEN 0x01
@@ -118,7 +117,7 @@ typedef struct _iso_directory_record_cd9660 {
 	u_char interleave		[ISODCL (28, 28)];	/* 711 */
 	u_char volume_sequence_number	[ISODCL (29, 32)];	/* 723 */
 	u_char name_len			[ISODCL (33, 33)];	/* 711 */
-	char name			[ISO_FILENAME_MAXLENGTH_WITH_PADDING];
+	char name			[ISO_FILENAME_MAXLENGTH];
 } iso_directory_record_cd9660;
 
 /* TODO: Lots of optimization of this structure */
@@ -154,7 +153,7 @@ typedef struct _cd9660node {
 	int fileRecordSize;/*copy of a variable, int for quicker calculations*/
 
 	/* Old name, used for renaming - needs to be optimized but low priority */
-	char o_name [ISO_FILENAME_MAXLENGTH_WITH_PADDING];
+	char o_name [ISO_FILENAME_MAXLENGTH];
 
 	/***** SPACE RESERVED FOR EXTENSIONS *****/
 	/* For memory efficiency's sake - we should move this to a separate struct
@@ -194,7 +193,7 @@ typedef struct _path_table_entry
 	u_char extended_attribute_length[ISODCL (2, 2)];
 	u_char first_sector[ISODCL (3, 6)];
 	u_char parent_number[ISODCL (7, 8)];
-	char name[ISO_FILENAME_MAXLENGTH_WITH_PADDING];
+	char name[ISO_FILENAME_MAXLENGTH];
 } path_table_entry;
 
 typedef struct _volume_descriptor
