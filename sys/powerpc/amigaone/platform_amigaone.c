@@ -30,7 +30,7 @@
 #include <sys/malloc.h>
 #include <sys/smp.h>
 
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 

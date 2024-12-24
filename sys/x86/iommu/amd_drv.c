@@ -60,7 +60,7 @@
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
 #include "pcib_if.h"
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/cputypes.h>
 #include <x86/apicreg.h>

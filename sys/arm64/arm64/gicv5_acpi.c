@@ -34,7 +34,7 @@
 #include <sys/rman.h>
 #include <sys/cpuset.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
