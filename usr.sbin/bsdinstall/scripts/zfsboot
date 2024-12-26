@@ -324,6 +324,9 @@ msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
 msg_yes="YES"
 msg_zfs_configuration="ZFS Configuration"
+msg_please_enter_options_for_your_zpool="Please enter options for your zpool"
+msg_zfs_options_name="ZFS Pool Options"
+msg_zfs_options_name_help="Customize ZFS options for the zpool to be created"
 
 ############################################################ FUNCTIONS
 
@@ -374,6 +377,8 @@ dialog_menu_main()
 		                        '$msg_swap_mirror_help'
 		'W $msg_swap_encrypt'   '$swapgeli'
 		                        '$msg_swap_encrypt_help'
+		'O $msg_zfs_options_name'   '$ZFSBOOT_POOL_CREATE_OPTIONS'
+		                        '$msg_zfs_options_name_help'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -1852,6 +1857,13 @@ while :; do
 		else
 			ZFSBOOT_SWAP_ENCRYPTION=1
 		fi
+		;;
+	?" $msg_zfs_options_name")
+		# Prompt the user to input/change the pool options
+		f_dialog_input input \
+			"$msg_please_enter_options_for_your_zpool" \
+			"$ZFSBOOT_POOL_CREATE_OPTIONS" &&
+			ZFSBOOT_POOL_CREATE_OPTIONS="$input"
 		;;
 	esac
 done
