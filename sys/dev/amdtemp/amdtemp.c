@@ -107,7 +107,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC15_M10H	0x1403
 #define	DEVICEID_AMD_MISC15_M30H	0x141d
 #define	DEVICEID_AMD_MISC15_M60H_ROOT	0x1576
-#define	DEVICEID_AMD_MISC16	0x1533
+#define	DEVICEID_AMD_MISC16		0x1533
 #define	DEVICEID_AMD_MISC16_M30H	0x1583
 #define	DEVICEID_AMD_HOSTB17H_ROOT	0x1450
 #define	DEVICEID_AMD_HOSTB17H_M10H_ROOT	0x15d0
@@ -115,7 +115,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630
 #define	DEVICEID_AMD_HOSTB19H_M10H_ROOT	0x14a4
 #define	DEVICEID_AMD_HOSTB19H_M40H_ROOT	0x14b5
-#define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8
+#define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8	/* Also F1AH M40H */
 #define	DEVICEID_AMD_HOSTB19H_M70H_ROOT	0x14e8
 
 static const struct amdtemp_product {
@@ -193,6 +193,8 @@ static const struct amdtemp_product {
 #define	AMDTEMP_ZEN4_10H_CCD_TMP_BASE	0x59b00
 #define	AMDTEMP_ZEN4_CCD_TMP_BASE	0x59b08
 
+#define	AMDTEMP_ZEN5_CCD_TMP_BASE	0x59b08
+
 /*
  * AMD temperature range adjustment, in deciKelvins (i.e., 49.0 Celsius).
  */
@@ -230,6 +232,7 @@ static int32_t	amdtemp_gettemp15hm60h(device_t dev, amdsensor_t sensor);
 static int32_t	amdtemp_gettemp17h(device_t dev, amdsensor_t sensor);
 static void	amdtemp_probe_ccd_sensors17h(device_t dev, uint32_t model);
 static void	amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model);
+static void	amdtemp_probe_ccd_sensors1ah(device_t dev, uint32_t model);
 static int	amdtemp_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t amdtemp_methods[] = {
@@ -317,6 +320,7 @@ amdtemp_probe(device_t dev)
 	case 0x16:
 	case 0x17:
 	case 0x19:
+	case 0x1a:
 		break;
 	default:
 		return (ENXIO);
@@ -476,6 +480,7 @@ amdtemp_attach(device_t dev)
 		break;
 	case 0x17:
 	case 0x19:
+	case 0x1a:
 		sc->sc_ntemps = 1;
 		sc->sc_gettemp = amdtemp_gettemp17h;
 		needsmn = true;
@@ -539,6 +544,8 @@ amdtemp_attach(device_t dev)
 		amdtemp_probe_ccd_sensors17h(dev, model);
 	else if (family == 0x19)
 		amdtemp_probe_ccd_sensors19h(dev, model);
+	else if (family == 0x1a)
+		amdtemp_probe_ccd_sensors1ah(dev, model);
 	else if (sc->sc_ntemps > 1) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sysctlnode),
@@ -852,7 +859,7 @@ amdtemp_probe_ccd_sensors17h(device_t dev, uint32_t model)
 		break;
 	default:
 		device_printf(dev,
-		    "Unrecognized Family 17h Model: %02xh\n", model);
+		    "Unrecognized Family 17h Model: %02Xh\n", model);
 		return;
 	}
 
@@ -885,7 +892,28 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 		break;
 	default:
 		device_printf(dev,
-		    "Unrecognized Family 19h Model: %02xh\n", model);
+		    "Unrecognized Family 19h Model: %02Xh\n", model);
+		return;
+	}
+
+	amdtemp_probe_ccd_sensors(dev, maxreg);
+}
+
+static void
+amdtemp_probe_ccd_sensors1ah(device_t dev, uint32_t model)
+{
+	struct amdtemp_softc *sc = device_get_softc(dev);
+	uint32_t maxreg;
+
+	switch (model) {
+	case 0x40 ... 0x4f: /* Zen5 Ryzen "Granite Ridge" */
+		sc->sc_temp_base = AMDTEMP_ZEN5_CCD_TMP_BASE;
+		maxreg = 8;
+		_Static_assert((int)NUM_CCDS >= 8, "");
+		break;
+	default:
+		device_printf(dev,
+		    "Unrecognized Family 1Ah Model: %02Xh\n", model);
 		return;
 	}
 

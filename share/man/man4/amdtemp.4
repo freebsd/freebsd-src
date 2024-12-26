@@ -23,14 +23,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 5, 2017
+.Dd December 27, 2024
 .Dt AMDTEMP 4
 .Os
 .Sh NAME
 .Nm amdtemp
-.Nd device driver for
-.Tn AMD
-processor on-die digital thermal sensor
+.Nd device driver for AMD processor on-die digital thermal sensor
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -49,9 +47,7 @@ amdtemp_load="YES"
 The
 .Nm
 driver provides support for the on-die digital thermal sensor present
-in
-.Tn AMD
-Family 0Fh, 10h, 11h, 12h, 14h, 15h, 16h, and 17h processors.
+in AMD Family 0Fh, 10h, 11h, 12h, 14h, 15h, 16h, 17h, 19h, and 1Ah processors.
 .Pp
 For Family 0Fh processors, the
 .Nm
@@ -62,8 +58,8 @@ The driver also creates
 in the corresponding CPU device's sysctl tree, displaying the maximum
 temperature of the two sensors located in each CPU core.
 .Pp
-For Family 10h, 11h, 12h, 14h, 15h, 16h, and 17h processors, the driver reports
-each package's temperature through a sysctl node, named
+For Family 10h, 11h, 12h, 14h, 15h, 16h, 17h, 19h, and 1Ah processors, the
+driver reports each package's temperature through a sysctl node, named
 .Va dev.amdtemp.%d.core0.sensor0 .
 The driver also creates
 .Va dev.cpu.%d.temperature
