@@ -233,6 +233,19 @@ xa_alloc_cyclic(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask,
 	return (retval);
 }
 
+int
+xa_alloc_cyclic_irq(struct xarray *xa, uint32_t *pindex, void *ptr,
+    uint32_t mask, uint32_t *pnext_index, gfp_t gfp)
+{
+	int retval;
+
+	xa_lock_irq(xa);
+	retval = __xa_alloc_cyclic(xa, pindex, ptr, mask, pnext_index, gfp);
+	xa_unlock_irq(xa);
+
+	return (retval);
+}
+
 /*
  * This function tries to insert an element at the given index. The
  * "gfp" argument basically decides of this function can sleep or not
