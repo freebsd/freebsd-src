@@ -1037,7 +1037,7 @@ static int
 bhndb_release_resource(device_t dev, device_t child, struct resource *r)
 {
 	struct bhndb_softc		*sc;
-	struct resource_list_entry	*rle;
+	struct resource_list_entry	*rle = NULL;
 	bool				 passthrough;
 	int				 error;
 
@@ -1058,16 +1058,17 @@ bhndb_release_resource(device_t dev, device_t child, struct resource *r)
 			return (error);
 	}
 
+	/* Check for resource list entry */
+	if (!passthrough)
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
+		    rman_get_type(r), rman_get_rid(r));
+
 	if ((error = rman_release_resource(r)))
 		return (error);
 
-	if (!passthrough) {
-		/* Clean resource list entry */
-		rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-		    rman_get_type(r), rman_get_rid(r));
-		if (rle != NULL)
-			rle->res = NULL;
-	}
+	/* Clean resource list entry */
+	if (rle != NULL)
+		rle->res = NULL;
 
 	return (0);
 }
