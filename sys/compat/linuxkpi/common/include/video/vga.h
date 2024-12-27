@@ -3,6 +3,9 @@
 #ifndef _LINUXKPI_VIDEO_VGA_H
 #define _LINUXKPI_VIDEO_VGA_H
 
+#include <linux/types.h>
+#include <linux/io.h>
+
 #define VGA_MIS_W	0x3c2
 #define VGA_SEQ_I	0x3c4
 #define VGA_SEQ_D	0x3c5
