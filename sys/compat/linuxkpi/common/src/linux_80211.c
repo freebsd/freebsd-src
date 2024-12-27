@@ -3855,7 +3855,22 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	 */
 	skb = dev_alloc_skb(hw->extra_tx_headroom + m->m_pkthdr.len);
 	if (skb == NULL) {
-		ic_printf(ic, "ERROR %s: skb alloc failed\n", __func__);
+		static uint8_t skb_alloc_failures = 0;
+
+		if (skb_alloc_failures++ == 0) {
+			int tid;
+
+			sta = LSTA_TO_STA(lsta);
+			ic_printf(ic, "ERROR %s: skb alloc failed %d + %d, lsta %p sta %p ni %p\n",
+			    __func__, hw->extra_tx_headroom, m->m_pkthdr.len, lsta, sta, ni);
+			for (tid = 0; tid < nitems(sta->txq); tid++) {
+				if (sta->txq[tid] == NULL)
+					continue;
+				ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
+				ic_printf(ic, "  tid %d ltxq %p seen_dequeue %d stopped %d skb_queue_len %u\n",
+				    tid, ltxq, ltxq->seen_dequeue, ltxq->stopped, skb_queue_len(&ltxq->skbq));
+			}
+		}
 		ieee80211_free_node(ni);
 		m_freem(m);
 		return;
