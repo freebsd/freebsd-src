@@ -49,14 +49,14 @@
 
 #define	xa_limit_32b XA_LIMIT(0, 0xFFFFFFFF)
 
-#define	XA_ASSERT_LOCKED(xa) mtx_assert(&(xa)->mtx, MA_OWNED)
-#define	xa_lock(xa) mtx_lock(&(xa)->mtx)
-#define	xa_unlock(xa) mtx_unlock(&(xa)->mtx)
+#define	XA_ASSERT_LOCKED(xa) mtx_assert(&(xa)->xa_lock, MA_OWNED)
+#define	xa_lock(xa) mtx_lock(&(xa)->xa_lock)
+#define	xa_unlock(xa) mtx_unlock(&(xa)->xa_lock)
 
 struct xarray {
-	struct radix_tree_root root;
-	struct mtx mtx;		/* internal mutex */
-	uint32_t flags;		/* see XA_FLAGS_XXX */
+	struct radix_tree_root xa_head;
+	struct mtx xa_lock;	/* internal mutex */
+	uint32_t xa_flags;	/* see XA_FLAGS_XXX */
 };
 
 /*
