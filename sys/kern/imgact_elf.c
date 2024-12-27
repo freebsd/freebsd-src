@@ -127,7 +127,7 @@ int __elfN(nxstack) =
 #endif
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
-    __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
+    __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": support PT_GNU_STACK for non-executable stack control");
 
 #if defined(__amd64__)
 static int __elfN(vdso) = 1;
