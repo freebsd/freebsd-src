@@ -2220,7 +2220,8 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	sku = iwm_get_sku(sc, nvm_sw, phy_sku);
 	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
-	data->sku_cap_11n_enable = 0;
+	data->sku_cap_11n_enable = sku & IWM_NVM_SKU_CAP_11N_ENABLE;
+	data->sku_cap_mimo_disable = sku & IWM_NVM_SKU_CAP_MIMO_DISABLE;
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
 
