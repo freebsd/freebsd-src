@@ -36,6 +36,7 @@
 
 #include <linux/compiler.h>
 #include <linux/err.h>
+#include <asm-generic/io.h>
 #include <linux/types.h>
 #if !defined(__arm__)
 #include <asm/set_memory.h>
@@ -395,11 +396,7 @@ iowrite32be(uint32_t v, volatile void *addr)
 #define	iowrite32be(v, addr)	iowrite32be(v, addr)
 
 #if defined(__i386__) || defined(__amd64__)
-static inline void
-_outb(u_char data, u_int port)
-{
-	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
-}
+#define	_outb(data, port) outb((data), (port))
 #endif
 
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__) || defined(__aarch64__) || defined(__riscv)
