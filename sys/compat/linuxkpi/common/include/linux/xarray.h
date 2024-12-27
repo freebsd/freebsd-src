@@ -67,6 +67,7 @@ void *xa_erase(struct xarray *, uint32_t);
 void *xa_load(struct xarray *, uint32_t);
 int xa_alloc(struct xarray *, uint32_t *, void *, uint32_t, gfp_t);
 int xa_alloc_cyclic(struct xarray *, uint32_t *, void *, uint32_t, uint32_t *, gfp_t);
+int xa_alloc_cyclic_irq(struct xarray *, uint32_t *, void *, uint32_t, uint32_t *, gfp_t);
 int xa_insert(struct xarray *, uint32_t, void *, gfp_t);
 void *xa_store(struct xarray *, uint32_t, void *, gfp_t);
 void xa_init_flags(struct xarray *, uint32_t);
