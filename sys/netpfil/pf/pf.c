@@ -10306,28 +10306,16 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		break;
 	}
 
-	case IPPROTO_ICMP: {
-		if (af != AF_INET) {
+	case IPPROTO_ICMP:
+	case IPPROTO_ICMPV6: {
+		if (pd.virtual_proto == IPPROTO_ICMP && af != AF_INET) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("dropping IPv6 packet with ICMPv4 payload"));
 			goto done;
 		}
-		action = pf_test_state_icmp(&s, &pd, &reason);
-		if (action == PF_PASS || action == PF_AFRT) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule;
-			a = s->anchor;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, &pd,
-			    &a, &ruleset, inp);
-		break;
-	}
-
-	case IPPROTO_ICMPV6: {
-		if (af != AF_INET6) {
+		if (pd.virtual_proto == IPPROTO_ICMPV6 && af != AF_INET6) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_NORM);
 			DPFPRINTF(PF_DEBUG_MISC,
