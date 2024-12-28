@@ -1304,6 +1304,7 @@ void linuxkpi_wiphy_delayed_work_cancel(struct wiphy *,
 
 int linuxkpi_regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
     struct linuxkpi_ieee80211_regdomain *regd);
+uint32_t linuxkpi_cfg80211_calculate_bitrate(struct rate_info *);
 uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
 uint32_t linuxkpi_ieee80211_frequency_to_channel(uint32_t, uint32_t);
 struct linuxkpi_ieee80211_channel *
@@ -1574,11 +1575,10 @@ cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 	return (__DECONST(uint8_t *, elem));
 }
 
-static __inline uint32_t
+static inline uint32_t
 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
-	TODO();
-	return (-1);
+	return (linuxkpi_cfg80211_calculate_bitrate(rate));
 }
 
 static __inline uint32_t

@@ -5891,6 +5891,36 @@ linuxkpi_wiphy_free(struct wiphy *wiphy)
 	kfree(lwiphy);
 }
 
+static uint32_t
+lkpi_cfg80211_calculate_bitrate_ht(struct rate_info *rate)
+{
+	TODO("cfg80211_calculate_bitrate_ht");
+	return (rate->legacy);
+}
+
+static uint32_t
+lkpi_cfg80211_calculate_bitrate_vht(struct rate_info *rate)
+{
+	TODO("cfg80211_calculate_bitrate_vht");
+	return (rate->legacy);
+}
+
+uint32_t
+linuxkpi_cfg80211_calculate_bitrate(struct rate_info *rate)
+{
+
+	/* Beware: order! */
+	if (rate->flags & RATE_INFO_FLAGS_MCS)
+		return (lkpi_cfg80211_calculate_bitrate_ht(rate));
+
+	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
+		return (lkpi_cfg80211_calculate_bitrate_vht(rate));
+
+	IMPROVE("HE/EHT/...");
+
+	return (rate->legacy);
+}
+
 uint32_t
 linuxkpi_ieee80211_channel_to_frequency(uint32_t channel,
     enum nl80211_band band)
