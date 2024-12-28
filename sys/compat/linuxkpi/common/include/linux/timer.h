@@ -42,7 +42,7 @@ struct timer_list {
 		void (*function_415) (struct timer_list *);
 	};
 	unsigned long data;
-	int expires;
+	unsigned long expires;
 };
 
 extern unsigned long linux_timer_hz_mask;
@@ -76,7 +76,7 @@ extern unsigned long linux_timer_hz_mask;
 	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
-extern int mod_timer(struct timer_list *, int);
+extern int mod_timer(struct timer_list *, unsigned long);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 extern int del_timer(struct timer_list *);
