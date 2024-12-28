@@ -3,7 +3,7 @@ DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 .PATH: ${DEVIWLWIFIDIR}
 
 WITH_CONFIG_PM=	0
-WITH_DEBUGFS=	0
+WITH_DEBUGFS=	1
 
 KMOD=	if_iwlwifi
 

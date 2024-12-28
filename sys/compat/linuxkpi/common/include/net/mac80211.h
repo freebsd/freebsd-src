@@ -737,6 +737,7 @@ struct ieee80211_sta_agg {
 };
 
 struct ieee80211_link_sta {
+	struct ieee80211_sta			*sta;
 	uint8_t					addr[ETH_ALEN];
 	uint8_t					link_id;
 	uint32_t				supp_rates[NUM_NL80211_BANDS];
@@ -1121,6 +1122,9 @@ struct ieee80211_ops {
 
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
+	void (*vif_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *);
+	void (*link_sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_link_sta *, struct dentry *);
+	void (*link_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, struct dentry *);
 /* #endif */
 };
 
