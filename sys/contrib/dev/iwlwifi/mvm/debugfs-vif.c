@@ -888,10 +888,12 @@ void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 void iwl_mvm_vif_dbgfs_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct dentry *dbgfs_dir = vif->debugfs_dir;
+#if defined(__linux__)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	char buf[3 * 3 + 11 + (NL80211_WIPHY_NAME_MAXLEN + 1) +
 		 (7 + IFNAMSIZ + 1) + 6 + 1];
 	char name[7 + IFNAMSIZ + 1];
+#endif
 
 	/* this will happen in monitor mode */
 	if (!dbgfs_dir)
