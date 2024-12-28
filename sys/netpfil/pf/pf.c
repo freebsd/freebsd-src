@@ -1706,12 +1706,10 @@ pf_state_key_setup(struct pf_pdesc *pd, u_int16_t sport, u_int16_t dport,
 		bzero(&(*nk)->addr[0], sizeof((*nk)->addr[0]));
 		bzero(&(*nk)->addr[1], sizeof((*nk)->addr[1]));
 
-		PF_ACPY(&(*nk)->addr[pd->af == pd->naf ? pd->sidx : pd->didx],
-		    &pd->nsaddr, pd->naf);
-		PF_ACPY(&(*nk)->addr[pd->af == pd->naf ? pd->didx : pd->sidx],
-		    &pd->ndaddr, pd->naf);
-		(*nk)->port[pd->af == pd->naf ? pd->sidx : pd->didx] = pd->nsport;
-		(*nk)->port[pd->af == pd->naf ? pd->didx : pd->sidx] = pd->ndport;
+		PF_ACPY(&(*nk)->addr[pd->didx], &pd->nsaddr, pd->naf);
+		PF_ACPY(&(*nk)->addr[pd->sidx], &pd->ndaddr, pd->naf);
+		(*nk)->port[pd->didx] = pd->nsport;
+		(*nk)->port[pd->sidx] = pd->ndport;
 		switch (pd->proto) {
 		case IPPROTO_ICMP:
 			(*nk)->proto = IPPROTO_ICMPV6;
