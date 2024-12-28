@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/nl80211.h>
 #include <linux/ieee80211.h>
+#include <linux/mutex.h>
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
 #include <linux/device.h>
@@ -1358,13 +1359,13 @@ wiphy_dev(struct wiphy *wiphy)
 static __inline void
 wiphy_lock(struct wiphy *wiphy)
 {
-	TODO();
+	mutex_lock(&wiphy->mtx);
 }
 
 static __inline void
 wiphy_unlock(struct wiphy *wiphy)
 {
-	TODO();
+	mutex_unlock(&wiphy->mtx);
 }
 
 static __inline void
