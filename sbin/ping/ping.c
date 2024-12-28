@@ -328,7 +328,7 @@ ping(int argc, char *const *argv)
 			options |= F_SWEEP;
 			break;
 		case 'g': /* Minimum packet size for ping sweep */
-			ltmp = strtonum(optarg, 1, INT_MAX, &errstr);
+			ltmp = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr != NULL) {
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
