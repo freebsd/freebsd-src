@@ -792,18 +792,26 @@ nonh6lookup:
 	 * XXX: need scope argument.
 	 */
 	if (IPSEC_ENABLED(ipv6)) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_odropped);
-			error = ENOBUFS;
-			goto bad;
+		struct mbuf *m1;
+
+		error = mb_unmapped_to_ext(m, &m1);
+		if (error != 0) {
+			if (error == ENOMEM) {
+				IP6STAT_INC(ip6s_odropped);
+				error = ENOBUFS;
+				goto bad;
+			}
+			/* XXXKIB */
+			goto no_ipsec;
 		}
+		m = m1;
 		if ((error = IPSEC_OUTPUT(ipv6, ifp, m, inp, mtu == 0 ?
 		    ifp->if_mtu : mtu)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
 			goto done;
 		}
+no_ipsec:;
 	}
 #endif /* IPSEC */
 
@@ -1106,10 +1114,20 @@ passout:
 
 	/* Ensure the packet data is mapped if the interface requires it. */
 	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
+		struct mbuf *m1;
+
+		error = mb_unmapped_to_ext(m, &m1);
+		if (error != 0) {
+			if (error == EINVAL) {
+				if_printf(ifp, "TLS packet\n");
+				/* XXXKIB */
+			} else if (error == ENOMEM) {
+				error = ENOBUFS;
+			}
 			IP6STAT_INC(ip6s_odropped);
-			return (ENOBUFS);
+			return (error);
+		} else {
+			m = m1;
 		}
 	}
 
