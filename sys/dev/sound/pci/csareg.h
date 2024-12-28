@@ -34,7 +34,7 @@
 #define _CSA_REG_H
 
 /*
- * The following constats are orginally in the sample by Crystal Semiconductor.
+ * The following constats are originally in the sample by Crystal Semiconductor.
  * Copyright (c) 1996-1998 Crystal Semiconductor Corp.
  */
 
