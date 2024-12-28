@@ -989,7 +989,7 @@ nvmft_handoff(struct ctl_nvmf *cn)
 		if (error != 0) {
 			cn->status = CTL_NVMF_ERROR;
 			snprintf(cn->error_str, sizeof(cn->error_str),
-			    "Failed to handoff admin queue: %d", error);
+			    "Failed to handoff I/O queue: %d", error);
 			goto out;
 		}
 	}
