@@ -78,9 +78,10 @@
     if (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ)			\
 	printf("%s:%d: XXX LKPI80211 IMPROVE_TXQ\n", __func__, __LINE__)
 
-#define	IMPROVE_HT(...)							\
+#define	IMPROVE_HT(fmt, ...)						\
     if (linuxkpi_debug_80211 & D80211_TRACE_MODE_HT)			\
-	printf("%s:%d: XXX LKPI80211 IMPROVE_HT\n", __func__, __LINE__)
+	printf("%s:%d: XXX LKPI80211 IMPROVE_HT " fmt "\n",		\
+	    __func__, __LINE__, ##__VA_ARGS__);
 
 #define	MTAG_ABI_LKPI80211	1707696513	/* LinuxKPI 802.11 KBI */
 
