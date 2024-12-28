@@ -774,7 +774,7 @@ pf_set_protostate(struct pf_kstate *s, int which, u_int8_t newstate)
 
 #ifdef INET6
 void
-pf_addrcpy(struct pf_addr *dst, struct pf_addr *src, sa_family_t af)
+pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 {
 	switch (af) {
 #ifdef INET
@@ -4365,8 +4365,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
  * are different.
  */
 int
-pf_match_addr(u_int8_t n, struct pf_addr *a, struct pf_addr *m,
-    struct pf_addr *b, sa_family_t af)
+pf_match_addr(u_int8_t n, const struct pf_addr *a, const struct pf_addr *m,
+    const struct pf_addr *b, sa_family_t af)
 {
 	int	match = 0;
 
@@ -4401,8 +4401,8 @@ pf_match_addr(u_int8_t n, struct pf_addr *a, struct pf_addr *m,
  * Return 1 if b <= a <= e, otherwise return 0.
  */
 int
-pf_match_addr_range(struct pf_addr *b, struct pf_addr *e,
-    struct pf_addr *a, sa_family_t af)
+pf_match_addr_range(const struct pf_addr *b, const struct pf_addr *e,
+    const struct pf_addr *a, sa_family_t af)
 {
 	switch (af) {
 #ifdef INET

@@ -2376,7 +2376,7 @@ VNET_DECLARE(struct ifnet *,		 sync_ifp);
 #define	V_sync_ifp		 	 VNET(sync_ifp);
 VNET_DECLARE(struct pf_krule,		 pf_default_rule);
 #define	V_pf_default_rule		  VNET(pf_default_rule)
-extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
+extern void			 pf_addrcpy(struct pf_addr *, const struct pf_addr *,
 				    sa_family_t);
 void				pf_free_rule(struct pf_krule *);
 
@@ -2417,10 +2417,10 @@ void	pf_patch_16_unaligned(struct mbuf *, u_int16_t *, void *, u_int16_t,
 void	pf_patch_32_unaligned(struct mbuf *, u_int16_t *, void *, u_int32_t,
     bool, u_int8_t);
 void	pf_send_deferred_syn(struct pf_kstate *);
-int	pf_match_addr(u_int8_t, struct pf_addr *, struct pf_addr *,
-	    struct pf_addr *, sa_family_t);
-int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
-	    struct pf_addr *, sa_family_t);
+int	pf_match_addr(u_int8_t, const struct pf_addr *,
+	    const struct pf_addr *, const struct pf_addr *, sa_family_t);
+int	pf_match_addr_range(const struct pf_addr *, const struct pf_addr *,
+	    const struct pf_addr *, sa_family_t);
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
