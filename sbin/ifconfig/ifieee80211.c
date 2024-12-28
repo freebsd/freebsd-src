@@ -1978,13 +1978,11 @@ set80211vhtconf(if_ctx *ctx, const char *val __unused, int d)
 {
 	if (get80211val(ctx, IEEE80211_IOC_VHTCONF, &vhtconf) < 0)
 		errx(-1, "cannot set VHT setting");
-	printf("%s: vhtconf=0x%08x, d=%d\n", __func__, vhtconf, d);
 	if (d < 0) {
 		d = -d;
 		vhtconf &= ~d;
 	} else
 		vhtconf |= d;
-	printf("%s: vhtconf is now 0x%08x\n", __func__, vhtconf);
 	set80211(ctx, IEEE80211_IOC_VHTCONF, vhtconf, 0, NULL);
 }
 
