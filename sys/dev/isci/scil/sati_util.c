@@ -70,7 +70,7 @@
 
 /**
  * @brief This method will set the data direction, protocol, and transfer
- *        kength for an ATA non-data command.
+ *        length for an ATA non-data command.
  *
  * @pre It is expected that the user will use this method for setting these
  *      values in a non-data ATA command constuct.
