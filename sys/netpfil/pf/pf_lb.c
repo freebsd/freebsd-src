@@ -994,6 +994,9 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 	struct pf_srchash	*sh = NULL;
 	struct pf_ksrc_node	*sns = NULL;
 
+	bzero(&nsaddr, sizeof(nsaddr));
+	bzero(&ndaddr, sizeof(ndaddr));
+
 	if (V_pf_status.debug >= PF_DEBUG_MISC) {
 		printf("pf: af-to %s %s, ",
 		    pd->naf == AF_INET ? "inet" : "inet6",
