@@ -174,7 +174,7 @@ static int send_len;
 /* counters */
 static long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 static long npackets;		/* max packets to transmit */
-static long snpackets;			/* max packets to transmit in one sweep */
+static long snpackets;		/* max packets to transmit in one sweep */
 static long sntransmitted;	/* # of packets we sent in this sweep */
 static int sweepmax;		/* max value of payload in sweep */
 static int sweepmin = 0;	/* start value of payload in sweep */
