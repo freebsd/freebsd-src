@@ -182,6 +182,7 @@ pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
 	/* Save detected ranges */
 	if (res->Data.Address.ResourceType == ACPI_MEMORY_RANGE ||
 	    res->Data.Address.ResourceType == ACPI_IO_RANGE) {
+		sc->base.ranges[r].rid = -1;
 		sc->base.ranges[r].pci_base = min;
 		sc->base.ranges[r].phys_base = min + off;
 		sc->base.ranges[r].size = max - min + 1;
