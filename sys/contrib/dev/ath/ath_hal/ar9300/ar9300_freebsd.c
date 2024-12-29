@@ -43,11 +43,10 @@ static void
 ar9300SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
     uint32_t rx_chainmask)
 {
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
-	AH9300(ah)->ah_tx_chainmask =
-	    tx_chainmask & AH_PRIVATE(ah)->ah_caps.halTxChainMask;
-	AH9300(ah)->ah_rx_chainmask =
-	    rx_chainmask & AH_PRIVATE(ah)->ah_caps.halRxChainMask;
+	AH9300(ah)->ah_tx_chainmask = tx_chainmask & pCap->halTxChainMask;
+	AH9300(ah)->ah_rx_chainmask = rx_chainmask & pCap->halRxChainMask;
 }
 
 static u_int
