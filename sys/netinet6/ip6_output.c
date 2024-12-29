@@ -792,26 +792,12 @@ nonh6lookup:
 	 * XXX: need scope argument.
 	 */
 	if (IPSEC_ENABLED(ipv6)) {
-		struct mbuf *m1;
-
-		error = mb_unmapped_to_ext(m, &m1);
-		if (error != 0) {
-			if (error == ENOMEM) {
-				IP6STAT_INC(ip6s_odropped);
-				error = ENOBUFS;
-				goto bad;
-			}
-			/* XXXKIB */
-			goto no_ipsec;
-		}
-		m = m1;
 		if ((error = IPSEC_OUTPUT(ipv6, ifp, m, inp, mtu == 0 ?
 		    ifp->if_mtu : mtu)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
 			goto done;
 		}
-no_ipsec:;
 	}
 #endif /* IPSEC */
 

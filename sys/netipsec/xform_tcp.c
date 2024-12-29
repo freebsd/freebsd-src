@@ -240,7 +240,7 @@ setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 	switch (ip->ip_v) {
 #ifdef INET
 	case IPVERSION:
-		ipsec4_setsockaddrs(m, src, dst);
+		ipsec4_setsockaddrs(m, ip, src, dst);
 		break;
 #endif
 #ifdef INET6
