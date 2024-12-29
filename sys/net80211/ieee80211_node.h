@@ -115,17 +115,29 @@ enum ieee80211_mesh_mlstate {
  * flags. This allows us to keep the uint8_t slot for ni_chw in
  * struct ieee80211_node and means we do not have to sync to the value for
  * LinuxKPI.
+ *
+ * NB: BW_20 needs to 0 and values need to be sorted!  Cannot make it
+ * bitfield-alike for use with %b.
  */
 enum ieee80211_sta_rx_bw {
-	IEEE80211_STA_RX_BW_20		= 0x01,
-	IEEE80211_STA_RX_BW_40		= 0x02,
-	IEEE80211_STA_RX_BW_80		= 0x04,
-	IEEE80211_STA_RX_BW_160		= 0x08,
-	IEEE80211_STA_RX_BW_320		= 0x10,
+	IEEE80211_STA_RX_BW_20		= 0x00,
+	IEEE80211_STA_RX_BW_40,
+	IEEE80211_STA_RX_BW_80,
+	IEEE80211_STA_RX_BW_160,
+	IEEE80211_STA_RX_BW_320,
 } __packed;
 
-#define	IEEE80211_NI_CHW_BITS \
-	"\20\1BW_20\2BW_40\3BW_80\4BW_160\5BW_320"
+static inline const char *
+ieee80211_ni_chw_to_str(enum ieee80211_sta_rx_bw bw)
+{
+	switch (bw) {
+	case IEEE80211_STA_RX_BW_20:	return ("BW_20");
+	case IEEE80211_STA_RX_BW_40:	return ("BW_40");
+	case IEEE80211_STA_RX_BW_80:	return ("BW_80");
+	case IEEE80211_STA_RX_BW_160:	return ("BW_160");
+	case IEEE80211_STA_RX_BW_320:	return ("BW_320");
+	}
+}
 
 /*
  * Node specific information.  Note that drivers are expected

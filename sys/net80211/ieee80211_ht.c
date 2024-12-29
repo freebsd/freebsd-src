@@ -2604,8 +2604,8 @@ ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
 	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "%s: HT txchwidth, width %b%s",
-	    __func__, chw, IEEE80211_NI_CHW_BITS, ni->ni_chw != chw ? "*" : "");
+	    "%s: HT txchwidth, width %d%s (%s)", __func__,
+	    chw, ni->ni_chw != chw ? "*" : "", ieee80211_ni_chw_to_str(chw));
 	if (chw != ni->ni_chw) {
 		/* XXX does this need to change the ht40 station count? */
 		ni->ni_chw = chw;
