@@ -286,8 +286,9 @@ static int ipsec_in_reject(struct secpolicy *, struct inpcb *,
     const struct mbuf *);
 
 #ifdef INET
-static void ipsec4_get_ulp(const struct mbuf *, struct secpolicyindex *, int);
-static void ipsec4_setspidx_ipaddr(const struct mbuf *,
+static void ipsec4_get_ulp(const struct mbuf *, const struct ip *,
+    struct secpolicyindex *, int);
+static void ipsec4_setspidx_ipaddr(const struct mbuf *, struct ip *,
     struct secpolicyindex *);
 #endif
 #ifdef INET6
@@ -488,8 +489,8 @@ ipsec_getpcbpolicy(struct inpcb *inp, u_int dir)
 
 #ifdef INET
 static void
-ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
-    int needport)
+ipsec4_get_ulp(const struct mbuf *m, const struct ip *ip1,
+    struct secpolicyindex *spidx, int needport)
 {
 	uint8_t nxt;
 	int off;
@@ -498,21 +499,10 @@ ipsec4_get_ulp(const struct mbuf *m, struct secpolicyindex *spidx,
 	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),
 	    ("packet too short"));
 
-	if (m->m_len >= sizeof (struct ip)) {
-		const struct ip *ip = mtod(m, const struct ip *);
-		if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
-			goto done;
-		off = ip->ip_hl << 2;
-		nxt = ip->ip_p;
-	} else {
-		struct ip ih;
-
-		m_copydata(m, 0, sizeof (struct ip), (caddr_t) &ih);
-		if (ih.ip_off & htons(IP_MF | IP_OFFMASK))
-			goto done;
-		off = ih.ip_hl << 2;
-		nxt = ih.ip_p;
-	}
+	if (ip1->ip_off & htons(IP_MF | IP_OFFMASK))
+		goto done;
+	off = ip1->ip_hl << 2;
+	nxt = ip1->ip_p;
 
 	while (off < m->m_pkthdr.len) {
 		struct ip6_ext ip6e;
@@ -565,17 +555,18 @@ done_proto:
 }
 
 static void
-ipsec4_setspidx_ipaddr(const struct mbuf *m, struct secpolicyindex *spidx)
+ipsec4_setspidx_ipaddr(const struct mbuf *m, struct ip *ip1,
+    struct secpolicyindex *spidx)
 {
 
-	ipsec4_setsockaddrs(m, &spidx->src, &spidx->dst);
+	ipsec4_setsockaddrs(m, ip1, &spidx->src, &spidx->dst);
 	spidx->prefs = sizeof(struct in_addr) << 3;
 	spidx->prefd = sizeof(struct in_addr) << 3;
 }
 
 static struct secpolicy *
-ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
-    int needport)
+ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, struct ip *ip1,
+    u_int dir, int needport)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -583,8 +574,8 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
 	sp = ipsec_getpcbpolicy(inp, dir);
 	if (sp == NULL && key_havesp(dir)) {
 		/* Make an index to look for a policy. */
-		ipsec4_setspidx_ipaddr(m, &spidx);
-		ipsec4_get_ulp(m, &spidx, needport);
+		ipsec4_setspidx_ipaddr(m, ip1, &spidx);
+		ipsec4_get_ulp(m, ip1, &spidx, needport);
 		spidx.dir = dir;
 		sp = key_allocsp(&spidx, dir);
 	}
@@ -597,13 +588,13 @@ ipsec4_getpolicy(const struct mbuf *m, struct inpcb *inp, u_int dir,
  * Check security policy for *OUTBOUND* IPv4 packet.
  */
 struct secpolicy *
-ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error,
-    int needport)
+ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, struct ip *ip1,
+    int *error, int needport)
 {
 	struct secpolicy *sp;
 
 	*error = 0;
-	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_OUTBOUND, needport);
+	sp = ipsec4_getpolicy(m, inp, ip1, IPSEC_DIR_OUTBOUND, needport);
 	if (sp != NULL)
 		sp = ipsec_checkpolicy(sp, inp, error);
 	if (sp == NULL) {
@@ -630,12 +621,13 @@ ipsec4_checkpolicy(const struct mbuf *m, struct inpcb *inp, int *error,
  * rip_input() and sctp_input().
  */
 int
-ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
+ipsec4_in_reject1(const struct mbuf *m, struct ip *ip1, struct inpcb *inp)
 {
 	struct secpolicy *sp;
 #ifdef IPSEC_OFFLOAD
 	struct ipsec_accel_in_tag *tag;
 #endif
+	struct ip ip_hdr;
 	int result;
 
 #ifdef IPSEC_OFFLOAD
@@ -643,12 +635,24 @@ ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
 	if (tag != NULL)
 		return (0);
 #endif
-	sp = ipsec4_getpolicy(m, inp, IPSEC_DIR_INBOUND, 0);
+
+	if (ip1 == NULL) {
+		ip1 = &ip_hdr;
+		m_copydata(m, 0, sizeof(*ip1), (char *)ip1);
+	}
+
+	sp = ipsec4_getpolicy(m, inp, ip1, IPSEC_DIR_INBOUND, 0);
 	result = ipsec_in_reject(sp, inp, m);
 	key_freesp(&sp);
 	if (result != 0)
 		IPSECSTAT_INC(ips_in_polvio);
 	return (result);
+}
+
+int
+ipsec4_in_reject(const struct mbuf *m, struct inpcb *inp)
+{
+	return (ipsec4_in_reject1(m, NULL, inp));
 }
 
 /*
