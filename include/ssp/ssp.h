@@ -87,6 +87,7 @@ __ssp_redirect_raw_impl(rtype, fun, symbol, args) { \
 #define __ssp_redirect0(rtype, fun, args, call) \
     __ssp_redirect_raw(rtype, fun, fun, args, call, 1, __ssp_bos0, __len)
 
+#include <sys/_types.h>
 #include <machine/_limits.h>
 
 __ssp_inline int
