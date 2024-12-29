@@ -226,26 +226,17 @@ amrr_node_deinit(struct ieee80211_node *ni)
 }
 
 static int
-amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+amrr_update_ht(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
     struct ieee80211_node *ni)
 {
 	int rix = amn->amn_rix;
-	const struct ieee80211_rateset *rs = NULL;
+	const struct ieee80211_rateset *rs;
 
-	KASSERT(is_enough(amn), ("txcnt %d", amn->amn_txcnt));
-
-	/* 11n or not? Pick the right rateset */
-	if (ieee80211_ht_check_tx_ht(ni)) {
-		/* XXX ew */
-		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
-	} else {
-		rs = &ni->ni_rates;
-	}
+	rs = (struct ieee80211_rateset *)&ni->ni_htrates;
 
 	/* XXX TODO: we really need a rate-to-string method */
-	/* XXX TODO: non-11n rate should be divided by two.. */
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-	    "AMRR: current rate %d, txcnt=%d, retrycnt=%d",
+	    "AMRR: current rate MCS %d, txcnt=%d, retrycnt=%d",
 	    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 	    amn->amn_txcnt,
 	    amn->amn_retrycnt);
@@ -266,9 +257,9 @@ amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
 			amn->amn_success = 0;
 			rix++;
 			/* XXX TODO: we really need a rate-to-string method */
-			/* XXX TODO: non-11n rate should be divided by two.. */
 			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-			    "AMRR increasing rate %d (txcnt=%d retrycnt=%d)",
+			    "AMRR increasing rate MCS %d "
+			    "(txcnt=%d retrycnt=%d)",
 			    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
 		} else {
@@ -289,20 +280,94 @@ amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
 			}
 			rix--;
 			/* XXX TODO: we really need a rate-to-string method */
-			/* XXX TODO: non-11n rate should be divided by two.. */
 			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-			    "AMRR decreasing rate %d (txcnt=%d retrycnt=%d)",
+			    "AMRR decreasing rate MCS %d "
+			    "(txcnt=%d retrycnt=%d)",
 			    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
 		}
 		amn->amn_recovery = 0;
 	}
 
+	return (rix);
+}
+
+static int
+amrr_update_legacy(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni)
+{
+	int rix = amn->amn_rix;
+	const struct ieee80211_rateset *rs;
+
+	rs = &ni->ni_rates;
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: current rate %d Mb, txcnt=%d, retrycnt=%d",
+	    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+	    amn->amn_txcnt,
+	    amn->amn_retrycnt);
+
+	if (is_success(amn)) {
+		amn->amn_success++;
+		if (amn->amn_success >= amn->amn_success_threshold &&
+		    rix + 1 < rs->rs_nrates) {
+			amn->amn_recovery = 1;
+			amn->amn_success = 0;
+			rix++;
+			/* XXX TODO: we really need a rate-to-string method */
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR increasing rate %d Mb (txcnt=%d retrycnt=%d)",
+			    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+			    amn->amn_txcnt, amn->amn_retrycnt);
+		} else {
+			amn->amn_recovery = 0;
+		}
+	} else if (is_failure(amn)) {
+		amn->amn_success = 0;
+		if (rix > 0) {
+			if (amn->amn_recovery) {
+				amn->amn_success_threshold *= 2;
+				if (amn->amn_success_threshold >
+				    amrr->amrr_max_success_threshold)
+					amn->amn_success_threshold =
+					    amrr->amrr_max_success_threshold;
+			} else {
+				amn->amn_success_threshold =
+				    amrr->amrr_min_success_threshold;
+			}
+			rix--;
+			/* XXX TODO: we really need a rate-to-string method */
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR decreasing rate %d Mb (txcnt=%d retrycnt=%d)",
+			    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+			    amn->amn_txcnt, amn->amn_retrycnt);
+		}
+		amn->amn_recovery = 0;
+	}
+
+	return (rix);
+}
+
+static int
+amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni)
+{
+	int rix;
+
+	KASSERT(is_enough(amn), ("txcnt %d", amn->amn_txcnt));
+
+	/* 11n or not? Pick the right rateset */
+	if (ieee80211_ht_check_tx_ht(ni))
+		rix = amrr_update_ht(amrr, amn, ni);
+	else
+		rix = amrr_update_legacy(amrr, amn, ni);
+
 	/* reset counters */
 	amn->amn_txcnt = 0;
 	amn->amn_retrycnt = 0;
 
-	return rix;
+	return (rix);
 }
 
 /*
