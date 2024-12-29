@@ -2672,9 +2672,9 @@ ieee80211_dump_node(struct ieee80211_node_table *nt __unused,
 	printf("\thtcap %x htparam %x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, ni->ni_htparam,
 		ni->ni_htctlchan, ni->ni_ht2ndchan);
-	printf("\thtopmode %x htstbc %x htchw %b\n",
+	printf("\thtopmode %x htstbc %x htchw %d (%s)\n",
 		ni->ni_htopmode, ni->ni_htstbc,
-		ni->ni_chw, IEEE80211_NI_CHW_BITS);
+		ni->ni_chw, ieee80211_ni_chw_to_str(ni->ni_chw));
 	printf("\tvhtcap %x freq1 %d freq2 %d vhtbasicmcs %x\n",
 		ni->ni_vhtcap, (int) ni->ni_vht_chan1, (int) ni->ni_vht_chan2,
 		(int) ni->ni_vht_basicmcs);
