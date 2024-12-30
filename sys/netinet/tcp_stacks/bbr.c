@@ -7313,11 +7313,9 @@ bbr_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th,
 	p_maxseg = min(bbr->r_ctl.rc_pace_max_segs, maxseg);
 	th_ack = th->th_ack;
 	if (SEQ_GT(th_ack, tp->snd_una)) {
-		acked = th_ack - tp->snd_una;
 		bbr_log_progress_event(bbr, tp, ticks, PROGRESS_UPDATE, __LINE__);
 		bbr->rc_tp->t_acktime = ticks;
-	} else
-		acked = 0;
+	}
 	if (SEQ_LEQ(th_ack, tp->snd_una)) {
 		/* Only sent here for sack processing */
 		goto proc_sack;
