@@ -367,19 +367,17 @@ lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
 
 #if defined(LKPI_80211_HT)
 static void
-lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni, int *ht_rx_nss)
+lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap;
 	uint8_t *ie;
 	struct ieee80211_ht_cap *htcap;
 	int i, rx_nss;
 
-	if ((ni->ni_flags & IEEE80211_NODE_HT) == 0)
+	if ((ni->ni_flags & IEEE80211_NODE_HT) == 0) {
+		sta->deflink.ht_cap.ht_supported = false;
 		return;
-
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+	}
 
 	sta->deflink.ht_cap.ht_supported = true;
 
@@ -401,42 +399,115 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni, i
 	sta->deflink.ht_cap.cap = htcap->cap_info;
 	sta->deflink.ht_cap.mcs = htcap->mcs;
 
+	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0)
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+
+	/*
+	 * 802.11n-2009 20.6 Parameters for HT MCSs gives the mandatory/
+	 * optional MCS for Nss=1..4.  We need to check the first four
+	 * MCS sets from the Rx MCS Bitmask; then there is MCS 32 and
+	 * MCS33.. is UEQM.
+	 */
 	rx_nss = 0;
-	for (i = 0; i < nitems(htcap->mcs.rx_mask); i++) {
+	for (i = 0; i < 4; i++) {
 		if (htcap->mcs.rx_mask[i])
 			rx_nss++;
 	}
-	if (ht_rx_nss != NULL)
-		*ht_rx_nss = rx_nss;
+	if (rx_nss > 0)
+		sta->deflink.rx_nss = rx_nss;
 
-	IMPROVE("sta->wme, sta->deflink.agg.max*");
+	IMPROVE("sta->wme");
+
+	if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_MAX_AMSDU)
+		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_7935;
+	else
+		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
+	sta->deflink.agg.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
+#ifdef __handled_by_driver__	/* iwlwifi only? actually unused? */
+	for (i = 0; i < nitems(sta.deflink.agg.max_tid_amsdu_len); i++) {
+		sta->deflink.agg.max_tid_amsdu_len[j] = ;
+	}
+#endif
 }
 #endif
 
 #if defined(LKPI_80211_VHT)
 static void
-lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni, int *vht_rx_nss)
+lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 {
+	uint32_t width;
+	int rx_nss;
+	uint16_t rx_mcs_map;
+	uint8_t mcs;
 
-	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0)
+	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0) {
+		sta->deflink.vht_cap.vht_supported = false;
 		return;
+	}
 
-	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
-#ifdef __notyet__
-		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan)) {
-			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160; /* XXX? */
-		} else
+	sta->deflink.vht_cap.vht_supported = true;
+
+	sta->deflink.vht_cap.cap = ni->ni_vhtcap;
+	sta->deflink.vht_cap.vht_mcs = ni->ni_vht_mcsinfo;
+
+	width = (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
+	switch (width) {
+#if 0
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
+	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+		break;
 #endif
-		if (IEEE80211_IS_CHAN_VHT160(ni->ni_chan))
+	default:
+		/* Check if we do support 160Mhz somehow after all. */
+#if 0
+		if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) != 0)
 			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
-		else if (IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+		else
+#endif
 			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
 	}
 
-	IMPROVE("VHT sync ni to sta");
-	return;
+
+	rx_nss = 0;
+	rx_mcs_map = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
+	for (int i = 7; i >= 0; i--) {
+		mcs = rx_mcs_map >> (2 * i);
+		mcs &= 0x3;
+		if (mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED) {
+			rx_nss = i + 1;
+			break;
+		}
+	}
+	if (rx_nss > 0)
+		sta->deflink.rx_nss = rx_nss;
+
+	switch (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		break;
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		break;
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
+	default:
+		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		break;
+	}
 }
 #endif
+
+static void
+lkpi_sta_sync_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
+{
+
+#if defined(LKPI_80211_HT)
+	lkpi_sta_sync_ht_from_ni(sta, ni);
+#endif
+#if defined(LKPI_80211_VHT)
+	lkpi_sta_sync_vht_from_ni(sta, ni);
+#endif
+}
 
 static void
 lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
@@ -480,8 +551,6 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 	int band, i, tid;
-	int ht_rx_nss;
-	int vht_rx_nss;
 
 	lsta = malloc(sizeof(*lsta) + hw->sta_data_size, M_LKPI80211,
 	    M_NOWAIT | M_ZERO);
@@ -581,18 +650,9 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 	sta->deflink.rx_nss = 1;
 
-	ht_rx_nss = 0;
-#if defined(LKPI_80211_HT)
-	lkpi_sta_sync_ht_from_ni(sta, ni, &ht_rx_nss);
-#endif
-	vht_rx_nss = 0;
-#if defined(LKPI_80211_VHT)
-	lkpi_sta_sync_vht_from_ni(sta, ni, &vht_rx_nss);
-#endif
+	lkpi_sta_sync_from_ni(sta, ni);
 
-	sta->deflink.rx_nss = MAX(ht_rx_nss, sta->deflink.rx_nss);
-	sta->deflink.rx_nss = MAX(vht_rx_nss, sta->deflink.rx_nss);
-	IMPROVE("he, ... smps_mode, ..");
+	IMPROVE("he, eht, bw_320, ... smps_mode, ..");
 
 	/* Link configuration. */
 	IEEE80211_ADDR_COPY(sta->deflink.addr, sta->addr);
@@ -2531,10 +2591,9 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		IMPROVE("net80211 does not consider node authorized");
 	}
 
-#if defined(LKPI_80211_HT)
+	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
 	IMPROVE("Is this the right spot, has net80211 done all updates already?");
-	lkpi_sta_sync_ht_from_ni(sta, ni, NULL);
-#endif
+	lkpi_sta_sync_from_ni(sta, ni);
 
 	/* Update sta_state (ASSOC to AUTHORIZED). */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
