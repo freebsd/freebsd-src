@@ -168,6 +168,8 @@ struct lkpi_vif {
 	struct ieee80211vap	iv_vap;
 	eventhandler_tag	lvif_ifllevent;
 
+	struct sysctl_ctx_list	sysctl_ctx;
+
 	struct mtx		mtx;
 	struct wireless_dev	wdev;
 
@@ -442,6 +444,7 @@ int lkpi_80211_mo_set_key(struct ieee80211_hw *, enum set_key_cmd,
     struct ieee80211_key_conf *);
 int lkpi_80211_mo_ampdu_action(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_ampdu_params *);
-
+int lkpi_80211_mo_sta_statistics(struct ieee80211_hw *, struct ieee80211_vif *,
+    struct ieee80211_sta *, struct station_info *);
 
 #endif	/* _LKPI_SRC_LINUX_80211_H */
