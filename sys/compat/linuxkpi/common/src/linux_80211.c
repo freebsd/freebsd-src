@@ -5630,7 +5630,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		lhw->scan_ie_len += sizeof(struct ieee80211_ie_htcap);
 #endif
 #if defined(LKPI_80211_VHT)
-	if ((ic->ic_flags_ext & IEEE80211_FEXT_VHT) != 0)
+	if (IEEE80211_CONF_VHT(ic))
 		lhw->scan_ie_len += 2 + sizeof(struct ieee80211_vht_cap);
 #endif
 
