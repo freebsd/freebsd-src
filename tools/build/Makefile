@@ -280,6 +280,7 @@ SYSINCS+=	${SRCTOP}/sys/sys/cdefs.h
 .endif
 
 # Needed to build config (since it uses libnv)
+SYSINCS+=	${SRCTOP}/sys/sys/_nv.h
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
 		${SRCTOP}/sys/sys/dnv.h ${SRCTOP}/sys/sys/nv_namespace.h
 
