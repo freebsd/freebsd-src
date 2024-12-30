@@ -38,6 +38,8 @@
 .Ft int
 .Fn kqueuex "u_int flags"
 .Ft int
+.Fn kqueue1 "int flags"
+.Ft int
 .Fo kevent
 .Fa "int kq"
 .Fa "const struct kevent *changelist"
@@ -92,26 +94,35 @@ which will allow sharing of the kqueue between two processes.
 The
 .Fn kqueuex
 system call also creates a new kernel event queue, and additionally takes
-the
+a
 .Fa flags
 argument, which is a bitwise-inclusive OR of the following flags:
 .Bl -tag -width "KQUEUE_CLOEXEC"
-.It Fa KQUEUE_CLOEXEC
+.It Dv KQUEUE_CLOEXEC
 The returned file descriptor is automatically closed on
 .Xr execve 2
 .El
-The
-.Ql fd = kqueue()
-call is equivalent to
-.Ql fd = kqueuex(0) .
 .Pp
-For compatibility with
-.Nx ,
-the
+The
+.Fn kqueue
+system call is equivalent to calling
+.Fn kqueuex
+with
+.Fa flags
+set to 0.
+.Pp
+The
 .Fn kqueue1
-function is provided, which accepts the
-.Dv O_CLOEXEC
-flag with the expected semantic.
+function exists for compatibility with
+.Nx .
+The
+.Fa flags
+argument accepts zero or more of the following values:
+.Bl -tag -width O_CLOEXEC
+.It Dv O_CLOEXEC
+The returned file descriptor is automatically closed on
+.Xr execve 2
+.El
 .Pp
 The
 .Fn kevent
@@ -211,24 +222,25 @@ Filter-specific data value.
 Opaque user-defined value passed through the kernel unchanged.
 .It Fa ext
 Extended data passed to and from kernel.
-The
+The meaning of the
 .Fa ext[0]
 and
 .Fa ext[1]
-members use is defined by the filter.
-If the filter does not use them, the members are copied unchanged.
+members is defined by the filter.
+If a filter does not use them,
+these members are passed through the kernel unchanged.
 The
 .Fa ext[2]
 and
 .Fa ext[3]
-members are always passed through the kernel as-is,
-making additional context available to application.
+members are always passed through the kernel unchanged,
+providing additional user-defined values.
 .El
 .Pp
 The
 .Va flags
 field can contain the following values:
-.Bl -tag -width EV_DISPATCH
+.Bl -tag -width EV_KEEPUDATA
 .It Dv EV_ADD
 Adds the event to the kqueue.
 Re-adding an existing event
@@ -270,12 +282,12 @@ to hold the
 .Dv EV_ERROR
 event, then subsequent changes will not get processed.
 .It Dv EV_ONESHOT
-Causes the event to return only the first occurrence of the filter
+Return only the first occurrence of the filter
 being triggered.
 After the user retrieves the event from the kqueue,
 it is deleted.
 .It Dv EV_CLEAR
-After the event is retrieved by the user, its state is reset.
+Reset the state of the event after it is retrieved by the user.
 This is useful for filters which report state transitions
 instead of the current state.
 Note that some filters may automatically
@@ -287,18 +299,16 @@ See
 .Sx RETURN VALUES
 below.
 .It Dv EV_KEEPUDATA
-Causes
-.Fn kevent
-to leave unchanged any
+Preserve the
 .Fa udata
 associated with an existing event.
 This allows other aspects of the event to be modified without requiring the
 caller to know the
 .Fa udata
-value presently associated.
+value previously registered with the event.
 This is especially useful with
 .Dv NOTE_TRIGGER
-or flags like
+or
 .Dv EV_ENABLE .
 This flag may not be used with
 .Dv EV_ADD .
@@ -872,6 +882,13 @@ and
 .Fn kevent
 system calls first appeared in
 .Fx 4.1 .
+The
+.Fn kqueuex
+system call
+and
+.Fn kevent1
+function first appeared in
+.Fx 14.0 .
 .Sh AUTHORS
 The
 .Fn kqueue
