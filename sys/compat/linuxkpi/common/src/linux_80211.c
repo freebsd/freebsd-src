@@ -46,6 +46,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
@@ -87,14 +88,14 @@ static MALLOC_DEFINE(M_LKPI80211, "lkpi80211", "LinuxKPI 80211 compat");
 
 /* -------------------------------------------------------------------------- */
 
-/* Keep public for as long as header files are using it too. */
-int linuxkpi_debug_80211;
-
-#ifdef LINUXKPI_DEBUG_80211
 SYSCTL_DECL(_compat_linuxkpi);
 SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, 80211, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "LinuxKPI 802.11 compatibility layer");
 
+/* Keep public for as long as header files are using it too. */
+int linuxkpi_debug_80211;
+
+#ifdef LINUXKPI_DEBUG_80211
 SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug_80211, 0, "LinuxKPI 802.11 debug level");
 
@@ -152,6 +153,200 @@ static void lkpi_ieee80211_free_skb_mbuf(void *);
 #ifdef LKPI_80211_WME
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
 #endif
+
+static const char *
+lkpi_rate_info_bw_to_str(enum rate_info_bw bw)
+{
+
+	switch (bw) {
+
+        case RATE_INFO_BW_20:
+		return ("20");
+		break;
+        case RATE_INFO_BW_5:
+		return ("5");
+		break;
+        case RATE_INFO_BW_10:
+		return ("10");
+		break;
+        case RATE_INFO_BW_40:
+		return ("40");
+		break;
+        case RATE_INFO_BW_80:
+		return ("80");
+		break;
+        case RATE_INFO_BW_160:
+		return ("160");
+		break;
+        case RATE_INFO_BW_HE_RU:
+		IMPROVE("nl80211_he_ru_alloc");
+		return ("HE_RU");
+		break;
+        case RATE_INFO_BW_320:
+		return ("320");
+		break;
+        case RATE_INFO_BW_EHT_RU:
+		IMPROVE("nl80211_eht_ru_alloc");
+		return ("EHT_RU");
+		break;
+	default:
+		return ("?");
+		break;
+	}
+}
+
+static void
+lkpi_nl80211_sta_info_to_str(struct sbuf *s, const char *prefix,
+    const uint64_t flags)
+{
+	int bit, i;
+
+	sbuf_printf(s, "%s %#010jx", prefix, flags);
+
+	i = 0;
+	for (bit = 0; bit < BITS_PER_TYPE(flags); bit++) {
+
+		if ((flags & BIT_ULL(bit)) == 0)
+			continue;
+
+#define	EXPAND_CASE(_flag)						\
+	case NL80211_STA_INFO_ ## _flag:				\
+		sbuf_printf(s, "%c%s", (i == 0) ? '<' : ',', #_flag);	\
+		i++;							\
+		break;
+
+		switch (bit) {
+		EXPAND_CASE(BEACON_RX)
+		EXPAND_CASE(BEACON_SIGNAL_AVG)
+		EXPAND_CASE(BSS_PARAM)
+		EXPAND_CASE(CHAIN_SIGNAL)
+		EXPAND_CASE(CHAIN_SIGNAL_AVG)
+		EXPAND_CASE(CONNECTED_TIME)
+		EXPAND_CASE(INACTIVE_TIME)
+		EXPAND_CASE(SIGNAL)
+		EXPAND_CASE(SIGNAL_AVG)
+		EXPAND_CASE(STA_FLAGS)
+		EXPAND_CASE(RX_BITRATE)
+		EXPAND_CASE(RX_PACKETS)
+		EXPAND_CASE(RX_BYTES)
+		EXPAND_CASE(RX_DROP_MISC)
+		EXPAND_CASE(TX_BITRATE)
+		EXPAND_CASE(TX_PACKETS)
+		EXPAND_CASE(TX_BYTES)
+		EXPAND_CASE(TX_BYTES64)
+		EXPAND_CASE(RX_BYTES64)
+		EXPAND_CASE(TX_FAILED)
+		EXPAND_CASE(TX_RETRIES)
+		EXPAND_CASE(RX_DURATION)
+		EXPAND_CASE(TX_DURATION)
+		EXPAND_CASE(ACK_SIGNAL)
+		EXPAND_CASE(ACK_SIGNAL_AVG)
+		default:
+			sbuf_printf(s, "%c?%d", (i == 0) ? '<' : ',', bit);
+			break;
+		}
+	}
+#undef	EXPAND_CASE
+	if (i > 0)
+		sbuf_printf(s, ">");
+	sbuf_printf(s, "\n");
+}
+
+static int
+lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	struct ieee80211vap *vap;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+	struct station_info sinfo;
+	struct sbuf s;
+	int error;
+
+	if (req->newptr)
+		return (EPERM);
+
+	lvif = (struct lkpi_vif *)arg1;
+	vif = LVIF_TO_VIF(lvif);
+	vap = LVIF_TO_VAP(lvif);
+	lhw = vap->iv_ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+
+	sbuf_new_for_sysctl(&s, NULL, 1024, req);
+
+	wiphy_lock(hw->wiphy);
+	TAILQ_FOREACH(lsta, &lvif->lsta_head, lsta_entry) {
+		sta = LSTA_TO_STA(lsta);
+
+		sbuf_putc(&s, '\n');
+		sbuf_printf(&s, "lsta %p sta %p added_to_drv %d\n", lsta, sta, lsta->added_to_drv);
+
+		memset(&sinfo, 0, sizeof(sinfo));
+		error = lkpi_80211_mo_sta_statistics(hw, vif, sta, &sinfo);
+		if (error == EEXIST)	/* Not added to driver. */
+			continue;
+		if (error == ENOTSUPP) {
+			sbuf_printf(&s, " sta_statistics not supported\n");
+			continue;
+		}
+		if (error != 0) {
+			sbuf_printf(&s, " sta_statistics failed: %d\n", error);
+			continue;
+		}
+
+		lkpi_nl80211_sta_info_to_str(&s, " nl80211_sta_info (valid fields)", sinfo.filled);
+		sbuf_printf(&s, " connected_time %u inactive_time %u\n",
+		    sinfo.connected_time, sinfo.inactive_time);
+		sbuf_printf(&s, " rx_bytes %ju rx_packets %u rx_dropped_misc %u\n",
+		    (uintmax_t)sinfo.rx_bytes, sinfo.rx_packets, sinfo.rx_dropped_misc);
+		sbuf_printf(&s, " rx_duration %ju rx_beacon %u rx_beacon_signal_avg %d\n",
+		    (uintmax_t)sinfo.rx_duration, sinfo.rx_beacon, (int8_t)sinfo.rx_beacon_signal_avg);
+
+		sbuf_printf(&s, " tx_bytes %ju tx_packets %u tx_failed %u\n",
+		    (uintmax_t)sinfo.tx_bytes, sinfo.tx_packets, sinfo.tx_failed);
+		sbuf_printf(&s, " tx_duration %ju tx_retries %u\n",
+		    (uintmax_t)sinfo.tx_duration, sinfo.tx_retries);
+
+		sbuf_printf(&s, " signal %d signal_avg %d ack_signal %d avg_ack_signal %d\n",
+		    sinfo.signal, sinfo.signal_avg, sinfo.ack_signal, sinfo.avg_ack_signal);
+
+		sbuf_printf(&s, " generation %d assoc_req_ies_len %zu chains %d\n",
+		    sinfo.generation, sinfo.assoc_req_ies_len, sinfo.chains);
+
+		for (int i = 0; i < sinfo.chains && i < IEEE80211_MAX_CHAINS; i++) {
+			sbuf_printf(&s, "  chain[%d] signal %d signal_avg %d\n",
+			    i, (int8_t)sinfo.chain_signal[i], (int8_t)sinfo.chain_signal_avg[i]);
+		}
+
+		/* assoc_req_ies, bss_param, sta_flags */
+
+		sbuf_printf(&s, " rxrate: flags %b bw %u(%s) legacy %u kbit/s mcs %u nss %u\n",
+		    sinfo.rxrate.flags, CFG80211_RATE_INFO_FLAGS_BITS,
+		    sinfo.rxrate.bw, lkpi_rate_info_bw_to_str(sinfo.rxrate.bw),
+		    sinfo.rxrate.legacy * 100,
+		    sinfo.rxrate.mcs, sinfo.rxrate.nss);
+		sbuf_printf(&s, "         he_dcm %u he_gi %u he_ru_alloc %u eht_gi %u\n",
+		    sinfo.rxrate.he_dcm, sinfo.rxrate.he_gi, sinfo.rxrate.he_ru_alloc,
+		    sinfo.rxrate.eht_gi);
+		sbuf_printf(&s, " txrate: flags %b bw %u(%s) legacy %u kbit/s mcs %u nss %u\n",
+		    sinfo.txrate.flags, CFG80211_RATE_INFO_FLAGS_BITS,
+		    sinfo.txrate.bw, lkpi_rate_info_bw_to_str(sinfo.txrate.bw),
+		    sinfo.txrate.legacy * 100,
+		    sinfo.txrate.mcs, sinfo.txrate.nss);
+		sbuf_printf(&s, "         he_dcm %u he_gi %u he_ru_alloc %u eht_gi %u\n",
+		    sinfo.txrate.he_dcm, sinfo.txrate.he_gi, sinfo.txrate.he_ru_alloc,
+		    sinfo.txrate.eht_gi);
+	}
+	wiphy_unlock(hw->wiphy);
+
+	sbuf_finish(&s);
+	sbuf_delete(&s);
+
+	return (0);
+}
 
 #if defined(LKPI_80211_HT)
 static void
@@ -2802,6 +2997,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_queue_params txqp;
 	enum ieee80211_bss_changed changed;
+	struct sysctl_oid *node;
 	size_t len;
 	int error, i;
 	uint16_t ac;
@@ -2975,6 +3171,20 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
 	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
 	/* any others? */
+
+	/* Add per-VIF/VAP sysctls. */
+	sysctl_ctx_init(&lvif->sysctl_ctx);
+
+	node = SYSCTL_ADD_NODE(&lvif->sysctl_ctx,
+	    SYSCTL_CHILDREN(&sysctl___compat_linuxkpi_80211),
+	    OID_AUTO, if_name(vap->iv_ifp),
+	    CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE, NULL, "VIF Information");
+
+	SYSCTL_ADD_PROC(&lvif->sysctl_ctx,
+	    SYSCTL_CHILDREN(node), OID_AUTO, "dump_stas",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, lvif, 0,
+	    lkpi_80211_dump_stas, "A", "Dump sta statistics of this vif");
+
 	IMPROVE();
 
 	return (vap);
@@ -3013,6 +3223,9 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	hw = LHW_TO_HW(lhw);
 
 	EVENTHANDLER_DEREGISTER(iflladdr_event, lvif->lvif_ifllevent);
+
+	/* Clear up per-VIF/VAP sysctls. */
+	sysctl_ctx_free(&lvif->sysctl_ctx);
 
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);

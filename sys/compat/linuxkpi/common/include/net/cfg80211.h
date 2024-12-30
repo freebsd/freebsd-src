@@ -81,6 +81,9 @@ enum cfg80211_rate_info_flags {
 	/* Max 8 bits as used in struct rate_info. */
 };
 
+#define	CFG80211_RATE_INFO_FLAGS_BITS					\
+    "\20\1MCS\2VHT_MCS\3SGI\5HE_MCS\10EHT_MCS"
+
 extern const uint8_t rfc1042_header[6];
 extern const uint8_t bridge_tunnel_header[6];
 
@@ -164,7 +167,7 @@ enum rate_info_bw {
 
 struct rate_info {
 	uint8_t					flags;			/* enum cfg80211_rate_info_flags */
-	uint8_t					bw;
+	uint8_t					bw;			/* enum rate_info_bw */
 	uint16_t				legacy;
 	uint8_t					mcs;
 	uint8_t					nss;
@@ -546,18 +549,39 @@ struct station_del_parameters {
 };
 
 struct station_info {
-	/* TODO FIXME */
-	int     assoc_req_ies_len, connected_time;
-	int	generation, inactive_time, rx_bytes, rx_dropped_misc, rx_packets, signal, tx_bytes, tx_packets;
-	int     filled, rx_beacon, rx_beacon_signal_avg, signal_avg;
-	int	rx_duration, tx_duration, tx_failed, tx_retries;
-	int	ack_signal, avg_ack_signal;
+	uint64_t				filled;		/* enum nl80211_sta_info */
+	uint32_t				connected_time;
+	uint32_t				inactive_time;
+
+	uint64_t				rx_bytes;
+	uint32_t				rx_packets;
+	uint32_t				rx_dropped_misc;
+
+	uint64_t				rx_duration;
+	uint32_t				rx_beacon;
+	uint8_t					rx_beacon_signal_avg;
+
+	int8_t					signal;
+	int8_t					signal_avg;
+	int8_t					ack_signal;
+	int8_t					avg_ack_signal;
+
+	/* gap */
+	int					generation;
+
+	uint64_t				tx_bytes;
+	uint32_t				tx_packets;
+	uint32_t				tx_failed;
+	uint64_t				tx_duration;
+	uint32_t				tx_retries;
 
 	int					chains;
 	uint8_t					chain_signal[IEEE80211_MAX_CHAINS];
 	uint8_t					chain_signal_avg[IEEE80211_MAX_CHAINS];
 
 	uint8_t					*assoc_req_ies;
+	size_t					assoc_req_ies_len;
+
 	struct rate_info			rxrate;
 	struct rate_info			txrate;
 	struct cfg80211_ibss_params		bss_param;
