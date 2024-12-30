@@ -5,6 +5,7 @@
  * Written by: John Baldwin <jhb@FreeBSD.org>
  */
 
+#include <sys/nv.h>
 #include <sys/socket.h>
 #include <err.h>
 #include <libnvmf.h>
@@ -60,13 +61,20 @@ reconnect_nvm_controller(int fd, enum nvmf_trtype trtype, int adrfam,
 {
 	struct nvme_controller_data cdata;
 	struct nvmf_association_params aparams;
-	struct nvmf_reconnect_params rparams;
+	nvlist_t *rparams;
 	struct nvmf_qpair *admin, **io;
 	int error;
 
 	error = nvmf_reconnect_params(fd, &rparams);
 	if (error != 0) {
 		warnc(error, "Failed to fetch reconnect parameters");
+		return (EX_IOERR);
+	}
+
+	if (!nvlist_exists_number(rparams, "cntlid") ||
+	    !nvlist_exists_string(rparams, "subnqn")) {
+		nvlist_destroy(rparams);
+		warnx("Missing required reconnect parameters");
 		return (EX_IOERR);
 	}
 
@@ -77,18 +85,22 @@ reconnect_nvm_controller(int fd, enum nvmf_trtype trtype, int adrfam,
 		tcp_association_params(&aparams);
 		break;
 	default:
+		nvlist_destroy(rparams);
 		warnx("Unsupported transport %s", nvmf_transport_type(trtype));
 		return (EX_UNAVAILABLE);
 	}
 
 	io = calloc(opt.num_io_queues, sizeof(*io));
 	error = connect_nvm_queues(&aparams, trtype, adrfam, address, port,
-	    rparams.cntlid, rparams.subnqn, opt.hostnqn, opt.kato, &admin, io,
-	    opt.num_io_queues, opt.queue_size, &cdata);
+	    nvlist_get_number(rparams, "cntlid"),
+	    nvlist_get_string(rparams, "subnqn"), opt.hostnqn, opt.kato,
+	    &admin, io, opt.num_io_queues, opt.queue_size, &cdata);
 	if (error != 0) {
 		free(io);
+		nvlist_destroy(rparams);
 		return (error);
 	}
+	nvlist_destroy(rparams);
 
 	error = nvmf_reconnect_host(fd, admin, opt.num_io_queues, io, &cdata);
 	if (error != 0) {

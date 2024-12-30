@@ -8,6 +8,7 @@
 #ifndef __LIBNVMF_INTERNAL_H__
 #define __LIBNVMF_INTERNAL_H__
 
+#include <sys/nv.h>
 #include <sys/queue.h>
 
 struct nvmf_transport_ops {
@@ -23,9 +24,8 @@ struct nvmf_transport_ops {
 	    const struct nvmf_qpair_params *params);
 	void (*free_qpair)(struct nvmf_qpair *qp);
 
-	/* Create params for kernel handoff. */
-	int (*kernel_handoff_params)(struct nvmf_qpair *qp,
-	    struct nvmf_handoff_qpair_params *qparams);
+	/* Add params for kernel handoff. */
+	void (*kernel_handoff_params)(struct nvmf_qpair *qp, nvlist_t *nvl);
 
 	/* Capsule operations. */
 	struct nvmf_capsule *(*allocate_capsule)(struct nvmf_qpair *qp);
@@ -110,7 +110,7 @@ extern struct nvmf_transport_ops tcp_ops;
 void	na_clear_error(struct nvmf_association *na);
 void	na_error(struct nvmf_association *na, const char *fmt, ...);
 
-int	nvmf_kernel_handoff_params(struct nvmf_qpair *qp,
-    struct nvmf_handoff_qpair_params *qparams);
+int	nvmf_kernel_handoff_params(struct nvmf_qpair *qp, nvlist_t **nvlp);
+int	nvmf_pack_ioc_nvlist(struct nvmf_ioc_nv *nv, nvlist_t *nvl);
 
 #endif /* !__LIBNVMF_INTERNAL_H__ */

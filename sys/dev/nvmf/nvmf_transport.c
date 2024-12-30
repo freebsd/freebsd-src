@@ -12,6 +12,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/nv.h>
 #include <sys/refcount.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
@@ -47,8 +48,7 @@ nvmf_supported_trtype(enum nvmf_trtype trtype)
 
 struct nvmf_qpair *
 nvmf_allocate_qpair(enum nvmf_trtype trtype, bool controller,
-    const struct nvmf_handoff_qpair_params *params,
-    nvmf_qpair_error_t *error_cb, void *error_cb_arg,
+    const nvlist_t *params, nvmf_qpair_error_t *error_cb, void *error_cb_arg,
     nvmf_capsule_receive_t *receive_cb, void *receive_cb_arg)
 {
 	struct nvmf_transport *nt;
@@ -76,7 +76,7 @@ nvmf_allocate_qpair(enum nvmf_trtype trtype, bool controller,
 	qp->nq_error_arg = error_cb_arg;
 	qp->nq_receive = receive_cb;
 	qp->nq_receive_arg = receive_cb_arg;
-	qp->nq_admin = params->admin;
+	qp->nq_admin = nvlist_get_bool(params, "admin");
 	return (qp);
 }
 
@@ -228,6 +228,92 @@ nvmf_send_controller_data(struct nvmf_capsule *nc, uint32_t data_offset,
 	MPASS(m_length(m, NULL) == len);
 	return (nc->nc_qpair->nq_ops->send_controller_data(nc, data_offset, m,
 	    len));
+}
+
+int
+nvmf_pack_ioc_nvlist(const nvlist_t *nvl, struct nvmf_ioc_nv *nv)
+{
+	void *packed;
+	int error;
+
+	error = nvlist_error(nvl);
+	if (error != 0)
+		return (error);
+
+	if (nv->size == 0) {
+		nv->len = nvlist_size(nvl);
+	} else {
+		packed = nvlist_pack(nvl, &nv->len);
+		if (packed == NULL)
+			error = ENOMEM;
+		else if (nv->len > nv->size)
+			error = EFBIG;
+		else
+			error = copyout(packed, nv->data, nv->len);
+		free(packed, M_NVLIST);
+	}
+	return (error);
+}
+
+int
+nvmf_unpack_ioc_nvlist(const struct nvmf_ioc_nv *nv, nvlist_t **nvlp)
+{
+	void *packed;
+	nvlist_t *nvl;
+	int error;
+
+	packed = malloc(nv->size, M_NVMF_TRANSPORT, M_WAITOK);
+	error = copyin(nv->data, packed, nv->size);
+	if (error != 0) {
+		free(packed, M_NVMF_TRANSPORT);
+		return (error);
+	}
+
+	nvl = nvlist_unpack(packed, nv->size, 0);
+	free(packed, M_NVMF_TRANSPORT);
+	if (nvl == NULL)
+		return (EINVAL);
+
+	*nvlp = nvl;
+	return (0);
+}
+
+bool
+nvmf_validate_qpair_nvlist(const nvlist_t *nvl, bool controller)
+{
+	uint64_t value, qsize;
+	bool admin, valid;
+
+	valid = true;
+	valid &= nvlist_exists_bool(nvl, "admin");
+	valid &= nvlist_exists_bool(nvl, "sq_flow_control");
+	valid &= nvlist_exists_number(nvl, "qsize");
+	valid &= nvlist_exists_number(nvl, "sqhd");
+	if (!controller)
+		valid &= nvlist_exists_number(nvl, "sqtail");
+	if (!valid)
+		return (false);
+
+	admin = nvlist_get_bool(nvl, "admin");
+	qsize = nvlist_get_number(nvl, "qsize");
+	if (admin) {
+		if (qsize < NVME_MIN_ADMIN_ENTRIES ||
+		    qsize > NVME_MAX_ADMIN_ENTRIES)
+			return (false);
+	} else {
+		if (qsize < NVME_MIN_IO_ENTRIES || qsize > NVME_MAX_IO_ENTRIES)
+			return (false);
+	}
+	value = nvlist_get_number(nvl, "sqhd");
+	if (value > qsize - 1)
+		return (false);
+	if (!controller) {
+		value = nvlist_get_number(nvl, "sqtail");
+		if (value > qsize - 1)
+			return (false);
+	}
+
+	return (true);
 }
 
 int

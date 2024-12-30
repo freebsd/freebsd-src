@@ -1129,22 +1129,19 @@ tcp_free_qpair(struct nvmf_qpair *nq)
 	free(qp);
 }
 
-static int
-tcp_kernel_handoff_params(struct nvmf_qpair *nq,
-    struct nvmf_handoff_qpair_params *qparams)
+static void
+tcp_kernel_handoff_params(struct nvmf_qpair *nq, nvlist_t *nvl)
 {
 	struct nvmf_tcp_qpair *qp = TQP(nq);
 
-	qparams->tcp.fd = qp->s;
-	qparams->tcp.rxpda = qp->rxpda;
-	qparams->tcp.txpda = qp->txpda;
-	qparams->tcp.header_digests = qp->header_digests;
-	qparams->tcp.data_digests = qp->data_digests;
-	qparams->tcp.maxr2t = qp->maxr2t;
-	qparams->tcp.maxh2cdata = qp->maxh2cdata;
-	qparams->tcp.max_icd = qp->max_icd;
-
-	return (0);
+	nvlist_add_number(nvl, "fd", qp->s);
+	nvlist_add_number(nvl, "rxpda", qp->rxpda);
+	nvlist_add_number(nvl, "txpda", qp->txpda);
+	nvlist_add_bool(nvl, "header_digests", qp->header_digests);
+	nvlist_add_bool(nvl, "data_digests", qp->data_digests);
+	nvlist_add_number(nvl, "maxr2t", qp->maxr2t);
+	nvlist_add_number(nvl, "maxh2cdata", qp->maxh2cdata);
+	nvlist_add_number(nvl, "max_icd", qp->max_icd);
 }
 
 static struct nvmf_capsule *

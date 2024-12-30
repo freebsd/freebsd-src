@@ -12,6 +12,7 @@
 #include <sys/_eventhandler.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+//#include <sys/_nv.h>
 #include <sys/_sx.h>
 #include <sys/_task.h>
 #include <sys/smp.h>
@@ -26,12 +27,6 @@ struct nvmf_namespace;
 struct sysctl_oid_list;
 
 typedef void nvmf_request_complete_t(void *, const struct nvme_completion *);
-
-struct nvmf_ivars {
-	struct nvmf_handoff_host *hh;
-	struct nvmf_handoff_qpair_params *io_params;
-	struct nvme_controller_data *cdata;
-};
 
 struct nvmf_softc {
 	device_t dev;
@@ -156,8 +151,7 @@ extern bool nvmf_fail_disconnect;
 void	nvmf_complete(void *arg, const struct nvme_completion *cqe);
 void	nvmf_io_complete(void *arg, size_t xfered, int error);
 void	nvmf_wait_for_reply(struct nvmf_completion_status *status);
-int	nvmf_init_ivars(struct nvmf_ivars *ivars, struct nvmf_handoff_host *hh);
-void	nvmf_free_ivars(struct nvmf_ivars *ivars);
+int	nvmf_copyin_handoff(const struct nvmf_ioc_nv *nv, nvlist_t **nvlp);
 void	nvmf_disconnect(struct nvmf_softc *sc);
 void	nvmf_rescan_ns(struct nvmf_softc *sc, uint32_t nsid);
 void	nvmf_rescan_all_ns(struct nvmf_softc *sc);
@@ -203,8 +197,7 @@ bool	nvmf_update_ns(struct nvmf_namespace *ns,
 
 /* nvmf_qpair.c */
 struct nvmf_host_qpair *nvmf_init_qp(struct nvmf_softc *sc,
-    enum nvmf_trtype trtype, struct nvmf_handoff_qpair_params *handoff,
-    const char *name, u_int qid);
+    enum nvmf_trtype trtype, const nvlist_t *nvl, const char *name, u_int qid);
 void	nvmf_shutdown_qp(struct nvmf_host_qpair *qp);
 void	nvmf_destroy_qp(struct nvmf_host_qpair *qp);
 struct nvmf_request *nvmf_allocate_request(struct nvmf_host_qpair *qp,

@@ -13,6 +13,7 @@
  * (target) to send and receive capsules and associated data.
  */
 
+#include <sys/_nv.h>
 #include <sys/sysctl.h>
 #include <dev/nvmf/nvmf_proto.h>
 
@@ -20,8 +21,8 @@ struct mbuf;
 struct memdesc;
 struct nvmf_capsule;
 struct nvmf_connection;
+struct nvmf_ioc_nv;
 struct nvmf_qpair;
-struct nvmf_handoff_qpair_params;
 
 SYSCTL_DECL(_kern_nvmf);
 
@@ -54,7 +55,7 @@ typedef void nvmf_io_complete_t(void *, size_t, int);
  * independent.
  */
 struct nvmf_qpair *nvmf_allocate_qpair(enum nvmf_trtype trtype,
-    bool controller, const struct nvmf_handoff_qpair_params *params,
+    bool controller, const nvlist_t *params,
     nvmf_qpair_error_t *error_cb, void *error_cb_arg,
     nvmf_capsule_receive_t *receive_cb, void *receive_cb_arg);
 void	nvmf_free_qpair(struct nvmf_qpair *qp);
@@ -137,5 +138,24 @@ u_int	nvmf_send_controller_data(struct nvmf_capsule *nc,
 
 #define	NVMF_SUCCESS_SENT	0x100
 #define	NVMF_MORE		0x101
+
+/* Helper APIs for nvlists used in icotls. */
+
+/*
+ * Pack the nvlist nvl and copyout to the buffer described by nv.
+ */
+int	nvmf_pack_ioc_nvlist(const nvlist_t *nvl, struct nvmf_ioc_nv *nv);
+
+/*
+ * Copyin and unpack an nvlist described by nv.  The unpacked nvlist
+ * is returned in *nvlp on success.
+ */
+int	nvmf_unpack_ioc_nvlist(const struct nvmf_ioc_nv *nv, nvlist_t **nvlp);
+
+/*
+ * Returns true if a qpair handoff nvlist has all the required
+ * transport-independent values.
+ */
+bool	nvmf_validate_qpair_nvlist(const nvlist_t *nvl, bool controller);
 
 #endif /* !__NVMF_TRANSPORT_H__ */

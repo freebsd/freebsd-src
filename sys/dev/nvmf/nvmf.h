@@ -26,54 +26,76 @@
 
 #define	NVMF_NN			(1024)
 
-struct nvmf_handoff_qpair_params {
-	bool	admin;
-	bool	sq_flow_control;
-	u_int	qsize;
-	uint16_t sqhd;
-	uint16_t sqtail;	/* host only */
-	union {
-		struct {
-			int	fd;
-			uint8_t	rxpda;
-			uint8_t txpda;
-			bool	header_digests;
-			bool	data_digests;
-			uint32_t maxr2t;
-			uint32_t maxh2cdata;
-			uint32_t max_icd;
-		} tcp;
-	};
+/*
+ * (data, size) is the userspace buffer for a packed nvlist.
+ *
+ * For requests that copyout an nvlist, len is the amount of data
+ * copied out to *data.  If size is zero, no data is copied and len is
+ * set to the required buffer size.
+ */
+struct nvmf_ioc_nv {
+	void	*data;
+	size_t	len;
+	size_t	size;
 };
 
-struct nvmf_handoff_host {
-	u_int	trtype;
-	u_int	num_io_queues;
-	u_int	kato;
-	struct nvmf_handoff_qpair_params admin;
-	struct nvmf_handoff_qpair_params *io;
-	const struct nvme_controller_data *cdata;
-};
+/*
+ * The fields in a qpair handoff nvlist are:
+ *
+ * Transport independent:
+ *
+ * bool		admin
+ * bool		sq_flow_control
+ * number	qsize
+ * number	sqhd
+ * number	sqtail			host only
+ *
+ * TCP transport:
+ *
+ * number	fd
+ * number	rxpda
+ * number	txpda
+ * bool		header_digests
+ * bool		data_digests
+ * number	maxr2t
+ * number	maxh2cdata
+ * number	max_icd
+ */
 
-struct nvmf_reconnect_params {
-	uint16_t cntlid;
-	char	subnqn[256];
-};
+/*
+ * The fields in the nvlist for NVMF_HANDOFF_HOST and
+ * NVMF_RECONNECT_HOST are:
+ *
+ * number			trtype
+ * number			kato	(optional)
+ * qpair handoff nvlist		admin
+ * qpair handoff nvlist array	io
+ * binary			cdata	struct nvme_controller_data
+ */
 
-struct nvmf_handoff_controller_qpair {
-	u_int	trtype;
-	struct nvmf_handoff_qpair_params params;
-	const struct nvmf_fabric_connect_cmd *cmd;
-	const struct nvmf_fabric_connect_data *data;
-};
+/*
+ * The fields in the nvlist for NVMF_RECONNECT_PARAMS are:
+ *
+ * number			cntlid
+ * string			subnqn
+ */
+
+/*
+ * The fields in the nvlist for handing off a controller qpair are:
+ *
+ * number			trtype
+ * qpair handoff nvlist		params
+ * binary			cmd	struct nvmf_fabric_connect_cmd
+ * binary			data	struct nvmf_fabric_connect_data
+ */
 
 /* Operations on /dev/nvmf */
-#define	NVMF_HANDOFF_HOST	_IOW('n', 200, struct nvmf_handoff_host)
+#define	NVMF_HANDOFF_HOST	_IOW('n', 200, struct nvmf_ioc_nv)
 #define	NVMF_DISCONNECT_HOST	_IOW('n', 201, const char *)
 #define	NVMF_DISCONNECT_ALL	_IO('n', 202)
 
 /* Operations on /dev/nvmeX */
-#define	NVMF_RECONNECT_PARAMS	_IOR('n', 203, struct nvmf_reconnect_params)
-#define	NVMF_RECONNECT_HOST	_IOW('n', 204, struct nvmf_handoff_host)
+#define	NVMF_RECONNECT_PARAMS	_IOWR('n', 203, struct nvmf_ioc_nv)
+#define	NVMF_RECONNECT_HOST	_IOW('n', 204, struct nvmf_ioc_nv)
 
 #endif /* !__NVMF_H__ */

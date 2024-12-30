@@ -457,8 +457,23 @@ nvmf_get_log_page_offset(const struct nvme_command *cmd)
 
 int
 nvmf_handoff_controller_qpair(struct nvmf_qpair *qp,
-    struct nvmf_handoff_controller_qpair *h)
+    const struct nvmf_fabric_connect_cmd *cmd,
+    const struct nvmf_fabric_connect_data *data, struct nvmf_ioc_nv *nv)
 {
-	h->trtype = qp->nq_association->na_trtype;
-	return (nvmf_kernel_handoff_params(qp, &h->params));
+	nvlist_t *nvl, *nvl_qp;
+	int error;
+
+	error = nvmf_kernel_handoff_params(qp, &nvl_qp);
+	if (error)
+		return (error);
+
+	nvl = nvlist_create(0);
+	nvlist_add_number(nvl, "trtype", qp->nq_association->na_trtype);
+	nvlist_move_nvlist(nvl, "params", nvl_qp);
+	nvlist_add_binary(nvl, "cmd", cmd, sizeof(*cmd));
+	nvlist_add_binary(nvl, "data", data, sizeof(*data));
+
+	error = nvmf_pack_ioc_nvlist(nv, nvl);
+	nvlist_destroy(nvl);
+	return (error);
 }

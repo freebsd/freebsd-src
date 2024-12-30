@@ -18,6 +18,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/nv.h>
 #include <sys/protosw.h>
 #include <sys/refcount.h>
 #include <sys/socket.h>
@@ -1413,8 +1414,7 @@ nvmf_soupcall_send(struct socket *so, void *arg, int waitflag)
 }
 
 static struct nvmf_qpair *
-tcp_allocate_qpair(bool controller,
-    const struct nvmf_handoff_qpair_params *params)
+tcp_allocate_qpair(bool controller, const nvlist_t *nvl)
 {
 	struct nvmf_tcp_qpair *qp;
 	struct socket *so;
@@ -1422,8 +1422,18 @@ tcp_allocate_qpair(bool controller,
 	cap_rights_t rights;
 	int error;
 
-	error = fget(curthread, params->tcp.fd, cap_rights_init_one(&rights,
-	    CAP_SOCK_CLIENT), &fp);
+	if (!nvlist_exists_number(nvl, "fd") ||
+	    !nvlist_exists_number(nvl, "rxpda") ||
+	    !nvlist_exists_number(nvl, "txpda") ||
+	    !nvlist_exists_bool(nvl, "header_digests") ||
+	    !nvlist_exists_bool(nvl, "data_digests") ||
+	    !nvlist_exists_number(nvl, "maxr2t") ||
+	    !nvlist_exists_number(nvl, "maxh2cdata") ||
+	    !nvlist_exists_number(nvl, "max_icd"))
+		return (NULL);
+
+	error = fget(curthread, nvlist_get_number(nvl, "fd"),
+	    cap_rights_init_one(&rights, CAP_SOCK_CLIENT), &fp);
 	if (error != 0)
 		return (NULL);
 	if (fp->f_type != DTYPE_SOCKET) {
@@ -1445,26 +1455,28 @@ tcp_allocate_qpair(bool controller,
 	qp = malloc(sizeof(*qp), M_NVMF_TCP, M_WAITOK | M_ZERO);
 	qp->so = so;
 	refcount_init(&qp->refs, 1);
-	qp->txpda = params->tcp.txpda;
-	qp->rxpda = params->tcp.rxpda;
-	qp->header_digests = params->tcp.header_digests;
-	qp->data_digests = params->tcp.data_digests;
-	qp->maxr2t = params->tcp.maxr2t;
+	qp->txpda = nvlist_get_number(nvl, "txpda");
+	qp->rxpda = nvlist_get_number(nvl, "rxpda");
+	qp->header_digests = nvlist_get_bool(nvl, "header_digests");
+	qp->data_digests = nvlist_get_bool(nvl, "data_digests");
+	qp->maxr2t = nvlist_get_number(nvl, "maxr2t");
 	if (controller)
-		qp->maxh2cdata = params->tcp.maxh2cdata;
+		qp->maxh2cdata = nvlist_get_number(nvl, "maxh2cdata");
 	qp->max_tx_data = tcp_max_transmit_data;
 	if (!controller) {
-		qp->max_tx_data = min(qp->max_tx_data, params->tcp.maxh2cdata);
-		qp->max_icd = params->tcp.max_icd;
+		qp->max_tx_data = min(qp->max_tx_data,
+		    nvlist_get_number(nvl, "maxh2cdata"));
+		qp->max_icd = nvlist_get_number(nvl, "max_icd");
 	}
 
 	if (controller) {
 		/* Use the SUCCESS flag if SQ flow control is disabled. */
-		qp->send_success = !params->sq_flow_control;
+		qp->send_success = !nvlist_get_bool(nvl, "sq_flow_control");
 
 		/* NB: maxr2t is 0's based. */
 		qp->num_ttags = MIN((u_int)UINT16_MAX + 1,
-		    (uint64_t)params->qsize * ((uint64_t)qp->maxr2t + 1));
+		    nvlist_get_number(nvl, "qsize") *
+		    ((uint64_t)qp->maxr2t + 1));
 		qp->open_ttags = mallocarray(qp->num_ttags,
 		    sizeof(*qp->open_ttags), M_NVMF_TCP, M_WAITOK | M_ZERO);
 	}
