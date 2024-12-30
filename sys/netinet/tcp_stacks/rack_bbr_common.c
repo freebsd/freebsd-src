@@ -478,7 +478,7 @@ skipped_pkt:
 	if (no_vn == 0) {
 		CURVNET_RESTORE();
 	}
-	return(retval);
+	return (0);
 }
 
 int
