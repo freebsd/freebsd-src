@@ -4118,7 +4118,7 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 	hw = LHW_TO_HW(lhw);
 	cfg80211_chandef_create(&hw->conf.chandef, chan,
 #ifdef LKPI_80211_HT
-	    (ic->ic_htcaps & IEEE80211_HTC_HT) ? 0 :
+	    (ic->ic_flags_ht & IEEE80211_FHT_HT) ? NL80211_CHAN_HT20 :
 #endif
 	    NL80211_CHAN_NO_HT);
 
@@ -5589,7 +5589,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 			cfg80211_chandef_create(&hw->conf.chandef, &channels[i],
 #ifdef LKPI_80211_HT
-			    (ic->ic_htcaps & IEEE80211_HTC_HT) ? 0 :
+			    (ic->ic_flags_ht & IEEE80211_FHT_HT) ? NL80211_CHAN_HT20 :
 #endif
 			    NL80211_CHAN_NO_HT);
 			break;

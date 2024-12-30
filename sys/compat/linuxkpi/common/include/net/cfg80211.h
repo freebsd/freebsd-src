@@ -1483,36 +1483,33 @@ cfg80211_pmsr_report(struct wireless_dev *wdev,
 	TODO();
 }
 
-static __inline void
+static inline void
 cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
-    struct linuxkpi_ieee80211_channel *chan, enum nl80211_chan_flags chan_flag)
+    struct linuxkpi_ieee80211_channel *chan, enum nl80211_channel_type chan_type)
 {
 
 	KASSERT(chandef != NULL, ("%s: chandef is NULL\n", __func__));
 	KASSERT(chan != NULL, ("%s: chan is NULL\n", __func__));
 
-	memset(chandef, 0, sizeof(*chandef));
+	/* memset(chandef, 0, sizeof(*chandef)); */
 	chandef->chan = chan;
-	chandef->center_freq2 = 0;	/* Set here and only overwrite if needed. */
+	chandef->center_freq1 = chan->center_freq;
+	/* chandef->width, center_freq2, punctured */
 
-	switch (chan_flag) {
+	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
 		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
-		chandef->center_freq1 = chan->center_freq;
 		break;
-	default:
-		IMPROVE("Also depends on our manual settings");
-		if (chan->flags & IEEE80211_CHAN_NO_HT40)
-			chandef->width = NL80211_CHAN_WIDTH_20;
-		else if (chan->flags & IEEE80211_CHAN_NO_80MHZ)
-			chandef->width = NL80211_CHAN_WIDTH_40;
-		else if (chan->flags & IEEE80211_CHAN_NO_160MHZ)
-			chandef->width = NL80211_CHAN_WIDTH_80;
-		else {
-			chandef->width = NL80211_CHAN_WIDTH_160;
-			IMPROVE("80P80 and 320 ...");
-		}
-		chandef->center_freq1 = chan->center_freq;
+	case NL80211_CHAN_HT20:
+		chandef->width = NL80211_CHAN_WIDTH_20;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		chandef->center_freq1 -= 10;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		chandef->center_freq1 += 10;
 		break;
 	};
 }
