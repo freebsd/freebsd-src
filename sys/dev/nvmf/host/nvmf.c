@@ -8,6 +8,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/dnv.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -15,6 +16,7 @@
 #include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/nv.h>
 #include <sys/reboot.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -196,90 +198,100 @@ nvmf_send_keep_alive(void *arg)
 }
 
 int
-nvmf_init_ivars(struct nvmf_ivars *ivars, struct nvmf_handoff_host *hh)
+nvmf_copyin_handoff(const struct nvmf_ioc_nv *nv, nvlist_t **nvlp)
 {
-	size_t len;
-	u_int i;
+	const nvlist_t *const *io;
+	const nvlist_t *admin;
+	nvlist_t *nvl;
+	size_t i, num_io_queues;
+	uint32_t qsize;
 	int error;
 
-	memset(ivars, 0, sizeof(*ivars));
-
-	if (!hh->admin.admin || hh->num_io_queues < 1)
-		return (EINVAL);
-
-	ivars->cdata = malloc(sizeof(*ivars->cdata), M_NVMF, M_WAITOK);
-	error = copyin(hh->cdata, ivars->cdata, sizeof(*ivars->cdata));
+	error = nvmf_unpack_ioc_nvlist(nv, &nvl);
 	if (error != 0)
-		goto out;
-	nvme_controller_data_swapbytes(ivars->cdata);
+		return (error);
 
-	len = hh->num_io_queues * sizeof(*ivars->io_params);
-	ivars->io_params = malloc(len, M_NVMF, M_WAITOK);
-	error = copyin(hh->io, ivars->io_params, len);
-	if (error != 0)
-		goto out;
-	for (i = 0; i < hh->num_io_queues; i++) {
-		if (ivars->io_params[i].admin) {
-			error = EINVAL;
-			goto out;
-		}
+	if (!nvlist_exists_number(nvl, "trtype") ||
+	    !nvlist_exists_nvlist(nvl, "admin") ||
+	    !nvlist_exists_nvlist_array(nvl, "io") ||
+	    !nvlist_exists_binary(nvl, "cdata"))
+		goto invalid;
 
-		/* Require all I/O queues to be the same size. */
-		if (ivars->io_params[i].qsize != ivars->io_params[0].qsize) {
-			error = EINVAL;
-			goto out;
-		}
+	admin = nvlist_get_nvlist(nvl, "admin");
+	if (!nvmf_validate_qpair_nvlist(admin, false))
+		goto invalid;
+	if (!nvlist_get_bool(admin, "admin"))
+		goto invalid;
+
+	io = nvlist_get_nvlist_array(nvl, "io", &num_io_queues);
+	if (num_io_queues < 1)
+		goto invalid;
+	for (i = 0; i < num_io_queues; i++) {
+		if (!nvmf_validate_qpair_nvlist(io[i], false))
+			goto invalid;
 	}
 
-	ivars->hh = hh;
+	/* Require all I/O queues to be the same size. */
+	qsize = nvlist_get_number(io[0], "qsize");
+	for (i = 1; i < num_io_queues; i++) {
+		if (nvlist_get_number(io[i], "qsize") != qsize)
+			goto invalid;
+	}
+
+	nvlist_get_binary(nvl, "cdata", &i);
+	if (i != sizeof(struct nvme_controller_data))
+		goto invalid;
+
+	*nvlp = nvl;
 	return (0);
-
-out:
-	free(ivars->io_params, M_NVMF);
-	free(ivars->cdata, M_NVMF);
-	return (error);
-}
-
-void
-nvmf_free_ivars(struct nvmf_ivars *ivars)
-{
-	free(ivars->io_params, M_NVMF);
-	free(ivars->cdata, M_NVMF);
+invalid:
+	nvlist_destroy(nvl);
+	return (EINVAL);
 }
 
 static int
 nvmf_probe(device_t dev)
 {
-	struct nvmf_ivars *ivars = device_get_ivars(dev);
+	const nvlist_t *nvl = device_get_ivars(dev);
+	const struct nvme_controller_data *cdata;
 
-	if (ivars == NULL)
+	if (nvl == NULL)
 		return (ENXIO);
 
-	device_set_descf(dev, "Fabrics: %.256s", ivars->cdata->subnqn);
+	cdata = nvlist_get_binary(nvl, "cdata", NULL);
+	device_set_descf(dev, "Fabrics: %.256s", cdata->subnqn);
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-nvmf_establish_connection(struct nvmf_softc *sc, struct nvmf_ivars *ivars)
+nvmf_establish_connection(struct nvmf_softc *sc, const nvlist_t *nvl)
 {
+	const nvlist_t *const *io;
+	const nvlist_t *admin;
+	uint64_t kato;
+	size_t num_io_queues;
+	enum nvmf_trtype trtype;
 	char name[16];
 
+	trtype = nvlist_get_number(nvl, "trtype");
+	admin = nvlist_get_nvlist(nvl, "admin");
+	io = nvlist_get_nvlist_array(nvl, "io", &num_io_queues);
+	kato = dnvlist_get_number(nvl, "kato", 0);
+
 	/* Setup the admin queue. */
-	sc->admin = nvmf_init_qp(sc, ivars->hh->trtype, &ivars->hh->admin,
-	    "admin queue", 0);
+	sc->admin = nvmf_init_qp(sc, trtype, admin, "admin queue", 0);
 	if (sc->admin == NULL) {
 		device_printf(sc->dev, "Failed to setup admin queue\n");
 		return (ENXIO);
 	}
 
 	/* Setup I/O queues. */
-	sc->io = malloc(ivars->hh->num_io_queues * sizeof(*sc->io), M_NVMF,
+	sc->io = malloc(num_io_queues * sizeof(*sc->io), M_NVMF,
 	    M_WAITOK | M_ZERO);
-	sc->num_io_queues = ivars->hh->num_io_queues;
+	sc->num_io_queues = num_io_queues;
 	for (u_int i = 0; i < sc->num_io_queues; i++) {
 		snprintf(name, sizeof(name), "I/O queue %u", i);
-		sc->io[i] = nvmf_init_qp(sc, ivars->hh->trtype,
-		    &ivars->io_params[i], name, i);
+		sc->io[i] = nvmf_init_qp(sc, trtype, io[i], name, i);
 		if (sc->io[i] == NULL) {
 			device_printf(sc->dev, "Failed to setup I/O queue %u\n",
 			    i + 1);
@@ -288,16 +300,19 @@ nvmf_establish_connection(struct nvmf_softc *sc, struct nvmf_ivars *ivars)
 	}
 
 	/* Start KeepAlive timers. */
-	if (ivars->hh->kato != 0) {
+	if (kato != 0) {
 		sc->ka_traffic = NVMEV(NVME_CTRLR_DATA_CTRATT_TBKAS,
 		    sc->cdata->ctratt) != 0;
-		sc->ka_rx_sbt = mstosbt(ivars->hh->kato);
+		sc->ka_rx_sbt = mstosbt(kato);
 		sc->ka_tx_sbt = sc->ka_rx_sbt / 2;
 		callout_reset_sbt(&sc->ka_rx_timer, sc->ka_rx_sbt, 0,
 		    nvmf_check_keep_alive, sc, C_HARDCLOCK);
 		callout_reset_sbt(&sc->ka_tx_timer, sc->ka_tx_sbt, 0,
 		    nvmf_send_keep_alive, sc, C_HARDCLOCK);
 	}
+
+	memcpy(sc->cdata, nvlist_get_binary(nvl, "cdata", NULL),
+	    sizeof(*sc->cdata));
 
 	return (0);
 }
@@ -452,17 +467,18 @@ nvmf_attach(device_t dev)
 {
 	struct make_dev_args mda;
 	struct nvmf_softc *sc = device_get_softc(dev);
-	struct nvmf_ivars *ivars = device_get_ivars(dev);
+	const nvlist_t *nvl = device_get_ivars(dev);
+	const nvlist_t * const *io;
 	struct sysctl_oid *oid;
 	uint64_t val;
 	u_int i;
 	int error;
 
-	if (ivars == NULL)
+	if (nvl == NULL)
 		return (ENXIO);
 
 	sc->dev = dev;
-	sc->trtype = ivars->hh->trtype;
+	sc->trtype = nvlist_get_number(nvl, "trtype");
 	callout_init(&sc->ka_rx_timer, 1);
 	callout_init(&sc->ka_tx_timer, 1);
 	sx_init(&sc->connection_lock, "nvmf connection");
@@ -473,13 +489,11 @@ nvmf_attach(device_t dev)
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "I/O Queues");
 	sc->ioq_oid_list = SYSCTL_CHILDREN(oid);
 
-	/* Claim the cdata pointer from ivars. */
-	sc->cdata = ivars->cdata;
-	ivars->cdata = NULL;
+	sc->cdata = malloc(sizeof(*sc->cdata), M_NVMF, M_WAITOK);
 
 	nvmf_init_aer(sc);
 
-	error = nvmf_establish_connection(sc, ivars);
+	error = nvmf_establish_connection(sc, nvl);
 	if (error != 0)
 		goto out;
 
@@ -506,7 +520,9 @@ nvmf_attach(device_t dev)
 		    NVME_CAP_HI_MPSMIN(sc->cap >> 32)));
 	}
 
-	sc->max_pending_io = ivars->io_params[0].qsize * sc->num_io_queues;
+	io = nvlist_get_nvlist_array(nvl, "io", NULL);
+	sc->max_pending_io = nvlist_get_number(io[0], "qsize") *
+	    sc->num_io_queues;
 
 	error = nvmf_init_sim(sc);
 	if (error != 0)
@@ -641,22 +657,23 @@ nvmf_disconnect_task(void *arg, int pending __unused)
 }
 
 static int
-nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
+nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
 {
-	struct nvmf_ivars ivars;
+	const struct nvme_controller_data *cdata;
+	nvlist_t *nvl;
 	u_int i;
 	int error;
 
+	error = nvmf_copyin_handoff(nv, &nvl);
+	if (error != 0)
+		return (error);
+
 	/* XXX: Should we permit changing the transport type? */
-	if (sc->trtype != hh->trtype) {
+	if (sc->trtype != nvlist_get_number(nvl, "trtype")) {
 		device_printf(sc->dev,
 		    "transport type mismatch on reconnect\n");
 		return (EINVAL);
 	}
-
-	error = nvmf_init_ivars(&ivars, hh);
-	if (error != 0)
-		return (error);
 
 	sx_xlock(&sc->connection_lock);
 	if (sc->admin != NULL || sc->detaching) {
@@ -671,8 +688,9 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	 * ensures the new association is connected to the same NVMe
 	 * subsystem.
 	 */
-	if (memcmp(sc->cdata->subnqn, ivars.cdata->subnqn,
-	    sizeof(ivars.cdata->subnqn)) != 0) {
+	cdata = nvlist_get_binary(nvl, "cdata", NULL);
+	if (memcmp(sc->cdata->subnqn, cdata->subnqn,
+	    sizeof(cdata->subnqn)) != 0) {
 		device_printf(sc->dev,
 		    "controller subsystem NQN mismatch on reconnect\n");
 		error = EINVAL;
@@ -684,7 +702,7 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	 * max_pending_io is still correct?
 	 */
 
-	error = nvmf_establish_connection(sc, &ivars);
+	error = nvmf_establish_connection(sc, nvl);
 	if (error != 0)
 		goto out;
 
@@ -706,7 +724,7 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	nvmf_rescan_all_ns(sc);
 out:
 	sx_xunlock(&sc->connection_lock);
-	nvmf_free_ivars(&ivars);
+	nvlist_destroy(nvl);
 	return (error);
 }
 
@@ -1021,14 +1039,34 @@ error:
 }
 
 static int
+nvmf_reconnect_params(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
+{
+	nvlist_t *nvl;
+	int error;
+
+	nvl = nvlist_create(0);
+
+	sx_slock(&sc->connection_lock);
+	if ((sc->cdata->fcatt & 1) == 0)
+		nvlist_add_number(nvl, "cntlid", NVMF_CNTLID_DYNAMIC);
+	else
+		nvlist_add_number(nvl, "cntlid", sc->cdata->ctrlr_id);
+	nvlist_add_stringf(nvl, "subnqn", "%.256s", sc->cdata->subnqn);
+	sx_sunlock(&sc->connection_lock);
+
+	error = nvmf_pack_ioc_nvlist(nvl, nv);
+	nvlist_destroy(nvl);
+	return (error);
+}
+
+static int
 nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
 	struct nvmf_softc *sc = cdev->si_drv1;
 	struct nvme_get_nsid *gnsid;
 	struct nvme_pt_command *pt;
-	struct nvmf_reconnect_params *rp;
-	struct nvmf_handoff_host *hh;
+	struct nvmf_ioc_nv *nv;
 
 	switch (cmd) {
 	case NVME_PASSTHROUGH_CMD:
@@ -1044,16 +1082,11 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		*(uint64_t *)arg = sc->max_xfer_size;
 		return (0);
 	case NVMF_RECONNECT_PARAMS:
-		rp = (struct nvmf_reconnect_params *)arg;
-		if ((sc->cdata->fcatt & 1) == 0)
-			rp->cntlid = NVMF_CNTLID_DYNAMIC;
-		else
-			rp->cntlid = sc->cdata->ctrlr_id;
-		memcpy(rp->subnqn, sc->cdata->subnqn, sizeof(rp->subnqn));
-		return (0);
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_reconnect_params(sc, nv));
 	case NVMF_RECONNECT_HOST:
-		hh = (struct nvmf_handoff_host *)arg;
-		return (nvmf_reconnect_host(sc, hh));
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_reconnect_host(sc, nv));
 	default:
 		return (ENOTTY);
 	}

@@ -9,6 +9,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/nv.h>
 #include <dev/nvme/nvme.h>
 #include <dev/nvmf/nvmf.h>
 #include <dev/nvmf/nvmf_transport.h>
@@ -17,13 +18,13 @@
 static struct cdev *nvmf_cdev;
 
 static int
-nvmf_handoff_host(struct nvmf_handoff_host *hh)
+nvmf_handoff_host(struct nvmf_ioc_nv *nv)
 {
-	struct nvmf_ivars ivars;
+	nvlist_t *nvl;
 	device_t dev;
 	int error;
 
-	error = nvmf_init_ivars(&ivars, hh);
+	error = nvmf_copyin_handoff(nv, &nvl);
 	if (error != 0)
 		return (error);
 
@@ -35,7 +36,7 @@ nvmf_handoff_host(struct nvmf_handoff_host *hh)
 		goto out;
 	}
 
-	device_set_ivars(dev, &ivars);
+	device_set_ivars(dev, nvl);
 	error = device_probe_and_attach(dev);
 	device_set_ivars(dev, NULL);
 	if (error != 0)
@@ -43,7 +44,7 @@ nvmf_handoff_host(struct nvmf_handoff_host *hh)
 	bus_topo_unlock();
 
 out:
-	nvmf_free_ivars(&ivars);
+	nvlist_destroy(nvl);
 	return (error);
 }
 
@@ -117,7 +118,7 @@ nvmf_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 {
 	switch (cmd) {
 	case NVMF_HANDOFF_HOST:
-		return (nvmf_handoff_host((struct nvmf_handoff_host *)arg));
+		return (nvmf_handoff_host((struct nvmf_ioc_nv *)arg));
 	case NVMF_DISCONNECT_HOST:
 		return (nvmf_disconnect_host((const char **)arg));
 	case NVMF_DISCONNECT_ALL:

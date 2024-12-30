@@ -923,29 +923,55 @@ nvmft_port_remove(struct ctl_req *req)
 static void
 nvmft_handoff(struct ctl_nvmf *cn)
 {
-	struct nvmf_fabric_connect_cmd cmd;
-	struct nvmf_handoff_controller_qpair *handoff;
-	struct nvmf_fabric_connect_data *data;
+	const struct nvmf_fabric_connect_cmd *cmd;
+	const struct nvmf_fabric_connect_data *data;
+	const nvlist_t *params;
 	struct nvmft_port *np;
+	nvlist_t *nvl;
+	size_t len;
+	enum nvmf_trtype trtype;
 	int error;
 
 	np = NULL;
-	data = NULL;
-	handoff = &cn->data.handoff;
-	error = copyin(handoff->cmd, &cmd, sizeof(cmd));
+	error = nvmf_unpack_ioc_nvlist(&cn->data.handoff, &nvl);
 	if (error != 0) {
 		cn->status = CTL_NVMF_ERROR;
 		snprintf(cn->error_str, sizeof(cn->error_str),
-		    "Failed to copyin CONNECT SQE");
+		    "Failed to copyin and unpack handoff arguments");
 		return;
 	}
 
-	data = malloc(sizeof(*data), M_NVMFT, M_WAITOK);
-	error = copyin(handoff->data, data, sizeof(*data));
-	if (error != 0) {
+	if (!nvlist_exists_number(nvl, "trtype") ||
+	    !nvlist_exists_nvlist(nvl, "params") ||
+	    !nvlist_exists_binary(nvl, "cmd") ||
+	    !nvlist_exists_binary(nvl, "data")) {
 		cn->status = CTL_NVMF_ERROR;
 		snprintf(cn->error_str, sizeof(cn->error_str),
-		    "Failed to copyin CONNECT data");
+		    "Handoff arguments missing required value");
+		goto out;
+	}
+
+	params = nvlist_get_nvlist(nvl, "params");
+	if (!nvmf_validate_qpair_nvlist(params, true)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Invalid queue pair parameters");
+		goto out;
+	}
+
+	cmd = nvlist_get_binary(nvl, "cmd", &len);
+	if (len != sizeof(*cmd)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Wrong size for CONNECT SQE");
+		goto out;
+	}
+
+	data = nvlist_get_binary(nvl, "data", &len);
+	if (len != sizeof(*data)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Wrong size for CONNECT data");
 		goto out;
 	}
 
@@ -976,8 +1002,10 @@ nvmft_handoff(struct ctl_nvmf *cn)
 	nvmft_port_ref(np);
 	sx_sunlock(&nvmft_ports_lock);
 
-	if (handoff->params.admin) {
-		error = nvmft_handoff_admin_queue(np, handoff, &cmd, data);
+	trtype = nvlist_get_number(nvl, "trtype");
+	if (nvlist_get_bool(params, "admin")) {
+		error = nvmft_handoff_admin_queue(np, trtype, params, cmd,
+		    data);
 		if (error != 0) {
 			cn->status = CTL_NVMF_ERROR;
 			snprintf(cn->error_str, sizeof(cn->error_str),
@@ -985,7 +1013,7 @@ nvmft_handoff(struct ctl_nvmf *cn)
 			goto out;
 		}
 	} else {
-		error = nvmft_handoff_io_queue(np, handoff, &cmd, data);
+		error = nvmft_handoff_io_queue(np, trtype, params, cmd, data);
 		if (error != 0) {
 			cn->status = CTL_NVMF_ERROR;
 			snprintf(cn->error_str, sizeof(cn->error_str),
@@ -998,7 +1026,7 @@ nvmft_handoff(struct ctl_nvmf *cn)
 out:
 	if (np != NULL)
 		nvmft_port_rele(np);
-	free(data, M_NVMFT);
+	nvlist_destroy(nvl);
 }
 
 static void

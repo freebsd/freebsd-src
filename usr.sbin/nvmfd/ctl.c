@@ -126,14 +126,12 @@ ctl_handoff_qpair(struct nvmf_qpair *qp,
 
 	memset(&req, 0, sizeof(req));
 	req.type = CTL_NVMF_HANDOFF;
-	error = nvmf_handoff_controller_qpair(qp, &req.data.handoff);
+	error = nvmf_handoff_controller_qpair(qp, cmd, data, &req.data.handoff);
 	if (error != 0) {
 		warnc(error, "Failed to prepare qpair for handoff");
 		return;
 	}
 
-	req.data.handoff.cmd = cmd;
-	req.data.handoff.data = data;
 	if (ioctl(ctl_fd, CTL_NVMF, &req) != 0)
 		warn("ioctl(CTL_NVMF/CTL_NVMF_HANDOFF)");
 }

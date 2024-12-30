@@ -107,9 +107,8 @@ nvmft_keep_alive_timer(void *arg)
 }
 
 int
-nvmft_handoff_admin_queue(struct nvmft_port *np,
-    const struct nvmf_handoff_controller_qpair *handoff,
-    const struct nvmf_fabric_connect_cmd *cmd,
+nvmft_handoff_admin_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
+    const nvlist_t *params, const struct nvmf_fabric_connect_cmd *cmd,
     const struct nvmf_fabric_connect_data *data)
 {
 	struct nvmft_controller *ctrlr;
@@ -120,8 +119,7 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 	if (cmd->qid != htole16(0))
 		return (EINVAL);
 
-	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, 0,
-	    "admin queue");
+	qp = nvmft_qpair_init(trtype, params, 0, "admin queue");
 	if (qp == NULL) {
 		printf("NVMFT: Failed to setup admin queue from %.*s\n",
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -151,7 +149,7 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 	nvmft_printf(ctrlr, "associated with %.*s\n",
 	    (int)sizeof(data->hostnqn), data->hostnqn);
 	ctrlr->admin = qp;
-	ctrlr->trtype = handoff->trtype;
+	ctrlr->trtype = trtype;
 
 	/*
 	 * The spec requires a non-zero KeepAlive timer, but allow a
@@ -175,9 +173,8 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 }
 
 int
-nvmft_handoff_io_queue(struct nvmft_port *np,
-    const struct nvmf_handoff_controller_qpair *handoff,
-    const struct nvmf_fabric_connect_cmd *cmd,
+nvmft_handoff_io_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
+    const nvlist_t *params, const struct nvmf_fabric_connect_cmd *cmd,
     const struct nvmf_fabric_connect_data *data)
 {
 	struct nvmft_controller *ctrlr;
@@ -191,7 +188,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	cntlid = le16toh(data->cntlid);
 
 	snprintf(name, sizeof(name), "I/O queue %u", qid);
-	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, qid, name);
+	qp = nvmft_qpair_init(trtype, params, qid, name);
 	if (qp == NULL) {
 		printf("NVMFT: Failed to setup I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -235,7 +232,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 		return (EINVAL);
 	}
 
-	/* XXX: Require handoff->trtype == ctrlr->trtype? */
+	/* XXX: Require trtype == ctrlr->trtype? */
 
 	mtx_lock(&ctrlr->lock);
 	if (ctrlr->shutdown) {

@@ -236,16 +236,27 @@ nvmf_send_controller_data(const struct nvmf_capsule *nc, const void *buf,
 }
 
 int
-nvmf_kernel_handoff_params(struct nvmf_qpair *qp,
-    struct nvmf_handoff_qpair_params *qparams)
+nvmf_kernel_handoff_params(struct nvmf_qpair *qp, nvlist_t **nvlp)
 {
-	memset(qparams, 0, sizeof(*qparams));
-	qparams->admin = qp->nq_admin;
-	qparams->sq_flow_control = qp->nq_flow_control;
-	qparams->qsize = qp->nq_qsize;
-	qparams->sqhd = qp->nq_sqhd;
-	qparams->sqtail = qp->nq_sqtail;
-	return (qp->nq_association->na_ops->kernel_handoff_params(qp, qparams));
+	nvlist_t *nvl;
+	int error;
+
+	nvl = nvlist_create(0);
+	nvlist_add_bool(nvl, "admin", qp->nq_admin);
+	nvlist_add_bool(nvl, "sq_flow_control", qp->nq_flow_control);
+	nvlist_add_number(nvl, "qsize", qp->nq_qsize);
+	nvlist_add_number(nvl, "sqhd", qp->nq_sqhd);
+	if (!qp->nq_association->na_controller)
+		nvlist_add_number(nvl, "sqtail", qp->nq_sqtail);
+	qp->nq_association->na_ops->kernel_handoff_params(qp, nvl);
+	error = nvlist_error(nvl);
+	if (error != 0) {
+		nvlist_destroy(nvl);
+		return (error);
+	}
+
+	*nvlp = nvl;
+	return (0);
 }
 
 const char *
@@ -266,4 +277,22 @@ nvmf_transport_type(uint8_t trtype)
 		snprintf(buf, sizeof(buf), "0x%02x\n", trtype);
 		return (buf);
 	}
+}
+
+int
+nvmf_pack_ioc_nvlist(struct nvmf_ioc_nv *nv, nvlist_t *nvl)
+{
+	int error;
+
+	memset(nv, 0, sizeof(*nv));
+
+	error = nvlist_error(nvl);
+	if (error)
+		return (error);
+
+	nv->data = nvlist_pack(nvl, &nv->size);
+	if (nv->data == NULL)
+		return (ENOMEM);
+
+	return (0);
 }

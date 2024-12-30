@@ -8,6 +8,7 @@
 #ifndef __LIBNVMF_H__
 #define	__LIBNVMF_H__
 
+#include <sys/_nv.h>
 #include <sys/uio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -249,7 +250,8 @@ uint64_t nvmf_get_log_page_offset(const struct nvme_command *cmd);
 
 /* Prepare to handoff a controller qpair. */
 int	nvmf_handoff_controller_qpair(struct nvmf_qpair *qp,
-    struct nvmf_handoff_controller_qpair *h);
+    const struct nvmf_fabric_connect_cmd *cmd,
+    const struct nvmf_fabric_connect_data *data, struct nvmf_ioc_nv *nv);
 
 /* Host-specific APIs. */
 
@@ -348,9 +350,10 @@ int	nvmf_disconnect_all(void);
 
 /*
  * Fetch reconnect parameters from an existing kernel host to use for
- * establishing a new association.
+ * establishing a new association.  The caller must destroy the
+ * returned nvlist.
  */
-int	nvmf_reconnect_params(int fd, struct nvmf_reconnect_params *rparams);
+int	nvmf_reconnect_params(int fd, nvlist_t **nvlp);
 
 /*
  * Handoff active host association to an existing host in the kernel.

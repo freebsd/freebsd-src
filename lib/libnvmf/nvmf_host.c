@@ -767,15 +767,16 @@ is_queue_pair_idle(struct nvmf_qpair *qp)
 }
 
 static int
-prepare_queues_for_handoff(struct nvmf_handoff_host *hh,
-    struct nvmf_qpair *admin_qp, u_int num_queues,
-    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
+prepare_queues_for_handoff(struct nvmf_ioc_nv *nv, struct nvmf_qpair *admin_qp,
+    u_int num_queues, struct nvmf_qpair **io_queues,
+    const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_qpair_params *io;
+	nvlist_t *nvl, *nvl_qp;
 	u_int i;
 	int error;
 
-	memset(hh, 0, sizeof(*hh));
+	if (num_queues == 0)
+		return (EINVAL);
 
 	/* All queue pairs must be idle. */
 	if (!is_queue_pair_idle(admin_qp))
@@ -785,34 +786,40 @@ prepare_queues_for_handoff(struct nvmf_handoff_host *hh,
 			return (EBUSY);
 	}
 
+	nvl = nvlist_create(0);
+	nvlist_add_number(nvl, "trtype", admin_qp->nq_association->na_trtype);
+	nvlist_add_number(nvl, "kato", admin_qp->nq_kato);
+
 	/* First, the admin queue. */
-	hh->trtype = admin_qp->nq_association->na_trtype;
-	hh->kato = admin_qp->nq_kato;
-	error = nvmf_kernel_handoff_params(admin_qp, &hh->admin);
-	if (error)
+	error = nvmf_kernel_handoff_params(admin_qp, &nvl_qp);
+	if (error) {
+		nvlist_destroy(nvl);
 		return (error);
+	}
+	nvlist_move_nvlist(nvl, "admin", nvl_qp);
 
 	/* Next, the I/O queues. */
-	hh->num_io_queues = num_queues;
-	io = calloc(num_queues, sizeof(*io));
 	for (i = 0; i < num_queues; i++) {
-		error = nvmf_kernel_handoff_params(io_queues[i], &io[i]);
+		error = nvmf_kernel_handoff_params(io_queues[i], &nvl_qp);
 		if (error) {
-			free(io);
+			nvlist_destroy(nvl);
 			return (error);
 		}
+		nvlist_append_nvlist_array(nvl, "io", nvl_qp);
 	}
 
-	hh->io = io;
-	hh->cdata = cdata;
-	return (0);
+	nvlist_add_binary(nvl, "cdata", cdata, sizeof(*cdata));
+
+	error = nvmf_pack_ioc_nvlist(nv, nvl);
+	nvlist_destroy(nvl);
+	return (error);
 }
 
 int
 nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_host hh;
+	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error, fd;
 
@@ -822,14 +829,14 @@ nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
 		goto out;
 	}
 
-	error = prepare_queues_for_handoff(&hh, admin_qp, num_queues, io_queues,
+	error = prepare_queues_for_handoff(&nv, admin_qp, num_queues, io_queues,
 	    cdata);
 	if (error != 0)
 		goto out;
 
-	if (ioctl(fd, NVMF_HANDOFF_HOST, &hh) == -1)
+	if (ioctl(fd, NVMF_HANDOFF_HOST, &nv) == -1)
 		error = errno;
-	free(hh.io);
+	free(nv.data);
 
 out:
 	if (fd >= 0)
@@ -882,30 +889,56 @@ out:
 	return (error);
 }
 
-int
-nvmf_reconnect_params(int fd, struct nvmf_reconnect_params *rparams)
+static int
+nvmf_read_ioc_nv(int fd, u_long com, nvlist_t **nvlp)
 {
-	if (ioctl(fd, NVMF_RECONNECT_PARAMS, rparams) == -1)
+	struct nvmf_ioc_nv nv;
+	nvlist_t *nvl;
+	int error;
+
+	memset(&nv, 0, sizeof(nv));
+	if (ioctl(fd, com, &nv) == -1)
 		return (errno);
+
+	nv.data = malloc(nv.len);
+	nv.size = nv.len;
+	if (ioctl(fd, com, &nv) == -1) {
+		error = errno;
+		free(nv.data);
+		return (error);
+	}
+
+	nvl = nvlist_unpack(nv.data, nv.len, 0);
+	free(nv.data);
+	if (nvl == NULL)
+		return (EINVAL);
+
+	*nvlp = nvl;
 	return (0);
+}
+
+int
+nvmf_reconnect_params(int fd, nvlist_t **nvlp)
+{
+	return (nvmf_read_ioc_nv(fd, NVMF_RECONNECT_PARAMS, nvlp));
 }
 
 int
 nvmf_reconnect_host(int fd, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_host hh;
+	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error;
 
-	error = prepare_queues_for_handoff(&hh, admin_qp, num_queues, io_queues,
+	error = prepare_queues_for_handoff(&nv, admin_qp, num_queues, io_queues,
 	    cdata);
 	if (error != 0)
 		goto out;
 
-	if (ioctl(fd, NVMF_RECONNECT_HOST, &hh) == -1)
+	if (ioctl(fd, NVMF_RECONNECT_HOST, &nv) == -1)
 		error = errno;
-	free(hh.io);
+	free(nv.data);
 
 out:
 	for (i = 0; i < num_queues; i++)
