@@ -1649,14 +1649,15 @@ cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 	 * File version number (5 characters, 1-32767)
 	 * 1 <= Sum of File name and File name extension <= 30
 	 */
+	int maxlen = is_file ? 30 : 31;
 	int namelen = 0;
 	int extlen = 0;
 	int found_ext = 0;
 	char *orignewname = newname;
 
-	while (*oldname != '\0' && namelen + extlen < 30) {
+	while (*oldname != '\0' && namelen + extlen < maxlen) {
 		/* Handle period first, as it is special */
-		if (*oldname == '.') {
+		if (*oldname == '.' && is_file) {
 			if (found_ext) {
 				if (diskStructure->allow_multidot) {
 					*newname++ = '.';
