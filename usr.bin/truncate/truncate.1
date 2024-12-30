@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
 .\" All rights reserved.
 .\" Copyright (c) 2021 The FreeBSD Foundation
@@ -27,12 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 6, 2025
+.Dd July 9, 2025
 .Dt TRUNCATE 1
 .Os
 .Sh NAME
 .Nm truncate
-.Nd truncate, extend the length of files, or perform space management in files
+.Nd resize files or manage file space
 .Sh SYNOPSIS
 .Nm
 .Op Fl c
@@ -132,7 +134,8 @@ file system space deallocation may be performed in the operation region.
 The space management operation is performed at the given
 .Ar offset
 bytes in the file.
-If this option is not specified, the operation is performed at the beginning of the file.
+If this option is not specified,
+the operation is performed at the beginning of the file.
 .It Fl l Ar length
 The length of the operation range in bytes.
 This option must always be specified if option
@@ -195,9 +198,9 @@ truncate -c -s 10M test_file
 .Pp
 Same as above but create the file if it does not exist:
 .Bd -literal -offset indent
-truncate -s 10M test_file
-ls -l test_file
--rw-r--r--  1 root  wheel  10485760 Jul 22 18:48 test_file
+truncate -s +10M test_file
+ls -lh test_file
+-rw-r--r--  1 root  wheel    10M Jul 22 18:48 test_file
 .Ed
 .Pp
 Adjust the size of
@@ -207,10 +210,10 @@ to the size of the kernel and create another file
 with the same size:
 .Bd -literal -offset indent
 truncate -r /boot/kernel/kernel test_file test_file2
-ls -l /boot/kernel/kernel test_file*
--r-xr-xr-x  1 root  wheel    31352552 May 15 14:18 /boot/kernel/kernel
--rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file
--rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
+ls -lh /boot/kernel/kernel test_file*
+-r--r--r--  1 root  wheel    30M May 15 14:18 /boot/kernel/kernel
+-rw-r--r--  1 root  wheel    30M Jul 22 19:15 test_file
+-rw-r--r--  1 root  wheel    30M Jul 22 19:15 test_file2
 .Ed
 .Pp
 Increase the size of the file
@@ -228,9 +231,9 @@ Reduce the size of the file
 by 5 megabytes:
 .Bd -literal -offset indent
 truncate -s -5M test_file
-ls -l test_file*
--rw-r--r--  1 root  wheel    31352552 Jul 22 19:19 test_file
--rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
+ls -lh test_file*
+-rw-r--r--  1 root  wheel    25M Jul 22 19:17 test_file
+-rw-r--r--  1 root  wheel    30M Jul 22 19:15 test_file2
 .Ed
 .Sh SEE ALSO
 .Xr dd 1 ,
@@ -247,6 +250,7 @@ The
 utility first appeared in
 .Fx 4.2 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by
