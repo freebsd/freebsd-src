@@ -51,8 +51,8 @@ common_cleanup()
 check_base_iso9660_image_contents()
 {
 	# Symlinks are treated like files when rockridge support isn't
-	# specified
-	check_image_contents "$@" -X c
+	# specified, and directories cannot contain a '.'.
+	check_image_contents "$@" -X c -X .g -X _g
 
 	atf_check -e empty -o empty -s exit:0 test -L $TEST_INPUTS_DIR/c
 	atf_check -e empty -o empty -s exit:0 test -f $TEST_MOUNT_DIR/c
@@ -374,6 +374,39 @@ o_flag_rockridge_dev_nodes_cleanup()
 	common_cleanup
 }
 
+atf_test_case duplicate_names cleanup
+duplicate_names_head()
+{
+	atf_set "descr" "Ensure shortened directory names are unique (PR283238)"
+}
+duplicate_names_body()
+{
+	check_cd9660_support
+	create_test_dirs
+
+	# Create three directories which are identical in the first 31 characters.
+	dir_prefix="this_directory_name_is_31_chars"
+	mkdir -p $TEST_INPUTS_DIR/${dir_prefix}1
+	mkdir -p $TEST_INPUTS_DIR/${dir_prefix}2
+	mkdir -p $TEST_INPUTS_DIR/${dir_prefix}3
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+
+	# Disable Rock Ridge extensions to read the plain ISO Level 2 names.
+	mount_image -r
+
+	# The specific way the short names are made unique is not important.
+	# We verify only that there are three unique names and that the unique
+	# part is at the end of the name.
+	atf_check_equal $(ls -1 $TEST_MOUNT_DIR | sort | uniq | wc -l) 3
+	atf_check_equal $(ls -1 $TEST_MOUNT_DIR | cut -c -29 | sort | uniq | wc -l) 1
+}
+duplicate_names_cleanup()
+{
+	common_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case D_flag
@@ -392,4 +425,6 @@ atf_init_test_cases()
 	atf_add_test_case o_flag_publisher
 	atf_add_test_case o_flag_rockridge
 	atf_add_test_case o_flag_rockridge_dev_nodes
+
+	atf_add_test_case duplicate_names
 }
