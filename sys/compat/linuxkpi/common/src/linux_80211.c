@@ -550,10 +550,30 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 			continue;
 
 		for (i = 0; i < supband->n_bitrates; i++) {
-
-			IMPROVE("Further supband->bitrates[i]* checks?");
-			/* or should we get them from the ni? */
-			sta->deflink.supp_rates[band] |= BIT(i);
+			switch (band) {
+			case NL80211_BAND_2GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 240:	/* 11g only */
+				case 120:	/* 11g only */
+				case 110:
+				case 60:	/* 11g only */
+				case 55:
+				case 20:
+				case 10:
+					sta->deflink.supp_rates[band] |= BIT(i);
+					break;
+				}
+				break;
+			case NL80211_BAND_5GHZ:
+				switch (supband->bitrates[i].bitrate) {
+				case 240:
+				case 120:
+				case 60:
+					sta->deflink.supp_rates[band] |= BIT(i);
+					break;
+				}
+				break;
+			}
 		}
 	}
 
