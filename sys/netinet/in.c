@@ -102,13 +102,13 @@ VNET_DEFINE(bool, ip_allow_net240) = false;
 #define	V_ip_allow_net240		VNET(ip_allow_net240)
 SYSCTL_BOOL(_net_inet_ip, OID_AUTO, allow_net240,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_allow_net240), 0,
-	"Allow use of Experimental addresses, aka Class E (240/4)");
+	"Allow forwarding of and ICMP response to Experimental addresses, aka Class E (240/4)");
 /* see https://datatracker.ietf.org/doc/draft-schoen-intarea-unicast-240 */
 
 VNET_DEFINE(bool, ip_allow_net0) = false;
 SYSCTL_BOOL(_net_inet_ip, OID_AUTO, allow_net0,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_allow_net0), 0,
-	"Allow use of addresses in network 0/8");
+	"Allow forwarding of and ICMP response to addresses in network 0/8");
 /* see https://datatracker.ietf.org/doc/draft-schoen-intarea-unicast-0 */
 
 VNET_DEFINE(uint32_t, in_loopback_mask) = IN_LOOPBACK_MASK_DFLT;

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 8, 2022
+.Dd December 31, 2024
 .Dt INET 4
 .Os
 .Sh NAME
@@ -169,11 +169,11 @@ The following general variables are defined:
 .It Va accept_sourceroute
 Boolean: enable/disable accepting of source-routed IP packets (default false).
 .It Va allow_net0
-Boolean: allow use of addresses in 0.0.0.0/8 as endpoints,
-and allow forwarding of packets with these addresses.
+Boolean: allow forwarding of, and ICMP responses to, packets with addresses in
+0.0.0.0/8.
 .It Va allow_net240
-Boolean: allow use of addresses in 240.0.0.0/4 as endpoints,
-and allow forwarding of packets with these addresses.
+Boolean: allow forwarding of, and ICMP responses to, packets with addresses in
+240.0.0.0/4.
 .It Va curfrags
 Integer: Current number of IPv4 fragments across all reassembly queues
 in all VNETs (read-only).
