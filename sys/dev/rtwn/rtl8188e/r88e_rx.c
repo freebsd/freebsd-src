@@ -257,8 +257,10 @@ r88e_ratectl_tx_complete_periodic(struct rtwn_softc *sc, uint8_t *buf,
 	mac_bitmap = ((uint64_t) le32toh(rxs->tsf_low) << 32)
 	    | le32toh(rxs->rxdw4);
 
+#if 0
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
 	    "%s: mac bitmap: 0x%lx\n", __func__, mac_bitmap);
+#endif
 
 	/*
 	 * Note: the RX reports aren't sparse - invalid entries (ie,
