@@ -14560,6 +14560,7 @@ bbr_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_bbr *bbr;
+	uint64_t loptval;
 	int32_t error, optval;
 
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
@@ -14620,7 +14621,7 @@ bbr_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		optval = bbr->rc_loss_exit;
 		break;
 	case TCP_BBR_USEDEL_RATE:
-		error = EINVAL;
+		loptval = get_filter_value(&bbr->r_ctl.rc_delrate);
 		break;
 	case TCP_BBR_MIN_RTO:
 		optval = bbr->r_ctl.rc_min_rto_ms;
@@ -14704,7 +14705,10 @@ bbr_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		break;
 	}
 	INP_WUNLOCK(inp);
-	error = sooptcopyout(sopt, &optval, sizeof optval);
+	if (sopt->sopt_name == TCP_BBR_USEDEL_RATE)
+		error = sooptcopyout(sopt, &loptval, sizeof loptval);
+	else
+		error = sooptcopyout(sopt, &optval, sizeof optval);
 	return (error);
 }
 
