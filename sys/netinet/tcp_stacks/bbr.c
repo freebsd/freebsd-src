@@ -4629,7 +4629,7 @@ need_retran:
 	 */
 	if (collapsed_win == 0) {
 		rsm = TAILQ_LAST_FAST(&bbr->r_ctl.rc_map, bbr_sendmap, r_next);
-		if (rsm && (BBR_ACKED | BBR_HAS_FIN)) {
+		if (rsm && (rsm->r_flags & (BBR_ACKED | BBR_HAS_FIN))) {
 			rsm = bbr_find_high_nonack(bbr, rsm);
 		}
 		if (rsm == NULL) {
