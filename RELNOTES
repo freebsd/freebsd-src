@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+07cd69e272da:
+	Add a new -a command line option to mountd(8).
+	If this command line option is specified, when
+	a line in exports(5) has the -alldirs export option,
+	the directory must be a server file system mount point.
+
 0e8a36a2ab12:
 	Add a new NFS mount option called "mountport" that may be used
 	to specify the port# for the NFS server's Mount protocol.
