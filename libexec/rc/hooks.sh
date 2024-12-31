@@ -50,7 +50,7 @@
 #
 
 # RCSid:
-#	$Id: hooks.sh,v 1.21 2024/09/06 16:53:45 sjg Exp $
+#	$Id: hooks.sh,v 1.24 2024/12/13 03:55:52 sjg Exp $
 #
 #	@(#)Copyright (c) 2000-2024 Simon J. Gerraty
 #
@@ -64,18 +64,19 @@
 # avoid multiple inclusion
 _HOOKS_SH=:
 
-# We want to use local if we can
-# if isposix-shell.sh has been sourced isPOSIX_SHELL will be set
-# as will local
-case "$local" in
-local|:) ;;
-*)  if (echo ${PATH%:*}) > /dev/null 2>&1; then
-        local=local
-    else
-        local=:
-    fi
-    ;;
-esac
+# does local *actually* work?
+local_works() {
+    local _fu
+}
+
+if local_works > /dev/null 2>&1; then
+    _local=local
+else
+    _local=:
+fi
+# for backwards compatability
+local=$_local
+
 
 ##
 # hooks_add_all list func ...
@@ -83,7 +84,7 @@ esac
 # add "func"s to "list" regardless
 #
 hooks_add_all() {
-    eval $local __h
+    eval $_local __h
     __h=$1; shift
     case "$1" in
     --first)
@@ -100,7 +101,7 @@ hooks_add_all() {
 # add "func"s to "list" if not already there
 #
 hooks_add_once() {
-    eval $local __h __hh __first
+    eval $_local __h __hh __first
     __h=$1; shift
     case "$1" in
     --first) shift; __first=:;;
@@ -154,7 +155,7 @@ hooks_add() {
 # return $list
 #
 hooks_get() {
-    eval $local __h __h2 e __l
+    eval $_local __h __h2 e __l
     case "$1" in
     --lifo) __l=LIFO; shift;;
     esac
@@ -178,7 +179,7 @@ hooks_get() {
 # is func in $list ?
 #
 hooks_has() {
-    eval $local __h
+    eval $_local __h
     eval "__h=\$$1"
     case " $__h " in
     *" $1 "*) return 0;;
@@ -193,7 +194,7 @@ hooks_has() {
 # Without '--all'; if any return non-zero return that immediately
 #
 hooks_run() {
-    eval $local __a e __h __hl __h2 __l
+    eval $_local __a e __h __hl __h2 __l
     __a=return
     __l=
 
