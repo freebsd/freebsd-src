@@ -83,7 +83,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: debug.sh,v 1.42 2024/10/30 18:23:19 sjg Exp $
+#	$Id: debug.sh,v 1.46 2024/12/13 03:55:52 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2024 Simon J. Gerraty
 #
@@ -107,27 +107,45 @@ DEBUG_DO=:
 DEBUG_SKIP=
 export DEBUGGING DEBUG_DO DEBUG_SKIP
 
-case "$isPOSIX_SHELL,$local" in
-:,:|:,local|false,:) ;;		# sane
-*)	# this is the bulk of isposix-shell.sh
+# have is handy
+if test -z "$_HAVE_SH"; then
+	_HAVE_SH=:
+
+	##
+	# have that does not rely on return code of type
+	#
+	have() {
+		case `(type "$1") 2>&1` in
+		*" found") return 1;;
+		esac
+		return 0
+	}
+fi
+
+# does local *actually* work?
+local_works() {
+    local _fu
+}
+
+if local_works > /dev/null 2>&1; then
+    _local=local
+else
+    _local=:
+fi
+# for backwards compatability
+local=$_local
+
+if test -z "$isPOSIX_SHELL"; then
 	if (echo ${PATH%:*}) > /dev/null 2>&1; then
 		# true should be a builtin, : certainly is
 		isPOSIX_SHELL=:
-		# you need to eval $local var
-		local=local
-		: KSH_VERSION=$KSH_VERSION
-		case "$KSH_VERSION" in
-		Version*) local=: ;; # broken
-		esac
 	else
 		isPOSIX_SHELL=false
-		local=:
 		false() {
 			return 1
 		}
 	fi
-	;;
-esac
+fi
 
 is_posix_shell() {
 	$isPOSIX_SHELL
@@ -142,7 +160,7 @@ is_posix_shell() {
 # a suffix of :debug_add:tag we will add tag to DEBUG_SH
 #
 _debugAdd() {
-	eval $local tag
+	eval $_local tag
 
 	for tag in `IFS=,; echo $DEBUG_SH`
 	do
