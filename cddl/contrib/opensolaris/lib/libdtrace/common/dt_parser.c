@@ -1131,6 +1131,29 @@ dt_node_is_ptrcompat(const dt_node_t *lp, const dt_node_t *rp,
 	rp_is_void = ctf_type_encoding(rfp, rref, &e) == 0 && IS_VOID(e);
 
 	/*
+	 * Let a pointer to a forward declaration be compatible with a pointer
+	 * to a struct or union of the same name.
+	 */
+	if (lkind == CTF_K_POINTER && rkind == CTF_K_POINTER) {
+		int lrkind, rrkind;
+
+		lrkind = ctf_type_kind(lfp, lref);
+		rrkind = ctf_type_kind(rfp, rref);
+		if (lrkind == CTF_K_FORWARD || rrkind == CTF_K_FORWARD) {
+			const char *lname, *rname;
+			char ln[DT_TYPE_NAMELEN], rn[DT_TYPE_NAMELEN];
+
+			lname = ctf_type_name(lfp, lref, ln, sizeof (ln));
+			rname = ctf_type_name(rfp, rref, rn, sizeof (rn));
+			if (lname != NULL && rname != NULL &&
+			    strcmp(lname, rname) == 0) {
+				lp_is_void = lrkind == CTF_K_FORWARD;
+				rp_is_void = rrkind == CTF_K_FORWARD;
+			}
+		}
+	}
+
+	/*
 	 * The types are compatible if both are pointers to the same type, or
 	 * if either pointer is a void pointer.  If they are compatible, set
 	 * tp to point to the more specific pointer type and return it.
