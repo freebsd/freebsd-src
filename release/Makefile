@@ -72,9 +72,7 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 
 .if ${.MAKE.OS} == "FreeBSD"
 # For installing packages into the release media.
-.if defined(NO_ROOT)
 PKG_ENV+=	INSTALL_AS_USER=yes
-.endif
 PKG_ENV+=	ASSUME_ALWAYS_YES=yes
 PKG_ARGS+=	-o METALOG=METALOG
 PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
@@ -261,12 +259,10 @@ dvd: packagesystem
 	for dist in MANIFEST $$(ls *.txz | grep -v container); \
 	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
-.if defined(NO_ROOT)
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	for dist in MANIFEST $$(ls *.txz | grep -v container); \
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
-.endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} pkg || true
@@ -282,13 +278,11 @@ dvd: packagesystem
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-.if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
 	echo "./etc/rc.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/sysctl.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./boot/loader.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.endif
 	touch ${.TARGET}
 
 disc1-disc1 disc1-memstick: disc1
@@ -304,7 +298,7 @@ disc1.iso: disc1-disc1
 	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} ./METALOG ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
-	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} ./METALOG ${XTRADIR}
 
 bootonly.iso: bootonly-bootonly
 	cd bootonly-bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} ./METALOG ${XTRADIR}
@@ -324,7 +318,7 @@ packagesystem: ${DISTRIBUTIONS}
 pkg-stage: dvd
 .if !defined(NOPKG) || empty(NOPKG)
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
-		sh ${.CURDIR}/scripts/pkg-stage.sh ${NO_ROOT:D-N}
+		sh ${.CURDIR}/scripts/pkg-stage.sh -N
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
 		${.OBJDIR}/dvd/packages/repos/
