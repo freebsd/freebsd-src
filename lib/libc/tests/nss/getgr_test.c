@@ -294,6 +294,8 @@ group_fill_test_data(struct group_test_data *td,
     int (*cb)(struct group *, void *))
 {
 	struct group *grp;
+	const int limit = 1024;
+	int count = 0;
 
 	setgroupent(1);
 	while ((grp = getgrent()) != NULL) {
@@ -304,6 +306,8 @@ group_fill_test_data(struct group_test_data *td,
 		} else {
 			return (-1);
 		}
+		if (++count >= limit)
+			break;
 	}
 	endgrent();
 
