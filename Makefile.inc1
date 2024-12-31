@@ -1000,13 +1000,18 @@ INSTALLFLAGS+=	-h sha256
 IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
-.if make(distributeworld)
+
+.if make(distributeworld) || make(packageworld) || make(distributekernel) || \
+    make(packagekernel)
 .if ${DISTDIR:U/} == /
-.error DISTDIR must be set for make distributeworld and may not be the root directory.
+.error DISTDIR must be set for make distribute* and make package*, and may not be the root directory.
 .endif
 .if !defined(NO_ROOT) || !defined(METALOG)
-.error NO_ROOT and METALOG must be set for make distributeworld.
+.error NO_ROOT and METALOG must be set for make distribute* and make package*.
 .endif
+.endif
+
+.if make(distributeworld)
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
 .else
