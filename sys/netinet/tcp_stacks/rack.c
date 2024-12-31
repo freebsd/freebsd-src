@@ -642,6 +642,7 @@ rack_swap_beta_values(struct tcp_rack *rack, uint8_t flex8)
 		failed = 2;
 		goto out;
 	}
+	old.newreno_flags = CC_NEWRENO_BETA_ECN_ENABLED;
 	/* Get the current values out */
 	sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
 	sopt.sopt_dir = SOPT_GET;
