@@ -47,4 +47,6 @@ struct pubkey {
 bool rsa_verify_cert(int, const char *, const unsigned char *, int,
     unsigned char *, int);
 
+char *pkg_read_fd(int fd, size_t *osz);
+
 #endif /* _PKG_H */
