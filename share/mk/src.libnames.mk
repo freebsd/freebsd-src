@@ -59,6 +59,7 @@ _INTERNALLIBS=	\
 		parse \
 		pe \
 		pfctl \
+		pkgecc \
 		pmcstat \
 		sl \
 		sm \
@@ -604,6 +605,9 @@ LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu${PIE_SUFFIX}.a
 
 LIBBE?=		${LIBBEDIR}/libbe${PIE_SUFFIX}.a
+
+LIBPKGECCDIR=	${_LIB_OBJTOP}/secure/lib/libpkgecc
+LIBPKGECC?=	${LIBPKGECCDIR}/libpkgecc${PIE_SUFFIX}.a
 
 LIBPMCSTATDIR=	${_LIB_OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat${PIE_SUFFIX}.a
