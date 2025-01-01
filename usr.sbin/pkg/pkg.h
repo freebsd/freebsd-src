@@ -51,10 +51,12 @@ struct pkgsign_ops {
 	pkgsign_verify_data_cb	*pkgsign_verify_data;
 };
 
+extern const struct pkgsign_ops pkgsign_ecc;
 extern const struct pkgsign_ops pkgsign_rsa;
 
 struct sig_cert {
 	char *name;
+	char *type;
 	unsigned char *sig;
 	int siglen;
 	unsigned char *cert;
@@ -63,6 +65,7 @@ struct sig_cert {
 };
 
 struct pubkey {
+	char *sigtype;
 	unsigned char *sig;
 	int siglen;
 };
