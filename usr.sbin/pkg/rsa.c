@@ -77,9 +77,10 @@ load_public_key_buf(const unsigned char *cert, int certlen)
 	return (pkey);
 }
 
-bool
-rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
-    int keylen, unsigned char *sig, int siglen)
+static bool
+rsa_verify_cert(const struct pkgsign_ctx *ctx __unused, int fd,
+    const char *sigfile, const unsigned char *key, int keylen,
+    unsigned char *sig, int siglen)
 {
 	EVP_MD_CTX *mdctx;
 	EVP_PKEY *pkey;
@@ -153,3 +154,7 @@ cleanup:
 
 	return (ret);
 }
+
+const struct pkgsign_ops pkgsign_rsa = {
+	.pkgsign_verify_cert = rsa_verify_cert,
+};
