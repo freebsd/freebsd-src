@@ -30,6 +30,25 @@
 #ifndef _PKG_H
 #define	_PKG_H
 
+#include <stdbool.h>
+
+struct pkgsign_ctx {
+	const struct pkgsign_impl	*impl;
+};
+
+/* Tentatively won't be needing to free any state, all allocated in the ctx. */
+typedef int pkgsign_new_cb(const char *, struct pkgsign_ctx *);
+typedef bool pkgsign_verify_cert_cb(const struct pkgsign_ctx *, int,
+    const char *, const unsigned char *, int, unsigned char *, int);
+
+struct pkgsign_ops {
+	size_t			 pkgsign_ctx_size;
+	pkgsign_new_cb		*pkgsign_new;
+	pkgsign_verify_cert_cb	*pkgsign_verify_cert;
+};
+
+extern const struct pkgsign_ops pkgsign_rsa;
+
 struct sig_cert {
 	char *name;
 	unsigned char *sig;
@@ -43,9 +62,6 @@ struct pubkey {
 	unsigned char *sig;
 	int siglen;
 };
-
-bool rsa_verify_cert(int, const char *, const unsigned char *, int,
-    unsigned char *, int);
 
 char *pkg_read_fd(int fd, size_t *osz);
 
