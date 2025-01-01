@@ -1,0 +1,326 @@
+/*
+ *  Copyright (C) 2021 - This file is part of libecc project
+ *
+ *  Authors:
+ *      Arnaud EBALARD <arnaud.ebalard@ssi.gouv.fr>
+ *      Ryad BENADJILA <ryadbenadjila@gmail.com>
+ *
+ *  This software is licensed under a dual BSD and GPL v2 license.
+ *  See LICENSE file at the root folder of the project.
+ */
+#include <libecc/lib_ecc_config.h>
+#ifdef WITH_CURVE_SM2P192TEST
+
+#ifndef __EC_PARAMS_SM2P192TEST_H__
+#define __EC_PARAMS_SM2P192TEST_H__
+#include <libecc/curves/known/ec_params_external.h>
+static const u8 sm2p192test_p[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x6f, 0x4c, 0x31, 0x8c,
+	0xef, 0xe4, 0xaf, 0xe3, 0xb6, 0xb8, 0x55, 0x1f,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p);
+
+#define CURVE_SM2P192TEST_P_BITLEN 192
+static const u8 sm2p192test_p_bitlen[] = {
+	0xc0,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_bitlen);
+
+#if (WORD_BYTES == 8)     /* 64-bit words */
+static const u8 sm2p192test_r[] = {
+	0x42, 0x49, 0x0b, 0x01, 0xc1, 0x74, 0xe2, 0x61,
+	0xf2, 0x57, 0x3f, 0x2b, 0x90, 0xb3, 0xce, 0x73,
+	0x10, 0x1b, 0x50, 0x1c, 0x49, 0x47, 0xaa, 0xe1,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r);
+
+static const u8 sm2p192test_r_square[] = {
+	0xa8, 0x9e, 0x36, 0x8f, 0xa3, 0xa3, 0x5f, 0x24,
+	0x9c, 0xeb, 0x34, 0x38, 0x97, 0x1b, 0x28, 0x1a,
+	0xab, 0xb1, 0xe2, 0x02, 0xf0, 0x63, 0x41, 0x2c,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r_square);
+
+static const u8 sm2p192test_mpinv[] = {
+	0xc9, 0x95, 0x02, 0xed, 0x2b, 0x73, 0x19, 0x21,
+};
+
+TO_EC_STR_PARAM(sm2p192test_mpinv);
+
+static const u8 sm2p192test_p_shift[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_shift);
+
+static const u8 sm2p192test_p_normalized[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x6f, 0x4c, 0x31, 0x8c,
+	0xef, 0xe4, 0xaf, 0xe3, 0xb6, 0xb8, 0x55, 0x1f,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_normalized);
+
+static const u8 sm2p192test_p_reciprocal[] = {
+	0x59, 0x71, 0xf0, 0x4b, 0x2a, 0x1c, 0x05, 0xe0,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_reciprocal);
+
+#elif (WORD_BYTES == 4)   /* 32-bit words */
+static const u8 sm2p192test_r[] = {
+	0x42, 0x49, 0x0b, 0x01, 0xc1, 0x74, 0xe2, 0x61,
+	0xf2, 0x57, 0x3f, 0x2b, 0x90, 0xb3, 0xce, 0x73,
+	0x10, 0x1b, 0x50, 0x1c, 0x49, 0x47, 0xaa, 0xe1,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r);
+
+static const u8 sm2p192test_r_square[] = {
+	0xa8, 0x9e, 0x36, 0x8f, 0xa3, 0xa3, 0x5f, 0x24,
+	0x9c, 0xeb, 0x34, 0x38, 0x97, 0x1b, 0x28, 0x1a,
+	0xab, 0xb1, 0xe2, 0x02, 0xf0, 0x63, 0x41, 0x2c,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r_square);
+
+static const u8 sm2p192test_mpinv[] = {
+	0x2b, 0x73, 0x19, 0x21,
+};
+
+TO_EC_STR_PARAM(sm2p192test_mpinv);
+
+static const u8 sm2p192test_p_shift[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_shift);
+
+static const u8 sm2p192test_p_normalized[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x6f, 0x4c, 0x31, 0x8c,
+	0xef, 0xe4, 0xaf, 0xe3, 0xb6, 0xb8, 0x55, 0x1f,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_normalized);
+
+static const u8 sm2p192test_p_reciprocal[] = {
+	0x59, 0x71, 0xf0, 0x4b,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_reciprocal);
+
+#elif (WORD_BYTES == 2)   /* 16-bit words */
+static const u8 sm2p192test_r[] = {
+	0x42, 0x49, 0x0b, 0x01, 0xc1, 0x74, 0xe2, 0x61,
+	0xf2, 0x57, 0x3f, 0x2b, 0x90, 0xb3, 0xce, 0x73,
+	0x10, 0x1b, 0x50, 0x1c, 0x49, 0x47, 0xaa, 0xe1,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r);
+
+static const u8 sm2p192test_r_square[] = {
+	0xa8, 0x9e, 0x36, 0x8f, 0xa3, 0xa3, 0x5f, 0x24,
+	0x9c, 0xeb, 0x34, 0x38, 0x97, 0x1b, 0x28, 0x1a,
+	0xab, 0xb1, 0xe2, 0x02, 0xf0, 0x63, 0x41, 0x2c,
+};
+
+TO_EC_STR_PARAM(sm2p192test_r_square);
+
+static const u8 sm2p192test_mpinv[] = {
+	0x19, 0x21,
+};
+
+TO_EC_STR_PARAM(sm2p192test_mpinv);
+
+static const u8 sm2p192test_p_shift[] = {
+	0x00,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_shift);
+
+static const u8 sm2p192test_p_normalized[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x6f, 0x4c, 0x31, 0x8c,
+	0xef, 0xe4, 0xaf, 0xe3, 0xb6, 0xb8, 0x55, 0x1f,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_normalized);
+
+static const u8 sm2p192test_p_reciprocal[] = {
+	0x59, 0x71,
+};
+
+TO_EC_STR_PARAM(sm2p192test_p_reciprocal);
+
+#else                     /* unknown word size */
+#error "Unsupported word size"
+#endif
+
+static const u8 sm2p192test_a[] = {
+	0xbb, 0x8e, 0x5e, 0x8f, 0xbc, 0x11, 0x5e, 0x13,
+	0x9f, 0xe6, 0xa8, 0x14, 0xfe, 0x48, 0xaa, 0xa6,
+	0xf0, 0xad, 0xa1, 0xaa, 0x5d, 0xf9, 0x19, 0x85,
+};
+
+TO_EC_STR_PARAM(sm2p192test_a);
+
+static const u8 sm2p192test_b[] = {
+	0x18, 0x54, 0xbe, 0xbd, 0xc3, 0x1b, 0x21, 0xb7,
+	0xae, 0xfc, 0x80, 0xab, 0x0e, 0xcd, 0x10, 0xd5,
+	0xb1, 0xb3, 0x30, 0x8e, 0x6d, 0xbf, 0x11, 0xc1,
+};
+
+TO_EC_STR_PARAM(sm2p192test_b);
+
+#define CURVE_SM2P192TEST_CURVE_ORDER_BITLEN 192
+static const u8 sm2p192test_curve_order[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x0f, 0xc9, 0x62, 0x19,
+	0x5d, 0xfa, 0xe7, 0x6f, 0x56, 0x56, 0x46, 0x77,
+};
+
+TO_EC_STR_PARAM(sm2p192test_curve_order);
+
+static const u8 sm2p192test_gx[] = {
+	0x4a, 0xd5, 0xf7, 0x04, 0x8d, 0xe7, 0x09, 0xad,
+	0x51, 0x23, 0x6d, 0xe6, 0x5e, 0x4d, 0x4b, 0x48,
+	0x2c, 0x83, 0x6d, 0xc6, 0xe4, 0x10, 0x66, 0x40,
+};
+
+TO_EC_STR_PARAM(sm2p192test_gx);
+
+static const u8 sm2p192test_gy[] = {
+	0x02, 0xbb, 0x3a, 0x02, 0xd4, 0xaa, 0xad, 0xac,
+	0xae, 0x24, 0x81, 0x7a, 0x4c, 0xa3, 0xa1, 0xb0,
+	0x14, 0xb5, 0x27, 0x04, 0x32, 0xdb, 0x27, 0xd2,
+};
+
+TO_EC_STR_PARAM(sm2p192test_gy);
+
+static const u8 sm2p192test_gz[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+};
+
+TO_EC_STR_PARAM(sm2p192test_gz);
+
+static const u8 sm2p192test_gen_order[] = {
+	0xbd, 0xb6, 0xf4, 0xfe, 0x3e, 0x8b, 0x1d, 0x9e,
+	0x0d, 0xa8, 0xc0, 0xd4, 0x0f, 0xc9, 0x62, 0x19,
+	0x5d, 0xfa, 0xe7, 0x6f, 0x56, 0x56, 0x46, 0x77,
+};
+
+TO_EC_STR_PARAM(sm2p192test_gen_order);
+
+#define CURVE_SM2P192TEST_Q_BITLEN 192
+static const u8 sm2p192test_gen_order_bitlen[] = {
+	0xc0,
+};
+
+TO_EC_STR_PARAM(sm2p192test_gen_order_bitlen);
+
+static const u8 sm2p192test_cofactor[] = {
+	0x01,
+};
+
+TO_EC_STR_PARAM(sm2p192test_cofactor);
+
+static const u8 sm2p192test_alpha_montgomery[] = {
+	0x00,
+};
+TO_EC_STR_PARAM_FIXED_SIZE(sm2p192test_alpha_montgomery, 0);
+
+static const u8 sm2p192test_gamma_montgomery[] = {
+	0x00,
+};
+TO_EC_STR_PARAM_FIXED_SIZE(sm2p192test_gamma_montgomery, 0);
+
+static const u8 sm2p192test_alpha_edwards[] = {
+	0x00,
+};
+TO_EC_STR_PARAM_FIXED_SIZE(sm2p192test_alpha_edwards, 0);
+
+static const u8 sm2p192test_name[] = "SM2P192TEST";
+TO_EC_STR_PARAM(sm2p192test_name);
+
+static const u8 sm2p192test_oid[] = "";
+TO_EC_STR_PARAM(sm2p192test_oid);
+
+static const ec_str_params sm2p192test_str_params = {
+	.p = &sm2p192test_p_str_param,
+	.p_bitlen = &sm2p192test_p_bitlen_str_param,
+	.r = &sm2p192test_r_str_param,
+	.r_square = &sm2p192test_r_square_str_param,
+	.mpinv = &sm2p192test_mpinv_str_param,
+	.p_shift = &sm2p192test_p_shift_str_param,
+	.p_normalized = &sm2p192test_p_normalized_str_param,
+	.p_reciprocal = &sm2p192test_p_reciprocal_str_param,
+	.a = &sm2p192test_a_str_param,
+	.b = &sm2p192test_b_str_param,
+	.curve_order = &sm2p192test_curve_order_str_param,
+	.gx = &sm2p192test_gx_str_param,
+	.gy = &sm2p192test_gy_str_param,
+	.gz = &sm2p192test_gz_str_param,
+	.gen_order = &sm2p192test_gen_order_str_param,
+	.gen_order_bitlen = &sm2p192test_gen_order_bitlen_str_param,
+	.cofactor = &sm2p192test_cofactor_str_param,
+	.alpha_montgomery = &sm2p192test_alpha_montgomery_str_param,
+	.gamma_montgomery = &sm2p192test_gamma_montgomery_str_param,
+	.alpha_edwards = &sm2p192test_alpha_edwards_str_param,
+	.oid = &sm2p192test_oid_str_param,
+	.name = &sm2p192test_name_str_param,
+};
+
+/*
+ * Compute max bit length of all curves for p and q
+ */
+#ifndef CURVES_MAX_P_BIT_LEN
+#define CURVES_MAX_P_BIT_LEN    0
+#endif
+#if (CURVES_MAX_P_BIT_LEN < CURVE_SM2P192TEST_P_BITLEN)
+#undef CURVES_MAX_P_BIT_LEN
+#define CURVES_MAX_P_BIT_LEN CURVE_SM2P192TEST_P_BITLEN
+#endif
+#ifndef CURVES_MAX_Q_BIT_LEN
+#define CURVES_MAX_Q_BIT_LEN    0
+#endif
+#if (CURVES_MAX_Q_BIT_LEN < CURVE_SM2P192TEST_Q_BITLEN)
+#undef CURVES_MAX_Q_BIT_LEN
+#define CURVES_MAX_Q_BIT_LEN CURVE_SM2P192TEST_Q_BITLEN
+#endif
+#ifndef CURVES_MAX_CURVE_ORDER_BIT_LEN
+#define CURVES_MAX_CURVE_ORDER_BIT_LEN    0
+#endif
+#if (CURVES_MAX_CURVE_ORDER_BIT_LEN < CURVE_SM2P192TEST_CURVE_ORDER_BITLEN)
+#undef CURVES_MAX_CURVE_ORDER_BIT_LEN
+#define CURVES_MAX_CURVE_ORDER_BIT_LEN CURVE_SM2P192TEST_CURVE_ORDER_BITLEN
+#endif
+
+/*
+ * Compute and adapt max name and oid length
+ */
+#ifndef MAX_CURVE_OID_LEN
+#define MAX_CURVE_OID_LEN 0
+#endif
+#ifndef MAX_CURVE_NAME_LEN
+#define MAX_CURVE_NAME_LEN 0
+#endif
+#if (MAX_CURVE_OID_LEN < 1)
+#undef MAX_CURVE_OID_LEN
+#define MAX_CURVE_OID_LEN 1
+#endif
+#if (MAX_CURVE_NAME_LEN < 12)
+#undef MAX_CURVE_NAME_LEN
+#define MAX_CURVE_NAME_LEN 12
+#endif
+
+#endif /* __EC_PARAMS_SM2P192TEST_H__ */
+
+#endif /* WITH_CURVE_SM2P192TEST */

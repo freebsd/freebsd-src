@@ -1,0 +1,45 @@
+/*
+ *  Copyright (C) 2021 - This file is part of libecc project
+ *
+ *  Authors:
+ *      Arnaud EBALARD <arnaud.ebalard@ssi.gouv.fr>
+ *      Ryad BENADJILA <ryadbenadjila@gmail.com>
+ *
+ *  This software is licensed under a dual BSD and GPL v2 license.
+ *  See LICENSE file at the root folder of the project.
+ */
+#ifndef __ED25519PH_TEST_VECTORS_H__
+#define __ED25519PH_TEST_VECTORS_H__
+
+/************************************************/
+static const u8 ed25519ph_1_test_vectors_priv_key[] = {
+	0x83, 0x3f, 0xe6, 0x24, 0x09, 0x23, 0x7b, 0x9d, 0x62, 0xec, 0x77, 0x58, 0x75, 0x20, 0x91, 0x1e, 0x9a, 0x75, 0x9c, 0xec, 0x1d, 0x19, 0x75, 0x5b, 0x7d, 0xa9, 0x01, 0xb9, 0x6d, 0xca, 0x3d, 0x42,
+};
+static const u8 ed25519ph_1_test_vectors_message[] = {
+	0x61, 0x62, 0x63,
+};
+static const u8 ed25519ph_1_test_vectors_expected_sig[] = {
+	0x98, 0xa7, 0x02, 0x22, 0xf0, 0xb8, 0x12, 0x1a, 0xa9, 0xd3, 0x0f, 0x81, 0x3d, 0x68, 0x3f, 0x80, 0x9e, 0x46, 0x2b, 0x46, 0x9c, 0x7f, 0xf8, 0x76, 0x39, 0x49, 0x9b, 0xb9, 0x4e, 0x6d, 0xae, 0x41, 0x31, 0xf8, 0x50, 0x42, 0x46, 0x3c, 0x2a, 0x35, 0x5a, 0x20, 0x03, 0xd0, 0x62, 0xad, 0xf5, 0xaa, 0xa1, 0x0b, 0x8c, 0x61, 0xe6, 0x36, 0x06, 0x2a, 0xaa, 0xd1, 0x1c, 0x2a, 0x26, 0x08, 0x34, 0x06,
+};
+static const ec_test_case ed25519ph_1_test_case = {
+	.name = "EDDSA25519PH-SHA512/wei25519 1",
+	.ec_str_p = &wei25519_str_params,
+	.priv_key = ed25519ph_1_test_vectors_priv_key,
+	.priv_key_len = sizeof(ed25519ph_1_test_vectors_priv_key),
+	.nn_random = NULL,
+	.hash_type = SHA512,
+	.msg = (const char *)ed25519ph_1_test_vectors_message,
+	.msglen = sizeof(ed25519ph_1_test_vectors_message),
+	.sig_type = EDDSA25519PH,
+	.exp_sig = ed25519ph_1_test_vectors_expected_sig,
+	.exp_siglen = sizeof(ed25519ph_1_test_vectors_expected_sig),
+	.adata = NULL,
+	.adata_len = 0
+};
+
+/************************************************/
+#define EDDSA25519PH_SHA512_WEI25519_ALL_TESTS() \
+	&ed25519ph_1_test_case,
+
+#endif /* __ED25519PH_TEST_VECTORS_H__ */
+
