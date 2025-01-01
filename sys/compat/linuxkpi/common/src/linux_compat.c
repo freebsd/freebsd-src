@@ -75,6 +75,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/mm.h>
 #include <linux/io.h>
@@ -1080,6 +1081,44 @@ linux_poll_wakeup(struct linux_file *filp)
 	/* make sure the "knote" gets woken up */
 	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
 	spin_unlock(&filp->f_kqlock);
+}
+
+static struct linux_file *
+__get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1, *file2;
+
+	file1 = READ_ONCE(*f);
+	if (file1 == NULL)
+		return (NULL);
+
+	if (!refcount_acquire_if_not_zero(
+	    file1->_file == NULL ? &file1->f_count : &file1->_file->f_count))
+		return (ERR_PTR(-EAGAIN));
+
+	file2 = READ_ONCE(*f);
+	if (file2 == file1)
+		return (file2);
+
+	fput(file1);
+	return (ERR_PTR(-EAGAIN));
+}
+
+struct linux_file *
+linux67_get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	for (;;) {
+		file1 = __get_file_rcu(f);
+		if (file1 == NULL)
+			return (NULL);
+
+		if (IS_ERR(file1))
+			continue;
+
+		return (file1);
+	}
 }
 
 static void
