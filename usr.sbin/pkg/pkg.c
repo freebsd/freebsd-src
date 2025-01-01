@@ -141,6 +141,17 @@ pkgsign_verify_cert(const struct pkgsign_ctx *ctx, int fd, const char *sigfile,
 	    key, keylen, sig, siglen));
 }
 
+static bool
+pkgsign_verify_data(const struct pkgsign_ctx *ctx, const char *data,
+    size_t datasz, const char *sigfile, const unsigned char *key, int keylen,
+    unsigned char *sig, int siglen)
+{
+
+	return ((*ctx->impl->pi_ops->pkgsign_verify_data)(ctx, data, datasz,
+	    sigfile, key, keylen, sig, siglen));
+}
+
+
 static int
 extract_pkg_static(int fd, char *p, int sz)
 {
@@ -573,12 +584,15 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 {
 	struct pubkey *pk;
 	const char *pubkey;
+	char *data;
 	struct pkgsign_ctx *sctx;
+	size_t datasz;
 	bool ret;
 
 	pk = NULL;
 	pubkey = NULL;
 	sctx = NULL;
+	data = NULL;
 	ret = false;
 	if (config_string(PUBKEY, &pubkey) != 0) {
 		warnx("No CONFIG_PUBKEY defined");
@@ -590,6 +604,19 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 		goto cleanup;
 	}
 
+	if (lseek(fd_pkg, 0, SEEK_SET) == -1) {
+		warn("lseek");
+		goto cleanup;
+	}
+
+	/* Future types shouldn't do this. */
+	if ((data = sha256_fd(fd_pkg)) == NULL) {
+		warnx("Error creating SHA256 hash for package");
+		goto cleanup;
+	}
+
+	datasz = strlen(data);
+
 	if (pkgsign_new("rsa", &sctx) != 0) {
 		warnx("Failed to fetch 'rsa' signer");
 		goto cleanup;
@@ -597,7 +624,7 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 
 	/* Verify the signature. */
 	printf("Verifying signature with public key %s... ", pubkey);
-	if (pkgsign_verify_cert(sctx, fd_pkg, pubkey, NULL, 0, pk->sig,
+	if (pkgsign_verify_data(sctx, data, datasz, pubkey, NULL, 0, pk->sig,
 	    pk->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
@@ -606,6 +633,7 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 	ret = true;
 
 cleanup:
+	free(data);
 	if (pk) {
 		free(pk->sig);
 		free(pk);
