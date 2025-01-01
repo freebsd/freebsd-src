@@ -63,4 +63,6 @@ struct pubkey {
 	int siglen;
 };
 
+char *pkg_read_fd(int fd, size_t *osz);
+
 #endif /* _PKG_H */
