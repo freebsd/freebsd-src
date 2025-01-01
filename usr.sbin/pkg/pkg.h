@@ -40,11 +40,15 @@ struct pkgsign_ctx {
 typedef int pkgsign_new_cb(const char *, struct pkgsign_ctx *);
 typedef bool pkgsign_verify_cert_cb(const struct pkgsign_ctx *, int,
     const char *, const unsigned char *, int, unsigned char *, int);
+typedef bool pkgsign_verify_data_cb(const struct pkgsign_ctx *,
+    const char *, size_t, const char *, const unsigned char *, int,
+    unsigned char *, int);
 
 struct pkgsign_ops {
 	size_t			 pkgsign_ctx_size;
 	pkgsign_new_cb		*pkgsign_new;
 	pkgsign_verify_cert_cb	*pkgsign_verify_cert;
+	pkgsign_verify_data_cb	*pkgsign_verify_data;
 };
 
 extern const struct pkgsign_ops pkgsign_rsa;
