@@ -16,6 +16,7 @@ SUBDIR_BOOTSTRAP= \
 	${_libclang_rt} \
 	${_libcplusplus} \
 	${_libcxxrt} \
+	libder \
 	libelf \
 	libssp \
 	libssp_nonshared \
