@@ -265,6 +265,7 @@ get_file(struct linux_file *f)
 }
 
 struct linux_file * linux67_get_file_rcu(struct linux_file **f);
+struct linux_file * get_file_active(struct linux_file **f);
 #if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 60700
 #define	get_file_rcu(f)	linux67_get_file_rcu(f)
 #else
