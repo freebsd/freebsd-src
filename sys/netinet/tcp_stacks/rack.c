@@ -19994,7 +19994,8 @@ rack_output(struct tcpcb *tp)
 				rack_exit_probertt(rack, cts);
 			}
 		}
-	}
+	} else
+		tot_idle = 0;
 	if (rack_use_fsb &&
 	    (rack->r_ctl.fsb.tcp_ip_hdr) &&
 	    (rack->r_fsb_inited == 0) &&
