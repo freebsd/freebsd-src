@@ -1,7 +1,7 @@
 
 .include <src.opts.mk>
 
-SUBDIR= 
+SUBDIR= libpkgecc
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=libcrypto libssl
 .if ${MK_OPENSSH} != "no"
