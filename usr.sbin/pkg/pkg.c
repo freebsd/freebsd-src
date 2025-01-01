@@ -451,32 +451,46 @@ load_fingerprints(const char *path, int *count)
 	return (fingerprints);
 }
 
+char *
+pkg_read_fd(int fd, size_t *osz)
+{
+	char *obuf;
+	char buf[4096];
+	FILE *fp;
+	ssize_t r;
+
+	obuf = NULL;
+	*osz = 0;
+	fp = open_memstream(&obuf, osz);
+	if (fp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
+
+	while ((r = read(fd, buf, sizeof(buf))) >0) {
+		fwrite(buf, 1, r, fp);
+	}
+
+	if (ferror(fp))
+		errx(EXIT_FAILURE, "reading file");
+
+	fclose(fp);
+
+	return (obuf);
+}
+
 static struct pubkey *
 read_pubkey(int fd)
 {
 	struct pubkey *pk;
 	char *sigb;
 	size_t sigsz;
-	FILE *sig;
-	char buf[4096];
-	int r;
 
 	if (lseek(fd, 0, 0) == -1) {
 		warn("lseek");
 		return (NULL);
 	}
 
-	sigsz = 0;
-	sigb = NULL;
-	sig = open_memstream(&sigb, &sigsz);
-	if (sig == NULL)
-		err(EXIT_FAILURE, "open_memstream()");
+	sigb = pkg_read_fd(fd, &sigsz);
 
-	while ((r = read(fd, buf, sizeof(buf))) >0) {
-		fwrite(buf, 1, r, sig);
-	}
-
-	fclose(sig);
 	pk = calloc(1, sizeof(struct pubkey));
 	pk->siglen = sigsz;
 	pk->sig = calloc(1, pk->siglen);
