@@ -1121,6 +1121,20 @@ linux67_get_file_rcu(struct linux_file **f)
 	}
 }
 
+struct linux_file *
+get_file_active(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	rcu_read_lock();
+	file1 = __get_file_rcu(f);
+	rcu_read_unlock();
+	if (IS_ERR(file1))
+		file1 = NULL;
+
+	return (file1);
+}
+
 static void
 linux_file_kqfilter_detach(struct knote *kn)
 {
