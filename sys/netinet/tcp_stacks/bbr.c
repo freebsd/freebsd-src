@@ -6329,8 +6329,6 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	}
 	/* Round it up */
 	rtt_ticks = USEC_2_TICKS((rtt + (USECS_IN_MSEC - 1)));
-	if (rtt_ticks == 0)
-		rtt_ticks = 1;
 	if (tp->t_srtt != 0) {
 		/*
 		 * srtt is stored as fixed point with 5 bits after the
