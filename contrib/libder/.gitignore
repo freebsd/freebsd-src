@@ -1,0 +1,11 @@
+.*.swp
+.depend*
+*.a
+*.so
+*.so.*
+*.o
+*.pico
+*.debug
+*.full
+
+build/

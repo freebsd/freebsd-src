@@ -1,0 +1,71 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 2, 2024
+.Dt LIBDER_TYPE 3
+.Os
+.Sh NAME
+.Nm libder_type ,
+.Nm libder_type_alloc_simple ,
+.Nm libder_type_dup ,
+.Nm libder_type_free ,
+.Nm libder_type_simple
+.Nd creating DER types
+.Sh LIBRARY
+.Lb libder
+.Sh SYNOPSIS
+.In libder.h
+.Ft struct libder_tag *
+.Fn libder_type_alloc_simple "struct libder_ctx *ctx" "uint8_t type"
+.Ft struct libder_tag *
+.Fn libder_type_dup "struct libder_ctx *ctx" "const struct libder_tag *type"
+.Ft void
+.Fn libder_type_free "struct libder_tag *type"
+.Ft uint8_t
+.Fn libder_type_simple "const struct libder_tag *type"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions operate on the
+.Xr libder 3
+type primitive.
+These functions are largely useless as currently implemented, as
+.Xr libder_obj 3
+has a method for allocating an object using a simple tag directly.
+In the future,
+.Nm
+will have an API for importing encoded tags that need more than the
+.Dq simple
+one byte form (tags 0-30).
+.Pp
+The
+.Fn libder_type_alloc_simple
+function allocates a new type from the
+.Dq simple
+one byte form.
+This type may be subsequently passed to
+.Xr libder_obj_alloc 3 .
+.Pp
+The
+.Fn libder_type_dup
+function duplicates an existing type, and the
+.Fn libder_type_free
+function frees the type.
+.Pp
+The
+.Ft libder_type_simple
+function encodes the given
+.Fa type
+in the
+.Dq simple
+one byte buffer form.
+In this form, the class bits and the primitive and constructed bits are encoded
+in the three most significant bits, and the lower five bits are used to encode
+a tag number between 0 and 30.
+.Sh SEE ALSO
+.Xr libder 3 ,
+.Xr libder_obj 3 ,
+.Xr libder_read 3 ,
+.Xr libder_write 3
