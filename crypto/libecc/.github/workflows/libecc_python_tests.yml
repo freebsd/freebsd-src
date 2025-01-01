@@ -1,0 +1,43 @@
+name: libecc
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  runtime_tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      #max-parallel: 10
+      matrix:
+        cc: [gcc, clang]
+        blinding: [0, 1]
+        cryptofuzz: [1]
+    steps:
+      # Checkout repository
+      - name: checkout repository
+        uses: actions/checkout@v2
+      # Run actions
+      # libecc python tests
+      - name: libecc python tests
+        env:
+          CC: ${{ matrix.cc }}
+          BLINDING: ${{ matrix.blinding }}
+          CRYPTOFUZZ: ${{ matrix.cryptofuzz }}
+          ASSERT_PRINT: 1
+          # We want to parallelize self tests
+          OPENMP_SELF_TESTS: 1
+        shell: bash
+        run: |
+          # Install Python2 and OpenMP
+          sudo apt-get update;
+          sudo apt-get -y install python2 libomp-dev;
+          # Test our Python libecc expanding script
+          # Python3
+          echo "y" | python3 scripts/expand_libecc.py --remove-all && PYTHON=python3 sh scripts/gen_curves_tests.sh && make clean && make && ./build/ec_self_tests vectors rand;
+          # Clean
+          echo "y" | python3 scripts/expand_libecc.py --remove-all && make clean;
+          # Python2
+          echo "y" | python2 scripts/expand_libecc.py --remove-all && PYTHON=python2 sh scripts/gen_curves_tests.sh && make clean && make && ./build/ec_self_tests vectors rand;
+          # Clean
+          echo "y" | python2 scripts/expand_libecc.py --remove-all && make clean;
+        continue-on-error: false
