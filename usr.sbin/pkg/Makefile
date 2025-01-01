@@ -22,7 +22,7 @@ CONFSNAME_${PKGCONF}=	${PKGCONF:C/\.conf.+$/.conf/}
 CONFSDIR=	/etc/pkg
 CONFSMODE=	644
 PROG=	pkg
-SRCS=	pkg.c dns_utils.c config.c hash.c
+SRCS=	pkg.c rsa.c dns_utils.c config.c hash.c
 MAN=	pkg.7
 
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
