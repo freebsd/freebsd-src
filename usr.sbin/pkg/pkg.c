@@ -34,6 +34,7 @@
 
 #include <archive.h>
 #include <archive_entry.h>
+#include <assert.h>
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -53,6 +54,16 @@
 #include "dns_utils.h"
 #include "config.h"
 #include "hash.h"
+
+static const struct pkgsign_impl {
+	const char			*pi_name;
+	const struct pkgsign_ops	*pi_ops;
+} pkgsign_builtins[] = {
+	{
+		.pi_name = "rsa",
+		.pi_ops = &pkgsign_rsa,
+	},
+};
 
 typedef enum {
 	HASH_UNKNOWN,
@@ -75,6 +86,61 @@ static const char *bootstrap_names []  = {
 STAILQ_HEAD(fingerprint_list, fingerprint);
 
 static int debug;
+
+static int
+pkgsign_new(const char *name, struct pkgsign_ctx **ctx)
+{
+	const struct pkgsign_impl *impl;
+	const struct pkgsign_ops *ops;
+	struct pkgsign_ctx *nctx;
+	size_t ctx_size;
+	int ret;
+
+	assert(*ctx == NULL);
+	ops = NULL;
+	for (size_t i = 0; i < nitems(pkgsign_builtins); i++) {
+		impl = &pkgsign_builtins[i];
+
+		if (strcmp(name, impl->pi_name) == 0) {
+			ops = impl->pi_ops;
+			break;
+		}
+	}
+
+	if (ops == NULL)
+		return (ENOENT);
+
+	ctx_size = ops->pkgsign_ctx_size;
+	if (ctx_size == 0)
+		ctx_size = sizeof(*nctx);
+	assert(ctx_size >= sizeof(*nctx));
+
+	nctx = calloc(1, ctx_size);
+	if (nctx == NULL)
+		err(EXIT_FAILURE, "calloc");
+	nctx->impl = impl;
+
+	ret = 0;
+	if (ops->pkgsign_new != NULL)
+		ret = (*ops->pkgsign_new)(name, nctx);
+
+	if (ret != 0) {
+		free(nctx);
+		return (ret);
+	}
+
+	*ctx = nctx;
+	return (0);
+}
+
+static bool
+pkgsign_verify_cert(const struct pkgsign_ctx *ctx, int fd, const char *sigfile,
+    const unsigned char *key, int keylen, unsigned char *sig, int siglen)
+{
+
+	return ((*ctx->impl->pi_ops->pkgsign_verify_cert)(ctx, fd, sigfile,
+	    key, keylen, sig, siglen));
+}
 
 static int
 extract_pkg_static(int fd, char *p, int sz)
@@ -494,10 +560,12 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 {
 	struct pubkey *pk;
 	const char *pubkey;
+	struct pkgsign_ctx *sctx;
 	bool ret;
 
 	pk = NULL;
 	pubkey = NULL;
+	sctx = NULL;
 	ret = false;
 	if (config_string(PUBKEY, &pubkey) != 0) {
 		warnx("No CONFIG_PUBKEY defined");
@@ -509,9 +577,14 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 		goto cleanup;
 	}
 
+	if (pkgsign_new("rsa", &sctx) != 0) {
+		warnx("Failed to fetch 'rsa' signer");
+		goto cleanup;
+	}
+
 	/* Verify the signature. */
 	printf("Verifying signature with public key %s... ", pubkey);
-	if (rsa_verify_cert(fd_pkg, pubkey, NULL, 0, pk->sig,
+	if (pkgsign_verify_cert(sctx, fd_pkg, pubkey, NULL, 0, pk->sig,
 	    pk->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
@@ -534,6 +607,7 @@ verify_signature(int fd_pkg, int fd_sig)
 	struct fingerprint_list *trusted, *revoked;
 	struct fingerprint *fingerprint;
 	struct sig_cert *sc;
+	struct pkgsign_ctx *sctx;
 	bool ret;
 	int trusted_count, revoked_count;
 	const char *fingerprints;
@@ -542,6 +616,7 @@ verify_signature(int fd_pkg, int fd_sig)
 
 	hash = NULL;
 	sc = NULL;
+	sctx = NULL;
 	trusted = revoked = NULL;
 	ret = false;
 
@@ -605,10 +680,15 @@ verify_signature(int fd_pkg, int fd_sig)
 		goto cleanup;
 	}
 
+	if (pkgsign_new("rsa", &sctx) != 0) {
+		fprintf(stderr, "Failed to fetch 'rsa' signer\n");
+		goto cleanup;
+	}
+
 	/* Verify the signature. */
 	printf("Verifying signature with trusted certificate %s... ", sc->name);
-	if (rsa_verify_cert(fd_pkg, NULL, sc->cert, sc->certlen, sc->sig,
-	    sc->siglen) == false) {
+	if (pkgsign_verify_cert(sctx, fd_pkg, NULL, sc->cert, sc->certlen,
+	    sc->sig, sc->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
 	}
