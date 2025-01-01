@@ -17,6 +17,7 @@ SUBDIR_BOOTSTRAP= \
 	libc++ \
 	libc++experimental \
 	libcxxrt \
+	libder \
 	libelf \
 	libssp \
 	libssp_nonshared \
