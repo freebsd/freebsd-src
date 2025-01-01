@@ -48,26 +48,11 @@
 #include <string.h>
 #include <ucl.h>
 
-#include <openssl/err.h>
-#include <openssl/ssl.h>
+#include "pkg.h"
 
 #include "dns_utils.h"
 #include "config.h"
 #include "hash.h"
-
-struct sig_cert {
-	char *name;
-	unsigned char *sig;
-	int siglen;
-	unsigned char *cert;
-	int certlen;
-	bool trusted;
-};
-
-struct pubkey {
-	unsigned char *sig;
-	int siglen;
-};
 
 typedef enum {
 	HASH_UNKNOWN,
@@ -398,119 +383,6 @@ load_fingerprints(const char *path, int *count)
 	closedir(d);
 
 	return (fingerprints);
-}
-
-static EVP_PKEY *
-load_public_key_file(const char *file)
-{
-	EVP_PKEY *pkey;
-	BIO *bp;
-	char errbuf[1024];
-
-	bp = BIO_new_file(file, "r");
-	if (!bp)
-		errx(EXIT_FAILURE, "Unable to read %s", file);
-
-	if ((pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL)) == NULL)
-		warnx("ici: %s", ERR_error_string(ERR_get_error(), errbuf));
-
-	BIO_free(bp);
-
-	return (pkey);
-}
-
-static EVP_PKEY *
-load_public_key_buf(const unsigned char *cert, int certlen)
-{
-	EVP_PKEY *pkey;
-	BIO *bp;
-	char errbuf[1024];
-
-	bp = BIO_new_mem_buf(__DECONST(void *, cert), certlen);
-
-	if ((pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL)) == NULL)
-		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
-
-	BIO_free(bp);
-
-	return (pkey);
-}
-
-static bool
-rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
-    int keylen, unsigned char *sig, int siglen)
-{
-	EVP_MD_CTX *mdctx;
-	EVP_PKEY *pkey;
-	char *sha256;
-	char errbuf[1024];
-	bool ret;
-
-	sha256 = NULL;
-	pkey = NULL;
-	mdctx = NULL;
-	ret = false;
-
-	SSL_load_error_strings();
-
-	/* Compute SHA256 of the package. */
-	if (lseek(fd, 0, 0) == -1) {
-		warn("lseek");
-		goto cleanup;
-	}
-	if ((sha256 = sha256_fd(fd)) == NULL) {
-		warnx("Error creating SHA256 hash for package");
-		goto cleanup;
-	}
-
-	if (sigfile != NULL) {
-		if ((pkey = load_public_key_file(sigfile)) == NULL) {
-			warnx("Error reading public key");
-			goto cleanup;
-		}
-	} else {
-		if ((pkey = load_public_key_buf(key, keylen)) == NULL) {
-			warnx("Error reading public key");
-			goto cleanup;
-		}
-	}
-
-	/* Verify signature of the SHA256(pkg) is valid. */
-	if ((mdctx = EVP_MD_CTX_create()) == NULL) {
-		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
-		goto error;
-	}
-
-	if (EVP_DigestVerifyInit(mdctx, NULL, EVP_sha256(), NULL, pkey) != 1) {
-		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
-		goto error;
-	}
-	if (EVP_DigestVerifyUpdate(mdctx, sha256, strlen(sha256)) != 1) {
-		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
-		goto error;
-	}
-
-	if (EVP_DigestVerifyFinal(mdctx, sig, siglen) != 1) {
-		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
-		goto error;
-	}
-
-	ret = true;
-	printf("done\n");
-	goto cleanup;
-
-error:
-	printf("failed\n");
-
-cleanup:
-	free(sha256);
-	if (pkey)
-		EVP_PKEY_free(pkey);
-	if (mdctx)
-		EVP_MD_CTX_destroy(mdctx);
-	ERR_free_strings();
-
-	return (ret);
 }
 
 static struct pubkey *
