@@ -78,32 +78,19 @@ load_public_key_buf(const unsigned char *cert, int certlen)
 }
 
 static bool
-rsa_verify_cert(const struct pkgsign_ctx *ctx __unused, int fd,
-    const char *sigfile, const unsigned char *key, int keylen,
-    unsigned char *sig, int siglen)
+rsa_verify_data(const struct pkgsign_ctx *ctx __unused,
+    const char *data, size_t datasz, const char *sigfile,
+    const unsigned char *key, int keylen, unsigned char *sig, int siglen)
 {
 	EVP_MD_CTX *mdctx;
 	EVP_PKEY *pkey;
-	char *sha256;
 	char errbuf[1024];
 	bool ret;
 
-	sha256 = NULL;
 	pkey = NULL;
 	mdctx = NULL;
 	ret = false;
-
 	SSL_load_error_strings();
-
-	/* Compute SHA256 of the package. */
-	if (lseek(fd, 0, 0) == -1) {
-		warn("lseek");
-		goto cleanup;
-	}
-	if ((sha256 = sha256_fd(fd)) == NULL) {
-		warnx("Error creating SHA256 hash for package");
-		goto cleanup;
-	}
 
 	if (sigfile != NULL) {
 		if ((pkey = load_public_key_file(sigfile)) == NULL) {
@@ -127,7 +114,7 @@ rsa_verify_cert(const struct pkgsign_ctx *ctx __unused, int fd,
 		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
 	}
-	if (EVP_DigestVerifyUpdate(mdctx, sha256, strlen(sha256)) != 1) {
+	if (EVP_DigestVerifyUpdate(mdctx, data, datasz) != 1) {
 		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
 	}
@@ -145,7 +132,6 @@ error:
 	printf("failed\n");
 
 cleanup:
-	free(sha256);
 	if (pkey)
 		EVP_PKEY_free(pkey);
 	if (mdctx)
@@ -155,6 +141,34 @@ cleanup:
 	return (ret);
 }
 
+static bool
+rsa_verify_cert(const struct pkgsign_ctx *ctx __unused, int fd,
+    const char *sigfile, const unsigned char *key, int keylen,
+    unsigned char *sig, int siglen)
+{
+	char *sha256;
+	bool ret;
+
+	sha256 = NULL;
+
+	/* Compute SHA256 of the package. */
+	if (lseek(fd, 0, 0) == -1) {
+		warn("lseek");
+		return (false);
+	}
+	if ((sha256 = sha256_fd(fd)) == NULL) {
+		warnx("Error creating SHA256 hash for package");
+		return (false);
+	}
+
+	ret = rsa_verify_data(ctx, sha256, strlen(sha256), sigfile, key, keylen,
+	    sig, siglen);
+	free(sha256);
+
+	return (ret);
+}
+
 const struct pkgsign_ops pkgsign_rsa = {
 	.pkgsign_verify_cert = rsa_verify_cert,
+	.pkgsign_verify_data = rsa_verify_data,
 };
