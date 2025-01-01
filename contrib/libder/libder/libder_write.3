@@ -1,0 +1,54 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 2, 2024
+.Dt LIBDER_WRITE 3
+.Os
+.Sh NAME
+.Nm libder_write
+.Nd writing DER encoded buffers
+.Sh LIBRARY
+.Lb libder
+.Sh SYNOPSIS
+.In libder.h
+.Ft uint8_t *
+.Fn libder_write "struct libder_ctx *ctx" "struct libder_object *root" "uint8_t *buf" "size_t *bufsize"
+.Sh DESCRIPTION
+The
+.Fn libder_write
+writes the specified
+.Fa root
+into the given
+.Fa buf
+of size
+.Fa bufsize .
+If a
+.Dv NULL
+and
+.Dv 0
+are passed in, then
+.Fn libder_write
+will alllocate a buffer just large enough to fit the encoded
+.Fa root .
+Upon successful write,
+.Fn libder_write
+will return a pointer to the buffer used, and
+.Fa *bufsize
+is updated to indicate how many bytes were written.
+On failure,
+.Dv NULL
+is returned and
+.Fa *bufsize
+will remain unmodified.
+.Pp
+Normalization rules are applied at write time, if specified via
+.Xr libder_set_normalize 3 .
+Note that applications do not typically need to enable normalization, as they
+are all enabled by default.
+.Sh SEE ALSO
+.Xr libder 3 ,
+.Xr libder_obj 3 ,
+.Xr libder_read 3 ,
+.Xr libder_type 3

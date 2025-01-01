@@ -1,0 +1,16 @@
+build_task:
+  matrix:
+    - name: FreeBSD 13
+      freebsd_instance:
+        image: freebsd-13-2-release-amd64
+    - name: FreeBSD 14
+      freebsd_instance:
+        image: freebsd-14-0-release-amd64-ufs
+  setup_script:
+    sudo pkg install -y cmake
+  configure_script:
+    - cmake -B build -DCMAKE_BUILD_TYPE=Debug
+  build_script:
+    make -C build
+  test_script:
+    make -C build check
