@@ -56,6 +56,8 @@
 #include "config.h"
 #include "hash.h"
 
+#define	PKGSIGN_MARKER	"$PKGSIGN:"
+
 static const struct pkgsign_impl {
 	const char			*pi_name;
 	const struct pkgsign_ops	*pi_ops;
@@ -63,6 +65,18 @@ static const struct pkgsign_impl {
 	{
 		.pi_name = "rsa",
 		.pi_ops = &pkgsign_rsa,
+	},
+	{
+		.pi_name = "ecc",
+		.pi_ops = &pkgsign_ecc,
+	},
+	{
+		.pi_name = "ecdsa",
+		.pi_ops = &pkgsign_ecc,
+	},
+	{
+		.pi_name = "eddsa",
+		.pi_ops = &pkgsign_ecc,
 	},
 };
 
@@ -487,11 +501,41 @@ pkg_read_fd(int fd, size_t *osz)
 	return (obuf);
 }
 
+/*
+ * Returns a copy of the signature type stored on the heap, and advances *bufp
+ * past the type.
+ */
+static char *
+parse_sigtype(char **bufp, size_t *bufszp)
+{
+	char *buf = *bufp;
+	char *endp;
+	char *sigtype;
+	size_t bufsz = *bufszp;
+
+	if (bufsz <= sizeof(PKGSIGN_MARKER) - 1 ||
+	    strncmp(buf, PKGSIGN_MARKER, sizeof(PKGSIGN_MARKER) - 1) != 0)
+		goto dflt;
+
+	buf += sizeof(PKGSIGN_MARKER) - 1;
+	endp = strchr(buf, '$');
+	if (endp == NULL)
+		goto dflt;
+
+	sigtype = strndup(buf, endp - buf);
+	*bufp = endp + 1;
+	*bufszp -= *bufp - buf;
+
+	return (sigtype);
+dflt:
+	return (strdup("rsa"));
+}
+
 static struct pubkey *
 read_pubkey(int fd)
 {
 	struct pubkey *pk;
-	char *sigb;
+	char *osigb, *sigb, *sigtype;
 	size_t sigsz;
 
 	if (lseek(fd, 0, 0) == -1) {
@@ -499,13 +543,15 @@ read_pubkey(int fd)
 		return (NULL);
 	}
 
-	sigb = pkg_read_fd(fd, &sigsz);
+	osigb = sigb = pkg_read_fd(fd, &sigsz);
+	sigtype = parse_sigtype(&sigb, &sigsz);
 
 	pk = calloc(1, sizeof(struct pubkey));
 	pk->siglen = sigsz;
 	pk->sig = calloc(1, pk->siglen);
 	memcpy(pk->sig, sigb, pk->siglen);
-	free(sigb);
+	pk->sigtype = sigtype;
+	free(osigb);
 
 	return (pk);
 }
@@ -514,17 +560,18 @@ static struct sig_cert *
 parse_cert(int fd) {
 	int my_fd;
 	struct sig_cert *sc;
-	FILE *fp, *sigfp, *certfp, *tmpfp;
+	FILE *fp, *sigfp, *certfp, *tmpfp, *typefp;
 	char *line;
-	char *sig, *cert;
-	size_t linecap, sigsz, certsz;
+	char *sig, *cert, *type;
+	size_t linecap, sigsz, certsz, typesz;
 	ssize_t linelen;
+	bool end_seen;
 
 	sc = NULL;
 	line = NULL;
 	linecap = 0;
-	sig = cert = NULL;
-	sigfp = certfp = tmpfp = NULL;
+	sig = cert = type = NULL;
+	sigfp = certfp = tmpfp = typefp = NULL;
 
 	if (lseek(fd, 0, 0) == -1) {
 		warn("lseek");
@@ -543,22 +590,30 @@ parse_cert(int fd) {
 		return (NULL);
 	}
 
-	sigsz = certsz = 0;
+	sigsz = certsz = typesz = 0;
 	sigfp = open_memstream(&sig, &sigsz);
 	if (sigfp == NULL)
 		err(EXIT_FAILURE, "open_memstream()");
 	certfp = open_memstream(&cert, &certsz);
 	if (certfp == NULL)
 		err(EXIT_FAILURE, "open_memstream()");
+	typefp = open_memstream(&type, &typesz);
+	if (typefp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
 
+	end_seen = false;
 	while ((linelen = getline(&line, &linecap, fp)) > 0) {
 		if (strcmp(line, "SIGNATURE\n") == 0) {
 			tmpfp = sigfp;
+			continue;
+		} else if (strcmp(line, "TYPE\n") == 0) {
+			tmpfp = typefp;
 			continue;
 		} else if (strcmp(line, "CERT\n") == 0) {
 			tmpfp = certfp;
 			continue;
 		} else if (strcmp(line, "END\n") == 0) {
+			end_seen = true;
 			break;
 		}
 		if (tmpfp != NULL)
@@ -568,11 +623,28 @@ parse_cert(int fd) {
 	fclose(fp);
 	fclose(sigfp);
 	fclose(certfp);
+	fclose(typefp);
 
 	sc = calloc(1, sizeof(struct sig_cert));
 	sc->siglen = sigsz -1; /* Trim out unrelated trailing newline */
 	sc->sig = sig;
 
+	if (typesz == 0) {
+		sc->type = strdup("rsa");
+		free(type);
+	} else {
+		assert(type[typesz - 1] == '\n');
+		type[typesz - 1] = '\0';
+		sc->type = type;
+	}
+
+	/*
+	 * cert could be DER-encoded rather than PEM, so strip off any trailing
+	 * END marker if we ran over it.
+	 */
+	if (!end_seen && certsz > 4 &&
+	    strcmp(&cert[certsz - 4], "END\n") == 0)
+		certsz -= 4;
 	sc->certlen = certsz;
 	sc->cert = cert;
 
@@ -609,16 +681,23 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 		goto cleanup;
 	}
 
-	/* Future types shouldn't do this. */
-	if ((data = sha256_fd(fd_pkg)) == NULL) {
-		warnx("Error creating SHA256 hash for package");
-		goto cleanup;
+	if (strcmp(pk->sigtype, "rsa") == 0) {
+		/* Future types shouldn't do this. */
+		if ((data = sha256_fd(fd_pkg)) == NULL) {
+			warnx("Error creating SHA256 hash for package");
+			goto cleanup;
+		}
+
+		datasz = strlen(data);
+	} else {
+		if ((data = pkg_read_fd(fd_pkg, &datasz)) == NULL) {
+			warnx("Failed to read package data");
+			goto cleanup;
+		}
 	}
 
-	datasz = strlen(data);
-
-	if (pkgsign_new("rsa", &sctx) != 0) {
-		warnx("Failed to fetch 'rsa' signer");
+	if (pkgsign_new(pk->sigtype, &sctx) != 0) {
+		warnx("Failed to fetch '%s' signer", pk->sigtype);
 		goto cleanup;
 	}
 
@@ -721,7 +800,7 @@ verify_signature(int fd_pkg, int fd_sig)
 		goto cleanup;
 	}
 
-	if (pkgsign_new("rsa", &sctx) != 0) {
+	if (pkgsign_new(sc->type, &sctx) != 0) {
 		fprintf(stderr, "Failed to fetch 'rsa' signer\n");
 		goto cleanup;
 	}
