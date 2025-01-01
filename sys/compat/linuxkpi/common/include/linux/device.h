@@ -330,6 +330,13 @@ dev_name(const struct device *dev)
 	return kobject_name(&dev->kobj);
 }
 
+static inline bool
+dev_is_removable(struct device *dev)
+{
+
+	return (false);
+}
+
 #define	dev_set_name(_dev, _fmt, ...)					\
 	kobject_set_name(&(_dev)->kobj, (_fmt), ##__VA_ARGS__)
 
