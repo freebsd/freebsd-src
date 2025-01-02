@@ -6421,7 +6421,7 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 		rate = rate_fb = tp->ucastrate;
 	else {
 		rix = ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 
 		if (rix > 0)
 			rate_fb = ni->ni_rates.rs_rates[rix - 1] &

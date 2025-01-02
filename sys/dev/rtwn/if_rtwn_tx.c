@@ -143,7 +143,7 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
 			/* XXX pass pktlen */
 			(void) ieee80211_ratectl_rate(ni, NULL, 0);
-			rate = ni->ni_txrate;
+			rate = ieee80211_node_get_txrate_dot11rate(ni);
 		} else {
 			if (ni->ni_flags & IEEE80211_NODE_HT)
 				rate = IEEE80211_RATE_MCS | 0x4; /* MCS4 */
