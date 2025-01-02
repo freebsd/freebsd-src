@@ -3354,36 +3354,13 @@ static int
 emu_pci_detach(device_t dev)
 {
 	struct emu_sc_info *sc;
-	int devcount, i;
-	device_t *childlist;
 	int r = 0;
 
 	sc = device_get_softc(dev);
 
-	for (i = 0; i < RT_COUNT; i++) {
-		if (sc->pcm[i] != NULL) {
-			r = device_delete_child(dev, sc->pcm[i]);
-			if (r)	return (r);
-		}
-	}
-
-	if (sc->midi[0] != NULL) {
-		r = device_delete_child(dev, sc->midi[0]);
-		if (r)	return (r);
-	}
-
-	if (sc->midi[1] != NULL) {
-		r = device_delete_child(dev, sc->midi[1]);
-		if (r)	return (r);
-	}
-
-	if (device_get_children(dev, &childlist, &devcount) == 0)
-		for (i = 0; i < devcount - 1; i++) {
-			device_printf(dev, "removing stale child %d (unit %d)\n", i, device_get_unit(childlist[i]));
-			device_delete_child(dev, childlist[i]);
-		}
-	if (childlist != NULL)
-		free(childlist, M_TEMP);
+	r = bus_generic_detach(dev);
+	if (r != 0)
+		return (r);
 
 	r = emu10kx_dev_uninit(sc);
 	if (r)
@@ -3403,7 +3380,7 @@ emu_pci_detach(device_t dev)
 	mtx_destroy(&sc->rw);
 	mtx_destroy(&sc->lock);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 /* add suspend, resume */
 static device_method_t emu_methods[] = {
