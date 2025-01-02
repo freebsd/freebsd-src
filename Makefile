@@ -100,25 +100,29 @@ clean_%:
 ifeq ($(ARCH),)
 
 ALL_DTS		:= $(shell find src/* -name \*.dts)
+ALL_DTSO	:= $(shell find src/* -name \*.dtso)
 
 ALL_DTB		:= $(patsubst %.dts,%.dtb,$(ALL_DTS))
+ALL_DTBO	:= $(patsubst %.dtso,%.dtbo,$(ALL_DTSO))
 
-$(ALL_DTB): ARCH=$(word 2,$(subst /, ,$@))
-$(ALL_DTB): FORCE
+$(ALL_DTB) $(ALL_DTBO): ARCH=$(word 2,$(subst /, ,$@))
+$(ALL_DTB) $(ALL_DTBO): FORCE
 	$(Q)$(MAKE) ARCH=$(ARCH) $@
 
 else
 
 ARCH_DTS	:= $(shell find src/$(ARCH) -name \*.dts)
+ARCH_DTSO	:= $(shell find src/$(ARCH) -name \*.dtso)
 
 ARCH_DTB	:= $(patsubst %.dts,%.dtb,$(ARCH_DTS))
+ARCH_DTBO	:= $(patsubst %.dtso,%.dtbo,$(ARCH_DTSO))
 
 src	:= src/$(ARCH)
 obj	:= src/$(ARCH)
 
 include scripts/Kbuild.include
 
-cmd_files := $(wildcard $(foreach f,$(ARCH_DTB),$(dir $(f)).$(notdir $(f)).cmd))
+cmd_files := $(wildcard $(foreach f,$(ARCH_DTB) $(ARCH_DTBO),$(dir $(f)).$(notdir $(f)).cmd))
 
 ifneq ($(cmd_files),)
   include $(cmd_files)
@@ -143,15 +147,25 @@ cmd_dtc = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
 $(obj)/%.dtb: $(src)/%.dts FORCE
 	$(call if_changed_dep,dtc)
 
+quiet_cmd_dtco = DTCO    $@
+cmd_dtco = $(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
+        $(DTC) -@ -O dtb -o $@ -b 0 \
+                -i $(src) $(DTC_FLAGS) \
+                -d $(depfile).dtc.tmp $(dtc-tmp) ; \
+        cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile)
+
+$(obj)/%.dtbo: $(src)/%.dtso FORCE
+	$(call if_changed_dep,dtco)
+
 PHONY += all_arch
-all_arch: $(ARCH_DTB)
+all_arch: $(ARCH_DTB) $(ARCH_DTBO)
 	@:
 
 RCS_FIND_IGNORE := \( -name SCCS -o -name BitKeeper -o -name .svn -o -name CVS \
                    -o -name .pc -o -name .hg -o -name .git \) -prune -o
 
 PHONY += clean_arch
-clean_arch: __clean-files = $(ARCH_DTB)
+clean_arch: __clean-files = $(ARCH_DTB) $(ARCH_DTBO)
 clean_arch: FORCE
 	$(call cmd,clean)
 	@find . $(RCS_FIND_IGNORE) \
