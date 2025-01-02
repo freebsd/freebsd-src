@@ -85,7 +85,6 @@ siba_attach(device_t dev)
 
 	/* Enumerate children */
 	if ((error = siba_add_children(dev))) {
-		device_delete_children(dev);
 		SIBA_LOCK_DESTROY(sc);
 		return (error);
 	}
