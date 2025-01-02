@@ -1991,7 +1991,7 @@ packagekernel: .PHONY
 .endif
 
 stagekernel: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} DISTDIR=. distributekernel
 
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
