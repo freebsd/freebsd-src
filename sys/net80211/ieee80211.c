@@ -2306,7 +2306,7 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		 * In station mode report the current transmit rate.
 		 */
 		imr->ifm_active |= ieee80211_rate2media(ic,
-			vap->iv_bss->ni_txrate, mode);
+		    ieee80211_node_get_txrate_dot11rate(vap->iv_bss), mode);
 	} else
 		imr->ifm_active |= IFM_AUTO;
 	if (imr->ifm_status & IFM_ACTIVE)
