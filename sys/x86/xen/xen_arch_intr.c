@@ -228,23 +228,6 @@ xen_intr_pic_resume(x86pic_t pic, bool suspend_cancelled)
 		xen_intr_resume();
 }
 
-/**
- * Perform configuration of an interrupt source.
- *
- * \param isrc  The interrupt source to configure.
- * \param trig  Edge or level.
- * \param pol   Active high or low.
- *
- * \returns  0 if no events are pending, otherwise non-zero.
- */
-static int
-xen_intr_pic_config_intr(x86pic_t pic, struct intsrc *isrc,
-    enum intr_trigger trig, enum intr_polarity pol)
-{
-	/* Configuration is only possible via the evtchn apis. */
-	return (ENODEV);
-}
-
 
 static int
 xen_intr_pic_assign_cpu(x86pic_t pic, struct intsrc *isrc, u_int apic_id)
@@ -269,7 +252,6 @@ static x86pic_func_t xen_intr_pic = {
 	X86PIC_FUNC(pic_source_pending,		xen_intr_pic_source_pending),
 	X86PIC_FUNC(pic_suspend,		xen_intr_pic_suspend),
 	X86PIC_FUNC(pic_resume,			xen_intr_pic_resume),
-	X86PIC_FUNC(pic_config_intr,		xen_intr_pic_config_intr),
 	X86PIC_FUNC(pic_assign_cpu,		xen_intr_pic_assign_cpu),
 
 	X86PIC_END
