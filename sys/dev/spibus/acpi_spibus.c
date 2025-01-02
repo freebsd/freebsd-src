@@ -394,7 +394,7 @@ acpi_spibus_detach(device_t dev)
 {
 	acpi_spibus_set_power_children(dev, ACPI_STATE_D3, false);
 
-	return (spibus_detach(dev));
+	return (bus_generic_detach(dev));
 }
 
 static int
