@@ -666,13 +666,15 @@ static int
 arswitch_detach(device_t dev)
 {
 	struct arswitch_softc *sc = device_get_softc(dev);
-	int i;
+	int error, i;
 
 	callout_drain(&sc->callout_tick);
 
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	for (i=0; i < sc->numphys; i++) {
-		if (sc->miibus[i] != NULL)
-			device_delete_child(dev, sc->miibus[i]);
 		if (sc->ifp[i] != NULL)
 			if_free(sc->ifp[i]);
 		free(sc->ifname[i], M_DEVBUF);
@@ -680,7 +682,6 @@ arswitch_detach(device_t dev)
 
 	free(sc->atu.entries, M_DEVBUF);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

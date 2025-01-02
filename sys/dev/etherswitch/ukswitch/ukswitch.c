@@ -224,7 +224,11 @@ static int
 ukswitch_detach(device_t dev)
 {
 	struct ukswitch_softc *sc = device_get_softc(dev);
-	int i, port;
+	int error, i, port;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->callout_tick);
 
@@ -232,8 +236,6 @@ ukswitch_detach(device_t dev)
 		if (((1 << i) & sc->phymask) == 0)
 			continue;
 		port = ukswitch_portforphy(sc, i);
-		if (sc->miibus[port] != NULL)
-			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
 		free(sc->ifname[port], M_UKSWITCH);
@@ -245,7 +247,6 @@ ukswitch_detach(device_t dev)
 	free(sc->ifname, M_UKSWITCH);
 	free(sc->ifp, M_UKSWITCH);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
