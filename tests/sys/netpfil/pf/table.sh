@@ -116,6 +116,20 @@ zero_one_head()
 	atf_set require.user root
 }
 
+pft_cleared_ctime()
+{
+	jexec "$1" pfctl -t "$2" -vvT show | awk -v ip="$3" '
+	  ($1 == ip) { m = 1 }
+	  ($1 == "Cleared:" && m) {
+	    sub("[[:space:]]*Cleared:[[:space:]]*", ""); print; exit }'
+}
+
+ctime_to_unixtime()
+{
+	# NB: it's not TZ=UTC, it's TZ=/etc/localtime
+	date -jf '%a %b %d %H:%M:%S %Y' "$1" '+%s'
+}
+
 zero_one_body()
 {
 	epair_send=$(vnet_mkepair)
@@ -145,16 +159,31 @@ zero_one_body()
 	    -o match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
 	    jexec alcatraz pfctl -t foo -T show -vv
 
+	local uniq base ts1 ts3
+	uniq=`jexec alcatraz pfctl -t foo -vvT show | sort -u | grep -c Cleared`
+	atf_check_equal 1 "$uniq" # time they were added
+
+	base=`pft_cleared_ctime alcatraz foo 192.0.2.1`
+
 	atf_check -s exit:0 -e ignore \
 	    jexec alcatraz pfctl -t foo -T zero 192.0.2.3
+
+	ts1=`pft_cleared_ctime alcatraz foo 192.0.2.1`
+	atf_check_equal "$base" "$ts1"
+
+	ts3=`pft_cleared_ctime alcatraz foo 192.0.2.3`
+	atf_check test "$ts1" != "$ts3"
+
+	ts1=`ctime_to_unixtime "$ts1"`
+	ts3=`ctime_to_unixtime "$ts3"`
+	atf_check test $(( "$ts3" - "$ts1" )) -lt 10 # (3 pings * 2) + epsilon
+	atf_check test "$ts1" -lt "$ts3"
 
 	# We now have a zeroed and a non-zeroed counter, so both patterns
 	# should match
 	atf_check -s exit:0 -e ignore \
 	    -o match:'In/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
 	    -o match:'Out/Pass:.*'"$TABLE_STATS_NONZERO_REGEXP" \
-	    jexec alcatraz pfctl -t foo -T show -vv
-	atf_check -s exit:0 -e ignore \
 	    -o match:'In/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
 	    -o match:'Out/Pass:.*'"$TABLE_STATS_ZERO_REGEXP" \
 	    jexec alcatraz pfctl -t foo -T show -vv
