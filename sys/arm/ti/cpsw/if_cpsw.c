@@ -960,11 +960,6 @@ cpsw_detach(device_t dev)
 	mtx_destroy(&sc->rx.lock);
 	mtx_destroy(&sc->tx.lock);
 
-	/* Detach the switch device, if present. */
-	error = bus_generic_detach(dev);
-	if (error != 0)
-		return (error);
-        
 	return (0);
 }
 
