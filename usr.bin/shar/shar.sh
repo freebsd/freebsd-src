@@ -68,7 +68,7 @@ do
 		md5sum=`echo -n "$i" | md5`
 		echo "echo x - '$i'"
 		echo "sed 's/^X//' >'$i' << '$md5sum'"
-		sed 's/^/X/' "$i" || exit
+		sed 's/^/X/' "$i" || exit 1
 		echo "$md5sum"
 	fi
 done
