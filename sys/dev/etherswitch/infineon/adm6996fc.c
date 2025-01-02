@@ -281,9 +281,13 @@ static int
 adm6996fc_detach(device_t dev)
 {
 	struct adm6996fc_softc	*sc;
-	int			 i, port;
+	int			 error, i, port;
 
 	sc = device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->callout_tick);
 
@@ -291,8 +295,6 @@ adm6996fc_detach(device_t dev)
 		if (((1 << i) & sc->phymask) == 0)
 			continue;
 		port = adm6996fc_portforphy(sc, i);
-		if (sc->miibus[port] != NULL)
-			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
 		free(sc->ifname[port], M_ADM6996FC);
@@ -304,7 +306,6 @@ adm6996fc_detach(device_t dev)
 	free(sc->ifname, M_ADM6996FC);
 	free(sc->ifp, M_ADM6996FC);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
