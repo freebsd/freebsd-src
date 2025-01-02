@@ -317,26 +317,16 @@ csa_detach(device_t dev)
 	scp = device_get_softc(dev);
 	resp = &scp->res;
 
-	if (scp->midi != NULL) {
-		err = device_delete_child(dev, scp->midi);
-		if (err != 0)
-			return err;
-		scp->midi = NULL;
-	}
-
-	if (scp->pcm != NULL) {
-		err = device_delete_child(dev, scp->pcm);
-		if (err != 0)
-			return err;
-		scp->pcm = NULL;
-	}
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return err;
 
 	bus_teardown_intr(dev, resp->irq, scp->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
 
-	return bus_generic_detach(dev);
+	return (0);
 }
 
 static int
