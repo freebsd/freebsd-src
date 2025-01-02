@@ -279,8 +279,7 @@ static int
 mfi_pci_detach(device_t dev)
 {
 	struct mfi_softc *sc;
-	int error, devcount, i;
-	device_t *devlist;
+	int error;
 
 	sc = device_get_softc(dev);
 
@@ -294,13 +293,11 @@ mfi_pci_detach(device_t dev)
 	sc->mfi_detaching = 1;
 	mtx_unlock(&sc->mfi_io_lock);
 
-	if ((error = device_get_children(sc->mfi_dev, &devlist, &devcount)) != 0) {
+	error = bus_generic_detach(sc->mfi_dev);
+	if (error != 0) {
 		sx_xunlock(&sc->mfi_config_lock);
 		return error;
 	}
-	for (i = 0; i < devcount; i++)
-		device_delete_child(sc->mfi_dev, devlist[i]);
-	free(devlist, M_TEMP);
 	sx_xunlock(&sc->mfi_config_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_final, sc->mfi_eh);
