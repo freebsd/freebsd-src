@@ -696,7 +696,6 @@ ichsmb_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	device_delete_child(dev, sc->smb);
 	ichsmb_release_resources(sc);
 	mtx_destroy(&sc->mutex);
 	

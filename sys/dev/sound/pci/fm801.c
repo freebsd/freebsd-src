@@ -676,12 +676,6 @@ fm801_pci_detach(device_t dev)
 	r = bus_generic_detach(dev);
 	if (r)
 		return r;
-	if (fm801->radio != NULL) {
-		r = device_delete_child(dev, fm801->radio);
-		if (r)
-			return r;
-		fm801->radio = NULL;
-	}
 
 	r = pcm_unregister(dev);
 	if (r)

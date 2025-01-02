@@ -211,9 +211,6 @@ aw_pwm_detach(device_t dev)
 		return (error);
 	}
 
-	if (sc->busdev != NULL)
-		device_delete_child(dev, sc->busdev);
-
 	if (sc->res != NULL)
 		bus_release_resources(dev, aw_pwm_spec, &sc->res);
 

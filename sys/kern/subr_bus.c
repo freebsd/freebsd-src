@@ -3496,8 +3496,13 @@ bus_delayed_attach_children(device_t dev)
  * @brief Helper function for implementing DEVICE_DETACH()
  *
  * This function can be used to help implement the DEVICE_DETACH() for
- * a bus. It calls device_detach() for each of the device's
- * children.
+ * a bus.  It detaches and deletes all children.  If an individual
+ * child fails to detach, this function stops and returns an error.
+ *
+ * @param dev		the parent device
+ *
+ * @retval 0		success
+ * @retval non-zero	a device would not detach
  */
 int
 bus_generic_detach(device_t dev)
@@ -3508,7 +3513,7 @@ bus_generic_detach(device_t dev)
 	if (error != 0)
 		return (error);
 
-	return (0);
+	return (device_delete_children(dev));
 }
 
 /**

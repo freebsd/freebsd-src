@@ -1544,7 +1544,6 @@ bce_detach(device_t dev)
 		ifmedia_removeall(&sc->bce_ifmedia);
 	else {
 		bus_generic_detach(dev);
-		device_delete_child(dev, sc->bce_miibus);
 	}
 
 	/* Release all remaining resources. */

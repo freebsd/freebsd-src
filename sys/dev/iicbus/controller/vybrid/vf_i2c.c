@@ -213,12 +213,6 @@ i2c_detach(device_t dev)
 		return (error);
 	}
 
-	error = device_delete_child(dev, sc->iicbus);
-	if (error != 0) {
-		device_printf(dev, "could not delete iicbus child.\n");
-		return (error);
-	}
-
 	mtx_lock(&sc->mutex);
 
 	if (sc->freq == 0) {

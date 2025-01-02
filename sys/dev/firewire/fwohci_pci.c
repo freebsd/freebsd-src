@@ -333,11 +333,6 @@ fwohci_pci_detach(device_t self)
 
 	bus_generic_detach(self);
 
-	if (sc->fc.bdev) {
-		device_delete_child(self, sc->fc.bdev);
-		sc->fc.bdev = NULL;
-	}
-
 	/* disable interrupts that might have been switched on */
 	if (sc->bst && sc->bsh)
 		bus_space_write_4(sc->bst, sc->bsh,
