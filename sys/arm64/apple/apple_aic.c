@@ -773,7 +773,7 @@ static device_method_t apple_aic_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(aic, apple_aic_driver, apple_aic_methods,
+PRIVATE_DEFINE_CLASSN(aic, apple_aic_driver, apple_aic_methods,
     sizeof(struct apple_aic_softc));
 
 EARLY_DRIVER_MODULE(aic, simplebus, apple_aic_driver, 0, 0,

@@ -309,7 +309,7 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(ehci, ehci_driver, ehci_methods,
+PRIVATE_DEFINE_CLASSN(ehci, ehci_driver, ehci_methods,
     sizeof(struct tegra_ehci_softc));
 DRIVER_MODULE(tegra_ehci, simplebus, ehci_driver, NULL, NULL);
 MODULE_DEPEND(tegra_ehci, usb, 1, 1, 1);

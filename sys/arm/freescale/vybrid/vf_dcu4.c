@@ -454,13 +454,10 @@ static device_method_t dcu_methods[] = {
 
 	/* Framebuffer service methods */
 	DEVMETHOD(fb_getinfo,		dcu4_fb_getinfo),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t dcu_driver = {
-	"fb",
-	dcu_methods,
-	sizeof(struct dcu_softc),
-};
+PRIVATE_DEFINE_CLASSN(fb, dcu_driver, dcu_methods, sizeof(struct dcu_softc));
 
 DRIVER_MODULE(fb, simplebus, dcu_driver, 0, 0);

@@ -593,11 +593,8 @@ static device_method_t spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t spi_driver = {
-	"imx_spi",
-	spi_methods,
-	sizeof(struct spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_spi, spi_driver, spi_methods,
+    sizeof(struct spi_softc));
 
 DRIVER_MODULE(imx_spi, simplebus, spi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, imx_spi, ofw_spibus_driver, 0, 0);

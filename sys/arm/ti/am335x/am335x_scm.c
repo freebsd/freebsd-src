@@ -182,11 +182,8 @@ static device_method_t am335x_scm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t am335x_scm_driver = {
-	"am335x_scm",
-	am335x_scm_methods,
-	sizeof(struct am335x_scm_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_scm, am335x_scm_driver, am335x_scm_methods,
+    sizeof(struct am335x_scm_softc));
 
 DRIVER_MODULE(am335x_scm, ti_scm, am335x_scm_driver, 0, 0);
 MODULE_VERSION(am335x_scm, 1);

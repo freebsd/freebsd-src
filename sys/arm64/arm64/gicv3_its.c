@@ -384,7 +384,7 @@ static device_method_t gicv3_its_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(gic, gicv3_its_driver, gicv3_its_methods,
+PRIVATE_DEFINE_CLASSN(gic, gicv3_its_driver, gicv3_its_methods,
     sizeof(struct gicv3_its_softc));
 
 static void

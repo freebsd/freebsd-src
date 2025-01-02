@@ -1485,14 +1485,11 @@ static device_method_t omap4_prcm_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_new_pass, omap4_prcm_new_pass),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t omap4_prcm_driver = {
-	"omap4_prcm",
-	omap4_prcm_methods,
-	sizeof(struct omap4_prcm_softc),
-};
+PRIVATE_DEFINE_CLASSN(omap4_prcm, omap4_prcm_driver, omap4_prcm_methods,
+    sizeof(struct omap4_prcm_softc));
 
 EARLY_DRIVER_MODULE(omap4_prcm, simplebus, omap4_prcm_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

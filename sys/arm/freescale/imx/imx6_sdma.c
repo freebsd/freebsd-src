@@ -505,14 +505,12 @@ static device_method_t sdma_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sdma_probe),
 	DEVMETHOD(device_attach,	sdma_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t sdma_driver = {
-	"sdma",
-	sdma_methods,
-	sizeof(struct sdma_softc),
-};
+PRIVATE_DEFINE_CLASSN(sdma, sdma_driver, sdma_methods,
+    sizeof(struct sdma_softc));
 
 /* We want to attach after all interrupt controllers, before anything else. */
 EARLY_DRIVER_MODULE(sdma, simplebus, sdma_driver, 0, 0,

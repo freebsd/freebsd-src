@@ -282,11 +282,8 @@ static device_method_t awusb3phy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t awusb3phy_driver = {
-	"awusb3phy",
-	awusb3phy_methods,
-	sizeof(struct awusb3phy_softc)
-};
+PRIVATE_DEFINE_CLASSN(awusb3phy, awusb3phy_driver, awusb3phy_methods,
+    sizeof(struct awusb3phy_softc));
 
 /* aw_usb3phy needs to come up after regulators/gpio/etc, but before ehci/ohci */
 EARLY_DRIVER_MODULE(awusb3phy, simplebus, awusb3phy_driver, 0, 0,

@@ -1250,7 +1250,7 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(gic_db_show,		arm_gic_db_show),
 #endif
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
