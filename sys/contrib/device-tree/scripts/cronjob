@@ -6,7 +6,7 @@ cd $(dirname $0)/..
 
 UPSTREAM_GIT="git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
 
-BRANCHES="master filter-state upstream/master upstream/dts"
+BRANCHES="master filter-state-split upstream/master upstream/dts"
 
 if [ ! -f scripts/filter.sh ] ; then
     echo "`pwd`: does not appear to be a device-tree.git" 1>&2
@@ -75,7 +75,7 @@ echo "Filtering"
 echo
 ) 2>&1 `
 
-#git push --dry-run origin filter-state upstream/dts upstream/master
+#git push --dry-run origin filter-state-split upstream/dts upstream/master
 #git push --dry-run origin --tags
 #echo
 
