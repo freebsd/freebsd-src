@@ -740,7 +740,6 @@ superio_detach(device_t dev)
 		return (error);
 	if (sc->chardev != NULL)
 		destroy_dev(sc->chardev);
-	device_delete_children(dev);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
 	mtx_destroy(&sc->conf_lock);
 	return (0);

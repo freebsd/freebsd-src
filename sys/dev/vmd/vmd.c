@@ -401,9 +401,6 @@ vmd_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	error = device_delete_children(dev);
-	if (error)
-		return (error);
 	if (sc->vmd_msix_count == 0)
 		vmd_set_msi_bypass(dev, false);
 	vmd_free(sc);

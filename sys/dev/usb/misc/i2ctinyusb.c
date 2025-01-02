@@ -193,7 +193,6 @@ i2ctinyusb_detach(device_t dev)
 	err = bus_generic_detach(dev);
 	if (err != 0)
 		return (err);
-	device_delete_children(dev);
 
 	mtx_destroy(&sc->sc_mtx);
 

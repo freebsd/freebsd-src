@@ -114,7 +114,7 @@ dpaa2_rc_detach(device_t dev)
 	if (dinfo)
 		free(dinfo, M_DPAA2_RC);
 
-	return (device_delete_children(dev));
+	return (0);
 }
 
 static int

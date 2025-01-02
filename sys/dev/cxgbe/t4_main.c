@@ -2814,7 +2814,6 @@ cxgbe_detach(device_t dev)
 	rc = bus_generic_detach(dev);
 	if (rc)
 		return (rc);
-	device_delete_children(dev);
 
 	sysctl_ctx_free(&pi->ctx);
 	begin_vi_detach(sc, &pi->vi[0]);

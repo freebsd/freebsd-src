@@ -292,7 +292,7 @@ dpaa2_mc_detach(device_t dev)
 	if (dinfo)
 		free(dinfo, M_DPAA2_MC);
 
-	return (device_delete_children(dev));
+	return (0);
 }
 
 /*
