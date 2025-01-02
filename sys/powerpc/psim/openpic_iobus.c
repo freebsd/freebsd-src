@@ -69,20 +69,11 @@ static device_method_t  openpic_iobus_methods[] = {
 	DEVMETHOD(device_probe,		openpic_iobus_probe),
 	DEVMETHOD(device_attach,	openpic_iobus_attach),
 
-	/* PIC interface */
-	DEVMETHOD(pic_config,		openpic_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
-	DEVMETHOD(pic_enable,		openpic_enable),
-	DEVMETHOD(pic_eoi,		openpic_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_unmask),
-
 	DEVMETHOD_END
 };
 
 PRIVATE_DEFINE_CLASSN(openpic, openpic_iobus_driver, openpic_iobus_methods,
-    sizeof(struct openpic_softc));
+    sizeof(struct openpic_softc), openpic_class);
 
 DRIVER_MODULE(openpic, iobus, openpic_iobus_driver, 0, 0);
 
