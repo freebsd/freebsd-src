@@ -162,7 +162,7 @@ SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");
 
 static void
-_ioapic_eoi_source(struct ioapic *io, struct ioapic_intsrc *src, int locked)
+_ioapic_eoi_source(struct ioapic *io, struct ioapic_intsrc *src)
 {
 	volatile uint32_t *apic_eoi;
 	uint32_t low1;
@@ -186,6 +186,7 @@ _ioapic_eoi_source(struct ioapic *io, struct ioapic_intsrc *src, int locked)
 		    io->io_addr + IOAPIC_EOIR);
 		*apic_eoi = src->io_vector;
 	} else {
+		bool locked = mtx_owned(&icu_lock);
 		/*
 		 * Otherwise, if IO-APIC is too old to provide EOIR,
 		 * do what Intel did for the Linux kernel. Temporary
@@ -298,7 +299,7 @@ ioapic_disable_source(x86pic_t pic, struct intsrc *isrc)
 		intpin->io_masked = 1;
 	}
 
-	_ioapic_eoi_source(io, intpin, 1);
+	_ioapic_eoi_source(io, intpin);
 
 	mtx_unlock_spin(&icu_lock);
 }
@@ -308,7 +309,7 @@ ioapic_eoi_source(x86pic_t pic, struct intsrc *isrc)
 {
 	struct ioapic *io = device_get_softc(isrc->is_event.ie_pic);
 
-	_ioapic_eoi_source(io, (struct ioapic_intsrc *)isrc, 0);
+	_ioapic_eoi_source(io, (struct ioapic_intsrc *)isrc);
 }
 
 /*
@@ -534,7 +535,7 @@ ioapic_disable_intr(x86pic_t pic, struct intsrc *isrc, enum eoi_flag eoi)
 	}
 
 	if (eoi == PIC_EOI)
-		_ioapic_eoi_source(io, intpin, 1);
+		_ioapic_eoi_source(io, intpin);
 
 	mtx_unlock_spin(&icu_lock);
 
