@@ -146,7 +146,7 @@ owc_gpiobus_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((err = device_delete_children(dev)) != 0)
+	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
 	gpio_pin_release(sc->sc_pin);

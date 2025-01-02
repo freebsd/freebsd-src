@@ -391,10 +391,12 @@ int
 ahci_detach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int i;
+	int error, i;
 
 	/* Detach & delete all children */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Free interrupts. */
 	for (i = 0; i < ctlr->numirqs; i++) {

@@ -843,7 +843,7 @@ mvneta_detach(device_t dev)
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_tx_queue(sc, q);
 
-	device_delete_children(dev);
+	bus_generic_detach(dev);
 
 	if (sc->ih_cookie[0] != NULL)
 		bus_teardown_intr(dev, sc->res[1], sc->ih_cookie[0]);

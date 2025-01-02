@@ -203,9 +203,12 @@ static int
 siis_detach(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
+	int error;
 
 	/* Detach & delete all children */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Free interrupts. */
 	if (ctlr->irq.r_irq) {

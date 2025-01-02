@@ -465,9 +465,12 @@ static int
 xhci_pci_detach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(self);
+	error = bus_generic_detach(self);
+	if (error != 0)
+		return (error);
 
 	usb_callout_drain(&sc->sc_callout);
 	xhci_halt_controller(sc);

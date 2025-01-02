@@ -845,18 +845,20 @@ e6000sw_writephy_locked(device_t dev, int phy, int reg, int data)
 static int
 e6000sw_detach(device_t dev)
 {
-	int phy;
+	int error, phy;
 	e6000sw_softc_t *sc;
 
 	sc = device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	if (device_is_attached(dev))
 		taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
 
 	if (sc->sc_tq != NULL)
 		taskqueue_free(sc->sc_tq);
-
-	device_delete_children(dev);
 
 	sx_destroy(&sc->sx);
 	for (phy = 0; phy < sc->num_ports; phy++) {

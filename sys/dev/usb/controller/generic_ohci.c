@@ -231,7 +231,9 @@ generic_ohci_detach(device_t dev)
 	struct hwrst_list *rst, *rst_tmp;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * Put the controller into reset, then disable clocks and do

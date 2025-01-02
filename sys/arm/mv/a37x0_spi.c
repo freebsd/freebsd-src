@@ -227,7 +227,7 @@ a37x0_spi_detach(device_t dev)
 	int err;
 	struct a37x0_spi_softc *sc;
 
-	if ((err = device_delete_children(dev)) != 0)
+	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 	sc = device_get_softc(dev);
 	mtx_destroy(&sc->sc_mtx);

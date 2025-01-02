@@ -283,7 +283,9 @@ mv_ehci_detach(device_t self)
 	int err;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(self);
+	err = bus_generic_detach(self);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * disable interrupts that might have been switched on in mv_ehci_attach

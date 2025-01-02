@@ -550,8 +550,13 @@ int
 intelspi_detach(device_t dev)
 {
 	struct intelspi_softc	*sc;
+	int error;
 
 	sc = device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	INTELSPI_LOCK_DESTROY(sc);
 
@@ -566,7 +571,7 @@ intelspi_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->sc_irq_rid, sc->sc_irq_res);
 
-	return (device_delete_children(dev));
+	return (0);
 }
 
 int

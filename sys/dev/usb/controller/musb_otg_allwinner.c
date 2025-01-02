@@ -561,16 +561,13 @@ static int
 awusbdrd_detach(device_t dev)
 {
 	struct awusbdrd_softc *sc;
-	device_t bdev;
 	int error;
 
-	sc = device_get_softc(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
-	if (sc->sc.sc_bus.bdev != NULL) {
-		bdev = sc->sc.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
+	sc = device_get_softc(dev);
 
 	musbotg_uninit(&sc->sc);
 	error = bus_teardown_intr(dev, sc->res[1], sc->sc.sc_intr_hdl);
@@ -593,8 +590,6 @@ awusbdrd_detach(device_t dev)
 		clk_release(sc->clk);
 
 	bus_release_resources(dev, awusbdrd_spec, sc->res);
-
-	device_delete_children(dev);
 
 	return (0);
 }

@@ -6684,7 +6684,7 @@ hdaa_detach(device_t dev)
 	struct hdaa_devinfo *devinfo = device_get_softc(dev);
 	int error;
 
-	if ((error = device_delete_children(dev)) != 0)
+	if ((error = bus_generic_detach(dev)) != 0)
 		return (error);
 
 	hdaa_lock(devinfo);

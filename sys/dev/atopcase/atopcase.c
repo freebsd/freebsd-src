@@ -545,7 +545,7 @@ atopcase_destroy(struct atopcase_softc *sc)
 {
 	int err;
 
-	err = device_delete_children(sc->sc_dev);
+	err = bus_generic_detach(sc->sc_dev);
 	if (err)
 		return (err);
 
