@@ -132,8 +132,6 @@ static void	msi_eoi_source(x86pic_t pic, struct intsrc *isrc);
 static void	msi_enable_intr(x86pic_t pic, struct intsrc *isrc);
 static void	msi_disable_intr(x86pic_t pic, struct intsrc *isrc);
 static int	msi_source_pending(x86pic_t pic, struct intsrc *isrc);
-static int	msi_config_intr(x86pic_t pic, struct intsrc *isrc,
-		    enum intr_trigger trig, enum intr_polarity pol);
 static int	msi_assign_cpu(x86pic_t pic, struct intsrc *isrc,
 		    u_int apic_id);
 
@@ -145,7 +143,6 @@ x86pic_func_t msi_pic = {
 	X86PIC_FUNC(pic_enable_intr,		msi_enable_intr),
 	X86PIC_FUNC(pic_disable_intr,		msi_disable_intr),
 	X86PIC_FUNC(pic_source_pending,		msi_source_pending),
-	X86PIC_FUNC(pic_config_intr,		msi_config_intr),
 	X86PIC_FUNC(pic_assign_cpu,		msi_assign_cpu),
 
 	X86PIC_END
@@ -230,14 +227,6 @@ msi_source_pending(x86pic_t pic, struct intsrc *isrc)
 {
 
 	return (0);
-}
-
-static int
-msi_config_intr(x86pic_t pic, struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
-{
-
-	return (ENODEV);
 }
 
 static int
