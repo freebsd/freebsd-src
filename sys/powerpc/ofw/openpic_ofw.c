@@ -68,8 +68,6 @@ static device_method_t  openpic_ofw_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_ofw_probe),
 	DEVMETHOD(device_attach,	openpic_ofw_attach),
-	DEVMETHOD(device_suspend,	openpic_suspend),
-	DEVMETHOD(device_resume,	openpic_resume),
 
 	/* PIC interface */
 	DEVMETHOD(pic_translate_code,	openpic_ofw_translate_code),
