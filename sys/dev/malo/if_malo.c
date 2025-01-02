@@ -898,7 +898,7 @@ malo_updatetxrate(struct ieee80211_node *ni, int rix)
 	static const int ieeerates[] =
 	    { 2, 4, 11, 22, 44, 12, 18, 24, 36, 48, 96, 108 };
 	if (rix < nitems(ieeerates))
-		ni->ni_txrate = ieeerates[rix];
+		ieee80211_node_set_txrate_dot11rate(ni, ieeerates[rix]);
 }
 
 static int

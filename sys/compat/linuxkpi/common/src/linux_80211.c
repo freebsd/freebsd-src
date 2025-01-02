@@ -6925,7 +6925,8 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 #ifdef LINUXKPI_DEBUG_80211
 		int old_rate;
 
-		old_rate = ni->ni_vap->iv_bss->ni_txrate;
+		old_rate =
+		    ieee80211_node_get_txrate_dot11rate(ni->ni_vap->iv_bss);
 #endif
 		txs.pktlen = skb->len;
 		txs.flags |= IEEE80211_RATECTL_STATUS_PKTLEN;
@@ -6951,7 +6952,8 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		if (linuxkpi_debug_80211 & D80211_TRACE_TX) {
 			printf("TX-RATE: %s: old %d new %d ridx %d, "
 			    "long_retries %d\n", __func__,
-			    old_rate, ni->ni_vap->iv_bss->ni_txrate,
+			    old_rate,
+			    ieee80211_node_get_txrate_dot11rate(ni->ni_vap->iv_bss),
 			    ridx, txs.long_retries);
 		}
 #endif

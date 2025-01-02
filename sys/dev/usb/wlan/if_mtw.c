@@ -2155,7 +2155,7 @@ mtw_iter_func(void *arg, struct ieee80211_node *ni)
 	uint32_t sta[3];
 	uint16_t(*wstat)[3];
 	int error, ridx;
-
+	uint8_t txrate = 0;
 
 	/* Check for special case */
 	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA &&
@@ -2208,11 +2208,13 @@ mtw_iter_func(void *arg, struct ieee80211_node *ni)
 
 	ieee80211_ratectl_tx_update(vap, txs);
 	ieee80211_ratectl_rate(ni, NULL, 0);
+	txrate = ieee80211_node_get_txrate_dot11rate(ni);
+
 	/* XXX TODO: methodize with MCS rates */
 	for (ridx = 0; ridx < MTW_RIDX_MAX; ridx++) {
 		MTW_DPRINTF(sc, MTW_DEBUG_RATE, "ni_txrate=0x%x\n",
-			     ni->ni_txrate);
-		if (rt2860_rates[ridx].rate == ni->ni_txrate) {
+			     txrate);
+		if (rt2860_rates[ridx].rate == txrate) {
 			break;
 		}
 	}
@@ -2221,7 +2223,7 @@ fail:
 	MTW_UNLOCK(sc);
 
 	MTW_DPRINTF(sc, MTW_DEBUG_RATE, "rate=%d, ridx=%d\n",
-		    ni->ni_txrate, rn->amrr_ridx);
+		    txrate, rn->amrr_ridx);
 }
 
 static void

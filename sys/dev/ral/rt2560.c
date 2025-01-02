@@ -1740,7 +1740,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		rate = tp->ucastrate;
 	} else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -1821,7 +1821,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 
 	/* remember link conditions for rate adaptation algorithm */
 	if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE) {
-		data->rix = ni->ni_txrate;
+		data->rix = ieee80211_node_get_txrate_dot11rate(ni);
 		/* XXX probably need last rssi value and not avg */
 		data->rssi = ic->ic_node_getrssi(ni);
 	} else

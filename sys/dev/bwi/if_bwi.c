@@ -2944,7 +2944,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 		rate = rate_fb = tp->ucastrate;
 	} else {
 		rix = ieee80211_ratectl_rate(ni, NULL, pkt_len);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 
 		if (rix > 0) {
 			rate_fb = ni->ni_rates.rs_rates[rix-1] &

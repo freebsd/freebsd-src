@@ -2281,7 +2281,8 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 		rate = otus_rate_to_hw_rate(sc, tp->ucastrate);
 	else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = otus_rate_to_hw_rate(sc, ni->ni_txrate);
+		rate = otus_rate_to_hw_rate(sc,
+		    ieee80211_node_get_txrate_dot11rate(ni));
 	}
 
 	phyctl = 0;
@@ -2346,9 +2347,11 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	data->m = m;
 
 	OTUS_DPRINTF(sc, OTUS_DEBUG_XMIT,
-	    "%s: tx: m=%p; data=%p; len=%d mac=0x%04x phy=0x%08x rate=0x%02x, ni_txrate=%d\n",
+	    "%s: tx: m=%p; data=%p; len=%d mac=0x%04x phy=0x%08x "
+	    "rate=0x%02x, dot11rate=%d\n",
 	    __func__, m, data, le16toh(head->len), macctl, phyctl,
-	    (int) rate, (int) ni->ni_txrate);
+	    (int) rate,
+	    (int) ieee80211_node_get_txrate_dot11rate(ni));
 
 	/* Submit transfer */
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[OTUS_BULK_TX], data, next);

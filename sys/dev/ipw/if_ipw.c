@@ -838,8 +838,8 @@ ipw_media_status(if_t ifp, struct ifmediareq *imr)
 	struct ipw_softc *sc = ic->ic_softc;
 
 	/* read current transmission rate from adapter */
-	vap->iv_bss->ni_txrate = ipw_cvtrate(
-	    ipw_read_table1(sc, IPW_INFO_CURRENT_TX_RATE) & 0xf);
+	ieee80211_node_set_txrate_dot11rate(vap->iv_bss,
+	    ipw_cvtrate(ipw_read_table1(sc, IPW_INFO_CURRENT_TX_RATE) & 0xf));
 	ieee80211_media_status(ifp, imr);
 }
 

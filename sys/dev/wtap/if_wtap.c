@@ -401,7 +401,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
-	ni->ni_txrate = 130;
+	ieee80211_node_set_txrate_ht_mcsrate(ni, 2);
 	ieee80211_free_node(ni);
 	return vap;
 }
@@ -617,8 +617,7 @@ wtap_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	    M_NOWAIT|M_ZERO);
 	if (ni == NULL)
 		return (NULL);
-
-	ni->ni_txrate = 130;
+	ieee80211_node_set_txrate_ht_mcsrate(ni, 2);
 	return ni;
 }
 

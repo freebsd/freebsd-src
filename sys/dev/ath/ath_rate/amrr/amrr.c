@@ -245,8 +245,11 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	 * lowest hardware rate.
 	 */
 	if (ni->ni_rates.rs_nrates > 0) {
-		ni->ni_txrate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
-		amn->amn_tx_rix0 = sc->sc_rixmap[ni->ni_txrate];
+		uint8_t dot11rate;
+
+		dot11rate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
+		amn->amn_tx_rix0 = sc->sc_rixmap[dot11rate];
+		ieee80211_node_set_txrate_dot11rate(ni, dot11rate);
 		amn->amn_tx_rate0 = rt->info[amn->amn_tx_rix0].rateCode;
 		amn->amn_tx_rate0sp = amn->amn_tx_rate0 |
 			rt->info[amn->amn_tx_rix0].shortPreamble;
