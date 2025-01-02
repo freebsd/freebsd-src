@@ -82,9 +82,6 @@ void	openpic_enable(device_t, u_int, u_int, void **);
 void	openpic_eoi(device_t, u_int, void *);
 void	openpic_unmask(device_t, u_int, void *);
 
-int	openpic_suspend(device_t dev);
-int	openpic_resume(device_t dev);
-
 DECLARE_CLASS(openpic_class);
 
 #endif /* _POWERPC_OPENPICVAR_H_ */

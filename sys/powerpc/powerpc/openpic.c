@@ -393,7 +393,7 @@ openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 	}
 }
 
-int
+static int
 openpic_suspend(device_t dev)
 {
 	struct openpic_softc *sc;
@@ -424,7 +424,7 @@ openpic_suspend(device_t dev)
 	return (0);
 }
 
-int
+static int
 openpic_resume(device_t dev)
 {
     	struct openpic_softc *sc;
@@ -455,6 +455,10 @@ openpic_resume(device_t dev)
 }
 
 static device_method_t openpic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_suspend,	openpic_suspend),
+	DEVMETHOD(device_resume,	openpic_resume),
+
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_config),
