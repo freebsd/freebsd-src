@@ -322,23 +322,11 @@ lbggpiocm_attach(device_t dev)
 	return (0);
 }
 
-static int
-lbggpiocm_detach(device_t dev)
-{
-	int error;
-
-	error = device_delete_children(dev);
-	if (error)
-		return (error);
-
-	return (bus_generic_detach(dev));
-}
-
 static device_method_t lbggpiocm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		lbggpiocm_probe),
 	DEVMETHOD(device_attach,	lbggpiocm_attach),
-	DEVMETHOD(device_detach,	lbggpiocm_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	DEVMETHOD_END
 };

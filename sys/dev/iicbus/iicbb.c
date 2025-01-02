@@ -80,7 +80,6 @@ struct iicbb_softc {
 
 static int iicbb_attach(device_t);
 static void iicbb_child_detached(device_t, device_t);
-static int iicbb_detach(device_t);
 static int iicbb_print_child(device_t, device_t);
 static int iicbb_probe(device_t);
 
@@ -101,7 +100,7 @@ static device_method_t iicbb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		iicbb_probe),
 	DEVMETHOD(device_attach,	iicbb_attach),
-	DEVMETHOD(device_detach,	iicbb_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_child_detached,	iicbb_child_detached),
@@ -165,16 +164,6 @@ iicbb_attach(device_t dev)
 	    0, "Estimate of pin toggling latency, microseconds");
 
 	bus_attach_children(dev);
-	return (0);
-}
-
-static int
-iicbb_detach(device_t dev)
-{
-
-	bus_generic_detach(dev);
-	device_delete_children(dev);
-
 	return (0);
 }
 
