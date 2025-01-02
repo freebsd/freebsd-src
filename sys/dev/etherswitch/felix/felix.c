@@ -480,9 +480,10 @@ felix_detach(device_t dev)
 	int error;
 	int i;
 
-	error = 0;
 	sc = device_get_softc(dev);
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	mtx_lock(&sc->mtx);
 	callout_stop(&sc->tick_callout);

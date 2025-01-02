@@ -1085,6 +1085,11 @@ static int
 cpswp_detach(device_t dev)
 {
 	struct cpswp_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	CPSW_DEBUGF(sc->swsc, (""));
@@ -1095,8 +1100,6 @@ cpswp_detach(device_t dev)
 		CPSW_PORT_UNLOCK(sc);
 		callout_drain(&sc->mii_callout);
 	}
-
-	bus_generic_detach(dev);
 
 	if_free(sc->ifp);
 	mtx_destroy(&sc->lock);
