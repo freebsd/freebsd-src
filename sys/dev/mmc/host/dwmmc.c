@@ -778,7 +778,7 @@ dwmmc_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	ret = device_delete_children(dev);
+	ret = bus_generic_detach(dev);
 	if (ret != 0)
 		return (ret);
 

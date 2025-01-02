@@ -171,13 +171,9 @@ ehci_msm_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
-
-	device_delete_children(dev);
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return (err);
 
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/* only call ehci_detach() after ehci_init() */

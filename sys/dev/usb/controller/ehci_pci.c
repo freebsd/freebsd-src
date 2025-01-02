@@ -505,9 +505,12 @@ static int
 ehci_pci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(self);
+	error = bus_generic_detach(self);
+	if (error != 0)
+		return (error);
 
 	pci_disable_busmaster(self);
 

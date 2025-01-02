@@ -985,7 +985,7 @@ hdsp_detach(device_t dev)
 		return (0);
 	}
 
-	err = device_delete_children(dev);
+	err = bus_generic_detach(dev);
 	if (err)
 		return (err);
 

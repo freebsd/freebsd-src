@@ -314,7 +314,7 @@ imx_ehci_detach(device_t dev)
 	esc = &sc->ehci_softc;
 
 	/* First detach all children; we can't detach if that fails. */
-	if ((err = device_delete_children(dev)) != 0)
+	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
 	if (esc->sc_flags & EHCI_SCFLG_DONEINIT)

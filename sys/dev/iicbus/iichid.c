@@ -1218,7 +1218,7 @@ iichid_detach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-	error = device_delete_children(dev);
+	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
 	iichid_teardown_interrupt(sc);

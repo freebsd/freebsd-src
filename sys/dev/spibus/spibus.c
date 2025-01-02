@@ -68,7 +68,7 @@ spibus_attach(device_t dev)
 int
 spibus_detach(device_t dev)
 {
-	return (device_delete_children(dev));
+	return (bus_generic_detach(dev));
 }
 
 static int
