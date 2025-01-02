@@ -3298,7 +3298,7 @@ mesh_airtime_calc(struct ieee80211_node *ni)
 	uint64_t res;
 
 	/* Time to transmit a frame */
-	rate = ni->ni_txrate;
+	rate = ieee80211_node_get_txrate_dot11rate(ni);
 	overhead = ieee80211_compute_duration(ic->ic_rt,
 	    ifp->if_mtu + IEEE80211_MESH_MAXOVERHEAD, rate, 0) << M_BITS;
 	/* Error rate in percentage */

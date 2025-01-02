@@ -725,6 +725,7 @@ ff_approx_txtime(struct ieee80211_node *ni,
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint32_t framelen;
 	uint32_t frame_time;
+	uint8_t dot11rate;
 
 	/*
 	 * Approximate the frame length to be transmitted. A swag to add
@@ -746,15 +747,16 @@ ff_approx_txtime(struct ieee80211_node *ni,
 	 * For now, we assume non-shortgi, 20MHz, just because I want to
 	 * at least test 802.11n.
 	 */
-	if (ni->ni_txrate & IEEE80211_RATE_MCS)
+	dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
+	if (dot11rate & IEEE80211_RATE_MCS)
 		frame_time = ieee80211_compute_duration_ht(framelen,
-		    ni->ni_txrate,
-		    IEEE80211_HT_RC_2_STREAMS(ni->ni_txrate),
+		    dot11rate,
+		    IEEE80211_HT_RC_2_STREAMS(dot11rate),
 		    0, /* isht40 */
 		    0); /* isshortgi */
 	else
 		frame_time = ieee80211_compute_duration(ic->ic_rt, framelen,
-			    ni->ni_txrate, 0);
+			    dot11rate, 0);
 	return (frame_time);
 }
 

@@ -63,8 +63,6 @@
 #include <net80211/ieee80211_vht.h>
 #include <net80211/ieee80211_sta.h> /* for parse_wmeie */
 
-#define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
-
 static	void hostap_vattach(struct ieee80211vap *);
 static	int hostap_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	int hostap_input(struct ieee80211_node *ni, struct mbuf *m,
@@ -311,10 +309,9 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(ni->ni_essid,
 				    ni->ni_esslen);
-				/* XXX MCS/HT */
-				printf(" channel %d start %uMb\n",
+				printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
-				    IEEE80211_RATE2MBS(ni->ni_txrate));
+				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
 #endif
 			break;

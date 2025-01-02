@@ -207,7 +207,7 @@ amrr_node_init(struct ieee80211_node *ni)
 		rate |= IEEE80211_RATE_MCS;
 
 	/* Assign initial rate from the rateset */
-	ni->ni_txrate = rate;
+	ieee80211_node_set_txrate_dot11rate(ni, rate);
 	amn->amn_ticks = ticks;
 
 	/* XXX TODO: we really need a rate-to-string method */
@@ -321,7 +321,8 @@ amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
 	/* XXX should return -1 here, but drivers may not expect this... */
 	if (!amn)
 	{
-		ni->ni_txrate = ni->ni_rates.rs_rates[0];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    ni->ni_rates.rs_rates[0]);
 		return 0;
 	}
 
@@ -338,13 +339,16 @@ amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
 	if (is_enough(amn) && (ticks - amn->amn_ticks) > amrr->amrr_interval) {
 		rix = amrr_update(amrr, amn, ni);
 		if (rix != amn->amn_rix) {
+			uint8_t dot11Rate;
 			/* update public rate */
-			ni->ni_txrate = rs->rs_rates[rix];
+			dot11Rate = rs->rs_rates[rix];
 			/* XXX strip basic rate flag from txrate, if non-11n */
 			if (ieee80211_ht_check_tx_ht(ni))
-				ni->ni_txrate |= IEEE80211_RATE_MCS;
+				dot11Rate |= IEEE80211_RATE_MCS;
 			else
-				ni->ni_txrate &= IEEE80211_RATE_VAL;
+				dot11Rate &= IEEE80211_RATE_VAL;
+			ieee80211_node_set_txrate_dot11rate(ni, dot11Rate);
+
 			amn->amn_rix = rix;
 		}
 		amn->amn_ticks = ticks;

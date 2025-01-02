@@ -3137,3 +3137,68 @@ ieee80211_getsignal(struct ieee80211vap *vap, int8_t *rssi, int8_t *noise)
 	if (vap->iv_opmode != IEEE80211_M_STA)
 		*rssi = ieee80211_getrssi(vap);
 }
+
+uint8_t
+ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *ni)
+{
+	return (ni->ni_txrate);
+}
+
+void
+ieee80211_node_set_txrate_dot11rate(struct ieee80211_node *ni,
+    uint8_t dot11Rate)
+{
+	ni->ni_txrate = dot11Rate;
+}
+
+void
+ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *ni,
+    uint8_t mcs)
+{
+	KASSERT(mcs <= 76, ("%s: MCS is not 0..76 (%d)", __func__, mcs));
+	if (mcs > 76) {
+		ic_printf(ni->ni_ic, "%s: invalid MCS (%d)\n", __func__, mcs);
+		return;
+	}
+	ni->ni_txrate = IEEE80211_RATE_MCS | mcs;
+}
+
+
+/*
+ * @brief Fetch the transmit rate for the given node in kbit/s.
+ *
+ * This currently only works for CCK, OFDM and HT rates.
+ *
+ * @param ni	struct ieee80211_node * to lookup
+ * @returns	current transmit rate in kbit/s
+ */
+uint32_t
+ieee80211_node_get_txrate_kbit(struct ieee80211_node *ni)
+{
+	uint32_t mbps;
+
+	if (ni->ni_txrate & IEEE80211_RATE_MCS) {
+		const struct ieee80211_mcs_rates *mcs =
+		    &ieee80211_htrates[ni->ni_txrate & ~IEEE80211_RATE_MCS];
+
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+			/* Note: these are in 1/2Mbit/s units */
+			if (ni->ni_flags & IEEE80211_NODE_SGI40)
+				mbps = mcs->ht40_rate_800ns;
+			else
+				mbps = mcs->ht40_rate_400ns;
+		} else {
+			if (ni->ni_flags & IEEE80211_NODE_SGI20)
+				mbps = mcs->ht20_rate_800ns;
+			else
+				mbps = mcs->ht20_rate_400ns;
+		}
+	} else
+		/* Note: CCK/OFDM dot11rate entries are in 1/2Mbit/s units */
+		mbps = ni->ni_txrate;
+
+	/*
+	 * Note; 'mbps' in 1/2 Mbit/s units so *500 to make it in kbit/s units.
+	 */
+	return (mbps * 500);
+}
