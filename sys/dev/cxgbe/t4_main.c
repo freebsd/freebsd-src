@@ -1789,7 +1789,7 @@ t4_detach_common(device_t dev)
 	}
 
 	if (device_is_attached(dev)) {
-		rc = bus_generic_detach(dev);
+		rc = bus_detach_children(dev);
 		if (rc) {
 			device_printf(dev,
 			    "failed to detach child devices: %d\n", rc);
