@@ -1803,8 +1803,6 @@ re_detach(device_t dev)
 		if_setflagbits(ifp, 0, IFF_UP);
 		ether_ifdetach(ifp);
 	}
-	if (sc->rl_miibus)
-		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);
 
 	/*

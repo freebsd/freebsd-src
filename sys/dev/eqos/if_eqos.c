@@ -1216,8 +1216,6 @@ eqos_detach(device_t dev)
 		ether_ifdetach(sc->ifp);
 	}
 
-	if (sc->miibus)
-		device_delete_child(dev, sc->miibus);
 	bus_generic_detach(dev);
 
 	if (sc->irq_handle)

@@ -656,10 +656,6 @@ dwc_detach(device_t dev)
 		ether_ifdetach(sc->ifp);
 	}
 
-	if (sc->miibus != NULL) {
-		device_delete_child(dev, sc->miibus);
-		sc->miibus = NULL;
-	}
 	bus_generic_detach(dev);
 
 	/* Free DMA descriptors */

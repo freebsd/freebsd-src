@@ -2539,8 +2539,6 @@ dc_detach(device_t dev)
 		callout_drain(&sc->dc_wdog_ch);
 		ether_ifdetach(ifp);
 	}
-	if (sc->dc_miibus)
-		device_delete_child(dev, sc->dc_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->dc_intrhand)

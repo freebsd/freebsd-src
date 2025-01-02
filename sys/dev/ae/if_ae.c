@@ -761,10 +761,6 @@ ae_detach(device_t dev)
 		taskqueue_free(sc->tq);
 		sc->tq = NULL;
 	}
-	if (sc->miibus != NULL) {
-		device_delete_child(dev, sc->miibus);
-		sc->miibus = NULL;
-	}
 	bus_generic_detach(sc->dev);
 	ae_dma_free(sc);
 	if (sc->intrhand != NULL) {

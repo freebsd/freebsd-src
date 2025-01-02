@@ -838,8 +838,6 @@ vr_detach(device_t dev)
 		taskqueue_drain(taskqueue_fast, &sc->vr_inttask);
 		ether_ifdetach(ifp);
 	}
-	if (sc->vr_miibus)
-		device_delete_child(dev, sc->vr_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->vr_intrhand)

@@ -675,8 +675,6 @@ sge_detach(device_t dev)
 		SGE_UNLOCK(sc);
 		callout_drain(&sc->sge_stat_ch);
 	}
-	if (sc->sge_miibus)
-		device_delete_child(dev, sc->sge_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->sge_intrhand)
