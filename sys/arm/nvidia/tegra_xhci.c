@@ -1120,7 +1120,7 @@ static device_method_t xhci_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(xhci, xhci_driver, xhci_methods,
+PRIVATE_DEFINE_CLASSN(xhci, xhci_driver, xhci_methods,
     sizeof(struct tegra_xhci_softc));
 DRIVER_MODULE(tegra_xhci, simplebus, xhci_driver, NULL, NULL);
 MODULE_DEPEND(tegra_xhci, usb, 1, 1, 1);

@@ -129,14 +129,12 @@ static void mv_watchdog_event(void *, unsigned int, int *);
 static device_method_t mv_wdt_methods[] = {
 	DEVMETHOD(device_probe, mv_wdt_probe),
 	DEVMETHOD(device_attach, mv_wdt_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mv_wdt_driver = {
-	"wdt",
-	mv_wdt_methods,
-	sizeof(struct mv_wdt_softc),
-};
+PRIVATE_DEFINE_CLASSN(wdt, mv_wdt_driver, mv_wdt_methods,
+    sizeof(struct mv_wdt_softc));
 
 DRIVER_MODULE(wdt, simplebus, mv_wdt_driver, 0, 0);
 

@@ -258,11 +258,7 @@ static device_method_t aw_gmacclk_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_gmacclk_driver = {
-	"aw_gmacclk",
-	aw_gmacclk_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(aw_gmacclk, aw_gmacclk_driver, aw_gmacclk_methods, 0);
 
 EARLY_DRIVER_MODULE(aw_gmacclk, simplebus, aw_gmacclk_driver, 0, 0,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

@@ -955,11 +955,8 @@ static device_method_t ti_i2c_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_i2c_driver = {
-	"iichb",
-	ti_i2c_methods,
-	sizeof(struct ti_i2c_softc),
-};
+PRIVATE_DEFINE_CLASSN(iichb, ti_i2c_driver, ti_i2c_methods,
+    sizeof(struct ti_i2c_softc));
 
 DRIVER_MODULE(ti_iic, simplebus, ti_i2c_driver, 0, 0);
 DRIVER_MODULE(iicbus, ti_iic, iicbus_driver, 0, 0);

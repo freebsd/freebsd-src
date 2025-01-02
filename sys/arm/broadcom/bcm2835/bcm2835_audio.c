@@ -952,14 +952,12 @@ static device_method_t bcm2835_audio_methods[] = {
 	DEVMETHOD(device_probe,		bcm2835_audio_probe),
 	DEVMETHOD(device_attach,	bcm2835_audio_attach),
 	DEVMETHOD(device_detach,	bcm2835_audio_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t bcm2835_audio_driver = {
-	"pcm",
-	bcm2835_audio_methods,
-	PCM_SOFTC_SIZE,
-};
+PRIVATE_DEFINE_CLASSN(pcm, bcm2835_audio_driver, bcm2835_audio_methods,
+    PCM_SOFTC_SIZE);
 
 DRIVER_MODULE(bcm2835_audio, vchiq, bcm2835_audio_driver, 0, 0);
 MODULE_DEPEND(bcm2835_audio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);

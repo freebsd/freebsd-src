@@ -132,11 +132,8 @@ static device_method_t qcom_gcc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t qcom_gcc_driver = {
-	"qcom_gcc",
-	qcom_gcc_methods,
-	sizeof(struct qcom_gcc_softc),
-};
+PRIVATE_DEFINE_CLASSN(qcom_gcc, qcom_gcc_driver, qcom_gcc_methods,
+    sizeof(struct qcom_gcc_softc));
 
 EARLY_DRIVER_MODULE(qcom_gcc, simplebus, qcom_gcc_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
