@@ -292,17 +292,13 @@ static int
 vtmmio_detach(device_t dev)
 {
 	struct vtmmio_softc *sc;
-	device_t child;
 	int error;
 
 	sc = device_get_softc(dev);
 
-	if ((child = sc->vtmmio_child_dev) != NULL) {
-		error = device_delete_child(dev, child);
-		if (error)
-			return (error);
-		sc->vtmmio_child_dev = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 
 	vtmmio_reset(sc);
 

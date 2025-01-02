@@ -1052,8 +1052,7 @@ xae_detach(device_t dev)
 		ether_ifdetach(ifp);
 	}
 
-	if (sc->miibus != NULL)
-		device_delete_child(dev, sc->miibus);
+	bus_generic_detach(dev);
 
 	if (ifp != NULL)
 		if_free(ifp);
