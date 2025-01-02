@@ -315,11 +315,9 @@ uether_ifdetach(struct usb_ether *ue)
 		ether_ifdetach(ifp);
 
 		/* detach miibus */
-		if (ue->ue_miibus != NULL) {
-			bus_topo_lock();
-			device_delete_child(ue->ue_dev, ue->ue_miibus);
-			bus_topo_unlock();
-		}
+		bus_topo_lock();
+		bus_generic_detach(ue->ue_dev);
+		bus_topo_unlock();
 
 		/* free interface instance */
 		if_free(ifp);

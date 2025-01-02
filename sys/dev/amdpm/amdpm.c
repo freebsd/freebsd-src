@@ -229,11 +229,11 @@ static int
 amdpm_detach(device_t dev)
 {
 	struct amdpm_softc *amdpm_sc = device_get_softc(dev);
+	int error;
 
-	if (amdpm_sc->smbus) {
-		device_delete_child(dev, amdpm_sc->smbus);
-		amdpm_sc->smbus = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	mtx_destroy(&amdpm_sc->lock);
 	if (amdpm_sc->res)

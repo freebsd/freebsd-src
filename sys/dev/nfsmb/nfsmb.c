@@ -275,13 +275,13 @@ nfsmbsub_detach(device_t dev)
 {
 	device_t parent;
 	struct nfsmb_softc *nfsmbsub_sc = device_get_softc(dev);
+	int error;
 
 	parent = device_get_parent(dev);
 
-	if (nfsmbsub_sc->smbus) {
-		device_delete_child(dev, nfsmbsub_sc->smbus);
-		nfsmbsub_sc->smbus = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 	mtx_destroy(&nfsmbsub_sc->lock);
 	if (nfsmbsub_sc->res) {
 		bus_release_resource(parent, SYS_RES_IOPORT, nfsmbsub_sc->rid,
@@ -295,16 +295,11 @@ static int
 nfsmb_detach(device_t dev)
 {
 	struct nfsmb_softc *nfsmb_sc = device_get_softc(dev);
+	int error;
 
-	if (nfsmb_sc->subdev) {
-		device_delete_child(dev, nfsmb_sc->subdev);
-		nfsmb_sc->subdev = NULL;
-	}
-
-	if (nfsmb_sc->smbus) {
-		device_delete_child(dev, nfsmb_sc->smbus);
-		nfsmb_sc->smbus = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	mtx_destroy(&nfsmb_sc->lock);
 	if (nfsmb_sc->res) {

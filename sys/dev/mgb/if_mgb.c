@@ -482,8 +482,7 @@ mgb_detach(if_ctx_t ctx)
 	iflib_irq_free(ctx, &sc->rx_irq);
 	iflib_irq_free(ctx, &sc->admin_irq);
 
-	if (sc->miibus != NULL)
-		device_delete_child(sc->dev, sc->miibus);
+	bus_generic_detach(sc->dev);
 
 	if (sc->pba != NULL)
 		error = bus_release_resource(sc->dev, SYS_RES_MEMORY,

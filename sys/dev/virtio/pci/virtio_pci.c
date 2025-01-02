@@ -182,18 +182,14 @@ vtpci_add_child(struct vtpci_common *cn)
 int
 vtpci_delete_child(struct vtpci_common *cn)
 {
-	device_t dev, child;
+	device_t dev;
 	int error;
 
 	dev = cn->vtpci_dev;
 
-	child = cn->vtpci_child_dev;
-	if (child != NULL) {
-		error = device_delete_child(dev, child);
-		if (error)
-			return (error);
-		cn->vtpci_child_dev = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 
 	return (0);
 }

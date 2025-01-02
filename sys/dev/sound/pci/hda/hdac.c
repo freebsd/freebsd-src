@@ -1740,20 +1740,11 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
-	device_t *devlist;
-	int cad, i, devcount, error;
+	int i, error;
 
-	if ((error = device_get_children(dev, &devlist, &devcount)) != 0)
+	error = bus_generic_detach(dev);
+	if (error != 0)
 		return (error);
-	for (i = 0; i < devcount; i++) {
-		cad = (intptr_t)device_get_ivars(devlist[i]);
-		if ((error = device_delete_child(dev, devlist[i])) != 0) {
-			free(devlist, M_TEMP);
-			return (error);
-		}
-		sc->codecs[cad].dev = NULL;
-	}
-	free(devlist, M_TEMP);
 
 	hdac_lock(sc);
 	hdac_reset(sc, false);

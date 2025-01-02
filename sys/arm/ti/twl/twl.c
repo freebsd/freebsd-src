@@ -425,13 +425,13 @@ static int
 twl_detach(device_t dev)
 {
 	struct twl_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_vreg)
-		device_delete_child(dev, sc->sc_vreg);
-	if (sc->sc_clks)
-		device_delete_child(dev, sc->sc_clks);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	TWL_LOCK_DESTROY(sc);
 
