@@ -53,7 +53,6 @@
 
 /* Device methods */
 static int imcsmb_attach(device_t dev);
-static int imcsmb_detach(device_t dev);
 static int imcsmb_probe(device_t dev);
 
 /* SMBus methods */
@@ -103,30 +102,6 @@ imcsmb_attach(device_t dev)
 	rc = 0;
 
 out:
-	return (rc);
-}
-
-/**
- * device_detach() method. attach() didn't do any allocations, so all that's
- * needed here is to free up any downstream drivers and children.
- *
- * @author Joe Kloss
- *
- * @param[in] dev
- *      Device being detached.
- */
-static int
-imcsmb_detach(device_t dev)
-{
-	int rc;
-
-	/* Detach any attached drivers */
-	rc = bus_generic_detach(dev);
-	if (rc == 0) {
-		/* Remove all children */
-		rc = device_delete_children(dev);
-	}
-
 	return (rc);
 }
 
@@ -522,7 +497,7 @@ out:
 static device_method_t imcsmb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_attach,	imcsmb_attach),
-	DEVMETHOD(device_detach,	imcsmb_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_probe,		imcsmb_probe),
 
 	/* smbus methods */

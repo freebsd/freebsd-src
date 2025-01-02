@@ -378,17 +378,6 @@ vga_pci_attach(device_t dev)
 	return (0);
 }
 
-static int
-vga_pci_detach(device_t dev)
-{
-	int error; 
-
-	error = bus_generic_detach(dev);
-	if (error == 0)
-		error = device_delete_children(dev);
-	return (error);
-}
-
 /* Bus interface. */
 
 static int
@@ -719,7 +708,7 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(device_attach,	vga_pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_detach,	vga_pci_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */

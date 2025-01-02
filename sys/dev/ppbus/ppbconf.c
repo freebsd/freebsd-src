@@ -420,21 +420,6 @@ ppbus_attach(device_t dev)
 }
 
 static int
-ppbus_detach(device_t dev)
-{
-	int error;
-
-	error = bus_generic_detach(dev);
-	if (error)
-		return (error);
-
-	/* detach & delete all children */
-	device_delete_children(dev);
-
-	return (0);
-}
-
-static int
 ppbus_intr(void *arg)
 {
 	struct ppb_device *ppbdev;
@@ -578,7 +563,7 @@ static device_method_t ppbus_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ppbus_probe),
 	DEVMETHOD(device_attach,	ppbus_attach),
-	DEVMETHOD(device_detach,	ppbus_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	ppbus_add_child),
