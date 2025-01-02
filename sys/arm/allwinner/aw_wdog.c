@@ -291,10 +291,7 @@ static device_method_t aw_wdog_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_wdog_driver = {
-	"aw_wdog",
-	aw_wdog_methods,
-	sizeof(struct aw_wdog_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_wdog, aw_wdog_driver, aw_wdog_methods,
+    sizeof(struct aw_wdog_softc));
 
 DRIVER_MODULE(aw_wdog, simplebus, aw_wdog_driver, 0, 0);

@@ -127,11 +127,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t nexus_fdt_driver = {
-	"nexus",
-	nexus_methods,
-	1			/* no softc */
-};
+PRIVATE_DEFINE_CLASSN(nexus, nexus_fdt_driver, nexus_methods, 0 /* no softc */);
 
 EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);

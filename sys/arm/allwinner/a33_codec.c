@@ -397,11 +397,8 @@ static device_method_t sun8i_codec_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t sun8i_codec_driver = {
-	"sun8icodec",
-	sun8i_codec_methods,
-	sizeof(struct sun8i_codec_softc),
-};
+PRIVATE_DEFINE_CLASSN(sun8icodec, sun8i_codec_driver, sun8i_codec_methods,
+    sizeof(struct sun8i_codec_softc));
 
 DRIVER_MODULE(sun8i_codec, simplebus, sun8i_codec_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

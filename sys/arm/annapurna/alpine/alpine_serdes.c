@@ -73,11 +73,8 @@ static device_method_t al_serdes_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t al_serdes_driver = {
-	"serdes",
-	al_serdes_methods,
-	sizeof(struct al_serdes_softc)
-};
+PRIVATE_DEFINE_CLASSN(serdes, al_serdes_driver, al_serdes_methods,
+    sizeof(struct al_serdes_softc));
 
 DRIVER_MODULE(al_serdes, simplebus, al_serdes_driver, 0, 0);
 DRIVER_MODULE(al_serdes, ofwbus, al_serdes_driver, 0, 0);

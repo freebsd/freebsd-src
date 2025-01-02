@@ -835,11 +835,8 @@ static device_method_t zy7_devcfg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t zy7_devcfg_driver = {
-	"zy7_devcfg",
-	zy7_devcfg_methods,
-	sizeof(struct zy7_devcfg_softc),
-};
+PRIVATE_DEFINE_CLASSN(zy7_devcfg, zy7_devcfg_driver, zy7_devcfg_methods,
+    sizeof(struct zy7_devcfg_softc));
 
 DRIVER_MODULE(zy7_devcfg, simplebus, zy7_devcfg_driver, 0, 0);
 MODULE_DEPEND(zy7_devcfg, zy7_slcr, 1, 1, 1);

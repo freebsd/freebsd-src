@@ -71,7 +71,7 @@ static device_method_t gic_acpi_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_get_resource_list, gic_acpi_get_resource_list),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(gic, gic_acpi_driver, gic_acpi_methods,

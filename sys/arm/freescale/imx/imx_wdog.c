@@ -244,14 +244,12 @@ imx_wdog_attach(device_t dev)
 static device_method_t imx_wdog_methods[] = {
 	DEVMETHOD(device_probe,		imx_wdog_probe),
 	DEVMETHOD(device_attach,	imx_wdog_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t imx_wdog_driver = {
-	"imx_wdog",
-	imx_wdog_methods,
-	sizeof(struct imx_wdog_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_wdog, imx_wdog_driver, imx_wdog_methods,
+    sizeof(struct imx_wdog_softc));
 
 EARLY_DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, 0, 0, BUS_PASS_TIMER);
 SIMPLEBUS_PNP_INFO(compat_data);

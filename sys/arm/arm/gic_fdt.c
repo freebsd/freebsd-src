@@ -97,7 +97,7 @@ static device_method_t gic_fdt_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(gic, gic_fdt_driver, gic_fdt_methods,

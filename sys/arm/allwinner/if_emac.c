@@ -1149,11 +1149,8 @@ static device_method_t emac_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t emac_driver = {
-	"emac",
-	emac_methods,
-	sizeof(struct emac_softc)
-};
+PRIVATE_DEFINE_CLASSN(emac, emac_driver, emac_methods,
+    sizeof(struct emac_softc));
 
 DRIVER_MODULE(emac, simplebus, emac_driver, 0, 0);
 DRIVER_MODULE(miibus, emac, miibus_driver, 0, 0);

@@ -84,6 +84,13 @@ static int mv_pcib_ctrl_fill_ranges(phandle_t, struct mv_pcib_ctrl_softc *);
 /*
  * Bus interface definitions
  */
+static struct ofw_compat_data mv_pcib_ctrl_compat[] = {
+	{"mrvl,pcie-ctrl",		(uintptr_t)&ofw_bus_reg_to_rl},
+	{"marvell,armada-370-pcie",
+	    (uintptr_t)&ofw_bus_assigned_addresses_to_rl},
+	{NULL,				(uintptr_t)NULL},
+};
+
 static device_method_t mv_pcib_ctrl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			mv_pcib_ctrl_probe),
@@ -108,18 +115,8 @@ static device_method_t mv_pcib_ctrl_methods[] = {
 	DEVMETHOD_END
 };
 
-static struct ofw_compat_data mv_pcib_ctrl_compat[] = {
-	{"mrvl,pcie-ctrl",		(uintptr_t)&ofw_bus_reg_to_rl},
-	{"marvell,armada-370-pcie",
-	    (uintptr_t)&ofw_bus_assigned_addresses_to_rl},
-	{NULL,				(uintptr_t)NULL},
-};
-
-static driver_t mv_pcib_ctrl_driver = {
-	"pcib_ctrl",
-	mv_pcib_ctrl_methods,
-	sizeof(struct mv_pcib_ctrl_softc),
-};
+PRIVATE_DEFINE_CLASSN(pcib_ctrl, mv_pcib_ctrl_driver, mv_pcib_ctrl_methods,
+    sizeof(struct mv_pcib_ctrl_softc));
 
 DRIVER_MODULE(pcib_ctrl, simplebus, mv_pcib_ctrl_driver, 0, 0);
 

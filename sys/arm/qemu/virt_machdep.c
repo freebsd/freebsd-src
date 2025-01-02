@@ -59,7 +59,7 @@ static platform_method_t virt_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	virt_mp_start_ap),
 #endif
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF(virt, "virt", 0, "linux,dummy-virt", 1);
@@ -75,7 +75,7 @@ gem5_devmap_init(platform_t plat)
 static platform_method_t gem5_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	gem5_devmap_init),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF(gem5, "gem5", 0, "arm,vexpress", 1);

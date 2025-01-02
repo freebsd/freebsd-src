@@ -840,14 +840,11 @@ ssi_attach(device_t dev)
 static device_method_t ssi_pcm_methods[] = {
 	DEVMETHOD(device_probe,		ssi_probe),
 	DEVMETHOD(device_attach,	ssi_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t ssi_pcm_driver = {
-	"pcm",
-	ssi_pcm_methods,
-	PCM_SOFTC_SIZE,
-};
+PRIVATE_DEFINE_CLASSN(pcm, ssi_pcm_driver, ssi_pcm_methods, PCM_SOFTC_SIZE);
 
 DRIVER_MODULE(ssi, simplebus, ssi_pcm_driver, 0, 0);
 MODULE_DEPEND(ssi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);

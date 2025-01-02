@@ -1640,11 +1640,8 @@ static device_method_t axp8xx_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t axp8xx_driver = {
-	"axp8xx_pmu",
-	axp8xx_methods,
-	sizeof(struct axp8xx_softc),
-};
+PRIVATE_DEFINE_CLASSN(axp8xx_pmu, axp8xx_driver, axp8xx_methods,
+    sizeof(struct axp8xx_softc));
 
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 

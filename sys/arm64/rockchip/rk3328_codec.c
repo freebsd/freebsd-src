@@ -581,11 +581,8 @@ static device_method_t rkcodec_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rkcodec_driver = {
-	"rk3328codec",
-	rkcodec_methods,
-	sizeof(struct rkcodec_softc),
-};
+PRIVATE_DEFINE_CLASSN(rk3328codec, rkcodec_driver, rkcodec_methods,
+    sizeof(struct rkcodec_softc));
 
 DRIVER_MODULE(rkcodec, simplebus, rkcodec_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

@@ -298,6 +298,6 @@ static device_method_t tegra_rtc_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(rtc, tegra_rtc_driver, tegra_rtc_methods,
+PRIVATE_DEFINE_CLASSN(rtc, tegra_rtc_driver, tegra_rtc_methods,
     sizeof(struct tegra_rtc_softc));
 DRIVER_MODULE(tegra_rtc, simplebus, tegra_rtc_driver, NULL, NULL);

@@ -163,14 +163,12 @@ static device_method_t ccache_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ccache_probe),
 	DEVMETHOD(device_attach,	ccache_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t ccache_driver = {
-	"ccache",
-	ccache_methods,
-	sizeof(struct ccache_softc),
-};
+PRIVATE_DEFINE_CLASSN(ccache, ccache_driver, ccache_methods,
+    sizeof(struct ccache_softc));
 
 EARLY_DRIVER_MODULE(ccache, simplebus, ccache_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);

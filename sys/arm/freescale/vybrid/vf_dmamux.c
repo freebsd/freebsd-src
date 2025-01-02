@@ -138,13 +138,11 @@ dmamux_attach(device_t dev)
 static device_method_t dmamux_methods[] = {
 	DEVMETHOD(device_probe,		dmamux_probe),
 	DEVMETHOD(device_attach,	dmamux_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t dmamux_driver = {
-	"dmamux",
-	dmamux_methods,
-	sizeof(struct dmamux_softc),
-};
+PRIVATE_DEFINE_CLASSN(dmamux, dmamux_driver, dmamux_methods,
+    sizeof(struct dmamux_softc));
 
 DRIVER_MODULE(dmamux, simplebus, dmamux_driver, 0, 0);
