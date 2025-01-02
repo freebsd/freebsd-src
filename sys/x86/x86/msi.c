@@ -132,8 +132,6 @@ static void	msi_eoi_source(struct intsrc *isrc);
 static void	msi_enable_intr(struct intsrc *isrc);
 static void	msi_disable_intr(struct intsrc *isrc);
 static int	msi_source_pending(struct intsrc *isrc);
-static int	msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-		    enum intr_polarity pol);
 static int	msi_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
 struct pic msi_pic = {
@@ -145,7 +143,6 @@ struct pic msi_pic = {
 	.pic_source_pending = msi_source_pending,
 	.pic_suspend = NULL,
 	.pic_resume = NULL,
-	.pic_config_intr = msi_config_intr,
 	.pic_assign_cpu = msi_assign_cpu,
 	.pic_reprogram_pin = NULL,
 };
@@ -237,14 +234,6 @@ msi_source_pending(struct intsrc *isrc)
 {
 
 	return (0);
-}
-
-static int
-msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
-{
-
-	return (ENODEV);
 }
 
 static int
