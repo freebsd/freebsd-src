@@ -373,10 +373,9 @@ puc_bfe_attach(device_t dev)
 	return (0);
 
 fail:
+	device_delete_children(dev);
 	for (idx = 0; idx < sc->sc_nports; idx++) {
 		port = &sc->sc_port[idx];
-		if (port->p_dev != NULL)
-			device_delete_child(dev, port->p_dev);
 		if (port->p_rres != NULL)
 			rman_release_resource(port->p_rres);
 		if (port->p_ires != NULL)
