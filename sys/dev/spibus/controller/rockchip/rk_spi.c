@@ -354,8 +354,6 @@ rk_spi_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	bus_generic_detach(sc->dev);
-	if (sc->spibus != NULL)
-		device_delete_child(dev, sc->spibus);
 
 	if (sc->clk_spi != NULL)
 		clk_release(sc->clk_spi);

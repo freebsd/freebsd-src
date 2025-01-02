@@ -565,8 +565,6 @@ ow_attach(device_t ndev)
 static int
 ow_detach(device_t ndev)
 {
-	device_t *children, child;
-	int nkid, i;
 	struct ow_softc *sc;
 
 	sc = device_get_softc(ndev);
@@ -575,17 +573,6 @@ ow_detach(device_t ndev)
 	 * have stopped, etc.
 	 */
 	bus_generic_detach(ndev);
-
-	/*
-	 * We delete all the children, and free up the ivars 
-	 */
-	if (device_get_children(ndev, &children, &nkid) != 0)
-		return ENOMEM;
-	for (i = 0; i < nkid; i++) {
-		child = children[i];
-		device_delete_child(ndev, child);
-	}
-	free(children, M_TEMP);
 
 	OW_LOCK_DESTROY(sc);
 	return 0;

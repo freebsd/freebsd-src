@@ -583,7 +583,6 @@ lge_detach(device_t dev)
 	ether_ifdetach(ifp);
 
 	bus_generic_detach(dev);
-	device_delete_child(dev, sc->lge_miibus);
 
 	bus_teardown_intr(dev, sc->lge_irq, sc->lge_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->lge_irq);

@@ -626,17 +626,12 @@ cdnc_i2c_detach(device_t dev)
 {
 	struct cdnc_i2c_softc *sc = device_get_softc(dev);
 
-	if (device_is_attached(dev))
-		bus_generic_detach(dev);
+	bus_generic_detach(dev);
 
 	if (sc->ref_clk != NULL) {
 		clk_release(sc->ref_clk);
 		sc->ref_clk = NULL;
 	}
-
-	/* Delete iic bus. */
-	if (sc->iicbus)
-		device_delete_child(dev, sc->iicbus);
 
 	/* Disable hardware. */
 	if (sc->mem_res != NULL) {

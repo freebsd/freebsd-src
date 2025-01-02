@@ -923,13 +923,11 @@ cpsw_detach(device_t dev)
 	struct cpsw_softc *sc;
 	int error, i;
 
-	bus_generic_detach(dev);
- 	sc = device_get_softc(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
-	for (i = 0; i < CPSW_PORTS; i++) {
-		if (sc->port[i].dev)
-			device_delete_child(dev, sc->port[i].dev);
-	}
+	sc = device_get_softc(dev);
 
 	if (device_is_attached(dev)) {
 		callout_stop(&sc->watchdog.callout);

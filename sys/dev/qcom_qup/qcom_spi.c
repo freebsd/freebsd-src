@@ -840,8 +840,6 @@ qcom_spi_detach(device_t dev)
 	int i;
 
 	bus_generic_detach(sc->sc_dev);
-	if (sc->spibus != NULL)
-		device_delete_child(dev, sc->spibus);
 
 	if (sc->sc_irq_h)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_h);

@@ -497,8 +497,6 @@ felix_detach(device_t dev)
 		felix_setup(sc);
 
 	for (i = 0; i < sc->info.es_nports; i++) {
-		if (sc->ports[i].miibus != NULL)
-			device_delete_child(dev, sc->ports[i].miibus);
 		if (sc->ports[i].ifp != NULL)
 			if_free(sc->ports[i].ifp);
 		if (sc->ports[i].ifname != NULL)

@@ -757,8 +757,6 @@ tegra_i2c_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
 
 	LOCK_DESTROY(sc);
-	if (sc->iicbus)
-		device_delete_child(dev, sc->iicbus);
 	return (0);
 }
 

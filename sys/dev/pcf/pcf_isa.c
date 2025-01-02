@@ -192,9 +192,6 @@ pcf_isa_detach(device_t dev)
 	if ((rv = bus_generic_detach(dev)) != 0)
 		return (rv);
 
-	if ((rv = device_delete_child(dev, sc->iicbus)) != 0)
-		return (rv);
-
 	if (sc->res_irq != 0) {
 		bus_teardown_intr(dev, sc->res_irq, sc->intr_cookie);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->rid_irq, sc->res_irq);

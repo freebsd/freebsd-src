@@ -913,10 +913,6 @@ ti_i2c_detach(device_t dev)
 		return (rv);
 	}
 
-    if (sc->sc_iicbus &&
-	    (rv = device_delete_child(dev, sc->sc_iicbus)) != 0)
-		return (rv);
-
 	ti_i2c_deactivate(dev);
 	TI_I2C_LOCK_DESTROY(sc);
 

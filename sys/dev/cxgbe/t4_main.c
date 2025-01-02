@@ -1807,8 +1807,6 @@ t4_detach_common(device_t dev)
 		pi = sc->port[i];
 		if (pi) {
 			t4_free_vi(sc, sc->mbox, sc->pf, 0, pi->vi[0].viid);
-			if (pi->dev)
-				device_delete_child(dev, pi->dev);
 
 			mtx_destroy(&pi->pi_lock);
 			free(pi->vi, M_CXGBE);

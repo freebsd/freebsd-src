@@ -686,10 +686,6 @@ rk_i2c_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)) != 0)
 		return (error);
 
-	if (sc->iicbus != NULL)
-		if ((error = device_delete_child(dev, sc->iicbus)) != 0)
-			return (error);
-
 	if (sc->sclk != NULL)
 		clk_release(sc->sclk);
 	if (sc->pclk != NULL)

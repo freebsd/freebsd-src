@@ -542,9 +542,6 @@ am335x_ehrpwm_detach(device_t dev)
 
 	PWM_LOCK(sc);
 
-	if (sc->sc_busdev != NULL)
-		device_delete_child(dev, sc->sc_busdev);
-
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->sc_mem_rid, sc->sc_mem_res);
