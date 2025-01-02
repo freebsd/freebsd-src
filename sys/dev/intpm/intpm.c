@@ -202,8 +202,7 @@ intsmb_release_resources(device_t dev)
 {
 	struct intsmb_softc *sc = device_get_softc(dev);
 
-	if (sc->smbus)
-		device_delete_child(dev, sc->smbus);
+	device_delete_children(dev);
 	if (sc->irq_hand)
 		bus_teardown_intr(dev, sc->irq_res, sc->irq_hand);
 	if (sc->irq_res)

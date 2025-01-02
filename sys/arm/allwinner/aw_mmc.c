@@ -482,7 +482,6 @@ static int
 aw_mmc_detach(device_t dev)
 {
 	struct aw_mmc_softc *sc;
-	device_t d;
 
 	sc = device_get_softc(dev);
 
@@ -494,12 +493,7 @@ aw_mmc_detach(device_t dev)
 
 	callout_drain(&sc->aw_timeoutc);
 
-	AW_MMC_LOCK(sc);
-	d = sc->child;
-	sc->child = NULL;
-	AW_MMC_UNLOCK(sc);
-	if (d != NULL)
-		device_delete_child(sc->aw_dev, d);
+	device_delete_children(sc->aw_dev);
 
 	aw_mmc_teardown_dma(sc);
 
