@@ -1552,7 +1552,7 @@ pcib_detach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-	error = bus_generic_detach(dev);
+	error = bus_detach_children(dev);
 	if (error)
 		return (error);
 #ifdef PCI_HP

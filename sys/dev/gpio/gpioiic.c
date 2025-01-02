@@ -331,7 +331,7 @@ gpioiic_detach(device_t dev)
 	struct gpioiic_softc *sc = device_get_softc(dev);
 	int err;
 
-	if ((err = bus_generic_detach(dev)) != 0)
+	if ((err = bus_detach_children(dev)) != 0)
 		return (err);
 
 	gpioiic_cleanup(sc);

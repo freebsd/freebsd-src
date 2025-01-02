@@ -666,7 +666,7 @@ sdhci_fdt_detach(device_t dev)
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 	int i;
 
-	bus_generic_detach(dev);
+	bus_detach_children(dev);
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res),
 	    sc->irq_res);

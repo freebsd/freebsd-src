@@ -582,7 +582,7 @@ gpiobus_detach(device_t dev)
 	    ("gpiobus mutex not initialized"));
 	GPIOBUS_LOCK_DESTROY(sc);
 
-	if ((err = bus_generic_detach(dev)) != 0)
+	if ((err = bus_detach_children(dev)) != 0)
 		return (err);
 	if ((err = device_delete_children(dev)) != 0)
 		return (err);

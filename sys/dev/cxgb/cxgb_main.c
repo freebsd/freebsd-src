@@ -729,7 +729,7 @@ cxgb_free(struct adapter *sc)
 	/*
 	 * Make sure all child devices are gone.
 	 */
-	bus_generic_detach(sc->dev);
+	bus_detach_children(sc->dev);
 	for (i = 0; i < (sc)->params.nports; i++) {
 		if (sc->portdev[i] &&
 		    device_delete_child(sc->dev, sc->portdev[i]) != 0)
@@ -1066,7 +1066,7 @@ cxgb_port_attach(device_t dev)
 
 /*
  * cxgb_port_detach() is called via the device_detach methods when
- * cxgb_free() calls the bus_generic_detach.  It is responsible for 
+ * cxgb_free() calls the bus_detach_children.  It is responsible for 
  * removing the device from the view of the kernel, i.e. from all 
  * interfaces lists etc.  This routine is only called when the driver is 
  * being unloaded, not when the link goes down.
