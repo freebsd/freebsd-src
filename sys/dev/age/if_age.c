@@ -686,10 +686,6 @@ age_detach(device_t dev)
 		sc->age_tq = NULL;
 	}
 
-	if (sc->age_miibus != NULL) {
-		device_delete_child(dev, sc->age_miibus);
-		sc->age_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 	age_dma_free(sc);
 

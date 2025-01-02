@@ -1074,8 +1074,6 @@ ste_detach(device_t dev)
 		STE_UNLOCK(sc);
 		callout_drain(&sc->ste_callout);
 	}
-	if (sc->ste_miibus)
-		device_delete_child(dev, sc->ste_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->ste_intrhand)

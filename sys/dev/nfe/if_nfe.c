@@ -711,8 +711,6 @@ nfe_detach(device_t dev)
 		nfe_set_macaddr(sc, eaddr);
 		if_free(ifp);
 	}
-	if (sc->nfe_miibus)
-		device_delete_child(dev, sc->nfe_miibus);
 	bus_generic_detach(dev);
 	if (sc->nfe_tq != NULL) {
 		taskqueue_drain(sc->nfe_tq, &sc->nfe_int_task);

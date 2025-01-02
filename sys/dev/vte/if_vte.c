@@ -506,10 +506,6 @@ vte_detach(device_t dev)
 		ether_ifdetach(ifp);
 	}
 
-	if (sc->vte_miibus != NULL) {
-		device_delete_child(dev, sc->vte_miibus);
-		sc->vte_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 
 	if (sc->vte_intrhand != NULL) {

@@ -928,10 +928,6 @@ jme_detach(device_t dev)
 		sc->jme_tq = NULL;
 	}
 
-	if (sc->jme_miibus != NULL) {
-		device_delete_child(dev, sc->jme_miibus);
-		sc->jme_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 	jme_dma_free(sc);
 

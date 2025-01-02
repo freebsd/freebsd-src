@@ -370,8 +370,6 @@ et_detach(device_t dev)
 		callout_drain(&sc->sc_tick);
 	}
 
-	if (sc->sc_miibus != NULL)
-		device_delete_child(dev, sc->sc_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->sc_irq_handle != NULL)

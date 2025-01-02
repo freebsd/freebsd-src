@@ -933,8 +933,6 @@ fxp_release(struct fxp_softc *sc)
 	FXP_LOCK_ASSERT(sc, MA_NOTOWNED);
 	KASSERT(sc->ih == NULL,
 	    ("fxp_release() called with intr handle still active"));
-	if (sc->miibus)
-		device_delete_child(sc->dev, sc->miibus);
 	bus_generic_detach(sc->dev);
 	ifmedia_removeall(&sc->sc_media);
 	if (sc->fxp_desc.cbl_list) {

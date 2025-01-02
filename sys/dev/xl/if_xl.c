@@ -1572,8 +1572,6 @@ xl_detach(device_t dev)
 		callout_drain(&sc->xl_tick_callout);
 		ether_ifdetach(ifp);
 	}
-	if (sc->xl_miibus)
-		device_delete_child(dev, sc->xl_miibus);
 	bus_generic_detach(dev);
 	ifmedia_removeall(&sc->ifmedia);
 

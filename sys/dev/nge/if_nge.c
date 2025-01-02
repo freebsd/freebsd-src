@@ -999,10 +999,6 @@ nge_detach(device_t dev)
 			ether_ifdetach(ifp);
 	}
 
-	if (sc->nge_miibus != NULL) {
-		device_delete_child(dev, sc->nge_miibus);
-		sc->nge_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 	if (sc->nge_intrhand != NULL)
 		bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);

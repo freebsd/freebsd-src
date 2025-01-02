@@ -1699,10 +1699,6 @@ alc_detach(device_t dev)
 		sc->alc_tq = NULL;
 	}
 
-	if (sc->alc_miibus != NULL) {
-		device_delete_child(dev, sc->alc_miibus);
-		sc->alc_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 	alc_dma_free(sc);
 

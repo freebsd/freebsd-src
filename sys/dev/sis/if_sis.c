@@ -1146,8 +1146,6 @@ sis_detach(device_t dev)
 		callout_drain(&sc->sis_stat_ch);
 		ether_ifdetach(ifp);
 	}
-	if (sc->sis_miibus)
-		device_delete_child(dev, sc->sis_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->sis_intrhand)

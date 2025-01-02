@@ -1177,8 +1177,6 @@ vge_detach(device_t dev)
 		VGE_UNLOCK(sc);
 		callout_drain(&sc->vge_watchdog);
 	}
-	if (sc->vge_miibus)
-		device_delete_child(dev, sc->vge_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->vge_intrhand)
