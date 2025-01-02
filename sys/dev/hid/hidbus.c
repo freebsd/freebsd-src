@@ -297,8 +297,7 @@ hidbus_detach_children(device_t dev)
 
 	if (is_bus) {
 		/* If hidbus is passed, delete all children. */
-		bus_generic_detach(bus);
-		device_delete_children(bus);
+		error = bus_generic_detach(bus);
 	} else {
 		/*
 		 * If hidbus child is passed, delete all hidbus children

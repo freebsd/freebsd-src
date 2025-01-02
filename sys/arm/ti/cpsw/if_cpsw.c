@@ -965,7 +965,7 @@ cpsw_detach(device_t dev)
 	if (error != 0)
 		return (error);
         
-	return (device_delete_children(dev));
+	return (0);
 }
 
 static phandle_t

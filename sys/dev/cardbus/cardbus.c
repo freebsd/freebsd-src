@@ -245,8 +245,6 @@ cardbus_detach_card(device_t cbdev)
 
 	bus_topo_lock();
 	err = bus_generic_detach(cbdev);
-	if (err == 0)
-		err = device_delete_children(cbdev);
 	bus_topo_unlock();
 	if (err)
 		return (err);

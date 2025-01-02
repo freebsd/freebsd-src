@@ -348,9 +348,6 @@ ida_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	error = device_delete_children(dev);
-	if (error)
-		return (error);
 
 	/*
 	 * XXX

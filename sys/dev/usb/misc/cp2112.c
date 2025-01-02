@@ -1345,7 +1345,6 @@ cp2112iic_detach(device_t dev)
 	err = bus_generic_detach(dev);
 	if (err != 0)
 		return (err);
-	device_delete_children(dev);
 
 	mtx_lock(&sc->io.lock);
 	usbd_transfer_stop(sc->xfers[CP2112_INTR_IN]);
