@@ -64,9 +64,7 @@
 
 #include "gpio_if.h"
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -93,23 +91,17 @@
 #define	IMX_GPIO_ISR_REG	0x018 /* Interrupt Status Register */
 #define	IMX_GPIO_EDGE_REG	0x01C /* Edge Detect Register */
 
-#ifdef INTRNG
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
     GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
     GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
-#else
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
-#endif
 
 #define	NGPIO		32
 
-#ifdef INTRNG
 struct gpio_irqsrc {
 	struct intr_irqsrc	gi_isrc;
 	u_int			gi_irq;
 	uint32_t		gi_mode;
 };
-#endif
 
 struct imx51_gpio_softc {
 	device_t		dev;
@@ -121,9 +113,7 @@ struct imx51_gpio_softc {
 	bus_space_handle_t	sc_ioh;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
-#ifdef INTRNG
 	struct gpio_irqsrc 	gpio_pic_irqsrc[NGPIO];
-#endif
 #ifdef IMX_ENABLE_CLOCKS
 	clk_t			clk;
 #endif
@@ -173,7 +163,6 @@ static int imx51_gpio_pin_set(device_t, uint32_t, unsigned int);
 static int imx51_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
-#ifdef INTRNG
 static int
 gpio_pic_map_fdt(struct imx51_gpio_softc *sc, struct intr_map_data_fdt *daf,
     u_int *irqp, uint32_t *modep)
@@ -509,7 +498,6 @@ gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
 	}
 	return (0);
 }
-#endif
 
 /*
  *
@@ -835,7 +823,6 @@ imx51_gpio_attach(device_t dev)
 	 */
 	WRITE4(sc, IMX_GPIO_IMR_REG, 0);
 	for (irq = 0; irq < 2; irq++) {
-#ifdef INTRNG
 		if ((bus_setup_intr(dev, sc->sc_res[1 + irq], INTR_TYPE_CLK,
 		    gpio_pic_filter, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
@@ -843,7 +830,6 @@ imx51_gpio_attach(device_t dev)
 			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
-#endif		
 	}
 
 	unit = device_get_unit(dev);
@@ -857,10 +843,8 @@ imx51_gpio_attach(device_t dev)
  		    "GPIO%d_IO%02d", unit + 1, i);
 	}
 
-#ifdef INTRNG
 	gpio_pic_register_isrcs(sc);
 	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
-#endif
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 
 	if (sc->sc_busdev == NULL) {
@@ -921,14 +905,12 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(intr_event_post_ithread,	gpio_pic_post_ithread),
 	DEVMETHOD(intr_event_post_filter,	gpio_pic_post_filter),
 
-#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	gpio_pic_enable_intr),
 	DEVMETHOD(pic_map_intr,		gpio_pic_map_intr),
 	DEVMETHOD(pic_setup_intr,	gpio_pic_setup_intr),
 	DEVMETHOD(pic_teardown_intr,	gpio_pic_teardown_intr),
-#endif
 
 	/* OFW methods */
 	DEVMETHOD(ofw_bus_get_node,	imx51_gpio_get_node),
