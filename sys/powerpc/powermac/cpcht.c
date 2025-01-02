@@ -520,14 +520,9 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(device_attach,	openpic_cpcht_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		openpic_bind),
 	DEVMETHOD(pic_config,		openpic_cpcht_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
 	DEVMETHOD(pic_enable,		openpic_cpcht_enable),
 	DEVMETHOD(pic_eoi,		openpic_cpcht_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
 
 	DEVMETHOD_END
 };
@@ -539,7 +534,7 @@ struct openpic_cpcht_softc {
 };
 
 PRIVATE_DEFINE_CLASSN(htpic, openpic_cpcht_driver, openpic_cpcht_methods,
-    sizeof(struct openpic_cpcht_softc));
+    sizeof(struct openpic_cpcht_softc), openpic_class);
 
 EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
     BUS_PASS_INTERRUPT);
