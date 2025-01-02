@@ -148,6 +148,25 @@ static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 static int atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void i8259_init(struct atpic *pic, int slave);
 
+#ifdef DEV_ISA
+static device_probe_t atpic_probe;
+static device_attach_t atpic_attach;
+#endif /* DEV_ISA */
+
+#ifdef DEV_ISA
+static const device_method_t atpic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		atpic_probe),
+	DEVMETHOD(device_attach,	atpic_attach),
+
+	DEVMETHOD_END
+};
+#endif /* DEV_ISA */
+
+#ifdef DEV_ISA
+PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0 /* no softc */);
+#endif /* DEV_ISA */
+
 static struct atpic atpics[] = {
 	ATPIC(IO_ICU1, 0, atpic_eoi_master),
 	ATPIC(IO_ICU2, 8, atpic_eoi_slave)
@@ -587,19 +606,6 @@ atpic_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 	return (0);
 }
-
-static device_method_t atpic_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		atpic_probe),
-	DEVMETHOD(device_attach,	atpic_attach),
-	{ 0, 0 }
-};
-
-static driver_t atpic_driver = {
-	"atpic",
-	atpic_methods,
-	1,		/* no softc */
-};
 
 DRIVER_MODULE(atpic, isa, atpic_driver, 0, 0);
 DRIVER_MODULE(atpic, acpi, atpic_driver, 0, 0);
