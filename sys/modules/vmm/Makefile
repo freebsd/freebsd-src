@@ -154,7 +154,8 @@ svm_genassym.o: offset.inc
 SRCS+=	vmm_aplic.c	\
 	vmm_riscv.c	\
 	vmm_sbi.c	\
-	vmm_switch.S
+	vmm_switch.S	\
+	vmm_vtimer.c
 
 .endif
 

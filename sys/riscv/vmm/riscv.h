@@ -38,6 +38,8 @@
 #include <machine/pcpu.h>
 #include <machine/vmm.h>
 
+#include <riscv/vmm/vmm_vtimer.h>
+
 struct hypregs {
 	uint64_t hyp_ra;
 	uint64_t hyp_sp;
@@ -78,6 +80,8 @@ struct hypctx {
 	bool has_exception;
 	int cpu_id;
 	int ipi_pending;
+	int interrupts_pending;
+	struct vtimer vtimer;
 };
 
 struct hyp {
@@ -128,5 +132,6 @@ int vmm_sbi_ecall(struct vcpu *, bool *);
 
 void riscv_send_ipi(struct hypctx *hypctx, int hart_id);
 int riscv_check_ipi(struct hypctx *hypctx, bool clear);
+bool riscv_check_interrupts_pending(struct hypctx *hypctx);
 
 #endif /* !_VMM_RISCV_H_ */

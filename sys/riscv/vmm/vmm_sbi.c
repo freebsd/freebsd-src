@@ -96,6 +96,31 @@ vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
 }
 
 static int
+vmm_sbi_handle_time(struct vcpu *vcpu, struct hypctx *hypctx)
+{
+	uint64_t func_id;
+	uint64_t next_val;
+	int ret;
+
+	func_id = hypctx->guest_regs.hyp_a[6];
+	next_val = hypctx->guest_regs.hyp_a[0];
+
+	switch (func_id) {
+	case SBI_TIME_SET_TIMER:
+		vtimer_set_timer(hypctx, next_val);
+		ret = 0;
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+
+	hypctx->guest_regs.hyp_a[0] = ret;
+
+	return (0);
+}
+
+static int
 vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 {
 	struct hypctx *target_hypctx;
@@ -166,6 +191,7 @@ vmm_sbi_ecall(struct vcpu *vcpu, bool *retu)
 		vmm_sbi_handle_rfnc(vcpu, hypctx);
 		break;
 	case SBI_EXT_ID_TIME:
+		vmm_sbi_handle_time(vcpu, hypctx);
 		break;
 	case SBI_EXT_ID_IPI:
 		vmm_sbi_handle_ipi(vcpu, hypctx);
