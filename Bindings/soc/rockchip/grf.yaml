@@ -31,10 +31,16 @@ properties:
               - rockchip,rk3588-pcie3-pipe-grf
               - rockchip,rk3588-usb-grf
               - rockchip,rk3588-usbdpphy-grf
-              - rockchip,rk3588-vo-grf
+              - rockchip,rk3588-vo0-grf
+              - rockchip,rk3588-vo1-grf
               - rockchip,rk3588-vop-grf
               - rockchip,rv1108-usbgrf
           - const: syscon
+      - items:
+          - const: rockchip,rk3588-vo-grf
+          - const: syscon
+        deprecated: true
+        description: Use rockchip,rk3588-vo{0,1}-grf instead.
       - items:
           - enum:
               - rockchip,px30-grf
@@ -176,9 +182,10 @@ allOf:
             Documentation/devicetree/bindings/phy/rockchip-pcie-phy.txt
 
       patternProperties:
-        "phy@[0-9a-f]+$":
-          description:
-            Documentation/devicetree/bindings/phy/rockchip-emmc-phy.txt
+        "^phy@[0-9a-f]+$":
+          type: object
+          $ref: /schemas/phy/rockchip,rk3399-emmc-phy.yaml#
+          unevaluatedProperties: false
 
   - if:
       properties:
@@ -261,6 +268,8 @@ allOf:
           contains:
             enum:
               - rockchip,rk3588-vo-grf
+              - rockchip,rk3588-vo0-grf
+              - rockchip,rk3588-vo1-grf
 
     then:
       required:
@@ -289,6 +298,15 @@ examples:
                  <&cru PCLK_VIO_GRF>;
         clock-names = "dphy-ref", "dphy-cfg", "grf";
         power-domains = <&power RK3399_PD_VIO>;
+        #phy-cells = <0>;
+      };
+
+      phy@f780 {
+        compatible = "rockchip,rk3399-emmc-phy";
+        reg = <0xf780 0x20>;
+        clocks = <&sdhci>;
+        clock-names = "emmcclk";
+        drive-impedance-ohm = <50>;
         #phy-cells = <0>;
       };
 
