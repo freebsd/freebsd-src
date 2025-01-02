@@ -118,7 +118,8 @@ add_cpus(void *fdt, int ncpu, const char *isa)
 	/* XXX: Needed given the root #address-cells? */
 	fdt_property_u32(fdt, "#address-cells", 1);
 	fdt_property_u32(fdt, "#size-cells", 0);
-	fdt_property_u32(fdt, "timebase-frequency", 10000000);
+	/* TODO: take timebase from kernel? */
+	fdt_property_u32(fdt, "timebase-frequency", 1000000);
 
 	for (cpuid = 0; cpuid < ncpu; cpuid++)
 		add_cpu(fdt, cpuid, isa);

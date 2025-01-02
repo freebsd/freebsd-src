@@ -83,6 +83,7 @@ riscv/vmm/vmm_instruction_emul.c		optional	vmm
 riscv/vmm/vmm_riscv.c				optional	vmm
 riscv/vmm/vmm_sbi.c				optional	vmm
 riscv/vmm/vmm_switch.S				optional	vmm
+riscv/vmm/vmm_vtimer.c				optional	vmm
 
 riscv/thead/thead.c		standard
 
