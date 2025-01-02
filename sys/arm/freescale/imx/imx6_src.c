@@ -160,10 +160,6 @@ static device_method_t src_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t src_driver = {
-	"src",
-	src_methods,
-	sizeof(struct src_softc)
-};
+PRIVATE_DEFINE_CLASSN(src, src_driver, src_methods, sizeof(struct src_softc));
 
 DRIVER_MODULE(src, simplebus, src_driver, 0, 0);

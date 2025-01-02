@@ -1814,11 +1814,7 @@ static device_method_t gen_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t gen_driver = {
-	"genet",
-	gen_methods,
-	sizeof(struct gen_softc),
-};
+PRIVATE_DEFINE_CLASSN(genet, gen_driver, gen_methods, sizeof(struct gen_softc));
 
 DRIVER_MODULE(genet, simplebus, gen_driver, 0, 0);
 DRIVER_MODULE(miibus, genet, miibus_driver, 0, 0);

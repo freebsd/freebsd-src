@@ -767,14 +767,12 @@ fail:
 static device_method_t bcm_dma_methods[] = {
 	DEVMETHOD(device_probe,		bcm_dma_probe),
 	DEVMETHOD(device_attach,	bcm_dma_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t bcm_dma_driver = {
-	"bcm_dma",
-	bcm_dma_methods,
-	sizeof(struct bcm_dma_softc),
-};
+PRIVATE_DEFINE_CLASSN(bcm_dma, bcm_dma_driver, bcm_dma_methods,
+    sizeof(struct bcm_dma_softc));
 
 EARLY_DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

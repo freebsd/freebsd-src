@@ -467,7 +467,7 @@ static device_method_t tegra_sdhci_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
+PRIVATE_DEFINE_CLASSN(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
     sizeof(struct tegra_sdhci_softc));
 DRIVER_MODULE(sdhci_tegra, simplebus, tegra_sdhci_driver, NULL, NULL);
 SDHCI_DEPEND(sdhci_tegra);

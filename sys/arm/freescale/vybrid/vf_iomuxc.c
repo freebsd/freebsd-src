@@ -195,13 +195,11 @@ iomuxc_attach(device_t dev)
 static device_method_t iomuxc_methods[] = {
 	DEVMETHOD(device_probe,		iomuxc_probe),
 	DEVMETHOD(device_attach,	iomuxc_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t iomuxc_driver = {
-	"iomuxc",
-	iomuxc_methods,
-	sizeof(struct iomuxc_softc),
-};
+PRIVATE_DEFINE_CLASSN(iomuxc, iomuxc_driver, iomuxc_methods,
+    sizeof(struct iomuxc_softc));
 
 DRIVER_MODULE(iomuxc, simplebus, iomuxc_driver, 0, 0);

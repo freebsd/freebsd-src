@@ -152,11 +152,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t nexus_driver = {
-	"nexus",
-	nexus_methods,
-	1			/* no softc */
-};
+PRIVATE_DEFINE_CLASSN(nexus, nexus_driver, nexus_methods, 0 /* no softc */);
 
 static int
 nexus_attach(device_t dev)
@@ -437,7 +433,7 @@ static device_method_t nexus_fdt_methods[] = {
 	/* OFW interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(nexus, nexus_fdt_driver, nexus_fdt_methods, 1, nexus_driver);
@@ -525,7 +521,7 @@ static device_method_t nexus_acpi_methods[] = {
 	/* ACPI interface */
 	DEVMETHOD(acpi_bus_map_intr,	nexus_acpi_map_intr),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1,

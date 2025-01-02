@@ -196,11 +196,8 @@ static device_method_t am335x_rtc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t am335x_rtc_driver = {
-	"am335x_rtc",
-	am335x_rtc_methods,
-	sizeof(struct am335x_rtc_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_rtc, am335x_rtc_driver, am335x_rtc_methods,
+    sizeof(struct am335x_rtc_softc));
 
 DRIVER_MODULE(am335x_rtc, simplebus, am335x_rtc_driver, 0, 0);
 MODULE_VERSION(am335x_rtc, 1);

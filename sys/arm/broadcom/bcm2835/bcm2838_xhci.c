@@ -204,7 +204,7 @@ static device_method_t bcm_xhci_methods[] = {
 	DEVMETHOD(device_probe,			bcm_xhci_probe),
 	DEVMETHOD(device_attach,		bcm_xhci_attach),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(bcm_xhci, bcm_xhci_driver, bcm_xhci_methods,

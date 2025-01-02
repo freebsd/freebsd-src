@@ -491,6 +491,6 @@ static device_method_t tegra210_cpufreq_methods[] = {
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(tegra210_cpufreq, tegra210_cpufreq_driver,
+PRIVATE_DEFINE_CLASSN(tegra210_cpufreq, tegra210_cpufreq_driver,
     tegra210_cpufreq_methods, sizeof(struct tegra210_cpufreq_softc));
 DRIVER_MODULE(tegra210_cpufreq, cpu, tegra210_cpufreq_driver, NULL, NULL);
