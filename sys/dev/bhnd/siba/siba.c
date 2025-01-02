@@ -1373,12 +1373,7 @@ siba_add_children(device_t dev)
 	return (0);
 
 failed:
-	for (u_int i = 0; i < cid->ncores; i++) {
-		if (children[i] == NULL)
-			continue;
-
-		device_delete_child(dev, children[i]);
-	}
+	device_delete_children(dev);
 
 	free(cores, M_BHND);
 	free(children, M_BHND);
