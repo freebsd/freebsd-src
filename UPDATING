@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250710:
+	The shar(1) utility has been removed from base.  The
+	sysutils/freebsd-shar port was created to maintain this version of
+	shar(1) past its removal from base.
+
 20250704:
 	LinuxKPI device.h and acpi changes effecting drivers and drm-kmod.
 	Bump __FreeBSD_version 1500050 to be able to detect these changes.

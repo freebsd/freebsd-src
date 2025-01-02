@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250710: shar(1) removed
+OLD_FILES+=usr/bin/shar
+
 # 20250708: For 34 days 15.0-CURRENT installed libkadm5clnt symlink without .so
 OLD_FILES+=usr/lib/libkadm5clnt
 

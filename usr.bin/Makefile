@@ -133,7 +133,6 @@ SUBDIR=	alias \
 	sdiff \
 	sed \
 	seq \
-	shar \
 	showmount \
 	sockstat \
 	soelim \
