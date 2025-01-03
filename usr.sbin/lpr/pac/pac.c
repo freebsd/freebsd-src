@@ -260,7 +260,7 @@ dumpit(void)
 
 	hp = hashtab[0];
 	hno = 1;
-	base = (struct hent **) calloc(sizeof hp, hcount);
+	base = (struct hent **) calloc(hcount, sizeof(hp));
 	for (ap = base, c = hcount; c--; ap++) {
 		while (hp == NULL)
 			hp = hashtab[hno++];
@@ -338,7 +338,7 @@ enter(const char name[])
 		return(hp);
 	h = hash(name);
 	hcount++;
-	hp = (struct hent *) calloc(sizeof *hp, (size_t)1);
+	hp = (struct hent *) calloc(1, sizeof(*hp));
 	hp->h_name = strdup(name);
 	hp->h_feetpages = 0.0;
 	hp->h_count = 0;
