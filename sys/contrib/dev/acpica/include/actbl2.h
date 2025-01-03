@@ -259,7 +259,9 @@ typedef struct acpi_aest_hdr
 #define ACPI_AEST_SMMU_ERROR_NODE           2
 #define ACPI_AEST_VENDOR_ERROR_NODE         3
 #define ACPI_AEST_GIC_ERROR_NODE            4
-#define ACPI_AEST_NODE_TYPE_RESERVED        5 /* 5 and above are reserved */
+#define ACPI_AEST_PCIE_ERROR_NODE           5
+#define ACPI_AEST_PROXY_ERROR_NODE          6
+#define ACPI_AEST_NODE_TYPE_RESERVED        7 /* 7 and above are reserved */
 
 
 /*
@@ -346,6 +348,16 @@ typedef struct acpi_aest_vendor
 
 } ACPI_AEST_VENDOR;
 
+/* 3: Vendor Defined V2 */
+
+typedef struct acpi_aest_vendor_v2
+{
+    UINT64                  AcpiHid;
+    UINT32                  AcpiUid;
+    UINT8                   VendorSpecificData[16];
+
+} ACPI_AEST_VENDOR_V2;
+
 /* 4: Gic Error */
 
 typedef struct acpi_aest_gic
@@ -363,6 +375,22 @@ typedef struct acpi_aest_gic
 #define ACPI_AEST_GIC_ITS                   3
 #define ACPI_AEST_GIC_RESERVED              4   /* 4 and above are reserved */
 
+/* 5: PCIe Error */
+
+typedef struct acpi_aest_pcie
+{
+    UINT32                  IortNodeReference;
+
+} ACPI_AEST_PCIE;
+
+
+/* 6: Proxy Error */
+
+typedef struct acpi_aest_proxy
+{
+    UINT64                  NodeAddress;
+
+} ACPI_AEST_PROXY;
 
 /* Node Interface Structure */
 
@@ -380,11 +408,67 @@ typedef struct acpi_aest_node_interface
 
 } ACPI_AEST_NODE_INTERFACE;
 
+/* Node Interface Structure V2*/
+
+typedef struct acpi_aest_node_interface_header
+{
+    UINT8                   Type;
+    UINT8                   GroupFormat;
+    UINT8                   Reserved[2];
+    UINT32                  Flags;
+    UINT64                  Address;
+    UINT32                  ErrorRecordIndex;
+    UINT32                  ErrorRecordCount;
+
+} ACPI_AEST_NODE_INTERFACE_HEADER;
+
+#define ACPI_AEST_NODE_GROUP_FORMAT_4K             0
+#define ACPI_AEST_NODE_GROUP_FORMAT_16K            1
+#define ACPI_AEST_NODE_GROUP_FORMAT_64K            2
+
+typedef struct acpi_aest_node_interface_common
+{
+    UINT32                             ErrorNodeDevice;
+    UINT32                             ProcessorAffinity;
+    UINT64                             ErrorGroupRegisterBase;
+    UINT64                             FaultInjectRegisterBase;
+    UINT64                             InterruptConfigRegisterBase;
+
+} ACPI_AEST_NODE_INTERFACE_COMMON;
+
+typedef struct acpi_aest_node_interface_4k
+{
+    UINT64                             ErrorRecordImplemented;
+    UINT64                             ErrorStatusReporting;
+    UINT64                             AddressingMode;
+    ACPI_AEST_NODE_INTERFACE_COMMON    Common;
+
+} ACPI_AEST_NODE_INTERFACE_4K;
+
+typedef struct acpi_aest_node_interface_16k
+{
+    UINT64                             ErrorRecordImplemented[4];
+    UINT64                             ErrorStatusReporting[4];
+    UINT64                             AddressingMode[4];
+    ACPI_AEST_NODE_INTERFACE_COMMON    Common;
+
+} ACPI_AEST_NODE_INTERFACE_16K;
+
+typedef struct acpi_aest_node_interface_64k
+{
+    INT64                              ErrorRecordImplemented[14];
+    UINT64                             ErrorStatusReporting[14];
+    UINT64                             AddressingMode[14];
+    ACPI_AEST_NODE_INTERFACE_COMMON    Common;
+
+} ACPI_AEST_NODE_INTERFACE_64K;
+
 /* Values for Type field above */
 
-#define ACPI_AEST_NODE_SYSTEM_REGISTER      0
-#define ACPI_AEST_NODE_MEMORY_MAPPED        1
-#define ACPI_AEST_XFACE_RESERVED            2   /* 2 and above are reserved */
+#define ACPI_AEST_NODE_SYSTEM_REGISTER                    0
+#define ACPI_AEST_NODE_MEMORY_MAPPED                      1
+#define ACPI_AEST_NODE_SINGLE_RECORD_MEMORY_MAPPED        2
+#define ACPI_AEST_XFACE_RESERVED                          3   /* 2 and above are reserved */
 
 /* Node Interrupt Structure */
 
@@ -398,6 +482,18 @@ typedef struct acpi_aest_node_interrupt
     UINT8                   Reserved1[3];
 
 } ACPI_AEST_NODE_INTERRUPT;
+
+/* Node Interrupt Structure V2 */
+
+typedef struct acpi_aest_node_interrupt_v2
+{
+    UINT8                   Type;
+    UINT8                   Reserved[2];
+    UINT8                   Flags;
+    UINT32                  Gsiv;
+    UINT8                   Reserved1[4];
+
+} ACPI_AEST_NODE_INTERRUPT_V2;
 
 /* Values for Type field above */
 
@@ -548,7 +644,7 @@ typedef struct acpi_table_ccel
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.e, Sep 2022
+ * Document number: ARM DEN 0049E.f, Apr 2024
  *
  ******************************************************************************/
 
@@ -631,6 +727,7 @@ typedef struct acpi_iort_memory_access
 
 #define ACPI_IORT_MF_COHERENCY          (1)
 #define ACPI_IORT_MF_ATTRIBUTES         (1<<1)
+#define ACPI_IORT_MF_CANWBS             (1<<2)
 
 
 /*
@@ -1835,7 +1932,7 @@ typedef struct acpi_mpam_msc_node
     UINT32                     MaxNrdyUsec;
     UINT64                     HardwareIdLinkedDevice;
     UINT32                     InstanceIdLinkedDevice;
-    UINT32                     NumResouceNodes;
+    UINT32                     NumResourceNodes;
 } ACPI_MPAM_MSC_NODE;
 
 typedef struct acpi_table_mpam

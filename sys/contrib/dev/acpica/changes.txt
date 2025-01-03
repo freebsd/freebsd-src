@@ -1,4 +1,54 @@
 ----------------------------------------
+27 August 2024. Summary of changes for version 20240827:
+
+Major changes:
+
+Fix the PHAT table working: ensure that the PHAT firmware health record offset works correctly, fix various sub-table offsets, prevent segmentation faults when encountering invalid device paths. Contributed by: Armin Wolf <W_Armin@gmx.de>
+
+Fix the optional table 4-byte signature. Contributed by: Daniil Tatianin <99danilt@gmail.com>
+
+Correct the dumping of SLIC and DBG2 tables. Contributed by: Al Stone (Fedora) <ahs3@ahs3.net> 
+
+Add support for QWordPCC and DWordPCC by Jose Marinho (ARM)
+
+Fix the integer to hex string conversions by Armin Wolf
+
+Detecting FACS in reduced HW mode and allowing setting waking vector thereby waking up from S3 state
+
+Fixing issues with crossing page boundaries when mapping operation regions by Raju Rangoju, Sanath S and Mario Limonciello (AMD)
+
+Update the support for IORT, HMAT, MPAM, AEST, CEDT, SPCR etc. tables
+
+Fix multiple issues with table parsing, compilation and disassembly by Myra DeMere (Google)
+
+Allow for more flexibility in _DSM usage.
+
+
+----------------------------------------
+22 March 2024. Summary of changes for version 20240322:
+
+Major changes:
+
+Update all the license header year from 2023 to 2024.
+
+Fix table argument ordering to work properly with iasl.
+
+Get rid of the annoying repeated warning types in MSVC and Windows.
+
+Fix a test in ASLTS with edge case failure.
+
+Fix a couple of issues with how GPEs are counted and enabled.
+
+Add new tables for various architectures/OS, mainly RISC-V and also update many more.
+
+Add an option to either make the output deterministic or non-deterministic.
+
+Remove redundant checks, duplicated code and fix spellings in various files.
+
+Fix flex arrays for C++ compilers and also make ACPICA overall more compatible with different compilers which throw warnings related to memory sanitization etc.
+
+
+----------------------------------------
 28 June 2023. Summary of changes for version 20230628:
 
 0) Global changes:
@@ -7075,7 +7125,6 @@ features become unavailable:
     General Purpose Events (GPEs)
     Global Lock
     ACPI PM timer
-    FACS table (Waking vectors and Global Lock)
 
 Updated the unix tarball directory structure to match the ACPICA git 
 source 

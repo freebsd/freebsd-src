@@ -441,7 +441,8 @@ AcpiRsGetAddressCommon (
     /* Validate the Resource Type */
 
     if ((Address.ResourceType > 2) &&
-        (Address.ResourceType < 0xC0))
+        (Address.ResourceType < 0xC0) &&
+        (Address.ResourceType != 0x0A))
     {
         return (FALSE);
     }

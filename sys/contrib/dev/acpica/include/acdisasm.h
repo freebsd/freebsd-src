@@ -226,6 +226,8 @@ typedef enum
     ACPI_DMT_BUF12,
     ACPI_DMT_BUF16,
     ACPI_DMT_BUF18,
+    ACPI_DMT_BUF32,
+    ACPI_DMT_BUF112,
     ACPI_DMT_BUF128,
     ACPI_DMT_SIG,
     ACPI_DMT_STRING,
@@ -382,9 +384,17 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestGenRsrc[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestMemError[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestSmmuError[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestVendorError[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestVendorV2Error[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestGicError[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestPCIeError[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestProxyError[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXface[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXfaceHeader[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXface4k[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXface16k[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXface64k[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXrupt[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAestXruptV2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAgdi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoApmtNode[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoAsf0[];
@@ -418,6 +428,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedtHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedt1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedt1_te[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedt2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCedt2_te[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt0[];
