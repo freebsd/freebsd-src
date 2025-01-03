@@ -334,7 +334,8 @@ struct iovlist;
 static bool	allowaddr(char *);
 static void	addpeer(const char *, const char *, mode_t);
 static void	addsock(const char *, const char *, mode_t);
-static nvlist_t *cfline(const char *, const char *, const char *, const char *);
+static void	cfline(nvlist_t *, const char *, const char *, const char *,
+    const char *);
 static const char *cvthname(struct sockaddr *);
 static struct deadq_entry *deadq_enter(int);
 static void	deadq_remove(struct deadq_entry *);
@@ -369,10 +370,6 @@ static void	increase_rcvbuf(int);
 static void
 close_filed(struct filed *f)
 {
-
-	if (f == NULL || f->f_file == -1)
-		return;
-
 	switch (f->f_type) {
 	case F_FORW:
 		if (f->f_addr_fds != NULL) {
@@ -409,7 +406,8 @@ close_filed(struct filed *f)
 	default:
 		break;
 	}
-	(void)close(f->f_file);
+	if (f->f_file != -1)
+		(void)close(f->f_file);
 	f->f_file = -1;
 }
 
@@ -2447,8 +2445,7 @@ parseconfigfile(FILE *cf, bool allow_includes, nvlist_t *nvl_conf)
 		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline(cline, prog, host, pfilter));
+		cfline(nvl_conf, cline, prog, host, pfilter);
 
 	}
 	return (nvl_conf);
@@ -2472,10 +2469,8 @@ readconfigfile(const char *path)
 		(void)fclose(cf);
 	} else {
 		dprintf("cannot open %s\n", path);
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline("*.ERR\t/dev/console", "*", "*", "*"));
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline("*.PANIC\t*", "*", "*", "*"));
+		cfline(nvl_conf, "*.ERR\t/dev/console", "*", "*", "*");
+		cfline(nvl_conf, "*.PANIC\t*", "*", "*", "*");
 	}
 	return (nvl_conf);
 }
@@ -3071,7 +3066,7 @@ parse_action(const char *p, struct filed *f)
 			if (shutdown(*sockp, SHUT_RD) < 0)
 				err(1, "shutdown");
 		}
-
+		freeaddrinfo(res);
 		f->f_type = F_FORW;
 		break;
 
@@ -3125,10 +3120,11 @@ parse_action(const char *p, struct filed *f)
 }
 
 /*
- * Crack a configuration file line
+ * Convert a configuration file line to an nvlist and add to "nvl", which
+ * contains all of the log configuration processed thus far.
  */
-static nvlist_t *
-cfline(const char *line, const char *prog, const char *host,
+static void
+cfline(nvlist_t *nvl, const char *line, const char *prog, const char *host,
     const char *pfilter)
 {
 	nvlist_t *nvl_filed;
@@ -3169,6 +3165,7 @@ cfline(const char *line, const char *prog, const char *host,
 
 	/* An nvlist is heap allocated heap here. */
 	nvl_filed = filed_to_nvlist(&f);
+	close_filed(&f);
 
 	if (pfilter && *pfilter != '*') {
 		nvlist_t *nvl_pfilter;
@@ -3179,7 +3176,8 @@ cfline(const char *line, const char *prog, const char *host,
 		nvlist_add_nvlist(nvl_filed, "f_prop_filter", nvl_pfilter);
 	}
 
-	return (nvl_filed);
+	nvlist_append_nvlist_array(nvl, "filed_list", nvl_filed);
+	nvlist_destroy(nvl_filed);
 }
 
 /*
