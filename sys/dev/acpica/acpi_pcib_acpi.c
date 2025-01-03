@@ -703,7 +703,7 @@ acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
 		return (EINVAL);
 	}
 
-	return (acpi_pcib_osc(dev, &sc->ap_osc_ctl, osc_ctl));
+	return (acpi_pcib_osc(pcib, &sc->ap_osc_ctl, osc_ctl));
 }
 
 static bus_dma_tag_t
