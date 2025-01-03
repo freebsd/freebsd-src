@@ -112,22 +112,25 @@ libusb_hotplug_scan(void *arg)
 	libusb_device *temp;
 	libusb_device *adev;
 	libusb_device *bdev;
-	unsigned do_loop = 1;
 
-	while (do_loop) {
+	for (;;) {
 		usleep(4000000);
 
 		HOTPLUG_LOCK(ctx);
+		if (ctx->hotplug_handler == NO_THREAD) {
+			while ((adev = TAILQ_FIRST(&ctx->hotplug_devs)) != NULL) {
+				TAILQ_REMOVE(&ctx->hotplug_devs, adev, hotplug_entry);
+				libusb_unref_device(adev);
+			}
+			HOTPLUG_UNLOCK(ctx);
+			break;
+		}
 
 		TAILQ_INIT(&hotplug_devs);
 
-		if (ctx->hotplug_handler != NO_THREAD) {
-			if (libusb_hotplug_enumerate(ctx, &hotplug_devs) < 0) {
-				HOTPLUG_UNLOCK(ctx);
-				continue;
-			}
-		} else {
-			do_loop = 0;
+		if (libusb_hotplug_enumerate(ctx, &hotplug_devs) < 0) {
+			HOTPLUG_UNLOCK(ctx);
+			continue;
 		}
 
 		/* figure out which devices are gone */
