@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -564,6 +564,7 @@ AcpiEvMatchGpeMethod (
     GpeEventInfo->Flags &= ~(ACPI_GPE_DISPATCH_MASK);
     GpeEventInfo->Flags |= (UINT8) (Type | ACPI_GPE_DISPATCH_METHOD);
     GpeEventInfo->Dispatch.MethodNode = MethodNode;
+    WalkInfo->Count++;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_LOAD,
         "Registered GPE method %s as GPE number 0x%.2X\n",

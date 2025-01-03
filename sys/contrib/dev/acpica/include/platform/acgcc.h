@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -218,10 +218,12 @@ typedef __builtin_va_list       va_list;
  * C99, but this is not for any technical reason. Work around the
  * limitation.
  */
+#ifndef __cplusplus
 #define ACPI_FLEX_ARRAY(TYPE, NAME)             \
         struct {                                \
                 struct { } __Empty_ ## NAME;    \
                 TYPE NAME[];                    \
         }
+#endif
 
 #endif /* __ACGCC_H__ */
