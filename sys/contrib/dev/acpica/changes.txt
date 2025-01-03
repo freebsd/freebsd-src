@@ -1,4 +1,20 @@
 ----------------------------------------
+12 December 2024. Summary of changes for version 20241212:
+
+Major changes:
+
+Fix 2 critical CVE addressing memory leaks - Seunghun Han
+
+EINJ V2 updates ? Zaid Alali (Ampere Computing)
+
+CDAT updates ? Ira Weiny (Intel Corporation)
+
+Fix mutex handling, don?t release ones that were never acquired ? Daniil Tatianin
+
+Experiment with new tag name format Ryyyy_mm_dd to solve chronological sorting problems
+
+
+----------------------------------------
 27 September 2024. Summary of changes for version 20240927:
 
 Major changes:

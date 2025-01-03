@@ -636,6 +636,8 @@ typedef struct acpi_cdat_dsmas
 /* Flags for subtable above */
 
 #define ACPI_CDAT_DSMAS_NON_VOLATILE        (1 << 2)
+#define ACPI_CDAT_DSMAS_SHAREABLE           (1 << 3)
+#define ACPI_CDAT_DSMAS_READ_ONLY           (1 << 6)
 
 
 /* Subtable 1: Device scoped Latency and Bandwidth Information Structure (DSLBIS) */
@@ -1369,17 +1371,18 @@ typedef struct acpi_einj_entry
 
 enum AcpiEinjActions
 {
-    ACPI_EINJ_BEGIN_OPERATION               = 0,
-    ACPI_EINJ_GET_TRIGGER_TABLE             = 1,
-    ACPI_EINJ_SET_ERROR_TYPE                = 2,
-    ACPI_EINJ_GET_ERROR_TYPE                = 3,
-    ACPI_EINJ_END_OPERATION                 = 4,
-    ACPI_EINJ_EXECUTE_OPERATION             = 5,
-    ACPI_EINJ_CHECK_BUSY_STATUS             = 6,
-    ACPI_EINJ_GET_COMMAND_STATUS            = 7,
-    ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS   = 8,
-    ACPI_EINJ_GET_EXECUTE_TIMINGS           = 9,
-    ACPI_EINJ_ACTION_RESERVED               = 10,    /* 10 and greater are reserved */
+    ACPI_EINJ_BEGIN_OPERATION               = 0x0,
+    ACPI_EINJ_GET_TRIGGER_TABLE             = 0x1,
+    ACPI_EINJ_SET_ERROR_TYPE                = 0x2,
+    ACPI_EINJ_GET_ERROR_TYPE                = 0x3,
+    ACPI_EINJ_END_OPERATION                 = 0x4,
+    ACPI_EINJ_EXECUTE_OPERATION             = 0x5,
+    ACPI_EINJ_CHECK_BUSY_STATUS             = 0x6,
+    ACPI_EINJ_GET_COMMAND_STATUS            = 0x7,
+    ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS   = 0x8,
+    ACPI_EINJ_GET_EXECUTE_TIMINGS           = 0x9,
+    ACPI_EINJV2_GET_ERROR_TYPE              = 0x11,
+    ACPI_EINJ_ACTION_RESERVED               = 0x12,   /* 0x12 and greater are reserved */
     ACPI_EINJ_TRIGGER_ERROR                 = 0xFF   /* Except for this value */
 };
 

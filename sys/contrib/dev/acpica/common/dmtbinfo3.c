@@ -379,7 +379,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat3[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* 4: GCC ITS Affinity (ACPI 6.2) */
+/* 4: GIC ITS Affinity (ACPI 6.2) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat4[] =
 {
