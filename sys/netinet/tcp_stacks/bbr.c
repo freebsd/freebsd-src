@@ -3857,7 +3857,7 @@ bbr_post_recovery(struct tcpcb *tp)
 		else if (bbr->r_ctl.rc_delivered == 0)
 			lr2use = 1000;
 		else {
-			lr2use = bbr->r_ctl.rc_lost * 1000;
+			lr2use = (uint64_t)bbr->r_ctl.rc_lost * (uint64_t)1000;
 			lr2use /= bbr->r_ctl.rc_delivered;
 		}
 		lr2use += bbr->r_ctl.recovery_lr;
