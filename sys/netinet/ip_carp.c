@@ -2803,9 +2803,7 @@ struct nl_carp_parsed {
 	uint16_t	vrrp_adv_inter;
 };
 
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct nl_carp_parsed, _field)
-
 static const struct nlattr_parser nla_p_set[] = {
 	{ .type = CARP_NL_VHID, .off = _OUT(vhid), .cb = nlattr_get_uint32 },
 	{ .type = CARP_NL_STATE, .off = _OUT(state), .cb = nlattr_get_uint32 },
@@ -2820,10 +2818,7 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = CARP_NL_VRRP_PRIORITY, .off = _OUT(vrrp_prio), .cb = nlattr_get_uint8 },
 	{ .type = CARP_NL_VRRP_ADV_INTER, .off = _OUT(vrrp_adv_inter), .cb = nlattr_get_uint16 },
 };
-static const struct nlfield_parser nlf_p_set[] = {
-};
-NL_DECLARE_PARSER(carp_parser, struct genlmsghdr, nlf_p_set, nla_p_set);
-#undef _IN
+NL_DECLARE_PARSER(carp_parser, struct genlmsghdr, nlf_p_empty, nla_p_set);
 #undef _OUT
 
 
