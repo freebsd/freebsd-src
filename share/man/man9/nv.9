@@ -859,7 +859,7 @@ If no element named
 .Fa name
 with the appropriate type exists, the program aborts.
 The nvlist must not be in the error state.
-.Sh NOTES
+.Ss Notes
 The
 .Fn nvlist_pack
 and
@@ -873,6 +873,36 @@ The
 and
 .Fn nvlist_xfer
 functions can transfer nvlists between hosts with different endianness.
+.Ss Kernel Considerations
+The
+.Nm nv ,
+.Nm cnv ,
+and
+.Nm dnv
+APIs can be used in the kernel with the following differences:
+.Bl -bullet
+.It
+File descriptor and file descriptor array value types are not supported.
+.It
+.Fn nvlist_recv ,
+.Fn nvlist_send ,
+and
+.Fn nvlist_xfer
+are not supported.
+.It
+All memory allocations use the
+.Dv M_NVLIST
+memory type with
+.Xr malloc 9
+and
+.Xr free 9 .
+As a result, any allocated buffers moved into an nvlist must be allocated with
+.Dv M_NVLIST ,
+and buffers returned by functions such as
+.Fn nvlist_pack
+must be freed with
+.Dv M_NVLIST .
+.El
 .Sh EXAMPLES
 The following example demonstrates how to prepare an nvlist and send it over a
 .Xr unix 4
