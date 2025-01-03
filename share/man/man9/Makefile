@@ -67,6 +67,7 @@ MAN=	accept_filter.9 \
 	contigmalloc.9 \
 	copy.9 \
 	counter.9 \
+	cpu_machdep.9 \
 	cpuset.9 \
 	cr_bsd_visible.9 \
 	cr_cansee.9 \
@@ -907,6 +908,26 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 SYSCTL_ADD_COUNTER_U64.9 \
 	counter.9 SYSCTL_COUNTER_U64_ARRAY.9 \
 	counter.9 SYSCTL_ADD_COUNTER_U64_ARRAY.9
+MLINKS+=cpu_machdep.9 cpu_copy_thread.9 \
+	cpu_machdep.9 cpu_exec_vmspace_reuse.9 \
+	cpu_machdep.9 cpu_exit.9 \
+	cpu_machdep.9 cpu_fetch_syscall_args.9 \
+	cpu_machdep.9 cpu_fork.9 \
+	cpu_machdep.9 cpu_fork_kthread_handler.9 \
+	cpu_machdep.9 cpu_idle.9 \
+	cpu_machdep.9 cpu_idle_wakeup.9 \
+	cpu_machdep.9 cpu_procctl.9 \
+	cpu_machdep.9 cpu_ptrace.9 \
+	cpu_machdep.9 cpu_set_syscall_retval.9 \
+	cpu_machdep.9 cpu_set_upcall.9 \
+	cpu_machdep.9 cpu_set_user_tls.9 \
+	cpu_machdep.9 cpu_switch.9 \
+	cpu_machdep.9 cpu_sync_core.9 \
+	cpu_machdep.9 cpu_thread_alloc.9 \
+	cpu_machdep.9 cpu_thread_clean.9 \
+	cpu_machdep.9 cpu_thread_exit.9 \
+	cpu_machdep.9 cpu_thread_free.9 \
+	cpu_machdep.9 cpu_throw.9
 MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
 	cpuset.9 CPUSET_FSET.9 \
 	cpuset.9 CPU_CLR.9 \
