@@ -393,7 +393,12 @@ but advisory locking is not allowed
 .It Xr dup 2
 .It Xr close 2
 .It Xr fstat 2
+.It Xr fstatfs 2
+.It Xr fchdir 2
+.It Xr fchroot 2
 .It Xr fexecve 2
+.It Xr funlinkat 2
+can be passed as the third argument
 .It Dv SCM_RIGHTS
 can be passed over a
 .Xr unix 4
@@ -403,16 +408,23 @@ message
 .It Xr kqueue 2
 only with
 .Dv EVFILT_VNODE
-.It Xr readlinkat 2
 .It Xr __acl_get_fd 2
 .It Xr __acl_aclcheck_fd 2
+.It Xr extattr 2
+.It Xr capsicum 4
+can be passed to
+.Fn cap_*_limit
+and
+.Fn cap_*_get
+system calls (such as
+.Xr cap_rights_limit 2 ) .
 .El
 .Pp
 Other operations like
 .Xr read 2 ,
 .Xr ftruncate 2 ,
 and any other that operate on file and not on file descriptor (except
-.Xr fstat 2 ),
+.Xr fstat 2 ) ,
 are not allowed.
 .Pp
 A file descriptor created with the
