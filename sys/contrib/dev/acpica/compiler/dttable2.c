@@ -550,7 +550,7 @@ DtCompileMpam (
         RisLength = 0;
 
         /* Iterate over RIS subtables per MSC node */
-        for (UINT32 ris = 0; ris < MpamMscNode->NumResouceNodes; ris++)
+        for (UINT32 ris = 0; ris < MpamMscNode->NumResourceNodes; ris++)
         {
             /* Compile RIS subtable */
             Status = DtCompileTable (PFieldList, AcpiDmTableInfoMpam1,

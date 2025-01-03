@@ -562,7 +562,7 @@ AcpiDmDumpFadt (
 
         /* Check for FADT revision 6 fields and up (ACPI 6.0+) */
 
-        if (Table->Length > ACPI_FADT_V3_SIZE)
+        if (Table->Length > ACPI_FADT_V5_SIZE)
         {
             Status = AcpiDmDumpTable (Table->Length, 0, Table, 0,
                 AcpiDmTableInfoFadt6);
@@ -633,6 +633,11 @@ AcpiDmValidateFadtLength (
     case 5:
 
         ExpectedLength = ACPI_FADT_V5_SIZE;
+        break;
+
+    case 6:
+
+        ExpectedLength = ACPI_FADT_V6_SIZE;
         break;
 
     default:

@@ -191,7 +191,6 @@ AcpiExSystemMemorySpaceHandler (
     ACPI_MEM_MAPPING        *Mm = MemInfo->CurMm;
     UINT32                  Length;
     ACPI_SIZE               MapLength;
-    ACPI_SIZE               PageBoundaryMapLength;
 #ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
     UINT32                  Remainder;
 #endif
@@ -298,27 +297,9 @@ AcpiExSystemMemorySpaceHandler (
         MapLength = (ACPI_SIZE)
             ((MemInfo->Address + MemInfo->Length) - Address);
 
-        /*
-         * If mapping the entire remaining portion of the region will cross
-         * a page boundary, just map up to the page boundary, do not cross.
-         * On some systems, crossing a page boundary while mapping regions
-         * can cause warnings if the pages have different attributes
-         * due to resource management.
-         *
-         * This has the added benefit of constraining a single mapping to
-         * one page, which is similar to the original code that used a 4k
-         * maximum window.
-         */
-        PageBoundaryMapLength = (ACPI_SIZE)
-            (ACPI_ROUND_UP (Address, ACPI_DEFAULT_PAGE_SIZE) - Address);
-        if (PageBoundaryMapLength == 0)
+        if (MapLength > ACPI_DEFAULT_PAGE_SIZE)
         {
-            PageBoundaryMapLength = ACPI_DEFAULT_PAGE_SIZE;
-        }
-
-        if (MapLength > PageBoundaryMapLength)
-        {
-            MapLength = PageBoundaryMapLength;
+            MapLength = ACPI_DEFAULT_PAGE_SIZE;
         }
 
         /* Create a new mapping starting at the address given */

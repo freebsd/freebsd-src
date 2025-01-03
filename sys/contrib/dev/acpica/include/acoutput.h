@@ -336,6 +336,7 @@
  */
 #ifndef ACPI_NO_ERROR_MESSAGES
 #define AE_INFO                         _AcpiModuleName, __LINE__
+#define ACPI_ONCE(_fn, _plist)                  { static char _done; if (!_done) { _done = 1; _fn _plist; } }
 
 /*
  * Error reporting. Callers module and line number are inserted by AE_INFO,
@@ -344,8 +345,10 @@
  */
 #define ACPI_INFO(plist)                AcpiInfo plist
 #define ACPI_WARNING(plist)             AcpiWarning plist
+#define ACPI_WARNING_ONCE(plist)        ACPI_ONCE(AcpiWarning, plist)
 #define ACPI_EXCEPTION(plist)           AcpiException plist
 #define ACPI_ERROR(plist)               AcpiError plist
+#define ACPI_ERROR_ONCE(plist)          ACPI_ONCE(AcpiError, plist)
 #define ACPI_BIOS_WARNING(plist)        AcpiBiosWarning plist
 #define ACPI_BIOS_EXCEPTION(plist)      AcpiBiosException plist
 #define ACPI_BIOS_ERROR(plist)          AcpiBiosError plist
@@ -357,8 +360,10 @@
 
 #define ACPI_INFO(plist)
 #define ACPI_WARNING(plist)
+#define ACPI_WARNING_ONCE(plist)
 #define ACPI_EXCEPTION(plist)
 #define ACPI_ERROR(plist)
+#define ACPI_ERROR_ONCE(plist)
 #define ACPI_BIOS_WARNING(plist)
 #define ACPI_BIOS_EXCEPTION(plist)
 #define ACPI_BIOS_ERROR(plist)

@@ -969,8 +969,6 @@ AcpiDmDescendingOp (
                      AcpiDmPredefinedDescription (Op->Asl.Parent);
                 }
 
-                AcpiDmPredefinedDescription (Op->Asl.Parent);
-
                 AcpiOsPrintf ("\n");
                 AcpiDmIndent (Info->Level);
                 AcpiOsPrintf ("{\n");

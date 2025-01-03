@@ -354,6 +354,8 @@ AcpiDbConvertToPackage (
 
     Elements = ACPI_ALLOCATE_ZEROED (
         DB_DEFAULT_PKG_ELEMENTS * sizeof (ACPI_OBJECT));
+    if (!Elements)
+        return (AE_NO_MEMORY);
 
     This = String;
     for (i = 0; i < (DB_DEFAULT_PKG_ELEMENTS - 1); i++)

@@ -790,7 +790,7 @@ TrCreateConstantLeafOp (
 
     DbgPrint (ASL_PARSE_OUTPUT,
         "\nCreateConstantLeafOp  Ln/Col %u/%u NewOp %p  "
-        "Op %s  Value %8.8X%8.8X  \n",
+        "Op %s  Value %8.8X%8.8X\n",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName (ParseOpcode),
         ACPI_FORMAT_UINT64 (Op->Asl.Value.Integer));
 

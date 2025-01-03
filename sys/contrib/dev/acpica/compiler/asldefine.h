@@ -162,7 +162,7 @@
 #define ASL_CREATOR_ID              "INTL"
 #define ASL_DEFINE                  "__IASL__"
 #define ASL_PREFIX                  "iASL: "
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.3"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.5"
 
 
 /* Configuration constants */
