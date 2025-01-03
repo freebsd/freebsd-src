@@ -99,7 +99,7 @@ syslogd_log()
 # Make syslogd reload its configuration file.
 syslogd_reload()
 {
-    pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
+    atf_check pkill -HUP -F "${1:-${SYSLOGD_PIDFILE}}"
 }
 
 # Stop a private syslogd instance.
