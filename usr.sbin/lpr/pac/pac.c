@@ -327,8 +327,7 @@ enter(const char name[])
 	h = hash(name);
 	hcount++;
 	hp = (struct hent *) calloc(sizeof *hp, (size_t)1);
-	hp->h_name = (char *) calloc(sizeof(char), strlen(name)+1);
-	strcpy(hp->h_name, name);
+	hp->h_name = strdup(name);
 	hp->h_feetpages = 0.0;
 	hp->h_count = 0;
 	hp->h_link = hashtab[h];
@@ -429,10 +428,8 @@ chkprinter(const char *ptrname)
 		errx(3, "accounting not enabled for printer %s", ptrname);
 	if (!pflag && pp->price100)
 		price = pp->price100/10000.0;
-	sumfile = (char *) calloc(sizeof(char), strlen(acctfile)+5);
+	asprintf(&sumfile, "%s_sum", acctfile);
 	if (sumfile == NULL)
-		errx(1, "calloc failed");
-	strcpy(sumfile, acctfile);
-	strcat(sumfile, "_sum");
+		errx(1, "asprintf failed");
 	return(1);
 }
