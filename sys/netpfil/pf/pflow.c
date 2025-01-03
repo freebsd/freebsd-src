@@ -1389,15 +1389,12 @@ pflow_nl_create(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_del {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_del, _field)
 static const struct nlattr_parser nla_p_del[] = {
 	{ .type = PFLOWNL_DEL_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_del[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_del, nla_p_del);
+NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_empty, nla_p_del);
 
 static int
 pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
@@ -1417,15 +1414,12 @@ pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_get {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_get, _field)
 static const struct nlattr_parser nla_p_get[] = {
 	{ .type = PFLOWNL_GET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_get[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_get, nla_p_get);
+NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_empty, nla_p_get);
 
 static bool
 nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
@@ -1558,7 +1552,6 @@ struct pflow_parsed_set {
 	struct sockaddr_storage dst;
 	uint32_t observation_dom;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_set, _field)
 static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
@@ -1567,10 +1560,8 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_DST, .off = _OUT(dst), .arg = &addr_parser, .cb = nlattr_get_nested },
 	{ .type = PFLOWNL_SET_OBSERVATION_DOMAIN, .off = _OUT(observation_dom), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_set[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_set, nla_p_set);
+NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_empty, nla_p_set);
 
 static int
 pflow_set(struct pflow_softc *sc, const struct pflow_parsed_set *pflowr, struct ucred *cred)
