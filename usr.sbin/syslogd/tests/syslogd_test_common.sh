@@ -19,7 +19,7 @@ readonly SYSLOGD_LOCAL_PRIVSOCKET="${PWD}/logpriv.sock"
 # Start a private syslogd instance.
 syslogd_start()
 {
-    local jail bind_addr conf_file pid_file socket privsocket
+    local jail bind_arg conf_file pid_file socket privsocket
     local opt next other_args
 
     # Setup loopback so we can deliver messages to ourself.
@@ -29,7 +29,7 @@ syslogd_start()
     while getopts ":b:f:j:P:p:S:" opt; do
         case "${opt}" in
         b)
-            bind_addr="${OPTARG}"
+            bind_arg="${bind_arg} -b ${OPTARG}"
             ;;
         f)
             conf_file="${OPTARG}"
@@ -71,7 +71,7 @@ syslogd_start()
     done
 
     $jail syslogd \
-        -b "${bind_addr:-":${SYSLOGD_UDP_PORT}"}" \
+        ${bind_arg:--b :${SYSLOGD_UDP_PORT}} \
         -C \
         -d \
         -f "${conf_file:-${SYSLOGD_CONFIG}}" \
