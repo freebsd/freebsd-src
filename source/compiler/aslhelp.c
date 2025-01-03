@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -185,6 +185,7 @@ Usage (
     ACPI_OPTION ("-vd",             "Display compiler build date and time");
     ACPI_OPTION ("-vo",             "Enable optimization comments");
     ACPI_OPTION ("-vs",             "Disable signon");
+    ACPI_OPTION ("-ld",             "Disable deterministic output");
 
     printf ("\nHelp:\n");
     ACPI_OPTION ("-h",              "This message");

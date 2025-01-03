@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -172,12 +172,21 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-/* Eliminate warnings for POSIX clib function names (open, write, etc.) */
+ /* Eliminate warnings for POSIX clib function names (open, write, etc.) */
 
 #ifndef _CRT_NONSTDC_NO_DEPRECATE
 #define _CRT_NONSTDC_NO_DEPRECATE
 #endif
 
+ /*  Disable these warnings under Windows and MSVC since C4201: nameless 
+  *  structs/unions are needed as ACPI event-handling under Linux/GCC breaks
+  *  with named and nested structs/unions while C4068: unknown pragma
+  *  complains of GCC pragmas in use to disable dangling ptr warnings
+  */
+
+#pragma warning( disable: 4201)
+#pragma warning( disable: 4068)
+#pragma warning( push)
 
 #define ACPI_MACHINE_WIDTH      32
 #define ACPI_USE_NATIVE_DIVIDE

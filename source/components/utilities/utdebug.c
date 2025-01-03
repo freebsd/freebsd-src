@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -215,7 +215,12 @@ AcpiUtTrackStackPtr (
 
     if (&CurrentSp < AcpiGbl_LowestStackPointer)
     {
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && __GNUC__ >= 12
+#pragma GCC diagnostic ignored "-Wdangling-pointer="
+#endif
         AcpiGbl_LowestStackPointer = &CurrentSp;
+#pragma GCC diagnostic pop
     }
 
     if (AcpiGbl_NestingLevel > AcpiGbl_DeepestNesting)

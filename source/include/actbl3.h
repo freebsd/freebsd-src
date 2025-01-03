@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -353,7 +353,8 @@ enum AcpiSratType
     ACPI_SRAT_TYPE_GIC_ITS_AFFINITY     = 4, /* ACPI 6.2 */
     ACPI_SRAT_TYPE_GENERIC_AFFINITY     = 5, /* ACPI 6.3 */
     ACPI_SRAT_TYPE_GENERIC_PORT_AFFINITY = 6, /* ACPI 6.4 */
-    ACPI_SRAT_TYPE_RESERVED              = 7  /* 7 and greater are reserved */
+    ACPI_SRAT_TYPE_RINTC_AFFINITY        = 7, /* ACPI 6.6 */
+    ACPI_SRAT_TYPE_RESERVED              = 8  /* 8 and greater are reserved */
 };
 
 /*
@@ -472,6 +473,23 @@ typedef struct acpi_srat_generic_affinity
 
 #define ACPI_SRAT_GENERIC_AFFINITY_ENABLED     (1)      /* 00: Use affinity structure */
 #define ACPI_SRAT_ARCHITECTURAL_TRANSACTIONS   (1<<1)   /* ACPI 6.4 */
+
+/* 7: RINTC Affinity Structure(ACPI 6.6) */
+
+typedef struct acpi_srat_rintc_affinity
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;
+    UINT32                  ProximityDomain;
+    UINT32                  AcpiProcessorUid;
+    UINT32                  Flags;
+    UINT32                  ClockDomain;
+
+} ACPI_SRAT_RINTC_AFFINITY;
+
+/* Flags for ACPI_SRAT_RINTC_AFFINITY */
+
+#define ACPI_SRAT_RINTC_ENABLED     (1)         /* 00: Use affinity structure */
 
 /*******************************************************************************
  *

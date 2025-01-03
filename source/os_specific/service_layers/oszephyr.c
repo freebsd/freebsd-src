@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -153,7 +153,7 @@
 #include "accommon.h"
 #include "acapps.h"
 #include "aslcompiler.h"
-#include <zephyr/arch/x86/efi.h>
+#include <zephyr/arch/x86/x86_acpi_osal.h>
 #include <zephyr/drivers/pcie/pcie.h>
 #include <zephyr/dt-bindings/interrupt-controller/intel-ioapic.h>
 #include <zephyr/sys/__assert.h>
@@ -163,15 +163,13 @@ LOG_MODULE_DECLARE(acpica, LOG_LEVEL_ERR);
 
 typedef void (*zephyr_irq_t)(const void *);
 
-#define ASL_MSG_BUFFER_SIZE (1024 * 128)
-
-/* Global varibles use from acpica lib. */
+/* Global variables use from acpica lib. */
 BOOLEAN                     AslGbl_DoTemplates = FALSE;
 BOOLEAN                     AslGbl_VerboseTemplates = FALSE;
 
 char                        AslGbl_MsgBuffer[ASL_MSG_BUFFER_SIZE];
 static BOOLEAN              EnDbgPrint;
-
+static ACPI_PHYSICAL_ADDRESS RsdpPhyAdd;
 
 /******************************************************************************
  *
@@ -245,7 +243,7 @@ AcpiOsPrintf (
 
     if (EnDbgPrint)
     {
-        printk (Fmt, args);
+        vprintk (Fmt, args);
     }
 
     va_end (args);
@@ -384,12 +382,12 @@ AcpiOsReadMemory (
 
         *((UINT32 *) Value) = sys_read32 (Address);
         break;
-
+#if defined(__x86_64__)
     case 64:
 
         *((UINT64 *) Value) = sys_read64 (Address);
         break;
-
+#endif
     default:
 
         return (AE_BAD_PARAMETER);
@@ -435,12 +433,12 @@ AcpiOsWriteMemory (
 
         sys_write32 ((UINT32) Value, Address);
         break;
-
+#if defined(__x86_64__)
     case 64:
 
         sys_write64 ((UINT64) Value, Address);
         break;
-
+#endif
     default:
 
         return (AE_BAD_PARAMETER);
@@ -773,11 +771,17 @@ ACPI_PHYSICAL_ADDRESS
 AcpiOsGetRootPointer (
     void)
 {
+	 LOG_DBG ("");
 
-    LOG_DBG ("");
-    return ((ACPI_PHYSICAL_ADDRESS) efi_get_acpi_rsdp ());
+	if(RsdpPhyAdd)
+	{
+		return RsdpPhyAdd;
+	}
+
+	RsdpPhyAdd = (ACPI_PHYSICAL_ADDRESS)acpi_rsdp_get();
+
+	return RsdpPhyAdd;
 }
-
 
 #ifndef ACPI_USE_NATIVE_MEMORY_MAPPING
 /******************************************************************************
@@ -801,7 +805,7 @@ AcpiOsMapMemory (
     uint8_t                 *VirtlAdd;
 
     LOG_DBG ("");
-    z_phys_map (&VirtlAdd, Where, Length, 0);
+    z_phys_map (&VirtlAdd, Where, Length, K_MEM_PERM_RW);
     return ((void *) VirtlAdd);
 }
 #endif
@@ -963,9 +967,8 @@ UINT64
 AcpiOsGetTimer (
     void)
 {
-    return (k_cycle_get_64 ());
+    return acpi_timer_get();
 }
-
 
 /******************************************************************************
  *

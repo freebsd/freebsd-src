@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,17 @@
 #ifndef __ACZEPHYR_H__
 #define __ACZEPHYR_H__
 
-#define ACPI_MACHINE_WIDTH      64
+#if defined(__x86_64__)
+#define ACPI_MACHINE_WIDTH          64
+#else
+#define ACPI_32BIT_PHYSICAL_ADDRESS
+#define ACPI_MACHINE_WIDTH          32
+#define ACPI_USE_NATIVE_DIVIDE
+#define ACPI_USE_NATIVE_MATH64
+#endif
+
+#define COMPILER_DEPENDENT_INT64    long long
+#define COMPILER_DEPENDENT_UINT64   unsigned long long
 
 #define ACPI_NO_ERROR_MESSAGES
 #undef ACPI_DEBUG_OUTPUT

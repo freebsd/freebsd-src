@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -283,13 +283,6 @@ typedef enum
     ACPI_DMT_MADT,
     ACPI_DMT_MPAM_LOCATOR,
     ACPI_DMT_NFIT,
-    ACPI_DMT_NHLT1,
-    ACPI_DMT_NHLT1a,
-    ACPI_DMT_NHLT1b,
-    ACPI_DMT_NHLT1c,
-    ACPI_DMT_NHLT1d,
-    ACPI_DMT_NHLT1e,
-    ACPI_DMT_NHLT1f,
     ACPI_DMT_PCCT,
     ACPI_DMT_PHAT,
     ACPI_DMT_PMTT,
@@ -548,10 +541,14 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt8[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt9[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt10[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt11[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt11a[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt11b[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt12[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt13[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt14[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt14a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt15[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt15a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt16[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt17[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMadt18[];
@@ -601,24 +598,6 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit5[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit6[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit6a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNfit7[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt0[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt1[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt2[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt3[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt3a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt4[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt5[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt5a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt5b[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt5c[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt6[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt6a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt6b[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt7[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt7a[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt7b[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoNhlt9[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPhatHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPhat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPhat0a[];
@@ -651,6 +630,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPrmtHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPrmtModule[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPrmtHandler[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRasf[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRas2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRas2PccDesc[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRgrt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRgrt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRhct[];
@@ -693,6 +674,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat3[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat4[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat5[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat6[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat7[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoStao[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoStaoStr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSvkl[];
@@ -897,10 +879,6 @@ AcpiDmDumpNfit (
     ACPI_TABLE_HEADER       *Table);
 
 void
-AcpiDmDumpNhlt (
-    ACPI_TABLE_HEADER       *Table);
-
-void
 AcpiDmDumpPcct (
     ACPI_TABLE_HEADER       *Table);
 
@@ -922,6 +900,10 @@ AcpiDmDumpPptt (
 
 void
 AcpiDmDumpPrmt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpRas2 (
     ACPI_TABLE_HEADER       *Table);
 
 void
