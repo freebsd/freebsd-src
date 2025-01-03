@@ -409,7 +409,15 @@ static int pci_enable_ari = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_ari, CTLFLAG_RDTUN, &pci_enable_ari,
     0, "Enable support for PCIe Alternative RID Interpretation");
 
+/*
+ * Some x86 firmware only enables PCIe hotplug if we claim to support aspm,
+ * however enabling it breaks some arm64 firmware as it powers off devices.
+ */
+#if defined(__i386__) || defined(__amd64__)
 int pci_enable_aspm = 1;
+#else
+int pci_enable_aspm = 0;
+#endif
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_aspm, CTLFLAG_RDTUN, &pci_enable_aspm,
     0, "Enable support for PCIe Active State Power Management");
 
