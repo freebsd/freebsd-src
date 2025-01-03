@@ -165,7 +165,8 @@ AcpiExConvertToAscii (
     UINT64                  Integer,
     UINT16                  Base,
     UINT8                   *String,
-    UINT8                   MaxLength);
+    UINT8                   MaxLength,
+    BOOLEAN                 LeadingZeros);
 
 
 /*******************************************************************************
@@ -412,6 +413,7 @@ AcpiExConvertToBuffer (
  *              Base            - ACPI_STRING_DECIMAL or ACPI_STRING_HEX
  *              String          - Where the string is returned
  *              DataWidth       - Size of data item to be converted, in bytes
+ *              LeadingZeros    - Allow leading zeros
  *
  * RETURN:      Actual string length
  *
@@ -424,7 +426,8 @@ AcpiExConvertToAscii (
     UINT64                  Integer,
     UINT16                  Base,
     UINT8                   *String,
-    UINT8                   DataWidth)
+    UINT8                   DataWidth,
+    BOOLEAN                 LeadingZeros)
 {
     UINT64                  Digit;
     UINT32                  i;
@@ -433,7 +436,8 @@ AcpiExConvertToAscii (
     UINT32                  HexLength;
     UINT32                  DecimalLength;
     UINT32                  Remainder;
-    BOOLEAN                 SupressZeros;
+    BOOLEAN                 SupressZeros = !LeadingZeros;
+    UINT8                   HexChar;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -464,7 +468,6 @@ AcpiExConvertToAscii (
             break;
         }
 
-        SupressZeros = TRUE;     /* No leading zeros */
         Remainder = 0;
 
         for (i = DecimalLength; i > 0; i--)
@@ -501,8 +504,18 @@ AcpiExConvertToAscii (
         {
             /* Get one hex digit, most significant digits first */
 
-            String[k] = (UINT8)
+            HexChar = (UINT8)
                 AcpiUtHexToAsciiChar (Integer, ACPI_MUL_4 (j));
+
+            /* Supress leading zeros until the first non-zero character */
+
+            if (HexChar == ACPI_ASCII_ZERO && SupressZeros)
+            {
+                continue;
+            }
+
+            SupressZeros = FALSE;
+            String[k] = HexChar;
             k++;
         }
         break;
@@ -556,6 +569,7 @@ AcpiExConvertToString (
     UINT32                  StringLength = 0;
     UINT16                  Base = 16;
     UINT8                   Separator = ',';
+    BOOLEAN                 LeadingZeros;
 
 
     ACPI_FUNCTION_TRACE_PTR (ExConvertToString, ObjDesc);
@@ -581,14 +595,25 @@ AcpiExConvertToString (
              * Make room for the maximum decimal number size
              */
             StringLength = ACPI_MAX_DECIMAL_DIGITS;
+            LeadingZeros = FALSE;
             Base = 10;
             break;
 
+        case ACPI_EXPLICIT_CONVERT_HEX:
+            /*
+             * From ToHexString.
+             *
+             * Supress leading zeros and append "0x"
+             */
+            StringLength = ACPI_MUL_2 (AcpiGbl_IntegerByteWidth) + 2;
+            LeadingZeros = FALSE;
+            break;
         default:
 
             /* Two hex string characters for each integer byte */
 
             StringLength = ACPI_MUL_2 (AcpiGbl_IntegerByteWidth);
+            LeadingZeros = TRUE;
             break;
         }
 
@@ -603,15 +628,29 @@ AcpiExConvertToString (
         }
 
         NewBuf = ReturnDesc->Buffer.Pointer;
+        if (Type == ACPI_EXPLICIT_CONVERT_HEX)
+        {
+            /* Append "0x" prefix for explicit hex conversion */
+
+            *NewBuf++ = '0';
+            *NewBuf++ = 'x';
+        }
 
         /* Convert integer to string */
 
         StringLength = AcpiExConvertToAscii (
-            ObjDesc->Integer.Value, Base, NewBuf, AcpiGbl_IntegerByteWidth);
+            ObjDesc->Integer.Value, Base, NewBuf, AcpiGbl_IntegerByteWidth, LeadingZeros);
 
         /* Null terminate at the correct place */
 
         ReturnDesc->String.Length = StringLength;
+        if (Type == ACPI_EXPLICIT_CONVERT_HEX)
+        {
+            /* Take "0x" prefix into account */
+
+            ReturnDesc->String.Length += 2;
+        }
+
         NewBuf [StringLength] = 0;
         break;
 
@@ -628,6 +667,7 @@ AcpiExConvertToString (
              * From ACPI: "If the input is a buffer, it is converted to a
              * a string of decimal values separated by commas."
              */
+            LeadingZeros = FALSE;
             Base = 10;
 
             /*
@@ -661,6 +701,7 @@ AcpiExConvertToString (
              *
              * Each hex number is prefixed with 0x (11/2018)
              */
+            LeadingZeros = TRUE;
             Separator = ' ';
             StringLength = (ObjDesc->Buffer.Length * 5);
             break;
@@ -674,6 +715,7 @@ AcpiExConvertToString (
              *
              * Each hex number is prefixed with 0x (11/2018)
              */
+            LeadingZeros = TRUE;
             Separator = ',';
             StringLength = (ObjDesc->Buffer.Length * 5);
             break;
@@ -715,7 +757,7 @@ AcpiExConvertToString (
             }
 
             NewBuf += AcpiExConvertToAscii (
-                (UINT64) ObjDesc->Buffer.Pointer[i], Base, NewBuf, 1);
+                (UINT64) ObjDesc->Buffer.Pointer[i], Base, NewBuf, 1, LeadingZeros);
 
             /* Each digit is separated by either a comma or space */
 

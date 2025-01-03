@@ -191,11 +191,14 @@ struct mutex;
 /* ACPICA cache implementation is adequate. */
 #define ACPI_USE_LOCAL_CACHE
 
+/* On other platform the default definition (do nothing) is fine. */
+#if defined(__i386__) || defined(__x86_64__)
 #define ACPI_FLUSH_CPU_CACHE() __asm __volatile("wbinvd");
+#endif
 
 /* Based on FreeBSD's due to lack of documentation */
-int AcpiOsAcquireGlobalLock(uint32 *lock);
-int AcpiOsReleaseGlobalLock(uint32 *lock);
+extern int AcpiOsAcquireGlobalLock(volatile uint32_t *lock);
+extern int AcpiOsReleaseGlobalLock(volatile uint32_t *lock);
 
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)    do {                \
         (Acq) = AcpiOsAcquireGlobalLock(&((GLptr)->GlobalLock));    \
@@ -204,6 +207,8 @@ int AcpiOsReleaseGlobalLock(uint32 *lock);
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)    do {                \
         (Acq) = AcpiOsReleaseGlobalLock(&((GLptr)->GlobalLock));    \
 } while (0)
+
+#define ACPI_SEMAPHORE_NULL -1
 
 #else /* _KERNEL_MODE */
 /* Host-dependent types and defines for user-space ACPICA */

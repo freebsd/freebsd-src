@@ -403,6 +403,12 @@
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pending) Pending = 0
 #endif
 
+/* NULL/invalid value to use for destroyed or not-yet-created semaphores. */
+
+#ifndef ACPI_SEMAPHORE_NULL
+#define ACPI_SEMAPHORE_NULL NULL
+#endif
+
 /* Flush CPU cache - used when going to sleep. Wbinvd or similar. */
 
 #ifndef ACPI_FLUSH_CPU_CACHE

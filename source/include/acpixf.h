@@ -154,7 +154,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20230628
+#define ACPI_CA_VERSION                 0x20240827
 
 #include "acconfig.h"
 #include "actypes.h"
@@ -1295,7 +1295,7 @@ ACPI_STATUS
 AcpiLeaveSleepState (
     UINT8                   SleepState))
 
-ACPI_HW_DEPENDENT_RETURN_STATUS (
+ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
 AcpiSetFirmwareWakingVector (
     ACPI_PHYSICAL_ADDRESS   PhysicalAddress,

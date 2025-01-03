@@ -262,7 +262,9 @@ endif
 
 ifneq ($(ACPI_HOST),_APPLE)
 ifneq ($(ACPI_HOST),_QNX)
+ifneq ($(ACPI_HOST),_HAIKU)
 LDFLAGS += -lrt
+endif
 endif
 endif
 
