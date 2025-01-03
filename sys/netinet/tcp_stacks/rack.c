@@ -19497,7 +19497,6 @@ again:
 	}
 	rack_log_output(tp, &to, len, tp->snd_max, flags, error, rack_to_usec_ts(tv),
 			NULL, add_flag, s_mb, s_soff, rack->r_ctl.fsb.hw_tls, segsiz);
-	m = NULL;
 	if (tp->snd_una == tp->snd_max) {
 		rack->r_ctl.rc_tlp_rxt_last_time = cts;
 		rack_log_progress_event(rack, tp, ticks, PROGRESS_START, __LINE__);
