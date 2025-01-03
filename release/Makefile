@@ -22,6 +22,7 @@
 #  WORLDDIR: location of src tree -- must have built world and default kernel
 #            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
+#  INSTALLEXTRAKERNELS: if set, install all kernels in the KERNCONF variable
 #  XTRADIR:  xtra-bits-dir argument for <arch>/mkisoimages.sh
 #  NOPKG:    if set, do not distribute third-party packages
 #  NOPORTS:  if set, do not distribute ports tree
@@ -36,6 +37,7 @@
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
+INSTALLEXTRAKERNELS?=	no
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 
@@ -173,7 +175,9 @@ disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
-	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
+	    DESTDIR=${.OBJDIR}/${.TARGET} \
+	    INSTALLEXTRAKERNELS=${INSTALLEXTRAKERNELS} \
+	    MK_AT=no \
 	    MK_INSTALLLIB=no MK_MAIL=no \
 	    ${_ALL_LIBCOMPATS:@v@MK_LIB$v=no@} \
 	    MK_TOOLCHAIN=no \
@@ -218,7 +222,9 @@ bootonly: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
-	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AT=no \
+	    DESTDIR=${.OBJDIR}/${.TARGET} \
+	    INSTALLEXTRAKERNELS=${INSTALLEXTRAKERNELS} \
+	    MK_AT=no \
 	    MK_GAMES=no \
 	    MK_INSTALLLIB=no MK_MAIL=no \
 	    ${_ALL_LIBCOMPATS:@v@MK_LIB$v=no@} \
@@ -254,8 +260,12 @@ dvd: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
-		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no MK_DEBUG_FILES=no \
+		DESTDIR=${.OBJDIR}/${.TARGET} \
+		INSTALLEXTRAKERNELS=${INSTALLEXTRAKERNELS} \
+		MK_RESCUE=no \
+		MK_KERNEL_SYMBOLS=no \
+		MK_TESTS=no \
+		MK_DEBUG_FILES=no \
 		-DDB_FROM_SRC )
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist

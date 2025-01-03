@@ -28,7 +28,9 @@ PORTBRANCH="main"
 #TARGET="amd64"
 #TARGET_ARCH="amd64"
 #KERNEL="GENERIC"
-## Multiple kernels may be set.
+## Multiple kernels may be set.  Kernels after the first will be installed to
+## an alternate location.  In this example, they'll be installed to /boot/kernel
+## and /boot/kernel.XENHVM .
 #KERNEL="GENERIC XENHVM"
 
 ## Set to specify a custom make.conf and/or src.conf
