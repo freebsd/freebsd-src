@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -697,18 +697,24 @@ AslCompilerFileHeader (
         break;
     }
 
-    /* Compilation header with timestamp */
-
-    Aclock = time (NULL);
-    NewTime = ctime (&Aclock);
+    /* Compilation header (with timestamp) */
 
     FlPrintFile (FileId,
-        "%sCompilation of \"%s\" -",
+        "%sCompilation of \"%s\"",
         Prefix, AslGbl_Files[ASL_FILE_INPUT].Filename);
 
-    if (NewTime)
+    if (!AslGbl_Deterministic) 
     {
-        FlPrintFile (FileId, " %s%s\n", NewTime, Prefix);
+        Aclock = time (NULL);
+        NewTime = ctime (&Aclock);
+        if (NewTime)
+        {
+            FlPrintFile (FileId, " - %s%s\n", NewTime, Prefix);
+        }
+    }
+    else 
+    {
+        FlPrintFile (FileId, "\n");
     }
 
     switch (FileId)

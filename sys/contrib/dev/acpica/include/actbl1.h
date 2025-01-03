@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -716,6 +716,8 @@ typedef struct acpi_cdat_sslbe
 
 } ACPI_CDAT_SSLBE;
 
+#define ACPI_CDAT_SSLBIS_US_PORT	0x0100
+#define ACPI_CDAT_SSLBIS_ANY_PORT	0xffff
 
 /*******************************************************************************
  *
@@ -832,8 +834,6 @@ struct acpi_cedt_cxims {
 
 struct acpi_cedt_rdpas {
     ACPI_CEDT_HEADER        Header;
-    UINT8                   Reserved1;
-    UINT16                  Length;
     UINT16                  Segment;
     UINT16                  Bdf;
     UINT8                   Protocol;
@@ -1448,6 +1448,12 @@ enum AcpiEinjCommandStatus
 #define ACPI_EINJ_PLATFORM_CORRECTABLE      (1<<9)
 #define ACPI_EINJ_PLATFORM_UNCORRECTABLE    (1<<10)
 #define ACPI_EINJ_PLATFORM_FATAL            (1<<11)
+#define ACPI_EINJ_CXL_CACHE_CORRECTABLE     (1<<12)
+#define ACPI_EINJ_CXL_CACHE_UNCORRECTABLE   (1<<13)
+#define ACPI_EINJ_CXL_CACHE_FATAL           (1<<14)
+#define ACPI_EINJ_CXL_MEM_CORRECTABLE       (1<<15)
+#define ACPI_EINJ_CXL_MEM_UNCORRECTABLE     (1<<16)
+#define ACPI_EINJ_CXL_MEM_FATAL             (1<<17)
 #define ACPI_EINJ_VENDOR_DEFINED            (1<<31)
 
 

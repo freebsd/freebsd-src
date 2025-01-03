@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -246,6 +246,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_PPTT, "Processor Properties Topology Table"},
     {ACPI_SIG_PRMT, "Platform Runtime Mechanism Table"},
     {ACPI_SIG_RASF, "RAS Features Table"},
+    {ACPI_SIG_RAS2, "RAS2 Features Table"},
     {ACPI_SIG_RHCT, "RISC-V Hart Capabilities Table"},
     {ACPI_SIG_RGRT, "Regulatory Graphics Resource Table"},
     {ACPI_RSDP_NAME,"Root System Description Pointer"},
