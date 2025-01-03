@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 25, 2024
+.Dd January 3, 2025
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -114,7 +114,8 @@ The
 argument to
 .Fn openat
 must be strictly relative to a file descriptor
-.Fa fd .
+.Fa fd ;
+that is,
 .Fa path
 must not be an absolute path and must not contain ".." components
 which cause the path resolution to escape the directory hierarchy
@@ -137,46 +138,98 @@ If the
 .Dv vfs.lookup_cap_dotdot_nonlocal
 MIB is set to zero, ".." is not allowed if found on non-local filesystem.
 .Pp
-The flags specified are formed by
+The
+.Fa flags
+are formed by
 .Em or Ns 'ing
-the following values
+the following values:
 .Pp
-.Bd -literal -offset indent -compact
-O_RDONLY	open for reading only
-O_WRONLY	open for writing only
-O_RDWR		open for reading and writing
-O_EXEC		open for execute only
-O_SEARCH	open for search only, an alias for O_EXEC
-O_NONBLOCK	do not block on open
-O_APPEND	append on each write
-O_CREAT		create file if it does not exist
-O_TRUNC		truncate size to 0
-O_EXCL		error if create and file exists
-O_SHLOCK	atomically obtain a shared lock
-O_EXLOCK	atomically obtain an exclusive lock
-O_DIRECT	eliminate or reduce cache effects
-O_FSYNC		synchronous writes (historical synonym for O_SYNC)
-O_SYNC		synchronous writes
-O_DSYNC		synchronous data writes
-O_NOFOLLOW	do not follow symlinks
-O_NOCTTY	ignored
-O_TTY_INIT	ignored
-O_DIRECTORY	error if file is not a directory
-O_CLOEXEC	set FD_CLOEXEC upon open
-O_VERIFY	verify the contents of the file
-O_RESOLVE_BENEATH	path resolution must not cross the fd directory
-O_PATH		record only the target path in the opened descriptor
-O_EMPTY_PATH	openat, open file referenced by fd if path is empty
-.Ed
+.Bl -tag -width O_RESOLVE_BENEATH
+.It Dv O_RDONLY
+open for reading only
+.It Dv O_WRONLY
+open for writing only
+.It Dv O_RDWR
+open for reading and writing
+.It Dv O_EXEC
+open for execute only
+.It Dv O_SEARCH
+open for search only
+(an alias for
+.Dv O_EXEC
+typically used with
+.Dv O_DIRECTORY )
+.It Dv O_NONBLOCK
+do not block on open
+.It Dv O_APPEND
+set file pointer to the end of the file before each write
+.It Dv O_CREAT
+create file if it does not exist
+.It Dv O_TRUNC
+truncate size to 0
+.It Dv O_EXCL
+fail if
+.Dv O_CREAT
+is set and the file exists
+.It Dv O_SHLOCK
+atomically obtain a shared lock
+.It Dv O_EXLOCK
+atomically obtain an exclusive lock
+.It Dv O_DIRECT
+read and write directly from the backing store
+.It Dv O_FSYNC
+synchronous data and metadata writes
+.Pq historical synonym for Dv O_SYNC
+.It Dv O_SYNC
+synchronous data and metadata writes
+.It Dv O_DSYNC
+synchronous data writes
+.It Dv O_NOFOLLOW
+do not follow symlinks
+.It Dv O_NOCTTY
+ignored
+.It Dv O_TTY_INIT
+ignored
+.It Dv O_DIRECTORY
+error if file is not a directory
+.It Dv O_CLOEXEC
+automatically close file on
+.Xr execve 2
+.It Dv O_VERIFY
+verify the contents of the file with
+.Xr mac_veriexec 4
+.It Dv O_RESOLVE_BENEATH
+.Pq Xr openat 2 only
+path resolution must not cross the
+.Fa fd
+directory
+.It Dv O_PATH
+record only the target path in the opened descriptor
+.It Dv O_EMPTY_PATH
+.Pq Xr openat 2 only
+open file referenced by
+.Fa fd
+if path is empty
+.El
+.Pp
+Exactly one of the flags
+.Dv O_RDONLY ,
+.Dv O_WRONLY ,
+.Dv O_RDWR ,
+or
+.Dv O_EXEC
+must be provided.
 .Pp
 Opening a file with
 .Dv O_APPEND
-set causes each write on the file
-to be appended to the end.
+set causes each write on the resulting file descriptor
+to be appended to the end of the file.
+.Pp
 If
 .Dv O_TRUNC
 is specified and the
 file exists, the file is truncated to zero length.
+.Pp
 If
 .Dv O_EXCL
 is set with
@@ -184,7 +237,8 @@ is set with
 and the file already
 exists,
 .Fn open
-returns an error.
+fails with
+.Er EEXIST .
 This may be used to
 implement a simple exclusive access locking mechanism.
 If
@@ -194,12 +248,13 @@ a symbolic link,
 .Fn open
 will fail even if the symbolic
 link points to a non-existent name.
-If the
+.Pp
+If
 .Dv O_NONBLOCK
-flag is specified and the
+is specified and the
 .Fn open
-system call would result
-in the process being blocked for some reason (e.g., waiting for
+system call would
+block for some reason (for example, waiting for
 carrier on a dialup line),
 .Fn open
 returns immediately.
@@ -245,6 +300,8 @@ The system will attempt to avoid caching the data you read or write.
 If it cannot avoid caching the data,
 it will minimize the impact the data has on the cache.
 Use of this flag can drastically reduce performance if not used with care.
+The semantics of this flag are filesystem dependent,
+and some filesystems may ignore it entirely.
 .Pp
 .Dv O_NOCTTY
 may be used to ensure the OS does not assign this file as the
@@ -302,16 +359,14 @@ reside in the directory hierarchy beneath the starting directory.
 Absolute paths or even the temporal escape from beneath of the starting
 directory is not allowed.
 .Pp
-When
-.Fa fd
+When a directory
 is opened with
 .Dv O_SEARCH ,
 execute permissions are checked at open time.
-The
-.Fa fd
+The returned file descriptor
 may not be used for any read operations like
 .Xr getdirentries 2 .
-The primary use for this descriptor will be as the lookup descriptor for the
+The primary use of this descriptor is as the lookup descriptor for the
 .Fn *at
 family of functions.
 If
@@ -319,7 +374,9 @@ If
 was not requested at open time, then the
 .Fn *at
 functions use the current directory permissions for the directory referenced
-by the descriptor at the time of the call.
+by the descriptor at the time of the
+.Fn *at
+call.
 .Pp
 .Dv O_PATH
 returns a file descriptor that can be used as a directory file descriptor for
@@ -328,9 +385,9 @@ and other system calls taking a file descriptor argument, like
 .Xr fstatat 2
 and others.
 The other functionality of the returned file descriptor is limited to
-the descriptor-level operations.
-It can be used for
-.Bl -tag -width readlinkat(2) -offset indent -compact
+the following descriptor-level operations:
+.Pp
+.Bl -tag -width __acl_aclcheck_fd -offset indent -compact
 .It Xr fcntl 2
 but advisory locking is not allowed
 .It Xr dup 2
@@ -344,12 +401,14 @@ socket using a
 .Dv SCM_RIGHTS
 message
 .It Xr kqueue 2
-using for
+only with
 .Dv EVFILT_VNODE
 .It Xr readlinkat 2
-.It Xr __acl_get_fd 2 , Xr __acl_aclcheck_fd 2
+.It Xr __acl_get_fd 2
+.It Xr __acl_aclcheck_fd 2
 .El
-But operations like
+.Pp
+Other operations like
 .Xr read 2 ,
 .Xr ftruncate 2 ,
 and any other that operate on file and not on file descriptor (except
@@ -358,18 +417,19 @@ are not allowed.
 .Pp
 A file descriptor created with the
 .Dv O_PATH
-flag can be opened into normal (operable) file descriptor by
+flag can be opened as a normal (operable) file descriptor by
 specifying it as the
 .Fa fd
 argument to
 .Fn openat
-with empty
+with an empty
 .Fa path
-and flag
-.Dv O_EMPTY_PATH .
+and the
+.Dv O_EMPTY_PATH
+flag.
 Such an open behaves as if the current path of the file referenced by
 .Fa fd
-is passed, except that the path walk permissions are not checked.
+is passed, except that path walk permissions are not checked.
 See also the description of
 .Dv AT_EMPTY_PATH
 flag for
@@ -380,6 +440,8 @@ If successful,
 .Fn open
 returns a non-negative integer, termed a file descriptor.
 It returns \-1 on failure.
+The file descriptor value returned is the lowest numbered descriptor
+currently not in use by the process.
 The file pointer used to mark the current position within the
 file is set to the beginning of the file.
 .Pp
@@ -394,7 +456,7 @@ A sleeping open of a fifo (see
 .Xr mkfifo 2 )
 is restarted as normal.
 .Pp
-When a new file is created it is given the group of the directory
+When a new file is created, it is assigned the group of the directory
 which contains it.
 .Pp
 Unless
@@ -405,9 +467,9 @@ the new descriptor is set to remain open across
 system calls; see
 .Xr close 2 ,
 .Xr fcntl 2
-and
+and the description of the
 .Dv O_CLOEXEC
-description.
+flag.
 .Pp
 The system imposes a limit on the number of file descriptors
 open simultaneously by one process.
@@ -511,7 +573,7 @@ or
 is specified but the underlying file system does not support locking.
 .It Bq Er EOPNOTSUPP
 The named file is a special file mounted through a file system that
-does not support access to it (e.g.\& NFS).
+does not support access to it (for example, NFS).
 .It Bq Er EWOULDBLOCK
 .Dv O_NONBLOCK
 and one of
@@ -688,7 +750,7 @@ system call is believed to be compatible with
 .\" .St -p1003.1-2017 ,
 .\" XXX: This should be replaced in the future when an appropriate argument to
 .\" the St macro is available: -p1003.1-2017
-.No IEEE Std 1003.1-2008, 2017 Edition (\\(LqPOSIX.1\\(Rq) ,
+.No IEEE Std 1003.1-2008, 2017 Edition ("POSIX.1") ,
 which specifies that behavior for
 .Dv O_SEARCH ,
 in the absence of the flag the implementation checks the current
