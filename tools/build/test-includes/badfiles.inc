@@ -61,7 +61,6 @@ BADHDRS= \
 	sys/kdb.h \
 	sys/kernel.h \
 	sys/khelp.h \
-	sys/kobj.h \
 	sys/ksem.h \
 	sys/ktls.h \
 	sys/libkern.h \
