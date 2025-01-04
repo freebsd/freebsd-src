@@ -15630,12 +15630,6 @@ rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
 			if (tmr_up == PACE_TMR_DELACK)
 				/* We are supposed to have delayed ack up and we do */
 				return;
-		} else if (sbavail(&tptosocket(tp)->so_snd) && (tmr_up == PACE_TMR_RXT)) {
-			/*
-			 * if we hit enobufs then we would expect the possibility
-			 * of nothing outstanding and the RXT up (and the hptsi timer).
-			 */
-			return;
 		} else if (((V_tcp_always_keepalive ||
 			     rack->rc_inp->inp_socket->so_options & SO_KEEPALIVE) &&
 			    (tp->t_state <= TCPS_CLOSING)) &&
