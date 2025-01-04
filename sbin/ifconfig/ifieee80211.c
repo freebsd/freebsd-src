@@ -198,8 +198,10 @@ static int gottxparams = 0;
 static struct ieee80211_channel curchan;
 static int gotcurchan = 0;
 static struct ifmediareq *global_ifmr;
+
+/* HT */
 static int htconf = 0;
-static	int gothtconf = 0;
+static int gothtconf = 0;
 
 static void
 gethtconf(if_ctx *ctx)
@@ -213,7 +215,7 @@ gethtconf(if_ctx *ctx)
 
 /* VHT */
 static int vhtconf = 0;
-static	int gotvhtconf = 0;
+static int gotvhtconf = 0;
 
 static void
 getvhtconf(if_ctx *ctx)
@@ -5416,26 +5418,27 @@ end:
 
 	if (IEEE80211_IS_CHAN_VHT(c) || verbose) {
 		getvhtconf(ctx);
-		if (vhtconf & IEEE80211_FVHT_VHT)
+		if (vhtconf & IEEE80211_FVHT_VHT) {
 			LINE_CHECK("vht");
-		else
+
+			if (vhtconf & IEEE80211_FVHT_USEVHT40)
+				LINE_CHECK("vht40");
+			else
+				LINE_CHECK("-vht40");
+			if (vhtconf & IEEE80211_FVHT_USEVHT80)
+				LINE_CHECK("vht80");
+			else
+				LINE_CHECK("-vht80");
+			if (vhtconf & IEEE80211_FVHT_USEVHT160)
+				LINE_CHECK("vht160");
+			else
+				LINE_CHECK("-vht160");
+			if (vhtconf & IEEE80211_FVHT_USEVHT80P80)
+				LINE_CHECK("vht80p80");
+			else
+				LINE_CHECK("-vht80p80");
+		} else if (verbose)
 			LINE_CHECK("-vht");
-		if (vhtconf & IEEE80211_FVHT_USEVHT40)
-			LINE_CHECK("vht40");
-		else
-			LINE_CHECK("-vht40");
-		if (vhtconf & IEEE80211_FVHT_USEVHT80)
-			LINE_CHECK("vht80");
-		else
-			LINE_CHECK("-vht80");
-		if (vhtconf & IEEE80211_FVHT_USEVHT160)
-			LINE_CHECK("vht160");
-		else
-			LINE_CHECK("-vht160");
-		if (vhtconf & IEEE80211_FVHT_USEVHT80P80)
-			LINE_CHECK("vht80p80");
-		else
-			LINE_CHECK("-vht80p80");
 	}
 
 	if (get80211val(ctx, IEEE80211_IOC_WME, &wme) != -1) {
@@ -6029,7 +6032,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("ht",		3,	set80211htconf),	/* NB: 20+40 */
 	DEF_CMD("-ht",		0,	set80211htconf),
 	DEF_CMD("vht",		IEEE80211_FVHT_VHT,		set80211vhtconf),
-	DEF_CMD("-vht",		0,				set80211vhtconf),
+	DEF_CMD("-vht",		-IEEE80211_FVHT_VHT,		set80211vhtconf),
 	DEF_CMD("vht40",	IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
 	DEF_CMD("-vht40",	-IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
 	DEF_CMD("vht80",	IEEE80211_FVHT_USEVHT80,	set80211vhtconf),
