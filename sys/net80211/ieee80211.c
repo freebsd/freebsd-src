@@ -1196,12 +1196,14 @@ struct vht_chan_range vht80_chan_ranges[] = {
 	{ 5570, 5650 },
 	{ 5650, 5730 },
 	{ 5735, 5815 },
+	{ 5815, 5895 },
 	{ 0, 0 }
 };
 
 struct vht_chan_range vht160_chan_ranges[] = {
 	{ 5170, 5330 },
 	{ 5490, 5650 },
+	{ 5735, 5895 },
 	{ 0, 0 }
 };
 
