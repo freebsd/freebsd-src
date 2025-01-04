@@ -23,6 +23,7 @@
  * SUCH DAMAGE.
  */
 
+#include <netlink/netlink_snl_generic.h>
 #ifdef LIBUSB_GLOBAL_INCLUDE_FILE
 #include LIBUSB_GLOBAL_INCLUDE_FILE
 #else
@@ -39,6 +40,10 @@
 #include <sys/ioctl.h>
 #include <sys/queue.h>
 #include <sys/endian.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 #endif
 
 #define	libusb_device_handle libusb20_device
@@ -48,6 +53,118 @@
 #include "libusb20_int.h"
 #include "libusb.h"
 #include "libusb10.h"
+
+#define DEVDPIPE	"/var/run/devd.seqpacket.pipe"
+#define DEVCTL_MAXBUF	1024
+
+typedef enum {
+	broken_event,
+	invalid_event,
+	valid_event,
+} event_t;
+
+static bool
+netlink_init(libusb_context *ctx)
+{
+	struct _getfamily_attrs attrs;
+
+	if (modfind("nlsysevent") < 0)
+		kldload("nlsysevent");
+	if (modfind("nlsysevent") < 0)
+		return (false);
+	if (!snl_init(&ctx->ss, NETLINK_GENERIC))
+		return (false);
+
+	if (!snl_get_genl_family_info(&ctx->ss, "nlsysevent", &attrs))
+		return (false);
+
+	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
+		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+		    "USB") == 0) {
+			if (setsockopt(ctx->ss.fd, SOL_NETLINK,
+			    NETLINK_ADD_MEMBERSHIP,
+			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
+			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
+			    == -1) {
+				return (false);
+			}
+		}
+	}
+	ctx->usb_event_mode = usb_event_netlink;
+	return (true);
+}
+
+static bool
+devd_init(libusb_context *ctx)
+{
+	struct sockaddr_un devd_addr;
+
+	bzero(&devd_addr, sizeof(devd_addr));
+	if ((ctx->devd_pipe = socket(PF_LOCAL, SOCK_SEQPACKET|SOCK_NONBLOCK, 0)) < 0)
+		return (false);
+
+	devd_addr.sun_family = PF_LOCAL;
+	strlcpy(devd_addr.sun_path, DEVDPIPE, sizeof(devd_addr.sun_path));
+	if (connect(ctx->devd_pipe, (struct sockaddr *)&devd_addr,
+	    sizeof(devd_addr)) == -1) {
+		close(ctx->devd_pipe);
+		ctx->devd_pipe = -1;
+		return (false);
+	}
+
+	ctx->usb_event_mode = usb_event_devd;
+	return (true);
+}
+
+struct nlevent {
+	const char *name;
+	const char *subsystem;
+	const char *type;
+	const char *data;
+};
+
+#define	_OUT(_field)	offsetof(struct nlevent, _field)
+static struct snl_attr_parser ap_nlevent_get[] = {
+	{ .type = NLSE_ATTR_SYSTEM, .off = _OUT(name), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_SUBSYSTEM, .off = _OUT(subsystem), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_TYPE, .off = _OUT(type), .cb = snl_attr_get_string },
+	{ .type = NLSE_ATTR_DATA, .off = _OUT(data), .cb = snl_attr_get_string },
+};
+#undef _OUT
+
+SNL_DECLARE_GENL_PARSER(nlevent_get_parser, ap_nlevent_get);
+
+static event_t
+verify_event_validity(libusb_context *ctx)
+{
+	if (ctx->usb_event_mode == usb_event_netlink) {
+		struct nlmsghdr *hdr;
+		struct nlevent ne;
+
+		hdr = snl_read_message(&ctx->ss);
+		if (hdr != NULL && hdr->nlmsg_type != NLMSG_ERROR) {
+			memset(&ne, 0, sizeof(ne));
+			if (!snl_parse_nlmsg(&ctx->ss, hdr, &nlevent_get_parser, &ne))
+				return (broken_event);
+			if (strcmp(ne.subsystem, "DEVICE") == 0)
+				return (valid_event);
+			return (invalid_event);
+		}
+		return (invalid_event);
+	} else if (ctx->usb_event_mode == usb_event_devd) {
+		char buf[DEVCTL_MAXBUF];
+		ssize_t len;
+
+		len = read(ctx->devd_pipe, buf, sizeof(buf));
+		if (len == 0 || (len < 0 && errno != EWOULDBLOCK))
+			return (broken_event);
+		if (len > 0 && strstr(buf, "system=USB") != NULL &&
+		    strstr(buf, "subsystem=DEVICE") != NULL)
+			return (valid_event);
+		return (invalid_event);
+	}
+	return (broken_event);
+}
 
 static int
 libusb_hotplug_equal(libusb_device *_adev, libusb_device *_bdev)
@@ -105,6 +222,7 @@ libusb_hotplug_enumerate(libusb_context *ctx, struct libusb_device_head *phead)
 static void *
 libusb_hotplug_scan(void *arg)
 {
+	struct pollfd pfd;
 	struct libusb_device_head hotplug_devs;
 	libusb_hotplug_callback_handle acbh;
 	libusb_hotplug_callback_handle bcbh;
@@ -112,9 +230,51 @@ libusb_hotplug_scan(void *arg)
 	libusb_device *temp;
 	libusb_device *adev;
 	libusb_device *bdev;
+	int timeout = INFTIM;
+	int nfds;
 
+	memset(&pfd, 0, sizeof(pfd));
+	if (ctx->usb_event_mode == usb_event_devd) {
+		pfd.fd = ctx->devd_pipe;
+		pfd.events = POLLIN | POLLERR;
+		nfds = 1;
+	} else if (ctx->usb_event_mode == usb_event_netlink) {
+		pfd.fd = ctx->ss.fd;
+		pfd.events = POLLIN | POLLERR;
+		nfds = 1;
+	} else {
+		nfds = 0;
+		timeout = 4000;
+	}
 	for (;;) {
-		usleep(4000000);
+		pfd.revents = 0;
+		if (poll(&pfd, nfds, timeout) > 0)  {
+			switch (verify_event_validity(ctx)) {
+			case invalid_event:
+				continue;
+			case valid_event:
+				break;
+			case broken_event:
+				/* There are 2 cases for broken events:
+				 * - devd and netlink sockets are not available
+				 *   anymore (devd restarted, nlsysevent unloaded)
+				 * - libusb_exit has been called as it sets NO_THREAD
+				 *   this will result in exiting this loop and this thread
+				 *   immediately
+				 */
+				nfds = 0;
+				if (ctx->usb_event_mode == usb_event_devd) {
+					if (ctx->devd_pipe != -1)
+						close(ctx->devd_pipe);
+				} else if (ctx->usb_event_mode == usb_event_netlink) {
+					if (ctx->ss.fd != -1)
+						close(ctx->ss.fd);
+				}
+				ctx->usb_event_mode = usb_event_scan;
+				timeout = 4000;
+				break;
+			}
+		}
 
 		HOTPLUG_LOCK(ctx);
 		if (ctx->hotplug_handler == NO_THREAD) {
@@ -122,6 +282,10 @@ libusb_hotplug_scan(void *arg)
 				TAILQ_REMOVE(&ctx->hotplug_devs, adev, hotplug_entry);
 				libusb_unref_device(adev);
 			}
+			if (ctx->usb_event_mode == usb_event_devd)
+				close(ctx->devd_pipe);
+			else if (ctx->usb_event_mode == usb_event_netlink)
+				close(ctx->ss.fd);
 			HOTPLUG_UNLOCK(ctx);
 			break;
 		}
@@ -191,6 +355,13 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	struct libusb_device *adev;
 
 	ctx = GET_CONTEXT(ctx);
+
+	if (ctx->usb_event_mode == usb_event_none) {
+		HOTPLUG_LOCK(ctx);
+		if (!netlink_init(ctx) && !devd_init(ctx))
+			ctx->usb_event_mode = usb_event_scan;
+		HOTPLUG_UNLOCK(ctx);
+	}
 
 	if (ctx == NULL || cb_fn == NULL || events == 0 ||
 	    vendor_id < -1 || vendor_id > 0xffff ||
