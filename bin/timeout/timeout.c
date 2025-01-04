@@ -49,14 +49,17 @@ static sig_atomic_t sig_chld = 0;
 static sig_atomic_t sig_term = 0;
 static sig_atomic_t sig_alrm = 0;
 static sig_atomic_t sig_ign = 0;
+static const char *command = NULL;
+static bool verbose = false;
 
 static void
 usage(void)
 {
 
 	fprintf(stderr, "Usage: %s [-k time | --kill-after time]"
-	    " [-s sig | --signal sig] [--foreground] [--preserve-status]"
-	    " <duration> <command> <arg ...>\n", getprogname());
+		" [-s sig | --signal sig] [-v | --verbose] [--foreground]"
+		" [--preserve-status] <duration> <command> <arg ...>\n",
+		getprogname());
 
 	exit(EXIT_FAILURE);
 }
@@ -147,6 +150,16 @@ sig_handler(int signo)
 }
 
 static void
+send_sig(pid_t pid, int signo)
+{
+	if (verbose) {
+		warnx("sending signal %s(%d) to command '%s'",
+		sys_signame[signo], signo, command);
+	}
+	kill(pid, signo);
+}
+
+static void
 set_interval(double iv)
 {
 	struct itimerval tim;
@@ -196,10 +209,11 @@ main(int argc, char **argv)
 		{ "kill-after",      required_argument, NULL,        'k'},
 		{ "signal",          required_argument, NULL,        's'},
 		{ "help",            no_argument,       NULL,        'h'},
+		{ "verbose",         no_argument,       NULL,        'v'},
 		{ NULL,              0,                 NULL,         0 }
 	};
 
-	while ((ch = getopt_long(argc, argv, "+k:s:h", longopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "+k:s:vh", longopts, NULL)) != -1) {
 		switch (ch) {
 			case 'k':
 				do_second_kill = true;
@@ -207,6 +221,9 @@ main(int argc, char **argv)
 				break;
 			case 's':
 				killsig = parse_signal(optarg);
+				break;
+			case 'v':
+				verbose = true;
 				break;
 			case 0:
 				break;
@@ -225,6 +242,7 @@ main(int argc, char **argv)
 	first_kill = parse_duration(argv[0]);
 	argc--;
 	argv++;
+	command = argv[0];
 
 	if (!foreground) {
 		/* Acquire a reaper */
@@ -315,7 +333,7 @@ main(int argc, char **argv)
 				procctl(P_PID, getpid(), PROC_REAP_KILL,
 				    &killemall);
 			} else
-				kill(pid, killsig);
+				send_sig(pid, killsig);
 
 			if (do_second_kill) {
 				set_interval(second_kill);
@@ -332,7 +350,7 @@ main(int argc, char **argv)
 				procctl(P_PID, getpid(), PROC_REAP_KILL,
 				    &killemall);
 			} else
-				kill(pid, sig_term);
+				send_sig(pid, sig_term);
 
 			if (do_second_kill) {
 				set_interval(second_kill);
