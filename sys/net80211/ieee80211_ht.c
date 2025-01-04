@@ -1938,9 +1938,7 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 	vhtflags = 0;
 	if (ni->ni_flags & IEEE80211_NODE_VHT && vap->iv_vht_flags & IEEE80211_FVHT_VHT) {
 		if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_160MHZ) &&
-		    /* XXX 2 means "160MHz and 80+80MHz", 1 means "160MHz" */
-		    (_IEEE80211_MASKSHIFT(vap->iv_vht_cap.vht_cap_info,
-		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1) &&
+		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(vap->iv_vht_cap.vht_cap_info) &&
 		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160)) {
 			vhtflags = IEEE80211_CHAN_VHT160;
 			/* Mirror the HT40 flags */
@@ -1950,9 +1948,7 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 				vhtflags |= IEEE80211_CHAN_HT40D;
 			}
 		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80P80MHZ) &&
-		    /* XXX 2 means "160MHz and 80+80MHz" */
-		    (_IEEE80211_MASKSHIFT(vap->iv_vht_cap.vht_cap_info,
-		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2) &&
+		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vht_cap.vht_cap_info) &&
 		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80)) {
 			vhtflags = IEEE80211_CHAN_VHT80P80;
 			/* Mirror the HT40 flags */
