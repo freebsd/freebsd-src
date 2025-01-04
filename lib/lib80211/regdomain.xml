@@ -572,6 +572,13 @@
       <flags>IEEE80211_CHAN_VHT80</flags>
       <flags>INDOOR</flags>
     </band>
+    <band>
+      <freqband ref="AC2_5180_5320_160"/>
+      <maxpower>22</maxpower>
+      <flags>IEEE80211_CHAN_HT40</flags>
+      <flags>IEEE80211_CHAN_VHT160</flags>
+      <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
 
     <!-- 5250-5350/80, 100 mW, indoor, DFS -->
     <band>
@@ -649,6 +656,13 @@
       <maxpower>13</maxpower>
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_VHT80</flags>
+      <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
+    <band>
+      <freqband ref="AC2_5745_5885_160"/>
+      <maxpower>13</maxpower>
+      <flags>IEEE80211_CHAN_HT40</flags>
+      <flags>IEEE80211_CHAN_VHT160</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
     </band>
   </netband>
@@ -1905,6 +1919,11 @@
   <chanwidth>80</chanwidth> <chansep>20</chansep>
   <flags>IEEE80211_CHAN_A</flags>
 </freqband>
+<freqband id="AC2_5180_5320_160">
+  <freqstart>5180</freqstart> <freqend>5320</freqend>
+  <chanwidth>160</chanwidth> <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
 <!-- 5250-5350/80 -->
 <freqband id="AC2_5260_5340_20">
   <freqstart>5260</freqstart> <freqend>5340</freqend>
@@ -1956,6 +1975,11 @@
 <freqband id="AC2_5745_5805_80">
   <freqstart>5745</freqstart> <freqend>5805</freqend>
   <chanwidth>80</chanwidth> <chansep>20</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
+<freqband id="AC2_5745_5885_160">
+  <freqstart>5745</freqstart> <freqend>5885</freqend>
+  <chanwidth>160</chanwidth> <chansep>20</chansep>
   <flags>IEEE80211_CHAN_A</flags>
 </freqband>
 <freqband id="H4_5180_5240">
