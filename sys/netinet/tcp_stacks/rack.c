@@ -17681,7 +17681,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 {
 	uint64_t srtt;
 	int32_t slot = 0;
-	int32_t minslot = 0;
 	int can_start_hw_pacing = 1;
 	int err;
 	int pace_one;
@@ -18012,11 +18011,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 					rack->r_ctl.last_hw_bw_req = rate_wanted;
 				}
 			}
-		}
-		if (minslot && (minslot > slot)) {
-			rack_log_pacing_delay_calc(rack, minslot, slot, rack->r_ctl.crte->rate, bw_est, lentim,
-						   98, __LINE__, NULL, 0);
-			slot = minslot;
 		}
 	done_w_hdwr:
 		if (rack_limit_time_with_srtt &&
