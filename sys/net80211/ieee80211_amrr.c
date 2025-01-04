@@ -139,13 +139,78 @@ amrr_deinit(struct ieee80211vap *vap)
 }
 
 static void
+amrr_node_init_ht(struct ieee80211_node *ni)
+{
+	const struct ieee80211_rateset *rs;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t rate;	/* dot11rate */
+
+	rs = (struct ieee80211_rateset *) &ni->ni_htrates;
+	/* Initial rate - lowest */
+	rate = rs->rs_rates[0];
+
+	/* Pick something low that's likely to succeed */
+	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
+	    amn->amn_rix--) {
+		/* 11n - stop at MCS4 */
+		if ((rs->rs_rates[amn->amn_rix] & 0x1f) < 4)
+			break;
+	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+
+	/* Ensure the MCS bit is set */
+	rate |= IEEE80211_RATE_MCS;
+
+	/* Assign initial rate from the rateset */
+	ieee80211_node_set_txrate_dot11rate(ni, rate);
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: nrates=%d, initial rate MCS %d",
+	    rs->rs_nrates,
+	    (rate & IEEE80211_RATE_VAL));
+}
+
+static void
+amrr_node_init_legacy(struct ieee80211_node *ni)
+{
+	const struct ieee80211_rateset *rs;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t rate;	/* dot11rate */
+
+	rs = &ni->ni_rates;
+	/* Initial rate - lowest */
+	rate = rs->rs_rates[0];
+
+	/* Clear the basic rate flag if it's not 11n */
+	rate &= IEEE80211_RATE_VAL;
+
+	/* Pick something low that's likely to succeed */
+	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
+	    amn->amn_rix--) {
+		/* legacy - anything < 36mbit, stop searching */
+		if ((rs->rs_rates[amn->amn_rix] &
+		    IEEE80211_RATE_VAL) <= 72)
+			break;
+	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+
+	/* Assign initial rate from the rateset */
+	ieee80211_node_set_txrate_dot11rate(ni, rate);
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: nrates=%d, initial rate %d Mb",
+	    rs->rs_nrates,
+	    (rate & IEEE80211_RATE_VAL) / 2);
+}
+
+static void
 amrr_node_init(struct ieee80211_node *ni)
 {
-	const struct ieee80211_rateset *rs = NULL;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_amrr *amrr = vap->iv_rs;
 	struct ieee80211_amrr_node *amn;
-	uint8_t rate;
 
 	if (!amrr) {
 		if_printf(vap->iv_ifp, "ratectl structure was not allocated, "
@@ -163,60 +228,20 @@ amrr_node_init(struct ieee80211_node *ni)
 		}
 	} else
 		amn = ni->ni_rctls;
+
+	/* Common state */
 	amn->amn_amrr = amrr;
 	amn->amn_success = 0;
 	amn->amn_recovery = 0;
 	amn->amn_txcnt = amn->amn_retrycnt = 0;
 	amn->amn_success_threshold = amrr->amrr_min_success_threshold;
-
-	/* 11n or not? Pick the right rateset */
-	if (ieee80211_ht_check_tx_ht(ni)) {
-		/* XXX ew */
-		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-		    "%s: 11n node", __func__);
-		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
-	} else {
-		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-		    "%s: non-11n node", __func__);
-		rs = &ni->ni_rates;
-	}
-
-	/* Initial rate - lowest */
-	rate = rs->rs_rates[0];
-
-	/* XXX clear the basic rate flag if it's not 11n */
-	if (! ieee80211_ht_check_tx_ht(ni))
-		rate &= IEEE80211_RATE_VAL;
-
-	/* pick initial rate from the rateset - HT or otherwise */
-	/* Pick something low that's likely to succeed */
-	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
-	    amn->amn_rix--) {
-		/* legacy - anything < 36mbit, stop searching */
-		/* 11n - stop at MCS4 */
-		if (ieee80211_ht_check_tx_ht(ni)) {
-			if ((rs->rs_rates[amn->amn_rix] & 0x1f) < 4)
-				break;
-		} else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
-			break;
-	}
-	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
-
-	/* if the rate is an 11n rate, ensure the MCS bit is set */
-	if (ieee80211_ht_check_tx_ht(ni))
-		rate |= IEEE80211_RATE_MCS;
-
-	/* Assign initial rate from the rateset */
-	ieee80211_node_set_txrate_dot11rate(ni, rate);
 	amn->amn_ticks = ticks;
 
-	/* XXX TODO: we really need a rate-to-string method */
-	/* XXX TODO: non-11n rate should be divided by two.. */
-	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-	    "AMRR: nrates=%d, initial rate %s%d",
-	    rs->rs_nrates,
-	    ieee80211_ht_check_tx_ht(ni) ? "MCS " : "",
-	    rate & IEEE80211_RATE_VAL);
+	/* 11n or not? Pick the right rateset */
+	if (ieee80211_ht_check_tx_ht(ni))
+		amrr_node_init_ht(ni);
+	else
+		amrr_node_init_legacy(ni);
 }
 
 static void
