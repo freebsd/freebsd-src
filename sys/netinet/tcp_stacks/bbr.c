@@ -10370,10 +10370,6 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 			bbr->r_ctl.bbr_smallest_srtt_state2 = bbr->r_ctl.bbr_smallest_srtt_this_state;
 	}
 	bbr->rc_bbr_substate++;
-	if (bbr->rc_bbr_substate >= BBR_SUBSTATE_COUNT) {
-		/* Cycle back to first state-> gain */
-		bbr->rc_bbr_substate = 0;
-	}
 	if (bbr_state_val(bbr) == BBR_SUB_GAIN) {
 		/*
 		 * We enter the gain(5/4) cycle (possibly less if
