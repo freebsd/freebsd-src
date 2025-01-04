@@ -5553,7 +5553,7 @@ lost_rate:
 		bbr_type_log_hdwr_pacing(bbr,
 					 bbr->r_ctl.crte->ptbl->rs_ifp,
 					 rate,
-					 ((bbr->r_ctl.crte == NULL) ? 0 : bbr->r_ctl.crte->rate),
+					 bbr->r_ctl.crte->rate,
 					 __LINE__,
 					 cts,
 					 error);
