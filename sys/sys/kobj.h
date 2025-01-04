@@ -29,7 +29,7 @@
 #ifndef _SYS_KOBJ_H_
 #define _SYS_KOBJ_H_
 
-#include <sys/types.h>
+#include <sys/_types.h>
 
 /*
  * Forward declarations
@@ -56,9 +56,9 @@ struct kobj_method {
 #define KOBJ_CLASS_FIELDS						\
 	const char	*name;		/* class name */		\
 	kobj_method_t	*methods;	/* method table */		\
-	size_t		size;		/* object size */		\
+	__size_t	size;		/* object size */		\
 	kobj_class_t	*baseclasses;	/* base classes */		\
-	u_int		refs;		/* reference count */		\
+	unsigned int	refs;		/* reference count */		\
 	kobj_ops_t	ops		/* compiled method table */
 
 struct kobj_class {
@@ -213,8 +213,8 @@ void		kobj_delete(kobj_t obj, struct malloc_type *mtype);
  * Maintain stats on hits/misses in lookup caches.
  */
 #ifdef KOBJ_STATS
-extern u_int kobj_lookup_hits;
-extern u_int kobj_lookup_misses;
+extern unsigned int kobj_lookup_hits;
+extern unsigned int kobj_lookup_misses;
 #endif
 
 /*
