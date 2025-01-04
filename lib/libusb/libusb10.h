@@ -30,6 +30,12 @@
 
 #ifndef LIBUSB_GLOBAL_INCLUDE_FILE
 #include <sys/queue.h>
+#include <netlink/netlink.h>
+#include <netlink/netlink_generic.h>
+#include <netlink/netlink_snl.h>
+#include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_sysevent.h>
+
 #endif
 
 #define	GET_CONTEXT(ctx) (((ctx) == NULL) ? usbi_default_context : (ctx))
@@ -90,12 +96,22 @@ struct libusb_hotplug_callback_handle_struct {
 
 TAILQ_HEAD(libusb_device_head, libusb_device);
 
+typedef enum {
+	usb_event_none,
+	usb_event_scan,
+	usb_event_devd,
+	usb_event_netlink
+} usb_event_mode_t;
+
 struct libusb_context {
 	int	debug;
 	int	debug_fixed;
 	int	ctrl_pipe[2];
 	int	tr_done_ref;
 	int	tr_done_gen;
+	usb_event_mode_t usb_event_mode;
+	int	devd_pipe;
+	struct	snl_state ss;
 
 	pthread_mutex_t ctx_lock;
   	pthread_mutex_t hotplug_lock;
