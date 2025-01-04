@@ -2296,7 +2296,7 @@ regdomain_addchans(if_ctx *ctx, struct ieee80211req_chaninfo *ci,
 			memset(c, 0, sizeof(*c));
 			c->ic_freq = freq;
 			c->ic_flags = flags;
-		if (c->ic_flags & IEEE80211_CHAN_DFS)
+			if (c->ic_flags & IEEE80211_CHAN_DFS)
 				c->ic_maxregpower = nb->maxPowerDFS;
 			else
 				c->ic_maxregpower = nb->maxPower;
