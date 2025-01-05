@@ -482,7 +482,7 @@ main(int argc, char * const argv[])
 			err(1, "DIOCGSECTORSIZE failed");
 
 		error = ioctl(fdr, DIOCGSTRIPESIZE, &stripesize);
-		if (error == 0 && stripesize > sectorsize)
+		if (error == 0 && stripesize < sectorsize)
 			sectorsize = stripesize;
 
 		minsize = sectorsize;
