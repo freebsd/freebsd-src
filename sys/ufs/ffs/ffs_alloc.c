@@ -681,6 +681,7 @@ ffs_reallocblks_ufs1(
 	 * groups that we will search.
 	 */
 	cg = dtog(fs, pref);
+	MPASS(cg < fs->fs_ncg);
 	for (i = min(maxclustersearch, fs->fs_ncg); i > 0; i--) {
 		if ((newblk = ffs_clusteralloc(ip, cg, pref, len)) != 0)
 			break;
@@ -947,6 +948,7 @@ ffs_reallocblks_ufs2(
 	 * groups that we will search.
 	 */
 	cg = dtog(fs, pref);
+	MPASS(cg < fs->fs_ncg);
 	for (i = min(maxclustersearch, fs->fs_ncg); i > 0; i--) {
 		if ((newblk = ffs_clusteralloc(ip, cg, pref, len)) != 0)
 			break;
@@ -1438,8 +1440,11 @@ ffs_blkpref_ufs1(struct inode *ip,
 		 * place it immediately following the last direct block.
 		 */
 		if (indx == -1 && lbn < UFS_NDADDR + NINDIR(fs) &&
-		    ip->i_din1->di_db[UFS_NDADDR - 1] != 0)
+		    ip->i_din1->di_db[UFS_NDADDR - 1] != 0) {
 			pref = ip->i_din1->di_db[UFS_NDADDR - 1] + fs->fs_frag;
+			if (dtog(fs, pref) >= fs->fs_ncg)
+				pref = 0;
+		}
 		return (pref);
 	}
 	/*
@@ -1450,8 +1455,11 @@ ffs_blkpref_ufs1(struct inode *ip,
 	if (lbn == UFS_NDADDR) {
 		pref = ip->i_din1->di_ib[0];
 		if (pref != 0 && pref >= cgdata(fs, inocg) &&
-		    pref < cgbase(fs, inocg + 1))
+		    pref < cgbase(fs, inocg + 1)) {
+			if (dtog(fs, pref + fs->fs_frag) >= fs->fs_ncg)
+				return (0);
 			return (pref + fs->fs_frag);
+		}
 	}
 	/*
 	 * If we are at the beginning of a file, or we have already allocated
@@ -1506,6 +1514,8 @@ ffs_blkpref_ufs1(struct inode *ip,
 	/*
 	 * Otherwise, we just always try to lay things out contiguously.
 	 */
+	if (dtog(fs, prevbn + fs->fs_frag) >= fs->fs_ncg)
+		return (0);
 	return (prevbn + fs->fs_frag);
 }
 
@@ -1550,8 +1560,11 @@ ffs_blkpref_ufs2(struct inode *ip,
 		 * place it immediately following the last direct block.
 		 */
 		if (indx == -1 && lbn < UFS_NDADDR + NINDIR(fs) &&
-		    ip->i_din2->di_db[UFS_NDADDR - 1] != 0)
+		    ip->i_din2->di_db[UFS_NDADDR - 1] != 0) {
 			pref = ip->i_din2->di_db[UFS_NDADDR - 1] + fs->fs_frag;
+			if (dtog(fs, pref) >= fs->fs_ncg)
+				pref = 0;
+		}
 		return (pref);
 	}
 	/*
@@ -1562,8 +1575,11 @@ ffs_blkpref_ufs2(struct inode *ip,
 	if (lbn == UFS_NDADDR) {
 		pref = ip->i_din2->di_ib[0];
 		if (pref != 0 && pref >= cgdata(fs, inocg) &&
-		    pref < cgbase(fs, inocg + 1))
+		    pref < cgbase(fs, inocg + 1)) {
+			if (dtog(fs, pref + fs->fs_frag) >= fs->fs_ncg)
+				return (0);
 			return (pref + fs->fs_frag);
+		}
 	}
 	/*
 	 * If we are at the beginning of a file, or we have already allocated
@@ -1618,6 +1634,8 @@ ffs_blkpref_ufs2(struct inode *ip,
 	/*
 	 * Otherwise, we just always try to lay things out contiguously.
 	 */
+	if (dtog(fs, prevbn + fs->fs_frag) >= fs->fs_ncg)
+		return (0);
 	return (prevbn + fs->fs_frag);
 }
 
@@ -1968,6 +1986,7 @@ ffs_clusteralloc(struct inode *ip,
 
 	ump = ITOUMP(ip);
 	fs = ump->um_fs;
+	MPASS(cg < fs->fs_ncg);
 	if (fs->fs_maxcluster[cg] < len)
 		return (0);
 	UFS_UNLOCK(ump);
