@@ -1498,7 +1498,7 @@ ffs_blkpref_ufs1(struct inode *ip,
 				fs->fs_cgrotor = cg;
 				return (cgdata(fs, cg));
 			}
-		for (cg = 0; cg <= startcg; cg++)
+		for (cg = 0; cg < startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
 				return (cgdata(fs, cg));
@@ -1610,7 +1610,7 @@ ffs_blkpref_ufs2(struct inode *ip,
 				fs->fs_cgrotor = cg;
 				return (cgdata(fs, cg));
 			}
-		for (cg = 0; cg <= startcg; cg++)
+		for (cg = 0; cg < startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
 				return (cgdata(fs, cg));
