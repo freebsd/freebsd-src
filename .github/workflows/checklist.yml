@@ -1,0 +1,106 @@
+name: Checklist
+
+# Produce a list of things that need to be changed
+# for the submission to align with CONTRIBUTING.md
+
+on:
+  pull_request:
+    types: [ opened, reopened, edited, synchronize ]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  checklist:
+    name: commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          # An asynchronous javascript function
+          script: |
+            /*
+             * Github's API returns the results in pages of 30, so
+             * pass the function we want, along with it's arguments,
+             * to paginate() which will handle gathering all the results.
+             */
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            let checklist = {};
+            let checklist_len = 0;
+            let comment_id = -1;
+
+            const msg_prefix = "Thank you for taking the time to contribute to FreeBSD!\n";
+            const addToChecklist = (msg, sha) => {
+              if (!checklist[msg]) {
+                checklist[msg] = [];
+                checklist_len++;
+              }
+              checklist[msg].push(sha);
+            }
+
+            for (const commit of commits) {
+              const sob_lines = commit.commit.message.match(/^[^\S\r\n]*signed-off-by:.*/gim);
+
+              if (sob_lines == null && !commit.commit.author.email.toLowerCase().endsWith("freebsd.org"))
+                addToChecklist("Missing Signed-off-by lines", commit.sha);
+              else if (sob_lines != null) {
+                let author_signed = false;
+                for (const line of sob_lines) {
+                  if (!line.includes("Signed-off-by: "))
+                    /* Only display the part we care about. */
+                    addToChecklist("Expected `Signed-off-by: `, got `" + line.match(/^[^\S\r\n]*signed-off-by:./i) + "`", commit.sha);
+                  if (line.includes(commit.commit.author.email))
+                    author_signed = true;
+                }
+
+                if (!author_signed)
+                  console.log("::warning title=Missing-Author-Signature::Missing Signed-off-by from author");
+              }
+
+              if (commit.commit.author.email.toLowerCase().includes("noreply"))
+                addToChecklist("Real email address is needed", commit.sha);
+            }
+
+            /* Check if we've commented before. */
+            for (const comment of comments) {
+              if (comment.user.login == "github-actions[bot]") {
+                comment_id = comment.id;
+                break;
+              }
+            }
+
+            if (checklist_len != 0) {
+              let msg = msg_prefix +
+                "There " + (checklist_len > 1 ? "are a few issues that need " : "is an issue that needs ") +
+                "to be fixed:\n";
+              let comment_func = comment_id == -1 ? github.rest.issues.createComment : github.rest.issues.updateComment;
+
+              /* Loop for each key in "checklist". */
+              for (const c in checklist)
+                msg += "- " + c + "<sup>" + checklist[c].join(", ") + "</sup>\n";
+
+              comment_func({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: msg,
+                ...(comment_id == -1 ? {issue_number: context.issue.number} : {comment_id: comment_id})
+              });
+            } else if (comment_id != -1) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: comment_id,
+                body: msg_prefix + "All issues resolved."
+              });
+            }
