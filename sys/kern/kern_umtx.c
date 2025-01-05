@@ -1740,6 +1740,9 @@ umtx_pi_alloc(int flags)
 	struct umtx_pi *pi;
 
 	pi = uma_zalloc(umtx_pi_zone, M_ZERO | flags);
+	if (pi == NULL)
+		return (NULL);
+
 	TAILQ_INIT(&pi->pi_blocked);
 	atomic_add_int(&umtx_pi_allocated, 1);
 	return (pi);
