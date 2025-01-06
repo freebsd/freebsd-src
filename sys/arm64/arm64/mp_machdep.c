@@ -91,6 +91,7 @@ static struct {
 } fdt_quirks[] = {
 	{ "arm,foundation-aarch64",	MP_QUIRK_CPULIST },
 	{ "arm,fvp-base",		MP_QUIRK_CPULIST },
+	{ "arm,fvp-base-revc",		MP_QUIRK_CPULIST },
 	/* This is incorrect in some DTS files */
 	{ "arm,vfp-base",		MP_QUIRK_CPULIST },
 	{ NULL, 0 },
