@@ -24092,14 +24092,13 @@ rack_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 				error = EINVAL;
 		}
 		break;
-		/*
-		 * Beta_ecn is the congestion control value for NewReno that influences how
-		 * much of a backoff happens when a ECN mark is detected. It is normally set
-		 * to 80 for 80% i.e. the cwnd is reduced by 20% of its previous value when
-		 * you exit recovery. Note that classic ECN has a beta of 50, it is only
-		 * ABE Ecn that uses this "less" value, but we do too with pacing :)
-		 */
-
+	/*
+	 * Beta_ecn is the congestion control value for NewReno that influences how
+	 * much of a backoff happens when a ECN mark is detected. It is normally set
+	 * to 80 for 80% i.e. the cwnd is reduced by 20% of its previous value when
+	 * you exit recovery. Note that classic ECN has a beta of 50, it is only
+	 * ABE Ecn that uses this "less" value, but we do too with pacing :)
+	 */
 	case TCP_RACK_PACING_BETA_ECN:
 		if (strcmp(tp->t_cc->name, CCALGONAME_NEWRENO) != 0)
 			error = EINVAL;
