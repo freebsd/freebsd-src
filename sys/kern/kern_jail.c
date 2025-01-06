@@ -1687,9 +1687,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			    sizeof(pr->pr_osrelease));
 
 #ifdef VIMAGE
-		/* Allocate a new vnet if specified. */
-		pr->pr_vnet = (pr_flags & PR_VNET)
-		    ? vnet_alloc() : ppr->pr_vnet;
+		/*
+		 * Allocate a new vnet if specified.
+		 *
+		 * Set PR_VNET now if so, so that the vnet is disposed of
+		 * properly when the jail is destroyed.
+		 */
+		if (pr_flags & PR_VNET) {
+			pr->pr_flags |= PR_VNET;
+			pr->pr_vnet = vnet_alloc();
+		} else {
+			pr->pr_vnet = ppr->pr_vnet;
+		}
 #endif
 		/*
 		 * Allocate a dedicated cpuset for each jail.
@@ -3207,9 +3216,12 @@ prison_deref(struct prison *pr, int flags)
 					 * Removing a prison frees references
 					 * from its parent.
 					 */
+					ppr = pr->pr_parent;
+					pr->pr_parent = NULL;
 					mtx_unlock(&pr->pr_mtx);
+
+					pr = ppr;
 					flags &= ~PD_LOCKED;
-					pr = pr->pr_parent;
 					flags |= PD_DEREF | PD_DEUREF;
 					continue;
 				}
@@ -3236,7 +3248,7 @@ prison_deref(struct prison *pr, int flags)
 	 */
 	TAILQ_FOREACH_SAFE(rpr, &freeprison, pr_list, tpr) {
 #ifdef VIMAGE
-		if (rpr->pr_vnet != rpr->pr_parent->pr_vnet)
+		if (rpr->pr_flags & PR_VNET)
 			vnet_destroy(rpr->pr_vnet);
 #endif
 		if (rpr->pr_root != NULL)
