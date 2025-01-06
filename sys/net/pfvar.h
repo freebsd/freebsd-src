@@ -2390,11 +2390,11 @@ int	pf_test(sa_family_t, int, int, struct ifnet *, struct mbuf **, struct inpcb 
 	    struct pf_rule_actions *);
 #endif
 #ifdef INET
-int	pf_normalize_ip(struct mbuf **, u_short *, struct pf_pdesc *);
+int	pf_normalize_ip(u_short *, struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
-int	pf_normalize_ip6(struct mbuf **, int, u_short *, struct pf_pdesc *);
+int	pf_normalize_ip6(int, u_short *, struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);

@@ -9918,12 +9918,13 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 
-		if (pf_normalize_ip(m0, reason, pd) != PF_PASS) {
+		if (pf_normalize_ip(reason, pd) != PF_PASS) {
 			/* We do IP header normalization and packet reassembly here */
+			*m0 = pd->m;
 			*action = PF_DROP;
 			return (-1);
 		}
-		pd->m = *m0;
+		*m0 = pd->m;
 
 		h = mtod(pd->m, struct ip *);
 		pd->off = h->ip_hl << 2;
@@ -9994,12 +9995,13 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 
 		/* We do IP header normalization and packet reassembly here */
-		if (pf_normalize_ip6(m0, pd->fragoff, reason, pd) !=
+		if (pf_normalize_ip6(pd->fragoff, reason, pd) !=
 		    PF_PASS) {
+			*m0 = pd->m;
 			*action = PF_DROP;
 			return (-1);
 		}
-		pd->m = *m0;
+		*m0 = pd->m;
 		if (pd->m == NULL) {
 			/* packet sits in reassembly queue, no error */
 			*action = PF_PASS;

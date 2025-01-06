@@ -1093,11 +1093,10 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 
 #ifdef INET
 int
-pf_normalize_ip(struct mbuf **m0, u_short *reason,
-    struct pf_pdesc *pd)
+pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 {
 	struct pf_krule		*r;
-	struct ip		*h = mtod(*m0, struct ip *);
+	struct ip		*h = mtod(pd->m, struct ip *);
 	int			 mff = (ntohs(h->ip_off) & IP_MF);
 	int			 hlen = h->ip_hl << 2;
 	u_int16_t		 fragoff = (ntohs(h->ip_off) & IP_OFFMASK) << 3;
@@ -1108,8 +1107,6 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
-
-	MPASS(pd->m == *m0);
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1219,13 +1216,12 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 		 * Might return a completely reassembled mbuf, or NULL */
 		PF_FRAG_LOCK();
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-		verdict = pf_reassemble(m0, pd->dir, reason);
+		verdict = pf_reassemble(&pd->m, pd->dir, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)
 			return (PF_DROP);
 
-		pd->m = *m0;
 		if (pd->m == NULL)
 			return (PF_DROP);
 
@@ -1257,7 +1253,7 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 
 #ifdef INET6
 int
-pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
+pf_normalize_ip6(int off, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct pf_krule		*r;
@@ -1266,8 +1262,6 @@ pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
-
-	pd->m = *m0;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1323,9 +1317,8 @@ pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
 	if (pd->virtual_proto == PF_VPROTO_FRAGMENT) {
 		/* Returns PF_DROP or *m0 is NULL or completely reassembled
 		 * mbuf. */
-		if (pf_reassemble6(m0, &frag, off, pd->extoff, reason) != PF_PASS)
+		if (pf_reassemble6(&pd->m, &frag, off, pd->extoff, reason) != PF_PASS)
 			return (PF_DROP);
-		pd->m = *m0;
 		if (pd->m == NULL)
 			return (PF_DROP);
 		h = mtod(pd->m, struct ip6_hdr *);
