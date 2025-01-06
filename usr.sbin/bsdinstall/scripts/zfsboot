@@ -139,7 +139,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default ZFS datasets for root zpool
 #
-# NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BOOTFS_NAME/$ZFSBOOT_BOOTFS_NAME
+# NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME
 # NOTE: Anything after pound/hash character [#] is ignored as a comment.
 #
 f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
