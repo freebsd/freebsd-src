@@ -46,14 +46,14 @@ static bool_t xdrmbuf_setpos(XDR *, u_int);
 static int32_t *xdrmbuf_inline(XDR *, u_int);
 
 static const struct	xdr_ops xdrmbuf_ops = {
-	xdrmbuf_getlong,
-	xdrmbuf_putlong,
-	xdrmbuf_getbytes,
-	xdrmbuf_putbytes,
-	xdrmbuf_getpos,
-	xdrmbuf_setpos,
-	xdrmbuf_inline,
-	xdrmbuf_destroy
+	.x_getlong =	xdrmbuf_getlong,
+	.x_putlong =	xdrmbuf_putlong,
+	.x_getbytes =	xdrmbuf_getbytes,
+	.x_putbytes =	xdrmbuf_putbytes,
+	.x_getpostn =	xdrmbuf_getpos,
+	.x_setpostn =	xdrmbuf_setpos,
+	.x_inline =	xdrmbuf_inline,
+	.x_destroy =	xdrmbuf_destroy,
 };
 
 /*
