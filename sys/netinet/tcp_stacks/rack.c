@@ -16366,10 +16366,11 @@ rack_output(struct tcpcb *tp)
 	     (tp->t_state == TCPS_SYN_SENT)) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) && /* initial SYN or SYN|ACK sent */
 	    (tp->t_rxtshift == 0)) {              /* not a retransmit */
-		cwnd_to_use = rack->r_ctl.cwnd_to_use = tp->snd_cwnd;
-		so = inp->inp_socket;
-		sb = &so->so_snd;
-		goto just_return_nolock;
+		rack_start_hpts_timer(rack, tp, cts, 0, 0, 0);
+#ifdef TCP_ACCOUNTING
+		sched_unpin();
+#endif
+		return (0);
 	}
 	/*
 	 * Determine length of data that should be transmitted, and flags
