@@ -2993,9 +2993,6 @@ use_initial_window:
 		/* We should not be at 0, go to the initial window then  */
 		goto use_initial_window;
 	}
-	if (bw < 1)
-		/* Probably should panic */
-		bw = 1;
 	if (bw < min_bw)
 		bw = min_bw;
 	return (bw);
