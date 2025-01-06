@@ -71,6 +71,7 @@ TEST_F(LseekPathconf, already_enosys)
 	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 
 	EXPECT_EQ(offset_in, lseek(fd, offset_in, SEEK_DATA));
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
@@ -105,6 +106,7 @@ TEST_F(LseekPathconf, already_seeked)
 		out.body.lseek.offset = i.body.lseek.offset;
 	})));
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(offset, lseek(fd, offset, SEEK_DATA));
 
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
@@ -171,6 +173,7 @@ TEST_F(LseekPathconf, eio)
 	.WillRepeatedly(Invoke(ReturnErrno(EIO)));
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EIO, errno);
@@ -203,6 +206,7 @@ TEST_F(LseekPathconf, enosys_now)
 	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EINVAL, errno);
@@ -266,6 +270,7 @@ TEST_F(LseekPathconf, seek_now)
 	})));
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(offset_initial, lseek(fd, offset_initial, SEEK_SET));
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	/* And check that the file pointer hasn't changed */
@@ -299,6 +304,7 @@ TEST_F(LseekPathconf, zerolength)
 	).WillOnce(Invoke(ReturnErrno(ENXIO)));
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	/* Check again, to ensure that the kernel recorded the response */
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
@@ -327,6 +333,7 @@ TEST_F(LseekPathconf_7_23, already_enosys)
 	).Times(0);
 
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EINVAL, errno);
 
@@ -391,6 +398,7 @@ TEST_F(LseekSeekData, enosys)
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 
 	/*
 	 * Default behavior: ENXIO if offset is < 0 or >= fsize, offset
@@ -431,6 +439,7 @@ TEST_F(LseekSeekHole, ok)
 		out.body.lseek.offset = offset_out;
 	})));
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(offset_out, lseek(fd, offset_in, SEEK_HOLE));
 	EXPECT_EQ(offset_out, lseek(fd, 0, SEEK_CUR));
 
@@ -463,6 +472,7 @@ TEST_F(LseekSeekHole, enosys)
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 
 	/*
 	 * Default behavior: ENXIO if offset is < 0 or >= fsize, fsize
@@ -500,6 +510,7 @@ TEST_F(LseekSeekHole, enxio)
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENXIO)));
 	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd);
 	EXPECT_EQ(-1, lseek(fd, offset_in, SEEK_HOLE));
 	EXPECT_EQ(ENXIO, errno);
 
