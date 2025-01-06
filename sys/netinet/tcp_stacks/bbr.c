@@ -978,14 +978,6 @@ bbr_timer_audit(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, struct sock
 				 * and we do
 				 */
 				return;
-		} else if (sbavail(&inp->inp_socket->so_snd) &&
-		    (tmr_up == PACE_TMR_RXT)) {
-			/*
-			 * if we hit enobufs then we would expect the
-			 * possibility of nothing outstanding and the RXT up
-			 * (and the hptsi timer).
-			 */
-			return;
 		} else if (((V_tcp_always_keepalive ||
 			    inp->inp_socket->so_options & SO_KEEPALIVE) &&
 			    (tp->t_state <= TCPS_CLOSING)) &&
