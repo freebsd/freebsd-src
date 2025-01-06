@@ -330,7 +330,7 @@ ATF_TC_BODY(splice_capsicum, tc)
 	tcp4_socketpair(right);
 
 	/*
-	 * Make sure that we splice a socket that's missing recv rights.
+	 * Make sure that we can't splice a socket that's missing recv rights.
 	 */
 	remove_rights(left[1], cap_rights_init(&rights, CAP_RECV));
 	splice_init(&sp, right[0], 0, NULL);
