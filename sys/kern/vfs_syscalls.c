@@ -1185,7 +1185,7 @@ openatfp(struct thread *td, int dirfd, const char *path,
 	 * except O_EXEC is ignored.
 	 */
 	if ((flags & O_PATH) != 0) {
-		flags &= ~(O_CREAT | O_ACCMODE);
+		flags &= ~O_ACCMODE;
 	} else if ((flags & O_EXEC) != 0) {
 		if (flags & O_ACCMODE)
 			return (EINVAL);
