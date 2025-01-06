@@ -87,12 +87,24 @@ static void	 display(const FTSENT *, FTSENT *, int);
 static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void	 traverse(int, char **, int);
 
-#define	COLOR_OPT	(CHAR_MAX + 1)
+enum {
+	GRP_NONE = 0,
+	GRP_DIR_FIRST = -1,
+	GRP_DIR_LAST = 1
+};
+
+enum {
+	BIN_OPT = CHAR_MAX,
+	COLOR_OPT,
+	GROUP_OPT
+};
 
 static const struct option long_opts[] =
 {
-        {"color",       optional_argument,      NULL, COLOR_OPT},
-        {NULL,          no_argument,            NULL, 0}
+        {"color",        optional_argument,      NULL, COLOR_OPT},
+        {"group-directories", optional_argument, NULL, GROUP_OPT},
+        {"group-directories-first", no_argument, NULL, GROUP_OPT},
+        {NULL,           no_argument,            NULL, 0}
 };
 
 static void (*printfcn)(const DISPLAY *);
@@ -105,6 +117,7 @@ int termwidth = 80;		/* default terminal width */
        int f_accesstime;	/* use time of last access */
        int f_birthtime;		/* use time of birth */
        int f_flags;		/* show flags associated with a file */
+static int f_groupdir = GRP_NONE;/* group directories first/last */
        int f_humanval;		/* show human-readable file sizes */
        int f_inode;		/* print inode */
 static int f_kblocks;		/* print size in kilobytes */
@@ -448,6 +461,15 @@ main(int argc, char *argv[])
 			break;
 		case 'y':
 			f_samesort = 1;
+			break;
+		case GROUP_OPT:
+			if (optarg == NULL || strcmp(optarg, "first") == 0)
+				f_groupdir = GRP_DIR_FIRST;
+			else if (strcmp(optarg, "last") == 0)
+				f_groupdir = GRP_DIR_LAST;
+			else
+				errx(2, "unsupported --group-directories value '%s' (must be first or last)",
+				    optarg);
 			break;
 		case COLOR_OPT:
 #ifdef COLORLS
@@ -1004,7 +1026,7 @@ label_out:
 static int
 mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 {
-	int a_info, b_info;
+	int a_info, b_info, dir;
 
 	a_info = (*a)->fts_info;
 	if (a_info == FTS_ERR)
@@ -1023,5 +1045,10 @@ mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 		if (b_info == FTS_D)
 			return (-1);
 	}
+
+	if (f_groupdir != GRP_NONE)
+		if ((dir = (a_info == FTS_D) - (b_info == FTS_D)) != 0)
+			return (f_groupdir * dir);
+
 	return (sortfcn(*a, *b));
 }

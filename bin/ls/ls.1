@@ -39,6 +39,8 @@
 .Nm
 .Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuvwxy1\&,
 .Op Fl -color Ns = Ns Ar when
+.Op Fl -group-directories Ns = Ns Ar order
+.Op Fl -group-directories-first
 .Op Fl D Ar format
 .Op Ar
 .Sh DESCRIPTION
@@ -303,6 +305,16 @@ options.
 Display the long
 .Pq Fl l
 format output without the file owner's name or number.
+.It Fl -group-directories Ns = Ns Ar order
+Within results for each operand,
+group directories together and print them either
+.Cm first
+or
+.Cm last.
+.It Fl -group-directories-first
+Equivalent to
+.Fl -group-directories Ns = Ns Ar first .
+Implemented for compatibility with GNU coreutils.
 .It Fl h
 When used with the
 .Fl l
@@ -914,8 +926,13 @@ and
 .St -p1003.1-2008 .
 The options
 .Fl B , D , G , I , T , U , W , Z , b , h , v , w , y
-and
+,
 .Fl ,
+.Fl -color
+and
+.Fl -group-directories Ns =
+(including
+.Fl -group-directories-first )
 are non-standard extensions.
 .Pp
 The ACL support is compatible with
