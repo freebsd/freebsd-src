@@ -1513,6 +1513,7 @@ pci_find_cap_method(device_t dev, device_t child, int capability,
 	pcicfgregs *cfg = &dinfo->cfg;
 	uint32_t status;
 	uint8_t ptr;
+	int cnt;
 
 	/*
 	 * Check the CAP_LIST bit of the PCI status register first.
@@ -1539,9 +1540,11 @@ pci_find_cap_method(device_t dev, device_t child, int capability,
 	ptr = pci_read_config(child, ptr, 1);
 
 	/*
-	 * Traverse the capabilities list.
+	 * Traverse the capabilities list.  Limit by total theoretical
+	 * maximum number of caps: capability needs at least id and
+	 * next registers, and any type X header cannot contain caps.
 	 */
-	while (ptr != 0) {
+	for (cnt = 0; ptr != 0 && cnt < (PCIE_REGMAX - 0x40) / 2; cnt++) {
 		if (pci_read_config(child, ptr + PCICAP_ID, 1) == capability) {
 			if (capreg != NULL)
 				*capreg = ptr;
