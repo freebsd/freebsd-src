@@ -684,10 +684,14 @@ ATF_TC_BODY(path_io, tc)
 	size_t page_size;
 	int error, fd, pathfd, sd[2];
 
-	/* It shouldn't be possible to create new files with O_PATH. */
+	/* It is allowed to create new files with O_PATH. */
 	snprintf(path, sizeof(path), "path_io.XXXXXX");
 	ATF_REQUIRE_MSG(mktemp(path) == path, FMT_ERR("mktemp"));
-	ATF_REQUIRE_ERRNO(ENOENT, open(path, O_PATH | O_CREAT, 0600) < 0);
+	pathfd = open(path, O_PATH | O_CREAT, 0600);
+	ATF_REQUIRE_MSG(pathfd >= 0, FMT_ERR("open(O_PATH|O_CREAT)"));
+	/* Ensure that this is indeed O_PATH fd */
+	ATF_REQUIRE_ERRNO(EBADF, write(pathfd, path, strlen(path)) == -1);
+	CHECKED_CLOSE(pathfd);
 
 	/* Create a non-empty file for use in the rest of the tests. */
 	mktfile(path, "path_io.XXXXXX");
