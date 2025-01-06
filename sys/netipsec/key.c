@@ -2595,7 +2595,7 @@ key_spdacquire(struct secpolicy *sp)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
-	return key_sendup_mbuf(NULL, m, KEY_SENDUP_REGISTERED);
+	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 }
 
 /*
