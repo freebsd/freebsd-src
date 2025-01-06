@@ -1796,7 +1796,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (unp->unp_flags & UNP_HAVEPC)
 				xu = unp->unp_peercred;
 			else {
-				if (so->so_type == SOCK_STREAM)
+				if (so->so_proto->pr_flags & PR_CONNREQUIRED)
 					error = ENOTCONN;
 				else
 					error = EINVAL;
