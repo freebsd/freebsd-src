@@ -209,6 +209,37 @@ bad:
 	return (NULL);
 }
 
+static struct mbuf *
+dmb_m_enlarge(struct mbuf *m, struct rule *rule)
+{
+	struct mbuf *n;
+	int size;
+
+	size = (int)strtol(rule->opargs, NULL, 10);
+	if (size < 0 || size > MJUM16BYTES)
+		goto bad;
+
+	if (!(m->m_flags & M_PKTHDR))
+		goto bad;
+	if (m->m_pkthdr.len <= 0)
+		return (m);
+
+	if ((n = m_get3(size, M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		goto bad;
+
+	m_move_pkthdr(n, m);
+	m_copydata(m, 0, m->m_pkthdr.len, n->m_ext.ext_buf);
+	n->m_len = m->m_pkthdr.len;
+
+	n->m_next = m;
+
+	return (n);
+
+bad:
+	m_freem(m);
+	return (NULL);
+}
+
 static bool
 read_rule(const char **cur, struct rule *rule, bool *eof)
 {
@@ -278,6 +309,9 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	if (strstr(*cur, "pull-head") == *cur) {
 		rule->op = dmb_m_pull_head;
 		*cur += strlen("pull-head");
+	} else if (strstr(*cur, "enlarge") == *cur) {
+		rule->op = dmb_m_enlarge;
+		*cur += strlen("enlarge");
 	} else {
 		return (false);
 	}
