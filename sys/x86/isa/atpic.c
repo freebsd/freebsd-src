@@ -90,12 +90,12 @@ inthand_t
 	IDTVEC(atpic_intr12_pti), IDTVEC(atpic_intr13_pti),
 	IDTVEC(atpic_intr14_pti), IDTVEC(atpic_intr15_pti);
 
-#define	ATPIC(io, base, eoi) {						\
+#define	ATPIC(io, base) {						\
 		.at_pic = {						\
 			.pic_register_sources = atpic_register_sources,	\
 			.pic_enable_source = atpic_enable_source,	\
 			.pic_disable_source = atpic_disable_source,	\
-			.pic_eoi_source = (eoi),			\
+			.pic_eoi_source = atpic_eoi,			\
 			.pic_enable_intr = atpic_enable_intr,		\
 			.pic_disable_intr = atpic_disable_intr,		\
 			.pic_source_pending = atpic_source_pending,	\
@@ -137,8 +137,7 @@ struct atpic_intsrc {
 static void atpic_register_sources(x86pic_t pic);
 static void atpic_enable_source(struct intsrc *isrc);
 static void atpic_disable_source(struct intsrc *isrc, int eoi);
-static void atpic_eoi_master(struct intsrc *isrc);
-static void atpic_eoi_slave(struct intsrc *isrc);
+static void atpic_eoi(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
 static void atpic_disable_intr(struct intsrc *isrc);
 static void atpic_resume(x86pic_t pic, bool suspend_cancelled);
@@ -168,8 +167,8 @@ PRIVATE_DEFINE_CLASSN(atpic, atpic_driver, atpic_methods, 0, pic_base_class);
 #endif /* DEV_ISA */
 
 static struct atpic atpics[] = {
-	ATPIC(IO_ICU1, 0, atpic_eoi_master),
-	ATPIC(IO_ICU2, 8, atpic_eoi_slave)
+	ATPIC(IO_ICU1, 0),
+	ATPIC(IO_ICU2, 8)
 };
 
 static struct atpic_intsrc atintrs[] = {
@@ -300,23 +299,22 @@ atpic_disable_source(struct intsrc *isrc, int eoi)
 }
 
 static void
-atpic_eoi_master(struct intsrc *isrc)
+atpic_eoi(struct intsrc *isrc)
 {
+	/* Reference the above comment (atpic_disable_source()) */
+	if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic)) {
 #ifndef AUTO_EOI_1
-	spinlock_enter();
-	_atpic_eoi_master(isrc);
-	spinlock_exit();
+		spinlock_enter();
+		_atpic_eoi_master(isrc);
+		spinlock_exit();
 #endif
-}
-
-static void
-atpic_eoi_slave(struct intsrc *isrc)
-{
+	} else {
 #ifndef AUTO_EOI_2
-	spinlock_enter();
-	_atpic_eoi_slave(isrc);
-	spinlock_exit();
+		spinlock_enter();
+		_atpic_eoi_slave(isrc);
+		spinlock_exit();
 #endif
+	}
 }
 
 static void
