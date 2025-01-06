@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd December 6, 2024
+.Dd January 6, 2025
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -352,6 +352,7 @@ Defining the macros outlined below requests that the system header files provide
 only the functions, structures and macros (symbols) defined by the appropriate
 standard, while suppressing all extensions.
 However, system headers not defined by that standard may define extensions.
+You may only define one of the following for any compilation unit.
 .Bl -column "---------------"
 .It Sy Macro Ta Sy Environment
 .It Dv _POSIX_SOURCE Ta St -p1003.1-88 including St -ansiC
