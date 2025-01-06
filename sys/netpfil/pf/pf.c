@@ -7149,6 +7149,9 @@ pf_test_state_sctp(struct pf_kstate **state, struct pf_pdesc *pd,
 		return (PF_DROP);
 	}
 
+	if (pf_sctp_track(*state, pd, reason) != PF_PASS)
+		return (PF_DROP);
+
 	/* Track state. */
 	if (pd->sctp_flags & PFDESC_SCTP_INIT) {
 		if (src->state < SCTP_COOKIE_WAIT) {
@@ -7179,9 +7182,6 @@ pf_test_state_sctp(struct pf_kstate **state, struct pf_pdesc *pd,
 		pf_set_protostate(*state, psrc, SCTP_CLOSED);
 		(*state)->timeout = PFTM_SCTP_CLOSED;
 	}
-
-	if (pf_sctp_track(*state, pd, reason) != PF_PASS)
-		return (PF_DROP);
 
 	(*state)->expire = pf_get_uptime();
 
