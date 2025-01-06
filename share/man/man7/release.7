@@ -283,6 +283,16 @@ This is intended for use only when
 .Fa /usr/ports
 is expected to exist by alternative means.
 .El
+.Sh REPRODUCIBLE BUILDS
+Different builders can produce bit-identical release tarballs using
+.Va PKG_TIMESTAMP
+and
+.Va REVISION :
+.Bd -literal -offset indent
+git checkout <REVISION>
+make -DWITH_REPRODUCIBLE_BUILD buildworld buildkernel
+make -C release -DWITH_REPRODUCIBLE_BUILD PKG_TIMESTAMP=<TIMESTAMP> packagesystem
+.Ed
 .Sh EMBEDDED BUILDS
 The following
 .Fa release.conf
