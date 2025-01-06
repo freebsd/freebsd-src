@@ -2138,6 +2138,14 @@ pf_scan_sctp(struct pf_pdesc *pd)
 	if ((pd->sctp_flags & PFDESC_SCTP_SHUTDOWN_COMPLETE) &&
 	    (pd->sctp_flags & ~PFDESC_SCTP_SHUTDOWN_COMPLETE))
 		return (PF_DROP);
+	if ((pd->sctp_flags & PFDESC_SCTP_ABORT) &&
+	    (pd->sctp_flags & PFDESC_SCTP_DATA)) {
+		/*
+		 * RFC4960 3.3.7: DATA chunks MUST NOT be
+		 * bundled with ABORT.
+		 */
+		return (PF_DROP);
+	}
 
 	return (PF_PASS);
 }
