@@ -63,27 +63,27 @@ static int32_t *xdrmem_inline_unaligned(XDR *, u_int);
 static bool_t xdrmem_control(XDR *xdrs, int request, void *info);
 
 static const struct	xdr_ops xdrmem_ops_aligned = {
-	xdrmem_getlong_aligned,
-	xdrmem_putlong_aligned,
-	xdrmem_getbytes,
-	xdrmem_putbytes,
-	xdrmem_getpos,
-	xdrmem_setpos,
-	xdrmem_inline_aligned,
-	xdrmem_destroy,
-	xdrmem_control
+	.x_getlong =	xdrmem_getlong_aligned,
+	.x_putlong =	xdrmem_putlong_aligned,
+	.x_getbytes =	xdrmem_getbytes,
+	.x_putbytes =	xdrmem_putbytes,
+	.x_getpostn =	xdrmem_getpos,
+	.x_setpostn =	xdrmem_setpos,
+	.x_inline =	xdrmem_inline_aligned,
+	.x_destroy = 	xdrmem_destroy,
+	.x_control =	xdrmem_control,
 };
 
 static const struct	xdr_ops xdrmem_ops_unaligned = {
-	xdrmem_getlong_unaligned,
-	xdrmem_putlong_unaligned,
-	xdrmem_getbytes,
-	xdrmem_putbytes,
-	xdrmem_getpos,
-	xdrmem_setpos,
-	xdrmem_inline_unaligned,
-	xdrmem_destroy,
-	xdrmem_control
+	.x_getlong =	xdrmem_getlong_unaligned,
+	.x_putlong =	xdrmem_putlong_unaligned,
+	.x_getbytes =	xdrmem_getbytes,
+	.x_putbytes =	xdrmem_putbytes,
+	.x_getpostn =	xdrmem_getpos,
+	.x_setpostn =	xdrmem_setpos,
+	.x_inline =	xdrmem_inline_unaligned,
+	.x_destroy =	xdrmem_destroy,
+	.x_control =	xdrmem_control
 };
 
 /*
