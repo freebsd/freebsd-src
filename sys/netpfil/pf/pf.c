@@ -8424,6 +8424,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 		if (mtag != NULL)
 			m_tag_delete(m, mtag);
 	} else if (pf_normalize_ip(m0, kif, &reason, &pd) != PF_PASS) {
+		m = *m0;
 		/* We do IP header normalization and packet reassembly here */
 		action = PF_DROP;
 		goto done;
@@ -8629,6 +8630,10 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 
 done:
 	PF_RULES_RUNLOCK();
+
+	if (m == NULL)
+		goto out;
+
 	if (action == PF_PASS && h->ip_hl > 5 &&
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
@@ -8968,6 +8973,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 
 	/* We do IP header normalization and packet reassembly here */
 	if (pf_normalize_ip6(m0, kif, &reason, &pd) != PF_PASS) {
+		m = *m0;
 		action = PF_DROP;
 		goto done;
 	}
@@ -9236,6 +9242,9 @@ done:
 		m_freem(n);
 		n = NULL;
 	}
+
+	if (m == NULL)
+		goto out;
 
 	/* handle dangerous IPv6 extension headers. */
 	if (action == PF_PASS && rh_cnt &&
