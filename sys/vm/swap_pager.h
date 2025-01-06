@@ -68,6 +68,7 @@ struct swdevt {
 
 #ifdef _KERNEL
 
+extern bool swap_pager_almost_full;
 extern int swap_pager_avail;
 extern int nsw_cluster_max;
 

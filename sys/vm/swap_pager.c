@@ -386,7 +386,7 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 }
 
 static bool swap_pager_full = true; /* swap space exhaustion (task killing) */
-static bool swap_pager_almost_full = true; /* swap space exhaustion (w/hysteresis) */
+bool swap_pager_almost_full = true; /* swap space exhaustion (w/hysteresis) */
 static struct mtx swbuf_mtx;	/* to sync nsw_wcount_async */
 static int nsw_wcount_async;	/* limit async write buffers */
 static int nsw_wcount_async_max;/* assigned maximum			*/
