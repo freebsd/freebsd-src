@@ -43,8 +43,10 @@ options 	SOC_INTEL_STRATIX10
 options 	SOC_MARVELL_8K
 options 	SOC_NVIDIA_TEGRA210
 options 	SOC_NXP_LS
+options 	SOC_ROCKCHIP
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
+options 	SOC_ROCKCHIP_RK3568
 options 	SOC_XILINX_ZYNQ
 
 # Timer drivers
@@ -161,7 +163,10 @@ device		aw_wdog		# Allwinner Watchdog
 
 # Power management controllers
 device		axp81x		# X-Powers AXP81x PMIC
+device		rk8xx		# RockChip RK8XX base support
 device		rk805		# RockChip RK805 PMIC
+device		rk808		# RockChip RK808 PMIC
+device		rk817		# RockChip RK817 PMIC
 
 # EFUSE
 device		aw_sid		# Allwinner Secure ID EFUSE
