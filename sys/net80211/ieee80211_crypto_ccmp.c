@@ -238,6 +238,7 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
 	uint64_t pn;
+	bool noreplaycheck;
 
 	rxs = ieee80211_get_rx_params_ptr(m);
 
@@ -261,8 +262,10 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	}
 	tid = ieee80211_gettid(wh);
 	pn = READ_6(ivp[0], ivp[1], ivp[4], ivp[5], ivp[6], ivp[7]);
-	if (pn <= k->wk_keyrsc[tid] &&
-	    (k->wk_flags & IEEE80211_KEY_NOREPLAY) == 0) {
+
+	noreplaycheck = (k->wk_flags & IEEE80211_KEY_NOREPLAY) != 0;
+	noreplaycheck |= (rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_PN_VALIDATED) != 0;
+	if (pn <= k->wk_keyrsc[tid] && !noreplaycheck) {
 		/*
 		 * Replay violation.
 		 */
@@ -302,7 +305,14 @@ finish:
 	 * Ok to update rsc now.
 	 */
 	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
-		k->wk_keyrsc[tid] = pn;
+		/*
+		 * Do not go backwards in the IEEE80211_KEY_NOREPLAY cases
+		 * or in case hardware has checked but frames are arriving
+		 * reordered (e.g., LinuxKPI drivers doing RSS which we are
+		 * not prepared for at all).
+		 */
+		if (pn > k->wk_keyrsc[tid])
+			k->wk_keyrsc[tid] = pn;
 	}
 
 	return 1;
