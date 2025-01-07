@@ -625,8 +625,6 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
  *
  * When adding new socket options here, make sure to add access control
  * checks here as necessary.
- *
- * XXX-BZ inp locking?
  */
 int
 rip_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -637,7 +635,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (sopt->sopt_level != IPPROTO_IP) {
 		if ((sopt->sopt_level == SOL_SOCKET) &&
 		    (sopt->sopt_name == SO_SETFIB)) {
+			INP_WLOCK(inp);
 			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			INP_WUNLOCK(inp);
 			return (0);
 		}
 		return (EINVAL);
@@ -707,10 +707,12 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 					    sizeof optval);
 			if (error)
 				break;
+			INP_WLOCK(inp);
 			if (optval)
 				inp->inp_flags |= INP_HDRINCL;
 			else
 				inp->inp_flags &= ~INP_HDRINCL;
+			INP_WUNLOCK(inp);
 			break;
 
 		case IP_FW3:	/* generic ipfw v.3 functions */
