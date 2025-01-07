@@ -447,7 +447,6 @@ extern unsigned long drm_linux_timer_hz_mask;
 #define jiffies			ticks
 #define	jiffies_to_msecs(x)	(((int64_t)(x)) * 1000 / hz)
 #define	msecs_to_jiffies(x)	(((int64_t)(x)) * hz / 1000)
-#define	timespec_to_jiffies(x)	(((x)->tv_sec * 1000000 + (x)->tv_nsec) * hz / 1000000)
 #define	time_after(a,b)		((long)(b) - (long)(a) < 0)
 #define	time_after_eq(a,b)	((long)(b) - (long)(a) <= 0)
 #define	round_jiffies(j)	((unsigned long)(((j) + drm_linux_timer_hz_mask) & ~drm_linux_timer_hz_mask))
