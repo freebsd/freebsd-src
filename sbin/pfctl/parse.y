@@ -6179,7 +6179,7 @@ expand_rule(struct pfctl_rule *r,
 	LOOP_THROUGH(struct node_uid, uid, uids,
 	LOOP_THROUGH(struct node_gid, gid, gids,
 
-		r->naf = r->af = af;
+		r->af = af;
 
 		if (r->rule_flag & PFRULE_AFTO) {
 			assert(nat != NULL);
