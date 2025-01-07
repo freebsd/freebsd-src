@@ -149,6 +149,27 @@ dataset_removal_cleanup()
 }
 
 #
+# Make sure that we can handle some special file types.  Anything other than
+# regular files, symlinks and directories are ignored.
+#
+atf_test_case devfs cleanup
+devfs_body()
+{
+	atf_check mkdir dev
+	atf_check mount -t devfs none ./dev
+
+	atf_check -e match:"skipping unhandled" $MAKEFS -s 1g -o rootpath=/ \
+	    -o poolname=$ZFS_POOL_NAME $TEST_IMAGE ./dev
+
+	import_image
+}
+devfs_cleanup()
+{
+	common_cleanup
+	umount -f ./dev
+}
+
+#
 # Make sure that we can create and remove an empty directory.
 #
 atf_test_case empty_dir cleanup
@@ -842,6 +863,7 @@ atf_init_test_cases()
 	atf_add_test_case autoexpand
 	atf_add_test_case basic
 	atf_add_test_case dataset_removal
+	atf_add_test_case devfs
 	atf_add_test_case empty_dir
 	atf_add_test_case empty_fs
 	atf_add_test_case file_extend
