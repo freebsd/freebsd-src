@@ -1125,8 +1125,7 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
 	if (from_idle) {
 		while (vcpu->state != VCPU_IDLE) {
 			vcpu_notify_event_locked(vcpu);
-			msleep_spin(&vcpu->state, &vcpu->mtx, "vmstat",
-			    hz / 1000);
+			msleep_spin(&vcpu->state, &vcpu->mtx, "vmstat", hz);
 		}
 	} else {
 		KASSERT(vcpu->state != VCPU_IDLE, ("invalid transition from "
@@ -1425,7 +1424,7 @@ vm_handle_wfi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 		 * XXX msleep_spin() cannot be interrupted by signals so
 		 * wake up periodically to check pending signals.
 		 */
-		msleep_spin(vcpu, &vcpu->mtx, "vmidle", hz / 1000);
+		msleep_spin(vcpu, &vcpu->mtx, "vmidle", hz);
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 	}
 	vcpu_unlock(vcpu);
