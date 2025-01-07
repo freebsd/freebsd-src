@@ -741,7 +741,7 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
 		k = &ni->ni_ucastkey;
 
 	/*
-	 * Insure crypto header is contiguous and long enough for all
+	 * Ensure crypto header is contiguous and long enough for all
 	 * decap work.
 	 */
 	cip = k->wk_cipher;
