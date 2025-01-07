@@ -7679,9 +7679,14 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 		return (-1);
 
 	/* Is this ICMP message flowing in right direction? */
+	if ((*state)->key[PF_SK_WIRE]->af != (*state)->key[PF_SK_STACK]->af)
+		direction = (pd->af == (*state)->key[PF_SK_WIRE]->af) ?
+		    PF_IN : PF_OUT;
+	else
+		direction = (*state)->direction;
 	if ((*state)->rule->type &&
-	    (((!inner && (*state)->direction == direction) ||
-	    (inner && (*state)->direction != direction)) ?
+	    (((!inner && direction == pd->dir) ||
+	    (inner && direction != pd->dir)) ?
 	    PF_IN : PF_OUT) != icmp_dir) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: icmp type %d in wrong direction (%d): ",
