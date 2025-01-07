@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -5423,6 +5423,20 @@ no_trace_beacons:
 	rx_stats.r_flags |= IEEE80211_R_FREQ | IEEE80211_R_IEEE;
 	rx_stats.c_freq = rx_status->freq;
 	rx_stats.c_ieee = ieee80211_mhz2ieee(rx_stats.c_freq, rx_stats.c_band);
+
+	/*
+	 * We only need these for LKPI_80211_HW_CRYPTO in theory but in
+	 * case the hardware does something we do not expect always leave
+	 * these enabled.  Leaving this commant as documentation for the || 1.
+	 */
+#if defined(LKPI_80211_HW_CRYPTO) || 1
+	if (rx_status->flag & RX_FLAG_DECRYPTED) {
+		rx_stats.c_pktflags |= IEEE80211_RX_F_DECRYPTED;
+		/* Only valid if decrypted is set. */
+		if (rx_status->flag & RX_FLAG_PN_VALIDATED)
+			rx_stats.c_pktflags |= IEEE80211_RX_F_PN_VALIDATED;
+	}
+#endif
 
 	/* XXX (*sta_statistics)() to get to some of that? */
 	/* XXX-BZ dump the FreeBSD version of rx_stats as well! */
