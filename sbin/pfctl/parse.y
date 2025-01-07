@@ -382,7 +382,7 @@ void		 expand_eth_rule(struct pfctl_eth_rule *,
 		    struct node_host *, struct node_host *, const char *,
 		    const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
-		    struct node_host *,
+		    struct redirspec *, struct redirspec *, struct node_host *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
 		    struct node_port *, struct node_uid *, struct node_gid *,
@@ -1079,9 +1079,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
-			r.naf = r.af;
 
-			expand_rule(&r, $5, NULL, NULL, $7, $8.src_os,
+			expand_rule(&r, $5, NULL, NULL, NULL, NULL, $7, $8.src_os,
 			    $8.src.host, $8.src.port, $8.dst.host, $8.dst.port,
 			    $9.uid, $9.gid, $9.rcv, $9.icmpspec,
 			    pf->astack[pf->asd + 1] ? pf->alast->name : $2);
@@ -1104,7 +1103,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($6.src.host, &r.af);
 			decide_address_family($6.dst.host, &r.af);
 
-			expand_rule(&r, $3, NULL, NULL, $5, $6.src_os,
+			expand_rule(&r, $3, NULL, NULL, NULL, NULL, $5, $6.src_os,
 			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
 			    0, 0, 0, 0, $2);
 			free($2);
@@ -1146,7 +1145,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 				r.dst.port_op = $6.dst.port->op;
 			}
 
-			expand_rule(&r, $3, NULL, NULL, $5, $6.src_os,
+			expand_rule(&r, $3, NULL, NULL, NULL, NULL, $5, $6.src_os,
 			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
 			    0, 0, 0, 0, $2);
 			free($2);
@@ -1469,7 +1468,7 @@ scrubrule	: scrubaction dir logquick interface af proto fromto scrub_opts
 			r.match_tag_not = $8.match_tag_not;
 			r.rtableid = $8.rtableid;
 
-			expand_rule(&r, $4, NULL, NULL, $6, $7.src_os,
+			expand_rule(&r, $4, NULL, NULL, NULL, NULL, $6, $7.src_os,
 			    $7.src.host, $7.src.port, $7.dst.host, $7.dst.port,
 			    NULL, NULL, NULL, NULL, "");
 		}
@@ -1634,7 +1633,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				}
 
 				if (h != NULL)
-					expand_rule(&r, j, NULL, NULL, NULL, NULL, h,
+					expand_rule(&r, j, NULL, NULL, NULL, NULL, NULL, NULL, h,
 					    NULL, NULL, NULL, NULL, NULL,
 					    NULL, NULL, "");
 
@@ -1656,7 +1655,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 					else
 						h = ifa_lookup(i->ifname, 0);
 					if (h != NULL)
-						expand_rule(&r, NULL, NULL, NULL,
+						expand_rule(&r, NULL, NULL, NULL, NULL, NULL,
 						    NULL, NULL, h, NULL, NULL,
 						    NULL, NULL, NULL, NULL, NULL, "");
 				} else
@@ -2434,6 +2433,7 @@ pfrule		: action dir logquick interface route af proto fromto
 					    "translation");
 					YYERROR;
 				}
+				r.rule_flag |= PFRULE_AFTO;
 			}
 
 			r.af = $6;
@@ -2721,7 +2721,6 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
-			r.naf = r.af;
 
 			if ($5.rt) {
 				if (!r.direction) {
@@ -2837,7 +2836,7 @@ pfrule		: action dir logquick interface route af proto fromto
 					YYERROR;
 			}
 
-			expand_rule(&r, $4, $5.host, $9.nat.rdr ? $9.nat.rdr->host : NULL,
+			expand_rule(&r, $4, &$9.nat, &$9.rdr, $5.host, $9.nat.rdr ? $9.nat.rdr->host : NULL,
 			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
 			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec, "");
 		}
@@ -4985,8 +4984,8 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 				o = o->next;
 			}
 
-			expand_rule(&r, $2, $9 == NULL ? NULL : $9->host, NULL, $4,
-			    $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
+			expand_rule(&r, $2, NULL, NULL, $9 == NULL ? NULL : $9->host,
+			    NULL, $4, $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
 			    $5.dst.port, 0, 0, 0, 0, "");
 			free($9);
 		}
@@ -5501,7 +5500,7 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 			   "must not be used on match rules");
 			problems++;
 		}
-		if (r->naf != r->af) {
+		if (r->rule_flag & PFRULE_AFTO) {
 			yyerror("af-to is not supported on match rules");
 			problems++;
 		}
@@ -6139,7 +6138,8 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 
 void
 expand_rule(struct pfctl_rule *r,
-    struct node_if *interfaces, struct node_host *rdr_hosts,
+    struct node_if *interfaces, struct redirspec *nat,
+    struct redirspec *rdr, struct node_host *rdr_hosts,
     struct node_host *nat_hosts,
     struct node_proto *protos, struct node_os *src_oses,
     struct node_host *src_hosts, struct node_port *src_ports,
@@ -6179,7 +6179,13 @@ expand_rule(struct pfctl_rule *r,
 	LOOP_THROUGH(struct node_uid, uid, uids,
 	LOOP_THROUGH(struct node_gid, gid, gids,
 
-		r->af = af;
+		r->naf = r->af = af;
+
+		if (r->rule_flag & PFRULE_AFTO) {
+			assert(nat != NULL);
+			r->naf = nat->af;
+		}
+
 		/* for link-local IPv6 address, interface must match up */
 		if ((r->af && src_host->af && r->af != src_host->af) ||
 		    (r->af && dst_host->af && r->af != dst_host->af) ||

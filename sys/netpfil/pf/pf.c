@@ -5802,7 +5802,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 				pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
 				pf_counter_u64_critical_exit();
 				pf_rule_to_actions(r, &pd->act);
-				if (r->naf)
+				if (r->rule_flag & PFRULE_AFTO)
 					pd->naf = r->naf;
 				if (pd->af != pd->naf) {
 					if (pf_get_transaddr_af(r, pd) == -1) {
@@ -5842,7 +5842,7 @@ nextrule:
 
 	/* apply actions for last matching pass/block rule */
 	pf_rule_to_actions(r, &pd->act);
-	if (r->naf)
+	if (r->rule_flag & PFRULE_AFTO)
 		pd->naf = r->naf;
 	if (pd->af != pd->naf) {
 		if (pf_get_transaddr_af(r, pd) == -1) {
