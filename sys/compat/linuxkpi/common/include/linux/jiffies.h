@@ -69,19 +69,6 @@ extern uint64_t lkpi_msec2hz_div;
 extern uint64_t lkpi_msec2hz_max;
 
 static inline int
-timespec_to_jiffies(const struct timespec *ts)
-{
-	u64 result;
-
-	result = ((u64)hz * ts->tv_sec) +
-	    (((u64)hz * ts->tv_nsec + NSEC_PER_SEC - 1) / NSEC_PER_SEC);
-	if (result > MAX_JIFFY_OFFSET)
-		result = MAX_JIFFY_OFFSET;
-
-	return ((int)result);
-}
-
-static inline int
 msecs_to_jiffies(uint64_t msec)
 {
 	uint64_t result;
