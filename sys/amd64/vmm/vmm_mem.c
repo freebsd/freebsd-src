@@ -45,13 +45,6 @@
 
 #include "vmm_mem.h"
 
-int
-vmm_mem_init(void)
-{
-
-	return (0);
-}
-
 vm_object_t
 vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
 	       vm_paddr_t hpa)
