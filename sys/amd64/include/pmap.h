@@ -315,6 +315,10 @@ enum pmap_type {
 	PT_RVI,			/* AMD's nested page tables */
 };
 
+struct ptpage_radix {
+	struct vm_radix vmr;
+};
+
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
  * within the direct map (DMAP) region.
@@ -329,13 +333,17 @@ struct pmap {
 	cpuset_t		pm_active;	/* active on cpus */
 	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	struct vm_radix		pm_root;	/* spare page table pages */
+	struct ptpage_radix	pm_root;	/* spare page table pages */
 	long			pm_eptgen;	/* EPT pmap generation id */
 	smr_t			pm_eptsmr;
 	int			pm_flags;
 	struct pmap_pcid	*pm_pcidp;
 	struct rangeset		pm_pkru;
 };
+
+struct ptpage;
+typedef struct ptpage *ptpage_t;
+SLIST_HEAD(ptpglist, ptpage);
 
 /* flags */
 #define	PMAP_NESTED_IPIMASK	0xff
@@ -413,8 +421,8 @@ bool	pmap_not_in_di(void);
 bool	pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_page_set_memattr_noflush(vm_page_t m, vm_memattr_t ma);
-void	pmap_pinit_pml4(vm_page_t);
-void	pmap_pinit_pml5(vm_page_t);
+void	pmap_pinit_pml4(ptpage_t);
+void	pmap_pinit_pml5(ptpage_t);
 bool	pmap_ps_enabled(pmap_t pmap);
 void	pmap_unmapdev(void *, vm_size_t);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);

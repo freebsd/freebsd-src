@@ -391,3 +391,12 @@ options 	U2F_MAKE_UHID_ALIAS	# install /dev/uhid alias for /dev/u2f/
 # EFI devices
 device		efidev			# EFI pseudo-device
 device		efirtc			# EFI RTC
+
+
+
+options DIAGNOSTIC
+options INVARIANTS
+options WITNESS
+
+options UART_NS8250_EARLY_PORT=0x3f8
+options EARLY_PRINTF=ns8250
