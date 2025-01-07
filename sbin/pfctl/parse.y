@@ -702,10 +702,7 @@ option		: SET REASSEMBLE yesno optnodf		{
 				yyerror("hostid must be non-zero");
 				YYERROR;
 			}
-			if (pfctl_set_hostid(pf, $3) != 0) {
-				yyerror("error setting hostid %08x", $3);
-				YYERROR;
-			}
+			pfctl_set_hostid(pf, $3);
 		}
 		| SET BLOCKPOLICY DROP	{
 			if (pf->opts & PF_OPT_VERBOSE)

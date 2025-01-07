@@ -2571,11 +2571,11 @@ pfctl_load_logif(struct pfctl *pf, char *ifname)
 	return (pfctl_set_statusif(pfh, ifname ? ifname : ""));
 }
 
-int
+void
 pfctl_set_hostid(struct pfctl *pf, u_int32_t hostid)
 {
 	if ((loadopt & PFCTL_FLAG_OPTION) == 0)
-		return (0);
+		return;
 
 	HTONL(hostid);
 
@@ -2584,8 +2584,6 @@ pfctl_set_hostid(struct pfctl *pf, u_int32_t hostid)
 
 	if (pf->opts & PF_OPT_VERBOSE)
 		printf("set hostid 0x%08x\n", ntohl(hostid));
-
-	return (0);
 }
 
 int
