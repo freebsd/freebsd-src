@@ -5333,13 +5333,13 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/* Implement a dump_rxcb() !!! */
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE-RX: %s: RXCB: %ju %ju %u, %#0x, %u, %#0x, %#0x, "
+		printf("TRACE-RX: %s: RXCB: %ju %ju %u, %b, %u, %#0x, %#0x, "
 		    "%u band %u, %u { %d %d %d %d }, %d, %#x %#x %#x %#x %u %u %u\n",
 			__func__,
 			(uintmax_t)rx_status->boottime_ns,
 			(uintmax_t)rx_status->mactime,
 			rx_status->device_timestamp,
-			rx_status->flag,
+			rx_status->flag, IEEE80211_RX_STATUS_FLAGS_BITS,
 			rx_status->freq,
 			rx_status->bw,
 			rx_status->encoding,
