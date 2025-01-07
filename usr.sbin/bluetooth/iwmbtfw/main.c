@@ -518,6 +518,13 @@ main(int argc, char *argv[])
 
 		iwmbt_debug("firmware_path = %s", firmware_path);
 
+		/* Check firmware file exists before changing HW mode */
+		r = access(firmware_path, R_OK);
+		if (r) {
+			perror("Failed to open firmware");
+			goto shutdown;
+		}
+
 		/* Enter manufacturer mode */
 		r = iwmbt_enter_manufacturer(hdl);
 		if (r < 0) {
