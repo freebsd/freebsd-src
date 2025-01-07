@@ -130,7 +130,6 @@ static RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 static void	pf_flush_fragments(void);
 static void	pf_free_fragment(struct pf_fragment *);
-static void	pf_remove_fragment(struct pf_fragment *);
 
 static struct pf_frent *pf_create_fragment(u_short *);
 static int	pf_frent_holes(struct pf_frent *frent);
@@ -273,7 +272,10 @@ pf_flush_fragments(void)
 	}
 }
 
-/* Frees the fragments and all associated entries */
+/*
+ * Remove a fragment from the fragment queue, free its fragment entries,
+ * and free the fragment itself.
+ */
 static void
 pf_free_fragment(struct pf_fragment *frag)
 {
@@ -281,16 +283,18 @@ pf_free_fragment(struct pf_fragment *frag)
 
 	PF_FRAG_ASSERT();
 
-	/* Free all fragments */
-	for (frent = TAILQ_FIRST(&frag->fr_queue); frent;
-	    frent = TAILQ_FIRST(&frag->fr_queue)) {
+	RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
+	TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
+
+	/* Free all fragment entries */
+	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
 		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 		m_freem(frent->fe_m);
 		uma_zfree(V_pf_frent_z, frent);
 	}
 
-	pf_remove_fragment(frag);
+	uma_zfree(V_pf_frag_z, frag);
 }
 
 static struct pf_fragment *
@@ -708,16 +712,16 @@ static struct mbuf *
 pf_join_fragment(struct pf_fragment *frag)
 {
 	struct mbuf *m, *m2;
-	struct pf_frent	*frent, *next;
+	struct pf_frent	*frent;
 
 	frent = TAILQ_FIRST(&frag->fr_queue);
-	next = TAILQ_NEXT(frent, fr_next);
+	TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 	m = frent->fe_m;
 	m_adj(m, (frent->fe_hdrlen + frent->fe_len) - m->m_pkthdr.len);
 	uma_zfree(V_pf_frent_z, frent);
-	for (frent = next; frent != NULL; frent = next) {
-		next = TAILQ_NEXT(frent, fr_next);
+	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
+		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 		m2 = frent->fe_m;
 		/* Strip off ip header. */
@@ -730,7 +734,7 @@ pf_join_fragment(struct pf_fragment *frag)
 	}
 
 	/* Remove from fragment queue. */
-	pf_remove_fragment(frag);
+	pf_free_fragment(frag);
 
 	return (m);
 }
