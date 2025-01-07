@@ -401,7 +401,7 @@ vcpu_should_yield(struct vcpu *vcpu)
 
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr);
-struct vmspace *vm_get_vmspace(struct vm *vm);
+struct vmspace *vm_vmspace(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
 struct vpmtmr *vm_pmtmr(struct vm *vm);

@@ -2677,9 +2677,8 @@ vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr)
 }
 
 struct vmspace *
-vm_get_vmspace(struct vm *vm)
+vm_vmspace(struct vm *vm)
 {
-
 	return (vm->vmspace);
 }
 
