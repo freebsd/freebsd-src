@@ -6900,17 +6900,10 @@ pf_test_state_tcp(struct pf_kstate **state, struct pf_pdesc *pd,
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = IPPROTO_TCP;
-	if (pd->dir == PF_IN)	{	/* wire side, straight */
-		PF_ACPY(&key.addr[0], pd->src, key.af);
-		PF_ACPY(&key.addr[1], pd->dst, key.af);
-		key.port[0] = th->th_sport;
-		key.port[1] = th->th_dport;
-	} else {			/* stack side, reverse */
-		PF_ACPY(&key.addr[1], pd->src, key.af);
-		PF_ACPY(&key.addr[0], pd->dst, key.af);
-		key.port[1] = th->th_sport;
-		key.port[0] = th->th_dport;
-	}
+	PF_ACPY(&key.addr[pd->sidx], pd->src, key.af);
+	PF_ACPY(&key.addr[pd->didx], pd->dst, key.af);
+	key.port[pd->sidx] = th->th_sport;
+	key.port[pd->didx] = th->th_dport;
 
 	STATE_LOOKUP(&key, *state, pd);
 
@@ -7010,17 +7003,10 @@ pf_test_state_udp(struct pf_kstate **state, struct pf_pdesc *pd)
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = IPPROTO_UDP;
-	if (pd->dir == PF_IN)	{	/* wire side, straight */
-		PF_ACPY(&key.addr[0], pd->src, key.af);
-		PF_ACPY(&key.addr[1], pd->dst, key.af);
-		key.port[0] = uh->uh_sport;
-		key.port[1] = uh->uh_dport;
-	} else {			/* stack side, reverse */
-		PF_ACPY(&key.addr[1], pd->src, key.af);
-		PF_ACPY(&key.addr[0], pd->dst, key.af);
-		key.port[1] = uh->uh_sport;
-		key.port[0] = uh->uh_dport;
-	}
+	PF_ACPY(&key.addr[pd->sidx], pd->src, key.af);
+	PF_ACPY(&key.addr[pd->didx], pd->dst, key.af);
+	key.port[pd->sidx] = uh->uh_sport;
+	key.port[pd->didx] = uh->uh_dport;
 
 	STATE_LOOKUP(&key, *state, pd);
 
@@ -7127,17 +7113,10 @@ pf_test_state_sctp(struct pf_kstate **state, struct pf_pdesc *pd,
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = IPPROTO_SCTP;
-	if (pd->dir == PF_IN)	{	/* wire side, straight */
-		PF_ACPY(&key.addr[0], pd->src, key.af);
-		PF_ACPY(&key.addr[1], pd->dst, key.af);
-		key.port[0] = sh->src_port;
-		key.port[1] = sh->dest_port;
-	} else {			/* stack side, reverse */
-		PF_ACPY(&key.addr[1], pd->src, key.af);
-		PF_ACPY(&key.addr[0], pd->dst, key.af);
-		key.port[1] = sh->src_port;
-		key.port[0] = sh->dest_port;
-	}
+	PF_ACPY(&key.addr[pd->sidx], pd->src, key.af);
+	PF_ACPY(&key.addr[pd->didx], pd->dst, key.af);
+	key.port[pd->sidx] = sh->src_port;
+	key.port[pd->didx] = sh->dest_port;
 
 	STATE_LOOKUP(&key, *state, pd);
 
@@ -8670,15 +8649,9 @@ pf_test_state_other(struct pf_kstate **state, struct pf_pdesc *pd)
 	bzero(&key, sizeof(key));
 	key.af = pd->af;
 	key.proto = pd->proto;
-	if (pd->dir == PF_IN)	{
-		PF_ACPY(&key.addr[0], pd->src, key.af);
-		PF_ACPY(&key.addr[1], pd->dst, key.af);
-		key.port[0] = key.port[1] = 0;
-	} else {
-		PF_ACPY(&key.addr[1], pd->src, key.af);
-		PF_ACPY(&key.addr[0], pd->dst, key.af);
-		key.port[1] = key.port[0] = 0;
-	}
+	PF_ACPY(&key.addr[pd->sidx], pd->src, key.af);
+	PF_ACPY(&key.addr[pd->didx], pd->dst, key.af);
+	key.port[0] = key.port[1] = 0;
 
 	STATE_LOOKUP(&key, *state, pd);
 
