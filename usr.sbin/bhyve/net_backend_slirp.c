@@ -609,11 +609,22 @@ static ssize_t
 slirp_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	struct slirp_priv *priv = NET_BE_PRIV(be);
+	struct msghdr hdr;
 	ssize_t n;
 
-	n = readv(priv->pipe[0], iov, iovcnt);
-	if (n < 0)
+	hdr.msg_name = NULL;
+	hdr.msg_namelen = 0;
+	hdr.msg_iov = __DECONST(struct iovec *, iov);
+	hdr.msg_iovlen = iovcnt;
+	hdr.msg_control = NULL;
+	hdr.msg_controllen = 0;
+	hdr.msg_flags = 0;
+	n = recvmsg(priv->pipe[0], &hdr, MSG_DONTWAIT);
+	if (n < 0) {
+		if (errno == EWOULDBLOCK)
+			return (0);
 		return (-1);
+	}
 	assert(n <= SLIRP_MTU);
 	return (n);
 }
