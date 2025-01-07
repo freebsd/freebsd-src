@@ -573,6 +573,7 @@ struct ieee80211_mimo_info {
 #define	IEEE80211_RX_F_OFDM		0x00002000
 #define	IEEE80211_RX_F_HT		0x00004000
 #define	IEEE80211_RX_F_VHT		0x00008000
+#define	IEEE80211_RX_F_PN_VALIDATED	0x00010000 /* Decrypted; PN validated */
 
 /* Channel width */
 #define	IEEE80211_RX_FW_20MHZ		1
