@@ -172,6 +172,7 @@ static struct pf_rule_field {
     PF_RULE_FIELD(dst.port_op,		NOMERGE),
     PF_RULE_FIELD(src.neg,		NOMERGE),
     PF_RULE_FIELD(dst.neg,		NOMERGE),
+    PF_RULE_FIELD(af,			NOMERGE),
 
     /* These fields can be merged */
     PF_RULE_FIELD(src.addr,		COMBINED),
