@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 6, 2024
+.Dd January 7, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1809,6 +1809,8 @@ Any address which is not currently routable.
 Any source address that fails a unicast reverse path forwarding (URPF)
 check, i.e. packets coming in on an interface other than that which holds
 the route back to the packet's source address.
+.It Ar self
+Expands to all addresses assigned to all interfaces.
 .It Aq Ar table
 Any address that matches the given table.
 .El
@@ -1821,7 +1823,9 @@ For instance:
 means all addresses from 10.1.1.10 to 10.1.1.12,
 hence addresses 10.1.1.10, 10.1.1.11, and 10.1.1.12.
 .Pp
-Interface names and interface group names can have modifiers appended:
+Interface names and interface group names, and
+.Ar self
+can have modifiers appended:
 .Pp
 .Bl -tag -width xxxxxxxxxxxx -compact
 .It Ar :network
