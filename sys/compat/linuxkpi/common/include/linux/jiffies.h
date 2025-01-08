@@ -38,7 +38,7 @@
 
 #define	jiffies			ticks
 #define	jiffies_64		ticks
-#define	jiffies_to_msecs(x)     ((unsigned int)(((int64_t)(unsigned long)(x)) * 1000 / hz))
+#define	jiffies_to_msecs(x)     ((unsigned int)(((int64_t)(int)(x)) * 1000 / hz))
 
 #define	MAX_JIFFY_OFFSET	((INT_MAX >> 1) - 1)
 
@@ -68,7 +68,7 @@ extern uint64_t lkpi_msec2hz_rem;
 extern uint64_t lkpi_msec2hz_div;
 extern uint64_t lkpi_msec2hz_max;
 
-static inline unsigned long
+static inline int
 timespec_to_jiffies(const struct timespec *ts)
 {
 	u64 result;
@@ -78,10 +78,10 @@ timespec_to_jiffies(const struct timespec *ts)
 	if (result > MAX_JIFFY_OFFSET)
 		result = MAX_JIFFY_OFFSET;
 
-	return ((unsigned long)result);
+	return ((int)result);
 }
 
-static inline unsigned long
+static inline int
 msecs_to_jiffies(uint64_t msec)
 {
 	uint64_t result;
@@ -92,10 +92,10 @@ msecs_to_jiffies(uint64_t msec)
 	if (result > MAX_JIFFY_OFFSET)
 		result = MAX_JIFFY_OFFSET;
 
-	return ((unsigned long)result);
+	return ((int)result);
 }
 
-static inline unsigned long
+static inline int
 usecs_to_jiffies(uint64_t usec)
 {
 	uint64_t result;
@@ -106,7 +106,7 @@ usecs_to_jiffies(uint64_t usec)
 	if (result > MAX_JIFFY_OFFSET)
 		result = MAX_JIFFY_OFFSET;
 
-	return ((unsigned long)result);
+	return ((int)result);
 }
 
 static inline uint64_t
@@ -133,17 +133,17 @@ nsecs_to_jiffies(uint64_t nsec)
 }
 
 static inline uint64_t
-jiffies_to_nsecs(const unsigned long j)
+jiffies_to_nsecs(int j)
 {
 
-	return ((1000000000ULL / hz) * (const uint64_t)j);
+	return ((1000000000ULL / hz) * (uint64_t)(unsigned int)j);
 }
 
 static inline uint64_t
-jiffies_to_usecs(const unsigned long j)
+jiffies_to_usecs(int j)
 {
 
-	return ((1000000ULL / hz) * (const uint64_t)j);
+	return ((1000000ULL / hz) * (uint64_t)(unsigned int)j);
 }
 
 static inline uint64_t
@@ -153,10 +153,10 @@ get_jiffies_64(void)
 	return ((uint64_t)(unsigned int)ticks);
 }
 
-static inline unsigned long
-linux_timer_jiffies_until(unsigned long expires)
+static inline int
+linux_timer_jiffies_until(int expires)
 {
-	unsigned long delta = expires - jiffies;
+	int delta = expires - jiffies;
 	/* guard against already expired values */
 	if (delta < 1)
 		delta = 1;
