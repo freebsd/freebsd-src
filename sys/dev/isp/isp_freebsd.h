@@ -104,8 +104,9 @@ typedef struct atio_private_data {
 	uint16_t	ctcnt;	/* number of CTIOs currently active */
 	uint8_t		seqno;	/* CTIO sequence number */
 	uint8_t		cdb0;
-	uint8_t		srr_notify_rcvd	: 1,
+	uint16_t	srr_notify_rcvd	: 1,
 			sendst		: 1,
+			dead		: 1,
 			tattr		: 3,
 			state		: 3;
 	void *		ests;
