@@ -987,6 +987,16 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		}
 
 		/*
+		 * Is this command a dead duck?
+		 */
+		if (atp->dead) {
+			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] not sending a CTIO for a dead command", __func__, cso->tag_id);
+			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			xpt_done(ccb);
+			continue;
+		}
+
+		/*
 		 * Check to make sure we're still in target mode.
 		 */
 		fcp = FCPARAM(isp, XS_CHANNEL(ccb));
@@ -2503,14 +2513,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		/*
-		 * Target should abort all affected CCBs before ACK-ing INOT,
+		 * Target should abort all affected tasks before ACK-ing INOT,
 		 * but if/since it doesn't, add this hack to allow tag reuse.
+		 * We can not do it if some CTIOs are in progress, or we won't
+		 * handle the completions.  In such case just block new ones.
 		 */
 		uint32_t rsp = (ccb->ccb_h.flags & CAM_SEND_STATUS) ? ccb->cna2.arg : 0;
 		if (ntp->nt.nt_ncode == NT_ABORT_TASK && (rsp & 0xff) == 0 &&
 		    (atp = isp_find_atpd(isp, XS_CHANNEL(ccb), ccb->cna2.seq_id)) != NULL) {
-			if (isp_abort_atpd(isp, XS_CHANNEL(ccb), atp) == 0)
+			if (atp->ctcnt == 0 &&
+			    isp_abort_atpd(isp, XS_CHANNEL(ccb), atp) == 0)
 				isp_put_atpd(isp, XS_CHANNEL(ccb), atp);
+			else
+				atp->dead = 1;
 		}
 
 		if (isp_handle_platform_target_notify_ack(isp, &ntp->nt, rsp)) {
