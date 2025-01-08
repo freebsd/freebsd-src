@@ -51,7 +51,7 @@ decode_char(const char *s)
 
 
 static void
-decode_quoted_printable(const char *body, FILE *fpo)
+decode_quoted_printable(const char *body, FILE *fpo, bool rfc2047)
 {
 	while (*body != '\0') {
 		switch (*body) {
@@ -80,6 +80,12 @@ decode_quoted_printable(const char *body, FILE *fpo)
 			fputc(decode_char(body), fpo);
 			body += 2;
 			break;
+		case '_':
+			if (rfc2047) {
+				fputc(0x20, fpo);
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			fputc(*body, fpo);
 			break;
@@ -89,7 +95,7 @@ decode_quoted_printable(const char *body, FILE *fpo)
 }
 
 static void
-encode_quoted_printable(const char *body, FILE *fpo)
+encode_quoted_printable(const char *body, FILE *fpo, bool rfc2047)
 {
 	const char *end = body + strlen(body);
 	size_t linelen = 0;
@@ -111,7 +117,10 @@ encode_quoted_printable(const char *body, FILE *fpo)
 			if ((*body == ' ' || *body == '\t') &&
 			    body + 1 < end &&
 			    (body[1] != '\n' && body[1] != '\r')) {
-				fputc(*body, fpo);
+				if (*body == 0x20 && rfc2047)
+					fputc('_', fpo);
+				else
+					fputc(*body, fpo);
 				prev = *body;
 			} else {
 				fprintf(fpo, "=%02X", (unsigned char)*body);
@@ -135,16 +144,16 @@ encode_quoted_printable(const char *body, FILE *fpo)
 }
 
 static void
-qp(FILE *fp, FILE *fpo, bool encode)
+qp(FILE *fp, FILE *fpo, bool encode, bool rfc2047)
 {
 	char *line = NULL;
 	size_t linecap = 0;
-	void (*codec)(const char *line, FILE *f);
+	void (*codec)(const char *line, FILE *f, bool rfc2047);
 
 	codec = encode ? encode_quoted_printable : decode_quoted_printable ;
 
 	while (getline(&line, &linecap, fp) > 0)
-		codec(line, fpo);
+		codec(line, fpo, rfc2047);
 	free(line);
 }
 
@@ -152,7 +161,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	   "usage: bintrans qp [-d] [-o outputfile] [file name]\n");
+	   "usage: bintrans qp [-d] [-r] [-o outputfile] [file name]\n");
 }
 
 int
@@ -160,6 +169,7 @@ main_quotedprintable(int argc, char *argv[])
 {
 	int ch;
 	bool encode = true;
+	bool rfc2047 = false;
 	FILE *fp = stdin;
 	FILE *fpo = stdout;
 
@@ -167,10 +177,11 @@ main_quotedprintable(int argc, char *argv[])
 	{
 		{ "decode", no_argument,		NULL, 'd'},
 		{ "output", required_argument,		NULL, 'o'},
+		{ "rfc2047", no_argument,		NULL, 'r'},
 		{NULL,		no_argument,		NULL, 0}
 	};
 
-	while ((ch = getopt_long(argc, argv, "do:u", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "do:ru", opts, NULL)) != -1) {
 		switch(ch) {
 		case 'o':
 			fpo = fopen(optarg, "w");
@@ -183,6 +194,9 @@ main_quotedprintable(int argc, char *argv[])
 			/* FALLTHROUGH for backward compatibility */
 		case 'd':
 			encode = false;
+			break;
+		case 'r':
+			rfc2047 = true;
 			break;
 		default:
 			usage();
@@ -198,7 +212,7 @@ main_quotedprintable(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
-	qp(fp, fpo, encode);
+	qp(fp, fpo, encode, rfc2047);
 
 	return (EXIT_SUCCESS);
 }
