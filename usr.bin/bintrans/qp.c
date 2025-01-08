@@ -26,6 +26,7 @@
  */
 
 #include <ctype.h>
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -151,44 +152,50 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	   "usage: bintrans qp [-u] [-o outputfile] [file name]\n");
+	   "usage: bintrans qp [-d] [-o outputfile] [file name]\n");
 }
 
 int
 main_quotedprintable(int argc, char *argv[])
 {
-	int i;
+	int ch;
 	bool encode = true;
 	FILE *fp = stdin;
 	FILE *fpo = stdout;
 
-	for (i = 1; i < argc; ++i) {
-		if (argv[i][0] == '-') {
-			switch (argv[i][1]) {
-			case 'o':
-				if (++i >= argc) {
-					fprintf(stderr, "qp: -o requires a file name.\n");
-					exit(EXIT_FAILURE);
-				}
-				fpo = fopen(argv[i], "w");
-				if (fpo == NULL) {
-					perror(argv[i]);
-					exit(EXIT_FAILURE);
-				}
-				break;
-			case 'u':
-				encode = false;
-				break;
-			default:
-				usage();
+	static const struct option opts[] =
+	{
+		{ "decode", no_argument,		NULL, 'd'},
+		{ "output", required_argument,		NULL, 'o'},
+		{NULL,		no_argument,		NULL, 0}
+	};
+
+	while ((ch = getopt_long(argc, argv, "do:u", opts, NULL)) != -1) {
+		switch(ch) {
+		case 'o':
+			fpo = fopen(optarg, "w");
+			if (fpo == NULL) {
+				perror(optarg);
 				exit(EXIT_FAILURE);
 			}
-		} else {
-			fp = fopen(argv[i], "r");
-			if (fp == NULL) {
-				perror(argv[i]);
-				exit(EXIT_FAILURE);
-			}
+			break;
+		case 'u':
+			/* FALLTHROUGH for backward compatibility */
+		case 'd':
+			encode = false;
+			break;
+		default:
+			usage();
+			exit(EXIT_FAILURE);
+		}
+	};
+	argc -= optind;
+	argv += optind;
+	if (argc > 0) {
+		fp = fopen(argv[0], "r");
+		if (fp == NULL) {
+			perror(argv[0]);
+			exit(EXIT_FAILURE);
 		}
 	}
 	qp(fp, fpo, encode);
