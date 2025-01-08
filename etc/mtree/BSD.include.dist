@@ -149,8 +149,6 @@
         ..
         io
         ..
-        ixnvdimm
-        ..
         mfi
         ..
         mlx5

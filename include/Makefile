@@ -50,7 +50,7 @@ LDIRS=	geom net net80211 netgraph netinet netinet6 \
 
 LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
-	dev/ic dev/iicbus dev/io dev/ixnvdimm dev/mfi dev/mmc \
+	dev/ic dev/iicbus dev/io dev/mfi dev/mmc \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
 	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wg \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
