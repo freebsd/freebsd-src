@@ -58,3 +58,47 @@ class TestFrag6(VnetTestTemplate):
             timeout=3)
         for p in packets:
             assert not p.getlayer(sp.ICMPv6EchoReply)
+
+class TestFrag6_Overlap(VnetTestTemplate):
+    REQUIRED_MODULES = ["pf"]
+    TOPOLOGY = {
+        "vnet1": {"ifaces": ["if1"]},
+        "vnet2": {"ifaces": ["if1"]},
+        "if1": {"prefixes6": [("2001:db8::1/64", "2001:db8::2/64")]},
+    }
+
+    def vnet2_handler(self, vnet):
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.print_output("/sbin/pfctl -x loud")
+        ToolsHelper.pf_rules([
+            "scrub fragment reassemble",
+            "pass",
+        ])
+
+    @pytest.mark.require_user("root")
+    def test_overlap(self):
+        "Ensure we discard packets with overlapping fragments"
+
+        # Import in the correct vnet, so at to not confuse Scapy
+        import scapy.all as sp
+
+        packet = sp.IPv6(src="2001:db8::1", dst="2001:db8::2") \
+            / sp.ICMPv6EchoRequest(data=sp.raw(bytes.fromhex('f00f') * 90))
+        frags = sp.fragment6(packet, 128)
+        assert len(frags) == 3
+
+        f = frags[0].getlayer(sp.IPv6ExtHdrFragment)
+        # Fragment with overlap
+        overlap = sp.IPv6(src="2001:db8::1", dst="2001:db8::2") \
+            / sp.IPv6ExtHdrFragment(offset = 4, m = 1, id = f.id, nh = f.nh) \
+            / sp.raw(bytes.fromhex('f00f') * 4)
+        frags = [ frags[0], frags[1], overlap, frags[2] ]
+
+        # Delay the send so the sniffer is running when we transmit.
+        s = DelayedSend(frags)
+
+        packets = sp.sniff(iface=self.vnet.iface_alias_map["if1"].name,
+            timeout=3)
+        for p in packets:
+            p.show()
+            assert not p.getlayer(sp.ICMPv6EchoReply)
