@@ -1,6 +1,9 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* FreeBSD */
+#include <osreldate.h>
+
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
@@ -21,7 +24,9 @@
 
 /* Define to 1 if you have the <byteswap.h> header file. */
 #ifndef __APPLE__ /* Cross building tools on macOS */
+#if __FreeBSD_version >= 1400079 || (__FreeBSD_version < 1400000 && __FreeBSD_version >= 1302500)
 #define HAVE_BYTESWAP_H 1
+#endif
 #endif
 
 /* Define to 1 if you have the <bzlib.h> header file. */
