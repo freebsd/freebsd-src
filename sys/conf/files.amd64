@@ -235,6 +235,8 @@ dev/ixl/i40e_adminq.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixnvdimm/ixnvdimm.c		optional	ixnvdimm
+dev/ixnvdimm/ixnvdimm_copy.S	optional	ixnvdimm
 dev/ncthwm/ncthwm.c		optional	ncthwm superio
 dev/qlxge/qls_dbg.c		optional	qlxge pci
 dev/qlxge/qls_dump.c		optional	qlxge pci
