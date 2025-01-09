@@ -459,7 +459,7 @@ vm_page_domain_init(int domain)
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
-	vmd->vmd_oom = FALSE;
+	vmd->vmd_oom = false;
 	for (i = 0; i < PQ_COUNT; i++) {
 		pq = &vmd->vmd_pagequeues[i];
 		TAILQ_INIT(&pq->pq_pl);
