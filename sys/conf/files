@@ -4038,7 +4038,6 @@ kgssapi/krb5/krb5_mech.c	optional kgssapi
 kgssapi/krb5/kcrypto.c		optional kgssapi
 kgssapi/krb5/kcrypto_aes.c	optional kgssapi
 kgssapi/kgss_if.m		optional kgssapi
-kgssapi/gsstest.c		optional kgssapi_debug
 # These files in libkern/ are those needed by all architectures.  Some
 # of the files in libkern/ are only needed on some architectures, e.g.,
 # libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
