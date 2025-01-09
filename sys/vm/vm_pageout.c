@@ -1657,8 +1657,9 @@ vm_pageout_inactive_dispatch(struct vm_domain *vmd, int shortage)
 	 * If we have more work than we can do in a quarter of our interval, we
 	 * fire off multiple threads to process it.
 	 */
-	threads = vmd->vmd_inactive_threads;
-	if (threads > 1 && vmd->vmd_inactive_pps != 0 &&
+	if ((threads = vmd->vmd_inactive_threads) > 1 &&
+	    vmd->vmd_helper_threads_enabled &&
+	    vmd->vmd_inactive_pps != 0 &&
 	    shortage > vmd->vmd_inactive_pps / VM_INACT_SCAN_RATE / 4) {
 		vmd->vmd_inactive_shortage /= threads;
 		slop = shortage % threads;
@@ -2295,6 +2296,10 @@ vm_pageout_init_domain(int domain)
 	pidctrl_init_sysctl(&vmd->vmd_pid, SYSCTL_CHILDREN(oid));
 
 	vmd->vmd_inactive_threads = get_pageout_threads_per_domain(vmd);
+	SYSCTL_ADD_BOOL(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
+	    "pageout_helper_threads_enabled", CTLFLAG_RWTUN,
+	    &vmd->vmd_helper_threads_enabled, 0,
+	    "Enable multi-threaded inactive queue scanning");
 }
 
 static void
