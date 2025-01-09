@@ -416,18 +416,14 @@ init_transport(struct netconfig *nconf)
 		 */
 		if (strcmp("*", hosts[nhostsbak]) == 0)
 		    hosts[nhostsbak] = NULL;
-		if ((strcmp(nconf->nc_netid, "local") != 0) &&
-		    (strcmp(nconf->nc_netid, "unix") != 0)) {
-		    if ((aicode = getaddrinfo(hosts[nhostsbak],
-			servname, &hints, &res)) != 0) {
-			syslog(LOG_ERR,
-			    "cannot get local address for %s: %s",
+		if ((aicode = getaddrinfo(hosts[nhostsbak], servname, &hints,
+		    &res)) != 0) {
+			syslog(LOG_ERR, "cannot get local address for %s: %s",
 			    nconf->nc_netid, gai_strerror(aicode));
 			continue;
-		    }
-		    addrlen = res->ai_addrlen;
-		    sa = (struct sockaddr *)res->ai_addr;
 		}
+		addrlen = res->ai_addrlen;
+		sa = (struct sockaddr *)res->ai_addr;
 		oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
 		if (bind(fd, sa, addrlen) != 0) {
 		    syslog(LOG_ERR, "cannot bind %s on %s: %m",
