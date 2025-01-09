@@ -6770,8 +6770,6 @@ bbr_update_rtt(struct tcpcb *tp, struct tcp_bbr *bbr,
 			t = cts - rsm->r_tim_lastsent[0];
 		else
 			t = 1;
-		if ((int)t <= 0)
-			t = 1;
 		bbr->r_ctl.rc_last_rtt = t;
 		bbr_update_bbr_info(bbr, rsm, t, cts, to->to_tsecr, 0,
 				    BBR_RTT_BY_EXACTMATCH, rsm->r_tim_lastsent[0], ack_type, to);
@@ -6811,8 +6809,6 @@ bbr_update_rtt(struct tcpcb *tp, struct tcp_bbr *bbr,
 				if (TSTMP_GT(cts, rsm->r_tim_lastsent[i]))
 					t = cts - rsm->r_tim_lastsent[i];
 				else
-					t = 1;
-				if ((int)t <= 0)
 					t = 1;
 				bbr->r_ctl.rc_last_rtt = t;
 				bbr_update_bbr_info(bbr, rsm, t, cts, to->to_tsecr, uts, BBR_RTT_BY_TSMATCHING,
