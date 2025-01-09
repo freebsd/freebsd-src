@@ -617,6 +617,7 @@ struct pf_rule {
 #define	PFRULE_IFBOUND		0x00010000 /* if-bound */
 #define	PFRULE_STATESLOPPY	0x00020000 /* sloppy state tracking */
 #define	PFRULE_PFLOW		0x00040000
+#define	PFRULE_ALLOW_RELATED	0x00080000
 #define	PFRULE_AFTO		0x00200000  /* af-to rule */
 
 #ifdef _KERNEL

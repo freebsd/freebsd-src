@@ -426,6 +426,82 @@ class TestSCTP(VnetTestTemplate):
         assert re.search(r"all sctp 192.0.2.4:.*192.0.2.3:1234", states)
         assert re.search(r"all sctp 192.0.2.4:.*192.0.2.2:1234", states)
 
+    @pytest.mark.require_user("root")
+    def test_disallow_related(self):
+        srv_vnet = self.vnet_map["vnet2"]
+
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.pf_rules([
+            "block proto sctp",
+            "pass inet proto sctp to 192.0.2.3",
+            "pass on lo"])
+
+        # Sanity check, we can communicate with the primary address.
+        client = SCTPClient("192.0.2.3", 1234)
+        client.send(b"hello", 0)
+        rcvd = self.wait_object(srv_vnet.pipe)
+        print(rcvd)
+        assert rcvd['ppid'] == 0
+        assert rcvd['data'] == "hello"
+
+        # This shouldn't work
+        success=False
+        try:
+            client.newpeer("192.0.2.2")
+            client.send(b"world", 0)
+            rcvd = self.wait_object(srv_vnet.pipe)
+            print(rcvd)
+            assert rcvd['ppid'] == 0
+            assert rcvd['data'] == "world"
+            success=True
+        except:
+            success=False
+        assert not success
+
+        # Check that we have a state for 192.0.2.3, but not 192.0.2.2 to 192.0.2.1
+        states = ToolsHelper.get_output("/sbin/pfctl -ss")
+        assert re.search(r"all sctp 192.0.2.1:.*192.0.2.3:1234", states)
+        assert not re.search(r"all sctp 192.0.2.1:.*192.0.2.2:1234", states)
+
+    @pytest.mark.require_user("root")
+    def test_allow_related(self):
+        srv_vnet = self.vnet_map["vnet2"]
+
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.pf_rules([
+            "set state-policy if-bound",
+            "block proto sctp",
+            "pass inet proto sctp to 192.0.2.3 keep state (allow-related)",
+            "pass on lo"])
+
+        # Sanity check, we can communicate with the primary address.
+        client = SCTPClient("192.0.2.3", 1234)
+        client.send(b"hello", 0)
+        rcvd = self.wait_object(srv_vnet.pipe)
+        print(rcvd)
+        assert rcvd['ppid'] == 0
+        assert rcvd['data'] == "hello"
+
+        success=False
+        try:
+            client.newpeer("192.0.2.2")
+            client.send(b"world", 0)
+            rcvd = self.wait_object(srv_vnet.pipe)
+            print(rcvd)
+            assert rcvd['ppid'] == 0
+            assert rcvd['data'] == "world"
+            success=True
+        finally:
+            # Debug output
+            ToolsHelper.print_output("/sbin/pfctl -ss")
+            ToolsHelper.print_output("/sbin/pfctl -sr -vv")
+        assert success
+
+        # Check that we have a state for 192.0.2.3 and 192.0.2.2 to 192.0.2.1
+        states = ToolsHelper.get_output("/sbin/pfctl -ss")
+        assert re.search(r"epair.*sctp 192.0.2.1:.*192.0.2.3:1234", states)
+        assert re.search(r"epair.*sctp 192.0.2.1:.*192.0.2.2:1234", states)
+
 class TestSCTPv6(VnetTestTemplate):
     REQUIRED_MODULES = ["sctp", "pf"]
     TOPOLOGY = {

@@ -464,6 +464,14 @@ BOUND_IFACE(struct pf_kstate *st, struct pf_pdesc *pd)
 	if (st->rule->rt == PF_REPLYTO || (pd->af != pd->naf))
 		return (V_pfi_all);
 
+	/*
+	 * If this state is created based on another state (e.g. SCTP
+	 * multihome) always set it floating initially. We can't know for sure
+	 * what interface the actual traffic for this state will come in on.
+	 */
+	if (pd->related_rule)
+		return (V_pfi_all);
+
 	/* Don't overrule the interface for states created on incoming packets. */
 	if (st->direction == PF_IN)
 		return (k);
@@ -5702,6 +5710,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	}
 
 	while (r != NULL) {
+		if (pd->related_rule) {
+			*rm = pd->related_rule;
+			break;
+		}
 		pf_counter_u64_add(&r->evaluations, 1);
 		PF_TEST_ATTRIB(pfi_kkif_match(r->kif, pd->kif) == r->ifnot,
 			r->skip[PF_SKIP_IFP]);
@@ -7165,6 +7177,15 @@ pf_test_state_sctp(struct pf_kstate **state, struct pf_pdesc *pd,
 			dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
 	}
 
+	/*
+	 * Bind to the correct interface if we're if-bound. For multihomed
+	 * extra associations we don't know which interface that will be until
+	 * here, so we've inserted the state on V_pf_all. Fix that now.
+	 */
+	if ((*state)->kif == V_pfi_all &&
+	    (*state)->rule->rule_flag & PFRULE_IFBOUND)
+		(*state)->kif = pd->kif;
+
 	if (pd->sctp_flags & (PFDESC_SCTP_COOKIE | PFDESC_SCTP_HEARTBEAT_ACK)) {
 		if (src->state < SCTP_ESTABLISHED) {
 			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
@@ -7378,6 +7399,9 @@ again:
 			j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
 			PF_RULES_RLOCK();
 			sm = NULL;
+			if (s->rule->rule_flag & PFRULE_ALLOW_RELATED) {
+				j->pd.related_rule = s->rule;
+			}
 			ret = pf_test_rule(&r, &sm,
 			    &j->pd, &ra, &rs, NULL);
 			PF_RULES_RUNLOCK();
