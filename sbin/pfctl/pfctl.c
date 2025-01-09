@@ -1234,7 +1234,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
 			errx(1, "pfctl_rules: calloc");
-		snprintf(npath, MAXPATHLEN, "%s", anchorname);
+		strlcpy(npath, anchorname, MAXPATHLEN);
 	} else {
 		if (path[0])
 			snprintf(&path[len], MAXPATHLEN - len, "/%s", anchorname);
