@@ -467,6 +467,8 @@ vmm_handler(module_t mod, int what, void *arg)
 			error = vmm_init();
 			if (error == 0)
 				vmm_initialized = 1;
+			else
+				(void)vmmdev_cleanup();
 		} else {
 			error = ENXIO;
 		}
