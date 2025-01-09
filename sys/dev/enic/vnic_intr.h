@@ -76,7 +76,7 @@ static inline void vnic_intr_return_credits(struct vnic_intr *intr,
 
 static inline unsigned int vnic_intr_credits(struct vnic_intr *intr)
 {
-	return ENIC_BUS_READ_4(intr->ctrl, INTR_CREDITS);
+	return (ENIC_BUS_READ_4(intr->ctrl, INTR_CREDITS));
 }
 
 static inline void vnic_intr_return_all_credits(struct vnic_intr *intr)

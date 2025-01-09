@@ -63,6 +63,8 @@ struct vnic_cq {
 	unsigned int to_clean;
 	unsigned int last_color;
 	unsigned int interrupt_offset;
+	unsigned int cur_rx_coal_timeval;
+	unsigned int tobe_rx_coal_timeval;
 #ifdef ENIC_AIC
 	struct vnic_rx_bytes_counter pkt_size_counter;
 	unsigned int cur_rx_coal_timeval;
@@ -75,15 +77,12 @@ struct vnic_cq {
 	int nrxqsets_start;
 };
 
-void vnic_cq_free(struct vnic_cq *cq);
 void vnic_cq_init(struct vnic_cq *cq, unsigned int flow_control_enable,
     unsigned int color_enable, unsigned int cq_head, unsigned int cq_tail,
     unsigned int cq_tail_color, unsigned int interrupt_enable,
     unsigned int cq_entry_enable, unsigned int message_enable,
     unsigned int interrupt_offset, u64 message_addr);
 void vnic_cq_clean(struct vnic_cq *cq);
-int vnic_cq_mem_size(struct vnic_cq *cq, unsigned int desc_count,
-    unsigned int desc_size);
 
 static inline unsigned int vnic_cq_service(struct vnic_cq *cq,
     unsigned int work_to_do,

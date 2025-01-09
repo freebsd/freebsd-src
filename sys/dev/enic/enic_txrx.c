@@ -103,6 +103,7 @@ enic_isc_txd_encap(void *vsc, if_pkt_info_t pi)
 
 	softc = vsc;
 	enic = &softc->enic;
+	if_softc_ctx_t scctx = softc->scctx;
 
 	wq = &enic->wq[pi->ipi_qsidx];
 	nsegs = pi->ipi_nsegs;
@@ -111,6 +112,9 @@ enic_isc_txd_encap(void *vsc, if_pkt_info_t pi)
 	wq_desc_avail = vnic_wq_desc_avail(wq);
 	head_idx = wq->head_idx;
 	desc_count = wq->ring.desc_count;
+
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
+		offload_mode |= WQ_ENET_OFFLOAD_MODE_CSUM;
 
 	for (i = 0; i < nsegs; i++) {
 		eop = 0;
@@ -320,7 +324,7 @@ enic_isc_rxd_flush(void *vsc, uint16_t rxqid, uint8_t flid, qidx_t pidx)
 static int
 enic_legacy_intr(void *xsc)
 {
-	return -1;
+	return (1);
 }
 
 static inline void
@@ -375,7 +379,7 @@ enic_wq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc, u8 type,
 
 	vnic_wq_service(&enic->wq[q_number], cq_desc,
 			completed_index, NULL, opaque);
-	return 0;
+	return (0);
 }
 
 static void
@@ -384,7 +388,7 @@ vnic_rq_service(struct vnic_rq *rq, struct cq_desc *cq_desc,
     void(*buf_service)(struct vnic_rq *rq, struct cq_desc *cq_desc,
     /* struct vnic_rq_buf * *buf, */ int skipped, void *opaque), void *opaque)
 {
-
+	if_softc_ctx_t scctx;
 	if_rxd_info_t ri = (if_rxd_info_t) opaque;
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
 	u8 fcoe, fcoe_sof, fcoe_fc_crc_ok, fcoe_enc_error, fcoe_eof;
@@ -395,6 +399,8 @@ vnic_rq_service(struct vnic_rq *rq, struct cq_desc *cq_desc,
 	u32 rss_hash;
 	int cqidx;
 	if_rxd_frag_t frag;
+
+	scctx = rq->vdev->softc->scctx;
 
 	cq_enet_rq_desc_dec((struct cq_enet_rq_desc *)cq_desc,
 	    &type, &color, &q_number, &completed_index,
@@ -419,6 +425,11 @@ vnic_rq_service(struct vnic_rq *rq, struct cq_desc *cq_desc,
 	ri->iri_cidx = cqidx;
 	ri->iri_nfrags = 1;
 	ri->iri_len = bytes_written;
+
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
+		if (!csum_not_calc && (tcp_udp_csum_ok || ipv4_csum_ok)) {
+			ri->iri_csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
+		}
 }
 
 static int
@@ -431,7 +442,7 @@ enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	vnic_rq_service(&enic->rq[ri->iri_qsidx], cq_desc, completed_index,
 	    VNIC_RQ_RETURN_DESC, NULL, /* enic_rq_indicate_buf, */ opaque);
 
-	return 0;
+	return (0);
 }
 
 void
@@ -468,10 +479,8 @@ enic_stop_wq(struct enic *enic, uint16_t queue_idx)
 	int ret;
 
 	ret = vnic_wq_disable(&enic->wq[queue_idx]);
-	if (ret)
-		return ret;
 
-	return 0;
+	return (ret);
 }
 
 void
@@ -482,4 +491,20 @@ enic_start_rq(struct enic *enic, uint16_t queue_idx)
 	rq = &enic->rq[queue_idx];
 	vnic_rq_enable(rq);
 	enic_initial_post_rx(enic, rq);
+}
+
+int
+enic_stop_rq(struct enic *enic, uint16_t queue_idx)
+{
+	int ret;
+
+	ret = vnic_rq_disable(&enic->rq[queue_idx]);
+
+	return (ret);
+}
+
+
+void
+enic_dev_disable(struct enic *enic) {
+	vnic_dev_disable(enic->vdev);
 }

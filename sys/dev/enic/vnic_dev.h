@@ -38,6 +38,7 @@ struct vnic_dev_ring {
 	unsigned int desc_count;
 	unsigned int desc_avail;
 	unsigned int last_count;
+	iflib_dma_info_t ifdip;
 };
 
 struct vnic_dev_iomap_info {
@@ -69,6 +70,10 @@ unsigned long vnic_dev_get_res_type_len(struct vnic_dev *vdev,
 unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
     unsigned int desc_count, unsigned int desc_size);
 void vnic_dev_clear_desc_ring(struct vnic_dev_ring *ring);
+int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
+    unsigned int desc_count, unsigned int desc_size);
+void vnic_dev_free_desc_ring(struct vnic_dev *vdev,
+    struct vnic_dev_ring *ring);
 int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
     u64 *a0, u64 *a1, int wait);
 int vnic_dev_cmd_args(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
@@ -143,7 +148,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 struct rte_pci_device *vnic_dev_get_pdev(struct vnic_dev *vdev);
 int vnic_dev_alloc_stats_mem(struct vnic_dev *vdev);
 int vnic_dev_alloc_counter_mem(struct vnic_dev *vdev);
-int vnic_dev_cmd_init(struct vnic_dev *vdev, int fallback);
+int vnic_dev_cmd_init(struct vnic_dev *vdev);
 int vnic_dev_get_size(void);
 int vnic_dev_int13(struct vnic_dev *vdev, u64 arg, u32 op);
 int vnic_dev_perbi(struct vnic_dev *vdev, u64 arg, u32 op);
@@ -164,6 +169,7 @@ bool vnic_dev_counter_alloc(struct vnic_dev *vdev, uint32_t *idx);
 bool vnic_dev_counter_free(struct vnic_dev *vdev, uint32_t idx);
 bool vnic_dev_counter_query(struct vnic_dev *vdev, uint32_t idx,
     bool reset, uint64_t *packets, uint64_t *bytes);
+void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev);
 
 device_t dev_from_vnic_dev(struct vnic_dev *vdev);
 
