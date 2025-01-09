@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 20, 2024
+.Dd January 10, 2025
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1945,8 +1945,9 @@ make it the first or last character listed.
 .Ss Built-in Commands
 This section lists the built-in commands.
 .Bl -tag -width indent
-.It Ic \&:
+.It Ic \&: Op Ar arg Ar ...
 A null command that returns a 0 (true) exit value.
+Any arguments are discarded.
 .It Ic \&. Ar file
 The commands in the specified file are read and executed by the shell.
 The
@@ -1968,7 +1969,7 @@ it is sought in the current working directory.
 .It Ic \&[
 A built-in equivalent of
 .Xr test 1 .
-.It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc ... Oc
+.It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc Ar ... Oc
 If
 .Ar name Ns = Ns Ar string
 is specified, the shell defines the alias
