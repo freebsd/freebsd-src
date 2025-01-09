@@ -259,21 +259,26 @@ vmm_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		/* TODO: check if has_hyp here? */
 		error = vmmdev_init();
 		if (error != 0)
 			break;
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = true;
+		else
+			(void)vmmdev_cleanup();
 		break;
 	case MOD_UNLOAD:
-		/* TODO: check if has_hyp here? */
 		error = vmmdev_cleanup();
 		if (error == 0 && vmm_initialized) {
 			error = vmmops_modcleanup();
-			if (error)
+			if (error) {
+				/*
+				 * Something bad happened - prevent new
+				 * VMs from being created
+				 */
 				vmm_initialized = false;
+			}
 		}
 		break;
 	default:
