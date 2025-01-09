@@ -15,7 +15,6 @@ SRCS=	cd9660.c \
 MAN=	makefs.8
 
 NO_WCAST_ALIGN=
-CSTD=	c11
 
 .if ${MK_ZFS} != "no"
 SRCS+=	zfs.c
