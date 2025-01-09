@@ -1660,6 +1660,7 @@ struct pf_pdesc {
 #define PFDESC_SCTP_ADD_IP	0x1000
 	u_int16_t	 sctp_flags;
 	u_int32_t	 sctp_initiate_tag;
+	struct pf_krule	*related_rule;
 
 	struct pf_sctp_multihome_jobs	sctp_multihome_jobs;
 };
