@@ -47,7 +47,9 @@ EOF
 
 log()
 {
-	echo "$@"
+	if [ "${QUIET}" != "y" ]; then
+		echo "$@"
+	fi
 }
 
 log_verbose()
