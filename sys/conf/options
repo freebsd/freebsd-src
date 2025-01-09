@@ -290,7 +290,6 @@ TARFS_DEBUG	opt_tarfs.h
 
 # In-kernel GSS-API
 KGSSAPI		opt_kgssapi.h
-KGSSAPI_DEBUG	opt_kgssapi.h
 
 # These static filesystems have one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
