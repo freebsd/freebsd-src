@@ -41,12 +41,8 @@
 #define _RPC_CLNT_H_
 #include <rpc/clnt_stat.h>
 #include <sys/cdefs.h>
-#ifdef _KERNEL
 #include <sys/refcount.h>
 #include <rpc/netconfig.h>
-#else
-#include <netconfig.h>
-#endif
 #include <sys/un.h>
 
 /*
@@ -90,7 +86,6 @@ struct rpc_err {
 #define	re_lb		ru.RE_lb
 };
 
-#ifdef _KERNEL
 /*
  * Functions of this type may be used to receive notification when RPC
  * calls have to be re-transmitted etc.
@@ -117,7 +112,6 @@ struct rpc_callextra {
 	struct rpc_timers *rc_timers;	  /* optional RTT timers */
 	struct rpc_err	rc_err;		/* detailed call status */
 };
-#endif
 
 /*
  * Client rpc handle.
@@ -125,7 +119,6 @@ struct rpc_callextra {
  * Client is responsible for initializing auth, see e.g. auth_none.c.
  */
 typedef struct __rpc_client {
-#ifdef _KERNEL
 	volatile u_int cl_refs;			/* reference count */
 	AUTH	*cl_auth;			/* authenticator */
 	const struct clnt_ops {
@@ -149,28 +142,6 @@ typedef struct __rpc_client {
 		bool_t          (*cl_control)(struct __rpc_client *, u_int,
 				    void *);
 	} *cl_ops;
-#else
-	AUTH	*cl_auth;			/* authenticator */
-	struct clnt_ops {
-		/* call remote procedure */
-		enum clnt_stat	(*cl_call)(struct __rpc_client *,
-		    rpcproc_t, xdrproc_t, void *, xdrproc_t,
-		    void *, struct timeval);
-		/* abort a call */
-		void		(*cl_abort)(struct __rpc_client *);
-		/* get specific error code */
-		void		(*cl_geterr)(struct __rpc_client *,
-					struct rpc_err *);
-		/* frees results */
-		bool_t		(*cl_freeres)(struct __rpc_client *,
-					xdrproc_t, void *);
-		/* destroy this structure */
-		void		(*cl_destroy)(struct __rpc_client *);
-		/* the ioctl() of rpc */
-		bool_t          (*cl_control)(struct __rpc_client *, u_int,
-				    void *);
-	} *cl_ops;
-#endif
 	void 			*cl_private;	/* private stuff */
 	char			*cl_netid;	/* network token */
 	char			*cl_tp;		/* device name */
@@ -198,7 +169,6 @@ typedef struct __rpc_client {
  *
  */
 
-#ifdef _KERNEL
 #define CLNT_ACQUIRE(rh)			\
 	refcount_acquire(&(rh)->cl_refs)
 #define CLNT_RELEASE(rh)			\
@@ -246,7 +216,6 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define	CLNT_CALL_EXT(rh, ext, proc, xargs, argsp, xres, resp, secs)	\
 	clnt_call_private(rh, ext, proc, xargs,				\
 		argsp, xres, resp, secs)
-#endif
 
 /*
  * enum clnt_stat
@@ -259,21 +228,12 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
  *	void *resp;
  *	struct timeval timeout;
  */
-#ifdef _KERNEL
 #define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)	\
 	clnt_call_private(rh, NULL, proc, xargs,		\
 		argsp, xres, resp, secs)
 #define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)	\
 	clnt_call_private(rh, NULL, proc, xargs,		\
 		argsp, xres, resp, secs)
-#else
-#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)		\
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs,	\
-		argsp, xres, resp, secs))
-#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)		\
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs,	\
-		argsp, xres, resp, secs))
-#endif
 
 /*
  * void
@@ -339,7 +299,6 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define CLSET_ASYNC		19
 #define CLSET_CONNECT		20	/* Use connect() for UDP. (int) */
 
-#ifdef _KERNEL
 /*
  * Kernel control operations. The default msleep string is "rpcrecv",
  * and sleeps are non-interruptible by default.
@@ -362,8 +321,6 @@ struct rpc_reconupcall {
 	void	*arg;
 };
 #define	CLSET_RECONUPCALL	33	/* Reconnect upcall */
-#endif
-
 
 /*
  * void
@@ -402,8 +359,6 @@ struct rpc_reconupcall {
  * belong to the nettype namespace (/etc/netconfig).
  */
 __BEGIN_DECLS
-#ifdef _KERNEL
-
 /*
  *	struct socket *so;			-- socket
  *	struct sockaddr *svcaddr;		-- servers address
@@ -440,156 +395,6 @@ extern CLIENT *clnt_vc_create(struct socket *so,
 extern CLIENT *clnt_reconnect_create(struct netconfig *nconf,
     struct sockaddr *svcaddr, rpcprog_t program, rpcvers_t version,
     size_t sendsz, size_t recvsz);
-
-#else
-
-extern CLIENT *clnt_create(const char *, const rpcprog_t, const rpcvers_t,
-			   const char *);
-/*
- *
- * 	const char *hostname;			-- hostname
- *	const rpcprog_t prog;			-- program number
- *	const rpcvers_t vers;			-- version number
- *	const char *nettype;			-- network type
- */
-
- /*
- * Generic client creation routine. Just like clnt_create(), except
- * it takes an additional timeout parameter.
- */
-extern CLIENT * clnt_create_timed(const char *, const rpcprog_t,
-	const rpcvers_t, const char *, const struct timeval *);
-/*
- *
- *	const char *hostname;			-- hostname
- *	const rpcprog_t prog;			-- program number
- *	const rpcvers_t vers;			-- version number
- *	const char *nettype;			-- network type
- *	const struct timeval *tp;		-- timeout
- */
-
-/*
- * Generic client creation routine. Supported protocols are which belong
- * to the nettype name space.
- */
-extern CLIENT *clnt_create_vers(const char *, const rpcprog_t, rpcvers_t *,
-				const rpcvers_t, const rpcvers_t,
-				const char *);
-/*
- *	const char *host;		-- hostname
- *	const rpcprog_t prog;		-- program number
- *	rpcvers_t *vers_out;		-- servers highest available version
- *	const rpcvers_t vers_low;	-- low version number
- *	const rpcvers_t vers_high;	-- high version number
- *	const char *nettype;		-- network type
- */
-
-/*
- * Generic client creation routine. Supported protocols are which belong
- * to the nettype name space.
- */
-extern CLIENT * clnt_create_vers_timed(const char *, const rpcprog_t,
-	rpcvers_t *, const rpcvers_t, const rpcvers_t, const char *,
-	const struct timeval *);
-/*
- *	const char *host;		-- hostname
- *	const rpcprog_t prog;		-- program number
- *	rpcvers_t *vers_out;		-- servers highest available version
- *	const rpcvers_t vers_low;	-- low version number
- *	const rpcvers_t vers_high;	-- high version number
- *	const char *nettype;		-- network type
- *	const struct timeval *tp	-- timeout
- */
-
-/*
- * Generic client creation routine. It takes a netconfig structure
- * instead of nettype
- */
-extern CLIENT *clnt_tp_create(const char *, const rpcprog_t,
-			      const rpcvers_t, const struct netconfig *);
-/*
- *	const char *hostname;			-- hostname
- *	const rpcprog_t prog;			-- program number
- *	const rpcvers_t vers;			-- version number
- *	const struct netconfig *netconf; 	-- network config structure
- */
-
-/*
- * Generic client creation routine. Just like clnt_tp_create(), except
- * it takes an additional timeout parameter.
- */
-extern CLIENT * clnt_tp_create_timed(const char *, const rpcprog_t,
-	const rpcvers_t, const struct netconfig *, const struct timeval *);
-/*
- *	const char *hostname;			-- hostname
- *	const rpcprog_t prog;			-- program number
- *	const rpcvers_t vers;			-- version number
- *	const struct netconfig *netconf; 	-- network config structure
- *	const struct timeval *tp		-- timeout
- */
-
-/*
- * Generic TLI create routine. Only provided for compatibility.
- */
-
-extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
-			       struct netbuf *, const rpcprog_t,
-			       const rpcvers_t, const u_int, const u_int);
-/*
- *	const int fd;			-- fd
- *	const struct netconfig *nconf;	-- netconfig structure
- *	struct netbuf *svcaddr;		-- servers address
- *	const u_long prog;			-- program number
- *	const u_long vers;			-- version number
- *	const u_int sendsz;			-- send size
- *	const u_int recvsz;			-- recv size
- */
-
-/*
- * Low level clnt create routine for connectionful transports, e.g. tcp.
- */
-extern CLIENT *clnt_vc_create(const int, const struct netbuf *,
-			      const rpcprog_t, const rpcvers_t,
-			      u_int, u_int);
-/*
- * Added for compatibility to old rpc 4.0. Obsoleted by clnt_vc_create().
- */
-extern CLIENT *clntunix_create(struct sockaddr_un *,
-			       u_long, u_long, int *, u_int, u_int);
-/*
- *	const int fd;				-- open file descriptor
- *	const struct netbuf *svcaddr;		-- servers address
- *	const rpcprog_t prog;			-- program number
- *	const rpcvers_t vers;			-- version number
- *	const u_int sendsz;			-- buffer recv size
- *	const u_int recvsz;			-- buffer send size
- */
-
-/*
- * Low level clnt create routine for connectionless transports, e.g. udp.
- */
-extern CLIENT *clnt_dg_create(const int, const struct netbuf *,
-			      const rpcprog_t, const rpcvers_t,
-			      const u_int, const u_int);
-/*
- *	const int fd;				-- open file descriptor
- *	const struct netbuf *svcaddr;		-- servers address
- *	const rpcprog_t program;		-- program number
- *	const rpcvers_t version;		-- version number
- *	const u_int sendsz;			-- buffer recv size
- *	const u_int recvsz;			-- buffer send size
- */
-
-/*
- * Memory based rpc (for speed check and testing)
- * CLIENT *
- * clnt_raw_create(prog, vers)
- *	u_long prog;
- *	u_long vers;
- */
-extern CLIENT *clnt_raw_create(rpcprog_t, rpcvers_t);
-#endif
-
 __END_DECLS
 
 
@@ -626,96 +431,6 @@ struct rpc_createerr {
 	struct rpc_err cf_error; /* useful when cf_stat == RPC_PMAPFAILURE */
 };
 
-#ifdef _KERNEL
 extern struct rpc_createerr rpc_createerr;
-#else
-__BEGIN_DECLS
-extern struct rpc_createerr	*__rpc_createerr(void);
-__END_DECLS
-#define rpc_createerr		(*(__rpc_createerr()))
-#endif
-
-#ifndef _KERNEL
-/*
- * The simplified interface:
- * enum clnt_stat
- * rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
- *	const char *host;
- *	const rpcprog_t prognum;
- *	const rpcvers_t versnum;
- *	const rpcproc_t procnum;
- *	const xdrproc_t inproc, outproc;
- *	const char *in;
- *	char *out;
- *	const char *nettype;
- */
-__BEGIN_DECLS
-extern enum clnt_stat rpc_call(const char *, const rpcprog_t,
-			       const rpcvers_t, const rpcproc_t,
-			       const xdrproc_t, const char *,
-			       const xdrproc_t, char *, const char *);
-__END_DECLS
-
-/*
- * RPC broadcast interface
- * The call is broadcasted to all locally connected nets.
- *
- * extern enum clnt_stat
- * rpc_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp,
- *			eachresult, nettype)
- *	const rpcprog_t		prog;		-- program number
- *	const rpcvers_t		vers;		-- version number
- *	const rpcproc_t		proc;		-- procedure number
- *	const xdrproc_t	xargs;		-- xdr routine for args
- *	caddr_t		argsp;		-- pointer to args
- *	const xdrproc_t	xresults;	-- xdr routine for results
- *	caddr_t		resultsp;	-- pointer to results
- *	const resultproc_t	eachresult;	-- call with each result
- *	const char		*nettype;	-- Transport type
- *
- * For each valid response received, the procedure eachresult is called.
- * Its form is:
- *		done = eachresult(resp, raddr, nconf)
- *			bool_t done;
- *			caddr_t resp;
- *			struct netbuf *raddr;
- *			struct netconfig *nconf;
- * where resp points to the results of the call and raddr is the
- * address if the responder to the broadcast.  nconf is the transport
- * on which the response was received.
- *
- * extern enum clnt_stat
- * rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
- *			eachresult, inittime, waittime, nettype)
- *	const rpcprog_t		prog;		-- program number
- *	const rpcvers_t		vers;		-- version number
- *	const rpcproc_t		proc;		-- procedure number
- *	const xdrproc_t	xargs;		-- xdr routine for args
- *	caddr_t		argsp;		-- pointer to args
- *	const xdrproc_t	xresults;	-- xdr routine for results
- *	caddr_t		resultsp;	-- pointer to results
- *	const resultproc_t	eachresult;	-- call with each result
- *	const int 		inittime;	-- how long to wait initially
- *	const int 		waittime;	-- maximum time to wait
- *	const char		*nettype;	-- Transport type
- */
-
-typedef bool_t (*resultproc_t)(caddr_t, ...);
-
-__BEGIN_DECLS
-extern enum clnt_stat rpc_broadcast(const rpcprog_t, const rpcvers_t,
-				    const rpcproc_t, const xdrproc_t,
-				    caddr_t, const xdrproc_t, caddr_t,
-				    const resultproc_t, const char *);
-extern enum clnt_stat rpc_broadcast_exp(const rpcprog_t, const rpcvers_t,
-					const rpcproc_t, const xdrproc_t,
-					caddr_t, const xdrproc_t, caddr_t,
-					const resultproc_t, const int,
-					const int, const char *);
-__END_DECLS
-
-/* For backward compatibility */
-#include <rpc/clnt_soc.h>
-#endif
 
 #endif /* !_RPC_CLNT_H_ */
