@@ -579,19 +579,6 @@ extern void svcpool_destroy(SVCPOOL *pool);
 extern void svcpool_close(SVCPOOL *pool);
 
 /*
- * Transport independent svc_create routine.
- */
-extern int svc_create(SVCPOOL *, void (*)(struct svc_req *, SVCXPRT *),
-    const rpcprog_t, const rpcvers_t, const char *);
-/*
- *      void (*dispatch)();             -- dispatch routine
- *      const rpcprog_t prognum;        -- program number
- *      const rpcvers_t versnum;        -- version number
- *      const char *nettype;            -- network type
- */
-
-
-/*
  * Generic server creation routine. It takes a netconfig structure
  * instead of a nettype.
  */
