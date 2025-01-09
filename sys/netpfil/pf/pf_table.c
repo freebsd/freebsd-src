@@ -2269,10 +2269,10 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 		return (-1);
 
 	idx = *pidx;
-	if (idx >= 0)
-		use_counter = 1;
-	if (idx < 0)
+	if (idx < 0 || idx >= kt->pfrkt_cnt)
 		idx = 0;
+	else if (counter != NULL)
+		use_counter = 1;
 	startidx = idx;
 
 _next_block:
