@@ -95,11 +95,11 @@ int enic_get_vnic_config(struct enic *enic)
 
 	dev_info(enic_get_dev(enic),
 		"vNIC MAC addr %02x:%02x:%02x:%02x:%02x:%02x "
-		"wq/rq %d/%d mtu d, max mtu:%d\n",
+		"wq/rq %d/%d mtu %d, max mtu:%d\n",
 		enic->mac_addr[0], enic->mac_addr[1], enic->mac_addr[2],
 		enic->mac_addr[3], enic->mac_addr[4], enic->mac_addr[5],
 		c->wq_desc_count, c->rq_desc_count,
-		 /* enic->rte_dev->data->mtu, */ enic->max_mtu);
+		c->mtu, enic->max_mtu);
 	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
 		"rss %s intr mode %s type %s timer %d usec "
 		"loopback tag 0x%04x\n",

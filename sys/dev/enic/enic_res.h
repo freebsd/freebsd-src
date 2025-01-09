@@ -67,7 +67,5 @@ int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
 	u8 ig_vlan_strip_en);
 void enic_get_res_counts(struct enic *enic);
 void enic_init_vnic_resources(struct enic *enic);
-int enic_alloc_vnic_resources(struct enic *);
-void enic_free_vnic_resources(struct enic *);
 
 #endif /* _ENIC_RES_H_ */

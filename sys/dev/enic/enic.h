@@ -108,13 +108,13 @@ struct vnic_res {
 #define ENIC_DEFAULT_VXLAN_PORT		4789
 
 /*
- * Interrupt 0: LSC and errors
  * Interrupt 1: rx queue 0
  * Interrupt 2: rx queue 1
  * ...
+ * Interrupt x: LSC and errors
  */
 #define ENICPMD_LSC_INTR_OFFSET 0
-#define ENICPMD_RXQ_INTR_OFFSET 1
+#define ENICPMD_RXQ_INTR_OFFSET 0
 
 #include "vnic_devcmd.h"
 
@@ -152,6 +152,9 @@ struct vnic_dev {
 	u64 args[VNIC_DEVCMD_NARGS];
 	int in_reset;
 	struct vnic_intr_coal_timer_info intr_coal_timer_info;
+	struct devcmd2_controller *devcmd2;
+	int (*devcmd_rtn)(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	    int wait);
 	void *(*alloc_consistent)(void *priv, size_t size,
 	    bus_addr_t *dma_handle, struct iflib_dma_info *res, u8 *name);
 	void (*free_consistent)(void *priv, size_t size, void *vaddr,
@@ -173,6 +176,28 @@ struct intr_queue {
 	struct resource *res;
 	int rid;
 	struct enic_softc *softc;
+};
+
+#define ENIC_MAX_LINK_SPEEDS		3
+#define ENIC_LINK_SPEED_10G		10000
+#define ENIC_LINK_SPEED_4G		4000
+#define ENIC_LINK_40G_INDEX		2
+#define ENIC_LINK_10G_INDEX		1
+#define ENIC_LINK_4G_INDEX		0
+#define ENIC_RX_COALESCE_RANGE_END	125
+#define ENIC_AIC_TS_BREAK		100
+
+struct enic_rx_coal {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
+	u32 range_end;
+	u32 use_adaptive_rx_coalesce;
+};
+
+/* Store only the lower range.  Higher range is given by fw. */
+struct enic_intr_mod_range {
+	u32 small_pkt_range_start;
+	u32 large_pkt_range_start;
 };
 
 struct enic {
@@ -267,6 +292,9 @@ struct enic {
 	uint64_t tx_offload_mask; /* PKT_TX flags accepted */
 	struct enic_softc *softc;
 	int port_mtu;
+	struct enic_rx_coal rx_coalesce_setting;
+	u32 rx_coalesce_usecs;
+	u32 tx_coalesce_usecs;
 };
 
 struct enic_softc {
@@ -307,11 +335,6 @@ struct enic_softc {
 
 /* Per-instance private data structure */
 
-static inline unsigned int enic_vnic_rq_count(struct enic *enic)
-{
-	return enic->rq_count;
-}
-
 static inline unsigned int enic_cq_rq(struct enic *enic, unsigned int rq)
 {
 	return rq;
@@ -323,21 +346,6 @@ static inline unsigned int enic_cq_wq(struct enic *enic, unsigned int wq)
 }
 
 static inline uint32_t
-enic_ring_add(uint32_t n_descriptors, uint32_t i0, uint32_t i1)
-{
-	uint32_t d = i0 + i1;
-	d -= (d >= n_descriptors) ? n_descriptors : 0;
-	return d;
-}
-
-static inline uint32_t
-enic_ring_sub(uint32_t n_descriptors, uint32_t i0, uint32_t i1)
-{
-	int32_t d = i1 - i0;
-	return (uint32_t)((d < 0) ? ((int32_t)n_descriptors + d) : d);
-}
-
-static inline uint32_t
 enic_ring_incr(uint32_t n_descriptors, uint32_t idx)
 {
 	idx++;
@@ -346,34 +354,14 @@ enic_ring_incr(uint32_t n_descriptors, uint32_t idx)
 	return idx;
 }
 
-void enic_free_wq(void *txq);
-int enic_alloc_intr_resources(struct enic *enic);
 int enic_setup_finish(struct enic *enic);
-int enic_alloc_wq(struct enic *enic, uint16_t queue_idx,
-		  unsigned int socket_id, uint16_t nb_desc);
 void enic_start_wq(struct enic *enic, uint16_t queue_idx);
 int enic_stop_wq(struct enic *enic, uint16_t queue_idx);
 void enic_start_rq(struct enic *enic, uint16_t queue_idx);
-void enic_free_rq(void *rxq);
-int enic_set_vnic_res(struct enic *enic);
-int enic_init_rss_nic_cfg(struct enic *enic);
-int enic_set_rss_reta(struct enic *enic, union vnic_rss_cpu *rss_cpu);
-int enic_set_vlan_strip(struct enic *enic);
+int enic_stop_rq(struct enic *enic, uint16_t queue_idx);
+void enic_dev_disable(struct enic *enic);
 int enic_enable(struct enic *enic);
 int enic_disable(struct enic *enic);
-void enic_remove(struct enic *enic);
-int enic_get_link_status(struct enic *enic);
-void enic_dev_stats_clear(struct enic *enic);
-void enic_add_packet_filter(struct enic *enic);
-int enic_set_mac_address(struct enic *enic, uint8_t *mac_addr);
-int enic_del_mac_address(struct enic *enic, int mac_index);
-unsigned int enic_cleanup_wq(struct enic *enic, struct vnic_wq *wq);
-
-void enic_post_wq_index(struct vnic_wq *wq);
-int enic_probe(struct enic *enic);
-int enic_clsf_init(struct enic *enic);
-void enic_clsf_destroy(struct enic *enic);
-int enic_set_mtu(struct enic *enic, uint16_t new_mtu);
 int enic_link_update(struct enic *enic);
 bool enic_use_vector_rx_handler(struct enic *enic);
 void enic_fdir_info(struct enic *enic);
