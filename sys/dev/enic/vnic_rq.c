@@ -40,6 +40,7 @@ void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
 		fetch_index = 0;
 	}
 
+	fetch_index = 0;
 	vnic_rq_init_start(rq, cq_index,
 		fetch_index, fetch_index,
 		error_interrupt_enable,
@@ -50,7 +51,7 @@ void vnic_rq_init(struct vnic_rq *rq, unsigned int cq_index,
 
 unsigned int vnic_rq_error_status(struct vnic_rq *rq)
 {
-	return ENIC_BUS_READ_4(rq->ctrl, RX_ERROR_STATUS);
+	return (ENIC_BUS_READ_4(rq->ctrl, RX_ERROR_STATUS));
 }
 
 void vnic_rq_enable(struct vnic_rq *rq)
@@ -73,7 +74,7 @@ int vnic_rq_disable(struct vnic_rq *rq)
 
 	pr_err("Failed to disable RQ[%d]\n", rq->index);
 
-	return -ETIMEDOUT;
+	return (ETIMEDOUT);
 }
 
 void vnic_rq_clean(struct vnic_rq *rq)

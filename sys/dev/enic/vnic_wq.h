@@ -61,6 +61,20 @@ struct vnic_wq {
 	uint64_t offloads;
 };
 
+struct devcmd2_controller {
+	struct vnic_res *wq_ctrl;
+	struct vnic_devcmd2 *cmd_ring;
+	struct devcmd2_result *result;
+	u16 next_result;
+	u16 result_size;
+	int color;
+	struct vnic_dev_ring results_ring;
+	struct vnic_res *results_ctrl;
+	struct vnic_wq wq;
+	u32 posted;
+};
+
+
 static inline unsigned int vnic_wq_desc_avail(struct vnic_wq *wq)
 {
 	/* how many does SW own? */
@@ -92,7 +106,7 @@ buf_idx_incr(uint32_t n_descriptors, uint32_t idx)
 }
 
 void vnic_wq_free(struct vnic_wq *wq);
-void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+void enic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
     unsigned int fetch_index, unsigned int posted_index,
     unsigned int error_interrupt_enable,
     unsigned int error_interrupt_offset);
@@ -104,5 +118,7 @@ unsigned int vnic_wq_error_status(struct vnic_wq *wq);
 void vnic_wq_enable(struct vnic_wq *wq);
 int vnic_wq_disable(struct vnic_wq *wq);
 void vnic_wq_clean(struct vnic_wq *wq);
+int enic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
+    unsigned int desc_count, unsigned int desc_size);
 
 #endif /* _VNIC_WQ_H_ */

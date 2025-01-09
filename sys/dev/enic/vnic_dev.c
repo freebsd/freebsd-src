@@ -44,7 +44,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 	u8 type;
 
 	if (num_bars == 0)
-		return -EINVAL;
+		return (EINVAL);
 
 	rh = malloc(sizeof(*rh), M_DEVBUF, M_NOWAIT | M_ZERO);
 	mrh = malloc(sizeof(*mrh), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -52,7 +52,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
 		free(rh, M_DEVBUF);
 		free(mrh, M_DEVBUF);
-		return -EINVAL;
+		return (EINVAL);
 	}
 
 	/* Check for mgmt vnic in addition to normal vnic */
@@ -69,7 +69,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 				rh->magic, rh->version);
 			free(rh, M_DEVBUF);
 			free(mrh, M_DEVBUF);
-			return -EINVAL;
+			return (EINVAL);
 		}
 	}
 
@@ -97,6 +97,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		case RES_TYPE_INTR_CTRL:
 		case RES_TYPE_INTR_PBA_LEGACY:
 		case RES_TYPE_DEVCMD:
+		case RES_TYPE_DEVCMD2:
 			break;
 		default:
 			ENIC_BUS_READ_REGION_4(softc, mem, r_offset, (void *)r, sizeof(*r) / 4);
@@ -189,12 +190,12 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	status = ENIC_BUS_READ_4(devcmd, DEVCMD_STATUS);
 	if (status == 0xFFFFFFFF) {
 		/* PCI-e target device is gone */
-		return -ENODEV;
+		return (ENODEV);
 	}
 	if (status & STAT_BUSY) {
 
 		pr_err("Busy devcmd %d\n",  _CMD_N(cmd));
-		return -EBUSY;
+		return (EBUSY);
 	}
 
 	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE) {
@@ -214,7 +215,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		status = ENIC_BUS_READ_4(devcmd, DEVCMD_STATUS);
 		if (status == 0xFFFFFFFF) {
 			/* PCI-e target device is gone */
-			return -ENODEV;
+			return (ENODEV);
 		}
 
 		if (!(status & STAT_BUSY)) {
@@ -225,7 +226,7 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 					pr_err("Devcmd %d failed " \
 						"with error code %d\n",
 						_CMD_N(cmd), err);
-				return err;
+				return (err);
 			}
 
 			if (_CMD_DIR(cmd) & _CMD_DIR_READ) {
@@ -237,7 +238,82 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	}
 
 	pr_err("Timedout devcmd %d\n", _CMD_N(cmd));
-	return -ETIMEDOUT;
+	return (ETIMEDOUT);
+}
+
+static int _vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	int wait)
+{
+	struct devcmd2_controller *dc2c = vdev->devcmd2;
+	struct devcmd2_result *result;
+	u8 color;
+	unsigned int i;
+	u32 fetch_index, new_posted;
+	int delay, err;
+	u32 posted = dc2c->posted;
+
+	fetch_index = ENIC_BUS_READ_4(dc2c->wq_ctrl, TX_FETCH_INDEX);
+	if (fetch_index == 0xFFFFFFFF)
+		return (ENODEV);
+
+	new_posted = (posted + 1) % DEVCMD2_RING_SIZE;
+
+	if (new_posted == fetch_index) {
+		device_printf(dev_from_vnic_dev(vdev),
+		    "devcmd2 %d: wq is full. fetch index: %u, posted index: %u\n",
+		    _CMD_N(cmd), fetch_index, posted);
+		return (EBUSY);
+	}
+
+	dc2c->cmd_ring[posted].cmd = cmd;
+	dc2c->cmd_ring[posted].flags = 0;
+
+	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
+		dc2c->cmd_ring[posted].flags |= DEVCMD2_FNORESULT;
+	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE)
+		for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+			dc2c->cmd_ring[posted].args[i] = vdev->args[i];
+
+	ENIC_BUS_WRITE_4(dc2c->wq_ctrl, TX_POSTED_INDEX, new_posted);
+	dc2c->posted = new_posted;
+
+	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FNORESULT)
+		return (0);
+
+	result = dc2c->result + dc2c->next_result;
+	color = dc2c->color;
+
+	dc2c->next_result++;
+	if (dc2c->next_result == dc2c->result_size) {
+		dc2c->next_result = 0;
+		dc2c->color = dc2c->color ? 0 : 1;
+	}
+
+	for (delay = 0; delay < wait; delay++) {
+		if (result->color == color) {
+			if (result->error) {
+				err = result->error;
+				if (err != ERR_ECMDUNKNOWN ||
+				     cmd != CMD_CAPABILITY)
+					device_printf(dev_from_vnic_dev(vdev),
+					     "Error %d devcmd %d\n", err,
+					     _CMD_N(cmd));
+				return (err);
+			}
+			if (_CMD_DIR(cmd) & _CMD_DIR_READ)
+				for (i = 0; i < VNIC_DEVCMD2_NARGS; i++)
+					vdev->args[i] = result->results[i];
+
+			return 0;
+		}
+		udelay(100);
+	}
+
+	device_printf(dev_from_vnic_dev(vdev),
+	    "devcmd %d timed out\n", _CMD_N(cmd));
+
+
+	return (ETIMEDOUT);
 }
 
 static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
@@ -253,7 +329,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	 */
 	if (nargs > VNIC_DEVCMD_NARGS - 2) {
 		pr_err("number of args %d exceeds the maximum\n", nargs);
-		return -EINVAL;
+		return (EINVAL);
 	}
 	memset(vdev->args, 0, sizeof(vdev->args));
 
@@ -261,9 +337,9 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	vdev->args[1] = cmd;
 	memcpy(&vdev->args[2], args, nargs * sizeof(args[0]));
 
-	err = _vnic_dev_cmd(vdev, proxy_cmd, wait);
+	err = vdev->devcmd_rtn(vdev, proxy_cmd, wait);
 	if (err)
-		return err;
+		return (err);
 
 	status = (u32)vdev->args[0];
 	if (status & STAT_ERROR) {
@@ -271,7 +347,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 		if (err != ERR_ECMDUNKNOWN ||
 		    cmd != CMD_CAPABILITY)
 			pr_err("Error %d proxy devcmd %d\n", err, _CMD_N(cmd));
-		return err;
+		return (err);
 	}
 
 	memcpy(args, &vdev->args[1], nargs * sizeof(args[0]));
@@ -286,16 +362,16 @@ static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 
 	if (nargs > VNIC_DEVCMD_NARGS) {
 		pr_err("number of args %d exceeds the maximum\n", nargs);
-		return -EINVAL;
+		return (EINVAL);
 	}
 	memset(vdev->args, 0, sizeof(vdev->args));
 	memcpy(vdev->args, args, nargs * sizeof(args[0]));
 
-	err = _vnic_dev_cmd(vdev, cmd, wait);
+	err = vdev->devcmd_rtn(vdev, cmd, wait);
 
 	memcpy(args, vdev->args, nargs * sizeof(args[0]));
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
@@ -328,7 +404,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		*a1 = args[1];
 	}
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_cmd_args(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
@@ -400,7 +476,7 @@ int vnic_dev_capable_filter_mode(struct vnic_dev *vdev, u32 *mode,
 		args[1] = 0;
 		err = vnic_dev_cmd_args(vdev, CMD_CAPABILITY, args, 2, 1000);
 		if (err)
-			return err;
+			return (err);
 		max_level = args[1];
 		goto parse_max_level;
 	} else if (args[2] == FILTER_CAP_MODE_V1) {
@@ -479,7 +555,7 @@ int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, size_t size,
 		break;
 	}
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_stats_clear(struct vnic_dev *vdev)
@@ -497,7 +573,7 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 	int rc;
 
 	if (!vdev->stats)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	*stats = vdev->stats;
 	a0 = vdev->stats_res.idi_paddr;
@@ -524,10 +600,10 @@ int vnic_dev_counter_dma_cfg(struct vnic_dev *vdev, u32 period,
 	int err;
 
 	if (num_counters > VNIC_MAX_FLOW_COUNTERS)
-		return -ENOMEM;
+		return (ENOMEM);
 	if (period > 0 && (period < VNIC_COUNTER_DMA_MIN_PERIOD ||
 	    num_counters == 0))
-		return -EINVAL;
+		return (EINVAL);
 
 	args[0] = num_counters;
 	args[1] = vdev->flow_counters_res.idi_paddr;
@@ -545,7 +621,7 @@ int vnic_dev_counter_dma_cfg(struct vnic_dev *vdev, u32 period,
 		vdev->flow_counters_dma_active = (num_counters != 0 &&
 						  period != 0);
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_close(struct vnic_dev *vdev)
@@ -593,7 +669,7 @@ int vnic_dev_open_done(struct vnic_dev *vdev, int *done)
 
 	err = vnic_dev_cmd(vdev, CMD_OPEN_STATUS, &a0, &a1, wait);
 	if (err)
-		return err;
+		return (err);
 
 	*done = (a0 == 0);
 
@@ -611,7 +687,7 @@ int vnic_dev_get_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 
 	err = vnic_dev_cmd(vdev, CMD_GET_MAC_ADDR, &a0, &a1, wait);
 	if (err)
-		return err;
+		return (err);
 
 	for (i = 0; i < ETH_ALEN; i++)
 		mac_addr[i] = ((u8 *)&a0)[i];
@@ -636,7 +712,7 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	if (err)
 		pr_err("Can't set packet filter\n");
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
@@ -655,7 +731,7 @@ int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
 			err);
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
@@ -674,7 +750,7 @@ int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
 			err);
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
@@ -771,7 +847,7 @@ int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
 		vdev->notify_sz = 0;
 	}
 
-	return err;
+	return (err);
 }
 
 int vnic_dev_notify_unset(struct vnic_dev *vdev)
@@ -807,7 +883,8 @@ static int vnic_dev_notify_ready(struct vnic_dev *vdev)
 			csum += words[i];
 	} while (csum != words[0]);
 
-	return 1;
+
+	return (1);
 }
 
 int vnic_dev_init(struct vnic_dev *vdev, int arg)
@@ -923,7 +1000,7 @@ int vnic_dev_alloc_counter_mem(struct vnic_dev *vdev)
 	iflib_dma_alloc(softc->ctx, sizeof(struct vnic_counter_counts) * VNIC_MAX_FLOW_COUNTERS, &vdev->flow_counters_res, 0);
 	vdev->flow_counters = (struct vnic_counter_counts *)vdev->flow_counters_res.idi_vaddr;
 	vdev->flow_counters_dma_active = 0;
-	return vdev->flow_counters == NULL ? -ENOMEM : 0;
+	return (vdev->flow_counters == NULL ? ENOMEM : 0);
 }
 
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
@@ -940,6 +1017,85 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 
 err_out:
 	return NULL;
+}
+
+static int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
+{
+	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
+	if (!vdev->devcmd)
+		return (ENODEV);
+	vdev->devcmd_rtn = _vnic_dev_cmd;
+
+	return 0;
+}
+
+static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
+{
+	int err;
+	unsigned int fetch_index;
+
+
+	err = 0;
+
+	if (vdev->devcmd2)
+		return (0);
+
+	vdev->devcmd2 = malloc(sizeof(*vdev->devcmd2), M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+
+	if (!vdev->devcmd2) {
+		return (ENOMEM);
+	}
+
+	vdev->devcmd2->color = 1;
+	vdev->devcmd2->result_size = DEVCMD2_RING_SIZE;
+
+	err = enic_wq_devcmd2_alloc(vdev, &vdev->devcmd2->wq, DEVCMD2_RING_SIZE,
+	    DEVCMD2_DESC_SIZE);
+
+	if (err) {
+		goto err_free_devcmd2;
+	}
+	vdev->devcmd2->wq_ctrl = vdev->devcmd2->wq.ctrl;
+	vdev->devcmd2->cmd_ring = vdev->devcmd2->wq.ring.descs;
+
+	fetch_index = ENIC_BUS_READ_4(vdev->devcmd2->wq.ctrl, TX_FETCH_INDEX);
+	if (fetch_index == 0xFFFFFFFF)
+		return (ENODEV);
+
+	enic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index, fetch_index, 0,
+	    0);
+	vdev->devcmd2->posted = fetch_index;
+	vnic_wq_enable(&vdev->devcmd2->wq);
+
+	err = vnic_dev_alloc_desc_ring(vdev, &vdev->devcmd2->results_ring,
+            DEVCMD2_RING_SIZE, DEVCMD2_DESC_SIZE);
+        if (err)
+                goto err_free_devcmd2;
+
+	vdev->devcmd2->result = vdev->devcmd2->results_ring.descs;
+	vdev->args[0] = (u64)vdev->devcmd2->results_ring.base_addr |
+	    VNIC_PADDR_TARGET;
+	vdev->args[1] = DEVCMD2_RING_SIZE;
+
+	err = _vnic_dev_cmd2(vdev, CMD_INITIALIZE_DEVCMD2, 1000);
+	if (err)
+		goto err_free_devcmd2;
+
+	vdev->devcmd_rtn = _vnic_dev_cmd2;
+
+	return (err);
+
+err_free_devcmd2:
+	err = ENOMEM;
+	if (vdev->devcmd2->wq_ctrl)
+		vnic_wq_free(&vdev->devcmd2->wq);
+	if (vdev->devcmd2->result)
+		vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
+	free(vdev->devcmd2, M_DEVBUF);
+	vdev->devcmd2 = NULL;
+
+	return (err);
 }
 
 /*
@@ -1036,4 +1192,23 @@ bool vnic_dev_counter_query(struct vnic_dev *vdev, uint32_t idx,
 
 device_t dev_from_vnic_dev(struct vnic_dev *vdev) {
 	return (vdev->softc->dev);
+}
+
+int vnic_dev_cmd_init(struct vnic_dev *vdev) {
+	int err;
+	void __iomem *res;
+
+	res = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (res) {
+		err = vnic_dev_init_devcmd2(vdev);
+		if (err)
+			device_printf(dev_from_vnic_dev(vdev),
+			    "DEVCMD2 init failed, Using DEVCMD1\n");
+		else
+			return 0;
+	}
+
+	err = vnic_dev_init_devcmd1(vdev);
+
+	return (err);
 }
