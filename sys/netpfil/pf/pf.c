@@ -9720,9 +9720,11 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 	struct ip6_frag		 frag;
 	struct ip6_ext		 ext;
 	struct ip6_rthdr	 rthdr;
+	uint32_t		 end;
 	int			 rthdr_cnt = 0;
 
 	pd->off += sizeof(struct ip6_hdr);
+	end = pd->off + ntohs(h->ip6_plen);
 	pd->fragoff = pd->extoff = pd->jumbolen = 0;
 	pd->proto = h->ip6_nxt;
 	for (;;) {
@@ -9746,7 +9748,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 			}
 			pd->fragoff = pd->off;
 			/* stop walking over non initial fragments */
-			if ((frag.ip6f_offlg & IP6F_OFF_MASK) != 0)
+			if (htons((frag.ip6f_offlg & IP6F_OFF_MASK)) != 0)
 				return (PF_PASS);
 			pd->off += sizeof(frag);
 			pd->proto = frag.ip6f_nxt;
@@ -9757,14 +9759,14 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				REASON_SET(reason, PFRES_IPOPTIONS);
 				return (PF_DROP);
 			}
+			/* fragments may be short */
+			if (pd->fragoff != 0 && end < pd->off + sizeof(rthdr)) {
+				pd->off = pd->fragoff;
+				pd->proto = IPPROTO_FRAGMENT;
+				return (PF_PASS);
+			}
 			if (!pf_pull_hdr(pd->m, pd->off, &rthdr, sizeof(rthdr),
 			    NULL, reason, AF_INET6)) {
-				/* fragments may be short */
-				if (pd->fragoff != 0) {
-					pd->off = pd->fragoff;
-					pd->proto = IPPROTO_FRAGMENT;
-					return (PF_PASS);
-				}
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 short rthdr"));
 				return (PF_DROP);
 			}
@@ -9779,14 +9781,14 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 		case IPPROTO_DSTOPTS:
 			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
 			    NULL, reason, AF_INET6)) {
-				/* fragments may be short */
-				if (pd->fragoff != 0) {
-					pd->off = pd->fragoff;
-					pd->proto = IPPROTO_FRAGMENT;
-					return (PF_PASS);
-				}
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 short exthdr"));
 				return (PF_DROP);
+			}
+			/* fragments may be short */
+			if (pd->fragoff != 0 && end < pd->off + sizeof(ext)) {
+				pd->off = pd->fragoff;
+				pd->proto = IPPROTO_FRAGMENT;
+				return (PF_PASS);
 			}
 			/* reassembly needs the ext header before the frag */
 			if (pd->fragoff == 0)
@@ -9815,7 +9817,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 		case IPPROTO_SCTP:
 		case IPPROTO_ICMPV6:
 			/* fragments may be short, ignore inner header then */
-			if (pd->fragoff != 0 && ntohs(h->ip6_plen) < pd->off +
+			if (pd->fragoff != 0 && end < pd->off +
 			    (pd->proto == IPPROTO_TCP ? sizeof(struct tcphdr) :
 			    pd->proto == IPPROTO_UDP ? sizeof(struct udphdr) :
 			    pd->proto == IPPROTO_SCTP ? sizeof(struct sctphdr) :
