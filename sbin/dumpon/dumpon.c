@@ -70,7 +70,7 @@
 
 static int	verbose;
 
-static void _Noreturn
+static _Noreturn void
 usage(void)
 {
 	fprintf(stderr,
