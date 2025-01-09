@@ -434,8 +434,23 @@ enum { PF_ICMP_MULTI_NONE, PF_ICMP_MULTI_LINK };
 			return (PF_PASS);				\
 	} while (0)
 
-#define	BOUND_IFACE(r, k) \
-	((r)->rule_flag & PFRULE_IFBOUND) ? (k) : V_pfi_all
+static struct pfi_kkif *
+BOUND_IFACE(struct pf_krule *rule, struct pfi_kkif *k, struct pf_pdesc *pd)
+{
+	/* Floating unless otherwise specified. */
+	if (! (rule->rule_flag & PFRULE_IFBOUND))
+		return (V_pfi_all);
+
+	/*
+	 * If this state is created based on another state (e.g. SCTP
+	 * multihome) always set it floating initially. We can't know for sure
+	 * what interface the actual traffic for this state will come in on.
+	 */
+	if (pd->related_rule)
+		return (V_pfi_all);
+
+	return (k);
+}
 
 #define	STATE_INC_COUNTERS(s)						\
 	do {								\
@@ -4895,6 +4910,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 	}
 
 	while (r != NULL) {
+		if (pd->related_rule) {
+			*rm = pd->related_rule;
+			break;
+		}
 		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
@@ -5257,7 +5276,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    __func__, nr, sk, nk));
 
 	/* Swap sk/nk for PF_OUT. */
-	if (pf_state_insert(BOUND_IFACE(r, kif), kif,
+	if (pf_state_insert(BOUND_IFACE(r, kif, pd), kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		REASON_SET(&reason, PFRES_STATEINS);
@@ -6220,6 +6239,15 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 			dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
 	}
 
+	/*
+	 * Bind to the correct interface if we're if-bound. For multihomed
+	 * extra associations we don't know which interface that will be until
+	 * here, so we've inserted the state on V_pf_all. Fix that now.
+	 */
+	if ((*state)->kif == V_pfi_all &&
+	    (*state)->rule.ptr->rule_flag & PFRULE_IFBOUND)
+		(*state)->kif = kif;
+
 	if (pd->sctp_flags & (PFDESC_SCTP_COOKIE | PFDESC_SCTP_HEARTBEAT_ACK)) {
 		if (src->state < SCTP_ESTABLISHED) {
 			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
@@ -6416,6 +6444,9 @@ again:
 			j->pd.sctp_flags |= PFDESC_SCTP_ADD_IP;
 			PF_RULES_RLOCK();
 			sm = NULL;
+			if (s->rule.ptr->rule_flag & PFRULE_ALLOW_RELATED) {
+				j->pd.related_rule = s->rule.ptr;
+			}
 			ret = pf_test_rule(&r, &sm, kif,
 			    j->m, off, &j->pd, &ra, &rs, NULL);
 			PF_RULES_RUNLOCK();

@@ -614,6 +614,7 @@ struct pf_rule {
 #define	PFRULE_SET_TOS		0x00002000
 #define	PFRULE_IFBOUND		0x00010000 /* if-bound */
 #define	PFRULE_STATESLOPPY	0x00020000 /* sloppy state tracking */
+#define	PFRULE_ALLOW_RELATED	0x00080000
 
 #ifdef _KERNEL
 #define	PFRULE_REFS		0x0080	/* rule has references */
