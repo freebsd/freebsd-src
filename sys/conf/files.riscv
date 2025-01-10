@@ -12,6 +12,12 @@ dev/pci/pci_host_generic.c	optional	pci
 dev/pci/pci_host_generic_fdt.c	optional	pci fdt
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_lowrisc.c	optional	uart_lowrisc
+dev/usb/controller/generic_ehci.c		optional ehci
+dev/usb/controller/generic_ehci_fdt.c		optional ehci fdt
+dev/usb/controller/generic_ohci.c		optional ohci fdt
+dev/usb/controller/generic_usb_if.m		optional ohci fdt
+dev/usb/controller/generic_xhci.c		optional xhci
+dev/usb/controller/generic_xhci_fdt.c		optional xhci fdt
 dev/vmm/vmm_dev.c		optional	vmm
 dev/vmm/vmm_stat.c		optional	vmm
 dev/xilinx/axi_quad_spi.c	optional	xilinx_spi

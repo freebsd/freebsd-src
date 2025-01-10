@@ -3,6 +3,7 @@ arm/allwinner/aw_gpio.c			optional gpio aw_gpio fdt
 arm/allwinner/aw_rtc.c			optional aw_rtc fdt
 arm/allwinner/aw_syscon.c		optional syscon
 arm/allwinner/aw_sid.c			optional aw_sid nvmem
+arm/allwinner/aw_usbphy.c		optional ehci aw_usbphy fdt
 arm/allwinner/aw_wdog.c			optional aw_wdog
 arm/allwinner/if_awg.c			optional awg syscon
 
@@ -17,5 +18,7 @@ dev/clk/allwinner/aw_clk_nmm.c		optional aw_ccu fdt
 dev/clk/allwinner/aw_clk_np.c		optional aw_ccu fdt
 dev/clk/allwinner/aw_clk_prediv_mux.c	optional aw_ccu fdt
 dev/clk/allwinner/ccu_d1.c		optional soc_allwinner_d1 aw_ccu fdt
+
+dev/usb/controller/musb_otg_allwinner.c	optional musb fdt
 
 riscv/allwinner/d1_padconf.c            optional soc_allwinner_d1 aw_gpio fdt
