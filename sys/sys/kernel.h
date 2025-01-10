@@ -67,7 +67,16 @@ extern int psratio;			/* ratio: prof / stat */
 extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int profprocs;			/* number of process's profiling */
+
+/*
+ * The ticks and ticksl symbols overlap, giving a 64-bit tick counter on 64-bit
+ * platforms while still maintaining compatibility with the legacy 32-bit
+ * counter.  Either value can be used, but rollover must be handled; at 1000Hz,
+ * ticks (and ticksl on 32-bit platforms) roll over roughly every 25 days.  On
+ * 64-bit platforms, ticksl will not roll over in the foreseeable future.
+ */
 extern volatile int ticks;
+extern volatile long ticksl;
 
 #endif /* _KERNEL */
 
