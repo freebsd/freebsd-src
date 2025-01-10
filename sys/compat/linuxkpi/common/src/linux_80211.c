@@ -4551,6 +4551,8 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
 			ic->ic_vht_cap.vht_cap_info =
 			    hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.cap;
+			ic->ic_vht_cap.supp_mcs =
+			    hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_mcs;
 
 			setbit(bands, IEEE80211_MODE_VHT_5GHZ);
 			chan_flags |= NET80211_CBW_FLAG_VHT80;
