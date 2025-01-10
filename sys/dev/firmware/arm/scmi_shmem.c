@@ -326,4 +326,4 @@ DEFINE_CLASS_1(shmem, shmem_driver, shmem_methods, sizeof(struct shmem_softc),
 
 EARLY_DRIVER_MODULE(shmem, mmio_sram, shmem_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-MODULE_VERSION(scmi, 1);
+MODULE_VERSION(scmi_shmem, 1);
