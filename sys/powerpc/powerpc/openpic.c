@@ -266,7 +266,7 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 	openpic_write(sc, OPENPIC_IDEST(irq), mask);
 }
 
-void
+static void
 openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
@@ -318,7 +318,7 @@ openpic_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-void
+static void
 openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 {
 	struct openpic_softc *sc;
@@ -338,7 +338,7 @@ openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 	}
 }
 
-void
+static void
 openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 {
 	struct openpic_softc *sc;
@@ -382,7 +382,7 @@ openpic_mask(device_t dev, u_int irq, void *priv __unused)
 	}
 }
 
-void
+static void
 openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
