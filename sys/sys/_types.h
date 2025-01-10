@@ -29,8 +29,6 @@
 #ifndef _SYS__TYPES_H_
 #define _SYS__TYPES_H_
 
-#include <sys/cdefs.h>
-
 /*
  * Basic types upon which most other types are built.
  *
