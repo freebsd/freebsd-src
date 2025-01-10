@@ -1034,6 +1034,10 @@ void MockFS::write_response(const mockfs_buf_out &out) {
 		ASSERT_EQ(-1, r);
 		ASSERT_EQ(out.expected_errno, errno) << strerror(errno);
 	} else {
+		if (r <= 0 && errno == EINVAL) {
+			printf("Failed to write response.  unique=%lu:\n",
+			    out.header.unique);
+		}
 		ASSERT_TRUE(r > 0 || errno == EAGAIN) << strerror(errno);
 	}
 }
