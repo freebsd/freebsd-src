@@ -3905,7 +3905,7 @@ kern/subr_stack.c		optional ddb | stack | ktr
 kern/subr_stats.c		optional stats
 kern/subr_taskqueue.c		standard
 kern/subr_terminal.c		optional vt
-kern/subr_ticks.s		standard
+kern/subr_ticks.S		standard
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
