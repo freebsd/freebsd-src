@@ -1,6 +1,6 @@
 # Makefile fragment - requires GNU make
 #
-# Copyright (c) 2019-2020, Arm Limited.
+# Copyright (c) 2019-2025, Arm Limited.
 # SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 S := $(srcdir)/networking
@@ -46,12 +46,12 @@ $(networking-objs): CFLAGS_ALL += $(networking-cflags)
 build/lib/libnetworking.so: $(networking-lib-objs:%.o=%.os)
 	$(CC) $(CFLAGS_ALL) $(LDFLAGS) -shared -o $@ $^
 
-build/lib/libnetworkinglib.a: $(networking-lib-objs)
+build/lib/libnetworking.a: $(networking-lib-objs)
 	rm -f $@
 	$(AR) rc $@ $^
 	$(RANLIB) $@
 
-build/bin/test/%: $(B)/test/%.o build/lib/libnetworkinglib.a
+build/bin/test/%: $(B)/test/%.o build/lib/libnetworking.a
 	$(CC) $(CFLAGS_ALL) $(LDFLAGS) -static -o $@ $^ $(LDLIBS)
 
 build/include/%.h: $(S)/include/%.h

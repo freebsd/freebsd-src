@@ -25,9 +25,7 @@ static const struct fun
   F(memmove, 0)
 #if __aarch64__
   F(__memmove_aarch64, 1)
-# if __ARM_NEON
   F(__memmove_aarch64_simd, 1)
-# endif
 # if __ARM_FEATURE_SVE
   F(__memmove_aarch64_sve, 1)
 # endif
