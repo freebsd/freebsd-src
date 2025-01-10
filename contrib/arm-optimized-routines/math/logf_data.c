@@ -1,7 +1,7 @@
 /*
  * Data definition for logf.
  *
- * Copyright (c) 2017-2019, Arm Limited.
+ * Copyright (c) 2017-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -27,6 +27,7 @@ const struct logf_data __logf_data = {
   { 0x1.767dcf5534862p-1, 0x1.4043057b6ee09p-2 },
   },
   .ln2 = 0x1.62e42fefa39efp-1,
+  .invln10 = 0x1.bcb7b1526e50ep-2,
   .poly = {
   -0x1.00ea348b88334p-2, 0x1.5575b0be00b6ap-2, -0x1.ffffef20a4123p-2,
   }

@@ -42,7 +42,6 @@
    exactly which byte matched.  */
 
 ENTRY (__memrchr_aarch64)
-	PTR_ARG (0)
 	add	end, srcin, cntin
 	sub	endm1, end, 1
 	bic	src, endm1, 15

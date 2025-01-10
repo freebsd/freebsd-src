@@ -1,7 +1,7 @@
 /*
  * Double-precision x^y function.
  *
- * Copyright (c) 2018-2020, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
 
 /*
 Worst-case error: 0.54 ULP (~= ulperr_exp + 1024*Ln2*relerr_log*2^53)
@@ -378,3 +379,22 @@ hidden_alias (pow, __ieee754_pow)
 long double powl (long double x, long double y) { return pow (x, y); }
 # endif
 #endif
+
+TEST_ULP (pow, 0.05)
+TEST_ULP_NONNEAREST (pow, 0.5)
+TEST_INTERVAL2 (pow, 0.5, 2.0, 0, inf, 20000)
+TEST_INTERVAL2 (pow, -0.5, -2.0, 0, inf, 20000)
+TEST_INTERVAL2 (pow, 0.5, 2.0, -0, -inf, 20000)
+TEST_INTERVAL2 (pow, -0.5, -2.0, -0, -inf, 20000)
+TEST_INTERVAL2 (pow, 0.5, 2.0, 0x1p-10, 0x1p10, 40000)
+TEST_INTERVAL2 (pow, 0.5, 2.0, -0x1p-10, -0x1p10, 40000)
+TEST_INTERVAL2 (pow, 0, inf, 0.5, 2.0, 80000)
+TEST_INTERVAL2 (pow, 0, inf, -0.5, -2.0, 80000)
+TEST_INTERVAL2 (pow, 0x1.fp-1, 0x1.08p0, 0x1p8, 0x1p17, 80000)
+TEST_INTERVAL2 (pow, 0x1.fp-1, 0x1.08p0, -0x1p8, -0x1p17, 80000)
+TEST_INTERVAL2 (pow, 0, 0x1p-1000, 0, 1.0, 50000)
+TEST_INTERVAL2 (pow, 0x1p1000, inf, 0, 1.0, 50000)
+TEST_INTERVAL2 (pow, 0x1.ffffffffffff0p-1, 0x1.0000000000008p0, 0x1p60, 0x1p68,
+		50000)
+TEST_INTERVAL2 (pow, 0x1.ffffffffff000p-1, 0x1p0, 0x1p50, 0x1p52, 50000)
+TEST_INTERVAL2 (pow, -0x1.ffffffffff000p-1, -0x1p0, 0x1p50, 0x1p52, 50000)

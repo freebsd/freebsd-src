@@ -1,10 +1,12 @@
 /*
  * mathtest.c - test rig for mathlib
  *
- * Copyright (c) 1998-2023, Arm Limited.
+ * Copyright (c) 1998-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
+/* clang-format off */
 
+#define _GNU_SOURCE
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -196,11 +198,9 @@ int is_complex_rettype(int rettype) {
 #define TFUNCARM(arg,ret,name,tolerance) { t_func, arg, ret, (void*)& ARM_PREFIX(name), m_none, tolerance, #name }
 #define MFUNC(arg,ret,name,tolerance) { t_macro, arg, ret, NULL, m_##name, tolerance, #name }
 
-#ifndef PL
 /* sincosf wrappers for easier testing.  */
 static float sincosf_sinf(float x) { float s,c; sincosf(x, &s, &c); return s; }
 static float sincosf_cosf(float x) { float s,c; sincosf(x, &s, &c); return c; }
-#endif
 
 test_func tfuncs[] = {
     /* trigonometric */
@@ -220,10 +220,9 @@ test_func tfuncs[] = {
     TFUNCARM(at_s,rt_s, tanf, 4*ULPUNIT),
     TFUNCARM(at_s,rt_s, sinf, 3*ULPUNIT/4),
     TFUNCARM(at_s,rt_s, cosf, 3*ULPUNIT/4),
-#ifndef PL
     TFUNCARM(at_s,rt_s, sincosf_sinf, 3*ULPUNIT/4),
     TFUNCARM(at_s,rt_s, sincosf_cosf, 3*ULPUNIT/4),
-#endif
+
     /* hyperbolic */
     TFUNC(at_d, rt_d, atanh, 4*ULPUNIT),
     TFUNC(at_d, rt_d, asinh, 4*ULPUNIT),
@@ -254,7 +253,9 @@ test_func tfuncs[] = {
     TFUNCARM(at_s,rt_s, expf, 3*ULPUNIT/4),
     TFUNCARM(at_s,rt_s, exp2f, 3*ULPUNIT/4),
     TFUNC(at_s,rt_s, expm1f, ULPUNIT),
+#if WANT_EXP10_TESTS
     TFUNC(at_d,rt_d, exp10, ULPUNIT),
+#endif
 
     /* power */
     TFUNC(at_d2,rt_d, pow, 3*ULPUNIT/4),
@@ -1707,3 +1708,4 @@ void undef_func() {
     failed++;
     puts("ERROR: undefined function called");
 }
+/* clang-format on */

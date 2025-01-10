@@ -33,13 +33,12 @@ char *__strchr_aarch64_mte (const char *, int);
 char * __strchrnul_aarch64_mte (const char *, int );
 size_t __strlen_aarch64_mte (const char *);
 char *__strrchr_aarch64_mte (const char *, int);
-#if __ARM_NEON
 void *__memcpy_aarch64_simd (void *__restrict, const void *__restrict, size_t);
 void *__memmove_aarch64_simd (void *, const void *, size_t);
-#endif
 # if __ARM_FEATURE_SVE
 void *__memcpy_aarch64_sve (void *__restrict, const void *__restrict, size_t);
 void *__memmove_aarch64_sve (void *__restrict, const void *__restrict, size_t);
+void *__memset_aarch64_sve (void *, int, size_t);
 void *__memchr_aarch64_sve (const void *, int, size_t);
 int __memcmp_aarch64_sve (const void *, const void *, size_t);
 char *__strchr_aarch64_sve (const char *, int);

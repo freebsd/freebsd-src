@@ -1,9 +1,22 @@
 /*
  * Microbenchmark for math functions.
  *
- * Copyright (c) 2018-2023, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
+
+#if WANT_SVE_TESTS
+#  if __aarch64__ && __linux__
+#    ifdef __clang__
+#      pragma clang attribute push(__attribute__((target("sve"))),            \
+				   apply_to = any(function))
+#    else
+#      pragma GCC target("+sve")
+#    endif
+#  else
+#    error "SVE not supported - please disable WANT_SVE_TESTS"
+#  endif
+#endif
 
 #undef _GNU_SOURCE
 #define _GNU_SOURCE 1
@@ -29,94 +42,6 @@ static float Af[N];
 static long measurecount = MEASURE;
 static long itercount = ITER;
 
-#ifdef __vpcs
-#include <arm_neon.h>
-typedef float64x2_t v_double;
-
-#define v_double_len() 2
-
-static inline v_double
-v_double_load (const double *p)
-{
-  return (v_double){p[0], p[1]};
-}
-
-static inline v_double
-v_double_dup (double x)
-{
-  return (v_double){x, x};
-}
-
-typedef float32x4_t v_float;
-
-#define v_float_len() 4
-
-static inline v_float
-v_float_load (const float *p)
-{
-  return (v_float){p[0], p[1], p[2], p[3]};
-}
-
-static inline v_float
-v_float_dup (float x)
-{
-  return (v_float){x, x, x, x};
-}
-#else
-/* dummy definitions to make things compile.  */
-typedef double v_double;
-typedef float v_float;
-#define v_double_len(x) 1
-#define v_double_load(x) (x)[0]
-#define v_double_dup(x) (x)
-#define v_float_len(x) 1
-#define v_float_load(x) (x)[0]
-#define v_float_dup(x) (x)
-
-#endif
-
-#if WANT_SVE_MATH
-#include <arm_sve.h>
-typedef svbool_t sv_bool;
-typedef svfloat64_t sv_double;
-
-#define sv_double_len() svcntd()
-
-static inline sv_double
-sv_double_load (const double *p)
-{
-  svbool_t pg = svptrue_b64();
-  return svld1(pg, p);
-}
-
-static inline sv_double
-sv_double_dup (double x)
-{
-  return svdup_n_f64(x);
-}
-
-typedef svfloat32_t sv_float;
-
-#define sv_float_len() svcntw()
-
-static inline sv_float
-sv_float_load (const float *p)
-{
-  svbool_t pg = svptrue_b32();
-  return svld1(pg, p);
-}
-
-static inline sv_float
-sv_float_dup (float x)
-{
-  return svdup_n_f32(x);
-}
-#else
-/* dummy definitions to make things compile.  */
-#define sv_double_len(x) 1
-#define sv_float_len(x) 1
-#endif
-
 static double
 dummy (double x)
 {
@@ -128,28 +53,28 @@ dummyf (float x)
 {
   return x;
 }
-#ifdef __vpcs
-__vpcs static v_double
-__vn_dummy (v_double x)
+#if __aarch64__ && __linux__
+__vpcs static float64x2_t
+__vn_dummy (float64x2_t x)
 {
   return x;
 }
 
-__vpcs static v_float
-__vn_dummyf (v_float x)
+__vpcs static float32x4_t
+__vn_dummyf (float32x4_t x)
 {
   return x;
 }
 #endif
-#if WANT_SVE_MATH
-static sv_double
-__sv_dummy (sv_double x, sv_bool pg)
+#if WANT_SVE_TESTS
+static svfloat64_t
+__sv_dummy (svfloat64_t x, svbool_t pg)
 {
   return x;
 }
 
-static sv_float
-__sv_dummyf (sv_float x, sv_bool pg)
+static svfloat32_t
+__sv_dummyf (svfloat32_t x, svbool_t pg)
 {
   return x;
 }
@@ -169,16 +94,17 @@ static const struct fun
   {
     double (*d) (double);
     float (*f) (float);
-#ifdef __vpcs
-    __vpcs v_double (*vnd) (v_double);
-    __vpcs v_float (*vnf) (v_float);
+#if __aarch64__ && __linux__
+    __vpcs float64x2_t (*vnd) (float64x2_t);
+    __vpcs float32x4_t (*vnf) (float32x4_t);
 #endif
-#if WANT_SVE_MATH
-    sv_double (*svd) (sv_double, sv_bool);
-    sv_float (*svf) (sv_float, sv_bool);
+#if WANT_SVE_TESTS
+    svfloat64_t (*svd) (svfloat64_t, svbool_t);
+    svfloat32_t (*svf) (svfloat32_t, svbool_t);
 #endif
   } fun;
 } funtab[] = {
+// clang-format off
 #define D(func, lo, hi) {#func, 'd', 0, lo, hi, {.d = func}},
 #define F(func, lo, hi) {#func, 'f', 0, lo, hi, {.f = func}},
 #define VND(func, lo, hi) {#func, 'd', 'n', lo, hi, {.vnd = func}},
@@ -187,11 +113,11 @@ static const struct fun
 #define SVF(func, lo, hi) {#func, 'f', 's', lo, hi, {.svf = func}},
 D (dummy, 1.0, 2.0)
 F (dummyf, 1.0, 2.0)
-#ifdef __vpcs
+#if  __aarch64__ && __linux__
 VND (__vn_dummy, 1.0, 2.0)
 VNF (__vn_dummyf, 1.0, 2.0)
 #endif
-#if WANT_SVE_MATH
+#if WANT_SVE_TESTS
 SVD (__sv_dummy, 1.0, 2.0)
 SVF (__sv_dummyf, 1.0, 2.0)
 #endif
@@ -203,6 +129,7 @@ SVF (__sv_dummyf, 1.0, 2.0)
 #undef VND
 #undef SVF
 #undef SVD
+  // clang-format on
 };
 
 static void
@@ -301,75 +228,77 @@ runf_latency (float f (float))
     prev = f (Af[i] + prev * z);
 }
 
-#ifdef __vpcs
+#if  __aarch64__ && __linux__
 static void
-run_vn_thruput (__vpcs v_double f (v_double))
+run_vn_thruput (__vpcs float64x2_t f (float64x2_t))
 {
-  for (int i = 0; i < N; i += v_double_len ())
-    f (v_double_load (A+i));
+  for (int i = 0; i < N; i += 2)
+    f (vld1q_f64 (A + i));
 }
 
 static void
-runf_vn_thruput (__vpcs v_float f (v_float))
+runf_vn_thruput (__vpcs float32x4_t f (float32x4_t))
 {
-  for (int i = 0; i < N; i += v_float_len ())
-    f (v_float_load (Af+i));
+  for (int i = 0; i < N; i += 4)
+    f (vld1q_f32 (Af + i));
 }
 
 static void
-run_vn_latency (__vpcs v_double f (v_double))
+run_vn_latency (__vpcs float64x2_t f (float64x2_t))
 {
   volatile uint64x2_t vsel = (uint64x2_t) { 0, 0 };
   uint64x2_t sel = vsel;
-  v_double prev = v_double_dup (0);
-  for (int i = 0; i < N; i += v_double_len ())
-    prev = f (vbslq_f64 (sel, prev, v_double_load (A+i)));
+  float64x2_t prev = vdupq_n_f64 (0);
+  for (int i = 0; i < N; i += 2)
+    prev = f (vbslq_f64 (sel, prev, vld1q_f64 (A + i)));
 }
 
 static void
-runf_vn_latency (__vpcs v_float f (v_float))
+runf_vn_latency (__vpcs float32x4_t f (float32x4_t))
 {
   volatile uint32x4_t vsel = (uint32x4_t) { 0, 0, 0, 0 };
   uint32x4_t sel = vsel;
-  v_float prev = v_float_dup (0);
-  for (int i = 0; i < N; i += v_float_len ())
-    prev = f (vbslq_f32 (sel, prev, v_float_load (Af+i)));
+  float32x4_t prev = vdupq_n_f32 (0);
+  for (int i = 0; i < N; i += 4)
+    prev = f (vbslq_f32 (sel, prev, vld1q_f32 (Af + i)));
 }
 #endif
 
-#if WANT_SVE_MATH
+#if WANT_SVE_TESTS
 static void
-run_sv_thruput (sv_double f (sv_double, sv_bool))
+run_sv_thruput (svfloat64_t f (svfloat64_t, svbool_t))
 {
-  for (int i = 0; i < N; i += sv_double_len ())
-    f (sv_double_load (A+i), svptrue_b64 ());
+  for (int i = 0; i < N; i += svcntd ())
+    f (svld1_f64 (svptrue_b64 (), A + i), svptrue_b64 ());
 }
 
 static void
-runf_sv_thruput (sv_float f (sv_float, sv_bool))
+runf_sv_thruput (svfloat32_t f (svfloat32_t, svbool_t))
 {
-  for (int i = 0; i < N; i += sv_float_len ())
-    f (sv_float_load (Af+i), svptrue_b32 ());
+  for (int i = 0; i < N; i += svcntw ())
+    f (svld1_f32 (svptrue_b32 (), Af + i), svptrue_b32 ());
 }
 
 static void
-run_sv_latency (sv_double f (sv_double, sv_bool))
+run_sv_latency (svfloat64_t f (svfloat64_t, svbool_t))
 {
-  volatile sv_bool vsel = svptrue_b64 ();
-  sv_bool sel = vsel;
-  sv_double prev = sv_double_dup (0);
-  for (int i = 0; i < N; i += sv_double_len ())
-    prev = f (svsel_f64 (sel, sv_double_load (A+i), prev), svptrue_b64 ());
+  volatile svbool_t vsel = svptrue_b64 ();
+  svbool_t sel = vsel;
+  svfloat64_t prev = svdup_f64 (0);
+  for (int i = 0; i < N; i += svcntd ())
+    prev = f (svsel_f64 (sel, svld1_f64 (svptrue_b64 (), A + i), prev),
+	      svptrue_b64 ());
 }
 
 static void
-runf_sv_latency (sv_float f (sv_float, sv_bool))
+runf_sv_latency (svfloat32_t f (svfloat32_t, svbool_t))
 {
-  volatile sv_bool vsel = svptrue_b32 ();
-  sv_bool sel = vsel;
-  sv_float prev = sv_float_dup (0);
-  for (int i = 0; i < N; i += sv_float_len ())
-    prev = f (svsel_f32 (sel, sv_float_load (Af+i), prev), svptrue_b32 ());
+  volatile svbool_t vsel = svptrue_b32 ();
+  svbool_t sel = vsel;
+  svfloat32_t prev = svdup_f32 (0);
+  for (int i = 0; i < N; i += svcntw ())
+    prev = f (svsel_f32 (sel, svld1_f32 (svptrue_b32 (), Af + i), prev),
+	      svptrue_b32 ());
 }
 #endif
 
@@ -377,7 +306,11 @@ static uint64_t
 tic (void)
 {
   struct timespec ts;
+#if defined(_MSC_VER)
+  if (!timespec_get (&ts, TIME_UTC))
+#else
   if (clock_gettime (CLOCK_REALTIME, &ts))
+#endif
     abort ();
   return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
@@ -405,9 +338,11 @@ bench1 (const struct fun *f, int type, double lo, double hi)
   int vlen = 1;
 
   if (f->vec == 'n')
-    vlen = f->prec == 'd' ? v_double_len() : v_float_len();
+    vlen = f->prec == 'd' ? 2 : 4;
+#if WANT_SVE_TESTS
   else if (f->vec == 's')
-    vlen = f->prec == 'd' ? sv_double_len() : sv_float_len();
+    vlen = f->prec == 'd' ? svcntd () : svcntw ();
+#endif
 
   if (f->prec == 'd' && type == 't' && f->vec == 0)
     TIMEIT (run_thruput, f->fun.d);
@@ -417,7 +352,7 @@ bench1 (const struct fun *f, int type, double lo, double hi)
     TIMEIT (runf_thruput, f->fun.f);
   else if (f->prec == 'f' && type == 'l' && f->vec == 0)
     TIMEIT (runf_latency, f->fun.f);
-#ifdef __vpcs
+#if __aarch64__ && __linux__
   else if (f->prec == 'd' && type == 't' && f->vec == 'n')
     TIMEIT (run_vn_thruput, f->fun.vnd);
   else if (f->prec == 'd' && type == 'l' && f->vec == 'n')
@@ -427,7 +362,7 @@ bench1 (const struct fun *f, int type, double lo, double hi)
   else if (f->prec == 'f' && type == 'l' && f->vec == 'n')
     TIMEIT (runf_vn_latency, f->fun.vnf);
 #endif
-#if WANT_SVE_MATH
+#if WANT_SVE_TESTS
   else if (f->prec == 'd' && type == 't' && f->vec == 's')
     TIMEIT (run_sv_thruput, f->fun.svd);
   else if (f->prec == 'd' && type == 'l' && f->vec == 's')
@@ -640,3 +575,7 @@ main (int argc, char *argv[])
     }
   return 0;
 }
+
+#if __aarch64__ && __linux__ && WANT_SVE_TESTS && defined(__clang__)
+#  pragma clang attribute pop
+#endif

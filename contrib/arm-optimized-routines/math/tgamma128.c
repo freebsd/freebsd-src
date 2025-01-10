@@ -338,6 +338,8 @@ long double tgamma128(long double x)
                 mult = 2111.484375L+t*(4033.5L+t*(3016.1875L+t*(
                     1140.0L+t*(231.25L+t*(24.0L+t)))));
                 break;
+	    default:
+	        __builtin_unreachable();
             }
         }
 

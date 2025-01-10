@@ -14,40 +14,23 @@
 #include "benchlib.h"
 
 #define ITERS 5000
-#define ITERS2 20000000
-#define ITERS3 2000000
-#define NUM_TESTS 16384
+#define ITERS2 40000000
+#define ITERS3 4000000
+#define NUM_TESTS 65536
 
 #define MAX_ALIGN 32
-#define MAX_STRLEN 256
+#define MAX_STRLEN 128
 
 static char a[(MAX_STRLEN + 1) * MAX_ALIGN] __attribute__((__aligned__(4096)));
 
-#define F(x, mte) {#x, x, mte},
-
-static const struct fun
-{
-  const char *name;
-  size_t (*fun) (const char *s);
-  int test_mte;
-} funtab[] = {
-  // clang-format off
-  F(strlen, 0)
-#if __aarch64__
-  F(__strlen_aarch64, 0)
-  F(__strlen_aarch64_mte, 1)
-# if __ARM_FEATURE_SVE
-  F(__strlen_aarch64_sve, 1)
-# endif
-#elif __arm__
-# if __ARM_ARCH >= 6 && __ARM_ARCH_ISA_THUMB == 2
-  F(__strlen_armv6t2, 0)
-# endif
-#endif
-  {0, 0, 0}
-  // clang-format on
-};
-#undef F
+#define DOTEST(STR,TESTFN)			\
+  printf (STR);					\
+  RUN (TESTFN, strlen);				\
+  RUNA64 (TESTFN, __strlen_aarch64);		\
+  RUNA64 (TESTFN, __strlen_aarch64_mte);	\
+  RUNSVE (TESTFN, __strlen_aarch64_sve);	\
+  RUNT32 (TESTFN, __strlen_armv6t2);		\
+  printf ("\n");
 
 static uint16_t strlen_tests[NUM_TESTS];
 
@@ -124,10 +107,108 @@ init_strlen_tests (void)
 
       strlen_tests[n] =
 	index[(align + exp_len) & (MAX_ALIGN - 1)] + MAX_STRLEN - exp_len;
+      assert ((strlen_tests[n] & (align - 1)) == 0);
+      assert (strlen (a + strlen_tests[n]) == exp_len);
     }
 }
 
 static volatile size_t maskv = 0;
+
+static void inline __attribute ((always_inline))
+strlen_random (const char *name, size_t (*fn)(const char *))
+{
+  size_t res = 0, mask = maskv;
+  uint64_t strlen_size = 0;
+  printf ("%22s ", name);
+
+  for (int c = 0; c < NUM_TESTS; c++)
+    strlen_size += fn (a + strlen_tests[c]) + 1;
+  strlen_size *= ITERS;
+
+  /* Measure throughput of strlen.  */
+  uint64_t t = clock_get_ns ();
+  for (int i = 0; i < ITERS; i++)
+    for (int c = 0; c < NUM_TESTS; c++)
+      res += fn (a + strlen_tests[c]);
+  t = clock_get_ns () - t;
+  printf ("tp: %.3f ", (double)strlen_size / t);
+
+  /* Measure latency of strlen result with (res & mask).  */
+  t = clock_get_ns ();
+  for (int i = 0; i < ITERS; i++)
+    for (int c = 0; c < NUM_TESTS; c++)
+      res += fn (a + strlen_tests[c] + (res & mask));
+  t = clock_get_ns () - t;
+  printf ("lat: %.3f\n", (double)strlen_size / t);
+  maskv = res & mask;
+}
+
+static void inline __attribute ((always_inline))
+strlen_small_aligned (const char *name, size_t (*fn)(const char *))
+{
+  printf ("%22s ", name);
+
+  size_t res = 0, mask = maskv;
+  for (int size = 1; size <= 64; size *= 2)
+    {
+      memset (a, 'x', size);
+      a[size - 1] = 0;
+
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS2; i++)
+	res += fn (a + (i & mask));
+      t = clock_get_ns () - t;
+      printf ("%d%c: %5.2f ", size < 1024 ? size : size / 1024,
+	      size < 1024 ? 'B' : 'K', (double)size * ITERS2 / t);
+    }
+  maskv &= res;
+  printf ("\n");
+}
+
+static void inline __attribute ((always_inline))
+strlen_small_unaligned (const char *name, size_t (*fn)(const char *))
+{
+  printf ("%22s ", name);
+
+  size_t res = 0, mask = maskv;
+  int align = 9;
+  for (int size = 1; size <= 64; size *= 2)
+    {
+      memset (a + align, 'x', size);
+      a[align + size - 1] = 0;
+
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS2; i++)
+	res += fn (a + align + (i & mask));
+      t = clock_get_ns () - t;
+      printf ("%d%c: %5.2f ", size < 1024 ? size : size / 1024,
+	      size < 1024 ? 'B' : 'K', (double)size * ITERS2 / t);
+    }
+  maskv &= res;
+  printf ("\n");
+}
+
+static void inline __attribute ((always_inline))
+strlen_medium (const char *name, size_t (*fn)(const char *))
+{
+  printf ("%22s ", name);
+
+  size_t res = 0, mask = maskv;
+  for (int size = 128; size <= 4096; size *= 2)
+    {
+      memset (a, 'x', size);
+      a[size - 1] = 0;
+
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS3; i++)
+	res += fn (a + (i & mask));
+      t = clock_get_ns () - t;
+      printf ("%d%c: %5.2f ", size < 1024 ? size : size / 1024,
+	      size < 1024 ? 'B' : 'K', (double)size * ITERS3 / t);
+    }
+  maskv &= res;
+  printf ("\n");
+}
 
 int main (void)
 {
@@ -135,87 +216,10 @@ int main (void)
   init_strlen_distribution ();
   init_strlen_tests ();
 
-  printf ("\nRandom strlen (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      size_t res = 0, strlen_size = 0, mask = maskv;
-      printf ("%22s ", funtab[f].name);
-
-      for (int c = 0; c < NUM_TESTS; c++)
-	strlen_size += funtab[f].fun (a + strlen_tests[c]);
-      strlen_size *= ITERS;
-
-      /* Measure latency of strlen result with (res & mask).  */
-      uint64_t t = clock_get_ns ();
-      for (int i = 0; i < ITERS; i++)
-	for (int c = 0; c < NUM_TESTS; c++)
-	  res = funtab[f].fun (a + strlen_tests[c] + (res & mask));
-      t = clock_get_ns () - t;
-      printf ("%.2f\n", (double)strlen_size / t);
-    }
-
-  printf ("\nSmall aligned strlen (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      printf ("%22s ", funtab[f].name);
-
-      for (int size = 1; size <= 64; size *= 2)
-	{
-	  memset (a, 'x', size);
-	  a[size - 1] = 0;
-
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS2; i++)
-	    funtab[f].fun (a);
-	  t = clock_get_ns () - t;
-	  printf ("%d%c: %.2f ", size < 1024 ? size : size / 1024,
-		  size < 1024 ? 'B' : 'K', (double)size * ITERS2 / t);
-	}
-      printf ("\n");
-    }
-
-  printf ("\nSmall unaligned strlen (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      printf ("%22s ", funtab[f].name);
-
-      int align = 9;
-      for (int size = 1; size <= 64; size *= 2)
-	{
-	  memset (a + align, 'x', size);
-	  a[align + size - 1] = 0;
-
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS2; i++)
-	    funtab[f].fun (a + align);
-	  t = clock_get_ns () - t;
-	  printf ("%d%c: %.2f ", size < 1024 ? size : size / 1024,
-		  size < 1024 ? 'B' : 'K', (double)size * ITERS2 / t);
-	}
-      printf ("\n");
-    }
-
-  printf ("\nMedium strlen (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      printf ("%22s ", funtab[f].name);
-
-      for (int size = 128; size <= 4096; size *= 2)
-	{
-	  memset (a, 'x', size);
-	  a[size - 1] = 0;
-
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS3; i++)
-	    funtab[f].fun (a);
-	  t = clock_get_ns () - t;
-	  printf ("%d%c: %.2f ", size < 1024 ? size : size / 1024,
-		  size < 1024 ? 'B' : 'K', (double)size * ITERS3 / t);
-	}
-      printf ("\n");
-    }
-
-  printf ("\n");
+  DOTEST ("Random strlen (bytes/ns):\n", strlen_random);
+  DOTEST ("Small aligned strlen (bytes/ns):\n", strlen_small_aligned);
+  DOTEST ("Small unaligned strlen (bytes/ns):\n", strlen_small_unaligned);
+  DOTEST ("Medium strlen (bytes/ns):\n", strlen_medium);
 
   return 0;
 }

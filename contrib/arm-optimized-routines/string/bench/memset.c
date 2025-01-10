@@ -20,25 +20,16 @@
 #define MIN_SIZE 32768
 #define MAX_SIZE (1024 * 1024)
 
-static uint8_t a[MAX_SIZE + 4096] __attribute__((__aligned__(64)));
+static uint8_t a[MAX_SIZE + 4096] __attribute__((__aligned__(4096)));
 
-#define F(x) {#x, x},
-
-static const struct fun
-{
-  const char *name;
-  void *(*fun)(void *, int, size_t);
-} funtab[] =
-{
-#if __aarch64__
-  F(__memset_aarch64)
-#elif __arm__
-  F(__memset_arm)
-#endif
-  F(memset)
-#undef F
-  {0, 0}
-};
+#define DOTEST(STR,TESTFN)			\
+  printf (STR);					\
+  RUN (TESTFN, memset);				\
+  RUNA64 (TESTFN, __memset_aarch64);		\
+  RUNSVE (TESTFN, __memset_aarch64_sve);	\
+  RUNMOPS (TESTFN, __memset_mops);		\
+  RUNA32 (TESTFN, __memset_arm);		\
+  printf ("\n");
 
 typedef struct { uint32_t offset : 20, len : 12; } memset_test_t;
 static memset_test_t test_arr[NUM_TESTS];
@@ -127,6 +118,64 @@ init_memset (size_t max_size)
   return total;
 }
 
+static void inline __attribute ((always_inline))
+memset_random (const char *name, void *(*set)(void *, int, size_t))
+{
+  uint64_t total_size = 0;
+  uint64_t tsum = 0;
+  printf ("%22s ", name);
+  rand32 (0x12345678);
+
+  for (int size = MIN_SIZE; size <= MAX_SIZE; size *= 2)
+    {
+      uint64_t memset_size = init_memset (size) * ITERS;
+
+      for (int c = 0; c < NUM_TESTS; c++)
+	set (a + test_arr[c].offset, 0, test_arr[c].len);
+
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS; i++)
+	for (int c = 0; c < NUM_TESTS; c++)
+	  set (a + test_arr[c].offset, 0, test_arr[c].len);
+      t = clock_get_ns () - t;
+      total_size += memset_size;
+      tsum += t;
+      printf ("%dK: %5.2f ", size / 1024, (double)memset_size / t);
+    }
+  printf( "avg %5.2f\n", (double)total_size / tsum);
+}
+
+static void inline __attribute ((always_inline))
+memset_medium (const char *name, void *(*set)(void *, int, size_t))
+{
+  printf ("%22s ", name);
+
+  for (int size = 8; size <= 512; size *= 2)
+    {
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS2; i++)
+	set (a, 0, size);
+      t = clock_get_ns () - t;
+      printf ("%dB: %5.2f ", size, (double)size * ITERS2 / t);
+    }
+  printf ("\n");
+}
+
+static void inline __attribute ((always_inline))
+memset_large (const char *name, void *(*set)(void *, int, size_t))
+{
+  printf ("%22s ", name);
+
+  for (int size = 1024; size <= 65536; size *= 2)
+    {
+      uint64_t t = clock_get_ns ();
+      for (int i = 0; i < ITERS3; i++)
+	set (a, 0, size);
+      t = clock_get_ns () - t;
+      printf ("%dKB: %6.2f ", size / 1024, (double)size * ITERS3 / t);
+    }
+  printf ("\n");
+}
 
 int main (void)
 {
@@ -134,110 +183,8 @@ int main (void)
 
   memset (a, 1, sizeof (a));
 
-  printf("Random memset (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      size_t total_size = 0;
-      uint64_t tsum = 0;
-      printf ("%22s ", funtab[f].name);
-      rand32 (0x12345678);
-
-      for (int size = MIN_SIZE; size <= MAX_SIZE; size *= 2)
-	{
-	  size_t memset_size = init_memset (size) * ITERS;
-
-	  for (int c = 0; c < NUM_TESTS; c++)
-	    funtab[f].fun (a + test_arr[c].offset, 0, test_arr[c].len);
-
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS; i++)
-	    for (int c = 0; c < NUM_TESTS; c++)
-	      funtab[f].fun (a + test_arr[c].offset, 0, test_arr[c].len);
-	  t = clock_get_ns () - t;
-	  total_size += memset_size;
-	  tsum += t;
-	  printf ("%dK: %.2f ", size / 1024, (double)memset_size / t);
-	}
-      printf( "avg %.2f\n", (double)total_size / tsum);
-    }
-
-  size_t total_size = 0;
-  uint64_t tsum = 0;
-  printf ("%22s ", "memset_call");
-  rand32 (0x12345678);
-
-  for (int size = MIN_SIZE; size <= MAX_SIZE; size *= 2)
-    {
-      size_t memset_size = init_memset (size) * ITERS;
-
-      for (int c = 0; c < NUM_TESTS; c++)
-	memset (a + test_arr[c].offset, 0, test_arr[c].len);
-
-      uint64_t t = clock_get_ns ();
-      for (int i = 0; i < ITERS; i++)
-	for (int c = 0; c < NUM_TESTS; c++)
-	  memset (a + test_arr[c].offset, 0, test_arr[c].len);
-      t = clock_get_ns () - t;
-      total_size += memset_size;
-      tsum += t;
-      printf ("%dK: %.2f ", size / 1024, (double)memset_size / t);
-    }
-  printf( "avg %.2f\n", (double)total_size / tsum);
-
-
-  printf ("\nMedium memset (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      printf ("%22s ", funtab[f].name);
-
-      for (int size = 8; size <= 512; size *= 2)
-	{
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS2; i++)
-	    funtab[f].fun (a, 0, size);
-	  t = clock_get_ns () - t;
-	  printf ("%dB: %.2f ", size, (double)size * ITERS2 / t);
-	}
-      printf ("\n");
-    }
-
-  printf ("%22s ", "memset_call");
-  for (int size = 8; size <= 512; size *= 2)
-    {
-      uint64_t t = clock_get_ns ();
-      for (int i = 0; i < ITERS2; i++)
-	memset (a, 0, size);
-      t = clock_get_ns () - t;
-      printf ("%dB: %.2f ", size, (double)size * ITERS2 / t);
-    }
-
-
-  printf ("\nLarge memset (bytes/ns):\n");
-  for (int f = 0; funtab[f].name != 0; f++)
-    {
-      printf ("%22s ", funtab[f].name);
-
-      for (int size = 1024; size <= 65536; size *= 2)
-	{
-	  uint64_t t = clock_get_ns ();
-	  for (int i = 0; i < ITERS3; i++)
-	    funtab[f].fun (a, 0, size);
-	  t = clock_get_ns () - t;
-	  printf ("%dK: %.2f ", size / 1024, (double)size * ITERS3 / t);
-	}
-      printf ("\n");
-    }
-
-  printf ("%22s ", "memset_call");
-  for (int size = 1024; size <= 65536; size *= 2)
-    {
-      uint64_t t = clock_get_ns ();
-      for (int i = 0; i < ITERS3; i++)
-	memset (a, 0, size);
-      t = clock_get_ns () - t;
-      printf ("%dK: %.2f ", size / 1024, (double)size * ITERS3 / t);
-    }
-  printf ("\n\n");
-
+  DOTEST ("Random memset (bytes/ns):\n", memset_random);
+  DOTEST ("Medium memset (bytes/ns):\n", memset_medium);
+  DOTEST ("Large memset (bytes/ns):\n", memset_large);
   return 0;
 }

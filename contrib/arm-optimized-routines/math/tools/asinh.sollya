@@ -1,0 +1,28 @@
+// polynomial for approximating asinh(x)
+//
+// Copyright (c) 2022-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+// Polynomial is used in [2^-26, 1]. However it is least accurate close to 1, so
+// we use 2^-6 as the lower bound for coeff generation, which yields sufficiently
+// accurate results in [2^-26, 2^-6].
+a = 0x1p-6;
+b = 1.0;
+
+f = (asinh(sqrt(x)) - sqrt(x))/x^(3/2);
+
+approx = proc(poly, d) {
+  return remez(1 - poly(x)/f(x), deg-d, [a;b], x^d/f(x), 1e-10);
+};
+
+poly = 0;
+for i from 0 to deg do {
+  i;
+  p = roundcoefficients(approx(poly,i), [|D ...|]);
+  poly = poly + x^i*coeff(p,0);
+};
+
+
+display = hexadecimal;
+print("coeffs:");
+for i from 0 to deg do coeff(poly,i);

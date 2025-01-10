@@ -1,0 +1,23 @@
+// polynomial for approximating atan(x) and atan2(y, x)
+//
+// Copyright (c) 2022-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+// atan is odd, so approximate with an odd polynomial:
+// x + ax^3 + bx^5 + cx^7 + ...
+// We generate a, b, c, ... such that we can approximate atan(x) by:
+// x + x^3 * (a + bx^2 + cx^4 + ...)
+
+// Assemble monomials
+deg = 20;
+mons = [|1,...,deg|];
+for i from 0 to deg-1 do mons[i] = mons[i] * 2 + 1;
+
+a = 0x1.0p-1022;
+b = 1;
+
+poly = fpminimax(atan(x)-x, mons, [|double ...|], [a;b]);
+
+display = hexadecimal;
+print("coeffs:");
+for i from 0 to deg-1 do coeff(poly,mons[i]);

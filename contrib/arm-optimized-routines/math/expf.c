@@ -1,13 +1,15 @@
 /*
  * Single-precision e^x function.
  *
- * Copyright (c) 2017-2019, Arm Limited.
+ * Copyright (c) 2017-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 /*
 EXP2F_TABLE_BITS = 5
@@ -89,3 +91,9 @@ expf (float x)
 strong_alias (expf, __expf_finite)
 hidden_alias (expf, __ieee754_expf)
 #endif
+
+TEST_SIG (S, F, 1, exp, -9.9, 9.9)
+TEST_ULP (expf, 0.01)
+TEST_ULP_NONNEAREST (expf, 0.5)
+TEST_INTERVAL (expf, 0, 0xffff0000, 10000)
+TEST_SYM_INTERVAL (expf, 0x1p-14, 0x1p8, 500000)

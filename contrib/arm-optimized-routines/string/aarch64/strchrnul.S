@@ -47,7 +47,6 @@
 /* Locals and temporaries.  */
 
 ENTRY (__strchrnul_aarch64)
-	PTR_ARG (0)
 	/* Magic constant 0x40100401 to allow us to identify which lane
 	   matches the termination condition.  */
 	mov	wtmp2, #0x0401

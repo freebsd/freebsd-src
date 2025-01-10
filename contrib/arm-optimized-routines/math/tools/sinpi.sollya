@@ -1,0 +1,33 @@
+// polynomial for approximating sinpi(x)
+//
+// Copyright (c) 2023-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+deg = 19;  // polynomial degree
+a = -1/2; // interval
+b = 1/2;
+
+// find even polynomial with minimal abs error compared to sinpi(x)
+
+// f = sin(pi* x);
+f = pi*x;
+c = 1;
+for i from 1 to 80 do { c = 2*i*(2*i + 1)*c; f = f + (-1)^i*(pi*x)^(2*i+1)/c; };
+
+// return p that minimizes |f(x) - poly(x) - x^d*p(x)|
+approx = proc(poly,d) {
+  return remez(f(x)-poly(x), deg-d, [a;b], x^d, 1e-10);
+};
+
+// first coeff is predefine, iteratively find optimal double prec coeffs
+poly = pi*x;
+for i from 0 to (deg-1)/2 do {
+  p = roundcoefficients(approx(poly,2*i+1), [|D ...|]);
+  poly = poly + x^(2*i+1)*coeff(p,0);
+};
+
+display = hexadecimal;
+print("abs error:", accurateinfnorm(sin(pi*x)-poly(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 0 to deg do coeff(poly,i);

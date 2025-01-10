@@ -51,8 +51,6 @@
 
 
 ENTRY (__strcmp_aarch64)
-	PTR_ARG (0)
-	PTR_ARG (1)
 	sub	off2, src2, src1
 	mov	zeroones, REP8_01
 	and	tmp, src1, 7
