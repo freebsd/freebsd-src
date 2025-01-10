@@ -245,7 +245,7 @@ extern u_int kobj_lookup_misses;
  * slow way.
  */
 #ifdef KOBJ_STATS
-#define KOBJOPLOOKUP(OPS,OP) do {				\
+#define KOBJOPLOOKUP(OPS, OP) __extension__ ({			\
 	kobjop_desc_t _desc = &OP##_##desc;			\
 	kobj_method_t **_cep =					\
 	    &OPS->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];	\
@@ -256,10 +256,10 @@ extern u_int kobj_lookup_misses;
 		kobj_lookup_misses++;				\
 	} else							\
 		kobj_lookup_hits++;				\
-	_m = _ce->func;						\
-} while (0)
+	(OP##_t *)(_ce->func);					\
+})
 #else
-#define KOBJOPLOOKUP(OPS,OP) do {				\
+#define KOBJOPLOOKUP(OPS, OP) __extension__ ({			\
 	kobjop_desc_t _desc = &OP##_##desc;			\
 	kobj_method_t **_cep =					\
 	    &OPS->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];	\
@@ -267,8 +267,8 @@ extern u_int kobj_lookup_misses;
 	if (_ce->desc != _desc)					\
 		_ce = kobj_lookup_method(OPS->cls,		\
 					 _cep, _desc);		\
-	_m = _ce->func;						\
-} while (0)
+	(OP##_t *)(_ce->func);					\
+})
 #endif
 
 kobj_method_t* kobj_lookup_method(kobj_class_t cls,
