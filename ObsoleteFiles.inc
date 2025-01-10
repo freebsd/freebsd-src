@@ -2236,6 +2236,9 @@ OLD_FILES+=usr/share/certs/trusted/TrustCor_ECA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-2.pem
 
+# 20230510: twe(4) driver removed
+OLD_FILES+=usr/share/man/man4/twe.4.gz
+
 # 20230505: md5 tests are now self-contained
 OLD_FILES+=usr/tests/sbin/md5/1.inp
 OLD_FILES+=usr/tests/sbin/md5/1.sha512-p.chk
