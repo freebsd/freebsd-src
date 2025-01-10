@@ -44,6 +44,7 @@
 
 #if defined(__arm__) || defined(__arm64__) || defined(__riscv)
 #include <dev/clk/clk.h>
+#define	HAS_CLK
 #endif
 
 static int	ofw_cpulist_probe(device_t);
@@ -199,6 +200,30 @@ ofw_cpu_probe(device_t dev)
 }
 
 static int
+get_freq_from_clk(device_t dev, struct ofw_cpu_softc *sc)
+{
+#ifdef HAS_CLK
+	clk_t cpuclk;
+	uint64_t freq;
+	int rv;
+
+	rv = clk_get_by_ofw_index(dev, 0, 0, &cpuclk);
+	if (rv == 0) {
+		rv = clk_get_freq(cpuclk, &freq);
+		if (rv != 0 && bootverbose)
+			device_printf(dev,
+			    "Cannot get freq of property clocks\n");
+		else
+			sc->sc_nominal_mhz = freq / 1000000;
+	}
+
+	return (rv);
+#else
+	return (ENODEV);
+#endif
+}
+
+static int
 ofw_cpu_attach(device_t dev)
 {
 	struct ofw_cpulist_softc *psc;
@@ -206,10 +231,6 @@ ofw_cpu_attach(device_t dev)
 	phandle_t node;
 	pcell_t cell;
 	int rv;
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
-	clk_t cpuclk;
-	uint64_t freq;
-#endif
 
 	sc = device_get_softc(dev);
 	psc = device_get_softc(device_get_parent(dev));
@@ -276,18 +297,7 @@ ofw_cpu_attach(device_t dev)
 	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
-		rv = clk_get_by_ofw_index(dev, 0, 0, &cpuclk);
-		if (rv == 0) {
-			rv = clk_get_freq(cpuclk, &freq);
-			if (rv != 0 && bootverbose)
-				device_printf(dev,
-				    "Cannot get freq of property clocks\n");
-			else
-				sc->sc_nominal_mhz = freq / 1000000;
-		} else
-#endif
-		{
+		if (get_freq_from_clk(dev, sc) != 0) {
 			if (bootverbose)
 				device_printf(dev,
 				    "missing 'clock-frequency' property\n");
@@ -298,6 +308,7 @@ ofw_cpu_attach(device_t dev)
 	if (sc->sc_nominal_mhz != 0 && bootverbose)
 		device_printf(dev, "Nominal frequency %dMhz\n",
 		    sc->sc_nominal_mhz);
+
 	bus_identify_children(dev);
 	bus_attach_children(dev);
 	return (0);
