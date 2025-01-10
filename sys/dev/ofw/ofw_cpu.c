@@ -182,12 +182,33 @@ static driver_t ofw_cpu_driver = {
 
 DRIVER_MODULE(ofw_cpu, cpulist, ofw_cpu_driver, 0, 0);
 
+static bool
+ofw_cpu_is_runnable(phandle_t node)
+{
+	/*
+	 * Per the DeviceTree Specification, a cpu node (under /cpus) that
+	 * has 'status = disabled' indicates that "the CPU is in a quiescent
+	 * state."
+	 *
+	 * A quiescent CPU that specifies an "enable-method", such as
+	 * "spin-table", can still be used by the kernel.
+	 *
+	 * Lacking this, any CPU marked "disabled" or other non-okay status
+	 * should be excluded from the kernel's view.
+	 */
+	return (ofw_bus_node_status_okay(node) ||
+	    OF_hasprop(node, "enable-method"));
+}
+
 static int
 ofw_cpu_probe(device_t dev)
 {
 	const char *type = ofw_bus_get_type(dev);
 
 	if (type == NULL || strcmp(type, "cpu") != 0)
+		return (ENXIO);
+
+	if (!ofw_cpu_is_runnable(ofw_bus_get_node(dev)))
 		return (ENXIO);
 
 	device_set_desc(dev, "Open Firmware CPU");
@@ -352,7 +373,6 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, bool only_runnable)
 {
 	phandle_t node, child;
 	pcell_t addr_cells, reg[2];
-	char status[16];
 	char device_type[16];
 	u_int id, next_id;
 	int count, rv;
@@ -389,14 +409,8 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, bool only_runnable)
 		 * those that have been enabled, or do provide a method
 		 * to enable them.
 		 */
-		if (only_runnable) {
-			status[0] = '\0';
-			OF_getprop(child, "status", status, sizeof(status));
-			if (status[0] != '\0' && strcmp(status, "okay") != 0 &&
-				strcmp(status, "ok") != 0 &&
-				!OF_hasprop(child, "enable-method"))
-					continue;
-		}
+		if (only_runnable && !ofw_cpu_is_runnable(child))
+			continue;
 
 		/*
 		 * Check we have a register to identify the cpu
