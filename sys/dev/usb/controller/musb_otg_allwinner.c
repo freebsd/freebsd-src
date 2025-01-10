@@ -77,7 +77,7 @@
 #if defined(__arm__)
 #define	bs_parent_space(bs)	((bs)->bs_parent)
 typedef bus_space_tag_t	awusb_bs_tag;
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
 #define	bs_parent_space(bs)	(bs)
 typedef void *		awusb_bs_tag;
 #endif
@@ -89,6 +89,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-musb",	AWUSB_OKAY },
 	{ "allwinner,sun8i-a33-musb",	AWUSB_OKAY | AWUSB_NO_CONFDATA },
 	{ "allwinner,sun8i-h3-musb",	AWUSB_OKAY | AWUSB_NO_CONFDATA },
+	{ "allwinner,sun20i-d1-musb",	AWUSB_OKAY | AWUSB_NO_CONFDATA },
 	{ NULL,				0 }
 };
 
@@ -474,7 +475,7 @@ awusbdrd_attach(device_t dev)
 
 #if defined(__arm__)
 	sc->bs.bs_parent = rman_get_bustag(sc->res[0]);
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
 	sc->bs.bs_cookie = rman_get_bustag(sc->res[0]);
 #endif
 
