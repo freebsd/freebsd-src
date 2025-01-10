@@ -416,7 +416,8 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 	}
 }
 
-MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
+MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
+	bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
 	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
@@ -424,6 +425,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	: m_daemon_id(NULL),
 	  m_kernel_minor_version(kernel_minor_version),
 	  m_kq(pm == KQ ? kqueue() : -1),
+	  m_maxread(max_read),
 	  m_maxreadahead(max_readahead),
 	  m_pid(getpid()),
 	  m_uniques(new std::unordered_set<uint64_t>),
@@ -470,6 +472,12 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
 	sprintf(fdstr, "%d", m_fuse_fd);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
+	if (m_maxread > 0) {
+		char val[10];
+
+		snprintf(val, sizeof(val), "%d", m_maxread);
+		build_iovec(&iov, &iovlen, "max_read=", &val, -1);
+	}
 	if (allow_other) {
 		build_iovec(&iov, &iovlen, "allow_other",
 			__DECONST(void*, &trueval), sizeof(bool));
