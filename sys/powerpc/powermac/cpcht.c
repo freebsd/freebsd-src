@@ -558,6 +558,7 @@ openpic_cpcht_attach(device_t dev)
 	struct openpic_cpcht_softc *sc;
 	phandle_t node;
 	int err, irq;
+	pic_config_t *openpic_config;
 
 	node = ofw_bus_get_node(dev);
 	err = openpic_common_attach(dev, node);
@@ -579,6 +580,7 @@ openpic_cpcht_attach(device_t dev)
 	 * IBM CPC945 Manual, Section 9.3.
 	 */
 
+	openpic_config = KOBJOPLOOKUP(&openpic_class, pic_config);
 	for (irq = 0; irq < 4; irq++)
 		openpic_config(dev, irq, INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 	for (irq = 4; irq < 124; irq++)
@@ -645,7 +647,7 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_enable(dev, irq, vec, priv);
+	KOBJOPLOOKUP(&openpic_class, pic_enable)(dev, irq, vec, priv);
 
 	sc = device_get_softc(dev);
 
@@ -674,7 +676,7 @@ openpic_cpcht_unmask(device_t dev, u_int irq, void *priv)
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_unmask(dev, irq, priv);
+	KOBJOPLOOKUP(&openpic_class, pic_unmask)(dev, irq, priv);
 
 	sc = device_get_softc(dev);
 
@@ -728,5 +730,5 @@ openpic_cpcht_eoi(device_t dev, u_int irq, void *priv)
 		}
 	}
 
-	openpic_eoi(dev, irq, priv);
+	KOBJOPLOOKUP(&openpic_class, pic_eoi)(dev, irq, priv);
 }

@@ -77,11 +77,6 @@ int	openpic_common_attach(device_t, uint32_t);
 /*
  * PIC interface.
  */
-void	openpic_config(device_t, u_int, enum intr_trigger, enum intr_polarity);
-void	openpic_enable(device_t, u_int, u_int, void **);
-void	openpic_eoi(device_t, u_int, void *);
-void	openpic_unmask(device_t, u_int, void *);
-
 DECLARE_CLASS(openpic_class);
 
 #endif /* _POWERPC_OPENPICVAR_H_ */
