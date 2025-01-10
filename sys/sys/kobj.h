@@ -271,19 +271,19 @@ extern u_int kobj_lookup_misses;
  * Lookup the method in the cache and if it isn't there look it up the
  * slow way.
  */
-#define KOBJOPLOOKUP(OPS,OP) do {				\
+#define	KOBJ_LOOKUP_METHOD(OBJ, OP) __extension__ ({		\
 	kobjop_desc_t _desc = &OP##_##desc;			\
 	kobj_method_t **_cep =					\
-	    &OPS->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];	\
+	    &(OBJ)->ops->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];\
 	kobj_method_t *_ce = *_cep;				\
 	if (_ce->desc != _desc) {				\
-		_ce = kobj_lookup_method(OPS->cls,		\
+		_ce = kobj_lookup_method((OBJ)->ops->cls,	\
 					 _cep, _desc);		\
 		KOBJ_LOOKUP_MISS();				\
 	} else							\
 		KOBJ_LOOKUP_HIT();				\
-	_m = _ce->func;						\
-} while (0)
+	(OP##_t *)(_ce->func);					\
+})
 
 kobj_method_t* kobj_lookup_method(kobj_class_t cls,
 				  kobj_method_t **cep,
