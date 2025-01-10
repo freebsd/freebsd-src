@@ -115,6 +115,11 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, flexlinuxhack, CTLFLAG_RW,
     &nfsrv_flexlinuxhack, 0,
     "For Linux clients, hack around Flex File Layout bug");
 
+NFSD_VNET_DEFINE_STATIC(bool, nfsd_disable_grace) = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, testing_disable_grace,
+    CTLFLAG_NFSD_VNET | CTLFLAG_RW, &NFSD_VNET_NAME(nfsd_disable_grace),
+    0, "Disable grace for testing");
+
 /*
  * Hash lists for nfs V4.
  */
@@ -4381,11 +4386,13 @@ nfsrv_checkgrace(struct nfsrv_descript *nd, struct nfsclient *clp,
 		 * ReclaimComplete.  If so, grace can end now.
 		 */
 		notreclaimed = 0;
-		LIST_FOREACH(sp, &NFSD_VNET(nfsrv_stablefirst).nsf_head,
-		    nst_list) {
-			if ((sp->nst_flag & NFSNST_RECLAIMED) == 0) {
-				notreclaimed = 1;
-				break;
+		if (!NFSD_VNET(nfsd_disable_grace)) {
+			LIST_FOREACH(sp, &NFSD_VNET(nfsrv_stablefirst).nsf_head,
+			    nst_list) {
+				if ((sp->nst_flag & NFSNST_RECLAIMED) == 0) {
+					notreclaimed = 1;
+					break;
+				}
 			}
 		}
 		if (notreclaimed == 0)
