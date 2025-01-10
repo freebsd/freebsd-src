@@ -42,7 +42,7 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
 
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv__)
+#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
 #include <dev/clk/clk.h>
 #endif
 
@@ -206,7 +206,7 @@ ofw_cpu_attach(device_t dev)
 	phandle_t node;
 	pcell_t cell;
 	int rv;
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv__)
+#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
 	clk_t cpuclk;
 	uint64_t freq;
 #endif
@@ -276,7 +276,7 @@ ofw_cpu_attach(device_t dev)
 	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
 
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
-#if defined(__arm__) || defined(__arm64__) || defined(__riscv__)
+#if defined(__arm__) || defined(__arm64__) || defined(__riscv)
 		rv = clk_get_by_ofw_index(dev, 0, 0, &cpuclk);
 		if (rv == 0) {
 			rv = clk_get_freq(cpuclk, &freq);
