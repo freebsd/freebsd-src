@@ -305,8 +305,25 @@ openpic_intr(void *arg)
 {
 	device_t dev = (device_t)(arg);
 
-	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
-	openpic_dispatch(dev, NULL);
+	/*
+	 * As openpic_intr() is called as an interrupt handler,
+	 * ->td_intr_nesting_level should be above 1.  Otherwise something
+	 * strange is occuring.
+	 */
+	KASSERT(curthread->td_intr_nesting_level > 0,
+	    ("Unexpected thread context"));
+
+	/*
+	 * Decrement the interrupt nesting level ahead of calling
+	 * powerpc_dispatch_intr().  powerpc_dispatch_intr() will call
+	 * intr_event_handle(), which increments ->td_intr_nesting_level.
+	 * If this is not done time accounting will be incorrect and it will
+	 * appear an inordinate amount of processor time is spent handling
+	 * interrupts.
+	 */
+	--curthread->td_intr_nesting_level;
+	openpic_dispatch(dev, curthread->td_intr_frame);
+	++curthread->td_intr_nesting_level;
 
 	return (FILTER_HANDLED);
 }
