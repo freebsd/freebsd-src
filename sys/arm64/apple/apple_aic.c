@@ -137,9 +137,9 @@ struct apple_aic_softc {
 	u_int			sc_ndie;
 #ifdef SMP
 	struct apple_aic_irqsrc	sc_ipi_srcs[AIC_NIPIS];
-	u_int			*sc_cpuids;	/* cpu index to AIC CPU ID */
 	uint32_t		*sc_ipimasks;
 #endif
+	u_int			*sc_cpuids;	/* cpu index to AIC CPU ID */
 };
 
 static u_int aic_next_cpu;
@@ -215,6 +215,7 @@ apple_aic_attach(device_t dev)
 #ifdef SMP
 	sc->sc_ipimasks = malloc(sizeof(*sc->sc_ipimasks) * mp_maxid + 1,
 	    M_DEVBUF, M_WAITOK | M_ZERO);
+#endif
 	sc->sc_cpuids = malloc(sizeof(*sc->sc_cpuids) * mp_maxid + 1,
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -223,8 +224,6 @@ apple_aic_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "BSP CPU %d: whoami %x\n", cpu,
 		    sc->sc_cpuids[cpu]);
-#endif
-
 
 	name = device_get_nameunit(dev);
 	for (i = 0; i < sc->sc_ndie; i++) {
