@@ -16,29 +16,21 @@
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
 #endif
 
-#ifdef _ILP32
-#define	SIZEOF_TICKSL	4
-#define	TICKSL_INIT	.long 0
-#else
-#define	SIZEOF_TICKSL	8
-#define	TICKSL_INIT	.quad 0
-#endif
-
-#if defined(_ILP32) || __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define	TICKS_OFFSET	0
 #else
-#define	TICKS_OFFSET	4
+#define	TICKS_OFFSET	(__SIZEOF_LONG__ - __SIZEOF_INT__)
 #endif
 
-	.data
+	.bss
 
 	.global ticksl
 	.type ticksl, %object
-	.align SIZEOF_TICKSL
-ticksl:	TICKSL_INIT
-	.size ticksl, SIZEOF_TICKSL
+	.align __SIZEOF_LONG__
+ticksl:	.zero __SIZEOF_LONG__
+	.size ticksl, __SIZEOF_LONG__
 
 	.global ticks
 	.type ticks, %object
 ticks	=ticksl + TICKS_OFFSET
-	.size ticks, 4
+	.size ticks, __SIZEOF_INT__
