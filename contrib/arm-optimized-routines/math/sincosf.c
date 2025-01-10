@@ -1,7 +1,7 @@
 /*
  * Single-precision sin/cos function.
  *
- * Copyright (c) 2018-2021, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -9,6 +9,7 @@
 #include <math.h>
 #include "math_config.h"
 #include "sincosf.h"
+#include "test_defs.h"
 
 /* Fast sincosf implementation.  Worst-case ULP is 0.5607, maximum relative
    error is 0.5303 * 2^-23.  A single-step range reduction is used for
@@ -77,3 +78,12 @@ sincosf (float y, float *sinp, float *cosp)
 #endif
     }
 }
+
+TEST_ULP (sincosf_sinf, 0.06)
+TEST_ULP (sincosf_cosf, 0.06)
+TEST_ULP_NONNEAREST (sincosf_sinf, 0.5)
+TEST_ULP_NONNEAREST (sincosf_cosf, 0.5)
+TEST_INTERVAL (sincosf_sinf, 0, 0xffff0000, 10000)
+TEST_SYM_INTERVAL (sincosf_sinf, 0x1p-14, 0x1p54, 50000)
+TEST_INTERVAL (sincosf_cosf, 0, 0xffff0000, 10000)
+TEST_SYM_INTERVAL (sincosf_cosf, 0x1p-14, 0x1p54, 50000)

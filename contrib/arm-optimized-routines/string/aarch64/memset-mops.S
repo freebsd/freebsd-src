@@ -8,9 +8,6 @@
 #include "asmdefs.h"
 
 ENTRY (__memset_aarch64_mops)
-	PTR_ARG (0)
-	SIZE_ARG (2)
-
 	mov     x3, x0
 	.inst   0x19c10443	/* setp    [x3]!, x2!, x1  */
 	.inst   0x19c14443	/* setm    [x3]!, x2!, x1  */

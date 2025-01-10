@@ -1,7 +1,7 @@
 /*
  * Header for sinf, cosf and sincosf.
  *
- * Copyright (c) 2018-2021, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -26,9 +26,6 @@ typedef struct
 
 /* Polynomial data (the cosine polynomial is negated in the 2nd entry).  */
 extern const sincos_t __sincosf_table[2] HIDDEN;
-
-/* Table with 4/PI to 192 bit precision.  */
-extern const uint32_t __inv_pio4[] HIDDEN;
 
 /* Top 12 bits of the float representation with the sign bit cleared.  */
 static inline uint32_t
