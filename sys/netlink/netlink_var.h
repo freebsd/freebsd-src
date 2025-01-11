@@ -147,7 +147,6 @@ void nl_buf_free(struct nl_buf *nb);
 struct genl_family {
 	const char	*family_name;
 	uint16_t	family_hdrsize;
-	uint16_t	family_id;
 	uint16_t	family_version;
 	uint16_t	family_attr_max;
 	uint16_t	family_cmd_size;
@@ -168,7 +167,10 @@ struct genl_group *genl_get_group(uint32_t group_id);
 
 #define	MIN_GROUP_NUM	48
 
+#define	CTRL_FAMILY_ID		0
 #define	CTRL_FAMILY_NAME	"nlctrl"
+#define	CTRL_GROUP_ID		0
+#define	CTRL_GROUP_NAME		"notify"
 
 struct ifnet;
 struct nl_parsed_link;
