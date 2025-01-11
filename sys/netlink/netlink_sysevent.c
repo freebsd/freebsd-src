@@ -82,7 +82,7 @@ sysevent_write(struct sysevent_group *se, const char *subsystem, const char *typ
 {
 	struct nl_writer nw;
 
-	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_GENERIC, se->id,
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_GENERIC, se->id, 0,
 	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
