@@ -178,8 +178,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 			warn("malloc() failed");
 			return (-1);
 		}
-		if (slen > 0)
-			strlcpy(snmptoolctx->passwd, str, slen + 1);
+		strlcpy(snmptoolctx->passwd, str, slen + 1);
 	}
 
 	return (0);
