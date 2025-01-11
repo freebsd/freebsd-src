@@ -531,13 +531,15 @@ TARGET_ARCHES_${target}= ${MACHINE_ARCH_LIST_${target}}
 .endfor
 
 .if defined(USE_GCC_TOOLCHAINS)
-TOOLCHAINS_amd64=	amd64-gcc12
-TOOLCHAINS_arm=		armv7-gcc12
-TOOLCHAINS_arm64=	aarch64-gcc12
-TOOLCHAINS_i386=	i386-gcc12
-TOOLCHAINS_powerpc=	powerpc-gcc12 powerpc64-gcc12
-TOOLCHAIN_powerpc64=	powerpc64-gcc12
-TOOLCHAINS_riscv=	riscv64-gcc12
+_DEFAULT_GCC_VERSION=	gcc12
+_GCC_VERSION=		${"${USE_GCC_TOOLCHAINS:Mgcc*}" != "":?${USE_GCC_TOOLCHAINS}:${_DEFAULT_GCC_VERSION}}
+TOOLCHAINS_amd64=	amd64-${_GCC_VERSION}
+TOOLCHAINS_arm=		armv7-${_GCC_VERSION}
+TOOLCHAINS_arm64=	aarch64-${_GCC_VERSION}
+TOOLCHAINS_i386=	i386-${_GCC_VERSION}
+TOOLCHAINS_powerpc=	powerpc-${_GCC_VERSION} powerpc64-${_GCC_VERSION}
+TOOLCHAIN_powerpc64=	powerpc64-${_GCC_VERSION}
+TOOLCHAINS_riscv=	riscv64-${_GCC_VERSION}
 .endif
 
 # If a target is using an external toolchain, set MAKE_PARAMS to enable use

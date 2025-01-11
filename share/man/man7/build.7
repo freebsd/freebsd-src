@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 13, 2024
+.Dd January 10, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -879,6 +879,11 @@ This variable implies
 Use external GCC toolchains to build the requested targets.
 If the required toolchain package for a supported architecture is not installed,
 the build for that architecture is skipped.
+.Pp
+A specific version of GCC can be used by setting the value of this variable
+to the desired version
+.Pq for example, Dq gcc14 ;
+otherwise a default version of GCC is used.
 .It Va TARGETS
 Only build the listed targets instead of each supported architecture.
 .It Va EXTRA_TARGETS
