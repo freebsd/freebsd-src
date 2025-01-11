@@ -210,7 +210,14 @@
 /* Define if revalidate_disk() in block_device_operations */
 /* #undef HAVE_BLOCK_DEVICE_OPERATIONS_REVALIDATE_DISK */
 
-/* check_disk_change() exists */
+/* Define to 1 if you have the Mac OS X function
+   CFLocaleCopyPreferredLanguages in the CoreFoundation framework. */
+/* #undef HAVE_CFLOCALECOPYPREFERREDLANGUAGES */
+
+/* Define to 1 if you have the Mac OS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+/* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
+
 /* #undef HAVE_CHECK_DISK_CHANGE */
 
 /* copy_splice_read exists */
@@ -394,12 +401,6 @@
 /* iops->symlink() takes struct user_namespace* */
 /* #undef HAVE_IOPS_SYMLINK_USERNS */
 
-/* iov_iter_get_pages() is available */
-/* #undef HAVE_IOV_ITER_GET_PAGES */
-
-/* iov_iter_get_pages2() is available */
-/* #undef HAVE_IOV_ITER_GET_PAGES2 */
-
 /* iov_iter_type() is available */
 /* #undef HAVE_IOV_ITER_TYPE */
 
@@ -408,6 +409,9 @@
 
 /* iter_iov() is available */
 /* #undef HAVE_ITER_IOV */
+
+/* iter_is_ubuf() is available */
+/* #undef HAVE_ITER_IS_UBUF */
 
 /* kernel has kernel_fpu_* functions */
 /* #undef HAVE_KERNEL_FPU */
@@ -505,6 +509,9 @@
 /* Define if host toolchain supports PCLMULQDQ */
 #define HAVE_PCLMULQDQ 1
 
+/* pin_user_pages_unlocked() is available */
+/* #undef HAVE_PIN_USER_PAGES_UNLOCKED */
+
 /* proc_handler ctl_table arg is const */
 /* #undef HAVE_PROC_HANDLER_CTL_TABLE_CONST */
 
@@ -600,9 +607,6 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
-/* Define to 1 if you have the 'strerror_l' function. */
-#define HAVE_STRERROR_L 1
-
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
 
@@ -672,20 +676,11 @@
 /* fops->dedupe_file_range() is available */
 /* #undef HAVE_VFS_DEDUPE_FILE_RANGE */
 
-/* aops->direct_IO() uses iov_iter without rw */
-/* #undef HAVE_VFS_DIRECT_IO_ITER */
-
-/* aops->direct_IO() uses iov_iter with offset */
-/* #undef HAVE_VFS_DIRECT_IO_ITER_OFFSET */
-
 /* filemap_dirty_folio exists */
 /* #undef HAVE_VFS_FILEMAP_DIRTY_FOLIO */
 
 /* generic_copy_file_range() is available */
 /* #undef HAVE_VFS_GENERIC_COPY_FILE_RANGE */
-
-/* All required iov_iter interfaces are available */
-/* #undef HAVE_VFS_IOV_ITER */
 
 /* migrate_folio exists */
 /* #undef HAVE_VFS_MIGRATE_FOLIO */
@@ -792,7 +787,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-114-FreeBSD_ge0039c705"
+#define ZFS_META_ALIAS "zfs-2.3.99-157-FreeBSD_gb8e09c700"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -822,7 +817,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "114-FreeBSD_ge0039c705"
+#define ZFS_META_RELEASE "157-FreeBSD_gb8e09c700"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"
