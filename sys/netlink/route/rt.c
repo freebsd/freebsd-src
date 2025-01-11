@@ -940,7 +940,8 @@ rtnl_handle_delroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	}
 
 	error = rib_del_route_px(attrs.rta_table, attrs.rta_dst,
-	    attrs.rtm_dst_len, path_match_func, &attrs, 0, &rc);
+	    attrs.rtm_dst_len, path_match_func, &attrs,
+	    (attrs.rta_rtflags & RTF_PINNED) ? RTM_F_FORCE : 0, &rc);
 	if (error == 0)
 		report_operation(attrs.rta_table, &rc, nlp, hdr);
 	return (error);
