@@ -205,16 +205,14 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 	return (EINVAL);
 }
 
-int
-bus_generic_attach(device_t dev)
+void
+bus_attach_children(device_t dev)
 {
 	device_t child;
 
 	TAILQ_FOREACH(child, &dev->dev_children, dev_link) {
 		device_probe_and_attach(child);
 	}
-
-	return (0);
 }
 
 bus_space_tag_t
