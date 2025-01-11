@@ -387,8 +387,7 @@ tags = ['functional', 'cli_root', 'zpool']
 tests = ['zpool_add_001_pos', 'zpool_add_002_pos', 'zpool_add_003_pos',
     'zpool_add_004_pos', 'zpool_add_006_pos', 'zpool_add_007_neg',
     'zpool_add_008_neg', 'zpool_add_009_neg', 'zpool_add_010_pos',
-    'add-o_ashift', 'add_prop_ashift', 'zpool_add_dryrun_output',
-    'zpool_add--allow-ashift-mismatch']
+    'add-o_ashift', 'add_prop_ashift', 'zpool_add_dryrun_output']
 tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_attach]
@@ -544,7 +543,8 @@ tags = ['functional', 'cli_root', 'zpool_scrub']
 [tests/functional/cli_root/zpool_set]
 tests = ['zpool_set_001_pos', 'zpool_set_002_neg', 'zpool_set_003_neg',
     'zpool_set_ashift', 'zpool_set_features', 'vdev_set_001_pos',
-    'user_property_001_pos', 'user_property_002_neg']
+    'user_property_001_pos', 'user_property_002_neg',
+    'zpool_set_clear_userprop']
 tags = ['functional', 'cli_root', 'zpool_set']
 
 [tests/functional/cli_root/zpool_split]
@@ -676,8 +676,8 @@ post =
 tags = ['functional', 'deadman']
 
 [tests/functional/dedup]
-tests = ['dedup_legacy_create', 'dedup_fdt_create', 'dedup_fdt_import',
-    'dedup_legacy_create', 'dedup_legacy_import', 'dedup_legacy_fdt_upgrade',
+tests = ['dedup_fdt_create', 'dedup_fdt_import', 'dedup_legacy_create',
+    'dedup_legacy_import', 'dedup_legacy_fdt_upgrade',
     'dedup_legacy_fdt_mixed', 'dedup_quota']
 pre =
 post =

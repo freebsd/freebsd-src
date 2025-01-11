@@ -21,20 +21,24 @@
 #
 
 #
-# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
-# Use is subject to license terms.
+# Copyright (c) 2024, Klara, Inc.
 #
 
-#
-# Copyright (c) 2013, 2016 by Delphix. All rights reserved.
-# Copyright 2025 MNX Cloud, Inc.
-#
+. $STF_SUITE/tests/functional/cli_root/zpool_set/zpool_set_common.kshlib
 
-. $STF_SUITE/include/libtest.shlib
+verify_runnable "both"
 
-log_must destroy_pool $TESTPOOL
+log_assert "Setting a user-defined property to the empty string removes it."
+log_onexit cleanup_user_prop $TESTPOOL
 
-for i in 1 2 3; do
-	dir=$TESTDIR.$i
-	rm -rf $dir
-done
+log_must zpool set cool:pool=hello $TESTPOOL
+log_must check_user_prop $TESTPOOL cool:pool hello local
+log_must zpool set cool:pool= $TESTPOOL
+log_must check_user_prop $TESTPOOL cool:pool '-' default
+
+log_must zpool set cool:vdev=goodbye $TESTPOOL root
+log_must check_vdev_user_prop $TESTPOOL root cool:vdev goodbye local
+log_must zpool set cool:vdev= $TESTPOOL root
+log_must check_vdev_user_prop $TESTPOOL root cool:vdev '-' default
+
+log_pass "Setting a user-defined property to the empty string removes it."

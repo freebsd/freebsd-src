@@ -998,7 +998,6 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_add/add_prop_ashift.ksh \
 	functional/cli_root/zpool_add/cleanup.ksh \
 	functional/cli_root/zpool_add/setup.ksh \
-	functional/cli_root/zpool_add/zpool_add--allow-ashift-mismatch.ksh \
 	functional/cli_root/zpool_add/zpool_add_001_pos.ksh \
 	functional/cli_root/zpool_add/zpool_add_002_pos.ksh \
 	functional/cli_root/zpool_add/zpool_add_003_pos.ksh \
@@ -1243,6 +1242,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_set/user_property_001_pos.ksh \
 	functional/cli_root/zpool_set/user_property_002_neg.ksh \
 	functional/cli_root/zpool_set/zpool_set_features.ksh \
+	functional/cli_root/zpool_set/zpool_set_clear_userprop.ksh \
 	functional/cli_root/zpool_split/cleanup.ksh \
 	functional/cli_root/zpool_split/setup.ksh \
 	functional/cli_root/zpool_split/zpool_split_cliargs.ksh \
@@ -1531,6 +1531,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/fault/decrypt_fault.ksh \
 	functional/fault/fault_limits.ksh \
 	functional/fault/scrub_after_resilver.ksh \
+	functional/fault/suspend_on_probe_errors.ksh \
 	functional/fault/suspend_resume_single.ksh \
 	functional/fault/setup.ksh \
 	functional/fault/zpool_status_-s.ksh \
