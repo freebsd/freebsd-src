@@ -26,7 +26,7 @@ GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
 
 	.global ticksl
 	.type ticksl, %object
-	.align __SIZEOF_LONG__
+	.balign __SIZEOF_LONG__
 ticksl:	.zero __SIZEOF_LONG__
 	.size ticksl, __SIZEOF_LONG__
 
