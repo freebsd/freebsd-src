@@ -33,16 +33,24 @@
 
 /* Genetlink helpers */
 static inline struct nlmsghdr *
-snl_create_genl_msg_request(struct snl_writer *nw, int genl_family, uint8_t genl_cmd)
+snl_create_genl_msg_request(struct snl_writer *nw, uint16_t genl_family,
+    uint8_t genl_cmd)
 {
+	struct nlmsghdr *hdr;
+	struct genlmsghdr *ghdr;
+
 	assert(nw->hdr == NULL);
 
-	struct nlmsghdr *hdr = snl_reserve_msg_object(nw, struct nlmsghdr);
+	hdr = snl_reserve_msg_object(nw, struct nlmsghdr);
+	if (__predict_false(hdr == NULL))
+		return (NULL);
 	hdr->nlmsg_type = genl_family;
 	hdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
-	nw->hdr = hdr;
-	struct genlmsghdr *ghdr = snl_reserve_msg_object(nw, struct genlmsghdr);
+	ghdr = snl_reserve_msg_object(nw, struct genlmsghdr);
+	if (__predict_false(ghdr == NULL))
+		return (NULL);
 	ghdr->cmd = genl_cmd;
+	nw->hdr = hdr;
 
 	return (hdr);
 }
