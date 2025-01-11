@@ -127,6 +127,24 @@ snl_get_genl_family(struct snl_state *ss, const char *family_name)
 	return (attrs.family_id);
 }
 
+static inline uint16_t
+snl_get_genl_mcast_group(struct snl_state *ss, const char *family_name,
+    const char *group_name, uint16_t *family_id)
+{
+	struct _getfamily_attrs attrs = {};
+
+	snl_get_genl_family_info(ss, family_name, &attrs);
+	if (attrs.family_id == 0)
+		return (0);
+	if (family_id != NULL)
+		*family_id = attrs.family_id;
+	for (u_int i = 0; i < attrs.mcast_groups.num_groups; i++)
+		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
+                    group_name) == 0)
+			return (attrs.mcast_groups.groups[i]->mcast_grp_id);
+	return (0);
+}
+
 static const struct snl_hdr_parser *snl_all_genl_parsers[] = {
 	&_genl_ctrl_getfam_parser, &_genl_ctrl_mc_parser,
 };
