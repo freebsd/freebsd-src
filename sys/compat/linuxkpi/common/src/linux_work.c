@@ -212,7 +212,7 @@ linux_flush_rcu_work(struct rcu_work *rwork)
  */
 bool
 linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
-    struct delayed_work *dwork, unsigned delay)
+    struct delayed_work *dwork, unsigned long delay)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_TIMER,		/* start timeout */

@@ -5091,11 +5091,11 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	skb_queue_tail(&ltxq->skbq, skb);
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
-		printf("%s:%d mo_wake_tx_queue :: %d %u lsta %p sta %p "
+		printf("%s:%d mo_wake_tx_queue :: %d %lu lsta %p sta %p "
 		    "ni %p %6D skb %p lxtq %p { qlen %u, ac %d tid %u } "
 		    "WAKE_TX_Q ac %d prio %u qmap %u\n",
 		    __func__, __LINE__,
-		    curthread->td_tid, (unsigned int)ticks,
+		    curthread->td_tid, jiffies,
 		    lsta, sta, ni, ni->ni_macaddr, ":", skb, ltxq,
 		    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
 		    ltxq->txq.tid, ac, skb->priority, skb->qmap);

@@ -63,22 +63,22 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug_napi, CTLFLAG_RWTUN,
 #define	DNAPI_DIRECT_DISPATCH	0x1000
 
 #define	NAPI_TRACE(_n)		if (debug_napi & DNAPI_TRACE)		\
-    printf("NAPI_TRACE %s:%d %u %p (%#jx %b)\n", __func__, __LINE__,	\
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+    printf("NAPI_TRACE %s:%d %lu %p (%#jx %b)\n", __func__, __LINE__,	\
+	jiffies, _n, (uintmax_t)(_n)->state,				\
 	(int)(_n)->state, LKPI_NAPI_FLAGS)
 #define	NAPI_TRACE2D(_n, _d)	if (debug_napi & DNAPI_TRACE)		\
-    printf("NAPI_TRACE %s:%d %u %p (%#jx %b) %d\n", __func__, __LINE__, \
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+    printf("NAPI_TRACE %s:%d %lu %p (%#jx %b) %d\n", __func__, __LINE__, \
+	jiffies, _n, (uintmax_t)(_n)->state,				\
 	(int)(_n)->state, LKPI_NAPI_FLAGS, _d)
 #define	NAPI_TRACE_TASK(_n, _p, _c) if (debug_napi & DNAPI_TRACE_TASK)	\
-    printf("NAPI_TRACE %s:%d %u %p (%#jx %b) pending %d count %d "	\
+    printf("NAPI_TRACE %s:%d %lu %p (%#jx %b) pending %d count %d "	\
 	"rx_count %d\n", __func__, __LINE__,				\
-	(unsigned int)ticks, _n, (uintmax_t)(_n)->state,		\
+	jiffies, _n, (uintmax_t)(_n)->state,				\
 	(int)(_n)->state, LKPI_NAPI_FLAGS, _p, _c, (_n)->rx_count)
 #define	NAPI_TODO()		if (debug_napi & DNAPI_TODO)		\
-    printf("NAPI_TODO %s:%d %d\n", __func__, __LINE__, ticks)
+    printf("NAPI_TODO %s:%d %lu\n", __func__, __LINE__, jiffies)
 #define	NAPI_IMPROVE()		if (debug_napi & DNAPI_IMPROVE)		\
-    printf("NAPI_IMPROVE %s:%d %d\n", __func__, __LINE__, ticks)
+    printf("NAPI_IMPROVE %s:%d %lu\n", __func__, __LINE__, jiffies)
 
 #define	NAPI_DIRECT_DISPATCH()	((debug_napi & DNAPI_DIRECT_DISPATCH) != 0)
 #else
