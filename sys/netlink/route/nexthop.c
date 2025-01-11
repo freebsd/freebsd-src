@@ -554,7 +554,7 @@ delete_unhop(struct unhop_ctl *ctl, struct nlmsghdr *hdr, uint32_t uidx)
 	};
 
 	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP,
-	    false)) {
+	    0, false)) {
 		NL_LOG(LOG_DEBUG, "error allocating message writer");
 		return (ENOMEM);
 	}
@@ -949,7 +949,7 @@ rtnl_handle_newnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	};
 
 	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEXTHOP,
-	    false)) {
+	    0, false)) {
 		NL_LOG(LOG_DEBUG, "error allocating message writer");
 		return (ENOMEM);
 	}

@@ -187,7 +187,7 @@ struct nl_function_wrapper {
 	bool (*nl_writer_unicast)(struct nl_writer *nw, size_t size,
 	    struct nlpcb *nlp, bool waitok);
 	bool (*nl_writer_group)(struct nl_writer *nw, size_t size,
-	    uint16_t protocol, uint16_t group_id, bool waitok);
+	    uint16_t protocol, uint16_t group_id, int priv, bool waitok);
 	bool (*nlmsg_end_dump)(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
 	int (*nl_modify_ifp_generic)(struct ifnet *ifp, struct nl_parsed_link *lattrs,
 	    const struct nlattr_bmask *bm, struct nl_pstate *npt);

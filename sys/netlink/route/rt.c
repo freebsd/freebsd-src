@@ -353,7 +353,8 @@ report_operation(uint32_t fibnum, struct rib_cmd_info *rc,
 	struct nl_writer nw;
 	uint32_t group_id = family_to_group(rt_get_family(rc->rc_rt));
 
-	if (nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id, false)) {
+	if (nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id, 0,
+	    false)) {
 		struct route_nhop_data rnd = {
 			.rnd_nhop = rc_get_nhop(rc),
 			.rnd_weight = rc->rc_nh_weight,
@@ -1082,7 +1083,7 @@ rtnl_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
 	};
 
 	uint32_t group_id = family_to_group(family);
-	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id,
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, group_id, 0,
 	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating event buffer");
 		return;

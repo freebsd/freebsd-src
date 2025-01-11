@@ -118,7 +118,7 @@ nl_writer_unicast_stub(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 static bool
 nl_writer_group_stub(struct nl_writer *nw, size_t size, uint16_t protocol,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
 	return (get_stub_writer(nw));
 }
@@ -221,9 +221,10 @@ nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 bool
 nl_writer_group(struct nl_writer *nw, size_t size, uint16_t protocol,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
-	return (_nl->nl_writer_group(nw, size, protocol, group_id, waitok));
+	return (_nl->nl_writer_group(nw, size, protocol, group_id, priv,
+	    waitok));
 }
 
 bool

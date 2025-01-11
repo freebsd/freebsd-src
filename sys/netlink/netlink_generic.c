@@ -259,7 +259,7 @@ nlctrl_notify(void *arg __unused, const struct genl_family *gf, int cmd)
 	struct nl_writer nw;
 
 	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_GENERIC, ctrl_group_id,
-	    false)) {
+	    0, false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}

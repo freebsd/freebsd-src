@@ -1386,7 +1386,8 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 	if (!nl_has_listeners(NETLINK_ROUTE, group))
 		return;
 
-	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, group, false)) {
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, group, 0,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
@@ -1406,7 +1407,7 @@ rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
 	if (!nl_has_listeners(NETLINK_ROUTE, RTNLGRP_LINK))
 		return;
 
-	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK,
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK, 0,
 	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;

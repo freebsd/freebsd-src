@@ -50,6 +50,7 @@ struct nl_writer {
 		struct {
 			uint16_t	proto;
 			uint16_t	id;
+			int		priv;
 		} group;
 	};
 	u_int		num_messages;	/* Number of messages in the buffer */
@@ -67,7 +68,8 @@ struct nl_writer {
 /* Provide optimized calls to the functions inside the same linking unit */
 
 bool _nl_writer_unicast(struct nl_writer *, size_t, struct nlpcb *nlp, bool);
-bool _nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t, bool);
+bool _nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t, int,
+    bool);
 bool _nlmsg_flush(struct nl_writer *nw);
 void _nlmsg_ignore_limit(struct nl_writer *nw);
 
@@ -89,9 +91,9 @@ nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 static inline bool
 nl_writer_group(struct nl_writer *nw, size_t size, uint16_t proto,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
-	return (_nl_writer_group(nw, size, proto, group_id, waitok));
+	return (_nl_writer_group(nw, size, proto, group_id, priv, waitok));
 }
 
 static inline bool
@@ -141,7 +143,7 @@ nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 /* Provide access to the functions via netlink_glue.c */
 
 bool nl_writer_unicast(struct nl_writer *, size_t, struct nlpcb *, bool waitok);
-bool nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t,
+bool nl_writer_group(struct nl_writer *, size_t, uint16_t, uint16_t, int,
     bool waitok);
 bool nlmsg_flush(struct nl_writer *nw);
 void nlmsg_ignore_limit(struct nl_writer *nw);
