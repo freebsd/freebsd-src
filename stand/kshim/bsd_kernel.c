@@ -557,27 +557,6 @@ static TAILQ_HEAD(, module_data) module_head =
 static TAILQ_HEAD(, devclass) devclasses =
     TAILQ_HEAD_INITIALIZER(devclasses);
 
-static uint8_t
-devclass_equal(const char *a, const char *b)
-{
-	char ta, tb;
-
-	if (a == b)
-		return (1);
-
-	while (1) {
-		ta = *a;
-		tb = *b;
-		if (ta != tb)
-			return (0);
-		if (ta == 0)
-			break;
-		a++;
-		b++;
-	}
-	return (1);
-}
-
 int
 bus_generic_resume(device_t dev)
 {
@@ -906,7 +885,7 @@ device_get_method(device_t dev, const char *what)
 
 	mtod = dev->dev_module->driver->methods;
 	while (mtod->func != NULL) {
-		if (devclass_equal(mtod->desc, what)) {
+		if (strcmp(mtod->desc, what) == 0) {
 			return (mtod->func);
 		}
 		mtod++;
@@ -959,7 +938,7 @@ device_probe_and_attach(device_t dev)
 	bus_name_parent = device_get_name(device_get_parent(dev));
 
 	TAILQ_FOREACH(mod, &module_head, entry) {
-		if (!devclass_equal(mod->bus_name, bus_name_parent))
+		if (strcmp(mod->bus_name, bus_name_parent) != 0)
 			continue;
 
 		dc = devclass_find(mod->mod_name);
@@ -1092,7 +1071,7 @@ devclass_find(const char *classname)
 	devclass_t dc;
 
 	TAILQ_FOREACH(dc, &devclasses, link) {
-		if (devclass_equal(dc->name, classname))
+		if (strcmp(dc->name, classname) == 0)
 			return (dc);
 	}
 	return (NULL);
