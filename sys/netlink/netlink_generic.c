@@ -67,7 +67,8 @@ genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (ENOTSUP);
 	}
 
-	if (__predict_false(hdr->nlmsg_len < sizeof(hdr) + GENL_HDRLEN)) {
+	if (__predict_false(hdr->nlmsg_len < sizeof(struct nlmsghdr) +
+	    GENL_HDRLEN)) {
 		NLP_LOG(LOG_DEBUG, nlp, "invalid message size: %d", hdr->nlmsg_len);
 		return (EINVAL);
 	}
