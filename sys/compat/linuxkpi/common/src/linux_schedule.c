@@ -40,7 +40,7 @@
 
 static int
 linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
-    const char *wmesg, int timeout, int state)
+    const char *wmesg, long timeout, int state)
 {
 	int flags, ret;
 
@@ -249,7 +249,7 @@ linux_waitqueue_active(wait_queue_head_t *wqh)
 }
 
 int
-linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
+linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, long timeout,
     unsigned int state, spinlock_t *lock)
 {
 	struct task_struct *task;
@@ -280,13 +280,13 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 	return (ret);
 }
 
-int
-linux_schedule_timeout(int timeout)
+long
+linux_schedule_timeout(long timeout)
 {
 	struct task_struct *task;
+	long remainder;
 	int ret;
 	int state;
-	int remainder;
 
 	task = current;
 
@@ -296,7 +296,7 @@ linux_schedule_timeout(int timeout)
 	else if (timeout == MAX_SCHEDULE_TIMEOUT)
 		timeout = 0;
 
-	remainder = ticks + timeout;
+	remainder = jiffies + timeout;
 
 	sleepq_lock(task);
 	state = atomic_read(&task->state);
@@ -313,7 +313,7 @@ linux_schedule_timeout(int timeout)
 		return (MAX_SCHEDULE_TIMEOUT);
 
 	/* range check return value */
-	remainder -= ticks;
+	remainder -= jiffies;
 
 	/* range check return value */
 	if (ret == -ERESTARTSYS && remainder < 1)
@@ -344,7 +344,7 @@ linux_wake_up_bit(void *word, int bit)
 
 int
 linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
-    int timeout)
+    long timeout)
 {
 	struct task_struct *task;
 	void *wchan;

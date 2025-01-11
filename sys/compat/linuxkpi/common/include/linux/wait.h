@@ -138,7 +138,7 @@ void linux_wake_up(wait_queue_head_t *, unsigned int, int, bool);
 #define	wake_up_interruptible_all(wqh)					\
 	linux_wake_up(wqh, TASK_INTERRUPTIBLE, 0, false)
 
-int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
+int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, long,
     unsigned int, spinlock_t *);
 
 /*
@@ -148,9 +148,9 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
  */
 #define	__wait_event_common(wqh, cond, timeout, state, lock) ({	\
 	DEFINE_WAIT(__wq);					\
-	const int __timeout = ((int)(timeout)) < 1 ? 1 : (timeout);	\
-	int __start = ticks;					\
-	int __ret = 0;						\
+	const long __timeout = ((long)(timeout)) < 1 ? 1 : (timeout); \
+	long __start = jiffies;					\
+	long __ret = 0;						\
 								\
 	for (;;) {						\
 		linux_prepare_to_wait(&(wqh), &__wq, state);	\
@@ -166,7 +166,7 @@ int linux_wait_event_common(wait_queue_head_t *, wait_queue_t *, int,
 		if (__ret == -EWOULDBLOCK)			\
 			__ret = !!(cond);			\
 		else if (__ret != -ERESTARTSYS) {		\
-			__ret = __timeout + __start - ticks;	\
+			__ret = __timeout + __start - jiffies;	\
 			/* range check return value */		\
 			if (__ret < 1)				\
 				__ret = 1;			\
@@ -284,7 +284,7 @@ void linux_finish_wait(wait_queue_head_t *, wait_queue_t *);
 #define	finish_wait(wqh, wq)		linux_finish_wait(wqh, wq)
 
 void linux_wake_up_bit(void *, int);
-int linux_wait_on_bit_timeout(unsigned long *, int, unsigned int, int);
+int linux_wait_on_bit_timeout(unsigned long *, int, unsigned int, long);
 void linux_wake_up_atomic_t(atomic_t *);
 int linux_wait_on_atomic_t(atomic_t *, unsigned int);
 
