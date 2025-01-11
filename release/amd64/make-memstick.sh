@@ -62,11 +62,9 @@ fi
 # Make an ESP in a file.
 espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 if [ -f "${BASEBITSDIR}/boot/loader_ia32.efi" ]; then
-	make_esp_file ${espfilename} ${fat32min} ${BASEBITSDIR}/boot/loader.efi bootx64 \
-	    ${BASEBITSDIR}/boot/loader_ia32.efi bootia32
-else
-	make_esp_file ${espfilename} ${fat32min} ${BASEBITSDIR}/boot/loader.efi
+	extra_args="${BASEBITSDIR}/boot/loader_ia32.efi bootia32"
 fi
+make_esp_file ${espfilename} ${fat32min} ${BASEBITSDIR}/boot/loader.efi bootx64 ${extra_args}
 
 ${MKIMG} -s mbr \
     -b ${BASEBITSDIR}/boot/mbr \
