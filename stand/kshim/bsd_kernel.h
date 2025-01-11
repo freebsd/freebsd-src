@@ -650,6 +650,7 @@ void bus_release_resources(device_t, const struct resource_spec *,
     struct resource **);
 struct resource *bus_alloc_resource_any(device_t, int, int *, unsigned int);
 void bus_attach_children(device_t);
+int bus_detach_children(device_t);
 bus_space_tag_t rman_get_bustag(struct resource *);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 u_long rman_get_size(struct resource *);

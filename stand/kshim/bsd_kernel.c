@@ -664,7 +664,7 @@ device_get_unit(device_t dev)
 }
 
 int
-bus_generic_detach(device_t dev)
+bus_detach_children(device_t dev)
 {
 	device_t child;
 	int error;
@@ -677,6 +677,17 @@ bus_generic_detach(device_t dev)
 			return (error);
 	}
 	return (0);
+}
+
+int
+bus_generic_detach(device_t dev)
+{
+	int error;
+
+	error = bus_detach_children(dev);
+	if (error == 0)
+		error = device_delete_children(dev);
+	return (error);
 }
 
 const char *
