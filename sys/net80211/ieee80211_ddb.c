@@ -306,8 +306,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 		if (ni->ni_rx_ampdu[i].rxa_flags)
 			_db_show_rxampdu("\t", i, &ni->ni_rx_ampdu[i]);
 
-	db_printf("\tinact %u inact_reload %u txrate %u\n",
-		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
+	db_printf("\tinact %u inact_reload %u txrate type %d rate %u\n",
+		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate.type,
+		ni->ni_txrate.dot11rate);
 #ifdef IEEE80211_SUPPORT_MESH
 	_db_show_ssid("\tmeshid ", 0, ni->ni_meshidlen, ni->ni_meshid);
 	db_printf(" mlstate %b mllid 0x%x mlpid 0x%x mlrcnt %u mltval %u\n",
