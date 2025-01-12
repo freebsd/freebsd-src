@@ -619,6 +619,7 @@ __Tthr_mutex_trylock(pthread_mutex_t *mutex)
 	uint32_t id;
 	int ret, robust;
 
+	_thr_check_init();
 	ret = check_and_init_mutex(mutex, &m);
 	if (ret != 0)
 		return (ret);
