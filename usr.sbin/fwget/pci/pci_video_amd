@@ -153,6 +153,13 @@ pci_video_amd()
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
+		0x15c8)
+			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-4"
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-11"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
+			;;
 		0x164e)
 			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-5"
