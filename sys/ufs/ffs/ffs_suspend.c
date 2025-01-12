@@ -245,16 +245,12 @@ ffs_susp_unsuspend(struct mount *mp)
 static void
 ffs_susp_dtor(void *data)
 {
-	struct fs *fs;
-	struct ufsmount *ump;
 	struct mount *mp;
 	int error;
 
 	sx_xlock(&ffs_susp_lock);
 
 	mp = (struct mount *)data;
-	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
 
 	if (ffs_susp_suspended(mp) == 0) {
 		sx_xunlock(&ffs_susp_lock);
@@ -266,7 +262,8 @@ ffs_susp_dtor(void *data)
 
 	error = ffs_reload(mp, FFSR_FORCE | FFSR_UNSUSPEND);
 	if (error != 0)
-		panic("failed to unsuspend writes on %s", fs->fs_fsmnt);
+		panic("failed to unsuspend writes on %s",
+		    VFSTOUFS(mp)->um_fs->fs_fsmnt);
 
 	ffs_susp_unsuspend(mp);
 	sx_xunlock(&ffs_susp_lock);
