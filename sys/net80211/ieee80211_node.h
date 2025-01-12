@@ -139,6 +139,20 @@ ieee80211_ni_chw_to_str(enum ieee80211_sta_rx_bw bw)
 	}
 }
 
+enum ieee80211_node_txrate_type {
+	IEEE80211_NODE_TXRATE_UNDEFINED		= 0,
+	IEEE80211_NODE_TXRATE_LEGACY		= 1, /* CCK/OFDM, HT for now */
+	IEEE80211_NODE_TXRATE_HT		= 2, /* HT */
+	IEEE80211_NODE_TXRATE_VHT		= 3, /* VHT */
+};
+
+struct ieee80211_node_txrate {
+	enum ieee80211_node_txrate_type type;
+	uint8_t		nss;		/* VHT - number of spatial streams */
+	uint8_t		mcs;		/* HT/VHT - MCS */
+	uint8_t		dot11rate;	/* Legacy/HT - dot11rate / ratecode */
+};
+
 /*
  * Node specific information.  Note that drivers are expected
  * to derive from this structure to add device-specific per-node
@@ -275,7 +289,7 @@ struct ieee80211_node {
 	/* others */
 	short			ni_inact;	/* inactivity mark count */
 	short			ni_inact_reload;/* inactivity reload value */
-	int			ni_txrate;	/* legacy rate/MCS */
+	struct ieee80211_node_txrate	ni_txrate;	/* current transmit rate */
 	struct ieee80211_psq	ni_psq;		/* power save queue */
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
@@ -499,6 +513,11 @@ void	ieee80211_node_leave(struct ieee80211_node *);
 int8_t	ieee80211_getrssi(struct ieee80211vap *);
 void	ieee80211_getsignal(struct ieee80211vap *, int8_t *, int8_t *);
 
+/*
+ * Node transmit rate specific manipulation.
+ *
+ * This should eventually be refactored into its own type.
+ */
 uint8_t	ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *);
 void	ieee80211_node_set_txrate_dot11rate(struct ieee80211_node *, uint8_t);
 void	ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *, uint8_t);
