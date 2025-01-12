@@ -113,7 +113,7 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_HOSTB17H_ROOT	0x1450
 #define	DEVICEID_AMD_HOSTB17H_M10H_ROOT	0x15d0
 #define	DEVICEID_AMD_HOSTB17H_M30H_ROOT	0x1480	/* Also M70H, F19H M00H/M20H */
-#define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630
+#define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630	/* Also F19H M50H */
 #define	DEVICEID_AMD_HOSTB19H_M10H_ROOT	0x14a4
 #define	DEVICEID_AMD_HOSTB19H_M40H_ROOT	0x14b5
 #define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8
@@ -869,6 +869,7 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 	switch (model) {
 	case 0x00 ... 0x0f: /* Zen3 EPYC "Milan" */
 	case 0x20 ... 0x2f: /* Zen3 Ryzen "Vermeer" */
+	case 0x50 ... 0x5f: /* Zen3 Ryzen "Cezanne" */
 		maxreg = 8;
 		_Static_assert((int)NUM_CCDS >= 8, "");
 		break;
