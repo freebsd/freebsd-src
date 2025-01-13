@@ -476,6 +476,7 @@ tmpfs_stat(struct vop_stat_args *v)
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_flags = node->tn_flags;
 	sb->st_gen = node->tn_gen;
+	sb->st_filerev = 0;
 	if (vp->v_type == VREG) {
 #ifdef __ILP32__
 		vm_object_t obj = node->tn_reg.tn_aobj;

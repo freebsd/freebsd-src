@@ -2251,6 +2251,7 @@ copy_stat(struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_blksize);
 	CP(*in, *out, st_flags);
 	CP(*in, *out, st_gen);
+	CP(*in, *out, st_filerev);
 	TS_CP(*in, *out, st_birthtim);
 	out->st_padding0 = 0;
 	out->st_padding1 = 0;

@@ -240,7 +240,8 @@ struct stat32 {
 	uint32_t st_blksize;
 	uint32_t st_flags;
 	uint64_t st_gen;
-	uint64_t st_spare[10];
+	uint64_t st_filerev;
+	uint64_t st_spare[9];
 };
 struct freebsd11_stat32 {
 	uint32_t st_dev;
