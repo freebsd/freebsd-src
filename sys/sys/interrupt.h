@@ -129,6 +129,7 @@ struct intr_event {
 
 /* Interrupt event flags kept in ie_flags. */
 #define	IE_SOFT		0x000001	/* Software interrupt. */
+#define	IE_SLEEPABLE	0x000002	/* Sleepable ithread */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
 
 /* Flags to pass to swi_sched. */

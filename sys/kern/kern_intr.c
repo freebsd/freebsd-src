@@ -610,6 +610,12 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	if (ie == NULL || name == NULL || (handler == NULL && filter == NULL))
 		return (EINVAL);
 
+	if ((flags & INTR_SLEEPABLE) != 0 && (flags & INTR_EXCL) == 0) {
+		printf("%s: INTR_SLEEPABLE requires INTR_EXCL to be set\n",
+		    __func__);
+		return (EINVAL);
+	}
+
 	/* Allocate and populate an interrupt handler structure. */
 	ih = malloc(sizeof(struct intr_handler), M_ITHREAD, M_WAITOK | M_ZERO);
 	ih->ih_filter = filter;
@@ -627,16 +633,18 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	if (flags & INTR_TYPE_NET)
 		ih->ih_flags |= IH_NET;
 
-	/* We can only have one exclusive handler in a event. */
+	/* We can only have one exclusive or sleepable handler in a event. */
 	mtx_lock(&ie->ie_lock);
 	if (!CK_SLIST_EMPTY(&ie->ie_handlers)) {
-		if ((flags & INTR_EXCL) ||
+		if ((flags & (INTR_EXCL | INTR_SLEEPABLE)) ||
 		    (CK_SLIST_FIRST(&ie->ie_handlers)->ih_flags & IH_EXCLUSIVE)) {
 			mtx_unlock(&ie->ie_lock);
 			free(ih, M_ITHREAD);
 			return (EINVAL);
 		}
 	}
+	if (flags & INTR_SLEEPABLE)
+		ie->ie_flags |= IE_SLEEPABLE;
 
 	/* Create a thread if we need one. */
 	while (ie->ie_thread == NULL && handler != NULL) {
@@ -1190,11 +1198,11 @@ static void
 ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 {
 
-	/* Interrupt handlers should not sleep. */
-	if (!(ie->ie_flags & IE_SOFT))
+	/* Only specifically marked sleepable interrupt handlers can sleep. */
+	if (!(ie->ie_flags & (IE_SOFT | IE_SLEEPABLE)))
 		THREAD_NO_SLEEPING();
 	intr_event_execute_handlers(p, ie);
-	if (!(ie->ie_flags & IE_SOFT))
+	if (!(ie->ie_flags & (IE_SOFT | IE_SLEEPABLE)))
 		THREAD_SLEEPING_OK();
 
 	/*
