@@ -116,10 +116,7 @@ struct kobjop_desc {
  */
 #define DECLARE_CLASS(name) extern struct kobj_class name
 
-/*
- * Define a class with no base classes (api backward-compatible. with
- * FreeBSD-5.1 and earlier).
- */
+/* [DEPRECATED] */
 #define DEFINE_CLASS(name, methods, size)     		\
 DEFINE_CLASS_0(name, name ## _class, methods, size)
 
@@ -127,9 +124,10 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
  * Define a class with no base classes. Use like this:
  *
  * DEFINE_CLASS_0(foo, foo_class, foo_methods, sizeof(foo_softc));
+ *
+ * Please use {PUBLIC|PRIVATE}_DEFINE_CLASSN() instead.
  */
 #define DEFINE_CLASS_0(name, classvar, methods, size)	\
-							\
 struct kobj_class classvar = {				\
 	#name, methods, size, NULL, 0, false		\
 }
@@ -139,51 +137,77 @@ struct kobj_class classvar = {				\
  *
  * DEFINE_CLASS_1(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar);
+ *
+ * Please use {PUBLIC|PRIVATE}_DEFINE_CLASSN() instead.
  */
 #define DEFINE_CLASS_1(name, classvar, methods, size,	\
 		       base1)				\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
-}
+	PUBLIC_DEFINE_CLASSN(#name, classvar, methods, size, base1)
 
 /*
  * Define a class inheriting two base classes. Use like this:
  *
  * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
+ *
+ * Please use {PUBLIC|PRIVATE}_DEFINE_CLASSN() instead.
  */
 #define DEFINE_CLASS_2(name, classvar, methods, size,	\
 	               base1, base2)			\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+	PUBLIC_DEFINE_CLASSN(#name, classvar, methods, size, base1, base2)
+
+/*
+ * Define a public class inheriting any number (including zero) base
+ * classes. Use like this:
+ *
+ * PUBLIC_DEFINE_CLASSN("foo", foo_class, foo_methods, sizeof(foo_softc)[,
+ *                        parent0[, parent1[, parent2...]]]);
+ */
+#define PUBLIC_DEFINE_CLASSN(_name, classvar, _methods, _size, ...)	\
+									\
+__VA_OPT__(static kobj_class_t classvar ## _baseclasses[] = {		\
+	__DEFINE_CLASSN_BASE_EXPANDER0(__VA_ARGS__)NULL });		\
+struct kobj_class classvar = {						\
+	.name = _name,							\
+	.methods = _methods,						\
+	.size = _size,							\
+	__VA_OPT__(.baseclasses = classvar ## _baseclasses,)		\
+	.total_size = 0,						\
+	.total_size_inited = false,					\
 }
 
 /*
- * Define a class inheriting three base classes. Use like this:
+ * Define a private class inheriting any number (including zero) base
+ * classes. Use like this:
  *
- * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
- *			  bar, baz, foobar);
+ * PRIVATE_DEFINE_CLASSN("foo", foo_class, foo_methods, sizeof(foo_softc)[,
+ *                        parent0[, parent1[, parent2...]]]);
  */
-#define DEFINE_CLASS_3(name, classvar, methods, size,	\
-		       base1, base2, base3)		\
-							\
-static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1,					\
-	  &base2,					\
-	  &base3, NULL };				\
-struct kobj_class classvar = {				\
-	#name, methods, size, name ## _baseclasses, 0,	\
-	false						\
+#define PRIVATE_DEFINE_CLASSN(_name, classvar, _methods, _size, ...)	\
+									\
+__VA_OPT__(static kobj_class_t classvar ## _baseclasses[] = {		\
+	__DEFINE_CLASSN_BASE_EXPANDER0(__VA_ARGS__)NULL });		\
+static struct kobj_class classvar = {					\
+	.name = _name,							\
+	.methods = _methods,						\
+	.size = _size,							\
+	__VA_OPT__(.baseclasses = classvar ## _baseclasses,)		\
+	.total_size = 0,						\
+	.total_size_inited = false,					\
 }
+
+/* Helper macros for the above, adding ampersands to parent class names */
+#define __DEFINE_CLASSN_BASE_EXPANDER0(base, ...)			\
+	&base, __VA_OPT__(__DEFINE_CLASSN_BASE_EXPANDER1(__VA_ARGS__))
+
+#define __DEFINE_CLASSN_BASE_EXPANDER1(base, ...)			\
+	&base, __VA_OPT__(__DEFINE_CLASSN_BASE_EXPANDER2(__VA_ARGS__))
+
+#define __DEFINE_CLASSN_BASE_EXPANDER2(base, ...)			\
+	&base, __VA_OPT__(__DEFINE_CLASSN_BASE_EXPANDER3(__VA_ARGS__))
+
+#define __DEFINE_CLASSN_BASE_EXPANDER3(base, ...)			\
+	_Static_assert(false, "Expansion exceeded limit of DEFINE_CLASSN()")
 
 /*
  * Compile the method table in a class.
