@@ -2735,7 +2735,8 @@ pfrule		: action dir logquick interface route af proto fromto
 			}
 			if (r.rt) {
 				decide_address_family($5.host, &r.af);
-				remove_invalid_hosts(&$5.host, &r.af);
+				if (!(r.rule_flag & PFRULE_AFTO))
+					remove_invalid_hosts(&$5.host, &r.af);
 				if ($5.host == NULL) {
 					yyerror("no routing address with "
 					    "matching address family found.");
@@ -5502,6 +5503,13 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		yyerror("sloppy state matching cannot be used with "
 		    "synproxy state or modulate state");
 		problems++;
+	}
+	if (r->rule_flag & PFRULE_AFTO && r->rt) {
+		if (r->rt != PF_ROUTETO) {
+			yyerror("reply-to and dup-to "
+			   "must not be used on af-to rules");
+			problems++;
+		}
 	}
 	/* match rules rules */
 	if (r->action == PF_MATCH) {

@@ -8941,11 +8941,22 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
+		if (((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) &&
+		    (pd->af == pd->naf)) {
 			pf_dummynet(pd, s, r, m);
 			if (s)
 				PF_STATE_UNLOCK(s);
 			return;
+		}
+
+		/*
+		 * If we're actually doing route-to and af-to and are in the
+		 * reply direction.
+		 */
+		if (pd->act.rt_kif && pd->act.rt_kif->pfik_ifp &&
+		    pd->af != pd->naf && r->naf != AF_INET) {
+			/* Un-set ifp so we do a plain route lookup. */
+			ifp = NULL;
 		}
 		m0 = *m;
 	}
@@ -9201,11 +9212,22 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
+		if (((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) &&
+		    (pd->af == pd->naf)) {
 			pf_dummynet(pd, s, r, m);
 			if (s)
 				PF_STATE_UNLOCK(s);
 			return;
+		}
+
+		/*
+		 * If we're actually doing route-to and af-to and are in the
+		 * reply direction.
+		 */
+		if (pd->act.rt_kif && pd->act.rt_kif->pfik_ifp &&
+		    pd->af != pd->naf && r->naf != AF_INET6) {
+			/* Un-set ifp so we do a plain route lookup. */
+			ifp = NULL;
 		}
 		m0 = *m;
 	}

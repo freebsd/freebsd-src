@@ -943,7 +943,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			printf(" dup-to");
 		printf(" ");
 		print_pool(&r->rdr, 0, 0, r->af, PF_PASS);
-		print_pool(&r->route, 0, 0, r->af, PF_PASS);
+		print_pool(&r->route, 0, 0,
+		    r->rule_flag & PFRULE_AFTO ? r->naf : r->af, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
