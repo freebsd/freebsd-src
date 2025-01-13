@@ -1044,8 +1044,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 			ieee80211_vht_updateparams(ni,
 			    ni->ni_ies.vhtcap_ie,
 			    ni->ni_ies.vhtopmode_ie);
-			ieee80211_setup_vht_rates(ni, ni->ni_ies.vhtcap_ie,
-			    ni->ni_ies.vhtopmode_ie);
+			ieee80211_setup_vht_rates(ni);
 			do_ht = 1;
 		}
 	}
@@ -1874,9 +1873,7 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 				ieee80211_vht_updateparams(ni,
 				    ni->ni_ies.vhtcap_ie,
 				    ni->ni_ies.vhtopmode_ie);
-				ieee80211_setup_vht_rates(ni,
-				    ni->ni_ies.vhtcap_ie,
-				    ni->ni_ies.vhtopmode_ie);
+				ieee80211_setup_vht_rates(ni);
 			}
 		}
 

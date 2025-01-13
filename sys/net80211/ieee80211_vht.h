@@ -40,8 +40,7 @@ void	ieee80211_parse_vhtcap(struct ieee80211_node *, const uint8_t *);
 
 int	ieee80211_vht_updateparams(struct ieee80211_node *,
 	    const uint8_t *, const uint8_t *);
-void	ieee80211_setup_vht_rates(struct ieee80211_node *,
-	    const uint8_t *, const uint8_t *);
+void	ieee80211_setup_vht_rates(struct ieee80211_node *);
 
 void	ieee80211_vht_timeout(struct ieee80211vap *vap);
 

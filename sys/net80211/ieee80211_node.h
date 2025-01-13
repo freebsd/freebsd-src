@@ -274,8 +274,8 @@ struct ieee80211_node {
 
 	/* VHT state */
 	uint32_t		ni_vhtcap;
-	uint16_t		ni_vht_basicmcs;
-	uint16_t		ni_vht_pad2;
+	uint16_t		ni_vht_basicmcs;	/* Basic VHT MCS bitmap from IE */
+	uint16_t		ni_vht_tx_map;		/* Negotiated MCS TX map with peer */
 	struct ieee80211_vht_mcs_info	ni_vht_mcsinfo;
 	uint8_t			ni_vht_chan1;	/* 20/40/80/160 - VHT chan1 */
 	uint8_t			ni_vht_chan2;	/* 80+80 - VHT chan2 */
