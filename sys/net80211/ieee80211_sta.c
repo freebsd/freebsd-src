@@ -1875,7 +1875,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				} else {
 					ieee80211_vht_node_init(ni);
 					ieee80211_vht_updateparams(ni, vhtcap, vhtopmode);
-					ieee80211_setup_vht_rates(ni, vhtcap, vhtopmode);
+					ieee80211_setup_vht_rates(ni);
 				}
 			}
 

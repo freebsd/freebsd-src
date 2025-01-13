@@ -317,9 +317,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 #endif
 
 	/* VHT state */
-	db_printf("\tvhtcap %b vht_basicmcs %#06x vht_pad2 %#06x\n",
+	db_printf("\tvhtcap %b vht_basicmcs %#06x vht_tx_map %#06x\n",
 	    ni->ni_vhtcap, IEEE80211_VHTCAP_BITS,
-	    ni->ni_vht_basicmcs, ni->ni_vht_pad2);
+	    ni->ni_vht_basicmcs, ni->ni_vht_tx_map);
 	db_printf("\tvht_mcsinfo: { rx_mcs_map %#06x rx_highest %#06x "
 	    "tx_mcs_map %#06x tx_highest %#06x }\n",
 	    ni->ni_vht_mcsinfo.rx_mcs_map, ni->ni_vht_mcsinfo.rx_highest,
