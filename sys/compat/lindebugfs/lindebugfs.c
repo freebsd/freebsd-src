@@ -328,6 +328,23 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 	return (NULL);
 }
 
+struct dentry *
+debugfs_lookup(const char *name, struct dentry *parent)
+{
+	struct dentry_meta *dm;
+	struct dentry *dnode;
+	struct pfs_node *pnode;
+
+	pnode = pfs_find_node(parent->d_pfs_node, name);
+	if (pnode == NULL)
+		return (NULL);
+
+	dm = (struct dentry_meta *)pnode->pn_data;
+	dnode = &dm->dm_dnode;
+
+	return (dnode);
+}
+
 void
 debugfs_remove(struct dentry *dnode)
 {
