@@ -1620,6 +1620,7 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
 
+	sbp->st_filerev = 0;
 	error = fo_stat(fp, sbp, td->td_ucred);
 	fdrop(fp, td);
 #ifdef __STAT_TIME_T_EXT
