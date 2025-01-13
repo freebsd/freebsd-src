@@ -421,8 +421,9 @@ after_sack_rexmit:
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = imin(sbavail(&so->so_snd) - off,
-				sendwin - tcp_compute_pipe(tp));
+			len = imax(
+			    imin(sbavail(&so->so_snd), sendwin) -
+			    imax(tcp_compute_pipe(tp), off), 0);
 		}
 	}
 
