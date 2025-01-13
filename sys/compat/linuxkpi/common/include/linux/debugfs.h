@@ -82,6 +82,8 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
     const char *dest);
 
+struct dentry *debugfs_lookup(const char *name, struct dentry *parent);
+
 void debugfs_remove(struct dentry *dentry);
 
 void debugfs_remove_recursive(struct dentry *dentry);
