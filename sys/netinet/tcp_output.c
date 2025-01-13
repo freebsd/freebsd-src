@@ -203,7 +203,7 @@ tcp_default_output(struct tcpcb *tp)
 	unsigned ipoptlen, optlen, hdrlen, ulen;
 	unsigned ipsec_optlen = 0;
 	int idle, sendalot, curticks;
-	int sack_rxmit, sack_bytes_rxmt;
+	int sack_bytes_rxmt;
 	struct sackhole *p;
 	int tso, mtu;
 	struct tcpopt to;
@@ -211,6 +211,7 @@ tcp_default_output(struct tcpcb *tp)
 	struct tcp_log_buffer *lgb;
 	unsigned int wanted_cookie = 0;
 	unsigned int dont_sendalot = 0;
+	bool sack_rxmit;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	const bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
@@ -287,10 +288,8 @@ again:
 	/*
 	 * Still in sack recovery , reset rxmit flag to zero.
 	 */
-	sack_rxmit = 0;
 	sack_bytes_rxmt = 0;
 	len = 0;
-	p = NULL;
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
 	    (IN_FASTRECOVERY(tp->t_flags) ||
 	     (SEQ_LT(tp->snd_nxt, tp->snd_max) && (tp->t_dupacks >= tcprexmtthresh))) &&
@@ -317,6 +316,7 @@ again:
 				 * moves past p->rxmit.
 				 */
 				p = NULL;
+				sack_rxmit = false;
 				goto after_sack_rexmit;
 			} else {
 				/* Can rexmit part of the current hole */
@@ -343,12 +343,15 @@ again:
 		 * Wouldn't be here if there would have been
 		 * nothing in the scoreboard to transmit.
 		 */
-		sack_rxmit = 1;
 		if (len > 0) {
 			off = SEQ_SUB(p->rxmit, tp->snd_una);
 			KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 			    __func__, off));
 		}
+		sack_rxmit = true;
+	} else {
+		p = NULL;
+		sack_rxmit = false;
 	}
 after_sack_rexmit:
 	/*
@@ -409,7 +412,7 @@ after_sack_rexmit:
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
 	 * in which case len is already set.
 	 */
-	if (sack_rxmit == 0) {
+	if (!sack_rxmit) {
 		if ((sack_bytes_rxmt == 0) || SEQ_LT(tp->snd_nxt, tp->snd_max)) {
 			len = imin(sbavail(&so->so_snd), sendwin) - off;
 		} else {
@@ -557,7 +560,7 @@ after_sack_rexmit:
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    (tp->t_port == 0) &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-	    ((sack_rxmit == 0) || V_tcp_sack_tso) &&
+	    (!sack_rxmit || V_tcp_sack_tso) &&
 	    (ipoptlen == 0 || (ipoptlen == ipsec_optlen &&
 	     (tp->t_flags2 & TF2_IPSEC_TSO) != 0)) &&
 	    !(flags & TH_SYN))
@@ -981,7 +984,7 @@ send:
 				 */
 				SOCK_SENDBUF_UNLOCK(so);
 				error = EMSGSIZE;
-				sack_rxmit = 0;
+				sack_rxmit = false;
 				goto out;
 			}
 			len = tp->t_maxseg - optlen - ipoptlen;
@@ -1063,7 +1066,7 @@ send:
 		if (m == NULL) {
 			SOCK_SENDBUF_UNLOCK(so);
 			error = ENOBUFS;
-			sack_rxmit = 0;
+			sack_rxmit = false;
 			goto out;
 		}
 
@@ -1107,7 +1110,7 @@ send:
 				SOCK_SENDBUF_UNLOCK(so);
 				(void) m_free(m);
 				error = ENOBUFS;
-				sack_rxmit = 0;
+				sack_rxmit = false;
 				goto out;
 			}
 		}
@@ -1136,7 +1139,7 @@ send:
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sack_rxmit = 0;
+			sack_rxmit = false;
 			goto out;
 		}
 #ifdef INET6
@@ -1233,7 +1236,7 @@ send:
 	 * case, since we know we aren't doing a retransmission.
 	 * (retransmit and persist are mutually exclusive...)
 	 */
-	if (sack_rxmit == 0) {
+	if (!sack_rxmit) {
 		if (len || (flags & (TH_SYN|TH_FIN)) ||
 		    tcp_timer_active(tp, TT_PERSIST))
 			th->th_seq = htonl(tp->snd_nxt);
