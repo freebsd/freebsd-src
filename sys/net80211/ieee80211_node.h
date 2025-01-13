@@ -519,6 +519,8 @@ void	ieee80211_getsignal(struct ieee80211vap *, int8_t *, int8_t *);
  * This should eventually be refactored into its own type.
  */
 uint8_t	ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *);
+void	ieee80211_node_get_txrate(struct ieee80211_node *,
+		struct ieee80211_node_txrate *);
 void	ieee80211_node_set_txrate_dot11rate(struct ieee80211_node *, uint8_t);
 void	ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *, uint8_t);
 uint32_t	ieee80211_node_get_txrate_kbit(struct ieee80211_node *);

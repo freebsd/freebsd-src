@@ -3172,6 +3172,26 @@ ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *ni)
 }
 
 /**
+ * @brief return the txrate representing the current transmit rate
+ *
+ * This is the API call for drivers and rate control APIs to fetch
+ * rates.  It will populate a struct ieee80211_node_txrate with the
+ * current rate configuration to use.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param txrate	the struct ieee80211_node_txrate to populate
+ */
+void
+ieee80211_node_get_txrate(struct ieee80211_node *ni,
+    struct ieee80211_node_txrate *txr)
+{
+	MPASS(ni != NULL);
+	MPASS(txr != NULL);
+
+	*txr = ni->ni_txrate;
+}
+
+/**
  * @brief set the dot11rate / ratecode representing the current transmit rate
  *
  * This is the API call for legacy / 802.11n drivers and rate control APIs
