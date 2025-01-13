@@ -138,8 +138,7 @@ nl_port_lookup(uint32_t port_id)
 static void
 nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
 {
-	MPASS(group_id <= NLP_MAX_GROUPS);
-	--group_id;
+	MPASS(group_id < NLP_MAX_GROUPS);
 
 	/* TODO: add family handler callback */
 	if (!nlp_unconstrained_vnet(nlp))
@@ -151,8 +150,7 @@ nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
 static void
 nl_del_group_locked(struct nlpcb *nlp, unsigned int group_id)
 {
-	MPASS(group_id <= NLP_MAX_GROUPS);
-	--group_id;
+	MPASS(group_id < NLP_MAX_GROUPS);
 
 	BIT_CLR(NLP_MAX_GROUPS, group_id, &nlp->nl_groups);
 }
@@ -160,8 +158,7 @@ nl_del_group_locked(struct nlpcb *nlp, unsigned int group_id)
 static bool
 nl_isset_group_locked(struct nlpcb *nlp, unsigned int group_id)
 {
-	MPASS(group_id <= NLP_MAX_GROUPS);
-	--group_id;
+	MPASS(group_id < NLP_MAX_GROUPS);
 
 	return (BIT_ISSET(NLP_MAX_GROUPS, group_id, &nlp->nl_groups));
 }
