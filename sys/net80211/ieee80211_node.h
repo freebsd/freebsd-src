@@ -521,8 +521,12 @@ void	ieee80211_getsignal(struct ieee80211vap *, int8_t *, int8_t *);
 uint8_t	ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *);
 void	ieee80211_node_get_txrate(struct ieee80211_node *,
 		struct ieee80211_node_txrate *);
+void	ieee80211_node_set_txrate(struct ieee80211_node *,
+	    const struct ieee80211_node_txrate *);
 void	ieee80211_node_set_txrate_dot11rate(struct ieee80211_node *, uint8_t);
 void	ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *, uint8_t);
 uint32_t	ieee80211_node_get_txrate_kbit(struct ieee80211_node *);
+void	ieee80211_node_set_txrate_vht_rate(struct ieee80211_node *ni,
+	    uint8_t nss, uint8_t mcs);
 
 #endif /* _NET80211_IEEE80211_NODE_H_ */

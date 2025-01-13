@@ -3189,6 +3189,26 @@ ieee80211_node_get_txrate(struct ieee80211_node *ni,
 }
 
 /**
+ * @brief Set the txrate representing the current transmit rate
+ *
+ * This is the API call for drivers and rate control APIs to set
+ * rates.  It will copy a struct ieee80211_node_txrate with the
+ * current rate configuration to use.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param txrate	the struct ieee80211_node_txrate to copy to the node
+ */
+void
+ieee80211_node_set_txrate(struct ieee80211_node *ni,
+    const struct ieee80211_node_txrate *txr)
+{
+	MPASS(ni != NULL);
+	MPASS(txr != NULL);
+
+	ni->ni_txrate = *txr;
+}
+
+/**
  * @brief set the dot11rate / ratecode representing the current transmit rate
  *
  * This is the API call for legacy / 802.11n drivers and rate control APIs
@@ -3240,6 +3260,26 @@ ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *ni,
 	ni->ni_txrate.dot11rate = IEEE80211_RATE_MCS | mcs;
 }
 
+/**
+ * @brief set the rate to the given VHT transmission rate.
+ *
+ * This sets the current transmit rate to the given VHT NSS/MCS.
+ *
+ * @param ni		the ieee80211_node to set the transmit rate for
+ * @param nss		the number of spatial streams
+ * @param mcs		the MCS rate to select
+ */
+void
+ieee80211_node_set_txrate_vht_rate(struct ieee80211_node *ni,
+    uint8_t nss, uint8_t mcs)
+{
+	MPASS(ni != NULL);
+
+	ni->ni_txrate.type = IEEE80211_NODE_TXRATE_VHT;
+	ni->ni_txrate.mcs = mcs;
+	ni->ni_txrate.nss = nss;
+	ni->ni_txrate.dot11rate = 0;
+}
 
 /*
  * @brief Fetch the transmit rate for the given node in kbit/s.
