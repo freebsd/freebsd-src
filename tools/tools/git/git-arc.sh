@@ -654,10 +654,14 @@ gitarc__stage()
     local author branch commit commits diff reviewers title tmp
 
     branch=main
-    while getopts b: o; do
+    change_branch=yes
+    while getopts b:n o; do
         case "$o" in
         b)
             branch="$OPTARG"
+            ;;
+        n)
+            change_branch=no
             ;;
         *)
             err_usage
@@ -668,10 +672,12 @@ gitarc__stage()
 
     commits=$(build_commit_list "$@")
 
-    if [ "$branch" = "main" ]; then
-        git checkout -q main
-    else
-        git checkout -q -b "${branch}" main
+    if [ "$change_branch" = "yes" ]; then
+        if [ "$branch" = "main" ]; then
+            git checkout -q main
+        else
+            git checkout -q -b "${branch}" main
+        fi
     fi
 
     tmp=$(xmktemp)
