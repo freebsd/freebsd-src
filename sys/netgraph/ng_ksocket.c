@@ -44,6 +44,8 @@
  * version of a socket... kindof like the reverse of the socket node type.
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -313,7 +315,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 		sin->sin_len = sizeof(*sin);
 		break;
 	    }
-
+#ifdef INET6
 	case PF_INET6:
 	    {
 		struct sockaddr_in6 *const sin6 = (struct sockaddr_in6 *)sa;
@@ -366,7 +368,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 		sin6->sin6_len = sizeof(*sin6);
 		break;
 	    }
-
+#endif	/* INET6 */
 	default:
 		return (EINVAL);
 	}
@@ -424,7 +426,7 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 		*off += sizeof(*sin);
 		return(0);
 	    }
-
+#ifdef INET6
 	case PF_INET6:
 	    {
 		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sa;
@@ -443,7 +445,7 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 		*off += sizeof(*sin6);
 		return(0);
 	    }
-
+#endif	/* INET6 */
 	default:
 		return (*ng_ksocket_generic_sockaddr_type.supertype->unparse)
 		    (&ng_ksocket_generic_sockaddr_type,
