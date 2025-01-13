@@ -2204,10 +2204,8 @@ static device_method_t gicv3_its_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-#define its_baseclasses its_fdt_baseclasses
 DEFINE_CLASS_1(its, gicv3_its_fdt_driver, gicv3_its_fdt_methods,
     sizeof(struct gicv3_its_softc), gicv3_its_driver);
-#undef its_baseclasses
 
 EARLY_DRIVER_MODULE(its_fdt, gic, gicv3_its_fdt_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
@@ -2276,10 +2274,8 @@ static device_method_t gicv3_its_acpi_methods[] = {
 	DEVMETHOD_END
 };
 
-#define its_baseclasses its_acpi_baseclasses
 DEFINE_CLASS_1(its, gicv3_its_acpi_driver, gicv3_its_acpi_methods,
     sizeof(struct gicv3_its_softc), gicv3_its_driver);
-#undef its_baseclasses
 
 EARLY_DRIVER_MODULE(its_acpi, gic, gicv3_its_acpi_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
