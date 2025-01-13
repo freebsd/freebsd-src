@@ -1167,10 +1167,8 @@ static device_method_t gicv5_its_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-#define its_baseclasses itsv5_fdt_baseclasses
 DEFINE_CLASS_1(its, gicv5_its_fdt_driver, gicv5_its_fdt_methods,
     sizeof(struct gicv5_its_softc), gicv5_its_driver);
-#undef its_baseclasses
 
 EARLY_DRIVER_MODULE(itsv5_fdt, gic, gicv5_its_fdt_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
