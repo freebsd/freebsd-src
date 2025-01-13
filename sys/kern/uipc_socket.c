@@ -240,38 +240,39 @@ struct splice32 {
  * NB: The original sysctl somaxconn is still available but hidden
  * to prevent confusion about the actual purpose of this number.
  */
-static u_int somaxconn = SOMAXCONN;
+VNET_DEFINE_STATIC(u_int, somaxconn) = SOMAXCONN;
+#define	V_somaxconn	VNET(somaxconn)
 
 static int
 sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	int val;
+	u_int val;
 
-	val = somaxconn;
+	val = V_somaxconn;
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
 
 	/*
 	 * The purpose of the UINT_MAX / 3 limit, is so that the formula
-	 *   3 * so_qlimit / 2
+	 *   3 * sol_qlimit / 2
 	 * below, will not overflow.
          */
 
 	if (val < 1 || val > UINT_MAX / 3)
 		return (EINVAL);
 
-	somaxconn = val;
+	V_somaxconn = val;
 	return (0);
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, soacceptqueue,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
-    sysctl_somaxconn, "I",
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_VNET, 0, sizeof(u_int),
+    sysctl_somaxconn, "IU",
     "Maximum listen socket pending connection accept queue size");
 SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_SKIP | CTLFLAG_MPSAFE, 0,
-    sizeof(int), sysctl_somaxconn, "I",
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_SKIP | CTLFLAG_MPSAFE | CTLFLAG_VNET, 0,
+    sizeof(u_int), sysctl_somaxconn, "IU",
     "Maximum listen socket pending connection accept queue size (compat)");
 
 static u_int numopensockets;
@@ -1516,8 +1517,8 @@ solisten_proto(struct socket *so, int backlog)
 	so->so_options |= SO_ACCEPTCONN;
 
 listening:
-	if (backlog < 0 || backlog > somaxconn)
-		backlog = somaxconn;
+	if (backlog < 0 || backlog > V_somaxconn)
+		backlog = V_somaxconn;
 	so->sol_qlimit = backlog;
 
 	mtx_unlock(&so->so_snd_mtx);
