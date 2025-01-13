@@ -277,6 +277,7 @@ enum intr_type {
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
 	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_SLEEPABLE = 2048,		/* this interrupt handler can sleep */
 	INTR_MD1 = 4096,		/* flag reserved for MD use */
 	INTR_MD2 = 8192,		/* flag reserved for MD use */
 	INTR_MD3 = 16384,		/* flag reserved for MD use */
