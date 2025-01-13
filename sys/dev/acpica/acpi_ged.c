@@ -244,8 +244,9 @@ acpi_ged_attach(device_t dev)
 		}
 
 		if (bus_setup_intr(dev, sc->evts[i].r,
-			INTR_TYPE_MISC | INTR_MPSAFE, NULL, acpi_ged_intr,
-			&sc->evts[i], &sc->evts[i].cookie) != 0) {
+			INTR_TYPE_MISC | INTR_MPSAFE | INTR_SLEEPABLE |
+			INTR_EXCL, NULL,  acpi_ged_intr, &sc->evts[i],
+			&sc->evts[i].cookie) != 0) {
 			device_printf(dev, "Failed to setup intr %d\n", i);
 		}
 	}
