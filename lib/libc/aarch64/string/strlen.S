@@ -33,9 +33,8 @@ ENTRY(__strlen)
 	ldr	q0, [x10, #16]!
 	cmeq	v0.16b, v0.16b, #0
 	shrn	v0.8b, v0.8h, #4	// reduce to fit mask in GPR
-	fcmp	d0, #0.0
-	b.eq	.Lloop
 	fmov	x1, d0
+	cbz	x1, .Lloop
 .Ldone:
 	sub	x0, x10, x0
 	rbit	x1, x1			// reverse bits as NEON has no ctz
