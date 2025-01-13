@@ -1,8 +1,10 @@
 #ifndef JEMALLOC_INTERNAL_DECLS_H
 #define JEMALLOC_INTERNAL_DECLS_H
 
+#ifndef JEMALLOC_NO_PRIVATE_NAMESPACE
 #include "libc_private.h"
 #include "namespace.h"
+#endif
 
 #include <math.h>
 #ifdef _WIN32
