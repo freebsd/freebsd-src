@@ -9,7 +9,6 @@
 #define	__NVMF_TCP_H__
 
 #ifndef _KERNEL
-#define	__assert_unreachable	__unreachable
 #define	MPASS			assert
 #endif
 
