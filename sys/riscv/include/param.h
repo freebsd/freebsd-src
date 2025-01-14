@@ -93,15 +93,7 @@
 /*
  * Mach derived conversion macros
  */
-#define	round_page(x)		(((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
-
-#define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
-
 #define	riscv_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
 #define	riscv_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
-
-#define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #endif /* !_MACHINE_PARAM_H_ */
