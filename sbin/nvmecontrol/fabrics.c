@@ -457,7 +457,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	else if (queue_size > (u_int)mqes + 1) {
 		shutdown_controller(*admin);
 		nvmf_free_association(na);
-		warn("I/O queue size exceeds controller maximum (%u)",
+		warnx("I/O queue size exceeds controller maximum (%u)",
 		    mqes + 1);
 		return (EX_USAGE);
 	}
