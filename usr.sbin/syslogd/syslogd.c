@@ -373,6 +373,7 @@ close_filed(struct filed *f)
 	switch (f->f_type) {
 	case F_FORW:
 		if (f->f_addr_fds != NULL) {
+			free(f->f_addrs);
 			for (size_t i = 0; i < f->f_num_addr_fds; ++i)
 				close(f->f_addr_fds[i]);
 			free(f->f_addr_fds);
@@ -2987,11 +2988,152 @@ parse_selector(const char *p, struct filed *f)
 	return (q);
 }
 
-static void
-parse_action(const char *p, struct filed *f)
+static int
+maybe_dup_forw_socket(const nvlist_t *nvl, const struct sockaddr *rsa,
+    const struct sockaddr *lsa)
 {
-	struct addrinfo *ai, hints, *res;
-	int error, i;
+	const nvlist_t * const *line;
+	size_t linecount;
+
+	if (!nvlist_exists_nvlist_array(nvl, "filed_list"))
+		return (-1);
+	line = nvlist_get_nvlist_array(nvl, "filed_list", &linecount);
+	for (size_t i = 0; i < linecount; i++) {
+		const struct forw_addr *forw;
+		const int *fdp;
+		size_t fdc;
+
+		if (nvlist_get_number(line[i], "f_type") != F_FORW)
+			continue;
+		fdp = nvlist_get_descriptor_array(line[i], "f_addr_fds", &fdc);
+		forw = nvlist_get_binary(line[i], "f_addrs", NULL);
+		for (size_t j = 0; j < fdc; j++) {
+			int fd;
+
+			if (memcmp(&forw[j].raddr, rsa, rsa->sa_len) != 0 ||
+			    memcmp(&forw[j].laddr, lsa, lsa->sa_len) != 0)
+				continue;
+
+			fd = dup(fdp[j]);
+			if (fd < 0)
+				err(1, "dup");
+			return (fd);
+		}
+	}
+
+	return (-1);
+}
+
+/*
+ * Create a UDP socket that will forward messages from "lai" to "ai".
+ * Capsicum doesn't permit connect() or sendto(), so we can't reuse the (bound)
+ * sockets used to listen for messages.
+ */
+static int
+make_forw_socket(const nvlist_t *nvl, struct addrinfo *ai, struct addrinfo *lai)
+{
+	int s;
+
+	s = socket(ai->ai_family, ai->ai_socktype, 0);
+	if (s < 0)
+		err(1, "socket");
+	if (lai != NULL) {
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+		    sizeof(int)) < 0)
+			err(1, "setsockopt");
+		if (bind(s, lai->ai_addr, lai->ai_addrlen) < 0)
+			err(1, "bind");
+	}
+	if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
+		if (errno == EADDRINUSE && lai != NULL) {
+			int s1;
+
+			s1 = maybe_dup_forw_socket(nvl, ai->ai_addr,
+			    lai->ai_addr);
+			if (s1 < 0)
+				errc(1, EADDRINUSE, "connect");
+			(void)close(s);
+			s = s1;
+		} else {
+			err(1, "connect");
+		}
+	}
+	/* Make it a write-only socket. */
+	if (shutdown(s, SHUT_RD) < 0)
+		err(1, "shutdown");
+
+	return (s);
+}
+
+static void
+make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
+    struct addrinfo *res)
+{
+	struct addrinfo *ai;
+	size_t i;
+
+	f->f_num_addr_fds = 0;
+
+	/* How many sockets do we need? */
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		struct socklist *boundsock;
+		int count;
+
+		count = 0;
+		STAILQ_FOREACH(boundsock, &shead, next) {
+			if (boundsock->sl_ai.ai_family == ai->ai_family)
+				count++;
+		}
+		if (count == 0)
+			count = 1;
+		f->f_num_addr_fds += count;
+	}
+
+	f->f_addr_fds = calloc(f->f_num_addr_fds, sizeof(*f->f_addr_fds));
+	f->f_addrs = calloc(f->f_num_addr_fds, sizeof(*f->f_addrs));
+	if (f->f_addr_fds == NULL || f->f_addrs == NULL)
+		err(1, "malloc failed");
+
+	/*
+	 * Create our forwarding sockets: for each bound socket
+	 * belonging to the destination address, create one socket
+	 * connected to the destination and bound to the address of the
+	 * listening socket.
+	 */
+	i = 0;
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		struct socklist *boundsock;
+		int count;
+
+		count = 0;
+		STAILQ_FOREACH(boundsock, &shead, next) {
+			if (boundsock->sl_ai.ai_family ==
+			    ai->ai_family) {
+				memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
+				    ai->ai_addrlen);
+				memcpy(&f->f_addrs[i].laddr,
+				    boundsock->sl_ai.ai_addr,
+				    boundsock->sl_ai.ai_addrlen);
+				f->f_addr_fds[i++] = make_forw_socket(nvl, ai,
+				    &boundsock->sl_ai);
+				count++;
+			}
+		}
+		if (count == 0) {
+			memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
+			    ai->ai_addrlen);
+			f->f_addr_fds[i++] = make_forw_socket(nvl, ai, NULL);
+		}
+	}
+	assert(i == f->f_num_addr_fds);
+}
+
+static void
+parse_action(const nvlist_t *nvl, const char *p, struct filed *f)
+{
+	struct addrinfo hints, *res;
+	size_t i;
+	int error;
 	const char *q;
 	bool syncfile;
 
@@ -3045,27 +3187,7 @@ parse_action(const char *p, struct filed *f)
 			dprintf("%s\n", gai_strerror(error));
 			break;
 		}
-
-		for (ai = res; ai != NULL; ai = ai->ai_next)
-			++f->f_num_addr_fds;
-
-		f->f_addr_fds = calloc(f->f_num_addr_fds,
-		    sizeof(*f->f_addr_fds));
-		if (f->f_addr_fds == NULL)
-			err(1, "malloc failed");
-
-		for (ai = res, i = 0; ai != NULL; ai = ai->ai_next, ++i) {
-			int *sockp = &f->f_addr_fds[i];
-
-			*sockp = socket(ai->ai_family, ai->ai_socktype, 0);
-			if (*sockp < 0)
-				err(1, "socket");
-			if (connect(*sockp, ai->ai_addr, ai->ai_addrlen) < 0)
-				err(1, "connect");
-			/* Make it a write-only socket. */
-			if (shutdown(*sockp, SHUT_RD) < 0)
-				err(1, "shutdown");
-		}
+		make_forw_socket_array(nvl, f, res);
 		freeaddrinfo(res);
 		f->f_type = F_FORW;
 		break;
@@ -3161,7 +3283,7 @@ cfline(nvlist_t *nvl, const char *line, const char *prog, const char *host,
 	/* skip to action part */
 	while (*p == '\t' || *p == ' ')
 		p++;
-	parse_action(p, &f);
+	parse_action(nvl, p, &f);
 
 	/* An nvlist is heap allocated heap here. */
 	nvl_filed = filed_to_nvlist(&f);
@@ -3768,6 +3890,13 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 
 		if (ai->ai_family == AF_LOCAL && fchmod(s, mode) < 0) {
 			dprintf("fchmod %s: %s\n", name, strerror(errno));
+			close(s);
+			return (NULL);
+		}
+
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+		    sizeof(int)) < 0) {
+			logerror("setsockopt(SO_REUSEPORT)");
 			close(s);
 			return (NULL);
 		}

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2021, 2023 The FreeBSD Foundation
+# Copyright (c) 2024 Mark Johnston <markj@FreeBSD.org>
 #
 # This software was developed by Mark Johnston under sponsorship from
 # the FreeBSD Foundation.
@@ -337,6 +338,217 @@ jail_noinet_cleanup()
     jail -r syslogd_noinet
 }
 
+# Create a pair of jails, connected by an epair.  The idea is to run syslogd in
+# one jail (syslogd_allowed_peer), listening on 169.254.0.1, and logger(1) can
+# send messages from the other jail (syslogd_client) using source addrs
+# 169.254.0.2 or 169.254.0.3.
+allowed_peer_test_setup()
+{
+    local epair
+
+    atf_check jail -c name=syslogd_allowed_peer vnet persist
+    atf_check jail -c name=syslogd_client vnet persist
+
+    atf_check -o save:epair ifconfig epair create
+    epair=$(cat epair)
+    epair=${epair%%a}
+
+    atf_check ifconfig ${epair}a vnet syslogd_allowed_peer
+    atf_check ifconfig ${epair}b vnet syslogd_client
+    atf_check jexec syslogd_allowed_peer ifconfig ${epair}a inet 169.254.0.1/16
+    atf_check jexec syslogd_allowed_peer ifconfig lo0 inet 127.0.0.1/8
+    atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.2/16
+    atf_check jexec syslogd_client ifconfig ${epair}b alias 169.254.0.3/16
+    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
+}
+
+allowed_peer_test_cleanup()
+{
+    jail -r syslogd_allowed_peer
+    jail -r syslogd_client
+    ifconfig $(cat epair) destroy
+}
+
+atf_test_case allowed_peer "cleanup"
+allowed_peer_head()
+{
+    atf_set descr "syslogd -a works"
+    atf_set require.user root
+}
+allowed_peer_body()
+{
+    local logfile
+
+    allowed_peer_test_setup
+
+    logfile="${PWD}/jail.log"
+    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32'
+
+    # Make sure that a message from 169.254.0.2:514 is logged.
+    atf_check jexec syslogd_client \
+        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    # ... but not a message from port 515.
+    atf_check -o ignore jexec syslogd_client \
+        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
+    atf_check -o ignore jexec syslogd_client \
+        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
+
+    syslogd_stop
+
+    # Now make sure that we can filter by port.
+    syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:515'
+
+    atf_check jexec syslogd_client \
+        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
+    atf_check jexec syslogd_client \
+        logger -p user.debug -t test4 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    atf_check -o match:"test4: hello, world" cat "${logfile}"
+
+    syslogd_stop
+}
+allowed_peer_cleanup()
+{
+    allowed_peer_test_cleanup
+}
+
+atf_test_case allowed_peer_forwarding "cleanup"
+allowed_peer_forwarding_head()
+{
+    atf_set descr "syslogd forwards messages from its listening port"
+    atf_set require.user root
+}
+allowed_peer_forwarding_body()
+{
+    local logfile
+
+    allowed_peer_test_setup
+
+    printf "user.debug\t@169.254.0.1\n" > client_config
+    printf "mark.debug\t@169.254.0.1:515\n" >> client_config
+    syslogd_start -j syslogd_client -b 169.254.0.2:514 -f ${PWD}/client_config
+
+    logfile="${PWD}/jail.log"
+    printf "+169.254.0.2\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start -j syslogd_allowed_peer -P ${SYSLOGD_PIDFILE}.2 \
+        -b 169.254.0.1:514 -a 169.254.0.2/32
+
+    # A message forwarded to 169.254.0.1:514 should be logged, but one
+    # forwarded to 169.254.0.1:515 should not.
+    atf_check jexec syslogd_client \
+        logger -h 169.254.0.2 -p user.debug -t test1 "hello, world"
+    atf_check jexec syslogd_client \
+        logger -h 169.254.0.2 -p mark.debug -t test2 "hello, world"
+
+    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    atf_check -o not-match:"test2: hello, world" cat "${logfile}"
+}
+allowed_peer_forwarding_cleanup()
+{
+    allowed_peer_test_cleanup
+}
+
+atf_test_case allowed_peer_wildcard "cleanup"
+allowed_peer_wildcard_head()
+{
+    atf_set descr "syslogd -a works with port wildcards"
+    atf_set require.user root
+}
+allowed_peer_wildcard_body()
+{
+    local logfile
+
+    allowed_peer_test_setup
+
+    logfile="${PWD}/jail.log"
+    printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start -j syslogd_allowed_peer -b 169.254.0.1:514 -a '169.254.0.2/32:*'
+
+    # Make sure that a message from 169.254.0.2:514 is logged.
+    atf_check jexec syslogd_client \
+        logger -p user.debug -t test1 -h 169.254.0.1 -S 169.254.0.2:514 "hello, world"
+    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    # ... as is a message from 169.254.0.2:515, allowed by the wildcard.
+    atf_check jexec syslogd_client \
+        logger -p user.debug -t test2 -h 169.254.0.1 -S 169.254.0.2:515 "hello, world"
+    atf_check -o match:"test2: hello, world" cat "${logfile}"
+    # ... but not a message from 169.254.0.3.
+    atf_check -o ignore jexec syslogd_client \
+        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:514 "hello, world"
+    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
+    atf_check -o ignore jexec syslogd_client \
+        logger -p user.debug -t test3 -h 169.254.0.1 -S 169.254.0.3:515 "hello, world"
+    atf_check -o not-match:"test3: hello, world" cat "${logfile}"
+
+    syslogd_stop
+}
+allowed_peer_wildcard_cleanup()
+{
+    allowed_peer_test_cleanup
+}
+
+atf_test_case "forward" "cleanup"
+forward_head()
+{
+    atf_set descr "syslogd forwards messages to a remote host"
+    atf_set require.user root
+}
+forward_body()
+{
+    local epair logfile
+
+    atf_check -o save:epair ifconfig epair create
+    epair=$(cat epair)
+    epair=${epair%%a}
+
+    atf_check jail -c name=syslogd_server vnet persist
+    atf_check ifconfig ${epair}a vnet syslogd_server
+    atf_check jexec syslogd_server ifconfig ${epair}a inet 169.254.0.1/16
+    atf_check jexec syslogd_server ifconfig ${epair}a alias 169.254.0.2/16
+    atf_check jexec syslogd_server ifconfig lo0 inet 127.0.0.1/8
+
+    atf_check jail -c name=syslogd_client vnet persist
+    atf_check ifconfig ${epair}b vnet syslogd_client
+    atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.3/16
+    atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
+
+    cat <<__EOF__ > ./client_config
+user.debug @169.254.0.1
+mail.debug @169.254.0.2
+ftp.debug @169.254.0.1
+__EOF__
+
+    logfile="${PWD}/jail.log"
+    cat <<__EOF__ > ./server_config
+user.debug ${logfile}
+mail.debug ${logfile}
+ftp.debug ${logfile}
+__EOF__
+
+    syslogd_start -j syslogd_server -f ${PWD}/server_config -b 169.254.0.1 -b 169.254.0.2
+    syslogd_start -j syslogd_client -f ${PWD}/client_config -P ${SYSLOGD_PIDFILE}.2
+
+    atf_check jexec syslogd_client \
+        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p user.debug -t test1 "hello, world"
+    atf_check jexec syslogd_client \
+        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p mail.debug -t test2 "you've got mail"
+    atf_check jexec syslogd_client \
+        logger -h 169.254.0.3 -P $SYSLOGD_UDP_PORT -p ftp.debug -t test3 "transfer complete"
+
+    atf_check -o match:"test1: hello, world" cat "${logfile}"
+    atf_check -o match:"test2: you've got mail" cat "${logfile}"
+    atf_check -o match:"test3: transfer complete" cat "${logfile}"
+}
+forward_cleanup()
+{
+    jail -r syslogd_server
+    jail -r syslogd_client
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case "unix"
@@ -349,4 +561,8 @@ atf_init_test_cases()
     atf_add_test_case "host_action"
     atf_add_test_case "pipe_action"
     atf_add_test_case "jail_noinet"
+    atf_add_test_case "allowed_peer"
+    atf_add_test_case "allowed_peer_forwarding"
+    atf_add_test_case "allowed_peer_wildcard"
+    atf_add_test_case "forward"
 }
