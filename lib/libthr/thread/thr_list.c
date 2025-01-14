@@ -151,7 +151,7 @@ _thr_alloc(struct pthread *curthread)
 		if (total_threads > MAX_THREADS)
 			return (NULL);
 		atomic_add_int(&total_threads, 1);
-		thread = calloc(1, sizeof(struct pthread));
+		thread = __thr_calloc(1, sizeof(struct pthread));
 		if (thread == NULL) {
 			atomic_add_int(&total_threads, -1);
 			return (NULL);
@@ -223,7 +223,7 @@ thr_destroy(struct pthread *curthread __unused, struct pthread *thread)
 		_sleepq_free(thread->sleepqueue);
 	if (thread->wake_addr != NULL)
 		_thr_release_wake_addr(thread->wake_addr);
-	free(thread);
+	__thr_free(thread);
 }
 
 /*
