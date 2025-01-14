@@ -242,7 +242,8 @@ fi
 
 if [ $MACHINE_ARCH = aarch64 ]; then
 	# 20250110  5e7d93a60440  add strcmp SIMD implementation
-	clean_dep   lib/libc strcmp S
+	clean_dep   lib/libc strcmp S arm-optimized-routines
+	run rm -f "$OBJTOP"/lib/libc/strcmp.S
 
 	# 20250110  b91003acffe7  add strspn optimized implementation
 	clean_dep   lib/libc strspn c
@@ -260,7 +261,8 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	clean_dep   lib/libc strlcpy c
 
 	# 20250110  25c485e14769  add strncmp SIMD implementation
-	clean_dep   lib/libc strncmp S
+	clean_dep   lib/libc strncmp S arm-optimized-routines
+	run rm -f "$OBJTOP"/lib/libc/strncmp.S
 
 	# 20250110  bad17991c06d  add memccpy SIMD implementation
 	clean_dep   lib/libc memccpy c
@@ -272,7 +274,8 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	clean_dep   lib/libc strlcat c
 
 	# 20250110  3863fec1ce2d  add strlen SIMD implementation
-	clean_dep   lib/libc strlen S
+	clean_dep   lib/libc strlen S arm-optimized-routines
+	run rm -f "$OBJTOP"/lib/libc/strlen.S
 
 	# 20250110  79e01e7e643c  add bcopy & bzero wrapper
 	clean_dep   lib/libc bcopy c
