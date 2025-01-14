@@ -389,9 +389,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_vnode2((vp));					\
 } while (0)
 
+#define	AUDIT_SYSCALL_ENABLED()	audit_syscalls_enabled
+
 #define	AUDIT_SYSCALL_ENTER(code, td)	({				\
 	bool _audit_entered = false;					\
-	if (__predict_false(audit_syscalls_enabled)) {			\
+	if (audit_syscalls_enabled) {					\
 		audit_syscall_enter(code, td);				\
 		_audit_entered = true;					\
 	}								\
@@ -468,6 +470,7 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDITING_TD(td)		0
 
+#define	AUDIT_SYSCALL_ENABLED()	0
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
