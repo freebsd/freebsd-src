@@ -643,8 +643,10 @@ traverse(int argc, char *argv[], int options)
 	chp = fts_children(ftsp, 0);
 	if (chp != NULL)
 		display(NULL, chp, options);
-	if (f_listdir)
+	if (f_listdir) {
+		fts_close(ftsp);
 		return;
+	}
 
 	/*
 	 * If not recursing down this tree and don't need stat info, just get
@@ -693,6 +695,7 @@ traverse(int argc, char *argv[], int options)
 		}
 	if (errno)
 		err(1, "fts_read");
+	fts_close(ftsp);
 }
 
 /*
