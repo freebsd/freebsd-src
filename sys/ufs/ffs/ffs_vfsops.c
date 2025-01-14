@@ -117,7 +117,7 @@ static struct vfsops ufs_vfsops = {
 	.vfs_susp_clean =	process_deferred_inactive,
 };
 
-VFS_SET(ufs_vfsops, ufs, 0);
+VFS_SET(ufs_vfsops, ufs, VFCF_FILEREVINC);
 MODULE_VERSION(ufs, 1);
 
 static b_strategy_t ffs_geom_strategy;
