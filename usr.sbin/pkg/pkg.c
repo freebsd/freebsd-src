@@ -256,7 +256,7 @@ install_pkg_static(const char *path, const char *pkgpath, bool force)
 }
 
 static int
-fetch_to_fd(const char *url, char *path, const char *fetchOpts)
+fetch_to_fd(struct repository *repo, const char *url, char *path, const char *fetchOpts)
 {
 	struct url *u;
 	struct dns_srvinfo *mirrors, *current;
@@ -268,17 +268,10 @@ fetch_to_fd(const char *url, char *path, const char *fetchOpts)
 	ssize_t r;
 	char buf[10240];
 	char zone[MAXHOSTNAMELEN + 13];
-	static const char *mirror_type = NULL;
 
 	max_retry = 3;
 	current = mirrors = NULL;
 	remote = NULL;
-
-	if (mirror_type == NULL && config_string(MIRROR_TYPE, &mirror_type)
-	    != 0) {
-		warnx("No MIRROR_TYPE defined");
-		return (-1);
-	}
 
 	if ((fd = mkstemp(path)) == -1) {
 		warn("mkstemp()");
@@ -295,7 +288,7 @@ fetch_to_fd(const char *url, char *path, const char *fetchOpts)
 	while (remote == NULL) {
 		if (retry == max_retry) {
 			if (strcmp(u->scheme, "file") != 0 &&
-			    strcasecmp(mirror_type, "srv") == 0) {
+			    repo->mirror_type == MIRROR_SRV) {
 				snprintf(zone, sizeof(zone),
 				    "_%s._tcp.%s", u->scheme, u->host);
 				mirrors = dns_getsrvinfo(zone);
@@ -654,23 +647,31 @@ parse_cert(int fd) {
 }
 
 static bool
-verify_pubsignature(int fd_pkg, int fd_sig)
+verify_pubsignature(int fd_pkg, int fd_sig, struct repository *r)
 {
 	struct pubkey *pk;
-	const char *pubkey;
 	char *data;
 	struct pkgsign_ctx *sctx;
 	size_t datasz;
 	bool ret;
+	const char *pubkey;
 
 	pk = NULL;
-	pubkey = NULL;
 	sctx = NULL;
 	data = NULL;
 	ret = false;
-	if (config_string(PUBKEY, &pubkey) != 0) {
-		warnx("No CONFIG_PUBKEY defined");
-		goto cleanup;
+
+	if (r != NULL) {
+		if (r->pubkey == NULL) {
+			warnx("No CONFIG_PUBKEY defined for %s", r->name);
+			goto cleanup;
+		}
+		pubkey = r->pubkey;
+	} else {
+		if (config_string(PUBKEY, &pubkey) != 0) {
+			warnx("No CONFIG_PUBKEY defined for %s", r->name);
+			goto cleanup;
+		}
 	}
 
 	if ((pk = read_pubkey(fd_sig)) == NULL) {
@@ -704,8 +705,8 @@ verify_pubsignature(int fd_pkg, int fd_sig)
 	}
 
 	/* Verify the signature. */
-	printf("Verifying signature with public key %s... ", pubkey);
-	if (pkgsign_verify_data(sctx, data, datasz, pubkey, NULL, 0, pk->sig,
+	printf("Verifying signature with public key %s.a.. ", r->pubkey);
+	if (pkgsign_verify_data(sctx, data, datasz, r->pubkey, NULL, 0, pk->sig,
 	    pk->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
@@ -724,7 +725,7 @@ cleanup:
 }
 
 static bool
-verify_signature(int fd_pkg, int fd_sig)
+verify_signature(int fd_pkg, int fd_sig, struct repository *r)
 {
 	struct fingerprint_list *trusted, *revoked;
 	struct fingerprint *fingerprint;
@@ -743,9 +744,17 @@ verify_signature(int fd_pkg, int fd_sig)
 	ret = false;
 
 	/* Read and parse fingerprints. */
-	if (config_string(FINGERPRINTS, &fingerprints) != 0) {
-		warnx("No CONFIG_FINGERPRINTS defined");
-		goto cleanup;
+	if (r != NULL) {
+		if (r->fingerprints == NULL) {
+			warnx("No FINGERPRINTS defined for %s", r->name);
+			goto cleanup;
+		}
+		fingerprints = r->fingerprints;
+	} else {
+		if (config_string(FINGERPRINTS, &fingerprints) != 0) {
+			warnx("No FINGERPRINTS defined");
+			goto cleanup;
+		}
 	}
 
 	snprintf(path, MAXPATHLEN, "%s/trusted", fingerprints);
@@ -834,7 +843,7 @@ cleanup:
 }
 
 static int
-bootstrap_pkg(bool force, const char *fetchOpts)
+bootstrap_pkg(bool force, const char *fetchOpts, struct repository *repo)
 {
 	int fd_pkg, fd_sig;
 	int ret;
@@ -842,28 +851,18 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 	char tmppkg[MAXPATHLEN];
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
-	const char *signature_type;
 	char pkgstatic[MAXPATHLEN];
 	const char *bootstrap_name;
 
 	fd_sig = -1;
 	ret = -1;
 
-	if (config_string(PACKAGESITE, &packagesite) != 0) {
-		warnx("No PACKAGESITE defined");
-		return (-1);
-	}
-
-	if (config_string(SIGNATURE_TYPE, &signature_type) != 0) {
-		warnx("Error looking up SIGNATURE_TYPE");
-		return (-1);
-	}
-
-	printf("Bootstrapping pkg from %s, please wait...\n", packagesite);
+	printf("Bootstrapping pkg from %s, please wait...\n", repo->url);
 
 	/* Support pkg+http:// for PACKAGESITE which is the new format
 	   in 1.2 to avoid confusion on why http://pkg.FreeBSD.org has
 	   no A record. */
+	packagesite = repo->url;
 	if (strncmp(URL_SCHEME_PREFIX, packagesite,
 	    strlen(URL_SCHEME_PREFIX)) == 0)
 		packagesite += strlen(URL_SCHEME_PREFIX);
@@ -874,53 +873,44 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 		snprintf(tmppkg, MAXPATHLEN, "%s/%s.XXXXXX",
 		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
 		    bootstrap_name);
-		if ((fd_pkg = fetch_to_fd(url, tmppkg, fetchOpts)) != -1)
+		if ((fd_pkg = fetch_to_fd(repo, url, tmppkg, fetchOpts)) != -1)
 			break;
 		bootstrap_name = NULL;
 	}
 	if (bootstrap_name == NULL)
 		goto fetchfail;
 
-	if (signature_type != NULL &&
-	    strcasecmp(signature_type, "NONE") != 0) {
-		if (strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+	if (repo->signature_type == SIGNATURE_FINGERPRINT) {
+		snprintf(tmpsig, MAXPATHLEN, "%s/%s.sig.XXXXXX",
+		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+		    bootstrap_name);
+		snprintf(url, MAXPATHLEN, "%s/Latest/%s.sig",
+		    packagesite, bootstrap_name);
 
-			snprintf(tmpsig, MAXPATHLEN, "%s/%s.sig.XXXXXX",
-			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
-			    bootstrap_name);
-			snprintf(url, MAXPATHLEN, "%s/Latest/%s.sig",
-			    packagesite, bootstrap_name);
-
-			if ((fd_sig = fetch_to_fd(url, tmpsig, fetchOpts)) == -1) {
-				fprintf(stderr, "Signature for pkg not "
-				    "available.\n");
-				goto fetchfail;
-			}
-
-			if (verify_signature(fd_pkg, fd_sig) == false)
-				goto cleanup;
-		} else if (strcasecmp(signature_type, "PUBKEY") == 0) {
-
-			snprintf(tmpsig, MAXPATHLEN,
-			    "%s/%s.pubkeysig.XXXXXX",
-			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
-			    bootstrap_name);
-			snprintf(url, MAXPATHLEN, "%s/Latest/%s.pubkeysig",
-			    packagesite, bootstrap_name);
-
-			if ((fd_sig = fetch_to_fd(url, tmpsig, fetchOpts)) == -1) {
-				fprintf(stderr, "Signature for pkg not "
-				    "available.\n");
-				goto fetchfail;
-			}
-
-			if (verify_pubsignature(fd_pkg, fd_sig) == false)
-				goto cleanup;
-		} else {
-			warnx("Signature type %s is not supported for "
-			    "bootstrapping.", signature_type);
-			goto cleanup;
+		if ((fd_sig = fetch_to_fd(repo, url, tmpsig, fetchOpts)) == -1) {
+			fprintf(stderr, "Signature for pkg not "
+			    "available.\n");
+			goto fetchfail;
 		}
+
+		if (verify_signature(fd_pkg, fd_sig, repo) == false)
+			goto cleanup;
+	} else if (repo->signature_type == SIGNATURE_PUBKEY) {
+		snprintf(tmpsig, MAXPATHLEN,
+		    "%s/%s.pubkeysig.XXXXXX",
+		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+		    bootstrap_name);
+		snprintf(url, MAXPATHLEN, "%s/Latest/%s.pubkeysig",
+		    repo->url, bootstrap_name);
+
+		if ((fd_sig = fetch_to_fd(repo, url, tmpsig, fetchOpts)) == -1) {
+			fprintf(stderr, "Signature for pkg not "
+			    "available.\n");
+			goto fetchfail;
+		}
+
+		if (verify_pubsignature(fd_pkg, fd_sig, repo) == false)
+			goto cleanup;
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
@@ -930,18 +920,15 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 
 fetchfail:
 	for (int j = 0; bootstrap_names[j] != NULL; j++) {
-		warnx("Attempted to fetch %s/Latest/%s", packagesite,
+		warnx("Attempted to fetch %s/Latest/%s", repo->url,
 		    bootstrap_names[j]);
 	}
 	warnx("Error: %s", fetchLastErrString);
 	if (fetchLastErrCode == FETCH_RESOLV) {
 		fprintf(stderr, "Address resolution failed for %s.\n", packagesite);
-		fprintf(stderr, "Consider changing PACKAGESITE.\n");
 	} else {
 		fprintf(stderr, "A pre-built version of pkg could not be found for "
 		    "your system.\n");
-		fprintf(stderr, "Consider changing PACKAGESITE or installing it from "
-		    "ports: 'ports-mgmt/pkg'.\n");
 	}
 
 cleanup:
@@ -1025,7 +1012,7 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 				goto cleanup;
 			}
 
-			if (verify_signature(fd_pkg, fd_sig) == false)
+			if (verify_signature(fd_pkg, fd_sig, NULL) == false)
 				goto cleanup;
 
 		} else if (strcasecmp(signature_type, "PUBKEY") == 0) {
@@ -1038,7 +1025,7 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 				goto cleanup;
 			}
 
-			if (verify_pubsignature(fd_pkg, fd_sig) == false)
+			if (verify_pubsignature(fd_pkg, fd_sig, NULL) == false)
 				goto cleanup;
 
 		} else {
@@ -1106,6 +1093,7 @@ main(int argc, char *argv[])
 	signed char ch;
 	const char *fetchOpts;
 	char *command;
+	struct repositories *repositories;
 
 	activation_test = false;
 	add_pkg = false;
@@ -1233,6 +1221,8 @@ main(int argc, char *argv[])
 		fetchDebug = 1;
 
 	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
+		struct repository *repo;
+		int ret = 0;
 		/*
 		 * To allow 'pkg -N' to be used as a reliable test for whether
 		 * a system is configured to use pkg, don't bootstrap pkg
@@ -1273,7 +1263,12 @@ main(int argc, char *argv[])
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}
-		if (bootstrap_pkg(force, fetchOpts) != 0)
+		repositories = config_get_repositories();
+		STAILQ_FOREACH(repo, repositories, next) {
+			if ((ret = bootstrap_pkg(force, fetchOpts, repo)) == 0)
+				break;
+		}
+		if (ret != 0)
 			exit(EXIT_FAILURE);
 		config_finish();
 
