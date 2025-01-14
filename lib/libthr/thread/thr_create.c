@@ -146,7 +146,7 @@ _pthread_create(pthread_t * __restrict thread,
 		_thr_stack_fix_protection(new_thread);
 
 	/* Return thread pointer eariler so that new thread can use it. */
-	(*thread) = new_thread;
+	*thread = new_thread;
 	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpusetp != NULL) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
@@ -226,8 +226,8 @@ _pthread_create(pthread_t * __restrict thread,
 		THR_THREAD_UNLOCK(curthread, new_thread);
 	}
 out:
-	if (ret)
-		(*thread) = 0;
+	if (ret != 0)
+		*thread = NULL;
 	return (ret);
 }
 
