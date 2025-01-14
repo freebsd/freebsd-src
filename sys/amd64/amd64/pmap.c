@@ -2499,7 +2499,7 @@ pmap_init(void)
 				ret = vm_page_blacklist_add(0x40000000 +
 				    ptoa(i), false);
 				if (!ret && bootverbose)
-					printf("page at %#lx already used\n",
+					printf("page at %#x already used\n",
 					    0x40000000 + ptoa(i));
 			}
 		}
