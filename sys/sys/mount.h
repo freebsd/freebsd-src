@@ -685,6 +685,8 @@ struct ovfsconf {
 #define	VFCF_SBDRY	0x01000000	/* Stop at Boundary: defer stop requests
 					   to kernel->user (AST) transition */
 #define	VFCF_FILEMOUNT	0x02000000	/* allow mounting files */
+#define	VFCF_FILEREVINC	0x04000000	/* va_filerev is incr. by one */
+#define	VFCF_FILEREVCT	0x08000000	/* va_filerev is set to ctime */
 
 typedef uint32_t fsctlop_t;
 
