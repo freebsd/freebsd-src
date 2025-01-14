@@ -5044,10 +5044,10 @@ sppp_suggest_ip6_addr(struct sppp *sp, struct in6_addr *suggest)
 static int
 sppp_params(struct sppp *sp, u_long cmd, void *data)
 {
-	u_long subcmd;
+	int subcmd __diagused;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct spppreq *spr;
-	int rv = 0;
+	int rv;
 
 	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == NULL)
 		return (EAGAIN);
@@ -5056,7 +5056,7 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	rv = fueword(ifr_data_get_ptr(ifr), &subcmd);
+	rv = fueword32(ifr_data_get_ptr(ifr), &subcmd);
 	if (rv == -1) {
 		rv = EFAULT;
 		goto quit;
@@ -5067,8 +5067,9 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		goto quit;
 	}
 
-	switch (subcmd) {
-	case (u_long)SPPPIOGDEFS:
+	MPASS(subcmd == spr->cmd);
+	switch (spr->cmd) {
+	case (intptr_t)SPPPIOGDEFS:
 		if (cmd != SIOCGIFGENERIC) {
 			rv = EINVAL;
 			break;
@@ -5103,7 +5104,7 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		    sizeof(struct spppreq));
 		break;
 
-	case (u_long)SPPPIOSDEFS:
+	case (intptr_t)SPPPIOSDEFS:
 		if (cmd != SIOCSIFGENERIC) {
 			rv = EINVAL;
 			break;
