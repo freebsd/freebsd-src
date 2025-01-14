@@ -352,7 +352,7 @@ parse_signature_type(struct repository *repo, const char *st)
 	else if (strcasecmp(st, "NONE") == 0)
 		repo->signature_type = SIGNATURE_NONE;
 	else {
-		warnx("Signature type %s is not supported for bootstraping,"
+		warnx("Signature type %s is not supported for bootstrapping,"
 		    " ignoring repository %s", st, repo->name);
 		return (false);
 	}
@@ -484,7 +484,7 @@ read_conf_file(const char *confpath, const char *requested_repo,
 	if (uname(&uts))
 		err(EXIT_FAILURE, "uname");
 	if (abi == NULL)
-		errx(EXIT_FAILURE, "Fail do determine ABI");
+		errx(EXIT_FAILURE, "Failed to determine ABI");
 
 	p = ucl_parser_new(0);
 	asprintf(&major, "%d",  __FreeBSD_version/100000);
