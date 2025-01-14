@@ -334,6 +334,8 @@ _libpthread_init(struct pthread *curthread)
 	/* Set the initial thread. */
 	if (curthread == NULL) {
 		first = 1;
+		/* Force _get_curthread() return NULL until set. */
+		_tcb_get()->tcb_thread = NULL;
 		/* Create and initialize the initial thread. */
 		curthread = _thr_alloc(NULL);
 		if (curthread == NULL)
