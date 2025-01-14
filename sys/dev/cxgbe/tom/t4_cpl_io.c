@@ -633,7 +633,7 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
  * stalls).  When drop is set this function MUST drop the bytes and wake up any
  * writers.
  */
-void
+static void
 t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 {
 	struct mbuf *sndptr, *m, *sb_sndptr;

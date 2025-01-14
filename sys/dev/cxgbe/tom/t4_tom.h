@@ -525,7 +525,6 @@ int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct sge_wrq *, struct toepcb *,
     uint16_t, uint64_t, uint64_t, int, int);
-void t4_push_frames(struct adapter *, struct toepcb *, int);
 void t4_push_pdus(struct adapter *, struct toepcb *, int);
 
 /* t4_ddp.c */
