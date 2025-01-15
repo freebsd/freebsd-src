@@ -91,7 +91,9 @@ enum feat_list {
 static inline void
 ice_disable_unsupported_features(ice_bitmap_t __unused *bitmap)
 {
+#ifndef PCI_IOV
 	ice_clear_bit(ICE_FEATURE_SRIOV, bitmap);
+#endif
 #ifndef DEV_NETMAP
 	ice_clear_bit(ICE_FEATURE_NETMAP, bitmap);
 #endif
