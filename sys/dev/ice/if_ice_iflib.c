@@ -42,6 +42,9 @@
 #include "ice_drv_info.h"
 #include "ice_switch.h"
 #include "ice_sched.h"
+#ifdef PCI_IOV
+#include "ice_iov.h"
+#endif
 
 #include <sys/module.h>
 #include <sys/sockio.h>
@@ -85,6 +88,12 @@ static int ice_if_suspend(if_ctx_t ctx);
 static int ice_if_resume(if_ctx_t ctx);
 static bool ice_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
 static void ice_init_link(struct ice_softc *sc);
+#ifdef PCI_IOV
+static int ice_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params);
+static void ice_if_iov_uninit(if_ctx_t ctx);
+static int ice_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params);
+static void ice_if_vflr_handle(if_ctx_t ctx);
+#endif
 static int ice_setup_mirror_vsi(struct ice_mirr_if *mif);
 static int ice_wire_mirror_intrs(struct ice_mirr_if *mif);
 static void ice_free_irqvs_subif(struct ice_mirr_if *mif);
@@ -158,6 +167,11 @@ static device_method_t ice_methods[] = {
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
 	DEVMETHOD(device_suspend,  iflib_device_suspend),
 	DEVMETHOD(device_resume,   iflib_device_resume),
+#ifdef PCI_IOV
+	DEVMETHOD(pci_iov_init, iflib_device_iov_init),
+	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
+#endif
 	DEVMETHOD_END
 };
 
@@ -198,6 +212,12 @@ static device_method_t ice_iflib_methods[] = {
 	DEVMETHOD(ifdi_suspend, ice_if_suspend),
 	DEVMETHOD(ifdi_resume, ice_if_resume),
 	DEVMETHOD(ifdi_needs_restart, ice_if_needs_restart),
+#ifdef PCI_IOV
+	DEVMETHOD(ifdi_iov_vf_add, ice_if_iov_vf_add),
+	DEVMETHOD(ifdi_iov_init, ice_if_iov_init),
+	DEVMETHOD(ifdi_iov_uninit, ice_if_iov_uninit),
+	DEVMETHOD(ifdi_vflr_handle, ice_if_vflr_handle),
+#endif
 	DEVMETHOD_END
 };
 
@@ -733,6 +753,9 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 			iflib_link_state_change(sc->ctx, LINK_STATE_DOWN, 0);
 			ice_rdma_link_change(sc, LINK_STATE_DOWN, 0);
 		}
+#ifdef PCI_IOV
+		ice_vc_notify_all_vfs_link_state(sc);
+#endif
 		update_media = true;
 	}
 
@@ -830,6 +853,14 @@ ice_if_attach_post(if_ctx_t ctx)
 		device_printf(sc->dev, "Setting pfc mode failed, status %s\n", ice_status_str(status));
 
 	ice_add_device_sysctls(sc);
+
+#ifdef PCI_IOV
+	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_SRIOV)) {
+		err = ice_iov_attach(sc);
+		if (err == ENOMEM)
+			return (err);
+	}
+#endif /* PCI_IOV */
 
 	/* Get DCBX/LLDP state and start DCBX agent */
 	ice_init_dcb_setup(sc);
@@ -952,6 +983,11 @@ ice_if_detach(if_ctx_t ctx)
 	if (sc->mirr_if)
 		ice_destroy_mirror_interface(sc);
 	ice_rdma_pf_detach(sc);
+
+#ifdef PCI_IOV
+	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_SRIOV))
+		ice_iov_detach(sc);
+#endif /* PCI_IOV */
 
 	/* Free allocated media types */
 	ifmedia_removeall(sc->media);
@@ -2277,7 +2313,12 @@ ice_transition_recovery_mode(struct ice_softc *sc)
 	ice_rdma_pf_detach(sc);
 	ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
 
+#ifdef PCI_IOV
+	if (ice_test_and_clear_bit(ICE_FEATURE_SRIOV, sc->feat_en))
+		 ice_iov_detach(sc);
+#else
 	ice_clear_bit(ICE_FEATURE_SRIOV, sc->feat_en);
+#endif /* PCI_IOV */
 	ice_clear_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 
 	ice_vsi_del_txqs_ctx(vsi);
@@ -2325,7 +2366,12 @@ ice_transition_safe_mode(struct ice_softc *sc)
 	ice_rdma_pf_detach(sc);
 	ice_clear_bit(ICE_FEATURE_RDMA, sc->feat_cap);
 
+#ifdef PCI_IOV
+	if (ice_test_and_clear_bit(ICE_FEATURE_SRIOV, sc->feat_en))
+		 ice_iov_detach(sc);
+#else
 	ice_clear_bit(ICE_FEATURE_SRIOV, sc->feat_en);
+#endif /* PCI_IOV */
 	ice_clear_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 
 	ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
@@ -3348,6 +3394,77 @@ ice_init_link(struct ice_softc *sc)
 	}
 
 }
+
+#ifdef PCI_IOV
+/**
+ * ice_if_iov_init - iov init handler for iflib
+ * @ctx: iflib context pointer
+ * @num_vfs: number of VFs to create
+ * @params: configuration parameters for the PF
+ *
+ * Configure the driver for SR-IOV mode. Used to setup things like memory
+ * before any VFs are created.
+ *
+ * @remark This is a wrapper for ice_iov_init
+ */
+static int
+ice_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	return ice_iov_init(sc, num_vfs, params);
+}
+
+/**
+ * ice_if_iov_uninit - iov uninit handler for iflib
+ * @ctx: iflib context pointer
+ *
+ * Destroys VFs and frees their memory and resources.
+ *
+ * @remark This is a wrapper for ice_iov_uninit
+ */
+static void
+ice_if_iov_uninit(if_ctx_t ctx)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	ice_iov_uninit(sc);
+}
+
+/**
+ * ice_if_iov_vf_add - iov add vf handler for iflib
+ * @ctx: iflib context pointer
+ * @vfnum: index of VF to configure
+ * @params: configuration parameters for the VF
+ *
+ * Sets up the VF given by the vfnum index. This is called by the OS
+ * for each VF created by the PF driver after it is spawned.
+ *
+ * @remark This is a wrapper for ice_iov_vf_add
+ */
+static int
+ice_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	return ice_iov_add_vf(sc, vfnum, params);
+}
+
+/**
+ * ice_if_vflr_handle - iov VFLR handler
+ * @ctx: iflib context pointer
+ *
+ * Performs the necessar teardown or setup required for a VF after
+ * a VFLR is initiated.
+ *
+ * @remark This is unimplemented
+ */
+static void
+ice_if_vflr_handle(if_ctx_t ctx __unused)
+{
+	return;
+}
+#endif /* PCI_IOV */
 
 extern struct if_txrx ice_subif_txrx;
 
