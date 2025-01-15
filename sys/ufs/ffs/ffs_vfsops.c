@@ -578,8 +578,12 @@ ffs_mount(struct mount *mp)
 			vfs_write_resume(mp, 0);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
-		    (error = ffs_reload(mp, 0)) != 0)
+		    (error = ffs_reload(mp, 0)) != 0) {
 			return (error);
+		} else {
+			/* ffs_reload replaces the superblock structure */
+			fs = ump->um_fs;
+		}
 		if (fs->fs_ronly &&
 		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			/*
@@ -740,26 +744,20 @@ ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
  * Things to do to update the mount:
  *	1) invalidate all cached meta-data.
  *	2) re-read superblock from disk.
- *	3) re-read summary information from disk.
- *	4) invalidate all inactive vnodes.
- *	5) clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags, allowing secondary
- *	   writers, if requested.
- *	6) invalidate all cached file data.
- *	7) re-read inode data for all active vnodes.
+ *	3) If requested, clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags
+ *	   to allow secondary writers.
+ *	4) invalidate all cached file data.
+ *	5) re-read inode data for all active vnodes.
  */
 int
 ffs_reload(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp, *devvp;
 	struct inode *ip;
-	void *space;
 	struct buf *bp;
 	struct fs *fs, *newfs;
 	struct ufsmount *ump;
-	ufs2_daddr_t sblockloc;
-	int i, blks, error;
-	uint64_t size;
-	int32_t *lp;
+	int error;
 
 	ump = VFSTOUFS(mp);
 
@@ -782,31 +780,22 @@ ffs_reload(struct mount *mp, int flags)
 	/*
 	 * Step 2: re-read superblock from disk.
 	 */
-	fs = VFSTOUFS(mp)->um_fs;
-	if ((error = bread(devvp, btodb(fs->fs_sblockloc), fs->fs_sbsize,
-	    NOCRED, &bp)) != 0)
+	if ((error = ffs_sbget(devvp, &newfs, UFS_STDSB, 0, M_UFSMNT,
+	    ffs_use_bread)) != 0)
 		return (error);
-	newfs = (struct fs *)bp->b_data;
-	if ((newfs->fs_magic != FS_UFS1_MAGIC &&
-	     newfs->fs_magic != FS_UFS2_MAGIC) ||
-	    newfs->fs_bsize > MAXBSIZE ||
-	    newfs->fs_bsize < sizeof(struct fs)) {
-			brelse(bp);
-			return (EINTEGRITY);
-	}
 	/*
-	 * Preserve the summary information, read-only status, and
-	 * superblock location by copying these fields into our new
-	 * superblock before using it to update the existing superblock.
+	 * Replace our superblock with the new superblock. Preserve
+	 * our read-only status.
 	 */
-	newfs->fs_si = fs->fs_si;
+	fs = VFSTOUFS(mp)->um_fs;
 	newfs->fs_ronly = fs->fs_ronly;
-	sblockloc = fs->fs_sblockloc;
-	bcopy(newfs, fs, (uint64_t)fs->fs_sbsize);
-	brelse(bp);
+	free(fs->fs_csp, M_UFSMNT);
+	free(fs->fs_si, M_UFSMNT);
+	free(fs, M_UFSMNT);
+	fs = VFSTOUFS(mp)->um_fs = newfs;
 	ump->um_bsize = fs->fs_bsize;
 	ump->um_maxsymlinklen = fs->fs_maxsymlinklen;
-	ffs_oldfscompat_read(fs, VFSTOUFS(mp), sblockloc);
+	ffs_oldfscompat_read(fs, VFSTOUFS(mp), fs->fs_sblockloc);
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: reload pending error: blocks %jd "
@@ -816,42 +805,10 @@ ffs_reload(struct mount *mp, int flags)
 		fs->fs_pendinginodes = 0;
 	}
 	UFS_UNLOCK(ump);
-
 	/*
-	 * Step 3: re-read summary information from disk.
+	 * Step 3: If requested, clear MNTK_SUSPEND2 and MNTK_SUSPENDED flags
+	 * to allow secondary writers.
 	 */
-	size = fs->fs_cssize;
-	blks = howmany(size, fs->fs_fsize);
-	if (fs->fs_contigsumsize > 0)
-		size += fs->fs_ncg * sizeof(int32_t);
-	size += fs->fs_ncg * sizeof(uint8_t);
-	free(fs->fs_csp, M_UFSMNT);
-	space = malloc(size, M_UFSMNT, M_WAITOK);
-	fs->fs_csp = space;
-	for (i = 0; i < blks; i += fs->fs_frag) {
-		size = fs->fs_bsize;
-		if (i + fs->fs_frag > blks)
-			size = (blks - i) * fs->fs_fsize;
-		error = bread(devvp, fsbtodb(fs, fs->fs_csaddr + i), size,
-		    NOCRED, &bp);
-		if (error)
-			return (error);
-		bcopy(bp->b_data, space, (uint64_t)size);
-		space = (char *)space + size;
-		brelse(bp);
-	}
-	/*
-	 * We no longer know anything about clusters per cylinder group.
-	 */
-	if (fs->fs_contigsumsize > 0) {
-		fs->fs_maxcluster = lp = space;
-		for (i = 0; i < fs->fs_ncg; i++)
-			*lp++ = fs->fs_contigsumsize;
-		space = lp;
-	}
-	size = fs->fs_ncg * sizeof(uint8_t);
-	fs->fs_contigdirs = (uint8_t *)space;
-	bzero(fs->fs_contigdirs, size);
 	if ((flags & FFSR_UNSUSPEND) != 0) {
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
