@@ -495,7 +495,7 @@ ktls_init(void)
 		ktls_buffer_zone = uma_zcache_create("ktls_buffers",
 		    roundup2(ktls_maxlen, PAGE_SIZE), NULL, NULL, NULL, NULL,
 		    ktls_buffer_import, ktls_buffer_release, NULL,
-		    UMA_ZONE_FIRSTTOUCH);
+		    UMA_ZONE_FIRSTTOUCH | UMA_ZONE_NOTRIM);
 	}
 
 	/*
