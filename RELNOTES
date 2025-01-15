@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8ae6247aa966, cf0ede720391d, 205659c43d87bd, 1ccbdf561f417, 4db1b113b151:
+	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
+	file systems has changed.  An NFS server that exports any of these file
+	systems will need its clients to unmount and remount the exports.
+
 07cd69e272da:
 	Add a new -a command line option to mountd(8).
 	If this command line option is specified, when

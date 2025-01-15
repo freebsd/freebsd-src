@@ -33,6 +33,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	this SoC familly will be selected.
 	Also a new rk8xx device was added, this select the base driver for Rockchip PMIC.
 
+20241223:
+	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
+	file systems has changed.  An NFS server that exports any of these file
+	systems will need its clients to unmount and remount the exports.
+
 20241216:
 	The iwm(4) firmwares are no longer compiled as kernel modules but instead
 	shipped as raw files. For pkgbase users if you use iwm(4) you will need
