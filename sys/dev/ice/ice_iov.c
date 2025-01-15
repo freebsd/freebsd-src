@@ -369,6 +369,14 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		goto release_imap;
 	}
 
+	/* Add the broadcast address */
+	error = ice_add_vsi_mac_filter(vsi, broadcastaddr);
+	if (error) {
+		device_printf(sc->dev, "Unable to add broadcast filter VF %d VSI: %s\n",
+			      vfnum, ice_err_str(error));
+		goto release_imap;
+	}
+
 	ice_iov_ready_vf(sc, vf);
 
 	return (0);
