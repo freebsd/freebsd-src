@@ -73,6 +73,8 @@ typedef struct {
 	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_OWNED)
 #define	IEEE80211_UNLOCK_ASSERT(_ic) \
 	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_NOTOWNED)
+#define	IEEE80211_IS_LOCKED(_ic) \
+	mtx_owned(IEEE80211_LOCK_OBJ(_ic))
 
 /*
  * Transmit lock.
