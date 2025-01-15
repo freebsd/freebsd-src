@@ -461,6 +461,7 @@ hwpstate_get_info_from_msr(device_t dev)
 			break;
 		case 0x17:
 		case 0x18:
+		case 0x19:
 			did = AMD_17H_CUR_DID(msr);
 			if (did == 0) {
 				HWPSTATE_DEBUG(dev, "unexpected did: 0\n");
