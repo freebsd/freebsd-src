@@ -1,9 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2014-2025 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -333,6 +332,16 @@ parse_mirror_type(struct repository *r, const char *mt)
 	r->mirror_type = MIRROR_NONE;
 }
 
+static void
+repo_free(struct repository *r)
+{
+	free(r->name);
+	free(r->url);
+	free(r->fingerprints);
+	free(r->pubkey);
+	free(r);
+}
+
 static bool
 parse_signature_type(struct repository *repo, const char *st)
 {
@@ -345,11 +354,7 @@ parse_signature_type(struct repository *repo, const char *st)
 	else {
 		warnx("Signature type %s is not supported for bootstraping,"
 		    " ignoring repository %s", st, repo->name);
-		free(repo->url);
-		free(repo->name);
-		free(repo->fingerprints);
-		free(repo->pubkey);
-		free(repo);
+		repo_free(repo);
 		return false;
 	}
 	return (true);
@@ -393,12 +398,15 @@ parse_repo(const ucl_object_t *o)
 		} else if (strcasecmp(key, "enabled") == 0) {
 			if ((cur->type != UCL_BOOLEAN) ||
 			    !ucl_object_toboolean(cur)) {
-				free(repo->url);
-				free(repo->name);
-				free(repo);
+				repo_free(repo);
 				return;
 			}
 		}
+	}
+	/* At least we need an url */
+	if (repo->url == NULL) {
+		repo_free(repo);
+		return;
 	}
 	STAILQ_INSERT_TAIL(&repositories, repo, next);
 	return;
