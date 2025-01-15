@@ -1222,7 +1222,7 @@ zone_timeout(uma_zone_t zone, void *unused)
 
 trim:
 	/* Trim caches not used for a long time. */
-	if ((zone->uz_flags & UMA_ZONE_UNMANAGED) == 0) {
+	if ((zone->uz_flags & (UMA_ZONE_UNMANAGED | UMA_ZONE_NOTRIM)) == 0) {
 		for (int i = 0; i < vm_ndomains; i++) {
 			if (bucket_cache_reclaim_domain(zone, false, false, i) &&
 			    (zone->uz_flags & UMA_ZFLAG_CACHE) == 0)
@@ -5306,8 +5306,13 @@ uma_reclaim_domain_cb(uma_zone_t zone, void *arg)
 	struct uma_reclaim_args *args;
 
 	args = arg;
-	if ((zone->uz_flags & UMA_ZONE_UNMANAGED) == 0)
-		uma_zone_reclaim_domain(zone, args->req, args->domain);
+	if ((zone->uz_flags & UMA_ZONE_UNMANAGED) != 0)
+		return;
+	if ((args->req == UMA_RECLAIM_TRIM) &&
+	    (zone->uz_flags & UMA_ZONE_NOTRIM) !=0)
+		return;
+
+	uma_zone_reclaim_domain(zone, args->req, args->domain);
 }
 
 /* See uma.h */
