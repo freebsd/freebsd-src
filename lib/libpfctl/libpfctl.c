@@ -392,8 +392,7 @@ static const struct snl_attr_parser ap_getstatus[] = {
 	{ .type = PF_GS_BCOUNTERS, .off = _OUT(bcounters), .arg_u32 = 2 * 2, .cb = snl_attr_get_uint64_array },
 	{ .type = PF_GS_PCOUNTERS, .off = _OUT(pcounters), .arg_u32 = 2 * 2 * 2, .cb = snl_attr_get_uint64_array },
 };
-static struct snl_field_parser fp_getstatus[] = {};
-SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, fp_getstatus, ap_getstatus);
+SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, snl_f_p_empty, ap_getstatus);
 #undef _OUT
 
 struct pfctl_status *
@@ -1356,11 +1355,9 @@ static struct snl_attr_parser ap_getrules[] = {
 	{ .type = PF_GR_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
 	{ .type = PF_GR_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_getrules[] = {
-};
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, fp_getrules, ap_getrules);
+SNL_DECLARE_PARSER(getrules_parser, struct genlmsghdr, snl_f_p_empty, ap_getrules);
 
 int
 pfctl_get_rules_info_h(struct pfctl_handle *h, struct pfctl_rules_info *rules, uint32_t ruleset,
@@ -1665,9 +1662,8 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
 };
-static struct snl_field_parser fp_getrule[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, fp_getrule, ap_getrule);
+SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);
 
 int
 pfctl_get_clear_rule_h(struct pfctl_handle *h, uint32_t nr, uint32_t ticket,
@@ -1778,11 +1774,9 @@ struct pfctl_creator {
 static struct snl_attr_parser ap_creators[] = {
 	{ .type = PF_ST_CREATORID, .off = _OUT(id), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_creators[] = {
-};
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER(creator_parser, struct genlmsghdr, fp_creators, ap_creators);
+SNL_DECLARE_PARSER(creator_parser, struct genlmsghdr, snl_f_p_empty, ap_creators);
 
 static int
 pfctl_get_creators_nl(struct snl_state *ss, uint32_t *creators, size_t *len)
@@ -1913,11 +1907,9 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
 };
-static struct snl_field_parser fp_state[] = {
-};
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, fp_state, ap_state);
+SNL_DECLARE_PARSER(state_parser, struct genlmsghdr, snl_f_p_empty, ap_state);
 
 static const struct snl_hdr_parser *all_parsers[] = {
 	&state_parser, &skey_parser, &speer_parser,
@@ -2042,9 +2034,8 @@ struct pfctl_nl_clear_states {
 static struct snl_attr_parser ap_clear_states[] = {
 	{ .type = PF_CS_KILLED, .off = _OUT(killed), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_clear_states[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(clear_states_parser, struct genlmsghdr, fp_clear_states, ap_clear_states);
+SNL_DECLARE_PARSER(clear_states_parser, struct genlmsghdr, snl_f_p_empty, ap_clear_states);
 
 static int
 _pfctl_clear_states_h(struct pfctl_handle *h, const struct pfctl_kill *kill,
@@ -2478,10 +2469,9 @@ static struct snl_attr_parser ap_natlook[] = {
 	{ .type = PF_NL_SRC_PORT, .off = _OUT(sport), .cb = snl_attr_get_uint16 },
 	{ .type = PF_NL_DST_PORT, .off = _OUT(dport), .cb = snl_attr_get_uint16 },
 };
-static struct snl_field_parser fp_natlook[] = {};
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER(natlook_parser, struct genlmsghdr, fp_natlook, ap_natlook);
+SNL_DECLARE_PARSER(natlook_parser, struct genlmsghdr, snl_f_p_empty, ap_natlook);
 
 int
 pfctl_natlook(struct pfctl_handle *h, const struct pfctl_natlook_key *k,
@@ -2597,9 +2587,8 @@ struct pfctl_nl_timeout {
 static struct snl_attr_parser ap_get_timeout[] = {
 	{ .type = PF_TO_SECONDS, .off = _OUT(seconds), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_get_timeout[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(get_timeout_parser, struct genlmsghdr, fp_get_timeout, ap_get_timeout);
+SNL_DECLARE_PARSER(get_timeout_parser, struct genlmsghdr, snl_f_p_empty, ap_get_timeout);
 
 int
 pfctl_get_timeout(struct pfctl_handle *h, uint32_t timeout, uint32_t *seconds)
@@ -2680,9 +2669,8 @@ struct pfctl_nl_limit {
 static struct snl_attr_parser ap_get_limit[] = {
 	{ .type = PF_LI_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_get_limit[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(get_limit_parser, struct genlmsghdr, fp_get_limit, ap_get_limit);
+SNL_DECLARE_PARSER(get_limit_parser, struct genlmsghdr, snl_f_p_empty, ap_get_limit);
 
 int
 pfctl_get_limit(struct pfctl_handle *h, const int index, uint *limit)
@@ -2730,9 +2718,8 @@ struct pfctl_nl_begin_addrs {
 static struct snl_attr_parser ap_begin_addrs[] = {
 	{ .type = PF_BA_TICKET, .off = _OUT(ticket), .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_begin_addrs[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(begin_addrs_parser, struct genlmsghdr, fp_begin_addrs, ap_begin_addrs);
+SNL_DECLARE_PARSER(begin_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_begin_addrs);
 
 int
 pfctl_begin_addrs(struct pfctl_handle *h, uint32_t *ticket)
@@ -2815,8 +2802,7 @@ pfctl_add_addr(struct pfctl_handle *h, const struct pfioc_pooladdr *pa, int whic
 static const struct snl_attr_parser ap_get_addrs[] = {
 	{ .type = PF_AA_NR, .off = 0, .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_get_addrs[] = {};
-SNL_DECLARE_PARSER(get_addrs_parser, struct genlmsghdr, fp_get_addrs, ap_get_addrs);
+SNL_DECLARE_PARSER(get_addrs_parser, struct genlmsghdr, snl_f_p_empty, ap_get_addrs);
 
 int
 pfctl_get_addrs(struct pfctl_handle *h, uint32_t ticket, uint32_t r_num,
@@ -2877,8 +2863,7 @@ static const struct snl_attr_parser ap_get_addr[] = {
 	{ .type = PF_AA_ANCHOR, .off = _OUT(anchor), .arg_u32 = MAXPATHLEN, .cb = snl_attr_copy_string },
 	{ .type = PF_AA_ADDR, .off = _OUT(addr), .arg = &pool_addr_parser, .cb = snl_attr_get_nested },
 };
-static struct snl_field_parser fp_get_addr[] = {};
-SNL_DECLARE_PARSER(get_addr_parser, struct genlmsghdr, fp_get_addr, ap_get_addr);
+SNL_DECLARE_PARSER(get_addr_parser, struct genlmsghdr, snl_f_p_empty, ap_get_addr);
 #undef _OUT
 
 int
@@ -2927,8 +2912,7 @@ static const struct snl_attr_parser ap_ruleset[] = {
 	{ .type = PF_RS_NR, .off = _OUT(nr), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RS_NAME, .off = _OUT(name), .arg = (void *)PF_ANCHOR_NAME_SIZE, .cb = snl_attr_copy_string },
 };
-static struct snl_field_parser fp_ruleset[] = {};
-SNL_DECLARE_PARSER(ruleset_parser, struct genlmsghdr, fp_ruleset, ap_ruleset);
+SNL_DECLARE_PARSER(ruleset_parser, struct genlmsghdr, snl_f_p_empty, ap_ruleset);
 #undef _OUT
 
 int
@@ -3031,9 +3015,8 @@ static struct snl_attr_parser ap_srcnode[] = {
 	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
 };
-static struct snl_field_parser fp_srcnode[] = {};
 #undef _OUT
-SNL_DECLARE_PARSER(srcnode_parser, struct genlmsghdr, fp_srcnode, ap_srcnode);
+SNL_DECLARE_PARSER(srcnode_parser, struct genlmsghdr, snl_f_p_empty, ap_srcnode);
 
 int
 pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg)
@@ -3076,8 +3059,7 @@ pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg)
 static struct snl_attr_parser ap_ndel[] = {
 	{ .type = PF_T_NBR_DELETED, .off = 0, .cb = snl_attr_get_uint32 },
 };
-static struct snl_field_parser fp_ndel[] = {};
-SNL_DECLARE_PARSER(ndel_parser, struct genlmsghdr, fp_ndel, ap_ndel);
+SNL_DECLARE_PARSER(ndel_parser, struct genlmsghdr, snl_f_p_empty, ap_ndel);
 
 int
 pfctl_clear_tables(struct pfctl_handle *h, struct pfr_table *filter,
