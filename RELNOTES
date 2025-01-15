@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+cd597b4bb194, ee931cf4a49c, acdc59f0924a:
+	The layout of NFS file handles for the cd9660 and ext2fs file systems
+	has changed.  An NFS server that exports any of these file systems will
+	need its clients to unmount and remount the exports.
+
 35b193572545:
 	grep(1) no longer follows symbolic links by default for
 	recursive searches.  This matches the documented behavior in
