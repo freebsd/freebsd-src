@@ -354,51 +354,79 @@ parse_signature_type(struct repository *repo, const char *st)
 	else {
 		warnx("Signature type %s is not supported for bootstraping,"
 		    " ignoring repository %s", st, repo->name);
-		repo_free(repo);
-		return false;
+		return (false);
 	}
 	return (true);
+}
+
+static struct repository *
+find_repository(const char *name)
+{
+	struct repository *repo;
+	STAILQ_FOREACH(repo, &repositories, next) {
+		if (strcmp(repo->name, name) == 0)
+			return (repo);
+	}
+	return (NULL);
 }
 
 static void
 parse_repo(const ucl_object_t *o)
 {
 	const ucl_object_t *cur;
-	const char *key;
+	const char *key, *reponame;
 	ucl_object_iter_t it = NULL;
+	bool newrepo = false;
+	struct repository *repo;
 
-	struct repository *repo = calloc(1, sizeof(struct repository));
-	if (repo == NULL)
-		err(EXIT_FAILURE, "calloc");
+	reponame = ucl_object_key(o);
+	repo = find_repository(reponame);
+	if (repo == NULL) {
+		repo = calloc(1, sizeof(struct repository));
+		if (repo == NULL)
+			err(EXIT_FAILURE, "calloc");
 
-	repo->name = strdup(ucl_object_key(o));
-	if (repo->name == NULL)
-		err(EXIT_FAILURE, "strdup");
+		repo->name = strdup(reponame);
+		if (repo->name == NULL)
+			err(EXIT_FAILURE, "strdup");
+		newrepo = true;
+	}
 	while ((cur = ucl_iterate_object(o, &it, true))) {
 		key = ucl_object_key(cur);
 		if (key == NULL)
 			continue;
 		if (strcasecmp(key, "url") == 0) {
+			free(repo->url);
 			repo->url = strdup(ucl_object_tostring(cur));
 			if (repo->url == NULL)
 				err(EXIT_FAILURE, "strdup");
 		} else if (strcasecmp(key, "mirror_type") == 0) {
 			parse_mirror_type(repo, ucl_object_tostring(cur));
 		} else if (strcasecmp(key, "signature_type") == 0) {
-			if (!parse_signature_type(repo, ucl_object_tostring(cur)))
+			if (!parse_signature_type(repo, ucl_object_tostring(cur))) {
+				if (newrepo)
+					repo_free(repo);
+				else
+					STAILQ_REMOVE(&repositories, repo, repository, next);
 				return;
+			}
 		} else if (strcasecmp(key, "fingerprints") == 0) {
+			free(repo->fingerprints);
 			repo->fingerprints = strdup(ucl_object_tostring(cur));
 			if (repo->fingerprints == NULL)
 				err(EXIT_FAILURE, "strdup");
 		} else if (strcasecmp(key, "pubkey") == 0) {
+			free(repo->pubkey);
 			repo->pubkey = strdup(ucl_object_tostring(cur));
 			if (repo->pubkey == NULL)
 				err(EXIT_FAILURE, "strdup");
 		} else if (strcasecmp(key, "enabled") == 0) {
 			if ((cur->type != UCL_BOOLEAN) ||
 			    !ucl_object_toboolean(cur)) {
-				repo_free(repo);
+				if (newrepo)
+					repo_free(repo);
+				else
+					STAILQ_REMOVE(&repositories, repo, repository, next);
 				return;
 			}
 		}
@@ -408,7 +436,8 @@ parse_repo(const ucl_object_t *o)
 		repo_free(repo);
 		return;
 	}
-	STAILQ_INSERT_TAIL(&repositories, repo, next);
+	if (newrepo)
+		STAILQ_INSERT_TAIL(&repositories, repo, next);
 	return;
 }
 
