@@ -132,6 +132,7 @@ struct snl_field_parser {
 	uint16_t		off_out;
 	snl_parse_field_f	*cb;
 };
+static const struct snl_field_parser snl_f_p_empty[] = {};
 
 typedef bool snl_parse_attr_f(struct snl_state *ss, struct nlattr *attr,
     const void *arg, void *target);
