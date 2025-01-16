@@ -9932,7 +9932,7 @@ clear_unlinked_inodedep( struct inodedep *inodedep)
 		if (pino == 0) {
 			bcopy((caddr_t)fs, bp->b_data, (uint64_t)fs->fs_sbsize);
 			bpfs = (struct fs *)bp->b_data;
-			ffs_oldfscompat_write(bpfs, ump);
+			ffs_oldfscompat_write(bpfs);
 			softdep_setup_sbupdate(ump, bpfs, bp);
 			/*
 			 * Because we may have made changes to the superblock,
@@ -9964,7 +9964,7 @@ clear_unlinked_inodedep( struct inodedep *inodedep)
 			    (int)fs->fs_sbsize, 0, 0, 0);
 			bcopy((caddr_t)fs, bp->b_data, (uint64_t)fs->fs_sbsize);
 			bpfs = (struct fs *)bp->b_data;
-			ffs_oldfscompat_write(bpfs, ump);
+			ffs_oldfscompat_write(bpfs);
 			softdep_setup_sbupdate(ump, bpfs, bp);
 			/*
 			 * Because we may have made changes to the superblock,
