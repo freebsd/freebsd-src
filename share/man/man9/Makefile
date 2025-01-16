@@ -47,6 +47,7 @@ MAN=	accept_filter.9 \
 	BUS_GET_CPUS.9 \
 	BUS_GET_PROPERTY.9 \
 	bus_get_resource.9 \
+	BUS_HINTED_CHILD.9 \
 	bus_map_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
