@@ -437,7 +437,7 @@ dmb_pfil_uninit(void)
 }
 
 static void
-vnet_dmb_init(void *unused __unused)
+vnet_dmb_init(const void *unused __unused)
 {
 	sx_init(&V_dmb_rules_lock, "dummymbuf rules");
 	V_dmb_hits = counter_u64_alloc(M_WAITOK);
@@ -447,7 +447,7 @@ VNET_SYSINIT(vnet_dmb_init, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
     vnet_dmb_init, NULL);
 
 static void
-vnet_dmb_uninit(void *unused __unused)
+vnet_dmb_uninit(const void *unused __unused)
 {
 	dmb_pfil_uninit();
 	counter_u64_free(V_dmb_hits);
