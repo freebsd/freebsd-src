@@ -476,9 +476,9 @@ read_conf_file(const char *confpath, const char *requested_repo,
 {
 	struct ucl_parser *p;
 	ucl_object_t *obj = NULL;
-	const char *abi = pkg_get_myabi();
-	char *major, *minor;
+	char *abi = pkg_get_myabi(), *major, *minor;
 	struct utsname uts;
+	int ret;
 
 	if (uname(&uts))
 		err(EXIT_FAILURE, "uname");
@@ -502,9 +502,9 @@ read_conf_file(const char *confpath, const char *requested_repo,
 		if (errno != ENOENT)
 			errx(EXIT_FAILURE, "Unable to parse configuration "
 			    "file %s: %s", confpath, ucl_parser_get_error(p));
-		ucl_parser_free(p);
 		/* no configuration present */
-		return (1);
+		ret = 1;
+		goto out;
 	}
 
 	obj = ucl_parser_get_object(p);
@@ -517,13 +517,16 @@ read_conf_file(const char *confpath, const char *requested_repo,
 		else if (conftype == CONFFILE_REPO)
 			parse_repo_file(obj, requested_repo);
 	}
-
 	ucl_object_unref(obj);
+
+	ret = 0;
+out:
 	ucl_parser_free(p);
+	free(abi);
 	free(major);
 	free(minor);
 
-	return (0);
+	return (ret);
 }
 
 static void
@@ -674,7 +677,7 @@ config_get_repositories(void)
 {
 	if (STAILQ_EMPTY(&repositories)) {
 		/* Fall back to PACKAGESITE - deprecated - */
-		struct repository *r = calloc(1, sizeof(r));
+		struct repository *r = calloc(1, sizeof(*r));
 		if (r == NULL)
 			err(EXIT_FAILURE, "calloc");
 		r->name = strdup("fallback");

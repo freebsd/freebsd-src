@@ -664,7 +664,7 @@ verify_pubsignature(int fd_pkg, int fd_sig, struct repository *r)
 		pubkey = r->pubkey;
 	} else {
 		if (config_string(PUBKEY, &pubkey) != 0) {
-			warnx("No CONFIG_PUBKEY defined for %s", r->name);
+			warnx("No CONFIG_PUBKEY defined");
 			goto cleanup;
 		}
 	}
