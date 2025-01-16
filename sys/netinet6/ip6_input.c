@@ -621,10 +621,10 @@ ip6_input(struct mbuf *m)
 	IP_PROBE(receive, NULL, NULL, ip6, rcvif, NULL, ip6);
 
 	/*
-	 * Check against address spoofing/corruption.
+	 * Check against address spoofing/corruption.  The unspecified address
+	 * is checked further below.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst)) {
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
 		/*
 		 * XXX: "badscope" is not very suitable for a multicast source.
 		 */
@@ -749,6 +749,17 @@ ip6_input(struct mbuf *m)
 	}
 
 passin:
+	/*
+	 * The check is deferred to here to give firewalls a chance to block
+	 * (and log) such packets.  ip6_tryforward() will not process such
+	 * packets.
+	 */
+	if (__predict_false(IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst))) {
+		IP6STAT_INC(ip6s_badscope);
+		in6_ifstat_inc(rcvif, ifs6_in_addrerr);
+		goto bad;
+	}
+
 	/*
 	 * Disambiguate address scope zones (if there is ambiguity).
 	 * We first make sure that the original source or destination address

@@ -195,9 +195,80 @@ state_max_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "unspecified_v4" "cleanup"
+unspecified_v4_head()
+{
+	atf_set descr 'Ensure that packets to the unspecified address are visible to pfil hooks'
+	atf_set require.user root
+}
+
+unspecified_v4_body()
+{
+	pflog_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz ifconfig lo0 inet 127.0.0.1
+	jexec alcatraz route add default 127.0.0.1
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz ifconfig pflog0 up
+	pft_set_rules alcatraz "block log on lo0 to 0.0.0.0"
+
+	jexec alcatraz tcpdump -n -e -ttt --immediate-mode -l -U -i pflog0 >> pflog.txt &
+	sleep 1 # Wait for tcpdump to start
+
+	atf_check -s not-exit:0 -o ignore -e ignore \
+	    jexec alcatraz ping -S 127.0.0.1 -c 1 0.0.0.0
+
+	atf_check -o match:".*: block out on lo0: 127.0.0.1 > 0.0.0.0: ICMP echo request,.*" \
+	    cat pflog.txt
+}
+
+unspecified_v4_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "unspecified_v6" "cleanup"
+unspecified_v6_head()
+{
+	atf_set descr 'Ensure that packets to the unspecified address are visible to pfil hooks'
+	atf_set require.user root
+}
+
+unspecified_v6_body()
+{
+	pflog_init
+
+	vnet_mkjail alcatraz
+	jexec alcatraz ifconfig lo0 up
+	jexec alcatraz route -6 add ::0 ::1
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz ifconfig pflog0 up
+	pft_set_rules alcatraz "block log on lo0 to ::0"
+
+	jexec alcatraz tcpdump -n -e -ttt --immediate-mode -l -U -i pflog0 >> pflog.txt &
+	sleep 1 # Wait for tcpdump to start
+
+	atf_check -s not-exit:0 -o ignore -e ignore \
+	    jexec alcatraz ping -6 -S ::1 -c 1 ::0
+
+	cat pflog.txt
+	atf_check -o match:".*: block out on lo0: ::1 > ::: ICMP6, echo request,.*" \
+	    cat pflog.txt
+}
+
+unspecified_v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "malformed"
 	atf_add_test_case "matches"
 	atf_add_test_case "state_max"
+	atf_add_test_case "unspecified_v4"
+	atf_add_test_case "unspecified_v6"
 }
