@@ -464,31 +464,23 @@ acline_read(int rfds)
 bool
 netlink_init(void)
 {
-	struct _getfamily_attrs attrs;
+	uint32_t group;
 
 	if (modfind("nlsysevent") < 0)
 		kldload("nlsysevent");
 	if (modfind("nlsysevent") < 0)
 		return (false);
 
-	if (!snl_init(&ss, NETLINK_GENERIC))
+	if (!snl_init(&ss, NETLINK_GENERIC) || (group =
+	    snl_get_genl_mcast_group(&ss, "nlsysevent", "ACPI", NULL)) == 0) {
+		warnx("Cannot find \"nlsysevent\" family \"ACPI\" group");
 		return (false);
+	}
 
-	if (!snl_get_genl_family_info(&ss, "nlsysevent", &attrs))
+	if (setsockopt(ss.fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group,
+	    sizeof(group)) == -1) {
+		warnx("Cannot subscribe to \"ACPI\"");
 		return (false);
-
-	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
-		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
-		    "ACPI") == 0) {
-			if (setsockopt(ss.fd, SOL_NETLINK,
-			    NETLINK_ADD_MEMBERSHIP,
-			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
-			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
-			    == -1) {
-				warnx("Cannot subscribe to \"ACPI\"");
-				return (false);
-			}
-		}
 	}
 	return (true);
 }
