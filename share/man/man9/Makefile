@@ -692,6 +692,8 @@ MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dmamem_free.9 \
 	bus_dma.9 bus_dma_tag_create.9 \
 	bus_dma.9 bus_dma_tag_destroy.9
+MLINKS+=bus_generic_print_child.9 bus_print_child_footer.9 \
+	bus_generic_print_child.9 bus_print_child_header.9
 MLINKS+=bus_generic_read_ivar.9 bus_generic_write_ivar.9
 MLINKS+=BUS_GET_CPUS.9 bus_get_cpus.9
 MLINKS+=bus_map_resource.9 bus_unmap_resource.9 \
