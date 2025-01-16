@@ -123,6 +123,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
+static void ffs_oldfscompat_read(struct fs *, ufs2_daddr_t);
 static int validate_sblock(struct fs *, int);
 
 /*
@@ -268,6 +269,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 	if (fs->fs_magic == FS_UFS1_MAGIC && (flags & UFS_ALTSBLK) == 0 &&
 	    fs->fs_bsize == SBLOCK_UFS2 && sblockloc == SBLOCK_UFS2)
 		return (ENOENT);
+	ffs_oldfscompat_read(fs, sblockloc);
 	if ((error = validate_sblock(fs, flags)) > 0)
 		return (error);
 	/*
@@ -314,6 +316,83 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 	/* Not yet any summary information */
 	fs->fs_si = NULL;
 	return (0);
+}
+
+/*
+ * Sanity checks for loading old filesystem superblocks.
+ * See ffs_oldfscompat_write below for unwound actions.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+static void
+ffs_oldfscompat_read(struct fs *fs, ufs2_daddr_t sblockloc)
+{
+	uint64_t maxfilesize;
+
+	/*
+	 * If not yet done, update fs_flags location and value of fs_sblockloc.
+	 */
+	if ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+		fs->fs_flags = fs->fs_old_flags;
+		fs->fs_old_flags |= FS_FLAGS_UPDATED;
+		fs->fs_sblockloc = sblockloc;
+	}
+	/*
+	 * If not yet done, update UFS1 superblock with new wider fields.
+	 */
+	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_maxbsize != fs->fs_bsize) {
+		fs->fs_maxbsize = fs->fs_bsize;
+		fs->fs_time = fs->fs_old_time;
+		fs->fs_size = fs->fs_old_size;
+		fs->fs_dsize = fs->fs_old_dsize;
+		fs->fs_csaddr = fs->fs_old_csaddr;
+		fs->fs_cstotal.cs_ndir = fs->fs_old_cstotal.cs_ndir;
+		fs->fs_cstotal.cs_nbfree = fs->fs_old_cstotal.cs_nbfree;
+		fs->fs_cstotal.cs_nifree = fs->fs_old_cstotal.cs_nifree;
+		fs->fs_cstotal.cs_nffree = fs->fs_old_cstotal.cs_nffree;
+	}
+	if (fs->fs_magic == FS_UFS1_MAGIC &&
+	    fs->fs_old_inodefmt < FS_44INODEFMT) {
+		fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
+		fs->fs_qbmask = ~fs->fs_bmask;
+		fs->fs_qfmask = ~fs->fs_fmask;
+	}
+	if (fs->fs_magic == FS_UFS1_MAGIC) {
+		fs->fs_save_maxfilesize = fs->fs_maxfilesize;
+		maxfilesize = (uint64_t)0x80000000 * fs->fs_bsize - 1;
+		if (fs->fs_maxfilesize > maxfilesize)
+			fs->fs_maxfilesize = maxfilesize;
+	}
+	/* Compatibility for old filesystems */
+	if (fs->fs_avgfilesize <= 0)
+		fs->fs_avgfilesize = AVFILESIZ;
+	if (fs->fs_avgfpdir <= 0)
+		fs->fs_avgfpdir = AFPDIR;
+}
+
+/*
+ * Unwinding superblock updates for old filesystems.
+ * See ffs_oldfscompat_read above for details.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+void
+ffs_oldfscompat_write(struct fs *fs)
+{
+
+	/*
+	 * Copy back UFS2 updated fields that UFS1 inspects.
+	 */
+	if (fs->fs_magic == FS_UFS1_MAGIC) {
+		fs->fs_old_time = fs->fs_time;
+		fs->fs_old_cstotal.cs_ndir = fs->fs_cstotal.cs_ndir;
+		fs->fs_old_cstotal.cs_nbfree = fs->fs_cstotal.cs_nbfree;
+		fs->fs_old_cstotal.cs_nifree = fs->fs_cstotal.cs_nifree;
+		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
+		fs->fs_maxfilesize = fs->fs_save_maxfilesize;
+	}
 }
 
 /*
@@ -561,7 +640,7 @@ validate_sblock(struct fs *fs, int flags)
 		sizepb *= NINDIR(fs);
 		maxfilesize += sizepb;
 	}
-	WCHK(fs->fs_maxfilesize, !=, maxfilesize, %jd);
+	WCHK(fs->fs_maxfilesize, >, maxfilesize, %jd);
 	/*
 	 * These values have a tight interaction with each other that
 	 * makes it hard to tightly bound them. So we can only check

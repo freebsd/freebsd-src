@@ -838,7 +838,7 @@ resumefs:
 		copy_fs->fs_fmod = 0;
 		bpfs = (struct fs *)&nbp->b_data[loc];
 		bcopy((caddr_t)copy_fs, (caddr_t)bpfs, (uint64_t)fs->fs_sbsize);
-		ffs_oldfscompat_write(bpfs, ump);
+		ffs_oldfscompat_write(bpfs);
 		bpfs->fs_ckhash = ffs_calc_sbhash(bpfs);
 		bawrite(nbp);
 	}

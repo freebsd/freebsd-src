@@ -83,8 +83,6 @@ static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 VFS_SMR_DECLARE;
 
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
-static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
-		    ufs2_daddr_t);
 static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static int	ffs_sync_lazy(struct mount *mp);
 static int	ffs_use_bread(void *devfd, off_t loc, void **bufp, int size);
@@ -795,7 +793,6 @@ ffs_reload(struct mount *mp, int flags)
 	fs = VFSTOUFS(mp)->um_fs = newfs;
 	ump->um_bsize = fs->fs_bsize;
 	ump->um_maxsymlinklen = fs->fs_maxsymlinklen;
-	ffs_oldfscompat_read(fs, VFSTOUFS(mp), fs->fs_sblockloc);
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: reload pending error: blocks %jd "
@@ -1010,7 +1007,6 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		ump->um_check_blkno = NULL;
 	mtx_init(UFS_MTX(ump), "FFS", "FFS Lock", MTX_DEF);
 	sx_init(&ump->um_checkpath_lock, "uchpth");
-	ffs_oldfscompat_read(fs, ump, fs->fs_sblockloc);
 	fs->fs_ronly = ronly;
 	fs->fs_active = NULL;
 	mp->mnt_data = ump;
@@ -1217,96 +1213,6 @@ ffs_use_bread(void *devfd, off_t loc, void **bufp, int size)
 	bp->b_flags |= B_INVAL | B_NOCACHE;
 	brelse(bp);
 	return (0);
-}
-
-static int bigcgs = 0;
-SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
-
-/*
- * Sanity checks for loading old filesystem superblocks.
- * See ffs_oldfscompat_write below for unwound actions.
- *
- * XXX - Parts get retired eventually.
- * Unfortunately new bits get added.
- */
-static void
-ffs_oldfscompat_read(struct fs *fs,
-	struct ufsmount *ump,
-	ufs2_daddr_t sblockloc)
-{
-	off_t maxfilesize;
-
-	/*
-	 * If not yet done, update fs_flags location and value of fs_sblockloc.
-	 */
-	if ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
-		fs->fs_flags = fs->fs_old_flags;
-		fs->fs_old_flags |= FS_FLAGS_UPDATED;
-		fs->fs_sblockloc = sblockloc;
-	}
-	/*
-	 * If not yet done, update UFS1 superblock with new wider fields.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_maxbsize != fs->fs_bsize) {
-		fs->fs_maxbsize = fs->fs_bsize;
-		fs->fs_time = fs->fs_old_time;
-		fs->fs_size = fs->fs_old_size;
-		fs->fs_dsize = fs->fs_old_dsize;
-		fs->fs_csaddr = fs->fs_old_csaddr;
-		fs->fs_cstotal.cs_ndir = fs->fs_old_cstotal.cs_ndir;
-		fs->fs_cstotal.cs_nbfree = fs->fs_old_cstotal.cs_nbfree;
-		fs->fs_cstotal.cs_nifree = fs->fs_old_cstotal.cs_nifree;
-		fs->fs_cstotal.cs_nffree = fs->fs_old_cstotal.cs_nffree;
-	}
-	if (fs->fs_magic == FS_UFS1_MAGIC &&
-	    fs->fs_old_inodefmt < FS_44INODEFMT) {
-		fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
-		fs->fs_qbmask = ~fs->fs_bmask;
-		fs->fs_qfmask = ~fs->fs_fmask;
-	}
-	if (fs->fs_magic == FS_UFS1_MAGIC) {
-		ump->um_savedmaxfilesize = fs->fs_maxfilesize;
-		maxfilesize = (uint64_t)0x80000000 * fs->fs_bsize - 1;
-		if (fs->fs_maxfilesize > maxfilesize)
-			fs->fs_maxfilesize = maxfilesize;
-	}
-	/* Compatibility for old filesystems */
-	if (fs->fs_avgfilesize <= 0)
-		fs->fs_avgfilesize = AVFILESIZ;
-	if (fs->fs_avgfpdir <= 0)
-		fs->fs_avgfpdir = AFPDIR;
-	if (bigcgs) {
-		fs->fs_save_cgsize = fs->fs_cgsize;
-		fs->fs_cgsize = fs->fs_bsize;
-	}
-}
-
-/*
- * Unwinding superblock updates for old filesystems.
- * See ffs_oldfscompat_read above for details.
- *
- * XXX - Parts get retired eventually.
- * Unfortunately new bits get added.
- */
-void
-ffs_oldfscompat_write(struct fs *fs, struct ufsmount *ump)
-{
-
-	/*
-	 * Copy back UFS2 updated fields that UFS1 inspects.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC) {
-		fs->fs_old_time = fs->fs_time;
-		fs->fs_old_cstotal.cs_ndir = fs->fs_cstotal.cs_ndir;
-		fs->fs_old_cstotal.cs_nbfree = fs->fs_cstotal.cs_nbfree;
-		fs->fs_old_cstotal.cs_nifree = fs->fs_cstotal.cs_nifree;
-		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
-		fs->fs_maxfilesize = ump->um_savedmaxfilesize;
-	}
-	if (bigcgs) {
-		fs->fs_cgsize = fs->fs_save_cgsize;
-		fs->fs_save_cgsize = 0;
-	}
 }
 
 /*
@@ -2192,7 +2098,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	UFS_UNLOCK(ump);
 	fs = (struct fs *)bp->b_data;
 	fs->fs_fmod = 0;
-	ffs_oldfscompat_write(fs, ump);
+	ffs_oldfscompat_write(fs);
 	fs->fs_si = NULL;
 	/* Recalculate the superblock hash */
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
