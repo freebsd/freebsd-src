@@ -107,6 +107,7 @@ ip6_tryforward(struct mbuf *m)
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
+	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) ||
 	    in6_localip(&ip6->ip6_dst))
 		return (m);
