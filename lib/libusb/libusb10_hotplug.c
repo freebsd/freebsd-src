@@ -66,30 +66,20 @@ typedef enum {
 static bool
 netlink_init(libusb_context *ctx)
 {
-	struct _getfamily_attrs attrs;
+	uint32_t group;
 
 	if (modfind("nlsysevent") < 0)
 		kldload("nlsysevent");
 	if (modfind("nlsysevent") < 0)
 		return (false);
-	if (!snl_init(&ctx->ss, NETLINK_GENERIC))
+	if (!snl_init(&ctx->ss, NETLINK_GENERIC) || (group =
+	    snl_get_genl_mcast_group(&ctx->ss, "nlsysevent", "ACPI", NULL)) == 0)
 		return (false);
 
-	if (!snl_get_genl_family_info(&ctx->ss, "nlsysevent", &attrs))
+	if (setsockopt(ctx->ss.fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group,
+	    sizeof(group)) == -1)
 		return (false);
 
-	for (unsigned int i = 0; i < attrs.mcast_groups.num_groups; i++) {
-		if (strcmp(attrs.mcast_groups.groups[i]->mcast_grp_name,
-		    "USB") == 0) {
-			if (setsockopt(ctx->ss.fd, SOL_NETLINK,
-			    NETLINK_ADD_MEMBERSHIP,
-			    &attrs.mcast_groups.groups[i]->mcast_grp_id,
-			    sizeof(attrs.mcast_groups.groups[i]->mcast_grp_id))
-			    == -1) {
-				return (false);
-			}
-		}
-	}
 	ctx->usb_event_mode = usb_event_netlink;
 	return (true);
 }
