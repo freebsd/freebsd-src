@@ -26,11 +26,13 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 15, 2017
+.Dd January 16, 2025
 .Dt BUS_GENERIC_PRINT_CHILD 9
 .Os
 .Sh NAME
-.Nm bus_generic_print_child
+.Nm bus_generic_print_child ,
+.Nm bus_print_child_footer ,
+.Nm bus_print_child_header
 .Nd generic implementation of
 .Dv DEVICE_PRINT_CHILD
 for buses
@@ -39,6 +41,10 @@ for buses
 .In sys/bus.h
 .Ft int
 .Fn bus_generic_print_child "device_t dev" "device_t child"
+.Ft int
+.Fn bus_print_child_footer "device_t dev" "device_t child"
+.Ft int
+.Fn bus_print_child_header "device_t dev" "device_t child"
 .Sh DESCRIPTION
 This implementation prints out the default device announcement message.
 Given device 'foo0' on bus 'bar0' where foo0 has the name "FooCard 1234" the
