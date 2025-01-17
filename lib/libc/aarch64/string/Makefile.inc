@@ -54,3 +54,7 @@ CLEANFILES+=	${FUNC}.S
 MDSRCS+=	${FUNC}.S
 CFLAGS.${FUNC}.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
 .endfor
+
+# memchr.S is a wrapper in the src tree for the implementation from
+# arm-optimized-routines
+CFLAGS.memchr.S+=-I${SRCTOP}/contrib/arm-optimized-routines/string
