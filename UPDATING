@@ -13,9 +13,9 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20250117:
-	The layout of NFS file handles for the tarfs, cd9660, and ext2fs
-	file systems has changed.  An NFS server that exports any of these file
-	systems will need its clients to unmount and remount the exports.
+	The layout of NFS file handles for the cd9660 and ext2fs file systems
+	has changed.  An NFS server that exports any of these file systems will
+	need its clients to unmount and remount the exports.
 
 20240419:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
