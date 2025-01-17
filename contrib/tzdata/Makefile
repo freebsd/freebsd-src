@@ -137,7 +137,7 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
   uint_least64_t.ck
 
 # What kind of TZif data files to generate.  (TZif is the binary time
-# zone data format that zic generates; see Internet RFC 8536.)
+# zone data format that zic generates; see Internet RFC 9636.)
 # If you want only POSIX time, with time values interpreted as
 # seconds since the epoch (not counting leap seconds), use
 #	REDO=		posix_only
@@ -255,6 +255,7 @@ LDLIBS=
 #  -DHAVE_UNISTD_H=0 if <unistd.h> does not work*
 #  -DHAVE_UTMPX_H=0 if <utmpx.h> does not work*
 #  -Dlocale_t=XXX if your system uses XXX instead of locale_t
+#  -DMKTIME_MIGHT_OVERFLOW if mktime might fail due to time_t overflow
 #  -DPORT_TO_C89 if tzcode should also run on mostly-C89 platforms+
 #	Typically it is better to use a later standard.  For example,
 #	with GCC 4.9.4 (2016), prefer '-std=gnu11' to '-DPORT_TO_C89'.
@@ -262,7 +263,7 @@ LDLIBS=
 #	feature (integers at least 64 bits wide) and maybe more.
 #  -DRESERVE_STD_EXT_IDS if your platform reserves standard identifiers
 #	with external linkage, e.g., applications cannot define 'localtime'.
-#  -Dssize_t=long on hosts like MS-Windows that lack ssize_t
+#  -Dssize_t=int on hosts like MS-Windows that lack ssize_t
 #  -DSUPPORT_C89=0 if the tzcode library should not support C89 callers
 #	Although -DSUPPORT_C89=0 might work around latent bugs in callers,
 #	it does not conform to POSIX.
@@ -285,7 +286,7 @@ LDLIBS=
 #	This mishandles some past timestamps, as US DST rules have changed.
 #	It also mishandles settings like TZ='EET-2EEST' for eastern Europe,
 #	as Europe and US DST rules differ.
-#  -DTZNAME_MAXIMUM=N to limit time zone abbreviations to N bytes (default 255)
+#  -DTZNAME_MAXIMUM=N to limit time zone abbreviations to N bytes (default 254)
 #  -DUNINIT_TRAP if reading uninitialized storage can cause problems
 #	other than simply getting garbage data
 #  -DUSE_LTZ=0 to build zdump with the system time zone library
@@ -319,7 +320,8 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 \
   $(GCC_INSTRUMENT) \
   -Wall -Wextra \
   -Walloc-size-larger-than=100000 -Warray-bounds=2 \
-  -Wbad-function-cast -Wbidi-chars=any,ucn -Wcast-align=strict -Wdate-time \
+  -Wbad-function-cast -Wbidi-chars=any,ucn -Wcast-align=strict -Wcast-qual \
+  -Wdate-time \
   -Wdeclaration-after-statement -Wdouble-promotion \
   -Wduplicated-branches -Wduplicated-cond -Wflex-array-member-not-at-end \
   -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
@@ -336,7 +338,7 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 \
   -Wsuggest-attribute=noreturn -Wsuggest-attribute=pure \
   -Wtrampolines -Wundef -Wunused-macros -Wuse-after-free=3 \
   -Wvariadic-macros -Wvla -Wwrite-strings \
-  -Wno-format-nonliteral -Wno-sign-compare
+  -Wno-format-nonliteral -Wno-sign-compare -Wno-type-limits
 #
 # If your system has a "GMT offset" field in its "struct tm"s
 # (or if you decide to add such a field in your system's "time.h" file),
@@ -614,8 +616,8 @@ TZS_YEAR=	2050
 TZS_CUTOFF_FLAG=	-c $(TZS_YEAR)
 TZS=		to$(TZS_YEAR).tzs
 TZS_NEW=	to$(TZS_YEAR)new.tzs
-TZS_DEPS=	$(YDATA) asctime.c localtime.c \
-			private.h tzfile.h zdump.c zic.c
+TZS_DEPS=	$(YDATA) localtime.c private.h \
+			strftime.c tzfile.h zdump.c zic.c
 TZDATA_DIST = $(COMMON) $(DATA) $(MISC)
 # EIGHT_YARDS is just a yard short of the whole ENCHILADA.
 EIGHT_YARDS = $(TZDATA_DIST) $(DOCS) $(SOURCES) tzdata.zi
@@ -855,10 +857,10 @@ tzselect:	tzselect.ksh version
 		chmod +x $@.out
 		mv $@.out $@
 
-check: check_mild back.ck
+check: check_mild back.ck now.ck
 check_mild: check_web check_zishrink \
   character-set.ck white-space.ck links.ck mainguard.ck \
-  name-lengths.ck now.ck slashed-abbrs.ck sorted.ck \
+  name-lengths.ck slashed-abbrs.ck sorted.ck \
   tables.ck ziguard.ck tzs.ck
 
 # True if UTF8_LOCALE does not work;
@@ -1103,7 +1105,7 @@ set-timestamps.out: $(EIGHT_YARDS)
 		   touch -md @1 test.out; then \
 		  rm -f test.out && \
 		  for file in $$files; do \
-		    if git diff --quiet $$file; then \
+		    if git diff --quiet HEAD $$file; then \
 		      time=$$(TZ=UTC0 git log -1 \
 			--format='tformat:%cd' \
 			--date='format:%Y-%m-%dT%H:%M:%SZ' \
@@ -1354,13 +1356,13 @@ long-long.ck unsigned.ck: $(VERSION_DEPS)
 zonenames:	tzdata.zi
 		@$(AWK) '/^Z/ { print $$2 } /^L/ { print $$3 }' tzdata.zi
 
-asctime.o:	private.h tzfile.h
+asctime.o:	private.h
 date.o:		private.h
 difftime.o:	private.h
-localtime.o:	private.h tzfile.h tzdir.h
-strftime.o:	private.h tzfile.h
-zdump.o:	version.h
-zic.o:		private.h tzfile.h tzdir.h version.h
+localtime.o:	private.h tzdir.h tzfile.h
+strftime.o:	localtime.c private.h tzdir.h tzfile.h
+zdump.o:	private.h version.h
+zic.o:		private.h tzdir.h tzfile.h version.h
 
 .PHONY: ALL INSTALL all
 .PHONY: check check_mild check_time_t_alternatives
