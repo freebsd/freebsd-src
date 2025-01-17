@@ -32,9 +32,9 @@
 #ifndef _STDDEF_H_
 #define _STDDEF_H_
 
-#include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+#include <sys/_visible.h>
 
 #ifndef _PTRDIFF_T_DECLARED
 typedef	__ptrdiff_t	ptrdiff_t;
@@ -61,7 +61,9 @@ typedef	__max_align_t	max_align_t;
 #endif
 #endif
 
-#define	offsetof(type, field)	__offsetof(type, field)
+#ifndef offsetof
+#define	offsetof(type, field)	__builtin_offsetof(type, field)
+#endif
 
 #if __EXT1_VISIBLE
 /* ISO/IEC 9899:2011 K.3.3.2 */
