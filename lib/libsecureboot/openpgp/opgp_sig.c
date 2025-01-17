@@ -341,6 +341,7 @@ openpgp_verify(const char *filename,
 				break;
 			default:
 				warnx("unsupported hash algorithm: %s", hname);
+				rc = -1;
 				goto oops;
 			}
 			md->init(&mctx.vtable);
