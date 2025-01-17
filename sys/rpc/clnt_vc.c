@@ -1265,6 +1265,7 @@ clnt_vc_dotlsupcall(void *data)
 	enum clnt_stat ret;
 	uint32_t reterr;
 
+	CURVNET_SET(ct->ct_socket->so_vnet);
 	mtx_lock(&ct->ct_lock);
 	ct->ct_rcvstate |= RPCRCVSTATE_UPCALLTHREAD;
 	while (!ct->ct_closed) {
@@ -1300,4 +1301,5 @@ clnt_vc_dotlsupcall(void *data)
 	mtx_unlock(&ct->ct_lock);
 	CLNT_RELEASE(cl);
 	kthread_exit();
+	CURVNET_RESTORE();
 }
