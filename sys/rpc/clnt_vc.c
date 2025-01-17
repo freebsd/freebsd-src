@@ -234,12 +234,8 @@ clnt_vc_create(
 	 */
 	xdrmem_create(&xdrs, ct->ct_mcallc, MCALL_MSG_SIZE,
 	    XDR_ENCODE);
-	if (! xdr_callhdr(&xdrs, &call_msg)) {
-		if (ct->ct_closeit) {
-			soclose(ct->ct_socket);
-		}
+	if (! xdr_callhdr(&xdrs, &call_msg))
 		goto err;
-	}
 	ct->ct_mpos = XDR_GETPOS(&xdrs);
 	XDR_DESTROY(&xdrs);
 	ct->ct_waitchan = "rpcrecv";
@@ -252,12 +248,8 @@ clnt_vc_create(
 	sendsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsz);
 	recvsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsz);
 	error = soreserve(ct->ct_socket, sendsz, recvsz);
-	if (error != 0) {
-		if (ct->ct_closeit) {
-			soclose(ct->ct_socket);
-		}
+	if (error != 0)
 		goto err;
-	}
 	cl->cl_refs = 1;
 	cl->cl_ops = &clnt_vc_ops;
 	cl->cl_private = ct;
