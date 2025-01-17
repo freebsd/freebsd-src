@@ -107,9 +107,10 @@
 ;	timet_	Object contains a time_t and varies between i386 and other
 ;		ABIs.
 
-; #include's, #defines's, etc. may be included, and are copied to the output
-; files. However, #ifdef, etc will be copied, but any lines that don't start
-; with # will not. Caveat Emptor.
+; #include's, #defines's, etc. may be included, and are copied to a
+; limited set of output files.  Before the first syscalls, #include lines will
+; be copied and %%ABI_HEADERS%% expanded.  Between system call entries,
+; all lines beginning with # will be copied.  Caveat Emptor.
 
 #include <sys/param.h>
 #include <sys/sysent.h>

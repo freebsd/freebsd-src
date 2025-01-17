@@ -66,6 +66,8 @@ struct sysent %s[] = {
 		-- based on the type of system call.
 		local comment = v.name
 
+		gen:write(v.prolog);
+
 		-- Handle non-compat:
 		if v:native() then
 			gen:write(string.format(
@@ -163,6 +165,7 @@ struct sysent %s[] = {
 
 		gen:write(string.format("\t/* %d = %s */\n", v.num, comment))
 	end
+	gen:write(tbl.epilog)
 
 	-- End
 	gen:write("};\n")
