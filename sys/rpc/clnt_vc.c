@@ -849,7 +849,7 @@ static void
 clnt_vc_destroy(CLIENT *cl)
 {
 	struct ct_data *ct = (struct ct_data *) cl->cl_private;
-	struct socket *so = NULL;
+	struct socket *so;
 	SVCXPRT *xprt;
 	uint32_t reterr;
 
@@ -867,19 +867,14 @@ clnt_vc_destroy(CLIENT *cl)
 		SVC_RELEASE(xprt);
 	}
 
-	if (ct->ct_socket) {
-		if (ct->ct_closeit) {
-			so = ct->ct_socket;
-		}
-	}
-
 	/* Wait for the upcall kthread to terminate. */
 	while ((ct->ct_rcvstate & RPCRCVSTATE_UPCALLTHREAD) != 0)
 		msleep(&ct->ct_sslrefno, &ct->ct_lock, 0,
 		    "clntvccl", hz);
 	mtx_unlock(&ct->ct_lock);
-
 	mtx_destroy(&ct->ct_lock);
+
+	so = ct->ct_closeit ? ct->ct_socket : NULL;
 	if (so) {
 		if (ct->ct_sslrefno != 0) {
 			/*
