@@ -606,7 +606,7 @@ int nfscl_doclose(vnode_t, struct nfsclclient **, NFSPROC_T *);
 int nfsrpc_doclose(struct nfsmount *, struct nfsclopen *, NFSPROC_T *, bool,
     bool);
 int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int,
-    struct ucred *, NFSPROC_T *, struct nfscldeleg **);
+    struct ucred *, NFSPROC_T *, struct nfscldeleg *);
 void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
