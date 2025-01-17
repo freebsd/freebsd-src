@@ -452,7 +452,7 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 				NFSUNLOCKNODE(np);
 				(void) nfscl_deleg(nmp->nm_mountp,
 				    op->nfso_own->nfsow_clp,
-				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
+				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, dp);
 			}
 		} else if (NFSHASNFSV4N(nmp)) {
 			/*
@@ -485,7 +485,7 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 				NFSUNLOCKNODE(np);
 				(void) nfscl_deleg(nmp->nm_mountp,
 				    op->nfso_own->nfsow_clp,
-				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
+				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, dp);
 			}
 		} else {
 			error = EIO;
@@ -2511,7 +2511,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		 */
 		if (dp != NULL)
 			(void) nfscl_deleg(nmp->nm_mountp, owp->nfsow_clp,
-			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
+			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, dp);
 		nfscl_ownerrelease(nmp, owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||

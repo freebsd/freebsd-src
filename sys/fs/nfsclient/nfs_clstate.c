@@ -432,9 +432,9 @@ nfscl_newopen(struct nfsclclient *clp, struct nfscldeleg *dp,
  */
 int
 nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
-    int fhlen, struct ucred *cred, NFSPROC_T *p, struct nfscldeleg **dpp)
+    int fhlen, struct ucred *cred, NFSPROC_T *p, struct nfscldeleg *dp)
 {
-	struct nfscldeleg *dp = *dpp, *tdp;
+	struct nfscldeleg *tdp;
 	struct nfsmount *nmp;
 
 	KASSERT(mp != NULL, ("nfscl_deleg: mp NULL"));
@@ -457,7 +457,6 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 			NFSUNLOCKCLSTATE();
 			return (NFSERR_BADSTATEID);
 		}
-		*dpp = NULL;
 		TAILQ_INSERT_HEAD(&clp->nfsc_deleg, dp, nfsdl_list);
 		LIST_INSERT_HEAD(NFSCLDELEGHASH(clp, nfhp, fhlen), dp,
 		    nfsdl_hash);
@@ -475,18 +474,15 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 			    (tdp->nfsdl_flags & NFSCLDL_READ) != 0) {
 				TAILQ_REMOVE(&clp->nfsc_deleg, tdp, nfsdl_list);
 				LIST_REMOVE(tdp, nfsdl_hash);
-				*dpp = NULL;
 				TAILQ_INSERT_HEAD(&clp->nfsc_deleg, dp,
 				    nfsdl_list);
 				LIST_INSERT_HEAD(NFSCLDELEGHASH(clp, nfhp,
 				    fhlen), dp, nfsdl_hash);
 				dp->nfsdl_timestamp = NFSD_MONOSEC + 120;
 			} else {
-				*dpp = NULL;
 				tdp = dp;	/* Return this one. */
 			}
 		} else {
-			*dpp = tdp;
 			tdp = NULL;
 		}
 	}
@@ -1637,7 +1633,7 @@ nfscl_expireopen(struct nfsclclient *clp, struct nfsclopen *op,
 		}
 		if (dp != NULL)
 			nfscl_deleg(nmp->nm_mountp, clp, op->nfso_fh,
-			    op->nfso_fhlen, cred, p, &dp);
+			    op->nfso_fhlen, cred, p, dp);
 	}
 
 	/*
