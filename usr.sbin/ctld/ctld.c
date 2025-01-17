@@ -1569,7 +1569,7 @@ lun_set_serial(struct lun *lun, const char *value)
 }
 
 void
-lun_set_size(struct lun *lun, size_t value)
+lun_set_size(struct lun *lun, int64_t value)
 {
 
 	lun->l_size = value;

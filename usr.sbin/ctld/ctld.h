@@ -349,7 +349,7 @@ void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
 void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);
-void			lun_set_size(struct lun *lun, size_t value);
+void			lun_set_size(struct lun *lun, int64_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 
 struct option		*option_new(struct options *os,
