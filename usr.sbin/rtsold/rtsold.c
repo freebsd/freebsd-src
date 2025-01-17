@@ -792,17 +792,17 @@ usage(const char *progname)
 {
 
 	if (strcmp(progname, "rtsold") == 0) {
-		fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+		fprintf(stderr, "usage: rtsold [-dDfFim1] [-O script-name] "
 		    "[-M script-name ] [-A script-name ] "
 		    "[-p pidfile] [-R script-name] interface ...\n");
-		fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+		fprintf(stderr, "usage: rtsold [-dDfFim1] [-O script-name] "
 		    "[-M script-name ] [-A script-name ] "
 		    "[-p pidfile] [-R script-name] -a\n");
 	} else {
-		fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+		fprintf(stderr, "usage: rtsol [-dDFi] [-O script-name] "
 		    "[-M script-name ] [-A script-name ] "
 		    "[-p pidfile] [-R script-name] interface ...\n");
-		fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
+		fprintf(stderr, "usage: rtsol [-dDFi] [-O script-name] "
 		    "[-M script-name ] [-A script-name ] "
 		    "[-p pidfile] [-R script-name] -a\n");
 	}
