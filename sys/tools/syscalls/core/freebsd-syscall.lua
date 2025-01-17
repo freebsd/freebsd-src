@@ -50,6 +50,7 @@ function FreeBSDSyscall:parseSysfile()
 	local incs = ""
 	local prolog = ""
 	local first = true
+	local cpp_warned = false
 	local s
 	for line in fh:lines() do
 		line = line:gsub(commentExpr, "") -- Strip any comments.
@@ -82,6 +83,11 @@ function FreeBSDSyscall:parseSysfile()
 				incs = incs .. h .. "\n"
 			end
 		elseif line:match("^#") then
+			if not cpp_warned then
+				util.warn("use of non-include cpp " ..
+				    "directives is deprecated")
+				cpp_warned = true
+			end
 			prolog = prolog .. line .. "\n"
 		else
 			s = syscall:new()

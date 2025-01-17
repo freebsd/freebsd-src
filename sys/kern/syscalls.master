@@ -111,6 +111,7 @@
 ; limited set of output files.  Before the first syscalls, #include lines will
 ; be copied and %%ABI_HEADERS%% expanded.  Between system call entries,
 ; all lines beginning with # will be copied.  Caveat Emptor.
+; WARNING: this functionality is deprecated.
 
 #include <sys/param.h>
 #include <sys/sysent.h>
