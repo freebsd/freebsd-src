@@ -395,6 +395,9 @@ netisr_register(const struct netisr_handler *nhp)
 	/*
 	 * Test that the requested registration is valid.
 	 */
+	CURVNET_ASSERT_SET();
+	KASSERT(IS_DEFAULT_VNET(curvnet), ("%s: curvnet %p is not vnet0 %p",
+	    __func__, curvnet, vnet0));
 	KASSERT(nhp->nh_name != NULL,
 	    ("%s: nh_name NULL for %u", __func__, proto));
 	KASSERT(nhp->nh_handler != NULL,
@@ -454,15 +457,12 @@ netisr_register(const struct netisr_handler *nhp)
 		npwp->nw_qlimit = netisr_proto[proto].np_qlimit;
 	}
 
+	V_netisr_enable[proto] = 1;
 #ifdef VIMAGE
-	/*
-	 * Test that we are in vnet0 and have a curvnet set.
-	 */
-	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
-	KASSERT(IS_DEFAULT_VNET(curvnet), ("%s: curvnet %p is not vnet0 %p",
-	    __func__, curvnet, vnet0));
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
+		if (vnet_iter == curvnet)
+			continue;
 		CURVNET_SET(vnet_iter);
 		V_netisr_enable[proto] = 1;
 		CURVNET_RESTORE();
