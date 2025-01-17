@@ -334,7 +334,7 @@ fi
 : ${METALOG:=${DESTDIR}/METALOG}
 INSTALLFLAGS=
 if "$UNPRIV" ; then
-	INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR} -N ${DESTDIR}${DISTBASE}/etc -o root -g wheel"
+	INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
 fi
 : ${LOCALBASE:=$(sysctl -n user.localbase)}
 : ${TRUSTPATH:=${DESTDIR}${DISTBASE}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
