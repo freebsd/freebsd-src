@@ -4,7 +4,6 @@
 #
 
 AARCH64_STRING_FUNCS= \
-	memchr \
 	memcmp \
 	memcpy \
 	memmove \
@@ -19,6 +18,7 @@ AARCH64_STRING_FUNCS= \
 
 # SIMD-enhanced routines not derived from Arm's code
 MDSRCS+= \
+	memchr.S \
 	strcmp.S \
 	strspn.S \
 	strcspn.S \

@@ -270,8 +270,9 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	# 20250110  3dc5429158cf  add strncat SIMD implementation
 	clean_dep   lib/libc strncat c
 
-	# 20250110  bea89d038ac5  add strlcat SIMD implementation
+	# 20250110  bea89d038ac5  add strlcat SIMD implementation, and move memchr
 	clean_dep   lib/libc strlcat c
+	run rm -f "$OBJTOP"/lib/libc/memchr.S
 
 	# 20250110  3863fec1ce2d  add strlen SIMD implementation
 	clean_dep   lib/libc strlen S arm-optimized-routines
