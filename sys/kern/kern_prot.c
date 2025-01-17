@@ -2298,7 +2298,7 @@ _proc_set_cred(struct proc *p, struct ucred *newcred, bool enforce_proc_lim)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(newcred->cr_users == 0, ("%s: users %d not 0 on cred %p",
 	    __func__, newcred->cr_users, newcred));
-	KASSERT(newcred->cr_ref == 1, ("%s: ref %ld not 1 on cred %p",
+	KASSERT(newcred->cr_ref == 1, ("%s: ref %d not 1 on cred %p",
 	    __func__, newcred->cr_ref, newcred));
 
 	if (newcred->cr_ruidinfo != oldcred->cr_ruidinfo) {
