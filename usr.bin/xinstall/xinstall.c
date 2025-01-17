@@ -1432,10 +1432,22 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	p = buf;
 	/* Print details. */
 	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
-	if (owner)
-		fprintf(metafp, " uname=%s", owner);
-	if (group)
-		fprintf(metafp, " gname=%s", group);
+	if (owner) {
+		id_t id;
+
+		if (parseid(owner, &id))
+			fprintf(metafp, " uid=%jd", (intmax_t)id);
+		else
+			fprintf(metafp, " uname=%s", owner);
+	}
+	if (group) {
+		id_t id;
+
+		if (parseid(group, &id))
+			fprintf(metafp, " gid=%jd", (intmax_t)id);
+		else
+			fprintf(metafp, " gname=%s", group);
+	}
 	fprintf(metafp, " mode=%#o", mode);
 	if (slink) {
 		strsnvis(buf, buflen, slink, VIS_CSTYLE, extra);
