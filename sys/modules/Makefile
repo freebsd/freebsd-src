@@ -716,7 +716,8 @@ _rockchip=	rockchip
 .endif
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
+    ${MACHINE_CPUARCH} == "riscv"
 .if !empty(OPT_FDT)
 _sdhci_fdt=	sdhci_fdt
 .endif
