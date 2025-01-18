@@ -535,7 +535,7 @@ dwc_attach(device_t dev)
 		sc->aal = true;
 
 	error = clk_set_assigned(dev, ofw_bus_get_node(dev));
-	if (error != 0) {
+	if (error != 0 && error != ENOENT) {
 		device_printf(dev, "clk_set_assigned failed\n");
 		return (error);
 	}
