@@ -493,6 +493,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 	if (xprt->xp_socket) {
 		if ((xprt->xp_tls & (RPCTLS_FLAGS_HANDSHAKE |
 		    RPCTLS_FLAGS_HANDSHFAIL)) != 0) {
+			CURVNET_SET(xprt->xp_socket->so_vnet);
 			if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
 				/*
 				 * If the upcall fails, the socket has
@@ -505,7 +506,6 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 				    xprt->xp_sslproc, &reterr);
 			}
 			/* Must sorele() to get rid of reference. */
-			CURVNET_SET(xprt->xp_socket->so_vnet);
 			sorele(xprt->xp_socket);
 			CURVNET_RESTORE();
 		} else
@@ -853,13 +853,13 @@ tryagain:
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0 &&
 		    error == ENXIO) {
 			KRPC_VNET(svc_vc_tls_alerts)++;
-			KRPC_CURVNET_RESTORE();
 			/* Disable reception. */
 			xprt->xp_dontrcv = TRUE;
 			sx_xunlock(&xprt->xp_lock);
 			ret = rpctls_srv_handlerecord(xprt->xp_sslsec,
 			    xprt->xp_sslusec, xprt->xp_sslrefno,
 			    xprt->xp_sslproc, &reterr);
+			KRPC_CURVNET_RESTORE();
 			sx_xlock(&xprt->xp_lock);
 			xprt->xp_dontrcv = FALSE;
 			if (ret != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
