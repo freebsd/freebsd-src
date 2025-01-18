@@ -115,7 +115,7 @@ debug:		DEBUG STR
 			free($2);
 			return (1);
 		}
-			
+
 		conf->conf_debug = tmp;
 	}
 	;
