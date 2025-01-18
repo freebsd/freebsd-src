@@ -358,9 +358,7 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const Obj_Entry *obj __unused, const Obj_Entry *refobj __unused,
     const Elf_Rel *rel __unused)
 {
-#ifdef dbg
 	dbg("reloc_jmpslot: *%p = %p", where, (void *)target);
-#endif
 	if (!ld_bind_not)
 		*where = target;
 	return (target);
