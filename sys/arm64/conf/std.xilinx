@@ -15,6 +15,7 @@ device		cgem			# Cadence GEM Gigabit Ethernet device
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
+device		sdhci_xilinx
 
 # IICBUS
 device		cdnc_i2c
