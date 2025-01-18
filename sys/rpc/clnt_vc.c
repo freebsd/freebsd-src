@@ -1300,6 +1300,6 @@ clnt_vc_dotlsupcall(void *data)
 	wakeup(&ct->ct_sslrefno);
 	mtx_unlock(&ct->ct_lock);
 	CLNT_RELEASE(cl);
-	kthread_exit();
 	CURVNET_RESTORE();
+	kthread_exit();
 }
