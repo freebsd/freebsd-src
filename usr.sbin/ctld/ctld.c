@@ -946,7 +946,7 @@ isns_register(struct isns *isns, struct isns *oldisns)
 	error = gethostname(hostname, sizeof(hostname));
 	if (error != 0)
 		log_err(1, "gethostname");
- 
+
 	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
 		oldisns = isns;
 	isns_do_deregister(oldisns, s, hostname);
@@ -974,7 +974,7 @@ isns_check(struct isns *isns)
 	error = gethostname(hostname, sizeof(hostname));
 	if (error != 0)
 		log_err(1, "gethostname");
- 
+
 	res = isns_do_check(isns, s, hostname);
 	if (res < 0) {
 		isns_do_deregister(isns, s, hostname);
@@ -1001,7 +1001,7 @@ isns_deregister(struct isns *isns)
 	error = gethostname(hostname, sizeof(hostname));
 	if (error != 0)
 		log_err(1, "gethostname");
- 
+
 	isns_do_deregister(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
