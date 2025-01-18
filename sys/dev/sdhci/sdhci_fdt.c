@@ -47,104 +47,35 @@
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
+
+#include <dev/clk/clk.h>
+#include <dev/clk/clk_fixed.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/ofw/ofw_subr.h>
-#include <dev/clk/clk.h>
-#include <dev/clk/clk_fixed.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/syscon/syscon.h>
 #include <dev/phy/phy.h>
 
 #include <dev/mmc/bridge.h>
 
 #include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt.h>
 
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 #include "opt_mmccam.h"
 
-#include "clkdev_if.h"
-#include "syscon_if.h"
-
-#define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
 #define	SDHCI_FDT_XLNX_ZY7	2
 #define	SDHCI_FDT_QUALCOMM	3
-#define	SDHCI_FDT_RK3399	4
-#define	SDHCI_FDT_RK3568	5
-#define	SDHCI_FDT_XLNX_ZMP	6
-
-#define	RK3399_GRF_EMMCCORE_CON0		0xf000
-#define	 RK3399_CORECFG_BASECLKFREQ		0xff00
-#define	 RK3399_CORECFG_TIMEOUTCLKUNIT		(1 << 7)
-#define	 RK3399_CORECFG_TUNINGCOUNT		0x3f
-#define	RK3399_GRF_EMMCCORE_CON11		0xf02c
-#define	 RK3399_CORECFG_CLOCKMULTIPLIER		0xff
-
-#define	RK3568_EMMC_HOST_CTRL			0x0508
-#define	RK3568_EMMC_EMMC_CTRL			0x052c
-#define	RK3568_EMMC_ATCTRL			0x0540
-#define	RK3568_EMMC_DLL_CTRL			0x0800
-#define	 DLL_CTRL_SRST				0x00000001
-#define	 DLL_CTRL_START				0x00000002
-#define	 DLL_CTRL_START_POINT_DEFAULT		0x00050000
-#define	 DLL_CTRL_INCREMENT_DEFAULT		0x00000200
-
-#define	RK3568_EMMC_DLL_RXCLK			0x0804
-#define	 DLL_RXCLK_DELAY_ENABLE			0x08000000
-#define	 DLL_RXCLK_NO_INV			0x20000000
-
-#define	RK3568_EMMC_DLL_TXCLK			0x0808
-#define	 DLL_TXCLK_DELAY_ENABLE			0x08000000
-#define	 DLL_TXCLK_TAPNUM_DEFAULT		0x00000008
-#define	 DLL_TXCLK_TAPNUM_FROM_SW		0x01000000
-
-#define	RK3568_EMMC_DLL_STRBIN			0x080c
-#define	 DLL_STRBIN_DELAY_ENABLE		0x08000000
-#define	 DLL_STRBIN_TAPNUM_DEFAULT		0x00000008
-#define	DLL_STRBIN_TAPNUM_FROM_SW		0x01000000
-
-#define	RK3568_EMMC_DLL_STATUS0			0x0840
-#define	 DLL_STATUS0_DLL_LOCK			0x00000100
-#define	 DLL_STATUS0_DLL_TIMEOUT		0x00000200
-
-#define	LOWEST_SET_BIT(mask)	((((mask) - 1) & (mask)) ^ (mask))
-#define	SHIFTIN(x, mask)	((x) * LOWEST_SET_BIT(mask))
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
 	{ "qcom,sdhci-msm-v4",		SDHCI_FDT_QUALCOMM },
-	{ "rockchip,rk3399-sdhci-5.1",	SDHCI_FDT_RK3399 },
 	{ "xlnx,zy7_sdhci",		SDHCI_FDT_XLNX_ZY7 },
-	{ "rockchip,rk3568-dwcmshc",	SDHCI_FDT_RK3568 },
-	{ "xlnx,zynqmp-8.9a",		SDHCI_FDT_XLNX_ZMP },
 	{ NULL, 0 }
-};
-
-struct sdhci_fdt_softc {
-	device_t	dev;		/* Controller device */
-	u_int		quirks;		/* Chip specific quirks */
-	u_int		caps;		/* If we override SDHCI_CAPABILITIES */
-	uint32_t	max_clk;	/* Max possible freq */
-	uint8_t		sdma_boundary;	/* If we override the SDMA boundary */
-	struct resource *irq_res;	/* IRQ resource */
-	void		*intrhand;	/* Interrupt handle */
-
-	int		num_slots;	/* Number of slots on this controller*/
-	struct sdhci_slot slots[MAX_SLOTS];
-	struct resource	*mem_res[MAX_SLOTS];	/* Memory resource */
-
-	bool		wp_inverted;	/* WP pin is inverted */
-	bool		wp_disabled;	/* WP pin is not supported */
-	bool		no_18v;		/* No 1.8V support */
-
-	clk_t		clk_xin;	/* xin24m fixed clock */
-	clk_t		clk_ahb;	/* ahb clock */
-	clk_t		clk_core;	/* core clock */
-	phy_t		phy;		/* phy to be used */
-
-	struct syscon	*syscon;	/* Handle to the syscon */
 };
 
 struct sdhci_exported_clocks_sc {
@@ -168,7 +99,7 @@ DEFINE_CLASS_1(sdhci_exported_clocks_clknode, sdhci_exported_clocks_clknode_clas
     sdhci_exported_clocks_clknode_methods, sizeof(struct sdhci_exported_clocks_sc),
     clknode_class);
 
-static int
+int
 sdhci_clock_ofw_map(struct clkdom *clkdom, uint32_t ncells,
     phandle_t *cells, struct clknode **clk)
 {
@@ -183,7 +114,7 @@ sdhci_clock_ofw_map(struct clkdom *clkdom, uint32_t ncells,
 	return (0);
 }
 
-static void
+void
 sdhci_export_clocks(struct sdhci_fdt_softc *sc)
 {
 	struct clknode_init_def def;
@@ -248,7 +179,7 @@ sdhci_export_clocks(struct sdhci_fdt_softc *sc)
 		clkdom_dump(clkdom);
 }
 
-static int
+int
 sdhci_init_clocks(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
@@ -279,7 +210,7 @@ sdhci_init_clocks(device_t dev)
 	return (0);
 }
 
-static int
+int
 sdhci_init_phy(struct sdhci_fdt_softc *sc)
 {
 	int error;
@@ -301,7 +232,7 @@ sdhci_init_phy(struct sdhci_fdt_softc *sc)
 	return (0);
 }
 
-static int
+int
 sdhci_get_syscon(struct sdhci_fdt_softc *sc)
 {
 	phandle_t node;
@@ -314,34 +245,6 @@ sdhci_get_syscon(struct sdhci_fdt_softc *sc)
 		device_printf(sc->dev, "cannot get syscon handle\n");
 		return (ENXIO);
 	}
-
-	return (0);
-}
-
-static int
-sdhci_init_rk3399(device_t dev)
-{
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	uint64_t freq;
-	uint32_t mask, val;
-	int error;
-
-	error = clk_get_freq(sc->clk_xin, &freq);
-	if (error != 0) {
-		device_printf(dev, "cannot get xin clock frequency\n");
-		return (ENXIO);
-	}
-
-	/* Disable clock multiplier */
-	mask = RK3399_CORECFG_CLOCKMULTIPLIER;
-	val = 0;
-	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON11, (mask << 16) | val);
-
-	/* Set base clock frequency */
-	mask = RK3399_CORECFG_BASECLKFREQ;
-	val = SHIFTIN((freq + (1000000 / 2)) / 1000000,
-	    RK3399_CORECFG_BASECLKFREQ);
-	SYSCON_WRITE_4(sc->syscon, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
 
 	return (0);
 }
@@ -441,79 +344,14 @@ sdhci_fdt_get_ro(device_t bus, device_t dev)
 }
 
 static int
-sdhci_fdt_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
-{
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	int32_t val;
-	int i;
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
-	    SDHCI_FDT_RK3568) {
-		if (clock == 400000)
-			clock = 375000;
-
-		if (clock) {
-			clk_set_freq(sc->clk_core, clock, 0);
-
-			if (clock <= 52000000) {
-				bus_write_4(sc->mem_res[slot->num],
-				    RK3568_EMMC_DLL_CTRL, 0x0);
-				bus_write_4(sc->mem_res[slot->num],
-				    RK3568_EMMC_DLL_RXCLK, DLL_RXCLK_NO_INV);
-				bus_write_4(sc->mem_res[slot->num],
-				    RK3568_EMMC_DLL_TXCLK, 0x0);
-				bus_write_4(sc->mem_res[slot->num],
-				    RK3568_EMMC_DLL_STRBIN, 0x0);
-				return (clock);
-			}
-
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_CTRL, DLL_CTRL_START);
-			DELAY(1000);
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_CTRL, 0);
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_CTRL, DLL_CTRL_START_POINT_DEFAULT |
-			    DLL_CTRL_INCREMENT_DEFAULT | DLL_CTRL_START);
-			for (i = 0; i < 500; i++) {
-				val = bus_read_4(sc->mem_res[slot->num],
-				    RK3568_EMMC_DLL_STATUS0);
-				if (val & DLL_STATUS0_DLL_LOCK &&
-				    !(val & DLL_STATUS0_DLL_TIMEOUT))
-					break;
-				DELAY(1000);
-			}
-			bus_write_4(sc->mem_res[slot->num], RK3568_EMMC_ATCTRL,
-			    (0x1 << 16 | 0x2 << 17 | 0x3 << 19));
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_RXCLK,
-			    DLL_RXCLK_DELAY_ENABLE | DLL_RXCLK_NO_INV);
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_TXCLK, DLL_TXCLK_DELAY_ENABLE |
-			    DLL_TXCLK_TAPNUM_DEFAULT|DLL_TXCLK_TAPNUM_FROM_SW);
-			bus_write_4(sc->mem_res[slot->num],
-			    RK3568_EMMC_DLL_STRBIN, DLL_STRBIN_DELAY_ENABLE |
-			    DLL_STRBIN_TAPNUM_DEFAULT |
-			    DLL_STRBIN_TAPNUM_FROM_SW);
-		}
-	}
-	return (clock);
-}
-
-static int
 sdhci_fdt_probe(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	phandle_t node;
-	pcell_t cid;
-
-	sc->quirks = 0;
-	sc->num_slots = 1;
-	sc->max_clk = 0;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
+	sc->quirks = 0;
 	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	case SDHCI_FDT_ARMADA38X:
 		sc->quirks = SDHCI_QUIRK_BROKEN_AUTO_STOP;
@@ -525,24 +363,32 @@ sdhci_fdt_probe(device_t dev)
 		sc->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_4K;
 		device_set_desc(dev, "Qualcomm FDT SDHCI controller");
 		break;
-	case SDHCI_FDT_RK3399:
-		device_set_desc(dev, "Rockchip RK3399 fdt SDHCI controller");
-		break;
 	case SDHCI_FDT_XLNX_ZY7:
 		sc->quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 		device_set_desc(dev, "Zynq-7000 generic fdt SDHCI controller");
-		break;
-	case SDHCI_FDT_RK3568:
-		device_set_desc(dev, "Rockchip RK3568 fdt SDHCI controller");
-		break;
-	case SDHCI_FDT_XLNX_ZMP:
-		device_set_desc(dev, "ZynqMP generic fdt SDHCI controller");
 		break;
 	default:
 		return (ENXIO);
 	}
 
+	return (0);
+}
+
+int
+sdhci_fdt_attach(device_t dev)
+{
+	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	struct sdhci_slot *slot;
+	int err, slots, rid, i;
+	phandle_t node;
+	pcell_t cid;
+
+	sc->dev = dev;
+
 	node = ofw_bus_get_node(dev);
+
+	sc->num_slots = 1;
+	sc->max_clk = 0;
 
 	/* Allow dts to patch quirks, slots, and max-frequency. */
 	if ((OF_getencprop(node, "quirks", &cid, sizeof(cid))) > 0)
@@ -558,18 +404,6 @@ sdhci_fdt_probe(device_t dev)
 	if (OF_hasprop(node, "disable-wp"))
 		sc->wp_disabled = true;
 
-	return (0);
-}
-
-static int
-sdhci_fdt_attach(device_t dev)
-{
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
-	struct sdhci_slot *slot;
-	int err, slots, rid, i, compat;
-
-	sc->dev = dev;
-
 	/* Allocate IRQ. */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -577,44 +411,6 @@ sdhci_fdt_attach(device_t dev)
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Can't allocate IRQ\n");
 		return (ENOMEM);
-	}
-
-	compat = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	switch (compat) {
-	case SDHCI_FDT_RK3399:
-	case SDHCI_FDT_XLNX_ZMP:
-		err = sdhci_init_clocks(dev);
-		if (err != 0) {
-			device_printf(dev, "Cannot init clocks\n");
-			return (err);
-		}
-		sdhci_export_clocks(sc);
-		if ((err = sdhci_init_phy(sc)) != 0) {
-			device_printf(dev, "Cannot init phy\n");
-			return (err);
-		}
-		if ((err = sdhci_get_syscon(sc)) != 0) {
-			device_printf(dev, "Cannot get syscon handle\n");
-			return (err);
-		}
-		if (compat == SDHCI_FDT_RK3399) {
-			err = sdhci_init_rk3399(dev);
-			if (err != 0) {
-				device_printf(dev, "Cannot init RK3399 SDHCI\n");
-				return (err);
-			}
-		}
-		break;
-	case SDHCI_FDT_RK3568:
-		/* setup & enable clocks */
-		if (clk_get_by_ofw_name(dev, 0, "core", &sc->clk_core)) {
-			device_printf(dev, "cannot get core clock\n");
-			return (ENXIO);
-		}
-		clk_enable(sc->clk_core);
-		break;
-	default:
-		break;
 	}
 
 	/* Scan all slots. */
@@ -640,7 +436,6 @@ sdhci_fdt_attach(device_t dev)
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;
-
 		sc->num_slots++;
 	}
 	device_printf(dev, "%d slot(s) allocated\n", sc->num_slots);
@@ -660,7 +455,7 @@ sdhci_fdt_attach(device_t dev)
 	return (0);
 }
 
-static int
+int
 sdhci_fdt_detach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
@@ -679,6 +474,14 @@ sdhci_fdt_detach(device_t dev)
 
 	return (0);
 }
+
+int
+sdhci_fdt_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
+{
+
+	return (clock);
+}
+
 
 static device_method_t sdhci_fdt_methods[] = {
 	/* device_if */
@@ -711,7 +514,7 @@ static device_method_t sdhci_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t sdhci_fdt_driver = {
+driver_t sdhci_fdt_driver = {
 	"sdhci_fdt",
 	sdhci_fdt_methods,
 	sizeof(struct sdhci_fdt_softc),

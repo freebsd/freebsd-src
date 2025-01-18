@@ -436,6 +436,9 @@ dev/sdhci/sdhci_xenon.c				optional sdhci_xenon sdhci
 dev/sdhci/sdhci_xenon_acpi.c			optional sdhci_xenon sdhci acpi
 dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
 
+dev/sdhci/sdhci_fdt_xilinx.c			optional sdhci_xilinx sdhci fdt
+dev/sdhci/sdhci_fdt_rockchip.c			optional sdhci fdt soc_rockchip
+
 dev/sram/mmio_sram.c				optional fdt mmio_sram
 dev/sram/mmio_sram_if.m				optional fdt mmio_sram
 
