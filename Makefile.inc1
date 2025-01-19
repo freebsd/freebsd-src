@@ -2362,7 +2362,7 @@ real-sign-packages:	_pkgbootstrap .PHONY
 .if ${PKG_BIN_VERSION} < 11700
 	printf "packing_format = \"${PKG_FORMAT}\";\n" >> ${WSTAGEDIR}/meta
 .endif
-	@${PKG_CMD} -o ABI=${PKG_ABI} repo -o OSVERSION="${SRCRELDATE}" \
+	@${PKG_CMD} -o ABI=${PKG_ABI} -o OSVERSION="${SRCRELDATE}" repo \
 		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
