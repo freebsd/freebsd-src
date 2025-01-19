@@ -87,6 +87,9 @@ group ID of the sender, and for which the process has permission.
 .It -1
 If superuser, broadcast the signal to all processes; otherwise broadcast
 to all processes belonging to the user.
+.It - Ns Ar PGID
+The signal is sent to all processes that belong to the specified
+process group ID (PGID).
 .El
 .Pp
 Some of the more commonly used signals:
