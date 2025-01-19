@@ -252,4 +252,28 @@ r92e_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 
 	/* Set Tx power for this new channel. */
 	r92e_set_txpower(sc, c);
+
+	/*
+	 * Work around some timing issues with RTL8192EU on faster
+	 * CPUs / USB-3 ports by sleeping for 10ms.
+	 *
+	 * Without this delay the initial frame send during authentication
+	 * doesn't occur.
+	 *
+	 * My (adrian) guess is that there's a race condition between
+	 * everything being programmed into the hardware and the first
+	 * send.  Notably, TXPAUSE isn't 0x0 after rf init,
+	 * which the rtl8xxxu driver has a commit to address (c6015bf3ff1ff)
+	 * - wifi: rtl8xxxu: fixing transmission failure for rtl8192eu
+	 *
+	 * Although it's hard to do due to locking constraints, reading
+	 * TXPAUSE during scan / association shows it's non-zero, which
+	 * needs to be looked at in more depth.
+	 *
+	 * Linux doesn't have a delay here, however it does try multiple
+	 * times to send an authentication frame.
+	 *
+	 * See PR/247528 for more info.
+	 */
+	rtwn_delay(sc, 10000);
 }
