@@ -3,9 +3,15 @@
 #
 # Our current make(1)-based approach to dependency tracking cannot cope with
 # certain source tree changes, including:
+#
 # - removing source files
 # - replacing generated files with files committed to the tree
 # - changing file extensions (e.g. a C source file rewritten in C++)
+# - moving a file from one directory to another
+#
+# Note that changing extensions or moving files may occur in effect as a result
+# of switching from a generic machine-independent (MI) implementation file to a
+# machine-dependent (MD) one.
 #
 # We handle those cases here in an ad-hoc fashion by looking for the known-
 # bad case in the main .depend file, and if found deleting all of the related
@@ -15,6 +21,48 @@
 # should be removed once enough time has passed and it is extremely unlikely
 # anyone would try a NO_CLEAN build against an object tree from before the
 # related change.  One year should be sufficient.
+#
+# Groups of cleanup rules begin with a comment including the date and git hash
+# of the affected commit, and a description.  The clean_dep function (below)
+# handles common dependency cleanup cases.  See the comment above the function
+# for its arguments.
+#
+# Examples of each of the special cases:
+#
+# - Removing a source file (including changing a file's extension).  The path,
+#   file, and extension are passed to clean_dep.
+#
+#   # 20231031  0527c9bdc718    Remove forward compat ino64 stuff
+#   clean_dep   lib/libc        fstat         c
+#
+#   # 20221115  42d10b1b56f2    move from rs.c to rs.cc
+#   clean_dep   usr.bin/rs      rs c
+#
+# - Moving a file from one directory to another.  Note that a regex is passed to
+#   clean_dep, as the default regex is derived from the file name (strncat.c in
+#   this example) does not change.  The regex matches the old location, does not
+#   match the new location, and does not match any dependency shared between
+#   them.  The `/`s are replaced with `.` to avoid awkward escaping.
+#
+#   # 20250110  3dc5429158cf  add strncat SIMD implementation
+#   clean_dep   lib/libc strncat c "libc.string.strncat.c"
+#
+# - Replacing generated files with files committed to the tree.  This is special
+#   case of moving from one directory to another.  The stale generated file also
+#   needs to be deleted, so that it isn't found in make's .PATH.  Note the
+#   unconditional `rm -f`: there's no need for an extra call to first check for
+#   the file's existence.
+#
+#   # 20250110  3863fec1ce2d  add strlen SIMD implementation
+#   clean_dep   lib/libc strlen S arm-optimized-routines
+#   run rm -f "$OBJTOP"/lib/libc/strlen.S
+#
+# A rule may be required for only one architecture:
+#
+#   # 20220326  fbc002cb72d2    move from bcmp.c to bcmp.S
+#   if [ "$MACHINE_ARCH" = "amd64" ]; then
+#           clean_dep lib/libc bcmp c
+#   fi
 
 set -e
 set -u
