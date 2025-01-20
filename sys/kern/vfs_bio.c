@@ -1518,8 +1518,8 @@ bufshutdown(int show_busybufs)
 		if (!KERNEL_PANICKED()) {
 			swapoff_all();
 			vfs_unmountall();
+			BOOTTRACE("shutdown unmounted all filesystems");
 		}
-		BOOTTRACE("shutdown unmounted all filesystems");
 	}
 	DELAY(100000);		/* wait for console output to finish */
 }
