@@ -1227,6 +1227,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_string(nw, PF_RT_OVERLOAD_TBLNAME, r->overload_tblname);
 	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RDR, &r->rdr);
 	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_NAT, &r->nat);
+	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RT, &r->route);
 	snl_add_msg_attr_u32(nw, PF_RT_OS_FINGERPRINT, r->os_fingerprint);
 	snl_add_msg_attr_u32(nw, PF_RT_RTABLEID, r->rtableid);
 	snl_add_msg_attr_timeouts(nw, PF_RT_TIMEOUT, r->timeout);
@@ -1661,6 +1662,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(r.max_src_conn), .cb = snl_attr_get_uint32 },
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
+	{ .type = PF_RT_RPOOL_RT, .off = _OUT(r.route), .arg = &pool_parser, .cb = snl_attr_get_nested },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);

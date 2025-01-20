@@ -787,6 +787,7 @@ struct pf_krule {
 	TAILQ_ENTRY(pf_krule)	 entries;
 	struct pf_kpool		 nat;
 	struct pf_kpool		 rdr;
+	struct pf_kpool		 route;
 
 	struct pf_counter_u64	 evaluations;
 	struct pf_counter_u64	 packets[2];
@@ -2217,7 +2218,7 @@ VNET_DECLARE(struct unrhdr64, pf_stateid);
 TAILQ_HEAD(pf_altqqueue, pf_altq);
 VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[4]);
 #define	V_pf_altqs			 VNET(pf_altqs)
-VNET_DECLARE(struct pf_kpalist,		 pf_pabuf[2]);
+VNET_DECLARE(struct pf_kpalist,		 pf_pabuf[3]);
 #define	V_pf_pabuf			 VNET(pf_pabuf)
 
 VNET_DECLARE(u_int32_t,			 ticket_altqs_active);

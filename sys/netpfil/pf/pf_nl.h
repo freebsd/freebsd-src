@@ -267,6 +267,7 @@ enum pf_rule_type_t {
 	PF_RT_MAX_SRC_CONN	= 74, /* u32 */
 	PF_RT_RPOOL_NAT		= 75, /* nested, pf_rpool_type_t */
 	PF_RT_NAF		= 76, /* u8 */
+	PF_RT_RPOOL_RT		= 77, /* nested, pf_rpool_type_t */
 };
 
 enum pf_addrule_type_t {

@@ -180,6 +180,7 @@ struct pfctl_rule {
 		struct pfctl_pool	 rpool;
 		struct pfctl_pool	 rdr;
 	};
+	struct pfctl_pool	 route;
 
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];

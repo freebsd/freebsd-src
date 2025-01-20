@@ -1310,6 +1310,10 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		    nr, ri.ticket, PF_SCRUB, path, PF_NAT) != 0)
 			goto error;
 
+		if (pfctl_get_pool(dev, &rule.route,
+		    nr, ri.ticket, PF_SCRUB, path, PF_RT) != 0)
+			goto error;
+
 		switch (format) {
 		case PFCTL_SHOW_LABELS:
 			break;
@@ -1325,6 +1329,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		pfctl_clear_pool(&rule.rdr);
 		pfctl_clear_pool(&rule.nat);
+		pfctl_clear_pool(&rule.route);
 	}
 	ret = pfctl_get_rules_info_h(pfh, &ri, PF_PASS, path);
 	if (ret != 0) {
@@ -1344,6 +1349,10 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 		if (pfctl_get_pool(dev, &rule.nat,
 		    nr, ri.ticket, PF_PASS, path, PF_NAT) != 0)
+			goto error;
+
+		if (pfctl_get_pool(dev, &rule.route,
+		    nr, ri.ticket, PF_PASS, path, PF_RT) != 0)
 			goto error;
 
 		switch (format) {
@@ -1505,6 +1514,9 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth,
 				return (-1);
 			if (pfctl_get_pool(dev, &rule.nat, nr,
 			    ri.ticket, nattype[i], path, PF_NAT) != 0)
+				return (-1);
+			if (pfctl_get_pool(dev, &rule.route, nr,
+			    ri.ticket, nattype[i], path, PF_RT) != 0)
 				return (-1);
 
 			if (dotitle) {
@@ -1761,6 +1773,8 @@ pfctl_append_rule(struct pfctl *pf, struct pfctl_rule *r,
 	pfctl_move_pool(&r->rdr, &rule->rdr);
 	TAILQ_INIT(&rule->nat.list);
 	pfctl_move_pool(&r->nat, &rule->nat);
+	TAILQ_INIT(&rule->route.list);
+	pfctl_move_pool(&r->route, &rule->route);
 
 	TAILQ_INSERT_TAIL(rs->rules[rs_num].active.ptr, rule, entries);
 	return (0);
@@ -2064,6 +2078,8 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 		if (pfctl_add_pool(pf, &r->rdr, r->af, PF_RDR))
 			return (1);
 		if (pfctl_add_pool(pf, &r->nat, r->naf ? r->naf : r->af, PF_NAT))
+			return (1);
+		if (pfctl_add_pool(pf, &r->route, r->af, PF_RT))
 			return (1);
 		error = pfctl_add_rule_h(pf->h, r, anchor, name, ticket,
 		    pf->paddr.ticket);

@@ -164,7 +164,7 @@ SDT_PROBE_DEFINE2(pf, purge, state, rowcount, "int", "size_t");
 
 /* state tables */
 VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[4]);
-VNET_DEFINE(struct pf_kpalist,		 pf_pabuf[2]);
+VNET_DEFINE(struct pf_kpalist,		 pf_pabuf[3]);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altq_ifs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_inactive);
@@ -1267,6 +1267,7 @@ pf_initialize(void)
 	TAILQ_INIT(&V_pf_altqs[3]);
 	TAILQ_INIT(&V_pf_pabuf[0]);
 	TAILQ_INIT(&V_pf_pabuf[1]);
+	TAILQ_INIT(&V_pf_pabuf[2]);
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altq_ifs_active = &V_pf_altqs[1];
 	V_pf_altqs_inactive = &V_pf_altqs[2];
@@ -5900,6 +5901,12 @@ nextrule:
 	if (r->rt) {
 		struct pf_ksrc_node	*sn = NULL;
 		struct pf_srchash	*snh = NULL;
+		struct pf_kpool		*pool = &r->route;
+
+		/* Backwards compatibility. */
+		if (TAILQ_EMPTY(&pool->list))
+			pool = &r->rdr;
+
 		/*
 		 * Set act.rt here instead of in pf_rule_to_actions() because
 		 * it is applied only from the last pass rule.
@@ -5907,7 +5914,7 @@ nextrule:
 		pd->act.rt = r->rt;
 		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
 		reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
-		    &pd->act.rt_kif, NULL, &sn, &snh, &r->rdr);
+		    &pd->act.rt_kif, NULL, &sn, &snh, pool);
 		if (reason != 0)
 			goto cleanup;
 	}

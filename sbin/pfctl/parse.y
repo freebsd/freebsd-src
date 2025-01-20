@@ -304,6 +304,7 @@ static struct filter_opts {
 	}			 divert;
 	struct redirspec	 nat;
 	struct redirspec	 rdr;
+	struct redirspec	 rroute;
 	/* new-style scrub opts */
 	int			 nodf;
 	int			 minttl;
@@ -382,11 +383,12 @@ void		 expand_eth_rule(struct pfctl_eth_rule *,
 		    struct node_host *, struct node_host *, const char *,
 		    const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
-		    struct redirspec *, struct redirspec *, struct node_host *,
-		    struct node_host *, struct node_proto *, struct node_os *,
-		    struct node_host *, struct node_port *, struct node_host *,
-		    struct node_port *, struct node_uid *, struct node_gid *,
-		    struct node_if *, struct node_icmp *, const char *);
+		    struct redirspec *, struct redirspec *, struct redirspec *,
+		    struct node_host *, struct node_host *, struct node_host *,
+		    struct node_proto *, struct node_os *, struct node_host *,
+		    struct node_port *, struct node_host *, struct node_port *,
+		    struct node_uid *, struct node_gid *, struct node_if *,
+		    struct node_icmp *, const char *);
 int		 expand_altq(struct pf_altq *, struct node_if *,
 		    struct node_queue *, struct node_queue_bw bwspec,
 		    struct node_queue_opt *);
@@ -1080,9 +1082,9 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
 
-			expand_rule(&r, $5, NULL, NULL, NULL, NULL, $7, $8.src_os,
-			    $8.src.host, $8.src.port, $8.dst.host, $8.dst.port,
-			    $9.uid, $9.gid, $9.rcv, $9.icmpspec,
+			expand_rule(&r, $5, NULL, NULL, NULL, NULL, NULL, NULL,
+			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
+			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec,
 			    pf->astack[pf->asd + 1] ? pf->alast->name : $2);
 			free($2);
 			pf->astack[pf->asd + 1] = NULL;
@@ -1103,9 +1105,9 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($6.src.host, &r.af);
 			decide_address_family($6.dst.host, &r.af);
 
-			expand_rule(&r, $3, NULL, NULL, NULL, NULL, $5, $6.src_os,
-			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
-			    0, 0, 0, 0, $2);
+			expand_rule(&r, $3, NULL, NULL, NULL, NULL, NULL, NULL,
+			    $5, $6.src_os, $6.src.host, $6.src.port, $6.dst.host,
+			    $6.dst.port, 0, 0, 0, 0, $2);
 			free($2);
 		}
 		| RDRANCHOR string interface af proto fromto rtable {
@@ -1145,9 +1147,9 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 				r.dst.port_op = $6.dst.port->op;
 			}
 
-			expand_rule(&r, $3, NULL, NULL, NULL, NULL, $5, $6.src_os,
-			    $6.src.host, $6.src.port, $6.dst.host, $6.dst.port,
-			    0, 0, 0, 0, $2);
+			expand_rule(&r, $3, NULL, NULL, NULL, NULL, NULL, NULL,
+			    $5, $6.src_os, $6.src.host, $6.src.port, $6.dst.host,
+			    $6.dst.port, 0, 0, 0, 0, $2);
 			free($2);
 		}
 		| BINATANCHOR string interface af proto fromto rtable {
@@ -1468,9 +1470,9 @@ scrubrule	: scrubaction dir logquick interface af proto fromto scrub_opts
 			r.match_tag_not = $8.match_tag_not;
 			r.rtableid = $8.rtableid;
 
-			expand_rule(&r, $4, NULL, NULL, NULL, NULL, $6, $7.src_os,
-			    $7.src.host, $7.src.port, $7.dst.host, $7.dst.port,
-			    NULL, NULL, NULL, NULL, "");
+			expand_rule(&r, $4, NULL, NULL, NULL, NULL, NULL, NULL,
+			    $6, $7.src_os, $7.src.host, $7.src.port, $7.dst.host,
+			    $7.dst.port, NULL, NULL, NULL, NULL, "");
 		}
 		;
 
@@ -1633,8 +1635,8 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				}
 
 				if (h != NULL)
-					expand_rule(&r, j, NULL, NULL, NULL, NULL, NULL, NULL, h,
-					    NULL, NULL, NULL, NULL, NULL,
+					expand_rule(&r, j, NULL, NULL, NULL, NULL, NULL, NULL,
+					    NULL, NULL, h, NULL, NULL, NULL, NULL, NULL,
 					    NULL, NULL, "");
 
 				if ((i->ifa_flags & IFF_LOOPBACK) == 0) {
@@ -1656,7 +1658,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 						h = ifa_lookup(i->ifname, 0);
 					if (h != NULL)
 						expand_rule(&r, NULL, NULL, NULL, NULL, NULL,
-						    NULL, NULL, h, NULL, NULL,
+						    NULL, NULL, NULL, NULL, h, NULL, NULL,
 						    NULL, NULL, NULL, NULL, NULL, "");
 				} else
 					free(hh);
@@ -2726,9 +2728,9 @@ pfrule		: action dir logquick interface route af proto fromto
 					YYERROR;
 				}
 				r.rt = $5.rt;
-				r.rdr.opts = $5.pool_opts;
+				r.route.opts = $5.pool_opts;
 				if ($5.key != NULL)
-					memcpy(&r.rdr.key, $5.key,
+					memcpy(&r.route.key, $5.key,
 					    sizeof(struct pf_poolhashkey));
 			}
 			if (r.rt) {
@@ -2739,26 +2741,26 @@ pfrule		: action dir logquick interface route af proto fromto
 					    "matching address family found.");
 					YYERROR;
 				}
-				if ((r.rdr.opts & PF_POOL_TYPEMASK) ==
+				if ((r.route.opts & PF_POOL_TYPEMASK) ==
 				    PF_POOL_NONE && ($5.host->next != NULL ||
 				    $5.host->addr.type == PF_ADDR_TABLE ||
 				    DYNIF_MULTIADDR($5.host->addr)))
-					r.rdr.opts |= PF_POOL_ROUNDROBIN;
-				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
+					r.route.opts |= PF_POOL_ROUNDROBIN;
+				if ((r.route.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_table($5.host, "tables are only "
 				    "supported in round-robin routing pools"))
 					YYERROR;
-				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
+				if ((r.route.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_alias($5.host, "interface (%s) "
 				    "is only supported in round-robin "
 				    "routing pools"))
 					YYERROR;
 				if ($5.host->next != NULL) {
-					if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
+					if ((r.route.opts & PF_POOL_TYPEMASK) !=
 					    PF_POOL_ROUNDROBIN) {
-						yyerror("r.rdr.opts must "
+						yyerror("r.route.opts must "
 						    "be PF_POOL_ROUNDROBIN");
 						YYERROR;
 					}
@@ -2833,7 +2835,8 @@ pfrule		: action dir logquick interface route af proto fromto
 					YYERROR;
 			}
 
-			expand_rule(&r, $4, &$9.nat, &$9.rdr, $5.host, $9.nat.rdr ? $9.nat.rdr->host : NULL,
+			expand_rule(&r, $4, &$9.nat, &$9.rdr, &$9.rroute,
+			    NULL, $9.nat.rdr ? $9.nat.rdr->host : NULL, $5.host,
 			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
 			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec, "");
 		}
@@ -4989,8 +4992,9 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 				o = o->next;
 			}
 
-			expand_rule(&r, $2, NULL, NULL, $9 == NULL ? NULL : $9->host,
-			    NULL, $4, $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
+			expand_rule(&r, $2, NULL, NULL, NULL,
+			    $9 == NULL ? NULL : $9->host, NULL, NULL, $4,
+			    $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
 			    $5.dst.port, 0, 0, 0, 0, "");
 			free($9);
 		}
@@ -6149,13 +6153,13 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 void
 expand_rule(struct pfctl_rule *r,
     struct node_if *interfaces, struct redirspec *nat,
-    struct redirspec *rdr, struct node_host *rdr_hosts,
-    struct node_host *nat_hosts,
-    struct node_proto *protos, struct node_os *src_oses,
-    struct node_host *src_hosts, struct node_port *src_ports,
-    struct node_host *dst_hosts, struct node_port *dst_ports,
-    struct node_uid *uids, struct node_gid *gids, struct node_if *rcv,
-    struct node_icmp *icmp_types, const char *anchor_call)
+    struct redirspec *rdr, struct redirspec *route,
+    struct node_host *rdr_hosts, struct node_host *nat_hosts,
+    struct node_host *route_hosts, struct node_proto *protos,
+    struct node_os *src_oses, struct node_host *src_hosts,
+    struct node_port *src_ports, struct node_host *dst_hosts,
+    struct node_port *dst_ports, struct node_uid *uids, struct node_gid *gids,
+    struct node_if *rcv, struct node_icmp *icmp_types, const char *anchor_call)
 {
 	sa_family_t		 af = r->af;
 	int			 added = 0, error = 0;
@@ -6330,6 +6334,21 @@ expand_rule(struct pfctl_rule *r,
 			} else
 				pa->ifname[0] = 0;
 			TAILQ_INSERT_TAIL(&r->nat.list, pa, entries);
+		}
+		TAILQ_INIT(&r->route.list);
+		for (h = route_hosts; h != NULL; h = h->next) {
+			pa = calloc(1, sizeof(struct pf_pooladdr));
+			if (pa == NULL)
+				err(1, "expand_rule: calloc");
+			pa->addr = h->addr;
+			if (h->ifname != NULL) {
+				if (strlcpy(pa->ifname, h->ifname,
+				    sizeof(pa->ifname)) >=
+				    sizeof(pa->ifname))
+					errx(1, "expand_rule: strlcpy");
+			} else
+				pa->ifname[0] = 0;
+			TAILQ_INSERT_TAIL(&r->route.list, pa, entries);
 		}
 
 		r->nat.proxy_port[0] = PF_NAT_PROXY_PORT_LOW;

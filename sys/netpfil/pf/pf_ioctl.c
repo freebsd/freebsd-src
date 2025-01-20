@@ -436,7 +436,7 @@ pf_get_kpool(const char *anchor, u_int32_t ticket, u_int8_t rule_action,
 	struct pf_krule		*rule;
 	int			 rs_num;
 
-	MPASS(which == PF_RDR || which == PF_NAT);
+	MPASS(which == PF_RDR || which == PF_NAT || which == PF_RT);
 
 	ruleset = pf_find_kruleset(anchor);
 	if (ruleset == NULL)
@@ -470,10 +470,16 @@ pf_get_kpool(const char *anchor, u_int32_t ticket, u_int8_t rule_action,
 	if (rule == NULL)
 		return (NULL);
 
-	if (which == PF_NAT)
-		return (&rule->nat);
-	else
+	switch (which) {
+	case PF_RDR:
 		return (&rule->rdr);
+	case PF_NAT:
+		return (&rule->nat);
+	case PF_RT:
+		return (&rule->route);
+	default:
+		panic("Unknow pool type %d", which);
+	}
 }
 
 static void
@@ -612,6 +618,7 @@ pf_free_rule(struct pf_krule *rule)
 	pf_kanchor_remove(rule);
 	pf_empty_kpool(&rule->rdr.list);
 	pf_empty_kpool(&rule->nat.list);
+	pf_empty_kpool(&rule->route.list);
 
 	pf_krule_free(rule);
 }
@@ -1832,6 +1839,7 @@ pf_krule_alloc(void)
 	rule = malloc(sizeof(struct pf_krule), M_PFRULE, M_WAITOK | M_ZERO);
 	mtx_init(&rule->nat.mtx, "pf_krule_nat_pool", NULL, MTX_DEF);
 	mtx_init(&rule->rdr.mtx, "pf_krule_rdr_pool", NULL, MTX_DEF);
+	mtx_init(&rule->route.mtx, "pf_krule_route_pool", NULL, MTX_DEF);
 	rule->timestamp = uma_zalloc_pcpu(pf_timestamp_pcpu_zone,
 	    M_WAITOK | M_ZERO);
 	return (rule);
@@ -1871,6 +1879,7 @@ pf_krule_free(struct pf_krule *rule)
 
 	mtx_destroy(&rule->nat.mtx);
 	mtx_destroy(&rule->rdr.mtx);
+	mtx_destroy(&rule->route.mtx);
 	free(rule, M_PFRULE);
 }
 
@@ -2106,6 +2115,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	rule->cpid = pid;
 	TAILQ_INIT(&rule->rdr.list);
 	TAILQ_INIT(&rule->nat.list);
+	TAILQ_INIT(&rule->route.list);
 
 	PF_CONFIG_LOCK();
 	PF_RULES_WLOCK();
@@ -2203,7 +2213,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	    (rule->set_prio[0] > PF_PRIO_MAX ||
 	    rule->set_prio[1] > PF_PRIO_MAX))
 		error = EINVAL;
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		TAILQ_FOREACH(pa, &V_pf_pabuf[i], entries)
 			if (pa->addr.type == PF_ADDR_TABLE) {
 				pa->addr.p.tbl = pfr_attach_table(ruleset,
@@ -2225,10 +2235,12 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	pf_mv_kpool(&V_pf_pabuf[0], &rule->nat.list);
 	pf_mv_kpool(&V_pf_pabuf[1], &rule->rdr.list);
+	pf_mv_kpool(&V_pf_pabuf[2], &rule->route.list);
 	if (((((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
 	    (rule->action == PF_BINAT)) && rule->anchor == NULL) ||
 	    (rule->rt > PF_NOPFROUTE)) &&
-	    (TAILQ_FIRST(&rule->rdr.list) == NULL))
+	    (TAILQ_FIRST(&rule->rdr.list) == NULL &&
+	     TAILQ_FIRST(&rule->route.list) == NULL))
 		error = EINVAL;
 
 	if (rule->action == PF_PASS && rule->rdr.opts & PF_POOL_STICKYADDR &&
@@ -2244,6 +2256,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	rule->nat.cur = TAILQ_FIRST(&rule->nat.list);
 	rule->rdr.cur = TAILQ_FIRST(&rule->rdr.list);
+	rule->route.cur = TAILQ_FIRST(&rule->route.list);
 	TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;
@@ -2553,6 +2566,7 @@ pf_ioctl_begin_addrs(uint32_t *ticket)
 	PF_RULES_WLOCK();
 	pf_empty_kpool(&V_pf_pabuf[0]);
 	pf_empty_kpool(&V_pf_pabuf[1]);
+	pf_empty_kpool(&V_pf_pabuf[2]);
 	*ticket = ++V_ticket_pabuf;
 	PF_RULES_WUNLOCK();
 
@@ -2566,7 +2580,8 @@ pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 	struct pfi_kkif		*kif = NULL;
 	int error;
 
-	if (pp->which != PF_RDR && pp->which != PF_NAT)
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
 		return (EINVAL);
 
 #ifndef INET
@@ -2613,8 +2628,17 @@ pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 		PF_RULES_WUNLOCK();
 		goto out;
 	}
-	TAILQ_INSERT_TAIL(&V_pf_pabuf[pp->which == PF_RDR ? 1 : 0],
-	    pa, entries);
+	switch (pp->which) {
+	case PF_NAT:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[0], pa, entries);
+		break;
+	case PF_RDR:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[1], pa, entries);
+		break;
+	case PF_RT:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[2], pa, entries);
+		break;
+	}
 	PF_RULES_WUNLOCK();
 
 	return (0);
@@ -2632,7 +2656,8 @@ pf_ioctl_get_addrs(struct pf_nl_pooladdr *pp)
 
 	PF_RULES_RLOCK_TRACKER;
 
-	if (pp->which != PF_RDR && pp->which != PF_NAT)
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
 		return (EINVAL);
 
 	pp->anchor[sizeof(pp->anchor) - 1] = 0;
@@ -2659,7 +2684,8 @@ pf_ioctl_get_addr(struct pf_nl_pooladdr *pp)
 	struct pf_kpooladdr	*pa;
 	u_int32_t		 nr = 0;
 
-	if (pp->which != PF_RDR && pp->which != PF_NAT)
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
 		return (EINVAL);
 
 	PF_RULES_RLOCK_TRACKER;
@@ -3652,6 +3678,7 @@ DIOCGETRULENV_error:
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->nat.list);
 			TAILQ_INIT(&newrule->rdr.list);
+			TAILQ_INIT(&newrule->route.list);
 		}
 #define	ERROUT(x)	ERROUT_IOCTL(DIOCCHANGERULE_error, x)
 
@@ -3748,7 +3775,7 @@ DIOCGETRULENV_error:
 				error = ENOMEM;
 			if (pf_kanchor_setup(newrule, ruleset, pcr->anchor_call))
 				error = EINVAL;
-			for (int i = 0; i < 2; i++) {
+			for (int i = 0; i < 3; i++) {
 				TAILQ_FOREACH(pa, &V_pf_pabuf[i], entries)
 					if (pa->addr.type == PF_ADDR_TABLE) {
 						pa->addr.p.tbl =
@@ -3772,6 +3799,7 @@ DIOCGETRULENV_error:
 
 			pf_mv_kpool(&V_pf_pabuf[0], &newrule->nat.list);
 			pf_mv_kpool(&V_pf_pabuf[1], &newrule->rdr.list);
+			pf_mv_kpool(&V_pf_pabuf[2], &newrule->route.list);
 			if (((((newrule->action == PF_NAT) ||
 			    (newrule->action == PF_RDR) ||
 			    (newrule->action == PF_BINAT) ||
@@ -3792,6 +3820,7 @@ DIOCGETRULENV_error:
 		}
 		pf_empty_kpool(&V_pf_pabuf[0]);
 		pf_empty_kpool(&V_pf_pabuf[1]);
+		pf_empty_kpool(&V_pf_pabuf[2]);
 
 		if (pcr->action == PF_CHANGE_ADD_HEAD)
 			oldrule = TAILQ_FIRST(
