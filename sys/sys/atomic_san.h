@@ -266,8 +266,7 @@ ATOMIC_SAN_THREAD_FENCE(SAN_INTERCEPTOR_PREFIX);
 #define	atomic_fcmpset_rel_ptr		ATOMIC_SAN(fcmpset_rel_ptr)
 #define	atomic_fetchadd_ptr		ATOMIC_SAN(fetchadd_ptr)
 #define	atomic_load_ptr(x)						\
-	((__typeof(*x))ATOMIC_SAN(load_ptr)(				\
-	    __DECONST(volatile uintptr_t *, (x))))
+	((__typeof(*x))ATOMIC_SAN(load_ptr)((const volatile uintptr_t *)(x)))
 #define	atomic_load_acq_ptr		ATOMIC_SAN(load_acq_ptr)
 #define	atomic_load_consume_ptr(x)					\
 	((__typeof(*x))atomic_load_acq_ptr((const volatile uintptr_t *)(x)))

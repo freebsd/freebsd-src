@@ -99,7 +99,7 @@ lkpi_write_seqcount_invalidate(seqc_t *seqcp)
 static inline seqc_t
 lkpi_seqprop_sequence(const seqc_t *seqcp)
 {
-	return (atomic_load_int(__DECONST(seqc_t *, seqcp)));
+	return (atomic_load_int(seqcp));
 }
 #define	seqprop_sequence(s)	lkpi_seqprop_sequence(&(s)->seqc)
 
