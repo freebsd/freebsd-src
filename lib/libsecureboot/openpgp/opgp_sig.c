@@ -339,6 +339,16 @@ openpgp_verify(const char *filename,
 				mlen = br_sha256_SIZE;
 				hash_oid = BR_HASH_OID_SHA256;
 				break;
+			case 9:			/* sha384 */
+				md = &br_sha384_vtable;
+				mlen = br_sha384_SIZE;
+				hash_oid = BR_HASH_OID_SHA384;
+				break;
+			case 10:		/* sha512 */
+				md = &br_sha512_vtable;
+				mlen = br_sha512_SIZE;
+				hash_oid = BR_HASH_OID_SHA512;
+				break;
 			default:
 				warnx("unsupported hash algorithm: %s", hname);
 				rc = -1;
