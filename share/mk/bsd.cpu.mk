@@ -350,6 +350,7 @@ CFLAGS += -march=rv64imafdc -mabi=lp64d
 
 .if !defined(NO_CPU_CFLAGS)
 CFLAGS += ${_CPUCFLAGS}
+CXXFLAGS += ${_CPUCFLAGS}
 .endif
 
 #
