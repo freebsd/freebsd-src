@@ -2566,7 +2566,8 @@ pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 	struct pfi_kkif		*kif = NULL;
 	int error;
 
-	MPASS(pp->which == PF_RDR || pp->which == PF_NAT);
+	if (pp->which != PF_RDR && pp->which != PF_NAT)
+		return (EINVAL);
 
 #ifndef INET
 	if (pp->af == AF_INET)
@@ -2631,7 +2632,8 @@ pf_ioctl_get_addrs(struct pf_nl_pooladdr *pp)
 
 	PF_RULES_RLOCK_TRACKER;
 
-	MPASS(pp->which == PF_RDR || pp->which == PF_NAT);
+	if (pp->which != PF_RDR && pp->which != PF_NAT)
+		return (EINVAL);
 
 	pp->anchor[sizeof(pp->anchor) - 1] = 0;
 	pp->nr = 0;
@@ -2657,7 +2659,8 @@ pf_ioctl_get_addr(struct pf_nl_pooladdr *pp)
 	struct pf_kpooladdr	*pa;
 	u_int32_t		 nr = 0;
 
-	MPASS(pp->which == PF_RDR || pp->which == PF_NAT);
+	if (pp->which != PF_RDR && pp->which != PF_NAT)
+		return (EINVAL);
 
 	PF_RULES_RLOCK_TRACKER;
 
