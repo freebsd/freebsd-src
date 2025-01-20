@@ -450,8 +450,8 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 			if (sscanf(ln + 7, "%d %d", &dwidth, &dwy) != 2)
 				errx(1, "invalid DWIDTH at line %u", linenum);
 			if (dwy != 0 || (dwidth != fbbw && dwidth * 2 != fbbw))
-				errx(1, "bitmap with unsupported DWIDTH %d %d at line %u",
-				    dwidth, dwy, linenum);
+				errx(1, "bitmap with unsupported DWIDTH %d %d (not %d or %d) at line %u",
+				    dwidth, dwy, fbbw, 2 * fbbw, linenum);
 			if (dwidth < fbbw)
 				set_width(dwidth);
 		}
