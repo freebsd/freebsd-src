@@ -49,8 +49,6 @@
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 
-#define __PCI_REROUTE_INTERRUPT
-
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif

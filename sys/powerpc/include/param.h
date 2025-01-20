@@ -46,9 +46,6 @@
 
 #include <machine/_align.h>
 
-/* Needed to display interrupts on OFW PCI */
-#define __PCI_REROUTE_INTERRUPT
-
 #ifndef MACHINE
 #define	MACHINE		"powerpc"
 #endif
