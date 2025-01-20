@@ -942,7 +942,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
 		printf(" ");
-		print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
+		print_pool(&r->rdr, 0, 0, r->af, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
@@ -1253,8 +1253,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	    (r->action == PF_NAT || r->action == PF_BINAT ||
 		r->action == PF_RDR)) {
 		printf(" -> ");
-		print_pool(&r->rpool, r->rpool.proxy_port[0],
-		    r->rpool.proxy_port[1], r->af, r->action);
+		print_pool(&r->rdr, r->rdr.proxy_port[0],
+		    r->rdr.proxy_port[1], r->af, r->action);
 	}
 }
 

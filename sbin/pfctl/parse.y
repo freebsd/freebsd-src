@@ -2737,9 +2737,9 @@ pfrule		: action dir logquick interface route af proto fromto
 					YYERROR;
 				}
 				r.rt = $5.rt;
-				r.rpool.opts = $5.pool_opts;
+				r.rdr.opts = $5.pool_opts;
 				if ($5.key != NULL)
-					memcpy(&r.rpool.key, $5.key,
+					memcpy(&r.rdr.key, $5.key,
 					    sizeof(struct pf_poolhashkey));
 			}
 			if (r.rt) {
@@ -2750,26 +2750,26 @@ pfrule		: action dir logquick interface route af proto fromto
 					    "matching address family found.");
 					YYERROR;
 				}
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) ==
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) ==
 				    PF_POOL_NONE && ($5.host->next != NULL ||
 				    $5.host->addr.type == PF_ADDR_TABLE ||
 				    DYNIF_MULTIADDR($5.host->addr)))
-					r.rpool.opts |= PF_POOL_ROUNDROBIN;
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+					r.rdr.opts |= PF_POOL_ROUNDROBIN;
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_table($5.host, "tables are only "
 				    "supported in round-robin routing pools"))
 					YYERROR;
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_alias($5.host, "interface (%s) "
 				    "is only supported in round-robin "
 				    "routing pools"))
 					YYERROR;
 				if ($5.host->next != NULL) {
-					if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+					if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 					    PF_POOL_ROUNDROBIN) {
-						yyerror("r.rpool.opts must "
+						yyerror("r.rdr.opts must "
 						    "be PF_POOL_ROUNDROBIN");
 						YYERROR;
 					}
@@ -4874,59 +4874,59 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 				if (check_netmask($9->host, r.af))
 					YYERROR;
 
-				r.rpool.proxy_port[0] = ntohs($9->rport.a);
+				r.rdr.proxy_port[0] = ntohs($9->rport.a);
 
 				switch (r.action) {
 				case PF_RDR:
 					if (!$9->rport.b && $9->rport.t &&
 					    $5.dst.port != NULL) {
-						r.rpool.proxy_port[1] =
+						r.rdr.proxy_port[1] =
 						    ntohs($9->rport.a) +
 						    (ntohs(
 						    $5.dst.port->port[1]) -
 						    ntohs(
 						    $5.dst.port->port[0]));
 					} else
-						r.rpool.proxy_port[1] =
+						r.rdr.proxy_port[1] =
 						    ntohs($9->rport.b);
 					break;
 				case PF_NAT:
-					r.rpool.proxy_port[1] =
+					r.rdr.proxy_port[1] =
 					    ntohs($9->rport.b);
-					if (!r.rpool.proxy_port[0] &&
-					    !r.rpool.proxy_port[1]) {
-						r.rpool.proxy_port[0] =
+					if (!r.rdr.proxy_port[0] &&
+					    !r.rdr.proxy_port[1]) {
+						r.rdr.proxy_port[0] =
 						    PF_NAT_PROXY_PORT_LOW;
-						r.rpool.proxy_port[1] =
+						r.rdr.proxy_port[1] =
 						    PF_NAT_PROXY_PORT_HIGH;
-					} else if (!r.rpool.proxy_port[1])
-						r.rpool.proxy_port[1] =
-						    r.rpool.proxy_port[0];
+					} else if (!r.rdr.proxy_port[1])
+						r.rdr.proxy_port[1] =
+						    r.rdr.proxy_port[0];
 					break;
 				default:
 					break;
 				}
 
-				r.rpool.opts = $10.type;
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) ==
+				r.rdr.opts = $10.type;
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) ==
 				    PF_POOL_NONE && ($9->host->next != NULL ||
 				    $9->host->addr.type == PF_ADDR_TABLE ||
 				    DYNIF_MULTIADDR($9->host->addr)))
-					r.rpool.opts = PF_POOL_ROUNDROBIN;
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+					r.rdr.opts = PF_POOL_ROUNDROBIN;
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_table($9->host, "tables are only "
 				    "supported in round-robin redirection "
 				    "pools"))
 					YYERROR;
-				if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+				if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 				    PF_POOL_ROUNDROBIN &&
 				    disallow_alias($9->host, "interface (%s) "
 				    "is only supported in round-robin "
 				    "redirection pools"))
 					YYERROR;
 				if ($9->host->next != NULL) {
-					if ((r.rpool.opts & PF_POOL_TYPEMASK) !=
+					if ((r.rdr.opts & PF_POOL_TYPEMASK) !=
 					    PF_POOL_ROUNDROBIN) {
 						yyerror("only round-robin "
 						    "valid for multiple "
@@ -4937,11 +4937,11 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 			}
 
 			if ($10.key != NULL)
-				memcpy(&r.rpool.key, $10.key,
+				memcpy(&r.rdr.key, $10.key,
 				    sizeof(struct pf_poolhashkey));
 
 			 if ($10.opts)
-				r.rpool.opts |= $10.opts;
+				r.rdr.opts |= $10.opts;
 
 			if ($10.staticport) {
 				if (r.action != PF_NAT) {
@@ -4949,17 +4949,17 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 					    "only valid with nat rules");
 					YYERROR;
 				}
-				if (r.rpool.proxy_port[0] !=
+				if (r.rdr.proxy_port[0] !=
 				    PF_NAT_PROXY_PORT_LOW &&
-				    r.rpool.proxy_port[1] !=
+				    r.rdr.proxy_port[1] !=
 				    PF_NAT_PROXY_PORT_HIGH) {
 					yyerror("the 'static-port' option can't"
 					    " be used when specifying a port"
 					    " range");
 					YYERROR;
 				}
-				r.rpool.proxy_port[0] = 0;
-				r.rpool.proxy_port[1] = 0;
+				r.rdr.proxy_port[0] = 0;
+				r.rdr.proxy_port[1] = 0;
 			}
 
 			if ($10.mape.offset) {
@@ -4973,16 +4973,16 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 					    " can't be used 'static-port'");
 					YYERROR;
 				}
-				if (r.rpool.proxy_port[0] !=
+				if (r.rdr.proxy_port[0] !=
 				    PF_NAT_PROXY_PORT_LOW &&
-				    r.rpool.proxy_port[1] !=
+				    r.rdr.proxy_port[1] !=
 				    PF_NAT_PROXY_PORT_HIGH) {
 					yyerror("the 'map-e-portset' option"
 					    " can't be used when specifying"
 					    " a port range");
 					YYERROR;
 				}
-				r.rpool.mape = $10.mape;
+				r.rdr.mape = $10.mape;
 			}
 
 			o = keep_state_defaults;
@@ -5170,13 +5170,13 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 					YYERROR;
 				}
 
-				TAILQ_INIT(&binat.rpool.list);
+				TAILQ_INIT(&binat.rdr.list);
 				pa = calloc(1, sizeof(struct pf_pooladdr));
 				if (pa == NULL)
 					err(1, "binat: calloc");
 				pa->addr = $13->host->addr;
 				pa->ifname[0] = 0;
-				TAILQ_INSERT_TAIL(&binat.rpool.list,
+				TAILQ_INSERT_TAIL(&binat.rdr.list,
 				    pa, entries);
 
 				free($13);
@@ -5521,7 +5521,7 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 			problems++;
 		}
 	}
-	if (r->rpool.opts & PF_POOL_STICKYADDR && !r->keep_state) {
+	if (r->rdr.opts & PF_POOL_STICKYADDR && !r->keep_state) {
 		yyerror("'sticky-address' requires 'keep state'");
 		problems++;
 	}
@@ -5549,8 +5549,8 @@ rdr_consistent(struct pfctl_rule *r)
 			yyerror("dst port only applies to tcp/udp/sctp");
 			problems++;
 		}
-		if (r->rpool.proxy_port[0]) {
-			yyerror("rpool port only applies to tcp/udp/sctp");
+		if (r->rdr.proxy_port[0]) {
+			yyerror("rdr port only applies to tcp/udp/sctp");
 			problems++;
 		}
 	}
@@ -6320,7 +6320,7 @@ expand_rule(struct pfctl_rule *r,
 					errx(1, "expand_rule: strlcpy");
 			} else
 				pa->ifname[0] = 0;
-			TAILQ_INSERT_TAIL(&r->rpool.list, pa, entries);
+			TAILQ_INSERT_TAIL(&r->rdr.list, pa, entries);
 		}
 		TAILQ_INIT(&r->nat.list);
 		for (h = nat_hosts; h != NULL; h = h->next) {

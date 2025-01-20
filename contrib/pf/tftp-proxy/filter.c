@@ -111,8 +111,8 @@ add_nat(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 	if (ioctl(pfctl_fd(pfh), DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
-	pfrule.rpool.proxy_port[0] = nat_range_low;
-	pfrule.rpool.proxy_port[1] = nat_range_high;
+	pfrule.rdr.proxy_port[0] = nat_range_low;
+	pfrule.rdr.proxy_port[1] = nat_range_high;
 	if (pfctl_add_rule_h(pfh, &pfrule, pfanchor, pfanchor_call,
 	    pfticket, pfpool_ticket))
 		return (-1);
@@ -145,7 +145,7 @@ add_rdr(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 	if (ioctl(pfctl_fd(pfh), DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
-	pfrule.rpool.proxy_port[0] = rdr_port;
+	pfrule.rdr.proxy_port[0] = rdr_port;
 	if (pfctl_add_rule_h(pfh, &pfrule, pfanchor, pfanchor_call,
 	    pfticket, pfpool_ticket))
 		return (-1);
