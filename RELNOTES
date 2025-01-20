@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+ead3cd3ef628:
+	Add a new -a command line option to mountd(8).
+	If this command line option is specified, when
+	a line in exports(5) has the -alldirs export option,
+	the directory must be a server file system mount point.
+
 54974e731f27, 155987e20190, 4634282f8908, 7a3a0402aeb6, 6b1a5d3535d9:
 	The layout of NFS file handles for the tarfs, cd9660, and ext2fs
 	file systems has changed.  An NFS server that exports any of these file
