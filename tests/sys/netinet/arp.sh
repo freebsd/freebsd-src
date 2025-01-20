@@ -229,6 +229,32 @@ static_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "garp" "cleanup"
+garp_head() {
+	atf_set descr 'Basic gratuitous arp test'
+	atf_set require.user root
+}
+
+garp_body() {
+	vnet_init
+
+	j="v4t-garp"
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail ${j} ${epair}a
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j} sysctl net.link.ether.inet.garp_rexmit_count=3
+	jexec ${j} ifconfig ${epair}a inet 192.0.2.1/24 up
+
+	# Allow some time for the timer to actually fire
+	sleep 5
+}
+
+garp_cleanup() {
+	vnet_cleanup
+}
+
 
 atf_init_test_cases()
 {
@@ -238,6 +264,7 @@ atf_init_test_cases()
 	atf_add_test_case "pending_delete_if"
 	atf_add_test_case "arp_lookup_host"
 	atf_add_test_case "static"
+	atf_add_test_case "garp"
 }
 
 # end
