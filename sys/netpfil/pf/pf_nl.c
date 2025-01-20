@@ -736,6 +736,7 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_MAX_SRC_CONN, .off = _OUT(max_src_conn), .cb = nlattr_get_uint32 },
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(nat), .arg = &pool_parser, .cb = nlattr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(naf), .cb = nlattr_get_uint8 },
+	{ .type = PF_RT_RPOOL_RT, .off = _OUT(route), .arg = &pool_parser, .cb = nlattr_get_nested },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -909,6 +910,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_string(nw, PF_RT_OVERLOAD_TBLNAME, rule->overload_tblname);
 	nlattr_add_pool(nw, PF_RT_RPOOL_RDR, &rule->rdr);
 	nlattr_add_pool(nw, PF_RT_RPOOL_NAT, &rule->nat);
+	nlattr_add_pool(nw, PF_RT_RPOOL_RT, &rule->route);
 	nlattr_add_u32(nw, PF_RT_OS_FINGERPRINT, rule->os_fingerprint);
 	nlattr_add_u32(nw, PF_RT_RTABLEID, rule->rtableid);
 	nlattr_add_timeout(nw, PF_RT_TIMEOUT, rule->timeout);

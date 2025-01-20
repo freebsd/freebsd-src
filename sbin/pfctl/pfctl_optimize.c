@@ -137,6 +137,7 @@ static struct pf_rule_field {
     PF_RULE_FIELD(flush,		BREAK),
     PF_RULE_FIELD(rdr,			BREAK),
     PF_RULE_FIELD(nat,			BREAK),
+    PF_RULE_FIELD(route,		BREAK),
     PF_RULE_FIELD(logif,		BREAK),
 
     /*
@@ -303,6 +304,12 @@ pfctl_optimize_ruleset(struct pfctl *pf, struct pfctl_ruleset *rs)
 		} else
 			bzero(&por->por_rule.nat,
 			    sizeof(por->por_rule.nat));
+		if (TAILQ_FIRST(&r->route.list) != NULL) {
+			TAILQ_INIT(&por->por_rule.route.list);
+			pfctl_move_pool(&r->route, &por->por_rule.route);
+		} else
+			bzero(&por->por_rule.route,
+			    sizeof(por->por_rule.route));
 
 		TAILQ_INSERT_TAIL(&opt_queue, por, por_entry);
 	}
