@@ -60,17 +60,17 @@ static struct snl_field_parser snl_fp_genl[] = {};
 #define	SNL_DECLARE_GENL_PARSER(_name, _np)	SNL_DECLARE_PARSER(_name,\
     struct genlmsghdr, snl_fp_genl, _np)
 
-struct snl_genl_ctrl_mcast_group {
+struct _snl_genl_ctrl_mcast_group {
 	uint32_t mcast_grp_id;
 	const char *mcast_grp_name;
 };
 
-struct snl_genl_ctrl_mcast_groups {
+struct _snl_genl_ctrl_mcast_groups {
 	uint32_t num_groups;
-	struct snl_genl_ctrl_mcast_group **groups;
+	struct _snl_genl_ctrl_mcast_group **groups;
 };
 
-#define	_OUT(_field)	offsetof(struct snl_genl_ctrl_mcast_group, _field)
+#define	_OUT(_field)	offsetof(struct _snl_genl_ctrl_mcast_group, _field)
 static struct snl_attr_parser _nla_p_getmc[] = {
 	{
 		.type = CTRL_ATTR_MCAST_GRP_NAME,
@@ -85,12 +85,12 @@ static struct snl_attr_parser _nla_p_getmc[] = {
 };
 #undef _OUT
 SNL_DECLARE_ATTR_PARSER_EXT(_genl_ctrl_mc_parser,
-    sizeof(struct snl_genl_ctrl_mcast_group), _nla_p_getmc, NULL);
+    sizeof(struct _snl_genl_ctrl_mcast_group), _nla_p_getmc, NULL);
 
 struct _getfamily_attrs {
 	uint16_t family_id;
 	const char *family_name;
-	struct snl_genl_ctrl_mcast_groups mcast_groups;
+	struct _snl_genl_ctrl_mcast_groups mcast_groups;
 };
 
 #define	_IN(_field)	offsetof(struct genlmsghdr, _field)
@@ -118,7 +118,7 @@ static struct snl_attr_parser _nla_p_getfam[] = {
 SNL_DECLARE_GENL_PARSER(_genl_ctrl_getfam_parser, _nla_p_getfam);
 
 static bool
-snl_get_genl_family_info(struct snl_state *ss, const char *family_name,
+_snl_get_genl_family_info(struct snl_state *ss, const char *family_name,
     struct _getfamily_attrs *attrs)
 {
 	struct snl_writer nw;
@@ -126,10 +126,16 @@ snl_get_genl_family_info(struct snl_state *ss, const char *family_name,
 
 	memset(attrs, 0, sizeof(*attrs));
 
-	snl_init_writer(ss, &nw);
-	hdr = snl_create_genl_msg_request(&nw, GENL_ID_CTRL, CTRL_CMD_GETFAMILY);
-	snl_add_msg_attr_string(&nw, CTRL_ATTR_FAMILY_NAME, family_name);
-	if ((hdr = snl_finalize_msg(&nw)) == NULL || !snl_send_message(ss, hdr))
+	if (__predict_false(!snl_init_writer(ss, &nw)))
+		return (false);
+	if (__predict_false(snl_create_genl_msg_request(&nw, GENL_ID_CTRL,
+	    CTRL_CMD_GETFAMILY) == NULL))
+		return (false);
+	if (__predict_false(!snl_add_msg_attr_string(&nw,
+	    CTRL_ATTR_FAMILY_NAME, family_name)))
+		return (false);
+	hdr = snl_finalize_msg(&nw);
+	if (!snl_send_message(ss, hdr))
 		return (false);
 
 	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
@@ -146,7 +152,9 @@ snl_get_genl_family(struct snl_state *ss, const char *family_name)
 {
 	struct _getfamily_attrs attrs = {};
 
-	snl_get_genl_family_info(ss, family_name, &attrs);
+	if (__predict_false(!_snl_get_genl_family_info(ss, family_name,
+	    &attrs)))
+		return (0);
 	return (attrs.family_id);
 }
 
@@ -156,7 +164,9 @@ snl_get_genl_mcast_group(struct snl_state *ss, const char *family_name,
 {
 	struct _getfamily_attrs attrs = {};
 
-	snl_get_genl_family_info(ss, family_name, &attrs);
+	if (__predict_false(!_snl_get_genl_family_info(ss, family_name,
+	    &attrs)))
+		return (0);
 	if (attrs.family_id == 0)
 		return (0);
 	if (family_id != NULL)
