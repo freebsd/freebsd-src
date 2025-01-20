@@ -2303,6 +2303,23 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (compare && !(*retcmpp) && i != nfs_srvmaxio)
 				*retcmpp = NFSERR_NOTSAME;
 			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (compare) {
+				if (!(*retcmpp)) {
+				    tuint = NFSV4CHANGETYPE_UNDEFINED;
+				    if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVINC) != 0)
+					tuint = NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS;
+				    else if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVCT) != 0)
+					tuint = NFSV4CHANGETYPE_TIME_METADATA;
+				    if (fxdr_unsigned(uint32_t, *tl) != tuint)
+					*retcmpp = NFSERR_NOTSAME;
+				}
+			}
+			attrsum += NFSX_UNSIGNED;
+			break;
 		default:
 			printf("EEK! nfsv4_loadattr unknown attr=%d\n",
 				bitpos);
@@ -3126,6 +3143,21 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			*tl++ = vtonfsv34_mode(vap->va_mode);
 			*tl = 0;
 			retnum += 2 * NFSX_UNSIGNED;
+			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4CHANGETYPE_UNDEFINED);
+			if (mp != NULL) {
+				if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVINC) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS);
+				else if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVCT) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_TIME_METADATA);
+			}
+			retnum += NFSX_UNSIGNED;
 			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
