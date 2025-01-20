@@ -240,14 +240,13 @@ snl_clear_lb(struct snl_state *ss)
 static void
 snl_free(struct snl_state *ss)
 {
-	if (ss->init_done) {
+	if (ss->init_done)
 		close(ss->fd);
-		if (ss->buf != NULL)
-			free(ss->buf);
-		if (ss->lb != NULL) {
-			snl_clear_lb(ss);
-			lb_free(ss->lb);
-		}
+	if (ss->buf != NULL)
+		free(ss->buf);
+	if (ss->lb != NULL) {
+		snl_clear_lb(ss);
+		lb_free(ss->lb);
 	}
 }
 
@@ -288,6 +287,16 @@ snl_init(struct snl_state *ss, int netlink_family)
 	}
 
 	return (true);
+}
+
+static inline bool
+snl_clone(struct snl_state *ss, const struct snl_state *orig)
+{
+	*ss = (struct snl_state){
+		.fd = orig->fd,
+		.init_done = false,
+	};
+	return ((ss->lb = lb_init(SCRATCH_BUFFER_SIZE)) != NULL);
 }
 
 static inline bool
