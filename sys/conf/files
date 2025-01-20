@@ -3293,6 +3293,7 @@ dev/usb/net/if_muge.c		optional muge
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav
+dev/usb/net/if_umb.c		optional umb
 dev/usb/net/if_ure.c		optional ure
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/if_urndis.c		optional urndis
