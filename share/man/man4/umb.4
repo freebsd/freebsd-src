@@ -1,0 +1,119 @@
+.\"-
+.\" SPDX-License-Identifier: 0BSD
+.\"
+.\" Copyright (c) 2016 genua mbH
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $NetBSD: umb.4,v 1.4 2019/08/30 09:22:17 wiz Exp $
+.\"
+.Dd August 24, 2019
+.Dt UMB 4
+.Os
+.Sh NAME
+.Nm umb
+.Nd USB Mobile Broadband Interface Model (MBIM)
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device umb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+umb_load="YES"
+.Ed
+.Pp
+If neither of the above is done, the driver will automatically be loaded
+by devd(8) when the device is connected.
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for USB MBIM devices.
+.Pp
+MBIM devices establish connections via cellular networks such as
+GPRS, UMTS, and LTE.
+They appear as a regular point-to-point network interface,
+transporting raw IP frames.
+.Pp
+Required configuration parameters like PIN and APN have to be set
+with
+.Xr umbctl 8 .
+Once the SIM card has been unlocked with the correct PIN, it
+will remain in this state until the MBIM device is power-cycled.
+In case the device is connected to an "always-on" USB port,
+it may be possible to connect to a provider without entering the
+PIN again even if the system was rebooted.
+.Sh HARDWARE
+The
+.Nm
+driver should support any USB device implementing MBIM, including
+the following cellular modems:
+.Pp
+.Bl -bullet -compact
+.It
+Ericsson H5321gw and N5321gw
+.It
+Fibocom L831-EAU
+.It
+Medion Mobile S4222 (MediaTek OEM)
+.It
+Sierra Wireless EM7345
+.It
+Sierra Wireless EM7455
+.It
+Sierra Wireless EM8805
+.It
+Sierra Wireless MC8305
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr netintro 4 ,
+.Xr usb 4 ,
+.Xr ifconfig 8 ,
+.Xr umbctl 8
+.Rs
+.%T "Universal Serial Bus Communications Class Subclass Specification for Mobile Broadband Interface Model"
+.%U http://www.usb.org/developers/docs/devclass_docs/MBIM10Errata1_073013.zip
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 6.0 ,
+.Nx 9.0 ,
+and
+.Fx 15.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Gerhard Roth Aq Mt gerhard@openbsd.org
+and ported from
+.Ox
+by
+.An Pierre Pronchery Aq Mt khorben@defora.org .
+.Sh CAVEATS
+The
+.Nm
+driver does not support IPv6.
+.Pp
+Devices which fail to provide a conforming MBIM implementation will
+probably be attached as some other driver, such as
+.Xr u3g 4 .
