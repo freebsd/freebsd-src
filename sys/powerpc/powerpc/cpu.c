@@ -855,7 +855,6 @@ cpu_idle_powerx(sbintime_t sbt)
 static void
 cpu_idle_power9(sbintime_t sbt)
 {
-	register_t msr;
 	int max_stop_state = cpu_idle_max_stop_state;
 
 	/* Limit maximum stop state to valid values */
@@ -877,20 +876,30 @@ cpu_idle_power9(sbintime_t sbt)
 		cpu_idle_max_stop_state = max_stop_state;
 	}
 
-	msr = mfmsr();
-	/* Suspend external interrupts until stop instruction completes. */
-	mtmsr(msr &  ~PSL_EE);
+	/*
+	 * Enter spinlock and suspend external interrupts until the stop
+	 * instruction completes.
+	 */
+	spinlock_enter();
+
+	/* Final scheduler checks before core shutdown */
+	if (sched_runnable()) {
+		/* Exit spinlock and re-enable external interrupts */
+		spinlock_exit();
+		return;
+	}
+
 	/* Set the stop state to lowest latency, wake up to next instruction */
-	/* Set maximum transition level to 2, for deepest lossless sleep. */
-	mtspr(SPR_PSSCR, (2 << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
-	/* "stop" instruction (PowerISA 3.0) */
+	mtspr(SPR_PSSCR, (max_stop_state << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
+
+	/* Shut down core using "stop" instruction (PowerISA 3.0) */
 	__asm __volatile (".long 0x4c0002e4");
+
 	/*
 	 * Re-enable external interrupts to capture the interrupt that caused
-	 * the wake up.
+	 * the wake up.  Exit spinlock.
 	 */
-	mtmsr(msr);
-
+	spinlock_exit();
 }
 #endif
 
