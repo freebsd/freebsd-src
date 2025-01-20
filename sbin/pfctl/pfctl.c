@@ -1324,6 +1324,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			break;
 		}
 		pfctl_clear_pool(&rule.rdr);
+		pfctl_clear_pool(&rule.nat);
 	}
 	ret = pfctl_get_rules_info_h(pfh, &ri, PF_PASS, path);
 	if (ret != 0) {
@@ -1410,6 +1411,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			break;
 		}
 		pfctl_clear_pool(&rule.rdr);
+		pfctl_clear_pool(&rule.nat);
 	}
 
  error:
@@ -1757,6 +1759,8 @@ pfctl_append_rule(struct pfctl *pf, struct pfctl_rule *r,
 	bcopy(r, rule, sizeof(*rule));
 	TAILQ_INIT(&rule->rdr.list);
 	pfctl_move_pool(&r->rdr, &rule->rdr);
+	TAILQ_INIT(&rule->nat.list);
+	pfctl_move_pool(&r->nat, &rule->nat);
 
 	TAILQ_INSERT_TAIL(rs->rules[rs_num].active.ptr, rule, entries);
 	return (0);
@@ -2086,6 +2090,7 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 	}
 	path[len] = '\0';
 	pfctl_clear_pool(&r->rdr);
+	pfctl_clear_pool(&r->nat);
 	return (0);
 }
 

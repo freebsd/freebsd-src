@@ -5171,6 +5171,7 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 				}
 
 				TAILQ_INIT(&binat.rdr.list);
+				TAILQ_INIT(&binat.nat.list);
 				pa = calloc(1, sizeof(struct pf_pooladdr));
 				if (pa == NULL)
 					err(1, "binat: calloc");
