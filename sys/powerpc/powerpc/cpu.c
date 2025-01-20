@@ -95,6 +95,9 @@ static void	cpu_idle_booke(sbintime_t);
 static void	cpu_idle_e500mc(sbintime_t sbt);
 #endif
 #if defined(__powerpc64__) && defined(AIM)
+static int      cpu_idle_max_stop_state = 2;
+SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_max_stop_state,
+	CTLFLAG_RW, &cpu_idle_max_stop_state, 0, "");
 static void	cpu_idle_powerx(sbintime_t);
 static void	cpu_idle_power9(sbintime_t);
 #endif
@@ -815,6 +818,22 @@ cpu_idle_booke(sbintime_t sbt)
 static void
 cpu_idle_powerx(sbintime_t sbt)
 {
+	int max_stop_state = cpu_idle_max_stop_state;
+
+	/* Limit maximum stop state to valid values */
+	if (max_stop_state < 0) {
+		/* Don't nap at all, busy wait instead */
+		cpu_idle_max_stop_state = -1;
+		return;
+	}
+	if (max_stop_state > 1) {
+		/* POWER8 and below only support the one stop state,
+		 * i.e. 'nap'
+		 */
+		max_stop_state = 1;
+		cpu_idle_max_stop_state = max_stop_state;
+	}
+
 	/* Sleeping when running on one cpu gives no advantages - avoid it */
 	if (smp_started == 0)
 		return;
@@ -837,9 +856,28 @@ static void
 cpu_idle_power9(sbintime_t sbt)
 {
 	register_t msr;
+	int max_stop_state = cpu_idle_max_stop_state;
+
+	/* Limit maximum stop state to valid values */
+	if (max_stop_state < 0) {
+		/* Don't stop at all, busy wait instead */
+		cpu_idle_max_stop_state = -1;
+		return;
+	}
+
+	/* Set maximum transition level to 3, for deepest lossless sleep.
+	 * On POWER9 this is automatically downgraded to the next supported
+	 * stop state (stop2), but other CPUs may support stop3.
+	 */
+	if (max_stop_state > 3) {
+		/* Stop states greater than 3 require register state save and
+		 * restore functionality that is not yet implemented
+		 */
+		max_stop_state = 3;
+		cpu_idle_max_stop_state = max_stop_state;
+	}
 
 	msr = mfmsr();
-
 	/* Suspend external interrupts until stop instruction completes. */
 	mtmsr(msr &  ~PSL_EE);
 	/* Set the stop state to lowest latency, wake up to next instruction */
