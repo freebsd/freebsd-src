@@ -133,7 +133,7 @@
  * openly resorting to the stronger acquire fence, to be sorted out.
  */
 #define	atomic_load_consume_ptr(p)	\
-    ((__typeof(*p)) atomic_load_acq_ptr((uintptr_t *)p))
+    ((__typeof(*p)) atomic_load_acq_ptr((const volatile uintptr_t *)p))
 
 #define	atomic_interrupt_fence()	__compiler_membar()
 
