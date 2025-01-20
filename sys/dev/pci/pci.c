@@ -4094,7 +4094,6 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 			pci_add_map(bus, dev, q->arg1, rl, force, 0);
 
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
-#ifdef __PCI_REROUTE_INTERRUPT
 		/*
 		 * Try to re-route interrupts. Sometimes the BIOS or
 		 * firmware may leave bogus values in these registers.
@@ -4102,9 +4101,6 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		 * have.
 		 */
 		pci_assign_interrupt(bus, dev, 1);
-#else
-		pci_assign_interrupt(bus, dev, 0);
-#endif
 	}
 
 	if (pci_usb_takeover && pci_get_class(dev) == PCIC_SERIALBUS &&

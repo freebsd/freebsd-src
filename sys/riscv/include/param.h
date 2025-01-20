@@ -39,8 +39,6 @@
 #define	STACKALIGNBYTES	(16 - 1)
 #define	STACKALIGN(p)	((uint64_t)(p) & ~STACKALIGNBYTES)
 
-#define __PCI_REROUTE_INTERRUPT
-
 #ifndef MACHINE
 #define	MACHINE		"riscv"
 #endif
