@@ -1354,6 +1354,7 @@ sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS)
 static void
 garp_rexmit(void *arg)
 {
+	struct epoch_tracker et;
 	struct in_ifaddr *ia = arg;
 
 	if (callout_pending(&ia->ia_garp_timer) ||
@@ -1363,6 +1364,7 @@ garp_rexmit(void *arg)
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(ia->ia_ifa.ifa_ifp->if_vnet);
 
 	/*
@@ -1394,6 +1396,7 @@ garp_rexmit(void *arg)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
