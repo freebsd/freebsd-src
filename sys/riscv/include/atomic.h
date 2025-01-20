@@ -569,7 +569,7 @@ ATOMIC_CMPSET_ACQ_REL(64);
 ATOMIC_FCMPSET_ACQ_REL(64);
 
 static __inline uint64_t
-atomic_load_acq_64(volatile uint64_t *p)
+atomic_load_acq_64(const volatile uint64_t *p)
 {
 	uint64_t ret;
 
