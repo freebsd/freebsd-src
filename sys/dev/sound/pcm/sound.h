@@ -147,70 +147,6 @@ struct snd_mixer;
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
 
-/* make figuring out what a format is easier. got AFMT_STEREO already */
-#define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
-#define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
-#define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
-#define AFMT_G711  (AFMT_MU_LAW | AFMT_A_LAW)
-#define AFMT_8BIT (AFMT_G711 | AFMT_U8 | AFMT_S8)
-#define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_S24_LE | AFMT_S24_BE | \
-			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
-#define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_S24_BE | AFMT_U24_BE | \
-			AFMT_S16_BE | AFMT_U16_BE)
-
-#define AFMT_CONVERTIBLE	(AFMT_8BIT | AFMT_16BIT | AFMT_24BIT |	\
-				 AFMT_32BIT)
-
-/* Supported vchan mixing formats */
-#define AFMT_VCHAN		(AFMT_CONVERTIBLE & ~AFMT_G711)
-
-#define AFMT_PASSTHROUGH		AFMT_AC3
-#define AFMT_PASSTHROUGH_RATE		48000
-#define AFMT_PASSTHROUGH_CHANNEL	2
-#define AFMT_PASSTHROUGH_EXTCHANNEL	0
-
-/*
- * We're simply using unused, contiguous bits from various AFMT_ definitions.
- * ~(0xb00ff7ff)
- */
-#define AFMT_ENCODING_MASK	0xf00fffff
-#define AFMT_CHANNEL_MASK	0x07f00000
-#define AFMT_CHANNEL_SHIFT	20
-#define AFMT_CHANNEL_MAX	0x7f
-#define AFMT_EXTCHANNEL_MASK	0x08000000
-#define AFMT_EXTCHANNEL_SHIFT	27
-#define AFMT_EXTCHANNEL_MAX	1
-
-#define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
-
-#define AFMT_EXTCHANNEL(v)	(((v) & AFMT_EXTCHANNEL_MASK) >>	\
-				AFMT_EXTCHANNEL_SHIFT)
-
-#define AFMT_CHANNEL(v)		(((v) & AFMT_CHANNEL_MASK) >>		\
-				AFMT_CHANNEL_SHIFT)
-
-#define AFMT_BIT(v)		(((v) & AFMT_32BIT) ? 32 :		\
-				(((v) & AFMT_24BIT) ? 24 :		\
-				((((v) & AFMT_16BIT) ||			\
-				((v) & AFMT_PASSTHROUGH)) ? 16 : 8)))
-
-#define AFMT_BPS(v)		(AFMT_BIT(v) >> 3)
-#define AFMT_ALIGN(v)		(AFMT_BPS(v) * AFMT_CHANNEL(v))
-
-#define SND_FORMAT(f, c, e)	(AFMT_ENCODING(f) |		\
-				(((c) << AFMT_CHANNEL_SHIFT) &		\
-				AFMT_CHANNEL_MASK) |			\
-				(((e) << AFMT_EXTCHANNEL_SHIFT) &	\
-				AFMT_EXTCHANNEL_MASK))
-
-#define AFMT_U8_NE	AFMT_U8
-#define AFMT_S8_NE	AFMT_S8
-
-#define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
-
-#define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
-			 AFMT_U24_NE | AFMT_U32_NE)
-
 enum {
 	SND_DEV_CTL = 0,	/* Control port /dev/mixer */
 	SND_DEV_SEQ,		/* Sequencer /dev/sequencer */
@@ -507,5 +443,69 @@ int	sound_oss_card_info(oss_card_info *);
 } while (0)
 
 #endif /* _KERNEL */
+
+/* make figuring out what a format is easier. got AFMT_STEREO already */
+#define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
+#define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
+#define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
+#define AFMT_G711  (AFMT_MU_LAW | AFMT_A_LAW)
+#define AFMT_8BIT (AFMT_G711 | AFMT_U8 | AFMT_S8)
+#define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_S24_LE | AFMT_S24_BE | \
+			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
+#define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_S24_BE | AFMT_U24_BE | \
+			AFMT_S16_BE | AFMT_U16_BE)
+
+#define AFMT_CONVERTIBLE	(AFMT_8BIT | AFMT_16BIT | AFMT_24BIT |	\
+				 AFMT_32BIT)
+
+/* Supported vchan mixing formats */
+#define AFMT_VCHAN		(AFMT_CONVERTIBLE & ~AFMT_G711)
+
+#define AFMT_PASSTHROUGH		AFMT_AC3
+#define AFMT_PASSTHROUGH_RATE		48000
+#define AFMT_PASSTHROUGH_CHANNEL	2
+#define AFMT_PASSTHROUGH_EXTCHANNEL	0
+
+/*
+ * We're simply using unused, contiguous bits from various AFMT_ definitions.
+ * ~(0xb00ff7ff)
+ */
+#define AFMT_ENCODING_MASK	0xf00fffff
+#define AFMT_CHANNEL_MASK	0x07f00000
+#define AFMT_CHANNEL_SHIFT	20
+#define AFMT_CHANNEL_MAX	0x7f
+#define AFMT_EXTCHANNEL_MASK	0x08000000
+#define AFMT_EXTCHANNEL_SHIFT	27
+#define AFMT_EXTCHANNEL_MAX	1
+
+#define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
+
+#define AFMT_EXTCHANNEL(v)	(((v) & AFMT_EXTCHANNEL_MASK) >>	\
+				AFMT_EXTCHANNEL_SHIFT)
+
+#define AFMT_CHANNEL(v)		(((v) & AFMT_CHANNEL_MASK) >>		\
+				AFMT_CHANNEL_SHIFT)
+
+#define AFMT_BIT(v)		(((v) & AFMT_32BIT) ? 32 :		\
+				(((v) & AFMT_24BIT) ? 24 :		\
+				((((v) & AFMT_16BIT) ||			\
+				((v) & AFMT_PASSTHROUGH)) ? 16 : 8)))
+
+#define AFMT_BPS(v)		(AFMT_BIT(v) >> 3)
+#define AFMT_ALIGN(v)		(AFMT_BPS(v) * AFMT_CHANNEL(v))
+
+#define SND_FORMAT(f, c, e)	(AFMT_ENCODING(f) |		\
+				(((c) << AFMT_CHANNEL_SHIFT) &		\
+				AFMT_CHANNEL_MASK) |			\
+				(((e) << AFMT_EXTCHANNEL_SHIFT) &	\
+				AFMT_EXTCHANNEL_MASK))
+
+#define AFMT_U8_NE	AFMT_U8
+#define AFMT_S8_NE	AFMT_S8
+
+#define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
+
+#define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
+			 AFMT_U24_NE | AFMT_U32_NE)
 
 #endif	/* _OS_H_ */
