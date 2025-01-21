@@ -1,3 +1,34 @@
+Spleen 2.1.0 (2024-03-22)
+
+- Document how wsfont header files (for OpenBSD and NetBSD) are generated
+- Add base cyrillic (basic alphabet + most used extended) characters (Thanks
+  Slava Voronzoff!)
+- Fix latin small letter 'u' smoothing in the 32x64 version
+- Fix smoothing on more variants of 'u' in the 32x64 version
+
+
+
+Spleen 2.0.2 (2023-12-25)
+
+- Fix MALE and FEMALE character ordering in the 16x32 and 32x64
+  versions (Thanks Mike Cui)
+- Update README to add a link to the Alpine Linux package
+
+
+
+Spleen 2.0.1 (2023-11-17)
+
+- Add a 'com' target to generate SPLEEN.COM, the DOS version of Spleen
+- Also add 'com' in the 'all' target
+- Update README to add a link to the Guix package
+- In the Spleen loader for DOS, put 4C00h in ax and not 4Ch
+- README.md: add Gentoo package link
+- Switch to using Oxipng as it compresses even more than OptiPNG
+- Add a new FAQ file answering frequently asked questions about Spleen
+- Remove C0 control characters range in the 8x16, 16x32, and 32x64 versions
+
+
+
 Spleen 2.0.0 (2023-05-28)
 
 - Add full support for CP437 (IBM PC) in the 8x16, 16x32, and 32x64 versions

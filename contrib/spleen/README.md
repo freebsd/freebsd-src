@@ -104,6 +104,9 @@ Spleen packages are available for:
 - [Debian][15]
 - [Ubuntu][16]
 - [MacPorts][17]
+- [Guix][18]
+- [Gentoo][19]
+- [Alpine Linux][20]
 
 ## Manual installation
 
@@ -113,6 +116,8 @@ Clone the repository, convert the files to the Portable Compiled Format
 (PCF) using **bdftopcf** and run **mkfontdir** in the directory.
 
 Alternatively, release tarballs provide PCF files for each size.
+
+OTB versions are also available.
 
 ### macOS
 
@@ -150,7 +155,7 @@ Update **.Xdefaults** and add one of the following directives:
 Launch **xterm**.
 
 Ubuntu has bitmap fonts support disabled by default, instructions to enable
-it are available [here][18].
+it are available [here][21].
 
 ### Linux console
 
@@ -178,8 +183,11 @@ For example, to load Spleen 16x32:
 ### OpenType versions
 
 Spleen release tarballs now contains OTF versions generated automatically
-from the BDF files, using [bdf2sfd][19]. Each font has a different name,
+from the BDF files, using [bdf2sfd][22]. Each font has a different name,
 allowing them to be installed alongside.
+
+Please note that OTF versions should be used as last resort, always prefer
+bitmap versions if they are supported on your platform.
 
 They should be used in the exact size specified below, with anti-aliasing
 disabled.
@@ -203,26 +211,27 @@ Spleen is developed by Frederic Cambus.
 
 ## Resources
 
-- [Spleen - Monospaced bitmap fonts][20] (2018)
-- [New console font Spleen made default][21] (2019)
-- [NetBSD, CTWM, and Spleen][22] (2021)
+- [Spleen - Monospaced bitmap fonts][23] (2018)
+- [New console font Spleen made default][24] (2019)
+- [NetBSD, CTWM, and Spleen][25] (2021)
+- [Spleen 2.0.0 released with full CP437 support][26] (2023)
 
 GitHub: https://github.com/fcambus/spleen
 
 ## Trivia
 
-- Spleen was imported in the OpenBSD src tree in [September 2018][23]
-- Spleen is the default font for OpenBSD consoles since [January 2019][24]
-- Spleen was imported in the NetBSD src tree in [March 2019][25]
-- Spleen 12x24 was used in the Haiku [kernel debugger][26] (on high resolution
+- Spleen was imported in the OpenBSD src tree in [September 2018][27]
+- Spleen is the default font for OpenBSD consoles since [January 2019][28]
+- Spleen was imported in the NetBSD src tree in [March 2019][29]
+- Spleen 12x24 was used in the Haiku [kernel debugger][30] (on high resolution
   displays) from May 2021 to June 2022
-- Spleen was imported in the FreeBSD base system in [May 2023][27]
-- [msTERM][28], a Terminal program for MailStation devices uses Spleen 5x8
-- [FBInk][29], a library to print text & images to an eInk Linux framebuffer
+- Spleen was imported in the FreeBSD base system in [May 2023][31]
+- [msTERM][32], a Terminal program for MailStation devices uses Spleen 5x8
+- [FBInk][33], a library to print text & images to an eInk Linux framebuffer
   embeds Spleen 16x32
-- [U8g2][30], a monochrome graphics library for embedded devices includes
+- [U8g2][34], a monochrome graphics library for embedded devices includes
   all Spleen sizes
-- [Ansilove][31], an ANSI and ASCII art to PNG converter includes Spleen
+- [Ansilove][35], an ANSI and ASCII art to PNG converter includes Spleen
 
 [1]: https://www.cambus.net/content/2018/09/spleen-hello.png
 [2]: https://www.cambus.net/content/2018/09/spleen-etranger.png
@@ -241,17 +250,21 @@ GitHub: https://github.com/fcambus/spleen
 [15]: https://packages.debian.org/search?keywords=spleen
 [16]: https://packages.ubuntu.com/search?keywords=spleen
 [17]: https://ports.macports.org/port/font-spleen/
-[18]: https://wiki.ubuntu.com/Fonts#Enabling_Bitmapped_Fonts
-[19]: https://github.com/fcambus/bdf2sfd
-[20]: https://www.cambus.net/spleen-monospaced-bitmap-fonts/
-[21]: https://undeadly.org/cgi?action=article;sid=20190110064857
-[22]: https://www.cambus.net/netbsd-ctwm-and-spleen/
-[23]: https://freshbsd.org/openbsd/src/commit/5raMrDMpYlPYW01H
-[24]: https://freshbsd.org/openbsd/src/commit/MoBCxKiAlFajRvSm
-[25]: https://freshbsd.org/netbsd/src/commit/TAJuMl9caBpVjGfB
-[26]: https://git.haiku-os.org/haiku/commit/?id=29a109bd6c01ce71bb61177ee9ff0417e74c1e18
-[27]: https://cgit.freebsd.org/src/commit/?id=0d66206fff44
-[28]: https://github.com/jcs/msTERM
-[29]: https://github.com/NiLuJe/FBInk
-[30]: https://github.com/olikraus/u8g2/wiki/fntgrpspleen
-[31]: https://www.ansilove.org
+[18]: https://packages.guix.gnu.org/packages/font-spleen/
+[19]: https://packages.gentoo.org/packages/media-fonts/spleen
+[20]: https://pkgs.alpinelinux.org/packages?name=font-spleen
+[21]: https://wiki.ubuntu.com/Fonts#Enabling_Bitmapped_Fonts
+[22]: https://github.com/fcambus/bdf2sfd
+[23]: https://www.cambus.net/spleen-monospaced-bitmap-fonts/
+[24]: https://undeadly.org/cgi?action=article;sid=20190110064857
+[25]: https://www.cambus.net/netbsd-ctwm-and-spleen/
+[26]: https://www.cambus.net/spleen-2.0.0-released-with-full-cp437-support/
+[27]: https://freshbsd.org/openbsd/src/commit/5raMrDMpYlPYW01H
+[28]: https://freshbsd.org/openbsd/src/commit/MoBCxKiAlFajRvSm
+[29]: https://freshbsd.org/netbsd/src/commit/TAJuMl9caBpVjGfB
+[30]: https://git.haiku-os.org/haiku/commit/?id=29a109bd6c01ce71bb61177ee9ff0417e74c1e18
+[31]: https://cgit.freebsd.org/src/commit/?id=0d66206fff44
+[32]: https://github.com/jcs/msTERM
+[33]: https://github.com/NiLuJe/FBInk
+[34]: https://github.com/olikraus/u8g2/wiki/fntgrpspleen
+[35]: https://www.ansilove.org
