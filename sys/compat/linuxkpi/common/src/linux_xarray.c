@@ -362,9 +362,19 @@ xa_destroy(struct xarray *xa)
 	struct radix_tree_iter iter;
 	void **ppslot;
 
+	xa_lock(xa);
 	radix_tree_for_each_slot(ppslot, &xa->xa_head, &iter, 0)
 		radix_tree_iter_delete(&xa->xa_head, &iter, ppslot);
-	mtx_destroy(&xa->xa_lock);
+	xa_unlock(xa);
+
+	/*
+	 * The mutex initialized in `xa_init_flags()` is not destroyed here on
+	 * purpose. The reason is that on Linux, the xarray remains usable
+	 * after a call to `xa_destroy()`. For instance the i915 DRM driver
+	 * relies on that during the initialixation of its GuC. Basically,
+	 * `xa_destroy()` "resets" the structure to zero but doesn't really
+	 * destroy it.
+	 */
 }
 
 /*
