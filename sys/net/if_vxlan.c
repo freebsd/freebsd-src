@@ -1813,6 +1813,7 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 {
 	struct ifnet *ifp;
 	struct vxlan_socket *vso;
+	bool running;
 
 	sx_assert(&vxlan_sx, SA_XLOCKED);
 	VXLAN_LOCK_WASSERT(sc);
@@ -1820,6 +1821,7 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 
 	ifp = sc->vxl_ifp;
 	ifp->if_flags &= ~IFF_UP;
+	running = (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	callout_stop(&sc->vxl_callout);
 	vso = sc->vxl_sock;
@@ -1827,8 +1829,10 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 
 	VXLAN_WUNLOCK(sc);
 	if_link_state_change(ifp, LINK_STATE_DOWN);
-	EVENTHANDLER_INVOKE(vxlan_stop, ifp, sc->vxl_src_addr.in4.sin_family,
-	    ntohs(sc->vxl_src_addr.in4.sin_port));
+	if (running)
+		EVENTHANDLER_INVOKE(vxlan_stop, ifp,
+		    sc->vxl_src_addr.in4.sin_family,
+		    ntohs(sc->vxl_src_addr.in4.sin_port));
 
 	if (vso != NULL) {
 		vxlan_socket_remove_softc(vso, sc);
