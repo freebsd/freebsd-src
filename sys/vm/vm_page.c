@@ -572,6 +572,7 @@ vm_page_startup(vm_offset_t vaddr)
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
 #endif
+	int pool;
 #ifdef VM_FREEPOOL_LAZYINIT
 	int lazyinit;
 #endif
@@ -651,6 +652,8 @@ vm_page_startup(vm_offset_t vaddr)
 		dump_add_page(pa);
 		pa += PAGE_SIZE;
 	}
+#else
+	(void)pa;
 #endif
 	/*
 	 * Compute the number of pages of memory that will be available for
@@ -755,9 +758,12 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_phys_init();
 
+	pool = VM_FREEPOOL_DEFAULT;
 #ifdef VM_FREEPOOL_LAZYINIT
 	lazyinit = 1;
 	TUNABLE_INT_FETCH("debug.vm.lazy_page_init", &lazyinit);
+	if (lazyinit)
+		pool = VM_FREEPOOL_LAZYINIT;
 #endif
 
 	/*
@@ -777,48 +783,27 @@ vm_page_startup(vm_offset_t vaddr)
 		seg = &vm_phys_segs[segind];
 
 		/*
-		 * If lazy vm_page initialization is not enabled, simply
-		 * initialize all of the pages in the segment.  Otherwise, we
-		 * only initialize:
-		 * 1. Pages not covered by phys_avail[], since they might be
-		 *    freed to the allocator at some future point, e.g., by
-		 *    kmem_bootstrap_free().
-		 * 2. The first page of each run of free pages handed to the
-		 *    vm_phys allocator, which in turn defers initialization
-		 *    of pages until they are needed.
-		 * This avoids blocking the boot process for long periods, which
-		 * may be relevant for VMs (which ought to boot as quickly as
-		 * possible) and/or systems with large amounts of physical
-		 * memory.
+		 * Initialize pages not covered by phys_avail[], since they
+		 * might be freed to the allocator at some future point, e.g.,
+		 * by kmem_bootstrap_free().
 		 */
-#ifdef VM_FREEPOOL_LAZYINIT
-		if (lazyinit) {
-			startp = seg->start;
-			for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-				if (startp >= seg->end)
-					break;
-
-				if (phys_avail[i + 1] < startp)
-					continue;
-				if (phys_avail[i] <= startp) {
-					startp = phys_avail[i + 1];
-					continue;
-				}
-
-				m = vm_phys_seg_paddr_to_vm_page(seg, startp);
-				for (endp = MIN(phys_avail[i], seg->end);
-				    startp < endp; startp += PAGE_SIZE, m++) {
-					vm_page_init_page(m, startp, segind,
-					    VM_FREEPOOL_DEFAULT);
-				}
+		startp = seg->start;
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			if (startp >= seg->end)
+				break;
+			if (phys_avail[i + 1] < startp)
+				continue;
+			if (phys_avail[i] <= startp) {
+				startp = phys_avail[i + 1];
+				continue;
 			}
-		} else
-#endif
-			for (m = seg->first_page, pa = seg->start;
-			    pa < seg->end; m++, pa += PAGE_SIZE) {
-				vm_page_init_page(m, pa, segind,
+			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
+			for (endp = MIN(phys_avail[i], seg->end);
+			    startp < endp; startp += PAGE_SIZE, m++) {
+				vm_page_init_page(m, startp, segind,
 				    VM_FREEPOOL_DEFAULT);
 			}
+		}
 
 		/*
 		 * Add the segment's pages that are covered by one of
@@ -835,16 +820,30 @@ vm_page_startup(vm_offset_t vaddr)
 			if (pagecount == 0)
 				continue;
 
+			/*
+			 * If lazy vm_page initialization is not enabled, simply
+			 * initialize all of the pages in the segment covered by
+			 * phys_avail.  Otherwise, initialize only the first
+			 * page of each run of free pages handed to the vm_phys
+			 * allocator, which in turn defers initialization of
+			 * pages until they are needed.
+			 *
+			 * This avoids blocking the boot process for long
+			 * periods, which may be relevant for VMs (which ought
+			 * to boot as quickly as possible) and/or systems with
+			 * large amounts of physical memory.
+			 */
 			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
-#ifdef VM_FREEPOOL_LAZYINIT
-			if (lazyinit) {
-				vm_page_init_page(m, startp, segind,
-				    VM_FREEPOOL_LAZYINIT);
+			vm_page_init_page(m, startp, segind, pool);
+			if (pool == VM_FREEPOOL_DEFAULT) {
+				for (int j = 1; j < pagecount; j++) {
+					vm_page_init_page(&m[j],
+					    startp + ptoa(j), segind, pool);
+				}
 			}
-#endif
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
-			vm_phys_enqueue_contig(m, pagecount);
+			vm_phys_enqueue_contig(m, pool, pagecount);
 			vm_domain_free_unlock(vmd);
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
@@ -2341,6 +2340,7 @@ found:
 	m->flags = flags;
 	m->a.flags = 0;
 	m->oflags = (object->flags & OBJ_UNMANAGED) != 0 ? VPO_UNMANAGED : 0;
+	m->pool = VM_FREEPOOL_DEFAULT;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) == 0)
 		m->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	else if ((req & VM_ALLOC_SBUSY) != 0)
@@ -2558,6 +2558,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 			m->ref_count = 1;
 		m->a.act_count = 0;
 		m->oflags = oflags;
+		m->pool = VM_FREEPOOL_DEFAULT;
 		if (vm_page_iter_insert(&pages, m, object, pindex, mpred)) {
 			if ((req & VM_ALLOC_WIRED) != 0)
 				vm_wire_sub(npages);
@@ -2655,6 +2656,7 @@ found:
 	m->flags = (m->flags & PG_ZERO) | flags;
 	m->a.flags = 0;
 	m->oflags = VPO_UNMANAGED;
+	m->pool = VM_FREEPOOL_DIRECT;
 	m->busy_lock = VPB_UNBUSIED;
 	if ((req & VM_ALLOC_WIRED) != 0) {
 		vm_wire_add(1);
@@ -2803,6 +2805,7 @@ vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
 			m->ref_count = 1;
 		m->a.act_count = 0;
 		m->oflags = VPO_UNMANAGED;
+		m->pool = VM_FREEPOOL_DIRECT;
 
 		/*
 		 * Zero the page before updating any mappings since the page is
@@ -2881,7 +2884,7 @@ vm_page_zone_release(void *arg, void **store, int cnt)
 	vm_domain_free_lock(vmd);
 	for (i = 0; i < cnt; i++) {
 		m = (vm_page_t)store[i];
-		vm_phys_free_pages(m, 0);
+		vm_phys_free_pages(m, pgcache->pool, 0);
 	}
 	vm_domain_free_unlock(vmd);
 	vm_domain_freecnt_inc(vmd, cnt);
@@ -3266,7 +3269,7 @@ unlock:
 		do {
 			MPASS(vm_page_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_phys_free_pages(m, 0);
+			vm_phys_free_pages(m, m->pool, 0);
 			cnt++;
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_domain_free_unlock(vmd);
@@ -4271,7 +4274,7 @@ vm_page_free_toq(vm_page_t m)
 		return;
 	}
 	vm_domain_free_lock(vmd);
-	vm_phys_free_pages(m, 0);
+	vm_phys_free_pages(m, m->pool, 0);
 	vm_domain_free_unlock(vmd);
 	vm_domain_freecnt_inc(vmd, 1);
 }
