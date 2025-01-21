@@ -37,7 +37,7 @@ function syscalls_map.generate(tbl, config, fh)
 	gen:write(string.format("FBSDprivate_1.0 {\n"))
 
 	for _, v in pairs(s) do
-		--print("num " .. v.num .. " name " .. v.name)
+		gen:write(v.prolog)
 		if v:native() and not v.type.NODEF and not v.type.NOLIB then
 			if v.name ~= "exit" and v.name ~= "vfork" then
 				gen:write(string.format("\t_%s;\n", v.name))
@@ -45,6 +45,8 @@ function syscalls_map.generate(tbl, config, fh)
 			gen:write(string.format("\t__sys_%s;\n", v.name))
 		end
 	end
+	gen:write(tbl.epilog)
+
 	-- End
 	gen:write("};\n")
 end
