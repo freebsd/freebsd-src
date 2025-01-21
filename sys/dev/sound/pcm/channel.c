@@ -2291,7 +2291,7 @@ chn_trigger(struct pcm_channel *c, int go)
 		break;
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		CHN_REMOVE_SAFE(d, c, channels.pcm.busy);
+		CHN_REMOVE(d, c, channels.pcm.busy);
 		PCM_UNLOCK(d);
 		break;
 	default:
