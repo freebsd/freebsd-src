@@ -68,6 +68,7 @@
 
 #include "riscv.h"
 #include "vmm_aplic.h"
+#include "vmm_fence.h"
 #include "vmm_stat.h"
 
 MALLOC_DEFINE(M_HYP, "RISC-V VMM HYP", "RISC-V VMM HYP");
@@ -211,6 +212,11 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	hypctx->hyp = hyp;
 	hypctx->vcpu = vcpu1;
 	hypctx->guest_scounteren = HCOUNTEREN_CY | HCOUNTEREN_TM;
+
+	/* Fence queue. */
+	hypctx->fence_queue = mallocarray(VMM_FENCE_QUEUE_SIZE,
+	    sizeof(struct vmm_fence), M_HYP, M_WAITOK | M_ZERO);
+	mtx_init(&hypctx->fence_queue_mtx, "fence queue", NULL, MTX_SPIN);
 
 	/* sstatus */
 	hypctx->guest_regs.hyp_sstatus = SSTATUS_SPP | SSTATUS_SPIE;
@@ -659,6 +665,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		riscv_set_active_vcpu(hypctx);
 		aplic_flush_hwstate(hypctx);
 		riscv_sync_interrupts(hypctx);
+		vmm_fence_process(hypctx);
 
 		dprintf("%s: Entering guest VM, vsatp %lx, ss %lx hs %lx\n",
 		    __func__, csr_read(vsatp), hypctx->guest_regs.hyp_sstatus,
@@ -740,6 +747,8 @@ vmmops_vcpu_cleanup(void *vcpui)
 
 	aplic_cpucleanup(hypctx);
 
+	mtx_destroy(&hypctx->fence_queue_mtx);
+	free(hypctx->fence_queue, M_HYP);
 	free(hypctx, M_HYP);
 }
 
