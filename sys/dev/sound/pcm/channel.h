@@ -189,9 +189,6 @@ struct pcm_channel {
 #define CHN_INSERT_AFTER(x, y, z)					\
 	SLIST_INSERT_AFTER(x, y, CHN_LINK(z))
 
-#define CHN_REMOVE(holder, elm, list)					\
-	SLIST_REMOVE(CHN_HEAD(holder, list), elm, pcm_channel, CHN_LINK(list))
-
 #define CHN_INSERT_HEAD_SAFE(x, y, z)		do {			\
 	struct pcm_channel *t = NULL;					\
 	CHN_FOREACH(t, x, z) {						\
@@ -212,7 +209,7 @@ struct pcm_channel {
 		CHN_INSERT_AFTER(x, y, z);				\
 } while (0)
 
-#define CHN_REMOVE_SAFE(holder, elm, list)	do {			\
+#define CHN_REMOVE(holder, elm, list)		do {			\
 	if (CHN_FIRST(holder, list) == (elm)) {				\
 		SLIST_REMOVE_HEAD(CHN_HEAD(holder, list), CHN_LINK(list)); \
 	} else {							\
