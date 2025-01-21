@@ -1,4 +1,6 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1997 Doug Rabson
 .\" All rights reserved.
 .\"
@@ -23,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 19, 2016
+.Dd January 4, 2025
 .Dt KLDSTAT 8
 .Os
 .Sh NAME
@@ -48,22 +50,22 @@ utility displays the status of any files dynamically linked into the
 kernel.
 .Pp
 The following options are available:
-.Bl -tag -width indentXX
+.Bl -tag -width "-n filename"
+.It Fl d
+Show the module specific data (as int, unsigned int and unsigned long)
 .It Fl h
 Display the size field in a human-readable form, using unit suffixes
 instead of hex values.
-.It Fl v
-Be more verbose.
-.It Fl d
-Show the module specific data (as int, unsigned int and unsigned long)
 .It Fl i Ar id
 Display the status of only the file with this ID.
+.It Fl m Ar modname
+Display the status of only the module with this modname.
 .It Fl n Ar filename
 Display the status of only the file with this filename.
 .It Fl q
-Only check if file is loaded or compiled into the kernel.
-.It Fl m Ar modname
-Display the status of only the module with this modname.
+Quietly check if file is loaded or compiled into the kernel.
+.It Fl v
+Be more verbose.
 .El
 .Sh EXIT STATUS
 .Ex -std
