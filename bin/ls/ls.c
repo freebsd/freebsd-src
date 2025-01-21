@@ -547,12 +547,12 @@ main(int argc, char *argv[])
 #endif
 
 	/*
-	 * If not -F, -i, -l, -s, -S or -t options, don't require stat
-	 * information, unless in color mode in which case we do
-	 * need this to determine which colors to display.
+	 * If not -F, -i, -l, -s, -S, -t or --group-directories options,
+	 * don't require stat information, unless in color mode in which case
+	 * we do need this to determine which colors to display.
 	 */
 	if (!f_inode && !f_longform && !f_size && !f_timesort &&
-	    !f_sizesort && !f_type
+	    !f_sizesort && !f_type && f_groupdir == GRP_NONE
 #ifdef COLORLS
 	    && !f_color
 #endif
