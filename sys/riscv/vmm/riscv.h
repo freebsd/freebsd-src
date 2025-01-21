@@ -67,6 +67,20 @@ struct hypcsr {
 	uint64_t senvcfg;
 };
 
+enum vmm_fence_type {
+	VMM_RISCV_FENCE_INVALID = 0,
+	VMM_RISCV_FENCE_I,
+	VMM_RISCV_FENCE_VMA,
+	VMM_RISCV_FENCE_VMA_ASID,
+};
+
+struct vmm_fence {
+	enum vmm_fence_type type;
+	size_t start;
+	size_t size;
+	uint64_t asid;
+};
+
 struct hypctx {
 	struct hypregs host_regs;
 	struct hypregs guest_regs;
@@ -82,6 +96,14 @@ struct hypctx {
 	int ipi_pending;
 	int interrupts_pending;
 	struct vtimer vtimer;
+
+	struct vmm_fence *fence_queue;
+	struct mtx fence_queue_mtx;
+	int fence_queue_head;
+	int fence_queue_tail;
+#define	FENCE_REQ_I	(1 << 0)
+#define	FENCE_REQ_VMA	(1 << 1)
+	int fence_req;
 };
 
 struct hyp {

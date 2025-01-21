@@ -104,6 +104,21 @@ sfence_vma_page(uintptr_t addr)
 	__asm __volatile("sfence.vma %0" :: "r" (addr) : "memory");
 }
 
+static __inline void
+sfence_vma_asid(uint64_t asid)
+{
+
+	__asm __volatile("sfence.vma x0, %0" :: "r" (asid) : "memory");
+}
+
+static __inline void
+sfence_vma_asid_page(uint64_t asid, uintptr_t addr)
+{
+
+	__asm __volatile("sfence.vma %0, %1" :: "r" (addr), "r" (asid)
+	    : "memory");
+}
+
 #define	rdcycle()			csr_read64(cycle)
 #define	rdtime()			csr_read64(time)
 #define	rdinstret()			csr_read64(instret)

@@ -86,6 +86,7 @@ riscv/riscv/vm_machdep.c	standard
 riscv/vmm/vmm.c					optional	vmm
 riscv/vmm/vmm_aplic.c				optional	vmm
 riscv/vmm/vmm_dev_machdep.c			optional	vmm
+riscv/vmm/vmm_fence.c				optional	vmm
 riscv/vmm/vmm_instruction_emul.c		optional	vmm
 riscv/vmm/vmm_riscv.c				optional	vmm
 riscv/vmm/vmm_sbi.c				optional	vmm
