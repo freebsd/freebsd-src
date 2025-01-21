@@ -202,8 +202,11 @@ unicast_v4_body()
 	atf_check -s exit:0 -o ignore jexec carp_uni_v4_one \
 	    ping -c 3 192.0.2.1
 
-	jexec carp_uni_v4_two ifconfig
-	jexec carp_uni_v4_three ifconfig
+	# Check that we remain in unicast when tweaking settings
+	atf_check -s exit:0 -o ignore \
+	    jexec carp_uni_v4_two ifconfig ${epair_one}b vhid 1 advskew 2
+	atf_check -s exit:0 -o match:"peer 198.51.100.130" \
+	    jexec carp_uni_v4_two ifconfig ${epair_one}b
 }
 
 unicast_v4_cleanup()
