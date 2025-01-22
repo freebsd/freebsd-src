@@ -193,7 +193,7 @@ kobj_lookup_method_mi(kobj_class_t cls,
 		      kobjop_desc_t desc)
 {
 	kobj_method_t *ce;
-	kobj_class_t *basep;
+	const kobj_class_t *basep;
 
 	ce = kobj_lookup_method_class(cls, desc);
 	if (ce)
