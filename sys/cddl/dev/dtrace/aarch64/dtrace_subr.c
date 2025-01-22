@@ -262,17 +262,15 @@ dtrace_store64(uint64_t *addr, struct trapframe *frame, u_int reg)
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
-	int data, invop, reg, update_sp;
-	register_t arg1, arg2;
-	register_t *sp;
-	int offs;
-	int tmp;
-	int i;
+	int data, invop, tmp;
 
 	invop = dtrace_invop(frame->tf_elr, frame, frame->tf_x[0]);
 
 	tmp = (invop & LDP_STP_MASK);
 	if (tmp == STP_64 || tmp == LDP_64) {
+		register_t arg1, arg2, *sp;
+		int offs;
+
 		sp = (register_t *)frame->tf_sp;
 		data = invop;
 		arg1 = (data >> ARG1_SHIFT) & ARG1_MASK;
