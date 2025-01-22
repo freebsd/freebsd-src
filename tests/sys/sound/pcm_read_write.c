@@ -25,7 +25,7 @@
 #include <dev/sound/pcm/g711.h>
 
 /* Generic test data, with buffer content matching the sample values. */
-struct afmt_test_data {
+static struct afmt_test_data {
 	const char *label;
 	uint8_t buffer[4];
 	size_t size;
@@ -33,7 +33,7 @@ struct afmt_test_data {
 	intpcm_t value;
 	_Static_assert((sizeof(intpcm_t) == 4),
 	    "Test data assumes 32bit, adjust negative values to new size.");
-} static const afmt_tests[] = {
+} const afmt_tests[] = {
 	/* 8 bit sample formats. */
 	{"s8_1", {0x01, 0x00, 0x00, 0x00}, 1, AFMT_S8, 0x00000001},
 	{"s8_2", {0x81, 0x00, 0x00, 0x00}, 1, AFMT_S8, 0xffffff81},
