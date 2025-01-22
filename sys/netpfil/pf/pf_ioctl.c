@@ -2201,8 +2201,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		error = EINVAL;
 	if (!rule->log)
 		rule->logif = 0;
-	if (rule->logif >= PFLOGIFS_MAX)
-		error = EINVAL;
 	if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
@@ -3767,8 +3765,6 @@ DIOCGETRULENV_error:
 				error = EINVAL;
 			if (!newrule->log)
 				newrule->logif = 0;
-			if (newrule->logif >= PFLOGIFS_MAX)
-				error = EINVAL;
 			if (pf_addr_setup(ruleset, &newrule->src.addr, newrule->af))
 				error = ENOMEM;
 			if (pf_addr_setup(ruleset, &newrule->dst.addr, newrule->af))

@@ -88,6 +88,7 @@
 static int	pflogoutput(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
 static void	pflogattach(int);
+static int	pflogifs_resize(size_t);
 static int	pflogioctl(struct ifnet *, u_long, caddr_t);
 static void	pflogstart(struct ifnet *);
 static int	pflog_clone_create(struct if_clone *, char *, size_t,
@@ -99,22 +100,18 @@ static const char pflogname[] = "pflog";
 VNET_DEFINE_STATIC(struct if_clone *, pflog_cloner);
 #define	V_pflog_cloner		VNET(pflog_cloner)
 
-VNET_DEFINE(struct ifnet *, pflogifs[PFLOGIFS_MAX]);	/* for fast access */
+VNET_DEFINE_STATIC(int, npflogifs) = 0;
+#define	V_npflogifs		VNET(npflogifs)
+VNET_DEFINE(struct ifnet **, pflogifs);	/* for fast access */
 #define	V_pflogifs		VNET(pflogifs)
 
 static void
 pflogattach(int npflog __unused)
 {
-	int i;
-
-	for (i = 0; i < PFLOGIFS_MAX; i++)
-		V_pflogifs[i] = NULL;
-
 	struct if_clone_addreq req = {
 		.create_f = pflog_clone_create,
 		.destroy_f = pflog_clone_destroy,
 		.flags = IFC_F_AUTOUNIT | IFC_F_LIMITUNIT,
-		.maxunit = PFLOGIFS_MAX - 1,
 	};
 	V_pflog_cloner = ifc_attach_cloner(pflogname, &req);
 	struct ifc_data ifd = { .unit = 0 };
@@ -122,12 +119,38 @@ pflogattach(int npflog __unused)
 }
 
 static int
+pflogifs_resize(size_t n)
+{
+	struct ifnet **p;
+	int i;
+
+	if (n > SIZE_MAX / sizeof(struct ifnet *))
+		return (EINVAL);
+	if (n == 0)
+		p = NULL;
+	else if ((p = malloc(n * sizeof(struct ifnet *), M_DEVBUF,
+	    M_NOWAIT | M_ZERO)) == NULL)
+		return (ENOMEM);
+	for (i = 0; i < n; i++) {
+		if (i < V_npflogifs)
+			p[i] = V_pflogifs[i];
+		else
+			p[i] = NULL;
+	}
+
+	if (V_pflogifs)
+		free(V_pflogifs, M_DEVBUF);
+	V_pflogifs = p;
+	V_npflogifs = n;
+
+	return (0);
+}
+
+static int
 pflog_clone_create(struct if_clone *ifc, char *name, size_t maxlen,
     struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct ifnet *ifp;
-
-	MPASS(ifd->unit < PFLOGIFS_MAX);
 
 	ifp = if_alloc(IFT_PFLOG);
 	if_initname(ifp, pflogname, ifd->unit);
@@ -141,6 +164,11 @@ pflog_clone_create(struct if_clone *ifc, char *name, size_t maxlen,
 
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
 
+	if (ifd->unit + 1 > V_npflogifs &&
+	    pflogifs_resize(ifd->unit + 1) != 0) {
+		pflog_clone_destroy(ifc, ifp, IFC_F_FORCE);
+		return (ENOMEM);
+	}
 	V_pflogifs[ifd->unit] = ifp;
 	*ifpp = ifp;
 
@@ -155,7 +183,7 @@ pflog_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 	if (ifp->if_dunit == 0 && (flags & IFC_F_FORCE) == 0)
 		return (EINVAL);
 
-	for (i = 0; i < PFLOGIFS_MAX; i++)
+	for (i = 0; i < V_npflogifs; i++)
 		if (V_pflogifs[i] == ifp)
 			V_pflogifs[i] = NULL;
 
