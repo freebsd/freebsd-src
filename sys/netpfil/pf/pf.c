@@ -8891,6 +8891,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	uint16_t		 ip_len, ip_off;
 	uint16_t		 tmp;
 	int			 r_dir;
+	bool			 skip_test = false;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 
@@ -8941,12 +8942,15 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if (((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) &&
-		    (pd->af == pd->naf)) {
-			pf_dummynet(pd, s, r, m);
-			if (s)
-				PF_STATE_UNLOCK(s);
-			return;
+		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
+			if (pd->af == pd->naf) {
+				pf_dummynet(pd, s, r, m);
+				if (s)
+					PF_STATE_UNLOCK(s);
+				return;
+			} else {
+				skip_test = true;
+			}
 		}
 
 		/*
@@ -8954,9 +8958,15 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		 * reply direction.
 		 */
 		if (pd->act.rt_kif && pd->act.rt_kif->pfik_ifp &&
-		    pd->af != pd->naf && r->naf != AF_INET) {
-			/* Un-set ifp so we do a plain route lookup. */
-			ifp = NULL;
+		    pd->af != pd->naf) {
+			if (pd->act.rt == PF_ROUTETO && r->naf != AF_INET) {
+				/* Un-set ifp so we do a plain route lookup. */
+				ifp = NULL;
+			}
+			if (pd->act.rt == PF_REPLYTO && r->naf != AF_INET6) {
+				/* Un-set ifp so we do a plain route lookup. */
+				ifp = NULL;
+			}
 		}
 		m0 = *m;
 	}
@@ -8970,13 +8980,6 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	dst.sin_addr.s_addr = pd->act.rt_addr.v4.s_addr;
 
 	if (s != NULL){
-		if (r->rule_flag & PFRULE_IFBOUND &&
-		    pd->act.rt == PF_REPLYTO &&
-		    s->kif == V_pfi_all) {
-			s->kif = pd->act.rt_kif;
-			s->orig_kif = oifp->if_pf_kif;
-		}
-
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			/* We're in the AFTO case. Do a route lookup. */
 			const struct nhop_object *nh;
@@ -9002,6 +9005,13 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 
+		if (r->rule_flag & PFRULE_IFBOUND &&
+		    pd->act.rt == PF_REPLYTO &&
+		    s->kif == V_pfi_all) {
+			s->kif = pd->act.rt_kif;
+			s->orig_kif = oifp->if_pf_kif;
+		}
+
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -9012,7 +9022,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 	}
 
-	if (pd->dir == PF_IN) {
+	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET, PF_OUT, PFIL_FWD, ifp, &m0, inp,
 		    &pd->act) != PF_PASS) {
 			SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
@@ -9162,6 +9172,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	struct ip6_hdr		*ip6;
 	struct ifnet		*ifp = NULL;
 	int			 r_dir;
+	bool			 skip_test = false;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 
@@ -9212,12 +9223,15 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if (((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) &&
-		    (pd->af == pd->naf)) {
-			pf_dummynet(pd, s, r, m);
-			if (s)
-				PF_STATE_UNLOCK(s);
-			return;
+		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
+			if (pd->af == pd->naf) {
+				pf_dummynet(pd, s, r, m);
+				if (s)
+					PF_STATE_UNLOCK(s);
+				return;
+			} else {
+				skip_test = true;
+			}
 		}
 
 		/*
@@ -9225,9 +9239,15 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		 * reply direction.
 		 */
 		if (pd->act.rt_kif && pd->act.rt_kif->pfik_ifp &&
-		    pd->af != pd->naf && r->naf != AF_INET6) {
-			/* Un-set ifp so we do a plain route lookup. */
-			ifp = NULL;
+		    pd->af != pd->naf) {
+			if (pd->act.rt == PF_ROUTETO && r->naf != AF_INET6) {
+				/* Un-set ifp so we do a plain route lookup. */
+				ifp = NULL;
+			}
+			if (pd->act.rt == PF_REPLYTO && r->naf != AF_INET) {
+				/* Un-set ifp so we do a plain route lookup. */
+				ifp = NULL;
+			}
 		}
 		m0 = *m;
 	}
@@ -9241,13 +9261,6 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	PF_ACPY((struct pf_addr *)&dst.sin6_addr, &pd->act.rt_addr, AF_INET6);
 
 	if (s != NULL) {
-		if (r->rule_flag & PFRULE_IFBOUND &&
-		    pd->act.rt == PF_REPLYTO &&
-		    s->kif == V_pfi_all) {
-			s->kif = pd->act.rt_kif;
-			s->orig_kif = oifp->if_pf_kif;
-		}
-
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			const struct nhop_object *nh;
 			nh = fib6_lookup(M_GETFIB(*m), &ip6->ip6_dst, 0, NHR_NONE, 0);
@@ -9273,6 +9286,13 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			}
 		}
 
+		if (r->rule_flag & PFRULE_IFBOUND &&
+		    pd->act.rt == PF_REPLYTO &&
+		    s->kif == V_pfi_all) {
+			s->kif = pd->act.rt_kif;
+			s->orig_kif = oifp->if_pf_kif;
+		}
+
 		PF_STATE_UNLOCK(s);
 	}
 
@@ -9293,7 +9313,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		goto bad;
 	}
 
-	if (pd->dir == PF_IN) {
+	if (pd->dir == PF_IN && !skip_test) {
 		if (pf_test(AF_INET6, PF_OUT, PFIL_FWD | PF_PFIL_NOREFRAGMENT,
 		    ifp, &m0, inp, &pd->act) != PF_PASS) {
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
