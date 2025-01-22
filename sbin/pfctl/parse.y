@@ -5505,8 +5505,8 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		problems++;
 	}
 	if (r->rule_flag & PFRULE_AFTO && r->rt) {
-		if (r->rt != PF_ROUTETO) {
-			yyerror("reply-to and dup-to "
+		if (r->rt != PF_ROUTETO && r->rt != PF_REPLYTO) {
+			yyerror("dup-to "
 			   "must not be used on af-to rules");
 			problems++;
 		}
