@@ -577,51 +577,51 @@ dt_idsize_none(dt_ident_t *idp)
 }
 
 const dt_idops_t dt_idops_assc = {
-	dt_idcook_assc,
-	dt_iddtor_sign,
-	dt_idsize_none,
+	.di_cook = dt_idcook_assc,
+	.di_dtor = dt_iddtor_sign,
+	.di_size = dt_idsize_none,
 };
 
 const dt_idops_t dt_idops_func = {
-	dt_idcook_func,
-	dt_iddtor_sign,
-	dt_idsize_none,
+	.di_cook = dt_idcook_func,
+	.di_dtor = dt_iddtor_sign,
+	.di_size = dt_idsize_none,
 };
 
 const dt_idops_t dt_idops_args = {
-	dt_idcook_args,
-	dt_iddtor_none,
-	dt_idsize_none,
+	.di_cook = dt_idcook_args,
+	.di_dtor = dt_iddtor_none,
+	.di_size = dt_idsize_none,
 };
 
 const dt_idops_t dt_idops_regs = {
-	dt_idcook_regs,
-	dt_iddtor_free,
-	dt_idsize_none,
+	.di_cook = dt_idcook_regs,
+	.di_dtor = dt_iddtor_free,
+	.di_size = dt_idsize_none,
 };
 
 const dt_idops_t dt_idops_type = {
-	dt_idcook_type,
-	dt_iddtor_free,
-	dt_idsize_type,
+	.di_cook = dt_idcook_type,
+	.di_dtor = dt_iddtor_free,
+	.di_size = dt_idsize_type,
 };
 
 const dt_idops_t dt_idops_thaw = {
-	dt_idcook_thaw,
-	dt_iddtor_free,
-	dt_idsize_type,
+	.di_cook = dt_idcook_thaw,
+	.di_dtor = dt_iddtor_free,
+	.di_size = dt_idsize_type,
 };
 
 const dt_idops_t dt_idops_inline = {
-	dt_idcook_inline,
-	dt_iddtor_inline,
-	dt_idsize_type,
+	.di_cook = dt_idcook_inline,
+	.di_dtor = dt_iddtor_inline,
+	.di_size = dt_idsize_type,
 };
 
 const dt_idops_t dt_idops_probe = {
-	dt_idcook_thaw,
-	dt_iddtor_probe,
-	dt_idsize_none,
+	.di_cook = dt_idcook_thaw,
+	.di_dtor = dt_iddtor_probe,
+	.di_size = dt_idsize_none,
 };
 
 static void
