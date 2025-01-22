@@ -47,6 +47,7 @@ main(int argc, char **argv)
 {
 	static char secret[HEXKEYBYTES + 1];
 
+	fprintf(stderr, "keylogin is deprecated and removed from FreeBSD 15.\n");
 	if (geteuid() == 0) {
 		if ((argc != 2 ) || (strcmp(argv[1], "-f") != 0)) {
 			fprintf(stderr,

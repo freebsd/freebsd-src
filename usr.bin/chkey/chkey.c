@@ -90,6 +90,7 @@ main(int argc, char **argv)
 	char *cryptpw;
 #endif
 
+	fprintf(stderr, "chkey is deprecated and removed from FreeBSD 15.\n");
 	while ((ch = getopt(argc, argv, "f")) != -1)
 		switch(ch) {
 		case 'f':
