@@ -51,6 +51,18 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250122: Remove publickey(5) stuff
+OLD_FILES+=usr/bin/chkey
+OLD_FILES+=usr/bin/keylogin
+OLD_FILES+=usr/bin/keylogout
+OLD_FILES+=usr/sbin/keyserv
+OLD_FILES+=usr/bin/newkey
+OLD_FILES+=usr/share/man/man1/chkey.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man5/publickey.5.gz
+OLD_FILES+=usr/share/man/man8/keyserv.1.gz
+
 # 20241206: Remove Altera DE4 drivers
 OLD_FILES+=usr/share/man/man4/altera_atse.4.gz
 OLD_FILES+=usr/share/man/man4/altera_avgen.4.gz
