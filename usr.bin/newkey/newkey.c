@@ -105,6 +105,7 @@ main(int argc, char *argv[])
 	struct hostent *h;
 #endif
 
+	fprintf(stderr, "newkey is deprecated and removed from FreeBSD 15.\n");
 	if (argc != 3 || !(strcmp(argv[1], "-u") == 0 ||
 		strcmp(argv[1], "-h") == 0)) {
 		usage();
