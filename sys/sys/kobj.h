@@ -54,12 +54,12 @@ struct kobj_method {
  * method table is always the first field of the object.
  */
 #define KOBJ_CLASS_FIELDS						\
-	const char	*name;		/* class name */		\
-	kobj_method_t	*methods;	/* method table */		\
-	__size_t	size;		/* object size */		\
-	kobj_class_t	*baseclasses;	/* base classes */		\
-	unsigned int	refs;		/* reference count */		\
-	kobj_ops_t	ops		/* compiled method table */
+	const char		*name;		/* class name */	\
+	kobj_method_t		*methods;	/* method table */	\
+	__size_t		size;		/* object size */	\
+	const kobj_class_t	*baseclasses;	/* base classes */	\
+	unsigned int		refs;		/* reference count */	\
+	kobj_ops_t		ops		/* compiled method table */
 
 struct kobj_class {
 	KOBJ_CLASS_FIELDS;
@@ -163,7 +163,7 @@ struct kobj_class classvar = {				\
  */
 #define PUBLIC_DEFINE_CLASSN(_name, classvar, _methods, _size, ...)	\
 									\
-__VA_OPT__(static kobj_class_t classvar ## _baseclasses[] = {		\
+__VA_OPT__(static const kobj_class_t classvar ## _baseclasses[] = {	\
 	__DEFINE_CLASSN_BASE_EXPANDER0(__VA_ARGS__)NULL });		\
 struct kobj_class classvar = {						\
 	.name = #_name,							\
@@ -181,7 +181,7 @@ struct kobj_class classvar = {						\
  */
 #define PRIVATE_DEFINE_CLASSN(_name, classvar, _methods, _size, ...)	\
 									\
-__VA_OPT__(static kobj_class_t classvar ## _baseclasses[] = {		\
+__VA_OPT__(static const kobj_class_t classvar ## _baseclasses[] = {	\
 	__DEFINE_CLASSN_BASE_EXPANDER0(__VA_ARGS__)NULL });		\
 static struct kobj_class classvar = {					\
 	.name = #_name,							\
