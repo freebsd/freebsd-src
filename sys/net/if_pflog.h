@@ -33,8 +33,6 @@
 
 #include <net/if.h>
 
-#define	PFLOGIFS_MAX	16
-
 #define	PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
