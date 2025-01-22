@@ -51,7 +51,7 @@ extern "C" {
 #include <sys/file.h>
 
 #ifndef illumos
-typedef uintptr_t		pc_t;
+typedef vm_offset_t		pc_t;
 typedef	u_long			greg_t;
 #endif
 
