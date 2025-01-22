@@ -171,7 +171,11 @@ nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr, uint8_t feature,
 	struct nvme_request *req;
 	struct nvme_command *cmd;
 
-	req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
+	if (payload != NULL)
+		req = nvme_allocate_request_vaddr(payload, payload_size,
+		    M_WAITOK, cb_fn, cb_arg);
+	else
+		req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
 
 	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_SET_FEATURES;
@@ -193,7 +197,11 @@ nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr, uint8_t feature,
 	struct nvme_request *req;
 	struct nvme_command *cmd;
 
-	req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
+	if (payload != NULL)
+		req = nvme_allocate_request_vaddr(payload, payload_size,
+		    M_WAITOK, cb_fn, cb_arg);
+	else
+		req = nvme_allocate_request_null(M_WAITOK, cb_fn, cb_arg);
 
 	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_GET_FEATURES;
