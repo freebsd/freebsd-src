@@ -54,6 +54,7 @@ main(void)
 	char fullname[MAXNETNAMELEN + 1];
 	struct key_netstarg netst;
 
+	fprintf(stderr, "keylogin is deprecated and removed from FreeBSD 15.\n");
 	if (!getnetname(fullname)) {
 		fprintf(stderr, "netname lookup failed -- make sure the ");
 		fprintf(stderr, "system domain name is set.\n");
