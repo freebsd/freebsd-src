@@ -1297,6 +1297,7 @@ fpu_save_area_reset(struct savefpu *fsa)
 static __inline void
 xsave_extfeature_check(uint64_t feature, bool supervisor)
 {
+#ifdef INVARIANTS
 	uint64_t mask;
 
 	mask = supervisor ? xsave_mask_supervisor : xsave_mask;
@@ -1305,16 +1306,19 @@ xsave_extfeature_check(uint64_t feature, bool supervisor)
 	KASSERT(ilog2(feature) <= ilog2(mask),
 	    ("%s: unsupported %s XFEATURE 0x%lx", __func__,
 	    supervisor ? "supervisor" : "user", feature));
+#endif
 }
 
 static __inline void
 xsave_extstate_bv_check(uint64_t xstate_bv, bool supervisor)
 {
+#ifdef INVARIANTS
 	uint64_t mask;
 
 	mask = supervisor ? xsave_mask_supervisor : xsave_mask;
 	KASSERT(xstate_bv != 0 && ilog2(xstate_bv) <= ilog2(mask),
 	    ("%s: invalid XSTATE_BV 0x%lx", __func__, xstate_bv));
+#endif
 }
 
 /*
