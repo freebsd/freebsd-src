@@ -609,6 +609,68 @@ dummynet_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "gateway6" "cleanup"
+gateway6_head()
+{
+	atf_set descr 'NAT64 with a routing hop on the v6 side'
+	atf_set require.user root
+}
+
+gateway6_body()
+{
+	pft_init
+
+	epair_lan_link=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a inet6 2001:db8:1::2/64 up no_dad
+	route -6 add default 2001:db8:1::1
+
+	vnet_mkjail lan_rtr ${epair}b ${epair_lan_link}a
+	jexec lan_rtr ifconfig ${epair}b inet6 2001:db8:1::1/64 up no_dad
+	jexec lan_rtr ifconfig ${epair_lan_link}a inet6 2001:db8::2/64 up no_dad
+	jexec lan_rtr route -6 add default 2001:db8::1
+	jexec lan_rtr sysctl net.inet6.ip6.forwarding=1
+
+	vnet_mkjail rtr ${epair_lan_link}b ${epair_link}a
+	jexec rtr ifconfig ${epair_lan_link}b inet6 2001:db8::1/64 up no_dad
+	jexec rtr ifconfig ${epair_link}a 192.0.2.1/24 up
+	jexec rtr route -6 add default 2001:db8::2
+
+	vnet_mkjail dst ${epair_link}b
+	jexec dst ifconfig ${epair_link}b 192.0.2.2/24 up
+	jexec dst route add default 192.0.2.1
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8:1::1
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore \
+	    jexec dst ping -c 1 192.0.2.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "set reassemble yes" \
+	    "set state-policy if-bound" \
+	    "pass in on ${epair_lan_link}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
+
+	# One ping
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	# Make sure packets make it even when state is established
+	atf_check -s exit:0 \
+	    -o match:'5 packets transmitted, 5 packets received, 0.0% packet loss' \
+	    ping6 -c 5 64:ff9b::192.0.2.2
+}
+
+gateway6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
@@ -624,4 +686,5 @@ atf_init_test_cases()
 	atf_add_test_case "table_range"
 	atf_add_test_case "table_round_robin"
 	atf_add_test_case "dummynet"
+	atf_add_test_case "gateway6"
 }
