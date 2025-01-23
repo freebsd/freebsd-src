@@ -306,8 +306,6 @@ enum cpu_sets {
 	INTR_CPUS
 };
 
-typedef int (*devop_t)(void);
-
 struct resource;
 
 /**
