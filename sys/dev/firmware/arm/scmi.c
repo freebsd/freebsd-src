@@ -545,6 +545,7 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 		 */
 		mtx_lock_spin(&req->mtx);
 		needs_drop = (ret == 0) && !req->done;
+		req->timed_out = ret != 0;
 		mtx_unlock_spin(&req->mtx);
 		if (needs_drop)
 			scmi_req_drop_inflight(sc, req);
@@ -560,6 +561,7 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 		mtx_lock_spin(&req->mtx);
 		if (ret != 0 && req->done)
 			ret = 0;
+		req->timed_out = ret != 0;
 		mtx_unlock_spin(&req->mtx);
 	}
 
@@ -569,9 +571,6 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 			ret = req->msg.payld[0];
 		*out = &req->msg.payld[SCMI_MSG_HDR_SIZE];
 	} else {
-		mtx_lock_spin(&req->mtx);
-		req->timed_out = true;
-		mtx_unlock_spin(&req->mtx);
 		device_printf(sc->dev,
 		    "Request for token 0x%X timed-out.\n", req->token);
 	}
