@@ -149,9 +149,9 @@ typedef struct dtrace_hash {
 	int dth_size;				/* size of hash table */
 	int dth_mask;				/* mask to index into table */
 	int dth_nbuckets;			/* total number of buckets */
-	uintptr_t dth_nextoffs;			/* offset of next in probe */
-	uintptr_t dth_prevoffs;			/* offset of prev in probe */
-	uintptr_t dth_stroffs;			/* offset of str in probe */
+	size_t dth_nextoffs;			/* offset of next in probe */
+	size_t dth_prevoffs;			/* offset of prev in probe */
+	size_t dth_stroffs;			/* offset of str in probe */
 } dtrace_hash_t;
 
 /*
