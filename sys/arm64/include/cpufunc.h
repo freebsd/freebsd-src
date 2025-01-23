@@ -160,6 +160,26 @@ invalidate_local_icache(void)
 	    "isb               \n");
 }
 
+static __inline void
+wfet(uint64_t val)
+{
+	__asm __volatile(
+		"msr s0_3_c1_c0_0, %0\n"
+		:
+		: "r" ((val))
+		: "memory");
+}
+
+static __inline void
+wfit(uint64_t val)
+{
+	__asm __volatile(
+		"msr s0_3_c1_c0_1, %0\n"
+		:
+		: "r" ((val))
+		: "memory");
+}
+
 extern bool icache_aliasing;
 extern bool icache_vmid;
 
