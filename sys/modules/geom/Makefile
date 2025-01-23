@@ -20,7 +20,6 @@ SUBDIR=	geom_cache \
 	geom_stripe \
 	geom_union \
 	geom_uzip \
-	geom_vinum \
 	geom_virstor \
 	geom_zero
 
