@@ -221,7 +221,6 @@ nexus_get_rman(device_t bus, int type, u_int flags)
 	case SYS_RES_IRQ:
 		return (&irq_rman);
 	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
 		return (&mem_rman);
 	default:
 		return (NULL);
@@ -334,7 +333,6 @@ nexus_activate_resource_flags(device_t bus, device_t child, struct resource *r,
 	 * If this is a memory resource, map it into the kernel.
 	 */
 	switch (rman_get_type(r)) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		if ((err = rman_activate_resource(r)) != 0)
 			return (err);
@@ -390,9 +388,8 @@ nexus_map_resource(device_t bus, device_t child, struct resource *r,
 	if ((rman_get_flags(r) & RF_ACTIVE) == 0)
 		return (ENXIO);
 
-	/* Mappings are only supported on I/O and memory resources. */
+	/* Mappings are only supported on memory resources. */
 	switch (rman_get_type(r)) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
 	default:
@@ -422,7 +419,6 @@ nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
 
 	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		return (0);
 	default:
@@ -480,7 +476,6 @@ nexus_fdt_activate_resource(device_t bus, device_t child, struct resource *r)
 	flags = 0;
 	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
 		/*
 		 * If the fdt parent has the nonposted-mmio property we
 		 * need to use non-posted IO to access the device. When
