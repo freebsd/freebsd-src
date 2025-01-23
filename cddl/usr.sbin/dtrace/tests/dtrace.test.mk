@@ -12,7 +12,7 @@ ${TESTGROUP}EXEPACKAGE=	${PACKAGE}
 
 TESTWRAPPER=	t_dtrace_contrib
 ATF_TESTS_SH+=	${TESTWRAPPER}
-TEST_METADATA.t_dtrace_contrib+= required_progs="ksh jq perl xmllint"
+TEST_METADATA.t_dtrace_contrib+= required_programs="ksh jq perl xmllint"
 TEST_METADATA.t_dtrace_contrib+= required_user="root"
 
 GENTEST?=	${.CURDIR:H:H}/tools/gentest.sh
