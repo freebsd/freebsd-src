@@ -754,11 +754,6 @@ OLD_FILES+=usr/tests/sys/netpfil/pf/divapp
 # 20240930: libmd bumped to version 7
 OLD_LIBS+=lib/libmd.so.6
 
-# 20240914 libpcap upgrade from 1.10.4 to 1.10.5
-OLD_FILES+=contrib/libpcap/pcap-haiku.cpp
-OLD_FILES+=contrib/libpcap/pcap-rpcap-int.h
-OLD_FILES+=contrib/libpcap/pcap-usb-linux-common.c
-
 # 20240827: retire fips.so
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
 
