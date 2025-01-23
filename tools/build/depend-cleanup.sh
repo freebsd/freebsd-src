@@ -252,10 +252,10 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	clean_dep   lib/libc strcspn c
 
 	# 20250110  89b3872376cb  add optimized strpbrk & strsep implementations
-	clean_dep   lib/libc strpbrk c
+	clean_dep   lib/libc strpbrk c "libc.string.strpbrk.c"
 
 	# 20250110  79287d783c72  strcat enable use of SIMD
-	clean_dep   lib/libc strcat c
+	clean_dep   lib/libc strcat c "libc.string.strcat.c"
 
 	# 20250110  756b7fc80837  add strlcpy SIMD implementation
 	clean_dep   lib/libc strlcpy c
@@ -268,10 +268,11 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	clean_dep   lib/libc memccpy c
 
 	# 20250110  3dc5429158cf  add strncat SIMD implementation
-	clean_dep   lib/libc strncat c
+	clean_dep   lib/libc strncat c "libc.string.strncat.c"
 
 	# 20250110  bea89d038ac5  add strlcat SIMD implementation, and move memchr
-	clean_dep   lib/libc strlcat c
+	clean_dep   lib/libc strlcat c "libc.string.strlcat.c"
+	clean_dep   lib/libc memchr S "[[:space:]]memchr.S"
 	run rm -f "$OBJTOP"/lib/libc/memchr.S
 
 	# 20250110  3863fec1ce2d  add strlen SIMD implementation
@@ -279,8 +280,8 @@ if [ $MACHINE_ARCH = aarch64 ]; then
 	run rm -f "$OBJTOP"/lib/libc/strlen.S
 
 	# 20250110  79e01e7e643c  add bcopy & bzero wrapper
-	clean_dep   lib/libc bcopy c
-	clean_dep   lib/libc bzero c
+	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
+	clean_dep   lib/libc bzero c "libc.string.bzero.c"
 
 	# 20250110  f2c98669fc1b  add ASIMD-enhanced timingsafe_bcmp implementation
 	clean_dep   lib/libc timingsafe_bcmp c
