@@ -953,7 +953,7 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 
 		vmd = vm_pagequeue_domain(m);
 		vm_domain_free_lock(vmd);
-		vm_phys_free_pages(m, m->pool, 0);
+		vm_phys_free_pages(m, 0);
 		vm_domain_free_unlock(vmd);
 
 		vm_domain_freecnt_inc(vmd, 1);
