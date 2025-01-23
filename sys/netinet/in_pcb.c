@@ -263,6 +263,7 @@ in_pcblbgroup_alloc(struct ucred *cred, u_char vflag, uint16_t port,
 	grp = malloc(bytes, M_PCB, M_ZERO | M_NOWAIT);
 	if (grp == NULL)
 		return (NULL);
+	LIST_INIT(&grp->il_pending);
 	grp->il_cred = crhold(cred);
 	grp->il_vflag = vflag;
 	grp->il_lport = port;
@@ -285,9 +286,43 @@ in_pcblbgroup_free_deferred(epoch_context_t ctx)
 static void
 in_pcblbgroup_free(struct inpcblbgroup *grp)
 {
+	KASSERT(LIST_EMPTY(&grp->il_pending),
+	    ("local group %p still has pending inps", grp));
 
 	CK_LIST_REMOVE(grp, il_list);
 	NET_EPOCH_CALL(in_pcblbgroup_free_deferred, &grp->il_epoch_ctx);
+}
+
+static struct inpcblbgroup *
+in_pcblbgroup_find(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo;
+	struct inpcblbgroup *grp;
+	struct inpcblbgrouphead *hdr;
+
+	INP_LOCK_ASSERT(inp);
+
+	pcbinfo = inp->inp_pcbinfo;
+	INP_HASH_LOCK_ASSERT(pcbinfo);
+	KASSERT((inp->inp_flags & INP_INLBGROUP) != 0,
+	    ("inpcb %p is not in a load balance group", inp));
+
+	hdr = &pcbinfo->ipi_lbgrouphashbase[
+	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
+	CK_LIST_FOREACH(grp, hdr, il_list) {
+		struct inpcb *inp1;
+
+		for (unsigned int i = 0; i < grp->il_inpcnt; i++) {
+			if (inp == grp->il_inp[i])
+				goto found;
+		}
+		LIST_FOREACH(inp1, &grp->il_pending, inp_lbgroup_list) {
+			if (inp == inp1)
+				goto found;
+		}
+	}
+found:
+	return (grp);
 }
 
 static void
@@ -298,14 +333,24 @@ in_pcblbgroup_insert(struct inpcblbgroup *grp, struct inpcb *inp)
 	    grp->il_inpcnt));
 	INP_WLOCK_ASSERT(inp);
 
-	inp->inp_flags |= INP_INLBGROUP;
-	grp->il_inp[grp->il_inpcnt] = inp;
+	if (inp->inp_socket->so_proto->pr_listen != pr_listen_notsupp &&
+	    !SOLISTENING(inp->inp_socket)) {
+		/*
+		 * If this is a TCP socket, it should not be visible to lbgroup
+		 * lookups until listen() has been called.
+		 */
+		LIST_INSERT_HEAD(&grp->il_pending, inp, inp_lbgroup_list);
+	} else {
+		grp->il_inp[grp->il_inpcnt] = inp;
 
-	/*
-	 * Synchronize with in_pcblookup_lbgroup(): make sure that we don't
-	 * expose a null slot to the lookup path.
-	 */
-	atomic_store_rel_int(&grp->il_inpcnt, grp->il_inpcnt + 1);
+		/*
+		 * Synchronize with in_pcblookup_lbgroup(): make sure that we
+		 * don't expose a null slot to the lookup path.
+		 */
+		atomic_store_rel_int(&grp->il_inpcnt, grp->il_inpcnt + 1);
+	}
+
+	inp->inp_flags |= INP_INLBGROUP;
 }
 
 static struct inpcblbgroup *
@@ -329,6 +374,8 @@ in_pcblbgroup_resize(struct inpcblbgrouphead *hdr,
 		grp->il_inp[i] = old_grp->il_inp[i];
 	grp->il_inpcnt = old_grp->il_inpcnt;
 	CK_LIST_INSERT_HEAD(hdr, grp, il_list);
+	LIST_SWAP(&old_grp->il_pending, &grp->il_pending, inpcb,
+	    inp_lbgroup_list);
 	in_pcblbgroup_free(old_grp);
 	return (grp);
 }
@@ -412,6 +459,7 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 	struct inpcbinfo *pcbinfo;
 	struct inpcblbgrouphead *hdr;
 	struct inpcblbgroup *grp;
+	struct inpcb *inp1;
 	int i;
 
 	pcbinfo = inp->inp_pcbinfo;
@@ -427,13 +475,11 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 			if (grp->il_inp[i] != inp)
 				continue;
 
-			if (grp->il_inpcnt == 1) {
+			if (grp->il_inpcnt == 1 &&
+			    LIST_EMPTY(&grp->il_pending)) {
 				/* We are the last, free this local group. */
 				in_pcblbgroup_free(grp);
 			} else {
-				KASSERT(grp->il_inpcnt >= 2,
-				    ("invalid local group count %d",
-				    grp->il_inpcnt));
 				grp->il_inp[i] =
 				    grp->il_inp[grp->il_inpcnt - 1];
 
@@ -446,17 +492,22 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 			inp->inp_flags &= ~INP_INLBGROUP;
 			return;
 		}
+		LIST_FOREACH(inp1, &grp->il_pending, inp_lbgroup_list) {
+			if (inp == inp1) {
+				LIST_REMOVE(inp, inp_lbgroup_list);
+				inp->inp_flags &= ~INP_INLBGROUP;
+				return;
+			}
+		}
 	}
-	KASSERT(0, ("%s: did not find %p", __func__, inp));
+	__assert_unreachable();
 }
 
 int
 in_pcblbgroup_numa(struct inpcb *inp, int arg)
 {
 	struct inpcbinfo *pcbinfo;
-	struct inpcblbgrouphead *hdr;
-	struct inpcblbgroup *grp;
-	int err, i;
+	int error;
 	uint8_t numa_domain;
 
 	switch (arg) {
@@ -472,33 +523,20 @@ in_pcblbgroup_numa(struct inpcb *inp, int arg)
 		numa_domain = arg;
 	}
 
-	err = 0;
 	pcbinfo = inp->inp_pcbinfo;
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK(pcbinfo);
-	hdr = &pcbinfo->ipi_lbgrouphashbase[
-	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
-	CK_LIST_FOREACH(grp, hdr, il_list) {
-		for (i = 0; i < grp->il_inpcnt; ++i) {
-			if (grp->il_inp[i] != inp)
-				continue;
-
-			if (grp->il_numa_domain == numa_domain) {
-				goto abort_with_hash_wlock;
-			}
-
-			/* Remove it from the old group. */
-			in_pcbremlbgrouphash(inp);
-
-			/* Add it to the new group based on numa domain. */
-			in_pcbinslbgrouphash(inp, numa_domain);
-			goto abort_with_hash_wlock;
-		}
+	if (in_pcblbgroup_find(inp) != NULL) {
+		/* Remove it from the old group. */
+		in_pcbremlbgrouphash(inp);
+		/* Add it to the new group based on numa domain. */
+		in_pcbinslbgrouphash(inp, numa_domain);
+		error = 0;
+	} else {
+		error = ENOENT;
 	}
-	err = ENOENT;
-abort_with_hash_wlock:
 	INP_HASH_WUNLOCK(pcbinfo);
-	return (err);
+	return (error);
 }
 
 /* Make sure it is safe to use hashinit(9) on CK_LIST. */
@@ -1436,6 +1474,25 @@ in_pcbdisconnect(struct inpcb *inp)
 	inp->inp_fport = 0;
 }
 #endif /* INET */
+
+void
+in_pcblisten(struct inpcb *inp)
+{
+	struct inpcblbgroup *grp;
+
+	INP_WLOCK_ASSERT(inp);
+
+	if ((inp->inp_flags & INP_INLBGROUP) != 0) {
+		struct inpcbinfo *pcbinfo;
+
+		pcbinfo = inp->inp_pcbinfo;
+		INP_HASH_WLOCK(pcbinfo);
+		grp = in_pcblbgroup_find(inp);
+		LIST_REMOVE(inp, inp_lbgroup_list);
+		in_pcblbgroup_insert(grp, inp);
+		INP_HASH_WUNLOCK(pcbinfo);
+	}
+}
 
 /*
  * inpcb hash lookups are protected by SMR section.
