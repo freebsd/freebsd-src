@@ -802,6 +802,8 @@ acpi_uart_type(UINT8 t)
 		[0x01] = "ns8250",	/* DBGP Rev 1 16550 subset */
 		[0x03] = "pl011",	/* Arm PL011 */
 		[0x05] = "ns8250",	/* Nvidia 16550 */
+		[0x0d] = "pl011",	/* Arm SBSA 32-bit width */
+		[0x0e] = "pl011",	/* Arm SBSA generic */
 		[0x12] = "ns8250",	/* 16550 defined in SerialPort */
 	};
 
