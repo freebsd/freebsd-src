@@ -43,6 +43,7 @@
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
+#include <sys/taskqueue.h>
 
 #include <dev/clk/clk.h>
 #include <dev/fdt/simplebus.h>
@@ -94,6 +95,8 @@ struct scmi_req {
 	bool		use_polling;
 	bool		done;
 	bool		is_raw;
+	device_t	dev;
+	struct task	tsk;
 	struct mtx	mtx;
 	LIST_ENTRY(scmi_req)	next;
 	int		protocol_id;
@@ -103,6 +106,7 @@ struct scmi_req {
 	struct scmi_msg msg;
 };
 
+#define tsk_to_req(t)	__containerof((t), struct scmi_req, tsk)
 #define buf_to_msg(b)	__containerof((b), struct scmi_msg, payld)
 #define msg_to_req(m)	__containerof((m), struct scmi_req, msg)
 #define buf_to_req(b)	msg_to_req(buf_to_msg(b))
@@ -131,7 +135,9 @@ struct scmi_transport {
 static void		scmi_transport_configure(struct scmi_transport_desc *, phandle_t);
 static int		scmi_transport_init(struct scmi_softc *, phandle_t);
 static void		scmi_transport_cleanup(struct scmi_softc *);
-static struct scmi_reqs_pool *scmi_reqs_pool_allocate(const int, const int);
+static void		scmi_req_async_waiter(void *, int);
+static struct scmi_reqs_pool *scmi_reqs_pool_allocate(device_t, const int,
+			    const int);
 static void		scmi_reqs_pool_free(struct scmi_reqs_pool *);
 static struct scmi_req	*scmi_req_alloc(struct scmi_softc *, enum scmi_chan);
 static struct scmi_req	*scmi_req_initialized_alloc(device_t, int, int);
@@ -217,7 +223,7 @@ DRIVER_MODULE(scmi, simplebus, scmi_driver, 0, 0);
 MODULE_VERSION(scmi, 1);
 
 static struct scmi_reqs_pool *
-scmi_reqs_pool_allocate(const int max_msg, const int max_payld_sz)
+scmi_reqs_pool_allocate(device_t dev, const int max_msg, const int max_payld_sz)
 {
 	struct scmi_reqs_pool *rp;
 	struct scmi_req *req;
@@ -228,6 +234,10 @@ scmi_reqs_pool_allocate(const int max_msg, const int max_payld_sz)
 	for (int i = 0; i < max_msg; i++) {
 		req = malloc(sizeof(*req) + max_payld_sz,
 		    M_DEVBUF, M_ZERO | M_WAITOK);
+
+		req->dev = dev;
+		req->tsk.ta_context = &req->tsk;
+		req->tsk.ta_func = scmi_req_async_waiter;
 
 		mtx_init(&req->mtx, "req", "SCMI", MTX_SPIN);
 		LIST_INSERT_HEAD(&rp->head, req, next);
@@ -280,14 +290,14 @@ scmi_transport_init(struct scmi_softc *sc, phandle_t node)
 	trs->inflight_ht = hashinit(td->max_msg, M_DEVBUF, &trs->inflight_mask);
 
 	trs->chans[SCMI_CHAN_A2P] =
-	    scmi_reqs_pool_allocate(td->max_msg, td->max_payld_sz);
+	    scmi_reqs_pool_allocate(sc->dev, td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_A2P] == NULL) {
 		free(trs, M_DEVBUF);
 		return (ENOMEM);
 	}
 
 	trs->chans[SCMI_CHAN_P2A] =
-	    scmi_reqs_pool_allocate(td->max_msg, td->max_payld_sz);
+	    scmi_reqs_pool_allocate(sc->dev, td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_P2A] == NULL) {
 		scmi_reqs_pool_free(trs->chans[SCMI_CHAN_A2P]);
 		free(trs, M_DEVBUF);
@@ -648,7 +658,8 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 		SCMI_COLLECT_REPLY(sc->dev, &req->msg);
 		if (req->msg.payld[0] != 0)
 			ret = req->msg.payld[0];
-		*out = &req->msg.payld[SCMI_MSG_HDR_SIZE];
+		if (out != NULL)
+			*out = &req->msg.payld[SCMI_MSG_HDR_SIZE];
 	} else {
 		device_printf(sc->dev,
 		    "Request for token 0x%X timed-out.\n", req->token);
@@ -701,6 +712,20 @@ scmi_msg_get(device_t dev, int tx_payld_sz, int rx_payld_sz)
 	req->is_raw = true;
 
 	return (&req->msg);
+}
+
+static void
+scmi_req_async_waiter(void *context, int pending)
+{
+	struct task *ta = context;
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+
+	req = tsk_to_req(ta);
+	sc = device_get_softc(req->dev);
+	scmi_wait_for_response(sc, req, NULL);
+
+	scmi_msg_put(req->dev, &req->msg);
 }
 
 void
@@ -762,4 +787,15 @@ scmi_request(device_t dev, void *in, void **out)
 	req = buf_to_req(in);
 
 	return (scmi_wait_for_response(sc, req, out));
+}
+
+int
+scmi_msg_async_enqueue(struct scmi_msg *msg)
+{
+	struct scmi_req *req;
+
+	req = msg_to_req(msg);
+
+	return taskqueue_enqueue_flags(taskqueue_thread, &req->tsk,
+	    TASKQUEUE_FAIL_IF_PENDING | TASKQUEUE_FAIL_IF_CANCELING);
 }
