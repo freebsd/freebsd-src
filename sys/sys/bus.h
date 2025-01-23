@@ -308,16 +308,6 @@ enum cpu_sets {
 
 typedef int (*devop_t)(void);
 
-/**
- * @brief This structure is deprecated.
- *
- * Use the kobj(9) macro DEFINE_CLASS to
- * declare classes which implement device drivers.
- */
-struct driver {
-	KOBJ_CLASS_FIELDS;
-};
-
 struct resource;
 
 /**
