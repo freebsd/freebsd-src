@@ -1,7 +1,8 @@
 libsecureboot
 *************
 
-This library depends one way or another on verifying digital signatures.
+This library depends one way or another on verifying detached digital
+signatures. 
 To do that, the necessary trust anchors need to be available.
 
 The simplest (and most attractive for an embedded system) is to
@@ -16,7 +17,7 @@ provide access to the necessary trust anchors.
 That signing server is freely available - see
 http://www.crufty.net/sjg/docs/signing-server.htm
 
-X.509 certificates chains offer a lot of flexibility over time and are
+X.509 certificate chains offer a lot of flexibility over time and are
 a great solution for an embedded vendor like Juniper or even
 FreeBSD.org, but are probably overkill for personal or small site use.
 
@@ -74,8 +75,12 @@ header.
 Signatures
 ----------
 
-We expect ascii armored (``.asc``) detached signatures.
-Eg. signature for ``manifest`` would be in ``manifest.asc``
+We expect ascii armored (``.asc``) detached signatures
+Eg.::
+
+	gpg -a --detach-sign manifest
+
+should produce the expected signature in ``manifest.asc``
 
 We only support version 4 signatures using RSA (the default for ``gpg``).
 
@@ -107,6 +112,10 @@ servers and it ends up being a signature of a hash.
 Ie. client sends a hash which during signing gets hashed again.
 So for Junos we define VE_ECDSA_HASH_AGAIN which causes ``verify_ec``
 to hash again.
+
+Later I added a FakeHash class to the signing server so we could
+generate signatures compatible with our previous RSA scheme and
+others.
 
 Otherwise our EC DSA and RSA signatures are the default used by
 OpenSSL - an original design goal was that a customer could verify our
