@@ -717,7 +717,7 @@ scmi_msg_put(device_t dev, struct scmi_msg *msg)
 }
 
 int
-scmi_request(device_t dev, void *in, void **out)
+scmi_request_tx(device_t dev, void *in)
 {
 	struct scmi_softc *sc;
 	struct scmi_req *req;
@@ -732,14 +732,34 @@ scmi_request(device_t dev, void *in, void **out)
 
 	/* Set inflight and send using transport specific method - refc-2 */
 	error = scmi_req_track_inflight(sc, req);
-	if (error != 0)
+	if (error != 0) {
+		device_printf(dev, "Failed to build req with HDR |%0X|\n",
+		    req->msg.hdr);
 		return (error);
+	}
 
 	error = SCMI_XFER_MSG(sc->dev, &req->msg);
 	if (error != 0) {
 		scmi_req_drop_inflight(sc, req);
 		return (error);
 	}
+
+	return (0);
+}
+
+int
+scmi_request(device_t dev, void *in, void **out)
+{
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+	int error;
+
+	error = scmi_request_tx(dev, in);
+	if (error != 0)
+		return (error);
+
+	sc = device_get_softc(dev);
+	req = buf_to_req(in);
 
 	return (scmi_wait_for_response(sc, req, out));
 }
