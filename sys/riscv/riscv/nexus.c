@@ -214,7 +214,6 @@ nexus_get_rman(device_t bus, int type, u_int flags)
 	case SYS_RES_IRQ:
 		return (&irq_rman);
 	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
 		return (&mem_rman);
 	default:
 		return (NULL);
@@ -308,7 +307,6 @@ nexus_activate_resource(device_t bus, device_t child, struct resource *r)
 	int error;
 
 	switch (rman_get_type(r)) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		error = bus_generic_rman_activate_resource(bus, child, r);
 		break;
@@ -343,7 +341,6 @@ nexus_deactivate_resource(device_t bus, device_t child, struct resource *r)
 	int error;
 
 	switch (rman_get_type(r)) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		error = bus_generic_rman_deactivate_resource(bus, child, r);
 		break;
@@ -372,9 +369,8 @@ nexus_map_resource(device_t bus, device_t child, struct resource *r,
 	if ((rman_get_flags(r) & RF_ACTIVE) == 0)
 		return (ENXIO);
 
-	/* Mappings are only supported on I/O and memory resources. */
+	/* Mappings are only supported on memory resources. */
 	switch (rman_get_type(r)) {
-	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		break;
 	default:
@@ -403,7 +399,6 @@ nexus_unmap_resource(device_t bus, device_t child, struct resource *r,
 {
 	switch (rman_get_type(r)) {
 	case SYS_RES_MEMORY:
-	case SYS_RES_IOPORT:
 		pmap_unmapdev(map->r_vaddr, map->r_size);
 		return (0);
 	default:
