@@ -72,7 +72,6 @@ DIRDEPS+= \
 	sbin/ggate/ggated \
 	sbin/ggate/ggatel \
 	sbin/growfs \
-	sbin/gvinum \
 	sbin/hastctl \
 	sbin/hastd \
 	sbin/ifconfig \

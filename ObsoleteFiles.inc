@@ -51,6 +51,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250123: Remove gvinum(8)
+OLD_FILES+=sbin/gvinum
+OLD_FILES+=usr/share/man/man8/gvinum.8.gz
+
 # 20250122: Remove publickey(5) stuff
 OLD_FILES+=usr/bin/chkey
 OLD_FILES+=usr/bin/keylogin
