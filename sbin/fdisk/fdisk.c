@@ -1472,7 +1472,6 @@ sanitize_partition(struct dos_partition *partp)
  * The following choices are considered:
  *   /dev/ad0s1a     => /dev/ad0
  *   /dev/da0a       => /dev/da0
- *   /dev/vinum/root => /dev/vinum/root
  * A ".eli" part is removed if it exists (see geli(8)).
  * A ".journal" ending is removed if it exists (see gjournal(8)).
  */
@@ -1489,7 +1488,7 @@ get_rootdisk(void)
 	if (statfs("/", &rootfs) == -1)
 		err(1, "statfs(\"/\")");
 
-	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]*)([sp][0-9]+)?[a-h]?(\\.journal)?$",
+	if ((rv = regcomp(&re, "^(/dev/[a-z/]+[0-9]+)([sp][0-9]+)?[a-h]?(\\.journal)?$",
 		    REG_EXTENDED)) != 0)
 		errx(1, "regcomp() failed (%d)", rv);
 	strlcpy(dev, rootfs.f_mntfromname, sizeof (dev));
