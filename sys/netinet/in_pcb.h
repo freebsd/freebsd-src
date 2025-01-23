@@ -167,7 +167,10 @@ struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
 	/* Cache line #1 (amd64) */
-	CK_LIST_ENTRY(inpcb) inp_hash_exact;	/* hash table linkage */
+	union {
+		CK_LIST_ENTRY(inpcb) inp_hash_exact;	/* hash table linkage */
+		LIST_ENTRY(inpcb) inp_lbgroup_list;	/* lb group list */
+	};
 	CK_LIST_ENTRY(inpcb) inp_hash_wild;	/* hash table linkage */
 	struct rwlock	inp_lock;
 	/* Cache line #2 (amd64) */
@@ -428,6 +431,7 @@ SYSUNINIT(prot##_inpcbstorage_uninit, SI_SUB_PROTO_DOMAIN,		\
  */
 struct inpcblbgroup {
 	CK_LIST_ENTRY(inpcblbgroup) il_list;
+	LIST_HEAD(, inpcb) il_pending;	/* PCBs waiting for listen() */
 	struct epoch_context il_epoch_ctx;
 	struct ucred	*il_cred;
 	uint16_t	il_lport;			/* (c) */
@@ -671,6 +675,7 @@ int	in_pcbinshash(struct inpcb *);
 int	in_pcbladdr(struct inpcb *, struct in_addr *, struct in_addr *,
 	    struct ucred *);
 int	in_pcblbgroup_numa(struct inpcb *, int arg);
+void	in_pcblisten(struct inpcb *);
 struct inpcb *
 	in_pcblookup(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);

@@ -109,7 +109,7 @@ pr_disconnect_notsupp(struct socket *so)
 	return (EOPNOTSUPP);
 }
 
-static int
+int
 pr_listen_notsupp(struct socket *so, int backlog, struct thread *td)
 {
 	return (EOPNOTSUPP);

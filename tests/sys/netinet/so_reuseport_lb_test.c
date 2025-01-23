@@ -28,12 +28,16 @@
  */
 
 #include <sys/param.h>
+#include <sys/event.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <err.h>
 #include <errno.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -235,10 +239,149 @@ ATF_TC_BODY(basic_ipv6, tc)
 	}
 }
 
+struct concurrent_add_softc {
+	struct sockaddr_storage ss;
+	int socks[128];
+	int kq;
+};
+
+static void *
+listener(void *arg)
+{
+	for (struct concurrent_add_softc *sc = arg;;) {
+		struct kevent kev;
+		ssize_t n;
+		int error, count, cs, s;
+		uint8_t b;
+
+		count = kevent(sc->kq, NULL, 0, &kev, 1, NULL);
+		ATF_REQUIRE_MSG(count == 1,
+		    "kevent() failed: %s", strerror(errno));
+
+		s = (int)kev.ident;
+		cs = accept(s, NULL, NULL);
+		ATF_REQUIRE_MSG(cs >= 0,
+		    "accept() failed: %s", strerror(errno));
+
+		b = 'M';
+		n = write(cs, &b, sizeof(b));
+		ATF_REQUIRE_MSG(n >= 0, "write() failed: %s", strerror(errno));
+		ATF_REQUIRE(n == 1);
+
+		error = close(cs);
+		ATF_REQUIRE_MSG(error == 0 || errno == ECONNRESET,
+		    "close() failed: %s", strerror(errno));
+	}
+}
+
+static void *
+connector(void *arg)
+{
+	for (struct concurrent_add_softc *sc = arg;;) {
+		ssize_t n;
+		int error, s;
+		uint8_t b;
+
+		s = socket(sc->ss.ss_family, SOCK_STREAM, 0);
+		ATF_REQUIRE_MSG(s >= 0, "socket() failed: %s", strerror(errno));
+
+		error = setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (int[]){1},
+		    sizeof(int));
+
+		error = connect(s, (struct sockaddr *)&sc->ss, sc->ss.ss_len);
+		ATF_REQUIRE_MSG(error == 0, "connect() failed: %s",
+		    strerror(errno));
+
+		n = read(s, &b, sizeof(b));
+		ATF_REQUIRE_MSG(n >= 0, "read() failed: %s",
+		    strerror(errno));
+		ATF_REQUIRE(n == 1);
+		ATF_REQUIRE(b == 'M');
+		error = close(s);
+		ATF_REQUIRE_MSG(error == 0,
+		    "close() failed: %s", strerror(errno));
+	}
+}
+
+/*
+ * Run three threads.  One accepts connections from listening sockets on a
+ * kqueue, while the other makes connections.  The third thread slowly adds
+ * sockets to the LB group.  This is meant to help flush out race conditions.
+ */
+ATF_TC_WITHOUT_HEAD(concurrent_add);
+ATF_TC_BODY(concurrent_add, tc)
+{
+	struct concurrent_add_softc sc;
+	struct sockaddr_in *sin;
+	pthread_t threads[4];
+	int error;
+
+	sc.kq = kqueue();
+	ATF_REQUIRE_MSG(sc.kq >= 0, "kqueue() failed: %s", strerror(errno));
+
+	error = pthread_create(&threads[0], NULL, listener, &sc);
+	ATF_REQUIRE_MSG(error == 0, "pthread_create() failed: %s",
+	    strerror(error));
+
+	sin = (struct sockaddr_in *)&sc.ss;
+	memset(sin, 0, sizeof(*sin));
+	sin->sin_len = sizeof(*sin);
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(0);
+	sin->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+	for (size_t i = 0; i < nitems(sc.socks); i++) {
+		struct kevent kev;
+		int s;
+
+		sc.socks[i] = s = socket(AF_INET, SOCK_STREAM, 0);
+		ATF_REQUIRE_MSG(s >= 0, "socket() failed: %s", strerror(errno));
+
+		error = setsockopt(s, SOL_SOCKET, SO_REUSEPORT_LB, (int[]){1},
+		    sizeof(int));
+		ATF_REQUIRE_MSG(error == 0,
+		    "setsockopt(SO_REUSEPORT_LB) failed: %s", strerror(errno));
+
+		error = bind(s, (struct sockaddr *)sin, sizeof(*sin));
+		ATF_REQUIRE_MSG(error == 0, "bind() failed: %s",
+		    strerror(errno));
+
+		error = listen(s, 5);
+		ATF_REQUIRE_MSG(error == 0, "listen() failed: %s",
+		    strerror(errno));
+
+		EV_SET(&kev, s, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+		error = kevent(sc.kq, &kev, 1, NULL, 0, NULL);
+		ATF_REQUIRE_MSG(error == 0, "kevent() failed: %s",
+		    strerror(errno));
+
+		if (i == 0) {
+			socklen_t slen = sizeof(sc.ss);
+
+			error = getsockname(sc.socks[i],
+			    (struct sockaddr *)&sc.ss, &slen);
+			ATF_REQUIRE_MSG(error == 0, "getsockname() failed: %s",
+			    strerror(errno));
+			ATF_REQUIRE(sc.ss.ss_family == AF_INET);
+
+			for (size_t j = 1; j < nitems(threads); j++) {
+				error = pthread_create(&threads[j], NULL,
+				    connector, &sc);
+				ATF_REQUIRE_MSG(error == 0,
+				    "pthread_create() failed: %s",
+				    strerror(error));
+			}
+		}
+
+		usleep(20000);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, basic_ipv4);
 	ATF_TP_ADD_TC(tp, basic_ipv6);
+	ATF_TP_ADD_TC(tp, concurrent_add);
 
 	return (atf_no_error());
 }

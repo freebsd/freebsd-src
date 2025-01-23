@@ -27,6 +27,8 @@ ATF_TESTS_SH=	arp \
 ATF_TESTS_PYTEST+=	carp.py
 ATF_TESTS_PYTEST+=	igmp.py
 
+LIBADD.so_reuseport_lb_test=	pthread
+
 # Some of the arp tests look for log messages in the dmesg buffer, so run them
 # serially to avoid problems with interleaved output.
 TEST_METADATA.arp+=	is_exclusive="true"

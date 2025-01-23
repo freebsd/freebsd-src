@@ -596,6 +596,8 @@ SYSCTL_DECL(_net_inet_accf);
 int	accept_filt_generic_mod_event(module_t mod, int event, void *data);
 #endif
 
+int	pr_listen_notsupp(struct socket *so, int backlog, struct thread *td);
+
 #endif /* _KERNEL */
 
 /*
