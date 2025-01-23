@@ -146,7 +146,8 @@ static struct scmi_req *scmi_req_lookup_inflight(struct scmi_softc *, uint32_t);
 
 static int		scmi_wait_for_response(struct scmi_softc *,
 			    struct scmi_req *, void **);
-static void		scmi_process_response(struct scmi_softc *, uint32_t);
+static void		scmi_process_response(struct scmi_softc *, uint32_t,
+			    unsigned int);
 
 int
 scmi_attach(device_t dev)
@@ -469,7 +470,7 @@ scmi_req_lookup_inflight(struct scmi_softc *sc, uint32_t hdr)
 }
 
 static void
-scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
+scmi_process_response(struct scmi_softc *sc, uint32_t hdr, uint32_t rx_len)
 {
 	bool timed_out = false;
 	struct scmi_req *req;
@@ -484,6 +485,7 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
 
 	mtx_lock_spin(&req->mtx);
 	req->done = true;
+	req->msg.rx_len = rx_len;
 	if (!req->timed_out) {
 		/*
 		 * Consider the case in which a polled message is picked
@@ -512,7 +514,7 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
 }
 
 void
-scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr)
+scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len)
 {
 	struct scmi_softc *sc;
 
@@ -524,7 +526,7 @@ scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr)
 		return;
 	}
 
-	scmi_process_response(sc, hdr);
+	scmi_process_response(sc, hdr, rx_len);
 }
 
 static int

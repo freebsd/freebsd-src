@@ -70,14 +70,14 @@ static void
 scmi_mailbox_a2p_callback(void *arg)
 {
 	struct scmi_mailbox_softc *sc;
-	uint32_t msg_header;
+	uint32_t msg_header, rx_len;
 	int ret;
 
 	sc = arg;
 
-	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &msg_header);
+	ret = scmi_shmem_read_msg_header(sc->a2p_dev, &msg_header, &rx_len);
 	if (ret == 0)
-		scmi_rx_irq_callback(sc->base.dev, sc->a2p_dev, msg_header);
+		scmi_rx_irq_callback(sc->base.dev, sc->a2p_dev, msg_header, rx_len);
 }
 
 static int
@@ -154,7 +154,7 @@ scmi_mailbox_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 	sc = device_get_softc(dev);
 
 	do {
-		if (scmi_shmem_poll_msg(sc->a2p_dev, &msg->hdr))
+		if (scmi_shmem_poll_msg(sc->a2p_dev, &msg->hdr, &msg->rx_len))
 			break;
 		DELAY(SCMI_MBOX_POLL_INTERVAL_MS * 1000);
 	} while (tmo_loops--);
@@ -171,7 +171,7 @@ scmi_mailbox_collect_reply(device_t dev, struct scmi_msg *msg)
 	sc = device_get_softc(dev);
 
 	ret = scmi_shmem_read_msg_payload(sc->a2p_dev,
-	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE);
+	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE, msg->rx_len);
 
 	return (ret);
 }
