@@ -798,10 +798,10 @@ static const char *
 acpi_uart_type(UINT8 t)
 {
 	static const char *types[] = {
-		[0] = "ns8250",		/* Full 16550 */
-		[1] = "ns8250",		/* DBGP Rev 1 16550 subset */
-		[3] = "pl011",		/* Arm PL011 */
-		[5] = "ns8250",		/* Nvidia 16550 */
+		[0x00] = "ns8250",	/* Full 16550 */
+		[0x01] = "ns8250",	/* DBGP Rev 1 16550 subset */
+		[0x03] = "pl011",	/* Arm PL011 */
+		[0x05] = "ns8250",	/* Nvidia 16550 */
 		[0x12] = "ns8250",	/* 16550 defined in SerialPort */
 	};
 
