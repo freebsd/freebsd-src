@@ -423,29 +423,6 @@ SYSINIT(prot##_inpcbstorage_init, SI_SUB_PROTO_DOMAIN,			\
 SYSUNINIT(prot##_inpcbstorage_uninit, SI_SUB_PROTO_DOMAIN,		\
     SI_ORDER_SECOND, in_pcbstorage_destroy, &prot)
 
-/*
- * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
- * (or unique address:port combination) can be re-used at most
- * INPCBLBGROUP_SIZMAX (256) times. The inpcbs are stored in il_inp which
- * is dynamically resized as processes bind/unbind to that specific group.
- */
-struct inpcblbgroup {
-	CK_LIST_ENTRY(inpcblbgroup) il_list;
-	LIST_HEAD(, inpcb) il_pending;	/* PCBs waiting for listen() */
-	struct epoch_context il_epoch_ctx;
-	struct ucred	*il_cred;
-	uint16_t	il_lport;			/* (c) */
-	u_char		il_vflag;			/* (c) */
-	uint8_t		il_numa_domain;
-	int		il_fibnum;
-	union in_dependaddr il_dependladdr;		/* (c) */
-#define	il_laddr	il_dependladdr.id46_addr.ia46_addr4
-#define	il6_laddr	il_dependladdr.id6_addr
-	uint32_t	il_inpsiz; /* max count in il_inp[] (h) */
-	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
-	struct inpcb	*il_inp[];			/* (h) */
-};
-
 #define INP_LOCK_DESTROY(inp)	rw_destroy(&(inp)->inp_lock)
 #define INP_RLOCK(inp)		rw_rlock(&(inp)->inp_lock)
 #define INP_WLOCK(inp)		rw_wlock(&(inp)->inp_lock)
