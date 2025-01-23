@@ -55,7 +55,7 @@
 #define SCMI_MAX_TOKEN		1024
 
 #define	SCMI_HDR_TOKEN_S		18
-#define SCMI_HDR_TOKEN_BF		(0x3fff)
+#define SCMI_HDR_TOKEN_BF		(0x3ff)
 #define	SCMI_HDR_TOKEN_M		(SCMI_HDR_TOKEN_BF << SCMI_HDR_TOKEN_S)
 
 #define	SCMI_HDR_PROTOCOL_ID_S		10
