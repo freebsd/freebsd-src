@@ -127,7 +127,8 @@ struct scmi_transport {
 	struct mtx		mtx;
 };
 
-static int		scmi_transport_init(struct scmi_softc *);
+static void		scmi_transport_configure(struct scmi_transport_desc *, phandle_t);
+static int		scmi_transport_init(struct scmi_softc *, phandle_t);
 static void		scmi_transport_cleanup(struct scmi_softc *);
 static struct scmi_reqs_pool *scmi_reqs_pool_allocate(const int, const int);
 static void		scmi_reqs_pool_free(struct scmi_reqs_pool *);
@@ -165,12 +166,12 @@ scmi_attach(device_t dev)
 
 	simplebus_init(dev, node);
 
-	error = scmi_transport_init(sc);
+	error = scmi_transport_init(sc, node);
 	if (error != 0)
 		return (error);
 
-	device_printf(dev, "Transport reply timeout initialized to %dms\n",
-	    sc->trs_desc.reply_timo_ms);
+	device_printf(dev, "Transport - max_msg:%d  max_payld_sz:%lu  reply_timo_ms:%d\n",
+	    SCMI_MAX_MSG(sc), SCMI_MAX_MSG_PAYLD_SIZE(sc), SCMI_MAX_MSG_TIMEOUT_MS(sc));
 
 	/*
 	 * Allow devices to identify.
@@ -248,29 +249,42 @@ scmi_reqs_pool_free(struct scmi_reqs_pool *rp)
 	free(rp, M_DEVBUF);
 }
 
-static int
-scmi_transport_init(struct scmi_softc *sc)
+static void
+scmi_transport_configure(struct scmi_transport_desc *td, phandle_t node)
 {
+	if (OF_getencprop(node, "arm,max-msg", &td->max_msg, sizeof(td->max_msg)) == -1)
+		td->max_msg = SCMI_DEF_MAX_MSG;
+
+	if (OF_getencprop(node, "arm,max-msg-size", &td->max_payld_sz,
+	    sizeof(td->max_payld_sz)) == -1)
+		td->max_payld_sz = SCMI_DEF_MAX_MSG_PAYLD_SIZE;
+}
+
+static int
+scmi_transport_init(struct scmi_softc *sc, phandle_t node)
+{
+	struct scmi_transport_desc *td = &sc->trs_desc;
 	struct scmi_transport *trs;
 	int ret;
 
 	trs = malloc(sizeof(*trs), M_DEVBUF, M_ZERO | M_WAITOK);
 
+	scmi_transport_configure(td, node);
+
 	BIT_FILL(SCMI_MAX_TOKEN, &trs->avail_tokens);
 	mtx_init(&trs->mtx, "tokens", "SCMI", MTX_SPIN);
 
-	trs->inflight_ht = hashinit(SCMI_MAX_MSG, M_DEVBUF,
-	    &trs->inflight_mask);
+	trs->inflight_ht = hashinit(td->max_msg, M_DEVBUF, &trs->inflight_mask);
 
 	trs->chans[SCMI_CHAN_A2P] =
-	    scmi_reqs_pool_allocate(SCMI_MAX_MSG, SCMI_MAX_MSG_PAYLD_SIZE);
+	    scmi_reqs_pool_allocate(td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_A2P] == NULL) {
 		free(trs, M_DEVBUF);
 		return (ENOMEM);
 	}
 
 	trs->chans[SCMI_CHAN_P2A] =
-	    scmi_reqs_pool_allocate(SCMI_MAX_MSG, SCMI_MAX_MSG_PAYLD_SIZE);
+	    scmi_reqs_pool_allocate(td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_P2A] == NULL) {
 		scmi_reqs_pool_free(trs->chans[SCMI_CHAN_A2P]);
 		free(trs, M_DEVBUF);
@@ -286,8 +300,13 @@ scmi_transport_init(struct scmi_softc *sc)
 		return (ret);
 	}
 
+	/* Use default transport timeout if not overridden by OF */
+	OF_getencprop(node, "arm,max-rx-timeout-ms", &td->reply_timo_ms,
+	    sizeof(td->reply_timo_ms));
+
 	return (0);
 }
+
 static void
 scmi_transport_cleanup(struct scmi_softc *sc)
 {
@@ -355,7 +374,7 @@ scmi_req_put(struct scmi_softc *sc, struct scmi_req *req)
 {
 	mtx_lock_spin(&req->mtx);
 	if (!refcount_release_if_not_last(&req->cnt)) {
-		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE);
+		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE(sc));
 		scmi_req_free_unlocked(sc, SCMI_CHAN_A2P, req);
 	}
 	mtx_unlock_spin(&req->mtx);
@@ -532,13 +551,13 @@ scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len)
 static int
 scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 {
+	unsigned int reply_timo_ms = SCMI_MAX_MSG_TIMEOUT_MS(sc);
 	int ret;
 
 	if (req->msg.polling) {
 		bool needs_drop;
 
-		ret = SCMI_POLL_MSG(sc->dev, &req->msg,
-		    sc->trs_desc.reply_timo_ms);
+		ret = SCMI_POLL_MSG(sc->dev, &req->msg, reply_timo_ms);
 		/*
 		 * Drop reference to successfully polled req unless it had
 		 * already also been processed on the IRQ path.
@@ -557,8 +576,7 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 			    le32toh(req->msg.hdr), le32toh(req->header));
 		}
 	} else {
-		ret = tsleep(req, 0, "scmi_wait4",
-		    (sc->trs_desc.reply_timo_ms * hz) / 1000);
+		ret = tsleep(req, 0, "scmi_wait4", (reply_timo_ms * hz) / 1000);
 		/* Check for lost wakeups since there is no associated lock */
 		mtx_lock_spin(&req->mtx);
 		if (ret != 0 && req->done)
@@ -591,8 +609,8 @@ scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
 
 	sc = device_get_softc(dev);
 
-	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE ||
-	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE) {
+	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE(sc) ||
+	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE(sc)) {
 		device_printf(dev, "Unsupported payload size. Drop.\n");
 		return (NULL);
 	}
@@ -606,7 +624,7 @@ scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
 	req->message_id = message_id & SCMI_HDR_MESSAGE_ID_BF;
 	req->msg.tx_len = sizeof(req->msg.hdr) + tx_payld_sz;
 	req->msg.rx_len = rx_payld_sz ?
-	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE;
+	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE(sc);
 
 	return (&req->msg.payld[0]);
 }
