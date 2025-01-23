@@ -122,8 +122,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdeFhilNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdeFhlNnoqTtWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-bdeFhiJlNnoqTtVWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-bdeFhJlNnoqTtVWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
