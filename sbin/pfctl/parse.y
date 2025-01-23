@@ -2422,19 +2422,8 @@ pfrule		: action dir logquick interface route af proto fromto
 				r.scrub_flags |= PFSTATE_SETPRIO;
 			}
 
-			if ($9.marker & FOM_AFTO) {
-				if (!$6) {
-					yyerror("must indicate source address "
-					    "family with af-to");
-					YYERROR;
-				}
-				if ($6 == $9.nat.af) {
-					yyerror("incorrect address family "
-					    "translation");
-					YYERROR;
-				}
+			if ($9.marker & FOM_AFTO)
 				r.rule_flag |= PFRULE_AFTO;
-			}
 
 			r.af = $6;
 			if ($9.tag)
@@ -5463,6 +5452,10 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 	}
 	if (!r->af && (r->type || r->code)) {
 		yyerror("must indicate address family with icmp-type/code");
+		problems++;
+	}
+	if (r->rule_flag & PFRULE_AFTO && r->af == r->naf) {
+		yyerror("must indicate different address family with af-to");
 		problems++;
 	}
 	if (r->overload_tblname[0] &&
