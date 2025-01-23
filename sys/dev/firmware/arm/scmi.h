@@ -32,6 +32,8 @@
 #ifndef	_ARM64_SCMI_SCMI_H_
 #define	_ARM64_SCMI_SCMI_H_
 
+#include <sys/sysctl.h>
+
 #include "scmi_if.h"
 
 #define SCMI_DEF_MAX_MSG		32
@@ -64,6 +66,7 @@ struct scmi_softc {
 	struct mtx			mtx;
 	struct scmi_transport_desc	trs_desc;
 	struct scmi_transport		*trs;
+	struct sysctl_oid		*sysctl_root;
 };
 
 struct scmi_msg {
