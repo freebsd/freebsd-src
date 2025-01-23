@@ -1061,3 +1061,52 @@ ieee80211_vht_check_tx_bw(const struct ieee80211_node *ni,
 		return (false);
 	}
 }
+
+/**
+ * @brief Check if the given VHT bw/nss/mcs combination is valid
+ *        for the give node.
+ *
+ * This checks whether the given VHT bw/nss/mcs is valid based on
+ * the negotiated rate mask in the node.
+ *
+ * @param ni	struct ieee80211_node node to check
+ * @param bw	channel bandwidth to check
+ * @param nss	NSS
+ * @param mcs	MCS
+ * @returns True if this combination is available, false otherwise.
+ */
+bool
+ieee80211_vht_node_check_tx_valid_mcs(const struct ieee80211_node *ni,
+    enum ieee80211_sta_rx_bw bw, uint8_t nss, uint8_t mcs)
+{
+	uint8_t mc;
+
+	/* Validate arguments */
+	if (nss < 1 || nss > 8)
+		return (false);
+	if (mcs > 9)
+		return (false);
+
+	/* Check our choice of rate is actually valid */
+	if (!ieee80211_phy_vht_validate_mcs(bw, nss, mcs))
+		return (false);
+
+	/*
+	 * Next, check if the MCS rate is available for the
+	 * given NSS.
+	 */
+	mc = ni->ni_vht_tx_map >> (2*(nss-1)) & 0x3;
+	switch (mc) {
+	case IEEE80211_VHT_MCS_NOT_SUPPORTED:
+		/* Not supported at this NSS */
+		return (false);
+	case IEEE80211_VHT_MCS_SUPPORT_0_9:
+		return (mcs <= 9);
+	case IEEE80211_VHT_MCS_SUPPORT_0_8:
+		return (mcs <= 8);
+	case IEEE80211_VHT_MCS_SUPPORT_0_7:
+		return (mcs <= 7);
+	default:
+		return (false);
+	}
+}
