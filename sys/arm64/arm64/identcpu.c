@@ -1048,6 +1048,11 @@ static const struct mrs_field_value id_aa64isar2_wfxt[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64isar2_wfxt_caps[] = {
+	MRS_HWCAP(2, HWCAP2_WFXT, ID_AA64ISAR2_WFxT_IMPL),
+	MRS_HWCAP_END
+};
+
 static const struct mrs_field id_aa64isar2_fields[] = {
 	MRS_FIELD(ID_AA64ISAR2, PAC_frac, false, MRS_LOWER, 0,
 	    id_aa64isar2_pac_frac),
@@ -1059,7 +1064,8 @@ static const struct mrs_field id_aa64isar2_fields[] = {
 	    id_aa64isar2_gpa3, id_aa64isar2_gpa3_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR2, RPRES, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar2_rpres, id_aa64isar2_rpres_caps),
-	MRS_FIELD(ID_AA64ISAR2, WFxT, false, MRS_LOWER, 0, id_aa64isar2_wfxt),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, WFxT, false, MRS_LOWER, 0,
+		id_aa64isar2_wfxt, id_aa64isar2_wfxt_caps),
 	MRS_FIELD_END,
 };
 
