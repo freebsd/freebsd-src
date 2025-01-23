@@ -24,7 +24,6 @@ SUBDIR=adjkerntz \
 	geom \
 	ggate \
 	growfs \
-	gvinum \
 	ifconfig \
 	init \
 	kldconfig \
