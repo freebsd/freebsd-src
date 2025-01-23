@@ -41,7 +41,6 @@
  * Machine dependent constants for Intel 386.
  */
 
-#define __HAVE_ACPI
 #define	__HAVE_PIR
 
 #ifndef MACHINE
