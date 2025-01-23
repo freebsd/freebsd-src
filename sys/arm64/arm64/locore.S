@@ -351,7 +351,6 @@ LENTRY(enter_kernel_el)
 	isb
 	mrs	x4, hcr_el2
 
-
 	/* Load the Virtualization Process ID Register */
 	mrs	x2, midr_el1
 	msr	vpidr_el2, x2
@@ -400,6 +399,20 @@ LENTRY(enter_kernel_el)
 	/* Set the return PSTATE */
 	msr	spsr_el2, x5
 
+	/*
+	 * Configure the Extended Hypervisor register. This is only valid if
+	 * FEAT_HCX is enabled.
+	 */
+	mrs x2, id_aa64mmfr1_el1
+	ubfx x2, x2, #ID_AA64MMFR1_HCX_SHIFT, #ID_AA64MMFR1_HCX_WIDTH
+	cbz x2, 2f
+
+	/* Extended Hypervisor Configuration */
+	mov x2, xzr
+	msr HCRX_EL2_REG, x2
+	isb
+2:
+
 	/* Don't trap to EL2 for CP15 traps */
 	msr	hstr_el2, xzr
 
@@ -414,13 +427,13 @@ LENTRY(enter_kernel_el)
 	/* Extract GIC bits from the register */
 	ubfx	x2, x2, #ID_AA64PFR0_GIC_SHIFT, #ID_AA64PFR0_GIC_BITS
 	/* GIC[3:0] != 0000 - GIC CPU interface via special regs. supported */
-	cbz	x2, 2f
+	cbz	x2, 3f
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
 	orr	x2, x2, #ICC_SRE_EL2_SRE	/* Enable system registers */
 	msr	icc_sre_el2, x2
-2:
+3:
 
 	/* Set the address to return to our return address */
 	msr	elr_el2, x30
