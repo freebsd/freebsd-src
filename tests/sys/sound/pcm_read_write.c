@@ -95,8 +95,14 @@ local_normalize(intpcm_t value, int val_bits, int norm_bits)
 static intpcm_t
 local_calc_limit(intpcm_t value, int val_bits)
 {
-	/* Avoid implementation defined behavior. */
-	if (sizeof(intpcm32_t) == 32 && val_bits == 32)
+	/*
+	 * When intpcm32_t is defined to be 32bit, calculations for mixing and
+	 * volume changes use 32bit integers instead of 64bit. To get some
+	 * headroom for calculations, 32bit sample values are restricted to
+	 * 24bit magnitude in that case. Also avoid implementation defined
+	 * behavior here.
+	 */
+	if (sizeof(intpcm32_t) == (32 / 8) && val_bits == 32)
 		/* Divide instead of right shift (value may be negative). */
 		return (value / (1 << 8));
 	return value;
@@ -456,7 +462,7 @@ ATF_TC_BODY(pcm_write, tc)
 		}
 		local_pcm_write_calc(dst, value, test->format);
 		ATF_CHECK_MSG(memcmp(dst, expected, sizeof(dst)) == 0,
-		    "pcm_write[\"%s\"].value: "
+		    "pcm_write[\"%s\"].calc: "
 		    "expected={0x%02x, 0x%02x, 0x%02x, 0x%02x}, "
 		    "result={0x%02x, 0x%02x, 0x%02x, 0x%02x}, ", test->label,
 		    expected[0], expected[1], expected[2], expected[3],
