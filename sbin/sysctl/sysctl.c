@@ -136,7 +136,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:FhiJlNnoqtTVwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AaB:bdeFf:hiJlNnoqTtVWwXx")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -145,11 +145,11 @@ main(int argc, char **argv)
 		case 'a':
 			aflag = 1;
 			break;
-		case 'b':
-			bflag = 1;
-			break;
 		case 'B':
 			Bflag = strtol(optarg, NULL, 0);
+			break;
+		case 'b':
+			bflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -157,11 +157,11 @@ main(int argc, char **argv)
 		case 'e':
 			eflag = 1;
 			break;
-		case 'f':
-			conffile = optarg;
-			break;
 		case 'F':
 			Fflag = true;
+			break;
+		case 'f':
+			conffile = optarg;
 			break;
 		case 'h':
 			hflag = 1;
@@ -187,21 +187,21 @@ main(int argc, char **argv)
 		case 'q':
 			qflag = 1;
 			break;
-		case 't':
-			tflag = 1;
-			break;
 		case 'T':
 			Tflag = 1;
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case 'V':
 			Vflag = true;
 			break;
+		case 'W':
+			Wflag = 1;
+			break;
 		case 'w':
 			/* compatibility */
 			/* ignored */
-			break;
-		case 'W':
-			Wflag = 1;
 			break;
 		case 'X':
 			/* compatibility */
