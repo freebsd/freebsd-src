@@ -1011,13 +1011,6 @@ initarm(struct arm64_bootparams *abp)
 	enable_cpu_feat(CPU_FEAT_EARLY_BOOT);
 
 	/*
-	 * Check if pointer authentication is available on this system, and
-	 * if so enable its use. This needs to be called before init_proc0
-	 * as that will configure the thread0 pointer authentication keys.
-	 */
-	ptrauth_init();
-
-	/*
 	 * Dump the boot metadata. We have to wait for cninit() since console
 	 * output is required. If it's grossly incorrect the kernel will never
 	 * make it this far.
