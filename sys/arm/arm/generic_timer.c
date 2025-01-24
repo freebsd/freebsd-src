@@ -191,8 +191,8 @@ get_freq(void)
 static uint64_t
 get_cntxct_a64_unstable(bool physical)
 {
-	uint64_t val
-;
+	uint64_t val;
+
 	isb();
 	if (physical) {
 		do {
