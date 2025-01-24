@@ -57,6 +57,7 @@
 
 #include <machine/machdep.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -222,6 +223,9 @@ init_secondary(uint64_t cpu)
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();
 
+	/* Detect early CPU feature support */
+	enable_cpu_feat(CPU_FEAT_EARLY_BOOT);
+
 	/* Signal the BSP and spin until it has released all APs. */
 	atomic_add_int(&aps_started, 1);
 	while (!atomic_load_int(&aps_ready))
@@ -239,6 +243,7 @@ init_secondary(uint64_t cpu)
 	pcpup->pc_curpmap = pmap0;
 
 	install_cpu_errata();
+	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
 
 	intr_pic_init_secondary();
 
