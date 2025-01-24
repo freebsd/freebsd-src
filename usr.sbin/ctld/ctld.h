@@ -46,7 +46,6 @@
 #define	DEFAULT_CD_BLOCKSIZE		2048
 
 #define	MAX_LUNS			1024
-#define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	SOCKBUF_SIZE			1048576
 
@@ -387,7 +386,6 @@ void			login(struct ctld_connection *conn);
 
 void			discovery(struct ctld_connection *conn);
 
-bool			valid_iscsi_name(const char *name);
 void			set_timeout(int timeout, int fatal);
 
 #endif /* !CTLD_H */

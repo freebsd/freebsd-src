@@ -154,6 +154,9 @@ void			text_send_response(struct pdu *request,
 void			connection_init(struct connection *conn,
 			    const struct connection_ops *ops, bool use_proxy);
 
+bool			valid_iscsi_name(const char *name,
+			    void (*warn_fn)(const char *, ...));
+
 void			log_init(int level);
 void			log_set_peer_name(const char *name);
 void			log_set_peer_addr(const char *addr);
