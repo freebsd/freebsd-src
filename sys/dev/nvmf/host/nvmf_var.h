@@ -84,6 +84,8 @@ struct nvmf_softc {
 
 	struct sysctl_oid_list *ioq_oid_list;
 
+	nvlist_t *rparams;
+
 	eventhandler_tag shutdown_pre_sync_eh;
 	eventhandler_tag shutdown_post_sync_eh;
 };

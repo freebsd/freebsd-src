@@ -259,6 +259,15 @@ nvmf_kernel_handoff_params(struct nvmf_qpair *qp, nvlist_t **nvlp)
 	return (0);
 }
 
+int
+nvmf_populate_dle(struct nvmf_qpair *qp, struct nvme_discovery_log_entry *dle)
+{
+	struct nvmf_association *na = qp->nq_association;
+
+	dle->trtype = na->na_trtype;
+	return (na->na_ops->populate_dle(qp, dle));
+}
+
 const char *
 nvmf_transport_type(uint8_t trtype)
 {
