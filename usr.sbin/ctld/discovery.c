@@ -161,7 +161,7 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 		ag = targ->t_auth_group;
 	pg = conn->conn_portal->p_portal_group;
 
-	assert(pg->pg_discovery_auth_group != PG_FILTER_UNKNOWN);
+	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
 	    auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
