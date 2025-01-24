@@ -13,7 +13,7 @@ livedump_kldstat_head()
 }
 livedump_kldstat_body()
 {
-	atf_check savecore -L .
+	atf_check -e match:"savecore .*- livedump" savecore -L .
 
 	kernel=$(sysctl -n kern.bootfile)
 
