@@ -290,6 +290,17 @@ get_staging_max(void)
 	res = copy_staging == COPY_STAGING_ENABLE ? G(1) : G(4);
 	return (res);
 }
+#define	EFI_ALLOC_MAX_ADDR
+#elif defined(__aarch64__)
+/*
+ * Older kernels only support a 48-bit physical address space, and locore.S
+ * only supports a 50-bit space. Limit to 48 bits so older kernels can boot
+ * even if FEAT_LPA2 is supported by the hardware.
+ */
+#define	get_staging_max()	(1ul << 48)
+#define	EFI_ALLOC_MAX_ADDR
+#endif
+#ifdef EFI_ALLOC_MAX_ADDR
 #define	EFI_ALLOC_METHOD	AllocateMaxAddress
 #else
 #define	EFI_ALLOC_METHOD	AllocateAnyPages
@@ -316,7 +327,7 @@ efi_copy_init(void)
 	if (running_on_hyperv())
 		efi_verify_staging_size(&nr_pages);
 #endif
-#if defined(__amd64__) || defined(__i386__)
+#ifdef EFI_ALLOC_MAX_ADDR
 	staging = get_staging_max();
 #endif
 	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
@@ -424,7 +435,7 @@ expand:
 #if EFI_STAGING_2M_ALIGN
 	nr_pages += M(2) / EFI_PAGE_SIZE;
 #endif
-#if defined(__amd64__) || defined(__i386__)
+#ifdef EFI_ALLOC_MAX_ADDR
 	new_base = get_staging_max();
 #endif
 	status = BS->AllocatePages(EFI_ALLOC_METHOD, EfiLoaderCode,
