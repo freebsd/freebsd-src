@@ -874,7 +874,7 @@ login(struct ctld_connection *conn)
 		login_send_error(request, 0x02, 0x07);
 		log_errx(1, "received Login PDU without InitiatorName");
 	}
-	if (valid_iscsi_name(initiator_name) == false) {
+	if (valid_iscsi_name(initiator_name, log_warnx) == false) {
 		login_send_error(request, 0x02, 0x00);
 		log_errx(1, "received Login PDU with invalid InitiatorName");
 	}

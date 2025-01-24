@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libiscsiutil.h>
 #include <libxo/xo.h>
 
 #include <iscsi_ioctl.h>
@@ -122,38 +123,6 @@ default_initiator_name(void)
 	return (name);
 }
 
-static bool
-valid_hex(const char ch)
-{
-	switch (ch) {
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	case 'a':
-	case 'A':
-	case 'b':
-	case 'B':
-	case 'c':
-	case 'C':
-	case 'd':
-	case 'D':
-	case 'e':
-	case 'E':
-	case 'f':
-	case 'F':
-		return (true);
-	default:
-		return (false);
-	}
-}
-
 int
 parse_enable(const char *enable)
 {
@@ -169,74 +138,6 @@ parse_enable(const char *enable)
 		return (ENABLE_OFF);
 
 	return (ENABLE_UNSPECIFIED);
-}
-
-bool
-valid_iscsi_name(const char *name)
-{
-	int i;
-
-	if (strlen(name) >= MAX_NAME_LEN) {
-		xo_warnx("overlong name for \"%s\"; max length allowed "
-		    "by iSCSI specification is %d characters",
-		    name, MAX_NAME_LEN);
-		return (false);
-	}
-
-	/*
-	 * In the cases below, we don't return an error, just in case the admin
-	 * was right, and we're wrong.
-	 */
-	if (strncasecmp(name, "iqn.", strlen("iqn.")) == 0) {
-		for (i = strlen("iqn."); name[i] != '\0'; i++) {
-			/*
-			 * XXX: We should verify UTF-8 normalisation, as defined
-			 *      by 3.2.6.2: iSCSI Name Encoding.
-			 */
-			if (isalnum(name[i]))
-				continue;
-			if (name[i] == '-' || name[i] == '.' || name[i] == ':')
-				continue;
-			xo_warnx("invalid character \"%c\" in iSCSI name "
-			    "\"%s\"; allowed characters are letters, digits, "
-			    "'-', '.', and ':'", name[i], name);
-			break;
-		}
-		/*
-		 * XXX: Check more stuff: valid date and a valid reversed domain.
-		 */
-	} else if (strncasecmp(name, "eui.", strlen("eui.")) == 0) {
-		if (strlen(name) != strlen("eui.") + 16)
-			xo_warnx("invalid iSCSI name \"%s\"; the \"eui.\" "
-			    "should be followed by exactly 16 hexadecimal "
-			    "digits", name);
-		for (i = strlen("eui."); name[i] != '\0'; i++) {
-			if (!valid_hex(name[i])) {
-				xo_warnx("invalid character \"%c\" in iSCSI "
-				    "name \"%s\"; allowed characters are 1-9 "
-				    "and A-F", name[i], name);
-				break;
-			}
-		}
-	} else if (strncasecmp(name, "naa.", strlen("naa.")) == 0) {
-		if (strlen(name) > strlen("naa.") + 32)
-			xo_warnx("invalid iSCSI name \"%s\"; the \"naa.\" "
-			    "should be followed by at most 32 hexadecimal "
-			    "digits", name);
-		for (i = strlen("naa."); name[i] != '\0'; i++) {
-			if (!valid_hex(name[i])) {
-				xo_warnx("invalid character \"%c\" in ISCSI "
-				    "name \"%s\"; allowed characters are 1-9 "
-				    "and A-F", name[i], name);
-				break;
-			}
-		}
-	} else {
-		xo_warnx("invalid iSCSI name \"%s\"; should start with "
-		    "either \".iqn\", \"eui.\", or \"naa.\"",
-		    name);
-	}
-	return (true);
 }
 
 void
@@ -257,7 +158,7 @@ conf_verify(struct conf *conf)
 			xo_errx(1, "cannot specify TargetName for discovery "
 			    "sessions for target \"%s\"", targ->t_nickname);
 		if (targ->t_name != NULL) {
-			if (valid_iscsi_name(targ->t_name) == false)
+			if (valid_iscsi_name(targ->t_name, xo_warnx) == false)
 				xo_errx(1, "invalid target name \"%s\"",
 				    targ->t_name);
 		}
@@ -268,7 +169,7 @@ conf_verify(struct conf *conf)
 			    targ->t_nickname);
 		if (targ->t_initiator_name == NULL)
 			targ->t_initiator_name = default_initiator_name();
-		if (valid_iscsi_name(targ->t_initiator_name) == false)
+		if (valid_iscsi_name(targ->t_initiator_name, xo_warnx) == false)
 			xo_errx(1, "invalid initiator name \"%s\"",
 			    targ->t_initiator_name);
 		if (targ->t_header_digest == DIGEST_UNSPECIFIED)
@@ -1014,7 +915,7 @@ main(int argc, char **argv)
 		    user, secret, enable);
 	} else {
 		if (Aflag != 0 && target != NULL) {
-			if (valid_iscsi_name(target) == false)
+			if (valid_iscsi_name(target, xo_warnx) == false)
 				xo_errx(1, "invalid target name \"%s\"", target);
 		}
 		conf = conf_new();
