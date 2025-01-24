@@ -210,9 +210,9 @@
         calendar
         ..
         certs
-            trusted tags=package=caroot
+            trusted         tags=package=caroot
             ..
-            untrusted tags=package=caroot
+            untrusted       tags=package=caroot
             ..
         ..
         dict
@@ -222,7 +222,7 @@
             ..
             atf             tags=package=tests
             ..
-            kyua             tags=package=tests
+            kyua            tags=package=tests
             ..
             legal
             ..
@@ -318,7 +318,7 @@
                     ..
                 ..
             ..
-            kyua             tags=package=tests
+            kyua            tags=package=tests
             ..
             libusb20
             ..
@@ -455,16 +455,16 @@
         ..
         keys
             pkg
-                revoked tags=package=runtime
+                revoked         tags=package=runtime
                 ..
-                trusted tags=package=runtime
+                trusted         tags=package=runtime
                 ..
             ..
         ..
-        kyua             tags=package=tests
-            misc         tags=package=tests
+        kyua            tags=package=tests
+            misc            tags=package=tests
             ..
-            store        tags=package=tests
+            store           tags=package=tests
             ..
         ..
         locale
