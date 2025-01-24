@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2023
+.Dd January 20, 2025
 .Dt NC 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Op Fl e Ar IPsec_policy
 .Op Fl I Ar length
 .Op Fl i Ar interval
+.Op Fl -lb
 .Op Fl -no-tcpopt
 .Op Fl -sctp
 .Op Fl -crlf
@@ -175,6 +176,12 @@ options.
 Additionally, any timeouts specified with the
 .Fl w
 option are ignored.
+.It Fl -lb
+When using
+.Fl l ,
+put the socket in load-balancing mode.
+In this mode, multiple sockets can bind to the same address and port,
+and incoming connections are distributed among them.
 .It Fl M
 Collect per-connection TCP statistics using the
 .Xr stats 3
