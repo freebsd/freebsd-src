@@ -146,6 +146,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
+#include <machine/cpu_feat.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -1309,8 +1310,6 @@ pmap_bootstrap(vm_size_t kernlen)
 	vm_paddr_t start_pa, pa;
 	uint64_t tcr;
 
-	pmap_cpu_init();
-
 	tcr = READ_SPECIALREG(tcr_el1);
 
 	/* Verify that the ASID is set through TTBR0. */
@@ -1625,38 +1624,74 @@ pmap_init_pv_table(void)
 	}
 }
 
-void
-pmap_cpu_init(void)
+static bool
+pmap_dbm_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
-	uint64_t id_aa64mmfr1, tcr;
-	bool enable_dbm;
+	uint64_t id_aa64mmfr1;
 
-	enable_dbm = false;
-
-	/* Enable HAFDBS if supported */
 	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	if (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >= ID_AA64MMFR1_HAFDBS_AF_DBS)
-		enable_dbm = true;
+	return (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
+	    ID_AA64MMFR1_HAFDBS_AF_DBS);
+}
+
+static bool
+pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
+    u_int **errata_list, u_int *errata_count)
+{
 	/* Disable on Cortex-A55 for erratum 1024718 - all revisions */
 	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
-	    CPU_PART_CORTEX_A55, 0, 0))
-		enable_dbm = false;
-	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
-	else if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
-	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0))
-		if (CPU_REV(PCPU_GET(midr)) < 3)
-			enable_dbm = false;
-	if (enable_dbm) {
-		tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
-		WRITE_SPECIALREG(tcr_el1, tcr);
-		isb();
-		/* Flush the local TLB for the TCR_HD flag change */
-		dsb(nshst);
-		__asm __volatile("tlbi vmalle1");
-		dsb(nsh);
-		isb();
+	    CPU_PART_CORTEX_A55, 0, 0)) {
+		static u_int errata_id = 1024718;
+
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
 	}
+
+	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
+	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0)) {
+		if (CPU_REV(PCPU_GET(midr)) < 3) {
+			static u_int errata_id = 2051678;
+
+			*errata_list = &errata_id;
+			*errata_count = 1;
+			return (true);
+		}
+	}
+
+	return (false);
 }
+
+static void
+pmap_dbm_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list __unused,
+    u_int errata_count)
+{
+	uint64_t tcr;
+
+	/* Skip if there is an erratum affecting DBM */
+	if (errata_status != ERRATA_NONE)
+		return;
+
+	tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
+	WRITE_SPECIALREG(tcr_el1, tcr);
+	isb();
+	/* Flush the local TLB for the TCR_HD flag change */
+	dsb(nshst);
+	__asm __volatile("tlbi vmalle1");
+	dsb(nsh);
+	isb();
+}
+
+static struct cpu_feat feat_dbm = {
+	.feat_name		= "FEAT_HAFDBS (DBM)",
+	.feat_check		= pmap_dbm_check,
+	.feat_has_errata	= pmap_dbm_has_errata,
+	.feat_enable		= pmap_dbm_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, feat_dbm);
 
 /*
  *	Initialize the pmap module.
