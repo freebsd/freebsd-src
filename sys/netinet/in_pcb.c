@@ -304,8 +304,6 @@ in_pcblbgroup_find(struct inpcb *inp)
 
 	pcbinfo = inp->inp_pcbinfo;
 	INP_HASH_LOCK_ASSERT(pcbinfo);
-	KASSERT((inp->inp_flags & INP_INLBGROUP) != 0,
-	    ("inpcb %p is not in a load balance group", inp));
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_lbgrouphashmask)];
