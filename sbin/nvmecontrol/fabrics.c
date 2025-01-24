@@ -7,6 +7,7 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <err.h>
 #include <libnvmf.h>
 #include <netdb.h>
@@ -46,6 +47,14 @@ init_hostid(void)
 
 	hostid_initted = true;
 	return (true);
+}
+
+const char *
+nvmf_default_hostnqn(void)
+{
+	if (!init_hostid())
+		exit(EX_IOERR);
+	return (nqn);
 }
 
 void
@@ -137,7 +146,7 @@ nvmf_parse_cntlid(const char *cntlid)
 	}
 }
 
-bool
+static bool
 tcp_qpair_params(struct nvmf_qpair_params *params, int adrfam,
     const char *address, const char *port)
 {
@@ -422,13 +431,10 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 
 	if (!init_hostid())
 		return (EX_IOERR);
-	if (hostnqn != NULL) {
-		if (!nvmf_nqn_valid(hostnqn)) {
-			warnx("Invalid HostNQN %s", hostnqn);
-			return (EX_USAGE);
-		}
-	} else
-		hostnqn = nqn;
+	if (hostnqn == NULL || !nvmf_nqn_valid(hostnqn)) {
+		warnx("Invalid HostNQN %s", hostnqn);
+		return (EX_USAGE);
+	}
 
 	/* Association. */
 	na = nvmf_allocate_association(trtype, false, aparams);
@@ -510,12 +516,19 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	return (0);
 
 out:
+	disconnect_nvm_queues(*admin, io, num_io_queues);
+	nvmf_free_association(na);
+	return (error);
+}
+
+void
+disconnect_nvm_queues(struct nvmf_qpair *admin, struct nvmf_qpair **io,
+    u_int num_io_queues)
+{
 	for (u_int i = 0; i < num_io_queues; i++) {
 		if (io[i] == NULL)
 			break;
 		nvmf_free_qpair(io[i]);
 	}
-	shutdown_controller(*admin);
-	nvmf_free_association(na);
-	return (error);
+	shutdown_controller(admin);
 }

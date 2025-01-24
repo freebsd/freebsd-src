@@ -8,9 +8,11 @@
 #include <sys/endian.h>
 #include <sys/gsb_crc32.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/uio.h>
 #include <assert.h>
 #include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1144,6 +1146,25 @@ tcp_kernel_handoff_params(struct nvmf_qpair *nq, nvlist_t *nvl)
 	nvlist_add_number(nvl, "max_icd", qp->max_icd);
 }
 
+static int
+tcp_populate_dle(struct nvmf_qpair *nq, struct nvme_discovery_log_entry *dle)
+{
+	struct nvmf_tcp_qpair *qp = TQP(nq);
+	struct sockaddr_storage ss;
+	socklen_t ss_len;
+
+	ss_len = sizeof(ss);
+	if (getpeername(qp->s, (struct sockaddr *)&ss, &ss_len) == -1)
+		return (errno);
+
+	if (getnameinfo((struct sockaddr *)&ss, ss_len, dle->traddr,
+	    sizeof(dle->traddr), dle->trsvcid, sizeof(dle->trsvcid),
+	    NI_NUMERICHOST | NI_NUMERICSERV) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
 static struct nvmf_capsule *
 tcp_allocate_capsule(struct nvmf_qpair *qp __unused)
 {
@@ -1468,6 +1489,7 @@ struct nvmf_transport_ops tcp_ops = {
 	.allocate_qpair = tcp_allocate_qpair,
 	.free_qpair = tcp_free_qpair,
 	.kernel_handoff_params = tcp_kernel_handoff_params,
+	.populate_dle = tcp_populate_dle,
 	.allocate_capsule = tcp_allocate_capsule,
 	.free_capsule = tcp_free_capsule,
 	.transmit_capsule = tcp_transmit_capsule,

@@ -62,11 +62,14 @@ tcp_association_params(struct nvmf_association_params *params)
 
 static int
 connect_nvm_controller(enum nvmf_trtype trtype, int adrfam, const char *address,
-    const char *port, uint16_t cntlid, const char *subnqn)
+    const char *port, uint16_t cntlid, const char *subnqn,
+    const struct nvme_discovery_log_entry *dle)
 {
 	struct nvme_controller_data cdata;
+	struct nvme_discovery_log_entry dle_thunk;
 	struct nvmf_association_params aparams;
 	struct nvmf_qpair *admin, **io;
+	const char *hostnqn;
 	int error;
 
 	memset(&aparams, 0, sizeof(aparams));
@@ -80,16 +83,31 @@ connect_nvm_controller(enum nvmf_trtype trtype, int adrfam, const char *address,
 		return (EX_UNAVAILABLE);
 	}
 
+	hostnqn = opt.hostnqn;
+	if (hostnqn == NULL)
+		hostnqn = nvmf_default_hostnqn();
 	io = calloc(opt.num_io_queues, sizeof(*io));
 	error = connect_nvm_queues(&aparams, trtype, adrfam, address, port,
-	    cntlid, subnqn, opt.hostnqn, opt.kato * 1000, &admin, io,
+	    cntlid, subnqn, hostnqn, opt.kato * 1000, &admin, io,
 	    opt.num_io_queues, opt.queue_size, &cdata);
 	if (error != 0) {
 		free(io);
 		return (error);
 	}
 
-	error = nvmf_handoff_host(admin, opt.num_io_queues, io, &cdata);
+	if (dle == NULL) {
+		error = nvmf_init_dle_from_admin_qp(admin, &cdata, &dle_thunk);
+		if (error != 0) {
+			warnc(error, "Failed to generate handoff parameters");
+			disconnect_nvm_queues(admin, io, opt.num_io_queues);
+			free(io);
+			return (EX_IOERR);
+		}
+		dle = &dle_thunk;
+	}
+
+	error = nvmf_handoff_host(dle, hostnqn, admin, opt.num_io_queues, io,
+	    &cdata);
 	if (error != 0) {
 		warnc(error, "Failed to handoff queues to kernel");
 		free(io);
@@ -140,7 +158,7 @@ connect_discovery_entry(struct nvme_discovery_log_entry *entry)
 
 	/* XXX: Should this make use of entry->aqsz in some way? */
 	connect_nvm_controller(entry->trtype, adrfam, entry->traddr,
-	    entry->trsvcid, entry->cntlid, entry->subnqn);
+	    entry->trsvcid, entry->cntlid, entry->subnqn, entry);
 }
 
 static void
@@ -198,7 +216,7 @@ connect_fn(const struct cmd *f, int argc, char *argv[])
 	cntlid = nvmf_parse_cntlid(opt.cntlid);
 
 	error = connect_nvm_controller(trtype, AF_UNSPEC, address, port, cntlid,
-	    opt.subnqn);
+	    opt.subnqn, NULL);
 	if (error != 0)
 		exit(error);
 

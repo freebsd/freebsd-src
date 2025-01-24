@@ -710,6 +710,27 @@ nvmf_host_fetch_discovery_log_page(struct nvmf_qpair *qp,
 }
 
 int
+nvmf_init_dle_from_admin_qp(struct nvmf_qpair *qp,
+    const struct nvme_controller_data *cdata,
+    struct nvme_discovery_log_entry *dle)
+{
+	int error;
+	uint16_t cntlid;
+
+	memset(dle, 0, sizeof(*dle));
+	error = nvmf_populate_dle(qp, dle);
+	if (error != 0)
+		return (error);
+	if ((cdata->fcatt & 1) == 0)
+		cntlid = NVMF_CNTLID_DYNAMIC;
+	else
+		cntlid = cdata->ctrlr_id;
+	dle->cntlid = htole16(cntlid);
+	memcpy(dle->subnqn, cdata->subnqn, sizeof(dle->subnqn));
+	return (0);
+}
+
+int
 nvmf_host_request_queues(struct nvmf_qpair *qp, u_int requested, u_int *actual)
 {
 	struct nvme_command cmd;
@@ -767,15 +788,21 @@ is_queue_pair_idle(struct nvmf_qpair *qp)
 }
 
 static int
-prepare_queues_for_handoff(struct nvmf_ioc_nv *nv, struct nvmf_qpair *admin_qp,
-    u_int num_queues, struct nvmf_qpair **io_queues,
-    const struct nvme_controller_data *cdata)
+prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
+    const struct nvme_discovery_log_entry *dle, const char *hostnqn,
+    struct nvmf_qpair *admin_qp, u_int num_queues,
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	nvlist_t *nvl, *nvl_qp;
+	const struct nvmf_association *na = admin_qp->nq_association;
+	nvlist_t *nvl, *nvl_qp, *nvl_rparams;
 	u_int i;
 	int error;
 
 	if (num_queues == 0)
+		return (EINVAL);
+
+	/* Ensure trtype matches. */
+	if (dle->trtype != na->na_trtype)
 		return (EINVAL);
 
 	/* All queue pairs must be idle. */
@@ -786,9 +813,35 @@ prepare_queues_for_handoff(struct nvmf_ioc_nv *nv, struct nvmf_qpair *admin_qp,
 			return (EBUSY);
 	}
 
+	/* Fill out reconnect parameters. */
+	nvl_rparams = nvlist_create(0);
+	nvlist_add_binary(nvl_rparams, "dle", dle, sizeof(*dle));
+	nvlist_add_string(nvl_rparams, "hostnqn", hostnqn);
+	nvlist_add_number(nvl_rparams, "num_io_queues", num_queues);
+	nvlist_add_number(nvl_rparams, "kato", admin_qp->nq_kato);
+	nvlist_add_number(nvl_rparams, "io_qsize", io_queues[0]->nq_qsize);
+	nvlist_add_bool(nvl_rparams, "sq_flow_control",
+	    na->na_params.sq_flow_control);
+	switch (na->na_trtype) {
+	case NVMF_TRTYPE_TCP:
+		nvlist_add_bool(nvl_rparams, "header_digests",
+		    na->na_params.tcp.header_digests);
+		nvlist_add_bool(nvl_rparams, "data_digests",
+		    na->na_params.tcp.data_digests);
+		break;
+	default:
+		__unreachable();
+	}
+	error = nvlist_error(nvl_rparams);
+	if (error != 0) {
+		nvlist_destroy(nvl_rparams);
+		return (error);
+	}
+
 	nvl = nvlist_create(0);
-	nvlist_add_number(nvl, "trtype", admin_qp->nq_association->na_trtype);
+	nvlist_add_number(nvl, "trtype", na->na_trtype);
 	nvlist_add_number(nvl, "kato", admin_qp->nq_kato);
+	nvlist_move_nvlist(nvl, "rparams", nvl_rparams);
 
 	/* First, the admin queue. */
 	error = nvmf_kernel_handoff_params(admin_qp, &nvl_qp);
@@ -816,7 +869,8 @@ prepare_queues_for_handoff(struct nvmf_ioc_nv *nv, struct nvmf_qpair *admin_qp,
 }
 
 int
-nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
+nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
 	struct nvmf_ioc_nv nv;
@@ -829,8 +883,8 @@ nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
 		goto out;
 	}
 
-	error = prepare_queues_for_handoff(&nv, admin_qp, num_queues, io_queues,
-	    cdata);
+	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
+	    num_queues, io_queues, cdata);
 	if (error != 0)
 		goto out;
 
@@ -924,15 +978,16 @@ nvmf_reconnect_params(int fd, nvlist_t **nvlp)
 }
 
 int
-nvmf_reconnect_host(int fd, struct nvmf_qpair *admin_qp, u_int num_queues,
+nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
 	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error;
 
-	error = prepare_queues_for_handoff(&nv, admin_qp, num_queues, io_queues,
-	    cdata);
+	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
+	    num_queues, io_queues, cdata);
 	if (error != 0)
 		goto out;
 

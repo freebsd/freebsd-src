@@ -71,13 +71,23 @@ struct nvmf_ioc_nv {
  * qpair handoff nvlist		admin
  * qpair handoff nvlist array	io
  * binary			cdata	struct nvme_controller_data
+ * NVMF_RECONNECT_PARAMS nvlist	rparams
  */
 
 /*
  * The fields in the nvlist for NVMF_RECONNECT_PARAMS are:
  *
- * number			cntlid
- * string			subnqn
+ * binary			dle	struct nvme_discovery_log_entry
+ * string			hostnqn
+ * number			num_io_queues
+ * number			kato	(optional)
+ * number			io_qsize
+ * bool				sq_flow_control
+ *
+ * TCP transport:
+ *
+ * bool				header_digests
+ * bool				data_digests
  */
 
 /*
