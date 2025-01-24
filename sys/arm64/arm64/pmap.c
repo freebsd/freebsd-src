@@ -355,7 +355,7 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
-static bool pmap_lpa_enabled __read_mostly = false;
+bool pmap_lpa_enabled __read_mostly = false;
 pt_entry_t pmap_sh_attr __read_mostly = ATTR_SH(ATTR_SH_IS);
 
 #if PAGE_SIZE == PAGE_SIZE_4K

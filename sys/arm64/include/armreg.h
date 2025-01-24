@@ -2066,7 +2066,7 @@
 #define	PAR_NS_SHIFT		9
 #define	PAR_NS_MASK		(0x3 << PAR_NS_SHIFT)
 #define	PAR_PA_SHIFT		12
-#define	PAR_PA_MASK		0x0000fffffffff000
+#define	PAR_PA_MASK		0x000ffffffffff000
 #define	PAR_ATTR_SHIFT		56
 #define	PAR_ATTR_MASK		(0xff << PAR_ATTR_SHIFT)
 /* When PAR_F == 1 (aborted) */

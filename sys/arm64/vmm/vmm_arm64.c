@@ -381,8 +381,6 @@ vmmops_modinit(int ipinum)
 	 * shareable
 	 */
 	el2_regs.vtcr_el2 = VTCR_EL2_RES1;
-	el2_regs.vtcr_el2 |=
-	    min(pa_range_bits << VTCR_EL2_PS_SHIFT, VTCR_EL2_PS_48BIT);
 	el2_regs.vtcr_el2 |= VTCR_EL2_IRGN0_WBWA | VTCR_EL2_ORGN0_WBWA;
 	el2_regs.vtcr_el2 |= VTCR_EL2_T0SZ(64 - vmm_virt_bits);
 	el2_regs.vtcr_el2 |= vmm_vtcr_el2_sl(vmm_pmap_levels);
@@ -402,8 +400,14 @@ vmmops_modinit(int ipinum)
 	 * the shareability field changes to become address bits when this
 	 * is set.
 	 */
-	if ((READ_SPECIALREG(tcr_el1) & TCR_DS) != 0)
+	if ((READ_SPECIALREG(tcr_el1) & TCR_DS) != 0) {
 		el2_regs.vtcr_el2 |= VTCR_EL2_DS;
+		el2_regs.vtcr_el2 |=
+		    min(pa_range_bits << VTCR_EL2_PS_SHIFT, VTCR_EL2_PS_52BIT);
+	} else {
+		el2_regs.vtcr_el2 |=
+		    min(pa_range_bits << VTCR_EL2_PS_SHIFT, VTCR_EL2_PS_48BIT);
+	}
 
 	smp_rendezvous(NULL, arm_setup_vectors, NULL, &el2_regs);
 
