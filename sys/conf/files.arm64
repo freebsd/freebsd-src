@@ -421,6 +421,7 @@ dev/pci/pci_dw_if.m				optional pci fdt
 
 dev/psci/psci.c					standard
 dev/psci/smccc_arm64.S				standard
+dev/psci/smccc_errata.c				standard
 dev/psci/smccc_trng.c				standard
 dev/psci/smccc.c				standard
 
