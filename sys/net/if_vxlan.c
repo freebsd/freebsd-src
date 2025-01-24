@@ -420,7 +420,8 @@ static struct mtx vxlan_list_mtx;
 #define VXLAN_LIST_LOCK()	mtx_lock(&vxlan_list_mtx)
 #define VXLAN_LIST_UNLOCK()	mtx_unlock(&vxlan_list_mtx)
 
-static LIST_HEAD(, vxlan_socket) vxlan_socket_list;
+static LIST_HEAD(, vxlan_socket) vxlan_socket_list =
+    LIST_HEAD_INITIALIZER(vxlan_socket_list);
 
 static eventhandler_tag vxlan_ifdetach_event_tag;
 
@@ -3610,11 +3611,9 @@ vxlan_tunable_int(struct vxlan_softc *sc, const char *knob, int def)
 static void
 vxlan_ifdetach_event(void *arg __unused, struct ifnet *ifp)
 {
-	struct vxlan_softc_head list;
+	struct vxlan_softc_head list = LIST_HEAD_INITIALIZER(list);
 	struct vxlan_socket *vso;
 	struct vxlan_softc *sc, *tsc;
-
-	LIST_INIT(&list);
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
@@ -3643,7 +3642,6 @@ vxlan_load(void)
 {
 
 	mtx_init(&vxlan_list_mtx, "vxlan list", NULL, MTX_DEF);
-	LIST_INIT(&vxlan_socket_list);
 	vxlan_ifdetach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    vxlan_ifdetach_event, NULL, EVENTHANDLER_PRI_ANY);
 
