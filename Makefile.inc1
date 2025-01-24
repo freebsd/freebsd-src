@@ -1469,7 +1469,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE} >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/${TESTSBASE} >/dev/null
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug${TESTSBASE} >/dev/null
 .endif
 .endif
 .if defined(NO_ROOT)
