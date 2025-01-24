@@ -42,6 +42,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -75,6 +76,8 @@ SYSCTL_INT(_machdep_cache, OID_AUTO, allow_dic, CTLFLAG_RDTUN, &allow_dic, 0,
 static int allow_idc = 1;
 SYSCTL_INT(_machdep_cache, OID_AUTO, allow_idc, CTLFLAG_RDTUN, &allow_idc, 0,
     "Allow optimizations based on the IDC cache bit");
+
+static bool emulate_ctr = false;
 
 static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
     struct cpu_desc *prev_desc);
@@ -2076,6 +2079,8 @@ static const struct mrs_user_reg user_regs[] = {
 
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
+	USER_REG(CTR_EL0, ctr, true),
+
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5, false),
 
@@ -2086,6 +2091,143 @@ static const struct mrs_user_reg user_regs[] = {
 
 #define	CPU_DESC_FIELD(desc, idx)					\
     *(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
+
+static bool
+user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
+{
+	/* Skip non-Neoverse-N1 */
+	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
+	    CPU_PART_NEOVERSE_N1, 0, 0))
+		return (false);
+
+	switch (CPU_VAR(midr)) {
+	default:
+		break;
+	case 4:
+		/* Fixed in r4p1 */
+		if (CPU_REV(midr) > 0)
+			break;
+		/* FALLTHROUGH */
+	case 3:
+		/* If DIC is enabled (coherent icache) then we are affected */
+		return (CTR_DIC_VAL(ctr) != 0);
+	}
+
+	return (false);
+}
+
+static bool
+user_ctr_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	if (emulate_ctr)
+		return (true);
+
+	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0)))
+		return (true);
+
+	return (false);
+}
+
+static bool
+user_ctr_has_errata(const struct cpu_feat *feat __unused, u_int midr,
+    u_int **errata_list, u_int *errata_count)
+{
+	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0))) {
+		static u_int errata_id = 1542419;
+
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
+	}
+
+	return (false);
+}
+
+static void
+user_ctr_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list, u_int errata_count)
+{
+	MPASS(emulate_ctr || errata_status != ERRATA_NONE);
+
+	/*
+	 * The Errata Management Firmware Interface may incorrectly mark
+	 * this as firmware mitigated. We should ignore that as there is
+	 * a kernel component to the mitigation.
+	 */
+	if (errata_status != ERRATA_NONE && PCPU_GET(cpuid) == 0 &&
+	    cpu_feat_has_erratum(errata_list, errata_count, 1542419)) {
+		/* Clear fields we will change */
+		user_cpu_desc.ctr &= ~(CTR_DIC_MASK | CTR_ILINE_WIDTH);
+
+		/*
+		 * Set DIC to none so userspace will execute an 'ic ivau'
+		 * instruction that can be trapped by EL3.
+		 */
+		user_cpu_desc.ctr |= CTR_DIC_NONE;
+		/*
+		 * Set the i-cache line size to be page size to reduce the
+		 * number of times userspace needs to execute the 'ic ivau'
+		 * instruction. The ctr_el0.IminLine is log2 the number of
+		 * 4-byte words the instruction covers. As PAGE_SHIFT is log2
+		 * of the number of bytes in a page we need to subtract 2.
+		 */
+		user_cpu_desc.ctr |= (PAGE_SHIFT - 2) << CTR_ILINE_SHIFT;
+
+		l_user_cpu_desc.ctr = user_cpu_desc.ctr;
+	}
+
+	WRITE_SPECIALREG(sctlr_el1,
+	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_UCT);
+	isb();
+}
+
+static struct cpu_feat user_ctr = {
+	.feat_name		= "Trap CTR_EL0",
+	.feat_check		= user_ctr_check,
+	.feat_has_errata	= user_ctr_has_errata,
+	.feat_enable		= user_ctr_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, user_ctr);
+
+static int
+user_ctr_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
+    uint32_t esr)
+{
+	uint64_t value;
+	int reg;
+
+	if ((insn & MRS_MASK) != MRS_VALUE)
+		return (0);
+
+	/* Check if this is the ctr_el0 register */
+	/* TODO: Add macros to armreg.h */
+	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 3 || mrs_CRn(insn) != 0 ||
+	    mrs_CRm(insn) != 0 || mrs_Op2(insn) != 1)
+		return (0);
+
+	if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+		value = user_cpu_desc.ctr;
+	else
+		value = l_user_cpu_desc.ctr;
+	/*
+	 * We will handle this instruction, move to the next so we
+	 * don't trap here again.
+	 */
+	frame->tf_elr += INSN_SIZE;
+
+	reg = MRS_REGISTER(insn);
+	/* If reg is 31 then write to xzr, i.e. do nothing */
+	if (reg == 31)
+		return (1);
+
+	if (reg < nitems(frame->tf_x))
+		frame->tf_x[reg] = value;
+	else if (reg == 30)
+		frame->tf_lr = value;
+
+	return (1);
+}
 
 static int
 user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
@@ -2497,6 +2639,7 @@ identify_cpu_sysinit(void *dummy __unused)
 		panic("CPU does not support LSE atomic instructions");
 #endif
 
+	install_undef_handler(true, user_ctr_handler);
 	install_undef_handler(true, user_mrs_handler);
 }
 SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
@@ -3029,6 +3172,12 @@ check_cpu_regs(u_int cpu, struct cpu_desc *desc, struct cpu_desc *prev_desc)
 	}
 
 	if (desc->ctr != prev_desc->ctr) {
+		/*
+		 * If the cache is different on different cores we should
+		 * emulate for userspace to provide a uniform value
+		 */
+		emulate_ctr = true;
+
 		/*
 		 * If the cache type register is different we may
 		 * have a different l1 cache type.
