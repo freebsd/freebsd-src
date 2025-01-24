@@ -173,34 +173,42 @@ SYSINIT(ssp_warn, SI_SUB_COPYRIGHT, SI_ORDER_ANY, print_ssp_warning, NULL);
 SYSINIT(ssp_warn2, SI_SUB_LAST, SI_ORDER_ANY, print_ssp_warning, NULL);
 #endif
 
-static void
-pan_setup(void)
+static bool
+pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mfr1;
 
 	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
-		has_pan = 1;
+	return (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE);
 }
 
-void
-pan_enable(void)
+static void
+pan_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
+    u_int errata_count __unused)
 {
+	has_pan = 1;
 
 	/*
 	 * This sets the PAN bit, stopping the kernel from accessing
 	 * memory when userspace can also access it unless the kernel
 	 * uses the userspace load/store instructions.
 	 */
-	if (has_pan) {
-		WRITE_SPECIALREG(sctlr_el1,
-		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
-		__asm __volatile(
-		    ".arch_extension pan	\n"
-		    "msr pan, #1		\n"
-		    ".arch_extension nopan	\n");
-	}
+	WRITE_SPECIALREG(sctlr_el1,
+	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
+	__asm __volatile(
+	    ".arch_extension pan	\n"
+	    "msr pan, #1		\n"
+	    ".arch_extension nopan	\n");
 }
+
+static struct cpu_feat feat_pan = {
+	.feat_name		= "FEAT_PAN",
+	.feat_check		= pan_check,
+	.feat_enable		= pan_enable,
+	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, feat_pan);
 
 bool
 has_hyp(void)
@@ -964,7 +972,6 @@ initarm(struct arm64_bootparams *abp)
 	init_param1();
 
 	cache_setup();
-	pan_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(lastaddr - KERNBASE);
@@ -1029,7 +1036,6 @@ initarm(struct arm64_bootparams *abp)
 	if ((boothowto & RB_KDB) != 0)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-	pan_enable();
 
 	kcsan_cpu_init(0);
 	kasan_init();

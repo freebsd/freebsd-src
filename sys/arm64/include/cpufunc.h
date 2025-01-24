@@ -41,8 +41,6 @@ breakpoint(void)
 #ifdef _KERNEL
 #include <machine/armreg.h>
 
-void pan_enable(void);
-
 static __inline register_t
 dbg_disable(void)
 {
