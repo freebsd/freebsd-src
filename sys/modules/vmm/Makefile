@@ -45,11 +45,11 @@ CLEANFILES+=	vmm_nvhe_exception.o vmm_nvhe.o
 CLEANFILES+=	vmm_hyp_blob.elf.full
 CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 
-vmm_nvhe_exception.o: vmm_nvhe_exception.S
+vmm_nvhe_exception.o: vmm_nvhe_exception.S vmm_hyp_exception.S
 	${CC} -c -x assembler-with-cpp -DLOCORE \
 	    ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} -o ${.TARGET} -fpie
 
-vmm_nvhe.o: vmm_nvhe.c
+vmm_nvhe.o: vmm_nvhe.c vmm_hyp.c
 	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} \
 	    -o ${.TARGET} -fpie
 
