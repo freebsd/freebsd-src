@@ -256,7 +256,6 @@ init_secondary(uint64_t cpu)
 #endif
 
 	dbg_init();
-	pan_enable();
 
 	mtx_lock_spin(&ap_boot_mtx);
 	atomic_add_rel_32(&smp_cpus, 1);
