@@ -2539,8 +2539,8 @@ ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *band,
 static inline uint32_t
 ieee80211_vif_usable_links(const struct ieee80211_vif *vif)
 {
-	TODO();
-	return (1);
+	IMPROVE("MLO usable links likely are not just valid");
+	return (vif->valid_links);
 }
 
 static inline bool
