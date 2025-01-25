@@ -875,6 +875,11 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	if (entry->end == entry->start)
 		return (0);
 
+	/*
+	 * iommu_gas_alloc_region() might clipped the entry start and
+	 * end positions.  Adjust the beginning of the ma array to map
+	 * the pages at the requested relative positions.
+	 */
 	error = domain->ops->map(domain, entry,
 	    ma + OFF_TO_IDX(start - entry->start), eflags,
 	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
