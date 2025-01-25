@@ -2073,12 +2073,40 @@ ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *band,
 	return (NULL);
 }
 
-static __inline const struct ieee80211_sta_eht_cap *
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *band,
+    enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *iftype_data;
+	const struct ieee80211_sta_he_cap *he_cap;
+
+	iftype_data = ieee80211_get_sband_iftype_data(band, iftype);
+	if (iftype_data == NULL)
+		return (NULL);
+
+	he_cap = NULL;
+	if (iftype_data->he_cap.has_he)
+		he_cap = &iftype_data->he_cap;
+
+	return (he_cap);
+}
+
+static inline const struct ieee80211_sta_eht_cap *
 ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *band,
     enum nl80211_iftype iftype)
 {
-	TODO();
-	return (NULL);
+	const struct ieee80211_sband_iftype_data *iftype_data;
+	const struct ieee80211_sta_eht_cap *eht_cap;
+
+	iftype_data = ieee80211_get_sband_iftype_data(band, iftype);
+	if (iftype_data == NULL)
+		return (NULL);
+
+	eht_cap = NULL;
+	if (iftype_data->eht_cap.has_eht)
+		eht_cap = &iftype_data->eht_cap;
+
+	return (eht_cap);
 }
 
 static inline bool
