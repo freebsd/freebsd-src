@@ -2186,15 +2186,6 @@ ieee80211_txq_get_depth(struct ieee80211_txq *txq, unsigned long *frame_cnt,
 	linuxkpi_ieee80211_txq_get_depth(txq, frame_cnt, byte_cnt);
 }
 
-static __inline int
-rate_lowest_index(struct ieee80211_supported_band *band,
-    struct ieee80211_sta *sta)
-{
-	IMPROVE();
-	return (0);
-}
-
-
 static __inline void
 SET_IEEE80211_PERM_ADDR	(struct ieee80211_hw *hw, uint8_t *addr)
 {
