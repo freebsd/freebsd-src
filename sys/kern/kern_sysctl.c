@@ -413,7 +413,7 @@ sysctl_warn_reuse(const char *func, struct sysctl_oid *leaf)
 	(void)sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_set_drain(&sb, sbuf_printf_drain, NULL);
 
-	sbuf_printf(&sb, "%s: can't re-use a leaf (", __func__);
+	sbuf_printf(&sb, "%s: can't re-use a leaf (", func);
 
 	rc = sysctl_search_oid(nodes, leaf);
 	if (rc > 0) {
