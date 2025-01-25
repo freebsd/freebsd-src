@@ -71,6 +71,7 @@
 #include <x86/iommu/amd_iommu.h>
 
 static int amdiommu_enable = 0;
+static bool amdiommu_running = false;
 
 /*
  * All enumerated AMD IOMMU units.
@@ -555,6 +556,7 @@ amdiommu_attach(device_t dev)
 	AMDIOMMU_UNLOCK(sc);
 
 	TAILQ_INSERT_TAIL(&amdiommu_units, sc, unit_next);
+	amdiommu_running = true;
 	return (0);
 
 errout8:
@@ -616,6 +618,12 @@ static driver_t	amdiommu_driver = {
 
 EARLY_DRIVER_MODULE(amdiommu, pci, amdiommu_driver, 0, 0, BUS_PASS_SUPPORTDEV);
 MODULE_DEPEND(amdiommu, pci, 1, 1, 1);
+
+int
+amdiommu_is_running(void)
+{
+	return (amdiommu_running ? 0 : ENXIO);
+}
 
 static struct amdiommu_unit *
 amdiommu_unit_by_device_id(u_int pci_seg, u_int device_id)

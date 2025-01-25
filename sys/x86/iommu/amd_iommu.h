@@ -239,4 +239,6 @@ int amdiommu_domain_alloc_pgtbl(struct amdiommu_domain *domain);
 void amdiommu_domain_free_pgtbl(struct amdiommu_domain *domain);
 extern const struct iommu_domain_map_ops amdiommu_domain_map_ops;
 
+int amdiommu_is_running(void);
+
 #endif
