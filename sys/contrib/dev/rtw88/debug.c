@@ -1223,7 +1223,11 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 {
 	struct dentry *debugfs_topdir;
 
+#if defined(__linux__)
 	debugfs_topdir = debugfs_create_dir("rtw88",
+#elif defined(__FreeBSD__)
+	debugfs_topdir = debugfs_create_dir(dev_name(rtwdev->dev),
+#endif
 					    rtwdev->hw->wiphy->debugfsdir);
 	rtw_debugfs_add_w(write_reg);
 	rtw_debugfs_add_rw(read_reg);
