@@ -126,6 +126,8 @@ struct lkpi_radiotap_rx_hdr {
 	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
 	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE))
 
+struct lkpi_hw;
+
 struct lkpi_txq {
 	TAILQ_ENTRY(lkpi_txq)	txq_entry;
 
@@ -142,8 +144,9 @@ struct lkpi_txq {
 
 
 struct lkpi_sta {
-        TAILQ_ENTRY(lkpi_sta)	lsta_entry;
+	struct list_head	lsta_list;
 	struct ieee80211_node	*ni;
+	struct ieee80211_hw	*hw;		/* back pointer f. locking. */
 
 	/* Deferred TX path. */
 	/* Eventually we might want to migrate this into net80211 entirely. */
@@ -164,6 +167,7 @@ struct lkpi_sta {
 #define	STA_TO_LSTA(_sta)	container_of(_sta, struct lkpi_sta, sta)
 #define	LSTA_TO_STA(_lsta)	(&(_lsta)->sta)
 
+/* Either protected by wiphy lock or rcu for the list. */
 struct lkpi_vif {
         TAILQ_ENTRY(lkpi_vif)	lvif_entry;
 	struct ieee80211vap	iv_vap;
@@ -179,7 +183,8 @@ struct lkpi_vif {
 				    enum ieee80211_state, int);
 	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
 				    struct ieee80211_node *);
-	TAILQ_HEAD(, lkpi_sta)	lsta_head;
+	struct list_head	lsta_list;
+
 	struct lkpi_sta		*lvif_bss;
 	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
