@@ -58,7 +58,7 @@ struct policyqueue {
 	struct in6_addrpolicy pc_policy;
 };
 TAILQ_HEAD(policyhead, policyqueue);
-static struct policyhead policyhead;
+static struct policyhead policyhead = TAILQ_HEAD_INITIALIZER(policyhead);
 
 static void usage(void);
 static void get_policy(void);
@@ -75,8 +75,6 @@ static void flush_policy(void);
 int
 main(int argc, char *argv[])
 {
-	TAILQ_INIT(&policyhead);
-
 	if (argc == 1 || strcasecmp(argv[1], "show") == 0) {
 		get_policy();
 		dump_policy();
