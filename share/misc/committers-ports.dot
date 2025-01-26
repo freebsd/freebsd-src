@@ -35,6 +35,7 @@ alonso [label="Alonso Schaich\nalonso@FreeBSD.org\n2014/08/14\n2017/08/07"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11\n2011/01/14"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26\n2020/11/03"]
 asami [label="Satoshi Asami\nasami@FreeBSD.org\n1994/11/18\n2001/09/11"]
+ashafer [label="Austin Shafer\nashafer@FreeBSD.org\n2025/01/26"]
 avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24\n2018/10/01"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27\n2013/12/02"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03\n2019/11/04"]
@@ -545,6 +546,8 @@ jrm -> jwb
 jrm -> michaelo
 
 junovitch -> tz
+
+kbowling -> ashafer
 
 kmoore -> jhixson
 
