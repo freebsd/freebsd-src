@@ -413,7 +413,7 @@ enum ieee80211_tx_info_flags {
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(18),
 	IEEE80211_TX_CTL_LDPC			= BIT(19),
 	IEEE80211_TX_CTL_STBC			= BIT(20),
-};
+} __packed;
 
 enum ieee80211_tx_status_flags {
 	IEEE80211_TX_STATUS_ACK_SIGNAL_VALID	= BIT(0),

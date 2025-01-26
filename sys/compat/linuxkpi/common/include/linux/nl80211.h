@@ -133,7 +133,7 @@ enum nl80211_band {
 
 	/* Keep this last. */
 	NUM_NL80211_BANDS
-};
+} __packed;
 
 enum nl80211_chan_flags {
 	/* XXX TODO */
