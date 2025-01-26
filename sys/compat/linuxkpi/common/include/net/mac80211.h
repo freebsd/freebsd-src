@@ -879,11 +879,11 @@ struct ieee80211_prep_tx_info {
 /* XXX-BZ too big, over-reduce size to u8, and array sizes to minuimum to fit in skb->cb. */
 /* Also warning: some sizes change by pointer size!  This is 64bit only. */
 struct ieee80211_tx_info {
-	enum ieee80211_tx_info_flags		flags;
+	enum ieee80211_tx_info_flags		flags;		/* 32 bits */
 	/* TODO FIXME */
-	u8		band;
-	u8		hw_queue;
-	bool		tx_time_est;
+	enum nl80211_band			band;		/* 3 bits */
+	uint16_t	hw_queue:4,				/* 4 bits */
+			tx_time_est:10;				/* 10 bits */
 	union {
 		struct {
 			struct ieee80211_tx_rate	rates[4];
