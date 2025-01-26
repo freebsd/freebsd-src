@@ -906,7 +906,7 @@ zfs_create_diskpart()
 			fi
 		fi
 
-		# NB: ZFS pool will use `zfs#' GPT labels
+		# NB: ZFS pools will use `zfs#' GPT labels
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
 			if [ "$ZFSBOOT_BOOT_POOL" ]; then
 				bootpart=p3 swappart=p4 targetpart=p4
