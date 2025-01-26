@@ -1284,7 +1284,7 @@ pqisrc_calc_disk_params(pqisrc_softstate_t *softs, aio_req_locator_t *l,  rcb_t 
 	return true;
 }
 
-/* Not AIO-eligible if it isnt' a single row/column. */
+/* Not AIO-eligible if it isn't a single row/column. */
 static inline boolean_t
 pqisrc_is_single_row_column(pqisrc_softstate_t *softs, aio_req_locator_t *l)
 {
