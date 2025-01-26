@@ -1373,7 +1373,7 @@ startbgscan(struct ieee80211vap *vap)
 /*
  * Compare two quiet IEs and return if they are equivalent.
  *
- * The tbttcount isnt checked - that's not part of the configuration.
+ * The tbttcount isn't checked - that's not part of the configuration.
  */
 static int
 compare_quiet_ie(const struct ieee80211_quiet_ie *q1,
