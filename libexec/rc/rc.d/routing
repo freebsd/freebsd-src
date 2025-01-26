@@ -110,14 +110,14 @@ setroutes()
 
 routing_stop_inet()
 {
-	${ROUTE_CMD} -n flush -inet
+	${ROUTE_CMD} -n ${routing_flags} flush -inet
 }
 
 routing_stop_inet6()
 {
 	local i
 
-	${ROUTE_CMD} -n flush -inet6
+	${ROUTE_CMD} -n ${routing_flags} flush -inet6
 	for i in `list_net_interfaces`; do
 		if ipv6if $i; then
 			ifconfig $i inet6 -defaultif
@@ -190,7 +190,7 @@ static_inet()
 			if [ $_skip = 0 ]; then
 				route_args=`get_if_var ${i%:*} route_IF`
 				if [ -n "$route_args" ]; then
-					${ROUTE_CMD} ${_action} ${route_args}
+					${ROUTE_CMD} ${routing_flags} ${_action} ${route_args}
 				else
 					warn "route_${i%:*} not found."
 				fi
@@ -267,7 +267,7 @@ static_inet6()
 			if [ $_skip = 0 ]; then
 				ipv6_route_args=`get_if_var ${i%:*} ipv6_route_IF`
 				if [ -n "$ipv6_route_args" ]; then
-					${ROUTE_CMD} ${_action} \
+					${ROUTE_CMD} ${routing_flags} ${_action} \
 						-inet6 ${ipv6_route_args}
 				else
 					warn "route_${i%:*} not found"
