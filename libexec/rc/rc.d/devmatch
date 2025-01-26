@@ -74,8 +74,12 @@ devmatch_start()
 		case "${x}" in
 		*"#${m}#"*) continue ;;
 		esac
-		kldstat -q -n ${m} || \
-		    (echo "Autoloading module: ${m}"; kldload -n ${m})
+		if checkyesno devmatch_autoloading_msgs; then
+			kldstat -q -n ${m} || \
+			    (echo "Autoloading module: ${m}"; kldload -n ${m})
+	        else
+			kldstat -q -n ${m} || (kldload -n ${m})
+		fi
 	done
 	devctl thaw
 }
