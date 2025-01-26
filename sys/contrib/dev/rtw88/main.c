@@ -46,6 +46,16 @@ MODULE_PARM_DESC(disable_lps_deep, "Set Y to disable Deep PS");
 MODULE_PARM_DESC(support_bf, "Set Y to enable beamformee support");
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+#if defined(__FreeBSD__)
+static bool rtw_ht_support = false;
+module_param_named(support_ht, rtw_ht_support, bool, 0644);
+MODULE_PARM_DESC(support_ht, "Set to Y to enable HT support");
+
+static bool rtw_vht_support = false;
+module_param_named(support_vht, rtw_vht_support, bool, 0644);
+MODULE_PARM_DESC(support_vht, "Set to Y to enable VHT support");
+#endif
+
 static struct ieee80211_channel rtw_channeltable_2g[] = {
 	{.center_freq = 2412, .hw_value = 1,},
 	{.center_freq = 2417, .hw_value = 2,},
@@ -1666,7 +1676,11 @@ static void rtw_set_supported_band(struct ieee80211_hw *hw,
 		sband = kmemdup(&rtw_band_2ghz, sizeof(*sband), GFP_KERNEL);
 		if (!sband)
 			goto err_out;
+#if defined(__linux__)
 		if (chip->ht_supported)
+#elif defined(__FreeBSD__)
+		if (rtw_ht_support && chip->ht_supported)
+#endif
 			rtw_init_ht_cap(rtwdev, &sband->ht_cap);
 		hw->wiphy->bands[NL80211_BAND_2GHZ] = sband;
 	}
@@ -1675,9 +1689,17 @@ static void rtw_set_supported_band(struct ieee80211_hw *hw,
 		sband = kmemdup(&rtw_band_5ghz, sizeof(*sband), GFP_KERNEL);
 		if (!sband)
 			goto err_out;
+#if defined(__linux__)
 		if (chip->ht_supported)
+#elif defined(__FreeBSD__)
+		if (rtw_ht_support && chip->ht_supported)
+#endif
 			rtw_init_ht_cap(rtwdev, &sband->ht_cap);
+#if defined(__linux__)
 		if (chip->vht_supported)
+#elif defined(__FreeBSD__)
+		if (rtw_vht_support && chip->vht_supported)
+#endif
 			rtw_init_vht_cap(rtwdev, &sband->vht_cap);
 		hw->wiphy->bands[NL80211_BAND_5GHZ] = sband;
 	}
