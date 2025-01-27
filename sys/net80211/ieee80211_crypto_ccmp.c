@@ -602,6 +602,7 @@ done:
 static int
 ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct ccmp_ctx *ctx = key->wk_private;
 	struct ieee80211vap *vap = ctx->cc_vap;
 	struct ieee80211_frame *wh;
@@ -612,6 +613,10 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 	int i;
 	uint8_t *pos;
 	u_int space;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED) != 0)
+		return (1);
 
 	ctx->cc_vap->iv_stats.is_crypto_ccmp++;
 
@@ -675,6 +680,14 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 			space = m->m_len;
 		}
 	}
+
+	/*
+	 * If the MIC (we use MMIC despite not being Micheal) was stripped
+	 * by HW/driver we are done.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) != 0)
+		return (1);
+
 	if (memcmp(mic, a, ccmp.ic_trailer) != 0) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "%s", "AES-CCM decrypt failed; MIC mismatch");
