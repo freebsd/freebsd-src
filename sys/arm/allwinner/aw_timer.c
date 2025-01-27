@@ -85,51 +85,51 @@
 
 #define	SYS_TIMER_CLKSRC	24000000 /* clock source */
 
-enum a10_timer_type {
+enum aw_timer_type {
 	A10_TIMER = 1,
 	A23_TIMER,
 };
 
-struct a10_timer_softc {
+struct aw_timer_softc {
 	device_t 	sc_dev;
 	struct resource *res[2];
 	void 		*sc_ih;		/* interrupt handler */
 	uint32_t 	sc_period;
 	uint64_t 	timer0_freq;
 	struct eventtimer	et;
-	enum a10_timer_type	type;
+	enum aw_timer_type	type;
 };
 
 #define timer_read_4(sc, reg)	\
-	bus_read_4(sc->res[A10_TIMER_MEMRES], reg)
+	bus_read_4(sc->res[AW_TIMER_MEMRES], reg)
 #define timer_write_4(sc, reg, val)	\
-	bus_write_4(sc->res[A10_TIMER_MEMRES], reg, val)
+	bus_write_4(sc->res[AW_TIMER_MEMRES], reg, val)
 
 #if defined(__arm__)
 static u_int	a10_timer_get_timecount(struct timecounter *);
-static uint64_t	a10_timer_read_counter64(struct a10_timer_softc *sc);
-static void	a10_timer_timecounter_setup(struct a10_timer_softc *sc);
+static uint64_t	a10_timer_read_counter64(struct aw_timer_softc *sc);
+static void	a10_timer_timecounter_setup(struct aw_timer_softc *sc);
 
-static void	a10_timer_eventtimer_setup(struct a10_timer_softc *sc);
-static int	a10_timer_timer_start(struct eventtimer *,
-    sbintime_t first, sbintime_t period);
-static int	a10_timer_timer_stop(struct eventtimer *);
+static void	aw_timer_eventtimer_setup(struct aw_timer_softc *sc);
+static int	aw_timer_eventtimer_start(struct eventtimer *, sbintime_t first,
+		    sbintime_t period);
+static int	aw_timer_eventtimer_stop(struct eventtimer *);
 #endif
 
 #if defined(__aarch64__)
-static void a23_timer_timecounter_setup(struct a10_timer_softc *sc);
+static void a23_timer_timecounter_setup(struct aw_timer_softc *sc);
 static u_int a23_timer_get_timecount(struct timecounter *tc);
 #endif
 
-static int a10_timer_irq(void *);
-static int a10_timer_probe(device_t);
-static int a10_timer_attach(device_t);
+static int aw_timer_irq(void *);
+static int aw_timer_probe(device_t);
+static int aw_timer_attach(device_t);
 
 #if defined(__arm__)
 static delay_func a10_timer_delay;
 
 static struct timecounter a10_timer_timecounter = {
-	.tc_name           = "a10_timer timer0",
+	.tc_name           = "aw_timer timer0",
 	.tc_get_timecount  = a10_timer_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
@@ -139,7 +139,7 @@ static struct timecounter a10_timer_timecounter = {
 
 #if defined(__aarch64__)
 static struct timecounter a23_timer_timecounter = {
-	.tc_name           = "a10_timer timer0",
+	.tc_name           = "aw_timer timer0",
 	.tc_get_timecount  = a23_timer_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
@@ -148,10 +148,10 @@ static struct timecounter a23_timer_timecounter = {
 };
 #endif
 
-#define	A10_TIMER_MEMRES		0
-#define	A10_TIMER_IRQRES		1
+#define	AW_TIMER_MEMRES		0
+#define	AW_TIMER_IRQRES		1
 
-static struct resource_spec a10_timer_spec[] = {
+static struct resource_spec aw_timer_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
@@ -166,7 +166,7 @@ static struct ofw_compat_data compat_data[] = {
 };
 
 static int
-a10_timer_probe(device_t dev)
+aw_timer_probe(device_t dev)
 {
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
@@ -184,16 +184,16 @@ a10_timer_probe(device_t dev)
 }
 
 static int
-a10_timer_attach(device_t dev)
+aw_timer_attach(device_t dev)
 {
-	struct a10_timer_softc *sc;
+	struct aw_timer_softc *sc;
 	clk_t clk;
 	int err;
 
 	sc = device_get_softc(dev);
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
-	if (bus_alloc_resources(dev, a10_timer_spec, sc->res)) {
+	if (bus_alloc_resources(dev, aw_timer_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
@@ -201,10 +201,10 @@ a10_timer_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	/* Setup and enable the timer interrupt */
-	err = bus_setup_intr(dev, sc->res[A10_TIMER_IRQRES], INTR_TYPE_CLK,
-	    a10_timer_irq, NULL, sc, &sc->sc_ih);
+	err = bus_setup_intr(dev, sc->res[AW_TIMER_IRQRES], INTR_TYPE_CLK,
+	    aw_timer_irq, NULL, sc, &sc->sc_ih);
 	if (err != 0) {
-		bus_release_resources(dev, a10_timer_spec, sc->res);
+		bus_release_resources(dev, aw_timer_spec, sc->res);
 		device_printf(dev, "Unable to setup the clock irq handler, "
 		    "err = %d\n", err);
 		return (ENXIO);
@@ -225,7 +225,7 @@ a10_timer_attach(device_t dev)
 	}
 
 #if defined(__arm__)
-	a10_timer_eventtimer_setup(sc);
+	aw_timer_eventtimer_setup(sc);
 	a10_timer_timecounter_setup(sc);
 #elif defined(__aarch64__)
 	a23_timer_timecounter_setup(sc);
@@ -235,12 +235,12 @@ a10_timer_attach(device_t dev)
 }
 
 static int
-a10_timer_irq(void *arg)
+aw_timer_irq(void *arg)
 {
-	struct a10_timer_softc *sc;
+	struct aw_timer_softc *sc;
 	uint32_t val;
 
-	sc = (struct a10_timer_softc *)arg;
+	sc = (struct aw_timer_softc *)arg;
 
 	/* Clear interrupt pending bit. */
 	timer_write_4(sc, TIMER_IRQ_STA_REG, TIMER_IRQ_PENDING(0));
@@ -274,7 +274,7 @@ a10_timer_irq(void *arg)
 
 #if defined(__arm__)
 static void
-a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
+aw_timer_eventtimer_setup(struct aw_timer_softc *sc)
 {
 	uint32_t val;
 
@@ -291,13 +291,13 @@ a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 
 	/* Set desired frequency in event timer and timecounter */
 	sc->et.et_frequency = sc->timer0_freq;
-	sc->et.et_name = "a10_timer Eventtimer";
+	sc->et.et_name = "aw_timer Eventtimer";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 1000;
 	sc->et.et_min_period = (0x00000005LLU << 32) / sc->et.et_frequency;
 	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
-	sc->et.et_start = a10_timer_timer_start;
-	sc->et.et_stop = a10_timer_timer_stop;
+	sc->et.et_start = aw_timer_eventtimer_start;
+	sc->et.et_stop = aw_timer_eventtimer_stop;
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
@@ -308,14 +308,14 @@ a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 }
 
 static int
-a10_timer_timer_start(struct eventtimer *et, sbintime_t first,
+aw_timer_eventtimer_start(struct eventtimer *et, sbintime_t first,
     sbintime_t period)
 {
-	struct a10_timer_softc *sc;
+	struct aw_timer_softc *sc;
 	uint32_t count;
 	uint32_t val;
 
-	sc = (struct a10_timer_softc *)et->et_priv;
+	sc = (struct aw_timer_softc *)et->et_priv;
 
 	if (period != 0)
 		sc->sc_period = ((uint32_t)et->et_frequency * period) >> 32;
@@ -346,12 +346,12 @@ a10_timer_timer_start(struct eventtimer *et, sbintime_t first,
 }
 
 static int
-a10_timer_timer_stop(struct eventtimer *et)
+aw_timer_eventtimer_stop(struct eventtimer *et)
 {
-	struct a10_timer_softc *sc;
+	struct aw_timer_softc *sc;
 	uint32_t val;
 
-	sc = (struct a10_timer_softc *)et->et_priv;
+	sc = (struct aw_timer_softc *)et->et_priv;
 
 	/* Disable timer0 */
 	val = timer_read_4(sc, TIMER_CTRL_REG(0));
@@ -370,7 +370,7 @@ a10_timer_timer_stop(struct eventtimer *et)
 
 #if defined(__aarch64__)
 static void
-a23_timer_timecounter_setup(struct a10_timer_softc *sc)
+a23_timer_timecounter_setup(struct aw_timer_softc *sc)
 {
 	uint32_t val;
 
@@ -404,10 +404,10 @@ a23_timer_timecounter_setup(struct a10_timer_softc *sc)
 static u_int
 a23_timer_get_timecount(struct timecounter *tc)
 {
-	struct a10_timer_softc *sc;
+	struct aw_timer_softc *sc;
 	uint32_t val;
 
-	sc = (struct a10_timer_softc *)tc->tc_priv;
+	sc = (struct aw_timer_softc *)tc->tc_priv;
 	if (sc == NULL)
 		return (0);
 
@@ -423,7 +423,7 @@ a23_timer_get_timecount(struct timecounter *tc)
 
 #if defined(__arm__)
 static uint64_t
-a10_timer_read_counter64(struct a10_timer_softc *sc)
+a10_timer_read_counter64(struct aw_timer_softc *sc)
 {
 	uint32_t lo, hi;
 
@@ -441,7 +441,7 @@ a10_timer_read_counter64(struct a10_timer_softc *sc)
 static void
 a10_timer_delay(int usec, void *arg)
 {
-	struct a10_timer_softc *sc = arg;
+	struct aw_timer_softc *sc = arg;
 	uint64_t end, now;
 
 	now = a10_timer_read_counter64(sc);
@@ -461,7 +461,7 @@ a10_timer_get_timecount(struct timecounter *tc)
 }
 
 static void
-a10_timer_timecounter_setup(struct a10_timer_softc *sc)
+a10_timer_timecounter_setup(struct aw_timer_softc *sc)
 {
 	arm_set_delay(a10_timer_delay, sc);
 	a10_timer_timecounter.tc_priv = sc;
@@ -475,18 +475,18 @@ a10_timer_timecounter_setup(struct a10_timer_softc *sc)
 }
 #endif /* __arm__ */
 
-static device_method_t a10_timer_methods[] = {
-	DEVMETHOD(device_probe,		a10_timer_probe),
-	DEVMETHOD(device_attach,	a10_timer_attach),
+static device_method_t aw_timer_methods[] = {
+	DEVMETHOD(device_probe,		aw_timer_probe),
+	DEVMETHOD(device_attach,	aw_timer_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t a10_timer_driver = {
-	"a10_timer",
-	a10_timer_methods,
-	sizeof(struct a10_timer_softc),
+static driver_t aw_timer_driver = {
+	"aw_timer",
+	aw_timer_methods,
+	sizeof(struct aw_timer_softc),
 };
 
-EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, 0, 0,
+EARLY_DRIVER_MODULE(aw_timer, simplebus, aw_timer_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);

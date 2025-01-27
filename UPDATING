@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250127:
+	The Allwinner a10_timer driver has been renamed to aw_driver. If you
+	have a custom kernel configuration including the line 'device
+	a10_timer', it must be adjusted to 'device aw_timer'. The same applies
+	for device exclusions with 'nodevice'.
+
 20250106:
 	A new SOC_ROCKCHIP options appeared, so if you have a custom kernel configuration
 	targetting Rockchip SoC you need to add it so shared and mandatory drivers for
