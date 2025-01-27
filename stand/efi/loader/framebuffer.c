@@ -392,6 +392,23 @@ efifb_from_uga(struct efi_fb *efifb)
 			/* These are the missing bits. */
 			offset = 0x0;
 			stride = 2048;
+		} else if (ev != NULL && !strcmp(ev, "MacBookPro3,1")) {
+			/*
+			 * Valid for MacBookPro 17" with standard resolution.
+			 * Other Models are:
+			 *   MacBookPro 15" with horiz=1440
+			 *   MacBookPro 17" with horiz=1920
+			 */
+
+			/* These are the expected values we should have. */
+			if (horiz == 1680) {
+				vert = 1050;
+				fbaddr = 0xc0000000;
+				/* These are the missing bits. */
+				stride = 2048;
+				/* 24 scan lines down */
+				offset = stride * 4 * 24;
+			}
 		}
 	}
 
