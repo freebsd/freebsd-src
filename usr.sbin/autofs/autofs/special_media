@@ -43,7 +43,7 @@ print_map_entry() {
 			echo "-mountprog=/usr/local/sbin/mount.exfat,fstype=${_fstype},sync	:/dev/${_p}"
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
-			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-exfat first"
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install filesystems/exfat first"
 			exit 1
 		fi
 		;;
@@ -52,7 +52,7 @@ print_map_entry() {
 			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},sync	:/dev/${_p}"
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
-			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ntfs first"
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install filesystems/ntfs first"
 			exit 1
 		fi
 		;;

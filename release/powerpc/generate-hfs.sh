@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script generates the dummy HFS filesystem used for the PowerPC boot
-# blocks. It uses hfsutils (emulators/hfsutils) to generate a template
+# blocks. It uses hfsutils (filesystems/hfsutils) to generate a template
 # filesystem with the relevant interesting files. These are then found by
 # grep, and the offsets written to a Makefile snippet.
 #
