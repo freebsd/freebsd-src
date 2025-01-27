@@ -45,7 +45,7 @@
 
 #include <dev/clk/clk.h>
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__riscv)
 #include "opt_soc.h"
 #else
 #include <arm/allwinner/aw_machdep.h>
@@ -88,6 +88,7 @@
 enum aw_timer_type {
 	A10_TIMER = 1,
 	A23_TIMER,
+	D1_TIMER,
 };
 
 struct aw_timer_softc {
@@ -109,7 +110,10 @@ struct aw_timer_softc {
 static u_int	a10_timer_get_timecount(struct timecounter *);
 static uint64_t	a10_timer_read_counter64(struct aw_timer_softc *sc);
 static void	a10_timer_timecounter_setup(struct aw_timer_softc *sc);
+#endif
 
+#if defined(__arm__) || defined(__riscv)
+#define	USE_EVENTTIMER
 static void	aw_timer_eventtimer_setup(struct aw_timer_softc *sc);
 static int	aw_timer_eventtimer_start(struct eventtimer *, sbintime_t first,
 		    sbintime_t period);
@@ -126,6 +130,8 @@ static int aw_timer_probe(device_t);
 static int aw_timer_attach(device_t);
 
 #if defined(__arm__)
+#define	AW_TIMER_QUALITY	1000
+
 static delay_func a10_timer_delay;
 
 static struct timecounter a10_timer_timecounter = {
@@ -133,19 +139,26 @@ static struct timecounter a10_timer_timecounter = {
 	.tc_get_timecount  = a10_timer_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_quality        = AW_TIMER_QUALITY,
 };
 #endif
 
 #if defined(__aarch64__)
+/* We want it to be selected over the arm generic timecounter */
+#define	AW_TIMER_QUALITY	2000
+
 static struct timecounter a23_timer_timecounter = {
 	.tc_name           = "aw_timer timer0",
 	.tc_get_timecount  = a23_timer_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
-	/* We want it to be selected over the arm generic timecounter */
-	.tc_quality        = 2000,
+	.tc_quality        = AW_TIMER_QUALITY,
 };
+#endif
+
+#if defined(__riscv)
+/* We want it to be selected over the generic RISC-V eventtimer */
+#define	AW_TIMER_QUALITY	2000
 #endif
 
 #define	AW_TIMER_MEMRES		0
@@ -161,6 +174,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-timer", A10_TIMER},
 #if defined(__aarch64__)
 	{"allwinner,sun8i-a23-timer", A23_TIMER},
+#elif defined(__riscv)
+	{"allwinner,sun20i-d1-timer", D1_TIMER},
 #endif
 	{NULL, 0},
 };
@@ -224,8 +239,13 @@ aw_timer_attach(device_t dev)
 		    stathz);
 	}
 
-#if defined(__arm__)
+	/* Set up eventtimer (if applicable) */
+#if defined(USE_EVENTTIMER)
 	aw_timer_eventtimer_setup(sc);
+#endif
+
+	/* Set up timercounter (if applicable) */
+#if defined(__arm__)
 	a10_timer_timecounter_setup(sc);
 #elif defined(__aarch64__)
 	a23_timer_timecounter_setup(sc);
@@ -269,10 +289,9 @@ aw_timer_irq(void *arg)
 }
 
 /*
- * Event timer function for A10 and A13
+ * Event timer function for A10, A13, and D1.
  */
-
-#if defined(__arm__)
+#if defined(USE_EVENTTIMER)
 static void
 aw_timer_eventtimer_setup(struct aw_timer_softc *sc)
 {
@@ -293,7 +312,7 @@ aw_timer_eventtimer_setup(struct aw_timer_softc *sc)
 	sc->et.et_frequency = sc->timer0_freq;
 	sc->et.et_name = "aw_timer Eventtimer";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
-	sc->et.et_quality = 1000;
+	sc->et.et_quality = AW_TIMER_QUALITY;
 	sc->et.et_min_period = (0x00000005LLU << 32) / sc->et.et_frequency;
 	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = aw_timer_eventtimer_start;
@@ -362,7 +381,7 @@ aw_timer_eventtimer_stop(struct eventtimer *et)
 
 	return (0);
 }
-#endif /* __arm__ */
+#endif /* USE_EVENTTIMER */
 
 /*
  * Timecounter functions for A23 and above
