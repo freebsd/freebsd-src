@@ -33,7 +33,7 @@
 
 . ../default.cfg
 
-# Uses mke2fs from sysutils/e2fsprogs
+# Uses mke2fs from filesystems/e2fsprogs
 [ -x /usr/local/sbin/mke2fs ] || exit 0
 mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
