@@ -329,22 +329,22 @@ ATOMIC_ACQ_REL(subtract, 64)
 /*
  * We assume that a = b will do atomic loads and stores.
  */
-#define	ATOMIC_STORE_LOAD(WIDTH)			\
-static __inline  uint##WIDTH##_t			\
-atomic_load_acq_##WIDTH(__volatile uint##WIDTH##_t *p)	\
-{							\
-	uint##WIDTH##_t v;				\
-							\
-	v = *p;						\
-	mips_sync();					\
-	return (v);					\
-}							\
-							\
-static __inline  void					\
-atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
-{							\
-	mips_sync();					\
-	*p = v;						\
+#define	ATOMIC_STORE_LOAD(WIDTH)					\
+static __inline  uint##WIDTH##_t					\
+atomic_load_acq_##WIDTH(const __volatile uint##WIDTH##_t *p)		\
+{									\
+	uint##WIDTH##_t v;						\
+									\
+	v = *p;								\
+	mips_sync();							\
+	return (v);							\
+}									\
+									\
+static __inline  void							\
+atomic_store_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v) \
+{									\
+	mips_sync();							\
+	*p = v;								\
 }
 
 ATOMIC_STORE_LOAD(32)
@@ -745,7 +745,7 @@ atomic_thread_fence_seq_cst(void)
 	atomic_fcmpset_rel_32((volatile u_int *)(p), (u_int *)(cmpval),	\
 	    (u_int)(newval))
 #define	atomic_load_acq_long(p)						\
-	(u_long)atomic_load_acq_32((volatile u_int *)(p))
+	(u_long)atomic_load_acq_32((const volatile u_int *)(p))
 #define	atomic_store_rel_long(p, v)					\
 	atomic_store_rel_32((volatile u_int *)(p), (u_int)(v))
 #define	atomic_fetchadd_long(p, v)					\
