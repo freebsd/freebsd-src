@@ -377,11 +377,69 @@ ATF_TC_BODY(concurrent_add, tc)
 	}
 }
 
+/*
+ * Try calling listen(2) twice on a socket with SO_REUSEPORT_LB set.
+ */
+ATF_TC_WITHOUT_HEAD(double_listen_ipv4);
+ATF_TC_BODY(double_listen_ipv4, tc)
+{
+	struct sockaddr_in sin;
+	int error, s;
+
+	s = lb_listen_socket(PF_INET, 0);
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(0);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	error = bind(s, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = listen(s, 1);
+	ATF_REQUIRE_MSG(error == 0, "listen() failed: %s", strerror(errno));
+	error = listen(s, 2);
+	ATF_REQUIRE_MSG(error == 0, "listen() failed: %s", strerror(errno));
+
+	error = close(s);
+	ATF_REQUIRE_MSG(error == 0, "close() failed: %s", strerror(errno));
+}
+
+/*
+ * Try calling listen(2) twice on a socket with SO_REUSEPORT_LB set.
+ */
+ATF_TC_WITHOUT_HEAD(double_listen_ipv6);
+ATF_TC_BODY(double_listen_ipv6, tc)
+{
+	struct sockaddr_in6 sin6;
+	int error, s;
+
+	s = lb_listen_socket(PF_INET6, 0);
+
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_len = sizeof(sin6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port = htons(0);
+	sin6.sin6_addr = in6addr_loopback;
+	error = bind(s, (struct sockaddr *)&sin6, sizeof(sin6));
+	ATF_REQUIRE_MSG(error == 0, "bind() failed: %s", strerror(errno));
+
+	error = listen(s, 1);
+	ATF_REQUIRE_MSG(error == 0, "listen() failed: %s", strerror(errno));
+	error = listen(s, 2);
+	ATF_REQUIRE_MSG(error == 0, "listen() failed: %s", strerror(errno));
+
+	error = close(s);
+	ATF_REQUIRE_MSG(error == 0, "close() failed: %s", strerror(errno));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, basic_ipv4);
 	ATF_TP_ADD_TC(tp, basic_ipv6);
 	ATF_TP_ADD_TC(tp, concurrent_add);
+	ATF_TP_ADD_TC(tp, double_listen_ipv4);
+	ATF_TP_ADD_TC(tp, double_listen_ipv6);
 
 	return (atf_no_error());
 }
