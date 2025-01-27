@@ -519,7 +519,7 @@ enum {
 
 s64 mlx5_wait_for_reclaim_vfs_pages(struct mlx5_core_dev *dev)
 {
-	int end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
+	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 	s64 prevpages = 0;
 	s64 npages = 0;
 
@@ -557,7 +557,7 @@ static int optimal_reclaimed_pages(void)
 
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 {
-	int end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
+	unsigned long end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 	struct mlx5_fw_page *fwp;
 	struct rb_node *p;
 	int nclaimed = 0;

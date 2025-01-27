@@ -265,7 +265,8 @@ mlx5_health_allow_reset(struct mlx5_core_dev *dev)
 #define MLX5_NIC_STATE_POLL_MS	5
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 {
-	int end, delay_ms = MLX5_CRDUMP_WAIT_MS;
+	unsigned long end;
+	int delay_ms = MLX5_CRDUMP_WAIT_MS;
 	u32 fatal_error;
 	int lock = -EBUSY;
 
@@ -445,7 +446,7 @@ static void health_care(struct work_struct *work)
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
-static int get_next_poll_jiffies(void)
+static unsigned long get_next_poll_jiffies(void)
 {
 	unsigned long next;
 
