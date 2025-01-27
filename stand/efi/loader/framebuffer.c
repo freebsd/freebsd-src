@@ -379,6 +379,7 @@ efifb_from_uga(struct efi_fb *efifb)
 			/* These are the missing bits. */
 			offset = 0x10000;
 			stride = 1728;
+			printf("Model found: %s\n", ev);
 		} else if (ev != NULL && !strcmp(ev, "MacBook3,1")) {
 			/* These are the expected values we should have. */
 			horiz = 1280;
@@ -387,6 +388,23 @@ efifb_from_uga(struct efi_fb *efifb)
 			/* These are the missing bits. */
 			offset = 0x0;
 			stride = 2048;
+			printf("Model found: %s\n", ev);
+		} else if (ev != NULL && !strcmp(ev, "MacBookPro3,1")) {
+			/*
+			 * Valid for MacBookPro 17" with standard resolution.
+			 * Other Models are:
+			 *   MaBookPro 15" with horiz=1440
+			 *   MaBookPro 17" with horiz=1920
+			 * ToDo: differentiate the variants
+			 */
+			/* These are the expected values we should have. */
+			horiz = 1680;
+			vert = 1050;
+			fbaddr = 0xc0000000;
+			/* These are the missing bits. */
+			stride = 2048;
+			offset = stride * 4 * 24; // 24 scan lines down
+			printf("Model found: %s\n", ev);
 		}
 	}
 
@@ -585,35 +603,35 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 		if (EFI_ERROR(status))
 			free(hlist);
 	}
-	if (EFI_ERROR(status))
-		return (efi_status_to_errno(status));
+	if (!(EFI_ERROR(status))) {
 
-	nhandles = hsize / sizeof(*hlist);
+		nhandles = hsize / sizeof(*hlist);
 
-	/*
-	 * Search for ConOut protocol, if not found, use first handle.
-	 */
-	gop_handle = NULL;
-	for (i = 0; i < nhandles; i++) {
-		EFI_GRAPHICS_OUTPUT *tgop;
-		void *dummy;
+		/*
+		* Search for ConOut protocol, if not found, use first handle.
+		*/
+		gop_handle = NULL;
+		for (i = 0; i < nhandles; i++) {
+			EFI_GRAPHICS_OUTPUT *tgop;
+			void *dummy;
 
-		status = OpenProtocolByHandle(hlist[i], &gop_guid, (void **)&tgop);
-		if (status != EFI_SUCCESS)
-			continue;
+			status = OpenProtocolByHandle(hlist[i], &gop_guid, (void **)&tgop);
+			if (status != EFI_SUCCESS)
+				continue;
 
-		if (tgop->Mode->Info->PixelFormat == PixelBltOnly ||
-		    tgop->Mode->Info->PixelFormat >= PixelFormatMax)
-			continue;
+			if (tgop->Mode->Info->PixelFormat == PixelBltOnly ||
+			tgop->Mode->Info->PixelFormat >= PixelFormatMax)
+				continue;
 
-		status = OpenProtocolByHandle(hlist[i], &conout_guid, &dummy);
-		if (status == EFI_SUCCESS) {
-			gop_handle = hlist[i];
-			gop = tgop;
-			break;
-		} else if (gop_handle == NULL) {
-			gop_handle = hlist[i];
-			gop = tgop;
+			status = OpenProtocolByHandle(hlist[i], &conout_guid, &dummy);
+			if (status == EFI_SUCCESS) {
+				gop_handle = hlist[i];
+				gop = tgop;
+				break;
+			} else if (gop_handle == NULL) {
+				gop_handle = hlist[i];
+				gop = tgop;
+			}
 		}
 	}
 
