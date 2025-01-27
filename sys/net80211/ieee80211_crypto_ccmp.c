@@ -242,7 +242,7 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 
 	rxs = ieee80211_get_rx_params_ptr(m);
 
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) != 0)
 		goto finish;
 
 	/*
@@ -297,14 +297,15 @@ finish:
 
 	/*
 	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
+	 * Well no as it's a MIC not MMIC but we re-use the same flag for now.
 	 */
-	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) == 0)
 		m_adj(m, -ccmp.ic_trailer);
 
 	/*
 	 * Ok to update rsc now.
 	 */
-	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) == 0) {
 		/*
 		 * Do not go backwards in the IEEE80211_KEY_NOREPLAY cases
 		 * or in case hardware has checked but frames are arriving
