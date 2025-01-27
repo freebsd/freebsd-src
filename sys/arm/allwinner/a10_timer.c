@@ -28,12 +28,13 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
@@ -79,8 +80,8 @@
 /* 64 bit counter, available in A10 and A13 */
 #define	CNT64_CTRL_REG		0xa0
 #define	 CNT64_CTRL_RL_EN	0x02 /* read latch enable */
-#define	CNT64_LO_REG	0xa4
-#define	CNT64_HI_REG	0xa8
+#define	CNT64_LO_REG		0xa4
+#define	CNT64_HI_REG		0xa8
 
 #define	SYS_TIMER_CLKSRC	24000000 /* clock source */
 
@@ -104,16 +105,15 @@ struct a10_timer_softc {
 #define timer_write_4(sc, reg, val)	\
 	bus_write_4(sc->res[A10_TIMER_MEMRES], reg, val)
 
-static u_int	a10_timer_get_timecount(struct timecounter *);
 #if defined(__arm__)
+static u_int	a10_timer_get_timecount(struct timecounter *);
+static uint64_t	a10_timer_read_counter64(struct a10_timer_softc *sc);
+static void	a10_timer_timecounter_setup(struct a10_timer_softc *sc);
+
+static void	a10_timer_eventtimer_setup(struct a10_timer_softc *sc);
 static int	a10_timer_timer_start(struct eventtimer *,
     sbintime_t first, sbintime_t period);
 static int	a10_timer_timer_stop(struct eventtimer *);
-#endif
-
-static uint64_t timer_read_counter64(struct a10_timer_softc *sc);
-#if defined(__arm__)
-static void a10_timer_eventtimer_setup(struct a10_timer_softc *sc);
 #endif
 
 #if defined(__aarch64__)
@@ -127,7 +127,6 @@ static int a10_timer_attach(device_t);
 
 #if defined(__arm__)
 static delay_func a10_timer_delay;
-#endif
 
 static struct timecounter a10_timer_timecounter = {
 	.tc_name           = "a10_timer timer0",
@@ -136,6 +135,7 @@ static struct timecounter a10_timer_timecounter = {
 	.tc_frequency      = 0,
 	.tc_quality        = 1000,
 };
+#endif
 
 #if defined(__aarch64__)
 static struct timecounter a23_timer_timecounter = {
@@ -168,16 +168,12 @@ static struct ofw_compat_data compat_data[] = {
 static int
 a10_timer_probe(device_t dev)
 {
-#if defined(__arm__)
-	u_int soc_family;
-#endif
-
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 #if defined(__arm__)
 	/* For SoC >= A10 we have the ARM Timecounter/Eventtimer */
-	soc_family = allwinner_soc_family();
+	u_int soc_family = allwinner_soc_family();
 	if (soc_family != ALLWINNERSOC_SUN4I &&
 	    soc_family != ALLWINNERSOC_SUN5I)
 		return (ENXIO);
@@ -214,33 +210,26 @@ a10_timer_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (clk_get_by_ofw_index(dev, 0, 0, &clk) != 0)
+	if (clk_get_by_ofw_index(dev, 0, 0, &clk) != 0) {
 		sc->timer0_freq = SYS_TIMER_CLKSRC;
-	else {
+	} else {
 		if (clk_get_freq(clk, &sc->timer0_freq) != 0) {
 			device_printf(dev, "Cannot get clock source frequency\n");
 			return (ENXIO);
 		}
 	}
 
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "clock: hz=%d stathz = %d\n", hz,
+		    stathz);
+	}
+
 #if defined(__arm__)
 	a10_timer_eventtimer_setup(sc);
-	arm_set_delay(a10_timer_delay, sc);
-	a10_timer_timecounter.tc_priv = sc;
-	a10_timer_timecounter.tc_frequency = sc->timer0_freq;
-	tc_init(&a10_timer_timecounter);
+	a10_timer_timecounter_setup(sc);
 #elif defined(__aarch64__)
 	a23_timer_timecounter_setup(sc);
 #endif
-
-	if (bootverbose) {
-		device_printf(sc->sc_dev, "clock: hz=%d stathz = %d\n", hz, stathz);
-
-		device_printf(sc->sc_dev, "event timer clock frequency %ju\n", 
-		    sc->timer0_freq);
-		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n", 
-		    a10_timer_timecounter.tc_frequency);
-	}
 
 	return (0);
 }
@@ -311,6 +300,11 @@ a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 	sc->et.et_stop = a10_timer_timer_stop;
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
+
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "event timer clock frequency %ju\n",
+		    sc->timer0_freq);
+	}
 }
 
 static int
@@ -368,7 +362,7 @@ a10_timer_timer_stop(struct eventtimer *et)
 
 	return (0);
 }
-#endif
+#endif /* __arm__ */
 
 /*
  * Timecounter functions for A23 and above
@@ -400,6 +394,11 @@ a23_timer_timecounter_setup(struct a10_timer_softc *sc)
 	a23_timer_timecounter.tc_priv = sc;
 	a23_timer_timecounter.tc_frequency = sc->timer0_freq;
 	tc_init(&a23_timer_timecounter);
+
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n",
+		    a23_timer_timecounter.tc_frequency);
+	}
 }
 
 static u_int
@@ -416,14 +415,15 @@ a23_timer_get_timecount(struct timecounter *tc)
 	/* Counter count backwards */
 	return (~0u - val);
 }
-#endif
+#endif /* __aarch64__ */
 
 /*
  * Timecounter functions for A10 and A13, using the 64 bits counter
  */
 
+#if defined(__arm__)
 static uint64_t
-timer_read_counter64(struct a10_timer_softc *sc)
+a10_timer_read_counter64(struct a10_timer_softc *sc)
 {
 	uint32_t lo, hi;
 
@@ -438,30 +438,42 @@ timer_read_counter64(struct a10_timer_softc *sc)
 	return (((uint64_t)hi << 32) | lo);
 }
 
-#if defined(__arm__)
 static void
 a10_timer_delay(int usec, void *arg)
 {
 	struct a10_timer_softc *sc = arg;
 	uint64_t end, now;
 
-	now = timer_read_counter64(sc);
+	now = a10_timer_read_counter64(sc);
 	end = now + (sc->timer0_freq / 1000000) * (usec + 1);
 
 	while (now < end)
-		now = timer_read_counter64(sc);
+		now = a10_timer_read_counter64(sc);
 }
-#endif
 
 static u_int
 a10_timer_get_timecount(struct timecounter *tc)
 {
-
 	if (tc->tc_priv == NULL)
 		return (0);
 
-	return ((u_int)timer_read_counter64(tc->tc_priv));
+	return ((u_int)a10_timer_read_counter64(tc->tc_priv));
 }
+
+static void
+a10_timer_timecounter_setup(struct a10_timer_softc *sc)
+{
+	arm_set_delay(a10_timer_delay, sc);
+	a10_timer_timecounter.tc_priv = sc;
+	a10_timer_timecounter.tc_frequency = sc->timer0_freq;
+	tc_init(&a10_timer_timecounter);
+
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n",
+		    a10_timer_timecounter.tc_frequency);
+	}
+}
+#endif /* __arm__ */
 
 static device_method_t a10_timer_methods[] = {
 	DEVMETHOD(device_probe,		a10_timer_probe),
