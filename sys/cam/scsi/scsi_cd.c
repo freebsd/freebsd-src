@@ -466,6 +466,7 @@ cdasync(void *callback_arg, uint32_t code,
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
 		     &error_code, &sense_key, &asc, &ascq)) {
+			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			if (asc == 0x28 && ascq == 0x00)
 				disk_media_changed(softc->disk, M_NOWAIT);
 		}
@@ -1270,6 +1271,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				 * CDROM or WORM device, as long as it
 				 * doesn't return a "Logical unit not
 				 * supported" (0x25) error.
+				 *
+				 * 25/0: LOGICAL UNIT NOT SUPPORTED
 				 */
 				if ((have_sense) && (asc != 0x25)
 				 && (error_code == SSD_CURRENT_ERROR
@@ -2887,13 +2890,19 @@ cderror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 		error = cd6byteworkaround(ccb);
 	} else if (scsi_extract_sense_ccb(ccb,
 	    &error_code, &sense_key, &asc, &ascq)) {
-		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
+		if (sense_key == SSD_KEY_ILLEGAL_REQUEST) {
 			error = cd6byteworkaround(ccb);
-		else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
-		    asc == 0x28 && ascq == 0x00)
+		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
+		    asc == 0x28 && ascq == 0x00) {
+			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			disk_media_changed(softc->disk, M_NOWAIT);
-		else if (sense_key == SSD_KEY_NOT_READY &&
+		} else if (sense_key == SSD_KEY_NOT_READY &&
 		    asc == 0x3a && (softc->flags & CD_FLAG_SAW_MEDIA)) {
+			/* 3a/0: MEDIUM NOT PRESENT */
+			/* 3a/1: MEDIUM NOT PRESENT - TRAY CLOSED */
+			/* 3a/2: MEDIUM NOT PRESENT - TRAY OPEN */
+			/* 3a/3: MEDIUM NOT PRESENT - LOADABLE */
+			/* 3a/4: MEDIUM NOT PRESENT - MEDIUM AUXILIARY MEMORY ACCESSIBLE */
 			softc->flags &= ~CD_FLAG_SAW_MEDIA;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
