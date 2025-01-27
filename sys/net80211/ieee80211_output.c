@@ -1889,6 +1889,10 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 *
 	 * If the hardware does fragmentation offload, then don't bother
 	 * doing it here.
+	 *
+	 * Don't send AMPDU/FF/AMSDU through fragmentation.
+	 *
+	 * 802.11-2016 10.2.7 (Fragmentation/defragmentation overview)
 	 */
 	if (IEEE80211_CONF_FRAG_OFFLOAD(ic))
 		txfrag = 0;
@@ -1963,6 +1967,33 @@ ieee80211_free_mbuf(struct mbuf *m)
  * mbuf for each fragment and chain it through m_nextpkt;
  * we might be able to optimize this by reusing the original
  * packet's mbufs but that is significantly more complicated.
+ *
+ * A node reference is NOT acquired for each fragment in
+ * the list - the caller is assumed to have taken a node
+ * reference for the whole list.  The fragment mbufs do not
+ * have a node pointer.
+ *
+ * Fragments will have the sequence number and fragment numbers
+ * assigned.  However, Fragments will NOT have a sequence number
+ * assigned via M_SEQNO_SET.
+ *
+ * This must be called after assigning sequence numbers; it
+ * modifies the i_seq field in the 802.11 header to include
+ * the fragment number.
+ *
+ * @param vap		ieee80211vap interface
+ * @param m0		pointer to mbuf list to fragment
+ * @param hdrsize	header size to reserver
+ * @param ciphdrsize	crypto cipher header size to reserve
+ * @param mtu		maximum fragment size
+ *
+ * This implements the fragmentation part of 802.11-2016 10.2.7
+ * (Fragmentation/defragmentation overview.)
+ *
+ * @retval 1 if successful, with the mbuf pointed at by m0
+ *   turned into an mbuf list of fragments (with the original
+ *   mbuf being truncated.)
+ * @retval 0 if failure, the mbuf needs to be freed by the caller
  */
 static int
 ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,

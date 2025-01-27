@@ -706,7 +706,37 @@ ieee80211_get_toa_params(struct mbuf *m, struct ieee80211_toa_params *p)
 }
 
 /*
- * Transmit a frame to the parent interface.
+ * @brief Transmit a frame to the parent interface.
+ *
+ * Transmit an 802.11 or 802.3 frame to the parent interface.
+ *
+ * This is called as part of 802.11 processing to enqueue a frame
+ * from net80211 into the device for transmit.
+ *
+ * If the interface is marked as 802.3 via IEEE80211_C_8023ENCAP
+ * (ie, doing offload), then an 802.3 frame will be sent and the
+ * driver will need to understand what to do.
+ *
+ * If the interface is marked as 802.11 (ie, no offload), then
+ * an encapsulated 802.11 frame will be queued.  In the case
+ * of an 802.11 fragmented frame this will be a list of frames
+ * representing the fragments making up the 802.11 frame, linked
+ * via m_nextpkt.
+ *
+ * A fragmented frame list will consist of:
+ * + only the first frame with M_SEQNO_SET() assigned the sequence number;
+ * + only the first frame with the node reference and node in rcvif;
+ * + all frames will have the sequence + fragment number populated in
+ *   the 802.11 header.
+ *
+ * The driver must ensure it doesn't try releasing a node reference
+ * for each fragment in the list.
+ *
+ * The provided mbuf/list is consumed both upon success and error.
+ *
+ * @param ic	struct ieee80211com device to enqueue frame to
+ * @param m	struct mbuf chain / packet list to enqueue
+ * @returns	0 if successful, errno if error.
  */
 int
 ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
@@ -726,6 +756,8 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 
 		/* XXX number of fragments */
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+
+		/* Note: there's only one node reference for a fragment list */
 		ieee80211_free_node(ni);
 		ieee80211_free_mbuf(m);
 	}
@@ -733,7 +765,19 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 }
 
 /*
- * Transmit a frame to the VAP interface.
+ * @brief Transmit an 802.3 frame to the VAP interface.
+ *
+ * This is the entry point for the wifi stack to enqueue 802.3
+ * encapsulated frames for transmit to the given vap/ifnet instance.
+ * This is used in paths where 802.3 frames have been received
+ * or queued, and need to be pushed through the VAP encapsulation
+ * and transmit processing pipeline.
+ *
+ * The provided mbuf/list is consumed both upon success and error.
+ *
+ * @param vap	struct ieee80211vap instance to transmit frame to
+ * @param m	mbuf to transmit
+ * @returns	0 if OK, errno if error
  */
 int
 ieee80211_vap_xmitpkt(struct ieee80211vap *vap, struct mbuf *m)
