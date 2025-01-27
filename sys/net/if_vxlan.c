@@ -429,9 +429,11 @@ SYSCTL_NODE(_net_link, OID_AUTO, vxlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Virtual eXtensible Local Area Network");
 
 static int vxlan_legacy_port = 0;
-TUNABLE_INT("net.link.vxlan.legacy_port", &vxlan_legacy_port);
+SYSCTL_INT(_net_link_vxlan, OID_AUTO, legacy_port, CTLFLAG_RDTUN,
+    &vxlan_legacy_port, 0, "Use legacy port");
 static int vxlan_reuse_port = 0;
-TUNABLE_INT("net.link.vxlan.reuse_port", &vxlan_reuse_port);
+SYSCTL_INT(_net_link_vxlan, OID_AUTO, reuse_port, CTLFLAG_RDTUN,
+    &vxlan_reuse_port, 0, "Re-use port");
 
 /*
  * This macro controls the default upper limitation on nesting of vxlan
