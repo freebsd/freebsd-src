@@ -50,7 +50,7 @@ options 	SOC_ROCKCHIP_RK3568
 options 	SOC_XILINX_ZYNQ
 
 # Timer drivers
-device		a10_timer
+device		aw_timer
 
 # Annapurna Alpine drivers
 device		al_ccu			# Alpine Cache Coherency Unit
