@@ -449,7 +449,7 @@ static int
 zfs_key_config_load(pam_handle_t *pamh, zfs_key_config_t *config,
     int argc, const char **argv)
 {
-	config->homes_prefix = strdup("rpool/home");
+	config->homes_prefix = strdup("zroot/home");
 	if (config->homes_prefix == NULL) {
 		pam_syslog(pamh, LOG_ERR, "strdup failure");
 		return (PAM_SERVICE_ERR);
