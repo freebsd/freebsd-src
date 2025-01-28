@@ -75,10 +75,6 @@
 #define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
 #define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
 #define	DIP(dp, field) \
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)

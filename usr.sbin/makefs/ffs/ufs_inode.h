@@ -37,11 +37,6 @@
  * SUCH DAMAGE.
  */
 
-union dinode {
-	struct ufs1_dinode ffs1_din;
-	struct ufs2_dinode ffs2_din;
-};
-
 struct inode {
 	ino_t		i_number;	/* The identity of the inode. */
 	struct vnode	*i_devvp;	/* vnode pointer (contains fsopts) */
@@ -50,45 +45,45 @@ struct inode {
 	uint64_t	i_size;
 };
 
-#define	i_ffs1_atime		i_din.ffs1_din.di_atime
-#define	i_ffs1_atimensec	i_din.ffs1_din.di_atimensec
-#define	i_ffs1_blocks		i_din.ffs1_din.di_blocks
-#define	i_ffs1_ctime		i_din.ffs1_din.di_ctime
-#define	i_ffs1_ctimensec	i_din.ffs1_din.di_ctimensec
-#define	i_ffs1_db		i_din.ffs1_din.di_db
-#define	i_ffs1_flags		i_din.ffs1_din.di_flags
-#define	i_ffs1_gen		i_din.ffs1_din.di_gen
-#define	i_ffs11_gid		i_din.ffs1_din.di_gid
-#define	i_ffs1_ib		i_din.ffs1_din.di_ib
-#define	i_ffs1_mode		i_din.ffs1_din.di_mode
-#define	i_ffs1_mtime		i_din.ffs1_din.di_mtime
-#define	i_ffs1_mtimensec	i_din.ffs1_din.di_mtimensec
-#define	i_ffs1_nlink		i_din.ffs1_din.di_nlink
-#define	i_ffs1_rdev		i_din.ffs1_din.di_rdev
-#define	i_ffs1_shortlink	i_din.ffs1_din.di_shortlink
-#define	i_ffs1_size		i_din.ffs1_din.di_size
-#define	i_ffs1_uid		i_din.ffs1_din.di_uid
+#define	i_ffs1_atime		i_din.dp1.di_atime
+#define	i_ffs1_atimensec	i_din.dp1.di_atimensec
+#define	i_ffs1_blocks		i_din.dp1.di_blocks
+#define	i_ffs1_ctime		i_din.dp1.di_ctime
+#define	i_ffs1_ctimensec	i_din.dp1.di_ctimensec
+#define	i_ffs1_db		i_din.dp1.di_db
+#define	i_ffs1_flags		i_din.dp1.di_flags
+#define	i_ffs1_gen		i_din.dp1.di_gen
+#define	i_ffs11_gid		i_din.dp1.di_gid
+#define	i_ffs1_ib		i_din.dp1.di_ib
+#define	i_ffs1_mode		i_din.dp1.di_mode
+#define	i_ffs1_mtime		i_din.dp1.di_mtime
+#define	i_ffs1_mtimensec	i_din.dp1.di_mtimensec
+#define	i_ffs1_nlink		i_din.dp1.di_nlink
+#define	i_ffs1_rdev		i_din.dp1.di_rdev
+#define	i_ffs1_shortlink	i_din.dp1.di_shortlink
+#define	i_ffs1_size		i_din.dp1.di_size
+#define	i_ffs1_uid		i_din.dp1.di_uid
 
-#define	i_ffs2_atime		i_din.ffs2_din.di_atime
-#define	i_ffs2_atimensec	i_din.ffs2_din.di_atimensec
-#define	i_ffs2_blocks		i_din.ffs2_din.di_blocks
-#define	i_ffs2_ctime		i_din.ffs2_din.di_ctime
-#define	i_ffs2_ctimensec	i_din.ffs2_din.di_ctimensec
-#define	i_ffs2_birthtime	i_din.ffs2_din.di_birthtime
-#define	i_ffs2_birthnsec	i_din.ffs2_din.di_birthnsec
-#define	i_ffs2_db		i_din.ffs2_din.di_db
-#define	i_ffs2_flags		i_din.ffs2_din.di_flags
-#define	i_ffs2_gen		i_din.ffs2_din.di_gen
-#define	i_ffs21_gid		i_din.ffs2_din.di_gid
-#define	i_ffs2_ib		i_din.ffs2_din.di_ib
-#define	i_ffs2_mode		i_din.ffs2_din.di_mode
-#define	i_ffs2_mtime		i_din.ffs2_din.di_mtime
-#define	i_ffs2_mtimensec	i_din.ffs2_din.di_mtimensec
-#define	i_ffs2_nlink		i_din.ffs2_din.di_nlink
-#define	i_ffs2_rdev		i_din.ffs2_din.di_rdev
-#define	i_ffs2_shortlink	i_din.ffs2_din.di_shortlink
-#define	i_ffs2_size		i_din.ffs2_din.di_size
-#define	i_ffs2_uid		i_din.ffs2_din.di_uid
+#define	i_ffs2_atime		i_din.dp2.di_atime
+#define	i_ffs2_atimensec	i_din.dp2.di_atimensec
+#define	i_ffs2_blocks		i_din.dp2.di_blocks
+#define	i_ffs2_ctime		i_din.dp2.di_ctime
+#define	i_ffs2_ctimensec	i_din.dp2.di_ctimensec
+#define	i_ffs2_birthtime	i_din.dp2.di_birthtime
+#define	i_ffs2_birthnsec	i_din.dp2.di_birthnsec
+#define	i_ffs2_db		i_din.dp2.di_db
+#define	i_ffs2_flags		i_din.dp2.di_flags
+#define	i_ffs2_gen		i_din.dp2.di_gen
+#define	i_ffs21_gid		i_din.dp2.di_gid
+#define	i_ffs2_ib		i_din.dp2.di_ib
+#define	i_ffs2_mode		i_din.dp2.di_mode
+#define	i_ffs2_mtime		i_din.dp2.di_mtime
+#define	i_ffs2_mtimensec	i_din.dp2.di_mtimensec
+#define	i_ffs2_nlink		i_din.dp2.di_nlink
+#define	i_ffs2_rdev		i_din.dp2.di_rdev
+#define	i_ffs2_shortlink	i_din.dp2.di_shortlink
+#define	i_ffs2_size		i_din.dp2.di_size
+#define	i_ffs2_uid		i_din.dp2.di_uid
 
 #undef DIP
 #define DIP(ip, field) \

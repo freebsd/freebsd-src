@@ -429,6 +429,7 @@ void
 ginode(ino_t inumber, struct inode *ip)
 {
 	ufs2_daddr_t iblk;
+	union dinodep dpp;
 	struct ufs2_dinode *dp;
 
 	if (inumber < UFS_ROOTINO || inumber >= maxino)
@@ -466,11 +467,12 @@ ginode(ino_t inumber, struct inode *ip)
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		ip->i_dp = (union dinode *)
 		    &ip->i_bp->b_un.b_dinode1[inumber - ip->i_bp->b_index];
+		dpp.dp1 = (struct ufs1_dinode *)ip->i_dp;
 		return;
 	}
 	ip->i_dp = (union dinode *)
 	    &ip->i_bp->b_un.b_dinode2[inumber - ip->i_bp->b_index];
-	dp = (struct ufs2_dinode *)ip->i_dp;
+	dpp.dp2 = dp = (struct ufs2_dinode *)ip->i_dp;
 	/* Do not check hash of inodes being created */
 	if (dp->di_mode != 0 && ffs_verify_dinode_ckhash(&sblock, dp)) {
 		pwarn("INODE CHECK-HASH FAILED");
@@ -520,6 +522,7 @@ getnextinode(ino_t inumber, int rebuiltcg)
 	mode_t mode;
 	ufs2_daddr_t ndb, blk;
 	union dinode *dp;
+	union dinodep dpp;
 	struct inode ip;
 	static caddr_t nextinop;
 
@@ -550,10 +553,13 @@ getnextinode(ino_t inumber, int rebuiltcg)
 		nextinop = inobuf.b_un.b_buf;
 	}
 	dp = (union dinode *)nextinop;
-	if (sblock.fs_magic == FS_UFS1_MAGIC)
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		nextinop += sizeof(struct ufs1_dinode);
-	else
+		dpp.dp1 = (struct ufs1_dinode *)dp;
+	} else {
 		nextinop += sizeof(struct ufs2_dinode);
+		dpp.dp2 = (struct ufs2_dinode *)dp;
+	}
 	if ((ckhashadd & CK_INODE) != 0) {
 		ffs_update_dinode_ckhash(&sblock, (struct ufs2_dinode *)dp);
 		dirty(&inobuf);
