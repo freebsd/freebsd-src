@@ -175,11 +175,10 @@ struct rate_info {
 };
 
 struct ieee80211_rate {
-	/* TODO FIXME */
-	uint32_t		bitrate;
-	uint32_t		hw_value;
-	uint32_t		hw_value_short;
-	uint32_t		flags;
+	uint32_t		flags;					/* enum ieee80211_rate_flags */
+	uint16_t		bitrate;
+	uint16_t		hw_value;
+	uint16_t		hw_value_short;
 };
 
 struct ieee80211_sta_ht_cap {
