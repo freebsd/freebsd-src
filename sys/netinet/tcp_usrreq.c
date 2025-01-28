@@ -355,9 +355,10 @@ out:
 static int
 tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
+	int error = 0;
+	bool already_listening;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_listen: inp == NULL"));
@@ -369,6 +370,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	tp = intotcpcb(inp);
 
 	SOCK_LOCK(so);
+	already_listening = SOLISTENING(so);
 	error = solisten_proto_check(so);
 	if (error != 0) {
 		SOCK_UNLOCK(so);
@@ -390,6 +392,8 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		solisten_proto_abort(so);
 	}
 	SOCK_UNLOCK(so);
+	if (already_listening)
+		goto out;
 
 	if (error == 0)
 		in_pcblisten(inp);
@@ -408,10 +412,11 @@ out:
 static int
 tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
-	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	u_char vflagsav;
+	int error = 0;
+	bool already_listening;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_listen: inp == NULL"));
@@ -425,6 +430,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	vflagsav = inp->inp_vflag;
 
 	SOCK_LOCK(so);
+	already_listening = SOLISTENING(so);
 	error = solisten_proto_check(so);
 	if (error != 0) {
 		SOCK_UNLOCK(so);
@@ -449,6 +455,8 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		solisten_proto_abort(so);
 	}
 	SOCK_UNLOCK(so);
+	if (already_listening)
+		goto out;
 
 	if (error == 0)
 		in_pcblisten(inp);
