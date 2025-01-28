@@ -299,13 +299,25 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	case PS_FST_TYPE_PTS:
 		print_pts_info(procstat, fst);
 		break;
+	case PS_FST_TYPE_KQUEUE:
+		printf(" [kqueue]");
+		break;
+	case PS_FST_TYPE_MQUEUE:
+		printf(" [mqueue]");
+		break;
 	case PS_FST_TYPE_SHM:
 		print_shm_info(procstat, fst);
 		break;
 	case PS_FST_TYPE_SEM:
 		print_sem_info(procstat, fst);
 		break;
+	case PS_FST_TYPE_PROCDESC:
+		printf(" [procdesc]");
+		break;
 	case PS_FST_TYPE_DEV:
+		break;
+	case PS_FST_TYPE_EVENTFD:
+		printf(" [eventfd]");
 		break;
 	default:	
 		if (vflg)
