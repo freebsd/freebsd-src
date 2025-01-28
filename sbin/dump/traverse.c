@@ -51,10 +51,6 @@
 
 #include "dump.h"
 
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
 #define	DIP(dp, field) \
 	((sblock->fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)

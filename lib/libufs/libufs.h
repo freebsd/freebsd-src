@@ -38,14 +38,6 @@
 #define LIBUFS_BUFALIGN	128
 
 /*
- * libufs structures.
- */
-union dinodep {
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
-};
-
-/*
  * userland ufs disk.
  */
 struct uufsd {
