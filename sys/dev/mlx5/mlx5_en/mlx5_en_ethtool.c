@@ -1124,16 +1124,8 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		/* import HW LRO mode */
 		if (priv->params_ethtool.hw_lro != 0 &&
 		    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
+			priv->params.hw_lro_en = true;
 			priv->params_ethtool.hw_lro = 1;
-			/* check if feature should actually be enabled */
-			if (if_getcapenable(priv->ifp) & IFCAP_LRO) {
-				priv->params.hw_lro_en = true;
-			} else {
-				priv->params.hw_lro_en = false;
-
-				mlx5_en_warn(priv->ifp, "To enable HW LRO "
-				    "please also enable LRO via ifconfig(8).\n");
-			}
 		} else {
 			/* return an error if HW does not support this feature */
 			if (priv->params_ethtool.hw_lro != 0)
