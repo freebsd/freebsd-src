@@ -2247,7 +2247,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 							/*sense_format*/ SSD_TYPE_NONE,
 							/*current_error*/ 1,
 							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-							/*asc*/ 0x24,
+							/*asc*/ 0x24,	/* 24h/00h INVALID FIELD IN CDB */
 							/*ascq*/ 0x00,
 							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
