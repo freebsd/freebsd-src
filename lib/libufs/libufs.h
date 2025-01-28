@@ -29,14 +29,7 @@
 
 #ifndef	__LIBUFS_H__
 #define	__LIBUFS_H__
-
-/*
- * libufs structures.
- */
-union dinodep {
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
-};
+#include <stdbool.h>
 
 /*
  * userland ufs disk.
@@ -107,6 +100,7 @@ void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
 void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
+bool	ffs_oldfscompat_inode_read(struct fs *, union dinodep, time_t);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_sbget(void *, struct fs **, off_t, char *,
 	    int (*)(void *, off_t, void **, int));
