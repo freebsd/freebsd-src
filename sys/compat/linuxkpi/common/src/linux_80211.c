@@ -5309,6 +5309,160 @@ lkpi_80211_lhw_rxq_task(void *ctx, int pending)
 	}
 }
 
+static void
+lkpi_convert_rx_status(struct ieee80211_hw *hw,
+    struct ieee80211_rx_status *rx_status,
+    struct ieee80211_rx_stats *rx_stats,
+    uint8_t *rssip)
+{
+	struct ieee80211_supported_band *supband;
+	int i;
+	uint8_t rssi;
+
+	memset(rx_stats, 0, sizeof(*rx_stats));
+	rx_stats->r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
+	/* XXX-BZ correct hardcoded noise floor, survey data? */
+	rx_stats->c_nf = -96;
+	if (ieee80211_hw_check(hw, SIGNAL_DBM) &&
+	    !(rx_status->flag & RX_FLAG_NO_SIGNAL_VAL))
+		rssi = rx_status->signal;
+	else
+		rssi = rx_stats->c_nf;
+	/*
+	 * net80211 signal strength data are in .5 dBm units relative to
+	 * the current noise floor (see comment in ieee80211_node.h).
+	 */
+	rssi -= rx_stats->c_nf;
+	if (rssip != NULL)
+		*rssip = rssi;
+	rx_stats->c_rssi = rssi * 2;
+	rx_stats->r_flags |= IEEE80211_R_BAND;
+	rx_stats->c_band =
+	    lkpi_nl80211_band_to_net80211_band(rx_status->band);
+	rx_stats->r_flags |= IEEE80211_R_FREQ | IEEE80211_R_IEEE;
+	rx_stats->c_freq = rx_status->freq;
+	rx_stats->c_ieee = ieee80211_mhz2ieee(rx_stats->c_freq, rx_stats->c_band);
+
+	rx_stats->c_rx_tsf = rx_status->mactime;
+
+	/* XXX RX_FLAG_MACTIME_IS_RTAP_TS64 ? */
+	if ((rx_status->flag & RX_FLAG_MACTIME) ==
+	    (RX_FLAG_MACTIME_START|RX_FLAG_MACTIME_END)) {
+		rx_stats->r_flags |= IEEE80211_R_TSF64;
+		/* XXX RX_FLAG_MACTIME_PLCP_START ? */
+		if ((rx_status->flag & RX_FLAG_MACTIME) == RX_FLAG_MACTIME_START)
+			rx_stats->r_flags |= IEEE80211_R_TSF_START;
+		if ((rx_status->flag & RX_FLAG_MACTIME) == RX_FLAG_MACTIME_END)
+			rx_stats->r_flags |= IEEE80211_R_TSF_END;
+		/* XXX-BZ if TSF_END will net80211 do the unwind of time? */
+	}
+
+	if (rx_status->chains != 0) {
+		int cc;
+		int8_t crssi;
+
+		rx_stats->c_chain = rx_status->chains;
+		rx_stats->r_flags |= IEEE80211_R_C_CHAIN;
+
+		cc = 0;
+		for (i = 0; i < nitems(rx_status->chain_signal); i++) {
+			if (!(rx_status->chains & BIT(i)))
+				continue;
+			crssi = rx_status->chain_signal[i];
+			crssi -= rx_stats->c_nf;
+			rx_stats->c_rssi_ctl[i] = crssi * 2;
+			rx_stats->c_rssi_ext[i] = crssi * 2;	/* XXX _ext ??? ATH thing? */
+			/* We currently only have the global noise floor value. */
+			rx_stats->c_nf_ctl[i] = rx_stats->c_nf;
+			rx_stats->c_nf_ext[i] = rx_stats->c_nf;
+			cc++;
+		}
+		if (cc > 0)
+			 rx_stats->r_flags |= (IEEE80211_R_C_NF | IEEE80211_R_C_RSSI);
+	}
+
+	/* XXX-NET80211 We are not going to populate c_phytype! */
+
+	switch (rx_status->encoding) {
+	case RX_ENC_LEGACY:
+		supband = hw->wiphy->bands[rx_status->band];
+		if (supband != NULL)
+			rx_stats->c_rate = supband->bitrates[rx_status->rate_idx].bitrate;
+		/* Is there a LinuxKPI way of reporting IEEE80211_RX_F_CCK / _OFDM? */
+		break;
+	case RX_ENC_HT:
+		rx_stats->c_pktflags |= IEEE80211_RX_F_HT;
+		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0)
+			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
+		rx_stats->c_rate = rx_status->rate_idx;		/* mcs */
+		break;
+	case RX_ENC_VHT:
+		rx_stats->c_pktflags |= IEEE80211_RX_F_VHT;
+		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0)
+			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
+		rx_stats->c_rate = rx_status->rate_idx;		/* mcs */
+		rx_stats->c_vhtnss = rx_status->nss;
+		break;
+	case RX_ENC_HE:
+	case RX_ENC_EHT:
+		TODO("net80211 has not matching encoding for %u", rx_status->encoding);
+		break;
+	}
+
+	switch (rx_status->bw) {
+	case RATE_INFO_BW_20:
+		rx_stats->c_width = IEEE80211_RX_FW_20MHZ;
+		break;
+	case RATE_INFO_BW_40:
+		rx_stats->c_width = IEEE80211_RX_FW_40MHZ;
+		break;
+	case RATE_INFO_BW_80:
+		rx_stats->c_width = IEEE80211_RX_FW_80MHZ;
+		break;
+	case RATE_INFO_BW_160:
+		rx_stats->c_width = IEEE80211_RX_FW_160MHZ;
+		break;
+	case RATE_INFO_BW_320:
+	case RATE_INFO_BW_HE_RU:
+	case RATE_INFO_BW_EHT_RU:
+	case RATE_INFO_BW_5:
+	case RATE_INFO_BW_10:
+		TODO("net80211 has not matching bandwidth for %u", rx_status->bw);
+		break;
+	}
+
+	if ((rx_status->enc_flags & RX_ENC_FLAG_LDPC) != 0)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_LDPC;
+	if ((rx_status->enc_flags & RX_ENC_FLAG_STBC_MASK) != 0)
+		 rx_stats->c_pktflags |= IEEE80211_RX_F_STBC;
+
+	/*
+	 * We only need these for LKPI_80211_HW_CRYPTO in theory but in
+	 * case the hardware does something we do not expect always leave
+	 * these enabled.  Leaving this commant as documentation for the || 1.
+	 */
+#if defined(LKPI_80211_HW_CRYPTO) || 1
+	if (rx_status->flag & RX_FLAG_DECRYPTED) {
+		rx_stats->c_pktflags |= IEEE80211_RX_F_DECRYPTED;
+		/* Only valid if decrypted is set. */
+		if (rx_status->flag & RX_FLAG_PN_VALIDATED)
+			rx_stats->c_pktflags |= IEEE80211_RX_F_PN_VALIDATED;
+	}
+	if (rx_status->flag & RX_FLAG_MMIC_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_MMIC_STRIP;
+	if (rx_status->flag & RX_FLAG_MIC_STRIPPED) {
+		/* net80211 re-uses M[ichael]MIC for MIC too. Confusing. */
+		rx_stats->c_pktflags |= IEEE80211_RX_F_MMIC_STRIP;
+	}
+	if (rx_status->flag & RX_FLAG_IV_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_IV_STRIP;
+	if (rx_status->flag & RX_FLAG_MMIC_ERROR)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_MIC;
+	if (rx_status->flag & RX_FLAG_FAILED_FCS_CRC)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
+#endif
+}
+
 /* For %list see comment towards the end of the function. */
 void
 linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -5326,7 +5480,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr;
 	struct lkpi_sta *lsta;
 	int i, offset, ok;
-	int8_t rssi;
+	uint8_t rssi;
 	bool is_beacon;
 
 	if (skb->len < 2) {
@@ -5403,44 +5557,8 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 no_trace_beacons:
 #endif
 
-	memset(&rx_stats, 0, sizeof(rx_stats));
-	rx_stats.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
-	/* XXX-BZ correct hardcoded rssi and noise floor, how? survey? */
-	rx_stats.c_nf = -96;
-	if (ieee80211_hw_check(hw, SIGNAL_DBM) &&
-	    !(rx_status->flag & RX_FLAG_NO_SIGNAL_VAL))
-		rssi = rx_status->signal;
-	else
-		rssi = rx_stats.c_nf;
-	/*
-	 * net80211 signal strength data are in .5 dBm units relative to
-	 * the current noise floor (see comment in ieee80211_node.h).
-	 */
-	rssi -= rx_stats.c_nf;
-	rx_stats.c_rssi = rssi * 2;
-	rx_stats.r_flags |= IEEE80211_R_BAND;
-	rx_stats.c_band =
-	    lkpi_nl80211_band_to_net80211_band(rx_status->band);
-	rx_stats.r_flags |= IEEE80211_R_FREQ | IEEE80211_R_IEEE;
-	rx_stats.c_freq = rx_status->freq;
-	rx_stats.c_ieee = ieee80211_mhz2ieee(rx_stats.c_freq, rx_stats.c_band);
-
-	/*
-	 * We only need these for LKPI_80211_HW_CRYPTO in theory but in
-	 * case the hardware does something we do not expect always leave
-	 * these enabled.  Leaving this commant as documentation for the || 1.
-	 */
-#if defined(LKPI_80211_HW_CRYPTO) || 1
-	if (rx_status->flag & RX_FLAG_DECRYPTED) {
-		rx_stats.c_pktflags |= IEEE80211_RX_F_DECRYPTED;
-		/* Only valid if decrypted is set. */
-		if (rx_status->flag & RX_FLAG_PN_VALIDATED)
-			rx_stats.c_pktflags |= IEEE80211_RX_F_PN_VALIDATED;
-	}
-#endif
-
-	/* XXX (*sta_statistics)() to get to some of that? */
-	/* XXX-BZ dump the FreeBSD version of rx_stats as well! */
+	rssi = 0;
+	lkpi_convert_rx_status(hw, rx_status, &rx_stats, &rssi);
 
 	lhw = HW_TO_LHW(hw);
 	ic = lhw->ic;
