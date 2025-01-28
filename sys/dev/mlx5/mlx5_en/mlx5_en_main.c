@@ -3651,31 +3651,11 @@ siocsifcap_driver:
 		}
 
 		VLAN_CAPABILITIES(ifp);
-		/* turn off LRO means also turn of HW LRO - if it's on */
-		if (mask & IFCAP_LRO) {
-			int was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-			bool need_restart = false;
 
+		/* hw_lro and IFCAP_LRO are divorsed, only toggle sw LRO. */
+		if (mask & IFCAP_LRO)
 			if_togglecapenable(ifp, IFCAP_LRO);
 
-			/* figure out if updating HW LRO is needed */
-			if (!(if_getcapenable(ifp) & IFCAP_LRO)) {
-				if (priv->params.hw_lro_en) {
-					priv->params.hw_lro_en = false;
-					need_restart = true;
-				}
-			} else {
-				if (priv->params.hw_lro_en == false &&
-				    priv->params_ethtool.hw_lro != 0) {
-					priv->params.hw_lro_en = true;
-					need_restart = true;
-				}
-			}
-			if (was_opened && need_restart) {
-				mlx5e_close_locked(ifp);
-				mlx5e_open_locked(ifp);
-			}
-		}
 		if (mask & IFCAP_HWRXTSTMP) {
 			if_togglecapenable(ifp, IFCAP_HWRXTSTMP);
 			if (if_getcapenable(ifp) & IFCAP_HWRXTSTMP) {
