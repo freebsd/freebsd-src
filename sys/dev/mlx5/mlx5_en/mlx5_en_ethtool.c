@@ -1133,6 +1133,9 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			priv->params.hw_lro_en = false;
 			priv->params_ethtool.hw_lro = 0;
 		}
+
+		error = mlx5e_hw_lro_update_tirs(priv);
+
 		/* restart network interface, if any */
 		if (was_opened)
 			mlx5e_open_locked(priv->ifp);

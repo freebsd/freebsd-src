@@ -2940,6 +2940,73 @@ mlx5e_get_rss_key(void *key_ptr)
 }
 
 static void
+mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(struct mlx5e_priv *priv, u32 *tirc)
+{
+#define	ROUGH_MAX_L2_L3_HDR_SZ 256
+
+	MLX5_SET(tirc, tirc, lro_max_msg_sz, (priv->params.lro_wqe_sz -
+	    ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
+}
+
+static void
+mlx5e_hw_lro_set_tir_ctx(struct mlx5e_priv *priv, u32 *tirc)
+{
+	MLX5_SET(tirc, tirc, lro_enable_mask,
+	    MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
+	    MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
+	/* TODO: add the option to choose timer value dynamically */
+	MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
+	    MLX5_CAP_ETH(priv->mdev, lro_timer_supported_periods[2]));
+	mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(priv, tirc);
+}
+
+static int
+mlx5e_hw_lro_update_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 *in;
+	void *tirc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	in = mlx5_vzalloc(inlen);
+	if (in == NULL)
+		return (-ENOMEM);
+	tirc = MLX5_ADDR_OF(modify_tir_in, in, tir_context);
+
+	/* fill the command part */
+	MLX5_SET(modify_tir_in, in, tirn, inner_vxlan ?
+	    priv->tirn_inner_vxlan[tt] : priv->tirn[tt]);
+	MLX5_SET64(modify_tir_in, in, modify_bitmask,
+	    (1 << MLX5_MODIFY_TIR_BITMASK_LRO));
+
+	/* fill the context */
+	if (priv->params.hw_lro_en)
+		mlx5e_hw_lro_set_tir_ctx(priv, tirc);
+
+	err = mlx5_core_modify_tir(mdev, in, inlen);
+
+	kvfree(in);
+	return (err);
+}
+
+int
+mlx5e_hw_lro_update_tirs(struct mlx5e_priv *priv)
+{
+	int err, err1, i;
+
+	err = 0;
+	for (i = 0; i != 2 * MLX5E_NUM_TT; i++) {
+		err1 = mlx5e_hw_lro_update_tir(priv, i / 2, (i % 2) ? true :
+		    false);
+		if (err1 != 0 && err == 0)
+			err = err1;
+	}
+	return (-err);
+}
+
+static void
 mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxlan)
 {
 	void *hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
@@ -2948,8 +3015,6 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 	__be32 *hkey;
 
 	MLX5_SET(tirc, tirc, transport_domain, priv->tdn);
-
-#define	ROUGH_MAX_L2_L3_HDR_SZ 256
 
 #define	MLX5_HASH_IP     (MLX5_HASH_FIELD_SEL_SRC_IP   |\
 			  MLX5_HASH_FIELD_SEL_DST_IP)
@@ -2963,18 +3028,8 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 				 MLX5_HASH_FIELD_SEL_DST_IP   |\
 				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
 
-	if (priv->params.hw_lro_en) {
-		MLX5_SET(tirc, tirc, lro_enable_mask,
-		    MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
-		    MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
-		MLX5_SET(tirc, tirc, lro_max_msg_sz,
-		    (priv->params.lro_wqe_sz -
-		    ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
-		/* TODO: add the option to choose timer value dynamically */
-		MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
-		    MLX5_CAP_ETH(priv->mdev,
-		    lro_timer_supported_periods[2]));
-	}
+	if (priv->params.hw_lro_en)
+		mlx5e_hw_lro_set_tir_ctx(priv, tirc);
 
 	if (inner_vxlan)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
