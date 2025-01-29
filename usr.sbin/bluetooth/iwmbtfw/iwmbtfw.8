@@ -36,7 +36,7 @@
 .Nm
 .Op Fl DI
 .Fl d Ar device_name
-.Fl f Ar firmware_path
+.Op Fl f Ar firmware_path
 .Nm
 .Fl h
 .Sh DESCRIPTION
@@ -66,6 +66,8 @@ configuration to load in at runtime.
 .Pp
 The options are as follows:
 .Bl -tag -width "-f firmware_path"
+.It Fl I
+Enable informational debugging.
 .It Fl D
 Enable verbose debugging.
 .It Fl d Ar device_name
@@ -76,8 +78,6 @@ device name.
 Specify the directory containing the firmware files to search and upload.
 .It Fl h
 Display usage message and exit.
-.It Fl I
-Enable informational debugging.
 .El
 .Sh EXIT STATUS
 .Ex -std
