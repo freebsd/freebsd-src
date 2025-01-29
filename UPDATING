@@ -12,6 +12,23 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250129:
+	14.2-RELEASE-p1 SA-25:02.fs
+			SA-25:03.etcupdate
+			SA-25:04.ktrace
+			EN-25:02.audit
+			EN-25:03.tzdata
+
+	Buffer overflow in some filesystems via NFS [SA-25:02.fs]
+
+	Unprivileged access to system files [SA-25:03.etcupdate]
+
+	Uninitialized kernel memory disclosure via ktrace(2) [SA-25:04.ktrace]
+
+	System call auditing disabled by DTrace [EN-25:02.audit]
+
+	Timezone database information update [EN-25:03.tzdata]
+
 20241203:
 	14.2-RELEASE.
 
