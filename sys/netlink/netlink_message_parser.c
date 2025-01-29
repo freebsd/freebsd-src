@@ -420,12 +420,15 @@ static int
 nlattr_get_ifp_internal(struct nlattr *nla, struct nl_pstate *npt,
     void *target, bool zero_ok)
 {
+	struct ifnet *ifp;
+	u_int ifindex;
+
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint32_t))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint32",
 		    nla->nla_type, NLA_DATA_LEN(nla));
 		return (EINVAL);
 	}
-	uint32_t ifindex = *((const uint32_t *)NLA_DATA_CONST(nla));
+	ifindex = *((const u_int *)NLA_DATA_CONST(nla));
 
 	if (ifindex == 0 && zero_ok) {
 		*((struct ifnet **)target) = NULL;
@@ -434,7 +437,7 @@ nlattr_get_ifp_internal(struct nlattr *nla, struct nl_pstate *npt,
 
 	NET_EPOCH_ASSERT();
 
-	struct ifnet *ifp = ifnet_byindex(ifindex);
+	ifp = ifnet_byindex(ifindex);
 	if (__predict_false(ifp == NULL)) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d: ifindex %u invalid",
 		    nla->nla_type, ifindex);
@@ -562,11 +565,13 @@ nlattr_get_nested_ptr(struct nlattr *nla, struct nl_pstate *npt,
 int
 nlf_get_ifp(void *src, struct nl_pstate *npt, void *target)
 {
-	int ifindex = *((const int *)src);
+	struct ifnet *ifp;
+	u_int ifindex;
 
 	NET_EPOCH_ASSERT();
 
-	struct ifnet *ifp = ifnet_byindex(ifindex);
+	ifindex = *((const u_int *)src);
+	ifp = ifnet_byindex(ifindex);
 	if (ifp == NULL) {
 		NL_LOG(LOG_DEBUG, "ifindex %u invalid", ifindex);
 		return (ENOENT);
@@ -579,11 +584,13 @@ nlf_get_ifp(void *src, struct nl_pstate *npt, void *target)
 int
 nlf_get_ifpz(void *src, struct nl_pstate *npt, void *target)
 {
-	int ifindex = *((const int *)src);
+	struct ifnet *ifp;
+	u_int ifindex;
 
 	NET_EPOCH_ASSERT();
 
-	struct ifnet *ifp = ifnet_byindex(ifindex);
+	ifindex = *((const u_int *)src);
+	ifp = ifnet_byindex(ifindex);
 	if (ifindex != 0 && ifp == NULL) {
 		NL_LOG(LOG_DEBUG, "ifindex %u invalid", ifindex);
 		return (ENOENT);
