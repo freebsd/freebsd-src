@@ -952,10 +952,10 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (EINVAL);
 	}
 
-	if (attrs.rtm_table > 0 && attrs.rta_table == 0) {
-		/* pre-2.6.19 Linux API compatibility */
+	/* pre-2.6.19 Linux API compatibility */
+	if (attrs.rtm_table > 0 && attrs.rta_table == 0)
 		attrs.rta_table = attrs.rtm_table;
-	} else if (attrs.rta_table >= V_rt_numfibs) {
+	if (attrs.rta_table >= V_rt_numfibs) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}
