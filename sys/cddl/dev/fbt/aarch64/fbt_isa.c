@@ -177,8 +177,7 @@ again:
 			break;
 		else if ((*instr & B_MASK) == B_INSTR) {
 			offs = (*instr & B_DATA_MASK);
-			offs *= 4;
-			target = (instr + offs);
+			target = instr + offs;
 			start = (uint32_t *)symval->value;
 			if (target >= limit || target < start)
 				break;
