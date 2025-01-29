@@ -1301,6 +1301,7 @@ void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 int	mlx5e_fec_update(struct mlx5e_priv *priv);
 int	mlx5e_hw_temperature_update(struct mlx5e_priv *priv);
+int	mlx5e_hw_lro_update_tirs(struct mlx5e_priv *priv);
 
 /* Internal Queue, IQ, API functions */
 void	mlx5e_iq_send_nop(struct mlx5e_iq *, u32);
