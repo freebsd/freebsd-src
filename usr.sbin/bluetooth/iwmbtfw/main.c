@@ -451,6 +451,10 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
+	/* Default the firmware path */
+	if (firmware_dir == NULL)
+		firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
+
 	/* libusb setup */
 	r = libusb_init(&ctx);
 	if (r != 0) {
@@ -507,10 +511,6 @@ main(int argc, char *argv[])
 			retcode = 0;
 			goto reset;
 		}
-
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
 
 		firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "bseq");
 		if (firmware_path == NULL)
@@ -603,10 +603,6 @@ main(int argc, char *argv[])
 			goto shutdown;
 		}
 
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
-
 		firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "sfi");
 		if (firmware_path == NULL)
 			goto shutdown;
@@ -688,10 +684,6 @@ main(int argc, char *argv[])
 			   ver_tlv.sbe_type);
 			goto shutdown;
 		}
-
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
 
 		firmware_path = iwmbt_get_fwname_tlv(&ver_tlv, firmware_dir, "sfi");
 		if (firmware_path == NULL)
