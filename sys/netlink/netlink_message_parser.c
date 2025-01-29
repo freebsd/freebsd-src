@@ -98,7 +98,7 @@ nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val)
 }
 
 static const struct nlattr_parser *
-search_states(const struct nlattr_parser *ps, int pslen, int key)
+search_states(const struct nlattr_parser *ps, u_int pslen, int key)
 {
 	int left_i = 0, right_i = pslen - 1;
 
@@ -122,34 +122,37 @@ search_states(const struct nlattr_parser *ps, int pslen, int key)
 }
 
 int
-nl_parse_attrs_raw(struct nlattr *nla_head, int len,
-    const struct nlattr_parser *ps, int pslen, struct nl_pstate *npt,
+nl_parse_attrs_raw(struct nlattr *nla_head, uint16_t len,
+    const struct nlattr_parser *ps, u_int pslen, struct nl_pstate *npt,
     void *target)
 {
-	struct nlattr *nla = NULL;
+	const struct nlattr_parser *s;
+	struct nlattr *nla;
+	uint16_t orig_len, off;
 	int error = 0;
 
 	NL_LOG(LOG_DEBUG3, "parse %p remaining_len %d", nla_head, len);
-	int orig_len = len;
+	orig_len = len;
 	NLA_FOREACH(nla, nla_head, len) {
-		NL_LOG(LOG_DEBUG3, ">> parsing %p attr_type %d len %d (rem %d)",
+		NL_LOG(LOG_DEBUG3, ">> parsing %p attr_type %u len %u (rem %u)",
 		    nla, nla->nla_type, nla->nla_len, len);
 		if (nla->nla_len < sizeof(struct nlattr)) {
 			NLMSG_REPORT_ERR_MSG(npt,
-			    "Invalid attr %p type %d len: %d",
+			    "Invalid attr %p type %u len: %u",
 			    nla, nla->nla_type, nla->nla_len);
-			uint32_t off = (char *)nla - (char *)npt->hdr;
+			off = (char *)nla - (char *)npt->hdr;
 			nlmsg_report_err_offset(npt, off);
 			return (EINVAL);
 		}
 
-		int nla_type = nla->nla_type & NLA_TYPE_MASK;
-		const struct nlattr_parser *s = search_states(ps, pslen, nla_type);
+		s = search_states(ps, pslen, nla->nla_type & NLA_TYPE_MASK);
 		if (s != NULL) {
-			void *ptr = (void *)((char *)target + s->off);
+			void *ptr;
+
+			ptr = (void *)((char *)target + s->off);
 			error = s->cb(nla, npt, s->arg, ptr);
 			if (error != 0) {
-				uint32_t off = (char *)nla - (char *)npt->hdr;
+				off = (char *)nla - (char *)npt->hdr;
 				nlmsg_report_err_offset(npt, off);
 				NL_LOG(LOG_DEBUG3,
 				    "parse failed at offset %u", off);
@@ -157,42 +160,43 @@ nl_parse_attrs_raw(struct nlattr *nla_head, int len,
 			}
 		} else {
 			/* Ignore non-specified attributes */
-			NL_LOG(LOG_DEBUG3, "ignoring attr %d", nla->nla_type);
+			NL_LOG(LOG_DEBUG3, "ignoring attr %u", nla->nla_type);
 		}
 	}
 	if (len >= sizeof(struct nlattr)) {
 		nla = (struct nlattr *)((char *)nla_head + (orig_len - len));
-		NL_LOG(LOG_DEBUG3, " >>> end %p attr_type %d len %d", nla,
+		NL_LOG(LOG_DEBUG3, " >>> end %p attr_type %u len %u", nla,
 		    nla->nla_type, nla->nla_len);
 	}
-	NL_LOG(LOG_DEBUG3, "end parse: %p remaining_len %d", nla, len);
+	NL_LOG(LOG_DEBUG3, "end parse: %p remaining_len %u", nla, len);
 
 	return (0);
 }
 
 void
-nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len,
+nl_get_attrs_bmask_raw(struct nlattr *nla_head, uint32_t len,
     struct nlattr_bmask *bm)
 {
 	struct nlattr *nla = NULL;
+	uint16_t nla_type;
 
 	BIT_ZERO(NL_ATTR_BMASK_SIZE, bm);
 
 	NLA_FOREACH(nla, nla_head, len) {
 		if (nla->nla_len < sizeof(struct nlattr))
 			return;
-		int nla_type = nla->nla_type & NLA_TYPE_MASK;
+		nla_type = nla->nla_type & NLA_TYPE_MASK;
 		if (nla_type < NL_ATTR_BMASK_SIZE)
 			BIT_SET(NL_ATTR_BMASK_SIZE, nla_type, bm);
 		else
 			NL_LOG(LOG_DEBUG2,
-			    "Skipping type %d in the mask: too short",
+			    "Skipping type %u in the mask: too short",
 			    nla_type);
 	}
 }
 
 bool
-nl_has_attr(const struct nlattr_bmask *bm, unsigned int nla_type)
+nl_has_attr(const struct nlattr_bmask *bm, uint16_t nla_type)
 {
 	MPASS(nla_type < NL_ATTR_BMASK_SIZE);
 

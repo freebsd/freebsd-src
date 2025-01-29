@@ -47,8 +47,8 @@ MALLOC_DECLARE(M_NETLINK);
 
 #define NLA_ALIGN_SIZE          sizeof(uint32_t)
 #define NLA_ALIGN(_len)         _roundup2(_len, NLA_ALIGN_SIZE)
-#define	NLA_HDRLEN		((int)sizeof(struct nlattr))
-#define	NLA_DATA_LEN(_nla)	((int)((_nla)->nla_len - NLA_HDRLEN))
+#define	NLA_HDRLEN		((uint16_t)sizeof(struct nlattr))
+#define	NLA_DATA_LEN(_nla)	((_nla)->nla_len - NLA_HDRLEN)
 #define	NLA_DATA(_nla)		NL_ITEM_DATA(_nla, NLA_HDRLEN)
 #define	NLA_DATA_CONST(_nla)	NL_ITEM_DATA_CONST(_nla, NLA_HDRLEN)
 #define	NLA_TYPE(_nla)		((_nla)->nla_type & 0x3FFF)
