@@ -52,6 +52,10 @@ struct iwmbt_version {
 	uint8_t fw_patch_num;
 } __attribute__ ((packed));
 
+/* Known values for fw_variant */
+#define	FW_VARIANT_BOOTLOADER	0x06 /* Bootloader mode */
+#define	FW_VARIANT_OPERATIONAL	0x23 /* Operational mode */
+
 struct iwmbt_boot_params {
 	uint8_t status;
 	uint8_t otp_format;
@@ -130,6 +134,10 @@ struct iwmbt_version_tlv {
 	uint8_t sbe_type;
 	bdaddr_t otp_bd_addr;
 };
+
+/* Known TLV img_type values */
+#define	TLV_IMG_TYPE_BOOTLOADER		0x01 /* Bootloader mode */
+#define	TLV_IMG_TYPE_OPERATIONAL	0x03 /* Operational mode */
 
 struct iwmbt_firmware {
 	char *fwname;
