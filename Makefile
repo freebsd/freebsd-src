@@ -258,17 +258,22 @@ WANT_MAKE_VERSION= 20160604
 # 20160220 - support .dinclude for FAST_DEPEND.
 WANT_MAKE_VERSION= 20160220
 .endif
+.if defined(MYMAKE)
+.error MYMAKE cannot be overridden, use as command name instead
+.endif
 MYMAKE=		${OBJROOT}make.${MACHINE}/bmake
 .if defined(ALWAYS_BOOTSTRAP_MAKE) || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 NEED_MAKE_UPGRADE= t
 .endif
-.if exists(${MYMAKE})
+.if defined(NEED_MAKE_UPGRADE)
+. if exists(${MYMAKE})
 SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif defined(NEED_MAKE_UPGRADE)
+. else
 # It may not exist yet but we may cause it to.
 SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 	-m ${.CURDIR}/share/mk
+. endif
 .else
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
@@ -359,15 +364,16 @@ _assert_target: .PHONY .MAKE
 .endfor
 
 #
-# Make sure we have an up-to-date make(1). Only world and buildworld
-# should do this as those are the initial targets used for upgrades.
-# The user can define ALWAYS_CHECK_MAKE to have this check performed
-# for all targets.
+# Make sure we have an up-to-date make(1). Only world, buildworld and
+# kernel-toolchain should do this as those are the initial targets used
+# for upgrades. The user can define ALWAYS_CHECK_MAKE to have this check
+# performed for all targets.
 #
 .if defined(ALWAYS_CHECK_MAKE)
 ${TGTS}: upgrade_checks
 .else
 buildworld: upgrade_checks
+kernel-toolchain: upgrade_checks
 .endif
 
 #
@@ -457,6 +463,9 @@ kernel: buildkernel installkernel .PHONY
 upgrade_checks: .PHONY
 .if defined(NEED_MAKE_UPGRADE)
 	@${_+_}(cd ${.CURDIR} && ${MAKE} bmake)
+.elif exists(${MYMAKE:H})
+	@echo "Removing stale bmake(1)"
+	rm -r ${MYMAKE:H}
 .endif
 
 #
