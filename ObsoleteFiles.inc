@@ -51,7 +51,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2025xxxx: libdevinfo bumped to version 7
+# 20250129: libdevinfo bumped to version 7
 OLD_LIBS+=lib/libdevinfo.so.6
 
 # 20250123: Remove gvinum(8)
