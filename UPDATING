@@ -12,6 +12,26 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250129:
+	14.1-RELEASE-p7 SA-25:01.openssh
+			SA-25:02.fs
+			SA-25:03.etcupdate
+			EN-25:01.rpc
+			EN-25:02.audit
+			EN-25:03.tzdata
+
+	OpenSSH Keystroke Obfuscation Bypass [SA-25:01.openssh]
+
+	Buffer overflow in some filesystems via NFS [SA-25:02.fs]
+
+	Unprivileged access to system files [SA-25:03.etcupdate]
+
+	NULL pointer dereference in the NFSv4 client [EN-25:01.rpc]
+
+	System call auditing disabled by DTrace [EN-25:02.audit]
+
+	Timezone database information update [EN-25:03.tzdata]
+
 20241029:
 	14.1-RELEASE-p6 EN-24:17.pam_xdg
 			SA-24:17.bhyve
