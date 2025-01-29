@@ -461,9 +461,6 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		count = rle->count;
         }
 
-	if (type == SYS_RES_IOPORT)
-		type = SYS_RES_MEMORY;
-
 	if (type == SYS_RES_MEMORY) {
 		/* Remap through ranges property */
 		for (j = 0; j < sc->nranges; j++) {
