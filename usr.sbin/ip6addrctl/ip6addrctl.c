@@ -75,22 +75,24 @@ static void flush_policy(void);
 int
 main(int argc, char *argv[])
 {
-	if (argc == 1 || strcasecmp(argv[1], "show") == 0) {
+	if (argc == 1 || (argc == 2 && strcasecmp(argv[1], "show") == 0)) {
 		get_policy();
 		dump_policy();
 	} else if (strcasecmp(argv[1], "add") == 0) {
-		if (argc < 5)
+		if (argc != 5)
 			usage();
 		add_policy(argv[2], argv[3], argv[4]);
 	} else if (strcasecmp(argv[1], "delete") == 0) {
-		if (argc < 3)
+		if (argc != 3)
 			usage();
 		delete_policy(argv[2]);
 	} else if (strcasecmp(argv[1], "flush") == 0) {
+		if (argc != 2)
+			usage();
 		get_policy();
 		flush_policy();
 	} else if (strcasecmp(argv[1], "install") == 0) {
-		if (argc < 3)
+		if (argc != 3)
 			usage();
 		configfile = argv[2];
 		make_policy_fromfile(configfile);
