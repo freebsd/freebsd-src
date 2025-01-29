@@ -226,30 +226,6 @@ iwmbt_dump_version_tlv(struct iwmbt_version_tlv *ver)
 		    ver->build_num);
 }
 
-static int
-iwmbt_patch_firmware(libusb_device_handle *hdl, const char *firmware_path)
-{
-	struct iwmbt_firmware fw;
-	int ret;
-
-	iwmbt_debug("loading %s", firmware_path);
-
-	/* Read in the firmware */
-	if (iwmbt_fw_read(&fw, firmware_path) <= 0) {
-		iwmbt_debug("iwmbt_fw_read() failed");
-		return (-1);
-	}
-
-	/* Load in the firmware */
-	ret = iwmbt_patch_fwfile(hdl, &fw);
-	if (ret < 0)
-		iwmbt_debug("Loading firmware file failed");
-
-	/* free it */
-	iwmbt_fw_free(&fw);
-
-	return (ret);
-}
 
 static int
 iwmbt_init_firmware(libusb_device_handle *hdl, const char *firmware_path,
@@ -402,6 +378,7 @@ usage(void)
 }
 
 
+
 /*
  * Returns 0 on success.
  */
@@ -409,8 +386,9 @@ static int
 handle_7260(libusb_device_handle *hdl, char *firmware_dir)
 {
 	int r;
+	char *firmware_path;
 	struct iwmbt_version ver;
-	char *firmware_path = NULL;
+	struct iwmbt_firmware fw;
 
 	r = iwmbt_get_version(hdl, &ver);
 	if (r < 0) {
@@ -431,16 +409,25 @@ handle_7260(libusb_device_handle *hdl, char *firmware_dir)
 		return 1;
 	iwmbt_debug("firmware_path = %s", firmware_path);
 
+	r = iwmbt_fw_read(&fw, firmware_path);
+	free(firmware_path);
+	if (r <= 0) {
+		iwmbt_debug("iwmbt_fw_read() failed");
+		return 1;
+	}
+
 	r = iwmbt_enter_manufacturer(hdl);
 	if (r < 0) {
 		iwmbt_debug("iwmbt_enter_manufacturer() failed code %d", r);
+		iwmbt_fw_free(&fw);
 		return 1;
 	}
 
 	/* Download firmware */
-	r = iwmbt_patch_firmware(hdl, firmware_path);
-	free(firmware_path);
+	r = iwmbt_patch_fwfile(hdl, &fw);
+	iwmbt_fw_free(&fw);
 	if (r < 0) {
+		iwmbt_debug("Loading firmware file failed");
 		(void)iwmbt_exit_manufacturer(hdl, IWMBT_MM_EXIT_COLD_RESET);
 		return 1;
 	}
