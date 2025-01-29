@@ -369,10 +369,11 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: iwmbtfw (-D) -d ugenX.Y (-f firmware path) (-I)\n");
+	    "Usage: iwmbtfw [-DI] -d ugenX.Y [-f firmware path]\n");
 	fprintf(stderr, "    -D: enable debugging\n");
 	fprintf(stderr, "    -d: device to operate upon\n");
-	fprintf(stderr, "    -f: firmware path, if not default\n");
+	fprintf(stderr, "    -f: firmware path (defaults to %s)\n",
+	    _DEFAULT_IWMBT_FIRMWARE_PATH);
 	fprintf(stderr, "    -I: enable informational output\n");
 	exit(127);
 }
@@ -652,7 +653,7 @@ main(int argc, char *argv[])
 	enum iwmbt_device iwmbt_device;
 
 	/* Parse command line arguments */
-	while ((n = getopt(argc, argv, "Dd:f:hIm:p:v:")) != -1) {
+	while ((n = getopt(argc, argv, "Dd:f:hI")) != -1) {
 		switch (n) {
 		case 'd': /* ugen device name */
 			devid_set = 1;
