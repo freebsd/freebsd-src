@@ -64,15 +64,15 @@ vm_page_t vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low,
 int vm_phys_alloc_npages(int domain, int pool, int npages, vm_page_t ma[]);
 vm_page_t vm_phys_alloc_pages(int domain, int pool, int order);
 int vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high);
-void vm_phys_enqueue_contig(vm_page_t m, u_long npages);
+void vm_phys_enqueue_contig(vm_page_t m, int pool, u_long npages);
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
 void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
 vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 int vm_phys_find_range(vm_page_t bounds[], int segind, int domain,
     u_long npages, vm_paddr_t low, vm_paddr_t high);
-void vm_phys_free_contig(vm_page_t m, u_long npages);
-void vm_phys_free_pages(vm_page_t m, int order);
+void vm_phys_free_contig(vm_page_t m, int pool, u_long npages);
+void vm_phys_free_pages(vm_page_t m, int pool, int order);
 void vm_phys_init(void);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 vm_page_t vm_phys_seg_paddr_to_vm_page(struct vm_phys_seg *seg, vm_paddr_t pa);
