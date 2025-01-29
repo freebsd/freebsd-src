@@ -122,8 +122,9 @@ search_states(const struct nlattr_parser *ps, int pslen, int key)
 }
 
 int
-nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser *ps, int pslen,
-    struct nl_pstate *npt, void *target)
+nl_parse_attrs_raw(struct nlattr *nla_head, int len,
+    const struct nlattr_parser *ps, int pslen, struct nl_pstate *npt,
+    void *target)
 {
 	struct nlattr *nla = NULL;
 	int error = 0;
@@ -131,9 +132,11 @@ nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser 
 	NL_LOG(LOG_DEBUG3, "parse %p remaining_len %d", nla_head, len);
 	int orig_len = len;
 	NLA_FOREACH(nla, nla_head, len) {
-		NL_LOG(LOG_DEBUG3, ">> parsing %p attr_type %d len %d (rem %d)", nla, nla->nla_type, nla->nla_len, len);
+		NL_LOG(LOG_DEBUG3, ">> parsing %p attr_type %d len %d (rem %d)",
+		    nla, nla->nla_type, nla->nla_len, len);
 		if (nla->nla_len < sizeof(struct nlattr)) {
-			NLMSG_REPORT_ERR_MSG(npt, "Invalid attr %p type %d len: %d",
+			NLMSG_REPORT_ERR_MSG(npt,
+			    "Invalid attr %p type %d len: %d",
 			    nla, nla->nla_type, nla->nla_len);
 			uint32_t off = (char *)nla - (char *)npt->hdr;
 			nlmsg_report_err_offset(npt, off);
@@ -148,7 +151,8 @@ nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser 
 			if (error != 0) {
 				uint32_t off = (char *)nla - (char *)npt->hdr;
 				nlmsg_report_err_offset(npt, off);
-				NL_LOG(LOG_DEBUG3, "parse failed at offset %u", off);
+				NL_LOG(LOG_DEBUG3,
+				    "parse failed at offset %u", off);
 				return (error);
 			}
 		} else {
@@ -167,7 +171,8 @@ nl_parse_attrs_raw(struct nlattr *nla_head, int len, const struct nlattr_parser 
 }
 
 void
-nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm)
+nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len,
+    struct nlattr_bmask *bm)
 {
 	struct nlattr *nla = NULL;
 
@@ -180,7 +185,8 @@ nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len, struct nlattr_bmask *bm
 		if (nla_type < NL_ATTR_BMASK_SIZE)
 			BIT_SET(NL_ATTR_BMASK_SIZE, nla_type, bm);
 		else
-			NL_LOG(LOG_DEBUG2, "Skipping type %d in the mask: too short",
+			NL_LOG(LOG_DEBUG2,
+			    "Skipping type %d in the mask: too short",
 			    nla_type);
 	}
 }
@@ -194,7 +200,8 @@ nl_has_attr(const struct nlattr_bmask *bm, unsigned int nla_type)
 }
 
 int
-nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != 0)) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not a flag",
@@ -211,7 +218,8 @@ parse_rta_ip4(void *rta_data, struct nl_pstate *npt, int *perror)
 {
 	struct sockaddr_in *sin;
 
-	sin = (struct sockaddr_in *)npt_alloc_sockaddr(npt, sizeof(struct sockaddr_in));
+	sin = (struct sockaddr_in *)npt_alloc_sockaddr(npt,
+	    sizeof(struct sockaddr_in));
 	if (__predict_false(sin == NULL)) {
 		*perror = ENOBUFS;
 		return (NULL);
@@ -227,7 +235,8 @@ parse_rta_ip6(void *rta_data, struct nl_pstate *npt, int *perror)
 {
 	struct sockaddr_in6 *sin6;
 
-	sin6 = (struct sockaddr_in6 *)npt_alloc_sockaddr(npt, sizeof(struct sockaddr_in6));
+	sin6 = (struct sockaddr_in6 *)npt_alloc_sockaddr(npt,
+	    sizeof(struct sockaddr_in6));
 	if (__predict_false(sin6 == NULL)) {
 		*perror = ENOBUFS;
 		return (NULL);
@@ -258,7 +267,8 @@ parse_rta_ip(struct rtattr *rta, struct nl_pstate *npt, int *perror)
 }
 
 int
-nlattr_get_ip(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_ip(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	int error = 0;
 
@@ -302,7 +312,8 @@ parse_rta_via(struct rtattr *rta, struct nl_pstate *npt, int *perror)
 }
 
 int
-nlattr_get_ipvia(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_ipvia(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	int error = 0;
 
@@ -313,7 +324,8 @@ nlattr_get_ipvia(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 }
 
 int
-nlattr_get_bool(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_bool(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(bool))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not bool",
@@ -325,7 +337,8 @@ nlattr_get_bool(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void
 }
 
 int
-nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint8_t))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint8",
@@ -337,7 +350,8 @@ nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 }
 
 int
-nlattr_get_uint16(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_uint16(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint16_t))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint16",
@@ -349,7 +363,8 @@ nlattr_get_uint16(struct nlattr *nla, struct nl_pstate *npt, const void *arg, vo
 }
 
 int
-nlattr_get_uint32(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_uint32(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint32_t))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint32",
@@ -361,7 +376,8 @@ nlattr_get_uint32(struct nlattr *nla, struct nl_pstate *npt, const void *arg, vo
 }
 
 int
-nlattr_get_uint64(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_uint64(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint64_t))) {
 		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint64",
@@ -373,10 +389,12 @@ nlattr_get_uint64(struct nlattr *nla, struct nl_pstate *npt, const void *arg, vo
 }
 
 int
-nlattr_get_in_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_in_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(in_addr_t))) {
-		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not in_addr_t",
+		NLMSG_REPORT_ERR_MSG(npt,
+		    "nla type %d size(%u) is not in_addr_t",
 		    nla->nla_type, NLA_DATA_LEN(nla));
 		return (EINVAL);
 	}
@@ -385,10 +403,12 @@ nlattr_get_in_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg, v
 }
 
 int
-nlattr_get_in6_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_in6_addr(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(struct in6_addr))) {
-		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not struct in6_addr",
+		NLMSG_REPORT_ERR_MSG(npt,
+		    "nla type %d size(%u) is not struct in6_addr",
 		    nla->nla_type, NLA_DATA_LEN(nla));
 		return (EINVAL);
 	}
@@ -428,26 +448,31 @@ nlattr_get_ifp_internal(struct nlattr *nla, struct nl_pstate *npt,
 }
 
 int
-nlattr_get_ifp(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_ifp(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	return (nlattr_get_ifp_internal(nla, npt, target, false));
 }
 
 int
-nlattr_get_ifpz(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_ifpz(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	return (nlattr_get_ifp_internal(nla, npt, target, true));
 }
 
 int
-nlattr_get_chara(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_chara(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	int maxlen = NLA_DATA_LEN(nla);
 	int target_size = (size_t)arg;
 	int len = strnlen((char *)NLA_DATA(nla), maxlen);
 
-	if (__predict_false(len >= maxlen) || __predict_false(len >= target_size)) {
-		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not NULL-terminated or longer than %u",
+	if (__predict_false(len >= maxlen) ||
+	    __predict_false(len >= target_size)) {
+		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not "
+		    "NULL-terminated or longer than %u",
 		    nla->nla_type, maxlen, target_size);
 		return (EINVAL);
 	}
@@ -457,12 +482,14 @@ nlattr_get_chara(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 }
 
 int
-nlattr_get_string(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_string(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	int maxlen = NLA_DATA_LEN(nla);
 
 	if (__predict_false(strnlen((char *)NLA_DATA(nla), maxlen) >= maxlen)) {
-		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not NULL-terminated",
+		NLMSG_REPORT_ERR_MSG(npt,
+		    "nla type %d size(%u) is not NULL-terminated",
 		    nla->nla_type, maxlen);
 		return (EINVAL);
 	}
@@ -472,7 +499,8 @@ nlattr_get_string(struct nlattr *nla, struct nl_pstate *npt, const void *arg, vo
 }
 
 int
-nlattr_get_stringn(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_stringn(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	int maxlen = NLA_DATA_LEN(nla);
 
@@ -487,7 +515,8 @@ nlattr_get_stringn(struct nlattr *nla, struct nl_pstate *npt, const void *arg, v
 }
 
 int
-nlattr_get_bytes(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_bytes(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	size_t size = (size_t)arg;
 
@@ -500,7 +529,8 @@ nlattr_get_bytes(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 }
 
 int
-nlattr_get_nla(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_nla(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	NL_LOG(LOG_DEBUG3, "STORING %p len %d", nla, nla->nla_len);
 	*((struct nlattr **)target) = nla;
@@ -508,25 +538,25 @@ nlattr_get_nla(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void 
 }
 
 int
-nlattr_get_nested(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_nested(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
+    void *target)
 {
 	const struct nlhdr_parser *p = (const struct nlhdr_parser *)arg;
-	int error;
 
-	/* Assumes target points to the beginning of the structure */
-	error = nl_parse_header(NLA_DATA(nla), NLA_DATA_LEN(nla), p, npt, target);
-	return (error);
+	/* Assumes target points to the beginning of the structure. */
+	return (nl_parse_header(NLA_DATA(nla), NLA_DATA_LEN(nla), p, npt,
+	    target));
 }
 
 int
-nlattr_get_nested_ptr(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_nested_ptr(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target)
 {
 	const struct nlhdr_parser *p = (const struct nlhdr_parser *)arg;
-	int error;
 
-	/* Assumes target points to the beginning of the structure */
-	error = nl_parse_header(NLA_DATA(nla), NLA_DATA_LEN(nla), p, npt, *(void **)target);
-	return (error);
+	/* Assumes target points to the beginning of the structure. */
+	return (nl_parse_header(NLA_DATA(nla), NLA_DATA_LEN(nla), p, npt,
+	    *(void **)target));
 }
 
 int
@@ -593,4 +623,3 @@ nlf_get_u32(void *src, struct nl_pstate *npt, void *target)
 	*((uint32_t *)target) = *((const uint32_t *)src);
 	return (0);
 }
-
