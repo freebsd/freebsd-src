@@ -1,0 +1,23 @@
+#
+# MEDIATEK -- MEDIATEK kernel configuration file for FreeBSD/arm64
+#
+
+cpu		ARM64
+ident		MEDIATEK
+
+makeoptions	DEBUG=-g  # Enable kernel debugging sybmbols
+makeoptions	WITH_KERNEL_BIN=1
+
+options KDB
+options DDB               # built-in DDB support
+options GDB               # enter GDB from DDB
+options KDB_TRACE
+options BREAK_TO_DEBUGGER # If need to enter DDB from console
+
+options EARLY_PRINTF=ns8250
+options SOCDEV_PA=0x11002000
+
+# Include SoC specific configuration
+include "std.arm64"
+include "std.dev"
+include 	"std.mediatek"
