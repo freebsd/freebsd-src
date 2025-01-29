@@ -112,10 +112,10 @@ typedef bool strict_parser_f(void *hdr, struct nl_pstate *npt);
 typedef bool post_parser_f(void *parsed_attrs, struct nl_pstate *npt);
 
 struct nlhdr_parser {
-	int			nl_hdr_off; /* aligned netlink header size */
-	int			out_hdr_off; /* target header size */
-	int			fp_size;
-	int			np_size;
+	u_int			nl_hdr_off; /* aligned netlink header size */
+	u_int			out_hdr_off; /* target header size */
+	u_int			fp_size;
+	u_int			np_size;
 	const struct nlfield_parser	*fp; /* array of header field parsers */
 	const struct nlattr_parser	*np; /* array of attribute parsers */
 	strict_parser_f		*sp; /* Pre-parse strict validation function */
@@ -162,12 +162,12 @@ static const struct nlhdr_parser _name = {		\
 #define	NL_ATTR_BMASK_SIZE	128
 BITSET_DEFINE(nlattr_bmask, NL_ATTR_BMASK_SIZE);
 
-void nl_get_attrs_bmask_raw(struct nlattr *nla_head, int len,
+void nl_get_attrs_bmask_raw(struct nlattr *nla_head, uint32_t len,
     struct nlattr_bmask *bm);
-bool nl_has_attr(const struct nlattr_bmask *bm, unsigned int nla_type);
+bool nl_has_attr(const struct nlattr_bmask *bm, uint16_t nla_type);
 
-int nl_parse_attrs_raw(struct nlattr *nla_head, int len,
-    const struct nlattr_parser *ps, int pslen, struct nl_pstate *npt,
+int nl_parse_attrs_raw(struct nlattr *nla_head, uint16_t len,
+    const struct nlattr_parser *ps, u_int pslen, struct nl_pstate *npt,
     void *target);
 
 int nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt,
@@ -226,10 +226,9 @@ void nlmsg_report_cookie_u32(struct nl_pstate *npt, uint32_t val);
  * the list of direct function calls without iteration.
  */
 static inline int
-nl_parse_header(void *hdr, int len, const struct nlhdr_parser *parser,
+nl_parse_header(void *hdr, uint32_t len, const struct nlhdr_parser *parser,
     struct nl_pstate *npt, void *target)
 {
-	struct nlattr *nla;
 	int error;
 
 	if (__predict_false(len < parser->nl_hdr_off)) {
@@ -258,7 +257,7 @@ nl_parse_header(void *hdr, int len, const struct nlhdr_parser *parser,
 		return (EINVAL);
 
 	/* Extract fields first */
-	for (int i = 0; i < parser->fp_size; i++) {
+	for (u_int i = 0; i < parser->fp_size; i++) {
 		const struct nlfield_parser *fp = &parser->fp[i];
 		void *src = (char *)hdr + fp->off_in;
 		void *dst = (char *)target + fp->off_out;
@@ -268,9 +267,9 @@ nl_parse_header(void *hdr, int len, const struct nlhdr_parser *parser,
 			return (error);
 	}
 
-	nla = (struct nlattr *)((char *)hdr + parser->nl_hdr_off);
-	error = nl_parse_attrs_raw(nla, len - parser->nl_hdr_off, parser->np,
-	    parser->np_size, npt, target);
+	error = nl_parse_attrs_raw(
+	    (struct nlattr *)((char *)hdr + parser->nl_hdr_off),
+	    len - parser->nl_hdr_off, parser->np, parser->np_size, npt, target);
 
 	if (parser->post_parse != NULL && error == 0) {
 		if (!parser->post_parse(target, npt))
@@ -284,10 +283,8 @@ static inline int
 nl_parse_nested(struct nlattr *nla, const struct nlhdr_parser *parser,
     struct nl_pstate *npt, void *target)
 {
-	struct nlattr *nla_head = (struct nlattr *)NLA_DATA(nla);
-
-	return (nl_parse_attrs_raw(nla_head, NLA_DATA_LEN(nla), parser->np,
-	    parser->np_size, npt, target));
+	return (nl_parse_attrs_raw((struct nlattr *)NLA_DATA(nla),
+	    NLA_DATA_LEN(nla), parser->np, parser->np_size, npt, target));
 }
 
 /*
@@ -330,12 +327,9 @@ static inline void
 nl_get_attrs_bmask_nlmsg(struct nlmsghdr *hdr,
     const struct nlhdr_parser *parser, struct nlattr_bmask *bm)
 {
-	struct nlattr *nla_head;
-
-	nla_head = (struct nlattr *)((char *)(hdr + 1) + parser->nl_hdr_off);
-	int len = hdr->nlmsg_len - sizeof(*hdr) - parser->nl_hdr_off;
-
-	nl_get_attrs_bmask_raw(nla_head, len, bm);
+	nl_get_attrs_bmask_raw(
+	    (struct nlattr *)((char *)(hdr + 1) + parser->nl_hdr_off),
+	    hdr->nlmsg_len - sizeof(*hdr) - parser->nl_hdr_off, bm);
 }
 
 #endif
