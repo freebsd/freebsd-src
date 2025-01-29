@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2025xxxx: libdevinfo bumped to version 7
+OLD_LIBS+=lib/libdevinfo.so.6
+
 # 20250123: Remove gvinum(8)
 OLD_FILES+=sbin/gvinum
 OLD_FILES+=usr/share/man/man8/gvinum.8.gz
