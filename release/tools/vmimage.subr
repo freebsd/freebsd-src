@@ -60,7 +60,8 @@ vm_install_base() {
 	mkdir -p ${DESTDIR}/var/db/etcupdate
 	etcupdate extract -B \
 		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
-		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
+		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate \
+		-L /dev/stdout
 	sh ${WORLDDIR}/release/scripts/mm-mtree.sh -m ${WORLDDIR} \
 		-F "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
 		-D ${DESTDIR}
