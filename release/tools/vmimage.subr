@@ -60,7 +60,8 @@ vm_install_base() {
 	mkdir -p ${DESTDIR}/var/db/etcupdate
 	etcupdate extract -B \
 		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
-		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
+		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate \
+		-L /dev/stdout
 
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab

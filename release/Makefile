@@ -137,7 +137,7 @@ base.txz:
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
-	    -L /dev/null -N
+	    -L /dev/stdout -N
 	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
 	sed -n 's,^\.,./var/db/etcupdate/current,p' \
 	    ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG | \
