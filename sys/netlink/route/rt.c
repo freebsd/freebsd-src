@@ -426,33 +426,45 @@ post_p_rtnh(void *_attrs, struct nl_pstate *npt __unused)
 NL_DECLARE_PARSER_EXT(mpath_parser, struct rtnexthop, NULL, nlf_p_rtnh, nla_p_rtnh, post_p_rtnh);
 
 struct rta_mpath {
-	int num_nhops;
+	u_int num_nhops;
 	struct rta_mpath_nh nhops[0];
 };
 
 static int
-nlattr_get_multipath(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+nlattr_get_multipath(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target)
 {
-	int data_len = nla->nla_len - sizeof(struct nlattr);
+	struct rta_mpath *mp;
 	struct rtnexthop *rtnh;
+	uint16_t data_len, len;
+	u_int max_nhops;
+	int error;
 
-	int max_nhops = data_len / sizeof(struct rtnexthop);
+	data_len = nla->nla_len - sizeof(struct nlattr);
+	max_nhops = data_len / sizeof(struct rtnexthop);
 
-	struct rta_mpath *mp = npt_alloc(npt, (max_nhops + 2) * sizeof(struct rta_mpath_nh));
+	mp = npt_alloc(npt, (max_nhops + 2) * sizeof(struct rta_mpath_nh));
 	mp->num_nhops = 0;
 
 	for (rtnh = (struct rtnexthop *)(nla + 1); data_len > 0; ) {
-		struct rta_mpath_nh *mpnh = &mp->nhops[mp->num_nhops++];
+		struct rta_mpath_nh *mpnh;
 
-		int error = nl_parse_header(rtnh, rtnh->rtnh_len, &mpath_parser,
+		if (__predict_false(rtnh->rtnh_len <= sizeof(*rtnh) ||
+		    rtnh->rtnh_len > data_len)) {
+			NLMSG_REPORT_ERR_MSG(npt, "%s: bad length %u",
+			    __func__, rtnh->rtnh_len);
+			return (EINVAL);
+		}
+		mpnh = &mp->nhops[mp->num_nhops++];
+		error = nl_parse_header(rtnh, rtnh->rtnh_len, &mpath_parser,
 		    npt, mpnh);
 		if (error != 0) {
-			NLMSG_REPORT_ERR_MSG(npt, "RTA_MULTIPATH: nexhop %d: parse failed",
+			NLMSG_REPORT_ERR_MSG(npt,
+			    "RTA_MULTIPATH: nexthop %u: parse failed",
 			    mp->num_nhops - 1);
 			return (error);
 		}
-
-		int len = NL_ITEM_ALIGN(rtnh->rtnh_len);
+		len = NL_ITEM_ALIGN(rtnh->rtnh_len);
 		data_len -= len;
 		rtnh = (struct rtnexthop *)((char *)rtnh + len);
 	}
