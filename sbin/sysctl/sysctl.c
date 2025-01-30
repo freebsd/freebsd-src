@@ -66,7 +66,7 @@ static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 static bool	Fflag, Jflag, lflag, Vflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
-static int	parsefile(const char *);
+static int	parsefile(FILE *);
 static int	parse(const char *, int);
 static int	show_var(int *, int, bool);
 static int	sysctl_all(int *, int);
@@ -131,6 +131,7 @@ main(int argc, char **argv)
 {
 	int ch;
 	int warncount = 0;
+	FILE *file = NULL;
 
 	setlocale(LC_NUMERIC, "");
 	setbuf(stdout,0);
@@ -226,8 +227,13 @@ main(int argc, char **argv)
 	if (argc == 0 && conffile == NULL)
 		usage();
 
-	if (conffile != NULL)
-		warncount += parsefile(conffile);
+	if (conffile != NULL) {
+		file = fopen(conffile, "r");
+		if (file == NULL)
+			err(EX_NOINPUT, "%s", conffile);
+		warncount += parsefile(file);
+		fclose(file);
+	}
 
 	while (argc-- > 0)
 		warncount += parse(*argv++, 0);
@@ -568,15 +574,11 @@ parse(const char *string, int lineno)
 }
 
 static int
-parsefile(const char *filename)
+parsefile(FILE *file)
 {
-	FILE *file;
 	char line[BUFSIZ], *p, *pq, *pdq;
 	int warncount = 0, lineno = 0;
 
-	file = fopen(filename, "r");
-	if (file == NULL)
-		err(EX_NOINPUT, "%s", filename);
 	while (fgets(line, sizeof(line), file) != NULL) {
 		lineno++;
 		p = line;
@@ -612,7 +614,6 @@ parsefile(const char *filename)
 		else
 			warncount += parse(p, lineno);
 	}
-	fclose(file);
 
 	return (warncount);
 }
