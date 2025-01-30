@@ -1488,7 +1488,7 @@ findsym(const char **strp)
 static void
 indirectsym(void)
 {
-	const char *cp;
+	struct macro key = { 0 };
 	int changed;
 	struct macro *sym, *ind;
 
@@ -1497,10 +1497,9 @@ indirectsym(void)
 		RB_FOREACH(sym, MACROMAP, &macro_tree) {
 			if (sym->value == NULL)
 				continue;
-			cp = sym->value;
-			ind = findsym(&cp);
+			key.name = sym->value;
+			ind = RB_FIND(MACROMAP, &macro_tree, &key);
 			if (ind == NULL || ind == sym ||
-			    *cp != '\0' ||
 			    ind->value == NULL ||
 			    ind->value == sym->value)
 				continue;
@@ -1539,10 +1538,10 @@ addsym1(bool ignorethis, bool definethis, char *symval)
 static void
 addsym2(bool ignorethis, const char *symname, const char *val)
 {
-	const char *cp = symname;
+	struct macro key = { .name = symname };
 	struct macro *sym, *r;
 
-	sym = findsym(&cp);
+	sym = RB_FIND(MACROMAP, &macro_tree, &key);
 	if (sym == NULL) {
 		sym = calloc(1, sizeof(*sym));
 		sym->ignore = ignorethis;
