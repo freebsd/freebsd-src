@@ -1,4 +1,4 @@
-# $NetBSD: varmod-shell.mk,v 1.10 2024/07/05 19:47:22 rillig Exp $
+# $NetBSD: varmod-shell.mk,v 1.11 2024/08/29 20:20:37 rillig Exp $
 #
 # Tests for the ':!cmd!' variable modifier, which runs the shell command
 # given by the variable modifier and returns its output.
@@ -21,18 +21,18 @@
 # Between 2000-04-29 and 2020-11-17, the error message mentioned the previous
 # value of the expression (which is usually an empty string) instead of the
 # command that was executed.
-# expect+1: warning: while evaluating "${:!echo word; (exit 13)!} != "word"" with value "word": Command "echo word; (exit 13)" exited with status 13
+# expect+1: warning: Command "echo word; (exit 13)" exited with status 13
 .if ${:!echo word; (exit 13)!} != "word"
 .  error
 .endif
-# expect+1: warning: while evaluating "${:Uprevious value:!echo word; (exit 13)!} != "word"" with value "word": Command "echo word; (exit 13)" exited with status 13
+# expect+1: warning: Command "echo word; (exit 13)" exited with status 13
 .if ${:Uprevious value:!echo word; (exit 13)!} != "word"
 .  error
 .endif
 
 
 .MAKEFLAGS: -dv			# to see the "Capturing" debug output
-# expect+1: warning: while evaluating "${:!echo word; ${:U(exit 13)}!}" with value "word": Command "echo word; (exit 13)" exited with status 13
+# expect+1: warning: Command "echo word; (exit 13)" exited with status 13
 _:=	${:!echo word; ${:U(exit 13)}!}
 .MAKEFLAGS: -d0
 

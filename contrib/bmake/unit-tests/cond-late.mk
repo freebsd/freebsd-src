@@ -1,4 +1,4 @@
-# $NetBSD: cond-late.mk,v 1.8 2024/07/04 17:47:54 rillig Exp $
+# $NetBSD: cond-late.mk,v 1.9 2024/08/29 20:20:35 rillig Exp $
 #
 # Using the :? modifier, expressions can contain conditional
 # expressions that are evaluated late, at expansion time.
@@ -34,7 +34,7 @@ cond-literal:
 
 .if make(do-parse-time)
 VAR=	${${UNDEF} != "no":?:}
-# expect+1: while evaluating variable "VAR" with value "${${UNDEF} != "no":?:}": while evaluating condition " != "no"": Bad condition
+# expect+1: Bad condition
 .  if empty(VAR:Mpattern)
 .  endif
 .endif

@@ -8,4 +8,10 @@ Capturing the output of command "echo '$$$$'"
 Global: OUTPUT = $$$$
 Global: .MAKEFLAGS = -r -k -d v -d
 Global: .MAKEFLAGS = -r -k -d v -d 0
+Var_Parse: ${UNDEF}y (eval)
+Capturing the output of command "echo xy"
+Global: OUTPUT_OF_UNDEF = xy
+Var_Parse: ${OUTPUT_OF_UNDEF} != "xy" (eval-defined-loud)
+Global: .MAKEFLAGS = -r -k -d v -d 0 -d v -d
+Global: .MAKEFLAGS = -r -k -d v -d 0 -d v -d 0
 exit status 0

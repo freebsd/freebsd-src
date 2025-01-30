@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-var.mk,v 1.8 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: cond-token-var.mk,v 1.11 2025/01/11 21:21:33 rillig Exp $
 #
 # Tests for expressions in .if conditions.
 #
@@ -13,7 +13,9 @@
 # Well, except for the assignment modifiers, these do indeed change the value
 # of the variable.
 
+D=	defined
 DEF=	defined
+
 
 # A defined variable may appear on either side of the comparison.
 .if ${DEF} == ${DEF}
@@ -24,13 +26,13 @@ DEF=	defined
 .endif
 
 # A variable that appears on the left-hand side must be defined.
-# expect+1: Malformed conditional (${UNDEF} == ${DEF})
+# expect+1: Variable "UNDEF" is undefined
 .if ${UNDEF} == ${DEF}
 .  error
 .endif
 
 # A variable that appears on the right-hand side must be defined.
-# expect+1: Malformed conditional (${DEF} == ${UNDEF})
+# expect+1: Variable "UNDEF" is undefined
 .if ${DEF} == ${UNDEF}
 .  error
 .endif
@@ -40,7 +42,7 @@ DEF=	defined
 .endif
 
 # An undefined variable on its own generates a parse error.
-# expect+1: Malformed conditional (${UNDEF})
+# expect+1: Variable "UNDEF" is undefined
 .if ${UNDEF}
 .endif
 
@@ -48,6 +50,34 @@ DEF=	defined
 # Since the expression is defined now, it doesn't generate any parse error.
 .if ${UNDEF:U}
 .endif
+
+
+# The same as above, for single-letter variables without braces or
+# parentheses.
+
+# A defined variable may appear on either side of the comparison.
+.if $D == $D
+.endif
+
+# A variable on the left-hand side must be defined.
+# expect+1: Variable "U" is undefined
+.if $U == $D
+.endif
+
+# A variable on the right-hand side must be defined.
+# expect+1: Variable "U" is undefined
+.if $D == $U
+.endif
+
+# A defined variable may appear as an expression of its own.
+.if $D
+.endif
+
+# An undefined variable without a comparison operator generates a parse error.
+# expect+1: Variable "U" is undefined
+.if $U
+.endif
+
 
 # If the value of the expression is a number, it is compared against
 # zero.
@@ -69,3 +99,30 @@ DEF=	defined
 .if !${:Uanything}
 .  error
 .endif
+
+.MAKEFLAGS: -dv
+# The left-hand side of a comparison must not be an unquoted word.
+# expect+1: Malformed conditional 'x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}'
+.if x${UNDEF1}y == "${UNDEF2}" || 0x${UNDEF3}
+.endif
+
+# The left-hand side of a comparison must not be an unquoted word.
+# expect+1: Malformed conditional 'x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}'
+.if x${DEF}y == "${UNDEF2}" || 0x${UNDEF3}
+.endif
+
+# The left-hand side of a comparison must not be an unquoted word.
+# expect+1: Malformed conditional 'x${DEF}y == "${DEF}" || 0x${UNDEF3}'
+.if x${DEF}y == "${DEF}" || 0x${UNDEF3}
+.endif
+
+# An expression in a condition must not be based on an undefined variable,
+# but undefined variables may occur in the variable name or in modifiers.
+#
+# expect: Var_Parse: ${VAR.param$U} (eval-defined-loud)
+# expect: Var_Parse: $U} (eval)
+VAR.param=	value of VAR.param
+.if ${VAR.param$U}
+.endif
+
+.MAKEFLAGS: -d0

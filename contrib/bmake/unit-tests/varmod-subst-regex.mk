@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.11 2023/12/18 11:13:51 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.12 2024/07/20 11:05:12 rillig Exp $
 #
 # Tests for the :C,from,to, variable modifier.
 
@@ -6,8 +6,8 @@
 .MAKEFLAGS: -dL
 
 all: mod-regex-compile-error
-all: mod-regex-limits
-all: mod-regex-errors
+all: mod-regex-limits-{1,2,3,4,5,6}
+all: mod-regex-errors-{1,2}
 all: unmatched-subexpression
 
 # The expression expands to 4 words.  Of these words, none matches
@@ -139,19 +139,25 @@ mod-regex-compile-error:
 
 # These tests generate error messages but as of 2020-08-28 just continue
 # parsing and execution as if nothing bad had happened.
-mod-regex-limits:
+mod-regex-limits-1:
 	@echo $@:11-missing:${:U1 23 456:C,..,\1\1,:Q}
+mod-regex-limits-2:
 	@echo $@:11-ok:${:U1 23 456:C,(.).,\1\1,:Q}
+mod-regex-limits-3:
 	@echo $@:22-missing:${:U1 23 456:C,..,\2\2,:Q}
+mod-regex-limits-4:
 	@echo $@:22-missing:${:U1 23 456:C,(.).,\2\2,:Q}
+mod-regex-limits-5:
 	@echo $@:22-ok:${:U1 23 456:C,(.)(.),\2\2,:Q}
+mod-regex-limits-6:
 	# The :C modifier only handles single-digit capturing groups,
 	# which is enough for all practical use cases.
 	@echo $@:capture:${:UabcdefghijABCDEFGHIJrest:C,(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.),\9\8\7\6\5\4\3\2\1\0\10\11\12,}
 
-mod-regex-errors:
+mod-regex-errors-1:
 	@echo $@: ${UNDEF:Uvalue:C,[,,}
 
+mod-regex-errors-2:
 	# If the replacement pattern produces a parse error because of an
 	# unknown modifier, the parse error is ignored in ParseModifierPart
 	# and the faulty expression expands to "".

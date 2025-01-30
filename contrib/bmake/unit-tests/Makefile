@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.224 2024/07/13 05:27:35 sjg Exp $
+# $Id: Makefile,v 1.230 2025/01/30 18:04:20 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.350 2024/07/07 09:37:00 rillig Exp $
+# $NetBSD: Makefile,v 1.355 2025/01/25 22:46:30 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -46,6 +46,11 @@ TMPDIR:=	/tmp/uid${.MAKE.UID}
 .if !exist(${TMPDIR})
 _!= mkdir -p ${TMPDIR}
 .endif
+# and clean it up - outside the context of
+# any target that might be using it.
+.END: rm-tmpdir
+rm-tmpdir:	.NOMETA
+	@rm -rf ${TMPDIR}
 
 # Each test is in a sub-makefile.
 # Keep the list sorted.
@@ -314,6 +319,7 @@ TESTS+=		shell-custom
 TESTS+=		shell-ksh
 .endif
 TESTS+=		shell-sh
+TESTS+=		suff
 TESTS+=		suff-add-later
 TESTS+=		suff-clear-regular
 TESTS+=		suff-clear-single
@@ -575,7 +581,7 @@ SED_CMDS.deptgt-phony=	${STD_SED_CMDS.dd}
 SED_CMDS.dir=		${STD_SED_CMDS.dd}
 SED_CMDS.directive-include-guard= \
 	-e '/\.MAKEFLAGS/d' \
-	-e '/^Parsing line/d' \
+	-e '/^Parsing .*:[1-9][0-9]*:/d' \
 	-e '/^SetFilenameVars:/d' \
 	-e '/^ParseDependency/d' \
 	-e '/^ParseEOF:/d'
@@ -857,11 +863,12 @@ SED_CMDS.opt-debug-jobs+= -e 's,Command: <shell> -v,Command: <shell>,'
 
 .rawout.out:
 	@${TOOL_SED} ${_SED_CMDS} ${SED_CMDS.${.PREFIX:T}} \
-	  < ${.IMPSRC} > ${.TARGET}.tmp1
-	@${POSTPROC.${.PREFIX:T}:Ucat} < ${.TARGET}.tmp1 > ${.TARGET}.tmp2
-	@rm ${.TARGET}.tmp1
-	@echo "exit status `cat ${.TARGET:R}.status`" >> ${.TARGET}.tmp2
-	@mv ${.TARGET}.tmp2 ${.TARGET}
+	  < ${.IMPSRC} > ${.TARGET}.tmp
+	@${POSTPROC.${.PREFIX:T}:D \
+	    ${POSTPROC.${.PREFIX:T}} < ${.TARGET}.tmp > ${.TARGET}.post \
+	    && mv ${.TARGET}.post ${.TARGET}.tmp}
+	@echo "exit status `cat ${.TARGET:R}.status`" >> ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if empty(DIFF_FLAGS)
 DIFF_ECHO= echo

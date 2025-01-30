@@ -1,6 +1,6 @@
-make: "cond-op-and.mk" line 36: Malformed conditional (0 || (${DEF} && ${UNDEF}))
-make: "cond-op-and.mk" line 41: Malformed conditional (0 || (${UNDEF} && ${UNDEF}))
-make: "cond-op-and.mk" line 44: Malformed conditional (0 || (!${UNDEF} && ${UNDEF}))
+make: "cond-op-and.mk" line 36: Variable "UNDEF" is undefined
+make: "cond-op-and.mk" line 41: Variable "UNDEF" is undefined
+make: "cond-op-and.mk" line 44: Variable "UNDEF" is undefined
 make: "cond-op-and.mk" line 60: Unknown operator '&'
 make: "cond-op-and.mk" line 66: Unknown operator '&'
 make: "cond-op-and.mk" line 72: Unknown operator '&'

@@ -1,27 +1,52 @@
-make: in target "mod-regex-compile-error": while evaluating "${:Uword1 word2:C,****,____,g:C,word,____,:Q}." with value "word1 word2": Regex compilation error: (details omitted)
-mod-regex-compile-error: C,word,____,:Q}.
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456": No subexpression \1
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456": No subexpression \1
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456": No subexpression \1
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456": No subexpression \1
-mod-regex-limits:11-missing:1 6
-mod-regex-limits:11-ok:1 22 446
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456": No subexpression \2
-mod-regex-limits:22-missing:1 6
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456": No subexpression \2
-make: in target "mod-regex-limits": while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456": No subexpression \2
-mod-regex-limits:22-missing:1 6
-mod-regex-limits:22-ok:1 33 556
-mod-regex-limits:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
-make: in target "mod-regex-errors": while evaluating variable "UNDEF" with value "value": Regex compilation error: (details omitted)
-mod-regex-errors:
-make: in target "mod-regex-errors": while evaluating variable "word" with value "word": while evaluating "${:U:Z}y,W}" with value "": Unknown modifier "Z"
-mod-regex-errors: xy
+make: Regex compilation error: (details omitted)
+	while evaluating "${:Uword1 word2:C,****,____,g:C,word,____,:Q}." with value "word1 word2"
+	in target "mod-regex-compile-error"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-1"
+make: No subexpression \1
+	while evaluating "${:U1 23 456:C,..,\1\1,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-1"
+mod-regex-limits-2:11-ok:1 22 446
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,..,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-3"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-4"
+make: No subexpression \2
+	while evaluating "${:U1 23 456:C,(.).,\2\2,:Q}" with value "1 23 456"
+	in target "mod-regex-limits-4"
+mod-regex-limits-5:22-ok:1 33 556
+mod-regex-limits-6:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
+make: Regex compilation error: (details omitted)
+	while evaluating variable "UNDEF" with value "value"
+	in target "mod-regex-errors-1"
+make: Unknown modifier "Z"
+	while evaluating "${:U:Z}y,W}" with value ""
+	while evaluating variable "word" with value "word"
+	in target "mod-regex-errors-2"
 unmatched-subexpression.ok: one one 2 3 5 8 one3 2one 34
 make: No match for subexpression \2
 unmatched-subexpression.1: ()()

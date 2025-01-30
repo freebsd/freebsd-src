@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.18 2023/09/18 05:29:23 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.19 2024/09/21 22:44:55 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -61,8 +61,7 @@ MAKEFILE_SED = 	sed -e '/^MACHINE/d' \
 	-e '/include.*VERSION/d' \
 	-e '/^CC=/s,=,?=,' \
 	-e '/^PROG/ { s,=,?=,;s,bmake,$${.CURDIR:T},; }' \
-	-e 's,^.-include,.sinclude,' \
-	-e '/^\..*include  *</ { s,<,<bsd.,;/autoconf/d; }' \
+	-e '/^\..*include  *</ { s,<\([a-z]\),<bsd.\1,;/autoconf/d; }' \
 	-e 's,${SRCTOP},$${SRCTOP},g'
 
 # These are the simple files we want to capture

@@ -1,33 +1,44 @@
 make: "varmod.mk" line 101: To escape a dollar, use \$, not $$, at "$$:L} != """
 make: "varmod.mk" line 101: Invalid variable name ':', at "$:L} != """
-make: "varmod.mk" line 107: while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word": Dollar followed by nothing
-make: "varmod.mk" line 117: while evaluating variable "VAR" with value "VAR": Missing delimiter ':' after modifier "P"
+make: "varmod.mk" line 107: Dollar followed by nothing
+	while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word"
+make: "varmod.mk" line 117: Missing delimiter ':' after modifier "P"
+	while evaluating variable "VAR" with value "VAR"
 make: "varmod.mk" line 119: Missing argument for ".error"
-make: "varmod.mk" line 126: while evaluating variable "word" with value "word": Bad modifier ":[99333000222000111000]"
-make: "varmod.mk" line 126: Malformed conditional (${word:L:[99333000222000111000]})
-make: "varmod.mk" line 130: while evaluating variable "word" with value "word": Bad modifier ":[2147483648]"
-make: "varmod.mk" line 130: Malformed conditional (${word:L:[2147483648]})
-make: "varmod.mk" line 137: while evaluating variable "word" with value "word": Invalid number "99333000222000111000}" for ':range' modifier
-make: "varmod.mk" line 137: Malformed conditional (${word:L:range=99333000222000111000})
-make: "varmod.mk" line 145: while evaluating "${:${:Ugmtime=\\}}" with value "": Invalid time value "\"
-make: "varmod.mk" line 145: Malformed conditional (${:${:Ugmtime=\\}})
-make: "varmod.mk" line 160: while evaluating variable "VAR" with value "value$": Dollar followed by nothing
-make: "varmod.mk" line 166: while evaluating variable "VAR" with value "value$": Dollar followed by nothing
-make: "varmod.mk" line 166: while evaluating variable "VAR" with value "value$ appended$": Dollar followed by nothing
-make: "varmod.mk" line 176: while evaluating variable "word" with value "word": Dollar followed by nothing
-make: "varmod.mk" line 181: while evaluating variable "word" with value "": Bad modifier ":[$]"
-make: "varmod.mk" line 181: Malformed conditional (${word:[$]})
-make: "varmod.mk" line 198: while evaluating variable "VAR" with value "value$ appended$": Dollar followed by nothing
-make: "varmod.mk" line 198: while evaluating variable "VAR" with value "value<space>appended": Invalid variable name '}', at "$} != "set""
-make: "varmod.mk" line 202: while evaluating "${:Ufallback$} != "fallback"" with value "": Invalid variable name '}', at "$} != "fallback""
-make: "varmod.mk" line 207: while evaluating variable "%y" with value "%y": Invalid time value "1000$"
-make: "varmod.mk" line 207: Malformed conditional (${%y:L:gmtime=1000$})
-make: "varmod.mk" line 214: while evaluating variable "%y" with value "%y": Invalid time value "1000$"
-make: "varmod.mk" line 214: Malformed conditional (${%y:L:localtime=1000$})
-make: "varmod.mk" line 220: while evaluating variable "word" with value "word": Dollar followed by nothing
-make: "varmod.mk" line 224: while evaluating variable "word" with value "word": Dollar followed by nothing
-make: "varmod.mk" line 229: while evaluating variable "." with value ".": Invalid argument 'fallback$' for modifier ':mtime'
-make: "varmod.mk" line 229: Malformed conditional (${.:L:mtime=fallback$})
+make: "varmod.mk" line 125: Bad modifier ":[99333000222000111000]"
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 128: Bad modifier ":[2147483648]"
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 134: Invalid number "99333000222000111000}" for ':range' modifier
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 141: Invalid time value "\"
+	while evaluating "${:${:Ugmtime=\\}}" with value ""
+make: "varmod.mk" line 156: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+make: "varmod.mk" line 162: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$"
+make: "varmod.mk" line 162: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+make: "varmod.mk" line 172: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 176: Bad modifier ":[$]"
+	while evaluating variable "word" with value ""
+make: "varmod.mk" line 193: Dollar followed by nothing
+	while evaluating variable "VAR" with value "value$ appended$"
+make: "varmod.mk" line 193: Invalid variable name '}', at "$} != "set""
+	while evaluating variable "VAR" with value "value<space>appended"
+make: "varmod.mk" line 197: Invalid variable name '}', at "$} != "fallback""
+	while evaluating "${:Ufallback$} != "fallback"" with value ""
+make: "varmod.mk" line 201: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+make: "varmod.mk" line 207: Invalid time value "1000$"
+	while evaluating variable "%y" with value "%y"
+make: "varmod.mk" line 213: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 217: Dollar followed by nothing
+	while evaluating variable "word" with value "word"
+make: "varmod.mk" line 221: Invalid argument 'fallback$' for modifier ':mtime'
+	while evaluating variable "." with value "."
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

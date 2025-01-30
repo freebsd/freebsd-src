@@ -1,18 +1,18 @@
-make: "cond-token-string.mk" line 15: while evaluating "${:Uvalue:Z}"" with value "value": Unknown modifier "Z"
-make: "cond-token-string.mk" line 15: Malformed conditional ("" != "${:Uvalue:Z}")
-make: "cond-token-string.mk" line 25: xvalue is not defined.
-make: "cond-token-string.mk" line 32: Malformed conditional (x${:Uvalue} == "")
-make: "cond-token-string.mk" line 42: Expected.
+make: "cond-token-string.mk" line 14: Unknown modifier "Z"
+	while evaluating "${:Uvalue:Z}"" with value "value"
+make: "cond-token-string.mk" line 24: xvalue is not defined.
+make: "cond-token-string.mk" line 31: Malformed conditional 'x${:Uvalue} == ""'
+make: "cond-token-string.mk" line 41: Expected.
 CondParser_Eval: "UNDEF"
-make: "cond-token-string.mk" line 52: The string literal "UNDEF" is not empty.
+make: "cond-token-string.mk" line 51: The string literal "UNDEF" is not empty.
 CondParser_Eval: " "
-make: "cond-token-string.mk" line 61: The string literal " " is not empty, even though it consists of whitespace only.
+make: "cond-token-string.mk" line 60: The string literal " " is not empty, even though it consists of whitespace only.
 CondParser_Eval: "${UNDEF}"
-make: "cond-token-string.mk" line 71: An undefined variable in quotes expands to an empty string, which then evaluates to false.
+make: "cond-token-string.mk" line 70: An undefined variable in quotes expands to an empty string, which then evaluates to false.
 CondParser_Eval: "${:Uvalue}"
-make: "cond-token-string.mk" line 77: A nonempty expression evaluates to true.
+make: "cond-token-string.mk" line 76: A nonempty expression evaluates to true.
 CondParser_Eval: "${:U}"
-make: "cond-token-string.mk" line 86: An empty variable evaluates to false.
+make: "cond-token-string.mk" line 85: An empty variable evaluates to false.
 CondParser_Eval: ("${VAR}")
 CondParser_Eval: "quoted" == quoted
 Comparing "quoted" == "quoted"

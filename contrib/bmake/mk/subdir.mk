@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-#	$Id: subdir.mk,v 1.24 2024/04/10 01:47:23 sjg Exp $
+#	$Id: subdir.mk,v 1.27 2024/09/01 05:02:43 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
@@ -29,7 +29,7 @@ _this ?= ${.PARSEFILE:S,bsd.,,}
 .if !target(__${_this}__)
 __${_this}__: .NOTMAIN
 
-.if defined(SUBDIR)
+.if defined(SUBDIR) || defined(SUBDIR.yes)
 
 .if ${.MAKE.LEVEL} == 0 && ${MK_DIRDEPS_BUILD:Uno} == "yes"
 .include <meta.subdir.mk>
@@ -52,7 +52,7 @@ MISSING_DIR=echo "Skipping ===> ${.CURDIR}/$$_dir"; exit 0
 # our target should be of the form ${_target}-${_dir}
 _SUBDIR_USE: .USE
 	@Exists() { test -f $$1; }; \
-	_dir=${.TARGET:C/^.*-//} \
+	_dir=${.TARGET:C/^[^-]*-//} \
 	_target=${.TARGET:C/-.*//:S/real//:S/.depend/depend/}; \
 	if ! Exists ${.CURDIR}/$$_dir/[mM]akefile; then \
 		${MISSING_DIR}; \
@@ -95,9 +95,11 @@ SUBDIR_TARGETS += \
 	tags \
 	etags
 
-.if ${SUBDIR} == "@auto"
+.if ${SUBDIR:U} == "@auto"
 SUBDIR = ${echo ${.CURDIR}/*/[Mm]akefile:L:sh:H:T:O:N\*}
 .endif
+# allow for things like SUBDIR.${MK_TESTS}
+SUBDIR += ${SUBDIR.yes:U}
 
 __subdirs =
 .for d in ${SUBDIR}

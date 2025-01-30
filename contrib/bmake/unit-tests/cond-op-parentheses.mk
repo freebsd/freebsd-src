@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-parentheses.mk,v 1.7 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-op-parentheses.mk,v 1.8 2024/08/06 18:00:17 rillig Exp $
 #
 # Tests for parentheses in .if conditions, which group expressions to override
 # the precedence of the operators '!', '&&' and '||'.  Parentheses cannot be
@@ -21,7 +21,7 @@
 # expect+1: Comparison with '>' requires both operands '3' and '(2' to be numeric
 .if 3 > (2)
 .endif
-# expect+1: Malformed conditional ((3) > 2)
+# expect+1: Malformed conditional '(3) > 2'
 .if (3) > 2
 .endif
 
@@ -40,7 +40,7 @@
 .endif
 
 # An unbalanced opening parenthesis is a parse error.
-# expect+1: Malformed conditional (()
+# expect+1: Malformed conditional '('
 .if (
 .  error
 .else
@@ -54,7 +54,7 @@
 # TOK_TRUE, TOK_FALSE or TOK_ERROR.  In cond.c 1.241, the return type of that
 # function was changed to a properly restricted enum type, to prevent this bug
 # from occurring again.
-# expect+1: Malformed conditional ())
+# expect+1: Malformed conditional ')'
 .if )
 .  error
 .else

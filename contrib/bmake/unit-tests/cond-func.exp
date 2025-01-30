@@ -1,12 +1,13 @@
-make: "cond-func.mk" line 37: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 53: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 57: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 37: Missing ')' after argument 'A' for 'defined'
+make: "cond-func.mk" line 53: Missing ')' after argument 'A' for 'defined'
+make: "cond-func.mk" line 57: Missing ')' after argument 'A' for 'defined'
 make: "cond-func.mk" line 91: Unknown operator '&'
 make: "cond-func.mk" line 107: A plain function name is parsed as defined(...).
 make: "cond-func.mk" line 115: A plain function name is parsed as defined(...).
 make: "cond-func.mk" line 126: Symbols may start with a function name.
 make: "cond-func.mk" line 132: Symbols may start with a function name.
-make: "cond-func.mk" line 138: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 138: Missing ')' after argument '' for 'defined'
+make: "cond-func.mk" line 145: Missing ')' after argument '${:UVARNAME}.param' for 'defined'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

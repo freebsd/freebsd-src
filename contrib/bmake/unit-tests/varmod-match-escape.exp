@@ -1,11 +1,11 @@
 Global: SPECIALS = \: : \\ * \*
 CondParser_Eval: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}}
-Var_Parse: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}} (eval-defined)
+Var_Parse: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}} (eval-defined-loud)
 Evaluating modifier ${SPECIALS:M...} on value "\: : \\ * \*"
 Pattern for ':M' is "\:"
 ModifyWords: split "\: : \\ * \*" into 5 words
 Result of ${SPECIALS:M${:U}\:} is ":"
-Var_Parse: ${SPECIALS:M\:${:U}} (eval-defined)
+Var_Parse: ${SPECIALS:M\:${:U}} (eval-defined-loud)
 Evaluating modifier ${SPECIALS:M...} on value "\: : \\ * \*"
 Pattern for ':M' is ":"
 ModifyWords: split "\: : \\ * \*" into 5 words
@@ -13,19 +13,19 @@ Result of ${SPECIALS:M\:${:U}} is ":"
 Comparing ":" != ":"
 Global: VALUES = : :: :\:
 CondParser_Eval: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:}
-Var_Parse: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:} (eval-defined)
+Var_Parse: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:} (eval-defined-loud)
 Evaluating modifier ${VALUES:M...} on value ": :: :\:"
-Var_Parse: ${:U:} (eval-defined)
-Evaluating modifier ${:U} on value "" (eval-defined, undefined)
-Result of ${:U} is "" (eval-defined, defined)
+Var_Parse: ${:U:} (eval)
+Evaluating modifier ${:U} on value "" (eval, undefined)
+Result of ${:U} is "" (eval, defined)
 Pattern for ':M' is ":"
 ModifyWords: split ": :: :\:" into 3 words
 Result of ${VALUES:M\:${:U\:}} is ":"
-Var_Parse: ${VALUES:M${:U\:}\:} (eval-defined)
+Var_Parse: ${VALUES:M${:U\:}\:} (eval-defined-loud)
 Evaluating modifier ${VALUES:M...} on value ": :: :\:"
-Var_Parse: ${:U\:}\: (eval-defined)
-Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
-Result of ${:U\:} is ":" (eval-defined, defined)
+Var_Parse: ${:U\:}\: (eval)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:U\:} is ":" (eval, defined)
 Pattern for ':M' is ":\:"
 ModifyWords: split ": :: :\:" into 3 words
 Result of ${VALUES:M${:U\:}\:} is "::"
@@ -33,10 +33,13 @@ Comparing ":" != "::"
 make: "varmod-match-escape.mk" line 43: warning: XXX: Oops
 Global: .MAKEFLAGS =  -r -k -d cv -d
 Global: .MAKEFLAGS =  -r -k -d cv -d 0
-make: "varmod-match-escape.mk" line 69: while evaluating "${:U\$:M\$} != """ with value "$": Dollar followed by nothing
-make: "varmod-match-escape.mk" line 110: while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]": Unfinished character list in pattern '[A-]' of modifier ':M'
+make: "varmod-match-escape.mk" line 69: Dollar followed by nothing
+	while evaluating "${:U\$:M\$} != """ with value "$"
+make: "varmod-match-escape.mk" line 110: Unfinished character list in pattern '[A-]' of modifier ':M'
+	while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]"
 	in .for loop from varmod-match-escape.mk:107 with pattern = [A-]
-make: "varmod-match-escape.mk" line 110: while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]": Unfinished character list in pattern '[^A-]' of modifier ':M'
+make: "varmod-match-escape.mk" line 110: Unfinished character list in pattern '[^A-]' of modifier ':M'
+	while evaluating variable "WORDS" with value "A A] A]] B B] B]] ] ]] ]]] a a] a]]"
 	in .for loop from varmod-match-escape.mk:107 with pattern = [^A-]
 make: Fatal errors encountered -- cannot continue
 make: stopped making "all" in unit-tests

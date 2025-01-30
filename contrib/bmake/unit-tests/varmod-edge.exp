@@ -1,12 +1,23 @@
-make: "varmod-edge.mk" line 60: while evaluating variable "MOD" with value "${INP:M${:U*)}}": while evaluating variable "INP" with value "(parentheses)": while evaluating "${:U*)" with value "*)": Unclosed expression, expecting '}' for modifier "U*)"
-make: "varmod-edge.mk" line 88: while evaluating variable "MOD" with value "${INP:M${:U[[}}": while evaluating variable "INP" with value "[ [[ [[[": Unfinished character list in pattern '[[' of modifier ':M'
-make: "varmod-edge.mk" line 178: while evaluating variable "MOD" with value "${INP:a\=b}": while evaluating variable "INP" with value "file.c file...": Unfinished modifier ('=' missing)
-make: "varmod-edge.mk" line 194: while evaluating variable "MOD" with value "${INP::::}": while evaluating variable "INP" with value "value": Unknown modifier ":"
-make: "varmod-edge.mk" line 194: while evaluating variable "MOD" with value "${INP::::}": while evaluating variable "INP" with value "": Unknown modifier ":"
-make: "varmod-edge.mk" line 203: while evaluating "${:Z}" with value "": Unknown modifier "Z"
-make: "varmod-edge.mk" line 203: Malformed conditional (${:Z})
-make: "varmod-edge.mk" line 217: while evaluating "${:S,}" with value "": Unfinished modifier (',' missing)
-make: "varmod-edge.mk" line 217: Malformed conditional (${:S,})
+make: "varmod-edge.mk" line 60: Unclosed expression, expecting '}' for modifier "U*)"
+	while evaluating "${:U*)" with value "*)"
+	while evaluating variable "INP" with value "(parentheses)"
+	while evaluating variable "MOD" with value "${INP:M${:U*)}}"
+make: "varmod-edge.mk" line 88: Unfinished character list in pattern '[[' of modifier ':M'
+	while evaluating variable "INP" with value "[ [[ [[["
+	while evaluating variable "MOD" with value "${INP:M${:U[[}}"
+make: "varmod-edge.mk" line 178: Unfinished modifier ('=' missing)
+	while evaluating variable "INP" with value "file.c file..."
+	while evaluating variable "MOD" with value "${INP:a\=b}"
+make: "varmod-edge.mk" line 194: Unknown modifier ":"
+	while evaluating variable "INP" with value "value"
+	while evaluating variable "MOD" with value "${INP::::}"
+make: "varmod-edge.mk" line 194: Unknown modifier ":"
+	while evaluating variable "INP" with value ""
+	while evaluating variable "MOD" with value "${INP::::}"
+make: "varmod-edge.mk" line 200: Unknown modifier "Z"
+	while evaluating "${:Z}" with value ""
+make: "varmod-edge.mk" line 213: Unfinished modifier (',' missing)
+	while evaluating "${:S,}" with value ""
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1
