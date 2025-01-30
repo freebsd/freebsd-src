@@ -153,6 +153,18 @@ log_err(int eval, const char *fmt, ...)
 }
 
 void
+log_errc(int eval, int code, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	log_common(LOG_CRIT, code, fmt, ap);
+	va_end(ap);
+
+	exit(eval);
+}
+
+void
 log_errx(int eval, const char *fmt, ...)
 {
 	va_list ap;
@@ -171,6 +183,16 @@ log_warn(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	log_common(LOG_WARNING, errno, fmt, ap);
+	va_end(ap);
+}
+
+void
+log_warnc(int code, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	log_common(LOG_WARNING, code, fmt, ap);
 	va_end(ap);
 }
 
