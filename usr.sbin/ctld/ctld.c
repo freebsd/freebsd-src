@@ -31,6 +31,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/event.h>
 #include <sys/nv.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -66,6 +67,7 @@ static volatile bool sighup_received = false;
 static volatile bool sigterm_received = false;
 static volatile bool sigalrm_received = false;
 
+static int kqfd;
 static int nchildren = 0;
 static uint16_t last_portal_group_tag = 0xff;
 
@@ -1783,9 +1785,30 @@ conf_verify(struct conf *conf)
 }
 
 static bool
+portal_reuse_socket(struct portal *oldp, struct portal *newp)
+{
+	struct kevent kev;
+
+	if (strcmp(newp->p_listen, oldp->p_listen) != 0)
+		return (false);
+
+	if (oldp->p_socket <= 0)
+		return (false);
+
+	EV_SET(&kev, oldp->p_socket, EVFILT_READ, EV_ADD, 0, 0, newp);
+	if (kevent(kqfd, &kev, 1, NULL, 0, NULL) == -1)
+		return (false);
+
+	newp->p_socket = oldp->p_socket;
+	oldp->p_socket = 0;
+	return (true);
+}
+
+static bool
 portal_init_socket(struct portal *p)
 {
 	struct portal_group *pg = p->p_portal_group;
+	struct kevent kev;
 	int error, sockbuf;
 	int one = 1;
 
@@ -1867,6 +1890,14 @@ portal_init_socket(struct portal *p)
 	error = listen(p->p_socket, -1);
 	if (error != 0) {
 		log_warn("listen(2) failed for %s", p->p_listen);
+		close(p->p_socket);
+		p->p_socket = 0;
+		return (false);
+	}
+	EV_SET(&kev, p->p_socket, EVFILT_READ, EV_ADD, 0, 0, p);
+	error = kevent(kqfd, &kev, 1, NULL, 0, NULL);
+	if (error == -1) {
+		log_warn("kevent(2) failed to register for %s", p->p_listen);
 		close(p->p_socket);
 		p->p_socket = 0;
 		return (false);
@@ -2117,16 +2148,11 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			    pg_next) {
 				TAILQ_FOREACH(oldp, &oldpg->pg_portals,
 				    p_next) {
-					if (strcmp(newp->p_listen,
-					    oldp->p_listen) == 0 &&
-					    oldp->p_socket > 0) {
-						newp->p_socket =
-						    oldp->p_socket;
-						oldp->p_socket = 0;
-						break;
-					}
+					if (portal_reuse_socket(oldp, newp))
+						goto reused;
 				}
 			}
+		reused:
 			if (newp->p_socket > 0) {
 				/*
 				 * We're done with this portal.
@@ -2355,26 +2381,10 @@ handle_connection(struct portal *portal, int fd,
 	exit(0);
 }
 
-static int
-fd_add(int fd, fd_set *fdset, int nfds)
-{
-
-	/*
-	 * Skip sockets which we failed to bind.
-	 */
-	if (fd <= 0)
-		return (nfds);
-
-	FD_SET(fd, fdset);
-	if (fd > nfds)
-		nfds = fd;
-	return (nfds);
-}
-
 static void
 main_loop(struct conf *conf, bool dont_fork)
 {
-	struct portal_group *pg;
+	struct kevent kev;
 	struct portal *portal;
 	struct sockaddr_storage client_sa;
 	socklen_t client_salen;
@@ -2382,8 +2392,7 @@ main_loop(struct conf *conf, bool dont_fork)
 	int connection_id;
 	int portal_id;
 #endif
-	fd_set fdset;
-	int error, nfds, client_fd;
+	int error, client_fd;
 
 	pidfile_write(conf->conf_pidfh);
 
@@ -2418,38 +2427,34 @@ found:
 #endif
 			assert(proxy_mode == false);
 
-			FD_ZERO(&fdset);
-			nfds = 0;
-			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-				TAILQ_FOREACH(portal, &pg->pg_portals, p_next)
-					nfds = fd_add(portal->p_socket, &fdset, nfds);
-			}
-			error = select(nfds + 1, &fdset, NULL, NULL, NULL);
-			if (error <= 0) {
+			error = kevent(kqfd, NULL, 0, &kev, 1, NULL);
+			if (error == -1) {
 				if (errno == EINTR)
-					return;
-				log_err(1, "select");
+					continue;
+				log_err(1, "kevent");
 			}
-			TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-				TAILQ_FOREACH(portal, &pg->pg_portals, p_next) {
-					if (!FD_ISSET(portal->p_socket, &fdset))
-						continue;
-					client_salen = sizeof(client_sa);
-					client_fd = accept(portal->p_socket,
-					    (struct sockaddr *)&client_sa,
-					    &client_salen);
-					if (client_fd < 0) {
-						if (errno == ECONNABORTED)
-							continue;
-						log_err(1, "accept");
-					}
-					assert(client_salen >= client_sa.ss_len);
 
-					handle_connection(portal, client_fd,
-					    (struct sockaddr *)&client_sa,
-					    dont_fork);
-					break;
+			switch (kev.filter) {
+			case EVFILT_READ:
+				portal = kev.udata;
+				assert(portal->p_socket == (int)kev.ident);
+
+				client_salen = sizeof(client_sa);
+				client_fd = accept(portal->p_socket,
+				    (struct sockaddr *)&client_sa,
+				    &client_salen);
+				if (client_fd < 0) {
+					if (errno == ECONNABORTED)
+						continue;
+					log_err(1, "accept");
 				}
+				assert(client_salen >= client_sa.ss_len);
+
+				handle_connection(portal, client_fd,
+				    (struct sockaddr *)&client_sa, dont_fork);
+				break;
+			default:
+				__assert_unreachable();
 			}
 #ifdef ICL_KERNEL_PROXY
 		}
@@ -2735,13 +2740,6 @@ main(int argc, char **argv)
 	if (new_pports_from_conf(newconf, &kports))
 		log_errx(1, "Error associating physical ports; exiting");
 
-	error = conf_apply(oldconf, newconf);
-	if (error != 0)
-		log_errx(1, "failed to apply configuration; exiting");
-
-	conf_delete(oldconf);
-	oldconf = NULL;
-
 	if (dont_daemonize == false) {
 		log_debugx("daemonizing");
 		if (daemon(0, 0) == -1) {
@@ -2750,6 +2748,20 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
+
+	kqfd = kqueue();
+	if (kqfd == -1) {
+		log_warn("Cannot create kqueue");
+		pidfile_remove(newconf->conf_pidfh);
+		exit(1);
+	}
+
+	error = conf_apply(oldconf, newconf);
+	if (error != 0)
+		log_errx(1, "failed to apply configuration; exiting");
+
+	conf_delete(oldconf);
+	oldconf = NULL;
 
 	/* Schedule iSNS update */
 	if (!TAILQ_EMPTY(&newconf->conf_isns))
