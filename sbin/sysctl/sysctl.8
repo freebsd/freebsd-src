@@ -27,7 +27,7 @@
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd January 23, 2025
+.Dd January 31, 2025
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -35,12 +35,14 @@
 .Nd get or set kernel state
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jail
 .Op Fl bdehiJNnoqTtVWx
 .Op Fl B Ar bufsize
 .Op Fl f Ar filename
 .Ar name Ns Op = Ns Ar value Ns Op , Ns Ar value
 .Ar ...
 .Nm
+.Op Fl j Ar jail
 .Op Fl bdehJNnoqTtVWx
 .Op Fl B Ar bufsize
 .Fl a
@@ -99,6 +101,10 @@ Specify a file which contains a pair of name and value in each line.
 .Nm
 reads and processes the specified file first and then processes the name
 and value pairs in the command line argument.
+Note that when the
+.Fl j Ar jail
+option is specified, the file will be opened before attaching to the jail and
+then be processed inside the jail.
 .It Fl h
 Format output for human, rather than machine, readability.
 .It Fl i
@@ -109,6 +115,10 @@ for collecting data from a variety of machines (not all of which
 are necessarily running exactly the same software) easier.
 .It Fl J
 Display only jail prision sysctl variables (CTLFLAG_PRISON).
+.It Fl j Ar jail
+Perform the actions inside the
+.Ar jail
+(by jail id or jail name).
 .It Fl N
 Show only variable names, not their values.
 This is particularly useful with shells that offer programmable
