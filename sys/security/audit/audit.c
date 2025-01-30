@@ -397,7 +397,8 @@ SYSINIT(audit_init, SI_SUB_AUDIT, SI_ORDER_FIRST, audit_init, NULL);
 void
 audit_shutdown(void *arg, int howto)
 {
-
+	if (KERNEL_PANICED())
+		return;
 	audit_rotate_vnode(NULL, NULL);
 }
 
