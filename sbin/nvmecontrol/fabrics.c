@@ -458,44 +458,40 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	}
 
 	/* Validate I/O queue size. */
+	memset(io, 0, sizeof(*io) * num_io_queues);
 	if (queue_size == 0)
 		queue_size = (u_int)mqes + 1;
 	else if (queue_size > (u_int)mqes + 1) {
-		shutdown_controller(*admin);
-		nvmf_free_association(na);
 		warnx("I/O queue size exceeds controller maximum (%u)",
 		    mqes + 1);
-		return (EX_USAGE);
+		error = EX_USAGE;
+		goto out;
 	}
 
 	/* Fetch controller data. */
 	error = nvmf_host_identify_controller(*admin, cdata);
 	if (error != 0) {
-		shutdown_controller(*admin);
-		nvmf_free_association(na);
 		warnc(error, "Failed to fetch controller data for %s", subnqn);
-		return (EX_IOERR);
+		error = EX_IOERR;
+		goto out;
 	}
 
 	nvmf_update_assocation(na, cdata);
 
 	error = nvmf_host_request_queues(*admin, num_io_queues, &queues);
 	if (error != 0) {
-		shutdown_controller(*admin);
-		nvmf_free_association(na);
 		warnc(error, "Failed to request I/O queues");
-		return (EX_IOERR);
+		error = EX_IOERR;
+		goto out;
 	}
 	if (queues < num_io_queues) {
-		shutdown_controller(*admin);
-		nvmf_free_association(na);
 		warnx("Controller enabled fewer I/O queues (%u) than requested (%u)",
 		    queues, num_io_queues);
-		return (EX_PROTOCOL);
+		error = EX_PROTOCOL;
+		goto out;
 	}
 
 	/* I/O queues. */
-	memset(io, 0, sizeof(*io) * num_io_queues);
 	for (u_int i = 0; i < num_io_queues; i++) {
 		memset(&qparams, 0, sizeof(qparams));
 		qparams.admin = false;
