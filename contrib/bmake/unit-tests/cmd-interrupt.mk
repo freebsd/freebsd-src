@@ -1,4 +1,4 @@
-# $NetBSD: cmd-interrupt.mk,v 1.4 2023/03/18 22:20:12 sjg Exp $
+# $NetBSD: cmd-interrupt.mk,v 1.5 2024/07/13 15:10:06 rillig Exp $
 #
 # Tests for interrupting a command.
 #
@@ -17,10 +17,16 @@
 # See also:
 #	CompatDeleteTarget
 
-all: clean-before interrupt-ordinary interrupt-phony interrupt-precious clean-after
+all: clean-before
+all: interrupt-ordinary
+all: interrupt-phony
+all: interrupt-precious
+all: interrupt-compat
+all: clean-after
 
 clean-before clean-after: .PHONY
-	@rm -f cmd-interrupt-ordinary cmd-interrupt-phony cmd-interrupt-precious
+	@rm -f cmd-interrupt-ordinary cmd-interrupt-phony
+	@rm -f cmd-interrupt-precious cmd-interrupt-compat
 
 interrupt-ordinary:
 	@${.MAKE} ${MAKEFLAGS} -f ${MAKEFILE} cmd-interrupt-ordinary || true
@@ -37,6 +43,10 @@ interrupt-precious: .PRECIOUS
 	# The ././ is necessary to work around the file cache.
 	@echo ${.TARGET}: ${exists(././cmd-interrupt-precious) :? ok : error }
 
+interrupt-compat:
+	@${MAKE} -f ${MAKEFILE} cmd-interrupt-compat || true
+	@echo ${.TARGET} ${exists(././cmd-interrupt-compat) :? expected-fail : unexpected-ok }
+
 cmd-interrupt-ordinary:
 	> ${.TARGET}
 	@kill -INT ${.MAKE.PID}
@@ -48,3 +58,11 @@ cmd-interrupt-phony: .PHONY
 cmd-interrupt-precious: .PRECIOUS
 	> ${.TARGET}
 	@kill -INT ${.MAKE.PID}
+
+# When the make process (and not the process group) is interrupted in compat
+# mode, it first tries to interrupt the process group of the currently running
+# child command, but that fails since there is no such process group, rather
+# the child command runs in the same process group as make itself.  The child
+# command then continues, and after sleeping a bit creates the target file.
+cmd-interrupt-compat:
+	@kill -INT ${.MAKE.PID} && sleep 1 && > ${.TARGET}

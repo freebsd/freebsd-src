@@ -1,4 +1,4 @@
-# $NetBSD: cond-undef-lint.mk,v 1.4 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-undef-lint.mk,v 1.8 2025/01/11 21:21:33 rillig Exp $
 #
 # Tests for defined and undefined variables in .if conditions, in lint mode.
 #
@@ -20,7 +20,6 @@ DEF=		defined
 .endif
 
 # Since the condition fails to evaluate, neither of the branches is taken.
-# expect+2: Malformed conditional (${UNDEF})
 # expect+1: Variable "UNDEF" is undefined
 .if ${UNDEF}
 .  error
@@ -32,27 +31,17 @@ DEF=		defined
 # mistake.  The variable UNDEF, as used here, can be easily turned into
 # an expression that is always defined, using the :U modifier.
 #
-# The outer expression does not generate an error message since there was
-# already an error evaluating this variable's name.
-#
-# TODO: Suppress the error message "Variable VAR. is undefined".  That part
-# of the expression must not be evaluated at all.
-# expect+3: Variable "UNDEF" is undefined
-# expect+2: Variable "VAR." is undefined
-# expect+1: Malformed conditional (${VAR.${UNDEF}})
+# expect+1: Variable "VAR." is undefined
 .if ${VAR.${UNDEF}}
 .  error
 .else
 .  error
 .endif
 
-# The variable VAR.defined is not defined and thus generates an error message.
+# The inner variable DEF is defined, but the resulting name VAR.defined
+# refers to an undefined variable, thus an error message.
 #
-# TODO: This pattern looks a lot like CFLAGS.${OPSYS}, which is at least
-# debatable.  Or would any practical use of CFLAGS.${OPSYS} be via an indirect
-# expression, as in the next example?
-# expect+2: Variable "VAR.defined" is undefined
-# expect+1: Malformed conditional (${VAR.${DEF}})
+# expect+1: Variable "VAR.defined" is undefined
 .if ${VAR.${DEF}}
 .  error
 .else

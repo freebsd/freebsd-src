@@ -593,6 +593,8 @@ unit-tests/shell-ksh.exp
 unit-tests/shell-ksh.mk
 unit-tests/shell-sh.exp
 unit-tests/shell-sh.mk
+unit-tests/suff.exp
+unit-tests/suff.mk
 unit-tests/suff-add-later.exp
 unit-tests/suff-add-later.mk
 unit-tests/suff-clear-regular.exp

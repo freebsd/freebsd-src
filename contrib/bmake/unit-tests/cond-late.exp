@@ -1,4 +1,6 @@
-make: "cond-late.mk" line 38: while evaluating variable "VAR" with value "${${UNDEF} != "no":?:}": while evaluating condition " != "no"": Bad condition
+make: "cond-late.mk" line 38: Bad condition
+	while evaluating condition " != "no""
+	while evaluating variable "VAR" with value "${${UNDEF} != "no":?:}"
 	in directory <curdir>
 make: Fatal errors encountered -- cannot continue
 make: stopped making "do-parse-time" in unit-tests

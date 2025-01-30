@@ -39,7 +39,7 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.47 2024/02/17 17:26:57 sjg Exp $
+	$Id: meta2deps.py,v 1.50 2024/09/27 00:08:36 sjg Exp $
 
 	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -294,6 +294,7 @@ class MetaFile:
                     if not _objroot in self.objroots:
                         self.objroots.append(_objroot)
 
+            self.sb = conf.get('SB', '')
             # we want the longest match
             self.srctops.sort(reverse=True)
             self.objroots.sort(reverse=True)
@@ -461,6 +462,10 @@ class MetaFile:
         if self.curdir:
             self.seenit(self.curdir)    # we ignore this
 
+        if self.sb and self.name.startswith(self.sb):
+            error_name = self.name.replace(self.sb+'/','')
+        else:
+            error_name = self.name 
         interesting = '#CEFLRVX'
         for line in f:
             self.line += 1
@@ -550,9 +555,9 @@ class MetaFile:
                 self.parse_path(path, cwd, w[0], w)
 
         if version == 0:
-            raise AssertionError('missing filemon data')
+            raise AssertionError('missing filemon data: {}'.format(error_name))
         if not eof_token:
-            raise AssertionError('truncated filemon data')
+            raise AssertionError('truncated filemon data: {}'.format(error_name))
 
         setid_pids = []
         # self.pids should be empty!
@@ -570,7 +575,8 @@ class MetaFile:
             print("ERROR: missing eXit for {} pid {}".format(path, pid))
         for pid in setid_pids:
             del self.pids[pid]
-        assert(len(self.pids) == 0)
+        if len(self.pids) > 0:
+            raise AssertionError('bad filemon data - missing eXits: {}'.format(error_name))
         if not file:
             f.close()
 
@@ -713,6 +719,8 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
         'OBJROOTS': [],
         'EXCLUDES': [],
         }
+
+    conf['SB'] = os.getenv('SB', '')
 
     try:
         machine = os.environ['MACHINE']

@@ -5,7 +5,7 @@ make: "directive-if.mk" line 45: This is not conditional.
 make: "directive-if.mk" line 47: if-less else
 make: "directive-if.mk" line 49: This is not conditional.
 make: "directive-if.mk" line 51: if-less endif
-make: "directive-if.mk" line 55: Malformed conditional ()
+make: "directive-if.mk" line 55: Malformed conditional ''
 make: "directive-if.mk" line 66: Quotes in plain words are probably a mistake.
 make: "directive-if.mk" line 76: Don't do this, always put a space after a directive.
 make: "directive-if.mk" line 81: Don't do this, always put a space after a directive.

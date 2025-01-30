@@ -1,4 +1,4 @@
-# $NetBSD: cond-op.mk,v 1.16 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: cond-op.mk,v 1.17 2024/08/06 18:00:17 rillig Exp $
 #
 # Tests for operators like &&, ||, ! in .if conditions.
 #
@@ -47,7 +47,7 @@
 # appear unquoted.  If any, it must be enclosed in quotes.
 # In any case, it is not interpreted as a negation of an unquoted string.
 # See CondParser_String.
-# expect+1: Malformed conditional ("!word" == !word)
+# expect+1: Malformed conditional '"!word" == !word'
 .if "!word" == !word
 .  error
 .endif
@@ -68,7 +68,7 @@
 # next token, even though in this position of the condition, only comparison
 # operators, TOK_AND, TOK_OR or TOK_RPAREN are allowed.
 .undef ERR
-# expect+1: Malformed conditional (0 ${ERR::=evaluated})
+# expect+1: Malformed conditional '0 ${ERR::=evaluated}'
 .if 0 ${ERR::=evaluated}
 .  error
 .endif
@@ -78,7 +78,7 @@
 .endif
 
 .undef ERR
-# expect+1: Malformed conditional (1 ${ERR::=evaluated})
+# expect+1: Malformed conditional '1 ${ERR::=evaluated}'
 .if 1 ${ERR::=evaluated}
 .  error
 .endif
@@ -116,7 +116,7 @@
 # This condition is obviously malformed.  It is properly detected and also
 # was properly detected before 2021-01-19, but only because the left hand
 # side of the '&&' evaluated to true.
-# expect+1: Malformed conditional (1 &&)
+# expect+1: Malformed conditional '1 &&'
 .if 1 &&
 .  error
 .else
@@ -125,7 +125,7 @@
 
 # This obviously malformed condition was not detected as such before cond.c
 # 1.238 from 2021-01-19.
-# expect+1: Malformed conditional (0 &&)
+# expect+1: Malformed conditional '0 &&'
 .if 0 &&
 .  error
 .else
@@ -134,7 +134,7 @@
 
 # This obviously malformed condition was not detected as such before cond.c
 # 1.238 from 2021-01-19.
-# expect+1: Malformed conditional (1 ||)
+# expect+1: Malformed conditional '1 ||'
 .if 1 ||
 .  error
 .else
@@ -144,7 +144,7 @@
 # This condition is obviously malformed.  It is properly detected and also
 # was properly detected before 2021-01-19, but only because the left hand
 # side of the '||' evaluated to false.
-# expect+1: Malformed conditional (0 ||)
+# expect+1: Malformed conditional '0 ||'
 .if 0 ||
 .  error
 .else

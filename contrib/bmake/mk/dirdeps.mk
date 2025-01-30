@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.170 2024/06/24 02:21:00 sjg Exp $
+# $Id: dirdeps.mk,v 1.175 2025/01/05 01:16:19 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -152,7 +152,7 @@
 #	any other DIRDEP.
 #
 #	This allows for adding TESTS to the build, such that the build
-#	if any test fails, but without the risk of introducing
+#	will fail if any test fails, but without the risk of introducing
 #	circular dependencies.
 
 now_utc ?= ${%s:L:localtime}
@@ -445,6 +445,7 @@ _DIRDEP_USE:	.USE .MAKE
 		TARGET_SPEC=${.TARGET:E} \
 		MACHINE=${.TARGET:E} \
 		${DIRDEP_MAKE} -C ${DIRDEP_DIR} ${DIRDEP_TARGETS} || exit 1; \
+		${DIRDEP_USE_EPILOGUE} \
 		break; \
 	done
 
@@ -568,7 +569,7 @@ BUILD_DIRDEPS = no
 dirdeps: dirdeps-cached
 dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 	@echo "${TRACER}Using ${DIRDEPS_CACHE}"
-	@MAKELEVEL=${.MAKE.LEVEL} \
+	@${DIRDEPS_CACHED_ENV} MAKELEVEL=${.MAKE.LEVEL} \
 	TARGET_SPEC=${TARGET_SPEC} \
 	${TARGET_SPEC_VARS:@v@$v=${$v}@} \
 	${.MAKE} -C ${_CURDIR} -f ${DIRDEPS_CACHE} \
@@ -606,10 +607,10 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
 	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
-	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
-	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
+	${.MAKEFLAGS:S,-D ,-D,gW:M*WITH*} \
+	${.MAKEFLAGS:S,-d ,-d,gW:M-d*} \
 	3>&1 1>&2 | sed 's,${SRCTOP},_{SRCTOP},g;s,_{SRCTOP}/_{SRCTOP},_{SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
-	mv ${.TARGET}.new ${.TARGET}
+	{ ${BUILD_DIRDEPS_EPILOGUE} mv ${.TARGET}.new ${.TARGET}; }
 
 .endif
 .endif
@@ -887,16 +888,13 @@ _m := ${.MAKE.DEPENDFILE_PREFERENCE:T:S;${TARGET_SPEC}$;${d:E};:C;${MACHINE}((,.
 .if !empty(_m)
 # M_dep_qual_fixes isn't geared to Makefile.depend
 _qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes.${d:E}:U${M_dep_qual_fixes}:ts:}}
-.if ${_debug_search}
-.info Looking for ${_qm}
-.endif
 # set this "just in case"
 # we can skip :tA since we computed the path above
 DEP_RELDIR := ${_m:H:S,^${SRCTOP}/,,}
 # and reset this
 DIRDEPS =
-.if ${_debug_reldir} && ${_qm} != ${_m}
-.info loading ${_m:S,${SRCTOP}/,,} for ${_dr}
+.if ${_debug_search} || ${_debug_reldir}
+.info Loading ${_m:S,${SRCTOP}/,,} for ${_dr}
 .endif
 .include <${_m}>
 .else

@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.80 2024/07/07 07:50:57 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.81 2025/01/03 04:51:42 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -119,7 +119,7 @@ typedef enum JobStatus {
 	JOB_ST_SET_UP	= 1,	/* Job is allocated but otherwise invalid */
 	/* XXX: What about the 2? */
 	JOB_ST_RUNNING	= 3,	/* Job is running, pid valid */
-	JOB_ST_FINISHED	= 4	/* Job is done (ie after SIGCHILD) */
+	JOB_ST_FINISHED	= 4	/* Job is done (ie after SIGCHLD) */
 } JobStatus;
 
 /*

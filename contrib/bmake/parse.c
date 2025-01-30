@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.734 2024/07/09 19:43:01 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.738 2025/01/14 21:34:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -110,7 +110,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.734 2024/07/09 19:43:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.738 2025/01/14 21:34:09 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -400,6 +400,8 @@ PrintStackTrace(bool includingInnermost)
 	const IncludedFile *entries;
 	size_t i, n;
 
+	EvalStack_PrintDetails();
+
 	n = includes.len;
 	if (n == 0)
 		return;
@@ -530,7 +532,6 @@ ParseVErrorInternal(FILE *f, bool useVars, const GNode *gn,
 	PrintLocation(f, useVars, gn);
 	if (level == PARSE_WARNING)
 		(void)fprintf(f, "warning: ");
-	fprintf(f, "%s", EvalStack_Details());
 	(void)vfprintf(f, fmt, ap);
 	(void)fprintf(f, "\n");
 	(void)fflush(f);
@@ -1845,7 +1846,7 @@ VarAssign_EvalShell(const char *name, const char *uvalue, GNode *scope,
 	char *output, *error;
 
 	cmd = FStr_InitRefer(uvalue);
-	Var_Expand(&cmd, SCOPE_CMDLINE, VARE_EVAL_DEFINED);
+	Var_Expand(&cmd, SCOPE_CMDLINE, VARE_EVAL);
 
 	output = Cmd_Exec(cmd.str, &error);
 	Var_SetExpand(scope, name, output);
@@ -2621,7 +2622,8 @@ ReadHighLevelLine(void)
 		if (line == NULL)
 			return NULL;
 
-		DEBUG2(PARSE, "Parsing line %u: %s\n", curFile->lineno, line);
+		DEBUG3(PARSE, "Parsing %s:%u: %s\n",
+		    curFile->name.str, curFile->lineno, line);
 		if (curFile->guardState != GS_NO
 		    && ((curFile->guardState == GS_START && line[0] != '.')
 			|| curFile->guardState == GS_DONE))
@@ -2842,7 +2844,6 @@ FindSemicolon(char *p)
 static void
 ParseDependencyLine(char *line)
 {
-	VarEvalMode emode;
 	char *expanded_line;
 	const char *shellcmd = NULL;
 
@@ -2855,41 +2856,7 @@ ParseDependencyLine(char *line)
 		}
 	}
 
-	/*
-	 * We now know it's a dependency line, so it needs to have all
-	 * variables expanded before being parsed.
-	 *
-	 * XXX: Ideally the dependency line would first be split into
-	 * its left-hand side, dependency operator and right-hand side,
-	 * and then each side would be expanded on its own.  This would
-	 * allow for the left-hand side to allow only defined variables
-	 * and to allow variables on the right-hand side to be undefined
-	 * as well.
-	 *
-	 * Parsing the line first would also prevent that targets
-	 * generated from expressions are interpreted as the
-	 * dependency operator, such as in "target${:U\:} middle: source",
-	 * in which the middle is interpreted as a source, not a target.
-	 */
-
-	/*
-	 * In lint mode, allow undefined variables to appear in dependency
-	 * lines.
-	 *
-	 * Ideally, only the right-hand side would allow undefined variables
-	 * since it is common to have optional dependencies. Having undefined
-	 * variables on the left-hand side is more unusual though.  Since
-	 * both sides are expanded in a single pass, there is not much choice
-	 * what to do here.
-	 *
-	 * In normal mode, it does not matter whether undefined variables are
-	 * allowed or not since as of 2020-09-14, Var_Parse does not print
-	 * any parse errors in such a case. It simply returns the special
-	 * empty string var_Error, which cannot be detected in the result of
-	 * Var_Subst.
-	 */
-	emode = opts.strict ? VARE_EVAL : VARE_EVAL_DEFINED;
-	expanded_line = Var_Subst(line, SCOPE_CMDLINE, emode);
+	expanded_line = Var_Subst(line, SCOPE_CMDLINE, VARE_EVAL);
 	/* TODO: handle errors */
 
 	/* Need a fresh list for the target nodes */

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-select-words.mk,v 1.4 2022/01/23 16:09:38 rillig Exp $
+# $NetBSD: varmod-select-words.mk,v 1.6 2024/08/29 20:20:36 rillig Exp $
 #
 # Tests for the :[...] variable modifier, which selects a single word
 # or a range of words from a variable.
@@ -24,15 +24,36 @@ ZERO=		0
 ONE=		1
 MINUSONE=	-1
 
-mod-squarebrackets: mod-squarebrackets-0-star-at \
+mod-squarebrackets: \
+	mod-squarebrackets-empty \
+	mod-squarebrackets-0-star-at \
 	mod-squarebrackets-hash \
-	mod-squarebrackets-n \
-	mod-squarebrackets-start-end \
-	mod-squarebrackets-nested \
+	mod-squarebrackets-n-ok-1 \
+	mod-squarebrackets-n-error-1 \
+	mod-squarebrackets-n-error-2 \
+	mod-squarebrackets-n-ok-2 \
+	mod-squarebrackets-n-error-3 \
+	mod-squarebrackets-n-error-4 \
+	mod-squarebrackets-n-ok-3 \
+	mod-squarebrackets-start-end-error-1 \
+	mod-squarebrackets-start-end-error-2 \
+	mod-squarebrackets-start-end-error-3 \
+	mod-squarebrackets-start-end-ok-1 \
+	mod-squarebrackets-start-end-error-4 \
+	mod-squarebrackets-start-end-ok-2 \
+	mod-squarebrackets-start-end-error-5 \
+	mod-squarebrackets-start-end-error-6 \
+	mod-squarebrackets-start-end-ok-3 \
+	mod-squarebrackets-nested-ok-1 \
+	mod-squarebrackets-nested-error-1 \
+	mod-squarebrackets-nested-ok-2 \
 	mod-squarebrackets-space
 
-mod-squarebrackets-0-star-at:
+mod-squarebrackets-empty:
+# expect: make: Bad modifier ":[]"
 	@echo 'LIST:[]="${LIST:[]}" is an error'
+
+mod-squarebrackets-0-star-at:
 	@echo 'LIST:[0]="${LIST:[0]}"'
 	@echo 'LIST:[0x0]="${LIST:[0x0]}"'
 	@echo 'LIST:[000]="${LIST:[000]}"'
@@ -66,7 +87,7 @@ mod-squarebrackets-hash:
 	@echo 'LIST:[1]:[#]="${LIST:[1]:[#]}"'
 	@echo 'LIST:[1..3]:[#]="${LIST:[1..3]:[#]}"'
 
-mod-squarebrackets-n:
+mod-squarebrackets-n-ok-1:
 	@echo 'EMPTY:[1]="${EMPTY:[1]}"'
 	@echo 'ESCAPEDSPACE="${ESCAPEDSPACE}"'
 	@echo 'ESCAPEDSPACE:[1]="${ESCAPEDSPACE:[1]}"'
@@ -74,14 +95,24 @@ mod-squarebrackets-n:
 	@echo 'REALLYSPACE:[1]="${REALLYSPACE:[1]}" == "" ?'
 	@echo 'REALLYSPACE:[*]:[1]="${REALLYSPACE:[*]:[1]}" == " " ?'
 	@echo 'LIST:[1]="${LIST:[1]}"'
+mod-squarebrackets-n-error-1:
+# expect: make: Bad modifier ":[1.]"
 	@echo 'LIST:[1.]="${LIST:[1.]}" is an error'
+mod-squarebrackets-n-error-2:
+# expect: make: Bad modifier ":[1]."
 	@echo 'LIST:[1].="${LIST:[1].}" is an error'
+mod-squarebrackets-n-ok-2:
 	@echo 'LIST:[2]="${LIST:[2]}"'
 	@echo 'LIST:[6]="${LIST:[6]}"'
 	@echo 'LIST:[7]="${LIST:[7]}"'
 	@echo 'LIST:[999]="${LIST:[999]}"'
+mod-squarebrackets-n-error-3:
+# expect: make: Bad modifier ":[-]"
 	@echo 'LIST:[-]="${LIST:[-]}" is an error'
+mod-squarebrackets-n-error-4:
+# expect: make: Bad modifier ":[--]"
 	@echo 'LIST:[--]="${LIST:[--]}" is an error'
+mod-squarebrackets-n-ok-3:
 	@echo 'LIST:[-1]="${LIST:[-1]}"'
 	@echo 'LIST:[-2]="${LIST:[-2]}"'
 	@echo 'LIST:[-6]="${LIST:[-6]}"'
@@ -101,25 +132,39 @@ mod-squarebrackets-n:
 	@echo 'LIST:[*]:C/ /,/:[@]:[2]="${LIST:[*]:C/ /,/:[@]:[2]}"'
 	@echo 'LONGLIST:[012..0x12]="${LONGLIST:[012..0x12]}"'
 
-mod-squarebrackets-start-end:
+mod-squarebrackets-start-end-error-1:
+# expect: make: Bad modifier ":[1.]"
 	@echo 'LIST:[1.]="${LIST:[1.]}" is an error'
+mod-squarebrackets-start-end-error-2:
+# expect: make: Bad modifier ":[1..]"
 	@echo 'LIST:[1..]="${LIST:[1..]}" is an error'
+mod-squarebrackets-start-end-error-3:
+# expect: make: Bad modifier ":[1.. ]"
 	@echo 'LIST:[1.. ]="${LIST:[1.. ]}" is an error'
+mod-squarebrackets-start-end-ok-1:
 	@echo 'LIST:[1..1]="${LIST:[1..1]}"'
+mod-squarebrackets-start-end-error-4:
+# expect: make: Bad modifier ":[1..1.]"
 	@echo 'LIST:[1..1.]="${LIST:[1..1.]}" is an error'
+mod-squarebrackets-start-end-ok-2:
 	@echo 'LIST:[1..2]="${LIST:[1..2]}"'
 	@echo 'LIST:[2..1]="${LIST:[2..1]}"'
 	@echo 'LIST:[3..-2]="${LIST:[3..-2]}"'
 	@echo 'LIST:[-4..4]="${LIST:[-4..4]}"'
+mod-squarebrackets-start-end-error-5:
+# expect: make: Bad modifier ":[0..1]"
 	@echo 'LIST:[0..1]="${LIST:[0..1]}" is an error'
+mod-squarebrackets-start-end-error-6:
+# expect: make: Bad modifier ":[-1..0]"
 	@echo 'LIST:[-1..0]="${LIST:[-1..0]}" is an error'
+mod-squarebrackets-start-end-ok-3:
 	@echo 'LIST:[-1..1]="${LIST:[-1..1]}"'
 	@echo 'LIST:[0..0]="${LIST:[0..0]}"'
 	@echo 'LIST:[3..99]="${LIST:[3..99]}"'
 	@echo 'LIST:[-3..-99]="${LIST:[-3..-99]}"'
 	@echo 'LIST:[-99..-3]="${LIST:[-99..-3]}"'
 
-mod-squarebrackets-nested:
+mod-squarebrackets-nested-ok-1:
 	@echo 'HASH="${HASH}" == "#" ?'
 	@echo 'LIST:[$${HASH}]="${LIST:[${HASH}]}"'
 	@echo 'LIST:[$${ZERO}]="${LIST:[${ZERO}]}"'
@@ -128,7 +173,10 @@ mod-squarebrackets-nested:
 	@echo 'LIST:[$${MINUSONE}]="${LIST:[${MINUSONE}]}"'
 	@echo 'LIST:[$${STAR}]="${LIST:[${STAR}]}"'
 	@echo 'LIST:[$${AT}]="${LIST:[${AT}]}"'
+mod-squarebrackets-nested-error-1:
+# expect: make: Bad modifier ":[${EMPTY"
 	@echo 'LIST:[$${EMPTY}]="${LIST:[${EMPTY}]}" is an error'
+mod-squarebrackets-nested-ok-2:
 	@echo 'LIST:[$${LONGLIST:[21]:S/2//}]="${LIST:[${LONGLIST:[21]:S/2//}]}"'
 	@echo 'LIST:[$${LIST:[#]}]="${LIST:[${LIST:[#]}]}"'
 	@echo 'LIST:[$${LIST:[$${HASH}]}]="${LIST:[${LIST:[${HASH}]}]}"'

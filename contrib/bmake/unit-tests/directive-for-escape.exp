@@ -1,13 +1,15 @@
 For: end for 1
 For: loop body with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: "directive-for-escape.mk" line 21: while evaluating "${:U!"" with value "!"": Unclosed expression, expecting '}' for modifier "U!""
+make: "directive-for-escape.mk" line 21: Unclosed expression, expecting '}' for modifier "U!""
+	while evaluating "${:U!"" with value "!""
 	in .for loop from directive-for-escape.mk:20 with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 make: "directive-for-escape.mk" line 21: !"
 For: end for 1
 For: loop body with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"\\\\#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: "directive-for-escape.mk" line 33: while evaluating "${:U!"\\\\" with value "!"\\": Unclosed expression, expecting '}' for modifier "U!"\\\\"
+make: "directive-for-escape.mk" line 33: Unclosed expression, expecting '}' for modifier "U!"\\\\"
+	while evaluating "${:U!"\\\\" with value "!"\\"
 	in .for loop from directive-for-escape.mk:32 with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
 make: "directive-for-escape.mk" line 33: !"\\
 For: end for 1
@@ -104,7 +106,7 @@ make: "directive-for-escape.mk" line 223: short: " ", long: " "
 For: end for 1
 For: loop body with i = "
 ":
-Parsing line 236: .for i in "${.newline}"
+Parsing directive-for-escape.mk:236: .for i in "${.newline}"
 For: end for 1
 Parse_PushInput: .for loop in directive-for-escape.mk, line 236
 make: "directive-for-escape.mk" line 236: newline in .for value
@@ -114,11 +116,11 @@ For: loop body with i = "
 ":
 : ${:U" "}
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
-Parsing line 237: : ${:U" "}
+Parsing directive-for-escape.mk:237: : ${:U" "}
 ParseDependency(: " ")
 ParseEOF: returning to file directive-for-escape.mk, line 239
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
-Parsing line 239: .MAKEFLAGS: -d0
+Parsing directive-for-escape.mk:239: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 For: end for 1
 For: loop body with i = #:

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # RCSid:
-#	$Id: cython.mk,v 1.9 2024/02/17 17:26:57 sjg Exp $
+#	$Id: cython.mk,v 1.10 2024/09/20 06:16:41 sjg Exp $
 #
-#	@(#) Copyright (c) 2014, Simon J. Gerraty
+#	@(#) Copyright (c) 2014-2024, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -19,24 +19,29 @@
 # pyprefix is where python bits are
 # which may not be where we want to put ours (prefix)
 .if exists(/usr/pkg/include)
-pyprefix?= /usr/pkg
+pyprefix ?= /usr/pkg
 .endif
-pyprefix?= /usr/local
+pyprefix ?= /usr/local
 
-PYTHON_VERSION?= 2.7
-PYTHON_H?= ${pyprefix}/include/python${PYTHON_VERSION}/Python.h
-PYVERSION:= ${PYTHON_VERSION:C,\..*,,}
+PYTHON ?= python3
+.if empty(PYTHON_VERSION)
+PYTHON_VERSION != ${PYTHON} --version | sed 's,Python \([2-9]\.[0-9][0-9]*\).*,\1,'
+.export PYTHON_VERSION
+.endif
+PYTHON_H ?= ${pyprefix}/include/python${PYTHON_VERSION}/Python.h
+PYVERSION := ${PYTHON_VERSION:C,\..*,,}
 
 CFLAGS+= -I${PYTHON_H:H}
 
 # conf.host_target() is limited to uname -m rather than uname -p
-_HOST_MACHINE!= uname -m
+# so we cannot assume it will always match HOST_TARGET
+_HOST_MACHINE != uname -m
 .if ${HOST_TARGET:M*${_HOST_MACHINE}} == ""
-PY_HOST_TARGET:= ${HOST_TARGET:S,${_HOST_ARCH:U${uname -p:L:sh}}$,${_HOST_MACHINE},}
+PY_HOST_TARGET := ${HOST_TARGET:S,${_HOST_ARCH:U${uname -p:L:sh}}$,${_HOST_MACHINE},}
 .endif
 
-COMPILE.c?= ${CC} -c ${CFLAGS}
-PICO?= .pico
+COMPILE.c ?= ${CC} -c ${CFLAGS}
+PICO ?= .pico
 
 .SUFFIXES: ${PICO} .c
 
@@ -47,25 +52,25 @@ PICO?= .pico
 .if !empty(CYTHON_MODULE_NAME)
 CYTHON_MODULE = ${CYTHON_MODULE_NAME}${CYTHON_PYVERSION}.so
 
-CYTHON_SRCS?= ${CYTHON_MODULE_NAME}.pyx
+CYTHON_SRCS ?= ${CYTHON_MODULE_NAME}.pyx
 
 # this is where we save generated src
-CYTHON_SAVEGENDIR?= ${.CURDIR}/gen
+CYTHON_SAVEGENDIR ?= ${.CURDIR}/gen
 
 # set this empty if you don't want to handle multiple versions
 .if !defined(CYTHON_PYVERSION)
-CYTHON_PYVERSION:= ${PYVERSION}
+CYTHON_PYVERSION := ${PYVERSION}
 .endif
 
-CYTHON_GENSRCS= ${CYTHON_SRCS:R:S,$,${CYTHON_PYVERSION}.c,}
-SRCS+= ${CYTHON_GENSRCS}
+CYTHON_GENSRCS = ${CYTHON_SRCS:R:S,$,${CYTHON_PYVERSION}.c,}
+SRCS += ${CYTHON_GENSRCS}
 
 .SUFFIXES: .pyx .c .So
 
-CYTHON?= ${pyprefix}/bin/cython
+CYTHON ?= ${pyprefix}/bin/cython
 
 # if we don't have cython we can use pre-generated srcs
-.if ${type ${CYTHON} 2> /dev/null || echo:L:sh:M/*} == ""
+.if empty(CYTHON) || !exists(${CYTHON})
 .PATH: ${CYTHON_SAVEGENDIR}
 .else
 
@@ -98,6 +103,6 @@ install-cython-module: ${CYTHON_MODULE}
 	${INSTALL} -d ${DESTDIR}${MODULE_BINDIR}
 	${INSTALL} -m 755 ${.ALLSRC} ${DESTDIR}${MODULE_BINDIR}
 
-CLEANFILES+= *${PICO} ${CYTHON_MODULE}
+CLEANFILES += *${PICO} ${CYTHON_MODULE}
 
 .endif

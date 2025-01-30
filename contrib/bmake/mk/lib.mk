@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.84 2024/02/19 00:06:19 sjg Exp $
+# $Id: lib.mk,v 1.85 2024/12/12 19:56:36 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -395,13 +395,15 @@ realbuild: ${_LIBS}
 
 all: _SUBDIRUSE
 
-OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER}}
-
-.for s in ${OBJS_SRCS:M*/*}
-${.o ${PICO} .po .lo:L:@o@${s:T:R}$o@}: $s
+.for s in ${SRCS:${OBJS_SRCS_PRE_FILTER:ts:}:M*/*}
+${.o .po .lo:L:@o@${s:${OBJS_SRCS_FILTER:ts:}}$o@}: $s
 .endfor
 
-OBJS+=	${OBJS_SRCS:T:R:S/$/.o/g}
+OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER:ts:}}
+.if !empty(OBJS_SRCS)
+OBJS+=	${OBJS_SRCS:S/$/.o/g}
+.endif
+
 .NOPATH:	${OBJS}
 
 .if ${MK_LIBTOOL} == "yes"

@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.44 2024/02/19 00:06:19 sjg Exp $
+#	$Id: prog.mk,v 1.45 2024/12/12 19:56:36 sjg Exp $
 
 # should be set properly in sys.mk
 _this ?= ${.PARSEFILE:S,bsd.,,}
@@ -98,12 +98,14 @@ SRCS = ${PROG}.c
 .endif
 
 SRCS ?=	${PROG}.c
-OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER}}
-.for s in ${OBJS_SRCS:M*/*}
-${.o .po .lo:L:@o@${s:T:R}$o@}: $s
+
+.for s in ${SRCS:${OBJS_SRCS_PRE_FILTER:ts:}:M*/*}
+${.o .po .lo:L:@o@${s:${OBJS_SRCS_FILTER:ts:}}$o@}: $s
 .endfor
+
+OBJS_SRCS = ${SRCS:${OBJS_SRCS_FILTER:ts:}}
 .if !empty(OBJS_SRCS)
-OBJS+=	${OBJS_SRCS:T:R:S/$/.o/g}
+OBJS+=	${OBJS_SRCS:S/$/.o/g}
 LOBJS+=	${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
 .endif
 

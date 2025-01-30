@@ -1,4 +1,4 @@
-# $NetBSD: archive.mk,v 1.13 2024/04/27 20:23:22 rillig Exp $
+# $NetBSD: archive.mk,v 1.14 2025/01/10 23:00:38 rillig Exp $
 #
 # Very basic demonstration of handling archives, based on the description
 # in PSD.doc/tutorial.ms.
@@ -21,6 +21,10 @@ all:
 	@${MAKE} -f ${MAKEFILE} create-archive
 	@${MAKE} -f ${MAKEFILE} list-archive
 	@${MAKE} -f ${MAKEFILE} list-archive-wildcard
+	@${MAKE} -f ${MAKEFILE} list-archive-undef-archive || echo "exit $$?"
+	@echo
+	@${MAKE} -f ${MAKEFILE} list-archive-undef-member || echo "exit $$?"
+	@echo
 	@${MAKE} -f ${MAKEFILE} depend-on-existing-member
 	@${MAKE} -f ${MAKEFILE} depend-on-nonexistent-member
 	@${MAKE} -f ${MAKEFILE} remove-archive
@@ -50,6 +54,20 @@ list-archive: ${ARCHIVE} pre post
 # To prevent an overly long file list, the pattern is restricted to [at]*.mk.
 list-archive-wildcard: ${ARCHIVE}([at]*.mk) pre post
 	@printf '%s\n' ${.ALLSRC:O:@member@${.TARGET:Q}': '${member:Q}@}
+
+.if make(list-archive-undef-archive)
+# TODO: Be more specific: mention that the variable "UNDEF" is not defined.
+# expect+1: Error in source archive spec "libprog.a${UNDEF}(archive.mk) pre post"
+list-archive-undef-archive: ${ARCHIVE}$${UNDEF}(archive.mk) pre post
+	@printf '%s\n' ${.ALLSRC:O:@member@${.TARGET:Q}': '${member:Q}@}
+.endif
+
+.if make(list-archive-undef-member)
+# TODO: Be more specific: mention that the variable "UNDEF" is not defined.
+# expect+1: Error in source archive spec "libprog.a"
+list-archive-undef-member: ${ARCHIVE}(archive$${UNDEF}.mk) pre post
+	@printf '%s\n' ${.ALLSRC:O:@member@${.TARGET:Q}': '${member:Q}@}
+.endif
 
 depend-on-existing-member: ${ARCHIVE}(archive.mk) pre post
 	@echo $@
