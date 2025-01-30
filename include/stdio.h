@@ -74,7 +74,7 @@ typedef	__off64_t	off64_t;
 
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #ifndef _VA_LIST_DECLARED
-typedef	__va_list	va_list;
+typedef	__builtin_va_list	va_list;
 #define	_VA_LIST_DECLARED
 #endif
 #endif
