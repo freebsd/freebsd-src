@@ -31,6 +31,7 @@
 #ifndef CTLD_H
 #define	CTLD_H
 
+#include <sys/_nv.h>
 #include <sys/queue.h>
 #ifdef ICL_KERNEL_PROXY
 #include <sys/types.h>
@@ -103,8 +104,6 @@ struct portal {
 	int				p_socket;
 };
 
-TAILQ_HEAD(options, option);
-
 #define	PG_FILTER_UNKNOWN		0
 #define	PG_FILTER_NONE			1
 #define	PG_FILTER_PORTAL		2
@@ -114,7 +113,7 @@ TAILQ_HEAD(options, option);
 struct portal_group {
 	TAILQ_ENTRY(portal_group)	pg_next;
 	struct conf			*pg_conf;
-	struct options			pg_options;
+	nvlist_t			*pg_options;
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
@@ -158,16 +157,10 @@ struct port {
 	uint32_t			p_ctl_port;
 };
 
-struct option {
-	TAILQ_ENTRY(option)		o_next;
-	char				*o_name;
-	char				*o_value;
-};
-
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
 	struct conf			*l_conf;
-	struct options			l_options;
+	nvlist_t			*l_options;
 	char				*l_name;
 	char				*l_backend;
 	uint8_t				l_device_type;
@@ -351,11 +344,8 @@ void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, int64_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 
-struct option		*option_new(struct options *os,
+bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
-void			option_delete(struct options *os, struct option *co);
-struct option		*option_find(const struct options *os, const char *name);
-void			option_set(struct option *o, const char *value);
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
