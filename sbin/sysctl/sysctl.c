@@ -33,6 +33,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <dev/evdev/input.h>
@@ -51,6 +54,9 @@
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
+#ifdef JAIL
+#include <jail.h>
+#endif
 #include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -59,12 +65,16 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifdef JAIL
+static const char *jailname;
+#endif
 static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 static bool	Fflag, Jflag, lflag, Vflag;
 
+static void	attach_jail(void);
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(FILE *);
 static int	parse(const char *, int);
@@ -121,8 +131,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdeFhiJlNnoqTtVWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdeFhJlNnoqTtVWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-j jail] [-bdeFhiJlNnoqTtVWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-j jail] [-bdeFhJlNnoqTtVWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -137,7 +147,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AaB:bdeFf:hiJlNnoqTtVWwXx")) != -1) {
+	while ((ch = getopt(argc, argv, "AaB:bdeFf:hiJj:lNnoqTtVWwXx")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -172,6 +182,14 @@ main(int argc, char **argv)
 			break;
 		case 'J':
 			Jflag = true;
+			break;
+		case 'j':
+#ifdef JAIL
+			if ((jailname = optarg) == NULL)
+				usage();
+#else
+			errx(1, "not built with jail support");
+#endif
 			break;
 		case 'l':
 			lflag = true;
@@ -222,8 +240,10 @@ main(int argc, char **argv)
 	/* TODO: few other combinations do not make sense but come back later */
 	if (Nflag && (lflag || nflag))
 		usage();
-	if (aflag && argc == 0)
+	if (aflag && argc == 0) {
+		attach_jail();
 		exit(sysctl_all(NULL, 0));
+	}
 	if (argc == 0 && conffile == NULL)
 		usage();
 
@@ -231,6 +251,9 @@ main(int argc, char **argv)
 		file = fopen(conffile, "r");
 		if (file == NULL)
 			err(EX_NOINPUT, "%s", conffile);
+	}
+	attach_jail();
+	if (file != NULL) {
 		warncount += parsefile(file);
 		fclose(file);
 	}
@@ -239,6 +262,23 @@ main(int argc, char **argv)
 		warncount += parse(*argv++, 0);
 
 	return (warncount);
+}
+
+static void
+attach_jail(void)
+{
+#ifdef JAIL
+	int jid;
+
+	if (jailname == NULL)
+		return;
+
+	jid = jail_getid(jailname);
+	if (jid == -1)
+		errx(1, "jail not found");
+	if (jail_attach(jid) != 0)
+		errx(1, "cannot attach to jail");
+#endif
 }
 
 /*
