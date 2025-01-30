@@ -209,7 +209,7 @@ struct vnet_data_free {
 static MALLOC_DEFINE(M_VNET_DATA_FREE, "vnet_data_free",
     "VNET resource accounting");
 static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
-	    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
+    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
 static struct sx vnet_data_free_lock;
 
 SDT_PROVIDER_DEFINE(vnet);
@@ -513,7 +513,7 @@ vnet_restore_init(void *start, size_t size)
 void
 vnet_register_sysinit(void *arg)
 {
-	struct vnet_sysinit *vs, *vs2;	
+	struct vnet_sysinit *vs, *vs2;
 	struct vnet *vnet;
 
 	vs = arg;
@@ -788,11 +788,12 @@ db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
 	c_db_sym_t sym;
 	db_expr_t  offset;
 
-#define xprint(...)							\
+#define xprint(...) do {						\
 	if (ddb)							\
 		db_printf(__VA_ARGS__);					\
 	else								\
-		printf(__VA_ARGS__)
+		printf(__VA_ARGS__);					\
+} while (0)
 
 	if (vs == NULL) {
 		xprint("%s: no vnet_sysinit * given\n", __func__);
