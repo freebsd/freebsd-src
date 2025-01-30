@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <sys/cons.h>
 #include <sys/time.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h> 
 
 #include <sys/stat.h>
@@ -59,7 +60,6 @@
 #include <machine/resource.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/bus.h>
-#include <machine/stdarg.h>
 #include <sys/rman.h>
 
 #include <vm/vm.h>

@@ -52,6 +52,7 @@
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
@@ -60,7 +61,6 @@
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
-#include <machine/stdarg.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>

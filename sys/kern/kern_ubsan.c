@@ -49,9 +49,9 @@ __RCSID("$NetBSD: ubsan.c,v 1.3 2018/08/03 16:31:04 kamil Exp $");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/limits.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 #include <machine/_inttypes.h>
-#include <machine/stdarg.h>
 #define	ASSERT(x) KASSERT(x, ("%s: " __STRING(x) " failed", __func__))
 #define	__arraycount(x) nitems(x)
 #define	ISSET(x, y)	((x) & (y))

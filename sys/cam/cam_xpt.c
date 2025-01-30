@@ -44,6 +44,7 @@
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
 
 #include <sys/lock.h>
@@ -68,7 +69,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
 
-#include <machine/stdarg.h>	/* for xpt_print below */
 
 /* Wild guess based on not wanting to grow the stack too much */
 #define XPT_PRINT_MAXLEN	512

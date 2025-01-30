@@ -76,6 +76,7 @@
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/syslog.h>
 
@@ -104,8 +105,6 @@
 #include <netinet6/send.h>
 
 #include <netipsec/ipsec_support.h>
-
-#include <machine/stdarg.h>
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))

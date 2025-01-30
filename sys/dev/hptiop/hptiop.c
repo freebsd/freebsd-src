@@ -31,6 +31,7 @@
 #include <sys/cons.h>
 #include <sys/time.h>
 #include <sys/systm.h>
+#include <sys/stdarg.h>
 
 #include <sys/stat.h>
 #include <sys/malloc.h>
@@ -49,7 +50,6 @@
 
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <machine/stdarg.h>
 #include <sys/rman.h>
 
 #include <vm/vm.h>

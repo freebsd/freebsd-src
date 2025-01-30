@@ -35,11 +35,10 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 #include <sys/terminal.h>
 #include <sys/tty.h>
-
-#include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TERMINAL, "terminal", "terminal device");
 

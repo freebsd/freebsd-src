@@ -37,10 +37,9 @@
 #include <sys/mbuf.h>
 #include <sys/smp.h>
 #include <sys/smr.h>
+#include <sys/stdarg.h>
 
 #include <vm/uma.h>
-
-#include <machine/stdarg.h>
 
 static uma_zone_t smrs_zone;
 static smr_t smrs_smr;

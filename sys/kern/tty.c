@@ -55,6 +55,7 @@
 #include <sys/serial.h>
 #include <sys/signal.h>
 #include <sys/stat.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -67,8 +68,6 @@
 #include <sys/vnode.h>
 
 #include <fs/devfs/devfs.h>
-
-#include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TTY, "tty", "tty device");
 

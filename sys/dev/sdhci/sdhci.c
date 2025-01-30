@@ -40,13 +40,13 @@
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/sbuf.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>

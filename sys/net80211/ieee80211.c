@@ -38,8 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sbuf.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

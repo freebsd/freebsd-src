@@ -24,12 +24,11 @@
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/socket.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
-
-#include <machine/stdarg.h>
 
 #include <security/mac/mac_policy.h>
 

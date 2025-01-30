@@ -58,6 +58,7 @@
 #include <sys/nv.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
+#include <sys/stdarg.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -70,7 +71,6 @@
 #include <ddb/ddb.h>
 #endif
 
-#include <machine/stdarg.h>
 #include <vm/uma.h>
 
 #include <net/bpf.h>

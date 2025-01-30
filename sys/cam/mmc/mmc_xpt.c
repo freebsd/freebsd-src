@@ -38,6 +38,7 @@
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -58,7 +59,6 @@
 #include <cam/mmc/mmc.h>
 #include <cam/mmc/mmc_bus.h>
 
-#include <machine/stdarg.h>	/* for xpt_print below */
 #include <machine/_inttypes.h>  /* for PRIu64 */
 
 FEATURE(mmccam, "CAM-based MMC/SD/SDIO stack");

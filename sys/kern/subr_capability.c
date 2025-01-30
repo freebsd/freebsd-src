@@ -39,7 +39,7 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #else	/* !_KERNEL */
 #include <assert.h>
 #include <stdarg.h>

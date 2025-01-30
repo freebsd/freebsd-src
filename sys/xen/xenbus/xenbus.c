@@ -47,14 +47,13 @@
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/xenbus/xenbusvar.h>
-
-#include <machine/stdarg.h>
 
 MALLOC_DEFINE(M_XENBUS, "xenbus", "XenBus Support");
 

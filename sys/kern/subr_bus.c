@@ -49,6 +49,7 @@
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
@@ -61,7 +62,6 @@
 #include <net/vnet.h>
 
 #include <machine/cpu.h>
-#include <machine/stdarg.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>

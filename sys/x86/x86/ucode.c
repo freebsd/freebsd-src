@@ -35,12 +35,12 @@
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <x86/specialreg.h>
-#include <machine/stdarg.h>
 #include <x86/ucode.h>
 #include <x86/x86_smp.h>
 

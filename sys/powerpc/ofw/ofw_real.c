@@ -63,6 +63,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -72,7 +73,6 @@
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
-#include <machine/stdarg.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofwvar.h>

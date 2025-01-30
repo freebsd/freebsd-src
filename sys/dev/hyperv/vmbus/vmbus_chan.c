@@ -34,11 +34,11 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/atomic.h>
-#include <machine/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

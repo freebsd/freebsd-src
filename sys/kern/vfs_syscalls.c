@@ -69,13 +69,12 @@
 #include <sys/proc.h>
 #include <sys/dirent.h>
 #include <sys/jail.h>
+#include <sys/stdarg.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
-
-#include <machine/stdarg.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>

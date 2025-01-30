@@ -48,11 +48,11 @@
 #include <sys/proc.h>
 #include <sys/selinfo.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
-#include <machine/stdarg.h>
 
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>

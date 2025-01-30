@@ -45,9 +45,8 @@
 #include <sys/uio.h>
 #include <sys/unistd.h>
 #include <sys/queue.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
-
-#include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>

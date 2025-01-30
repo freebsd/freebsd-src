@@ -38,12 +38,12 @@
 #include <sys/taskqueue.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/stdarg.h>
 
 #include <sys/proc.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/stdarg.h>
 
 #include <cam/cam.h>
 #include <cam/cam_debug.h>

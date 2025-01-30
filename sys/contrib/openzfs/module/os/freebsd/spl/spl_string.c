@@ -30,7 +30,7 @@
 #include <sys/param.h>
 #include <sys/string.h>
 #include <sys/kmem.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #define	IS_DIGIT(c)	((c) >= '0' && (c) <= '9')
 

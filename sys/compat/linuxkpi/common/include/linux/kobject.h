@@ -29,7 +29,7 @@
 #ifndef	_LINUXKPI_LINUX_KOBJECT_H_
 #define	_LINUXKPI_LINUX_KOBJECT_H_
 
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <linux/kernel.h>
 #include <linux/kref.h>

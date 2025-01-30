@@ -33,7 +33,7 @@
 #include <sys/syscallsubr.h>
 #include <sys/refcount.h>
 #include <sys/sbuf.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/proc.h>
 
 #define	request_module(...) \
