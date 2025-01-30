@@ -148,7 +148,8 @@ nvmf_parse_cntlid(const char *cntlid)
 
 static bool
 tcp_qpair_params(struct nvmf_qpair_params *params, int adrfam,
-    const char *address, const char *port)
+    const char *address, const char *port, struct addrinfo **aip,
+    struct addrinfo **listp)
 {
 	struct addrinfo hints, *ai, *list;
 	int error, s;
@@ -173,12 +174,34 @@ tcp_qpair_params(struct nvmf_qpair_params *params, int adrfam,
 		}
 
 		params->tcp.fd = s;
-		freeaddrinfo(list);
+		if (listp != NULL) {
+			*aip = ai;
+			*listp = list;
+		} else
+			freeaddrinfo(list);
 		return (true);
 	}
 	warn("Failed to connect to controller at %s:%s", address, port);
 	freeaddrinfo(list);
 	return (false);
+}
+
+static bool
+tcp_qpair_params_ai(struct nvmf_qpair_params *params, struct addrinfo *ai)
+{
+	int s;
+
+	s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+	if (s == -1)
+		return (false);
+
+	if (connect(s, ai->ai_addr, ai->ai_addrlen) != 0) {
+		close(s);
+		return (false);
+	}
+
+	params->tcp.fd = s;
+	return (true);
 }
 
 static void
@@ -228,7 +251,7 @@ connect_discovery_adminq(enum nvmf_trtype trtype, const char *address,
 		err(EX_IOERR, "Failed to create discovery association");
 	memset(&qparams, 0, sizeof(qparams));
 	qparams.admin = true;
-	if (!tcp_qpair_params(&qparams, AF_UNSPEC, address, port))
+	if (!tcp_qpair_params(&qparams, AF_UNSPEC, address, port, NULL, NULL))
 		exit(EX_NOHOST);
 	qp = nvmf_connect(na, &qparams, 0, NVME_MIN_ADMIN_ENTRIES, hostid,
 	    NVMF_CNTLID_DYNAMIC, NVMF_DISCOVERY_NQN, hostnqn, 0);
@@ -417,6 +440,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 {
 	struct nvmf_qpair_params qparams;
 	struct nvmf_association *na;
+	struct addrinfo *ai, *list;
 	u_int queues;
 	int error;
 	uint16_t mqes;
@@ -446,7 +470,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	/* Admin queue. */
 	memset(&qparams, 0, sizeof(qparams));
 	qparams.admin = true;
-	if (!tcp_qpair_params(&qparams, adrfam, address, port)) {
+	if (!tcp_qpair_params(&qparams, adrfam, address, port, &ai, &list)) {
 		nvmf_free_association(na);
 		return (EX_NOHOST);
 	}
@@ -454,6 +478,7 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	    kato, &mqes);
 	if (error != 0) {
 		nvmf_free_association(na);
+		freeaddrinfo(list);
 		return (error);
 	}
 
@@ -495,7 +520,9 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 	for (u_int i = 0; i < num_io_queues; i++) {
 		memset(&qparams, 0, sizeof(qparams));
 		qparams.admin = false;
-		if (!tcp_qpair_params(&qparams, adrfam, address, port)) {
+		if (!tcp_qpair_params_ai(&qparams, ai)) {
+			warn("Failed to connect to controller at %s:%s",
+			    address, port);
 			error = EX_NOHOST;
 			goto out;
 		}
@@ -509,11 +536,13 @@ connect_nvm_queues(const struct nvmf_association_params *aparams,
 		}
 	}
 	nvmf_free_association(na);
+	freeaddrinfo(list);
 	return (0);
 
 out:
 	disconnect_nvm_queues(*admin, io, num_io_queues);
 	nvmf_free_association(na);
+	freeaddrinfo(list);
 	return (error);
 }
 
