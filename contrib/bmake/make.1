@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.378 2024/07/01 21:02:26 sjg Exp $
+.\"	$NetBSD: make.1,v 1.381 2024/11/14 19:30:13 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd July 1, 2024
+.Dd November 14, 2024
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -60,10 +60,11 @@ If no
 .Fl f Ar makefile
 option is given,
 .Nm
-tries to open
-.Sq Pa makefile
-then
-.Sq Pa Makefile
+looks for the makefiles listed in
+.Va .MAKE.MAKEFILE_PREFERENCE
+(default
+.Sq Pa makefile ,
+.Sq Pa Makefile )
 in order to find the specifications.
 If the file
 .Sq Pa .depend
@@ -233,15 +234,20 @@ so the actual commands are printed as they are executed.
 .It Fl e
 Let environment variables override global variables within makefiles.
 .It Fl f Ar makefile
-Specify a makefile to read instead of the default
-.Pa makefile
-or
-.Pa Makefile .
+Specify a makefile to read instead of one of the defaults listed in
+.Va .MAKE.MAKEFILE_PREFERENCE .
 If
 .Ar makefile
 is
 .Ql \&- ,
 standard input is read.
+If
+.Ar makefile
+starts with the string
+.Ql \&.../ ,
+.Nm
+searches for the specified path in the rest of the argument
+in the current directory and its parents.
 Multiple makefiles may be specified, and are read in the order specified.
 .It Fl I Ar directory
 Specify a directory in which to search for makefiles and included makefiles.
@@ -1170,6 +1176,7 @@ to help debug.
 .It Va MAKEOBJDIRPREFIX
 Used to create files in a separate directory, see
 .Va .OBJDIR .
+It should be an absolute path.
 .It Va .MAKE.OS
 The name of the operating system, see
 .Xr uname 1 .
@@ -2647,12 +2654,18 @@ and
 .Ev MAKEOBJDIRPREFIX
 and
 .Ev MAKEOBJDIR
-may only be set in the environment or on the command line to
+should be set in the environment or on the command line to
 .Nm
 and not as makefile variables;
 see the description of
 .Sq Va .OBJDIR
 for more details.
+It is possible to set these via makefile variables but unless done
+very early and the
+.Sq Ic .OBJDIR
+target is used to reset
+.Sq Va .OBJDIR ,
+there may be unexpected side effects.
 .Sh FILES
 .Bl -tag -width /usr/share/mk -compact
 .It .depend

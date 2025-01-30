@@ -1,4 +1,4 @@
-# $NetBSD: vardebug.mk,v 1.11 2024/07/05 19:47:22 rillig Exp $
+# $NetBSD: vardebug.mk,v 1.16 2025/01/11 21:21:33 rillig Exp $
 #
 # Demonstrates the debugging output for var.c.
 
@@ -48,7 +48,7 @@ VAR+=		3
 .endif
 
 # ApplyModifiers, "Got ..."
-# expect: Result of ${:Mvalu[e]} is "value" (eval-defined, defined)
+# expect: Result of ${:Mvalu[e]} is "value" (eval, defined)
 .if ${:Uvalue:${:UM*e}:Mvalu[e]}
 .endif
 
@@ -57,19 +57,12 @@ VAR+=		3
 
 # When ApplyModifiers results in an error, this appears in the debug log
 # as "is error", without surrounding quotes.
-# expect: Result of ${:unknown} is error (eval-defined, defined)
-# expect+2: Malformed conditional (${:Uvariable:unknown})
-# expect+1: while evaluating "${:Uvariable:unknown}" with value "variable": Unknown modifier "unknown"
+# expect: Result of ${:unknown} is error (eval, defined)
+# expect+1: Unknown modifier "unknown"
 .if ${:Uvariable:unknown}
 .endif
 
-# XXX: The error message is "Malformed conditional", which is wrong.
-# The condition is syntactically fine, it just contains an undefined variable.
-#
-# There is a specialized error message for "Undefined variable", but as of
-# 2020-08-08, that is not covered by any unit tests.  It might even be
-# unreachable.
-# expect+1: Malformed conditional (${UNDEFINED})
+# expect+1: Variable "UNDEFINED" is undefined
 .if ${UNDEFINED}
 .endif
 
@@ -78,5 +71,9 @@ VAR+=		3
 # where it is set to read-only.  Assigning to it is ignored.
 # expect: Command: ignoring '.SHELL = overwritten' as it is read-only
 .MAKEFLAGS: .SHELL=overwritten
+
+DYN = ${:U$@} $@ ${@}
+# expect: Global: DYN = $(.TARGET) $(.TARGET) ${@}
+DYN := ${DYN}
 
 .MAKEFLAGS: -d0

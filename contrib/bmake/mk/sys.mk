@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: sys.mk,v 1.60 2024/02/17 17:26:57 sjg Exp $
+# $Id: sys.mk,v 1.61 2024/10/30 23:46:26 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
@@ -97,6 +97,7 @@ OPTIONS_DEFAULT_NO += \
 
 OPTIONS_DEFAULT_DEPENDENT += \
 	AUTO_OBJ/DIRDEPS_BUILD \
+	META_ERROR_TARGET/DIRDEPS_BUILD \
 	META_MODE/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 	STATIC_DIRDEPS_CACHE/DIRDEPS_CACHE \

@@ -1,63 +1,64 @@
-# $NetBSD: var-recursive.mk,v 1.6 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: var-recursive.mk,v 1.10 2024/08/29 20:20:36 rillig Exp $
 #
-# Tests for expressions that refer to themselves and thus
-# cannot be evaluated.
+# Tests for expressions that refer to themselves and thus cannot be
+# evaluated, as that would lead to an endless loop.
 
-TESTS=	direct indirect conditional short target
+.if make(loadtime)
 
-# Since make exits immediately when it detects a recursive expression,
-# the actual tests are run in sub-makes.
-TEST?=	# none
-.if ${TEST} == ""
-all:
-.for test in ${TESTS}
-	@${.MAKE} -f ${MAKEFILE} TEST=${test} || :
-.endfor
+DIRECT=	${DIRECT}	# Defining a recursive variable is not an error.
+# expect+2: Variable DIRECT is recursive.
+# expect+1: <>
+.  info <${DIRECT}>	# But expanding such a variable is an error.
 
-.elif ${TEST} == direct
-
-DIRECT=	${DIRECT}	# Defining a recursive variable is not yet an error.
-# expect+1: still there
-.  info still there	# Therefore this line is printed.
-.  info ${DIRECT}	# But expanding the variable is an error.
-
-.elif ${TEST} == indirect
 
 # The chain of variables that refer to each other may be long.
 INDIRECT1=	${INDIRECT2}
 INDIRECT2=	${INDIRECT1}
-.  info ${INDIRECT1}
+# expect+2: Variable INDIRECT1 is recursive.
+# expect+1: <>
+.  info <${INDIRECT1}>
 
-.elif ${TEST} == conditional
 
 # The variable refers to itself, but only in the branch of a condition that
-# is never satisfied and is thus not evaluated.
+# is not satisfied and is thus not evaluated.
 CONDITIONAL=	${1:?ok:${CONDITIONAL}}
-# expect+1: ok
-.  info ${CONDITIONAL}
+# expect+1: <ok>
+.  info <${CONDITIONAL}>
 
-.elif ${TEST} == short
+
+# An expression with modifiers is skipped halfway.  This can lead to wrong
+# follow-up error messages, but recursive variables occur seldom.
+MODIFIERS=	${MODIFIERS:Mpattern}
+# expect+2: Variable MODIFIERS is recursive.
+# expect+1: <Mpattern}>
+.  info <${MODIFIERS}>
+
 
 # Short variable names can be expanded using the short-hand $V notation,
 # which takes a different code path in Var_Parse for parsing the variable
 # name.  Ensure that these are checked as well.
 V=	$V
-.  info $V
+# expect+2: Variable V is recursive.
+# expect+1: <>
+.  info <$V>
 
-.elif ${TEST} == target
+.elif make(runtime)
 
-# If a recursive variable is accessed in a command of a target, the makefiles
-# are not parsed anymore, so there is no location information from the
-# .includes and .for directives.  In such a case, use the location of the last
-# command of the target to provide at least a hint to the location.
 VAR=	${VAR}
-target:
-	: OK
-	: ${VAR}
-	: OK
+runtime:
+# expect: : before-recursive
+	: before-recursive
+# expect: make: Variable VAR is recursive.
+# expect-not: recursive-line-before
+# expect-not: recursive-line-after
+	: recursive-line-before <${VAR}> recursive-line-after
+# expect-not: after-recursive
+	: after-recursive
 
 .else
-.  error Unknown test "${TEST}"
-.endif
 
 all:
+	@${MAKE} -f ${MAKEFILE} loadtime || echo "sub-exit status $$?"
+	@${MAKE} -f ${MAKEFILE} runtime || echo "sub-exit status $$?"
+
+.endif

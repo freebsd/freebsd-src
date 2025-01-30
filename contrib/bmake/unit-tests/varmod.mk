@@ -1,4 +1,4 @@
-# $NetBSD: varmod.mk,v 1.18 2024/07/05 19:47:22 rillig Exp $
+# $NetBSD: varmod.mk,v 1.22 2025/01/11 20:54:46 rillig Exp $
 #
 # Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
 #
@@ -103,7 +103,7 @@ DOLLAR2=	${:U\$}
 .endif
 
 # A '$' followed by nothing is an error as well.
-# expect+1: while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word": Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${:Uword:@word@${word}$@} != "word"
 .  error
 .endif
@@ -113,7 +113,7 @@ DOLLAR2=	${:U\$}
 # XXX: The .error should not be reached since the expression is
 # malformed, and this error should be propagated up to Cond_EvalLine.
 VAR=	STOP
-# expect+1: while evaluating variable "VAR" with value "VAR": Missing delimiter ':' after modifier "P"
+# expect+1: Missing delimiter ':' after modifier "P"
 .if ${VAR:P=RE} != "STORE"
 # expect+1: Missing argument for ".error"
 .  error
@@ -121,27 +121,23 @@ VAR=	STOP
 
 # Test the word selection modifier ':[n]' with a very large number that is
 # larger than ULONG_MAX for any supported platform.
-# expect+2: while evaluating variable "word" with value "word": Bad modifier ":[99333000222000111000]"
-# expect+1: Malformed conditional (${word:L:[99333000222000111000]})
+# expect+1: Bad modifier ":[99333000222000111000]"
 .if ${word:L:[99333000222000111000]}
 .endif
-# expect+2: while evaluating variable "word" with value "word": Bad modifier ":[2147483648]"
-# expect+1: Malformed conditional (${word:L:[2147483648]})
+# expect+1: Bad modifier ":[2147483648]"
 .if ${word:L:[2147483648]}
 .endif
 
 # Test the range generation modifier ':range=n' with a very large number that
 # is larger than SIZE_MAX for any supported platform.
-# expect+2: Malformed conditional (${word:L:range=99333000222000111000})
-# expect+1: while evaluating variable "word" with value "word": Invalid number "99333000222000111000}" for ':range' modifier
+# expect+1: Invalid number "99333000222000111000}" for ':range' modifier
 .if ${word:L:range=99333000222000111000}
 .endif
 
 # In an indirect modifier, the delimiter is '\0', which at the same time marks
 # the end of the string.  The sequence '\\' '\0' is not an escaped delimiter,
 # as it would be wrong to skip past the end of the string.
-# expect+2: while evaluating "${:${:Ugmtime=\\}}" with value "": Invalid time value "\"
-# expect+1: Malformed conditional (${:${:Ugmtime=\\}})
+# expect+1: Invalid time value "\"
 .if ${:${:Ugmtime=\\}}
 .  error
 .endif
@@ -156,13 +152,13 @@ VAR=	STOP
 .if ${:U:!printf '%s\n' $!} != "\$"
 .  error
 .endif
-# expect+1: while evaluating variable "VAR" with value "value$": Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${VAR::=value$} != "" || ${VAR} != "value"
 .  error
 .endif
 ${:U }=		<space>
-# expect+2: while evaluating variable "VAR" with value "value$": Dollar followed by nothing
-# expect+1: while evaluating variable "VAR" with value "value$ appended$": Dollar followed by nothing
+# expect+2: Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${VAR::+=appended$} != "" || ${VAR} != "value<space>appended"
 .  error
 .endif
@@ -172,12 +168,11 @@ ${:U }=		<space>
 .if ${0:?then$:else$} != "else\$"
 .  error
 .endif
-# expect+1: while evaluating variable "word" with value "word": Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${word:L:@w@$w$@} != "word"
 .  error
 .endif
-# expect+2: while evaluating variable "word" with value "": Bad modifier ":[$]"
-# expect+1: Malformed conditional (${word:[$]})
+# expect+1: Bad modifier ":[$]"
 .if ${word:[$]}
 .  error
 .else
@@ -193,39 +188,36 @@ VAR_DOLLAR=	VAR$$
 .if ${word:L:C,d,$,} != "wor\$"
 .  error
 .endif
-# expect+2: while evaluating variable "VAR" with value "value$ appended$": Dollar followed by nothing
-# expect+1: while evaluating variable "VAR" with value "value<space>appended": Invalid variable name '}', at "$} != "set""
+# expect+2: Dollar followed by nothing
+# expect+1: Invalid variable name '}', at "$} != "set""
 .if ${VAR:Dset$} != "set"
 .  error
 .endif
-# expect+1: while evaluating "${:Ufallback$} != "fallback"" with value "": Invalid variable name '}', at "$} != "fallback""
+# expect+1: Invalid variable name '}', at "$} != "fallback""
 .if ${:Ufallback$} != "fallback"
 .  error
 .endif
-# expect+2: Malformed conditional (${%y:L:gmtime=1000$})
-# expect+1: while evaluating variable "%y" with value "%y": Invalid time value "1000$"
+# expect+1: Invalid time value "1000$"
 .if ${%y:L:gmtime=1000$}
 .  error
 .else
 .  error
 .endif
-# expect+2: Malformed conditional (${%y:L:localtime=1000$})
-# expect+1: while evaluating variable "%y" with value "%y": Invalid time value "1000$"
+# expect+1: Invalid time value "1000$"
 .if ${%y:L:localtime=1000$}
 .  error
 .else
 .  error
 .endif
-# expect+1: while evaluating variable "word" with value "word": Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${word:L:Mw*$} != "word"
 .  error
 .endif
-# expect+1: while evaluating variable "word" with value "word": Dollar followed by nothing
+# expect+1: Dollar followed by nothing
 .if ${word:L:NX*$} != "word"
 .  error
 .endif
-# expect+2: while evaluating variable "." with value ".": Invalid argument 'fallback$' for modifier ':mtime'
-# expect+1: Malformed conditional (${.:L:mtime=fallback$})
+# expect+1: Invalid argument 'fallback$' for modifier ':mtime'
 .if ${.:L:mtime=fallback$}
 .  error
 .else

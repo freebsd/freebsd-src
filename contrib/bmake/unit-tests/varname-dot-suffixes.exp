@@ -19,21 +19,21 @@ Result of ${preserve:_=.SUFFIXES} is "preserve" (eval-keep-dollar-and-undefined,
 Global: _ = preserve
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0
-Var_Parse: ${1 2:L:@.SUFFIXES@${.SUFFIXES}@} != ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval-defined)
-Evaluating modifier ${1 2:L} on value "" (eval-defined, undefined)
-Result of ${1 2:L} is "1 2" (eval-defined, defined)
-Evaluating modifier ${1 2:@...} on value "1 2" (eval-defined, defined)
+Var_Parse: ${1 2:L:@.SUFFIXES@${.SUFFIXES}@} != ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval-defined-loud)
+Evaluating modifier ${1 2:L} on value "" (eval, undefined)
+Result of ${1 2:L} is "1 2" (eval, defined)
+Evaluating modifier ${1 2:@...} on value "1 2" (eval, defined)
 Modifier part: ".SUFFIXES"
 Modifier part: "${.SUFFIXES}"
 ModifyWords: split "1 2" into 2 words
 Command: ignoring '.SUFFIXES = 1' as it is read-only
-Var_Parse: ${.SUFFIXES} (eval-defined)
+Var_Parse: ${.SUFFIXES} (eval)
 ModifyWord_Loop: expand "${.SUFFIXES}" to ".c .o .1 .err .tar.gz"
 Command: ignoring '.SUFFIXES = 2' as it is read-only
-Var_Parse: ${.SUFFIXES} (eval-defined)
+Var_Parse: ${.SUFFIXES} (eval)
 ModifyWord_Loop: expand "${.SUFFIXES}" to ".c .o .1 .err .tar.gz"
 Command: ignoring delete '.SUFFIXES' as it is not found
-Result of ${1 2:@.SUFFIXES@${.SUFFIXES}@} is ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval-defined, defined)
+Result of ${1 2:@.SUFFIXES@${.SUFFIXES}@} is ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz" (eval, defined)
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0 -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0 -d v -d 0
 exit status 0

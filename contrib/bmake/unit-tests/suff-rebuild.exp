@@ -1,36 +1,36 @@
-Parsing line 10: .SUFFIXES:
+Parsing suff-rebuild.mk:10: .SUFFIXES:
 ParseDependency(.SUFFIXES:)
 Clearing all suffixes
-Parsing line 12: .SUFFIXES: .a .b .c
+Parsing suff-rebuild.mk:12: .SUFFIXES: .a .b .c
 ParseDependency(.SUFFIXES: .a .b .c)
 Adding suffix ".a"
 Adding suffix ".b"
 Adding suffix ".c"
-Parsing line 14: suff-rebuild-example.a:
+Parsing suff-rebuild.mk:14: suff-rebuild-example.a:
 ParseDependency(suff-rebuild-example.a:)
 Adding "suff-rebuild-example.a" to all targets.
-Parsing line 15: 	: Making ${.TARGET} out of nothing.
-Parsing line 17: .a.b:
+Parsing suff-rebuild.mk:15: 	: Making ${.TARGET} out of nothing.
+Parsing suff-rebuild.mk:17: .a.b:
 ParseDependency(.a.b:)
 defining transformation from `.a' to `.b'
 inserting ".a" (1) at end of list
 inserting ".b" (2) at end of list
-Parsing line 18: 	: Making ${.TARGET} from ${.IMPSRC}.
-Parsing line 19: .b.c:
+Parsing suff-rebuild.mk:18: 	: Making ${.TARGET} from ${.IMPSRC}.
+Parsing suff-rebuild.mk:19: .b.c:
 transformation .a.b complete
 ParseDependency(.b.c:)
 defining transformation from `.b' to `.c'
 inserting ".b" (2) at end of list
 inserting ".c" (3) at end of list
-Parsing line 20: 	: Making ${.TARGET} from ${.IMPSRC}.
-Parsing line 21: .c:
+Parsing suff-rebuild.mk:20: 	: Making ${.TARGET} from ${.IMPSRC}.
+Parsing suff-rebuild.mk:21: .c:
 transformation .b.c complete
 ParseDependency(.c:)
 defining transformation from `.c' to `'
 inserting ".c" (3) at end of list
 inserting "" (0) at end of list
-Parsing line 22: 	: Making ${.TARGET} from ${.IMPSRC}.
-Parsing line 44: .SUFFIXES: .c .b .a
+Parsing suff-rebuild.mk:22: 	: Making ${.TARGET} from ${.IMPSRC}.
+Parsing suff-rebuild.mk:44: .SUFFIXES: .c .b .a
 transformation .c complete
 ParseDependency(.SUFFIXES: .c .b .a)
 Adding ".END" to all targets.

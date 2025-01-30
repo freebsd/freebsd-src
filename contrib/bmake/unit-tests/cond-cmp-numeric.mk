@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-numeric.mk,v 1.7 2023/03/04 08:07:29 rillig Exp $
+# $NetBSD: cond-cmp-numeric.mk,v 1.8 2024/08/06 18:00:16 rillig Exp $
 #
 # Tests for numeric comparisons in .if conditions.
 #
@@ -34,7 +34,7 @@
 # whether the operator is valid, leaving the rest of the work to the
 # evaluation functions EvalCompareNum and EvalCompareStr.  Ensure that this
 # parse error is properly reported.
-# expect+1: Malformed conditional (123 ! 123)
+# expect+1: Malformed conditional '123 ! 123'
 .if 123 ! 123
 .  error
 .else

@@ -95,8 +95,10 @@ Parse_PushInput: file target-already-defined.tmp, line 1
 Skipping 'target-already-defined.tmp' because 'target-already-defined' is defined
 Parse_PushInput: file target-name-exclamation.tmp, line 1
 Parse_PushInput: file target-name-exclamation.tmp, line 1
-Parse_PushInput: file target-name-parenthesized.tmp, line 1
-Parse_PushInput: file target-name-parenthesized.tmp, line 1
+Parse_PushInput: file target-name-leading-space.tmp, line 1
+Parse_PushInput: file target-name-leading-space.tmp, line 1
+Parse_PushInput: file target-name-trailing-space.tmp, line 1
+Parse_PushInput: file target-name-trailing-space.tmp, line 1
 Parse_PushInput: file target-call-parenthesized.tmp, line 1
 Parse_PushInput: file target-call-parenthesized.tmp, line 1
 Parse_PushInput: file multiline.tmp, line 1
