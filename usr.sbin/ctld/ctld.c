@@ -31,6 +31,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/nv.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -619,7 +620,7 @@ portal_group_new(struct conf *conf, const char *name)
 	if (pg == NULL)
 		log_err(1, "calloc");
 	pg->pg_name = checked_strdup(name);
-	TAILQ_INIT(&pg->pg_options);
+	pg->pg_options = nvlist_create(0);
 	TAILQ_INIT(&pg->pg_portals);
 	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
@@ -636,7 +637,6 @@ portal_group_delete(struct portal_group *pg)
 {
 	struct portal *portal, *tmp;
 	struct port *port, *tport;
-	struct option *o, *otmp;
 
 	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
 		port_delete(port);
@@ -644,8 +644,7 @@ portal_group_delete(struct portal_group *pg)
 
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
-	TAILQ_FOREACH_SAFE(o, &pg->pg_options, o_next, otmp)
-		option_delete(&pg->pg_options, o);
+	nvlist_destroy(pg->pg_options);
 	free(pg->pg_name);
 	free(pg->pg_offload);
 	free(pg->pg_redirection);
@@ -1372,7 +1371,7 @@ lun_new(struct conf *conf, const char *name)
 		log_err(1, "calloc");
 	lun->l_conf = conf;
 	lun->l_name = checked_strdup(name);
-	TAILQ_INIT(&lun->l_options);
+	lun->l_options = nvlist_create(0);
 	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
 	lun->l_ctl_lun = -1;
 
@@ -1383,7 +1382,6 @@ void
 lun_delete(struct lun *lun)
 {
 	struct target *targ;
-	struct option *o, *tmp;
 	int i;
 
 	TAILQ_FOREACH(targ, &lun->l_conf->conf_targets, t_next) {
@@ -1394,8 +1392,7 @@ lun_delete(struct lun *lun)
 	}
 	TAILQ_REMOVE(&lun->l_conf->conf_luns, lun, l_next);
 
-	TAILQ_FOREACH_SAFE(o, &lun->l_options, o_next, tmp)
-		option_delete(&lun->l_options, o);
+	nvlist_destroy(lun->l_options);
 	free(lun->l_name);
 	free(lun->l_backend);
 	free(lun->l_device_id);
@@ -1481,56 +1478,23 @@ lun_set_ctl_lun(struct lun *lun, uint32_t value)
 	lun->l_ctl_lun = value;
 }
 
-struct option *
-option_new(struct options *options, const char *name, const char *value)
+bool
+option_new(nvlist_t *nvl, const char *name, const char *value)
 {
-	struct option *o;
+	int error;
 
-	o = option_find(options, name);
-	if (o != NULL) {
+	if (nvlist_exists_string(nvl, name)) {
 		log_warnx("duplicated option \"%s\"", name);
-		return (NULL);
+		return (false);
 	}
 
-	o = calloc(1, sizeof(*o));
-	if (o == NULL)
-		log_err(1, "calloc");
-	o->o_name = checked_strdup(name);
-	o->o_value = checked_strdup(value);
-	TAILQ_INSERT_TAIL(options, o, o_next);
-
-	return (o);
-}
-
-void
-option_delete(struct options *options, struct option *o)
-{
-
-	TAILQ_REMOVE(options, o, o_next);
-	free(o->o_name);
-	free(o->o_value);
-	free(o);
-}
-
-struct option *
-option_find(const struct options *options, const char *name)
-{
-	struct option *o;
-
-	TAILQ_FOREACH(o, options, o_next) {
-		if (strcmp(o->o_name, name) == 0)
-			return (o);
+	nvlist_add_string(nvl, name, value);
+	error = nvlist_error(nvl);
+	if (error != 0) {
+		log_warnc(error, "failed to add option \"%s\"", name);
+		return (false);
 	}
-
-	return (NULL);
-}
-
-void
-option_set(struct option *o, const char *value)
-{
-
-	free(o->o_value);
-	o->o_value = checked_strdup(value);
+	return (true);
 }
 
 #ifdef ICL_KERNEL_PROXY
@@ -1592,6 +1556,19 @@ connection_new(struct portal *portal, int fd, const char *host,
 
 #if 0
 static void
+options_print(const char *prefix, nvlist_t *nvl)
+{
+	const char *name;
+	void *cookie;
+
+	cookie = NULL;
+	while ((name = nvlist_next(nvl, NULL, &cookie)) != NULL) {
+		fprintf(stderr, "%soption %s %s\n", prefix, name,
+		    nvlist_get_string(nvl, name));
+	}
+}
+
+static void
 conf_print(struct conf *conf)
 {
 	struct auth_group *ag;
@@ -1602,7 +1579,6 @@ conf_print(struct conf *conf)
 	struct portal *portal;
 	struct target *targ;
 	struct lun *lun;
-	struct option *o;
 
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		fprintf(stderr, "auth-group %s {\n", ag->ag_name);
@@ -1622,14 +1598,13 @@ conf_print(struct conf *conf)
 		fprintf(stderr, "portal-group %s {\n", pg->pg_name);
 		TAILQ_FOREACH(portal, &pg->pg_portals, p_next)
 			fprintf(stderr, "\t listen %s\n", portal->p_listen);
+		options_print("\t", pg->pg_options);
 		fprintf(stderr, "}\n");
 	}
 	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
 		fprintf(stderr, "\tlun %s {\n", lun->l_name);
 		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-		TAILQ_FOREACH(o, &lun->l_options, o_next)
-			fprintf(stderr, "\t\toption %s %s\n",
-			    o->o_name, o->o_value);
+		options_print("\t\t", lun->l_options);
 		fprintf(stderr, "\t}\n");
 	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {

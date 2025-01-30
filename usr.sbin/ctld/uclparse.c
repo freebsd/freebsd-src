@@ -29,8 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/nv.h>
+#include <sys/queue.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -604,9 +605,10 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 
 			while ((tmp = ucl_iterate_object(obj, &it2,
 			    true))) {
-				option_new(&portal_group->pg_options,
+				if (!option_new(portal_group->pg_options,
 				    ucl_object_key(tmp),
-				    ucl_object_tostring_forced(tmp));
+				    ucl_object_tostring_forced(tmp)))
+					return (false);
 			}
 		}
 
@@ -937,9 +939,10 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 			while ((child = ucl_iterate_object(obj, &child_it,
 			    true))) {
-				option_new(&lun->l_options,
+				if (!option_new(lun->l_options,
 				    ucl_object_key(child),
-				    ucl_object_tostring_forced(child));
+				    ucl_object_tostring_forced(child)))
+					return (false);
 			}
 		}
 

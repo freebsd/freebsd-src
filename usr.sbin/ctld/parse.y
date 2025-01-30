@@ -29,8 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/nv.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <assert.h>
 #include <stdio.h>
@@ -432,12 +433,12 @@ portal_group_offload:	OFFLOAD STR
 
 portal_group_option:	OPTION STR STR
 	{
-		struct option *o;
+		bool ok;
 
-		o = option_new(&portal_group->pg_options, $2, $3);
+		ok = option_new(portal_group->pg_options, $2, $3);
 		free($2);
 		free($3);
-		if (o == NULL)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -1033,12 +1034,12 @@ lun_ctl_lun:	CTL_LUN STR
 
 lun_option:	OPTION STR STR
 	{
-		struct option *o;
+		bool ok;
 
-		o = option_new(&lun->l_options, $2, $3);
+		ok = option_new(lun->l_options, $2, $3);
 		free($2);
 		free($3);
-		if (o == NULL)
+		if (!ok)
 			return (1);
 	}
 	;
