@@ -30,8 +30,6 @@
 
 #include <sys/_stdarg.h>
 
-#ifndef va_start
-  #error this file needs to be ported to your compiler
-#endif
+#warning "machine/stdarg.h is obsolete, use sys/stdarg.h"
 
 #endif /* !_MACHINE_STDARG_H_ */
