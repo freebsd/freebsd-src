@@ -1,4 +1,4 @@
-# $NetBSD: varmod-range.mk,v 1.13 2024/07/05 19:47:22 rillig Exp $
+# $NetBSD: varmod-range.mk,v 1.16 2025/01/11 20:54:46 rillig Exp $
 #
 # Tests for the :range variable modifier, which generates sequences
 # of integers from the given range.
@@ -39,7 +39,7 @@
 # XXX: As of 2023-12-17, the ':range=n' modifier does not turn the undefined
 # expression into a defined one, even though it does not depend on the value
 # of the expression.  This looks like an oversight.
-# expect+1: Malformed conditional (${:range=5} != "")
+# expect+1: Malformed conditional '${:range=5} != ""'
 .if ${:range=5} != ""
 .  error
 .else
@@ -62,8 +62,7 @@
 #
 # Since 2020-11-01, the parser issues a more precise "Invalid number" error
 # instead.
-# expect+2: while evaluating "${:U:range=x}Rest" != "Rest"" with value "": Invalid number "x}Rest" != "Rest"" for ':range' modifier
-# expect+1: Malformed conditional ("${:U:range=x}Rest" != "Rest")
+# expect+1: Invalid number "x}Rest" != "Rest"" for ':range' modifier
 .if "${:U:range=x}Rest" != "Rest"
 .  error
 .else
@@ -73,8 +72,7 @@
 # The upper limit of the range must always be given in decimal.
 # This parse error stops at the 'x', trying to parse it as a variable
 # modifier.
-# expect+2: while evaluating "${:U:range=0x0}Rest" != "Rest"" with value "1": Unknown modifier "x0"
-# expect+1: Malformed conditional ("${:U:range=0x0}Rest" != "Rest")
+# expect+1: Unknown modifier "x0"
 .if "${:U:range=0x0}Rest" != "Rest"
 .  error
 .else
@@ -91,8 +89,7 @@
 #.endif
 
 # modifier name too short
-# expect+2: while evaluating variable "a b c" with value "a b c": Unknown modifier "rang"
-# expect+1: Malformed conditional ("${a b c:L:rang}Rest" != "Rest")
+# expect+1: Unknown modifier "rang"
 .if "${a b c:L:rang}Rest" != "Rest"
 .  error
 .else
@@ -100,8 +97,7 @@
 .endif
 
 # misspelled modifier name
-# expect+2: while evaluating variable "a b c" with value "a b c": Unknown modifier "rango"
-# expect+1: Malformed conditional ("${a b c:L:rango}Rest" != "Rest")
+# expect+1: Unknown modifier "rango"
 .if "${a b c:L:rango}Rest" != "Rest"
 .  error
 .else
@@ -109,8 +105,7 @@
 .endif
 
 # modifier name too long
-# expect+2: while evaluating variable "a b c" with value "a b c": Unknown modifier "ranger"
-# expect+1: Malformed conditional ("${a b c:L:ranger}Rest" != "Rest")
+# expect+1: Unknown modifier "ranger"
 .if "${a b c:L:ranger}Rest" != "Rest"
 .  error
 .else

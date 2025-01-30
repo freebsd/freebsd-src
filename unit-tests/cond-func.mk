@@ -1,4 +1,4 @@
-# $NetBSD: cond-func.mk,v 1.15 2024/07/06 21:21:10 rillig Exp $
+# $NetBSD: cond-func.mk,v 1.18 2024/08/07 05:48:45 rillig Exp $
 #
 # Tests for those parts of the functions in .if conditions that are common
 # among several functions.
@@ -33,7 +33,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 .endif
 
 # The argument of a function must not directly contain whitespace.
-# expect+1: Missing closing parenthesis for defined()
+# expect+1: Missing ')' after argument 'A' for 'defined'
 .if !defined(A B)
 .  error
 .endif
@@ -49,11 +49,11 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 #
 # It's not entirely clear why these characters are forbidden.
 # The most plausible reason seems to be typo detection.
-# expect+1: Missing closing parenthesis for defined()
+# expect+1: Missing ')' after argument 'A' for 'defined'
 .if !defined(A&B)
 .  error
 .endif
-# expect+1: Missing closing parenthesis for defined()
+# expect+1: Missing ')' after argument 'A' for 'defined'
 .if !defined(A|B)
 .  error
 .endif
@@ -134,8 +134,15 @@ defined-var=	# defined but empty
 .  error
 .endif
 
-# expect+1: Missing closing parenthesis for defined()
+# expect+1: Missing ')' after argument '' for 'defined'
 .if defined(
+.  error
+.else
+.  error
+.endif
+
+# expect+1: Missing ')' after argument '${:UVARNAME}.param' for 'defined'
+.if defined(${:UVARNAME}.param extra)
 .  error
 .else
 .  error

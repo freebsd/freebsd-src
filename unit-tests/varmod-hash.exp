@@ -1,9 +1,12 @@
-make: in target "all": while evaluating variable "12345" with value "12345": Unknown modifier "has"
-
+make: Unknown modifier "has"
+	while evaluating variable "12345" with value "12345"
+	in target "step-1"
 26bb0f5f
 12345
-make: in target "all": while evaluating variable "12345" with value "12345": Unknown modifier "hasX"
-
-make: in target "all": while evaluating variable "12345" with value "12345": Unknown modifier "hashed"
-
+make: Unknown modifier "hasX"
+	while evaluating variable "12345" with value "12345"
+	in target "step-4"
+make: Unknown modifier "hashed"
+	while evaluating variable "12345" with value "12345"
+	in target "step-5"
 exit status 2

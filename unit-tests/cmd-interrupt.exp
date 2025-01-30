@@ -5,4 +5,5 @@ interrupt-ordinary: ok
 interrupt-phony: ok
 > cmd-interrupt-precious
 interrupt-precious: ok
+interrupt-compat expected-fail
 exit status 0

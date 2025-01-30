@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $	*/
+/*	$NetBSD: compat.c,v 1.262 2025/01/19 10:57:10 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.260 2024/07/11 20:09:16 sjg Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.262 2025/01/19 10:57:10 rillig Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -206,7 +206,7 @@ UseShell(const char *cmd MAKE_ATTR_UNUSED)
 static int
 Compat_Spawn(const char **av)
 {
-	int pid = vfork();
+	int pid = FORK_FUNCTION();
 	if (pid < 0)
 		Fatal("Could not fork");
 
@@ -251,13 +251,18 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	const char *cmd = cmdp;
 	char cmd_file[MAXPATHLEN];
 	size_t cmd_len;
+	int parseErrorsBefore;
 
 	silent = (gn->type & OP_SILENT) != OP_NONE;
 	errCheck = !(gn->type & OP_IGNORE);
 	doIt = false;
 
+	parseErrorsBefore = parseErrors;
 	cmdStart = Var_SubstInTarget(cmd, gn);
-	/* TODO: handle errors */
+	if (parseErrors != parseErrorsBefore) {
+		free(cmdStart);
+		return false;
+	}
 
 	if (cmdStart[0] == '\0') {
 		free(cmdStart);

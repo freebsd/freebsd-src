@@ -5,7 +5,7 @@ make: "cond-cmp-numeric.mk" line 21: Comparison with '>' requires both operands 
 CondParser_Eval: !(${:UNaN} == NaN)
 Comparing "NaN" == "NaN"
 CondParser_Eval: 123 ! 123
-make: "cond-cmp-numeric.mk" line 38: Malformed conditional (123 ! 123)
+make: "cond-cmp-numeric.mk" line 38: Malformed conditional '123 ! 123'
 CondParser_Eval: ${:U 123} < 124
 Comparing 123.000000 < 124.000000
 CondParser_Eval: ${:U123 } < 124

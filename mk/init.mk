@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: init.mk,v 1.38 2024/04/09 17:18:24 sjg Exp $
+# $Id: init.mk,v 1.39 2024/12/12 19:56:36 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
@@ -41,7 +41,14 @@ PICO ?= .pico
 
 # SRCS which do not end up in OBJS
 NO_OBJS_SRCS_SUFFIXES ?= .h ${CCM_SUFFIXES} .sh
-OBJS_SRCS_FILTER += ${NO_OBJS_SRCS_SUFFIXES:@x@N*$x@:ts:}
+OBJS_SRCS_PRE_FILTER += ${NO_OBJS_SRCS_SUFFIXES:@x@N*$x@}
+# makefiles that actually *want* .o's in subdirs
+# (it can be useful if multiple SRCS have same basename)
+# can just set OBJS_SRCS_FILTER =
+# we apply this as ${OBJS_SRCS_FILTER:ts:}
+OBJS_SRCS_FILTER ?= T
+OBJS_SRCS_FILTER += ${OBJS_SRCS_PRE_FILTER}
+OBJS_SRCS_FILTER += R
 
 .if defined(PROG_CXX) || ${SRCS:Uno:${CXX_SUFFIXES:S,^,N*,:ts:}} != ${SRCS:Uno:N/}
 _CCLINK ?=	${CXX}

@@ -11,57 +11,66 @@ Global: ignoring 'FROM_CMDLINE = overwritten' due to a command line variable of 
 Global: VAR = 1
 Global: VAR = 1 2
 Global: VAR = 1 2 3
-Var_Parse: ${VAR:M[2]} (eval-defined)
+Var_Parse: ${VAR:M[2]} (eval-defined-loud)
 Evaluating modifier ${VAR:M...} on value "1 2 3"
 Pattern for ':M' is "[2]"
 ModifyWords: split "1 2 3" into 3 words
 Result of ${VAR:M[2]} is "2"
-Var_Parse: ${VAR:N[2]} (eval-defined)
+Var_Parse: ${VAR:N[2]} (eval-defined-loud)
 Evaluating modifier ${VAR:N...} on value "1 2 3"
 Pattern for ':N' is "[2]"
 ModifyWords: split "1 2 3" into 3 words
 Result of ${VAR:N[2]} is "1 3"
-Var_Parse: ${VAR:S,2,two,} (eval-defined)
+Var_Parse: ${VAR:S,2,two,} (eval-defined-loud)
 Evaluating modifier ${VAR:S...} on value "1 2 3"
 Modifier part: "2"
 Modifier part: "two"
 ModifyWords: split "1 2 3" into 3 words
 Result of ${VAR:S,2,two,} is "1 two 3"
-Var_Parse: ${VAR:Q} (eval-defined)
+Var_Parse: ${VAR:Q} (eval-defined-loud)
 Evaluating modifier ${VAR:Q} on value "1 2 3"
 Result of ${VAR:Q} is "1\ 2\ 3"
-Var_Parse: ${VAR:tu:tl:Q} (eval-defined)
+Var_Parse: ${VAR:tu:tl:Q} (eval-defined-loud)
 Evaluating modifier ${VAR:t...} on value "1 2 3"
 Result of ${VAR:tu} is "1 2 3"
 Evaluating modifier ${VAR:t...} on value "1 2 3"
 Result of ${VAR:tl} is "1 2 3"
 Evaluating modifier ${VAR:Q} on value "1 2 3"
 Result of ${VAR:Q} is "1\ 2\ 3"
-Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} (eval-defined)
-Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
-Result of ${:Uvalue} is "value" (eval-defined, defined)
+Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} (eval-defined-loud)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:Uvalue} is "value" (eval, defined)
 Indirect modifier "M*e" from "${:UM*e}"
-Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
+Evaluating modifier ${:M...} on value "value" (eval, defined)
 Pattern for ':M' is "*e"
 ModifyWords: split "value" into 1 word
-Result of ${:M*e} is "value" (eval-defined, defined)
-Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
+Result of ${:M*e} is "value" (eval, defined)
+Evaluating modifier ${:M...} on value "value" (eval, defined)
 Pattern for ':M' is "valu[e]"
 ModifyWords: split "value" into 1 word
-Result of ${:Mvalu[e]} is "value" (eval-defined, defined)
+Result of ${:Mvalu[e]} is "value" (eval, defined)
 Global: delete VAR
-Var_Parse: ${:Uvariable:unknown} (eval-defined)
-Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
-Result of ${:Uvariable} is "variable" (eval-defined, defined)
-Evaluating modifier ${:u...} on value "variable" (eval-defined, defined)
-make: "vardebug.mk" line 63: while evaluating "${:Uvariable:unknown}" with value "variable": Unknown modifier "unknown"
-Result of ${:unknown} is error (eval-defined, defined)
-make: "vardebug.mk" line 63: Malformed conditional (${:Uvariable:unknown})
-Var_Parse: ${UNDEFINED} (eval-defined)
-make: "vardebug.mk" line 73: Malformed conditional (${UNDEFINED})
+Var_Parse: ${:Uvariable:unknown} (eval-defined-loud)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:Uvariable} is "variable" (eval, defined)
+Evaluating modifier ${:u...} on value "variable" (eval, defined)
+make: "vardebug.mk" line 62: Unknown modifier "unknown"
+	while evaluating "${:Uvariable:unknown}" with value "variable"
+Result of ${:unknown} is error (eval, defined)
+Var_Parse: ${UNDEFINED} (eval-defined-loud)
+make: "vardebug.mk" line 66: Variable "UNDEFINED" is undefined
 Global: ignoring delete '.SHELL' as it is not found
 Command: .SHELL = </path/to/shell>
 Command: ignoring '.SHELL = overwritten' as it is read-only
+Global: DYN = ${:U$@} $@ ${@}
+Var_Parse: ${DYN} (eval-keep-dollar-and-undefined)
+Var_Parse: ${:U$@} $@ ${@} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${:U...} on value "" (eval-keep-dollar-and-undefined, undefined)
+Var_Parse: $@} $@ ${@} (eval-keep-dollar-and-undefined)
+Result of ${:U$@} is "$(.TARGET)" (eval-keep-dollar-and-undefined, defined)
+Var_Parse: $@ ${@} (eval-keep-dollar-and-undefined)
+Var_Parse: ${@} (eval-keep-dollar-and-undefined)
+Global: DYN = $(.TARGET) $(.TARGET) ${@}
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0
 make: Fatal errors encountered -- cannot continue
