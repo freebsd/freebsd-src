@@ -162,9 +162,13 @@ void			log_set_peer_name(const char *name);
 void			log_set_peer_addr(const char *addr);
 void			log_err(int, const char *, ...)
 			    __dead2 __printflike(2, 3);
+void			log_errc(int, int, const char *, ...)
+			    __dead2 __printflike(3, 4);
 void			log_errx(int, const char *, ...)
 			    __dead2 __printflike(2, 3);
 void			log_warn(const char *, ...) __printflike(1, 2);
+void			log_warnc(int, const char *, ...)
+			    __printflike(2, 3);
 void			log_warnx(const char *, ...) __printflike(1, 2);
 void			log_debugx(const char *, ...) __printflike(1, 2);
 
