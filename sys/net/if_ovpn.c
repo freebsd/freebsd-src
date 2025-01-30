@@ -587,6 +587,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 
 	memcpy(&peer->remote, &remote, sizeof(remote));
 
+#ifdef INET6
 	if (peer->local.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&TO_IN6(&peer->remote)->sin6_addr)) {
 		/* V4 mapped address, so treat this as v4, not v6. */
@@ -594,7 +595,6 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		in6_sin6_2_sin_in_sock((struct sockaddr *)&peer->remote);
 	}
 
-#ifdef INET6
 	if (peer->local.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_UNSPECIFIED(&TO_IN6(&peer->local)->sin6_addr)) {
 		NET_EPOCH_ENTER(et);
