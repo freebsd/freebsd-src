@@ -10,7 +10,9 @@ hash_comment_head() {
 }
 hash_comment_body() {
 	cat >f <<EOF
-
+#if FOO
+a
+#endif /*
 */
 EOF
 	atf_check -o file:f unifdef <f
