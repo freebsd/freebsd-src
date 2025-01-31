@@ -24,6 +24,7 @@
 # - retpoline: supports the retpoline speculative execution vulnerability
 #              mitigation.
 # - init-all:  supports stack variable initialization.
+# - stackclash:supports stack clash protection
 # - zeroregs:  supports zeroing used registers on return
 # - aarch64-sha512: supports the AArch64 sha512 intrinsic functions.
 #
@@ -264,8 +265,18 @@ ${X_}COMPILER_FEATURES+=	compressed-debug
 ${X_}COMPILER_FEATURES+=	fileprefixmap
 .endif
 
+.if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 70000 \
+	&& ${MACHINE_ARCH:Mriscv*} != "" && ${MACHINE_ARCH:Mpower*} != "") || \
+	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 81000 \
+	&& ${MACHINE_ARCH:Mriscv*} != "")
+${X_}COMPILER_FEATURES+=	stackclash
+.endif
+
+
 .if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 150000) || \
-	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 110000)
+	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 110000) && \
+	${MACHINE_ARCH:Mriscv*} != "" && ${MACHINE_ARCH:Mpower*} != "" && \
+	${MACHINE_ARCH:Marmv7*} != "" 
 ${X_}COMPILER_FEATURES+=	zeroregs
 .endif
 
