@@ -836,9 +836,10 @@ vm_page_startup(vm_offset_t vaddr)
 			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
 			vm_page_init_page(m, startp, segind, pool);
 			if (pool == VM_FREEPOOL_DEFAULT) {
-				for (int j = 1; j < pagecount; j++) {
+				for (u_long j = 1; j < pagecount; j++) {
 					vm_page_init_page(&m[j],
-					    startp + ptoa(j), segind, pool);
+					    startp + ptoa((vm_paddr_t)j),
+					    segind, pool);
 				}
 			}
 			vmd = VM_DOMAIN(seg->domain);
