@@ -91,6 +91,15 @@ struct nvmf_ioc_nv {
  */
 
 /*
+ * The fields in the nvlist for NVMF_CONNECTION_STATUS are:
+ *
+ * bool				connected
+ * timespec nvlist		last_disconnect
+ *  number			tv_sec
+ *  number			tv_nsec
+ */
+
+/*
  * The fields in the nvlist for handing off a controller qpair are:
  *
  * number			trtype
@@ -107,5 +116,6 @@ struct nvmf_ioc_nv {
 /* Operations on /dev/nvmeX */
 #define	NVMF_RECONNECT_PARAMS	_IOWR('n', 203, struct nvmf_ioc_nv)
 #define	NVMF_RECONNECT_HOST	_IOW('n', 204, struct nvmf_ioc_nv)
+#define	NVMF_CONNECTION_STATUS	_IOWR('n', 205, struct nvmf_ioc_nv)
 
 #endif /* !__NVMF_H__ */

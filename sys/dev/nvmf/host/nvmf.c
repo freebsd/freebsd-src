@@ -654,6 +654,7 @@ nvmf_disconnect_task(void *arg, int pending __unused)
 		return;
 	}
 
+	nanotime(&sc->last_disconnect);
 	callout_drain(&sc->ka_tx_timer);
 	callout_drain(&sc->ka_rx_timer);
 	sc->ka_traffic = false;
@@ -1086,6 +1087,27 @@ nvmf_reconnect_params(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
 }
 
 static int
+nvmf_connection_status(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
+{
+	nvlist_t *nvl, *nvl_ts;
+	int error;
+
+	nvl = nvlist_create(0);
+	nvl_ts = nvlist_create(0);
+
+	sx_slock(&sc->connection_lock);
+	nvlist_add_bool(nvl, "connected", sc->admin != NULL);
+	nvlist_add_number(nvl_ts, "tv_sec", sc->last_disconnect.tv_sec);
+	nvlist_add_number(nvl_ts, "tv_nsec", sc->last_disconnect.tv_nsec);
+	sx_sunlock(&sc->connection_lock);
+	nvlist_move_nvlist(nvl, "last_disconnect", nvl_ts);
+
+	error = nvmf_pack_ioc_nvlist(nvl, nv);
+	nvlist_destroy(nvl);
+	return (error);
+}
+
+static int
 nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
@@ -1116,6 +1138,9 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVMF_RECONNECT_HOST:
 		nv = (struct nvmf_ioc_nv *)arg;
 		return (nvmf_reconnect_host(sc, nv));
+	case NVMF_CONNECTION_STATUS:
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_connection_status(sc, nv));
 	default:
 		return (ENOTTY);
 	}

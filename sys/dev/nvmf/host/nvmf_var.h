@@ -86,6 +86,8 @@ struct nvmf_softc {
 
 	nvlist_t *rparams;
 
+	struct timespec last_disconnect;
+
 	eventhandler_tag shutdown_pre_sync_eh;
 	eventhandler_tag shutdown_post_sync_eh;
 };

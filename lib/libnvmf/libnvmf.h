@@ -372,4 +372,9 @@ int	nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
     const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata);
 
+/*
+ * Fetch connection status from an existing kernel host.
+ */
+int	nvmf_connection_status(int fd, nvlist_t **nvlp);
+
 #endif /* !__LIBNVMF_H__ */
