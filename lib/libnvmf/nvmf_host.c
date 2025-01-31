@@ -5,6 +5,7 @@
  * Written by: John Baldwin <jhb@FreeBSD.org>
  */
 
+#include <sys/nv.h>
 #include <sys/sysctl.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -1000,4 +1001,10 @@ out:
 		(void)nvmf_free_qpair(io_queues[i]);
 	(void)nvmf_free_qpair(admin_qp);
 	return (error);
+}
+
+int
+nvmf_connection_status(int fd, nvlist_t **nvlp)
+{
+	return (nvmf_read_ioc_nv(fd, NVMF_CONNECTION_STATUS, nvlp));
 }
