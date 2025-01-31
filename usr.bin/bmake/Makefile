@@ -49,45 +49,45 @@ SRCS.${MAN} = ${srcdir}/make.1
 .-include "Makefile.config"
 
 .if !empty(LIBOBJS)
-SRCS += ${LIBOBJS:T:.o =.c}
+SRCS += ${LIBOBJS:T:.o=.c}
 .endif
 
 # just in case
 prefix ?= /usr
 srcdir ?= ${.PARSEDIR}
-srcdir : = ${srcdir}
+srcdir := ${srcdir}
 
 DEFAULT_SYS_PATH ?= ${prefix}/share/mk
 
 CPPFLAGS += -DUSE_META
 CFLAGS += ${CPPFLAGS}
-CFLAGS += -D_PATH_DEFSYSPATH =\"${DEFAULT_SYS_PATH}\"
+CFLAGS += -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
 CFLAGS += -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
 CFLAGS += ${COPTS.${.ALLSRC:M*.c:T:u}}
-COPTS.main.c += "-DMAKE_VERSION =\"${_MAKE_VERSION}\""
+COPTS.main.c += "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
 
 .for x in FORCE_MAKE_OS FORCE_MACHINE FORCE_MACHINE_ARCH
 .ifdef $x
-COPTS.main.c += "-D$x =\"${$x}\""
+COPTS.main.c += "-D$x=\"${$x}\""
 .endif
 .endfor
 
 # meta mode can be useful even without filemon
 # should be set by now
 USE_FILEMON ?= no
-.if ${USE_FILEMON:tl} ! = "no"
+.if ${USE_FILEMON:tl} != "no"
 .PATH:	${srcdir}/filemon
 SRCS +=	filemon_${USE_FILEMON}.c
 COPTS.meta.c += -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
 COPTS.job.c += ${COPTS.meta.c}
 
-.if ${USE_FILEMON} = = "dev"
+.if ${USE_FILEMON} == "dev"
 FILEMON_H ?= /usr/include/dev/filemon/filemon.h
-.if exists(${FILEMON_H}) && ${FILEMON_H:T} = = "filemon.h"
+.if exists(${FILEMON_H}) && ${FILEMON_H:T} == "filemon.h"
 COPTS.filemon_dev.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 .endif
-.elif ${USE_FILEMON} = = "ktrace"
-COPTS.filemon_ktrace.c += -Wno-error =unused-parameter
+.elif ${USE_FILEMON} == "ktrace"
+COPTS.filemon_ktrace.c += -Wno-error=unused-parameter
 .endif
 
 .endif				# USE_FILEMON
@@ -101,12 +101,12 @@ SUBDIR.${MK_TESTS} += unit-tests
 
 MAN1 = ${MAN}
 
-.if ${MK_GEN_MAN:Uno} = = "yes"
+.if ${MK_GEN_MAN:Uno} == "yes"
 
 # we use this to generate ${MAN}
 .include <${srcdir}/mk/genfiles.mk>
 
-.if ${PROG} ! = "make"
+.if ${PROG} != "make"
 CLEANFILES += my.history
 SED_CMDS.${MAN} += \
 	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
@@ -114,7 +114,7 @@ SED_CMDS.${MAN} += \
 
 .endif
 
-.if ${CLEANFILES:U:Mmy.history} ! = ""
+.if ${CLEANFILES:U:Mmy.history} != ""
 ${MAN}: my.history
 my.history:
 	@(echo ".Nm"; \
@@ -129,7 +129,7 @@ SED_CMDS.${MAN} += \
 
 .endif
 
-.if ${.MAKE.OS:N*BSD} ! = ""
+.if ${.MAKE.OS:N*BSD} != ""
 # assume .Nx is not supported
 SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
 .endif
@@ -140,14 +140,14 @@ SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
 ${MAN}:	${SRCS.${MAN}} _GENFILES_USE
 
 all man beforeinstall: ${MAN}
-_mfromdir =.
+_mfromdir = .
 .endif
 .endif				# MK_GEN_MAN
 
 MANTARGET ?= cat
 MANDEST ?= ${MANDIR}/${MANTARGET}1
 
-.if ${MANTARGET} = = "cat"
+.if ${MANTARGET} == "cat"
 _mfromdir = ${srcdir}
 .endif
 
@@ -171,14 +171,14 @@ ${OBJS}: config.h
 TEST_MAKE ?= ${.OBJDIR}/${PROG:T}
 accept test: .NOMETA
 	cd ${.CURDIR}/unit-tests && \
-	MAKEFLAGS = ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS =${TESTS:Q}}
+	MAKEFLAGS= ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS=${TESTS:Q}}
 
 
-.if make(test) && ${MK_AUTO_OBJ} = = "yes"
+.if make(test) && ${MK_AUTO_OBJ} == "yes"
 # The test target above visits unit-tests with -r -m /
 # which prevents MK_AUTO_OBJ doing its job
 # so do it here
-.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:U:M*/*} ! = ""
+.if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:U:M*/*} != ""
 _utobj = ${.OBJDIR}/unit-tests
 .else
 _utobj = ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
