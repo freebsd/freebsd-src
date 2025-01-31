@@ -12,6 +12,7 @@ FILES=	INDEX.keymaps \
 	by.kbd \
 	ca.kbd \
 	ca-fr.kbd \
+	ca-multi.kbd \
 	centraleuropean.kbd \
 	centraleuropean.qwerty.kbd \
 	ch-fr.acc.kbd \
