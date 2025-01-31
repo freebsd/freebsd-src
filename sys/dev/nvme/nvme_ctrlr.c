@@ -1443,6 +1443,9 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = ctrlr->max_xfer_size;
 		break;
+	case NVME_GET_CONTROLLER_DATA:
+		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
+		break;
 	/* Linux Compatible (see nvme_linux.h) */
 	case NVME_IOCTL_ID:
 		td->td_retval[0] = 0xfffffffful;
