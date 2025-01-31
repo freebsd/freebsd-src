@@ -275,7 +275,7 @@ iflib_get_extra_msix_vectors_sysctl(if_ctx_t ctx)
 
 #define IP_ALIGNED(m)		((((uintptr_t)(m)->m_data) & 0x3) == 0x2)
 #define CACHE_PTR_INCREMENT	(CACHE_LINE_SIZE / sizeof(void *))
-#define CACHE_PTR_NEXT(ptr)	((void *)(((uintptr_t)(ptr) + CACHE_LINE_SIZE - 1) & (CACHE_LINE_SIZE - 1)))
+#define CACHE_PTR_NEXT(ptr)	((void *)(roundup2(ptr, CACHE_LINE_SIZE)))
 
 #define LINK_ACTIVE(ctx)	((ctx)->ifc_link_state == LINK_STATE_UP)
 #define CTX_IS_VF(ctx)		((ctx)->ifc_sctx->isc_flags & IFLIB_IS_VF)
