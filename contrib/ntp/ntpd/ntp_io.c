@@ -3205,7 +3205,7 @@ sendpkt(
 	}
 
 	do {
-		if (INT_LL_OF_GLOB & src->flags) {
+		if (ismcast && INT_LL_OF_GLOB & src->flags) {
 			/* avoid duplicate multicasts on same IPv6 net */
 			goto loop;
 		}
