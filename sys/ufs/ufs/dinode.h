@@ -185,11 +185,11 @@ struct ufs1_dinode {
 		uint32_t di_dirdepth;	/*   4: IFDIR: depth from root dir */
 	};
 	uint64_t	di_size;	/*   8: File byte count. */
-	int32_t		di_atime;	/*  16: Last access time. */
+	uint32_t	di_atime;	/*  16: Last access time. */
 	int32_t		di_atimensec;	/*  20: Last access time. */
-	int32_t		di_mtime;	/*  24: Last modified time. */
+	uint32_t	di_mtime;	/*  24: Last modified time. */
 	int32_t		di_mtimensec;	/*  28: Last modified time. */
-	int32_t		di_ctime;	/*  32: Last inode change time. */
+	uint32_t	di_ctime;	/*  32: Last inode change time. */
 	int32_t		di_ctimensec;	/*  36: Last inode change time. */
 	union {
 		struct {
