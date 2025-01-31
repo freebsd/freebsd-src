@@ -152,7 +152,23 @@ print_controller_info(const char *name, int fd)
 
 	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
 	printf("%6s: %s", name, mn);
-	if (!connected) {
+	if (connected) {
+		const struct nvme_discovery_log_entry *dle;
+		size_t len;
+
+		nvlist_destroy(nvl);
+		if (nvmf_reconnect_params(fd, &nvl) == 0) {
+			dle = nvlist_get_binary(nvl, "dle", &len);
+			if (len == sizeof(*dle)) {
+				printf(" (connected via %s %.*s:%.*s)",
+				    nvmf_transport_type(dle->trtype),
+				    (int)sizeof(dle->traddr), dle->traddr,
+				    (int)sizeof(dle->trsvcid), dle->trsvcid);
+			}
+		} else {
+			nvl = NULL;
+		}
+	} else {
 		if (now.tv_sec == 0)
 			clock_gettime(CLOCK_REALTIME, &now);
 
