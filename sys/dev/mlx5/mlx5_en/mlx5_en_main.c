@@ -3542,7 +3542,7 @@ siocsifcap_driver:
 			    IFCAP_TXTLS6);
 		}
 		if (!mlx5e_is_tlsrx_capable(priv->mdev)) {
-		        drv_ioctl_data->reqcap &= ~(
+		        drv_ioctl_data->reqcap2 &= ~(
 			    IFCAP2_BIT(IFCAP2_RXTLS4) |
 			    IFCAP2_BIT(IFCAP2_RXTLS6));
 		}
