@@ -593,13 +593,13 @@ cleanup_power_extras(struct thread *td)
  * Keep this in sync with the assembly code in cpu_switch()!
  */
 void
-cpu_save_thread_regs(struct thread *td)
+cpu_update_pcb(struct thread *td)
 {
 	uint32_t pcb_flags;
 	struct pcb *pcb;
 
 	KASSERT(td == curthread,
-	    ("cpu_save_thread_regs: td is not curthread"));
+	    ("cpu_update_pcb: td is not curthread"));
 
 	pcb = td->td_pcb;
 
@@ -1110,7 +1110,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	/* Ensure td0 pcb is up to date. */
 	if (td0 == curthread)
-		cpu_save_thread_regs(td0);
+		cpu_update_pcb(td0);
 
 	pcb2 = td->td_pcb;
 

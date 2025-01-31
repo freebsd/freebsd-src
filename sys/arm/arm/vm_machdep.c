@@ -279,6 +279,13 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 }
 
 void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)get_tls();
+}
+
+void
 cpu_exit(struct thread *td)
 {
 }

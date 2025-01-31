@@ -8,7 +8,7 @@
 .\" Technology), and Capabilities Limited under Defense Advanced Research
 .\" Projects Agency (DARPA) Contract No. FA8750-24-C-B047 ("DEC").
 .\"
-.Dd January 3, 2025
+.Dd January 31, 2025
 .Dt cpu_machdep 9
 .Os
 .Sh NAME
@@ -31,7 +31,8 @@
 .Nm cpu_thread_clean ,
 .Nm cpu_thread_exit ,
 .Nm cpu_thread_free ,
-.Nm cpu_throw
+.Nm cpu_throw ,
+.Nm cpu_update_pcb
 .Nd machine-dependent interfaces to handle CPU and thread state
 .Sh SYNOPSIS
 .In sys/proc.h
@@ -84,6 +85,8 @@
 .Fn cpu_thread_free "struct thread *td"
 .Ft void
 .Fn cpu_throw "struct thread *old" "struct thread *new"
+.Ft void
+.Fn cpu_update_pcb "struct thread *td"
 .Sh DESCRIPTION
 These functions provide architecture-specific implementations of
 machine-independent abstractions.
@@ -182,6 +185,22 @@ as the sole argument using the user stack described in
 sets a new thread's initial user thread pointer register to
 reference the user TLS base pointer
 .Fa tls_base .
+.Pp
+.Fn cpu_update_pcb
+updates the pcb of the current thread with current user register values.
+This is invoked before writing out register notes in a core dump.
+This function typically only has to update user registers for the current
+thread that are saved in the pcb during context switches rather than
+in the trapframe on kernel entry.
+.Pp
+Note that when
+.Fn cpu_update_pcb
+is used,
+threads in a process other than the current thread are stopped,
+typically by
+.Fn thread_single .
+The pcbs of those stopped threads should already be updated by
+.Fn cpu_switch .
 .Pp
 .Fn cpu_fetch_syscall_args
 fetches the current system call arguments for the native FreeBSD ABI from the

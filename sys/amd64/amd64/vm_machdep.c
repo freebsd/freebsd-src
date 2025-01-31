@@ -673,3 +673,10 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	pcb->pcb_fsbase = (register_t)tls_base;
 	return (0);
 }
+
+void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	update_pcb_bases(td->td_pcb);
+}

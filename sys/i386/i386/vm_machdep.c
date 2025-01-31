@@ -534,6 +534,13 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	return (0);
 }
 
+void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_gs = rgs();
+}
+
 /*
  * Convert kernel VA to physical address
  */
