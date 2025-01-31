@@ -1,3 +1,6 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
 # Copyright (c) 2022 Yoshihiro Ota <ota@j.email.ne.jp>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -20,11 +23,63 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
+#
 
 sysctl_name="kern.ostype"
 sysctl_value="FreeBSD"
 sysctl_type="string"
 sysctl_description="Operating system type"
+
+atf_test_case sysctl_aflag
+sysctl_aflag_head()
+{
+	atf_set "descr" "Exercise all sysctl handlers"
+}
+sysctl_aflag_body()
+{
+	# Avoid using atf_check here since sysctl -ao generates tons of
+	# output and it would all otherwise be saved.
+	sysctl -ao >/dev/null 2>stderr
+	if [ $? -ne 0 ]; then
+		atf_fail "sysctl -ao failed"
+	elif [ -s stderr ]; then
+		cat stderr
+		atf_fail "sysctl -ao printed to stderr"
+	fi
+}
+
+
+atf_test_case sysctl_aflag_jail
+sysctl_aflag_jail_head()
+{
+	atf_set "descr" "Exercise all sysctl handlers in a jail"
+	atf_set "require.user" "root"
+}
+sysctl_aflag_jail_body()
+{
+	local jail
+
+	jail=sysctl_test_aflag_jail
+
+	# Avoid using atf_check here since sysctl -ao generates tons of
+	# output and it would all otherwise be saved.
+	jail -c name=$jail command=sysctl -ao >/dev/null 2>stderr
+	if [ $? -ne 0 ]; then
+		atf_fail "sysctl -ao failed"
+	elif [ -s stderr ]; then
+		cat stderr
+		atf_fail "sysctl -ao printed to stderr"
+	fi
+
+	jail -c name=$jail vnet command=sysctl -ao >/dev/null 2>stderr
+	if [ $? -ne 0 ]; then
+		atf_fail "sysctl -ao failed"
+	elif [ -s stderr ]; then
+		cat stderr
+		atf_fail "sysctl -ao printed to stderr"
+	fi
+}
+
 
 atf_test_case sysctl_by_name
 sysctl_by_name_head()
@@ -106,6 +161,8 @@ sysctl_nflag_tflag_dflag_body()
 
 atf_init_test_cases()
 {
+	atf_add_test_case sysctl_aflag
+	atf_add_test_case sysctl_aflag_jail
 	atf_add_test_case sysctl_by_name
 	atf_add_test_case sysctl_nflag
 	atf_add_test_case sysctl_eflag
