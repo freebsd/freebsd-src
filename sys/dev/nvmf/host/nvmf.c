@@ -1107,6 +1107,9 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = sc->max_xfer_size;
 		return (0);
+	case NVME_GET_CONTROLLER_DATA:
+		memcpy(arg, sc->cdata, sizeof(*sc->cdata));
+		return (0);
 	case NVMF_RECONNECT_PARAMS:
 		nv = (struct nvmf_ioc_nv *)arg;
 		return (nvmf_reconnect_params(sc, nv));
