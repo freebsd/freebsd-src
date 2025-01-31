@@ -915,7 +915,13 @@ nvmft_port_remove(struct ctl_req *req)
 	TAILQ_REMOVE(&nvmft_ports, np, link);
 	sx_xunlock(&nvmft_ports_lock);
 
-	ctl_port_offline(&np->port);
+	sx_slock(&np->lock);
+	if (np->online) {
+		sx_sunlock(&np->lock);
+		ctl_port_offline(&np->port);
+	} else
+		sx_sunlock(&np->lock);
+
 	nvmft_port_rele(np);
 	req->status = CTL_LUN_OK;
 }
