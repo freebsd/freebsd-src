@@ -205,6 +205,9 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		ip->i_gen = dip1->di_gen;
 		ip->i_uid = dip1->di_uid;
 		ip->i_gid = dip1->di_gid;
+		if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
+		    fs->fs_ronly == 0)
+			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 		return (0);
 	}
 	dip2 = ((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
@@ -224,6 +227,9 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	ip->i_gen = dip2->di_gen;
 	ip->i_uid = dip2->di_uid;
 	ip->i_gid = dip2->di_gid;
+	if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
+	    fs->fs_ronly == 0)
+		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 	return (0);
 }
 

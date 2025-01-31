@@ -37,6 +37,7 @@
 #include <sys/limits.h>
 
 #ifndef _KERNEL
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -62,6 +63,7 @@ struct malloc_type;
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -396,6 +398,65 @@ ffs_oldfscompat_write(struct fs *fs)
 		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
 		fs->fs_maxfilesize = fs->fs_save_maxfilesize;
 	}
+}
+
+/*
+ * Sanity checks for loading old filesystem inodes.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+static int prttimechgs = 0;
+#ifdef _KERNEL
+SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "FFS filesystem");
+
+SYSCTL_INT(_vfs_ffs, OID_AUTO, prttimechgs, CTLFLAG_RWTUN, &prttimechgs, 0,
+	"print UFS1 time changes made to inodes");
+#endif /* _KERNEL */
+bool
+ffs_oldfscompat_inode_read(struct fs *fs, union dinodep dp, time_t now)
+{
+	bool change;
+
+	change = false;
+	switch (fs->fs_magic) {
+	case FS_UFS2_MAGIC:
+		/* No changes for now */
+		break;
+
+	case FS_UFS1_MAGIC:
+		/*
+		 * With the change to unsigned time values in UFS1, times set
+		 * before Jan 1, 1970 will appear to be in the future. Check
+		 * for future times and set them to be the current time.
+		 */
+		if (dp.dp1->di_ctime > now) {
+			if (prttimechgs)
+				printf("ctime %ud changed to %ld\n",
+				    dp.dp1->di_ctime, (long)now);
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		if (dp.dp1->di_mtime > now) {
+			if (prttimechgs)
+				printf("mtime %ud changed to %ld\n",
+				    dp.dp1->di_mtime, (long)now);
+			dp.dp1->di_mtime = now;
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		if (dp.dp1->di_atime > now) {
+			if (prttimechgs)
+				printf("atime %ud changed to %ld\n",
+				    dp.dp1->di_atime, (long)now);
+			dp.dp1->di_atime = now;
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		break;
+	}
+	return (change);
 }
 
 /*

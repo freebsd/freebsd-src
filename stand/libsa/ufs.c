@@ -110,10 +110,7 @@ struct fs_ops ufs_fsops = {
 struct file {
 	off_t		f_seekp;	/* seek pointer */
 	struct fs	*f_fs;		/* pointer to super-block */
-	union dinode {
-		struct ufs1_dinode di1;
-		struct ufs2_dinode di2;
-	}		f_di;		/* copy of on-disk inode */
+	union dinode	f_dp;		/* copy of on-disk inode */
 	int		f_nindir[UFS_NIADDR];
 					/* number of blocks mapped by
 					   indirect block at level i */
@@ -129,7 +126,7 @@ struct file {
 };
 #define DIP(fp, field) \
 	((fp)->f_fs->fs_magic == FS_UFS1_MAGIC ? \
-	(fp)->f_di.di1.field : (fp)->f_di.di2.field)
+	(fp)->f_dp.dp1.field : (fp)->f_dp.dp2.field)
 
 typedef struct ufs_mnt {
 	char			*um_dev;
@@ -185,10 +182,10 @@ read_inode(ino_t inumber, struct open_file *f)
 	}
 
 	if (fp->f_fs->fs_magic == FS_UFS1_MAGIC)
-		fp->f_di.di1 = ((struct ufs1_dinode *)buf)
+		fp->f_dp.dp1 = ((struct ufs1_dinode *)buf)
 		    [ino_to_fsbo(fs, inumber)];
 	else
-		fp->f_di.di2 = ((struct ufs2_dinode *)buf)
+		fp->f_dp.dp2 = ((struct ufs2_dinode *)buf)
 		    [ino_to_fsbo(fs, inumber)];
 
 	/*
