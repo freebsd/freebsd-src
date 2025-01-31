@@ -401,7 +401,7 @@ passin:
 	if (!PFIL_HOOKED_OUT(V_inet_pfil_head))
 		goto passout;
 
-	if (pfil_mbuf_out(V_inet_pfil_head, &m, nh->nh_ifp,
+	if (pfil_mbuf_fwd(V_inet_pfil_head, &m, nh->nh_ifp,
 	    NULL) != PFIL_PASS)
 		goto drop;
 
