@@ -1354,15 +1354,6 @@ tfo_socket_result:
 		 * Only the listen socket is unlocked by syncache_add().
 		 */
 		return (IPPROTO_DONE);
-	} else if (tp->t_state == TCPS_LISTEN) {
-		/*
-		 * When a listen socket is torn down the SO_ACCEPTCONN
-		 * flag is removed first while connections are drained
-		 * from the accept queue in a unlock/lock cycle of the
-		 * ACCEPT_LOCK, opening a race condition allowing a SYN
-		 * attempt go through unhandled.
-		 */
-		goto dropunlock;
 	}
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (tp->t_flags & TF_SIGNATURE) {
