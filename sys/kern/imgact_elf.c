@@ -2421,6 +2421,9 @@ __elfN(prepare_register_notes)(struct thread *td, struct note_info_list *list,
 
 	size = 0;
 
+	if (target_td == td)
+		cpu_update_pcb(target_td);
+
 	/* NT_PRSTATUS must be the first register set note. */
 	size += __elfN(register_regset_note)(td, list, &__elfN(regset_prstatus),
 	    target_td);

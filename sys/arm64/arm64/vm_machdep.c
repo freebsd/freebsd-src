@@ -291,6 +291,14 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 }
 
 void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_tpidr_el0 = READ_SPECIALREG(tpidr_el0);
+	td->td_pcb->pcb_tpidrro_el0 = READ_SPECIALREG(tpidrro_el0);
+}
+
+void
 cpu_exit(struct thread *td)
 {
 }

@@ -240,6 +240,11 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 }
 
 void
+cpu_update_pcb(struct thread *td)
+{
+}
+
+void
 cpu_exit(struct thread *td)
 {
 }
