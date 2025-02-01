@@ -28,12 +28,8 @@
 #ifndef	_RPC_RPCSEC_TLS_H_
 #define	_RPC_RPCSEC_TLS_H_
 
-/* Operation values for rpctls syscall. */
-#define	RPCTLS_SYSC_CLSOCKET	2
-#define	RPCTLS_SYSC_SRVSOCKET	5
-
-/* System call used by the rpctlscd, rpctlssd daemons. */
-int	rpctls_syscall(int, const char *);
+/* System call used by the rpc.tlsclntd(8), rpc.tlsservd(8) daemons. */
+int	rpctls_syscall(uint64_t);
 
 /* Flag bits to indicate certificate results. */
 #define	RPCTLS_FLAGS_HANDSHAKE	0x01

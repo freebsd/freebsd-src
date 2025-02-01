@@ -258,7 +258,7 @@ rpctlscd_connect_2_svc(struct rpctlscd_connect_arg *argp,
 
 	rpctls_verbose_out("rpctlsd_connect: started\n");
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_CLSOCKET, (char *)argp->socookie);
+	s = rpctls_syscall(argp->socookie);
 	if (s < 0) {
 		result->reterr = RPCTLSERR_NOSOCKET;
 		return (TRUE);

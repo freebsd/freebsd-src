@@ -88,6 +88,7 @@ struct upsock {
 		CLIENT *cl;
 		SVCXPRT *xp;
 	};
+	bool server;
 };
 
 static RB_HEAD(upsock_t, upsock) upcall_sockets;
@@ -169,7 +170,7 @@ int
 sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 {
 	struct file *fp;
-	struct upsock *ups;
+	struct upsock *upsp, ups;
 	int fd = -1, error;
         
 	error = priv_check(td, PRIV_NFS_DAEMON);
@@ -177,52 +178,51 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		return (error);
 
 	KRPC_CURVNET_SET(KRPC_TD_TO_VNET(td));
-	switch (uap->op) {
-	case RPCTLS_SYSC_CLSOCKET:
-	case RPCTLS_SYSC_SRVSOCKET:
-		mtx_lock(&rpctls_lock);
-		ups = RB_FIND(upsock_t, &upcall_sockets,
-		    &(struct upsock){
-		    .so = __DECONST(struct socket *, uap->path) });
-		if (__predict_true(ups != NULL))
-			RB_REMOVE(upsock_t, &upcall_sockets, ups);
-		mtx_unlock(&rpctls_lock);
-		if (ups == NULL) {
-			printf("%s: socket lookup failed\n", __func__);
-			error = EPERM;
-			break;
-		}
-		if ((error = falloc(td, &fp, &fd, 0)) != 0)
-			break;
-		soref(ups->so);
-		switch (uap->op) {
-		case RPCTLS_SYSC_CLSOCKET:
-			/*
-			 * Initialize TLS state so that clnt_vc_destroy() will
-			 * not close the socket and will leave that for the
-			 * daemon to do.
-			 */
-			CLNT_CONTROL(ups->cl, CLSET_TLS,
-			    &(int){RPCTLS_INHANDSHAKE});
-			break;
-		case RPCTLS_SYSC_SRVSOCKET:
-			/*
-			 * Once this file descriptor is associated
-			 * with the socket, it cannot be closed by
-			 * the server side krpc code (svc_vc.c).
-			 */
-			sx_xlock(&ups->xp->xp_lock);
-			ups->xp->xp_tls = RPCTLS_FLAGS_HANDSHFAIL;
-			sx_xunlock(&ups->xp->xp_lock);
-			break;
-		}
-		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, ups->so, &socketops);
-		fdrop(fp, td);	/* Drop fp reference. */
-		td->td_retval[0] = fd;
-		break;
-	default:
-		error = EINVAL;
+	mtx_lock(&rpctls_lock);
+	upsp = RB_FIND(upsock_t, &upcall_sockets,
+	    &(struct upsock){
+	    .so = __DECONST(struct socket *, uap->socookie) });
+	if (__predict_true(upsp != NULL)) {
+		RB_REMOVE(upsock_t, &upcall_sockets, upsp);
+		/*
+		 * The upsp points to stack of NFS mounting thread.  Even
+		 * though we removed it from the tree, we still don't own it.
+		 * Make a copy before releasing the lock.  The mounting thread
+		 * may timeout the RPC and unroll its stack.
+		 */
+		ups = *upsp;
 	}
+	mtx_unlock(&rpctls_lock);
+	if (upsp == NULL) {
+		KRPC_CURVNET_RESTORE();
+		printf("%s: socket lookup failed\n", __func__);
+		return (EPERM);
+	}
+	if ((error = falloc(td, &fp, &fd, 0)) != 0) {
+		KRPC_CURVNET_RESTORE();
+		return (error);
+	}
+	soref(ups.so);
+	if (ups.server) {
+		/*
+		 * Once this file descriptor is associated
+		 * with the socket, it cannot be closed by
+		 * the server side krpc code (svc_vc.c).
+		 */
+		sx_xlock(&ups.xp->xp_lock);
+		ups.xp->xp_tls = RPCTLS_FLAGS_HANDSHFAIL;
+		sx_xunlock(&ups.xp->xp_lock);
+	} else {
+		/*
+		 * Initialize TLS state so that clnt_vc_destroy() will
+		 * not close the socket and will leave that for the
+		 * daemon to do.
+		 */
+		CLNT_CONTROL(ups.cl, CLSET_TLS, &(int){RPCTLS_INHANDSHAKE});
+	}
+	finit(fp, FREAD | FWRITE, DTYPE_SOCKET, ups.so, &socketops);
+	fdrop(fp, td);	/* Drop fp reference. */
+	td->td_retval[0] = fd;
 	KRPC_CURVNET_RESTORE();
 
 	return (error);
@@ -269,6 +269,7 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	struct upsock ups = {
 		.so = so,
 		.cl = newclient,
+		.server = false,
 	};
 	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
@@ -390,6 +391,7 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 	struct upsock ups = {
 		.so = xprt->xp_socket,
 		.xp = xprt,
+		.server = true,
 	};
 	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 	struct rpctlssd_connect_arg arg;
