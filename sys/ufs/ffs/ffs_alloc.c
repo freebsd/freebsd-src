@@ -489,8 +489,7 @@ nospace:
  * allocation will be used.
  */
 
-SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "FFS filesystem");
+SYSCTL_DECL(_vfs_ffs);
 
 static int doasyncfree = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
