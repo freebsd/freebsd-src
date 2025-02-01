@@ -404,7 +404,7 @@ rpctlssd_connect_2_svc(struct rpctlssd_connect_arg *argp,
 	newslp->ssl = ssl;
 	newslp->s = s;
 	newslp->shutoff = false;
-	newslp->refno = argp->socookie;
+	newslp->cookie = argp->socookie;
 	newslp->cert = cert;
 	LIST_INSERT_HEAD(&rpctls_ssllist, newslp, next);
 	return (TRUE);
@@ -419,7 +419,7 @@ rpctlssd_handlerecord_2_svc(struct rpctlssd_handlerecord_arg *argp,
 	char junk;
 
 	LIST_FOREACH(slp, &rpctls_ssllist, next)
-		if (slp->refno == argp->socookie)
+		if (slp->cookie == argp->socookie)
 			break;
 
 	if (slp != NULL) {
@@ -456,7 +456,7 @@ rpctlssd_disconnect_2_svc(struct rpctlssd_disconnect_arg *argp,
 	int ret;
 
 	LIST_FOREACH(slp, &rpctls_ssllist, next)
-		if (slp->refno == argp->socookie)
+		if (slp->cookie == argp->socookie)
 			break;
 
 	if (slp != NULL) {

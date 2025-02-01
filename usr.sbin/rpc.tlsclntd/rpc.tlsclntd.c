@@ -282,7 +282,7 @@ rpctlscd_connect_2_svc(struct rpctlscd_connect_arg *argp,
 
 	/* Maintain list of all current SSL *'s */
 	newslp = malloc(sizeof(*newslp));
-	newslp->refno = argp->socookie;
+	newslp->cookie = argp->socookie;
 	newslp->s = s;
 	newslp->shutoff = false;
 	newslp->ssl = ssl;
@@ -300,7 +300,7 @@ rpctlscd_handlerecord_2_svc(struct rpctlscd_handlerecord_arg *argp,
 	char junk;
 
 	LIST_FOREACH(slp, &rpctls_ssllist, next)
-		if (slp->refno == argp->socookie)
+		if (slp->cookie == argp->socookie)
 			break;
 
 	if (slp != NULL) {
@@ -337,7 +337,7 @@ rpctlscd_disconnect_2_svc(struct rpctlscd_disconnect_arg *argp,
 	int ret;
 
 	LIST_FOREACH(slp, &rpctls_ssllist, next)
-		if (slp->refno == argp->socookie)
+		if (slp->cookie == argp->socookie)
 			break;
 
 	if (slp != NULL) {
