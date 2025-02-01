@@ -456,8 +456,7 @@ sbwait(struct socket *so, sb_which which)
 	sb = sobuf(so, which);
 	sb->sb_flags |= SB_WAIT;
 	return (msleep_sbt(&sb->sb_acc, soeventmtx(so, which),
-	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
-	    sb->sb_timeo, 0, 0));
+	    PSOCK | PCATCH, "sbwait", sb->sb_timeo, 0, 0));
 }
 
 /*
