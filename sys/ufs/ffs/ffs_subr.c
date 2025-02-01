@@ -405,7 +405,9 @@ ffs_oldfscompat_write(struct fs *fs)
  */
 static int prttimechgs = 0;
 #ifdef _KERNEL
-SYSCTL_DECL(_vfs_ffs);
+SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "FFS filesystem");
+
 SYSCTL_INT(_vfs_ffs, OID_AUTO, prttimechgs, CTLFLAG_RWTUN, &prttimechgs, 0,
 	"print UFS1 time changes made to inodes");
 #endif /* _KERNEL */
