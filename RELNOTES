@@ -18,6 +18,11 @@ f87bb5967670, e51036fbf3f8:
 	file systems has changed.  An NFS server that exports any of these file
 	systems will need its clients to unmount and remount the exports.
 
+1111a44301da:
+	Defer the January 19, 2038 date limit in UFS1 filesystems to
+	February 7, 2106. This affects only UFS1 format filesystems.
+	See the commit message for details.
+
 07cd69e272da:
 	Add a new -a command line option to mountd(8).
 	If this command line option is specified, when
