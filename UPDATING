@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250201:
+	The NFS related daemons, that provide RPC services to the kernel:
+	gssd(8), rpcbind(8), rpc.tlsservd(8) and rpc.tlsclntd(8), now use a
+	different transport - netlink(4) socket instead of unix(4).  Users of
+	NFS need to upgrade both kernel and world (binaries and libc) at once.
+	Also, any revision between 88cd1e17a7d8 and 99e5a70046da should be
+	avoided.
+
 20250127:
 	The Allwinner a10_timer driver has been renamed to aw_driver. If you
 	have a custom kernel configuration including the line 'device
