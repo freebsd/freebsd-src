@@ -442,7 +442,7 @@
 #define	SYS_symlinkat	502
 #define	SYS_unlinkat	503
 #define	SYS_posix_openpt	504
-#define	SYS_gssd_syscall	505
+				/* 505 is obsolete kgssapi */
 #define	SYS_jail_get	506
 #define	SYS_jail_set	507
 #define	SYS_jail_remove	508

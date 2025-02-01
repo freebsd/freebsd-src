@@ -352,7 +352,6 @@ MIASM =  \
 	symlinkat.o \
 	unlinkat.o \
 	posix_openpt.o \
-	gssd_syscall.o \
 	jail_get.o \
 	jail_set.o \
 	jail_remove.o \
