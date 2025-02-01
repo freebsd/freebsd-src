@@ -33,17 +33,12 @@ struct rpctlssd_connect_arg {
 
 struct rpctlssd_connect_res {
 	uint32_t flags;
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
 	uint32_t uid;
 	uint32_t gid<>;
 };
 
 struct rpctlssd_handlerecord_arg {
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
+	uint64_t socookie;
 };
 
 struct rpctlssd_handlerecord_res {
@@ -51,9 +46,7 @@ struct rpctlssd_handlerecord_res {
 };
 
 struct rpctlssd_disconnect_arg {
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
+	uint64_t socookie;
 };
 
 struct rpctlssd_disconnect_res {
@@ -72,5 +65,5 @@ program RPCTLSSD {
 
 		rpctlssd_disconnect_res
 		RPCTLSSD_DISCONNECT(rpctlssd_disconnect_arg) = 3;
-	} = 1;
+	} = 2;
 } = 0x40677375;

@@ -58,11 +58,9 @@ int	rpctls_syscall(int, const char *);
 enum clnt_stat	rpctls_connect(CLIENT *newclient, char *certname,
 		    struct socket *so, uint32_t *reterr);
 enum clnt_stat	rpctls_cl_handlerecord(void *socookie, uint32_t *reterr);
-enum clnt_stat	rpctls_srv_handlerecord(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, int procpos, uint32_t *reterr);
+enum clnt_stat	rpctls_srv_handlerecord(void *socookie, uint32_t *reterr);
 enum clnt_stat	rpctls_cl_disconnect(void *socookie, uint32_t *reterr);
-enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, int procpos, uint32_t *reterr);
+enum clnt_stat	rpctls_srv_disconnect(void *socookie, uint32_t *reterr);
 
 /* Initialization function for rpcsec_tls. */
 int		rpctls_init(void);

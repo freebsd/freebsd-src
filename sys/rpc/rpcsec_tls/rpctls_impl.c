@@ -99,10 +99,8 @@ upsock_compare(const struct upsock *a, const struct upsock *b)
 RB_GENERATE_STATIC(upsock_t, upsock, tree, upsock_compare);
 static struct mtx rpctls_lock;
 
-static enum clnt_stat	rpctls_server(SVCXPRT *xprt, struct socket *so,
-			    uint32_t *flags, uint64_t *sslp,
-			    uid_t *uid, int *ngrps, gid_t **gids,
-			    int *procposp);
+static enum clnt_stat	rpctls_server(SVCXPRT *xprt, uint32_t *flags,
+    uid_t *uid, int *ngrps, gid_t **gids);
 
 static CLIENT *
 rpctls_client_nl_create(const char *group, const rpcprog_t program,
@@ -325,8 +323,7 @@ rpctls_cl_handlerecord(void *socookie, uint32_t *reterr)
 }
 
 enum clnt_stat
-rpctls_srv_handlerecord(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
-    uint32_t *reterr)
+rpctls_srv_handlerecord(void *socookie, uint32_t *reterr)
 {
 	struct rpctlssd_handlerecord_arg arg;
 	struct rpctlssd_handlerecord_res res;
@@ -334,10 +331,8 @@ rpctls_srv_handlerecord(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
 	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 
 	/* Do the handlerecord upcall. */
-	arg.sec = sec;
-	arg.usec = usec;
-	arg.ssl = ssl;
-	stat = rpctlssd_handlerecord_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)socookie;
+	stat = rpctlssd_handlerecord_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -361,8 +356,7 @@ rpctls_cl_disconnect(void *socookie, uint32_t *reterr)
 }
 
 enum clnt_stat
-rpctls_srv_disconnect(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
-    uint32_t *reterr)
+rpctls_srv_disconnect(void *socookie, uint32_t *reterr)
 {
 	struct rpctlssd_disconnect_arg arg;
 	struct rpctlssd_disconnect_res res;
@@ -370,10 +364,8 @@ rpctls_srv_disconnect(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
 	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 
 	/* Do the disconnect upcall. */
-	arg.sec = sec;
-	arg.usec = usec;
-	arg.ssl = ssl;
-	stat = rpctlssd_disconnect_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)socookie;
+	stat = rpctlssd_disconnect_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -381,12 +373,12 @@ rpctls_srv_disconnect(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
 
 /* Do an upcall for a new server socket using TLS. */
 static enum clnt_stat
-rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
-    uid_t *uid, int *ngrps, gid_t **gids, int *procposp)
+rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
+    gid_t **gids)
 {
 	enum clnt_stat stat;
 	struct upsock ups = {
-		.so = so,
+		.so = xprt->xp_socket,
 		.xp = xprt,
 	};
 	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
@@ -402,16 +394,13 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 
 	/* Do the server upcall. */
 	res.gid.gid_val = NULL;
-	arg.socookie = (uint64_t)so;
-	stat = rpctlssd_connect_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)xprt->xp_socket;
+	stat = rpctlssd_connect_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS) {
 #ifdef INVARIANTS
 		MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
 #endif
 		*flags = res.flags;
-		*sslp++ = res.sec;
-		*sslp++ = res.usec;
-		*sslp = res.ssl;
 		if ((*flags & (RPCTLS_FLAGS_CERTUSER |
 		    RPCTLS_FLAGS_DISABLED)) == RPCTLS_FLAGS_CERTUSER) {
 			*ngrps = res.gid.gid_len;
@@ -436,7 +425,7 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 			 * daemon will close() the socket after SSL_accept()
 			 * returns an error.
 			 */
-			soshutdown(so, SHUT_RD);
+			soshutdown(xprt->xp_socket, SHUT_RD);
 		} else {
 			/*
 			 * The daemon has taken the socket from the tree, but
@@ -463,8 +452,7 @@ _svcauth_rpcsec_tls(struct svc_req *rqst, struct rpc_msg *msg)
 	enum clnt_stat stat;
 	SVCXPRT *xprt;
 	uint32_t flags;
-	uint64_t ssl[3];
-	int ngrps, procpos;
+	int ngrps;
 	uid_t uid;
 	gid_t *gidp;
 #ifdef KERN_TLS
@@ -523,18 +511,13 @@ _svcauth_rpcsec_tls(struct svc_req *rqst, struct rpc_msg *msg)
 	}
 
 	/* Do an upcall to do the TLS handshake. */
-	stat = rpctls_server(xprt, xprt->xp_socket, &flags,
-	    ssl, &uid, &ngrps, &gidp, &procpos);
+	stat = rpctls_server(xprt, &flags, &uid, &ngrps, &gidp);
 
 	/* Re-enable reception on the socket within the krpc. */
 	sx_xlock(&xprt->xp_lock);
 	xprt->xp_dontrcv = FALSE;
 	if (stat == RPC_SUCCESS) {
 		xprt->xp_tls = flags;
-		xprt->xp_sslsec = ssl[0];
-		xprt->xp_sslusec = ssl[1];
-		xprt->xp_sslrefno = ssl[2];
-		xprt->xp_sslproc = procpos;
 		if ((flags & (RPCTLS_FLAGS_CERTUSER |
 		    RPCTLS_FLAGS_DISABLED)) == RPCTLS_FLAGS_CERTUSER) {
 			xprt->xp_ngrps = ngrps;
