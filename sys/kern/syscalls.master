@@ -3249,8 +3249,7 @@
 ; 576 is initialised by the krpc code, if present.
 576	AUE_NULL	NOSTD {
 		int rpctls_syscall(
-		    int op,
-		    _In_z_ const char *path
+		    uint64_t socookie
 		);
 	}
 577	AUE_SPECIALFD	STD|CAPENABLED {

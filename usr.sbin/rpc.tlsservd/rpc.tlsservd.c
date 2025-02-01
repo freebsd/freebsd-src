@@ -403,7 +403,7 @@ rpctlssd_connect_thread(void *v)
 	}
 
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_SRVSOCKET, (char *)socookie);
+	s = rpctls_syscall(socookie);
 	if (s < 0) {
 		rpctls_verbose_out("rpctlssd_connect_svc: rpctls_syscall "
 		    "accept failed\n");
