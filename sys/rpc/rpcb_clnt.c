@@ -59,56 +59,17 @@
 
 static struct timeval tottimeout = { 60, 0 };
 static const char nullstring[] = "\000";
+static CLIENT *rpcb_clnt;
 
-static CLIENT *local_rpcb(void);
-
-/* XXX */
-#define IN4_LOCALHOST_STRING	"127.0.0.1"
-#define IN6_LOCALHOST_STRING	"::1"
-
-/*
- * This routine will return a client handle that is connected to the local
- * rpcbind. Returns NULL on error and free's everything.
- */
-static CLIENT *
-local_rpcb(void)
+static void
+local_rpcb(void *v __unused)
 {
-	CLIENT *client;
-	struct socket *so;
-	size_t tsize;
-	struct sockaddr_un sun;
-	int error;
-
-	/*
-	 * Try connecting to the local rpcbind through a local socket
-	 * first. If this doesn't work, try all transports defined in
-	 * the netconfig file.
-	 */
-	memset(&sun, 0, sizeof sun);
-	so = NULL;
-	error = socreate(AF_LOCAL, &so, SOCK_STREAM, 0, curthread->td_ucred,
-	    curthread);
-	if (error)
-		return (NULL);
-	sun.sun_family = AF_LOCAL;
-	strcpy(sun.sun_path, _PATH_RPCBINDSOCK);
-	sun.sun_len = SUN_LEN(&sun);
-
-	tsize = __rpc_get_t_size(AF_LOCAL, 0, 0);
-	client = clnt_vc_create(so, (struct sockaddr *)&sun, (rpcprog_t)RPCBPROG,
-	    (rpcvers_t)RPCBVERS, tsize, tsize, 1);
-
-	if (client != NULL) {
-		/* Mark the socket to be closed in destructor */
-		(void) CLNT_CONTROL(client, CLSET_FD_CLOSE, NULL);
-		return client;
-	}
-
-	/* Nobody needs this socket anymore; free the descriptor. */
-	soclose(so);
-
-	return (NULL);
+	rpcb_clnt = client_nl_create("rpcbind", RPCBPROG, RPCBVERS);
+	KASSERT(rpcb_clnt, ("%s: netlink client already exist", __func__));
+	clnt_control(rpcb_clnt, CLSET_RETRIES, &(int){6});
+	clnt_control(rpcb_clnt, CLSET_WAITCHAN, "rpcb");
 }
+SYSINIT(rpcb_clnt, SI_SUB_VFS, SI_ORDER_SECOND, local_rpcb, NULL);
 
 /*
  * Set a mapping between program, version and address.
@@ -119,7 +80,6 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
     const struct netconfig *nconf,	/* Network structure of transport */
     const struct netbuf *address)	/* Services netconfig address */
 {
-	CLIENT *client;
 	bool_t rslt = FALSE;
 	RPCB parms;
 #if 0
@@ -137,10 +97,6 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 		rpc_createerr.cf_stat = RPC_UNKNOWNADDR;
 		return (FALSE);
 	}
-	client = local_rpcb();
-	if (! client) {
-		return (FALSE);
-	}
 
 	/* convert to universal */
 	/*LINTED const castaway*/
@@ -148,7 +104,6 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 	addresscopy = *address;
 	parms.r_addr = taddr2uaddr(&nconfcopy, &addresscopy);
 	if (!parms.r_addr) {
-		CLNT_DESTROY(client);
 		rpc_createerr.cf_stat = RPC_N2AXLATEFAILURE;
 		return (FALSE); /* no universal address */
 	}
@@ -167,11 +122,10 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 	parms.r_owner = "";
 #endif
 
-	CLNT_CALL(client, (rpcproc_t)RPCBPROC_SET, (xdrproc_t) xdr_rpcb,
+	CLNT_CALL(rpcb_clnt, (rpcproc_t)RPCBPROC_SET, (xdrproc_t) xdr_rpcb,
 	    (char *)(void *)&parms, (xdrproc_t) xdr_bool,
 	    (char *)(void *)&rslt, tottimeout);
 
-	CLNT_DESTROY(client);
 	free(parms.r_addr, M_RPC);
 	return (rslt);
 }
@@ -185,17 +139,11 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 bool_t
 rpcb_unset(rpcprog_t program, rpcvers_t version, const struct netconfig *nconf)
 {
-	CLIENT *client;
 	bool_t rslt = FALSE;
 	RPCB parms;
 #if 0
 	char uidbuf[32];
 #endif
-
-	client = local_rpcb();
-	if (! client) {
-		return (FALSE);
-	}
 
 	parms.r_prog = program;
 	parms.r_vers = version;
@@ -214,10 +162,9 @@ rpcb_unset(rpcprog_t program, rpcvers_t version, const struct netconfig *nconf)
 	parms.r_owner = "";
 #endif
 
-	CLNT_CALL(client, (rpcproc_t)RPCBPROC_UNSET, (xdrproc_t) xdr_rpcb,
+	CLNT_CALL(rpcb_clnt, (rpcproc_t)RPCBPROC_UNSET, (xdrproc_t) xdr_rpcb,
 	    (char *)(void *)&parms, (xdrproc_t) xdr_bool,
 	    (char *)(void *)&rslt, tottimeout);
 
-	CLNT_DESTROY(client);
 	return (rslt);
 }
