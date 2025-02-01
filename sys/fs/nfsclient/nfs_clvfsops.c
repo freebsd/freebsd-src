@@ -1524,12 +1524,14 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 #endif
 
 	NFSCL_DEBUG(3, "in mnt\n");
+	CURVNET_SET(CRED_TO_VNET(cred));
 	clp = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
 		free(nam, M_SONAME);
 		free(tlscertname, M_NEWNFSMNT);
+		CURVNET_RESTORE();
 		return (0);
 	} else {
 		/* NFS-over-TLS requires that rpctls be functioning. */
@@ -1544,6 +1546,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			if (error != 0) {
 				free(nam, M_SONAME);
 				free(tlscertname, M_NEWNFSMNT);
+				CURVNET_RESTORE();
 				return (error);
 			}
 		}
@@ -1816,6 +1819,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 */
 		NFSVOPUNLOCK(*vpp);
 		vfs_cache_root_set(mp, *vpp);
+		CURVNET_RESTORE();
 		return (0);
 	}
 	error = EIO;
@@ -1844,6 +1848,7 @@ bad:
 	free(nmp->nm_tlscertname, M_NEWNFSMNT);
 	free(nmp, M_NEWNFSMNT);
 	free(nam, M_SONAME);
+	CURVNET_RESTORE();
 	return (error);
 }
 
