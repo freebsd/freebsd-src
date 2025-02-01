@@ -228,6 +228,35 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	return (error);
 }
 
+/* Error handling for both client and server failed RPC upcalls. */
+static void
+rpctls_rpc_failed(struct upsock *ups, struct socket *so)
+{
+
+	mtx_lock(&rpctls_lock);
+	if (RB_FIND(upsock_t, &upcall_sockets, ups)) {
+		struct upsock *removed __diagused;
+
+		removed = RB_REMOVE(upsock_t, &upcall_sockets, ups);
+		mtx_unlock(&rpctls_lock);
+		MPASS(removed == ups);
+		/*
+		 * Do a shutdown on the socket, since the daemon is
+		 * probably stuck in SSL_accept() trying to read the
+		 * socket.  Do not soclose() the socket, since the
+		 * daemon will close() the socket after SSL_accept()
+		 * returns an error.
+		 */
+		soshutdown(so, SHUT_RD);
+	} else {
+		/*
+		 * The daemon has taken the socket from the tree, but
+		 * failed to do the handshake.
+		 */
+		mtx_unlock(&rpctls_lock);
+	}
+}
+
 /* Do an upcall for a new socket connect using TLS. */
 enum clnt_stat
 rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
@@ -269,38 +298,19 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 		arg.certname.certname_len = 0;
 	arg.socookie = (uint64_t)so;
 	stat = rpctlscd_connect_2(&arg, &res, cl);
-	if (stat == RPC_SUCCESS) {
-#ifdef INVARIANTS
-		MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
-#endif
+	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
-	} else {
-		mtx_lock(&rpctls_lock);
-		if (RB_FIND(upsock_t, &upcall_sockets, &ups)) {
-			struct upsock *removed __diagused;
-
-			removed = RB_REMOVE(upsock_t, &upcall_sockets, &ups);
-			mtx_unlock(&rpctls_lock);
-			MPASS(removed == &ups);
-			/*
-			 * Do a shutdown on the socket, since the daemon is
-			 * probably stuck in SSL_accept() trying to read the
-			 * socket.  Do not soclose() the socket, since the
-			 * daemon will close() the socket after SSL_accept()
-			 * returns an error.
-			 */
-			soshutdown(so, SHUT_RD);
-		} else {
-			/*
-			 * The daemon has taken the socket from the tree, but
-			 * failed to do the handshake.
-			 */
-			mtx_unlock(&rpctls_lock);
-		}
-	}
+	else
+		rpctls_rpc_failed(&ups, so);
 
 	/* Unblock reception. */
 	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &(int){0});
+
+#ifdef INVARIANTS
+	mtx_lock(&rpctls_lock);
+	MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
+	mtx_unlock(&rpctls_lock);
+#endif
 
 	return (stat);
 }
@@ -397,9 +407,6 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 	arg.socookie = (uint64_t)xprt->xp_socket;
 	stat = rpctlssd_connect_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS) {
-#ifdef INVARIANTS
-		MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
-#endif
 		*flags = res.flags;
 		if ((*flags & (RPCTLS_FLAGS_CERTUSER |
 		    RPCTLS_FLAGS_DISABLED)) == RPCTLS_FLAGS_CERTUSER) {
@@ -410,31 +417,16 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 			for (i = 0; i < *ngrps; i++)
 				*gidp++ = *gidv++;
 		}
-	} else {
-		mtx_lock(&rpctls_lock);
-		if (RB_FIND(upsock_t, &upcall_sockets, &ups)) {
-			struct upsock *removed __diagused;
+	} else
+		rpctls_rpc_failed(&ups, xprt->xp_socket);
 
-			removed = RB_REMOVE(upsock_t, &upcall_sockets, &ups);
-			mtx_unlock(&rpctls_lock);
-			MPASS(removed == &ups);
-			/*
-			 * Do a shutdown on the socket, since the daemon is
-			 * probably stuck in SSL_accept() trying to read the
-			 * socket.  Do not soclose() the socket, since the
-			 * daemon will close() the socket after SSL_accept()
-			 * returns an error.
-			 */
-			soshutdown(xprt->xp_socket, SHUT_RD);
-		} else {
-			/*
-			 * The daemon has taken the socket from the tree, but
-			 * failed to do the handshake.
-			 */
-			mtx_unlock(&rpctls_lock);
-		}
-	}
 	mem_free(res.gid.gid_val, 0);
+
+#ifdef INVARIANTS
+	mtx_lock(&rpctls_lock);
+	MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
+	mtx_unlock(&rpctls_lock);
+#endif
 
 	return (stat);
 }
