@@ -66,9 +66,6 @@
 #include "rpctlscd.h"
 #include "rpc.tlscommon.h"
 
-#ifndef _PATH_RPCTLSCDSOCK
-#define _PATH_RPCTLSCDSOCK	"/var/run/rpc.tlsclntd.sock"
-#endif
 #ifndef	_PATH_CERTANDKEY
 #define	_PATH_CERTANDKEY	"/etc/rpc.tlsclntd/"
 #endif
@@ -119,13 +116,7 @@ static struct option longopts[] = {
 int
 main(int argc, char **argv)
 {
-	/*
-	 * We provide an RPC service on a local-domain socket. The
-	 * kernel rpctls code will upcall to this daemon to do the initial
-	 * TLS handshake.
-	 */
-	struct sockaddr_un sun;
-	int ch, fd, oldmask;
+	int ch;
 	SVCXPRT *xprt;
 	bool tls_enable;
 	struct timeval tm;
@@ -234,38 +225,7 @@ main(int argc, char **argv)
 
 	pidfile_write(rpctls_pfh);
 
-	memset(&sun, 0, sizeof sun);
-	sun.sun_family = AF_LOCAL;
-	unlink(_PATH_RPCTLSCDSOCK);
-	strcpy(sun.sun_path, _PATH_RPCTLSCDSOCK);
-	sun.sun_len = SUN_LEN(&sun);
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (fd < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't create local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't create local rpctlscd socket");
-	}
-	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-	if (bind(fd, (struct sockaddr *)&sun, sun.sun_len) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't bind local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't bind local rpctlscd socket");
-	}
-	umask(oldmask);
-	if (listen(fd, SOMAXCONN) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't listen on local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't listen on local rpctlscd socket");
-	}
-	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	if (!xprt) {
+	if ((xprt = svc_nl_create("tlsclnt")) == NULL) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't create transport for local rpctlscd socket");
@@ -282,18 +242,7 @@ main(int argc, char **argv)
 		err(1, "Can't register service for local rpctlscd socket");
 	}
 
-	if (rpctls_syscall(RPCTLS_SYSC_CLSETPATH, _PATH_RPCTLSCDSOCK) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't set upcall socket path errno=%d", errno);
-			exit(1);
-		}
-		err(1, "Can't set upcall socket path");
-	}
-
 	rpctls_svc_run();
-
-	rpctls_syscall(RPCTLS_SYSC_CLSHUTDOWN, "");
 
 	SSL_CTX_free(rpctls_ctx);
 	return (0);
@@ -319,7 +268,7 @@ rpctlscd_connect_1_svc(struct rpctlscd_connect_arg *argp,
 
 	rpctls_verbose_out("rpctlsd_connect: started\n");
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_CLSOCKET, "");
+	s = rpctls_syscall(RPCTLS_SYSC_CLSOCKET, (char *)argp->socookie);
 	if (s < 0) {
 		result->reterr = RPCTLSERR_NOSOCKET;
 		return (TRUE);
@@ -463,7 +412,6 @@ static void
 rpctlscd_terminate(int sig __unused)
 {
 
-	rpctls_syscall(RPCTLS_SYSC_CLSHUTDOWN, "");
 	pidfile_remove(rpctls_pfh);
 	exit(0);
 }
