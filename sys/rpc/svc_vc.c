@@ -501,9 +501,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 				 * daemon having crashed or been
 				 * restarted, so just ignore returned stat.
 				 */
-				rpctls_srv_disconnect(xprt->xp_sslsec,
-				    xprt->xp_sslusec, xprt->xp_sslrefno,
-				    xprt->xp_sslproc, &reterr);
+				rpctls_srv_disconnect(xprt->xp_socket, &reterr);
 			}
 			/* Must sorele() to get rid of reference. */
 			sorele(xprt->xp_socket);
@@ -856,9 +854,7 @@ tryagain:
 			/* Disable reception. */
 			xprt->xp_dontrcv = TRUE;
 			sx_xunlock(&xprt->xp_lock);
-			ret = rpctls_srv_handlerecord(xprt->xp_sslsec,
-			    xprt->xp_sslusec, xprt->xp_sslrefno,
-			    xprt->xp_sslproc, &reterr);
+			ret = rpctls_srv_handlerecord(so, &reterr);
 			KRPC_CURVNET_RESTORE();
 			sx_xlock(&xprt->xp_lock);
 			xprt->xp_dontrcv = FALSE;
