@@ -8,7 +8,7 @@ SRCS+=	auth_none.c auth_unix.c authunix_prot.c bindresvport.c clnt_bcast.c \
 	rpc_callmsg.c rpc_generic.c rpc_soc.c rpcb_clnt.c rpcb_prot.c \
 	rpcb_st_xdr.c rpcsec_gss_stub.c svc.c svc_auth.c svc_dg.c \
 	svc_auth_unix.c svc_generic.c svc_raw.c svc_run.c svc_simple.c \
-	svc_vc.c
+	svc_vc.c svc_nl.c
 
 # Secure-RPC
 SRCS+=  auth_time.c auth_des.c authdes_prot.c des_crypt.c des_soft.c \

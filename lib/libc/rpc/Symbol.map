@@ -199,6 +199,10 @@ FBSD_1.0 {
 	__rpc_get_local_uid;
 };
 
+FBSD_1.8 {
+	svc_nl_create;
+};
+
 FBSDprivate_1.0 {
 	__des_crypt_LOCAL;
 	__key_encryptsession_pk_LOCAL;
