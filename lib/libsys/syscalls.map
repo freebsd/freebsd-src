@@ -645,8 +645,6 @@ FBSDprivate_1.0 {
 	__sys_unlinkat;
 	_posix_openpt;
 	__sys_posix_openpt;
-	_gssd_syscall;
-	__sys_gssd_syscall;
 	_jail_get;
 	__sys_jail_get;
 	_jail_set;
