@@ -78,8 +78,8 @@ static struct opaque_auth rpctls_null_verf;
 KRPC_VNET_DECLARE(uint64_t, svc_vc_tls_handshake_success);
 KRPC_VNET_DECLARE(uint64_t, svc_vc_tls_handshake_failed);
 
-KRPC_VNET_DEFINE_STATIC(CLIENT *, rpctls_connect_handle);
-KRPC_VNET_DEFINE_STATIC(CLIENT *, rpctls_server_handle);
+static CLIENT *rpctls_connect_handle;
+static CLIENT *rpctls_server_handle;
 
 struct upsock {
 	RB_ENTRY(upsock) tree;
@@ -127,28 +127,6 @@ rpctls_client_nl_create(const char *group, const rpcprog_t program,
 	return (cl);
 }
 
-static void
-rpctls_vnetinit(const void *unused __unused)
-{
-
-	KRPC_VNET(rpctls_connect_handle) =
-	    rpctls_client_nl_create("tlsclnt", RPCTLSCD, RPCTLSCDVERS);
-	KRPC_VNET(rpctls_server_handle) =
-	    rpctls_client_nl_create("tlsserv", RPCTLSSD, RPCTLSSDVERS);
-}
-VNET_SYSINIT(rpctls_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
-    rpctls_vnetinit, NULL);
-
-static void
-rpctls_cleanup(void *unused __unused)
-{
-
-	clnt_destroy(KRPC_VNET(rpctls_connect_handle));
-	clnt_destroy(KRPC_VNET(rpctls_server_handle));
-}
-VNET_SYSUNINIT(rpctls_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
-    rpctls_cleanup, NULL);
-
 int
 rpctls_init(void)
 {
@@ -163,6 +141,10 @@ rpctls_init(void)
 	rpctls_null_verf.oa_flavor = AUTH_NULL;
 	rpctls_null_verf.oa_base = RPCTLS_START_STRING;
 	rpctls_null_verf.oa_length = strlen(RPCTLS_START_STRING);
+	rpctls_connect_handle = rpctls_client_nl_create("tlsclnt",
+	    RPCTLSCD, RPCTLSCDVERS);
+	rpctls_server_handle = rpctls_client_nl_create("tlsserv",
+	    RPCTLSSD, RPCTLSSDVERS);
 	return (0);
 }
 
@@ -271,7 +253,6 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 		.cl = newclient,
 		.server = false,
 	};
-	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
 	/* First, do the AUTH_TLS NULL RPC. */
 	memset(&ext, 0, sizeof(ext));
@@ -298,7 +279,7 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	} else
 		arg.certname.certname_len = 0;
 	arg.socookie = (uint64_t)so;
-	stat = rpctlscd_connect_2(&arg, &res, cl);
+	stat = rpctlscd_connect_2(&arg, &res, rpctls_connect_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	else
@@ -323,11 +304,10 @@ rpctls_cl_handlerecord(void *socookie, uint32_t *reterr)
 	struct rpctlscd_handlerecord_arg arg;
 	struct rpctlscd_handlerecord_res res;
 	enum clnt_stat stat;
-	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
 	/* Do the handlerecord upcall. */
 	arg.socookie = (uint64_t)socookie;
-	stat = rpctlscd_handlerecord_2(&arg, &res, cl);
+	stat = rpctlscd_handlerecord_2(&arg, &res, rpctls_connect_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -339,11 +319,10 @@ rpctls_srv_handlerecord(void *socookie, uint32_t *reterr)
 	struct rpctlssd_handlerecord_arg arg;
 	struct rpctlssd_handlerecord_res res;
 	enum clnt_stat stat;
-	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 
 	/* Do the handlerecord upcall. */
 	arg.socookie = (uint64_t)socookie;
-	stat = rpctlssd_handlerecord_2(&arg, &res, cl);
+	stat = rpctlssd_handlerecord_2(&arg, &res, rpctls_server_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -356,11 +335,10 @@ rpctls_cl_disconnect(void *socookie, uint32_t *reterr)
 	struct rpctlscd_disconnect_arg arg;
 	struct rpctlscd_disconnect_res res;
 	enum clnt_stat stat;
-	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
 	/* Do the disconnect upcall. */
 	arg.socookie = (uint64_t)socookie;
-	stat = rpctlscd_disconnect_2(&arg, &res, cl);
+	stat = rpctlscd_disconnect_2(&arg, &res, rpctls_connect_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -372,11 +350,10 @@ rpctls_srv_disconnect(void *socookie, uint32_t *reterr)
 	struct rpctlssd_disconnect_arg arg;
 	struct rpctlssd_disconnect_res res;
 	enum clnt_stat stat;
-	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 
 	/* Do the disconnect upcall. */
 	arg.socookie = (uint64_t)socookie;
-	stat = rpctlssd_disconnect_2(&arg, &res, cl);
+	stat = rpctlssd_disconnect_2(&arg, &res, rpctls_server_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -393,7 +370,6 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 		.xp = xprt,
 		.server = true,
 	};
-	CLIENT *cl = KRPC_VNET(rpctls_server_handle);
 	struct rpctlssd_connect_arg arg;
 	struct rpctlssd_connect_res res;
 	gid_t *gidp;
@@ -407,7 +383,7 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 	/* Do the server upcall. */
 	res.gid.gid_val = NULL;
 	arg.socookie = (uint64_t)xprt->xp_socket;
-	stat = rpctlssd_connect_2(&arg, &res, cl);
+	stat = rpctlssd_connect_2(&arg, &res, rpctls_server_handle);
 	if (stat == RPC_SUCCESS) {
 		*flags = res.flags;
 		if ((*flags & (RPCTLS_FLAGS_CERTUSER |
