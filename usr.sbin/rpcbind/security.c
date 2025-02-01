@@ -145,6 +145,7 @@ is_loopback(struct netbuf *nbuf)
 		    (ntohs(sin6->sin6_port) < IPV6PORT_RESERVED));
 #endif
 	case AF_LOCAL:
+	case AF_NETLINK:
 		return 1;
 	default:
 		break;

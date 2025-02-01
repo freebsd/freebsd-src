@@ -54,8 +54,10 @@
 #include <netinet/in.h>
 #endif
 #include <arpa/inet.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <netconfig.h>
 #include <stdlib.h>
@@ -111,8 +113,20 @@ char *tcp_uaddr;	/* Universal TCP address */
 #endif
 static char servname[] = "rpcbind";
 static char superuser[] = "superuser";
+static char nlname[] = "netlink";
 
-int main(int, char *[]);
+static struct netconfig netlink_nconf = {
+	.nc_netid = nlname,
+	.nc_semantics = NC_TPI_CLTS,
+};
+
+static struct t_bind netlink_taddr = {
+	.addr = {
+		.maxlen = sizeof(nlname),
+		.len = sizeof(nlname),
+		.buf = nlname,
+	},
+};
 
 static int init_transport(struct netconfig *);
 static void rbllist_add(rpcprog_t, rpcvers_t, struct netconfig *,
@@ -188,6 +202,8 @@ main(int argc, char *argv[])
 	}
 	endnetconfig(nc_handle);
 
+	init_transport(&netlink_nconf);
+
 	/*
 	 * Allocate pipe fd to wake main thread from signal handler in non-racy
 	 * way.
@@ -256,11 +272,11 @@ main(int argc, char *argv[])
 static int
 init_transport(struct netconfig *nconf)
 {
-	int fd;
+	int fd = -1;
 	struct t_bind taddr;
 	struct addrinfo hints, *res = NULL;
 	struct __rpc_sockinfo si;
-	SVCXPRT	*my_xprt;
+	SVCXPRT	*my_xprt = NULL;
 	int status;	/* bound checking ? */
 	int aicode;
 	int addrlen;
@@ -270,6 +286,11 @@ init_transport(struct netconfig *nconf)
 	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
 	struct sockaddr_un sun;
 	mode_t oldmask;
+	bool local, netlink;
+
+	local = strcmp(nconf->nc_netid, "local") == 0 ||
+	    strcmp(nconf->nc_netid, "unix") == 0;
+	netlink = strcmp(nconf->nc_netid, "netlink") == 0;
 
 	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
 	    (nconf->nc_semantics != NC_TPI_COTS) &&
@@ -291,8 +312,7 @@ init_transport(struct netconfig *nconf)
 	/*
 	 * XXX - using RPC library internal functions.
 	 */
-	if ((strcmp(nconf->nc_netid, "local") == 0) ||
-	    (strcmp(nconf->nc_netid, "unix") == 0)) {
+	if (local) {
 	    /* 
 	     * For other transports we call this later, for each socket we
 	     * like to bind.
@@ -313,8 +333,7 @@ init_transport(struct netconfig *nconf)
 	    return (1);
 	}
 
-	if ((strcmp(nconf->nc_netid, "local") == 0) ||
-	    (strcmp(nconf->nc_netid, "unix") == 0)) {
+	if (local) {
 	    memset(&sun, 0, sizeof sun);
 	    sun.sun_family = AF_LOCAL;
 	    unlink(_PATH_RPCBINDSOCK);
@@ -322,7 +341,7 @@ init_transport(struct netconfig *nconf)
 	    sun.sun_len = SUN_LEN(&sun);
 	    addrlen = sizeof (struct sockaddr_un);
 	    sa = (struct sockaddr *)&sun;
-	} else {
+	} else if (!netlink) {
 	    /* Get rpcbind's address on this transport */
 
 	    memset(&hints, 0, sizeof hints);
@@ -332,8 +351,7 @@ init_transport(struct netconfig *nconf)
 	    hints.ai_protocol = si.si_proto;
 	}
 
-	if ((strcmp(nconf->nc_netid, "local") != 0) &&
-	    (strcmp(nconf->nc_netid, "unix") != 0)) {
+	if (!local && !netlink) {
 	    /*
 	     * If no hosts were specified, just bind to INADDR_ANY.
 	     * Otherwise  make sure 127.0.0.1 is added to the list.
@@ -471,15 +489,8 @@ init_transport(struct netconfig *nconf)
 
 		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr,
 		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-		if (my_xprt == (SVCXPRT *)NULL) {
-		    syslog(LOG_ERR, "%s: could not create service",
-			nconf->nc_netid);
-		    goto error;
-		}
 	    }
-	    if (!bound)
-		return 1;
-	} else {
+	} else if (local) {
 	    oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
 	    if (bind(fd, sa, addrlen) < 0) {
 		syslog(LOG_ERR, "cannot bind %s: %m", nconf->nc_netid);
@@ -520,22 +531,25 @@ init_transport(struct netconfig *nconf)
 
 	    my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr,
 		RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	    if (my_xprt == (SVCXPRT *)NULL) {
+	} else {
+		assert(netlink);
+		taddr = netlink_taddr;
+		my_xprt = svc_nl_create("rpcbind");
+	}
+
+	if (my_xprt == (SVCXPRT *)NULL) {
 		syslog(LOG_ERR, "%s: could not create service",
 		    nconf->nc_netid);
 		goto error;
-	    }
 	}
 
 #ifdef PORTMAP
 	/*
 	 * Register both the versions for tcp/ip, udp/ip and local.
 	 */
-	if ((strcmp(nconf->nc_protofmly, NC_INET) == 0 &&
-		(strcmp(nconf->nc_proto, NC_TCP) == 0 ||
-		strcmp(nconf->nc_proto, NC_UDP) == 0)) ||
-		(strcmp(nconf->nc_netid, "unix") == 0) ||
-		(strcmp(nconf->nc_netid, "local") == 0)) {
+	if (!netlink && (local || (strcmp(nconf->nc_protofmly, NC_INET) == 0 &&
+	    (strcmp(nconf->nc_proto, NC_TCP) == 0 ||
+	    strcmp(nconf->nc_proto, NC_UDP) == 0)))) {
 		struct pmaplist *pml;
 
 		if (!svc_register(my_xprt, PMAPPROG, PMAPVERS,
@@ -647,7 +661,7 @@ init_transport(struct netconfig *nconf)
 	/*
 	 * rmtcall only supported on CLTS transports for now.
 	 */
-	if (nconf->nc_semantics == NC_TPI_CLTS) {
+	if (!netlink && nconf->nc_semantics == NC_TPI_CLTS) {
 		status = create_rmtcall_fd(nconf);
 
 #ifdef BIND_DEBUG
@@ -665,7 +679,8 @@ init_transport(struct netconfig *nconf)
 	}
 	return (0);
 error:
-	close(fd);
+	if (fd != -1)
+		close(fd);
 	return (1);
 }
 
