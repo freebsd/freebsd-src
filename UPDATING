@@ -35,6 +35,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	Also, any revision between 88cd1e17a7d8 and 99e5a70046da should be
 	avoided.
 
+20250129:
+	Defer the January 19, 2038 date limit in UFS1 filesystems to
+	February 7, 2106. This affects only UFS1 format filesystems.
+	See commit message 1111a44301da for details.
+
 20250127:
 	The Allwinner a10_timer driver has been renamed to aw_driver. If you
 	have a custom kernel configuration including the line 'device
