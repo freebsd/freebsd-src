@@ -95,7 +95,8 @@ static const struct netid_af na_cvt[] = {
 	{ "udp6", AF_INET6, IPPROTO_UDP },
 	{ "tcp6", AF_INET6, IPPROTO_TCP },
 #endif
-	{ "local", AF_LOCAL, 0 }
+	{ "local", AF_LOCAL, 0 },
+	{ "netlink", AF_NETLINK, 0 },
 };
 
 #if 0
