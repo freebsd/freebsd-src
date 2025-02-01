@@ -40,6 +40,7 @@ static bool_t xdrmbuf_getlong(XDR *, long *);
 static bool_t xdrmbuf_putlong(XDR *, const long *);
 static bool_t xdrmbuf_getbytes(XDR *, char *, u_int);
 static bool_t xdrmbuf_putbytes(XDR *, const char *, u_int);
+static bool_t xdrmbuf_putmbuf(XDR *, struct mbuf *);
 /* XXX: w/64-bit pointers, u_int not enough! */
 static u_int xdrmbuf_getpos(XDR *);
 static bool_t xdrmbuf_setpos(XDR *, u_int);
@@ -50,6 +51,7 @@ static const struct	xdr_ops xdrmbuf_ops = {
 	.x_putlong =	xdrmbuf_putlong,
 	.x_getbytes =	xdrmbuf_getbytes,
 	.x_putbytes =	xdrmbuf_putbytes,
+	.x_putmbuf =	xdrmbuf_putmbuf,
 	.x_getpostn =	xdrmbuf_getpos,
 	.x_setpostn =	xdrmbuf_setpos,
 	.x_inline =	xdrmbuf_inline,
@@ -78,17 +80,17 @@ xdrmbuf_create(XDR *xdrs, struct mbuf *m, enum xdr_op op)
 	}
 }
 
-void
-xdrmbuf_append(XDR *xdrs, struct mbuf *madd)
+/*
+ * Append mbuf.  Always succeds and we own mbuf.
+ */
+static bool_t
+xdrmbuf_putmbuf(XDR *xdrs, struct mbuf *madd)
 {
 	struct mbuf *m;
 
-	KASSERT(xdrs->x_ops == &xdrmbuf_ops && xdrs->x_op == XDR_ENCODE,
-	    ("xdrmbuf_append: invalid XDR stream"));
-
 	if (m_length(madd, NULL) == 0) {
 		m_freem(madd);
-		return;
+		return (TRUE);
 	}
 
 	m = (struct mbuf *) xdrs->x_private;
@@ -97,6 +99,8 @@ xdrmbuf_append(XDR *xdrs, struct mbuf *madd)
 	m = m_last(madd);
 	xdrs->x_private = m;
 	xdrs->x_handy = m->m_len;
+
+	return (TRUE);
 }
 
 struct mbuf *
