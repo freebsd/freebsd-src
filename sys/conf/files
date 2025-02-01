@@ -5101,6 +5101,7 @@ rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_bck.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_dg.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_nl.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/getnetconfig.c		optional krpc | nfslockd | nfscl | nfsd

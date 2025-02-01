@@ -5,6 +5,7 @@ SRCS=	auth_none.c \
 	authunix_prot.c \
 	clnt_bck.c \
 	clnt_dg.c \
+	clnt_nl.c \
 	clnt_rc.c \
 	clnt_vc.c \
 	getnetconfig.c \
