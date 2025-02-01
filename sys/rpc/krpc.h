@@ -129,6 +129,8 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 	bool_t eor;		/* reading last fragment of current record */
 };
 
+void rpcnl_init(void);
+
 #endif	/* _KERNEL */
 
 #endif	/* _RPC_KRPC_H_ */

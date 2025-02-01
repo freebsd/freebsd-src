@@ -372,6 +372,17 @@ extern CLIENT *clnt_dg_create(struct socket *so,
     size_t sendsz, size_t recvsz);
 
 /*
+ * netlink(4) client that would multicast calls on genetlink(4) family
+ * named "rpcnl" (with dynamic id).  The server counterpart of this
+ * client is a userland application that uses libc/rpc/svc_nl.c to
+ * receive the calls and send replies.
+ *
+ *	const char *name			-- multicast group name
+ */
+extern CLIENT *client_nl_create(const char *name, const rpcprog_t prog,
+    const rpcvers_t version);
+
+/*
  *	struct socket *so;			-- socket
  *	struct sockaddr *svcaddr;		-- servers address
  *	rpcprog_t prog;				-- program number

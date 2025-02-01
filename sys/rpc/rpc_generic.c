@@ -949,6 +949,7 @@ krpc_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		rpcnl_init();
 		error = rpctls_init();
 		break;
 	case MOD_UNLOAD:
@@ -967,7 +968,7 @@ static moduledata_t krpc_mod = {
 	krpc_modevent,
 	NULL,
 };
-DECLARE_MODULE(krpc, krpc_mod, SI_SUB_VFS, SI_ORDER_ANY);
+DECLARE_MODULE(krpc, krpc_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(krpc, 1);
