@@ -269,10 +269,15 @@ clnt_nl_call(CLIENT *cl, struct rpc_callextra *ext, rpcproc_t proc,
 	u_int retries = 0;
 	bool rv __diagused;
 
+	CURVNET_ASSERT_SET();
+
 	cr = malloc(sizeof(struct ct_request), M_RPC, M_WAITOK);
 	*cr = (struct ct_request){
 		.cr_xid = atomic_fetchadd_32(&nl->nl_xid, 1),
 		.cr_error = ETIMEDOUT,
+#ifdef VIMAGE
+		.cr_vnet = curvnet,
+#endif
 	};
 
 	if (ext) {
@@ -394,6 +399,8 @@ clnt_nl_reply(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct mchain mc;
 	int error;
 
+	CURVNET_ASSERT_SET();
+
 	if ((error = nl_parse_nlmsg(hdr, &rpcnl_parser, npt, &attrs)) != 0)
 		return (error);
 	if (attrs.data == NULL)
@@ -415,7 +422,11 @@ clnt_nl_reply(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	rw_runlock(&rpcnl_global_lock);
 
 	TAILQ_FOREACH(cr, &nl->nl_pending, cr_link)
-		if (cr->cr_xid == hdr->nlmsg_seq)
+		if (cr->cr_xid == hdr->nlmsg_seq
+#ifdef VIMAGE
+		    && cr->cr_vnet == curvnet
+#endif
+		    )
 			break;
 	if (cr == NULL) {
 		mtx_unlock(&nl->nl_lock);

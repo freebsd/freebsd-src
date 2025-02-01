@@ -49,8 +49,11 @@ struct mbuf *_rpc_copym_into_ext_pgs(struct mbuf *, int);
  */
 struct ct_request {
 	TAILQ_ENTRY(ct_request) cr_link;
-	uint32_t		cr_xid;		/* XID of request */
 	struct mbuf		*cr_mrep;	/* reply received by upcall */
+#ifdef VIMAGE
+	struct vnet		*cr_vnet;
+#endif
+	uint32_t		cr_xid;		/* XID of request */
 	int			cr_error;	/* any error from upcall */
 	char			cr_verf[MAX_AUTH_BYTES]; /* reply verf */
 };
