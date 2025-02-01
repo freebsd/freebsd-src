@@ -93,9 +93,6 @@ static bool		rpctls_do_mutual = false;
 static const char	*rpctls_certdir = _PATH_CERTANDKEY;
 static bool		rpctls_comparehost = false;
 static unsigned int	rpctls_wildcard = X509_CHECK_FLAG_NO_WILDCARDS;
-static uint64_t		rpctls_ssl_refno = 0;
-static uint64_t		rpctls_ssl_sec = 0;
-static uint64_t		rpctls_ssl_usec = 0;
 static bool		rpctls_cnuser = false;
 static char		*rpctls_dnsname;
 static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
@@ -115,7 +112,7 @@ static int		rpctls_cnname(X509 *cert, uint32_t *uidp,
 static char		*rpctls_getdnsname(char *dnsname);
 static void		rpctls_huphandler(int sig __unused);
 
-extern void		rpctlssd_1(struct svc_req *rqstp, SVCXPRT *transp);
+extern void		rpctlssd_2(struct svc_req *rqstp, SVCXPRT *transp);
 
 static struct option longopts[] = {
 	{ "allowtls1_2",	no_argument,		NULL,	'2' },
@@ -141,8 +138,6 @@ main(int argc, char **argv)
 {
 	int ch, i;
 	SVCXPRT *xprt;
-	struct timeval tm;
-	struct timezone tz;
 	char hostname[MAXHOSTNAMELEN + 2];
 	pid_t otherpid;
 	bool tls_enable;
@@ -162,11 +157,6 @@ main(int argc, char **argv)
 	if (sysctlbyname("kern.ipc.tls.enable", &tls_enable, &tls_enable_len,
 	    NULL, 0) != 0 || !tls_enable)
 		errx(1, "Kernel TLS not enabled");
-
-	/* Get the time when this daemon is started. */
-	gettimeofday(&tm, &tz);
-	rpctls_ssl_sec = tm.tv_sec;
-	rpctls_ssl_usec = tm.tv_usec;
 
 	/* Set the dns name for the server. */
 	rpctls_dnsname = rpctls_getdnsname(hostname);
@@ -327,7 +317,7 @@ main(int argc, char **argv)
 		}
 		err(1, "Can't create transport for local rpctlssd socket");
 	}
-	if (!svc_reg(xprt, RPCTLSSD, RPCTLSSDVERS, rpctlssd_1, NULL)) {
+	if (!svc_reg(xprt, RPCTLSSD, RPCTLSSDVERS, rpctlssd_2, NULL)) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't register service for local rpctlssd socket");
@@ -354,7 +344,7 @@ main(int argc, char **argv)
 }
 
 bool_t
-rpctlssd_null_1_svc(__unused void *argp, __unused void *result,
+rpctlssd_null_2_svc(__unused void *argp, __unused void *result,
     __unused struct svc_req *rqstp)
 {
 
@@ -363,7 +353,7 @@ rpctlssd_null_1_svc(__unused void *argp, __unused void *result,
 }
 
 bool_t
-rpctlssd_connect_1_svc(struct rpctlssd_connect_arg *argp,
+rpctlssd_connect_2_svc(struct rpctlssd_connect_arg *argp,
     struct rpctlssd_connect_res *result, __unused struct svc_req *rqstp)
 {
 	int ngrps, s;
@@ -398,12 +388,6 @@ rpctlssd_connect_1_svc(struct rpctlssd_connect_arg *argp,
 		rpctls_verbose_out("rpctlssd_connect_svc: "
 		    "succeeded flags=0x%x\n", flags);
 		result->flags = flags;
-		result->sec = rpctls_ssl_sec;
-		result->usec = rpctls_ssl_usec;
-		result->ssl = ++rpctls_ssl_refno;
-		/* Hard to believe this could ever wrap around.. */
-		if (rpctls_ssl_refno == 0)
-			result->ssl = ++rpctls_ssl_refno;
 		if ((flags & RPCTLS_FLAGS_CERTUSER) != 0) {
 			result->uid = uid;
 			result->gid.gid_len = ngrps;
@@ -420,28 +404,23 @@ rpctlssd_connect_1_svc(struct rpctlssd_connect_arg *argp,
 	newslp->ssl = ssl;
 	newslp->s = s;
 	newslp->shutoff = false;
-	newslp->refno = rpctls_ssl_refno;
+	newslp->refno = argp->socookie;
 	newslp->cert = cert;
 	LIST_INSERT_HEAD(&rpctls_ssllist, newslp, next);
 	return (TRUE);
 }
 
 bool_t
-rpctlssd_handlerecord_1_svc(struct rpctlssd_handlerecord_arg *argp,
+rpctlssd_handlerecord_2_svc(struct rpctlssd_handlerecord_arg *argp,
     struct rpctlssd_handlerecord_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 	char junk;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
-		}
-	}
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->refno == argp->socookie)
+			break;
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlssd_handlerecord fd=%d\n",
@@ -470,20 +449,15 @@ rpctlssd_handlerecord_1_svc(struct rpctlssd_handlerecord_arg *argp,
 }
 
 bool_t
-rpctlssd_disconnect_1_svc(struct rpctlssd_disconnect_arg *argp,
+rpctlssd_disconnect_2_svc(struct rpctlssd_disconnect_arg *argp,
     struct rpctlssd_disconnect_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
-		}
-	}
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->refno == argp->socookie)
+			break;
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlssd_disconnect fd=%d closed\n",
@@ -516,7 +490,7 @@ rpctlssd_disconnect_1_svc(struct rpctlssd_disconnect_arg *argp,
 }
 
 int
-rpctlssd_1_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result,
+rpctlssd_2_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result,
     caddr_t result)
 {
 	rpctlssd_connect_res *res;
