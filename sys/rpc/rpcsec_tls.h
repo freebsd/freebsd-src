@@ -30,10 +30,7 @@
 
 /* Operation values for rpctls syscall. */
 #define	RPCTLS_SYSC_CLSOCKET	2
-#define	RPCTLS_SYSC_SRVSETPATH	4
 #define	RPCTLS_SYSC_SRVSOCKET	5
-#define	RPCTLS_SYSC_SRVSHUTDOWN	6
-#define	RPCTLS_SYSC_SRVSTARTUP	7
 
 /* Max nprocs for SRV startup */
 #define	RPCTLS_SRV_MAXNPROCS	16
