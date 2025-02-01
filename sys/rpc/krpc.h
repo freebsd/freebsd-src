@@ -114,9 +114,11 @@ struct ct_data {
 	struct ct_request_list ct_pending;
 	int		ct_upcallrefs;	/* Ref cnt of upcalls in prog. */
 	SVCXPRT		*ct_backchannelxprt; /* xprt for backchannel */
-	uint64_t	ct_sslsec;	/* RPC-over-TLS connection. */
-	uint64_t	ct_sslusec;
-	uint64_t	ct_sslrefno;
+	enum tlsstate	{
+	    RPCTLS_NONE = 0,
+	    RPCTLS_INHANDSHAKE,	/* fd given to the daemon, daemon is working */
+	    RPCTLS_COMPLETE,	/* daemon reported success rpctlscd_connect() */
+	}		ct_tlsstate;
 	uint32_t 	ct_rcvstate;	/* Handle receiving for TLS upcalls */
 	struct mbuf	*ct_raw;	/* Raw mbufs recv'd */
 };

@@ -55,6 +55,7 @@
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/krpc.h>
 #include <rpc/rpcsec_tls.h>
 
 #include <vm/vm.h>
@@ -172,7 +173,6 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	struct file *fp;
 	struct upsock *ups;
 	int fd = -1, error;
-	uint64_t ssl[3];
         
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error != 0)
@@ -200,13 +200,12 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		switch (uap->op) {
 		case RPCTLS_SYSC_CLSOCKET:
 			/*
-			 * Set ssl refno so that clnt_vc_destroy() will
-			 * not close the socket and will leave that for
-			 * the daemon to do.
+			 * Initialize TLS state so that clnt_vc_destroy() will
+			 * not close the socket and will leave that for the
+			 * daemon to do.
 			 */
-			ssl[0] = ssl[1] = 0;
-			ssl[2] = RPCTLS_REFNO_HANDSHAKE;
-			CLNT_CONTROL(ups->cl, CLSET_TLS, ssl);
+			CLNT_CONTROL(ups->cl, CLSET_TLS,
+			    &(int){RPCTLS_INHANDSHAKE});
 			break;
 		case RPCTLS_SYSC_SRVSOCKET:
 			/*
@@ -234,27 +233,23 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 /* Do an upcall for a new socket connect using TLS. */
 enum clnt_stat
 rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
-    uint64_t *sslp, uint32_t *reterr)
+    uint32_t *reterr)
 {
 	struct rpctlscd_connect_arg arg;
 	struct rpctlscd_connect_res res;
 	struct rpc_callextra ext;
-	struct timeval utimeout;
 	enum clnt_stat stat;
 	struct upsock ups = {
 		.so = so,
 		.cl = newclient,
 	};
 	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
-	int val;
 
 	/* First, do the AUTH_TLS NULL RPC. */
 	memset(&ext, 0, sizeof(ext));
-	utimeout.tv_sec = 30;
-	utimeout.tv_usec = 0;
 	ext.rc_auth = authtls_create();
 	stat = clnt_call_private(newclient, &ext, NULLPROC, (xdrproc_t)xdr_void,
-	    NULL, (xdrproc_t)xdr_void, NULL, utimeout);
+	    NULL, (xdrproc_t)xdr_void, NULL, (struct timeval){ .tv_sec = 30 });
 	AUTH_DESTROY(ext.rc_auth);
 	if (stat == RPC_AUTHERROR)
 		return (stat);
@@ -266,8 +261,7 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	mtx_unlock(&rpctls_lock);
 
 	/* Temporarily block reception during the handshake upcall. */
-	val = 1;
-	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &val);
+	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &(int){1});
 
 	/* Do the connect handshake upcall. */
 	if (certname != NULL) {
@@ -275,18 +269,13 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 		arg.certname.certname_val = certname;
 	} else
 		arg.certname.certname_len = 0;
-	arg.socookie = (uintptr_t)so;
-	stat = rpctlscd_connect_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)so;
+	stat = rpctlscd_connect_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS) {
 #ifdef INVARIANTS
 		MPASS((RB_FIND(upsock_t, &upcall_sockets, &ups) == NULL));
 #endif
 		*reterr = res.reterr;
-		if (res.reterr == 0) {
-			*sslp++ = res.sec;
-			*sslp++ = res.usec;
-			*sslp = res.ssl;
-		}
 	} else {
 		mtx_lock(&rpctls_lock);
 		if (RB_FIND(upsock_t, &upcall_sockets, &ups)) {
@@ -313,16 +302,14 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	}
 
 	/* Unblock reception. */
-	val = 0;
-	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &val);
+	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &(int){0});
 
 	return (stat);
 }
 
 /* Do an upcall to handle an non-application data record using TLS. */
 enum clnt_stat
-rpctls_cl_handlerecord(uint64_t sec, uint64_t usec, uint64_t ssl,
-    uint32_t *reterr)
+rpctls_cl_handlerecord(void *socookie, uint32_t *reterr)
 {
 	struct rpctlscd_handlerecord_arg arg;
 	struct rpctlscd_handlerecord_res res;
@@ -330,10 +317,8 @@ rpctls_cl_handlerecord(uint64_t sec, uint64_t usec, uint64_t ssl,
 	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
 	/* Do the handlerecord upcall. */
-	arg.sec = sec;
-	arg.usec = usec;
-	arg.ssl = ssl;
-	stat = rpctlscd_handlerecord_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)socookie;
+	stat = rpctlscd_handlerecord_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -360,8 +345,7 @@ rpctls_srv_handlerecord(uint64_t sec, uint64_t usec, uint64_t ssl, int procpos,
 
 /* Do an upcall to shut down a socket using TLS. */
 enum clnt_stat
-rpctls_cl_disconnect(uint64_t sec, uint64_t usec, uint64_t ssl,
-    uint32_t *reterr)
+rpctls_cl_disconnect(void *socookie, uint32_t *reterr)
 {
 	struct rpctlscd_disconnect_arg arg;
 	struct rpctlscd_disconnect_res res;
@@ -369,10 +353,8 @@ rpctls_cl_disconnect(uint64_t sec, uint64_t usec, uint64_t ssl,
 	CLIENT *cl = KRPC_VNET(rpctls_connect_handle);
 
 	/* Do the disconnect upcall. */
-	arg.sec = sec;
-	arg.usec = usec;
-	arg.ssl = ssl;
-	stat = rpctlscd_disconnect_1(&arg, &res, cl);
+	arg.socookie = (uint64_t)socookie;
+	stat = rpctlscd_disconnect_2(&arg, &res, cl);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
 	return (stat);
@@ -420,7 +402,7 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 
 	/* Do the server upcall. */
 	res.gid.gid_val = NULL;
-	arg.socookie = (uintptr_t)so;
+	arg.socookie = (uint64_t)so;
 	stat = rpctlssd_connect_1(&arg, &res, cl);
 	if (stat == RPC_SUCCESS) {
 #ifdef INVARIANTS
