@@ -40,7 +40,7 @@
 #define	SB_SEL		0x08		/* someone is selecting */
 #define	SB_ASYNC	0x10		/* ASYNC I/O, need signals */
 #define	SB_UPCALL	0x20		/* someone wants an upcall */
-#define	SB_NOINTR	0x40		/* operations not interruptible */
+/* was	SB_NOINTR	0x40		*/
 #define	SB_AIO		0x80		/* AIO operations queued */
 #define	SB_KNOTE	0x100		/* kernel note attached */
 #define	SB_NOCOALESCE	0x200		/* don't coalesce new data into existing mbufs */
