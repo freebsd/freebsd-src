@@ -140,6 +140,9 @@ clnt_vc_create(
 	int error, interrupted, one = 1, sleep_flag;
 	struct sockopt sopt;
 
+	KASSERT(raddr->sa_family != AF_LOCAL,
+	    ("%s: kernel RPC over unix(4) not supported", __func__));
+
 	if (disrupt == 0)
 		disrupt = (uint32_t)(long)raddr;
 
