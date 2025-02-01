@@ -462,6 +462,13 @@ extern SVCXPRT *svcunixfd_create(int, u_int, u_int);
 extern SVCXPRT *svc_nl_create(const char *);
 
 /*
+ * Arguments to SVC_CONTROL(svc_nl)
+ */
+enum {
+	SVCNL_GET_XIDKEY = 1,	/* obtain pthread specific key for xid */
+};
+
+/*
  * Memory based rpc (for speed check and testing)
  */
 extern SVCXPRT *svc_raw_create(void);
