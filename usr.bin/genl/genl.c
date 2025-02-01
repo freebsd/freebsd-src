@@ -42,11 +42,10 @@
 #include <netlink/netlink_snl_generic.h>
 #include <netlink/netlink_sysevent.h>
 
+#include "genl.h"
+
 static int monitor_mcast(int argc, char **argv);
 static int list_families(int argc, char **argv);
-static void parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr);
-static void parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr);
-static void parser_fallback(struct snl_state *ss, struct nlmsghdr *hdr);
 
 static struct commands {
 	const char *name;
@@ -57,12 +56,16 @@ static struct commands {
 	{ "list", "list", list_families },
 };
 
+static monitor_parser_t parser_nlctrl_notify;
+static monitor_parser_t parser_nlsysevent;
+
 static struct mcast_parsers {
 	const char *family;
-	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
+	monitor_parser_t *parser;
 } mcast_parsers [] = {
 	{ "nlctrl", parser_nlctrl_notify },
 	{ "nlsysevent", parser_nlsysevent },
+	{ "rpc", parser_rpc },
 };
 
 struct nlevent {
@@ -252,7 +255,7 @@ dump_family(struct genl_family *family)
 	dump_mcast_groups(&family->mcast_groups);
 }
 
-void
+static void
 parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr)
 {
 	struct genl_family family = {};
@@ -262,7 +265,7 @@ parser_nlctrl_notify(struct snl_state *ss, struct nlmsghdr *hdr)
 		dump_family(&family);
 }
 
-void
+static void
 parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr)
 {
 	struct nlevent ne = {};
@@ -276,14 +279,24 @@ parser_nlsysevent(struct snl_state *ss, struct nlmsghdr *hdr)
 	}
 }
 
-void
-parser_fallback(struct snl_state *ss __unused, struct nlmsghdr *hdr __unused)
+static void
+parser_fallback(struct snl_state *ss __unused, struct nlmsghdr *hdr)
 {
-	printf("New unknown message\n");
+	printf("Unknown message: type 0x%x, length %u\n",
+	    hdr->nlmsg_type, hdr->nlmsg_len);
 }
 
 /* Populated by monitor_mcast() and may be used by protocol parser callbacks. */
 static struct genl_family attrs;
+
+const char *
+group_name(uint32_t id)
+{
+	for (u_int i = 0; i < attrs.mcast_groups.num_groups; i++)
+		if (attrs.mcast_groups.groups[i]->id == id)
+			return (attrs.mcast_groups.groups[i]->name);
+	return ("???");
+}
 
 static int
 monitor_mcast(int argc, char **argv)
@@ -294,7 +307,7 @@ monitor_mcast(int argc, char **argv)
 	struct pollfd pfd;
 	bool found = false;
 	bool all = false;
-	void (*parser)(struct snl_state *ss, struct nlmsghdr *hdr);
+	monitor_parser_t *parser;
 
 	if (argc < 1 || argc > 2) {
 		usage();
