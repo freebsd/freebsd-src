@@ -29,6 +29,7 @@
 
 
 struct rpctlscd_connect_arg {
+	uint64_t socookie;
 	char certname<>;
 };
 

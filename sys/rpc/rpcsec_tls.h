@@ -29,9 +29,7 @@
 #define	_RPC_RPCSEC_TLS_H_
 
 /* Operation values for rpctls syscall. */
-#define	RPCTLS_SYSC_CLSETPATH	1
 #define	RPCTLS_SYSC_CLSOCKET	2
-#define	RPCTLS_SYSC_CLSHUTDOWN	3
 #define	RPCTLS_SYSC_SRVSETPATH	4
 #define	RPCTLS_SYSC_SRVSOCKET	5
 #define	RPCTLS_SYSC_SRVSHUTDOWN	6
