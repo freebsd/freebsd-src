@@ -68,9 +68,6 @@
 #include "rpctlssd.h"
 #include "rpc.tlscommon.h"
 
-#ifndef _PATH_RPCTLSSDSOCK
-#define _PATH_RPCTLSSDSOCK	"/var/run/rpc.tlsservd.sock"
-#endif
 #ifndef	_PATH_CERTANDKEY
 #define	_PATH_CERTANDKEY	"/etc/rpc.tlsservd/"
 #endif
@@ -105,7 +102,6 @@ static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
 static const char	*rpctls_ciphers = NULL;
 static int		rpctls_mintls = TLS1_3_VERSION;
 static int		rpctls_procs = 1;
-static char		*rpctls_sockname[RPCTLS_SRV_MAXNPROCS];
 static pid_t		rpctls_workers[RPCTLS_SRV_MAXNPROCS - 1];
 static bool		rpctls_im_a_worker = false;
 
@@ -143,13 +139,7 @@ static struct option longopts[] = {
 int
 main(int argc, char **argv)
 {
-	/*
-	 * We provide an RPC service on a local-domain socket. The
-	 * kernel rpctls code will upcall to this daemon to do the initial
-	 * TLS handshake.
-	 */
-	struct sockaddr_un sun;
-	int ch, fd, i, mypos, oldmask;
+	int ch, i;
 	SVCXPRT *xprt;
 	struct timeval tm;
 	struct timezone tz;
@@ -183,13 +173,6 @@ main(int argc, char **argv)
 	if (rpctls_dnsname == NULL) {
 		strcpy(hostname, "@default.domain");
 		rpctls_dnsname = hostname;
-	}
-
-	/* Initialize socket names. */
-	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-		asprintf(&rpctls_sockname[i], "%s.%d", _PATH_RPCTLSSDSOCK, i);
-		if (rpctls_sockname[i] == NULL)
-			errx(1, "Cannot malloc socknames");
 	}
 
 	rpctls_verbose = false;
@@ -292,7 +275,6 @@ main(int argc, char **argv)
 
 	for (i = 0; i < rpctls_procs - 1; i++)
 		rpctls_workers[i] = -1;
-	mypos = 0;
 
 	if (rpctls_debug_level == 0) {
 		/*
@@ -316,15 +298,12 @@ main(int argc, char **argv)
 
 	pidfile_write(rpctls_pfh);
 
-	rpctls_syscall(RPCTLS_SYSC_SRVSTARTUP, "");
-
 	if (rpctls_debug_level == 0) {
 		/* Fork off the worker daemons. */
 		for (i = 0; i < rpctls_procs - 1; i++) {
 			rpctls_workers[i] = fork();
 			if (rpctls_workers[i] == 0) {
 				rpctls_im_a_worker = true;
-				mypos = i + 1;
 				setproctitle("server");
 				break;
 			} else if (rpctls_workers[i] < 0) {
@@ -340,38 +319,7 @@ main(int argc, char **argv)
 	sigaddset(&signew, SIGCHLD);
 	sigprocmask(SIG_UNBLOCK, &signew, NULL);
 
-	memset(&sun, 0, sizeof sun);
-	sun.sun_family = AF_LOCAL;
-	unlink(rpctls_sockname[mypos]);
-	strcpy(sun.sun_path, rpctls_sockname[mypos]);
-	sun.sun_len = SUN_LEN(&sun);
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (fd < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't create local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't create local rpctlssd socket");
-	}
-	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-	if (bind(fd, (struct sockaddr *)&sun, sun.sun_len) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't bind local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't bind local rpctlssd socket");
-	}
-	umask(oldmask);
-	if (listen(fd, SOMAXCONN) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't listen on local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't listen on local rpctlssd socket");
-	}
-	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	if (!xprt) {
+	if ((xprt = svc_nl_create("tlsserv")) == NULL) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't create transport for local rpctlssd socket");
@@ -399,17 +347,6 @@ main(int argc, char **argv)
 	rpctls_gothup = false;
 	LIST_INIT(&rpctls_ssllist);
 
-	if (rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, rpctls_sockname[mypos]) < 0){
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't set upcall socket path=%s errno=%d",
-			    rpctls_sockname[mypos], errno);
-			exit(1);
-		}
-		err(1, "Can't set upcall socket path=%s",
-		    rpctls_sockname[mypos]);
-	}
-
 	rpctls_svc_run();
 
 	SSL_CTX_free(rpctls_ctx);
@@ -426,7 +363,7 @@ rpctlssd_null_1_svc(__unused void *argp, __unused void *result,
 }
 
 bool_t
-rpctlssd_connect_1_svc(__unused void *argp,
+rpctlssd_connect_1_svc(struct rpctlssd_connect_arg *argp,
     struct rpctlssd_connect_res *result, __unused struct svc_req *rqstp)
 {
 	int ngrps, s;
@@ -440,7 +377,7 @@ rpctlssd_connect_1_svc(__unused void *argp,
 	rpctls_verbose_out("rpctlsd_connect_svc: started\n");
 	memset(result, 0, sizeof(*result));
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_SRVSOCKET, "");
+	s = rpctls_syscall(RPCTLS_SYSC_SRVSOCKET, (char *)argp->socookie);
 	if (s < 0)
 		return (FALSE);
 
@@ -625,7 +562,6 @@ rpctls_cleanup_term(int sig)
 	for (i = 0; i < cnt; i++)
 		wait3(NULL, 0, NULL);
 
-	rpctls_syscall(RPCTLS_SYSC_SRVSHUTDOWN, "");
 	pidfile_remove(rpctls_pfh);
 
 	exit(0);
