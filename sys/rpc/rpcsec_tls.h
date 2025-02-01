@@ -32,9 +32,6 @@
 #define	RPCTLS_SYSC_CLSOCKET	2
 #define	RPCTLS_SYSC_SRVSOCKET	5
 
-/* Max nprocs for SRV startup */
-#define	RPCTLS_SRV_MAXNPROCS	16
-
 /* System call used by the rpctlscd, rpctlssd daemons. */
 int	rpctls_syscall(int, const char *);
 

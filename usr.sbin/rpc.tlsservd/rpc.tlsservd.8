@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" Modified from gssd.8 for rpc.tlsservd.8 by Rick Macklem.
-.Dd November 10, 2022
+.Dd January 25, 2025
 .Dt RPC.TLSSERVD 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Op Fl h
 .Op Fl l Ar CAfile
 .Op Fl m
-.Op Fl N Ar num_servers
+.Op Fl N Ar max_threads
 .Op Fl n Ar domain
 .Op Fl p Ar CApath
 .Op Fl r Ar CRLfile
@@ -236,16 +236,17 @@ may be used to require a client to provide a certificate
 that verifies.
 See
 .Xr exports 5 .
-.It Fl N Ar num_servers , Fl Fl numdaemons= Ns Ar num_servers
+.It Fl N Ar max_threads , Fl Fl maxthreads= Ns Ar max_threads
 For a server with a large number of NFS-over-TLS client mounts,
 this daemon might get overloaded after a reboot, when many
 clients attempt to do a TLS handshake at the same time.
-This option may be used to specify that
-.Dq num_servers
-daemons are to be run instead of a single daemon.
-When this is done, the TLS handshakes are spread across the
-.Dq num_servers
-daemons in a round robin fashion to spread out the load.
+To speed up recovery after reboot, the daemon always processes a TLS handshake
+in a separate spawned thread.
+By default the maximum number of concurrent threads (and thus
+parallel handshakes) is limited to
+.Va 1/2
+of available CPUs on a system.
+This option may be used to override this default.
 .It Fl n Ar domain , Fl Fl domain= Ns Ar domain
 This option specifies what the
 .Dq domain
