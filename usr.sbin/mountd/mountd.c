@@ -1806,7 +1806,7 @@ get_exportlist_one(int passno)
 			len = endcp - cp;
 		}
 		if (opt_flags & OP_CLASSMASK)
-			syslog(LOG_WARNING,
+			syslog(LOG_ERR,
 			    "WARNING: No mask specified for %s, "
 			    "using out-of-date default",
 			    (&grp->gr_ptr.gt_net)->nt_name);
