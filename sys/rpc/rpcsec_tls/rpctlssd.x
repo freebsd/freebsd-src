@@ -27,6 +27,9 @@
 
 /* Modified from gssd.x for the server side of RPC-over-TLS. */
 
+struct rpctlssd_connect_arg {
+	uint64_t socookie;
+};
 
 struct rpctlssd_connect_res {
 	uint32_t flags;
@@ -62,7 +65,7 @@ program RPCTLSSD {
 		void RPCTLSSD_NULL(void) = 0;
 
 		rpctlssd_connect_res
-		RPCTLSSD_CONNECT(void) = 1;
+		RPCTLSSD_CONNECT(rpctlssd_connect_arg) = 1;
 
 		rpctlssd_handlerecord_res
 		RPCTLSSD_HANDLERECORD(rpctlssd_handlerecord_arg) = 2;
