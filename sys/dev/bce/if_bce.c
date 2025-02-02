@@ -11082,7 +11082,7 @@ bce_dump_rxp_state(struct bce_softc *sc, int regs)
 
 		for (int i = BCE_RXP_CPU_MODE; i < 0xe8fff; i += 0x10) {
 			/* Skip the big blank sapces */
-			if (i < 0xc5400 && i > 0xdffff)
+			if (i < 0xc5400 || i > 0xdffff)
 				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
 				    "0x%08X 0x%08X\n", i,
 				    REG_RD_IND(sc, i),
@@ -11200,7 +11200,7 @@ bce_dump_cp_state(struct bce_softc *sc, int regs)
 
 		for (int i = BCE_CP_CPU_MODE; i < 0x1aa000; i += 0x10) {
 			/* Skip the big blank spaces */
-			if (i < 0x185400 && i > 0x19ffff)
+			if (i < 0x185400 || i > 0x19ffff)
 				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
 				    "0x%08X 0x%08X\n", i,
 				    REG_RD_IND(sc, i),
