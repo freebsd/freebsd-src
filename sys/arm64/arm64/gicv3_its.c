@@ -532,7 +532,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		cache = 0;
 	} else {
 		devbits = GITS_TYPER_DEVB(gic_its_read_8(sc, GITS_TYPER));
-		cache = GITS_BASER_CACHE_WAWB;
+		cache = GITS_BASER_CACHE_RAWAWB;
 	}
 	sc->sc_devbits = devbits;
 	share = GITS_BASER_SHARE_IS;
