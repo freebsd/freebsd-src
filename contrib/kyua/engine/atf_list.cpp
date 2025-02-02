@@ -129,6 +129,8 @@ engine::parse_atf_metadata(const model::properties_map& props)
                 mdbuilder.set_string("is_exclusive", value);
             } else if (name == "require.config") {
                 mdbuilder.set_string("required_configs", value);
+            } else if (name == "require.diskspace") {
+                mdbuilder.set_string("required_disk_space", value);
             } else if (name == "require.files") {
                 mdbuilder.set_string("required_files", value);
             } else if (name == "require.machine") {
