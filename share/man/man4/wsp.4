@@ -67,9 +67,9 @@ pressure detection, tap support, and gestures. At least the second bit
 of the
 .Xr sysctl 8
 tunable
-.Nm kern.evdev.rcpt_mask
+.Va kern.evdev.rcpt_mask
 must be set. This can be enabled with
-.Nm kern.evdev.rcpt_mask=3 .
+.Va kern.evdev.rcpt_mask=3 .
 .Pp
 Vertical scrolling (z-axis) is enabled by default with a two-finger
 tap and the movement of a finger up and down.
@@ -78,12 +78,12 @@ protocol, therefore must be enabled with evdev data. This can be enabled
 with the
 .Xr sysctl 8
 tunable
-.Nm kern.evdev.sysmouse_t_axis=3.
+.Va kern.evdev.sysmouse_t_axis=3.
 Horizontal scrolling can be used with a two-finger tap and the movement
 of a finger from side to side. The
 .Xr sysctl 8
 tunable
-.Nm hw.usb.wsp.t_factor
+.Va hw.usb.wsp.t_factor
 must be greater than 0 for horizontal scrolling to be enabled, too.
 .Pp
 Horizontal swiping with a three-finger tap is registered as mouse buttons
