@@ -282,7 +282,8 @@ ATF:
 .It Va required_disk_space
 Amount of available disk space that the test needs to run successfully.
 .Pp
-ATF: not mapped
+ATF:
+.Va require.diskspace
 .It Va required_files
 Whitespace-separated list of paths that the test requires to exist before
 it can run.
