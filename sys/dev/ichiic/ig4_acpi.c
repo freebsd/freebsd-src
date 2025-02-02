@@ -55,6 +55,7 @@ static char *ig4iic_ids[] = {
 	"INT33C3",
 	"INT3432",
 	"INT3433",
+	"INT3446",
 	"80860F41",
 	"808622C1",
 	"AMDI0510",
