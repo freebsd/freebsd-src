@@ -16,6 +16,9 @@ options BREAK_TO_DEBUGGER # If need to enter DDB from console
 
 options EARLY_PRINTF=ns8250
 options SOCDEV_PA=0x11002000
+options UART_NS8250_EARLY_REGSHIFT=2
+options UART_NS8250_EARLY_IOWIDTH=2
+options BOOTVERBOSE
 
 # Include SoC specific configuration
 include "std.arm64"
