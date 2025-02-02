@@ -67,6 +67,7 @@ ATF_TEST_CASE_BODY(parse_atf_metadata__override_all)
     properties["is.exclusive"] = "true";
     properties["require.arch"] = "i386 x86_64";
     properties["require.config"] = "var1 var2 var3";
+    properties["require.diskspace"] = "10g";
     properties["require.files"] = "/file1 /dir/file2";
     properties["require.machine"] = "amd64";
     properties["require.memory"] = "1m";
@@ -95,6 +96,7 @@ ATF_TEST_CASE_BODY(parse_atf_metadata__override_all)
         .set_description("Some text")
         .set_has_cleanup(true)
         .set_is_exclusive(true)
+        .set_required_disk_space(units::bytes::parse("10g"))
         .set_required_memory(units::bytes::parse("1m"))
         .set_required_user("root")
         .set_timeout(datetime::delta(123, 0))
@@ -293,6 +295,26 @@ ATF_TEST_CASE_BODY(parse_atf_list__is_exclusive_support)
 }
 
 
+ATF_TEST_CASE_WITHOUT_HEAD(parse_atf_list__disk_space_support);
+ATF_TEST_CASE_BODY(parse_atf_list__disk_space_support)
+{
+    const std::string text =
+        "Content-Type: application/X-atf-tp; version=\"1\"\n"
+        "\n"
+        "ident: first\n"
+        "require.diskspace: 123M\n";
+    std::istringstream input(text);
+    const model::test_cases_map tests = engine::parse_atf_list(input);
+
+    const model::test_cases_map exp_tests = model::test_cases_map_builder()
+        .add("first", model::metadata_builder()
+             .set_required_disk_space(units::bytes::parse("123M"))
+             .build())
+        .build();
+    ATF_REQUIRE_EQ(exp_tests, tests);
+}
+
+
 ATF_INIT_TEST_CASES(tcs)
 {
     ATF_ADD_TEST_CASE(tcs, parse_atf_metadata__defaults);
@@ -308,4 +330,5 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__one_test_case_invalid_properties);
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__many_test_cases);
     ATF_ADD_TEST_CASE(tcs, parse_atf_list__is_exclusive_support);
+    ATF_ADD_TEST_CASE(tcs, parse_atf_list__disk_space_support);
 }
