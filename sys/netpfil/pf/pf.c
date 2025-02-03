@@ -9990,6 +9990,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->ttl = h->ip_ttl;
 		pd->tot_len = ntohs(h->ip_len);
 		pd->act.rtableid = -1;
+		pd->df = h->ip_off & htons(IP_DF);
 
 		if (h->ip_hl > 5)	/* has options */
 			pd->badopts++;
@@ -10317,21 +10318,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		return (PF_PASS);
 	}
 
-#ifdef INET6
-	/*
-	 * If we end up changing IP addresses (e.g. binat) the stack may get
-	 * confused and fail to send the icmp6 packet too big error. Just send
-	 * it here, before we do any NAT.
-	 */
-	if (af == AF_INET6 && dir == PF_OUT && pflags & PFIL_FWD &&
-	    IN6_LINKMTU(ifp) < pf_max_frag_size(*m0)) {
-		PF_RULES_RUNLOCK();
-		icmp6_error(*m0, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
-		*m0 = NULL;
-		return (PF_DROP);
-	}
-#endif
-
 	if (__predict_false(! M_WRITABLE(*m0))) {
 		*m0 = m_unshare(*m0, M_NOWAIT);
 		if (*m0 == NULL) {
@@ -10379,6 +10365,31 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			pd.act.log |= PF_LOG_FORCE;
 		goto done;
 	}
+
+#ifdef INET
+	if (af == AF_INET && dir == PF_OUT && pflags & PFIL_FWD &&
+	    pd.df && (*m0)->m_pkthdr.len > ifp->if_mtu) {
+		PF_RULES_RUNLOCK();
+		icmp_error(*m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
+			0, ifp->if_mtu);
+		*m0 = NULL;
+		return (PF_DROP);
+	}
+#endif
+#ifdef INET6
+	/*
+	 * If we end up changing IP addresses (e.g. binat) the stack may get
+	 * confused and fail to send the icmp6 packet too big error. Just send
+	 * it here, before we do any NAT.
+	 */
+	if (af == AF_INET6 && dir == PF_OUT && pflags & PFIL_FWD &&
+	    IN6_LINKMTU(ifp) < pf_max_frag_size(*m0)) {
+		PF_RULES_RUNLOCK();
+		icmp6_error(*m0, ICMP6_PACKET_TOO_BIG, 0, IN6_LINKMTU(ifp));
+		*m0 = NULL;
+		return (PF_DROP);
+	}
+#endif
 
 	if (__predict_false(ip_divert_ptr != NULL) &&
 	    ((mtag = m_tag_locate(pd.m, MTAG_PF_DIVERT, 0, NULL)) != NULL)) {
