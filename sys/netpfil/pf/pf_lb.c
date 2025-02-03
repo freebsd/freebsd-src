@@ -238,11 +238,6 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 
 	bzero(&init_addr, sizeof(init_addr));
 
-	if (! TAILQ_EMPTY(&r->nat.list) &&
-	    pf_map_addr_sn(pd->naf, r, &pd->nsaddr, naddr, NULL, &init_addr,
-	    sn, sh, &r->nat))
-		return (1);
-
 	if (udp_mapping) {
 		MPASS(*udp_mapping == NULL);
 	}
@@ -252,7 +247,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 	 * from the mapping. In this case we have to look up the src_node as
 	 * pf_map_addr would.
 	 */
-	if (pd->proto == IPPROTO_UDP && (r->rdr.opts & PF_POOL_ENDPI)) {
+	if (pd->proto == IPPROTO_UDP && (rpool->opts & PF_POOL_ENDPI)) {
 		struct pf_udp_endpoint_cmp udp_source;
 
 		bzero(&udp_source, sizeof(udp_source));
@@ -265,8 +260,8 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 				PF_ACPY(naddr, &(*udp_mapping)->endpoints[1].addr, pd->af);
 				*nport = (*udp_mapping)->endpoints[1].port;
 				/* Try to find a src_node as per pf_map_addr(). */
-				if (*sn == NULL && r->rdr.opts & PF_POOL_STICKYADDR &&
-				    (r->rdr.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+				if (*sn == NULL && rpool->opts & PF_POOL_STICKYADDR &&
+				    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
 					*sn = pf_find_src_node(&pd->nsaddr, r, pd->af, sh, false);
 				if (*sn != NULL)
 					PF_SRC_NODE_UNLOCK(*sn);
@@ -280,7 +275,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 		}
 	}
 
-	if (pf_map_addr_sn(pd->af, r, &pd->nsaddr, naddr, NULL, &init_addr,
+	if (pf_map_addr_sn(pd->naf, r, &pd->nsaddr, naddr, NULL, &init_addr,
 	    sn, sh, rpool))
 		goto failed;
 
@@ -379,7 +374,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			tmp = cut;
 			for (tmp -= 1; tmp >= low && tmp <= 0xffff; --tmp) {
 				if (pd->proto == IPPROTO_UDP &&
-				    (r->rdr.opts & PF_POOL_ENDPI &&
+				    (rpool->opts & PF_POOL_ENDPI &&
 				    udp_mapping != NULL)) {
 					(*udp_mapping)->endpoints[1].port = htons(tmp);
 					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
@@ -396,7 +391,7 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			}
 		}
 
-		switch (r->rdr.opts & PF_POOL_TYPEMASK) {
+		switch (rpool->opts & PF_POOL_TYPEMASK) {
 		case PF_POOL_RANDOM:
 		case PF_POOL_ROUNDROBIN:
 			/*
@@ -404,8 +399,8 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			 * of free port choices for the current one.
 			 */
 			(*sn) = NULL;
-			if (pf_map_addr_sn(pd->af, r, &pd->nsaddr, naddr, NULL,
-			    &init_addr, sn, sh, &r->rdr))
+			if (pf_map_addr_sn(pd->naf, r, &pd->nsaddr, naddr, NULL,
+			    &init_addr, sn, sh, rpool))
 				return (1);
 			break;
 		case PF_POOL_NONE:
@@ -658,8 +653,8 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	 * Request the sh to be unlocked if sn was not found, as we never
 	 * insert a new sn when parsing the ruleset.
 	 */
-	if (r->rdr.opts & PF_POOL_STICKYADDR &&
-	    (r->rdr.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
+	if (rpool->opts & PF_POOL_STICKYADDR &&
+	    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
 		*sn = pf_find_src_node(saddr, r, af, sh, false);
 
 	if (*sn != NULL) {
