@@ -96,8 +96,8 @@
  * NOTE: With regard to VNETs the general rule is that callers do not set
  * curvnet. Exceptions to this rule include soabort(), sodisconnect(),
  * sofree(), sorele(), sonewconn() and sorflush(), which are usually called
- * from a pre-set VNET context.  sopoll() currently does not need a VNET
- * context to be set.
+ * from a pre-set VNET context.  sopoll_generic() currently does not need a
+ * VNET context to be set.
  */
 
 #include <sys/cdefs.h>
@@ -4402,17 +4402,6 @@ sohasoutofband(struct socket *so)
 	if (so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGURG, 0);
 	selwakeuppri(&so->so_rdsel, PSOCK);
-}
-
-int
-sopoll(struct socket *so, int events, struct thread *td)
-{
-
-	/*
-	 * We do not need to set or assert curvnet as long as everyone uses
-	 * sopoll_generic().
-	 */
-	return (so->so_proto->pr_sopoll(so, events, td));
 }
 
 int
