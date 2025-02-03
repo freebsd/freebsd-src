@@ -3295,7 +3295,7 @@ main(int argc, char *argv[])
 		if (pfctl_get_skip_ifaces())
 			error = 1;
 
-	if (rulesopt != NULL && !(opts & (PF_OPT_MERGE|PF_OPT_NOACTION)) &&
+	if (rulesopt != NULL && !(opts & PF_OPT_MERGE) &&
 	    !anchorname[0] && (loadopt & PFCTL_FLAG_OPTION))
 		if (pfctl_file_fingerprints(dev, opts, PF_OSFP_FILE))
 			error = 1;
