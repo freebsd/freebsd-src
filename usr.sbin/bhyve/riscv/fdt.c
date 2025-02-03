@@ -96,7 +96,6 @@ add_cpu(void *fdt, int cpuid, const char *isa)
 	fdt_property_u32(fdt, "reg", cpuid);
 	fdt_property_string(fdt, "riscv,isa", isa);
 	fdt_property_string(fdt, "mmu-type", "riscv,sv39");
-	fdt_property_string(fdt, "clock-frequency", "1000000000");
 
 	fdt_begin_node(fdt, "interrupt-controller");
 	intc0_phandle = assign_phandle(fdt);
