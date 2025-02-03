@@ -315,19 +315,6 @@ pf_find_fragment(struct pf_fragment_cmp *key, struct pf_frag_tree *tree)
 	return (frag);
 }
 
-/* Removes a fragment from the fragment queue and frees the fragment */
-static void
-pf_remove_fragment(struct pf_fragment *frag)
-{
-
-	PF_FRAG_ASSERT();
-	KASSERT(frag, ("frag != NULL"));
-
-	RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
-	TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
-	uma_zfree(V_pf_frag_z, frag);
-}
-
 static struct pf_frent *
 pf_create_fragment(u_short *reason)
 {
