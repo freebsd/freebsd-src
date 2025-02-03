@@ -2090,10 +2090,20 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	BPF_LOCK_ASSERT();
 
 	theywant = ifunit(ifr->ifr_name);
-	if (theywant == NULL || theywant->if_bpf == NULL)
+	if (theywant == NULL)
+		return (ENXIO);
+	/*
+	 * Look through attached interfaces for the named one.
+	 */
+	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp == theywant &&
+		    bp->bif_bpf == &theywant->if_bpf)
+			break;
+	}
+	if (bp == NULL)
 		return (ENXIO);
 
-	bp = theywant->if_bpf;
+	MPASS(bp == theywant->if_bpf);
 	/*
 	 * At this point, we expect the buffer is already allocated.  If not,
 	 * return an error.
