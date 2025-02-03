@@ -480,7 +480,8 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	if (rv->popcnt == 0) {
 		vm_reserv_remove(rv);
 		vm_domain_free_lock(vmd);
-		vm_phys_free_pages(rv->pages, rv->pages->pool, VM_LEVEL_0_ORDER);
+		vm_phys_free_pages(rv->pages, VM_FREEPOOL_DEFAULT,
+		    VM_LEVEL_0_ORDER);
 		vm_domain_free_unlock(vmd);
 		counter_u64_add(vm_reserv_freed, 1);
 	}
