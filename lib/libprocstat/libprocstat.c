@@ -50,6 +50,7 @@
 #define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/domain.h>
+#define	_WANT_PROTOSW
 #include <sys/protosw.h>
 #include <sys/un.h>
 #define	_WANT_UNPCB

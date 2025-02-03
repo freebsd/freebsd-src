@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/domain.h>
+#define	_WANT_PROTOSW
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #define	_WANT_SOCKET
