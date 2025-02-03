@@ -222,6 +222,7 @@ fdt_add_uart(uint64_t uart_base, uint64_t uart_size, int intr)
 	fdt_begin_node(fdt, node_name);
 	fdt_property_string(fdt, "compatible", "ns16550");
 	set_single_reg(fdt, uart_base, uart_size);
+	fdt_property_u32(fdt, "clock-frequency", 3686400);
 	fdt_property_u32(fdt, "interrupt-parent", aplic_phandle);
 	fdt_property_placeholder(fdt, "interrupts", 2 * sizeof(uint32_t),
 	    &interrupts);
