@@ -103,7 +103,8 @@ vmm_fence_process_one(struct vmm_fence *fence)
 			sfence_vma_page(va);
 		break;
 	case VMM_RISCV_FENCE_VMA_ASID:
-		if (fence->start == 0 && fence->size == 0)
+		if ((fence->start == 0 && fence->size == 0) ||
+		    fence->size == -1)
 			sfence_vma_asid(fence->asid);
 		else
 			for (va = fence->start; va < fence->start + fence->size;
@@ -165,7 +166,8 @@ vmm_fence_add(struct vm *vm, cpuset_t *cpus, struct vmm_fence *fence)
 			atomic_set_32(&hypctx->fence_req, FENCE_REQ_I);
 			break;
 		case VMM_RISCV_FENCE_VMA:
-			if (fence->start == 0 && fence->size == 0)
+			if ((fence->start == 0 && fence->size == 0) ||
+			    fence->size == -1)
 				atomic_set_32(&hypctx->fence_req,
 				    FENCE_REQ_VMA);
 			else
