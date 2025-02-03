@@ -3566,8 +3566,6 @@ pf_change_icmp_af(struct mbuf *m, int off, struct pf_pdesc *pd,
 	olen = pd2->off - off;
 	/* new header */
 	hlen = naf == AF_INET ? sizeof(*ip4) : sizeof(*ip6);
-	/* data lenght */
-	mlen = m->m_pkthdr.len - pd2->off;
 
 	/* trim old header */
 	m_adj(n, olen);
@@ -3584,7 +3582,7 @@ pf_change_icmp_af(struct mbuf *m, int off, struct pf_pdesc *pd,
 		bzero(ip4, sizeof(*ip4));
 		ip4->ip_v = IPVERSION;
 		ip4->ip_hl = sizeof(*ip4) >> 2;
-		ip4->ip_len = htons(sizeof(*ip4) + mlen);
+		ip4->ip_len = htons(sizeof(*ip4) + pd2->tot_len - olen);
 		ip_fillid(ip4);
 		ip4->ip_off = htons(IP_DF);
 		ip4->ip_ttl = pd2->ttl;
@@ -3600,7 +3598,7 @@ pf_change_icmp_af(struct mbuf *m, int off, struct pf_pdesc *pd,
 		ip6 = mtod(n, struct ip6_hdr *);
 		bzero(ip6, sizeof(*ip6));
 		ip6->ip6_vfc = IPV6_VERSION;
-		ip6->ip6_plen = htons(mlen);
+		ip6->ip6_plen = htons(pd2->tot_len - olen);
 		if (pd2->proto == IPPROTO_ICMP)
 			ip6->ip6_nxt = IPPROTO_ICMPV6;
 		else
@@ -7936,6 +7934,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			pd2.off = ipoff2 + (h2.ip_hl << 2);
 
 			pd2.proto = h2.ip_p;
+			pd2.tot_len = ntohs(h2.ip_len);
 			pd2.src = (struct pf_addr *)&h2.ip_src;
 			pd2.dst = (struct pf_addr *)&h2.ip_dst;
 			pd2.ip_sum = &h2.ip_sum;
@@ -7956,6 +7955,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			if (pf_walk_header6(&pd2, &h2_6, reason) != PF_PASS)
 				return (PF_DROP);
 
+			pd2.tot_len = ntohs(h2_6.ip6_plen) +
+			    sizeof(struct ip6_hdr);
 			pd2.src = (struct pf_addr *)&h2_6.ip6_src;
 			pd2.dst = (struct pf_addr *)&h2_6.ip6_dst;
 			pd2.ip_sum = NULL;
