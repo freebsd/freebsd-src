@@ -1625,6 +1625,7 @@ struct pf_pdesc {
 	struct pf_rule_actions	act;
 
 	u_int32_t	 off;		/* protocol header offset */
+	bool		 df;		/* IPv4 Don't fragment flag. */
 	u_int32_t	 hdrlen;	/* protocol header length */
 	u_int32_t	 p_len;		/* total length of protocol payload */
 	u_int32_t	 extoff;	/* extentsion header offset */
