@@ -43,7 +43,15 @@ done
 shift $((OPTIND - 1))
 
 LC_ALL=C; export LC_ALL
-u=${USER-root} h=${HOSTNAME-`hostname`} t=`date`
+u=${USER-root} h=${HOSTNAME-`hostname`}
+if [ -n "$SOURCE_DATE_EPOCH" ]; then
+	if ! t=$(date -ur $SOURCE_DATE_EPOCH 2>/dev/null); then
+		echo "Invalid SOURCE_DATE_EPOCH" >&2
+		exit 1
+	fi
+else
+	t=`date`
+fi
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
 bootprog_info="FreeBSD/${3} ${2}, Revision ${r}\\n"
