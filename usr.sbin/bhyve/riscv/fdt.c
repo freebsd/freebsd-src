@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2022 The FreeBSD Foundation
- * Copyright (c) 2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2024-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by Andrew Turner under sponsorship from
  * the FreeBSD Foundation.
@@ -44,6 +44,8 @@
 #include <libfdt.h>
 #include <vmmapi.h>
 
+#include <machine/intr.h>
+
 #include "config.h"
 #include "bhyverun.h"
 #include "fdt.h"
@@ -58,7 +60,7 @@
 
 static void *fdtroot;
 static uint32_t aplic_phandle = 0;
-static uint32_t intc0_phandle = 0;
+static uint32_t *intc_phandles = NULL;
 
 static uint32_t
 assign_phandle(void *fdt)
@@ -84,7 +86,7 @@ set_single_reg(void *fdt, uint64_t start, uint64_t len)
 }
 
 static void
-add_cpu(void *fdt, int cpuid, const char *isa)
+add_cpu(void *fdt, int cpuid, const char *isa, uint32_t *intc_phandle)
 {
 	char node_name[16];
 
@@ -98,7 +100,7 @@ add_cpu(void *fdt, int cpuid, const char *isa)
 	fdt_property_string(fdt, "mmu-type", "riscv,sv39");
 
 	fdt_begin_node(fdt, "interrupt-controller");
-	intc0_phandle = assign_phandle(fdt);
+	*intc_phandle = assign_phandle(fdt);
 	fdt_property_u32(fdt, "#address-cells", 2);
 	fdt_property_u32(fdt, "#interrupt-cells", 1);
 	fdt_property(fdt, "interrupt-controller", NULL, 0);
@@ -120,8 +122,9 @@ add_cpus(void *fdt, int ncpu, const char *isa)
 	/* TODO: take timebase from kernel? */
 	fdt_property_u32(fdt, "timebase-frequency", 1000000);
 
+	intc_phandles = malloc(sizeof(uint32_t) * ncpu);
 	for (cpuid = 0; cpuid < ncpu; cpuid++)
-		add_cpu(fdt, cpuid, isa);
+		add_cpu(fdt, cpuid, isa, &intc_phandles[cpuid]);
 
 	fdt_end_node(fdt);
 }
@@ -172,10 +175,11 @@ fdt_init(struct vmctx *ctx, int ncpu, vm_paddr_t fdtaddr, vm_size_t fdtsize,
 }
 
 void
-fdt_add_aplic(uint64_t mem_base, uint64_t mem_size)
+fdt_add_aplic(uint64_t mem_base, uint64_t mem_size, int ncpu)
 {
 	char node_name[32];
 	void *fdt, *prop;
+	int i;
 
 	fdt = fdtroot;
 
@@ -196,10 +200,13 @@ fdt_add_aplic(uint64_t mem_base, uint64_t mem_size)
 	SET_PROP_U64(prop, 0, mem_base);
 	SET_PROP_U64(prop, 1, mem_size);
 
+	assert(intc_phandles != NULL);
 	fdt_property_placeholder(fdt, "interrupts-extended",
-	    2 * sizeof(uint32_t), &prop);
-	SET_PROP_U32(prop, 0, intc0_phandle);
-	SET_PROP_U32(prop, 1, 9);
+	    2 * ncpu * sizeof(uint32_t), &prop);
+	for (i = 0; i < ncpu; i++) {
+		SET_PROP_U32(prop, i * 2 + 0, intc_phandles[i]);
+		SET_PROP_U32(prop, i * 2 + 1, IRQ_EXTERNAL_SUPERVISOR);
+	}
 	fdt_property_u32(fdt, "riscv,num-sources", 63);
 
 	fdt_end_node(fdt);
@@ -325,4 +332,6 @@ fdt_finalize(void)
 	fdt_end_node(fdtroot);
 
 	fdt_finish(fdtroot);
+
+	free(intc_phandles);
 }
