@@ -4405,20 +4405,18 @@ sohasoutofband(struct socket *so)
 }
 
 int
-sopoll(struct socket *so, int events, struct ucred *active_cred,
-    struct thread *td)
+sopoll(struct socket *so, int events, struct thread *td)
 {
 
 	/*
 	 * We do not need to set or assert curvnet as long as everyone uses
 	 * sopoll_generic().
 	 */
-	return (so->so_proto->pr_sopoll(so, events, active_cred, td));
+	return (so->so_proto->pr_sopoll(so, events, td));
 }
 
 int
-sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
-    struct thread *td)
+sopoll_generic(struct socket *so, int events, struct thread *td)
 {
 	int revents;
 

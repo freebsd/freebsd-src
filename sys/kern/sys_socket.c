@@ -288,7 +288,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	return (sopoll(so, events, fp->f_cred, td));
+	return (sopoll(so, events, td));
 }
 
 static int

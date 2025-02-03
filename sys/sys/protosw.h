@@ -93,8 +93,7 @@ typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 		    struct mbuf *, struct mbuf *, int, struct thread *);
 typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,
 		    struct uio *, struct mbuf **, struct mbuf **, int *);
-typedef int	pr_sopoll_t(struct socket *, int, struct ucred *,
-		    struct thread *);
+typedef int	pr_sopoll_t(struct socket *, int, struct thread *);
 typedef void	pr_sosetlabel_t(struct socket *);
 typedef void	pr_close_t(struct socket *);
 typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
