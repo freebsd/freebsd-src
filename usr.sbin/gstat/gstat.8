@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2003 Giorgos Keramidas
 .\" All rights reserved.
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 1, 2021
+.Dd February 1, 2025
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -30,7 +33,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl abBcdops
+.Op Fl abBcCdops
 .Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
@@ -75,11 +78,6 @@ Only devices with the names matching
 will be displayed.
 The format of the regular expression is described in
 .Xr re_format 7 .
-.It Fl o
-Enable display of statistics for other operations
-.Pq Dv BIO_FLUSH .
-.It Fl s
-Enable blocks' size statistics.
 .It Fl I Ar interval
 Refresh the
 .Nm
@@ -92,8 +90,13 @@ or
 .Cm us
 (the default) indicates that the update interval is specified in
 seconds, milliseconds, or microseconds, respectively.
+.It Fl o
+Enable display of statistics for other operations
+.Pq Dv BIO_FLUSH .
 .It Fl p
 Only display physical providers (those with rank of 1).
+.It Fl s
+Enable blocks' size statistics.
 .El
 .Sh INTERACTIVE COMMANDS
 These commands are currently recognized if

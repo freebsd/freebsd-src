@@ -141,9 +141,6 @@ main(int argc, char **argv)
 				    "Invalid filter - see re_format(7)");
 			strlcpy(f_s, optarg, sizeof(f_s));
 			break;
-		case 'o':
-			flag_o = 1;
-			break;
 		case 'I':
 			p = NULL;
 			i = strtoul(optarg, &p, 0);
@@ -157,6 +154,9 @@ main(int argc, char **argv)
 			else if (!strcmp(p, "us"))
 				i *= 1;
 			flag_I = i;
+			break;
+		case 'o':
+			flag_o = 1;
 			break;
 		case 'p':
 			flag_p = 1;
@@ -615,7 +615,7 @@ out:
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: gstat [-abBcCdps] [-f filter] [-I interval]\n");
+	fprintf(stderr, "usage: gstat [-abBcCdops] [-f filter] [-I interval]\n");
 	exit(EX_USAGE);
         /* NOTREACHED */
 }
