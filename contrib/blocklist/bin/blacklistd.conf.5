@@ -209,7 +209,7 @@ bnx0:ssh	*	*	*	*	3	6h
 [remote]
 # Never block 1.2.3.4
 1.2.3.4:ssh	*	*	*	*	*	*
-# For addresses coming from 8.8.0.0/16 block class C networks instead
+# For addresses coming from 8.8.0.0/16 block whole /24 networks instead of
 # individual hosts, but keep the rest of the blocking parameters the same.
 8.8.0.0/16:ssh	*	*	*	/24	=	=
 .Ed
