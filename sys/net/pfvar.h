@@ -1088,7 +1088,7 @@ struct pf_kstate {
 	u_int16_t		 state_flags;
 	u_int8_t		 timeout;
 	u_int8_t		 sync_state; /* PFSYNC_S_x */
-	u_int8_t		 sync_updates; /* XXX */
+	u_int8_t		 sync_updates;
 	u_int			 refs;
 	struct mtx		*lock;
 	TAILQ_ENTRY(pf_kstate)	 sync_list;
