@@ -240,9 +240,9 @@ default_route_with_multiple_fibs_on_same_subnet_body()
 
 	# Verify that the default route exists for both fibs, with their
 	# respective interfaces.
-	atf_check -o match:"^0\.0\.0\.0.*${TAP0}$" \
+	atf_check -o match:"^default.*${TAP0}$" \
 		setfib ${FIB0} netstat -rn -f inet
-	atf_check -o match:"^0\.0\.0\.0.*${TAP1}$" \
+	atf_check -o match:"^default.*${TAP1}$" \
 		setfib ${FIB1} netstat -rn -f inet
 }
 
@@ -286,9 +286,9 @@ default_route_with_multiple_fibs_on_same_subnet_inet6_body()
 
 	# Verify that the default route exists for both fibs, with their
 	# respective interfaces.
-	atf_check -o match:"^::/0.*${TAP0}$" \
+	atf_check -o match:"^default.*${TAP0}$" \
 		setfib ${FIB0} netstat -rn -f inet6
-	atf_check -o match:"^::/0.*${TAP1}$" \
+	atf_check -o match:"^default.*${TAP1}$" \
 		setfib ${FIB1} netstat -rn -f inet6
 }
 
@@ -479,7 +479,7 @@ slaac_on_nondefault_fib6_body()
 	atf_check -o match:"${SUBNET}:/${MASK}.*\<U\>.*$EPAIRB" \
 		netstat -rnf inet6 -F $FIB1
 	# Check default route
-	atf_check -o match:"^::/0.*\<UG\>.*$EPAIRB" \
+	atf_check -o match:"default.*\<UG\>.*$EPAIRB" \
 		netstat -rnf inet6 -F $FIB1
 
 	# Check that none of the above routes appeared on other routes

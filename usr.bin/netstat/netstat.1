@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2024
+.Dd January 29, 2025
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -872,6 +872,12 @@ Normally
 .Nm
 attempts to resolve addresses and ports,
 and display them symbolically.
+Specifying
+.Fl n
+twice will also disable printing the keyword
+.Qq Dv default
+for the default IPv4 and IPv6 routes when displaying contents of routing
+tables.
 .It Fl W
 Wider output; expand address fields, etc, to avoid truncation.
 Non-numeric values such as domain names may still be truncated; use the
