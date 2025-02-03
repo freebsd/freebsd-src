@@ -2463,7 +2463,7 @@ pfctl_load_limit(struct pfctl *pf, unsigned int index, unsigned int limit)
 		if (errno == EBUSY)
 			warnx("Current pool size exceeds requested hard limit");
 		else
-			warnx("DIOCSETLIMIT");
+			warnx("cannot set '%s' limit", pf_limits[index].name);
 		return (1);
 	}
 	return (0);
