@@ -207,8 +207,8 @@ int	iflag;		/* show interfaces */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
-int	numeric_addr;	/* show addresses numerically */
-int	numeric_port;	/* show ports numerically */
+u_int	numeric_addr = 0; /* show addresses numerically */
+bool	numeric_port;	/* show ports numerically */
 int	Oflag;		/* show nhgrp objects*/
 int	oflag;		/* show nexthop objects*/
 int	Pflag;		/* show TCP log ID */
@@ -361,7 +361,8 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'n':
-			numeric_addr = numeric_port = 1;
+			numeric_addr++;
+			numeric_port = true;
 			break;
 		case 'o':
 			oflag = 1;
