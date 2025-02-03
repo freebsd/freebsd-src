@@ -365,6 +365,26 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 	/* Device does not support 'PREVENT/ALLOW MEDIUM REMOVAL'. */
 #define	NO_PREVENT_ALLOW	0x8000
 
+#define UMASS_QUIRKS_STRING		\
+	"\020"				\
+	"\001NO_TEST_UNIT_READY"	\
+	"\002RS_NO_CLEAR_UA"		\
+	"\003NO_START_STOP"		\
+	"\004FORCE_SHORT_INQUIRY"	\
+	"\005SHUTTLE_INIT"		\
+	"\006ALT_IFACE_1"		\
+	"\007FLOPPY_SPEED"		\
+	"\010IGNORE_RESIDUE"		\
+	"\011NO_GETMAXLUN"		\
+	"\012WRONG_CSWSIG"		\
+	"\013NO_INQUIRY"		\
+	"\014NO_INQUIRY_EVPD"		\
+	"\015RBC_PAD_TO_12"		\
+	"\016READ_CAPACITY_OFFBY1"	\
+	"\017NO_SYNCHRONIZE_CACHE"	\
+	"\020NO_PREVENT_ALLOW"		\
+
+
 struct umass_softc {
 	struct scsi_sense cam_scsi_sense;
 	struct scsi_test_unit_ready cam_scsi_test_unit_ready;
@@ -956,7 +976,7 @@ umass_attach(device_t dev)
 		    sc->sc_proto & UMASS_PROTO_WIRE);
 	}
 
-	printf("; quirks = 0x%04x\n", sc->sc_quirks);
+	printf("; quirks = 0x%b\n", sc->sc_quirks, UMASS_QUIRKS_STRING);
 #endif
 
 	if (sc->sc_quirks & ALT_IFACE_1) {
