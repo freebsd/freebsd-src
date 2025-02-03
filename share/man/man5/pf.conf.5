@@ -707,7 +707,7 @@ For each packet processed by the packet filter, the filter rules are
 evaluated in sequential order, from first to last.
 The last matching rule decides what action is taken.
 If no rule matches the packet, the default action is to pass
-the packet.
+the packet without creating a state.
 .Pp
 The following actions can be used in the filter:
 .Bl -tag -width xxxx
