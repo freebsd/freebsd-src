@@ -46,7 +46,7 @@ SUBDIR=	async \
 	socket \
 	source \
 	split \
-	sppp \
+	${_sppp} \
 	tag \
 	tcpmss \
 	tee \
@@ -62,6 +62,10 @@ _bluetooth=	bluetooth
 
 .if ${MK_CRYPT} != "no" && exists(${SYSDIR}/crypto/rc4/rc4.c)
 _mppc=		mppc
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_sppp=		sppp
 .endif
 
 .include <bsd.subdir.mk>
