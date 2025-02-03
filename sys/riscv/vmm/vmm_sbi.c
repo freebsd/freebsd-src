@@ -154,6 +154,7 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 	cpuset_t active_cpus;
 	struct hyp *hyp;
 	uint64_t hart_mask;
+	uint64_t hart_mask_base;
 	uint64_t func_id;
 	int hart_id;
 	int bit;
@@ -161,6 +162,7 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 
 	func_id = hypctx->guest_regs.hyp_a[6];
 	hart_mask = hypctx->guest_regs.hyp_a[0];
+	hart_mask_base = hypctx->guest_regs.hyp_a[1];
 
 	dprintf("%s: hart_mask %lx\n", __func__, hart_mask);
 
@@ -173,6 +175,8 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 		while ((bit = ffs(hart_mask))) {
 			hart_id = (bit - 1);
 			hart_mask &= ~(1u << hart_id);
+			if (hart_mask_base != -1)
+				hart_id += hart_mask_base;
 			if (CPU_ISSET(hart_id, &active_cpus)) {
 				/* TODO. */
 				target_vcpu = vm_vcpu(hyp->vm, hart_id);
