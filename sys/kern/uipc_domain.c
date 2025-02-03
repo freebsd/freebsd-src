@@ -176,12 +176,6 @@ pr_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
 	return (EOPNOTSUPP);
 }
 
-static int
-pr_sopoll_notsupp(struct socket *so, int events, struct thread *td)
-{
-	return (EOPNOTSUPP);
-}
-
 static void
 pr_init(struct domain *dom, struct protosw *pr)
 {
@@ -216,7 +210,6 @@ pr_init(struct domain *dom, struct protosw *pr)
 	NOTSUPP(pr_sockaddr);
 	NOTSUPP(pr_sosend);
 	NOTSUPP(pr_soreceive);
-	NOTSUPP(pr_sopoll);
 	NOTSUPP(pr_ready);
 }
 
