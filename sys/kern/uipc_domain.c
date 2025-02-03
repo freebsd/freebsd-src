@@ -177,8 +177,7 @@ pr_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
 }
 
 static int
-pr_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
-    struct thread *td)
+pr_sopoll_notsupp(struct socket *so, int events, struct thread *td)
 {
 	return (EOPNOTSUPP);
 }

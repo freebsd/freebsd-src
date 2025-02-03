@@ -1817,7 +1817,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	 */
 	for (;;) {
 		selfdalloc(td, NULL);
-		if (sopoll(so, events, NULL, td) != 0) {
+		if (sopoll(so, events, td) != 0) {
 			error = 0;
 			break;
 		}

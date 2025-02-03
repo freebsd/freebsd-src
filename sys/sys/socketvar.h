@@ -525,10 +525,8 @@ struct socket *
 	sonewconn(struct socket *head, int connstatus);
 struct socket *
 	sopeeloff(struct socket *);
-int	sopoll(struct socket *so, int events, struct ucred *active_cred,
-	    struct thread *td);
-int	sopoll_generic(struct socket *so, int events,
-	    struct ucred *active_cred, struct thread *td);
+int	sopoll(struct socket *so, int events, struct thread *td);
+int	sopoll_generic(struct socket *so, int events, struct thread *td);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
 int	soreceive_stream(struct socket *so, struct sockaddr **paddr,
