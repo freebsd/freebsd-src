@@ -190,7 +190,7 @@ u=${USER:-root}
 d=$(pwd)
 h=${HOSTNAME:-$(hostname)}
 if [ -n "$SOURCE_DATE_EPOCH" ]; then
-	if ! t=$(date -r $SOURCE_DATE_EPOCH 2>/dev/null); then
+	if ! t=$(date -ur $SOURCE_DATE_EPOCH 2>/dev/null); then
 		echo "Invalid SOURCE_DATE_EPOCH" >&2
 		exit 1
 	fi
