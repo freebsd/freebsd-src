@@ -2355,7 +2355,7 @@ hn_attach(device_t dev)
 	}
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rsc_switch",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_rsc_sysctl, "A",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_rsc_sysctl, "I",
 	    "switch to rsc");
 
 	/*
@@ -4523,24 +4523,22 @@ static int
 hn_rsc_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
-	uint32_t mtu;
+	int rsc_ctrl, mtu;
 	int error;
-	HN_LOCK(sc);
-	error = hn_rndis_get_mtu(sc, &mtu);
-	if (error) {
-		if_printf(sc->hn_ifp, "failed to get mtu\n");
-		goto back;
-	}
-	error = SYSCTL_OUT(req, &(sc->hn_rsc_ctrl), sizeof(sc->hn_rsc_ctrl));
-	if (error || req->newptr == NULL)
-		goto back;
 
-	error = SYSCTL_IN(req, &(sc->hn_rsc_ctrl), sizeof(sc->hn_rsc_ctrl));
-	if (error)
-		goto back;
-	error = hn_rndis_reconf_offload(sc, mtu);
-back:
-	HN_UNLOCK(sc);
+	rsc_ctrl = sc->hn_rsc_ctrl;
+	error = sysctl_handle_int(oidp, &rsc_ctrl, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (sc->hn_rsc_ctrl != rsc_ctrl) {
+		HN_LOCK(sc);
+		sc->hn_rsc_ctrl = rsc_ctrl;
+		mtu = if_getmtu(sc->hn_ifp);
+		error = hn_rndis_reconf_offload(sc, mtu);
+		HN_UNLOCK(sc);
+	}
+
 	return (error);
 }
 #ifndef RSS
