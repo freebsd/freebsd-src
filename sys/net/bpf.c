@@ -2847,6 +2847,33 @@ bpf_get_bp_params(struct bpf_if *bp, u_int *bif_dlt, u_int *bif_hdrlen)
 
 	return (0);
 }
+
+/*
+ * Detach descriptors on interface's vmove event.
+ */
+void
+bpf_ifdetach(struct ifnet *ifp)
+{
+	struct bpf_if *bp;
+	struct bpf_d *d;
+
+	BPF_LOCK();
+	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp != ifp)
+			continue;
+
+		/* Detach common descriptors */
+		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
+			bpf_detachd_locked(d, true);
+		}
+
+		/* Detach writer-only descriptors */
+		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
+			bpf_detachd_locked(d, true);
+		}
+	}
+	BPF_UNLOCK();
+}
 #endif
 
 /*
