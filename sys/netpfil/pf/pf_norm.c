@@ -547,7 +547,6 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 	struct pf_frent		*after, *next, *prev;
 	struct pf_fragment	*frag;
 	uint16_t		total;
-	int			old_index, new_index;
 
 	PF_FRAG_ASSERT();
 
@@ -661,32 +660,20 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		uint16_t aftercut;
 
 		aftercut = frent->fe_off + frent->fe_len - after->fe_off;
-		DPFPRINTF(("adjust overlap %d\n", aftercut));
 		if (aftercut < after->fe_len) {
+			DPFPRINTF(("frag tail overlap %d", aftercut));
 			m_adj(after->fe_m, aftercut);
-			old_index = pf_frent_index(after);
+			/* Fragment may switch queue as fe_off changes */
+			pf_frent_remove(frag, after);
 			after->fe_off += aftercut;
 			after->fe_len -= aftercut;
-			new_index = pf_frent_index(after);
-			if (old_index != new_index) {
-				DPFPRINTF(("frag index %d, new %d\n",
-				    old_index, new_index));
-				/* Fragment switched queue as fe_off changed */
-				after->fe_off -= aftercut;
-				after->fe_len += aftercut;
-				/* Remove restored fragment from old queue */
-				pf_frent_remove(frag, after);
-				after->fe_off += aftercut;
-				after->fe_len -= aftercut;
-				/* Insert into correct queue */
-				if (pf_frent_insert(frag, after, prev)) {
-					DPFPRINTF(
-					    ("fragment requeue limit exceeded\n"));
-					m_freem(after->fe_m);
-					uma_zfree(V_pf_frent_z, after);
-					/* There is not way to recover */
-					goto bad_fragment;
-				}
+			/* Insert into correct queue */
+			if (pf_frent_insert(frag, after, prev)) {
+				DPFPRINTF(("fragment requeue limit exceeded"));
+				m_freem(after->fe_m);
+				uma_zfree(V_pf_frent_z, after);
+				/* There is not way to recover */
+				goto free_fragment;
 			}
 			break;
 		}
