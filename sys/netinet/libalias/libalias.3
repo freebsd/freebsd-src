@@ -200,11 +200,11 @@ is closed.
 .It Dv PKT_ALIAS_UNREGISTERED_ONLY
 If this mode bit is set, traffic on the local network which does not
 originate from unregistered address spaces will be ignored.
-Standard Class A, B and C unregistered addresses are:
+The standard private IP address ranges are:
 .Pp
-10.0.0.0     ->  10.255.255.255   (Class A subnet)
-172.16.0.0   ->  172.31.255.255   (Class B subnets)
-192.168.0.0  ->  192.168.255.255  (Class C subnets)
+10.0.0.0           ->        10.255.255.255   (/8)
+172.16.0.0         ->        172.31.255.255   (/16)
+192.168.0.0        ->        192.168.255.255  (/24)
 .Pp
 This option is useful in the case that the packet aliasing host has both
 registered and unregistered subnets on different interfaces.
