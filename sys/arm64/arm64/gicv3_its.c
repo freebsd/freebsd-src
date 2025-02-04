@@ -1744,9 +1744,15 @@ gicv3_iommu_init(device_t dev, device_t child, struct iommu_domain **domain)
 	int error;
 
 	sc = device_get_softc(dev);
+	/*
+	 * Get the context. If no context is found then the device isn't
+	 * behind an IOMMU so no setup is needed.
+	 */
 	ctx = iommu_get_dev_ctx(child);
-	if (ctx == NULL)
-		return (ENXIO);
+	if (ctx == NULL) {
+		*domain = NULL;
+		return (0);
+	}
 	/* Map the page containing the GITS_TRANSLATER register. */
 	error = iommu_map_msi(ctx, PAGE_SIZE, 0,
 	    IOMMU_MAP_ENTRY_WRITE, IOMMU_MF_CANWAIT, &sc->ma);
