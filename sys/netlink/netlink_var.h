@@ -144,21 +144,6 @@ struct nl_buf *nl_buf_alloc(size_t len, int mflag);
 void nl_buf_free(struct nl_buf *nb);
 
 /* netlink_generic.c */
-struct genl_family {
-	const char	*family_name;
-	uint16_t	family_hdrsize;
-	uint16_t	family_version;
-	uint16_t	family_attr_max;
-	uint16_t	family_cmd_size;
-	uint16_t	family_num_groups;
-	struct genl_cmd	*family_cmds;
-};
-
-struct genl_group {
-	struct genl_family	*group_family;
-	const char		*group_name;
-};
-
 struct genl_family *genl_get_family(uint16_t family_id);
 struct genl_group *genl_get_group(uint32_t group_id);
 

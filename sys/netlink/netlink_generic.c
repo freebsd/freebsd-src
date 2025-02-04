@@ -47,8 +47,47 @@
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_INFO);
 
-static int dump_family(struct nlmsghdr *hdr, struct genlmsghdr *ghdr,
-    const struct genl_family *gf, struct nl_writer *nw);
+static int nlctrl_handle_getfamily(struct nlmsghdr *, struct nl_pstate *);
+
+static struct genl_cmd nlctrl_cmds[] = {
+	[CTRL_CMD_GETFAMILY] = {
+		.cmd_num = CTRL_CMD_GETFAMILY,
+		.cmd_name = "GETFAMILY",
+		.cmd_cb = nlctrl_handle_getfamily,
+		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP |
+		    GENL_CMD_CAP_HASPOL,
+	},
+};
+
+static struct genl_family {
+	const char	*family_name;
+	uint16_t	family_hdrsize;
+	uint16_t	family_version;
+	uint16_t	family_attr_max;
+	uint16_t	family_cmd_size;
+	uint16_t	family_num_groups;
+	struct genl_cmd	*family_cmds;
+} families[MAX_FAMILIES] = {
+	[CTRL_FAMILY_ID] = {
+		.family_name = CTRL_FAMILY_NAME,
+		.family_hdrsize = 0,
+		.family_version = 2,
+		.family_attr_max = CTRL_ATTR_MAX,
+		.family_cmd_size = CTRL_CMD_GETFAMILY + 1,
+		.family_cmds = nlctrl_cmds,
+		.family_num_groups = 1,
+	},
+};
+
+static struct genl_group {
+	struct genl_family	*group_family;
+	const char		*group_name;
+} groups[MAX_GROUPS] = {
+	[CTRL_GROUP_ID] = {
+		.group_family = &families[CTRL_FAMILY_ID],
+		.group_name = CTRL_GROUP_NAME,
+	},
+};
 
 /*
  * Handler called by netlink subsystem when matching netlink message is received
@@ -298,35 +337,6 @@ SX_SYSINIT(genl_lock, &sx_lock, "genetlink lock");
 #define	GENL_UNLOCK()		sx_xunlock(&sx_lock)
 #define	GENL_ASSERT_LOCKED()	sx_assert(&sx_lock, SA_LOCKED)
 #define	GENL_ASSERT_XLOCKED()	sx_assert(&sx_lock, SA_XLOCKED)
-
-static struct genl_cmd nlctrl_cmds[] = {
-	[CTRL_CMD_GETFAMILY] = {
-		.cmd_num = CTRL_CMD_GETFAMILY,
-		.cmd_name = "GETFAMILY",
-		.cmd_cb = nlctrl_handle_getfamily,
-		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP |
-		    GENL_CMD_CAP_HASPOL,
-	},
-};
-
-static struct genl_family families[MAX_FAMILIES] = {
-	[CTRL_FAMILY_ID] = {
-		.family_name = CTRL_FAMILY_NAME,
-		.family_hdrsize = 0,
-		.family_version = 2,
-		.family_attr_max = CTRL_ATTR_MAX,
-		.family_cmd_size = CTRL_CMD_GETFAMILY + 1,
-		.family_cmds = nlctrl_cmds,
-		.family_num_groups = 1,
-	},
-}
-;
-static struct genl_group groups[MAX_GROUPS] = {
-	[CTRL_GROUP_ID] = {
-		.group_family = &families[CTRL_FAMILY_ID],
-		.group_name = CTRL_GROUP_NAME,
-	},
-};
 
 static struct genl_family *
 find_family(const char *family_name)
