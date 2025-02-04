@@ -1899,7 +1899,15 @@ dastrategy(struct bio *bp)
 	cam_periph_lock(periph);
 
 	/*
-	 * If the device has been made invalid, error out
+	 * If the pack has been invalidated, fail all I/O. The medium is not
+	 * suitable for normal I/O, because one or more is ture:
+	 *	- the medium is missing
+	 *	- its size is unknown
+	 *	- it differs from the medium present at daopen
+	 *	- we're tearing the cam periph device down
+	 * Since we have the cam periph lock, we don't need to check it for
+	 * the last condition since PACK_INVALID is set when we invalidate
+	 * the device.
 	 */
 	if ((softc->flags & DA_FLAG_PACK_INVALID)) {
 		cam_periph_unlock(periph);
@@ -1946,6 +1954,10 @@ dadump(void *arg, void *virtual, off_t offset, size_t length)
 	softc = (struct da_softc *)periph->softc;
 	secsize = softc->params.secsize;
 
+	/*
+	 * Can't dump to a disk that's not there or changed, for whatever
+	 * reason.
+	 */
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0)
 		return (ENXIO);
 
