@@ -285,6 +285,42 @@ overlimit_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "overhole" "cleanup"
+overhole_head()
+{
+	atf_set descr 'ping fragment at index boundary which modifies pf hole counter'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+overhole_body()
+{
+	frag_common overhole
+}
+
+overhole_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "adjhole" "cleanup"
+adjhole_head()
+{
+	atf_set descr 'overlapping ping fragments which modifies pf hole counter'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+adjhole_body()
+{
+	frag_common adjhole
+}
+
+adjhole_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "reassemble" "cleanup"
 reassemble_head()
 {
@@ -476,6 +512,8 @@ atf_init_test_cases()
 	atf_add_test_case "overreplace"
 	atf_add_test_case "overindex"
 	atf_add_test_case "overlimit"
+	atf_add_test_case "overhole"
+	atf_add_test_case "adjhole"
 	atf_add_test_case "reassemble"
 	atf_add_test_case "no_df"
 	atf_add_test_case "reassemble_slowpath"
