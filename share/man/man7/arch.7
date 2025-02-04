@@ -352,7 +352,7 @@ userland interfaces relating to underlying hardware platform
 differences in bus architecture, device enumeration and boot interface.
 Generally,
 .Dv MACHINE
-should only be used in src/sys and src/stand or in system imagers or
+should only be used in src/sys and src/stand or in system images or
 installers.
 .It Dv MACHINE_ARCH
 Represents the CPU processor architecture.
@@ -414,7 +414,7 @@ in the top level Makefile for cross building.
 Unused outside of that scope.
 It is not passed down to the rest of the build.
 Makefiles outside of the top level should not use it at all (though
-some have their own private copy for hysterical raisons).
+some have their own private copy for historical reasons).
 .It Dv TARGET_ARCH
 Used to set
 .Dv MACHINE_ARCH
