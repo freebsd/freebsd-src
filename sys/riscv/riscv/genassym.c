@@ -86,7 +86,7 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 
-ASSYM(TF_SIZE, roundup2(sizeof(struct trapframe), STACKALIGNBYTES + 1));
+ASSYM(TF_SIZE, TF_SIZE);
 ASSYM(TF_RA, offsetof(struct trapframe, tf_ra));
 ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));
 ASSYM(TF_GP, offsetof(struct trapframe, tf_gp));
@@ -98,6 +98,8 @@ ASSYM(TF_SEPC, offsetof(struct trapframe, tf_sepc));
 ASSYM(TF_STVAL, offsetof(struct trapframe, tf_stval));
 ASSYM(TF_SCAUSE, offsetof(struct trapframe, tf_scause));
 ASSYM(TF_SSTATUS, offsetof(struct trapframe, tf_sstatus));
+
+ASSYM(KF_TP, offsetof(struct kernframe, kf_tp));
 
 ASSYM(RISCV_BOOTPARAMS_SIZE, sizeof(struct riscv_bootparams));
 ASSYM(RISCV_BOOTPARAMS_KERN_L1PT, offsetof(struct riscv_bootparams, kern_l1pt));
