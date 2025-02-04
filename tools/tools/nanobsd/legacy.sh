@@ -64,31 +64,30 @@ calculate_partitioning ( ) (
 		}
 
 		# First image partition start at second track
-		print $3, isl * cs - $3
+		print $3, isl * cs - $3, 1
 		c = isl * cs;
 
 		# Second image partition (if any) also starts offset one
 		# track to keep them identical.
 		if ($2 > 1) {
-			print $3 + c, isl * cs - $3
+			print $3 + c, isl * cs - $3, 2
 			c += isl * cs;
 		}
 
 		# Config partition starts at cylinder boundary.
-		print c, csl * cs
+		print c, csl * cs, 3
 		c += csl * cs
 
 		# Data partition (if any) starts at cylinder boundary.
 		if ($7 > 0) {
-			print c, dsl * cs
+			print c, dsl * cs, 4
 		} else if ($7 < 0 && $1 > c) {
-			print c, $1 - c
+			print c, $1 - c, 4
 		} else if ($1 < c) {
 			print "Disk space overcommitted by", \
 			    c - $1, "sectors" > "/dev/stderr"
 			exit 2
 		}
-
 	}
 	' > ${NANO_LOG}/_.partitioning
 )
@@ -174,7 +173,7 @@ create_diskimage ( ) (
 	}
 	{
 		# Make partition
-		print "gpart add -t freebsd -b ", $1, " -s ", $2, " $1"
+		print "gpart add -t freebsd -b ", $1, " -s ", $2, " -i ", $3, " $1"
 	}
 	END {
 		# Force slice 1 to be marked active. This is necessary
