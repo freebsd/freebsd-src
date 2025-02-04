@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_DIRS+=usr/tests/sys/vm/stack/.debug
+
 # 20241201: new clang import which bumps version from 18 to 19
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_cmath.h
