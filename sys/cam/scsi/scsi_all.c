@@ -3419,7 +3419,15 @@ fetchtableentries(int sense_key, int asc, int ascq,
 				      ascentrycomp);
 
 		if (found_entry) {
+			/*
+			 * If we get to the SSQ_RANGE entry, we're one too
+			 * far. The prior entry is the interesting one, since it
+			 * contains the string to print, etc. Only the top end
+			 * range is interesting in this entry.
+			 */
 			*asc_entry = (struct asc_table_entry *)found_entry;
+			if (((*asc_entry)->action & SSQ_RANGE) != 0)
+				(*asc_entry)--;
 			break;
 		}
 	}
