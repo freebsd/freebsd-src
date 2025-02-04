@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_DIRS+=usr/tests/sys/vm/stack/.debug
+
 # 20250129: libdevinfo bumped to version 7
 OLD_LIBS+=lib/libdevinfo.so.6
 
