@@ -116,7 +116,7 @@ APIINCS=	\
 	ocsd_c_api_types.h		\
 	opencsd_c_api.h
 
-APIINCSDIR=${INCLUDEDIR}/opencsd/c_api/
+APIINCSDIR=${INCLUDEDIR}/opencsd/c_api
 
 ETMV4INCS=	\
 	etmv4_decoder.h			\
@@ -129,7 +129,7 @@ ETMV4INCS=	\
 	trc_pkt_proc_etmv4i.h		\
 	trc_pkt_types_etmv4.h
 
-ETMV4INCSDIR=${INCLUDEDIR}/opencsd/etmv4/
+ETMV4INCSDIR=${INCLUDEDIR}/opencsd/etmv4
 
 ETMV3INCS=	\
 	etmv3_decoder.h			\
@@ -140,7 +140,7 @@ ETMV3INCS=	\
 	trc_pkt_proc_etmv3.h		\
 	trc_pkt_types_etmv3.h
 
-ETMV3INCSDIR=${INCLUDEDIR}/opencsd/etmv3/
+ETMV3INCSDIR=${INCLUDEDIR}/opencsd/etmv3
 
 PTMINCS=	\
 	ptm_decoder.h			\
@@ -151,7 +151,7 @@ PTMINCS=	\
 	trc_pkt_proc_ptm.h		\
 	trc_pkt_types_ptm.h
 
-PTMINCSDIR=${INCLUDEDIR}/opencsd/ptm/
+PTMINCSDIR=${INCLUDEDIR}/opencsd/ptm
 
 STMINCS=	\
 	stm_decoder.h			\
@@ -162,7 +162,7 @@ STMINCS=	\
 	trc_pkt_proc_stm.h		\
 	trc_pkt_types_stm.h
 
-STMINCSDIR=${INCLUDEDIR}/opencsd/stm/
+STMINCSDIR=${INCLUDEDIR}/opencsd/stm
 
 INCSGROUPS=INCS APIINCS ETMV3INCS ETMV4INCS PTMINCS STMINCS
 
