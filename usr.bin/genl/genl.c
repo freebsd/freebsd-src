@@ -214,13 +214,19 @@ dump_operations(struct genl_ctrl_ops *ops)
 		return;
 	printf("\tsupported operations: \n");
 	for (uint32_t i = 0; i < ops->num_ops; i++) {
-		printf("\t  - ID: %#02x, Capabilities: %#02x (",
+		bool p = true;
+
+		printf("\t  - ID: %#02x, Capabilities: %#02x",
 		    ops->ops[i]->id,
 		    ops->ops[i]->flags);
 		for (size_t j = 0; j < nitems(op_caps); j++)
-			if ((ops->ops[i]->flags & op_caps[j].flag) == op_caps[j].flag)
-				printf("%s; ", op_caps[j].str);
-		printf("\b\b)\n");
+			if ((ops->ops[i]->flags & op_caps[j].flag) ==
+			    op_caps[j].flag) {
+				printf("%s%s", p ? " (" : "; ",
+				    op_caps[j].str);
+				p = false;
+			}
+		printf("%s\n", p ? "" : ")");
 	}
 }
 
