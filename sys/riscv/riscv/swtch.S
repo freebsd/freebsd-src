@@ -419,7 +419,7 @@ ENTRY(fork_trampoline)
 	 * Store our pcpup on stack, we will load it back
 	 * on kernel mode trap.
 	 */
-	sd	tp, (TF_SIZE)(sp)
+	sd	tp, (TF_SIZE + KF_TP)(sp)
 	ld	tp, (TF_TP)(sp)
 
 	/* Save kernel stack so we can use it doing a user trap */

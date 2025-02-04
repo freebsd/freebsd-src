@@ -53,7 +53,7 @@
 .option pop
 
 	/* Load our pcpu */
-	ld	tp, (TF_SIZE)(sp)
+	ld	tp, (TF_SIZE + KF_TP)(sp)
 .endif
 
 	sd	t0, (TF_T + 0 * 8)(sp)
@@ -139,7 +139,7 @@
 	csrw	sscratch, t0
 
 	/* Store our pcpu */
-	sd	tp, (TF_SIZE)(sp)
+	sd	tp, (TF_SIZE + KF_TP)(sp)
 	ld	tp, (TF_TP)(sp)
 
 	/* And restore the user's global pointer */
