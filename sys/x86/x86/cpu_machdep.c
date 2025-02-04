@@ -65,6 +65,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/pmckern.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -955,6 +956,7 @@ nmi_handle_intr(struct trapframe *frame)
 {
 	int (*func)(struct trapframe *);
 	struct nmi_handler *hp;
+	int rv;
 	bool handled;
 
 #ifdef SMP
@@ -965,13 +967,16 @@ nmi_handle_intr(struct trapframe *frame)
 	handled = false;
 	hp = (struct nmi_handler *)atomic_load_acq_ptr(
 	    (uintptr_t *)&nmi_handlers_head);
-	while (hp != NULL) {
+	while (!handled && hp != NULL) {
 		func = hp->func;
 		if (func != NULL) {
 			atomic_add_int(&hp->running, 1);
-			if (func(frame) != 0)
-				handled = true;
+			rv = func(frame);
 			atomic_subtract_int(&hp->running, 1);
+			if (rv != 0) {
+				handled = true;
+				break;
+			}
 		}
 		hp = (struct nmi_handler *)atomic_load_acq_ptr(
 		    (uintptr_t *)&hp->next);
