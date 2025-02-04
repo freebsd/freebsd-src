@@ -266,16 +266,16 @@ aproberegister(struct cam_periph *periph, void *arg)
 
 	request_ccb = (union ccb *)arg;
 	if (request_ccb == NULL) {
-		printf("proberegister: no probe CCB, "
-		       "can't register device\n");
+		printf(
+		    "proberegister: no probe CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
 	softc = (aprobe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_ZERO | M_NOWAIT);
 
 	if (softc == NULL) {
-		printf("proberegister: Unable to probe new device. "
-		       "Unable to allocate softc\n");
+		printf(
+	"proberegister: Unable to probe new device. Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 	TAILQ_INIT(&softc->request_ccbs);
@@ -1509,8 +1509,8 @@ scan_next:
 		if (status != CAM_REQ_CMP) {
 			if (request_ccb->ccb_h.func_code == XPT_SCAN_LUN)
 				mtx_unlock(mtx);
-			printf("xpt_scan_bus: xpt_create_path failed"
-			    " with status %#x, bus scan halted\n",
+			printf(
+	"xpt_scan_bus: xpt_create_path failed with status %#x, bus scan halted\n",
 			    status);
 			xpt_free_ccb(work_ccb);
 			xpt_free_ccb((union ccb *)scan_info->cpi);
@@ -1563,8 +1563,8 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	if (request_ccb == NULL) {
 		request_ccb = xpt_alloc_ccb_nowait();
 		if (request_ccb == NULL) {
-			xpt_print(path, "xpt_scan_lun: can't allocate CCB, "
-			    "can't continue\n");
+			xpt_print(path,
+			    "xpt_scan_lun: can't allocate CCB, can't continue\n");
 			return;
 		}
 		status = xpt_create_path(&new_path, NULL,
@@ -1572,8 +1572,8 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  path->target->target_id,
 					  path->device->lun_id);
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: can't create path, "
-			    "can't continue\n");
+			xpt_print(path,
+			    "xpt_scan_lun: can't create path, can't continue\n");
 			xpt_free_ccb(request_ccb);
 			return;
 		}
@@ -1607,8 +1607,8 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  request_ccb);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: cam_alloc_periph "
-			    "returned an error, can't continue probe\n");
+			xpt_print(path,
+	"xpt_scan_lun: cam_alloc_periph returned an error, can't continue probe\n");
 			request_ccb->ccb_h.status = status;
 			xpt_done(request_ccb);
 		}
@@ -1784,8 +1784,7 @@ ata_action(union ccb *start_ccb)
 
 	if (start_ccb->ccb_h.func_code != XPT_ATA_IO) {
 		KASSERT((start_ccb->ccb_h.alloc_flags & CAM_CCB_FROM_UMA) == 0,
-		    ("%s: ccb %p, func_code %#x should not be allocated "
-		    "from UMA zone\n",
+		    ("%s: ccb %p, func_code %#x should not be allocated from UMA zone\n",
 		    __func__, start_ccb, start_ccb->ccb_h.func_code));
 	}
 
@@ -1925,9 +1924,9 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 
 	if (cts->protocol_version > device->protocol_version) {
 		if (bootverbose) {
-			xpt_print(path, "Down reving Protocol "
-			    "Version from %d to %d?\n", cts->protocol_version,
-			    device->protocol_version);
+			xpt_print(path,
+			    "Down reving Protocol Version from %d to %d?\n",
+			    cts->protocol_version, device->protocol_version);
 		}
 		cts->protocol_version = device->protocol_version;
 	}
@@ -1950,9 +1949,9 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 
 	if (cts->transport_version > device->transport_version) {
 		if (bootverbose) {
-			xpt_print(path, "Down reving Transport "
-			    "Version from %d to %d?\n", cts->transport_version,
-			    device->transport_version);
+			xpt_print(path,
+			    "Down reving Transport Version from %d to %d?\n",
+			    cts->transport_version, device->transport_version);
 		}
 		cts->transport_version = device->transport_version;
 	}

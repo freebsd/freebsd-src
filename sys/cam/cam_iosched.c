@@ -1378,8 +1378,7 @@ cam_iosched_get_write(struct cam_iosched_softc *isc)
 	if (bioq_first(&isc->bio_queue) && isc->current_read_bias) {
 		if (iosched_debug)
 			printf(
-			    "Reads present and current_read_bias is %d queued "
-			    "writes %d queued reads %d\n",
+	"Reads present and current_read_bias is %d queued writes %d queued reads %d\n",
 			    isc->current_read_bias, isc->write_stats.queued,
 			    isc->read_stats.queued);
 		isc->current_read_bias--;
@@ -1487,8 +1486,8 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 	if (do_dynamic_iosched) {
 		if (bioq_first(&isc->bio_queue) && isc->current_read_bias) {
 			if (iosched_debug)
-				printf("Reads present and current_read_bias is %d"
-				    " queued trims %d queued reads %d\n",
+				printf(
+		"Reads present and current_read_bias is %d queued trims %d queued reads %d\n",
 				    isc->current_read_bias, isc->trim_stats.queued,
 				    isc->read_stats.queued);
 			isc->current_read_bias--;
