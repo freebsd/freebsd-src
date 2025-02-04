@@ -335,14 +335,14 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 	struct utrace_rtld ut;
 	static const char rtld_utrace_sig[RTLD_UTRACE_SIG_SZ] = RTLD_UTRACE_SIG;
 
+	memset(&ut, 0, sizeof(ut));	/* clear holes */
 	memcpy(ut.sig, rtld_utrace_sig, sizeof(ut.sig));
 	ut.event = event;
 	ut.handle = handle;
 	ut.mapbase = mapbase;
 	ut.mapsize = mapsize;
 	ut.refcnt = refcnt;
-	bzero(ut.name, sizeof(ut.name));
-	if (name)
+	if (name != NULL)
 		strlcpy(ut.name, name, sizeof(ut.name));
 	utrace(&ut, sizeof(ut));
 }
