@@ -1287,6 +1287,13 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	void *old;
 
+#ifdef DEV_BPF
+	/*
+	 * Detach BPF file descriptors from its interface.
+	 */
+	bpf_ifdetach(ifp);
+#endif
+
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
