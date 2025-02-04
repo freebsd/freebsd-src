@@ -895,7 +895,7 @@ lapic_disable_pcint(void)
 	maxlvt = (lapic_read32(LAPIC_VERSION) & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 	if (maxlvt < APIC_LVT_PMC)
 		return;
-	if (refcount_release(&pcint_refcnt))
+	if (!refcount_release(&pcint_refcnt))
 		return;
 	lvts[APIC_LVT_PMC].lvt_masked = 1;
 
