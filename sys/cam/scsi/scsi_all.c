@@ -2394,10 +2394,10 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x3F, 0x1A, SS_RDEF,	/* XXX TBD */
 	    "Subsidiary binding changed") },
-	{ SST(0x40, 0x00, SS_RDEF,
+	{ SST(0x40, 0x00, SS_FATAL | ENXIO,
 	    "RAM failure") },		/* deprecated - use 40 NN instead */
 	/* DTLPWROMAEBKVF */
-	{ SST(0x40, 0x80, SS_RDEF,
+	{ SST(0x40, 0x80, SS_FATAL | ENXIO,
 	    "Diagnostic failure: ASCQ = Component ID") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x40, 0xFF, SS_RDEF | SSQ_RANGE,
