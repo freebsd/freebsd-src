@@ -2034,7 +2034,6 @@ restart:
 		if (error != 0)
 			goto out;
 #endif
-		vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 #ifdef MAC
 out:
@@ -4002,7 +4001,6 @@ restart:
 			goto fdout;
 		goto restart;
 	}
-	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 	error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	vn_finished_write(mp);
 out:
