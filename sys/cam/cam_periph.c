@@ -1874,7 +1874,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
-	int	    frozen, error, openings, devctl_err;
+	bool	    frozen;
+	int	    error, openings, devctl_err;
 	uint32_t   action, relsim_flags, timeout;
 
 	action = SSQ_PRINT_SENSE;
@@ -2094,11 +2095,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 
 	/* Attempt a retry */
 	if (error == ERESTART || error == 0) {
-		if (frozen != 0)
+		if (frozen)
 			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
 		if (error == ERESTART)
 			xpt_action(ccb);
-		if (frozen != 0)
+		if (frozen)
 			cam_release_devq(ccb->ccb_h.path,
 					 relsim_flags,
 					 openings,
