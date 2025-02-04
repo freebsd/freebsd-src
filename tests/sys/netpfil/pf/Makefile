@@ -71,6 +71,8 @@ ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			frag-overindex.py \
 			frag-overlimit.py \
 			frag-overreplace.py \
+			frag-overhole.py \
+			frag-adjhole.py \
 			pfsync_defer.py \
 			pft_ether.py \
 			pft_read_ipfix.py \
@@ -83,6 +85,8 @@ ${PACKAGE}FILESMODE_fragcommon.py=	0555
 ${PACKAGE}FILESMODE_frag-overindex.py=	0555
 ${PACKAGE}FILESMODE_frag-overlimit.py=	0555
 ${PACKAGE}FILESMODE_frag-overreplace.py=	0555
+${PACKAGE}FILESMODE_frag-overhole.py=	0555
+${PACKAGE}FILESMODE_frag-adjhole.py=	0555
 ${PACKAGE}FILESMODE_pfsync_defer.py=	0555
 ${PACKAGE}FILESMODE_pft_ether.py=	0555
 ${PACKAGE}FILESMODE_pft_read_ipfix.py=	0555
