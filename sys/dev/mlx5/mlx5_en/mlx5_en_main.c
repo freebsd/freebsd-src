@@ -2947,10 +2947,8 @@ mlx5e_get_rss_key(void *key_ptr)
 static void
 mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(struct mlx5e_priv *priv, u32 *tirc)
 {
-#define	ROUGH_MAX_L2_L3_HDR_SZ 256
-
-	MLX5_SET(tirc, tirc, lro_max_msg_sz, (priv->params.lro_wqe_sz -
-	    ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
+	MLX5_SET(tirc, tirc, lro_max_msg_sz, (priv->params.lro_wqe_sz >> 8) -
+	    (MLX5_CAP_ETH(priv->mdev, lro_max_msg_sz_mode) == 0 ? 1 : 0));
 }
 
 static void
