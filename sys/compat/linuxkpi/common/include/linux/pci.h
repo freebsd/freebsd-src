@@ -60,6 +60,8 @@
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
 
+#include <linux/kernel.h>	/* pr_debug */
+
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
@@ -1504,6 +1506,7 @@ static inline int
 pci_wake_from_d3(struct pci_dev *pdev, bool enable)
 {
 
+	pr_debug("%s: TODO\n", __func__);
 	return (0);
 }
 
