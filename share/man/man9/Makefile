@@ -1043,6 +1043,9 @@ MLINKS+=device_set_desc.9 device_get_desc.9 \
 	device_set_desc.9 device_set_descf.9 \
 	device_set_desc.9 device_set_desc_copy.9
 MLINKS+=device_set_flags.9 device_get_flags.9
+MLINKS+=device_probe_and_attach.9 device_attach.9 \
+	device_probe_and_attach.9 device_detach.9 \
+	device_probe_and_attach.9 device_probe.9
 MLINKS+=devstat.9 devicestat.9 \
 	devstat.9 devstat_new_entry.9 \
 	devstat.9 devstat_end_transaction.9 \
