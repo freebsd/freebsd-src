@@ -2646,7 +2646,7 @@ void			 pf_print_host(struct pf_addr *, u_int16_t, sa_family_t);
 
 void			 pf_step_into_anchor(struct pf_kanchor_stackframe *, int *,
 			    struct pf_kruleset **, int, struct pf_krule **,
-			    struct pf_krule **, int *);
+			    struct pf_krule **);
 int			 pf_step_out_of_anchor(struct pf_kanchor_stackframe *, int *,
 			    struct pf_kruleset **, int, struct pf_krule **,
 			    struct pf_krule **, int *);

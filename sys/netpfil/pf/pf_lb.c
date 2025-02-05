@@ -211,7 +211,7 @@ pf_match_translation(struct pf_pdesc *pd,
 				break;
 			} else
 				pf_step_into_anchor(anchor_stack, &asd,
-				    &ruleset, rs_num, &r, NULL, NULL);
+				    &ruleset, rs_num, &r, NULL);
 		}
 		if (r == NULL)
 			pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,

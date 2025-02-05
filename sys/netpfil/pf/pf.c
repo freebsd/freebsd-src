@@ -4569,15 +4569,12 @@ struct pf_kanchor_stackframe {
 
 void
 pf_step_into_anchor(struct pf_kanchor_stackframe *stack, int *depth,
-    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a,
-    int *match)
+    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a)
 {
 	struct pf_kanchor_stackframe	*f;
 
 	PF_RULES_RASSERT();
 
-	if (match)
-		*match = 0;
 	if (*depth >= PF_ANCHOR_STACKSIZE) {
 		printf("%s: anchor stack overflow on %s\n",
 		    __func__, (*r)->anchor->name);
@@ -4620,19 +4617,6 @@ pf_step_out_of_anchor(struct pf_kanchor_stackframe *stack, int *depth,
 		f = stack + *depth - 1;
 		fr = PF_ANCHOR_RULE(f);
 		if (f->child != NULL) {
-			/*
-			 * This block traverses through
-			 * a wildcard anchor.
-			 */
-			if (match != NULL && *match) {
-				/*
-				 * If any of "*" matched, then
-				 * "foo/ *" matched, mark frame
-				 * appropriately.
-				 */
-				PF_ANCHOR_SET_MATCH(f);
-				*match = 0;
-			}
 			f->child = RB_NEXT(pf_kanchor_node,
 			    &fr->anchor->children, f->child);
 			if (f->child != NULL) {
@@ -4648,8 +4632,11 @@ pf_step_out_of_anchor(struct pf_kanchor_stackframe *stack, int *depth,
 		if (*depth == 0 && a != NULL)
 			*a = NULL;
 		*rs = f->rs;
-		if (PF_ANCHOR_MATCH(f) || (match != NULL && *match))
-			quick = fr->quick;
+		if (match != NULL && *match > *depth) {
+			*match = *depth;
+			if (f->r->quick)
+				quick = 1;
+		}
 		*r = TAILQ_NEXT(fr, entries);
 	} while (*r == NULL);
 
@@ -5831,7 +5818,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 					PFLOG_PACKET(r->action, PFRES_MATCH, r,
 					    a, ruleset, pd, 1);
 			} else {
-				match = 1;
+				match = asd;
 				*rm = r;
 				*am = a;
 				*rsm = ruleset;
@@ -5844,8 +5831,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			r = TAILQ_NEXT(r, entries);
 		} else
 			pf_step_into_anchor(anchor_stack, &asd,
-			    &ruleset, PF_RULESET_FILTER, &r, &a,
-			    &match);
+			    &ruleset, PF_RULESET_FILTER, &r, &a);
 nextrule:
 		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd,
 		    &ruleset, PF_RULESET_FILTER, &r, &a, &match))
