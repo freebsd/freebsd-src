@@ -138,9 +138,10 @@ nl_port_lookup(uint32_t port_id)
 }
 
 static void
-nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
+nlp_join_group(struct nlpcb *nlp, unsigned int group_id)
 {
 	MPASS(group_id < NLP_MAX_GROUPS);
+	NLCTL_WLOCK_ASSERT();
 
 	/* TODO: add family handler callback */
 	if (!nlp_unconstrained_vnet(nlp))
@@ -150,28 +151,32 @@ nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
 }
 
 static void
-nl_del_group_locked(struct nlpcb *nlp, unsigned int group_id)
+nlp_leave_group(struct nlpcb *nlp, unsigned int group_id)
 {
 	MPASS(group_id < NLP_MAX_GROUPS);
+	NLCTL_WLOCK_ASSERT();
 
 	BIT_CLR(NLP_MAX_GROUPS, group_id, &nlp->nl_groups);
 }
 
 static bool
-nl_isset_group_locked(struct nlpcb *nlp, unsigned int group_id)
+nlp_memberof_group(struct nlpcb *nlp, unsigned int group_id)
 {
 	MPASS(group_id < NLP_MAX_GROUPS);
+	NLCTL_LOCK_ASSERT();
 
 	return (BIT_ISSET(NLP_MAX_GROUPS, group_id, &nlp->nl_groups));
 }
 
 static uint32_t
-nl_get_groups_compat(struct nlpcb *nlp)
+nlp_get_groups_compat(struct nlpcb *nlp)
 {
 	uint32_t groups_mask = 0;
 
+	NLCTL_LOCK_ASSERT();
+
 	for (int i = 0; i < 32; i++) {
-		if (nl_isset_group_locked(nlp, i + 1))
+		if (nlp_memberof_group(nlp, i + 1))
 			groups_mask |= (1 << i);
 	}
 
@@ -216,7 +221,7 @@ nl_send_group(struct nl_writer *nw)
 		if ((nw->group.priv == 0 || priv_check_cred(
 		    nlp->nl_socket->so_cred, nw->group.priv) == 0) &&
 		    nlp->nl_proto == nw->group.proto &&
-		    nl_isset_group_locked(nlp, nw->group.id)) {
+		    nlp_memberof_group(nlp, nw->group.id)) {
 			if (nlp_last != NULL) {
 				struct nl_buf *copy;
 
@@ -287,9 +292,9 @@ nl_bind_locked(struct nlpcb *nlp, struct sockaddr_nl *snl)
 	}
 	for (int i = 0; i < 32; i++) {
 		if (snl->nl_groups & ((uint32_t)1 << i))
-			nl_add_group_locked(nlp, i + 1);
+			nlp_join_group(nlp, i + 1);
 		else
-			nl_del_group_locked(nlp, i + 1);
+			nlp_leave_group(nlp, i + 1);
 	}
 
 	return (0);
@@ -384,7 +389,7 @@ nl_assign_port(struct nlpcb *nlp, uint32_t port_id)
 
 	NLCTL_WLOCK();
 	NLP_LOCK(nlp);
-	snl.nl_groups = nl_get_groups_compat(nlp);
+	snl.nl_groups = nlp_get_groups_compat(nlp);
 	error = nl_bind_locked(nlp, &snl);
 	NLP_UNLOCK(nlp);
 	NLCTL_WUNLOCK();
@@ -848,9 +853,9 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 
 			NLCTL_WLOCK();
 			if (sopt->sopt_name == NETLINK_ADD_MEMBERSHIP)
-				nl_add_group_locked(nlp, optval);
+				nlp_join_group(nlp, optval);
 			else
-				nl_del_group_locked(nlp, optval);
+				nlp_leave_group(nlp, optval);
 			NLCTL_WUNLOCK();
 			break;
 		case NETLINK_CAP_ACK:
@@ -883,7 +888,7 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case NETLINK_LIST_MEMBERSHIPS:
 			NLCTL_RLOCK();
-			optval = nl_get_groups_compat(nlp);
+			optval = nlp_get_groups_compat(nlp);
 			NLCTL_RUNLOCK();
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
