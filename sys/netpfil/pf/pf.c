@@ -10180,6 +10180,12 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 	}
 #endif
 	}
+
+	if (pd->sport)
+		pd->osport = pd->nsport = *pd->sport;
+	if (pd->dport)
+		pd->odport = pd->ndport = *pd->dport;
+
 	return (0);
 }
 
