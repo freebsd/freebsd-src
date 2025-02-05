@@ -328,8 +328,6 @@ nl_attach(struct socket *so, int proto, struct thread *td)
 	TAILQ_INIT(&so->so_snd.nl_queue);
 	so->so_pcb = nlp;
 	nlp->nl_socket = so;
-	/* Copy so_cred to avoid having socket_var.h in every header */
-	nlp->nl_cred = so->so_cred;
 	nlp->nl_proto = proto;
 	nlp->nl_process_id = curproc->p_pid;
 	nlp->nl_linux = is_linux;

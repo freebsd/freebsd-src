@@ -69,7 +69,6 @@ struct nlpcb {
 	bool			nl_need_thread_setup;
 	struct taskqueue	*nl_taskqueue;
 	struct task		nl_task;
-	struct ucred		*nl_cred; /* Copy of nl_socket->so_cred */
 	uint64_t		nl_dropped_bytes;
 	uint64_t		nl_dropped_messages;
         CK_LIST_ENTRY(nlpcb)    nl_next;
