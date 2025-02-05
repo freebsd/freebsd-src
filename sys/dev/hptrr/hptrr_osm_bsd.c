@@ -463,7 +463,7 @@ static void os_cmddone(PCOMMAND pCmd)
 		ccb->ccb_h.status = CAM_BUSY;
 		break;
 	default:
-		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
 		break;
 	}
 
@@ -557,7 +557,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		ccb->ccb_h.target_id >= osm_max_targets ||
 		(ccb->ccb_h.flags & CAM_CDB_PHYS))
 	{
-		ccb->ccb_h.status = CAM_TID_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}
