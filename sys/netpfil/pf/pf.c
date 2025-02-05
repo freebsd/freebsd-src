@@ -5823,7 +5823,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 					pd->naf = r->naf;
 				if (pd->af != pd->naf) {
 					if (pf_get_transaddr_af(r, pd) == -1) {
-						REASON_SET(&reason, PFRES_MEMORY);
+						REASON_SET(&reason, PFRES_TRANSLATE);
 						goto cleanup;
 					}
 				}
@@ -5863,7 +5863,7 @@ nextrule:
 		pd->naf = r->naf;
 	if (pd->af != pd->naf) {
 		if (pf_get_transaddr_af(r, pd) == -1) {
-			REASON_SET(&reason, PFRES_MEMORY);
+			REASON_SET(&reason, PFRES_TRANSLATE);
 			goto cleanup;
 		}
 	}
