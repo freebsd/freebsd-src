@@ -889,7 +889,7 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
 		s++;
 
 	/* no hex floating point, sorry */
-	if (s[0] == '0' && tolower(s[1]) == 'x')
+	if (s[0] == '0' && tolower(s[1]) == 'x' && isxdigit(s[2]))
 		return false;
 
 	/* allow +nan, -nan, +inf, -inf, any other letter, no */
