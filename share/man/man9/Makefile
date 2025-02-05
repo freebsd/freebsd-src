@@ -28,6 +28,7 @@ MAN=	accept_filter.9 \
 	BUS_ADD_CHILD.9 \
 	bus_adjust_resource.9 \
 	bus_alloc_resource.9 \
+	bus_attach_children.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
 	BUS_CHILD_DELETED.9 \
@@ -673,6 +674,10 @@ MLINKS+=buf_ring.9 buf_ring_alloc.9 \
 	buf_ring.9 buf_ring_peek.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
+MLINKS+=bus_attach_children.9 bus_delayed_attach_children.9 \
+	bus_attach_children.9 bus_detach_children.9 \
+	bus_attach_children.9 bus_enumerate_hinted_children.9 \
+	bus_attach_children.9 bus_identify_children.9
 MLINKS+=BUS_BIND_INTR.9 bus_bind_intr.9
 MLINKS+=BUS_CONFIG_INTR.9 bus_config_intr.9
 MLINKS+=BUS_DESCRIBE_INTR.9 bus_describe_intr.9
