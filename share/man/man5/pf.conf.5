@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 10, 2025
+.Dd February 5, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1911,9 +1911,9 @@ The host, port and OS specifications are optional, as in the following examples:
 .Bd -literal -offset indent
 pass in all
 pass in from any to any
-pass in proto tcp from any port \*(Le 1024 to any
+pass in proto tcp from any port \*(Lt 1024 to any
 pass in proto tcp from any to any port 25
-pass in proto tcp from 10.0.0.0/8 port \*(Gt 1024 \e
+pass in proto tcp from 10.0.0.0/8 port \*(Ge 1024 \e
       to ! 10.1.2.3 port != ssh
 pass in proto tcp from any os "OpenBSD"
 .Ed
