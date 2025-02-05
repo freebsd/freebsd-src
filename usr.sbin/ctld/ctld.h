@@ -47,7 +47,6 @@
 #define	DEFAULT_CD_BLOCKSIZE		2048
 
 #define	MAX_LUNS			1024
-#define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	SOCKBUF_SIZE			1048576
 
 struct auth {
@@ -246,6 +245,8 @@ struct ctld_connection {
 	struct chap		*conn_chap;
 };
 
+extern int ctl_fd;
+
 int			parse_conf(struct conf *newconf, const char *path);
 int			uclparse_conf(struct conf *conf, const char *path);
 
@@ -352,11 +353,6 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
-void			kernel_limits(const char *offload, int s,
-			    int *max_recv_data_segment_length,
-			    int *max_send_data_segment_length,
-			    int *max_burst_length,
-			    int *first_burst_length);
 int			kernel_port_add(struct port *port);
 int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
