@@ -100,9 +100,6 @@ non-terminated string
 { print "abc
 }
 
-illegal field $(foo)
-BEGIN { print $"foo" }
-
 next is illegal inside a function
 BEGIN { f() }
 function f() { next }

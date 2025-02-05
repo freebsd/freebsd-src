@@ -225,11 +225,6 @@ int yylex(void)
 			while ((c = input()) != '\n' && c != 0)
 				;
 			unput(c);
-			/*
-			 * Next line is a hack, it compensates for
-			 * unput's treatment of \n.
-			 */
-			lineno++;
 			break;
 		case ';':
 			RET(';');
@@ -629,8 +624,6 @@ int input(void)	/* get next lexical input character */
 
 void unput(int c)	/* put lexical character back on input */
 {
-	if (c == '\n')  
-		lineno--;
 	if (yysptr >= yysbuf + sizeof(yysbuf))
 		FATAL("pushed back too much: %.20s...", yysbuf);
 	*yysptr++ = c;
