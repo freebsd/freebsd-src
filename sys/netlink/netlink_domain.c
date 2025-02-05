@@ -557,8 +557,6 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 
 	MPASS(m == NULL && uio != NULL);
 
-        NL_LOG(LOG_DEBUG2, "sending message to kernel");
-
 	if (__predict_false(control != NULL)) {
 		m_freem(control);
 		return (EINVAL);
@@ -569,8 +567,6 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 
 	if (__predict_false(uio->uio_resid < sizeof(struct nlmsghdr)))
 		return (ENOBUFS);		/* XXXGL: any better error? */
-
-	NL_LOG(LOG_DEBUG3, "sending message to kernel async processing");
 
 	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
@@ -584,6 +580,8 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	error = uiomove(&nb->data[0], uio->uio_resid, uio);
 	if (__predict_false(error))
 		goto out;
+
+        NL_LOG(LOG_DEBUG2, "sending message to kernel %u bytes", nb->datalen);
 
 	SOCK_SENDBUF_LOCK(so);
 restart:
@@ -607,7 +605,7 @@ restart:
 	SOCK_SENDBUF_UNLOCK(so);
 
 	if (nb == NULL) {
-		NL_LOG(LOG_DEBUG3, "enqueue %u bytes", nb->datalen);
+		NL_LOG(LOG_DEBUG3, "success");
 		NLP_LOCK(nlp);
 		nl_schedule_taskqueue(nlp);
 		NLP_UNLOCK(nlp);
@@ -615,8 +613,10 @@ restart:
 
 out:
 	SOCK_IO_SEND_UNLOCK(so);
-	if (nb != NULL)
+	if (nb != NULL) {
+		NL_LOG(LOG_DEBUG3, "failure, error %d", error);
 		nl_buf_free(nb);
+	}
 	return (error);
 }
 
