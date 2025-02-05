@@ -3,7 +3,7 @@
 #
 
 # PROVIDE: devd
-# REQUIRE: netif ldconfig
+# REQUIRE: netif ldconfig hastd
 # BEFORE: NETWORKING mountcritremote
 # KEYWORD: nojail shutdown
 
