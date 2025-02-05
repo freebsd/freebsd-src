@@ -493,6 +493,93 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 }
 
 static bool
+uclparse_dscp(const char *group_type, struct portal_group *portal_group,
+    const ucl_object_t *obj)
+{
+	const char *key;
+
+	if ((obj->type != UCL_STRING) && (obj->type != UCL_INT)) {
+		log_warnx("\"dscp\" property of %s group \"%s\" is not a "
+		    "string or integer", group_type, portal_group->pg_name);
+		return (false);
+	}
+	if (obj->type == UCL_INT)
+		portal_group->pg_dscp = ucl_object_toint(obj);
+	else {
+		key = ucl_object_tostring(obj);
+		if (strcmp(key, "0x") == 0)
+			portal_group->pg_dscp = strtol(key + 2, NULL, 16);
+		else if (strcmp(key, "be") || strcmp(key, "cs0"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
+		else if (strcmp(key, "ef"))
+			portal_group->pg_dscp = IPTOS_DSCP_EF >> 2;
+		else if (strcmp(key, "cs0"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
+		else if (strcmp(key, "cs1"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS1 >> 2;
+		else if (strcmp(key, "cs2"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS2 >> 2;
+		else if (strcmp(key, "cs3"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS3 >> 2;
+		else if (strcmp(key, "cs4"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS4 >> 2;
+		else if (strcmp(key, "cs5"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS5 >> 2;
+		else if (strcmp(key, "cs6"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS6 >> 2;
+		else if (strcmp(key, "cs7"))
+			portal_group->pg_dscp = IPTOS_DSCP_CS7 >> 2;
+		else if (strcmp(key, "af11"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF11 >> 2;
+		else if (strcmp(key, "af12"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF12 >> 2;
+		else if (strcmp(key, "af13"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF13 >> 2;
+		else if (strcmp(key, "af21"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF21 >> 2;
+		else if (strcmp(key, "af22"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF22 >> 2;
+		else if (strcmp(key, "af23"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF23 >> 2;
+		else if (strcmp(key, "af31"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF31 >> 2;
+		else if (strcmp(key, "af32"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF32 >> 2;
+		else if (strcmp(key, "af33"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF33 >> 2;
+		else if (strcmp(key, "af41"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF41 >> 2;
+		else if (strcmp(key, "af42"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF42 >> 2;
+		else if (strcmp(key, "af43"))
+			portal_group->pg_dscp = IPTOS_DSCP_AF43 >> 2;
+		else {
+			log_warnx("\"dscp\" property value is not a supported textual value");
+			return (false);
+		}
+	}
+	return (true);
+}
+
+static bool
+uclparse_pcp(const char *group_type, struct portal_group *portal_group,
+    const ucl_object_t *obj)
+{
+	if (obj->type != UCL_INT) {
+		log_warnx("\"pcp\" property of %s group \"%s\" is not an "
+		    "integer", group_type, portal_group->pg_name);
+		return (false);
+	}
+	portal_group->pg_pcp = ucl_object_toint(obj);
+	if (!((portal_group->pg_pcp >= 0) && (portal_group->pg_pcp <= 7))) {
+		log_warnx("invalid \"pcp\" value %d, using default",
+		    portal_group->pg_pcp);
+		portal_group->pg_pcp = -1;
+	}
+	return (true);
+}
+
+static bool
 uclparse_portal_group(const char *name, const ucl_object_t *top)
 {
 	struct portal_group *portal_group;
@@ -613,79 +700,13 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 		}
 
 		if (!strcmp(key, "dscp")) {
-			if ((obj->type != UCL_STRING) && (obj->type != UCL_INT)) {
-				log_warnx("\"dscp\" property of portal group "
-				    "\"%s\" is not a string or integer", portal_group->pg_name);
+			if (!uclparse_dscp("portal", portal_group, obj))
 				return (false);
-			}
-			if (obj->type == UCL_INT)
-				portal_group->pg_dscp = ucl_object_toint(obj);
-			else {
-				key = ucl_object_tostring(obj);
-				if (strcmp(key, "0x") == 0)
-					portal_group->pg_dscp = strtol(key + 2, NULL, 16);
-				else if (strcmp(key, "be") || strcmp(key, "cs0"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-				else if (strcmp(key, "ef"))
-					portal_group->pg_dscp = IPTOS_DSCP_EF >> 2;
-				else if (strcmp(key, "cs0"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-				else if (strcmp(key, "cs1"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS1 >> 2;
-				else if (strcmp(key, "cs2"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS2 >> 2;
-				else if (strcmp(key, "cs3"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS3 >> 2;
-				else if (strcmp(key, "cs4"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS4 >> 2;
-				else if (strcmp(key, "cs5"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS5 >> 2;
-				else if (strcmp(key, "cs6"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS6 >> 2;
-				else if (strcmp(key, "cs7"))
-					portal_group->pg_dscp = IPTOS_DSCP_CS7 >> 2;
-				else if (strcmp(key, "af11"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF11 >> 2;
-				else if (strcmp(key, "af12"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF12 >> 2;
-				else if (strcmp(key, "af13"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF13 >> 2;
-				else if (strcmp(key, "af21"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF21 >> 2;
-				else if (strcmp(key, "af22"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF22 >> 2;
-				else if (strcmp(key, "af23"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF23 >> 2;
-				else if (strcmp(key, "af31"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF31 >> 2;
-				else if (strcmp(key, "af32"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF32 >> 2;
-				else if (strcmp(key, "af33"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF33 >> 2;
-				else if (strcmp(key, "af41"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF41 >> 2;
-				else if (strcmp(key, "af42"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF42 >> 2;
-				else if (strcmp(key, "af43"))
-					portal_group->pg_dscp = IPTOS_DSCP_AF43 >> 2;
-				else {
-					log_warnx("\"dscp\" property value is not a supported textual value");
-					return (false);
-				}
-			}
 		}
 
 		if (!strcmp(key, "pcp")) {
-			if (obj->type != UCL_INT) {
-				log_warnx("\"pcp\" property of portal group "
-				    "\"%s\" is not an integer", portal_group->pg_name);
+			if (!uclparse_pcp("portal", portal_group, obj))
 				return (false);
-			}
-			portal_group->pg_pcp = ucl_object_toint(obj);
-			if (!((portal_group->pg_pcp >= 0) && (portal_group->pg_pcp <= 7))) {
-				log_warnx("invalid \"pcp\" value %d, using default", portal_group->pg_pcp);
-				portal_group->pg_pcp = -1;
-			}
 		}
 	}
 
