@@ -43,6 +43,8 @@
                     encoder
                     ..
                 ..
+                ossl-modules
+                ..
             ..
             libexec
                 bsdinstall
