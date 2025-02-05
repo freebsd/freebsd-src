@@ -150,9 +150,9 @@ DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
 struct hypctx *riscv_get_active_vcpu(void);
 void vmm_switch(struct hypctx *);
 void vmm_unpriv_trap(struct hyptrap *, uint64_t tmp);
-int vmm_sbi_ecall(struct vcpu *, bool *);
+bool vmm_sbi_ecall(struct vcpu *);
 
-void riscv_send_ipi(struct hypctx *hypctx, int hart_id);
+void riscv_send_ipi(struct hyp *hyp, cpuset_t *cpus);
 int riscv_check_ipi(struct hypctx *hypctx, bool clear);
 bool riscv_check_interrupts_pending(struct hypctx *hypctx);
 
