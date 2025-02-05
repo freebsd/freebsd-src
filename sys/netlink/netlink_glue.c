@@ -85,13 +85,13 @@ struct rtbridge *netlink_callback_p = &ignore_cb;
 bool
 nlp_has_priv(struct nlpcb *nlp, int priv)
 {
-	return (priv_check_cred(nlp->nl_cred, priv) == 0);
+	return (priv_check_cred(nlp->nl_socket->so_cred, priv) == 0);
 }
 
 struct ucred *
 nlp_get_cred(struct nlpcb *nlp)
 {
-	return (nlp->nl_cred);
+	return (nlp->nl_socket->so_cred);
 }
 
 uint32_t
