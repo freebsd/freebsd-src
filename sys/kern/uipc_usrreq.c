@@ -445,37 +445,35 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	bool locked;
 
 	KASSERT(so->so_pcb == NULL, ("uipc_attach: so_pcb != NULL"));
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		switch (so->so_type) {
-		case SOCK_STREAM:
-			sendspace = unpst_sendspace;
-			recvspace = unpst_recvspace;
-			break;
+	switch (so->so_type) {
+	case SOCK_STREAM:
+		sendspace = unpst_sendspace;
+		recvspace = unpst_recvspace;
+		break;
 
-		case SOCK_DGRAM:
-			STAILQ_INIT(&so->so_rcv.uxdg_mb);
-			STAILQ_INIT(&so->so_snd.uxdg_mb);
-			TAILQ_INIT(&so->so_rcv.uxdg_conns);
-			/*
-			 * Since send buffer is either bypassed or is a part
-			 * of one-to-many receive buffer, we assign both space
-			 * limits to unpdg_recvspace.
-			 */
-			sendspace = recvspace = unpdg_recvspace;
-			break;
+	case SOCK_DGRAM:
+		STAILQ_INIT(&so->so_rcv.uxdg_mb);
+		STAILQ_INIT(&so->so_snd.uxdg_mb);
+		TAILQ_INIT(&so->so_rcv.uxdg_conns);
+		/*
+		 * Since send buffer is either bypassed or is a part
+		 * of one-to-many receive buffer, we assign both space
+		 * limits to unpdg_recvspace.
+		 */
+		sendspace = recvspace = unpdg_recvspace;
+		break;
 
-		case SOCK_SEQPACKET:
-			sendspace = unpsp_sendspace;
-			recvspace = unpsp_recvspace;
-			break;
+	case SOCK_SEQPACKET:
+		sendspace = unpsp_sendspace;
+		recvspace = unpsp_recvspace;
+		break;
 
-		default:
-			panic("uipc_attach");
-		}
-		error = soreserve(so, sendspace, recvspace);
-		if (error)
-			return (error);
+	default:
+		panic("uipc_attach");
 	}
+	error = soreserve(so, sendspace, recvspace);
+	if (error)
+		return (error);
 	unp = uma_zalloc(unp_zone, M_NOWAIT | M_ZERO);
 	if (unp == NULL)
 		return (ENOBUFS);
