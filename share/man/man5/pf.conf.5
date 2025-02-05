@@ -1870,9 +1870,9 @@ Ports and ranges of ports are specified by using these operators:
 =	(equal)
 !=	(unequal)
 \*(Lt	(less than)
-\*(Le	(less than or equal)
+<=	(less than or equal)
 \*(Gt	(greater than)
-\*(Ge	(greater than or equal)
+>=	(greater than or equal)
 :	(range including boundaries)
 \*(Gt\*(Lt	(range excluding boundaries)
 \*(Lt\*(Gt	(except range)
@@ -1913,7 +1913,7 @@ pass in all
 pass in from any to any
 pass in proto tcp from any port \*(Lt 1024 to any
 pass in proto tcp from any to any port 25
-pass in proto tcp from 10.0.0.0/8 port \*(Ge 1024 \e
+pass in proto tcp from 10.0.0.0/8 port >= 1024 \e
       to ! 10.1.2.3 port != ssh
 pass in proto tcp from any os "OpenBSD"
 .Ed
@@ -3425,7 +3425,7 @@ os             = "os"  ( os-name | "{" os-list "}" )
 user           = "user" ( unary-op | binary-op | "{" op-list "}" )
 group          = "group" ( unary-op | binary-op | "{" op-list "}" )
 
-unary-op       = [ "=" | "!=" | "\*(Lt" | "\*(Le" | "\*(Gt" | "\*(Ge" ]
+unary-op       = [ "=" | "!=" | "\*(Lt" | "<=" | "\*(Gt" | ">=" ]
                  ( name | number )
 binary-op      = number ( "\*(Lt\*(Gt" | "\*(Gt\*(Lt" | ":" ) number
 op-list        = ( unary-op | binary-op ) [ [ "," ] op-list ]
