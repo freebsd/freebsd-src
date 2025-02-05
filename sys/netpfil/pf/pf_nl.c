@@ -1858,7 +1858,7 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&table_parser,
 };
 
-static int family_id;
+static uint16_t family_id;
 
 static const struct genl_cmd pf_cmds[] = {
 	{
@@ -2051,11 +2051,11 @@ pf_nl_register(void)
 	NL_VERIFY_PARSERS(all_parsers);
 
 	family_id = genl_register_family(PFNL_FAMILY_NAME, 0, 2, PFNL_CMD_MAX);
-	genl_register_cmds(PFNL_FAMILY_NAME, pf_cmds, nitems(pf_cmds));
+	genl_register_cmds(family_id, pf_cmds, nitems(pf_cmds));
 }
 
 void
 pf_nl_unregister(void)
 {
-	genl_unregister_family(PFNL_FAMILY_NAME);
+	genl_unregister_family(family_id);
 }
