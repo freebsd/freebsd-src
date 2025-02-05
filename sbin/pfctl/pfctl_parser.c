@@ -499,11 +499,6 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
 		    pool->mape.offset, pool->mape.psidlen, pool->mape.psid);
 }
 
-const char	* const pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-const char	* const pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
-
 void
 print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 {
