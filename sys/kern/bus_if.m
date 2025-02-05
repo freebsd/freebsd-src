@@ -84,6 +84,12 @@ CODE {
 	{
 		return (NULL);
 	}
+
+	static struct resource_list *
+	null_get_resource_list(device_t bus, device_t dev)
+	{
+		return (NULL);
+	}
 };
 
 /**
@@ -609,7 +615,7 @@ METHOD void delete_resource {
 METHOD struct resource_list * get_resource_list {
 	device_t	_dev;
 	device_t	_child;
-} DEFAULT bus_generic_get_resource_list;
+} DEFAULT null_get_resource_list;
 
 /**
  * @brief Return a struct rman.
