@@ -461,6 +461,7 @@ clnt_nl_destroy(CLIENT *cl)
 
 	MPASS(TAILQ_EMPTY(&nl->nl_pending));
 
+	genl_unregister_group(rpcnl_family_id, nl->nl_hdr.group);
 	rw_wlock(&rpcnl_global_lock);
 	RB_REMOVE(nl_data_t, &rpcnl_clients, nl);
 	rw_wlock(&rpcnl_global_lock);
