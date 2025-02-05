@@ -2382,7 +2382,7 @@ handle_connection(struct portal *portal, int fd,
 }
 
 static void
-main_loop(struct conf *conf, bool dont_fork)
+main_loop(bool dont_fork)
 {
 	struct kevent kev;
 	struct portal *portal;
@@ -2393,8 +2393,6 @@ main_loop(struct conf *conf, bool dont_fork)
 	int portal_id;
 #endif
 	int error, client_fd;
-
-	pidfile_write(conf->conf_pidfh);
 
 	for (;;) {
 		if (sighup_received || sigterm_received || timed_out())
@@ -2763,12 +2761,14 @@ main(int argc, char **argv)
 	conf_delete(oldconf);
 	oldconf = NULL;
 
+	pidfile_write(newconf->conf_pidfh);
+
 	/* Schedule iSNS update */
 	if (!TAILQ_EMPTY(&newconf->conf_isns))
 		set_timeout((newconf->conf_isns_period + 2) / 3, false);
 
 	for (;;) {
-		main_loop(newconf, dont_daemonize);
+		main_loop(dont_daemonize);
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
