@@ -250,6 +250,18 @@ nl_send_group(struct nl_writer *nw)
 	return (true);
 }
 
+void
+nl_clear_group(u_int group)
+{
+	struct nlpcb *nlp;
+
+	NLCTL_WLOCK();
+	CK_LIST_FOREACH(nlp, &V_nl_ctl.ctl_pcb_head, nl_next)
+		if (nlp_memberof_group(nlp, group))
+			nlp_leave_group(nlp, group);
+	NLCTL_WUNLOCK();
+}
+
 static uint32_t
 nl_find_port(void)
 {
