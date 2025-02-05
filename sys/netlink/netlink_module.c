@@ -58,7 +58,10 @@ struct nl_proto_handler *nl_handlers = _nl_handlers;
 CK_LIST_HEAD(nl_control_head, nl_control);
 static struct nl_control_head vnets_head = CK_LIST_HEAD_INITIALIZER();
 
-VNET_DEFINE(struct nl_control *, nl_ctl) = NULL;
+VNET_DEFINE(struct nl_control, nl_ctl) = {
+	.ctl_port_head = CK_LIST_HEAD_INITIALIZER(),
+	.ctl_pcb_head = CK_LIST_HEAD_INITIALIZER(),
+};
 
 struct mtx nl_global_mtx;
 MTX_SYSINIT(nl_global_mtx, &nl_global_mtx, "global netlink lock", MTX_DEF);
@@ -69,63 +72,31 @@ MTX_SYSINIT(nl_global_mtx, &nl_global_mtx, "global netlink lock", MTX_DEF);
 int netlink_unloading = 0;
 
 static void
-free_nl_ctl(struct nl_control *ctl)
+vnet_nl_init(const void *unused __unused)
 {
-	rm_destroy(&ctl->ctl_lock);
-	free(ctl, M_NETLINK);
-}
-
-struct nl_control *
-vnet_nl_ctl_init(void)
-{
-	struct nl_control *ctl;
-
-	ctl = malloc(sizeof(struct nl_control), M_NETLINK, M_WAITOK | M_ZERO);
-	rm_init(&ctl->ctl_lock, "netlink lock");
-	CK_LIST_INIT(&ctl->ctl_port_head);
-	CK_LIST_INIT(&ctl->ctl_pcb_head);
+	rm_init(&V_nl_ctl.ctl_lock, "netlink lock");
 
 	NL_GLOBAL_LOCK();
-
-	struct nl_control *tmp = atomic_load_ptr(&V_nl_ctl);
-
-	if (tmp == NULL) {
-		atomic_store_ptr(&V_nl_ctl, ctl);
-		CK_LIST_INSERT_HEAD(&vnets_head, ctl, ctl_next);
-		NL_LOG(LOG_DEBUG2, "VNET %p init done, inserted %p into global list",
-		    curvnet, ctl);
-	} else {
-		NL_LOG(LOG_DEBUG, "per-VNET init clash, dropping this instance");
-		free_nl_ctl(ctl);
-		ctl = tmp;
-	}
-
+	CK_LIST_INSERT_HEAD(&vnets_head, &V_nl_ctl, ctl_next);
+	NL_LOG(LOG_DEBUG2, "VNET %p init done, inserted %p into global list",
+	    curvnet, &V_nl_ctl);
 	NL_GLOBAL_UNLOCK();
-
-	return (ctl);
 }
+VNET_SYSINIT(vnet_nl_init, SI_SUB_INIT_IF, SI_ORDER_FIRST, vnet_nl_init, NULL);
 
 static void
-vnet_nl_ctl_destroy(const void *unused __unused)
+vnet_nl_uninit(const void *unused __unused)
 {
-	struct nl_control *ctl;
-
 	/* Assume at the time all of the processes / sockets are dead */
-
 	NL_GLOBAL_LOCK();
-	ctl = atomic_load_ptr(&V_nl_ctl);
-	atomic_store_ptr(&V_nl_ctl, NULL);
-	if (ctl != NULL) {
-		NL_LOG(LOG_DEBUG2, "Removing %p from global list", ctl);
-		CK_LIST_REMOVE(ctl, ctl_next);
-	}
+	NL_LOG(LOG_DEBUG2, "Removing %p from global list", &V_nl_ctl);
+	CK_LIST_REMOVE(&V_nl_ctl, ctl_next);
 	NL_GLOBAL_UNLOCK();
 
-	if (ctl != NULL)
-		free_nl_ctl(ctl);
+	rm_destroy(&V_nl_ctl.ctl_lock);
 }
-VNET_SYSUNINIT(vnet_nl_ctl_destroy, SI_SUB_PROTO_IF, SI_ORDER_ANY,
-    vnet_nl_ctl_destroy, NULL);
+VNET_SYSUNINIT(vnet_nl_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST, vnet_nl_uninit,
+    NULL);
 
 int
 nl_verify_proto(int proto)

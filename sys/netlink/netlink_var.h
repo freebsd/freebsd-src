@@ -102,16 +102,12 @@ struct nl_control {
 	CK_LIST_ENTRY(nl_control)		ctl_next;
 	struct rmlock				ctl_lock;
 };
-VNET_DECLARE(struct nl_control *, nl_ctl);
+VNET_DECLARE(struct nl_control, nl_ctl);
 #define	V_nl_ctl	VNET(nl_ctl)
-
 
 struct sockaddr_nl;
 struct sockaddr;
 struct nlmsghdr;
-
-/* netlink_module.c */
-struct nl_control *vnet_nl_ctl_init(void);
 
 int nl_verify_proto(int proto);
 const char *nl_get_proto_name(int proto);
