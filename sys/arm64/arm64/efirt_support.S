@@ -85,7 +85,7 @@ ENTRY(efi_rt_arch_call)
 	ret
 END(efi_rt_arch_call)
 
-ENTRY(efi_rt_fault)
+LENTRY(efi_rt_fault)
 	/* Clear pcb_onfault */
 	SET_FAULT_HANDLER(xzr, x11)
 	/* Load curthread */
@@ -96,6 +96,6 @@ ENTRY(efi_rt_fault)
 	/* Normal exit returning an error */
 	ldr	x0, =EFAULT
 	b	.Lefi_rt_arch_call_exit
-END(efi_rt_fault)
+LEND(efi_rt_fault)
 
 GNU_PROPERTY_AARCH64_FEATURE_1_NOTE(GNU_PROPERTY_AARCH64_FEATURE_1_VAL)
