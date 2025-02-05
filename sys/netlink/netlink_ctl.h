@@ -93,16 +93,13 @@ struct genl_cmd {
 
 uint16_t genl_register_family(const char *family_name, size_t hdrsize,
     uint16_t family_version, uint16_t max_attr_idx);
-bool genl_unregister_family(const char *family_name);
-bool genl_register_cmds(const char *family_name, const struct genl_cmd *cmds,
-    int count);
-uint32_t genl_register_group(const char *family_name, const char *group_name);
+void genl_unregister_family(uint16_t family);
+bool genl_register_cmds(uint16_t family, const struct genl_cmd *cmds,
+    u_int count);
+uint32_t genl_register_group(uint16_t family, const char *group_name);
 
-struct genl_family;
-const char *genl_get_family_name(const struct genl_family *gf);
-uint16_t genl_get_family_id(const struct genl_family *gf);
-
-typedef void (*genl_family_event_handler_t)(void *arg, const struct genl_family *gf, int action);
+typedef void (*genl_family_event_handler_t)(void *arg, const char *family_name,
+    uint16_t family_id, u_int action);
 EVENTHANDLER_DECLARE(genl_family_event, genl_family_event_handler_t);
 
 struct thread;

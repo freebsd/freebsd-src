@@ -2969,26 +2969,25 @@ static const struct genl_cmd carp_cmds[] = {
 	},
 };
 
+static uint16_t carp_family_id;
 static void
 carp_nl_register(void)
 {
 	bool ret __diagused;
-	int family_id __diagused;
 
 	NL_VERIFY_PARSERS(all_parsers);
-	family_id = genl_register_family(CARP_NL_FAMILY_NAME, 0, 2,
+	carp_family_id = genl_register_family(CARP_NL_FAMILY_NAME, 0, 2,
 	    CARP_NL_CMD_MAX);
-	MPASS(family_id != 0);
+	MPASS(carp_family_id != 0);
 
-	ret = genl_register_cmds(CARP_NL_FAMILY_NAME, carp_cmds,
-	    nitems(carp_cmds));
+	ret = genl_register_cmds(carp_family_id, carp_cmds, nitems(carp_cmds));
 	MPASS(ret);
 }
 
 static void
 carp_nl_unregister(void)
 {
-	genl_unregister_family(CARP_NL_FAMILY_NAME);
+	genl_unregister_family(carp_family_id);
 }
 
 static void

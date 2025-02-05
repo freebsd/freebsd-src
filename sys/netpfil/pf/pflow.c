@@ -1783,11 +1783,11 @@ static const struct nlhdr_parser *all_parsers[] = {
 
 static unsigned		pflow_do_osd_jail_slot;
 
+static uint16_t family_id;
 static int
 pflow_init(void)
 {
 	bool ret;
-	int family_id __diagused;
 
 	NL_VERIFY_PARSERS(all_parsers);
 
@@ -1796,10 +1796,10 @@ pflow_init(void)
 	};
 	pflow_do_osd_jail_slot = osd_jail_register(NULL, methods);
 
-	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2, PFLOWNL_CMD_MAX);
+	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2,
+	    PFLOWNL_CMD_MAX);
 	MPASS(family_id != 0);
-	ret = genl_register_cmds(PFLOWNL_FAMILY_NAME, pflow_cmds,
-	    nitems(pflow_cmds));
+	ret = genl_register_cmds(family_id, pflow_cmds, nitems(pflow_cmds));
 
 	return (ret ? 0 : ENODEV);
 }
@@ -1808,7 +1808,7 @@ static void
 pflow_uninit(void)
 {
 	osd_jail_deregister(pflow_do_osd_jail_slot);
-	genl_unregister_family(PFLOWNL_FAMILY_NAME);
+	genl_unregister_family(family_id);
 }
 
 static int

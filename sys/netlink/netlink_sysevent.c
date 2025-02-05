@@ -45,7 +45,7 @@ _DECLARE_DEBUG(LOG_INFO);
 
 MALLOC_DEFINE(M_NLSE, "nlsysevent", "Memory used for Netlink sysevent");
 #define	NLSE_FAMILY_NAME	"nlsysevent"
-static uint32_t ctrl_family_id;
+static uint16_t ctrl_family_id;
 
 #define MAX_SYSEVENT_GROUPS	64
 static struct sysevent_group {
@@ -118,7 +118,8 @@ sysevent_new_group(size_t index, const char *name)
 		return;
 	}
 	sysevent_groups[index].name = strdup(name, M_NLSE);
-	sysevent_groups[index].id = genl_register_group(NLSE_FAMILY_NAME, sysevent_groups[index].name);
+	sysevent_groups[index].id = genl_register_group(ctrl_family_id,
+	    sysevent_groups[index].name);
 }
 
 static struct sysevent_group *
@@ -171,7 +172,7 @@ static void
 nlsysevent_unload(void)
 {
 	devctl_unset_notify_hook();
-	genl_unregister_family(NLSE_FAMILY_NAME);
+	genl_unregister_family(ctrl_family_id);
 	for (size_t i = 0; i < MAX_SYSEVENT_GROUPS; i++) {
 		if (sysevent_groups[i].name == NULL)
 			break;

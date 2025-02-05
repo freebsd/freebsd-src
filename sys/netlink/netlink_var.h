@@ -138,10 +138,6 @@ void nl_set_source_metadata(struct mbuf *m, int num_messages);
 struct nl_buf *nl_buf_alloc(size_t len, int mflag);
 void nl_buf_free(struct nl_buf *nb);
 
-/* netlink_generic.c */
-struct genl_family *genl_get_family(uint16_t family_id);
-struct genl_group *genl_get_group(uint32_t group_id);
-
 #define	MAX_FAMILIES	20
 #define	MAX_GROUPS	64
 
