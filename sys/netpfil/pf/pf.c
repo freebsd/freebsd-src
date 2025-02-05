@@ -3217,7 +3217,7 @@ pf_change_ap(struct mbuf *m, struct pf_addr *a, u_int16_t *p, u_int16_t *ic,
         sa_family_t af, sa_family_t naf)
 {
 	struct pf_addr	ao;
-	u_int16_t	po = *p;
+	u_int16_t	po;
 
 	PF_ACPY(&ao, a, af);
 	if (af == naf)
@@ -3226,6 +3226,9 @@ pf_change_ap(struct mbuf *m, struct pf_addr *a, u_int16_t *p, u_int16_t *ic,
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6))
 		*pc = ~*pc;
 
+	if (p == NULL)  /* no port -> done. no cksum to worry about. */
+		return;
+	po = *p;
 	*p = pn;
 
 	switch (af) {
