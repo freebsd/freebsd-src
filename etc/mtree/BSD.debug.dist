@@ -41,6 +41,10 @@
                 ..
                 i18n
                 ..
+                libxo
+                    encoder
+                    ..
+                ..
             ..
             libexec
                 bsdinstall
