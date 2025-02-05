@@ -148,22 +148,16 @@ CFLAGS += -mno-relax
 
 .include <bsd.libnames.mk>
 
-# prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
+# prefer .s to a .c, remove stuff not used in the BSD libraries
 # .pico used for PIC object files
 # .nossppico used for NOSSP PIC object files
 # .pieo used for PIE object files
-.SUFFIXES: .out .o .bc .ll .po .pico .nossppico .pieo .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
+.SUFFIXES: .out .o .bc .ll .pico .nossppico .pieo .S .asm .s .c .cc .cpp .cxx .C .f .y .l .ln
 
 .if !defined(PICFLAG)
 PICFLAG=-fpic
 PIEFLAG=-fpie
 .endif
-
-PO_FLAG=-pg
-
-.c.po:
-	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .c.pico:
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -177,9 +171,6 @@ PO_FLAG=-pg
 	${CC} ${PIEFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.cc.po .C.po .cpp.po .cxx.po:
-	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
 .cc.pico .C.pico .cpp.pico .cxx.pico:
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
@@ -189,10 +180,6 @@ PO_FLAG=-pg
 .cc.pieo .C.pieo .cpp.pieo .cxx.pieo:
 	${CXX} ${PIEFLAG} ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.f.po:
-	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
-
 .f.pico:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
@@ -201,13 +188,8 @@ PO_FLAG=-pg
 	${FC} ${PICFLAG} -DPIC ${FFLAGS:C/^-fstack-protector.*$//:C/^-fstack-clash-protection.*$//} -o ${.TARGET} -c ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
-.s.po .s.pico .s.nossppico .s.pieo:
+.s.pico .s.nossppico .s.pieo:
 	${CC:N${CCACHE_BIN}} -x assembler ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.asm.po:
-	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
-	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.pico:
@@ -223,11 +205,6 @@ PO_FLAG=-pg
 .asm.pieo:
 	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PIEFLAG} -DPIC \
 	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	${CTFCONVERT_CMD}
-
-.S.po:
-	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
-	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.pico:
@@ -577,9 +554,6 @@ realinstall: maninstall
 
 .if defined(LIB) && !empty(LIB)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
-.for _S in ${SRCS:N*.[hly]}
-OBJS_DEPEND_GUESS.${_S:${OBJS_SRCS_FILTER:ts:}}.po+=	${_S}
-.endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
