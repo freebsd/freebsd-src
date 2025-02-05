@@ -1136,7 +1136,10 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 
 		error = mlx5e_hw_lro_update_tirs(priv);
 
-		/* restart network interface, if any */
+		/*
+		 * Restart network interface, if any.  This
+		 * re-populates rx wqes with proper segment sizes.
+		 */
 		if (was_opened)
 			mlx5e_open_locked(priv->ifp);
 		break;
