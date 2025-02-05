@@ -120,7 +120,7 @@ void	freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32);
 
 struct image_args;
 int freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
-	    enum uio_seg segflg, uint32_t *argv, uint32_t *envv);
+	    uint32_t *argv, uint32_t *envv);
 
 struct kinfo_knote;
 struct kinfo_knote32;
