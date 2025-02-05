@@ -97,6 +97,7 @@ void genl_unregister_family(uint16_t family);
 bool genl_register_cmds(uint16_t family, const struct genl_cmd *cmds,
     u_int count);
 uint32_t genl_register_group(uint16_t family, const char *group_name);
+void genl_unregister_group(uint16_t family, uint32_t group);
 
 typedef void (*genl_family_event_handler_t)(void *arg, const char *family_name,
     uint16_t family_id, u_int action);

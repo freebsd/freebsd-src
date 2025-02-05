@@ -121,6 +121,7 @@ extern struct nl_proto_handler *nl_handlers;
 
 /* netlink_domain.c */
 bool nl_send_group(struct nl_writer *);
+void nl_clear_group(u_int);
 void nl_osd_register(void);
 void nl_osd_unregister(void);
 void nl_set_thread_nlp(struct thread *td, struct nlpcb *nlp);

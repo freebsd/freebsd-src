@@ -497,3 +497,29 @@ genl_register_group(uint16_t family_id, const char *group_name)
 
 	return (group_id);
 }
+
+void
+genl_unregister_group(uint16_t family_id, uint32_t group_id)
+{
+	struct genl_family *gf;
+	struct genl_group *gg;
+
+	MPASS(group_id > MIN_GROUP_NUM &&
+	    group_id < MIN_GROUP_NUM + MAX_GROUPS);
+
+	nl_clear_group(group_id);
+
+	group_id -= MIN_GROUP_NUM;
+
+	GENL_LOCK();
+	gf = genl_family(family_id);
+	gg = &groups[group_id];
+
+	MPASS(gg->group_family == gf);
+	MPASS(gf->family_num_groups > 0);
+
+	gf->family_num_groups--;
+	gg->group_family = NULL;
+	gg->group_name = NULL;
+	GENL_UNLOCK();
+}
