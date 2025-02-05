@@ -503,8 +503,7 @@ ioapic_assign_cpu(device_t pic, struct intsrc *isrc, u_int apic_id)
 	if (isrc->is_handlers > 0)
 		apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 	if (bootverbose) {
-		printf("ioapic%u: routing intpin %u (", io->io_id,
-		    intpin->io_intpin);
+		device_printf(pic, "routing intpin %u (", intpin->io_intpin);
 		ioapic_print_irq(intpin);
 		printf(") to lapic %u vector %u\n", intpin->io_cpu,
 		    intpin->io_vector);
@@ -604,16 +603,18 @@ ioapic_config_intr(device_t pic, struct intsrc *isrc, enum intr_trigger trig,
 	changed = 0;
 	if (intpin->io_edgetrigger != (trig == INTR_TRIGGER_EDGE)) {
 		if (bootverbose)
-			printf("ioapic%u: Changing trigger for pin %u to %s\n",
-			    io->io_id, intpin->io_intpin,
+			device_printf(pic,
+			    "Changing trigger for pin %u to %s\n",
+			    intpin->io_intpin,
 			    trig == INTR_TRIGGER_EDGE ? "edge" : "level");
 		intpin->io_edgetrigger = (trig == INTR_TRIGGER_EDGE);
 		changed++;
 	}
 	if (intpin->io_activehi != (pol == INTR_POLARITY_HIGH)) {
 		if (bootverbose)
-			printf("ioapic%u: Changing polarity for pin %u to %s\n",
-			    io->io_id, intpin->io_intpin,
+			device_printf(pic,
+			    "Changing polarity for pin %u to %s\n",
+			    intpin->io_intpin,
 			    pol == INTR_POLARITY_HIGH ? "high" : "low");
 		intpin->io_activehi = (pol == INTR_POLARITY_HIGH);
 		changed++;
@@ -785,7 +786,8 @@ ioapic_disable_pin(ioapic_drv_t io, u_int pin)
 		return (EINVAL);
 	io->io_pins[pin].io_irq = IRQ_DISABLED;
 	if (bootverbose)
-		printf("ioapic%u: intpin %d disabled\n", io->io_id, pin);
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "intpin %d disabled\n", pin);
 	return (0);
 }
 
@@ -799,8 +801,8 @@ ioapic_remap_vector(ioapic_drv_t io, u_int pin, int vector)
 		return (EINVAL);
 	io->io_pins[pin].io_irq = vector;
 	if (bootverbose)
-		printf("ioapic%u: Routing IRQ %d -> intpin %d\n", io->io_id,
-		    vector, pin);
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "Routing IRQ %d -> intpin %d\n", vector, pin);
 	return (0);
 }
 
@@ -818,8 +820,8 @@ ioapic_set_bus(ioapic_drv_t io, u_int pin, int bus_type)
 		return (0);
 	io->io_pins[pin].io_bus = bus_type;
 	if (bootverbose)
-		printf("ioapic%u: intpin %d bus %s\n", io->io_id, pin,
-		    ioapic_bus_string(bus_type));
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "intpin %d bus %s\n", pin, ioapic_bus_string(bus_type));
 	return (0);
 }
 
@@ -840,8 +842,8 @@ ioapic_set_nmi(ioapic_drv_t io, u_int pin)
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
-		printf("ioapic%u: Routing NMI -> intpin %d\n",
-		    io->io_id, pin);
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "Routing NMI -> intpin %d\n", pin);
 	return (0);
 }
 
@@ -862,8 +864,8 @@ ioapic_set_smi(ioapic_drv_t io, u_int pin)
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
-		printf("ioapic%u: Routing SMI -> intpin %d\n",
-		    io->io_id, pin);
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "Routing SMI -> intpin %d\n", pin);
 	return (0);
 }
 
@@ -887,8 +889,8 @@ ioapic_set_extint(ioapic_drv_t io, u_int pin)
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
-		printf("ioapic%u: Routing external 8259A's -> intpin %d\n",
-		    io->io_id, pin);
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "Routing external 8259A's -> intpin %d\n", pin);
 	return (0);
 }
 
@@ -906,7 +908,8 @@ ioapic_set_polarity(ioapic_drv_t io, u_int pin, enum intr_polarity pol)
 		return (0);
 	io->io_pins[pin].io_activehi = activehi;
 	if (bootverbose)
-		printf("ioapic%u: intpin %d polarity: %s\n", io->io_id, pin,
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "intpin %d polarity: %s\n", pin,
 		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 	return (0);
 }
@@ -925,7 +928,8 @@ ioapic_set_triggermode(ioapic_drv_t io, u_int pin, enum intr_trigger trigger)
 		return (0);
 	io->io_pins[pin].io_edgetrigger = edgetrigger;
 	if (bootverbose)
-		printf("ioapic%u: intpin %d trigger: %s\n", io->io_id, pin,
+		device_printf(io->io_pins[pin].io_intsrc.is_event.ie_pic,
+		    "intpin %d trigger: %s\n", pin,
 		    trigger == INTR_TRIGGER_EDGE ? "edge" : "level");
 	return (0);
 }
@@ -946,9 +950,9 @@ ioapic_register(ioapic_drv_t io)
 	mtx_lock_spin(&icu_lock);
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
 	STAILQ_INSERT_TAIL(&ioapic_list, io, io_next);
-	printf("ioapic%u <Version %u.%u> irqs %u-%u\n",
-	    io->io_id, flags >> 4, flags & 0xf, io->io_intbase,
-	    io->io_intbase + io->io_numintr - 1);
+	device_printf(io->io_pins->io_intsrc.is_event.ie_pic,
+	    "<Version %u.%u> irqs %u-%u\n", flags >> 4, flags & 0xf,
+	    io->io_intbase, io->io_intbase + io->io_numintr - 1);
 
 	/*
 	 * Reprogram pins to handle special case pins (such as NMI and
@@ -1053,9 +1057,11 @@ fail:
 	return (ENXIO);
 found:
 	KASSERT(io->pci_dev == NULL,
-	    ("ioapic %d pci_dev not NULL", io->io_id));
+	    ("%s pci_dev not NULL",
+	    device_get_nameunit(io->io_pins[0].io_intsrc.is_event.ie_pic)));
 	KASSERT(io->pci_wnd == NULL,
-	    ("ioapic %d pci_wnd not NULL", io->io_id));
+	    ("%s pci_wnd not NULL",
+	    device_get_nameunit(io->io_pins[0].io_intsrc.is_event.ie_pic)));
 
 	io->pci_dev = dev;
 	io->pci_wnd = res;
