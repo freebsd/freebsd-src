@@ -2593,8 +2593,8 @@ conf_new_from_file(const char *path, bool ucl)
 		    "going with defaults");
 		pg = portal_group_find(conf, "default");
 		assert(pg != NULL);
-		portal_group_add_listen(pg, "0.0.0.0:3260", false);
-		portal_group_add_listen(pg, "[::]:3260", false);
+		portal_group_add_listen(pg, "0.0.0.0", false);
+		portal_group_add_listen(pg, "[::]", false);
 	}
 
 	conf->conf_kernel_port_on = true;
