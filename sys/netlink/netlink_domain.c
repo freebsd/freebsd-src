@@ -311,7 +311,7 @@ nl_bind_locked(struct nlpcb *nlp, struct sockaddr_nl *snl)
 }
 
 static int
-nl_pru_attach(struct socket *so, int proto, struct thread *td)
+nl_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct nlpcb *nlp;
 	int error;
@@ -373,7 +373,7 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 }
 
 static int
-nl_pru_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
+nl_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
 {
 	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	struct nlpcb *nlp = sotonlpcb(so);
@@ -450,7 +450,7 @@ nl_autobind_port(struct nlpcb *nlp, uint32_t candidate_id)
 }
 
 static int
-nl_pru_connect(struct socket *so, struct sockaddr *sa, struct thread *td)
+nl_connect(struct socket *so, struct sockaddr *sa, struct thread *td)
 {
 	struct sockaddr_nl *snl = (struct sockaddr_nl *)sa;
 	struct nlpcb *nlp;
@@ -537,7 +537,7 @@ nl_close(struct socket *so)
 }
 
 static int
-nl_pru_disconnect(struct socket *so)
+nl_disconnect(struct socket *so)
 {
 	NL_LOG(LOG_DEBUG3, "socket %p, PID %d", so, curproc->p_pid);
 	MPASS(sotonlpcb(so) != NULL);
@@ -983,10 +983,10 @@ nl_setsbopt(struct socket *so, struct sockopt *sopt)
 	.pr_flags = PR_ATOMIC | PR_ADDR | PR_SOCKBUF,		\
 	.pr_ctloutput = nl_ctloutput,				\
 	.pr_setsbopt = nl_setsbopt,				\
-	.pr_attach = nl_pru_attach,				\
-	.pr_bind = nl_pru_bind,					\
-	.pr_connect = nl_pru_connect,				\
-	.pr_disconnect = nl_pru_disconnect,			\
+	.pr_attach = nl_attach,					\
+	.pr_bind = nl_bind,					\
+	.pr_connect = nl_connect,				\
+	.pr_disconnect = nl_disconnect,				\
 	.pr_sosend = nl_sosend,					\
 	.pr_soreceive = nl_soreceive,				\
 	.pr_sockaddr = nl_sockaddr,				\
