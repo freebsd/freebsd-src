@@ -109,6 +109,7 @@ nl_process_received_one(struct nlpcb *nlp)
 	SOCK_RECVBUF_LOCK(so);
 	if (sb->sb_hiwat <= sb->sb_ccc) {
 		SOCK_RECVBUF_UNLOCK(so);
+		NL_LOG(LOG_DEBUG3, "socket %p stuck", so);
 		return (false);
 	}
 	SOCK_RECVBUF_UNLOCK(so);
