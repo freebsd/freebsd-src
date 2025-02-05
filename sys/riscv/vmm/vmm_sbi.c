@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2024-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by the University of Cambridge Computer
  * Laboratory (Department of Computer Science and Technology) under Innovate
@@ -32,29 +32,8 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/jail.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
-#include <sys/conf.h>
-#include <sys/sysctl.h>
-#include <sys/libkern.h>
-#include <sys/ioccom.h>
-#include <sys/mman.h>
-#include <sys/uio.h>
 #include <sys/proc.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-
-#include <machine/machdep.h>
-#include <machine/vmparam.h>
-#include <machine/vmm.h>
-#include <machine/vmm_dev.h>
-#include <machine/md_var.h>
 #include <machine/sbi.h>
 
 #include "riscv.h"
@@ -64,13 +43,13 @@ static int
 vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
 {
 	struct vmm_fence fence;
+	cpuset_t active_cpus;
 	uint64_t hart_mask;
 	uint64_t hart_mask_base;
 	uint64_t func_id;
 	struct hyp *hyp;
 	uint16_t maxcpus;
 	cpuset_t cpus;
-	int vcpu_id;
 	int i;
 
 	func_id = hypctx->guest_regs.hyp_a[6];
@@ -94,31 +73,39 @@ vmm_sbi_handle_rfnc(struct vcpu *vcpu, struct hypctx *hypctx)
 		fence.type = VMM_RISCV_FENCE_VMA_ASID;
 		break;
 	default:
-		return (-1);
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
 
 	/* Construct cpuset_t from the mask supplied. */
-
 	CPU_ZERO(&cpus);
 	hyp = hypctx->hyp;
+	active_cpus = vm_active_cpus(hyp->vm);
 	maxcpus = vm_get_maxcpus(hyp->vm);
 	for (i = 0; i < maxcpus; i++) {
 		vcpu = vm_vcpu(hyp->vm, i);
 		if (vcpu == NULL)
 			continue;
-		vcpu_id = vcpu_vcpuid(vcpu);
 		if (hart_mask_base != -1UL) {
-			if (vcpu_id < hart_mask_base)
+			if (i < hart_mask_base)
 				continue;
-			if (!(hart_mask & (1UL << (vcpu_id - hart_mask_base))))
+			if (!(hart_mask & (1UL << (i - hart_mask_base))))
 				continue;
 		}
+		/*
+		 * If either hart_mask_base or at least one hartid from
+		 * hart_mask is not valid, then return error.
+		 */
+		if (!CPU_ISSET(i, &active_cpus))
+			return (SBI_ERR_INVALID_PARAM);
 		CPU_SET(i, &cpus);
 	}
 
+	if (CPU_EMPTY(&cpus))
+		return (SBI_ERR_INVALID_PARAM);
+
 	vmm_fence_add(hyp->vm, &cpus, &fence);
 
-	return (0);
+	return (SBI_SUCCESS);
 }
 
 static int
@@ -126,7 +113,6 @@ vmm_sbi_handle_time(struct vcpu *vcpu, struct hypctx *hypctx)
 {
 	uint64_t func_id;
 	uint64_t next_val;
-	int ret;
 
 	func_id = hypctx->guest_regs.hyp_a[6];
 	next_val = hypctx->guest_regs.hyp_a[0];
@@ -134,31 +120,25 @@ vmm_sbi_handle_time(struct vcpu *vcpu, struct hypctx *hypctx)
 	switch (func_id) {
 	case SBI_TIME_SET_TIMER:
 		vtimer_set_timer(hypctx, next_val);
-		ret = 0;
 		break;
 	default:
-		ret = -1;
-		break;
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
 
-	hypctx->guest_regs.hyp_a[0] = ret;
-
-	return (0);
+	return (SBI_SUCCESS);
 }
 
 static int
 vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 {
-	struct hypctx *target_hypctx;
-	struct vcpu *target_vcpu __unused;
 	cpuset_t active_cpus;
 	struct hyp *hyp;
 	uint64_t hart_mask;
 	uint64_t hart_mask_base;
 	uint64_t func_id;
+	cpuset_t cpus;
 	int hart_id;
 	int bit;
-	int ret;
 
 	func_id = hypctx->guest_regs.hyp_a[6];
 	hart_mask = hypctx->guest_regs.hyp_a[0];
@@ -170,6 +150,7 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 
 	active_cpus = vm_active_cpus(hyp->vm);
 
+	CPU_ZERO(&cpus);
 	switch (func_id) {
 	case SBI_IPI_SEND_IPI:
 		while ((bit = ffs(hart_mask))) {
@@ -177,30 +158,28 @@ vmm_sbi_handle_ipi(struct vcpu *vcpu, struct hypctx *hypctx)
 			hart_mask &= ~(1u << hart_id);
 			if (hart_mask_base != -1)
 				hart_id += hart_mask_base;
-			if (CPU_ISSET(hart_id, &active_cpus)) {
-				/* TODO. */
-				target_vcpu = vm_vcpu(hyp->vm, hart_id);
-				target_hypctx = hypctx->hyp->ctx[hart_id];
-				riscv_send_ipi(target_hypctx, hart_id);
-			}
+			if (!CPU_ISSET(hart_id, &active_cpus))
+				return (SBI_ERR_INVALID_PARAM);
+			CPU_SET(hart_id, &cpus);
 		}
-		ret = 0;
 		break;
 	default:
-		printf("%s: unknown func %ld\n", __func__, func_id);
-		ret = -1;
-		break;
+		dprintf("%s: unknown func %ld\n", __func__, func_id);
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
 
-	hypctx->guest_regs.hyp_a[0] = ret;
+	if (CPU_EMPTY(&cpus))
+		return (SBI_ERR_INVALID_PARAM);
 
-	return (0);
+	riscv_send_ipi(hyp, &cpus);
+
+	return (SBI_SUCCESS);
 }
 
-int
-vmm_sbi_ecall(struct vcpu *vcpu, bool *retu)
+bool
+vmm_sbi_ecall(struct vcpu *vcpu)
 {
-	int sbi_extension_id __unused;
+	int sbi_extension_id;
 	struct hypctx *hypctx;
 	int error;
 
@@ -220,18 +199,20 @@ vmm_sbi_ecall(struct vcpu *vcpu, bool *retu)
 	switch (sbi_extension_id) {
 	case SBI_EXT_ID_RFNC:
 		error = vmm_sbi_handle_rfnc(vcpu, hypctx);
-		hypctx->guest_regs.hyp_a[0] = error;
 		break;
 	case SBI_EXT_ID_TIME:
-		vmm_sbi_handle_time(vcpu, hypctx);
+		error = vmm_sbi_handle_time(vcpu, hypctx);
 		break;
 	case SBI_EXT_ID_IPI:
-		vmm_sbi_handle_ipi(vcpu, hypctx);
+		error = vmm_sbi_handle_ipi(vcpu, hypctx);
 		break;
 	default:
-		*retu = true;
-		break;
+		/* Return to handle in userspace. */
+		return (false);
 	}
 
-	return (0);
+	hypctx->guest_regs.hyp_a[0] = error;
+
+	/* Request is handled in kernel mode. */
+	return (true);
 }
