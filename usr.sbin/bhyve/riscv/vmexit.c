@@ -207,6 +207,11 @@ vmexit_ecall_hsm(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 		    vme->u.ecall.args[1]);
 		assert(error == 0);
 
+		/* Pass private data. */
+		error = vm_set_register(newvcpu, VM_REG_GUEST_A1,
+		    vme->u.ecall.args[2]);
+		assert(error == 0);
+
 		vm_resume_cpu(newvcpu);
 		CPU_SET_ATOMIC(hart_id, &running_hartmask);
 
