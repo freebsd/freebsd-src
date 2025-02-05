@@ -77,7 +77,6 @@ bool netlink_register_proto(int proto, const char *proto_name, nl_handler_f hand
 bool netlink_unregister_proto(int proto);
 
 /* Common helpers */
-bool nl_has_listeners(uint16_t netlink_family, uint32_t groups_mask);
 bool nlp_has_priv(struct nlpcb *nlp, int priv);
 struct ucred *nlp_get_cred(struct nlpcb *nlp);
 uint32_t nlp_get_pid(const struct nlpcb *nlp);

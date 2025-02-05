@@ -65,11 +65,13 @@ _Static_assert(NLP_MAX_GROUPS >= 64,
     "NLP_MAX_GROUPS has to be at least 64");
 
 #define	NLCTL_TRACKER		struct rm_priotracker nl_tracker
-#define	NLCTL_RLOCK(_ctl)	rm_rlock(&((_ctl)->ctl_lock), &nl_tracker)
-#define	NLCTL_RUNLOCK(_ctl)	rm_runlock(&((_ctl)->ctl_lock), &nl_tracker)
+#define	NLCTL_RLOCK()		rm_rlock(&V_nl_ctl.ctl_lock, &nl_tracker)
+#define	NLCTL_RUNLOCK()		rm_runlock(&V_nl_ctl.ctl_lock, &nl_tracker)
+#define	NLCTL_LOCK_ASSERT()	rm_assert(&V_nl_ctl.ctl_lock, RA_LOCKED)
 
-#define	NLCTL_WLOCK(_ctl)	rm_wlock(&((_ctl)->ctl_lock))
-#define	NLCTL_WUNLOCK(_ctl)	rm_wunlock(&((_ctl)->ctl_lock))
+#define	NLCTL_WLOCK()		rm_wlock(&V_nl_ctl.ctl_lock)
+#define	NLCTL_WUNLOCK()		rm_wunlock(&V_nl_ctl.ctl_lock)
+#define	NLCTL_WLOCK_ASSERT()	rm_assert(&V_nl_ctl.ctl_lock, RA_WLOCKED)
 
 static u_long nl_sendspace = NLSNDQ;
 SYSCTL_ULONG(_net_netlink, OID_AUTO, sendspace, CTLFLAG_RW, &nl_sendspace, 0,
@@ -128,7 +130,7 @@ nl_port_lookup(uint32_t port_id)
 {
 	struct nlpcb *nlp;
 
-	CK_LIST_FOREACH(nlp, &V_nl_ctl->ctl_port_head, nl_port_next) {
+	CK_LIST_FOREACH(nlp, &V_nl_ctl.ctl_port_head, nl_port_next) {
 		if (nlp->nl_port == port_id)
 			return (nlp);
 	}
@@ -209,19 +211,8 @@ nl_send_group(struct nl_writer *nw)
 
 	nw->buf = NULL;
 
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
-	if (__predict_false(ctl == NULL)) {
-		/*
-		 * Can be the case when notification is sent within VNET
-		 * which doesn't have any netlink sockets.
-		 */
-		nl_buf_free(nb);
-		return (false);
-	}
-
-	NLCTL_RLOCK(ctl);
-
-	CK_LIST_FOREACH(nlp, &ctl->ctl_pcb_head, nl_next) {
+	NLCTL_RLOCK();
+	CK_LIST_FOREACH(nlp, &V_nl_ctl.ctl_pcb_head, nl_next) {
 		if ((nw->group.priv == 0 || priv_check_cred(
 		    nlp->nl_socket->so_cred, nw->group.priv) == 0) &&
 		    nlp->nl_proto == nw->group.proto &&
@@ -249,15 +240,9 @@ nl_send_group(struct nl_writer *nw)
 	} else
 		nl_buf_free(nb);
 
-	NLCTL_RUNLOCK(ctl);
+	NLCTL_RUNLOCK();
 
 	return (true);
-}
-
-bool
-nl_has_listeners(uint16_t netlink_family, uint32_t groups_mask)
-{
-	return (V_nl_ctl != NULL);
 }
 
 static uint32_t
@@ -298,7 +283,7 @@ nl_bind_locked(struct nlpcb *nlp, struct sockaddr_nl *snl)
 			return (EADDRINUSE);
 		nlp->nl_port = snl->nl_pid;
 		nlp->nl_bound = true;
-		CK_LIST_INSERT_HEAD(&V_nl_ctl->ctl_port_head, nlp, nl_port_next);
+		CK_LIST_INSERT_HEAD(&V_nl_ctl.ctl_port_head, nlp, nl_port_next);
 	}
 	for (int i = 0; i < 32; i++) {
 		if (snl->nl_groups & ((uint32_t)1 << i))
@@ -328,14 +313,6 @@ nl_attach(struct socket *so, int proto, struct thread *td)
 	    so, is_linux ? "(linux) " : "", curproc->p_pid,
 	    nl_get_proto_name(proto));
 
-	/* Create per-VNET state on first socket init */
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
-	if (ctl == NULL)
-		ctl = vnet_nl_ctl_init();
-	KASSERT(V_nl_ctl != NULL, ("nl_attach: vnet_sock_init() failed"));
-
-	MPASS(sotonlpcb(so) == NULL);
-
 	nlp = malloc(sizeof(struct nlpcb), M_PCB, M_WAITOK | M_ZERO);
 	error = soreserve(so, nl_sendspace, nl_recvspace);
 	if (error != 0) {
@@ -362,10 +339,9 @@ nl_attach(struct socket *so, int proto, struct thread *td)
 	taskqueue_start_threads(&nlp->nl_taskqueue, 1, PWAIT,
 	    "netlink_socket (PID %u)", nlp->nl_process_id);
 
-	NLCTL_WLOCK(ctl);
-	/* XXX: check ctl is still alive */
-	CK_LIST_INSERT_HEAD(&ctl->ctl_pcb_head, nlp, nl_next);
-	NLCTL_WUNLOCK(ctl);
+	NLCTL_WLOCK();
+	CK_LIST_INSERT_HEAD(&V_nl_ctl.ctl_pcb_head, nlp, nl_next);
+	NLCTL_WUNLOCK();
 
 	soisconnected(so);
 
@@ -375,7 +351,6 @@ nl_attach(struct socket *so, int proto, struct thread *td)
 static int
 nl_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
 {
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	struct nlpcb *nlp = sotonlpcb(so);
 	struct sockaddr_nl *snl = (struct sockaddr_nl *)sa;
 	int error;
@@ -387,11 +362,11 @@ nl_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
 	}
 
 
-	NLCTL_WLOCK(ctl);
+	NLCTL_WLOCK();
 	NLP_LOCK(nlp);
 	error = nl_bind_locked(nlp, snl);
 	NLP_UNLOCK(nlp);
-	NLCTL_WUNLOCK(ctl);
+	NLCTL_WUNLOCK();
 	NL_LOG(LOG_DEBUG2, "socket %p, bind() to %u, groups %u, error %d", so,
 	    snl->nl_pid, snl->nl_groups, error);
 
@@ -402,18 +377,17 @@ nl_bind(struct socket *so, struct sockaddr *sa, struct thread *td)
 static int
 nl_assign_port(struct nlpcb *nlp, uint32_t port_id)
 {
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	struct sockaddr_nl snl = {
 		.nl_pid = port_id,
 	};
 	int error;
 
-	NLCTL_WLOCK(ctl);
+	NLCTL_WLOCK();
 	NLP_LOCK(nlp);
 	snl.nl_groups = nl_get_groups_compat(nlp);
 	error = nl_bind_locked(nlp, &snl);
 	NLP_UNLOCK(nlp);
-	NLCTL_WUNLOCK(ctl);
+	NLCTL_WUNLOCK();
 
 	NL_LOG(LOG_DEBUG3, "socket %p, port assign: %d, error: %d", nlp->nl_socket, port_id, error);
 	return (error);
@@ -427,7 +401,6 @@ nl_assign_port(struct nlpcb *nlp, uint32_t port_id)
 static int
 nl_autobind_port(struct nlpcb *nlp, uint32_t candidate_id)
 {
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	uint32_t port_id = candidate_id;
 	NLCTL_TRACKER;
 	bool exist;
@@ -435,9 +408,9 @@ nl_autobind_port(struct nlpcb *nlp, uint32_t candidate_id)
 
 	for (int i = 0; i < 10; i++) {
 		NL_LOG(LOG_DEBUG3, "socket %p, trying to assign port %d", nlp->nl_socket, port_id);
-		NLCTL_RLOCK(ctl);
+		NLCTL_RLOCK();
 		exist = nl_port_lookup(port_id) != 0;
-		NLCTL_RUNLOCK(ctl);
+		NLCTL_RUNLOCK();
 		if (!exist) {
 			error = nl_assign_port(nlp, port_id);
 			if (error != EADDRINUSE)
@@ -491,7 +464,6 @@ destroy_nlpcb_epoch(epoch_context_t ctx)
 static void
 nl_close(struct socket *so)
 {
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	MPASS(sotonlpcb(so) != NULL);
 	struct nlpcb *nlp;
 	struct nl_buf *nb;
@@ -508,7 +480,7 @@ nl_close(struct socket *so)
 	taskqueue_drain_all(nlp->nl_taskqueue);
 	taskqueue_free(nlp->nl_taskqueue);
 
-	NLCTL_WLOCK(ctl);
+	NLCTL_WLOCK();
 	NLP_LOCK(nlp);
 	if (was_bound) {
 		CK_LIST_REMOVE(nlp, nl_port_next);
@@ -517,7 +489,7 @@ nl_close(struct socket *so)
 	CK_LIST_REMOVE(nlp, nl_next);
 	nlp->nl_socket = NULL;
 	NLP_UNLOCK(nlp);
-	NLCTL_WUNLOCK(ctl);
+	NLCTL_WUNLOCK();
 
 	so->so_pcb = NULL;
 
@@ -852,7 +824,6 @@ nl_getoptflag(int sopt_name)
 static int
 nl_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	struct nl_control *ctl = atomic_load_ptr(&V_nl_ctl);
 	struct nlpcb *nlp = sotonlpcb(so);
 	uint32_t flag;
 	int optval, error = 0;
@@ -875,12 +846,12 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 			}
 			NL_LOG(LOG_DEBUG2, "ADD/DEL group %d", (uint32_t)optval);
 
-			NLCTL_WLOCK(ctl);
+			NLCTL_WLOCK();
 			if (sopt->sopt_name == NETLINK_ADD_MEMBERSHIP)
 				nl_add_group_locked(nlp, optval);
 			else
 				nl_del_group_locked(nlp, optval);
-			NLCTL_WUNLOCK(ctl);
+			NLCTL_WUNLOCK();
 			break;
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
@@ -897,12 +868,12 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			}
 
-			NLCTL_WLOCK(ctl);
+			NLCTL_WLOCK();
 			if (optval != 0)
 				nlp->nl_flags |= flag;
 			else
 				nlp->nl_flags &= ~flag;
-			NLCTL_WUNLOCK(ctl);
+			NLCTL_WUNLOCK();
 			break;
 		default:
 			error = ENOPROTOOPT;
@@ -911,18 +882,18 @@ nl_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 		case NETLINK_LIST_MEMBERSHIPS:
-			NLCTL_RLOCK(ctl);
+			NLCTL_RLOCK();
 			optval = nl_get_groups_compat(nlp);
-			NLCTL_RUNLOCK(ctl);
+			NLCTL_RUNLOCK();
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 		case NETLINK_CAP_ACK:
 		case NETLINK_EXT_ACK:
 		case NETLINK_GET_STRICT_CHK:
 		case NETLINK_MSG_INFO:
-			NLCTL_RLOCK(ctl);
+			NLCTL_RLOCK();
 			optval = (nlp->nl_flags & nl_getoptflag(sopt->sopt_name)) != 0;
-			NLCTL_RUNLOCK(ctl);
+			NLCTL_RUNLOCK();
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 		default:
