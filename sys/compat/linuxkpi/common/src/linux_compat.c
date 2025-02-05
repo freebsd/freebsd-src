@@ -1105,7 +1105,7 @@ __get_file_rcu(struct linux_file **f)
 }
 
 struct linux_file *
-linux67_get_file_rcu(struct linux_file **f)
+linux_get_file_rcu(struct linux_file **f)
 {
 	struct linux_file *file1;
 
