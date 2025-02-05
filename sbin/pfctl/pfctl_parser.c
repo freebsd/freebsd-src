@@ -513,7 +513,8 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	running = s->running ? "Enabled" : "Disabled";
 
 	if (s->since) {
-		unsigned int	sec, min, hrs, day = runtime;
+		unsigned int	sec, min, hrs;
+		time_t		day = runtime;
 
 		sec = day % 60;
 		day /= 60;
@@ -522,8 +523,8 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		hrs = day % 24;
 		day /= 24;
 		snprintf(statline, sizeof(statline),
-		    "Status: %s for %u days %.2u:%.2u:%.2u",
-		    running, day, hrs, min, sec);
+		    "Status: %s for %lld days %.2u:%.2u:%.2u",
+		    running, (long long)day, hrs, min, sec);
 	} else
 		snprintf(statline, sizeof(statline), "Status: %s", running);
 	printf("%-44s", statline);
