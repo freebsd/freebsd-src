@@ -39,7 +39,6 @@ MAN=	accept_filter.9 \
 	bus_delayed_attach_children.9 \
 	BUS_DESCRIBE_INTR.9 \
 	bus_dma.9 \
-	bus_generic_attach.9 \
 	bus_generic_detach.9 \
 	bus_generic_new_pass.9 \
 	bus_generic_print_child.9 \

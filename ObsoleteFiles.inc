@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250205: bus_generic_attach.9 removed after the function was deprecated
+OLD_FILES+=usr/share/man/man9/bus_generic_attach.9.gz
+
 # 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
 OLD_DIRS+=usr/tests/sys/vm/stack/.debug
 
