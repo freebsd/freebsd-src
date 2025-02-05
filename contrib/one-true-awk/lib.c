@@ -897,7 +897,7 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
  */
 #if 0
 	/* no hex floating point, sorry */
-	if (s[0] == '0' && tolower(s[1]) == 'x')
+	if (s[0] == '0' && tolower(s[1]) == 'x' && isxdigit(s[2]))
 		return false;
 #endif
 
