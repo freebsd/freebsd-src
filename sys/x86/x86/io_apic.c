@@ -94,7 +94,6 @@ struct ioapic_intsrc {
 
 struct ioapic {
 	pic_base_softc_t pic_base_softc;
-	u_int io_id:8;			/* logical ID */
 	u_int io_apic_id:8;		/* Id as enumerated by MADT */
 	u_int io_hw_apic_id:8;		/* Content of APIC ID register */
 	u_int io_intbase:8;		/* System Interrupt base */
@@ -627,6 +626,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	struct ioapic_intsrc *intpin;
 	ioapic_t *apic;
 	device_t io_pic;
+	u_int io_id;
 	u_int numintr, i;
 	uint32_t value;
 
@@ -650,20 +650,19 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->pci_dev = NULL;
 	io->pci_wnd = NULL;
 	mtx_lock_spin(&icu_lock);
-	io->io_id = next_id++;
+	io_id = next_id++;
 	io->io_hw_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
 	io->io_apic_id = apic_id == -1 ? io->io_hw_apic_id : apic_id;
 	mtx_unlock_spin(&icu_lock);
 	if (io->io_hw_apic_id != apic_id)
-		printf("ioapic%u: MADT APIC ID %d != hw id %d\n", io->io_id,
+		printf("ioapic%u: MADT APIC ID %d != hw id %d\n", io_id,
 		    apic_id, io->io_hw_apic_id);
 	if (intbase == -1) {
 		intbase = next_ioapic_base;
-		printf("ioapic%u: Assuming intbase of %d\n", io->io_id,
-		    intbase);
+		printf("ioapic%u: Assuming intbase of %d\n", io_id, intbase);
 	} else if (intbase != next_ioapic_base && bootverbose)
 		printf("ioapic%u: WARNING: intbase %d != expected base %d\n",
-		    io->io_id, intbase, next_ioapic_base);
+		    io_id, intbase, next_ioapic_base);
 	io->io_intbase = intbase;
 	next_ioapic_base = intbase + numintr;
 	if (next_ioapic_base > num_io_irqs)
@@ -672,11 +671,11 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_addr = apic;
 	io->io_paddr = addr;
 
-	io_pic = intr_create_pic("ioapic", io->io_id, &io_apic_class);
+	io_pic = intr_create_pic("ioapic", io_id, &io_apic_class);
 	device_set_softc(io_pic, io);
 
 	if (bootverbose) {
-		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io->io_id,
+		printf("ioapic%u: ver 0x%02x maxredir 0x%02x\n", io_id,
 		    (value & IOART_VER_VERSION), (value & IOART_VER_MAXREDIR)
 		    >> MAXREDIRSHIFT);
 	}
