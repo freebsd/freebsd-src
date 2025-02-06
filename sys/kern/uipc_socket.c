@@ -3699,6 +3699,19 @@ sorflush(struct socket *so)
 
 }
 
+int
+sosetfib(struct socket *so, int fibnum)
+{
+	if (fibnum < 0 || fibnum >= rt_numfibs)
+		return (EINVAL);
+
+	SOCK_LOCK(so);
+	so->so_fibnum = fibnum;
+	SOCK_UNLOCK(so);
+
+	return (0);
+}
+
 #ifdef SOCKET_HHOOK
 /*
  * Wrapper for Socket established helper hook.
@@ -3847,21 +3860,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case SO_SETFIB:
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
-			if (error)
-				goto bad;
-
-			if (optval < 0 || optval >= rt_numfibs) {
-				error = EINVAL;
-				goto bad;
-			}
-			if (((so->so_proto->pr_domain->dom_family == PF_INET) ||
-			   (so->so_proto->pr_domain->dom_family == PF_INET6) ||
-			   (so->so_proto->pr_domain->dom_family == PF_ROUTE)))
-				so->so_fibnum = optval;
-			else
-				so->so_fibnum = 0;
+			error = so->so_proto->pr_ctloutput(so, sopt);
 			break;
 
 		case SO_USER_COOKIE:
