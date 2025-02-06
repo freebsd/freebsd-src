@@ -81,7 +81,7 @@ struct inpcb *in6_pcblookup_local(struct inpcbinfo *, const struct in6_addr *,
 struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
 	    const struct in6_addr *faddr, u_int fport_arg,
 	    const struct in6_addr *laddr, u_int lport_arg,
-	    int lookupflags, uint8_t);
+	    int lookupflags, uint8_t numa_domain, int fib);
 struct inpcb *in6_pcblookup(struct inpcbinfo *, const struct in6_addr *, u_int,
 	    const struct in6_addr *, u_int, int, struct ifnet *);
 struct inpcb *in6_pcblookup_mbuf(struct inpcbinfo *, const struct in6_addr *,

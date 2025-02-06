@@ -624,10 +624,11 @@ typedef	enum {
 	INPLOOKUP_WILDCARD = 0x00000001,	/* Allow wildcard sockets. */
 	INPLOOKUP_RLOCKPCB = 0x00000002,	/* Return inpcb read-locked. */
 	INPLOOKUP_WLOCKPCB = 0x00000004,	/* Return inpcb write-locked. */
+	INPLOOKUP_FIB = 0x00000008,		/* inp must be from same FIB. */
 } inp_lookup_t;
 
 #define	INPLOOKUP_MASK	(INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB | \
-	    INPLOOKUP_WLOCKPCB)
+	    INPLOOKUP_WLOCKPCB | INPLOOKUP_FIB)
 #define	INPLOOKUP_LOCKMASK	(INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)
 
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
