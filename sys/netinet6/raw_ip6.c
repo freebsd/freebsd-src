@@ -61,7 +61,6 @@
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
  */
 
-#include <sys/cdefs.h>
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
@@ -119,6 +118,9 @@
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
+
+VNET_DECLARE(int, rip_bind_all_fibs);
+#define	V_rip_bind_all_fibs	VNET(rip_bind_all_fibs)
 
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
@@ -192,14 +194,16 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct rip6_inp_match_ctx ctx = { .ip6 = ip6, .proto = proto };
 	struct inpcb_iterator inpi = INP_ITERATOR(&V_ripcbinfo,
 	    INPLOOKUP_RLOCKPCB, rip6_inp_match, &ctx);
-	int delivered = 0;
+	int delivered = 0, fib;
 
+	M_ASSERTPKTHDR(m);
 	NET_EPOCH_ASSERT();
 
 	RIP6STAT_INC(rip6s_ipackets);
 
 	init_sin6(&fromsa, m, 0); /* general init */
 
+	fib = M_GETFIB(m);
 	ifp = m->m_pkthdr.rcvif;
 
 	while ((inp = inp_next(&inpi)) != NULL) {
@@ -221,6 +225,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 * Allow raw socket in jail to receive multicast;
 			 * assume process had PRIV_NETINET_RAW at attach,
 			 * and fall through into normal filter path if so.
+			 */
+			continue;
+		if (V_rip_bind_all_fibs == 0 && fib != inp->inp_inc.inc_fibnum)
+			/*
+			 * Sockets bound to a specific FIB can only receive
+			 * packets from that FIB.
 			 */
 			continue;
 		if (inp->in6p_cksum != -1) {

@@ -145,6 +145,9 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo,
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo		VNET(ripcbinfo)
 
+VNET_DECLARE(int, rip_bind_all_fibs);
+#define	V_rip_bind_all_fibs	VNET(rip_bind_all_fibs)
+
 static void icmp6_errcount(int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
 static void icmp6_reflect(struct mbuf *, size_t);
@@ -1936,7 +1939,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 	struct sockaddr_in6 fromsa;
 	struct icmp6_hdr *icmp6;
 	struct mbuf *opts = NULL;
-	int delivered = 0;
+	int delivered = 0, fib;
 
 	/* This is assumed to be safe; icmp6_input() does a pullup. */
 	icmp6 = (struct icmp6_hdr *)((caddr_t)ip6 + off);
@@ -1955,7 +1958,15 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		return (IPPROTO_DONE);
 	}
 
+	fib = M_GETFIB(m);
+
 	while ((inp = inp_next(&inpi)) != NULL) {
+		if (V_rip_bind_all_fibs == 0 && fib != inp->inp_inc.inc_fibnum)
+			/*
+			 * Sockets bound to a specific FIB can only receive
+			 * packets from that FIB.
+			 */
+			continue;
 		if (ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
 		    inp->in6p_icmp6filt))
 			continue;

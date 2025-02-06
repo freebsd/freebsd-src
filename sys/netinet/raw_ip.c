@@ -32,7 +32,6 @@
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -129,6 +128,12 @@ int (*rsvp_input_p)(struct mbuf **, int *, int);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
+
+#define	V_rip_bind_all_fibs	VNET(rip_bind_all_fibs)
+VNET_DEFINE(int, rip_bind_all_fibs) = 1;
+SYSCTL_INT(_net_inet_raw, OID_AUTO, bind_all_fibs, CTLFLAG_VNET | CTLFLAG_RDTUN,
+    &VNET_NAME(rip_bind_all_fibs), 0,
+    "Bound sockets receive traffic from all FIBs");
 
 u_long	rip_sendspace = 9216;
 SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
@@ -304,7 +309,9 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m = *mp;
 	struct inpcb *inp;
 	struct sockaddr_in ripsrc;
-	int appended;
+	int appended, fib;
+
+	M_ASSERTPKTHDR(m);
 
 	*mp = NULL;
 	appended = 0;
@@ -314,6 +321,7 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	ripsrc.sin_family = AF_INET;
 	ripsrc.sin_addr = ctx.ip->ip_src;
 
+	fib = M_GETFIB(m);
 	ifp = m->m_pkthdr.rcvif;
 
 	inpi.hash = INP_PCBHASH_RAW(proto, ctx.ip->ip_src.s_addr,
@@ -328,6 +336,12 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			continue;
 		}
+		if (V_rip_bind_all_fibs == 0 && fib != inp->inp_inc.inc_fibnum)
+			/*
+			 * Sockets bound to a specific FIB can only receive
+			 * packets from that FIB.
+			 */
+			continue;
 		appended += rip_append(inp, ctx.ip, m, &ripsrc);
 	}
 
@@ -345,6 +359,9 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 			 * and fall through into normal filter path if so.
 			 */
 			continue;
+		if (V_rip_bind_all_fibs == 0 && fib != inp->inp_inc.inc_fibnum)
+			continue;
+
 		/*
 		 * If this raw socket has multicast state, and we
 		 * have received a multicast, check if this socket
