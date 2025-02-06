@@ -687,7 +687,6 @@ struct pf_keth_ruleset {
 		int			 open;
 		uint32_t		 ticket;
 	} active, inactive;
-	struct epoch_context	 epoch_ctx;
 	struct vnet		*vnet;
 	struct pf_keth_anchor	*anchor;
 };
