@@ -1913,7 +1913,7 @@ linprocfs_doproclimits(PFS_FILL_ARGS)
 			    "kern.sigqueue.max_pending_per_proc",
 			    &res, &size, 0, 0, 0, 0);
 			if (error != 0)
-				goto out;
+				continue;
 			rl.rlim_cur = res;
 			rl.rlim_max = res;
 			break;
@@ -1921,7 +1921,7 @@ linprocfs_doproclimits(PFS_FILL_ARGS)
 			error = kernel_sysctlbyname(td,
 			    "kern.ipc.msgmnb", &res, &size, 0, 0, 0, 0);
 			if (error != 0)
-				goto out;
+				continue;
 			rl.rlim_cur = res;
 			rl.rlim_max = res;
 			break;
@@ -1943,9 +1943,9 @@ linprocfs_doproclimits(PFS_FILL_ARGS)
 			    li->desc, (unsigned long long)rl.rlim_cur,
 			    (unsigned long long)rl.rlim_max, li->unit);
 	}
-out:
+
 	lim_free(limp);
-	return (error);
+	return (0);
 }
 
 /*
