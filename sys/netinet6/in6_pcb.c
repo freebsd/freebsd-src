@@ -164,7 +164,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
  * Determine whether the inpcb can be bound to the specified address/port tuple.
  */
 static int
-in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
+in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6, int fib,
     int sooptions, int lookupflags, struct ucred *cred)
 {
 	const struct in6_addr *laddr;
@@ -275,7 +275,7 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 #endif
 		}
 		t = in6_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-		    RT_ALL_FIBS, lookupflags, cred);
+		    fib, lookupflags, cred);
 		if (t != NULL && ((reuseport | reuseport_lb) &
 		    t->inp_socket->so_options) == 0)
 			return (EADDRINUSE);
@@ -300,11 +300,12 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 }
 
 int
-in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
+in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, int flags,
+    struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	u_short	lport = 0;
-	int error, lookupflags, sooptions;
+	int error, fib, lookupflags, sooptions;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -333,8 +334,11 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
 
+		fib = (flags & INPBIND_FIB) != 0 ? inp->inp_inc.inc_fibnum :
+		    RT_ALL_FIBS;
+
 		/* See if this address/port combo is available. */
-		error = in6_pcbbind_avail(inp, sin6, sooptions, lookupflags,
+		error = in6_pcbbind_avail(inp, sin6, fib, sooptions, lookupflags,
 		    cred);
 		if (error != 0)
 			return (error);
@@ -342,15 +346,19 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred)
 		lport = sin6->sin6_port;
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
+	if ((flags & INPBIND_FIB) != 0)
+		inp->inp_flags |= INP_BOUNDFIB;
 	if (lport == 0) {
 		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
 			/* Undo an address bind that may have occurred. */
+			inp->inp_flags &= ~INP_BOUNDFIB;
 			inp->in6p_laddr = in6addr_any;
 			return (error);
 		}
 	} else {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
+			inp->inp_flags &= ~INP_BOUNDFIB;
 			inp->in6p_laddr = in6addr_any;
 			inp->inp_lport = 0;
 			return (EAGAIN);

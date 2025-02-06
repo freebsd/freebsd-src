@@ -437,7 +437,7 @@ struct inpcblbgroup {
 	uint16_t	il_lport;			/* (c) */
 	u_char		il_vflag;			/* (c) */
 	uint8_t		il_numa_domain;
-	uint32_t	il_pad2;
+	int		il_fibnum;
 	union in_dependaddr il_dependladdr;		/* (c) */
 #define	il_laddr	il_dependladdr.id46_addr.ia46_addr4
 #define	il6_laddr	il_dependladdr.id6_addr
@@ -575,7 +575,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
 #define	INP_RESERVED_0          0x10000000 /* reserved field */
-#define	INP_RESERVED_1          0x20000000 /* reserved field */
+#define	INP_BOUNDFIB		0x20000000 /* Bound to a specific FIB. */
 #define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 
@@ -662,9 +662,10 @@ void	in_pcbstorage_destroy(void *);
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);
-int	in_pcbbind(struct inpcb *, struct sockaddr_in *, struct ucred *);
+#define	INPBIND_FIB	0x0001	/* bind to the PCB's FIB only */
+int	in_pcbbind(struct inpcb *, struct sockaddr_in *, int, struct ucred *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
-	    u_short *, struct ucred *);
+	    u_short *, int, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *);
 int	in_pcbconnect_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
 	    u_short *, in_addr_t *, u_short *, struct ucred *);

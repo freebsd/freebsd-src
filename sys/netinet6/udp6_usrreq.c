@@ -1058,13 +1058,13 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			in6_sin6_2_sin(&sin, sin6_p);
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
-			error = in_pcbbind(inp, &sin, td->td_ucred);
+			error = in_pcbbind(inp, &sin, 0, td->td_ucred);
 			goto out;
 		}
 #endif
 	}
 
-	error = in6_pcbbind(inp, sin6_p, td->td_ucred);
+	error = in6_pcbbind(inp, sin6_p, 0, td->td_ucred);
 #ifdef INET
 out:
 #endif
