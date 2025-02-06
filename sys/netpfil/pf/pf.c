@@ -5186,11 +5186,6 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		return (PF_PASS);
 	}
 
-	ruleset = V_pf_keth;
-	rules = ck_pr_load_ptr(&ruleset->active.rules);
-	r = TAILQ_FIRST(rules);
-	rm = NULL;
-
 	if (__predict_false(m->m_len < sizeof(struct ether_header)) &&
 	    (m = *m0 = m_pullup(*m0, sizeof(struct ether_header))) == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
@@ -5234,7 +5229,9 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 
 	PF_RULES_RLOCK();
 
-	while (r != NULL) {
+	ruleset = V_pf_keth;
+	rules = atomic_load_ptr(&ruleset->active.rules);
+	for (r = TAILQ_FIRST(rules), rm = NULL; r != NULL;) {
 		counter_u64_add(r->evaluations, 1);
 		SDT_PROBE2(pf, eth, test_rule, test, r->nr, r);
 
