@@ -423,6 +423,30 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	return (0);
 }
 
+static int
+rts_ctloutput(struct socket *so, struct sockopt *sopt)
+{
+	int error, optval;
+
+	error = ENOPROTOOPT;
+	if (sopt->sopt_dir == SOPT_SET) {
+		switch (sopt->sopt_level) {
+		case SOL_SOCKET:
+			switch (sopt->sopt_name) {
+			case SO_SETFIB:
+				error = sooptcopyin(sopt, &optval,
+				    sizeof(optval), sizeof(optval));
+				if (error != 0)
+					break;
+				error = sosetfib(so, optval);
+				break;
+			}
+			break;
+		}
+	}
+	return (error);
+}
+
 static void
 rts_detach(struct socket *so)
 {
@@ -2702,6 +2726,7 @@ static struct protosw routesw = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_abort =		rts_close,
 	.pr_attach =		rts_attach,
+	.pr_ctloutput =		rts_ctloutput,
 	.pr_detach =		rts_detach,
 	.pr_send =		rts_send,
 	.pr_shutdown =		rts_shutdown,

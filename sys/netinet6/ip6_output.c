@@ -1648,10 +1648,22 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		    sopt->sopt_dir == SOPT_SET) {
 			switch (sopt->sopt_name) {
 			case SO_SETFIB:
+				error = sooptcopyin(sopt, &optval,
+				    sizeof(optval), sizeof(optval));
+				if (error != 0)
+					break;
+
 				INP_WLOCK(inp);
-				inp->inp_inc.inc_fibnum = so->so_fibnum;
+				if ((inp->inp_flags & INP_BOUNDFIB) != 0 &&
+				    optval != so->so_fibnum) {
+					INP_WUNLOCK(inp);
+					error = EISCONN;
+					break;
+				}
+				error = sosetfib(inp->inp_socket, optval);
+				if (error == 0)
+					inp->inp_inc.inc_fibnum = optval;
 				INP_WUNLOCK(inp);
-				error = 0;
 				break;
 			case SO_MAX_PACING_RATE:
 #ifdef RATELIMIT
