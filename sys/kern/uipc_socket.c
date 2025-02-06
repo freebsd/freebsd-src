@@ -4101,6 +4101,12 @@ integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		case SO_FIB:
+			SOCK_LOCK(so);
+			optval = so->so_fibnum;
+			SOCK_UNLOCK(so);
+			goto integer;
+
 		case SO_DOMAIN:
 			optval = so->so_proto->pr_domain->dom_family;
 			goto integer;
