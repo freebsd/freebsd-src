@@ -513,6 +513,8 @@
         ..
         savecore
         ..
+        swapon
+        ..
         sysctl
         ..
     ..
