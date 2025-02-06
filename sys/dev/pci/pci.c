@@ -2172,9 +2172,13 @@ pci_msix_count_method(device_t dev, device_t child)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 
-	if (pci_do_msix && msix->msix_location != 0)
-		return (msix->msix_msgnum);
-	return (0);
+	if (!pci_do_msix || msix->msix_location == 0)
+		return (0);
+
+	msix->msix_ctrl = pci_read_config(child,
+	    msix->msix_location + PCIR_MSIX_CTRL, 2);
+	msix->msix_msgnum = (msix->msix_ctrl & PCIM_MSIXCTRL_TABLE_SIZE) + 1;
+	return (msix->msix_msgnum);
 }
 
 int
