@@ -10033,6 +10033,21 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
 			SLIST_FOREACH(ri, &s->match_rules, entry) {
 				pf_counter_u64_add_protected(&ri->r->packets[dirndx], 1);
 				pf_counter_u64_add_protected(&ri->r->bytes[dirndx], pd->tot_len);
+
+				if (ri->r->src.addr.type == PF_ADDR_TABLE)
+					pfr_update_stats(ri->r->src.addr.p.tbl,
+					    (s == NULL) ? pd->src :
+					    &s->key[(s->direction == PF_IN)]->
+						addr[(s->direction == PF_OUT)],
+					    pd->af, pd->tot_len, dir == PF_OUT,
+					    r->action == PF_PASS, ri->r->src.neg);
+				if (ri->r->dst.addr.type == PF_ADDR_TABLE)
+					pfr_update_stats(ri->r->dst.addr.p.tbl,
+					    (s == NULL) ? pd->dst :
+					    &s->key[(s->direction == PF_IN)]->
+						addr[(s->direction == PF_IN)],
+					    pd->af, pd->tot_len, dir == PF_OUT,
+					    r->action == PF_PASS, ri->r->dst.neg);
 			}
 		}
 
