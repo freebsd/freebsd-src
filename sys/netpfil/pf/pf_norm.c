@@ -1945,8 +1945,8 @@ pf_normalize_mss(struct pf_pdesc *pd)
 	thoff = th->th_off << 2;
 	cnt = thoff - sizeof(struct tcphdr);
 
-	if (cnt > 0 && !pf_pull_hdr(pd->m, pd->off + sizeof(*th), opts, cnt,
-	    NULL, NULL, pd->af))
+	if (cnt <= 0 || cnt > MAX_TCPOPTLEN || !pf_pull_hdr(pd->m,
+	    pd->off + sizeof(*th), opts, cnt, NULL, NULL, pd->af))
 		return (0);
 
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
