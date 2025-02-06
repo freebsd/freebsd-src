@@ -481,6 +481,8 @@
         ..
         savecore
         ..
+        swapon
+        ..
         sysctl
         ..
     ..
