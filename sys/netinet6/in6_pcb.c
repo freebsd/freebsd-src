@@ -251,7 +251,7 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 			 * which has a unique 4-tuple.
 			 */
 			t = in6_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-			    INPLOOKUP_WILDCARD, cred);
+			    RT_ALL_FIBS, INPLOOKUP_WILDCARD, cred);
 			if (t != NULL &&
 			    (inp->inp_socket->so_type != SOCK_STREAM ||
 			     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
@@ -265,8 +265,8 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 
 				in6_sin6_2_sin(&sin, sin6);
 				t = in_pcblookup_local(inp->inp_pcbinfo,
-				    sin.sin_addr, lport, INPLOOKUP_WILDCARD,
-				    cred);
+				    sin.sin_addr, lport, RT_ALL_FIBS,
+				    INPLOOKUP_WILDCARD, cred);
 				if (t != NULL &&
 				    (inp->inp_socket->so_type != SOCK_STREAM ||
 				     in_nullhost(t->inp_faddr)) &&
@@ -277,7 +277,7 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 #endif
 		}
 		t = in6_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-		    lookupflags, cred);
+		    RT_ALL_FIBS, lookupflags, cred);
 		if (t != NULL && ((reuseport | reuseport_lb) &
 		    t->inp_socket->so_options) == 0)
 			return (EADDRINUSE);
@@ -288,7 +288,7 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6,
 
 			in6_sin6_2_sin(&sin, sin6);
 			t = in_pcblookup_local(inp->inp_pcbinfo, sin.sin_addr,
-			   lport, lookupflags, cred);
+			   lport, RT_ALL_FIBS, lookupflags, cred);
 			if (t != NULL && ((reuseport | reuseport_lb) &
 			    t->inp_socket->so_options) == 0 &&
 			    (!in_nullhost(t->inp_laddr) ||
@@ -751,13 +751,15 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr_in6 *sa6_dst,
  */
 struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
-    u_short lport, int lookupflags, struct ucred *cred)
+    u_short lport, int fib, int lookupflags, struct ucred *cred)
 {
 	struct inpcb *inp;
 	int matchwild = 3, wildcard;
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT(fib == RT_ALL_FIBS || (fib >= 0 && fib < V_rt_numfibs),
+	    ("%s: invalid fib %d", __func__, fib));
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
@@ -775,7 +777,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
 				continue;
 			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
 			    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
-			    inp->inp_lport == lport) {
+			    inp->inp_lport == lport && (fib == RT_ALL_FIBS ||
+			    inp->inp_inc.inc_fibnum == fib)) {
 				/* Found. */
 				if (prison_equal_ip6(cred->cr_prison,
 				    inp->inp_cred->cr_prison))
@@ -814,6 +817,9 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
 					continue;
 				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV6) == 0)
+					continue;
+				if (fib != RT_ALL_FIBS &&
+				    inp->inp_inc.inc_fibnum != fib)
 					continue;
 				if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 					wildcard++;

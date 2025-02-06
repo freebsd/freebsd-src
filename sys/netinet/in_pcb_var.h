@@ -55,8 +55,8 @@ int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
 int	in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa,
             u_short *lportp, struct sockaddr *fsa, u_short fport,
             struct ucred *cred, int lookupflags);
-struct inpcb *	in_pcblookup_local(struct inpcbinfo *, struct in_addr, u_short,
-	    int, struct ucred *);
+struct inpcb *in_pcblookup_local(struct inpcbinfo *, struct in_addr, u_short,
+	    int, int, struct ucred *);
 
 struct inpcbport {
 	struct inpcbhead phd_pcblist;

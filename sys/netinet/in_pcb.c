@@ -818,12 +818,14 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV6) != 0) {
 				tmpinp = in6_pcblookup_local(pcbinfo,
-				    &inp->in6p_laddr, lport, lookupflags, cred);
+				    &inp->in6p_laddr, lport, RT_ALL_FIBS,
+				    lookupflags, cred);
 #ifdef INET
 				if (tmpinp == NULL &&
 				    (inp->inp_vflag & INP_IPV4))
 					tmpinp = in_pcblookup_local(pcbinfo,
-					    laddr, lport, lookupflags, cred);
+					    laddr, lport, RT_ALL_FIBS,
+					    lookupflags, cred);
 #endif
 			}
 #endif
@@ -832,7 +834,7 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 #endif
 #ifdef INET
 				tmpinp = in_pcblookup_local(pcbinfo, laddr,
-				    lport, lookupflags, cred);
+				    lport, RT_ALL_FIBS, lookupflags, cred);
 #endif
 		}
 	} while (tmpinp != NULL);
@@ -931,7 +933,7 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 			 * which has a unique 4-tuple.
 			 */
 			t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-			    INPLOOKUP_WILDCARD, cred);
+			    RT_ALL_FIBS, INPLOOKUP_WILDCARD, cred);
 			if (t != NULL &&
 			    (inp->inp_socket->so_type != SOCK_STREAM ||
 			     in_nullhost(t->inp_faddr)) &&
@@ -939,7 +941,7 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 				return (EADDRINUSE);
 		}
 		t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-		    lookupflags, cred);
+		    RT_ALL_FIBS, lookupflags, cred);
 		if (t != NULL && ((reuseport | reuseport_lb) &
 		    t->inp_socket->so_options) == 0) {
 #ifdef INET6
@@ -1991,7 +1993,7 @@ restart:
 #define INP_LOOKUP_MAPPED_PCB_COST	3
 struct inpcb *
 in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
-    u_short lport, int lookupflags, struct ucred *cred)
+    u_short lport, int fib, int lookupflags, struct ucred *cred)
 {
 	struct inpcb *inp;
 #ifdef INET6
@@ -2003,6 +2005,9 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
+	KASSERT(fib == RT_ALL_FIBS || (fib >= 0 && fib < V_rt_numfibs),
+	    ("%s: invalid fib %d", __func__, fib));
+
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	if ((lookupflags & INPLOOKUP_WILDCARD) == 0) {
@@ -2021,7 +2026,8 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 #endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
 			    inp->inp_laddr.s_addr == laddr.s_addr &&
-			    inp->inp_lport == lport) {
+			    inp->inp_lport == lport && (fib == RT_ALL_FIBS ||
+			    inp->inp_inc.inc_fibnum == fib)) {
 				/*
 				 * Found?
 				 */
@@ -2059,6 +2065,9 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 				wildcard = 0;
 				if (!prison_equal_ip4(inp->inp_cred->cr_prison,
 				    cred->cr_prison))
+					continue;
+				if (fib != RT_ALL_FIBS &&
+				    inp->inp_inc.inc_fibnum != fib)
 					continue;
 #ifdef INET6
 				/* XXX inp locking */
