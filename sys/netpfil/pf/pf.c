@@ -10271,23 +10271,13 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		break;
 	}
 
-	case IPPROTO_UDP: {
-		action = pf_test_state(&s, &pd, &reason);
-		if (action == PF_PASS || action == PF_AFRT) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule;
-			a = s->anchor;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, &pd,
-			    &a, &ruleset, inp);
-		break;
-	}
-
-	case IPPROTO_SCTP: {
+	case IPPROTO_SCTP:
 		action = pf_normalize_sctp(&pd);
 		if (action == PF_DROP)
 			goto done;
+		/* fallthrough */
+	case IPPROTO_UDP:
+	default:
 		action = pf_test_state(&s, &pd, &reason);
 		if (action == PF_PASS || action == PF_AFRT) {
 			if (V_pfsync_update_state_ptr != NULL)
@@ -10299,7 +10289,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			    &pd, &a, &ruleset, inp);
 		}
 		break;
-	}
 
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6: {
@@ -10329,17 +10318,6 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		break;
 	}
 
-	default:
-		action = pf_test_state(&s, &pd, &reason);
-		if (action == PF_PASS || action == PF_AFRT) {
-			if (V_pfsync_update_state_ptr != NULL)
-				V_pfsync_update_state_ptr(s);
-			r = s->rule;
-			a = s->anchor;
-		} else if (s == NULL)
-			action = pf_test_rule(&r, &s, &pd,
-			    &a, &ruleset, inp);
-		break;
 	}
 
 done:
