@@ -73,6 +73,7 @@ static int litexec(const struct pat *pat, const char *string,
 #endif
 static bool procline(struct parsec *pc);
 static void printline(struct parsec *pc, int sep);
+static void printtail(struct parsec *pc);
 static void printline_metadata(struct str *line, int sep);
 
 bool
@@ -214,6 +215,7 @@ procmatch_match(struct mprintc *mc, struct parsec *pc)
 
 	/* Print the matching line, but only if not quiet/binary */
 	if (mc->printmatch) {
+		pc->prstart = 0;
 		printline(pc, ':');
 		while (pc->matchidx >= MAX_MATCHES) {
 			/* Reset matchidx and try again */
@@ -223,6 +225,10 @@ procmatch_match(struct mprintc *mc, struct parsec *pc)
 			else
 				break;
 		}
+
+		pc->matchidx = 0;
+		printtail(pc);
+
 		first_match = false;
 		mc->same_file = true;
 		mc->last_outed = 0;
@@ -354,6 +360,7 @@ procfile(const char *fn)
 		pc.printed = 0;
 		pc.matchidx = 0;
 		pc.lnstart = 0;
+		pc.prstart = 0;
 		pc.ln.boff = 0;
 		pc.ln.off += pc.ln.len + 1;
 		/* XXX TODO: Grab a chunk */
@@ -762,6 +769,7 @@ printline(struct parsec *pc, int sep)
 		return;
 
 	matchidx = pc->matchidx;
+	a = pc->prstart;
 
 	/* --color and -o */
 	if ((oflag || color) && matchidx > 0) {
@@ -793,13 +801,28 @@ printline(struct parsec *pc, int sep)
 			if (oflag)
 				putchar('\n');
 		}
-		if (!oflag) {
-			if (pc->ln.len - a > 0)
-				fwrite(pc->ln.dat + a, pc->ln.len - a, 1,
-				    stdout);
-			putchar('\n');
-		}
+		pc->prstart = a;
 	} else
 		grep_printline(&pc->ln, sep);
 	pc->printed++;
+}
+
+/*
+ * Prints tail (a piece after the last match) of the matched line.
+ * When color mode is enabled printline() prints up to MAX_MATCHES at once,
+ * so it can be called multiple times. In this case printtail() is called
+ * after a series of printline() to print end of the matched line.
+ */
+static void
+printtail(struct parsec *pc)
+{
+    if (color && !oflag && pc->prstart > 0) {
+        size_t n = pc->ln.len - pc->prstart;
+        if (n > 0) {
+            fwrite(pc->ln.dat + pc->prstart, n, 1, stdout);
+        }
+        putchar('\n');
+    }
+
+    pc->prstart = pc->ln.len;
 }
