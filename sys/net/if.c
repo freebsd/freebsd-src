@@ -1262,10 +1262,12 @@ finish_vnet_shutdown:
 static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
+#ifdef DEV_BPF
 	/*
 	 * Detach BPF file descriptors from its interface.
 	 */
 	bpf_ifdetach(ifp);
+#endif
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
