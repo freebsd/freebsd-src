@@ -75,7 +75,7 @@ int	in6_pcbconnect(struct inpcb *, struct sockaddr_in6 *, struct ucred *,
 	    bool);
 void	in6_pcbdisconnect(struct inpcb *);
 struct inpcb *in6_pcblookup_local(struct inpcbinfo *, const struct in6_addr *,
-	    u_short, int, struct ucred *);
+	    u_short, int, int, struct ucred *);
 struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
 	    const struct in6_addr *faddr, u_int fport_arg,
 	    const struct in6_addr *laddr, u_int lport_arg,
