@@ -349,6 +349,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	int off = *offp;
 	int cscov_partial;
 	int plen, ulen;
+	int lookupflags;
 	struct sockaddr_in6 fromsa[2];
 	struct m_tag *fwd_tag;
 	uint16_t uh_sum;
@@ -446,6 +447,8 @@ skip_checksum:
 	/*
 	 * Locate pcb for datagram.
 	 */
+	lookupflags = INPLOOKUP_RLOCKPCB |
+	    (V_udp_bind_all_fibs ? 0 : INPLOOKUP_FIB);
 
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
@@ -462,7 +465,7 @@ skip_checksum:
 		 */
 		inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_src,
 		    uh->uh_sport, &ip6->ip6_dst, uh->uh_dport,
-		    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif, m);
+		    lookupflags, m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
@@ -472,8 +475,8 @@ skip_checksum:
 			inp = in6_pcblookup(pcbinfo, &ip6->ip6_src,
 			    uh->uh_sport, &next_hop6->sin6_addr,
 			    next_hop6->sin6_port ? htons(next_hop6->sin6_port) :
-			    uh->uh_dport, INPLOOKUP_WILDCARD |
-			    INPLOOKUP_RLOCKPCB, m->m_pkthdr.rcvif);
+			    uh->uh_dport, INPLOOKUP_WILDCARD | lookupflags,
+			    m->m_pkthdr.rcvif);
 		}
 		/* Remove the tag from the packet. We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
@@ -481,7 +484,7 @@ skip_checksum:
 	} else
 		inp = in6_pcblookup_mbuf(pcbinfo, &ip6->ip6_src,
 		    uh->uh_sport, &ip6->ip6_dst, uh->uh_dport,
-		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
+		    INPLOOKUP_WILDCARD | lookupflags,
 		    m->m_pkthdr.rcvif, m);
 	if (inp == NULL) {
 		if (V_udp_log_in_vain) {
@@ -1050,13 +1053,16 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			in6_sin6_2_sin(&sin, sin6_p);
 			inp->inp_vflag |= INP_IPV4;
 			inp->inp_vflag &= ~INP_IPV6;
-			error = in_pcbbind(inp, &sin, 0, td->td_ucred);
+			error = in_pcbbind(inp, &sin,
+			    V_udp_bind_all_fibs ? 0 : INPBIND_FIB,
+			    td->td_ucred);
 			goto out;
 		}
 #endif
 	}
 
-	error = in6_pcbbind(inp, sin6_p, 0, td->td_ucred);
+	error = in6_pcbbind(inp, sin6_p, V_udp_bind_all_fibs ? 0 : INPBIND_FIB,
+	    td->td_ucred);
 #ifdef INET
 out:
 #endif
