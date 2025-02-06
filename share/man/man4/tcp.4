@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 3, 2024
+.Dd January 10, 2025
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -200,6 +200,35 @@ The alternate TCP stack must already be loaded in the kernel.
 To list the available TCP stacks, see
 .Va functions_available
 in the
+.Sx FIB support
+TCP sockets are FIB-aware.
+They inherit the FIB of the process which created the socket, or that of the
+listening socket for sockets created by
+.Xr accept 2 .
+In particular, the FIB is not inherited from that of the interface where the
+initiating SYN packet was received.
+When an incoming connection request arrives to a listening socket, the initial
+handshake also occurs in the FIB of the listening socket, not that of the
+received packet.
+.Pp
+By default, a TCP listening socket can accept connections originating from any
+FIB.
+If the
+.Va net.inet.tcp.bind_all_fibs
+tunable is set to 0, a listening socket will only accept connections
+originating
+from the FIB's listening socket.
+Connection requests from other FIBs will be treated as though there is no
+listening socket for the destination address and port.
+In this mode, multiple listening sockets owned by the same user can listen on
+the same address and port so long as they belong to different FIBs, similar to
+the behavior of the
+.Dv SO_REUSEPORT
+socket option.
+If the tunable is set to 0, all sockets added to a load-balancing group created
+with the
+.Dv SO_REUSEPORT_LB
+socket option must belong to the same FIB.
 .Sx MIB (sysctl) Variables
 section further down.
 To list the default TCP stack, see
@@ -1041,6 +1070,7 @@ when trying to use a TCP function block that is not available;
 .El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
+.Xr setfib 2 ,
 .Xr socket 2 ,
 .Xr stats 3 ,
 .Xr sysctl 3 ,
