@@ -1218,7 +1218,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			inp->inp_vflag &= ~INP_IPV6;
 		}
 		INP_HASH_WLOCK(pcbinfo);
-		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport,
+		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport, 0,
 		    td->td_ucred);
 		INP_HASH_WUNLOCK(pcbinfo);
 		if ((flags & PRUS_IPV6) != 0)
@@ -1568,7 +1568,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(pcbinfo);
-	error = in_pcbbind(inp, sinp, td->td_ucred);
+	error = in_pcbbind(inp, sinp, 0, td->td_ucred);
 	INP_HASH_WUNLOCK(pcbinfo);
 	INP_WUNLOCK(inp);
 	return (error);
