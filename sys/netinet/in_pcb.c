@@ -254,7 +254,7 @@ static void in_pcbremhash(struct inpcb *);
 
 static struct inpcblbgroup *
 in_pcblbgroup_alloc(struct ucred *cred, u_char vflag, uint16_t port,
-    const union in_dependaddr *addr, int size, uint8_t numa_domain)
+    const union in_dependaddr *addr, int size, uint8_t numa_domain, int fib)
 {
 	struct inpcblbgroup *grp;
 	size_t bytes;
@@ -268,6 +268,7 @@ in_pcblbgroup_alloc(struct ucred *cred, u_char vflag, uint16_t port,
 	grp->il_vflag = vflag;
 	grp->il_lport = port;
 	grp->il_numa_domain = numa_domain;
+	grp->il_fibnum = fib;
 	grp->il_dependladdr = *addr;
 	grp->il_inpsiz = size;
 	return (grp);
@@ -360,7 +361,7 @@ in_pcblbgroup_resize(struct inpcblbgrouphead *hdr,
 
 	grp = in_pcblbgroup_alloc(old_grp->il_cred, old_grp->il_vflag,
 	    old_grp->il_lport, &old_grp->il_dependladdr, size,
-	    old_grp->il_numa_domain);
+	    old_grp->il_numa_domain, old_grp->il_fibnum);
 	if (grp == NULL)
 		return (NULL);
 
@@ -390,11 +391,15 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 	struct inpcblbgrouphead *hdr;
 	struct inpcblbgroup *grp;
 	uint32_t idx;
+	int fib;
 
 	pcbinfo = inp->inp_pcbinfo;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
+
+	fib = (inp->inp_flags & INP_BOUNDFIB) != 0 ?
+	    inp->inp_inc.inc_fibnum : RT_ALL_FIBS;
 
 #ifdef INET6
 	/*
@@ -414,6 +419,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 		    grp->il_vflag == inp->inp_vflag &&
 		    grp->il_lport == inp->inp_lport &&
 		    grp->il_numa_domain == numa_domain &&
+		    grp->il_fibnum == fib &&
 		    memcmp(&grp->il_dependladdr,
 		    &inp->inp_inc.inc_ie.ie_dependladdr,
 		    sizeof(grp->il_dependladdr)) == 0) {
@@ -424,7 +430,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 		/* Create new load balance group. */
 		grp = in_pcblbgroup_alloc(inp->inp_cred, inp->inp_vflag,
 		    inp->inp_lport, &inp->inp_inc.inc_ie.ie_dependladdr,
-		    INPCBLBGROUP_SIZMIN, numa_domain);
+		    INPCBLBGROUP_SIZMIN, numa_domain, fib);
 		if (grp == NULL)
 			return (ENOBUFS);
 		in_pcblbgroup_insert(grp, inp);
@@ -709,7 +715,8 @@ out:
 
 #ifdef INET
 int
-in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
+in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
+    struct ucred *cred)
 {
 	int anonport, error;
 
@@ -724,12 +731,13 @@ in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		return (EINVAL);
 	anonport = sin == NULL || sin->sin_port == 0;
 	error = in_pcbbind_setup(inp, sin, &inp->inp_laddr.s_addr,
-	    &inp->inp_lport, cred);
+	    &inp->inp_lport, flags, cred);
 	if (error)
 		return (error);
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
+		inp->inp_flags &= ~INP_BOUNDFIB;
 		return (EAGAIN);
 	}
 	if (anonport)
@@ -903,7 +911,8 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
  */
 static int
 in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
-    const u_short lport, int sooptions, int lookupflags, struct ucred *cred)
+    const u_short lport, const int fib, int sooptions, int lookupflags,
+    struct ucred *cred)
 {
 	int reuseport, reuseport_lb;
 
@@ -974,8 +983,8 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 			    (inp->inp_cred->cr_uid != t->inp_cred->cr_uid))
 				return (EADDRINUSE);
 		}
-		t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport,
-		    RT_ALL_FIBS, lookupflags, cred);
+		t = in_pcblookup_local(inp->inp_pcbinfo, laddr, lport, fib,
+		    lookupflags, cred);
 		if (t != NULL && ((reuseport | reuseport_lb) &
 		    t->inp_socket->so_options) == 0) {
 #ifdef INET6
@@ -1001,13 +1010,12 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
  */
 int
 in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
-    u_short *lportp, struct ucred *cred)
+    u_short *lportp, int flags, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	struct in_addr laddr;
 	u_short lport = 0;
-	int lookupflags, sooptions;
-	int error;
+	int error, fib, lookupflags, sooptions;
 
 	/*
 	 * No state changes, so read locks are sufficient here.
@@ -1043,8 +1051,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 		}
 		laddr = sin->sin_addr;
 
+		fib = (flags & INPBIND_FIB) != 0 ? inp->inp_inc.inc_fibnum :
+		    RT_ALL_FIBS;
+
 		/* See if this address/port combo is available. */
-		error = in_pcbbind_avail(inp, laddr, lport, sooptions,
+		error = in_pcbbind_avail(inp, laddr, lport, fib, sooptions,
 		    lookupflags, cred);
 		if (error != 0)
 			return (error);
@@ -1058,6 +1069,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 	}
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
+	if ((flags & INPBIND_FIB) != 0)
+		inp->inp_flags |= INP_BOUNDFIB;
 	return (0);
 }
 
