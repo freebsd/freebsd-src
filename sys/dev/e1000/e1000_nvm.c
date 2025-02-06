@@ -961,14 +961,14 @@ s32 e1000_read_pba_num_generic(struct e1000_hw *hw, u32 *pba_num)
 		DEBUGOUT("NVM Not Supported\n");
 		return -E1000_NOT_IMPLEMENTED;
 	}
-	*pba_num = (u32)(nvm_data << 16);
+	*pba_num = (u32)nvm_data << 16;
 
 	ret_val = hw->nvm.ops.read(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
 		return ret_val;
 	}
-	*pba_num |= nvm_data;
+	*pba_num |= (u32)nvm_data;
 
 	return E1000_SUCCESS;
 }
