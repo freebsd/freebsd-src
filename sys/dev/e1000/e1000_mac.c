@@ -576,8 +576,10 @@ u32 e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr)
 		break;
 	}
 
-	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
-				  (((u16) mc_addr[5]) << bit_shift)));
+	hash_value = (u32)mc_addr[4];
+	hash_value >>= 8 - bit_shift;
+	hash_value |= (u32)mc_addr[5] << bit_shift;
+	hash_value &= hash_mask;
 
 	return hash_value;
 }
