@@ -1071,6 +1071,8 @@ s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 		data &= ~I82579_LPI_100_PLL_SHUT;
 		ret_val = e1000_write_emi_reg_locked(hw, I82579_LPI_PLL_SHUT,
 						     data);
+		if (ret_val)
+			goto release;
 	}
 
 	/* R/Clr IEEE MMD 3.1 bits 11:10 - Tx/Rx LPI Received */
