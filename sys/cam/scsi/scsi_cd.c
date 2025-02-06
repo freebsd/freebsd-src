@@ -100,7 +100,6 @@ typedef enum {
 	"\007RETRY_BUSY"
 
 typedef enum {
-	CD_FLAG_INVALID		= 0x0001,
 	CD_FLAG_NEW_DISC	= 0x0002,
 	CD_FLAG_DISC_LOCKED	= 0x0004,
 	CD_FLAG_DISC_REMOVABLE	= 0x0008,
@@ -375,8 +374,6 @@ cdoninvalidate(struct cam_periph *periph)
 	 * De-register any async callbacks.
 	 */
 	xpt_register_async(0, cdasync, periph, periph->path);
-
-	softc->flags |= CD_FLAG_INVALID;
 
 	/*
 	 * Return all queued I/O with ENXIO.
@@ -740,22 +737,14 @@ static int
 cdopen(struct disk *dp)
 {
 	struct cam_periph *periph;
-	struct cd_softc *softc;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	softc = (struct cd_softc *)periph->softc;
 
 	if (cam_periph_acquire(periph) != 0)
 		return(ENXIO);
 
 	cam_periph_lock(periph);
-
-	if (softc->flags & CD_FLAG_INVALID) {
-		cam_periph_release_locked(periph);
-		cam_periph_unlock(periph);
-		return(ENXIO);
-	}
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
 		cam_periph_release_locked(periph);
@@ -861,7 +850,7 @@ cdstrategy(struct bio *bp)
 	/*
 	 * If the device has been made invalid, error out
 	 */
-	if ((softc->flags & CD_FLAG_INVALID)) {
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 		cam_periph_unlock(periph);
 		biofinish(bp, NULL, ENXIO);
 		return;
