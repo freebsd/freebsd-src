@@ -4594,6 +4594,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_periph_unlock(periph);
 			return;
 		}
+		/*
+		 * refresh bp, since cmd6workaround may set it to NULL when
+		 * there's no delete methos available since it pushes the bp
+		 * back onto the work queue to reschedule it (since different
+		 * delete methods have different size limitations).
+		 */
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if (error != 0) {
 			int queued_error;
