@@ -264,7 +264,8 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 	}
 	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in_pcbbind(inp, sinp, 0, td->td_ucred);
+	error = in_pcbbind(inp, sinp, V_tcp_bind_all_fibs ? 0 : INPBIND_FIB,
+	    td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	tcp_bblog_pru(tp, PRU_BIND, error);
@@ -338,7 +339,8 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		}
 	}
 #endif
-	error = in6_pcbbind(inp, sin6, 0, td->td_ucred);
+	error = in6_pcbbind(inp, sin6, V_tcp_bind_all_fibs ? 0 : INPBIND_FIB,
+	    td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 out:
 	if (error != 0)
@@ -378,7 +380,8 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	if (inp->inp_lport == 0) {
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in_pcbbind(inp, NULL, 0, td->td_ucred);
+		error = in_pcbbind(inp, NULL,
+		    V_tcp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 	}
 	if (error == 0) {
@@ -435,7 +438,8 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		inp->inp_vflag &= ~INP_IPV4;
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
 			inp->inp_vflag |= INP_IPV4;
-		error = in6_pcbbind(inp, NULL, 0, td->td_ucred);
+		error = in6_pcbbind(inp, NULL,
+		    V_tcp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
 	}
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {

@@ -1283,6 +1283,7 @@ VNET_DECLARE(uint32_t, tcp_ack_war_time_window);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 VNET_DECLARE(int, tcp_autosndbuf_inc);
 VNET_DECLARE(int, tcp_autosndbuf_max);
+VNET_DECLARE(int, tcp_bind_all_fibs);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_autorcvbuf);
 VNET_DECLARE(int, tcp_do_autosndbuf);
@@ -1335,6 +1336,7 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_autorcvbuf_max		VNET(tcp_autorcvbuf_max)
 #define	V_tcp_autosndbuf_inc		VNET(tcp_autosndbuf_inc)
 #define	V_tcp_autosndbuf_max		VNET(tcp_autosndbuf_max)
+#define	V_tcp_bind_all_fibs		VNET(tcp_bind_all_fibs)
 #define	V_tcp_delack_enabled		VNET(tcp_delack_enabled)
 #define	V_tcp_do_autorcvbuf		VNET(tcp_do_autorcvbuf)
 #define	V_tcp_do_autosndbuf		VNET(tcp_do_autosndbuf)
