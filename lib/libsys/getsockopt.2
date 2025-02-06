@@ -175,7 +175,7 @@ for the socket
 .It Dv SO_PROTOTYPE Ta "SunOS alias for the Linux SO_PROTOCOL (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .It Dv SO_RERROR Ta "enables receive error reporting"
-.It Dv SO_SETFIB Ta "set the associated FIB (routing table) for the socket (set only)"
+.It Dv SO_FIB Ta "get or set the associated FIB (routing table) for the socket"
 .El
 .Pp
 The following options are recognized in
@@ -358,7 +358,7 @@ or with the error
 .Er EWOULDBLOCK
 if no data were received.
 .Pp
-.Dv SO_SETFIB
+.Dv SO_FIB
 can be used to over-ride the default FIB (routing table) for the given socket.
 The value must be from 0 to one less than the number returned from
 the sysctl
