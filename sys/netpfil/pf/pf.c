@@ -3867,7 +3867,7 @@ pf_modulate_sack(struct pf_pdesc *pd, struct tcphdr *th,
 	struct sackblk sack;
 
 #define	TCPOLEN_SACKLEN	(TCPOLEN_SACK + 2)
-	if (hlen < TCPOLEN_SACKLEN ||
+	if (hlen < TCPOLEN_SACKLEN || hlen > MAX_TCPOPTLEN ||
 	    !pf_pull_hdr(pd->m, pd->off + sizeof(*th), opts, hlen, NULL, NULL, pd->af))
 		return 0;
 
