@@ -106,7 +106,6 @@ static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
 static int		 pf_begin_eth(uint32_t *, const char *);
-static void		 pf_rollback_eth_cb(struct epoch_context *);
 static int		 pf_rollback_eth(uint32_t, const char *);
 static int		 pf_commit_eth(uint32_t, const char *);
 static void		 pf_free_eth_rule(struct pf_keth_rule *);
@@ -782,23 +781,6 @@ pf_begin_eth(uint32_t *ticket, const char *anchor)
 	return (0);
 }
 
-static void
-pf_rollback_eth_cb(struct epoch_context *ctx)
-{
-	struct pf_keth_ruleset *rs;
-
-	rs = __containerof(ctx, struct pf_keth_ruleset, epoch_ctx);
-
-	CURVNET_SET(rs->vnet);
-
-	PF_RULES_WLOCK();
-	pf_rollback_eth(rs->inactive.ticket,
-	    rs->anchor ? rs->anchor->path : "");
-	PF_RULES_WUNLOCK();
-
-	CURVNET_RESTORE();
-}
-
 static int
 pf_rollback_eth(uint32_t ticket, const char *anchor)
 {
@@ -892,15 +874,12 @@ pf_commit_eth(uint32_t ticket, const char *anchor)
 	pf_eth_calc_skip_steps(rs->inactive.rules);
 
 	rules = rs->active.rules;
-	ck_pr_store_ptr(&rs->active.rules, rs->inactive.rules);
+	atomic_store_ptr(&rs->active.rules, rs->inactive.rules);
 	rs->inactive.rules = rules;
 	rs->inactive.ticket = rs->active.ticket;
 
-	/* Clean up inactive rules (i.e. previously active rules), only when
-	 * we're sure they're no longer used. */
-	NET_EPOCH_CALL(pf_rollback_eth_cb, &rs->epoch_ctx);
-
-	return (0);
+	return (pf_rollback_eth(rs->inactive.ticket,
+	    rs->anchor ? rs->anchor->path : ""));
 }
 
 #ifdef ALTQ
@@ -5208,8 +5187,6 @@ DIOCCHANGEADDR_error:
 			free(ioes, M_TEMP);
 			break;
 		}
-		/* Ensure there's no more ethernet rules to clean up. */
-		NET_EPOCH_DRAIN_CALLBACKS();
 		PF_RULES_WLOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
@@ -6851,9 +6828,6 @@ pf_unload_vnet(void)
 	pf_syncookies_cleanup();
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
-
-	/* Make sure we've cleaned up ethernet rules before we continue. */
-	NET_EPOCH_DRAIN_CALLBACKS();
 
 	ret = swi_remove(V_pf_swi_cookie);
 	MPASS(ret == 0);
