@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+5dc99e9bb985, 08e638c089a, 4009a98fe80:
+	The net.inet.{tcp,udp,raw}.bind_all_fibs tunables have been added.
+	They modify socket behavior such that packets not originating from the
+	same FIB as the socket are ignored.  TCP and UDP sockets belonging to
+	different FIBs may also be bound to the same address.  The default
+	behavior is unmodified.
+
 f87bb5967670, e51036fbf3f8:
 	Support for vinum volumes has been removed.
 
