@@ -361,11 +361,11 @@ int			 pf_icmp_state_lookup(struct pf_state_key_cmp *,
 			    int, int *, int, int);
 static int		 pf_test_state_icmp(struct pf_kstate **,
 			    struct pf_pdesc *, u_short *);
+static int		 pf_sctp_track(struct pf_kstate *, struct pf_pdesc *,
+			    u_short *);
 static void		 pf_sctp_multihome_detach_addr(const struct pf_kstate *);
 static void		 pf_sctp_multihome_delayed(struct pf_pdesc *,
 			    struct pfi_kkif *, struct pf_kstate *, int);
-static int		 pf_test_state_sctp(struct pf_kstate **,
-			    struct pf_pdesc *, u_short *);
 static u_int16_t	 pf_calc_mss(struct pf_addr *, sa_family_t,
 				int, u_int16_t);
 static int		 pf_check_proto_cksum(struct mbuf *, int, int,
@@ -6977,6 +6977,61 @@ pf_test_state(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 		else
 			(*state)->timeout = PFTM_UDP_SINGLE;
 		break;
+	case IPPROTO_SCTP:
+		if ((src->state >= SCTP_SHUTDOWN_SENT || src->state == SCTP_CLOSED) &&
+		    (dst->state >= SCTP_SHUTDOWN_SENT || dst->state == SCTP_CLOSED) &&
+		    pd->sctp_flags & PFDESC_SCTP_INIT) {
+			pf_set_protostate(*state, PF_PEER_BOTH, SCTP_CLOSED);
+			pf_unlink_state(*state);
+			*state = NULL;
+			return (PF_DROP);
+		}
+
+		if (pf_sctp_track(*state, pd, reason) != PF_PASS)
+			return (PF_DROP);
+
+		/* Track state. */
+		if (pd->sctp_flags & PFDESC_SCTP_INIT) {
+			if (src->state < SCTP_COOKIE_WAIT) {
+				pf_set_protostate(*state, psrc, SCTP_COOKIE_WAIT);
+				(*state)->timeout = PFTM_SCTP_OPENING;
+			}
+		}
+		if (pd->sctp_flags & PFDESC_SCTP_INIT_ACK) {
+			MPASS(dst->scrub != NULL);
+			if (dst->scrub->pfss_v_tag == 0)
+				dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
+		}
+
+		/*
+		 * Bind to the correct interface if we're if-bound. For multihomed
+		 * extra associations we don't know which interface that will be until
+		 * here, so we've inserted the state on V_pf_all. Fix that now.
+		 */
+		if ((*state)->kif == V_pfi_all &&
+		    (*state)->rule->rule_flag & PFRULE_IFBOUND)
+			(*state)->kif = pd->kif;
+
+		if (pd->sctp_flags & (PFDESC_SCTP_COOKIE | PFDESC_SCTP_HEARTBEAT_ACK)) {
+			if (src->state < SCTP_ESTABLISHED) {
+				pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
+				(*state)->timeout = PFTM_SCTP_ESTABLISHED;
+			}
+		}
+		if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN |
+		    PFDESC_SCTP_SHUTDOWN_COMPLETE)) {
+			if (src->state < SCTP_SHUTDOWN_PENDING) {
+				pf_set_protostate(*state, psrc, SCTP_SHUTDOWN_PENDING);
+				(*state)->timeout = PFTM_SCTP_CLOSING;
+			}
+		}
+		if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN_COMPLETE | PFDESC_SCTP_ABORT)) {
+			pf_set_protostate(*state, psrc, SCTP_CLOSED);
+			(*state)->timeout = PFTM_SCTP_CLOSED;
+		}
+
+		(*state)->expire = pf_get_uptime();
+		break;
 	default:
 		/* update states */
 		if (src->state < PFOTHERS_SINGLE)
@@ -7059,129 +7114,6 @@ pf_sctp_track(struct pf_kstate *state, struct pf_pdesc *pd,
 			src->scrub->pfss_v_tag = pd->hdr.sctp.v_tag;
 		else  if (src->scrub->pfss_v_tag != pd->hdr.sctp.v_tag)
 			return (PF_DROP);
-	}
-
-	return (PF_PASS);
-}
-
-static int
-pf_test_state_sctp(struct pf_kstate **state, struct pf_pdesc *pd,
-    u_short *reason)
-{
-	struct pf_state_key_cmp	 key;
-	struct pf_state_peer	*src, *dst;
-	struct sctphdr		*sh = &pd->hdr.sctp;
-	u_int8_t		 psrc; //, pdst;
-
-	bzero(&key, sizeof(key));
-	key.af = pd->af;
-	key.proto = IPPROTO_SCTP;
-	PF_ACPY(&key.addr[pd->sidx], pd->src, key.af);
-	PF_ACPY(&key.addr[pd->didx], pd->dst, key.af);
-	key.port[pd->sidx] = sh->src_port;
-	key.port[pd->didx] = sh->dest_port;
-
-	STATE_LOOKUP(&key, *state, pd);
-
-	if (pd->dir == (*state)->direction) {
-		src = &(*state)->src;
-		dst = &(*state)->dst;
-		psrc = PF_PEER_SRC;
-	} else {
-		src = &(*state)->dst;
-		dst = &(*state)->src;
-		psrc = PF_PEER_DST;
-	}
-
-	if ((src->state >= SCTP_SHUTDOWN_SENT || src->state == SCTP_CLOSED) &&
-	    (dst->state >= SCTP_SHUTDOWN_SENT || dst->state == SCTP_CLOSED) &&
-	    pd->sctp_flags & PFDESC_SCTP_INIT) {
-		pf_set_protostate(*state, PF_PEER_BOTH, SCTP_CLOSED);
-		pf_unlink_state(*state);
-		*state = NULL;
-		return (PF_DROP);
-	}
-
-	if (pf_sctp_track(*state, pd, reason) != PF_PASS)
-		return (PF_DROP);
-
-	/* Track state. */
-	if (pd->sctp_flags & PFDESC_SCTP_INIT) {
-		if (src->state < SCTP_COOKIE_WAIT) {
-			pf_set_protostate(*state, psrc, SCTP_COOKIE_WAIT);
-			(*state)->timeout = PFTM_SCTP_OPENING;
-		}
-	}
-	if (pd->sctp_flags & PFDESC_SCTP_INIT_ACK) {
-		MPASS(dst->scrub != NULL);
-		if (dst->scrub->pfss_v_tag == 0)
-			dst->scrub->pfss_v_tag = pd->sctp_initiate_tag;
-	}
-
-	/*
-	 * Bind to the correct interface if we're if-bound. For multihomed
-	 * extra associations we don't know which interface that will be until
-	 * here, so we've inserted the state on V_pf_all. Fix that now.
-	 */
-	if ((*state)->kif == V_pfi_all &&
-	    (*state)->rule->rule_flag & PFRULE_IFBOUND)
-		(*state)->kif = pd->kif;
-
-	if (pd->sctp_flags & (PFDESC_SCTP_COOKIE | PFDESC_SCTP_HEARTBEAT_ACK)) {
-		if (src->state < SCTP_ESTABLISHED) {
-			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
-			(*state)->timeout = PFTM_SCTP_ESTABLISHED;
-		}
-	}
-	if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN |
-	    PFDESC_SCTP_SHUTDOWN_COMPLETE)) {
-		if (src->state < SCTP_SHUTDOWN_PENDING) {
-			pf_set_protostate(*state, psrc, SCTP_SHUTDOWN_PENDING);
-			(*state)->timeout = PFTM_SCTP_CLOSING;
-		}
-	}
-	if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN_COMPLETE | PFDESC_SCTP_ABORT)) {
-		pf_set_protostate(*state, psrc, SCTP_CLOSED);
-		(*state)->timeout = PFTM_SCTP_CLOSED;
-	}
-
-	(*state)->expire = pf_get_uptime();
-
-	/* translate source/destination address, if necessary */
-	if ((*state)->key[PF_SK_WIRE] != (*state)->key[PF_SK_STACK]) {
-		uint16_t checksum = 0;
-		struct pf_state_key	*nk;
-		int			 afto, sidx, didx;
-
-		if (PF_REVERSED_KEY((*state)->key, pd->af))
-			nk = (*state)->key[pd->sidx];
-		else
-			nk = (*state)->key[pd->didx];
-
-		afto = pd->af != nk->af;
-		sidx = afto ? pd->didx : pd->sidx;
-		didx = afto ? pd->sidx : pd->didx;
-
-		if (afto || PF_ANEQ(pd->src, &nk->addr[sidx], pd->af) ||
-		    nk->port[sidx] != pd->hdr.sctp.src_port) {
-			pf_change_ap(pd->m, pd->src, &pd->hdr.sctp.src_port,
-			    pd->ip_sum, &checksum, &nk->addr[sidx],
-			    nk->port[sidx], 1, pd->af, pd->naf);
-		}
-
-		if (afto || PF_ANEQ(pd->dst, &nk->addr[didx], pd->af) ||
-		    nk->port[didx] != pd->hdr.sctp.dest_port) {
-			pf_change_ap(pd->m, pd->dst, &pd->hdr.sctp.dest_port,
-			    pd->ip_sum, &checksum, &nk->addr[didx],
-			    nk->port[didx], 1, pd->af, pd->naf);
-		}
-
-		if (afto) {
-			PF_ACPY(&pd->nsaddr, &nk->addr[sidx], nk->af);
-			PF_ACPY(&pd->ndaddr, &nk->addr[didx], nk->af);
-			pd->naf = nk->af;
-			return (PF_AFRT);
-		}
 	}
 
 	return (PF_PASS);
@@ -9986,6 +9918,12 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
 		}
+		/*
+		 * Placeholder. The SCTP checksum is 32-bits, but
+		 * pf_test_state() expects to update a 16-bit checksum.
+		 * Provide a dummy value which we'll subsequently ignore.
+		 */
+		pd->pcksum = &pd->sctp_dummy_sum;
 		break;
 	}
 	case IPPROTO_ICMP: {
@@ -10350,7 +10288,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 		action = pf_normalize_sctp(&pd);
 		if (action == PF_DROP)
 			goto done;
-		action = pf_test_state_sctp(&s, &pd, &reason);
+		action = pf_test_state(&s, &pd, &reason);
 		if (action == PF_PASS || action == PF_AFRT) {
 			if (V_pfsync_update_state_ptr != NULL)
 				V_pfsync_update_state_ptr(s);
