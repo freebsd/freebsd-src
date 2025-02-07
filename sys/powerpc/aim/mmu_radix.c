@@ -6438,7 +6438,7 @@ mmu_radix_page_array_startup(long pages)
 	start = VM_MIN_KERNEL_ADDRESS;
 	end = start + pages * sizeof(struct vm_page);
 
-	pa = vm_phys_early_alloc(0, end - start);
+	pa = vm_phys_early_alloc(-1, end - start);
 
 	start = mmu_radix_map(&start, pa, end - start, VM_MEMATTR_DEFAULT);
 #ifdef notyet
