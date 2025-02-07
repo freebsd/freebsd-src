@@ -703,6 +703,8 @@ void e1000_clear_hw_cntrs_base_generic(struct e1000_hw *hw)
 	E1000_READ_REG(hw, E1000_TPT);
 	E1000_READ_REG(hw, E1000_MPTC);
 	E1000_READ_REG(hw, E1000_BPTC);
+	E1000_READ_REG(hw, E1000_TLPIC);
+	E1000_READ_REG(hw, E1000_RLPIC);
 }
 
 /**

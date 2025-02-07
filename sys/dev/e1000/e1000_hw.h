@@ -653,6 +653,8 @@ struct e1000_hw_stats {
 	u64 o2bspc;
 	u64 b2ospc;
 	u64 b2ogprc;
+	u64 tlpic;
+	u64 rlpic;
 };
 
 struct e1000_vf_stats {
