@@ -80,19 +80,15 @@ pfr_add_table(struct pfr_table *tbl, int *nadd, int flags)
 }
 
 int
-pfr_del_tables(struct pfr_table *tbl, int size, int *ndel, int flags)
+pfr_del_table(struct pfr_table *tbl, int *ndel, int flags)
 {
 	struct pfioc_table io;
 
-	if (size < 0 || (size && tbl == NULL)) {
-		errno = EINVAL;
-		return (-1);
-	}
 	bzero(&io, sizeof io);
 	io.pfrio_flags = flags;
 	io.pfrio_buffer = tbl;
 	io.pfrio_esize = sizeof(*tbl);
-	io.pfrio_size = size;
+	io.pfrio_size = 1;
 	if (ioctl(dev, DIOCRDELTABLES, &io)) {
 		pfr_report_error(tbl, &io, "delete table");
 		return (-1);
