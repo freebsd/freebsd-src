@@ -245,6 +245,7 @@ print_state(struct pfctl_state *s, int opts)
 	uint8_t proto;
 	int afto = (s->key[PF_SK_STACK].af != s->key[PF_SK_WIRE].af);
 	int idx;
+	const char *sn_type_names[] = PF_SN_TYPE_NAMES;
 #ifndef __NO_STRICT_ALIGNMENT
 	struct pfctl_state_key aligned_key[2];
 
@@ -405,10 +406,14 @@ print_state(struct pfctl_state *s, int opts)
 				printf(", dummynet queue (%d %d)",
 				s->dnpipe, s->dnrpipe);
 		}
-		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
-			printf(", source-track");
-		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)
-			printf(", sticky-address");
+		if (s->src_node_flags & PFSTATE_SRC_NODE_LIMIT)
+			printf(", %s", sn_type_names[PF_SN_LIMIT]);
+		if (s->src_node_flags & PFSTATE_SRC_NODE_LIMIT_GLOBAL)
+			printf(" global");
+		if (s->src_node_flags & PFSTATE_SRC_NODE_NAT)
+			printf(", %s", sn_type_names[PF_SN_NAT]);
+		if (s->src_node_flags & PFSTATE_SRC_NODE_ROUTE)
+			printf(", %s", sn_type_names[PF_SN_ROUTE]);
 		if (s->log)
 			printf(", log");
 		if (s->log & PF_LOG_ALL)

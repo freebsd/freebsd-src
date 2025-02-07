@@ -684,6 +684,7 @@ nvlist_t *
 pf_krule_to_nvrule(struct pf_krule *rule)
 {
 	nvlist_t *nvl, *tmp;
+	u_int64_t src_nodes_total = 0;
 
 	nvl = nvlist_create(0);
 	if (nvl == NULL)
@@ -759,8 +760,9 @@ pf_krule_to_nvrule(struct pf_krule *rule)
 	    counter_u64_fetch(rule->states_cur));
 	nvlist_add_number(nvl, "states_tot",
 	    counter_u64_fetch(rule->states_tot));
-	nvlist_add_number(nvl, "src_nodes",
-	    counter_u64_fetch(rule->src_nodes));
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		src_nodes_total += counter_u64_fetch(rule->src_nodes[sn_type]);
+	nvlist_add_number(nvl, "src_nodes", src_nodes_total);
 
 	nvlist_add_number(nvl, "return_icmp", rule->return_icmp);
 	nvlist_add_number(nvl, "return_icmp6", rule->return_icmp6);
@@ -993,9 +995,9 @@ pf_state_to_nvstate(const struct pf_kstate *s)
 	nvlist_add_number(nvl, "creatorid", s->creatorid);
 	nvlist_add_number(nvl, "direction", s->direction);
 	nvlist_add_number(nvl, "state_flags", s->state_flags);
-	if (s->src_node)
+	if (s->sns[PF_SN_LIMIT] != NULL)
 		flags |= PFSYNC_FLAG_SRCNODE;
-	if (s->nat_src_node)
+	if (s->sns[PF_SN_NAT] != NULL || s->sns[PF_SN_ROUTE])
 		flags |= PFSYNC_FLAG_NATSRCNODE;
 	nvlist_add_number(nvl, "sync_flags", flags);
 

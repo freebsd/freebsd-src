@@ -352,7 +352,8 @@ pfattach_vnet(void)
 	}
 	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
-	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
+	for (pf_sn_types_t sn_type = 0; sn_type<PF_SN_MAX; sn_type++)
+		V_pf_default_rule.src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 
 	V_pf_default_rule.timestamp = uma_zalloc_pcpu(pf_timestamp_pcpu_zone,
 	    M_WAITOK | M_ZERO);
@@ -1854,7 +1855,8 @@ pf_krule_free(struct pf_krule *rule)
 	}
 	counter_u64_free(rule->states_cur);
 	counter_u64_free(rule->states_tot);
-	counter_u64_free(rule->src_nodes);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		counter_u64_free(rule->src_nodes[sn_type]);
 	uma_zfree_pcpu(pf_timestamp_pcpu_zone, rule->timestamp);
 
 	mtx_destroy(&rule->nat.mtx);
@@ -2090,7 +2092,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 	rule->states_cur = counter_u64_alloc(M_WAITOK);
 	rule->states_tot = counter_u64_alloc(M_WAITOK);
-	rule->src_nodes = counter_u64_alloc(M_WAITOK);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		rule->src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 	rule->cuid = uid;
 	rule->cpid = pid;
 	TAILQ_INIT(&rule->rdr.list);
@@ -3651,7 +3654,8 @@ DIOCGETRULENV_error:
 			}
 			newrule->states_cur = counter_u64_alloc(M_WAITOK);
 			newrule->states_tot = counter_u64_alloc(M_WAITOK);
-			newrule->src_nodes = counter_u64_alloc(M_WAITOK);
+			for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+				newrule->src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 			newrule->cuid = td->td_ucred->cr_ruid;
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->nat.list);
@@ -5672,9 +5676,14 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 			    __func__, msg_version);
 	}
 
-	if (st->src_node)
+	/*
+	 * XXX Why do we bother pfsyncing source node information if source
+	 * nodes are not synced? Showing users that there is source tracking
+	 * when there is none seems useless.
+	 */
+	if (st->sns[PF_SN_LIMIT] != NULL)
 		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (st->nat_src_node)
+	if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE])
 		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 
 	sp->pfs_1301.id = st->id;
@@ -5738,11 +5747,10 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	/* 8 bits for the old libpfctl, 16 bits for the new libpfctl */
 	sp->state_flags_compat = st->state_flags;
 	sp->state_flags = htons(st->state_flags);
-	if (st->src_node)
+	if (st->sns[PF_SN_LIMIT] != NULL)
 		sp->sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (st->nat_src_node)
+	if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE] != NULL)
 		sp->sync_flags |= PFSYNC_FLAG_NATSRCNODE;
-
 	sp->id = st->id;
 	sp->creatorid = st->creatorid;
 	pf_state_peer_hton(&st->src, &sp->src);
@@ -6007,10 +6015,13 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->src_node && s->src_node->expire == 1)
-				s->src_node = NULL;
-			if (s->nat_src_node && s->nat_src_node->expire == 1)
-				s->nat_src_node = NULL;
+			for(pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX;
+			    sn_type++) {
+				if (s->sns[sn_type] &&
+				    s->sns[sn_type]->expire == 1) {
+					s->sns[sn_type] = NULL;
+				}
+			}
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
@@ -6834,7 +6845,8 @@ pf_unload_vnet(void)
 	}
 	counter_u64_free(V_pf_default_rule.states_cur);
 	counter_u64_free(V_pf_default_rule.states_tot);
-	counter_u64_free(V_pf_default_rule.src_nodes);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		counter_u64_free(V_pf_default_rule.src_nodes[sn_type]);
 	uma_zfree_pcpu(pf_timestamp_pcpu_zone, V_pf_default_rule.timestamp);
 
 	for (int i = 0; i < PFRES_MAX; i++)

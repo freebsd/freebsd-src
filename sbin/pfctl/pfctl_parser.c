@@ -651,6 +651,7 @@ print_src_node(struct pfctl_src_node *sn, int opts)
 {
 	struct pf_addr_wrap aw;
 	uint64_t min, sec;
+	const char *sn_type_names[] = PF_SN_TYPE_NAMES;
 
 	memset(&aw, 0, sizeof(aw));
 	if (sn->af == AF_INET)
@@ -699,6 +700,7 @@ print_src_node(struct pfctl_src_node *sn, int opts)
 				printf(", filter rule %u", sn->rule);
 			break;
 		}
+		printf(", %s", sn_type_names[sn->type]);
 		printf("\n");
 	}
 }

@@ -649,6 +649,12 @@ struct pf_rule {
 #define	PFSTATE_SCRUBMASK (PFSTATE_NODF|PFSTATE_RANDOMID|PFSTATE_SCRUB_TCP)
 #define	PFSTATE_SETMASK   (PFSTATE_SETTOS|PFSTATE_SETPRIO)
 
+/* pfctl_state->src_node_flags */
+#define PFSTATE_SRC_NODE_LIMIT		0x01
+#define PFSTATE_SRC_NODE_NAT		0x02
+#define PFSTATE_SRC_NODE_ROUTE		0x04
+#define PFSTATE_SRC_NODE_LIMIT_GLOBAL	0x10
+
 #define PFSTATE_HIWAT		100000	/* default state table size */
 #define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */
 #define PFSTATE_ADAPT_END	120000	/* default adaptive timeout end */

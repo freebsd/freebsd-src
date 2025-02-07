@@ -186,9 +186,9 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_u8(nw, PF_ST_TIMEOUT, s->timeout);
 	nlattr_add_u16(nw, PF_ST_STATE_FLAGS, s->state_flags);
 	uint8_t sync_flags = 0;
-	if (s->src_node)
+	if (s->sns[PF_SN_LIMIT] != NULL)
 		sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (s->nat_src_node)
+	if (s->sns[PF_SN_NAT] != NULL || s->sns[PF_SN_ROUTE])
 		sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 	nlattr_add_u8(nw, PF_ST_SYNC_FLAGS, sync_flags);
 	nlattr_add_u64(nw, PF_ST_ID, s->id);
@@ -210,6 +210,17 @@ dump_state(struct nlpcb *nlp, const struct nlmsghdr *hdr, struct pf_kstate *s,
 	nlattr_add_u8(nw, PF_ST_RT, s->act.rt);
 	if (s->act.rt_kif != NULL)
 		nlattr_add_string(nw, PF_ST_RT_IFNAME, s->act.rt_kif->pfik_name);
+	uint8_t src_node_flags = 0;
+	if (s->sns[PF_SN_LIMIT] != NULL) {
+		src_node_flags |= PFSTATE_SRC_NODE_LIMIT;
+		if (s->sns[PF_SN_LIMIT]->rule == &V_pf_default_rule)
+			src_node_flags |= PFSTATE_SRC_NODE_LIMIT_GLOBAL;
+	}
+	if (s->sns[PF_SN_NAT] != NULL)
+		src_node_flags |= PFSTATE_SRC_NODE_NAT;
+	if (s->sns[PF_SN_ROUTE] != NULL)
+		src_node_flags |= PFSTATE_SRC_NODE_ROUTE;
+	nlattr_add_u8(nw, PF_ST_SRC_NODE_FLAGS, src_node_flags);
 
 	if (!dump_state_peer(nw, PF_ST_PEER_SRC, &s->src))
 		goto enomem;
@@ -854,6 +865,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct genlmsghdr		*ghdr_new;
 	struct pf_kruleset		*ruleset;
 	struct pf_krule			*rule;
+	u_int64_t			 src_nodes_total = 0;
 	int				 rs_num;
 	int				 error;
 
@@ -985,7 +997,12 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_u64(nw, PF_RT_TIMESTAMP, pf_get_timestamp(rule));
 	nlattr_add_u64(nw, PF_RT_STATES_CUR, counter_u64_fetch(rule->states_cur));
 	nlattr_add_u64(nw, PF_RT_STATES_TOTAL, counter_u64_fetch(rule->states_tot));
-	nlattr_add_u64(nw, PF_RT_SRC_NODES, counter_u64_fetch(rule->src_nodes));
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		src_nodes_total += counter_u64_fetch(rule->src_nodes[sn_type]);
+	nlattr_add_u64(nw, PF_RT_SRC_NODES, src_nodes_total);
+	nlattr_add_u64(nw, PF_RT_SRC_NODES_LIMIT, counter_u64_fetch(rule->src_nodes[PF_SN_LIMIT]));
+	nlattr_add_u64(nw, PF_RT_SRC_NODES_NAT, counter_u64_fetch(rule->src_nodes[PF_SN_NAT]));
+	nlattr_add_u64(nw, PF_RT_SRC_NODES_ROUTE, counter_u64_fetch(rule->src_nodes[PF_SN_ROUTE]));
 
 	error = pf_kanchor_copyout(ruleset, rule, anchor_call, sizeof(anchor_call));
 	MPASS(error == 0);
@@ -1784,6 +1801,8 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE,
 			    &n->conn_rate, secs);
+
+			nlattr_add_u8(nw, PF_SN_NODE_TYPE, n->type);
 
 			if (!nlmsg_end(nw)) {
 				PF_HASHROW_UNLOCK(sh);
