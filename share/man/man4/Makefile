@@ -338,7 +338,6 @@ MAN=	aac.4 \
 	msdosfs.4 \
 	msk.4 \
 	mtio.4 \
-	mtw.4 \
 	multicast.4 \
 	muge.4 \
 	mvs.4 \
@@ -1008,6 +1007,7 @@ _pfsync.4=	pfsync.4
 
 .if ${MK_USB} != "no"
 MAN+=	\
+	mtw.4 \
 	otus.4 \
 	otusfw.4 \
 	rsu.4 \
@@ -1066,6 +1066,7 @@ MAN+=	\
 	veriexec.4 \
 	zyd.4
 
+MLINKS+=mtw.4 if_mtw.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
 MLINKS+=rtwn_usb.4 if_rtwn_usb.4
