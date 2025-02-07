@@ -641,5 +641,5 @@ DEFINE_CLASS_1(host1x, host1x_driver, host1x_methods,
 EARLY_DRIVER_MODULE(host1x, simplebus, host1x_driver, 0, 0, BUS_PASS_BUS);
 
 /* Bindings for fbd device. */
-extern driver_t fbd_driver;
+DECLARE_CLASS(fbd_driver); /* NOTICE: this is the last user of dev/fb/fbd.c */
 DRIVER_MODULE(fbd, host1x, fbd_driver, 0, 0);
