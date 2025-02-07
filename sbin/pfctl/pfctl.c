@@ -1064,6 +1064,15 @@ pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
 			    rule->bytes[1]), (uintmax_t)rule->states_cur);
+		printf("  [ Source Nodes: %-6ju "
+			    "Limit: %-6ju "
+			    "NAT/RDR: %-6ju "
+			    "Route: %-6ju "
+			    "]\n",
+			    (uintmax_t)rule->src_nodes,
+			    (uintmax_t)rule->src_nodes_type[PF_SN_LIMIT],
+			    (uintmax_t)rule->src_nodes_type[PF_SN_NAT],
+			    (uintmax_t)rule->src_nodes_type[PF_SN_ROUTE]);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
 			    "State Creations: %-6ju]\n",

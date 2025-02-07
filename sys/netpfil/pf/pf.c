@@ -389,7 +389,7 @@ static void		 pf_overload_task(void *v, int pending);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node **,
 			    struct pf_srchash **, struct pf_krule *,
 			    struct pf_addr *, sa_family_t, struct pf_addr *,
-			    struct pfi_kkif *);
+			    struct pfi_kkif *, pf_sn_types_t);
 static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_uminit(void *, int, int);
@@ -835,25 +835,26 @@ pf_check_threshold(struct pf_threshold *threshold)
 static bool
 pf_src_connlimit(struct pf_kstate *state)
 {
-	struct pf_overload_entry *pfoe;
-	bool limited = false;
+	struct pf_overload_entry	*pfoe;
+	struct pf_ksrc_node		*src_node = state->sns[PF_SN_LIMIT];
+	bool				 limited = false;
 
 	PF_STATE_LOCK_ASSERT(state);
-	PF_SRC_NODE_LOCK(state->src_node);
+	PF_SRC_NODE_LOCK(src_node);
 
-	state->src_node->conn++;
+	src_node->conn++;
 	state->src.tcp_est = 1;
-	pf_add_threshold(&state->src_node->conn_rate);
+	pf_add_threshold(&src_node->conn_rate);
 
 	if (state->rule->max_src_conn &&
 	    state->rule->max_src_conn <
-	    state->src_node->conn) {
+	    src_node->conn) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONN], 1);
 		limited = true;
 	}
 
 	if (state->rule->max_src_conn_rate.limit &&
-	    pf_check_threshold(&state->src_node->conn_rate)) {
+	    pf_check_threshold(&src_node->conn_rate)) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONNRATE], 1);
 		limited = true;
 	}
@@ -873,7 +874,7 @@ pf_src_connlimit(struct pf_kstate *state)
 	if (pfoe == NULL)
 		goto done;  /* too bad :( */
 
-	bcopy(&state->src_node->addr, &pfoe->addr, sizeof(pfoe->addr));
+	bcopy(&src_node->addr, &pfoe->addr, sizeof(pfoe->addr));
 	pfoe->af = state->key[PF_SK_WIRE]->af;
 	pfoe->rule = state->rule;
 	pfoe->dir = state->direction;
@@ -883,7 +884,7 @@ pf_src_connlimit(struct pf_kstate *state)
 	taskqueue_enqueue(taskqueue_swi, &V_pf_overloadtask);
 
 done:
-	PF_SRC_NODE_UNLOCK(state->src_node);
+	PF_SRC_NODE_UNLOCK(src_node);
 	return (limited);
 }
 
@@ -985,7 +986,7 @@ pf_overload_task(void *v, int pending)
  */
 struct pf_ksrc_node *
 pf_find_src_node(struct pf_addr *src, struct pf_krule *rule, sa_family_t af,
-	struct pf_srchash **sh, bool returnlocked)
+    struct pf_srchash **sh, pf_sn_types_t sn_type, bool returnlocked)
 {
 	struct pf_ksrc_node *n;
 
@@ -994,7 +995,7 @@ pf_find_src_node(struct pf_addr *src, struct pf_krule *rule, sa_family_t af,
 	*sh = &V_pf_srchash[pf_hashsrc(src, af)];
 	PF_HASHROW_LOCK(*sh);
 	LIST_FOREACH(n, &(*sh)->nodes, entry)
-		if (n->rule == rule && n->af == af &&
+		if (n->rule == rule && n->af == af && n->type == sn_type &&
 		    ((af == AF_INET && n->addr.v4.s_addr == src->v4.s_addr) ||
 		    (af == AF_INET6 && bcmp(&n->addr, src, sizeof(*src)) == 0)))
 			break;
@@ -1039,27 +1040,43 @@ pf_free_src_node(struct pf_ksrc_node *sn)
 }
 
 static u_short
-pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_srchash **sh,
-    struct pf_krule *rule, struct pf_addr *src, sa_family_t af,
-    struct pf_addr *raddr, struct pfi_kkif *rkif)
+pf_insert_src_node(struct pf_ksrc_node *sns[PF_SN_MAX],
+    struct pf_srchash *snhs[PF_SN_MAX], struct pf_krule *rule,
+    struct pf_addr *src, sa_family_t af, struct pf_addr *raddr,
+    struct pfi_kkif *rkif, pf_sn_types_t sn_type)
 {
 	u_short			 reason = 0;
+	struct pf_krule		*r_track = rule;
+	struct pf_ksrc_node	**sn = &(sns[sn_type]);
+	struct pf_srchash	**sh = &(snhs[sn_type]);
 
-	KASSERT((rule->rule_flag & PFRULE_SRCTRACK ||
-	    rule->rdr.opts & PF_POOL_STICKYADDR),
-	    ("%s for non-tracking rule %p", __func__, rule));
+	KASSERT(sn_type != PF_SN_LIMIT || (raddr == NULL && rkif == NULL),
+	    ("%s: raddr and rkif must be NULL for PF_SN_LIMIT", __func__));
+
+	KASSERT(sn_type != PF_SN_LIMIT || (rule->rule_flag & PFRULE_SRCTRACK),
+	    ("%s: PF_SN_LIMIT only valid for rules with PFRULE_SRCTRACK", __func__));
+
+	/*
+	 * XXX: There could be a KASSERT for
+	 * sn_type == PF_SN_LIMIT || (pool->opts & PF_POOL_STICKYADDR)
+	 * but we'd need to pass pool *only* for this KASSERT.
+	 */
+
+	if ( (rule->rule_flag & PFRULE_SRCTRACK) &&
+	    !(rule->rule_flag & PFRULE_RULESRCTRACK))
+		r_track = &V_pf_default_rule;
 
 	/*
 	 * Request the sh to always be locked, as we might insert a new sn.
 	 */
 	if (*sn == NULL)
-		*sn = pf_find_src_node(src, rule, af, sh, true);
+		*sn = pf_find_src_node(src, r_track, af, sh, sn_type, true);
 
 	if (*sn == NULL) {
 		PF_HASHROW_ASSERT(*sh);
 
-		if (rule->max_src_nodes &&
-		    counter_u64_fetch(rule->src_nodes) >= rule->max_src_nodes) {
+		if (sn_type == PF_SN_LIMIT && rule->max_src_nodes &&
+		    counter_u64_fetch(r_track->src_nodes[sn_type]) >= rule->max_src_nodes) {
 			counter_u64_add(V_pf_status.lcounters[LCNT_SRCNODES], 1);
 			reason = PFRES_SRCLIMIT;
 			goto done;
@@ -1082,26 +1099,28 @@ pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_srchash **sh,
 			}
 		}
 
-		pf_init_threshold(&(*sn)->conn_rate,
-		    rule->max_src_conn_rate.limit,
-		    rule->max_src_conn_rate.seconds);
+		if (sn_type == PF_SN_LIMIT)
+			pf_init_threshold(&(*sn)->conn_rate,
+			    rule->max_src_conn_rate.limit,
+			    rule->max_src_conn_rate.seconds);
 
 		MPASS((*sn)->lock == NULL);
 		(*sn)->lock = &(*sh)->lock;
 
 		(*sn)->af = af;
-		(*sn)->rule = rule;
+		(*sn)->rule = r_track;
 		PF_ACPY(&(*sn)->addr, src, af);
-		PF_ACPY(&(*sn)->raddr, raddr, af);
+		if (raddr != NULL)
+			PF_ACPY(&(*sn)->raddr, raddr, af);
 		(*sn)->rkif = rkif;
 		LIST_INSERT_HEAD(&(*sh)->nodes, *sn, entry);
 		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
-		if ((*sn)->rule != NULL)
-			counter_u64_add((*sn)->rule->src_nodes, 1);
+		(*sn)->type = sn_type;
+		counter_u64_add(r_track->src_nodes[sn_type], 1);
 		counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_INSERT], 1);
 	} else {
-		if (rule->max_src_states &&
+		if (sn_type == PF_SN_LIMIT && rule->max_src_states &&
 		    (*sn)->states >= rule->max_src_states) {
 			counter_u64_add(V_pf_status.lcounters[LCNT_SRCSTATES],
 			    1);
@@ -1126,7 +1145,7 @@ pf_unlink_src_node(struct pf_ksrc_node *src)
 
 	LIST_REMOVE(src, entry);
 	if (src->rule)
-		counter_u64_add(src->rule->src_nodes, -1);
+		counter_u64_add(src->rule->src_nodes[src->type], -1);
 }
 
 u_int
@@ -2647,30 +2666,24 @@ pf_purge_expired_src_nodes(void)
 static void
 pf_src_tree_remove_state(struct pf_kstate *s)
 {
-	struct pf_ksrc_node *sn;
 	uint32_t timeout;
 
 	timeout = s->rule->timeout[PFTM_SRC_NODE] ?
 	    s->rule->timeout[PFTM_SRC_NODE] :
 	    V_pf_default_rule.timeout[PFTM_SRC_NODE];
 
-	if (s->src_node != NULL) {
-		sn = s->src_node;
-		PF_SRC_NODE_LOCK(sn);
-		if (s->src.tcp_est)
-			--sn->conn;
-		if (--sn->states == 0)
-			sn->expire = time_uptime + timeout;
-		PF_SRC_NODE_UNLOCK(sn);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
+		if (s->sns[sn_type] == NULL)
+			continue;
+		PF_SRC_NODE_LOCK(s->sns[sn_type]);
+		if (sn_type == PF_SN_LIMIT && s->src.tcp_est)
+			--(s->sns[sn_type]->conn);
+		if (--(s->sns[sn_type]->states) == 0)
+			s->sns[sn_type]->expire = time_uptime + timeout;
+		PF_SRC_NODE_UNLOCK(s->sns[sn_type]);
+		s->sns[sn_type] = NULL;
 	}
-	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		sn = s->nat_src_node;
-		PF_SRC_NODE_LOCK(sn);
-		if (--sn->states == 0)
-			sn->expire = time_uptime + timeout;
-		PF_SRC_NODE_UNLOCK(sn);
-	}
-	s->src_node = s->nat_src_node = NULL;
+
 }
 
 /*
@@ -5895,7 +5908,7 @@ nextrule:
 		pd->act.rt = r->rt;
 		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
 		reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
-		    &pd->act.rt_kif, NULL, &sn, &snh, pool);
+		    &pd->act.rt_kif, NULL, &sn, &snh, pool, PF_SN_ROUTE);
 		if (reason != 0)
 			goto cleanup;
 	}
@@ -5997,14 +6010,18 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_udp_mapping *udp_mapping)
 {
 	struct pf_kstate	*s = NULL;
-	struct pf_ksrc_node	*sn = NULL;
-	struct pf_srchash	*snh = NULL;
-	struct pf_ksrc_node	*nsn = NULL;
-	struct pf_srchash	*nsnh = NULL;
+	struct pf_ksrc_node	*sns[PF_SN_MAX] = { NULL };
+	/*
+	 * XXXKS: The hash for PF_SN_LIMIT and PF_SN_ROUTE should be the same
+	 *        but for PF_SN_NAT it is different. Don't try optimizing it,
+	 *        just store all 3 hashes.
+	 */
+	struct pf_srchash	*snhs[PF_SN_MAX] = { NULL };
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
 	u_short			 reason, sn_reason;
 	struct pf_krule_item	*ri;
+	struct pf_kpool		*pool_route = &r->route;
 
 	/* check maximums */
 	if (r->max_states &&
@@ -6013,18 +6030,26 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		REASON_SET(&reason, PFRES_MAXSTATES);
 		goto csfailed;
 	}
-	/* src node for filter rule */
-	if ((r->rule_flag & PFRULE_SRCTRACK ||
-	    r->rdr.opts & PF_POOL_STICKYADDR) &&
-	    (sn_reason = pf_insert_src_node(&sn, &snh, r, pd->src, pd->af,
-	    &pd->act.rt_addr, pd->act.rt_kif)) != 0) {
+	/* src node for limits */
+	if ((r->rule_flag & PFRULE_SRCTRACK) &&
+	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
+	        NULL, NULL, PF_SN_LIMIT)) != 0) {
+	    REASON_SET(&reason, sn_reason);
+		goto csfailed;
+	}
+	/* src node for route-to rule */
+	if (TAILQ_EMPTY(&pool_route->list)) /* Backwards compatibility. */
+		pool_route = &r->rdr;
+	if ((pool_route->opts & PF_POOL_STICKYADDR) &&
+	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
+		 &pd->act.rt_addr, pd->act.rt_kif, PF_SN_ROUTE)) != 0) {
 		REASON_SET(&reason, sn_reason);
 		goto csfailed;
 	}
 	/* src node for translation rule */
 	if (nr != NULL && (nr->rdr.opts & PF_POOL_STICKYADDR) &&
-	    (sn_reason = pf_insert_src_node(&nsn, &nsnh, nr, &sk->addr[pd->sidx],
-	    pd->af, &nk->addr[1], NULL)) != 0 ) {
+	    (sn_reason = pf_insert_src_node(sns, snhs, nr, &sk->addr[pd->sidx],
+	    pd->af, &nk->addr[1], NULL, PF_SN_NAT)) != 0 ) {
 		REASON_SET(&reason, sn_reason);
 		goto csfailed;
 	}
@@ -6166,13 +6191,11 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	/*
 	 * Lock order is important: first state, then source node.
 	 */
-	if (pf_src_node_exists(&sn, snh)) {
-		s->src_node = sn;
-		PF_HASHROW_UNLOCK(snh);
-	}
-	if (pf_src_node_exists(&nsn, nsnh)) {
-		s->nat_src_node = nsn;
-		PF_HASHROW_UNLOCK(nsnh);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
+		if (pf_src_node_exists(&sns[sn_type], snhs[sn_type])) {
+			s->sns[sn_type] = sns[sn_type];
+			PF_HASHROW_UNLOCK(snhs[sn_type]);
+		}
 	}
 
 	if (tag > 0)
@@ -6223,24 +6246,17 @@ csfailed:
 	uma_zfree(V_pf_state_key_z, sk);
 	uma_zfree(V_pf_state_key_z, nk);
 
-	if (pf_src_node_exists(&sn, snh)) {
-		if (--sn->states == 0 && sn->expire == 0) {
-			pf_unlink_src_node(sn);
-			pf_free_src_node(sn);
-			counter_u64_add(
-			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
+		if (pf_src_node_exists(&sns[sn_type], snhs[sn_type])) {
+			if (--sns[sn_type]->states == 0 &&
+			    sns[sn_type]->expire == 0) {
+				pf_unlink_src_node(sns[sn_type]);
+				pf_free_src_node(sns[sn_type]);
+				counter_u64_add(
+				    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+			}
+			PF_HASHROW_UNLOCK(snhs[sn_type]);
 		}
-		PF_HASHROW_UNLOCK(snh);
-	}
-
-	if (sn != nsn && pf_src_node_exists(&nsn, nsnh)) {
-		if (--nsn->states == 0 && nsn->expire == 0) {
-			pf_unlink_src_node(nsn);
-			pf_free_src_node(nsn);
-			counter_u64_add(
-			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
-		}
-		PF_HASHROW_UNLOCK(nsnh);
 	}
 
 drop:
@@ -6575,7 +6591,7 @@ pf_tcp_track_full(struct pf_kstate **state, struct pf_pdesc *pd,
 				pf_set_protostate(*state, pdst,
 				    TCPS_ESTABLISHED);
 				if (src->state == TCPS_ESTABLISHED &&
-				    (*state)->src_node != NULL &&
+				    (*state)->sns[PF_SN_LIMIT] != NULL &&
 				    pf_src_connlimit(*state)) {
 					REASON_SET(reason, PFRES_SRCLIMIT);
 					return (PF_DROP);
@@ -6746,7 +6762,7 @@ pf_tcp_track_sloppy(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reas
 		if (dst->state == TCPS_SYN_SENT) {
 			pf_set_protostate(*state, pdst, TCPS_ESTABLISHED);
 			if (src->state == TCPS_ESTABLISHED &&
-			    (*state)->src_node != NULL &&
+			    (*state)->sns[PF_SN_LIMIT] != NULL &&
 			    pf_src_connlimit(*state)) {
 				REASON_SET(reason, PFRES_SRCLIMIT);
 				return (PF_DROP);
@@ -6764,7 +6780,7 @@ pf_tcp_track_sloppy(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reas
 			pf_set_protostate(*state, PF_PEER_BOTH,
 			    TCPS_ESTABLISHED);
 			dst->state = src->state = TCPS_ESTABLISHED;
-			if ((*state)->src_node != NULL &&
+			if ((*state)->sns[PF_SN_LIMIT] != NULL &&
 			    pf_src_connlimit(*state)) {
 				REASON_SET(reason, PFRES_SRCLIMIT);
 				return (PF_DROP);
@@ -6831,7 +6847,7 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 		    (ntohl(th->th_seq) != (*state)->src.seqlo + 1)) {
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_DROP);
-		} else if ((*state)->src_node != NULL &&
+		} else if ((*state)->sns[PF_SN_LIMIT] != NULL &&
 		    pf_src_connlimit(*state)) {
 			REASON_SET(reason, PFRES_SRCLIMIT);
 			return (PF_DROP);
@@ -10023,17 +10039,21 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
 				pf_counter_u64_add_protected(&s->nat_rule->bytes[dirndx],
 				    pd->tot_len);
 			}
-			if (s->src_node != NULL) {
-				counter_u64_add(s->src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->src_node->bytes[dirndx],
-				    pd->tot_len);
-			}
-			if (s->nat_src_node != NULL) {
-				counter_u64_add(s->nat_src_node->packets[dirndx],
-				    1);
-				counter_u64_add(s->nat_src_node->bytes[dirndx],
-				    pd->tot_len);
+			/*
+			 * Source nodes are accessed unlocked here.
+			 * But since we are operating with stateful tracking
+			 * and the state is locked, those SNs could not have
+			 * been freed.
+			 */
+			for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
+				if (s->sns[sn_type] != NULL) {
+					counter_u64_add(
+					    s->sns[sn_type]->packets[dirndx],
+					    1);
+					counter_u64_add(
+					    s->sns[sn_type]->bytes[dirndx],
+					    pd->tot_len);
+				}
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
 			s->packets[dirndx]++;

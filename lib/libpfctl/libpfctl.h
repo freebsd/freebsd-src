@@ -216,6 +216,7 @@ struct pfctl_rule {
 	uint64_t		 states_cur;
 	uint64_t		 states_tot;
 	uint64_t		 src_nodes;
+	uint64_t		 src_nodes_type[PF_SN_MAX];
 
 	uint16_t		 return_icmp;
 	uint16_t		 return_icmp6;
@@ -373,6 +374,7 @@ struct pfctl_state {
 	uint8_t			 set_prio[2];
 	uint8_t			 rt;
 	char			 rt_ifname[IFNAMSIZ];
+	uint8_t			 src_node_flags;
 };
 
 TAILQ_HEAD(pfctl_statelist, pfctl_state);
@@ -415,6 +417,7 @@ struct pfctl_src_node {
 	uint64_t		creation;
 	uint64_t		expire;
 	struct pfctl_threshold	conn_rate;
+	pf_sn_types_t		type;
 };
 
 #define	PF_DEVICE	"/dev/pf"
