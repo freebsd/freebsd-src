@@ -544,5 +544,7 @@ int	pfctl_clear_tables(struct pfctl_handle *h, struct pfr_table *filter,
 	    int *ndel, int flags);
 int	pfctl_add_table(struct pfctl_handle *h, struct pfr_table *table,
 	    int *nadd, int flags);
+int	pfctl_del_table(struct pfctl_handle *h, struct pfr_table *table,
+	    int *ndel, int flags);
 
 #endif
