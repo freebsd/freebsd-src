@@ -62,6 +62,7 @@ enum {
 	PFNL_CMD_GET_RULESET = 24,
 	PFNL_CMD_GET_SRCNODES = 25,
 	PFNL_CMD_CLEAR_TABLES = 26,
+	PFNL_CMD_ADD_TABLE = 27,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -431,6 +432,7 @@ enum pf_tables_t {
 	PF_T_TABLE_FLAGS	= 3, /* u32 */
 	PF_T_FLAGS		= 4, /* u32 */
 	PF_T_NBR_DELETED	= 5, /* u32 */
+	PF_T_NBR_ADDED		= 6, /* u32 */
 };
 
 #ifdef _KERNEL

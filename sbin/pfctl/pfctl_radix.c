@@ -76,20 +76,7 @@ pfr_report_error(struct pfr_table *tbl, struct pfioc_table *io,
 int
 pfr_add_table(struct pfr_table *tbl, int *nadd, int flags)
 {
-	struct pfioc_table io;
-
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_buffer = tbl;
-	io.pfrio_esize = sizeof(*tbl);
-	io.pfrio_size = 1;
-	if (ioctl(dev, DIOCRADDTABLES, &io)) {
-		pfr_report_error(tbl, &io, "add table");
-		return (-1);
-	}
-	if (nadd != NULL)
-		*nadd = io.pfrio_nadd;
-	return (0);
+	return (pfctl_add_table(pfh, tbl, nadd, flags));
 }
 
 int
