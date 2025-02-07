@@ -542,5 +542,7 @@ int	pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *ar
 
 int	pfctl_clear_tables(struct pfctl_handle *h, struct pfr_table *filter,
 	    int *ndel, int flags);
+int	pfctl_add_table(struct pfctl_handle *h, struct pfr_table *table,
+	    int *nadd, int flags);
 
 #endif
