@@ -140,7 +140,7 @@ main()
 			    cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_RIGHTS) {
 				hellofd[1] = *(int *)CMSG_DATA(cmsg);
-				printf("child: sending '%s'\\n", buf);
+				printf("child: sending '%s'\en", buf);
 				if (write(hellofd[1], buf, HELLOLEN) == -1)
 				    err(EX_IOERR, "failed to send 'hello'");
 			}
@@ -164,7 +164,7 @@ main()
 
 		if (read(hellofd[0], buf, HELLOLEN) == -1)
 			err(EX_IOERR, "failed to receive 'hello'");
-		printf("parent: received '%s'\\n", buf);
+		printf("parent: received '%s'\en", buf);
 		break;
 	}
 

@@ -208,7 +208,7 @@ passwd = cap_getpwuid(cappwd, uid[0]);
 if (passwd == NULL)
 	err(1, "Unable to get name of user");
 
-printf("UID %d is associated with name %s.\\n", uid[0], passwd->pw_name);
+printf("UID %d is associated with name %s.\en", uid[0], passwd->pw_name);
 
 cap_close(cappwd);
 .Ed

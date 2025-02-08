@@ -36,10 +36,10 @@ pass in on bgeo proto tcp from 1.1.1.1 port > 1000
     to 2.2.2.2 port < 5000 flags S keep state
 .fi
 .PP
-or explicitly using the backslash ('\\') character:
+or explicitly using the backslash ('\e') character:
 .PP
 .nf
-pass in on bgeo proto tcp from 1.1.1.1 port > 1000 \\
+pass in on bgeo proto tcp from 1.1.1.1 port > 1000 \e
     to 2.2.2.2 port < 5000 flags S keep state
 .fi
 .SS Comments
@@ -304,7 +304,7 @@ of whether or not it is on the local host, return-icmp-as-dest is used like
 this:
 .PP
 .nf
-block return-icmp-as-dest(port-unr) in proto udp \\
+block return-icmp-as-dest(port-unr) in proto udp \e
     from any to 192.168.1.0/24
 .fi
 .SS TCP/UDP Port Matching
@@ -699,9 +699,9 @@ been seen and the state no longer required.
 .RS
 .PP
 .nf
-pass in quick proto icmp all icmp-type echo \\
+pass in quick proto icmp all icmp-type echo \e
     keep state (age 3)
-pass in quick proto udp from any \\
+pass in quick proto udp from any \e
     to any port = 53 keep state (age 30/1)
 .fi
 .RE
@@ -817,10 +817,10 @@ that match outbound packets, in-via is used to match the inbound packets.
 In each case, the syntax generalises to this:
 .PP
 .nf
-pass ... in on forward-in,reverse-in \\
+pass ... in on forward-in,reverse-in \e
        out-via forward-out,reverse-out ...
 
-pass ... out on forward-out,reverse-out \\
+pass ... out on forward-out,reverse-out \e
          in-via forward-in,reverse-in ...
 .fi
 .PP
@@ -828,7 +828,7 @@ An example that pins down all 4 network interfaces used by an ssh
 connection might look something like this:
 .PP
 .nf
-pass in on bge0,bge1 out-via bge1,bge0 proto tcp \\
+pass in on bge0,bge1 out-via bge1,bge0 proto tcp \e
     from any to any port = 22 flags S keep state
 .fi
 .SS Working with packet fragments
@@ -944,7 +944,7 @@ transport mechanism. In this case, it is necessary to instruct IPFilter
 as to what protocol is inside UDP.
 .PP
 .nf
-decapsulate l5-as(ip) in proto udp from any \\
+decapsulate l5-as(ip) in proto udp from any \e
     to any port = 1520 head 1001
 .fi
 .PP
@@ -974,7 +974,7 @@ interface:ip.address. It is expected that the address given as the next
 hop is directly connected to the network to which the interface is.
 .PP
 .nf
-pass in on bge0 to bge1:1.1.1.1 proto tcp \\
+pass in on bge0 to bge1:1.1.1.1 proto tcp \e
     from 1.1.2.3 to any port = 80 flags S keep state
 .fi
 .PP
@@ -984,7 +984,7 @@ in both directions because we now have a sense for what its reverse
 flow of packets is.
 .PP
 .nf
-pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \\
+pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \e
     proto tcp from 1.1.2.3 to any port = 80 flags S keep state
 .fi
 .PP
@@ -1006,8 +1006,8 @@ packet being created and sent out a different network. This can be
 useful for monitoring traffic and other purposes.
 .PP
 .nf
-pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \\
-    dup-to fxp0:10.0.0.1 proto tcp from 1.1.2.3 \\
+pass in on bge0 to bge1:1.1.1.1 reply-to hme1:2.1.1.2 \e
+    dup-to fxp0:10.0.0.1 proto tcp from 1.1.2.3 \e
     to any port = 80 flags S keep state
 .fi
 .SS Matching IPv4 options
@@ -1144,7 +1144,7 @@ is necessary to indicate to IPFilter that you only wish to log the first
 packet.
 .PP
 .nf
-pass in log first quick proto tcp from any to any port = 22 \\
+pass in log first quick proto tcp from any to any port = 22 \e
     flags S keep state
 .fi
 .PP
@@ -1158,7 +1158,7 @@ it is there until ipmon(8) reads it.
 .PP
 .nf
 block in log proto tcp from any to any port = smtp
-pass in log or-block first quick proto tcp from any \\
+pass in log or-block first quick proto tcp from any \e
     to any port = 22 flags S keep state
 .fi
 .PP
@@ -1177,7 +1177,7 @@ This can be tuned on a per rule basis like this:
 .PP
 .nf
 block in quick log level err all with bad
-pass in log level local1.info proto tcp \\
+pass in log level local1.info proto tcp \e
     from any to any port = 22 flags S keep state
 .fi
 .PP
@@ -1190,9 +1190,9 @@ the filter rule a comment.  The comment is loaded with the rule into the
 kernel and can be seen when the rules are listed with ipfstat.
 .PP
 .nf
-pass in quick proto tcp from any \\
+pass in quick proto tcp from any \e
     to port = 80 comment "all web server traffic is ok"
-pass out quick proto tcp from any port = 80 \\
+pass out quick proto tcp from any port = 80 \e
     to any comment "all web server traffic is ok"
 .fi
 .SS Tags
@@ -1230,7 +1230,7 @@ live.
 The time to live is specified in seconds.
 .PP
 .nf
-pass in on fxp0 proto tcp from any \\
+pass in on fxp0 proto tcp from any \e
     to port = 22 flags S keep state rule-ttl 30
 .fi
 .SH Internal packet attributes
@@ -1618,7 +1618,7 @@ matching to be on arbitrary data in the packt. The use of a BPF expression
 replaces all of the other protocol header matching done by IPFilter.
 .PP
 .nf
-pass in bpf-v4 { "tcp and (src port 23 or src port 50)" } \\
+pass in bpf-v4 { "tcp and (src port 23 or src port 50)" } \e
     keep state
 .fi
 .PP

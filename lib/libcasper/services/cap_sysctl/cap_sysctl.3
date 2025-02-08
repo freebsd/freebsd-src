@@ -173,7 +173,7 @@ size = sizeof(value);
 if (cap_sysctlbyname(capsysctl, name, &value, &size, NULL, 0) < 0)
 	err(1, "Unable to get value of sysctl");
 
-printf("The value of %s is %d.\\n", name, value);
+printf("The value of %s is %d.\en", name, value);
 
 cap_close(capsysctl);
 .Ed

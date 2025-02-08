@@ -163,12 +163,12 @@ main(void)
 	double money = 1234567.89;
 
 	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL) {
-		fprintf(stderr, "Unable to setlocale().\\n");
+		fprintf(stderr, "Unable to setlocale().\en");
 		return (1);
 	}
 
 	strfmon(string, sizeof(string) - 1, "%n", money);
-	printf("%s\\n", string);
+	printf("%s\en", string);
 
 	return (0);
 }

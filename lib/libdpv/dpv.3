@@ -493,7 +493,7 @@ Embed escaped newlines within prompt text to force line breaks.
 .Pp
 .Xr dialog 1
 does not display the first character after a series of escaped escape-sequences
-(for example, ``\\\\n'' produces ``\\'' instead of ``\\n'').
+(for example, ``\e\en'' produces ``\e'' instead of ``\en'').
 This is a known issue with
 .Xr dialog 1
 and does not affect
@@ -522,7 +522,7 @@ This does not effect
 which renders the color escape sequences as plain text.
 See
 .Do
-embedded "\\Z" sequences
+embedded "\eZ" sequences
 .Dc
 in
 .Xr dialog 1

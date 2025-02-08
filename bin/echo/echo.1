@@ -92,7 +92,7 @@ manual page.
 .Sh EXAMPLES
 Special treatment of options and backslashes:
 .Bd -literal -offset indent
-$ /bin/echo "-hello\\tworld"
+$ /bin/echo "-hello\etworld"
 -hello\tworld
 .Ed
 .Pp
@@ -104,7 +104,7 @@ helloworld
 .Pp
 Or to achieve the same result:
 .Bd -literal -offset indent
-$ /bin/echo "hello\\c";/bin/echo world
+$ /bin/echo "hello\ec";/bin/echo world
 helloworld
 .Ed
 .Sh SEE ALSO

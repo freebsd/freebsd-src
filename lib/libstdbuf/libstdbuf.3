@@ -76,7 +76,7 @@ is used to force it to be line-buffered so
 .Xr vmstat 8 Ns 's
 output will not stall until the full buffer fills.
 .Bd -literal -offset indent
-# vmstat 1 | LD_PRELOAD=/usr/lib/libstdbuf.so \\
+# vmstat 1 | LD_PRELOAD=/usr/lib/libstdbuf.so \e
     STDBUF_1=L awk '$2 > 1 || $3 > 1' | cat -n
 .Ed
 .Pp
