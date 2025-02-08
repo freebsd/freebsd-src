@@ -27,6 +27,7 @@
 #include "opt_ratelimit.h"
 
 #include <dev/mlx5/mlx5_en/en.h>
+#include <netinet/ip_var.h>
 #include <machine/in_cksum.h>
 #include <dev/mlx5/mlx5_accel/ipsec.h>
 
@@ -128,6 +129,27 @@ mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	mlx5_wq_ll_update_db_record(&rq->wq);
 }
 
+static uint32_t
+csum_reduce(uint32_t val)
+{
+	while (val > 0xffff)
+		val = (val >> 16) + (val & 0xffff);
+	return (val);
+}
+
+static u_short
+csum_buf(uint32_t val, void *buf, int len)
+{
+	u_short x;
+
+	MPASS(len % 2 == 0);
+	for (int i = 0; i < len; i += 2) {
+		bcopy((char *)buf + i, &x, 2);
+		val = csum_reduce(val + x);
+	}
+	return (val);
+}
+
 static void
 mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 {
@@ -139,6 +161,7 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 	struct ip *ip4 = NULL;
 	struct tcphdr *th;
 	uint32_t *ts_ptr;
+	uint32_t tcp_csum;
 	uint8_t l4_hdr_type;
 	int tcp_ack;
 
@@ -200,17 +223,34 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 		}
 	}
 	if (ip4) {
+		struct ipovly io;
+
 		ip4->ip_ttl = cqe->lro_min_ttl;
 		ip4->ip_len = cpu_to_be16(tot_len);
 		ip4->ip_sum = 0;
 		ip4->ip_sum = in_cksum_skip(mb, (ip4->ip_hl << 2) +
 		    ETHER_HDR_LEN, ETHER_HDR_LEN);
+
+		/* TCP checksum: data */
+		tcp_csum = cqe->check_sum;
+
+		/* TCP checksum: IP pseudoheader */
+		bzero(io.ih_x1, sizeof(io.ih_x1));
+		io.ih_pr = IPPROTO_TCP;
+		io.ih_len = htons(ntohs(ip4->ip_len) - sizeof(*ip4));
+		io.ih_src = ip4->ip_src;
+		io.ih_dst = ip4->ip_dst;
+		tcp_csum = csum_buf(tcp_csum, &io, sizeof(io));
+
+		/* TCP checksum: TCP header */
+		th->th_sum = 0;
+		tcp_csum = csum_buf(tcp_csum, th, th->th_off * 4);
+		th->th_sum = ~tcp_csum & 0xffff;
 	} else {
 		ip6->ip6_hlim = cqe->lro_min_ttl;
 		ip6->ip6_plen = cpu_to_be16(tot_len -
 		    sizeof(struct ip6_hdr));
 	}
-	/* TODO: handle tcp checksum */
 }
 
 static uint64_t
