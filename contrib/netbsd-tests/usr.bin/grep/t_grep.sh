@@ -221,8 +221,6 @@ zgrep_combined_flags_head()
 }
 zgrep_combined_flags_body()
 {
-	atf_expect_fail "known but unsolved zgrep wrapper script regression"
-
 	echo 'foo bar' > test
 
 	atf_check -o inline:"foo bar\n" zgrep -we foo test
@@ -278,8 +276,6 @@ zgrep_multiple_eflags_head()
 }
 zgrep_multiple_eflags_body()
 {
-	atf_expect_fail "known but unsolved zgrep wrapper script regression"
-
 	echo foobar > test
 
 	atf_check -o inline:"foobar\n" zgrep -e foo -e xxx test
@@ -940,6 +936,25 @@ zgrep_multiple_files_body()
 	echo bar > test2
 	atf_check -s exit:1 zgrep foo test1 test2
 }
+
+atf_test_case zgrep_recursive
+zgrep_multiple_files_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper recursion"
+}
+zgrep_recursive_body()
+{
+	atf_expect_fail "unimplemented zgrep wrapper script functionality"
+
+	mkdir -p tester1
+	echo foobar > tester1/test
+	atf_check -o inline:"tester1/test:foobar\n" zgrep -r foo tester1
+
+	mkdir -p tester2
+	echo foobar > tester2/test1
+	echo foobar > tester2/test2
+	atf_check -o inline:"tester2/test1:foobar\ntester2/test2:foobar\n" zgrep -r foo tester2
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -996,5 +1011,6 @@ atf_init_test_cases()
 	atf_add_test_case mflag
 	atf_add_test_case mflag_trail_ctx
 	atf_add_test_case zgrep_multiple_files
+	atf_add_test_case zgrep_recursive
 # End FreeBSD
 }
