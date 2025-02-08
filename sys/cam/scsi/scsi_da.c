@@ -1803,10 +1803,17 @@ daopen(struct disk *dp)
 	    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 		daprevent(periph, PR_PREVENT);
 
-	if (error == 0) {
+	/*
+	 * Only 'validate' the pack if the media size is non-zero and the
+	 * underlying peripheral isn't invalid (the only error != 0 path).
+	 */
+	if (error == 0 && softc->params.sectors != 0)
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
+	else
+		softc->flags |= DA_FLAG_PACK_INVALID;
+
+	if (error == 0)
 		softc->flags |= DA_FLAG_OPEN;
-	}
 
 	da_periph_unhold(periph, DA_REF_OPEN_HOLD);
 	cam_periph_unlock(periph);
