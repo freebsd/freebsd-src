@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\"	$KAME: setkey.8,v 1.89 2003/09/07 22:17:41 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -27,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 25, 2024
+.Dd October 16, 2024
 .Dt SETKEY 8
 .Os
 .\"
@@ -65,15 +68,12 @@ as well as Security Policy Database (SPD) entries in the kernel.
 The
 .Nm
 utility takes a series of operations from the standard input
-(if invoked with
-.Fl c ) ,
+.Pq if invoked with Fl c ,
 from the file named
 .Ar filename
-(if invoked with
-.Fl f Ar filename ) ,
+.Pq if invoked with Fl f Ar filename ,
 or from the command line argument following the option
-(if invoked with
-.Fl e Ar script ) .
+.Pq if invoked with Fl e Ar script .
 .Bl -tag -width indent
 .It Fl D
 Dump the SAD entries.
@@ -251,6 +251,7 @@ avoids FQDN resolution and requires addresses to be numeric addresses.
 .It Ar protocol
 .Ar protocol
 is one of following:
+.Pp
 .Bl -tag -width Fl -compact
 .It Li esp
 ESP based on rfc2406
@@ -281,7 +282,8 @@ and they cannot be used.
 .Pp
 .It Ar extensions
 take some of the following:
-.Bl -tag -width Fl natt_mtu -compact
+.Pp
+.Bl -tag -width Fl -compact
 .\"
 .It Fl m Ar mode
 Specify a security protocol mode for use.
@@ -311,7 +313,8 @@ See
 defines the content of the ESP padding.
 .Ar pad_option
 is one of following:
-.Bl -tag -width random-pad -compact
+.Pp
+.Bl -tag -width Fl -compact
 .It Li zero-pad
 All of the padding are zero.
 .It Li random-pad
@@ -326,17 +329,16 @@ Do not allow cyclic sequence number.
 .It Fl lh Ar time
 .It Fl ls Ar time
 Specify hard/soft life time duration of the SA.
-.It Fl natt Ar oai \([ Ar sport \(] Ar oar \([ Ar dport \(]
+.It Fl natt Ar oai \(lB Ar sport \(rB Ar oar \(lB Ar dport \(rB
 Manually configure NAT-T for the SA, by specifying initiator
 .Ar oai
-and
-requestor
+and requestor
 .Ar oar
 ip addresses and ports.
 Note that the
-.Sq \([
+.Sq \(lB
 and
-.Sq \(]
+.Sq \(rB
 symbols are part of the syntax for the ports specification,
 not indication of the optional components.
 .It Fl natt_mtu Ar fragsize
@@ -471,7 +473,7 @@ protocols other than TCP, UDP and ICMP may not be suitable to use with IPsec.
 .Ar policy
 is expressed in one of the following three formats:
 .Pp
-.Bl -tag -width 2n -compact
+.Bl -inset -compact
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
 .It Xo Fl P Ar direction Li ipsec
@@ -479,7 +481,7 @@ is expressed in one of the following three formats:
 .Xc
 .El
 .Pp
-.Bl -tag -compact -width "policy level"
+.Bl -tag -compact -width indent
 .It Ar direction
 The
 .Ar direction
@@ -493,7 +495,8 @@ The direction is followed by one of the following policy levels:
 .Li none ,
 or
 .Li ipsec .
-.Bl -compact -bullet
+.Pp
+.Bl -bullet -compact
 .It
 The
 .Li discard
@@ -510,11 +513,13 @@ The
 policy level means that IPsec operation will take place onto
 the packet.
 .El
+.Pp
 .It Ar protocol/mode/src-dst/level
 The
 .Ar protocol/mode/src-dst/level
 statement gives the rule for how to process the packet.
-.Bl -compact -bullet
+.Pp
+.Bl -bullet -compact
 .It
 The
 .Ar protocol
@@ -563,12 +568,12 @@ or
 If the SA is not available in every level, the kernel will request
 the SA from the key exchange daemon.
 .Pp
-.Bl -compact -bullet
+.Bl -bullet -compact
 .It
 A value of
 .Li default
 tells the kernel to use the system wide default protocol
-e.g.,\& the one from the
+e.g., the one from the
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
 .It
@@ -590,7 +595,7 @@ but, in addition, it allows the policy to bind with the unique out-bound SA.
 .Pp
 For example, if you specify the policy level
 .Li unique ,
-.Xr racoon 8 Pq Pa ports/security/ipsec-tools
+.Xr racoon 8 Pq Pa ports/security/racoon2
 will configure the SA for the policy.
 If you configure the SA by manual keying for that policy,
 you can put the decimal number as the policy identifier after
@@ -640,22 +645,22 @@ in the
 of the
 .Ar protocol
 parameter:
-.Bd -literal -offset indent
-algorithm	keylen (bits)	comment
-hmac-sha1	160		ah/esp: rfc2404
-		160		ah-old/esp-old: 128bit ICV (no document)
-null		0 to 2048	for debugging
-hmac-sha2-256	256		ah/esp: 128bit ICV (RFC4868)
-		256		ah-old/esp-old: 128bit ICV (no document)
-hmac-sha2-384	384		ah/esp: 192bit ICV (RFC4868)
-		384		ah-old/esp-old: 128bit ICV (no document)
-hmac-sha2-512	512		ah/esp: 256bit ICV (RFC4868)
-		512		ah-old/esp-old: 128bit ICV (no document)
-aes-xcbc-mac	128		ah/esp: 96bit ICV (RFC3566)
-		128		ah-old/esp-old: 128bit ICV (no document)
-tcp-md5		8 to 640	tcp: rfc2385
-chacha20-poly1305	256	ah/esp: 128bit ICV (RFC7634)
-.Ed
+.Bl -column -offset indent "chacha20-poly130" "Key Size" "ICV" "Comment"
+.It Em Algorithm Ta Em Key Size Ta Em ICV Ta Em Comment
+.It hmac-sha1 Ta 160 Ta - Ta RFC2404
+.It Pq legacy Ta 160 Ta 128 Ta -
+.It null Ta 0 - 2048 Ta - Ta debugging
+.It hmac-sha2-256 Ta 256 Ta 128 Ta RFC4868
+.It Pq legacy Ta 256 Ta 128 Ta -
+.It hmac-sha2-384 Ta 384 Ta 192 Ta RFC4868
+.It Pq legacy Ta 384 Ta 128 Ta -
+.It hmac-sha2-512 Ta 512 Ta 256 Ta RFC4868
+.It Pq legacy Ta 512 Ta 128 Ta -
+.It aes-xcbc-mac Ta 128 Ta 96 Ta RFC3566
+.It Pq legacy Ta 128 Ta 128 Ta -
+.It tcp-md5 Ta 8 - 640 Ta - Ta RFC2385
+.It chacha20-poly1305 Ta 256 Ta 128 Ta RFC7634
+.El
 .Ss Encryption Algorithms
 The following encryption algorithms can be used as the
 .Ar ealgo
@@ -664,14 +669,14 @@ in the
 of the
 .Ar protocol
 parameter:
-.Bd -literal -offset indent
-algorithm	keylen (bits)	comment
-null		0 to 2048	rfc2410
-aes-cbc		128/192/256	rfc3602
-aes-ctr		160/224/288	rfc3686
-aes-gcm-16	160/224/288	AEAD; rfc4106
-chacha20-poly1305	256	rfc7634
-.Ed
+.Bl -column -offset indent "chacha20-poly130" "160/224/256" "AEAD: RFC4106"
+.It Em Algorithm Ta Em Key Size Ta Em Comment
+.It null Ta 0 - 2048 Ta RFC2410
+.It aes-cbc Ta 128/192/256 Ta RFC3602
+.It aes-ctr Ta 160/224/288 Ta RFC3686
+.It aes-gcm-16 Ta 160/224/288 Ta AEAD; RFC4106
+.It chacha20-poly1305 Ta 256 Ta RFC7634
+.El
 .Pp
 Note that the first 128/192/256 bits of a key for
 .Li aes-ctr
@@ -686,7 +691,7 @@ include authentication and should not be
 paired with a separate authentication algorithm via
 .Fl A .
 .Ss Compression Algorithms
-The following compression algorithms can be used
+The following compression algorithm can be used
 as the
 .Ar calgo
 in the
@@ -694,10 +699,10 @@ in the
 of the
 .Ar protocol
 parameter:
-.Bd -literal -offset indent
-algorithm	comment
-deflate		rfc2394
-.Ed
+.Bl -column -offset indent "Algorithm" "Comment"
+.It Em Algorithm Ta Em Comment
+.It Deflate Ta RFC2394
+.El
 .\"
 .Sh EXIT STATUS
 .Ex -std
@@ -747,7 +752,7 @@ add 10.1.10.36 10.1.10.34 tcp 0x1001 -A tcp-md5 "TCP-MD5 BGP secret" ;
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3 ,
 .Xr if_ipsec 4 ,
-.Xr racoon 8 Pq Pa ports/security/ipsec-tools ,
+.Xr racoon 8 Pq Pa ports/security/racoon2 ,
 .Xr sysctl 8
 .Rs
 .%T "Changed manual key configuration for IPsec"
@@ -766,13 +771,12 @@ It first appeared in
 .Sh BUGS
 The
 .Nm
-utility
-should report and handle syntax errors better.
+utility should report and handle syntax errors better.
 .Pp
 For IPsec gateway configuration,
 .Ar src_range
 and
 .Ar dst_range
-with TCP/UDP port number do not work, as the gateway does not reassemble
-packets
-(cannot inspect upper-layer headers).
+with TCP/UDP port number do not work,
+as the gateway does not reassemble packets
+.Pq cannot inspect upper-layer headers .
