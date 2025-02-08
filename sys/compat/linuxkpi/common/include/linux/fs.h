@@ -150,6 +150,11 @@ struct file_operations {
  * an illegal seek error
  */
 	off_t (*llseek)(struct linux_file *, off_t, int);
+/*
+ * Not supported in FreeBSD. That's ok, we never call it and it allows some
+ * drivers like DRM drivers to compile without changes.
+ */
+	void (*show_fdinfo)(struct seq_file *, struct file *);
 #if 0
 	/* We do not support these methods.  Don't permit them to compile. */
 	loff_t (*llseek)(struct file *, loff_t, int);
