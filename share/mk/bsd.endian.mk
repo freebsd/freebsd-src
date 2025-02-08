@@ -3,6 +3,7 @@
     ${MACHINE_CPUARCH} == "arm" || \
     ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "loongarch" || \
     ${MACHINE_ARCH} == "powerpc64le" || \
     ${MACHINE_CPUARCH} == "riscv"
 TARGET_ENDIANNESS= 1234
