@@ -62,12 +62,14 @@ extern int evdev_rcpt_mask;
  * 0 - do not extract horizontal wheel movement (default).
  * 1 - ums(4) horizontal wheel encoding. T-axis is mapped to buttons 6 and 7
  * 2 - psm(4) wheels encoding: z = 1,-1 - vert. wheel, z = 2,-2 - horiz. wheel
+ * 3 - wsp(4) horizontal and vertical encoding. T-axis is mapped to button 5.
  */
 enum
 {
 	EVDEV_SYSMOUSE_T_AXIS_NONE = 0,
 	EVDEV_SYSMOUSE_T_AXIS_UMS = 1,
 	EVDEV_SYSMOUSE_T_AXIS_PSM = 2,
+	EVDEV_SYSMOUSE_T_AXIS_WSP = 3,
 };
 extern int evdev_sysmouse_t_axis;
 
