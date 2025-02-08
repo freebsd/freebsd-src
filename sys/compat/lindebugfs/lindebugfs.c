@@ -624,6 +624,121 @@ debugfs_create_atomic_t(const char *name, umode_t mode, struct dentry *parent, a
 }
 
 
+static int
+fops_str_open(struct inode *inode, struct file *filp)
+{
+
+	return (simple_open(inode, filp));
+}
+
+static ssize_t
+fops_str_read(struct file *filp, char __user *ubuf, size_t read_size,
+    loff_t *ppos)
+{
+	ssize_t ret;
+	char *str, *str_with_newline;
+	size_t str_len, str_with_newline_len;
+
+	if (filp->private_data == NULL)
+		return (-EINVAL);
+
+	str = *(char **)filp->private_data;
+	str_len = strlen(str);
+
+	/*
+	 * `str_with_newline` is terminated with a newline, but is not
+	 * NUL-terminated.
+	 */
+	str_with_newline_len = str_len + 1;
+	str_with_newline = kmalloc(str_with_newline_len, GFP_KERNEL);
+	if (str_with_newline == NULL)
+		return (-ENOMEM);
+
+	strncpy(str_with_newline, str, str_len);
+	str_with_newline[str_len] = '\n';
+
+	ret = simple_read_from_buffer(ubuf, read_size, ppos,
+	    str_with_newline, str_with_newline_len);
+
+	kfree(str_with_newline);
+
+	return (ret);
+}
+
+static ssize_t
+fops_str_write(struct file *filp, const char *buf, size_t write_size,
+    loff_t *ppos)
+{
+	char *old, *new;
+	size_t old_len, new_len;
+
+	if (filp->private_data == NULL)
+		return (-EINVAL);
+
+	old = *(char **)filp->private_data;
+	new = NULL;
+
+	/*
+	 * We enforce concatenation of the newly written value to the existing
+	 * value.
+	 */
+	old_len = strlen(old);
+	if (*ppos && *ppos != old_len)
+		return (-EINVAL);
+
+	new_len = old_len + write_size;
+	if (new_len + 1 > PAGE_SIZE)
+		return (-E2BIG);
+
+	new = kmalloc(new_len + 1, GFP_KERNEL);
+	if (new == NULL)
+		return (-ENOMEM);
+
+	memcpy(new, old, old_len);
+	if (copy_from_user(new + old_len, buf, write_size) != 0) {
+		kfree(new);
+		return (-EFAULT);
+	}
+
+	new[new_len] = '\0';
+	strim(new);
+
+	filp->private_data = &new;
+
+	kfree(old);
+
+	return (write_size);
+}
+
+static const struct file_operations fops_str = {
+	.owner = THIS_MODULE,
+	.open = fops_str_open,
+	.read = fops_str_read,
+	.write = fops_str_write,
+	.llseek = no_llseek
+};
+static const struct file_operations fops_str_ro = {
+	.owner = THIS_MODULE,
+	.open = fops_str_open,
+	.read = fops_str_read,
+	.llseek = no_llseek
+};
+static const struct file_operations fops_str_wo = {
+	.owner = THIS_MODULE,
+	.open = fops_str_open,
+	.write = fops_str_write,
+	.llseek = no_llseek
+};
+
+void
+debugfs_create_str(const char *name, umode_t mode, struct dentry *parent,
+    char **value)
+{
+	debugfs_create_mode_unsafe(name, mode, parent, value,
+	    &fops_str, &fops_str_ro, &fops_str_wo);
+}
+
+
 static ssize_t
 fops_blob_read(struct file *filp, char __user *ubuf, size_t read_size, loff_t *ppos)
 {
