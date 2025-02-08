@@ -74,7 +74,7 @@ esac
 while [ $# -gt 0 -a ${endofopts} -eq 0 ]
 do
     case $1 in
-    # from GNU grep-2.5.1 -- keep in sync!
+    # from GNU grep-2.6.0 -- keep in sync!
 	--)
 	    shift
 	    endofopts=1
@@ -85,6 +85,9 @@ do
 	    shift
 	    ;;
 	--regexp=*)
+	    if [ ${pattern_found} -ne 0 ]; then
+		grep_args="${grep_args} -e ${pattern}"
+	    fi
 	    pattern="${1#--regexp=}"
 	    pattern_found=1
 	    shift
@@ -100,20 +103,31 @@ do
 	    grep_args="${grep_args} $1"
 	    shift
 	    ;;
-	-*[ABCDXdefm])
+	-[EFGHILOSUVabchilnopqsuvwxyz]*)
+	    post="${1#-?}"
+	    pre=${1%${post}}
+	    grep_args="${grep_args} ${pre}"
+	    shift
+	    # Put back partial arg
+	    set -- "-${post}" $*
+	    ;;
+	-[ABCDdefm])
 	    if [ $# -lt 2 ]
 		then
 		echo "${prg}: missing argument for $1 flag" >&2
 		exit 1
 	    fi
 	    case $1 in
-		-*e)
+		-e)
+		    if [ ${pattern_found} -ne 0 ]; then
+			grep_args="${grep_args} -e ${pattern}"
+		    fi
 		    pattern="$2"
 		    pattern_found=1
 		    shift 2
 		    continue
 		    ;;
-		-*f)
+		-f)
 		    pattern_file=1
 		    ;;
 		*)
@@ -121,6 +135,27 @@ do
 	    esac
 	    grep_args="${grep_args} $1 $2"
 	    shift 2
+	    ;;
+	-[ABCDdefm]*)
+	    post="${1#-e}"
+	    case ${1} in
+		-e*)
+		    if [ ${pattern_found} -ne 0 ]; then
+			grep_args="${grep_args} -e ${pattern}"
+		    fi
+		    pattern="${post}"
+		    pattern_found=1
+		    shift
+		    continue
+		    ;;
+		-f*)
+		    pattern_file=1
+		    ;;
+		*)
+		    ;;
+	    esac
+	    grep_args="${grep_args} ${post}"
+	    shift
 	    ;;
 	-)
 	    hyphen=1
@@ -130,7 +165,7 @@ do
 	    echo "${prg}: the ${1} flag is not currently supported" >&2
 	    exit 1
 	    ;;
-	-*)
+	-?)
 	    grep_args="${grep_args} $1"
 	    shift
 	    ;;
@@ -156,12 +191,15 @@ then
     pattern_found=1
 fi
 
+# Clean up possible leading blank
+grep_args="${grep_args# }"
+
 # call grep ...
 if [ $# -lt 1 ]
 then
     # ... on stdin
     if [ ${pattern_file} -eq 0 ]; then
-	${cattool} ${catargs} - | ${grep} ${grep_args} -- "${pattern}" -
+	${cattool} ${catargs} - | ${grep} ${grep_args} -e "${pattern}" -- -
     else
 	${cattool} ${catargs} - | ${grep} ${grep_args} -- -
     fi
@@ -176,7 +214,7 @@ else
     for file; do
 	if [ ${pattern_file} -eq 0 ]; then
 	    ${cattool} ${catargs} -- "${file}" |
-		${grep} --label="${file}" ${grep_args} -- "${pattern}" -
+		${grep} --label="${file}" ${grep_args} -e "${pattern}" -- -
 	else
 	    ${cattool} ${catargs} -- "${file}" |
 		${grep} --label="${file}" ${grep_args} -- -
