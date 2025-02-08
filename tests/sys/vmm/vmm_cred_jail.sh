@@ -38,7 +38,7 @@ vmm_cred_jail_host_head()
 }
 vmm_cred_jail_host_body()
 {
-	if ! kldstat -qn vmm; then
+	if ! -c /dev/vmmctl; then
 		atf_skip "vmm is not loaded"
 	fi
 	bhyvectl --vm=testvm --create
@@ -59,7 +59,7 @@ vmm_cred_jail_other_head()
 }
 vmm_cred_jail_other_body()
 {
-	if ! kldstat -qn vmm; then
+	if ! -c /dev/vmmctl; then
 		atf_skip "vmm is not loaded"
 	fi
 	vmm_mkjail myjail1
