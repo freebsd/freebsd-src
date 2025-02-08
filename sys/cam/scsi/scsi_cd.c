@@ -103,7 +103,6 @@ typedef enum {
 	CD_FLAG_NEW_DISC	= 0x0002,
 	CD_FLAG_DISC_LOCKED	= 0x0004,
 	CD_FLAG_DISC_REMOVABLE	= 0x0008,
-	CD_FLAG_SAW_MEDIA	= 0x0010,
 	CD_FLAG_ACTIVE		= 0x0080,
 	CD_FLAG_SCHED_ON_COMP	= 0x0100,
 	CD_FLAG_RETRY_UA	= 0x0200,
@@ -1490,7 +1489,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->disk->d_mediasize =
 			    (off_t)softc->params.blksize *
 			    softc->params.disksize;
-			softc->flags |= CD_FLAG_SAW_MEDIA | CD_FLAG_VALID_MEDIA;
+			softc->flags |= CD_FLAG_VALID_MEDIA;
 			softc->state = CD_STATE_MEDIA_TOC_HDR;
 		} else {
 			softc->flags &= ~(CD_FLAG_VALID_MEDIA |
@@ -2886,13 +2885,13 @@ cderror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			disk_media_changed(softc->disk, M_NOWAIT);
 		} else if (sense_key == SSD_KEY_NOT_READY &&
-		    asc == 0x3a && (softc->flags & CD_FLAG_SAW_MEDIA)) {
+		    asc == 0x3a && (softc->flags & CD_FLAG_VALID_MEDIA)) {
 			/* 3a/0: MEDIUM NOT PRESENT */
 			/* 3a/1: MEDIUM NOT PRESENT - TRAY CLOSED */
 			/* 3a/2: MEDIUM NOT PRESENT - TRAY OPEN */
 			/* 3a/3: MEDIUM NOT PRESENT - LOADABLE */
 			/* 3a/4: MEDIUM NOT PRESENT - MEDIUM AUXILIARY MEMORY ACCESSIBLE */
-			softc->flags &= ~CD_FLAG_SAW_MEDIA;
+			softc->flags &= ~CD_FLAG_VALID_MEDIA;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
 	}
