@@ -418,7 +418,7 @@ ping(int s, const struct sockaddr *sa, socklen_t salen)
 	memset(&icmp, 0, sizeof(icmp));
 	icmp.icmp.icmp_type = ICMP_ECHO;
 	icmp.icmp.icmp_code = 0;
-	icmp.icmp.icmp_cksum = htons(~(ICMP_ECHO << 8));
+	icmp.icmp.icmp_cksum = htons((unsigned short)~(ICMP_ECHO << 8));
 	n = sendto(s, &icmp, sizeof(icmp), 0, sa, salen);
 	ATF_REQUIRE_MSG(n == (ssize_t)sizeof(icmp), "sendto failed: %s",
 	    strerror(errno));
@@ -438,7 +438,8 @@ ping6(int s, const struct sockaddr *sa, socklen_t salen)
 	memset(&icmp6, 0, sizeof(icmp6));
 	icmp6.icmp6.icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6.icmp6.icmp6_code = 0;
-	icmp6.icmp6.icmp6_cksum = htons(~(ICMP6_ECHO_REQUEST << 8));
+	icmp6.icmp6.icmp6_cksum =
+	    htons((unsigned short)~(ICMP6_ECHO_REQUEST << 8));
 	n = sendto(s, &icmp6, sizeof(icmp6), 0, sa, salen);
 	ATF_REQUIRE_MSG(n == (ssize_t)sizeof(icmp6), "sendto failed: %s",
 	    strerror(errno));
