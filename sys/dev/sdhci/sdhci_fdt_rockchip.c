@@ -275,7 +275,6 @@ static device_method_t sdhci_fdt_rockchip_methods[] = {
 
 	DEVMETHOD_END
 };
-extern driver_t sdhci_fdt_driver;
 
 DEFINE_CLASS_1(sdhci_rockchip, sdhci_fdt_rockchip_driver, sdhci_fdt_rockchip_methods,
     sizeof(struct sdhci_fdt_softc), sdhci_fdt_driver);
