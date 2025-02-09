@@ -293,7 +293,7 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	}
 
 	if (saidx->mode != IPSEC_MODE_TRANSPORT) {
-		mlx5_core_err(mdev, "Only transport xfrm states may be offloaded in full offlaod mode\n");
+		mlx5_core_err(mdev, "Only transport xfrm states may be offloaded in full offload mode\n");
 		return (EINVAL);
 	}
 
