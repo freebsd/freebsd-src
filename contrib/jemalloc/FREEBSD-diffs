@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 7fecda7c..d5ca5e86 100644
+index e28e8f38..4f5d2799 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -53,11 +53,22 @@
@@ -26,7 +26,7 @@ index 7fecda7c..d5ca5e86 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -3510,4 +3521,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
+@@ -3760,4 +3771,18 @@ malloc_conf = "narenas:1";]]></programlisting></para>
      <para>The <function>posix_memalign()</function> function conforms
      to IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).</para>
    </refsect1>
@@ -46,7 +46,7 @@ index 7fecda7c..d5ca5e86 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal_decls.h b/include/jemalloc/internal/jemalloc_internal_decls.h
-index 7d6053e2..a0e4f5af 100644
+index 983027c8..3cbed72b 100644
 --- a/include/jemalloc/internal/jemalloc_internal_decls.h
 +++ b/include/jemalloc/internal/jemalloc_internal_decls.h
 @@ -1,6 +1,9 @@
@@ -75,11 +75,11 @@ index 00000000..0dab1296
 +#  undef JEMALLOC_GCC_U8_SYNC_ATOMICS
 +#endif
 diff --git a/include/jemalloc/internal/jemalloc_preamble.h.in b/include/jemalloc/internal/jemalloc_preamble.h.in
-index 3418cbfa..53e30dc4 100644
+index 5ce77d96..d970370c 100644
 --- a/include/jemalloc/internal/jemalloc_preamble.h.in
 +++ b/include/jemalloc/internal/jemalloc_preamble.h.in
-@@ -8,6 +8,9 @@
- #include <sys/ktrace.h>
+@@ -14,6 +14,9 @@
+ #  endif
  #endif
  
 +#include "un-namespace.h"
@@ -88,7 +88,7 @@ index 3418cbfa..53e30dc4 100644
  #define JEMALLOC_NO_DEMANGLE
  #ifdef JEMALLOC_JET
  #  undef JEMALLOC_IS_MALLOC
-@@ -79,13 +82,7 @@ static const bool config_fill =
+@@ -85,13 +88,7 @@ static const bool config_fill =
      false
  #endif
      ;
@@ -104,10 +104,10 @@ index 3418cbfa..53e30dc4 100644
  static const bool config_prof =
  #ifdef JEMALLOC_PROF
 diff --git a/include/jemalloc/internal/mutex.h b/include/jemalloc/internal/mutex.h
-index 7c24f072..94af1618 100644
+index 63a0b1b3..8468e7bc 100644
 --- a/include/jemalloc/internal/mutex.h
 +++ b/include/jemalloc/internal/mutex.h
-@@ -135,9 +135,6 @@ struct malloc_mutex_s {
+@@ -131,9 +131,6 @@ struct malloc_mutex_s {
  
  #ifdef JEMALLOC_LAZY_LOCK
  extern bool isthreaded;
@@ -117,7 +117,7 @@ index 7c24f072..94af1618 100644
  #endif
  
  bool malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
-@@ -145,6 +142,7 @@ bool malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
+@@ -141,6 +138,7 @@ bool malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
  void malloc_mutex_prefork(tsdn_t *tsdn, malloc_mutex_t *mutex);
  void malloc_mutex_postfork_parent(tsdn_t *tsdn, malloc_mutex_t *mutex);
  void malloc_mutex_postfork_child(tsdn_t *tsdn, malloc_mutex_t *mutex);
@@ -125,31 +125,37 @@ index 7c24f072..94af1618 100644
  bool malloc_mutex_boot(void);
  void malloc_mutex_prof_data_reset(tsdn_t *tsdn, malloc_mutex_t *mutex);
  
-diff --git a/include/jemalloc/internal/test_hooks.h b/include/jemalloc/internal/test_hooks.h
-index a6351e59..0780c52f 100644
---- a/include/jemalloc/internal/test_hooks.h
-+++ b/include/jemalloc/internal/test_hooks.h
-@@ -6,13 +6,6 @@ extern JEMALLOC_EXPORT void (*test_hooks_libc_hook)();
+diff --git a/include/jemalloc/internal/pac.h b/include/jemalloc/internal/pac.h
+index 01c4e6af..9122aa0f 100644
+--- a/include/jemalloc/internal/pac.h
++++ b/include/jemalloc/internal/pac.h
+@@ -74,7 +74,6 @@ struct pac_stats_s {
+ 	atomic_zu_t abandoned_vm;
+ };
  
- #define JEMALLOC_HOOK(fn, hook) ((void)(hook != NULL && (hook(), 0)), fn)
+-typedef struct pac_s pac_t;
+ struct pac_s {
+ 	/*
+ 	 * Must be the first member (we convert it to a PAC given only a
+diff --git a/include/jemalloc/internal/san_bump.h b/include/jemalloc/internal/san_bump.h
+index 8ec4a710..d5902ba7 100644
+--- a/include/jemalloc/internal/san_bump.h
++++ b/include/jemalloc/internal/san_bump.h
+@@ -9,7 +9,6 @@
  
--#define open JEMALLOC_HOOK(open, test_hooks_libc_hook)
--#define read JEMALLOC_HOOK(read, test_hooks_libc_hook)
--#define write JEMALLOC_HOOK(write, test_hooks_libc_hook)
--#define readlink JEMALLOC_HOOK(readlink, test_hooks_libc_hook)
--#define close JEMALLOC_HOOK(close, test_hooks_libc_hook)
--#define creat JEMALLOC_HOOK(creat, test_hooks_libc_hook)
--#define secure_getenv JEMALLOC_HOOK(secure_getenv, test_hooks_libc_hook)
- /* Note that this is undef'd and re-define'd in src/prof.c. */
- #define _Unwind_Backtrace JEMALLOC_HOOK(_Unwind_Backtrace, test_hooks_libc_hook)
+ extern bool opt_retain;
  
+-typedef struct ehooks_s ehooks_t;
+ typedef struct pac_s pac_t;
+ 
+ typedef struct san_bump_alloc_s san_bump_alloc_t;
 diff --git a/include/jemalloc/internal/tsd.h b/include/jemalloc/internal/tsd.h
-index 9ba26004..ecfda5d6 100644
+index 66d68822..6cd52aee 100644
 --- a/include/jemalloc/internal/tsd.h
 +++ b/include/jemalloc/internal/tsd.h
-@@ -198,7 +198,8 @@ struct tsd_s {
- 	t TSD_MANGLE(n);
- MALLOC_TSD
+@@ -256,7 +256,8 @@ struct tsd_s {
+ 	TSD_DATA_FAST
+ 	TSD_DATA_SLOWER
  #undef O
 -};
 +/* AddressSanitizer requires TLS data to be aligned to at least 8 bytes. */
@@ -159,10 +165,10 @@ index 9ba26004..ecfda5d6 100644
  tsd_state_get(tsd_t *tsd) {
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 00000000..b752b0e7
+index 00000000..b23bdba0
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,192 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -228,13 +234,19 @@ index 00000000..b752b0e7
 +#ifdef __powerpc64__
 +#  define LG_VADDR		64
 +#  define LG_SIZEOF_PTR		3
++#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 +#elif defined(__powerpc__)
 +#  define LG_VADDR		32
 +#  define LG_SIZEOF_PTR		2
++#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 +#endif
 +#ifdef __riscv
 +#  define LG_VADDR		48
 +#  define LG_SIZEOF_PTR		3
++#endif
++
++#if LG_VADDR > 32
++#  define JEMALLOC_RETAIN
 +#endif
 +
 +#ifndef JEMALLOC_TLS_MODEL
@@ -318,6 +330,7 @@ index 00000000..b752b0e7
 +#define	pthread_cond_wait	_pthread_cond_wait
 +#define	pthread_cond_timedwait	_pthread_cond_timedwait
 +#define	pthread_cond_signal	_pthread_cond_signal
++#define	pthread_getname_np	_pthread_getname_np
 +
 +#ifdef JEMALLOC_C_
 +/*
@@ -360,10 +373,10 @@ index f9438912..47d032c1 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index ed13718d..fefb719a 100644
+index 7655de4e..e4b183d1 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
-@@ -23,6 +23,10 @@
+@@ -29,6 +29,10 @@
  /******************************************************************************/
  /* Data. */
  
@@ -374,33 +387,7 @@ index ed13718d..fefb719a 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf
  #ifndef _WIN32
-@@ -2660,25 +2664,6 @@ je_realloc(void *ptr, size_t arg_size) {
- 	LOG("core.realloc.entry", "ptr: %p, size: %zu\n", ptr, size);
- 
- 	if (unlikely(size == 0)) {
--		if (ptr != NULL) {
--			/* realloc(ptr, 0) is equivalent to free(ptr). */
--			UTRACE(ptr, 0, 0);
--			tcache_t *tcache;
--			tsd_t *tsd = tsd_fetch();
--			if (tsd_reentrancy_level_get(tsd) == 0) {
--				tcache = tcache_get(tsd);
--			} else {
--				tcache = NULL;
--			}
--
--			uintptr_t args[3] = {(uintptr_t)ptr, size};
--			hook_invoke_dalloc(hook_dalloc_realloc, ptr, args);
--
--			ifree(tsd, ptr, tcache, true);
--
--			LOG("core.realloc.exit", "result: %p", NULL);
--			return NULL;
--		}
- 		size = 1;
- 	}
- 
-@@ -3750,6 +3735,103 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr) {
+@@ -4297,6 +4301,103 @@ label_done:
   * End non-standard functions.
   */
  /******************************************************************************/
@@ -504,7 +491,7 @@ index ed13718d..fefb719a 100644
  /*
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
-@@ -3919,4 +4001,11 @@ jemalloc_postfork_child(void) {
+@@ -4473,4 +4574,11 @@ jemalloc_postfork_child(void) {
  	ctl_postfork_child(tsd_tsdn(tsd));
  }
  
@@ -517,10 +504,10 @@ index ed13718d..fefb719a 100644
 +
  /******************************************************************************/
 diff --git a/src/malloc_io.c b/src/malloc_io.c
-index d7cb0f52..cda589c4 100644
+index b76885cb..93a30497 100644
 --- a/src/malloc_io.c
 +++ b/src/malloc_io.c
-@@ -75,6 +75,20 @@ wrtmessage(void *cbopaque, const char *s) {
+@@ -73,6 +73,20 @@ wrtmessage(void *cbopaque, const char *s) {
  
  JEMALLOC_EXPORT void	(*je_malloc_message)(void *, const char *s);
  
@@ -542,10 +529,10 @@ index d7cb0f52..cda589c4 100644
   * Wrapper around malloc_message() that avoids the need for
   * je_malloc_message(...) throughout the code.
 diff --git a/src/mutex.c b/src/mutex.c
-index 3f920f5b..88a7730c 100644
+index 0b3547a8..1eedd626 100644
 --- a/src/mutex.c
 +++ b/src/mutex.c
-@@ -41,6 +41,17 @@ pthread_create(pthread_t *__restrict thread,
+@@ -46,6 +46,17 @@ pthread_create(pthread_t *__restrict thread,
  #ifdef JEMALLOC_MUTEX_INIT_CB
  JEMALLOC_EXPORT int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
      void *(calloc_cb)(size_t, size_t));
@@ -563,7 +550,7 @@ index 3f920f5b..88a7730c 100644
  #endif
  
  void
-@@ -131,6 +142,16 @@ mutex_addr_comp(const witness_t *witness1, void *mutex1,
+@@ -136,6 +147,16 @@ mutex_addr_comp(const witness_t *witness1, void *mutex1,
  	}
  }
  
@@ -580,3 +567,45 @@ index 3f920f5b..88a7730c 100644
  bool
  malloc_mutex_init(malloc_mutex_t *mutex, const char *name,
      witness_rank_t rank, malloc_mutex_lock_order_t lock_order) {
+diff --git a/src/pages.c b/src/pages.c
+index 8c83a7de..9ccff113 100644
+--- a/src/pages.c
++++ b/src/pages.c
+@@ -10,7 +10,9 @@
+ #ifdef JEMALLOC_SYSCTL_VM_OVERCOMMIT
+ #include <sys/sysctl.h>
+ #ifdef __FreeBSD__
++#include <sys/auxv.h>
+ #include <vm/vm_param.h>
++#include <vm/vm.h>
+ #endif
+ #endif
+ #ifdef __NetBSD__
+@@ -592,6 +594,13 @@ os_overcommits_sysctl(void) {
+ 	int vm_overcommit;
+ 	size_t sz;
+ 
++#ifdef ELF_BSDF_VMNOOVERCOMMIT
++	int bsdflags;
++
++	if (_elf_aux_info(AT_BSDFLAGS, &bsdflags, sizeof(bsdflags)) == 0)
++		return ((bsdflags & ELF_BSDF_VMNOOVERCOMMIT) == 0);
++#endif
++
+ 	sz = sizeof(vm_overcommit);
+ #if defined(__FreeBSD__) && defined(VM_OVERCOMMIT)
+ 	int mib[2];
+@@ -607,7 +616,12 @@ os_overcommits_sysctl(void) {
+ 	}
+ #endif
+ 
+-	return ((vm_overcommit & 0x3) == 0);
++#ifndef SWAP_RESERVE_FORCE_ON
++#define	SWAP_RESERVE_FORCE_ON		(1 << 0)
++#define	SWAP_RESERVE_RLIMIT_ON		(1 << 1)
++#endif
++	return ((vm_overcommit & (SWAP_RESERVE_FORCE_ON |
++	    SWAP_RESERVE_RLIMIT_ON)) == 0);
+ }
+ #endif
+ 

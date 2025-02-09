@@ -1,10 +1,14 @@
 .PATH: ${LIBC_SRCTOP}/stdlib/malloc/jemalloc
 
-JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bitmap.c \
-	ckh.c ctl.c div.c extent.c extent_dss.c extent_mmap.c hash.c hook.c \
-	large.c log.c malloc_io.c mutex.c mutex_pool.c nstime.c pages.c \
-	prng.c prof.c rtree.c safety_check.c sc.c stats.c sz.c tcache.c \
-	test_hooks.c ticker.c tsd.c witness.c
+JEMALLOCSRCS:= jemalloc.c arena.c background_thread.c base.c bin.c bin_info.c \
+	bitmap.c buf_writer.c cache_bin.c ckh.c counter.c ctl.c decay.c div.c \
+	ecache.c edata.c edata_cache.c ehooks.c emap.c eset.c exp_grow.c \
+	extent.c extent_dss.c extent_mmap.c fxp.c hook.c hpa.c hpa_hooks.c \
+	hpdata.c inspect.c large.c log.c malloc_io.c mutex.c nstime.c pa.c \
+	pa_extra.c pac.c pages.c pai.c peak_event.c prof.c prof_data.c \
+	prof_log.c prof_recent.c prof_stats.c prof_sys.c psset.c rtree.c \
+	safety_check.c san.c san_bump.c sc.c sec.c stats.c sz.c tcache.c \
+	test_hooks.c thread_event.c ticker.c tsd.c witness.c
 
 CFLAGS+=-I${SRCTOP}/contrib/jemalloc/include -I${LIBC_SRCTOP}/stdlib/malloc/jemalloc/include
 .if ${MK_JEMALLOC_LG_VADDR_WIDE} != no
