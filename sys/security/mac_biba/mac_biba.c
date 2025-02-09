@@ -110,7 +110,8 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
 
 static char	trusted_interfaces[128];
 SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
-    trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/Biba");
+    trusted_interfaces, sizeof(trusted_interfaces),
+    "Interfaces considered 'trusted' by MAC/Biba");
 
 static int	max_compartments = MAC_BIBA_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, max_compartments, CTLFLAG_RD,
