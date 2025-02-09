@@ -65,14 +65,11 @@ static device_method_t adb_bus_methods[] = {
         DEVMETHOD(bus_probe_nomatch,    adb_probe_nomatch),
         DEVMETHOD(bus_print_child,	adb_print_child),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-driver_t adb_driver = {
-	"adb",
-	adb_bus_methods,
-	sizeof(struct adb_softc),
-};
+PUBLIC_DEFINE_CLASSN(adb, adb_driver, adb_bus_methods,
+    sizeof(struct adb_softc));
 
 static int
 adb_bus_probe(device_t dev)
