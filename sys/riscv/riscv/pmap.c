@@ -1201,17 +1201,22 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 	pn_t pn;
 
 	KASSERT((pa & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid physical address"));
+	   ("%s: Invalid physical address", __func__));
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid virtual address"));
+	   ("%s: Invalid virtual address", __func__));
 	KASSERT((size & PAGE_MASK) == 0,
-	    ("pmap_kenter_device: Mapping is not page-sized"));
+	    ("%s: Mapping is not page-sized", __func__));
 
 	memattr = pmap_memattr_bits(mode);
+	l3 = NULL;
 	va = sva;
 	while (size != 0) {
-		l3 = pmap_l3(kernel_pmap, va);
-		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
+		/* only need to re-read l3 when crossing the page boundary */
+		if (l3 == NULL || __is_aligned(l3, PAGE_SIZE)) {
+			l3 = pmap_l3(kernel_pmap, va);
+			KASSERT(l3 != NULL,
+			  ("%s: Invalid page table, va: 0x%lx", __func__, va));
+		}
 
 		pn = (pa / PAGE_SIZE);
 		entry = PTE_KERN;
@@ -1222,6 +1227,7 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
+		++l3;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1255,18 +1261,24 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 	vm_offset_t va;
 
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kremove_device: Invalid virtual address"));
+	   ("%s: Invalid virtual address", __func__));
 	KASSERT((size & PAGE_MASK) == 0,
-	    ("pmap_kremove_device: Mapping is not page-sized"));
+	    ("%s: Mapping is not page-sized", __func__));
 
+	l3 = NULL;
 	va = sva;
 	while (size != 0) {
-		l3 = pmap_l3(kernel_pmap, va);
-		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
+		/* only need to re-read l3 when crossing the page boundary */
+		if (l3 == NULL || __is_aligned(l3, PAGE_SIZE)) {
+			l3 = pmap_l3(kernel_pmap, va);
+			KASSERT(l3 != NULL,
+			  ("%s: Invalid page table, va: 0x%lx", __func__, va));
+		}
 		pmap_clear(l3);
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
+		++l3;
 	}
 
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1311,19 +1323,26 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	pn_t pn;
 	int i;
 
+	l3 = NULL;
 	va = sva;
 	for (i = 0; i < count; i++) {
+		/* only need to re-read l3 when crossing the page boundary */
+		if (l3 == NULL || __is_aligned(l3, PAGE_SIZE)) {
+			l3 = pmap_l3(kernel_pmap, va);
+			KASSERT(l3 != NULL,
+			  ("%s: Invalid page table, va: 0x%lx", __func__, va));
+		}
 		m = ma[i];
 		pa = VM_PAGE_TO_PHYS(m);
 		pn = (pa / PAGE_SIZE);
-		l3 = pmap_l3(kernel_pmap, va);
 
 		entry = PTE_KERN;
 		entry |= pmap_memattr_bits(m->md.pv_memattr);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
-		va += L3_SIZE;
+		va += PAGE_SIZE;
+		++l3;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1338,13 +1357,23 @@ pmap_qremove(vm_offset_t sva, int count)
 {
 	pt_entry_t *l3;
 	vm_offset_t va;
+	int i;
 
 	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
 
-	for (va = sva; count-- > 0; va += PAGE_SIZE) {
-		l3 = pmap_l3(kernel_pmap, va);
-		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
+	l3 = NULL;
+	va = sva;
+	for (i = 0; i < count; i++) {
+		/* only need to re-read l3 when crossing the page boundary */
+		if (l3 == NULL || __is_aligned(l3, PAGE_SIZE)) {
+			l3 = pmap_l3(kernel_pmap, va);
+			KASSERT(l3 != NULL,
+			  ("%s: Invalid page table, va: 0x%lx", __func__, va));
+		}
 		pmap_clear(l3);
+
+		va += PAGE_SIZE;
+		++l3;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
