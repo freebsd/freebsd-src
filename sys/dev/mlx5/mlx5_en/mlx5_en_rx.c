@@ -206,9 +206,9 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 		 * +--------+--------+--------+--------+
 		 */
 		if (get_cqe_lro_timestamp_valid(cqe) &&
-		    (__predict_true(*ts_ptr) == ntohl(TCPOPT_NOP << 24 |
+		    (__predict_true(*ts_ptr == ntohl(TCPOPT_NOP << 24 |
 		    TCPOPT_NOP << 16 | TCPOPT_TIMESTAMP << 8 |
-		    TCPOLEN_TIMESTAMP))) {
+		    TCPOLEN_TIMESTAMP)))) {
 			/*
 			 * cqe->timestamp is 64bit long.
 			 * [0-31] - timestamp.
