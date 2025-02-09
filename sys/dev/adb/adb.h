@@ -72,6 +72,6 @@ size_t	adb_read_register(device_t dev, u_char reg, void *data);
 size_t	adb_write_register(device_t dev, u_char reg, size_t len, void *data);
 
 /* Bits for implementing ADB host bus adapters */
-extern driver_t adb_driver;
+DECLARE_CLASS(adb_driver);
 
 #endif
