@@ -439,7 +439,7 @@ struct ifmedia_description {
 	{ IFM_100_T4,	"100baseT4" },					\
 	{ IFM_100_VG,	"100baseVG" },					\
 	{ IFM_100_T2,	"100baseT2" },					\
-	{ IFM_100_BX,	"100baseBX" }.					\
+	{ IFM_100_BX,	"100baseBX" },					\
 	{ IFM_10_STP,	"10baseSTP" },					\
 	{ IFM_10_FL,	"10baseFL" },					\
 	{ IFM_1000_SX,	"1000baseSX" },					\
