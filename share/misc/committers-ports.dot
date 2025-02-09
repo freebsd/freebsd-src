@@ -264,6 +264,7 @@ pi [label="Kurt Jaeger\npi@FreeBSD.org\n2014/03/14"]
 pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
 pkubaj [label="Piotr Kubaj\npkubaj@FreeBSD.org\n2019/04/14"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
+rea [label="Eygene Ryabinkin\nrea@FreeBSD.org\n2010/10/15"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rhurlin [label="Rainer Hurling\nrhurlin@FreeBSD.org\n2020/08/31"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
@@ -461,6 +462,7 @@ erwin -> gabor
 erwin -> gordon
 erwin -> lbr
 erwin -> lth
+erwin -> rea
 erwin -> simon
 
 feld -> brnrd
@@ -503,6 +505,7 @@ garga -> dutra
 garga -> eduardo
 garga -> mandree
 garga -> mm
+garga -> rea
 garga -> rnoland
 garga -> vd
 garga -> wxs
@@ -858,6 +861,8 @@ wxs -> swills
 wxs -> zi
 
 ygy -> yasu
+
+yuri -> rea
 
 zirias -> jbo
 
