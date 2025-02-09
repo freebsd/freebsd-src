@@ -1885,8 +1885,7 @@ int
 sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
 	char *tmparg;
-	size_t outlen;
-	int error = 0, ro_string = 0;
+	int error = 0;
 
 	/*
 	 * If the sysctl isn't writable and isn't a preallocated tunable that
@@ -1898,33 +1897,32 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 	 */
 	if ((oidp->oid_kind & (CTLFLAG_WR | CTLFLAG_TUN)) == 0 ||
 	    arg2 == 0 || kdb_active) {
-		arg2 = strlen((char *)arg1) + 1;
-		ro_string = 1;
-	}
+		size_t outlen;
 
-	if (req->oldptr != NULL) {
-		if (ro_string) {
-			tmparg = arg1;
-			outlen = strlen(tmparg) + 1;
-		} else {
+		if (arg2 == 0)
+			outlen = arg2 = strlen(arg1) + 1;
+		else
+			outlen = strnlen(arg1, arg2 - 1) + 1;
+
+		tmparg = req->oldptr != NULL ? arg1 : NULL;
+		error = SYSCTL_OUT(req, tmparg, outlen);
+	} else {
+		size_t outlen;
+
+		if (req->oldptr != NULL) {
 			tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
 			sx_slock(&sysctlstringlock);
 			memcpy(tmparg, arg1, arg2);
 			sx_sunlock(&sysctlstringlock);
-			outlen = strlen(tmparg) + 1;
-		}
-
-		error = SYSCTL_OUT(req, tmparg, outlen);
-
-		if (!ro_string)
-			free(tmparg, M_SYSCTLTMP);
-	} else {
-		if (!ro_string)
+			outlen = strnlen(tmparg, arg2 - 1) + 1;
+		} else {
+			tmparg = NULL;
 			sx_slock(&sysctlstringlock);
-		outlen = strlen((char *)arg1) + 1;
-		if (!ro_string)
+			outlen = strnlen(arg1, arg2 - 1) + 1;
 			sx_sunlock(&sysctlstringlock);
-		error = SYSCTL_OUT(req, NULL, outlen);
+		}
+		error = SYSCTL_OUT(req, tmparg, outlen);
+		free(tmparg, M_SYSCTLTMP);
 	}
 	if (error || !req->newptr)
 		return (error);
