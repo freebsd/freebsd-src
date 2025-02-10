@@ -48,7 +48,9 @@ function FreeBSDSyscall:parseSysfile()
 	end
 
 	local incs = ""
-	local defs = ""
+	local prolog = ""
+	local first = true
+	local cpp_warned = false
 	local s
 	for line in fh:lines() do
 		line = line:gsub(commentExpr, "") -- Strip any comments.
@@ -80,12 +82,23 @@ function FreeBSDSyscall:parseSysfile()
 			if h ~= nil and h ~= "" then
 				incs = incs .. h .. "\n"
 			end
-		elseif line:match("^#%s*define") then
-			defs = defs .. line.. "\n"
 		elseif line:match("^#") then
-			util.abort(1, "Unsupported cpp op " .. line)
+			if not cpp_warned then
+				util.warn("use of non-include cpp " ..
+				    "directives is deprecated")
+				cpp_warned = true
+			end
+			prolog = prolog .. line .. "\n"
 		else
 			s = syscall:new()
+			if first then
+				self.prolog = prolog
+				s.prolog = ""
+				first = false
+			else
+				s.prolog = prolog
+			end
+			prolog = ""
 			if s:add(line) then
 				-- Append to system call list.
 				for t in s:iter() do
@@ -114,7 +127,13 @@ function FreeBSDSyscall:parseSysfile()
 
 	assert(fh:close())
 	self.includes = incs
-	self.defines = defs
+	self.epilog = prolog
+
+	if self.prolog ~= "" then
+		util.warn("non-include pre-processor directives in the " ..
+		    "config prolog will not appear in generated output:\n" ..
+		    self.prolog)
+	end
 end
 
 function FreeBSDSyscall:findStructs()
