@@ -207,15 +207,8 @@ rc_trace()
 
 	if [ -z "$RC_LEVEL" ]; then
 		[ -f $cf ] || return
-		if [ -s $cf ]; then
-			# don't try to set RC_LEVEL without sed
-			if [ -n "$SED" ]; then
-				RC_LEVEL=$($SED -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
-				RC_LEVEL=${RC_LEVEL:-0}
-			fi
-		else
-			RC_LEVEL=0
-		fi
+		RC_LEVEL=0	# existence is 0 at least
+		sdot $cf	# allow override
 	fi
 	[ ${RC_LEVEL:-0} -ge ${level:-0} ] || return
 	rc_log "$@"
@@ -1310,7 +1303,9 @@ run_rc_command()
 		     _postcmd=\$${rc_arg}_postcmd
 
 		if [ -n "$_cmd" ]; then
-			rc_trace 1 "$_cmd"
+			if [ "$_cmd" != : ]; then
+				rc_trace 1 "$_cmd"
+			fi
 			if [ -n "$_env" ]; then
 				eval "export -- $_env"
 			fi
