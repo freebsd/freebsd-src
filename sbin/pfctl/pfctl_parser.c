@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <net/if_dl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -1518,6 +1519,8 @@ ifa_load(void)
 			    ifa->ifa_addr)->sin6_scope_id;
 		} else if (n->af == AF_LINK) {
 			ifa_add_groups_to_map(ifa->ifa_name);
+			n->ifindex = ((struct sockaddr_dl *)
+			    ifa->ifa_addr)->sdl_index;
 		}
 		if ((n->ifname = strdup(ifa->ifa_name)) == NULL)
 			err(1, "ifa_load: strdup");
@@ -1582,6 +1585,34 @@ is_a_group(char *name)
 		return (0);
 
 	return (*(int *)ret_item->data);
+}
+
+unsigned int
+ifa_nametoindex(const char *ifa_name)
+{
+	struct node_host	*p;
+
+	for (p = iftab; p; p = p->next) {
+		if (p->af == AF_LINK && strcmp(p->ifname, ifa_name) == 0)
+			return (p->ifindex);
+	}
+	errno = ENXIO;
+	return (0);
+}
+
+char *
+ifa_indextoname(unsigned int ifindex, char *ifa_name)
+{
+	struct node_host	*p;
+
+	for (p = iftab; p; p = p->next) {
+		if (p->af == AF_LINK && ifindex == p->ifindex) {
+			strlcpy(ifa_name, p->ifname, IFNAMSIZ);
+			return (ifa_name);
+		}
+	}
+	errno = ENXIO;
+	return (NULL);
 }
 
 struct node_host *

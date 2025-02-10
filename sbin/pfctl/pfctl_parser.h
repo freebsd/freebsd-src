@@ -363,6 +363,8 @@ int			 check_netmask(struct node_host *, sa_family_t);
 int			 unmask(struct pf_addr *, sa_family_t);
 struct node_host	*gen_dynnode(struct node_host *, sa_family_t);
 void			 ifa_load(void);
+unsigned int		 ifa_nametoindex(const char *);
+char			*ifa_indextoname(unsigned int, char *);
 int			 get_query_socket(void);
 struct node_host	*ifa_exists(char *);
 struct node_host	*ifa_grouplookup(char *ifa_name, int flags);
