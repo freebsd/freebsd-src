@@ -69,12 +69,8 @@
 #include <ddb/ddb.h>
 #endif
 
-/*
- * Note that stdarg.h and the ANSI style va_start macro is used for both
- * ANSI and traditional C compilers.
- */
 #ifdef _KERNEL
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #else
 #include <stdarg.h>
 #endif

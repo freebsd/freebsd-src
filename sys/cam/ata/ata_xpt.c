@@ -37,6 +37,7 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
@@ -57,7 +58,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ata/ata_all.h>
-#include <machine/stdarg.h>	/* for xpt_print below */
 
 struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
