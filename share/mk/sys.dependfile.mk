@@ -1,4 +1,6 @@
-# $Id: sys.dependfile.mk,v 1.10 2023/05/10 19:23:26 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# $Id: sys.dependfile.mk,v 1.11 2024/02/17 17:26:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #

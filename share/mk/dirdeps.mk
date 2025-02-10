@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.171 2024/09/30 21:21:25 sjg Exp $
+# $Id: dirdeps.mk,v 1.175 2025/01/05 01:16:19 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -152,7 +152,7 @@
 #	any other DIRDEP.
 #
 #	This allows for adding TESTS to the build, such that the build
-#	if any test fails, but without the risk of introducing
+#	will fail if any test fails, but without the risk of introducing
 #	circular dependencies.
 
 now_utc ?= ${%s:L:localtime}
@@ -445,6 +445,7 @@ _DIRDEP_USE:	.USE .MAKE
 		TARGET_SPEC=${.TARGET:E} \
 		MACHINE=${.TARGET:E} \
 		${DIRDEP_MAKE} -C ${DIRDEP_DIR} ${DIRDEP_TARGETS} || exit 1; \
+		${DIRDEP_USE_EPILOGUE} \
 		break; \
 	done
 
@@ -568,7 +569,7 @@ BUILD_DIRDEPS = no
 dirdeps: dirdeps-cached
 dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 	@echo "${TRACER}Using ${DIRDEPS_CACHE}"
-	@MAKELEVEL=${.MAKE.LEVEL} \
+	@${DIRDEPS_CACHED_ENV} MAKELEVEL=${.MAKE.LEVEL} \
 	TARGET_SPEC=${TARGET_SPEC} \
 	${TARGET_SPEC_VARS:@v@$v=${$v}@} \
 	${.MAKE} -C ${_CURDIR} -f ${DIRDEPS_CACHE} \
@@ -606,10 +607,10 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
 	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
-	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
-	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
+	${.MAKEFLAGS:S,-D ,-D,gW:M*WITH*} \
+	${.MAKEFLAGS:S,-d ,-d,gW:M-d*} \
 	3>&1 1>&2 | sed 's,${SRCTOP},_{SRCTOP},g;s,_{SRCTOP}/_{SRCTOP},_{SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
-	mv ${.TARGET}.new ${.TARGET}
+	{ ${BUILD_DIRDEPS_EPILOGUE} mv ${.TARGET}.new ${.TARGET}; }
 
 .endif
 .endif
