@@ -49,6 +49,10 @@
 #define GPIO_CLEAR_BITS(sc, reg, bits)	\
 	GPIO_WRITE(sc, reg, GPIO_READ(sc, (reg)) & ~(bits))
 
+typedef enum {
+	QCOM_TLMM_CHIPSET_NONE = 0,
+	QCOM_TLMM_CHIPSET_IPQ4018 = 1,
+} qcom_tlmm_chipset_t;
 
 enum prop_id {
 	PIN_ID_BIAS_DISABLE = 0,
@@ -141,6 +145,45 @@ struct qcom_tlmm_spec_pin {
 	uint32_t hdrv_shift;
 };
 
+struct qcom_tlmm_softc;
+
+struct qcom_tlmm_hw_callbacks {
+	int (*qcom_tlmm_hw_pin_set_function)(struct qcom_tlmm_softc *,
+	    int, int);
+	int (*qcom_tlmm_hw_pin_get_function)(struct qcom_tlmm_softc *,
+	    int, int *);
+	int (*qcom_tlmm_hw_pin_set_oe_output)(struct qcom_tlmm_softc *,
+	    int);
+	int (*qcom_tlmm_hw_pin_set_oe_input)(struct qcom_tlmm_softc *,
+	    int);
+	int (*qcom_tlmm_hw_pin_get_oe_state)(struct qcom_tlmm_softc *,
+	    int, bool *);
+	int (*qcom_tlmm_hw_pin_set_output_value)(struct qcom_tlmm_softc *,
+	    uint32_t, unsigned int);
+	int (*qcom_tlmm_hw_pin_get_output_value)(struct qcom_tlmm_softc *,
+	    uint32_t, unsigned int *);
+	int (*qcom_tlmm_hw_pin_get_input_value)(struct qcom_tlmm_softc *,
+	    uint32_t, unsigned int *);
+	int (*qcom_tlmm_hw_pin_toggle_output_value)(struct qcom_tlmm_softc *,
+	    uint32_t);
+	int (*qcom_tlmm_hw_pin_set_pupd_config)(struct qcom_tlmm_softc *,
+	    uint32_t, qcom_tlmm_pin_pupd_config_t);
+	int (*qcom_tlmm_hw_pin_get_pupd_config)(struct qcom_tlmm_softc *,
+	    uint32_t, qcom_tlmm_pin_pupd_config_t *);
+	int (*qcom_tlmm_hw_pin_set_drive_strength)(struct qcom_tlmm_softc *,
+	    uint32_t, uint8_t);
+	int (*qcom_tlmm_hw_pin_get_drive_strength)(struct qcom_tlmm_softc *,
+	    uint32_t, uint8_t *);
+	int (*qcom_tlmm_hw_pin_set_vm)(struct qcom_tlmm_softc *,
+	    uint32_t, bool);
+	int (*qcom_tlmm_hw_pin_get_vm)(struct qcom_tlmm_softc *,
+	    uint32_t, bool *);
+	int (*qcom_tlmm_hw_pin_set_open_drain)(struct qcom_tlmm_softc *,
+	    uint32_t, bool);
+	int (*qcom_tlmm_hw_pin_get_open_drain)(struct qcom_tlmm_softc *,
+	    uint32_t, bool *);
+};
+
 struct qcom_tlmm_softc {
 	device_t		dev;
 	device_t		busdev;
@@ -153,6 +196,10 @@ struct qcom_tlmm_softc {
 	int			gpio_npins;
 	struct gpio_pin		*gpio_pins;
 	uint32_t		sc_debug;
+	qcom_tlmm_chipset_t	sc_chipset;
+	void			(*sc_attach_func)(struct qcom_tlmm_softc *);
+
+	struct qcom_tlmm_hw_callbacks	*sc_hw;
 
 	const struct qcom_tlmm_gpio_mux	*gpio_muxes;
 	const struct qcom_tlmm_spec_pin	*spec_pins;

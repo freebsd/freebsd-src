@@ -85,11 +85,11 @@ qcom_tlmm_pin_configure(struct qcom_tlmm_softc *sc,
 			 * pin value before we flip on oe_output.
 			 */
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
-			qcom_tlmm_ipq4018_hw_pin_set_oe_output(sc,
+			sc->sc_hw->qcom_tlmm_hw_pin_set_oe_output(sc,
 			    pin->gp_pin);
 		} else {
 			pin->gp_flags |= GPIO_PIN_INPUT;
-			qcom_tlmm_ipq4018_hw_pin_set_oe_input(sc,
+			sc->sc_hw->qcom_tlmm_hw_pin_set_oe_input(sc,
 			    pin->gp_pin);
 		}
 	}
@@ -99,20 +99,20 @@ qcom_tlmm_pin_configure(struct qcom_tlmm_softc *sc,
 	 */
 	if (flags & GPIO_PIN_PULLUP) {
 		pin->gp_flags |= GPIO_PIN_PULLUP;
-		qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc, pin->gp_pin,
+		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
 		    QCOM_TLMM_PIN_PUPD_CONFIG_PULL_UP);
 	} else if (flags & GPIO_PIN_PULLDOWN) {
 		pin->gp_flags |= GPIO_PIN_PULLDOWN;
-		qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc, pin->gp_pin,
+		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
 		    QCOM_TLMM_PIN_PUPD_CONFIG_PULL_DOWN);
 	} else if ((flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) ==
 	    (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
 		pin->gp_flags |= GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN;
-		qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc, pin->gp_pin,
+		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
 		    QCOM_TLMM_PIN_PUPD_CONFIG_BUS_HOLD);
 	} else {
 		pin->gp_flags &= ~(GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
-		qcom_tlmm_ipq4018_hw_pin_set_pupd_config(sc, pin->gp_pin,
+		sc->sc_hw->qcom_tlmm_hw_pin_set_pupd_config(sc, pin->gp_pin,
 		    QCOM_TLMM_PIN_PUPD_CONFIG_DISABLE);
 	}
 }
@@ -169,12 +169,12 @@ qcom_tlmm_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	GPIO_LOCK(sc);
 
 	/* Lookup function - see what it is, whether we're a GPIO line */
-	ret = qcom_tlmm_ipq4018_hw_pin_get_function(sc, pin, &val);
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_get_function(sc, pin, &val);
 	if (ret != 0)
 		goto done;
 
 	/* Lookup input/output state */
-	ret = qcom_tlmm_ipq4018_hw_pin_get_oe_state(sc, pin, &is_output);
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_get_oe_state(sc, pin, &is_output);
 	if (ret != 0)
 		goto done;
 	if (is_output)
@@ -183,7 +183,7 @@ qcom_tlmm_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 		*flags |= GPIO_PIN_INPUT;
 
 	/* Lookup pull-up / pull-down state */
-	ret = qcom_tlmm_ipq4018_hw_pin_get_pupd_config(sc, pin,
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_get_pupd_config(sc, pin,
 	    &pupd_config);
 	if (ret != 0)
 		goto done;
@@ -251,7 +251,7 @@ qcom_tlmm_pin_set(device_t dev, uint32_t pin, unsigned int value)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	ret = qcom_tlmm_ipq4018_hw_pin_set_output_value(sc, pin, value);
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_set_output_value(sc, pin, value);
 	GPIO_UNLOCK(sc);
 
 	return (ret);
@@ -267,7 +267,7 @@ qcom_tlmm_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	ret = qcom_tlmm_ipq4018_hw_pin_get_input_value(sc, pin, val);
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_get_input_value(sc, pin, val);
 	GPIO_UNLOCK(sc);
 
 	return (ret);
@@ -283,7 +283,7 @@ qcom_tlmm_pin_toggle(device_t dev, uint32_t pin)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	ret = qcom_tlmm_ipq4018_hw_pin_toggle_output_value(sc, pin);
+	ret = sc->sc_hw->qcom_tlmm_hw_pin_toggle_output_value(sc, pin);
 	GPIO_UNLOCK(sc);
 
 	return (ret);
