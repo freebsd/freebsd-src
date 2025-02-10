@@ -42,7 +42,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -53,7 +52,7 @@
 
 #include <machine/bus.h>
 #include <machine/pcb.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
@@ -139,14 +138,11 @@ static device_method_t nexus_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
 #endif
+
 	DEVMETHOD_END
 };
 
-static driver_t nexus_driver = {
-	"nexus",
-	nexus_methods,
-	1			/* no softc */
-};
+PRIVATE_DEFINE_CLASSN(nexus, nexus_driver, nexus_methods, 0 /* no softc */);
 
 EARLY_DRIVER_MODULE(nexus, root, nexus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);

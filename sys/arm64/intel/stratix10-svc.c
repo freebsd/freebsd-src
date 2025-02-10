@@ -60,7 +60,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 struct s10_svc_softc {
 	device_t		dev;
@@ -253,14 +253,12 @@ s10_svc_attach(device_t dev)
 static device_method_t s10_svc_methods[] = {
 	DEVMETHOD(device_probe,		s10_svc_probe),
 	DEVMETHOD(device_attach,	s10_svc_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t s10_svc_driver = {
-	"s10_svc",
-	s10_svc_methods,
-	sizeof(struct s10_svc_softc),
-};
+PRIVATE_DEFINE_CLASSN(s10_svc, s10_svc_driver, s10_svc_methods,
+    sizeof(struct s10_svc_softc));
 
 EARLY_DRIVER_MODULE(s10_svc, simplebus, s10_svc_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

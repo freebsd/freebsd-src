@@ -41,7 +41,7 @@
 #include <sys/taskqueue.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -1231,14 +1231,12 @@ ti_sdma_attach(device_t dev)
 static device_method_t ti_sdma_methods[] = {
 	DEVMETHOD(device_probe, ti_sdma_probe),
 	DEVMETHOD(device_attach, ti_sdma_attach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t ti_sdma_driver = {
-	"ti_sdma",
-	ti_sdma_methods,
-	sizeof(struct ti_sdma_softc),
-};
+PRIVATE_DEFINE_CLASSN(ti_sdma, ti_sdma_driver, ti_sdma_methods,
+    sizeof(struct ti_sdma_softc));
 
 DRIVER_MODULE(ti_sdma, simplebus, ti_sdma_driver, 0, 0);
 MODULE_DEPEND(ti_sdma, ti_sysc, 1, 1, 1);

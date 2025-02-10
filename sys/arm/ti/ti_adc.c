@@ -954,11 +954,8 @@ static device_method_t ti_adc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_adc_driver = {
-	"ti_adc",
-	ti_adc_methods,
-	sizeof(struct ti_adc_softc),
-};
+PRIVATE_DEFINE_CLASSN(ti_adc, ti_adc_driver, ti_adc_methods,
+    sizeof(struct ti_adc_softc));
 
 DRIVER_MODULE(ti_adc, simplebus, ti_adc_driver, 0, 0);
 MODULE_VERSION(ti_adc, 1);

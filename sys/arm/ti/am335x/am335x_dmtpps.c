@@ -601,14 +601,12 @@ static device_method_t dmtpps_methods[] = {
 	DEVMETHOD(device_probe,		dmtpps_probe),
 	DEVMETHOD(device_attach,	dmtpps_attach),
 	DEVMETHOD(device_detach,	dmtpps_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t dmtpps_driver = {
-	"am335x_dmtpps",
-	dmtpps_methods,
-	sizeof(struct dmtpps_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_dmtpps, dmtpps_driver, dmtpps_methods,
+    sizeof(struct dmtpps_softc));
 
 DRIVER_MODULE(am335x_dmtpps, simplebus, dmtpps_driver, 0, 0);
 MODULE_DEPEND(am335x_dmtpps, ti_sysc, 1, 1, 1);

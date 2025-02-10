@@ -62,8 +62,8 @@
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -634,14 +634,11 @@ static device_method_t twl_clks_methods[] = {
 	DEVMETHOD(device_attach,	twl_clks_attach),
 	DEVMETHOD(device_detach,	twl_clks_detach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t twl_clks_driver = {
-	"twl_clks",
-	twl_clks_methods,
-	sizeof(struct twl_clks_softc),
-};
+PRIVATE_DEFINE_CLASSN(twl_clks, twl_clks_driver, twl_clks_methods,
+    sizeof(struct twl_clks_softc));
 
 DRIVER_MODULE(twl_clks, twl, twl_clks_driver, 0, 0);
 MODULE_VERSION(twl_clks, 1);

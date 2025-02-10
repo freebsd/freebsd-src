@@ -316,11 +316,8 @@ static device_method_t imx_iomux_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t imx_iomux_driver = {
-	"imx_iomux",
-	imx_iomux_methods,
-	sizeof(struct iomux_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_iomux, imx_iomux_driver, imx_iomux_methods,
+    sizeof(struct iomux_softc));
 
 EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_LATE);

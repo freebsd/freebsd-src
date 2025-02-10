@@ -216,10 +216,7 @@ static device_method_t aw_ts_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_ts_driver = {
-	"aw_ts",
-	aw_ts_methods,
-	sizeof(struct aw_ts_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_ts, aw_ts_driver, aw_ts_methods,
+    sizeof(struct aw_ts_softc));
 
 DRIVER_MODULE(aw_ts, simplebus, aw_ts_driver, 0, 0);

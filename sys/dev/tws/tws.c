@@ -873,13 +873,8 @@ static device_method_t tws_methods[] = {
     DEVMETHOD_END
 };
 
-static driver_t tws_driver = {
-        "tws",
-        tws_methods,
-        sizeof(struct tws_softc)
-};
+PRIVATE_DEFINE_CLASSN(tws, tws_driver, tws_methods, sizeof(struct tws_softc));
 
-/* DEFINE_CLASS_0(tws, tws_driver, tws_methods, sizeof(struct tws_softc)); */
 DRIVER_MODULE(tws, pci, tws_driver, 0, 0);
 MODULE_DEPEND(tws, cam, 1, 1, 1);
 MODULE_DEPEND(tws, pci, 1, 1, 1);

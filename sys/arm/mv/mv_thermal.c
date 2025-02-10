@@ -37,8 +37,8 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 #include <dev/syscon/syscon.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -358,10 +358,7 @@ static device_method_t mv_thermal_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_thermal_driver = {
-	"mv_thermal",
-	mv_thermal_methods,
-	sizeof(struct mv_thermal_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_thermal, mv_thermal_driver, mv_thermal_methods,
+    sizeof(struct mv_thermal_softc));
 
 DRIVER_MODULE(mv_thermal, simplebus, mv_thermal_driver, 0, 0);

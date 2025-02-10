@@ -51,7 +51,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "gpio_if.h"
 
@@ -369,13 +369,11 @@ static device_method_t vf_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_toggle,	vf_gpio_pin_toggle),
 	DEVMETHOD(gpio_pin_setflags,	vf_gpio_pin_setflags),
 	DEVMETHOD(gpio_pin_set,		vf_gpio_pin_set),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t vf_gpio_driver = {
-	"gpio",
-	vf_gpio_methods,
-	sizeof(struct vf_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, vf_gpio_driver, vf_gpio_methods,
+    sizeof(struct vf_gpio_softc));
 
 DRIVER_MODULE(vf_gpio, simplebus, vf_gpio_driver, 0, 0);

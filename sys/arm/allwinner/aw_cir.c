@@ -548,11 +548,8 @@ static device_method_t aw_ir_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_ir_driver = {
-	"aw_ir",
-	aw_ir_methods,
-	sizeof(struct aw_ir_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_ir, aw_ir_driver, aw_ir_methods,
+    sizeof(struct aw_ir_softc));
 
 DRIVER_MODULE(aw_ir, simplebus, aw_ir_driver, 0, 0);
 MODULE_DEPEND(aw_ir, evdev, 1, 1, 1);

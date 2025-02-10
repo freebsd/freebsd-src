@@ -205,14 +205,12 @@ ti_edma3_attach(device_t dev)
 static device_method_t ti_edma3_methods[] = {
 	DEVMETHOD(device_probe, ti_edma3_probe),
 	DEVMETHOD(device_attach, ti_edma3_attach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t ti_edma3_driver = {
-	"ti_edma3",
-	ti_edma3_methods,
-	sizeof(struct ti_edma3_softc),
-};
+PRIVATE_DEFINE_CLASSN(ti_edma3, ti_edma3_driver, ti_edma3_methods,
+    sizeof(struct ti_edma3_softc));
 
 DRIVER_MODULE(ti_edma3, simplebus, ti_edma3_driver, 0, 0);
 MODULE_DEPEND(ti_edma3, ti_sysc, 1, 1, 1);

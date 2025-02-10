@@ -701,11 +701,8 @@ static device_method_t zy7_slcr_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t zy7_slcr_driver = {
-	"zy7_slcr",
-	zy7_slcr_methods,
-	sizeof(struct zy7_slcr_softc),
-};
+PRIVATE_DEFINE_CLASSN(zy7_slcr, zy7_slcr_driver, zy7_slcr_methods,
+    sizeof(struct zy7_slcr_softc));
 
 DRIVER_MODULE(zy7_slcr, simplebus, zy7_slcr_driver, 0, 0);
 MODULE_VERSION(zy7_slcr, 1);

@@ -802,11 +802,8 @@ static device_method_t imx6_anatop_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t imx6_anatop_driver = {
-	"imx6_anatop",
-	imx6_anatop_methods,
-	sizeof(struct imx6_anatop_softc)
-};
+PRIVATE_DEFINE_CLASSN(imx6_anatop, imx6_anatop_driver, imx6_anatop_methods,
+    sizeof(struct imx6_anatop_softc));
 
 EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

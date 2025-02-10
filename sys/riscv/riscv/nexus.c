@@ -45,14 +45,13 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/interrupt.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
@@ -128,11 +127,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t nexus_fdt_driver = {
-	"nexus",
-	nexus_methods,
-	1			/* no softc */
-};
+PRIVATE_DEFINE_CLASSN(nexus, nexus_fdt_driver, nexus_methods, 0 /* no softc */);
 
 EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);

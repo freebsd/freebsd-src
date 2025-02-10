@@ -102,11 +102,8 @@ static device_method_t uart_phyp_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t uart_phyp_driver = {
-	"uart",
-	uart_phyp_methods,
-	sizeof(struct uart_phyp_softc),
-};
+PRIVATE_DEFINE_CLASSN(uart, uart_phyp_driver, uart_phyp_methods,
+    sizeof(struct uart_phyp_softc));
 
 DRIVER_MODULE(uart_phyp, vdevice, uart_phyp_driver, 0, 0);
 

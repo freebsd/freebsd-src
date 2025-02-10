@@ -49,7 +49,6 @@
 #include <sys/endian.h>
 #include <sys/gsb_crc32.h>
 #include <sys/hash.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/limits.h>
@@ -62,6 +61,8 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/ucred.h>
+
+#include <machine/interrupt.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

@@ -419,11 +419,8 @@ static device_method_t rk_usb2phy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_usb2phy_driver = {
-	"rk_usb2phy",
-	rk_usb2phy_methods,
-	sizeof(struct rk_usb2phy_softc)
-};
+PRIVATE_DEFINE_CLASSN(rk_usb2phy, rk_usb2phy_driver, rk_usb2phy_methods,
+    sizeof(struct rk_usb2phy_softc));
 
 EARLY_DRIVER_MODULE(rk_usb2phy, simplebus, rk_usb2phy_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

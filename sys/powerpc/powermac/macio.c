@@ -43,7 +43,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
@@ -137,14 +137,12 @@ static device_method_t macio_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t macio_pci_driver = {
-        "macio",
-        macio_methods,
-	sizeof(struct macio_softc)
-};
+PRIVATE_DEFINE_CLASSN(macio, macio_pci_driver, macio_methods,
+    sizeof(struct macio_softc));
 
 EARLY_DRIVER_MODULE(macio, pci, macio_pci_driver, 0, 0, BUS_PASS_BUS);
 

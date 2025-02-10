@@ -311,14 +311,12 @@ am335x_pmic_shutdown(void *xdev, int howto)
 static device_method_t am335x_pmic_methods[] = {
 	DEVMETHOD(device_probe,		am335x_pmic_probe),
 	DEVMETHOD(device_attach,	am335x_pmic_attach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t am335x_pmic_driver = {
-	"am335x_pmic",
-	am335x_pmic_methods,
-	sizeof(struct am335x_pmic_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_pmic, am335x_pmic_driver, am335x_pmic_methods,
+    sizeof(struct am335x_pmic_softc));
 
 DRIVER_MODULE(am335x_pmic, iicbus, am335x_pmic_driver, 0, 0);
 MODULE_VERSION(am335x_pmic, 1);

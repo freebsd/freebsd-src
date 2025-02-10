@@ -326,11 +326,8 @@ static device_method_t rk_emmcphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_emmcphy_driver = {
-	"rk_emmcphy",
-	rk_emmcphy_methods,
-	sizeof(struct rk_emmcphy_softc)
-};
+PRIVATE_DEFINE_CLASSN(rk_emmcphy, rk_emmcphy_driver, rk_emmcphy_methods,
+    sizeof(struct rk_emmcphy_softc));
 
 EARLY_DRIVER_MODULE(rk_emmcphy, simplebus, rk_emmcphy_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

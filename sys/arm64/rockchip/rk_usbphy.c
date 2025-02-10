@@ -292,10 +292,11 @@ static device_method_t rk_usbphy_methods[] = {
 	DEVMETHOD(device_probe,			rk_usbphy_probe),
 	DEVMETHOD(device_attach,		rk_usbphy_attach),
 	DEVMETHOD(device_detach,		rk_usbphy_detach),
+
 	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(rk_usbphy, rk_usbphy_driver, rk_usbphy_methods,
+PRIVATE_DEFINE_CLASSN(rk_usbphy, rk_usbphy_driver, rk_usbphy_methods,
     sizeof(struct rk_usbphy_softc));
 EARLY_DRIVER_MODULE(rk_usbphy, simplebus, rk_usbphy_driver, NULL, NULL,
     BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
