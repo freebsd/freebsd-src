@@ -5825,7 +5825,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 					PFLOG_PACKET(r->action, PFRES_MATCH, r,
 					    a, ruleset, pd, 1);
 			}
-			if ((*rm)->quick)
+			if (r->quick)
 				break;
 			r = TAILQ_NEXT(r, entries);
 		} else
