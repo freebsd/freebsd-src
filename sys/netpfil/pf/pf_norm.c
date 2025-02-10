@@ -306,8 +306,6 @@ pf_find_fragment(struct pf_fragment_cmp *key, struct pf_frag_tree *tree)
 
 	frag = RB_FIND(pf_frag_tree, tree, (struct pf_fragment *)key);
 	if (frag != NULL) {
-		/* XXX Are we sure we want to update the timeout? */
-		frag->fr_timeout = time_uptime;
 		TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
 		TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
 	}
