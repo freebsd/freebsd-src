@@ -366,6 +366,16 @@ received_on_body()
 	    ping -c 1 203.0.113.2
 	atf_check -s exit:2 -o ignore \
 	    ping -c 1 203.0.113.3
+
+	# Test '! received-on'
+	pft_set_rules alcatraz \
+	    "pass in" \
+	    "block ! received-on ${epair_one}b"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 198.51.100.1
 }
 
 received_on_cleanup()
