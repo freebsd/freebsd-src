@@ -36,7 +36,7 @@
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <machine/md_var.h>
 #include <x86/vmware.h>

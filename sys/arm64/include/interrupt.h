@@ -1,7 +1,6 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
- * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
+ * Copyright (c) 2014 Andrew Turner <andrew@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,23 +24,34 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __MACHINE_INTR_MACHDEP_H__
-#define	__MACHINE_INTR_MACHDEP_H__
+#ifndef __MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
-#include <x86/intr_machdep.h>
+#ifndef LOCORE
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#endif
 
-/*
- * The following data structure holds per-cpu data, and is placed just
- * above the top of the space used for the NMI and MC# stacks.
- */
-struct nmi_pcpu {
-	register_t	np_pcpu;
-	register_t	__padding;	/* pad to 16 bytes */
-};
+#include <sys/intr.h>
 
-#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
-#define	NMI_STACK_SIZE		PAGE_SIZE
-#define	MCE_STACK_SIZE		PAGE_SIZE
-#define	DBG_STACK_SIZE		PAGE_SIZE
+static inline void
+arm_irq_memory_barrier(uintptr_t irq)
+{
+}
+#endif /* !LOCORE */
 
-#endif	/* !__MACHINE_INTR_MACHDEP_H__ */
+#ifndef NIRQ
+#define	NIRQ		16384	/* XXX - It should be an option. */
+#endif
+
+#ifdef DEV_ACPI
+#define	ACPI_INTR_XREF	1
+#define	ACPI_MSI_XREF	2
+#define	ACPI_GPIO_XREF	3
+#endif
+
+#define	INTR_ROOT_IRQ	0
+#define	INTR_ROOT_FIQ	1
+#define	INTR_ROOT_COUNT	2
+
+#endif	/* __MACHINE_INTERRUPT_H__ */

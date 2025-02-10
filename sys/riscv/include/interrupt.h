@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_INTR_MACHDEP_H_
-#define	_MACHINE_INTR_MACHDEP_H_
+#ifndef	__MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
+
+#include <sys/intr.h>
 
 #ifndef	NIRQ
 #define	NIRQ			1024
@@ -59,4 +61,4 @@ enum {
 #define	INTR_ROOT_IRQ	0
 #define	INTR_ROOT_COUNT	1
 
-#endif /* !_MACHINE_INTR_MACHDEP_H_ */
+#endif /* !__MACHINE_INTERRUPT_H__ */

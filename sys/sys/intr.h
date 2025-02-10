@@ -33,7 +33,15 @@
 #error Need INTRNG for this file
 #endif
 
-#include <machine/intr.h>
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
