@@ -1316,6 +1316,7 @@ pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 	PF_MD5_UPD(rule, af);
 	PF_MD5_UPD(rule, quick);
 	PF_MD5_UPD(rule, ifnot);
+	PF_MD5_UPD(rule, rcvifnot);
 	PF_MD5_UPD(rule, match_tag_not);
 	PF_MD5_UPD(rule, natpass);
 	PF_MD5_UPD(rule, keep_state);

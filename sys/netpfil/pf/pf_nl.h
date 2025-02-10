@@ -270,6 +270,7 @@ enum pf_rule_type_t {
 	PF_RT_RPOOL_NAT		= 75, /* nested, pf_rpool_type_t */
 	PF_RT_NAF		= 76, /* u8 */
 	PF_RT_RPOOL_RT		= 77, /* nested, pf_rpool_type_t */
+	PF_RT_RCV_IFNOT		= 78, /* bool */
 };
 
 enum pf_addrule_type_t {
