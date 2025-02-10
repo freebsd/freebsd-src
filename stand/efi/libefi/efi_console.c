@@ -920,7 +920,9 @@ cons_update_mode(bool use_gfx_mode)
 	 * efi_find_framebuffer(). This will populate the fb data,
 	 * which will be passed to kernel.
 	 */
-	if (efi_find_framebuffer(&gfx_state) == 0 && use_gfx_mode) {
+	if (efi_find_framebuffer(&gfx_state) == 0 && use_gfx_mode
+		/* UGA fb graphic is broken, don't use */
+		&& gfx_state.tg_fb_type != FB_UGA) {
 		int roff, goff, boff;
 
 		roff = ffs(gfx_state.tg_fb.fb_mask_red) - 1;
