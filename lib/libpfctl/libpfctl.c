@@ -1255,6 +1255,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_uid(nw, PF_RT_UID, &r->uid);
 	snl_add_msg_attr_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&r->gid);
 	snl_add_msg_attr_string(nw, PF_RT_RCV_IFNAME, r->rcv_ifname);
+	snl_add_msg_attr_bool(nw, PF_RT_RCV_IFNOT, r->rcvifnot);
 
 	snl_add_msg_attr_u32(nw, PF_RT_RULE_FLAG, r->rule_flag);
 	snl_add_msg_attr_u8(nw, PF_RT_ACTION, r->action);
@@ -1663,6 +1664,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
 	{ .type = PF_RT_RPOOL_RT, .off = _OUT(r.route), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(r.rcvifnot),.cb = snl_attr_get_bool },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);
