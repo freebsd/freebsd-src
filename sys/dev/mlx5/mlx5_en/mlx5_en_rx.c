@@ -214,7 +214,6 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 			 * [0-31] - timestamp.
 			 * [32-64] - timestamp echo replay.
 			 */
-			ts_ptr[1] = *(uint32_t *)&cqe->timestamp;
 			ts_ptr[2] = *((uint32_t *)&cqe->timestamp + 1);
 		}
 	}
