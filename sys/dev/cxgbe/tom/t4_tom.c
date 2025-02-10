@@ -2219,11 +2219,16 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP ||
 	    ulp_mode(toep) == ULP_MODE_NONE) {
 		error = t4_aio_queue_ddp(so, job);
-		if (error != EOPNOTSUPP)
-			return (error);
+		if (error == 0)
+			return (0);
+		else if (error != EOPNOTSUPP)
+			return (soaio_queue_generic(so, job));
 	}
 
-	return (t4_aio_queue_aiotx(so, job));
+	if (t4_aio_queue_aiotx(so, job) != 0)
+		return (soaio_queue_generic(so, job));
+	else
+		return (0);
 }
 
 static int

@@ -526,6 +526,7 @@ struct socket *
 struct socket *
 	sopeeloff(struct socket *);
 int	sopoll_generic(struct socket *so, int events, struct thread *td);
+int	soaio_queue_generic(struct socket *so, struct kaiocb *job);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
 int	soreceive_stream(struct socket *so, struct sockaddr **paddr,
