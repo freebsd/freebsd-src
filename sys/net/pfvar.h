@@ -865,6 +865,7 @@ struct pf_krule {
 	u_int8_t		 prio;
 	u_int8_t		 set_prio[2];
 	sa_family_t		 naf;
+	u_int8_t		 rcvifnot;
 
 	struct {
 		struct pf_addr		addr;

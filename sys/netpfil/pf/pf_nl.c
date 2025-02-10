@@ -737,6 +737,7 @@ static const struct nlattr_parser nla_p_rule[] = {
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(nat), .arg = &pool_parser, .cb = nlattr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(naf), .cb = nlattr_get_uint8 },
 	{ .type = PF_RT_RPOOL_RT, .off = _OUT(route), .arg = &pool_parser, .cb = nlattr_get_nested },
+	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(rcvifnot), .cb = nlattr_get_bool },
 };
 NL_DECLARE_ATTR_PARSER(rule_parser, nla_p_rule);
 #undef _OUT
@@ -940,6 +941,7 @@ pf_handle_getrule(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	nlattr_add_rule_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&rule->gid);
 
 	nlattr_add_string(nw, PF_RT_RCV_IFNAME, rule->rcv_ifname);
+	nlattr_add_bool(nw, PF_RT_RCV_IFNOT, rule->rcvifnot);
 
 	nlattr_add_u32(nw, PF_RT_RULE_FLAG, rule->rule_flag);
 	nlattr_add_u8(nw, PF_RT_ACTION, rule->action);
