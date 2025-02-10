@@ -112,6 +112,7 @@ mask_table_value(struct table_value *src, struct table_value *dst,
 	_MCPY(netgraph, IPFW_VTYPE_NETGRAPH);
 	_MCPY(fib, IPFW_VTYPE_FIB);
 	_MCPY(nat, IPFW_VTYPE_NAT);
+	_MCPY(limit, IPFW_VTYPE_LIMIT);
 	_MCPY(mark, IPFW_VTYPE_MARK);
 	_MCPY(dscp, IPFW_VTYPE_DSCP);
 	_MCPY(nh4, IPFW_VTYPE_NH4);
