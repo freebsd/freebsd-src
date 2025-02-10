@@ -7972,8 +7972,12 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 						pd->proto = IPPROTO_ICMP;
 					else
 						pd->proto = IPPROTO_ICMPV6;
-					th.th_sport = nk->port[sidx];
-					th.th_dport = nk->port[didx];
+					pf_change_ap(pd->m, pd2.src, &th.th_sport,
+					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.sidx],
+					    nk->port[sidx], 1, pd->af, nk->af);
+					pf_change_ap(pd->m, pd2.dst, &th.th_dport,
+					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.didx],
+					    nk->port[didx], 1, pd->af, nk->af);
 					m_copyback(pd2.m, pd2.off, 8, (c_caddr_t)&th);
 					PF_ACPY(pd->src,
 					    &nk->addr[pd2.sidx], nk->af);
