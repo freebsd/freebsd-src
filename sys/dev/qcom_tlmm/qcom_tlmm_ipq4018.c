@@ -245,152 +245,34 @@ static const struct qcom_tlmm_gpio_mux gpio_muxes[] = {
 	GDEF(-1),
 };
 
-static int
-qcom_tlmm_ipq4018_probe(device_t dev)
+static struct qcom_tlmm_hw_callbacks qcom_tlmm_ipq4018_hw_callbacks = {
+	.qcom_tlmm_hw_pin_set_function = qcom_tlmm_ipq4018_hw_pin_set_function,
+	.qcom_tlmm_hw_pin_get_function = qcom_tlmm_ipq4018_hw_pin_get_function,
+	.qcom_tlmm_hw_pin_set_oe_output = qcom_tlmm_ipq4018_hw_pin_set_oe_output,
+	.qcom_tlmm_hw_pin_set_oe_input = qcom_tlmm_ipq4018_hw_pin_set_oe_input,
+	.qcom_tlmm_hw_pin_get_oe_state = qcom_tlmm_ipq4018_hw_pin_get_oe_state,
+	.qcom_tlmm_hw_pin_set_output_value = qcom_tlmm_ipq4018_hw_pin_set_output_value,
+	.qcom_tlmm_hw_pin_get_output_value = qcom_tlmm_ipq4018_hw_pin_get_output_value,
+	.qcom_tlmm_hw_pin_get_input_value = qcom_tlmm_ipq4018_hw_pin_get_input_value,
+	.qcom_tlmm_hw_pin_toggle_output_value = qcom_tlmm_ipq4018_hw_pin_toggle_output_value,
+	.qcom_tlmm_hw_pin_set_pupd_config = qcom_tlmm_ipq4018_hw_pin_set_pupd_config,
+	.qcom_tlmm_hw_pin_get_pupd_config = qcom_tlmm_ipq4018_hw_pin_get_pupd_config,
+	.qcom_tlmm_hw_pin_set_drive_strength = qcom_tlmm_ipq4018_hw_pin_set_drive_strength,
+	.qcom_tlmm_hw_pin_get_drive_strength = qcom_tlmm_ipq4018_hw_pin_get_drive_strength,
+	.qcom_tlmm_hw_pin_set_vm = qcom_tlmm_ipq4018_hw_pin_set_vm,
+	.qcom_tlmm_hw_pin_get_vm = qcom_tlmm_ipq4018_hw_pin_get_vm,
+	.qcom_tlmm_hw_pin_set_open_drain = qcom_tlmm_ipq4018_hw_pin_set_open_drain,
+	.qcom_tlmm_hw_pin_get_open_drain = qcom_tlmm_ipq4018_hw_pin_get_open_drain,
+};
+
+/* TODO: move to a header file */
+extern void qcom_tlmm_ipq4018_attach(struct qcom_tlmm_softc *sc);
+
+void
+qcom_tlmm_ipq4018_attach(struct qcom_tlmm_softc *sc)
 {
 
-	if (! ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_is_compatible(dev, "qcom,ipq4019-pinctrl") == 0)
-		return (ENXIO);
-
-	device_set_desc(dev,
-	    "Qualcomm Atheross TLMM IPQ4018/IPQ4019 GPIO/Pinmux driver");
-	return (0);
-}
-
-static int
-qcom_tlmm_ipq4018_detach(device_t dev)
-{
-	struct qcom_tlmm_softc *sc = device_get_softc(dev);
-
-	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
-
-	gpiobus_detach_bus(dev);
-	if (sc->gpio_ih)
-		bus_teardown_intr(dev, sc->gpio_irq_res, sc->gpio_ih);
-	if (sc->gpio_irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->gpio_irq_rid,
-		    sc->gpio_irq_res);
-	if (sc->gpio_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
-		    sc->gpio_mem_res);
-	if (sc->gpio_pins)
-		free(sc->gpio_pins, M_DEVBUF);
-	mtx_destroy(&sc->gpio_mtx);
-
-	return(0);
-}
-
-
-
-static int
-qcom_tlmm_ipq4018_attach(device_t dev)
-{
-	struct qcom_tlmm_softc *sc = device_get_softc(dev);
-	int i;
-
-	KASSERT((device_get_unit(dev) == 0),
-	    ("qcom_tlmm_ipq4018: Only one gpio module supported"));
-
-	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
-
-	/* Map control/status registers. */
-	sc->gpio_mem_rid = 0;
-	sc->gpio_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->gpio_mem_rid, RF_ACTIVE);
-
-	if (sc->gpio_mem_res == NULL) {
-		device_printf(dev, "couldn't map memory\n");
-		qcom_tlmm_ipq4018_detach(dev);
-		return (ENXIO);
-	}
-
-	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-		device_printf(dev, "unable to allocate IRQ resource\n");
-		qcom_tlmm_ipq4018_detach(dev);
-		return (ENXIO);
-	}
-
-	if ((bus_setup_intr(dev, sc->gpio_irq_res, INTR_TYPE_MISC,
-	    qcom_tlmm_filter, qcom_tlmm_intr, sc, &sc->gpio_ih))) {
-		device_printf(dev,
-		    "WARNING: unable to register interrupt handler\n");
-		qcom_tlmm_ipq4018_detach(dev);
-		return (ENXIO);
-	}
-
-	sc->dev = dev;
 	sc->gpio_npins = QCOM_TLMM_IPQ4018_GPIO_PINS;
 	sc->gpio_muxes = &gpio_muxes[0];
-	sc->sc_debug = 0;
-
-	qcom_tlmm_debug_sysctl_attach(sc);
-
-	/* Allocate local pin state for all of our pins */
-	sc->gpio_pins = malloc(sizeof(*sc->gpio_pins) * sc->gpio_npins,
-	    M_DEVBUF, M_WAITOK | M_ZERO);
-
-	/* Note: direct map between gpio pin and gpio_pin[] entry */
-	for (i = 0; i < sc->gpio_npins; i++) {
-		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
-		    "gpio%d", i);
-		sc->gpio_pins[i].gp_pin = i;
-		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
-		(void) qcom_tlmm_pin_getflags(dev, i,
-		    &sc->gpio_pins[i].gp_flags);
-	}
-
-	fdt_pinctrl_register(dev, NULL);
-	fdt_pinctrl_configure_by_name(dev, "default");
-
-	sc->busdev = gpiobus_add_bus(dev);
-	if (sc->busdev == NULL) {
-		device_printf(dev, "%s: failed to attach bus\n", __func__);
-		qcom_tlmm_ipq4018_detach(dev);
-		return (ENXIO);
-	}
-
-	bus_attach_children(dev);
-	return (0);
+	sc->sc_hw = &qcom_tlmm_ipq4018_hw_callbacks;
 }
-
-static device_method_t qcom_tlmm_ipq4018_methods[] = {
-	/* Driver */
-	DEVMETHOD(device_probe, qcom_tlmm_ipq4018_probe),
-	DEVMETHOD(device_attach, qcom_tlmm_ipq4018_attach),
-	DEVMETHOD(device_detach, qcom_tlmm_ipq4018_detach),
-
-	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus, qcom_tlmm_get_bus),
-	DEVMETHOD(gpio_pin_max, qcom_tlmm_pin_max),
-	DEVMETHOD(gpio_pin_getname, qcom_tlmm_pin_getname),
-	DEVMETHOD(gpio_pin_getflags, qcom_tlmm_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps, qcom_tlmm_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags, qcom_tlmm_pin_setflags),
-	DEVMETHOD(gpio_pin_get, qcom_tlmm_pin_get),
-	DEVMETHOD(gpio_pin_set, qcom_tlmm_pin_set),
-	DEVMETHOD(gpio_pin_toggle, qcom_tlmm_pin_toggle),
-
-	/* OFW */
-	DEVMETHOD(ofw_bus_get_node, qcom_tlmm_pin_get_node),
-
-	/* fdt_pinctrl interface */
-	DEVMETHOD(fdt_pinctrl_configure, qcom_tlmm_pinctrl_configure),
-
-	{0, 0},
-};
-
-static driver_t qcom_tlmm_ipq4018_driver = {
-	"gpio",
-	qcom_tlmm_ipq4018_methods,
-	sizeof(struct qcom_tlmm_softc),
-};
-
-EARLY_DRIVER_MODULE(qcom_tlmm_ipq4018, simplebus, qcom_tlmm_ipq4018_driver,
-    NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-EARLY_DRIVER_MODULE(qcom_tlmm_ipq4018, ofwbus, qcom_tlmm_ipq4018_driver,
-    NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-MODULE_VERSION(qcom_tlmm_ipq4018, 1);

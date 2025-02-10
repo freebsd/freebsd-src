@@ -9,6 +9,9 @@ device		qcom_mdio		# MDIO support
 # Serial (COM) ports
 device		uart_msm		# Qualcomm MSM UART driver
 
+# TLMM driver
+device		qcom_tlmm
+
 # MMC/SD/SDIO Card slot support
 device		sdhci
 
