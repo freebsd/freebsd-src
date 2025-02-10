@@ -2357,6 +2357,7 @@ nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr, int family)
 		} else {
 			/* child lle already exists, free newly-created one */
 			lltable_free_entry(LLTABLE6(ifp), child_lle);
+			LLE_WLOCK(lle_tmp);
 			child_lle = lle_tmp;
 		}
 		LLE_WUNLOCK(lle);
