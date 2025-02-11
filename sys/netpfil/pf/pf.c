@@ -54,7 +54,6 @@
 #include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
-#include <sys/md5.h>
 #include <sys/random.h>
 #include <sys/refcount.h>
 #include <sys/sdt.h>
@@ -62,6 +61,8 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/ucred.h>
+
+#include <crypto/sha2/sha512.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -176,7 +177,7 @@ VNET_DEFINE(u_int32_t,			 ticket_altqs_inactive);
 VNET_DEFINE(int,			 altqs_inactive_open);
 VNET_DEFINE(u_int32_t,			 ticket_pabuf);
 
-VNET_DEFINE(MD5_CTX,			 pf_tcp_secret_ctx);
+VNET_DEFINE(SHA512_CTX,			 pf_tcp_secret_ctx);
 #define	V_pf_tcp_secret_ctx		 VNET(pf_tcp_secret_ctx)
 VNET_DEFINE(u_char,			 pf_tcp_secret[16]);
 #define	V_pf_tcp_secret			 VNET(pf_tcp_secret)
@@ -5050,35 +5051,38 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 static u_int32_t
 pf_tcp_iss(struct pf_pdesc *pd)
 {
-	MD5_CTX ctx;
-	u_int32_t digest[4];
+	SHA512_CTX ctx;
+	union {
+		uint8_t bytes[SHA512_DIGEST_LENGTH];
+		uint32_t words[1];
+	} digest;
 
 	if (V_pf_tcp_secret_init == 0) {
 		arc4random_buf(&V_pf_tcp_secret, sizeof(V_pf_tcp_secret));
-		MD5Init(&V_pf_tcp_secret_ctx);
-		MD5Update(&V_pf_tcp_secret_ctx, V_pf_tcp_secret,
+		SHA512_Init(&V_pf_tcp_secret_ctx);
+		SHA512_Update(&V_pf_tcp_secret_ctx, V_pf_tcp_secret,
 		    sizeof(V_pf_tcp_secret));
 		V_pf_tcp_secret_init = 1;
 	}
 
 	ctx = V_pf_tcp_secret_ctx;
 
-	MD5Update(&ctx, (char *)&pd->hdr.tcp.th_sport, sizeof(u_short));
-	MD5Update(&ctx, (char *)&pd->hdr.tcp.th_dport, sizeof(u_short));
+	SHA512_Update(&ctx, (char *)&pd->hdr.tcp.th_sport, sizeof(u_short));
+	SHA512_Update(&ctx, (char *)&pd->hdr.tcp.th_dport, sizeof(u_short));
 	switch (pd->af) {
 	case AF_INET6:
-		MD5Update(&ctx, (char *)&pd->src->v6, sizeof(struct in6_addr));
-		MD5Update(&ctx, (char *)&pd->dst->v6, sizeof(struct in6_addr));
+		SHA512_Update(&ctx, (char *)&pd->src->v6, sizeof(struct in6_addr));
+		SHA512_Update(&ctx, (char *)&pd->dst->v6, sizeof(struct in6_addr));
 		break;
 	case AF_INET:
-		MD5Update(&ctx, (char *)&pd->src->v4, sizeof(struct in_addr));
-		MD5Update(&ctx, (char *)&pd->dst->v4, sizeof(struct in_addr));
+		SHA512_Update(&ctx, (char *)&pd->src->v4, sizeof(struct in_addr));
+		SHA512_Update(&ctx, (char *)&pd->dst->v4, sizeof(struct in_addr));
 		break;
 	}
-	MD5Final((u_char *)digest, &ctx);
+	SHA512_Final(digest.bytes, &ctx);
 	V_pf_tcp_iss_off += 4096;
 #define	ISN_RANDOM_INCREMENT (4096 - 1)
-	return (digest[0] + (arc4random() & ISN_RANDOM_INCREMENT) +
+	return (digest.words[0] + (arc4random() & ISN_RANDOM_INCREMENT) +
 	    V_pf_tcp_iss_off);
 #undef	ISN_RANDOM_INCREMENT
 }
