@@ -81,6 +81,7 @@
 
 static bool	 opt_4;		/* Show IPv4 sockets */
 static bool	 opt_6;		/* Show IPv6 sockets */
+static bool	 opt_A;		/* Show kernel address of pcb */
 static bool	 opt_C;		/* Show congestion control */
 static bool	 opt_c;		/* Show connected sockets */
 static bool	 opt_f;		/* Show FIB numbers */
@@ -771,6 +772,7 @@ gather_inet(int proto)
 		if ((faddr = calloc(1, sizeof *faddr)) == NULL)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
+		sock->pcb = so->so_pcb;
 		sock->splice_socket = so->so_splice_so;
 		sock->proto = proto;
 		sock->inp_gencnt = xip->inp_gencnt;
@@ -1206,10 +1208,13 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		while (pos < offset)
+			pos += xprintf(" ");
+		if (opt_A) {
+			pos += xprintf("0x%16lx", s->pcb);
+			offset += 18;
+		}
 		if (opt_f) {
-			do
-				pos += xprintf(" ");
-			while (pos < offset);
 			pos += xprintf("%d", s->fibnum);
 			offset += 7;
 		}
@@ -1346,6 +1351,8 @@ display(void)
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_A)
+			printf(" %-18s", "PCB KVA");
 		if (opt_f)
 			/* RT_MAXFIBS is 65535. */
 			printf(" %-6s", "FIB");
@@ -1477,7 +1484,7 @@ static void
 usage(void)
 {
 	errx(1,
-    "usage: sockstat [-46CcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
+    "usage: sockstat [-46ACcfIiLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]");
 }
 
 int
@@ -1491,13 +1498,16 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46CcfIij:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46ACcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = true;
 			break;
 		case '6':
 			opt_6 = true;
+			break;
+		case 'A':
+			opt_A = true;
 			break;
 		case 'C':
 			opt_C = true;
