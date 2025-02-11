@@ -153,7 +153,7 @@ ATF_TC_BODY(full_not_writable, tc)
 	check_writable(sv[0], 0);
 
 	/* Read some data and re-check. */
-	ATF_REQUIRE(read(sv[1], buf, sendspace / 2) == sendspace / 2);
+	ATF_REQUIRE(read(sv[1], buf, sendspace / 2) == (ssize_t)sendspace / 2);
 
 	check_writable(sv[0], 1);
 
