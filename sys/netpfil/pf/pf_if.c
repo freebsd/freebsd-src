@@ -357,6 +357,11 @@ pfi_kkif_attach(struct pfi_kkif *kif, const char *kif_name)
 	kif->pfik_tzero = time_second > 1 ? time_second : 0;
 	TAILQ_INIT(&kif->pfik_dynaddrs);
 
+	if (!strcmp(kif->pfik_name, "any")) {
+		/* both so it works in the ioctl and the regular case */
+		kif->pfik_flags |= PFI_IFLAG_ANY;
+	}
+
 	RB_INSERT(pfi_ifhead, &V_pfi_ifs, kif);
 
 	return (kif);
@@ -473,6 +478,10 @@ pfi_kkif_match(struct pfi_kkif *rule_kif, struct pfi_kkif *packet_kif)
 			if (p->ifgl_group == rule_kif->pfik_group)
 				return (1);
 	}
+
+	if (rule_kif->pfik_flags & PFI_IFLAG_ANY && packet_kif->pfik_ifp &&
+	    !(packet_kif->pfik_ifp->if_flags & IFF_LOOPBACK))
+			return (1);
 
 	return (0);
 }
