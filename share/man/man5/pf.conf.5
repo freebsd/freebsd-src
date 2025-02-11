@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 10, 2025
+.Dd February 11, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -749,6 +749,8 @@ see the
 .Ic group
 keyword in
 .Xr ifconfig 8 .
+.Ar any
+will match any existing interface except loopback ones.
 .It Ar bridge-to Aq interface
 Packets matching this rule will be sent out of the specified interface without
 further processing.
@@ -1768,6 +1770,8 @@ see the
 .Ic group
 keyword in
 .Xr ifconfig 8 .
+.Ar any
+will match any existing interface except loopback ones.
 .It Aq Ar af
 This rule applies only to packets of this address family.
 Supported values are
@@ -2182,6 +2186,8 @@ pass in proto tcp to port 22 set prio (2, 5)
 Only match packets which were received on the specified
 .Ar interface
 (or interface group).
+.Ar any
+will match any existing interface except loopback ones.
 .It Ar tag Aq Ar string
 Packets matching this rule will be tagged with the
 specified string.
