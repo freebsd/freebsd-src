@@ -3379,6 +3379,15 @@ if_item		: STRING			{
 			$$->next = NULL;
 			$$->tail = $$;
 		}
+		| ANY				{
+			$$ = calloc(1, sizeof(struct node_if));
+			if ($$ == NULL)
+				err(1, "if_item: calloc");
+			strlcpy($$->ifname, "any", sizeof($$->ifname));
+			$$->not = 0;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
 		;
 
 af		: /* empty */			{ $$ = 0; }
