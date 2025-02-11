@@ -163,7 +163,7 @@ arswitch_attach_phys(struct arswitch_softc *sc)
 #if 0
 		DPRINTF(sc->sc_dev, "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(sc->miibus[phy]),
-		    sc->ifp[phy]->if_xname);
+		    if_name(sc->ifp[phy]));
 #endif
 		if (err != 0) {
 			device_printf(sc->sc_dev,
