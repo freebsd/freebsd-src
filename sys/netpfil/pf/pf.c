@@ -2354,7 +2354,9 @@ pf_intr(void *v)
 
 				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
 				pfse->pfse_m->m_pkthdr.csum_flags |=
-				    CSUM_IP_VALID | CSUM_IP_CHECKED;
+				    CSUM_IP_VALID | CSUM_IP_CHECKED |
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				pfse->pfse_m->m_pkthdr.csum_data = 0xffff;
 				ip_input(pfse->pfse_m);
 			} else {
 				ip_output(pfse->pfse_m, NULL, NULL, 0, NULL,
@@ -2375,6 +2377,9 @@ pf_intr(void *v)
 
 				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL |
 				    M_LOOP;
+				pfse->pfse_m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				pfse->pfse_m->m_pkthdr.csum_data = 0xffff;
 				ip6_input(pfse->pfse_m);
 			} else {
 				ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL,
@@ -4003,28 +4008,46 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
+		m->m_pkthdr.csum_flags |= CSUM_TCP;
+		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+
 		h = mtod(m, struct ip *);
 
-		/* IP header fields included in the TCP checksum */
 		h->ip_p = IPPROTO_TCP;
 		h->ip_len = htons(tlen);
+		h->ip_v = 4;
+		h->ip_hl = sizeof(*h) >> 2;
+		h->ip_tos = IPTOS_LOWDELAY;
+		h->ip_len = htons(len);
+		h->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
+		h->ip_ttl = ttl ? ttl : V_ip_defttl;
+		h->ip_sum = 0;
 		h->ip_src.s_addr = saddr->v4.s_addr;
 		h->ip_dst.s_addr = daddr->v4.s_addr;
 
 		th = (struct tcphdr *)((caddr_t)h + sizeof(struct ip));
+		th->th_sum = in_pseudo(h->ip_src.s_addr, h->ip_dst.s_addr,
+		    htons(len - sizeof(struct ip) + IPPROTO_TCP));
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
+		m->m_pkthdr.csum_flags |= CSUM_TCP_IPV6;
+		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+
 		h6 = mtod(m, struct ip6_hdr *);
 
 		/* IP header fields included in the TCP checksum */
 		h6->ip6_nxt = IPPROTO_TCP;
 		h6->ip6_plen = htons(tlen);
+		h6->ip6_vfc |= IPV6_VERSION;
+		h6->ip6_hlim = V_ip6_defhlim;
 		memcpy(&h6->ip6_src, &saddr->v6, sizeof(struct in6_addr));
 		memcpy(&h6->ip6_dst, &daddr->v6, sizeof(struct in6_addr));
 
 		th = (struct tcphdr *)((caddr_t)h6 + sizeof(struct ip6_hdr));
+		th->th_sum = in6_cksum_pseudo(h6, len - sizeof(struct ip6_hdr),
+		    IPPROTO_TCP, 0);
 		break;
 #endif /* INET6 */
 	}
@@ -4044,34 +4067,6 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		opt[1] = 4;
 		HTONS(mss);
 		memcpy((opt + 2), &mss, 2);
-	}
-
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		/* TCP checksum */
-		th->th_sum = in_cksum(m, len);
-
-		/* Finish the IP header */
-		h->ip_v = 4;
-		h->ip_hl = sizeof(*h) >> 2;
-		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
-		h->ip_len = htons(len);
-		h->ip_ttl = ttl ? ttl : V_ip_defttl;
-		h->ip_sum = 0;
-		break;
-#endif /* INET */
-#ifdef INET6
-	case AF_INET6:
-		/* TCP checksum */
-		th->th_sum = in6_cksum(m, IPPROTO_TCP,
-		    sizeof(struct ip6_hdr), tlen);
-
-		h6->ip6_vfc |= IPV6_VERSION;
-		h6->ip6_hlim = IPV6_DEFHLIM;
-		break;
-#endif /* INET6 */
 	}
 
 	return (m);
