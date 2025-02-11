@@ -62,6 +62,7 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,24 +79,24 @@
 #define	sstosun(ss)	((struct sockaddr_un *)(ss))
 #define	sstosa(ss)	((struct sockaddr *)(ss))
 
-static int	 opt_4;		/* Show IPv4 sockets */
-static int	 opt_6;		/* Show IPv6 sockets */
-static int	 opt_C;		/* Show congestion control */
-static int	 opt_c;		/* Show connected sockets */
-static int	 opt_f;		/* Show FIB numbers */
-static int	 opt_I;		/* Show spliced socket addresses */
-static int	 opt_i;		/* Show inp_gencnt */
+static bool	 opt_4;		/* Show IPv4 sockets */
+static bool	 opt_6;		/* Show IPv6 sockets */
+static bool	 opt_C;		/* Show congestion control */
+static bool	 opt_c;		/* Show connected sockets */
+static bool	 opt_f;		/* Show FIB numbers */
+static bool	 opt_I;		/* Show spliced socket addresses */
+static bool	 opt_i;		/* Show inp_gencnt */
 static int	 opt_j;		/* Show specified jail */
-static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
-static int	 opt_l;		/* Show listening sockets */
-static int	 opt_n;		/* Don't resolve UIDs to user names */
-static int	 opt_q;		/* Don't show header */
-static int	 opt_S;		/* Show protocol stack if applicable */
-static int	 opt_s;		/* Show protocol state if applicable */
-static int	 opt_U;		/* Show remote UDP encapsulation port number */
-static int	 opt_u;		/* Show Unix domain sockets */
-static int	 opt_v;		/* Verbose mode */
-static int	 opt_w;		/* Wide print area for addresses */
+static bool	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
+static bool	 opt_l;		/* Show listening sockets */
+static bool	 opt_n;		/* Don't resolve UIDs to user names */
+static bool	 opt_q;		/* Don't show header */
+static bool	 opt_S;		/* Show protocol stack if applicable */
+static bool	 opt_s;		/* Show protocol state if applicable */
+static bool	 opt_U;		/* Show remote UDP encapsulation port number */
+static bool	 opt_u;		/* Show Unix domain sockets */
+static u_int	 opt_v;		/* Verbose mode */
+static bool	 opt_w;		/* Wide print area for addresses */
 
 /*
  * Default protocols to use if no -P was defined.
@@ -1340,7 +1341,7 @@ display(void)
 	struct sock *s;
 	int n, pos;
 
-	if (opt_q != 1) {
+	if (!opt_q) {
 		printf("%-8s %-10s %-5s %-3s %-6s %-*s %-*s",
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
@@ -1493,25 +1494,25 @@ main(int argc, char *argv[])
 	while ((o = getopt(argc, argv, "46CcfIij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
-			opt_4 = 1;
+			opt_4 = true;
 			break;
 		case '6':
-			opt_6 = 1;
+			opt_6 = true;
 			break;
 		case 'C':
-			opt_C = 1;
+			opt_C = true;
 			break;
 		case 'c':
-			opt_c = 1;
+			opt_c = true;
 			break;
 		case 'f':
-			opt_f = 1;
+			opt_f = true;
 			break;
 		case 'I':
-			opt_I = 1;
+			opt_I = true;
 			break;
 		case 'i':
-			opt_i = 1;
+			opt_i = true;
 			break;
 		case 'j':
 			opt_j = jail_getid(optarg);
@@ -1519,13 +1520,13 @@ main(int argc, char *argv[])
 				errx(1, "jail_getid: %s", jail_errmsg);
 			break;
 		case 'L':
-			opt_L = 1;
+			opt_L = true;
 			break;
 		case 'l':
-			opt_l = 1;
+			opt_l = true;
 			break;
 		case 'n':
-			opt_n = 1;
+			opt_n = true;
 			break;
 		case 'p':
 			parse_ports(optarg);
@@ -1534,25 +1535,25 @@ main(int argc, char *argv[])
 			protos_defined = parse_protos(optarg);
 			break;
 		case 'q':
-			opt_q = 1;
+			opt_q = true;
 			break;
 		case 'S':
-			opt_S = 1;
+			opt_S = true;
 			break;
 		case 's':
-			opt_s = 1;
+			opt_s = true;
 			break;
 		case 'U':
-			opt_U = 1;
+			opt_U = true;
 			break;
 		case 'u':
-			opt_u = 1;
+			opt_u = true;
 			break;
 		case 'v':
 			++opt_v;
 			break;
 		case 'w':
-			opt_w = 1;
+			opt_w = true;
 			break;
 		default:
 			usage();
@@ -1608,13 +1609,13 @@ main(int argc, char *argv[])
 		err(1, "Unable to apply pwd commands limits");
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
-		opt_4 = opt_6 = 1;
+		opt_4 = opt_6 = true;
 	if (!opt_4 && !opt_6 && !opt_u)
-		opt_4 = opt_6 = opt_u = 1;
+		opt_4 = opt_6 = opt_u = true;
 	if ((opt_4 || opt_6) && protos_defined == -1)
 		protos_defined = set_default_protos();
 	if (!opt_c && !opt_l)
-		opt_c = opt_l = 1;
+		opt_c = opt_l = true;
 
 	if (opt_4 || opt_6) {
 		for (i = 0; i < protos_defined; i++)
