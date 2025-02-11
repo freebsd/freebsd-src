@@ -121,9 +121,9 @@ mtkswitch_attach_phys(struct mtkswitch_softc *sc)
 			continue;
 		}
 		sc->ifp[phy] = if_alloc(IFT_ETHER);
-		sc->ifp[phy]->if_softc = sc;
-		sc->ifp[phy]->if_flags |= IFF_UP | IFF_BROADCAST |
-		    IFF_DRV_RUNNING | IFF_SIMPLEX;
+		if_setsoftc(sc->ifp[phy], sc);
+		if_setflagbits(sc->ifp[phy], IFF_UP | IFF_BROADCAST |
+		    IFF_DRV_RUNNING | IFF_SIMPLEX, 0);
 		sc->ifname[phy] = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
 		bcopy(name, sc->ifname[phy], strlen(name) + 1);
 		if_initname(sc->ifp[phy], sc->ifname[phy],
@@ -138,7 +138,7 @@ mtkswitch_attach_phys(struct mtkswitch_softc *sc)
 		} else {
 			DPRINTF(sc->sc_dev, "%s attached to pseudo interface "
 			    "%s\n", device_get_nameunit(sc->miibus[phy]),
-			    sc->ifp[phy]->if_xname);
+			    if_name(sc->ifp[phy]));
 		}
 	}
 	return (err);
