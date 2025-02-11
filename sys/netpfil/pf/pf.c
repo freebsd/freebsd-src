@@ -9276,19 +9276,9 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 	if (!hw_assist) {
 		switch (af) {
 		case AF_INET:
-			if (p == IPPROTO_ICMP) {
-				if (m->m_len < off)
-					return (1);
-				m->m_data += off;
-				m->m_len -= off;
-				sum = in_cksum(m, len);
-				m->m_data -= off;
-				m->m_len += off;
-			} else {
-				if (m->m_len < sizeof(struct ip))
-					return (1);
-				sum = in4_cksum(m, p, off, len);
-			}
+			if (m->m_len < sizeof(struct ip))
+				return (1);
+			sum = in4_cksum(m, (p == IPPROTO_ICMP ? 0 : p), off, len);
 			break;
 #ifdef INET6
 		case AF_INET6:
