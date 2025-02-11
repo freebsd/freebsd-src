@@ -203,7 +203,8 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 		ip4->ip_ttl = cqe->lro_min_ttl;
 		ip4->ip_len = cpu_to_be16(tot_len);
 		ip4->ip_sum = 0;
-		ip4->ip_sum = in_cksum(mb, ip4->ip_hl << 2);
+		ip4->ip_sum = in_cksum_skip(mb, (ip4->ip_hl << 2) +
+		    ETHER_HDR_LEN, ETHER_HDR_LEN);
 	} else {
 		ip6->ip6_hlim = cqe->lro_min_ttl;
 		ip6->ip6_plen = cpu_to_be16(tot_len -
