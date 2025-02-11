@@ -132,6 +132,7 @@ max_src_conn_rule_head()
 {
 	atf_set descr 'Max connections per source per rule'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 max_src_conn_rule_body()
@@ -191,6 +192,7 @@ max_src_states_rule_head()
 {
 	atf_set descr 'Max states per source per rule'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 max_src_states_rule_body()

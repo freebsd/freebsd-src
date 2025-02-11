@@ -443,6 +443,7 @@ no_df_head()
 {
 	atf_set descr 'Test removing of DF flag'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 no_df_body()
@@ -481,6 +482,7 @@ reassemble_slowpath_head()
 {
 	atf_set descr 'Test reassembly on the slow path'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 reassemble_slowpath_body()
@@ -609,6 +611,7 @@ dummynet_fragmented_head()
 {
 	atf_set descr 'Test dummynet on NATed fragmented traffic'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 dummynet_fragmented_body()
