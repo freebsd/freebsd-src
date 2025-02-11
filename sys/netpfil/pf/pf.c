@@ -4043,7 +4043,7 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		opt[0] = TCPOPT_MAXSEG;
 		opt[1] = 4;
 		HTONS(mss);
-		bcopy((caddr_t)&mss, (caddr_t)(opt + 2), 2);
+		memcpy((opt + 2), &mss, 2);
 	}
 
 	switch (af) {
@@ -4998,7 +4998,7 @@ pf_get_mss(struct pf_pdesc *pd)
 			--hlen;
 			break;
 		case TCPOPT_MAXSEG:
-			bcopy((caddr_t)(opt + 2), (caddr_t)&mss, 2);
+			memcpy(&mss, (opt + 2), 2);
 			NTOHS(mss);
 			/* FALLTHROUGH */
 		default:
@@ -6061,7 +6061,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	s->rule = r;
 	s->nat_rule = nr;
 	s->anchor = a;
-	bcopy(match_rules, &s->match_rules, sizeof(s->match_rules));
+	memcpy(&s->match_rules, match_rules, sizeof(s->match_rules));
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
 	STATE_INC_COUNTERS(s);
