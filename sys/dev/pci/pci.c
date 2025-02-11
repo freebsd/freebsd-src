@@ -1790,7 +1790,7 @@ pci_resume_msix(device_t dev)
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	struct msix_table_entry *mte;
 	struct msix_vector *mv;
-	int i;
+	u_int i;
 
 	if (msix->msix_alloc > 0) {
 		/* First, mask all vectors. */
@@ -1823,10 +1823,11 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list_entry *rle;
-	int actual, error, i, irq, max;
+	u_int actual, i, max;
+	int error, irq;
 
 	/* Don't let count == 0 get us into trouble. */
-	if (*count == 0)
+	if (*count < 1)
 		return (EINVAL);
 
 	/* If rid 0 is allocated, then fail. */
@@ -1886,7 +1887,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 			device_printf(child, "using IRQ %ju for MSI-X\n",
 			    rle->start);
 		else {
-			int run;
+			bool run;
 
 			/*
 			 * Be fancy and try to print contiguous runs of
@@ -1895,14 +1896,14 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 			 */
 			device_printf(child, "using IRQs %ju", rle->start);
 			irq = rle->start;
-			run = 0;
+			run = false;
 			for (i = 1; i < actual; i++) {
 				rle = resource_list_find(&dinfo->resources,
 				    SYS_RES_IRQ, i + 1);
 
 				/* Still in a run? */
 				if (rle->start == irq + 1) {
-					run = 1;
+					run = true;
 					irq++;
 					continue;
 				}
@@ -1910,7 +1911,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 				/* Finish previous range. */
 				if (run) {
 					printf("-%d", irq);
-					run = 0;
+					run = false;
 				}
 
 				/* Start new range. */
@@ -1930,10 +1931,10 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 		pci_mask_msix(child, i);
 
 	/* Allocate and initialize vector data and virtual table. */
-	cfg->msix.msix_vectors = malloc(sizeof(struct msix_vector) * actual,
+	cfg->msix.msix_vectors = mallocarray(actual, sizeof(struct msix_vector),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
-	cfg->msix.msix_table = malloc(sizeof(struct msix_table_entry) * actual,
-	    M_DEVBUF, M_WAITOK | M_ZERO);
+	cfg->msix.msix_table = mallocarray(actual,
+	    sizeof(struct msix_table_entry), M_DEVBUF, M_WAITOK | M_ZERO);
 	for (i = 0; i < actual; i++) {
 		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
 		cfg->msix.msix_vectors[i].mv_irq = rle->start;
@@ -1998,14 +1999,15 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	struct resource_list_entry *rle;
-	int i, irq, j, *used;
+	u_int i, irq, j;
+	bool *used;
 
 	/*
 	 * Have to have at least one message in the table but the
 	 * table can't be bigger than the actual MSI-X table in the
 	 * device.
 	 */
-	if (count == 0 || count > msix->msix_msgnum)
+	if (count < 1 || count > msix->msix_msgnum)
 		return (EINVAL);
 
 	/* Sanity check the vectors. */
@@ -2018,17 +2020,17 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	 * It's a big pain to support it, and it doesn't really make
 	 * sense anyway.  Also, at least one vector must be used.
 	 */
-	used = malloc(sizeof(int) * msix->msix_alloc, M_DEVBUF, M_WAITOK |
+	used = mallocarray(msix->msix_alloc, sizeof(*used), M_DEVBUF, M_WAITOK |
 	    M_ZERO);
 	for (i = 0; i < count; i++)
 		if (vectors[i] != 0)
-			used[vectors[i] - 1] = 1;
+			used[vectors[i] - 1] = true;
 	for (i = 0; i < msix->msix_alloc - 1; i++)
-		if (used[i] == 0 && used[i + 1] == 1) {
+		if (!used[i] && used[i + 1]) {
 			free(used, M_DEVBUF);
 			return (EINVAL);
 		}
-	if (used[0] != 1) {
+	if (!used[0]) {
 		free(used, M_DEVBUF);
 		return (EINVAL);
 	}
@@ -2061,7 +2063,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	 * used.
 	 */
 	free(msix->msix_table, M_DEVBUF);
-	msix->msix_table = malloc(sizeof(struct msix_table_entry) * count,
+	msix->msix_table = mallocarray(count, sizeof(struct msix_table_entry),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 	for (i = 0; i < count; i++)
 		msix->msix_table[i].mte_vector = vectors[i];
@@ -2069,15 +2071,15 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 
 	/* Free any unused IRQs and resize the vectors array if necessary. */
 	j = msix->msix_alloc - 1;
-	if (used[j] == 0) {
+	if (!used[j]) {
 		struct msix_vector *vec;
 
-		while (used[j] == 0) {
+		while (!used[j]) {
 			PCIB_RELEASE_MSIX(device_get_parent(dev), child,
 			    msix->msix_vectors[j].mv_irq);
 			j--;
 		}
-		vec = malloc(sizeof(struct msix_vector) * (j + 1), M_DEVBUF,
+		vec = mallocarray(j + 1, sizeof(struct msix_vector), M_DEVBUF,
 		    M_WAITOK);
 		bcopy(msix->msix_vectors, vec, sizeof(struct msix_vector) *
 		    (j + 1));
@@ -2119,7 +2121,7 @@ pci_release_msix(device_t dev, device_t child)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	struct resource_list_entry *rle;
-	int i;
+	u_int i;
 
 	/* Do we have any messages to release? */
 	if (msix->msix_alloc == 0)
@@ -2440,7 +2442,8 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 	struct msix_vector *mv;
 	uint64_t addr;
 	uint32_t data;
-	int error, i, j;
+	u_int i, j;
+	int error;
 
 	/*
 	 * Handle MSI first.  We try to find this IRQ among our list
@@ -2605,11 +2608,12 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list_entry *rle;
-	int actual, error, i, irqs[32];
+	u_int actual, i;
+	int error, irqs[32];
 	uint16_t ctrl;
 
 	/* Don't let count == 0 get us into trouble. */
-	if (*count == 0)
+	if (*count < 1)
 		return (EINVAL);
 
 	/* If rid 0 is allocated, then fail. */
@@ -2670,7 +2674,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 		if (actual == 1)
 			device_printf(child, "using IRQ %d for MSI\n", irqs[0]);
 		else {
-			int run;
+			bool run;
 
 			/*
 			 * Be fancy and try to print contiguous runs
@@ -2678,18 +2682,18 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 			 * we are in a range.
 			 */
 			device_printf(child, "using IRQs %d", irqs[0]);
-			run = 0;
+			run = false;
 			for (i = 1; i < actual; i++) {
 				/* Still in a run? */
 				if (irqs[i] == irqs[i - 1] + 1) {
-					run = 1;
+					run = true;
 					continue;
 				}
 
 				/* Finish previous range. */
 				if (run) {
 					printf("-%d", irqs[i - 1]);
-					run = 0;
+					run = false;
 				}
 
 				/* Start new range. */
@@ -2724,7 +2728,8 @@ pci_release_msi_method(device_t dev, device_t child)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 	struct resource_list_entry *rle;
-	int error, i, irqs[32];
+	u_int i, irqs[32];
+	int error;
 
 	/* Try MSI-X first. */
 	error = pci_release_msix(dev, child);
