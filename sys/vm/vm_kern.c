@@ -772,6 +772,7 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kva_alloc(ZERO_REGION_SIZE);
+	printf("CHUQ %s addr %p\n", __func__, (void *)addr);
 	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
@@ -860,6 +861,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	    (vm_offset_t)vm_page_array + round_2mpage(vm_page_array_size *
 	    sizeof(struct vm_page)),
 	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+	pmap_pt_page_array_mark();
 #endif
 	vm_map_unlock(kernel_map);
 

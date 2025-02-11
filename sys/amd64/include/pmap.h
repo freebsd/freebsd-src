@@ -117,14 +117,14 @@
 	((unsigned long)(l4) << PML4SHIFT) | \
 	((unsigned long)(l3) << PDPSHIFT) | \
 	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+	((unsigned long)(l1) << PAGE_SHIFT_PT))
 
 #define UVADDR(l5, l4, l3, l2, l1) (	     \
 	((unsigned long)(l5) << PML5SHIFT) | \
 	((unsigned long)(l4) << PML4SHIFT) | \
 	((unsigned long)(l3) << PDPSHIFT) | \
 	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+	((unsigned long)(l1) << PAGE_SHIFT_PT))
 
 /*
  * Number of kernel PML4 slots.  Can be anywhere from 1 to 64 or so,
@@ -288,6 +288,7 @@ pt_entry_t *vtopte(vm_offset_t);
 	*(u_long *)(ptep) = (u_long)(pte); \
 } while (0)
 #define	pte_clear(ptep)			pte_store(ptep, 0)
+#define	pte_clear_datapg(ptep)		pte_store_datapg(ptep, 0)
 
 #define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
@@ -315,8 +316,15 @@ enum pmap_type {
 	PT_RVI,			/* AMD's nested page tables */
 };
 
+struct ptpage;
+typedef struct ptpage *ptpage_t;
+SLIST_HEAD(ptpglist, ptpage);
 struct ptpage_radix {
+#if PAGE_SIZE == 4096
 	struct vm_radix vmr;
+#else
+	struct pctrie	rt_trie;
+#endif
 };
 
 /*
@@ -330,6 +338,10 @@ struct pmap {
 	uint64_t		pm_cr3;
 	uint64_t		pm_ucr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+#if PAGE_SIZE == PAGE_SIZE_4K
+#else
+	TAILQ_HEAD(,ptpage)	pm_ptpfree;	/* list of free ptpages */
+#endif
 	cpuset_t		pm_active;	/* active on cpus */
 	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
@@ -340,10 +352,6 @@ struct pmap {
 	struct pmap_pcid	*pm_pcidp;
 	struct rangeset		pm_pkru;
 };
-
-struct ptpage;
-typedef struct ptpage *ptpage_t;
-SLIST_HEAD(ptpglist, ptpage);
 
 /* flags */
 #define	PMAP_NESTED_IPIMASK	0xff
@@ -448,11 +456,17 @@ int	pmap_pkru_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 void	pmap_thread_init_invl_gen(struct thread *td);
 int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
-vm_page_t pmap_page_alloc_below_4g(bool zeroed);
+void	pmap_pt_page_array_mark(void);
+ptpage_t pmap_page_alloc_below_4g(bool zeroed);
+void	pmap_free_pt_page(pmap_t, ptpage_t, bool);
 
 #if defined(KASAN) || defined(KMSAN)
 void	pmap_san_enter(vm_offset_t);
 #endif
+
+/* CHUQ I hoped these would be static in pmap.c */
+vm_paddr_t pmap_ptpage_pa(ptpage_t ptp);
+void *pmap_ptpage_va(ptpage_t ptp);
 
 /*
  * Returns a pointer to a set of CPUs on which the pmap is currently active.
@@ -532,7 +546,7 @@ static __inline vm_pindex_t
 pmap_pte_index(vm_offset_t va)
 {
 
-	return ((va >> PAGE_SHIFT) & ((1ul << NPTEPGSHIFT) - 1));
+	return ((va >> PAGE_SHIFT_PT) & ((1ul << NPTEPGSHIFT) - 1));
 }
 
 static __inline vm_pindex_t

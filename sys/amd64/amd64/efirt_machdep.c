@@ -201,7 +201,9 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	struct efi_md *p;
 	pt_entry_t *pte;
 	void *pml;
+#if 0
 	vm_page_t m;
+#endif
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
@@ -274,10 +276,11 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);
 		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
-		    va += PAGE_SIZE) {
+		    va += EFI_PAGE_SIZE) {
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
 
+#if 0
 			m = PHYS_TO_VM_PAGE(va);
 #if 1
 			/* CHUQ skip this for now */
@@ -290,6 +293,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
 				pmap_page_set_memattr_noflush(m, mode);
 			}
+#endif
 #endif
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);

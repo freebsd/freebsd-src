@@ -295,6 +295,10 @@ trap(struct trapframe *frame)
 	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
 
+		extern int chuq_p;
+		if (chuq_p)
+		printf("CHUQ %d trap user rip 0x%lx addr 0x%lx\n", curthread->td_tid, frame->tf_rip, frame->tf_addr);
+
 		td->td_pticks = 0;
 		td->td_frame = frame;
 		addr = frame->tf_rip;

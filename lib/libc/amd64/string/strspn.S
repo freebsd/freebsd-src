@@ -198,7 +198,7 @@ ARCHENTRY(strspn, x86_64_v2)
 	mov		%rdi, %rax		# save original string pointer
 	lea		15(%rdi), %esi		# last byte of the head
 	xor		%edi, %esi
-	test		$PAGE_SIZE, %esi	# does the head cross a page?
+	test		$PAGE_SIZE_4K, %esi	# does the head cross a page?
 	jz		0f
 
 	/* head crosses page: copy to stack to fix up */

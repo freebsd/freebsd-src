@@ -362,6 +362,7 @@ void
 cpu_thread_clean(struct thread *td)
 {
 	struct pcb *pcb;
+	size_t tss_size;
 
 	pcb = td->td_pcb;
 
@@ -369,9 +370,10 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
+		tss_size = PAGE_SIZE_PT + IOPERM_BITMAP_BYTES;
 		pmap_pti_remove_kva((vm_offset_t)pcb->pcb_tssp,
-		    (vm_offset_t)pcb->pcb_tssp + ctob(IOPAGES + 1));
-		kmem_free(pcb->pcb_tssp, ctob(IOPAGES + 1));
+		    (vm_offset_t)pcb->pcb_tssp + tss_size);
+		kmem_free(pcb->pcb_tssp, tss_size);
 		pcb->pcb_tssp = NULL;
 	}
 }

@@ -573,6 +573,7 @@ enum {
 #define	TDP2_SAN_QUIET	0x00000008 /* Disable warnings from K(A|M)SAN */
 #define	TDP2_EXTERR	0x00000010 /* Kernel reported ext error */
 #define	TDP2_UEXTERR	0x00000020 /* User set ext error reporting ptr */
+#define TDP2_CHUQ	0x00000040
 
 /*
  * Reasons that the current thread can not be run yet.

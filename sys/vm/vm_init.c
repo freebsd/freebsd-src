@@ -90,6 +90,10 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <sys/kdb.h>
+
 extern void	uma_startup1(vm_offset_t);
 
 long physmem;
@@ -137,31 +141,44 @@ vm_mem_init(void *dummy)
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
+	uint64_t *start = (void *)0xfffffe0000c00000;
+	printf("CHUQ %s 1 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/*
 	 * Set an initial domain policy for thread0 so that allocations
 	 * can work.
 	 */
 	domainset_zero();
+	printf("CHUQ %s 2 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/* Bootstrap the kernel memory allocator. */
 	uma_startup1(virtual_avail);
+	printf("CHUQ %s 3 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/*
 	 * Initialize other VM packages
 	 */
 	vmem_startup();
+	printf("CHUQ %s 4 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	vm_object_init();
+	printf("CHUQ %s 5 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	vm_map_startup();
+	printf("CHUQ %s 6 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
+	printf("CHUQ %s virtual_avail 0x%lx virtual_end 0x%lx\n",
+	       __func__, virtual_avail, virtual_end);
 	kmem_init(virtual_avail, virtual_end);
+	printf("CHUQ %s 7 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	kmem_init_zero_region();
+	printf("CHUQ %s 8 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	pmap_init();
+	printf("CHUQ %s 9\n", __func__);
 	vm_pager_init();
 
 #ifdef INVARIANTS
 	vm_check_pagesizes();
 #endif
+	printf("CHUQ %s 10\n", __func__);
 }
 
 void
@@ -229,7 +246,8 @@ again:
 	/*
 	 * Allocate the clean map to hold all of I/O virtual memory.
 	 */
-	size = (long)nbuf * BKVASIZE + (long)bio_transient_maxcnt * maxphys;
+	size = round_page((long)nbuf * BKVASIZE) +
+	    round_page((long)bio_transient_maxcnt * maxphys);
 	kmi->clean_sva = kva_alloc(size);
 	kmi->clean_eva = kmi->clean_sva + size;
 
@@ -239,7 +257,7 @@ again:
 	 * Enable the quantum cache if we have more than 4 cpus.  This
 	 * avoids lock contention at the expense of some fragmentation.
 	 */
-	size = (long)nbuf * BKVASIZE;
+	size = round_page((long)nbuf * BKVASIZE);
 	kmi->buffer_sva = kmi->clean_sva;
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
@@ -249,7 +267,7 @@ again:
 	 * And optionally transient bio space.
 	 */
 	if (bio_transient_maxcnt != 0) {
-		size = (long)bio_transient_maxcnt * maxphys;
+		size = round_page((long)bio_transient_maxcnt * maxphys);
 		vmem_init(transient_arena, "transient arena",
 		    kmi->buffer_eva, size, PAGE_SIZE, 0, M_WAITOK);
 	}

@@ -267,7 +267,7 @@ ARCHENTRY(memcmp, baseline)
 	lea		-1(%rsi, %rdx, 1), %r9d
 	xor		%ecx, %eax
 	xor		%r9d, %r8d
-	test		$PAGE_SIZE, %eax	# are they on different pages?
+	test		$PAGE_SIZE_4K, %eax	# are they on different pages?
 	jz		0f
 
 	/* fix up rdi */
@@ -278,7 +278,7 @@ ARCHENTRY(memcmp, baseline)
 	movdqa		%xmm0, -40(%rsp)	# copy to replacement buffer
 	movdqa		%xmm1, -24(%rsp)
 
-0:	test		$PAGE_SIZE, %r8d
+0:	test		$PAGE_SIZE_4K, %r8d
 	jz		0f
 
 	/* fix up rsi */
