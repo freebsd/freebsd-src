@@ -197,6 +197,7 @@ struct ixgbe_osdep
 
 /* These routines need struct ixgbe_hw declared */
 struct ixgbe_hw;
+device_t ixgbe_dev_from_hw(struct ixgbe_hw *hw);
 
 /* These routines are needed by the shared code */
 extern u16 ixgbe_read_pci_cfg(struct ixgbe_hw *, u32);
