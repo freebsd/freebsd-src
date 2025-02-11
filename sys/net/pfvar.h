@@ -1600,6 +1600,7 @@ struct pfi_kkif {
 
 #define	PFI_IFLAG_REFS		0x0001	/* has state references */
 #define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
+#define	PFI_IFLAG_ANY 		0x0200	/* match any non-loopback interface */
 
 #ifdef _KERNEL
 struct pf_sctp_multihome_job;
