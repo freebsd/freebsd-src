@@ -1754,7 +1754,7 @@
 #define OPENSSL_HAS_ECC 1
 
 /* libcrypto has ed25519 support */
-/* #undef OPENSSL_HAS_ED25519 */
+#define OPENSSL_HAS_ED25519 1
 
 /* libcrypto has NID_X9_62_prime256v1 */
 #define OPENSSL_HAS_NISTP256 1
