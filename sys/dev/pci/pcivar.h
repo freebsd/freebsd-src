@@ -90,7 +90,6 @@ struct pcicfg_vpd {
 struct pcicfg_msi {
     uint16_t	msi_ctrl;	/* Message Control */
     uint8_t	msi_location;	/* Offset of MSI capability registers. */
-    uint8_t	msi_msgnum;	/* Number of messages */
     int		msi_alloc;	/* Number of allocated messages. */
     uint64_t	msi_addr;	/* Contents of address register. */
     uint16_t	msi_data;	/* Contents of data register. */
@@ -111,7 +110,6 @@ struct msix_table_entry {
 
 struct pcicfg_msix {
     uint16_t	msix_ctrl;	/* Message Control */
-    uint16_t	msix_msgnum;	/* Number of messages */
     uint8_t	msix_location;	/* Offset of MSI-X capability registers. */
     uint8_t	msix_table_bar;	/* BAR containing vector table. */
     uint8_t	msix_pba_bar;	/* BAR containing PBA. */

@@ -379,9 +379,6 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
 
-	/* Update OS cache of MSIX control register values */
-	iavf_update_msix_devinfo(dev);
-
 	return (0);
 
 err_vc_tq:

@@ -937,14 +937,10 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 		case PCIY_MSI:		/* PCI MSI */
 			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
-			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
-						     PCIM_MSICTRL_MMC_MASK)>>1);
 			break;
 		case PCIY_MSIX:		/* PCI MSI-X */
 			cfg->msix.msix_location = ptr;
 			cfg->msix.msix_ctrl = REG(ptr + PCIR_MSIX_CTRL, 2);
-			cfg->msix.msix_msgnum = (cfg->msix.msix_ctrl &
-			    PCIM_MSIXCTRL_TABLE_SIZE) + 1;
 			val = REG(ptr + PCIR_MSIX_TABLE, 4);
 			cfg->msix.msix_table_bar = PCIR_BAR(val &
 			    PCIM_MSIX_BIR_MASK);
@@ -1719,7 +1715,7 @@ pci_mask_msix(device_t dev, u_int index)
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset, val;
 
-	KASSERT(msix->msix_msgnum > index, ("bogus index"));
+	KASSERT(PCI_MSIX_MSGNUM(msix->msix_ctrl) > index, ("bogus index"));
 	offset = msix->msix_table_offset + index * 16 + 12;
 	val = bus_read_4(msix->msix_table_res, offset);
 	val |= PCIM_MSIX_VCTRL_MASK;
@@ -1738,7 +1734,7 @@ pci_unmask_msix(device_t dev, u_int index)
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset, val;
 
-	KASSERT(msix->msix_table_len > index, ("bogus index"));
+	KASSERT(PCI_MSIX_MSGNUM(msix->msix_ctrl) > index, ("bogus index"));
 	offset = msix->msix_table_offset + index * 16 + 12;
 	val = bus_read_4(msix->msix_table_res, offset);
 	val &= ~PCIM_MSIX_VCTRL_MASK;
@@ -1775,11 +1771,13 @@ pci_resume_msix(device_t dev)
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	struct msix_table_entry *mte;
 	struct msix_vector *mv;
-	u_int i;
+	u_int i, msgnum;
 
 	if (msix->msix_alloc > 0) {
+		msgnum = PCI_MSIX_MSGNUM(msix->msix_ctrl);
+
 		/* First, mask all vectors. */
-		for (i = 0; i < msix->msix_msgnum; i++)
+		for (i = 0; i < msgnum; i++)
 			pci_mask_msix(dev, i);
 
 		/* Second, program any messages with at least one handler. */
@@ -1810,6 +1808,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	struct resource_list_entry *rle;
 	u_int actual, i, max;
 	int error, irq;
+	uint16_t ctrl, msgnum;
 
 	/* Don't let count == 0 get us into trouble. */
 	if (*count < 1)
@@ -1848,11 +1847,14 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	}
 	cfg->msix.msix_pba_res = rle->res;
 
+	ctrl = pci_read_config(child, cfg->msix.msix_location + PCIR_MSIX_CTRL,
+	    2);
+	msgnum = PCI_MSIX_MSGNUM(ctrl);
 	if (bootverbose)
 		device_printf(child,
 		    "attempting to allocate %d MSI-X vectors (%d supported)\n",
-		    *count, cfg->msix.msix_msgnum);
-	max = min(*count, cfg->msix.msix_msgnum);
+		    *count, msgnum);
+	max = min(*count, msgnum);
 	for (i = 0; i < max; i++) {
 		/* Allocate a message. */
 		error = PCIB_ALLOC_MSIX(device_get_parent(dev), child, &irq);
@@ -1912,7 +1914,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	}
 
 	/* Mask all vectors. */
-	for (i = 0; i < cfg->msix.msix_msgnum; i++)
+	for (i = 0; i < msgnum; i++)
 		pci_mask_msix(child, i);
 
 	/* Allocate and initialize vector data and virtual table. */
@@ -1927,9 +1929,10 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 	}
 
 	/* Update control register to enable MSI-X. */
-	cfg->msix.msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+	ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
 	pci_write_config(child, cfg->msix.msix_location + PCIR_MSIX_CTRL,
-	    cfg->msix.msix_ctrl, 2);
+	    ctrl, 2);
+	cfg->msix.msix_ctrl = ctrl;
 
 	/* Update counts of alloc'd messages. */
 	cfg->msix.msix_alloc = actual;
@@ -1992,7 +1995,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 	 * table can't be bigger than the actual MSI-X table in the
 	 * device.
 	 */
-	if (count < 1 || count > msix->msix_msgnum)
+	if (count < 1 || count > PCI_MSIX_MSGNUM(msix->msix_ctrl))
 		return (EINVAL);
 
 	/* Sanity check the vectors. */
@@ -2158,9 +2161,13 @@ pci_msix_count_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
+	uint16_t ctrl;
 
-	if (pci_do_msix && msix->msix_location != 0)
-		return (msix->msix_msgnum);
+	if (pci_do_msix && msix->msix_location != 0) {
+		ctrl = pci_read_config(child, msix->msix_location +
+		    PCIR_MSI_CTRL, 2);
+		return (PCI_MSIX_MSGNUM(ctrl));
+	}
 	return (0);
 }
 
@@ -2595,7 +2602,7 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	struct resource_list_entry *rle;
 	u_int actual, i;
 	int error, irqs[32];
-	uint16_t ctrl;
+	uint16_t ctrl, msgnum;
 
 	/* Don't let count == 0 get us into trouble. */
 	if (*count < 1)
@@ -2618,13 +2625,15 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	if (cfg->msi.msi_location == 0 || !pci_do_msi)
 		return (ENODEV);
 
+	ctrl = pci_read_config(child, cfg->msi.msi_location + PCIR_MSI_CTRL, 2);
+	msgnum = PCI_MSI_MSGNUM(ctrl);
 	if (bootverbose)
 		device_printf(child,
-		    "attempting to allocate %d MSI vectors (%d supported)\n",
-		    *count, cfg->msi.msi_msgnum);
+		    "attempting to allocate %d MSI vectors (%u supported)\n",
+		    *count, msgnum);
 
 	/* Don't ask for more than the device supports. */
-	actual = min(*count, cfg->msi.msi_msgnum);
+	actual = min(*count, msgnum);
 
 	/* Don't ask for more than 32 messages. */
 	actual = min(actual, 32);
@@ -2693,7 +2702,6 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	}
 
 	/* Update control register with actual count. */
-	ctrl = cfg->msi.msi_ctrl;
 	ctrl &= ~PCIM_MSICTRL_MME_MASK;
 	ctrl |= (ffs(actual) - 1) << 4;
 	cfg->msi.msi_ctrl = ctrl;
@@ -2767,9 +2775,13 @@ pci_msi_count_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
+	uint16_t ctrl;
 
-	if (pci_do_msi && msi->msi_location != 0)
-		return (msi->msi_msgnum);
+	if (pci_do_msi && msi->msi_location != 0) {
+		ctrl = pci_read_config(child, msi->msi_location + PCIR_MSI_CTRL,
+		    2);
+		return (PCI_MSI_MSGNUM(ctrl));
+	}
 	return (0);
 }
 
@@ -3023,19 +3035,21 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 			    status & PCIM_PSTAT_DMASK);
 		}
 		if (cfg->msi.msi_location) {
-			int ctrl;
+			uint16_t ctrl, msgnum;
 
 			ctrl = cfg->msi.msi_ctrl;
+			msgnum = PCI_MSI_MSGNUM(ctrl);
 			printf("\tMSI supports %d message%s%s%s\n",
-			    cfg->msi.msi_msgnum,
-			    (cfg->msi.msi_msgnum == 1) ? "" : "s",
+			    msgnum, (msgnum == 1) ? "" : "s",
 			    (ctrl & PCIM_MSICTRL_64BIT) ? ", 64 bit" : "",
 			    (ctrl & PCIM_MSICTRL_VECTOR) ? ", vector masks":"");
 		}
 		if (cfg->msix.msix_location) {
+			uint16_t msgnum;
+
+			msgnum = PCI_MSIX_MSGNUM(cfg->msix.msix_ctrl);
 			printf("\tMSI-X supports %d message%s ",
-			    cfg->msix.msix_msgnum,
-			    (cfg->msix.msix_msgnum == 1) ? "" : "s");
+			    msgnum, (msgnum == 1) ? "" : "s");
 			if (cfg->msix.msix_table_bar == cfg->msix.msix_pba_bar)
 				printf("in map 0x%x\n",
 				    cfg->msix.msix_table_bar);
