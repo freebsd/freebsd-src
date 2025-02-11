@@ -2380,6 +2380,13 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 	if (rule->flags & IPFW_RULE_JUSTOPTS) {
 		state.flags |= HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP;
+		/*
+		 * Print `proto ip` if all opcodes has been already printed.
+		 */
+		if (memchr(state.printed, 0, rule->act_ofs) == NULL) {
+			bprintf(bp, " proto ip");
+			goto end;
+		}
 		goto justopts;
 	}
 
