@@ -117,8 +117,8 @@ struct pcicfg_msix {
     uint8_t	msix_pba_bar;	/* BAR containing PBA. */
     uint32_t	msix_table_offset;
     uint32_t	msix_pba_offset;
-    int		msix_alloc;	/* Number of allocated vectors. */
-    int		msix_table_len;	/* Length of virtual table. */
+    u_int	msix_alloc;	/* Number of allocated vectors. */
+    u_int	msix_table_len;	/* Length of virtual table. */
     struct msix_table_entry *msix_table; /* Virtual table. */
     struct msix_vector *msix_vectors;	/* Array of allocated vectors. */
     struct resource *msix_table_res;	/* Resource containing vector table. */
