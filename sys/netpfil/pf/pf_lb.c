@@ -84,9 +84,6 @@ static int		 pf_get_sport(struct pf_pdesc *, struct pf_krule *,
 			    pf_sn_types_t);
 static bool		 pf_islinklocal(const sa_family_t, const struct pf_addr *);
 
-/*
- * hash function based on bridge_hash in if_bridge.c
- */
 static void
 pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
     struct pf_poolhashkey *key, sa_family_t af)
