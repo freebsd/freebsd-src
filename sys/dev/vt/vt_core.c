@@ -56,6 +56,7 @@
 
 #include <dev/kbd/kbdreg.h>
 #include <dev/vt/vt.h>
+#include "opt_vt.h"
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/psl.h>
@@ -3327,6 +3328,15 @@ vt_replace_backend(const struct vt_driver *drv, void *softc)
 	 * it.
 	 */
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
+
+	/*
+	 * Enable manually specifying the starting VT Window
+	 */
+
+#ifdef VT_OVERRIDE_STARTING_VT
+	printf("vt: Honoring VT_OVERRIDE_STARTING_VT [%d] as starting tty\n", VT_OVERRIDE_STARTING_VT);
+	vd->vd_curwindow = vd->vd_windows[VT_OVERRIDE_STARTING_VT];
+#endif
 }
 
 static void
