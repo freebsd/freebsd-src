@@ -341,16 +341,16 @@ auth_name_find(const struct auth_group *ag, const char *name)
 	return (NULL);
 }
 
-int
+bool
 auth_name_check(const struct auth_group *ag, const char *initiator_name)
 {
 	if (!auth_name_defined(ag))
-		return (0);
+		return (true);
 
 	if (auth_name_find(ag, initiator_name) == NULL)
-		return (1);
+		return (false);
 
-	return (0);
+	return (true);
 }
 
 const struct auth_portal *
@@ -467,17 +467,17 @@ next:
 	return (NULL);
 }
 
-int
+bool
 auth_portal_check(const struct auth_group *ag, const struct sockaddr_storage *sa)
 {
 
 	if (!auth_portal_defined(ag))
-		return (0);
+		return (true);
 
 	if (auth_portal_find(ag, sa) == NULL)
-		return (1);
+		return (false);
 
-	return (0);
+	return (true);
 }
 
 struct auth_group *
@@ -541,7 +541,7 @@ auth_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-int
+bool
 auth_group_set_type(struct auth_group *ag, const char *str)
 {
 	int type;
@@ -561,7 +561,7 @@ auth_group_set_type(struct auth_group *ag, const char *str)
 		else
 			log_warnx("invalid auth-type \"%s\" for target "
 			    "\"%s\"", str, ag->ag_target->t_name);
-		return (1);
+		return (false);
 	}
 
 	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
@@ -574,12 +574,12 @@ auth_group_set_type(struct auth_group *ag, const char *str)
 			    "\"%s\"; already has a different type",
 			    str, ag->ag_target->t_name);
 		}
-		return (1);
+		return (false);
 	}
 
 	ag->ag_type = type;
 
-	return (0);
+	return (true);
 }
 
 static struct portal *
@@ -723,7 +723,7 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 	return ((error != 0) ? 1 : 0);
 }
 
-int
+bool
 portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 {
 	struct portal *portal;
@@ -735,7 +735,7 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	if (parse_addr_port(portal->p_listen, "3260", &portal->p_ai)) {
 		log_warnx("invalid listen address %s", portal->p_listen);
 		portal_delete(portal);
-		return (1);
+		return (false);
 	}
 
 	/*
@@ -743,10 +743,10 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	 *	those into multiple portals.
 	 */
 
-	return (0);
+	return (true);
 }
 
-int
+bool
 isns_new(struct conf *conf, const char *addr)
 {
 	struct isns *isns;
@@ -761,7 +761,7 @@ isns_new(struct conf *conf, const char *addr)
 	if (parse_addr_port(isns->i_addr, "3205", &isns->i_ai)) {
 		log_warnx("invalid iSNS address %s", isns->i_addr);
 		isns_delete(isns);
-		return (1);
+		return (false);
 	}
 
 	/*
@@ -769,7 +769,7 @@ isns_new(struct conf *conf, const char *addr)
 	 *	those into multiple servers.
 	 */
 
-	return (0);
+	return (true);
 }
 
 void
@@ -1008,7 +1008,7 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
-int
+bool
 portal_group_set_filter(struct portal_group *pg, const char *str)
 {
 	int filter;
@@ -1026,7 +1026,7 @@ portal_group_set_filter(struct portal_group *pg, const char *str)
 		    "\"%s\"; valid values are \"none\", \"portal\", "
 		    "\"portal-name\", and \"portal-name-auth\"",
 		    str, pg->pg_name);
-		return (1);
+		return (false);
 	}
 
 	if (pg->pg_discovery_filter != PG_FILTER_UNKNOWN &&
@@ -1034,15 +1034,15 @@ portal_group_set_filter(struct portal_group *pg, const char *str)
 		log_warnx("cannot set discovery-filter to \"%s\" for "
 		    "portal-group \"%s\"; already has a different "
 		    "value", str, pg->pg_name);
-		return (1);
+		return (false);
 	}
 
 	pg->pg_discovery_filter = filter;
 
-	return (0);
+	return (true);
 }
 
-int
+bool
 portal_group_set_offload(struct portal_group *pg, const char *offload)
 {
 
@@ -1050,15 +1050,15 @@ portal_group_set_offload(struct portal_group *pg, const char *offload)
 		log_warnx("cannot set offload to \"%s\" for "
 		    "portal-group \"%s\"; already defined",
 		    offload, pg->pg_name);
-		return (1);
+		return (false);
 	}
 
 	pg->pg_offload = checked_strdup(offload);
 
-	return (0);
+	return (true);
 }
 
-int
+bool
 portal_group_set_redirection(struct portal_group *pg, const char *addr)
 {
 
@@ -1066,12 +1066,12 @@ portal_group_set_redirection(struct portal_group *pg, const char *addr)
 		log_warnx("cannot set redirection to \"%s\" for "
 		    "portal-group \"%s\"; already defined",
 		    addr, pg->pg_name);
-		return (1);
+		return (false);
 	}
 
 	pg->pg_redirection = checked_strdup(addr);
 
-	return (0);
+	return (true);
 }
 
 struct pport *
@@ -1143,7 +1143,6 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 		log_err(1, "calloc");
 	port->p_conf = conf;
 	port->p_name = name;
-	port->p_ioctl_port = 0;
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
 	TAILQ_INSERT_TAIL(&target->t_ports, port, p_ts);
 	port->p_target = target;
@@ -1189,7 +1188,7 @@ port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
 		log_err(1, "calloc");
 	port->p_conf = conf;
 	port->p_name = name;
-	port->p_ioctl_port = 1;
+	port->p_ioctl_port = true;
 	port->p_ioctl_pp = pp;
 	port->p_ioctl_vp = vp;
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
@@ -1267,17 +1266,17 @@ port_delete(struct port *port)
 	free(port);
 }
 
-int
+bool
 port_is_dummy(struct port *port)
 {
 
 	if (port->p_portal_group) {
 		if (port->p_portal_group->pg_foreign)
-			return (1);
+			return (true);
 		if (TAILQ_EMPTY(&port->p_portal_group->pg_portals))
-			return (1);
+			return (true);
 	}
-	return (0);
+	return (false);
 }
 
 struct target *
@@ -1341,7 +1340,7 @@ target_find(struct conf *conf, const char *name)
 	return (NULL);
 }
 
-int
+bool
 target_set_redirection(struct target *target, const char *addr)
 {
 
@@ -1349,12 +1348,12 @@ target_set_redirection(struct target *target, const char *addr)
 		log_warnx("cannot set redirection to \"%s\" for "
 		    "target \"%s\"; already defined",
 		    addr, target->t_name);
-		return (1);
+		return (false);
 	}
 
 	target->t_redirection = checked_strdup(addr);
 
-	return (0);
+	return (true);
 }
 
 struct lun *
@@ -1618,7 +1617,7 @@ conf_print(struct conf *conf)
 }
 #endif
 
-static int
+static bool
 conf_verify_lun(struct lun *lun)
 {
 	const struct lun *lun2;
@@ -1629,19 +1628,19 @@ conf_verify_lun(struct lun *lun)
 		if (lun->l_path == NULL) {
 			log_warnx("missing path for lun \"%s\"",
 			    lun->l_name);
-			return (1);
+			return (false);
 		}
 	} else if (strcmp(lun->l_backend, "ramdisk") == 0) {
 		if (lun->l_size == 0) {
 			log_warnx("missing size for ramdisk-backed lun \"%s\"",
 			    lun->l_name);
-			return (1);
+			return (false);
 		}
 		if (lun->l_path != NULL) {
 			log_warnx("path must not be specified "
 			    "for ramdisk-backed lun \"%s\"",
 			    lun->l_name);
-			return (1);
+			return (false);
 		}
 	}
 	if (lun->l_blocksize == 0) {
@@ -1652,12 +1651,12 @@ conf_verify_lun(struct lun *lun)
 	} else if (lun->l_blocksize < 0) {
 		log_warnx("invalid blocksize for lun \"%s\"; "
 		    "must be larger than 0", lun->l_name);
-		return (1);
+		return (false);
 	}
 	if (lun->l_size != 0 && lun->l_size % lun->l_blocksize != 0) {
 		log_warnx("invalid size for lun \"%s\"; "
 		    "must be multiple of blocksize", lun->l_name);
-		return (1);
+		return (false);
 	}
 	TAILQ_FOREACH(lun2, &lun->l_conf->conf_luns, l_next) {
 		if (lun == lun2)
@@ -1671,10 +1670,10 @@ conf_verify_lun(struct lun *lun)
 		}
 	}
 
-	return (0);
+	return (true);
 }
 
-int
+bool
 conf_verify(struct conf *conf)
 {
 	struct auth_group *ag;
@@ -1683,15 +1682,14 @@ conf_verify(struct conf *conf)
 	struct target *targ;
 	struct lun *lun;
 	bool found;
-	int error, i;
+	int i;
 
 	if (conf->conf_pidfile_path == NULL)
 		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
 
 	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
-		error = conf_verify_lun(lun);
-		if (error != 0)
-			return (error);
+		if (!conf_verify_lun(lun))
+			return (false);
 	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		if (targ->t_auth_group == NULL) {
@@ -1781,7 +1779,7 @@ conf_verify(struct conf *conf)
 		}
 	}
 
-	return (0);
+	return (true);
 }
 
 static bool
@@ -2548,7 +2546,7 @@ conf_new_from_file(const char *path, bool ucl)
 	struct conf *conf;
 	struct auth_group *ag;
 	struct portal_group *pg;
-	int error;
+	bool valid;
 
 	log_debugx("obtaining configuration from %s", path);
 
@@ -2569,11 +2567,11 @@ conf_new_from_file(const char *path, bool ucl)
 	assert(pg != NULL);
 
 	if (ucl)
-		error = uclparse_conf(conf, path);
+		valid = uclparse_conf(conf, path);
 	else
-		error = parse_conf(conf, path);
+		valid = parse_conf(conf, path);
 
-	if (error != 0) {
+	if (!valid) {
 		conf_delete(conf);
 		return (NULL);
 	}
@@ -2599,8 +2597,7 @@ conf_new_from_file(const char *path, bool ucl)
 
 	conf->conf_kernel_port_on = true;
 
-	error = conf_verify(conf);
-	if (error != 0) {
+	if (!conf_verify(conf)) {
 		conf_delete(conf);
 		return (NULL);
 	}
@@ -2612,7 +2609,7 @@ conf_new_from_file(const char *path, bool ucl)
  * If the config file specifies physical ports for any target, associate them
  * with the config file.  If necessary, create them.
  */
-static int
+static bool
 new_pports_from_conf(struct conf *conf, struct kports *kports)
 {
 	struct target *targ;
@@ -2630,7 +2627,7 @@ new_pports_from_conf(struct conf *conf, struct kports *kports)
 			if (tp == NULL) {
 				log_warnx("can't create new ioctl port "
 				    "for target \"%s\"", targ->t_name);
-				return (1);
+				return (false);
 			}
 
 			continue;
@@ -2640,22 +2637,22 @@ new_pports_from_conf(struct conf *conf, struct kports *kports)
 		if (pp == NULL) {
 			log_warnx("unknown port \"%s\" for target \"%s\"",
 			    targ->t_pport, targ->t_name);
-			return (1);
+			return (false);
 		}
 		if (!TAILQ_EMPTY(&pp->pp_ports)) {
 			log_warnx("can't link port \"%s\" to target \"%s\", "
 			    "port already linked to some target",
 			    targ->t_pport, targ->t_name);
-			return (1);
+			return (false);
 		}
 		tp = port_new_pp(conf, targ, pp);
 		if (tp == NULL) {
 			log_warnx("can't link port \"%s\" to target \"%s\"",
 			    targ->t_pport, targ->t_name);
-			return (1);
+			return (false);
 		}
 	}
-	return (0);
+	return (true);
 }
 
 int
@@ -2667,14 +2664,14 @@ main(int argc, char **argv)
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
 	pid_t otherpid;
-	bool dont_daemonize = false;
+	bool daemonize = true;
 	bool test_config = false;
 	bool use_ucl = false;
 
 	while ((ch = getopt(argc, argv, "dtuf:R")) != -1) {
 		switch (ch) {
 		case 'd':
-			dont_daemonize = true;
+			daemonize = false;
 			debug++;
 			break;
 		case 't':
@@ -2735,10 +2732,10 @@ main(int argc, char **argv)
 		newconf->conf_debug = debug;
 	}
 
-	if (new_pports_from_conf(newconf, &kports))
+	if (!new_pports_from_conf(newconf, &kports))
 		log_errx(1, "Error associating physical ports; exiting");
 
-	if (dont_daemonize == false) {
+	if (daemonize) {
 		log_debugx("daemonizing");
 		if (daemon(0, 0) == -1) {
 			log_warn("cannot daemonize");
@@ -2768,7 +2765,7 @@ main(int argc, char **argv)
 		set_timeout((newconf->conf_isns_period + 2) / 3, false);
 
 	for (;;) {
-		main_loop(dont_daemonize);
+		main_loop(!daemonize);
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
