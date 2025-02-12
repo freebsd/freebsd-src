@@ -505,49 +505,49 @@ uclparse_dscp(const char *group_type, struct portal_group *portal_group,
 		key = ucl_object_tostring(obj);
 		if (strcmp(key, "0x") == 0)
 			portal_group->pg_dscp = strtol(key + 2, NULL, 16);
-		else if (strcmp(key, "be") || strcmp(key, "cs0"))
+		else if (strcmp(key, "be") == 0 || strcmp(key, "cs0") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-		else if (strcmp(key, "ef"))
+		else if (strcmp(key, "ef") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_EF >> 2;
-		else if (strcmp(key, "cs0"))
+		else if (strcmp(key, "cs0") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-		else if (strcmp(key, "cs1"))
+		else if (strcmp(key, "cs1") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS1 >> 2;
-		else if (strcmp(key, "cs2"))
+		else if (strcmp(key, "cs2") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS2 >> 2;
-		else if (strcmp(key, "cs3"))
+		else if (strcmp(key, "cs3") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS3 >> 2;
-		else if (strcmp(key, "cs4"))
+		else if (strcmp(key, "cs4") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS4 >> 2;
-		else if (strcmp(key, "cs5"))
+		else if (strcmp(key, "cs5") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS5 >> 2;
-		else if (strcmp(key, "cs6"))
+		else if (strcmp(key, "cs6") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS6 >> 2;
-		else if (strcmp(key, "cs7"))
+		else if (strcmp(key, "cs7") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS7 >> 2;
-		else if (strcmp(key, "af11"))
+		else if (strcmp(key, "af11") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF11 >> 2;
-		else if (strcmp(key, "af12"))
+		else if (strcmp(key, "af12") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF12 >> 2;
-		else if (strcmp(key, "af13"))
+		else if (strcmp(key, "af13") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF13 >> 2;
-		else if (strcmp(key, "af21"))
+		else if (strcmp(key, "af21") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF21 >> 2;
-		else if (strcmp(key, "af22"))
+		else if (strcmp(key, "af22") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF22 >> 2;
-		else if (strcmp(key, "af23"))
+		else if (strcmp(key, "af23") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF23 >> 2;
-		else if (strcmp(key, "af31"))
+		else if (strcmp(key, "af31") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF31 >> 2;
-		else if (strcmp(key, "af32"))
+		else if (strcmp(key, "af32") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF32 >> 2;
-		else if (strcmp(key, "af33"))
+		else if (strcmp(key, "af33") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF33 >> 2;
-		else if (strcmp(key, "af41"))
+		else if (strcmp(key, "af41") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF41 >> 2;
-		else if (strcmp(key, "af42"))
+		else if (strcmp(key, "af42") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF42 >> 2;
-		else if (strcmp(key, "af43"))
+		else if (strcmp(key, "af43") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF43 >> 2;
 		else {
 			log_warnx("\"dscp\" property value is not a supported textual value");
