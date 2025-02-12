@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -34,6 +34,7 @@
 
 #include <asm/atomic64.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
@@ -1876,25 +1877,132 @@ ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
 
 /* -------------------------------------------------------------------------- */
 
-static __inline void
-ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint32_t f1, uint32_t f2)
+static inline void
+ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint8_t mcs, uint8_t nss)
 {
-	TODO();
+
+	/* XXX-BZ make it KASSERTS? */
+	if (((mcs & 0xF0) != 0) || (((nss - 1) & 0xf8) != 0)) {
+		printf("%s:%d: mcs %#04x nss %#04x invalid\n",
+		     __func__, __LINE__, mcs, nss);
+		return;
+	}
+
+	r->idx = mcs;
+	r->idx |= ((nss - 1) << 4);
 }
 
-static __inline uint8_t
+static inline uint8_t
 ieee80211_rate_get_vht_nss(struct ieee80211_tx_rate *r)
 {
-	TODO();
-	return (0);
+	return (((r->idx >> 4) & 0x07) + 1);
 }
 
-static __inline uint8_t
+static inline uint8_t
 ieee80211_rate_get_vht_mcs(struct ieee80211_tx_rate *r)
 {
-	TODO();
-	return (0);
+	return (r->idx & 0x0f);
 }
+
+static inline int
+ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *vht_cap,
+    enum ieee80211_vht_chanwidth chanwidth,		/* defined in net80211. */
+    int mcs /* always 0 */, bool ext_nss_bw_cap /* always true */, int max_nss)
+{
+	enum ieee80211_vht_mcs_support mcs_s;
+	uint32_t supp_cw, ext_nss_bw;
+
+	switch (mcs) {
+	case 0 ... 7:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_7;
+		break;
+	case 8:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_8;
+		break;
+	case 9:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_9;
+		break;
+	default:
+		printf("%s: unsupported mcs value %d\n", __func__, mcs);
+		return (0);
+	}
+
+	if (max_nss == 0) {
+		uint16_t map;
+
+		map = le16toh(vht_cap->supp_mcs.rx_mcs_map);
+		for (int i = 7; i >= 0; i--) {
+			uint8_t val;
+
+			val = (map >> (2 * i)) & 0x03;
+			if (val == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+				continue;
+			if (val >= mcs_s) {
+				max_nss = i + 1;
+				break;
+			}
+		}
+	}
+
+	if (max_nss == 0)
+		return (0);
+
+	if ((le16toh(vht_cap->supp_mcs.tx_mcs_map) &
+	    IEEE80211_VHT_EXT_NSS_BW_CAPABLE) == 0)
+		return (max_nss);
+
+	supp_cw = le32_get_bits(vht_cap->vht_cap_info,
+	    IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
+	ext_nss_bw = le32_get_bits(vht_cap->vht_cap_info,
+	    IEEE80211_VHT_CAP_EXT_NSS_BW_MASK);
+
+	/* If requested as ext nss not supported assume ext_nss_bw 0. */
+	if (!ext_nss_bw_cap)
+		ext_nss_bw = 0;
+
+	/*
+	 * Cover 802.11-2016, Table 9-250.
+	 */
+
+	/* Unsupported settings. */
+	if (supp_cw == 3)
+		return (0);
+	if (supp_cw == 2 && (ext_nss_bw == 1 || ext_nss_bw == 2))
+		return (0);
+
+	/* Settings with factor != 1 or unsupported. */
+	switch (chanwidth) {
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		if (supp_cw == 0 && (ext_nss_bw == 0 || ext_nss_bw == 1))
+			return (0);
+		if (supp_cw == 1 && ext_nss_bw == 0)
+			return (0);
+		if ((supp_cw == 0 || supp_cw == 1) && ext_nss_bw == 2)
+			return (max_nss / 2);
+		if ((supp_cw == 0 || supp_cw == 1) && ext_nss_bw == 3)
+			return (3 * max_nss / 4);
+		break;
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		if (supp_cw == 0 && ext_nss_bw == 0)
+			return (0);
+		if (supp_cw == 0 && (ext_nss_bw == 1 || ext_nss_bw == 2))
+			return (max_nss / 2);
+		if (supp_cw == 0 && ext_nss_bw == 3)
+			return (3 * max_nss / 4);
+		if (supp_cw == 1 && ext_nss_bw == 3)
+			return (2 * max_nss);
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+	case IEEE80211_VHT_CHANWIDTH_USE_HT:
+		if ((supp_cw == 1 || supp_cw == 2) && ext_nss_bw == 3)
+			return (2 * max_nss);
+		break;
+	}
+
+	/* Everything else has a factor of 1. */
+	return (max_nss);
+}
+
 
 static __inline void
 ieee80211_reserve_tid(struct ieee80211_sta *sta, uint8_t tid)
@@ -2234,14 +2342,6 @@ ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter)
 
 static __inline int
 ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif, uint32_t link_id)
-{
-	TODO();
-	return (-1);
-}
-
-static __inline int
-ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *vht_cap, uint32_t chanwidth,
-    int x, bool t, int nss)
 {
 	TODO();
 	return (-1);
