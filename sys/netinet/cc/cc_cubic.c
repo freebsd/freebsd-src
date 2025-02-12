@@ -298,7 +298,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 			W_cubic = cubic_cwnd(usecs_since_epoch +
 					     cubic_data->mean_rtt_usecs,
 					     cubic_data->W_max,
-					     tcp_fixed_maxseg(ccv->tp),
+					     mss,
 					     cubic_data->K);
 
 			if (W_cubic < W_est) {
@@ -328,8 +328,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 			if (((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) &&
 			    cubic_data->W_max < CCV(ccv, snd_cwnd)) {
 				cubic_data->W_max = CCV(ccv, snd_cwnd);
-				cubic_data->K = cubic_k(cubic_data->W_max /
-				    tcp_fixed_maxseg(ccv->tp));
+				cubic_data->K = cubic_k(cubic_data->W_max / mss);
 			}
 		}
 	} else if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
