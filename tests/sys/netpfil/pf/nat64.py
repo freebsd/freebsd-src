@@ -93,6 +93,7 @@ class TestNAT64(VnetTestTemplate):
             "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname])
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_tcp_rst(self):
         ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
 
@@ -126,6 +127,7 @@ class TestNAT64(VnetTestTemplate):
         assert "A" in tcp.flags
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_udp_port_closed(self):
         ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
 
@@ -147,6 +149,7 @@ class TestNAT64(VnetTestTemplate):
         assert udp.dport == 1222
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_address_unreachable(self):
         ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
 
@@ -172,6 +175,7 @@ class TestNAT64(VnetTestTemplate):
         assert ip6.hlim == 62
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_udp_checksum(self):
         ToolsHelper.print_output("/sbin/route -6 add default 2001:db8::1")
 

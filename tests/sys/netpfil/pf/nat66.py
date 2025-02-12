@@ -140,6 +140,7 @@ class TestNAT66(VnetTestTemplate):
         assert found
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_npt_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
         ifname = cl_vnet.iface_alias_map["if1"].name
@@ -168,6 +169,7 @@ class TestNAT66(VnetTestTemplate):
         self.check_icmp_too_big(sp, 12000, 5000)
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_npt_route_to_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
         ifname = cl_vnet.iface_alias_map["if1"].name

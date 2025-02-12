@@ -39,6 +39,7 @@ class TestCarp(VnetTestTemplate):
             if p.src != "00:00:5e:00:01:01":
                 raise
 
+    @pytest.mark.require_progs(["scapy"])
     def test_source_mac(self):
         "Test carp packets source address"
 
@@ -52,6 +53,7 @@ class TestCarp(VnetTestTemplate):
 
         self.check_carp_src_mac(carp_pkts)
 
+    @pytest.mark.require_progs(["scapy"])
     def test_source_mac_vrrp(self):
         "Test VRRP packets source address"
 
