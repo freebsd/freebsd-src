@@ -2470,9 +2470,11 @@ pfctl_load_limit(struct pfctl *pf, unsigned int index, unsigned int limit)
 {
 	if (pfctl_set_limit(pf->h, index, limit)) {
 		if (errno == EBUSY)
-			warnx("Current pool size exceeds requested hard limit");
+			warnx("Current pool size exceeds requested %s limit %u",
+			    pf_limits[index].name, limit);
 		else
-			warnx("cannot set '%s' limit", pf_limits[index].name);
+			warnx("Cannot set %s limit to %u",
+			    pf_limits[index].name, limit);
 		return (1);
 	}
 	return (0);
