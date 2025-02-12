@@ -2303,10 +2303,12 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			    __func__, dlen, sizeof(uint32_t));
 			return;
 		}
-		/* XXX have submitter do this */
-		/* copy answer into caller's supplied buffer */
-		bcopy(hdr+1, cmd->odata, sizeof(uint32_t));
-		cmd->olen = sizeof(uint32_t);
+		if (cmd->odata != NULL) {
+			/* XXX have submitter do this */
+			/* copy answer into caller's supplied buffer */
+			bcopy(hdr+1, cmd->odata, sizeof(uint32_t));
+			cmd->olen = sizeof(uint32_t);
+		}
 		wakeup_one(cmd);		/* wake up caller */
 		break;
 
