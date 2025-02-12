@@ -80,6 +80,7 @@ class TestIGMP(VnetTestTemplate):
             sp = _sp
         super().setup_method(method)
 
+    @pytest.mark.require_progs(["scapy"])
     def test_igmp3_join_leave(self):
         "Test that we send the expected join/leave IGMPv2 messages"
 
