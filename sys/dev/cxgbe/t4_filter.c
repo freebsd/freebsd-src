@@ -520,7 +520,7 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	if (rc)
 		return (rc);
 
-	if (hw_off_limits(sc)) {
+	if (!hw_all_ok(sc)) {
 		rc = ENXIO;
 		goto done;
 	}
@@ -571,7 +571,7 @@ set_filter_mask(struct adapter *sc, uint32_t mode)
 	if (rc)
 		return (rc);
 
-	if (hw_off_limits(sc)) {
+	if (!hw_all_ok(sc)) {
 		rc = ENXIO;
 		goto done;
 	}
@@ -602,7 +602,7 @@ get_filter_hits(struct adapter *sc, uint32_t tid)
 	tcb_addr = t4_read_reg(sc, A_TP_CMM_TCB_BASE) + tid * TCB_SIZE;
 
 	mtx_lock(&sc->reg_lock);
-	if (hw_off_limits(sc))
+	if (!hw_all_ok(sc))
 		hits = 0;
 	else if (is_t4(sc)) {
 		uint64_t t;
@@ -976,7 +976,7 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	if (rc)
 		return (rc);
 
-	if (hw_off_limits(sc)) {
+	if (!hw_all_ok(sc)) {
 		rc = ENXIO;
 		goto done;
 	}
