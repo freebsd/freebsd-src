@@ -172,6 +172,8 @@ ctime_to_unixtime()
 
 zero_one_body()
 {
+	pft_init
+
 	epair_send=$(vnet_mkepair)
 	ifconfig ${epair_send}a 192.0.2.1/24 up
 	ifconfig ${epair_send}a inet alias 192.0.2.3/24
@@ -243,6 +245,8 @@ reset_nonzero_head()
 
 reset_nonzero_body()
 {
+	pft_init
+
 	epair_send=$(vnet_mkepair)
 	ifconfig ${epair_send}a 192.0.2.1/24 up
 	ifconfig ${epair_send}a inet alias 192.0.2.3/24

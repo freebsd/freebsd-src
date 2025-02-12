@@ -165,11 +165,6 @@ v6_route_to_head()
 v6_route_to_body()
 {
 	pft_init
-}
-
-v6_route_to_cleanup()
-{
-	pft_cleanup
 
 	epair_send=$(vnet_mkepair)
 	epair_link=$(vnet_mkepair)
@@ -222,6 +217,11 @@ v6_route_to_cleanup()
 
 	atf_check -s exit:0 -o ignore\
 		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+}
+
+v6_route_to_cleanup()
+{
+	pft_cleanup
 }
 
 atf_test_case "mtu_diff" "cleanup"
