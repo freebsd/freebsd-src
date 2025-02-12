@@ -162,11 +162,11 @@ pidfile:	PIDFILE STR
 
 isns_server:	ISNS_SERVER STR
 	{
-		int error;
+		bool ok;
 
-		error = isns_new(conf, $2);
+		ok = isns_new(conf, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -246,11 +246,11 @@ auth_group_entry:
 
 auth_group_auth_type:	AUTH_TYPE STR
 	{
-		int error;
+		bool ok;
 
-		error = auth_group_set_type(auth_group, $2);
+		ok = auth_group_set_type(auth_group, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -382,11 +382,11 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 
 portal_group_discovery_filter:	DISCOVERY_FILTER STR
 	{
-		int error;
+		bool ok;
 
-		error = portal_group_set_filter(portal_group, $2);
+		ok = portal_group_set_filter(portal_group, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -394,39 +394,39 @@ portal_group_discovery_filter:	DISCOVERY_FILTER STR
 portal_group_foreign:	FOREIGN
 	{
 
-		portal_group->pg_foreign = 1;
+		portal_group->pg_foreign = true;
 	}
 	;
 
 portal_group_listen:	LISTEN STR
 	{
-		int error;
+		bool ok;
 
-		error = portal_group_add_listen(portal_group, $2, false);
+		ok = portal_group_add_listen(portal_group, $2, false);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
 
 portal_group_listen_iser:	LISTEN_ISER STR
 	{
-		int error;
+		bool ok;
 
-		error = portal_group_add_listen(portal_group, $2, true);
+		ok = portal_group_add_listen(portal_group, $2, true);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
 
 portal_group_offload:	OFFLOAD STR
 	{
-		int error;
+		bool ok;
 
-		error = portal_group_set_offload(portal_group, $2);
+		ok = portal_group_set_offload(portal_group, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -445,11 +445,11 @@ portal_group_option:	OPTION STR STR
 
 portal_group_redirect:	REDIRECT STR
 	{
-		int error;
+		bool ok;
 
-		error = portal_group_set_redirection(portal_group, $2);
+		ok = portal_group_set_redirection(portal_group, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -630,7 +630,7 @@ target_auth_group:	AUTH_GROUP STR
 
 target_auth_type:	AUTH_TYPE STR
 	{
-		int error;
+		bool ok;
 
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL) {
@@ -647,9 +647,9 @@ target_auth_type:	AUTH_TYPE STR
 			}
 			target->t_auth_group->ag_target = target;
 		}
-		error = auth_group_set_type(target->t_auth_group, $2);
+		ok = auth_group_set_type(target->t_auth_group, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -841,11 +841,11 @@ target_port:	PORT STR
 
 target_redirect:	REDIRECT STR
 	{
-		int error;
+		bool ok;
 
-		error = target_set_redirection(target, $2);
+		ok = target_set_redirection(target, $2);
 		free($2);
-		if (error != 0)
+		if (!ok)
 			return (1);
 	}
 	;
@@ -1101,7 +1101,7 @@ yyerror(const char *str)
 	    lineno, yytext, str);
 }
 
-int
+bool
 parse_conf(struct conf *newconf, const char *path)
 {
 	int error;
@@ -1110,7 +1110,7 @@ parse_conf(struct conf *newconf, const char *path)
 	yyin = fopen(path, "r");
 	if (yyin == NULL) {
 		log_warn("unable to open configuration file %s", path);
-		return (1);
+		return (false);
 	}
 
 	lineno = 1;
@@ -1122,5 +1122,5 @@ parse_conf(struct conf *newconf, const char *path)
 	lun = NULL;
 	fclose(yyin);
 
-	return (error);
+	return (error == 0);
 }

@@ -116,7 +116,7 @@ struct portal_group {
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
-	int				pg_foreign;
+	bool				pg_foreign;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
@@ -150,7 +150,7 @@ struct port {
 	struct pport			*p_pport;
 	struct target			*p_target;
 
-	int				p_ioctl_port;
+	bool				p_ioctl_port;
 	int				p_ioctl_pp;
 	int				p_ioctl_vp;
 	uint32_t			p_ctl_port;
@@ -247,19 +247,19 @@ struct ctld_connection {
 
 extern int ctl_fd;
 
-int			parse_conf(struct conf *newconf, const char *path);
-int			uclparse_conf(struct conf *conf, const char *path);
+bool			parse_conf(struct conf *newconf, const char *path);
+bool			uclparse_conf(struct conf *conf, const char *path);
 
 struct conf		*conf_new(void);
 struct conf		*conf_new_from_kernel(struct kports *kports);
 void			conf_delete(struct conf *conf);
-int			conf_verify(struct conf *conf);
+bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-int			auth_group_set_type(struct auth_group *ag,
+bool			auth_group_set_type(struct auth_group *ag,
 			    const char *type);
 
 const struct auth	*auth_new_chap(struct auth_group *ag,
@@ -275,7 +275,7 @@ const struct auth_name	*auth_name_new(struct auth_group *ag,
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
-int			auth_name_check(const struct auth_group *ag,
+bool			auth_name_check(const struct auth_group *ag,
 			    const char *initiator_name);
 
 const struct auth_portal	*auth_portal_new(struct auth_group *ag,
@@ -283,23 +283,23 @@ const struct auth_portal	*auth_portal_new(struct auth_group *ag,
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
-int				auth_portal_check(const struct auth_group *ag,
+bool				auth_portal_check(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
 struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
-int			portal_group_add_listen(struct portal_group *pg,
+bool			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
-int			portal_group_set_filter(struct portal_group *pg,
+bool			portal_group_set_filter(struct portal_group *pg,
 			    const char *filter);
-int			portal_group_set_offload(struct portal_group *pg,
+bool			portal_group_set_offload(struct portal_group *pg,
 			    const char *offload);
-int			portal_group_set_redirection(struct portal_group *pg,
+bool			portal_group_set_redirection(struct portal_group *pg,
 			    const char *addr);
 
-int			isns_new(struct conf *conf, const char *addr);
+bool			isns_new(struct conf *conf, const char *addr);
 void			isns_delete(struct isns *is);
 void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
@@ -323,13 +323,13 @@ struct port		*port_find(const struct conf *conf, const char *name);
 struct port		*port_find_in_pg(const struct portal_group *pg,
 			    const char *target);
 void			port_delete(struct port *port);
-int			port_is_dummy(struct port *port);
+bool			port_is_dummy(struct port *port);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
-int			target_set_redirection(struct target *target,
+bool			target_set_redirection(struct target *target,
 			    const char *addr);
 
 struct lun		*lun_new(struct conf *conf, const char *name);

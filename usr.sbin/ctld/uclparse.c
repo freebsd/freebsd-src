@@ -247,7 +247,6 @@ uclparse_toplevel(const ucl_object_t *top)
 {
 	ucl_object_iter_t it = NULL, iter = NULL;
 	const ucl_object_t *obj = NULL, *child = NULL;
-	int err = 0;
 
 	/* Pass 1 - everything except targets */
 	while ((obj = ucl_iterate_object(top, &it, true))) {
@@ -298,11 +297,9 @@ uclparse_toplevel(const ucl_object_t *top)
 					if (child->type != UCL_STRING)
 						return (false);
 
-					err = isns_new(conf,
-					    ucl_object_tostring(child));
-					if (err != 0) {
+					if (!isns_new(conf,
+					    ucl_object_tostring(child)))
 						return (false);
-					}
 				}
 			} else {
 				log_warnx("\"isns-server\" property value is "
@@ -398,7 +395,6 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 	ucl_object_iter_t it = NULL, it2 = NULL;
 	const ucl_object_t *obj = NULL, *tmp = NULL;
 	const char *key;
-	int err;
 
 	if (!strcmp(name, "default") &&
 	    conf->conf_default_ag_defined == false) {
@@ -417,8 +413,7 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 		if (!strcmp(key, "auth-type")) {
 			const char *value = ucl_object_tostring(obj);
 
-			err = auth_group_set_type(auth_group, value);
-			if (err)
+			if (!auth_group_set_type(auth_group, value))
 				return (false);
 		}
 
@@ -621,23 +616,23 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				return (false);
 			}
 
-			if (portal_group_set_filter(portal_group,
-			    ucl_object_tostring(obj)) != 0)
+			if (!portal_group_set_filter(portal_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
 		if (!strcmp(key, "listen")) {
 			if (obj->type == UCL_STRING) {
-				if (portal_group_add_listen(portal_group,
-				    ucl_object_tostring(obj), false) != 0)
+				if (!portal_group_add_listen(portal_group,
+				    ucl_object_tostring(obj), false))
 					return (false);
 			} else if (obj->type == UCL_ARRAY) {
 				while ((tmp = ucl_iterate_object(obj, &it2,
 				    true))) {
-					if (portal_group_add_listen(
+					if (!portal_group_add_listen(
 					    portal_group,
 					    ucl_object_tostring(tmp),
-					    false) != 0)
+					    false))
 						return (false);
 				}
 			} else {
@@ -650,16 +645,16 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 
 		if (!strcmp(key, "listen-iser")) {
 			if (obj->type == UCL_STRING) {
-				if (portal_group_add_listen(portal_group,
-				    ucl_object_tostring(obj), true) != 0)
+				if (!portal_group_add_listen(portal_group,
+				    ucl_object_tostring(obj), true))
 					return (false);
 			} else if (obj->type == UCL_ARRAY) {
 				while ((tmp = ucl_iterate_object(obj, &it2,
 				    true))) {
-					if (portal_group_add_listen(
+					if (!portal_group_add_listen(
 					    portal_group,
 					    ucl_object_tostring(tmp),
-					    true) != 0)
+					    true))
 						return (false);
 				}
 			} else {
@@ -678,8 +673,8 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				return (false);
 			}
 
-			if (portal_group_set_redirection(portal_group,
-			    ucl_object_tostring(obj)) != 0)
+			if (!portal_group_set_redirection(portal_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
@@ -767,8 +762,6 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (!strcmp(key, "auth-type")) {
-			int error;
-
 			if (target->t_auth_group != NULL) {
 				if (target->t_auth_group->ag_name != NULL) {
 					log_warnx("cannot use both auth-group and "
@@ -783,9 +776,8 @@ uclparse_target(const char *name, const ucl_object_t *top)
 
 				target->t_auth_group->ag_target = target;
 			}
-			error = auth_group_set_type(target->t_auth_group,
-			    ucl_object_tostring(obj));
-			if (error != 0)
+			if (!auth_group_set_type(target->t_auth_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
@@ -889,8 +881,8 @@ uclparse_target(const char *name, const ucl_object_t *top)
 				return (false);
 			}
 
-			if (target_set_redirection(target,
-			    ucl_object_tostring(obj)) != 0)
+			if (!target_set_redirection(target,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
@@ -1001,7 +993,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 	return (true);
 }
 
-int
+bool
 uclparse_conf(struct conf *newconf, const char *path)
 {
 	struct ucl_parser *parser;
@@ -1015,7 +1007,7 @@ uclparse_conf(struct conf *newconf, const char *path)
 		log_warn("unable to parse configuration file %s: %s", path,
 		    ucl_parser_get_error(parser));
 		ucl_parser_free(parser);
-		return (1);
+		return (false);
 	}
 
 	top = ucl_parser_get_object(parser);
@@ -1023,5 +1015,5 @@ uclparse_conf(struct conf *newconf, const char *path)
 	ucl_object_unref(top);
 	ucl_parser_free(parser);
 
-	return (parsed ? 0 : 1);
+	return (parsed);
 }

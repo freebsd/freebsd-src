@@ -164,14 +164,14 @@ discovery_target_filtered_out(const struct ctld_connection *conn,
 	assert(pg->pg_discovery_filter != PG_FILTER_UNKNOWN);
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
-	    auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
+	    !auth_portal_check(ag, &conn->conn_initiator_sa)) {
 		log_debugx("initiator does not match initiator portals "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
 	}
 
 	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME &&
-	    auth_name_check(ag, conn->conn_initiator_name) != 0) {
+	    !auth_name_check(ag, conn->conn_initiator_name)) {
 		log_debugx("initiator does not match initiator names "
 		    "allowed for target \"%s\"; skipping", targ->t_name);
 		return (true);
