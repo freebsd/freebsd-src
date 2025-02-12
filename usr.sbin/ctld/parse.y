@@ -116,6 +116,7 @@ debug:		DEBUG STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		conf->conf_debug = tmp;
 	}
@@ -130,6 +131,7 @@ timeout:	TIMEOUT STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		conf->conf_timeout = tmp;
 	}
@@ -144,6 +146,7 @@ maxproc:	MAXPROC STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		conf->conf_maxproc = tmp;
 	}
@@ -180,6 +183,7 @@ isns_period:	ISNS_PERIOD STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		conf->conf_isns_period = tmp;
 	}
@@ -194,6 +198,7 @@ isns_timeout:	ISNS_TIMEOUT STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		conf->conf_isns_timeout = tmp;
 	}
@@ -366,6 +371,7 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 			log_warnx("discovery-auth-group for portal-group "
 			    "\"%s\" specified more than once",
 			    portal_group->pg_name);
+			free($2);
 			return (1);
 		}
 		portal_group->pg_discovery_auth_group =
@@ -374,6 +380,7 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 			log_warnx("unknown discovery-auth-group \"%s\" "
 			    "for portal-group \"%s\"",
 			    $2, portal_group->pg_name);
+			free($2);
 			return (1);
 		}
 		free($2);
@@ -463,6 +470,7 @@ portal_group_tag:	TAG STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		portal_group->pg_tag = tmp;
 	}
@@ -480,6 +488,7 @@ portal_group_dscp
 			free($2);
 			return(1);
 		}
+		free($2);
 		if (tmp >= 0x40) {
 			yyerror("invalid dscp value");
 			return(1);
@@ -520,9 +529,9 @@ portal_group_pcp:	PCP STR
 			free($2);
 			return (1);
 		}
+		free($2);
 		if (tmp > 7) {
 			yyerror("invalid pcp value");
-			free($2);
 			return (1);
 		}
 
@@ -600,6 +609,7 @@ target_alias:	ALIAS STR
 		if (target->t_alias != NULL) {
 			log_warnx("alias for target \"%s\" "
 			    "specified more than once", target->t_name);
+			free($2);
 			return (1);
 		}
 		target->t_alias = $2;
@@ -616,12 +626,14 @@ target_auth_group:	AUTH_GROUP STR
 				log_warnx("cannot use both auth-group and explicit "
 				    "authorisations for target \"%s\"",
 				    target->t_name);
+			free($2);
 			return (1);
 		}
 		target->t_auth_group = auth_group_find(conf, $2);
 		if (target->t_auth_group == NULL) {
 			log_warnx("unknown auth-group \"%s\" for target "
 			    "\"%s\"", $2, target->t_name);
+			free($2);
 			return (1);
 		}
 		free($2);
@@ -637,6 +649,7 @@ target_auth_type:	AUTH_TYPE STR
 				log_warnx("cannot use both auth-group and "
 				    "auth-type for target \"%s\"",
 				    target->t_name);
+				free($2);
 				return (1);
 			}
 		} else {
@@ -789,24 +802,22 @@ target_portal_group:	PORTAL_GROUP STR STR
 			free($3);
 			return (1);
 		}
+		free($2);
 		tag = auth_group_find(conf, $3);
 		if (tag == NULL) {
 			log_warnx("unknown auth-group \"%s\" for target "
 			    "\"%s\"", $3, target->t_name);
-			free($2);
 			free($3);
 			return (1);
 		}
+		free($3);
 		tp = port_new(conf, target, tpg);
 		if (tp == NULL) {
 			log_warnx("can't link portal-group \"%s\" to target "
-			    "\"%s\"", $2, target->t_name);
-			free($2);
+			    "\"%s\"", tpg->pg_name, target->t_name);
 			return (1);
 		}
 		tp->p_auth_group = tag;
-		free($2);
-		free($3);
 	}
 	|		PORTAL_GROUP STR
 	{
@@ -820,14 +831,13 @@ target_portal_group:	PORTAL_GROUP STR STR
 			free($2);
 			return (1);
 		}
+		free($2);
 		tp = port_new(conf, target, tpg);
 		if (tp == NULL) {
 			log_warnx("can't link portal-group \"%s\" to target "
-			    "\"%s\"", $2, target->t_name);
-			free($2);
+			    "\"%s\"", tpg->pg_name, target->t_name);
 			return (1);
 		}
-		free($2);
 	}
 	;
 
@@ -868,9 +878,9 @@ lun_number:	STR
 			free($1);
 			return (1);
 		}
+		free($1);
 		if (tmp >= MAX_LUNS) {
 			yyerror("LU number is too big");
-			free($1);
 			return (1);
 		}
 
@@ -962,6 +972,7 @@ lun_blocksize:	BLOCKSIZE STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		if (lun->l_blocksize != 0) {
 			log_warnx("blocksize for lun \"%s\" "
@@ -1007,6 +1018,7 @@ lun_device_type:	DEVICE_TYPE STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		lun_set_device_type(lun, tmp);
 	}
@@ -1021,6 +1033,7 @@ lun_ctl_lun:	CTL_LUN STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		if (lun->l_ctl_lun >= 0) {
 			log_warnx("ctl_lun for lun \"%s\" "
@@ -1081,6 +1094,7 @@ lun_size:	SIZE STR
 			free($2);
 			return (1);
 		}
+		free($2);
 
 		if (lun->l_size != 0) {
 			log_warnx("size for lun \"%s\" "
