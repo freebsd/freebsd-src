@@ -310,7 +310,7 @@ uclparse_toplevel(const ucl_object_t *top)
 
 		if (!strcmp(key, "isns-period")) {
 			if (obj->type == UCL_INT)
-				conf->conf_timeout = ucl_object_toint(obj);
+				conf->conf_isns_period = ucl_object_toint(obj);
 			else {
 				log_warnx("\"isns-period\" property value is not integer");
 				return (false);
@@ -319,7 +319,7 @@ uclparse_toplevel(const ucl_object_t *top)
 
 		if (!strcmp(key, "isns-timeout")) {
 			if (obj->type == UCL_INT)
-				conf->conf_timeout = ucl_object_toint(obj);
+				conf->conf_isns_timeout = ucl_object_toint(obj);
 			else {
 				log_warnx("\"isns-timeout\" property value is not integer");
 				return (false);
