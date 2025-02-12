@@ -41,7 +41,8 @@
 
 static struct ice_vf *ice_iov_get_vf(struct ice_softc *sc, int vf_num);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
-static void ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf);
+static void ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
+			 bool trigger_vflr);
 static void ice_iov_setup_intr_mapping(struct ice_softc *sc, struct ice_vf *vf);
 
 static void ice_vc_version_msg(struct ice_softc *sc, struct ice_vf *vf,
@@ -462,6 +463,31 @@ ice_iov_uninit(struct ice_softc *sc)
 }
 
 /**
+ * ice_iov_handle_vflr - Process VFLR event
+ * @sc: device softc structure
+ *
+ * Identifys which VFs have been reset and re-configure
+ * them.
+ */
+void
+ice_iov_handle_vflr(struct ice_softc *sc)
+{
+	struct ice_hw *hw = &sc->hw;
+	struct ice_vf *vf;
+	u32 reg, reg_idx, bit_idx;
+
+	for (int i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+
+		reg_idx = (hw->func_caps.vf_base_id + vf->vf_num) / 32;
+		bit_idx = (hw->func_caps.vf_base_id + vf->vf_num) % 32;
+		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
+		if (reg & BIT(bit_idx))
+			ice_reset_vf(sc, vf, false);
+	}
+}
+
+/**
  * ice_iov_ready_vf - Setup VF interrupts and mark it as ready
  * @sc: device softc structure
  * @vf: driver's VF structure for the VF to update
@@ -494,6 +520,7 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
  * ice_reset_vf - Perform a hardware reset (VFR) on a VF
  * @sc: device softc structure
  * @vf: driver's VF structure for VF to be reset
+ * @trigger_vflr: trigger a reset or only handle already executed reset
  *
  * Performs a VFR for the given VF. This function busy waits until the
  * reset completes in the HW, notifies the VF that the reset is done
@@ -504,7 +531,7 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
  * ice_iov_setup_intr_mapping()
  */
 static void
-ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf)
+ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 {
 	u16 global_vf_num, reg_idx, bit_idx;
 	struct ice_hw *hw = &sc->hw;
@@ -514,9 +541,11 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf)
 
 	global_vf_num = vf->vf_num + hw->func_caps.vf_base_id;
 
-	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
-	reg |= VPGEN_VFRTRIG_VFSWR_M;
-	wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
+	if (trigger_vflr) {
+		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
+		reg |= VPGEN_VFRTRIG_VFSWR_M;
+		wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
+	}
 
 	/* clear the VFLR bit for the VF in a GLGEN_VFLRSTAT register */
 	reg_idx = (global_vf_num) / 32;
@@ -1581,7 +1610,7 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 		ice_vc_version_msg(sc, vf, msg);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
-		ice_reset_vf(sc, vf);
+		ice_reset_vf(sc, vf, true);
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		ice_vc_get_vf_res_msg(sc, vf, msg);

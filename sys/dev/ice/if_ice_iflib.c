@@ -1712,6 +1712,11 @@ ice_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	/* For future interrupt assignments */
 	sc->last_rid = rid + sc->irdma_vectors;
 
+#ifdef PCI_IOV
+	/* Create soft IRQ for handling VF resets */
+	iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_IOV, sc, 0, "iov");
+#endif
+
 	return (0);
 fail:
 	for (; i >= 0; i--, vector--)
@@ -2455,6 +2460,15 @@ ice_if_update_admin_status(if_ctx_t ctx)
 
 	/* Check and update link status */
 	ice_update_link_status(sc, false);
+
+#ifdef PCI_IOV
+	/*
+	 * Schedule VFs' reset handler after global resets
+	 * and other events were processed.
+	 */
+	if (ice_testandclear_state(&sc->state, ICE_STATE_VFLR_PENDING))
+		iflib_iov_intr_deferred(ctx);
+#endif
 
 	/*
 	 * If there are still messages to process, we need to reschedule
@@ -3457,12 +3471,13 @@ ice_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
  * Performs the necessar teardown or setup required for a VF after
  * a VFLR is initiated.
  *
- * @remark This is unimplemented
+ * @remark This is a wrapper for ice_iov_handle_vflr
  */
 static void
-ice_if_vflr_handle(if_ctx_t ctx __unused)
+ice_if_vflr_handle(if_ctx_t ctx)
 {
-	return;
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+	ice_iov_handle_vflr(sc);
 }
 #endif /* PCI_IOV */
 
