@@ -4384,7 +4384,7 @@ mtw_mcu_radio(struct mtw_softc *sc, int func, uint32_t val)
 	cmd.r2 = htole32(val);
 	cmd.r3 = 0;
 	cmd.r4 = 0;
-	return (mtw_mcu_cmd(sc, 8, &val, sizeof(struct mtw_mcu_cmd_16)));
+	return (mtw_mcu_cmd(sc, 8, &cmd, sizeof(struct mtw_mcu_cmd_16)));
 }
 static void
 mtw_init_locked(struct mtw_softc *sc)
