@@ -47,6 +47,8 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
+#include <crypto/siphash/siphash.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
@@ -82,19 +84,6 @@ static int		 pf_get_sport(struct pf_pdesc *, struct pf_krule *,
 			    pf_sn_types_t);
 static bool		 pf_islinklocal(const sa_family_t, const struct pf_addr *);
 
-#define mix(a,b,c) \
-	do {					\
-		a -= b; a -= c; a ^= (c >> 13);	\
-		b -= c; b -= a; b ^= (a << 8);	\
-		c -= a; c -= b; c ^= (b >> 13);	\
-		a -= b; a -= c; a ^= (c >> 12);	\
-		b -= c; b -= a; b ^= (a << 16);	\
-		c -= a; c -= b; c ^= (b >> 5);	\
-		a -= b; a -= c; a ^= (c >> 3);	\
-		b -= c; b -= a; b ^= (a << 10);	\
-		c -= a; c -= b; c ^= (b >> 15);	\
-	} while (0)
-
 /*
  * hash function based on bridge_hash in if_bridge.c
  */
@@ -102,38 +91,35 @@ static void
 pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
     struct pf_poolhashkey *key, sa_family_t af)
 {
-	u_int32_t	a = 0x9e3779b9, b = 0x9e3779b9, c = key->key32[0];
+	SIPHASH_CTX	 ctx;
+#ifdef INET6
+	union {
+		uint64_t hash64;
+		uint32_t hash32[2];
+	} h;
+#endif
+
+	_Static_assert(sizeof(*key) >= SIPHASH_KEY_LENGTH, "");
 
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-		a += inaddr->addr32[0];
-		b += key->key32[1];
-		mix(a, b, c);
-		hash->addr32[0] = c + key->key32[2];
+		hash->addr32[0] = SipHash24(&ctx, (const uint8_t *)key,
+		    &inaddr->addr32[0], sizeof(inaddr->addr32[0]));
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		a += inaddr->addr32[0];
-		b += inaddr->addr32[2];
-		mix(a, b, c);
-		hash->addr32[0] = c;
-		a += inaddr->addr32[1];
-		b += inaddr->addr32[3];
-		c += key->key32[1];
-		mix(a, b, c);
-		hash->addr32[1] = c;
-		a += inaddr->addr32[2];
-		b += inaddr->addr32[1];
-		c += key->key32[2];
-		mix(a, b, c);
-		hash->addr32[2] = c;
-		a += inaddr->addr32[3];
-		b += inaddr->addr32[0];
-		c += key->key32[3];
-		mix(a, b, c);
-		hash->addr32[3] = c;
+		h.hash64 = SipHash24(&ctx, (const uint8_t *)key,
+		    &inaddr->addr32[0], 4 * sizeof(inaddr->addr32[0]));
+		hash->addr32[0] = h.hash32[0];
+		hash->addr32[1] = h.hash32[1];
+		/*
+		 * siphash isn't big enough, but flipping it around is
+		 * good enough here.
+		 */
+		hash->addr32[2] = ~h.hash32[1];
+		hash->addr32[3] = ~h.hash32[0];
 		break;
 #endif /* INET6 */
 	}
