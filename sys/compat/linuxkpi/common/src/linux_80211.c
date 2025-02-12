@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2024 The FreeBSD Foundation
- * Copyright (c) 2020-2024 Bjoern A. Zeeb
+ * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -3267,7 +3267,6 @@ sw_scan:
 		/* XXX want to adjust ss end time/ maxdwell? */
 
 	} else {
-		struct ieee80211_channel *c;
 		struct ieee80211_scan_request *hw_req;
 		struct linuxkpi_ieee80211_channel *lc, **cpp;
 		struct cfg80211_ssid *ssids;
@@ -3284,14 +3283,31 @@ sw_scan:
 
 		band_mask = 0;
 		nchan = 0;
-		for (i = ss->ss_next; i < ss->ss_last; i++) {
-			nchan++;
-			band = lkpi_net80211_chan_to_nl80211_band(
-			    ss->ss_chans[ss->ss_next + i]);
-			band_mask |= (1 << band);
-		}
-
-		if (!ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS)) {
+		if (ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS)) {
+#if 0	/* Avoid net80211 scan lists until it has proper scan offload support. */
+			for (i = ss->ss_next; i < ss->ss_last; i++) {
+				nchan++;
+				band = lkpi_net80211_chan_to_nl80211_band(
+				    ss->ss_chans[ss->ss_next + i]);
+				band_mask |= (1 << band);
+			}
+#else
+			/* Instead we scan for all channels all the time. */
+			for (band = 0; band < NUM_NL80211_BANDS; band++) {
+				switch (band) {
+				case NL80211_BAND_2GHZ:
+				case NL80211_BAND_5GHZ:
+					break;
+				default:
+					continue;
+				}
+				if (hw->wiphy->bands[band] != NULL) {
+					nchan += hw->wiphy->bands[band]->n_channels;
+					band_mask |= (1 << band);
+				}
+			}
+#endif
+		} else {
 			IMPROVE("individual band scans not yet supported, only scanning first band");
 			/* In theory net80211 should drive this. */
 			/* Probably we need to add local logic for now;
@@ -3345,9 +3361,11 @@ sw_scan:
 			*(cpp + i) =
 			    (struct linuxkpi_ieee80211_channel *)(lc + i);
 		}
+#if 0	/* Avoid net80211 scan lists until it has proper scan offload support. */
 		for (i = 0; i < nchan; i++) {
-			c = ss->ss_chans[ss->ss_next + i];
+			struct ieee80211_channel *c;
 
+			c = ss->ss_chans[ss->ss_next + i];
 			lc->hw_value = c->ic_ieee;
 			lc->center_freq = c->ic_freq;	/* XXX */
 			/* lc->flags */
@@ -3356,6 +3374,27 @@ sw_scan:
 			/* lc-> ... */
 			lc++;
 		}
+#else
+		for (band = 0; band < NUM_NL80211_BANDS; band++) {
+			struct ieee80211_supported_band *supband;
+			struct linuxkpi_ieee80211_channel *channels;
+
+			/* Band disabled for scanning? */
+			if ((band_mask & (1 << band)) == 0)
+				continue;
+
+			/* Nothing to scan in band? */
+			supband = hw->wiphy->bands[band];
+			if (supband == NULL || supband->n_channels == 0)
+				continue;
+
+			channels = supband->channels;
+			for (i = 0; i < supband->n_channels; i++) {
+				*lc = channels[i];
+				lc++;
+			}
+		}
+#endif
 
 		hw_req->req.n_ssids = ssid_count;
 		if (hw_req->req.n_ssids > 0) {
