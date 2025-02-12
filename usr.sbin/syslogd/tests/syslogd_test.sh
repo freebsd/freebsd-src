@@ -323,7 +323,7 @@ jail_noinet_body()
 {
     local logfile
 
-    atf_check jail -c name=syslogd_noinet persist
+    syslogd_mkjail syslogd_noinet
 
     logfile="${PWD}/jail_noinet.log"
     printf "user.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
@@ -335,7 +335,7 @@ jail_noinet_body()
 }
 jail_noinet_cleanup()
 {
-    jail -r syslogd_noinet
+    syslogd_cleanup
 }
 
 # Create a pair of jails, connected by an epair.  The idea is to run syslogd in
@@ -344,10 +344,12 @@ jail_noinet_cleanup()
 # 169.254.0.2 or 169.254.0.3.
 allowed_peer_test_setup()
 {
+    syslogd_check_req epair
+
     local epair
 
-    atf_check jail -c name=syslogd_allowed_peer vnet persist
-    atf_check jail -c name=syslogd_client vnet persist
+    syslogd_mkjail syslogd_allowed_peer vnet
+    syslogd_mkjail syslogd_client vnet
 
     atf_check -o save:epair ifconfig epair create
     epair=$(cat epair)
@@ -364,9 +366,7 @@ allowed_peer_test_setup()
 
 allowed_peer_test_cleanup()
 {
-    jail -r syslogd_allowed_peer
-    jail -r syslogd_client
-    ifconfig $(cat epair) destroy
+    syslogd_cleanup
 }
 
 atf_test_case allowed_peer "cleanup"
@@ -499,19 +499,21 @@ forward_head()
 }
 forward_body()
 {
+    syslogd_check_req epair
+
     local epair logfile
 
     atf_check -o save:epair ifconfig epair create
     epair=$(cat epair)
     epair=${epair%%a}
 
-    atf_check jail -c name=syslogd_server vnet persist
+    syslogd_mkjail syslogd_server vnet
     atf_check ifconfig ${epair}a vnet syslogd_server
     atf_check jexec syslogd_server ifconfig ${epair}a inet 169.254.0.1/16
     atf_check jexec syslogd_server ifconfig ${epair}a alias 169.254.0.2/16
     atf_check jexec syslogd_server ifconfig lo0 inet 127.0.0.1/8
 
-    atf_check jail -c name=syslogd_client vnet persist
+    syslogd_mkjail syslogd_client vnet
     atf_check ifconfig ${epair}b vnet syslogd_client
     atf_check jexec syslogd_client ifconfig ${epair}b inet 169.254.0.3/16
     atf_check jexec syslogd_client ifconfig lo0 inet 127.0.0.1/8
@@ -545,8 +547,7 @@ __EOF__
 }
 forward_cleanup()
 {
-    jail -r syslogd_server
-    jail -r syslogd_client
+    syslogd_cleanup
 }
 
 atf_init_test_cases()

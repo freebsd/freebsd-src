@@ -115,3 +115,46 @@ syslogd_stop()
         rm -f "${pid_file}" "${socket_file}" "${privsocket_file}"
     fi
 }
+
+# Check required kernel module.
+syslogd_check_req()
+{
+    type=$1
+
+    if kldstat -q -n if_${type}.ko; then
+        return
+    fi
+
+    if ! kldload -n -q if_${type}; then
+        atf_skip "if_${type}.ko is required to run this test."
+        return
+    fi
+}
+
+# Make a jail and save its name to the created_jails.lst file.
+# Accepts a name and optional arguments.
+syslogd_mkjail()
+{
+    jailname=$1
+    shift
+    args=$*
+
+    atf_check jail -c name=${jailname} ${args} persist
+
+    echo $jailname >> created_jails.lst
+}
+
+# Remove epair interfaces and jails.
+syslogd_cleanup()
+{
+    if [ -f created_jails.lst ]; then
+        while read jailname; do
+            jail -r ${jailname}
+        done < created_jails.lst
+        rm created_jails.lst
+    fi
+
+    if [ -f epair ]; then
+        ifconfig $(cat epair) destroy
+    fi
+}
