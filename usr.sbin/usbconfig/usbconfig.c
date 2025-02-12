@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -91,6 +92,7 @@ struct options {
 	uint8_t	got_dump_string:1;
 	uint8_t	got_do_request:1;
 	uint8_t	got_detach_kernel_driver:1;
+	uint8_t opt_dump_in_list_mode:1;
 };
 
 struct token {
@@ -504,11 +506,13 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 
 		if (opt->got_list || dump_any) {
 			dump_device_info(pdev,
-			    opt->got_show_iface_driver);
+			    opt->got_show_iface_driver,
+			    opt->opt_dump_in_list_mode && opt->got_dump_device_desc);
 		}
 		if (opt->got_dump_device_desc) {
-			printf("\n");
-			dump_device_desc(pdev);
+			if (!opt->opt_dump_in_list_mode)
+				printf("\n");
+			dump_device_desc(pdev, opt->opt_dump_in_list_mode);
 		}
 		if (opt->got_dump_all_config) {
 			printf("\n");
@@ -518,14 +522,14 @@ flush_command(struct libusb20_backend *pbe, struct options *opt)
 			dump_config(pdev, 0);
 		} else if (opt->got_dump_all_desc) {
 			printf("\n");
-			dump_device_desc(pdev);
+			dump_device_desc(pdev, false);
 			dump_config(pdev, 1);
 		}
 		if (opt->got_dump_stats) {
 			printf("\n");
 			dump_device_stats(pdev);
 		}
-		if (dump_any) {
+		if (dump_any && !opt->opt_dump_in_list_mode) {
 			printf("\n");
 		}
 		if (libusb20_dev_close(pdev)) {
@@ -559,7 +563,7 @@ main(int argc, char **argv)
 	if (pbe == NULL)
 		err(1, "could not access USB backend\n");
 
-	while ((ch = getopt(argc, argv, "a:d:hi:u:v")) != -1) {
+	while ((ch = getopt(argc, argv, "a:d:hi:lu:v")) != -1) {
 		switch (ch) {
 		case 'a':
 			opt->addr = num_id(optarg, "addr");
@@ -594,6 +598,10 @@ main(int argc, char **argv)
 
 		case 'i':
 			opt->iface = num_id(optarg, "iface");
+			break;
+
+		case 'l':
+			opt->opt_dump_in_list_mode = 1;
 			break;
 
 		case 'u':
