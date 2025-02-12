@@ -544,10 +544,6 @@ retry_port:
 			    port->port_id, name);
 			pp = pport_find(kports, name);
 			if (pp == NULL) {
-#if 0
-				log_debugx("found new kernel port %u \"%s\"",
-				    port->port_id, name);
-#endif
 				pp = pport_new(kports, name, port->port_id);
 				if (pp == NULL) {
 					log_warnx("pport_new failed");
@@ -564,10 +560,6 @@ retry_port:
 
 		targ = target_find(conf, port->cfiscsi_target);
 		if (targ == NULL) {
-#if 0
-			log_debugx("found new kernel target %s for CTL port %ld",
-			    port->cfiscsi_target, port->port_id);
-#endif
 			targ = target_new(conf, port->cfiscsi_target);
 			if (targ == NULL) {
 				log_warnx("target_new failed");
@@ -579,10 +571,6 @@ retry_port:
 			continue;
 		pg = portal_group_find(conf, port->ctld_portal_group_name);
 		if (pg == NULL) {
-#if 0
-			log_debugx("found new kernel portal group %s for CTL port %ld",
-			    port->ctld_portal_group_name, port->port_id);
-#endif
 			pg = portal_group_new(conf, port->ctld_portal_group_name);
 			if (pg == NULL) {
 				log_warnx("portal_group_new failed");
