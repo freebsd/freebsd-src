@@ -576,7 +576,7 @@ update_hw_clip_table(struct adapter *sc)
 	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4clip");
 	if (rc != 0)
 		return (rc);
-	if (hw_off_limits(sc))
+	if (!hw_all_ok(sc))
 		goto done;	/* with rc = 0, we don't want to reschedule. */
 	while (!TAILQ_EMPTY(&sc->clip_pending)) {
 		ce = TAILQ_FIRST(&sc->clip_pending);

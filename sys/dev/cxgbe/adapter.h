@@ -1118,7 +1118,7 @@ forwarding_intr_to_fwq(struct adapter *sc)
 	return (sc->intr_count == 1);
 }
 
-/* Works reliably inside a sync_op or with reg_lock held. */
+/* Works reliably inside a synch_op or with reg_lock held. */
 static inline bool
 hw_off_limits(struct adapter *sc)
 {
@@ -1127,12 +1127,14 @@ hw_off_limits(struct adapter *sc)
 	return (__predict_false(off_limits != 0));
 }
 
+/* Works reliably inside a synch_op or with reg_lock held. */
 static inline bool
-adapter_stopped(struct adapter *sc)
+hw_all_ok(struct adapter *sc)
 {
-	const int stopped = atomic_load_int(&sc->error_flags) & ADAP_STOPPED;
+	const int not_ok = atomic_load_int(&sc->error_flags) &
+	    (ADAP_STOPPED | HW_OFF_LIMITS);
 
-	return (__predict_false(stopped != 0));
+	return (__predict_true(not_ok == 0));
 }
 
 static inline int
