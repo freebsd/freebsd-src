@@ -108,6 +108,8 @@ int ice_iov_init(struct ice_softc *sc, uint16_t num_vfs, const nvlist_t *params)
 int ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params);
 void ice_iov_uninit(struct ice_softc *sc);
 
+void ice_iov_handle_vflr(struct ice_softc *sc);
+
 void ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event);
 void ice_vc_notify_all_vfs_link_state(struct ice_softc *sc);
 
