@@ -5067,16 +5067,16 @@ pf_tcp_iss(struct pf_pdesc *pd)
 
 	ctx = V_pf_tcp_secret_ctx;
 
-	SHA512_Update(&ctx, (char *)&pd->hdr.tcp.th_sport, sizeof(u_short));
-	SHA512_Update(&ctx, (char *)&pd->hdr.tcp.th_dport, sizeof(u_short));
+	SHA512_Update(&ctx, &pd->hdr.tcp.th_sport, sizeof(u_short));
+	SHA512_Update(&ctx, &pd->hdr.tcp.th_dport, sizeof(u_short));
 	switch (pd->af) {
 	case AF_INET6:
-		SHA512_Update(&ctx, (char *)&pd->src->v6, sizeof(struct in6_addr));
-		SHA512_Update(&ctx, (char *)&pd->dst->v6, sizeof(struct in6_addr));
+		SHA512_Update(&ctx, &pd->src->v6, sizeof(struct in6_addr));
+		SHA512_Update(&ctx, &pd->dst->v6, sizeof(struct in6_addr));
 		break;
 	case AF_INET:
-		SHA512_Update(&ctx, (char *)&pd->src->v4, sizeof(struct in_addr));
-		SHA512_Update(&ctx, (char *)&pd->dst->v4, sizeof(struct in_addr));
+		SHA512_Update(&ctx, &pd->src->v4, sizeof(struct in_addr));
+		SHA512_Update(&ctx, &pd->dst->v4, sizeof(struct in_addr));
 		break;
 	}
 	SHA512_Final(digest.bytes, &ctx);
