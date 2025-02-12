@@ -1242,7 +1242,7 @@ ice_vc_cfg_irq_map_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 	vvm = vimi->vecmap;
 	/* Save off information from message */
-	for (int i = 0; i < vimi->num_vectors - 1; i++, vvm++) {
+	for (int i = 0; i < vimi->num_vectors; i++, vvm++) {
 		struct ice_tx_queue *txq;
 		struct ice_rx_queue *rxq;
 		int bit;
@@ -1305,12 +1305,14 @@ ice_vc_cfg_irq_map_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 	/* Write to T/RQCTL registers to actually map vectors to queues */
 	for (int i = 0; i < vf->vsi->num_rx_queues; i++)
-		ice_configure_rxq_interrupt(hw, vsi->rx_qmap[i],
-		    vsi->rx_queues[i].irqv->me, vsi->rx_queues[i].itr_idx);
+		if (vsi->rx_queues[i].irqv != NULL)
+			ice_configure_rxq_interrupt(hw, vsi->rx_qmap[i],
+			    vsi->rx_queues[i].irqv->me, vsi->rx_queues[i].itr_idx);
 
 	for (int i = 0; i < vf->vsi->num_tx_queues; i++)
-		ice_configure_txq_interrupt(hw, vsi->tx_qmap[i],
-		    vsi->tx_queues[i].irqv->me, vsi->tx_queues[i].itr_idx);
+		if (vsi->tx_queues[i].irqv != NULL)
+			ice_configure_txq_interrupt(hw, vsi->tx_qmap[i],
+			    vsi->tx_queues[i].irqv->me, vsi->tx_queues[i].itr_idx);
 
 	ice_flush(hw);
 
