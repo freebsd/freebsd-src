@@ -73,6 +73,7 @@ uclparse_chap(struct auth_group *auth_group, const ucl_object_t *obj)
 	if (!secret || secret->type != UCL_STRING) {
 		log_warnx("chap section in auth-group \"%s\" is missing "
 		    "\"secret\" string key", auth_group->ag_name);
+		return (false);
 	}
 
 	ca = auth_new_chap(auth_group,
