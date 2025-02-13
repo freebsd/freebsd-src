@@ -52,6 +52,7 @@
 # done
 
 # 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_FILES+=usr/tests/sys/vm/stack/.debug/libsoxstack.so.debug
 OLD_DIRS+=usr/tests/sys/vm/stack/.debug
 
 # 20241201: new clang import which bumps version from 18 to 19
