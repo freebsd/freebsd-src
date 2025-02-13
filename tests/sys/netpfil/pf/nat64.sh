@@ -409,7 +409,7 @@ pool_cleanup()
 atf_test_case "table"
 table_head()
 {
-	atf_set descr 'Tables require round-robin'
+	atf_set descr 'Check table restrictions'
 	atf_set require.user root
 }
 
@@ -417,9 +417,18 @@ table_body()
 {
 	pft_init
 
-	echo "pass in on epair inet6 from any to 64:ff9b::/96 af-to inet from <wanaddr>" | \
+	# Round-robin and random are allowed
+	echo "pass in on epair inet6 from any to 64:ff9b::/96 af-to inet from <wanaddr> round-robin" | \
+	    atf_check -s exit:0 \
+	    pfctl -f -
+	echo "pass in on epair inet6 from any to 64:ff9b::/96 af-to inet from <wanaddr> random" | \
+	    atf_check -s exit:0 \
+	    pfctl -f -
+
+	# bitmask is not
+	echo "pass in on epair inet6 from any to 64:ff9b::/96 af-to inet from <wanaddr> bitmask" | \
 	    atf_check -s exit:1 \
-	    -e match:"tables are only supported in round-robin pools" \
+	    -e match:"tables are not supported by pool type" \
 	    pfctl -f -
 }
 
@@ -489,15 +498,11 @@ table_range_cleanup()
 	pft_cleanup
 }
 
-atf_test_case "table_round_robin" "cleanup"
-table_round_robin_head()
+table_common_body()
 {
-	atf_set descr 'Use a table of IPv4 addresses in round-robin mode'
-	atf_set require.user root
-}
+	pool_type=$1
+echo pool_type=${pool_type}
 
-table_round_robin_body()
-{
 	pft_init
 
 	epair_link=$(vnet_mkepair)
@@ -527,7 +532,7 @@ table_round_robin_body()
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
 	    "table <wanaddrs> { 192.0.2.1, 192.0.2.3, 192.0.2.4 }" \
-	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from <wanaddrs> round-robin"
+	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from <wanaddrs> ${pool_type}"
 
 	# Use pf to count sources
 	jexec dst pfctl -e
@@ -541,16 +546,50 @@ table_round_robin_body()
 	atf_check -s exit:0 -o ignore \
 	    ping6 -c 1 64:ff9b::192.0.2.2
 
-	# Verify on dst that we saw different source addresses
-	atf_check -s exit:0 -o match:".*192.0.2.1.*" \
-	    jexec dst pfctl -ss
-	atf_check -s exit:0 -o match:".*192.0.2.3.*" \
-	    jexec dst pfctl -ss
-	atf_check -s exit:0 -o match:".*192.0.2.4.*" \
-	    jexec dst pfctl -ss
+	# XXX We can't reasonably check pool type random because it's random. It may end
+	# up choosing the same source IP for all three connections.
+	if [ "${pool_type}" == "round-robin" ];
+	then
+		# Verify on dst that we saw different source addresses
+		atf_check -s exit:0 -o match:".*192.0.2.1.*" \
+		    jexec dst pfctl -ss
+		atf_check -s exit:0 -o match:".*192.0.2.3.*" \
+		    jexec dst pfctl -ss
+		atf_check -s exit:0 -o match:".*192.0.2.4.*" \
+		    jexec dst pfctl -ss
+	fi
+}
+
+atf_test_case "table_round_robin" "cleanup"
+table_round_robin_head()
+{
+	atf_set descr 'Use a table of IPv4 addresses in round-robin mode'
+	atf_set require.user root
+}
+
+table_round_robin_body()
+{
+	table_common_body round-robin
 }
 
 table_round_robin_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "table_random" "cleanup"
+table_random_head()
+{
+	atf_set descr 'Use a table of IPv4 addresses in random mode'
+	atf_set require.user root
+}
+
+table_random_body()
+{
+	table_common_body random
+}
+
+table_random_cleanup()
 {
 	pft_cleanup
 }
@@ -775,6 +814,7 @@ atf_init_test_cases()
 	atf_add_test_case "table"
 	atf_add_test_case "table_range"
 	atf_add_test_case "table_round_robin"
+	atf_add_test_case "table_random"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "gateway6"
 	atf_add_test_case "route_to"
