@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <jail.h>
@@ -516,13 +517,21 @@ quoted_print(int pflags, char *name, char *value)
 	}
 
 	/*
-	 * The value will be surrounded by quotes if it contains spaces
-	 * or quotes.
+	 * The value will be surrounded by quotes if it contains
+	 * whitespace or quotes.
 	 */
-	qc = strchr(p, '\'') ? '"'
-		: strchr(p, '"') ? '\''
-		: strchr(p, ' ') || strchr(p, '\t') ? '"'
-		: 0;
+	if (strchr(p, '\''))
+		qc = '"';
+	else if (strchr(p, '"'))
+		qc = '\'';
+	else {
+		qc = 0;
+		for (; *p; ++p)
+			if (isspace(*p)) {
+				qc = '"';
+				break;
+			}
+	}
 
 	if (qc && pflags & PRINT_QUOTED)
 		xo_emit("{P:/%c}", qc);
