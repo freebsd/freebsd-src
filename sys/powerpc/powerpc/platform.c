@@ -65,9 +65,9 @@ static platform_t	plat_obj;
 static struct kobj_ops	plat_kernel_kops;
 static struct platform_kobj	plat_kernel_obj;
 
-static char plat_name[64] = "";
-SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RDTUN,
-    plat_name, 0, "Platform currently in use");
+static char plat_name[64];
+SYSCTL_CONST_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD, plat_name,
+    "Platform currently in use");
 
 static struct mem_affinity mem_info[VM_PHYSSEG_MAX + 1];
 static int vm_locality_table[MAXMEMDOM * MAXMEMDOM];
@@ -364,16 +364,7 @@ platform_probe_and_attach(void)
 		if (prio > 0)
 			continue;
 
-		/*
-		 * Check if this module was specifically requested through
-		 * the loader tunable we provide.
-		 */
-		if (strcmp(platp->name,plat_name) == 0) {
-			plat_def_impl = platp;
-			break;
-		}
-
-		/* Otherwise, see if it is better than our current best */
+		/* See if it is better than our current best */
 		if (plat_def_impl == NULL || prio > best_prio) {
 			best_prio = prio;
 			plat_def_impl = platp;
