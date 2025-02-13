@@ -1121,11 +1121,19 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, int cpu)
+swi_event_assign(device_t pic, interrupt_t *intr, u_int cpu)
 {
 
 	return (0);
 }
+
+static device_method_t swi_event_methods[] = {
+	KOBJMETHOD(intr_event_assign_cpu,	swi_event_assign),
+
+	KOBJMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN("swi_event", swi_event_class, swi_event_methods, 0);
 
 /*
  * Add a software interrupt handler to a specified event.  If a given event
@@ -1147,10 +1155,20 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
-		if (error)
+		static device_t handler = NULL;
+
+		if (__predict_false(handler == NULL))
+			handler = (device_t)kobj_create(&swi_event_class,
+			    M_ITHREAD, M_WAITOK);
+
+		ie = malloc(sizeof(struct intr_event), M_ITHREAD,
+		    M_WAITOK | M_ZERO);
+		error = intr_event_init(ie, handler, 0, IE_SOFT, "swi%d:",
+		    pri);
+		if (error) {
+			free(ie, M_ITHREAD);
 			return (error);
+		}
 		if (eventp != NULL)
 			*eventp = ie;
 	}
