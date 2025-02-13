@@ -295,7 +295,7 @@ getlladdr(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN])
 		}
 
 		/* Check address family */
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+		sdl = (struct sockaddr_dl *)(void *)ifa->ifa_addr;
 		if (sdl->sdl_type != IFT_ETHER) {
 			syslog(LOG_CRIT, "%s: %s: unknown aftype (%d)\n",
 			    __func__,
