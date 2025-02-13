@@ -710,8 +710,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	if (scctx->isc_capenable & IFCAP_VLAN_HWTAGGING &&
 	    status & E1000_RXD_STAT_VP) {
-		ri->iri_vtag =
-		    le16toh(rxd->special & E1000_RXD_SPC_VLAN_MASK);
+		ri->iri_vtag = le16toh(rxd->special);
 		ri->iri_flags |= M_VLANTAG;
 	}
 

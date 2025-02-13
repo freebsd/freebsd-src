@@ -130,7 +130,6 @@
 #define E1000_RXD_ERR_TCPE	0x20    /* TCP/UDP Checksum Error */
 #define E1000_RXD_ERR_IPE	0x40    /* IP Checksum Error */
 #define E1000_RXD_ERR_RXE	0x80    /* Rx Data Error */
-#define E1000_RXD_SPC_VLAN_MASK	0x0FFF  /* VLAN ID is in lower 12 bits */
 
 #define E1000_RXDEXT_STATERR_TST	0x00000100 /* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_LB		0x00040000
