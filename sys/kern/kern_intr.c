@@ -1139,16 +1139,37 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 }
 
 /*
+ * Pseudo-PIC implementation for SWIs swi_add().  Lower overhead than
+ * intr_event_create()'s full implementation.
+ */
+
+static void
+swi_event_func(device_t pic, interrupt_t *intr)
+{
+}
+
+/*
  * Allow interrupt event binding for software interrupt handlers -- a no-op,
  * since interrupts are generated in software rather than being directed by
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, int cpu)
+swi_event_assign(device_t pic, interrupt_t *intr, u_int cpu)
 {
 
 	return (0);
 }
+
+static device_method_t swi_event_methods[] = {
+	DEVMETHOD(intr_event_pre_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_ithread,	swi_event_func),
+	DEVMETHOD(intr_event_post_filter,	swi_event_func),
+	DEVMETHOD(intr_event_assign_cpu,	swi_event_assign),
+
+	DEVMETHOD_END
+};
+
+PRIVATE_DEFINE_CLASSN(swi_event, swi_event_class, swi_event_methods, 0);
 
 /*
  * Add a software interrupt handler to a specified event.  If a given event
@@ -1170,10 +1191,22 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (!(ie->ie_flags & IE_SOFT))
 			return (EINVAL);
 	} else {
-		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
-		if (error)
+		static device_t handler = NULL;
+
+		if (__predict_false(handler == NULL)) {
+			handler = bus_generic_add_child(root_bus,
+			    BUS_PASS_ORDER_FIRST, "swi-event", 0);
+			device_set_driver(handler, &swi_event_class);
+		}
+
+		ie = malloc(sizeof(struct intr_event), M_ITHREAD,
+		    M_WAITOK | M_ZERO);
+		error = intr_event_init_(ie, handler, 0, IE_SOFT, "swi%d:",
+		    pri);
+		if (error) {
+			free(ie, M_ITHREAD);
 			return (error);
+		}
 		if (eventp != NULL)
 			*eventp = ie;
 	}
