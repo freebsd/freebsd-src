@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\"
-.Dd April 8, 2024
+.Dd February 10, 2025
 .Dt QUEUE 3
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm SLIST_CLASS_HEAD ,
 .Nm SLIST_CONCAT ,
 .Nm SLIST_EMPTY ,
+.Nm SLIST_EMPTY_ATOMIC ,
 .Nm SLIST_ENTRY ,
 .Nm SLIST_FIRST ,
 .Nm SLIST_FOREACH ,
@@ -55,6 +56,7 @@
 .Nm STAILQ_CLASS_HEAD ,
 .Nm STAILQ_CONCAT ,
 .Nm STAILQ_EMPTY ,
+.Nm STAILQ_EMPTY_ATOMIC ,
 .Nm STAILQ_ENTRY ,
 .Nm STAILQ_FIRST ,
 .Nm STAILQ_FOREACH ,
@@ -77,6 +79,7 @@
 .Nm LIST_CLASS_HEAD ,
 .Nm LIST_CONCAT ,
 .Nm LIST_EMPTY ,
+.Nm LIST_EMPTY_ATOMIC ,
 .Nm LIST_ENTRY ,
 .Nm LIST_FIRST ,
 .Nm LIST_FOREACH ,
@@ -98,6 +101,7 @@
 .Nm TAILQ_CLASS_HEAD ,
 .Nm TAILQ_CONCAT ,
 .Nm TAILQ_EMPTY ,
+.Nm TAILQ_EMPTY_ATOMIC ,
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
 .Nm TAILQ_FOREACH ,
@@ -130,6 +134,7 @@ lists and tail queues
 .Fn SLIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn SLIST_CONCAT "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE" "SLIST_ENTRY NAME"
 .Fn SLIST_EMPTY "SLIST_HEAD *head"
+.Fn SLIST_EMPTY_ATOMIC "SLIST_HEAD *head"
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
 .Fn SLIST_FOREACH "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
@@ -151,6 +156,7 @@ lists and tail queues
 .Fn STAILQ_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn STAILQ_CONCAT "STAILQ_HEAD *head1" "STAILQ_HEAD *head2"
 .Fn STAILQ_EMPTY "STAILQ_HEAD *head"
+.Fn STAILQ_EMPTY_ATOMIC "STAILQ_HEAD *head"
 .Fn STAILQ_ENTRY "TYPE"
 .Fn STAILQ_FIRST "STAILQ_HEAD *head"
 .Fn STAILQ_FOREACH "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
@@ -174,6 +180,7 @@ lists and tail queues
 .Fn LIST_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn LIST_CONCAT "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_EMPTY "LIST_HEAD *head"
+.Fn LIST_EMPTY_ATOMIC "LIST_HEAD *head"
 .Fn LIST_ENTRY "TYPE"
 .Fn LIST_FIRST "LIST_HEAD *head"
 .Fn LIST_FOREACH "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
@@ -196,6 +203,7 @@ lists and tail queues
 .Fn TAILQ_CLASS_HEAD "HEADNAME" "CLASSTYPE"
 .Fn TAILQ_CONCAT "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TAILQ_ENTRY NAME"
 .Fn TAILQ_EMPTY "TAILQ_HEAD *head"
+.Fn TAILQ_EMPTY_ATOMIC "TAILQ_HEAD *head"
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
 .Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
@@ -427,6 +435,10 @@ high-usage code paths or to operate on long lists.
 The macro
 .Nm SLIST_EMPTY
 evaluates to true if there are no elements in the list.
+The
+.Nm SLIST_EMPTY_ATOMIC
+variant has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the list.
 .Pp
 The macro
 .Nm SLIST_ENTRY
@@ -635,6 +647,10 @@ removing all entries from the former.
 The macro
 .Nm STAILQ_EMPTY
 evaluates to true if there are no items on the tail queue.
+The
+.Nm STAILQ_EMPTY_ATOMIC
+variant has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the queue.
 .Pp
 The macro
 .Nm STAILQ_ENTRY
@@ -868,6 +884,10 @@ high-usage code paths or to operate on long lists.
 The macro
 .Nm LIST_EMPTY
 evaluates to true if there are no elements in the list.
+The
+.Nm LIST_EMPTY_ATOMIC
+variant has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the list.
 .Pp
 The macro
 .Nm LIST_ENTRY
@@ -1086,6 +1106,10 @@ removing all entries from the former.
 The macro
 .Nm TAILQ_EMPTY
 evaluates to true if there are no items on the tail queue.
+The
+.Nm TAILQ_EMPTY_ATOMIC
+variant has the same behavior, but can be safely used in contexts where it is
+possible that a different thread is concurrently updating the queue.
 .Pp
 The macro
 .Nm TAILQ_ENTRY
