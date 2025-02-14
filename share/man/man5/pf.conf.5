@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 13, 2025
+.Dd February 14, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1738,7 +1738,9 @@ As with
 packets are logged to
 .Xr pflog 4 .
 .It Ar log (matches)
-Used to force logging of this packet on all subsequent matching rules.
+Log this packet on all subsequent matching rules, using the log settings
+given here, in particular to the pflog interface specified here so that
+regular pflogs are not clobbered.
 .It Ar log (user)
 Logs the
 .Ux
