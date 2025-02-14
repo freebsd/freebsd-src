@@ -158,7 +158,7 @@ main(int argc, char **argv)
 		sc.nfibs = 1;
 	}
 
-	sc.fds = calloc(all ? sc.nfibs : 1, sizeof(int));
+	sc.fds = calloc(sc.nfibs, sizeof(int));
 	if (sc.fds == NULL)
 		err(1, "calloc");
 	for (int i = 0; i < sc.nfibs; i++) {
