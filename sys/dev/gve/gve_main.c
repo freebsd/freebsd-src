@@ -196,11 +196,26 @@ static int
 gve_set_mtu(if_t ifp, uint32_t new_mtu)
 {
 	struct gve_priv *priv = if_getsoftc(ifp);
+	const uint32_t max_problem_range = 8227;
+	const uint32_t min_problem_range = 7822;
 	int err;
 
 	if ((new_mtu > priv->max_mtu) || (new_mtu < ETHERMIN)) {
 		device_printf(priv->dev, "Invalid new MTU setting. new mtu: %d max mtu: %d min mtu: %d\n",
 		    new_mtu, priv->max_mtu, ETHERMIN);
+		return (EINVAL);
+	}
+
+	/*
+	 * When hardware LRO is enabled in DQ mode, MTUs within the range
+	 * [7822, 8227] trigger hardware issues which cause a drastic drop
+	 * in throughput.
+	 */
+	if (!gve_is_gqi(priv) && !gve_disable_hw_lro &&
+	    new_mtu >= min_problem_range && new_mtu <= max_problem_range) {
+		device_printf(priv->dev,
+		    "Cannot set to MTU to %d within the range [%d, %d] while hardware LRO is enabled\n",
+		    new_mtu, min_problem_range, max_problem_range);
 		return (EINVAL);
 	}
 
