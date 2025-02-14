@@ -251,6 +251,9 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	if (rm == NULL || pd == NULL)
 		return (1);
 
+	if (rm->logif > V_npflogifs)
+		return (0);
+
 	ifn = V_pflogifs[rm->logif];
 	if (ifn == NULL || !bpf_peers_present(ifn->if_bpf))
 		return (0);
