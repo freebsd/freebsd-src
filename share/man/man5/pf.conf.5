@@ -1711,38 +1711,49 @@ If neither
 nor
 .Ar out
 are specified, the rule will match packets in both directions.
-.It Ar log
-In addition to the action specified, a log message is generated.
+.It Ar log Pq Cm all | matches | to Ao Ar interface Ac | Cm user
+In addition to any action specified,
+log the packet.
 Only the packet that establishes the state is logged,
 unless the
 .Ar no state
 option is specified.
 The logged packets are sent to a
 .Xr pflog 4
-interface, by default
-.Ar pflog0 .
-This interface is monitored by the
+interface, by default pflog0;
+pflog0 is monitored by the
 .Xr pflogd 8
-logging daemon, which dumps the logged packets to the file
+logging daemon which logs to the file
 .Pa /var/log/pflog
 in
 .Xr pcap 3
 binary format.
-.It Ar log (all)
-Used to force logging of all packets for a connection.
+.Pp
+The keywords
+.Cm all , matches , to ,
+and
+.Cm user
+are all optional,
+and can be combined using commas.
+.Pp
+Use
+.Cm all
+to force logging of all packets for a connection.
 This is not necessary when
 .Ar no state
 is explicitly specified.
-As with
-.Ar log ,
-packets are logged to
-.Xr pflog 4 .
-.It Ar log (matches)
-Log this packet on all subsequent matching rules, using the log settings
-given here, in particular to the pflog interface specified here so that
-regular pflogs are not clobbered.
-.It Ar log (user)
-Logs the
+.Pp
+If
+.Cm matches
+is specified,
+it logs the packet on all subsequent matching rules.
+It is often combined with
+.Cm to Aq Ar interface
+to avoid adding noise to the default log file.
+.Pp
+The keyword
+.Cm user
+logs the
 .Ux
 user ID of the user that owns the socket and the PID of the process that
 has the socket open where the packet is sourced from or destined to
@@ -1753,11 +1764,10 @@ Only the first packet
 logged via
 .Ar log (all, user)
 will have the user credentials logged when using stateful matching.
-.It Ar log (to Aq Ar interface )
-Send logs to the specified
-.Xr pflog 4
-interface instead of
-.Ar pflog0 .
+.Pp
+To specify a logging interface other than pflog0,
+use the syntax
+.Cm to Aq Ar interface .
 .It Ar quick
 If a packet matches a rule which has the
 .Ar quick
