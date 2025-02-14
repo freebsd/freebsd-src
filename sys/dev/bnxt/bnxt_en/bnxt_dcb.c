@@ -313,7 +313,8 @@ bnxt_hwrm_queue_pfc_qcfg(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc)
 }
 
 static int
-bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs)
+bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
+    size_t nitems, int *num_inputs)
 {
 	struct hwrm_fw_get_structured_data_input get = {0};
 	struct hwrm_struct_data_dcbx_app *fw_app;
@@ -350,7 +351,7 @@ bnxt_hwrm_get_dcbx_app(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *
 	}
 
 	n = data->count;
-	for (i = 0; i < n; i++, fw_app++) {
+	for (i = 0; i < n && *num_inputs < nitems; i++, fw_app++) {
 		app[*num_inputs].priority = fw_app->priority;
 		app[*num_inputs].protocol = htobe16(fw_app->protocol_id);
 		app[*num_inputs].selector = fw_app->protocol_selector;
@@ -472,7 +473,8 @@ bnxt_hwrm_queue_dscp_qcaps(struct bnxt_softc *softc)
 }
 
 static int
-bnxt_hwrm_queue_dscp2pri_qcfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs)
+bnxt_hwrm_queue_dscp2pri_qcfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
+    size_t nitems, int *num_inputs)
 {
 	struct hwrm_queue_dscp2pri_qcfg_input req = {0};
 	struct hwrm_queue_dscp2pri_qcfg_output *resp =
@@ -503,7 +505,7 @@ bnxt_hwrm_queue_dscp2pri_qcfg(struct bnxt_softc *softc, struct bnxt_dcb_app *app
 		goto end;
 
 	entry_cnt =  le16toh(resp->entry_cnt);
-	for (i = 0; i < entry_cnt; i++) {
+	for (i = 0; i < entry_cnt && *num_inputs < nitems; i++) {
 		app[*num_inputs].priority = dscp2pri[i].pri;
 		app[*num_inputs].protocol = dscp2pri[i].dscp;
 		app[*num_inputs].selector = BNXT_IEEE_8021QAZ_APP_SEL_DSCP;
@@ -774,10 +776,11 @@ bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app)
 }
 
 int
-bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs)
+bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
+    size_t nitems, int *num_inputs)
 {
-	bnxt_hwrm_get_dcbx_app(softc, app, num_inputs);
-	bnxt_hwrm_queue_dscp2pri_qcfg(softc, app, num_inputs);
+	bnxt_hwrm_get_dcbx_app(softc, app, nitems, num_inputs);
+	bnxt_hwrm_queue_dscp2pri_qcfg(softc, app, nitems, num_inputs);
 
 	return 0;
 }

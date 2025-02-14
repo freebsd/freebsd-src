@@ -1310,6 +1310,7 @@ int bnxt_dcb_ieee_getpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
 int bnxt_dcb_ieee_setpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
 int bnxt_dcb_ieee_setapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
 int bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
-int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs);
+int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
+    size_t nitems, int *num_inputs);
 
 #endif /* _BNXT_H */
