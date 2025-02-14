@@ -139,6 +139,7 @@ bnxt_mgmt_process_dcb(struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 	case BNXT_MGMT_DCB_LIST_APP:
 		bnxt_dcb_ieee_listapp(softc, &mgmt_dcb.req.app_tlv.app[0],
+				      nitems(mgmt_dcb.req.app_tlv.app),
 				      &mgmt_dcb.req.app_tlv.num_app);
 		break;
 	default:

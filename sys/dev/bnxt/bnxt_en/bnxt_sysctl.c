@@ -1953,7 +1953,7 @@ bnxt_dcb_list_app(SYSCTL_HANDLER_ARGS)
 	if (!buf)
 		return ENOMEM;
 
-	bnxt_dcb_ieee_listapp(softc, app, &num_inputs);
+	bnxt_dcb_ieee_listapp(softc, app, nitems(app), &num_inputs);
 	bnxt_app_tlv_get_string(softc, buf, app, num_inputs);
 
 	rc = sysctl_handle_string(oidp, buf, BNXT_APP_TLV_STR_LEN, req);
