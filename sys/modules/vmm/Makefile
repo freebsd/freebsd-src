@@ -152,6 +152,7 @@ svm_genassym.o: offset.inc
 .elif ${MACHINE_CPUARCH} == "riscv"
 
 SRCS+=	vmm_aplic.c	\
+	vmm_fence.c	\
 	vmm_riscv.c	\
 	vmm_sbi.c	\
 	vmm_switch.S	\
