@@ -1872,7 +1872,7 @@ bnxt_pfc_get_string(struct bnxt_softc *softc, char *buf, struct bnxt_ieee_pfc *p
 		buf += sprintf(buf, "none");
 }
 
-static char *bnxt_get_tlv_selector_str(uint8_t selector)
+static const char *bnxt_get_tlv_selector_str(uint8_t selector)
 {
 	switch (selector) {
 	case BNXT_IEEE_8021QAZ_APP_SEL_ETHERTYPE:
@@ -1887,24 +1887,23 @@ static char *bnxt_get_tlv_selector_str(uint8_t selector)
 }
 
 static void
-bnxt_app_tlv_get_string(struct bnxt_softc *softc, char *buf,
-			struct bnxt_dcb_app *app, int num)
+bnxt_app_tlv_get_string(struct sbuf *sb, struct bnxt_dcb_app *app, int num)
 {
-	uint32_t i;
+	int i;
 
-	if (!num) {
-		buf += sprintf(buf, " None");
+	if (num == 0) {
+		sbuf_printf(sb, " None");
 		return;
 	}
 
-	buf += sprintf(buf, "\n");
+	sbuf_putc(sb, '\n');
 	for (i = 0; i < num; i++) {
-		buf += sprintf(buf, "\tAPP#%0d:\tpri: %d,\tSel: %d,\t%s: %d\n",
-				i,
-				app[i].priority,
-				app[i].selector,
-				bnxt_get_tlv_selector_str(app[i].selector),
-				app[i].protocol);
+		sbuf_printf(sb, "\tAPP#%0d:\tpri: %d,\tSel: %d,\t%s: %d\n",
+		    i,
+		    app[i].priority,
+		    app[i].selector,
+		    bnxt_get_tlv_selector_str(app[i].selector),
+		    app[i].protocol);
 	}
 }
 
@@ -1937,25 +1936,16 @@ bnxt_ets_get_string(struct bnxt_softc *softc, char *buf)
 static int
 bnxt_dcb_list_app(SYSCTL_HANDLER_ARGS)
 {
+	struct sbuf sb;
 	struct bnxt_dcb_app app[128] = {0};
 	struct bnxt_softc *softc = arg1;
 	int rc, num_inputs = 0;
-	char *buf;
 
-#define BNXT_APP_TLV_STR_LEN	4096
-	buf = malloc(BNXT_APP_TLV_STR_LEN, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!buf)
-		return ENOMEM;
-
+	sbuf_new_for_sysctl(&sb, NULL, 128, req);
 	bnxt_dcb_ieee_listapp(softc, app, nitems(app), &num_inputs);
-	bnxt_app_tlv_get_string(softc, buf, app, num_inputs);
-
-	rc = sysctl_handle_string(oidp, buf, BNXT_APP_TLV_STR_LEN, req);
-	if (rc || req->newptr == NULL)
-		goto end;
-
-end:
-	free(buf, M_DEVBUF);
+	bnxt_app_tlv_get_string(&sb, app, num_inputs);
+	rc = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return rc;
 }
 
