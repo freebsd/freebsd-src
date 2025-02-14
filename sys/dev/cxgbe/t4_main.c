@@ -1935,6 +1935,8 @@ stop_adapter(struct adapter *sc)
 	t4_shutdown_adapter(sc);
 	for_each_port(sc, i) {
 		pi = sc->port[i];
+		if (pi == NULL)
+			continue;
 		PORT_LOCK(pi);
 		if (pi->up_vis > 0 && pi->link_cfg.link_ok) {
 			/*
@@ -2046,6 +2048,8 @@ stop_lld(struct adapter *sc)
 	/* Quiesce all activity. */
 	for_each_port(sc, i) {
 		pi = sc->port[i];
+		if (pi == NULL)
+			continue;
 		pi->vxlan_tcam_entry = false;
 		for_each_vi(pi, j, vi) {
 			vi->xact_addr_filt = -1;
@@ -4025,6 +4029,8 @@ stop_atid_allocator(struct adapter *sc)
 {
 	struct tid_info *t = &sc->tids;
 
+	if (t->natids == 0)
+		return;
 	mtx_lock(&t->atid_lock);
 	t->atid_alloc_stopped = true;
 	mtx_unlock(&t->atid_lock);
@@ -4035,6 +4041,8 @@ restart_atid_allocator(struct adapter *sc)
 {
 	struct tid_info *t = &sc->tids;
 
+	if (t->natids == 0)
+		return;
 	mtx_lock(&t->atid_lock);
 	KASSERT(t->atids_in_use == 0,
 	    ("%s: %d atids still in use.", __func__, t->atids_in_use));
