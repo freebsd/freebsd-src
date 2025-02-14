@@ -1793,9 +1793,6 @@ bnxt_dcb_dcbx_cap(SYSCTL_HANDLER_ARGS)
 	int val;
 	int rc;
 
-	if (softc == NULL)
-		return EBUSY;
-
 	val = bnxt_dcb_getdcbx(softc);
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
@@ -1945,9 +1942,6 @@ bnxt_dcb_list_app(SYSCTL_HANDLER_ARGS)
 	int rc, num_inputs = 0;
 	char *buf;
 
-	if (softc == NULL)
-		return EBUSY;
-
 #define BNXT_APP_TLV_STR_LEN	4096
 	buf = malloc(BNXT_APP_TLV_STR_LEN, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (!buf)
@@ -1973,9 +1967,6 @@ bnxt_dcb_del_app(SYSCTL_HANDLER_ARGS)
 	char buf[256] = {0};
 	int rc, num_inputs;
 
-	if (softc == NULL)
-		return EBUSY;
-
 	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (rc || req->newptr == NULL)
 		return rc;
@@ -1999,9 +1990,6 @@ bnxt_dcb_set_app(SYSCTL_HANDLER_ARGS)
 	struct bnxt_dcb_app app = {0};
 	char buf[256] = {0};
 	int rc, num_inputs;
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (rc || req->newptr == NULL)
@@ -2029,9 +2017,6 @@ bnxt_dcb_pfc(SYSCTL_HANDLER_ARGS)
 	char buf[256] = {0};
 	int pri_mask = 0;
 	char pri[8];
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = bnxt_dcb_ieee_getpfc(softc, &pfc);
 	if (!rc)
@@ -2087,9 +2072,6 @@ bnxt_dcb_ets(SYSCTL_HANDLER_ARGS)
 	int rc = 0, i, num_inputs;
 	char buf[256] = {0};
 	char tsa[8];
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = bnxt_dcb_ieee_getets(softc, &ets);
 	if (!rc)
