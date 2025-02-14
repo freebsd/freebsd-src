@@ -386,6 +386,9 @@ static int		 pf_match_rcvif(struct mbuf *, struct pf_krule *);
 static void		 pf_counters_inc(int, struct pf_pdesc *,
 			    struct pf_kstate *, struct pf_krule *,
 			    struct pf_krule *);
+static void		 pf_log_matches(struct pf_pdesc *, struct pf_krule *,
+			    struct pf_krule *, struct pf_kruleset *,
+			    struct pf_krule_slist *);
 static void		 pf_overload_task(void *v, int pending);
 static u_short		 pf_insert_src_node(struct pf_ksrc_node *[PF_SN_MAX],
 			    struct pf_srchash *[PF_SN_MAX], struct pf_krule *,
@@ -5535,7 +5538,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 
 		if (nr->log) {
 			PFLOG_PACKET(nr->action, PFRES_MATCH, nr, a,
-			    ruleset, pd, 1);
+			    ruleset, pd, 1, NULL);
 		}
 
 		if (pd->ip_sum)
@@ -5826,18 +5829,17 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 						goto cleanup;
 					}
 				}
-				if (r->log || pd->act.log & PF_LOG_MATCHES)
+				if (r->log)
 					PFLOG_PACKET(r->action, PFRES_MATCH, r,
-					    a, ruleset, pd, 1);
+					    a, ruleset, pd, 1, NULL);
 			} else {
 				match = asd;
 				*rm = r;
 				*am = a;
 				*rsm = ruleset;
-				if (pd->act.log & PF_LOG_MATCHES)
-					PFLOG_PACKET(r->action, PFRES_MATCH, r,
-					    a, ruleset, pd, 1);
 			}
+			if (pd->act.log & PF_LOG_MATCHES)
+				pf_log_matches(pd, r, a, ruleset, &match_rules);
 			if (r->quick)
 				break;
 			r = TAILQ_NEXT(r, entries);
@@ -5866,12 +5868,13 @@ nextrule:
 		}
 	}
 
-	if (r->log || pd->act.log & PF_LOG_MATCHES) {
+	if (r->log) {
 		if (rewrite)
 			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
-		PFLOG_PACKET(r->action, reason, r, a, ruleset, pd, 1);
+		PFLOG_PACKET(r->action, reason, r, a, ruleset, pd, 1, NULL);
 	}
-
+	if (pd->act.log & PF_LOG_MATCHES)
+		pf_log_matches(pd, r, a, ruleset, &match_rules);
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
 	   (r->action == PF_DROP) &&
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
@@ -10092,6 +10095,22 @@ pf_counters_inc(int action, struct pf_pdesc *pd,
 	}
 	pf_counter_u64_critical_exit();
 }
+static void
+pf_log_matches(struct pf_pdesc *pd, struct pf_krule *rm,
+    struct pf_krule *am, struct pf_kruleset *ruleset,
+    struct pf_krule_slist *matchrules)
+{
+	struct pf_krule_item	*ri;
+
+	/* if this is the log(matches) rule, packet has been logged already */
+	if (rm->log & PF_LOG_MATCHES)
+		return;
+
+	SLIST_FOREACH(ri, matchrules, entry)
+		if (ri->r->log & PF_LOG_MATCHES)
+			PFLOG_PACKET(rm->action, PFRES_MATCH, rm, am,
+			    ruleset, pd, 1, ri->r);
+}
 
 #if defined(INET) || defined(INET6)
 int
@@ -10495,12 +10514,12 @@ done:
 
 		if (pd.act.log & PF_LOG_FORCE || lr->log & PF_LOG_ALL)
 			PFLOG_PACKET(action, reason, lr, a,
-			    ruleset, &pd, (s == NULL));
+			    ruleset, &pd, (s == NULL), NULL);
 		if (s) {
 			SLIST_FOREACH(ri, &s->match_rules, entry)
 				if (ri->r->log & PF_LOG_ALL)
 					PFLOG_PACKET(action,
-					    reason, ri->r, a, ruleset, &pd, 0);
+					    reason, ri->r, a, ruleset, &pd, 0, NULL);
 		}
 	}
 

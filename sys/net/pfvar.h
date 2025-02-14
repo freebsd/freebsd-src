@@ -1277,7 +1277,7 @@ struct pf_kruleset;
 struct pf_pdesc;
 typedef int pflog_packet_t(uint8_t, u_int8_t,
     struct pf_krule *, struct pf_krule *, struct pf_kruleset *,
-    struct pf_pdesc *, int);
+    struct pf_pdesc *, int, struct pf_krule *);
 extern pflog_packet_t		*pflog_packet_ptr;
 
 #endif /* _KERNEL */

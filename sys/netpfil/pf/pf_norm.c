@@ -1217,7 +1217,7 @@ pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 	REASON_SET(reason, PFRES_FRAG);
  drop:
 	if (r != NULL && r->log)
-		PFLOG_PACKET(PF_DROP, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(PF_DROP, *reason, r, NULL, NULL, pd, 1, NULL);
 
 	return (PF_DROP);
 }
@@ -1421,7 +1421,7 @@ pf_normalize_tcp(struct pf_pdesc *pd)
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd, 1, NULL);
 	return (PF_DROP);
 }
 
@@ -2185,7 +2185,7 @@ sctp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
 		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd,
-		    1);
+		    1, NULL);
 
 	return (PF_DROP);
 }
