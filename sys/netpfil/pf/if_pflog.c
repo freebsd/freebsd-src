@@ -243,18 +243,21 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 pflog_packet(uint8_t action, u_int8_t reason,
     struct pf_krule *rm, struct pf_krule *am,
-    struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
+    struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe,
+    struct pf_krule *trigger)
 {
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
 
 	if (rm == NULL || pd == NULL)
 		return (1);
+	if (trigger == NULL)
+		trigger = rm;
 
-	if (rm->logif > V_npflogifs)
+	if (trigger->logif > V_npflogifs)
 		return (0);
 
-	ifn = V_pflogifs[rm->logif];
+	ifn = V_pflogifs[trigger->logif];
 	if (ifn == NULL || !bpf_peers_present(ifn->if_bpf))
 		return (0);
 
@@ -281,7 +284,7 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	 * state lock, since this leads to unsafe LOR.
 	 * These conditions are very very rare, however.
 	 */
-	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
+	if (trigger->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
 		pd->lookup.done = pf_socket_lookup(pd);
 	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
