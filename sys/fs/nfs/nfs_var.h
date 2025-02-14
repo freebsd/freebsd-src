@@ -780,6 +780,7 @@ int newnfs_request(struct nfsrv_descript *, struct nfsmount *,
     struct nfsclient *, struct nfssockreq *, vnode_t, NFSPROC_T *,
     struct ucred *, u_int32_t, u_int32_t, u_char *, int, u_int64_t *,
     struct nfsclsession *);
+void nfs_resetslots(struct nfsclsession *);
 int newnfs_connect(struct nfsmount *, struct nfssockreq *,
     struct ucred *, NFSPROC_T *, int, bool, struct __rpc_client **);
 void newnfs_disconnect(struct nfsmount *, struct nfssockreq *);
