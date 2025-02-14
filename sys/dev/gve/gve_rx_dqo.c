@@ -972,7 +972,7 @@ gve_rx_cleanup_dqo(struct gve_priv *priv, struct gve_rx_ring *rx, int budget)
 		 * Prevent generation bit from being read after the rest of the
 		 * descriptor.
 		 */
-		rmb();
+		atomic_thread_fence_acq();
 
 		rx->cnt++;
 		rx->dqo.tail = (rx->dqo.tail + 1) & rx->dqo.mask;
