@@ -517,7 +517,7 @@ abort:
 }
 
 static void
-gve_deconfigure_resources(struct gve_priv *priv)
+gve_deconfigure_and_free_device_resources(struct gve_priv *priv)
 {
 	int err;
 
@@ -543,7 +543,7 @@ gve_deconfigure_resources(struct gve_priv *priv)
 }
 
 static int
-gve_configure_resources(struct gve_priv *priv)
+gve_alloc_and_configure_device_resources(struct gve_priv *priv)
 {
 	int err;
 
@@ -584,7 +584,7 @@ gve_configure_resources(struct gve_priv *priv)
 	return (0);
 
 abort:
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	return (err);
 }
 
@@ -649,7 +649,7 @@ static void
 gve_destroy(struct gve_priv *priv)
 {
 	gve_down(priv);
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	gve_release_adminq(priv);
 }
 
@@ -662,9 +662,21 @@ gve_restore(struct gve_priv *priv)
 	if (err != 0)
 		goto abort;
 
-	err = gve_configure_resources(priv);
-	if (err != 0)
+	err = gve_adminq_configure_device_resources(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to configure device resources: err=%d\n",
+		    err);
+		err = (ENXIO);
 		goto abort;
+	}
+	if (!gve_is_gqi(priv)) {
+		err = gve_adminq_get_ptype_map_dqo(priv, priv->ptype_lut_dqo);
+		if (err != 0) {
+			device_printf(priv->dev, "Failed to configure ptype lut: err=%d\n",
+			    err);
+			goto abort;
+		}
+	}
 
 	err = gve_up(priv);
 	if (err != 0)
@@ -675,6 +687,25 @@ gve_restore(struct gve_priv *priv)
 abort:
 	device_printf(priv->dev, "Restore failed!\n");
 	return;
+}
+
+static void
+gve_clear_device_resources(struct gve_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->num_event_counters; i++)
+		priv->counters[i] = 0;
+	bus_dmamap_sync(priv->counter_array_mem.tag, priv->counter_array_mem.map,
+	    BUS_DMASYNC_PREWRITE);
+
+	for (i = 0; i < priv->num_queues; i++)
+		priv->irq_db_indices[i] = (struct gve_irq_db){};
+	bus_dmamap_sync(priv->irqs_db_mem.tag, priv->irqs_db_mem.map,
+	    BUS_DMASYNC_PREWRITE);
+
+	if (priv->ptype_lut_dqo)
+		*priv->ptype_lut_dqo = (struct gve_ptype_lut){0};
 }
 
 static void
@@ -708,6 +739,8 @@ gve_handle_reset(struct gve_priv *priv)
 	gve_clear_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK);
 
 	gve_down(priv);
+	gve_clear_device_resources(priv);
+
 	gve_restore(priv);
 
 	GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
@@ -835,7 +868,7 @@ gve_attach(device_t dev)
 	if (err != 0)
 		goto abort;
 
-	err = gve_configure_resources(priv);
+	err = gve_alloc_and_configure_device_resources(priv);
 	if (err != 0)
 		goto abort;
 
@@ -864,7 +897,7 @@ gve_attach(device_t dev)
 
 abort:
 	gve_free_rings(priv);
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	gve_release_adminq(priv);
 	gve_free_sys_res_mem(priv);
 	GVE_IFACE_LOCK_DESTROY(priv->gve_iface_lock);
