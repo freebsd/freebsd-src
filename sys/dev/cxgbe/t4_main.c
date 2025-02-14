@@ -45,10 +45,8 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
-#include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
 #include <sys/firmware.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -12124,32 +12122,6 @@ t4_os_find_pci_capability(struct adapter *sc, int cap)
 	int i;
 
 	return (pci_find_cap(sc->dev, cap, &i) == 0 ? i : 0);
-}
-
-int
-t4_os_pci_save_state(struct adapter *sc)
-{
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_save(dev, dinfo, 0);
-	return (0);
-}
-
-int
-t4_os_pci_restore_state(struct adapter *sc)
-{
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_restore(dev, dinfo);
-	return (0);
 }
 
 void
