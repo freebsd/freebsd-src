@@ -1031,7 +1031,7 @@ gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 		 * Prevent generation bit from being read after the rest of the
 		 * descriptor.
 		 */
-		rmb();
+		atomic_thread_fence_acq();
 		type = compl_desc->type;
 
 		if (type == GVE_COMPL_TYPE_DQO_DESC) {

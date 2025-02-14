@@ -303,7 +303,7 @@ struct gve_rx_ring {
 			SLIST_HEAD(, gve_rx_buf_dqo) free_bufs;
 
 			/*
-			 * Only used in QPL mode. Pages refered to by if_input-ed mbufs
+			 * Only used in QPL mode. Pages referred to by if_input-ed mbufs
 			 * stay parked here till their wire count comes back to 1.
 			 * Pages are moved here after there aren't any pending completions.
 			 */
@@ -450,7 +450,7 @@ struct gve_tx_ring {
 				/*
 				 * The completion taskqueue moves pending-packet objects to this
 				 * list after freeing the mbuf. The "_prd" denotes that this is
-				 * a producer list. The trasnmit taskqueue steals this list once
+				 * a producer list. The transmit taskqueue steals this list once
 				 * its consumer list, with the "_csm" suffix, is depleted.
 				 */
 				int32_t free_pending_pkts_prd;
@@ -458,7 +458,7 @@ struct gve_tx_ring {
 				/*
 				 * The completion taskqueue moves the QPL pages corresponding to a
 				 * completed packet into this list. It is only used in QPL mode.
-				 * The "_prd" denotes that this is a producer list. The trasnmit
+				 * The "_prd" denotes that this is a producer list. The transmit
 				 * taskqueue steals this list once its consumer list, with the "_csm"
 				 * suffix, is depleted.
 				 *

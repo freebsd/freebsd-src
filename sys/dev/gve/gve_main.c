@@ -32,10 +32,10 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.1\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.2\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 1
+#define GVE_VERSION_SUB 2
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 
@@ -391,7 +391,7 @@ gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 	/*
 	 * Set TSO limits, must match the arguments to bus_dma_tag_create
 	 * when creating tx->dqo.buf_dmatag. Only applies to the RDA mode
-	 * because in QPL we copy the entire pakcet into the bounce buffer
+	 * because in QPL we copy the entire packet into the bounce buffer
 	 * and thus it does not matter how fragmented the mbuf is.
 	 */
 	if (!gve_is_gqi(priv) && !gve_is_qpl(priv)) {
