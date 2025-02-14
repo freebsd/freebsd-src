@@ -115,7 +115,7 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->dcb_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "dcb", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "dcb");
+	    "dcb", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Data Center Bridging");
 	if (!softc->dcb_oid) {
 		sysctl_ctx_free(&softc->dcb_ctx);
 		return ENOMEM;
@@ -2131,7 +2131,7 @@ bnxt_create_dcb_sysctls(struct bnxt_softc *softc)
 	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "dcbx_cap", CTLTYPE_INT | CTLFLAG_RWTUN, softc,
 	    0, bnxt_dcb_dcbx_cap, "A",
-	    "Enable or Disable LRO: 0 / 1");
+	    "Enable DCB Capability Exchange Protocol (DCBX) capabilities");
 
 	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "ets",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN, softc, 0,
