@@ -246,6 +246,15 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 		ip6->ip6_hlim = cqe->lro_min_ttl;
 		ip6->ip6_plen = cpu_to_be16(tot_len -
 		    sizeof(struct ip6_hdr));
+
+		/* TCP checksum */
+		th->th_sum = 0;
+		tcp_csum = ~in6_cksum_partial_l2(mb, IPPROTO_TCP,
+		    sizeof(struct ether_header),
+		    sizeof(struct ether_header) + sizeof(struct ip6_hdr),
+		    tot_len - sizeof(struct ip6_hdr), th->th_off * 4) & 0xffff;
+		tcp_csum = csum_reduce(tcp_csum + cqe->check_sum);
+		th->th_sum = ~tcp_csum & 0xffff;
 	}
 }
 
