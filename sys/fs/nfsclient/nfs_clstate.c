@@ -3934,6 +3934,24 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				*tl = txdr_unsigned(NFSV4_CBSLOTS - 1);
 			}
 			break;
+		case NFSV4OP_CBRECALLSLOT:
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			highslot = fxdr_unsigned(uint32_t, *tl);
+			NFSLOCKCLSTATE();
+			clp = nfscl_getclntsess(sessionid);
+			if (clp == NULL)
+				error = NFSERR_SERVERFAULT;
+			if (error == 0) {
+				tsep = nfsmnt_mdssession(clp->nfsc_nmp);
+				mtx_lock(&tsep->nfsess_mtx);
+				if ((highslot + 1) < tsep->nfsess_foreslots) {
+					tsep->nfsess_foreslots = (highslot + 1);
+					nfs_resetslots(tsep);
+				}
+				mtx_unlock(&tsep->nfsess_mtx);
+			}
+			NFSUNLOCKCLSTATE();
+			break;
 		default:
 			if (i == 0 && minorvers != NFSV4_MINORVERSION)
 				error = NFSERR_OPNOTINSESS;

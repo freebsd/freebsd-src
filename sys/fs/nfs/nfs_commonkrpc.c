@@ -123,7 +123,6 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_da
 SYSCTL_INT(_vfs_nfs, OID_AUTO, dsretries, CTLFLAG_RW, &nfs_dsretries, 0,
     "Number of retries for a DS RPC before failure");
 
-static void	nfs_resetslots(struct nfsclsession *);
 static void	nfs_down(struct nfsmount *, struct thread *, const char *,
     int, int);
 static void	nfs_up(struct nfsmount *, struct thread *, const char *,
@@ -1474,12 +1473,13 @@ nfsmout:
 /*
  * Reset slots above nfsess_foreslots that are not busy.
  */
-static void
+void
 nfs_resetslots(struct nfsclsession *sep)
 {
 	int i;
 	uint64_t bitval;
 
+	mtx_assert(&sep->nfsess_mtx, MA_OWNED);
 	bitval = (1 << sep->nfsess_foreslots);
 	for (i = sep->nfsess_foreslots; i < NFSV4_SLOTS; i++) {
 		if ((sep->nfsess_slots & bitval) == 0 &&
