@@ -468,8 +468,6 @@ cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 			 */
 			cubic_data->undo_t_epoch = cubic_data->t_epoch;
 			cubic_data->undo_cwnd_epoch = cubic_data->cwnd_epoch;
-			cubic_data->undo_W_est = cubic_data->W_est;
-			cubic_data->undo_cwnd_prior = cubic_data->cwnd_prior;
 			cubic_data->undo_W_max = cubic_data->W_max;
 			cubic_data->undo_K = cubic_data->K;
 			if (V_tcp_do_newsack) {
@@ -484,16 +482,13 @@ cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 				CUBIC_BETA) >> CUBIC_SHIFT) / mss) * mss;
 		}
 		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
-		cubic_data->undo_W_max = cubic_data->W_max;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 
 	case CC_RTO_ERR:
 		cubic_data->flags &= ~(CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT);
 		cubic_data->K = cubic_data->undo_K;
-		cubic_data->cwnd_prior = cubic_data->undo_cwnd_prior;
 		cubic_data->W_max = cubic_data->undo_W_max;
-		cubic_data->W_est = cubic_data->undo_W_est;
 		cubic_data->cwnd_epoch = cubic_data->undo_cwnd_epoch;
 		cubic_data->t_epoch = cubic_data->undo_t_epoch;
 		break;
