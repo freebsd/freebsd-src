@@ -57,7 +57,7 @@ cputime_hard_flag_body()
 	atf_check -o match:'cputime[[:space:]]+3 secs' \
 	    limits -H -t 3 limits -S
 	atf_check -e save:time_output -s signal:sigkill \
-	    limits -H -t 3 $TIME -p sh -c 'while : ; do : ; done'
+	    $TIME -p limits -H -t 3 sh -c 'while : ; do : ; done'
 	validate_time_output time_output
 }
 cputime_hard_flag_cleanup()
@@ -76,7 +76,7 @@ cputime_soft_flag_body()
 	atf_check -o match:'cputime-cur[[:space:]]+3 secs' \
 	    limits -S -t 3 limits -S
 	atf_check -e save:time_output -s signal:$SIGXCPU \
-	    limits -S -t 3 $TIME -p sh -c 'while : ; do : ; done'
+	    $TIME -p limits -S -t 3 sh -c 'while : ; do : ; done'
 	validate_time_output time_output
 }
 cputime_soft_flag_cleanup()
