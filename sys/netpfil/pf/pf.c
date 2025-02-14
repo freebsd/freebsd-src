@@ -5535,7 +5535,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
 		if (nr->log) {
-			PFLOG_PACKET(PF_PASS, PFRES_MATCH, nr, a,
+			PFLOG_PACKET(nr->action, PFRES_MATCH, nr, a,
 			    ruleset, pd, 1);
 		}
 
