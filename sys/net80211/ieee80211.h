@@ -970,6 +970,10 @@ struct ieee80211_vht_operation {
 #define	IEEE80211_VHTCAP_TX_ANTENNA_PATTERN	0x20000000
 #define	IEEE80211_VHTCAP_TX_ANTENNA_PATTERN_S	29
 
+/* 802.11-2016, 9.4.2.158.2 VHT Capabilities Information field. */
+#define	IEEE80211_VHTCAP_EXT_NSS_BW		0xc0000000
+#define	IEEE80211_VHTCAP_EXT_NSS_BW_S		30
+
 /*
  * XXX TODO: add the rest of the bits
  */
