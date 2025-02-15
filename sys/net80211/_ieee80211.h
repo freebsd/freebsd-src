@@ -567,7 +567,7 @@ struct ieee80211_mimo_info {
 #define	IEEE80211_RX_F_FAIL_MIC		0x00000080 /* Failed MIC check */
 #define	IEEE80211_RX_F_DECRYPTED	0x00000100 /* Hardware decrypted */
 #define	IEEE80211_RX_F_IV_STRIP		0x00000200 /* Decrypted; IV stripped */
-#define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; MMIC stripped */
+#define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; [Micheal] MIC ([M]MIC) stripped */
 #define	IEEE80211_RX_F_SHORTGI		0x00000800 /* This is a short-GI frame */
 #define	IEEE80211_RX_F_CCK		0x00001000
 #define	IEEE80211_RX_F_OFDM		0x00002000
