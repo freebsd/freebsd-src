@@ -115,7 +115,8 @@ enum ieee80211_rate_control_changed_flags {
 #define	IEEE80211_TKIP_ICV_LEN			4
 #define	IEEE80211_TKIP_IV_LEN			8	/* WEP + KID + EXT */
 
-#define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* assigned to tx_highest */
+/* 802.11-2016, 9.4.2.158.3 Supported VHT-MCS and NSS Set field. */
+#define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* part of tx_highest */
 
 #define	IEEE80211_VHT_MAX_AMPDU_1024K		7	/* 9.4.2.56.3 A-MPDU Parameters field, Table 9-163 */
 
