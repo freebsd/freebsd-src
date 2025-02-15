@@ -1703,9 +1703,6 @@ vm_object_collapse_scan(vm_object_t object)
 	 */
 	vm_page_iter_init(&pages, backing_object);
 	for (p = vm_page_iter_lookup_ge(&pages, 0); p != NULL; p = next) {
-		next = TAILQ_NEXT(p, listq);
-		new_pindex = p->pindex - backing_offset_index;
-
 		/*
 		 * Check for busy page
 		 */
@@ -1721,8 +1718,8 @@ vm_object_collapse_scan(vm_object_t object)
 		    ("vm_object_collapse_scan: object mismatch %p != %p",
 		    p->object, backing_object));
 
-		if (p->pindex < backing_offset_index ||
-		    new_pindex >= object->size) {
+		if (p->pindex < backing_offset_index || object->size <=
+		    (new_pindex = p->pindex - backing_offset_index)) {
 			vm_pager_freespace(backing_object, p->pindex, 1);
 
 			KASSERT(!pmap_page_is_mapped(p),
