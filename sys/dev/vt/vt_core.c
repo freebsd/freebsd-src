@@ -55,8 +55,9 @@
 #include <sys/terminal.h>
 
 #include <dev/kbd/kbdreg.h>
-#include <dev/vt/vt.h>
+
 #include "opt_vt.h"
+#include <dev/vt/vt.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/psl.h>

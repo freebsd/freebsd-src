@@ -63,7 +63,11 @@
 #define	VT_ALT_TO_ESC_HACK	1
 #endif
 
-#define	VT_CONSWINDOW	4
+#ifdef	VT_OVERRIDE_CON_VT
+#define	VT_CONSWINDOW	VT_OVERRIDE_CON_VT
+#else
+#define	VT_CONSWINDOW	0
+#endif
 
 #if defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE)
 #define VT_MOUSE_PASTEBUTTON	MOUSE_BUTTON3DOWN	/* right button */

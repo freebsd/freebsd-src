@@ -787,6 +787,7 @@ DEV_VT			opt_syscons.h
 
 # For customizing tty startup
 VT_OVERRIDE_STARTING_VT	opt_vt.h
+VT_OVERRIDE_CON_VT	opt_vt.h
 
 # teken terminal emulator options
 TEKEN_CONS25		opt_teken.h
