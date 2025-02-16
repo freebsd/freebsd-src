@@ -900,7 +900,8 @@ pctrie_iter_remove(struct pctrie_iter *it, struct pctrie_node **freenode)
 {
 	KASSERT(NULL != pctrie_match_value(pctrie_node_load(pctrie_child(
 	    it->ptree, it->node, it->index), NULL, PCTRIE_LOCKED), it->index),
-	    ("%s: removing value %lx not at iter", __func__, it->index));
+	    ("%s: removing value %jx not at iter", __func__,
+	    (uintmax_t)it->index));
 	pctrie_remove(it->ptree, it->node, it->index, freenode);
 	if (*freenode != NULL)
 		it->node = pctrie_parent(it->node);
