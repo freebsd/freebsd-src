@@ -414,6 +414,7 @@ struct vt_driver {
 
 extern struct vt_device vt_consdev;
 void vt_upgrade(struct vt_device *vd);
+void vt_override_cons(struct vt_device *vd);
 
 #define	PIXEL_WIDTH(w)	((w) / 8)
 #define	PIXEL_HEIGHT(h)	((h) / 16)
