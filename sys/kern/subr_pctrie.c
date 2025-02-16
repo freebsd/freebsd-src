@@ -826,26 +826,22 @@ pctrie_iter_jump_le(struct pctrie_iter *it, int64_t jump)
 }
 
 /*
- * If 'child', a leaf and a child of 'parent', is not NULL and has key 'index',
- * then remove it from the pctrie and return its value.  If doing so produces an
- * internal node with only one child, purge it from the pctrie and save it in
- * *freenode for later disposal.
+ * Remove the non-NULL child identified by 'index' from the set of children of
+ * 'node'.  If doing so causes 'node' to have only one child, purge it from the
+ * pctrie and save it in *freenode for later disposal.
  */
-static uint64_t *
+static void
 pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
-    struct pctrie_node *child, struct pctrie_node **freenode)
+    struct pctrie_node **freenode)
 {
-	uint64_t *m;
+	struct pctrie_node *child;
 	int slot;
 
 	*freenode = NULL;
-	m = pctrie_match_value(child, index);
-	if (m == NULL)
-		return (m);
 	if (node == NULL) {
 		pctrie_node_store(pctrie_root(ptree),
 		    PCTRIE_NULL, PCTRIE_LOCKED);
-		return (m);
+		return;
 	}
 	slot = pctrie_slot(node, index);
 	KASSERT((node->pn_popmap & (1 << slot)) != 0,
@@ -854,7 +850,7 @@ pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
 	node->pn_popmap ^= 1 << slot;
 	pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL, PCTRIE_LOCKED);
 	if (!powerof2(node->pn_popmap))
-		return (m);
+		return;
 	KASSERT(node->pn_popmap != 0, ("%s: bad popmap all zeroes", __func__));
 	slot = ffs(node->pn_popmap) - 1;
 	child = pctrie_node_load(&node->pn_child[slot], NULL, PCTRIE_LOCKED);
@@ -866,7 +862,6 @@ pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
 		pctrie_setparent(child, node);
 	pctrie_node_store(pctrie_child(ptree, node, index), child,
 	    PCTRIE_LOCKED);
-	return (m);
 }
 
 /*
@@ -878,6 +873,7 @@ pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
     struct pctrie_node **freenode)
 {
 	struct pctrie_node *child, *node;
+	uint64_t *m;
 	int slot;
 
 	node = NULL;
@@ -888,25 +884,26 @@ pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
 		child = pctrie_node_load(&node->pn_child[slot], NULL,
 		    PCTRIE_LOCKED);
 	}
-	return (pctrie_remove(ptree, node, index, child, freenode));
+	if ((m = pctrie_match_value(child, index)) != NULL)
+		pctrie_remove(ptree, node, index, freenode);
+	else
+		*freenode = NULL;
+	return (m);
 }
 
 /*
  * Remove from the trie the leaf last chosen by the iterator, and
  * adjust the path if it's last member is to be freed.
  */
-uint64_t *
+void
 pctrie_iter_remove(struct pctrie_iter *it, struct pctrie_node **freenode)
 {
-	struct pctrie_node *child;
-	uint64_t *m;
-
-	child = pctrie_node_load(pctrie_child(it->ptree, it->node, it->index),
-	    NULL, PCTRIE_LOCKED);
-	m = pctrie_remove(it->ptree, it->node, it->index, child, freenode);
+	KASSERT(NULL != pctrie_match_value(pctrie_node_load(pctrie_child(
+	    it->ptree, it->node, it->index), NULL, PCTRIE_LOCKED), it->index),
+	    ("%s: removing value %lx not at iter", __func__, it->index));
+	pctrie_remove(it->ptree, it->node, it->index, freenode);
 	if (*freenode != NULL)
 		it->node = pctrie_parent(it->node);
-	return (m);
 }
 
 /*

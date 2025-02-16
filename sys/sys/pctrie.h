@@ -312,12 +312,9 @@ name##_PCTRIE_REMOVE_BASE(struct pctrie *ptree,				\
 static __inline __unused void						\
 name##_PCTRIE_ITER_REMOVE(struct pctrie_iter *it)			\
 {									\
-	uint64_t *val;							\
 	struct pctrie_node *freenode;					\
 									\
-	val = pctrie_iter_remove(it, &freenode);			\
-	if (val == NULL)						\
-		panic("%s: key not found", __func__);			\
+	pctrie_iter_remove(it, &freenode);				\
 	name##_PCTRIE_REMOVE_BASE(it->ptree, freenode);			\
 }									\
 									\
@@ -386,7 +383,7 @@ struct pctrie_node *pctrie_reclaim_resume_cb(struct pctrie_node **pnode,
 		    pctrie_cb_t callback, int keyoff, void *arg);
 uint64_t	*pctrie_remove_lookup(struct pctrie *ptree, uint64_t index,
 		    struct pctrie_node **killnode);
-uint64_t	*pctrie_iter_remove(struct pctrie_iter *it,
+void		pctrie_iter_remove(struct pctrie_iter *it,
 		    struct pctrie_node **freenode);
 uint64_t	*pctrie_iter_value(struct pctrie_iter *it);
 uint64_t	*pctrie_replace(struct pctrie *ptree, uint64_t *newval);
