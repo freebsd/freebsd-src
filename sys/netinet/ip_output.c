@@ -329,7 +329,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	const struct sockaddr *gw;
 	struct in_ifaddr *ia = NULL;
 	struct in_addr src;
-	int isbroadcast;
+	bool isbroadcast;
 	uint16_t ip_len, ip_off;
 	struct route iproute;
 	uint32_t fibnum;
@@ -434,7 +434,7 @@ again:
 		ifp = ia->ia_ifp;
 		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
-		isbroadcast = 1;
+		isbroadcast = true;
 		src = IA_SIN(ia)->sin_addr;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
@@ -460,7 +460,7 @@ again:
 		ifp = imo->imo_multicast_ifp;
 		mtu = ifp->if_mtu;
 		IFP_TO_IA(ifp, ia);
-		isbroadcast = 0;	/* fool gcc */
+		isbroadcast = false;
 		/* Interface may have no addresses. */
 		if (ia != NULL)
 			src = IA_SIN(ia)->sin_addr;
@@ -505,7 +505,7 @@ again:
 		else if ((ifp->if_flags & IFF_BROADCAST) && (gw->sa_family == AF_INET))
 			isbroadcast = in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia);
 		else
-			isbroadcast = 0;
+			isbroadcast = false;
 		mtu = nh->nh_mtu;
 		src = IA_SIN(ia)->sin_addr;
 	} else {
