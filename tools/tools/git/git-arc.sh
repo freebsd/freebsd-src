@@ -243,12 +243,18 @@ title2diff()
     local title
 
     title=$(echo $1 | sed 's/"/\\"/g')
-    arc_list --no-ansi |
-        awk -F': ' '{
-            if (substr($0, index($0, FS) + length(FS)) == "'"$title"'") {
-                print substr($1, match($1, "D[1-9][0-9]*"))
-            }
-        }'
+    #arc_list --no-ansi |
+    #    awk -F': ' '{
+    #        if (substr($0, index($0, FS) + length(FS)) == "'"$title"'") {
+    #            print substr($1, match($1, "D[1-9][0-9]*"))
+    #        }
+    #    }'
+
+    echo "{
+        \"queryKey\": \"all\",
+        \"constraints\": { \"query\": \"title:${title}\" } }" |
+        arc_call_conduit -- differential.revision.search |
+        jq -r ".response.data[] | select(.fields.title=\"${title}\") | @text \"D\( .id )\""
 }
 
 commit2diff()
