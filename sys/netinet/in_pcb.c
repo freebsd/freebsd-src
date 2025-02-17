@@ -754,8 +754,9 @@ in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
  * lsa can be NULL for IPv6.
  */
 int
-in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
-    struct sockaddr *fsa, u_short fport, struct ucred *cred, int lookupflags)
+in_pcb_lport_dest(const struct inpcb *inp, struct sockaddr *lsa,
+    u_short *lportp, struct sockaddr *fsa, u_short fport, struct ucred *cred,
+    int lookupflags)
 {
 	struct inpcbinfo *pcbinfo;
 	struct inpcb *tmpinp;
@@ -1143,8 +1144,8 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
  * of connect. Take jails into account as well.
  */
 int
-in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
-    struct ucred *cred)
+in_pcbladdr(const struct inpcb *inp, struct in_addr *faddr,
+    struct in_addr *laddr, struct ucred *cred)
 {
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
@@ -1360,7 +1361,7 @@ done:
  * and port. These are not updated in the error case.
  */
 int
-in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
+in_pcbconnect_setup(const struct inpcb *inp, struct sockaddr_in *sin,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct ucred *cred)
 {
