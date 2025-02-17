@@ -118,6 +118,8 @@ struct nfsclclient {
 	time_t			nfsc_expire;
 	int			nfsc_delegcnt;
 	int			nfsc_deleghighwater;
+	int			nfsc_layoutcnt;
+	int			nfsc_layouthighwater;
 	u_int32_t		nfsc_clientidrev;
 	u_int32_t		nfsc_rev;
 	u_int32_t		nfsc_renew;
