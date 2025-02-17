@@ -403,10 +403,7 @@ LENTRY(enter_kernel_el)
 	 * Configure the Extended Hypervisor register. This is only valid if
 	 * FEAT_HCX is enabled.
 	 */
-	mrs x2, id_aa64mmfr1_el1
-	ubfx x2, x2, #ID_AA64MMFR1_HCX_SHIFT, #ID_AA64MMFR1_HCX_WIDTH
-	cbz x2, 2f
-
+	CHECK_CPU_FEAT(x2, ID_AA64MMFR1, HCX, 2f)
 	/* Extended Hypervisor Configuration */
 	mov x2, xzr
 	msr HCRX_EL2_REG, x2
@@ -422,12 +419,8 @@ LENTRY(enter_kernel_el)
 	/* Zero vttbr_el2 so a hypervisor can tell the host and guest apart */
 	msr	vttbr_el2, xzr
 
-	/* Configure GICv3 CPU interface */
-	mrs	x2, id_aa64pfr0_el1
-	/* Extract GIC bits from the register */
-	ubfx	x2, x2, #ID_AA64PFR0_GIC_SHIFT, #ID_AA64PFR0_GIC_BITS
-	/* GIC[3:0] != 0000 - GIC CPU interface via special regs. supported */
-	cbz	x2, 3f
+	/* Check the CPU supports GIC, and configure the CPU interface */
+	CHECK_CPU_FEAT(x2, ID_AA64PFR0, GIC, 3f)
 
 	mrs	x2, icc_sre_el2
 	orr	x2, x2, #ICC_SRE_EL2_EN	/* Enable access from insecure EL1 */
@@ -958,9 +951,7 @@ LENTRY(start_mmu)
 	 * HW management of dirty state is set in C code as it may
 	 * need to be disabled because of CPU errata.
 	 */
-	mrs	x3, id_aa64mmfr1_el1
-	and	x3, x3, #(ID_AA64MMFR1_HAFDBS_MASK)
-	cbz	x3, 1f
+	CHECK_CPU_FEAT(x3, ID_AA64MMFR1, HAFDBS, 1f)
 	orr	x2, x2, #(TCR_HA)
 1:
 
