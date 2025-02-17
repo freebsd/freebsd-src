@@ -134,7 +134,7 @@ atf_test_case "ndp_slaac_default_route" "cleanup"
 ndp_slaac_default_route_head() {
 	atf_set descr 'Test default route installation via SLAAC'
 	atf_set require.user root
-	atf_set require.progs "python"
+	atf_set require.progs scapy
 }
 
 ndp_slaac_default_route_body() {
@@ -153,7 +153,7 @@ ndp_slaac_default_route_body() {
 	atf_check jexec ${jname} ifconfig ${epair0}a inet6 accept_rtadv
 
         # Send an RA advertising a prefix.
-	atf_check -e ignore python $(atf_get_srcdir)/ra.py \
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
 	    --sendif ${epair0}b \
 	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
 	    --src $(ndp_if_lladdr ${epair0}b) \
@@ -172,7 +172,7 @@ ndp_slaac_default_route_body() {
 	    jexec ${jname} netstat -rn -6
 
 	# Send another RA, make sure that the default route is installed again.
-	atf_check -e ignore python $(atf_get_srcdir)/ra.py \
+	atf_check -e ignore python3 $(atf_get_srcdir)/ra.py \
 	    --sendif ${epair0}b \
 	    --dst $(ndp_if_lladdr ${epair0}a ${jname}) \
 	    --src $(ndp_if_lladdr ${epair0}b) \
