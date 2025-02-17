@@ -530,6 +530,7 @@ static const struct mrs_field_value id_aa64dfr0_pmsver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_1, "SPEv1p1"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_2, "SPEv1p2"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_3, "SPEv1p3"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_4, "SPEv1p4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -540,6 +541,11 @@ static const struct mrs_field_value id_aa64dfr0_ctx_cmps[] = {
 
 static const struct mrs_field_value id_aa64dfr0_wrps[] = {
 	MRS_FIELD_VALUE_COUNT(ID_AA64DFR0, WRPs, "Watchpoint"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr0_pmss[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, PMSS, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -556,6 +562,7 @@ static const struct mrs_field_value id_aa64dfr0_pmuver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_5, "PMUv3p5"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_7, "PMUv3p7"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_8, "PMUv3p8"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_9, "PMUv3p9"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_IMPL, "IMPL PMU"),
 	MRS_FIELD_VALUE_END,
 };
@@ -572,6 +579,7 @@ static const struct mrs_field_value id_aa64dfr0_debugver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8p2"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_4, "Debugv8p4"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_8, "Debugv8p8"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_9, "Debugv8p9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -590,6 +598,7 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 	    id_aa64dfr0_ctx_cmps),
 	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64dfr0_wrps),
+	MRS_FIELD(ID_AA64DFR0, PMSS, false, MRS_LOWER, 0, id_aa64dfr0_pmss),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64dfr0_brps),
 	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_LOWER, 0, id_aa64dfr0_pmuver),
@@ -602,7 +611,25 @@ static const struct mrs_field id_aa64dfr0_fields[] = {
 
 
 /* ID_AA64DFR1_EL1 */
+static const struct mrs_field_value id_aa64dfr1_dpfzs[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, DPFZS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr1_pmicntr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, PMICNTR, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr1_spmu[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, SPMU, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field id_aa64dfr1_fields[] = {
+	MRS_FIELD(ID_AA64DFR1, DPFZS, false, MRS_LOWER, 0, id_aa64dfr1_dpfzs),
+	MRS_FIELD(ID_AA64DFR1, PMICNTR, false, MRS_LOWER, 0, id_aa64dfr1_pmicntr),
+	MRS_FIELD(ID_AA64DFR1, SPMU, false, MRS_LOWER, 0, id_aa64dfr1_spmu),
 	MRS_FIELD_END,
 };
 
@@ -837,7 +864,8 @@ static const struct mrs_field_hwcap id_aa64isar1_bf16_caps[] = {
 
 static const struct mrs_field_value id_aa64isar1_specres[] = {
 	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_NONE, ""),
-	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_IMPL, "PredInv"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_8_5, "PredInv v8.5"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_8_9, "PredInv v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -995,6 +1023,31 @@ static const struct mrs_field id_aa64isar1_fields[] = {
 
 
 /* ID_AA64ISAR2_EL1 */
+static const struct mrs_field_value id_aa64isar2_ats1a[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, ATS1A, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_cssc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, CSSC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_rprfm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, RPRFM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_prfmslc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, PRFMSLC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_clrbhb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, CLRBHB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64isar2_pac_frac[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, PAC_frac, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1057,6 +1110,11 @@ static const struct mrs_field_hwcap id_aa64isar2_wfxt_caps[] = {
 };
 
 static const struct mrs_field id_aa64isar2_fields[] = {
+	MRS_FIELD(ID_AA64ISAR2, ATS1A, false, MRS_LOWER, 0, id_aa64isar2_ats1a),
+	MRS_FIELD(ID_AA64ISAR2, CSSC, false, MRS_LOWER, 0, id_aa64isar2_cssc),
+	MRS_FIELD(ID_AA64ISAR2, RPRFM, false, MRS_LOWER, 0, id_aa64isar2_rprfm),
+	MRS_FIELD(ID_AA64ISAR2, PRFMSLC, false, MRS_LOWER, 0, id_aa64isar2_prfmslc),
+	MRS_FIELD(ID_AA64ISAR2, CLRBHB, false, MRS_LOWER, 0, id_aa64isar2_clrbhb),
 	MRS_FIELD(ID_AA64ISAR2, PAC_frac, false, MRS_LOWER, 0,
 	    id_aa64isar2_pac_frac),
 	MRS_FIELD(ID_AA64ISAR2, BC, false, MRS_LOWER, 0, id_aa64isar2_bc),
@@ -1081,7 +1139,9 @@ static const struct mrs_field_value id_aa64mmfr0_ecv[] = {
 };
 
 static const struct mrs_field_value id_aa64mmfr0_fgt[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, FGT, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_8_6, "FGT v8.6"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_8_9, "FGT v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1193,6 +1253,11 @@ static const struct mrs_field id_aa64mmfr0_fields[] = {
 
 
 /* ID_AA64MMFR1_EL1 */
+static const struct mrs_field_value id_aa64mmfr1_ecbhb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, ECBHB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr1_cmovw[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, CMOVW, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1224,7 +1289,9 @@ static const struct mrs_field_value id_aa64mmfr1_hcx[] = {
 };
 
 static const struct mrs_field_value id_aa64mmfr1_ets[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, ETS, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_NONE2, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_IMPL, "ETS2"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1281,6 +1348,7 @@ static const struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
 };
 
 static const struct mrs_field id_aa64mmfr1_fields[] = {
+	MRS_FIELD(ID_AA64MMFR1, ECBHB, false, MRS_LOWER, 0, id_aa64mmfr1_ecbhb),
 	MRS_FIELD(ID_AA64MMFR1, CMOVW, false, MRS_LOWER, 0, id_aa64mmfr1_cmovw),
 	MRS_FIELD(ID_AA64MMFR1, TIDCP1, false, MRS_LOWER, 0,
 	    id_aa64mmfr1_tidcp1),
@@ -1428,8 +1496,53 @@ static const struct mrs_field_value id_aa64mmfr3_spec_fpacc[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_value id_aa64mmfr3_aderr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, ADERR, NONE, SOME),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_sderr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, SDERR, NONE, ALL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_anerr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, ANERR, NONE, SOME),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_snerr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, SNERR, NONE, ALL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr3_mec[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, MEC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_aie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, AIE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s2poe[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S2POE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s1poe[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S1POE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s2pie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S2PIE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s1pie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S1PIE, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1446,7 +1559,16 @@ static const struct mrs_field_value id_aa64mmfr3_tcrx[] = {
 static const struct mrs_field id_aa64mmfr3_fields[] = {
 	MRS_FIELD(ID_AA64MMFR3, Spec_FPACC, false, MRS_LOWER, 0,
 	    id_aa64mmfr3_spec_fpacc),
+	MRS_FIELD(ID_AA64MMFR3, ADERR, false, MRS_LOWER, 0, id_aa64mmfr3_aderr),
+	MRS_FIELD(ID_AA64MMFR3, SDERR, false, MRS_LOWER, 0, id_aa64mmfr3_sderr),
+	MRS_FIELD(ID_AA64MMFR3, ANERR, false, MRS_LOWER, 0, id_aa64mmfr3_anerr),
+	MRS_FIELD(ID_AA64MMFR3, SNERR, false, MRS_LOWER, 0, id_aa64mmfr3_snerr),
 	MRS_FIELD(ID_AA64MMFR3, MEC, false, MRS_LOWER, 0, id_aa64mmfr3_mec),
+	MRS_FIELD(ID_AA64MMFR3, AIE, false, MRS_LOWER, 0, id_aa64mmfr3_aie),
+	MRS_FIELD(ID_AA64MMFR3, S2POE, false, MRS_LOWER, 0, id_aa64mmfr3_s2poe),
+	MRS_FIELD(ID_AA64MMFR3, S1POE, false, MRS_LOWER, 0, id_aa64mmfr3_s1poe),
+	MRS_FIELD(ID_AA64MMFR3, S2PIE, false, MRS_LOWER, 0, id_aa64mmfr3_s2pie),
+	MRS_FIELD(ID_AA64MMFR3, S1PIE, false, MRS_LOWER, 0, id_aa64mmfr3_s1pie),
 	MRS_FIELD(ID_AA64MMFR3, SCTLRX, false, MRS_LOWER, 0,
 	    id_aa64mmfr3_sctlrx),
 	MRS_FIELD(ID_AA64MMFR3, TCRX, false, MRS_LOWER, 0, id_aa64mmfr3_tcrx),
@@ -1522,6 +1644,7 @@ static const struct mrs_field_value id_aa64pfr0_ras[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_IMPL, "RAS"),
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_8_4, "RAS v8.4"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_8_9, "RAS v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1609,6 +1732,31 @@ static const struct mrs_field id_aa64pfr0_fields[] = {
 
 
 /* ID_AA64PFR1_EL1 */
+static const struct mrs_field_value id_aa64pfr1_pfar[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, PFAR, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_df2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, DF2, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_mtex[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, MTEX, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_the[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, THE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_mtefrac[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, MTE_frac, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64pfr1_nmi[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, NMI, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1677,6 +1825,11 @@ static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
 };
 
 static const struct mrs_field id_aa64pfr1_fields[] = {
+	MRS_FIELD(ID_AA64PFR1, PFAR, false, MRS_LOWER, 0, id_aa64pfr1_pfar),
+	MRS_FIELD(ID_AA64PFR1, DF2, false, MRS_LOWER, 0, id_aa64pfr1_df2),
+	MRS_FIELD(ID_AA64PFR1, MTEX, false, MRS_LOWER, 0, id_aa64pfr1_mtex),
+	MRS_FIELD(ID_AA64PFR1, THE, false, MRS_LOWER, 0, id_aa64pfr1_the),
+	MRS_FIELD(ID_AA64PFR1, MTE_frac, false, MRS_LOWER, 0, id_aa64pfr1_mtefrac),
 	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_LOWER, 0, id_aa64pfr1_nmi),
 	MRS_FIELD(ID_AA64PFR1, CSV2_frac, false, MRS_LOWER, 0,
 	    id_aa64pfr1_csv2_frac),
