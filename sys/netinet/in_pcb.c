@@ -1121,7 +1121,18 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		else
 			in_pcbinshash(inp);
 	}
+#ifdef ROUTE_MPATH
+	if (CALC_FLOWID_OUTBOUND) {
+		uint32_t hash_val, hash_type;
 
+		hash_val = fib4_calc_software_hash(inp->inp_laddr,
+		    inp->inp_faddr, 0, fport,
+		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
+
+		inp->inp_flowid = hash_val;
+		inp->inp_flowtype = hash_type;
+	}
+#endif
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
@@ -1377,17 +1388,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 	lport = *lportp;
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
-#ifdef ROUTE_MPATH
-	if (CALC_FLOWID_OUTBOUND) {
-		uint32_t hash_val, hash_type;
-
-		hash_val = fib4_calc_software_hash(laddr, faddr, 0, fport,
-		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
-
-		inp->inp_flowid = hash_val;
-		inp->inp_flowtype = hash_type;
-	}
-#endif
 	if (V_connect_inaddr_wild && !CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
