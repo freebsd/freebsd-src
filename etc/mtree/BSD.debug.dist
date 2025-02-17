@@ -39,6 +39,8 @@
                 ..
                 engines
                 ..
+                flua
+                ..
                 i18n
                 ..
                 libxo
