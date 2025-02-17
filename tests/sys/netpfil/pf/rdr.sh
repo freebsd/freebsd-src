@@ -32,7 +32,7 @@ tcp_v6_head()
 {
 	atf_set descr 'TCP rdr with IPv6'
 	atf_set require.user root
-	atf_set require.progs scapy python3
+	atf_set require.progs python3
 }
 
 #
