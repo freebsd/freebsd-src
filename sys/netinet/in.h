@@ -672,8 +672,8 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */
 struct in_ifaddr;
 
-int	 in_broadcast(struct in_addr, struct ifnet *);
-int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
+bool	 in_broadcast(struct in_addr, struct ifnet *);
+bool	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
 int	 in_localaddr(struct in_addr);
 bool	 in_localip(struct in_addr);
