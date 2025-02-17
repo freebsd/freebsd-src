@@ -386,8 +386,8 @@ static void		 pf_counters_inc(int, struct pf_pdesc *,
 			    struct pf_kstate *, struct pf_krule *,
 			    struct pf_krule *);
 static void		 pf_overload_task(void *v, int pending);
-static u_short		 pf_insert_src_node(struct pf_ksrc_node **,
-			    struct pf_srchash **, struct pf_krule *,
+static u_short		 pf_insert_src_node(struct pf_ksrc_node *[PF_SN_MAX],
+			    struct pf_srchash *[PF_SN_MAX], struct pf_krule *,
 			    struct pf_addr *, sa_family_t, struct pf_addr *,
 			    struct pfi_kkif *, pf_sn_types_t);
 static u_int		 pf_purge_expired_states(u_int, int);
