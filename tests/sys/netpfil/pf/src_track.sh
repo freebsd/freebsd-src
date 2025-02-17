@@ -261,6 +261,7 @@ max_src_states_global_head()
 {
 	atf_set descr 'Max states per source global'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 max_src_states_global_body()
@@ -310,6 +311,7 @@ route_to_head()
 {
 	atf_set descr 'Max states per source per rule with route-to'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 route_to_body()
