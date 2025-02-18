@@ -3959,6 +3959,40 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 			}
 			NFSUNLOCKCLSTATE();
 			break;
+		case NFSV4OP_CBRECALLANY:
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			i = fxdr_unsigned(int, *tl++);
+			j = fxdr_unsigned(int, *tl);
+			if (i < 0 || j != 1)
+				error = NFSERR_BADXDR;
+			if (error == 0) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+				j = fxdr_unsigned(int, *tl);
+				if (i < 100)
+					i = 100;
+				else if (i > 100000)
+					i = 100000;
+				NFSLOCKCLSTATE();
+				clp = nfscl_getclntsess(sessionid);
+				if (clp == NULL)
+					error = NFSERR_SERVERFAULT;
+				if (((j & NFSRCA4_RDATA_DLG) != 0 ||
+				    (j & NFSRCA4_WDATA_DLG) != 0) &&
+				    error == 0 && i <
+				    clp->nfsc_deleghighwater)
+					clp->nfsc_deleghighwater = i;
+				if (error == 0 &&
+				    ((!NFSHASFLEXFILE(clp->nfsc_nmp) &&
+				     (j & NFSRCA4_FILE_LAYOUT) != 0 &&
+				     i < clp->nfsc_layouthighwater) ||
+				     (NFSHASFLEXFILE(clp->nfsc_nmp) &&
+				     (j & (NFSRCA4_FF_LAYOUT_READ |
+				     NFSRCA4_FF_LAYOUT_RW)) != 0 &&
+				     i < clp->nfsc_layouthighwater)))
+					clp->nfsc_layouthighwater = i;
+				NFSUNLOCKCLSTATE();
+			}
+			break;
 		default:
 			if (i == 0 && minorvers != NFSV4_MINORVERSION)
 				error = NFSERR_OPNOTINSESS;
