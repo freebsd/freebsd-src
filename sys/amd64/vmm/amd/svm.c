@@ -55,6 +55,7 @@
 #include <machine/vmm_snapshot.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_mem.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
@@ -69,6 +70,7 @@
 #include "svm_softc.h"
 #include "svm_msr.h"
 #include "npt.h"
+#include "io/ppt.h"
 
 SYSCTL_DECL(_hw_vmm);
 SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
@@ -1593,7 +1595,8 @@ svm_vmexit(struct svm_softc *svm_sc, struct svm_vcpu *vcpu,
 			SVM_CTR2(vcpu, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
-		} else if (vm_mem_allocated(vcpu->vcpu, info2)) {
+		} else if (vm_mem_allocated(vcpu->vcpu, info2) ||
+		    ppt_is_mmio(svm_sc->vm, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);

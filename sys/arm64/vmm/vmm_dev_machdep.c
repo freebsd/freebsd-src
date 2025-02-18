@@ -45,6 +45,7 @@
 #include <machine/vmm.h>
 
 #include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_mem.h>
 
 #include "io/vgic.h"
 

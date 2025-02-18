@@ -150,6 +150,7 @@ CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
 
 struct vm;
 struct vm_exception;
+struct vm_mem;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
@@ -238,38 +239,10 @@ void vm_get_topology(struct vm *vm, uint16_t *sockets, uint16_t *cores,
 int vm_set_topology(struct vm *vm, uint16_t sockets, uint16_t cores,
     uint16_t threads, uint16_t maxcpus);
 
-/*
- * APIs that modify the guest memory map require all vcpus to be frozen.
- */
-void vm_slock_memsegs(struct vm *vm);
-void vm_xlock_memsegs(struct vm *vm);
-void vm_unlock_memsegs(struct vm *vm);
-int vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t off,
-    size_t len, int prot, int flags);
-int vm_munmap_memseg(struct vm *vm, vm_paddr_t gpa, size_t len);
-int vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem);
-void vm_free_memseg(struct vm *vm, int ident);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
-
-/*
- * APIs that inspect the guest memory map require only a *single* vcpu to
- * be frozen. This acts like a read lock on the guest memory map since any
- * modification requires *all* vcpus to be frozen.
- */
-int vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
-    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
-int vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
-    struct vm_object **objptr);
-vm_paddr_t vmm_sysmem_maxaddr(struct vm *vm);
-void *vm_gpa_hold(struct vcpu *vcpu, vm_paddr_t gpa, size_t len,
-    int prot, void **cookie);
-void *vm_gpa_hold_global(struct vm *vm, vm_paddr_t gpa, size_t len,
-    int prot, void **cookie);
-void vm_gpa_release(void *cookie);
-bool vm_mem_allocated(struct vcpu *vcpu, vm_paddr_t gpa);
 
 int vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vcpu *vcpu, int reg, uint64_t val);
@@ -402,6 +375,7 @@ vcpu_should_yield(struct vcpu *vcpu)
 void *vcpu_stats(struct vcpu *vcpu);
 void vcpu_notify_event(struct vcpu *vcpu, bool lapic_intr);
 struct vmspace *vm_vmspace(struct vm *vm);
+struct vm_mem *vm_mem(struct vm *vm);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
 struct vpmtmr *vm_pmtmr(struct vm *vm);

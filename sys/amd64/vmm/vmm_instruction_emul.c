@@ -39,6 +39,8 @@
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+
+#include <dev/vmm/vmm_mem.h>
 #else	/* !_KERNEL */
 #include <sys/types.h>
 #include <sys/errno.h>
