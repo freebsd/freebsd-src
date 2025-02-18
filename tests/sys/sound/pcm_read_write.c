@@ -81,13 +81,21 @@ static struct afmt_test_data {
 static intpcm_t
 local_normalize(intpcm_t value, int val_bits, int norm_bits)
 {
+	int32_t divisor;
+	intpcm_t remainder;
+
 	/* Avoid undefined or implementation defined behavior. */
 	if (val_bits < norm_bits)
 		/* Multiply instead of left shift (value may be negative). */
 		return (value * (1 << (norm_bits - val_bits)));
-	else if (val_bits > norm_bits)
+	else if (val_bits > norm_bits) {
+		divisor = (1 << (val_bits - norm_bits));
+		/* Positive remainder, to discard lowest bits from value. */
+		remainder = value % divisor;
+		remainder = (remainder + divisor) % divisor;
 		/* Divide instead of right shift (value may be negative). */
-		return (value / (1 << (val_bits - norm_bits)));
+		return ((value - remainder) / divisor);
+	}
 	return value;
 }
 
@@ -103,8 +111,7 @@ local_calc_limit(intpcm_t value, int val_bits)
 	 * behavior here.
 	 */
 	if (sizeof(intpcm32_t) == (32 / 8) && val_bits == 32)
-		/* Divide instead of right shift (value may be negative). */
-		return (value / (1 << 8));
+		return (local_normalize(value, 32, 24));
 	return value;
 }
 
