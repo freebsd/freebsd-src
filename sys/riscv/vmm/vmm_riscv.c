@@ -66,6 +66,8 @@
 #include <machine/encoding.h>
 #include <machine/db_machdep.h>
 
+#include <dev/vmm/vmm_mem.h>
+
 #include "riscv.h"
 #include "vmm_aplic.h"
 #include "vmm_fence.h"

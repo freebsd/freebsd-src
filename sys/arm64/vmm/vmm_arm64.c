@@ -58,6 +58,8 @@
 #include <machine/hypervisor.h>
 #include <machine/pmap.h>
 
+#include <dev/vmm/vmm_mem.h>
+
 #include "mmu.h"
 #include "arm64.h"
 #include "hyp.h"

@@ -27,6 +27,7 @@
 #include <vm/vm_object.h>
 
 #include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
 
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
