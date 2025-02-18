@@ -43,24 +43,14 @@ function syscall_mk.generate(tbl, config, fh)
 	gen:write("MIASM =  \\\n") -- preamble
 	for _, v in pairs(s) do
 		local c = v:compatLevel()
+		local bs = " \\"
 		idx = idx + 1
-		if v:native() and not v.type.NODEF and not v.type.NOLIB then
+		if (v:native() or c >= 7) and not v.type.NODEF and not v.type.NOLIB then
 			if idx >= size then
 				-- At last system call, no backslash.
-				gen:write(string.format("\t%s.o\n", v:symbol()))
-			else
-				-- Normal behavior.
-				gen:write(string.format("\t%s.o \\\n", v:symbol()))
+				bs = ""
 			end
-		-- Handle compat (everything >= FREEBSD3):
-		elseif c >= 7 and not v.type.NODEF and not v.type.NOLIB then
-			if idx >= size then
-				-- At last system call, no backslash.
-				gen:write(string.format("\t%s.o\n", v:symbol()))
-			else
-				-- Normal behavior.
-				gen:write(string.format("\t%s.o \\\n", v:symbol()))
-			end
+			gen:write(string.format("\t%s.o%s\n", v:symbol(), bs))
 		end
 	end
 end
