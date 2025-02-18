@@ -360,7 +360,7 @@ If
 .Fa sbt
 specifies a time in the past,
 the window is adjusted to start at the current time.
-A non-zero value for
+A nonzero value for
 .Fa pr
 allows the callout subsystem to coalesce callouts scheduled close to each
 other into fewer timer interrupts,
@@ -485,11 +485,11 @@ to which it is currently assigned.
 Softclock threads are not pinned to their respective CPUs by default.
 The softclock thread for CPU 0 can be pinned to CPU 0 by setting the
 .Va kern.pin_default_swi
-loader tunable to a non-zero value.
+loader tunable to a nonzero value.
 Softclock threads for CPUs other than zero can be pinned to their
 respective CPUs by setting the
 .Va kern.pin_pcpu_swi
-loader tunable to a non-zero value.
+loader tunable to a nonzero value.
 .Pp
 The macros
 .Fn callout_pending ,
