@@ -706,6 +706,8 @@ __skb_queue_purge(struct sk_buff_head *q)
 	SKB_TRACE(q);
         while ((skb = __skb_dequeue(q)) != NULL)
 		kfree_skb(skb);
+	WARN_ONCE(skb_queue_len(q) != 0, "%s: queue %p not empty: %u",
+	    __func__, q, skb_queue_len(q));
 }
 
 static inline void

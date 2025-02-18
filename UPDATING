@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250214:
+	Commit 4517fbfd4251 modified the internal API between the
+	nfscommon and nfscl modules.  As such, both of these modules
+	need to be rebuilt from sources.
+
 20250201:
 	The NFS related daemons, that provide RPC services to the kernel:
 	gssd(8), rpcbind(8), rpc.tlsservd(8) and rpc.tlsclntd(8), now use a

@@ -217,7 +217,7 @@ sdhci_fdt_rockchip_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
 			    DLL_STRBIN_TAPNUM_FROM_SW);
 		}
 	}
-	return (sdhci_fdt_rockchip_set_clock(dev, slot, clock));
+	return (sdhci_fdt_set_clock(dev, slot, clock));
 }
 
 static int
@@ -226,6 +226,7 @@ sdhci_fdt_rockchip_attach(device_t dev)
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 	int err, compat;
 
+	sc->dev = dev;
 	compat = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	switch (compat) {
 	case SDHCI_FDT_RK3399:
@@ -243,12 +244,10 @@ sdhci_fdt_rockchip_attach(device_t dev)
 			device_printf(dev, "Cannot get syscon handle\n");
 			return (err);
 		}
-		if (compat == SDHCI_FDT_RK3399) {
-			err = sdhci_init_rk3399(dev);
-			if (err != 0) {
-				device_printf(dev, "Cannot init RK3399 SDHCI\n");
-				return (err);
-			}
+		err = sdhci_init_rk3399(dev);
+		if (err != 0) {
+			device_printf(dev, "Cannot init RK3399 SDHCI\n");
+			return (err);
 		}
 		break;
 	case SDHCI_FDT_RK3568:

@@ -706,7 +706,7 @@ gve_rx_cleanup_tq(void *arg, int pending)
 	 * interrupt but they will still be handled by the enqueue below.
 	 * Fragments received after the barrier WILL trigger an interrupt.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	if (gve_rx_work_pending(rx)) {
 		gve_db_bar_write_4(priv, rx->com.irq_db_offset, GVE_IRQ_MASK);

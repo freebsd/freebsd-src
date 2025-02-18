@@ -94,9 +94,6 @@ NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
 struct nfsclhead nfsclhead;	/* Head of clientid list */
 
-static int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
-static int nfscl_delegcnt = 0;
-static int nfscl_layoutcnt = 0;
 static int nfscl_getopen(struct nfsclownerhead *, struct nfsclopenhash *,
     u_int8_t *, int, u_int8_t *, u_int8_t *, u_int32_t,
     struct nfscllockowner **, struct nfsclopen **);
@@ -462,7 +459,7 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 		    nfsdl_hash);
 		dp->nfsdl_timestamp = NFSD_MONOSEC + 120;
 		nfsstatsv1.cldelegates++;
-		nfscl_delegcnt++;
+		clp->nfsc_delegcnt++;
 	} else {
 		/*
 		 * A delegation already exists.  If the new one is a Write
@@ -919,6 +916,10 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		for (i = 0; i < NFSCLLAYOUTHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_layouthash[i]);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
+		clp->nfsc_delegcnt = 0;
+		clp->nfsc_deleghighwater = NFSCLDELEGHIGHWATER;
+		clp->nfsc_layoutcnt = 0;
+		clp->nfsc_layouthighwater = NFSCLLAYOUTHIGHWATER;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
 		nfscl_fillclid(nmp->nm_clval, uuid, clp->nfsc_id,
@@ -1751,10 +1752,10 @@ nfscl_freedeleg(struct nfscldeleghead *hdp, struct nfscldeleg *dp, bool freeit)
 
 	TAILQ_REMOVE(hdp, dp, nfsdl_list);
 	LIST_REMOVE(dp, nfsdl_hash);
+	dp->nfsdl_clp->nfsc_delegcnt--;
 	if (freeit)
 		free(dp, M_NFSCLDELEG);
 	nfsstatsv1.cldelegates--;
-	nfscl_delegcnt--;
 }
 
 /*
@@ -2864,7 +2865,7 @@ tryagain:
 					nfsdl_list);
 				    LIST_REMOVE(dp, nfsdl_hash);
 				    TAILQ_INSERT_HEAD(&dh, dp, nfsdl_list);
-				    nfscl_delegcnt--;
+				    clp->nfsc_delegcnt--;
 				    nfsstatsv1.cldelegates--;
 				}
 				NFSLOCKCLSTATE();
@@ -2894,7 +2895,8 @@ tryagain:
 		 * The tailq list is in LRU order.
 		 */
 		dp = TAILQ_LAST(&clp->nfsc_deleg, nfscldeleghead);
-		while (nfscl_delegcnt > nfscl_deleghighwater && dp != NULL) {
+		while (clp->nfsc_delegcnt > clp->nfsc_deleghighwater &&
+		    dp != NULL) {
 		    ndp = TAILQ_PREV(dp, nfscldeleghead, nfsdl_list);
 		    if (dp->nfsdl_rwlock.nfslock_usecnt == 0 &&
 			dp->nfsdl_rwlock.nfslock_lock == 0 &&
@@ -2921,7 +2923,7 @@ tryagain:
 			    TAILQ_REMOVE(&clp->nfsc_deleg, dp, nfsdl_list);
 			    LIST_REMOVE(dp, nfsdl_hash);
 			    TAILQ_INSERT_HEAD(&dh, dp, nfsdl_list);
-			    nfscl_delegcnt--;
+			    clp->nfsc_delegcnt--;
 			    nfsstatsv1.cldelegates--;
 			}
 		    }
@@ -2977,13 +2979,14 @@ tryagain2:
 		lyp = TAILQ_LAST(&clp->nfsc_layout, nfscllayouthead);
 		while (lyp != NULL) {
 			nlyp = TAILQ_PREV(lyp, nfscllayouthead, nfsly_list);
-			if (lyp->nfsly_timestamp < NFSD_MONOSEC &&
+			if ((lyp->nfsly_timestamp < NFSD_MONOSEC ||
+			     clp->nfsc_layoutcnt > clp->nfsc_layouthighwater) &&
 			    (lyp->nfsly_flags & (NFSLY_RECALL |
 			     NFSLY_RETONCLOSE)) == 0 &&
 			    lyp->nfsly_lock.nfslock_usecnt == 0 &&
 			    lyp->nfsly_lock.nfslock_lock == 0) {
 				NFSCL_DEBUG(4, "ret stale lay=%d\n",
-				    nfscl_layoutcnt);
+				    clp->nfsc_layoutcnt);
 				recallp = malloc(sizeof(*recallp),
 				    M_NFSLAYRECALL, M_NOWAIT);
 				if (recallp == NULL)
@@ -3933,6 +3936,24 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				*tl++ = txdr_unsigned(NFSV4_CBSLOTS - 1);
 				*tl = txdr_unsigned(NFSV4_CBSLOTS - 1);
 			}
+			break;
+		case NFSV4OP_CBRECALLSLOT:
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			highslot = fxdr_unsigned(uint32_t, *tl);
+			NFSLOCKCLSTATE();
+			clp = nfscl_getclntsess(sessionid);
+			if (clp == NULL)
+				error = NFSERR_SERVERFAULT;
+			if (error == 0) {
+				tsep = nfsmnt_mdssession(clp->nfsc_nmp);
+				mtx_lock(&tsep->nfsess_mtx);
+				if ((highslot + 1) < tsep->nfsess_foreslots) {
+					tsep->nfsess_foreslots = (highslot + 1);
+					nfs_resetslots(tsep);
+				}
+				mtx_unlock(&tsep->nfsess_mtx);
+			}
+			NFSUNLOCKCLSTATE();
 			break;
 		default:
 			if (i == 0 && minorvers != NFSV4_MINORVERSION)
@@ -5267,7 +5288,7 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			LIST_INSERT_HEAD(NFSCLLAYOUTHASH(clp, fhp, fhlen), lyp,
 			    nfsly_hash);
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
-			nfscl_layoutcnt++;
+			clp->nfsc_layoutcnt++;
 			nfsstatsv1.cllayouts++;
 		} else {
 			if (retonclose != 0)
@@ -5642,7 +5663,7 @@ nfscl_freelayout(struct nfscllayout *layp)
 		LIST_REMOVE(rp, nfsrecly_list);
 		free(rp, M_NFSLAYRECALL);
 	}
-	nfscl_layoutcnt--;
+	layp->nfsly_clp->nfsc_layoutcnt--;
 	nfsstatsv1.cllayouts--;
 	free(layp, M_NFSLAYOUT);
 }

@@ -67,6 +67,7 @@
 #define	D80211_TRACEX		(D80211_TRACE_TX|D80211_TRACE_RX)
 #define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
 #define	D80211_TRACE_STA	0x00010000
+#define	D80211_TRACE_HW_CRYPTO	0x00020000
 #define	D80211_TRACE_MO		0x00100000
 #define	D80211_TRACE_MODE	0x0f000000
 #define	D80211_TRACE_MODE_HT	0x01000000
@@ -151,7 +152,7 @@ struct lkpi_sta {
 	struct mbufq		txq;
 	struct mtx		txq_mtx;
 
-	struct ieee80211_key_conf *kc;
+	struct ieee80211_key_conf *kc[IEEE80211_WEP_NKID];
 	enum ieee80211_sta_state state;
 	bool			txq_ready;			/* Can we run the taskq? */
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
@@ -167,6 +168,8 @@ struct lkpi_vif {
         TAILQ_ENTRY(lkpi_vif)	lvif_entry;
 	struct ieee80211vap	iv_vap;
 	eventhandler_tag	lvif_ifllevent;
+
+	struct sysctl_ctx_list	sysctl_ctx;
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;
@@ -442,6 +445,7 @@ int lkpi_80211_mo_set_key(struct ieee80211_hw *, enum set_key_cmd,
     struct ieee80211_key_conf *);
 int lkpi_80211_mo_ampdu_action(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_ampdu_params *);
-
+int lkpi_80211_mo_sta_statistics(struct ieee80211_hw *, struct ieee80211_vif *,
+    struct ieee80211_sta *, struct station_info *);
 
 #endif	/* _LKPI_SRC_LINUX_80211_H */

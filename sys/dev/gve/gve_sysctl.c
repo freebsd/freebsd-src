@@ -94,7 +94,7 @@ gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
 	    "rx_mbuf_dmamap_err", CTLFLAG_RD,
 	    &stats->rx_mbuf_dmamap_err,
-	    "Number of rx mbufs which couldnt be dma mapped");
+	    "Number of rx mbufs which could not be dma mapped");
 	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
 	    "rx_mbuf_mclget_null", CTLFLAG_RD,
 	    &stats->rx_mbuf_mclget_null,
@@ -170,7 +170,7 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_mbuf_collpase", CTLFLAG_RD,
 	    &stats->tx_mbuf_collapse,
-	    "tx mbufs that had to be collpased");
+	    "tx mbufs that had to be collapsed");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_mbuf_defrag", CTLFLAG_RD,
 	    &stats->tx_mbuf_defrag,

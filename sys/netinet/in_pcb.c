@@ -754,8 +754,9 @@ in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
  * lsa can be NULL for IPv6.
  */
 int
-in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
-    struct sockaddr *fsa, u_short fport, struct ucred *cred, int lookupflags)
+in_pcb_lport_dest(const struct inpcb *inp, struct sockaddr *lsa,
+    u_short *lportp, struct sockaddr *fsa, u_short fport, struct ucred *cred,
+    int lookupflags)
 {
 	struct inpcbinfo *pcbinfo;
 	struct inpcb *tmpinp;
@@ -1121,7 +1122,18 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		else
 			in_pcbinshash(inp);
 	}
+#ifdef ROUTE_MPATH
+	if (CALC_FLOWID_OUTBOUND) {
+		uint32_t hash_val, hash_type;
 
+		hash_val = fib4_calc_software_hash(inp->inp_laddr,
+		    inp->inp_faddr, 0, fport,
+		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
+
+		inp->inp_flowid = hash_val;
+		inp->inp_flowtype = hash_type;
+	}
+#endif
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
@@ -1132,8 +1144,8 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
  * of connect. Take jails into account as well.
  */
 int
-in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
-    struct ucred *cred)
+in_pcbladdr(const struct inpcb *inp, struct in_addr *faddr,
+    struct in_addr *laddr, struct ucred *cred)
 {
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
@@ -1349,7 +1361,7 @@ done:
  * and port. These are not updated in the error case.
  */
 int
-in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
+in_pcbconnect_setup(const struct inpcb *inp, struct sockaddr_in *sin,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct ucred *cred)
 {
@@ -1377,17 +1389,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr_in *sin,
 	lport = *lportp;
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
-#ifdef ROUTE_MPATH
-	if (CALC_FLOWID_OUTBOUND) {
-		uint32_t hash_val, hash_type;
-
-		hash_val = fib4_calc_software_hash(laddr, faddr, 0, fport,
-		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
-
-		inp->inp_flowid = hash_val;
-		inp->inp_flowtype = hash_type;
-	}
-#endif
 	if (V_connect_inaddr_wild && !CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,

@@ -50,7 +50,7 @@ int	inp_trylock(struct inpcb *inp, const inp_lookup_t lock);
 bool	inp_smr_lock(struct inpcb *, const inp_lookup_t);
 int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
 	    struct ucred *, int);
-int	in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa,
+int	in_pcb_lport_dest(const struct inpcb *inp, struct sockaddr *lsa,
             u_short *lportp, struct sockaddr *fsa, u_short fport,
             struct ucred *cred, int lookupflags);
 struct inpcb *in_pcblookup_local(struct inpcbinfo *, struct in_addr, u_short,

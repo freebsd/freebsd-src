@@ -111,7 +111,7 @@ pflogattach(int npflog __unused)
 	struct if_clone_addreq req = {
 		.create_f = pflog_clone_create,
 		.destroy_f = pflog_clone_destroy,
-		.flags = IFC_F_AUTOUNIT | IFC_F_LIMITUNIT,
+		.flags = IFC_F_AUTOUNIT,
 	};
 	V_pflog_cloner = ifc_attach_cloner(pflogname, &req);
 	struct ifc_data ifd = { .unit = 0 };

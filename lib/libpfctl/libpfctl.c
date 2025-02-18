@@ -1255,6 +1255,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_uid(nw, PF_RT_UID, &r->uid);
 	snl_add_msg_attr_uid(nw, PF_RT_GID, (const struct pf_rule_uid *)&r->gid);
 	snl_add_msg_attr_string(nw, PF_RT_RCV_IFNAME, r->rcv_ifname);
+	snl_add_msg_attr_bool(nw, PF_RT_RCV_IFNOT, r->rcvifnot);
 
 	snl_add_msg_attr_u32(nw, PF_RT_RULE_FLAG, r->rule_flag);
 	snl_add_msg_attr_u8(nw, PF_RT_ACTION, r->action);
@@ -1663,6 +1664,10 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_RPOOL_NAT, .off = _OUT(r.nat), .arg = &pool_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_RT_NAF, .off = _OUT(r.naf), .cb = snl_attr_get_uint8 },
 	{ .type = PF_RT_RPOOL_RT, .off = _OUT(r.route), .arg = &pool_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_RT_RCV_IFNOT, .off = _OUT(r.rcvifnot),.cb = snl_attr_get_bool },
+	{ .type = PF_RT_SRC_NODES_LIMIT, .off = _OUT(r.src_nodes_type[PF_SN_LIMIT]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_RT_SRC_NODES_NAT, .off = _OUT(r.src_nodes_type[PF_SN_NAT]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_RT_SRC_NODES_ROUTE, .off = _OUT(r.src_nodes_type[PF_SN_ROUTE]), .cb = snl_attr_get_uint64 },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);
@@ -1908,6 +1913,7 @@ static struct snl_attr_parser ap_state[] = {
 	{ .type = PF_ST_DNRPIPE, .off = _OUT(dnrpipe), .cb = snl_attr_get_uint16 },
 	{ .type = PF_ST_RT, .off = _OUT(rt), .cb = snl_attr_get_uint8 },
 	{ .type = PF_ST_RT_IFNAME, .off = _OUT(rt_ifname), .cb = snl_attr_store_ifname },
+	{ .type = PF_ST_SRC_NODE_FLAGS, .off = _OUT(src_node_flags), .cb = snl_attr_get_uint8 },
 };
 #undef _IN
 #undef _OUT
@@ -3016,6 +3022,7 @@ static struct snl_attr_parser ap_srcnode[] = {
 	{ .type = PF_SN_EXPIRE, .off = _OUT(expire), .cb = snl_attr_get_uint64 },
 	{ .type = PF_SN_CONNECTION_RATE, .off = _OUT(conn_rate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
 	{ .type = PF_SN_NAF, .off = _OUT(naf), .cb = snl_attr_get_uint8 },
+	{ .type = PF_SN_NODE_TYPE, .off = _OUT(type), .cb = snl_attr_get_uint8 },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(srcnode_parser, struct genlmsghdr, snl_f_p_empty, ap_srcnode);

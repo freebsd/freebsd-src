@@ -43,6 +43,7 @@ class TestFrag6(VnetTestTemplate):
         return False
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_dup_frag_hdr(self):
         "Test packets with duplicate fragment headers"
         srv_vnet = self.vnet_map["vnet2"]
@@ -64,6 +65,7 @@ class TestFrag6(VnetTestTemplate):
             assert not p.getlayer(sp.ICMPv6EchoReply)
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_overlong(self):
         "Test overly long fragmented packet"
 
@@ -112,6 +114,7 @@ class TestFrag6_Overlap(VnetTestTemplate):
         ])
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_overlap(self):
         "Ensure we discard packets with overlapping fragments"
 

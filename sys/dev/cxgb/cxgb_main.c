@@ -36,7 +36,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
-#include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -76,7 +75,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
 
 #include <cxgb_include.h>
 
@@ -1137,66 +1135,23 @@ t3_fatal_err(struct adapter *sc)
 int
 t3_os_find_pci_capability(adapter_t *sc, int cap)
 {
-	device_t dev;
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-	uint32_t status;
-	uint8_t ptr;
+	int rc, reg = 0;
 
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
-
-	status = pci_read_config(dev, PCIR_STATUS, 2);
-	if (!(status & PCIM_STATUS_CAPPRESENT))
-		return (0);
-
-	switch (cfg->hdrtype & PCIM_HDRTYPE) {
-	case 0:
-	case 1:
-		ptr = PCIR_CAP_PTR;
-		break;
-	case 2:
-		ptr = PCIR_CAP_PTR_2;
-		break;
-	default:
-		return (0);
-		break;
-	}
-	ptr = pci_read_config(dev, ptr, 1);
-
-	while (ptr != 0) {
-		if (pci_read_config(dev, ptr + PCICAP_ID, 1) == cap)
-			return (ptr);
-		ptr = pci_read_config(dev, ptr + PCICAP_NEXTPTR, 1);
-	}
-
-	return (0);
+	rc = pci_find_cap(sc->dev, cap, &reg);
+	return (rc == 0 ? reg : 0);
 }
 
 int
 t3_os_pci_save_state(struct adapter *sc)
 {
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_save(dev, dinfo, 0);
+	pci_save_state(sc->dev);
 	return (0);
 }
 
 int
 t3_os_pci_restore_state(struct adapter *sc)
 {
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_restore(dev, dinfo);
+	pci_restore_state(sc->dev);
 	return (0);
 }
 

@@ -73,6 +73,7 @@ uclparse_chap(struct auth_group *auth_group, const ucl_object_t *obj)
 	if (!secret || secret->type != UCL_STRING) {
 		log_warnx("chap section in auth-group \"%s\" is missing "
 		    "\"secret\" string key", auth_group->ag_name);
+		return (false);
 	}
 
 	ca = auth_new_chap(auth_group,
@@ -247,13 +248,12 @@ uclparse_toplevel(const ucl_object_t *top)
 {
 	ucl_object_iter_t it = NULL, iter = NULL;
 	const ucl_object_t *obj = NULL, *child = NULL;
-	int err = 0;
 
 	/* Pass 1 - everything except targets */
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		const char *key = ucl_object_key(obj);
 
-		if (!strcmp(key, "debug")) {
+		if (strcmp(key, "debug") == 0) {
 			if (obj->type == UCL_INT)
 				conf->conf_debug = ucl_object_toint(obj);
 			else {
@@ -262,7 +262,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "timeout")) {
+		if (strcmp(key, "timeout") == 0) {
 			if (obj->type == UCL_INT)
 				conf->conf_timeout = ucl_object_toint(obj);
 			else {
@@ -271,7 +271,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "maxproc")) {
+		if (strcmp(key, "maxproc") == 0) {
 			if (obj->type == UCL_INT)
 				conf->conf_maxproc = ucl_object_toint(obj);
 			else {
@@ -280,7 +280,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "pidfile")) {
+		if (strcmp(key, "pidfile") == 0) {
 			if (obj->type == UCL_STRING)
 				conf->conf_pidfile_path = strdup(
 				    ucl_object_tostring(obj));
@@ -290,7 +290,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "isns-server")) {
+		if (strcmp(key, "isns-server") == 0) {
 			if (obj->type == UCL_ARRAY) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter,
@@ -298,11 +298,9 @@ uclparse_toplevel(const ucl_object_t *top)
 					if (child->type != UCL_STRING)
 						return (false);
 
-					err = isns_new(conf,
-					    ucl_object_tostring(child));
-					if (err != 0) {
+					if (!isns_new(conf,
+					    ucl_object_tostring(child)))
 						return (false);
-					}
 				}
 			} else {
 				log_warnx("\"isns-server\" property value is "
@@ -311,25 +309,25 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "isns-period")) {
+		if (strcmp(key, "isns-period") == 0) {
 			if (obj->type == UCL_INT)
-				conf->conf_timeout = ucl_object_toint(obj);
+				conf->conf_isns_period = ucl_object_toint(obj);
 			else {
 				log_warnx("\"isns-period\" property value is not integer");
 				return (false);
 			}
 		}
 
-		if (!strcmp(key, "isns-timeout")) {
+		if (strcmp(key, "isns-timeout") == 0) {
 			if (obj->type == UCL_INT)
-				conf->conf_timeout = ucl_object_toint(obj);
+				conf->conf_isns_timeout = ucl_object_toint(obj);
 			else {
 				log_warnx("\"isns-timeout\" property value is not integer");
 				return (false);
 			}
 		}
 
-		if (!strcmp(key, "auth-group")) {
+		if (strcmp(key, "auth-group") == 0) {
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
@@ -341,7 +339,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "portal-group")) {
+		if (strcmp(key, "portal-group") == 0) {
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
@@ -353,7 +351,7 @@ uclparse_toplevel(const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "lun")) {
+		if (strcmp(key, "lun") == 0) {
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
@@ -371,7 +369,7 @@ uclparse_toplevel(const ucl_object_t *top)
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		const char *key = ucl_object_key(obj);
 
-		if (!strcmp(key, "target")) {
+		if (strcmp(key, "target") == 0) {
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter,
@@ -398,9 +396,8 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 	ucl_object_iter_t it = NULL, it2 = NULL;
 	const ucl_object_t *obj = NULL, *tmp = NULL;
 	const char *key;
-	int err;
 
-	if (!strcmp(name, "default") &&
+	if (strcmp(name, "default") == 0 &&
 	    conf->conf_default_ag_defined == false) {
 		auth_group = auth_group_find(conf, name);
 		conf->conf_default_ag_defined = true;
@@ -414,15 +411,14 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
 
-		if (!strcmp(key, "auth-type")) {
+		if (strcmp(key, "auth-type") == 0) {
 			const char *value = ucl_object_tostring(obj);
 
-			err = auth_group_set_type(auth_group, value);
-			if (err)
+			if (!auth_group_set_type(auth_group, value))
 				return (false);
 		}
 
-		if (!strcmp(key, "chap")) {
+		if (strcmp(key, "chap") == 0) {
 			if (obj->type != UCL_ARRAY) {
 				log_warnx("\"chap\" property of "
 				    "auth-group \"%s\" is not an array",
@@ -437,7 +433,7 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "chap-mutual")) {
+		if (strcmp(key, "chap-mutual") == 0) {
 			if (obj->type != UCL_ARRAY) {
 				log_warnx("\"chap-mutual\" property of "
 				    "auth-group \"%s\" is not an array",
@@ -452,7 +448,7 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "initiator-name")) {
+		if (strcmp(key, "initiator-name") == 0) {
 			if (obj->type != UCL_ARRAY) {
 				log_warnx("\"initiator-name\" property of "
 				    "auth-group \"%s\" is not an array",
@@ -470,7 +466,7 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "initiator-portal")) {
+		if (strcmp(key, "initiator-portal") == 0) {
 			if (obj->type != UCL_ARRAY) {
 				log_warnx("\"initiator-portal\" property of "
 				    "auth-group \"%s\" is not an array",
@@ -509,49 +505,49 @@ uclparse_dscp(const char *group_type, struct portal_group *portal_group,
 		key = ucl_object_tostring(obj);
 		if (strcmp(key, "0x") == 0)
 			portal_group->pg_dscp = strtol(key + 2, NULL, 16);
-		else if (strcmp(key, "be") || strcmp(key, "cs0"))
+		else if (strcmp(key, "be") == 0 || strcmp(key, "cs0") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-		else if (strcmp(key, "ef"))
+		else if (strcmp(key, "ef") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_EF >> 2;
-		else if (strcmp(key, "cs0"))
+		else if (strcmp(key, "cs0") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS0 >> 2;
-		else if (strcmp(key, "cs1"))
+		else if (strcmp(key, "cs1") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS1 >> 2;
-		else if (strcmp(key, "cs2"))
+		else if (strcmp(key, "cs2") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS2 >> 2;
-		else if (strcmp(key, "cs3"))
+		else if (strcmp(key, "cs3") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS3 >> 2;
-		else if (strcmp(key, "cs4"))
+		else if (strcmp(key, "cs4") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS4 >> 2;
-		else if (strcmp(key, "cs5"))
+		else if (strcmp(key, "cs5") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS5 >> 2;
-		else if (strcmp(key, "cs6"))
+		else if (strcmp(key, "cs6") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS6 >> 2;
-		else if (strcmp(key, "cs7"))
+		else if (strcmp(key, "cs7") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_CS7 >> 2;
-		else if (strcmp(key, "af11"))
+		else if (strcmp(key, "af11") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF11 >> 2;
-		else if (strcmp(key, "af12"))
+		else if (strcmp(key, "af12") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF12 >> 2;
-		else if (strcmp(key, "af13"))
+		else if (strcmp(key, "af13") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF13 >> 2;
-		else if (strcmp(key, "af21"))
+		else if (strcmp(key, "af21") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF21 >> 2;
-		else if (strcmp(key, "af22"))
+		else if (strcmp(key, "af22") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF22 >> 2;
-		else if (strcmp(key, "af23"))
+		else if (strcmp(key, "af23") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF23 >> 2;
-		else if (strcmp(key, "af31"))
+		else if (strcmp(key, "af31") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF31 >> 2;
-		else if (strcmp(key, "af32"))
+		else if (strcmp(key, "af32") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF32 >> 2;
-		else if (strcmp(key, "af33"))
+		else if (strcmp(key, "af33") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF33 >> 2;
-		else if (strcmp(key, "af41"))
+		else if (strcmp(key, "af41") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF41 >> 2;
-		else if (strcmp(key, "af42"))
+		else if (strcmp(key, "af42") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF42 >> 2;
-		else if (strcmp(key, "af43"))
+		else if (strcmp(key, "af43") == 0)
 			portal_group->pg_dscp = IPTOS_DSCP_AF43 >> 2;
 		else {
 			log_warnx("\"dscp\" property value is not a supported textual value");
@@ -601,7 +597,7 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
 
-		if (!strcmp(key, "discovery-auth-group")) {
+		if (strcmp(key, "discovery-auth-group") == 0) {
 			portal_group->pg_discovery_auth_group =
 			    auth_group_find(conf, ucl_object_tostring(obj));
 			if (portal_group->pg_discovery_auth_group == NULL) {
@@ -613,7 +609,7 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "discovery-filter")) {
+		if (strcmp(key, "discovery-filter") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"discovery-filter\" property of "
 				    "portal-group \"%s\" is not a string",
@@ -621,23 +617,23 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				return (false);
 			}
 
-			if (portal_group_set_filter(portal_group,
-			    ucl_object_tostring(obj)) != 0)
+			if (!portal_group_set_filter(portal_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
-		if (!strcmp(key, "listen")) {
+		if (strcmp(key, "listen") == 0) {
 			if (obj->type == UCL_STRING) {
-				if (portal_group_add_listen(portal_group,
-				    ucl_object_tostring(obj), false) != 0)
+				if (!portal_group_add_listen(portal_group,
+				    ucl_object_tostring(obj), false))
 					return (false);
 			} else if (obj->type == UCL_ARRAY) {
 				while ((tmp = ucl_iterate_object(obj, &it2,
 				    true))) {
-					if (portal_group_add_listen(
+					if (!portal_group_add_listen(
 					    portal_group,
 					    ucl_object_tostring(tmp),
-					    false) != 0)
+					    false))
 						return (false);
 				}
 			} else {
@@ -648,18 +644,18 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "listen-iser")) {
+		if (strcmp(key, "listen-iser") == 0) {
 			if (obj->type == UCL_STRING) {
-				if (portal_group_add_listen(portal_group,
-				    ucl_object_tostring(obj), true) != 0)
+				if (!portal_group_add_listen(portal_group,
+				    ucl_object_tostring(obj), true))
 					return (false);
 			} else if (obj->type == UCL_ARRAY) {
 				while ((tmp = ucl_iterate_object(obj, &it2,
 				    true))) {
-					if (portal_group_add_listen(
+					if (!portal_group_add_listen(
 					    portal_group,
 					    ucl_object_tostring(tmp),
-					    true) != 0)
+					    true))
 						return (false);
 				}
 			} else {
@@ -670,7 +666,7 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "redirect")) {
+		if (strcmp(key, "redirect") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"listen\" property of "
 				    "portal-group \"%s\" is not a string",
@@ -678,12 +674,12 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				return (false);
 			}
 
-			if (portal_group_set_redirection(portal_group,
-			    ucl_object_tostring(obj)) != 0)
+			if (!portal_group_set_redirection(portal_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
-		if (!strcmp(key, "options")) {
+		if (strcmp(key, "options") == 0) {
 			if (obj->type != UCL_OBJECT) {
 				log_warnx("\"options\" property of portal group "
 				    "\"%s\" is not an object", portal_group->pg_name);
@@ -699,12 +695,12 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "dscp")) {
+		if (strcmp(key, "dscp") == 0) {
 			if (!uclparse_dscp("portal", portal_group, obj))
 				return (false);
 		}
 
-		if (!strcmp(key, "pcp")) {
+		if (strcmp(key, "pcp") == 0) {
 			if (!uclparse_pcp("portal", portal_group, obj))
 				return (false);
 		}
@@ -728,7 +724,7 @@ uclparse_target(const char *name, const ucl_object_t *top)
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
 
-		if (!strcmp(key, "alias")) {
+		if (strcmp(key, "alias") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"alias\" property of target "
 				    "\"%s\" is not a string", target->t_name);
@@ -738,7 +734,7 @@ uclparse_target(const char *name, const ucl_object_t *top)
 			target->t_alias = strdup(ucl_object_tostring(obj));
 		}
 
-		if (!strcmp(key, "auth-group")) {
+		if (strcmp(key, "auth-group") == 0) {
 			const char *ag;
 
 			if (target->t_auth_group != NULL) {
@@ -766,9 +762,7 @@ uclparse_target(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "auth-type")) {
-			int error;
-
+		if (strcmp(key, "auth-type") == 0) {
 			if (target->t_auth_group != NULL) {
 				if (target->t_auth_group->ag_name != NULL) {
 					log_warnx("cannot use both auth-group and "
@@ -783,13 +777,12 @@ uclparse_target(const char *name, const ucl_object_t *top)
 
 				target->t_auth_group->ag_target = target;
 			}
-			error = auth_group_set_type(target->t_auth_group,
-			    ucl_object_tostring(obj));
-			if (error != 0)
+			if (!auth_group_set_type(target->t_auth_group,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
-		if (!strcmp(key, "chap")) {
+		if (strcmp(key, "chap") == 0) {
 			if (target->t_auth_group != NULL) {
 				if (target->t_auth_group->ag_name != NULL) {
 					log_warnx("cannot use both auth-group "
@@ -808,12 +801,12 @@ uclparse_target(const char *name, const ucl_object_t *top)
 				return (false);
 		}
 
-		if (!strcmp(key, "chap-mutual")) {
+		if (strcmp(key, "chap-mutual") == 0) {
 			if (!uclparse_chap_mutual(target->t_auth_group, obj))
 				return (false);
 		}
 
-		if (!strcmp(key, "initiator-name")) {
+		if (strcmp(key, "initiator-name") == 0) {
 			const struct auth_name *an;
 
 			if (target->t_auth_group != NULL) {
@@ -836,7 +829,7 @@ uclparse_target(const char *name, const ucl_object_t *top)
 				return (false);
 		}
 
-		if (!strcmp(key, "initiator-portal")) {
+		if (strcmp(key, "initiator-portal") == 0) {
 			const struct auth_portal *ap;
 
 			if (target->t_auth_group != NULL) {
@@ -859,7 +852,7 @@ uclparse_target(const char *name, const ucl_object_t *top)
 				return (false);
 		}
 
-		if (!strcmp(key, "portal-group")) {
+		if (strcmp(key, "portal-group") == 0) {
 			if (obj->type == UCL_OBJECT) {
 				if (!uclparse_target_portal_group(target, obj))
 					return (false);
@@ -875,26 +868,26 @@ uclparse_target(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "port")) {
+		if (strcmp(key, "port") == 0) {
 			const char *value;
 
 			value = ucl_object_tostring(obj);
 			target->t_pport = strdup(value);
 		}
 
-		if (!strcmp(key, "redirect")) {
+		if (strcmp(key, "redirect") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"redirect\" property of target "
 				    "\"%s\" is not a string", target->t_name);
 				return (false);
 			}
 
-			if (target_set_redirection(target,
-			    ucl_object_tostring(obj)) != 0)
+			if (!target_set_redirection(target,
+			    ucl_object_tostring(obj)))
 				return (false);
 		}
 
-		if (!strcmp(key, "lun")) {
+		if (strcmp(key, "lun") == 0) {
 			while ((tmp = ucl_iterate_object(obj, &it2, true))) {
 				if (!uclparse_target_lun(target, tmp))
 					return (false);
@@ -920,7 +913,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
 
-		if (!strcmp(key, "backend")) {
+		if (strcmp(key, "backend") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"backend\" property of lun "
 				    "\"%s\" is not a string",
@@ -931,7 +924,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			lun_set_backend(lun, ucl_object_tostring(obj));
 		}
 
-		if (!strcmp(key, "blocksize")) {
+		if (strcmp(key, "blocksize") == 0) {
 			if (obj->type != UCL_INT) {
 				log_warnx("\"blocksize\" property of lun "
 				    "\"%s\" is not an integer", lun->l_name);
@@ -941,7 +934,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			lun_set_blocksize(lun, ucl_object_toint(obj));
 		}
 
-		if (!strcmp(key, "device-id")) {
+		if (strcmp(key, "device-id") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"device-id\" property of lun "
 				    "\"%s\" is not an integer", lun->l_name);
@@ -951,7 +944,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			lun_set_device_id(lun, ucl_object_tostring(obj));
 		}
 
-		if (!strcmp(key, "options")) {
+		if (strcmp(key, "options") == 0) {
 			if (obj->type != UCL_OBJECT) {
 				log_warnx("\"options\" property of lun "
 				    "\"%s\" is not an object", lun->l_name);
@@ -967,7 +960,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			}
 		}
 
-		if (!strcmp(key, "path")) {
+		if (strcmp(key, "path") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"path\" property of lun "
 				    "\"%s\" is not a string", lun->l_name);
@@ -977,7 +970,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			lun_set_path(lun, ucl_object_tostring(obj));
 		}
 
-		if (!strcmp(key, "serial")) {
+		if (strcmp(key, "serial") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"serial\" property of lun "
 				    "\"%s\" is not a string", lun->l_name);
@@ -987,7 +980,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			lun_set_serial(lun, ucl_object_tostring(obj));
 		}
 
-		if (!strcmp(key, "size")) {
+		if (strcmp(key, "size") == 0) {
 			if (obj->type != UCL_INT) {
 				log_warnx("\"size\" property of lun "
 				    "\"%s\" is not an integer", lun->l_name);
@@ -1001,7 +994,7 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 	return (true);
 }
 
-int
+bool
 uclparse_conf(struct conf *newconf, const char *path)
 {
 	struct ucl_parser *parser;
@@ -1015,7 +1008,7 @@ uclparse_conf(struct conf *newconf, const char *path)
 		log_warn("unable to parse configuration file %s: %s", path,
 		    ucl_parser_get_error(parser));
 		ucl_parser_free(parser);
-		return (1);
+		return (false);
 	}
 
 	top = ucl_parser_get_object(parser);
@@ -1023,5 +1016,5 @@ uclparse_conf(struct conf *newconf, const char *path)
 	ucl_object_unref(top);
 	ucl_parser_free(parser);
 
-	return (parsed ? 0 : 1);
+	return (parsed);
 }

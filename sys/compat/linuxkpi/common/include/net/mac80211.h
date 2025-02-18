@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -34,6 +34,7 @@
 
 #include <asm/atomic64.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
@@ -554,6 +555,9 @@ enum ieee802111_key_flag {
 };
 
 struct ieee80211_key_conf {
+#if defined(__FreeBSD__)
+	const struct ieee80211_key	*_k;		/* backpointer to net80211 */
+#endif
 	atomic64_t			tx_pn;
 	uint32_t			cipher;
 	uint8_t				icv_len;	/* __unused nowadays? */
@@ -599,8 +603,10 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_DUP_VALIDATED		= BIT(5),
 	RX_FLAG_FAILED_FCS_CRC		= BIT(6),
 	RX_FLAG_ICV_STRIPPED		= BIT(7),
-	RX_FLAG_MACTIME_PLCP_START	= BIT(8),
-	RX_FLAG_MACTIME_START		= BIT(9),
+	RX_FLAG_MACTIME			= BIT(8) | BIT(9),
+	RX_FLAG_MACTIME_PLCP_START	= 1 << 8,
+	RX_FLAG_MACTIME_START		= 2 << 8,
+	RX_FLAG_MACTIME_END		= 3 << 8,
 	RX_FLAG_MIC_STRIPPED		= BIT(10),
 	RX_FLAG_MMIC_ERROR		= BIT(11),
 	RX_FLAG_MMIC_STRIPPED		= BIT(12),
@@ -615,12 +621,12 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_AMPDU_IS_LAST		= BIT(21),
 	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(22),
 	RX_FLAG_AMSDU_MORE		= BIT(23),
-	RX_FLAG_MACTIME_END		= BIT(24),
+				/*	= BIT(24), */
 	RX_FLAG_ONLY_MONITOR		= BIT(25),
 	RX_FLAG_SKIP_MONITOR		= BIT(26),
 	RX_FLAG_8023			= BIT(27),
 	RX_FLAG_RADIOTAP_TLV_AT_END	= BIT(28),
-	RX_FLAG_MACTIME			= BIT(29),
+				/*	= BIT(29), */
 	RX_FLAG_MACTIME_IS_RTAP_TS64	= BIT(30),
 	RX_FLAG_FAILED_PLCP_CRC		= BIT(31),
 };
@@ -876,11 +882,11 @@ struct ieee80211_prep_tx_info {
 /* XXX-BZ too big, over-reduce size to u8, and array sizes to minuimum to fit in skb->cb. */
 /* Also warning: some sizes change by pointer size!  This is 64bit only. */
 struct ieee80211_tx_info {
-	enum ieee80211_tx_info_flags		flags;
+	enum ieee80211_tx_info_flags		flags;		/* 32 bits */
 	/* TODO FIXME */
-	u8		band;
-	u8		hw_queue;
-	bool		tx_time_est;
+	enum nl80211_band			band;		/* 3 bits */
+	uint16_t	hw_queue:4,				/* 4 bits */
+			tx_time_est:10;				/* 10 bits */
 	union {
 		struct {
 			struct ieee80211_tx_rate	rates[4];
@@ -1151,7 +1157,7 @@ void linuxkpi_ieee80211_iterate_keys(struct ieee80211_hw *,
     struct ieee80211_vif *,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
-    void *);
+    void *, bool);
 void linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *,
     void(*iterfunc)(struct ieee80211_hw *,
 	struct ieee80211_chanctx_conf *, void *),
@@ -1517,25 +1523,22 @@ ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
 }
 
-static __inline void
+static inline void
 ieee80211_iter_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
-
-	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg);
+	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg, false);
 }
 
-static __inline void
+static inline void
 ieee80211_iter_keys_rcu(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
     void(*iterfunc)(struct ieee80211_hw *, struct ieee80211_vif *,
         struct ieee80211_sta *, struct ieee80211_key_conf *, void *),
     void *arg)
 {
-
-	IMPROVE();	/* "rcu" */
-	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg);
+	linuxkpi_ieee80211_iterate_keys(hw, vif, iterfunc, arg, true);
 }
 
 static __inline void
@@ -1876,25 +1879,132 @@ ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif, uint8_t *addr,
 
 /* -------------------------------------------------------------------------- */
 
-static __inline void
-ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint32_t f1, uint32_t f2)
+static inline void
+ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint8_t mcs, uint8_t nss)
 {
-	TODO();
+
+	/* XXX-BZ make it KASSERTS? */
+	if (((mcs & 0xF0) != 0) || (((nss - 1) & 0xf8) != 0)) {
+		printf("%s:%d: mcs %#04x nss %#04x invalid\n",
+		     __func__, __LINE__, mcs, nss);
+		return;
+	}
+
+	r->idx = mcs;
+	r->idx |= ((nss - 1) << 4);
 }
 
-static __inline uint8_t
+static inline uint8_t
 ieee80211_rate_get_vht_nss(struct ieee80211_tx_rate *r)
 {
-	TODO();
-	return (0);
+	return (((r->idx >> 4) & 0x07) + 1);
 }
 
-static __inline uint8_t
+static inline uint8_t
 ieee80211_rate_get_vht_mcs(struct ieee80211_tx_rate *r)
 {
-	TODO();
-	return (0);
+	return (r->idx & 0x0f);
 }
+
+static inline int
+ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *vht_cap,
+    enum ieee80211_vht_chanwidth chanwidth,		/* defined in net80211. */
+    int mcs /* always 0 */, bool ext_nss_bw_cap /* always true */, int max_nss)
+{
+	enum ieee80211_vht_mcs_support mcs_s;
+	uint32_t supp_cw, ext_nss_bw;
+
+	switch (mcs) {
+	case 0 ... 7:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_7;
+		break;
+	case 8:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_8;
+		break;
+	case 9:
+		mcs_s = IEEE80211_VHT_MCS_SUPPORT_0_9;
+		break;
+	default:
+		printf("%s: unsupported mcs value %d\n", __func__, mcs);
+		return (0);
+	}
+
+	if (max_nss == 0) {
+		uint16_t map;
+
+		map = le16toh(vht_cap->supp_mcs.rx_mcs_map);
+		for (int i = 7; i >= 0; i--) {
+			uint8_t val;
+
+			val = (map >> (2 * i)) & 0x03;
+			if (val == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+				continue;
+			if (val >= mcs_s) {
+				max_nss = i + 1;
+				break;
+			}
+		}
+	}
+
+	if (max_nss == 0)
+		return (0);
+
+	if ((le16toh(vht_cap->supp_mcs.tx_mcs_map) &
+	    IEEE80211_VHT_EXT_NSS_BW_CAPABLE) == 0)
+		return (max_nss);
+
+	supp_cw = le32_get_bits(vht_cap->vht_cap_info,
+	    IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
+	ext_nss_bw = le32_get_bits(vht_cap->vht_cap_info,
+	    IEEE80211_VHT_CAP_EXT_NSS_BW_MASK);
+
+	/* If requested as ext nss not supported assume ext_nss_bw 0. */
+	if (!ext_nss_bw_cap)
+		ext_nss_bw = 0;
+
+	/*
+	 * Cover 802.11-2016, Table 9-250.
+	 */
+
+	/* Unsupported settings. */
+	if (supp_cw == 3)
+		return (0);
+	if (supp_cw == 2 && (ext_nss_bw == 1 || ext_nss_bw == 2))
+		return (0);
+
+	/* Settings with factor != 1 or unsupported. */
+	switch (chanwidth) {
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		if (supp_cw == 0 && (ext_nss_bw == 0 || ext_nss_bw == 1))
+			return (0);
+		if (supp_cw == 1 && ext_nss_bw == 0)
+			return (0);
+		if ((supp_cw == 0 || supp_cw == 1) && ext_nss_bw == 2)
+			return (max_nss / 2);
+		if ((supp_cw == 0 || supp_cw == 1) && ext_nss_bw == 3)
+			return (3 * max_nss / 4);
+		break;
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		if (supp_cw == 0 && ext_nss_bw == 0)
+			return (0);
+		if (supp_cw == 0 && (ext_nss_bw == 1 || ext_nss_bw == 2))
+			return (max_nss / 2);
+		if (supp_cw == 0 && ext_nss_bw == 3)
+			return (3 * max_nss / 4);
+		if (supp_cw == 1 && ext_nss_bw == 3)
+			return (2 * max_nss);
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+	case IEEE80211_VHT_CHANWIDTH_USE_HT:
+		if ((supp_cw == 1 || supp_cw == 2) && ext_nss_bw == 3)
+			return (2 * max_nss);
+		break;
+	}
+
+	/* Everything else has a factor of 1. */
+	return (max_nss);
+}
+
 
 static __inline void
 ieee80211_reserve_tid(struct ieee80211_sta *sta, uint8_t tid)
@@ -1982,33 +2092,6 @@ static __inline void
 ieee80211_sta_set_buffered(struct ieee80211_sta *sta, uint8_t tid, bool t)
 {
 	TODO();
-}
-
-static __inline void
-ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, uint8_t tid,
-    struct ieee80211_key_seq *seq)
-{
-
-	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
-	    __func__, keyconf, seq));
-
-	TODO();
-	switch (keyconf->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		memset(seq->ccmp.pn, 0xfa, sizeof(seq->ccmp.pn));	/* XXX TODO */
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
-		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
-		break;
-	default:
-		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
-		break;
-	}
 }
 
 static __inline void
@@ -2239,14 +2322,6 @@ ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif, uint32_t link_id)
 	return (-1);
 }
 
-static __inline int
-ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *vht_cap, uint32_t chanwidth,
-    int x, bool t, int nss)
-{
-	TODO();
-	return (-1);
-}
-
 static __inline bool
 ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif, uint32_t link_id)
 {
@@ -2364,6 +2439,44 @@ ieee80211_remove_key(struct ieee80211_key_conf *key)
         TODO();
 }
 
+static inline void
+ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, int8_t tid,
+    struct ieee80211_key_seq *seq)
+{
+	const struct ieee80211_key *k;
+	const uint8_t *p;
+
+	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
+	    __func__, keyconf, seq));
+	KASSERT(tid <= IEEE80211_NUM_TIDS, ("%s: tid out of bounds %d\n",
+	    __func__, tid));
+	k = keyconf->_k;
+	KASSERT(k != NULL, ("%s: keyconf %p ieee80211_key is NULL\n", __func__, keyconf));
+
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		if (tid < 0)
+			p = (const uint8_t *)&k->wk_keyrsc[IEEE80211_NUM_TIDS];	/* IEEE80211_NONQOS_TID */
+		else
+			p = (const uint8_t *)&k->wk_keyrsc[tid];
+		memcpy(seq->ccmp.pn, p, sizeof(seq->ccmp.pn));
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		TODO();
+		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		TODO();
+		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
+		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
+		break;
+	default:
+		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
+		break;
+	}
+}
+
 static __inline void
 ieee80211_set_key_rx_seq(struct ieee80211_key_conf *key, int tid,
     struct ieee80211_key_seq *seq)
@@ -2437,8 +2550,8 @@ ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *band,
 static inline uint32_t
 ieee80211_vif_usable_links(const struct ieee80211_vif *vif)
 {
-	TODO();
-	return (1);
+	IMPROVE("MLO usable links likely are not just valid");
+	return (vif->valid_links);
 }
 
 static inline bool

@@ -1269,7 +1269,7 @@ in_ifscrub_all(void)
 	IFNET_RUNLOCK();
 }
 
-int
+bool
 in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 {
 
@@ -1278,7 +1278,8 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 	      * Optionally check for old-style (host 0) broadcast, but
 	      * taking into account that RFC 3021 obsoletes it.
 	      */
-	    (V_broadcast_lowest && ia->ia_subnetmask != IN_RFC3021_MASK &&
+	    __predict_false(V_broadcast_lowest &&
+	    ia->ia_subnetmask != IN_RFC3021_MASK &&
 	    ntohl(in.s_addr) == ia->ia_subnet)) &&
 	     /*
 	      * Check for an all one subnetmask. These
@@ -1289,33 +1290,28 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 }
 
 /*
- * Return 1 if the address might be a local broadcast address.
+ * Return true if the address might be a local broadcast address.
  */
-int
+bool
 in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
-	int found;
 
 	NET_EPOCH_ASSERT();
 
-	if (in.s_addr == INADDR_BROADCAST ||
-	    in.s_addr == INADDR_ANY)
-		return (1);
+	if (in.s_addr == INADDR_BROADCAST || in.s_addr == INADDR_ANY)
+		return (true);
 	if ((ifp->if_flags & IFF_BROADCAST) == 0)
-		return (0);
-	found = 0;
+		return (false);
 	/*
 	 * Look through the list of addresses for a match
 	 * with a broadcast address.
 	 */
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
-		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa)) {
-			found = 1;
-			break;
-		}
-	return (found);
+		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa))
+			return (true);
+	return (false);
 }
 
 /*

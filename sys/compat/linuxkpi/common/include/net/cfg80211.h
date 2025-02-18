@@ -81,6 +81,9 @@ enum cfg80211_rate_info_flags {
 	/* Max 8 bits as used in struct rate_info. */
 };
 
+#define	CFG80211_RATE_INFO_FLAGS_BITS					\
+    "\20\1MCS\2VHT_MCS\3SGI\5HE_MCS\10EHT_MCS"
+
 extern const uint8_t rfc1042_header[6];
 extern const uint8_t bridge_tunnel_header[6];
 
@@ -164,7 +167,7 @@ enum rate_info_bw {
 
 struct rate_info {
 	uint8_t					flags;			/* enum cfg80211_rate_info_flags */
-	uint8_t					bw;
+	uint8_t					bw;			/* enum rate_info_bw */
 	uint16_t				legacy;
 	uint8_t					mcs;
 	uint8_t					nss;
@@ -175,11 +178,10 @@ struct rate_info {
 };
 
 struct ieee80211_rate {
-	/* TODO FIXME */
-	uint32_t		bitrate;
-	uint32_t		hw_value;
-	uint32_t		hw_value_short;
-	uint32_t		flags;
+	uint32_t		flags;					/* enum ieee80211_rate_flags */
+	uint16_t		bitrate;
+	uint16_t		hw_value;
+	uint16_t		hw_value_short;
 };
 
 struct ieee80211_sta_ht_cap {
@@ -236,7 +238,8 @@ struct ieee80211_sta_ht_cap {
 #define	IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK	\
 	(7 << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT)	/* IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK */
 
-#define	IEEE80211_VHT_CAP_EXT_NSS_BW_MASK	0xc0000000
+#define	IEEE80211_VHT_CAP_EXT_NSS_BW_MASK	IEEE80211_VHTCAP_EXT_NSS_BW
+#define	IEEE80211_VHT_CAP_EXT_NSS_BW_SHIFT	IEEE80211_VHTCAP_EXT_NSS_BW_S
 
 struct ieee80211_sta_vht_cap {
 		/* TODO FIXME */
@@ -546,18 +549,39 @@ struct station_del_parameters {
 };
 
 struct station_info {
-	/* TODO FIXME */
-	int     assoc_req_ies_len, connected_time;
-	int	generation, inactive_time, rx_bytes, rx_dropped_misc, rx_packets, signal, tx_bytes, tx_packets;
-	int     filled, rx_beacon, rx_beacon_signal_avg, signal_avg;
-	int	rx_duration, tx_duration, tx_failed, tx_retries;
-	int	ack_signal, avg_ack_signal;
+	uint64_t				filled;		/* enum nl80211_sta_info */
+	uint32_t				connected_time;
+	uint32_t				inactive_time;
+
+	uint64_t				rx_bytes;
+	uint32_t				rx_packets;
+	uint32_t				rx_dropped_misc;
+
+	uint64_t				rx_duration;
+	uint32_t				rx_beacon;
+	uint8_t					rx_beacon_signal_avg;
+
+	int8_t					signal;
+	int8_t					signal_avg;
+	int8_t					ack_signal;
+	int8_t					avg_ack_signal;
+
+	/* gap */
+	int					generation;
+
+	uint64_t				tx_bytes;
+	uint32_t				tx_packets;
+	uint32_t				tx_failed;
+	uint64_t				tx_duration;
+	uint32_t				tx_retries;
 
 	int					chains;
 	uint8_t					chain_signal[IEEE80211_MAX_CHAINS];
 	uint8_t					chain_signal_avg[IEEE80211_MAX_CHAINS];
 
 	uint8_t					*assoc_req_ies;
+	size_t					assoc_req_ies_len;
+
 	struct rate_info			rxrate;
 	struct rate_info			txrate;
 	struct cfg80211_ibss_params		bss_param;
@@ -1304,6 +1328,7 @@ void linuxkpi_wiphy_delayed_work_cancel(struct wiphy *,
 
 int linuxkpi_regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
     struct linuxkpi_ieee80211_regdomain *regd);
+uint32_t linuxkpi_cfg80211_calculate_bitrate(struct rate_info *);
 uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
 uint32_t linuxkpi_ieee80211_frequency_to_channel(uint32_t, uint32_t);
 struct linuxkpi_ieee80211_channel *
@@ -1574,11 +1599,10 @@ cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 	return (__DECONST(uint8_t *, elem));
 }
 
-static __inline uint32_t
+static inline uint32_t
 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
-	TODO();
-	return (-1);
+	return (linuxkpi_cfg80211_calculate_bitrate(rate));
 }
 
 static __inline uint32_t

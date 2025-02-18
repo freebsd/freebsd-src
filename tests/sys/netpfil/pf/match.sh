@@ -67,7 +67,53 @@ dummynet_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "quick" "cleanup"
+quick_head()
+{
+	atf_set descr 'Test quick on match rules'
+	atf_set require.user root
+}
+
+quick_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass" \
+		"match in quick proto icmp" \
+		"block"
+
+	# 'match quick' should retain the previous pass/block state
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"block" \
+		"match in quick proto icmp" \
+		"pass"
+
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 192.0.2.2
+}
+
+quick_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "dummynet"
+	atf_add_test_case "quick"
 }

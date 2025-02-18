@@ -45,10 +45,8 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
-#include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
 #include <sys/firmware.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -1924,6 +1922,8 @@ stop_adapter(struct adapter *sc)
 	t4_shutdown_adapter(sc);
 	for_each_port(sc, i) {
 		pi = sc->port[i];
+		if (pi == NULL)
+			continue;
 		PORT_LOCK(pi);
 		if (pi->up_vis > 0 && pi->link_cfg.link_ok) {
 			/*
@@ -2035,6 +2035,8 @@ stop_lld(struct adapter *sc)
 	/* Quiesce all activity. */
 	for_each_port(sc, i) {
 		pi = sc->port[i];
+		if (pi == NULL)
+			continue;
 		pi->vxlan_tcam_entry = false;
 		for_each_vi(pi, j, vi) {
 			vi->xact_addr_filt = -1;
@@ -4013,6 +4015,8 @@ stop_atid_allocator(struct adapter *sc)
 {
 	struct tid_info *t = &sc->tids;
 
+	if (t->natids == 0)
+		return;
 	mtx_lock(&t->atid_lock);
 	t->atid_alloc_stopped = true;
 	mtx_unlock(&t->atid_lock);
@@ -4023,6 +4027,8 @@ restart_atid_allocator(struct adapter *sc)
 {
 	struct tid_info *t = &sc->tids;
 
+	if (t->natids == 0)
+		return;
 	mtx_lock(&t->atid_lock);
 	KASSERT(t->atids_in_use == 0,
 	    ("%s: %d atids still in use.", __func__, t->atids_in_use));
@@ -6318,20 +6324,13 @@ int
 begin_synchronized_op(struct adapter *sc, struct vi_info *vi, int flags,
     char *wmesg)
 {
-	int rc, pri;
+	int rc;
 
 #ifdef WITNESS
 	/* the caller thinks it's ok to sleep, but is it really? */
 	if (flags & SLEEP_OK)
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "begin_synchronized_op");
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 #endif
-
-	if (INTR_OK)
-		pri = PCATCH;
-	else
-		pri = 0;
-
 	ADAPTER_LOCK(sc);
 	for (;;) {
 
@@ -6350,7 +6349,8 @@ begin_synchronized_op(struct adapter *sc, struct vi_info *vi, int flags,
 			goto done;
 		}
 
-		if (mtx_sleep(&sc->flags, &sc->sc_lock, pri, wmesg, 0)) {
+		if (mtx_sleep(&sc->flags, &sc->sc_lock,
+		    flags & INTR_OK ? PCATCH : 0, wmesg, 0)) {
 			rc = EINTR;
 			goto done;
 		}
@@ -12102,32 +12102,6 @@ t4_os_find_pci_capability(struct adapter *sc, int cap)
 	int i;
 
 	return (pci_find_cap(sc->dev, cap, &i) == 0 ? i : 0);
-}
-
-int
-t4_os_pci_save_state(struct adapter *sc)
-{
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_save(dev, dinfo, 0);
-	return (0);
-}
-
-int
-t4_os_pci_restore_state(struct adapter *sc)
-{
-	device_t dev;
-	struct pci_devinfo *dinfo;
-
-	dev = sc->dev;
-	dinfo = device_get_ivars(dev);
-
-	pci_cfg_restore(dev, dinfo);
-	return (0);
 }
 
 void

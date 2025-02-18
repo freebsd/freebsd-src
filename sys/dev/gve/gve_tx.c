@@ -240,15 +240,16 @@ gve_clear_tx_ring(struct gve_priv *priv, int i)
 }
 
 static void
-gve_start_tx_ring(struct gve_priv *priv, int i,
-    void (cleanup) (void *arg, int pending))
+gve_start_tx_ring(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
 	struct gve_ring_com *com = &tx->com;
 
 	atomic_store_bool(&tx->stopped, false);
-
-	NET_TASK_INIT(&com->cleanup_task, 0, cleanup, tx);
+	if (gve_is_gqi(priv))
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_tx_cleanup_tq, tx);
+	else
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_tx_cleanup_tq_dqo, tx);
 	com->cleanup_tq = taskqueue_create_fast("gve tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &com->cleanup_tq);
 	taskqueue_start_threads(&com->cleanup_tq, 1, PI_NET, "%s txq %d",
@@ -297,10 +298,7 @@ gve_create_tx_rings(struct gve_priv *priv)
 		com->db_offset = 4 * be32toh(com->q_resources->db_index);
 		com->counter_idx = be32toh(com->q_resources->counter_index);
 
-		if (gve_is_gqi(priv))
-			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq);
-		else
-			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq_dqo);
+		gve_start_tx_ring(priv, i);
 	}
 
 	gve_set_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK);
@@ -421,7 +419,7 @@ gve_tx_cleanup_tq(void *arg, int pending)
 	 * interrupt but they will still be handled by the enqueue below.
 	 * Completions born after the barrier WILL trigger an interrupt.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	nic_done = gve_tx_load_event_counter(priv, tx);
 	todo = nic_done - tx->done;

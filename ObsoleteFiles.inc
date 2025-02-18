@@ -55,6 +55,7 @@
 OLD_FILES+=usr/share/man/man9/bus_generic_attach.9.gz
 
 # 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_FILES+=usr/tests/sys/vm/stack/.debug/libsoxstack.so.debug
 OLD_DIRS+=usr/tests/sys/vm/stack/.debug
 
 # 20250129: libdevinfo bumped to version 7

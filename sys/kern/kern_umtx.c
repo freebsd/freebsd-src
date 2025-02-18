@@ -3789,7 +3789,7 @@ do_sem2_wake(struct thread *td, struct _usem2 *sem)
 				rv = casueword32(&sem->_count, count, &count,
 				    count & ~USEM_HAS_WAITERS);
 				if (rv == 1) {
-					rv = thread_check_susp(td, true);
+					rv = thread_check_susp(td, false);
 					if (rv != 0)
 						break;
 				}

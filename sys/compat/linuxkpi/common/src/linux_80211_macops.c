@@ -683,6 +683,8 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->set_key == NULL) {
 		error = EOPNOTSUPP;
@@ -713,6 +715,36 @@ lkpi_80211_mo_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    hw, vif, params, params->sta, params->action, params->buf_size,
 	    params->timeout, params->ssn, params->tid, params->amsdu);
 	error = lhw->ops->ampdu_action(hw, vif, params);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_sta *sta, struct station_info *sinfo)
+{
+	struct lkpi_hw *lhw;
+	struct lkpi_sta *lsta;
+	int error;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_statistics == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	lsta = STA_TO_LSTA(sta);
+	if (!lsta->added_to_drv) {
+		error = EEXIST;
+		goto out;
+	}
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	LKPI_80211_TRACE_MO("hw %p vif %p sta %p sinfo %p", hw, vif, sta, sinfo);
+	lhw->ops->sta_statistics(hw, vif, sta, sinfo);
+	error = 0;
 
 out:
 	return (error);

@@ -1363,8 +1363,6 @@ extern unsigned int t4_ddp_rcvbuf_cache;
 extern device_method_t cxgbe_methods[];
 
 int t4_os_find_pci_capability(struct adapter *, int);
-int t4_os_pci_save_state(struct adapter *);
-int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(struct port_info *);
 void t4_os_link_changed(struct port_info *);
 void t4_iterate(void (*)(struct adapter *, void *), void *);

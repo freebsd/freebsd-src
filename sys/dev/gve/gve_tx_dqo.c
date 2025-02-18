@@ -44,6 +44,13 @@ gve_unmap_packet(struct gve_tx_ring *tx,
 }
 
 static void
+gve_clear_qpl_pending_pkt(struct gve_tx_pending_pkt_dqo *pending_pkt)
+{
+	pending_pkt->qpl_buf_head = -1;
+	pending_pkt->num_qpl_bufs = 0;
+}
+
+static void
 gve_free_tx_mbufs_dqo(struct gve_tx_ring *tx)
 {
 	struct gve_tx_pending_pkt_dqo *pending_pkt;
@@ -54,10 +61,9 @@ gve_free_tx_mbufs_dqo(struct gve_tx_ring *tx)
 		if (!pending_pkt->mbuf)
 			continue;
 
-		if (gve_is_qpl(tx->com.priv)) {
-			pending_pkt->qpl_buf_head = -1;
-			pending_pkt->num_qpl_bufs = 0;
-		} else
+		if (gve_is_qpl(tx->com.priv))
+			gve_clear_qpl_pending_pkt(pending_pkt);
+		else
 			gve_unmap_packet(tx, pending_pkt);
 
 		m_freem(pending_pkt->mbuf);
@@ -880,8 +886,7 @@ gve_reap_qpl_bufs_dqo(struct gve_tx_ring *tx,
 	 */
 	atomic_add_rel_32(&tx->dqo.qpl_bufs_produced, pkt->num_qpl_bufs);
 
-	pkt->qpl_buf_head = -1;
-	pkt->num_qpl_bufs = 0;
+	gve_clear_qpl_pending_pkt(pkt);
 }
 
 static uint64_t
@@ -981,11 +986,13 @@ gve_clear_tx_ring_dqo(struct gve_priv *priv, int i)
 
 	gve_free_tx_mbufs_dqo(tx);
 
-	for (j = 0; j < tx->dqo.num_pending_pkts - 1; j++) {
-		tx->dqo.pending_pkts[j].next = j + 1;
+	for (j = 0; j < tx->dqo.num_pending_pkts; j++) {
+		if (gve_is_qpl(tx->com.priv))
+			gve_clear_qpl_pending_pkt(&tx->dqo.pending_pkts[j]);
+		tx->dqo.pending_pkts[j].next =
+		    (j == tx->dqo.num_pending_pkts - 1) ? -1 : j + 1;
 		tx->dqo.pending_pkts[j].state = GVE_PACKET_STATE_FREE;
 	}
-	tx->dqo.pending_pkts[tx->dqo.num_pending_pkts - 1].next = -1;
 	tx->dqo.free_pending_pkts_csm = 0;
 	atomic_store_rel_32(&tx->dqo.free_pending_pkts_prd, -1);
 
@@ -1031,7 +1038,7 @@ gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 		 * Prevent generation bit from being read after the rest of the
 		 * descriptor.
 		 */
-		rmb();
+		atomic_thread_fence_acq();
 		type = compl_desc->type;
 
 		if (type == GVE_COMPL_TYPE_DQO_DESC) {
