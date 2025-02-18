@@ -718,6 +718,17 @@ feeder_chain(struct pcm_channel *c)
 		c->format = cdesc.target.afmt;
 		c->speed  = cdesc.target.rate;
 	} else {
+		/*
+		 * Bail out early if we do not support either of those formats.
+		 */
+		if ((cdesc.origin.afmt & AFMT_CONVERTIBLE) == 0 ||
+		    (cdesc.target.afmt & AFMT_CONVERTIBLE) == 0) {
+			device_printf(c->dev,
+			    "%s(): unsupported formats: in=0x%08x, out=0x%08x\n",
+			    __func__, cdesc.origin.afmt, cdesc.target.afmt);
+			return (ENODEV);
+		}
+
 		/* hwfmt is not convertible, so 'dummy' it. */
 		if (hwfmt & AFMT_PASSTHROUGH)
 			cdesc.dummy = 1;
