@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7e7f88001d7d:
+	The definition of pf's struct pfr_tstats and struct pfr_astats has
+	changed, breaking ABI compatibility for 32-bit powerpc (including
+	powerpcspe) and armv7. Users of these platforms should ensure kernel
+	and userspace are updated together.
+
 5dc99e9bb985, 08e638c089a, 4009a98fe80:
 	The net.inet.{tcp,udp,raw}.bind_all_fibs tunables have been added.
 	They modify socket behavior such that packets not originating from the
