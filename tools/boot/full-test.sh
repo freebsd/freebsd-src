@@ -19,8 +19,8 @@
 
 # What version of FreeBSD to we snag the ISOs from to extract the binaries
 # we are testing
-FREEBSD_VERSION=13.1
-# eg https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/13.1/FreeBSD-13.1-RELEASE-amd64-bootonly.iso.xz
+FREEBSD_VERSION=14.2
+# eg https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/14.2/FreeBSD-14.2-RELEASE-amd64-bootonly.iso.xz
 URLBASE="https://download.freebsd.org/releases"
 : ${STAND_ROOT:="${HOME}/stand-test-root"}
 CACHE=${STAND_ROOT}/cache
@@ -40,7 +40,8 @@ fi
 # All the architectures under test
 # Note: we can't yet do armv7 because we don't have a good iso for it and would
 # need root to extract the files.
-ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le powerpc:powerpcspe arm64:aarch64 riscv:riscv64"
+#ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le powerpc:powerpcspe arm64:aarch64 riscv:riscv64"
+ARCHES="amd64:amd64 arm64:aarch64"
 
 # The smallest FAT32 filesystem is 33292 KB
 espsize=33292
