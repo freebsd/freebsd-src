@@ -3341,7 +3341,6 @@ vt_replace_backend(const struct vt_driver *drv, void *softc)
 	 * it.
 	 */
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
-
 }
 
 static void
