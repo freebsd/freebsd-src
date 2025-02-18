@@ -93,6 +93,12 @@ struct thread;
 		-- intuitive).
 		local audit_idx = 10000 -- this should do
 
+		gen:write(v.prolog)
+		gen:store(v.prolog, 1)
+		for _, w in pairs(config.compat_options) do
+			gen:store(v.prolog, w.compatlevel * 10)
+		end
+
 		-- Handle non-compat:
 		if v:native() then
 			-- All these negation conditions are because (in
@@ -200,6 +206,12 @@ struct %s {
 		-- Need an extra newline after #endif.
 		gen:store(string.format("\n#endif /* %s */\n\n", v.definition),
 		    end_idx)
+	end
+
+	gen:write(tbl.epilog)
+	gen:store(tbl.epilog, 1)
+	for _, w in pairs(config.compat_options) do
+		gen:store(tbl.epilog, w.compatlevel * 10)
 	end
 
 	if gen.storage_levels ~= nil then

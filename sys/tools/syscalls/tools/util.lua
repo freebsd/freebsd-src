@@ -35,6 +35,11 @@ function util.split(s, re)
 	return t
 end
 
+-- Prints a warning to stderr
+function util.warn(msg)
+	assert(io.stderr:write("WARNING: " .. msg .. "\n"))
+end
+
 -- Aborts with a message and does a clean exit procedure.
 function util.abort(status, msg)
 	assert(io.stderr:write(msg .. "\n"))
