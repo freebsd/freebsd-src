@@ -163,11 +163,16 @@ rk_iodomain_set(struct rk_iodomain_softc *sc)
 	regulator_t supply;
 	uint32_t reg = 0;
 	uint32_t mask = 0;
-	int uvolt, i;
+	int uvolt, i, rv;
 
 	for (i = 0; i < sc->conf->nsupply; i++) {
-		if (regulator_get_by_ofw_property(sc->dev, sc->node,
-		    sc->conf->supply[i].name, &supply) != 0) {
+		rv = regulator_get_by_ofw_property(sc->dev, sc->node,
+		    sc->conf->supply[i].name, &supply);
+
+		if (rv == ENOENT)
+			continue;
+
+		if (rv != 0) {
 			device_printf(sc->dev,
 			    "Cannot get property for regulator %s\n",
 			    sc->conf->supply[i].name);
