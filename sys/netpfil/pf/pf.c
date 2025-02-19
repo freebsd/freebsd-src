@@ -7792,6 +7792,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		pd2.sidx = (pd->dir == PF_IN) ? 1 : 0;
 		pd2.didx = (pd->dir == PF_IN) ? 0 : 1;
 		pd2.m = pd->m;
+		pd2.kif = pd->kif;
 		switch (pd->af) {
 #ifdef INET
 		case AF_INET:

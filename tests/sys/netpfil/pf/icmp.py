@@ -53,6 +53,7 @@ class TestICMP(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "set reassemble yes",
+            "set state-policy if-bound",
             "block",
             "pass inet proto icmp icmp-type echoreq",
             ])
