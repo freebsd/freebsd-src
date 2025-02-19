@@ -16640,12 +16640,6 @@ then :
   printf "%s\n" "#define HAVE_STRTOULL 1" >>confdefs.h
 
 fi
-ac_fn_c_check_func "$LINENO" "swap32" "ac_cv_func_swap32"
-if test "x$ac_cv_func_swap32" = xyes
-then :
-  printf "%s\n" "#define HAVE_SWAP32 1" >>confdefs.h
-
-fi
 ac_fn_c_check_func "$LINENO" "sysconf" "ac_cv_func_sysconf"
 if test "x$ac_cv_func_sysconf" = xyes
 then :
