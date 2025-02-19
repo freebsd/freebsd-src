@@ -4446,7 +4446,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 					continue;
 				ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
 				ic_printf(ic, "  tid %d ltxq %p seen_dequeue %d stopped %d skb_queue_len %u\n",
-				    tid, ltxq, ltxq->seen_dequeue, ltxq-> stopped, skb_queue_len(&ltxq->skbq));
+				    tid, ltxq, ltxq->seen_dequeue, ltxq->stopped, skb_queue_len(&ltxq->skbq));
 			}
 		}
 		ieee80211_free_node(ni);
