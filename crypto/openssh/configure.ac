@@ -1094,7 +1094,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE([SSH_TUN_OPENBSD], [1], [Open tunnel devices the OpenBSD way])
 	AC_DEFINE([SYSLOG_R_SAFE_IN_SIGHAND], [1],
 	    [syslog_r function is safe to use in in a signal handler])
-	TEST_MALLOC_OPTIONS="AFGJPRX"
+	TEST_MALLOC_OPTIONS="SJRU"
 	;;
 *-*-solaris*)
 	if test "x$withval" != "xno" ; then
@@ -1348,6 +1348,13 @@ EOD
 	CFLAGS="$CFLAGS -D__NO_INCLUDE_WARN__"
 	AC_DEFINE([BROKEN_SETVBUF], [1],
 	    [LynxOS has broken setvbuf() implementation])
+	;;
+*-*-gnu*)
+	dnl GNU Hurd.  Needs to be after the linux and the other *-gnu entries.
+	dnl Target SUSv3/POSIX.1-2001 plus BSD specifics.
+	dnl _DEFAULT_SOURCE is the new name for _BSD_SOURCE
+	dnl _GNU_SOURCE is needed for setres*id prototypes.
+	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE"
 	;;
 esac
 
@@ -3032,6 +3039,8 @@ if test "x$openssl" = "xyes" ; then
 		BN_is_prime_ex \
 		DES_crypt \
 		DSA_generate_parameters_ex \
+		EVP_DigestSign \
+		EVP_DigestVerify \
 		EVP_DigestFinal_ex \
 		EVP_DigestInit_ex \
 		EVP_MD_CTX_cleanup \

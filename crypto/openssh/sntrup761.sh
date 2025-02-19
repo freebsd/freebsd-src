@@ -1,25 +1,18 @@
 #!/bin/sh
-#       $OpenBSD: sntrup761.sh,v 1.7 2023/01/11 02:13:52 djm Exp $
+#       $OpenBSD: sntrup761.sh,v 1.9 2024/09/16 05:37:05 djm Exp $
 #       Placed in the Public Domain.
 #
-AUTHOR="supercop-20201130/crypto_kem/sntrup761/ref/implementors"
-FILES="
-	supercop-20201130/crypto_sort/int32/portable4/int32_minmax.inc
-	supercop-20201130/crypto_sort/int32/portable4/sort.c
-	supercop-20201130/crypto_sort/uint32/useint32/sort.c
-	supercop-20201130/crypto_kem/sntrup761/ref/uint32.c
-	supercop-20201130/crypto_kem/sntrup761/ref/int32.c
-	supercop-20201130/crypto_kem/sntrup761/ref/paramsmenu.h
-	supercop-20201130/crypto_kem/sntrup761/ref/params.h
-	supercop-20201130/crypto_kem/sntrup761/ref/Decode.h
-	supercop-20201130/crypto_kem/sntrup761/ref/Decode.c
-	supercop-20201130/crypto_kem/sntrup761/ref/Encode.h
-	supercop-20201130/crypto_kem/sntrup761/ref/Encode.c
-	supercop-20201130/crypto_kem/sntrup761/ref/kem.c
+AUTHOR="supercop-20240808/crypto_kem/sntrup761/ref/implementors"
+FILES=" supercop-20240808/cryptoint/crypto_int16.h
+	supercop-20240808/cryptoint/crypto_int32.h
+	supercop-20240808/cryptoint/crypto_int64.h
+	supercop-20240808/crypto_sort/int32/portable4/sort.c
+	supercop-20240808/crypto_sort/uint32/useint32/sort.c
+	supercop-20240808/crypto_kem/sntrup761/compact/kem.c
 "
 ###
 
-set -e
+set -euo pipefail
 cd $1
 echo -n '/*  $'
 echo 'OpenBSD: $ */'
@@ -32,12 +25,19 @@ echo
 echo '#include <string.h>'
 echo '#include "crypto_api.h"'
 echo
+echo '#define crypto_declassify(x, y) do {} while (0)'
+echo
 # Map the types used in this code to the ones in crypto_api.h.  We use #define
 # instead of typedef since some systems have existing intXX types and do not
 # permit multiple typedefs even if they do not conflict.
 for t in int8 uint8 int16 uint16 int32 uint32 int64 uint64; do
 	echo "#define $t crypto_${t}"
 done
+
+for x in 16 32 64 ; do
+	echo "extern volatile crypto_int$x crypto_int${x}_optblocker;"
+done
+
 echo
 for i in $FILES; do
 	echo "/* from $i */"
@@ -57,14 +57,32 @@ for i in $FILES; do
 	    -e 's/[	 ]*$//' \
 	    $i | \
 	case "$i" in
-	# Use int64_t for intermediate values in int32_MINMAX to prevent signed
-	# 32-bit integer overflow when called by crypto_sort_uint32.
-	*/int32_minmax.inc)
-	    sed -e "s/int32 ab = b ^ a/int64_t ab = (int64_t)b ^ (int64_t)a/" \
-	        -e "s/int32 c = b - a/int64_t c = (int64_t)b - (int64_t)a/"
+	*/cryptoint/crypto_int16.h)
+	    sed -e "s/static void crypto_int16_store/void crypto_int16_store/" \
+		-e "s/^[#]define crypto_int16_optblocker.*//" \
+	        -e "s/static void crypto_int16_minmax/void crypto_int16_minmax/"
+	    ;;
+	*/cryptoint/crypto_int32.h)
+	# Use int64_t for intermediate values in crypto_int32_minmax to
+	# prevent signed 32-bit integer overflow when called by
+	# crypto_sort_int32. Original code depends on -fwrapv (we set -ftrapv)
+	    sed -e "s/static void crypto_int32_store/void crypto_int32_store/" \
+		-e "s/^[#]define crypto_int32_optblocker.*//" \
+		-e "s/crypto_int32 crypto_int32_r = crypto_int32_y ^ crypto_int32_x;/crypto_int64 crypto_int32_r = (crypto_int64)crypto_int32_y ^ (crypto_int64)crypto_int32_x;/" \
+		-e "s/crypto_int32 crypto_int32_z = crypto_int32_y - crypto_int32_x;/crypto_int64 crypto_int32_z = (crypto_int64)crypto_int32_y - (crypto_int64)crypto_int32_x;/" \
+	        -e "s/static void crypto_int32_minmax/void crypto_int32_minmax/"
+	    ;;
+	*/cryptoint/crypto_int64.h)
+	    sed -e "s/static void crypto_int64_store/void crypto_int64_store/" \
+		-e "s/^[#]define crypto_int64_optblocker.*//" \
+	        -e "s/static void crypto_int64_minmax/void crypto_int64_minmax/"
 	    ;;
 	*/int32/portable4/sort.c)
-	    sed -e "s/void crypto_sort/void crypto_sort_int32/g"
+	    sed -e "s/void crypto_sort[(]/void crypto_sort_int32(/g"
+	    ;;
+	*/int32/portable5/sort.c)
+	    sed -e "s/crypto_sort_smallindices/crypto_sort_int32_smallindices/"\
+	        -e "s/void crypto_sort[(]/void crypto_sort_int32(/g"
 	    ;;
 	*/uint32/useint32/sort.c)
 	    sed -e "s/void crypto_sort/void crypto_sort_uint32/g"
