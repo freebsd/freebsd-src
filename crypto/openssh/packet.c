@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.313 2023/12/18 14:45:17 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.318 2025/02/18 08:02:12 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1774,6 +1774,14 @@ ssh_packet_read_poll_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			if ((r = sshpkt_get_string_direct(ssh, &d, &len)) != 0)
 				return r;
 			DBG(debug("Received SSH2_MSG_PING len %zu", len));
+			if (!ssh->state->after_authentication) {
+				DBG(debug("Won't reply to PING in preauth"));
+				break;
+			}
+			if (ssh_packet_is_rekeying(ssh)) {
+				DBG(debug("Won't reply to PING during KEX"));
+				break;
+			}
 			if ((r = sshpkt_start(ssh, SSH2_MSG_PONG)) != 0 ||
 			    (r = sshpkt_put_string(ssh, d, len)) != 0 ||
 			    (r = sshpkt_send(ssh)) != 0)
