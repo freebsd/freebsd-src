@@ -32,52 +32,7 @@
 
 #include "openbsd-compat/openbsd-compat.h"
 
-extern int use_privsep;
 extern ServerOptions options;
-
-void
-platform_pre_listen(void)
-{
-#ifdef LINUX_OOM_ADJUST
-	/* Adjust out-of-memory killer so listening process is not killed */
-	oom_adjust_setup();
-#endif
-}
-
-void
-platform_pre_fork(void)
-{
-#ifdef USE_SOLARIS_PROCESS_CONTRACTS
-	solaris_contract_pre_fork();
-#endif
-}
-
-void
-platform_pre_restart(void)
-{
-#ifdef LINUX_OOM_ADJUST
-	oom_adjust_restore();
-#endif
-}
-
-void
-platform_post_fork_parent(pid_t child_pid)
-{
-#ifdef USE_SOLARIS_PROCESS_CONTRACTS
-	solaris_contract_post_fork_parent(child_pid);
-#endif
-}
-
-void
-platform_post_fork_child(void)
-{
-#ifdef USE_SOLARIS_PROCESS_CONTRACTS
-	solaris_contract_post_fork_child();
-#endif
-#ifdef LINUX_OOM_ADJUST
-	oom_adjust_restore();
-#endif
-}
 
 /* return 1 if we are running with privilege to swap UIDs, 0 otherwise */
 int
@@ -125,7 +80,7 @@ platform_setusercontext(struct passwd *pw)
 	 */
 	if (getuid() == 0 || geteuid() == 0) {
 		if (options.use_pam) {
-			do_pam_setcred(use_privsep);
+			do_pam_setcred();
 		}
 	}
 # endif /* USE_PAM */
@@ -153,7 +108,7 @@ platform_setusercontext_post_groups(struct passwd *pw)
 	 * Reestablish them here.
 	 */
 	if (options.use_pam) {
-		do_pam_setcred(use_privsep);
+		do_pam_setcred();
 	}
 #endif /* USE_PAM */
 

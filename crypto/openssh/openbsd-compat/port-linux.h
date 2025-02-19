@@ -30,4 +30,9 @@ void oom_adjust_restore(void);
 void oom_adjust_setup(void);
 #endif
 
+#ifdef SYSTEMD_NOTIFY
+void ssh_systemd_notify_ready(void);
+void ssh_systemd_notify_reload(void);
+#endif
+
 #endif /* ! _PORT_LINUX_H */

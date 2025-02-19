@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.h,v 1.49 2022/06/15 16:08:25 djm Exp $ */
+/* $OpenBSD: monitor_wrap.h,v 1.51 2024/05/17 06:42:04 jsg Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -27,9 +27,6 @@
 
 #ifndef _MM_WRAP_H_
 #define _MM_WRAP_H_
-
-extern int use_privsep;
-#define PRIVSEP(x)	(use_privsep ? mm_##x : x)
 
 enum mm_keytype { MM_NOKEY, MM_HOSTKEY, MM_USERKEY };
 
@@ -61,6 +58,8 @@ int mm_hostbased_key_allowed(struct ssh *, struct passwd *, const char *,
 int mm_sshkey_verify(const struct sshkey *, const u_char *, size_t,
     const u_char *, size_t, const char *, u_int, struct sshkey_sig_details **);
 
+void mm_decode_activate_server_options(struct ssh *ssh, struct sshbuf *m);
+
 #ifdef GSSAPI
 OM_uint32 mm_ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 OM_uint32 mm_ssh_gssapi_accept_ctx(Gssctxt *,
@@ -89,14 +88,16 @@ void mm_terminate(void);
 int mm_pty_allocate(int *, int *, char *, size_t);
 void mm_session_pty_cleanup2(struct Session *);
 
-/* Key export functions */
-struct newkeys *mm_newkeys_from_blob(u_char *, int);
-int mm_newkeys_to_blob(int, u_char **, u_int *);
-
 void mm_send_keystate(struct ssh *, struct monitor*);
 
 /* bsdauth */
 int mm_bsdauth_query(void *, char **, char **, u_int *, char ***, u_int **);
 int mm_bsdauth_respond(void *, u_int, char **);
+
+/* config / channels glue */
+void	 server_process_permitopen(struct ssh *);
+void	 server_process_channel_timeouts(struct ssh *ssh);
+struct connection_info *
+	 server_get_connection_info(struct ssh *, int, int);
 
 #endif /* _MM_WRAP_H_ */

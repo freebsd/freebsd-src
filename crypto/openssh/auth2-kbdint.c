@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-kbdint.c,v 1.14 2021/12/19 22:12:07 djm Exp $ */
+/* $OpenBSD: auth2-kbdint.c,v 1.15 2024/05/17 00:30:23 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -42,6 +42,7 @@
 
 /* import */
 extern ServerOptions options;
+extern struct authmethod_cfg methodcfg_kbdint;
 
 static int
 userauth_kbdint(struct ssh *ssh, const char *method)
@@ -65,8 +66,6 @@ userauth_kbdint(struct ssh *ssh, const char *method)
 }
 
 Authmethod method_kbdint = {
-	"keyboard-interactive",
-	NULL,
+	&methodcfg_kbdint,
 	userauth_kbdint,
-	&options.kbd_interactive_authentication
 };

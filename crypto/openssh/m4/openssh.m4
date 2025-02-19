@@ -20,7 +20,10 @@ char *f2(char *s, ...) {
 	va_end(args);
 	return strdup(ret);
 }
+int i;
+double d;
 const char *f3(int s) {
+	i = (int)d;
 	return s ? "good" : "gooder";
 }
 int main(int argc, char **argv) {

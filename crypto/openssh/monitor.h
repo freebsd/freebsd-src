@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.h,v 1.23 2019/01/19 21:43:56 djm Exp $ */
+/* $OpenBSD: monitor.h,v 1.24 2024/05/17 00:30:24 djm Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -66,6 +66,7 @@ enum monitor_reqtype {
 };
 
 struct ssh;
+struct sshbuf;
 
 struct monitor {
 	int			 m_recvfd;
@@ -91,5 +92,8 @@ void mm_request_send(int, enum monitor_reqtype, struct sshbuf *);
 void mm_request_receive(int, struct sshbuf *);
 void mm_request_receive_expect(int, enum monitor_reqtype, struct sshbuf *);
 void mm_get_keystate(struct ssh *, struct monitor *);
+
+/* XXX: should be returned via a monitor call rather than config_fd */
+void mm_encode_server_options(struct sshbuf *);
 
 #endif /* _MONITOR_H_ */
