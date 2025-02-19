@@ -614,7 +614,7 @@ line_abbrevname(char *dst, const char *src, int dstsize)
  ** into account.
  **/
 
-#if defined(USE_UTMP) || defined (USE_WTMP) || defined (USE_LOGIN)
+#if defined(USE_BTMP) || defined(USE_UTMP) || defined (USE_WTMP) || defined (USE_LOGIN)
 
 /* build the utmp structure */
 void
@@ -698,7 +698,7 @@ construct_utmp(struct logininfo *li,
 	}
 # endif
 }
-#endif /* USE_UTMP || USE_WTMP || USE_LOGIN */
+#endif /* USE_BTMP || USE_UTMP || USE_WTMP || USE_LOGIN */
 
 /**
  ** utmpx utility functions
@@ -723,7 +723,7 @@ set_utmpx_time(struct logininfo *li, struct utmpx *utx)
 void
 construct_utmpx(struct logininfo *li, struct utmpx *utx)
 {
-# ifdef HAVE_ADDR_V6_IN_UTMP
+# ifdef HAVE_ADDR_V6_IN_UTMPX
 	struct sockaddr_in6 *sa6;
 #  endif
 	memset(utx, '\0', sizeof(*utx));
@@ -769,7 +769,7 @@ construct_utmpx(struct logininfo *li, struct utmpx *utx)
 	if (li->hostaddr.sa.sa_family == AF_INET)
 		utx->ut_addr = li->hostaddr.sa_in.sin_addr.s_addr;
 # endif
-# ifdef HAVE_ADDR_V6_IN_UTMP
+# ifdef HAVE_ADDR_V6_IN_UTMPX
 	/* this is just a 128-bit IPv6 address */
 	if (li->hostaddr.sa.sa_family == AF_INET6) {
 		sa6 = ((struct sockaddr_in6 *)&li->hostaddr.sa);

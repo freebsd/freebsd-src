@@ -1406,9 +1406,6 @@
 /* define if you have struct timeval */
 #define HAVE_STRUCT_TIMEVAL 1
 
-/* Define to 1 if you have the 'swap32' function. */
-/* #undef HAVE_SWAP32 */
-
 /* Define to 1 if you have the 'sysconf' function. */
 #define HAVE_SYSCONF 1
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexmlkem768x25519.c,v 1.1 2024/09/02 12:13:56 djm Exp $ */
+/* $OpenBSD: kexmlkem768x25519.c,v 1.2 2024/10/27 02:06:59 djm Exp $ */
 /*
  * Copyright (c) 2023 Markus Friedl.  All rights reserved.
  *
@@ -34,6 +34,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <signal.h>
+#ifdef HAVE_ENDIAN_H
+# include <endian.h>
+#endif
 
 #include "sshkey.h"
 #include "kex.h"

@@ -991,6 +991,7 @@
 #define strdelim_internal			Fssh_strdelim_internal
 #define strdelimw				Fssh_strdelimw
 #define strnvis					Fssh_strnvis
+#define strprefix				Fssh_strprefix
 #define strvis					Fssh_strvis
 #define strvisx					Fssh_strvisx
 #define subprocess				Fssh_subprocess
