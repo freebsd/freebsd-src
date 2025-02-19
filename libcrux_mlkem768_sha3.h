@@ -1,4 +1,5 @@
-/*  $OpenBSD: libcrux_mlkem768_sha3.h,v 1.1 2024/09/02 12:13:56 djm Exp $ */
+/*  $OpenBSD: libcrux_mlkem768_sha3.h,v 1.2 2024/10/27 02:06:01 djm Exp $ */
+
 /* Extracted from libcrux revision 84c5d87b3092c59294345aa269ceefe0eb97cc35 */
 
 /*
@@ -160,18 +161,19 @@ static inline void Eurydice_slice_to_array3(uint8_t *dst_tag, char *dst_ok,
 // CORE STUFF (conversions, endianness, ...)
 
 static inline void core_num__u64_9__to_le_bytes(uint64_t v, uint8_t buf[8]) {
+  v = htole64(v);
   memcpy(buf, &v, sizeof(v));
 }
 static inline uint64_t core_num__u64_9__from_le_bytes(uint8_t buf[8]) {
   uint64_t v;
   memcpy(&v, buf, sizeof(v));
-  return v;
+  return le64toh(v);
 }
 
 static inline uint32_t core_num__u32_8__from_le_bytes(uint8_t buf[4]) {
   uint32_t v;
   memcpy(&v, buf, sizeof(v));
-  return v;
+  return le32toh(v);
 }
 
 static inline uint32_t core_num__u8_6__count_ones(uint8_t x0) {
