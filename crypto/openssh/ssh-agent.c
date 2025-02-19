@@ -1226,6 +1226,7 @@ parse_key_constraint_extension(struct sshbuf *m, char **sk_providerp,
 	    "restrict-destination-v00@openssh.com") == 0) {
 		if (*dcsp != NULL) {
 			error_f("%s already set", ext_name);
+			r = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
 		if ((r = sshbuf_froms(m, &b)) != 0) {
@@ -1235,6 +1236,7 @@ parse_key_constraint_extension(struct sshbuf *m, char **sk_providerp,
 		while (sshbuf_len(b) != 0) {
 			if (*ndcsp >= AGENT_MAX_DEST_CONSTRAINTS) {
 				error_f("too many %s constraints", ext_name);
+				r = SSH_ERR_INVALID_FORMAT;
 				goto out;
 			}
 			*dcsp = xrecallocarray(*dcsp, *ndcsp, *ndcsp + 1,
@@ -1252,6 +1254,7 @@ parse_key_constraint_extension(struct sshbuf *m, char **sk_providerp,
 		}
 		if (*certs != NULL) {
 			error_f("%s already set", ext_name);
+			r = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
 		if ((r = sshbuf_get_u8(m, &v)) != 0 ||
@@ -1263,6 +1266,7 @@ parse_key_constraint_extension(struct sshbuf *m, char **sk_providerp,
 		while (sshbuf_len(b) != 0) {
 			if (*ncerts >= AGENT_MAX_EXT_CERTS) {
 				error_f("too many %s constraints", ext_name);
+				r = SSH_ERR_INVALID_FORMAT;
 				goto out;
 			}
 			*certs = xrecallocarray(*certs, *ncerts, *ncerts + 1,
@@ -1759,6 +1763,7 @@ process_ext_session_bind(SocketEntry *e)
 	/* record new key/sid */
 	if (e->nsession_ids >= AGENT_MAX_SESSION_IDS) {
 		error_f("too many session IDs recorded");
+		r = -1;
 		goto out;
 	}
 	e->session_ids = xrecallocarray(e->session_ids, e->nsession_ids,
