@@ -28,21 +28,16 @@
  * SUCH DAMAGE.
  */
 
-#include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <libsys.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <ssp/ssp.h>
-#include "un-namespace.h"
-#include "libc_private.h"
-
-extern int __realpathat(int fd, const char *path, char *buf, size_t size,
-    int flags);
 
 /*
  * Find the real name of path, by removing all ".", ".." and symlink
@@ -224,9 +219,8 @@ __ssp_real(realpath)(const char * __restrict path, char * __restrict resolved)
 		if (resolved == NULL)
 			return (NULL);
 	}
-	if (__getosreldate() >= 1300080) {
-		if (__realpathat(AT_FDCWD, path, resolved, PATH_MAX, 0) == 0)
-			return (resolved);
+	if (__sys___realpathat(AT_FDCWD, path, resolved, PATH_MAX, 0) == 0) {
+		return (resolved);
 	}
 	res = realpath1(path, resolved);
 	if (res == NULL)
