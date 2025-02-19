@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.158 2024/06/14 00:25:25 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.161 2024/09/09 02:39:57 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -303,6 +303,7 @@ keygrab_ssh2(con *c)
 #endif
 	c->c_ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_client;
 	c->c_ssh->kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_client;
+	c->c_ssh->kex->kex[KEX_KEM_MLKEM768X25519_SHA256] = kex_gen_client;
 	ssh_set_verify_host_key_callback(c->c_ssh, key_print_wrapper);
 	/*
 	 * do the key-exchange until an error occurs or until
@@ -751,7 +752,7 @@ main(int argc, char **argv)
 			get_keytypes = 0;
 			tname = strtok(optarg, ",");
 			while (tname) {
-				int type = sshkey_type_from_name(tname);
+				int type = sshkey_type_from_shortname(tname);
 
 				switch (type) {
 #ifdef WITH_DSA
