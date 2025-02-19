@@ -50,7 +50,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../../../../sys/net80211/ieee80211_ioctl.h"
+#include "../../sys/net80211/ieee80211_ioctl.h"
 
 #include "wlanstats.h"
 
@@ -460,8 +460,8 @@ getlladdr(struct wlanstatfoo_p *wf)
 	if (p == NULL)
 		errx(1, "did not find link layer address for interface %s",
 			wf->ifr.ifr_name);
-	sdl = (const struct sockaddr_dl *) p->ifa_addr;
-	IEEE80211_ADDR_COPY(wf->mac, CLLADDR(sdl));
+	sdl = (const struct sockaddr_dl *)(const void *)p->ifa_addr;
+	IEEE80211_ADDR_COPY(wf->mac, sdl->sdl_data + sdl->sdl_nlen);
 	freeifaddrs(ifp);
 }
 
