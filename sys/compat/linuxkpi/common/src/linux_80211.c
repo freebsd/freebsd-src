@@ -750,6 +750,38 @@ lkpi_opmode_to_vif_type(enum ieee80211_opmode opmode)
 }
 
 #ifdef LKPI_80211_HW_CRYPTO
+static const char *
+lkpi_cipher_suite_to_name(uint32_t wlan_cipher_suite)
+{
+
+	switch (wlan_cipher_suite) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return ("WEP40");
+	case WLAN_CIPHER_SUITE_TKIP:
+		return ("TKIP");
+	case WLAN_CIPHER_SUITE_CCMP:
+		return ("CCMP");
+	case WLAN_CIPHER_SUITE_WEP104:
+		return ("WEP104");
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return ("AES_CMAC");
+	case WLAN_CIPHER_SUITE_GCMP:
+		return ("GCMP");
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return ("GCMP_256");
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return ("CCMP_256");
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		return ("BIP_GMAC_128");
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		return ("BIP_GMAC_256");
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		return ("BIP_CMAC_256");
+	default:
+		return ("??");
+	}
+}
+
 static uint32_t
 lkpi_l80211_to_net80211_cyphers(uint32_t wlan_cipher_suite)
 {
@@ -770,12 +802,16 @@ lkpi_l80211_to_net80211_cyphers(uint32_t wlan_cipher_suite)
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		printf("%s: unsupported WLAN Cipher Suite %#08x | %u\n", __func__,
-		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff);
+		printf("%s: unsupported WLAN Cipher Suite %#08x | %u (%s)\n",
+		    __func__,
+		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff,
+		    lkpi_cipher_suite_to_name(wlan_cipher_suite));
 		break;
 	default:
-		printf("%s: unknown WLAN Cipher Suite %#08x | %u\n", __func__,
-		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff);
+		printf("%s: unknown WLAN Cipher Suite %#08x | %u (%s)\n",
+		    __func__,
+		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff,
+		    lkpi_cipher_suite_to_name(wlan_cipher_suite));
 	}
 
 	return (0);
@@ -1127,7 +1163,8 @@ _lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 	default:
-		ic_printf(ic, "%s: CIPHER SUITE %#x not supported\n", __func__, lcipher);
+		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
+		    __func__, lcipher, lkpi_cipher_suite_to_name(lcipher));
 		IMPROVE();
 		wiphy_unlock(hw->wiphy);
 		ieee80211_free_node(ni);
