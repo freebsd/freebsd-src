@@ -834,13 +834,14 @@ static void
 pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
     struct pctrie_node **freenode)
 {
+	smr_pctnode_t *parentp;
 	struct pctrie_node *child;
 	int slot;
 
 	*freenode = NULL;
+	parentp = pctrie_child(ptree, node, index);
 	if (node == NULL) {
-		pctrie_node_store(pctrie_root(ptree),
-		    PCTRIE_NULL, PCTRIE_LOCKED);
+		pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_LOCKED);
 		return;
 	}
 	slot = pctrie_slot(node, index);
@@ -848,20 +849,22 @@ pctrie_remove(struct pctrie *ptree, struct pctrie_node *node, uint64_t index,
 	    ("%s: bad popmap slot %d in node %p",
 	    __func__, slot, node));
 	node->pn_popmap ^= 1 << slot;
-	pctrie_node_store(&node->pn_child[slot], PCTRIE_NULL, PCTRIE_LOCKED);
-	if (!powerof2(node->pn_popmap))
+	if (!powerof2(node->pn_popmap)) {
+		pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_LOCKED);
 		return;
+	}
+	pctrie_node_store(parentp, PCTRIE_NULL, PCTRIE_UNSERIALIZED);
 	KASSERT(node->pn_popmap != 0, ("%s: bad popmap all zeroes", __func__));
 	slot = ffs(node->pn_popmap) - 1;
+	*freenode = node;
 	child = pctrie_node_load(&node->pn_child[slot], NULL, PCTRIE_LOCKED);
 	KASSERT(child != PCTRIE_NULL,
 	    ("%s: bad popmap slot %d in node %p", __func__, slot, node));
-	*freenode = node;
 	node = pctrie_parent(node);
 	if (!pctrie_isleaf(child))
 		pctrie_setparent(child, node);
-	pctrie_node_store(pctrie_child(ptree, node, index), child,
-	    PCTRIE_LOCKED);
+	parentp = pctrie_child(ptree, node, index);
+	pctrie_node_store(parentp, child, PCTRIE_LOCKED);
 }
 
 /*
