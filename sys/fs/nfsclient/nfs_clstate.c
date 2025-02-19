@@ -3993,6 +3993,25 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				NFSUNLOCKCLSTATE();
 			}
 			break;
+		case NFSV4OP_CBNOTIFY:
+		case NFSV4OP_CBRECALLOBJAVAIL:
+		case NFSV4OP_CBNOTIFYLOCK:
+			/*
+			 * These callbacks are not necessarily optional,
+			 * so I think it is better to reply NFS_OK than
+			 * NFSERR_NOTSUPP.
+			 * All provide information for which the FreeBSD client
+			 * does not currently have a use.
+			 * I am not sure if any of these could be generated
+			 * by a NFSv4.1/4.2 server for this client?
+			 */
+			error = 0;
+			NFSCL_DEBUG(1, "unsupp callback %d\n", op);
+			break;
+		case NFSV4OP_CBPUSHDELEG:
+			error = NFSERR_REJECTDELEG;
+			NFSCL_DEBUG(1, "unsupp callback %d\n", op);
+			break;
 		default:
 			if (i == 0 && minorvers != NFSV4_MINORVERSION)
 				error = NFSERR_OPNOTINSESS;
