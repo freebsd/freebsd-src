@@ -742,7 +742,9 @@ MLINKS+=ptnet.4 if_ptnet.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
-MLINKS+=rtwn_pci.4 if_rtwn_pci.4
+MLINKS+=rtw88.4 if_rtw89.4
+MLINKS+=rtw89.4 if_rtw89.4
+MLINKS+=rtwn.4 if_rtwn.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
