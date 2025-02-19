@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-keysign.8,v 1.17 2022/03/31 17:27:27 naddy Exp $
+.\" $OpenBSD: ssh-keysign.8,v 1.18 2024/06/17 08:30:29 djm Exp $
 .\"
 .\" Copyright (c) 2002 Markus Friedl.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 31 2022 $
+.Dd $Mdocdate: June 17 2024 $
 .Dt SSH-KEYSIGN 8
 .Os
 .Sh NAME
@@ -61,7 +61,6 @@ Controls whether
 .Nm
 is enabled.
 .Pp
-.It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
 .It Pa /etc/ssh/ssh_host_ed25519_key
 .It Pa /etc/ssh/ssh_host_rsa_key
@@ -73,7 +72,6 @@ Since they are readable only by root,
 .Nm
 must be set-uid root if host-based authentication is used.
 .Pp
-.It Pa /etc/ssh/ssh_host_dsa_key-cert.pub
 .It Pa /etc/ssh/ssh_host_ecdsa_key-cert.pub
 .It Pa /etc/ssh/ssh_host_ed25519_key-cert.pub
 .It Pa /etc/ssh/ssh_host_rsa_key-cert.pub

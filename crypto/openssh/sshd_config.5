@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.355 2024/02/21 06:17:29 djm Exp $
-.Dd $Mdocdate: February 21 2024 $
+.\" $OpenBSD: sshd_config.5,v 1.365 2024/06/24 06:59:39 jmc Exp $
+.Dd $Mdocdate: June 24 2024 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -1005,9 +1005,13 @@ file on logout.
 The default is
 .Cm yes .
 .It Cm KexAlgorithms
-Specifies the available KEX (Key Exchange) algorithms.
+Specifies the permitted KEX (Key Exchange) algorithms that the server will
+offer to clients.
+The ordering of this list is not important, as the client specifies the
+preference order.
 Multiple algorithms must be comma-separated.
-Alternately if the specified list begins with a
+.Pp
+If the specified list begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
 instead of replacing them.
@@ -1019,6 +1023,7 @@ If the specified list begins with a
 .Sq ^
 character, then the specified algorithms will be placed at the head of the
 default set.
+.Pp
 The supported algorithms are:
 .Pp
 .Bl -item -compact -offset indent
@@ -1060,7 +1065,7 @@ diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
 diffie-hellman-group14-sha256
 .Ed
 .Pp
-The list of available key exchange algorithms may also be obtained using
+The list of supported key exchange algorithms may also be obtained using
 .Qq ssh -Q KexAlgorithms .
 .It Cm ListenAddress
 Specifies the local addresses
@@ -1304,6 +1309,7 @@ Available keywords are
 .Cm LogLevel ,
 .Cm MaxAuthTries ,
 .Cm MaxSessions ,
+.Cm PAMServiceName ,
 .Cm PasswordAuthentication ,
 .Cm PermitEmptyPasswords ,
 .Cm PermitListen ,
@@ -1370,6 +1376,13 @@ and
 key exchange methods.
 The default is
 .Pa /etc/moduli .
+.It Cm PAMServiceName
+Specifies the service name used for Pluggable Authentication Modules (PAM)
+authentication, authorisation and session controls when
+.Cm UsePAM
+is enabled.
+The default is
+.Cm sshd .
 .It Cm PasswordAuthentication
 Specifies whether password authentication is allowed.
 Note that passwords may also be accepted via
@@ -1570,6 +1583,86 @@ Values for IPv4 and optionally IPv6 may be specified, separated by a colon.
 The default is
 .Cm 32:128 ,
 which means each address is considered individually.
+.It Cm PerSourcePenalties
+Controls penalties for various conditions that may represent attacks on
+.Xr sshd 8 .
+If a penalty is enforced against a client then its source address and any
+others in the same network, as defined by
+.Cm PerSourceNetBlockSize ,
+will be refused connection for a period.
+.Pp
+A penalty doesn't affect concurrent connections in progress, but multiple
+penalties from the same source from concurrent connections will accumulate
+up to a maximum.
+Conversely, penalties are not applied until a minimum threshold time has been
+accumulated.
+.Pp
+Penalties are enabled by default with the default settings listed below
+but may disabled using the
+.Cm off
+keyword.
+The defaults may be overridden by specifying one or more of the keywords below,
+separated by whitespace.
+All keywords accept arguments, e.g.\&
+.Qq crash:2m .
+.Bl -tag -width Ds
+.It Cm crash:duration
+Specifies how long to refuse clients that cause a crash of
+.Xr sshd 8 (default: 90s).
+.It Cm authfail:duration
+Specifies how long to refuse clients that disconnect after making one or more
+unsuccessful authentication attempts (default: 5s).
+.It Cm noauth:duration
+Specifies how long to refuse clients that disconnect without attempting
+authentication (default: 1s).
+This timeout should be used cautiously otherwise it may penalise legitimate
+scanning tools such as
+.Xr ssh-keyscan 1 .
+.It Cm grace-exceeded:duration
+Specifies how long to refuse clients that fail to authenticate after
+.Cm LoginGraceTime
+(default: 20s).
+.It Cm max:duration
+Specifies the maximum time a particular source address range will be refused
+access for (default: 10m).
+Repeated penalties will accumulate up to this maximum.
+.It Cm min:duration
+Specifies the minimum penalty that must accrue before enforcement begins
+(default: 15s).
+.It Cm max-sources4:number , max-sources6:number
+Specifies the maximum number of client IPv4 and IPv6 address ranges to
+track for penalties (default: 65536 for both).
+.It Cm overflow:mode
+Controls how the server behaves when
+.Cm max-sources4
+or
+.Cm max-sources6
+is exceeded.
+There are two operating modes:
+.Cm deny-all ,
+which denies all incoming connections other than those exempted via
+.Cm PerSourcePenaltyExemptList
+until a penalty expires, and
+.Cm permissive ,
+which allows new connections by removing existing penalties early
+(default: permissive).
+Note that client penalties below the
+.Cm min
+threshold count against the total number of tracked penalties.
+IPv4 and IPv6 addresses are tracked separately, so an overflow in one will
+not affect the other.
+.It Cm overflow6:mode
+Allows specifying a different overflow mode for IPv6 addresses.
+The default it to use the same overflow mode as was specified for IPv4.
+.El
+.It Cm PerSourcePenaltyExemptList
+Specifies a comma-separated list of addresses to exempt from penalties.
+This list may contain wildcards and CIDR address/masklen ranges.
+Note that the mask length provided must be consistent with the address -
+it is an error to specify a mask length that is too long for the address
+or one with bits set in this host portion of the address.
+For example, 192.0.2.0/33 and 192.0.2.0/8, respectively.
+The default is not to exempt any addresses.
 .It Cm PidFile
 Specifies the file that contains the process ID of the
 SSH daemon, or
@@ -1752,6 +1845,13 @@ via
 .Cm AcceptEnv
 or
 .Cm PermitUserEnvironment .
+.It Cm SshdSessionPath
+Overrides the default path to the
+.Cm sshd-session
+binary that is invoked to handle each connection.
+The default is
+.Pa /usr/libexec/sshd-session .
+This option is intended for use by tests.
 .It Cm StreamLocalBindMask
 Sets the octal file creation mode mask
 .Pq umask

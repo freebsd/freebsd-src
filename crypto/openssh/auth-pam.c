@@ -67,11 +67,6 @@
 #include <pam/pam_appl.h>
 #endif
 
-#if !defined(SSHD_PAM_SERVICE)
-extern char *__progname;
-# define SSHD_PAM_SERVICE		__progname
-#endif
-
 /* OpenGroup RFC86.0 and XSSO specify no "const" on arguments */
 #ifdef PAM_SUN_CODEBASE
 # define sshpam_const		/* Solaris, HP-UX, SunOS */
@@ -105,6 +100,7 @@ extern char *__progname;
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
+#include "srclimit.h"
 #include "blacklist_client.h"
 
 extern ServerOptions options;
@@ -172,13 +168,13 @@ sshpam_sigchld_handler(int sig)
 			return;
 		}
 	}
-	if (WIFSIGNALED(sshpam_thread_status) &&
-	    WTERMSIG(sshpam_thread_status) == SIGTERM)
-		return;	/* terminated by pthread_cancel */
-	if (!WIFEXITED(sshpam_thread_status))
-		sigdie("PAM: authentication thread exited unexpectedly");
-	if (WEXITSTATUS(sshpam_thread_status) != 0)
-		sigdie("PAM: authentication thread exited uncleanly");
+	if (sshpam_thread_status == -1)
+		return;
+	if (WIFSIGNALED(sshpam_thread_status)) {
+		if (signal_is_crash(WTERMSIG(sshpam_thread_status)))
+			_exit(EXIT_CHILD_CRASH);
+	} else if (!WIFEXITED(sshpam_thread_status))
+		_exit(EXIT_CHILD_CRASH);
 }
 
 /* ARGSUSED */
@@ -669,7 +665,7 @@ static struct pam_conv store_conv = { sshpam_store_conv, NULL };
 void
 sshpam_cleanup(void)
 {
-	if (sshpam_handle == NULL || (use_privsep && !mm_is_monitor()))
+	if (sshpam_handle == NULL || !mm_is_monitor())
 		return;
 	debug("PAM: cleanup");
 	pam_set_item(sshpam_handle, PAM_CONV, (const void *)&null_conv);
@@ -695,6 +691,8 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 	const char **ptr_pam_user = &pam_user;
 	int r;
 
+	if (options.pam_service_name == NULL)
+		fatal_f("internal error: NULL PAM service name");
 #if defined(PAM_SUN_CODEBASE) && defined(PAM_MAX_RESP_SIZE)
 	/* Protect buggy PAM implementations from excessively long usernames */
 	if (strlen(user) >= PAM_MAX_RESP_SIZE)
@@ -706,7 +704,8 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 			fatal("%s: called initially with no "
 			    "packet context", __func__);
 		}
-	} if (sshpam_handle != NULL) {
+	}
+	if (sshpam_handle != NULL) {
 		/* We already have a PAM context; check if the user matches */
 		sshpam_err = pam_get_item(sshpam_handle,
 		    PAM_USER, (sshpam_const void **)ptr_pam_user);
@@ -715,9 +714,10 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 		pam_end(sshpam_handle, sshpam_err);
 		sshpam_handle = NULL;
 	}
-	debug("PAM: initializing for \"%s\"", user);
-	sshpam_err =
-	    pam_start(SSHD_PAM_SERVICE, user, &store_conv, &sshpam_handle);
+	debug("PAM: initializing for \"%s\" with service \"%s\"", user,
+	    options.pam_service_name);
+	sshpam_err = pam_start(options.pam_service_name, user,
+	    &store_conv, &sshpam_handle);
 	sshpam_authctxt = authctxt;
 
 	if (sshpam_err != PAM_SUCCESS) {
@@ -1104,20 +1104,15 @@ do_pam_account(void)
 }
 
 void
-do_pam_setcred(int init)
+do_pam_setcred(void)
 {
 	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
 	    (const void *)&store_conv);
 	if (sshpam_err != PAM_SUCCESS)
 		fatal("PAM: failed to set PAM_CONV: %s",
 		    pam_strerror(sshpam_handle, sshpam_err));
-	if (init) {
-		debug("PAM: establishing credentials");
-		sshpam_err = pam_setcred(sshpam_handle, PAM_ESTABLISH_CRED);
-	} else {
-		debug("PAM: reinitializing credentials");
-		sshpam_err = pam_setcred(sshpam_handle, PAM_REINITIALIZE_CRED);
-	}
+	debug("PAM: establishing credentials");
+	sshpam_err = pam_setcred(sshpam_handle, PAM_ESTABLISH_CRED);
 	if (sshpam_err == PAM_SUCCESS) {
 		sshpam_cred_established = 1;
 		return;
@@ -1130,6 +1125,7 @@ do_pam_setcred(int init)
 		    pam_strerror(sshpam_handle, sshpam_err));
 }
 
+#if 0
 static int
 sshpam_tty_conv(int n, sshpam_const struct pam_message **msg,
     struct pam_response **resp, void *data)
@@ -1185,6 +1181,7 @@ sshpam_tty_conv(int n, sshpam_const struct pam_message **msg,
 }
 
 static struct pam_conv tty_conv = { sshpam_tty_conv, NULL };
+#endif
 
 /*
  * XXX this should be done in the authentication phase, but ssh1 doesn't
@@ -1193,8 +1190,8 @@ static struct pam_conv tty_conv = { sshpam_tty_conv, NULL };
 void
 do_pam_chauthtok(void)
 {
-	if (use_privsep)
-		fatal("Password expired (unable to change with privsep)");
+	fatal("Password expired");
+#if 0
 	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
 	    (const void *)&tty_conv);
 	if (sshpam_err != PAM_SUCCESS)
@@ -1205,6 +1202,7 @@ do_pam_chauthtok(void)
 	if (sshpam_err != PAM_SUCCESS)
 		fatal("PAM: pam_chauthtok(): %s",
 		    pam_strerror(sshpam_handle, sshpam_err));
+#endif
 }
 
 void
@@ -1377,6 +1375,8 @@ sshpam_auth_passwd(Authctxt *authctxt, const char *password)
 	if (sshpam_err != PAM_SUCCESS)
 		fatal("PAM: %s: failed to set PAM_CONV: %s", __func__,
 		    pam_strerror(sshpam_handle, sshpam_err));
+
+	expose_authinfo(__func__);
 
 	sshpam_err = pam_authenticate(sshpam_handle, flags);
 	sshpam_password = NULL;
