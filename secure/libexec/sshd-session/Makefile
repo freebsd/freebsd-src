@@ -57,10 +57,6 @@ LIBADD+=	wrap
 
 LIBADD+=	crypto
 
-.if defined(LOCALBASE)
-CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
-.endif
-
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
