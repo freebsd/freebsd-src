@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.609 2024/06/27 23:01:15 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.612 2024/09/15 01:11:26 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  * Copyright (c) 2002 Niels Provos.  All rights reserved.
@@ -278,7 +278,7 @@ child_register(int pipefd, int sockfd)
 	} else {
 		laddr = get_local_ipaddr(sockfd);
 		raddr = get_peer_ipaddr(sockfd);
-		xasprintf(&child->id, "connection from %s to %s", laddr, raddr);
+		xasprintf(&child->id, "connection from %s to %s", raddr, laddr);
 	}
 	free(laddr);
 	free(raddr);
@@ -394,6 +394,13 @@ child_reap(struct early_child *child)
 			penalty_type = SRCLIMIT_PENALTY_AUTHFAIL;
 			debug_f("preauth child %ld for %s exited "
 			    "after unsuccessful auth attempt %s",
+			    (long)child->pid, child->id,
+			    child->early ? " (early)" : "");
+			break;
+		case EXIT_CONFIG_REFUSED:
+			penalty_type = SRCLIMIT_PENALTY_REFUSECONNECTION;
+			debug_f("preauth child %ld for %s prohibited by"
+			    "RefuseConnection %s",
 			    (long)child->pid, child->id,
 			    child->early ? " (early)" : "");
 			break;
@@ -1405,7 +1412,7 @@ main(int ac, char **av)
 			break;
 		}
 	}
-	if (!test_flag && !do_dump_cfg && !path_absolute(av[0]))
+	if (!test_flag && !inetd_flag && !do_dump_cfg && !path_absolute(av[0]))
 		fatal("sshd requires execution with an absolute path");
 
 	closefrom(STDERR_FILENO + 1);
@@ -1869,7 +1876,6 @@ main(int ac, char **av)
 	}
 #endif
 #endif
-
 
 
 	BLACKLIST_INIT();

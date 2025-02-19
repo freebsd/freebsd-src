@@ -13,7 +13,6 @@
 #define EVP_CIPHER_CTX_set_iv			Fssh_EVP_CIPHER_CTX_set_iv
 #define Encode					Fssh_Encode
 #define Hide					Fssh_Hide
-#define Rq_mult_small				Fssh_Rq_mult_small
 #define Short_random				Fssh_Short_random
 #define _ssh__compat_glob			Fssh__ssh__compat_glob
 #define _ssh__compat_globfree			Fssh__ssh__compat_globfree
@@ -355,6 +354,9 @@
 #define kex_input_ext_info			Fssh_kex_input_ext_info
 #define kex_input_kexinit			Fssh_kex_input_kexinit
 #define kex_input_newkeys			Fssh_kex_input_newkeys
+#define kex_kem_mlkem768x25519_dec		Fssh_kex_kem_mlkem768x25519_dec
+#define kex_kem_mlkem768x25519_enc		Fssh_kex_kem_mlkem768x25519_enc
+#define kex_kem_mlkem768x25519_keypair		Fssh_kex_kem_mlkem768x25519_keypair
 #define kex_kem_sntrup761x25519_dec		Fssh_kex_kem_sntrup761x25519_dec
 #define kex_kem_sntrup761x25519_enc		Fssh_kex_kem_sntrup761x25519_enc
 #define kex_kem_sntrup761x25519_keypair		Fssh_kex_kem_sntrup761x25519_keypair
@@ -386,6 +388,25 @@
 #define kexgex_server				Fssh_kexgex_server
 #define krl_dump				Fssh_krl_dump
 #define lib_contains_symbol			Fssh_lib_contains_symbol
+#define libcrux_ml_kem_constant_time_ops_compare_ciphertexts_in_constant_time Fssh_libcrux_ml_kem_constant_time_ops_compare_ciphertexts_in_constant_time
+#define libcrux_ml_kem_constant_time_ops_is_non_zero Fssh_libcrux_ml_kem_constant_time_ops_is_non_zero
+#define libcrux_ml_kem_constant_time_ops_select_shared_secret_in_constant_time Fssh_libcrux_ml_kem_constant_time_ops_select_shared_secret_in_constant_time
+#define libcrux_ml_kem_hash_functions_portable_G_f1_e4 Fssh_libcrux_ml_kem_hash_functions_portable_G_f1_e4
+#define libcrux_ml_kem_hash_functions_portable_PRFxN_f1_93 Fssh_libcrux_ml_kem_hash_functions_portable_PRFxN_f1_93
+#define libcrux_ml_kem_ind_cpa_encrypt_60	Fssh_libcrux_ml_kem_ind_cpa_encrypt_60
+#define libcrux_ml_kem_ind_cpa_sample_vector_cbd_then_ntt_fc Fssh_libcrux_ml_kem_ind_cpa_sample_vector_cbd_then_ntt_fc
+#define libcrux_ml_kem_ind_cpa_serialize_secret_key_b5 Fssh_libcrux_ml_kem_ind_cpa_serialize_secret_key_b5
+#define libcrux_ml_kem_invert_ntt_invert_ntt_at_layer_4_plus_6e Fssh_libcrux_ml_kem_invert_ntt_invert_ntt_at_layer_4_plus_6e
+#define libcrux_ml_kem_invert_ntt_invert_ntt_montgomery_f6 Fssh_libcrux_ml_kem_invert_ntt_invert_ntt_montgomery_f6
+#define libcrux_ml_kem_matrix_sample_matrix_A_38 Fssh_libcrux_ml_kem_matrix_sample_matrix_A_38
+#define libcrux_ml_kem_ntt_ntt_at_layer_1_a2	Fssh_libcrux_ml_kem_ntt_ntt_at_layer_1_a2
+#define libcrux_ml_kem_ntt_ntt_at_layer_2_ad	Fssh_libcrux_ml_kem_ntt_ntt_at_layer_2_ad
+#define libcrux_ml_kem_ntt_ntt_at_layer_3_fd	Fssh_libcrux_ml_kem_ntt_ntt_at_layer_3_fd
+#define libcrux_ml_kem_ntt_ntt_at_layer_4_plus_51 Fssh_libcrux_ml_kem_ntt_ntt_at_layer_4_plus_51
+#define libcrux_ml_kem_polynomial_ntt_multiply_89_2a Fssh_libcrux_ml_kem_polynomial_ntt_multiply_89_2a
+#define libcrux_ml_kem_polynomial_poly_barrett_reduce_89_8b Fssh_libcrux_ml_kem_polynomial_poly_barrett_reduce_89_8b
+#define libcrux_ml_kem_serialize_deserialize_to_reduced_ring_element_4c Fssh_libcrux_ml_kem_serialize_deserialize_to_reduced_ring_element_4c
+#define libcrux_sha3_generic_keccak_keccakf1600_21 Fssh_libcrux_sha3_generic_keccak_keccakf1600_21
 #define load_hostkeys				Fssh_load_hostkeys
 #define load_hostkeys_file			Fssh_load_hostkeys_file
 #define log_change_level			Fssh_log_change_level
@@ -442,7 +463,6 @@
 #define notify_complete				Fssh_notify_complete
 #define notify_start				Fssh_notify_start
 #define open_preamble				Fssh_open_preamble
-#define openssh_RSA_verify			Fssh_openssh_RSA_verify
 #define opt_array_append			Fssh_opt_array_append
 #define opt_array_append2			Fssh_opt_array_append2
 #define opt_array_free2				Fssh_opt_array_free2
@@ -798,6 +818,7 @@
 #define sshbuf_put_bignum2_bytes		Fssh_sshbuf_put_bignum2_bytes
 #define sshbuf_put_cstring			Fssh_sshbuf_put_cstring
 #define sshbuf_put_ec				Fssh_sshbuf_put_ec
+#define sshbuf_put_ec_pkey			Fssh_sshbuf_put_ec_pkey
 #define sshbuf_put_eckey			Fssh_sshbuf_put_eckey
 #define sshbuf_put_string			Fssh_sshbuf_put_string
 #define sshbuf_put_stringb			Fssh_sshbuf_put_stringb
@@ -841,8 +862,10 @@
 #define sshkey_ec_validate_private		Fssh_sshkey_ec_validate_private
 #define sshkey_ec_validate_public		Fssh_sshkey_ec_validate_public
 #define sshkey_ecdsa_bits_to_nid		Fssh_sshkey_ecdsa_bits_to_nid
+#define sshkey_ecdsa_fixup_group		Fssh_sshkey_ecdsa_fixup_group
 #define sshkey_ecdsa_key_to_nid			Fssh_sshkey_ecdsa_key_to_nid
 #define sshkey_ecdsa_nid_from_name		Fssh_sshkey_ecdsa_nid_from_name
+#define sshkey_ecdsa_pkey_to_nid		Fssh_sshkey_ecdsa_pkey_to_nid
 #define sshkey_enable_maxsign			Fssh_sshkey_enable_maxsign
 #define sshkey_equal				Fssh_sshkey_equal
 #define sshkey_equal_public			Fssh_sshkey_equal_public
@@ -878,6 +901,8 @@
 #define sshkey_parse_private_fileblob_type	Fssh_sshkey_parse_private_fileblob_type
 #define sshkey_parse_pubkey_from_private_fileblob_type Fssh_sshkey_parse_pubkey_from_private_fileblob_type
 #define sshkey_perm_ok				Fssh_sshkey_perm_ok
+#define sshkey_pkey_digest_sign			Fssh_sshkey_pkey_digest_sign
+#define sshkey_pkey_digest_verify		Fssh_sshkey_pkey_digest_verify
 #define sshkey_plain_to_blob			Fssh_sshkey_plain_to_blob
 #define sshkey_private_deserialize		Fssh_sshkey_private_deserialize
 #define sshkey_private_deserialize_sk		Fssh_sshkey_private_deserialize_sk
@@ -912,6 +937,7 @@
 #define sshkey_try_load_public			Fssh_sshkey_try_load_public
 #define sshkey_type				Fssh_sshkey_type
 #define sshkey_type_from_name			Fssh_sshkey_type_from_name
+#define sshkey_type_from_shortname		Fssh_sshkey_type_from_shortname
 #define sshkey_type_is_cert			Fssh_sshkey_type_is_cert
 #define sshkey_type_plain			Fssh_sshkey_type_plain
 #define sshkey_unshield_private			Fssh_sshkey_unshield_private
@@ -943,6 +969,7 @@
 #define sshpkt_put_bignum2			Fssh_sshpkt_put_bignum2
 #define sshpkt_put_cstring			Fssh_sshpkt_put_cstring
 #define sshpkt_put_ec				Fssh_sshpkt_put_ec
+#define sshpkt_put_ec_pkey			Fssh_sshpkt_put_ec_pkey
 #define sshpkt_put_string			Fssh_sshpkt_put_string
 #define sshpkt_put_stringb			Fssh_sshpkt_put_stringb
 #define sshpkt_put_u32				Fssh_sshpkt_put_u32
