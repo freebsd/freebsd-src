@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.418 2024/09/15 03:09:44 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.419 2024/09/25 01:24:04 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1053,7 +1053,7 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
     int line, struct connection_info *ci)
 {
 	int result = 1, attributes = 0, port;
-	char *arg, *attrib;
+	char *arg, *attrib = NULL, *oattrib;
 
 	if (ci == NULL)
 		debug3("checking syntax for 'Match %s'", full_line);
@@ -1067,7 +1067,8 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 		    ci->laddress ? ci->laddress : "(null)", ci->lport);
 	}
 
-	while ((attrib = argv_next(acp, avp)) != NULL) {
+	while ((oattrib = argv_next(acp, avp)) != NULL) {
+		attrib = xstrdup(oattrib);
 		/* Terminate on comment */
 		if (*attrib == '#') {
 			argv_consume(acp); /* mark all arguments consumed */
@@ -1082,27 +1083,46 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 			    *arg != '\0' && *arg != '#')) {
 				error("'all' cannot be combined with other "
 				    "Match attributes");
-				return -1;
+				result = -1;
+				goto out;
 			}
 			if (arg != NULL && *arg == '#')
 				argv_consume(acp); /* consume remaining args */
-			return 1;
+			result = 1;
+			goto out;
 		}
 		/* Criterion "invalid-user" also has no argument */
 		if (strcasecmp(attrib, "invalid-user") == 0) {
-			if (ci == NULL)
+			if (ci == NULL) {
+				result = 0;
 				continue;
+			}
 			if (ci->user_invalid == 0)
 				result = 0;
 			else
 				debug("matched invalid-user at line %d", line);
 			continue;
 		}
+
+		/* Keep this list in sync with below */
+		if (strprefix(attrib, "user=", 1) != NULL ||
+		    strprefix(attrib, "group=", 1) != NULL ||
+		    strprefix(attrib, "host=", 1) != NULL ||
+		    strprefix(attrib, "address=", 1) != NULL ||
+		    strprefix(attrib, "localaddress=", 1) != NULL ||
+		    strprefix(attrib, "localport=", 1) != NULL ||
+		    strprefix(attrib, "rdomain=", 1) != NULL) {
+			arg = strchr(attrib, '=');
+			*(arg++) = '\0';
+		} else {
+			arg = argv_next(acp, avp);
+		}
+
 		/* All other criteria require an argument */
-		if ((arg = argv_next(acp, avp)) == NULL ||
-		    *arg == '\0' || *arg == '#') {
+		if (arg == NULL || *arg == '\0' || *arg == '#') {
 			error("Missing Match criteria for %s", attrib);
-			return -1;
+			result = -1;
+			goto out;
 		}
 		if (strcasecmp(attrib, "user") == 0) {
 			if (ci == NULL || (ci->test && ci->user == NULL)) {
@@ -1125,7 +1145,8 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 				match_test_missing_fatal("Group", "user");
 			switch (match_cfg_line_group(arg, line, ci->user)) {
 			case -1:
-				return -1;
+				result = -1;
+				goto out;
 			case 0:
 				result = 0;
 			}
@@ -1161,7 +1182,8 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 				result = 0;
 				break;
 			case -2:
-				return -1;
+				result = -1;
+				goto out;
 			}
 		} else if (strcasecmp(attrib, "localaddress") == 0){
 			if (ci == NULL || (ci->test && ci->laddress == NULL)) {
@@ -1186,13 +1208,15 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 				result = 0;
 				break;
 			case -2:
-				return -1;
+				result = -1;
+				goto out;
 			}
 		} else if (strcasecmp(attrib, "localport") == 0) {
 			if ((port = a2port(arg)) == -1) {
 				error("Invalid LocalPort '%s' on Match line",
 				    arg);
-				return -1;
+				result = -1;
+				goto out;
 			}
 			if (ci == NULL || (ci->test && ci->lport == -1)) {
 				result = 0;
@@ -1220,16 +1244,21 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 				debug("user %.100s matched 'RDomain %.100s' at "
 				    "line %d", ci->rdomain, arg, line);
 		} else {
-			error("Unsupported Match attribute %s", attrib);
-			return -1;
+			error("Unsupported Match attribute %s", oattrib);
+			result = -1;
+			goto out;
 		}
+		free(attrib);
+		attrib = NULL;
 	}
 	if (attributes == 0) {
 		error("One or more attributes required for Match");
 		return -1;
 	}
-	if (ci != NULL)
+ out:
+	if (ci != NULL && result != -1)
 		debug3("match %sfound", result ? "" : "not ");
+	free(attrib);
 	return result;
 }
 
