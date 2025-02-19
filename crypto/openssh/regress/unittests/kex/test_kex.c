@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_kex.c,v 1.7 2024/01/11 01:45:58 djm Exp $ */
+/* 	$OpenBSD: test_kex.c,v 1.8 2024/03/25 19:28:09 djm Exp $ */
 /*
  * Regress test KEX
  *
@@ -22,6 +22,7 @@
 #include "sshbuf.h"
 #include "packet.h"
 #include "myproposal.h"
+#include "log.h"
 
 void kex_tests(void);
 static int do_debug = 0;
@@ -177,6 +178,9 @@ do_kex_with_key(char *kex, int keytype, int bits)
 static void
 do_kex(char *kex)
 {
+#if 0
+	log_init("test_kex", SYSLOG_LEVEL_DEBUG3, SYSLOG_FACILITY_AUTH, 1);
+#endif
 #ifdef WITH_OPENSSL
 	do_kex_with_key(kex, KEY_RSA, 2048);
 #ifdef WITH_DSA

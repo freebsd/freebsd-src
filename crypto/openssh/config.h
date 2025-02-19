@@ -396,6 +396,14 @@
    don't. */
 #define HAVE_DECL_OFFSETOF 1
 
+/* Define to 1 if you have the declaration of 'OPENSSL_IS_BORINGSSL', and to 0
+   if you don't. */
+/* #undef HAVE_DECL_OPENSSL_IS_BORINGSSL */
+
+/* Define to 1 if you have the declaration of 'OPENSSL_NO_DSA', and to 0 if
+   you don't. */
+/* #undef HAVE_DECL_OPENSSL_NO_DSA */
+
 /* Define to 1 if you have the declaration of 'O_NONBLOCK', and to 0 if you
    don't. */
 #define HAVE_DECL_O_NONBLOCK 1
@@ -1912,7 +1920,7 @@
 /* Prepend the address family to IP tunnel traffic */
 /* #undef SSH_TUN_PREPEND_AF */
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
@@ -1922,6 +1930,9 @@
 
 /* syslog_r function is safe to use in in a signal handler */
 /* #undef SYSLOG_R_SAFE_IN_SIGHAND */
+
+/* Have sshd notify systemd on start/reload */
+/* #undef SYSTEMD_NOTIFY */
 
 /* Support routing domains using Linux VRF */
 /* #undef SYS_RDOMAIN_LINUX */
@@ -2020,7 +2031,7 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
 
-/* Define for large files, on AIX-style hosts. */
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
 /* #undef _LARGE_FILES */
 
 /* log for bad login attempts */
@@ -2031,6 +2042,12 @@
 
 /* Specify location of ssh.pid */
 #define _PATH_SSH_PIDDIR "/var/run"
+
+/* Number of bits in time_t, on hosts where this is settable. */
+/* #undef _TIME_BITS */
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+/* #undef __MINGW_USE_VC2005_COMPAT */
 
 /* Define if we don't have struct __res_state in resolv.h */
 /* #undef __res_state */

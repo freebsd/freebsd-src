@@ -350,6 +350,8 @@
 #define kex_gen_client				Fssh_kex_gen_client
 #define kex_gen_hash				Fssh_kex_gen_hash
 #define kex_gen_server				Fssh_kex_gen_server
+#define kex_has_any_alg				Fssh_kex_has_any_alg
+#define kex_hash_from_name			Fssh_kex_hash_from_name
 #define kex_input_ext_info			Fssh_kex_input_ext_info
 #define kex_input_kexinit			Fssh_kex_input_kexinit
 #define kex_input_newkeys			Fssh_kex_input_newkeys
@@ -357,9 +359,11 @@
 #define kex_kem_sntrup761x25519_enc		Fssh_kex_kem_sntrup761x25519_enc
 #define kex_kem_sntrup761x25519_keypair		Fssh_kex_kem_sntrup761x25519_keypair
 #define kex_load_hostkey			Fssh_kex_load_hostkey
+#define kex_name_valid				Fssh_kex_name_valid
 #define kex_names_cat				Fssh_kex_names_cat
 #define kex_names_valid				Fssh_kex_names_valid
 #define kex_new					Fssh_kex_new
+#define kex_nid_from_name			Fssh_kex_nid_from_name
 #define kex_prop2buf				Fssh_kex_prop2buf
 #define kex_prop_free				Fssh_kex_prop_free
 #define kex_proposal_free_entries		Fssh_kex_proposal_free_entries
@@ -372,6 +376,7 @@
 #define kex_set_server_sig_algs			Fssh_kex_set_server_sig_algs
 #define kex_setup				Fssh_kex_setup
 #define kex_start_rekex				Fssh_kex_start_rekex
+#define kex_type_from_name			Fssh_kex_type_from_name
 #define kex_verify_host_key			Fssh_kex_verify_host_key
 #define kexc25519_keygen			Fssh_kexc25519_keygen
 #define kexc25519_shared_key			Fssh_kexc25519_shared_key
@@ -469,6 +474,7 @@
 #define pkcs11_init				Fssh_pkcs11_init
 #define pkcs11_k11_free				Fssh_pkcs11_k11_free
 #define pkcs11_login_slot			Fssh_pkcs11_login_slot
+#define pkcs11_open_session			Fssh_pkcs11_open_session
 #define pkcs11_provider_finalize		Fssh_pkcs11_provider_finalize
 #define pkcs11_provider_unref			Fssh_pkcs11_provider_unref
 #define pkcs11_rsa_private_decrypt		Fssh_pkcs11_rsa_private_decrypt
@@ -509,7 +515,6 @@
 #define read_passphrase				Fssh_read_passphrase
 #define recallocarray				Fssh_recallocarray
 #define record_hostkey				Fssh_record_hostkey
-#define refresh_progress_meter			Fssh_refresh_progress_meter
 #define replacearg				Fssh_replacearg
 #define revoke_blob				Fssh_revoke_blob
 #define revoked_blob_tree_RB_FIND		Fssh_revoked_blob_tree_RB_FIND
@@ -537,8 +542,7 @@
 #define sftp_realpath				Fssh_sftp_realpath
 #define shadow_pw				Fssh_shadow_pw
 #define sieve_large				Fssh_sieve_large
-#define sig_alarm				Fssh_sig_alarm
-#define sig_winch				Fssh_sig_winch
+#define signal_is_crash				Fssh_signal_is_crash
 #define skip_space				Fssh_skip_space
 #define snmprintf				Fssh_snmprintf
 #define sock_set_v6only				Fssh_sock_set_v6only
@@ -570,18 +574,6 @@
 #define ssh_dispatch_run			Fssh_ssh_dispatch_run
 #define ssh_dispatch_run_fatal			Fssh_ssh_dispatch_run_fatal
 #define ssh_dispatch_set			Fssh_ssh_dispatch_set
-#define ssh_dss_alloc				Fssh_ssh_dss_alloc
-#define ssh_dss_cleanup				Fssh_ssh_dss_cleanup
-#define ssh_dss_copy_public			Fssh_ssh_dss_copy_public
-#define ssh_dss_deserialize_private		Fssh_ssh_dss_deserialize_private
-#define ssh_dss_deserialize_public		Fssh_ssh_dss_deserialize_public
-#define ssh_dss_equal				Fssh_ssh_dss_equal
-#define ssh_dss_generate			Fssh_ssh_dss_generate
-#define ssh_dss_serialize_private		Fssh_ssh_dss_serialize_private
-#define ssh_dss_serialize_public		Fssh_ssh_dss_serialize_public
-#define ssh_dss_sign				Fssh_ssh_dss_sign
-#define ssh_dss_size				Fssh_ssh_dss_size
-#define ssh_dss_verify				Fssh_ssh_dss_verify
 #define ssh_ecdsa_cleanup			Fssh_ssh_ecdsa_cleanup
 #define ssh_ecdsa_copy_public			Fssh_ssh_ecdsa_copy_public
 #define ssh_ecdsa_deserialize_private		Fssh_ssh_ecdsa_deserialize_private
@@ -702,7 +694,6 @@
 #define ssh_packet_send2			Fssh_ssh_packet_send2
 #define ssh_packet_send2_wrapped		Fssh_ssh_packet_send2_wrapped
 #define ssh_packet_send_debug			Fssh_ssh_packet_send_debug
-#define ssh_packet_send_mux			Fssh_ssh_packet_send_mux
 #define ssh_packet_set_alive_timeouts		Fssh_ssh_packet_set_alive_timeouts
 #define ssh_packet_set_authenticated		Fssh_ssh_packet_set_authenticated
 #define ssh_packet_set_connection		Fssh_ssh_packet_set_connection
@@ -723,6 +714,7 @@
 #define ssh_packet_stop_discard			Fssh_ssh_packet_stop_discard
 #define ssh_packet_write_poll			Fssh_ssh_packet_write_poll
 #define ssh_packet_write_wait			Fssh_ssh_packet_write_wait
+#define ssh_remote_hostname			Fssh_ssh_remote_hostname
 #define ssh_remote_ipaddr			Fssh_ssh_remote_ipaddr
 #define ssh_remote_port				Fssh_ssh_remote_port
 #define ssh_remove_all_identities		Fssh_ssh_remove_all_identities
@@ -960,16 +952,13 @@
 #define sshpkt_send				Fssh_sshpkt_send
 #define sshpkt_start				Fssh_sshpkt_start
 #define sshpkt_vfatal				Fssh_sshpkt_vfatal
-#define sshsigdie				Fssh_sshsigdie
 #define sshsk_enroll				Fssh_sshsk_enroll
 #define sshsk_free_resident_keys		Fssh_sshsk_free_resident_keys
 #define sshsk_load_resident			Fssh_sshsk_load_resident
 #define sshsk_sign				Fssh_sshsk_sign
 #define start_compression_in			Fssh_start_compression_in
 #define start_compression_out			Fssh_start_compression_out
-#define start_progress_meter			Fssh_start_progress_meter
 #define stdfd_devnull				Fssh_stdfd_devnull
-#define stop_progress_meter			Fssh_stop_progress_meter
 #define stravis					Fssh_stravis
 #define strdelim				Fssh_strdelim
 #define strdelim_internal			Fssh_strdelim_internal
