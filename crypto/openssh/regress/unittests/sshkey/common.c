@@ -1,4 +1,4 @@
-/* 	$OpenBSD: common.c,v 1.5 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: common.c,v 1.6 2024/08/15 00:52:23 djm Exp $ */
 /*
  * Helpers for key API tests
  *
@@ -89,8 +89,8 @@ rsa_n(struct sshkey *k)
 	const BIGNUM *n = NULL;
 
 	ASSERT_PTR_NE(k, NULL);
-	ASSERT_PTR_NE(k->rsa, NULL);
-	RSA_get0_key(k->rsa, &n, NULL, NULL);
+	ASSERT_PTR_NE(k->pkey, NULL);
+	RSA_get0_key(EVP_PKEY_get0_RSA(k->pkey), &n, NULL, NULL);
 	return n;
 }
 
@@ -100,8 +100,8 @@ rsa_e(struct sshkey *k)
 	const BIGNUM *e = NULL;
 
 	ASSERT_PTR_NE(k, NULL);
-	ASSERT_PTR_NE(k->rsa, NULL);
-	RSA_get0_key(k->rsa, NULL, &e, NULL);
+	ASSERT_PTR_NE(k->pkey, NULL);
+	RSA_get0_key(EVP_PKEY_get0_RSA(k->pkey), NULL, &e, NULL);
 	return e;
 }
 
@@ -111,8 +111,8 @@ rsa_p(struct sshkey *k)
 	const BIGNUM *p = NULL;
 
 	ASSERT_PTR_NE(k, NULL);
-	ASSERT_PTR_NE(k->rsa, NULL);
-	RSA_get0_factors(k->rsa, &p, NULL);
+	ASSERT_PTR_NE(EVP_PKEY_get0_RSA(k->pkey), NULL);
+	RSA_get0_factors(EVP_PKEY_get0_RSA(k->pkey), &p, NULL);
 	return p;
 }
 
@@ -122,8 +122,8 @@ rsa_q(struct sshkey *k)
 	const BIGNUM *q = NULL;
 
 	ASSERT_PTR_NE(k, NULL);
-	ASSERT_PTR_NE(k->rsa, NULL);
-	RSA_get0_factors(k->rsa, NULL, &q);
+	ASSERT_PTR_NE(EVP_PKEY_get0_RSA(k->pkey), NULL);
+	RSA_get0_factors(EVP_PKEY_get0_RSA(k->pkey), NULL, &q);
 	return q;
 }
 

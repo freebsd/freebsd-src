@@ -1,6 +1,6 @@
-/* $OpenBSD: kexsntrup761x25519.c,v 1.3 2024/09/15 02:20:51 djm Exp $ */
+/* $OpenBSD: kexmlkem768x25519.c,v 1.1 2024/09/02 12:13:56 djm Exp $ */
 /*
- * Copyright (c) 2019 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2023 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,11 +25,13 @@
 
 #include "includes.h"
 
-#ifdef USE_SNTRUP761X25519
-
 #include <sys/types.h>
 
 #include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#include <stdbool.h>
 #include <string.h>
 #include <signal.h>
 
@@ -38,105 +40,123 @@
 #include "sshbuf.h"
 #include "digest.h"
 #include "ssherr.h"
+#include "log.h"
 
-volatile crypto_int16 crypto_int16_optblocker = 0;
-volatile crypto_int32 crypto_int32_optblocker = 0;
-volatile crypto_int64 crypto_int64_optblocker = 0;
+#ifdef USE_MLKEM768X25519
+
+#include "libcrux_mlkem768_sha3.h"
 
 int
-kex_kem_sntrup761x25519_keypair(struct kex *kex)
+kex_kem_mlkem768x25519_keypair(struct kex *kex)
 {
 	struct sshbuf *buf = NULL;
-	u_char *cp = NULL;
+	u_char rnd[LIBCRUX_ML_KEM_KEY_PAIR_PRNG_LEN], *cp = NULL;
 	size_t need;
-	int r;
+	int r = SSH_ERR_INTERNAL_ERROR;
+	struct libcrux_mlkem768_keypair keypair;
 
 	if ((buf = sshbuf_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	need = crypto_kem_sntrup761_PUBLICKEYBYTES + CURVE25519_SIZE;
+	need = crypto_kem_mlkem768_PUBLICKEYBYTES + CURVE25519_SIZE;
 	if ((r = sshbuf_reserve(buf, need, &cp)) != 0)
 		goto out;
-	crypto_kem_sntrup761_keypair(cp, kex->sntrup761_client_key);
+	arc4random_buf(rnd, sizeof(rnd));
+	keypair = libcrux_ml_kem_mlkem768_portable_generate_key_pair(rnd);
+	memcpy(cp, keypair.pk.value, crypto_kem_mlkem768_PUBLICKEYBYTES);
+	memcpy(kex->mlkem768_client_key, keypair.sk.value,
+	    sizeof(kex->mlkem768_client_key));
 #ifdef DEBUG_KEXECDH
-	dump_digest("client public key sntrup761:", cp,
-	    crypto_kem_sntrup761_PUBLICKEYBYTES);
+	dump_digest("client public key mlkem768:", cp,
+	    crypto_kem_mlkem768_PUBLICKEYBYTES);
 #endif
-	cp += crypto_kem_sntrup761_PUBLICKEYBYTES;
+	cp += crypto_kem_mlkem768_PUBLICKEYBYTES;
 	kexc25519_keygen(kex->c25519_client_key, cp);
 #ifdef DEBUG_KEXECDH
 	dump_digest("client public key c25519:", cp, CURVE25519_SIZE);
 #endif
+	/* success */
+	r = 0;
 	kex->client_pub = buf;
 	buf = NULL;
  out:
+	explicit_bzero(&keypair, sizeof(keypair));
+	explicit_bzero(rnd, sizeof(rnd));
 	sshbuf_free(buf);
 	return r;
 }
 
 int
-kex_kem_sntrup761x25519_enc(struct kex *kex,
+kex_kem_mlkem768x25519_enc(struct kex *kex,
    const struct sshbuf *client_blob, struct sshbuf **server_blobp,
    struct sshbuf **shared_secretp)
 {
 	struct sshbuf *server_blob = NULL;
 	struct sshbuf *buf = NULL;
 	const u_char *client_pub;
-	u_char *kem_key, *ciphertext, *server_pub;
-	u_char server_key[CURVE25519_SIZE];
+	u_char rnd[LIBCRUX_ML_KEM_ENC_PRNG_LEN];
+	u_char server_pub[CURVE25519_SIZE], server_key[CURVE25519_SIZE];
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
 	size_t need;
-	int r;
+	int r = SSH_ERR_INTERNAL_ERROR;
+	struct libcrux_mlkem768_enc_result enc;
+	struct libcrux_mlkem768_pk mlkem_pub;
 
 	*server_blobp = NULL;
 	*shared_secretp = NULL;
+	memset(&mlkem_pub, 0, sizeof(mlkem_pub));
 
 	/* client_blob contains both KEM and ECDH client pubkeys */
-	need = crypto_kem_sntrup761_PUBLICKEYBYTES + CURVE25519_SIZE;
+	need = crypto_kem_mlkem768_PUBLICKEYBYTES + CURVE25519_SIZE;
 	if (sshbuf_len(client_blob) != need) {
 		r = SSH_ERR_SIGNATURE_INVALID;
 		goto out;
 	}
 	client_pub = sshbuf_ptr(client_blob);
 #ifdef DEBUG_KEXECDH
-	dump_digest("client public key sntrup761:", client_pub,
-	    crypto_kem_sntrup761_PUBLICKEYBYTES);
+	dump_digest("client public key mlkem768:", client_pub,
+	    crypto_kem_mlkem768_PUBLICKEYBYTES);
 	dump_digest("client public key 25519:",
-	    client_pub + crypto_kem_sntrup761_PUBLICKEYBYTES,
+	    client_pub + crypto_kem_mlkem768_PUBLICKEYBYTES,
 	    CURVE25519_SIZE);
 #endif
+	/* check public key validity */
+	memcpy(mlkem_pub.value, client_pub, crypto_kem_mlkem768_PUBLICKEYBYTES);
+	if (!libcrux_ml_kem_mlkem768_portable_validate_public_key(&mlkem_pub)) {
+		r = SSH_ERR_SIGNATURE_INVALID;
+		goto out;
+	}
+
 	/* allocate buffer for concatenation of KEM key and ECDH shared key */
 	/* the buffer will be hashed and the result is the shared secret */
 	if ((buf = sshbuf_new()) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if ((r = sshbuf_reserve(buf, crypto_kem_sntrup761_BYTES,
-	    &kem_key)) != 0)
-		goto out;
 	/* allocate space for encrypted KEM key and ECDH pub key */
 	if ((server_blob = sshbuf_new()) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	need = crypto_kem_sntrup761_CIPHERTEXTBYTES + CURVE25519_SIZE;
-	if ((r = sshbuf_reserve(server_blob, need, &ciphertext)) != 0)
-		goto out;
 	/* generate and encrypt KEM key with client key */
-	crypto_kem_sntrup761_enc(ciphertext, kem_key, client_pub);
+	arc4random_buf(rnd, sizeof(rnd));
+	enc = libcrux_ml_kem_mlkem768_portable_encapsulate(&mlkem_pub, rnd);
 	/* generate ECDH key pair, store server pubkey after ciphertext */
-	server_pub = ciphertext + crypto_kem_sntrup761_CIPHERTEXTBYTES;
 	kexc25519_keygen(server_key, server_pub);
+	if ((r = sshbuf_put(buf, enc.snd, sizeof(enc.snd))) != 0 ||
+	    (r = sshbuf_put(server_blob, enc.fst.value, sizeof(enc.fst.value))) != 0 ||
+	    (r = sshbuf_put(server_blob, server_pub, sizeof(server_pub))) != 0)
+		goto out;
 	/* append ECDH shared key */
-	client_pub += crypto_kem_sntrup761_PUBLICKEYBYTES;
+	client_pub += crypto_kem_mlkem768_PUBLICKEYBYTES;
 	if ((r = kexc25519_shared_key_ext(server_key, client_pub, buf, 1)) < 0)
 		goto out;
 	if ((r = ssh_digest_buffer(kex->hash_alg, buf, hash, sizeof(hash))) != 0)
 		goto out;
 #ifdef DEBUG_KEXECDH
 	dump_digest("server public key 25519:", server_pub, CURVE25519_SIZE);
-	dump_digest("server cipher text:", ciphertext,
-	    crypto_kem_sntrup761_CIPHERTEXTBYTES);
-	dump_digest("server kem key:", kem_key, crypto_kem_sntrup761_BYTES);
+	dump_digest("server cipher text:",
+	    enc.fst.value, sizeof(enc.fst.value));
+	dump_digest("server kem key:", enc.snd, sizeof(enc.snd));
 	dump_digest("concatenation of KEM key and ECDH shared key:",
 	    sshbuf_ptr(buf), sshbuf_len(buf));
 #endif
@@ -148,6 +168,8 @@ kex_kem_sntrup761x25519_enc(struct kex *kex,
 #ifdef DEBUG_KEXECDH
 	dump_digest("encoded shared secret:", sshbuf_ptr(buf), sshbuf_len(buf));
 #endif
+	/* success */
+	r = 0;
 	*server_blobp = server_blob;
 	*shared_secretp = buf;
 	server_blob = NULL;
@@ -155,53 +177,63 @@ kex_kem_sntrup761x25519_enc(struct kex *kex,
  out:
 	explicit_bzero(hash, sizeof(hash));
 	explicit_bzero(server_key, sizeof(server_key));
+	explicit_bzero(rnd, sizeof(rnd));
+	explicit_bzero(&enc, sizeof(enc));
 	sshbuf_free(server_blob);
 	sshbuf_free(buf);
 	return r;
 }
 
 int
-kex_kem_sntrup761x25519_dec(struct kex *kex,
+kex_kem_mlkem768x25519_dec(struct kex *kex,
     const struct sshbuf *server_blob, struct sshbuf **shared_secretp)
 {
 	struct sshbuf *buf = NULL;
-	u_char *kem_key = NULL;
+	u_char mlkem_key[crypto_kem_mlkem768_BYTES];
 	const u_char *ciphertext, *server_pub;
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
 	size_t need;
-	int r, decoded;
+	int r;
+	struct libcrux_mlkem768_sk mlkem_priv;
+	struct libcrux_mlkem768_ciphertext mlkem_ciphertext;
 
 	*shared_secretp = NULL;
+	memset(&mlkem_priv, 0, sizeof(mlkem_priv));
+	memset(&mlkem_ciphertext, 0, sizeof(mlkem_ciphertext));
 
-	need = crypto_kem_sntrup761_CIPHERTEXTBYTES + CURVE25519_SIZE;
+	need = crypto_kem_mlkem768_CIPHERTEXTBYTES + CURVE25519_SIZE;
 	if (sshbuf_len(server_blob) != need) {
 		r = SSH_ERR_SIGNATURE_INVALID;
 		goto out;
 	}
 	ciphertext = sshbuf_ptr(server_blob);
-	server_pub = ciphertext + crypto_kem_sntrup761_CIPHERTEXTBYTES;
-#ifdef DEBUG_KEXECDH
-	dump_digest("server cipher text:", ciphertext,
-	    crypto_kem_sntrup761_CIPHERTEXTBYTES);
-	dump_digest("server public key c25519:", server_pub, CURVE25519_SIZE);
-#endif
+	server_pub = ciphertext + crypto_kem_mlkem768_CIPHERTEXTBYTES;
 	/* hash concatenation of KEM key and ECDH shared key */
 	if ((buf = sshbuf_new()) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if ((r = sshbuf_reserve(buf, crypto_kem_sntrup761_BYTES,
-	    &kem_key)) != 0)
+	memcpy(mlkem_priv.value, kex->mlkem768_client_key,
+	    sizeof(kex->mlkem768_client_key));
+	memcpy(mlkem_ciphertext.value, ciphertext,
+	    sizeof(mlkem_ciphertext.value));
+#ifdef DEBUG_KEXECDH
+	dump_digest("server cipher text:", mlkem_ciphertext.value,
+	    sizeof(mlkem_ciphertext.value));
+	dump_digest("server public key c25519:", server_pub, CURVE25519_SIZE);
+#endif
+	libcrux_ml_kem_mlkem768_portable_decapsulate(&mlkem_priv,
+	    &mlkem_ciphertext, mlkem_key);
+	if ((r = sshbuf_put(buf, mlkem_key, sizeof(mlkem_key))) != 0)
 		goto out;
-	decoded = crypto_kem_sntrup761_dec(kem_key, ciphertext,
-	    kex->sntrup761_client_key);
 	if ((r = kexc25519_shared_key_ext(kex->c25519_client_key, server_pub,
 	    buf, 1)) < 0)
 		goto out;
-	if ((r = ssh_digest_buffer(kex->hash_alg, buf, hash, sizeof(hash))) != 0)
+	if ((r = ssh_digest_buffer(kex->hash_alg, buf,
+	    hash, sizeof(hash))) != 0)
 		goto out;
 #ifdef DEBUG_KEXECDH
-	dump_digest("client kem key:", kem_key, crypto_kem_sntrup761_BYTES);
+	dump_digest("client kem key:", mlkem_key, sizeof(mlkem_key));
 	dump_digest("concatenation of KEM key and ECDH shared key:",
 	    sshbuf_ptr(buf), sshbuf_len(buf));
 #endif
@@ -212,34 +244,27 @@ kex_kem_sntrup761x25519_dec(struct kex *kex,
 #ifdef DEBUG_KEXECDH
 	dump_digest("encoded shared secret:", sshbuf_ptr(buf), sshbuf_len(buf));
 #endif
-	if (decoded != 0) {
-		r = SSH_ERR_SIGNATURE_INVALID;
-		goto out;
-	}
+	/* success */
+	r = 0;
 	*shared_secretp = buf;
 	buf = NULL;
  out:
 	explicit_bzero(hash, sizeof(hash));
+	explicit_bzero(&mlkem_priv, sizeof(mlkem_priv));
+	explicit_bzero(&mlkem_ciphertext, sizeof(mlkem_ciphertext));
+	explicit_bzero(mlkem_key, sizeof(mlkem_key));
 	sshbuf_free(buf);
 	return r;
 }
-
-#else
-
-#include "ssherr.h"
-
-struct kex;
-struct sshbuf;
-struct sshkey;
-
+#else /* USE_MLKEM768X25519 */
 int
-kex_kem_sntrup761x25519_keypair(struct kex *kex)
+kex_kem_mlkem768x25519_keypair(struct kex *kex)
 {
 	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
 }
 
 int
-kex_kem_sntrup761x25519_enc(struct kex *kex,
+kex_kem_mlkem768x25519_enc(struct kex *kex,
    const struct sshbuf *client_blob, struct sshbuf **server_blobp,
    struct sshbuf **shared_secretp)
 {
@@ -247,9 +272,9 @@ kex_kem_sntrup761x25519_enc(struct kex *kex,
 }
 
 int
-kex_kem_sntrup761x25519_dec(struct kex *kex,
+kex_kem_mlkem768x25519_dec(struct kex *kex,
     const struct sshbuf *server_blob, struct sshbuf **shared_secretp)
 {
 	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
 }
-#endif /* USE_SNTRUP761X25519 */
+#endif /* USE_MLKEM768X25519 */

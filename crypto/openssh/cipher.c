@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.c,v 1.121 2024/05/17 02:39:11 jsg Exp $ */
+/* $OpenBSD: cipher.c,v 1.123 2024/08/23 04:51:00 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -143,8 +143,8 @@ const char *
 compression_alg_list(int compression)
 {
 #ifdef WITH_ZLIB
-	return compression ? "zlib@openssh.com,zlib,none" :
-	    "none,zlib@openssh.com,zlib";
+	return compression ? "zlib@openssh.com,none" :
+	    "none,zlib@openssh.com";
 #else
 	return "none";
 #endif
@@ -255,7 +255,7 @@ cipher_init(struct sshcipher_ctx **ccp, const struct sshcipher *cipher,
 #endif
 
 	*ccp = NULL;
-	if ((cc = calloc(sizeof(*cc), 1)) == NULL)
+	if ((cc = calloc(1, sizeof(*cc))) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 
 	cc->plaintext = (cipher->flags & CFLAG_NONE) != 0;

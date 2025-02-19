@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.172 2024/01/11 01:45:36 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.173 2024/09/06 02:30:44 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -698,7 +698,7 @@ parse_dest_constraint_hop(const char *s, struct dest_constraint_hop *dch,
 
 	memset(dch, '\0', sizeof(*dch));
 	os = xstrdup(s);
-	if ((host = strchr(os, '@')) == NULL)
+	if ((host = strrchr(os, '@')) == NULL)
 		host = os;
 	else {
 		*host++ = '\0';

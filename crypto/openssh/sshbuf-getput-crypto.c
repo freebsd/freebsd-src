@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.11 2024/02/01 02:37:33 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.12 2024/08/15 00:51:51 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -175,6 +175,16 @@ sshbuf_put_eckey(struct sshbuf *buf, const EC_KEY *v)
 {
 	return sshbuf_put_ec(buf, EC_KEY_get0_public_key(v),
 	    EC_KEY_get0_group(v));
+}
+
+int
+sshbuf_put_ec_pkey(struct sshbuf *buf, EVP_PKEY *pkey)
+{
+	const EC_KEY *ec;
+
+	if ((ec = EVP_PKEY_get0_EC_KEY(pkey)) == NULL)
+		return SSH_ERR_LIBCRYPTO_ERROR;
+	return sshbuf_put_eckey(buf, ec);
 }
 #endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */

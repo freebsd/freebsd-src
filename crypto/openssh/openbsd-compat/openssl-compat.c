@@ -95,4 +95,30 @@ ssh_libcrypto_init(void)
 #endif /* USE_OPENSSL_ENGINE */
 }
 
+#ifndef HAVE_EVP_DIGESTSIGN
+int
+EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sigret, size_t *siglen,
+    const unsigned char *tbs, size_t tbslen)
+{
+	if (sigret != NULL) {
+		if (EVP_DigestSignUpdate(ctx, tbs, tbslen) <= 0)
+			return 0;
+	}
+
+	return EVP_DigestSignFinal(ctx, sigret, siglen);
+}
+#endif
+
+#ifndef HAVE_EVP_DIGESTVERIFY
+int
+EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret, size_t siglen,
+    const unsigned char *tbs, size_t tbslen)
+{
+	if (EVP_DigestVerifyUpdate(ctx, tbs, tbslen) <= 0)
+		return -1;
+
+	return EVP_DigestVerifyFinal(ctx, sigret, siglen);
+}
+#endif
+
 #endif /* WITH_OPENSSL */

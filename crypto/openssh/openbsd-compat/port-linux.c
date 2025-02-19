@@ -366,7 +366,7 @@ ssh_systemd_notify(const char *fmt, ...)
 		error_f("socket \"%s\": %s", path, strerror(errno));
 		goto out;
 	}
-	if (connect(fd, &addr, sizeof(addr)) != 0) {
+	if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
 		error_f("socket \"%s\" connect: %s", path, strerror(errno));
 		goto out;
 	}

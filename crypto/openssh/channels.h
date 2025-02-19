@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.156 2024/05/23 23:47:16 jsg Exp $ */
+/* $OpenBSD: channels.h,v 1.157 2024/07/25 22:40:08 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -139,6 +139,8 @@ struct Channel {
 	u_int	io_ready;	/* bitmask of SSH_CHAN_IO_* */
 	int	pfds[4];	/* pollfd entries for rfd/wfd/efd/sock */
 	int     ctl_chan;	/* control channel (multiplexed connections) */
+	uint32_t ctl_child_id;	/* child session for mux controllers */
+	int	have_ctl_child_id;/* non-zero if ctl_child_id is valid */
 	int     isatty;		/* rfd is a tty */
 #ifdef _AIX
 	int     wfd_isatty;	/* wfd is a tty */
