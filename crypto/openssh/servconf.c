@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.411 2024/06/12 22:36:00 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.418 2024/09/15 03:09:44 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -179,6 +179,7 @@ initialize_server_options(ServerOptions *options)
 	options->per_source_penalty.penalty_authfail = -1;
 	options->per_source_penalty.penalty_noauth = -1;
 	options->per_source_penalty.penalty_grace = -1;
+	options->per_source_penalty.penalty_refuseconnection = -1;
 	options->per_source_penalty.penalty_max = -1;
 	options->per_source_penalty.penalty_min = -1;
 	options->max_authtries = -1;
@@ -214,6 +215,7 @@ initialize_server_options(ServerOptions *options)
 	options->num_channel_timeouts = 0;
 	options->unused_connection_timeout = -1;
 	options->sshd_session_path = NULL;
+	options->refuse_connection = -1;
 	options->use_blacklist = -1;
 }
 
@@ -442,11 +444,13 @@ fill_default_server_options(ServerOptions *options)
 	if (options->per_source_penalty.penalty_crash == -1)
 		options->per_source_penalty.penalty_crash = 90;
 	if (options->per_source_penalty.penalty_grace == -1)
-		options->per_source_penalty.penalty_grace = 20;
+		options->per_source_penalty.penalty_grace = 10;
 	if (options->per_source_penalty.penalty_authfail == -1)
 		options->per_source_penalty.penalty_authfail = 5;
 	if (options->per_source_penalty.penalty_noauth == -1)
 		options->per_source_penalty.penalty_noauth = 1;
+	if (options->per_source_penalty.penalty_refuseconnection == -1)
+		options->per_source_penalty.penalty_refuseconnection = 10;
 	if (options->per_source_penalty.penalty_min == -1)
 		options->per_source_penalty.penalty_min = 15;
 	if (options->per_source_penalty.penalty_max == -1)
@@ -497,6 +501,8 @@ fill_default_server_options(ServerOptions *options)
 		options->unused_connection_timeout = 0;
 	if (options->sshd_session_path == NULL)
 		options->sshd_session_path = xstrdup(_PATH_SSHD_SESSION);
+	if (options->refuse_connection == -1)
+		options->refuse_connection = 0;
 	if (options->use_blacklist == -1)
 		options->use_blacklist = 0;
 
@@ -581,7 +587,7 @@ typedef enum {
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
-	sSshdSessionPath,
+	sSshdSessionPath, sRefuseConnection,
 	sUseBlacklist,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
@@ -750,6 +756,7 @@ static struct {
 	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
 	{ "sshdsessionpath", sSshdSessionPath, SSHCFG_GLOBAL },
+	{ "refuseconnection", sRefuseConnection, SSHCFG_ALL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
 
@@ -1042,43 +1049,57 @@ match_test_missing_fatal(const char *criteria, const char *attrib)
  * not match.
  */
 static int
-match_cfg_line(char **condition, int line, struct connection_info *ci)
+match_cfg_line(const char *full_line, int *acp, char ***avp,
+    int line, struct connection_info *ci)
 {
 	int result = 1, attributes = 0, port;
-	char *arg, *attrib, *cp = *condition;
+	char *arg, *attrib;
 
 	if (ci == NULL)
-		debug3("checking syntax for 'Match %s'", cp);
-	else
-		debug3("checking match for '%s' user %s host %s addr %s "
-		    "laddr %s lport %d", cp, ci->user ? ci->user : "(null)",
+		debug3("checking syntax for 'Match %s'", full_line);
+	else {
+		debug3("checking match for '%s' user %s%s host %s addr %s "
+		    "laddr %s lport %d", full_line,
+		    ci->user ? ci->user : "(null)",
+		    ci->user_invalid ? " (invalid)" : "",
 		    ci->host ? ci->host : "(null)",
 		    ci->address ? ci->address : "(null)",
 		    ci->laddress ? ci->laddress : "(null)", ci->lport);
+	}
 
-	while ((attrib = strdelim(&cp)) && *attrib != '\0') {
+	while ((attrib = argv_next(acp, avp)) != NULL) {
 		/* Terminate on comment */
 		if (*attrib == '#') {
-			cp = NULL; /* mark all arguments consumed */
+			argv_consume(acp); /* mark all arguments consumed */
 			break;
 		}
 		arg = NULL;
 		attributes++;
 		/* Criterion "all" has no argument and must appear alone */
 		if (strcasecmp(attrib, "all") == 0) {
-			if (attributes > 1 || ((arg = strdelim(&cp)) != NULL &&
+			if (attributes > 1 ||
+			    ((arg = argv_next(acp, avp)) != NULL &&
 			    *arg != '\0' && *arg != '#')) {
 				error("'all' cannot be combined with other "
 				    "Match attributes");
 				return -1;
 			}
 			if (arg != NULL && *arg == '#')
-				cp = NULL; /* mark all arguments consumed */
-			*condition = cp;
+				argv_consume(acp); /* consume remaining args */
 			return 1;
 		}
+		/* Criterion "invalid-user" also has no argument */
+		if (strcasecmp(attrib, "invalid-user") == 0) {
+			if (ci == NULL)
+				continue;
+			if (ci->user_invalid == 0)
+				result = 0;
+			else
+				debug("matched invalid-user at line %d", line);
+			continue;
+		}
 		/* All other criteria require an argument */
-		if ((arg = strdelim(&cp)) == NULL ||
+		if ((arg = argv_next(acp, avp)) == NULL ||
 		    *arg == '\0' || *arg == '#') {
 			error("Missing Match criteria for %s", attrib);
 			return -1;
@@ -1209,7 +1230,6 @@ match_cfg_line(char **condition, int line, struct connection_info *ci)
 	}
 	if (ci != NULL)
 		debug3("match %sfound", result ? "" : "not ");
-	*condition = cp;
 	return result;
 }
 
@@ -1953,6 +1973,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		xasprintf(&options->subsystem_args[options->num_subsystems],
 		    "%s%s%s", arg, *arg2 == '\0' ? "" : " ", arg2);
 		free(arg2);
+		free(arg);
 		argv_consume(&ac);
 		options->num_subsystems++;
 		break;
@@ -2067,6 +2088,9 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			} else if (strncmp(arg, "grace-exceeded:", 15) == 0) {
 				p = arg + 15;
 				intptr = &options->per_source_penalty.penalty_grace;
+			} else if (strncmp(arg, "refuseconnection:", 17) == 0) {
+				p = arg + 17;
+				intptr = &options->per_source_penalty.penalty_refuseconnection;
 			} else if (strncmp(arg, "max:", 4) == 0) {
 				p = arg + 4;
 				intptr = &options->per_source_penalty.penalty_max;
@@ -2345,7 +2369,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		if (cmdline)
 			fatal("Match directive not supported as a command-line "
 			    "option");
-		value = match_cfg_line(&str, linenum,
+		value = match_cfg_line(str, &ac, &av, linenum,
 		    (*inc_flags & SSHCFG_NEVERMATCH ? NULL : connectinfo));
 		if (value < 0)
 			fatal("%s line %d: Bad Match condition", filename,
@@ -2356,12 +2380,6 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		 * match block.
 		 */
 		*inc_flags &= ~SSHCFG_MATCH_ONLY;
-		/*
-		 * If match_cfg_line() didn't consume all its arguments then
-		 * arrange for the extra arguments check below to fail.
-		 */
-		if (str == NULL || *str == '\0')
-			argv_consume(&ac);
 		break;
 
 	case sPermitListen:
@@ -2678,6 +2696,11 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		charptr = &options->sshd_session_path;
 		goto parse_filename;
 
+	case sRefuseConnection:
+		intptr = &options->refuse_connection;
+		multistate_ptr = multistate_flag;
+		goto parse_multistate;
+
 	case sUseBlacklist:
 		intptr = &options->use_blacklist;
 		goto parse_flag;
@@ -2796,6 +2819,8 @@ int parse_server_match_testspec(struct connection_info *ci, char *spec)
 				    " specification %s\n", p+6, p);
 				return -1;
 			}
+		} else if (strcmp(p, "invalid-user") == 0) {
+			ci->user_invalid = 1;
 		} else {
 			fprintf(stderr, "Invalid test mode specification %s\n",
 			    p);
@@ -2897,6 +2922,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(log_level);
 	M_CP_INTOPT(required_rsa_size);
 	M_CP_INTOPT(unused_connection_timeout);
+	M_CP_INTOPT(refuse_connection);
 
 	/*
 	 * The bind_mask is a mode_t that may be unsigned, so we can't use
@@ -3227,6 +3253,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
 	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
+	dump_cfg_fmtint(sRefuseConnection, o->refuse_connection);
 	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
 
 	/* string arguments */
@@ -3350,12 +3377,14 @@ dump_config(ServerOptions *o)
 
 	if (o->per_source_penalty.enabled) {
 		printf("persourcepenalties crash:%d authfail:%d noauth:%d "
-		    "grace-exceeded:%d max:%d min:%d max-sources4:%d "
-		    "max-sources6:%d overflow:%s overflow6:%s\n",
+		    "grace-exceeded:%d refuseconnection:%d max:%d min:%d "
+		    "max-sources4:%d max-sources6:%d "
+		    "overflow:%s overflow6:%s\n",
 		    o->per_source_penalty.penalty_crash,
 		    o->per_source_penalty.penalty_authfail,
 		    o->per_source_penalty.penalty_noauth,
 		    o->per_source_penalty.penalty_grace,
+		    o->per_source_penalty.penalty_refuseconnection,
 		    o->per_source_penalty.penalty_max,
 		    o->per_source_penalty.penalty_min,
 		    o->per_source_penalty.max_sources4,

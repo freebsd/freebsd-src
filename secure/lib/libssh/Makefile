@@ -24,7 +24,7 @@ SRCS+=	authfd.c authfile.c \
 	hmac.c ed25519.c hash.c \
 	kex.c kex-names.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \
-	kexsntrup761x25519.c sntrup761.c kexgen.c \
+	kexsntrup761x25519.c kexmlkem768x25519.c sntrup761.c kexgen.c \
 	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
 	sshbuf-io.c
 SRCS+=	ssh-sk-client.c

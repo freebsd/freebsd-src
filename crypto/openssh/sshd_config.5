@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.365 2024/06/24 06:59:39 jmc Exp $
-.Dd $Mdocdate: June 24 2024 $
+.\" $OpenBSD: sshd_config.5,v 1.374 2024/09/15 08:27:38 jmc Exp $
+.Dd $Mdocdate: September 15 2024 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -1052,12 +1052,17 @@ ecdh-sha2-nistp384
 .It
 ecdh-sha2-nistp521
 .It
+mlkem768x25519-sha256
+.It
+sntrup761x25519-sha512
+.It
 sntrup761x25519-sha512@openssh.com
 .El
 .Pp
 The default is:
 .Bd -literal -offset indent
-sntrup761x25519-sha512@openssh.com,
+sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
+mlkem768x25519-sha256,
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
@@ -1135,8 +1140,8 @@ Logging with a DEBUG level violates the privacy of users and is not recommended.
 .It Cm LogVerbose
 Specify one or more overrides to
 .Cm LogLevel .
-An override consists of a pattern lists that matches the source file, function
-and line number to force detailed logging for.
+An override consists of one or more pattern lists that matches the
+source file, function and line number to force detailed logging for.
 For example, an override pattern of:
 .Bd -literal -offset indent
 kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
@@ -1234,9 +1239,11 @@ applied.
 .Pp
 The arguments to
 .Cm Match
-are one or more criteria-pattern pairs or the single token
-.Cm All
-which matches all criteria.
+are one or more criteria-pattern pairs or one of the single token criteria:
+.Cm All ,
+which matches all criteria, or
+.Cm Invalid-User ,
+which matches when the requested user-name does not match any known account.
 The available criteria are
 .Cm User ,
 .Cm Group ,
@@ -1321,6 +1328,7 @@ Available keywords are
 .Cm PubkeyAcceptedAlgorithms ,
 .Cm PubkeyAuthentication ,
 .Cm PubkeyAuthOptions ,
+.Cm RefuseConnection ,
 .Cm RekeyLimit ,
 .Cm RevokedKeys ,
 .Cm RDomain ,
@@ -1599,7 +1607,7 @@ accumulated.
 .Pp
 Penalties are enabled by default with the default settings listed below
 but may disabled using the
-.Cm off
+.Cm no
 keyword.
 The defaults may be overridden by specifying one or more of the keywords below,
 separated by whitespace.
@@ -1612,6 +1620,11 @@ Specifies how long to refuse clients that cause a crash of
 .It Cm authfail:duration
 Specifies how long to refuse clients that disconnect after making one or more
 unsuccessful authentication attempts (default: 5s).
+.It Cm refuseconnection:duration
+Specifies how long to refuse clients that were administratively prohibited
+connection via the
+.Cm RefuseConnection
+option (default: 10s).
 .It Cm noauth:duration
 Specifies how long to refuse clients that disconnect without attempting
 authentication (default: 1s).
@@ -1621,7 +1634,7 @@ scanning tools such as
 .It Cm grace-exceeded:duration
 Specifies how long to refuse clients that fail to authenticate after
 .Cm LoginGraceTime
-(default: 20s).
+(default: 10s).
 .It Cm max:duration
 Specifies the maximum time a particular source address range will be refused
 access for (default: 10m).
@@ -1770,6 +1783,18 @@ options have any effect for other, non-FIDO, public key types.
 Specifies whether public key authentication is allowed.
 The default is
 .Cm yes .
+.It Cm RefuseConnection
+Indicates that
+.Xr sshd 8
+should unconditionally terminate the connection.
+Additionally, a
+.Cm refuseconnection
+penalty may be recorded against the source of the connection if
+.Cm PerSourcePenalties
+are enabled.
+This option is only really useful in a
+.Cm Match
+block.
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted or received
 before the session key is renegotiated, optionally followed by a maximum
