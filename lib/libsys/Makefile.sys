@@ -50,6 +50,7 @@ STATICOBJS+=	interposing_table.o
 .endif
 
 PSEUDO= \
+	__realpathat \
 	clock_gettime \
 	exit \
 	getlogin \
