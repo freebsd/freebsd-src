@@ -154,28 +154,21 @@
    counting; the agent will automatically exit when the last client
    disconnects.
 
-7) Class-based login restrictions (27ceebbc2402)
-
-   We've added code to auth.c to enforce the host.allow, host.deny,
-   times.allow and times.deny login class capabilities, based on an
-   upstream submission from
-   https://github.com/openssh/openssh-portable/pull/262.
-
-8) Blocklist integration
+7) Blocklist integration
 
    We include blocklist (https://github.com/zoulasc/blocklist) in FreeBSD,
    and ssh is patched to report login failures to it.
 
-9) Paths
+8) Paths
 
    A number of paths are changed to match FreeBSD's configuration (e.g.,
    using /usr/local/ instead of /uxr/X11R6/).
 
-10) Retired patches
+9) Retired patches
 
    We no longer have client-side VersionAddendum.
 
-11) PrintLastLog bugfix
+10) PrintLastLog bugfix
 
    Upstream's autoconf sets DISABLE_LASTLOG if the system does not have
    lastlog.ll_line, but uses it to disable the PrintLastLog configuration
