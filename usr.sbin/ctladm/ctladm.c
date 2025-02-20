@@ -3496,7 +3496,8 @@ struct cctl_port {
 	char *frontend_type;
 	char *name;
 	int pp, vp;
-	char *target, *port, *lun_map;
+	char *controller, *target, *port, *lun_map;
+	nvlist_t *host_list;
 	nvlist_t *init_list;
 	nvlist_t *lun_list;
 	nvlist_t *attr_list;
@@ -3550,6 +3551,7 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 		portlist->num_ports++;
 		portlist->cur_port = cur_port;
 
+		cur_port->host_list = nvlist_create(0);
 		cur_port->init_list = nvlist_create(0);
 		cur_port->lun_list = nvlist_create(0);
 		cur_port->attr_list = nvlist_create(NV_FLAG_NO_UNIQUE);
@@ -3610,6 +3612,9 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "target") == 0) {
 		cur_port->target = str;
 		str = NULL;
+	} else if (strcmp(name, "subnqn") == 0) {
+		cur_port->controller = str;
+		str = NULL;
 	} else if (strcmp(name, "port") == 0) {
 		cur_port->port = str;
 		str = NULL;
@@ -3620,6 +3625,14 @@ cctl_end_pelement(void *user_data, const char *name)
 		portlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
 		/* Nothing. */
+	} else if (strcmp(name, "host") == 0) {
+		snprintf(idname, sizeof(idname), "%ju", portlist->cur_id);
+		nvlist_move_string(cur_port->host_list, idname, str);
+		error = nvlist_error(cur_port->host_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add host nv pair",
+			    __func__);
+		str = NULL;
 	} else if (strcmp(name, "initiator") == 0) {
 		snprintf(idname, sizeof(idname), "%ju", portlist->cur_id);
 		nvlist_move_string(cur_port->init_list, idname, str);
@@ -3771,6 +3784,9 @@ retry:
 		    port->port ? port->port : "");
 
 		if (init || verbose) {
+			if (port->controller)
+				printf("  Controller: %s\n", port->controller);
+			print_nvlist(port->host_list, "  Host %s: %s\n");
 			if (port->target)
 				printf("  Target: %s\n", port->target);
 			print_nvlist(port->init_list, "  Initiator %s: %s\n");
