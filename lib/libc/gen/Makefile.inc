@@ -54,6 +54,7 @@ SRCS+=	__getosreldate.c \
 	exec.c \
 	exect.c \
 	fdevname.c \
+	fdopendir.c \
 	feature_present.c \
 	fmtcheck.c \
 	fmtmsg.c \
@@ -112,6 +113,7 @@ SRCS+=	__getosreldate.c \
 	nlist.c \
 	nrand48.c \
 	opendir.c \
+	opendir2.c \
 	pause.c \
 	pmadvise.c \
 	popen.c \

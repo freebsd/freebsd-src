@@ -29,8 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__SCCSID("@(#)opendir.c	8.8 (Berkeley) 5/1/95");
 #include "namespace.h"
 #include <sys/param.h>
 
@@ -46,11 +44,13 @@ __SCCSID("@(#)opendir.c	8.8 (Berkeley) 5/1/95");
 #include "telldir.h"
 
 /*
- * Open a directory.
+ * Open a directory with existing file descriptor.
  */
 DIR *
-opendir(const char *name)
+fdopendir(int fd)
 {
 
-	return (__opendir2(name, DTF_HIDEW | DTF_NODUP));
+	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+		return (NULL);
+	return (__opendir_common(fd, DTF_HIDEW | DTF_NODUP, true));
 }
