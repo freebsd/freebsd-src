@@ -96,6 +96,30 @@ nvmft_offline(void *arg)
 }
 
 static int
+nvmft_info(void *arg, struct sbuf *sb)
+{
+	struct nvmft_port *np = arg;
+	struct nvmft_controller *ctrlr;
+	int retval;
+
+	mtx_lock(&np->lock);
+	retval = sbuf_printf(sb, "\t<port>%s,p,%u</port>\n", np->cdata.subnqn,
+	    np->portid);
+	if (retval != 0)
+		goto out;
+
+	TAILQ_FOREACH(ctrlr, &np->controllers, link) {
+		retval = sbuf_printf(sb, "\t<host id=\"%u\">%s</host>\n",
+		    ctrlr->cntlid, ctrlr->hostnqn);
+		if (retval != 0)
+			break;
+	}
+out:
+	mtx_unlock(&np->lock);
+	return (retval);
+}
+
+static int
 nvmft_lun_enable(void *arg, int lun_id)
 {
 	struct nvmft_port *np = arg;
@@ -803,6 +827,7 @@ nvmft_port_create(struct ctl_req *req)
 
 	np = malloc(sizeof(*np), M_NVMFT, M_WAITOK | M_ZERO);
 	refcount_init(&np->refs, 1);
+	np->portid = portid;
 	np->max_io_qsize = max_io_qsize;
 	np->cap = _nvmf_controller_cap(max_io_qsize, enable_timeout / 500);
 	mtx_init(&np->lock, "nvmft port", NULL, MTX_DEF);
@@ -834,6 +859,7 @@ nvmft_port_create(struct ctl_req *req)
 	port->virtual_port = 0;
 	port->port_online = nvmft_online;
 	port->port_offline = nvmft_offline;
+	port->port_info = nvmft_info;
 	port->onoff_arg = np;
 	port->lun_enable = nvmft_lun_enable;
 	port->lun_disable = nvmft_lun_disable;
