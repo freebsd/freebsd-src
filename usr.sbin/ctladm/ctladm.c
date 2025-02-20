@@ -4289,7 +4289,7 @@ usage(int error)
 "-r                       : remove frontend port\n" 
 "portlist options:\n"
 "-f frontend              : specify frontend type\n"
-"-i                       : report target and initiators addresses\n"
+"-i                       : report target and connected initiator names\n"
 "-l                       : report LUN mapping\n"
 "-p targ_port             : specify target port number\n"
 "-q                       : omit header in list output\n"
