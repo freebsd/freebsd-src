@@ -140,7 +140,7 @@ read_name(const args_info *args)
 		// at least for one character to allow terminating the string
 		// with '\0'.
 		if (pos == size) {
-			size_t = new_size = size * 2;
+			size_t new_size = size * 2;
 			if (new_size > MAX_FILENAME_LENGTH)
 				new_size = MAX_FILENAME_LENGTH;
 			name = xrealloc(name, new_size);
