@@ -254,6 +254,9 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+/* dops->d_revalidate() takes 4 args */
+/* #undef HAVE_D_REVALIDATE_4ARGS */
+
 /* Define to 1 if you have the 'execvpe' function. */
 #define HAVE_EXECVPE 1
 
@@ -400,6 +403,9 @@
 
 /* iops->symlink() takes struct user_namespace* */
 /* #undef HAVE_IOPS_SYMLINK_USERNS */
+
+/* iov_iter_get_pages2() is available */
+/* #undef HAVE_IOV_ITER_GET_PAGES2 */
 
 /* iov_iter_type() is available */
 /* #undef HAVE_IOV_ITER_TYPE */
@@ -787,7 +793,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-170-FreeBSD_g34205715e"
+#define ZFS_META_ALIAS "zfs-2.3.99-189-FreeBSD_g6a2f7b384"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -817,7 +823,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "170-FreeBSD_g34205715e"
+#define ZFS_META_RELEASE "189-FreeBSD_g6a2f7b384"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"
