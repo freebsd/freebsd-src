@@ -161,6 +161,14 @@ static const int vga_to_cons_colors[NCOLORS] = {
 	8,  9, 10, 11,  12, 13, 14, 15
 };
 
+/*
+ * It is reported very slow console draw in some systems.
+ * in order to exclude buggy gop->Blt(), we want option
+ * to use direct draw to framebuffer and avoid gop->Blt.
+ * Can be toggled with "gop" command.
+ */
+bool ignore_gop_blt = false;
+
 struct text_pixel *screen_buffer;
 #if defined(EFI)
 static EFI_GRAPHICS_OUTPUT_BLT_PIXEL *GlyphBuffer;
@@ -795,7 +803,7 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	 * done as they are provided by protocols that disappear when exit
 	 * boot services.
 	 */
-	if (gop != NULL && boot_services_active) {
+	if (!ignore_gop_blt && gop != NULL && boot_services_active) {
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
