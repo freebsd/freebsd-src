@@ -12,6 +12,10 @@
 #include "private.h"
 #include <ctype.h>
 
+#include <ctype.h>
+#include <stdio.h>
+
+
 
 /// Exit status to use. This can be changed with set_exit_status().
 static enum exit_status_type exit_status = E_SUCCESS;
@@ -56,6 +60,26 @@ set_exit_no_warn(void)
 
 
 #define MAX_FILENAME_LENGTH 4096
+#define MAX_MEM_LIMIT 1048576
+
+
+static void
+quote_filename(const char *src, char *dest, size_t *dest_size)
+{
+	size_t pos = 0;
+    while (*src && pos < dest_size - 1) {
+        if (isprint((unsigned char)*src)) {
+            dest[pos++] = *src;
+        } else {
+            int n = snprintf(dest + pos, dest_size - pos, "\\x%02x", (unsigned char)*src);
+            if (n < 0 || (size_t)n >= dest_size - pos)
+                break;
+            pos += (size_t)n;
+        }
+        src++;
+    }
+    dest[pos] = '\0';
+}
 
 static const char *
 read_name(const args_info *args)
@@ -66,6 +90,7 @@ read_name(const args_info *args)
 	// whole file in RAM.
 	static char *name = NULL;
 	static size_t size = 256;
+	static size_t total_allocated = 0;
 
 	// Allocate the initial buffer. This is never freed, since after it
 	// is no longer needed, the program exits very soon. It is safe to
@@ -74,6 +99,7 @@ read_name(const args_info *args)
 	// there's no need to cleanup anything before exiting.
 	if (name == NULL)
 		name = xmalloc(size);
+		total_allocated += size;
 
 	// Write position in name
 	size_t pos = 0;
@@ -94,11 +120,11 @@ read_name(const args_info *args)
 		}
 
 		if (feof(args->files_file)) {
-			if (pos != 0)
-				message_error(_("%s: Unexpected end of input "
-						"when reading filenames"),
-						args->files_name);
-
+			if (pos != 0) {
+				char quoted_name[1024];  
+				quote_filename(args->files_name, quoted_name, sizeof(quoted_name));
+				message_error(_("%s: Unexpected end of input when reading filenames"), quoted_name);
+			}
 			return NULL;
 		}
 
@@ -116,21 +142,17 @@ read_name(const args_info *args)
 		}
 
 		if (c == '\0') {
-			// A null character was found when using --files,
-			// which expects plain text input separated with
-			// newlines.
-			message_error(_("%s: Null character found when "
-					"reading filenames; maybe you meant "
-					"to use '--files0' instead "
-					"of '--files'?"), args->files_name);
+			char quoted_name[1024];
+			quote_filename(args->files_name, quoted_name, sizeof(quoted_name));
+			message_error(_("%s: Null character found when reading filenames; maybe you meant to use '--files0' instead of '--files'?"), quoted_name);
 			return NULL;
 		}
 
 		// Check if we are about to exceed our maximum allowed filename length.
-		if(pos >= MAX_FILENAME_LENGTH - 1) {
-			message_error(_("%s: Filename exceeds maximum allowed length (%d bytes)"),
-				args->files_name, MAX_FILENAME_LENGTH);
-
+		if (pos >= MAX_FILENAME_LENGTH - 1) {
+			char quoted_name[1024];
+			quote_filename(args->files_name, quoted_name, sizeof(quoted_name));
+			message_error(_("%s: Filename exceeds maximum allowed length (%d bytes)"), quoted_name, MAX_FILENAME_LENGTH);
 			return NULL;
 		}
 
@@ -143,8 +165,15 @@ read_name(const args_info *args)
 			size_t new_size = size * 2;
 			if (new_size > MAX_FILENAME_LENGTH)
 				new_size = MAX_FILENAME_LENGTH;
+
+			// Check if the new allocation would exceed the memory usage limit
+			if (total_allocated + (new_size - size) > MAX_MEM_LIMIT) {
+				message_error(_("Memory usage limit exceeded while reading filenames"));
+				return NULL;
+			}
+
 			name = xrealloc(name, new_size);
-			name = xrealloc(name, size);
+			total_allocated += (new_size - size);
 			size = new_size;
 		}
 	}
