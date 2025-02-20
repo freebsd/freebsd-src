@@ -141,8 +141,9 @@ The file system is exported read-only.
 Updating of file access times is disabled.
 .It Dv MNT_USER
 The file system has been mounted by a user.
-.\".It Dv MNT_IGNORE
-.\"XXX
+.It Dv MNT_IGNORE
+The file system should not be listed, e.g. by
+.Xr df 1 .
 .It Dv MNT_EXPORTED
 The file system is exported for both reading and writing.
 .It Dv MNT_DEFEXPORTED
