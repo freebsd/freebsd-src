@@ -126,6 +126,14 @@ read_name(const args_info *args)
 			return NULL;
 		}
 
+		// Check if we are about to exceed our maximum allowed filename length.
+		if(pos >= MAX_FILENAME_LENGTH - 1) {
+			message_error(_("%s: Filename exceeds maximum allowed length (%d bytes)"),
+				args->files_name, MAX_FILENAME_LENGTH);
+
+			return NULL;
+		}
+
 		name[pos++] = c;
 
 		// Allocate more memory if needed. There must always be space
