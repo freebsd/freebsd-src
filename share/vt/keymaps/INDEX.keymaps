@@ -547,6 +547,13 @@ us.acc.kbd:fr:États Unis d'Amérique (avec accents)
 us.acc.kbd:pt:Estados Unidos da América (com acentos)
 us.acc.kbd:es:Estadounidense (con acentos)
 
+us.intl.acc.kbd:en:United States of America International (accent keys)
+us.intl.acc.kbd:da:USA international (accenttaster)
+us.intl.acc.kbd:de:US-amerikanisch international (mit Akzenten)
+us.intl.acc.kbd:fr:États Unis d'Amérique International (avec accents)
+us.intl.acc.kbd:pt:Estados Unidos da América Internacional (com acentos)
+us.intl.acc.kbd:es:Estadounidense Internacional (con acentos)
+
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:da:USA dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak
