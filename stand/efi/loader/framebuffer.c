@@ -856,6 +856,7 @@ command_gop(int argc, char *argv[])
 	struct efi_fb efifb;
 	EFI_STATUS status;
 	u_int mode;
+	extern bool ignore_gop_blt;
 
 	if (gop == NULL) {
 		snprintf(command_errbuf, sizeof(command_errbuf),
@@ -866,7 +867,7 @@ command_gop(int argc, char *argv[])
 	if (argc < 2)
 		goto usage;
 
-	if (!strcmp(argv[1], "set")) {
+	if (strcmp(argv[1], "set") == 0) {
 		char *cp;
 
 		if (argc != 3)
@@ -884,7 +885,26 @@ command_gop(int argc, char *argv[])
 			return (CMD_ERROR);
 		}
 		(void) cons_update_mode(true);
+	} else if (strcmp(argv[1], "blt") == 0) {
+		/*
+		 * "blt on" does allow gop->Blt() to be used (default).
+		 * "blt off" does block gop->Blt() to be used and use
+		 * software rendering instead.
+		 */
+		if (argc != 3)
+			goto usage;
+		if (strcmp(argv[2], "on") == 0)
+			ignore_gop_blt = false;
+		else if (strcmp(argv[2], "off") == 0)
+			ignore_gop_blt = true;
+		else
+			goto usage;
 	} else if (strcmp(argv[1], "off") == 0) {
+		/*
+		 * Tell console to use SimpleTextOutput protocol.
+		 * This means that we do not render the glyphs, but rely on
+		 * UEFI firmware to draw on ConsOut device(s).
+		 */
 		(void) cons_update_mode(false);
 	} else if (strcmp(argv[1], "get") == 0) {
 		edid_res_list_t res;
@@ -908,7 +928,7 @@ command_gop(int argc, char *argv[])
 		}
 		print_efifb(gop->Mode->Mode, &efifb, 1);
 		printf("\n");
-	} else if (!strcmp(argv[1], "list")) {
+	} else if (strcmp(argv[1], "list") == 0) {
 		EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
 		UINTN infosz;
 
@@ -931,7 +951,7 @@ command_gop(int argc, char *argv[])
 
  usage:
 	snprintf(command_errbuf, sizeof(command_errbuf),
-	    "usage: %s [list | get | set <mode> | off]", argv[0]);
+	    "usage: %s [list | get | set <mode> | off | blt <on|off>]", argv[0]);
 	return (CMD_ERROR);
 }
 
