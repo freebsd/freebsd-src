@@ -1476,6 +1476,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/direct/dio_dedup.ksh \
 	functional/direct/dio_encryption.ksh \
 	functional/direct/dio_grow_block.ksh \
+	functional/direct/dio_loopback_dev.ksh \
 	functional/direct/dio_max_recordsize.ksh \
 	functional/direct/dio_mixed.ksh \
 	functional/direct/dio_mmap.ksh \
@@ -1695,6 +1696,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/pam/cleanup.ksh \
 	functional/pam/pam_basic.ksh \
 	functional/pam/pam_change_unmounted.ksh \
+	functional/pam/pam_mount_recursively.ksh \
 	functional/pam/pam_nounmount.ksh \
 	functional/pam/pam_recursive.ksh \
 	functional/pam/pam_short_password.ksh \
