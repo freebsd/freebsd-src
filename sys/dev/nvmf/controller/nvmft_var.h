@@ -35,7 +35,7 @@ struct nvmft_port {
 	uint32_t max_io_qsize;
 	bool	online;
 
-	struct sx lock;
+	struct mtx lock;
 
 	struct unrhdr *ids;
 	TAILQ_HEAD(, nvmft_controller) controllers;
