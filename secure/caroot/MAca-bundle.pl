@@ -37,6 +37,8 @@ use strict;
 use Carp;
 use MIME::Base64;
 use Getopt::Long;
+use Time::Local qw( timegm_posix );
+use POSIX qw( strftime );
 
 my $generated = '@' . 'generated';
 my $inputfh = *STDIN;
@@ -101,13 +103,6 @@ EOH
     }
 }
 
-# returns a string like YYMMDDhhmmssZ of current time in GMT zone
-sub timenow()
-{
-	my ($sec,$min,$hour,$mday,$mon,$year,undef,undef,undef) = gmtime(time);
-	return sprintf "%02d%02d%02d%02d%02d%02dZ", $year-100, $mon+1, $mday, $hour, $min, $sec;
-}
-
 sub printcert($$$)
 {
     my ($fh, $label, $certdata) = @_;
@@ -162,10 +157,15 @@ sub grabcert($)
 	if (/^CKA_NSS_SERVER_DISTRUST_AFTER MULTILINE_OCTAL/)
 	{
 	    my $distrust_after = graboct($ifh);
-	    my $time_now = timenow();
-	    if ($time_now >= $distrust_after) { $distrust = 1; }
+	    my ($year, $mon, $mday, $hour, $min, $sec) = unpack "A2A2A2A2A2A2", $distrust_after;
+	    $distrust_after = timegm_posix( $sec, $min, $hour, $mday, $mon - 1, $year + 100);
+	    my $time_now = time;
+	    # When a CA is distrusted before its NotAfter date, issued certificates
+	    # are valid for a maximum of 398 days after that date.
+	    if ($time_now >= $distrust_after + 398 * 24 * 60 * 60) { $distrust = 1; }
 	    if ($debug) {
-		printf STDERR "line $.: $cka_label ser #%d: distrust after %s, now: %s -> distrust $distrust\n", $serial, $distrust_after, timenow();
+	        printf STDERR "line $.: $cka_label ser #%d: distrust 398 days after %s, now: %s -> distrust $distrust\n", $serial,
+	                strftime("%FT%TZ", gmtime($distrust_after)), strftime("%FT%TZ", gmtime($time_now));
 	    }
 	    if ($distrust) {
 		return undef;
