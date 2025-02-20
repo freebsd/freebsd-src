@@ -98,6 +98,9 @@ The flags that may be returned include:
 Access Control List (ACL) support enabled.
 .It Dv MNT_ASYNC
 No file system I/O is done synchronously.
+.It Dv MNT_AUTOMOUNTED
+The filesystem was auto-mounted, see
+.Xr autofs 4 .
 .It Dv MNT_DEFEXPORTED
 The file system is exported for both reading and writing to any Internet host.
 .It Dv MNT_GJOURNAL
@@ -122,6 +125,8 @@ The file system resides locally.
 Mandatory Access Control (MAC) support for individual objects
 (see
 .Xr mac 4 ) .
+.It Dv MNT_NFS4ACLS
+ACLs in NFSv4 variant are supported.
 .It Dv MNT_NOATIME
 Updating of file access times is disabled.
 .It Dv MNT_NOCLUSTERR
@@ -139,6 +144,8 @@ Soft updates being done (see
 .Xr ffs 4 ) .
 .It Dv MNT_SUIDDIR
 Special handling of SUID bit on directories.
+.It Dv MNT_SUJ
+Soft-updates with journaling being done.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the file system is done synchronously.
 .It Dv MNT_QUOTA
@@ -150,8 +157,19 @@ Even the super-user may not write on it.
 Identifies the root file system.
 .It Dv MNT_UNION
 Union with underlying file system.
+.It Dv MNT_UNTRUSTED
+The file system was mounted with the
+.Cm untrusted
+option, which indicates media of unknown provenance or integrity.
+Currently honored by
+.Xr ffs 4 .
 .It Dv MNT_USER
 The file system has been mounted by a user.
+.It Dv MNT_VERIFIED
+The file system is marked as verified, no fingerprint check on
+.Xr execve 2
+is needed, see
+.Xr mac_veriexec 4 .
 .El
 .Pp
 Fields that are undefined for a particular file system are set to -1.
