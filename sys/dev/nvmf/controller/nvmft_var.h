@@ -33,6 +33,7 @@ struct nvmft_port {
 	struct nvme_firmware_page fp;
 	uint64_t cap;
 	uint32_t max_io_qsize;
+	uint16_t portid;
 	bool	online;
 
 	struct mtx lock;
