@@ -171,7 +171,7 @@ pf_status(struct snmp_context __unused *ctx, struct snmp_value *val,
 			case LEAF_pfStatusRuntime:
 			    runtime = (pfs->since > 0) ?
 				time(NULL) - pfs->since : 0;
-			    val->v.uint32 = runtime * 100;
+			    val->v.uint32 = (uint32_t)(runtime * 100);
 			    break;
 			case LEAF_pfStatusDebug:
 			    val->v.uint32 = pfs->debug;
@@ -586,7 +586,7 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 			break;
 		case LEAF_pfInterfacesIfTZero:
 			val->v.uint32 =
-			    (time(NULL) - e->pfi.pfik_tzero) * 100;
+			    (uint32_t)(time(NULL) - e->pfi.pfik_tzero) * 100;
 			break;
 		case LEAF_pfInterfacesIfRefsRule:
 			val->v.uint32 = e->pfi.pfik_rulerefs;
@@ -733,7 +733,7 @@ pf_tbltable(struct snmp_context __unused *ctx, struct snmp_value *val,
 			break;
 		case LEAF_pfTablesTblTZero:
 			val->v.uint32 =
-			    (time(NULL) - e->pft.pfrts_tzero) * 100;
+			    (uint32_t)(time(NULL) - e->pft.pfrts_tzero) * 100;
 			break;
 		case LEAF_pfTablesTblRefsAnchor:
 			val->v.integer =
@@ -862,7 +862,7 @@ pf_tbladdr(struct snmp_context __unused *ctx, struct snmp_value __unused *val,
 			break;
 		case LEAF_pfTablesAddrTZero:
 			val->v.uint32 =
-			    (time(NULL) - e->pfas.pfras_tzero) * 100;
+			    (uint32_t)(time(NULL) - e->pfas.pfras_tzero) * 100;
 			break;
 		case LEAF_pfTablesAddrBytesInPass:
 			val->v.counter64 =
