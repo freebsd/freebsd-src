@@ -294,13 +294,7 @@ dctcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 			break;
 		case CC_RTO:
 			if (CCV(ccv, t_rxtshift) == 1) {
-				if (V_tcp_do_newsack) {
-					pipe = tcp_compute_pipe(ccv->tp);
-				} else {
-					pipe = CCV(ccv, snd_max) -
-						CCV(ccv, snd_fack) +
-						CCV(ccv, sackhint.sack_bytes_rexmit);
-				}
+				pipe = tcp_compute_pipe(ccv->tp);
 				CCV(ccv, snd_ssthresh) = max(2,
 					min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
 			}

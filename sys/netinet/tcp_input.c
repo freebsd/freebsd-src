@@ -2660,12 +2660,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 						 * we have less than ssthresh
 						 * worth of data in flight.
 						 */
-						if (V_tcp_do_newsack) {
-							awnd = tcp_compute_pipe(tp);
-						} else {
-							awnd = (tp->snd_nxt - tp->snd_fack) +
-								tp->sackhint.sack_bytes_rexmit;
-						}
+						awnd = tcp_compute_pipe(tp);
 						if (awnd < tp->snd_ssthresh) {
 							tp->snd_cwnd += imax(maxseg,
 							    imin(2 * maxseg,
@@ -4098,11 +4093,7 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to,
 	    (IN_CONGRECOVERY(tp->t_flags) &&
 	     !IN_FASTRECOVERY(tp->t_flags))) {
 		del_data = tp->sackhint.delivered_data;
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(tp);
-		else
-			pipe = (tp->snd_nxt - tp->snd_fack) +
-				tp->sackhint.sack_bytes_rexmit;
+		pipe = tcp_compute_pipe(tp);
 	} else {
 		if (tp->sackhint.prr_delivered < (tcprexmtthresh * maxseg +
 					     tp->snd_recover - tp->snd_una)) {
@@ -4206,14 +4197,19 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 int
 tcp_compute_pipe(struct tcpcb *tp)
 {
-	if (tp->t_fb->tfb_compute_pipe == NULL) {
-		return (tp->snd_max - tp->snd_una +
+	int pipe;
+
+	if (tp->t_fb->tfb_compute_pipe != NULL) {
+		pipe = (*tp->t_fb->tfb_compute_pipe)(tp);
+	} else if (V_tcp_do_newsack) {
+		pipe = tp->snd_max - tp->snd_una +
 			tp->sackhint.sack_bytes_rexmit -
 			tp->sackhint.sacked_bytes -
-			tp->sackhint.lost_bytes);
+			tp->sackhint.lost_bytes;
 	} else {
-		return((*tp->t_fb->tfb_compute_pipe)(tp));
+		pipe = tp->snd_nxt - tp->snd_fack + tp->sackhint.sack_bytes_rexmit;
 	}
+	return (imax(pipe, 0));
 }
 
 uint32_t
