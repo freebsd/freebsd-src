@@ -1531,7 +1531,7 @@ pfl_scan_ruleset(const char *path)
 			goto err;
 		}
 
-		if (rule.label[0]) {
+		if (rule.label[0][0]) {
 			e = (struct pfl_entry *)malloc(sizeof(*e));
 			if (e == NULL)
 				goto err;
