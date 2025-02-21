@@ -799,6 +799,67 @@ reply_to_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_gateway" "cleanup"
+v6_gateway_head()
+{
+	atf_set descr 'nat64 when the IPv4 gateway is given by an IPv6 address'
+	atf_set require.user root
+}
+
+v6_gateway_body()
+{
+	pft_init
+
+	epair_wan_two=$(vnet_mkepair)
+	epair_wan_one=$(vnet_mkepair)
+	epair_lan=$(vnet_mkepair)
+
+	ifconfig ${epair_lan}a inet6 2001:db8::2/64 up no_dad
+	route -6 add default 2001:db8::1
+
+	vnet_mkjail rtr ${epair_lan}b ${epair_wan_one}a
+	jexec rtr ifconfig ${epair_lan}b inet6 2001:db8::1/64 up no_dad
+	jexec rtr ifconfig ${epair_wan_one}a 192.0.2.1/24 up
+	jexec rtr ifconfig ${epair_wan_one}a inet6 -ifdisabled
+	jexec rtr route add default -inet6 fe80::1%${epair_wan_one}a
+	#jexec rtr route add default 192.0.2.2
+
+	vnet_mkjail wan_one ${epair_wan_one}b ${epair_wan_two}a
+	jexec wan_one ifconfig ${epair_wan_one}b 192.0.2.2/24 up
+	jexec wan_one ifconfig ${epair_wan_one}b inet6 fe80::1/64
+	jexec wan_one ifconfig ${epair_wan_two}a 198.51.100.2/24 up
+	jexec wan_one route add default 192.0.2.1
+	jexec wan_one sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail wan_two ${epair_wan_two}b
+	jexec wan_two ifconfig ${epair_wan_two}b 198.51.100.1/24 up
+	jexec wan_two route add default 198.51.100.2
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 198.51.100.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "set reassemble yes" \
+	    "set state-policy if-bound" \
+	    "pass in on ${epair_lan}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_wan_one}a)"
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::198.51.100.1
+}
+
+v6_gateway_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "icmp_echo"
@@ -818,4 +879,5 @@ atf_init_test_cases()
 	atf_add_test_case "gateway6"
 	atf_add_test_case "route_to"
 	atf_add_test_case "reply_to"
+	atf_add_test_case "v6_gateway"
 }
