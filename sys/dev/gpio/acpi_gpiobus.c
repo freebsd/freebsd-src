@@ -77,6 +77,7 @@ acpi_gpiobus_convflags(ACPI_RESOURCE_GPIO *gpio_res)
 			break;
 		}
 
+		flags |= GPIO_PIN_INPUT;
 #ifdef NOT_YET
 		/* This is not currently implemented. */
 		if (gpio_res->Shareable == ACPI_SHARED)
