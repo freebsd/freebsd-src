@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250221:
+	13.4-RELEASE-p4 SA-25:05.openssh
+
+	Multiple vulnerabilities in OpenSSH [SA-25:05.openssh]
+
 20250129:
 	13.4-RELEASE-p3 SA-25:02.fs
 			SA-25:03.etcupdate
