@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250221:
+	14.1-RELEASE-p8 SA-25:05.openssh
+
+	Multiple vulnerabilities in OpenSSH [SA-25:05.openssh]
+
 20250129:
 	14.1-RELEASE-p7 SA-25:01.openssh
 			SA-25:02.fs
