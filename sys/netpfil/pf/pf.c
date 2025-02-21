@@ -7659,19 +7659,16 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		 */
 		ret = pf_icmp_state_lookup(&key, pd, state, virtual_id,
 		    virtual_type, icmp_dir, &iidx, 0, 0);
+		/* IPv6? try matching a multicast address */
+		if (ret == PF_DROP && pd->af == AF_INET6 && icmp_dir == PF_OUT) {
+			MPASS(*state == NULL);
+			ret = pf_icmp_state_lookup(&key, pd, state,
+			    virtual_id, virtual_type,
+			    icmp_dir, &iidx, 1, 0);
+		}
 		if (ret >= 0) {
 			MPASS(*state == NULL);
-			if (ret == PF_DROP && pd->af == AF_INET6 &&
-			    icmp_dir == PF_OUT) {
-				ret = pf_icmp_state_lookup(&key, pd, state,
-				    virtual_id, virtual_type,
-				    icmp_dir, &iidx, 1, 0);
-				if (ret >= 0) {
-					MPASS(*state == NULL);
-					return (ret);
-				}
-			} else
-				return (ret);
+			return (ret);
 		}
 
 		(*state)->expire = pf_get_uptime();
@@ -8422,19 +8419,17 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 
 			ret = pf_icmp_state_lookup(&key, &pd2, state,
 			    virtual_id, virtual_type, icmp_dir, &iidx, 0, 1);
+			/* IPv6? try matching a multicast address */
+			if (ret == PF_DROP && pd2.af == AF_INET6 &&
+			    icmp_dir == PF_OUT) {
+				MPASS(*state == NULL);
+				ret = pf_icmp_state_lookup(&key, &pd2,
+				    state, virtual_id, virtual_type,
+				    icmp_dir, &iidx, 1, 1);
+			}
 			if (ret >= 0) {
 				MPASS(*state == NULL);
-				if (ret == PF_DROP && pd2.af == AF_INET6 &&
-				    icmp_dir == PF_OUT) {
-					ret = pf_icmp_state_lookup(&key, &pd2,
-					    state, virtual_id, virtual_type,
-					    icmp_dir, &iidx, 1, 1);
-					if (ret >= 0) {
-						MPASS(*state == NULL);
-						return (ret);
-					}
-				} else
-					return (ret);
+				return (ret);
 			}
 
 			/* translate source/destination address, if necessary */
