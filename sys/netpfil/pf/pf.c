@@ -358,8 +358,7 @@ static int		 pf_test_state(struct pf_kstate **, struct pf_pdesc *,
 			    u_short *);
 int			 pf_icmp_state_lookup(struct pf_state_key_cmp *,
 			    struct pf_pdesc *, struct pf_kstate **,
-			    int, u_int16_t, u_int16_t,
-			    int, int *, int, int);
+			    u_int16_t, u_int16_t, int, int *, int, int);
 static int		 pf_test_state_icmp(struct pf_kstate **,
 			    struct pf_pdesc *, u_short *);
 static int		 pf_sctp_track(struct pf_kstate *, struct pf_pdesc *,
@@ -7568,10 +7567,11 @@ pf_multihome_scan_asconf(int start, int len, struct pf_pdesc *pd)
 
 int
 pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
-    struct pf_kstate **state, int direction,
-    u_int16_t icmpid, u_int16_t type, int icmp_dir,
+    struct pf_kstate **state, u_int16_t icmpid, u_int16_t type, int icmp_dir,
     int *iidx, int multi, int inner)
 {
+	int	 direction = pd->dir;
+
 	key->af = pd->af;
 	key->proto = pd->proto;
 	if (icmp_dir == PF_IN) {
@@ -7657,15 +7657,14 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		 * ICMP query/reply message not related to a TCP/UDP/SCTP
 		 * packet. Search for an ICMP state.
 		 */
-		ret = pf_icmp_state_lookup(&key, pd, state, pd->dir,
-		    virtual_id, virtual_type, icmp_dir, &iidx,
-		    0, 0);
+		ret = pf_icmp_state_lookup(&key, pd, state, virtual_id,
+		    virtual_type, icmp_dir, &iidx, 0, 0);
 		if (ret >= 0) {
 			MPASS(*state == NULL);
 			if (ret == PF_DROP && pd->af == AF_INET6 &&
 			    icmp_dir == PF_OUT) {
 				ret = pf_icmp_state_lookup(&key, pd, state,
-				    pd->dir, virtual_id, virtual_type,
+				    virtual_id, virtual_type,
 				    icmp_dir, &iidx, 1, 0);
 				if (ret >= 0) {
 					MPASS(*state == NULL);
@@ -8318,8 +8317,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			    &icmp_dir, &virtual_id, &virtual_type);
 
 			ret = pf_icmp_state_lookup(&key, &pd2, state,
-			    pd2.dir, virtual_id, virtual_type,
-			    icmp_dir, &iidx, 0, 1);
+			    virtual_id, virtual_type, icmp_dir, &iidx, 0, 1);
 			if (ret >= 0) {
 				MPASS(*state == NULL);
 				return (ret);
@@ -8423,15 +8421,13 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			    &icmp_dir, &virtual_id, &virtual_type);
 
 			ret = pf_icmp_state_lookup(&key, &pd2, state,
-			    pd->dir, virtual_id, virtual_type,
-			    icmp_dir, &iidx, 0, 1);
+			    virtual_id, virtual_type, icmp_dir, &iidx, 0, 1);
 			if (ret >= 0) {
 				MPASS(*state == NULL);
 				if (ret == PF_DROP && pd2.af == AF_INET6 &&
 				    icmp_dir == PF_OUT) {
 					ret = pf_icmp_state_lookup(&key, &pd2,
-					    state, pd->dir,
-					    virtual_id, virtual_type,
+					    state, virtual_id, virtual_type,
 					    icmp_dir, &iidx, 1, 1);
 					if (ret >= 0) {
 						MPASS(*state == NULL);
