@@ -337,7 +337,7 @@ static int		 pf_dummynet(struct pf_pdesc *, struct pf_kstate *,
 			    struct pf_krule *, struct mbuf **);
 static int		 pf_dummynet_route(struct pf_pdesc *,
 			    struct pf_kstate *, struct pf_krule *,
-			    struct ifnet *, struct sockaddr *, struct mbuf **);
+			    struct ifnet *, const struct sockaddr *, struct mbuf **);
 static int		 pf_test_eth_rule(int, struct pfi_kkif *,
 			    struct mbuf **);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
@@ -8665,7 +8665,9 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *m1, *md;
-	struct sockaddr_in	dst;
+	struct route		 ro;
+	const struct sockaddr	*gw = &ro.ro_dst;
+	struct sockaddr_in	*dst;
 	struct ip		*ip;
 	struct ifnet		*ifp = NULL;
 	int			 error = 0;
@@ -8754,11 +8756,11 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 
 	ip = mtod(m0, struct ip *);
 
-	bzero(&dst, sizeof(dst));
-	dst.sin_family = AF_INET;
-	dst.sin_len = sizeof(dst);
-	dst.sin_addr = ip->ip_dst;
-	dst.sin_addr.s_addr = pd->act.rt_addr.v4.s_addr;
+	bzero(&ro, sizeof(ro));
+	dst = (struct sockaddr_in *)&ro.ro_dst;
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof(struct sockaddr_in);
+	dst->sin_addr.s_addr = pd->act.rt_addr.v4.s_addr;
 
 	if (s != NULL){
 		if (ifp == NULL && (pd->af != pd->naf)) {
@@ -8769,10 +8771,12 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 				ifp = nh->nh_ifp;
 
 				/* Use the gateway if needed. */
-				if (nh->nh_flags & NHF_GATEWAY)
-					dst.sin_addr = nh->gw4_sa.sin_addr;
-				else
-					dst.sin_addr = ip->ip_dst;
+				if (nh->nh_flags & NHF_GATEWAY) {
+					gw = &nh->gw_sa;
+					ro.ro_flags |= RT_HAS_GW;
+				} else {
+					dst->sin_addr = ip->ip_dst;
+				}
 
 				/*
 				 * Bind to the correct interface if we're
@@ -8873,9 +8877,9 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		m_clrprotoflags(m0);	/* Avoid confusing lower layers. */
 
 		md = m0;
-		error = pf_dummynet_route(pd, s, r, ifp, sintosa(&dst), &md);
+		error = pf_dummynet_route(pd, s, r, ifp, gw, &md);
 		if (md != NULL) {
-			error = (*ifp->if_output)(ifp, md, sintosa(&dst), NULL);
+			error = (*ifp->if_output)(ifp, md, gw, &ro);
 			SDT_PROBE2(pf, ip, route_to, output, ifp, error);
 		}
 		goto done;
@@ -8915,10 +8919,9 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 			md = m0;
 			pd->pf_mtag = pf_find_mtag(md);
 			error = pf_dummynet_route(pd, s, r, ifp,
-			    sintosa(&dst), &md);
+			    gw, &md);
 			if (md != NULL) {
-				error = (*ifp->if_output)(ifp, md,
-				    sintosa(&dst), NULL);
+				error = (*ifp->if_output)(ifp, md, gw, &ro);
 				SDT_PROBE2(pf, ip, route_to, output, ifp, error);
 			}
 		} else
@@ -9038,7 +9041,6 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	bzero(&dst, sizeof(dst));
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
-	dst.sin6_addr = ip6->ip6_dst;
 	PF_ACPY((struct pf_addr *)&dst.sin6_addr, &pd->act.rt_addr, AF_INET6);
 
 	if (s != NULL) {
@@ -9442,7 +9444,7 @@ pf_dummynet(struct pf_pdesc *pd, struct pf_kstate *s,
 
 static int
 pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
-    struct pf_krule *r, struct ifnet *ifp, struct sockaddr *sa,
+    struct pf_krule *r, struct ifnet *ifp, const struct sockaddr *sa,
     struct mbuf **m0)
 {
 	struct ip_fw_args dnflow;
@@ -9473,7 +9475,7 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 
 		MPASS(sa != NULL);
 
-		switch (pd->naf) {
+		switch (sa->sa_family) {
 		case AF_INET:
 			memcpy(&pd->pf_mtag->dst, sa,
 			    sizeof(struct sockaddr_in));
