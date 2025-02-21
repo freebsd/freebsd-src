@@ -501,7 +501,6 @@ table_range_cleanup()
 table_common_body()
 {
 	pool_type=$1
-echo pool_type=${pool_type}
 
 	pft_init
 
