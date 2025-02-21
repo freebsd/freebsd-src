@@ -1145,8 +1145,7 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		return (0);
 	}
 #endif
-	if (isrc != intr_handler_interrupt(cookie))
-		return (EINVAL);
+	MPASS(isrc == intr_handler_interrupt(cookie));
 
 	error = intr_event_remove_handler(cookie);
 	if (error == 0) {
