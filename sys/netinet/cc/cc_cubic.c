@@ -470,13 +470,7 @@ cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 			cubic_data->undo_cwnd_epoch = cubic_data->cwnd_epoch;
 			cubic_data->undo_W_max = cubic_data->W_max;
 			cubic_data->undo_K = cubic_data->K;
-			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->tp);
-			} else {
-				pipe = CCV(ccv, snd_max) -
-					CCV(ccv, snd_fack) +
-					CCV(ccv, sackhint.sack_bytes_rexmit);
-			}
+			pipe = tcp_compute_pipe(ccv->tp);
 			CCV(ccv, snd_ssthresh) = max(2,
 				(((uint64_t)min(CCV(ccv, snd_wnd), pipe) *
 				CUBIC_BETA) >> CUBIC_SHIFT) / mss) * mss;
