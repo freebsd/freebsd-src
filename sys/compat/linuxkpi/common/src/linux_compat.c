@@ -50,6 +50,7 @@
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/stdarg.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/user.h>
@@ -59,8 +60,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-
-#include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/cputypes.h>

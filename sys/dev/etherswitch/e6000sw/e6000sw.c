@@ -51,7 +51,7 @@
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #else
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #endif
 
 #include "e6000swreg.h"

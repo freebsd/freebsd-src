@@ -39,13 +39,12 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-
-#include <machine/stdarg.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
