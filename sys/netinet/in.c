@@ -1299,7 +1299,7 @@ in_ifnet_broadcast(struct in_addr in, struct ifnet *ifp)
 
 	NET_EPOCH_ASSERT();
 
-	if (in.s_addr == INADDR_BROADCAST || in.s_addr == INADDR_ANY)
+	if (in_broadcast(in))
 		return (true);
 	if ((ifp->if_flags & IFF_BROADCAST) == 0)
 		return (false);
