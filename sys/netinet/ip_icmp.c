@@ -635,15 +635,10 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if (icmplen < ICMP_MASKLEN)
 			break;
-		switch (ip->ip_dst.s_addr) {
-		case INADDR_BROADCAST:
-		case INADDR_ANY:
+		if (in_broadcast(ip->ip_dst))
 			icmpdst.sin_addr = ip->ip_src;
-			break;
-
-		default:
+		else
 			icmpdst.sin_addr = ip->ip_dst;
-		}
 		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
 			    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 		if (ia == NULL)

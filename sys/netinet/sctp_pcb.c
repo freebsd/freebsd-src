@@ -4130,8 +4130,7 @@ sctp_aloc_assoc_locked(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 
 			sin = (struct sockaddr_in *)firstaddr;
 			if ((ntohs(sin->sin_port) == 0) ||
-			    (sin->sin_addr.s_addr == INADDR_ANY) ||
-			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+			    in_broadcast(sin->sin_addr) ||
 			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) ||
 			    ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
 			    (SCTP_IPV6_V6ONLY(inp) != 0))) {
@@ -6009,8 +6008,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					/* Skip multi-cast addresses */
 					goto next_param;
 				}
-				if ((sin.sin_addr.s_addr == INADDR_BROADCAST) ||
-				    (sin.sin_addr.s_addr == INADDR_ANY)) {
+				if (in_broadcast(sin.sin_addr)) {
 					goto next_param;
 				}
 				sa = (struct sockaddr *)&sin;
