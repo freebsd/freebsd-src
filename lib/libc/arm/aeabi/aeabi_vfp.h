@@ -40,7 +40,9 @@
 #define	AEABI_ENTRY(x)	ENTRY(__aeabi_ ## x ## _vfp)
 #define	AEABI_END(x)	END(__aeabi_ ## x ## _vfp)
 #else
-#define	AEABI_ENTRY(x)	ENTRY(__aeabi_ ## x)
+#define	AEABI_ENTRY(x)						\
+	ENTRY(__aeabi_ ## x)					\
+	.symver __aeabi_##x, __aeabi_##x##@FBSDprivate_1.0;
 #define	AEABI_END(x)	END(__aeabi_ ## x)
 #endif
 
