@@ -697,51 +697,12 @@ static int
 shm_partial_page_invalidate(vm_object_t object, vm_pindex_t idx, int base,
     int end)
 {
-	vm_page_t m;
-	int rv;
+	int error;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(base >= 0, ("%s: base %d", __func__, base));
-	KASSERT(end - base <= PAGE_SIZE, ("%s: base %d end %d", __func__, base,
-	    end));
-
-retry:
-	m = vm_page_grab(object, idx, VM_ALLOC_NOCREAT);
-	if (m != NULL) {
-		MPASS(vm_page_all_valid(m));
-	} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
-		m = vm_page_alloc(object, idx,
-		    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
-		if (m == NULL)
-			goto retry;
-		vm_object_pip_add(object, 1);
+	error = vm_page_grab_zero_partial(object, idx, base, end);
+	if (error == EIO)
 		VM_OBJECT_WUNLOCK(object);
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
-		VM_OBJECT_WLOCK(object);
-		vm_object_pip_wakeup(object);
-		if (rv == VM_PAGER_OK) {
-			/*
-			 * Since the page was not resident, and therefore not
-			 * recently accessed, immediately enqueue it for
-			 * asynchronous laundering.  The current operation is
-			 * not regarded as an access.
-			 */
-			vm_page_launder(m);
-		} else {
-			vm_page_free(m);
-			VM_OBJECT_WUNLOCK(object);
-			return (EIO);
-		}
-	}
-	if (m != NULL) {
-		pmap_zero_page_area(m, base, end - base);
-		KASSERT(vm_page_all_valid(m), ("%s: page %p is invalid",
-		    __func__, m));
-		vm_page_set_dirty(m);
-		vm_page_xunbusy(m);
-	}
-
-	return (0);
+	return (error);
 }
 
 static int
