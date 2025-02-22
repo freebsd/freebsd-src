@@ -5,7 +5,8 @@ BINDIR=		${TESTSDIR}
 
 TESTS_SUBDIRS+=	libalias
 
-ATF_TESTS_C=	fibs_multibind_test \
+ATF_TESTS_C=	broadcast \
+		fibs_multibind_test \
 		ip_reass_test \
 		ip6_v4mapped_test \
 		so_reuseport_lb_test \
