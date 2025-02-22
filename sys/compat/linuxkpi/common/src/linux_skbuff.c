@@ -169,7 +169,7 @@ linuxkpi_build_skb(void *data, size_t fragsz)
 }
 
 struct sk_buff *
-linuxkpi_skb_copy(struct sk_buff *skb, gfp_t gfp)
+linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 {
 	struct sk_buff *new;
 	struct skb_shared_info *shinfo;
