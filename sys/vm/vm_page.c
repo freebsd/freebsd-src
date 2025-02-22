@@ -5087,6 +5087,57 @@ out:
 }
 
 /*
+ * Fill a partial page with zeroes.  The object write lock is held on entry and
+ * exit, but may be temporarily released.
+ */
+int
+vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
+    int end)
+{
+	vm_page_t m;
+	int rv;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(base >= 0, ("%s: base %d", __func__, base));
+	KASSERT(end - base <= PAGE_SIZE, ("%s: base %d end %d", __func__, base,
+	    end));
+
+retry:
+	m = vm_page_grab(object, pindex, VM_ALLOC_NOCREAT);
+	if (m != NULL) {
+		MPASS(vm_page_all_valid(m));
+	} else if (vm_pager_has_page(object, pindex, NULL, NULL)) {
+		m = vm_page_alloc(object, pindex,
+		    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+		if (m == NULL)
+			goto retry;
+		vm_object_pip_add(object, 1);
+		VM_OBJECT_WUNLOCK(object);
+		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
+		VM_OBJECT_WLOCK(object);
+		vm_object_pip_wakeup(object);
+		if (rv != VM_PAGER_OK) {
+			vm_page_free(m);
+			return (EIO);
+		}
+
+		/*
+		 * Since the page was not resident, and therefore not recently
+		 * accessed, immediately enqueue it for asynchronous laundering.
+		 * The current operation is not regarded as an access.
+		 */
+		vm_page_launder(m);
+	} else
+		return (0);
+
+	pmap_zero_page_area(m, base, end - base);
+	KASSERT(vm_page_all_valid(m), ("%s: page %p is invalid", __func__, m));
+	vm_page_set_dirty(m);
+	vm_page_xunbusy(m);
+	return (0);
+}
+
+/*
  * Locklessly grab a valid page.  If the page is not valid or not yet
  * allocated this will fall back to the object lock method.
  */
