@@ -449,7 +449,8 @@ again:
 		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
 		isbroadcast = ifp->if_flags & IFF_BROADCAST ?
-		    in_ifaddr_broadcast(dst->sin_addr, ia) : 0;
+		    (in_broadcast(ip->ip_dst) ||
+		    in_ifaddr_broadcast(dst->sin_addr, ia)) : 0;
 		src = IA_SIN(ia)->sin_addr;
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
@@ -502,8 +503,11 @@ again:
 			gw = &nh->gw_sa;
 		if (nh->nh_flags & NHF_HOST)
 			isbroadcast = (nh->nh_flags & NHF_BROADCAST);
-		else if ((ifp->if_flags & IFF_BROADCAST) && (gw->sa_family == AF_INET))
-			isbroadcast = in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia);
+		else if ((ifp->if_flags & IFF_BROADCAST) &&
+		    (gw->sa_family == AF_INET))
+			isbroadcast = in_broadcast(ip->ip_dst) ||
+			    in_ifaddr_broadcast(
+			    ((const struct sockaddr_in *)gw)->sin_addr, ia);
 		else
 			isbroadcast = false;
 		mtu = nh->nh_mtu;
@@ -533,11 +537,12 @@ again:
 			gw = &nh->gw_sa;
 		ia = ifatoia(nh->nh_ifa);
 		src = IA_SIN(ia)->sin_addr;
-		isbroadcast = (((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
+		isbroadcast = ((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
 		    (NHF_HOST | NHF_BROADCAST)) ||
 		    ((ifp->if_flags & IFF_BROADCAST) &&
 		    (gw->sa_family == AF_INET) &&
-		    in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia)));
+		    (in_broadcast(ip->ip_dst) || in_ifaddr_broadcast(
+		    ((const struct sockaddr_in *)gw)->sin_addr, ia)));
 	}
 
 	/* Catch a possible divide by zero later. */
