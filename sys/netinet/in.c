@@ -1293,7 +1293,7 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
  * Return true if the address might be a local broadcast address.
  */
 bool
-in_broadcast(struct in_addr in, struct ifnet *ifp)
+in_ifnet_broadcast(struct in_addr in, struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 
