@@ -2043,10 +2043,12 @@ ieee80211_sta_pspoll(struct ieee80211_sta *sta)
 	TODO();
 }
 
-static __inline void
+static inline void
 ieee80211_sta_recalc_aggregates(struct ieee80211_sta *sta)
 {
-	TODO();
+	if (sta->valid_links) {
+		TODO();
+	}
 }
 
 static __inline void
