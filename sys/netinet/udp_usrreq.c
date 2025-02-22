@@ -583,7 +583,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
-	    in_broadcast(ip->ip_dst, ifp))
+	    in_ifnet_broadcast(ip->ip_dst, ifp))
 		return (udp_multi_input(m, proto, udp_in));
 
 	pcbinfo = udp_get_inpcbinfo(proto);

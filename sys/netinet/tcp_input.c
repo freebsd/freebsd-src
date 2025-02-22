@@ -1290,7 +1290,7 @@ tfo_socket_result:
 		 *	global or subnet broad- or multicast address.
 		 *   Note that it is quite possible to receive unicast
 		 *	link-layer packets with a broadcast IP address. Use
-		 *	in_broadcast() to find them.
+		 *	in_ifnet_broadcast() to find them.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST)) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
@@ -1335,7 +1335,7 @@ tfo_socket_result:
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 			    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 			    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
-			    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
+			    in_ifnet_broadcast(ip->ip_dst, m->m_pkthdr.rcvif)) {
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt from/to broad- "
@@ -3522,7 +3522,7 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
-		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+		    in_ifnet_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			goto drop;
 	}
 #endif

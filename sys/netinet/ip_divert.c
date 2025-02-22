@@ -538,7 +538,7 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		 */
 		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
 			m->m_flags |= M_MCAST;
-		else if (in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
+		else if (in_ifnet_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			m->m_flags |= M_BCAST;
 		netisr_queue_src(NETISR_IP, (uintptr_t)so, m);
 		DIVSTAT_INC(inbound);
