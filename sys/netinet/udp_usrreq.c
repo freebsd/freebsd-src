@@ -1135,10 +1135,9 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	sin = (struct sockaddr_in *)addr;
 
 	/*
-	 * udp_send() may need to temporarily bind or connect the current
-	 * inpcb.  As such, we don't know up front whether we will need the
-	 * pcbinfo lock or not.  Do any work to decide what is needed up
-	 * front before acquiring any locks.
+	 * udp_send() may need to bind the current inpcb.  As such, we don't
+	 * know up front whether we will need the pcbinfo lock or not.  Do any
+	 * work to decide what is needed up front before acquiring any locks.
 	 *
 	 * We will need network epoch in either case, to safely lookup into
 	 * pcb hash.
@@ -1292,66 +1291,37 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		error = prison_remote_ip4(td->td_ucred, &sin->sin_addr);
 		if (error)
 			goto release;
-
 		/*
-		 * If a local address or port hasn't yet been selected, or if
-		 * the destination address needs to be rewritten due to using
-		 * a special INADDR_ constant, invoke in_pcbconnect_setup()
-		 * to do the heavy lifting.  Once a port is selected, we
-		 * commit the binding back to the socket; we also commit the
-		 * binding of the address if in jail.
-		 *
-		 * If we already have a valid binding and we're not
-		 * requesting a destination address rewrite, use a fast path.
+		 * sendto(2) on unconnected UDP socket results in implicit
+		 * binding to INADDR_ANY and anonymous port.  This has two
+		 * side effects:
+		 * 1) after first sendto(2) the socket will receive datagrams
+		 *    destined to the selected port.
+		 * 2) subsequent sendto(2) calls will use the same source port.
 		 */
-		if (inp->inp_laddr.s_addr == INADDR_ANY ||
-		    inp->inp_lport == 0 ||
-		    sin->sin_addr.s_addr == INADDR_ANY ||
-		    sin->sin_addr.s_addr == INADDR_BROADCAST) {
-			if ((flags & PRUS_IPV6) != 0) {
-				vflagsav = inp->inp_vflag;
-				inp->inp_vflag |= INP_IPV4;
-				inp->inp_vflag &= ~INP_IPV6;
-			}
-			INP_HASH_WLOCK(pcbinfo);
-			error = in_pcbconnect_setup(inp, sin, &laddr.s_addr,
-			    &lport, &faddr.s_addr, &fport, td->td_ucred);
-			if ((flags & PRUS_IPV6) != 0)
-				inp->inp_vflag = vflagsav;
-			if (error) {
-				INP_HASH_WUNLOCK(pcbinfo);
-				goto release;
-			}
+		if (inp->inp_lport == 0) {
+			struct sockaddr_in wild = {
+				.sin_family = AF_INET,
+				.sin_len = sizeof(struct sockaddr_in),
+			};
 
-			/*
-			 * XXXRW: Why not commit the port if the address is
-			 * !INADDR_ANY?
-			 */
-			/* Commit the local port if newly assigned. */
-			if (inp->inp_laddr.s_addr == INADDR_ANY &&
-			    inp->inp_lport == 0) {
-				INP_WLOCK_ASSERT(inp);
-				/*
-				 * Remember addr if jailed, to prevent
-				 * rebinding.
-				 */
-				if (prison_flag(td->td_ucred, PR_IP4))
-					inp->inp_laddr = laddr;
-				inp->inp_lport = lport;
-				error = in_pcbinshash(inp);
-				INP_HASH_WUNLOCK(pcbinfo);
-				if (error != 0) {
-					inp->inp_lport = 0;
-					error = EAGAIN;
-					goto release;
-				}
-				inp->inp_flags |= INP_ANONPORT;
-			} else
-				INP_HASH_WUNLOCK(pcbinfo);
-		} else {
-			faddr = sin->sin_addr;
-			fport = sin->sin_port;
+			INP_HASH_WLOCK(pcbinfo);
+			error = in_pcbbind(inp, &wild, V_udp_bind_all_fibs ?
+			    0 : INPBIND_FIB, td->td_ucred);
+			INP_HASH_WUNLOCK(pcbinfo);
+			if (error)
+				goto release;
+			lport = inp->inp_lport;
+			laddr = inp->inp_laddr;
 		}
+		if (laddr.s_addr == INADDR_ANY) {
+			error = in_pcbladdr(inp, &sin->sin_addr, &laddr,
+			    td->td_ucred);
+			if (error)
+				goto release;
+		}
+		faddr = sin->sin_addr;
+		fport = sin->sin_port;
 	} else {
 		INP_LOCK_ASSERT(inp);
 		faddr = inp->inp_faddr;
