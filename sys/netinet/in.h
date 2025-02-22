@@ -686,6 +686,13 @@ char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
 int	 inet_pton(int af, const char *, void *); /* in libkern */
 void	 in_ifdetach(struct ifnet *);
 
+static inline bool
+in_broadcast(struct in_addr in)
+{
+	return (in.s_addr == htonl(INADDR_BROADCAST) ||
+	    in.s_addr == htonl(INADDR_ANY));
+}
+
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)
 #define	in_nullhost(x)	((x).s_addr == INADDR_ANY)
 #define	in_allhosts(x)	((x).s_addr == htonl(INADDR_ALLHOSTS_GROUP))
