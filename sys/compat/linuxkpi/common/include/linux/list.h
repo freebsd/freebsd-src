@@ -234,6 +234,11 @@ list_del_init(struct list_head *entry)
 	for (; &p->field != (h);			\
 	     p = list_prev_entry(p, field))
 
+#define	list_for_each_rcu(p, head)					\
+	for (p = rcu_dereference((head)->next);				\
+	     p != (head);						\
+	     p = rcu_dereference((p)->next))
+
 static inline void
 list_add(struct list_head *new, struct list_head *head)
 {
