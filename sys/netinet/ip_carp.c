@@ -722,7 +722,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	sc = ifa->ifa_carp;
 	CARP_LOCK(sc);
 	if (ifa->ifa_addr->sa_family == AF_INET) {
-		multicast = IN_MULTICAST(sc->sc_carpaddr.s_addr);
+		multicast = IN_MULTICAST(ntohl(sc->sc_carpaddr.s_addr));
 	} else {
 		multicast = IN6_IS_ADDR_MULTICAST(&sc->sc_carpaddr6);
 	}
@@ -988,7 +988,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		m->m_pkthdr.rcvif = NULL;
 		m->m_len = len;
 		M_ALIGN(m, m->m_len);
-		if (IN_MULTICAST(sc->sc_carpaddr.s_addr))
+		if (IN_MULTICAST(ntohl(sc->sc_carpaddr.s_addr)))
 			m->m_flags |= M_MCAST;
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
