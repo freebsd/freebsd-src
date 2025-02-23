@@ -1053,37 +1053,19 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 	}
 
 	if (pd->proto == IPPROTO_ICMPV6 && pd->naf == AF_INET) {
-		if (pd->dir == PF_IN) {
-			NTOHS(pd->ndport);
-			if (pd->ndport == ICMP6_ECHO_REQUEST)
-				pd->ndport = ICMP_ECHO;
-			else if (pd->ndport == ICMP6_ECHO_REPLY)
-				pd->ndport = ICMP_ECHOREPLY;
-			HTONS(pd->ndport);
-		} else {
-			NTOHS(pd->nsport);
-			if (pd->nsport == ICMP6_ECHO_REQUEST)
-				pd->nsport = ICMP_ECHO;
-			else if (pd->nsport == ICMP6_ECHO_REPLY)
-				pd->nsport = ICMP_ECHOREPLY;
-			HTONS(pd->nsport);
-		}
+		NTOHS(pd->ndport);
+		if (pd->ndport == ICMP6_ECHO_REQUEST)
+			pd->ndport = ICMP_ECHO;
+		else if (pd->ndport == ICMP6_ECHO_REPLY)
+			pd->ndport = ICMP_ECHOREPLY;
+		HTONS(pd->ndport);
 	} else if (pd->proto == IPPROTO_ICMP && pd->naf == AF_INET6) {
-		if (pd->dir == PF_IN) {
-			NTOHS(pd->ndport);
-			if (pd->ndport == ICMP_ECHO)
-				pd->ndport = ICMP6_ECHO_REQUEST;
-			else if (pd->ndport == ICMP_ECHOREPLY)
-				pd->ndport = ICMP6_ECHO_REPLY;
-			HTONS(pd->ndport);
-		} else {
-			NTOHS(pd->nsport);
-			if (pd->nsport == ICMP_ECHO)
-				pd->nsport = ICMP6_ECHO_REQUEST;
-			else if (pd->nsport == ICMP_ECHOREPLY)
-				pd->nsport = ICMP6_ECHO_REPLY;
-			HTONS(pd->nsport);
-		}
+		NTOHS(pd->ndport);
+		if (pd->ndport == ICMP_ECHO)
+			pd->ndport = ICMP6_ECHO_REQUEST;
+		else if (pd->ndport == ICMP_ECHOREPLY)
+			pd->ndport = ICMP6_ECHO_REPLY;
+		HTONS(pd->ndport);
 	}
 
 	/* get the destination address and port */
