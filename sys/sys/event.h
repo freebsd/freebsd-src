@@ -262,12 +262,17 @@ struct knlist {
 #define EVENT_REGISTER	1
 #define EVENT_PROCESS	2
 
+struct kinfo_knote;
+struct proc;
+
 struct filterops {
 	int	f_isfd;		/* true if ident == filedescriptor */
 	int	(*f_attach)(struct knote *kn);
 	void	(*f_detach)(struct knote *kn);
 	int	(*f_event)(struct knote *kn, long hint);
 	void	(*f_touch)(struct knote *kn, struct kevent *kev, u_long type);
+	int	(*f_userdump)(struct proc *p, struct knote *kn,
+		    struct kinfo_knote *kin);
 };
 
 /*
