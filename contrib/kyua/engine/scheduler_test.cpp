@@ -1192,6 +1192,7 @@ ATF_TEST_CASE_BODY(generate_config__some_matches)
 
     config::properties_map exp_props;
     exp_props["unprivileged-user"] = "nobody";
+    exp_props["unprivileged_user"] = "nobody";
     exp_props["var1"] = "value 1";
 
     ATF_REQUIRE_EQ(exp_props,
