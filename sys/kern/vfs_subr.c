@@ -79,6 +79,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
@@ -6483,7 +6484,7 @@ const struct filterops fs_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_fsattach,
 	.f_detach = filt_fsdetach,
-	.f_event = filt_fsevent
+	.f_event = filt_fsevent,
 };
 
 static int
@@ -6559,20 +6560,26 @@ static int	filt_vfsread(struct knote *kn, long hint);
 static int	filt_vfswrite(struct knote *kn, long hint);
 static int	filt_vfsvnode(struct knote *kn, long hint);
 static void	filt_vfsdetach(struct knote *kn);
+static int	filt_vfsdump(struct proc *p, struct knote *kn,
+		    struct kinfo_knote *kin);
+
 static const struct filterops vfsread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfsread
+	.f_event = filt_vfsread,
+	.f_userdump = filt_vfsdump,
 };
 static const struct filterops vfswrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfswrite
+	.f_event = filt_vfswrite,
+	.f_userdump = filt_vfsdump,
 };
 static const struct filterops vfsvnode_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfsvnode
+	.f_event = filt_vfsvnode,
+	.f_userdump = filt_vfsdump,
 };
 
 static void
@@ -6719,6 +6726,41 @@ filt_vfsvnode(struct knote *kn, long hint)
 	res = (kn->kn_fflags != 0);
 	VI_UNLOCK(vp);
 	return (res);
+}
+
+static int
+filt_vfsdump(struct proc *p, struct knote *kn, struct kinfo_knote *kin)
+{
+	struct vattr va;
+	struct vnode *vp;
+	char *fullpath, *freepath;
+	int error;
+
+	kin->knt_extdata = KNOTE_EXTDATA_VNODE;
+
+	vp = kn->kn_fp->f_vnode;
+	kin->knt_vnode.knt_vnode_type = vntype_to_kinfo(vp->v_type);
+
+	va.va_fsid = VNOVAL;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp);
+	if (error != 0)
+		return (error);
+	kin->knt_vnode.knt_vnode_fsid = va.va_fsid;
+	kin->knt_vnode.knt_vnode_fileid = va.va_fileid;
+
+	freepath = NULL;
+	fullpath = "-";
+	error = vn_fullpath(vp, &fullpath, &freepath);
+	if (error == 0) {
+		strlcpy(kin->knt_vnode.knt_vnode_fullpath, fullpath,
+		    sizeof(kin->knt_vnode.knt_vnode_fullpath));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	return (0);
 }
 
 int
