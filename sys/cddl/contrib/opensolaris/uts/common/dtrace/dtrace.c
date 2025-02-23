@@ -594,7 +594,8 @@ static dtrace_probe_t *dtrace_probe_lookup_id(dtrace_id_t id);
 static void dtrace_enabling_provide(dtrace_provider_t *);
 static int dtrace_enabling_match(dtrace_enabling_t *, int *);
 static void dtrace_enabling_matchall(void);
-static void dtrace_enabling_reap(void);
+static void dtrace_enabling_matchall_task(void *);
+static void dtrace_enabling_reap(void *);
 static dtrace_state_t *dtrace_anon_grab(void);
 static uint64_t dtrace_helper(int, dtrace_mstate_t *,
     dtrace_state_t *, uint64_t, uint64_t);
@@ -12992,6 +12993,12 @@ dtrace_enabling_match(dtrace_enabling_t *enab, int *nmatched)
 }
 
 static void
+dtrace_enabling_matchall_task(void *args __unused)
+{
+	dtrace_enabling_matchall();
+}
+
+static void
 dtrace_enabling_matchall(void)
 {
 	dtrace_enabling_t *enab;
@@ -13118,7 +13125,7 @@ retry:
  * Called to reap ECBs that are attached to probes from defunct providers.
  */
 static void
-dtrace_enabling_reap(void)
+dtrace_enabling_reap(void *args __unused)
 {
 	dtrace_provider_t *prov;
 	dtrace_probe_t *probe;
@@ -16719,8 +16726,8 @@ dtrace_module_loaded(modctl_t *ctl)
 		return;
 	}
 
-	(void) taskq_dispatch(dtrace_taskq,
-	    (task_func_t *)dtrace_enabling_matchall, NULL, TQ_SLEEP);
+	(void)taskq_dispatch(dtrace_taskq,
+	    (task_func_t *)dtrace_enabling_matchall_task, NULL, TQ_SLEEP);
 
 	mutex_exit(&dtrace_lock);
 
