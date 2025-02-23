@@ -1632,7 +1632,10 @@ scheduler::generate_config(const config::tree& user_config,
     if (user_config.is_set("unprivileged_user")) {
         const passwd::user& user =
             user_config.lookup< engine::user_node >("unprivileged_user");
+        // The property is duplicated using both ATF and Kyua naming styles
+        // for better UX.
         props["unprivileged-user"] = user.name;
+        props["unprivileged_user"] = user.name;
     }
 
     return props;

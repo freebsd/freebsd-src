@@ -34,12 +34,16 @@
 ATF_TEST_CASE(get_variable);
 ATF_TEST_CASE_HEAD(get_variable)
 {
+    const char* varname = ::getenv("CONFIG_VAR_NAME");
+    if (varname == NULL) {
+        varname = "the-variable";
+    }
     const char* output = ::getenv("CONFIG_VAR_FILE");
     if (output == NULL) {
-        set_md_var("require.config", "the-variable");
+        set_md_var("require.config", varname);
     } else {
-        if (has_config_var("the-variable")) {
-            atf::utils::create_file(output, get_config_var("the-variable") +
+        if (has_config_var(varname)) {
+            atf::utils::create_file(output, get_config_var(varname) +
                                     std::string("\n"));
         } else {
             atf::utils::create_file(output, "NOT DEFINED\n");
