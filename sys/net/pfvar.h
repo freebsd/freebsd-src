@@ -1005,9 +1005,10 @@ struct pf_state_key {
 	TAILQ_HEAD(, pf_kstate)	 states[2];
 };
 
-#define PF_REVERSED_KEY(key, family)				\
-	((key[PF_SK_WIRE]->af != key[PF_SK_STACK]->af) &&	\
-	    (key[PF_SK_WIRE]->af != (family)))
+#define PF_REVERSED_KEY(state, family)					\
+	(((state)->key[PF_SK_WIRE]->af != (state)->key[PF_SK_STACK]->af) &&	\
+	    ((state)->key[PF_SK_WIRE]->af != (family)) &&			\
+	    ((state)->direction == PF_IN))
 
 /* Keep synced with struct pf_kstate. */
 struct pf_state_cmp {
