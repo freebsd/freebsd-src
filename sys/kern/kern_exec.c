@@ -1475,7 +1475,7 @@ exec_free_args_kva(void *cookie)
 }
 
 static void
-exec_args_kva_lowmem(void *arg __unused)
+exec_args_kva_lowmem(void *arg __unused, int flags __unused)
 {
 	SLIST_HEAD(, exec_args_kva) head;
 	struct exec_args_kva *argkva;
