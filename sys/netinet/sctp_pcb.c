@@ -6823,7 +6823,7 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 }
 
 static void
-sctp_drain(void)
+sctp_drain(void *arg __unused, int flags __unused)
 {
 	struct epoch_tracker et;
 

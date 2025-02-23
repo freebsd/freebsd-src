@@ -1384,7 +1384,7 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 }
 
 static void
-tcp_drain(void)
+tcp_drain(void *ctx __unused, int flags __unused)
 {
 	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
