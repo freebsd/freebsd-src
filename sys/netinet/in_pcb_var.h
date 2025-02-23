@@ -82,6 +82,7 @@ struct inpcblbgroup {
 #define	il6_laddr	il_dependladdr.id6_addr
 	uint32_t	il_inpsiz; /* max count in il_inp[] (h) */
 	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
+	uint32_t	il_pendcnt; /* cur count in il_pending (h) */
 	struct inpcb	*il_inp[];			/* (h) */
 };
 
