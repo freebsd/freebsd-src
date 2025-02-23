@@ -339,6 +339,7 @@ in_pcblbgroup_insert(struct inpcblbgroup *grp, struct inpcb *inp)
 		 * lookups until listen() has been called.
 		 */
 		LIST_INSERT_HEAD(&grp->il_pending, inp, inp_lbgroup_list);
+		grp->il_pendcnt++;
 	} else {
 		grp->il_inp[grp->il_inpcnt] = inp;
 
@@ -375,6 +376,8 @@ in_pcblbgroup_resize(struct inpcblbgrouphead *hdr,
 	CK_LIST_INSERT_HEAD(hdr, grp, il_list);
 	LIST_SWAP(&old_grp->il_pending, &grp->il_pending, inpcb,
 	    inp_lbgroup_list);
+	grp->il_pendcnt = old_grp->il_pendcnt;
+	old_grp->il_pendcnt = 0;
 	in_pcblbgroup_free(old_grp);
 	return (grp);
 }
@@ -435,7 +438,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 			return (ENOBUFS);
 		in_pcblbgroup_insert(grp, inp);
 		CK_LIST_INSERT_HEAD(hdr, grp, il_list);
-	} else if (grp->il_inpcnt == grp->il_inpsiz) {
+	} else if (grp->il_inpcnt + grp->il_pendcnt == grp->il_inpsiz) {
 		if (grp->il_inpsiz >= INPCBLBGROUP_SIZMAX) {
 			if (ratecheck(&lastprint, &interval))
 				printf("lb group port %d, limit reached\n",
@@ -499,6 +502,7 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 		LIST_FOREACH(inp1, &grp->il_pending, inp_lbgroup_list) {
 			if (inp == inp1) {
 				LIST_REMOVE(inp, inp_lbgroup_list);
+				grp->il_pendcnt--;
 				inp->inp_flags &= ~INP_INLBGROUP;
 				return;
 			}
@@ -1503,6 +1507,7 @@ in_pcblisten(struct inpcb *inp)
 		INP_HASH_WLOCK(pcbinfo);
 		grp = in_pcblbgroup_find(inp);
 		LIST_REMOVE(inp, inp_lbgroup_list);
+		grp->il_pendcnt--;
 		in_pcblbgroup_insert(grp, inp);
 		INP_HASH_WUNLOCK(pcbinfo);
 	}
