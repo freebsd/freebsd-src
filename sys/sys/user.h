@@ -40,6 +40,7 @@
 #ifndef _KERNEL
 /* stuff that *used* to be included by user.h, or is now needed */
 #include <sys/errno.h>
+#include <sys/event.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/ucred.h>
@@ -665,6 +666,33 @@ struct kinfo_vm_layout {
 	uintptr_t	kvm_shp_addr;
 	size_t		kvm_shp_size;
 	uintptr_t	kvm_spare[12];
+};
+
+#define	KNOTE_STATUS_ACTIVE		0x00000001
+#define	KNOTE_STATUS_QUEUED		0x00000002
+#define	KNOTE_STATUS_DISABLED		0x00000004
+#define	KNOTE_STATUS_DETACHED		0x00000008
+#define	KNOTE_STATUS_KQUEUE		0x00000010
+
+#define	KNOTE_EXTDATA_NONE		0
+#define	KNOTE_EXTDATA_VNODE		1
+#define	KNOTE_EXTDATA_PIPE		2
+
+struct kinfo_knote {
+	struct kevent	knt_event;
+	int		knt_status;
+	int		knt_extdata;
+	union {
+		struct {
+			int		knt_vnode_type;
+			uint64_t	knt_vnode_fsid;
+			uint64_t	knt_vnode_fileid;
+			char		knt_vnode_fullpath[PATH_MAX];
+		} knt_vnode;
+		struct {
+			ino_t		knt_pipe_ino;
+		} knt_pipe;
+	};
 };
 
 #ifdef _KERNEL
