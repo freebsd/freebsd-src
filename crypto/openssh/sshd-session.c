@@ -109,6 +109,7 @@
 #include "sk-api.h"
 #include "srclimit.h"
 #include "dh.h"
+#include "blacklist_client.h"
 
 /* Re-exec fds */
 #define REEXEC_DEVCRYPTO_RESERVED_FD	(STDERR_FILENO + 1)
@@ -1315,6 +1316,8 @@ main(int ac, char **av)
 	if ((loginmsg = sshbuf_new()) == NULL)
 		fatal("sshbuf_new loginmsg failed");
 	auth_debug_reset();
+
+	BLACKLIST_INIT();
 
 	if (privsep_preauth(ssh) == 1)
 		goto authenticated;

@@ -101,7 +101,6 @@
 #include "sk-api.h"
 #include "addr.h"
 #include "srclimit.h"
-#include "blacklist_client.h"
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -1876,9 +1875,6 @@ main(int ac, char **av)
 	}
 #endif
 #endif
-
-
-	BLACKLIST_INIT();
 }
 
 /* server specific fatal cleanup */
