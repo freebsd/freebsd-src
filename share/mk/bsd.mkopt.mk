@@ -67,7 +67,7 @@ MK_${var}:=	yes
 # step towards removing the options entirely.
 #
 .for var in ${__REQUIRED_OPTIONS}
-.if defined(WITHOUT_${var})
+.if defined(WITHOUT_${var}) && !make(showconfig)
 .warning WITHOUT_${var} option ignored: it is no longer supported
 .endif
 MK_${var}:=	yes
