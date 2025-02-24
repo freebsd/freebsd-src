@@ -511,6 +511,7 @@ specifies the current process.
 .It Dv KERN_PROC_NFDS Ta "Integer"
 .It Dv KERN_PROC_SIGFASTBLK Ta "Integer"
 .It Dv KERN_PROC_VM_LAYOUT Ta "struct kinfo_vm_layout"
+.It Dv KERN_PROC_KQUEUE Ta "struct kinfo_knote []"
 .El
 .Pp
 .Bl -tag -compact
@@ -584,6 +585,15 @@ Returns the address of the
 location, if active.
 .It Dv KERN_PROC_VM_LAYOUT
 Fills a structure describing process virtual address space layout.
+.It Dv KERN_PROC_KQUEUE
+Fills an array of structures describing events registered with
+the specified kqueue.
+The next two node's values are the
+.Va pid
+and
+.Va kqfd ,
+the process ID of the process, and the file descriptor of the kqueue
+in that process, to query.
 .El
 .It Li KERN_PS_STRINGS
 Reports the location of the process
