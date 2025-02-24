@@ -2838,3 +2838,69 @@ procstat_freerlimitusage(struct procstat *procstat __unused, rlim_t *resusage)
 {
 	free(resusage);
 }
+
+static struct kinfo_knote *
+procstat_get_kqueue_info_sysctl(pid_t pid, int kqfd, unsigned int *cntp,
+    char *errbuf)
+{
+	int error, name[5];
+	struct kinfo_knote *val;
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_KQUEUE;
+	name[3] = pid;
+	name[4] = kqfd;
+
+	len = 0;
+	error = sysctl(name, nitems(name), NULL, &len, NULL, 0);
+	if (error == -1) {
+		snprintf(errbuf, _POSIX2_LINE_MAX,
+		    "KERN_PROC_KQUEUE.pid<%d>.kq<%d> (size q) failed: %s",
+		    pid, kqfd, strerror(errno));
+		return (NULL);
+	}
+	val = malloc(len);
+	if (val == NULL) {
+		snprintf(errbuf, _POSIX2_LINE_MAX, "no memory");
+		return (NULL);
+	}
+
+	error = sysctl(name, nitems(name), val, &len, NULL, 0);
+	if (error == -1) {
+		snprintf(errbuf, _POSIX2_LINE_MAX,
+		    "KERN_PROC_KQUEUE.pid<%d>.kq<%d> failed: %s",
+		    pid, kqfd, strerror(errno));
+		free(val);
+		return (NULL);
+	}
+	*cntp = len / sizeof(*val);
+	return (val);
+}
+
+struct kinfo_knote *
+procstat_get_kqueue_info(struct procstat *procstat,
+    struct kinfo_proc *kp, int kqfd, unsigned int *count, char *errbuf)
+{
+	switch (procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (procstat_get_kqueue_info_sysctl(kp->ki_pid, kqfd,
+		    count, errbuf));
+	case PROCSTAT_CORE:
+		warnx("core method is not supported");
+		return (NULL);
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freekqinfo(struct procstat *procstat __unused, struct kinfo_knote *v)
+{
+	free(v);
+}
