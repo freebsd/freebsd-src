@@ -327,7 +327,7 @@ local function drawbrand()
 	if core.isFramebufferConsole() and
 	    gfx.term_putimage ~= nil and
 	    branddef.image ~= nil then
-		if gfx.term_putimage(branddef.image, 1, 1, 0, 7, 0)
+		if gfx.term_putimage(branddef.image, x, y, 0, 7, 0)
 		then
 			return true
 		end
