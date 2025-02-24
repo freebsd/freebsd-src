@@ -5174,7 +5174,7 @@ nfscl_newnode(vnode_t vp)
  * to the local clock time.
  */
 void
-nfscl_delegmodtime(vnode_t vp)
+nfscl_delegmodtime(struct vnode *vp, struct timespec *mtime)
 {
 	struct nfsclclient *clp;
 	struct nfscldeleg *dp;
@@ -5198,7 +5198,10 @@ nfscl_delegmodtime(vnode_t vp)
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
 	if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_WRITE)) {
-		nanotime(&dp->nfsdl_modtime);
+		if (mtime != NULL)
+			dp->nfsdl_modtime = *mtime;
+		else
+			nanotime(&dp->nfsdl_modtime);
 		dp->nfsdl_flags |= NFSCLDL_MODTIMESET;
 	}
 	NFSUNLOCKCLSTATE();

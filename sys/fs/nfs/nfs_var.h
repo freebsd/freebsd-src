@@ -626,7 +626,7 @@ int nfscl_renamedeleg(vnode_t, nfsv4stateid_t *, int *, vnode_t,
     nfsv4stateid_t *, int *, NFSPROC_T *);
 void nfscl_reclaimnode(vnode_t);
 void nfscl_newnode(vnode_t);
-void nfscl_delegmodtime(vnode_t);
+void nfscl_delegmodtime(struct vnode *, struct timespec *);
 void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
