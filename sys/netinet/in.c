@@ -147,7 +147,7 @@ in_localaddr(struct in_addr in)
 }
 
 /*
- * Return 1 if an internet address is for the local host and configured
+ * Return true if an internet address is for the local host and configured
  * on one of its interfaces.
  */
 bool
