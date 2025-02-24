@@ -106,9 +106,23 @@ enum TRI_STATE {
 #define DEFAULT_FRAME_SIZE		(ADAPTER_MTU_SIZE + 14)
 #define MAX_FRAME_SIZE			4096
 
-#define RX_BUFFERS_PER_QUEUE		512
+/* Unit number of RX buffers. Must be power of two
+ * Higher number could fail at allocation.
+ */
+#define MAX_RX_BUFFERS_PER_QUEUE	8192
+#define DEF_RX_BUFFERS_PER_QUEUE	1024
+#define MIN_RX_BUFFERS_PER_QUEUE	128
 
-#define MAX_SEND_BUFFERS_PER_QUEUE	256
+/* Unit number of TX buffers. Must be power of two
+ * Higher number could fail at allocation.
+ * The max value is derived as the maximum
+ * allocatable pages supported on host per guest
+ * through testing. TX buffer size beyond this
+ * value is rejected by the hardware.
+ */
+#define MAX_SEND_BUFFERS_PER_QUEUE	16384
+#define DEF_SEND_BUFFERS_PER_QUEUE	1024
+#define MIN_SEND_BUFFERS_PER_QUEUE	128
 
 #define EQ_SIZE				(8 * PAGE_SIZE)
 #define LOG2_EQ_THROTTLE		3
@@ -506,6 +520,9 @@ struct mana_port_context {
 	/* Create num_queues EQs, SQs, SQ-CQs, RQs and RQ-CQs, respectively. */
 	unsigned int		max_queues;
 	unsigned int		num_queues;
+
+	unsigned int		tx_queue_size;
+	unsigned int		rx_queue_size;
 
 	mana_handle_t		port_handle;
 
