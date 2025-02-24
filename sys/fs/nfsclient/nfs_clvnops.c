@@ -1120,7 +1120,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 			     * Call nfscl_delegmodtime() to set the modify time
 			     * locally, as required.
 			     */
-			    nfscl_delegmodtime(vp);
+			    nfscl_delegmodtime(vp, NULL);
  			} else
 			    NFSUNLOCKNODE(np);
 			/*
@@ -1158,6 +1158,8 @@ nfs_setattr(struct vop_setattr_args *ap)
 			NFSUNLOCKNODE(np);
 		}
 	}
+	if (vap->va_mtime.tv_sec != VNOVAL && error == 0)
+		nfscl_delegmodtime(vp, &vap->va_mtime);
 	return (error);
 }
 
