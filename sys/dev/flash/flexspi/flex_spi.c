@@ -329,7 +329,7 @@ flex_spi_write_txfifo(struct flex_spi_softc *sc, uint8_t *buf, uint8_t size)
 	int i, ret, reg;
 
 	/* invalid the TXFIFO */
-	write_reg(sc, FSPI_IPRXFCR, FSPI_IPTXFCR_CLR);
+	write_reg(sc, FSPI_IPTXFCR, FSPI_IPTXFCR_CLR);
 
 	/*
 	 * Default value of water mark level is 8 bytes, hence in single
@@ -342,7 +342,7 @@ flex_spi_write_txfifo(struct flex_spi_softc *sc, uint8_t *buf, uint8_t size)
 			    1, 50000, 1);
 			if (ret)
 				device_printf(sc->dev,
-				    "timed out waiting for FSPI_INTR_IPRXWA\n");
+				    "timed out waiting for FSPI_INTR_IPTXWE\n");
 		}
 
 		if (size  >= (i + 4))
