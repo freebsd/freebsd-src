@@ -258,4 +258,10 @@ extern struct work_struct *linux_current_work(void);
 extern bool linux_queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork);
 extern bool linux_flush_rcu_work(struct rcu_work *rwork);
 
+static inline bool
+queue_work_node(int node __unused, struct workqueue_struct *wq, struct work_struct *work)
+{
+	return (queue_work(wq, work));
+}
+
 #endif					/* _LINUXKPI_LINUX_WORKQUEUE_H_ */
