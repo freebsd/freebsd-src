@@ -3529,6 +3529,10 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	if (!lkpi_hwcrypto && ieee80211_hw_check(hw, AMPDU_AGGREGATION))
 		vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_RX;
 #endif
+#if defined(LKPI_80211_HT)
+	/* 20250125-BZ Keep A-MPDU TX cleared until we sorted out AddBA for all drivers. */
+	vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_TX;
+#endif
 
 	if (hw->max_listen_interval == 0)
 		hw->max_listen_interval = 7 * (ic->ic_lintval / ic->ic_bintval);
