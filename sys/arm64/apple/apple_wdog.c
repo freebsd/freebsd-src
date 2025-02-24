@@ -225,10 +225,7 @@ static device_method_t apple_wdog_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t apple_wdog_driver = {
-	"apple_wdog",
-	apple_wdog_methods,
-	sizeof(struct apple_wdog_softc),
-};
+PRIVATE_DEFINE_CLASSN(apple_wdog, apple_wdog_driver, apple_wdog_methods,
+    sizeof(struct apple_wdog_softc));
 
 DRIVER_MODULE(apple_wdog, simplebus, apple_wdog_driver, 0, 0);

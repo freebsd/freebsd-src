@@ -48,7 +48,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 
@@ -229,13 +229,11 @@ anadig_attach(device_t dev)
 static device_method_t anadig_methods[] = {
 	DEVMETHOD(device_probe,		anadig_probe),
 	DEVMETHOD(device_attach,	anadig_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t anadig_driver = {
-	"anadig",
-	anadig_methods,
-	sizeof(struct anadig_softc),
-};
+PRIVATE_DEFINE_CLASSN(anadig, anadig_driver, anadig_methods,
+    sizeof(struct anadig_softc));
 
 DRIVER_MODULE(anadig, simplebus, anadig_driver, 0, 0);

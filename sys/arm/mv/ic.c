@@ -38,7 +38,7 @@
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -134,14 +134,12 @@ mv_ic_attach(device_t dev)
 static device_method_t mv_ic_methods[] = {
 	DEVMETHOD(device_probe,		mv_ic_probe),
 	DEVMETHOD(device_attach,	mv_ic_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mv_ic_driver = {
-	"ic",
-	mv_ic_methods,
-	sizeof(struct mv_ic_softc),
-};
+PRIVATE_DEFINE_CLASSN(ic, mv_ic_driver, mv_ic_methods,
+    sizeof(struct mv_ic_softc));
 
 DRIVER_MODULE(ic, simplebus, mv_ic_driver, 0, 0);
 

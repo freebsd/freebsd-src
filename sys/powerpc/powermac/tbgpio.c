@@ -47,6 +47,7 @@ static device_method_t	tbgpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tbgpio_probe),
 	DEVMETHOD(device_attach,	tbgpio_attach),
+
 	DEVMETHOD_END
 };
 
@@ -55,11 +56,8 @@ struct tbgpio_softc {
 	uint32_t	sc_mask;
 };
 
-static driver_t tbgpio_driver = {
-	"tbgpio",
-	tbgpio_methods,
-	sizeof(struct tbgpio_softc)
-};
+PRIVATE_DEFINE_CLASSN(tbgpio, tbgpio_driver, tbgpio_methods,
+    sizeof(struct tbgpio_softc));
 
 EARLY_DRIVER_MODULE(tbgpio, macgpio, tbgpio_driver, 0, 0, BUS_PASS_CPU);
 

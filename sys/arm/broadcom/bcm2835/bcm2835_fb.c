@@ -189,14 +189,12 @@ static device_method_t bcm_fb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_fb_probe),
 	DEVMETHOD(device_attach,	bcm_fb_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t bcm_fb_driver = {
-	"fb",
-	bcm_fb_methods,
-	sizeof(struct bcmsc_softc),
-};
+PRIVATE_DEFINE_CLASSN(fb, bcm_fb_driver, bcm_fb_methods,
+    sizeof(struct bcmsc_softc));
 
 DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, 0, 0);
 DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, 0, 0);

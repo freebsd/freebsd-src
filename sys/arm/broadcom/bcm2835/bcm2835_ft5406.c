@@ -52,7 +52,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
@@ -322,11 +322,8 @@ static device_method_t ft5406ts_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ft5406ts_driver = {
-	"ft5406ts",
-	ft5406ts_methods,
-	sizeof(struct ft5406ts_softc),
-};
+PRIVATE_DEFINE_CLASSN(ft5406ts, ft5406ts_driver, ft5406ts_methods,
+    sizeof(struct ft5406ts_softc));
 
 DRIVER_MODULE(ft5406ts, simplebus, ft5406ts_driver, 0, 0);
 MODULE_DEPEND(ft5406ts, evdev, 1, 1, 1);

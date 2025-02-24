@@ -349,11 +349,8 @@ static device_method_t imx6_ahci_ata_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ahci_ata_driver = {
-	"ahci",
-	imx6_ahci_ata_methods,
-	sizeof(struct ahci_controller)
-};
+PRIVATE_DEFINE_CLASSN(ahci, ahci_ata_driver, imx6_ahci_ata_methods,
+    sizeof(struct ahci_controller));
 
 DRIVER_MODULE(imx6_ahci, simplebus, ahci_ata_driver, 0, 0);
 MODULE_DEPEND(imx6_ahci, ahci, 1, 1, 1);

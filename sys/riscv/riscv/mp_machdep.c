@@ -44,7 +44,6 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/cpuset.h>
-#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -60,6 +59,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 #include <machine/sbi.h>
 

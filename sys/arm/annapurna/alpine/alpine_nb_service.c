@@ -58,14 +58,12 @@ static device_method_t nb_service_methods[] = {
 	DEVMETHOD(device_probe,		nb_service_probe),
 	DEVMETHOD(device_attach,	nb_service_attach),
 	DEVMETHOD(device_detach,	nb_service_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t nb_service_driver = {
-	"nb_service",
-	nb_service_methods,
-	sizeof(struct nb_service_softc)
-};
+PRIVATE_DEFINE_CLASSN(nb_service, nb_service_driver, nb_service_methods,
+    sizeof(struct nb_service_softc));
 
 EARLY_DRIVER_MODULE(nb_service, simplebus, nb_service_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);

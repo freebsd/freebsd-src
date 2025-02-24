@@ -167,7 +167,7 @@ static platform_method_t a10_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10", 200);
 #endif
@@ -178,7 +178,7 @@ static platform_method_t a13_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	allwinner_cpu_reset),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a13, "a13", 0, "allwinner,sun5i-a13", 200);
 #endif
@@ -193,7 +193,7 @@ static platform_method_t a20_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a20, "a20", 0, "allwinner,sun7i-a20", 200);
 #endif
@@ -208,7 +208,7 @@ static platform_method_t a31_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a31, "a31", 0, "allwinner,sun6i-a31", 200);
 #endif
@@ -223,7 +223,7 @@ static platform_method_t a31s_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a31s, "a31s", 0, "allwinner,sun6i-a31s", 200);
 #endif
@@ -238,7 +238,7 @@ static platform_method_t a33_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a33, "a33", 0, "allwinner,sun8i-a33", 200);
 #endif
@@ -253,7 +253,7 @@ static platform_method_t a83t_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	a83t_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(a83t, "a83t", 0, "allwinner,sun8i-a83t", 200);
 #endif
@@ -268,7 +268,7 @@ static platform_method_t h2_plus_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(h2_plus, "h2_plus", 0, "allwinner,sun8i-h2-plus", 200);
 #endif
@@ -283,7 +283,7 @@ static platform_method_t h3_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	aw_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	aw_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(h3, "h3", 0, "allwinner,sun8i-h3", 200);
 #endif

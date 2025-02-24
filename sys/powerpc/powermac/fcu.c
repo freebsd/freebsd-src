@@ -118,14 +118,11 @@ static device_method_t  fcu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fcu_probe),
 	DEVMETHOD(device_attach,	fcu_attach),
-	{ 0, 0 },
+
+	DEVMETHOD_END
 };
 
-static driver_t fcu_driver = {
-	"fcu",
-	fcu_methods,
-	sizeof(struct fcu_softc)
-};
+PRIVATE_DEFINE_CLASSN(fcu, fcu_driver, fcu_methods, sizeof(struct fcu_softc));
 
 DRIVER_MODULE(fcu, iicbus, fcu_driver, 0, 0);
 static MALLOC_DEFINE(M_FCU, "fcu", "FCU Sensor Information");

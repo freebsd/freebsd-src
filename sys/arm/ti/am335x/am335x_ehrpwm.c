@@ -584,11 +584,8 @@ static device_method_t am335x_ehrpwm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t am335x_ehrpwm_driver = {
-	"pwm",
-	am335x_ehrpwm_methods,
-	sizeof(struct am335x_ehrpwm_softc),
-};
+PRIVATE_DEFINE_CLASSN(pwm, am335x_ehrpwm_driver, am335x_ehrpwm_methods,
+    sizeof(struct am335x_ehrpwm_softc));
 
 DRIVER_MODULE(am335x_ehrpwm, am335x_pwmss, am335x_ehrpwm_driver, 0, 0);
 MODULE_VERSION(am335x_ehrpwm, 1);

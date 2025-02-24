@@ -67,14 +67,12 @@ static device_method_t pmufreq_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	pmufreq_get),
 	DEVMETHOD(cpufreq_drv_type,	pmufreq_type),
 	DEVMETHOD(cpufreq_drv_settings,	pmufreq_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t pmufreq_driver = {
-	"pmufreq",
-	pmufreq_methods,
-	sizeof(struct pmufreq_softc)
-};
+PRIVATE_DEFINE_CLASSN(pmufreq, pmufreq_driver, pmufreq_methods,
+    sizeof(struct pmufreq_softc));
 
 DRIVER_MODULE(pmufreq, cpu, pmufreq_driver, 0, 0);
 

@@ -192,11 +192,8 @@ static device_method_t ocotp_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ocotp_driver = {
-	"ocotp",
-	ocotp_methods,
-	sizeof(struct ocotp_softc)
-};
+PRIVATE_DEFINE_CLASSN(ocotp, ocotp_driver, ocotp_methods,
+    sizeof(struct ocotp_softc));
 
 EARLY_DRIVER_MODULE(ocotp, simplebus, ocotp_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);

@@ -541,11 +541,8 @@ static device_method_t bcm2835_rng_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm2835_rng_driver = {
-	"bcmrng",
-	bcm2835_rng_methods,
-	sizeof(struct bcm2835_rng_softc)
-};
+PRIVATE_DEFINE_CLASSN(bcmrng, bcm2835_rng_driver, bcm2835_rng_methods,
+    sizeof(struct bcm2835_rng_softc));
 
 DRIVER_MODULE(bcm2835_rng, simplebus, bcm2835_rng_driver, 0, 0);
 DRIVER_MODULE(bcm2835_rng, ofwbus, bcm2835_rng_driver, 0, 0);

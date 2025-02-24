@@ -506,11 +506,7 @@ static device_method_t ccm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ccm_driver = {
-	"ccm",
-	ccm_methods,
-	sizeof(struct ccm_softc)
-};
+PRIVATE_DEFINE_CLASSN(ccm, ccm_driver, ccm_methods, sizeof(struct ccm_softc));
 
 EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, 0, 0, 
     BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);

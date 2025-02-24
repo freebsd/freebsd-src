@@ -36,8 +36,8 @@
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/clk/clk_fixed.h>
 #include <dev/syscon/syscon.h>
@@ -216,11 +216,8 @@ static device_method_t mv_ap806_clock_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_ap806_clock_driver = {
-	"mv_ap806_clock",
-	mv_ap806_clock_methods,
-	sizeof(struct mv_ap806_clock_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_ap806_clock, mv_ap806_clock_driver,
+    mv_ap806_clock_methods, sizeof(struct mv_ap806_clock_softc));
 
 EARLY_DRIVER_MODULE(mv_ap806_clock, simplebus, mv_ap806_clock_driver, 0, 0,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_LATE);

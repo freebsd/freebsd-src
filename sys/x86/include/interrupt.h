@@ -30,6 +30,18 @@
 
 #ifdef _KERNEL
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+#include <sys/interrupt.h>
+
+/* FreeBSD standard interrupt controller interface */
+
+#include <sys/_cpuset.h>
+
+typedef struct { device_t next, prev; } pic_base_softc_t;
+
 /*
  * Values used in determining the allocation of IRQ values among
  * different types of I/O interrupts.  These values are used as
@@ -66,37 +78,6 @@ typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
-struct intsrc;
-
-/*
- * Methods that a PIC provides to mask/unmask a given interrupt source,
- * "turn on" the interrupt on the CPU side by setting up an IDT entry, and
- * return the vector associated with this source.
- */
-struct pic {
-	void (*pic_register_sources)(struct pic *);
-	void (*pic_enable_source)(struct intsrc *);
-	void (*pic_disable_source)(struct intsrc *, int);
-	void (*pic_eoi_source)(struct intsrc *);
-	void (*pic_enable_intr)(struct intsrc *);
-	void (*pic_disable_intr)(struct intsrc *);
-	int (*pic_vector)(struct intsrc *);
-	int (*pic_source_pending)(struct intsrc *);
-	void (*pic_suspend)(struct pic *);
-	void (*pic_resume)(struct pic *, bool suspend_cancelled);
-	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
-	    enum intr_polarity);
-	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	void (*pic_reprogram_pin)(struct intsrc *);
-	TAILQ_ENTRY(pic) pics;
-};
-
-/* Flags for pic_disable_source() */
-enum {
-	PIC_EOI,
-	PIC_NO_EOI,
-};
-
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
  * control a given source.  The lower-layer PIC drivers can store additional
@@ -104,8 +85,7 @@ enum {
  * or an I/O APIC pointer.
  */
 struct intsrc {
-	struct pic *is_pic;
-	struct intr_event *is_event;
+	struct intr_event is_event;
 	u_long *is_count;
 	u_long *is_straycount;
 	u_int is_index;
@@ -145,8 +125,10 @@ int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
-int	intr_register_pic(struct pic *pic);
-int	intr_register_source(struct intsrc *isrc);
+device_t	intr_create_pic(const char *name, u_int unit,
+		    struct kobj_class *driver);
+void	intr_register_pic(device_t pic);
+int	intr_register_source(u_int vector, struct intsrc *isrc, device_t pic);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);

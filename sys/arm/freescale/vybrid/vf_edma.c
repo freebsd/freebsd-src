@@ -48,7 +48,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_edma.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>
@@ -323,13 +323,11 @@ edma_attach(device_t dev)
 static device_method_t edma_methods[] = {
 	DEVMETHOD(device_probe,		edma_probe),
 	DEVMETHOD(device_attach,	edma_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t edma_driver = {
-	"edma",
-	edma_methods,
-	sizeof(struct edma_softc),
-};
+PRIVATE_DEFINE_CLASSN(edma, edma_driver, edma_methods,
+    sizeof(struct edma_softc));
 
 DRIVER_MODULE(edma, simplebus, edma_driver, 0, 0);

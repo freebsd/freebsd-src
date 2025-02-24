@@ -411,13 +411,11 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location, ahci_child_location),
+
 	DEVMETHOD_END
 };
 
-static driver_t ahci_ata_driver = {
-        "ahci",
-        ahci_ata_methods,
-        sizeof(struct ahci_a10_softc)
-};
+PRIVATE_DEFINE_CLASSN(ahci, ahci_ata_driver, ahci_ata_methods,
+    sizeof(struct ahci_a10_softc));
 
 DRIVER_MODULE(a10_ahci, simplebus, ahci_ata_driver, 0, 0);

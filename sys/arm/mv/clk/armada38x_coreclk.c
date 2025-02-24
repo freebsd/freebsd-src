@@ -209,11 +209,8 @@ static device_method_t amada38x_coreclk_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t armada38x_coreclk_driver = {
-	"armada38x_coreclk",
-	amada38x_coreclk_methods,
-	sizeof(struct armada38x_coreclk_softc),
-};
+PRIVATE_DEFINE_CLASSN(armada38x_coreclk, armada38x_coreclk_driver,
+    amada38x_coreclk_methods, sizeof(struct armada38x_coreclk_softc));
 
 EARLY_DRIVER_MODULE(armada38x_coreclk, simplebus, armada38x_coreclk_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

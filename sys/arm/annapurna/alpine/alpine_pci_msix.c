@@ -71,6 +71,19 @@ static struct ofw_compat_data compat_data[] = {
 /*
  * Bus interface definitions.
  */
+struct al_msix_softc {
+	bus_addr_t	base_addr;
+	struct resource	*res;
+	uint32_t	irq_min;
+	uint32_t	irq_max;
+	uint32_t	irq_count;
+	struct mtx	msi_mtx;
+	vmem_t		*irq_alloc;
+	device_t	gic_dev;
+	/* Table of isrcs maps isrc pointer to vmem_alloc'd irq number */
+	struct intr_irqsrc	*isrcs[MAX_MSIX_COUNT];
+};
+
 static device_method_t al_msix_methods[] = {
 	DEVMETHOD(device_probe,		al_msix_probe),
 	DEVMETHOD(device_attach,	al_msix_attach),
@@ -85,24 +98,8 @@ static device_method_t al_msix_methods[] = {
 	DEVMETHOD_END
 };
 
-struct al_msix_softc {
-	bus_addr_t	base_addr;
-	struct resource	*res;
-	uint32_t	irq_min;
-	uint32_t	irq_max;
-	uint32_t	irq_count;
-	struct mtx	msi_mtx;
-	vmem_t		*irq_alloc;
-	device_t	gic_dev;
-	/* Table of isrcs maps isrc pointer to vmem_alloc'd irq number */
-	struct intr_irqsrc	*isrcs[MAX_MSIX_COUNT];
-};
-
-static driver_t al_msix_driver = {
-	"al_msix",
-	al_msix_methods,
-	sizeof(struct al_msix_softc),
-};
+PRIVATE_DEFINE_CLASSN(al_msix, al_msix_driver, al_msix_methods,
+    sizeof(struct al_msix_softc));
 
 DRIVER_MODULE(al_msix, ofwbus, al_msix_driver, 0, 0);
 DRIVER_MODULE(al_msix, simplebus, al_msix_driver, 0, 0);
