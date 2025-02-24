@@ -509,6 +509,33 @@ lkpi_sta_sync_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 #endif
 }
 
+static uint8_t
+lkpi_get_max_rx_chains(struct ieee80211_node *ni)
+{
+	uint8_t chains;
+#if defined(LKPI_80211_HT) || defined(LKPI_80211_VHT)
+	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
+
+	lsta = ni->ni_drv_data;
+	sta = LSTA_TO_STA(lsta);
+#endif
+
+	chains = 1;
+#if defined(LKPI_80211_HT)
+	IMPROVE("We should factor counting MCS/NSS out for sync and here");
+	if (sta->deflink.ht_cap.ht_supported)
+		chains = MAX(chains, sta->deflink.rx_nss);
+#endif
+
+#if defined(LKPI_80211_VHT)
+	if (sta->deflink.vht_cap.vht_supported)
+		chains = MAX(chains, sta->deflink.rx_nss);
+#endif
+
+	return (chains);
+}
+
 static void
 lkpi_lsta_dump(struct lkpi_sta *lsta, struct ieee80211_node *ni,
     const char *_f, int _l)
@@ -1726,8 +1753,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		chanctx_conf = &lchanctx->chanctx_conf;
 	}
 
-	chanctx_conf->rx_chains_dynamic = 1;
 	chanctx_conf->rx_chains_static = 1;
+	chanctx_conf->rx_chains_dynamic = 1;
 	chanctx_conf->radar_enabled =
 	    (chan->flags & IEEE80211_CHAN_RADAR) ? true : false;
 	chanctx_conf->def.chan = chan;
@@ -1758,6 +1785,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80;
 	}
 #endif
+	chanctx_conf->rx_chains_dynamic = lkpi_get_max_rx_chains(ni);
 	/* Responder ... */
 #if 0
 	chanctx_conf->min_def.chan = chanctx_conf->def.chan;
