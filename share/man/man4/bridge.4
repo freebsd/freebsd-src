@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
 .\"	$NetBSD: bridge.4,v 1.5 2004/01/31 20:14:11 jdc Exp $
 .\"
 .\" Copyright 2001 Wasabi Systems, Inc.
@@ -33,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 10, 2023
+.Dd April 10, 2024
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -125,7 +128,8 @@ variable
 to
 .Li 0 .
 .Pp
-All the bridged member interfaces need to be up in order to pass network traffic.
+All the bridged member interfaces need to be up
+in order to pass network traffic.
 These can be enabled using
 .Xr ifconfig 8
 or
@@ -164,11 +168,6 @@ The following
 variable configures an IPv6 link-local address on
 .Li bridge0
 interface:
-.Bd -literal -offset indent
-ifconfig_bridge0_ipv6="up"
-.Ed
-.Pp
-or in a more explicit manner:
 .Bd -literal -offset indent
 ifconfig_bridge0_ipv6="inet6 auto_linklocal"
 .Ed
@@ -261,7 +260,7 @@ the appropriate interfaces.
 Either stage can be disabled.
 The filtering behavior can be controlled using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
+.Bl -tag -width indent
 .It Va net.link.bridge.pfil_onlyip
 Controls the handling of non-IP packets which are not passed to
 .Xr pfil 9 .
@@ -470,8 +469,8 @@ ifconfig_fxp0="up"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
-The following will cause a bridge consisting of all 8 ports with Rapid Spanning
-Tree enabled to be created:
+The following will cause a bridge consisting of all 8 ports with
+Rapid Spanning Tree enabled to be created:
 .Bd -literal -offset indent
 ifconfig bridge0 create
 ifconfig bridge0 \e
