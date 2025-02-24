@@ -689,8 +689,8 @@ void	 in_ifdetach(struct ifnet *);
 static inline bool
 in_broadcast(struct in_addr in)
 {
-	return (in.s_addr == htonl(INADDR_BROADCAST) ||
-	    in.s_addr == htonl(INADDR_ANY));
+	return (in.s_addr == __htonl(INADDR_BROADCAST) ||
+	    in.s_addr == __htonl(INADDR_ANY));
 }
 
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)
