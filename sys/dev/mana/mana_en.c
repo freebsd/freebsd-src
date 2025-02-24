@@ -67,6 +67,9 @@
 static int mana_up(struct mana_port_context *apc);
 static int mana_down(struct mana_port_context *apc);
 
+extern unsigned int mana_tx_req_size;
+extern unsigned int mana_rx_req_size;
+
 static void
 mana_rss_key_fill(void *k, size_t size)
 {
@@ -492,6 +495,7 @@ mana_xmit(struct mana_txq *txq)
 	if_t ndev = txq->ndev;
 	struct mbuf *mbuf;
 	struct mana_port_context *apc = if_getsoftc(ndev);
+	unsigned int tx_queue_size = apc->tx_queue_size;
 	struct mana_port_stats *port_stats = &apc->port_stats;
 	struct gdma_dev *gd = apc->ac->gdma_dev;
 	uint64_t packets, bytes;
@@ -635,7 +639,7 @@ mana_xmit(struct mana_txq *txq)
 		}
 
 		next_to_use =
-		    (next_to_use + 1) % MAX_SEND_BUFFERS_PER_QUEUE;
+		    (next_to_use + 1) % tx_queue_size;
 
 		(void)atomic_inc_return(&txq->pending_sends);
 
@@ -1423,6 +1427,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 	unsigned int wqe_unit_cnt = 0;
 	struct mana_txq *txq = cq->txq;
 	struct mana_port_context *apc;
+	unsigned int tx_queue_size;
 	uint16_t next_to_complete;
 	if_t ndev;
 	int comp_read;
@@ -1436,6 +1441,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 
 	ndev = txq->ndev;
 	apc = if_getsoftc(ndev);
+	tx_queue_size = apc->tx_queue_size;
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, completions,
 	    CQE_POLLING_BUFFER);
@@ -1521,7 +1527,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 		mb();
 
 		next_to_complete =
-		    (next_to_complete + 1) % MAX_SEND_BUFFERS_PER_QUEUE;
+		    (next_to_complete + 1) % tx_queue_size;
 
 		pkt_transmitted++;
 	}
@@ -1867,9 +1873,9 @@ mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 	mana_gd_ring_cq(gdma_queue, arm_bit);
 }
 
-#define MANA_POLL_BUDGET	8
-#define MANA_RX_BUDGET		256
-#define MANA_TX_BUDGET		MAX_SEND_BUFFERS_PER_QUEUE
+#define MANA_POLL_BUDGET	256
+#define MANA_RX_BUDGET		8
+#define MANA_TX_BUDGET		8
 
 static void
 mana_poll(void *arg, int pending)
@@ -1976,7 +1982,7 @@ mana_deinit_txq(struct mana_port_context *apc, struct mana_txq *txq)
 
 	if (txq->tx_buf_info) {
 		/* Free all mbufs which are still in-flight */
-		for (i = 0; i < MAX_SEND_BUFFERS_PER_QUEUE; i++) {
+		for (i = 0; i < apc->tx_queue_size; i++) {
 			txbuf_info = &txq->tx_buf_info[i];
 			if (txbuf_info->mbuf) {
 				mana_tx_unmap_mbuf(apc, txbuf_info);
@@ -2034,15 +2040,19 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/*  The minimum size of the WQE is 32 bytes, hence
-	 *  MAX_SEND_BUFFERS_PER_QUEUE represents the maximum number of WQEs
+	 *  apc->tx_queue_size represents the maximum number of WQEs
 	 *  the SQ can store. This value is then used to size other queues
 	 *  to prevent overflow.
+	 *  Also note that the txq_size is always going to be page aligned,
+	 *  as min val of apc->tx_queue_size is 128 and that would make
+	 *  txq_size 128 * 32 = 4096 and the other higher values of
+	 *  apc->tx_queue_size are always power of two.
 	 */
-	txq_size = MAX_SEND_BUFFERS_PER_QUEUE * 32;
+	txq_size = apc->tx_queue_size * 32;
 	KASSERT(IS_ALIGNED(txq_size, PAGE_SIZE),
 	    ("txq size not page aligned"));
 
-	cq_size = MAX_SEND_BUFFERS_PER_QUEUE * COMP_ENTRY_SIZE;
+	cq_size = apc->tx_queue_size * COMP_ENTRY_SIZE;
 	cq_size = ALIGN(cq_size, PAGE_SIZE);
 
 	gc = gd->gdma_context;
@@ -2125,7 +2135,7 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
 		/* Initialize tx specific data */
-		txq->tx_buf_info = malloc(MAX_SEND_BUFFERS_PER_QUEUE *
+		txq->tx_buf_info = malloc(apc->tx_queue_size *
 		    sizeof(struct mana_send_buf_info),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -2133,7 +2143,7 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 		    "mana:tx(%d)", i);
 		mtx_init(&txq->txq_mtx, txq->txq_mtx_name, NULL, MTX_DEF);
 
-		txq->txq_br = buf_ring_alloc(4 * MAX_SEND_BUFFERS_PER_QUEUE,
+		txq->txq_br = buf_ring_alloc(4 * apc->tx_queue_size,
 		    M_DEVBUF, M_WAITOK, &txq->txq_mtx);
 
 		/* Allocate taskqueue for deferred send */
@@ -2323,10 +2333,10 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	gc = gd->gdma_context;
 
 	rxq = malloc(sizeof(*rxq) +
-	    RX_BUFFERS_PER_QUEUE * sizeof(struct mana_recv_buf_oob),
+	    apc->rx_queue_size * sizeof(struct mana_recv_buf_oob),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 	rxq->ndev = ndev;
-	rxq->num_rx_buf = RX_BUFFERS_PER_QUEUE;
+	rxq->num_rx_buf = apc->rx_queue_size;
 	rxq->rxq_idx = rxq_idx;
 	/*
 	 * Minimum size is MCLBYTES(2048) bytes for a mbuf cluster.
@@ -2763,6 +2773,62 @@ mana_detach(if_t ndev)
 	return err;
 }
 
+static unsigned int
+mana_get_tx_queue_size(int port_idx, unsigned int request_size)
+{
+	unsigned int new_size;
+
+	if (request_size == 0)
+		/* Uninitialized */
+		new_size = DEF_SEND_BUFFERS_PER_QUEUE;
+	else
+		new_size = roundup_pow_of_two(request_size);
+
+	if (new_size < MIN_SEND_BUFFERS_PER_QUEUE ||
+	    new_size > MAX_SEND_BUFFERS_PER_QUEUE) {
+		mana_info(NULL, "mana port %d: requested tx buffer "
+		    "size %u out of allowable range (%u - %u), "
+		    "setting to default\n",
+		    port_idx, request_size,
+		    MIN_SEND_BUFFERS_PER_QUEUE,
+		    MAX_SEND_BUFFERS_PER_QUEUE);
+		new_size = DEF_SEND_BUFFERS_PER_QUEUE;
+	}
+	mana_info(NULL, "mana port %d: tx buffer size %u "
+	    "(%u requested)\n",
+	    port_idx, new_size, request_size);
+
+	return (new_size);
+}
+
+static unsigned int
+mana_get_rx_queue_size(int port_idx, unsigned int request_size)
+{
+	unsigned int new_size;
+
+	if (request_size == 0)
+		/* Uninitialized */
+		new_size = DEF_RX_BUFFERS_PER_QUEUE;
+	else
+		new_size = roundup_pow_of_two(request_size);
+
+	if (new_size < MIN_RX_BUFFERS_PER_QUEUE ||
+	    new_size > MAX_RX_BUFFERS_PER_QUEUE) {
+		mana_info(NULL, "mana port %d: requested rx buffer "
+		    "size %u out of allowable range (%u - %u), "
+		    "setting to default\n",
+		    port_idx, request_size,
+		    MIN_RX_BUFFERS_PER_QUEUE,
+		    MAX_RX_BUFFERS_PER_QUEUE);
+		new_size = DEF_RX_BUFFERS_PER_QUEUE;
+	}
+	mana_info(NULL, "mana port %d: rx buffer size %u "
+	    "(%u requested)\n",
+	    port_idx, new_size, request_size);
+
+	return (new_size);
+}
+
 static int
 mana_probe_port(struct mana_context *ac, int port_idx,
     if_t *ndev_storage)
@@ -2782,6 +2848,10 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	apc->max_queues = gc->max_num_queues;
 	apc->num_queues = min_t(unsigned int,
 	    gc->max_num_queues, MANA_MAX_NUM_QUEUES);
+	apc->tx_queue_size = mana_get_tx_queue_size(port_idx,
+	    mana_tx_req_size);
+	apc->rx_queue_size = mana_get_rx_queue_size(port_idx,
+	    mana_rx_req_size);
 	apc->port_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
 	apc->frame_size = DEFAULT_FRAME_SIZE;
