@@ -212,7 +212,6 @@ static uint32_t rack_highest_sack_thresh_seen = 0;
 static uint32_t rack_highest_move_thresh_seen = 0;
 static uint32_t rack_merge_out_sacks_on_attack = 0;
 static int32_t rack_enable_hw_pacing = 0; /* Due to CCSP keep it off by default */
-static int32_t rack_hw_pace_extra_slots = 0;	/* 2 extra MSS time betweens */
 static int32_t rack_hw_rate_caps = 0; /* 1; */
 static int32_t rack_hw_rate_cap_per = 0;	/* 0 -- off  */
 static int32_t rack_hw_rate_min = 0; /* 1500000;*/
@@ -263,7 +262,7 @@ static int32_t rack_enobuf_hw_max = 12000;	/* 12 ms in usecs */
 static int32_t rack_enobuf_hw_min = 10000;	/* 10 ms in usecs */
 static int32_t rack_hw_rwnd_factor = 2;		/* How many max_segs the rwnd must be before we hold off sending */
 static int32_t rack_hw_check_queue = 0;		/* Do we always pre-check queue depth of a hw queue */
-static int32_t rack_full_buffer_discount = 10;
+
 /*
  * Currently regular tcp has a rto_min of 30ms
  * the backoff goes 12 times so that ends up
@@ -356,8 +355,6 @@ static int32_t rack_timely_dec_clear = 6;	/* Do we clear decrement count at a va
 static int32_t rack_timely_max_push_rise = 3;	/* One round of pushing */
 static int32_t rack_timely_max_push_drop = 3;	/* Three round of pushing */
 static int32_t rack_timely_min_segs = 4;	/* 4 segment minimum */
-static int32_t rack_use_max_for_nobackoff = 0;
-static int32_t rack_timely_int_timely_only = 0;	/* do interim timely's only use the timely algo (no b/w changes)? */
 static int32_t rack_timely_no_stopping = 0;
 static int32_t rack_down_raise_thresh = 100;
 static int32_t rack_req_segs = 1;
@@ -1056,11 +1053,6 @@ rack_init_sysctls(void)
 	    "Do we not use timely in DGP?");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_pacing),
-	    OID_AUTO, "fullbufdisc", CTLFLAG_RW,
-	    &rack_full_buffer_discount, 10,
-	    "What percentage b/w reduction over the GP estimate for a full buffer (default=0 off)?");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_pacing),
 	    OID_AUTO, "fillcw", CTLFLAG_RW,
 	    &rack_fill_cw_state, 0,
 	    "Enable fillcw on new connections (default=0 off)?");
@@ -1201,11 +1193,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "up_only", CTLFLAG_RW,
 	    &rack_hw_up_only, 0,
 	    "Do we allow hw pacing to lower the rate selected?");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_hw_pacing),
-	    OID_AUTO, "extra_mss_precise", CTLFLAG_RW,
-	    &rack_hw_pace_extra_slots, 0,
-	    "If the rates between software and hardware match precisely how many extra time_betweens do we get?");
 	rack_timely = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
 	    OID_AUTO,
@@ -1299,16 +1286,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "min_segs", CTLFLAG_RW,
 	    &rack_timely_min_segs, 4,
 	    "Rack timely when setting the cwnd what is the min num segments");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_timely),
-	    OID_AUTO, "noback_max", CTLFLAG_RW,
-	    &rack_use_max_for_nobackoff, 0,
-	    "Rack timely when deciding if to backoff on a loss, do we use under max rtt else min");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_timely),
-	    OID_AUTO, "interim_timely_only", CTLFLAG_RW,
-	    &rack_timely_int_timely_only, 0,
-	    "Rack timely when doing interim timely's do we only do timely (no b/w consideration)");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "nonstop", CTLFLAG_RW,
