@@ -99,8 +99,6 @@ struct snd_mixer;
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
 
-#define SND_MAXVCHANS		256
-
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
 #define SD_F_SOFTPCMVOL		0x00000004
@@ -113,6 +111,8 @@ struct snd_mixer;
 #define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
 #define SD_F_EQ_BYPASSED	0x00000400	/* EQ bypassed */
 #define SD_F_EQ_PC		0x00000800	/* EQ per-channel */
+#define SD_F_PVCHANS		0x00001000	/* Playback vchans enabled */
+#define SD_F_RVCHANS		0x00002000	/* Recording vchans enabled */
 
 #define SD_F_EQ_DEFAULT		(SD_F_EQ | SD_F_EQ_ENABLED)
 #define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
@@ -134,12 +134,15 @@ struct snd_mixer;
 				"\012EQ_ENABLED"			\
 				"\013EQ_BYPASSED"			\
 				"\014EQ_PC"				\
+				"\015PVCHANS"				\
+				"\016RVCHANS"				\
 				"\035PRIO_RD"				\
 				"\036PRIO_WR"
 
 #define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL)
 #define PCM_REGISTERED(x)	(PCM_ALIVE(x) && ((x)->flags & SD_F_REGISTERED))
 
+#define	PCM_MAXCHANS		10000
 #define	PCM_CHANCOUNT(d)	\
 	(d->playcount + d->pvchancount + d->reccount + d->rvchancount)
 
@@ -167,9 +170,6 @@ extern struct unrhdr *pcmsg_unrhdr;
 #endif
 
 SYSCTL_DECL(_hw_snd);
-
-int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-    pid_t pid, char *comm);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsigned int maxbufsz);
@@ -224,6 +224,9 @@ struct snddev_info {
 			struct {
 				SLIST_HEAD(, pcm_channel) head;
 			} opened;
+			struct {
+				SLIST_HEAD(, pcm_channel) head;
+			} primary;
 		} pcm;
 	} channels;
 	unsigned playcount, reccount, pvchancount, rvchancount;

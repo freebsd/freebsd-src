@@ -1172,7 +1172,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
-	int i, direction;
+	int err, i, direction;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
@@ -1279,8 +1279,18 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_WAITOK);
 	}
 
+	if ((c->flags & CHN_F_VIRTUAL) == 0) {
+		CHN_LOCK(c);
+		err = chn_reset(c, c->format, c->speed);
+		CHN_UNLOCK(c);
+		if (err != 0)
+			goto fail;
+	}
+
 	PCM_LOCK(d);
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
+	if ((c->flags & CHN_F_VIRTUAL) == 0)
+		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
 
 	switch (c->type) {
 	case PCMDIR_PLAY:
@@ -1332,6 +1342,8 @@ chn_kill(struct pcm_channel *c)
 
 	PCM_LOCK(d);
 	CHN_REMOVE(d, c, channels.pcm);
+	if ((c->flags & CHN_F_VIRTUAL) == 0)
+		CHN_REMOVE(d, c, channels.pcm.primary);
 
 	switch (c->type) {
 	case PCMDIR_PLAY:

@@ -160,6 +160,9 @@ struct pcm_channel {
 			struct {
 				SLIST_ENTRY(pcm_channel) link;
 			} opened;
+			struct {
+				SLIST_ENTRY(pcm_channel) link;
+			} primary;
 		} pcm;
 	} channels;
 
