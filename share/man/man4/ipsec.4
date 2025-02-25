@@ -246,11 +246,11 @@ for tweaking the kernel's IPsec behavior:
 The variables are interpreted as follows:
 .Bl -tag -width 6n
 .It Li ipsec.ah_cleartos
-If set to non-zero, the kernel clears the type-of-service field in the IPv4 header
+If set to nonzero, the kernel clears the type-of-service field in the IPv4 header
 during AH authentication data computation.
 This variable is used to get current systems to inter-operate with devices that
 implement RFC1826 AH.
-It should be set to non-zero
+It should be set to nonzero
 (clear the type-of-service field)
 for RFC2402 conformance.
 .It Li ipsec.ah_offsetmask
@@ -271,7 +271,7 @@ If set to 0, the DF bit on the outer IPv4 header will be cleared while
 outer one.
 The variable is supplied to conform to RFC2401 chapter 6.1.
 .It Li ipsec.ecn
-If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
+If set to nonzero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
 be friendly to ECN
 (explicit congestion notification),
 as documented in
@@ -279,12 +279,12 @@ as documented in
 .Xr gif 4
 talks more about the behavior.
 .It Li ipsec.debug
-If set to non-zero, debug messages will be generated via
+If set to nonzero, debug messages will be generated via
 .Xr syslog 3 .
 .It Li ipsec.natt_cksum_policy
 Controls how the kernel handles TCP and UDP checksums when ESP in UDP
 encapsulation is used for IPsec transport mode.
-If set to a non-zero value, the kernel fully recomputes checksums for
+If set to a nonzero value, the kernel fully recomputes checksums for
 inbound TCP segments and UDP datagrams after they are decapsulated and
 decrypted.
 If set to 0 and original addresses were configured for corresponding SA
@@ -295,7 +295,7 @@ If addresses were not configured, the checksums are ignored.
 Enables strict policy checking for inbound packets.
 By default, inbound security policies check that packets handled by IPsec
 have been decrypted and authenticated.
-If this variable is set to a non-zero value, each packet handled by IPsec
+If this variable is set to a nonzero value, each packet handled by IPsec
 is checked against the history of IPsec security associations.
 The IPsec security protocol, mode, and SA addresses must match.
 .El
