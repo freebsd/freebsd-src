@@ -22,10 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 6, 2023
+.Dd December 14, 2024
 .Dt CAP_FILEARGS 3
 .Os
 .Sh NAME
+.Nm cap_fileargs ,
 .Nm fileargs_cinit ,
 .Nm fileargs_cinitnv ,
 .Nm fileargs_init ,
@@ -60,52 +61,57 @@
 .Ft "char *"
 .Fn fileargs_realpath "fileargs_t *fa" "const char *pathname" "char *reserved_path"
 .Sh DESCRIPTION
-The library is used to simplify Capsicumizing a tools that are using file system.
-Idea behind the library is that we are passing a remaining
-.Fa argc
-and
+The
+.Nm
+library is used to simplify Capsicumizing tools that are using file system.
+The idea behind the library is that we pass the remaining arguments from
 .Fa argv
-which contains a list of files that should be open for this program.
-The library will create a service that will serve those files.
+(with count specified by
+.Fa argc )
+which contain the list of files that should be opened by the program.
+The library creates a service that will serve those files.
 .Pp
 The function
 .Fn fileargs_init
-create a service to the
+creates a service to the
 .Nm system.fileargs .
 The
 .Fa argv
 contains a list of files that should be opened.
 The argument can be set to
 .Dv NULL
-which will not create a service and all files will be prohibited to be opened.
+to create no service and prohibit all files from being opened.
 The
 .Fa argc
-argument contains a number of passed files.
+argument contains the number of files passed to the program.
 The
 .Fa flags
-argument limits opened files for either execution or reading and/or writing.
+argument specifies whether files can be opened for execution, or for reading
+and/or writing.
 The
 .Fa mode
-argument tells which what mode file should be created if the
-.Dv O_CREATE
-flag is present .
-For more details of the
+argument specifies the permissions to use when creating a new file if the
+.Dv O_CREAT
+flag is set.
+For more information about the
 .Fa flags
 and
 .Fa mode
-arguments see
+arguments, see
 .Xr open 2 .
 The
 .Fa rightsp
-argument contains a list of the capability rights which file should be limited to.
-For more details of the capability rights see
+argument specifies the capability rights that will be applied to restrict
+access to the files.
+For more information about capability rights, see
 .Xr cap_rights_init 3 .
 The
 .Fa operations
-argument limits the operations that are available using
+argument specifies which operations are permitted when using
 .Nm system.fileargs .
+The following flags can be combined to form the
 .Fa operations
-is a combination of:
+value:
 .Bl -ohang -offset indent
 .It FA_OPEN
 Allow
@@ -122,121 +128,118 @@ Allow
 .Pp
 The function
 .Fn fileargs_cinit
-is equivalent to
-.Fn fileargs_init
-except that the connection to the Casper needs to be provided.
+behaves identically to
+.Fn fileargs_init ,
+but requires an existing Casper connection to be passed as an argument.
 .Pp
 The functions
 .Fn fileargs_initnv
 and
 .Fn fileargs_cinitnv
-are respectively equivalent to
+are equivalent to
 .Fn fileargs_init
 and
 .Fn fileargs_cinit
-expect that all arguments all provided as
-.Xr nvlist 9 .
-For details see
-.Sx LIMITS .
+respectively, but take their arguments in the form of an
+.Xr nvlist 9
+structure instead of individual parameters.
+See the
+.Sx LIMITS
+section for details on the expected argument types and values.
 .Pp
 The
-.Fa fileargs_free
-close connection to the
+.Fn fileargs_free
+function closes the connection to the
 .Nm system.fileargs
-service and free are structures.
-The function handle
+service and frees all associated data structures.
+The function safely handles
 .Dv NULL
-argument.
+arguments.
 .Pp
 The function
 .Fn fileargs_lstat
-is equivalent to
+provides the same functionality as
 .Xr lstat 2 .
 .Pp
 The functions
 .Fn fileargs_open
 and
 .Fn fileargs_fopen
-are respectively equivalent to
+behave identically to
 .Xr open 2
 and
 .Xr fopen 3
-expect that all arguments are fetched from the
+respectively, but retrieve their arguments from the
 .Va fileargs_t
-structure.
+structure rather than taking them directly.
 .Pp
 The function
 .Fn fileargs_realpath
-is equivalent to
-.Xr realpath 3 .
+provides the same functionality as the standard C library function
+.Xr realpath 3 ,
+resolving all symbolic links and references in a pathname.
 .Pp
+The following functions are reentrant but require synchronization for
+thread safety:
 .Fn fileargs_open ,
 .Fn fileargs_lstat ,
 .Fn fileargs_realpath ,
 .Fn fileargs_cinitnv ,
 .Fn fileargs_initnv ,
 and
-.Fn fileargs_fopen
-are reentrant but not thread-safe.
-That is, they may be called from separate threads only with different
+.Fn fileargs_fopen .
+Multiple threads can call these functions safely only if they use different
 .Vt cap_channel_t
-arguments or with synchronization.
+arguments or proper synchronization mechanisms.
 .Sh LIMITS
-This section describe which values and types should be used to pass arguments to the
+This section describes the required and optional arguments that must be
+passed to
 .Fa system.fileargs
-through the
+via the
 .Fn fileargs_initnv
 and
 .Fn fileargs_cinitnv
-functions.
-The
+functions using an
 .Xr nvlist 9
-for that functions must contain the following values and types:
+structure.
+.Pp
+The following arguments are required:
 .Bl -ohang -offset indent
 .It flags ( NV_TYPE_NUMBER )
-The
-.Va flags
-limits opened files for either execution or reading and/or writing.
-.It mode (NV_TYPE_NUMBER)
-If in the
-.Va flags
-argument the
+Specifies access permissions for opened files, controlling whether they
+can be either executed, or read and/or written from/to.
+.It mode ( NV_TYPE_NUMBER )
+Required when the
 .Dv O_CREATE
-flag was defined the
-.Xr nvlist 9
-must contain the
-.Va mode .
-The
-.Va mode
-argument tells which what mode file should be created.
-.It operations (NV_TYPE_NUMBER)
-The
-.Va operations
-limits the usable operations for
+flag is set in
+.Va flags .
+Specifies the permissions to use when creating new files.
+.It operations ( NV_TYPE_NUMBER )
+Specifies which operations are allowed for
 .Fa system.fileargs .
-The possible values are explained as
+See the description of the
 .Va operations
-argument with
-.Fn fileargs_init .
+parameter in
+.Fn fileargs_init
+for possible values.
 .El
 .Pp
-The
+The following arguments are optional in the
 .Xr nvlist 9
-for that functions may contain the following values and types:
+structure:
 .Bl -ohang -offset indent
 .It cap_rights ( NV_TYPE_BINARY )
 The
 .Va cap_rights
-argument contains a list of the capability rights which file should be limited to.
-.It ( NV_TYPE_NULL )
-Any number of
+argument specifies the capability rights that will be applied to restrict
+access to opened files.
+.It filenames ( NV_TYPE_NULL )
+Multiple
 .Dv NV_TYPE_NULL
-where the name of the element is name of the file which can be opened.
+elements can be provided, where each element's name represents a file
+path that is allowed to be opened.
 .El
 .Sh EXAMPLES
-The following example first parse some options and then create the
-.Nm system.fileargs
-service with remaining arguments.
 .Bd -literal
 int ch, fd, i;
 cap_rights_t rights;
@@ -287,16 +290,13 @@ fileargs_free(fa);
 .Xr nv 9
 .Sh HISTORY
 The
-.Nm cap_fileargs
+.Nm
 service first appeared in
 .Fx 10.3 .
 .Sh AUTHORS
 .An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org
 .Sh BUGS
 The
-.Lb cap_fileargs
-included in
-.Fx
-is considered experimental, and should not be deployed in production
-environments without careful consideration of the risks associated with
-the use of experimental operating system features.
+.Nm
+service is considered experimental and should be thoroughly evaluated
+for risks before deploying in production environments.
