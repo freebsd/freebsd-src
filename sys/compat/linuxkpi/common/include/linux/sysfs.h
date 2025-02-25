@@ -53,10 +53,10 @@ struct attribute_group {
 struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
-	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
-			char *, loff_t, size_t);
-	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
-			 char *, loff_t, size_t);
+	ssize_t (*read)(struct linux_file *, struct kobject *,
+			struct bin_attribute *, char *, loff_t, size_t);
+	ssize_t (*write)(struct linux_file *, struct kobject *,
+			 struct bin_attribute *, char *, loff_t, size_t);
 };
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
@@ -80,6 +80,39 @@ struct bin_attribute {
 		&_name##_group,						\
 		NULL,							\
 	}
+
+#define	__BIN_ATTR(_name, _mode, _read, _write, _size) {		\
+	.attr = { .name = __stringify(_name), .mode = _mode },		\
+	.read = _read, .write  = _write, .size = _size,			\
+}
+#define	__BIN_ATTR_RO(_name, _size) {					\
+	.attr = { .name = __stringify(_name), .mode = 0444 },		\
+	.read = _name##_read, .size = _size,				\
+}
+#define	__BIN_ATTR_WO(_name, _size) {					\
+	.attr = { .name = __stringify(_name), .mode = 0200 },		\
+	.write = _name##_write, .size = _size,				\
+}
+#define	__BIN_ATTR_WR(_name, _size) {					\
+	.attr = { .name = __stringify(_name), .mode = 0644 },		\
+	.read = _name##_read, .write = _name##_write, .size = _size,	\
+}
+
+#define	BIN_ATTR(_name, _mode, _read, _write, _size) \
+struct bin_attribute bin_attr_##_name = \
+    __BIN_ATTR(_name, _mode, _read, _write, _size);
+
+#define	BIN_ATTR_RO(_name, _size) \
+struct bin_attribute bin_attr_##_name = \
+    __BIN_ATTR_RO(_name, _size);
+
+#define	BIN_ATTR_WO(_name, _size) \
+struct bin_attribute bin_attr_##_name = \
+    __BIN_ATTR_WO(_name, _size);
+
+#define	BIN_ATTR_WR(_name, _size) \
+struct bin_attribute bin_attr_##_name = \
+    __BIN_ATTR_WR(_name, _size);
 
 /*
  * Handle our generic '\0' terminated 'C' string.
