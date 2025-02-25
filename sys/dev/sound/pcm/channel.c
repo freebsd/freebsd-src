@@ -2110,6 +2110,9 @@ chn_setspeed(struct pcm_channel *c, uint32_t speed)
 	oldformat = c->format;
 	oldspeed = c->speed;
 
+	if (c->speed == speed)
+		return (0);
+
 	ret = chn_setparam(c, c->format, speed);
 	if (ret != 0) {
 		if (snd_verbose > 3)
@@ -2137,6 +2140,9 @@ chn_setformat(struct pcm_channel *c, uint32_t format)
 
 	oldformat = c->format;
 	oldspeed = c->speed;
+
+	if (c->format == format)
+		return (0);
 
 	ret = chn_setparam(c, format, c->speed);
 	if (ret != 0) {
