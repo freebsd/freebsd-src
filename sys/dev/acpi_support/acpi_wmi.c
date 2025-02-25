@@ -580,6 +580,16 @@ acpi_wmi_get_block_method(device_t dev, const char *guid_string, UINT8 instance,
 		}
 		wq_method[2] = winfo->ginfo.oid[0];
 		wq_method[3] = winfo->ginfo.oid[1];
+		{
+			ACPI_HANDLE wq_handle;
+			ACPI_OBJECT_TYPE at;
+
+			if (ACPI_SUCCESS(AcpiGetHandle(sc->wmi_handle, wq_method, &wq_handle)) &&
+			    ACPI_SUCCESS(AcpiGetType(wq_handle, &at)) &&
+			    at != ACPI_TYPE_METHOD) {
+				wq_input.Count = 0;
+			}
+		}
 		status = AcpiEvaluateObject(sc->wmi_handle, wq_method,
 			    &wq_input, out);
 		if ((winfo->ginfo.flags & ACPI_WMI_REGFLAG_EXPENSIVE)
