@@ -136,9 +136,9 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	struct snddev_info *d = device_get_softc(dev);
 	struct pcm_channel *ch;
 
-	PCM_BUSYASSERT(d);
-
 	PCM_LOCK(d);
+	PCM_WAIT(d);
+	PCM_ACQUIRE(d);
 	ch = chn_init(d, NULL, cls, dir, devinfo);
 	if (!ch) {
 		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
@@ -146,6 +146,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 		PCM_UNLOCK(d);
 		return (ENODEV);
 	}
+	PCM_RELEASE(d);
 	PCM_UNLOCK(d);
 
 	return (0);
@@ -388,7 +389,6 @@ pcm_init(device_t dev, void *devinfo)
 	d->dev = dev;
 	d->lock = snd_mtxcreate(device_get_nameunit(dev), "sound cdev");
 	cv_init(&d->cv, device_get_nameunit(dev));
-	PCM_ACQUIRE_QUICK(d);
 
 	i = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -428,8 +428,6 @@ pcm_register(device_t dev, char *str)
 	if (d->flags & SD_F_REGISTERED)
 		return (EINVAL);
 
-	PCM_BUSYASSERT(d);
-
 	if (d->playcount == 0 || d->reccount == 0)
 		d->flags |= SD_F_SIMPLEX;
 
@@ -442,16 +440,9 @@ pcm_register(device_t dev, char *str)
 		d->flags |= SD_F_RVCHANS;
 
 	strlcpy(d->status, str, SND_STATUSLEN);
-	sndstat_register(dev, d->status);
-
-	PCM_LOCK(d);
 
 	/* Done, we're ready.. */
 	d->flags |= SD_F_REGISTERED;
-
-	PCM_RELEASE(d);
-
-	PCM_UNLOCK(d);
 
 	/*
 	 * Create all sysctls once SD_F_REGISTERED is set else
@@ -465,6 +456,8 @@ pcm_register(device_t dev, char *str)
 		snd_unit = device_get_unit(dev);
 	else if (snd_unit_auto == 1)
 		snd_unit = pcm_best_unit(snd_unit);
+
+	sndstat_register(dev, d->status);
 
 	return (dsp_make_dev(dev));
 }
