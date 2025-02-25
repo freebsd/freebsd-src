@@ -253,48 +253,6 @@ static kobj_method_t vchan_methods[] = {
 };
 CHANNEL_DECLARE(vchan);
 
-static void
-vchan_getparentchannel(struct snddev_info *d,
-    struct pcm_channel **wrch, struct pcm_channel **rdch)
-{
-	struct pcm_channel **ch, *wch, *rch, *c;
-
-	KASSERT(d != NULL, ("%s(): NULL snddev_info", __func__));
-
-	PCM_BUSYASSERT(d);
-	PCM_UNLOCKASSERT(d);
-
-	wch = NULL;
-	rch = NULL;
-
-	CHN_FOREACH(c, d, channels.pcm) {
-		CHN_LOCK(c);
-		ch = (c->direction == PCMDIR_PLAY) ? &wch : &rch;
-		if (c->flags & CHN_F_VIRTUAL) {
-			/* Sanity check */
-			if (*ch != NULL && *ch != c->parentchannel) {
-				CHN_UNLOCK(c);
-				*ch = NULL;
-				break;
-			}
-		} else {
-			/* No way!! */
-			if (*ch != NULL) {
-				CHN_UNLOCK(c);
-				*ch = NULL;
-				break;
-			}
-			*ch = c;
-		}
-		CHN_UNLOCK(c);
-	}
-
-	if (wrch != NULL)
-		*wrch = wch;
-	if (rdch != NULL)
-		*rdch = rch;
-}
-
 static int
 sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 {
@@ -391,19 +349,6 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	if (direction == PCMDIR_PLAY)
-		vchan_getparentchannel(d, &c, NULL);
-	else
-		vchan_getparentchannel(d, NULL, &c);
-
-	if (c == NULL) {
-		PCM_RELEASE_QUICK(d);
-		return (EINVAL);
-	}
-
-	KASSERT(direction == c->direction, ("%s(): invalid direction %d/%d",
-	    __func__, direction, c->direction));
-
 	if (*vchanmode & CHN_F_VCHAN_PASSTHROUGH)
 		strlcpy(dtype, "passthrough", sizeof(dtype));
 	else if (*vchanmode & CHN_F_VCHAN_ADAPTIVE)
@@ -412,26 +357,29 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		strlcpy(dtype, "fixed", sizeof(dtype));
 
 	ret = sysctl_handle_string(oidp, dtype, sizeof(dtype), req);
-	if (ret == 0 && req->newptr != NULL) {
-		if (strcasecmp(dtype, "passthrough") == 0 ||
-		    strcmp(dtype, "1") == 0)
-			dflags = CHN_F_VCHAN_PASSTHROUGH;
-		else if (strcasecmp(dtype, "adaptive") == 0 ||
-		    strcmp(dtype, "2") == 0)
-			dflags = CHN_F_VCHAN_ADAPTIVE;
-		else if (strcasecmp(dtype, "fixed") == 0 ||
-		    strcmp(dtype, "0") == 0)
-			dflags = 0;
-		else {
-			PCM_RELEASE_QUICK(d);
-			return (EINVAL);
-		}
+	if (ret != 0 || req->newptr == NULL) {
+		PCM_RELEASE_QUICK(d);
+		return (ret);
+	}
+
+	if (strcasecmp(dtype, "passthrough") == 0 || strcmp(dtype, "1") == 0)
+		dflags = CHN_F_VCHAN_PASSTHROUGH;
+	else if (strcasecmp(dtype, "adaptive") == 0 || strcmp(dtype, "2") == 0)
+		dflags = CHN_F_VCHAN_ADAPTIVE;
+	else if (strcasecmp(dtype, "fixed") == 0 || strcmp(dtype, "0") == 0)
+		dflags = 0;
+	else {
+		PCM_RELEASE_QUICK(d);
+		return (EINVAL);
+	}
+
+	CHN_FOREACH(c, d, channels.pcm.primary) {
 		CHN_LOCK(c);
-		if (dflags == (c->flags & CHN_F_VCHAN_DYNAMIC) ||
+		if (c->direction != direction ||
+		    dflags == (c->flags & CHN_F_VCHAN_DYNAMIC) ||
 		    (c->flags & CHN_F_PASSTHROUGH)) {
 			CHN_UNLOCK(c);
-			PCM_RELEASE_QUICK(d);
-			return (0);
+			continue;
 		}
 		c->flags &= ~CHN_F_VCHAN_DYNAMIC;
 		c->flags |= dflags;
@@ -492,19 +440,6 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	if (direction == PCMDIR_PLAY)
-		vchan_getparentchannel(d, &c, NULL);
-	else
-		vchan_getparentchannel(d, NULL, &c);
-
-	if (c == NULL) {
-		PCM_RELEASE_QUICK(d);
-		return (EINVAL);
-	}
-
-	KASSERT(direction == c->direction, ("%s(): invalid direction %d/%d",
-	    __func__, direction, c->direction));
-
 	newspd = *vchanrate;
 
 	ret = sysctl_handle_int(oidp, &newspd, 0, req);
@@ -518,39 +453,45 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-	CHN_LOCK(c);
-
-	if (newspd != c->speed && VCHAN_ACCESSIBLE(c)) {
-		if (CHN_STARTED(c)) {
-			chn_abort(c);
-			restart = 1;
-		} else
-			restart = 0;
-
-		if (feeder_rate_round) {
-			caps = chn_getcaps(c);
-			RANGE(newspd, caps->minspeed, caps->maxspeed);
-			newspd = CHANNEL_SETSPEED(c->methods,
-			    c->devinfo, newspd);
+	CHN_FOREACH(c, d, channels.pcm.primary) {
+		CHN_LOCK(c);
+		if (c->direction != direction) {
+			CHN_UNLOCK(c);
+			continue;
 		}
 
-		ret = chn_reset(c, c->format, newspd);
-		if (ret == 0) {
-			if (restart != 0) {
-				CHN_FOREACH(ch, c, children.busy) {
-					CHN_LOCK(ch);
-					if (VCHAN_SYNC_REQUIRED(ch))
-						vchan_sync(ch);
-					CHN_UNLOCK(ch);
+		if (newspd != c->speed && VCHAN_ACCESSIBLE(c)) {
+			if (CHN_STARTED(c)) {
+				chn_abort(c);
+				restart = 1;
+			} else
+				restart = 0;
+
+			if (feeder_rate_round) {
+				caps = chn_getcaps(c);
+				RANGE(newspd, caps->minspeed, caps->maxspeed);
+				newspd = CHANNEL_SETSPEED(c->methods,
+				    c->devinfo, newspd);
+			}
+
+			ret = chn_reset(c, c->format, newspd);
+			if (ret == 0) {
+				if (restart != 0) {
+					CHN_FOREACH(ch, c, children.busy) {
+						CHN_LOCK(ch);
+						if (VCHAN_SYNC_REQUIRED(ch))
+							vchan_sync(ch);
+						CHN_UNLOCK(ch);
+					}
+					c->flags |= CHN_F_DIRTY;
+					ret = chn_start(c, 1);
 				}
-				c->flags |= CHN_F_DIRTY;
-				ret = chn_start(c, 1);
 			}
 		}
-	}
-	*vchanrate = c->speed;
+		*vchanrate = c->speed;
 
-	CHN_UNLOCK(c);
+		CHN_UNLOCK(c);
+	}
 
 	PCM_RELEASE_QUICK(d);
 
@@ -598,19 +539,6 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	if (direction == PCMDIR_PLAY)
-		vchan_getparentchannel(d, &c, NULL);
-	else
-		vchan_getparentchannel(d, NULL, &c);
-
-	if (c == NULL) {
-		PCM_RELEASE_QUICK(d);
-		return (EINVAL);
-	}
-
-	KASSERT(direction == c->direction, ("%s(): invalid direction %d/%d",
-	    __func__, direction, c->direction));
-
 	bzero(fmtstr, sizeof(fmtstr));
 
 	if (snd_afmt2str(*vchanformat, fmtstr, sizeof(fmtstr)) != *vchanformat)
@@ -628,32 +556,37 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-	CHN_LOCK(c);
+	CHN_FOREACH(c, d, channels.pcm.primary) {
+		CHN_LOCK(c);
+		if (c->direction != direction) {
+			CHN_UNLOCK(c);
+			continue;
+		}
+		if (newfmt != c->format && VCHAN_ACCESSIBLE(c)) {
+			if (CHN_STARTED(c)) {
+				chn_abort(c);
+				restart = 1;
+			} else
+				restart = 0;
 
-	if (newfmt != c->format && VCHAN_ACCESSIBLE(c)) {
-		if (CHN_STARTED(c)) {
-			chn_abort(c);
-			restart = 1;
-		} else
-			restart = 0;
-
-		ret = chn_reset(c, newfmt, c->speed);
-		if (ret == 0) {
-			if (restart != 0) {
-				CHN_FOREACH(ch, c, children.busy) {
-					CHN_LOCK(ch);
-					if (VCHAN_SYNC_REQUIRED(ch))
-						vchan_sync(ch);
-					CHN_UNLOCK(ch);
+			ret = chn_reset(c, newfmt, c->speed);
+			if (ret == 0) {
+				if (restart != 0) {
+					CHN_FOREACH(ch, c, children.busy) {
+						CHN_LOCK(ch);
+						if (VCHAN_SYNC_REQUIRED(ch))
+							vchan_sync(ch);
+						CHN_UNLOCK(ch);
+					}
+					c->flags |= CHN_F_DIRTY;
+					ret = chn_start(c, 1);
 				}
-				c->flags |= CHN_F_DIRTY;
-				ret = chn_start(c, 1);
 			}
 		}
-	}
-	*vchanformat = c->format;
+		*vchanformat = c->format;
 
-	CHN_UNLOCK(c);
+		CHN_UNLOCK(c);
+	}
 
 	PCM_RELEASE_QUICK(d);
 
