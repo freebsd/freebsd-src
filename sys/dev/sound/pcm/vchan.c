@@ -838,15 +838,8 @@ vchan_destroy(struct pcm_channel *c)
 
 	CHN_UNLOCK(c);
 
-	if (!(parent->flags & CHN_F_BUSY))
-		return (EBUSY);
-
-	if (CHN_EMPTY(parent, children))
-		return (EINVAL);
-
 	/* remove us from our parent's children list */
 	CHN_REMOVE(parent, c, children);
-
 	if (CHN_EMPTY(parent, children)) {
 		parent->flags &= ~(CHN_F_BUSY | CHN_F_HAS_VCHAN);
 		chn_reset(parent, parent->format, parent->speed);
