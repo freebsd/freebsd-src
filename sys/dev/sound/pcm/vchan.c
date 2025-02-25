@@ -644,12 +644,7 @@ vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 	PCM_UNLOCK(d);
 
 	CHN_LOCK(parent);
-	/*
-	 * Add us to our parent channel's children in reverse order
-	 * so future destruction will pick the last (biggest number)
-	 * channel.
-	 */
-	CHN_INSERT_SORT_DESCEND(parent, ch, children);
+	CHN_INSERT_SORT_ASCEND(parent, ch, children);
 
 	*child = ch;
 
