@@ -1205,8 +1205,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	c->direction = direction;
 	c->type = dir;
 	c->unit = alloc_unr(chn_getunr(d, c->type));
-	c->format = SND_FORMAT(AFMT_U8, 1, 0);
-	c->speed = DSP_DEFAULT_SPEED;
+	c->format = SND_FORMAT(AFMT_S16_LE, 2, 0);
+	c->speed = 48000;
 	c->pid = -1;
 	c->latency = -1;
 	c->timeout = 1;
