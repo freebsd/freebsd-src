@@ -61,7 +61,7 @@ struct vchan_info {
 	int trigger;
 };
 
-int snd_maxautovchans = 16;
+bool snd_vchans_enable = true;
 
 static void *
 vchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
@@ -277,7 +277,7 @@ vchan_getparentchannel(struct snddev_info *d,
 				*ch = NULL;
 				break;
 			}
-		} else if (c->flags & CHN_F_HAS_VCHAN) {
+		} else {
 			/* No way!! */
 			if (*ch != NULL) {
 				CHN_UNLOCK(c);
@@ -299,8 +299,7 @@ static int
 sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
-	int direction, vchancount;
-	int err, cnt;
+	int err, enabled, flag;
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
 	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
@@ -311,43 +310,44 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
-		direction = PCMDIR_PLAY;
-		vchancount = d->pvchancount;
-		cnt = d->playcount;
+		/* Exit if we do not support this direction. */
+		if (d->playcount < 1) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
+		flag = SD_F_PVCHANS;
 		break;
 	case VCHAN_REC:
-		direction = PCMDIR_REC;
-		vchancount = d->rvchancount;
-		cnt = d->reccount;
+		if (d->reccount < 1) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
+		flag = SD_F_RVCHANS;
 		break;
 	default:
 		PCM_UNLOCK(d);
 		return (EINVAL);
-		break;
 	}
 
-	if (cnt < 1) {
-		PCM_UNLOCK(d);
-		return (ENODEV);
-	}
+	enabled = (d->flags & flag) != 0;
 
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	cnt = vchancount;
-	err = sysctl_handle_int(oidp, &cnt, 0, req);
-
-	if (err == 0 && req->newptr != NULL && vchancount != cnt) {
-		if (cnt < 0)
-			cnt = 0;
-		if (cnt > SND_MAXVCHANS)
-			cnt = SND_MAXVCHANS;
-		err = vchan_setnew(d, direction, cnt);
+	err = sysctl_handle_int(oidp, &enabled, 0, req);
+	if (err != 0 || req->newptr == NULL) {
+		PCM_RELEASE_QUICK(d);
+		return (err);
 	}
+
+	if (enabled <= 0)
+		d->flags &= ~flag;
+	else
+		d->flags |= flag;
 
 	PCM_RELEASE_QUICK(d);
 
-	return err;
+	return (0);
 }
 
 static int
@@ -368,15 +368,22 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
+		if ((d->flags & SD_F_PVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_PLAY;
 		break;
 	case VCHAN_REC:
+		if ((d->flags & SD_F_RVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_REC;
 		break;
 	default:
 		PCM_UNLOCK(d);
 		return (EINVAL);
-		break;
 	}
 
 	PCM_ACQUIRE(d);
@@ -450,7 +457,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
 	struct pcm_channel *c, *ch;
 	struct pcmchan_caps *caps;
-	int *vchanrate, vchancount, direction, ret, newspd, restart;
+	int *vchanrate, direction, ret, newspd, restart;
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
 	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
@@ -461,22 +468,22 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
+		if ((d->flags & SD_F_PVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_PLAY;
-		vchancount = d->pvchancount;
 		vchanrate = &d->pvchanrate;
 		break;
 	case VCHAN_REC:
+		if ((d->flags & SD_F_RVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_REC;
-		vchancount = d->rvchancount;
 		vchanrate = &d->rvchanrate;
 		break;
 	default:
-		PCM_UNLOCK(d);
-		return (EINVAL);
-		break;
-	}
-
-	if (vchancount < 1) {
 		PCM_UNLOCK(d);
 		return (EINVAL);
 	}
@@ -555,7 +562,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
 	struct pcm_channel *c, *ch;
 	uint32_t newfmt;
-	int *vchanformat, vchancount, direction, ret, restart;
+	int *vchanformat, direction, ret, restart;
 	char fmtstr[AFMTSTR_LEN];
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
@@ -567,22 +574,22 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 
 	switch (VCHAN_SYSCTL_DIR(oidp->oid_arg1)) {
 	case VCHAN_PLAY:
+		if ((d->flags & SD_F_PVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_PLAY;
-		vchancount = d->pvchancount;
 		vchanformat = &d->pvchanformat;
 		break;
 	case VCHAN_REC:
+		if ((d->flags & SD_F_RVCHANS) == 0) {
+			PCM_UNLOCK(d);
+			return (ENODEV);
+		}
 		direction = PCMDIR_REC;
-		vchancount = d->rvchancount;
 		vchanformat = &d->rvchanformat;
 		break;
 	default:
-		PCM_UNLOCK(d);
-		return (EINVAL);
-		break;
-	}
-
-	if (vchancount < 1) {
 		PCM_UNLOCK(d);
 		return (EINVAL);
 	}
@@ -660,7 +667,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 				"play.vchanrate" : "rec.vchanrate"
 
 int
-vchan_create(struct pcm_channel *parent)
+vchan_create(struct pcm_channel *parent, struct pcm_channel **child)
 {
 	struct snddev_info *d;
 	struct pcm_channel *ch;
@@ -675,9 +682,6 @@ vchan_create(struct pcm_channel *parent)
 
 	PCM_BUSYASSERT(d);
 	CHN_LOCKASSERT(parent);
-
-	if (!(parent->flags & CHN_F_BUSY))
-		return (EBUSY);
 
 	if (!(parent->direction == PCMDIR_PLAY ||
 	    parent->direction == PCMDIR_REC))
@@ -713,10 +717,12 @@ vchan_create(struct pcm_channel *parent)
 	 */
 	CHN_INSERT_SORT_DESCEND(parent, ch, children);
 
+	*child = ch;
+
 	if (parent->flags & CHN_F_HAS_VCHAN)
 		return (0);
 
-	parent->flags |= CHN_F_HAS_VCHAN;
+	parent->flags |= CHN_F_HAS_VCHAN | CHN_F_BUSY;
 
 	parent_caps = chn_getcaps(parent);
 	if (parent_caps == NULL) {
@@ -807,6 +813,7 @@ vchan_create(struct pcm_channel *parent)
 fail:
 	CHN_LOCK(ch);
 	vchan_destroy(ch);
+	*child = NULL;
 
 	return (ret);
 }
@@ -878,166 +885,40 @@ vchan_sync(struct pcm_channel *c)
 	return (ret);
 }
 
-int
-vchan_setnew(struct snddev_info *d, int direction, int newcnt)
-{
-	struct pcm_channel *c, *ch, *nch;
-	struct pcmchan_caps *caps;
-	int i, err, vcnt;
-
-	PCM_BUSYASSERT(d);
-
-	if ((direction == PCMDIR_PLAY && d->playcount < 1) ||
-	    (direction == PCMDIR_REC && d->reccount < 1))
-		return (ENODEV);
-
-	if (!(d->flags & SD_F_AUTOVCHAN))
-		return (EINVAL);
-
-	if (newcnt < 0 || newcnt > SND_MAXVCHANS)
-		return (E2BIG);
-
-	if (direction == PCMDIR_PLAY)
-		vcnt = d->pvchancount;
-	else if (direction == PCMDIR_REC)
-		vcnt = d->rvchancount;
-	else
-		return (EINVAL);
-
-	if (newcnt > vcnt) {
-		/* add new vchans - find a parent channel first */
-		ch = NULL;
-		CHN_FOREACH(c, d, channels.pcm) {
-			CHN_LOCK(c);
-			if (c->direction == direction &&
-			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
-			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL))))) {
-				/*
-				 * Reuse hw channel with vchans already
-				 * created.
-				 */
-				if (c->flags & CHN_F_HAS_VCHAN) {
-					ch = c;
-					break;
-				}
-				/*
-				 * No vchans ever created, look for
-				 * channels with supported formats.
-				 */
-				caps = chn_getcaps(c);
-				if (caps == NULL) {
-					CHN_UNLOCK(c);
-					continue;
-				}
-				for (i = 0; caps->fmtlist[i] != 0; i++) {
-					if (caps->fmtlist[i] & AFMT_CONVERTIBLE)
-						break;
-				}
-				if (caps->fmtlist[i] != 0) {
-					ch = c;
-					break;
-				}
-			}
-			CHN_UNLOCK(c);
-		}
-		if (ch == NULL)
-			return (EBUSY);
-		ch->flags |= CHN_F_BUSY;
-		err = 0;
-		while (err == 0 && newcnt > vcnt) {
-			err = vchan_create(ch);
-			if (err == 0)
-				vcnt++;
-			else if (err == E2BIG && newcnt > vcnt)
-				device_printf(d->dev,
-				    "%s: err=%d Maximum channel reached.\n",
-				    __func__, err);
-		}
-		if (vcnt == 0)
-			ch->flags &= ~CHN_F_BUSY;
-		CHN_UNLOCK(ch);
-		if (err != 0)
-			return (err);
-	} else if (newcnt < vcnt) {
-		CHN_FOREACH(c, d, channels.pcm) {
-			CHN_LOCK(c);
-			if (c->direction != direction ||
-			    CHN_EMPTY(c, children) ||
-			    !(c->flags & CHN_F_HAS_VCHAN)) {
-				CHN_UNLOCK(c);
-				continue;
-			}
-			CHN_FOREACH_SAFE(ch, c, nch, children) {
-				CHN_LOCK(ch);
-				if (vcnt == 1 && ch->flags & CHN_F_BUSY) {
-					CHN_UNLOCK(ch);
-					break;
-				}
-				if (!(ch->flags & CHN_F_BUSY)) {
-					err = vchan_destroy(ch);
-					if (err == 0)
-						vcnt--;
-				} else
-					CHN_UNLOCK(ch);
-				if (vcnt == newcnt)
-					break;
-			}
-			CHN_UNLOCK(c);
-			break;
-		}
-	}
-
-	return (0);
-}
-
-void
-vchan_setmaxauto(struct snddev_info *d, int num)
-{
-	PCM_BUSYASSERT(d);
-
-	if (num < 0)
-		return;
-
-	if (num >= 0 && d->pvchancount > num)
-		(void)vchan_setnew(d, PCMDIR_PLAY, num);
-	else if (num > 0 && d->pvchancount == 0)
-		(void)vchan_setnew(d, PCMDIR_PLAY, 1);
-
-	if (num >= 0 && d->rvchancount > num)
-		(void)vchan_setnew(d, PCMDIR_REC, num);
-	else if (num > 0 && d->rvchancount == 0)
-		(void)vchan_setnew(d, PCMDIR_REC, 1);
-}
-
 static int
-sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_vchans_enable(SYSCTL_HANDLER_ARGS)
 {
 	struct snddev_info *d;
 	int i, v, error;
 
-	v = snd_maxautovchans;
+	v = snd_vchans_enable;
 	error = sysctl_handle_int(oidp, &v, 0, req);
-	if (error == 0 && req->newptr != NULL) {
-		if (v < 0)
-			v = 0;
-		if (v > SND_MAXVCHANS)
-			v = SND_MAXVCHANS;
-		snd_maxautovchans = v;
-		for (i = 0; pcm_devclass != NULL &&
-		    i < devclass_get_maxunit(pcm_devclass); i++) {
-			d = devclass_get_softc(pcm_devclass, i);
-			if (!PCM_REGISTERED(d))
-				continue;
-			PCM_ACQUIRE_QUICK(d);
-			vchan_setmaxauto(d, v);
-			PCM_RELEASE_QUICK(d);
-		}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	snd_vchans_enable = v >= 1;
+
+	for (i = 0; pcm_devclass != NULL &&
+	    i < devclass_get_maxunit(pcm_devclass); i++) {
+		d = devclass_get_softc(pcm_devclass, i);
+		if (!PCM_REGISTERED(d))
+			continue;
+		PCM_ACQUIRE_QUICK(d);
+		if (snd_vchans_enable) {
+			if (d->playcount > 0)
+				d->flags |= SD_F_PVCHANS;
+			if (d->reccount > 0)
+				d->flags |= SD_F_RVCHANS;
+		} else
+			d->flags &= ~(SD_F_PVCHANS | SD_F_RVCHANS);
+		PCM_RELEASE_QUICK(d);
 	}
-	return (error);
+
+	return (0);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans,
+SYSCTL_PROC(_hw_snd, OID_AUTO, vchans_enable,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
-    sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
+    sysctl_hw_snd_vchans_enable, "I", "global virtual channel switch");
 
 void
 vchan_initsys(device_t dev)
@@ -1053,7 +934,7 @@ vchan_initsys(device_t dev)
 	    SYSCTL_CHILDREN(d->play_sysctl_tree),
 	    OID_AUTO, "vchans", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    VCHAN_SYSCTL_DATA(unit, PLAY), VCHAN_SYSCTL_DATA_SIZE,
-	    sysctl_dev_pcm_vchans, "I", "total allocated virtual channel");
+	    sysctl_dev_pcm_vchans, "I", "virtual channels enabled");
 	SYSCTL_ADD_PROC(&d->play_sysctl_ctx,
 	    SYSCTL_CHILDREN(d->play_sysctl_tree),
 	    OID_AUTO, "vchanmode",
@@ -1079,7 +960,7 @@ vchan_initsys(device_t dev)
 	    OID_AUTO, "vchans",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    VCHAN_SYSCTL_DATA(unit, REC), VCHAN_SYSCTL_DATA_SIZE,
-	    sysctl_dev_pcm_vchans, "I", "total allocated virtual channel");
+	    sysctl_dev_pcm_vchans, "I", "virtual channels enabled");
 	SYSCTL_ADD_PROC(&d->rec_sysctl_ctx,
 	    SYSCTL_CHILDREN(d->rec_sysctl_tree),
 	    OID_AUTO, "vchanmode",
