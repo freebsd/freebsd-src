@@ -79,7 +79,7 @@
 
 #define	LKPI_80211_WME
 #define	LKPI_80211_HW_CRYPTO
-/* #define	LKPI_80211_HT */
+#define	LKPI_80211_HT
 /* #define	LKPI_80211_VHT */
 
 #if defined(LKPI_80211_VHT) && !defined(LKPI_80211_HT)
