@@ -401,6 +401,8 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 
 	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0)
 		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+	else
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 
 	/*
 	 * 802.11n-2009 20.6 Parameters for HT MCSs gives the mandatory/
@@ -450,6 +452,13 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 	sta->deflink.vht_cap.cap = ni->ni_vhtcap;
 	sta->deflink.vht_cap.vht_mcs = ni->ni_vht_mcsinfo;
 
+	/*
+	 * If VHT20/40 are selected do not update the bandwidth
+	 * from HT but stya on VHT.
+	 */
+	if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT)
+		goto skip_bw;
+
 	width = (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 	switch (width) {
 #if 0
@@ -467,7 +476,7 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 #endif
 			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
 	}
-
+skip_bw:
 
 	rx_nss = 0;
 	rx_mcs_map = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
