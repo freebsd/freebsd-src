@@ -1179,11 +1179,19 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 
 	switch (dir) {
 	case PCMDIR_PLAY:
+		d->playcount++;
+		/* FALLTHROUGH */
 	case PCMDIR_PLAY_VIRTUAL:
+		if (dir == PCMDIR_PLAY_VIRTUAL)
+			d->pvchancount++;
 		direction = PCMDIR_PLAY;
 		break;
 	case PCMDIR_REC:
+		d->reccount++;
+		/* FALLTHROUGH */
 	case PCMDIR_REC_VIRTUAL:
+		if (dir == PCMDIR_REC_VIRTUAL)
+			d->rvchancount++;
 		direction = PCMDIR_REC;
 		break;
 	default:
@@ -1292,40 +1300,10 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	if ((c->flags & CHN_F_VIRTUAL) == 0)
 		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
 
-	switch (c->type) {
-	case PCMDIR_PLAY:
-		d->playcount++;
-		break;
-	case PCMDIR_PLAY_VIRTUAL:
-		d->pvchancount++;
-		break;
-	case PCMDIR_REC:
-		d->reccount++;
-		break;
-	case PCMDIR_REC_VIRTUAL:
-		d->rvchancount++;
-		break;
-	default:
-		__assert_unreachable();
-	}
-
 	return (c);
 
 fail:
-	free_unr(chn_getunr(d, c->type), c->unit);
-	feeder_remove(c);
-	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
-		sndbuf_free(b);
-	if (bs)
-		sndbuf_destroy(bs);
-	if (b)
-		sndbuf_destroy(b);
-	CHN_LOCK(c);
-	chn_lockdestroy(c);
-
-	kobj_delete(c->methods, M_DEVBUF);
-	free(c, M_DEVBUF);
-
+	chn_kill(c);
 	PCM_LOCK(d);
 
 	return (NULL);
@@ -1368,12 +1346,14 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	free_unr(chn_getunr(c->parentsnddev, c->type), c->unit);
+	free_unr(chn_getunr(d, c->type), c->unit);
 	feeder_remove(c);
-	if (CHANNEL_FREE(c->methods, c->devinfo))
+	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
-	sndbuf_destroy(bs);
-	sndbuf_destroy(b);
+	if (bs)
+		sndbuf_destroy(bs);
+	if (b)
+		sndbuf_destroy(b);
 	CHN_LOCK(c);
 	c->flags |= CHN_F_DEAD;
 	chn_lockdestroy(c);
