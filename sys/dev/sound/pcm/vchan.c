@@ -811,11 +811,8 @@ vchan_create(struct pcm_channel *parent)
 	return (ret);
 
 fail:
-	CHN_REMOVE(parent, ch, children);
-	parent->flags &= ~CHN_F_HAS_VCHAN;
-	CHN_UNLOCK(parent);
-	chn_kill(ch);
-	CHN_LOCK(parent);
+	CHN_LOCK(ch);
+	vchan_destroy(ch);
 
 	return (ret);
 }
