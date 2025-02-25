@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 4, 2024
+.Dd February 15, 2025
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -670,3 +670,10 @@ It was then rewritten for
 .Sh BUGS
 Some features of your sound card (e.g., global volume control) might not
 be supported on all devices.
+.Pp
+Some audio devices might refuse to work properly unless the sample rate is
+configured the same for both recording and playback, even if only simplex is
+used.
+See the
+.Va dev.pcm.%d.[play|rec].vchanrate
+sysctls.
