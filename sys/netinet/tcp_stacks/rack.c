@@ -18970,11 +18970,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	crtsc = get_cyclecount();
 	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_cnt_counters[SND_OUT_DATA] += cnt_thru;
-	}
-	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_proc_time[SND_OUT_DATA] += (crtsc - ts_val);
-	}
-	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((len + segsiz - 1) / segsiz);
 	}
 	sched_unpin();
@@ -19525,11 +19521,7 @@ again:
 	crtsc = get_cyclecount();
 	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_cnt_counters[SND_OUT_DATA] += cnt_thru;
-	}
-	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_proc_time[SND_OUT_DATA] += (crtsc - ts_val);
-	}
-	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((tot_len + segsiz - 1) / segsiz);
 	}
 	sched_unpin();
@@ -19860,8 +19852,6 @@ rack_output(struct tcpcb *tp)
 		crtsc = get_cyclecount();
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_proc_time[SND_BLOCKED] += (crtsc - ts_val);
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[SND_BLOCKED]++;
 		}
 		sched_unpin();
@@ -21070,19 +21060,13 @@ just_return_nolock:
 		crtsc = get_cyclecount();
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[SND_OUT_DATA]++;
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_proc_time[SND_OUT_DATA] += (crtsc - ts_val);
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((tot_len_this_send + segsiz - 1) / segsiz);
 		}
 	} else {
 		crtsc = get_cyclecount();
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[SND_LIMITED]++;
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_proc_time[SND_LIMITED] += (crtsc - ts_val);
 		}
 	}
@@ -21329,8 +21313,6 @@ send:
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_cnt_counters[SND_OUT_FAIL]++;
-			}
-			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_proc_time[SND_OUT_FAIL] += (crtsc - ts_val);
 			}
 			sched_unpin();
@@ -22348,8 +22330,6 @@ nomore:
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_cnt_counters[SND_OUT_FAIL]++;
-			}
-			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_proc_time[SND_OUT_FAIL] += (crtsc - ts_val);
 			}
 			sched_unpin();
@@ -22403,8 +22383,6 @@ nomore:
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_cnt_counters[SND_OUT_FAIL]++;
-			}
-			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_proc_time[SND_OUT_FAIL] += (crtsc - ts_val);
 			}
 			sched_unpin();
@@ -22428,8 +22406,6 @@ nomore:
 			crtsc = get_cyclecount();
 			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_cnt_counters[SND_OUT_FAIL]++;
-			}
-			if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 				tp->tcp_proc_time[SND_OUT_FAIL] += (crtsc - ts_val);
 			}
 			sched_unpin();
@@ -22580,18 +22556,12 @@ skip_all_send:
 	if (tot_len_this_send) {
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[SND_OUT_DATA]++;
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_proc_time[SND_OUT_DATA] += crtsc;
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((tot_len_this_send + segsiz - 1) /segsiz);
 		}
 	} else {
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_cnt_counters[SND_OUT_ACK]++;
-		}
-		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 			tp->tcp_proc_time[SND_OUT_ACK] += crtsc;
 		}
 	}
