@@ -2360,7 +2360,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	CHN_LOCKASSERT(c);
 
 	if (CHN_EMPTY(c, children))
-		return (ENODEV);
+		return (0);
 
 	err = 0;
 
