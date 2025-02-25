@@ -356,7 +356,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
 	struct pcm_channel *c;
 	uint32_t dflags;
-	int direction, ret;
+	int *vchanmode, direction, ret;
 	char dtype[16];
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
@@ -373,6 +373,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 			return (ENODEV);
 		}
 		direction = PCMDIR_PLAY;
+		vchanmode = &d->pvchanmode;
 		break;
 	case VCHAN_REC:
 		if ((d->flags & SD_F_RVCHANS) == 0) {
@@ -380,6 +381,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 			return (ENODEV);
 		}
 		direction = PCMDIR_REC;
+		vchanmode = &d->rvchanmode;
 		break;
 	default:
 		PCM_UNLOCK(d);
@@ -402,14 +404,12 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	KASSERT(direction == c->direction, ("%s(): invalid direction %d/%d",
 	    __func__, direction, c->direction));
 
-	CHN_LOCK(c);
-	if (c->flags & CHN_F_VCHAN_PASSTHROUGH)
+	if (*vchanmode & CHN_F_VCHAN_PASSTHROUGH)
 		strlcpy(dtype, "passthrough", sizeof(dtype));
-	else if (c->flags & CHN_F_VCHAN_ADAPTIVE)
+	else if (*vchanmode & CHN_F_VCHAN_ADAPTIVE)
 		strlcpy(dtype, "adaptive", sizeof(dtype));
 	else
 		strlcpy(dtype, "fixed", sizeof(dtype));
-	CHN_UNLOCK(c);
 
 	ret = sysctl_handle_string(oidp, dtype, sizeof(dtype), req);
 	if (ret == 0 && req->newptr != NULL) {
@@ -436,6 +436,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 		c->flags &= ~CHN_F_VCHAN_DYNAMIC;
 		c->flags |= dflags;
 		CHN_UNLOCK(c);
+		*vchanmode = dflags;
 	}
 
 	PCM_RELEASE_QUICK(d);

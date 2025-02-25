@@ -238,8 +238,8 @@ struct snddev_info {
 	struct mtx *lock;
 	struct cdev *mixer_dev;
 	struct cdev *dsp_dev;
-	uint32_t pvchanrate, pvchanformat;
-	uint32_t rvchanrate, rvchanformat;
+	uint32_t pvchanrate, pvchanformat, pvchanmode;
+	uint32_t rvchanrate, rvchanformat, rvchanmode;
 	int32_t eqpreamp;
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
