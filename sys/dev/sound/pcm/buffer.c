@@ -461,39 +461,30 @@ sndbuf_getsel(struct snd_dbuf *b)
 unsigned int
 sndbuf_getxrun(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->xrun;
 }
 
 void
 sndbuf_setxrun(struct snd_dbuf *b, unsigned int xrun)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	b->xrun = xrun;
 }
 
 unsigned int
 sndbuf_gethwptr(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->hp;
 }
 
 void
 sndbuf_sethwptr(struct snd_dbuf *b, unsigned int ptr)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	b->hp = ptr;
 }
 
 unsigned int
 sndbuf_getready(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
 	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->rl;
@@ -502,7 +493,6 @@ sndbuf_getready(struct snd_dbuf *b)
 unsigned int
 sndbuf_getreadyptr(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
 	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
 
 	return b->rp;
@@ -511,7 +501,6 @@ sndbuf_getreadyptr(struct snd_dbuf *b)
 unsigned int
 sndbuf_getfree(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
 	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->bufsize - b->rl;
@@ -520,7 +509,6 @@ sndbuf_getfree(struct snd_dbuf *b)
 unsigned int
 sndbuf_getfreeptr(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
 	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
 	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
@@ -530,40 +518,30 @@ sndbuf_getfreeptr(struct snd_dbuf *b)
 u_int64_t
 sndbuf_getblocks(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->total / b->blksz;
 }
 
 u_int64_t
 sndbuf_getprevblocks(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->prev_total / b->blksz;
 }
 
 u_int64_t
 sndbuf_gettotal(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->total;
 }
 
 u_int64_t
 sndbuf_getprevtotal(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	return b->prev_total;
 }
 
 void
 sndbuf_updateprevtotal(struct snd_dbuf *b)
 {
-	SNDBUF_LOCKASSERT(b);
-
 	b->prev_total = b->total;
 }
 
