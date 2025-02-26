@@ -336,7 +336,9 @@ uclparse_toplevel(const ucl_object_t *top)
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
-					uclparse_auth_group(ucl_object_key(child), child);
+					if (!uclparse_auth_group(
+					    ucl_object_key(child), child))
+						return (false);
 				}
 			} else {
 				log_warnx("\"auth-group\" section is not an object");
@@ -348,7 +350,9 @@ uclparse_toplevel(const ucl_object_t *top)
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
-					uclparse_portal_group(ucl_object_key(child), child);
+					if (!uclparse_portal_group(
+					    ucl_object_key(child), child))
+						return (false);
 				}
 			} else {
 				log_warnx("\"portal-group\" section is not an object");
@@ -360,7 +364,9 @@ uclparse_toplevel(const ucl_object_t *top)
 			if (obj->type == UCL_OBJECT) {
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter, true))) {
-					uclparse_lun(ucl_object_key(child), child);
+					if (!uclparse_lun(ucl_object_key(child),
+					    child))
+						return (false);
 				}
 			} else {
 				log_warnx("\"lun\" section is not an object");
@@ -379,8 +385,9 @@ uclparse_toplevel(const ucl_object_t *top)
 				iter = NULL;
 				while ((child = ucl_iterate_object(obj, &iter,
 				    true))) {
-					uclparse_target(ucl_object_key(child),
-					    child);
+					if (!uclparse_target(
+					    ucl_object_key(child), child))
+						return (false);
 				}
 			} else {
 				log_warnx("\"target\" section is not an object");
