@@ -420,66 +420,90 @@ uclparse_auth_group(const char *name, const ucl_object_t *top)
 		}
 
 		if (strcmp(key, "chap") == 0) {
-			if (obj->type != UCL_ARRAY) {
-				log_warnx("\"chap\" property of "
-				    "auth-group \"%s\" is not an array",
+			if (obj->type == UCL_OBJECT) {
+				if (!uclparse_chap(name, obj))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				it2 = NULL;
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!uclparse_chap(name, tmp))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"chap\" property of auth-group "
+				    "\"%s\" is not an array or object",
 				    name);
 				goto fail;
-			}
-
-			it2 = NULL;
-			while ((tmp = ucl_iterate_object(obj, &it2, true))) {
-				if (!uclparse_chap(name, tmp))
-					goto fail;
 			}
 		}
 
 		if (strcmp(key, "chap-mutual") == 0) {
-			if (obj->type != UCL_ARRAY) {
+			if (obj->type == UCL_OBJECT) {
+				if (!uclparse_chap_mutual(name, obj))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				it2 = NULL;
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!uclparse_chap_mutual(name, tmp))
+						goto fail;
+				}
+			} else {
 				log_warnx("\"chap-mutual\" property of "
-				    "auth-group \"%s\" is not an array",
+				    "auth-group \"%s\" is not an array or object",
 				    name);
 				goto fail;
-			}
-
-			it2 = NULL;
-			while ((tmp = ucl_iterate_object(obj, &it2, true))) {
-				if (!uclparse_chap_mutual(name, tmp))
-					goto fail;
 			}
 		}
 
 		if (strcmp(key, "initiator-name") == 0) {
-			if (obj->type != UCL_ARRAY) {
-				log_warnx("\"initiator-name\" property of "
-				    "auth-group \"%s\" is not an array",
-				    name);
-				goto fail;
-			}
-
-			it2 = NULL;
-			while ((tmp = ucl_iterate_object(obj, &it2, true))) {
-				const char *value = ucl_object_tostring(tmp);
+			if (obj->type == UCL_STRING) {
+				const char *value = ucl_object_tostring(obj);
 
 				if (!auth_group_add_initiator_name(value))
 					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				it2 = NULL;
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					const char *value =
+					    ucl_object_tostring(tmp);
+
+					if (!auth_group_add_initiator_name(
+					    value))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"initiator-name\" property of "
+				    "auth-group \"%s\" is not an array or string",
+				    name);
+				goto fail;
 			}
 		}
 
 		if (strcmp(key, "initiator-portal") == 0) {
-			if (obj->type != UCL_ARRAY) {
-				log_warnx("\"initiator-portal\" property of "
-				    "auth-group \"%s\" is not an array",
-				    name);
-				goto fail;
-			}
-
-			it2 = NULL;
-			while ((tmp = ucl_iterate_object(obj, &it2, true))) {
-				const char *value = ucl_object_tostring(tmp);
+			if (obj->type == UCL_STRING) {
+				const char *value = ucl_object_tostring(obj);
 
 				if (!auth_group_add_initiator_portal(value))
 					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				it2 = NULL;
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					const char *value =
+					    ucl_object_tostring(tmp);
+
+					if (!auth_group_add_initiator_portal(
+					    value))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"initiator-portal\" property of "
+				    "auth-group \"%s\" is not an array or string",
+				    name);
+				goto fail;
 			}
 		}
 	}
@@ -746,25 +770,80 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (strcmp(key, "chap") == 0) {
-			if (!uclparse_target_chap(name, obj))
+			if (obj->type == UCL_OBJECT) {
+				if (!uclparse_target_chap(name, obj))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!uclparse_target_chap(name, tmp))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"chap\" property of target "
+				    "\"%s\" is not an array or object",
+				    name);
 				goto fail;
+			}
 		}
 
 		if (strcmp(key, "chap-mutual") == 0) {
-			if (!uclparse_target_chap_mutual(name, obj))
+			if (obj->type == UCL_OBJECT) {
+				if (!uclparse_target_chap_mutual(name, obj))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!uclparse_target_chap_mutual(name,
+					    tmp))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"chap-mutual\" property of target "
+				    "\"%s\" is not an array or object",
+				    name);
 				goto fail;
+			}
 		}
 
 		if (strcmp(key, "initiator-name") == 0) {
-			if (!target_add_initiator_name(
-			    ucl_object_tostring(obj)))
+			if (obj->type == UCL_STRING) {
+				if (!target_add_initiator_name(
+				    ucl_object_tostring(obj)))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!target_add_initiator_name(
+					    ucl_object_tostring(tmp)))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"initiator-name\" property of "
+				    "target \"%s\" is not an array or string",
+				    name);
 				goto fail;
+			}
 		}
 
 		if (strcmp(key, "initiator-portal") == 0) {
-			if (!target_add_initiator_portal(
-			    ucl_object_tostring(obj)))
+			if (obj->type == UCL_STRING) {
+				if (!target_add_initiator_portal(
+				    ucl_object_tostring(obj)))
+					goto fail;
+			} else if (obj->type == UCL_ARRAY) {
+				while ((tmp = ucl_iterate_object(obj, &it2,
+				    true))) {
+					if (!target_add_initiator_portal(
+					    ucl_object_tostring(tmp)))
+						goto fail;
+				}
+			} else {
+				log_warnx("\"initiator-portal\" property of "
+				    "target \"%s\" is not an array or string",
+				    name);
 				goto fail;
+			}
 		}
 
 		if (strcmp(key, "portal-group") == 0) {
