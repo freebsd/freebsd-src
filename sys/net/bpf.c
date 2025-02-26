@@ -1110,13 +1110,15 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
-	KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
-	d->bd_fbuf = d->bd_hbuf;
-	d->bd_hbuf = NULL;
-	d->bd_hlen = 0;
-	bpf_buf_reclaimed(d);
-	d->bd_hbuf_in_use = 0;
-	wakeup(&d->bd_hbuf_in_use);
+	if (d->bd_hbuf_in_use) {
+		KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
+		d->bd_fbuf = d->bd_hbuf;
+		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
+		bpf_buf_reclaimed(d);
+		d->bd_hbuf_in_use = 0;
+		wakeup(&d->bd_hbuf_in_use);
+	}
 	BPFD_UNLOCK(d);
 
 	return (error);

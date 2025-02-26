@@ -876,6 +876,8 @@
         mqueue
         ..
         net
+            bpf
+                ..
             if_ovpn
                 ccd
                 ..
