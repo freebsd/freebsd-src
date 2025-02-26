@@ -50,7 +50,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <cam/scsi/scsi_all.h>
 
+#include "conf.h"
 #include "ctld.h"
 #include "isns.h"
 
@@ -238,7 +240,7 @@ auth_check_secret_length(struct auth *auth)
 	}
 }
 
-const struct auth *
+bool
 auth_new_chap(struct auth_group *ag, const char *user,
     const char *secret)
 {
@@ -254,7 +256,7 @@ auth_new_chap(struct auth_group *ag, const char *user,
 			log_warnx("cannot mix \"chap\" authentication with "
 			    "other types for target \"%s\"",
 			    ag->ag_target->t_name);
-		return (NULL);
+		return (false);
 	}
 
 	auth = auth_new(ag);
@@ -263,10 +265,10 @@ auth_new_chap(struct auth_group *ag, const char *user,
 
 	auth_check_secret_length(auth);
 
-	return (auth);
+	return (true);
 }
 
-const struct auth *
+bool
 auth_new_chap_mutual(struct auth_group *ag, const char *user,
     const char *secret, const char *user2, const char *secret2)
 {
@@ -283,7 +285,7 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for target \"%s\"",
 			    ag->ag_target->t_name);
-		return (NULL);
+		return (false);
 	}
 
 	auth = auth_new(ag);
@@ -294,10 +296,10 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 
 	auth_check_secret_length(auth);
 
-	return (auth);
+	return (true);
 }
 
-const struct auth_name *
+bool
 auth_name_new(struct auth_group *ag, const char *name)
 {
 	struct auth_name *an;
@@ -308,7 +310,7 @@ auth_name_new(struct auth_group *ag, const char *name)
 	an->an_auth_group = ag;
 	an->an_initiator_name = checked_strdup(name);
 	TAILQ_INSERT_TAIL(&ag->ag_names, an, an_next);
-	return (an);
+	return (true);
 }
 
 static void
@@ -353,7 +355,7 @@ auth_name_check(const struct auth_group *ag, const char *initiator_name)
 	return (true);
 }
 
-const struct auth_portal *
+bool
 auth_portal_new(struct auth_group *ag, const char *portal)
 {
 	struct auth_portal *ap;
@@ -402,13 +404,13 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	ap->ap_mask = m;
 	free(str);
 	TAILQ_INSERT_TAIL(&ag->ag_portals, ap, ap_next);
-	return (ap);
+	return (true);
 
 error:
 	free(str);
 	free(ap);
 	log_warnx("incorrect initiator portal \"%s\"", portal);
-	return (NULL);
+	return (false);
 }
 
 static void
@@ -539,47 +541,6 @@ auth_group_find(const struct conf *conf, const char *name)
 	}
 
 	return (NULL);
-}
-
-bool
-auth_group_set_type(struct auth_group *ag, const char *str)
-{
-	int type;
-
-	if (strcmp(str, "none") == 0) {
-		type = AG_TYPE_NO_AUTHENTICATION;
-	} else if (strcmp(str, "deny") == 0) {
-		type = AG_TYPE_DENY;
-	} else if (strcmp(str, "chap") == 0) {
-		type = AG_TYPE_CHAP;
-	} else if (strcmp(str, "chap-mutual") == 0) {
-		type = AG_TYPE_CHAP_MUTUAL;
-	} else {
-		if (ag->ag_name != NULL)
-			log_warnx("invalid auth-type \"%s\" for auth-group "
-			    "\"%s\"", str, ag->ag_name);
-		else
-			log_warnx("invalid auth-type \"%s\" for target "
-			    "\"%s\"", str, ag->ag_target->t_name);
-		return (false);
-	}
-
-	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
-		if (ag->ag_name != NULL) {
-			log_warnx("cannot set auth-type to \"%s\" for "
-			    "auth-group \"%s\"; already has a different "
-			    "type", str, ag->ag_name);
-		} else {
-			log_warnx("cannot set auth-type to \"%s\" for target "
-			    "\"%s\"; already has a different type",
-			    str, ag->ag_target->t_name);
-		}
-		return (false);
-	}
-
-	ag->ag_type = type;
-
-	return (true);
 }
 
 static struct portal *
@@ -724,7 +685,7 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 }
 
 bool
-portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
+portal_group_add_portal(struct portal_group *pg, const char *value, bool iser)
 {
 	struct portal *portal;
 
@@ -1008,72 +969,6 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
-bool
-portal_group_set_filter(struct portal_group *pg, const char *str)
-{
-	int filter;
-
-	if (strcmp(str, "none") == 0) {
-		filter = PG_FILTER_NONE;
-	} else if (strcmp(str, "portal") == 0) {
-		filter = PG_FILTER_PORTAL;
-	} else if (strcmp(str, "portal-name") == 0) {
-		filter = PG_FILTER_PORTAL_NAME;
-	} else if (strcmp(str, "portal-name-auth") == 0) {
-		filter = PG_FILTER_PORTAL_NAME_AUTH;
-	} else {
-		log_warnx("invalid discovery-filter \"%s\" for portal-group "
-		    "\"%s\"; valid values are \"none\", \"portal\", "
-		    "\"portal-name\", and \"portal-name-auth\"",
-		    str, pg->pg_name);
-		return (false);
-	}
-
-	if (pg->pg_discovery_filter != PG_FILTER_UNKNOWN &&
-	    pg->pg_discovery_filter != filter) {
-		log_warnx("cannot set discovery-filter to \"%s\" for "
-		    "portal-group \"%s\"; already has a different "
-		    "value", str, pg->pg_name);
-		return (false);
-	}
-
-	pg->pg_discovery_filter = filter;
-
-	return (true);
-}
-
-bool
-portal_group_set_offload(struct portal_group *pg, const char *offload)
-{
-
-	if (pg->pg_offload != NULL) {
-		log_warnx("cannot set offload to \"%s\" for "
-		    "portal-group \"%s\"; already defined",
-		    offload, pg->pg_name);
-		return (false);
-	}
-
-	pg->pg_offload = checked_strdup(offload);
-
-	return (true);
-}
-
-bool
-portal_group_set_redirection(struct portal_group *pg, const char *addr)
-{
-
-	if (pg->pg_redirection != NULL) {
-		log_warnx("cannot set redirection to \"%s\" for "
-		    "portal-group \"%s\"; already defined",
-		    addr, pg->pg_name);
-		return (false);
-	}
-
-	pg->pg_redirection = checked_strdup(addr);
-
-	return (true);
-}
-
 struct pport *
 pport_new(struct kports *kports, const char *name, uint32_t ctl_port)
 {
@@ -1340,22 +1235,6 @@ target_find(struct conf *conf, const char *name)
 	return (NULL);
 }
 
-bool
-target_set_redirection(struct target *target, const char *addr)
-{
-
-	if (target->t_redirection != NULL) {
-		log_warnx("cannot set redirection to \"%s\" for "
-		    "target \"%s\"; already defined",
-		    addr, target->t_name);
-		return (false);
-	}
-
-	target->t_redirection = checked_strdup(addr);
-
-	return (true);
-}
-
 struct lun *
 lun_new(struct conf *conf, const char *name)
 {
@@ -1417,66 +1296,10 @@ lun_find(const struct conf *conf, const char *name)
 }
 
 void
-lun_set_backend(struct lun *lun, const char *value)
-{
-	free(lun->l_backend);
-	lun->l_backend = checked_strdup(value);
-}
-
-void
-lun_set_blocksize(struct lun *lun, size_t value)
-{
-
-	lun->l_blocksize = value;
-}
-
-void
-lun_set_device_type(struct lun *lun, uint8_t value)
-{
-
-	lun->l_device_type = value;
-}
-
-void
-lun_set_device_id(struct lun *lun, const char *value)
-{
-	free(lun->l_device_id);
-	lun->l_device_id = checked_strdup(value);
-}
-
-void
-lun_set_path(struct lun *lun, const char *value)
-{
-	free(lun->l_path);
-	lun->l_path = checked_strdup(value);
-}
-
-void
 lun_set_scsiname(struct lun *lun, const char *value)
 {
 	free(lun->l_scsiname);
 	lun->l_scsiname = checked_strdup(value);
-}
-
-void
-lun_set_serial(struct lun *lun, const char *value)
-{
-	free(lun->l_serial);
-	lun->l_serial = checked_strdup(value);
-}
-
-void
-lun_set_size(struct lun *lun, int64_t value)
-{
-
-	lun->l_size = value;
-}
-
-void
-lun_set_ctl_lun(struct lun *lun, uint32_t value)
-{
-
-	lun->l_ctl_lun = value;
 }
 
 bool
@@ -1623,7 +1446,7 @@ conf_verify_lun(struct lun *lun)
 	const struct lun *lun2;
 
 	if (lun->l_backend == NULL)
-		lun_set_backend(lun, "block");
+		lun->l_backend = checked_strdup("block");
 	if (strcmp(lun->l_backend, "block") == 0) {
 		if (lun->l_path == NULL) {
 			log_warnx("missing path for lun \"%s\"",
@@ -1644,10 +1467,10 @@ conf_verify_lun(struct lun *lun)
 		}
 	}
 	if (lun->l_blocksize == 0) {
-		if (lun->l_device_type == 5)
-			lun_set_blocksize(lun, DEFAULT_CD_BLOCKSIZE);
+		if (lun->l_device_type == T_CDROM)
+			lun->l_blocksize = DEFAULT_CD_BLOCKSIZE;
 		else
-			lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
+			lun->l_blocksize = DEFAULT_BLOCKSIZE;
 	} else if (lun->l_blocksize < 0) {
 		log_warnx("invalid blocksize for lun \"%s\"; "
 		    "must be larger than 0", lun->l_name);
@@ -2067,7 +1890,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			continue;
 		}
 
-		lun_set_ctl_lun(newlun, oldlun->l_ctl_lun);
+		newlun->l_ctl_lun = oldlun->l_ctl_lun;
 	}
 
 	TAILQ_FOREACH_SAFE(newlun, &newconf->conf_luns, l_next, tmplun) {
@@ -2566,10 +2389,12 @@ conf_new_from_file(const char *path, bool ucl)
 	pg = portal_group_new(conf, "default");
 	assert(pg != NULL);
 
+	conf_start(conf);
 	if (ucl)
-		valid = uclparse_conf(conf, path);
+		valid = uclparse_conf(path);
 	else
-		valid = parse_conf(conf, path);
+		valid = parse_conf(path);
+	conf_finish();
 
 	if (!valid) {
 		conf_delete(conf);
@@ -2591,8 +2416,8 @@ conf_new_from_file(const char *path, bool ucl)
 		    "going with defaults");
 		pg = portal_group_find(conf, "default");
 		assert(pg != NULL);
-		portal_group_add_listen(pg, "0.0.0.0", false);
-		portal_group_add_listen(pg, "[::]", false);
+		portal_group_add_portal(pg, "0.0.0.0", false);
+		portal_group_add_portal(pg, "[::]", false);
 	}
 
 	conf->conf_kernel_port_on = true;

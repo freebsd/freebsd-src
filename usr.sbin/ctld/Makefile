@@ -6,7 +6,7 @@ CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 
 PACKAGE=	iscsi
 PROG=		ctld
-SRCS=		ctld.c discovery.c isns.c kernel.c
+SRCS=		ctld.c conf.c discovery.c isns.c kernel.c
 SRCS+=		login.c parse.y token.l y.tab.h uclparse.c
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/sys

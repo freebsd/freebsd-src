@@ -620,21 +620,24 @@ retry_port:
 			log_warnx("lun_new failed");
 			continue;
 		}
-		lun_set_backend(cl, lun->backend_type);
-		lun_set_device_type(cl, lun->device_type);
-		lun_set_blocksize(cl, lun->blocksize);
-		lun_set_device_id(cl, lun->device_id);
-		lun_set_serial(cl, lun->serial_number);
-		lun_set_size(cl, lun->size_blocks * cl->l_blocksize);
-		lun_set_ctl_lun(cl, lun->lun_id);
+		cl->l_backend = lun->backend_type;
+		lun->backend_type = NULL;
+		cl->l_device_type = lun->device_type;
+		cl->l_blocksize = lun->blocksize;
+		cl->l_device_id = lun->device_id;
+		lun->device_id = NULL;
+		cl->l_serial = lun->serial_number;
+		lun->serial_number = NULL;
+		cl->l_size = lun->size_blocks * cl->l_blocksize;
+		cl->l_ctl_lun = lun->lun_id;
 
 		cookie = NULL;
 		while ((key = nvlist_next(lun->attr_list, NULL, &cookie)) !=
 		    NULL) {
 			if (strcmp(key, "file") == 0 ||
 			    strcmp(key, "dev") == 0) {
-				lun_set_path(cl,
-				    nvlist_get_string(lun->attr_list, key));
+				cl->l_path = nvlist_take_string(lun->attr_list,
+				    key);
 				continue;
 			}
 			nvlist_add_string(cl->l_options, key,
@@ -740,7 +743,7 @@ kernel_lun_add(struct lun *lun)
 		return (1);
 	}
 
-	lun_set_ctl_lun(lun, req.reqdata.create.req_lun_id);
+	lun->l_ctl_lun = req.reqdata.create.req_lun_id;
 	return (0);
 }
 

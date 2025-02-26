@@ -168,7 +168,7 @@ struct lun {
 	char				*l_path;
 	char				*l_scsiname;
 	char				*l_serial;
-	int64_t				l_size;
+	uint64_t			l_size;
 
 	int				l_ctl_lun;
 };
@@ -247,30 +247,29 @@ struct ctld_connection {
 
 extern int ctl_fd;
 
-bool			parse_conf(struct conf *newconf, const char *path);
-bool			uclparse_conf(struct conf *conf, const char *path);
+bool			uclparse_conf(const char *path);
 
 struct conf		*conf_new(void);
 struct conf		*conf_new_from_kernel(struct kports *kports);
 void			conf_delete(struct conf *conf);
+void			conf_finish(void);
+void			conf_start(struct conf *new_conf);
 bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-bool			auth_group_set_type(struct auth_group *ag,
-			    const char *type);
 
-const struct auth	*auth_new_chap(struct auth_group *ag,
-			    const char *user, const char *secret);
-const struct auth	*auth_new_chap_mutual(struct auth_group *ag,
+bool			auth_new_chap(struct auth_group *ag, const char *user,
+			    const char *secret);
+bool			auth_new_chap_mutual(struct auth_group *ag,
 			    const char *user, const char *secret,
 			    const char *user2, const char *secret2);
 const struct auth	*auth_find(const struct auth_group *ag,
 			    const char *user);
 
-const struct auth_name	*auth_name_new(struct auth_group *ag,
+bool			auth_name_new(struct auth_group *ag,
 			    const char *initiator_name);
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
@@ -278,7 +277,7 @@ const struct auth_name	*auth_name_find(const struct auth_group *ag,
 bool			auth_name_check(const struct auth_group *ag,
 			    const char *initiator_name);
 
-const struct auth_portal	*auth_portal_new(struct auth_group *ag,
+bool				auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
@@ -290,14 +289,8 @@ struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
 struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
-bool			portal_group_add_listen(struct portal_group *pg,
-			    const char *listen, bool iser);
-bool			portal_group_set_filter(struct portal_group *pg,
-			    const char *filter);
-bool			portal_group_set_offload(struct portal_group *pg,
-			    const char *offload);
-bool			portal_group_set_redirection(struct portal_group *pg,
-			    const char *addr);
+bool			portal_group_add_portal(struct portal_group *pg,
+			    const char *value, bool iser);
 
 bool			isns_new(struct conf *conf, const char *addr);
 void			isns_delete(struct isns *is);
@@ -329,21 +322,11 @@ struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
-bool			target_set_redirection(struct target *target,
-			    const char *addr);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
-void			lun_set_backend(struct lun *lun, const char *value);
-void			lun_set_device_type(struct lun *lun, uint8_t value);
-void			lun_set_blocksize(struct lun *lun, size_t value);
-void			lun_set_device_id(struct lun *lun, const char *value);
-void			lun_set_path(struct lun *lun, const char *value);
 void			lun_set_scsiname(struct lun *lun, const char *value);
-void			lun_set_serial(struct lun *lun, const char *value);
-void			lun_set_size(struct lun *lun, int64_t value);
-void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 
 bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
