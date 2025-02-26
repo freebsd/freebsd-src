@@ -50,6 +50,7 @@
 #include "blacklist_client.h"
 
 static struct blacklist *blstate = NULL;
+extern struct ssh *the_active_state;
 
 /* import */
 extern ServerOptions options;
@@ -57,7 +58,7 @@ extern ServerOptions options;
 /* internal definition from bl.h */
 struct blacklist *bl_create(bool, char *, void (*)(int, const char *, va_list));
 
-/* impedence match vsyslog() to sshd's internal logging levels */
+/* impedance match vsyslog() to sshd's internal logging levels */
 void
 im_log(int priority, const char *message, va_list args)
 {
@@ -82,7 +83,6 @@ im_log(int priority, const char *message, va_list args)
 void
 blacklist_init(void)
 {
-
 	if (options.use_blacklist)
 		blstate = bl_create(false, NULL, im_log);
 }
@@ -90,8 +90,19 @@ blacklist_init(void)
 void
 blacklist_notify(struct ssh *ssh, int action, const char *msg)
 {
-
-	if (blstate != NULL && ssh_packet_connection_is_on_socket(ssh))
+	if (ssh == NULL)
+		ssh = the_active_state;
+	if (ssh == NULL)
+		return;
+	if (blstate == NULL)
+		blacklist_init();
+	if (blstate == NULL)
+		return;
+	if (ssh_packet_connection_is_on_socket(ssh))
 		(void)blacklist_r(blstate, action,
-		ssh_packet_get_connection_in(ssh), msg);
+		    ssh_packet_get_connection_in(ssh), msg);
+	if (action == 0) {
+		blacklist_close(blstate);
+		blstate = NULL;
+	}
 }

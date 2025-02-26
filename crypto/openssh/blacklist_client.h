@@ -57,5 +57,4 @@ void blacklist_notify(struct ssh *, int, const char *);
 
 #endif
 
-
 #endif /* BLACKLIST_CLIENT_H */
