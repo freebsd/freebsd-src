@@ -47,7 +47,7 @@
 #include "iso9660_rrip.h"
 #include <util.h>
 
-static void cd9660_rrip_initialize_inode(cd9660node *);
+static void cd9660_rrip_initialize_inode(iso9660_disk *, cd9660node *);
 static int cd9660_susp_handle_continuation(iso9660_disk *, cd9660node *);
 static int cd9660_susp_handle_continuation_common(iso9660_disk *, cd9660node *,
     int);
@@ -69,6 +69,11 @@ cd9660_susp_initialize(iso9660_disk *diskStructure, cd9660node *node,
 		TAILQ_INIT(&(node->dot_record->head));
 	if (node->dot_dot_record != 0)
 		TAILQ_INIT(&(node->dot_dot_record->head));
+
+	if (diskStructure->rr_inode_next == 0) {
+		RB_INIT(&diskStructure->rr_inode_map);
+		diskStructure->rr_inode_next = 1;
+	}
 
 	 /* SUSP specific entries here */
 	if ((r = cd9660_susp_initialize_node(diskStructure, node)) < 0)
@@ -101,6 +106,7 @@ int
 cd9660_susp_finalize(iso9660_disk *diskStructure, cd9660node *node)
 {
 	cd9660node *temp;
+	struct inode_map_node *mapnode, *mapnodetmp;
 	int r;
 
 	assert(node != NULL);
@@ -116,6 +122,16 @@ cd9660_susp_finalize(iso9660_disk *diskStructure, cd9660node *node)
 	TAILQ_FOREACH(temp, &node->cn_children, cn_next_child) {
 		if ((r = cd9660_susp_finalize(diskStructure, temp)) < 0)
 			return r;
+	}
+
+	if (diskStructure->rr_inode_next != 0) {
+		RB_FOREACH_SAFE(mapnode, inode_map_tree,
+		    &(diskStructure->rr_inode_map), mapnodetmp) {
+			RB_REMOVE(inode_map_tree,
+			    &(diskStructure->rr_inode_map), mapnode);
+			free(mapnode);
+		}
+		diskStructure->rr_inode_next = 0;
 	}
 	return 1;
 }
@@ -323,7 +339,7 @@ cd9660_susp_initialize_node(iso9660_disk *diskStructure, cd9660node *node)
 }
 
 static void
-cd9660_rrip_initialize_inode(cd9660node *node)
+cd9660_rrip_initialize_inode(iso9660_disk *diskStructure, cd9660node *node)
 {
 	struct ISO_SUSP_ATTRIBUTES *attr;
 
@@ -337,7 +353,7 @@ cd9660_rrip_initialize_inode(cd9660node *node)
 		/* PX - POSIX attributes */
 		attr = cd9660node_susp_create_node(SUSP_TYPE_RRIP,
 			SUSP_ENTRY_RRIP_PX, "PX", SUSP_LOC_ENTRY);
-		cd9660node_rrip_px(attr, node->node);
+		cd9660node_rrip_px(diskStructure, attr, node->node);
 
 		TAILQ_INSERT_TAIL(&node->head, attr, rr_ll);
 
@@ -390,7 +406,8 @@ cd9660_rrip_initialize_node(iso9660_disk *diskStructure, cd9660node *node,
 			/* PX - POSIX attributes */
 			current = cd9660node_susp_create_node(SUSP_TYPE_RRIP,
 				SUSP_ENTRY_RRIP_PX, "PX", SUSP_LOC_ENTRY);
-			cd9660node_rrip_px(current, parent->node);
+			cd9660node_rrip_px(diskStructure, current,
+			    parent->node);
 			TAILQ_INSERT_TAIL(&node->head, current, rr_ll);
 
 			/* TF - timestamp */
@@ -405,7 +422,8 @@ cd9660_rrip_initialize_node(iso9660_disk *diskStructure, cd9660node *node,
 			/* PX - POSIX attributes */
 			current = cd9660node_susp_create_node(SUSP_TYPE_RRIP,
 				SUSP_ENTRY_RRIP_PX, "PX", SUSP_LOC_ENTRY);
-			cd9660node_rrip_px(current, grandparent->node);
+			cd9660node_rrip_px(diskStructure, current,
+			    grandparent->node);
 			TAILQ_INSERT_TAIL(&node->head, current, rr_ll);
 
 			/* TF - timestamp */
@@ -422,7 +440,7 @@ cd9660_rrip_initialize_node(iso9660_disk *diskStructure, cd9660node *node,
 			TAILQ_INSERT_TAIL(&node->head, current, rr_ll);
 		}
 	} else {
-		cd9660_rrip_initialize_inode(node);
+		cd9660_rrip_initialize_inode(diskStructure, node);
 
 		if (node == diskStructure->rr_moved_dir) {
 			cd9660_rrip_add_NM(node, RRIP_DEFAULT_MOVE_DIR_NAME);
@@ -630,8 +648,45 @@ cd9660_createSL(cd9660node *node)
 	}
 }
 
+static int
+inode_map_node_cmp(struct inode_map_node *a, struct inode_map_node *b)
+{
+	if (a->key < b->key)
+		return (-1);
+	if (a->key > b->key)
+		return (1);
+	return (0);
+}
+
+RB_GENERATE(inode_map_tree, inode_map_node, entry, inode_map_node_cmp);
+
+static uint64_t
+inode_map(iso9660_disk *diskStructure, uint64_t in)
+{
+	struct inode_map_node lookup = { .key = in };
+	struct inode_map_node *node;
+
+	/*
+	 * Always assign an inode number if src inode unset.  mtree mode leaves
+	 * src inode unset for files with st_nlink == 1.
+	 */
+	if (in != 0) {
+		node = RB_FIND(inode_map_tree, &(diskStructure->rr_inode_map),
+		    &lookup);
+		if (node != NULL)
+			return (node->value);
+	}
+
+	node = emalloc(sizeof(struct inode_map_node));
+	node->key = in;
+	node->value = diskStructure->rr_inode_next++;
+	RB_INSERT(inode_map_tree, &(diskStructure->rr_inode_map), node);
+	return (node->value);
+}
+
 int
-cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
+cd9660node_rrip_px(iso9660_disk *diskStructure, struct ISO_SUSP_ATTRIBUTES *v,
+    fsnode *pxinfo)
 {
 	v->attr.rr_entry.PX.h.length[0] = 44;
 	v->attr.rr_entry.PX.h.version[0] = 1;
@@ -643,8 +698,8 @@ cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
 	    v->attr.rr_entry.PX.uid);
 	cd9660_bothendian_dword(pxinfo->inode->st.st_gid,
 	    v->attr.rr_entry.PX.gid);
-	cd9660_bothendian_dword(pxinfo->inode->st.st_ino,
-	    v->attr.rr_entry.PX.serial);
+	cd9660_bothendian_dword(inode_map(diskStructure,
+	    pxinfo->inode->st.st_ino), v->attr.rr_entry.PX.serial);
 
 	return 1;
 }
