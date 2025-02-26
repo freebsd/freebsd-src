@@ -61,8 +61,9 @@ struct ifconfig_sfp_status {
 				     valid range -40.0 to 125.0 */
 	double voltage;		/**< module voltage in volts */
 	struct sfp_channel {
-		uint16_t rx;	/**< channel receive power, LSB 0.1uW */
-		uint16_t tx;	/**< channel transmit bias current, LSB 2uA */
+		uint16_t rx;		/**< channel receive power, LSB 0.1uW */
+		uint16_t tx;		/**< channel transmit power, LSB 0.1uW */
+		uint16_t tx_bias;	/**< channel transmit bias current, LSB 2uA */
 	} *channel;		/**< array of channel rx/tx status */
 	uint32_t bitrate;	/**< link bitrate,
 				     only present for QSFP modules,
