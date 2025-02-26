@@ -233,9 +233,23 @@ uclparse_target_lun(const char *t_name, const ucl_object_t *obj)
 {
 	const ucl_object_t *num;
 	const ucl_object_t *name;
-	char *lun_name;
+	const char *key;
+	char *end, *lun_name;
 	u_int id;
 	bool ok;
+
+	key = ucl_object_key(obj);
+	if (key != NULL) {
+		id = strtoul(key, &end, 0);
+		if (*end != '\0') {
+			log_warnx("lun key \"%s\" in target \"%s\" is invalid",
+			    key, t_name);
+			return (false);
+		}
+
+		if (obj->type == UCL_STRING)
+			return (target_add_lun(id, ucl_object_tostring(obj)));
+	}
 
 	if (obj->type != UCL_OBJECT) {
 		log_warnx("lun section entries in target \"%s\" must be objects",
@@ -243,13 +257,15 @@ uclparse_target_lun(const char *t_name, const ucl_object_t *obj)
 		return (false);
 	}
 
-	num = ucl_object_find_key(obj, "number");
-	if (num == NULL || num->type != UCL_INT) {
-		log_warnx("lun section in target \"%s\" is missing "
-		    "\"number\" integer property", t_name);
-		return (false);
+	if (key == NULL) {
+		num = ucl_object_find_key(obj, "number");
+		if (num == NULL || num->type != UCL_INT) {
+			log_warnx("lun section in target \"%s\" is missing "
+			    "\"number\" integer property", t_name);
+			return (false);
+		}
+		id = ucl_object_toint(num);
 	}
-	id = ucl_object_toint(num);
 
 	name = ucl_object_find_key(obj, "name");
 	if (name == NULL) {
