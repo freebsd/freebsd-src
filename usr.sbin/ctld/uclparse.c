@@ -48,6 +48,7 @@ static bool uclparse_toplevel(const ucl_object_t *);
 static bool uclparse_chap(const char *, const ucl_object_t *);
 static bool uclparse_chap_mutual(const char *, const ucl_object_t *);
 static bool uclparse_lun(const char *, const ucl_object_t *);
+static bool uclparse_lun_entries(const char *, const ucl_object_t *);
 static bool uclparse_auth_group(const char *, const ucl_object_t *);
 static bool uclparse_portal_group(const char *, const ucl_object_t *);
 static bool uclparse_target(const char *, const ucl_object_t *);
@@ -216,35 +217,44 @@ uclparse_target_portal_group(const char *t_name, const ucl_object_t *obj)
 static bool
 uclparse_target_lun(const char *t_name, const ucl_object_t *obj)
 {
-	if (obj->type == UCL_INT) {
-		if (!target_start_lun(ucl_object_toint(obj)))
-			return (false);
-		lun_finish();
-		return (true);
+	const ucl_object_t *num;
+	const ucl_object_t *name;
+	char *lun_name;
+	u_int id;
+	bool ok;
+
+	if (obj->type != UCL_OBJECT) {
+		log_warnx("lun section entries in target \"%s\" must be objects",
+		    t_name);
+		return (false);
 	}
 
-	if (obj->type == UCL_OBJECT) {
-		const ucl_object_t *num = ucl_object_find_key(obj, "number");
-		const ucl_object_t *name = ucl_object_find_key(obj, "name");
+	num = ucl_object_find_key(obj, "number");
+	if (num == NULL || num->type != UCL_INT) {
+		log_warnx("lun section in target \"%s\" is missing "
+		    "\"number\" integer property", t_name);
+		return (false);
+	}
+	id = ucl_object_toint(num);
 
-		if (num == NULL || num->type != UCL_INT) {
-			log_warnx("lun section in target \"%s\" is missing "
-			    "\"number\" integer property", t_name);
+	name = ucl_object_find_key(obj, "name");
+	if (name == NULL) {
+		if (!target_start_lun(id))
 			return (false);
-		}
 
-		if (name == NULL || name->type != UCL_STRING) {
-			log_warnx("lun section in target \"%s\" is missing "
-			    "\"name\" string property", t_name);
-			return (false);
-		}
-
-		if (!target_add_lun(ucl_object_toint(num),
-		    ucl_object_tostring(name)))
-			return (false);
+		asprintf(&lun_name, "lun %u for target \"%s\"", id, t_name);
+		ok = uclparse_lun_entries(lun_name, obj);
+		free(lun_name);
+		return (ok);
 	}
 
-	return (true);
+	if (name->type != UCL_STRING) {
+		log_warnx("\"name\" property for lun %u for target "
+		    "\"%s\" is not a string", id, t_name);
+		return (false);
+	}
+
+	return (target_add_lun(id, ucl_object_tostring(name)));
 }
 
 static bool
@@ -929,21 +939,31 @@ fail:
 static bool
 uclparse_lun(const char *name, const ucl_object_t *top)
 {
-	ucl_object_iter_t it = NULL, child_it = NULL;
-	const ucl_object_t *obj = NULL, *child = NULL;
-	const char *key;
+	char *lun_name;
+	bool ok;
 
 	if (!lun_start(name))
 		return (false);
+	asprintf(&lun_name, "lun \"%s\"", name);
+	ok = uclparse_lun_entries(lun_name, top);
+	free(lun_name);
+	return (ok);
+}
+
+static bool
+uclparse_lun_entries(const char *name, const ucl_object_t *top)
+{
+	ucl_object_iter_t it = NULL, child_it = NULL;
+	const ucl_object_t *obj = NULL, *child = NULL;
+	const char *key;
 
 	while ((obj = ucl_iterate_object(top, &it, true))) {
 		key = ucl_object_key(obj);
 
 		if (strcmp(key, "backend") == 0) {
 			if (obj->type != UCL_STRING) {
-				log_warnx("\"backend\" property of lun "
-				    "\"%s\" is not a string",
-				    name);
+				log_warnx("\"backend\" property of %s "
+				    "is not a string", name);
 				goto fail;
 			}
 
@@ -953,8 +973,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "blocksize") == 0) {
 			if (obj->type != UCL_INT) {
-				log_warnx("\"blocksize\" property of lun "
-				    "\"%s\" is not an integer", name);
+				log_warnx("\"blocksize\" property of %s "
+				    "is not an integer", name);
 				goto fail;
 			}
 
@@ -964,8 +984,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "device-id") == 0) {
 			if (obj->type != UCL_STRING) {
-				log_warnx("\"device-id\" property of lun "
-				    "\"%s\" is not an integer", name);
+				log_warnx("\"device-id\" property of %s "
+				    "is not an integer", name);
 				goto fail;
 			}
 
@@ -975,8 +995,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "device-type") == 0) {
 			if (obj->type != UCL_STRING) {
-				log_warnx("\"device-type\" property of lun "
-				    "\"%s\" is not an integer", name);
+				log_warnx("\"device-type\" property of %s "
+				    "is not an integer", name);
 				goto fail;
 			}
 
@@ -986,8 +1006,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "ctl-lun") == 0) {
 			if (obj->type != UCL_INT) {
-				log_warnx("\"ctl-lun\" property of lun "
-				    "\"%s\" is not an integer", name);
+				log_warnx("\"ctl-lun\" property of %s "
+				    "is not an integer", name);
 				goto fail;
 			}
 
@@ -997,8 +1017,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "options") == 0) {
 			if (obj->type != UCL_OBJECT) {
-				log_warnx("\"options\" property of lun "
-				    "\"%s\" is not an object", name);
+				log_warnx("\"options\" property of %s "
+				    "is not an object", name);
 				goto fail;
 			}
 
@@ -1012,8 +1032,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "path") == 0) {
 			if (obj->type != UCL_STRING) {
-				log_warnx("\"path\" property of lun "
-				    "\"%s\" is not a string", name);
+				log_warnx("\"path\" property of %s "
+				    "is not a string", name);
 				goto fail;
 			}
 
@@ -1023,8 +1043,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "serial") == 0) {
 			if (obj->type != UCL_STRING) {
-				log_warnx("\"serial\" property of lun "
-				    "\"%s\" is not a string", name);
+				log_warnx("\"serial\" property of %s "
+				    "is not a string", name);
 				goto fail;
 			}
 
@@ -1034,8 +1054,8 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 
 		if (strcmp(key, "size") == 0) {
 			if (obj->type != UCL_INT) {
-				log_warnx("\"size\" property of lun "
-				    "\"%s\" is not an integer", name);
+				log_warnx("\"size\" property of %s "
+				    "is not an integer", name);
 				goto fail;
 			}
 
