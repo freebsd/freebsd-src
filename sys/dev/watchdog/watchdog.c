@@ -118,6 +118,23 @@ seconds_to_pow2ns(int seconds)
 }
 
 int
+wdog_control(int ctrl)
+{
+	/* Disable takes precedence */
+	if (ctrl == WD_CTRL_DISABLE) {
+		wdog_kern_pat(0);
+	}
+
+	if ((ctrl & WD_CTRL_RESET) != 0) {
+		wdog_kern_pat(WD_ACTIVE | WD_LASTVAL);
+	} else if ((ctrl & WD_CTRL_ENABLE) != 0) {
+		wdog_kern_pat(WD_ACTIVE | WD_LASTVAL);
+	}
+
+	return (0);
+}
+
+int
 wdog_kern_pat(u_int utim)
 {
 	int error;
@@ -373,6 +390,9 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		break;
 	case WDIOCPATPAT:
 		error = wd_ioctl_patpat(data);
+		break;
+	case WDIOC_CONTROL:
+		wdog_control(*(int *)data);
 		break;
 	default:
 		error = ENOIOCTL;

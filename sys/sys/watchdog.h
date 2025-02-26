@@ -48,6 +48,8 @@
 #define WDIOC_SETSOFT	_IOW('W', 49, int)
 #define WDIOC_SETSOFTTIMEOUTACT	_IOW('W', 50, int)
 
+#define	WDIOC_CONTROL		_IOW('W', 51, int)	/* configure watchdog */
+
 #define WD_ACTIVE	0x8000000
 	/* 
 	 * Watchdog reset, timeout set to value in WD_INTERVAL field.
@@ -93,6 +95,11 @@
 #define WD_TO_64SEC	36
 #define WD_TO_128SEC	37
 
+/* Control options for WDIOC_CONTROL */
+#define	WD_CTRL_DISABLE	0x00000000
+#define	WD_CTRL_ENABLE	0x00000001
+#define	WD_CTRL_RESET	0x00000002
+
 /* action on pre-timeout trigger */
 #define	WD_SOFT_PANIC	0x01	/* panic */
 #define	WD_SOFT_DDB	0x02	/* enter debugger */
@@ -110,6 +117,7 @@ EVENTHANDLER_DECLARE(watchdog_list, watchdog_fn);
 
 u_int	wdog_kern_last_timeout(void);
 int	wdog_kern_pat(u_int utim);
+int		wdog_control(int ctrl);
 
 /*
  * The following function pointer is used to attach a software watchdog
