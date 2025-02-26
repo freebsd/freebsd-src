@@ -634,6 +634,10 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				goto fail;
 		}
 
+		if (strcmp(key, "foreign") == 0) {
+			portal_group_set_foreign();
+		}
+
 		if (strcmp(key, "listen") == 0) {
 			if (obj->type == UCL_STRING) {
 				if (!portal_group_add_listen(
@@ -676,6 +680,18 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 			}
 		}
 
+		if (strcmp(key, "offload") == 0) {
+			if (obj->type != UCL_STRING) {
+				log_warnx("\"offload\" property of "
+				    "portal-group \"%s\" is not a string",
+				    name);
+				goto fail;
+			}
+
+			if (!portal_group_set_offload(ucl_object_tostring(obj)))
+				goto fail;
+		}
+
 		if (strcmp(key, "redirect") == 0) {
 			if (obj->type != UCL_STRING) {
 				log_warnx("\"listen\" property of "
@@ -703,6 +719,17 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				    ucl_object_tostring_forced(tmp)))
 					goto fail;
 			}
+		}
+
+		if (strcmp(key, "tag") == 0) {
+			if (obj->type != UCL_INT) {
+				log_warnx("\"tag\" property of portal group "
+				    "\"%s\" is not an integer",
+				    name);
+				goto fail;
+			}
+
+			portal_group_set_tag(ucl_object_toint(obj));
 		}
 
 		if (strcmp(key, "dscp") == 0) {
@@ -943,6 +970,28 @@ uclparse_lun(const char *name, const ucl_object_t *top)
 			}
 
 			if (!lun_set_device_id(ucl_object_tostring(obj)))
+				goto fail;
+		}
+
+		if (strcmp(key, "device-type") == 0) {
+			if (obj->type != UCL_STRING) {
+				log_warnx("\"device-type\" property of lun "
+				    "\"%s\" is not an integer", name);
+				goto fail;
+			}
+
+			if (!lun_set_device_type(ucl_object_tostring(obj)))
+				goto fail;
+		}
+
+		if (strcmp(key, "ctl-lun") == 0) {
+			if (obj->type != UCL_INT) {
+				log_warnx("\"ctl-lun\" property of lun "
+				    "\"%s\" is not an integer", name);
+				goto fail;
+			}
+
+			if (!lun_set_ctl_lun(ucl_object_toint(obj)))
 				goto fail;
 		}
 
