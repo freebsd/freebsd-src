@@ -63,25 +63,25 @@
 static long	fetchtimeout(int opt,
     const char *longopt, const char *myoptarg, int zero_ok);
 static void	parseargs(int, char *[]);
-static int	seconds_to_pow2ns(int);
 static void	sighandler(int);
 static void	watchdog_loop(void);
 static int	watchdog_init(void);
 static int	watchdog_onoff(int onoff);
-static int	watchdog_patpat(u_int timeout);
+static int	watchdog_patpat(sbintime_t);
 static void	usage(void);
-static int	tstotv(struct timeval *tv, struct timespec *ts);
 static int	tvtohz(struct timeval *tv);
 
 static int debugging = 0;
 static int end_program = 0;
 static const char *pidfile = _PATH_VARRUN "watchdogd.pid";
-static u_int timeout = WD_TO_128SEC;
+static sbintime_t timeout = 128 * SBT_1S;
 static u_int exit_timeout = WD_TO_NEVER;
 static u_int pretimeout = 0;
 static u_int timeout_sec;
 static u_int nap = 10;
+#ifdef notyet
 static int passive = 0;
+#endif
 static int is_daemon = 0;
 static int is_dry_run = 0;  /* do not arm the watchdog, only
 			       report on timing of the watch
@@ -174,24 +174,10 @@ main(int argc, char *argv[])
 		pidfile_remove(pfh);
 		return (EX_OK);
 	} else {
-		if (passive)
-			timeout |= WD_PASSIVE;
-		else
-			timeout |= WD_ACTIVE;
 		if (watchdog_patpat(timeout) < 0)
 			err(EX_OSERR, "patting the dog");
 		return (EX_OK);
 	}
-}
-
-static void
-pow2ns_to_ts(int pow2ns, struct timespec *ts)
-{
-	uint64_t ns;
-
-	ns = 1ULL << pow2ns;
-	ts->tv_sec = ns / 1000000000ULL;
-	ts->tv_nsec = ns % 1000000000ULL;
 }
 
 /*
@@ -200,12 +186,11 @@ pow2ns_to_ts(int pow2ns, struct timespec *ts)
  *
  * The kernel expects the timeouts for watchdogs in "2^N nanosecond format".
  */
-static u_int
-parse_timeout_to_pow2ns(char opt, const char *longopt, const char *myoptarg)
+static sbintime_t
+parse_timeout_to_sbt(char opt, const char *longopt, const char *myoptarg)
 {
-	double a;
-	u_int rv;
-	struct timespec ts;
+	long a;
+	sbintime_t rv;
 	struct timeval tv;
 	int ticks;
 	char shortopt[] = "- ";
@@ -216,19 +201,17 @@ parse_timeout_to_pow2ns(char opt, const char *longopt, const char *myoptarg)
 	a = fetchtimeout(opt, longopt, myoptarg, 1);
 
 	if (a == 0)
-		rv = WD_TO_NEVER;
+		rv = 0;
 	else
-		rv = seconds_to_pow2ns(a);
-	pow2ns_to_ts(rv, &ts);
-	tstotv(&tv, &ts);
+		rv = a * SBT_1S;
+	tv = sbttotv(rv);
 	ticks = tvtohz(&tv);
 	if (debugging) {
 		printf("Timeout for %s%s "
-		    "is 2^%d nanoseconds "
-		    "(in: %s sec -> out: %jd sec %ld ns -> %d ticks)\n",
+		    "is "
+		    "(in: %s sec -> out: %jd sec %ld us -> %d ticks)\n",
 		    longopt ? "-" : "", longopt ? longopt : shortopt,
-		    rv,
-		    myoptarg, (intmax_t)ts.tv_sec, ts.tv_nsec, ticks);
+		    myoptarg, (intmax_t)tv.tv_sec, tv.tv_usec, ticks);
 	}
 	if (ticks <= 0) {
 		errx(1, "Timeout for %s%s is too small, please choose a higher timeout.", longopt ? "-" : "", longopt ? longopt : shortopt);
@@ -364,7 +347,7 @@ watchdog_loop(void)
 		}
 
 		if (failed == 0)
-			watchdog_patpat(timeout|WD_ACTIVE);
+			watchdog_patpat(timeout);
 
 		waited = watchdog_check_dogfunction_time(&ts_start, &ts_end);
 		if (nap - waited > 0)
@@ -387,13 +370,13 @@ try_end:
  * to keep the watchdog from firing.
  */
 static int
-watchdog_patpat(u_int t)
+watchdog_patpat(sbintime_t sbt)
 {
 
 	if (is_dry_run)
 		return 0;
 
-	return ioctl(fd, WDIOCPATPAT, &t);
+	return ioctl(fd, WDIOC_SETTIMEOUT, &sbt);
 }
 
 static int
@@ -429,7 +412,7 @@ watchdog_onoff(int onoff)
 			warn("setting WDIOC_SETSOFT %d", softtimeout_set);
 			return (error);
 		}
-		error = watchdog_patpat((timeout|WD_ACTIVE));
+		error = watchdog_patpat(timeout);
 		if (error) {
 			warn("watchdog_patpat failed");
 			goto failsafe;
@@ -461,7 +444,7 @@ watchdog_onoff(int onoff)
 			}
 		}
 		/* pat one more time for good measure */
-		return watchdog_patpat((timeout|WD_ACTIVE));
+		return watchdog_patpat(timeout);
 	 } else {
 		return watchdog_control(WD_CTRL_DISABLE);
 	 }
@@ -576,15 +559,6 @@ timeout_act_str2int(const char *lopt, const char *acts)
 	return rv;
 }
 
-int
-tstotv(struct timeval *tv, struct timespec *ts)
-{
-
-	tv->tv_sec = ts->tv_sec;
-	tv->tv_usec = ts->tv_nsec / 1000;
-	return 0;
-}
-
 /*
  * Convert a timeval to a number of ticks.
  * Mostly copied from the kernel.
@@ -656,30 +630,6 @@ tvtohz(struct timeval *tv)
 	return ((int)ticks);
 }
 
-static int
-seconds_to_pow2ns(int seconds)
-{
-	uint64_t power;
-	uint64_t ns;
-	uint64_t shifted;
-
-	if (seconds <= 0)
-		errx(1, "seconds %d < 0", seconds);
-	ns = ((uint64_t)seconds) * 1000000000ULL;
-	power = flsll(ns);
-	shifted = 1ULL << power;
-	if (shifted <= ns) {
-		power++;
-	}
-	if (debugging) {
-		printf("shifted %lld\n", (long long)shifted);
-		printf("seconds_to_pow2ns: seconds: %d, ns %lld, power %d\n",
-		    seconds, (long long)ns, (int)power);
-	}
-	return (power);
-}
-
-
 /*
  * Handle the few command line arguments supported.
  */
@@ -692,8 +642,7 @@ parseargs(int argc, char *argv[])
 	const char *lopt;
 
 	/* Get the default value of timeout_sec from the default timeout. */
-	pow2ns_to_ts(timeout, &ts);
-	timeout_sec = ts.tv_sec;
+	timeout_sec = sbintime_getsec(timeout);
 
 	/*
 	 * if we end with a 'd' aka 'watchdogd' then we are the daemon program,
@@ -736,10 +685,10 @@ parseargs(int argc, char *argv[])
 			break;
 		case 't':
 			timeout_sec = atoi(optarg);
-			timeout = parse_timeout_to_pow2ns(c, NULL, optarg);
+			timeout = parse_timeout_to_sbt(c, NULL, optarg);
 			if (debugging)
-				printf("Timeout is 2^%d nanoseconds\n",
-				    timeout);
+				printf("Timeout is %d\n",
+				    (int)(timeout / SBT_1S));
 			break;
 		case 'T':
 			carp_thresh_seconds =
@@ -749,7 +698,7 @@ parseargs(int argc, char *argv[])
 			do_timedog = 1;
 			break;
 		case 'x':
-			exit_timeout = parse_timeout_to_pow2ns(c, NULL, optarg);
+			exit_timeout = parse_timeout_to_sbt(c, NULL, optarg);
 			if (exit_timeout != 0)
 				exit_timeout |= WD_ACTIVE;
 			break;
