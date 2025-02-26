@@ -32,15 +32,16 @@
 #define	_SYS_WATCHDOG_H
 
 #include <sys/ioccom.h>
+#include <sys/_types.h>
 
 #define	_PATH_WATCHDOG	"fido"
 
-#define WDIOCPATPAT	_IOW('W', 42, u_int)	/* pat the watchdog */
-#define WDIOC_SETTIMEOUT    _IOW('W', 43, int)	/* set/reset the timer */
-#define WDIOC_GETTIMEOUT    _IOR('W', 44, int)	/* get total timeout */
-#define WDIOC_GETTIMELEFT   _IOR('W', 45, int)	/* get time left */
-#define WDIOC_GETPRETIMEOUT _IOR('W', 46, int)	/* get the pre-timeout */
-#define WDIOC_SETPRETIMEOUT _IOW('W', 47, int)	/* set the pre-timeout */
+#define WDIOC_PATPAT	    _IOW('W', 52, sbintime_t)	/* pat the watchdog */
+#define WDIOC_SETTIMEOUT    _IOW('W', 53, sbintime_t)	/* set/reset the timer */
+#define WDIOC_GETTIMEOUT    _IOR('W', 54, sbintime_t)	/* get total timeout */
+#define WDIOC_GETTIMELEFT   _IOR('W', 55, sbintime_t)	/* get time left */
+#define WDIOC_GETPRETIMEOUT _IOR('W', 56, sbintime_t)	/* get the pre-timeout */
+#define WDIOC_SETPRETIMEOUT _IOW('W', 57, sbintime_t)	/* set the pre-timeout */
 /* set the action when a pre-timeout occurs see: WD_SOFT_* */
 #define WDIOC_SETPRETIMEOUTACT _IOW('W', 48, int)
 
@@ -112,11 +113,15 @@
 #include <sys/_eventhandler.h>
 
 typedef void (*watchdog_fn)(void *, u_int, int *);
+typedef void (*watchdog_sbt_fn)(void *, sbintime_t, sbintime_t *, int *);
 
 EVENTHANDLER_DECLARE(watchdog_list, watchdog_fn);
+EVENTHANDLER_DECLARE(watchdog_sbt_list, watchdog_sbt_fn);
 
 u_int	wdog_kern_last_timeout(void);
 int	wdog_kern_pat(u_int utim);
+sbintime_t	wdog_kern_last_timeout_sbt(void);
+int		wdog_kern_pat_sbt(sbintime_t utim);
 int		wdog_control(int ctrl);
 
 /*

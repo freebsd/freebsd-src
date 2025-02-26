@@ -50,11 +50,20 @@
 
 #include <sys/syscallsubr.h> /* kern_clock_gettime() */
 
-static int wd_set_pretimeout(int newtimeout, int disableiftoolong);
+#ifdef	COMPAT_FREEBSD14
+#define WDIOCPATPAT_14	_IOW('W', 42, u_int)	/* pat the watchdog */
+#define WDIOC_SETTIMEOUT_14   _IOW('W', 43, int)	/* set/reset the timer */
+#define WDIOC_GETTIMEOUT_14    _IOR('W', 44, int)	/* get total timeout */
+#define WDIOC_GETTIMELEFT_14   _IOR('W', 45, int)	/* get time left */
+#define WDIOC_GETPRETIMEOUT_14 _IOR('W', 46, int)	/* get the pre-timeout */
+#define WDIOC_SETPRETIMEOUT_14 _IOW('W', 47, int)	/* set the pre-timeout */
+#endif
+
+static int wd_set_pretimeout(sbintime_t newtimeout, int disableiftoolong);
 static void wd_timeout_cb(void *arg);
 
 static struct callout wd_pretimeo_handle;
-static int wd_pretimeout;
+static sbintime_t wd_pretimeout;
 static int wd_pretimeout_act = WD_SOFT_LOG;
 
 static struct callout wd_softtimeo_handle;
@@ -63,6 +72,8 @@ static int wd_softtimer;	/* true = use softtimer instead of hardware
 static int wd_softtimeout_act = WD_SOFT_LOG;	/* action for the software timeout */
 
 static struct cdev *wd_dev;
+static volatile sbintime_t wd_last_sbt;	/* last timeout value (sbt) */
+static sbintime_t wd_last_sbt_sysctl;	/* last timeout value (sbt) */
 static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
 static u_int wd_last_u_sysctl;    /* last timeout value set by kern_do_pat */
 static u_int wd_last_u_sysctl_secs;    /* wd_last_u in seconds */
@@ -73,6 +84,8 @@ SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u, CTLFLAG_RD,
     &wd_last_u_sysctl, 0, "Watchdog last update time");
 SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u_secs, CTLFLAG_RD,
     &wd_last_u_sysctl_secs, 0, "Watchdog last update time");
+SYSCTL_SBINTIME_MSEC(_hw_watchdog, OID_AUTO, wd_last_msecs, CTLFLAG_RD,
+    &wd_last_sbt_sysctl, "Watchdog last update time (milliseconds)");
 
 static int wd_lastpat_valid = 0;
 static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
@@ -80,41 +93,26 @@ static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
 /* Hook for external software watchdog to register for use if needed */
 void (*wdog_software_attach)(void);
 
-static void
-pow2ns_to_ts(int pow2ns, struct timespec *ts)
+/* Legacy interface to watchdog. */
+int
+wdog_kern_pat(u_int utim)
 {
-	uint64_t ns;
+	sbintime_t sbt;
 
-	ns = 1ULL << pow2ns;
-	ts->tv_sec = ns / 1000000000ULL;
-	ts->tv_nsec = ns % 1000000000ULL;
-}
+	if ((utim & WD_LASTVAL) != 0 && (utim & WD_INTERVAL) > 0)
+		return (EINVAL);
 
-static int
-pow2ns_to_ticks(int pow2ns)
-{
-	struct timeval tv;
-	struct timespec ts;
-
-	pow2ns_to_ts(pow2ns, &ts);
-	TIMESPEC_TO_TIMEVAL(&tv, &ts);
-	return (tvtohz(&tv));
-}
-
-static int
-seconds_to_pow2ns(int seconds)
-{
-	uint64_t power;
-	uint64_t ns;
-	uint64_t shifted;
-
-	ns = ((uint64_t)seconds) * 1000000000ULL;
-	power = flsll(ns);
-	shifted = 1ULL << power;
-	if (shifted <= ns) {
-		power++;
+	if ((utim & WD_LASTVAL) != 0) {
+		return (wdog_control(WD_CTRL_RESET));
 	}
-	return (power);
+
+	utim &= WD_INTERVAL;
+	if (utim == WD_TO_NEVER)
+		sbt = 0;
+	else
+		sbt = nstosbt(1 << utim);
+
+	return (wdog_kern_pat_sbt(sbt));
 }
 
 int
@@ -126,76 +124,63 @@ wdog_control(int ctrl)
 	}
 
 	if ((ctrl & WD_CTRL_RESET) != 0) {
-		wdog_kern_pat(WD_ACTIVE | WD_LASTVAL);
+		wdog_kern_pat_sbt(wd_last_sbt);
 	} else if ((ctrl & WD_CTRL_ENABLE) != 0) {
-		wdog_kern_pat(WD_ACTIVE | WD_LASTVAL);
+		wdog_kern_pat_sbt(wd_last_sbt);
 	}
 
 	return (0);
 }
 
 int
-wdog_kern_pat(u_int utim)
+wdog_kern_pat_sbt(sbintime_t sbt)
 {
-	int error;
-	static int first = 1;
+	sbintime_t error_sbt = 0;
+	int pow2ns = 0;
+	int error = 0;
+	static bool first = true;
 
-	if ((utim & WD_LASTVAL) != 0 && (utim & WD_INTERVAL) > 0)
-		return (EINVAL);
-
-	if ((utim & WD_LASTVAL) != 0) {
-		/*
-		 * if WD_LASTVAL is set, fill in the bits for timeout
-		 * from the saved value in wd_last_u.
-		 */
-		MPASS((wd_last_u & ~WD_INTERVAL) == 0);
-		utim &= ~WD_LASTVAL;
-		utim |= wd_last_u;
-	} else {
-		/*
-		 * Otherwise save the new interval.
-		 * This can be zero (to disable the watchdog)
-		 */
-		wd_last_u = (utim & WD_INTERVAL);
+	/* legacy uses power-of-2-nanoseconds time. */
+	if (sbt != 0) {
+		pow2ns = flsl(sbttons(sbt));
+	}
+	if (wd_last_sbt != sbt) {
+		wd_last_u = pow2ns;
 		wd_last_u_sysctl = wd_last_u;
-		wd_last_u_sysctl_secs = pow2ns_to_ticks(wd_last_u) / hz;
-	}
-	if ((utim & WD_INTERVAL) == WD_TO_NEVER) {
-		utim = 0;
+		wd_last_u_sysctl_secs = sbt / SBT_1S;
 
-		/* Assume all is well; watchdog signals failure. */
-		error = 0;
-	} else {
-		/* Assume no watchdog available; watchdog flags success */
-		error = EOPNOTSUPP;
+		wd_last_sbt = sbt;
 	}
+
+	if (sbt != 0)
+		error = EOPNOTSUPP;
+
 	if (wd_softtimer) {
-		if (utim == 0) {
+		if (sbt == 0) {
 			callout_stop(&wd_softtimeo_handle);
 		} else {
-			(void) callout_reset(&wd_softtimeo_handle,
-			    pow2ns_to_ticks(utim), wd_timeout_cb, "soft");
+			(void) callout_reset_sbt(&wd_softtimeo_handle,
+			    sbt, 0, wd_timeout_cb, "soft", 0);
 		}
 		error = 0;
 	} else {
-		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+		EVENTHANDLER_INVOKE(watchdog_sbt_list, sbt, &error_sbt, &error);
+		EVENTHANDLER_INVOKE(watchdog_list, pow2ns, &error);
 	}
 	/*
-	 * If we no hardware watchdog responded, we have not tried to
+	 * If no hardware watchdog responded, we have not tried to
 	 * attach an external software watchdog, and one is available,
 	 * attach it now and retry.
 	 */
-	if (error == EOPNOTSUPP && first && *wdog_software_attach != NULL) {
+	if (error == EOPNOTSUPP && first && wdog_software_attach != NULL) {
 		(*wdog_software_attach)();
-		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+		EVENTHANDLER_INVOKE(watchdog_sbt_list, sbt, &error_sbt, &error);
+		EVENTHANDLER_INVOKE(watchdog_list, pow2ns, &error);
 	}
-	first = 0;
+	first = false;
 
+	/* TODO: Print a (rate limited?) warning if error_sbt is too far away */
 	wd_set_pretimeout(wd_pretimeout, true);
-	/*
-	 * If we were able to arm/strobe the watchdog, then
-	 * update the last time it was strobed for WDIOC_GETTIMELEFT
-	 */
 	if (!error) {
 		struct timespec ts;
 
@@ -206,6 +191,7 @@ wdog_kern_pat(u_int utim)
 			wd_lastpat_valid = 1;
 		}
 	}
+
 	return (error);
 }
 
@@ -282,16 +268,14 @@ wd_timeout_cb(void *arg)
  * current actual watchdog timeout.
  */
 static int
-wd_set_pretimeout(int newtimeout, int disableiftoolong)
+wd_set_pretimeout(sbintime_t newtimeout, int disableiftoolong)
 {
-	u_int utime;
-	struct timespec utime_ts;
-	int timeout_ticks;
+	sbintime_t utime;
+	sbintime_t timeout_left;
 
-	utime = wdog_kern_last_timeout();
-	pow2ns_to_ts(utime, &utime_ts);
+	utime = wdog_kern_last_timeout_sbt();
 	/* do not permit a pre-timeout >= than the timeout. */
-	if (newtimeout >= utime_ts.tv_sec) {
+	if (newtimeout >= utime) {
 		/*
 		 * If 'disableiftoolong' then just fall through
 		 * so as to disable the pre-watchdog
@@ -309,7 +293,7 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 		return 0;
 	}
 
-	timeout_ticks = pow2ns_to_ticks(utime) - (hz*newtimeout);
+	timeout_left = utime - newtimeout;
 #if 0
 	printf("wd_set_pretimeout: "
 	    "newtimeout: %d, "
@@ -323,8 +307,8 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 #endif
 
 	/* We determined the value is sane, so reset the callout */
-	(void) callout_reset(&wd_pretimeo_handle,
-	    timeout_ticks, wd_timeout_cb, "pre");
+	(void) callout_reset_sbt(&wd_pretimeo_handle,
+	    timeout_left, 0, wd_timeout_cb, "pre", 0);
 	wd_pretimeout = newtimeout;
 	return 0;
 }
@@ -333,6 +317,7 @@ static int
 wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
     int flags __unused, struct thread *td)
 {
+	sbintime_t sb;
 	u_int u;
 	time_t timeleft;
 	int error;
@@ -368,31 +353,54 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			error = EINVAL;
 		}
 		break;
-	case WDIOC_GETPRETIMEOUT:
-		*(int *)data = (int)wd_pretimeout;
+#ifdef	COMPAT_FREEBSD14
+	case WDIOC_GETPRETIMEOUT_14:
+		*(int *)data = (int)(wd_pretimeout / SBT_1S);
 		break;
-	case WDIOC_SETPRETIMEOUT:
-		error = wd_set_pretimeout(*(int *)data, false);
+	case WDIOC_SETPRETIMEOUT_14:
+		error = wd_set_pretimeout(*(int *)data * SBT_1S, false);
 		break;
-	case WDIOC_GETTIMELEFT:
+	case WDIOC_GETTIMELEFT_14:
 		error = wd_get_time_left(td, &timeleft);
 		if (error)
 			break;
 		*(int *)data = (int)timeleft;
 		break;
-	case WDIOC_SETTIMEOUT:
+	case WDIOC_SETTIMEOUT_14:
 		u = *(u_int *)data;
-		error = wdog_kern_pat(seconds_to_pow2ns(u));
+		error = wdog_kern_pat_sbt(mstosbt(u * 1000ULL));
 		break;
-	case WDIOC_GETTIMEOUT:
+	case WDIOC_GETTIMEOUT_14:
 		u = wdog_kern_last_timeout();
 		*(u_int *)data = u;
 		break;
-	case WDIOCPATPAT:
+	case WDIOCPATPAT_14:
 		error = wd_ioctl_patpat(data);
 		break;
+#endif
+
+	/* New API */
 	case WDIOC_CONTROL:
 		wdog_control(*(int *)data);
+		break;
+	case WDIOC_SETTIMEOUT:
+		sb = *(sbintime_t *)data;
+		error = wdog_kern_pat_sbt(sb);
+		break;
+	case WDIOC_GETTIMEOUT:
+		*(sbintime_t *)data = wdog_kern_last_timeout_sbt();
+		break;
+	case WDIOC_GETTIMELEFT:
+		error = wd_get_time_left(td, &timeleft);
+		if (error)
+			break;
+		*(sbintime_t *)data = (sbintime_t)timeleft * SBT_1S;
+		break;
+	case WDIOC_GETPRETIMEOUT:
+		*(sbintime_t *)data = wd_pretimeout;
+		break;
+	case WDIOC_SETPRETIMEOUT:
+		error = wd_set_pretimeout(*(sbintime_t *)data, false);
 		break;
 	default:
 		error = ENOIOCTL;
@@ -410,6 +418,12 @@ wdog_kern_last_timeout(void)
 {
 
 	return (wd_last_u);
+}
+
+sbintime_t
+wdog_kern_last_timeout_sbt(void)
+{
+	return (wd_last_sbt);
 }
 
 static struct cdevsw wd_cdevsw = {
