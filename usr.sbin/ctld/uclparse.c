@@ -191,6 +191,20 @@ uclparse_target_portal_group(const char *t_name, const ucl_object_t *obj)
 	const ucl_object_t *portal_group, *auth_group;
 	const char *ag_name;
 
+	/*
+	 * If the value is a single string, assume it is a
+	 * portal-group name.
+	 */
+	if (obj->type == UCL_STRING)
+		return (target_add_portal_group(ucl_object_tostring(obj),
+		    NULL));
+
+	if (obj->type != UCL_OBJECT) {
+		log_warnx("portal-group section in target \"%s\" must be "
+		    "an object or string", t_name);
+		return (false);
+	}
+
 	portal_group = ucl_object_find_key(obj, "name");
 	if (!portal_group || portal_group->type != UCL_STRING) {
 		log_warnx("portal-group section in target \"%s\" is missing "
@@ -884,11 +898,6 @@ uclparse_target(const char *name, const ucl_object_t *top)
 		}
 
 		if (strcmp(key, "portal-group") == 0) {
-			if (obj->type == UCL_OBJECT) {
-				if (!uclparse_target_portal_group(name, obj))
-					goto fail;
-			}
-
 			if (obj->type == UCL_ARRAY) {
 				while ((tmp = ucl_iterate_object(obj, &it2,
 				    true))) {
@@ -896,6 +905,9 @@ uclparse_target(const char *name, const ucl_object_t *top)
 					    tmp))
 						goto fail;
 				}
+			} else {
+				if (!uclparse_target_portal_group(name, obj))
+					goto fail;
 			}
 		}
 
