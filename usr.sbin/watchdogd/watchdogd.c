@@ -396,6 +396,15 @@ watchdog_patpat(u_int t)
 	return ioctl(fd, WDIOCPATPAT, &t);
 }
 
+static int
+watchdog_control(u_int control)
+{
+	if (is_dry_run)
+		return (0);
+
+	return ioctl(fd, WDIOC_CONTROL, &control);
+}
+
 /*
  * Toggle the kernel's watchdog. This routine is used to enable and
  * disable the watchdog.
@@ -454,10 +463,10 @@ watchdog_onoff(int onoff)
 		/* pat one more time for good measure */
 		return watchdog_patpat((timeout|WD_ACTIVE));
 	 } else {
-		return watchdog_patpat(exit_timeout);
+		return watchdog_control(WD_CTRL_DISABLE);
 	 }
 failsafe:
-	watchdog_patpat(exit_timeout);
+	watchdog_control(WD_CTRL_DISABLE);
 	return (error);
 }
 
