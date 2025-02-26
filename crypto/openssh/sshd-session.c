@@ -109,6 +109,7 @@
 #include "sk-api.h"
 #include "srclimit.h"
 #include "dh.h"
+
 #include "blacklist_client.h"
 
 /* Re-exec fds */
@@ -204,6 +205,7 @@ static void do_ssh2_kex(struct ssh *);
 static void
 grace_alarm_handler(int sig)
 {
+	BLACKLIST_NOTIFY(the_active_state, BLACKLIST_AUTH_FAIL, "ssh");
 	/*
 	 * Try to kill any processes that we have spawned, E.g. authorized
 	 * keys command helpers or privsep children.
@@ -1220,6 +1222,8 @@ main(int ac, char **av)
 	ssh_signal(SIGCHLD, SIG_DFL);
 	ssh_signal(SIGINT, SIG_DFL);
 
+	BLACKLIST_INIT();
+
 	/*
 	 * Register our connection.  This turns encryption off because we do
 	 * not have a key.
@@ -1316,8 +1320,6 @@ main(int ac, char **av)
 	if ((loginmsg = sshbuf_new()) == NULL)
 		fatal("sshbuf_new loginmsg failed");
 	auth_debug_reset();
-
-	BLACKLIST_INIT();
 
 	if (privsep_preauth(ssh) == 1)
 		goto authenticated;
@@ -1498,6 +1500,9 @@ void
 cleanup_exit(int i)
 {
 	extern int auth_attempted; /* monitor.c */
+
+	if (i == 225)
+		BLACKLIST_NOTIFY(the_active_state, BLACKLIST_AUTH_FAIL, "ssh");
 
 	if (the_active_state != NULL && the_authctxt != NULL) {
 		do_cleanup(the_active_state, the_authctxt);

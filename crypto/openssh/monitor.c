@@ -98,6 +98,8 @@
 #include "sk-api.h"
 #include "srclimit.h"
 
+#include "blacklist_client.h"
+
 #ifdef GSSAPI
 static Gssctxt *gsscontext = NULL;
 #endif
@@ -347,16 +349,21 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 			}
 		}
 		if (authctxt->failures > options.max_authtries) {
+			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 			/* Shouldn't happen */
 			fatal_f("privsep child made too many authentication "
 			    "attempts");
 		}
 	}
 
-	if (!authctxt->valid)
+	if (!authctxt->valid) {
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 		fatal_f("authenticated invalid user");
-	if (strcmp(auth_method, "unknown") == 0)
+	}
+	if (strcmp(auth_method, "unknown") == 0) {
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 		fatal_f("authentication method name unknown");
+	}
 
 	debug_f("user %s authenticated by privileged process", authctxt->user);
 	auth_attempted = 0;
@@ -1247,6 +1254,7 @@ mm_answer_keyallowed(struct ssh *ssh, int sock, struct sshbuf *m)
 	} else {
 		/* Log failed attempt */
 		auth_log(ssh, 0, 0, auth_method, NULL);
+		BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_FAIL, "ssh");
 		free(cuser);
 		free(chost);
 	}
