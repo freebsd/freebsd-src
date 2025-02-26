@@ -51,6 +51,7 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/tree.h>
 
 #include "makefs.h"
 #include "iso.h"
@@ -203,6 +204,12 @@ typedef struct _volume_descriptor
 	struct _volume_descriptor *next;
 } volume_descriptor;
 
+struct inode_map_node {
+	RB_ENTRY(inode_map_node) entry;
+	uint64_t key;
+	uint64_t value;
+};
+
 typedef struct _iso9660_disk {
 	int sectorSize;
 	struct iso_primary_descriptor		primaryDescriptor;
@@ -249,6 +256,9 @@ typedef struct _iso9660_disk {
 	unsigned rock_ridge_move_count;
 	cd9660node *rr_moved_dir;
 
+	uint64_t rr_inode_next;
+	RB_HEAD(inode_map_tree, inode_map_node) rr_inode_map;
+
 	int chrp_boot;
 
 	/* Spec breaking options */
@@ -274,6 +284,8 @@ typedef struct _iso9660_disk {
 	LIST_HEAD(boot_catalog_entries,boot_catalog_entry) boot_entries;
 
 } iso9660_disk;
+
+RB_PROTOTYPE(inode_map_tree, inode_map_node, entry, inode_map_node_cmp);
 
 /************ FUNCTIONS **************/
 int			cd9660_valid_a_chars(const char *);
