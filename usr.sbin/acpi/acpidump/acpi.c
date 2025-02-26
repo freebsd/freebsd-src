@@ -1222,13 +1222,14 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 	vend = vaddr + len;
 
 	while (vaddr != NULL) {
-		if ((vaddr + sizeof(struct TCPAevent) >= vend)||
-		    (vaddr + sizeof(struct TCPAevent) < vaddr))
+		if ((uintptr_t)vaddr + sizeof(struct TCPAevent) >=
+		    (uintptr_t)vend || (uintptr_t)vaddr + sizeof(
+		    struct TCPAevent) < (uintptr_t)vaddr)
 			break;
 		event = (struct TCPAevent *)(void *)vaddr;
-		if (vaddr + event->event_size >= vend)
+		if ((uintptr_t)vaddr + event->event_size >= (uintptr_t)vend)
 			break;
-		if (vaddr + event->event_size < vaddr)
+		if ((uintptr_t)vaddr + event->event_size < (uintptr_t)vaddr)
 			break;
 		if (event->event_type == 0 && event->event_size == 0)
 			break;
