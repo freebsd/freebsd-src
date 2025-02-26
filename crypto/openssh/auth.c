@@ -286,8 +286,11 @@ auth_log(struct ssh *ssh, int authenticated, int partial,
 		authmsg = "Postponed";
 	else if (partial)
 		authmsg = "Partial";
-	else
+	else {
 		authmsg = authenticated ? "Accepted" : "Failed";
+		if (authenticated)
+			BLACKLIST_NOTIFY(ssh, BLACKLIST_AUTH_OK, "ssh");
+	}
 
 	if ((extra = format_method_key(authctxt)) == NULL) {
 		if (authctxt->auth_method_info != NULL)
