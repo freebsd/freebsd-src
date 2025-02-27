@@ -230,6 +230,8 @@ extern struct mtx			acpi_mutex;
  *	compatible flag and ignoring overrides that redirect IRQ 0 to pin 2.
  * ACPI_Q_AEI_NOPULL: Specifies that _AEI objects incorrectly designate pins
  *	as "PullUp" and they should be treated as "NoPull" instead.
+ * ACPI_Q_CLEAR_PME_ON_DETACH: Specifies that PCIM_PSTAT_(PME & ~PMEENABLE)
+ *	should be written to the power status register as part of ACPI Eject.
  */
 extern int	acpi_quirks;
 #define ACPI_Q_OK		0
@@ -237,6 +239,7 @@ extern int	acpi_quirks;
 #define ACPI_Q_TIMER		(1 << 1)
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 #define ACPI_Q_AEI_NOPULL	(1 << 3)
+#define ACPI_Q_CLEAR_PME_ON_DETACH	(1 << 4)
 
 #if defined(__amd64__) || defined(__i386__)
 /*
