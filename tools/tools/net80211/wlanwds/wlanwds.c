@@ -283,7 +283,7 @@ getlladdr(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN])
 	}
 
 	/* Look for a matching interface */
-	for (ifa = ifap; ifa != NULL; ifa++) {
+	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		if (strcmp(ifname, ifa->ifa_name) != 0)
 			continue;
 
