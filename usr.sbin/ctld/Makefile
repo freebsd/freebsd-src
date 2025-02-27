@@ -12,6 +12,7 @@ CFLAGS+=	-I${SRCTOP}/sys
 CFLAGS+=	-I${SRCTOP}/sys/cam/ctl
 CFLAGS+=	-I${SRCTOP}/sys/dev/iscsi
 CFLAGS+=	-I${SRCTOP}/lib/libiscsiutil
+CFLAGS+=	-I${SRCTOP}/lib/libutil++
 #CFLAGS+=	-DICL_KERNEL_PROXY
 NO_WCAST_ALIGN=
 CXXWARNFLAGS.gcc= -Wno-shadow
