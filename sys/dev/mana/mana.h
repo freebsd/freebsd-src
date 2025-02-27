@@ -149,6 +149,7 @@ struct mana_stats {
 	counter_u64_t			collapse_err;		/* tx */
 	counter_u64_t			dma_mapping_err;	/* rx, tx */
 	counter_u64_t			mbuf_alloc_fail;	/* rx */
+	counter_u64_t			partial_refill;		/* rx */
 	counter_u64_t			alt_chg;		/* tx */
 	counter_u64_t			alt_reset;		/* tx */
 	counter_u64_t			cqe_err;		/* tx */
@@ -441,6 +442,8 @@ struct mana_rxq {
 	uint32_t			num_rx_buf;
 
 	uint32_t			buf_index;
+	uint32_t			next_to_refill;
+	uint32_t			refill_thresh;
 
 	uint64_t			lro_tried;
 	uint64_t			lro_failed;
@@ -710,6 +713,13 @@ struct mana_cfg_rx_steer_resp {
 #define MANA_MAX_NUM_QUEUES		16
 
 #define MANA_SHORT_VPORT_OFFSET_MAX	((1U << 8) - 1)
+
+#define MANA_IDX_NEXT(idx, size)	(((idx) + 1) & ((size) - 1))
+#define MANA_GET_SPACE(start_idx, end_idx, size)			\
+	(((end_idx) >= (start_idx)) ?					\
+	((end_idx) - (start_idx)) : ((size) - (start_idx) + (end_idx)))
+
+#define MANA_RX_REFILL_THRESH		256
 
 struct mana_tx_package {
 	struct gdma_wqe_request		wqe_req;
