@@ -25,8 +25,14 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_INTR_MACHDEP_H_
-#define	_MACHINE_INTR_MACHDEP_H_
+#ifndef	__MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct powerpc_intr interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
 
 #define	INTR_VECTORS	256
 
@@ -61,4 +67,4 @@ int	powerpc_fw_config_intr(int irq, int sense_code);
 void	powerpc_intr_mask(u_int irq);
 void	powerpc_intr_unmask(u_int irq);
 
-#endif /* _MACHINE_INTR_MACHDEP_H_ */
+#endif /* __MACHINE_INTERRUPT_H__ */
