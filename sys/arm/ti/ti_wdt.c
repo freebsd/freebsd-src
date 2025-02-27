@@ -39,7 +39,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -81,11 +81,8 @@ static device_method_t ti_wdt_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_wdt_driver = {
-	"ti_wdt",
-	ti_wdt_methods,
-	sizeof(struct ti_wdt_softc)
-};
+PRIVATE_DEFINE_CLASSN(ti_wdt, ti_wdt_driver, ti_wdt_methods,
+    sizeof(struct ti_wdt_softc));
 
 DRIVER_MODULE(ti_wdt, simplebus, ti_wdt_driver, 0, 0);
 MODULE_DEPEND(ti_wdt, ti_sysc, 1, 1, 1);

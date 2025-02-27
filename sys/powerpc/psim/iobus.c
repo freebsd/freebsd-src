@@ -89,38 +89,36 @@ static int  iobus_release_resource(device_t, device_t, struct resource *);
  * Bus interface definition
  */
 static device_method_t iobus_methods[] = {
-        /* Device interface */
-        DEVMETHOD(device_probe,         iobus_probe),
-        DEVMETHOD(device_attach,        iobus_attach),
-        DEVMETHOD(device_detach,        bus_generic_detach),
-        DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-        DEVMETHOD(device_suspend,       bus_generic_suspend),
-        DEVMETHOD(device_resume,        bus_generic_resume),
+	/* Device interface */
+	DEVMETHOD(device_probe,         iobus_probe),
+	DEVMETHOD(device_attach,        iobus_attach),
+	DEVMETHOD(device_detach,        bus_generic_detach),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       bus_generic_suspend),
+	DEVMETHOD(device_resume,        bus_generic_resume),
 
-        /* Bus interface */
-        DEVMETHOD(bus_print_child,      iobus_print_child),
-        DEVMETHOD(bus_probe_nomatch,    iobus_probe_nomatch),
-        DEVMETHOD(bus_read_ivar,        iobus_read_ivar),
-        DEVMETHOD(bus_write_ivar,       iobus_write_ivar),
-        DEVMETHOD(bus_setup_intr,       bus_generic_setup_intr),
-        DEVMETHOD(bus_teardown_intr,    bus_generic_teardown_intr),
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,      iobus_print_child),
+	DEVMETHOD(bus_probe_nomatch,    iobus_probe_nomatch),
+	DEVMETHOD(bus_read_ivar,        iobus_read_ivar),
+	DEVMETHOD(bus_write_ivar,       iobus_write_ivar),
+	DEVMETHOD(bus_setup_intr,       bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,    bus_generic_teardown_intr),
 
 	DEVMETHOD(bus_get_rman,		iobus_get_rman),
-        DEVMETHOD(bus_alloc_resource,   iobus_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,   iobus_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	iobus_adjust_resource),
-        DEVMETHOD(bus_release_resource, iobus_release_resource),
-        DEVMETHOD(bus_activate_resource, iobus_activate_resource),
-        DEVMETHOD(bus_deactivate_resource, iobus_deactivate_resource),
+	DEVMETHOD(bus_release_resource, iobus_release_resource),
+	DEVMETHOD(bus_activate_resource, iobus_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, iobus_deactivate_resource),
 	DEVMETHOD(bus_map_resource,	iobus_map_resource),
 	DEVMETHOD(bus_unmap_resource,	iobus_unmap_resource),
-        { 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t iobus_driver = {
-        "iobus",
-        iobus_methods,
-        sizeof(struct iobus_softc)
-};
+PRIVATE_DEFINE_CLASSN(iobus, iobus_driver, iobus_methods,
+    sizeof(struct iobus_softc));
 
 DRIVER_MODULE(iobus, ofwbus, iobus_driver, 0, 0);
 

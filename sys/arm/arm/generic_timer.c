@@ -54,7 +54,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 
@@ -784,10 +784,11 @@ arm_tmr_attach(device_t dev)
 static device_method_t arm_tmr_fdt_methods[] = {
 	DEVMETHOD(device_probe,		arm_tmr_fdt_probe),
 	DEVMETHOD(device_attach,	arm_tmr_fdt_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(generic_timer, arm_tmr_fdt_driver, arm_tmr_fdt_methods,
+PRIVATE_DEFINE_CLASSN(generic_timer, arm_tmr_fdt_driver, arm_tmr_fdt_methods,
     sizeof(struct arm_tmr_softc));
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, 0, 0,
@@ -801,10 +802,11 @@ static device_method_t arm_tmr_acpi_methods[] = {
 	DEVMETHOD(device_identify,	arm_tmr_acpi_identify),
 	DEVMETHOD(device_probe,		arm_tmr_acpi_probe),
 	DEVMETHOD(device_attach,	arm_tmr_acpi_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static DEFINE_CLASS_0(generic_timer, arm_tmr_acpi_driver, arm_tmr_acpi_methods,
+PRIVATE_DEFINE_CLASSN(generic_timer, arm_tmr_acpi_driver, arm_tmr_acpi_methods,
     sizeof(struct arm_tmr_softc));
 
 EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, 0, 0,

@@ -38,7 +38,7 @@
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
@@ -577,14 +577,12 @@ pl310_attach(device_t dev)
 static device_method_t pl310_methods[] = {
 	DEVMETHOD(device_probe, pl310_probe),
 	DEVMETHOD(device_attach, pl310_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t pl310_driver = {
-        "l2cache",
-        pl310_methods,
-        sizeof(struct pl310_softc),
-};
+PRIVATE_DEFINE_CLASSN(l2cache, pl310_driver, pl310_methods,
+    sizeof(struct pl310_softc));
 
 EARLY_DRIVER_MODULE(pl310, simplebus, pl310_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);

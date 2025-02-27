@@ -36,8 +36,8 @@
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/syscon/syscon.h>
 
@@ -219,11 +219,8 @@ static device_method_t mv_pinctrl_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_pinctrl_driver = {
-	"mv_pinctrl",
-	mv_pinctrl_methods,
-	sizeof(struct mv_pinctrl_softc),
-};
+PRIVATE_DEFINE_CLASSN(mv_pinctrl, mv_pinctrl_driver, mv_pinctrl_methods,
+    sizeof(struct mv_pinctrl_softc));
 
 EARLY_DRIVER_MODULE(mv_pinctrl, simplebus, mv_pinctrl_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

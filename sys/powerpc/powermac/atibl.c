@@ -89,14 +89,12 @@ static device_method_t atibl_methods[] = {
 	DEVMETHOD(device_attach,	atibl_attach),
 	DEVMETHOD(device_suspend,	atibl_suspend),
 	DEVMETHOD(device_resume,	atibl_resume),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
-static driver_t	atibl_driver = {
-	"backlight",
-	atibl_methods,
-	sizeof(struct atibl_softc)
-};
+PRIVATE_DEFINE_CLASSN(backlight, atibl_driver, atibl_methods,
+    sizeof(struct atibl_softc));
 
 DRIVER_MODULE(atibl, vgapci, atibl_driver, 0, 0);
 

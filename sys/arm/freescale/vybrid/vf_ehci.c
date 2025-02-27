@@ -151,15 +151,12 @@ static device_method_t ehci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 /* kobj_class definition */
-static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(ehci_softc_t)
-};
+PRIVATE_DEFINE_CLASSN(ehci, ehci_driver, ehci_methods, sizeof(ehci_softc_t));
 
 DRIVER_MODULE(vybrid_ehci, simplebus, ehci_driver, 0, 0);
 MODULE_DEPEND(vybrid_ehci, usb, 1, 1, 1);

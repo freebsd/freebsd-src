@@ -60,14 +60,12 @@ static device_method_t rtc_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	ds1553_gettime),
 	DEVMETHOD(clock_settime,	ds1553_settime),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t rtc_driver = {
-	"rtc",
-	rtc_methods,
-	sizeof(struct ds1553_softc),
-};
+PRIVATE_DEFINE_CLASSN(rtc, rtc_driver, rtc_methods,
+    sizeof(struct ds1553_softc));
 
 DRIVER_MODULE(rtc, lbc, rtc_driver, 0, 0);
 

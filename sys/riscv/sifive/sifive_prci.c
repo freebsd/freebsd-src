@@ -684,11 +684,8 @@ static device_method_t prci_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t prci_driver = {
-	"sifive_prci",
-	prci_methods,
-	sizeof(struct prci_softc)
-};
+PRIVATE_DEFINE_CLASSN(sifive_prci, prci_driver, prci_methods,
+    sizeof(struct prci_softc));
 
 /*
  * hfclk and rtcclk appear later in the device tree than prci, so we must

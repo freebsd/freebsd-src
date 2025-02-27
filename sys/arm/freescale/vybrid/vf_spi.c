@@ -51,7 +51,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 
@@ -275,15 +275,13 @@ static device_method_t spi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		spi_probe),
 	DEVMETHOD(device_attach,	spi_attach),
+
 	/* SPI interface */
 	DEVMETHOD(spibus_transfer,	spi_transfer),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t spi_driver = {
-	"spi",
-	spi_methods,
-	sizeof(struct spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(spi, spi_driver, spi_methods, sizeof(struct spi_softc));
 
 DRIVER_MODULE(spi, simplebus, spi_driver, 0, 0);

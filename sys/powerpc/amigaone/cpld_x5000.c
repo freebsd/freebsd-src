@@ -105,11 +105,8 @@ static device_method_t cpld_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t cpld_driver = {
-	"cpld",
-	cpld_methods,
-	sizeof(struct cpld_softc)
-};
+PRIVATE_DEFINE_CLASSN(cpld, cpld_driver, cpld_methods,
+    sizeof(struct cpld_softc));
 
 DRIVER_MODULE(cpld, lbc, cpld_driver, 0, 0);
 

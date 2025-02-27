@@ -40,7 +40,7 @@
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -104,14 +104,12 @@ a20_cpu_cfg_attach(device_t dev)
 static device_method_t a20_cpu_cfg_methods[] = {
 	DEVMETHOD(device_probe, 	a20_cpu_cfg_probe),
 	DEVMETHOD(device_attach,	a20_cpu_cfg_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t a20_cpu_cfg_driver = {
-	"a20_cpu_cfg",
-	a20_cpu_cfg_methods,
-	sizeof(struct a20_cpu_cfg_softc),
-};
+PRIVATE_DEFINE_CLASSN(a20_cpu_cfg, a20_cpu_cfg_driver, a20_cpu_cfg_methods,
+    sizeof(struct a20_cpu_cfg_softc));
 
 EARLY_DRIVER_MODULE(a20_cpu_cfg, simplebus, a20_cpu_cfg_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);

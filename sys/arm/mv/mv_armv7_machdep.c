@@ -457,7 +457,7 @@ static platform_method_t mv_a38x_methods[] = {
 	PLATFORMMETHOD(platform_mp_setmaxid, mv_a38x_platform_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(mv_a38x, "mv_a38x", 0, "marvell,armada380", 100);
 #endif
@@ -474,6 +474,6 @@ static platform_method_t mv_axp_methods[] = {
 	PLATFORMMETHOD(platform_mp_setmaxid, mv_axp_platform_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 FDT_PLATFORM_DEF(mv_axp, "mv_axp", 0, "marvell,armadaxp", 100);

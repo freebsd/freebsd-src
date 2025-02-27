@@ -33,11 +33,25 @@
 #error Need INTRNG for this file
 #endif
 
-#include <machine/intr.h>
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/intr.h included without architecture interrupt header!"
+#endif
+
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+#include <sys/interrupt.h>
+
+/* FreeBSD standard interrupt controller interface */
+
+#include <sys/_cpuset.h>
 
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
+struct resource;
+struct trapframe;
 
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI = 0,
@@ -81,15 +95,13 @@ struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
-	device_t		isrc_dev;	/* where isrc is mapped */
-	u_int			isrc_irq;	/* unique identificator */
+	struct intr_event	isrc_event;
 	u_int			isrc_flags;
 	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	u_int			isrc_index;
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
 #ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;

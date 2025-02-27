@@ -712,11 +712,8 @@ static device_method_t aw_thermal_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_thermal_driver = {
-	"aw_thermal",
-	aw_thermal_methods,
-	sizeof(struct aw_thermal_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_thermal, aw_thermal_driver, aw_thermal_methods,
+    sizeof(struct aw_thermal_softc));
 
 DRIVER_MODULE(aw_thermal, simplebus, aw_thermal_driver, 0, 0);
 MODULE_VERSION(aw_thermal, 1);

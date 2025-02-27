@@ -36,12 +36,13 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#ifdef FDT
-#include <dev/ofw/ofw_bus_subr.h>
+#ifdef	INTRNG
+/* touched by LINT-ACPI */
+#include <machine/interrupt.h>
 #endif
 
-#ifdef	INTRNG
-#include <sys/intr.h>
+#ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
 #endif
 
 #include "gpio_if.h"
@@ -183,6 +184,8 @@ int gpiobus_read_ivar(device_t, device_t, int, uintptr_t *);
 int gpiobus_acquire_pin(device_t, uint32_t);
 int gpiobus_release_pin(device_t, uint32_t);
 
-extern driver_t gpiobus_driver;
+DECLARE_CLASS(gpiobus_driver);
+DECLARE_CLASS(ofw_gpiobus_driver);
+DECLARE_CLASS(gpioc_driver);
 
 #endif	/* __GPIOBUS_H__ */

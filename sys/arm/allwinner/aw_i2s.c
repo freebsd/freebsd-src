@@ -795,11 +795,8 @@ static device_method_t aw_i2s_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_i2s_driver = {
-	"i2s",
-	aw_i2s_methods,
-	sizeof(struct aw_i2s_softc),
-};
+PRIVATE_DEFINE_CLASSN(i2s, aw_i2s_driver, aw_i2s_methods,
+    sizeof(struct aw_i2s_softc));
 
 DRIVER_MODULE(aw_i2s, simplebus, aw_i2s_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);
