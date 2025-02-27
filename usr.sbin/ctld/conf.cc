@@ -39,6 +39,8 @@
 #include <string.h>
 #include <cam/scsi/scsi_all.h>
 
+#include <libutil++>
+
 #include "conf.h"
 #include "ctld.h"
 
@@ -752,4 +754,27 @@ target_start_lun(u_int id)
 
 	lun = new_lun;
 	return (true);
+}
+
+bool
+parse_conf(const char *path)
+{
+	freebsd::FILE_up fp(fopen(path, "r"));
+	if (fp == nullptr) {
+		log_warn("unable to open configuration file %s", path);
+		return (false);
+	}
+
+	bool parsed;
+	try {
+		parsed = yyparse_conf(fp.get());
+	} catch (std::bad_alloc) {
+		log_warnx("failed to allocate memory parsing %s", path);
+		return (false);
+	} catch (...) {
+		log_warnx("unknown exception parsing %s", path);
+		return (false);
+	}
+
+	return (parsed);
 }
