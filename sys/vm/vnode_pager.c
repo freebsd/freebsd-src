@@ -1042,19 +1042,23 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	i = bp->b_npages = 0;
 	if (rbehind) {
 		vm_pindex_t startpindex, tpindex;
-		vm_page_t p;
+		vm_page_t mpred, p;
 
 		VM_OBJECT_WLOCK(object);
 		startpindex = m[0]->pindex - rbehind;
-		if ((p = TAILQ_PREV(m[0], pglist, listq)) != NULL &&
-		    p->pindex >= startpindex)
-			startpindex = p->pindex + 1;
+		if ((mpred = TAILQ_PREV(m[0], pglist, listq)) != NULL &&
+		    mpred->pindex >= startpindex)
+			startpindex = mpred->pindex + 1;
 
-		/* tpindex is unsigned; beware of numeric underflow. */
+		/*
+		 * tpindex is unsigned; beware of numeric underflow.
+		 * Stepping backward from pindex, mpred doesn't change.
+		 */
 		for (tpindex = m[0]->pindex - 1;
 		    tpindex >= startpindex && tpindex < m[0]->pindex;
 		    tpindex--, i++) {
-			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			p = vm_page_alloc_after(object, tpindex,
+			    VM_ALLOC_NORMAL, mpred);
 			if (p == NULL) {
 				/* Shift the array. */
 				for (int j = 0; j < i; j++)
@@ -1089,9 +1093,11 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 		if (endpindex > object->size)
 			endpindex = object->size;
 
-		for (tpindex = m[count - 1]->pindex + 1;
+		p = m[count - 1];
+		for (tpindex = p->pindex + 1;
 		    tpindex < endpindex; i++, tpindex++) {
-			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			p = vm_page_alloc_after(object, tpindex,
+			    VM_ALLOC_NORMAL, p);
 			if (p == NULL)
 				break;
 			bp->b_pages[i] = p;
