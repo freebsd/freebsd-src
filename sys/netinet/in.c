@@ -187,9 +187,9 @@ in_localip_fib(struct in_addr in, uint16_t fib)
 }
 
 /*
- * Return 1 if an internet address is configured on an interface.
+ * Return true if an internet address is configured on an interface.
  */
-int
+bool
 in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 {
 	struct ifaddr *ifa;
@@ -202,10 +202,10 @@ in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 			continue;
 		ia = (struct in_ifaddr *)ifa;
 		if (ia->ia_addr.sin_addr.s_addr == in.s_addr)
-			return (1);
+			return (true);
 	}
 
-	return (0);
+	return (false);
 }
 
 /*
