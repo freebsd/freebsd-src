@@ -231,16 +231,36 @@ is specified and the
 file exists, the file is truncated to zero length.
 .Pp
 If
-.Dv O_EXCL
-is set with
 .Dv O_CREAT
-and the file already
-exists,
+is set, but file already exists,
+this flag has no effect except when
+.Dv O_EXCL
+is set too, in this case
 .Fn open
 fails with
 .Er EEXIST .
 This may be used to
 implement a simple exclusive access locking mechanism.
+In all other cases, the file is created
+and the access permission bits (see
+.Xr chmod 2)
+of the file mode
+are set to the value of the third argument taken as
+.Fa "mode_t mode"
+and passed through the
+.Xr umask 2 .
+This argument does not affect whether the file is opened
+for reading, writing, or for both.
+The open' request for a lock on the file, created with
+.Dv O_CREAT ,
+will never fail
+(provided that the underlying file system supports locking;
+see also
+.Dv O_SHLOCK
+and
+.Dv O_EXLOCK
+below).
+.Pp
 If
 .Dv O_EXCL
 is set and the last component of the pathname is
@@ -289,10 +309,6 @@ semantics can be obtained by setting
 for a shared lock, or
 .Dv O_EXLOCK
 for an exclusive lock.
-If creating a file with
-.Dv O_CREAT ,
-the request for the lock will never fail
-(provided that the underlying file system supports locking).
 .Pp
 .Dv O_DIRECT
 may be used to minimize or eliminate the cache effects of reading and writing.
