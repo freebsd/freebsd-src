@@ -69,6 +69,7 @@ static int mana_down(struct mana_port_context *apc);
 
 extern unsigned int mana_tx_req_size;
 extern unsigned int mana_rx_req_size;
+extern unsigned int mana_rx_refill_threshold;
 
 static void
 mana_rss_key_fill(void *k, size_t size)
@@ -638,8 +639,7 @@ mana_xmit(struct mana_txq *txq)
 			continue;
 		}
 
-		next_to_use =
-		    (next_to_use + 1) % tx_queue_size;
+		next_to_use = MANA_IDX_NEXT(next_to_use, tx_queue_size);
 
 		(void)atomic_inc_return(&txq->pending_sends);
 
@@ -1527,7 +1527,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 		mb();
 
 		next_to_complete =
-		    (next_to_complete + 1) % tx_queue_size;
+		    MANA_IDX_NEXT(next_to_complete, tx_queue_size);
 
 		pkt_transmitted++;
 	}
@@ -1592,17 +1592,10 @@ mana_poll_tx_cq(struct mana_cq *cq)
 }
 
 static void
-mana_post_pkt_rxq(struct mana_rxq *rxq)
+mana_post_pkt_rxq(struct mana_rxq *rxq,
+    struct mana_recv_buf_oob *recv_buf_oob)
 {
-	struct mana_recv_buf_oob *recv_buf_oob;
-	uint32_t curr_index;
 	int err;
-
-	curr_index = rxq->buf_index++;
-	if (rxq->buf_index == rxq->num_rx_buf)
-		rxq->buf_index = 0;
-
-	recv_buf_oob = &rxq->rx_oobs[curr_index];
 
 	err = mana_gd_post_work_request(rxq->gdma_rq, &recv_buf_oob->wqe_req,
 	    &recv_buf_oob->wqe_inf);
@@ -1722,6 +1715,68 @@ mana_rx_mbuf(struct mbuf *mbuf, struct mana_rxcomp_oob *cqe,
 	counter_exit();
 }
 
+static int
+mana_refill_rx_mbufs(struct mana_port_context *apc,
+    struct mana_rxq *rxq, uint32_t num)
+{
+	struct mana_recv_buf_oob *rxbuf_oob;
+	uint32_t next_to_refill;
+	uint32_t i;
+	int err;
+
+	next_to_refill = rxq->next_to_refill;
+
+	for (i = 0; i < num; i++) {
+		if (next_to_refill == rxq->buf_index) {
+			mana_warn(NULL, "refilling index reached current, "
+			    "aborted! rxq %u, oob idx %u\n",
+			    rxq->rxq_idx, next_to_refill);
+			break;
+		}
+
+		rxbuf_oob = &rxq->rx_oobs[next_to_refill];
+
+		if (likely(rxbuf_oob->mbuf == NULL)) {
+			err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, true);
+		} else {
+			mana_warn(NULL, "mbuf not null when refilling, "
+			    "rxq %u, oob idx %u, reusing\n",
+			    rxq->rxq_idx, next_to_refill);
+			err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, false);
+		}
+
+		if (unlikely(err != 0)) {
+			mana_dbg(NULL,
+			    "failed to load rx mbuf, err = %d, rxq = %u\n",
+			    err, rxq->rxq_idx);
+			counter_u64_add(rxq->stats.mbuf_alloc_fail, 1);
+			break;
+		}
+
+		mana_post_pkt_rxq(rxq, rxbuf_oob);
+
+		next_to_refill = MANA_IDX_NEXT(next_to_refill,
+		    rxq->num_rx_buf);
+	}
+
+	if (likely(i != 0)) {
+		struct gdma_context *gc =
+		    rxq->gdma_rq->gdma_dev->gdma_context;
+
+		mana_gd_wq_ring_doorbell(gc, rxq->gdma_rq);
+	}
+
+	if (unlikely(i < num)) {
+		counter_u64_add(rxq->stats.partial_refill, 1);
+		mana_dbg(NULL,
+		    "refilled rxq %u with only %u mbufs (%u requested)\n",
+		    rxq->rxq_idx, i, num);
+	}
+
+	rxq->next_to_refill = next_to_refill;
+	return (i);
+}
+
 static void
 mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
     struct gdma_comp *cqe)
@@ -1731,8 +1786,8 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	if_t ndev = rxq->ndev;
 	struct mana_port_context *apc;
 	struct mbuf *old_mbuf;
+	uint32_t refill_required;
 	uint32_t curr, pktlen;
-	int err;
 
 	switch (oob->cqe_hdr.cqe_type) {
 	case CQE_RX_OKAY:
@@ -1785,29 +1840,24 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 
 	/* Unload DMA map for the old mbuf */
 	mana_unload_rx_mbuf(apc, rxq, rxbuf_oob, false);
-
-	/* Load a new mbuf to replace the old one */
-	err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, true);
-	if (err) {
-		mana_dbg(NULL,
-		    "failed to load rx mbuf, err = %d, packet dropped.\n",
-		    err);
-		counter_u64_add(rxq->stats.mbuf_alloc_fail, 1);
-		/*
-		 * Failed to load new mbuf, rxbuf_oob->mbuf is still
-		 * pointing to the old one. Drop the packet.
-		 */
-		 old_mbuf = NULL;
-		 /* Reload the existing mbuf */
-		 mana_load_rx_mbuf(apc, rxq, rxbuf_oob, false);
-	}
+	/* Clear the mbuf pointer to avoid reuse */
+	rxbuf_oob->mbuf = NULL;
 
 	mana_rx_mbuf(old_mbuf, oob, rxq);
 
 drop:
 	mana_move_wq_tail(rxq->gdma_rq, rxbuf_oob->wqe_inf.wqe_size_in_bu);
 
-	mana_post_pkt_rxq(rxq);
+	rxq->buf_index = MANA_IDX_NEXT(rxq->buf_index, rxq->num_rx_buf);
+
+	/* Check if refill is needed */
+	refill_required = MANA_GET_SPACE(rxq->next_to_refill,
+	    rxq->buf_index, rxq->num_rx_buf);
+
+	if (refill_required >= rxq->refill_thresh) {
+		/* Refill empty rx_oobs with new mbufs */
+		mana_refill_rx_mbufs(apc, rxq, refill_required);
+	}
 }
 
 static void
@@ -2348,6 +2398,23 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 
 	mana_dbg(NULL, "Setting rxq %d datasize %d\n",
 	    rxq_idx, rxq->datasize);
+
+	/*
+	 * Two steps to set the mbuf refill_thresh.
+	 * 1) If mana_rx_refill_threshold is set, honor it.
+	 *    Set to default value otherwise.
+	 * 2) Select the smaller of 1) above and 1/4 of the
+	 *    rx buffer size.
+	 */
+	if (mana_rx_refill_threshold != 0)
+		rxq->refill_thresh = mana_rx_refill_threshold;
+	else
+		rxq->refill_thresh = MANA_RX_REFILL_THRESH;
+	rxq->refill_thresh = min_t(uint32_t,
+	    rxq->num_rx_buf / 4, rxq->refill_thresh);
+
+	mana_dbg(NULL, "Setting rxq %d refill thresh %u\n",
+	    rxq_idx, rxq->refill_thresh);
 
 	rxq->rxobj = INVALID_MANA_HANDLE;
 
