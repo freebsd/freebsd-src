@@ -356,7 +356,7 @@ struct {								\
 #define	STAILQ_ASSERT_EMPTY(head) do {					\
 	if (!STAILQ_EMPTY((head)))					\
 		panic("stailq %p is not empty", (head));		\
-}
+} while (0)
 
 /*
  * QMD_STAILQ_CHECK_TAIL(STAILQ_HEAD *head)
@@ -370,7 +370,7 @@ struct {								\
 } while (0)
 #else
 #define	QMD_STAILQ_CHECK_EMPTY(head)
-#define STAILQ_ASSERT_EMPTY(head)
+#define	STAILQ_ASSERT_EMPTY(head)
 #define	QMD_STAILQ_CHECK_TAIL(head)
 #endif /* (_KERNEL && INVARIANTS) */
 
