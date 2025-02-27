@@ -293,7 +293,7 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'j':
-			parsefmt(jfmt, 0);
+			parsefmt(jfmt, &varlist, 0);
 			_fmt = 1;
 			jfmt[0] = '\0';
 			break;
@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 			showkey();
 			exit(0);
 		case 'l':
-			parsefmt(lfmt, 0);
+			parsefmt(lfmt, &varlist, 0);
 			_fmt = 1;
 			lfmt[0] = '\0';
 			break;
@@ -315,14 +315,14 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'O':
-			parsefmt(o1, 1);
-			parsefmt(optarg, 1);
-			parsefmt(o2, 1);
+			parsefmt(o1, &varlist, 1);
+			parsefmt(optarg, &varlist, 1);
+			parsefmt(o2, &varlist, 1);
 			o1[0] = o2[0] = '\0';
 			_fmt = 1;
 			break;
 		case 'o':
-			parsefmt(optarg, 1);
+			parsefmt(optarg, &varlist, 1);
 			_fmt = 1;
 			break;
 		case 'p':
@@ -384,13 +384,13 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'u':
-			parsefmt(ufmt, 0);
+			parsefmt(ufmt, &varlist, 0);
 			sortby = SORTCPU;
 			_fmt = 1;
 			ufmt[0] = '\0';
 			break;
 		case 'v':
-			parsefmt(vfmt, 0);
+			parsefmt(vfmt, &varlist, 0);
 			sortby = SORTMEM;
 			_fmt = 1;
 			vfmt[0] = '\0';
@@ -420,7 +420,7 @@ main(int argc, char *argv[])
 			xkeep = 1;
 			break;
 		case 'Z':
-			parsefmt(Zfmt, 0);
+			parsefmt(Zfmt, &varlist, 0);
 			Zfmt[0] = '\0';
 			break;
 		case '?':
@@ -454,7 +454,7 @@ main(int argc, char *argv[])
 		xo_errx(1, "%s", errbuf);
 
 	if (!_fmt)
-		parsefmt(dfmt, 0);
+		parsefmt(dfmt, &varlist, 0);
 
 	if (!all && nselectors == 0) {
 		uidlist.l.ptr = malloc(sizeof(uid_t));

@@ -44,7 +44,7 @@
 
 #include "ps.h"
 
-static VAR *findvar(char *, int, char **header);
+static VAR *findvar(char *, struct velisthead *, int, char **header);
 static int  vcmp(const void *, const void *);
 
 /* Compute offset in common structures. */
@@ -254,7 +254,8 @@ showkey(void)
 }
 
 void
-parsefmt(const char *p, int user)
+parsefmt(const char *p, struct velisthead *const var_list,
+    const int user)
 {
 	char *tempstr, *tempstr1;
 
@@ -278,7 +279,7 @@ parsefmt(const char *p, int user)
 			cp = tempstr;
 			tempstr = NULL;
 		}
-		if (cp == NULL || !(v = findvar(cp, user, &hp)))
+		if (cp == NULL || !(v = findvar(cp, var_list, user, &hp)))
 			continue;
 		if (!user) {
 			/*
@@ -302,10 +303,10 @@ parsefmt(const char *p, int user)
 		if (vent->var == NULL)
 			xo_errx(1, "malloc failed");
 		memcpy(vent->var, v, sizeof(*vent->var));
-		STAILQ_INSERT_TAIL(&varlist, vent, next_ve);
+		STAILQ_INSERT_TAIL(var_list, vent, next_ve);
 	}
 	free(tempstr1);
-	if (STAILQ_EMPTY(&varlist)) {
+	if (STAILQ_EMPTY(var_list)) {
 		xo_warnx("no valid keywords; valid keywords:");
 		showkey();
 		exit(1);
@@ -313,7 +314,7 @@ parsefmt(const char *p, int user)
 }
 
 static VAR *
-findvar(char *p, int user, char **header)
+findvar(char *p, struct velisthead *const var_list, int user, char **header)
 {
 	size_t rflen;
 	VAR *v, key;
@@ -334,7 +335,7 @@ findvar(char *p, int user, char **header)
 		 * process the alias.
 		 */
 		if (hp == NULL)
-			parsefmt(v->alias, user);
+			parsefmt(v->alias, var_list, user);
 		else {
 			/*
 			 * XXX - This processing will not be correct for
@@ -347,7 +348,7 @@ findvar(char *p, int user, char **header)
 			if (realfmt == NULL)
 				xo_errx(1, "malloc failed");
 			snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
-			parsefmt(realfmt, user);
+			parsefmt(realfmt, var_list, user);
 			free(realfmt);
 		}
 		return ((VAR *)NULL);
