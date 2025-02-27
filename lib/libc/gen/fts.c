@@ -1166,7 +1166,7 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 		}
 		/* autofs might did the mount under us, accept. */
 		p->fts_dev = sb.st_dev;
-		p->fts_ino == sb.st_ino;
+		p->fts_ino = sb.st_ino;
 	}
 	ret = fchdir(newfd);
 bail:
