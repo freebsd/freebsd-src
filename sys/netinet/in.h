@@ -677,7 +677,7 @@ struct in_ifaddr;
 int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
-int	 in_localaddr(struct in_addr);
+bool	 in_localaddr(struct in_addr);
 bool	 in_localip(struct in_addr);
 bool	 in_localip_fib(struct in_addr, uint16_t);
 int	 in_ifhasaddr(struct ifnet *, struct in_addr);

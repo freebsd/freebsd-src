@@ -129,10 +129,10 @@ static struct sx in_control_sx;
 SX_SYSINIT(in_control_sx, &in_control_sx, "in_control");
 
 /*
- * Return 1 if an internet address is for a ``local'' host
+ * Return true if an internet address is for a ``local'' host
  * (one to which we have a connection).
  */
-int
+bool
 in_localaddr(struct in_addr in)
 {
 	u_long i = ntohl(in.s_addr);
@@ -142,10 +142,10 @@ in_localaddr(struct in_addr in)
 
 	CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if ((i & ia->ia_subnetmask) == ia->ia_subnet)
-			return (1);
+			return (true);
 	}
 
-	return (0);
+	return (false);
 }
 
 /*
