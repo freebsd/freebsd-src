@@ -55,13 +55,15 @@ typedef struct kinfo {
 	STAILQ_HEAD(, kinfo_str) ki_ks;
 } KINFO;
 
-/* Variables. */
+/* Keywords/variables to be printed. */
 typedef struct varent {
-	STAILQ_ENTRY(varent) next_ve;
-	const char *header;
-	struct var *var;
+	STAILQ_ENTRY(varent)	 next_ve;
+	const char		*header;
+	struct var		*var;
 } VARENT;
+STAILQ_HEAD(velisthead, varent);
 
+/* Structure representing one available keyword. */
 typedef struct var {
 	const char *name;	/* name(s) of variable */
 	const char *header;	/* default header */
@@ -73,7 +75,7 @@ typedef struct var {
 #define	INF127	0x10		/* values >127 displayed as 127 */
 	u_int	flag;
 				/* output routine */
-	char 	*(*oproc)(struct kinfo *, struct varent *);
+	char	*(*oproc)(struct kinfo *, struct varent *);
 	/*
 	 * The following (optional) elements are hooks for passing information
 	 * to the generic output routine pvar (which prints simple elements

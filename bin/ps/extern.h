@@ -41,7 +41,7 @@ extern int cflag, eval, fscale, nlistread, rawcpu;
 extern unsigned long mempages;
 extern time_t now;
 extern int showthreads, sumrusage, termwidth;
-extern STAILQ_HEAD(velisthead, varent) varlist;
+extern struct velisthead varlist;
 
 __BEGIN_DECLS
 char	 *arguments(KINFO *, VARENT *);
@@ -67,7 +67,7 @@ char	 *lockname(KINFO *, VARENT *);
 char	 *mwchan(KINFO *, VARENT *);
 char	 *nwchan(KINFO *, VARENT *);
 char	 *pagein(KINFO *, VARENT *);
-void	 parsefmt(const char *, int);
+void	 parsefmt(const char *, struct velisthead *, int);
 char	 *pcpu(KINFO *, VARENT *);
 char	 *pmem(KINFO *, VARENT *);
 char	 *pri(KINFO *, VARENT *);
