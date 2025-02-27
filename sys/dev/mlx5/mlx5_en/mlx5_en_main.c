@@ -2314,17 +2314,7 @@ mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
 
 	r = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
 	    MLX5E_SW2MB_MTU(if_getmtu(priv->ifp));
-	if (r > MJUM16BYTES)
-		return (-ENOMEM);
-
-	if (r > MJUM9BYTES)
-		r = MJUM16BYTES;
-	else if (r > MJUMPAGESIZE)
-		r = MJUM9BYTES;
-	else if (r > MCLBYTES)
-		r = MJUMPAGESIZE;
-	else
-		r = MCLBYTES;
+	r = r > MCLBYTES ? MJUMPAGESIZE : MCLBYTES;
 
 	/*
 	 * n + 1 must be a power of two, because stride size must be.
