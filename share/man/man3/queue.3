@@ -49,6 +49,7 @@
 .Nm SLIST_REMOVE ,
 .Nm SLIST_REMOVE_AFTER ,
 .Nm SLIST_REMOVE_HEAD ,
+.Nm SLIST_SPLIT_AFTER ,
 .Nm SLIST_SWAP ,
 .Nm STAILQ_CLASS_ENTRY ,
 .Nm STAILQ_CLASS_HEAD ,
@@ -72,6 +73,7 @@
 .Nm STAILQ_REMOVE ,
 .Nm STAILQ_REMOVE_AFTER ,
 .Nm STAILQ_REMOVE_HEAD ,
+.Nm STAILQ_SPLIT_AFTER ,
 .Nm STAILQ_SWAP ,
 .Nm LIST_CLASS_ENTRY ,
 .Nm LIST_CLASS_HEAD ,
@@ -94,6 +96,7 @@
 .Nm LIST_PREV ,
 .Nm LIST_REMOVE ,
 .Nm LIST_REPLACE ,
+.Nm LIST_SPLIT_AFTER ,
 .Nm LIST_SWAP ,
 .Nm TAILQ_CLASS_ENTRY ,
 .Nm TAILQ_CLASS_HEAD ,
@@ -122,6 +125,7 @@
 .Nm TAILQ_PREV ,
 .Nm TAILQ_REMOVE ,
 .Nm TAILQ_REPLACE ,
+.Nm TAILQ_SPLIT_AFTER ,
 .Nm TAILQ_SWAP
 .Nd implementations of singly-linked lists, singly-linked tail queues,
 lists and tail queues
@@ -148,6 +152,7 @@ lists and tail queues
 .Fn SLIST_REMOVE "SLIST_HEAD *head" "TYPE *elm" "TYPE" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_AFTER "TYPE *elm" "SLIST_ENTRY NAME"
 .Fn SLIST_REMOVE_HEAD "SLIST_HEAD *head" "SLIST_ENTRY NAME"
+.Fn SLIST_SPLIT_AFTER "SLIST_HEAD *head" "TYPE *elm" "SLIST_HEAD *rest" "SLIST_ENTRY NAME"
 .Fn SLIST_SWAP "SLIST_HEAD *head1" "SLIST_HEAD *head2" "TYPE"
 .\"
 .Fn STAILQ_CLASS_ENTRY "CLASSTYPE"
@@ -172,6 +177,7 @@ lists and tail queues
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_SPLIT_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_HEAD *rest" "STAILQ_ENTRY NAME"
 .Fn STAILQ_SWAP "STAILQ_HEAD *head1" "STAILQ_HEAD *head2" "TYPE"
 .\"
 .Fn LIST_CLASS_ENTRY "CLASSTYPE"
@@ -195,6 +201,7 @@ lists and tail queues
 .Fn LIST_PREV "TYPE *elm" "LIST_HEAD *head" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REPLACE "TYPE *elm" "TYPE *new" "LIST_ENTRY NAME"
+.Fn LIST_SPLIT_AFTER "LIST_HEAD *head" "TYPE *elm" "LIST_HEAD *rest" "LIST_ENTRY NAME"
 .Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
 .Fn TAILQ_CLASS_ENTRY "CLASSTYPE"
@@ -224,6 +231,7 @@ lists and tail queues
 .Fn TAILQ_PREV "TYPE *elm" "HEADNAME" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REPLACE "TAILQ_HEAD *head" "TYPE *elm" "TYPE *new" "TAILQ_ENTRY NAME"
+.Fn TAILQ_SPLIT_AFTER "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_HEAD *rest" "TAILQ_ENTRY NAME"
 .Fn TAILQ_SWAP "TAILQ_HEAD *head1" "TAILQ_HEAD *head2" "TYPE" "TAILQ_ENTRY NAME"
 .\"
 .Sh DESCRIPTION
@@ -249,6 +257,8 @@ Insertion of a new entry after any element in the list.
 O(1) removal of an entry from the head of the list.
 .It
 Forward traversal through the list.
+.It
+Splitting a list in two after any element in the list.
 .It
 Swapping the contents of two lists.
 .El
@@ -547,6 +557,17 @@ A doubly-linked list should be used if this macro is needed in
 high-usage code paths or to operate on long lists.
 .Pp
 The macro
+.Nm SLIST_SPLIT_AFTER
+splits the list referenced by
+.Fa head ,
+making
+.Fa rest
+reference the list formed by elements after
+.Fa elm
+in
+.Fa head .
+.Pp
+The macro
 .Nm SLIST_SWAP
 swaps the contents of
 .Fa head1
@@ -768,6 +789,17 @@ from the tail queue.
 Use of this macro should be avoided as it traverses the entire list.
 A doubly-linked tail queue should be used if this macro is needed in
 high-usage code paths or to operate on long tail queues.
+.Pp
+The macro
+.Nm STAILQ_SPLIT_AFTER
+splits the tail queue referenced by
+.Fa head ,
+making
+.Fa rest
+reference the tail queue formed by elements after
+.Fa elm
+in
+.Fa head .
 .Pp
 The macro
 .Nm STAILQ_SWAP
@@ -996,6 +1028,17 @@ in the list.
 The element
 .Fa new
 must not already be on a list.
+.Pp
+The macro
+.Nm LIST_SPLIT_AFTER
+splits the list referenced by
+.Fa head ,
+making
+.Fa rest
+reference the list formed by elements after
+.Fa elm
+in
+.Fa head .
 .Pp
 The macro
 .Nm LIST_SWAP
@@ -1269,6 +1312,17 @@ in the tail queue.
 The element
 .Fa new
 must not already be on a list.
+.Pp
+The macro
+.Nm TAILQ_SPLIT_AFTER
+splits the tail queue referenced by
+.Fa head ,
+making
+.Fa rest
+reference the tail queue formed by elements after
+.Fa elm
+in
+.Fa head .
 .Pp
 The macro
 .Nm TAILQ_SWAP
