@@ -79,8 +79,8 @@
 
 #define	LKPI_80211_WME
 #define	LKPI_80211_HW_CRYPTO
-/* #define	LKPI_80211_HT */
-/* #define	LKPI_80211_VHT */
+#define	LKPI_80211_HT
+#define	LKPI_80211_VHT
 
 #if defined(LKPI_80211_VHT) && !defined(LKPI_80211_HT)
 #define	LKPI_80211_HT
@@ -401,6 +401,8 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 
 	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0)
 		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+	else
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 
 	/*
 	 * 802.11n-2009 20.6 Parameters for HT MCSs gives the mandatory/
@@ -450,6 +452,13 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 	sta->deflink.vht_cap.cap = ni->ni_vhtcap;
 	sta->deflink.vht_cap.vht_mcs = ni->ni_vht_mcsinfo;
 
+	/*
+	 * If VHT20/40 are selected do not update the bandwidth
+	 * from HT but stya on VHT.
+	 */
+	if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT)
+		goto skip_bw;
+
 	width = (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 	switch (width) {
 #if 0
@@ -467,7 +476,7 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 #endif
 			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
 	}
-
+skip_bw:
 
 	rx_nss = 0;
 	rx_mcs_map = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
@@ -6912,11 +6921,11 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	}
 
 	if (ni != NULL) {
-		int ridx __unused;
 #ifdef LINUXKPI_DEBUG_80211
 		int old_rate;
 
-		old_rate = ni->ni_vap->iv_bss->ni_txrate;
+		old_rate =
+		    ieee80211_node_get_txrate_dot11rate(ni->ni_vap->iv_bss);
 #endif
 		txs.pktlen = skb->len;
 		txs.flags |= IEEE80211_RATECTL_STATUS_PKTLEN;
@@ -6936,14 +6945,15 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 
 		IMPROVE("only update of rate matches but that requires us to get a proper rate");
 		ieee80211_ratectl_tx_complete(ni, &txs);
-		ridx = ieee80211_ratectl_rate(ni->ni_vap->iv_bss, NULL, 0);
+		ieee80211_ratectl_rate(ni->ni_vap->iv_bss, NULL, 0);
 
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_TX) {
-			printf("TX-RATE: %s: old %d new %d ridx %d, "
+			printf("TX-RATE: %s: old %d new %d "
 			    "long_retries %d\n", __func__,
-			    old_rate, ni->ni_vap->iv_bss->ni_txrate,
-			    ridx, txs.long_retries);
+			    old_rate,
+			    ieee80211_node_get_txrate_dot11rate(ni->ni_vap->iv_bss),
+			    txs.long_retries);
 		}
 #endif
 	}

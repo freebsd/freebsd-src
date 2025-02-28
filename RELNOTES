@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+02d4eeabfd73:
+	hw.snd.maxautovchans has been retired. The commit introduced a
+	hw.snd.vchans_enable sysctl, which along with
+	dev.pcm.X.{play|rec}.vchans, from now on work as tunables to only
+	enable/disable vchans, as opposed to setting their number and/or
+	(de-)allocating vchans. Since these sysctls do not trigger any
+	(de-)allocations anymore, their effect is instantaneous, whereas before
+	we could have frozen the machine (when trying to allocate new vchans)
+	when setting dev.pcm.X.{play|rec}.vchans to a very large value.
+
 7e7f88001d7d:
 	The definition of pf's struct pfr_tstats and struct pfr_astats has
 	changed, breaking ABI compatibility for 32-bit powerpc (including

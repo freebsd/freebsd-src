@@ -289,7 +289,7 @@ again:
 			mtx_unlock(&e->lock);
 			goto again;
 		}
-		if (adapter_stopped(sc))
+		if (!hw_all_ok(sc))
 			free(wr, M_CXGBE);
 		else
 			arpq_enqueue(e, wr);

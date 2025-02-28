@@ -297,7 +297,7 @@ static u32 ixgbe_read_mailbox_vf(struct ixgbe_hw *hw)
 	u32 vf_mailbox = IXGBE_READ_REG(hw, IXGBE_VFMAILBOX);
 
 	vf_mailbox |= hw->mbx.vf_mailbox;
-	hw->mbx.vf_mailbox |= vf_mailbox % IXGBE_VFMAILBOX_R2C_BITS;
+	hw->mbx.vf_mailbox |= vf_mailbox & IXGBE_VFMAILBOX_R2C_BITS;
 
 	return vf_mailbox;
 }

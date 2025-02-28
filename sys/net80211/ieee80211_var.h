@@ -794,7 +794,8 @@ void	ieee80211_iterate_coms(ieee80211_com_iter_func *, void *);
 int	ieee80211_media_change(struct ifnet *);
 void	ieee80211_media_status(struct ifnet *, struct ifmediareq *);
 int	ieee80211_ioctl(struct ifnet *, u_long, caddr_t);
-int	ieee80211_rate2media(struct ieee80211com *, int,
+int	ieee80211_rate2media(struct ieee80211com *,
+		const struct ieee80211_node_txrate *,
 		enum ieee80211_phymode);
 int	ieee80211_media2rate(int);
 int	ieee80211_mhz2ieee(u_int, u_int);

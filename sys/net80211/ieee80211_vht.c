@@ -284,14 +284,65 @@ ieee80211_vht_updateparams(struct ieee80211_node *ni,
 	return (0);
 }
 
+/**
+ * @brief calculate the supported MCS rates for this node
+ *
+ * This is called once a node has finished association /
+ * joined a BSS.  The vhtcap / vhtop IEs are from the
+ * peer.  The transmit rate tables need to be combined
+ * together to setup the list of available rates.
+ *
+ * This must be called after the ieee80211_node VHT fields
+ * have been parsed / populated by either ieee80211_vht_updateparams() or
+ * ieee80211_parse_vhtcap(),
+ *
+ * This does not take into account the channel bandwidth,
+ * which (a) may change during operation, and (b) depends
+ * upon packet to packet rate transmission selection.
+ * There are various rate combinations which are not
+ * available in various channel widths and those will
+ * need to be masked off separately.
+ *
+ * (See 802.11-2020 21.5 Parameters for VHT-MCSs for the
+ * tables and supported rates.)
+ *
+ * ALSO: i need to do some filtering based on the HT set too.
+ * (That should be done here too, and in the negotiation, sigh.)
+ * (See 802.11-2016 10.7.12.3 Additional rate selection constraints
+ * for VHT PPDUs)
+ *
+ * @param ni	struct ieee80211_node to configure
+ */
 void
-ieee80211_setup_vht_rates(struct ieee80211_node *ni,
-    const uint8_t *vhtcap_ie,
-    const uint8_t *vhtop_ie)
+ieee80211_setup_vht_rates(struct ieee80211_node *ni)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+	uint32_t val, val1, val2;
+	uint16_t tx_mcs_map = 0;
+	int i;
 
-	//printf("%s: called\n", __func__);
-	/* XXX TODO */
+	/*
+	 * Merge our tx_mcs_map with the peer rx_mcs_map to determine what
+	 * can be actually transmitted to the peer.
+	 */
+
+	for (i = 0; i < 8; i++) {
+		/*
+		 * Merge the two together; remember that 0..2 is in order
+		 * of increasing MCS support, but 3 equals
+		 * IEEE80211_VHT_MCS_NOT_SUPPORTED so must "win".
+		 */
+		val1 = (vap->iv_vht_cap.supp_mcs.tx_mcs_map >> (i*2)) & 0x3;
+		val2 = (ni->ni_vht_mcsinfo.rx_mcs_map >> (i*2)) & 0x3;
+		val = MIN(val1, val2);
+		if (val1 == IEEE80211_VHT_MCS_NOT_SUPPORTED ||
+		    val2 == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+			val = IEEE80211_VHT_MCS_NOT_SUPPORTED;
+		tx_mcs_map |= (val << (i*2));
+	}
+
+	/* Store the TX MCS map somewhere in the node that can be used */
+	ni->ni_vht_tx_map = tx_mcs_map;
 }
 
 void
@@ -1006,6 +1057,55 @@ ieee80211_vht_check_tx_bw(const struct ieee80211_node *ni,
 		return (ieee80211_vht_check_tx_vht160(ni));
 	case IEEE80211_STA_RX_BW_320:
 		return (false);
+	default:
+		return (false);
+	}
+}
+
+/**
+ * @brief Check if the given VHT bw/nss/mcs combination is valid
+ *        for the give node.
+ *
+ * This checks whether the given VHT bw/nss/mcs is valid based on
+ * the negotiated rate mask in the node.
+ *
+ * @param ni	struct ieee80211_node node to check
+ * @param bw	channel bandwidth to check
+ * @param nss	NSS
+ * @param mcs	MCS
+ * @returns True if this combination is available, false otherwise.
+ */
+bool
+ieee80211_vht_node_check_tx_valid_mcs(const struct ieee80211_node *ni,
+    enum ieee80211_sta_rx_bw bw, uint8_t nss, uint8_t mcs)
+{
+	uint8_t mc;
+
+	/* Validate arguments */
+	if (nss < 1 || nss > 8)
+		return (false);
+	if (mcs > 9)
+		return (false);
+
+	/* Check our choice of rate is actually valid */
+	if (!ieee80211_phy_vht_validate_mcs(bw, nss, mcs))
+		return (false);
+
+	/*
+	 * Next, check if the MCS rate is available for the
+	 * given NSS.
+	 */
+	mc = ni->ni_vht_tx_map >> (2*(nss-1)) & 0x3;
+	switch (mc) {
+	case IEEE80211_VHT_MCS_NOT_SUPPORTED:
+		/* Not supported at this NSS */
+		return (false);
+	case IEEE80211_VHT_MCS_SUPPORT_0_9:
+		return (mcs <= 9);
+	case IEEE80211_VHT_MCS_SUPPORT_0_8:
+		return (mcs <= 8);
+	case IEEE80211_VHT_MCS_SUPPORT_0_7:
+		return (mcs <= 7);
 	default:
 		return (false);
 	}

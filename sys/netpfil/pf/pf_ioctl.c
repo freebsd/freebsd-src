@@ -6933,4 +6933,5 @@ static moduledata_t pf_mod = {
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
 MODULE_DEPEND(pf, netlink, 1, 1, 1);
+MODULE_DEPEND(pf, crypto, 1, 1, 1);
 MODULE_VERSION(pf, PF_MODVER);

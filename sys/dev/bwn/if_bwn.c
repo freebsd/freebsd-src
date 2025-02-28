@@ -6394,7 +6394,7 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	uint8_t *prot_ptr;
 	unsigned int len;
 	uint32_t macctl = 0;
-	int rts_rate, rts_rate_fb, ismcast, isshort, rix, type;
+	int rts_rate, rts_rate_fb, ismcast, isshort, type;
 	uint16_t phyctl = 0;
 	uint8_t rate, rate_fb;
 	int fill_phy_ctl1 = 0;
@@ -6420,14 +6420,10 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = rate_fb = tp->ucastrate;
 	else {
-		rix = ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
-
-		if (rix > 0)
-			rate_fb = ni->ni_rates.rs_rates[rix - 1] &
-			    IEEE80211_RATE_VAL;
-		else
-			rate_fb = rate;
+		ieee80211_ratectl_rate(ni, NULL, 0);
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
+		/* TODO: assign rate_fb the previous rate, if available */
+		rate_fb = rate;
 	}
 
 	sc->sc_tx_rate = rate;

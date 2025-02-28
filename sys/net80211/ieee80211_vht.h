@@ -40,8 +40,7 @@ void	ieee80211_parse_vhtcap(struct ieee80211_node *, const uint8_t *);
 
 int	ieee80211_vht_updateparams(struct ieee80211_node *,
 	    const uint8_t *, const uint8_t *);
-void	ieee80211_setup_vht_rates(struct ieee80211_node *,
-	    const uint8_t *, const uint8_t *);
+void	ieee80211_setup_vht_rates(struct ieee80211_node *);
 
 void	ieee80211_vht_timeout(struct ieee80211vap *vap);
 
@@ -68,5 +67,7 @@ void	ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
 bool	ieee80211_vht_check_tx_vht(const struct ieee80211_node *);
 bool	ieee80211_vht_check_tx_bw(const struct ieee80211_node *,
 	    enum ieee80211_sta_rx_bw);
+bool	ieee80211_vht_node_check_tx_valid_mcs(const struct ieee80211_node *,
+	    enum ieee80211_sta_rx_bw bw, uint8_t, uint8_t);
 
 #endif	/* _NET80211_IEEE80211_VHT_H_ */

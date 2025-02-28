@@ -2821,7 +2821,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	else {
 		/* XXX pass pktlen */
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
 
 	/* Encrypt the frame if need be. */

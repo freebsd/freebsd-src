@@ -105,6 +105,33 @@ rtwn_get_cipher(u_int ic_cipher)
 	return (cipher);
 }
 
+static uint8_t
+rtwn_tx_ratectl_to_ridx(struct rtwn_softc *sc, struct ieee80211_node *ni,
+    struct ieee80211_node_txrate *txr)
+{
+	/* TODO: this should be based on the node channel */
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint8_t ridx;
+
+	switch (txr->type) {
+	case IEEE80211_NODE_TXRATE_LEGACY:
+	case IEEE80211_NODE_TXRATE_HT:
+		ridx = rate2ridx(txr->dot11rate);
+		break;
+	case IEEE80211_NODE_TXRATE_VHT:
+		ridx = RTWN_RIDX_VHT_MCS(txr->nss - 1, txr->mcs);
+		break;
+	default:
+		if (ic->ic_curmode != IEEE80211_MODE_11B)
+			ridx = RTWN_RIDX_OFDM36;
+		else
+			ridx = RTWN_RIDX_CCK55;
+		break;
+	}
+
+	return (ridx);
+}
+
 static int
 rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m)
@@ -116,7 +143,7 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	struct rtwn_tx_desc_common *txd;
 	struct rtwn_tx_buf buf;
-	uint8_t rate, ridx, type;
+	uint8_t ridx, type;
 	bool force_rate = false;
 	u_int cipher;
 	int ismcast;
@@ -131,30 +158,30 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (type == IEEE80211_FC0_TYPE_MGT ||
 	    type == IEEE80211_FC0_TYPE_CTL ||
 	    (m->m_flags & M_EAPOL) != 0) {
-		rate = tp->mgmtrate;
+		ridx = rate2ridx(tp->mgmtrate);
 		force_rate = true;
 	} else if (ismcast) {
+		ridx = rate2ridx(tp->mcastrate);
 		force_rate = true;
-		rate = tp->mcastrate;
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		ridx = rate2ridx(tp->ucastrate);
 		force_rate = true;
-		rate = tp->ucastrate;
 	} else {
 		if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
+			struct ieee80211_node_txrate txr = { 0 };
 			/* XXX pass pktlen */
-			(void) ieee80211_ratectl_rate(ni, NULL, 0);
-			rate = ni->ni_txrate;
+			ieee80211_ratectl_rate(ni, NULL, 0);
+			ieee80211_node_get_txrate(ni, &txr);
+			ridx = rtwn_tx_ratectl_to_ridx(sc, ni, &txr);
 		} else {
 			if (ni->ni_flags & IEEE80211_NODE_HT)
-				rate = IEEE80211_RATE_MCS | 0x4; /* MCS4 */
+				ridx = rate2ridx(IEEE80211_RATE_MCS | 0x4); /* MCS4 */
 			else if (ic->ic_curmode != IEEE80211_MODE_11B)
-				rate = ridx2rate[RTWN_RIDX_OFDM36];
+				ridx = RTWN_RIDX_OFDM36;
 			else
-				rate = ridx2rate[RTWN_RIDX_CCK55];
+				ridx = RTWN_RIDX_CCK55;
 		}
 	}
-
-	ridx = rate2ridx(rate);
 
 	cipher = IEEE80211_CIPHER_NONE;
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {

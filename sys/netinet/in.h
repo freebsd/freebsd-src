@@ -675,10 +675,10 @@ struct in_ifaddr;
 bool	 in_ifnet_broadcast(struct in_addr, struct ifnet *);
 bool	 in_ifaddr_broadcast(struct in_addr, struct in_ifaddr *);
 int	 in_canforward(struct in_addr);
-int	 in_localaddr(struct in_addr);
+bool	 in_localaddr(struct in_addr);
 bool	 in_localip(struct in_addr);
 bool	 in_localip_fib(struct in_addr, uint16_t);
-int	 in_ifhasaddr(struct ifnet *, struct in_addr);
+bool	 in_ifhasaddr(struct ifnet *, struct in_addr);
 struct in_ifaddr *in_findlocal(uint32_t, bool);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
@@ -689,8 +689,8 @@ void	 in_ifdetach(struct ifnet *);
 static inline bool
 in_broadcast(struct in_addr in)
 {
-	return (in.s_addr == htonl(INADDR_BROADCAST) ||
-	    in.s_addr == htonl(INADDR_ANY));
+	return (in.s_addr == __htonl(INADDR_BROADCAST) ||
+	    in.s_addr == __htonl(INADDR_ANY));
 }
 
 #define	in_hosteq(s, t)	((s).s_addr == (t).s_addr)

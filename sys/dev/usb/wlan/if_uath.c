@@ -2058,7 +2058,8 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Tx rate is controlled by firmware, report the maximum
 		 * negotiated rate in ifconfig output.
 		 */
-		ni->ni_txrate = ni->ni_rates.rs_rates[ni->ni_rates.rs_nrates-1];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    ni->ni_rates.rs_rates[ni->ni_rates.rs_nrates-1]);
 
 		if (uath_write_associd(sc) != 0) {
 			device_printf(sc->sc_dev,

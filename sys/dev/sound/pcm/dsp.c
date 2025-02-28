@@ -37,6 +37,7 @@
 #endif
 
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/vchan.h>
 #include <sys/ctype.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
@@ -158,6 +159,81 @@ dsp_unlock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 		CHN_UNLOCK(priv->wrch);
 }
 
+static int
+dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
+    int flags, struct thread *td)
+{
+	struct pcm_channel *c;
+	char *comm;
+	pid_t pid;
+	int err;
+	bool vdir_enabled;
+
+	KASSERT(d != NULL && ch != NULL &&
+	    (direction == PCMDIR_PLAY || direction == PCMDIR_REC),
+	    ("%s(): invalid d=%p ch=%p direction=%d",
+	    __func__, d, ch, direction));
+	PCM_BUSYASSERT(d);
+
+	pid = td->td_proc->p_pid;
+	comm = td->td_proc->p_comm;
+
+	vdir_enabled = (direction == PCMDIR_PLAY && d->flags & SD_F_PVCHANS) ||
+	    (direction == PCMDIR_REC && d->flags & SD_F_RVCHANS);
+
+	*ch = NULL;
+	CHN_FOREACH(c, d, channels.pcm.primary) {
+		CHN_LOCK(c);
+		if (c->direction != direction) {
+			CHN_UNLOCK(c);
+			continue;
+		}
+		/* Find an available primary channel to use. */
+		if ((c->flags & CHN_F_BUSY) == 0 ||
+		    (vdir_enabled && (c->flags & CHN_F_HAS_VCHAN)))
+			break;
+		CHN_UNLOCK(c);
+	}
+	if (c == NULL)
+		return (EBUSY);
+
+	/*
+	 * We can have the following cases:
+	 * - vchans are enabled, add a new vchan to the primary channel.
+	 * - vchans are disabled, use the primary channel directly.
+	 */
+	if (vdir_enabled && ((c->flags & CHN_F_BUSY) == 0 ||
+	    c->flags & CHN_F_HAS_VCHAN)) {
+		err = vchan_create(c, ch);
+		CHN_UNLOCK(c);
+		if (err != 0)
+			return (err);
+		CHN_LOCK(*ch);
+	} else if ((c->flags & CHN_F_BUSY) == 0) {
+		*ch = c;
+	} else {
+		CHN_UNLOCK(c);
+		return (ENODEV);
+	}
+
+	(*ch)->flags |= CHN_F_BUSY;
+	if (flags & O_NONBLOCK)
+		(*ch)->flags |= CHN_F_NBIO;
+	if (flags & O_EXCL)
+		(*ch)->flags |= CHN_F_EXCLUSIVE;
+	(*ch)->pid = pid;
+	strlcpy((*ch)->comm, (comm != NULL) ? comm : CHN_COMM_UNKNOWN,
+	    sizeof((*ch)->comm));
+
+	if ((err = chn_reset(*ch, (*ch)->format, (*ch)->speed)) != 0)
+		return (err);
+	chn_vpc_reset(*ch, SND_VOL_C_PCM, 0);
+
+	CHN_UNLOCK(*ch);
+
+	return (0);
+}
+
 #define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
 #define DSP_F_DUPLEX(x)		(((x) & (FREAD | FWRITE)) == (FREAD | FWRITE))
 #define DSP_F_SIMPLEX(x)	(!DSP_F_DUPLEX(x))
@@ -168,7 +244,7 @@ static void
 dsp_close(void *data)
 {
 	struct dsp_cdevpriv *priv = data;
-	struct pcm_channel *rdch, *wrch;
+	struct pcm_channel *rdch, *wrch, *parent;
 	struct snddev_info *d;
 	int sg_ids;
 
@@ -214,12 +290,20 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
-			CHN_LOCK(rdch);
-			chn_abort(rdch); /* won't sleep */
-			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-			chn_reset(rdch, 0, 0);
-			chn_release(rdch);
+			if (rdch->flags & CHN_F_VIRTUAL) {
+				parent = rdch->parentchannel;
+				CHN_LOCK(parent);
+				CHN_LOCK(rdch);
+				vchan_destroy(rdch);
+				CHN_UNLOCK(parent);
+			} else {
+				CHN_LOCK(rdch);
+				chn_abort(rdch); /* won't sleep */
+				rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+				chn_reset(rdch, 0, 0);
+				chn_release(rdch);
+			}
 		}
 		if (wrch != NULL) {
 			/*
@@ -231,12 +315,20 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
-			CHN_LOCK(wrch);
-			chn_flush(wrch); /* may sleep */
-			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-			chn_reset(wrch, 0, 0);
-			chn_release(wrch);
+			if (wrch->flags & CHN_F_VIRTUAL) {
+				parent = wrch->parentchannel;
+				CHN_LOCK(parent);
+				CHN_LOCK(wrch);
+				vchan_destroy(wrch);
+				CHN_UNLOCK(parent);
+			} else {
+				CHN_LOCK(wrch);
+				chn_flush(wrch); /* may sleep */
+				wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+				chn_reset(wrch, 0, 0);
+				chn_release(wrch);
+			}
 		}
 		PCM_LOCK(d);
 	}
@@ -254,10 +346,9 @@ static int
 dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct dsp_cdevpriv *priv;
-	struct pcm_channel *rdch, *wrch, *ch;
+	struct pcm_channel *ch;
 	struct snddev_info *d;
-	uint32_t fmt, spd;
-	int error, rderror, wrerror, dir;
+	int error, dir;
 
 	/* Kind of impossible.. */
 	if (i_dev == NULL || td == NULL)
@@ -267,11 +358,11 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
+	if (PCM_CHANCOUNT(d) >= PCM_MAXCHANS)
+		return (ENOMEM);
+
 	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
 	priv->sc = d;
-	priv->rdch = NULL;
-	priv->wrch = NULL;
-	priv->volch = NULL;
 
 	error = devfs_set_cdevpriv(priv, dsp_close);
 	if (error != 0)
@@ -334,98 +425,30 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	PCM_ACQUIRE(d);
 	PCM_UNLOCK(d);
 
-	fmt = SND_FORMAT(AFMT_U8, 1, 0);
-	spd = DSP_DEFAULT_SPEED;
-
-	rdch = NULL;
-	wrch = NULL;
-	rderror = 0;
-	wrerror = 0;
-
-	if (DSP_F_READ(flags)) {
-		/* open for read */
-		rderror = pcm_chnalloc(d, &rdch, PCMDIR_REC,
-		    td->td_proc->p_pid, td->td_proc->p_comm);
-
-		if (rderror == 0 && chn_reset(rdch, fmt, spd) != 0)
-			rderror = ENXIO;
-
-		if (rderror != 0) {
-			if (rdch != NULL)
-				chn_release(rdch);
-			if (!DSP_F_DUPLEX(flags)) {
-				PCM_RELEASE_QUICK(d);
-				PCM_GIANT_EXIT(d);
-				return (rderror);
-			}
-			rdch = NULL;
-		} else {
-			if (flags & O_NONBLOCK)
-				rdch->flags |= CHN_F_NBIO;
-			if (flags & O_EXCL)
-				rdch->flags |= CHN_F_EXCLUSIVE;
-			chn_vpc_reset(rdch, SND_VOL_C_PCM, 0);
-		 	CHN_UNLOCK(rdch);
-		}
-	}
-
 	if (DSP_F_WRITE(flags)) {
-		/* open for write */
-		wrerror = pcm_chnalloc(d, &wrch, PCMDIR_PLAY,
-		    td->td_proc->p_pid, td->td_proc->p_comm);
-
-		if (wrerror == 0 && chn_reset(wrch, fmt, spd) != 0)
-			wrerror = ENXIO;
-
-		if (wrerror != 0) {
-			if (wrch != NULL)
-				chn_release(wrch);
-			if (!DSP_F_DUPLEX(flags)) {
-				if (rdch != NULL) {
-					/*
-					 * Lock, and release previously created
-					 * record channel
-					 */
-					CHN_LOCK(rdch);
-					chn_release(rdch);
-				}
-				PCM_RELEASE_QUICK(d);
-				PCM_GIANT_EXIT(d);
-				return (wrerror);
-			}
-			wrch = NULL;
-		} else {
-			if (flags & O_NONBLOCK)
-				wrch->flags |= CHN_F_NBIO;
-			if (flags & O_EXCL)
-				wrch->flags |= CHN_F_EXCLUSIVE;
-			chn_vpc_reset(wrch, SND_VOL_C_PCM, 0);
-			CHN_UNLOCK(wrch);
+		error = dsp_chn_alloc(d, &priv->wrch, PCMDIR_PLAY, flags, td);
+		if (error != 0) {
+			PCM_RELEASE_QUICK(d);
+			PCM_GIANT_EXIT(d);
+			return (error);
 		}
-	}
-
-	PCM_LOCK(d);
-
-	if (wrch == NULL && rdch == NULL) {
-		PCM_RELEASE(d);
+		PCM_LOCK(d);
+		CHN_INSERT_HEAD(d, priv->wrch, channels.pcm.opened);
 		PCM_UNLOCK(d);
-		PCM_GIANT_EXIT(d);
-		if (wrerror != 0)
-			return (wrerror);
-		if (rderror != 0)
-			return (rderror);
-		return (EINVAL);
 	}
-	if (rdch != NULL)
-		CHN_INSERT_HEAD(d, rdch, channels.pcm.opened);
-	if (wrch != NULL)
-		CHN_INSERT_HEAD(d, wrch, channels.pcm.opened);
-	priv->rdch = rdch;
-	priv->wrch = wrch;
+	if (DSP_F_READ(flags)) {
+		error = dsp_chn_alloc(d, &priv->rdch, PCMDIR_REC, flags, td);
+		if (error != 0) {
+			PCM_RELEASE_QUICK(d);
+			PCM_GIANT_EXIT(d);
+			return (error);
+		}
+		PCM_LOCK(d);
+		CHN_INSERT_HEAD(d, priv->rdch, channels.pcm.opened);
+		PCM_UNLOCK(d);
+	}
 
-	PCM_RELEASE(d);
-	PCM_UNLOCK(d);
-
+	PCM_RELEASE_QUICK(d);
 	PCM_GIANT_LEAVE(d);
 
 	return (0);

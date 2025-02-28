@@ -26,7 +26,7 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-nat64_setup()
+nat64_setup_base()
 {
 	pft_init
 
@@ -51,22 +51,44 @@ nat64_setup()
 	    jexec dst ping -c 1 192.0.2.1
 
 	jexec rtr pfctl -e
+}
+
+nat64_setup_in()
+{
+	nat64_setup_base
 	pft_set_rules rtr \
 	    "set reassemble yes" \
 	    "set state-policy if-bound" \
 	    "pass in on ${epair}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_link}a)"
 }
 
-atf_test_case "icmp_echo" "cleanup"
-icmp_echo_head()
+nat64_setup_out()
 {
-	atf_set descr 'Basic NAT64 ICMP echo test'
+	nat64_setup_base
+	jexec rtr sysctl net.inet6.ip6.forwarding=1
+	# AF translation happens post-routing, traffic must be directed
+	# towards the outbound interface using routes for the original AF.
+	# jexec rtr ifconfig ${epair_link}a inet6 2001:db8:2::1/64 up no_dad
+	jexec rtr route add -inet6 64:ff9b::/96 -iface ${epair_link}a;
+	pft_set_rules rtr \
+	    "set reassemble yes" \
+	    "set state-policy if-bound" \
+	    "pass quick inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+	    "pass in  quick on ${epair}b from any to 64:ff9b::/96" \
+	    "pass out quick on ${epair_link}a from any to 64:ff9b::/96 af-to inet from (${epair_link}a)" \
+	    "block"
+}
+
+atf_test_case "icmp_echo_in" "cleanup"
+icmp_echo_in_head()
+{
+	atf_set descr 'Basic NAT64 ICMP echo test on inbound interface'
 	atf_set require.user root
 }
 
-icmp_echo_body()
+icmp_echo_in_body()
 {
-	nat64_setup
+	nat64_setup_in
 
 	# One ping
 	atf_check -s exit:0 -o ignore \
@@ -78,21 +100,47 @@ icmp_echo_body()
 	    ping6 -c 5 64:ff9b::192.0.2.2
 }
 
-icmp_echo_cleanup()
+icmp_echo_in_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "fragmentation" "cleanup"
-fragmentation_head()
+atf_test_case "icmp_echo_out" "cleanup"
+icmp_echo_out_head()
 {
-	atf_set descr 'Test fragmented packets'
+	atf_set descr 'Basic NAT64 ICMP echo test on outbound interface'
 	atf_set require.user root
 }
 
-fragmentation_body()
+icmp_echo_out_body()
 {
-	nat64_setup
+	nat64_setup_out
+
+	# One ping
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	# Make sure packets make it even when state is established
+	atf_check -s exit:0 \
+	    -o match:'5 packets transmitted, 5 packets received, 0.0% packet loss' \
+	    ping6 -c 5 64:ff9b::192.0.2.2
+}
+
+icmp_echo_out_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "fragmentation_in" "cleanup"
+fragmentation_in_head()
+{
+	atf_set descr 'Test fragmented packets on inbound interface'
+	atf_set require.user root
+}
+
+fragmentation_in_body()
+{
+	nat64_setup_in
 
 	atf_check -s exit:0 -o ignore \
 	    ping6 -c 1 -s 1280 64:ff9b::192.0.2.2
@@ -105,21 +153,48 @@ fragmentation_body()
 	    ping6 -c 3 -s 10000 -b 20000 64:ff9b::192.0.2.2
 }
 
-fragmentation_cleanup()
+fragmentation_in_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "tcp" "cleanup"
-tcp_head()
+atf_test_case "fragmentation_out" "cleanup"
+fragmentation_out_head()
 {
-	atf_set descr 'TCP NAT64 test'
+	atf_set descr 'Test fragmented packets on outbound interface'
 	atf_set require.user root
 }
 
-tcp_body()
+fragmentation_out_body()
 {
-	nat64_setup
+	nat64_setup_out
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 -s 1280 64:ff9b::192.0.2.2
+
+	atf_check -s exit:0 \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
+	    ping6 -c 3 -s 2000 64:ff9b::192.0.2.2
+	atf_check -s exit:0 \
+	    -o match:'3 packets transmitted, 3 packets received, 0.0% packet loss' \
+	    ping6 -c 3 -s 10000 -b 20000 64:ff9b::192.0.2.2
+}
+
+fragmentation_out_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "tcp_in" "cleanup"
+tcp_in_head()
+{
+	atf_set descr 'TCP NAT64 test on inbound interface'
+	atf_set require.user root
+}
+
+tcp_in_body()
+{
+	nat64_setup_in
 
 	echo "foo" | jexec dst nc -l 1234 &
 
@@ -135,21 +210,51 @@ tcp_body()
 	fi
 }
 
-tcp_cleanup()
+tcp_in_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "udp" "cleanup"
-udp_head()
+atf_test_case "tcp_out" "cleanup"
+tcp_out_head()
 {
-	atf_set descr 'UDP NAT64 test'
+	atf_set descr 'TCP NAT64 test on outbound interface'
 	atf_set require.user root
 }
 
-udp_body()
+tcp_out_body()
 {
-	nat64_setup
+	nat64_setup_out
+
+	echo "foo" | jexec dst nc -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(nc -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to TCP server"
+	fi
+}
+
+tcp_out_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "udp_in" "cleanup"
+udp_in_head()
+{
+	atf_set descr 'UDP NAT64 test on inbound interface'
+	atf_set require.user root
+}
+
+udp_in_body()
+{
+	nat64_setup_in
 
 	echo "foo" | jexec dst nc -u -l 1234 &
 
@@ -165,21 +270,51 @@ udp_body()
 	fi
 }
 
-udp_cleanup()
+udp_in_cleanup()
 {
 	pft_cleanup
 }
 
-atf_test_case "sctp" "cleanup"
-sctp_head()
+atf_test_case "udp_out" "cleanup"
+udp_out_head()
 {
-	atf_set descr 'SCTP NAT64 test'
+	atf_set descr 'UDP NAT64 test on outbound interface'
 	atf_set require.user root
 }
 
-sctp_body()
+udp_out_body()
 {
-	nat64_setup
+	nat64_setup_out
+
+	echo "foo" | jexec dst nc -u -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(echo bar | nc -w 3 -6 -u 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to UDP server"
+	fi
+}
+
+udp_out_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "sctp_in" "cleanup"
+sctp_in_head()
+{
+	atf_set descr 'SCTP NAT64 test on inbound interface'
+	atf_set require.user root
+}
+
+sctp_in_body()
+{
+	nat64_setup_in
 	if ! kldstat -q -m sctp; then
 		atf_skip "This test requires SCTP"
 	fi
@@ -198,7 +333,40 @@ sctp_body()
 	fi
 }
 
-sctp_cleanup()
+sctp_in_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "sctp_out" "cleanup"
+sctp_out_head()
+{
+	atf_set descr 'SCTP NAT64 test on outbound interface'
+	atf_set require.user root
+}
+
+sctp_out_body()
+{
+	nat64_setup_out
+	if ! kldstat -q -m sctp; then
+		atf_skip "This test requires SCTP"
+	fi
+
+	echo "foo" | jexec dst nc --sctp -N -l 1234 &
+
+	# Sanity check & delay for nc startup
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 64:ff9b::192.0.2.2
+
+	rcv=$(echo bar | nc --sctp -w 3 -6 64:ff9b::c000:202 1234)
+	if [ "${rcv}" != "foo" ];
+	then
+		echo "rcv=${rcv}"
+		atf_fail "Failed to connect to SCTP server"
+	fi
+}
+
+sctp_out_cleanup()
 {
 	pft_cleanup
 }
@@ -212,7 +380,7 @@ tos_head()
 
 tos_body()
 {
-	nat64_setup
+	nat64_setup_in
 
 	# Ensure we can distinguish ToS on the destination
 	jexec dst pfctl -e
@@ -501,7 +669,6 @@ table_range_cleanup()
 table_common_body()
 {
 	pool_type=$1
-echo pool_type=${pool_type}
 
 	pft_init
 
@@ -800,13 +967,79 @@ reply_to_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6_gateway" "cleanup"
+v6_gateway_head()
+{
+	atf_set descr 'nat64 when the IPv4 gateway is given by an IPv6 address'
+	atf_set require.user root
+}
+
+v6_gateway_body()
+{
+	pft_init
+
+	epair_wan_two=$(vnet_mkepair)
+	epair_wan_one=$(vnet_mkepair)
+	epair_lan=$(vnet_mkepair)
+
+	ifconfig ${epair_lan}a inet6 2001:db8::2/64 up no_dad
+	route -6 add default 2001:db8::1
+
+	vnet_mkjail rtr ${epair_lan}b ${epair_wan_one}a
+	jexec rtr ifconfig ${epair_lan}b inet6 2001:db8::1/64 up no_dad
+	jexec rtr ifconfig ${epair_wan_one}a 192.0.2.1/24 up
+	jexec rtr ifconfig ${epair_wan_one}a inet6 -ifdisabled
+	jexec rtr route add default -inet6 fe80::1%${epair_wan_one}a
+	#jexec rtr route add default 192.0.2.2
+
+	vnet_mkjail wan_one ${epair_wan_one}b ${epair_wan_two}a
+	jexec wan_one ifconfig ${epair_wan_one}b 192.0.2.2/24 up
+	jexec wan_one ifconfig ${epair_wan_one}b inet6 fe80::1/64
+	jexec wan_one ifconfig ${epair_wan_two}a 198.51.100.2/24 up
+	jexec wan_one route add default 192.0.2.1
+	jexec wan_one sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail wan_two ${epair_wan_two}b
+	jexec wan_two ifconfig ${epair_wan_two}b 198.51.100.1/24 up
+	jexec wan_two route add default 198.51.100.2
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 1 2001:db8::1
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 198.51.100.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "set reassemble yes" \
+	    "set state-policy if-bound" \
+	    "pass in on ${epair_lan}b inet6 from any to 64:ff9b::/96 af-to inet from (${epair_wan_one}a)"
+
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping6 -c 3 64:ff9b::198.51.100.1
+}
+
+v6_gateway_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
-	atf_add_test_case "icmp_echo"
-	atf_add_test_case "fragmentation"
-	atf_add_test_case "tcp"
-	atf_add_test_case "udp"
-	atf_add_test_case "sctp"
+	atf_add_test_case "icmp_echo_in"
+	atf_add_test_case "icmp_echo_out"
+	atf_add_test_case "fragmentation_in"
+	atf_add_test_case "fragmentation_out"
+	atf_add_test_case "tcp_in"
+	atf_add_test_case "tcp_out"
+	atf_add_test_case "udp_in"
+	atf_add_test_case "udp_out"
+	atf_add_test_case "sctp_in"
+	atf_add_test_case "sctp_out"
 	atf_add_test_case "tos"
 	atf_add_test_case "no_v4"
 	atf_add_test_case "range"
@@ -819,4 +1052,5 @@ atf_init_test_cases()
 	atf_add_test_case "gateway6"
 	atf_add_test_case "route_to"
 	atf_add_test_case "reply_to"
+	atf_add_test_case "v6_gateway"
 }
