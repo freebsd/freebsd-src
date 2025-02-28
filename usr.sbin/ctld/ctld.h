@@ -43,6 +43,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
@@ -70,12 +71,6 @@ private:
 	std::string			a_mutual_secret;
 };
 
-struct auth_name {
-	TAILQ_ENTRY(auth_name)		an_next;
-	struct auth_group		*an_auth_group;
-	char				*an_initiator_name;
-};
-
 struct auth_portal {
 	TAILQ_ENTRY(auth_portal)	ap_next;
 	struct auth_group		*ap_auth_group;
@@ -97,7 +92,7 @@ struct auth_group {
 	char				*ag_label;
 	int				ag_type;
 	std::unordered_map<std::string, auth> ag_auths;
-	TAILQ_HEAD(, auth_name)		ag_names;
+	std::unordered_set<std::string> ag_names;
 	TAILQ_HEAD(, auth_portal)	ag_portals;
 };
 
@@ -285,9 +280,6 @@ const struct auth	*auth_find(const struct auth_group *ag,
 			    const char *user);
 
 bool			auth_name_new(struct auth_group *ag,
-			    const char *initiator_name);
-bool			auth_name_defined(const struct auth_group *ag);
-const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
 bool			auth_name_check(const struct auth_group *ag,
 			    const char *initiator_name);
