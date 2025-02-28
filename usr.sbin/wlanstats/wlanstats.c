@@ -382,6 +382,18 @@ static const struct fmt wlanstats[] = {
 	{ 9,	"ampdu_bartxfail",	"bartx_fail",	"BAR frames failed to send" },
 #define	S_AMPDU_BARTX_RETRY	AFTER(S_AMPDU_BARTX_FAIL)
 	{ 10,	"ampdu_bartxretry",	"bartx_retry",	"BAR frames retried" },
+#define	S_CRYPTO_GCMP		AFTER(S_AMPDU_BARTX_RETRY)
+	{ 11,	 "crypto_gcmp",	"crypto_gcmp",	"gcmp crypto done in s/w" },
+#define	S_RX_GCMPREPLAY		AFTER(S_CRYPTO_GCMP)
+	{ 10,	"rx_gcmpreplay",	"gcmpreplay",	"rx seq# violation (GCMP)" },
+#define	S_RX_GCMPFORMAT		AFTER(S_RX_GCMPREPLAY)
+	{ 10,	 "rx_gcmpformat",	"gcmpformat",	"rx format bad (GCMP)" },
+#define	S_RX_GCMPMIC		AFTER(S_RX_GCMPFORMAT)
+	{ 7,	"rx_gcmpmic",	"gcmpmic",	"rx MIC check failed (GCMP)" },
+#define	S_RX_GCMPNOMEM		AFTER(S_RX_GCMPMIC)
+	{ 9,	"gcmp_nomem",	"gcmpnomem",	"No memory available (GCMP)" },
+#define	S_RX_GCMPNOSPC		AFTER(S_RX_GCMPNOMEM)
+	{ 9,	"gcmp_nospc",	"gcmpnospc",	"No mbuf space available (GCMP)" },
 };
 
 struct wlanstatfoo_p {
@@ -830,6 +842,12 @@ wlan_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_AMPDU_BARTX:	STAT(ampdu_bar_tx);
 	case S_AMPDU_BARTX_RETRY:	STAT(ampdu_bar_tx_retry);
 	case S_AMPDU_BARTX_FAIL:	STAT(ampdu_bar_tx_fail);
+	case S_CRYPTO_GCMP:	STAT(crypto_gcmp);
+	case S_RX_GCMPREPLAY:	STAT(rx_gcmpreplay);
+	case S_RX_GCMPFORMAT:	STAT(rx_gcmpformat);
+	case S_RX_GCMPMIC:	STAT(rx_gcmpmic);
+	case S_RX_GCMPNOMEM:	STAT(crypto_gcmp_nomem);
+	case S_RX_GCMPNOSPC:	STAT(crypto_gcmp_nospc);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
@@ -995,6 +1013,12 @@ wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_AMPDU_BARTX:	STAT(ampdu_bar_tx);
 	case S_AMPDU_BARTX_RETRY:	STAT(ampdu_bar_tx_retry);
 	case S_AMPDU_BARTX_FAIL:	STAT(ampdu_bar_tx_fail);
+	case S_CRYPTO_GCMP:	STAT(crypto_gcmp);
+	case S_RX_GCMPREPLAY:	STAT(rx_gcmpreplay);
+	case S_RX_GCMPFORMAT:	STAT(rx_gcmpformat);
+	case S_RX_GCMPMIC:	STAT(rx_gcmpmic);
+	case S_RX_GCMPNOMEM:	STAT(crypto_gcmp_nomem);
+	case S_RX_GCMPNOSPC:	STAT(crypto_gcmp_nospc);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
