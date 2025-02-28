@@ -23,7 +23,7 @@ net/wifi-firmware-kmod@release
 ports-mgmt/pkg
 shells/bash
 shells/zsh
-security/sudo
+security/sudo@default
 sysutils/screen
 sysutils/seatd
 sysutils/tmux
