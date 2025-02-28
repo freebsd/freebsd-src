@@ -88,9 +88,9 @@ printheader(void)
 			if (STAILQ_NEXT(vent, next_ve) == NULL)	/* last one */
 				xo_emit("{T:/%hs}", vent->header);
 			else
-				xo_emit("{T:/%-*hs}", v->width, vent->header);
+				xo_emit("{T:/%-*hs}", vent->width, vent->header);
 		} else
-			xo_emit("{T:/%*hs}", v->width, vent->header);
+			xo_emit("{T:/%*hs}", vent->width, vent->header);
 		if (STAILQ_NEXT(vent, next_ve) != NULL)
 			xo_emit("{P: }");
 	}

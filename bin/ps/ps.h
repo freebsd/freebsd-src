@@ -60,6 +60,7 @@ typedef struct varent {
 	STAILQ_ENTRY(varent)	 next_ve;
 	const char		*header;
 	struct var		*var;
+	u_int			 width;
 } VARENT;
 STAILQ_HEAD(velisthead, varent);
 
@@ -84,8 +85,6 @@ typedef struct var {
 	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
 	const char *fmt;	/* printf format */
-
-	short	width;		/* calculated width */
 } VAR;
 
 #include "extern.h"
