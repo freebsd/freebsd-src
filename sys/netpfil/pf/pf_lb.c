@@ -518,7 +518,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	case PF_POOL_RANDOM:
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			cnt = rpool->cur->addr.p.tbl->pfrkt_cnt;
-			rpool->tblidx = (int)arc4random_uniform(cnt);
+			if (cnt == 0)
+				rpool->tblidx = 0;
+			else
+				rpool->tblidx = (int)arc4random_uniform(cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
 			    &rpool->tblidx, &rpool->counter, af, NULL)) {
@@ -528,7 +531,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			PF_ACPY(naddr, &rpool->counter, af);
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
-			rpool->tblidx = (int)arc4random_uniform(cnt);
+			if (cnt == 0)
+				rpool->tblidx = 0;
+			else
+				rpool->tblidx = (int)arc4random_uniform(cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
 			    &rpool->tblidx, &rpool->counter, af,
@@ -583,7 +589,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		    pf_hash(saddr, (struct pf_addr *)&hash, &rpool->key, af);
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			cnt = rpool->cur->addr.p.tbl->pfrkt_cnt;
-			rpool->tblidx = (int)(hashidx % cnt);
+			if (cnt == 0)
+				rpool->tblidx = 0;
+			else
+				rpool->tblidx = (int)(hashidx % cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
 			    &rpool->tblidx, &rpool->counter, af, NULL)) {
@@ -593,7 +602,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			PF_ACPY(naddr, &rpool->counter, af);
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			cnt = rpool->cur->addr.p.dyn->pfid_kt->pfrkt_cnt;
-			rpool->tblidx = (int)(hashidx % cnt);
+			if (cnt == 0)
+				rpool->tblidx = 0;
+			else
+				rpool->tblidx = (int)(hashidx % cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
 			    &rpool->tblidx, &rpool->counter, af,
