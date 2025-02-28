@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250228:
+	Commit 9fed5151903f modified the internal API between the
+	nfscommon and nfscl modules.  As such, both of these modules
+	need to be rebuilt from sources.
+	__FreeBSD_version was bumped to 1402504 for this patch.
+
 20250117:
 	The layout of NFS file handles for the tarfs, cd9660, and ext2fs
 	file systems has changed.  An NFS server that exports any of these file
