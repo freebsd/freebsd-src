@@ -253,6 +253,13 @@ struct ieee80211_stats {
 	uint32_t	is_ff_encapfail;	/* failed FF encap */
 	uint32_t	is_amsdu_encapfail;	/* failed A-MSDU encap */
 
+	uint32_t	is_crypto_gcmp;		/* gcmp crypto done in s/w */
+	uint32_t	is_rx_gcmpreplay;	/* rx seq# violation (GCMP) */
+	uint32_t	is_rx_gcmpformat;	/* rx format bad (GCMP) */
+	uint32_t	is_rx_gcmpmic;		/* rx MIC check failed (GCMP) */
+	uint32_t	is_crypto_gcmp_nomem;	/* gcmp crypto failed; no mem */
+	uint32_t	is_crypto_gcmp_nospc;	/* gcmp crypto failed; no mbuf space */
+
 	uint32_t	is_spare[5];
 };
 
