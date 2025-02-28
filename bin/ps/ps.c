@@ -1192,7 +1192,7 @@ static void
 scanvars(void)
 {
 	struct varent *vent;
-	VAR *v;
+	const VAR *v;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
@@ -1207,7 +1207,7 @@ static void
 format_output(KINFO *ki)
 {
 	struct varent *vent;
-	VAR *v;
+	const VAR *v;
 	KINFO_STR *ks;
 	char *str;
 	u_int len;

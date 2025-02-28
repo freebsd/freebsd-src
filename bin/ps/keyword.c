@@ -299,10 +299,7 @@ parsefmt(const char *p, struct velisthead *const var_list,
 				vent->header = hp;
 		}
 		vent->width = strlen(vent->header);
-		vent->var = malloc(sizeof(*vent->var));
-		if (vent->var == NULL)
-			xo_errx(1, "malloc failed");
-		memcpy(vent->var, v, sizeof(*vent->var));
+		vent->var = v;
 		STAILQ_INSERT_TAIL(var_list, vent, next_ve);
 	}
 	free(tempstr1);
