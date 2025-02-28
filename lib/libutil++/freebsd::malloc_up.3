@@ -1,0 +1,50 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::MALLOC_UP 3
+.Os
+.Sh NAME
+.Nm freebsd::malloc_up
+.Nd std::unique_ptr specialization for objects allocated via malloc
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Ft using malloc_up = std::unique_ptr<T, free_deleter<T>>;
+.Sh DESCRIPTION
+This class is a specialization of
+.Vt std::unique_ptr
+which invokes
+.Xr free 3
+instead of
+.Fn delete
+when an object is disposed.
+While explicit calls to
+.Xr malloc 3
+should be avoided in C++ code,
+this class can be useful to manage an object allocated by an existing API
+which uses
+.Xr malloc 3
+internally such as
+.Xr scandir 3 .
+Note that the type of the underlying object must be used as the first
+template argument similar to std::unique_ptr.
+.Sh EXAMPLES
+This example uses
+.Xr strdup 3
+for simplicity,
+but new C++ code should generally not use
+.Xr strdup 3 :
+.Bd -literal -offset indent
+freebsd::malloc_up<char> my_string(strdup("foo"));
+// `mystring' is implicitly freed on destruction
+.Ed
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr scandir 3 ,
+.Xr strdup 3

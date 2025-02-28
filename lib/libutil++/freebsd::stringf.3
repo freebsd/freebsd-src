@@ -1,0 +1,48 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Chelsio Communications, Inc.
+.\" Written by: John Baldwin <jhb@FreeBSD.org>
+.\"
+.Dd July 31, 2025
+.Dt FREEBSD::STRINGF 3
+.Os
+.Sh NAME
+.Nm freebsd::stringf
+.Nd build a std::string using stdio formatting
+.Sh LIBRARY
+.Lb libutil++
+.Sh SYNOPSIS
+.In libutil++.hh
+.Ft std::string
+.Fn freebsd::stringf "const char *fmt" "..."
+.Ft std::string
+.Fn freebsd::stringf "const char *fmt" "va_list ap"
+.Sh DESCRIPTION
+These functions construct a
+.Vt std::string
+object containing a formatted string.
+The output of the string is dictated by the
+.Fa fmt
+argument and additional arguments using the same conventions documented in
+.Xr printf 3 .
+The first form provides functionality similar to
+.Xr asprintf 3
+and the second form is similar to
+.Xr vasprintf 3 .
+.Sh RETURN VALUES
+These functions return a std::string object.
+.Sh EXCEPTIONS
+These functions may throw one of the following exceptions:
+.Bl -tag -width Er
+.It Bq Er std::bad_alloc
+Failed to allocate memory.
+.It Bq Er std::length_error
+The result would exceeed the maximum possible string size.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+std::string s = freebsd::stringf("hello %s", "world");
+.Ed
+.Sh SEE ALSO
+.Xr asprintf 3
