@@ -4201,6 +4201,8 @@ net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan \
 	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
+net80211/ieee80211_crypto_gcmp.c optional wlan wlan_gcmp
+net80211/ieee80211_crypto_gcm.c	optional wlan wlan_gcmp
 net80211/ieee80211_crypto_none.c optional wlan
 net80211/ieee80211_crypto_tkip.c optional wlan wlan_tkip
 net80211/ieee80211_crypto_wep.c	optional wlan wlan_wep
