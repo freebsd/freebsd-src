@@ -103,9 +103,15 @@ smbios_identify (driver_t *driver, device_t parent)
 #endif
 
 #if defined(__amd64__) || defined(__i386__)
-	if (addr == 0)
-		addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
+	if (addr == 0) {
+		addr = bios_sigsearch(SMBIOS_START, SMBIOS3_SIG, SMBIOS3_LEN,
 		    SMBIOS_STEP, SMBIOS_OFF);
+		if (addr != 0)
+			map_size = sizeof(*eps3);
+		else
+			addr = bios_sigsearch(SMBIOS_START,
+			    SMBIOS_SIG, SMBIOS_LEN, SMBIOS_STEP, SMBIOS_OFF);
+	}
 #endif
 
 	if (addr != 0) {
