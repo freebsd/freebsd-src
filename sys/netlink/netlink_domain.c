@@ -568,6 +568,9 @@ nl_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (__predict_false(uio->uio_resid < sizeof(struct nlmsghdr)))
 		return (ENOBUFS);		/* XXXGL: any better error? */
 
+	if (__predict_false(uio->uio_resid > sb->sb_hiwat))
+		return (EMSGSIZE);
+
 	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		return (error);
