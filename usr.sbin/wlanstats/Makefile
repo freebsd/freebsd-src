@@ -1,7 +1,7 @@
 .include <bsd.compiler.mk>
 
 PROG=	wlanstats
-MAN=
+MAN=	wlanstats.8
 
 CFLAGS=	-I${SRCTOP}/lib/libbsdstat
 LIBADD=	bsdstat
