@@ -50,7 +50,7 @@ int	 donlist(void);
 char	 *elapsed(KINFO *, VARENT *);
 char	 *elapseds(KINFO *, VARENT *);
 char	 *emulname(KINFO *, VARENT *);
-VARENT	*find_varentry(VAR *);
+VARENT	*find_varentry(const char *);
 const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
 char	 *jailname(KINFO *, VARENT *);
