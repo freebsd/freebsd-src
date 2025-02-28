@@ -39,7 +39,8 @@ usage() {
 main() {
 	local arg
 	VMCONFIG="/dev/null"
-	while getopts "C:c:d:F:f:i:o:s:S:" arg; do
+	INSTALLEXTRAKERNELS="no"
+	while getopts "C:c:d:F:f:i:Ko:s:S:" arg; do
 		case "${arg}" in
 			C)
 				VMBUILDCONF="${OPTARG}"
@@ -58,6 +59,9 @@ main() {
 				;;
 			i)
 				VMBASE="${OPTARG}"
+				;;
+			K)
+				INSTALLEXTRAKERNELS="yes"
 				;;
 			o)
 				VMIMAGE="${OPTARG}"

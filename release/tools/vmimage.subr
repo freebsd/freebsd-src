@@ -53,6 +53,7 @@ vm_install_base() {
 
 	cd ${WORLDDIR} && \
 		make DESTDIR=${DESTDIR} ${INSTALLOPTS} \
+		INSTALLEXTRAKERNELS=${INSTALLEXTRAKERNELS} \
 		installworld installkernel distribution || \
 		err "\n\nCannot install the base system to ${DESTDIR}."
 
