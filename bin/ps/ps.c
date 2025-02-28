@@ -130,7 +130,6 @@ static char	*kludge_oldps_options(const char *, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
-static void	 sizevars(void);
 static void	 pidmax_init(void);
 static void	 usage(void);
 
@@ -635,8 +634,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	sizevars();
-
 	if (nkept == 0) {
 		printheader();
 		if (xo_finish() < 0)
@@ -695,7 +692,7 @@ main(int argc, char *argv[])
 			/* No padding for the last column, if it's LJUST. */
 			fwidthmin = (xo_get_style(NULL) != XO_STYLE_TEXT ||
 			    (STAILQ_NEXT(vent, next_ve) == NULL &&
-			    (vent->var->flag & LJUST))) ? 0 : vent->var->width;
+			    (vent->var->flag & LJUST))) ? 0 : vent->width;
 			snprintf(fmtbuf, sizeof(fmtbuf), "{:%s/%%%s%d..%dhs}",
 			    vent->var->field ? vent->var->field : vent->var->name,
 			    (vent->var->flag & LJUST) ? "-" : "",
@@ -1213,7 +1210,7 @@ format_output(KINFO *ki)
 	VAR *v;
 	KINFO_STR *ks;
 	char *str;
-	int len;
+	u_int len;
 
 	STAILQ_INIT(&ki->ki_ks);
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
@@ -1228,23 +1225,8 @@ format_output(KINFO *ki)
 			len = strlen(str);
 		} else
 			len = 1; /* "-" */
-		if (v->width < len)
-			v->width = len;
-	}
-}
-
-static void
-sizevars(void)
-{
-	struct varent *vent;
-	VAR *v;
-	int i;
-
-	STAILQ_FOREACH(vent, &varlist, next_ve) {
-		v = vent->var;
-		i = strlen(vent->header);
-		if (v->width < i)
-			v->width = i;
+		if (vent->width < len)
+			vent->width = len;
 	}
 }
 
