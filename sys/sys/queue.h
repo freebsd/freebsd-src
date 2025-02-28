@@ -113,6 +113,7 @@
  * _REMOVE_HEAD			+	+	+	+
  * _REMOVE			s	+	s	+
  * _REPLACE			-	+	-	+
+ * _SPLIT_AFTER			+	+	+	+
  * _SWAP			+	+	+	+
  *
  */
@@ -209,8 +210,20 @@ struct {								\
 		panic("Bad prevptr *(%p) == %p != %p",			\
 		    (prevp), *(prevp), (elm));				\
 } while (0)
+
+#define	SLIST_ASSERT_EMPTY(head) do {					\
+	if (!SLIST_EMPTY((head)))					\
+		panic("%s: slist %p is not empty", __func__, (head));	\
+} while (0)
+
+#define	SLIST_ASSERT_NONEMPTY(head) do {				\
+	if (SLIST_EMPTY((head)))					\
+		panic("%s: slist %p is empty", __func__, (head));	\
+} while (0)
 #else
 #define	QMD_SLIST_CHECK_PREVPTR(prevp, elm)
+#define	SLIST_ASSERT_EMPTY(head)
+#define	SLIST_ASSERT_NONEMPTY(head)
 #endif
 
 #define SLIST_CONCAT(head1, head2, type, field) do {			\
@@ -305,6 +318,12 @@ struct {								\
 	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
+#define	SLIST_SPLIT_AFTER(head, elm, rest, field) do {			\
+	SLIST_ASSERT_NONEMPTY((head));					\
+	SLIST_FIRST((rest)) = SLIST_NEXT((elm), field);			\
+	SLIST_NEXT((elm), field) = NULL;				\
+} while (0)
+
 #define SLIST_SWAP(head1, head2, type) do {				\
 	QUEUE_TYPEOF(type) *swap_first = SLIST_FIRST(head1);		\
 	SLIST_FIRST(head1) = SLIST_FIRST(head2);			\
@@ -357,11 +376,6 @@ struct {								\
 		    "first field address", (head), (head)->stqh_last);	\
 } while (0)
 
-#define	STAILQ_ASSERT_EMPTY(head) do {					\
-	if (!STAILQ_EMPTY((head)))					\
-		panic("stailq %p is not empty", (head));		\
-} while (0)
-
 /*
  * QMD_STAILQ_CHECK_TAIL(STAILQ_HEAD *head)
  *
@@ -372,11 +386,23 @@ struct {								\
 		panic("Stailq %p last element's next pointer is %p, "	\
 		    "not NULL", (head), *(head)->stqh_last);		\
 } while (0)
+
+#define	STAILQ_ASSERT_EMPTY(head) do {					\
+	if (!STAILQ_EMPTY((head)))					\
+		panic("%s: stailq %p is not empty", __func__, (head));	\
+} while (0)
+
+#define	STAILQ_ASSERT_NONEMPTY(head) do {				\
+	if (STAILQ_EMPTY((head)))					\
+		panic("%s: stailq %p is empty", __func__, (head));	\
+} while (0)
+
 #else
 #define	QMD_STAILQ_CHECK_EMPTY(head)
-#define	STAILQ_ASSERT_EMPTY(head)
 #define	QMD_STAILQ_CHECK_TAIL(head)
-#endif /* (_KERNEL && INVARIANTS) */
+#define	STAILQ_ASSERT_EMPTY(head)
+#define	STAILQ_ASSERT_NONEMPTY(head)
+#endif /* _KERNEL && INVARIANTS */
 
 #define	STAILQ_CONCAT(head1, head2) do {				\
 	if (!STAILQ_EMPTY((head2))) {					\
@@ -474,6 +500,20 @@ struct {								\
 		(head)->stqh_last = &STAILQ_FIRST((head));		\
 } while (0)
 
+#define	STAILQ_SPLIT_AFTER(head, elm, rest, field) do {			\
+	STAILQ_ASSERT_NONEMPTY((head));					\
+	QMD_STAILQ_CHECK_TAIL((head));					\
+	if (STAILQ_NEXT((elm), field) == NULL)				\
+		/* 'elm' is the last element in 'head'. */		\
+		STAILQ_INIT((rest));					\
+	else {								\
+		STAILQ_FIRST((rest)) = STAILQ_NEXT((elm), field);	\
+		(rest)->stqh_last = (head)->stqh_last;			\
+		STAILQ_NEXT((elm), field) = NULL;			\
+		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
+	}								\
+} while (0)
+
 #define STAILQ_SWAP(head1, head2, type) do {				\
 	QUEUE_TYPEOF(type) *swap_first = STAILQ_FIRST(head1);		\
 	QUEUE_TYPEOF(type) **swap_last = (head1)->stqh_last;		\
@@ -558,10 +598,22 @@ struct {								\
 	if (*(elm)->field.le_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
 } while (0)
+
+#define	LIST_ASSERT_EMPTY(head) do {					\
+	if (!LIST_EMPTY((head)))					\
+		panic("%s: list %p is not empty", __func__, (head));	\
+} while (0)
+
+#define	LIST_ASSERT_NONEMPTY(head) do {					\
+	if (LIST_EMPTY((head)))						\
+		panic("%s: list %p is empty", __func__, (head));	\
+} while (0)
 #else
 #define	QMD_LIST_CHECK_HEAD(head, field)
 #define	QMD_LIST_CHECK_NEXT(elm, field)
 #define	QMD_LIST_CHECK_PREV(elm, field)
+#define	LIST_ASSERT_EMPTY(head)
+#define	LIST_ASSERT_NONEMPTY(head)
 #endif /* (_KERNEL && INVARIANTS) */
 
 #define LIST_CONCAT(head1, head2, type, field) do {			\
@@ -675,6 +727,19 @@ struct {								\
 	TRASHIT(*oldprev);						\
 } while (0)
 
+#define	LIST_SPLIT_AFTER(head, elm, rest, field) do {			\
+	LIST_ASSERT_NONEMPTY((head));					\
+	if (LIST_NEXT((elm), field) == NULL)				\
+		/* 'elm' is the last element in 'head'. */		\
+		LIST_INIT((rest));					\
+	else {								\
+		LIST_FIRST((rest)) = LIST_NEXT((elm), field);		\
+		LIST_NEXT((elm), field)->field.le_prev =		\
+		    &LIST_FIRST((rest));				\
+		LIST_NEXT((elm), field) = NULL;				\
+	}								\
+} while (0)
+
 #define LIST_SWAP(head1, head2, type, field) do {			\
 	QUEUE_TYPEOF(type) *swap_tmp = LIST_FIRST(head1);		\
 	LIST_FIRST((head1)) = LIST_FIRST((head2));			\
@@ -770,11 +835,23 @@ struct {								\
 	if (*(elm)->field.tqe_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
 } while (0)
+
+#define	TAILQ_ASSERT_EMPTY(head) do {					\
+	if (!TAILQ_EMPTY((head)))					\
+		panic("%s: tailq %p is not empty", __func__, (head));	\
+} while (0)
+
+#define	TAILQ_ASSERT_NONEMPTY(head) do {				\
+	if (TAILQ_EMPTY((head)))					\
+		panic("%s: tailq %p is empty", __func__, (head));	\
+} while (0)
 #else
 #define	QMD_TAILQ_CHECK_HEAD(head, field)
 #define	QMD_TAILQ_CHECK_TAIL(head, headname)
 #define	QMD_TAILQ_CHECK_NEXT(elm, field)
 #define	QMD_TAILQ_CHECK_PREV(elm, field)
+#define	TAILQ_ASSERT_EMPTY(head)
+#define	TAILQ_ASSERT_NONEMPTY(head)
 #endif /* (_KERNEL && INVARIANTS) */
 
 #define	TAILQ_CONCAT(head1, head2, field) do {				\
@@ -948,6 +1025,23 @@ struct {								\
 	TRASHIT(*oldnext);						\
 	TRASHIT(*oldprev);						\
 	QMD_TRACE_ELEM(&(elm)->field);					\
+} while (0)
+
+#define	TAILQ_SPLIT_AFTER(head, elm, rest, field) do {			\
+	TAILQ_ASSERT_NONEMPTY((head));					\
+	QMD_TAILQ_CHECK_TAIL((head), field);				\
+	if (TAILQ_NEXT((elm), field) == NULL)				\
+		/* 'elm' is the last element in 'head'. */		\
+		TAILQ_INIT((rest));					\
+	else {								\
+		TAILQ_FIRST((rest)) = TAILQ_NEXT((elm), field);		\
+		(rest)->tqh_last = (head)->tqh_last;			\
+		TAILQ_NEXT((elm), field)->field.tqe_prev =		\
+		    &TAILQ_FIRST((rest));				\
+									\
+		TAILQ_NEXT((elm), field) = NULL;			\
+		(head)->tqh_last = &TAILQ_NEXT((elm), field);		\
+	}								\
 } while (0)
 
 #define TAILQ_SWAP(head1, head2, type, field) do {			\
