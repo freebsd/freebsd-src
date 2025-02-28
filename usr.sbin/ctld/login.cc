@@ -990,14 +990,15 @@ login(struct ctld_connection *conn)
 		ag = conn->conn_port->p_auth_group;
 		if (ag == NULL)
 			ag = conn->conn_target->t_auth_group;
-		if (ag->ag_name != NULL) {
-			log_debugx("initiator requests to connect "
-			    "to target \"%s\"; auth-group \"%s\"",
-			    conn->conn_target->t_name,
-			    ag->ag_name);
-		} else {
+		if (conn->conn_port->p_auth_group == NULL &&
+		    conn->conn_target->t_private_auth) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"", conn->conn_target->t_name);
+		} else {
+			log_debugx("initiator requests to connect "
+			    "to target \"%s\"; %s",
+			    conn->conn_target->t_name,
+			    ag->ag_label);
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
