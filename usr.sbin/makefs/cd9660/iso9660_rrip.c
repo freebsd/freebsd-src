@@ -667,7 +667,7 @@ inode_map(iso9660_disk *diskStructure, uint64_t in)
 	if (in != 0) {
 		node = RB_FIND(inode_map_tree, &(diskStructure->rr_inode_map),
 		    &lookup);
-		if (node != 0)
+		if (node != NULL)
 			return (node->value);
 	}
 
