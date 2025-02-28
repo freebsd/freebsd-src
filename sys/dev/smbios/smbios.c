@@ -113,53 +113,53 @@ smbios_identify (driver_t *driver, device_t parent)
 	}
 #endif
 
-	if (addr != 0) {
-		ptr = pmap_mapbios(addr, map_size);
-		if (ptr == NULL)
-			return;
-		if (map_size == sizeof(*eps3)) {
-			eps3 = ptr;
-			length = eps3->length;
-			if (memcmp(eps3->anchor_string,
-			    SMBIOS3_SIG, SMBIOS3_LEN) != 0) {
-				printf("smbios3: corrupt sig %s found\n",
-				    eps3->anchor_string);
-				return;
-			}
-		} else {
-			eps = ptr;
-			length = eps->length;
-			if (memcmp(eps->anchor_string,
-			    SMBIOS_SIG, SMBIOS_LEN) != 0) {
-				printf("smbios: corrupt sig %s found\n",
-				    eps->anchor_string);
-				return;
-			}
+	if (addr == 0)
+		return;
+
+	ptr = pmap_mapbios(addr, map_size);
+	if (ptr == NULL)
+		return;
+	if (map_size == sizeof(*eps3)) {
+		eps3 = ptr;
+		length = eps3->length;
+		if (memcmp(eps3->anchor_string,
+		    SMBIOS3_SIG, SMBIOS3_LEN) != 0) {
+			printf("smbios3: corrupt sig %s found\n",
+			    eps3->anchor_string);
+			goto unmap_return;
 		}
-		if (length != map_size) {
-			u_int8_t major, minor;
-
-			major = eps->major_version;
-			minor = eps->minor_version;
-
-			/* SMBIOS v2.1 implementation might use 0x1e. */
-			if (length == 0x1e && major == 2 && minor == 1) {
-				length = 0x1f;
-			} else {
-				pmap_unmapbios(eps, map_size);
-				return;
-			}
+	} else {
+		eps = ptr;
+		length = eps->length;
+		if (memcmp(eps->anchor_string,
+		    SMBIOS_SIG, SMBIOS_LEN) != 0) {
+			printf("smbios: corrupt sig %s found\n",
+			    eps->anchor_string);
+			goto unmap_return;
 		}
+	}
+	if (length != map_size) {
+		u_int8_t major, minor;
 
-		child = BUS_ADD_CHILD(parent, 5, "smbios", DEVICE_UNIT_ANY);
-		device_set_driver(child, driver);
+		major = eps->major_version;
+		minor = eps->minor_version;
 
-		/* smuggle the phys addr into probe and attach */
-		bus_set_resource(child, SYS_RES_MEMORY, 0, addr, length);
-		device_set_desc(child, "System Management BIOS");
-		pmap_unmapbios(ptr, map_size);
+		/* SMBIOS v2.1 implementation might use 0x1e. */
+		if (length == 0x1e && major == 2 && minor == 1)
+			length = 0x1f;
+		else
+			goto unmap_return;
 	}
 
+	child = BUS_ADD_CHILD(parent, 5, "smbios", DEVICE_UNIT_ANY);
+	device_set_driver(child, driver);
+
+	/* smuggle the phys addr into probe and attach */
+	bus_set_resource(child, SYS_RES_MEMORY, 0, addr, length);
+	device_set_desc(child, "System Management BIOS");
+
+unmap_return:
+	pmap_unmapbios(ptr, map_size);
 	return;
 }
 
