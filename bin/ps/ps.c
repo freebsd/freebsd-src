@@ -1205,12 +1205,12 @@ init_list(struct listinfo *inf, addelem_rtn artn, int elemsize,
 }
 
 VARENT *
-find_varentry(VAR *v)
+find_varentry(const char *name)
 {
 	struct varent *vent;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
-		if (strcmp(vent->var->name, v->name) == 0)
+		if (strcmp(vent->var->name, name) == 0)
 			return vent;
 	}
 	return NULL;

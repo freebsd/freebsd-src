@@ -293,7 +293,7 @@ parsefmt(const char *p, struct velisthead *const var_list,
 			 * get on with our lives if this VAR is already
 			 * represented in the list.
 			 */
-			vent = find_varentry(v);
+			vent = find_varentry(v->name);
 			if (vent != NULL)
 				continue;
 		}
