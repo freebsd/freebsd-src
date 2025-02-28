@@ -73,7 +73,7 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 void
 printheader(void)
 {
-	VAR *v;
+	const VAR *v;
 	struct varent *vent;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve)
@@ -745,7 +745,7 @@ priorityr(KINFO *k, VARENT *ve __unused)
  * structures.
  */
 static char *
-printval(void *bp, VAR *v)
+printval(void *bp, const VAR *v)
 {
 	static char ofmt[32] = "%";
 	const char *fcp;
@@ -796,7 +796,7 @@ printval(void *bp, VAR *v)
 char *
 kvar(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	const VAR *v;
 
 	v = ve->var;
 	return (printval((char *)((char *)k->ki_p + v->off), v));
@@ -805,7 +805,7 @@ kvar(KINFO *k, VARENT *ve)
 char *
 rvar(KINFO *k, VARENT *ve)
 {
-	VAR *v;
+	const VAR *v;
 
 	v = ve->var;
 	if (!k->ki_valid)

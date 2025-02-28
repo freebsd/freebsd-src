@@ -59,7 +59,7 @@ typedef struct kinfo {
 typedef struct varent {
 	STAILQ_ENTRY(varent)	 next_ve;
 	const char		*header;
-	struct var		*var;
+	const struct var	*var;
 	u_int			 width;
 } VARENT;
 STAILQ_HEAD(velisthead, varent);
