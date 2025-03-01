@@ -3136,6 +3136,8 @@ rsn_cipher(const u_int8_t *sel)
 		return "AES-CCMP";
 	case RSN_SEL(RSN_CSE_WRAP):
 		return "AES-OCB";
+	case RSN_SEL(RSN_CSE_GCMP_128):
+		return "AES-GCMP";
 	}
 	return "?";
 #undef WPA_SEL
