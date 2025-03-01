@@ -44,6 +44,7 @@
 #include <sys/kernel.h>
 #include <sys/jail.h>
 #include <sys/sdt.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/eventhandler.h>
@@ -53,8 +54,6 @@
 #include <sys/socket.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-
-#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

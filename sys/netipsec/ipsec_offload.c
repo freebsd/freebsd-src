@@ -38,9 +38,8 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/protosw.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
-
-#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

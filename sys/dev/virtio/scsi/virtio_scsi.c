@@ -41,8 +41,7 @@
 #include <sys/callout.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
