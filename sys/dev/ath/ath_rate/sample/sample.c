@@ -857,7 +857,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			 */
 			if (rt->info[best_rix].phy == IEEE80211_T_HT)
 				ieee80211_node_set_txrate_ht_mcsrate(
-				    &an->an_node, MCS(best_rix));
+				    &an->an_node,
+				    MCS(best_rix) & IEEE80211_RATE_VAL);
 			else
 				ieee80211_node_set_txrate_dot11rate(
 				    &an->an_node,
