@@ -70,8 +70,10 @@ cd9660_susp_initialize(iso9660_disk *diskStructure, cd9660node *node,
 	if (node->dot_dot_record != 0)
 		TAILQ_INIT(&(node->dot_dot_record->head));
 
-	RB_INIT(&diskStructure->rr_inode_map);
-	diskStructure->rr_inode_next = 1;
+	if (diskStructure->rr_inode_next == 0) {
+		RB_INIT(&diskStructure->rr_inode_map);
+		diskStructure->rr_inode_next = 1;
+	}
 
 	 /* SUSP specific entries here */
 	if ((r = cd9660_susp_initialize_node(diskStructure, node)) < 0)
@@ -121,11 +123,15 @@ cd9660_susp_finalize(iso9660_disk *diskStructure, cd9660node *node)
 		if ((r = cd9660_susp_finalize(diskStructure, temp)) < 0)
 			return r;
 	}
-	RB_FOREACH_SAFE(mapnode, inode_map_tree,
-	    &(diskStructure->rr_inode_map), mapnodetmp) {
-		RB_REMOVE(inode_map_tree, &(diskStructure->rr_inode_map),
-		    mapnode);
-		free(mapnode);
+
+	if (diskStructure->rr_inode_next != 0) {
+		RB_FOREACH_SAFE(mapnode, inode_map_tree,
+		    &(diskStructure->rr_inode_map), mapnodetmp) {
+			RB_REMOVE(inode_map_tree,
+			    &(diskStructure->rr_inode_map), mapnode);
+			free(mapnode);
+		}
+		diskStructure->rr_inode_next = 0;
 	}
 	return 1;
 }
