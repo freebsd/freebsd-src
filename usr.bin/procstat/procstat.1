@@ -159,16 +159,24 @@ option nor
 .Va pid
 list can be used to limit the display of the locks, mostly because
 some types of locks do not have local (or any) owning processes.
+.It Ar argument(s) | Fl c
+Display command line arguments for the process.
+.Pp
+Substring commands are accepted.
+.It Ar auxv | Fl x
+Display ELF auxiliary vector for the process.
 .It Ar basic
 Print basic process statistics (this is the default).
 .It Ar binary | Fl b
 Display binary information for the process.
 .Pp
 Substring commands are accepted.
-.It Ar argument(s) | Fl c
-Display command line arguments for the process.
+.It Ar credential(s) | Fl s
+Display security credential information for the process.
 .Pp
 Substring commands are accepted.
+.It Ar cpuset | Ar cs | Fl S
+Display the cpuset information for the thread.
 .It Ar environment | Fl e
 Display environment variables for the process.
 .Pp
@@ -179,24 +187,6 @@ Display file descriptor information for the process.
 If the
 .Fl C
 subcommand flag is used then additional capability information is printed.
-.It Ar signal(s) | Fl i
-Display signal pending and disposition information for the process.
-.Pp
-If the
-.Fl n
-subcommand option is used, the signal numbers are shown instead of signal
-names.
-.Pp
-Substring commands are accepted.
-.It Ar tsignal(s) | Fl j
-Display signal pending and blocked information for the process's threads.
-.Pp
-If the
-.Fl n
-subcommand option is used, the signal numbers are shown instead of signal
-names.
-.Pp
-Substring commands are accepted.
 .It Ar kstack | Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
@@ -205,10 +195,16 @@ If the
 .Fl v
 subcommand option is used (or the command flag is repeated), function
 offsets as well as function names are printed.
-.It Ar rlimit | Fl l
-Display resource limits for the process.
+.It Ar pargs
+Display arguments for the process.
+.It Ar penv
+Display environment variables for the process.
 .It Ar ptlwpinfo | Fl L
 Display LWP info for the process pertaining to its signal driven exit.
+.It Ar pwdx
+Display current working directory for the process.
+.It Ar rlimit | Fl l
+Display resource limits for the process.
 .It Ar rusage | Fl r
 Display resource usage information for the process.
 .Pp
@@ -220,24 +216,28 @@ is used then per-thread statistics are printed, rather than per-process
 statistics.
 The second field in the table will list the thread ID to which the row of
 information corresponds.
-.It Ar credential(s) | Fl s
-Display security credential information for the process.
+.It Ar signal(s) | Fl i
+Display signal pending and disposition information for the process.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
 .Pp
 Substring commands are accepted.
-.It Ar cpuset | Ar cs | Fl S
-Display the cpuset information for the thread.
 .It Ar thread(s) | Fl t
 Display thread information for the process.
+.It Ar tsignal(s) | Fl j
+Display signal pending and blocked information for the process's threads.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
 .It Ar vm | Fl v
 Display virtual memory mappings for the process.
-.It Ar auxv | Fl x
-Display ELF auxiliary vector for the process.
-.It Ar pargs
-Display arguments for the process.
-.It Ar penv
-Display environment variables for the process.
-.It Ar pwdx
-Display current working directory for the process.
 .El
 .Pp
 All options generate output in the format of a table, the first field of
