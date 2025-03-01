@@ -1206,6 +1206,7 @@ wpa_cipher(const uint8_t *sel, uint8_t *keylen, uint8_t *cipher)
 	case WPA_SEL(WPA_CSE_CCMP):
 		*cipher = IEEE80211_CIPHER_AES_CCM;
 		break;
+	/* Note: no GCM cipher in the legacy WPA1 OUI */
 	default:
 		return (EINVAL);
 	}
@@ -1384,6 +1385,9 @@ rsn_cipher(const uint8_t *sel, uint8_t *keylen, uint8_t *cipher)
 	case RSN_SEL(RSN_CSE_WRAP):
 		*cipher = IEEE80211_CIPHER_AES_OCB;
 		break;
+	case RSN_SEL(RSN_CSE_GCMP_128):
+		*cipher = IEEE80211_CIPHER_AES_GCM_128;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -1496,8 +1500,10 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 
 		frm += 4, len -= 4;
 	}
-        if (w & (1 << IEEE80211_CIPHER_AES_CCM))
-                rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
+	if (w & (1 << IEEE80211_CIPHER_AES_GCM_128))
+		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_GCM_128;
+	else if (w & (1 << IEEE80211_CIPHER_AES_CCM))
+		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
 	else if (w & (1 << IEEE80211_CIPHER_AES_OCB))
 		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_OCB;
 	else if (w & (1 << IEEE80211_CIPHER_TKIP))
@@ -1754,6 +1760,29 @@ is11bclient(const uint8_t *rates, const uint8_t *xrates)
 			return 0;
 	}
 	return 1;
+}
+
+/**
+ * Check if the given cipher is valid for 802.11 HT operation.
+ *
+ * The 802.11 specification only allows HT A-MPDU to be performed
+ * on CCMP / GCMP encrypted frames.  The WEP/TKIP hardware crypto
+ * implementations may not meet the timing required for A-MPDU
+ * operation.
+ *
+ * @param cipher	the IEEE80211_CIPHER_ value to check
+ * @returns	true if the cipher is valid for HT A-MPDU, false otherwise
+ */
+static bool
+hostapd_validate_cipher_for_ht_ampdu(uint8_t cipher)
+{
+	switch (cipher) {
+	case IEEE80211_CIPHER_AES_CCM:
+	case IEEE80211_CIPHER_AES_GCM_128:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void
@@ -2222,13 +2251,16 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 		/*
 		 * Allow AMPDU operation only with unencrypted traffic
-		 * or AES-CCM; the 11n spec only specifies these ciphers
-		 * so permitting any others is undefined and can lead
+		 * or AES-CCM / AES-GCM; the 802.11n spec only specifies these
+		 * ciphers so permitting any others is undefined and can lead
 		 * to interoperability problems.
+		 *
+		 * TODO: before landing, find exactly where in 802.11-2020 this
+		 * is called out!
 		 */
 		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
 		    (((vap->iv_flags & IEEE80211_F_WPA) &&
-		      rsnparms.rsn_ucastcipher != IEEE80211_CIPHER_AES_CCM) ||
+		    !hostapd_validate_cipher_for_ht_ampdu(rsnparms.rsn_ucastcipher)) ||
 		     (vap->iv_flags & (IEEE80211_F_WPA|IEEE80211_F_PRIVACY)) == IEEE80211_F_PRIVACY)) {
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
