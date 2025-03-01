@@ -942,6 +942,9 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 	case IEEE80211_CIPHER_CKIP:
 		db_printf(" CKIP %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
+	case IEEE80211_CIPHER_AES_GCM_128:
+		db_printf(" AES-GCM %u:%u-bit", wk->wk_keyix, 8*keylen);
+		break;
 	case IEEE80211_CIPHER_NONE:
 		db_printf(" NULL %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
