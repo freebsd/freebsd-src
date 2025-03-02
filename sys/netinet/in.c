@@ -271,19 +271,19 @@ in_findlocal(uint32_t fibnum, bool loopback_ok)
  * that may not be forwarded, or whether datagrams to that destination
  * may be forwarded.
  */
-int
+bool
 in_canforward(struct in_addr in)
 {
 	u_long i = ntohl(in.s_addr);
 
 	if (IN_MULTICAST(i) || IN_LINKLOCAL(i) || IN_LOOPBACK(i) ||
 	    in_nullhost(in))
-		return (0);
+		return (false);
 	if (IN_EXPERIMENTAL(i) && !V_ip_allow_net240)
-		return (0);
+		return (false);
 	if (IN_ZERONET(i) && !V_ip_allow_net0)
-		return (0);
-	return (1);
+		return (false);
+	return (true);
 }
 
 /*
