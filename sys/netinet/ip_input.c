@@ -932,7 +932,7 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	NET_EPOCH_ASSERT();
 
-	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
+	if (m->m_flags & (M_BCAST|M_MCAST) || !in_canforward(ip->ip_dst)) {
 		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 		return;
