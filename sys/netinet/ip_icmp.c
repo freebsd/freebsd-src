@@ -790,10 +790,11 @@ icmp_reflect(struct mbuf *m)
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    (IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net240) ||
-	    (IN_ZERONET(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net0) ) {
+	    (IN_ZERONET(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net0) ||
+	    in_nullhost(ip->ip_src) ) {
 		m_freem(m);	/* Bad return address */
 		ICMPSTAT_INC(icps_badaddr);
-		goto done;	/* Ip_output() will check for broadcast */
+		goto done;	/* ip_output() will check for broadcast */
 	}
 
 	t = ip->ip_dst;
