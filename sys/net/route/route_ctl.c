@@ -806,7 +806,7 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 
 	/* Now either append or replace */
 	if (op_flags & RTM_F_REPLACE) {
-		if (nhop_get_prio(rnd_orig.rnd_nhop) > nhop_get_prio(rnd_add->rnd_nhop)) {
+		if (nhop_get_prio(rnd_orig.rnd_nhop) == NH_PRIORITY_HIGH) {
 			/* Old path is "better" (e.g. has PINNED flag set) */
 			RIB_WUNLOCK(rnh);
 			error = EEXIST;
