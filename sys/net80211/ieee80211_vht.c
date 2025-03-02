@@ -237,6 +237,8 @@ ieee80211_vht_node_cleanup(struct ieee80211_node *ni)
 
 /*
  * Parse an 802.11ac VHT operation IE.
+ *
+ * 802.11-2020 9.4.2.158 (VHT Operation element)
  */
 void
 ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
@@ -256,6 +258,8 @@ ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
 
 /*
  * Parse an 802.11ac VHT capability IE.
+ *
+ * 802.11-2020 9.4.2.157 (VHT Capabilities element)
  */
 void
 ieee80211_parse_vhtcap(struct ieee80211_node *ni, const uint8_t *ie)
