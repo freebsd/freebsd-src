@@ -1045,18 +1045,13 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 		vm_page_t mpred, p;
 
 		VM_OBJECT_WLOCK(object);
-		startpindex = m[0]->pindex - rbehind;
-		if ((mpred = TAILQ_PREV(m[0], pglist, listq)) != NULL &&
-		    mpred->pindex >= startpindex)
-			startpindex = mpred->pindex + 1;
+		tpindex = m[0]->pindex;
+		startpindex = MAX(tpindex, rbehind) - rbehind;
+		if ((mpred = TAILQ_PREV(m[0], pglist, listq)) != NULL)
+			startpindex = MAX(startpindex, mpred->pindex + 1);
 
-		/*
-		 * tpindex is unsigned; beware of numeric underflow.
-		 * Stepping backward from pindex, mpred doesn't change.
-		 */
-		for (tpindex = m[0]->pindex - 1;
-		    tpindex >= startpindex && tpindex < m[0]->pindex;
-		    tpindex--, i++) {
+		/* Stepping backward from pindex, mpred doesn't change. */
+		for (; tpindex-- > startpindex; i++) {
 			p = vm_page_alloc_after(object, tpindex,
 			    VM_ALLOC_NORMAL, mpred);
 			if (p == NULL) {
