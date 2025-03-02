@@ -276,7 +276,8 @@ in_canforward(struct in_addr in)
 {
 	u_long i = ntohl(in.s_addr);
 
-	if (IN_MULTICAST(i) || IN_LINKLOCAL(i) || IN_LOOPBACK(i))
+	if (IN_MULTICAST(i) || IN_LINKLOCAL(i) || IN_LOOPBACK(i) ||
+	    in_nullhost(in))
 		return (0);
 	if (IN_EXPERIMENTAL(i) && !V_ip_allow_net240)
 		return (0);
