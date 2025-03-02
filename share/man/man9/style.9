@@ -1,5 +1,5 @@
-.\"-
-.\" Copyright (c) 1995-2022 The FreeBSD Project
+.\"
+.\" Copyright (c) 1995-2025 The FreeBSD Project
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,12 +22,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 3, 2024
+.Dd February 18, 2025
 .Dt STYLE 9
 .Os
 .Sh NAME
 .Nm style
-.Nd "kernel source file style guide"
+.Nd kernel source file style guide
 .Sh DESCRIPTION
 This file specifies the preferred style for kernel source files in the
 .Fx
@@ -59,34 +59,24 @@ is silent on an issue.
  * them so they look like real paragraphs.
  */
 .Ed
+.Pp
 C++ comments may be used in C and C++ code.
 Single-line comments should be consistently either C or C++ within a file.
 Multi-line comments should also be consistently either C or C++, but may differ
 from single-line comments.
 .Pp
-The copyright header should be a multi-line comment, with the first
-line of the comment having a dash after the star like so:
+The copyright header should be a multi-line comment like so:
 .Bd -literal
-/*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
+/*
  * Copyright (c) 1984-2025 John Q. Public
  *
- * Long, boring license goes here, but trimmed for brevity
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 .Ed
 .Pp
-An automatic script collects license information from the tree for
-all comments that start in the first column with
-.Dq Li "/*-" .
-If you desire to flag
-.Xr indent 1
-to not reformat a comment that starts in the first column which is not a
-license or copyright notice, change the dash to a star for those
-comments.
 Comments starting in columns other than the first are never
 considered license statements.
-Use the appropriate SPDX-License-Identifier line before the copyright.
+Write the copyright lines before the appropriate SPDX-License-Identifier.
 If the copyright assertion contains the phrase
 .Dq Li "All Rights Reserved"
 that should be on the same line as the word
@@ -132,11 +122,11 @@ Only add
 in front of foreign VCS IDs if the file is renamed.
 Add
 .Dq Li "From: "
-and FreeBSD git hash with full path name if the file was derived
-from another FreeBSD file and include relevant copyright info
-from the original file.
-.Bd -literal
-.Ed
+and the
+.Fx
+git hash with full path name if the file was derived from another
+.Fx
+file and include relevant copyright info from the original file.
 .Pp
 Leave one blank line before the header files.
 .Pp
@@ -923,7 +913,8 @@ When using branch prediction hints, atypical error conditions should use
 (document the exceptions).
 Operations that almost always succeed use
 .Fn __predict_true .
-Only use the annotation for the entire if statement, rather than individual clauses.
+Only use the annotation for the entire if statement,
+rather than individual clauses.
 Do not add these annotations without empirical evidence of the likelihood of the
 branch.
 .Sh FILES

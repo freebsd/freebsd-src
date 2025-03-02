@@ -3445,7 +3445,7 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct ieee80211_node *ni = &in->in_ni;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
-	int new_rate, cur_rate = vap->iv_bss->ni_txrate;
+	int new_rate, cur_rate;
 	boolean_t rate_matched;
 	uint8_t tx_resp_rate;
 
@@ -3463,6 +3463,7 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	    le32toh(tx_resp->initial_rate),
 	    (int) le16toh(tx_resp->wireless_media_time));
 
+	cur_rate = ieee80211_node_get_txrate_dot11rate(vap->iv_bss);
 	tx_resp_rate = iwm_rate_from_ucode_rate(le32toh(tx_resp->initial_rate));
 
 	/* For rate control, ignore frames sent at different initial rate */
@@ -3501,11 +3502,11 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	if (rate_matched) {
 		ieee80211_ratectl_tx_complete(ni, txs);
 
-		int rix = ieee80211_ratectl_rate(vap->iv_bss, NULL, 0);
-		new_rate = vap->iv_bss->ni_txrate;
+		ieee80211_ratectl_rate(vap->iv_bss, NULL, 0);
+		new_rate = ieee80211_node_get_txrate_dot11rate(vap->iv_bss);
 		if (new_rate != 0 && new_rate != cur_rate) {
 			struct iwm_node *in = IWM_NODE(vap->iv_bss);
-			iwm_setrates(sc, in, rix);
+			iwm_setrates(sc, in, new_rate);
 			iwm_send_lq_cmd(sc, &in->in_lq, FALSE);
 		}
  	}
@@ -3695,7 +3696,8 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	} else {
 		/* for data frames, use RS table */
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
-		ridx = iwm_rate2ridx(sc, ni->ni_txrate);
+		ridx = iwm_rate2ridx(sc,
+		    ieee80211_node_get_txrate_dot11rate(ni));
 		if (ridx == -1)
 			ridx = 0;
 
@@ -4268,7 +4270,7 @@ iwm_rate2ridx(struct iwm_softc *sc, uint8_t rate)
 
 
 static void
-iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
+iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int dot11rate)
 {
 	struct ieee80211_node *ni = &in->in_ni;
 	struct iwm_lq_cmd *lq = &in->in_lq;
@@ -4276,8 +4278,27 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
 	int nrates = rs->rs_nrates;
 	int i, ridx, tab = 0;
 //	int txant = 0;
+	int rix;
 
-	KASSERT(rix >= 0 && rix < nrates, ("invalid rix"));
+	/*
+	 * Look up the rate index for the given legacy rate from
+	 * the rs_rates table.  Default to the lowest rate if it's
+	 * not found (which is obviously hugely problematic.)
+	 */
+	rix = -1;
+	for (i = 0; i < nrates; i++) {
+		int rate = rs->rs_rates[i] & IEEE80211_RATE_VAL;
+		if (rate == dot11rate) {
+			rix = i;
+			break;
+		}
+	}
+	if (rix < 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to lookup dot11rate (%d)\n",
+		    __func__, dot11rate);
+		rix = 0;
+	}
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -4557,8 +4578,9 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		iwm_enable_beacon_filter(sc, ivp);
 		iwm_power_update_mac(sc);
 		iwm_update_quotas(sc, ivp);
-		int rix = ieee80211_ratectl_rate(&in->in_ni, NULL, 0);
-		iwm_setrates(sc, in, rix);
+		ieee80211_ratectl_rate(&in->in_ni, NULL, 0);
+		iwm_setrates(sc, in,
+		    ieee80211_node_get_txrate_dot11rate(&in->in_ni));
 
 		if ((error = iwm_send_lq_cmd(sc, &in->in_lq, TRUE)) != 0) {
 			device_printf(sc->sc_dev,

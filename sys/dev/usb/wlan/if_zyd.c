@@ -2460,7 +2460,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			rate = tp->ucastrate;
 		else {
 			(void) ieee80211_ratectl_rate(ni, NULL, 0);
-			rate = ni->ni_txrate;
+			rate = ieee80211_node_get_txrate_dot11rate(ni);
 		}
 	}
 

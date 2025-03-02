@@ -26,8 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#define SNDBUF_LOCKASSERT(b)
-
 #define	SNDBUF_F_MANAGED	0x00000008
 
 #define SNDBUF_NAMELEN	48

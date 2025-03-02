@@ -1132,6 +1132,7 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;
+	struct statfs sf;
 
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
@@ -1144,9 +1145,15 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 		goto bail;
 	}
 	if (p->fts_dev != sb.st_dev || p->fts_ino != sb.st_ino) {
-		errno = ENOENT;		/* disinformation */
-		ret = -1;
-		goto bail;
+		if (_fstatfs(newfd, &sf) != 0 ||
+		    (sf.f_flags & MNT_AUTOMOUNTED) == 0) {
+			errno = ENOENT;		/* disinformation */
+			ret = -1;
+			goto bail;
+		}
+		/* autofs might did the mount under us, accept. */
+		p->fts_dev = sb.st_dev;
+		p->fts_ino = sb.st_ino;
 	}
 	ret = fchdir(newfd);
 bail:

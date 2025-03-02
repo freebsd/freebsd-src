@@ -1919,7 +1919,7 @@ update_interfaces(
 		}
 		else {
 			DPRINT_INTERFACE(3,
-				(ep, "updating ", " new - FAILED"));
+				(ep2, "updating ", " new - FAILED"));
 
 			msyslog(LOG_ERR,
 				"cannot bind address %s",

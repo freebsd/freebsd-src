@@ -1172,18 +1172,26 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
-	int i, direction;
+	int err, i, direction;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
 
 	switch (dir) {
 	case PCMDIR_PLAY:
+		d->playcount++;
+		/* FALLTHROUGH */
 	case PCMDIR_PLAY_VIRTUAL:
+		if (dir == PCMDIR_PLAY_VIRTUAL)
+			d->pvchancount++;
 		direction = PCMDIR_PLAY;
 		break;
 	case PCMDIR_REC:
+		d->reccount++;
+		/* FALLTHROUGH */
 	case PCMDIR_REC_VIRTUAL:
+		if (dir == PCMDIR_REC_VIRTUAL)
+			d->rvchancount++;
 		direction = PCMDIR_REC;
 		break;
 	default:
@@ -1205,8 +1213,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	c->direction = direction;
 	c->type = dir;
 	c->unit = alloc_unr(chn_getunr(d, c->type));
-	c->format = SND_FORMAT(AFMT_U8, 1, 0);
-	c->speed = DSP_DEFAULT_SPEED;
+	c->format = SND_FORMAT(AFMT_S16_LE, 2, 0);
+	c->speed = 48000;
 	c->pid = -1;
 	c->latency = -1;
 	c->timeout = 1;
@@ -1279,43 +1287,23 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_WAITOK);
 	}
 
+	if ((c->flags & CHN_F_VIRTUAL) == 0) {
+		CHN_LOCK(c);
+		err = chn_reset(c, c->format, c->speed);
+		CHN_UNLOCK(c);
+		if (err != 0)
+			goto fail;
+	}
+
 	PCM_LOCK(d);
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
-
-	switch (c->type) {
-	case PCMDIR_PLAY:
-		d->playcount++;
-		break;
-	case PCMDIR_PLAY_VIRTUAL:
-		d->pvchancount++;
-		break;
-	case PCMDIR_REC:
-		d->reccount++;
-		break;
-	case PCMDIR_REC_VIRTUAL:
-		d->rvchancount++;
-		break;
-	default:
-		__assert_unreachable();
-	}
+	if ((c->flags & CHN_F_VIRTUAL) == 0)
+		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
 
 	return (c);
 
 fail:
-	free_unr(chn_getunr(d, c->type), c->unit);
-	feeder_remove(c);
-	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
-		sndbuf_free(b);
-	if (bs)
-		sndbuf_destroy(bs);
-	if (b)
-		sndbuf_destroy(b);
-	CHN_LOCK(c);
-	chn_lockdestroy(c);
-
-	kobj_delete(c->methods, M_DEVBUF);
-	free(c, M_DEVBUF);
-
+	chn_kill(c);
 	PCM_LOCK(d);
 
 	return (NULL);
@@ -1332,6 +1320,8 @@ chn_kill(struct pcm_channel *c)
 
 	PCM_LOCK(d);
 	CHN_REMOVE(d, c, channels.pcm);
+	if ((c->flags & CHN_F_VIRTUAL) == 0)
+		CHN_REMOVE(d, c, channels.pcm.primary);
 
 	switch (c->type) {
 	case PCMDIR_PLAY:
@@ -1356,12 +1346,14 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	free_unr(chn_getunr(c->parentsnddev, c->type), c->unit);
+	free_unr(chn_getunr(d, c->type), c->unit);
 	feeder_remove(c);
-	if (CHANNEL_FREE(c->methods, c->devinfo))
+	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
-	sndbuf_destroy(bs);
-	sndbuf_destroy(b);
+	if (bs)
+		sndbuf_destroy(bs);
+	if (b)
+		sndbuf_destroy(b);
 	CHN_LOCK(c);
 	c->flags |= CHN_F_DEAD;
 	chn_lockdestroy(c);
@@ -2092,21 +2084,23 @@ chn_setparam(struct pcm_channel *c, uint32_t format, uint32_t speed)
 int
 chn_setspeed(struct pcm_channel *c, uint32_t speed)
 {
-	uint32_t oldformat, oldspeed, format;
+	uint32_t oldformat, oldspeed;
 	int ret;
 
 	oldformat = c->format;
 	oldspeed = c->speed;
-	format = oldformat;
 
-	ret = chn_setparam(c, format, speed);
+	if (c->speed == speed)
+		return (0);
+
+	ret = chn_setparam(c, c->format, speed);
 	if (ret != 0) {
 		if (snd_verbose > 3)
 			device_printf(c->dev,
 			    "%s(): Setting speed %d failed, "
 			    "falling back to %d\n",
 			    __func__, speed, oldspeed);
-		chn_setparam(c, c->format, oldspeed);
+		chn_setparam(c, oldformat, oldspeed);
 	}
 
 	return (ret);
@@ -2115,7 +2109,7 @@ chn_setspeed(struct pcm_channel *c, uint32_t speed)
 int
 chn_setformat(struct pcm_channel *c, uint32_t format)
 {
-	uint32_t oldformat, oldspeed, speed;
+	uint32_t oldformat, oldspeed;
 	int ret;
 
 	/* XXX force stereo */
@@ -2126,9 +2120,11 @@ chn_setformat(struct pcm_channel *c, uint32_t format)
 
 	oldformat = c->format;
 	oldspeed = c->speed;
-	speed = oldspeed;
 
-	ret = chn_setparam(c, format, speed);
+	if (c->format == format)
+		return (0);
+
+	ret = chn_setparam(c, format, c->speed);
 	if (ret != 0) {
 		if (snd_verbose > 3)
 			device_printf(c->dev,
@@ -2360,7 +2356,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	CHN_LOCKASSERT(c);
 
 	if (CHN_EMPTY(c, children))
-		return (ENODEV);
+		return (0);
 
 	err = 0;
 

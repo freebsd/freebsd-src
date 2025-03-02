@@ -376,6 +376,7 @@ static void
 get_sta_info(void *arg, struct ieee80211_node *ni)
 {
 	struct stainforeq *req = arg;
+	struct ieee80211_node_txrate tr;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211req_sta_info *si;
 	size_t ielen, len;
@@ -406,23 +407,18 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	if (si->isi_nrates > 15)
 		si->isi_nrates = 15;
 	memcpy(si->isi_rates, ni->ni_rates.rs_rates, si->isi_nrates);
-	si->isi_txrate = ni->ni_txrate;
-	if (si->isi_txrate & IEEE80211_RATE_MCS) {
-		const struct ieee80211_mcs_rates *mcs =
-		    &ieee80211_htrates[ni->ni_txrate &~ IEEE80211_RATE_MCS];
-		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
-			if (ni->ni_flags & IEEE80211_NODE_SGI40)
-				si->isi_txmbps = mcs->ht40_rate_800ns;
-			else
-				si->isi_txmbps = mcs->ht40_rate_400ns;
-		} else {
-			if (ni->ni_flags & IEEE80211_NODE_SGI20)
-				si->isi_txmbps = mcs->ht20_rate_800ns;
-			else
-				si->isi_txmbps = mcs->ht20_rate_400ns;
-		}
-	} else
-		si->isi_txmbps = si->isi_txrate;
+	/*
+	 * isi_txrate can only represent the legacy/HT rates.
+	 * Only set it if the rate is a legacy/HT rate.
+	 *
+	 * TODO: For VHT and later rates the API will need changing.
+	 */
+	ieee80211_node_get_txrate(ni, &tr);
+	if ((tr.type == IEEE80211_NODE_TXRATE_LEGACY) ||
+	    (tr.type == IEEE80211_NODE_TXRATE_HT))
+		si->isi_txrate = ieee80211_node_get_txrate_dot11rate(ni);
+	/* Note: txmbps is in 1/2Mbit/s units */
+	si->isi_txmbps = ieee80211_node_get_txrate_kbit(ni) / 500;
 	si->isi_associd = ni->ni_associd;
 	si->isi_txpower = ni->ni_txpower;
 	si->isi_vlan = ni->ni_vlan;

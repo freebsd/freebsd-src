@@ -317,9 +317,12 @@ static int
 ht_getrate(struct ieee80211com *ic, int index, enum ieee80211_phymode mode,
     int ratetype)
 {
+	struct ieee80211_node_txrate tr;
 	int mword, rate;
 
-	mword = ieee80211_rate2media(ic, index | IEEE80211_RATE_MCS, mode);
+	tr = IEEE80211_NODE_TXRATE_INIT_HT(index);
+
+	mword = ieee80211_rate2media(ic, &tr, mode);
 	if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
 		return (0);
 	switch (ratetype) {

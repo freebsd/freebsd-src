@@ -597,8 +597,12 @@ PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif	# !defined(PKG_VERSION)
 
 .if !defined(PKG_TIMESTAMP)
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+SOURCE_DATE_EPOCH!=	${GIT_CMD} -C ${SRCDIR} show -s --format=%ct HEAD
+.else
 TIMEEPOCHNOW=		%s
 SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
+.endif
 .else
 SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
 .endif

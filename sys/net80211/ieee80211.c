@@ -1949,6 +1949,7 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
 	struct ieee80211_rateset allrates;
+	struct ieee80211_node_txrate tn;
 
 	/*
 	 * Fill in media characteristics.
@@ -1968,7 +1969,8 @@ ieee80211_media_setup(struct ieee80211com *ic,
 		rs = &ic->ic_sup_rates[mode];
 		for (i = 0; i < rs->rs_nrates; i++) {
 			rate = rs->rs_rates[i];
-			mword = ieee80211_rate2media(ic, rate, mode);
+			tn = IEEE80211_NODE_TXRATE_INIT_LEGACY(rate);
+			mword = ieee80211_rate2media(ic, &tn, mode);
 			if (mword == 0)
 				continue;
 			addmedia(media, caps, addsta, mode, mword);
@@ -1990,8 +1992,8 @@ ieee80211_media_setup(struct ieee80211com *ic,
 		}
 	}
 	for (i = 0; i < allrates.rs_nrates; i++) {
-		mword = ieee80211_rate2media(ic, allrates.rs_rates[i],
-				IEEE80211_MODE_AUTO);
+		tn = IEEE80211_NODE_TXRATE_INIT_LEGACY(allrates.rs_rates[i]);
+		mword = ieee80211_rate2media(ic, &tn, IEEE80211_MODE_AUTO);
 		if (mword == 0)
 			continue;
 		/* NB: remove media options from mword */
@@ -2071,6 +2073,7 @@ ieee80211_announce(struct ieee80211com *ic)
 	int i, rate, mword;
 	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
+	struct ieee80211_node_txrate tn;
 
 	/* NB: skip AUTO since it has no rates */
 	for (mode = IEEE80211_MODE_AUTO+1; mode < IEEE80211_MODE_11NA; mode++) {
@@ -2079,7 +2082,8 @@ ieee80211_announce(struct ieee80211com *ic)
 		ic_printf(ic, "%s rates: ", ieee80211_phymode_name[mode]);
 		rs = &ic->ic_sup_rates[mode];
 		for (i = 0; i < rs->rs_nrates; i++) {
-			mword = ieee80211_rate2media(ic, rs->rs_rates[i], mode);
+			tn = IEEE80211_NODE_TXRATE_INIT_LEGACY(rs->rs_rates[i]);
+			mword = ieee80211_rate2media(ic, &tn, mode);
 			if (mword == 0)
 				continue;
 			rate = ieee80211_media2rate(mword);
@@ -2278,6 +2282,7 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
 	enum ieee80211_phymode mode;
+	struct ieee80211_node_txrate tn;
 
 	imr->ifm_status = IFM_AVALID;
 	/*
@@ -2299,14 +2304,15 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		/*
 		 * A fixed rate is set, report that.
 		 */
-		imr->ifm_active |= ieee80211_rate2media(ic,
-			vap->iv_txparms[mode].ucastrate, mode);
+		tn = IEEE80211_NODE_TXRATE_INIT_LEGACY(
+		    vap->iv_txparms[mode].ucastrate);
+		imr->ifm_active |= ieee80211_rate2media(ic, &tn, mode);
 	} else if (vap->iv_opmode == IEEE80211_M_STA) {
 		/*
 		 * In station mode report the current transmit rate.
 		 */
-		imr->ifm_active |= ieee80211_rate2media(ic,
-			vap->iv_bss->ni_txrate, mode);
+		ieee80211_node_get_txrate(vap->iv_bss, &tn);
+		imr->ifm_active |= ieee80211_rate2media(ic, &tn, mode);
 	} else
 		imr->ifm_active |= IFM_AUTO;
 	if (imr->ifm_status & IFM_ACTIVE)
@@ -2399,7 +2405,8 @@ findmedia(const struct ratemedia rates[], int n, u_int match)
  * or an MCS index.
  */
 int
-ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode mode)
+ieee80211_rate2media(struct ieee80211com *ic,
+    const struct ieee80211_node_txrate *tr, enum ieee80211_phymode mode)
 {
 	static const struct ratemedia rates[] = {
 		{   2 | IFM_IEEE80211_FH, IFM_IEEE80211_FH1 },
@@ -2530,35 +2537,44 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{  11, IFM_IEEE80211_VHT },
 #endif
 	};
-	int m;
+	int m, rate;
 
 	/*
 	 * Check 11ac/11n rates first for match as an MCS.
 	 */
 	if (mode == IEEE80211_MODE_VHT_5GHZ) {
-		if (rate & IFM_IEEE80211_VHT) {
-			rate &= ~IFM_IEEE80211_VHT;
-			m = findmedia(vhtrates, nitems(vhtrates), rate);
+		if (tr->type == IEEE80211_NODE_TXRATE_VHT) {
+			m = findmedia(vhtrates, nitems(vhtrates), tr->mcs);
 			if (m != IFM_AUTO)
 				return (m | IFM_IEEE80211_VHT);
 		}
 	} else if (mode == IEEE80211_MODE_11NA) {
-		if (rate & IEEE80211_RATE_MCS) {
-			rate &= ~IEEE80211_RATE_MCS;
-			m = findmedia(htrates, nitems(htrates), rate);
+		/* NB: 12 is ambiguous, it will be treated as an MCS */
+		if (tr->type == IEEE80211_NODE_TXRATE_HT) {
+			m = findmedia(htrates, nitems(htrates),
+			    tr->dot11rate & ~IEEE80211_RATE_MCS);
 			if (m != IFM_AUTO)
 				return m | IFM_IEEE80211_11NA;
 		}
 	} else if (mode == IEEE80211_MODE_11NG) {
 		/* NB: 12 is ambiguous, it will be treated as an MCS */
-		if (rate & IEEE80211_RATE_MCS) {
-			rate &= ~IEEE80211_RATE_MCS;
-			m = findmedia(htrates, nitems(htrates), rate);
+		if (tr->type == IEEE80211_NODE_TXRATE_HT) {
+			m = findmedia(htrates, nitems(htrates),
+			    tr->dot11rate & ~IEEE80211_RATE_MCS);
 			if (m != IFM_AUTO)
 				return m | IFM_IEEE80211_11NG;
 		}
 	}
-	rate &= IEEE80211_RATE_VAL;
+
+	/*
+	 * At this point it needs to be a dot11rate (legacy/HT) for the
+	 * rest of the logic to work.
+	 */
+	if ((tr->type != IEEE80211_NODE_TXRATE_LEGACY) &&
+	    (tr->type != IEEE80211_NODE_TXRATE_HT))
+		return (IFM_AUTO);
+	rate = tr->dot11rate & IEEE80211_RATE_VAL;
+
 	switch (mode) {
 	case IEEE80211_MODE_11A:
 	case IEEE80211_MODE_HALF:		/* XXX good 'nuf */
