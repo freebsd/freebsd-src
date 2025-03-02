@@ -1221,9 +1221,9 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsize */
+	    nsegs * wqe_sz,		/* maxsize */
 	    nsegs,			/* nsegments */
-	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsegsize */
+	    nsegs * wqe_sz,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
 	    &rq->dma_tag)))
@@ -2310,20 +2310,18 @@ mlx5e_close_channel_wait(struct mlx5e_channel *c)
 static int
 mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
 {
-	u32 r, n;
+	u32 r, n, maxs;
 
-	r = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
+	maxs = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
 	    MLX5E_SW2MB_MTU(if_getmtu(priv->ifp));
-	r = r > MCLBYTES ? MJUMPAGESIZE : MCLBYTES;
+	r = maxs > MCLBYTES ? MJUMPAGESIZE : MCLBYTES;
 
 	/*
 	 * n + 1 must be a power of two, because stride size must be.
 	 * Stride size is 16 * (n + 1), as the first segment is
 	 * control.
 	 */
-	for (n = howmany(r, MLX5E_MAX_RX_BYTES); !powerof2(n + 1); n++)
-		;
-
+	n = roundup_pow_of_two(1 + howmany(maxs, r)) - 1;
 	if (n > MLX5E_MAX_BUSDMA_RX_SEGS)
 		return (-ENOMEM);
 

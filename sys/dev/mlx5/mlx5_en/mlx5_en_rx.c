@@ -44,25 +44,21 @@ mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq,
 	if (rq->mbuf[ix].mbuf != NULL)
 		return (0);
 
-	mb_head = mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
-	    MLX5E_MAX_RX_BYTES);
+	mb_head = mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rq->wqe_sz);
 	if (unlikely(mb == NULL))
 		return (-ENOMEM);
 
-	mb->m_len = MLX5E_MAX_RX_BYTES;
-	mb->m_pkthdr.len = MLX5E_MAX_RX_BYTES;
+	mb->m_len = rq->wqe_sz;
+	mb->m_pkthdr.len = rq->wqe_sz;
 
 	for (i = 1; i < rq->nsegs; i++) {
-		if (mb_head->m_pkthdr.len >= rq->wqe_sz)
-			break;
-		mb = mb->m_next = m_getjcl(M_NOWAIT, MT_DATA, 0,
-		    MLX5E_MAX_RX_BYTES);
+		mb = mb->m_next = m_getjcl(M_NOWAIT, MT_DATA, 0, rq->wqe_sz);
 		if (unlikely(mb == NULL)) {
 			m_freem(mb_head);
 			return (-ENOMEM);
 		}
-		mb->m_len = MLX5E_MAX_RX_BYTES;
-		mb_head->m_pkthdr.len += MLX5E_MAX_RX_BYTES;
+		mb->m_len = rq->wqe_sz;
+		mb_head->m_pkthdr.len += rq->wqe_sz;
 	}
 	/* rewind to first mbuf in chain */
 	mb = mb_head;
