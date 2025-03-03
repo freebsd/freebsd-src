@@ -106,7 +106,11 @@
  * because those can optimize to an unaligned load (which often is fine, but not
  * for mmap'd /dev/mem which has special memory attributes).
  */
-static inline uint8_t SMBIOS_GET8(const caddr_t base, int off) { return (base[off]); }
+static inline uint8_t
+SMBIOS_GET8(const caddr_t base, int off)
+{
+	return (base[off]);
+}
 
 static inline uint16_t
 SMBIOS_GET16(const caddr_t base, int off)
