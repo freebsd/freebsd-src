@@ -1739,7 +1739,6 @@ pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af, int which
 void
 pfctl_init_rule(struct pfctl_rule *r)
 {
-
 	memset(r, 0, sizeof(struct pfctl_rule));
 	TAILQ_INIT(&(r->rdr.list));
 	TAILQ_INIT(&(r->nat.list));
