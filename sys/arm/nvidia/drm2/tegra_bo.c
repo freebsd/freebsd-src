@@ -43,6 +43,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_radix.h>
 
 static void
 tegra_bo_destruct(struct tegra_bo *bo)
@@ -62,7 +63,7 @@ tegra_bo_destruct(struct tegra_bo *bo)
 	vm_page_iter_init(&pages, bo->cdev_pager);
 	VM_OBJECT_WLOCK(bo->cdev_pager);
 	for (i = 0; i < bo->npages; i++) {
-		m = vm_page_iter_lookup(&pages, i);
+		m = vm_radix_iter_lookup(&pages, i);
 		vm_page_busy_acquire(m, 0);
 		cdev_mgtdev_pager_free_page(&pages, m);
 		m->flags &= ~PG_FICTITIOUS;
