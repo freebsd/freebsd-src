@@ -56,6 +56,7 @@
 #include <sys/cpu.h>
 #include <sys/devmap.h>
 #include <sys/efi.h>
+#include <sys/efi_map.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -462,20 +463,22 @@ initarm(struct arm_boot_params *abp)
 	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
-		arm_add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
+		efi_map_add_entries(efihdr);
+		efi_map_exclude_entries(efihdr);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
 		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
 			panic("Cannot get physical memory regions");
-	}
-	physmem_hardware_regions(mem_regions, mem_regions_sz);
 
-	/* Grab reserved memory regions information from device tree. */
-	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		physmem_exclude_regions(mem_regions, mem_regions_sz,
-		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		physmem_hardware_regions(mem_regions, mem_regions_sz);
+
+		/* Grab reserved memory regions information from device tree. */
+		if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
+			physmem_exclude_regions(mem_regions, mem_regions_sz,
+			    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+	}
 
 	/*
 	 * Set TEX remapping registers.
@@ -632,6 +635,14 @@ initarm(struct arm_boot_params *abp)
 	arm_kdb_init();
 	/* Apply possible BP hardening. */
 	cpuinfo_init_bp_hardening();
+
+#ifdef EFI
+	if (boothowto & RB_VERBOSE) {
+		if (efihdr != NULL)
+			efi_map_print_entries(efihdr);
+	}
+#endif
+
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }
