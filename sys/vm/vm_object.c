@@ -1577,7 +1577,7 @@ vm_object_split(vm_map_entry_t entry)
 	vm_page_iter_limit_init(&pages, orig_object, offidxstart + size);
 retry:
 	pctrie_iter_reset(&pages);
-	for (m = vm_page_iter_lookup_ge(&pages, offidxstart); m != NULL;
+	for (m = vm_radix_iter_lookup_ge(&pages, offidxstart); m != NULL;
 	    m = vm_radix_iter_step(&pages)) {
 		/*
 		 * We must wait for pending I/O to complete before we can
@@ -1681,7 +1681,7 @@ vm_object_collapse_scan_wait(struct pctrie_iter *pages, vm_object_t object,
 	}
 	VM_OBJECT_WLOCK(backing_object);
 	vm_page_iter_init(pages, backing_object);
-	return (vm_page_iter_lookup_ge(pages, 0));
+	return (vm_radix_iter_lookup_ge(pages, 0));
 }
 
 static void
@@ -1702,7 +1702,7 @@ vm_object_collapse_scan(vm_object_t object)
 	 * Our scan
 	 */
 	vm_page_iter_init(&pages, backing_object);
-	for (p = vm_page_iter_lookup_ge(&pages, 0); p != NULL; p = next) {
+	for (p = vm_radix_iter_lookup_ge(&pages, 0); p != NULL; p = next) {
 		/*
 		 * Check for busy page
 		 */
@@ -1997,7 +1997,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vm_page_iter_limit_init(&pages, object, end);
 again:
 	pctrie_iter_reset(&pages);
-	for (p = vm_page_iter_lookup_ge(&pages, start); p != NULL;
+	for (p = vm_radix_iter_lookup_ge(&pages, start); p != NULL;
 	     p = vm_radix_iter_step(&pages)) {
 		/*
 		 * Skip invalid pages if asked to do so.  Try to avoid acquiring

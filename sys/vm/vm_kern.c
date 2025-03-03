@@ -650,14 +650,14 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	end = offset + size;
 	VM_OBJECT_WLOCK(object);
 	vm_page_iter_init(&pages, object);
-	m = vm_page_iter_lookup(&pages, atop(offset)); 
+	m = vm_radix_iter_lookup(&pages, atop(offset)); 
 	domain = vm_page_domain(m);
 	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
 	for (; offset < end; offset += PAGE_SIZE,
-	    m = vm_page_iter_lookup(&pages, atop(offset))) {
+	    m = vm_radix_iter_lookup(&pages, atop(offset))) {
 		vm_page_xbusy_claim(m);
 		vm_page_unwire_noq(m);
 		vm_page_iter_free(&pages, m);

@@ -1966,7 +1966,7 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object)
 			 * found page has pending operations, sleep and restart
 			 * the scan.
 			 */
-			m = vm_page_iter_lookup(&pages, blks.index + i);
+			m = vm_radix_iter_lookup(&pages, blks.index + i);
 			if (m != NULL && (m->oflags & VPO_SWAPINPROG) != 0) {
 				m->oflags |= VPO_SWAPSLEEP;
 				VM_OBJECT_SLEEP(object, &object->handle, PSWP,
@@ -2393,7 +2393,7 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count,
 				continue;
 			swp_pager_update_freerange(&range, sb->d[i]);
 			if (freed != NULL) {
-				m = vm_page_iter_lookup(&pages, blks.index + i);
+				m = vm_radix_iter_lookup(&pages, blks.index + i);
 				if (m == NULL || vm_page_none_valid(m))
 					fc++;
 			}
@@ -2511,7 +2511,7 @@ swap_pager_seek_data(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_ASSERT_RLOCKED(object);
 	vm_page_iter_init(&pages, object);
-	m = vm_page_iter_lookup_ge(&pages, pindex);
+	m = vm_radix_iter_lookup_ge(&pages, pindex);
 	if (m != NULL && pages.index == pindex && vm_page_any_valid(m))
 		return (pages.index);
 	swblk_iter_init_only(&blks, object);
@@ -2546,7 +2546,7 @@ swap_pager_seek_hole(vm_object_t object, vm_pindex_t pindex)
 	VM_OBJECT_ASSERT_RLOCKED(object);
 	vm_page_iter_init(&pages, object);
 	swblk_iter_init_only(&blks, object);
-	while (((m = vm_page_iter_lookup(&pages, pindex)) != NULL &&
+	while (((m = vm_radix_iter_lookup(&pages, pindex)) != NULL &&
 	    vm_page_any_valid(m)) ||
 	    ((sb = swblk_iter_lookup(&blks, pindex)) != NULL &&
 	    sb->d[pindex % SWAP_META_PAGES] != SWAPBLK_NONE))
@@ -2591,7 +2591,7 @@ swap_pager_scan_all_shadowed(vm_object_t object)
 	pv = ps = pi = backing_offset_index - 1;
 	for (;;) {
 		if (pi == pv) {
-			p = vm_page_iter_lookup_ge(&backing_pages, pv + 1);
+			p = vm_radix_iter_lookup_ge(&backing_pages, pv + 1);
 			pv = p != NULL ? p->pindex : backing_object->size;
 		}
 		if (pi == ps)
@@ -2633,7 +2633,7 @@ swap_pager_scan_all_shadowed(vm_object_t object)
 		 * object and we might as well give up now.
 		 */
 		new_pindex = pi - backing_offset_index;
-		pp = vm_page_iter_lookup(&pages, new_pindex);
+		pp = vm_radix_iter_lookup(&pages, new_pindex);
 
 		/*
 		 * The valid check here is stable due to object lock being
