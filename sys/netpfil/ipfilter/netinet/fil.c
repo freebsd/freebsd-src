@@ -5952,7 +5952,7 @@ ipf_updateipid(fr_info_t *fin)
 		id = (u_short)sum;
 		ip->ip_id = htons(id);
 	} else {
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		id = ntohs(ip->ip_id);
 		if ((fin->fin_flx & FI_FRAG) != 0)
 			(void) ipf_frag_ipidnew(fin, (u_32_t)id);

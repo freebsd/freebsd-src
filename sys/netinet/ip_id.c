@@ -97,9 +97,9 @@
  * user wants to, we can turn on random ID generation.
  */
 VNET_DEFINE_STATIC(int, ip_rfc6864) = 1;
-VNET_DEFINE_STATIC(int, ip_do_randomid) = 0;
 #define	V_ip_rfc6864		VNET(ip_rfc6864)
-#define	V_ip_do_randomid	VNET(ip_do_randomid)
+
+VNET_DEFINE(int, ip_random_id) = 0;
 
 /*
  * Random ID state engine.
@@ -126,7 +126,7 @@ VNET_DEFINE_STATIC(struct mtx, ip_id_mtx);
 VNET_DEFINE_STATIC(counter_u64_t, ip_id);
 #define	V_ip_id		VNET(ip_id)
 
-static int	sysctl_ip_randomid(SYSCTL_HANDLER_ARGS);
+static int	sysctl_ip_random_id(SYSCTL_HANDLER_ARGS);
 static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
 static void	ip_initid(int);
 static uint16_t ip_randomid(void);
@@ -136,7 +136,7 @@ static void	ipid_sysuninit(void);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id,
     CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &VNET_NAME(ip_do_randomid), 0, sysctl_ip_randomid, "IU",
+    &VNET_NAME(ip_random_id), 0, sysctl_ip_random_id, "IU",
     "Assign random ip_id values");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, rfc6864, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_rfc6864), 0,
@@ -151,22 +151,22 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD | CTLFLAG_VNET,
     &VNET_NAME(random_id_total), 0, "Count of IP IDs created");
 
 static int
-sysctl_ip_randomid(SYSCTL_HANDLER_ARGS)
+sysctl_ip_random_id(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
-	new = V_ip_do_randomid;
+	new = V_ip_random_id;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
 	if (new != 0 && new != 1)
 		return (EINVAL);
-	if (new == V_ip_do_randomid)
+	if (new == V_ip_random_id)
 		return (0);
-	if (new == 1 && V_ip_do_randomid == 0)
+	if (new == 1 && V_ip_random_id == 0)
 		ip_initid(8192);
 	/* We don't free memory when turning random ID off, due to race. */
-	V_ip_do_randomid = new;
+	V_ip_random_id = new;
 	return (0);
 }
 
@@ -238,7 +238,7 @@ ip_randomid(void)
 }
 
 void
-ip_fillid(struct ip *ip)
+ip_fillid(struct ip *ip, bool do_randomid)
 {
 
 	/*
@@ -249,7 +249,7 @@ ip_fillid(struct ip *ip)
 	 */
 	if (V_ip_rfc6864 && (ip->ip_off & htons(IP_DF)) == htons(IP_DF))
 		ip->ip_id = 0;
-	else if (V_ip_do_randomid)
+	else if (do_randomid)
 		ip->ip_id = ip_randomid();
 	else {
 		counter_u64_add(V_ip_id, 1);

@@ -601,7 +601,7 @@ rip_send(struct socket *so, int pruflags, struct mbuf *m, struct sockaddr *nam,
 		 * but we got this limitation from the beginning of history.
 		 */
 		if (ip->ip_id == 0)
-			ip_fillid(ip);
+			ip_fillid(ip, V_ip_random_id);
 
 		/*
 		 * XXX prevent ip_output from overwriting header fields.

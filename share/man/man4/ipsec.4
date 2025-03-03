@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 6, 2017
+.Dd March 4, 2025
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -239,6 +239,7 @@ for tweaking the kernel's IPsec behavior:
 .It "net.inet.ipsec.debug	integer	yes"
 .It "net.inet.ipsec.natt_cksum_policy	integer	yes"
 .It "net.inet.ipsec.check_policy_history	integer	yes"
+.It "net.inet.ipsec.random_id		integer	yes"
 .It "net.inet6.ipsec6.ecn	integer	yes"
 .It "net.inet6.ipsec6.debug	integer	yes"
 .El
@@ -298,6 +299,9 @@ have been decrypted and authenticated.
 If this variable is set to a non-zero value, each packet handled by IPsec
 is checked against the history of IPsec security associations.
 The IPsec security protocol, mode, and SA addresses must match.
+.It Li ipsec.random_id
+Enables randomization of encapsulated IPv4 packets ID.
+By default, ID randomization is not enabled.
 .El
 .Pp
 Variables under the

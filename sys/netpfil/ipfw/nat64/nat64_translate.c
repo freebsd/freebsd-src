@@ -520,7 +520,7 @@ nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
 		ip->ip_ttl -= IPV6_HLIMDEC;
 	ip->ip_sum = 0;
 	ip->ip_p = (proto == IPPROTO_ICMPV6) ? IPPROTO_ICMP: proto;
-	ip_fillid(ip);
+	ip_fillid(ip, V_ip_random_id);
 	if (frag != NULL) {
 		ip->ip_off = htons(ntohs(frag->ip6f_offlg) >> 3);
 		if (frag->ip6f_offlg & IP6F_MORE_FRAG)
@@ -845,7 +845,7 @@ nat64_icmp_reflect(struct mbuf *m, uint8_t type,
 	oip->ip_len = htons(n->m_pkthdr.len);
 	oip->ip_ttl = V_ip_defttl;
 	oip->ip_p = IPPROTO_ICMP;
-	ip_fillid(oip);
+	ip_fillid(oip, V_ip_random_id);
 	oip->ip_off = htons(IP_DF);
 	oip->ip_src = ip->ip_dst;
 	oip->ip_dst = ip->ip_src;

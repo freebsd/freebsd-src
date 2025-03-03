@@ -534,7 +534,7 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 #ifdef INET6
 	case AF_INET6:
 		gi->gi_ip.ip_tos = 0; /* XXX */
-		ip_fillid(&gi->gi_ip);
+		ip_fillid(&gi->gi_ip, V_ip_random_id);
 		break;
 #endif
 	}

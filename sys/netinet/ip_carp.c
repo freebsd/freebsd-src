@@ -1256,7 +1256,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_ttl = CARP_DFLTTL;
 		ip->ip_p = IPPROTO_CARP;
 		ip->ip_sum = 0;
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 
 		ifa = carp_best_ifa(AF_INET, sc->sc_carpdev);
 		if (ifa != NULL) {
@@ -1395,7 +1395,7 @@ vrrp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_ttl = CARP_DFLTTL;
 		ip->ip_p = IPPROTO_CARP;
 		ip->ip_sum = 0;
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 
 		ifa = carp_best_ifa(AF_INET, sc->sc_carpdev);
 		if (ifa != NULL) {

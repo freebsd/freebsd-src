@@ -3527,7 +3527,7 @@ pf_translate_af(struct pf_pdesc *pd)
 		ip4->ip_hl = hlen >> 2;
 		ip4->ip_tos = pd->tos;
 		ip4->ip_len = htons(hlen + (pd->tot_len - pd->off));
-		ip_fillid(ip4);
+		ip_fillid(ip4, V_ip_random_id);
 		ip4->ip_ttl = pd->ttl;
 		ip4->ip_p = pd->proto;
 		ip4->ip_src = pd->nsaddr.v4;
@@ -3630,7 +3630,7 @@ pf_change_icmp_af(struct mbuf *m, int off, struct pf_pdesc *pd,
 		ip4->ip_v = IPVERSION;
 		ip4->ip_hl = sizeof(*ip4) >> 2;
 		ip4->ip_len = htons(sizeof(*ip4) + pd2->tot_len - olen);
-		ip_fillid(ip4);
+		ip_fillid(ip4, V_ip_random_id);
 		ip4->ip_off = htons(IP_DF);
 		ip4->ip_ttl = pd2->ttl;
 		if (pd2->proto == IPPROTO_ICMPV6)
