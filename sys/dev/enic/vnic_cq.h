@@ -71,10 +71,6 @@ struct vnic_cq {
 	unsigned int tobe_rx_coal_timeval;
 	ktime_t prev_ts;
 #endif
-	int ntxqsets;
-	int nrxqsets;
-	int ntxqsets_start;
-	int nrxqsets_start;
 };
 
 void vnic_cq_init(struct vnic_cq *cq, unsigned int flow_control_enable,

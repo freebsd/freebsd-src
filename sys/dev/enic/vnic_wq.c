@@ -37,9 +37,9 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev,
 	ring->last_count = 0;
 	ring->desc_avail = ring->desc_count - 1;
 
-	ring->size = ring->desc_count * ring->desc_size;
 	ring->base_align = 512;
-	ring->size_unaligned = ring->size + ring->base_align;
+	ring->size_unaligned = ring->desc_count * ring->desc_size \
+	    + ring->base_align;
 
 	return (err);
 
@@ -180,6 +180,4 @@ void vnic_wq_clean(struct vnic_wq *wq)
 	ENIC_BUS_WRITE_4(wq->ctrl, TX_FETCH_INDEX, 0);
 	ENIC_BUS_WRITE_4(wq->ctrl, TX_POSTED_INDEX, 0);
 	ENIC_BUS_WRITE_4(wq->ctrl, TX_ERROR_STATUS, 0);
-
-	vnic_dev_clear_desc_ring(&wq->ring);
 }

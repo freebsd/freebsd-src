@@ -69,7 +69,6 @@ unsigned long vnic_dev_get_res_type_len(struct vnic_dev *vdev,
 					enum vnic_res_type type);
 unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
     unsigned int desc_count, unsigned int desc_size);
-void vnic_dev_clear_desc_ring(struct vnic_dev_ring *ring);
 int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
     unsigned int desc_count, unsigned int desc_size);
 void vnic_dev_free_desc_ring(struct vnic_dev *vdev,
