@@ -10,6 +10,8 @@
 #include <sys/efi.h>
 #include <machine/metadata.h>
 
+struct efi_map_header;
+
 typedef void (*efi_map_entry_cb)(struct efi_md *, void *argp);
 
 void efi_map_foreach_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb,
