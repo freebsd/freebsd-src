@@ -6224,14 +6224,12 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw,
 	}
 	if (rx_status->flag & RX_FLAG_MMIC_STRIPPED)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_MMIC_STRIP;
-	if (rx_status->flag & RX_FLAG_MIC_STRIPPED) {
-		/* net80211 re-uses M[ichael]MIC for MIC too. Confusing. */
-		rx_stats->c_pktflags |= IEEE80211_RX_F_MMIC_STRIP;
-	}
+	if (rx_status->flag & RX_FLAG_MMIC_ERROR)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_MMIC;
+	if (rx_status->flag & RX_FLAG_MIC_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_MIC_STRIP;
 	if (rx_status->flag & RX_FLAG_IV_STRIPPED)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_IV_STRIP;
-	if (rx_status->flag & RX_FLAG_MMIC_ERROR)
-		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_MIC;
 	if (rx_status->flag & RX_FLAG_FAILED_FCS_CRC)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 #endif
