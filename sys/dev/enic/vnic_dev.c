@@ -168,15 +168,10 @@ unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 
 	ring->desc_size = VNIC_ALIGN(desc_size, desc_align);
 
-	ring->size = ring->desc_count * ring->desc_size;
-	ring->size_unaligned = ring->size + ring->base_align;
+	ring->size_unaligned = ring->desc_count * ring->desc_size \
+		+ ring->base_align;
 
 	return ring->size_unaligned;
-}
-
-void vnic_dev_clear_desc_ring(struct vnic_dev_ring *ring)
-{
-	memset(ring->descs, 0, ring->size);
 }
 
 static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,

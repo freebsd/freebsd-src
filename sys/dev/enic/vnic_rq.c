@@ -93,6 +93,4 @@ void vnic_rq_clean(struct vnic_rq *rq)
 	}
 
 	ENIC_BUS_WRITE_4(rq->ctrl, RX_POSTED_INDEX, fetch_index);
-
-	vnic_dev_clear_desc_ring(&rq->ring);
 }

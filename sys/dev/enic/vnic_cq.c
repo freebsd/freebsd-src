@@ -40,6 +40,4 @@ void vnic_cq_clean(struct vnic_cq *cq)
 	ENIC_BUS_WRITE_4(cq->ctrl, CQ_HEAD, 0);
 	ENIC_BUS_WRITE_4(cq->ctrl, CQ_TAIL, 0);
 	ENIC_BUS_WRITE_4(cq->ctrl, CQ_TAIL_COLOR, 1);
-
-	vnic_dev_clear_desc_ring(&cq->ring);
 }

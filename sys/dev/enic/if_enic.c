@@ -494,8 +494,7 @@ enic_attach_pre(if_ctx_t ctx)
 	ifmedia_add(softc->media, IFM_ETHER | IFM_10_FL, 0, NULL);
 
 	/*
-	 * Allocate the CQ here since TX is called first before RX for now
-	 * assume RX and TX are the same
+	 * Allocate the CQ here since TX is called first before RX.
 	 */
 	if (softc->enic.cq == NULL)
 		softc->enic.cq = malloc(sizeof(struct vnic_cq) *
@@ -503,8 +502,6 @@ enic_attach_pre(if_ctx_t ctx)
 		     M_NOWAIT | M_ZERO);
 	if (softc->enic.cq == NULL)
 		return (ENOMEM);
-
-	softc->enic.cq->ntxqsets = softc->enic.wq_count + softc->enic.rq_count;
 
 	/*
 	 * Allocate the consistent memory for stats and counters upfront so
@@ -735,7 +732,7 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 	for (q = 0; q < ntxqsets; q++) {
 		struct vnic_wq *wq;
 		struct vnic_cq *cq;
-		unsigned int	cq_wq;
+		unsigned int cq_wq;
 
 		wq = &softc->enic.wq[q];
 		cq_wq = enic_cq_wq(&softc->enic, q);
@@ -755,7 +752,6 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		wq->head_idx = 0;
 		wq->tail_idx = 0;
 
-		wq->ring.size = wq->ring.desc_count * wq->ring.desc_size;
 		wq->ring.descs = vaddrs[q * ntxqs + 0];
 		wq->ring.base_addr = paddrs[q * ntxqs + 0];
 
@@ -768,7 +764,6 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		cq->ring.desc_count = softc->scctx->isc_ntxd[q];
 		cq->ring.desc_avail = cq->ring.desc_count - 1;
 
-		cq->ring.size = cq->ring.desc_count * cq->ring.desc_size;
 		cq->ring.descs = vaddrs[q * ntxqs + 1];
 		cq->ring.base_addr = paddrs[q * ntxqs + 1];
 
@@ -824,7 +819,6 @@ enic_rx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		cq->ring.desc_count = softc->scctx->isc_nrxd[1];
 		cq->ring.desc_avail = cq->ring.desc_count - 1;
 
-		cq->ring.size = cq->ring.desc_count * cq->ring.desc_size;
 		cq->ring.descs = vaddrs[q * nrxqs + 0];
 		cq->ring.base_addr = paddrs[q * nrxqs + 0];
 
@@ -840,7 +834,6 @@ enic_rx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		rq->ring.desc_count = softc->scctx->isc_nrxd[0];
 		rq->ring.desc_avail = rq->ring.desc_count - 1;
 
-		rq->ring.size = rq->ring.desc_count * rq->ring.desc_size;
 		rq->ring.descs = vaddrs[q * nrxqs + 1];
 		rq->ring.base_addr = paddrs[q * nrxqs + 1];
 		rq->need_initial_post = true;
@@ -1241,7 +1234,9 @@ enic_setup_txq_sysctl(struct vnic_wq *wq, int i, struct sysctl_ctx_list *ctx,
 {
 	struct sysctl_oid *txsnode;
 	struct sysctl_oid_list *txslist;
-	struct vnic_stats *stats = wq[i].vdev->stats;
+	struct vnic_stats *stats;
+
+	stats = wq[i].vdev->stats;
 
 	txsnode = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hstats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
@@ -1277,7 +1272,9 @@ enic_setup_rxq_sysctl(struct vnic_rq *rq, int i, struct sysctl_ctx_list *ctx,
 {
 	struct sysctl_oid *rxsnode;
 	struct sysctl_oid_list *rxslist;
-	struct vnic_stats *stats = rq[i].vdev->stats;
+	struct vnic_stats *stats;
+
+	stats = rq[i].vdev->stats;
 
 	rxsnode = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hstats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
