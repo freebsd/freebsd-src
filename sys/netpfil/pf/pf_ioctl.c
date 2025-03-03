@@ -2406,6 +2406,12 @@ relock_DIOCKILLSTATES:
 	return (killed);
 }
 
+void
+unhandled_af(int af)
+{
+	panic("unhandled af %d", af);
+}
+
 int
 pf_start(void)
 {

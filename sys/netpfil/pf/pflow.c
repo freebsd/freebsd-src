@@ -1216,7 +1216,7 @@ pflow_sendout_ipfix(struct pflow_softc *sc, enum pflow_family_t af)
 		    + sc->sc_count_nat4 * sizeof(struct pflow_ipfix_nat4);
 		break;
 	default:
-		panic("Unsupported AF %d", af);
+		unhandled_af(af);
 	}
 
 	pflowstat_inc(pflow_packets);
@@ -1444,7 +1444,7 @@ nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
 		break;
 	}
 	default:
-		panic("Unknown address family %d", s->sa_family);
+		unhandled_af(s->sa_family);
 	}
 
 	nlattr_set_len(nw, off);
