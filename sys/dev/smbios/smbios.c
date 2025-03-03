@@ -142,14 +142,13 @@ smbios_identify (driver_t *driver, device_t parent)
 		}
 	}
 	if (length != map_size) {
-		u_int8_t major, minor;
-
-		major = eps->major_version;
-		minor = eps->minor_version;
-
-		/* SMBIOS v2.1 implementation might use 0x1e. */
-		if (length == 0x1e && major == 2 && minor == 1)
-			length = 0x1f;
+		/*
+		 * SMBIOS v2.1 implementations might use 0x1e because the
+		 * standard was then erroneous.
+		 */
+		if (length == 0x1e && map_size == sizeof(*eps) &&
+		    eps->major_version == 2 && eps->minor_version == 1)
+			length = map_size;
 		else
 			goto unmap_return;
 	}
