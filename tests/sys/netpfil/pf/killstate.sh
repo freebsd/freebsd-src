@@ -47,7 +47,7 @@ v4_head()
 {
 	atf_set descr 'Test killing states by IPv4 address'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v4_body()
@@ -110,7 +110,7 @@ v6_head()
 {
 	atf_set descr 'Test killing states by IPv6 address'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -177,7 +177,7 @@ label_head()
 {
 	atf_set descr 'Test killing states by label'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 label_body()
@@ -241,7 +241,7 @@ multilabel_head()
 {
 	atf_set descr 'Test killing states with multiple labels by label'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 multilabel_body()
@@ -321,7 +321,7 @@ gateway_head()
 {
 	atf_set descr 'Test killing states by route-to/reply-to address'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 gateway_body()
@@ -462,7 +462,7 @@ interface_head()
 {
 	atf_set descr 'Test killing states based on interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 interface_body()
@@ -518,7 +518,7 @@ id_head()
 {
 	atf_set descr 'Test killing states by id'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 id_body()
@@ -579,7 +579,7 @@ nat_head()
 {
 	atf_set descr 'Test killing states by their NAT-ed IP address'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 nat_body()

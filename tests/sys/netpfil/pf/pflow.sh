@@ -85,7 +85,7 @@ state_defaults_head()
 {
 	atf_set descr 'Test set state-defaults pflow'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 state_defaults_body()
@@ -146,7 +146,7 @@ v6_head()
 {
 	atf_set descr 'Test pflow over IPv6'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -188,7 +188,7 @@ nat_head()
 {
 	atf_set descr 'Test pflow export for NAT44'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 nat_body()
@@ -239,7 +239,7 @@ rule_head()
 {
 	atf_set descr 'Test per-rule pflow option'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 rule_body()

@@ -132,7 +132,7 @@ max_src_conn_rule_head()
 {
 	atf_set descr 'Max connections per source per rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 max_src_conn_rule_body()
@@ -192,7 +192,7 @@ max_src_states_rule_head()
 {
 	atf_set descr 'Max states per source per rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 max_src_states_rule_body()
@@ -261,7 +261,7 @@ max_src_states_global_head()
 {
 	atf_set descr 'Max states per source global'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 max_src_states_global_body()
@@ -311,7 +311,7 @@ route_to_head()
 {
 	atf_set descr 'Max states per source per rule with route-to'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_body()

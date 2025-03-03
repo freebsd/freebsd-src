@@ -33,7 +33,7 @@ cve_2019_5598_head()
 {
 	atf_set descr 'Test CVE-2019-5598'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 cve_2019_5598_body()
