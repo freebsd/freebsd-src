@@ -443,6 +443,11 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 		sbuf_cat(sbp, "MODINFOMD_SPLASH");
 		break;
 #endif
+#ifdef MODINFOMD_BOOT_HARTID
+	case MODINFOMD_BOOT_HARTID:
+		sbuf_cat(sbp, "MODINFOMD_BOOT_HARTID");
+		break;
+#endif
 	default:
 		sbuf_cat(sbp, "unrecognized metadata type");
 	}
@@ -503,6 +508,11 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 	case MODINFO_METADATA | MODINFOMD_HOWTO:
 		sbuf_printf(sbp, "0x%08x", *bptr);
 		break;
+#ifdef MODINFOMD_BOOT_HARTID
+	case MODINFO_METADATA | MODINFOMD_BOOT_HARTID:
+		sbuf_printf(sbp, "0x%lu", *(uint64_t *)bptr);
+		break;
+#endif
 	case MODINFO_METADATA | MODINFOMD_SHDR:
 	case MODINFO_METADATA | MODINFOMD_ELFHDR:
 	case MODINFO_METADATA | MODINFOMD_FW_HANDLE:
