@@ -295,11 +295,7 @@ finish:
 		m_adj(m, ccmp.ic_header);
 	}
 
-	/*
-	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
-	 * Well no as it's a MIC not MMIC but we re-use the same flag for now.
-	 */
-	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) == 0)
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_MIC_STRIP) == 0)
 		m_adj(m, -ccmp.ic_trailer);
 
 	/*
@@ -683,10 +679,9 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 	}
 
 	/*
-	 * If the MIC (we use MMIC despite not being Micheal) was stripped
-	 * by HW/driver we are done.
+	 * If the MIC was stripped by HW/driver we are done.
 	 */
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) != 0)
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MIC_STRIP) != 0)
 		return (1);
 
 	if (memcmp(mic, a, ccmp.ic_trailer) != 0) {

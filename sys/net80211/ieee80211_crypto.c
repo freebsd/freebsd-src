@@ -791,9 +791,9 @@ ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * Handle demic / mic errors from hardware-decrypted offload devices.
 	 */
 	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
-		if (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC) {
+		if ((rxs->c_pktflags & IEEE80211_RX_F_FAIL_MMIC) != 0) {
 			/*
-			 * Hardware has said MIC failed.  We don't care about
+			 * Hardware has said MMIC failed.  We don't care about
 			 * whether it was stripped or not.
 			 *
 			 * Eventually - teach the demic methods in crypto
@@ -804,7 +804,8 @@ ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 			return (0);
 		}
 
-		if (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) {
+		if ((rxs->c_pktflags &
+		    (IEEE80211_RX_F_MIC_STRIP|IEEE80211_RX_F_MMIC_STRIP)) != 0) {
 			/*
 			 * Hardware has decrypted and not indicated a
 			 * MIC failure and has stripped the MIC.

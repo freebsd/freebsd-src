@@ -394,7 +394,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	 * directly notify as a michael failure to the upper
 	 * layers.
 	 */
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC)) {
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MMIC)) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		ieee80211_notify_michael_failure(vap, wh,
 		    k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
