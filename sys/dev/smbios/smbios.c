@@ -86,7 +86,7 @@ smbios_identify (driver_t *driver, device_t parent)
 	device_t child;
 	vm_paddr_t addr = 0;
 	size_t map_size = sizeof(*eps);
-	int length;
+	uint8_t length;
 
 	if (!device_is_alive(parent))
 		return;
@@ -148,8 +148,13 @@ smbios_identify (driver_t *driver, device_t parent)
 		if (length == 0x1e && map_size == sizeof(*eps) &&
 		    eps->major_version == 2 && eps->minor_version == 1)
 			length = map_size;
-		else
+		else {
+			printf("smbios: %s-bit Entry Point: Invalid length: "
+			    "Got %hhu, expected %zu\n",
+			    map_size == sizeof(*eps3) ? "64" : "32",
+			    length, map_size);
 			goto unmap_return;
+		}
 	}
 
 	child = BUS_ADD_CHILD(parent, 5, "smbios", DEVICE_UNIT_ANY);
