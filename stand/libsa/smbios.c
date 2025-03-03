@@ -567,9 +567,12 @@ smbios_probe(const caddr_t addr)
 		smbios.length = SMBIOS_GET32(saddr, 0x0c);
 		/* Structure Table Address */
 		paddr = SMBIOS_GET64(saddr, 0x10);
-		/* not present in V3 */
+		/* Not present in V3, set it to the maximum value (no limit). */
 		smbios.count = -1;
-		/* not present in V3 */
+		/*
+		 * No BCD revision in V3, we'll determine the version thanks to
+		 * the major and minor fields below.
+		 */
 		smbios.ver = 0;
 		maj_off = 0x07;
 		min_off = 0x08;
@@ -580,22 +583,26 @@ smbios_probe(const caddr_t addr)
 		smbios.length = SMBIOS_GET16(saddr, 0x16);
 		/* Structure Table Address */
 		paddr = SMBIOS_GET32(saddr, 0x18);
-		/* No of SMBIOS Structures */
+		/* No. of SMBIOS Structures */
 		smbios.count = SMBIOS_GET16(saddr, 0x1c);
 		/* SMBIOS BCD Revision */
 		smbios.ver = SMBIOS_GET8(saddr, 0x1e);
+		if (smbios.ver != 0) {
+			smbios.major = smbios.ver >> 4;
+			smbios.minor = smbios.ver & 0x0f;
+			if (smbios.major > 9 || smbios.minor > 9)
+				smbios.ver = 0;
+		}
 		maj_off = 0x06;
 		min_off = 0x07;
 	}
 
 
-	if (smbios.ver != 0) {
-		smbios.major = smbios.ver >> 4;
-		smbios.minor = smbios.ver & 0x0f;
-		if (smbios.major > 9 || smbios.minor > 9)
-			smbios.ver = 0;
-	}
 	if (smbios.ver == 0) {
+		/*
+		 * v3 table, or v2 with BCD revision being 0 or bad.  Use the
+		 * major and minor version fields.
+		 */
 		smbios.major = SMBIOS_GET8(saddr, maj_off);
 		smbios.minor = SMBIOS_GET8(saddr, min_off);
 	}
