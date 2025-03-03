@@ -139,8 +139,8 @@ print_efi_map_entry(struct efi_md *p, void *argp __unused)
 		type = types[p->md_type];
 	else
 		type = "<INVALID>";
-	printf("%23s %012lx %012lx %08lx ", type, p->md_phys,
-	    p->md_virt, p->md_pages);
+	printf("%23s %012jx %012jx %08jx ", type, (uintmax_t)p->md_phys,
+	    (uintmax_t)p->md_virt, (uintmax_t)p->md_pages);
 	if (p->md_attr & EFI_MD_ATTR_UC)
 		printf("UC ");
 	if (p->md_attr & EFI_MD_ATTR_WC)

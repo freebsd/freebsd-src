@@ -108,6 +108,7 @@ kern/msi_if.m			optional	intrng
 kern/pic_if.m			optional	intrng
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_devmap.c		standard
+kern/subr_efi_map.c		optional	efi
 kern/subr_physmem.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
