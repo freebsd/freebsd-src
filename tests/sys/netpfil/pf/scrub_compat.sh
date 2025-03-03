@@ -33,7 +33,7 @@ max_mss_v4_head()
 {
 	atf_set descr 'Test IPv4 scrub "mss" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 max_mss_v4_body()
@@ -58,7 +58,7 @@ max_mss_v6_head()
 {
 	atf_set descr 'Test IPv6 scrub "mss" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 max_mss_v6_body()
@@ -83,7 +83,7 @@ set_tos_v4_head()
 {
 	atf_set descr 'Test IPv4 scub "set-tos" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 set_tos_v4_body()
@@ -104,7 +104,7 @@ set_tos_v6_head()
 {
 	atf_set descr 'Test IPv6 scub "set-tos" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 set_tos_v6_body()
@@ -125,7 +125,7 @@ min_ttl_v4_head()
 {
 	atf_set descr 'Test IPv4 scub "min-ttl" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 min_ttl_v4_body()
@@ -146,7 +146,7 @@ min_ttl_v6_head()
 {
 	atf_set descr 'Test IPv6 scub "min-ttl" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 min_ttl_v6_body()
@@ -167,7 +167,7 @@ no_scrub_v4_head()
 {
 	atf_set descr 'Test IPv4 "no scrub" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 no_scrub_v4_body()
@@ -190,7 +190,7 @@ no_scrub_v6_head()
 {
 	atf_set descr 'Test IPv6 "no scrub" rule'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 no_scrub_v6_body()

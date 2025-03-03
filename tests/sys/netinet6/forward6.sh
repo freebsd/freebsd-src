@@ -34,7 +34,7 @@ fwd_ip6_gu_icmp_iface_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_iface_fast_success_body() {
@@ -104,7 +104,7 @@ fwd_ip6_gu_icmp_gw_gu_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to GU gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_gu_fast_success_body() {
@@ -178,7 +178,7 @@ fwd_ip6_gu_icmp_gw_ll_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to LL gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_ll_fast_success_body() {
@@ -253,7 +253,7 @@ fwd_ip6_gu_icmp_iface_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_iface_slow_success_body() {
@@ -322,7 +322,7 @@ fwd_ip6_gu_icmp_gw_gu_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to GU gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_gu_slow_success_body() {
@@ -397,7 +397,7 @@ fwd_ip6_gu_icmp_gw_ll_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to LL gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_ll_slow_success_body() {

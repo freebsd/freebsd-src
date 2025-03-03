@@ -232,7 +232,7 @@ urpf_head()
 {
 	atf_set descr "Test unicast reverse path forwarding check"
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 urpf_body()

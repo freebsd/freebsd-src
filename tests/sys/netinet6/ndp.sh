@@ -134,7 +134,7 @@ atf_test_case "ndp_slaac_default_route" "cleanup"
 ndp_slaac_default_route_head() {
 	atf_set descr 'Test default route installation via SLAAC'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 ndp_slaac_default_route_body() {

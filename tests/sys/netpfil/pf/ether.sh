@@ -643,7 +643,7 @@ short_pkt_head()
 {
 	atf_set descr 'Test overly short Ethernet packets'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 short_pkt_body()
@@ -686,7 +686,7 @@ bridge_to_head()
 {
 	atf_set descr 'Test bridge-to keyword'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 bridge_to_body()

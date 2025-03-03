@@ -257,7 +257,7 @@ bpf_pcp_head()
 {
 	atf_set descr 'Set VLAN PCP through BPF'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 bpf_pcp_body()

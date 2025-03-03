@@ -74,7 +74,7 @@ v6_head()
 {
 	atf_set descr 'IPv6 fragmentation test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -230,7 +230,7 @@ overreplace_head()
 {
 	atf_set descr 'ping fragment that overlaps fragment at index boundary and replace it'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overreplace_body()
@@ -248,7 +248,7 @@ overindex_head()
 {
 	atf_set descr 'ping fragment that overlaps the first fragment at index boundary'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overindex_body()
@@ -266,7 +266,7 @@ overlimit_head()
 {
 	atf_set descr 'ping fragment at index boundary that cannot be requeued'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overlimit_body()

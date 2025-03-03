@@ -41,7 +41,7 @@ ipdivert_ip6_output_remote_success_head() {
 
 	atf_set descr 'Test valid IPv6 redirect'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 ipdivert_ip6_output_remote_success_body() {

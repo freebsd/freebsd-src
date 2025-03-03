@@ -322,7 +322,7 @@ nostate_head()
 {
 	atf_set descr 'Ensure that we do not create until SYN|ACK'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 nostate_body()
@@ -368,7 +368,7 @@ nostate_v6_head()
 {
 	atf_set descr 'Ensure that we do not create until SYN|ACK'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 nostate_v6_body()
@@ -415,7 +415,7 @@ adaptive_head()
 {
 	atf_set descr 'Adaptive mode test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 adaptive_body()

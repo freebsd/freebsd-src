@@ -126,7 +126,7 @@ defer_head()
 {
 	atf_set descr 'Defer mode pfsync test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 defer_body()
@@ -907,7 +907,7 @@ route_to_1301_head()
 {
 	atf_set descr 'Test route-to with pfsync version 13.1'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_1301_body()
@@ -947,7 +947,7 @@ route_to_1301_bad_ruleset_head()
 {
 	atf_set descr 'Test route-to with pfsync version 13.1 and incompatible ruleset'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_1301_bad_ruleset_body()
@@ -997,7 +997,7 @@ route_to_1301_bad_rpool_head()
 {
 	atf_set descr 'Test route-to with pfsync version 13.1 and different interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_1301_bad_rpool_body()
@@ -1045,7 +1045,7 @@ route_to_1400_bad_ruleset_head()
 {
 	atf_set descr 'Test route-to with pfsync version 14.0'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_1400_bad_ruleset_body()
@@ -1085,7 +1085,7 @@ route_to_1400_bad_ifname_head()
 {
 	atf_set descr 'Test route-to with pfsync version 14.0'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 route_to_1400_bad_ifname_body()

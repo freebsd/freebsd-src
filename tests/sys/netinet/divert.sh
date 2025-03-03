@@ -41,7 +41,7 @@ ipdivert_ip_output_remote_success_head() {
 
 	atf_set descr 'Test diverting IPv4 packet to remote destination'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 ipdivert_ip_output_remote_success_body() {
@@ -96,7 +96,7 @@ ipdivert_ip_input_local_success_head() {
 
 	atf_set descr 'Test diverting IPv4 packet to remote destination'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 ipdivert_ip_input_local_success_body() {
