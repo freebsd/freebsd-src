@@ -263,7 +263,7 @@
  * IOMMU Extended Feature2 register fields.
  * All currently defined bits are RO.
  */
-#define	AMDIOMMU_EFR2_TMPMSUP		0x0000000000000004ull	/* Tired Mem Migration */
+#define	AMDIOMMU_EFR2_TMPMSUP		0x0000000000000004ull	/* Tiered Mem Migration */
 #define	AMDIOMMU_EFR2_GCR3TRPM		0x0000000000000008ull	/* GPA based GCR3 pointer in DTE */
 #define	AMDIOMMU_EFR2_GAPPID		0x0000000000000010ull	/* masking of GAPIC PPI */
 #define	AMDIOMMU_EFR2_SNPAVIC_MASK	0x00000000000000e0ull	/* SNP-enabled Adv intr features */
