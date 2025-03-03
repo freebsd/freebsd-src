@@ -45,6 +45,7 @@
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/devmap.h>
+#include <sys/efi_map.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -468,6 +469,7 @@ void
 initriscv(struct riscv_bootparams *rvbp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
 	int mem_regions_sz;
 	vm_offset_t lastaddr;
@@ -516,21 +518,40 @@ initriscv(struct riscv_bootparams *rvbp)
 	}
 	pcpup->pc_hart = boot_hart;
 
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr != NULL) {
+		efi_map_add_entries(efihdr);
+		efi_map_exclude_entries(efihdr);
+	}
 #ifdef FDT
-	/*
-	 * Exclude reserved memory specified by the device tree. Typically,
-	 * this contains an entry for memory used by the runtime SBI firmware.
-	 */
-	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
-		physmem_exclude_regions(mem_regions, mem_regions_sz,
+	else {
+		/* Exclude reserved memory specified by the device tree. */
+		if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
+			physmem_exclude_regions(mem_regions, mem_regions_sz,
+			    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		}
+
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
+			panic("Cannot get physical memory regions");
+		physmem_hardware_regions(mem_regions, mem_regions_sz);
+
+		/*
+		 * XXX: Unconditionally exclude the lowest 2MB of physical
+		 * memory, as this area is assumed to contain the SBI firmware,
+		 * and this is not properly reserved in all cases (e.g. in
+		 * older firmware like BBL).
+		 *
+		 * This is a little fragile, but it is consistent with the
+		 * platforms we support so far.
+		 *
+		 * TODO: remove this when the all regular booting methods
+		 * properly report their reserved memory in the device tree.
+		 */
+		physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 	}
-
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0) {
-		panic("Cannot get physical memory regions");
-	}
-	physmem_hardware_regions(mem_regions, mem_regions_sz);
 #endif
 
 	/*
@@ -540,19 +561,6 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	/* Do basic tuning, hz etc */
 	init_param1();
-
-#ifdef FDT
-	/*
-	 * XXX: Unconditionally exclude the lowest 2MB of physical memory, as
-	 * this area is assumed to contain the SBI firmware. This is a little
-	 * fragile, but it is consistent with the platforms we support so far.
-	 *
-	 * TODO: remove this when the all regular booting methods properly
-	 * report their reserved memory in the device tree.
-	 */
-	physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
-	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
-#endif
 
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
@@ -588,8 +596,11 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	if (boothowto & RB_VERBOSE)
+	if (boothowto & RB_VERBOSE) {
+		if (efihdr != NULL)
+			efi_map_print_entries(efihdr);
 		physmem_print_tables();
+	}
 
 	early_boot = 0;
 
