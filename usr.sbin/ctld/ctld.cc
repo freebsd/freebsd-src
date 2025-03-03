@@ -100,12 +100,9 @@ conf_new(void)
 {
 	struct conf *conf;
 
-	conf = reinterpret_cast<struct conf *>(calloc(1, sizeof(*conf)));
-	if (conf == NULL)
-		log_err(1, "calloc");
+	conf = new struct conf();
 	TAILQ_INIT(&conf->conf_luns);
 	TAILQ_INIT(&conf->conf_targets);
-	TAILQ_INIT(&conf->conf_auth_groups);
 	TAILQ_INIT(&conf->conf_ports);
 	TAILQ_INIT(&conf->conf_portal_groups);
 	TAILQ_INIT(&conf->conf_isns);
@@ -124,7 +121,6 @@ conf_delete(struct conf *conf)
 {
 	struct lun *lun, *ltmp;
 	struct target *targ, *tmp;
-	struct auth_group *ag, *cagtmp;
 	struct portal_group *pg, *cpgtmp;
 	struct isns *is, *istmp;
 
@@ -134,30 +130,65 @@ conf_delete(struct conf *conf)
 		lun_delete(lun);
 	TAILQ_FOREACH_SAFE(targ, &conf->conf_targets, t_next, tmp)
 		target_delete(targ);
-	TAILQ_FOREACH_SAFE(ag, &conf->conf_auth_groups, ag_next, cagtmp)
-		auth_group_delete(ag);
 	TAILQ_FOREACH_SAFE(pg, &conf->conf_portal_groups, pg_next, cpgtmp)
 		portal_group_delete(pg);
 	TAILQ_FOREACH_SAFE(is, &conf->conf_isns, i_next, istmp)
 		isns_delete(is);
 	assert(TAILQ_EMPTY(&conf->conf_ports));
 	free(conf->conf_pidfile_path);
-	free(conf);
+	delete conf;
+}
+
+bool
+auth_group::set_type(const char *str)
+{
+	auth_type type;
+
+	if (strcmp(str, "none") == 0) {
+		type = auth_type::NO_AUTHENTICATION;
+	} else if (strcmp(str, "deny") == 0) {
+		type = auth_type::DENY;
+	} else if (strcmp(str, "chap") == 0) {
+		type = auth_type::CHAP;
+	} else if (strcmp(str, "chap-mutual") == 0) {
+		type = auth_type::CHAP_MUTUAL;
+	} else {
+		log_warnx("invalid auth-type \"%s\" for %s", str, label());
+		return (false);
+	}
+
+	if (ag_type != auth_type::UNKNOWN && ag_type != type) {
+		log_warnx("cannot set auth-type to \"%s\" for %s; "
+		    "already has a different type", str, label());
+		return (false);
+	}
+
+	ag_type = type;
+
+	return (true);
+}
+
+void
+auth_group::set_type(auth_type type)
+{
+	assert(ag_type == auth_type::UNKNOWN);
+
+	ag_type = type;
 }
 
 const struct auth *
-auth_find(const struct auth_group *ag, const char *user)
+auth_group::find_auth(std::string_view user) const
 {
-	auto it = ag->ag_auths.find(user);
-	if (it == ag->ag_auths.end())
+	auto it = ag_auths.find(std::string(user));
+	if (it == ag_auths.end())
 		return (nullptr);
 
 	return (&it->second);
 }
 
-static void
-auth_check_secret_length(const struct auth_group *ag, const char *user,
-    const char *secret, const char *secret_type)
+void
+auth_group::check_secret_length(const char *user, const char *secret,
+    const char *secret_type)
 {
 	size_t len;
 
@@ -165,34 +196,31 @@ auth_check_secret_length(const struct auth_group *ag, const char *user,
 	assert(len != 0);
 	if (len > 16) {
 		log_warnx("%s for user \"%s\", %s, is too long; it should be "
-		    "at most 16 characters long", secret_type, user,
-		    ag->ag_label);
+		    "at most 16 characters long", secret_type, user, label());
 	}
 	if (len < 12) {
 		log_warnx("%s for user \"%s\", %s, is too short; it should be "
-		    "at least 12 characters long", secret_type, user,
-		    ag->ag_label);
+		    "at least 12 characters long", secret_type, user, label());
 	}
 }
 
 bool
-auth_new_chap(struct auth_group *ag, const char *user,
-    const char *secret)
+auth_group::add_chap(const char *user, const char *secret)
 {
-	if (ag->ag_type == AG_TYPE_UNKNOWN)
-		ag->ag_type = AG_TYPE_CHAP;
-	if (ag->ag_type != AG_TYPE_CHAP) {
+	if (ag_type == auth_type::UNKNOWN)
+		ag_type = auth_type::CHAP;
+	if (ag_type != auth_type::CHAP) {
 		log_warnx("cannot mix \"chap\" authentication with "
-		    "other types for %s", ag->ag_label);
+		    "other types for %s", label());
 		return (false);
 	}
 
-	auth_check_secret_length(ag, user, secret, "secret");
+	check_secret_length(user, secret, "secret");
 
-	const auto &pair = ag->ag_auths.try_emplace(user, secret);
+	const auto &pair = ag_auths.try_emplace(user, secret);
 	if (!pair.second) {
 		log_warnx("duplicate credentials for user \"%s\" for %s",
-		    user, ag->ag_label);
+		    user, label());
 		return (false);
 	}
 
@@ -200,25 +228,24 @@ auth_new_chap(struct auth_group *ag, const char *user,
 }
 
 bool
-auth_new_chap_mutual(struct auth_group *ag, const char *user,
-    const char *secret, const char *user2, const char *secret2)
+auth_group::add_chap_mutual(const char *user, const char *secret,
+    const char *user2, const char *secret2)
 {
-	if (ag->ag_type == AG_TYPE_UNKNOWN)
-		ag->ag_type = AG_TYPE_CHAP_MUTUAL;
-	if (ag->ag_type != AG_TYPE_CHAP_MUTUAL) {
+	if (ag_type == auth_type::UNKNOWN)
+		ag_type = auth_type::CHAP_MUTUAL;
+	if (ag_type != auth_type::CHAP_MUTUAL) {
 		log_warnx("cannot mix \"chap-mutual\" authentication "
-		    "with other types for %s", ag->ag_label);
+		    "with other types for %s", label());
 		return (false);
 	}
 
-	auth_check_secret_length(ag, user, secret, "secret");
-	auth_check_secret_length(ag, user, secret2, "mutual secret");
+	check_secret_length(user, secret, "secret");
+	check_secret_length(user, secret2, "mutual secret");
 
-	const auto &pair = ag->ag_auths.try_emplace(user, secret, user2,
-	    secret2);
+	const auto &pair = ag_auths.try_emplace(user, secret, user2, secret2);
 	if (!pair.second) {
 		log_warnx("duplicate credentials for user \"%s\" for %s",
-		    user, ag->ag_label);
+		    user, label());
 		return (false);
 	}
 
@@ -226,20 +253,20 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 }
 
 bool
-auth_name_new(struct auth_group *ag, const char *name)
+auth_group::add_initiator_name(std::string_view name)
 {
 	/* Silently ignore duplicates. */
-	ag->ag_names.emplace(name);
+	ag_names.emplace(name);
 	return (true);
 }
 
 bool
-auth_name_check(const struct auth_group *ag, const char *initiator_name)
+auth_group::initiator_permitted(std::string_view initiator_name) const
 {
-	if (ag->ag_names.empty())
+	if (ag_names.empty())
 		return (true);
 
-	return (ag->ag_names.count(initiator_name) != 0);
+	return (ag_names.count(std::string(initiator_name)) != 0);
 }
 
 bool
@@ -309,15 +336,16 @@ auth_portal::parse(const char *portal)
 }
 
 bool
-auth_portal_new(struct auth_group *ag, const char *portal)
+auth_group::add_initiator_portal(const char *portal)
 {
 	auth_portal ap;
 	if (!ap.parse(portal)) {
-		log_warnx("invalid initiator portal \"%s\"", portal);
+		log_warnx("invalid initiator portal \"%s\" for %s", portal,
+		    label());
 		return (false);
 	}
 
-	ag->ag_portals.emplace_back(ap);
+	ag_portals.emplace_back(ap);
 	return (true);
 }
 
@@ -354,80 +382,46 @@ auth_portal::matches(const struct sockaddr *sa) const
 }
 
 bool
-auth_portal_check(const struct auth_group *ag,
-    const struct sockaddr_storage *sa)
+auth_group::initiator_permitted(const struct sockaddr *sa) const
 {
-	if (ag->ag_portals.empty())
+	if (ag_portals.empty())
 		return (true);
 
-	for (const auth_portal &ap : ag->ag_portals)
-		if (ap.matches((const struct sockaddr *)sa))
+	for (const auth_portal &ap : ag_portals)
+		if (ap.matches(sa))
 			return (true);
 	return (false);
-}
-
-static struct auth_group *
-auth_group_create(struct conf *conf, const char *name, char *label)
-{
-	struct auth_group *ag;
-
-	ag = new auth_group();
-	if (name != NULL)
-		ag->ag_name = checked_strdup(name);
-	ag->ag_label = label;
-	ag->ag_conf = conf;
-	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
-
-	return (ag);
 }
 
 struct auth_group *
 auth_group_new(struct conf *conf, const char *name)
 {
-	struct auth_group *ag;
-	char *label;
-
-	ag = auth_group_find(conf, name);
-	if (ag != NULL) {
+	const auto &pair = conf->conf_auth_groups.try_emplace(name,
+	    std::make_shared<auth_group>(freebsd::stringf("auth-group \"%s\"",
+	    name)));
+	if (!pair.second) {
 		log_warnx("duplicated auth-group \"%s\"", name);
 		return (NULL);
 	}
 
-	asprintf(&label, "auth-group \"%s\"", name);
-	return (auth_group_create(conf, name, label));
+	return (pair.first->second.get());
 }
 
-struct auth_group *
-auth_group_new(struct conf *conf, struct target *target)
+auth_group_sp
+auth_group_new(struct target *target)
 {
-	char *label;
-
-	asprintf(&label, "target \"%s\"", target->t_name);
-	return (auth_group_create(conf, NULL, label));
+	return (std::make_shared<auth_group>(freebsd::stringf("target \"%s\"",
+	    target->t_name)));
 }
 
-void
-auth_group_delete(struct auth_group *ag)
-{
-	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
-
-	free(ag->ag_label);
-	free(ag->ag_name);
-	delete ag;
-}
-
-struct auth_group *
+auth_group_sp
 auth_group_find(const struct conf *conf, const char *name)
 {
-	struct auth_group *ag;
+	auto it = conf->conf_auth_groups.find(name);
+	if (it == conf->conf_auth_groups.end())
+		return {};
 
-	assert(name != NULL);
-	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
-		if (ag->ag_name != NULL && strcmp(ag->ag_name, name) == 0)
-			return (ag);
-	}
-
-	return (NULL);
+	return (it->second);
 }
 
 static struct portal *
@@ -466,9 +460,7 @@ portal_group_new(struct conf *conf, const char *name)
 		return (NULL);
 	}
 
-	pg = reinterpret_cast<struct portal_group *>(calloc(1, sizeof(*pg)));
-	if (pg == NULL)
-		log_err(1, "calloc");
+	pg = new portal_group();
 	pg->pg_name = checked_strdup(name);
 	pg->pg_options = nvlist_create(0);
 	TAILQ_INIT(&pg->pg_portals);
@@ -498,7 +490,7 @@ portal_group_delete(struct portal_group *pg)
 	free(pg->pg_name);
 	free(pg->pg_offload);
 	free(pg->pg_redirection);
-	free(pg);
+	delete pg;
 }
 
 struct portal_group *
@@ -920,9 +912,7 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 		free(name);
 		return (NULL);
 	}
-	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
-	if (port == NULL)
-		log_err(1, "calloc");
+	port = new struct port();
 	port->p_conf = conf;
 	port->p_name = name;
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
@@ -965,9 +955,7 @@ port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
 		free(name);
 		return (NULL);
 	}
-	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
-	if (port == NULL)
-		log_err(1, "calloc");
+	port = new struct port();
 	port->p_conf = conf;
 	port->p_name = name;
 	port->p_ioctl_port = true;
@@ -994,9 +982,7 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 		free(name);
 		return (NULL);
 	}
-	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
-	if (port == NULL)
-		log_err(1, "calloc");
+	port = new struct port();
 	port->p_conf = conf;
 	port->p_name = name;
 	TAILQ_INSERT_TAIL(&conf->conf_ports, port, p_next);
@@ -1075,9 +1061,7 @@ target_new(struct conf *conf, const char *name)
 	if (valid_iscsi_name(name, log_warnx) == false) {
 		return (NULL);
 	}
-	targ = reinterpret_cast<struct target *>(calloc(1, sizeof(*targ)));
-	if (targ == NULL)
-		log_err(1, "calloc");
+	targ = new target();
 	targ->t_name = checked_strdup(name);
 
 	/*
@@ -1106,7 +1090,7 @@ target_delete(struct target *targ)
 	free(targ->t_pport);
 	free(targ->t_name);
 	free(targ->t_redirection);
-	free(targ);
+	delete targ;
 }
 
 struct target *
@@ -1260,7 +1244,7 @@ connection_new(struct portal *portal, int fd, const char *host,
 	conn->conn.conn_socket = fd;
 	conn->conn_portal = portal;
 	conn->conn_initiator_addr = checked_strdup(host);
-	memcpy(&conn->conn_initiator_sa, client_sa, client_sa->sa_len);
+	conn->conn_initiator_sa = client_sa;
 
 	return (conn);
 }
@@ -1324,9 +1308,7 @@ conf_verify_lun(struct lun *lun)
 bool
 conf_verify(struct conf *conf)
 {
-	struct auth_group *ag;
 	struct portal_group *pg;
-	struct port *port;
 	struct target *targ;
 	struct lun *lun;
 	bool found;
@@ -1393,32 +1375,16 @@ conf_verify(struct conf *conf)
 			pg->pg_unassigned = true;
 		}
 	}
-	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
-		found = false;
-		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-			if (targ->t_auth_group == ag) {
-				found = true;
-				break;
-			}
-		}
-		TAILQ_FOREACH(port, &conf->conf_ports, p_next) {
-			if (port->p_auth_group == ag) {
-				found = true;
-				break;
-			}
-		}
-		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-			if (pg->pg_discovery_auth_group == ag) {
-				found = true;
-				break;
-			}
-		}
-		if (!found && ag->ag_name != NULL &&
-		    strcmp(ag->ag_name, "default") != 0 &&
-		    strcmp(ag->ag_name, "no-authentication") != 0 &&
-		    strcmp(ag->ag_name, "no-access") != 0) {
+	for (const auto &kv : conf->conf_auth_groups) {
+		const std::string &ag_name = kv.first;
+		if (ag_name == "default" ||
+		    ag_name == "no-authentication" ||
+		    ag_name == "no-access")
+			continue;
+
+		if (kv.second.use_count() == 1) {
 			log_warnx("auth-group \"%s\" not assigned "
-			    "to any target", ag->ag_name);
+			    "to any target", ag_name.c_str());
 		}
 	}
 
@@ -2200,11 +2166,11 @@ conf_new_from_file(const char *path, bool ucl)
 
 	ag = auth_group_new(conf, "no-authentication");
 	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
+	ag->set_type(auth_type::NO_AUTHENTICATION);
 
 	ag = auth_group_new(conf, "no-access");
 	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_DENY;
+	ag->set_type(auth_type::DENY);
 
 	pg = portal_group_new(conf, "default");
 	assert(pg != NULL);
@@ -2226,9 +2192,9 @@ conf_new_from_file(const char *path, bool ucl)
 	if (conf->conf_default_ag_defined == false) {
 		log_debugx("auth-group \"default\" not defined; "
 		    "going with defaults");
-		ag = auth_group_find(conf, "default");
+		ag = auth_group_find(conf, "default").get();
 		assert(ag != NULL);
-		ag->ag_type = AG_TYPE_DENY;
+		ag->set_type(auth_type::DENY);
 	}
 
 	if (conf->conf_default_pg_defined == false) {
