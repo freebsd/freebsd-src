@@ -1245,7 +1245,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		printf(" af-to %s from ", r->naf == AF_INET ? "inet" : "inet6");
 		print_pool(&r->nat, r->nat.proxy_port[0], r->nat.proxy_port[1],
 		    r->naf ? r->naf : r->af, PF_NAT);
-		if (r->rdr.cur != NULL && !TAILQ_EMPTY(&r->rdr.list)) {
+		if (!TAILQ_EMPTY(&r->rdr.list)) {
 			printf(" to ");
 			print_pool(&r->rdr, r->rdr.proxy_port[0],
 			    r->rdr.proxy_port[1], r->naf ? r->naf : r->af,
