@@ -118,8 +118,10 @@ smbios_identify (driver_t *driver, device_t parent)
 		return;
 
 	ptr = pmap_mapbios(addr, map_size);
-	if (ptr == NULL)
+	if (ptr == NULL) {
+		printf("smbios: Unable to map memory.\n");
 		return;
+	}
 	if (map_size == sizeof(*eps3)) {
 		eps3 = ptr;
 		length = eps3->length;
