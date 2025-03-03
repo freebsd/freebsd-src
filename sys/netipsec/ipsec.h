@@ -260,6 +260,7 @@ struct ipsecstat {
 #define	IPSECCTL_DEBUG			12
 #define	IPSECCTL_ESP_RANDPAD		13
 #define	IPSECCTL_MIN_PMTU		14
+#define	IPSECCTL_RANDOM_ID		15
 
 #ifdef _KERNEL
 #include <sys/counter.h>
@@ -293,6 +294,7 @@ VNET_DECLARE(int, ip4_ah_net_deflev);
 VNET_DECLARE(int, ip4_ipsec_dfbit);
 VNET_DECLARE(int, ip4_ipsec_min_pmtu);
 VNET_DECLARE(int, ip4_ipsec_ecn);
+VNET_DECLARE(int, ip4_ipsec_random_id);
 VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
 VNET_DECLARE(int, natt_cksum_policy);
@@ -310,6 +312,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	V_ip4_ipsec_dfbit	VNET(ip4_ipsec_dfbit)
 #define	V_ip4_ipsec_min_pmtu	VNET(ip4_ipsec_min_pmtu)
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
+#define	V_ip4_ipsec_random_id	VNET(ip4_ipsec_random_id)
 #define	V_crypto_support	VNET(crypto_support)
 #define	V_async_crypto		VNET(async_crypto)
 #define	V_natt_cksum_policy	VNET(natt_cksum_policy)

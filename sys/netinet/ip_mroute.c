@@ -2466,7 +2466,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
 	ip_outer->ip_tos = ip->ip_tos;
 	if (ip->ip_off & htons(IP_DF))
 		ip_outer->ip_off |= htons(IP_DF);
-	ip_fillid(ip_outer);
+	ip_fillid(ip_outer, V_ip_random_id);
 	pimhdr = (struct pim_encap_pimhdr *)((caddr_t)ip_outer
 			+ sizeof(pim_encap_iphdr));
 	*pimhdr = pim_encap_pimhdr;

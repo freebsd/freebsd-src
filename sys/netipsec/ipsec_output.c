@@ -1200,7 +1200,7 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 		ip->ip_src = saidx->src.sin.sin_addr;
 		ip->ip_dst = saidx->dst.sin.sin_addr;
 		ip_ecn_ingress(V_ip4_ipsec_ecn, &ip->ip_tos, &itos);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip4_ipsec_random_id);
 		break;
 #endif /* INET */
 #ifdef INET6

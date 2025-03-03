@@ -119,6 +119,7 @@ VNET_DEFINE(int, ip4_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
 /* ECN ignore(-1)/forbidden(0)/allowed(1) */
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
+VNET_DEFINE(int, ip4_ipsec_random_id) = 0;
 
 VNET_DEFINE_STATIC(int, ip4_filtertunnel) = 0;
 #define	V_ip4_filtertunnel VNET(ip4_filtertunnel)
@@ -201,6 +202,9 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_MIN_PMTU, min_pmtu,
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_RANDOM_ID, random_id,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_random_id), 0,
+	"Assign random ip_id values.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");

@@ -1900,7 +1900,7 @@ pfsync_sendout(int schedswi, int c)
 
 		len -= sizeof(union inet_template) - sizeof(struct ip);
 		ip->ip_len = htons(len);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		break;
 	    }
 #endif

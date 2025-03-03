@@ -5117,7 +5117,7 @@ ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		s2 = ntohs(ip->ip_id);
 
 		s1 = ip->ip_len;
@@ -5560,7 +5560,7 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		sum1 = ntohs(ip->ip_len);
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_len += fin->fin_plen;
