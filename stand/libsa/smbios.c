@@ -180,16 +180,10 @@ static caddr_t
 smbios_sigsearch(const caddr_t addr, const uint32_t len)
 {
 	caddr_t		cp;
+	caddr_t		v2_p = NULL;
 
 	/* Search on 16-byte boundaries. */
 	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP) {
-		/* v2.1, 32-bit Entry point */
-		if (strncmp(cp, SMBIOS_SIG, sizeof(SMBIOS_SIG) - 1) == 0 &&
-		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x05)) == 0 &&
-		    strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5) == 0 &&
-		    smbios_checksum(cp + 0x10, 0x0f) == 0)
-			return (cp);
-
 #ifdef SMBIOS_64BIT_EP
 		/* v3.0, 64-bit Entry point */
 		if (strncmp(cp, SMBIOS3_SIG, sizeof(SMBIOS3_SIG) - 1) == 0 &&
@@ -205,8 +199,24 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 			return (cp);
 		}
 #endif
+
+		/* v2.1, 32-bit Entry point */
+		if (strncmp(cp, SMBIOS_SIG, sizeof(SMBIOS_SIG) - 1) == 0 &&
+		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x05)) == 0 &&
+		    strncmp(cp + 0x10, SMBIOS_DMI_SIG, 5) == 0 &&
+		    smbios_checksum(cp + 0x10, 0x0f) == 0) {
+			/*
+			 * Note that we saw this entry point, but don't return
+			 * it right now on SMBIOS_64BIT_EP as we favor the 64-bit
+			 * one if present.
+			 */
+			v2_p = cp;
+#ifndef SMBIOS_64BIT_EP
+			break;
+#endif
+		}
 	}
-	return (NULL);
+	return (v2_p);
 }
 
 static const char*
