@@ -86,7 +86,7 @@ smbios_identify (driver_t *driver, device_t parent)
 	void *ptr;
 	device_t child;
 	vm_paddr_t addr = 0;
-	size_t map_size = sizeof (*eps);
+	size_t map_size = sizeof(*eps);
 	int length;
 
 	if (!device_is_alive(parent))
@@ -95,7 +95,7 @@ smbios_identify (driver_t *driver, device_t parent)
 #ifdef ARCH_MAY_USE_EFI
 	if (!efi_get_table(&efi_smbios3, &addr_efi)) {
 		addr = (vm_paddr_t)addr_efi;
-		map_size = sizeof (*eps3);
+		map_size = sizeof(*eps3);
 	} else if (!efi_get_table(&efi_smbios, &addr_efi)) {
 		addr = (vm_paddr_t)addr_efi;
 	}
@@ -112,7 +112,7 @@ smbios_identify (driver_t *driver, device_t parent)
 		ptr = pmap_mapbios(addr, map_size);
 		if (ptr == NULL)
 			return;
-		if (map_size == sizeof (*eps3)) {
+		if (map_size == sizeof(*eps3)) {
 			eps3 = ptr;
 			length = eps3->length;
 			if (memcmp(eps3->anchor_string,
