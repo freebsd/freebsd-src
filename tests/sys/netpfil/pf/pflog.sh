@@ -331,6 +331,8 @@ rdr_head()
 
 rdr_action_body()
 {
+	pflog_init
+
 	j="pflog:rdr_action"
 	epair_c=$(vnet_mkepair)
 	epair_srv=$(vnet_mkepair)
