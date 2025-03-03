@@ -182,7 +182,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	struct efi_map_header *efihdr;
 	bool do_vmap;
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__i386__)
+#ifdef MODINFOMD_EFI_FB
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;

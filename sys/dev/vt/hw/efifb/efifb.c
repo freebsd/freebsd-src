@@ -96,9 +96,11 @@ vt_efifb_init(struct vt_device *vd)
 {
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
-	int		memattr;
+	vm_memattr_t	memattr;
 	int		roff, goff, boff;
-	char		attr[16];
+
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	char attr[16];
 
 	/*
 	 * XXX TODO: I think there's more nuance here than we're acknowledging,
@@ -122,6 +124,9 @@ vt_efifb_init(struct vt_device *vd)
 			memattr = VM_MEMATTR_UNCACHEABLE;
 		}
 	}
+#else
+	memattr = VM_MEMATTR_UNCACHEABLE;
+#endif
 
 	info = vd->vd_softc;
 	if (info == NULL)
