@@ -29,11 +29,6 @@
 
 #define PTOV(x)		ptov(x)
 
-/* Only enable 64-bit entry point if it makes sense */
-#if __SIZEOF_POINTER__ > 4
-#define	SMBIOS_64BIT_EP	1
-#endif
-
 /*
  * Detect SMBIOS and export information about the SMBIOS into the
  * environment.
@@ -145,9 +140,7 @@ SMBIOS_GET64(const caddr_t base, int off)
 
 struct smbios_attr {
 	int		probed;
-#ifdef SMBIOS_64BIT_EP
 	int		is_64bit_ep;
-#endif
 	caddr_t		addr;
 	size_t		length;
 	size_t		count;
@@ -184,7 +177,6 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 
 	/* Search on 16-byte boundaries. */
 	for (cp = addr; cp < addr + len; cp += SMBIOS_STEP) {
-#ifdef SMBIOS_64BIT_EP
 		/* v3.0, 64-bit Entry point */
 		if (strncmp(cp, SMBIOS3_SIG, sizeof(SMBIOS3_SIG) - 1) == 0 &&
 		    /*
@@ -195,10 +187,19 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 		     */
 		    SMBIOS_GET8(cp, 0x0a) != 0 &&
 		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x06)) == 0) {
+#ifdef __ILP32__
+			uint64_t end_addr;
+
+			end_addr = SMBIOS_GET64(cp, 0x10) + /* Start address. */
+			    SMBIOS_GET32(cp, 0x0c); /* Maximum size. */
+			/* Is the table (or part of it) located above 4G? */
+			if (end_addr >= (uint64_t)1 << 32)
+				/* Can't access it with 32-bit addressing. */
+				continue;
+#endif
 			smbios.is_64bit_ep = 1;
 			return (cp);
 		}
-#endif
 
 		/* v2.1, 32-bit Entry point */
 		if (strncmp(cp, SMBIOS_SIG, sizeof(SMBIOS_SIG) - 1) == 0 &&
@@ -207,13 +208,9 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 		    smbios_checksum(cp + 0x10, 0x0f) == 0) {
 			/*
 			 * Note that we saw this entry point, but don't return
-			 * it right now on SMBIOS_64BIT_EP as we favor the 64-bit
-			 * one if present.
+			 * it right now as we favor the 64-bit one if present.
 			 */
 			v2_p = cp;
-#ifndef SMBIOS_64BIT_EP
-			break;
-#endif
 		}
 	}
 	return (v2_p);
@@ -586,7 +583,6 @@ smbios_probe(const caddr_t addr)
 	if (saddr == NULL)
 		return;
 
-#ifdef SMBIOS_64BIT_EP
 	if (smbios.is_64bit_ep) {
 		/* Structure Table Length */
 		smbios.length = SMBIOS_GET32(saddr, 0x0c);
@@ -601,9 +597,7 @@ smbios_probe(const caddr_t addr)
 		smbios.ver = 0;
 		maj_off = 0x07;
 		min_off = 0x08;
-	} else
-#endif
-	{
+	} else {
 		/* Structure Table Length */
 		smbios.length = SMBIOS_GET16(saddr, 0x16);
 		/* Structure Table Address */
@@ -661,11 +655,8 @@ smbios_detect(const caddr_t addr)
 	    dmi < smbios.addr + smbios.length && i < smbios.count; i++)
 		dmi = smbios_parse_table(dmi);
 
-	setenv("smbios.entry_point_type",
-#ifdef SMBIOS_64BIT_EP
-	    smbios.is_64bit_ep ? "v3 (64-bit)" :
-#endif
-	    "v2.1 (32-bit)", 1);
+	setenv("smbios.entry_point_type", smbios.is_64bit_ep ?
+	    "v3 (64-bit)" : "v2.1 (32-bit)", 1);
 	sprintf(buf, "%d.%d", smbios.major, smbios.minor);
 	setenv("smbios.version", buf, 1);
 	if (smbios.enabled_memory > 0 || smbios.old_enabled_memory > 0) {
