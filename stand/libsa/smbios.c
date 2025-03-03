@@ -144,6 +144,9 @@ SMBIOS_GET64(const caddr_t base, int off)
 
 struct smbios_attr {
 	int		probed;
+#ifdef SMBIOS_64BIT_EP
+	int		is_64bit_ep;
+#endif
 	caddr_t		addr;
 	size_t		length;
 	size_t		count;
@@ -160,9 +163,6 @@ struct smbios_attr {
 };
 
 static struct smbios_attr smbios;
-#ifdef SMBIOS_64BIT_EP
-static int is_64bit_ep;
-#endif
 
 static uint8_t
 smbios_checksum(const caddr_t addr, const uint8_t len)
@@ -193,7 +193,7 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 		/* v3.0, 64-bit Entry point */
 		if (strncmp(cp, SMBIOS3_SIG, sizeof(SMBIOS3_SIG) - 1) == 0 &&
 		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x06)) == 0) {
-			is_64bit_ep = 1;
+			smbios.is_64bit_ep = 1;
 			return (cp);
 		}
 #endif
@@ -562,7 +562,7 @@ smbios_probe(const caddr_t addr)
 		return;
 
 #ifdef SMBIOS_64BIT_EP
-	if (is_64bit_ep) {
+	if (smbios.is_64bit_ep) {
 		/* Structure Table Length */
 		smbios.length = SMBIOS_GET32(saddr, 0x0c);
 		/* Structure Table Address */
