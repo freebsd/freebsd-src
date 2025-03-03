@@ -1,5 +1,5 @@
 .\"
-.Dd December 6, 2024
+.Dd March 3, 2025
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -40,10 +40,10 @@ in-kernel NAT.
 .Ss SYSCTL SHORTCUTS
 .Nm
 .Cm enable
-.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive | skipto_cache
 .Nm
 .Cm disable
-.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
+.Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive | skipto_cache
 .Ss LOOKUP TABLES
 .Nm
 .Oo Cm set Ar N Oc Cm table Ar name Cm create Ar create-options
@@ -1395,6 +1395,16 @@ Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
 If an optional 32-bit unsigned
 .Ar value
 is also specified, an entry will match only if it has this value.
+If
+.Ar value
+is specified in form
+.Ar valtype=value ,
+then specified value type field will be checked.
+It can be
+.Ar skipto, pipe, fib, nat, dscp, tag, divert, netgraph, limit, nh4
+and
+.Ar mark.
+
 See the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables.
@@ -1865,7 +1875,7 @@ One or more
 of source and destination addresses and ports can be
 specified.
 .It Cm lookup Bro Cm dst-ip | dst-port | dst-mac | src-ip | src-port | src-mac | uid |
-.Cm jail | dscp | mark Brc Ar name
+.Cm jail | dscp | mark | rulenum Brc Ar name
 Search an entry in lookup table
 .Ar name
 that matches the field specified as argument.

@@ -269,7 +269,8 @@ struct accept_filter_arg {
 #define	AF_INET6_SDP	42		/* OFED Socket Direct Protocol ipv6 */
 #define	AF_HYPERV	43		/* HyperV sockets */
 #define	AF_DIVERT	44		/* divert(4) */
-#define	AF_MAX		44
+#define	AF_IPFWLOG	46
+#define	AF_MAX		46
 /*
  * When allocating a new AF_ constant, please only allocate
  * even numbered constants for FreeBSD until 134 as odd numbered AF_
@@ -395,6 +396,7 @@ struct sockproto {
 #define	PF_INET_SDP	AF_INET_SDP
 #define	PF_INET6_SDP	AF_INET6_SDP
 #define	PF_DIVERT	AF_DIVERT
+#define	PF_IPFWLOG	AF_IPFWLOG
 
 #define	PF_MAX		AF_MAX
 

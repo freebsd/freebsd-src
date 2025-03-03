@@ -35,8 +35,8 @@
 struct nat64stl_cfg {
 	struct named_object	no;
 
-	uint16_t		map64;	/* table with 6to4 mapping */
-	uint16_t		map46;	/* table with 4to6 mapping */
+	uint32_t		map64;	/* table with 6to4 mapping */
+	uint32_t		map46;	/* table with 4to6 mapping */
 
 	struct nat64_config	base;
 #define	NAT64STL_KIDX		0x0100
@@ -47,7 +47,7 @@ struct nat64stl_cfg {
 	char			name[64];
 };
 
-VNET_DECLARE(uint16_t, nat64stl_eid);
+VNET_DECLARE(uint32_t, nat64stl_eid);
 #define	V_nat64stl_eid	VNET(nat64stl_eid)
 #define	IPFW_TLV_NAT64STL_NAME	IPFW_TLV_EACTION_NAME(V_nat64stl_eid)
 
