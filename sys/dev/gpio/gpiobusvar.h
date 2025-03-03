@@ -36,12 +36,13 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#ifdef FDT
-#include <dev/ofw/ofw_bus_subr.h>
+#ifdef	INTRNG
+/* touched by LINT-ACPI */
+#include <machine/interrupt.h>
 #endif
 
-#ifdef	INTRNG
-#include <sys/intr.h>
+#ifdef FDT
+#include <dev/ofw/ofw_bus_subr.h>
 #endif
 
 #include "gpio_if.h"
