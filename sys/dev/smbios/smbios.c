@@ -241,18 +241,20 @@ smbios_attach (device_t dev)
 			    "Docrev: %u, Entry Point Revision: %u\n",
 			    sc->eps3->docrev, sc->eps3->entry_point_revision);
 	} else {
+		const struct smbios_eps *const eps = va;
+		const uint8_t bcd = eps->BCD_revision;
+
 		sc->eps = va;
 		device_printf(dev, "Entry point: v2.1 (32-bit), Version: %u.%u",
-		    sc->eps->major_version, sc->eps->minor_version);
-		if (bcd2bin(sc->eps->BCD_revision))
+		    eps->major_version, eps->minor_version);
+		if (bcd < LIBKERN_LEN_BCD2BIN && bcd2bin(bcd) != 0)
 			printf(", BCD Revision: %u.%u\n",
-			    bcd2bin(sc->eps->BCD_revision >> 4),
-			    bcd2bin(sc->eps->BCD_revision & 0x0f));
+			    bcd2bin(bcd >> 4), bcd2bin(bcd & 0x0f));
 		else
 			printf("\n");
 		if (bootverbose)
 			device_printf(dev, "Entry Point Revision: %u\n",
-			    sc->eps->entry_point_revision);
+			    eps->entry_point_revision);
 	}
 	return (0);
 }
