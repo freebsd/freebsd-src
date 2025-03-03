@@ -1,0 +1,128 @@
+#!/bin/sh
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+: ${BSDDIALOG_OK=0}
+
+# echo_title
+#
+# For displaying title during checks
+#
+echo_title() {
+	echo
+	echo $1
+}
+
+# 
+# option fsck parameters and check function
+#
+fsck_name="fsck"
+fsck_desc="fsck partition"
+fsck_onoff="on"
+option_fsck() {
+	echo_title "<=== FSCK ===>"
+	fsck /dev/$part
+}
+
+# 
+# option mtree parameters and check function
+#
+mtree_name="mtree"
+mtree_desc="compare partition mtree with installation media mtree"
+mtree_onoff="on"
+option_mtree() {
+	echo_title "<=== MTREE ===>"
+	mtree -e -p /mnt -f /etc/mtree/BSD.root.dist
+	if [ $? -ne 0 ]; then
+		bsddialog --backtitle "$OSNAME Installer" --title 'mtree detected changes' --yesno 'Some changes were detected. Would you like to reset to defaults?' 0 0
+		if [ $? -eq $BSDDIALOG_OK ]; then
+				mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist
+		fi
+	fi
+}
+
+# 
+# option zpool scrub parameters and check function
+#
+zpool_scrub_name="zpool-scrub"
+zpool_scrub_desc="zpool scrub pools"
+zpool_scrub_onoff="on"
+option_zpool_scrub() {
+	echo_title "<=== ZPOOL SCRUB ===>"
+	zpool scrub zroot
+}
+
+# 
+# Initialize by grepping ufs partitions and zfs pools on the system
+#
+partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid |  awk '{ print $3, $4 }')
+pools=$(zpool import | grep pool: | awk '{ print $2, "freebsd-zfs" }')
+if [ -z "$partitions" -a -z "$pools" ]; then
+	bsddialog --backtitle "$OSNAME Installer" --title 'No partition detected' --msgbox 'No partition detected. Exiting to live system.' 0 0
+	exit 1
+fi
+
+exec 5>&1
+part=$(echo $partitions $pools | xargs -o bsddialog --backtitle "${OSNAME} Installer" --title "Mount a partition" \
+	--menu "Select one of the partitions to mount" 0 0 0 2>&1 1>&5)
+[ $? -eq $BSDDIALOG_OK ] || exit 0
+
+#
+# Depending on the selected partition/pool, show different repair menu
+#
+fs=$(echo $partitions $pools | xargs -n 2 | grep $part | awk '{ print $2 }')
+if [ "$fs" == "freebsd-ufs" ]; then
+	mount /dev/$part /mnt
+
+	exec 5>&1
+	checks=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
+		--checklist 'Choose from the below commands to inspect partition' 0 0 0 \
+		$fsck_name $fsck_desc $fsck_onoff \
+		$mtree_name $mtree_desc $mtree_onoff \
+		2>&1 1>&5 )
+	retval=$?
+	exec 5>&-
+
+	[ $retval -eq $BSDDIALOG_OK ] || exit 1
+
+	# Perform selected checks
+	for check in $checks; do
+		case "$check" in
+		$fsck_name)
+			option_fsck
+			;;
+		$mtree_name)
+			option_mtree
+			;;
+		esac
+	done
+
+elif [ "$fs" == "freebsd-zfs" ]; then
+	mount -t tmpfs tmpfs /mnt
+	zpool import -o altroot=/mnt $part
+	zfs mount zroot/ROOT/default
+	
+	exec 5>&1
+	checks=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
+		--checklist 'Choose from the below commands to inspect partition' 0 0 0 \
+		$zpool_scrub_name $zpool_scrub_desc $zpool_scrub_onoff \
+		$mtree_name $mtree_desc $mtree_onoff \
+		2>&1 1>&5 )
+	retval=$?
+	exec 5>&-
+
+	[ $retval -eq $BSDDIALOG_OK ] || exit 1
+
+	# Perform selected checks
+	for check in $checks; do
+		case "$check" in
+		zpool_scrub_name)
+			option_zpool_scrub
+			;;
+		mtree_name)
+			option_mtree
+			;;
+		esac
+	done
+fi
