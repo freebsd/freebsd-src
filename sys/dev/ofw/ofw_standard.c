@@ -60,9 +60,8 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
-
-#include <machine/stdarg.h>
 
 #include <dev/ofw/ofwvar.h>
 #include <dev/ofw/openfirm.h>

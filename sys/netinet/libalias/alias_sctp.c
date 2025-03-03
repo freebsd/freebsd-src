@@ -72,12 +72,12 @@
 
 
 #ifdef _KERNEL
-#include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/gsb_crc32.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/stdarg.h>
 #include <sys/syslog.h>
 #include <netinet/libalias/alias_sctp.h>
 #include <netinet/libalias/alias.h>

@@ -24,7 +24,7 @@
 
 #ifdef _KERNEL
 #include <sys/malloc.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #else
 #include <stdarg.h>
 #endif
