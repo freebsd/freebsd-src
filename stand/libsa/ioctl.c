@@ -70,12 +70,12 @@ ioctl(int fd, u_long cmd, void *arg)
 		errno = EBADF;
 		return (-1);
 	}
-	if (f->f_flags & F_RAW) {
+	if (f->f_dev == NULL)
+		errno = EIO;
+	else
 		errno = (f->f_dev->dv_ioctl)(f, cmd, arg);
-		if (errno)
-			return (-1);
-		return (0);
-	}
-	errno = EIO;
-	return (-1);
+
+	if (errno != 0)
+		return (-1);
+	return (0);
 }
