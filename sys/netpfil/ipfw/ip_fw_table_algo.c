@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2014 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2014-2025 Yandex LLC
  * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2104,7 +2106,7 @@ ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	icfg = malloc(sizeof(struct iftable_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
-	icfg->ii = ipfw_objhash_create(DEFAULT_IFIDX_SIZE);
+	icfg->ii = ipfw_objhash_create(DEFAULT_IFIDX_SIZE, DEFAULT_OBJHASH_SIZE);
 	icfg->size = DEFAULT_IFIDX_SIZE;
 	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size, M_IPFW,
 	    M_WAITOK | M_ZERO);
@@ -3195,8 +3197,7 @@ ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
 	struct fhashentry *ent;
 	struct fhashentry4 *m4;
 	struct ipfw_flow_id *id;
-	uint32_t hsize;
-	uint16_t hash;
+	uint32_t hash, hsize;
 
 	id = (struct ipfw_flow_id *)key;
 	head = (struct fhashbhead *)ti->state;
@@ -4018,9 +4019,9 @@ struct table_algo addr_kfib = {
 
 struct mac_radix_entry {
 	struct radix_node	rn[2];
+	struct sa_mac		sa;
 	uint32_t		value;
 	uint8_t			masklen;
-	struct sa_mac		sa;
 };
 
 struct mac_radix_cfg {

@@ -1,9 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2020 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2015-2020 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,13 +64,12 @@ struct nat64lsn_states_chunk {
 #define	ISSET64(mask, bit)	((mask) & ((uint64_t)1 << (bit)))
 #define	ISSET32(mask, bit)	((mask) & ((uint32_t)1 << (bit)))
 struct nat64lsn_pg {
-	CK_SLIST_ENTRY(nat64lsn_pg)	entries;
-
 	uint16_t		base_port;
 	uint16_t		timestamp;
 	uint8_t			proto;
 	uint8_t			chunks_count;
-	uint8_t			spare[2];
+	uint16_t		flags;
+#define	NAT64LSN_DEADPG		1
 
 	union {
 		uint64_t	freemask64;
@@ -83,6 +82,11 @@ struct nat64lsn_pg {
 		struct nat64lsn_states_chunk *states;
 		struct nat64lsn_states_chunk **states_chunk;
 	};
+	/*
+	 * An alias object holds chain of all allocated PGs.
+	 * The chain is used mostly by expiration code.
+	 */
+	CK_SLIST_ENTRY(nat64lsn_pg)	entries;
 };
 
 #define	CHUNK_BY_FADDR(p, a)	((a) & ((p)->chunks_count - 1))
@@ -123,28 +127,39 @@ struct nat64lsn_alias {
 	struct mtx		lock;
 	in_addr_t		addr;	/* host byte order */
 	uint32_t		hosts_count;
-	uint32_t		portgroups_count;
-	uint32_t		tcp_chunkmask;
-	uint32_t		udp_chunkmask;
-	uint32_t		icmp_chunkmask;
 
-	uint32_t		tcp_pgidx;
-	uint32_t		udp_pgidx;
-	uint32_t		icmp_pgidx;
 	uint16_t		timestamp;
-	uint16_t		spare;
+	uint16_t		tcp_pgcount;
+	uint16_t		udp_pgcount;
+	uint16_t		icmp_pgcount;
+	/*
+	 * We keep PGs in chunks by 32 PGs in each.
+	 * Each chunk allocated by demand, and then corresponding bit
+	 * is set in chunkmask.
+	 *
+	 * Also we keep last used PG's index for each protocol.
+	 *   pgidx / 32 = index of pgchunk;
+	 *   pgidx % 32 = index of pgptr in pgchunk.
+	 */
+	uint32_t		tcp_chunkmask;
+	uint32_t		tcp_pgidx;
 
+	uint32_t		udp_chunkmask;
+	uint32_t		udp_pgidx;
+
+	uint32_t		icmp_chunkmask;
+	uint32_t		icmp_pgidx;
+	/*
+	 * Each pgchunk keeps 32 pointers to PGs. If pgptr pointer is
+	 * valid, we have corresponding bit set in the pgmask.
+	 */
 	uint32_t		tcp_pgmask[32];
 	uint32_t		udp_pgmask[32];
 	uint32_t		icmp_pgmask[32];
+
 	struct nat64lsn_pgchunk	*tcp[32];
 	struct nat64lsn_pgchunk	*udp[32];
 	struct nat64lsn_pgchunk	*icmp[32];
-
-	/* pointer to PG that can be used for faster state allocation */
-	struct nat64lsn_pg	*tcp_pg;
-	struct nat64lsn_pg	*udp_pg;
-	struct nat64lsn_pg	*icmp_pg;
 };
 #define	ALIAS_LOCK_INIT(p)	\
 	mtx_init(&(p)->lock, "alias_lock", NULL, MTX_DEF)
@@ -177,7 +192,7 @@ struct nat64lsn_host {
 #define	HOST_LOCK(p)		mtx_lock(&(p)->lock)
 #define	HOST_UNLOCK(p)		mtx_unlock(&(p)->lock)
 
-VNET_DECLARE(uint16_t, nat64lsn_eid);
+VNET_DECLARE(uint32_t, nat64lsn_eid);
 #define	V_nat64lsn_eid		VNET(nat64lsn_eid)
 #define	IPFW_TLV_NAT64LSN_NAME	IPFW_TLV_EACTION_NAME(V_nat64lsn_eid)
 
@@ -189,8 +204,6 @@ VNET_DECLARE(uint16_t, nat64lsn_eid);
 STAILQ_HEAD(nat64lsn_job_head, nat64lsn_job_item);
 
 struct nat64lsn_cfg {
-	struct named_object	no;
-
 	struct nat64lsn_hosts_slist	*hosts_hash;
 	struct nat64lsn_alias	*aliases;	/* array of aliases */
 
@@ -216,7 +229,8 @@ struct nat64lsn_cfg {
 	uint16_t	st_icmp_ttl;	/* ICMP expire */
 
 	struct nat64_config	base;
-#define	NAT64LSN_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE)
+#define	NAT64LSN_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE | \
+    NAT64LSN_ALLOW_SWAPCONF)
 #define	NAT64LSN_ANYPREFIX	0x00000100
 
 	struct mtx		periodic_lock;
@@ -225,6 +239,12 @@ struct nat64lsn_cfg {
 	struct vnet		*vp;
 	struct nat64lsn_job_head	jhead;
 	int			jlen;
+	char			name[64];	/* Nat instance name */
+};
+
+struct nat64lsn_instance {
+	struct named_object	no;
+	struct nat64lsn_cfg	*cfg;
 	char			name[64];	/* Nat instance name */
 };
 
@@ -241,9 +261,11 @@ struct nat64lsn_cfg {
 #define	CALLOUT_LOCK(p)		mtx_lock(&(p)->periodic_lock)
 #define	CALLOUT_UNLOCK(p)	mtx_unlock(&(p)->periodic_lock)
 
-struct nat64lsn_cfg *nat64lsn_init_instance(struct ip_fw_chain *ch,
+MALLOC_DECLARE(M_NAT64LSN);
+
+struct nat64lsn_cfg *nat64lsn_init_config(struct ip_fw_chain *ch,
     in_addr_t prefix, int plen);
-void nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg);
+void nat64lsn_destroy_config(struct nat64lsn_cfg *cfg);
 void nat64lsn_start_instance(struct nat64lsn_cfg *cfg);
 void nat64lsn_init_internal(void);
 void nat64lsn_uninit_internal(void);

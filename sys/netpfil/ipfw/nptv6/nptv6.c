@@ -60,7 +60,7 @@
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/nptv6/nptv6.h>
 
-VNET_DEFINE_STATIC(uint16_t, nptv6_eid) = 0;
+VNET_DEFINE_STATIC(uint32_t, nptv6_eid) = 0;
 #define	V_nptv6_eid	VNET(nptv6_eid)
 #define	IPFW_TLV_NPTV6_NAME	IPFW_TLV_EACTION_NAME(V_nptv6_eid)
 
@@ -76,7 +76,7 @@ static int nptv6_rewrite_external(struct nptv6_cfg *cfg, struct mbuf **mp,
     int offset);
 
 #define	NPTV6_LOOKUP(chain, cmd)	\
-    (struct nptv6_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
+    (struct nptv6_cfg *)SRV_OBJECT((chain), insntod(cmd, kidx)->kidx)
 
 #ifndef IN6_MASK_ADDR
 #define IN6_MASK_ADDR(a, m)	do { \
@@ -354,9 +354,9 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 
 	*done = 0; /* try next rule if not matched */
 	ret = IP_FW_DENY;
-	icmd = cmd + 1;
+	icmd = cmd + F_LEN(cmd);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_nptv6_eid ||
+	    insntod(cmd, kidx)->kidx != V_nptv6_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
 	    (cfg = NPTV6_LOOKUP(chain, icmd)) == NULL ||
 	    (cfg->flags & NPTV6_READY) == 0)
@@ -374,7 +374,7 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	 */
 	ip6 = mtod(args->m, struct ip6_hdr *);
 	NPTV6_IPDEBUG("eid %u, oid %u, %s -> %s %d",
-	    cmd->arg1, icmd->arg1,
+	    insntod(cmd, kidx)->kidx, insntod(icmd, kidx)->kidx,
 	    inet_ntop(AF_INET6, &ip6->ip6_src, _s, sizeof(_s)),
 	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)),
 	    ip6->ip6_nxt);
@@ -904,37 +904,38 @@ nptv6_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NPTV6_CREATE, 0,	HDIR_SET,	nptv6_create },
-	{ IP_FW_NPTV6_DESTROY,0,	HDIR_SET,	nptv6_destroy },
-	{ IP_FW_NPTV6_CONFIG, 0,	HDIR_BOTH,	nptv6_config },
-	{ IP_FW_NPTV6_LIST,   0,	HDIR_GET,	nptv6_list },
-	{ IP_FW_NPTV6_STATS,  0,	HDIR_GET,	nptv6_stats },
-	{ IP_FW_NPTV6_RESET_STATS,0,	HDIR_SET,	nptv6_reset_stats },
+    { IP_FW_NPTV6_CREATE,	IP_FW3_OPVER, HDIR_SET,	nptv6_create },
+    { IP_FW_NPTV6_DESTROY,	IP_FW3_OPVER, HDIR_SET,	nptv6_destroy },
+    { IP_FW_NPTV6_CONFIG,	IP_FW3_OPVER, HDIR_BOTH,nptv6_config },
+    { IP_FW_NPTV6_LIST,		IP_FW3_OPVER, HDIR_GET,	nptv6_list },
+    { IP_FW_NPTV6_STATS,	IP_FW3_OPVER, HDIR_GET,	nptv6_stats },
+    { IP_FW_NPTV6_RESET_STATS,	IP_FW3_OPVER, HDIR_SET,	nptv6_reset_stats },
 };
 
 static int
-nptv6_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+nptv6_classify(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
 	ipfw_insn *icmd;
 
-	icmd = cmd - 1;
-	NPTV6_DEBUG("opcode %d, arg1 %d, opcode0 %d, arg1 %d",
-	    cmd->opcode, cmd->arg1, icmd->opcode, icmd->arg1);
+	icmd = cmd0 - F_LEN(cmd0);
+	NPTV6_DEBUG("opcode %u, kidx %u, opcode0 %u, kidx %u",
+	    cmd->opcode, insntod(cmd, kidx)->kidx,
+	    icmd->opcode, insntod(icmd, kidx)->kidx);
 	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nptv6_eid)
+	    insntod(icmd, kidx)->kidx != V_nptv6_eid)
 		return (1);
 
-	*puidx = cmd->arg1;
+	*puidx = insntod(cmd0, kidx)->kidx;
 	*ptype = 0;
 	return (0);
 }
 
 static void
-nptv6_update_arg1(ipfw_insn *cmd, uint16_t idx)
+nptv6_update_kidx(ipfw_insn *cmd0, uint32_t idx)
 {
 
-	cmd->arg1 = idx;
-	NPTV6_DEBUG("opcode %d, arg1 -> %d", cmd->opcode, cmd->arg1);
+	insntod(cmd0, kidx)->kidx = idx;
+	NPTV6_DEBUG("opcode %u, kidx -> %u", cmd->opcode, idx);
 }
 
 static int
@@ -950,7 +951,7 @@ nptv6_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
 }
 
 static struct named_object *
-nptv6_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
+nptv6_findbykidx(struct ip_fw_chain *ch, uint32_t idx)
 {
 	struct namedobj_instance *ni;
 	struct named_object *no;
@@ -958,14 +959,14 @@ nptv6_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
 	IPFW_UH_WLOCK_ASSERT(ch);
 	ni = CHAIN_TO_SRV(ch);
 	no = ipfw_objhash_lookup_kidx(ni, idx);
-	KASSERT(no != NULL, ("NPT with index %d not found", idx));
+	KASSERT(no != NULL, ("NPT with index %u not found", idx));
 
 	NPTV6_DEBUG("kidx %u -> %s", idx, no->name);
 	return (no);
 }
 
 static int
-nptv6_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+nptv6_manage_sets(struct ip_fw_chain *ch, uint32_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
@@ -978,7 +979,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode	= O_EXTERNAL_INSTANCE,
 		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
 		.classifier = nptv6_classify,
-		.update = nptv6_update_arg1,
+		.update = nptv6_update_kidx,
 		.find_byname = nptv6_findbyname,
 		.find_bykidx = nptv6_findbykidx,
 		.manage_sets = nptv6_manage_sets,

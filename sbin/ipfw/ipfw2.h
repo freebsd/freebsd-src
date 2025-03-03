@@ -305,6 +305,8 @@ enum tokens {
 	TOK_LOGOFF,
 	TOK_PRIVATE,
 	TOK_PRIVATEOFF,
+	TOK_SWAPCONF,
+	TOK_SWAPCONFOFF,
 
 	/* NAT64 CLAT tokens */
 	TOK_NAT64CLAT,
@@ -463,5 +465,5 @@ int table_check_name(const char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
 void ipfw_list_values(int ac, char *av[]);
 void table_fill_ntlv(struct _ipfw_obj_ntlv *ntlv, const char *name,
-    uint8_t set, uint16_t uidx);
+    uint8_t set, uint32_t uidx);
 

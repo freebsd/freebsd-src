@@ -59,7 +59,7 @@
 
 #include "nat64clat.h"
 
-VNET_DEFINE(uint16_t, nat64clat_eid) = 0;
+VNET_DEFINE(uint32_t, nat64clat_eid) = 0;
 
 static struct nat64clat_cfg *nat64clat_alloc_config(const char *name,
     uint8_t set);
@@ -484,81 +484,23 @@ nat64clat_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT64CLAT_CREATE, 0,	HDIR_SET,	nat64clat_create },
-	{ IP_FW_NAT64CLAT_DESTROY,0,	HDIR_SET,	nat64clat_destroy },
-	{ IP_FW_NAT64CLAT_CONFIG, 0,	HDIR_BOTH,	nat64clat_config },
-	{ IP_FW_NAT64CLAT_LIST,   0,	HDIR_GET,	nat64clat_list },
-	{ IP_FW_NAT64CLAT_STATS,  0,	HDIR_GET,	nat64clat_stats },
-	{ IP_FW_NAT64CLAT_RESET_STATS,0,	HDIR_SET,	nat64clat_reset_stats },
+    { IP_FW_NAT64CLAT_CREATE,	IP_FW3_OPVER, HDIR_SET,	nat64clat_create },
+    { IP_FW_NAT64CLAT_DESTROY,	IP_FW3_OPVER, HDIR_SET,	nat64clat_destroy },
+    { IP_FW_NAT64CLAT_CONFIG,	IP_FW3_OPVER, HDIR_BOTH, nat64clat_config },
+    { IP_FW_NAT64CLAT_LIST,	IP_FW3_OPVER, HDIR_GET,	nat64clat_list },
+    { IP_FW_NAT64CLAT_STATS,	IP_FW3_OPVER, HDIR_GET,	nat64clat_stats },
+    { IP_FW_NAT64CLAT_RESET_STATS, IP_FW3_OPVER, HDIR_SET, nat64clat_reset_stats },
 };
 
 static int
-nat64clat_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
-{
-	ipfw_insn *icmd;
-
-	icmd = cmd - 1;
-	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nat64clat_eid)
-		return (1);
-
-	*puidx = cmd->arg1;
-	*ptype = 0;
-	return (0);
-}
-
-static void
-nat64clat_update_arg1(ipfw_insn *cmd, uint16_t idx)
-{
-
-	cmd->arg1 = idx;
-}
-
-static int
-nat64clat_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct named_object **pno)
-{
-	int err;
-
-	err = ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,
-	    IPFW_TLV_NAT64CLAT_NAME, pno);
-	return (err);
-}
-
-static struct named_object *
-nat64clat_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
-{
-	struct namedobj_instance *ni;
-	struct named_object *no;
-
-	IPFW_UH_WLOCK_ASSERT(ch);
-	ni = CHAIN_TO_SRV(ch);
-	no = ipfw_objhash_lookup_kidx(ni, idx);
-	KASSERT(no != NULL, ("NAT with index %d not found", idx));
-
-	return (no);
-}
-
-static int
-nat64clat_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+nat64clat_manage_sets(struct ip_fw_chain *ch, uint32_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
-	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch), IPFW_TLV_NAT64CLAT_NAME,
-	    set, new_set, cmd));
+	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch),
+	    IPFW_TLV_NAT64CLAT_NAME, set, new_set, cmd));
 }
-
-static struct opcode_obj_rewrite opcodes[] = {
-	{
-		.opcode = O_EXTERNAL_INSTANCE,
-		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
-		.classifier = nat64clat_classify,
-		.update = nat64clat_update_arg1,
-		.find_byname = nat64clat_findbyname,
-		.find_bykidx = nat64clat_findbykidx,
-		.manage_sets = nat64clat_manage_sets,
-	},
-};
+NAT64_DEFINE_OPCODE_REWRITER(nat64clat, NAT64CLAT, opcodes);
 
 static int
 destroy_config_cb(struct namedobj_instance *ni, struct named_object *no,
