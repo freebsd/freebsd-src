@@ -563,19 +563,27 @@ smbios_probe(const caddr_t addr)
 
 #ifdef HAS_SMBV3
 	if (isv3) {
-		smbios.length = SMBIOS_GET32(saddr, 0x0c);	/* Structure Table Length */
-		paddr = SMBIOS_GET64(saddr, 0x10);		/* Structure Table Address */
-		smbios.count = -1;				/* not present in V3 */
-		smbios.ver = 0;					/* not present in V3 */
+		/* Structure Table Length */
+		smbios.length = SMBIOS_GET32(saddr, 0x0c);
+		/* Structure Table Address */
+		paddr = SMBIOS_GET64(saddr, 0x10);
+		/* not present in V3 */
+		smbios.count = -1;
+		/* not present in V3 */
+		smbios.ver = 0;
 		maj_off = 0x07;
 		min_off = 0x08;
 	} else
 #endif
 	{
-		smbios.length = SMBIOS_GET16(saddr, 0x16);	/* Structure Table Length */
-		paddr = SMBIOS_GET32(saddr, 0x18);		/* Structure Table Address */
-		smbios.count = SMBIOS_GET16(saddr, 0x1c);	/* No of SMBIOS Structures */
-		smbios.ver = SMBIOS_GET8(saddr, 0x1e);		/* SMBIOS BCD Revision */
+		/* Structure Table Length */
+		smbios.length = SMBIOS_GET16(saddr, 0x16);
+		/* Structure Table Address */
+		paddr = SMBIOS_GET32(saddr, 0x18);
+		/* No of SMBIOS Structures */
+		smbios.count = SMBIOS_GET16(saddr, 0x1c);
+		/* SMBIOS BCD Revision */
+		smbios.ver = SMBIOS_GET8(saddr, 0x1e);
 		maj_off = 0x06;
 		min_off = 0x07;
 	}
@@ -588,8 +596,8 @@ smbios_probe(const caddr_t addr)
 			smbios.ver = 0;
 	}
 	if (smbios.ver == 0) {
-		smbios.major = SMBIOS_GET8(saddr, maj_off);/* SMBIOS Major Version */
-		smbios.minor = SMBIOS_GET8(saddr, min_off);/* SMBIOS Minor Version */
+		smbios.major = SMBIOS_GET8(saddr, maj_off);
+		smbios.minor = SMBIOS_GET8(saddr, min_off);
 	}
 	smbios.ver = (smbios.major << 8) | smbios.minor;
 	smbios.addr = PTOV(paddr);
