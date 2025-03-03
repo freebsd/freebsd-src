@@ -71,6 +71,8 @@ enum feat_list {
 	ICE_FEATURE_TX_BALANCE,
 	ICE_FEATURE_DUAL_NAC,
 	ICE_FEATURE_TEMP_SENSOR,
+	ICE_FEATURE_NEXT_CLUSTER_ID,
+	ICE_FEATURE_PHY_STATISTICS,
 	/* Must be last entry */
 	ICE_FEATURE_COUNT
 };
@@ -89,6 +91,7 @@ enum feat_list {
 static inline void
 ice_disable_unsupported_features(ice_bitmap_t __unused *bitmap)
 {
+	ice_clear_bit(ICE_FEATURE_SRIOV, bitmap);
 #ifndef DEV_NETMAP
 	ice_clear_bit(ICE_FEATURE_NETMAP, bitmap);
 #endif
