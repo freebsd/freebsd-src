@@ -2280,6 +2280,7 @@ VNET_DECLARE(struct pf_krule *, pf_rulemarker);
 #define V_pf_rulemarker     VNET(pf_rulemarker)
 #endif
 
+void				 unhandled_af(int) __dead2;
 int				 pf_start(void);
 int				 pf_stop(void);
 void				 pf_initialize(void);

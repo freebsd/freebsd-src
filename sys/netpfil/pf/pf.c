@@ -601,6 +601,8 @@ pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
 			return (-1);
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 	return (0);
 }
@@ -616,7 +618,7 @@ pf_is_loopback(sa_family_t af, struct pf_addr *addr)
 	case AF_INET6:
 		return IN6_IS_ADDR_LOOPBACK(&addr->v6);
 	default:
-		panic("Unknown af %d", af);
+		unhandled_af(af);
 	}
 }
 
@@ -696,6 +698,8 @@ pf_packet_rework_nat(struct mbuf *m, struct pf_pdesc *pd, int off,
 			case AF_INET6:
 				PF_ACPY(pd->src, &nk->addr[pd->sidx], pd->af);
 				break;
+			default:
+				unhandled_af(pd->af);
 			}
 		}
 		if (PF_ANEQ(pd->dst, &nk->addr[pd->didx], pd->af)) {
@@ -708,6 +712,8 @@ pf_packet_rework_nat(struct mbuf *m, struct pf_pdesc *pd, int off,
 			case AF_INET6:
 				PF_ACPY(pd->dst, &nk->addr[pd->didx], pd->af);
 				break;
+			default:
+				unhandled_af(pd->af);
 			}
 		}
 		break;
@@ -740,6 +746,8 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 		h = murmur3_32_hash32((uint32_t *)&addr->v6,
 		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
 		break;
+	default:
+		unhandled_af(af);
 	}
 
 	return (h & V_pf_srchashmask);
@@ -803,6 +811,8 @@ pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 	case AF_INET6:
 		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
 		break;
+	default:
+		unhandled_af(af);
 	}
 }
 #endif /* INET6 */
@@ -931,6 +941,8 @@ pf_overload_task(void *v, int pending)
 			p.pfra_ip6addr = pfoe->addr.v6;
 			break;
 #endif
+		default:
+			unhandled_af(pfoe->af);
 		}
 
 		PF_RULES_WLOCK();
@@ -2174,6 +2186,8 @@ pf_isforlocal(struct mbuf *m, int af)
 		return (! (ia->ia6_flags & IN6_IFF_NOTREADY));
 	}
 #endif
+	default:
+		unhandled_af(af);
 	}
 
 	return (false);
@@ -2335,6 +2349,8 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 		}
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(pd->af);
 	}
 	HTONS(*virtual_type);
 	return (0);  /* These types match to their own state */
@@ -2960,6 +2976,8 @@ pf_print_host(struct pf_addr *addr, u_int16_t p, sa_family_t af)
 		break;
 	}
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 }
 
@@ -3333,6 +3351,8 @@ pf_change_ap(struct mbuf *m, struct pf_addr *a, u_int16_t *p, u_int16_t *ic,
 		}
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | 
@@ -3639,6 +3659,8 @@ pf_change_icmp_af(struct mbuf *m, int off, struct pf_pdesc *pd,
 		ip6->ip6_src = src->v6;
 		ip6->ip6_dst = dst->v6;
 		break;
+	default:
+		unhandled_af(naf);
 	}
 
 	/* adjust payload offset and total packet length */
@@ -3877,6 +3899,8 @@ pf_translate_icmp_af(int af, void *arg)
 			icmp4->icmp_void = htonl(ptr);
 		}
 		break;
+	default:
+		unhandled_af(af);
 	}
 #endif /* INET && INET6 */
 
@@ -3983,6 +4007,8 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		len = sizeof(struct ip6_hdr) + tlen;
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 
 	m = m_gethdr(M_NOWAIT, MT_DATA);
@@ -4148,6 +4174,8 @@ pf_send_sctp_abort(sa_family_t af, struct pf_pdesc *pd,
 		off += sizeof(struct ip6_hdr);
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 
 	/* SCTP header */
@@ -4231,6 +4259,8 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 		pfse->pfse_type = PFSE_IP6;
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 
 	pfse->pfse_m = m;
@@ -7648,6 +7678,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 		icmpsum = &pd->hdr.icmp6.icmp6_cksum;
 		break;
 #endif /* INET6 */
+	default:
+		panic("unhandled proto %d", pd->proto);
 	}
 
 	if (pf_icmp_mapping(pd, icmptype, &icmp_dir, &virtual_id,
@@ -7849,6 +7881,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			pd2.ip_sum = NULL;
 			break;
 #endif /* INET6 */
+		default:
+			unhandled_af(pd->af);
 		}
 
 		if (PF_ANEQ(pd->dst, pd2.src, pd->af)) {
@@ -8052,6 +8086,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    (caddr_t )&h2_6);
 					break;
 #endif /* INET6 */
+				default:
+					unhandled_af(pd->af);
 				}
 				m_copyback(pd->m, pd2.off, 8, (caddr_t)&th);
 			}

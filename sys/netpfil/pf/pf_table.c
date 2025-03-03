@@ -754,12 +754,17 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	PF_RULES_ASSERT();
 
 	bzero(&sa, sizeof(sa));
-	if (ad->pfra_af == AF_INET) {
+	switch (ad->pfra_af) {
+	case AF_INET:
 		FILLIN_SIN(sa.sin, ad->pfra_ip4addr);
 		head = &kt->pfrkt_ip4->rh;
-	} else if ( ad->pfra_af == AF_INET6 ) {
+		break;
+	case AF_INET6:
 		FILLIN_SIN6(sa.sin6, ad->pfra_ip6addr);
 		head = &kt->pfrkt_ip6->rh;
+		break;
+	default:
+		unhandled_af(ad->pfra_af);
 	}
 	if (ADDR_NETWORK(ad)) {
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
@@ -957,10 +962,16 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	PF_RULES_WASSERT();
 
 	bzero(ke->pfrke_node, sizeof(ke->pfrke_node));
-	if (ke->pfrke_af == AF_INET)
+	switch (ke->pfrke_af) {
+	case AF_INET:
 		head = &kt->pfrkt_ip4->rh;
-	else if (ke->pfrke_af == AF_INET6)
+		break;
+	case AF_INET6:
 		head = &kt->pfrkt_ip6->rh;
+		break;
+	default:
+		unhandled_af(ke->pfrke_af);
+	}
 
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -978,10 +989,16 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	struct radix_node	*rn;
 	struct radix_head	*head = NULL;
 
-	if (ke->pfrke_af == AF_INET)
+	switch (ke->pfrke_af) {
+	case AF_INET:
 		head = &kt->pfrkt_ip4->rh;
-	else if (ke->pfrke_af == AF_INET6)
+		break;
+	case AF_INET6:
 		head = &kt->pfrkt_ip6->rh;
+		break;
+	default:
+		unhandled_af(ke->pfrke_af);
+	}
 
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -1051,7 +1068,7 @@ pfr_sockaddr_to_pf_addr(const union sockaddr_union *sa, struct pf_addr *a)
 		memcpy(&a->v6, &sa->sin6.sin6_addr, sizeof(a->v6));
 		break;
 	default:
-		panic("Unknown AF");
+		unhandled_af(sa->sa.sa_family);
 	}
 }
 
@@ -2079,6 +2096,8 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 		break;
 	    }
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 	match = (ke && !ke->pfrke_not);
 	if (match)
@@ -2131,7 +2150,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	    }
 #endif /* INET6 */
 	default:
-		panic("%s: unknown address family %u", __func__, af);
+		unhandled_af(af);
 	}
 	if ((ke == NULL || ke->pfrke_not) != notrule) {
 		if (op_pass != PFR_OP_PASS)
@@ -2261,6 +2280,8 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 		uaddr.sin6.sin6_family = AF_INET6;
 		addr = (struct pf_addr *)&uaddr.sin6.sin6_addr;
 		break;
+	default:
+		unhandled_af(af);
 	}
 
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE) && kt->pfrkt_root != NULL)
