@@ -124,21 +124,13 @@ smbios_identify (driver_t *driver, device_t parent)
 	if (map_size == sizeof(*eps3)) {
 		eps3 = ptr;
 		length = eps3->length;
-		if (memcmp(eps3->anchor_string,
-		    SMBIOS3_SIG, SMBIOS3_LEN) != 0) {
-			printf("smbios3: corrupt sig %s found\n",
-			    eps3->anchor_string);
-			goto unmap_return;
-		}
+		if (memcmp(eps3->anchor_string, SMBIOS3_SIG, SMBIOS3_LEN) != 0)
+			goto corrupt_sig;
 	} else {
 		eps = ptr;
 		length = eps->length;
-		if (memcmp(eps->anchor_string,
-		    SMBIOS_SIG, SMBIOS_LEN) != 0) {
-			printf("smbios: corrupt sig %s found\n",
-			    eps->anchor_string);
-			goto unmap_return;
-		}
+		if (memcmp(eps->anchor_string, SMBIOS_SIG, SMBIOS_LEN) != 0)
+			goto corrupt_sig;
 	}
 	if (length != map_size) {
 		/*
@@ -167,6 +159,31 @@ smbios_identify (driver_t *driver, device_t parent)
 unmap_return:
 	pmap_unmapbios(ptr, map_size);
 	return;
+
+corrupt_sig:
+	{
+		const char *sig;
+	        const char *table_ver_str;
+		size_t i, end;
+
+		if (map_size == sizeof(*eps3)) {
+			sig = eps3->anchor_string;
+			table_ver_str = "64";
+			end = SMBIOS3_LEN;
+		} else {
+			sig = eps->anchor_string;
+			table_ver_str = "32";
+			end = SMBIOS_LEN;
+		}
+
+		/* Space after ':' printed by the loop. */
+		printf("smbios: %s-bit Entry Point: Corrupt signature (hex):",
+		    table_ver_str);
+		for (i = 0; i < end; ++i)
+			printf(" %02hhx", sig[i]);
+		printf("\n");
+	}
+	goto unmap_return;
 }
 
 static int
