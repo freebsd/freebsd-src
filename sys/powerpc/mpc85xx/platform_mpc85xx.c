@@ -617,14 +617,12 @@ mpc85xx_rcpm_attach(device_t dev)
 static device_method_t mpc85xx_rcpm_methods[] = {
 	DEVMETHOD(device_probe,		mpc85xx_rcpm_probe),
 	DEVMETHOD(device_attach,	mpc85xx_rcpm_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t mpc85xx_rcpm_driver = {
-	"rcpm",
-	mpc85xx_rcpm_methods,
-	sizeof(struct mpc85xx_rcpm_softc)
-};
+PRIVATE_DEFINE_CLASSN(rcpm, mpc85xx_rcpm_driver, mpc85xx_rcpm_methods,
+    sizeof(struct mpc85xx_rcpm_softc));
 
 EARLY_DRIVER_MODULE(mpc85xx_rcpm, simplebus, mpc85xx_rcpm_driver, 0, 0,
     BUS_PASS_BUS);
@@ -691,14 +689,12 @@ mpc85xx_guts_attach(device_t dev)
 static device_method_t mpc85xx_guts_methods[] = {
 	DEVMETHOD(device_probe,		mpc85xx_guts_probe),
 	DEVMETHOD(device_attach,	mpc85xx_guts_attach),
+
 	DEVMETHOD_END
 };
 
-static driver_t mpc85xx_guts_driver = {
-	"guts",
-	mpc85xx_guts_methods,
-	sizeof(struct mpc85xx_guts_softc)
-};
+PRIVATE_DEFINE_CLASSN(guts, mpc85xx_guts_driver, mpc85xx_guts_methods,
+    sizeof(struct mpc85xx_guts_softc));
 
 EARLY_DRIVER_MODULE(mpc85xx_guts, simplebus, mpc85xx_guts_driver, 0, 0,
     BUS_PASS_BUS);

@@ -1402,13 +1402,8 @@ static device_method_t axp2xx_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t axp2xx_driver = {
-	"axp2xx_pmu",
-	axp2xx_methods,
-	sizeof(struct axp2xx_softc),
-};
-
-extern driver_t ofw_gpiobus_driver, gpioc_driver;
+PRIVATE_DEFINE_CLASSN(axp2xx_pmu, axp2xx_driver, axp2xx_methods,
+    sizeof(struct axp2xx_softc));
 
 EARLY_DRIVER_MODULE(axp2xx, iicbus, axp2xx_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

@@ -811,11 +811,8 @@ static device_method_t cmn600_acpi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t cmn600_acpi_driver = {
-	"cmn600",
-	cmn600_acpi_methods,
-	sizeof(struct cmn600_softc),
-};
+PRIVATE_DEFINE_CLASSN(cmn600, cmn600_acpi_driver, cmn600_acpi_methods,
+    sizeof(struct cmn600_softc));
 
 DRIVER_MODULE(cmn600, acpi, cmn600_acpi_driver, 0, 0);
 MODULE_VERSION(cmn600, 1);

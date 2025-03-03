@@ -59,7 +59,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/asm.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
@@ -255,10 +255,7 @@ static device_method_t rcons_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rcons_driver = {
-	"rcons",
-	rcons_methods,
-	sizeof(struct rcons_softc)
-};
+PRIVATE_DEFINE_CLASSN(rcons, rcons_driver, rcons_methods,
+    sizeof(struct rcons_softc));
 
 DRIVER_MODULE(rcons, nexus, rcons_driver, 0, 0);

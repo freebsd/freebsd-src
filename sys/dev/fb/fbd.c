@@ -32,6 +32,9 @@
 /* TODO unlink from VT(9) */
 /* TODO done normal /dev/fb methods */
 
+/* NOTICE: arm/nvidia/drm2/tegra_host1x.c is the last user.  Once JETSON-TK1
+** and TEGRA124 are removed, this file will be unused. */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -348,14 +351,10 @@ static device_method_t fbd_methods[] = {
 
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
-driver_t fbd_driver = {
-	"fbd",
-	fbd_methods,
-	sizeof(struct fbd_softc)
-};
+PUBLIC_DEFINE_CLASSN(fbd, fbd_driver, fbd_methods, sizeof(struct fbd_softc));
 
 DRIVER_MODULE(fbd, fb, fbd_driver, 0, 0);
 DRIVER_MODULE(fbd, drmn, fbd_driver, 0, 0);

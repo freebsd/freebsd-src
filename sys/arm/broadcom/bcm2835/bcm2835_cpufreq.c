@@ -39,7 +39,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -1569,11 +1569,8 @@ static device_method_t bcm2835_cpufreq_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm2835_cpufreq_driver = {
-	"bcm2835_cpufreq",
-	bcm2835_cpufreq_methods,
-	sizeof(struct bcm2835_cpufreq_softc),
-};
+PRIVATE_DEFINE_CLASSN(bcm2835_cpufreq, bcm2835_cpufreq_driver,
+    bcm2835_cpufreq_methods, sizeof(struct bcm2835_cpufreq_softc));
 
 DRIVER_MODULE(bcm2835_cpufreq, cpu, bcm2835_cpufreq_driver, 0, 0);
 MODULE_DEPEND(bcm2835_cpufreq, bcm2835_firmware, 1, 1, 1);

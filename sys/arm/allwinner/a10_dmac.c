@@ -459,10 +459,7 @@ static device_method_t a10dmac_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t a10dmac_driver = {
-	"a10dmac",
-	a10dmac_methods,
-	sizeof(struct a10dmac_softc)
-};
+PRIVATE_DEFINE_CLASSN(a10dmac, a10dmac_driver, a10dmac_methods,
+    sizeof(struct a10dmac_softc));
 
 DRIVER_MODULE(a10dmac, simplebus, a10dmac_driver, 0, 0);

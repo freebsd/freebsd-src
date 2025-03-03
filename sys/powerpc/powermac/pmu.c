@@ -51,7 +51,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/pio.h>
@@ -145,11 +145,7 @@ static device_method_t  pmu_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t pmu_driver = {
-	"pmu",
-	pmu_methods,
-	sizeof(struct pmu_softc),
-};
+PRIVATE_DEFINE_CLASSN(pmu, pmu_driver, pmu_methods, sizeof(struct pmu_softc));
 
 EARLY_DRIVER_MODULE(pmu, macio, pmu_driver, 0, 0, BUS_PASS_RESOURCE);
 DRIVER_MODULE(adb, pmu, adb_driver, 0, 0);
@@ -161,14 +157,11 @@ static device_method_t  pmuextint_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pmuextint_probe),
 	DEVMETHOD(device_attach,	pmuextint_attach),
-	{0,0}
+
+	DEVMETHOD_END
 };
 
-static driver_t pmuextint_driver = {
-	"pmuextint",
-	pmuextint_methods,
-	0
-};
+PRIVATE_DEFINE_CLASSN(pmuextint, pmuextint_driver, pmuextint_methods, 0);
 
 EARLY_DRIVER_MODULE(pmuextint, macgpio, pmuextint_driver, 0, 0,
     BUS_PASS_RESOURCE);

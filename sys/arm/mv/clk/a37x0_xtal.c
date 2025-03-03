@@ -62,14 +62,12 @@ static device_method_t a37x0_xtal_methods [] = {
 	DEVMETHOD(device_probe, 	a37x0_xtal_probe),
 	DEVMETHOD(device_attach, 	a37x0_xtal_attach),
 	DEVMETHOD(device_detach, 	a37x0_xtal_detach),
+
 	DEVMETHOD_END
 };
 
-static driver_t a37x0_xtal_driver = {
-	"a37x0-xtal",
-	a37x0_xtal_methods,
-	sizeof(struct a37x0_xtal_softc)
-};
+PRIVATE_DEFINE_CLASSN(a37x0-xtal, a37x0_xtal_driver, a37x0_xtal_methods,
+    sizeof(struct a37x0_xtal_softc));
 
 EARLY_DRIVER_MODULE(a37x0_xtal, simplebus, a37x0_xtal_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);

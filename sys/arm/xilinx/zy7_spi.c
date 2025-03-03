@@ -576,11 +576,8 @@ static device_method_t zy7_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t zy7_spi_driver = {
-	"zy7_spi",
-	zy7_spi_methods,
-	sizeof(struct zy7_spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(zy7_spi, zy7_spi_driver, zy7_spi_methods,
+    sizeof(struct zy7_spi_softc));
 
 DRIVER_MODULE(zy7_spi, simplebus, zy7_spi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, zy7_spi, ofw_spibus_driver, 0, 0);

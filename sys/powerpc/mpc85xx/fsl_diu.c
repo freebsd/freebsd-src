@@ -450,13 +450,10 @@ static device_method_t diu_methods[] = {
 
 	/* Framebuffer service methods */
 	DEVMETHOD(fb_getinfo,		diu_fb_getinfo),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t diu_driver = {
-	"fb",
-	diu_methods,
-	sizeof(struct diu_softc),
-};
+PRIVATE_DEFINE_CLASSN(fb, diu_driver, diu_methods, sizeof(struct diu_softc));
 
 DRIVER_MODULE(fb, simplebus, diu_driver, 0, 0);

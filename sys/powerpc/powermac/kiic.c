@@ -135,14 +135,12 @@ static device_method_t kiic_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	kiic_get_node),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t kiic_driver = {
-	"iichb",
-	kiic_methods,
-	sizeof(struct kiic_softc)
-};
+PRIVATE_DEFINE_CLASSN(iichb, kiic_driver, kiic_methods,
+    sizeof(struct kiic_softc));
 
 DRIVER_MODULE(kiic, macio, kiic_driver, 0, 0);
 DRIVER_MODULE(kiic, unin, kiic_driver, 0, 0);

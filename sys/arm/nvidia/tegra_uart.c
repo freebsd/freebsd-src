@@ -238,6 +238,7 @@ static device_method_t tegra_uart_bus_methods[] = {
 	DEVMETHOD(device_probe,		tegra_uart_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	tegra_uart_detach),
+
 	DEVMETHOD_END
 };
 

@@ -182,7 +182,8 @@ static device_method_t pmu_acpi_methods[] = {
 	DEVMETHOD(device_identify,	pmu_acpi_identify),
 	DEVMETHOD(device_probe,		pmu_acpi_probe),
 	DEVMETHOD(device_attach,	pmu_acpi_attach),
-	DEVMETHOD_END,
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(pmu, pmu_acpi_driver, pmu_acpi_methods,

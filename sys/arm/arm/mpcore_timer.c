@@ -56,7 +56,7 @@
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <machine/machdep.h> /* For arm_set_delay */
 
@@ -447,14 +447,12 @@ arm_tmr_attach(device_t dev)
 static device_method_t arm_tmr_methods[] = {
 	DEVMETHOD(device_probe,		arm_tmr_probe),
 	DEVMETHOD(device_attach,	arm_tmr_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t arm_tmr_driver = {
-	"mp_tmr",
-	arm_tmr_methods,
-	sizeof(struct arm_tmr_softc),
-};
+PRIVATE_DEFINE_CLASSN(arm_tmr_methods, arm_tmr_driver, arm_tmr_methods,
+    sizeof(struct arm_tmr_softc));
 
 EARLY_DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);

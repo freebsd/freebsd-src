@@ -36,7 +36,7 @@
 #include <sys/watchdog.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 
 #include <dev/ofw/openfirm.h>
@@ -501,11 +501,8 @@ static device_method_t aw_timer_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_timer_driver = {
-	"aw_timer",
-	aw_timer_methods,
-	sizeof(struct aw_timer_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_timer, aw_timer_driver, aw_timer_methods,
+    sizeof(struct aw_timer_softc));
 
 EARLY_DRIVER_MODULE(aw_timer, simplebus, aw_timer_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);

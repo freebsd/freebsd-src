@@ -41,7 +41,7 @@
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -136,14 +136,12 @@ static device_method_t unin_chip_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t	unin_chip_driver = {
-	"unin",
-	unin_chip_methods,
-	sizeof(struct unin_chip_softc)
-};
+PRIVATE_DEFINE_CLASSN(unin, unin_chip_driver, unin_chip_methods,
+    sizeof(struct unin_chip_softc));
 
 /*
  * Assume there is only one unin chip in a PowerMac, so that pmu.c functions can

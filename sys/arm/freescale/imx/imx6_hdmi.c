@@ -205,10 +205,7 @@ static device_method_t imx_hdmi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t imx_hdmi_driver = {
-	"hdmi",
-	imx_hdmi_methods,
-	sizeof(struct imx_hdmi_softc)
-};
+PRIVATE_DEFINE_CLASSN(hdmi, imx_hdmi_driver, imx_hdmi_methods,
+    sizeof(struct imx_hdmi_softc));
 
 DRIVER_MODULE(hdmi, simplebus, imx_hdmi_driver, 0, 0);

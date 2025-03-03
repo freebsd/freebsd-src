@@ -37,7 +37,7 @@
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
@@ -384,7 +384,7 @@ static platform_method_t imx6_methods[] = {
 
 	PLATFORMMETHOD(platform_pl310_init,	imx6_pl310_init),
 
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s", 80);
