@@ -51,6 +51,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/uma.h>
@@ -267,7 +268,7 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 		struct pctrie_iter pages;
 
 		vm_page_iter_init(&pages, object);
-		vm_page_iter_lookup(&pages, m->pindex);
+		vm_radix_iter_lookup(&pages, m->pindex);
 		cdev_mgtdev_pager_free_page(&pages, m);
 	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
@@ -292,7 +293,7 @@ cdev_mgtdev_pager_free_pages(vm_object_t object)
 	vm_page_iter_init(&pages, object);
 	VM_OBJECT_WLOCK(object);
 retry:
-	for (m = vm_page_iter_lookup_ge(&pages, 0); m != NULL;
+	for (m = vm_radix_iter_lookup_ge(&pages, 0); m != NULL;
 	    m = vm_radix_iter_step(&pages)) {
 		if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL)) {
 			pctrie_iter_reset(&pages);

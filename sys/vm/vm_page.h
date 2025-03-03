@@ -645,7 +645,6 @@ void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
-vm_page_t vm_page_iter_lookup_ge(struct pctrie_iter *, vm_pindex_t);
 void vm_page_free_invalid(vm_page_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
@@ -656,7 +655,6 @@ void vm_page_invalid(vm_page_t m);
 void vm_page_iter_free(struct pctrie_iter *pages, vm_page_t m);
 void vm_page_iter_init(struct pctrie_iter *, vm_object_t);
 void vm_page_iter_limit_init(struct pctrie_iter *, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_iter_lookup(struct pctrie_iter *, vm_pindex_t);
 bool vm_page_iter_remove(struct pctrie_iter *pages, vm_page_t m);
 bool vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
     vm_object_t new_object, vm_pindex_t new_pindex);

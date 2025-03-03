@@ -1837,21 +1837,6 @@ vm_page_iter_limit_init(struct pctrie_iter *pages, vm_object_t object,
 }
 
 /*
- *	vm_page_iter_lookup:
- *
- *	Returns the page associated with the object/offset pair specified, and
- *	stores the path to its position; if none is found, NULL is returned.
- *
- *	The iter pctrie must be locked.
- */
-vm_page_t
-vm_page_iter_lookup(struct pctrie_iter *pages, vm_pindex_t pindex)
-{
-
-	return (vm_radix_iter_lookup(pages, pindex));
-}
-
-/*
  *	vm_page_lookup_unlocked:
  *
  *	Returns the page associated with the object/offset pair specified;
@@ -1933,22 +1918,6 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 	if ((m = TAILQ_FIRST(&object->memq)) != NULL && m->pindex < pindex)
 		m = vm_radix_lookup_ge(&object->rtree, pindex);
 	return (m);
-}
-
-/*
- *	vm_page_iter_lookup_ge:
- *
- *	Returns the page associated with the object with least pindex
- *	greater than or equal to the parameter pindex, or NULL.  Initializes the
- *	iterator to point to that page.
- *
- *	The iter pctrie must be locked.
- */
-vm_page_t
-vm_page_iter_lookup_ge(struct pctrie_iter *pages, vm_pindex_t pindex)
-{
-
-	return (vm_radix_iter_lookup_ge(pages, pindex));
 }
 
 /*
