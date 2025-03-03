@@ -419,6 +419,45 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 /* Support for FDT configurations only. */
 CTASSERT(FDT);
 
+static void
+parse_boot_hartid(void)
+{
+	uint64_t *mdp;
+#ifdef FDT
+	phandle_t chosen;
+	uint32_t hart;
+#endif
+
+	mdp = (uint64_t *)preload_search_info(preload_kmdp,
+	    MODINFO_METADATA | MODINFOMD_BOOT_HARTID);
+	if (mdp != NULL && *mdp < UINT32_MAX) {
+		boot_hart = (uint32_t)*mdp;
+		goto out;
+	}
+
+#ifdef FDT
+	/*
+	 * Deprecated:
+	 *
+	 * Look for the boot hart ID. This was either passed in directly from
+	 * the SBI firmware and handled by locore, or was stored in the device
+	 * tree by an earlier boot stage.
+	 */
+	chosen = OF_finddevice("/chosen");
+	if (OF_getencprop(chosen, "boot-hartid", &hart, sizeof(hart)) != -1) {
+		boot_hart = hart;
+	}
+#endif
+
+	/* We failed... */
+	if (boot_hart == BOOT_HART_INVALID) {
+		panic("Boot hart ID was not properly set");
+	}
+
+out:
+	PCPU_SET(hart, boot_hart);
+}
+
 #ifdef FDT
 static void
 parse_fdt_bootargs(void)
@@ -462,6 +501,8 @@ parse_metadata(void)
 	if (kern_envp == NULL)
 		parse_fdt_bootargs();
 #endif
+	parse_boot_hartid();
+
 	return (lastaddr);
 }
 
@@ -474,10 +515,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	int mem_regions_sz;
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
-#ifdef FDT
-	phandle_t chosen;
-	uint32_t hart;
-#endif
 	char *env;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
@@ -501,22 +538,6 @@ initriscv(struct riscv_bootparams *rvbp)
 		fake_preload_metadata(rvbp);
 	}
 	lastaddr = parse_metadata();
-
-#ifdef FDT
-	/*
-	 * Look for the boot hart ID. This was either passed in directly from
-	 * the SBI firmware and handled by locore, or was stored in the device
-	 * tree by an earlier boot stage.
-	 */
-	chosen = OF_finddevice("/chosen");
-	if (OF_getencprop(chosen, "boot-hartid", &hart, sizeof(hart)) != -1) {
-		boot_hart = hart;
-	}
-#endif
-	if (boot_hart == BOOT_HART_INVALID) {
-		panic("Boot hart ID was not properly set");
-	}
-	pcpup->pc_hart = boot_hart;
 
 	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
