@@ -629,6 +629,11 @@ smbios_detect(const caddr_t addr)
 	     dmi < smbios.addr + smbios.length && i < smbios.count; i++)
 		dmi = smbios_parse_table(dmi);
 
+	setenv("smbios.entry_point_type",
+#ifdef SMBIOS_64BIT_EP
+	    smbios.is_64bit_ep ? "v3 (64-bit)" :
+#endif
+	    "v2.1 (32-bit)", 1);
 	sprintf(buf, "%d.%d", smbios.major, smbios.minor);
 	setenv("smbios.version", buf, 1);
 	if (smbios.enabled_memory > 0 || smbios.old_enabled_memory > 0) {
