@@ -2266,7 +2266,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 			*icmp_dir = PF_IN;
 			*virtual_type = type;
 			*virtual_id = 0;
-			HTONS(*virtual_type);
+			*virtual_type = htons(*virtual_type);
 			return (1);  /* These types match to another state */
 
 		/*
@@ -2333,7 +2333,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 			*icmp_dir = PF_IN;
 			*virtual_type = type;
 			*virtual_id = 0;
-			HTONS(*virtual_type);
+			*virtual_type = htons(*virtual_type);
 			return (1);  /* These types match to another state */
 		/*
 		 * All remaining ICMP6 types get their own states,
@@ -2350,7 +2350,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 	default:
 		unhandled_af(pd->af);
 	}
-	HTONS(*virtual_type);
+	*virtual_type = htons(*virtual_type);
 	return (0);  /* These types match to their own state */
 }
 
@@ -4101,7 +4101,7 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 		opt = (char *)(th + 1);
 		opt[0] = TCPOPT_MAXSEG;
 		opt[1] = 4;
-		HTONS(mss);
+		mss = htons(mss);
 		memcpy((opt + 2), &mss, 2);
 	}
 
@@ -4527,10 +4527,7 @@ pf_match(u_int8_t op, u_int32_t a1, u_int32_t a2, u_int32_t p)
 int
 pf_match_port(u_int8_t op, u_int16_t a1, u_int16_t a2, u_int16_t p)
 {
-	NTOHS(a1);
-	NTOHS(a2);
-	NTOHS(p);
-	return (pf_match(op, a1, a2, p));
+	return (pf_match(op, ntohs(a1), ntohs(a2), ntohs(p)));
 }
 
 static int
@@ -5034,7 +5031,7 @@ pf_get_mss(struct pf_pdesc *pd)
 			break;
 		case TCPOPT_MAXSEG:
 			memcpy(&mss, (opt + 2), 2);
-			NTOHS(mss);
+			mss = ntohs(mss);
 			/* FALLTHROUGH */
 		default:
 			optlen = opt[1];

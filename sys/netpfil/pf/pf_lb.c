@@ -1065,19 +1065,19 @@ pf_get_transaddr_af(struct pf_krule *r, struct pf_pdesc *pd)
 	}
 
 	if (pd->proto == IPPROTO_ICMPV6 && pd->naf == AF_INET) {
-		NTOHS(pd->ndport);
+		pd->ndport = ntohs(pd->ndport);
 		if (pd->ndport == ICMP6_ECHO_REQUEST)
 			pd->ndport = ICMP_ECHO;
 		else if (pd->ndport == ICMP6_ECHO_REPLY)
 			pd->ndport = ICMP_ECHOREPLY;
-		HTONS(pd->ndport);
+		pd->ndport = htons(pd->ndport);
 	} else if (pd->proto == IPPROTO_ICMP && pd->naf == AF_INET6) {
-		NTOHS(pd->ndport);
+		pd->nsport = ntohs(pd->nsport);
 		if (pd->ndport == ICMP_ECHO)
 			pd->ndport = ICMP6_ECHO_REQUEST;
 		else if (pd->ndport == ICMP_ECHOREPLY)
 			pd->ndport = ICMP6_ECHO_REPLY;
-		HTONS(pd->ndport);
+		pd->nsport = htons(pd->nsport);
 	}
 
 	/* get the destination address and port */
