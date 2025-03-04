@@ -811,8 +811,6 @@ pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
 	case AF_INET6:
 		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
 		break;
-	default:
-		unhandled_af(af);
 	}
 }
 #endif /* INET6 */
