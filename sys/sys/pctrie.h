@@ -47,6 +47,12 @@ pctrie_iter_reset(struct pctrie_iter *it)
 	it->node = NULL;
 }
 
+static __inline bool
+pctrie_iter_is_reset(struct pctrie_iter *it)
+{
+	return (it->node == NULL);
+}
+
 static __inline void
 pctrie_iter_init(struct pctrie_iter *it, struct pctrie *ptree)
 {
