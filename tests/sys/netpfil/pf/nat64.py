@@ -238,7 +238,7 @@ class TestNAT64(VnetTestTemplate):
             ip = reply.getlayer(sp.IPv6)
             assert icmp
             assert ip.src == "64:ff9b::c000:202"
-            return
+            return reply
 
         # If we don't find the packet we expect to see
         assert False
@@ -282,4 +282,6 @@ class TestNAT64(VnetTestTemplate):
 
         packet = sp.IPv6(dst="64:ff9b::198.51.100.2", hlim=1) \
             / sp.ICMPv6EchoRequest() / sp.Raw("foo")
-        self.common_test_source_addr(packet)
+        reply = self.common_test_source_addr(packet)
+        icmp = reply.getlayer(sp.ICMPv6EchoRequest)
+        assert icmp
