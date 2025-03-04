@@ -85,14 +85,12 @@ static device_method_t mpc85xx_jog_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	mpc85xx_jog_get),
 	DEVMETHOD(cpufreq_drv_type,	mpc85xx_jog_type),
 	DEVMETHOD(cpufreq_drv_settings,	mpc85xx_jog_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t mpc85xx_jog_driver = {
-	"jog",
-	mpc85xx_jog_methods,
-	sizeof(struct mpc85xx_jog_softc)
-};
+PRIVATE_DEFINE_CLASSN(jog, mpc85xx_jog_driver, mpc85xx_jog_methods,
+    sizeof(struct mpc85xx_jog_softc));
 
 DRIVER_MODULE(mpc85xx_jog, cpu, mpc85xx_jog_driver, 0, 0);
 

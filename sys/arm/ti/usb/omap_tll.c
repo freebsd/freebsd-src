@@ -344,13 +344,11 @@ static device_method_t omap_tll_methods[] = {
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
-static driver_t omap_tll_driver = {
-	"omap_tll",
-	omap_tll_methods,
-	sizeof(struct omap_tll_softc),
-};
+PRIVATE_DEFINE_CLASSN(omap_tll, omap_tll_driver, omap_tll_methods,
+    sizeof(struct omap_tll_softc));
 
 DRIVER_MODULE(omap_tll, simplebus, omap_tll_driver, 0, 0);

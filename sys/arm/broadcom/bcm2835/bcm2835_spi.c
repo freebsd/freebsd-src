@@ -41,7 +41,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -573,10 +573,7 @@ static device_method_t bcm_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t bcm_spi_driver = {
-	"spi",
-	bcm_spi_methods,
-	sizeof(struct bcm_spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(spi, bcm_spi_driver, bcm_spi_methods,
+    sizeof(struct bcm_spi_softc));
 
 DRIVER_MODULE(bcm2835_spi, simplebus, bcm_spi_driver, 0, 0);

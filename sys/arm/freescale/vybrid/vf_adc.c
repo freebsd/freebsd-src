@@ -45,7 +45,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_adc.h>
@@ -223,13 +223,10 @@ adc_attach(device_t dev)
 static device_method_t adc_methods[] = {
 	DEVMETHOD(device_probe,		adc_probe),
 	DEVMETHOD(device_attach,	adc_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t adc_driver = {
-	"adc",
-	adc_methods,
-	sizeof(struct adc_softc),
-};
+PRIVATE_DEFINE_CLASSN(adc, adc_driver, adc_methods, sizeof(struct adc_softc));
 
 DRIVER_MODULE(adc, simplebus, adc_driver, 0, 0);

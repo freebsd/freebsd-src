@@ -546,14 +546,12 @@ static device_method_t fsl_satach_methods[] = {
 	DEVMETHOD(device_detach,    fsl_sata_detach),
 	DEVMETHOD(device_suspend,   fsl_sata_suspend),
 	DEVMETHOD(device_resume,    fsl_sata_resume),
+
 	DEVMETHOD_END
 };
 
-static driver_t fsl_satach_driver = {
-	"fslsata",
-	fsl_satach_methods,
-	sizeof(struct fsl_sata_channel)
-};
+PRIVATE_DEFINE_CLASSN(fslsata, fsl_satach_driver, fsl_satach_methods,
+    sizeof(struct fsl_sata_channel));
 
 DRIVER_MODULE(fsl_satach, simplebus, fsl_satach_driver, NULL, NULL);
 

@@ -59,14 +59,12 @@ static device_method_t pswitch_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pswitch_probe),
 	DEVMETHOD(device_attach,	pswitch_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t pswitch_driver = {
-	"pswitch",
-	pswitch_methods,
-	sizeof(struct pswitch_softc)
-};
+PRIVATE_DEFINE_CLASSN(pswitch, pswitch_driver, pswitch_methods,
+    sizeof(struct pswitch_softc));
 
 EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, 0, 0, BUS_PASS_RESOURCE);
 

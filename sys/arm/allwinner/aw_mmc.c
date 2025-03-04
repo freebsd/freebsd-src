@@ -1501,11 +1501,8 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_mmc_driver = {
-	"aw_mmc",
-	aw_mmc_methods,
-	sizeof(struct aw_mmc_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_mmc, aw_mmc_driver, aw_mmc_methods,
+    sizeof(struct aw_mmc_softc));
 
 DRIVER_MODULE(aw_mmc, simplebus, aw_mmc_driver, NULL, NULL);
 #ifndef MMCCAM

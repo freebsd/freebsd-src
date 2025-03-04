@@ -421,11 +421,8 @@ static device_method_t aw_sid_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_sid_driver = {
-	"aw_sid",
-	aw_sid_methods,
-	sizeof(struct aw_sid_softc),
-};
+PRIVATE_DEFINE_CLASSN(aw_sid, aw_sid_driver, aw_sid_methods,
+    sizeof(struct aw_sid_softc));
 
 EARLY_DRIVER_MODULE(aw_sid, simplebus, aw_sid_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);

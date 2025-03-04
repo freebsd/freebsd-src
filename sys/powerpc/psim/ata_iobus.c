@@ -64,7 +64,7 @@ struct resource *ata_iobus_alloc_resource(device_t, device_t, int, int *,
 static int ata_iobus_release_resource(device_t, device_t, struct resource *);
 
 static device_method_t ata_iobus_methods[] = {
-        /* Device interface */
+	/* Device interface */
 	DEVMETHOD(device_probe,		ata_iobus_probe),
 	DEVMETHOD(device_attach,        ata_iobus_attach),
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
@@ -83,11 +83,7 @@ static device_method_t ata_iobus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ata_iobus_driver = {
-	"ataiobus",
-	ata_iobus_methods,
-	0,
-};
+PRIVATE_DEFINE_CLASSN(ataiobus, ata_iobus_driver, ata_iobus_methods, 0);
 
 DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
@@ -218,11 +214,8 @@ static device_method_t ata_iobus_sub_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ata_iobus_sub_driver = {
-	"ata",
-	ata_iobus_sub_methods,
-	sizeof(struct ata_channel),
-};
+PRIVATE_DEFINE_CLASSN(ata, ata_iobus_sub_driver, ata_iobus_sub_methods,
+    sizeof(struct ata_channel));
 
 DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, NULL, NULL);
 

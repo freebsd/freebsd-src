@@ -442,14 +442,12 @@ static device_method_t ti_pinmux_methods[] = {
 
         /* fdt_pinctrl interface */
 	DEVMETHOD(fdt_pinctrl_configure, ti_pinmux_configure_pins),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t ti_pinmux_driver = {
-	"ti_pinmux",
-	ti_pinmux_methods,
-	sizeof(struct ti_pinmux_softc),
-};
+PRIVATE_DEFINE_CLASSN(ti_pinmux, ti_pinmux_driver, ti_pinmux_methods,
+    sizeof(struct ti_pinmux_softc));
 
 DRIVER_MODULE(ti_pinmux, simplebus, ti_pinmux_driver, 0, 0);
 MODULE_VERSION(ti_pinmux, 1);

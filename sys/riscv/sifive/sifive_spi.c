@@ -389,11 +389,8 @@ static device_method_t sfspi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t sfspi_driver = {
-	"sifive_spi",
-	sfspi_methods,
-	sizeof(struct sfspi_softc)
-};
+PRIVATE_DEFINE_CLASSN(sifive_spi, sfspi_driver, sfspi_methods,
+    sizeof(struct sfspi_softc));
 
 DRIVER_MODULE(sifive_spi, simplebus, sfspi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, sifive_spi, ofw_spibus_driver, 0, 0);

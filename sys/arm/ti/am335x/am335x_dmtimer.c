@@ -365,14 +365,12 @@ am335x_dmtimer_attach(device_t dev)
 static device_method_t am335x_dmtimer_methods[] = {
 	DEVMETHOD(device_probe,		am335x_dmtimer_probe),
 	DEVMETHOD(device_attach,	am335x_dmtimer_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t am335x_dmtimer_driver = {
-	"am335x_dmtimer",
-	am335x_dmtimer_methods,
-	sizeof(struct am335x_dmtimer_softc),
-};
+PRIVATE_DEFINE_CLASSN(am335x_dmtimer, am335x_dmtimer_driver,
+    am335x_dmtimer_methods, sizeof(struct am335x_dmtimer_softc));
 
 DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, 0, 0);
 MODULE_DEPEND(am335x_dmtimer, ti_sysc, 1, 1, 1);

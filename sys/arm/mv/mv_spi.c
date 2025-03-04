@@ -35,8 +35,8 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -395,10 +395,7 @@ static device_method_t mv_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mv_spi_driver = {
-	"spi",
-	mv_spi_methods,
-	sizeof(struct mv_spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(spi, mv_spi_driver, mv_spi_methods,
+    sizeof(struct mv_spi_softc));
 
 DRIVER_MODULE(mv_spi, simplebus, mv_spi_driver, 0, 0);

@@ -29,12 +29,11 @@
 #ifndef	_MACHINE__XEN_ARCH_INTR_H_
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
-#include <x86/intr_machdep.h>
+#include <x86/interrupt.h>
 #include <x86/apicvar.h>
 
 typedef struct {
 	struct intsrc		intsrc;		/* @TOP -> *xen_arch_isrc */
-	u_int			vector;		/* Global isrc vector number */
 } xen_arch_isrc_t;
 
 #include <dev/xen/bus/intr-internal.h>
@@ -89,7 +88,7 @@ static inline int
 xen_arch_intr_event_bind(struct xenisrc *isrc, u_int cpu)
 {
 
-	return (intr_event_bind(isrc->xi_arch.intsrc.is_event, cpu));
+	return (intr_event_bind(&isrc->xi_arch.intsrc.is_event, cpu));
 }
 
 #endif	/* _MACHINE__XEN_ARCH_INTR_H_ */

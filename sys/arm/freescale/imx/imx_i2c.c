@@ -192,11 +192,8 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t i2c_driver = {
-	"imx_i2c",
-	i2c_methods,
-	sizeof(struct i2c_softc),
-};
+PRIVATE_DEFINE_CLASSN(imx_i2c, i2c_driver, i2c_methods,
+    sizeof(struct i2c_softc));
 
 DRIVER_MODULE(imx_i2c, simplebus, i2c_driver, 0, 0);
 DRIVER_MODULE(ofw_iicbus, imx_i2c, ofw_iicbus_driver, 0, 0);

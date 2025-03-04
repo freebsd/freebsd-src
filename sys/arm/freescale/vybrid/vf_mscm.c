@@ -48,7 +48,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 
@@ -109,13 +109,11 @@ mscm_attach(device_t dev)
 static device_method_t mscm_methods[] = {
 	DEVMETHOD(device_probe,		mscm_probe),
 	DEVMETHOD(device_attach,	mscm_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t mscm_driver = {
-	"mscm",
-	mscm_methods,
-	sizeof(struct mscm_softc),
-};
+PRIVATE_DEFINE_CLASSN(mscm, mscm_driver, mscm_methods,
+    sizeof(struct mscm_softc));
 
 DRIVER_MODULE(mscm, simplebus, mscm_driver, 0, 0);

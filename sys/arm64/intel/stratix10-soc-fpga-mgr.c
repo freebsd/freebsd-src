@@ -58,7 +58,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #define	SVC_BUF_SIZE	(512 * 1024)
 
@@ -308,13 +308,11 @@ static device_method_t fpgamgr_s10_methods[] = {
 	DEVMETHOD(device_probe,		fpgamgr_s10_probe),
 	DEVMETHOD(device_attach,	fpgamgr_s10_attach),
 	DEVMETHOD(device_detach,	fpgamgr_s10_detach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t fpgamgr_s10_driver = {
-	"fpgamgr_s10",
-	fpgamgr_s10_methods,
-	sizeof(struct fpgamgr_s10_softc),
-};
+PRIVATE_DEFINE_CLASSN(fpgamgr_s10, fpgamgr_s10_driver, fpgamgr_s10_methods,
+    sizeof(struct fpgamgr_s10_softc));
 
 DRIVER_MODULE(fpgamgr_s10, simplebus, fpgamgr_s10_driver, 0, 0);
