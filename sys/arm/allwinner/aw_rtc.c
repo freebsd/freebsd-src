@@ -134,7 +134,6 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun7i-a20-rtc", (uintptr_t) &a20_conf },
 	{ "allwinner,sun6i-a31-rtc", (uintptr_t) &a31_conf },
 	{ "allwinner,sun8i-h3-rtc", (uintptr_t) &h3_conf },
-	{ "allwinner,sun20i-d1-rtc", (uintptr_t) &h3_conf },
 	{ "allwinner,sun50i-h5-rtc", (uintptr_t) &h3_conf },
 	{ "allwinner,sun50i-h6-rtc", (uintptr_t) &h3_conf },
 	{ NULL, 0 }
@@ -148,13 +147,11 @@ struct aw_rtc_softc {
 
 static struct clk_fixed_def aw_rtc_osc32k = {
 	.clkdef.id = 0,
-	.clkdef.name = "osc32k",
 	.freq = 32768,
 };
 
 static struct clk_fixed_def aw_rtc_iosc = {
 	.clkdef.id = 2,
-	.clkdef.name = "iosc",
 };
 
 static void	aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev);
@@ -252,29 +249,24 @@ aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev) {
 	phandle_t node;
 	int nclocks;
 
-	/*
-	 * If the device tree gives us specific output names for the clocks,
-	 * use them.
-	 */
 	node = ofw_bus_get_node(dev);
 	nclocks = ofw_bus_string_list_to_array(node, "clock-output-names", &clknames);
-	if (nclocks > 0) {
-		if (nclocks != 3) {
-			device_printf(dev,
-			    "Found %d clocks instead of 3, aborting\n",
-			    nclocks);
-			return;
-		}
+	/* No clocks to export */
+	if (nclocks <= 0)
+		return;
 
-		aw_rtc_osc32k.clkdef.name = clknames[0];
-		aw_rtc_iosc.clkdef.name = clknames[2];
+	if (nclocks != 3) {
+		device_printf(dev, "Having only %d clocks instead of 3, aborting\n", nclocks);
+		return;
 	}
 
 	clkdom = clkdom_create(dev);
 
+	aw_rtc_osc32k.clkdef.name = clknames[0];
 	if (clknode_fixed_register(clkdom, &aw_rtc_osc32k) != 0)
 		device_printf(dev, "Cannot register osc32k clock\n");
 
+	aw_rtc_iosc.clkdef.name = clknames[2];
 	aw_rtc_iosc.freq = sc->conf->iosc_freq;
 	if (clknode_fixed_register(clkdom, &aw_rtc_iosc) != 0)
 		device_printf(dev, "Cannot register iosc clock\n");
