@@ -8,6 +8,8 @@
 
 #include <string.h>
 
+#undef strlcat	/* _FORTIFY_SOURCE */
+
 void *__memchr_aarch64(const void *, int, size_t);
 size_t __strlcpy(char *restrict, const char *restrict, size_t);
 
