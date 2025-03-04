@@ -1,0 +1,101 @@
+#D48382
+# Makefile for preparing & uploading Oracle Cloud images from existing
+# .raw files created by cloudware-release.
+#
+# Overview:
+#
+# The base image is already created by cloudware-release.
+#
+# Construct the custom OCI metadata, derived from exported official OCI images.
+# It is architecture-specific but appears mostly stable over time.
+# Compress the raw image and place it in the same directory as the metadata.
+# Make a GNU format tarball of these files.
+# Upload the tarball to Oracle Cloud via a pre-approved curl URI, into
+# the FreeBSD Foundation's Oracle Cloud account.
+#
+# These images go into the "re" bucket in us-ashburn-1 region, which
+# is mounted into the FreeBSD Foundation Oracle Marketplace account.
+# Once uploaded, a manual step is needed to import the images as local
+# custom images. These can then be tested within the us-ashburn-1 region.
+# Once tested, follow the manual Oracle Marketplace import process to
+# create a new FreeBSD version, attach the images, and initiate validation
+# by Oracle. This can take up to 5 working days. Once complete, a final
+# manual step is needed to mark the currently private images, public.
+# Syncing to all sites should take 2-3 hours after this final step.
+
+ORACLE_BASENAME=	${OSRELEASE}-${BUILDDATE}${GITREV:C/^(.+)/-\1/}
+ORACLE_PORTS_LIST=	ftp/curl emulators/qemu@tools
+CLEANFILES+=	cw-oracle-portinstall
+
+cw-oracle-portinstall: .PHONY
+.if !exists(/usr/local/bin/curl) || !exists(/usr/local/bin/qemu-img)
+. if !exists(${PORTSDIR}/Makefile)
+.  if !exists(/usr/local/sbin/pkg-static)
+	env ASSUME_ALWAYS_YES=yes pkg bootstrap -yf
+.  endif
+	env ASSUME_ALWAYS_YES=yes pkg install -y ${ORACLE_PORTS_LIST}
+. else
+	env UNAME_r=${UNAME_r} make -C \
+		${PORTSDIR}/ftp/curl \
+		BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+		all install clean
+	env UNAME_r=${UNAME_r} FLAVOR=tools make -C \
+		${PORTSDIR}/emulators/qemu \
+		BATCH=1 WRKDIRPREFIX=/tmp/ports DISTDIR=/tmp/distfiles \
+		all install clean
+. endif
+.endif
+
+.for _FS in ${ORACLE_FSLIST}
+ORACLE_OCI_LIST+=	cw-oracle-${_FS}.oci
+ORACLE_UPLOAD_LIST+=	cw-oracle-upload-${_FS}
+CLEANFILES+=		cw-oracle-${_FS}.oci
+ORACLE_TMP_${_FS}=		cw-oracle-${_FS}.oci.tmpdir
+CLEANDIRS+=		${ORACLE_TMP_${_FS}}
+ORACLE_METADATA=	${.CURDIR}/scripts/oracle
+ORACLE_CAPABILITY=	${.CURDIR}/scripts/oracle/image_capability_data.json
+ORACLE_TEMPLATE=	${.CURDIR}/scripts/oracle/image_metadata.json
+ORACLE_OUTPUT_${_FS}=	${ORACLE_TMP_${_FS}}/image_metadata.json
+.if ${TARGET} == "arm64"
+ORACLE_SHAPES=		${ORACLE_METADATA}/arm64_shape_compatibilities.json
+.else
+ORACLE_SHAPES=		${ORACLE_METADATA}/default_shape_compatibilities.json
+.endif
+
+cw-oracle-${_FS}.oci: cw-oracle-portinstall cw-oracle-${_FS}-raw
+	mkdir -p ${ORACLE_TMP_${_FS}}
+	# create architecture-specific JSON metadata
+	env TYPE="${TYPE}" \
+		OSRELEASE="${OSRELEASE}" \
+		ORACLE_CAPABILITY="${ORACLE_CAPABILITY}" \
+		ORACLE_SHAPES="${ORACLE_SHAPES}" \
+		ORACLE_TEMPLATE="${ORACLE_TEMPLATE}" \
+		ORACLE_OUTPUT="${ORACLE_OUTPUT_${_FS}}" \
+		${ORACLE_METADATA}/generate_metadata.lua
+
+	# convert raw to native qcow2 for zstd compression, saves ~ 8GiB
+	qemu-img convert -S 512b -p -O qcow2 -c -o compression_type=zstd \
+		${.OBJDIR}/${ORACLE${_FS:tu}RAWIMAGE} \
+		${ORACLE_TMP_${_FS}}/output.QCOW2
+
+	# Create GNU-compatible tarball using BSD tar
+	tar --format=gnutar -cf ${.TARGET} -C ${ORACLE_TMP_${_FS}} \
+		image_metadata.json output.QCOW2
+
+	echo "Oracle image ${.TARGET} is ready for upload."
+
+cw-oracle-upload-${_FS}: cw-oracle-${_FS}.oci
+.if !defined(ORACLE_PAR_URL) || empty(ORACLE_PAR_URL)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> ORACLE_PAR_URL must be set for Oracle image upload"
+	@echo ">>> for testing, use a file:/// URL to a local directory"
+	@echo "--------------------------------------------------------------"
+	@false
+.endif
+	echo "Please wait ... uploading cw-oracle-${_FS}.oci to ${ORACLE_BASENAME}-${_FS}.oci"
+	curl -s ${ORACLE_PAR_URL}/${ORACLE_BASENAME}-${_FS}.oci --upload-file cw-oracle-${_FS}.oci
+	echo "Uploaded cw-oracle-${_FS}.oci as ${ORACLE_BASENAME}-${_FS}.oci"
+	touch ${.TARGET}
+.endfor
+
+cw-oracle-upload: cw-oracle-portinstall ${ORACLE_UPLOAD_LIST}
