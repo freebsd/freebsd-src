@@ -1,0 +1,24 @@
+[
+  {
+    "internalShapeName": "VM.Standard.A1.Flex",
+    "ocpuConstraints": {
+      "min": 1,
+      "max": 80
+    },
+    "memoryConstraints": {
+      "minInGBs": 1,
+      "maxInGBs": 512
+    }
+  },
+  {
+    "internalShapeName": "VM.Standard.A2.Flex",
+    "ocpuConstraints": {
+      "min": 1,
+      "max": 78
+    },
+    "memoryConstraints": {
+      "minInGBs": 1,
+      "maxInGBs": 946
+    }
+  }
+]
