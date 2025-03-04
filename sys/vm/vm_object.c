@@ -1576,7 +1576,8 @@ vm_object_split(vm_map_entry_t entry)
 	vm_object_set_flag(orig_object, OBJ_SPLIT);
 	vm_page_iter_limit_init(&pages, orig_object, offidxstart + size);
 retry:
-	pctrie_iter_reset(&pages);
+	KASSERT(pctrie_iter_is_reset(&pages),
+	    ("%s: pctrie_iter not reset for retry", __func__));
 	for (m = vm_radix_iter_lookup_ge(&pages, offidxstart); m != NULL;
 	    m = vm_radix_iter_step(&pages)) {
 		/*
@@ -1590,6 +1591,7 @@ retry:
 			VM_OBJECT_WUNLOCK(new_object);
 			if (vm_page_busy_sleep(m, "spltwt", 0))
 				VM_OBJECT_WLOCK(orig_object);
+			pctrie_iter_reset(&pages);
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
@@ -1611,6 +1613,7 @@ retry:
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
 			vm_radix_wait();
+			pctrie_iter_reset(&pages);
 			VM_OBJECT_WLOCK(orig_object);
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
@@ -1996,7 +1999,8 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vm_object_pip_add(object, 1);
 	vm_page_iter_limit_init(&pages, object, end);
 again:
-	pctrie_iter_reset(&pages);
+	KASSERT(pctrie_iter_is_reset(&pages),
+	    ("%s: pctrie_iter not reset for retry", __func__));
 	for (p = vm_radix_iter_lookup_ge(&pages, start); p != NULL;
 	     p = vm_radix_iter_step(&pages)) {
 		/*
@@ -2025,6 +2029,7 @@ again:
 		if (vm_page_tryxbusy(p) == 0) {
 			if (vm_page_busy_sleep(p, "vmopar", 0))
 				VM_OBJECT_WLOCK(object);
+			pctrie_iter_reset(&pages);
 			goto again;
 		}
 		if ((options & OBJPR_VALIDONLY) != 0 && vm_page_none_valid(p)) {
