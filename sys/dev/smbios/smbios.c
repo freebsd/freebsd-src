@@ -339,25 +339,24 @@ smbios_eps3 (void *v)
 static int
 smbios_cksum (void *v)
 {
-	struct smbios3_eps *eps3;
-	struct smbios_eps *eps;
-	u_int8_t *ptr;
+	const u_int8_t *ptr;
 	u_int8_t cksum;
 	u_int8_t length;
 	int i;
 
 	if (smbios_eps3(v)) {
-		eps3 = (struct smbios3_eps *)v;
+		const struct smbios3_eps *eps3 = v;
+
 		length = eps3->length;
 	} else {
-		eps = (struct smbios_eps *)v;
+		const struct smbios_eps *eps = v;
+
 		length = eps->length;
 	}
-	ptr = (u_int8_t *)v;
+	ptr = v;
 	cksum = 0;
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < length; i++)
 		cksum += ptr[i];
-	}
 
 	return (cksum);
 }
