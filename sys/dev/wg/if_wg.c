@@ -2335,7 +2335,7 @@ wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro
 	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		memcpy(&af, dst->sa_data, sizeof(af));
 	else
-		af = dst->sa_family;
+		af = RO_GET_FAMILY(ro, dst);
 	if (af == AF_UNSPEC) {
 		xmit_err(ifp, m, NULL, af);
 		return (EAFNOSUPPORT);
@@ -2360,10 +2360,8 @@ wg_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst, struct route *ro
 		xmit_err(ifp, m, NULL, AF_UNSPEC);
 		return (ret);
 	}
-	if (parsed_af != af) {
-		xmit_err(ifp, m, NULL, AF_UNSPEC);
-		return (EAFNOSUPPORT);
-	}
+
+	MPASS(parsed_af == af);
 	mtu = (ro != NULL && ro->ro_mtu > 0) ? ro->ro_mtu : if_getmtu(ifp);
 	return (wg_xmit(ifp, m, parsed_af, mtu));
 }
