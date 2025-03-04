@@ -329,20 +329,20 @@ flex_spi_write_txfifo(struct flex_spi_softc *sc, uint8_t *buf, uint8_t size)
 	int i, ret, reg;
 
 	/* invalid the TXFIFO */
-	write_reg(sc, FSPI_IPRXFCR, FSPI_IPTXFCR_CLR);
+	write_reg(sc, FSPI_IPTXFCR, FSPI_IPTXFCR_CLR);
 
 	/*
 	 * Default value of water mark level is 8 bytes, hence in single
 	 * read request controller can read max 8 bytes of data.
 	 */
 	for (i = 0; i < size; i += 4) {
-		/* Wait for RXFIFO available */
+		/* Wait for TXFIFO available */
 		if (i % 8 == 0) {
 			ret = reg_read_poll_tout(sc, FSPI_INTR, FSPI_INTR_IPTXWE,
 			    1, 50000, 1);
 			if (ret)
 				device_printf(sc->dev,
-				    "timed out waiting for FSPI_INTR_IPRXWA\n");
+				    "timed out waiting for FSPI_INTR_IPTXWE\n");
 		}
 
 		if (size  >= (i + 4))
