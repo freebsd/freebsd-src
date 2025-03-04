@@ -8025,10 +8025,6 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &nk->addr[didx], pd->af,
 					    nk->af))
 						return (PF_DROP);
-					if (nk->af == AF_INET)
-						pd->proto = IPPROTO_ICMP;
-					else
-						pd->proto = IPPROTO_ICMPV6;
 					pf_change_ap(pd->m, pd2.src, &th.th_sport,
 					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.sidx],
 					    nk->port[sidx], 1, pd->af, nk->af);
@@ -8036,10 +8032,24 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.didx],
 					    nk->port[didx], 1, pd->af, nk->af);
 					m_copyback(pd2.m, pd2.off, 8, (c_caddr_t)&th);
-					PF_ACPY(pd->src,
-					    &nk->addr[pd2.sidx], nk->af);
-					PF_ACPY(pd->dst,
+					PF_ACPY(&pd->nsaddr, &nk->addr[pd2.sidx],
+					    nk->af);
+					PF_ACPY(&pd->ndaddr,
 					    &nk->addr[pd2.didx], nk->af);
+					if (nk->af == AF_INET) {
+						pd->proto = IPPROTO_ICMP;
+					} else {
+						pd->proto = IPPROTO_ICMPV6;
+						/*
+						 * IPv4 becomes IPv6 so we must
+						 * copy IPv4 src addr to least
+						 * 32bits in IPv6 address to
+						 * keep traceroute/icmp
+						 * working.
+						 */
+						pd->nsaddr.addr32[3] =
+						    pd->src->addr32[0];
+					}
 					pd->naf = nk->af;
 					return (PF_AFRT);
 				}
@@ -8148,10 +8158,6 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &nk->addr[didx], pd->af,
 					    nk->af))
 						return (PF_DROP);
-					if (nk->af == AF_INET)
-						pd->proto = IPPROTO_ICMP;
-					else
-						pd->proto = IPPROTO_ICMPV6;
 					pf_change_ap(pd->m, pd2.src, &uh.uh_sport,
 					    pd->ip_sum, &uh.uh_sum, &nk->addr[pd2.sidx],
 					    nk->port[sidx], 1, pd->af, nk->af);
@@ -8164,6 +8170,20 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &nk->addr[pd2.sidx], nk->af);
 					PF_ACPY(&pd->ndaddr,
 					    &nk->addr[pd2.didx], nk->af);
+					if (nk->af == AF_INET) {
+						pd->proto = IPPROTO_ICMP;
+					} else {
+						pd->proto = IPPROTO_ICMPV6;
+						/*
+						 * IPv4 becomes IPv6 so we must
+						 * copy IPv4 src addr to least
+						 * 32bits in IPv6 address to
+						 * keep traceroute/icmp
+						 * working.
+						 */
+						pd->nsaddr.addr32[3] =
+						    pd->src->addr32[0];
+					}
 					pd->naf = nk->af;
 					return (PF_AFRT);
 				}
@@ -8288,17 +8308,27 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &nk->addr[didx], pd->af,
 					    nk->af))
 						return (PF_DROP);
-					if (nk->af == AF_INET)
-						pd->proto = IPPROTO_ICMP;
-					else
-						pd->proto = IPPROTO_ICMPV6;
 					sh.src_port = nk->port[sidx];
 					sh.dest_port = nk->port[didx];
 					m_copyback(pd2.m, pd2.off, sizeof(sh), (c_caddr_t)&sh);
-					PF_ACPY(pd->src,
+					PF_ACPY(&pd->nsaddr,
 					    &nk->addr[pd2.sidx], nk->af);
-					PF_ACPY(pd->dst,
+					PF_ACPY(&pd->ndaddr,
 					    &nk->addr[pd2.didx], nk->af);
+					if (nk->af == AF_INET) {
+						pd->proto = IPPROTO_ICMP;
+					} else {
+						pd->proto = IPPROTO_ICMPV6;
+						/*
+						 * IPv4 becomes IPv6 so we must
+						 * copy IPv4 src addr to least
+						 * 32bits in IPv6 address to
+						 * keep traceroute/icmp
+						 * working.
+						 */
+						pd->nsaddr.addr32[3] =
+						    pd->src->addr32[0];
+					}
 					pd->naf = nk->af;
 					return (PF_AFRT);
 				}
@@ -8427,6 +8457,14 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    &nk->addr[pd2.sidx], nk->af);
 					PF_ACPY(&pd->ndaddr,
 					    &nk->addr[pd2.didx], nk->af);
+					/*
+					 * IPv4 becomes IPv6 so we must copy
+					 * IPv4 src addr to least 32bits in
+					 * IPv6 address to keep traceroute
+					 * working.
+					 */
+					pd->nsaddr.addr32[3] =
+					    pd->src->addr32[0];
 					pd->naf = nk->af;
 					return (PF_AFRT);
 				}
