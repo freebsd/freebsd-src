@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * USB Enhanced Host Controller Driver, a.k.a. USB 2.0 controller.
  *

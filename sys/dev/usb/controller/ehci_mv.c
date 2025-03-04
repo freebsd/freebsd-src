@@ -35,7 +35,6 @@
  * FDT attachment driver for the USB Enhanced Host Controller.
  */
 
-#include <sys/cdefs.h>
 #include "opt_bus.h"
 
 #include <sys/stdint.h>

@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
