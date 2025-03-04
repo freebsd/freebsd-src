@@ -6103,7 +6103,6 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	memcpy(&s->match_rules, match_rules, sizeof(s->match_rules));
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
-	STATE_INC_COUNTERS(s);
 	if (r->allow_opts)
 		s->state_flags |= PFSTATE_ALLOWOPTS;
 	if (r->rule_flag & PFRULE_STATESLOPPY)
@@ -6227,6 +6226,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	} else
 		*sm = s;
 
+	STATE_INC_COUNTERS(s);
+
 	/*
 	 * Lock order is important: first state, then source node.
 	 */
@@ -6302,7 +6303,6 @@ drop:
 	if (s != NULL) {
 		pf_src_tree_remove_state(s);
 		s->timeout = PFTM_UNLINKED;
-		STATE_DEC_COUNTERS(s);
 		pf_free_state(s);
 	}
 
