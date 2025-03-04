@@ -30,7 +30,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /* Driver for arbitrary double bulk pipe devices.
  * The driver assumes that there will be the same driver on the other side.
  *
