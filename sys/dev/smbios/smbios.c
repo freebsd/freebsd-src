@@ -211,18 +211,26 @@ smbios_attach (device_t dev)
 
 	if (sc->is_eps3) {
 		sc->eps3 = va;
-		device_printf(dev, "Version: %u.%u",
+		device_printf(dev, "Entry point: v3 (64-bit), Version: %u.%u\n",
 		    sc->eps3->major_version, sc->eps3->minor_version);
+		if (bootverbose)
+			device_printf(dev,
+			    "Docrev: %u, Entry Point Revision: %u\n",
+			    sc->eps3->docrev, sc->eps3->entry_point_revision);
 	} else {
 		sc->eps = va;
-		device_printf(dev, "Version: %u.%u",
+		device_printf(dev, "Entry point: v2.1 (32-bit), Version: %u.%u",
 		    sc->eps->major_version, sc->eps->minor_version);
 		if (bcd2bin(sc->eps->BCD_revision))
-			printf(", BCD Revision: %u.%u",
+			printf(", BCD Revision: %u.%u\n",
 			    bcd2bin(sc->eps->BCD_revision >> 4),
 			    bcd2bin(sc->eps->BCD_revision & 0x0f));
+		else
+			printf("\n");
+		if (bootverbose)
+			device_printf(dev, "Entry Point Revision: %u\n",
+			    sc->eps->entry_point_revision);
 	}
-	printf("\n");
 	return (0);
 }
 
