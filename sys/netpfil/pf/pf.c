@@ -8452,7 +8452,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    nk->port[iidx] != iih->icmp_id)
 						iih->icmp_id = nk->port[iidx];
 					m_copyback(pd2.m, pd2.off, ICMP_MINLEN,
-					    (c_caddr_t)&iih);
+					    (c_caddr_t)iih);
 					PF_ACPY(&pd->nsaddr,
 					    &nk->addr[pd2.sidx], nk->af);
 					PF_ACPY(&pd->ndaddr,
@@ -8579,7 +8579,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    nk->port[iidx] != iih->icmp6_id)
 						iih->icmp6_id = nk->port[iidx];
 					m_copyback(pd2.m, pd2.off,
-					    sizeof(struct icmp6_hdr), (c_caddr_t)&iih);
+					    sizeof(struct icmp6_hdr), (c_caddr_t)iih);
 					PF_ACPY(&pd->nsaddr,
 					    &nk->addr[pd2.sidx], nk->af);
 					PF_ACPY(&pd->ndaddr,
