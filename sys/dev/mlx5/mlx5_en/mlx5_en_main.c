@@ -1470,6 +1470,17 @@ static void
 mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 {
 
+	mtx_lock(&rq->mtx);
+	MPASS(rq->enabled == 0);
+	while (rq->processing > 0) {
+		/*
+		 * No wakeup, relying on timeout.
+		 * Use msleep_sbt() since msleep() conflicts with linuxkpi.
+		 */
+		msleep_sbt(&rq->processing, &rq->mtx, 0, "mlx5ecrq",
+		    tick_sbt * hz, 0, C_HARDCLOCK);
+	}
+	mtx_unlock(&rq->mtx);
 	mlx5e_disable_rq(rq);
 	mlx5e_close_cq(&rq->cq);
 	cancel_work_sync(&rq->dim.work);
