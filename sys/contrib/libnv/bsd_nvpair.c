@@ -42,9 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
-
-#include <machine/stdarg.h>
 
 #else
 #include <errno.h>

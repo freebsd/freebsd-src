@@ -77,13 +77,12 @@
 #include <sys/smr.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
-
-#include <machine/stdarg.h>
 
 #include <security/mac/mac_framework.h>
 
