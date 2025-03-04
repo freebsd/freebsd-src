@@ -92,6 +92,7 @@
 #define	SMBIOS_SIG		"_SM_"
 #define	SMBIOS3_SIG		"_SM3_"
 #define	SMBIOS_DMI_SIG		"_DMI_"
+#define	SMBIOS_EOT_TYPE		0x7f
 
 /*
  * 5.1 General
@@ -504,6 +505,9 @@ smbios_parse_table(const caddr_t addr)
 			    (size & 0x7fff) : (size << 10);
 		break;
 
+	case SMBIOS_EOT_TYPE:	/* 3.3.42 End-of-Table (Type 127) */
+		return (NULL);
+
 	default:	/* skip other types */
 		break;
 	}
@@ -529,15 +533,19 @@ smbios_find_struct(int type)
 	ep = smbios.addr + smbios.length;
 	for (dmi = smbios.addr, i = 0;
 	     dmi < ep && i < smbios.count; i++) {
-		if (SMBIOS_GET8(dmi, 0) == type) {
-			return dmi;
-		}
+		const uint8_t seen_type = SMBIOS_GET8(dmi, 0);
+
+		if (seen_type == type)
+			return (dmi);
+		if (seen_type == SMBIOS_EOT_TYPE)
+			/* End of table. */
+			break;
 		/* Find structure terminator. */
 		dmi = SMBIOS_GETSTR(dmi);
-		while (SMBIOS_GET16(dmi, 0) != 0 && dmi < ep) {
+		while (SMBIOS_GET16(dmi, 0) != 0 && dmi < ep)
 			dmi++;
-		}
-		dmi += 2;	/* For checksum */
+		/* Skip it. */
+		dmi += 2;
 	}
 
 	return (NULL);
@@ -632,8 +640,8 @@ smbios_detect(const caddr_t addr)
 	if (smbios.addr == NULL)
 		return;
 
-	for (dmi = smbios.addr, i = 0;
-	     dmi < smbios.addr + smbios.length && i < smbios.count; i++)
+	for (dmi = smbios.addr, i = 0; dmi != NULL &&
+	    dmi < smbios.addr + smbios.length && i < smbios.count; i++)
 		dmi = smbios_parse_table(dmi);
 
 	setenv("smbios.entry_point_type",
