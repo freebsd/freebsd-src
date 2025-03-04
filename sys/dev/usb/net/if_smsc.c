@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Microchip LAN9xxx devices (https://www.microchip.com/en-us/product/lan9500a)
  * 

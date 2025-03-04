@@ -31,7 +31,6 @@
  * the Apple iPhone Ethernet driver.
  */
 
-#include <sys/cdefs.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>

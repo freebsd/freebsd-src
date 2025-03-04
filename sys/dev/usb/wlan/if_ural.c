@@ -19,7 +19,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Ralink Technology RT2500USB chipset driver
  * http://www.ralinktech.com/

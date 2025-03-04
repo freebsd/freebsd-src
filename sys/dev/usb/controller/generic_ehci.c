@@ -32,7 +32,6 @@
  * Generic EHCI driver based on the Allwinner A10 EHCI driver
  */
 
-#include <sys/cdefs.h>
 #include "opt_bus.h"
 
 #include <sys/param.h>

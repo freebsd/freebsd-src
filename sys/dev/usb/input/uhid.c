@@ -4,7 +4,6 @@
  *	$NetBSD: uhid.c,v 1.54 2002/09/23 05:51:21 simonb Exp $
  */
 
-#include <sys/cdefs.h>
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *

@@ -47,7 +47,6 @@
  * http://www.usb.org/developers/devclass_docs/NCM10.zip
  */
 
-#include <sys/cdefs.h>
 #include <sys/gsb_crc32.h>
 #include <sys/eventhandler.h>
 #include <sys/stdint.h>

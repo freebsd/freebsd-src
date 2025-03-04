@@ -32,7 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * CATC USB-EL1210A USB to ethernet driver. Used in the CATC Netmate
  * adapters and others.

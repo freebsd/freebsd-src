@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /* Universal Host Controller Interface
  *
  * UHCI spec: http://www.intel.com/

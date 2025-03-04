@@ -35,7 +35,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * ADMtek AN986 Pegasus and AN8511 Pegasus II USB to ethernet driver.
  * Datasheet is available from http://www.admtek.com.tw.

@@ -50,7 +50,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Driver for Atheros AR5523 USB parts.
  *

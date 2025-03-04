@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * NOTE: all function names beginning like "uftdi_cfg_" can only
  * be called from within the config thread function !

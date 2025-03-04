@@ -1,6 +1,5 @@
 /*	$OpenBSD: uslcom.c,v 1.17 2007/11/24 10:52:12 jsg Exp $	*/
 
-#include <sys/cdefs.h>
 /*
  * Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
  *

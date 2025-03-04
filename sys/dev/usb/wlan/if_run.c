@@ -17,7 +17,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Ralink Technology RT2700U/RT2800U/RT3000U/RT3900E chipset driver.
  * http://www.ralinktech.com/

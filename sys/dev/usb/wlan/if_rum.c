@@ -18,7 +18,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Ralink Technology RT2501USB/RT2601USB chipset driver
  * http://www.ralinktech.com.tw/

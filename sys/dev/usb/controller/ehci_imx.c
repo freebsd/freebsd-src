@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * EHCI driver for Freescale i.MX SoCs which incorporate the USBOH3 controller.
  */

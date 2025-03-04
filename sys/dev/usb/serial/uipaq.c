@@ -43,7 +43,6 @@
  * Contact isis@cs.umd.edu if you have any questions/comments about this driver
  */
 
-#include <sys/cdefs.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
