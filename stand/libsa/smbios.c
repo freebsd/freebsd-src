@@ -139,7 +139,6 @@ SMBIOS_GET64(const caddr_t base, int off)
 #define	SMBIOS_GETSTR(base)	((base) + SMBIOS_GETLEN(base))
 
 struct smbios_attr {
-	int		probed;
 	int		is_64bit_ep;
 	caddr_t		addr;
 	size_t		length;
@@ -573,10 +572,6 @@ smbios_probe(const caddr_t addr)
 	int		maj_off;
 	int		min_off;
 
-	if (smbios.probed)
-		return;
-	smbios.probed = 1;
-
 	/* Search signatures and validate checksums. */
 	saddr = smbios_sigsearch(addr ? addr : PTOV(SMBIOS_START),
 	    SMBIOS_LENGTH);
@@ -684,8 +679,21 @@ int
 smbios_match(const char* bios_vendor, const char* maker,
     const char* product)
 {
-	/* XXXRP currently, only called from non-EFI. */
-	smbios_probe(NULL);
+	static bool probed = false;
+
+	/*
+	 * This routine is called only from non-EFI loaders on determining the
+	 * amount of usable memory.  In particular, it is so before malloc() can
+	 * be used, so before smbios_detect() can be called (as it uses
+	 * setenv()).  Consequently, since smbios_probe() is not exported, we
+	 * ensure it has been called beforehand to fetch into the static
+	 * 'smbios' structure the metadata that is to be matched.
+	 */
+	if (!probed) {
+		probed = true;
+		smbios_probe(NULL);
+	}
+
 	return (smbios_match_str(bios_vendor, smbios.bios_vendor) &&
 	    smbios_match_str(maker, smbios.maker) &&
 	    smbios_match_str(product, smbios.product));
