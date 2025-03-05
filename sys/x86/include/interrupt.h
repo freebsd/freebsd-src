@@ -139,6 +139,7 @@ enum {
 		} while(0)
 
 #define	X86PIC_PIC(type, pic)	((struct type *)(pic))
+#define	X86PIC_PTR(pic)		(&(pic))
 
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
