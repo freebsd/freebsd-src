@@ -530,14 +530,8 @@ cubic_post_recovery(struct cc_var *ccv)
 		 * If inflight data is less than ssthresh, set cwnd
 		 * conservatively to avoid a burst of data, as suggested in
 		 * the NewReno RFC. Otherwise, use the CUBIC method.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
-
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd does not collapse to 1 MSS under
