@@ -2209,7 +2209,7 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 		IEEE80211_NODE_LOCK(nt);
 	nikey = NULL;
 	status = 1;		/* NB: success */
-	if (IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
+	if (!IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
 		keyix = ni->ni_ucastkey.wk_rxkeyix;
 		status = ieee80211_crypto_delkey(ni->ni_vap, &ni->ni_ucastkey);
 		if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
