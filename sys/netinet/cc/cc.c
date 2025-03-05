@@ -401,13 +401,8 @@ newreno_cc_post_recovery(struct cc_var *ccv)
 		 * approximately snd_ssthresh outstanding data. But in case we
 		 * would be inclined to send a burst, better to do it via the
 		 * slow start mechanism.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd does not collapse to 1 MSS under
