@@ -573,8 +573,8 @@ smbios_probe(const caddr_t addr)
 	int		min_off;
 
 	/* Search signatures and validate checksums. */
-	saddr = smbios_sigsearch(addr ? addr : PTOV(SMBIOS_START),
-	    SMBIOS_LENGTH);
+	saddr = addr != NULL ? smbios_sigsearch(addr, 1) :
+	    smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
 	if (saddr == NULL)
 		return;
 
