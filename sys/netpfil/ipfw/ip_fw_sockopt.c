@@ -3122,7 +3122,7 @@ dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 	olh->size = size;
 
-	for (n = 1; n <= count; n++) {
+	for (n = 0; n < count; n++) {
 		i = (ipfw_sopt_info *)ipfw_get_sopt_space(sd, sizeof(*i));
 		KASSERT(i != NULL, ("previously checked buffer is not enough"));
 		sh = &ctl3_handlers[n];
