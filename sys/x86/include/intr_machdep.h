@@ -72,6 +72,7 @@ struct intsrc;
 #define	X86PIC_END
 typedef struct pic *x86pic_t, x86pics_t;
 #define	X86PIC_PIC(pic) ((struct X86PIC_TYPE *)(pic))
+#define X86PICP(pic) (&(pic))
 typedef struct pic x86pic_func_t;
 
 /*
