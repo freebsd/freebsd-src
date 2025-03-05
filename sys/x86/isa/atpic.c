@@ -202,7 +202,7 @@ static __inline void
 _atpic_eoi_master(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_event.ie_pic == X86PICP(atpics[MASTER].at_pic),
+	KASSERT(isrc->is_event.ie_pic == atpics[MASTER].at_pic,
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
@@ -217,7 +217,7 @@ static __inline void
 _atpic_eoi_slave(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_event.ie_pic == X86PICP(atpics[SLAVE].at_pic),
+	KASSERT(isrc->is_event.ie_pic == atpics[SLAVE].at_pic,
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
@@ -296,7 +296,7 @@ atpic_disable_source(x86pic_t pic, struct intsrc *isrc)
 	 * a function pointer.  All of the referenced variables should
 	 * still be hot in the cache.
 	 */
-	if (isrc->is_event.ie_pic == X86PICP(atpics[MASTER].at_pic))
+	if (isrc->is_event.ie_pic == atpics[MASTER].at_pic)
 		_atpic_eoi_master(isrc);
 	else
 		_atpic_eoi_slave(isrc);
@@ -308,7 +308,7 @@ static void
 atpic_eoi(x86pic_t pic, struct intsrc *isrc)
 {
 	/* Reference the above comment (atpic_disable_source()) */
-	if (isrc->is_event.ie_pic == X86PICP(atpics[MASTER].at_pic)) {
+	if (isrc->is_event.ie_pic == atpics[MASTER].at_pic) {
 #ifndef AUTO_EOI_1
 		spinlock_enter();
 		_atpic_eoi_master(isrc);
@@ -538,7 +538,7 @@ atpic_init(void *dummy __unused)
 		struct atpic *ap = atpics + i;
 		ap->at_pic = intr_create_pic("atpic", i, &atpic_driver);
 		device_set_softc(ap->at_pic, ap);
-		intr_register_pic(X86PICP(ap->at_pic));
+		intr_register_pic(ap->at_pic);
 	}
 
 	if (num_io_irqs == 0)
