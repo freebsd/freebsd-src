@@ -2103,7 +2103,7 @@ apic_setup_io(void *dummy __unused)
 	 * for proper suspend/resume order.
 	 */
 	lapic_pic = intr_create_pic("lapic", 0, &lapic_class);
-	intr_register_pic(X86PIC_PTR(lapic_pic));
+	intr_register_pic(lapic_pic);
 
 	retval = best_enum->apic_setup_io();
 	if (retval != 0)
