@@ -354,7 +354,7 @@ msi_init(void)
 
 	msi_enabled = 1;
 	msi_pic = intr_create_pic("msi", 0, &msi_class);
-	intr_register_pic(X86PIC_PTR(msi_pic));
+	intr_register_pic(msi_pic);
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
 
