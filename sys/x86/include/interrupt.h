@@ -82,7 +82,6 @@ typedef	device_t		x86pic_t, x86pics_t;
 #define	X86PIC_FUNC(func, impl)	DEVMETHOD(func, impl)
 #define	X86PIC_END		DEVMETHOD_END
 #define	X86PIC_PIC(type, pic)	((struct type *)device_get_softc(pic))
-#define	X86PIC_PTR(pic)		(pic)
 
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
