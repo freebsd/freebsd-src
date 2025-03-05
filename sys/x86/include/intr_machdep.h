@@ -129,6 +129,7 @@ struct pic {
 		} while(0)
 
 #define	X86PIC_PIC(type, pic)	((struct type *)(pic))
+#define	X86PIC_PTR(pic)		(&(pic))
 
 /* Flags for pic_disable_source() */
 enum {

@@ -357,7 +357,7 @@ msi_init(void)
 	num_io_irqs = first_msi_irq + num_msi_irqs;
 
 	msi_enabled = 1;
-	intr_register_pic(&msi_pic);
+	intr_register_pic(X86PIC_PTR(msi_pic));
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
 
@@ -377,7 +377,7 @@ msi_create_source(void)
 	mtx_unlock(&msi_lock);
 
 	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
-	msi->msi_intsrc.is_pic = &msi_pic;
+	msi->msi_intsrc.is_pic = X86PIC_PTR(msi_pic);
 	msi->msi_irq = irq;
 	intr_register_source(irq, &msi->msi_intsrc);
 	nexus_add_irq(irq);

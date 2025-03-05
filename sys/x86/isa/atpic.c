@@ -178,7 +178,7 @@ static __inline void
 _atpic_eoi_master(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_pic == &atpics[MASTER].at_pic,
+	KASSERT(isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic),
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
@@ -193,7 +193,7 @@ static __inline void
 _atpic_eoi_slave(struct intsrc *isrc)
 {
 
-	KASSERT(isrc->is_pic == &atpics[SLAVE].at_pic,
+	KASSERT(isrc->is_pic == X86PIC_PTR(atpics[SLAVE].at_pic),
 	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
@@ -271,7 +271,7 @@ atpic_disable_source(struct intsrc *isrc, int eoi)
 	 * still be hot in the cache.
 	 */
 	if (eoi == PIC_EOI) {
-		if (isrc->is_pic == &atpics[MASTER].at_pic)
+		if (isrc->is_pic == X86PIC_PTR(atpics[MASTER].at_pic))
 			_atpic_eoi_master(isrc);
 		else
 			_atpic_eoi_slave(isrc);
@@ -502,7 +502,7 @@ atpic_init(void *dummy __unused)
 	 */
 	for (i = 0; i < nitems(atpics); ++i) {
 		struct atpic *ap = atpics + i;
-		intr_register_pic(&ap->at_pic);
+		intr_register_pic(X86PIC_PTR(ap->at_pic));
 	}
 
 	if (num_io_irqs == 0)

@@ -2092,7 +2092,7 @@ apic_setup_io(void *dummy __unused)
 	 * Local APIC must be registered before other PICs and pseudo PICs
 	 * for proper suspend/resume order.
 	 */
-	intr_register_pic(&lapic_pic);
+	intr_register_pic(X86PIC_PTR(lapic_pic));
 
 	retval = best_enum->apic_setup_io();
 	if (retval != 0)
