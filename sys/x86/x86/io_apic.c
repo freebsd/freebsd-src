@@ -899,7 +899,7 @@ ioapic_register(ioapic_drv_t io)
 	 * Reprogram pins to handle special case pins (such as NMI and
 	 * SMI) and disable normal pins until a handler is registered.
 	 */
-	intr_register_pic(&io->io_pic);
+	intr_register_pic(X86PIC_PTR(io->io_pic));
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
 		ioapic_reprogram_intpin(&pin->io_intsrc);
 }

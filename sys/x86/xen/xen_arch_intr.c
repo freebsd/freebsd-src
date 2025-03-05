@@ -263,7 +263,7 @@ xen_arch_intr_init(void)
 
 	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
 
-	intr_register_pic(&xen_intr_pic);
+	intr_register_pic(X86PIC_PTR(xen_intr_pic));
 }
 
 /**
@@ -288,7 +288,7 @@ xen_arch_intr_alloc(void)
 		SLIST_REMOVE_HEAD(&avail_list, free);
 		mtx_unlock(&xen_intr_x86_lock);
 
-		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
+		KASSERT(isrc->xi_arch.intsrc.is_pic == X86PIC_PTR(xen_intr_pic),
 		    ("interrupt not owned by Xen code?"));
 
 		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
@@ -314,7 +314,7 @@ xen_arch_intr_alloc(void)
 
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
+	isrc->xi_arch.intsrc.is_pic = X86PIC_PTR(xen_intr_pic);
 	error = intr_register_source(vector, &isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
