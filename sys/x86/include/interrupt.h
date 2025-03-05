@@ -86,7 +86,6 @@ typedef const kobj_method_t x86pic_func_t[];
 #define	X86PIC_END DEVMETHOD_END
 typedef device_t x86pic_t, x86pics_t;
 #define	X86PIC_PIC(pic) ((struct X86PIC_TYPE *)device_get_softc(pic))
-#define X86PICP(pic) (pic)
 
 /*
  * An interrupt source.  The upper-layer code uses the PIC methods to
