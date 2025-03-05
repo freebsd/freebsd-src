@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 12, 2024
+.Dd March 5, 2025
 .Dt JEXEC 8
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl l
+.Op Fl d Ar working-directory
 .Op Fl u Ar username | Fl U Ar username
 .Ar jail Op Ar command ...
 .Sh DESCRIPTION
@@ -48,6 +49,9 @@ is not specified then the user's shell is used.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl d Ar working-directory
+The working directory for running commands inside the jail.
+The default is the jail root directory.
 .It Fl l
 Execute in a clean environment.
 The environment is discarded except for
@@ -59,7 +63,9 @@ If a user is specified (via
 .Fl u
 or
 .Fl U ) ,
-commands are run from that (possibly jailed) user's directory.
+and absent the
+.Fl d
+option, commands are run from that (possibly jailed) user's directory.
 .It Fl u Ar username
 The user name from host environment as whom the
 .Ar command
