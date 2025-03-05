@@ -261,6 +261,10 @@ kboot_find_smbios(void)
 	ep = buffer + strlen(buffer);
 	walker = buffer;
 	while (walker <= ep) {
+		/*
+		 * Linux outputs the v3 table first if present, so we will
+		 * choose it in priority.
+		 */
 		if (strncmp("SMBIOS3=", walker, 8) == 0)
 			return((vm_offset_t)strtoull(walker + 8, NULL, 0));
 		if (strncmp("SMBIOS=", walker, 7) == 0)
