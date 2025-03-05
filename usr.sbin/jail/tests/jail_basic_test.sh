@@ -129,13 +129,19 @@ commands_head()
 {
 	atf_set descr 'Commands jail test'
 	atf_set require.user root
+	mkdir /tmp/test_basejail_root
 }
 
 commands_body()
 {
-	# exec.prestart
-	atf_check -s exit:0 -o inline:"START\n" \
+	# exec.prestart (START) and exec.poststart (env)
+	atf_check -s exit:0 -o save:stdout -e empty \
 		jail -f $(atf_get_srcdir)/commands.jail.conf -qc basejail
+	grep -E '^START$' stdout || atf_fail "exec.prestart output not found"
+	grep -E '^JID=[0-9]+' stdout || atf_fail "JID not found in exec.poststart env output"
+	grep -E '^JNAME=basejail$' stdout || atf_fail "JNAME not found in exec.poststart env output"
+	grep -E '^JPATH=/tmp/test_basejail_root$' stdout || atf_fail "JPATH not found in exec.poststart env output"
+
 	# exec.prestop by jailname
 	atf_check -s exit:0 -o inline:"STOP\n" \
 		jail -f $(atf_get_srcdir)/commands.jail.conf -qr basejail 
@@ -152,6 +158,7 @@ commands_cleanup()
 	then
 	    jail -r basejail
 	fi
+	rmdir /tmp/test_basejail_root
 }
 
 atf_init_test_cases()

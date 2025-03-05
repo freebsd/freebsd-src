@@ -290,7 +290,7 @@ run_command(struct cfjail *j)
 	const struct cfstring *comstring, *s;
 	login_cap_t *lcap;
 	const char **argv;
-	char *acs, *cs, *comcs, *devpath;
+	char *acs, *ajidstr, *cs, *comcs, *devpath;
 	const char *jidstr, *conslog, *fmt, *path, *ruleset, *term, *username;
 	enum intparam comparam;
 	size_t comlen, ret;
@@ -794,6 +794,18 @@ run_command(struct cfjail *j)
 			exit(1);
 		}
 		endpwent();
+	}
+	if (!injail) {
+		if (asprintf(&ajidstr, "%d", j->jid) == -1) {
+			jail_warnx(j, "asprintf jid=%d: %s", j->jid,
+				strerror(errno));
+			exit(1);
+		}
+		setenv("JID", ajidstr, 1);
+		free(ajidstr);
+		setenv("JNAME", string_param(j->intparams[KP_NAME]), 1);
+		path = string_param(j->intparams[KP_PATH]);
+		setenv("JPATH", path ? path : "", 1);
 	}
 
 	if (consfd != 0 && (dup2(consfd, 1) < 0 || dup2(consfd, 2) < 0)) {
