@@ -635,7 +635,7 @@ smbios_probe(const caddr_t addr)
 	}
 }
 
-void
+caddr_t
 smbios_detect(const caddr_t addr)
 {
 	char		buf[16];
@@ -644,7 +644,7 @@ smbios_detect(const caddr_t addr)
 
 	smbios_probe(addr);
 	if (smbios.addr == NULL)
-		return;
+		return (NULL);
 
 	for (dmi = smbios.addr, i = 0; dmi != NULL &&
 	    dmi < smbios.addr + smbios.length && i < smbios.count; i++)
@@ -667,6 +667,8 @@ smbios_detect(const caddr_t addr)
 		sprintf(buf, "%u", smbios.populated_sockets);
 		setenv("smbios.socket.populated", buf, 1);
 	}
+
+	return (smbios.addr);
 }
 
 static int
