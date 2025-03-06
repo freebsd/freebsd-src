@@ -432,6 +432,8 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    acpi_name(h), AcpiFormatException(status));
 			return;
 		}
+		if (acpi_quirks & ACPI_Q_DELAY_BEFORE_EJECT_RESCAN)
+			DELAY(10 * 1000);
 		BUS_RESCAN(dev);
 		bus_topo_unlock();
 		break;
