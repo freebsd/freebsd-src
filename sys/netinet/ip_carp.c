@@ -357,7 +357,7 @@ static void	carp_ifa_delroute(struct ifaddr *);
 static void	carp_send_ad_all(void *, int);
 static void	carp_demote_adj(int, char *);
 
-static LIST_HEAD(, carp_softc) carp_list;
+static LIST_HEAD(, carp_softc) carp_list = LIST_HEAD_INITIALIZER(carp_list);
 static struct mtx carp_mtx;
 static struct sx carp_sx;
 static struct task carp_sendall_task =
@@ -3036,7 +3036,6 @@ carp_mod_load(void)
 
 	mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
 	sx_init(&carp_sx, "carp_sx");
-	LIST_INIT(&carp_list);
 	carp_get_vhid_p = carp_get_vhid;
 	carp_forus_p = carp_forus;
 	carp_output_p = carp_output;
