@@ -182,7 +182,7 @@ struct bpf_dltlist32 {
  * frames, ethernet frames, etc).
  */
 CK_LIST_HEAD(bpf_iflist, bpf_if);
-static struct bpf_iflist bpf_iflist;
+static struct bpf_iflist bpf_iflist = CK_LIST_HEAD_INITIALIZER();
 static struct sx	bpf_sx;		/* bpf global lock */
 static int		bpf_bpfd_cnt;
 
@@ -3006,8 +3006,6 @@ bpf_drvinit(void *unused)
 	struct cdev *dev;
 
 	sx_init(&bpf_sx, "bpf global lock");
-	CK_LIST_INIT(&bpf_iflist);
-
 	dev = make_dev(&bpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "bpf");
 	/* For compatibility */
 	make_dev_alias(dev, "bpf0");
