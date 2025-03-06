@@ -925,7 +925,9 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct virtchnl_queue_pair_info *vqpi;
 	enum virtchnl_status_code status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
-	int error = 0;
+	struct ice_tx_queue *txq;
+	struct ice_rx_queue *rxq;
+	int i, error = 0;
 
 	vqci = (struct virtchnl_vsi_queue_config_info *)msg_buf;
 
@@ -935,11 +937,30 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	vqpi = vqci->qpair;
-	for (int i = 0; i < vqci->num_queue_pairs; i++, vqpi++) {
-		struct ice_tx_queue *txq;
-		struct ice_rx_queue *rxq;
+	ice_vsi_disable_tx(vf->vsi);
+	ice_control_all_rx_queues(vf->vsi, false);
 
+	/*
+	 * Clear TX and RX queues config in case VF
+	 * requests different number of queues.
+	 */
+	for (i = 0; i < vsi->num_tx_queues; i++) {
+		txq = &vsi->tx_queues[i];
+
+		txq->desc_count = 0;
+		txq->tx_paddr = 0;
+		txq->tc = 0;
+	}
+
+	for (i = 0; i < vsi->num_rx_queues; i++) {
+		rxq = &vsi->rx_queues[i];
+
+		rxq->desc_count = 0;
+		rxq->rx_paddr = 0;
+	}
+
+	vqpi = vqci->qpair;
+	for (i = 0; i < vqci->num_queue_pairs; i++, vqpi++) {
 		/* Initial parameter validation */
 		if (vqpi->txq.vsi_id != vf->vsi->idx ||
 		    vqpi->rxq.vsi_id != vf->vsi->idx ||
