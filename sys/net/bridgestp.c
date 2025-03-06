@@ -86,7 +86,7 @@
 
 const uint8_t bstp_etheraddr[] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
-LIST_HEAD(, bstp_state) bstp_list;
+LIST_HEAD(, bstp_state) bstp_list = LIST_HEAD_INITIALIZER(bstp_list);
 static struct mtx	bstp_list_mtx;
 
 static void	bstp_transmit(struct bstp_state *, struct bstp_port *);
@@ -2137,7 +2137,6 @@ bstp_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&bstp_list_mtx, "bridgestp list", NULL, MTX_DEF);
-		LIST_INIT(&bstp_list);
 		break;
 	case MOD_UNLOAD:
 		mtx_destroy(&bstp_list_mtx);
