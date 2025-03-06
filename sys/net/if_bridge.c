@@ -602,7 +602,8 @@ static const struct bridge_control bridge_control_table[] = {
 };
 static const int bridge_control_table_size = nitems(bridge_control_table);
 
-VNET_DEFINE_STATIC(LIST_HEAD(, bridge_softc), bridge_list);
+VNET_DEFINE_STATIC(LIST_HEAD(, bridge_softc), bridge_list) =
+    LIST_HEAD_INITIALIZER();
 #define	V_bridge_list	VNET(bridge_list)
 #define	BRIDGE_LIST_LOCK_INIT(x)	sx_init(&V_bridge_list_sx,	\
 					    "if_bridge list")
@@ -623,7 +624,6 @@ vnet_bridge_init(const void *unused __unused)
 	    sizeof(struct bridge_rtnode), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	BRIDGE_LIST_LOCK_INIT();
-	LIST_INIT(&V_bridge_list);
 
 	struct if_clone_addreq req = {
 		.create_f = bridge_clone_create,
