@@ -266,8 +266,8 @@ main(int argc, const char *argv[])
 #endif
 
     if (setlocale(LC_ALL, "") == NULL) {
-        fprintf(stderr, "invalid locale.\n");
-	exit(1);
+	warnx("invalid locale, check your environment");
+	sleep(2);
     }
 
     mypid = getpid();
