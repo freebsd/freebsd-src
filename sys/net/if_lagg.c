@@ -102,7 +102,8 @@ struct lagg_snd_tag {
 	struct m_snd_tag *tag;
 };
 
-VNET_DEFINE_STATIC(SLIST_HEAD(__trhead, lagg_softc), lagg_list); /* list of laggs */
+VNET_DEFINE_STATIC(SLIST_HEAD(__trhead, lagg_softc), lagg_list) =
+    SLIST_HEAD_INITIALIZER(); /* list of laggs */
 #define	V_lagg_list	VNET(lagg_list)
 VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	V_lagg_list_mtx	VNET(lagg_list_mtx)
@@ -299,7 +300,6 @@ vnet_lagg_init(const void *unused __unused)
 {
 
 	LAGG_LIST_LOCK_INIT();
-	SLIST_INIT(&V_lagg_list);
 	struct if_clone_addreq req = {
 		.create_f = lagg_clone_create,
 		.destroy_f = lagg_clone_destroy,
