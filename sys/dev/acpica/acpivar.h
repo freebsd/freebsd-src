@@ -232,6 +232,8 @@ extern struct mtx			acpi_mutex;
  *	as "PullUp" and they should be treated as "NoPull" instead.
  * ACPI_Q_CLEAR_PME_ON_DETACH: Specifies that PCIM_PSTAT_(PME & ~PMEENABLE)
  *	should be written to the power status register as part of ACPI Eject.
+ * ACPI_Q_DELAY_BEFORE_EJECT_RESCAN: Specifies that we need a short (10ms)
+ *	delay after _EJ0 returns before rescanning the PCI bus.
  */
 extern int	acpi_quirks;
 #define ACPI_Q_OK		0
@@ -240,6 +242,7 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 #define ACPI_Q_AEI_NOPULL	(1 << 3)
 #define ACPI_Q_CLEAR_PME_ON_DETACH	(1 << 4)
+#define ACPI_Q_DELAY_BEFORE_EJECT_RESCAN	(1 << 5)
 
 #if defined(__amd64__) || defined(__i386__)
 /*
