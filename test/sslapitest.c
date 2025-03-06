@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -190,7 +190,7 @@ static int compare_hex_encoded_buffer(const char *hex_encoded,
         return 1;
 
     for (i = j = 0; i < raw_length && j + 1 < hex_length; i++, j += 2) {
-        sprintf(hexed, "%02x", raw[i]);
+        BIO_snprintf(hexed, sizeof(hexed), "%02x", raw[i]);
         if (!TEST_int_eq(hexed[0], hex_encoded[j])
                 || !TEST_int_eq(hexed[1], hex_encoded[j + 1]))
             return 1;
@@ -10918,6 +10918,7 @@ static int npn_advert_cb(SSL *ssl, const unsigned char **out,
         return SSL_TLSEXT_ERR_OK;
 
     case 1:
+        *out = NULL;
         *outlen = 0;
         return SSL_TLSEXT_ERR_OK;
 
