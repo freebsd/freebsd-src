@@ -128,7 +128,7 @@ static int ifc_advanced_create_wrapper(struct if_clone *ifc, char *name, size_t 
 static struct mtx if_cloners_mtx;
 MTX_SYSINIT(if_cloners_lock, &if_cloners_mtx, "if_cloners lock", MTX_DEF);
 VNET_DEFINE_STATIC(int, if_cloners_count);
-VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
+VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners) = LIST_HEAD_INITIALIZER();
 
 #define	V_if_cloners_count	VNET(if_cloners_count)
 #define	V_if_cloners		VNET(if_cloners)
@@ -182,13 +182,6 @@ VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 	LIST_REMOVE(_ifp, if_clones)
 
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
-
-void
-vnet_if_clone_init(void)
-{
-
-	LIST_INIT(&V_if_cloners);
-}
 
 /*
  * Lookup and create a clone network interface.
