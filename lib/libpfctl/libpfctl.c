@@ -3188,3 +3188,94 @@ pfctl_del_table(struct pfctl_handle *h, struct pfr_table *table,
 	return (e.error);
 }
 
+static bool
+snl_attr_get_uint64_into_int_array(struct snl_state *ss, struct nlattr *nla,
+    const void *arg, void *target)
+{
+	uint64_t *u64target;
+	struct snl_uint64_array a = {
+		.count = 0,
+		.max = (size_t)arg,
+	};
+	bool error;
+
+	u64target = malloc(a.max * sizeof(uint64_t));
+	a.array = u64target;
+
+	error = snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), &array_parser, &a);
+	if (! error)
+		return (error);
+
+	for (size_t i = 0; i < a.count; i++)
+		((int *)target)[i] = (int)u64target[i];
+
+	free(u64target);
+
+	return (true);
+}
+
+#define	_OUT(_field)	offsetof(struct pfr_table, _field)
+static const struct snl_attr_parser ap_table[] = {
+	{ .type = PF_T_ANCHOR, .off = _OUT(pfrt_anchor), .arg = (void *)MAXPATHLEN, .cb = snl_attr_copy_string },
+	{ .type = PF_T_NAME, .off = _OUT(pfrt_name), .arg = (void *)PF_TABLE_NAME_SIZE, .cb =snl_attr_copy_string },
+	{ .type = PF_T_TABLE_FLAGS, .off = _OUT(pfrt_flags), .cb = snl_attr_get_uint32 },
+};
+#undef	_OUT
+SNL_DECLARE_ATTR_PARSER(table_parser, ap_table);
+#define	_OUT(_field)	offsetof(struct pfr_tstats, _field)
+static struct  snl_attr_parser ap_tstats[] = {
+	{ .type = PF_TS_TABLE, .off = _OUT(pfrts_t), .arg = &table_parser, .cb = snl_attr_get_nested },
+	{ .type = PF_TS_PACKETS, .off = _OUT(pfrts_packets), .arg = (void *)(PFR_DIR_MAX * PFR_OP_TABLE_MAX), .cb = snl_attr_get_uint64_array},
+	{ .type = PF_TS_BYTES, .off = _OUT(pfrts_bytes), .arg = (void *)(PFR_DIR_MAX * PFR_OP_TABLE_MAX), .cb = snl_attr_get_uint64_array },
+	{ .type = PF_TS_MATCH, .off = _OUT(pfrts_match), .cb = snl_attr_get_uint64 },
+	{. type = PF_TS_NOMATCH, .off = _OUT(pfrts_nomatch), .cb = snl_attr_get_uint64 },
+	{ .type = PF_TS_TZERO, .off = _OUT(pfrts_tzero), .cb = snl_attr_get_uint64 },
+	{ .type = PF_TS_REFCNT, .off = _OUT(pfrts_cnt), . arg = (void *)PFR_REFCNT_MAX, .cb = snl_attr_get_uint64_into_int_array },
+};
+#undef _OUT
+SNL_DECLARE_PARSER(tstats_parser, struct genlmsghdr, snl_f_p_empty, ap_tstats);
+
+int
+pfctl_get_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
+    pfctl_get_tstats_fn fn, void *arg)
+{
+	struct snl_writer nw;
+	struct snl_errmsg_data e = {};
+	struct nlmsghdr *hdr;
+	uint32_t seq_id;
+	int family_id;
+	int ret;
+
+	family_id = snl_get_genl_family(&h->ss, PFNL_FAMILY_NAME);
+	if (family_id == 0)
+		return (ENOTSUP);
+
+	snl_init_writer(&h->ss, &nw);
+	hdr = snl_create_genl_msg_request(&nw, family_id, PFNL_CMD_GET_TSTATS);
+
+	snl_add_msg_attr_string(&nw, PF_T_ANCHOR, filter->pfrt_anchor);
+	snl_add_msg_attr_string(&nw, PF_T_NAME, filter->pfrt_name);
+	snl_add_msg_attr_u32(&nw, PF_T_TABLE_FLAGS, filter->pfrt_flags);
+
+	if ((hdr = snl_finalize_msg(&nw)) == NULL)
+		return (ENXIO);
+
+	seq_id = hdr->nlmsg_seq;
+
+	if (!snl_send_message(&h->ss, hdr))
+		return (ENXIO);
+
+	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		struct pfr_tstats tstats = {};
+
+		if (!snl_parse_nlmsg(&h->ss, hdr, &tstats_parser, &tstats))
+			continue;
+
+		ret = fn(&tstats, arg);
+		if (ret != 0)
+			break;
+	}
+
+	return (e.error);
+}
+

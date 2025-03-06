@@ -64,6 +64,7 @@ enum {
 	PFNL_CMD_CLEAR_TABLES = 26,
 	PFNL_CMD_ADD_TABLE = 27,
 	PFNL_CMD_DEL_TABLE = 28,
+	PFNL_CMD_GET_TSTATS = 29,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -440,6 +441,18 @@ enum pf_tables_t {
 	PF_T_FLAGS		= 4, /* u32 */
 	PF_T_NBR_DELETED	= 5, /* u32 */
 	PF_T_NBR_ADDED		= 6, /* u32 */
+};
+
+enum pf_tstats_t {
+	PF_TS_UNSPEC,
+	PF_TS_TABLE		= 1, /* nested, pfr_table */
+	PF_TS_PACKETS		= 2, /* u64 array */
+	PF_TS_BYTES		= 3, /* u64 array */
+	PF_TS_MATCH		= 4, /* u64 */
+	PF_TS_NOMATCH		= 5, /* u64 */
+	PF_TS_TZERO		= 6, /* u64 */
+	PF_TS_CNT		= 7, /* u64 */
+	PF_TS_REFCNT		= 8, /* u64 array */
 };
 
 #ifdef _KERNEL

@@ -57,8 +57,8 @@
 extern void	usage(void);
 static int	pfctl_table(int, char *[], char *, const char *, char *,
 		    const char *, int);
-static void	print_table(struct pfr_table *, int, int);
-static void	print_tstats(struct pfr_tstats *, int);
+static void	print_table(const struct pfr_table *, int, int);
+static int	print_tstats(const struct pfr_tstats *, int);
 static int	load_addr(struct pfr_buffer *, int, char *[], char *, int);
 static void	print_addrx(struct pfr_addr *, struct pfr_addr *, int);
 static int 	nonzero_astats(struct pfr_astats *);
@@ -165,28 +165,31 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 		    PFRB_TSTATS : PFRB_TABLES;
 		if (argc || file != NULL)
 			usage();
-		for (;;) {
-			pfr_buf_grow(&b, b.pfrb_size);
-			b.pfrb_size = b.pfrb_msize;
-			if (opts & PF_OPT_VERBOSE2)
-				RVTEST(pfr_get_tstats(&table,
-				    b.pfrb_caddr, &b.pfrb_size, flags));
-			else
-				RVTEST(pfr_get_tables(&table,
-				    b.pfrb_caddr, &b.pfrb_size, flags));
-			if (b.pfrb_size <= b.pfrb_msize)
-				break;
-		}
 
 		if ((opts & PF_OPT_SHOWALL) && b.pfrb_size > 0)
 			pfctl_print_title("TABLES:");
 
-		PFRB_FOREACH(p, &b)
-			if (opts & PF_OPT_VERBOSE2)
-				print_tstats(p, opts & PF_OPT_DEBUG);
-			else
+		if (opts & PF_OPT_VERBOSE2) {
+			uintptr_t arg = opts & PF_OPT_DEBUG;
+			pfctl_get_tstats(pfh, &table,
+			    (pfctl_get_tstats_fn)print_tstats, (void *)arg);
+		} else {
+			for (;;) {
+				pfr_buf_grow(&b, b.pfrb_size);
+				b.pfrb_size = b.pfrb_msize;
+				RVTEST(pfr_get_tables(&table,
+				    b.pfrb_caddr, &b.pfrb_size, flags));
+				if (b.pfrb_size <= b.pfrb_msize)
+					break;
+			}
+
+			if ((opts & PF_OPT_SHOWALL) && b.pfrb_size > 0)
+				pfctl_print_title("TABLES:");
+
+			PFRB_FOREACH(p, &b)
 				print_table(p, opts & PF_OPT_VERBOSE,
 				    opts & PF_OPT_DEBUG);
+		}
 	} else if (!strcmp(command, "kill")) {
 		if (argc || file != NULL)
 			usage();
@@ -408,7 +411,7 @@ _cleanup:
 }
 
 void
-print_table(struct pfr_table *ta, int verbose, int debug)
+print_table(const struct pfr_table *ta, int verbose, int debug)
 {
 	if (!debug && !(ta->pfrt_flags & PFR_TFLAG_ACTIVE))
 		return;
@@ -429,14 +432,14 @@ print_table(struct pfr_table *ta, int verbose, int debug)
 		puts(ta->pfrt_name);
 }
 
-void
-print_tstats(struct pfr_tstats *ts, int debug)
+int
+print_tstats(const struct pfr_tstats *ts, int debug)
 {
 	time_t	time = ts->pfrts_tzero;
 	int	dir, op;
 
 	if (!debug && !(ts->pfrts_flags & PFR_TFLAG_ACTIVE))
-		return;
+		return (0);
 	print_table(&ts->pfrts_t, 1, debug);
 	printf("\tAddresses:   %d\n", ts->pfrts_cnt);
 	printf("\tCleared:     %s", ctime(&time));
@@ -452,6 +455,8 @@ print_tstats(struct pfr_tstats *ts, int debug)
 			    stats_text[dir][op],
 			    (unsigned long long)ts->pfrts_packets[dir][op],
 			    (unsigned long long)ts->pfrts_bytes[dir][op]);
+
+	return (0);
 }
 
 int

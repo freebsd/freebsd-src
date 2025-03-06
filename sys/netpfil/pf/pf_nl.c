@@ -1937,6 +1937,104 @@ pf_handle_del_table(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	return (0);
 }
 
+static bool
+nlattr_add_pfr_table(struct nl_writer *nw, int attrtype,
+    struct pfr_table *t)
+{
+	int	 off = nlattr_add_nested(nw, attrtype);
+
+	nlattr_add_string(nw, PF_T_ANCHOR, t->pfrt_anchor);
+	nlattr_add_string(nw, PF_T_NAME, t->pfrt_name);
+	nlattr_add_u32(nw, PF_T_TABLE_FLAGS, t->pfrt_flags);
+
+	nlattr_set_len(nw, off);
+
+	return (true);
+}
+
+static int
+pf_handle_get_tstats(struct nlmsghdr *hdr, struct nl_pstate *npt)
+{
+	struct pfioc_table attrs = { 0 };
+	struct nl_writer *nw = npt->nw;
+	struct genlmsghdr *ghdr_new;
+	struct pfr_tstats *pfrtstats;
+	int error;
+	int n;
+
+	PF_RULES_RLOCK_TRACKER;
+
+	error = nl_parse_nlmsg(hdr, &table_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+
+	PF_TABLE_STATS_LOCK();
+	PF_RULES_RLOCK();
+
+	n = pfr_table_count(&attrs.pfrio_table, attrs.pfrio_flags);
+	pfrtstats = mallocarray(n,
+	    sizeof(struct pfr_tstats), M_TEMP, M_NOWAIT | M_ZERO);
+
+	error = pfr_get_tstats(&attrs.pfrio_table, pfrtstats,
+	    &n, attrs.pfrio_flags | PFR_FLAG_USERIOCTL);
+
+	PF_RULES_RUNLOCK();
+	PF_TABLE_STATS_UNLOCK();
+
+	if (error == 0) {
+		hdr->nlmsg_flags |= NLM_F_MULTI;
+
+		for (int i = 0; i < n; i++) {
+			uint64_t refcnt[PFR_REFCNT_MAX];
+
+			if (!nlmsg_reply(nw, hdr, sizeof(struct genlmsghdr))) {
+				error = ENOMEM;
+				break;
+			}
+
+			ghdr_new = nlmsg_reserve_object(nw, struct genlmsghdr);
+			ghdr_new->cmd = PFNL_CMD_GET_TSTATS;
+			ghdr_new->version = 0;
+			ghdr_new->reserved = 0;
+
+			nlattr_add_pfr_table(nw, PF_TS_TABLE,
+			    &pfrtstats[i].pfrts_t);
+			nlattr_add_u64_array(nw, PF_TS_PACKETS,
+			    PFR_DIR_MAX * PFR_OP_TABLE_MAX,
+			    (uint64_t *)pfrtstats[i].pfrts_packets);
+			nlattr_add_u64_array(nw, PF_TS_BYTES,
+			    PFR_DIR_MAX * PFR_OP_TABLE_MAX,
+			    (uint64_t *)pfrtstats[i].pfrts_bytes);
+			nlattr_add_u64(nw, PF_TS_MATCH,
+			    pfrtstats[i].pfrts_match);
+			nlattr_add_u64(nw, PF_TS_NOMATCH,
+			    pfrtstats[i].pfrts_nomatch);
+			nlattr_add_u64(nw, PF_TS_TZERO,
+			    pfrtstats[i].pfrts_tzero);
+			nlattr_add_u64(nw, PF_TS_CNT, pfrtstats[i].pfrts_cnt);
+
+			for (int j = 0; j < PFR_REFCNT_MAX; j++)
+				refcnt[j] = pfrtstats[i].pfrts_refcnt[j];
+
+			nlattr_add_u64_array(nw, PF_TS_REFCNT, PFR_REFCNT_MAX,
+			    refcnt);
+
+			if (! nlmsg_end(nw)) {
+				error = ENOMEM;
+				break;
+			}
+		}
+	}
+	free(pfrtstats, M_TEMP);
+
+	if (!nlmsg_end_dump(npt->nw, error, hdr)) {
+		NL_LOG(LOG_DEBUG, "Unable to finalize the dump");
+		return (ENOMEM);
+	}
+
+	return (error);
+}
+
 static const struct nlhdr_parser *all_parsers[] = {
 	&state_parser,
 	&addrule_parser,
@@ -2150,6 +2248,13 @@ static const struct genl_cmd pf_cmds[] = {
 		.cmd_name = "DEL_TABLE",
 		.cmd_cb = pf_handle_del_table,
 		.cmd_flags = GENL_CMD_CAP_DO | GENL_CMD_CAP_HASPOL,
+		.cmd_priv = PRIV_NETINET_PF,
+	},
+	{
+		.cmd_num = PFNL_CMD_GET_TSTATS,
+		.cmd_name = "GET_TSTATS",
+		.cmd_cb = pf_handle_get_tstats,
+		.cmd_flags = GENL_CMD_CAP_DUMP | GENL_CMD_CAP_HASPOL,
 		.cmd_priv = PRIV_NETINET_PF,
 	},
 };
