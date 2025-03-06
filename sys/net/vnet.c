@@ -101,7 +101,7 @@ struct sx		vnet_sxlock;
 	sx_xunlock(&vnet_sxlock);					\
 } while (0)
 
-struct vnet_list_head vnet_head;
+struct vnet_list_head vnet_head = LIST_HEAD_INITIALIZER(vnet_head);
 struct vnet *vnet0;
 
 /*
@@ -318,7 +318,6 @@ vnet_init_prelink(void *arg __unused)
 	rw_init(&vnet_rwlock, "vnet_rwlock");
 	sx_init(&vnet_sxlock, "vnet_sxlock");
 	sx_init(&vnet_sysinit_sxlock, "vnet_sysinit_sxlock");
-	LIST_INIT(&vnet_head);
 }
 SYSINIT(vnet_init_prelink, SI_SUB_VNET_PRELINK, SI_ORDER_FIRST,
     vnet_init_prelink, NULL);
