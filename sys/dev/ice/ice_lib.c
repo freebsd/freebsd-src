@@ -1675,6 +1675,10 @@ ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
 		struct ice_tlan_ctx tlan_ctx = { 0 };
 		struct ice_tx_queue *txq = &vsi->tx_queues[i];
 
+		/* Last configured queue */
+		if (txq->desc_count == 0)
+			break;
+
 		pf_q = vsi->tx_qmap[txq->me];
 		qg->txqs[0].txq_id = htole16(pf_q);
 
@@ -1803,6 +1807,10 @@ ice_cfg_vsi_for_rx(struct ice_vsi *vsi)
 
 	for (i = 0; i < vsi->num_rx_queues; i++) {
 		MPASS(vsi->mbuf_sz > 0);
+		/* Last configured queue */
+		if (vsi->rx_queues[i].desc_count == 0)
+			break;
+
 		err = ice_setup_rx_ctx(&vsi->rx_queues[i]);
 		if (err)
 			return err;
