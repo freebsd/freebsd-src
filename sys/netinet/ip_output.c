@@ -860,7 +860,7 @@ no_ipsec:;
 
 done:
 	return (error);
- bad:
+bad:
 	m_freem(m);
 	goto done;
 }
