@@ -699,7 +699,7 @@ static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbxsareplay(u_int32_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
 	u_int32_t, u_int32_t);
-static struct seckey *key_dup_keymsg(const struct sadb_key *, size_t,
+static struct seckey *key_dup_keymsg(const struct sadb_key *,
     struct malloc_type *);
 static struct seclifetime *key_dup_lifemsg(const struct sadb_lifetime *src,
     struct malloc_type *);
@@ -3561,6 +3561,9 @@ key_setsaval(struct secasvar *sav, const struct sadb_msghdr *mhp)
 			if (len == PFKEY_ALIGN8(sizeof(struct sadb_key)) &&
 			    sav->alg_auth != SADB_X_AALG_NULL)
 				error = EINVAL;
+			if (key0->sadb_key_bits == 0 || (sizeof(struct sadb_key) +
+			    (key0->sadb_key_bits >> 3)) > len)
+				error = EINVAL;
 			break;
 		case SADB_X_SATYPE_IPCOMP:
 		default:
@@ -3573,7 +3576,7 @@ key_setsaval(struct secasvar *sav, const struct sadb_msghdr *mhp)
 			goto fail;
 		}
 
-		sav->key_auth = key_dup_keymsg(key0, len, M_IPSEC_MISC);
+		sav->key_auth = key_dup_keymsg(key0, M_IPSEC_MISC);
 		if (sav->key_auth == NULL ) {
 			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 				  __func__));
@@ -3599,7 +3602,12 @@ key_setsaval(struct secasvar *sav, const struct sadb_msghdr *mhp)
 				error = EINVAL;
 				break;
 			}
-			sav->key_enc = key_dup_keymsg(key0, len, M_IPSEC_MISC);
+			if (key0->sadb_key_bits == 0 || (sizeof(struct sadb_key) +
+			    (key0->sadb_key_bits >> 3)) > len) {
+				error = EINVAL;
+				break;
+			}
+			sav->key_enc = key_dup_keymsg(key0, M_IPSEC_MISC);
 			if (sav->key_enc == NULL) {
 				ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 					__func__));
@@ -4266,13 +4274,14 @@ key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id, u_int32_t priorit
  * OUT: NULL no more memory
  */
 struct seckey *
-key_dup_keymsg(const struct sadb_key *src, size_t len,
-    struct malloc_type *type)
+key_dup_keymsg(const struct sadb_key *src, struct malloc_type *type)
 {
 	struct seckey *dst;
+	size_t len;
 
 	dst = malloc(sizeof(*dst), type, M_NOWAIT);
 	if (dst != NULL) {
+		len = src->sadb_key_bits >> 3;
 		dst->bits = src->sadb_key_bits;
 		dst->key_data = malloc(len, type, M_NOWAIT);
 		if (dst->key_data != NULL) {
