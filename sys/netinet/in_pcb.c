@@ -1088,30 +1088,109 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
 int
 in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 {
-	u_short lport, fport;
-	in_addr_t laddr, faddr;
-	int anonport, error;
+	struct in_addr laddr, faddr;
+	u_short lport;
+	int error;
+	bool anonport;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 	KASSERT(in_nullhost(inp->inp_faddr),
 	    ("%s: inp is already connected", __func__));
+	KASSERT(sin->sin_family == AF_INET,
+	    ("%s: invalid address family for %p", __func__, sin));
+	KASSERT(sin->sin_len == sizeof(*sin),
+	    ("%s: invalid address length for %p", __func__, sin));
 
-	lport = inp->inp_lport;
-	laddr = inp->inp_laddr.s_addr;
-	anonport = (lport == 0);
-	error = in_pcbconnect_setup(inp, sin, &laddr, &lport, &faddr, &fport,
-	    cred);
-	if (error)
-		return (error);
+	if (sin->sin_port == 0)
+		return (EADDRNOTAVAIL);
 
-	inp->inp_faddr.s_addr = faddr;
-	inp->inp_fport = fport;
+	anonport = (inp->inp_lport == 0);
+
+	if (__predict_false(in_broadcast(sin->sin_addr))) {
+		if (!V_connect_inaddr_wild || CK_STAILQ_EMPTY(&V_in_ifaddrhead))
+			return (ENETUNREACH);
+		/*
+		 * If the destination address is INADDR_ANY, use the primary
+		 * local address.  If the supplied address is INADDR_BROADCAST,
+		 * and the primary interface supports broadcast, choose the
+		 * broadcast address for that interface.
+		 */
+		if (in_nullhost(sin->sin_addr)) {
+			faddr =
+			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			if ((error = prison_get_ip4(cred, &faddr)) != 0)
+				return (error);
+		} else if (sin->sin_addr.s_addr == INADDR_BROADCAST) {
+			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags
+			    & IFF_BROADCAST)
+				faddr = satosin(&CK_STAILQ_FIRST(
+				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+			else
+				faddr = sin->sin_addr;
+		}
+	} else
+		faddr = sin->sin_addr;
+
+	if (in_nullhost(inp->inp_laddr)) {
+		error = in_pcbladdr(inp, &faddr, &laddr, cred);
+		/*
+		 * If the destination address is multicast and an outgoing
+		 * interface has been set as a multicast option, prefer the
+		 * address of that interface as our source address.
+		 */
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
+		    inp->inp_moptions != NULL &&
+		    inp->inp_moptions->imo_multicast_ifp != NULL) {
+			struct ifnet *ifp =
+			    inp->inp_moptions->imo_multicast_ifp;
+			struct in_ifaddr *ia;
+
+			CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+				if (ia->ia_ifp == ifp &&
+				    prison_check_ip4(cred,
+				    &ia->ia_addr.sin_addr) == 0)
+					break;
+			}
+			if (ia == NULL)
+				return (EADDRNOTAVAIL);
+			laddr = ia->ia_addr.sin_addr;
+			error = 0;
+		}
+		if (error)
+			return (error);
+	} else
+		laddr = inp->inp_laddr;
+
+	if (anonport) {
+		struct sockaddr_in lsin = {
+			.sin_family = AF_INET,
+			.sin_addr = laddr,
+		};
+		struct sockaddr_in fsin = {
+			.sin_family = AF_INET,
+			.sin_addr = faddr,
+		};
+
+		error = in_pcb_lport_dest(inp, (struct sockaddr *)&lsin,
+		    &lport, (struct sockaddr *)&fsin, sin->sin_port, cred,
+		    INPLOOKUP_WILDCARD);
+		if (error)
+			return (error);
+	} else if (in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
+	    sin->sin_port, laddr, inp->inp_lport, 0, M_NODOM, RT_ALL_FIBS) !=
+	    NULL)
+		return (EADDRINUSE);
+	else
+		lport = inp->inp_lport;
+
+	inp->inp_faddr = faddr;
+	inp->inp_fport = sin->sin_port;
 
 	/* Do the initial binding of the local address if required. */
 	if (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) {
 		inp->inp_lport = lport;
-		inp->inp_laddr.s_addr = laddr;
+		inp->inp_laddr = laddr;
 		if (in_pcbinshash(inp) != 0) {
 			inp->inp_laddr.s_addr = inp->inp_faddr.s_addr =
 			    INADDR_ANY;
@@ -1120,7 +1199,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		}
 	} else {
 		inp->inp_lport = lport;
-		inp->inp_laddr.s_addr = laddr;
+		inp->inp_laddr = laddr;
 		if ((inp->inp_flags & INP_INHASHLIST) != 0)
 			in_pcbrehash(inp);
 		else
@@ -1131,7 +1210,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 		uint32_t hash_val, hash_type;
 
 		hash_val = fib4_calc_software_hash(inp->inp_laddr,
-		    inp->inp_faddr, 0, fport,
+		    inp->inp_faddr, 0, sin->sin_port,
 		    inp->inp_socket->so_proto->pr_protocol, &hash_type);
 
 		inp->inp_flowid = hash_val;
@@ -1352,126 +1431,6 @@ done:
 	if (error == 0 && laddr->s_addr == INADDR_ANY)
 		return (EHOSTUNREACH);
 	return (error);
-}
-
-/*
- * Set up for a connect from a socket to the specified address.
- * On entry, *laddrp and *lportp should contain the current local
- * address and port for the PCB; these are updated to the values
- * that should be placed in inp_laddr and inp_lport to complete
- * the connect.
- *
- * On success, *faddrp and *fportp will be set to the remote address
- * and port. These are not updated in the error case.
- */
-int
-in_pcbconnect_setup(const struct inpcb *inp, struct sockaddr_in *sin,
-    in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
-    struct ucred *cred)
-{
-	struct in_ifaddr *ia;
-	struct in_addr laddr, faddr;
-	u_short lport, fport;
-	int error;
-
-	KASSERT(sin->sin_family == AF_INET,
-	    ("%s: invalid address family for %p", __func__, sin));
-	KASSERT(sin->sin_len == sizeof(*sin),
-	    ("%s: invalid address length for %p", __func__, sin));
-
-	/*
-	 * Because a global state change doesn't actually occur here, a read
-	 * lock is sufficient.
-	 */
-	NET_EPOCH_ASSERT();
-	INP_LOCK_ASSERT(inp);
-	INP_HASH_LOCK_ASSERT(inp->inp_pcbinfo);
-
-	if (sin->sin_port == 0)
-		return (EADDRNOTAVAIL);
-	laddr.s_addr = *laddrp;
-	lport = *lportp;
-	faddr = sin->sin_addr;
-	fport = sin->sin_port;
-	if (V_connect_inaddr_wild && !CK_STAILQ_EMPTY(&V_in_ifaddrhead)) {
-		/*
-		 * If the destination address is INADDR_ANY,
-		 * use the primary local address.
-		 * If the supplied address is INADDR_BROADCAST,
-		 * and the primary interface supports broadcast,
-		 * choose the broadcast address for that interface.
-		 */
-		if (faddr.s_addr == INADDR_ANY) {
-			faddr =
-			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-			if ((error = prison_get_ip4(cred, &faddr)) != 0)
-				return (error);
-		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
-			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
-			    IFF_BROADCAST)
-				faddr = satosin(&CK_STAILQ_FIRST(
-				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
-		}
-	} else if (faddr.s_addr == INADDR_ANY) {
-		return (ENETUNREACH);
-	}
-	if (laddr.s_addr == INADDR_ANY) {
-		error = in_pcbladdr(inp, &faddr, &laddr, cred);
-		/*
-		 * If the destination address is multicast and an outgoing
-		 * interface has been set as a multicast option, prefer the
-		 * address of that interface as our source address.
-		 */
-		if (IN_MULTICAST(ntohl(faddr.s_addr)) &&
-		    inp->inp_moptions != NULL) {
-			struct ip_moptions *imo;
-			struct ifnet *ifp;
-
-			imo = inp->inp_moptions;
-			if (imo->imo_multicast_ifp != NULL) {
-				ifp = imo->imo_multicast_ifp;
-				CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-					if (ia->ia_ifp == ifp &&
-					    prison_check_ip4(cred,
-					    &ia->ia_addr.sin_addr) == 0)
-						break;
-				}
-				if (ia == NULL)
-					error = EADDRNOTAVAIL;
-				else {
-					laddr = ia->ia_addr.sin_addr;
-					error = 0;
-				}
-			}
-		}
-		if (error)
-			return (error);
-	}
-
-	if (lport != 0) {
-		if (in_pcblookup_hash_locked(inp->inp_pcbinfo, faddr,
-		    fport, laddr, lport, 0, M_NODOM, RT_ALL_FIBS) != NULL)
-			return (EADDRINUSE);
-	} else {
-		struct sockaddr_in lsin, fsin;
-
-		bzero(&lsin, sizeof(lsin));
-		bzero(&fsin, sizeof(fsin));
-		lsin.sin_family = AF_INET;
-		lsin.sin_addr = laddr;
-		fsin.sin_family = AF_INET;
-		fsin.sin_addr = faddr;
-		error = in_pcb_lport_dest(inp, (struct sockaddr *) &lsin,
-		    &lport, (struct sockaddr *)& fsin, fport, cred,
-		    INPLOOKUP_WILDCARD);
-		if (error)
-			return (error);
-	}
-	*laddrp = laddr.s_addr;
-	*lportp = lport;
-	*faddrp = faddr.s_addr;
-	*fportp = fport;
-	return (0);
 }
 
 void
