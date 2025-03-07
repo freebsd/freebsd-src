@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -602,7 +603,9 @@ iichid_intr(void *context)
 	 * acknowledge interrupts we fetch only length header and discard it.
 	 */
 	maxlen = sc->power_on ? sc->intr_bufsize : 0;
+	THREAD_SLEEPING_OK();
 	error = iichid_cmd_read(sc, sc->intr_buf, maxlen, &actual);
+	THREAD_NO_SLEEPING();
 	if (error == 0) {
 		if (sc->power_on) {
 			if (actual != 0)
