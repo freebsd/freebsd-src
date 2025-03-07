@@ -816,9 +816,9 @@ ifa_get_scope(const struct ifaddr *ifa)
                 {
                         struct in_addr addr;
                         addr = ((const struct sockaddr_in *)sa)->sin_addr;
-                        if (IN_LOOPBACK(addr.s_addr))
+                        if (IN_LOOPBACK(ntohl(addr.s_addr)))
                                 addr_scope = RT_SCOPE_HOST;
-                        else if (IN_LINKLOCAL(addr.s_addr))
+                        else if (IN_LINKLOCAL(ntohl(addr.s_addr)))
                                 addr_scope = RT_SCOPE_LINK;
                         break;
                 }
