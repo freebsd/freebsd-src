@@ -59,12 +59,6 @@ int     in_pcbinshash(struct inpcb *);
 void    in_pcbrehash(struct inpcb *);
 void    in_pcbremhash_locked(struct inpcb *);
 
-struct inpcbport {
-	struct inpcbhead phd_pcblist;
-	CK_LIST_ENTRY(inpcbport) phd_hash;
-	u_short phd_port;
-};
-
 /*
  * Load balance groups used for the SO_REUSEPORT_LB socket option. Each group
  * (or unique address:port combination) can be re-used at most

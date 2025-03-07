@@ -576,7 +576,6 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 	pcbinfo->ipi_lbgrouphashbase = hashinit(porthash_nelements, M_PCB,
 	    &pcbinfo->ipi_lbgrouphashmask);
 	pcbinfo->ipi_zone = pcbstor->ips_zone;
-	pcbinfo->ipi_portzone = pcbstor->ips_portzone;
 	pcbinfo->ipi_smr = uma_zone_get_smr(pcbinfo->ipi_zone);
 }
 
@@ -612,10 +611,6 @@ in_pcbstorage_init(void *arg)
 	pcbstor->ips_zone = uma_zcreate(pcbstor->ips_zone_name,
 	    pcbstor->ips_size, NULL, NULL, pcbstor->ips_pcbinit,
 	    inpcb_fini, UMA_ALIGN_CACHE, UMA_ZONE_SMR);
-	pcbstor->ips_portzone = uma_zcreate(pcbstor->ips_portzone_name,
-	    sizeof(struct inpcbport), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_smr(pcbstor->ips_portzone,
-	    uma_zone_get_smr(pcbstor->ips_zone));
 }
 
 /*
@@ -627,7 +622,6 @@ in_pcbstorage_destroy(void *arg)
 	struct inpcbstorage *pcbstor = arg;
 
 	uma_zdestroy(pcbstor->ips_zone);
-	uma_zdestroy(pcbstor->ips_portzone);
 }
 
 /*
@@ -2028,71 +2022,58 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 */
 		return (NULL);
 	} else {
-		struct inpcbporthead *porthash;
-		struct inpcbport *phd;
+		struct inpcbhead *porthash;
 		struct inpcb *match = NULL;
+
 		/*
-		 * Best fit PCB lookup.
-		 *
-		 * First see if this local port is in use by looking on the
-		 * port hash list.
+		 * Port is in use by one or more PCBs. Look for best
+		 * fit.
 		 */
 		porthash = &pcbinfo->ipi_porthashbase[INP_PCBPORTHASH(lport,
 		    pcbinfo->ipi_porthashmask)];
-		CK_LIST_FOREACH(phd, porthash, phd_hash) {
-			if (phd->phd_port == lport)
-				break;
-		}
-		if (phd != NULL) {
-			/*
-			 * Port is in use by one or more PCBs. Look for best
-			 * fit.
-			 */
-			CK_LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
-				wildcard = 0;
-				if (!prison_equal_ip4(inp->inp_cred->cr_prison,
-				    cred->cr_prison))
-					continue;
-				if (fib != RT_ALL_FIBS &&
-				    inp->inp_inc.inc_fibnum != fib)
-					continue;
+		CK_LIST_FOREACH(inp, porthash, inp_portlist) {
+			if (inp->inp_lport != lport)
+				continue;
+			if (!prison_equal_ip4(inp->inp_cred->cr_prison,
+			    cred->cr_prison))
+				continue;
+			if (fib != RT_ALL_FIBS &&
+			    inp->inp_inc.inc_fibnum != fib)
+				continue;
+			wildcard = 0;
 #ifdef INET6
-				/* XXX inp locking */
-				if ((inp->inp_vflag & INP_IPV4) == 0)
-					continue;
-				/*
-				 * We never select the PCB that has
-				 * INP_IPV6 flag and is bound to :: if
-				 * we have another PCB which is bound
-				 * to 0.0.0.0.  If a PCB has the
-				 * INP_IPV6 flag, then we set its cost
-				 * higher than IPv4 only PCBs.
-				 *
-				 * Note that the case only happens
-				 * when a socket is bound to ::, under
-				 * the condition that the use of the
-				 * mapped address is allowed.
-				 */
-				if ((inp->inp_vflag & INP_IPV6) != 0)
-					wildcard += INP_LOOKUP_MAPPED_PCB_COST;
+			/* XXX inp locking */
+			if ((inp->inp_vflag & INP_IPV4) == 0)
+				continue;
+			/*
+			 * We never select the PCB that has INP_IPV6 flag and
+			 * is bound to :: if we have another PCB which is bound
+			 * to 0.0.0.0.  If a PCB has the INP_IPV6 flag, then we
+			 * set its cost higher than IPv4 only PCBs.
+			 *
+			 * Note that the case only happens when a socket is
+			 * bound to ::, under the condition that the use of the
+			 * mapped address is allowed.
+			 */
+			if ((inp->inp_vflag & INP_IPV6) != 0)
+				wildcard += INP_LOOKUP_MAPPED_PCB_COST;
 #endif
-				if (inp->inp_faddr.s_addr != INADDR_ANY)
+			if (inp->inp_faddr.s_addr != INADDR_ANY)
+				wildcard++;
+			if (inp->inp_laddr.s_addr != INADDR_ANY) {
+				if (laddr.s_addr == INADDR_ANY)
 					wildcard++;
-				if (inp->inp_laddr.s_addr != INADDR_ANY) {
-					if (laddr.s_addr == INADDR_ANY)
-						wildcard++;
-					else if (inp->inp_laddr.s_addr != laddr.s_addr)
-						continue;
-				} else {
-					if (laddr.s_addr != INADDR_ANY)
-						wildcard++;
-				}
-				if (wildcard < matchwild) {
-					match = inp;
-					matchwild = wildcard;
-					if (matchwild == 0)
-						break;
-				}
+				else if (inp->inp_laddr.s_addr != laddr.s_addr)
+					continue;
+			} else {
+				if (laddr.s_addr != INADDR_ANY)
+					wildcard++;
+			}
+			if (wildcard < matchwild) {
+				match = inp;
+				matchwild = wildcard;
+				if (matchwild == 0)
+					break;
 			}
 		}
 		return (match);
@@ -2642,10 +2623,8 @@ _in6_pcbinshash_wild(struct inpcbhead *pcbhash, struct inpcb *inp)
 int
 in_pcbinshash(struct inpcb *inp)
 {
-	struct inpcbhead *pcbhash;
-	struct inpcbporthead *pcbporthash;
+	struct inpcbhead *pcbhash, *pcbporthash;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	struct inpcbport *phd;
 	uint32_t hash;
 	bool connected;
 
@@ -2686,31 +2665,6 @@ in_pcbinshash(struct inpcb *inp)
 	}
 
 	/*
-	 * Go through port list and look for a head for this lport.
-	 */
-	CK_LIST_FOREACH(phd, pcbporthash, phd_hash) {
-		if (phd->phd_port == inp->inp_lport)
-			break;
-	}
-
-	/*
-	 * If none exists, malloc one and tack it on.
-	 */
-	if (phd == NULL) {
-		phd = uma_zalloc_smr(pcbinfo->ipi_portzone, M_NOWAIT);
-		if (phd == NULL) {
-			if ((inp->inp_flags & INP_INLBGROUP) != 0)
-				in_pcbremlbgrouphash(inp);
-			return (ENOMEM);
-		}
-		phd->phd_port = inp->inp_lport;
-		CK_LIST_INIT(&phd->phd_pcblist);
-		CK_LIST_INSERT_HEAD(pcbporthash, phd, phd_hash);
-	}
-	inp->inp_phd = phd;
-	CK_LIST_INSERT_HEAD(&phd->phd_pcblist, inp, inp_portlist);
-
-	/*
 	 * The PCB may have been disconnected in the past.  Before we can safely
 	 * make it visible in the hash table, we must wait for all readers which
 	 * may be traversing this PCB to finish.
@@ -2730,6 +2684,7 @@ in_pcbinshash(struct inpcb *inp)
 #endif
 			_in_pcbinshash_wild(pcbhash, inp);
 	}
+	CK_LIST_INSERT_HEAD(pcbporthash, inp, inp_portlist);
 	inp->inp_flags |= INP_INHASHLIST;
 
 	return (0);
@@ -2738,7 +2693,6 @@ in_pcbinshash(struct inpcb *inp)
 void
 in_pcbremhash_locked(struct inpcb *inp)
 {
-	struct inpcbport *phd = inp->inp_phd;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -2761,10 +2715,6 @@ in_pcbremhash_locked(struct inpcb *inp)
 			CK_LIST_REMOVE(inp, inp_hash_exact);
 	}
 	CK_LIST_REMOVE(inp, inp_portlist);
-	if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
-		CK_LIST_REMOVE(phd, phd_hash);
-		uma_zfree_smr(inp->inp_pcbinfo->ipi_portzone, phd);
-	}
 	inp->inp_flags &= ~INP_INHASHLIST;
 }
 
@@ -3275,8 +3225,7 @@ db_print_inpcb(struct inpcb *inp, const char *name, int indent)
 	}
 
 	db_print_indent(indent);
-	db_printf("inp_phd: %p   inp_gencnt: %ju\n", inp->inp_phd,
-	    (uintmax_t)inp->inp_gencnt);
+	db_printf("inp_gencnt: %ju\n", (uintmax_t)inp->inp_gencnt);
 }
 
 DB_SHOW_COMMAND(inpcb, db_show_inpcb)
