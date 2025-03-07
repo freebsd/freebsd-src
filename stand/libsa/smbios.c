@@ -193,6 +193,13 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 #ifdef SMBIOS_64BIT_EP
 		/* v3.0, 64-bit Entry point */
 		if (strncmp(cp, SMBIOS3_SIG, sizeof(SMBIOS3_SIG) - 1) == 0 &&
+		    /*
+		     * The specification only guarantees the presence of the
+		     * Structure Table Maximum Size and Address Entry fields at
+		     * offsets 0x0c and 0x10 if the Entry Point Revision is not
+		     * 0.
+		     */
+		    SMBIOS_GET8(cp, 0x0a) != 0 &&
 		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x06)) == 0) {
 			smbios.is_64bit_ep = 1;
 			return (cp);
