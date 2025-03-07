@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 19, 2021
+.Dd March 6, 2025
 .Dt TRUNCATE 1
 .Os
 .Sh NAME
@@ -188,14 +188,14 @@ and continue processing the remaining arguments.
 .Sh EXAMPLES
 Adjust the size of the file
 .Pa test_file
-to 10 Megabytes but do not create it if it does not exist:
+to 10 megabytes but do not create it if it does not exist:
 .Bd -literal -offset indent
-truncate -c -s +10M test_file
+truncate -c -s 10M test_file
 .Ed
 .Pp
 Same as above but create the file if it does not exist:
 .Bd -literal -offset indent
-truncate -s +10M test_file
+truncate -s 10M test_file
 ls -l test_file
 -rw-r--r--  1 root  wheel  10485760 Jul 22 18:48 test_file
 .Ed
@@ -208,18 +208,28 @@ with the same size:
 .Bd -literal -offset indent
 truncate -r /boot/kernel/kernel test_file test_file2
 ls -l /boot/kernel/kernel test_file*
--r-xr-xr-x  1 root  wheel    31352552 May 15 14:18 /boot/kernel/kernel*
+-r-xr-xr-x  1 root  wheel    31352552 May 15 14:18 /boot/kernel/kernel
 -rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file
 -rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
 .Ed
 .Pp
-Downsize
+Increase the size of the file
 .Pa test_file
-in 5 Megabytes:
+by 5 megabytes but do not create it if it does not exist:
 .Bd -literal -offset indent
-# truncate -s -5M test_file
+truncate -s +5M test_file
 ls -l test_file*
--rw-r--r--  1 root  wheel    26109672 Jul 22 19:17 test_file
+-rw-r--r--  1 root  wheel    36595432 Sep 20 19:17 test_file
+-rw-r--r--  1 root  wheel    31352552 Sep 20 19:15 test_file2
+.Ed
+.Pp
+Reduce the size of the file
+.Pa test_file
+by 5 megabytes:
+.Bd -literal -offset indent
+truncate -s -5M test_file
+ls -l test_file*
+-rw-r--r--  1 root  wheel    31352552 Jul 22 19:19 test_file
 -rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
 .Ed
 .Sh SEE ALSO
