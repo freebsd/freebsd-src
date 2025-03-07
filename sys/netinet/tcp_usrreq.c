@@ -526,7 +526,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
 		goto out;
-	if (SOLISTENING(so)) {
+	if (SOLISTENING(so) || so->so_options & SO_REUSEPORT_LB) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
@@ -593,7 +593,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		error = EAFNOSUPPORT;
 		goto out;
 	}
-	if (SOLISTENING(so)) {
+	if (SOLISTENING(so) || so->so_options & SO_REUSEPORT_LB) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
