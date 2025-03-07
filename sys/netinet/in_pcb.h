@@ -64,7 +64,6 @@
  * protocol-specific control block) are stored here.
  */
 CK_LIST_HEAD(inpcbhead, inpcb);
-CK_LIST_HEAD(inpcbporthead, inpcbport);
 CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 typedef	uint64_t	inp_gen_t;
 
@@ -221,7 +220,6 @@ struct inpcb {
 		short	in6p_hops;
 	};
 	CK_LIST_ENTRY(inpcb) inp_portlist;	/* (r:e/w:h) port list */
-	struct	inpcbport *inp_phd;	/* (r:e/w:h) head of this list */
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	void		*spare_ptr;	/* Spare pointer. */
 	rt_gen_t	inp_rt_cookie;	/* generation for route entry */
@@ -370,7 +368,7 @@ struct inpcbinfo {
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
 	 */
-	struct inpcbporthead	*ipi_porthashbase;	/* (h) */
+	struct inpcbhead	*ipi_porthashbase;	/* (h) */
 	u_long			 ipi_porthashmask;	/* (h) */
 
 	/*
@@ -392,11 +390,9 @@ struct inpcbinfo {
  */
 struct inpcbstorage {
 	uma_zone_t	ips_zone;
-	uma_zone_t	ips_portzone;
 	uma_init	ips_pcbinit;
 	size_t		ips_size;
 	const char *	ips_zone_name;
-	const char *	ips_portzone_name;
 	const char *	ips_infolock_name;
 	const char *	ips_hashlock_name;
 };
@@ -414,7 +410,6 @@ static struct inpcbstorage prot = {					\
 	.ips_size = sizeof(struct ppcb),				\
 	.ips_pcbinit = prot##_inpcb_init,				\
 	.ips_zone_name = zname,						\
-	.ips_portzone_name = zname " ports",				\
 	.ips_infolock_name = iname,					\
 	.ips_hashlock_name = hname,					\
 };									\

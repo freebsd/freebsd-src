@@ -767,56 +767,45 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, const struct in6_addr *laddr,
 		 */
 		return (NULL);
 	} else {
-		struct inpcbporthead *porthash;
-		struct inpcbport *phd;
+		struct inpcbhead *porthash;
 		struct inpcb *match = NULL;
+
 		/*
-		 * Best fit PCB lookup.
-		 *
-		 * First see if this local port is in use by looking on the
-		 * port hash list.
+		 * Port is in use by one or more PCBs. Look for best
+		 * fit.
 		 */
 		porthash = &pcbinfo->ipi_porthashbase[INP_PCBPORTHASH(lport,
 		    pcbinfo->ipi_porthashmask)];
-		CK_LIST_FOREACH(phd, porthash, phd_hash) {
-			if (phd->phd_port == lport)
-				break;
-		}
-		if (phd != NULL) {
-			/*
-			 * Port is in use by one or more PCBs. Look for best
-			 * fit.
-			 */
-			CK_LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
-				wildcard = 0;
-				if (!prison_equal_ip6(cred->cr_prison,
-				    inp->inp_cred->cr_prison))
-					continue;
-				/* XXX inp locking */
-				if ((inp->inp_vflag & INP_IPV6) == 0)
-					continue;
-				if (fib != RT_ALL_FIBS &&
-				    inp->inp_inc.inc_fibnum != fib)
-					continue;
-				if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
+		CK_LIST_FOREACH(inp, porthash, inp_portlist) {
+			if (inp->inp_lport != lport)
+				continue;
+			if (!prison_equal_ip6(cred->cr_prison,
+			    inp->inp_cred->cr_prison))
+				continue;
+			/* XXX inp locking */
+			if ((inp->inp_vflag & INP_IPV6) == 0)
+				continue;
+			if (fib != RT_ALL_FIBS &&
+			    inp->inp_inc.inc_fibnum != fib)
+				continue;
+			wildcard = 0;
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
+				wildcard++;
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+				if (IN6_IS_ADDR_UNSPECIFIED(laddr))
 					wildcard++;
-				if (!IN6_IS_ADDR_UNSPECIFIED(
-					&inp->in6p_laddr)) {
-					if (IN6_IS_ADDR_UNSPECIFIED(laddr))
-						wildcard++;
-					else if (!IN6_ARE_ADDR_EQUAL(
-					    &inp->in6p_laddr, laddr))
-						continue;
-				} else {
-					if (!IN6_IS_ADDR_UNSPECIFIED(laddr))
-						wildcard++;
-				}
-				if (wildcard < matchwild) {
-					match = inp;
-					matchwild = wildcard;
-					if (matchwild == 0)
-						break;
-				}
+				else if (!IN6_ARE_ADDR_EQUAL(
+				    &inp->in6p_laddr, laddr))
+					continue;
+			} else {
+				if (!IN6_IS_ADDR_UNSPECIFIED(laddr))
+					wildcard++;
+			}
+			if (wildcard < matchwild) {
+				match = inp;
+				matchwild = wildcard;
+				if (matchwild == 0)
+					break;
 			}
 		}
 		return (match);
