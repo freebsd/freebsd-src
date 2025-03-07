@@ -594,7 +594,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 	}
 	if (SOLISTENING(so)) {
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		goto out;
 	}
 #ifdef INET
