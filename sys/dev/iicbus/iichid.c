@@ -98,6 +98,8 @@ enum {
 #define	I2C_HID_POWER_ON		0x0
 #define	I2C_HID_POWER_OFF		0x1
 
+#define	IICHID_RESET_TIMEOUT		5	/* seconds */
+
 /*
  * Since interrupt resource acquisition is not always possible (in case of GPIO
  * interrupts) iichid now supports a sampling_mode.
@@ -156,6 +158,7 @@ enum iichid_powerstate_how {
  */
 struct iichid_softc {
 	device_t		dev;
+	struct mtx		mtx;
 
 	bool			probe_done;
 	int			probe_result;
@@ -190,6 +193,7 @@ struct iichid_softc {
 	bool			open;			/* iicbus lock */
 	bool			suspend;		/* iicbus lock */
 	bool			power_on;		/* iicbus lock */
+	bool			reset_acked;		/* iichid mtx */
 };
 
 static device_probe_t	iichid_probe;
@@ -295,6 +299,12 @@ iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
 		    { sc->addr, IIC_M_RD | IIC_M_NOSTART,
 		        le16toh(sc->desc.wMaxInputLength) - 2, sc->intr_buf };
 		actlen = 0;
+		if (!sc->reset_acked) {
+			mtx_lock(&sc->mtx);
+			sc->reset_acked = true;
+			wakeup(&sc->reset_acked);
+			mtx_unlock(&sc->mtx);
+		}
 #ifdef IICHID_SAMPLING
 	} else if ((actlen <= 2 || actlen == 0xFFFF) &&
 		    sc->sampling_rate_slow >= 0) {
@@ -1136,21 +1146,9 @@ iichid_attach(device_t dev)
 		device_printf(dev, "failed to power on: %d\n", error);
 		return (ENXIO);
 	}
-	/*
-	 * Windows driver sleeps for 1ms between the SET_POWER and RESET
-	 * commands. So we too as some devices may depend on this.
-	 */
-	pause("iichid", (hz + 999) / 1000);
-
-	error = iichid_reset(sc);
-	if (error) {
-		device_printf(dev, "failed to reset hardware: %d\n", error);
-		error = ENXIO;
-		goto done;
-	}
-
 	sc->power_on = true;
 
+	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 	sc->intr_bufsize = le16toh(sc->desc.wMaxInputLength) - 2;
 	sc->intr_buf = malloc(sc->intr_bufsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	TASK_INIT(&sc->suspend_task, 0, iichid_suspend_task, sc);
@@ -1209,12 +1207,40 @@ iichid_attach(device_t dev)
 		&sc->sampling_hysteresis, 0,
 		"number of missing samples before enabling of slow mode");
 	hid_add_dynamic_quirk(&sc->hw, HQ_IICHID_SAMPLING);
+#endif /* IICHID_SAMPLING */
 
+	/*
+	 * Windows driver sleeps for 1ms between the SET_POWER and RESET
+	 * commands. So we too as some devices may depend on this.
+	 */
+	pause("iichid", (hz + 999) / 1000);
+
+	error = iichid_reset(sc);
+	if (error) {
+		device_printf(dev, "failed to reset hardware: %d\n", error);
+		iichid_detach(dev);
+		error = ENXIO;
+		goto done;
+	}
+
+	/* Wait for RESET response */
+#ifdef IICHID_SAMPLING
 	if (sc->sampling_rate_slow >= 0) {
 		pause("iichid", (hz + 999) / 1000);
 		(void)iichid_cmd_read(sc, sc->intr_buf, 0, NULL);
-	}
+	} else
 #endif /* IICHID_SAMPLING */
+	{
+		mtx_lock(&sc->mtx);
+		if (!sc->reset_acked && !cold) {
+			error = mtx_sleep(&sc->reset_acked,  &sc->mtx, 0,
+			    "iichid_reset", hz * IICHID_RESET_TIMEOUT);
+			if (error != 0)
+				device_printf(sc->dev,
+				    "Reset timeout expired\n");
+		}
+		mtx_unlock(&sc->mtx);
+	}
 
 	child = device_add_child(dev, "hidbus", -1);
 	if (child == NULL) {
@@ -1261,6 +1287,7 @@ iichid_detach(device_t dev)
 	free(sc->dup_buf, M_DEVBUF);
 #endif
 	free(sc->intr_buf, M_DEVBUF);
+	mtx_destroy(&sc->mtx);
 	return (0);
 }
 
