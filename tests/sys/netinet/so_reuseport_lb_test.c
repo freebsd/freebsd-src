@@ -478,6 +478,69 @@ ATF_TC_BODY(bind_without_listen, tc)
 	ATF_REQUIRE_MSG(error == 0, "close() failed: %s", strerror(errno));
 }
 
+/*
+ * Check that SO_REUSEPORT_LB doesn't mess with connect(2).
+ * Two sockets:
+ * 1) auxiliary peer socket 'p', where we connect to
+ * 2) test socket 's', that sets SO_REUSEPORT_LB and then connect(2)s to 'p'
+ */
+ATF_TC_WITHOUT_HEAD(connect_not_bound);
+ATF_TC_BODY(connect_not_bound, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	socklen_t slen = sizeof(struct sockaddr_in);
+	int p, s, rv;
+
+	ATF_REQUIRE((p = socket(PF_INET, SOCK_STREAM, 0)) > 0);
+	ATF_REQUIRE(bind(p, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE(listen(p, 1) == 0);
+	ATF_REQUIRE(getsockname(p, (struct sockaddr *)&sin, &slen) == 0);
+
+	s = lb_listen_socket(PF_INET, 0);
+	rv = connect(s, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
+	    "Expected EOPNOTSUPP on connect(2) not met. Got %d, errno %d",
+	    rv, errno);
+
+	close(p);
+	close(s);
+}
+
+/*
+ * Same as above, but we also bind(2) between setsockopt(2) of SO_REUSEPORT_LB
+ * and the connect(2).
+ */
+ATF_TC_WITHOUT_HEAD(connect_bound);
+ATF_TC_BODY(connect_bound, tc)
+{
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(sin),
+		.sin_addr = { htonl(INADDR_LOOPBACK) },
+	};
+	socklen_t slen = sizeof(struct sockaddr_in);
+	int p, s, rv;
+
+	ATF_REQUIRE((p = socket(PF_INET, SOCK_STREAM, 0)) > 0);
+	ATF_REQUIRE(bind(p, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE(listen(p, 1) == 0);
+
+	s = lb_listen_socket(PF_INET, 0);
+	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE(getsockname(p, (struct sockaddr *)&sin, &slen) == 0);
+	rv = connect(s, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
+	    "Expected EOPNOTSUPP on connect(2) not met. Got %d, errno %d",
+	    rv, errno);
+
+	close(p);
+	close(s);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, basic_ipv4);
@@ -486,6 +549,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, double_listen_ipv4);
 	ATF_TP_ADD_TC(tp, double_listen_ipv6);
 	ATF_TP_ADD_TC(tp, bind_without_listen);
+	ATF_TP_ADD_TC(tp, connect_not_bound);
+	ATF_TP_ADD_TC(tp, connect_bound);
 
 	return (atf_no_error());
 }
