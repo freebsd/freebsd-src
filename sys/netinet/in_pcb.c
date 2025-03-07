@@ -1178,27 +1178,19 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 	else
 		lport = inp->inp_lport;
 
+	MPASS(!in_nullhost(inp->inp_laddr) || inp->inp_lport != 0 ||
+	    !(inp->inp_flags & INP_INHASHLIST));
+
 	inp->inp_faddr = faddr;
 	inp->inp_fport = sin->sin_port;
+	inp->inp_laddr = laddr;
+	inp->inp_lport = lport;
 
-	/* Do the initial binding of the local address if required. */
-	if (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) {
-		inp->inp_lport = lport;
-		inp->inp_laddr = laddr;
-		if (in_pcbinshash(inp) != 0) {
-			inp->inp_laddr.s_addr = inp->inp_faddr.s_addr =
-			    INADDR_ANY;
-			inp->inp_lport = inp->inp_fport = 0;
-			return (EAGAIN);
-		}
-	} else {
-		inp->inp_lport = lport;
-		inp->inp_laddr = laddr;
-		if ((inp->inp_flags & INP_INHASHLIST) != 0)
-			in_pcbrehash(inp);
-		else
-			in_pcbinshash(inp);
-	}
+	if ((inp->inp_flags & INP_INHASHLIST) == 0) {
+		error = in_pcbinshash(inp);
+		MPASS(error == 0);
+	} else
+		in_pcbrehash(inp);
 #ifdef ROUTE_MPATH
 	if (CALC_FLOWID_OUTBOUND) {
 		uint32_t hash_val, hash_type;
