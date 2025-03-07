@@ -631,6 +631,9 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 		if (vf_caps & VIRTCHNL_VF_CAP_ADV_LINK_SPEED)
 			vf_res->vf_cap_flags |= VIRTCHNL_VF_CAP_ADV_LINK_SPEED;
+
+		if (vf_caps & VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
+                        vf_res->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
 	}
 
 	vf_res->vsi_res[0].vsi_id = vf->vsi->idx;
