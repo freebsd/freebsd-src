@@ -33,7 +33,10 @@ class TestRtNlIfaddrList(NetlinkTestTemplate, SingleVnetTestTemplate):
     def setup_method(self, method):
         method_name = method.__name__
         if "4" in method_name:
-            self.IPV4_PREFIXES = ["192.0.2.1/24"]
+            if "nofilter" in method_name:
+                self.IPV4_PREFIXES = ["192.0.2.1/24", "169.254.169.254/16"]
+            else:
+                self.IPV4_PREFIXES = ["192.0.2.1/24"]
         if "6" in method_name:
             self.IPV6_PREFIXES = ["2001:db8::1/64"]
         super().setup_method(method)
@@ -49,14 +52,21 @@ class TestRtNlIfaddrList(NetlinkTestTemplate, SingleVnetTestTemplate):
         for rx_msg in self.read_msg_list(msg.nl_hdr.nlmsg_seq, NlRtMsgType.RTM_NEWADDR):
             ifname = socket.if_indextoname(rx_msg.base_hdr.ifa_index)
             family = rx_msg.base_hdr.ifa_family
-            ret.append((ifname, family, rx_msg))
+            scope = rx_msg.base_hdr.ifa_scope
+            ret.append((ifname, family, scope))
 
         ifname = "lo0"
-        assert len([r for r in ret if r[0] == ifname]) > 0
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET and r[2] == RtScope.RT_SCOPE_HOST.value]) == 1
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6 and r[2] == RtScope.RT_SCOPE_HOST.value]) == 1
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6 and r[2] == RtScope.RT_SCOPE_LINK.value]) == 1
+        assert len([r for r in ret if r[0] == ifname]) == 3
 
         ifname = self.vnet.iface_alias_map["if1"].name
-        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET]) == 1
-        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6]) == 2
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET and r[2] == RtScope.RT_SCOPE_LINK.value]) == 1
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET and r[2] == RtScope.RT_SCOPE_UNIVERSE.value]) == 1
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6 and r[2] == RtScope.RT_SCOPE_LINK.value]) == 1
+        assert len([r for r in ret if r[0] == ifname and r[1] == socket.AF_INET6 and r[2] == RtScope.RT_SCOPE_UNIVERSE.value]) == 1
+        assert len([r for r in ret if r[0] == ifname]) == 4
 
     def test_46_filter_iface(self):
         """Tests that listing outputs both IPv4/IPv6 for the specific interface"""
