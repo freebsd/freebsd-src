@@ -435,7 +435,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 		    inp->inp_lport, &inp->inp_inc.inc_ie.ie_dependladdr,
 		    INPCBLBGROUP_SIZMIN, numa_domain, fib);
 		if (grp == NULL)
-			return (ENOBUFS);
+			return (ENOMEM);
 		in_pcblbgroup_insert(grp, inp);
 		CK_LIST_INSERT_HEAD(hdr, grp, il_list);
 	} else if (grp->il_inpcnt + grp->il_pendcnt == grp->il_inpsiz) {
@@ -449,7 +449,7 @@ in_pcbinslbgrouphash(struct inpcb *inp, uint8_t numa_domain)
 		/* Expand this local group. */
 		grp = in_pcblbgroup_resize(hdr, grp, grp->il_inpsiz * 2);
 		if (grp == NULL)
-			return (ENOBUFS);
+			return (ENOMEM);
 		in_pcblbgroup_insert(grp, inp);
 	} else {
 		in_pcblbgroup_insert(grp, inp);
@@ -732,11 +732,12 @@ in_pcbbind(struct inpcb *inp, struct sockaddr_in *sin, int flags,
 	    &inp->inp_lport, flags, cred);
 	if (error)
 		return (error);
-	if (in_pcbinshash(inp) != 0) {
+	if (__predict_false((error = in_pcbinshash(inp)) != 0)) {
+		MPASS(inp->inp_socket->so_options & SO_REUSEPORT_LB);
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
 		inp->inp_flags &= ~INP_BOUNDFIB;
-		return (EAGAIN);
+		return (error);
 	}
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
@@ -2611,6 +2612,10 @@ _in6_pcbinshash_wild(struct inpcbhead *pcbhash, struct inpcb *inp)
 
 /*
  * Insert PCB onto various hash lists.
+ *
+ * With normal sockets this function shall not fail, so it could return void.
+ * But for SO_REUSEPORT_LB it may need to allocate memory with locks held,
+ * that's the only condition when it can fail.
  */
 int
 in_pcbinshash(struct inpcb *inp)
