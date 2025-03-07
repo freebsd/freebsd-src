@@ -284,11 +284,25 @@ iichid_cmd_read(struct iichid_softc* sc, void *buf, iichid_size_t maxlen,
 		return (error);
 
 	actlen = actbuf[0] | actbuf[1] << 8;
-	if (actlen <= 2 || actlen == 0xFFFF || maxlen == 0) {
+#ifdef IICHID_SAMPLING
+	if ((actlen == 0 && sc->sampling_rate_slow < 0) ||
+	    (maxlen == 0 && sc->sampling_rate_slow >= 0)) {
+#else
+	if (actlen == 0) {
+#endif
+		/* Read and discard reset command response. */
+		msgs[0] = (struct iic_msg)
+		    { sc->addr, IIC_M_RD | IIC_M_NOSTART,
+		        le16toh(sc->desc.wMaxInputLength) - 2, sc->intr_buf };
+		actlen = 0;
+#ifdef IICHID_SAMPLING
+	} else if ((actlen <= 2 || actlen == 0xFFFF) &&
+		    sc->sampling_rate_slow >= 0) {
 		/* Read and discard 1 byte to send I2C STOP condition. */
 		msgs[0] = (struct iic_msg)
 		    { sc->addr, IIC_M_RD | IIC_M_NOSTART, 1, actbuf };
 		actlen = 0;
+#endif
 	} else {
 		actlen -= 2;
 		if (actlen > maxlen) {
@@ -580,7 +594,7 @@ iichid_intr(void *context)
 {
 	struct iichid_softc *sc;
 	device_t parent;
-	iichid_size_t maxlen, actual;
+	iichid_size_t actual;
 	int error;
 
 	sc = context;
@@ -602,9 +616,8 @@ iichid_intr(void *context)
 	 * (to ON) before any other command. As some hardware requires reads to
 	 * acknowledge interrupts we fetch only length header and discard it.
 	 */
-	maxlen = sc->power_on ? sc->intr_bufsize : 0;
 	THREAD_SLEEPING_OK();
-	error = iichid_cmd_read(sc, sc->intr_buf, maxlen, &actual);
+	error = iichid_cmd_read(sc, sc->intr_buf, sc->intr_bufsize, &actual);
 	THREAD_NO_SLEEPING();
 	if (error == 0) {
 		if (sc->power_on) {
@@ -812,6 +825,7 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
     void *context, struct hid_rdesc_info *rdesc)
 {
 	struct iichid_softc *sc;
+	device_t parent;
 
 	if (intr == NULL)
 		return;
@@ -821,33 +835,38 @@ iichid_intr_setup(device_t dev, device_t child __unused, hid_intr_t intr,
 	 * Do not rely on wMaxInputLength, as some devices may set it to
 	 * a wrong length. Find the longest input report in report descriptor.
 	 */
-	rdesc->rdsize = rdesc->isize;
+	rdesc->rdsize =
+	    MAX(rdesc->isize, le16toh(sc->desc.wMaxInputLength) - 2);
 	/* Write and get/set_report sizes are limited by I2C-HID protocol. */
 	rdesc->grsize = rdesc->srsize = IICHID_SIZE_MAX;
 	rdesc->wrsize = IICHID_SIZE_MAX;
 
+	parent = device_get_parent(sc->dev);
+	iicbus_request_bus(parent, sc->dev, IIC_WAIT);
+
 	sc->intr_handler = intr;
 	sc->intr_ctx = context;
-	sc->intr_buf = malloc(rdesc->rdsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->intr_bufsize = rdesc->rdsize;
+	sc->intr_buf = realloc(sc->intr_buf, sc->intr_bufsize,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 #ifdef IICHID_SAMPLING
-	sc->dup_buf = malloc(rdesc->rdsize, M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->dup_buf = realloc(sc->dup_buf, sc->intr_bufsize,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
 	taskqueue_start_threads(&sc->taskqueue, 1, PI_TTY,
 	    "%s taskq", device_get_nameunit(sc->dev));
 #endif
+	iicbus_release_bus(parent, sc->dev);
 }
 
 static void
 iichid_intr_unsetup(device_t dev, device_t child __unused)
 {
+#ifdef IICHID_SAMPLING
 	struct iichid_softc *sc;
 
 	sc = device_get_softc(dev);
-#ifdef IICHID_SAMPLING
 	taskqueue_drain_all(sc->taskqueue);
-	free(sc->dup_buf, M_DEVBUF);
 #endif
-	free(sc->intr_buf, M_DEVBUF);
 }
 
 static int
@@ -1132,6 +1151,8 @@ iichid_attach(device_t dev)
 
 	sc->power_on = true;
 
+	sc->intr_bufsize = le16toh(sc->desc.wMaxInputLength) - 2;
+	sc->intr_buf = malloc(sc->intr_bufsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	TASK_INIT(&sc->suspend_task, 0, iichid_suspend_task, sc);
 #ifdef IICHID_SAMPLING
 	sc->taskqueue = taskqueue_create_fast("iichid_tq", M_WAITOK | M_ZERO,
@@ -1142,6 +1163,7 @@ iichid_attach(device_t dev)
 	sc->sampling_rate_slow = -1;
 	sc->sampling_rate_fast = IICHID_SAMPLING_RATE_FAST;
 	sc->sampling_hysteresis = IICHID_SAMPLING_HYSTERESIS;
+	sc->dup_buf = malloc(sc->intr_bufsize, M_DEVBUF, M_WAITOK | M_ZERO);
 #endif
 
 	sc->irq_rid = 0;
@@ -1164,6 +1186,7 @@ iichid_attach(device_t dev)
 		if (sc->irq_res != NULL)
 			bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
 			    sc->irq_res);
+		iichid_detach(dev);
 		error = ENXIO;
 		goto done;
 #endif
@@ -1189,7 +1212,7 @@ iichid_attach(device_t dev)
 
 	if (sc->sampling_rate_slow >= 0) {
 		pause("iichid", (hz + 999) / 1000);
-		(void)iichid_cmd_read(sc, NULL, 0, NULL);
+		(void)iichid_cmd_read(sc, sc->intr_buf, 0, NULL);
 	}
 #endif /* IICHID_SAMPLING */
 
@@ -1235,7 +1258,9 @@ iichid_detach(device_t dev)
 	if (sc->taskqueue != NULL)
 		taskqueue_free(sc->taskqueue);
 	sc->taskqueue = NULL;
+	free(sc->dup_buf, M_DEVBUF);
 #endif
+	free(sc->intr_buf, M_DEVBUF);
 	return (0);
 }
 
