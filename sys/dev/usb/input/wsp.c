@@ -73,7 +73,7 @@
 } while (0)
 
 /* Tunables */
-static	SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, wsp, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB wsp");
 
 #ifdef USB_DEBUG
@@ -121,7 +121,7 @@ static struct wsp_tuning {
 	.pressure_tap_threshold = 120,
 	.scr_threshold = 20,
 	.max_finger_diameter = 1900,
-	.max_scroll_finger_distance = MAX_FINGER_ORIENTATION/2,
+	.max_scroll_finger_distance = 8192,
 	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
 	.enable_single_tap_movement = 1,
@@ -141,8 +141,8 @@ wsp_running_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
 	WSP_CLAMP(ptun->max_finger_diameter, 1, 2400);
-	WSP_CLAMP(ptun->max_scroll_finger_distance, 1, MAX_FINGER_ORIENTATION);
-	WSP_CLAMP(ptun->max_double_tap_distance, 1, MAX_FINGER_ORIENTATION);
+	WSP_CLAMP(ptun->max_scroll_finger_distance, 1, 16384);
+	WSP_CLAMP(ptun->max_double_tap_distance, 1, 16384);
 	WSP_CLAMP(ptun->scr_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
 	WSP_CLAMP(ptun->enable_single_tap_movement, 0, 1);
@@ -329,7 +329,7 @@ struct tp_finger {
 	int16_t	unused[2];		/* zeros */
 	int16_t pressure;		/* pressure on forcetouch touchpad */
 	int16_t	multi;			/* one finger: varies, more fingers:
-				 	 * constant */
+					 * constant */
 } __packed;
 
 /* trackpad finger data size, empirically at least ten fingers */
@@ -1033,7 +1033,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				f->pressure = le16toh((uint16_t)f->pressure);
 				f->multi = le16toh((uint16_t)f->multi);
 			}
-			DPRINTFN(WSP_LLEVEL_INFO, 
+			DPRINTFN(WSP_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 			    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
 			    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
@@ -1176,6 +1176,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				else if (sc->dt_sum < 0)
 					wsp_add_to_queue(sc, 0, 0, 0, 1UL << 4);
 			}
+
 			sc->dz_count = WSP_DZ_MAX_COUNT;
 			sc->dz_sum = 0;
 			sc->intr_count = 0;
@@ -1219,15 +1220,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (ntouch == 1 && sc->index[0]->tool_major > tun.max_finger_diameter)
 					dx = dy = 0;
 
-				if (sc->ibtn != 0 && ntouch == 1 && 
-				    sc->intr_count < WSP_TAP_MAX_COUNT && 
+				if (sc->ibtn != 0 && ntouch == 1 &&
+				    sc->intr_count < WSP_TAP_MAX_COUNT &&
 				    abs(sc->dx_sum) < 1 && abs(sc->dy_sum) < 1 )
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x[sc->finger];
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y[sc->finger];
-					
+
 					/*
 					 * Ignore movement of switch finger or
 					 * movement from ibt=0 to ibt=1
@@ -1407,6 +1408,7 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 		buf[6] = dz - (dz >> 1);/* dz - (dz / 2) */
 		buf[7] = (((~buttons_in) >> 3) & MOUSE_SYS_EXTBUTTONS);
 	}
+
 	usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 	    sc->sc_mode.packetsize, 1);
 }
