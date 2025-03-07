@@ -117,6 +117,7 @@ struct keyword_info {
 };
 
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
+static struct velisthead Ovarlist = STAILQ_HEAD_INITIALIZER(Ovarlist);
 
 static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
 static kvm_t	*kd;
@@ -173,8 +174,6 @@ static const char dfmt[] = "pid,tt,state,time,command";
 static const char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
 static const char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
 			   "tt,time,command";
-static const char   o1[] = "pid";
-static const char   o2[] = "tt,state,time,command";
 static const char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
 static const char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
 			   "%cpu,%mem,command";
@@ -359,10 +358,7 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'O':
-			parsefmt(o1, &varlist, 1);
-			parsefmt(optarg, &varlist, 1);
-			parsefmt(o2, &varlist, 1);
-			_fmt = 1;
+			parsefmt(optarg, &Ovarlist, 1);
 			break;
 		case 'o':
 			parsefmt(optarg, &varlist, 1);
@@ -495,6 +491,26 @@ main(int argc, char *argv[])
 
 	if (!_fmt)
 		parsefmt(dfmt, &varlist, 0);
+
+	if (!STAILQ_EMPTY(&Ovarlist)) {
+		VARENT *const pid_entry = find_varentry("pid");
+
+		/*
+		 * We insert the keywords passed by '-O' after the process ID if
+		 * specified, else at start.
+		 */
+		if (pid_entry != NULL) {
+			struct velisthead rest;
+
+			STAILQ_SPLIT_AFTER(&varlist, pid_entry, &rest, next_ve);
+			STAILQ_CONCAT(&varlist, &Ovarlist);
+			STAILQ_CONCAT(&varlist, &rest);
+		}
+		else {
+			STAILQ_SWAP(&varlist, &Ovarlist, varent);
+			STAILQ_CONCAT(&varlist, &Ovarlist);
+		}
+	}
 
 	keywords_info = calloc(known_keywords_nb, sizeof(struct keyword_info));
 	if (keywords_info == NULL)

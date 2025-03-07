@@ -127,9 +127,7 @@ First, options
 .Fl o
 and
 .Fl O
-add columns with data corresponding to the explicitly passed keywords and, for
-.Fl O ,
-additionally the same columns as in the default display.
+add columns with data corresponding to the explicitly passed keywords.
 Available keywords are documented in the
 .Sx KEYWORDS
 section below.
@@ -323,15 +321,15 @@ terminal and process ID.
 Extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
 .It Fl O
-On first occurence, add all columns of the default display
-.Po
-as if by
-.Fl o
-.Pc
-and insert just after the process ID column in that default display the columns
-associated with the passed space- or comma-separated list of keywords.
-On next occurences, just insert the keywords of the passed list, as if by
-.Fl o .
+Save passed columns in a separate list that in the end is grafted just after the
+display's first occurence of the process ID column as specified by other
+options, or the default display if there is none.
+If the display prepared by other options does not include a process ID column,
+the list is inserted at start of the display.
+Further occurences of
+.Fl O
+append to the to-be-grafted list of columns.
+This option takes a space- or comma-separated list of keywords.
 The last keyword in the list may be appended with an equals sign
 .Pq Ql =
 as explained for option
@@ -1022,15 +1020,6 @@ Finally, no other
 implementation (for other BSDs, illumos or Linux) behaves like this.
 For all these reasons, the behavior is expected to be changed soon to using the
 effective user ID instead.
-.Pp
-Option
-.Fl O
-has not been designed to be combined with other options as it forces insertion
-of the default display on first occurence.
-Moreover, these default display's columns are then not considered for duplicate
-elimination, contrary to those of canned displays.
-Finally, columns requested through multiple occurences are not grouped together,
-as one may naturally expect.
 .Pp
 The
 .Fl a
