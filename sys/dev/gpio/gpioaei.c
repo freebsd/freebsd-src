@@ -39,9 +39,16 @@
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/acpi_gpiobusvar.h>
 
+enum gpio_aei_type {
+	ACPI_AEI_TYPE_UNKNOWN,
+	ACPI_AEI_TYPE_ELX,
+	ACPI_AEI_TYPE_EVT
+};
+
 struct gpio_aei_softc {
 	ACPI_HANDLE handle;
-	char objname[5];	/* "_EXX" or "_LXX" */
+	enum gpio_aei_type type;
+	int pin;
 	struct resource * intr_res;
 	int intr_rid;
 	void * intr_cookie;
@@ -60,8 +67,11 @@ gpio_aei_intr(void * arg)
 {
 	struct gpio_aei_softc * sc = arg;
 
-	/* Ask ACPI to run the appropriate _Exx or _Lxx method. */
-	AcpiEvaluateObject(sc->handle, sc->objname, NULL, NULL);
+	/* Ask ACPI to run the appropriate _EVT, _Exx or _Lxx method. */
+	if (sc->type == ACPI_AEI_TYPE_EVT)
+		acpi_SetInteger(sc->handle, NULL, sc->pin);
+	else
+		AcpiEvaluateObject(sc->handle, NULL, NULL, NULL);
 }
 
 static int
@@ -69,23 +79,35 @@ gpio_aei_attach(device_t dev)
 {
 	struct gpio_aei_softc * sc = device_get_softc(dev);
 	gpio_pin_t pin;
+	ACPI_HANDLE handle;
 	int err;
 
 	/* This is us. */
 	device_set_desc(dev, "ACPI Event Information Device");
 
 	/* Store parameters needed by gpio_aei_intr. */
-	sc->handle = acpi_gpiobus_get_handle(dev);
+	handle = acpi_gpiobus_get_handle(dev);
 	if (gpio_pin_get_by_acpi_index(dev, 0, &pin) != 0) {
 		device_printf(dev, "Unable to get the input pin\n");
 		return (ENXIO);
 	}
-	sprintf(sc->objname, "_%c%02X",
-	    (pin->flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin->pin);
 
-	/* Support for GPIO pins > 255 is not implemented. */
-	if (pin->pin > 255) {
-		device_printf(dev, "ACPI Event Information Device does not support pins > 255");
+	sc->type = ACPI_AEI_TYPE_UNKNOWN;
+	sc->pin = pin->pin;
+	if (pin->pin <= 255) {
+		char objname[5];	/* "_EXX" or "_LXX" */
+		sprintf(objname, "_%c%02X",
+		    (pin->flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin->pin);
+		if (ACPI_SUCCESS(AcpiGetHandle(handle, objname, &sc->handle)))
+			sc->type = ACPI_AEI_TYPE_ELX;
+	}
+	if (sc->type == ACPI_AEI_TYPE_UNKNOWN) {
+		if (ACPI_SUCCESS(AcpiGetHandle(handle, "_EVT", &sc->handle)))
+			sc->type = ACPI_AEI_TYPE_EVT;
+	}
+
+	if (sc->type == ACPI_AEI_TYPE_UNKNOWN) {
+		device_printf(dev, "ACPI Event Information Device type is unknown");
 		return (ENOTSUP);
 	}
 
