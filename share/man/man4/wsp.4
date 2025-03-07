@@ -63,24 +63,39 @@ through nodes under
 Pointer sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.scale_factor .
 Tap to left-click can be controlled using the sysctl tunable
-.Nm hw.usb.wsp.enable_single_tap_clicks ,
-set to 0 to disable single tap clicks or 1 to enable them (default).
+.Nm hw.usb.wsp.enable_single_tap_clicks
+with 0 disabling single tap clicks and 1 enabling them (default).
 Movement on the trackpad following a partially-released click can be
 controlled using the sysctl tunable
 .Nm hw.usb.wsp.enable_single_tap_movement ,
-set to 0 to disable the movement on the trackpad until a full release
+with 0 to disable the movement on the trackpad until a full release
 or 1 to allow the continued movement (default).
 .Nm hw.usb.wsp.max_finger_area
 defines the maximum area on the trackpad which is registered as a
 finger (lower for greater palm detection).
+.Nm max_scroll_finger_distance
+defines the maximum distance between two fingers where z-axis
+movements are registered.
 .Nm hw.usb.wsp.max_double_tap_distance
 defines the maximum distance between two finger clicks or taps which may
 register as a double-click.
+.Nm hw.usb.wsp.scr_hor_threshold
+defines the minimum required horizontal movement to register as a forward
+/back button click.
 Z-Axis sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.z_factor .
 Z-Axis inversion can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.z_invert ,
 set to 0 to disable (default) or 1 to enable inversion.
+.Pp
+.Nm
+may use evdev data (if enabled during kernel compilation) for gesture support
+using the
+.Xr sysctl 8
+value
+.Nm kern.evdev.rcpt_mask .
+On most MacBooks, setting this value to 3 enables gestures, while 12
+disables them.
 .Sh FILES
 .Nm
 creates a blocking pseudo-device file,

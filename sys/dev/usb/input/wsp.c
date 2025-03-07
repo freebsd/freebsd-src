@@ -98,6 +98,7 @@ static struct wsp_tuning {
 	int	pressure_tap_threshold;
 	int	scr_hor_threshold;
 	int	max_finger_area;
+	int	max_scroll_finger_distance;
 	int	max_double_tap_distance;
 	int	enable_single_tap_clicks;
 	int	enable_single_tap_movement;
@@ -112,6 +113,7 @@ static struct wsp_tuning {
 	.pressure_tap_threshold = 120,
 	.scr_hor_threshold = 50,
 	.max_finger_area = 1900,
+	.max_scroll_finger_distance = MAX_FINGER_ORIENTATION/2,
 	.max_double_tap_distance = 2500,
 	.enable_single_tap_clicks = 1,
 	.enable_single_tap_movement = 1,
@@ -127,7 +129,8 @@ wsp_runing_rangecheck(struct wsp_tuning *ptun)
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
 	WSP_CLAMP(ptun->max_finger_area, 1, 2400);
-	WSP_CLAMP(ptun->max_double_tap_distance, 1, 16384);
+	WSP_CLAMP(ptun->max_scroll_finger_distance, 1, MAX_FINGER_ORIENTATION);
+	WSP_CLAMP(ptun->max_double_tap_distance, 1, MAX_FINGER_ORIENTATION);
 	WSP_CLAMP(ptun->scr_hor_threshold, 1, 255);
 	WSP_CLAMP(ptun->enable_single_tap_clicks, 0, 1);
 	WSP_CLAMP(ptun->enable_single_tap_movement, 0, 1);
@@ -147,6 +150,8 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_tap_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_tap_threshold, 0, "tap pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_finger_area, CTLFLAG_RWTUN,
     &wsp_tuning.max_finger_area, 0, "maximum finger area");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_scroll_finger_distance, CTLFLAG_RWTUN,
+    &wsp_tuning.max_scroll_finger_distance, 0, "maximum scroll finger distance");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, max_double_tap_distance, CTLFLAG_RWTUN,
     &wsp_tuning.max_double_tap_distance, 0, "maximum double-finger click distance");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RWTUN,
@@ -1262,7 +1267,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				dx = dy = 0;
 				if (sc->dz_count == 0)
 					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
-				if (sc->scr_mode == WSP_SCR_HOR || sc->distance > tun.max_double_tap_distance)
+				if (sc->scr_mode == WSP_SCR_HOR || sc->distance > tun.max_scroll_finger_distance)
 					dz = 0;
 			}
 			if (ntouch == 3)
