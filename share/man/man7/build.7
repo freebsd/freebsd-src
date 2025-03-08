@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 3, 2025
+.Dd March 8, 2025
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -554,6 +554,13 @@ Overrides which kernel to build and install for the various kernel
 make targets.
 It defaults to
 .Cm GENERIC .
+.It Va KERNBUILDDIR
+Overrides the default directory to get all the opt_*.h files for
+building a kernel module.
+Useful for stand-alone modules that depend on
+.Xr config 8
+options.
+Automatically set for modules built with a kernel.
 .It Va KERNCONFDIR
 Overrides the directory in which
 .Va KERNCONF
