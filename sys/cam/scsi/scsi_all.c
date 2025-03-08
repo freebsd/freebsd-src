@@ -9381,6 +9381,213 @@ scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
 }
 
 static void
+decode_sks(struct sbuf *sb, int sk, uint8_t *sks)
+{
+	/*
+	 * The format of the sense key specific info varies based on key types.
+	 * The valid bit should be checked by the caller for fixed formats and
+	 * is always one for variable formats since it's mere presence signals
+	 * validity. SPC7 4.4.2.4.1 and 4.4.3.
+	 */
+	switch (sk) {
+	case SSD_KEY_ILLEGAL_REQUEST:
+	{
+		const char *type;
+
+		type = sks[0] & SSD_FIELDPTR_CMD ? "CDB" : "buffer";
+		sbuf_printf(sb, "error_in=\"%s\" ", type);
+		if (sks[0] & SSD_BITPTR_VALID) {
+			sbuf_printf(sb, "bit_ptr=%d ", sks[0] & SSD_BITPTR_VALUE);
+		}
+		sbuf_printf(sb, "byte=%d ", scsi_2btoul(sks + 1));
+		break;
+	}
+	case SSD_KEY_HARDWARE_ERROR:
+	case SSD_KEY_MEDIUM_ERROR:
+	case SSD_KEY_RECOVERED_ERROR:
+		sbuf_printf(sb, "retry_count=%d ", scsi_2btoul(sks + 1));
+		break;
+	case SSD_KEY_NO_SENSE:
+	case SSD_KEY_NOT_READY:
+		sbuf_printf(sb, "progress=%d ", scsi_2btoul(sks + 1));
+		break;
+	case SSD_KEY_COPY_ABORTED:
+	{
+		const char *type;
+
+		/* Note: segment number in cmd_info if SD=1 */
+		type = sks[0] & SSD_SD_VALID ? "rel" : "abs";
+		    sbuf_printf(sb, "segment=\"%s\" ", type);
+		if (sks[0] & SSD_BITPTR_VALID) {
+			sbuf_printf(sb, "bit_ptr=%d ", sks[0] & SSD_BITPTR_VALUE);
+		}
+		sbuf_printf(sb, "byte=%d ", scsi_2btoul(sks + 1));
+		break;
+	}
+	case SSD_KEY_UNIT_ATTENTION:
+		sbuf_printf(sb, "overflow=%d ", sks[0] & 0x1);
+		break;
+	default:
+		/*
+		 * NO DATA - SKSV should be zero, but no
+		 * reported data on 1 either.
+		 */
+		break;
+	}
+}
+
+/*
+ * Decode the sense buffer we get back from the drive. See SPC7 4.4
+ * for details.
+ */
+void
+scsi_format_sense_devd(struct ccb_scsiio *csio, struct sbuf *sb)
+{
+	int serr, sk, asc, ascq, slen;
+	struct scsi_sense_data *sense_data;
+	uint8_t *walker, *ep;
+	union ccb *ccb = (union ccb *)csio;
+
+	sbuf_printf(sb, "scsi_status=%d ", csio->scsi_status);
+	if (scsi_extract_sense_ccb(ccb, &serr, &sk, &asc, &ascq))
+		sbuf_printf(sb, "scsi_sense=\"%02x %02x %02x %02x\" ",
+		    serr, sk, asc, ascq);
+	if (csio->ccb_h.flags & CAM_SENSE_PTR)
+		bcopy((struct scsi_sense_data **)&csio->sense_data,
+		    &sense_data, sizeof(struct scsi_sense_data *));
+	else
+		sense_data = &csio->sense_data;
+	/*
+	 * Decode the rest of the sense buffer
+	 */
+	slen = csio->sense_len - csio->sense_resid;
+	walker = (uint8_t *)sense_data;
+	ep = walker + slen;
+	switch (*walker) {
+	case SSD_DESC_CURRENT_ERROR:
+	case SSD_DESC_DEFERRED_ERROR:
+	{
+		struct scsi_sense_data_desc *sdesc = (struct scsi_sense_data_desc *)walker;
+
+		walker = sdesc->sense_desc;
+		if (walker + sdesc->extra_len > ep)
+			return;	/* more data than buffer, just punt */
+		ep = walker + sdesc->extra_len;
+		while (walker < ep) {
+			struct scsi_sense_desc_header *hdr =
+			    (struct scsi_sense_desc_header *)walker;
+
+			switch (hdr->desc_type) {
+			case SSD_DESC_INFO:
+			{
+				struct scsi_sense_info *info;
+
+				info = (struct scsi_sense_info *)hdr;
+				if ((info->byte2 & SSD_INFO_VALID) == 0)
+					break;
+				sbuf_printf(sb, "info=0x%jx ",
+				    scsi_8btou64(info->info));
+				break;
+			}
+			case SSD_DESC_COMMAND:
+			{
+				struct scsi_sense_command *command;
+
+				command = (struct scsi_sense_command *)hdr;
+				sbuf_printf(sb, "cmd_info=0x%jx ",
+				    scsi_8btou64(command->command_info));
+				break;
+			}
+			case SSD_DESC_SKS:
+				/* len sanity */
+				decode_sks(sb, sk, walker + 2);
+				break;
+			case SSD_DESC_FRU:
+			{
+				struct scsi_sense_fru *fru;
+
+				fru = (struct scsi_sense_fru *)hdr;
+				sbuf_printf(sb, "fru=%ju ", (uintmax_t)fru->fru);
+				break;
+			}
+			case SSD_DESC_ATA:
+			{
+				struct scsi_sense_ata_ret_desc *res;
+				uint16_t count;
+				uint64_t lba;
+
+				res = (struct scsi_sense_ata_ret_desc *)hdr;
+				sbuf_printf(sb, "ata_status=0x%02x ata_error=0x%02x ",
+				    res->status, res->error);
+				if (res->flags & SSD_DESC_ATA_FLAG_EXTEND) {
+					count = ((uint16_t)res->count_15_8 << 8) | res->count_7_0;
+					lba = ((uint64_t)res->lba_47_40 << 40) |
+					    ((uint64_t)res->lba_39_32 << 32) |
+					    ((uint64_t)res->lba_31_24 << 24) |
+					    ((uint64_t)res->lba_23_16 << 16) |
+					    ((uint64_t)res->lba_15_8 << 8) |
+					    res->lba_7_0;
+				} else {
+					count = res->count_7_0;
+					lba = ((uint64_t)res->lba_23_16 << 16) |
+					    ((uint64_t)res->lba_15_8 << 8) |
+					    res->lba_7_0;
+				}
+				sbuf_printf(sb, "count=%d lba=0x%jx ", count, (uintmax_t)lba);
+				break;
+			}
+			default:
+			{
+				uint8_t *cp;
+
+				if (hdr->desc_type >= SSD_DESC_VENDOR_MIN && hdr->desc_type <= SSD_DESC_VENDOR_MAX)
+					sbuf_printf(sb, "ven%02x=\"", hdr->desc_type);
+				else
+					sbuf_printf(sb, "desc%02x=\"", hdr->desc_type);
+				cp = (uint8_t *)&hdr[1];
+				for (int i = 0; i < hdr->length; i++, cp++)
+					sbuf_printf(sb, "%02x ", *cp);
+				sbuf_printf(sb, "\" ");
+				break;
+			}
+			} /* switch */
+
+			walker += sizeof(*hdr) + hdr->length;
+		}
+	}
+	case SSD_CURRENT_ERROR:
+	case SSD_DEFERRED_ERROR:
+	{
+		struct scsi_sense_data_fixed *sfixed = (struct scsi_sense_data_fixed *)walker;
+
+		if (sfixed->error_code & SSD_ERRCODE_VALID) {
+			uint32_t val = scsi_4btoul(sfixed->info);
+
+			sbuf_printf(sb, "info=0x%x ", val);
+		}
+		if (SSD_FIXED_IS_PRESENT(sfixed, slen, cmd_spec_info) &&
+		    SSD_FIXED_IS_FILLED(sfixed, cmd_spec_info)) {
+			uint32_t val = scsi_4btoul(sfixed->cmd_spec_info);
+
+			sbuf_printf(sb, "cmd_info=0x%x ", val);
+		}
+		if (SSD_FIXED_IS_PRESENT(sfixed, slen, fru) &&
+		    SSD_FIXED_IS_FILLED(sfixed, fru)) {
+
+			sbuf_printf(sb, "fru=0x%x ", sfixed->fru);
+		}
+		if (SSD_FIXED_IS_PRESENT(sfixed, slen, sense_key_spec) &&
+		    SSD_FIXED_IS_FILLED(sfixed, sense_key_spec) &&
+		    (sfixed->sense_key_spec[0] & SSD_SCS_VALID) != 0) {
+			decode_sks(sb, sk, sfixed->sense_key_spec);
+		}
+		/* Additional bytes not reported -- vendor specific */
+		/* Report the bytes present ? but can't use macros since it's at most 14 bytes */
+	}
+	} /* switch */
+}
+
+static void
 init_scsi_delay(void *dummy __unused)
 {
 	int delay;
