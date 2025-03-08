@@ -101,29 +101,42 @@ struct hostent *
 bt_gethostent(void)
 {
 	char	*p, *cp, **q;
+	int retry_count = 0; // Retry counter to prevent infinite loops
 
 	if (hostf == NULL)
 		hostf = fopen(_PATH_BT_HOSTS, "r");
 
 	if (hostf == NULL) {
 		h_errno = NETDB_INTERNAL;
+		perror("fopen"); // Log the error
 		return (NULL);
 	}
-again:
-	if ((p = fgets(buf, sizeof(buf), hostf)) == NULL) {
-		h_errno = HOST_NOT_FOUND;
+
+	while (retry_count < 100) { // Limit retries to 100
+		if ((p = fgets(buf, sizeof(buf), hostf)) == NULL) {
+			h_errno = HOST_NOT_FOUND;
+			return (NULL);
+		}
+		if (*p == '#')
+			continue; // Skip comments
+		if ((cp = strpbrk(p, "#\n")) == NULL)
+			continue; // Skip invalid lines
+		*cp = 0;
+		if ((cp = strpbrk(p, " \t")) == NULL)
+			continue; // Skip invalid lines
+		*cp++ = 0;
+		if (bt_aton(p, &host_addr) == 0)
+			continue; // Skip invalid addresses
+
+		// Process valid entry
+		break;
+	}
+
+	if (retry_count >= 100) {
+		h_errno = NO_RECOVERY;
 		return (NULL);
 	}
-	if (*p == '#')
-		goto again;
-	if ((cp = strpbrk(p, "#\n")) == NULL)
-		goto again;
-	*cp = 0;
-	if ((cp = strpbrk(p, " \t")) == NULL)
-		goto again;
-	*cp++ = 0;
-	if (bt_aton(p, &host_addr) == 0) 
-		goto again;
+
 	host_addr_ptrs[0] = (char *) &host_addr;
 	host_addr_ptrs[1] = NULL;
 	host.h_addr_list = host_addr_ptrs;
@@ -215,6 +228,7 @@ bt_getprotoent(void)
 
 	if (protof == NULL)
 		return (NULL);
+
 again:
 	if ((p = fgets(buf, sizeof(buf), protof)) == NULL)
 		return (NULL);
@@ -268,19 +282,20 @@ bt_endprotoent(void)
 	if (protof != NULL) {
 		(void) fclose(protof);
 		protof = NULL;
+		proto_stayopen = 0; // Reset stayopen flag
 	}
 }
 
 char const *
 bt_ntoa(bdaddr_t const *ba, char *str)
 {
-	static char	buffer[24];
+	static char buffer[24];
 
 	if (str == NULL)
 		str = buffer;
 
-	sprintf(str, "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
-		ba->b[5], ba->b[4], ba->b[3], ba->b[2], ba->b[1], ba->b[0]);
+	snprintf(str, 24, "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
+	         ba->b[5], ba->b[4], ba->b[3], ba->b[2], ba->b[1], ba->b[0]);
 
 	return (str);
 }
@@ -288,14 +303,14 @@ bt_ntoa(bdaddr_t const *ba, char *str)
 int
 bt_aton(char const *str, bdaddr_t *ba)
 {
-	int	 i, b;
-	char	*end = NULL;
+	int  i, b;
+	char *end = NULL; // Initialize to NULL
 
 	memset(ba, 0, sizeof(*ba));
 
 	for (i = 5, end = strchr(str, ':');
 	     i > 0 && *str != '\0' && end != NULL;
-	     i --, str = end + 1, end = strchr(str, ':')) {
+	     i--, str = end + 1, end = strchr(str, ':')) {
 		switch (end - str) {
 		case 1:
 			b = bt_hex_nibble(str[0]);
@@ -309,7 +324,7 @@ bt_aton(char const *str, bdaddr_t *ba)
 			b = -1;
 			break;
 		}
-		
+
 		if (b < 0)
 			return (0);
 
@@ -344,7 +359,10 @@ bt_aton(char const *str, bdaddr_t *ba)
 static int
 bt_hex_byte(char const *str)
 {
-	int	n1, n2;
+	if (str == NULL || strlen(str) < 2) // Validate input
+		return (-1);
+
+	int n1, n2;
 
 	if ((n1 = bt_hex_nibble(str[0])) < 0)
 		return (-1);
@@ -369,4 +387,3 @@ bt_hex_nibble(char nibble)
 
 	return (-1);
 }
-
