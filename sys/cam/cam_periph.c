@@ -2109,7 +2109,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	return (error);
 }
 
-#define CAM_PERIPH_DEVD_MSG_SIZE	256
+#define CAM_PERIPH_DEVD_MSG_SIZE	1024
 
 static void
 cam_periph_devctl_notify(union ccb *ccb)
@@ -2117,7 +2117,6 @@ cam_periph_devctl_notify(union ccb *ccb)
 	struct cam_periph *periph;
 	struct ccb_getdev *cgd;
 	struct sbuf sb;
-	int serr, sk, asc, ascq;
 	char *sbmsg, *type;
 
 	sbmsg = malloc(CAM_PERIPH_DEVD_MSG_SIZE, M_CAMPERIPH, M_NOWAIT);
@@ -2146,10 +2145,7 @@ cam_periph_devctl_notify(union ccb *ccb)
 		type = "timeout";
 		break;
 	case CAM_SCSI_STATUS_ERROR:
-		sbuf_printf(&sb, "scsi_status=%d ", ccb->csio.scsi_status);
-		if (scsi_extract_sense_ccb(ccb, &serr, &sk, &asc, &ascq))
-			sbuf_printf(&sb, "scsi_sense=\"%02x %02x %02x %02x\" ",
-			    serr, sk, asc, ascq);
+		scsi_format_sense_devd(&ccb->csio, &sb);
 		type = "error";
 		break;
 	case CAM_ATA_STATUS_ERROR:
