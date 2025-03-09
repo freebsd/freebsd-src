@@ -187,6 +187,47 @@ Display file descriptor information for the process.
 If the
 .Fl C
 subcommand flag is used then additional capability information is printed.
+.It Ar kqueue(s) Op Fl v
+Display the events registered in the process kqueues.
+The filter name, filter-specific identifier, flags, filter-specific flags,
+system and user data, and event status are displayed.
+If the
+.Fl v
+verbose flag is provided to the subcommand, the values of the ext array
+are displayed as well.
+.Pp
+For flags, a string is printed consisting of the following symbols
+corresponding to set flags:
+.Bl -tag -width X -compact
+.It O
+.Va EV_ONESHOT
+.It C
+.Va EV_CLEAR
+.It R
+.Va EV_RECEIPT
+.It D
+.Va EV_DISPATCH
+.It d
+.Va EV_DROP
+.It 1
+.Va EV_FLAG1
+.It 2
+.Va EV_FLAG2
+.El
+.Pp
+For status:
+.Bl -tag -width X -compact
+.It A
+.Va KNOTE_STATUS_ACTIVE
+.It Q
+.Va KNOTE_STATUS_QUEUED
+.It D
+.Va KNOTE_STATUS_DISABLED
+.It d
+.Va KNOTE_STATUS_DETACHED
+.It K
+.Va KNOTE_STATUS_KQUEUE
+.El
 .It Ar kstack | Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
