@@ -218,6 +218,7 @@
    the CoreFoundation framework. */
 /* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
 
+/* check_disk_change() exists */
 /* #undef HAVE_CHECK_DISK_CHANGE */
 
 /* copy_splice_read exists */
@@ -793,7 +794,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-189-FreeBSD_g6a2f7b384"
+#define ZFS_META_ALIAS "zfs-2.3.99-212-FreeBSD_gfe674998b"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -823,7 +824,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "189-FreeBSD_g6a2f7b384"
+#define ZFS_META_RELEASE "212-FreeBSD_gfe674998b"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"
