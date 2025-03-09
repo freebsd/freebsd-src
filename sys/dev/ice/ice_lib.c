@@ -42,6 +42,9 @@
 
 #include "ice_lib.h"
 #include "ice_iflib.h"
+#ifdef PCI_IOV
+#include "ice_iov.h"
+#endif
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/resource.h>
@@ -741,6 +744,12 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 	case ICE_VSI_VMDQ2:
 		ctx.flags = ICE_AQ_VSI_TYPE_VMDQ2;
 		break;
+#ifdef PCI_IOV
+	case ICE_VSI_VF:
+		ctx.flags = ICE_AQ_VSI_TYPE_VF;
+		ctx.vf_num = vsi->vf_num;
+		break;
+#endif
 	default:
 		return (ENODEV);
 	}
@@ -1607,6 +1616,12 @@ ice_setup_tx_ctx(struct ice_tx_queue *txq, struct ice_tlan_ctx *tlan_ctx, u16 pf
 	case ICE_VSI_VMDQ2:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VMQ;
 		break;
+#ifdef PCI_IOV
+	case ICE_VSI_VF:
+		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
+		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf_num;
+		break;
+#endif
 	default:
 		return (ENODEV);
 	}
@@ -1659,6 +1674,10 @@ ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->num_tx_queues; i++) {
 		struct ice_tlan_ctx tlan_ctx = { 0 };
 		struct ice_tx_queue *txq = &vsi->tx_queues[i];
+
+		/* Last configured queue */
+		if (txq->desc_count == 0)
+			break;
 
 		pf_q = vsi->tx_qmap[txq->me];
 		qg->txqs[0].txq_id = htole16(pf_q);
@@ -1788,6 +1807,10 @@ ice_cfg_vsi_for_rx(struct ice_vsi *vsi)
 
 	for (i = 0; i < vsi->num_rx_queues; i++) {
 		MPASS(vsi->mbuf_sz > 0);
+		/* Last configured queue */
+		if (vsi->rx_queues[i].desc_count == 0)
+			break;
+
 		err = ice_setup_rx_ctx(&vsi->rx_queues[i]);
 		if (err)
 			return err;
@@ -2257,6 +2280,11 @@ ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
 	case ice_aqc_opc_get_link_status:
 		ice_process_link_event(sc, event);
 		break;
+#ifdef PCI_IOV
+	case ice_mbx_opc_send_msg_to_pf:
+		ice_vc_handle_vf_msg(sc, event);
+		break;
+#endif
 	case ice_aqc_opc_fw_logs_event:
 		ice_handle_fw_log_event(sc, &event->desc, event->msg_buf);
 		break;
