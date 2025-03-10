@@ -2523,10 +2523,6 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 		if (umass_std_transform(sc, ccb, &sc->cam_scsi_sense.opcode,
 		    sizeof(sc->cam_scsi_sense))) {
-			if ((sc->sc_quirks & FORCE_SHORT_INQUIRY) &&
-			    (sc->sc_transfer.cmd_data[0] == INQUIRY)) {
-				ccb->csio.sense_len = SHORT_INQUIRY_LENGTH;
-			}
 			umass_command_start(sc, DIR_IN, &ccb->csio.sense_data.error_code,
 			    ccb->csio.sense_len, ccb->ccb_h.timeout,
 			    &umass_cam_sense_cb, ccb);
