@@ -42,7 +42,7 @@
 #include "powermac_thermal.h"
 
 /* A 10 second timer for spinning down fans. */
-#define FAN_HYSTERESIS_TIMER	10
+#define FAN_HYSTERESIS_TIMER	30
 
 static void fan_management_proc(void);
 static void pmac_therm_manage_fans(void);
@@ -142,10 +142,10 @@ pmac_therm_manage_fans(void)
 		average_excess = max_excess_zone = 0;
 		SLIST_FOREACH(sensor, &sensors, entries) {
 			temp = imin(sensor->last_val,
-			    sensor->sensor->max_temp);
+			    sensor->sensor->high_temp);
 			frac_excess = (temp -
 			    sensor->sensor->target_temp)*100 /
-			    (sensor->sensor->max_temp - temp + 1);
+			    (sensor->sensor->high_temp - temp + 1);
 			if (frac_excess < 0)
 				frac_excess = 0;
 			if (sensor->sensor->zone == fan->fan->zone) {

@@ -1244,8 +1244,9 @@ smu_attach_sensors(device_t dev, phandle_t sensroot)
 
 		if (sens->type == SMU_TEMP_SENSOR) {
 			/* Make up some numbers */
-			sens->therm.target_temp = 500 + 2731; /* 50 C */
-			sens->therm.max_temp = 900 + 2731; /* 90 C */
+			sens->therm.target_temp = 400 + 2732; /* 40 C */
+			sens->therm.high_temp = 750 + 2732; /* 75 C */
+			sens->therm.max_temp = 950 + 2732; /* 95 C */
 
 			sens->therm.read =
 			    (int (*)(struct pmac_therm *))smu_sensor_read;
