@@ -37,7 +37,7 @@ dt_pq_init(dtrace_hdl_t *dtp, uint_t size, dt_pq_value_f value_cb, void *cb_arg)
 	if ((p = dt_zalloc(dtp, sizeof (dt_pq_t))) == NULL)
 		return (NULL);
 
-	p->dtpq_items = dt_zalloc(dtp, size * sizeof (p->dtpq_items[0]));
+	p->dtpq_items = dt_zalloc(dtp, (size + 1) * sizeof (p->dtpq_items[0]));
 	if (p->dtpq_items == NULL) {
 		dt_free(dtp, p);
 		return (NULL);
@@ -73,9 +73,9 @@ dt_pq_insert(dt_pq_t *p, void *item)
 {
 	uint_t i;
 
-	assert(p->dtpq_last < p->dtpq_size);
-
 	i = p->dtpq_last++;
+	assert(i <= p->dtpq_size);
+
 	p->dtpq_items[i] = item;
 
 	while (i > 1 && dt_pq_getvalue(p, i) < dt_pq_getvalue(p, i / 2)) {
