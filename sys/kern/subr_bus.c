@@ -51,6 +51,7 @@
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #ifdef INTRNG
@@ -119,6 +120,8 @@ struct device_prop_elm {
 	device_prop_dtr_t dtr;
 	LIST_ENTRY(device_prop_elm) link;
 };
+
+TASKQUEUE_DEFINE_THREAD(bus);
 
 static void device_destroy_props(device_t dev);
 
