@@ -1568,28 +1568,16 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 
 packageworld: .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
-.if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    ${TAR_CMD} cvf - --exclude usr/lib/debug \
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
-.else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvf - --exclude usr/lib/debug . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
-.endif
 .endfor
 
 .for dist in ${DEBUG_DISTRIBUTIONS}
-. if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    ${TAR_CMD} cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
-. else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvLf - usr/lib/debug | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
-. endif
 .endfor
 
 makeman: .PHONY
