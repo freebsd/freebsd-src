@@ -52,7 +52,7 @@ struct feed_mixer_info {
 	int bps;
 };
 
-static void
+__always_inline static void
 feed_mixer_apply(uint8_t *src, uint8_t *dst, uint32_t count, const uint32_t fmt)
 {
 	intpcm32_t z;
