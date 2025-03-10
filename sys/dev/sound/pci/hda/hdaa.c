@@ -6200,7 +6200,9 @@ hdaa_configure(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Creating PCM devices...\n");
 	);
+	hdaa_unlock(devinfo);
 	hdaa_create_pcms(devinfo);
+	hdaa_lock(devinfo);
 
 	HDA_BOOTVERBOSE(
 		if (devinfo->quirks != 0) {
