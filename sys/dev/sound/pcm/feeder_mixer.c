@@ -64,7 +64,7 @@ feed_mixer_##SIGN##BIT##ENDIAN(uint8_t *src, uint8_t *dst,		\
 		y = pcm_sample_read_calc(dst,				\
 		    AFMT_##SIGN##BIT##_##ENDIAN);			\
 		z = INTPCM##BIT##_T(x) + y;				\
-		x = PCM_CLAMP_##SIGN##BIT(z);				\
+		x = pcm_clamp_calc(z, AFMT_##SIGN##BIT##_##ENDIAN);	\
 		pcm_sample_write(dst, x,				\
 		    AFMT_##SIGN##BIT##_##ENDIAN);			\
 	} while (count != 0);						\

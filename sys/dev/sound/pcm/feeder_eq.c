@@ -135,10 +135,6 @@ struct feed_eq_info {
 #define FEEDEQ_ERR_CLIP_CHECK(...)
 #endif
 
-#define FEEDEQ_CLAMP(v)		(((v) > PCM_S32_MAX) ? PCM_S32_MAX :	\
-				(((v) < PCM_S32_MIN) ? PCM_S32_MIN :	\
-				  (v)))
-
 #define FEEDEQ_DECLARE(SIGN, BIT, ENDIAN)					\
 static void									\
 feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
@@ -187,7 +183,7 @@ feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
 			info->treble.o2[i] = info->treble.o1[i];		\
 			w >>= FEEDEQ_COEFF_SHIFT;				\
 			FEEDEQ_ERR_CLIP_CHECK(treble, w);			\
-			v = FEEDEQ_CLAMP(w);					\
+			v = pcm_clamp(w, AFMT_S32_NE);				\
 			info->treble.o1[i] = v;					\
 										\
 			w  = (intpcm64_t)v * bass->b0;				\
@@ -200,7 +196,7 @@ feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
 			info->bass.o2[i] = info->bass.o1[i];			\
 			w >>= FEEDEQ_COEFF_SHIFT;				\
 			FEEDEQ_ERR_CLIP_CHECK(bass, w);				\
-			v = FEEDEQ_CLAMP(w);					\
+			v = pcm_clamp(w, AFMT_S32_NE);				\
 			info->bass.o1[i] = v;					\
 										\
 			pcm_sample_write_norm(dst, v,				\
