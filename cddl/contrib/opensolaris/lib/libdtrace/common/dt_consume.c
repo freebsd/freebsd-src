@@ -3949,8 +3949,8 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp,
 		return (rval);
 	}
 
-	if (max_ncpus == 0)
-		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
+	if (max_ncpus == 0 && (max_ncpus = dt_cpu_maxid(dtp) + 1) <= 0)
+		return (-1);
 
 	for (i = 0; i < max_ncpus; i++) {
 		dtrace_bufdesc_t *nbuf;
@@ -4040,8 +4040,8 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 	if (!dtp->dt_active)
 		return (dt_set_errno(dtp, EINVAL));
 
-	if (max_ncpus == 0)
-		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
+	if (max_ncpus == 0 && (max_ncpus = dt_cpu_maxid(dtp) + 1) <= 0)
+		return (-1);
 
 	if (pf == NULL)
 		pf = (dtrace_consume_probe_f *)dt_nullprobe;

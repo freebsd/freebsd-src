@@ -620,11 +620,6 @@ extern int _dtrace_debug;
 }
 #endif
 
-#ifndef illumos
-#define _SC_CPUID_MAX		_SC_NPROCESSORS_CONF
-#define _SC_NPROCESSORS_MAX	_SC_NPROCESSORS_CONF
-#endif
-
 /*
  * Values for the dt_oformat property.
  */

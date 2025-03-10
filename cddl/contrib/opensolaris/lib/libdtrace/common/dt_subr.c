@@ -463,6 +463,20 @@ dt_cpp_pop_arg(dtrace_hdl_t *dtp)
 	return (arg);
 }
 
+int
+dt_cpu_maxid(dtrace_hdl_t *dtp)
+{
+	size_t len;
+	u_int count;
+	int error;
+
+	len = sizeof(count);
+	error = sysctlbyname("kern.smp.maxid", &count, &len, NULL, 0);
+	if (error != 0)
+		return (dt_set_errno(dtp, errno));
+	return (count);
+}
+
 /*PRINTFLIKE1*/
 void
 dt_dprintf(const char *format, ...)
