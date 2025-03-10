@@ -40,6 +40,7 @@ extern unsigned long mempages;
 extern time_t now;
 extern int showthreads, sumrusage, termwidth;
 extern struct velisthead varlist;
+extern const size_t known_keywords_nb;
 
 __BEGIN_DECLS
 char	 *arguments(KINFO *, VARENT *);
@@ -55,6 +56,7 @@ VARENT	*find_varentry(const char *);
 const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
 char	 *jailname(KINFO *, VARENT *);
+size_t	 aliased_keyword_index(const VAR *);
 char	 *kvar(KINFO *, VARENT *);
 char	 *label(KINFO *, VARENT *);
 char	 *loginclass(KINFO *, VARENT *);
