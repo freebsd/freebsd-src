@@ -462,10 +462,10 @@ dwmmc_handle_card_present(struct dwmmc_softc *sc, bool is_present)
 	was_present = sc->child != NULL;
 
 	if (!was_present && is_present) {
-		taskqueue_enqueue_timeout(taskqueue_swi_giant,
+		taskqueue_enqueue_timeout(taskqueue_bus,
 		  &sc->card_delayed_task, -(hz / 2));
 	} else if (was_present && !is_present) {
-		taskqueue_enqueue(taskqueue_swi_giant, &sc->card_task);
+		taskqueue_enqueue(taskqueue_bus, &sc->card_task);
 	}
 }
 
@@ -477,8 +477,7 @@ dwmmc_card_task(void *arg, int pending __unused)
 #ifdef MMCCAM
 	mmc_cam_sim_discover(&sc->mmc_sim);
 #else
-	DWMMC_LOCK(sc);
-
+	bus_topo_lock();
 	if (READ4(sc, SDMMC_CDETECT) == 0 ||
 	    (sc->mmc_helper.props & MMC_PROP_BROKEN_CD)) {
 		if (sc->child == NULL) {
@@ -486,25 +485,22 @@ dwmmc_card_task(void *arg, int pending __unused)
 				device_printf(sc->dev, "Card inserted\n");
 
 			sc->child = device_add_child(sc->dev, "mmc", DEVICE_UNIT_ANY);
-			DWMMC_UNLOCK(sc);
 			if (sc->child) {
 				device_set_ivars(sc->child, sc);
 				(void)device_probe_and_attach(sc->child);
 			}
-		} else
-			DWMMC_UNLOCK(sc);
+		}
 	} else {
 		/* Card isn't present, detach if necessary */
 		if (sc->child != NULL) {
 			if (bootverbose)
 				device_printf(sc->dev, "Card removed\n");
 
-			DWMMC_UNLOCK(sc);
 			device_delete_child(sc->dev, sc->child);
 			sc->child = NULL;
-		} else
-			DWMMC_UNLOCK(sc);
+		}
 	}
+	bus_topo_unlock();
 #endif /* MMCCAM */
 }
 
@@ -751,7 +747,7 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	TASK_INIT(&sc->card_task, 0, dwmmc_card_task, sc);
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->card_delayed_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &sc->card_delayed_task, 0,
 		dwmmc_card_task, sc);
 
 #ifdef MMCCAM
@@ -782,8 +778,8 @@ dwmmc_detach(device_t dev)
 	if (ret != 0)
 		return (ret);
 
-	taskqueue_drain(taskqueue_swi_giant, &sc->card_task);
-	taskqueue_drain_timeout(taskqueue_swi_giant, &sc->card_delayed_task);
+	taskqueue_drain(taskqueue_bus, &sc->card_task);
+	taskqueue_drain_timeout(taskqueue_bus, &sc->card_delayed_task);
 
 	if (sc->intr_cookie != NULL) {
 		ret = bus_teardown_intr(dev, sc->res[1], sc->intr_cookie);

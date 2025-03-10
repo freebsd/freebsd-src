@@ -111,7 +111,7 @@ cd_intr(void *arg)
 {
 	struct mmc_helper *helper = arg;
 
-	taskqueue_enqueue_timeout(taskqueue_swi_giant,
+	taskqueue_enqueue_timeout(taskqueue_bus,
 	    &helper->cd_delayed_task, -(hz / 2));
 }
 
@@ -129,7 +129,7 @@ cd_card_task(void *arg, int pending __unused)
 
 	/* If we're polling re-schedule the task */
 	if (helper->cd_ihandler == NULL)
-		taskqueue_enqueue_timeout_sbt(taskqueue_swi_giant,
+		taskqueue_enqueue_timeout_sbt(taskqueue_bus,
 		    &helper->cd_delayed_task, mstosbt(500), 0, C_PREL(2));
 }
 
@@ -145,7 +145,7 @@ cd_setup(struct mmc_helper *helper, phandle_t node)
 
 	dev = helper->dev;
 
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &helper->cd_delayed_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &helper->cd_delayed_task, 0,
 	    cd_card_task, helper);
 
 	/*
@@ -280,7 +280,7 @@ mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_helper *helper,
 	/* 
 	 * Schedule a card detection
 	 */
-	taskqueue_enqueue_timeout_sbt(taskqueue_swi_giant,
+	taskqueue_enqueue_timeout_sbt(taskqueue_bus,
 	    &helper->cd_delayed_task, mstosbt(500), 0, C_PREL(2));
 	return (0);
 }
@@ -301,7 +301,7 @@ mmc_fdt_gpio_teardown(struct mmc_helper *helper)
 	if (helper->cd_ires != NULL)
 		bus_release_resource(helper->dev, SYS_RES_IRQ, 0, helper->cd_ires);
 
-	taskqueue_drain_timeout(taskqueue_swi_giant, &helper->cd_delayed_task);
+	taskqueue_drain_timeout(taskqueue_bus, &helper->cd_delayed_task);
 }
 
 bool

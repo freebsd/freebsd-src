@@ -633,10 +633,10 @@ rtsx_handle_card_present(struct rtsx_softc *sc)
 		 * (sometimes the card detect pin stabilizes
 		 * before the other pins have made good contact).
 		 */
-		taskqueue_enqueue_timeout(taskqueue_swi_giant,
+		taskqueue_enqueue_timeout(taskqueue_bus,
 					  &sc->rtsx_card_insert_task, -hz);
 	} else if (was_present && !is_present) {
-		taskqueue_enqueue(taskqueue_swi_giant, &sc->rtsx_card_remove_task);
+		taskqueue_enqueue(taskqueue_bus, &sc->rtsx_card_remove_task);
 	}
 }
 
@@ -648,6 +648,9 @@ rtsx_card_task(void *arg, int pending __unused)
 {
 	struct rtsx_softc *sc = arg;
 
+#ifndef MMCCAM
+	bus_topo_lock();
+#endif
 	if (rtsx_is_card_present(sc)) {
 		sc->rtsx_flags |= RTSX_F_CARD_PRESENT;
 		/* Card is present, attach if necessary. */
@@ -664,9 +667,7 @@ rtsx_card_task(void *arg, int pending __unused)
 			sc->rtsx_cam_status = 1;
 			mmc_cam_sim_discover(&sc->rtsx_mmc_sim);
 #else  /* !MMCCAM */
-			RTSX_LOCK(sc);
 			sc->rtsx_mmc_dev = device_add_child(sc->rtsx_dev, "mmc", DEVICE_UNIT_ANY);
-			RTSX_UNLOCK(sc);
 			if (sc->rtsx_mmc_dev == NULL) {
 				device_printf(sc->rtsx_dev, "Adding MMC bus failed\n");
 			} else {
@@ -699,6 +700,9 @@ rtsx_card_task(void *arg, int pending __unused)
 #endif /* MMCCAM */
 		}
 	}
+#ifndef MMCCAM
+	bus_topo_unlock();
+#endif
 }
 
 static bool
@@ -3690,7 +3694,7 @@ rtsx_attach(device_t dev)
 	sc->rtsx_mem_btag = rman_get_bustag(sc->rtsx_mem_res);
 	sc->rtsx_mem_bhandle = rman_get_bushandle(sc->rtsx_mem_res);
 
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &sc->rtsx_card_insert_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &sc->rtsx_card_insert_task, 0,
 			  rtsx_card_task, sc);
 	TASK_INIT(&sc->rtsx_card_remove_task, 0, rtsx_card_task, sc);
 
@@ -3789,8 +3793,8 @@ rtsx_detach(device_t dev)
 		return (error);
 	sc->rtsx_mmc_dev = NULL;
 
-	taskqueue_drain_timeout(taskqueue_swi_giant, &sc->rtsx_card_insert_task);
-	taskqueue_drain(taskqueue_swi_giant, &sc->rtsx_card_remove_task);
+	taskqueue_drain_timeout(taskqueue_bus, &sc->rtsx_card_insert_task);
+	taskqueue_drain(taskqueue_bus, &sc->rtsx_card_remove_task);
 
 	/* Teardown the state in our softc created in our attach routine. */
 	rtsx_dma_free(sc);
