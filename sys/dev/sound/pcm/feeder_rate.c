@@ -502,10 +502,6 @@ z_feed_linear_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 #define Z_CLIP_CHECK(...)
 #endif
 
-#define Z_CLAMP(v, BIT)							\
-	(((v) > PCM_S##BIT##_MAX) ? PCM_S##BIT##_MAX :			\
-	(((v) < PCM_S##BIT##_MIN) ? PCM_S##BIT##_MIN : (v)))
-
 /*
  * Sine Cardinal (SINC) Interpolation. Scaling is done in 64 bit, so
  * there's no point to hold the plate any longer. All samples will be
@@ -574,7 +570,7 @@ z_feed_sinc_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 		else								\
 			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
-		pcm_sample_write(dst, Z_CLAMP(v, BIT),				\
+		pcm_sample_write(dst, pcm_clamp(v, AFMT_##SIGN##BIT##_##ENDIAN),\
 		    AFMT_##SIGN##BIT##_##ENDIAN);				\
 	} while (ch != 0);							\
 }
@@ -614,7 +610,7 @@ z_feed_sinc_polyphase_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)	\
 		else								\
 			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
-		pcm_sample_write(dst, Z_CLAMP(v, BIT),				\
+		pcm_sample_write(dst, pcm_clamp(v, AFMT_##SIGN##BIT##_##ENDIAN),\
 		    AFMT_##SIGN##BIT##_##ENDIAN);				\
 	} while (ch != 0);							\
 }

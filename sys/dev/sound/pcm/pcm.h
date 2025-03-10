@@ -103,32 +103,6 @@ typedef uint64_t uintpcm64_t;
 #define INTPCM24_T(v)	((intpcm24_t)(v))
 #define INTPCM32_T(v)	((intpcm32_t)(v))
 
-#define PCM_CLAMP_S8(val)						\
-			(((val) > PCM_S8_MAX) ? PCM_S8_MAX :		\
-			 (((val) < PCM_S8_MIN) ? PCM_S8_MIN : (val)))
-#define PCM_CLAMP_S16(val)						\
-			(((val) > PCM_S16_MAX) ? PCM_S16_MAX :		\
-			 (((val) < PCM_S16_MIN) ? PCM_S16_MIN : (val)))
-#define PCM_CLAMP_S24(val)						\
-			(((val) > PCM_S24_MAX) ? PCM_S24_MAX :		\
-			 (((val) < PCM_S24_MIN) ? PCM_S24_MIN : (val)))
-
-#ifdef SND_PCM_64
-#define PCM_CLAMP_S32(val)						\
-			(((val) > PCM_S32_MAX) ? PCM_S32_MAX :		\
-			 (((val) < PCM_S32_MIN) ? PCM_S32_MIN : (val)))
-#else	/* !SND_PCM_64 */
-#define PCM_CLAMP_S32(val)						\
-			(((val) > PCM_S24_MAX) ? PCM_S32_MAX :		\
-			 (((val) < PCM_S24_MIN) ? PCM_S32_MIN :		\
-			 ((val) << PCM_FXSHIFT)))
-#endif	/* SND_PCM_64 */
-
-#define PCM_CLAMP_U8(val)	PCM_CLAMP_S8(val)
-#define PCM_CLAMP_U16(val)	PCM_CLAMP_S16(val)
-#define PCM_CLAMP_U24(val)	PCM_CLAMP_S24(val)
-#define PCM_CLAMP_U32(val)	PCM_CLAMP_S32(val)
-
 static const struct {
 	const uint8_t ulaw_to_u8[G711_TABLE_SIZE];
 	const uint8_t alaw_to_u8[G711_TABLE_SIZE];
@@ -368,6 +342,44 @@ pcm_sample_write_calc(uint8_t *dst, intpcm_t v, uint32_t fmt)
 		v <<= PCM_FXSHIFT;
 #endif
 	pcm_sample_write(dst, v, fmt);
+}
+
+static __always_inline __unused intpcm_t
+pcm_clamp(intpcm32_t sample, uint32_t fmt)
+{
+	fmt = AFMT_ENCODING(fmt);
+
+	switch (AFMT_BIT(fmt)) {
+	case 8:
+		return ((sample > PCM_S8_MAX) ? PCM_S8_MAX :
+		    ((sample < PCM_S8_MIN) ? PCM_S8_MIN : sample));
+	case 16:
+		return ((sample > PCM_S16_MAX) ? PCM_S16_MAX :
+		    ((sample < PCM_S16_MIN) ? PCM_S16_MIN : sample));
+	case 24:
+		return ((sample > PCM_S24_MAX) ? PCM_S24_MAX :
+		    ((sample < PCM_S24_MIN) ? PCM_S24_MIN : sample));
+	case 32:
+		return ((sample > PCM_S32_MAX) ? PCM_S32_MAX :
+		    ((sample < PCM_S32_MIN) ? PCM_S32_MIN : sample));
+	default:
+		printf("%s(): unknown format: 0x%08x\n", __func__, fmt);
+		__assert_unreachable();
+	}
+}
+
+static __always_inline __unused intpcm_t
+pcm_clamp_calc(intpcm32_t sample, uint32_t fmt)
+{
+#ifndef SND_PCM_64
+	if (fmt & AFMT_32BIT) {
+		return ((sample > PCM_S24_MAX) ? PCM_S32_MAX :
+		    ((sample < PCM_S24_MIN) ? PCM_S32_MIN :
+		    sample << PCM_FXSHIFT));
+	}
+#endif
+
+	return (pcm_clamp(sample, fmt));
 }
 
 #endif	/* !_SND_PCM_H_ */

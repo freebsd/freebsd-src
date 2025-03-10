@@ -66,7 +66,8 @@ feed_volume_##SIGN##BIT##ENDIAN(int *vol, int *matrix,			\
 			x = pcm_sample_read_calc(dst,			\
 			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 			v = FEEDVOLUME_CALC##BIT(x, vol[matrix[i]]);	\
-			x = PCM_CLAMP_##SIGN##BIT(v);			\
+			x = pcm_clamp_calc(v,				\
+			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 			pcm_sample_write(dst, x,			\
 			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 		} while (i != 0);					\
