@@ -361,28 +361,32 @@ sysctl_dev_pcm_bitperfect(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
-static u_int8_t
-pcm_mode_init(struct snddev_info *d)
+static int
+sysctl_dev_pcm_mode(SYSCTL_HANDLER_ARGS)
 {
-	u_int8_t mode = 0;
+	struct snddev_info *d;
+	int mode = 0;
 
+	d = oidp->oid_arg1;
+	if (!PCM_REGISTERED(d))
+		return (ENODEV);
+
+	PCM_LOCK(d);
 	if (d->playcount > 0)
 		mode |= PCM_MODE_PLAY;
 	if (d->reccount > 0)
 		mode |= PCM_MODE_REC;
 	if (d->mixer_dev != NULL)
 		mode |= PCM_MODE_MIXER;
+	PCM_UNLOCK(d);
 
-	return (mode);
+	return (sysctl_handle_int(oidp, &mode, 0, req));
 }
 
 static void
 pcm_sysinit(device_t dev)
 {
   	struct snddev_info *d = device_get_softc(dev);
-	u_int8_t mode;
-
-	mode = pcm_mode_init(d);
 
 	sysctl_ctx_init(&d->play_sysctl_ctx);
 	d->play_sysctl_tree = SYSCTL_ADD_NODE(&d->play_sysctl_ctx,
@@ -403,9 +407,10 @@ pcm_sysinit(device_t dev)
 	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, d,
 	    sizeof(d), sysctl_dev_pcm_bitperfect, "I",
 	    "bit-perfect playback/recording (0=disable, 1=enable)");
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "mode", CTLFLAG_RD, NULL, mode,
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "mode", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, d, sizeof(d),
+	    sysctl_dev_pcm_mode, "I",
 	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than "
 	    "one mode is supported)");
 	vchan_initsys(dev);
