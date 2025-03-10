@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <libxo/xo.h>
 
 #include "ps.h"
@@ -228,7 +229,18 @@ static VAR keywords[] = {
 	 USHORT, "x"},
 };
 
-static const size_t known_keywords_nb = nitems(keywords);
+const size_t known_keywords_nb = nitems(keywords);
+
+size_t
+aliased_keyword_index(const VAR *const v)
+{
+	const VAR *const fv = (v->flag & RESOLVED_ALIAS) == 0 ?
+	    v : v->final_kw;
+	const size_t idx = fv - keywords;
+
+	assert(idx < known_keywords_nb);
+	return (idx);
+}
 
 /*
  * Sanity checks on declared keywords.
@@ -426,16 +438,6 @@ parsefmt(const char *p, struct velisthead *const var_list,
 			eval = 1;
 			continue;
 		}
-		if (!user) {
-			/*
-			 * If the user is NOT adding this field manually,
-			 * get on with our lives if this VAR is already
-			 * represented in the list.
-			 */
-			vent = find_varentry(v->name);
-			if (vent != NULL)
-				continue;
-		}
 
 #ifndef PS_CHECK_KEYWORDS
 		/*
@@ -456,6 +458,7 @@ parsefmt(const char *p, struct velisthead *const var_list,
 		}
 		vent->width = strlen(vent->header);
 		vent->var = v;
+		vent->flags = user ? VE_KEEP : 0;
 		STAILQ_INSERT_TAIL(var_list, vent, next_ve);
 	}
 
