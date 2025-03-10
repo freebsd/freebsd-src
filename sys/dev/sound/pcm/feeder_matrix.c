@@ -169,55 +169,6 @@ feed_matrix_reset(struct feed_matrix_info *info)
 	}
 }
 
-#ifdef FEEDMATRIX_GENERIC
-static void
-feed_matrix_apply_generic(struct feed_matrix_info *info,
-    uint8_t *src, uint8_t *dst, uint32_t count)
-{
-	intpcm64_t accum;
-	intpcm_t v;
-	int i, j;
-
-	do {
-		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF;
-		    i++) {
-			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {
-				pcm_sample_write_norm(dst, 0, info->out);
-				dst += info->bps;
-				continue;
-			} else if (info->matrix[i].chn[1] ==
-			    SND_CHN_T_EOF) {
-				v = pcm_sample_read_norm(src +
-				    info->matrix[i].chn[0], info->in);
-				pcm_sample_write_norm(dst, v, info->out);
-				dst += info->bps;
-				continue;
-			}
-
-			accum = 0;
-			for (j = 0;
-			    info->matrix[i].chn[j] != SND_CHN_T_EOF;
-			    j++) {
-				v = pcm_sample_read_norm(src +
-				    info->matrix[i].chn[j], info->in);
-				accum += v;
-			}
-
-			accum = (accum * info->matrix[i].mul) >>
-			    info->matrix[i].shift;
-
-			FEEDMATRIX_CLIP_CHECK(accum, 32);
-
-			v = (accum > PCM_S32_MAX) ? PCM_S32_MAX :
-			    ((accum < PCM_S32_MIN) ? PCM_S32_MIN : accum);
-			pcm_sample_write_norm(dst, v, info->out);
-			dst += info->bps;
-		}
-		src += info->ialign;
-	} while (--count != 0);
-}
-#endif
-
 static int
 feed_matrix_setup(struct feed_matrix_info *info, struct pcmchan_matrix *m_in,
     struct pcmchan_matrix *m_out)
