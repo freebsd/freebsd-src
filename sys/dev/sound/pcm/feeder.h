@@ -161,13 +161,6 @@ int feeder_matrix_setup(struct pcm_feeder *, struct pcmchan_matrix *,
     struct pcmchan_matrix *);
 int feeder_matrix_compare(struct pcmchan_matrix *, struct pcmchan_matrix *);
 
-/* feeder_format */
-typedef intpcm_t intpcm_read_t(uint8_t *);
-typedef void intpcm_write_t(uint8_t *, intpcm_t);
-
-intpcm_read_t *feeder_format_read_op(uint32_t);
-intpcm_write_t *feeder_format_write_op(uint32_t);
-
 /* 4Front OSS stuffs */
 int feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
