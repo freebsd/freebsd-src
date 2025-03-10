@@ -103,6 +103,19 @@ int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
 int	 showthreads;		/* will threads be shown? */
 
+struct keyword_info {
+	/*
+	 * Whether there is (at least) one column referencing this keyword that
+	 * must be kept.
+	 */
+#define	KWI_HAS_MUST_KEEP_COLUMN	(1 << 0)
+	/*
+	 * Whether a column with such a keyword has been seen.
+	 */
+#define	KWI_SEEN			(1 << 1)
+	u_int flags;
+};
+
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
 static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
@@ -151,7 +164,8 @@ static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
 static char	*kludge_oldps_options(const char *, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
-static void	 scanvars(void);
+static void	 scan_vars(struct keyword_info *);
+static void	 remove_redundant_columns(struct keyword_info *);
 static void	 pidmax_init(void);
 static void	 usage(void);
 
@@ -188,6 +202,7 @@ main(int argc, char *argv[])
 	char fmtbuf[_POSIX2_LINE_MAX];
 	enum { NONE = 0, UP = 1, DOWN = 2, BOTH = 1 | 2 } directions = NONE;
 	struct { int traversed; int initial; } pid_count;
+	struct keyword_info *keywords_info;
 
 	(void) setlocale(LC_ALL, "");
 	time(&now);			/* Used by routines in print.c. */
@@ -487,6 +502,22 @@ main(int argc, char *argv[])
 	if (!_fmt)
 		parsefmt(dfmt, &varlist, 0);
 
+	keywords_info = calloc(known_keywords_nb, sizeof(struct keyword_info));
+	if (keywords_info == NULL)
+		xo_errx(1, "malloc failed");
+	/*
+	 * Scan requested variables, noting which structures are needed and
+	 * which keywords are specified.
+	 */
+	scan_vars(keywords_info);
+	/*
+	 * Remove redundant columns from "canned" displays (see the callee's
+	 * herald comment for more details).
+	 */
+	remove_redundant_columns(keywords_info);
+	free(keywords_info);
+	keywords_info = NULL;
+
 	if (!all && nselectors == 0) {
 		uidlist.l.ptr = malloc(sizeof(uid_t));
 		if (uidlist.l.ptr == NULL)
@@ -495,12 +526,6 @@ main(int argc, char *argv[])
 		uidlist.count = uidlist.maxcount = 1;
 		*uidlist.l.uids = getuid();
 	}
-
-	/*
-	 * scan requested variables, noting what structures are needed,
-	 * and adjusting header widths as appropriate.
-	 */
-	scanvars();
 
 	/*
 	 * Get process list.  If the user requested just one selector-
@@ -1221,7 +1246,7 @@ find_varentry(const char *name)
 }
 
 static void
-scanvars(void)
+scan_vars(struct keyword_info *const keywords_info)
 {
 	struct varent *vent;
 	const VAR *v;
@@ -1232,6 +1257,47 @@ scanvars(void)
 			needuser = 1;
 		if (v->flag & COMM)
 			needcomm = 1;
+		if ((vent->flags & VE_KEEP) != 0)
+			keywords_info[aliased_keyword_index(v)].flags |=
+			    KWI_HAS_MUST_KEEP_COLUMN;
+	}
+}
+
+/*
+ * For each explicitly requested keyword, remove all the same keywords
+ * from "canned" displays.  If the same keyword appears multiple times
+ * only in "canned displays", then keep the first (leftmost) occurence
+ * only (with the reasoning that columns requested first are the most
+ * important as their positions catch the eye more).
+ */
+static void
+remove_redundant_columns(struct keyword_info *const keywords_info)
+{
+	struct varent *prev_vent, *vent, *next_vent;
+
+	prev_vent = NULL;
+	STAILQ_FOREACH_SAFE(vent, &varlist, next_ve, next_vent) {
+		const VAR *const v = vent->var;
+		struct keyword_info *const kwi =
+		    &keywords_info[aliased_keyword_index(v)];
+
+		/*
+		 * If the current column is not marked as to absolutely keep,
+		 * and we have either already output one with the same keyword
+		 * or know we will output one later, remove it.
+		 */
+		if ((vent->flags & VE_KEEP) == 0 &&
+		    (kwi->flags & (KWI_HAS_MUST_KEEP_COLUMN | KWI_SEEN)) != 0) {
+			if (prev_vent == NULL)
+				STAILQ_REMOVE_HEAD(&varlist, next_ve);
+			else
+				STAILQ_REMOVE_AFTER(&varlist, prev_vent,
+				    next_ve);
+		} else
+			prev_vent = vent;
+
+
+		kwi->flags |= KWI_SEEN;
 	}
 }
 

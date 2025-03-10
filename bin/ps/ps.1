@@ -142,11 +142,16 @@ and
 designate specific predefined groups of columns, also called canned displays.
 Appearance of any of these options inhibits the default display, replacing it
 all with the requested columns, and in the order options are passed.
-The individual columns requested via a canned display option which have the same
-keyword as that of some column added by earlier options are not added again.
-This kind of automatic removal of duplicate keywords in canned displays is
-useful for slightly tweaking these displays without having to rebuild variants
-from scratch, e.g., using
+The individual columns requested via a canned display option that have the same
+keyword or an alias to that of some column added by an earlier canned display
+option, or by an explicit
+.Fl O
+or
+.Fl o
+option anywhere on the command line, are suppressed.
+This automatic removal of duplicate data in canned displays is useful for
+slightly tweaking these displays and/or combining multiple ones without having
+to rebuild variants from scratch, e.g., using only
 .Fl o
 options.
 .Pp
@@ -1026,14 +1031,6 @@ Moreover, these default display's columns are then not considered for duplicate
 elimination, contrary to those of canned displays.
 Finally, columns requested through multiple occurences are not grouped together,
 as one may naturally expect.
-.Pp
-Automatic removal of duplicate columns from canned displays only works backwards
-at time of insertion, i.e., adding a new canned display will lead to checking
-columns before it but not those after it.
-Besides the inconsistency, this prevents relocating columns of canned displays
-further right, which can be useful, e.g., to relocate a column with the
-.Cm command
-keyword at end of display.
 .Pp
 The
 .Fl a

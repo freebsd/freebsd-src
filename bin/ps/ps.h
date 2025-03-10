@@ -62,6 +62,8 @@ typedef struct varent {
 	const char		*header;
 	const struct var	*var;
 	u_int			 width;
+#define VE_KEEP		(1 << 0)
+	uint16_t		flags;
 } VARENT;
 STAILQ_HEAD(velisthead, varent);
 
