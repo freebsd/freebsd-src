@@ -260,7 +260,7 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 	int err, enabled, flag;
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
+	if (!PCM_REGISTERED(d))
 		return (EINVAL);
 
 	PCM_LOCK(d);
@@ -318,7 +318,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	char dtype[16];
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
+	if (!PCM_REGISTERED(d))
 		return (EINVAL);
 
 	PCM_LOCK(d);
@@ -409,7 +409,7 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 	int *vchanrate, direction, ret, newspd, restart;
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
+	if (!PCM_REGISTERED(d))
 		return (EINVAL);
 
 	PCM_LOCK(d);
@@ -508,7 +508,7 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 	char fmtstr[AFMTSTR_LEN];
 
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d) || !(d->flags & SD_F_AUTOVCHAN))
+	if (!PCM_REGISTERED(d))
 		return (EINVAL);
 
 	PCM_LOCK(d);
