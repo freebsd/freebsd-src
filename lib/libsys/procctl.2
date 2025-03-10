@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 14, 2024
+.Dd April 21, 2025
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -133,17 +133,17 @@ dump.
 The
 .Va arg
 parameter must point to an integer variable holding one of the following values:
-.Bl -tag -width PROC_LOGSIGEXIT_FORCE_DISABLE
-.It Dv PROC_LOGSIGEXIT_FORCE_ENABLE
+.Bl -tag -width PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
+.It Dv PROC_LOGSIGEXIT_CTL_FORCE_ENABLE
 Enables logging of exits due to signals that would normally cause a core dump.
 Logging is done via
 .Xr log 9
 with a log level of
 .Dv LOG_INFO .
-.It Dv PROC_LOGSIGEXIT_FORCE_DISABLE
+.It Dv PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
 Disables the logging of exits due to signals that would normally cause a core
 dump.
-.It Dv PROC_LOGSIGEXIT_NOFORCE
+.It Dv PROC_LOGSIGEXIT_CTL_NOFORCE
 The logging behavior is delegated to the
 .Xr sysctl 3
 MIB variable
@@ -155,10 +155,10 @@ The
 .Va arg
 parameter must point to an integer variable, where one of the following values
 is written:
-.Bl -tag -width PROC_LOGSIGEXIT_FORCE_DISABLE
-.It Dv PROC_LOGSIGEXIT_FORCE_ENABLE
-.It Dv PROC_LOGSIGEXIT_FORCE_DISABLE
-.It Dv PROC_LOGSIGEXIT_NOFORCE
+.Bl -tag -width PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
+.It Dv PROC_LOGSIGEXIT_CTL_FORCE_ENABLE
+.It Dv PROC_LOGSIGEXIT_CTL_FORCE_DISABLE
+.It Dv PROC_LOGSIGEXIT_CTL_NOFORCE
 .El
 .It Dv PROC_PROTMAX_CTL
 Controls the maximum protection used for
