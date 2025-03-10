@@ -575,9 +575,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (create && !dc) {
 		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT | M_ZERO);
-		if (!dc)
-			return (NULL);
+		    M_BUS, M_WAITOK | M_ZERO);
 		dc->parent = NULL;
 		dc->name = (char*) (dc + 1);
 		strcpy(dc->name, classname);
@@ -711,9 +709,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 	if (pass <= BUS_PASS_ROOT)
 		return (EINVAL);
 
-	dl = malloc(sizeof *dl, M_BUS, M_NOWAIT|M_ZERO);
-	if (!dl)
-		return (ENOMEM);
+	dl = malloc(sizeof *dl, M_BUS, M_WAITOK|M_ZERO);
 
 	/*
 	 * Compile the driver's methods. Also increase the reference count
@@ -1306,9 +1302,7 @@ devclass_add_device(devclass_t dc, device_t dev)
 	buflen = snprintf(NULL, 0, "%s%d$", dc->name, INT_MAX);
 	if (buflen < 0)
 		return (ENOMEM);
-	dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT|M_ZERO);
-	if (!dev->nameunit)
-		return (ENOMEM);
+	dev->nameunit = malloc(buflen, M_BUS, M_WAITOK|M_ZERO);
 
 	if ((error = devclass_alloc_unit(dc, dev, &dev->unit)) != 0) {
 		free(dev->nameunit, M_BUS);
@@ -1385,10 +1379,7 @@ make_device(device_t parent, const char *name, int unit)
 		dc = NULL;
 	}
 
-	dev = malloc(sizeof(*dev), M_BUS, M_NOWAIT|M_ZERO);
-	if (!dev)
-		return (NULL);
-
+	dev = malloc(sizeof(*dev), M_BUS, M_WAITOK|M_ZERO);
 	dev->parent = parent;
 	TAILQ_INIT(&dev->children);
 	kobj_init((kobj_t) dev, &null_class);
@@ -2116,7 +2107,7 @@ device_set_desc_copy(device_t dev, const char *desc)
 {
 	char *buf;
 
-	buf = strdup_flags(desc, M_BUS, M_NOWAIT);
+	buf = strdup_flags(desc, M_BUS, M_WAITOK);
 	device_set_desc_internal(dev, buf, true);
 }
 
@@ -2476,13 +2467,7 @@ device_set_driver(device_t dev, driver_t *driver)
 			else
 				policy = DOMAINSET_RR();
 			dev->softc = malloc_domainset(driver->size, M_BUS_SC,
-			    policy, M_NOWAIT | M_ZERO);
-			if (!dev->softc) {
-				kobj_delete((kobj_t) dev, NULL);
-				kobj_init((kobj_t) dev, &null_class);
-				dev->driver = NULL;
-				return (ENOMEM);
-			}
+			    policy, M_WAITOK | M_ZERO);
 		}
 	} else {
 		kobj_init((kobj_t) dev, &null_class);
@@ -2935,9 +2920,7 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 	rle = resource_list_find(rl, type, rid);
 	if (!rle) {
 		rle = malloc(sizeof(struct resource_list_entry), M_BUS,
-		    M_NOWAIT);
-		if (!rle)
-			panic("resource_list_add: can't record entry");
+		    M_WAITOK);
 		STAILQ_INSERT_TAIL(rl, rle, link);
 		rle->type = type;
 		rle->rid = rid;
