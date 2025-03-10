@@ -1856,7 +1856,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
 
 		if (lcm->cmsg_type == -1 ||
-		    cm->cmsg_level == -1) {
+		    lcm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
 			    "unsupported recvmsg cmsg level %d type %d",
 			    cm->cmsg_level, cm->cmsg_type);
