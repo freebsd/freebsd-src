@@ -956,8 +956,6 @@ SYSCTL_SBINTIME_MSEC(_hw_pci, OID_AUTO, pcie_hp_detach_timeout, CTLFLAG_RWTUN,
     &pcie_hp_detach_timeout,
     "Attention Button delay for PCI-express Eject.");
 
-TASKQUEUE_DEFINE_THREAD(pci_hp);
-
 static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
@@ -1044,7 +1042,7 @@ pcib_pcie_hotplug_command(struct pcib_softc *sc, uint16_t val, uint16_t mask)
 	    (ctl & new) & PCIEM_SLOT_CTL_CCIE) {
 		sc->flags |= PCIB_HOTPLUG_CMD_PENDING;
 		if (!cold)
-			taskqueue_enqueue_timeout(taskqueue_pci_hp,
+			taskqueue_enqueue_timeout(taskqueue_bus,
 			    &sc->pcie_cc_task, hz);
 	}
 }
@@ -1060,7 +1058,7 @@ pcib_pcie_hotplug_command_completed(struct pcib_softc *sc)
 		device_printf(dev, "Command Completed\n");
 	if (!(sc->flags & PCIB_HOTPLUG_CMD_PENDING))
 		return;
-	taskqueue_cancel_timeout(taskqueue_pci_hp, &sc->pcie_cc_task, NULL);
+	taskqueue_cancel_timeout(taskqueue_bus, &sc->pcie_cc_task, NULL);
 	sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
 	wakeup(sc);
 }
@@ -1179,10 +1177,10 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 			device_printf(sc->dev,
 			    "Data Link Layer inactive\n");
 		else
-			taskqueue_enqueue_timeout(taskqueue_pci_hp,
+			taskqueue_enqueue_timeout(taskqueue_bus,
 			    &sc->pcie_dll_task, hz);
 	} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
-		taskqueue_cancel_timeout(taskqueue_pci_hp, &sc->pcie_dll_task,
+		taskqueue_cancel_timeout(taskqueue_bus, &sc->pcie_dll_task,
 		    NULL);
 
 	pcib_pcie_hotplug_command(sc, val, mask);
@@ -1194,7 +1192,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 */
 	if (schedule_task &&
 	    (pcib_hotplug_present(sc) != 0) != (sc->child != NULL))
-		taskqueue_enqueue(taskqueue_pci_hp, &sc->pcie_hp_task);
+		taskqueue_enqueue(taskqueue_bus, &sc->pcie_hp_task);
 }
 
 static void
@@ -1222,7 +1220,7 @@ pcib_pcie_intr_hotplug(void *arg)
 			device_printf(dev,
 			    "Attention Button Pressed: Detach Cancelled\n");
 			sc->flags &= ~PCIB_DETACH_PENDING;
-			taskqueue_cancel_timeout(taskqueue_pci_hp,
+			taskqueue_cancel_timeout(taskqueue_bus,
 			    &sc->pcie_ab_task, NULL);
 		} else if (old_slot_sta & PCIEM_SLOT_STA_PDS) {
 			/* Only initiate detach sequence if device present. */
@@ -1231,7 +1229,7 @@ pcib_pcie_intr_hotplug(void *arg)
 			    "Attention Button Pressed: Detaching in %ld ms\n",
 			    (long)(pcie_hp_detach_timeout / SBT_1MS));
 				sc->flags |= PCIB_DETACH_PENDING;
-				taskqueue_enqueue_timeout_sbt(taskqueue_pci_hp,
+				taskqueue_enqueue_timeout_sbt(taskqueue_bus,
 				    &sc->pcie_ab_task, pcie_hp_detach_timeout,
 				    SBT_1S, 0);
 			} else {
@@ -1433,11 +1431,11 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 
 	dev = sc->dev;
 	TASK_INIT(&sc->pcie_hp_task, 0, pcib_pcie_hotplug_task, sc);
-	TIMEOUT_TASK_INIT(taskqueue_pci_hp, &sc->pcie_ab_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &sc->pcie_ab_task, 0,
 	    pcib_pcie_ab_timeout, sc);
-	TIMEOUT_TASK_INIT(taskqueue_pci_hp, &sc->pcie_cc_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &sc->pcie_cc_task, 0,
 	    pcib_pcie_cc_timeout, sc);
-	TIMEOUT_TASK_INIT(taskqueue_pci_hp, &sc->pcie_dll_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &sc->pcie_dll_task, 0,
 	    pcib_pcie_dll_timeout, sc);
 	sc->pcie_hp_lock = bus_topo_mtx();
 
@@ -1483,13 +1481,13 @@ pcib_detach_hotplug(struct pcib_softc *sc)
 	/* Disable the card in the slot and force it to detach. */
 	if (sc->flags & PCIB_DETACH_PENDING) {
 		sc->flags &= ~PCIB_DETACH_PENDING;
-		taskqueue_cancel_timeout(taskqueue_pci_hp, &sc->pcie_ab_task,
+		taskqueue_cancel_timeout(taskqueue_bus, &sc->pcie_ab_task,
 		    NULL);
 	}
 	sc->flags |= PCIB_DETACHING;
 
 	if (sc->flags & PCIB_HOTPLUG_CMD_PENDING) {
-		taskqueue_cancel_timeout(taskqueue_pci_hp, &sc->pcie_cc_task,
+		taskqueue_cancel_timeout(taskqueue_bus, &sc->pcie_cc_task,
 		    NULL);
 		tsleep(sc, 0, "hpcmd", hz);
 		sc->flags &= ~PCIB_HOTPLUG_CMD_PENDING;
@@ -1512,10 +1510,10 @@ pcib_detach_hotplug(struct pcib_softc *sc)
 	error = pcib_release_pcie_irq(sc);
 	if (error)
 		return (error);
-	taskqueue_drain(taskqueue_pci_hp, &sc->pcie_hp_task);
-	taskqueue_drain_timeout(taskqueue_pci_hp, &sc->pcie_ab_task);
-	taskqueue_drain_timeout(taskqueue_pci_hp, &sc->pcie_cc_task);
-	taskqueue_drain_timeout(taskqueue_pci_hp, &sc->pcie_dll_task);
+	taskqueue_drain(taskqueue_bus, &sc->pcie_hp_task);
+	taskqueue_drain_timeout(taskqueue_bus, &sc->pcie_ab_task);
+	taskqueue_drain_timeout(taskqueue_bus, &sc->pcie_cc_task);
+	taskqueue_drain_timeout(taskqueue_bus, &sc->pcie_dll_task);
 	return (0);
 }
 #endif
