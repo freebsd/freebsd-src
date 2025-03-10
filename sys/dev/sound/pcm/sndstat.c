@@ -47,7 +47,6 @@
 #include <sys/sx.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/pcm.h>
 
 #include "feeder_if.h"
 

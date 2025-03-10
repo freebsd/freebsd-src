@@ -471,10 +471,10 @@ z_feed_linear_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 	ch = info->channels;							\
 										\
 	do {									\
-		x = _PCM_READ_##SIGN##BIT##_##ENDIAN(sx);			\
-		y = _PCM_READ_##SIGN##BIT##_##ENDIAN(sy);			\
+		x = pcm_sample_read(sx, AFMT_##SIGN##BIT##_##ENDIAN);		\
+		y = pcm_sample_read(sy, AFMT_##SIGN##BIT##_##ENDIAN);		\
 		x = Z_LINEAR_INTERPOLATE_##BIT(z, x, y);			\
-		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, x);			\
+		pcm_sample_write(dst, x, AFMT_##SIGN##BIT##_##ENDIAN);		\
 		sx += PCM_##BIT##_BPS;						\
 		sy += PCM_##BIT##_BPS;						\
 		dst += PCM_##BIT##_BPS;						\
@@ -516,7 +516,7 @@ z_feed_linear_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 	c += z >> Z_SHIFT;						\
 	z &= Z_MASK;							\
 	coeff = Z_COEFF_INTERPOLATE(z, z_coeff[c], z_dcoeff[c]);	\
-	x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);			\
+	x = pcm_sample_read(p, AFMT_##SIGN##BIT##_##ENDIAN);		\
 	v += Z_NORM_##BIT((intpcm64_t)x * coeff);			\
 	z += info->z_dy;						\
 	p adv##= info->channels * PCM_##BIT##_BPS
@@ -574,7 +574,8 @@ z_feed_sinc_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 		else								\
 			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
-		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, Z_CLAMP(v, BIT));	\
+		pcm_sample_write(dst, Z_CLAMP(v, BIT),				\
+		    AFMT_##SIGN##BIT##_##ENDIAN);				\
 	} while (ch != 0);							\
 }
 
@@ -599,11 +600,11 @@ z_feed_sinc_polyphase_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)	\
 		z_pcoeff = info->z_pcoeff +					\
 		    ((info->z_alpha * info->z_size) << 1);			\
 		for (i = info->z_size; i != 0; i--) {				\
-			x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);		\
+			x = pcm_sample_read(p, AFMT_##SIGN##BIT##_##ENDIAN);	\
 			v += Z_NORM_##BIT((intpcm64_t)x * *z_pcoeff);		\
 			z_pcoeff++;						\
 			p += info->channels * PCM_##BIT##_BPS;			\
-			x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);		\
+			x = pcm_sample_read(p, AFMT_##SIGN##BIT##_##ENDIAN);	\
 			v += Z_NORM_##BIT((intpcm64_t)x * *z_pcoeff);		\
 			z_pcoeff++;						\
 			p += info->channels * PCM_##BIT##_BPS;			\
@@ -613,7 +614,8 @@ z_feed_sinc_polyphase_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)	\
 		else								\
 			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
-		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, Z_CLAMP(v, BIT));	\
+		pcm_sample_write(dst, Z_CLAMP(v, BIT),				\
+		    AFMT_##SIGN##BIT##_##ENDIAN);				\
 	} while (ch != 0);							\
 }
 
