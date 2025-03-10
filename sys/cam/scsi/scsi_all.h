@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Original scsi_all.h from 386BSD was by Julian Elischer at TRW Financial
- * Services has been transformed into a new work by subsequent contribtuors.
+ * Services has been transformed into a new work by subsequent contributors.
  */
 
 /*
