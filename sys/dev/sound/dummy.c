@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * This software was developed by Christos Margiolis <christos@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
