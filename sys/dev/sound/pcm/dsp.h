@@ -31,8 +31,6 @@
 #ifndef _PCMDSP_H_
 #define _PCMDSP_H_
 
-extern struct cdevsw dsp_cdevsw;
-
 int dsp_make_dev(device_t);
 void dsp_destroy_dev(device_t);
 int dsp_oss_audioinfo(struct cdev *, oss_audioinfo *, bool);
