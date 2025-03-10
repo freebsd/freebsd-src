@@ -1092,8 +1092,10 @@ dt_aggregate_go(dtrace_hdl_t *dtp)
 	assert(agp->dtat_ncpu == 0);
 	assert(agp->dtat_cpus == NULL);
 
-	agp->dtat_maxcpu = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
-	agp->dtat_ncpu = dt_sysconf(dtp, _SC_NPROCESSORS_MAX);
+	agp->dtat_maxcpu = dt_cpu_maxid(dtp) + 1;
+	if (agp->dtat_maxcpu <= 0)
+		return (-1);
+	agp->dtat_ncpu = dt_sysconf(dtp, _SC_NPROCESSORS_CONF);
 	agp->dtat_cpus = malloc(agp->dtat_ncpu * sizeof (processorid_t));
 
 	if (agp->dtat_cpus == NULL)
