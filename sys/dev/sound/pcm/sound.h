@@ -99,7 +99,7 @@ struct snd_mixer;
 #define SOUND_MAXVER	SOUND_MODVER
 
 #define SD_F_SIMPLEX		0x00000001
-#define SD_F_AUTOVCHAN		0x00000002
+/* unused			0x00000002 */
 #define SD_F_SOFTPCMVOL		0x00000004
 #define SD_F_BUSY		0x00000008
 #define SD_F_MPSAFE		0x00000010
@@ -122,7 +122,7 @@ struct snd_mixer;
 
 #define SD_F_BITS		"\020"					\
 				"\001SIMPLEX"				\
-				"\002AUTOVCHAN"				\
+				/* "\002 */				\
 				"\003SOFTPCMVOL"			\
 				"\004BUSY"				\
 				"\005MPSAFE"				\

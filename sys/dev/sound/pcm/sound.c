@@ -242,10 +242,6 @@ pcm_setstatus(device_t dev, char *str)
 
 	if (d->playcount == 0 || d->reccount == 0)
 		d->flags |= SD_F_SIMPLEX;
-
-	if (d->playcount > 0 || d->reccount > 0)
-		d->flags |= SD_F_AUTOVCHAN;
-
 	if (d->playcount > 0)
 		d->flags |= SD_F_PVCHANS;
 	if (d->reccount > 0)
@@ -412,8 +408,7 @@ pcm_sysinit(device_t dev)
 	    OID_AUTO, "mode", CTLFLAG_RD, NULL, mode,
 	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than "
 	    "one mode is supported)");
-	if (d->flags & SD_F_AUTOVCHAN)
-		vchan_initsys(dev);
+	vchan_initsys(dev);
 	if (d->flags & SD_F_EQ)
 		feeder_eq_initsys(dev);
 }
