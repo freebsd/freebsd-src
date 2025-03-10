@@ -115,272 +115,6 @@ local_calc_limit(intpcm_t value, int val_bits)
 	return value;
 }
 
-/* Lookup tables to read u-law and A-law sample formats. */
-static const uint8_t ulaw_to_u8[G711_TABLE_SIZE] = ULAW_TO_U8;
-static const uint8_t alaw_to_u8[G711_TABLE_SIZE] = ALAW_TO_U8;
-
-/* Helper function to read one sample value from a buffer. */
-static intpcm_t
-local_pcm_read(uint8_t *src, uint32_t format)
-{
-	intpcm_t value;
-
-	switch (format) {
-	case AFMT_S8:
-		value = _PCM_READ_S8_NE(src);
-		break;
-	case AFMT_U8:
-		value = _PCM_READ_U8_NE(src);
-		break;
-	case AFMT_S16_LE:
-		value = _PCM_READ_S16_LE(src);
-		break;
-	case AFMT_S16_BE:
-		value = _PCM_READ_S16_BE(src);
-		break;
-	case AFMT_U16_LE:
-		value = _PCM_READ_U16_LE(src);
-		break;
-	case AFMT_U16_BE:
-		value = _PCM_READ_U16_BE(src);
-		break;
-	case AFMT_S24_LE:
-		value = _PCM_READ_S24_LE(src);
-		break;
-	case AFMT_S24_BE:
-		value = _PCM_READ_S24_BE(src);
-		break;
-	case AFMT_U24_LE:
-		value = _PCM_READ_U24_LE(src);
-		break;
-	case AFMT_U24_BE:
-		value = _PCM_READ_U24_BE(src);
-		break;
-	case AFMT_S32_LE:
-		value = _PCM_READ_S32_LE(src);
-		break;
-	case AFMT_S32_BE:
-		value = _PCM_READ_S32_BE(src);
-		break;
-	case AFMT_U32_LE:
-		value = _PCM_READ_U32_LE(src);
-		break;
-	case AFMT_U32_BE:
-		value = _PCM_READ_U32_BE(src);
-		break;
-	case AFMT_MU_LAW:
-		value = _G711_TO_INTPCM(ulaw_to_u8, *src);
-		break;
-	case AFMT_A_LAW:
-		value = _G711_TO_INTPCM(alaw_to_u8, *src);
-		break;
-	default:
-		value = 0;
-	}
-
-	return (value);
-}
-
-/* Helper function to read one sample value from a buffer for calculations. */
-static intpcm_t
-local_pcm_read_calc(uint8_t *src, uint32_t format)
-{
-	intpcm_t value;
-
-	switch (format) {
-	case AFMT_S8:
-		value = PCM_READ_S8_NE(src);
-		break;
-	case AFMT_U8:
-		value = PCM_READ_U8_NE(src);
-		break;
-	case AFMT_S16_LE:
-		value = PCM_READ_S16_LE(src);
-		break;
-	case AFMT_S16_BE:
-		value = PCM_READ_S16_BE(src);
-		break;
-	case AFMT_U16_LE:
-		value = PCM_READ_U16_LE(src);
-		break;
-	case AFMT_U16_BE:
-		value = PCM_READ_U16_BE(src);
-		break;
-	case AFMT_S24_LE:
-		value = PCM_READ_S24_LE(src);
-		break;
-	case AFMT_S24_BE:
-		value = PCM_READ_S24_BE(src);
-		break;
-	case AFMT_U24_LE:
-		value = PCM_READ_U24_LE(src);
-		break;
-	case AFMT_U24_BE:
-		value = PCM_READ_U24_BE(src);
-		break;
-	case AFMT_S32_LE:
-		value = PCM_READ_S32_LE(src);
-		break;
-	case AFMT_S32_BE:
-		value = PCM_READ_S32_BE(src);
-		break;
-	case AFMT_U32_LE:
-		value = PCM_READ_U32_LE(src);
-		break;
-	case AFMT_U32_BE:
-		value = PCM_READ_U32_BE(src);
-		break;
-	case AFMT_MU_LAW:
-		value = _G711_TO_INTPCM(ulaw_to_u8, *src);
-		break;
-	case AFMT_A_LAW:
-		value = _G711_TO_INTPCM(alaw_to_u8, *src);
-		break;
-	default:
-		value = 0;
-	}
-
-	return (value);
-}
-
-/* Helper function to read one normalized sample from a buffer. */
-static intpcm_t
-local_pcm_read_norm(uint8_t *src, uint32_t format)
-{
-	intpcm_t value;
-
-	value = local_pcm_read(src, format);
-	value <<= (32 - AFMT_BIT(format));
-	return (value);
-}
-
-/* Lookup tables to write u-law and A-law sample formats. */
-static const uint8_t u8_to_ulaw[G711_TABLE_SIZE] = U8_TO_ULAW;
-static const uint8_t u8_to_alaw[G711_TABLE_SIZE] = U8_TO_ALAW;
-
-/* Helper function to write one sample value to a buffer. */
-static void
-local_pcm_write(uint8_t *dst, intpcm_t value, uint32_t format)
-{
-	switch (format) {
-	case AFMT_S8:
-		_PCM_WRITE_S8_NE(dst, value);
-		break;
-	case AFMT_U8:
-		_PCM_WRITE_U8_NE(dst, value);
-		break;
-	case AFMT_S16_LE:
-		_PCM_WRITE_S16_LE(dst, value);
-		break;
-	case AFMT_S16_BE:
-		_PCM_WRITE_S16_BE(dst, value);
-		break;
-	case AFMT_U16_LE:
-		_PCM_WRITE_U16_LE(dst, value);
-		break;
-	case AFMT_U16_BE:
-		_PCM_WRITE_U16_BE(dst, value);
-		break;
-	case AFMT_S24_LE:
-		_PCM_WRITE_S24_LE(dst, value);
-		break;
-	case AFMT_S24_BE:
-		_PCM_WRITE_S24_BE(dst, value);
-		break;
-	case AFMT_U24_LE:
-		_PCM_WRITE_U24_LE(dst, value);
-		break;
-	case AFMT_U24_BE:
-		_PCM_WRITE_U24_BE(dst, value);
-		break;
-	case AFMT_S32_LE:
-		_PCM_WRITE_S32_LE(dst, value);
-		break;
-	case AFMT_S32_BE:
-		_PCM_WRITE_S32_BE(dst, value);
-		break;
-	case AFMT_U32_LE:
-		_PCM_WRITE_U32_LE(dst, value);
-		break;
-	case AFMT_U32_BE:
-		_PCM_WRITE_U32_BE(dst, value);
-		break;
-	case AFMT_MU_LAW:
-		*dst = _INTPCM_TO_G711(u8_to_ulaw, value);
-		break;
-	case AFMT_A_LAW:
-		*dst = _INTPCM_TO_G711(u8_to_alaw, value);
-		break;
-	default:
-		value = 0;
-	}
-}
-
-/* Helper function to write one calculation sample value to a buffer. */
-static void
-local_pcm_write_calc(uint8_t *dst, intpcm_t value, uint32_t format)
-{
-	switch (format) {
-	case AFMT_S8:
-		PCM_WRITE_S8_NE(dst, value);
-		break;
-	case AFMT_U8:
-		PCM_WRITE_U8_NE(dst, value);
-		break;
-	case AFMT_S16_LE:
-		PCM_WRITE_S16_LE(dst, value);
-		break;
-	case AFMT_S16_BE:
-		PCM_WRITE_S16_BE(dst, value);
-		break;
-	case AFMT_U16_LE:
-		PCM_WRITE_U16_LE(dst, value);
-		break;
-	case AFMT_U16_BE:
-		PCM_WRITE_U16_BE(dst, value);
-		break;
-	case AFMT_S24_LE:
-		PCM_WRITE_S24_LE(dst, value);
-		break;
-	case AFMT_S24_BE:
-		PCM_WRITE_S24_BE(dst, value);
-		break;
-	case AFMT_U24_LE:
-		PCM_WRITE_U24_LE(dst, value);
-		break;
-	case AFMT_U24_BE:
-		PCM_WRITE_U24_BE(dst, value);
-		break;
-	case AFMT_S32_LE:
-		PCM_WRITE_S32_LE(dst, value);
-		break;
-	case AFMT_S32_BE:
-		PCM_WRITE_S32_BE(dst, value);
-		break;
-	case AFMT_U32_LE:
-		PCM_WRITE_U32_LE(dst, value);
-		break;
-	case AFMT_U32_BE:
-		PCM_WRITE_U32_BE(dst, value);
-		break;
-	case AFMT_MU_LAW:
-		*dst = _INTPCM_TO_G711(u8_to_ulaw, value);
-		break;
-	case AFMT_A_LAW:
-		*dst = _INTPCM_TO_G711(u8_to_alaw, value);
-		break;
-	default:
-		value = 0;
-	}
-}
-
-/* Helper function to write one normalized sample to a buffer. */
-static void
-local_pcm_write_norm(uint8_t *dst, intpcm_t value, uint32_t format)
-{
-	local_pcm_write(dst, value >> (32 - AFMT_BIT(format)), format);
-}
-
 ATF_TC(pcm_read);
 ATF_TC_HEAD(pcm_read, tc)
 {
@@ -403,21 +137,21 @@ ATF_TC_BODY(pcm_read, tc)
 
 		/* Read sample at format magnitude. */
 		expected = test->value;
-		result = local_pcm_read(src, test->format);
+		result = pcm_sample_read(src, test->format);
 		ATF_CHECK_MSG(result == expected,
 		    "pcm_read[\"%s\"].value: expected=0x%08x, result=0x%08x",
 		    test->label, expected, result);
 
 		/* Read sample at format magnitude, for calculations. */
 		expected = local_calc_limit(test->value, test->size * 8);
-		result = local_pcm_read_calc(src, test->format);
+		result = pcm_sample_read_calc(src, test->format);
 		ATF_CHECK_MSG(result == expected,
 		    "pcm_read[\"%s\"].calc: expected=0x%08x, result=0x%08x",
 		    test->label, expected, result);
 
 		/* Read sample at full 32 bit magnitude. */
 		expected = local_normalize(test->value, test->size * 8, 32);
-		result = local_pcm_read_norm(src, test->format);
+		result = pcm_sample_read_norm(src, test->format);
 		ATF_CHECK_MSG(result == expected,
 		    "pcm_read[\"%s\"].norm: expected=0x%08x, result=0x%08x",
 		    test->label, expected, result);
@@ -445,7 +179,7 @@ ATF_TC_BODY(pcm_write, tc)
 		memcpy(expected, test->buffer, sizeof(expected));
 		memset(dst, 0x00, sizeof(dst));
 		value = test->value;
-		local_pcm_write(dst, value, test->format);
+		pcm_sample_write(dst, value, test->format);
 		ATF_CHECK_MSG(memcmp(dst, expected, sizeof(dst)) == 0,
 		    "pcm_write[\"%s\"].value: "
 		    "expected={0x%02x, 0x%02x, 0x%02x, 0x%02x}, "
@@ -467,7 +201,7 @@ ATF_TC_BODY(pcm_write, tc)
 			else
 				expected[0] = 0x00;
 		}
-		local_pcm_write_calc(dst, value, test->format);
+		pcm_sample_write_calc(dst, value, test->format);
 		ATF_CHECK_MSG(memcmp(dst, expected, sizeof(dst)) == 0,
 		    "pcm_write[\"%s\"].calc: "
 		    "expected={0x%02x, 0x%02x, 0x%02x, 0x%02x}, "
@@ -479,7 +213,7 @@ ATF_TC_BODY(pcm_write, tc)
 		memcpy(expected, test->buffer, sizeof(expected));
 		memset(dst, 0x00, sizeof(dst));
 		value = local_normalize(test->value, test->size * 8, 32);
-		local_pcm_write_norm(dst, value, test->format);
+		pcm_sample_write_norm(dst, value, test->format);
 		ATF_CHECK_MSG(memcmp(dst, expected, sizeof(dst)) == 0,
 		    "pcm_write[\"%s\"].norm: "
 		    "expected={0x%02x, 0x%02x, 0x%02x, 0x%02x}, "

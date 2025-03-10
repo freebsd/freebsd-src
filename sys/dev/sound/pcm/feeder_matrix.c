@@ -70,10 +70,6 @@ struct feed_matrix_info {
 	uint32_t ialign, oalign;
 	uint32_t in, out;
 	feed_matrix_t apply;
-#ifdef FEEDMATRIX_GENERIC
-	intpcm_read_t *rd;
-	intpcm_write_t *wr;
-#endif
 	struct {
 		int chn[SND_CHN_T_MAX + 1];
 		int mul, shift;
@@ -132,16 +128,17 @@ feed_matrix_##SIGN##BIT##ENDIAN(struct feed_matrix_info *info,		\
 		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF;	\
 		    i++) {						\
 			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {	\
-				_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst,	\
-				    0);					\
+				pcm_sample_write(dst, 0,		\
+				    AFMT_##SIGN##BIT##_##ENDIAN);	\
 				dst += PCM_##BIT##_BPS;			\
 				continue;				\
 			} else if (info->matrix[i].chn[1] ==		\
 			    SND_CHN_T_EOF) {				\
-				v = _PCM_READ_##SIGN##BIT##_##ENDIAN(	\
-				    src + info->matrix[i].chn[0]);	\
-				_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst,	\
-				    v);					\
+				v = pcm_sample_read(			\
+				    src + info->matrix[i].chn[0],	\
+				    AFMT_##SIGN##BIT##_##ENDIAN);	\
+				pcm_sample_write(dst, v,		\
+				    AFMT_##SIGN##BIT##_##ENDIAN);	\
 				dst += PCM_##BIT##_BPS;			\
 				continue;				\
 			}						\
@@ -150,8 +147,9 @@ feed_matrix_##SIGN##BIT##ENDIAN(struct feed_matrix_info *info,		\
 			for (j = 0;					\
 			    info->matrix[i].chn[j] != SND_CHN_T_EOF;	\
 			    j++) {					\
-				v = _PCM_READ_##SIGN##BIT##_##ENDIAN(	\
-				    src + info->matrix[i].chn[j]);	\
+				v = pcm_sample_read(			\
+				    src + info->matrix[i].chn[j],	\
+				    AFMT_##SIGN##BIT##_##ENDIAN);	\
 				accum += v;				\
 			}						\
 									\
@@ -165,7 +163,8 @@ feed_matrix_##SIGN##BIT##ENDIAN(struct feed_matrix_info *info,		\
 			    ((accum < PCM_S##BIT##_MIN) ?		\
 			    PCM_S##BIT##_MIN :				\
 			    accum);					\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);	\
+			pcm_sample_write(dst, v,			\
+			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 			dst += PCM_##BIT##_BPS;				\
 		}							\
 		src += info->ialign;					\
@@ -254,13 +253,14 @@ feed_matrix_apply_generic(struct feed_matrix_info *info,
 		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF;
 		    i++) {
 			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {
-				info->wr(dst, 0);
+				pcm_sample_write_norm(dst, 0, info->out);
 				dst += info->bps;
 				continue;
 			} else if (info->matrix[i].chn[1] ==
 			    SND_CHN_T_EOF) {
-				v = info->rd(src + info->matrix[i].chn[0]);
-				info->wr(dst, v);
+				v = pcm_sample_read_norm(src +
+				    info->matrix[i].chn[0], info->in);
+				pcm_sample_write_norm(dst, v, info->out);
 				dst += info->bps;
 				continue;
 			}
@@ -269,7 +269,8 @@ feed_matrix_apply_generic(struct feed_matrix_info *info,
 			for (j = 0;
 			    info->matrix[i].chn[j] != SND_CHN_T_EOF;
 			    j++) {
-				v = info->rd(src + info->matrix[i].chn[j]);
+				v = pcm_sample_read_norm(src +
+				    info->matrix[i].chn[j], info->in);
 				accum += v;
 			}
 
@@ -280,7 +281,7 @@ feed_matrix_apply_generic(struct feed_matrix_info *info,
 
 			v = (accum > PCM_S32_MAX) ? PCM_S32_MAX :
 			    ((accum < PCM_S32_MIN) ? PCM_S32_MIN : accum);
-			info->wr(dst, v);
+			pcm_sample_write_norm(dst, v, info->out);
 			dst += info->bps;
 		}
 		src += info->ialign;
@@ -421,12 +422,6 @@ feed_matrix_init(struct pcm_feeder *f)
 
 	if (info->apply == NULL) {
 #ifdef FEEDMATRIX_GENERIC
-		info->rd = feeder_format_read_op(info->in);
-		info->wr = feeder_format_write_op(info->out);
-		if (info->rd == NULL || info->wr == NULL) {
-			free(info, M_DEVBUF);
-			return (EINVAL);
-		}
 		info->apply = feed_matrix_apply_generic;
 #else
 		free(info, M_DEVBUF);

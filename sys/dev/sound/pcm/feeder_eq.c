@@ -158,9 +158,9 @@ feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
 		dst += j * PCM_##BIT##_BPS;					\
 		do {								\
 			dst -= PCM_##BIT##_BPS;					\
-			v = _PCM_READ_##SIGN##BIT##_##ENDIAN(dst);		\
+			v = pcm_sample_read(dst, AFMT_##SIGN##BIT##_##ENDIAN);	\
 			v = ((intpcm64_t)pmul * v) >> pshift;			\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);		\
+			pcm_sample_write(dst, v, AFMT_##SIGN##BIT##_##ENDIAN);	\
 		} while (--j != 0);						\
 										\
 		return;								\
@@ -173,8 +173,8 @@ feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
 		i = 0;								\
 		j = info->channels;						\
 		do {								\
-			v = _PCM_READ_##SIGN##BIT##_##ENDIAN(dst);		\
-			v <<= 32 - BIT;						\
+			v = pcm_sample_read_norm(dst,				\
+			    AFMT_##SIGN##BIT##_##ENDIAN);			\
 			v = ((intpcm64_t)pmul * v) >> pshift;			\
 										\
 			w  = (intpcm64_t)v * treble->b0;			\
@@ -203,8 +203,8 @@ feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
 			v = FEEDEQ_CLAMP(w);					\
 			info->bass.o1[i] = v;					\
 										\
-			v >>= 32 - BIT;						\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);		\
+			pcm_sample_write_norm(dst, v,				\
+			    AFMT_##SIGN##BIT##_##ENDIAN);			\
 			dst += PCM_##BIT##_BPS;					\
 			i++;							\
 		} while (--j != 0);						\

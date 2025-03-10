@@ -31,14 +31,11 @@
 
 #include <sys/param.h>
 
-/*
- * Macros for reading/writing PCM sample / int values from bytes array.
- * Since every process is done using signed integer (and to make our life
- * less miserable), unsigned sample will be converted to its signed
- * counterpart and restored during writing back. To avoid overflow,
- * we truncate 32bit (and only 32bit) samples down to 24bit (see below
- * for the reason), unless SND_PCM_64 is defined.
- */
+#include <dev/sound/pcm/g711.h>
+
+#ifndef _KERNEL
+#include <assert.h>	/* for __assert_unreachable() */
+#endif
 
 /*
  * Automatically turn on 64bit arithmetic on suitable archs
@@ -106,309 +103,6 @@ typedef uint64_t uintpcm64_t;
 #define INTPCM24_T(v)	((intpcm24_t)(v))
 #define INTPCM32_T(v)	((intpcm32_t)(v))
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define _PCM_READ_S16_LE(b8)		INTPCM_T(*((int16_t *)(b8)))
-#define _PCM_READ_S32_LE(b8)		INTPCM_T(*((int32_t *)(b8)))
-#define _PCM_READ_S16_BE(b8)						\
-	INTPCM_T((b8)[1] | (((int8_t)((b8)[0])) << 8))
-#define _PCM_READ_S32_BE(b8)						\
-	INTPCM_T((b8)[3] | ((b8)[2] << 8) | ((b8)[1] << 16) |		\
-	    (((int8_t)((b8)[0])) << 24))
-
-#define _PCM_WRITE_S16_LE(b8, val)	do {				\
-	*((int16_t *)(b8)) = (val);					\
-} while (0)
-#define _PCM_WRITE_S32_LE(b8, val)	do {				\
-	*((int32_t *)(b8)) = (val);					\
-} while (0)
-#define _PCM_WRITE_S16_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval); 						\
-	uint8_t *b8 = (bb8);						\
-	b8[1] = val;							\
-	b8[0] = val >> 8;						\
-} while (0)
-#define _PCM_WRITE_S32_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[3] = val;							\
-	b8[2] = val >> 8;						\
-	b8[1] = val >> 16;						\
-	b8[0] = val >> 24;						\
-} while (0)
-
-#define _PCM_READ_U16_LE(b8)						\
-	INTPCM_T((int16_t)(*((uint16_t *)(b8)) ^ 0x8000))
-#define _PCM_READ_U32_LE(b8)						\
-	INTPCM_T((int32_t)(*((uint32_t *)(b8)) ^ 0x80000000))
-#define _PCM_READ_U16_BE(b8)						\
-	INTPCM_T((b8)[1] | (((int8_t)((b8)[0] ^ 0x80)) << 8))
-#define _PCM_READ_U32_BE(b8)						\
-	INTPCM_T((b8)[3] | ((b8)[2] << 8) | ((b8)[1] << 16) |		\
-	    (((int8_t)((b8)[0] ^ 0x80)) << 24))
-
-#define _PCM_WRITE_U16_LE(b8, val)	do {				\
-	*((uint16_t *)(b8)) = (val) ^ 0x8000;				\
-} while (0)
-#define _PCM_WRITE_U32_LE(b8, val)	do {				\
-	*((uint32_t *)(b8)) = (val) ^ 0x80000000;			\
-} while (0)
-#define _PCM_WRITE_U16_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[1] = val;							\
-	b8[0] = (val >> 8) ^ 0x80;					\
-} while (0)
-#define _PCM_WRITE_U32_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[3] = val;							\
-	b8[2] = val >> 8;						\
-	b8[1] = val >> 16;						\
-	b8[0] = (val >> 24) ^ 0x80;					\
-} while (0)
-
-#define _PCM_READ_S16_NE(b8)	_PCM_READ_S16_LE(b8)
-#define _PCM_READ_U16_NE(b8)	_PCM_READ_U16_LE(b8)
-#define _PCM_READ_S32_NE(b8)	_PCM_READ_S32_LE(b8)
-#define _PCM_READ_U32_NE(b8)	_PCM_READ_U32_LE(b8)
-#define _PCM_WRITE_S16_NE(b6)	_PCM_WRITE_S16_LE(b8)
-#define _PCM_WRITE_U16_NE(b6)	_PCM_WRITE_U16_LE(b8)
-#define _PCM_WRITE_S32_NE(b6)	_PCM_WRITE_S32_LE(b8)
-#define _PCM_WRITE_U32_NE(b6)	_PCM_WRITE_U32_LE(b8)
-#else	/* !LITTLE_ENDIAN */
-#define _PCM_READ_S16_LE(b8)						\
-	INTPCM_T((b8)[0] | (((int8_t)((b8)[1])) << 8))
-#define _PCM_READ_S32_LE(b8)						\
-	INTPCM_T((b8)[0] | ((b8)[1] << 8) | ((b8)[2] << 16) |		\
-	    (((int8_t)((b8)[3])) << 24))
-#define _PCM_READ_S16_BE(b8)		INTPCM_T(*((int16_t *)(b8)))
-#define _PCM_READ_S32_BE(b8)		INTPCM_T(*((int32_t *)(b8)))
-
-#define _PCM_WRITE_S16_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = val >> 8;						\
-} while (0)
-#define _PCM_WRITE_S32_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = val >> 8;						\
-	b8[2] = val >> 16;						\
-	b8[3] = val >> 24;						\
-} while (0)
-#define _PCM_WRITE_S16_BE(b8, val)	do {				\
-	*((int16_t *)(b8)) = (val);					\
-} while (0)
-#define _PCM_WRITE_S32_BE(b8, val)	do {				\
-	*((int32_t *)(b8)) = (val);					\
-} while (0)
-
-#define _PCM_READ_U16_LE(b8)						\
-	INTPCM_T((b8)[0] | (((int8_t)((b8)[1] ^ 0x80)) << 8))
-#define _PCM_READ_U32_LE(b8)						\
-	INTPCM_T((b8)[0] | ((b8)[1] << 8) | ((b8)[2] << 16) |		\
-	    (((int8_t)((b8)[3] ^ 0x80)) << 24))
-#define _PCM_READ_U16_BE(b8)						\
-	INTPCM_T((int16_t)(*((uint16_t *)(b8)) ^ 0x8000))
-#define _PCM_READ_U32_BE(b8)						\
-	INTPCM_T((int32_t)(*((uint32_t *)(b8)) ^ 0x80000000))
-
-#define _PCM_WRITE_U16_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = (val >> 8) ^ 0x80;					\
-} while (0)
-#define _PCM_WRITE_U32_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = val >> 8;						\
-	b8[2] = val >> 16;						\
-	b8[3] = (val >> 24) ^ 0x80;					\
-} while (0)
-#define _PCM_WRITE_U16_BE(b8, val)	do {				\
-	*((uint16_t *)(b8)) = (val) ^ 0x8000;				\
-} while (0)
-#define _PCM_WRITE_U32_BE(b8, val)	do {				\
-	*((uint32_t *)(b8)) = (val) ^ 0x80000000;			\
-} while (0)
-
-#define _PCM_READ_S16_NE(b8)	_PCM_READ_S16_BE(b8)
-#define _PCM_READ_U16_NE(b8)	_PCM_READ_U16_BE(b8)
-#define _PCM_READ_S32_NE(b8)	_PCM_READ_S32_BE(b8)
-#define _PCM_READ_U32_NE(b8)	_PCM_READ_U32_BE(b8)
-#define _PCM_WRITE_S16_NE(b6)	_PCM_WRITE_S16_BE(b8)
-#define _PCM_WRITE_U16_NE(b6)	_PCM_WRITE_U16_BE(b8)
-#define _PCM_WRITE_S32_NE(b6)	_PCM_WRITE_S32_BE(b8)
-#define _PCM_WRITE_U32_NE(b6)	_PCM_WRITE_U32_BE(b8)
-#endif	/* LITTLE_ENDIAN */
-
-#define _PCM_READ_S24_LE(b8)						\
-	INTPCM_T((b8)[0] | ((b8)[1] << 8) | (((int8_t)((b8)[2])) << 16))
-#define _PCM_READ_S24_BE(b8)						\
-	INTPCM_T((b8)[2] | ((b8)[1] << 8) | (((int8_t)((b8)[0])) << 16))
-
-#define _PCM_WRITE_S24_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = val >> 8;						\
-	b8[2] = val >> 16;						\
-} while (0)
-#define _PCM_WRITE_S24_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[2] = val;							\
-	b8[1] = val >> 8;						\
-	b8[0] = val >> 16;						\
-} while (0)
-
-#define _PCM_READ_U24_LE(b8)						\
-	INTPCM_T((b8)[0] | ((b8)[1] << 8) |				\
-	    (((int8_t)((b8)[2] ^ 0x80)) << 16))
-#define _PCM_READ_U24_BE(b8)						\
-	INTPCM_T((b8)[2] | ((b8)[1] << 8) |				\
-	    (((int8_t)((b8)[0] ^ 0x80)) << 16))
-
-#define _PCM_WRITE_U24_LE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[0] = val;							\
-	b8[1] = val >> 8;						\
-	b8[2] = (val >> 16) ^ 0x80;					\
-} while (0)
-#define _PCM_WRITE_U24_BE(bb8, vval)	do {				\
-	intpcm_t val = (vval);						\
-	uint8_t *b8 = (bb8);						\
-	b8[2] = val;							\
-	b8[1] = val >> 8;						\
-	b8[0] = (val >> 16) ^ 0x80;					\
-} while (0)
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define _PCM_READ_S24_NE(b8)	_PCM_READ_S24_LE(b8)
-#define _PCM_READ_U24_NE(b8)	_PCM_READ_U24_LE(b8)
-#define _PCM_WRITE_S24_NE(b6)	_PCM_WRITE_S24_LE(b8)
-#define _PCM_WRITE_U24_NE(b6)	_PCM_WRITE_U24_LE(b8)
-#else	/* !LITTLE_ENDIAN */
-#define _PCM_READ_S24_NE(b8)	_PCM_READ_S24_BE(b8)
-#define _PCM_READ_U24_NE(b8)	_PCM_READ_U24_BE(b8)
-#define _PCM_WRITE_S24_NE(b6)	_PCM_WRITE_S24_BE(b8)
-#define _PCM_WRITE_U24_NE(b6)	_PCM_WRITE_U24_BE(b8)
-#endif	/* LITTLE_ENDIAN */
-/*
- * 8bit sample is pretty much useless since it doesn't provide
- * sufficient dynamic range throughout our filtering process.
- * For the sake of completeness, declare it anyway.
- */
-#define _PCM_READ_S8_NE(b8)		INTPCM_T(*((int8_t *)(b8)))
-#define _PCM_READ_U8_NE(b8)						\
-	INTPCM_T((int8_t)(*((uint8_t *)(b8)) ^ 0x80))
-
-#define _PCM_WRITE_S8_NE(b8, val)	do {				\
-	*((int8_t *)(b8)) = (val);					\
-} while (0)
-#define _PCM_WRITE_U8_NE(b8, val)	do {				\
-	*((uint8_t *)(b8)) = (val) ^ 0x80;				\
-} while (0)
-
-/*
- * Common macross. Use this instead of "_", unless we want
- * the real sample value.
- */
-
-/* 8bit */
-#define PCM_READ_S8_NE(b8)		_PCM_READ_S8_NE(b8)
-#define PCM_READ_U8_NE(b8)		_PCM_READ_U8_NE(b8)
-#define PCM_WRITE_S8_NE(b8, val)	_PCM_WRITE_S8_NE(b8, val)
-#define PCM_WRITE_U8_NE(b8, val)	_PCM_WRITE_U8_NE(b8, val)
-
-/* 16bit */
-#define PCM_READ_S16_LE(b8)		_PCM_READ_S16_LE(b8)
-#define PCM_READ_S16_BE(b8)		_PCM_READ_S16_BE(b8)
-#define PCM_READ_U16_LE(b8)		_PCM_READ_U16_LE(b8)
-#define PCM_READ_U16_BE(b8)		_PCM_READ_U16_BE(b8)
-
-#define PCM_WRITE_S16_LE(b8, val)	_PCM_WRITE_S16_LE(b8, val)
-#define PCM_WRITE_S16_BE(b8, val)	_PCM_WRITE_S16_BE(b8, val)
-#define PCM_WRITE_U16_LE(b8, val)	_PCM_WRITE_U16_LE(b8, val)
-#define PCM_WRITE_U16_BE(b8, val)	_PCM_WRITE_U16_BE(b8, val)
-
-#define PCM_READ_S16_NE(b8)		_PCM_READ_S16_NE(b8)
-#define PCM_READ_U16_NE(b8)		_PCM_READ_U16_NE(b8)
-#define PCM_WRITE_S16_NE(b8)		_PCM_WRITE_S16_NE(b8)
-#define PCM_WRITE_U16_NE(b8)		_PCM_WRITE_U16_NE(b8)
-
-/* 24bit */
-#define PCM_READ_S24_LE(b8)		_PCM_READ_S24_LE(b8)
-#define PCM_READ_S24_BE(b8)		_PCM_READ_S24_BE(b8)
-#define PCM_READ_U24_LE(b8)		_PCM_READ_U24_LE(b8)
-#define PCM_READ_U24_BE(b8)		_PCM_READ_U24_BE(b8)
-
-#define PCM_WRITE_S24_LE(b8, val)	_PCM_WRITE_S24_LE(b8, val)
-#define PCM_WRITE_S24_BE(b8, val)	_PCM_WRITE_S24_BE(b8, val)
-#define PCM_WRITE_U24_LE(b8, val)	_PCM_WRITE_U24_LE(b8, val)
-#define PCM_WRITE_U24_BE(b8, val)	_PCM_WRITE_U24_BE(b8, val)
-
-#define PCM_READ_S24_NE(b8)		_PCM_READ_S24_NE(b8)
-#define PCM_READ_U24_NE(b8)		_PCM_READ_U24_NE(b8)
-#define PCM_WRITE_S24_NE(b8)		_PCM_WRITE_S24_NE(b8)
-#define PCM_WRITE_U24_NE(b8)		_PCM_WRITE_U24_NE(b8)
-
-/* 32bit */
-#ifdef SND_PCM_64
-#define PCM_READ_S32_LE(b8)		_PCM_READ_S32_LE(b8)
-#define PCM_READ_S32_BE(b8)		_PCM_READ_S32_BE(b8)
-#define PCM_READ_U32_LE(b8)		_PCM_READ_U32_LE(b8)
-#define PCM_READ_U32_BE(b8)		_PCM_READ_U32_BE(b8)
-
-#define PCM_WRITE_S32_LE(b8, val)	_PCM_WRITE_S32_LE(b8, val)
-#define PCM_WRITE_S32_BE(b8, val)	_PCM_WRITE_S32_BE(b8, val)
-#define PCM_WRITE_U32_LE(b8, val)	_PCM_WRITE_U32_LE(b8, val)
-#define PCM_WRITE_U32_BE(b8, val)	_PCM_WRITE_U32_BE(b8, val)
-
-#define PCM_READ_S32_NE(b8)		_PCM_READ_S32_NE(b8)
-#define PCM_READ_U32_NE(b8)		_PCM_READ_U32_NE(b8)
-#define PCM_WRITE_S32_NE(b8)		_PCM_WRITE_S32_NE(b8)
-#define PCM_WRITE_U32_NE(b8)		_PCM_WRITE_U32_NE(b8)
-#else	/* !SND_PCM_64 */
-/*
- * 24bit integer ?!? This is quite unfortunate, eh? Get the fact straight:
- * Dynamic range for:
- *	1) Human =~ 140db
- *	2) 16bit = 96db (close enough)
- *	3) 24bit = 144db (perfect)
- *	4) 32bit = 196db (way too much)
- *	5) Bugs Bunny = Gazillion!@%$Erbzzztt-EINVAL db
- * Since we're not Bugs Bunny ..uh..err.. avoiding 64bit arithmetic, 24bit
- * is pretty much sufficient for our signed integer processing.
- */
-#define PCM_READ_S32_LE(b8)		(_PCM_READ_S32_LE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_S32_BE(b8)		(_PCM_READ_S32_BE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_U32_LE(b8)		(_PCM_READ_U32_LE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_U32_BE(b8)		(_PCM_READ_U32_BE(b8) >> PCM_FXSHIFT)
-
-#define PCM_READ_S32_NE(b8)		(_PCM_READ_S32_NE(b8) >> PCM_FXSHIFT)
-#define PCM_READ_U32_NE(b8)		(_PCM_READ_U32_NE(b8) >> PCM_FXSHIFT)
-
-#define PCM_WRITE_S32_LE(b8, val)					\
-			_PCM_WRITE_S32_LE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_S32_BE(b8, val)					\
-			_PCM_WRITE_S32_BE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_U32_LE(b8, val)					\
-			_PCM_WRITE_U32_LE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_U32_BE(b8, val)					\
-			_PCM_WRITE_U32_BE(b8, (val) << PCM_FXSHIFT)
-
-#define PCM_WRITE_S32_NE(b8, val)					\
-			_PCM_WRITE_S32_NE(b8, (val) << PCM_FXSHIFT)
-#define PCM_WRITE_U32_NE(b8, val)					\
-			_PCM_WRITE_U32_NE(b8, (val) << PCM_FXSHIFT)
-#endif	/* SND_PCM_64 */
-
 #define PCM_CLAMP_S8(val)						\
 			(((val) > PCM_S8_MAX) ? PCM_S8_MAX :		\
 			 (((val) < PCM_S8_MIN) ? PCM_S8_MIN : (val)))
@@ -434,5 +128,246 @@ typedef uint64_t uintpcm64_t;
 #define PCM_CLAMP_U16(val)	PCM_CLAMP_S16(val)
 #define PCM_CLAMP_U24(val)	PCM_CLAMP_S24(val)
 #define PCM_CLAMP_U32(val)	PCM_CLAMP_S32(val)
+
+static const struct {
+	const uint8_t ulaw_to_u8[G711_TABLE_SIZE];
+	const uint8_t alaw_to_u8[G711_TABLE_SIZE];
+	const uint8_t u8_to_ulaw[G711_TABLE_SIZE];
+	const uint8_t u8_to_alaw[G711_TABLE_SIZE];
+} xlaw_conv_tables = {
+	ULAW_TO_U8,
+	ALAW_TO_U8,
+	U8_TO_ULAW,
+	U8_TO_ALAW
+};
+
+/*
+ * Functions for reading/writing PCM integer sample values from bytes array.
+ * Since every process is done using signed integer (and to make our life less
+ * miserable), unsigned sample will be converted to its signed counterpart and
+ * restored during writing back.
+ */
+static __always_inline __unused intpcm_t
+pcm_sample_read(const uint8_t *src, uint32_t fmt)
+{
+	intpcm_t v;
+
+	fmt = AFMT_ENCODING(fmt);
+
+	switch (fmt) {
+	case AFMT_AC3:
+		v = 0;
+		break;
+	case AFMT_MU_LAW:
+		v = _G711_TO_INTPCM(xlaw_conv_tables.ulaw_to_u8, *src);
+		break;
+	case AFMT_A_LAW:
+		v = _G711_TO_INTPCM(xlaw_conv_tables.alaw_to_u8, *src);
+		break;
+	case AFMT_S8:
+		v = INTPCM_T((int8_t)*src);
+		break;
+	case AFMT_U8:
+		v = INTPCM_T((int8_t)(*src ^ 0x80));
+		break;
+	case AFMT_S16_LE:
+		v = INTPCM_T(src[0] | (int8_t)src[1] << 8);
+		break;
+	case AFMT_S16_BE:
+		v = INTPCM_T(src[1] | (int8_t)src[0] << 8);
+		break;
+	case AFMT_U16_LE:
+		v = INTPCM_T(src[0] | (int8_t)(src[1] ^ 0x80) << 8);
+		break;
+	case AFMT_U16_BE:
+		v = INTPCM_T(src[1] | (int8_t)(src[0] ^ 0x80) << 8);
+		break;
+	case AFMT_S24_LE:
+		v = INTPCM_T(src[0] | src[1] << 8 | (int8_t)src[2] << 16);
+		break;
+	case AFMT_S24_BE:
+		v = INTPCM_T(src[2] | src[1] << 8 | (int8_t)src[0] << 16);
+		break;
+	case AFMT_U24_LE:
+		v = INTPCM_T(src[0] | src[1] << 8 |
+		    (int8_t)(src[2] ^ 0x80) << 16);
+		break;
+	case AFMT_U24_BE:
+		v = INTPCM_T(src[2] | src[1] << 8 |
+		    (int8_t)(src[0] ^ 0x80) << 16);
+		break;
+	case AFMT_S32_LE:
+		v = INTPCM_T(src[0] | src[1] << 8 | src[2] << 16 |
+		    (int8_t)src[3] << 24);
+		break;
+	case AFMT_S32_BE:
+		v = INTPCM_T(src[3] | src[2] << 8 | src[1] << 16 |
+		    (int8_t)src[0] << 24);
+		break;
+	case AFMT_U32_LE:
+		v = INTPCM_T(src[0] | src[1] << 8 | src[2] << 16 |
+		    (int8_t)(src[3] ^ 0x80) << 24);
+		break;
+	case AFMT_U32_BE:
+		v = INTPCM_T(src[3] | src[2] << 8 | src[1] << 16 |
+		    (int8_t)(src[0] ^ 0x80) << 24);
+		break;
+	default:
+		v = 0;
+		printf("%s(): unknown format: 0x%08x\n", __func__, fmt);
+		__assert_unreachable();
+	}
+
+	return (v);
+}
+
+/*
+ * Read sample and normalize to 32-bit magnitude.
+ */
+static __always_inline __unused intpcm_t
+pcm_sample_read_norm(const uint8_t *src, uint32_t fmt)
+{
+	return (pcm_sample_read(src, fmt) << (32 - AFMT_BIT(fmt)));
+}
+
+/*
+ * Read sample and restrict magnitude to 24 bits.
+ */
+static __always_inline __unused intpcm_t
+pcm_sample_read_calc(const uint8_t *src, uint32_t fmt)
+{
+	intpcm_t v;
+
+	v = pcm_sample_read(src, fmt);
+
+#ifndef SND_PCM_64
+	/*
+	 * Dynamic range for humans: ~140db.
+	 *
+	 * 16bit = 96db (close enough)
+	 * 24bit = 144db (perfect)
+	 * 32bit = 196db (way too much)
+	 *
+	 * 24bit is pretty much sufficient for our signed integer processing.
+	 * Also, to avoid overflow, we truncate 32bit (and only 32bit) samples
+	 * down to 24bit (see below for the reason), unless SND_PCM_64 is
+	 * defined.
+	 */
+	if (fmt & AFMT_32BIT)
+		v >>= PCM_FXSHIFT;
+#endif
+
+	return (v);
+}
+
+static __always_inline __unused void
+pcm_sample_write(uint8_t *dst, intpcm_t v, uint32_t fmt)
+{
+	fmt = AFMT_ENCODING(fmt);
+
+	switch (fmt) {
+	case AFMT_AC3:
+		*(int16_t *)dst = 0;
+		break;
+	case AFMT_MU_LAW:
+		*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_ulaw, v);
+		break;
+	case AFMT_A_LAW:
+		*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_alaw, v);
+		break;
+	case AFMT_S8:
+		*(int8_t *)dst = v;
+		break;
+	case AFMT_U8:
+		*(int8_t *)dst = v ^ 0x80;
+		break;
+	case AFMT_S16_LE:
+		dst[0] = v;
+		dst[1] = v >> 8;
+		break;
+	case AFMT_S16_BE:
+		dst[1] = v;
+		dst[0] = v >> 8;
+		break;
+	case AFMT_U16_LE:
+		dst[0] = v;
+		dst[1] = (v >> 8) ^ 0x80;
+		break;
+	case AFMT_U16_BE:
+		dst[1] = v;
+		dst[0] = (v >> 8) ^ 0x80;
+		break;
+	case AFMT_S24_LE:
+		dst[0] = v;
+		dst[1] = v >> 8;
+		dst[2] = v >> 16;
+		break;
+	case AFMT_S24_BE:
+		dst[2] = v;
+		dst[1] = v >> 8;
+		dst[0] = v >> 16;
+		break;
+	case AFMT_U24_LE:
+		dst[0] = v;
+		dst[1] = v >> 8;
+		dst[2] = (v >> 16) ^ 0x80;
+		break;
+	case AFMT_U24_BE:
+		dst[2] = v;
+		dst[1] = v >> 8;
+		dst[0] = (v >> 16) ^ 0x80;
+		break;
+	case AFMT_S32_LE:
+		dst[0] = v;
+		dst[1] = v >> 8;
+		dst[2] = v >> 16;
+		dst[3] = v >> 24;
+		break;
+	case AFMT_S32_BE:
+		dst[3] = v;
+		dst[2] = v >> 8;
+		dst[1] = v >> 16;
+		dst[0] = v >> 24;
+		break;
+	case AFMT_U32_LE:
+		dst[0] = v;
+		dst[1] = v >> 8;
+		dst[2] = v >> 16;
+		dst[3] = (v >> 24) ^ 0x80;
+		break;
+	case AFMT_U32_BE:
+		dst[3] = v;
+		dst[2] = v >> 8;
+		dst[1] = v >> 16;
+		dst[0] = (v >> 24) ^ 0x80;
+		break;
+	default:
+		printf("%s(): unknown format: 0x%08x\n", __func__, fmt);
+		__assert_unreachable();
+	}
+}
+
+/*
+ * Write sample and normalize to original magnitude.
+ */
+static __always_inline __unused void
+pcm_sample_write_norm(uint8_t *dst, intpcm_t v, uint32_t fmt)
+{
+	pcm_sample_write(dst, v >> (32 - AFMT_BIT(fmt)), fmt);
+}
+
+/*
+ * To be used with pcm_sample_read_calc().
+ */
+static __always_inline __unused void
+pcm_sample_write_calc(uint8_t *dst, intpcm_t v, uint32_t fmt)
+{
+#ifndef SND_PCM_64
+	/* Shift back to 32-bit magnitude. */
+	if (fmt & AFMT_32BIT)
+		v <<= PCM_FXSHIFT;
+#endif
+	pcm_sample_write(dst, v, fmt);
+}
 
 #endif	/* !_SND_PCM_H_ */
