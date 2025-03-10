@@ -1211,7 +1211,6 @@ devclass_get_sysctl_tree(devclass_t dc)
 static int
 devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 {
-	device_t *devices;
 	const char *s;
 	int unit = *unitp;
 
@@ -1268,11 +1267,8 @@ devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 		int newsize;
 
 		newsize = unit + 1;
-		devices = reallocf(dc->devices,
-		    newsize * sizeof(*dc->devices), M_BUS, M_NOWAIT);
-		if (devices == NULL)
-			return (ENOMEM);
-		dc->devices = devices;
+		dc->devices = reallocf(dc->devices,
+		    newsize * sizeof(*dc->devices), M_BUS, M_WAITOK);
 		memset(dc->devices + dc->maxunit, 0,
 		    sizeof(device_t) * (newsize - dc->maxunit));
 		dc->maxunit = newsize;
