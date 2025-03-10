@@ -446,9 +446,6 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 }
 #endif /* __i386__ || __amd64__ */
 
-static const char *path_slash_sys = "/sys";
-static const char *fstype_sysfs = "sysfs";
-
 static int
 _mtab_helper(const struct pfs_node *pn, const struct statfs *sp,
     const char **mntfrom, const char **mntto, const char **fstype)
@@ -476,8 +473,7 @@ _mtab_helper(const struct pfs_node *pn, const struct statfs *sp,
 	}
 
 	if (strcmp(*fstype, "linsysfs") == 0) {
-		*mntfrom = path_slash_sys;
-		*fstype = fstype_sysfs;
+		*mntfrom = *fstype = "sysfs";
 	} else {
 		/* For Linux msdosfs is called vfat */
 		if (strcmp(*fstype, "msdosfs") == 0)
