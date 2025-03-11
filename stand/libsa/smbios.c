@@ -186,14 +186,17 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 		     */
 		    SMBIOS_GET8(cp, 0x0a) != 0 &&
 		    smbios_checksum(cp, SMBIOS_GET8(cp, 0x06)) == 0) {
-#ifdef __ILP32__
+#if __SIZEOF_SIZE_T__ < 8
 			uint64_t end_addr;
 
 			end_addr = SMBIOS_GET64(cp, 0x10) + /* Start address. */
 			    SMBIOS_GET32(cp, 0x0c); /* Maximum size. */
-			/* Is the table (or part of it) located above 4G? */
-			if (end_addr >= (uint64_t)1 << 32)
-				/* Can't access it with 32-bit addressing. */
+			/*
+			 * Is the table (or part of it) located above what we
+			 * can address?
+			 */
+			if ((size_t)end_addr != end_addr)
+				/* Yes, give it up. */
 				continue;
 #endif
 			smbios.is_64bit_ep = 1;
