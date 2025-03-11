@@ -34,16 +34,15 @@
 
 enum acpi_gpiobus_ivars {
 	ACPI_GPIOBUS_IVAR_HANDLE	= 10600,
+	ACPI_GPIOBUS_IVAR_FLAGS,
 };
 
 #define ACPI_GPIOBUS_ACCESSOR(var, ivar, type)			\
 	__BUS_ACCESSOR(acpi_gpiobus, var, ACPI_GPIOBUS, ivar, type)
 
 ACPI_GPIOBUS_ACCESSOR(handle,	HANDLE,		ACPI_HANDLE)
+ACPI_GPIOBUS_ACCESSOR(flags,	FLAGS,		uint32_t)
 
 #undef ACPI_GPIOBUS_ACCESSOR
-
-int gpio_pin_get_by_acpi_index(device_t consumer, uint32_t idx,
-    gpio_pin_t *out_pin);
 
 #endif	/* __ACPI_GPIOBUS_H__ */
