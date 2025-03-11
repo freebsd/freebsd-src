@@ -357,7 +357,7 @@ acpi_gpiobus_attach(device_t dev)
 	    &ctx);
 
 	if (ACPI_FAILURE(status))
-		device_printf(dev, "Failed to enumerate GPIO resources\n");
+		device_printf(dev, "Failed to enumerate AEI resources\n");
 
 	return (0);
 }
