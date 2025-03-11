@@ -380,23 +380,6 @@ acpi_gpiobus_detach(device_t dev)
 	return (gpiobus_detach(dev));
 }
 
-int
-gpio_pin_get_by_acpi_index(device_t consumer, uint32_t idx,
-    gpio_pin_t *out_pin)
-{
-	struct acpi_gpiobus_ivar *devi;
-	int rv;
-
-	rv = gpio_pin_get_by_child_index(consumer, idx, out_pin);
-	if (rv != 0)
-		return (rv);
-
-	devi = device_get_ivars(consumer);
-	(*out_pin)->flags = devi->flags;
-
-	return (0);
-}
-
 static int
 acpi_gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
@@ -405,6 +388,9 @@ acpi_gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *resul
 	switch (which) {
 	case ACPI_GPIOBUS_IVAR_HANDLE:
 		*result = (uintptr_t)devi->dev_handle;
+		break;
+	case ACPI_GPIOBUS_IVAR_FLAGS:
+		*result = (uintptr_t)devi->flags;
 		break;
 	default:
 		return (gpiobus_read_ivar(dev, child, which, result));
