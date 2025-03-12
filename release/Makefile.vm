@@ -108,6 +108,10 @@ QEMUTGT=emulator-portinstall
 QEMUTGT?=
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+.if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
+  (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
+.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.endif
 . for _CW in ${CLOUDWARE}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
@@ -126,6 +130,7 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
 		WITHOUT_QEMU=${WITHOUT_QEMU:Dtrue} \
+		NO_ROOT=${NO_ROOT:Dtrue} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
