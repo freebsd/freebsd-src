@@ -89,6 +89,9 @@ vm_install_base() {
 }
 
 vm_emulation_setup() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
 		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
@@ -130,6 +133,10 @@ vm_extra_enable_services() {
 }
 
 vm_extra_install_packages() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
+
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
@@ -158,6 +165,10 @@ vm_extra_pre_umount() {
 }
 
 vm_emulation_cleanup() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
+
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		rm -f ${DESTDIR}/${EMULATOR}
 	fi
