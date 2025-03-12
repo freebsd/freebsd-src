@@ -287,7 +287,7 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	    ("mtx_lock() by idle thread %p on mutex %p @ %s:%d",
 	    curthread, m, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_lock() of destroyed mutex %p @ %s:%d", m, file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_spin,
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
@@ -316,7 +316,7 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	m = mtxlock2mtx(c);
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_unlock() of destroyed mutex %p @ %s:%d", m, file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_spin,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
@@ -345,7 +345,7 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	m = mtxlock2mtx(c);
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_lock_spin() of destroyed mutex %p @ %s:%d", m, file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_sleep,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
@@ -386,7 +386,8 @@ __mtx_trylock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	m = mtxlock2mtx(c);
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_trylock_spin() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_trylock_spin() of destroyed mutex %p @ %s:%d", m, file,
+	    line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_sleep,
 	    ("mtx_trylock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
@@ -411,7 +412,8 @@ __mtx_unlock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	m = mtxlock2mtx(c);
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_unlock_spin() of destroyed mutex %p @ %s:%d", m, file,
+	    line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_sleep,
 	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
@@ -449,7 +451,7 @@ _mtx_trylock_flags_int(struct mtx *m, int opts LOCK_FILE_LINE_ARG_DEF)
 	    ("mtx_trylock() by idle thread %p on mutex %p @ %s:%d",
 	    curthread, m, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
+	    ("mtx_trylock() of destroyed mutex %p @ %s:%d", m, file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_spin,
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
@@ -826,7 +828,7 @@ thread_lock_validate(struct mtx *m, int opts, const char *file, int line)
 {
 
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
-	    ("thread_lock() of destroyed mutex @ %s:%d", file, line));
+	    ("thread_lock() of destroyed mutex %p @ %s:%d", m, file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) != &lock_class_mtx_sleep,
 	    ("thread_lock() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
