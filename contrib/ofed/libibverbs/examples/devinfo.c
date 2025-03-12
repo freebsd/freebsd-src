@@ -145,6 +145,7 @@ static const char *speed_str(uint8_t speed)
 	case 16: return "14.0 Gbps";
 	case 32: return "25.0 Gbps";
 	case 64: return "50.0 Gbps";
+	case 128: return "100.0 Gbps";
 	default: return "invalid speed";
 	}
 }
