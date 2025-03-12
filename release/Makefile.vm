@@ -21,6 +21,10 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
+.if defined(WITHOUT_QEMU)
+CLOUDWARE_TYPES?= \
+		BASIC-CI
+.else
 CLOUDWARE_TYPES?= AZURE \
 		BASIC-CI \
 		BASIC-CLOUDINIT \
@@ -28,6 +32,7 @@ CLOUDWARE_TYPES?= AZURE \
 		GCE \
 		ORACLE \
 		VAGRANT
+.endif
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
@@ -94,7 +99,7 @@ emulator-portinstall:
 .endif
 	touch ${.TARGET}
 
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} && !defined(WITHOUT_QEMU)
 .if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
 QEMUTGT=emulator-portinstall
@@ -120,6 +125,7 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
+		WITHOUT_QEMU=${WITHOUT_QEMU:Dtrue} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
@@ -169,6 +175,7 @@ vm-image:	${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
+		WITHOUT_QEMU=${WITHOUT_QEMU:Dtrue} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
