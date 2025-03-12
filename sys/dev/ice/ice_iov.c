@@ -1139,17 +1139,34 @@ ice_vc_set_rss_hena_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
 
+	MPASS(vsi != NULL);
+
 	vrh = (struct virtchnl_rss_hena *)msg_buf;
 
-	status = ice_add_avf_rss_cfg(hw, vsi->idx, vrh->hena);
-	if (status) {
-		device_printf(sc->dev,
-			      "ice_add_avf_rss_cfg status %s, error %s\n",
-			      ice_status_str(status),
-			      ice_aq_str(hw->adminq.sq_last_status));
-		v_status = ice_iov_err_to_virt_err(status);
+	/*
+	 * Remove existing configuration to make sure only requested
+	 * config is applied and allow VFs to disable RSS completly.
+	 */
+	status = ice_rem_vsi_rss_cfg(hw, vsi->idx);
+	if (vrh->hena) {
+		/*
+		 * Problem with removing config is not fatal, when new one
+		 * is requested. Warn about it but try to apply new config
+		 * anyway.
+		 */
+		if (status)
+			device_printf(sc->dev,
+			    "ice_rem_vsi_rss_cfg status %s, error %s\n",
+			    ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
+		status = ice_add_avf_rss_cfg(hw, vsi->idx, vrh->hena);
+		if (status)
+			device_printf(sc->dev,
+			    "ice_add_avf_rss_cfg status %s, error %s\n",
+			    ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
 	}
-
+	v_status = ice_iov_err_to_virt_err(status);
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_SET_RSS_HENA,
 	    v_status, NULL, 0, NULL);
 }
