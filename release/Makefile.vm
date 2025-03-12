@@ -222,7 +222,7 @@ vm-install:
 .  for FORMAT in ${VMFORMATS}
 .   for FS in ${VMFSLIST}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
 .   endfor
 .  endfor
 . endif
@@ -238,7 +238,7 @@ cloud-install-BASIC-CI:
 . for _FMT in ${BASIC-CI_FORMAT}
 	cp -p ${.OBJDIR}/${BASIC-CI${_FS:tu}${_FMT:tu}IMAGE} \
 		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
-	${XZ_CMD} ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
 . endfor
 .endfor
 	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
@@ -252,7 +252,7 @@ cloud-install-BASIC-CLOUDINIT:
 . for _FMT in ${BASIC-CLOUDINIT_FORMAT}
 	cp -p ${.OBJDIR}/${BASIC-CLOUDINIT${_FS:tu}${_FMT:tu}IMAGE} \
 		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
 . endfor
 .endfor
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
