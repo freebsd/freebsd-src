@@ -504,7 +504,6 @@ gcmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 {
 	struct gcmp_ctx *ctx = key->wk_private;
 	struct ieee80211_frame *wh;
-	struct ieee80211vap *vap = ctx->cc_vap;
 	struct mbuf *m = m0;
 	int data_len, aad_len, iv_len, ret;
 	uint8_t aad[GCM_AAD_LEN];
@@ -521,16 +520,18 @@ gcmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	p_pktbuf = IEEE80211_MALLOC(data_len, M_TEMP,
 	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (p_pktbuf == NULL) {
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-		    "%s", "AES-GCM encrypt failed; couldn't allocate buffer");
+		IEEE80211_NOTE_MAC(ctx->cc_vap, IEEE80211_MSG_CRYPTO,
+		    wh->i_addr2, "%s",
+		    "AES-GCM encrypt failed; couldn't allocate buffer");
 		ctx->cc_vap->iv_stats.is_crypto_gcmp_nomem++;
 		return (0);
 	}
 	c_pktbuf = IEEE80211_MALLOC(data_len, M_TEMP,
 	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (c_pktbuf == NULL) {
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-		    "%s", "AES-GCM encrypt failed; couldn't allocate buffer");
+		IEEE80211_NOTE_MAC(ctx->cc_vap, IEEE80211_MSG_CRYPTO,
+		    wh->i_addr2, "%s",
+		    "AES-GCM encrypt failed; couldn't allocate buffer");
 		ctx->cc_vap->iv_stats.is_crypto_gcmp_nomem++;
 		IEEE80211_FREE(p_pktbuf, M_TEMP);
 		return (0);
@@ -562,8 +563,9 @@ gcmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	/* Append MIC */
 	ret = m_append(m0, gcmp_get_trailer_len(key), T);
 	if (ret == 0) {
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-		    "%s", "AES-GCM encrypt failed; couldn't append T");
+		IEEE80211_NOTE_MAC(ctx->cc_vap, IEEE80211_MSG_CRYPTO,
+		    wh->i_addr2, "%s",
+		    "AES-GCM encrypt failed; couldn't append T");
 		ctx->cc_vap->iv_stats.is_crypto_gcmp_nospc++;
 	}
 
@@ -592,7 +594,6 @@ gcmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m,
 {
 	const struct ieee80211_rx_stats *rxs;
 	struct gcmp_ctx *ctx = key->wk_private;
-	struct ieee80211vap *vap = ctx->cc_vap;
 	struct ieee80211_frame *wh;
 	int data_len, aad_len, iv_len, ret;
 	uint8_t aad[GCM_AAD_LEN];
@@ -656,8 +657,8 @@ gcmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m,
 	if (ret != 0) {
 		/* Decrypt failure */
 		ctx->cc_vap->iv_stats.is_rx_gcmpmic++;
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-		    "%s", "AES-GCM decrypt failed; MIC mismatch");
+		IEEE80211_NOTE_MAC(ctx->cc_vap, IEEE80211_MSG_CRYPTO,
+		    wh->i_addr2, "%s", "AES-GCM decrypt failed; MIC mismatch");
 		IEEE80211_FREE(p_pktbuf, M_TEMP);
 		IEEE80211_FREE(c_pktbuf, M_TEMP);
 		return (0);
