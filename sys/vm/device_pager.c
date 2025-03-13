@@ -138,6 +138,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 	vm_object_t object;
 	vm_pindex_t pindex;
 
+	KASSERT(handle != NULL, ("device pager with NULL handle"));
+
 	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
 	KASSERT(tp == OBJT_MGTDEVICE || ops->cdev_pg_populate == NULL,
