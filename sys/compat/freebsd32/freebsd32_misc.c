@@ -679,6 +679,36 @@ freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
 	return (error);
 }
 
+static void
+freebsd32_kevent_to_kevent32(const struct kevent *kevp, struct kevent32 *ks32)
+{
+	uint64_t e;
+	int j;
+
+	CP(*kevp, *ks32, ident);
+	CP(*kevp, *ks32, filter);
+	CP(*kevp, *ks32, flags);
+	CP(*kevp, *ks32, fflags);
+#if BYTE_ORDER == LITTLE_ENDIAN
+	ks32->data1 = kevp->data;
+	ks32->data2 = kevp->data >> 32;
+#else
+	ks32->data1 = kevp->data >> 32;
+	ks32->data2 = kevp->data;
+#endif
+	PTROUT_CP(*kevp, *ks32, udata);
+	for (j = 0; j < nitems(kevp->ext); j++) {
+		e = kevp->ext[j];
+#if BYTE_ORDER == LITTLE_ENDIAN
+		ks32->ext64[2 * j] = e;
+		ks32->ext64[2 * j + 1] = e >> 32;
+#else
+		ks32->ext64[2 * j] = e >> 32;
+		ks32->ext64[2 * j + 1] = e;
+#endif
+	}
+}
+
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */
@@ -687,36 +717,13 @@ freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd32_kevent_args *uap;
 	struct kevent32	ks32[KQ_NEVENTS];
-	uint64_t e;
-	int i, j, error;
+	int i, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct freebsd32_kevent_args *)arg;
 
-	for (i = 0; i < count; i++) {
-		CP(kevp[i], ks32[i], ident);
-		CP(kevp[i], ks32[i], filter);
-		CP(kevp[i], ks32[i], flags);
-		CP(kevp[i], ks32[i], fflags);
-#if BYTE_ORDER == LITTLE_ENDIAN
-		ks32[i].data1 = kevp[i].data;
-		ks32[i].data2 = kevp[i].data >> 32;
-#else
-		ks32[i].data1 = kevp[i].data >> 32;
-		ks32[i].data2 = kevp[i].data;
-#endif
-		PTROUT_CP(kevp[i], ks32[i], udata);
-		for (j = 0; j < nitems(kevp->ext); j++) {
-			e = kevp[i].ext[j];
-#if BYTE_ORDER == LITTLE_ENDIAN
-			ks32[i].ext64[2 * j] = e;
-			ks32[i].ext64[2 * j + 1] = e >> 32;
-#else
-			ks32[i].ext64[2 * j] = e >> 32;
-			ks32[i].ext64[2 * j + 1] = e;
-#endif
-		}
-	}
+	for (i = 0; i < count; i++)
+		freebsd32_kevent_to_kevent32(&kevp[i], &ks32[i]);
 	error = copyout(ks32, uap->eventlist, count * sizeof *ks32);
 	if (error == 0)
 		uap->eventlist += count;
