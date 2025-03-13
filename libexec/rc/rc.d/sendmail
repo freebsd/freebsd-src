@@ -180,17 +180,6 @@ sendmail_cert_create()
 
 sendmail_precmd()
 {
-	# Die if there's pre-8.10 custom configuration file.  This check is
-	# mandatory for smooth upgrade.  See NetBSD PR 10100 for details.
-	#
-	if checkyesno ${rcvar} && [ -f "/etc/sendmail.cf" ]; then
-		if ! cmp -s "/etc/mail/sendmail.cf" "/etc/sendmail.cf"; then
-			warn \
-    "${name} was not started; you have multiple copies of sendmail.cf."
-			return 1
-		fi
-	fi
-
 	# check modifications on /etc/mail/aliases
 	if checkyesno sendmail_rebuild_aliases; then
 		if [ -f "/etc/mail/aliases.db" ]; then
