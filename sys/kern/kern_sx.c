@@ -285,7 +285,8 @@ sx_try_slock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	x = sx->sx_lock;
 	for (;;) {
 		KASSERT(x != SX_LOCK_DESTROYED,
-		    ("sx_try_slock() of destroyed sx @ %s:%d", file, line));
+		    ("sx_try_slock() of destroyed sx %p @ %s:%d", sx, file,
+		    line));
 		if (!(x & SX_LOCK_SHARED))
 			break;
 		if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, x + SX_ONE_SHARER)) {
@@ -321,7 +322,7 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 	    ("sx_xlock() by idle thread %p on sx %p @ %s:%d",
 	    curthread, sx, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
+	    ("sx_xlock() of destroyed sx %p @ %s:%d", sx, file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line, NULL);
 	tid = (uintptr_t)curthread;
@@ -358,7 +359,7 @@ sx_try_xlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	    ("sx_try_xlock() by idle thread %p on sx %p @ %s:%d",
 	    curthread, sx, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
+	    ("sx_try_xlock() of destroyed sx %p @ %s:%d", sx, file, line));
 
 	rval = 1;
 	recursed = false;
@@ -402,7 +403,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
+	    ("sx_xunlock() of destroyed sx %p @ %s:%d", sx, file, line));
 	_sx_assert(sx, SA_XLOCKED, file, line);
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
@@ -431,7 +432,7 @@ sx_try_upgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 		return (1);
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_try_upgrade() of destroyed sx @ %s:%d", file, line));
+	    ("sx_try_upgrade() of destroyed sx %p @ %s:%d", sx, file, line));
 	_sx_assert(sx, SA_SLOCKED, file, line);
 
 	/*
@@ -481,7 +482,7 @@ sx_downgrade_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 		return;
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_downgrade() of destroyed sx @ %s:%d", file, line));
+	    ("sx_downgrade() of destroyed sx %p @ %s:%d", sx, file, line));
 	_sx_assert(sx, SA_XLOCKED | SA_NOTRECURSED, file, line);
 #ifndef INVARIANTS
 	if (sx_recursed(sx))
@@ -1260,7 +1261,7 @@ _sx_slock_int(struct sx *sx, int opts LOCK_FILE_LINE_ARG_DEF)
 	    ("sx_slock() by idle thread %p on sx %p @ %s:%d",
 	    curthread, sx, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
+	    ("sx_slock() of destroyed sx %p @ %s:%d", sx, file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line, NULL);
 
 	error = 0;
@@ -1366,7 +1367,7 @@ _sx_sunlock_int(struct sx *sx LOCK_FILE_LINE_ARG_DEF)
 	uintptr_t x;
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
+	    ("sx_sunlock() of destroyed sx %p  @ %s:%d", sx, file, line));
 	_sx_assert(sx, SA_SLOCKED, file, line);
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);

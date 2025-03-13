@@ -281,7 +281,7 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	    ("rw_wlock() by idle thread %p on rwlock %p @ %s:%d",
 	    curthread, rw, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_wlock() of destroyed rwlock %p @ %s:%d", rw, file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line, NULL);
 	tid = (uintptr_t)curthread;
@@ -314,7 +314,7 @@ __rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	    ("rw_try_wlock() by idle thread %p on rwlock %p @ %s:%d",
 	    curthread, rw, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_try_wlock() of destroyed rwlock %p @ %s:%d", rw, file, line));
 
 	rval = 1;
 	recursed = false;
@@ -362,7 +362,7 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	rw = rwlock2rw(c);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_wunlock() of destroyed rwlock %p @ %s:%d", rw, file, line));
 	__rw_assert(c, RA_WLOCKED, file, line);
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
@@ -668,7 +668,7 @@ __rw_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	    ("rw_rlock() by idle thread %p on rwlock %p @ %s:%d",
 	    td, rw, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_rlock() of destroyed rwlock %p @ %s:%d", rw, file, line));
 	KASSERT(rw_wowner(rw) != td,
 	    ("rw_rlock: wlock already held for %p @ %s:%d",
 	    rw, file, line));
@@ -711,7 +711,8 @@ __rw_try_rlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	x = rw->rw_lock;
 	for (;;) {
 		KASSERT(rw->rw_lock != RW_DESTROYED,
-		    ("rw_try_rlock() of destroyed rwlock @ %s:%d", file, line));
+		    ("rw_try_rlock() of destroyed rwlock %p @ %s:%d", rw, file,
+		    line));
 		if (!(x & RW_LOCK_READ))
 			break;
 		if (atomic_fcmpset_acq_ptr(&rw->rw_lock, &x, x + RW_ONE_READER)) {
@@ -842,7 +843,7 @@ _rw_runlock_cookie_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 	uintptr_t v;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_runlock() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_runlock() of destroyed rwlock %p @ %s:%d", rw, file, line));
 	__rw_assert(&rw->rw_lock, RA_RLOCKED, file, line);
 	WITNESS_UNLOCK(&rw->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("RUNLOCK", &rw->lock_object, 0, 0, file, line);
@@ -1284,7 +1285,8 @@ __rw_try_upgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 		return (1);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_try_upgrade() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_try_upgrade() of destroyed rwlock %p @ %s:%d", rw, file,
+	    line));
 	__rw_assert(&rw->rw_lock, RA_RLOCKED, file, line);
 
 	/*
@@ -1367,7 +1369,7 @@ __rw_downgrade_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF)
 		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
-	    ("rw_downgrade() of destroyed rwlock @ %s:%d", file, line));
+	    ("rw_downgrade() of destroyed rwlock %p @ %s:%d", rw, file, line));
 	__rw_assert(&rw->rw_lock, RA_WLOCKED | RA_NOTRECURSED, file, line);
 #ifndef INVARIANTS
 	if (rw_recursed(rw))
