@@ -853,6 +853,9 @@ g_dev_orphan(struct g_consumer *cp)
 	dev = sc->sc_dev;
 	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, cp->geom->name);
 
+	if (dev == NULL)
+		return;
+
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV) {
 		struct diocskerneldump_arg kda;
