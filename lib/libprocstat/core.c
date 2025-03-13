@@ -109,6 +109,10 @@ static const struct psc_type_info {
 		.n_type = NT_PTLWPINFO,
 		.structsize = sizeof(struct ptrace_lwpinfo)
 	},
+	[PSC_TYPE_KQUEUES] = {
+		.n_type = NT_PROCSTAT_KQUEUES,
+		.structsize = sizeof(struct kinfo_knote)
+	},
 };
 
 static bool	core_offset(struct procstat_core *core, off_t offset);
