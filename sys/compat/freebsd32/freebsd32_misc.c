@@ -709,6 +709,56 @@ freebsd32_kevent_to_kevent32(const struct kevent *kevp, struct kevent32 *ks32)
 	}
 }
 
+void
+freebsd32_kinfo_knote_to_32(const struct kinfo_knote *kin,
+    struct kinfo_knote32 *kin32)
+{
+	memset(kin32, 0, sizeof(*kin32));
+	CP(*kin, *kin32, knt_kq_fd);
+	freebsd32_kevent_to_kevent32(&kin->knt_event, &kin32->knt_event);
+	CP(*kin, *kin32, knt_status);
+	CP(*kin, *kin32, knt_extdata);
+	switch (kin->knt_extdata) {
+	case KNOTE_EXTDATA_NONE:
+		break;
+	case KNOTE_EXTDATA_VNODE:
+		CP(*kin, *kin32, knt_vnode.knt_vnode_type);
+#if BYTE_ORDER == LITTLE_ENDIAN
+		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
+		    knt_vnode_fsid;
+		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
+		    knt_vnode_fsid >> 32;
+		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
+		    knt_vnode_fileid;
+		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
+		    knt_vnode_fileid >> 32;
+#else
+		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
+		    knt_vnode_fsid;
+		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
+		    knt_vnode_fsid >> 32;
+		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
+		    knt_vnode_fileid;
+		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
+		    knt_vnode_fileid >> 32;
+#endif
+		memcpy(kin32->knt_vnode.knt_vnode_fullpath,
+		    kin->knt_vnode.knt_vnode_fullpath, PATH_MAX);
+		break;
+	case KNOTE_EXTDATA_PIPE:
+#if BYTE_ORDER == LITTLE_ENDIAN
+		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.knt_pipe_ino;
+		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.
+		    knt_pipe_ino >> 32;
+#else
+		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.knt_pipe_ino;
+		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.
+		    knt_pipe_ino >> 32;
+#endif
+		break;
+	}
+}
+
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */
