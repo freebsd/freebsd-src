@@ -122,6 +122,11 @@ struct image_args;
 int freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
 	    enum uio_seg segflg, uint32_t *argv, uint32_t *envv);
 
+struct kinfo_knote;
+struct kinfo_knote32;
+void	freebsd32_kinfo_knote_to_32(const struct kinfo_knote *kin,
+	    struct kinfo_knote32 *kin32);
+
 extern int compat_freebsd_32bit;
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */
