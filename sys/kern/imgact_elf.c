@@ -1574,6 +1574,7 @@ static void __elfN(note_threadmd)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_auxv)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_proc)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_psstrings)(void *, struct sbuf *, size_t *);
+static void __elfN(note_procstat_kqueues)(void *, struct sbuf *, size_t *);
 static void note_procstat_files(void *, struct sbuf *, size_t *);
 static void note_procstat_groups(void *, struct sbuf *, size_t *);
 static void note_procstat_osrel(void *, struct sbuf *, size_t *);
@@ -1899,6 +1900,8 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 	    __elfN(note_procstat_psstrings), p);
 	size += __elfN(register_note)(td, list, NT_PROCSTAT_AUXV,
 	    __elfN(note_procstat_auxv), p);
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_KQUEUES,
+	    __elfN(note_procstat_kqueues), p);
 
 	*sizep = size;
 }
@@ -2716,6 +2719,54 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 		PHOLD(p);
 		proc_getauxv(curthread, p, sb);
 		PRELE(p);
+	}
+}
+
+static void
+__elfN(note_procstat_kqueues)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size, sect_sz, i;
+	ssize_t start_len, sect_len;
+	int structsize;
+	bool compat32;
+
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+	compat32 = true;
+	structsize = sizeof(struct kinfo_knote32);
+#else
+	compat32 = false;
+	structsize = sizeof(struct kinfo_knote);
+#endif
+	p = arg;
+	if (sb == NULL) {
+		size = 0;
+		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
+		sbuf_set_drain(sb, sbuf_count_drain, &size);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		kern_proc_kqueues_out(p, sb, -1, compat32);
+		sbuf_finish(sb);
+		sbuf_delete(sb);
+		*sizep = size;
+	} else {
+		sbuf_start_section(sb, &start_len);
+
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		kern_proc_kqueues_out(p, sb, *sizep - sizeof(structsize),
+		    compat32);
+
+		sect_len = sbuf_end_section(sb, start_len, 0, 0);
+		if (sect_len < 0)
+			return;
+		sect_sz = sect_len;
+
+		KASSERT(sect_sz <= *sizep,
+		    ("kern_proc_kqueue_out did not respect maxlen; "
+		     "requested %zu, got %zu", *sizep - sizeof(structsize),
+		     sect_sz - sizeof(structsize)));
+
+		for (i = 0; i < *sizep - sect_sz && sb->s_error == 0; i++)
+			sbuf_putc(sb, 0);
 	}
 }
 
