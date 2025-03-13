@@ -826,7 +826,6 @@ in_pcb_lport_dest(const struct inpcb *inp, struct sockaddr *lsa,
 #endif
 
 	tmpinp = NULL;
-	lport = *lportp;
 
 	if (V_ipport_randomized)
 		*lastport = first + (arc4random() % (last - first));
