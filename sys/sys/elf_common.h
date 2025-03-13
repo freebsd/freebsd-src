@@ -840,6 +840,7 @@ typedef struct {
 #define	NT_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
 #define	NT_PROCSTAT_AUXV	16	/* Procstat auxv data. */
 #define	NT_PTLWPINFO		17	/* Thread ptrace miscellaneous info. */
+#define	NT_PROCSTAT_KQUEUES	18	/* Procstat kqueues events. */
 #define	NT_PPC_VMX	0x100	/* PowerPC Altivec/VMX registers */
 #define	NT_PPC_VSX	0x102	/* PowerPC VSX registers */
 #define	NT_X86_SEGBASES	0x200	/* x86 FS/GS base addresses. */

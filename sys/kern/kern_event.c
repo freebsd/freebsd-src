@@ -2940,6 +2940,53 @@ out:
 	return (error);
 }
 
+struct kern_proc_kqueues_out1_cb_args {
+	struct sbuf *s;
+	bool compat32;
+};
+
+static int
+kern_proc_kqueues_out1_cb(struct proc *p, int fd, struct file *fp, void *arg)
+{
+	struct kqueue *kq;
+	struct kern_proc_kqueues_out1_cb_args *a;
+
+	if (fp->f_type != DTYPE_KQUEUE)
+		return (0);
+	a = arg;
+	kq = fp->f_data;
+	return (kern_proc_kqueue_report(a->s, p, fd, kq, a->compat32));
+}
+
+static int
+kern_proc_kqueues_out1(struct thread *td, struct proc *p, struct sbuf *s,
+    bool compat32)
+{
+	struct kern_proc_kqueues_out1_cb_args a;
+
+	MPASS(p == curproc);
+
+	a.s = s;
+	a.compat32 = compat32;
+	return (fget_remote_foreach(td, p, kern_proc_kqueues_out1_cb, &a));
+}
+
+int
+kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
+    bool compat32)
+{
+	struct sbuf *s, sm;
+	int error;
+
+	s = sbuf_new(&sm, NULL, maxlen, SBUF_FIXEDLEN);
+	error = kern_proc_kqueues_out1(curthread, p, s, compat32);
+	sbuf_finish(s);
+	if (error == 0)
+		sbuf_bcat(sb, sbuf_data(s), MIN(sbuf_len(s), maxlen));
+	sbuf_delete(s);
+	return (error);
+}
+
 static int
 sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 {
