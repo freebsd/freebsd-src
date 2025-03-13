@@ -1115,14 +1115,13 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred)
 			    IA_SIN(CK_STAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
 			if ((error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
-		} else if (sin->sin_addr.s_addr == INADDR_BROADCAST) {
-			if (CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags
-			    & IFF_BROADCAST)
-				faddr = satosin(&CK_STAILQ_FIRST(
-				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
-			else
-				faddr = sin->sin_addr;
-		}
+		} else if (sin->sin_addr.s_addr == INADDR_BROADCAST &&
+		    CK_STAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags
+		    & IFF_BROADCAST) {
+			faddr = satosin(&CK_STAILQ_FIRST(
+			    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+		} else
+			faddr = sin->sin_addr;
 	} else
 		faddr = sin->sin_addr;
 
