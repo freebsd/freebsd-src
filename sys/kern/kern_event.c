@@ -2873,7 +2873,7 @@ knote_status_export(int kn_status)
 
 static int
 kern_proc_kqueue_report_one(struct sbuf *s, struct proc *p,
-    struct kqueue *kq, struct knote *kn)
+    int kq_fd, struct kqueue *kq, struct knote *kn)
 {
 	struct kinfo_knote kin;
 	int error;
@@ -2882,6 +2882,7 @@ kern_proc_kqueue_report_one(struct sbuf *s, struct proc *p,
 		return (0);
 
 	memset(&kin, 0, sizeof(kin));
+	kin.knt_kq_fd = kq_fd;
 	memcpy(&kin.knt_event, &kn->kn_kevent, sizeof(struct kevent));
 	kin.knt_status = knote_status_export(kn->kn_status);
 	kn_enter_flux(kn);
@@ -2895,7 +2896,8 @@ kern_proc_kqueue_report_one(struct sbuf *s, struct proc *p,
 }
 
 static int
-kern_proc_kqueue_report(struct sbuf *s, struct proc *p, struct kqueue *kq)
+kern_proc_kqueue_report(struct sbuf *s, struct proc *p, int kq_fd,
+    struct kqueue *kq)
 {
 	struct knote *kn;
 	int error, i;
@@ -2904,7 +2906,8 @@ kern_proc_kqueue_report(struct sbuf *s, struct proc *p, struct kqueue *kq)
 	KQ_LOCK(kq);
 	for (i = 0; i < kq->kq_knlistsize; i++) {
 		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
-			error = kern_proc_kqueue_report_one(s, p, kq, kn);
+			error = kern_proc_kqueue_report_one(s, p, kq_fd,
+			    kq, kn);
 			if (error != 0)
 				goto out;
 		}
@@ -2913,7 +2916,8 @@ kern_proc_kqueue_report(struct sbuf *s, struct proc *p, struct kqueue *kq)
 		goto out;
 	for (i = 0; i <= kq->kq_knhashmask; i++) {
 		SLIST_FOREACH(kn, &kq->kq_knhash[i], kn_link) {
-			error = kern_proc_kqueue_report_one(s, p, kq, kn);
+			error = kern_proc_kqueue_report_one(s, p, kq_fd,
+			    kq, kn);
 			if (error != 0)
 				goto out;
 		}
@@ -2931,7 +2935,7 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 	struct file *fp;
 	struct kqueue *kq;
 	struct sbuf *s, sm;
-	int error, error1, *name;
+	int error, error1, kq_fd, *name;
 
 	name = (int *)arg1;
 	if ((u_int)arg2 != 2)
@@ -2949,7 +2953,8 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 #endif
 
 	td = curthread;
-	error = fget_remote(td, p, name[1] /* kqfd */, &fp);
+	kq_fd = name[1];
+	error = fget_remote(td, p, kq_fd, &fp);
 	if (error != 0)
 		goto out1;
 	if (fp->f_type != DTYPE_KQUEUE) {
@@ -2965,7 +2970,7 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 	sbuf_clear_flags(s, SBUF_INCLUDENUL);
 
 	kq = fp->f_data;
-	error = kern_proc_kqueue_report(s, p, kq);
+	error = kern_proc_kqueue_report(s, p, kq_fd, kq);
 	error1 = sbuf_finish(s);
 	if (error == 0)
 		error = error1;
