@@ -679,6 +679,7 @@ struct kinfo_vm_layout {
 #define	KNOTE_EXTDATA_PIPE		2
 
 struct kinfo_knote {
+	int		knt_kq_fd;
 	struct kevent	knt_event;
 	int		knt_status;
 	int		knt_extdata;
