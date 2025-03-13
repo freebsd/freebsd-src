@@ -80,20 +80,24 @@ main(int argc, char **argv)
 		if (groups == NULL)
 			err(EXIT_FAILURE, "cannot allocate memory for groups");
 
-		getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);
+		if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups) == -1) {
+            		err(EXIT_FAILURE, "failed to get group list for user %s", username);
+        	}
 
 		wcred.sc_gid = wcred.sc_rgid = wcred.sc_svgid = pw->pw_gid;
 		wcred.sc_supp_groups = groups + 1;
 		wcred.sc_supp_groups_nb = ngroups - 1;
 		setcred_flags |= SETCREDF_GID | SETCREDF_RGID | SETCREDF_SVGID |
 		    SETCREDF_SUPP_GROUPS;
-	}
+
+ 	       free(groups);
+    }
 
 	if (setcred(setcred_flags, &wcred, sizeof(wcred)) != 0)
 		err(EXIT_FAILURE, "calling setcred() failed");
 
 	if (*argv == NULL) {
-		const char *sh = getenv("SHELL");
+        	const char *sh = secure_getenv("SHELL");
 		if (sh == NULL)
 			sh = _PATH_BSHELL;
 		execlp(sh, sh, "-i", NULL);
