@@ -58,6 +58,7 @@
 #include <sys/poll.h>
 #include <sys/protosw.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sigio.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -2871,7 +2872,7 @@ knote_status_export(int kn_status)
 }
 
 static int
-sysctl_kern_proc_kqueue_report_one(struct proc *p, struct sysctl_req *req,
+kern_proc_kqueue_report_one(struct sbuf *s, struct proc *p,
     struct kqueue *kq, struct knote *kn)
 {
 	struct kinfo_knote kin;
@@ -2887,10 +2888,38 @@ sysctl_kern_proc_kqueue_report_one(struct proc *p, struct sysctl_req *req,
 	KQ_UNLOCK_FLUX(kq);
 	if (kn->kn_fop->f_userdump != NULL)
 		(void)kn->kn_fop->f_userdump(p, kn, &kin);
-	error = SYSCTL_OUT(req, &kin, sizeof(kin));
-	maybe_yield();
+	error = sbuf_bcat(s, &kin, sizeof(kin));
 	KQ_LOCK(kq);
 	kn_leave_flux(kn);
+	return (error);
+}
+
+static int
+kern_proc_kqueue_report(struct sbuf *s, struct proc *p, struct kqueue *kq)
+{
+	struct knote *kn;
+	int error, i;
+
+	error = 0;
+	KQ_LOCK(kq);
+	for (i = 0; i < kq->kq_knlistsize; i++) {
+		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
+			error = kern_proc_kqueue_report_one(s, p, kq, kn);
+			if (error != 0)
+				goto out;
+		}
+	}
+	if (kq->kq_knhashmask == 0)
+		goto out;
+	for (i = 0; i <= kq->kq_knhashmask; i++) {
+		SLIST_FOREACH(kn, &kq->kq_knhash[i], kn_link) {
+			error = kern_proc_kqueue_report_one(s, p, kq, kn);
+			if (error != 0)
+				goto out;
+		}
+	}
+out:
+	KQ_UNLOCK_FLUX(kq);
 	return (error);
 }
 
@@ -2901,8 +2930,8 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct file *fp;
 	struct kqueue *kq;
-	struct knote *kn;
-	int error, i, *name;
+	struct sbuf *s, sm;
+	int error, error1, *name;
 
 	name = (int *)arg1;
 	if ((u_int)arg2 != 2)
@@ -2928,34 +2957,19 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 		goto out2;
 	}
 
-	kq = fp->f_data;
-	if (req->oldptr == NULL) {
-		error = SYSCTL_OUT(req, NULL, sizeof(struct kinfo_knote) *
-		    kq->kq_knlistsize * 11 / 10);
+	s = sbuf_new_for_sysctl(&sm, NULL, 0, req);
+	if (s == NULL) {
+		error = ENOMEM;
 		goto out2;
 	}
+	sbuf_clear_flags(s, SBUF_INCLUDENUL);
 
-	KQ_LOCK(kq);
-	for (i = 0; i < kq->kq_knlistsize; i++) {
-		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
-			error = sysctl_kern_proc_kqueue_report_one(p, req,
-			    kq, kn);
-			if (error != 0)
-				goto out3;
-		}
-	}
-	if (kq->kq_knhashmask == 0)
-		goto out3;
-	for (i = 0; i <= kq->kq_knhashmask; i++) {
-		SLIST_FOREACH(kn, &kq->kq_knhash[i], kn_link) {
-			error = sysctl_kern_proc_kqueue_report_one(p, req,
-			    kq, kn);
-			if (error != 0)
-				goto out3;
-		}
-	}
-out3:
-	KQ_UNLOCK_FLUX(kq);
+	kq = fp->f_data;
+	error = kern_proc_kqueue_report(s, p, kq);
+	error1 = sbuf_finish(s);
+	if (error == 0)
+		error = error1;
+	sbuf_delete(s);
 out2:
 	fdrop(fp, td);
 out1:
