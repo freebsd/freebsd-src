@@ -147,7 +147,7 @@ test_modinit(void)
 			printf("%s: kthread_add(epoch_test): error %d", __func__,
 				   error);
 		} else {
-			pri_off = (i*4)%pri_range;
+			pri_off = i%pri_range;
 			td = testthreads[i];
 			thread_lock(td);
 			sched_prio(td, PRI_MIN_REALTIME + pri_off);
