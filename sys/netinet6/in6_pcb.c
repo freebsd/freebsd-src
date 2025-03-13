@@ -523,7 +523,8 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	if ((inp->inp_flags & INP_INHASHLIST) != 0) {
 		in_pcbrehash(inp);
 	} else {
-		in_pcbinshash(inp);
+		error = in_pcbinshash(inp);
+		MPASS(error == 0);
 	}
 
 	return (0);
