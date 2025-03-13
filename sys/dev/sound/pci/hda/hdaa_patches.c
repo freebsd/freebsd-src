@@ -340,6 +340,13 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch_str = "as=3 seq=15 color=Black loc=Left";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC295 &&
+	    subid == FRAMEWORK_LAPTOP_0006_SUBVENDOR) {
+		switch (nid) {
+		case 33:
+			patch_str = "as=1 seq=15 color=Black loc=Left";
+			break;
+		}
 	} else if (id == HDA_CODEC_ALC230 &&
 	    subid == LENOVO_IDEAPAD330_SUBVENDOR) {
 		switch (nid) {
