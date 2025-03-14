@@ -466,14 +466,15 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 			 */
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 			    "%s: driver override for cipher %s, flags "
-			    "0x%x -> 0x%x\n", __func__, cip->ic_name,
-			    oflags, key->wk_flags);
+			    "%b -> %b\n", __func__, cip->ic_name,
+			    oflags, IEEE80211_KEY_BITS,
+			    key->wk_flags, IEEE80211_KEY_BITS);
 			keyctx = cip->ic_attach(vap, key);
 			if (keyctx == NULL) {
 				IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 				    "%s: unable to attach cipher %s with "
-				    "flags 0x%x\n", __func__, cip->ic_name,
-				    key->wk_flags);
+				    "flags %b\n", __func__, cip->ic_name,
+				    key->wk_flags, IEEE80211_KEY_BITS);
 				key->wk_flags = oflags;	/* restore old flags */
 				vap->iv_stats.is_crypto_attachfail++;
 				return 0;
@@ -498,9 +499,9 @@ _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: %s keyix %u flags 0x%x rsc %ju tsc %ju len %u\n",
+	    "%s: %s keyix %u flags %b rsc %ju tsc %ju len %u\n",
 	    __func__, key->wk_cipher->ic_name,
-	    key->wk_keyix, key->wk_flags,
+	    key->wk_keyix, key->wk_flags, IEEE80211_KEY_BITS,
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -566,9 +567,9 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	KASSERT(cip != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: %s keyix %u flags 0x%x mac %s rsc %ju tsc %ju len %u\n",
+	    "%s: %s keyix %u flags %b mac %s rsc %ju tsc %ju len %u\n",
 	    __func__, cip->ic_name, key->wk_keyix,
-	    key->wk_flags, ether_sprintf(key->wk_macaddr),
+	    key->wk_flags, IEEE80211_KEY_BITS, ether_sprintf(key->wk_macaddr),
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -586,9 +587,9 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	 */
 	if (!cip->ic_setkey(key)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-		    "%s: cipher %s rejected key index %u len %u flags 0x%x\n",
+		    "%s: cipher %s rejected key index %u len %u flags %b\n",
 		    __func__, cip->ic_name, key->wk_keyix,
-		    key->wk_keylen, key->wk_flags);
+		    key->wk_keylen, key->wk_flags, IEEE80211_KEY_BITS);
 		vap->iv_stats.is_crypto_setkey_cipher++;
 		return 0;
 	}
