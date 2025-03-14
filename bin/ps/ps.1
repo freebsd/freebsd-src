@@ -80,7 +80,7 @@ and
 .Fl x
 options.
 Except for options
-.Fl A , a , X ,
+.Fl X
 and
 .Fl x ,
 as soon as one of them appears, it inhibits the default process selection, i.e.,
@@ -215,11 +215,6 @@ see
 and
 .Fl x
 .Pc .
-Currently, this option has no effect if any other option selecting processes to
-display is present, except for
-.Fl X
-and
-.Fl x .
 If the
 .Va security.bsd.see_other_uids
 sysctl is set to zero, this option is honored only if the real user ID of the
@@ -965,13 +960,13 @@ which is the current behavior of option
 .Pc .
 .Pp
 However, options
-.Fl G , l , o , p ,
+.Fl A , a , G , l , o , p ,
 and
 .Fl t
 behave as prescribed by
 .St -p1003.1-2024 .
 Options
-.Fl A , a , f , U ,
+.Fl f , U ,
 and
 .Fl w
 currently do not, but may be changed to in the future.
@@ -1020,20 +1015,6 @@ Finally, no other
 implementation (for other BSDs, illumos or Linux) behaves like this.
 For all these reasons, the behavior is expected to be changed soon to using the
 effective user ID instead.
-.Pp
-The
-.Fl a
-option has no effect if other options affecting the selection of processes are
-used, except for (non-)filters
-.Fl X
-and
-.Fl x.
-Option
-.Fl A
-has the same restriction.
-This idiosyncrasy is both in contradiction with
-.St -p1003.1-2024
-and arguably with common sense, and is expected to be removed soon.
 .Pp
 .Nm ps
 currently does not correctly limit the ouput width, and in most cases does not
