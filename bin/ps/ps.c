@@ -225,11 +225,6 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch (ch) {
 		case 'A':
-			/*
-			 * Exactly the same as `-ax'.   This has been
-			 * added for compatibility with SUSv3, but for
-			 * now it will not be described in the man page.
-			 */
 			all = xkeep = 1;
 			break;
 		case 'a':
