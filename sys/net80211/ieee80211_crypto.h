@@ -295,5 +295,10 @@ void	ieee80211_notify_replay_failure(struct ieee80211vap *,
 		uint64_t rsc, int tid);
 void	ieee80211_notify_michael_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, ieee80211_keyix keyix);
+
+/* AAD assembly for CCMP/GCMP. */
+uint16_t	ieee80211_crypto_init_aad(const struct ieee80211_frame *,
+		uint8_t *, int);
+
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */
 #endif /* _NET80211_IEEE80211_CRYPTO_H_ */

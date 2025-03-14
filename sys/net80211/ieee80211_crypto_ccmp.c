@@ -408,6 +408,79 @@ xor_block(uint8_t *b, const uint8_t *a, size_t len)
 		b[i] ^= a[i];
 }
 
+/**
+ * @brief Initialise the AES-CCM nonce flag field in the b0 CCMP block.
+ *
+ * The B_0 block is defined in RFC 3610 section 2.2 (Authentication).
+ * b0[0] is the CCM flags field, so the nonce used for B_0 starts at
+ * b0[1].  Amusingly, b0[1] is also flags, but it's the 802.11 AES-CCM
+ * nonce flags field, NOT the CCM flags field.
+ *
+ * The AES-CCM nonce flags field is defined in 802.11-2020 12.5.3.3.4
+ * (Construct CCM nonce).
+ *
+ * TODO: net80211 currently doesn't support MFP (management frame protection)
+ * and so bit 4 is never set.  This routine and ccmp_init_blocks() will
+ * need a pointer to the ieee80211_node or a flag that explicitly states
+ * the frame will be sent w/ MFP encryption / received w/ MFP decryption.
+ *
+ * @param wh	the 802.11 header to populate
+ * @param b0	the CCM nonce to update (remembering b0[0] is the CCM
+ * 		nonce flags, and b0[1] is the AES-CCM nonce flags).
+ */
+static void
+ieee80211_crypto_ccmp_init_nonce_flags(const struct ieee80211_frame *wh,
+    char *b0)
+{
+	if (IEEE80211_IS_DSTODS(wh)) {
+		/*
+		 * 802.11-2020 12.5.33.3.4 (Construct CCM nonce) mentions
+		 * that the low four bits of this byte are the "MPDU priority."
+		 * This is defined in 5.1.1.2 (Determination of UP) and
+		 * 5.1.1.3 (Interpretation of Priority Parameter in MAC
+		 * service primitives).
+		 *
+		 * The former says "The QoS facility supports eight priority
+		 * values, referred to as UPs. The values a UP may take are
+		 * the integer values from 0 to 7 and are identical to the
+		 * 802.11D priority tags."
+		 *
+		 * The latter specifically calls out that "Priority parameter
+		 * and TID subfield values 0 to 7 are interpreted aas UPs for
+		 * the MSDUs" .. and " .. TID subfield values 8 to 15 specify
+		 * TIDs that are TS identifiers (TSIDs)" which are used for
+		 * TSPEC.  There's a bunch of extra work to be done with frames
+		 * received in TIDs 8..15 with no TSPEC, "then the MSDU shall
+		 * be sent with priority parameter set to 0."
+		 *
+		 * All QoS frames (not just QoS data) have TID fields and
+		 * thus priorities.  However, the code straight up
+		 * copies the 4 bit TID field, rather than a 3 bit MPDU
+		 * priority value.  For now, as net80211 doesn't specifically
+		 * support TSPEC negotiation, this likely never gets checked.
+		 * However as part of any future TSPEC work, this will likely
+		 * need to be looked at and checked with interoperability
+		 * with other stacks.
+		 */
+		if (IEEE80211_IS_QOS_ANY(wh)) {
+			const struct ieee80211_qosframe_addr4 *qwh4 =
+			    (const struct ieee80211_qosframe_addr4 *) wh;
+			b0[1] = qwh4->i_qos[0] & 0x0f;	/* prio bits */
+		} else {
+			b0[1] = 0;
+		}
+	} else {
+		if (IEEE80211_IS_QOS_ANY(wh)) {
+			const struct ieee80211_qosframe *qwh =
+			    (const struct ieee80211_qosframe *) wh;
+			b0[1] = qwh->i_qos[0] & 0x0f;	/* prio bits */
+		} else {
+			b0[1] = 0;
+		}
+	}
+	/* TODO: populate MFP flag */
+}
+
 /*
  * Host AP crypt: host-based CCMP encryption implementation for Host AP driver
  *
@@ -428,8 +501,6 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	uint8_t b0[AES_BLOCK_LEN], uint8_t aad[2 * AES_BLOCK_LEN],
 	uint8_t auth[AES_BLOCK_LEN], uint8_t s0[AES_BLOCK_LEN])
 {
-#define	IS_QOS_DATA(wh)	IEEE80211_QOS_HAS_SEQ(wh)
-
 	/*
 	 * Map M parameter to encoding
 	 * RFC3610, Section 2 (CCM Mode Specification)
@@ -446,7 +517,8 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	 * Dlen
 	 */
 	b0[0] = 0x40 | 0x01 | (m << 3);
-	/* NB: b0[1] set below */
+	/* Init b0[1] (CCM nonce flags) */
+	ieee80211_crypto_ccmp_init_nonce_flags(wh, b0);
 	IEEE80211_ADDR_COPY(b0 + 2, wh->i_addr2);
 	b0[8] = pn >> 40;
 	b0[9] = pn >> 32;
@@ -457,63 +529,8 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	b0[14] = (dlen >> 8) & 0xff;
 	b0[15] = dlen & 0xff;
 
-	/* AAD:
-	 * FC with bits 4..6 and 11..13 masked to zero; 14 is always one
-	 * A1 | A2 | A3
-	 * SC with bits 4..15 (seq#) masked to zero
-	 * A4 (if present)
-	 * QC (if present)
-	 */
-	aad[0] = 0;	/* AAD length >> 8 */
-	/* NB: aad[1] set below */
-	aad[2] = wh->i_fc[0] & 0x8f;	/* XXX magic #s */
-	/* TODO: 802.11-2016 12.5.3.3.3 - QoS control field mask */
-	aad[3] = wh->i_fc[1] & 0xc7;	/* XXX magic #s */
-	/* NB: we know 3 addresses are contiguous */
-	memcpy(aad + 4, wh->i_addr1, 3 * IEEE80211_ADDR_LEN);
-	aad[22] = wh->i_seq[0] & IEEE80211_SEQ_FRAG_MASK;
-	aad[23] = 0; /* all bits masked */
-	/*
-	 * Construct variable-length portion of AAD based
-	 * on whether this is a 4-address frame/QOS frame.
-	 * We always zero-pad to 32 bytes before running it
-	 * through the cipher.
-	 *
-	 * We also fill in the priority bits of the CCM
-	 * initial block as we know whether or not we have
-	 * a QOS frame.
-	 */
-	if (IEEE80211_IS_DSTODS(wh)) {
-		IEEE80211_ADDR_COPY(aad + 24,
-			((struct ieee80211_frame_addr4 *)wh)->i_addr4);
-		if (IS_QOS_DATA(wh)) {
-			struct ieee80211_qosframe_addr4 *qwh4 =
-				(struct ieee80211_qosframe_addr4 *) wh;
-			aad[30] = qwh4->i_qos[0] & 0x0f;/* just priority bits */
-			aad[31] = 0;
-			b0[1] = aad[30];
-			aad[1] = 22 + IEEE80211_ADDR_LEN + 2;
-		} else {
-			*(uint16_t *)&aad[30] = 0;
-			b0[1] = 0;
-			aad[1] = 22 + IEEE80211_ADDR_LEN;
-		}
-	} else {
-		if (IS_QOS_DATA(wh)) {
-			struct ieee80211_qosframe *qwh =
-				(struct ieee80211_qosframe*) wh;
-			aad[24] = qwh->i_qos[0] & 0x0f;	/* just priority bits */
-			aad[25] = 0;
-			b0[1] = aad[24];
-			aad[1] = 22 + 2;
-		} else {
-			*(uint16_t *)&aad[24] = 0;
-			b0[1] = 0;
-			aad[1] = 22;
-		}
-		*(uint16_t *)&aad[26] = 0;
-		*(uint32_t *)&aad[28] = 0;
-	}
+	/* Init AAD */
+	(void) ieee80211_crypto_init_aad(wh, aad, 2 * AES_BLOCK_LEN);
 
 	/* Start with the first block and AAD */
 	rijndael_encrypt(ctx, b0, auth);
@@ -524,7 +541,6 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	b0[0] &= 0x07;
 	b0[14] = b0[15] = 0;
 	rijndael_encrypt(ctx, b0, s0);
-#undef	IS_QOS_DATA
 }
 
 #define	CCMP_ENCRYPT(_i, _b, _b0, _pos, _e, _len) do {	\
