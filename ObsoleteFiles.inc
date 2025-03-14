@@ -13587,9 +13587,6 @@ OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
 # 20161010: remove link to removed m_getclr(9) macro
 OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
-# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
