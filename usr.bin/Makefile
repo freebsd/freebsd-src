@@ -247,7 +247,6 @@ SUBDIR.${MK_TFTP}+=	tftp
 SUBDIR.${MK_TOOLCHAIN}+=	addr2line
 SUBDIR.${MK_TOOLCHAIN}+=	ar
 SUBDIR.${MK_TOOLCHAIN}+=	nm
-SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	readelf
 SUBDIR.${MK_TOOLCHAIN}+=	size
 .endif
@@ -270,6 +269,8 @@ SUBDIR.${MK_TOOLCHAIN}+=	indent
 SUBDIR.${MK_TOOLCHAIN}+=	lex
 SUBDIR.${MK_TOOLCHAIN}+=	lorder
 SUBDIR.${MK_TOOLCHAIN}+=	mkstr
+# ELF Tool Chain elfcopy required for EFI objects (PR280771)
+SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef
 SUBDIR.${MK_TOOLCHAIN}+=	xstr
