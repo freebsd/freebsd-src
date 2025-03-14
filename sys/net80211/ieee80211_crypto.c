@@ -800,7 +800,8 @@ ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 			 * modules to handle a NULL key and not to dereference
 			 * it.
 			 */
-			ieee80211_notify_michael_failure(vap, wh, -1);
+			ieee80211_notify_michael_failure(vap, wh,
+			    IEEE80211_KEYIX_NONE);
 			return (0);
 		}
 
