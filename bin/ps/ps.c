@@ -503,7 +503,14 @@ main(int argc, char *argv[])
 	free(keywords_info);
 	keywords_info = NULL;
 
-	if (!all && nselectors == 0) {
+	if (all)
+		/*
+		 * We have to display all processes, regardless of other
+		 * options.
+		 */
+		nselectors = 0;
+	else if (nselectors == 0) {
+		/* Default is to request our processes only. */
 		uidlist.l.ptr = malloc(sizeof(uid_t));
 		if (uidlist.l.ptr == NULL)
 			xo_errx(1, "malloc failed");
