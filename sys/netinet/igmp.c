@@ -404,6 +404,7 @@ sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS)
 {
 	int	 error;
 	int	 new;
+	struct igmp_ifsoftc *igi;
 
 	error = sysctl_wire_old_buffer(req, sizeof(int));
 	if (error)
@@ -422,10 +423,18 @@ sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS)
 		goto out_locked;
 	}
 
-	CTR2(KTR_IGMPV3, "change igmp_default_version from %d to %d",
-	     V_igmp_default_version, new);
+	if (V_igmp_default_version != new) {
+		CTR2(KTR_IGMPV3, "change igmp_default_version from %d to %d",
+			V_igmp_default_version, new);
 
-	V_igmp_default_version = new;
+		V_igmp_default_version = new;
+
+		LIST_FOREACH(igi, &V_igi_head, igi_link) {
+			if (igi->igi_version > V_igmp_default_version){
+				igmp_set_version(igi, V_igmp_default_version);
+			}
+		}
+	}
 
 out_locked:
 	IGMP_UNLOCK();
