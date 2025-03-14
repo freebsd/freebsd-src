@@ -158,7 +158,7 @@ static void
 usage(void)
 {
 
-	printf("wlanstats: [-ah] [-i ifname] [-l] [-m station MAC address] [-o fmt] [interval]\n");
+	printf("wlanstats: [-h] [-i ifname] [-l] [-m station_MAC_address] [-o fmt] [interval]\n");
 }
 
 int

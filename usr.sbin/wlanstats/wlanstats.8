@@ -6,7 +6,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd February 20, 2025
+.Dd March 14, 2025
 .Dt WLANSTATS 8
 .Os
 .Sh NAME
@@ -14,11 +14,10 @@
 .Nd query 802.11 wireless network statistics
 .Sh SYNOPSIS
 .Nm
-.\" .Op Fl a
 .Op Fl h
 .Op Fl i Ar ifnet
 .Op Fl l
-.Op Fl m Ar station MAC address
+.Op Fl m Ar station_MAC_address
 .Op Fl o Ar fmt
 .Op interval
 .Sh DESCRIPTION
@@ -44,19 +43,19 @@ Report information for the specified
 instead of the default
 .Em wlan0 .
 .It Fl l
-List all fields names and their descriptions.
-.It Fl m Ar station MAC address
+List all field names and their descriptions.
+.It Fl m Ar station_MAC_address
 Request information for the station specified by the given
-.Ar MAC address.
+.Ar MAC_address .
 .It Fl o Ar fmt
 Set format of fields to query.
-This can be either on of the pre-defined tags:
+This can be either a pre-defined tag (one of
 .Em default ,
-.Em ampdu , or
-.Em amsdu
+.Em ampdu ,
+or
+.Em amsdu ) ,
 or a comma separated list of field names without space.
 .El
-.Pp
 .Sh SEE ALSO
 .Xr ifconfig 8 ,
 .Xr wlandebug 8
