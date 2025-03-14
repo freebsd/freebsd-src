@@ -380,90 +380,6 @@ gcmp_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	return (1);
 }
 
-/**
- * @brief Calculate the AAD required for this frame for AES-GCM.
- *
- * Note: This code was first copied over from ieee80211_crypto_ccmp.c, so
- * it has some CCMP-isms.
- *
- * NOTE: the first two bytes are a 16 bit big-endian length, which are used
- * by AES-CCM.  AES-GCM doesn't require the length at the beginning.
- *
- * @param wh	802.11 frame to calculate the AAD over
- * @param aad	AAD buffer, GCM_AAD_LEN bytes
- * @param The AAD length in bytes.
- */
-static int
-gcmp_init_aad(const struct ieee80211_frame *wh, uint8_t *aad)
-{
-	int aad_len;
-
-	memset(aad, 0, GCM_AAD_LEN);
-
-#define	IS_QOS_DATA(wh)	IEEE80211_QOS_HAS_SEQ(wh)
-	/* AAD:
-	 * FC with bits 4..6 and 11..13 masked to zero; 14 is always one
-	 * A1 | A2 | A3
-	 * SC with bits 4..15 (seq#) masked to zero
-	 * A4 (if present)
-	 * QC (if present)
-	 */
-	aad[0] = 0;	/* AAD length >> 8 */
-	/* NB: aad[1] set below */
-
-	/*
-	 * TODO: go back over this in 802.11-2020 and triple check
-	 * the AAD assembly with regards to packet flags.
-	 */
-
-	aad[2] = wh->i_fc[0] & 0x8f;	/* XXX magic #s */
-	/*
-	 * TODO: 12.5.3.3.3 - bit 14 should always be set; bit 15 masked to 0
-	 * if QoS control field, unmasked otherwise
-	 */
-	aad[3] = wh->i_fc[1] & 0xc7;	/* XXX magic #s */
-	/* NB: we know 3 addresses are contiguous */
-	memcpy(aad + 4, wh->i_addr1, 3 * IEEE80211_ADDR_LEN);
-	aad[22] = wh->i_seq[0] & IEEE80211_SEQ_FRAG_MASK;
-	aad[23] = 0; /* all bits masked */
-	/*
-	 * Construct variable-length portion of AAD based
-	 * on whether this is a 4-address frame/QOS frame.
-	 * We always zero-pad to 32 bytes before running it
-	 * through the cipher.
-	 */
-	if (IEEE80211_IS_DSTODS(wh)) {
-		IEEE80211_ADDR_COPY(aad + 24,
-			((const struct ieee80211_frame_addr4 *)wh)->i_addr4);
-		if (IS_QOS_DATA(wh)) {
-			const struct ieee80211_qosframe_addr4 *qwh4 =
-				(const struct ieee80211_qosframe_addr4 *) wh;
-			aad[30] = qwh4->i_qos[0] & 0x0f;/* just priority bits */
-			aad[31] = 0;
-			aad_len = aad[1] = 22 + IEEE80211_ADDR_LEN + 2;
-		} else {
-			*(uint16_t *)&aad[30] = 0;
-			aad_len = aad[1] = 22 + IEEE80211_ADDR_LEN;
-		}
-	} else {
-		if (IS_QOS_DATA(wh)) {
-			const struct ieee80211_qosframe *qwh =
-				(const struct ieee80211_qosframe*) wh;
-			aad[24] = qwh->i_qos[0] & 0x0f;	/* just priority bits */
-			aad[25] = 0;
-			aad_len = aad[1] = 22 + 2;
-		} else {
-			*(uint16_t *)&aad[24] = 0;
-			aad_len = aad[1] = 22;
-		}
-		*(uint16_t *)&aad[26] = 0;
-		*(uint32_t *)&aad[28] = 0;
-	}
-#undef	IS_QOS_DATA
-
-	return (aad_len);
-}
-
 /*
  * Populate the 12 byte / 96 bit IV buffer.
  */
@@ -538,7 +454,7 @@ gcmp_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 	}
 
 	/* Initialise AAD */
-	aad_len = gcmp_init_aad(wh, aad);
+	aad_len = ieee80211_crypto_init_aad(wh, aad, GCM_AAD_LEN);
 
 	/* Initialise local Nonce to work on */
 	/* TODO: rename iv stuff here to nonce */
@@ -629,7 +545,7 @@ gcmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m,
 	}
 
 	/* Initialise AAD */
-	aad_len = gcmp_init_aad(wh, aad);
+	aad_len = ieee80211_crypto_init_aad(wh, aad, GCM_AAD_LEN);
 
 	/* Initialise local IV copy to work on */
 	iv_len = gcmp_init_iv(iv, wh, pn);
