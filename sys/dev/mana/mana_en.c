@@ -1890,13 +1890,6 @@ mana_poll_rx_cq(struct mana_cq *cq)
 		mana_process_rx_cqe(cq->rxq, cq, &comp[i]);
 	}
 
-	if (comp_read > 0) {
-		struct gdma_context *gc =
-		    cq->rxq->gdma_rq->gdma_dev->gdma_context;
-
-		mana_gd_wq_ring_doorbell(gc, cq->rxq->gdma_rq);
-	}
-
 	tcp_lro_flush_all(&cq->rxq->lro);
 }
 
