@@ -870,7 +870,7 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 
 void
 ieee80211_notify_michael_failure(struct ieee80211vap *vap,
-	const struct ieee80211_frame *wh, u_int keyix)
+	const struct ieee80211_frame *wh, ieee80211_keyix keyix)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
