@@ -44,6 +44,7 @@
 
 #include <errno.h>
 #include <netdb.h>
+#include <string.h> // Ensure bcmp is available
 #include <bitstring.h>
 
 #include <netgraph/ng_message.h>
@@ -224,7 +225,12 @@ bdaddr_copy(bdaddr_t *d, const bdaddr_t *s)
 	d->b[5] = s->b[5];
 }
 
+/*
+ * Internal utility functions (used by bt_aton and bt_ntoa)
+ */
+static int bt_hex_byte(char const *str);
+static int bt_hex_nibble(char nibble);
+
 __END_DECLS
 
 #endif /* ndef _BLUETOOTH_H_ */
-
