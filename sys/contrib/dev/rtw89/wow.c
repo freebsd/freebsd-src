@@ -17,13 +17,21 @@ void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	const u8 *rsn, *ies = mgmt->u.assoc_req.variable;
+#if defined(__linux__)
 	struct rtw89_rsn_ie *rsn_ie;
+#elif defined(__FreeBSD__)
+	const struct rtw89_rsn_ie *rsn_ie;
+#endif
 
 	rsn = cfg80211_find_ie(WLAN_EID_RSN, ies, skb->len);
 	if (!rsn)
 		return;
 
+#if defined(__linux__)
 	rsn_ie = (struct rtw89_rsn_ie *)rsn;
+#elif defined(__FreeBSD__)
+	rsn_ie = (const struct rtw89_rsn_ie *)rsn;
+#endif
 	rtw_wow->akm = rsn_ie->akm_cipher_suite.type;
 }
 
@@ -111,8 +119,13 @@ static int rtw89_rx_pn_to_iv(struct rtw89_dev *rtwdev,
 	if (err)
 		return err;
 
+#if defined(__linux__)
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%llx to iv-%*ph\n",
 		    __func__, key->keyidx, pn, 8, iv);
+#elif defined(__FreeBSD__)
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%jx to iv-%*ph\n",
+		    __func__, key->keyidx, (uintmax_t)pn, 8, iv);
+#endif
 
 	return 0;
 }
@@ -129,8 +142,13 @@ static int rtw89_tx_pn_to_iv(struct rtw89_dev *rtwdev,
 	if (err)
 		return err;
 
+#if defined(__linux__)
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%llx to iv-%*ph\n",
 		    __func__, key->keyidx, pn, 8, iv);
+#elif defined(__FreeBSD__)
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%jx to iv-%*ph\n",
+		    __func__, key->keyidx, (uintmax_t)pn, 8, iv);
+#endif
 
 	return 0;
 }
@@ -204,8 +222,13 @@ static int rtw89_tx_iv_to_pn(struct rtw89_dev *rtwdev,
 		return err;
 
 	atomic64_set(&key->tx_pn, pn);
+#if defined(__linux__)
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d iv-%*ph to pn-%llx\n",
 		    __func__, key->keyidx, 8, iv, pn);
+#elif defined(__FreeBSD__)
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d iv-%*ph to pn-%jx\n",
+		    __func__, key->keyidx, 8, iv, (uintmax_t)pn);
+#endif
 
 	return 0;
 }
@@ -235,8 +258,13 @@ static int rtw89_rx_pn_get_pmf(struct rtw89_dev *rtwdev,
 	     u64_encode_bits(seq.ccmp.pn[5], RTW89_KEY_PN_0);
 	gtk_info->ipn = cpu_to_le64(pn);
 	gtk_info->igtk_keyid = cpu_to_le32(key->keyidx);
+#if defined(__linux__)
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%llx\n",
 		    __func__, key->keyidx, pn);
+#elif defined(__FreeBSD__)
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%jx\n",
+		    __func__, key->keyidx, (uintmax_t)pn);
+#endif
 
 	return 0;
 }
@@ -472,10 +500,17 @@ static void rtw89_wow_debug_aoac_rpt(struct rtw89_dev *rtwdev)
 		    8, aoac_rpt->gtk_rx_iv[2]);
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] gtk_rx_iv[3] = %*ph\n",
 		    8, aoac_rpt->gtk_rx_iv[3]);
+#if defined(__linux__)
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_key_id = %llu\n",
 		    aoac_rpt->igtk_key_id);
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_ipn = %llu\n",
 		    aoac_rpt->igtk_ipn);
+#elif defined(__FreeBSD__)
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_key_id = %ju\n",
+		    (uintmax_t)aoac_rpt->igtk_key_id);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_ipn = %ju\n",
+		    (uintmax_t)aoac_rpt->igtk_ipn);
+#endif
 	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk = %*ph\n",
 		    32, aoac_rpt->igtk);
 }
