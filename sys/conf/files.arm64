@@ -735,6 +735,7 @@ dev/iicbus/pmic/rockchip/rk805.c		optional fdt rk805 soc_rockchip_rk3328
 dev/iicbus/pmic/rockchip/rk808.c		optional fdt rk808 soc_rockchip_rk3399
 dev/iicbus/pmic/rockchip/rk817.c		optional fdt rk817 soc_rockchip_rk3568
 arm64/rockchip/rk_grf.c				optional fdt soc_rockchip
+arm64/rockchip/rk_grf_gpio.c			optional fdt soc_rockchip
 arm64/rockchip/rk_pinctrl.c			optional fdt rk_pinctrl soc_rockchip
 arm64/rockchip/rk_gpio.c			optional fdt rk_gpio soc_rockchip
 arm64/rockchip/rk_iodomain.c			optional fdt rk_iodomain
