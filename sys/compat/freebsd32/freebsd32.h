@@ -451,6 +451,7 @@ struct kinfo_knote32 {
 	struct kevent32	knt_event;
 	int		knt_status;
 	int		knt_extdata;
+	uint32_t	knt_spare0[8];
 	union {
 		struct {
 			int		knt_vnode_type;
