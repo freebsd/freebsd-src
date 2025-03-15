@@ -9,13 +9,13 @@ sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -x slee -P $$
+pkill -P $$ -x slee
 if [ $? -ne 0 ]; then
 	echo "ok 1 - $name"
 else
 	echo "not ok 1 - $name"
 fi
-pkill -x sleep -P $$
+pkill -P $$ -x sleep
 if [ $? -eq 0 ]; then
 	echo "ok 2 - $name"
 else
@@ -28,13 +28,13 @@ sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
 $sleep 5 &
 sleep 0.3
-pkill -x -f "$sleep " -P $$
+pkill -P $$ -x -f "$sleep "
 if [ $? -ne 0 ]; then
 	echo "ok 3 - $name"
 else
 	echo "not ok 3 - $name"
 fi
-pkill -x -f "$sleep 5" -P $$
+pkill -P $$ -x -f "$sleep 5"
 if [ $? -eq 0 ]; then
 	echo "ok 4 - $name"
 else
