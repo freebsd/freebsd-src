@@ -98,9 +98,18 @@ sfp_status(if_ctx *ctx)
 		for (size_t chan = 0; chan < channel_count; ++chan) {
 			uint16_t rx = status.channel[chan].rx;
 			uint16_t tx = status.channel[chan].tx;
-			printf("\tlane %zu: "
-			    "RX power: %.2f mW (%.2f dBm) TX bias: %.2f mA\n",
-			    chan + 1, power_mW(rx), power_dBm(rx), bias_mA(tx));
+			uint16_t tx_bias = status.channel[chan].tx_bias;
+
+			if (ifconfig_sfp_id_is_qsfp(info.sfp_id))
+				printf("\tlane %zu: "
+				    "RX power: %.2f mW (%.2f dBm) TX bias: %.2f mA\n",
+				    chan + 1, power_mW(rx), power_dBm(rx), bias_mA(tx_bias));
+			else
+				printf("\tlane %zu: "
+				    "RX power: %.2f mW (%.2f dBm) "
+				    "TX power: %.2f mW (%.2f dBm) TX bias: %.2f mA\n",
+				    chan + 1, power_mW(rx), power_dBm(rx),
+				    power_mW(tx), power_dBm(tx), bias_mA(tx_bias));
 		}
 		ifconfig_sfp_free_sfp_status(&status);
 	}
