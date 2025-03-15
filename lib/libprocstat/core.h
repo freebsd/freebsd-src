@@ -31,7 +31,7 @@
 #define _CORE_H
 
 enum psc_type {
-	PSC_TYPE_PROC,
+	PSC_TYPE_PROC = 0,
 	PSC_TYPE_FILES,
 	PSC_TYPE_VMMAP,
 	PSC_TYPE_GROUPS,
