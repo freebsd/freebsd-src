@@ -441,6 +441,12 @@ uath_attach(device_t dev)
 	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
+
+	/* Note: this has to happen AFTER ieee80211_ifattach() */
+	ieee80211_set_software_ciphers(ic,
+	    IEEE80211_CRYPTO_WEP | IEEE80211_CRYPTO_TKIP |
+	    IEEE80211_CRYPTO_AES_CCM | IEEE80211_CRYPTO_AES_GCM_128);
+
 	ic->ic_raw_xmit = uath_raw_xmit;
 	ic->ic_scan_start = uath_scan_start;
 	ic->ic_scan_end = uath_scan_end;
