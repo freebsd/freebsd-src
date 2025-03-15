@@ -105,6 +105,7 @@ static void *elf_note_powerpc_vsx(void *, size_t *);
 static void *elf_note_procstat_auxv(void *, size_t *);
 static void *elf_note_procstat_files(void *, size_t *);
 static void *elf_note_procstat_groups(void *, size_t *);
+static void *elf_note_procstat_kqueues(void *, size_t *);
 static void *elf_note_procstat_osrel(void *, size_t *);
 static void *elf_note_procstat_proc(void *, size_t *);
 static void *elf_note_procstat_psstrings(void *, size_t *);
@@ -388,6 +389,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 	elf_putnote(NT_PROCSTAT_PSSTRINGS, elf_note_procstat_psstrings, &pid,
 	    sb);
 	elf_putnote(NT_PROCSTAT_AUXV, elf_note_procstat_auxv, &pid, sb);
+	elf_putnote(NT_PROCSTAT_KQUEUES, elf_note_procstat_kqueues, &pid, sb);
 #endif
 
 	size = sbuf_end_section(sb, old_len, 1, 0);
@@ -756,7 +758,7 @@ procstat_sysctl(void *arg, int what, size_t structsz, size_t *sizep)
 {
 	size_t len;
 	pid_t pid;
-	int name[4], structsize;
+	int name[5], structsize;
 	void *buf, *p;
 
 	pid = *(pid_t *)arg;
@@ -839,6 +841,14 @@ elf_note_procstat_auxv(void *arg, size_t *sizep)
 
 	return (procstat_sysctl(arg, KERN_PROC_AUXV,
 	    sizeof(Elf_Auxinfo), sizep));
+}
+
+static void *
+elf_note_procstat_kqueues(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_KQUEUE,
+	    sizeof(struct kinfo_knote), sizep));
 }
 
 static void *
