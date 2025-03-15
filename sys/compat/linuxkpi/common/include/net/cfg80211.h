@@ -1033,9 +1033,12 @@ struct cfg80211_wowlan_nd_info {
 
 enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_DISCONNECT,
-	WIPHY_WOWLAN_GTK_REKEY_FAILURE,
 	WIPHY_WOWLAN_MAGIC_PKT,
 	WIPHY_WOWLAN_SUPPORTS_GTK_REKEY,
+	WIPHY_WOWLAN_GTK_REKEY_FAILURE,
+	WIPHY_WOWLAN_EAP_IDENTITY_REQ,
+	WIPHY_WOWLAN_4WAY_HANDSHAKE,
+	WIPHY_WOWLAN_RFKILL_RELEASE,
 	WIPHY_WOWLAN_NET_DETECT,
 };
 
@@ -1049,6 +1052,7 @@ struct cfg80211_wowlan_wakeup {
 	/* XXX TODO */
 	uint16_t				pattern_idx;
 	bool					disconnect;
+	bool					unprot_deauth_disassoc;
 	bool					eap_identity_req;
 	bool					four_way_handshake;
 	bool					gtk_rekey_failure;
@@ -1066,11 +1070,22 @@ struct cfg80211_wowlan_wakeup {
 
 struct cfg80211_wowlan {
 	/* XXX TODO */
-	int	disconnect, gtk_rekey_failure, magic_pkt;
-	int	eap_identity_req, four_way_handshake, rfkill_release, tcp, any;
+	bool					any;
+	bool					disconnect;
+	bool					magic_pkt;
+	bool					gtk_rekey_failure;
+	bool					eap_identity_req;
+	bool					four_way_handshake;
+	bool					rfkill_release;
+
+	/* Magic packet patterns. */
 	int					n_patterns;
-	struct cfg80211_sched_scan_request	*nd_config;
 	struct cfg80211_pkt_pattern		*patterns;
+
+	/* netdetect? if not assoc? */
+	struct cfg80211_sched_scan_request	*nd_config;
+
+	void					*tcp;		/* XXX ? */
 };
 
 struct cfg80211_gtk_rekey_data {
@@ -1244,7 +1259,8 @@ struct wiphy {
 
 	unsigned long				ext_features[BITS_TO_LONGS(NUM_NL80211_EXT_FEATURES)];
 	struct dentry				*debugfsdir;
-	struct cfg80211_wowlan_support		*wowlan;
+	const struct wiphy_wowlan_support	*wowlan;
+	struct cfg80211_wowlan			*wowlan_config;
 	/* Lower layer (driver/mac80211) specific data. */
 	/* Must stay last. */
 	uint8_t					priv[0] __aligned(CACHE_LINE_SIZE);

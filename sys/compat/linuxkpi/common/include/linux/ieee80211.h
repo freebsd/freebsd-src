@@ -147,6 +147,7 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP104			= 13,
 	WLAN_KEY_LEN_TKIP			= 32,
 	WLAN_KEY_LEN_CCMP			= 16,
+	WLAN_KEY_LEN_CCMP_256			= 32,
 	WLAN_KEY_LEN_GCMP			= 16,
 	WLAN_KEY_LEN_AES_CMAC			= 16,
 	WLAN_KEY_LEN_GCMP_256			= 32,
@@ -507,6 +508,12 @@ struct ieee80211_mgmt {
 			uint16_t	capab_info;
 			uint8_t		variable[0];
 		} beacon;
+		/* 9.3.3.5 Association Request frame format */
+		struct  {
+			uint16_t	capab_info;
+			uint16_t	listen_interval;
+			uint8_t		variable[0];
+		} assoc_req;
 		/* 9.3.3.10 Probe Request frame format */
 		struct {
 			uint8_t		variable[0];
