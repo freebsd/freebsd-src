@@ -377,6 +377,8 @@ void vm_object_page_noreuse(vm_object_t object, vm_pindex_t start,
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end, int options);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
+void vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst,
+    int count, int *rbehind, int *rahead, vm_page_t *ma_src);
 void vm_object_print(long addr, boolean_t have_addr, long count, char *modif);
 void vm_object_reference (vm_object_t);
 void vm_object_reference_locked(vm_object_t);

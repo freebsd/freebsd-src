@@ -2258,6 +2258,64 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	return (TRUE);
 }
 
+/*
+ * Fill in the m_dst array with up to *rbehind optional pages before m_src[0]
+ * and up to *rahead optional pages after m_src[count - 1].  In both cases, stop
+ * the filling-in short on encountering a cached page, an object boundary limit,
+ * or an allocation error.  Update *rbehind and *rahead to indicate the number
+ * of pages allocated.  Copy elements of m_src into array elements from
+ * m_dst[*rbehind] to m_dst[*rbehind + count -1].
+ */
+void
+vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst, int count,
+    int *rbehind, int *rahead, vm_page_t *ma_src)
+{
+	vm_pindex_t pindex;
+	vm_page_t m, mpred, msucc;
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (*rbehind != 0) {
+		m = ma_src[0];
+		pindex = m->pindex;
+		mpred = TAILQ_PREV(m, pglist, listq);
+		*rbehind = MIN(*rbehind,
+		    pindex - (mpred != NULL ? mpred->pindex + 1 : 0));
+		/* Stepping backward from pindex, mpred doesn't change. */
+		for (int i = 0; i < *rbehind; i++) {
+			m = vm_page_alloc_after(object, pindex - i - 1,
+			    VM_ALLOC_NORMAL, mpred);
+			if (m == NULL) {
+				/* Shift the array. */
+				for (int j = 0; j < i; j++)
+					ma_dst[j] = ma_dst[j + *rbehind - i];
+				*rbehind = i;
+				*rahead = 0;
+				break;
+			}
+			ma_dst[*rbehind - i - 1] = m;
+		}
+	}	
+	for (int i = 0; i < count; i++)
+		ma_dst[*rbehind + i] = ma_src[i];
+	if (*rahead != 0) {
+		m = ma_src[count - 1];
+		pindex = m->pindex + 1;
+		msucc = TAILQ_NEXT(m, listq);
+		*rahead = MIN(*rahead,
+		    (msucc != NULL ? msucc->pindex : object->size) - pindex);
+		mpred = m;
+		for (int i = 0; i < *rahead; i++) {
+			m = vm_page_alloc_after(object, pindex + i,
+			    VM_ALLOC_NORMAL, mpred);
+			if (m == NULL) {
+				*rahead = i;
+				break;
+			}
+			ma_dst[*rbehind + count + i] = mpred = m;
+		}
+	}
+}
+
 void
 vm_object_set_writeable_dirty_(vm_object_t object)
 {
