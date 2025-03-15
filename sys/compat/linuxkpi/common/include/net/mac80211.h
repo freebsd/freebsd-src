@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 #include <linux/dcache.h>
 #include <net/cfg80211.h>
+#include <net/if_inet6.h>
 
 #define	ARPHRD_IEEE80211_RADIOTAP		__LINE__ /* XXX TODO brcmfmac */
 
@@ -1089,9 +1090,7 @@ struct ieee80211_ops {
 	int  (*set_tim)(struct ieee80211_hw *, struct ieee80211_sta *, bool);
 
 	int  (*set_key)(struct ieee80211_hw *, enum set_key_cmd, struct ieee80211_vif *, struct ieee80211_sta *, struct ieee80211_key_conf *);
-	void (*set_default_unicast_key)(struct ieee80211_hw *, struct ieee80211_vif *, int);
 	void (*update_tkip_key)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_key_conf *, struct ieee80211_sta *, u32, u16 *);
-	void (*set_rekey_data)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_gtk_rekey_data *);
 
 	int  (*start_pmsr)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_pmsr_request *);
 	void (*abort_pmsr)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_pmsr_request *);
@@ -1135,8 +1134,17 @@ struct ieee80211_ops {
 	void (*link_sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_link_sta *, struct dentry *);
 	void (*link_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, struct dentry *);
 /* #endif */
+/* #ifdef CONFIG_PM_SLEEP */		/* Do not change depending on compile-time option. */
+	int (*suspend)(struct ieee80211_hw *, struct cfg80211_wowlan *);
+	int (*resume)(struct ieee80211_hw *);
+	void (*set_wakeup)(struct ieee80211_hw *, bool);
+	void (*set_rekey_data)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_gtk_rekey_data *);
+	void (*set_default_unicast_key)(struct ieee80211_hw *, struct ieee80211_vif *, int);
+/* #if IS_ENABLED(CONFIG_IPV6) */
+	void (*ipv6_addr_change)(struct ieee80211_hw *, struct ieee80211_vif *, struct inet6_dev *);
+/* #endif */
+/* #endif CONFIG_PM_SLEEP */
 };
-
 
 /* -------------------------------------------------------------------------- */
 
@@ -2425,7 +2433,7 @@ ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *key,
 
 static __inline struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
-    struct ieee80211_key_conf *key)
+    struct ieee80211_key_conf *key, int link_id)
 {
         TODO();
         return (NULL);
