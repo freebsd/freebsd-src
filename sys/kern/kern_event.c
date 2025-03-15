@@ -2964,8 +2964,6 @@ kern_proc_kqueues_out1(struct thread *td, struct proc *p, struct sbuf *s,
 {
 	struct kern_proc_kqueues_out1_cb_args a;
 
-	MPASS(p == curproc);
-
 	a.s = s;
 	a.compat32 = compat32;
 	return (fget_remote_foreach(td, p, kern_proc_kqueues_out1_cb, &a));
@@ -2988,18 +2986,38 @@ kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
 }
 
 static int
+sysctl_kern_proc_kqueue_one(struct thread *td, struct sbuf *s, struct proc *p,
+    int kq_fd, bool compat32)
+{
+	struct file *fp;
+	struct kqueue *kq;
+	int error;
+
+	error = fget_remote(td, p, kq_fd, &fp);
+	if (error == 0) {
+		if (fp->f_type != DTYPE_KQUEUE) {
+			error = EINVAL;
+		} else {
+			kq = fp->f_data;
+			error = kern_proc_kqueue_report(s, p, kq_fd, kq,
+			    compat32);
+		}
+		fdrop(fp, td);
+	}
+	return (error);
+}
+
+static int
 sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 {
 	struct thread *td;
 	struct proc *p;
-	struct file *fp;
-	struct kqueue *kq;
 	struct sbuf *s, sm;
-	int error, error1, kq_fd, *name;
+	int error, error1, *name;
 	bool compat32;
 
 	name = (int *)arg1;
-	if ((u_int)arg2 != 2)
+	if ((u_int)arg2 > 2 || (u_int)arg2 == 0)
 		return (EINVAL);
 
 	error = pget((pid_t)name[0], PGET_HOLD | PGET_CANDEBUG, &p);
@@ -3007,36 +3025,32 @@ sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	td = curthread;
-	kq_fd = name[1];
-	error = fget_remote(td, p, kq_fd, &fp);
-	if (error != 0)
-		goto out1;
-	if (fp->f_type != DTYPE_KQUEUE) {
-		error = EINVAL;
-		goto out2;
-	}
-
-	s = sbuf_new_for_sysctl(&sm, NULL, 0, req);
-	if (s == NULL) {
-		error = ENOMEM;
-		goto out2;
-	}
-	sbuf_clear_flags(s, SBUF_INCLUDENUL);
 #ifdef FREEBSD_COMPAT32
 	compat32 = SV_CURPROC_FLAG(SV_ILP32);
 #else
 	compat32 = false;
 #endif
 
-	kq = fp->f_data;
-	error = kern_proc_kqueue_report(s, p, kq_fd, kq, compat32);
+	s = sbuf_new_for_sysctl(&sm, NULL, 0, req);
+	if (s == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	sbuf_clear_flags(s, SBUF_INCLUDENUL);
+
+	if ((u_int)arg2 == 1) {
+		error = kern_proc_kqueues_out1(td, p, s, compat32);
+	} else {
+		error = sysctl_kern_proc_kqueue_one(td, s, p,
+		    name[1] /* kq_fd */, compat32);
+	}
+
 	error1 = sbuf_finish(s);
 	if (error == 0)
 		error = error1;
 	sbuf_delete(s);
-out2:
-	fdrop(fp, td);
-out1:
+
+out:
 	PRELE(p);
 	return (error);
 }
