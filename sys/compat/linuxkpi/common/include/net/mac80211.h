@@ -581,10 +581,13 @@ struct ieee80211_key_seq {
 			uint8_t		pn[IEEE80211_CCMP_PN_LEN];
 		} ccmp;
 		struct {
-			uint8_t		pn[IEEE80211_CCMP_PN_LEN];
+			uint8_t		pn[IEEE80211_GCMP_PN_LEN];
+		} gcmp;
+		struct {
+			uint8_t		pn[IEEE80211_CMAC_PN_LEN];
 		} aes_cmac;
 		struct {
-			uint8_t		pn[IEEE80211_CCMP_PN_LEN];
+			uint8_t		pn[IEEE80211_GMAC_PN_LEN];
 		} aes_gmac;
 		struct {
 			uint32_t	iv32;
