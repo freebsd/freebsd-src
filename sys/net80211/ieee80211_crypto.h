@@ -216,6 +216,11 @@ struct ieee80211_cipher {
 	void	(*ic_setiv)(struct ieee80211_key *, uint8_t *);
 	int	(*ic_encap)(struct ieee80211_key *, struct mbuf *);
 	int	(*ic_decap)(struct ieee80211_key *, struct mbuf *, int);
+	/*
+	 * ic_enmic() and ic_demic() are currently only used by TKIP.
+	 * Please see ieee80211_crypto_enmic() and ieee80211_crypto_demic()
+	 * for more information.
+	 */
 	int	(*ic_enmic)(struct ieee80211_key *, struct mbuf *, int);
 	int	(*ic_demic)(struct ieee80211_key *, struct mbuf *, int);
 };
@@ -240,8 +245,24 @@ int	ieee80211_crypto_decap(struct ieee80211_node *,
 		struct mbuf *, int, struct ieee80211_key **);
 int ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 		struct mbuf *, int);
-/*
- * Add any MIC.
+/**
+ * @brief Add any pre-fragmentation MIC to an MSDU.
+ *
+ * This is called before 802.11 fragmentation.  Crypto types that implement
+ * a MIC/ICV check per MSDU will not implement this function.
+ *
+ * As an example, TKIP implements a Michael MIC check over the entire
+ * unencrypted MSDU before fragmenting it into MPDUs and passing each
+ * MPDU to be separately encrypted with their own MIC/ICV.
+ *
+ * Please see 802.11-2020 12.5.2.1.2 (TKIP cryptographic encapsulation)
+ * for more information.
+ *
+ * @param vap	the current VAP
+ * @param k	the current key
+ * @param m	the mbuf representing the MSDU
+ * @param f	set to 1 to force a MSDU MIC check, even if HW encrypted
+ * @returns	0 if error / MIC encap failed, 1 if OK
  */
 static __inline int
 ieee80211_crypto_enmic(struct ieee80211vap *vap,
