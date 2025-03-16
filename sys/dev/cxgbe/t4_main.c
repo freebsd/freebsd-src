@@ -3537,6 +3537,7 @@ port_mword(struct port_info *pi, uint32_t speed)
 		/* Pluggable transceiver */
 		switch (pi->mod_type) {
 		case FW_PORT_MOD_TYPE_LR:
+		case FW_PORT_MOD_TYPE_LR_SIMPLEX:
 			switch (speed) {
 			case FW_PORT_CAP32_SPEED_1G:
 				return (IFM_1000_LX);
@@ -3592,6 +3593,10 @@ port_mword(struct port_info *pi, uint32_t speed)
 		case FW_PORT_MOD_TYPE_LRM:
 			if (speed == FW_PORT_CAP32_SPEED_10G)
 				return (IFM_10G_LRM);
+			break;
+		case FW_PORT_MOD_TYPE_DR:
+			if (speed == FW_PORT_CAP32_SPEED_100G)
+				return (IFM_100G_DR);
 			break;
 		case FW_PORT_MOD_TYPE_NA:
 			MPASS(0);	/* Not pluggable? */
@@ -12210,7 +12215,8 @@ t4_os_portmod_changed(struct port_info *pi)
 	struct vi_info *vi;
 	if_t ifp;
 	static const char *mod_str[] = {
-		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
+		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM",
+		"LR_SIMPLEX", "DR"
 	};
 
 	KASSERT((pi->flags & FIXED_IFMEDIA) == 0,
