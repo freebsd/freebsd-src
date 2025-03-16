@@ -774,8 +774,22 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
 #undef IEEE80211_WEP_HDRLEN
 }
 
-/*
- * Check and remove any MIC.
+/**
+ * @brief Check and remove any post-defragmentation MIC from an MSDU.
+ *
+ * This is called after defragmentation.  Crypto types that implement
+ * a MIC/ICV check per MSDU will not implement this function.
+ *
+ * As an example, TKIP decapsulation covers both MIC/ICV checks per
+ * MPDU (the "WEP" ICV) and then a Michael MIC verification on the
+ * defragmented MSDU.  Please see 802.11-2020 12.5.2.1.3 (TKIP decapsulation)
+ * for more information.
+ *
+ * @param vap	the current VAP
+ * @param k	the current key
+ * @param m	the mbuf representing the MSDU
+ * @param f	set to 1 to force a MSDU MIC check, even if HW decrypted
+ * @returns	0 if error / MIC check failed, 1 if OK
  */
 int
 ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
