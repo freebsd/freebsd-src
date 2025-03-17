@@ -177,20 +177,9 @@ struct portal_group {
 	uint16_t			pg_tag;
 };
 
-/* Ports created by the kernel.  Perhaps the "p" means "physical" ? */
-struct pport {
-	TAILQ_ENTRY(pport)		pp_next;
-	TAILQ_HEAD(, port)		pp_ports;
-	struct kports			*pp_kports;
-	char				*pp_name;
-
-	uint32_t			pp_ctl_port;
-};
-
 struct port {
 	TAILQ_ENTRY(port)		p_next;
 	TAILQ_ENTRY(port)		p_pgs;
-	TAILQ_ENTRY(port)		p_pps;
 	TAILQ_ENTRY(port)		p_ts;
 	struct conf			*p_conf;
 	char				*p_name;
@@ -272,8 +261,31 @@ private:
 };
 
 /* Physical ports exposed by the kernel */
+struct pport {
+	pport(std::string_view name, uint32_t ctl_port) : pp_name(name),
+	    pp_ctl_port(ctl_port) {}
+	~pport();
+
+	const char *name() const { return pp_name.c_str(); }
+	uint32_t ctl_port() const { return pp_ctl_port; }
+
+	bool linked() const { return pp_port != nullptr; }
+	void link(struct port *port) { pp_port = port; }
+
+private:
+	struct port			*pp_port;
+	std::string			pp_name;
+
+	uint32_t			pp_ctl_port;
+};
+
 struct kports {
-	TAILQ_HEAD(, pport)		pports;
+	bool add_port(const char *name, uint32_t ctl_port);
+	bool has_port(std::string_view name);
+	struct pport *find_port(std::string_view name);
+
+private:
+	std::unordered_map<std::string, struct pport> pports;
 };
 
 #define	CONN_SESSION_TYPE_NONE		0
@@ -305,7 +317,7 @@ bool			parse_conf(const char *path);
 bool			uclparse_conf(const char *path);
 
 struct conf		*conf_new(void);
-struct conf		*conf_new_from_kernel(struct kports *kports);
+struct conf		*conf_new_from_kernel(struct kports &kports);
 void			conf_delete(struct conf *conf);
 void			conf_finish(void);
 void			conf_start(struct conf *new_conf);
@@ -329,17 +341,10 @@ void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
 void			isns_deregister(struct isns *isns);
 
-struct pport		*pport_new(struct kports *kports, const char *name,
-			    uint32_t ctl_port);
-struct pport		*pport_find(const struct kports *kports,
-			    const char *name);
-struct pport		*pport_copy(struct pport *pp, struct kports *kports);
-void			pport_delete(struct pport *pport);
-
 struct port		*port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg);
 struct port		*port_new_ioctl(struct conf *conf,
-			    struct kports *kports, struct target *target,
+			    struct kports &kports, struct target *target,
 			    int pp, int vp);
 struct port		*port_new_pp(struct conf *conf, struct target *target,
 			    struct pport *pp);
