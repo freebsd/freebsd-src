@@ -78,6 +78,7 @@ rockchip_dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
 	int type;
+	int rc;
 
 	sc = device_get_softc(dev);
 	sc->hwtype = HWTYPE_ROCKCHIP;
@@ -90,8 +91,17 @@ rockchip_dwmmc_attach(device_t dev)
 	}
 
 	sc->update_ios = &dwmmc_rockchip_update_ios;
+	rc = dwmmc_attach(dev);
 
-	return (dwmmc_attach(dev));
+	/*
+	 * Note: It's not that the controller doesn't support HS200,
+	 *       it's that FreeBSD doesn't support tuning.
+	 *       If someone implemented tuning, this could work.
+	 */
+	device_printf(dev, "Disabling HS200+ (tuning code not written)\n");
+	sc->host.caps &= ~(MMC_CAP_MMC_HS200 | MMC_CAP_MMC_HS400);
+
+	return (rc);
 }
 
 static int
