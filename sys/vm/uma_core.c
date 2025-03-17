@@ -5339,6 +5339,13 @@ uma_reclaim_domain(int req, int domain)
 		zone_foreach(uma_reclaim_domain_cb, &args);
 		break;
 	case UMA_RECLAIM_DRAIN_CPU:
+		/*
+		 * Reclaim globally visible free items from all zones, then drain
+		 * per-CPU buckets, then reclaim items freed while draining.
+		 * This approach minimizes expensive context switching needed to
+		 * drain each zone's per-CPU buckets.
+		 */
+		args.req = UMA_RECLAIM_DRAIN;
 		zone_foreach(uma_reclaim_domain_cb, &args);
 		pcpu_cache_drain_safe(NULL);
 		zone_foreach(uma_reclaim_domain_cb, &args);
