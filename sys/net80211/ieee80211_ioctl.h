@@ -259,6 +259,7 @@ struct ieee80211_stats {
 	uint32_t	is_rx_gcmpmic;		/* rx MIC check failed (GCMP) */
 	uint32_t	is_crypto_gcmp_nomem;	/* gcmp crypto failed; no mem */
 	uint32_t	is_crypto_gcmp_nospc;	/* gcmp crypto failed; no mbuf space */
+	uint32_t	is_crypto_swcipherfail;	/* no support for SW cipher */
 
 	uint32_t	is_spare[5];
 };
