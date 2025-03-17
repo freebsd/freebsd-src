@@ -398,6 +398,21 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 		flags |= IEEE80211_KEY_SWCRYPT;
 	}
 	/*
+	 * Check if the software cipher is available; if not then
+	 * fail it early.
+	 *
+	 * Some devices do not support all ciphers in software
+	 * (for example they don't support a "raw" data path.)
+	 */
+	if ((flags & IEEE80211_KEY_SWCRYPT) &&
+	    (ic->ic_sw_cryptocaps & (1<<cipher)) == 0) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+		    "%s: no s/w support for cipher %s, rejecting\n",
+		    __func__, cip->ic_name);
+		vap->iv_stats.is_crypto_swcipherfail++;
+		return (0);
+	}
+	/*
 	 * Hardware TKIP with software MIC is an important
 	 * combination; we handle it by flagging each key,
 	 * the cipher modules honor it.
