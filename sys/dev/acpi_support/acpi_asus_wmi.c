@@ -26,6 +26,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_acpi.h"
+#include "opt_evdev.h"
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -40,6 +41,12 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 #include "acpi_wmi_if.h"
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#define NO_KEY	KEY_RESERVED
+#endif
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS-WMI")
@@ -110,6 +117,9 @@ struct acpi_asus_wmi_softc {
 	struct sysctl_oid	*sysctl_tree;
 	int		dsts_id;
 	int		handle_keys;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev	*evdev;
+#endif
 };
 
 static struct {
@@ -253,6 +263,82 @@ static struct {
 	{ NULL, 0, NULL, 0 }
 };
 
+#ifdef EVDEV_SUPPORT
+static const struct {
+	UINT32		notify;
+	uint16_t	key;
+} acpi_asus_wmi_evdev_map[] = {
+	{ 0x20, KEY_BRIGHTNESSDOWN },
+	{ 0x2f, KEY_BRIGHTNESSUP },
+	{ 0x30, KEY_VOLUMEUP },
+	{ 0x31, KEY_VOLUMEDOWN },
+	{ 0x32, KEY_MUTE },
+	{ 0x35, KEY_SCREENLOCK },
+	{ 0x38, KEY_PROG3 },		/* Armoury Crate */
+	{ 0x40, KEY_PREVIOUSSONG },
+	{ 0x41, KEY_NEXTSONG },
+	{ 0x43, KEY_STOPCD },		/* Stop/Eject */
+	{ 0x45, KEY_PLAYPAUSE },
+	{ 0x4f, KEY_LEFTMETA },		/* Fn-locked "Windows" Key */
+	{ 0x4c, KEY_MEDIA },		/* WMP Key */
+	{ 0x50, KEY_EMAIL },
+	{ 0x51, KEY_WWW },
+	{ 0x55, KEY_CALC },
+	{ 0x57, NO_KEY },		/* Battery mode */
+	{ 0x58, NO_KEY },		/* AC mode */
+	{ 0x5C, KEY_F15 },		/* Power Gear key */
+	{ 0x5D, KEY_WLAN },		/* Wireless console Toggle */
+	{ 0x5E, KEY_WLAN },		/* Wireless console Enable */
+	{ 0x5F, KEY_WLAN },		/* Wireless console Disable */
+	{ 0x60, KEY_TOUCHPAD_ON },
+	{ 0x61, KEY_SWITCHVIDEOMODE },	/* SDSP LCD only */
+	{ 0x62, KEY_SWITCHVIDEOMODE },	/* SDSP CRT only */
+	{ 0x63, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT */
+	{ 0x64, KEY_SWITCHVIDEOMODE },	/* SDSP TV */
+	{ 0x65, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV */
+	{ 0x66, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV */
+	{ 0x67, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV */
+	{ 0x6B, KEY_TOUCHPAD_TOGGLE },
+	{ 0x6E, NO_KEY },		/* Low Battery notification */
+	{ 0x71, KEY_F13 },		/* General-purpose button */
+	{ 0x79, NO_KEY },	/* Charger type dectection notification */
+	{ 0x7a, KEY_ALS_TOGGLE },	/* Ambient Light Sensor Toggle */
+	{ 0x7c, KEY_MICMUTE },
+	{ 0x7D, KEY_BLUETOOTH },	/* Bluetooth Enable */
+	{ 0x7E, KEY_BLUETOOTH },	/* Bluetooth Disable */
+	{ 0x82, KEY_CAMERA },
+	{ 0x86, KEY_PROG1 },		/* MyASUS Key */
+	{ 0x88, KEY_RFKILL },		/* Radio Toggle Key */
+	{ 0x8A, KEY_PROG1 },		/* Color enhancement mode */
+	{ 0x8C, KEY_SWITCHVIDEOMODE },	/* SDSP DVI only */
+	{ 0x8D, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + DVI */
+	{ 0x8E, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + DVI */
+	{ 0x8F, KEY_SWITCHVIDEOMODE },	/* SDSP TV + DVI */
+	{ 0x90, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + DVI */
+	{ 0x91, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV + DVI */
+	{ 0x92, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV + DVI */
+	{ 0x93, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV + DVI */
+	{ 0x95, KEY_MEDIA },
+	{ 0x99, KEY_PHONE },		/* Conflicts with fan mode switch */
+	{ 0xA0, KEY_SWITCHVIDEOMODE },	/* SDSP HDMI only */
+	{ 0xA1, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + HDMI */
+	{ 0xA2, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + HDMI */
+	{ 0xA3, KEY_SWITCHVIDEOMODE },	/* SDSP TV + HDMI */
+	{ 0xA4, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + HDMI */
+	{ 0xA5, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV + HDMI */
+	{ 0xA6, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV + HDMI */
+	{ 0xA7, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV + HDMI */
+	{ 0xAE, KEY_FN_F5 },		/* Fn+F5 fan mode on 2020+ */
+	{ 0xB3, KEY_PROG4 },		/* AURA */
+	{ 0xB5, KEY_CALC },
+	{ 0xC4, KEY_KBDILLUMUP },
+	{ 0xC5, KEY_KBDILLUMDOWN },
+	{ 0xC6, NO_KEY },		/* Ambient Light Sensor notification */
+	{ 0xFA, KEY_PROG2 },		/* Lid flip action */
+	{ 0xBD, KEY_PROG2 },	/* Lid flip action on ROG xflow laptops */
+};
+#endif
+
 ACPI_SERIAL_DECL(asus_wmi, "ASUS WMI device");
 
 static void	acpi_asus_wmi_identify(driver_t *driver, device_t parent);
@@ -290,6 +376,9 @@ static driver_t	acpi_asus_wmi_driver = {
 DRIVER_MODULE(acpi_asus_wmi, acpi_wmi, acpi_asus_wmi_driver, 0, 0);
 MODULE_DEPEND(acpi_asus_wmi, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_asus_wmi, acpi, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(acpi_asus_wmi, evdev, 1, 1, 1);
+#endif
 
 static void
 acpi_asus_wmi_identify(driver_t *driver, device_t parent)
@@ -437,6 +526,27 @@ next:
 	}
 	ACPI_SERIAL_END(asus_wmi);
 
+#ifdef EVDEV_SUPPORT
+	if (sc->notify_guid != NULL) {
+		sc->evdev = evdev_alloc();
+		evdev_set_name(sc->evdev, device_get_desc(dev));
+		evdev_set_phys(sc->evdev, device_get_nameunit(dev));
+		evdev_set_id(sc->evdev, BUS_HOST, 0, 0, 1);
+		evdev_support_event(sc->evdev, EV_SYN);
+		evdev_support_event(sc->evdev, EV_KEY);
+		for (i = 0; i < nitems(acpi_asus_wmi_evdev_map); i++) {
+			if (acpi_asus_wmi_evdev_map[i].key != NO_KEY)
+				evdev_support_key(sc->evdev,
+				    acpi_asus_wmi_evdev_map[i].key);
+		}
+
+		if (evdev_register(sc->evdev) != 0) {
+			acpi_asus_wmi_detach(dev);
+			return (ENXIO);
+		}
+	}
+#endif
+
 	return (0);
 }
 
@@ -447,8 +557,12 @@ acpi_asus_wmi_detach(device_t dev)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (sc->notify_guid)
+	if (sc->notify_guid) {
 		ACPI_WMI_REMOVE_EVENT_HANDLER(dev, sc->notify_guid);
+#ifdef EVDEV_SUPPORT
+		evdev_free(sc->evdev);
+#endif
+	}
 
 	return (0);
 }
@@ -540,6 +654,27 @@ acpi_asus_wmi_free_buffer(ACPI_BUFFER* buf) {
 	}
 }
 
+#ifdef EVDEV_SUPPORT
+static void
+acpi_asus_wmi_push_evdev_event(struct evdev_dev *evdev, UINT32 notify)
+{
+	int i;
+	uint16_t key;
+
+	for (i = 0; i < nitems(acpi_asus_wmi_evdev_map); i++) {
+		if (acpi_asus_wmi_evdev_map[i].notify == notify &&
+		    acpi_asus_wmi_evdev_map[i].key != NO_KEY) {
+			key = acpi_asus_wmi_evdev_map[i].key;
+			evdev_push_key(evdev, key, 1);
+			evdev_sync(evdev);
+			evdev_push_key(evdev, key, 0);
+			evdev_sync(evdev);
+			break;
+		}
+	}
+}
+#endif
+
 static void
 acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
@@ -557,6 +692,9 @@ acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 		code = obj->Integer.Value;
 		acpi_UserNotify("ASUS", ACPI_ROOT_OBJECT,
 		    code);
+#ifdef EVDEV_SUPPORT
+		acpi_asus_wmi_push_evdev_event(sc->evdev, code);
+#endif
 	}
 	if (code && sc->handle_keys) {
 		/* Keyboard backlight control. */
