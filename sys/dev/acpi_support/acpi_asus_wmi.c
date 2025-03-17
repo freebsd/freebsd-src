@@ -99,9 +99,11 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DEVID_CARDREADER       0x00080013
 #define ASUS_WMI_DEVID_TOUCHPAD         0x00100011
 #define ASUS_WMI_DEVID_TOUCHPAD_LED     0x00100012
+#define ASUS_WMI_DEVID_TUF_RGB_MODE	0x00100056
 #define ASUS_WMI_DEVID_THERMAL_CTRL     0x00110011
 #define ASUS_WMI_DEVID_FAN_CTRL         0x00110012
 #define ASUS_WMI_DEVID_PROCESSOR_STATE  0x00120012
+#define ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY 0x00120075
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT        0x00000001
@@ -129,6 +131,8 @@ struct acpi_asus_wmi_softc {
 	bool		event_queue;
 	struct cdev	*kbd_bkl;
 	uint32_t	kbd_bkl_level;
+	uint32_t	tuf_rgb_mode;
+	uint32_t	ttp_mode;
 #ifdef EVDEV_SUPPORT
 	struct evdev_dev	*evdev;
 #endif
@@ -272,6 +276,12 @@ static struct {
 		.dev_id		= ASUS_WMI_DEVID_PROCESSOR_STATE,
 		.flag_rdonly	= 1
 	},
+	{
+		.name		= "throttle_thermal_policy",
+		.dev_id		= ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+		.description	= "Throttle Thermal Policy "
+				  "(0 - default, 1 - overboost, 2 - silent)",
+	},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -365,7 +375,7 @@ static int	acpi_asus_wmi_sysctl_set(struct acpi_asus_wmi_softc *sc, int dev_id,
 		    int arg, int oldarg);
 static int	acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id);
 static int	acpi_asus_wmi_evaluate_method(device_t wmi_dev, int method,
-		    UINT32 arg0, UINT32 arg1, UINT32 *retval);
+		    UINT32 arg0, UINT32 arg1, UINT32 arg2, UINT32 *retval);
 static int	acpi_wpi_asus_get_devstate(struct acpi_asus_wmi_softc *sc,
 		    UINT32 dev_id, UINT32 *retval);
 static int	acpi_wpi_asus_set_devstate(struct acpi_asus_wmi_softc *sc,
@@ -528,14 +538,14 @@ next:
 
 	/* Initialize. */
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_INIT, 0, 0, &val) && bootverbose)
+	    ASUS_WMI_METHODID_INIT, 0, 0, 0, &val) && bootverbose)
 		device_printf(dev, "Initialization: %#x\n", val);
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_SPEC, 0, 0x9, &val) && bootverbose)
+	    ASUS_WMI_METHODID_SPEC, 0, 0x9, 0, &val) && bootverbose)
 		device_printf(dev, "WMI BIOS version: %d.%d\n",
 		    val >> 16, val & 0xFF);
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_SFUN, 0, 0, &val) && bootverbose)
+	    ASUS_WMI_METHODID_SFUN, 0, 0, 0, &val) && bootverbose)
 		device_printf(dev, "SFUN value: %#x\n", val);
 
 	ACPI_SERIAL_BEGIN(asus_wmi);
@@ -720,6 +730,13 @@ acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(asus_wmi);
 
+	switch(dev_id) {
+	case ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY:
+		return (sc->ttp_mode);
+	default:
+		break;
+	}
+
 	acpi_wpi_asus_get_devstate(sc, dev_id, &val);
 
 	switch(dev_id) {
@@ -757,6 +774,10 @@ acpi_asus_wmi_sysctl_set(struct acpi_asus_wmi_softc *sc, int dev_id, int arg, in
 		arg = min(0x3, arg);
 		if (arg != 0)
 			arg |= 0x80;
+		break;
+	case ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY:
+		arg = min(0x2, arg);
+		sc->ttp_mode = arg;
 		break;
 	}
 
@@ -848,6 +869,31 @@ acpi_asus_wmi_handle_event(struct acpi_asus_wmi_softc *sc, int code)
 			acpi_wpi_asus_set_devstate(sc,
 			    ASUS_WMI_DEVID_TOUCHPAD, val, NULL);
 		}
+		/* Throttle thermal policy control. */
+		if (code == 0xae) {
+			sc->ttp_mode++;
+			if (sc->ttp_mode > 2)
+				sc->ttp_mode = 0;
+			acpi_wpi_asus_set_devstate(sc,
+			    ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+			    sc->ttp_mode, NULL);
+		}
+		/* TUF laptop RGB mode control. */
+		if (code == 0xb3) {
+			const uint32_t cmd = 0xb4;	/* Save to BIOS */
+			const uint32_t r = 0xff, g = 0xff, b = 0xff;
+			const uint32_t speed = 0xeb;	/* Medium */
+			if (sc->tuf_rgb_mode < 2)
+				sc->tuf_rgb_mode++;
+			else if (sc->tuf_rgb_mode == 2)
+				sc->tuf_rgb_mode = 10;
+			else sc->tuf_rgb_mode = 0;
+			acpi_asus_wmi_evaluate_method(sc->wmi_dev,
+			    ASUS_WMI_METHODID_DEVS,
+			    ASUS_WMI_DEVID_TUF_RGB_MODE,
+			    cmd | (sc->tuf_rgb_mode << 8) | (r << 16) | (g << 24),
+			    b | (speed << 8), NULL);
+		}
 	}
 }
 
@@ -882,9 +928,9 @@ acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 
 static int
 acpi_asus_wmi_evaluate_method(device_t wmi_dev, int method,
-    UINT32 arg0, UINT32 arg1, UINT32 *retval)
+    UINT32 arg0, UINT32 arg1, UINT32 arg2, UINT32 *retval)
 {
-	UINT32		params[2] = { arg0, arg1 };
+	UINT32		params[3] = { arg0, arg1, arg2 };
 	UINT32		result;
 	ACPI_OBJECT	*obj;
 	ACPI_BUFFER	in = { sizeof(params), &params };
@@ -912,7 +958,7 @@ acpi_wpi_asus_get_devstate(struct acpi_asus_wmi_softc *sc,
 {
 
 	return (acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    sc->dsts_id, dev_id, 0, retval));
+	    sc->dsts_id, dev_id, 0, 0, retval));
 }
 
 static int
@@ -921,7 +967,7 @@ acpi_wpi_asus_set_devstate(struct acpi_asus_wmi_softc *sc,
 {
 
 	return (acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_DEVS, dev_id, ctrl_param, retval));
+	    ASUS_WMI_METHODID_DEVS, dev_id, ctrl_param, 0, retval));
 }
 
 static int
