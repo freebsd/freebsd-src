@@ -112,6 +112,12 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DSTS_BRIGHTNESS_MASK   0x000000FF
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK   0x0000FF00
 
+/* Events */
+#define ASUS_WMI_EVENT_QUEUE_SIZE	0x10
+#define ASUS_WMI_EVENT_QUEUE_END	0x1
+#define ASUS_WMI_EVENT_MASK		0xFFFF
+#define ASUS_WMI_EVENT_VALUE_ATK	0xFF
+
 struct acpi_asus_wmi_softc {
 	device_t	dev;
 	device_t	wmi_dev;
@@ -120,6 +126,7 @@ struct acpi_asus_wmi_softc {
 	struct sysctl_oid	*sysctl_tree;
 	int		dsts_id;
 	int		handle_keys;
+	bool		event_queue;
 	struct cdev	*kbd_bkl;
 	uint32_t	kbd_bkl_level;
 #ifdef EVDEV_SUPPORT
@@ -363,6 +370,8 @@ static int	acpi_wpi_asus_get_devstate(struct acpi_asus_wmi_softc *sc,
 		    UINT32 dev_id, UINT32 *retval);
 static int	acpi_wpi_asus_set_devstate(struct acpi_asus_wmi_softc *sc,
 		    UINT32 dev_id, UINT32 ctrl_param, UINT32 *retval);
+static int	acpi_asus_wmi_get_event_code(device_t wmi_dev, UINT32 notify,
+		    int *code);
 static void	acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_asus_wmi_backlight_update_status(device_t dev,
 		    struct backlight_props *props);
@@ -463,7 +472,7 @@ acpi_asus_wmi_attach(device_t dev)
 {
 	struct acpi_asus_wmi_softc	*sc;
 	UINT32			val;
-	int			dev_id, i;
+	int			dev_id, i, code;
 	bool			have_kbd_bkl = false;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
@@ -576,6 +585,23 @@ next:
 		}
 	}
 	ACPI_SERIAL_END(asus_wmi);
+
+	/* Detect and flush event queue */
+	if (sc->dsts_id == ASUS_WMI_METHODID_DSTS2) {
+		for (i = 0; i <= ASUS_WMI_EVENT_QUEUE_SIZE; i++) {
+			if (acpi_asus_wmi_get_event_code(sc->wmi_dev,
+			    ASUS_WMI_EVENT_VALUE_ATK, &code) != 0) {
+				device_printf(dev,
+				    "Can not flush event queue\n");
+				break;
+			}
+			if (code == ASUS_WMI_EVENT_QUEUE_END ||
+			    code == ASUS_WMI_EVENT_MASK) {
+				sc->event_queue = true;
+				break;
+			}
+		}
+	}
 
 #ifdef EVDEV_SUPPORT
 	if (sc->notify_guid != NULL) {
@@ -746,6 +772,24 @@ acpi_asus_wmi_free_buffer(ACPI_BUFFER* buf) {
 	}
 }
 
+static int
+acpi_asus_wmi_get_event_code(device_t wmi_dev, UINT32 notify, int *code)
+{
+	ACPI_BUFFER response = { ACPI_ALLOCATE_BUFFER, NULL };
+	ACPI_OBJECT *obj;
+	int error = 0;
+
+	if (ACPI_FAILURE(ACPI_WMI_GET_EVENT_DATA(wmi_dev, notify, &response)))
+		return (EIO);
+	obj = (ACPI_OBJECT*) response.Pointer;
+	if (obj && obj->Type == ACPI_TYPE_INTEGER)
+		*code = obj->Integer.Value & ASUS_WMI_EVENT_MASK;
+	else
+		error = EINVAL;
+	acpi_asus_wmi_free_buffer(&response);
+	return (error);
+}
+
 #ifdef EVDEV_SUPPORT
 static void
 acpi_asus_wmi_push_evdev_event(struct evdev_dev *evdev, UINT32 notify)
@@ -768,20 +812,11 @@ acpi_asus_wmi_push_evdev_event(struct evdev_dev *evdev, UINT32 notify)
 #endif
 
 static void
-acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+acpi_asus_wmi_handle_event(struct acpi_asus_wmi_softc *sc, int code)
 {
-	device_t dev = context;
-	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
 	UINT32 val;
-	int code = 0;
 
-	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
-	ACPI_BUFFER response = { ACPI_ALLOCATE_BUFFER, NULL };
-	ACPI_OBJECT *obj;
-	ACPI_WMI_GET_EVENT_DATA(sc->wmi_dev, notify, &response);
-	obj = (ACPI_OBJECT*) response.Pointer;
-	if (obj && obj->Type == ACPI_TYPE_INTEGER) {
-		code = obj->Integer.Value;
+	if (code != 0) {
 		acpi_UserNotify("ASUS", ACPI_ROOT_OBJECT,
 		    code);
 #ifdef EVDEV_SUPPORT
@@ -814,7 +849,35 @@ acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 			    ASUS_WMI_DEVID_TOUCHPAD, val, NULL);
 		}
 	}
-	acpi_asus_wmi_free_buffer(&response);
+}
+
+static void
+acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	device_t dev = context;
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+	int code = 0, i = 1;
+
+	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
+
+	if (sc->event_queue)
+		i += ASUS_WMI_EVENT_QUEUE_SIZE;
+	do {
+		if (acpi_asus_wmi_get_event_code(sc->wmi_dev, notify, &code)
+		    != 0) {
+			device_printf(dev, "Failed to get event code\n");
+			return;
+	        }
+		if (code == ASUS_WMI_EVENT_QUEUE_END ||
+		    code == ASUS_WMI_EVENT_MASK)
+			return;
+		acpi_asus_wmi_handle_event(sc, code);
+		if (notify != ASUS_WMI_EVENT_VALUE_ATK)
+			return;
+	} while (--i != 0);
+	if (sc->event_queue)
+		device_printf(dev, "Can not read event queue, "
+		    "last code: 0x%x\n", code);
 }
 
 static int
