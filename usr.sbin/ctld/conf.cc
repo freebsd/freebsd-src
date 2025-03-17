@@ -567,7 +567,6 @@ target_add_portal_group(const char *pg_name, const char *ag_name)
 {
 	struct portal_group *pg;
 	auth_group_sp ag;
-	struct port *p;
 
 	pg = portal_group_find(conf, pg_name);
 	if (pg == NULL) {
@@ -585,13 +584,11 @@ target_add_portal_group(const char *pg_name, const char *ag_name)
 		}
 	}
 
-	p = port_new(conf, target, pg);
-	if (p == NULL) {
+	if (!port_new(conf, target, pg, std::move(ag))) {
 		log_warnx("can't link portal-group \"%s\" to target \"%s\"",
 		    pg_name, target->t_name);
 		return (false);
 	}
-	p->p_auth_group = std::move(ag);
 	return (true);
 }
 

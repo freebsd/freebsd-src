@@ -981,17 +981,17 @@ login(struct ctld_connection *conn)
 			log_errx(1, "requested target \"%s\" not found",
 			    target_name);
 		}
-		conn->conn_target = conn->conn_port->p_target;
+		conn->conn_target = conn->conn_port->target();
 	}
 
 	/*
 	 * At this point we know what kind of authentication we need.
 	 */
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		ag = conn->conn_port->p_auth_group.get();
+		ag = conn->conn_port->auth_group();
 		if (ag == nullptr)
 			ag = conn->conn_target->t_auth_group.get();
-		if (conn->conn_port->p_auth_group == nullptr &&
+		if (conn->conn_port->auth_group() == nullptr &&
 		    conn->conn_target->t_private_auth) {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"", conn->conn_target->t_name);
