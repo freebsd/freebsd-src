@@ -36,14 +36,11 @@
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
