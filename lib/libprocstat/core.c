@@ -57,7 +57,7 @@ struct procstat_core
 	GElf_Phdr	pc_phdr;
 };
 
-static struct psc_type_info {
+static const struct psc_type_info {
 	unsigned int	n_type;
 	int		structsize;
 } psc_type_info[PSC_TYPE_MAX] = {
