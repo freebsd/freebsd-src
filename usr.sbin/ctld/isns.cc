@@ -43,7 +43,8 @@
 #include "ctld.h"
 #include "isns.h"
 
-isns_req::isns_req(uint16_t func, uint16_t flags)
+isns_req::isns_req(uint16_t func, uint16_t flags, const char *descr)
+    : ir_descr(descr)
 {
 	struct isns_hdr hdr;
 
