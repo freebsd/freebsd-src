@@ -2995,6 +2995,47 @@ fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp)
 	return (error);
 }
 
+int
+fget_remote_foreach(struct thread *td, struct proc *p,
+    int (*fn)(struct proc *, int, struct file *, void *), void *arg)
+{
+	struct filedesc *fdp;
+	struct fdescenttbl *fdt;
+	struct file *fp;
+	int error, error1, fd, highfd;
+
+	error = 0;
+	PROC_LOCK(p);
+	fdp = fdhold(p);
+	PROC_UNLOCK(p);
+	if (fdp == NULL)
+		return (ENOENT);
+
+	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) != 0) {
+		fdt = atomic_load_ptr(&fdp->fd_files);
+		highfd = fdt->fdt_nfiles - 1;
+		FILEDESC_SUNLOCK(fdp);
+	} else {
+		error = ENOENT;
+		FILEDESC_SUNLOCK(fdp);
+		goto out;
+	}
+
+	for (fd = 0; fd <= highfd; fd++) {
+		error1 = fget_remote(td, p, fd, &fp);
+		if (error1 != 0)
+			continue;
+		error = fn(p, fd, fp, arg);
+		fdrop(fp, td);
+		if (error != 0)
+			break;
+	}
+out:
+	fddrop(fdp);
+	return (error);
+}
+
 #ifdef CAPABILITIES
 int
 fgetvp_lookup_smr(struct nameidata *ndp, struct vnode **vpp, bool *fsearch)
