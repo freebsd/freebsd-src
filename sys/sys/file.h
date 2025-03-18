@@ -267,6 +267,8 @@ int fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp,
     int needfcntl, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 int fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp);
+int fget_remote_foreach(struct thread *td, struct proc *p,
+    int (*fn)(struct proc *, int, struct file *, void *), void *arg);
 
 fo_rdwr_t	invfo_rdwr;
 fo_truncate_t	invfo_truncate;
