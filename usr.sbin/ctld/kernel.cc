@@ -573,7 +573,7 @@ retry_port:
 				continue;
 			}
 		}
-		pg->pg_tag = port->cfiscsi_portal_group_tag;
+		pg->set_tag(port->cfiscsi_portal_group_tag);
 		if (!port_new(conf, targ, pg, port->port_id)) {
 			log_warnx("port_new failed");
 			continue;
@@ -853,10 +853,8 @@ kernel_handoff(struct ctld_connection *conn)
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
-	if (pg->pg_offload != NULL) {
-		strlcpy(req.data.handoff.offload, pg->pg_offload,
-		    sizeof(req.data.handoff.offload));
-	}
+	strlcpy(req.data.handoff.offload, pg->offload(),
+	    sizeof(req.data.handoff.offload));
 #ifdef ICL_KERNEL_PROXY
 	if (proxy_mode)
 		req.data.handoff.connection_id = conn->conn.conn_socket;
@@ -865,7 +863,7 @@ kernel_handoff(struct ctld_connection *conn)
 #else
 	req.data.handoff.socket = conn->conn.conn_socket;
 #endif
-	req.data.handoff.portal_group_tag = pg->pg_tag;
+	req.data.handoff.portal_group_tag = pg->tag();
 	if (conn->conn.conn_header_digest == CONN_DIGEST_CRC32C)
 		req.data.handoff.header_digest = CTL_ISCSI_DIGEST_CRC32C;
 	if (conn->conn.conn_data_digest == CONN_DIGEST_CRC32C)
@@ -946,11 +944,11 @@ portal_group_port::kernel_create_port()
 	struct portal_group *pg = p_portal_group;
 	struct target *targ = p_target;
 
-	freebsd::nvlist_up nvl(nvlist_clone(pg->pg_options));
+	freebsd::nvlist_up nvl = pg->options();
 	nvlist_add_string(nvl.get(), "cfiscsi_target", targ->t_name);
-	nvlist_add_string(nvl.get(), "ctld_portal_group_name", pg->pg_name);
+	nvlist_add_string(nvl.get(), "ctld_portal_group_name", pg->name());
 	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
-	    pg->pg_tag);
+	    pg->tag());
 
 	if (targ->t_alias) {
 		nvlist_add_string(nvl.get(), "cfiscsi_target_alias",
@@ -1105,7 +1103,7 @@ portal_group_port::kernel_remove_port()
 	freebsd::nvlist_up nvl(nvlist_create(0));
 	nvlist_add_string(nvl.get(), "cfiscsi_target", p_target->t_name);
 	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
-	    p_portal_group->pg_tag);
+	    p_portal_group->tag());
 
 	return (ctl_remove_port("iscsi", nvl.get()));
 }

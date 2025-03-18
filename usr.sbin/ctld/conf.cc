@@ -204,135 +204,61 @@ portal_group_finish(void)
 bool
 portal_group_add_listen(const char *listen, bool iser)
 {
-	return (portal_group_add_portal(portal_group, listen, iser));
+	return (portal_group->add_portal(listen, iser));
 }
 
 bool
 portal_group_add_option(const char *name, const char *value)
 {
-	return (option_new(portal_group->pg_options, name, value));
+	return (portal_group->add_option(name, value));
 }
 
 bool
 portal_group_set_discovery_auth_group(const char *name)
 {
-	if (portal_group->pg_discovery_auth_group != nullptr) {
-		log_warnx("discovery-auth-group for portal-group "
-		    "\"%s\" specified more than once",
-		    portal_group->pg_name);
-		return (false);
-	}
-	portal_group->pg_discovery_auth_group = auth_group_find(conf, name);
-	if (portal_group->pg_discovery_auth_group == nullptr) {
-		log_warnx("unknown discovery-auth-group \"%s\" "
-		    "for portal-group \"%s\"", name, portal_group->pg_name);
-		return (false);
-	}
-	return (true);
+	return (portal_group->set_discovery_auth_group(name));
 }
 
 bool
 portal_group_set_dscp(u_int dscp)
 {
-	if (dscp >= 0x40) {
-		log_warnx("invalid DSCP value %u for portal-group \"%s\"",
-		    dscp, portal_group->pg_name);
-		return (false);
-	}
-
-	portal_group->pg_dscp = dscp;
-	return (true);
+	return (portal_group->set_dscp(dscp));
 }
 
 bool
 portal_group_set_filter(const char *str)
 {
-	int filter;
-
-	if (strcmp(str, "none") == 0) {
-		filter = PG_FILTER_NONE;
-	} else if (strcmp(str, "portal") == 0) {
-		filter = PG_FILTER_PORTAL;
-	} else if (strcmp(str, "portal-name") == 0) {
-		filter = PG_FILTER_PORTAL_NAME;
-	} else if (strcmp(str, "portal-name-auth") == 0) {
-		filter = PG_FILTER_PORTAL_NAME_AUTH;
-	} else {
-		log_warnx("invalid discovery-filter \"%s\" for portal-group "
-		    "\"%s\"; valid values are \"none\", \"portal\", "
-		    "\"portal-name\", and \"portal-name-auth\"",
-		    str, portal_group->pg_name);
-		return (false);
-	}
-
-	if (portal_group->pg_discovery_filter != PG_FILTER_UNKNOWN &&
-	    portal_group->pg_discovery_filter != filter) {
-		log_warnx("cannot set discovery-filter to \"%s\" for "
-		    "portal-group \"%s\"; already has a different "
-		    "value", str, portal_group->pg_name);
-		return (false);
-	}
-
-	portal_group->pg_discovery_filter = filter;
-
-	return (true);
+	return (portal_group->set_filter(str));
 }
 
 void
 portal_group_set_foreign(void)
 {
-	portal_group->pg_foreign = true;
+	portal_group->set_foreign();
 }
 
 bool
 portal_group_set_offload(const char *offload)
 {
-
-	if (portal_group->pg_offload != NULL) {
-		log_warnx("cannot set offload to \"%s\" for "
-		    "portal-group \"%s\"; already defined",
-		    offload, portal_group->pg_name);
-		return (false);
-	}
-
-	portal_group->pg_offload = checked_strdup(offload);
-
-	return (true);
+	return (portal_group->set_offload(offload));
 }
 
 bool
 portal_group_set_pcp(u_int pcp)
 {
-	if (pcp > 7) {
-		log_warnx("invalid PCP value %u for portal-group \"%s\"",
-		    pcp, portal_group->pg_name);
-		return (false);
-	}
-
-	portal_group->pg_pcp = pcp;
-	return (true);
+	return (portal_group->set_pcp(pcp));
 }
 
 bool
 portal_group_set_redirection(const char *addr)
 {
-
-	if (portal_group->pg_redirection != NULL) {
-		log_warnx("cannot set redirection to \"%s\" for "
-		    "portal-group \"%s\"; already defined",
-		    addr, portal_group->pg_name);
-		return (false);
-	}
-
-	portal_group->pg_redirection = checked_strdup(addr);
-
-	return (true);
+	return (portal_group->set_redirection(addr));
 }
 
 void
 portal_group_set_tag(uint16_t tag)
 {
-	portal_group->pg_tag = tag;
+	portal_group->set_tag(tag);
 }
 
 bool
