@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.66 2024/09/25 18:16:09 sjg Exp $
+#	$Id: os.sh,v 1.67 2025/02/13 21:04:34 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -38,8 +38,12 @@ _OS_SH=:
 OS=`uname`
 OSREL=`uname -r`
 OSMAJOR=`IFS=.; set $OSREL; echo $1`
-MACHINE=`uname -m`
-MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
+# we want to retain the raw output from uname -m and -p
+OS_MACHINE=`uname -m`
+OS_MACHINE_ARCH=`uname -p 2>/dev/null || echo $OS_MACHINE`
+
+MACHINE=$OS_MACHINE
+MACHINE_ARCH=$OS_MACHINE_ARCH
 
 # there is at least one case of `uname -p`
 # and even `uname -m` outputting usless info
